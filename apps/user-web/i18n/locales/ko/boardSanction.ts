@@ -54,8 +54,6 @@ export default {
     /* 게시판 머리 운영 줄 */
     staffBarManager: '게시판 운영 중 · 매니저',
     staffBarStaff: '게시판 운영 중 · 스텝',
-    staffBarRemaining: '오늘 남은 제재 {n}건',
-    listLink: '제재 내역',
 
     /* 제재 내역 화면 */
     listTitle: '제재 내역',

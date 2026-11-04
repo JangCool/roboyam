@@ -245,16 +245,27 @@ public class AdminPostQueryService {
         if (rows.isEmpty()) {
             return List.of();
         }
-        Collection<Long> operatorIds = rows.stream().map(PostModerationEventEntity::getActorId).filter(Objects::nonNull).distinct().toList();
+        // 운영자(OPERATOR)와 게시판 매니저·스텝(BOARD_STAFF — 회원 ID, board-staff-action-contract 정책 8)은 ID 체계가 달라 따로 찾는다
+        Collection<Long> operatorIds = rows.stream().filter(e -> PostModerationEventEntity.BY_OPERATOR.equals(e.getActorKind())).map(PostModerationEventEntity::getActorId)
+                .filter(Objects::nonNull).distinct().toList();
+        Collection<Long> memberIds = rows.stream().filter(e -> PostModerationEventEntity.BY_BOARD_STAFF.equals(e.getActorKind())).map(PostModerationEventEntity::getActorId)
+                .filter(Objects::nonNull).distinct().toList();
         Map<Long, String> names = new HashMap<>();
         if (!operatorIds.isEmpty()) {
             operators.findAllById(operatorIds).forEach(o -> names.put(o.getId(), operatorName(o)));
         }
+        Map<Long, String> nicknames = new HashMap<>();
+        if (!memberIds.isEmpty()) {
+            profiles.findAllById(memberIds).forEach(p -> nicknames.put(p.getUserId(), p.getNickname()));
+        }
         List<AdminPostEventView> out = new ArrayList<>(rows.size());
         for (PostModerationEventEntity e : rows) {
-            AdminPostEventActorView actor = new AdminPostEventActorView(e.getActorKind(), e.getActorId() == null ? null : Long.toString(e.getActorId()),
-                    e.getActorId() == null ? null : names.get(e.getActorId()));
-            out.add(new AdminPostEventView(Long.toString(e.getId()), e.getType(), actor, e.getReason(), detailOf(e.getDetail()), e.getCreatedAt()));
+            Map<String, Object> detail = detailOf(e.getDetail());
+            boolean staff = PostModerationEventEntity.BY_BOARD_STAFF.equals(e.getActorKind());
+            String name = e.getActorId() == null ? null : staff ? nicknames.get(e.getActorId()) : names.get(e.getActorId());
+            String role = staff && detail != null && detail.get("staffRole") instanceof String r ? r : null;
+            AdminPostEventActorView actor = new AdminPostEventActorView(e.getActorKind(), e.getActorId() == null ? null : Long.toString(e.getActorId()), name, role);
+            out.add(new AdminPostEventView(Long.toString(e.getId()), e.getType(), actor, e.getReason(), detail, e.getCreatedAt()));
         }
         return out;
     }

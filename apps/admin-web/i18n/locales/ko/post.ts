@@ -282,6 +282,12 @@ export default {
     },
     actorSystem: '시스템',
     actorGone: '(없어진 운영자)',
+    actorStaff: '{name}({role})',
+    actorStaffRole: {
+        MANAGER: '매니저',
+        STAFF: '스텝',
+    },
+    actorStaffGone: '(알 수 없는 스텝)',
     restoreNeedsPermission: '복구는 「게시글 복구」 권한이 있어야 해요.',
     restorePurged: '원문을 파기한 글은 복구할 수 없어요.',
 };

@@ -105,6 +105,8 @@ public final class AuditRetention {
             AuditActions.SANCTION_ISSUE, AuditActions.SANCTION_LIFT, AuditActions.APPEAL_ACCEPT, AuditActions.APPEAL_REJECT,
             // 게시판 제재(board-sanction-contract) — 운영자의 해제·무효·반복 검토 닫기, 사이트 제재와 같은 운영 일
             AuditActions.BOARD_SANCTION_LIFT, AuditActions.BOARD_SANCTION_VOID, AuditActions.BOARD_SANCTION_REVIEW_CLOSE,
+            // 게시판 스텝 처리 되돌리기(board-staff-action-contract) — 운영자 게시글 관리 복구와 같은 콘텐츠 관리
+            AuditActions.BOARD_STAFF_ACTION_RESTORE,
             // 회원 탈퇴 신청·취소 — 계정 상태 변경(완료는 포기 동의 증빙이라 돈 관련)
             AuditActions.MEMBER_WITHDRAW_REQUEST, AuditActions.MEMBER_WITHDRAW_CANCEL,
             // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고

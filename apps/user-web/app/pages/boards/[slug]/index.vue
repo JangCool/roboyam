@@ -10,7 +10,8 @@
         가정: 게시판 정보·판정(canWrite·reason)·유효 정책은 `GET /api/boards/{slug}` 한 번에 온다. 고정 공지는 첫 쪽·말머리/검색 없음일 때만 위에(최대 pinnedMax).
           19금 글은 목록에 「19」 표시와 함께 보이고 글 보기에서 성인 확인으로 가린다(community 는 서버가 목록에서 뺀다 — 성인 인증이 아직 없다).
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
-        게시판 제재(board-sanction-contract): 매니저·스텝 본인에게만 머리 아래 「게시판 운영 중 · 오늘 남은 제재 n건 · [제재 내역]」(`viewer.staffTools`),
+        게시판 제재·스텝 처리(board-sanction-contract · board-staff-action-contract): 매니저·스텝 본인에게만 머리 아래
+          「게시판 운영 중 · 오늘 남은 처리 글 n · 댓글 n · 제재 n · [처리 내역]」(`viewer.staffTools` — 할 수 있는 처리만, [처리 내역] → `/boards/{slug}/actions`, 그 위 탭으로 제재 내역),
           이 게시판에서 쓰기 제한 중이면 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」(`viewer.writeRestriction`)이고 글쓰기 단추는 흐리게(누르면 같은 한 줄).
     -->
     <div>
@@ -52,16 +53,18 @@
                     />
                 </header>
 
-                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만(board-sanction-contract). 오늘 남은 제재 · [제재 내역] -->
+                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만. 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만) · [처리 내역] -->
                 <p v-if="staffTools" class="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="board-staff-bar">
                     <i class="pi pi-shield text-[0.6875rem] text-muted-color" aria-hidden="true" />
                     <span class="font-semibold">{{ staffTools.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff') }}</span>
-                    <span aria-hidden="true" class="text-muted-color">·</span>
-                    <span class="tabular-nums" :class="staffTools.sanction.remaining > 0 ? 'text-muted-color' : 'font-semibold text-red-600 dark:text-red-400'" data-testid="board-staff-remaining">
-                        {{ t('boardSanction.staffBarRemaining', { n: Math.max(0, staffTools.sanction.remaining) }) }}
-                    </span>
-                    <NuxtLink :to="UtilBoardSanction.listPath(slug)" class="ml-auto font-semibold text-primary underline-offset-2 hover:underline" data-testid="board-staff-sanctions-link">
-                        {{ t('boardSanction.listLink') }}
+                    <template v-if="staffRemaining">
+                        <span aria-hidden="true" class="text-muted-color">·</span>
+                        <span class="tabular-nums" :class="UtilBoardStaffActionMessages.anyExhausted(staffTools) ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'" data-testid="board-staff-remaining">
+                            {{ staffRemaining }}
+                        </span>
+                    </template>
+                    <NuxtLink :to="UtilBoardStaffAction.listPath(slug)" class="ml-auto font-semibold text-primary underline-offset-2 hover:underline" data-testid="board-staff-actions-link">
+                        {{ t('boardStaffAction.listLink') }}
                     </NuxtLink>
                 </p>
 
@@ -220,7 +223,8 @@ import HotdealPostList from '~/components/hotdeal/HotdealPostList.vue';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
-import UtilBoardSanction from '~/utils/util-board-sanction';
+import UtilBoardStaffAction from '~/utils/util-board-staff-action';
+import UtilBoardStaffActionMessages from '~/utils/util-board-staff-action-messages';
 import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -310,6 +314,8 @@ async function loadBoard(): Promise<void> {
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
 /** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */
 const staffTools = computed(() => detail.value?.viewer.staffTools ?? null);
+/** 게시판 운영 줄의 오늘 남은 처리 — 할 수 있는 것만(비면 줄에서 뺀다) */
+const staffRemaining = computed(() => (staffTools.value ? UtilBoardStaffActionMessages.remainingLine(t, staffTools.value) : ''));
 const writeRestriction = computed(() => detail.value?.viewer.writeRestriction ?? null);
 /** 단추가 꺼진 까닭 중 머리에 미리 알릴 것 — 등급 미달·정지·이메일 미인증(로그인 필요·운영진 전용은 단추가 말한다) */
 const blockedNotice = computed(() => {

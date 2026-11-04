@@ -30,6 +30,8 @@ public class PostModerationEventEntity {
 
     public static final String BY_OPERATOR = "OPERATOR";
     public static final String BY_SYSTEM = "SYSTEM";
+    /** 게시판 매니저·스텝의 처리(V138 — board-staff-action-contract 정책 8) — {@code actorId} 는 회원 ID, 자리는 덧붙임 {@code staffRole} */
+    public static final String BY_BOARD_STAFF = "BOARD_STAFF";
 
     /** 사유 최대 글자(V80) */
     public static final int REASON_MAX = 200;

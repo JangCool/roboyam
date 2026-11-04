@@ -115,6 +115,8 @@ export default {
     reasonTooShort: '이의 사유를 {min}자 이상 적어 주세요.',
     reasonTooLong: '이의 사유는 {max}자까지 쓸 수 있어요. ({n} / {max})',
     appealInfo: '정지 중에도 접수할 수 있어요. 처리 결과는 알림과 이메일로 알려 드려요.',
+    /** 게시판 제재 — 답변은 알림만(메일은 사이트 제재 답변만, board-sanction-contract 결정 6) */
+    appealInfoBoard: '정지 중에도 접수할 수 있어요. 처리 결과는 알림으로 알려 드려요.',
     appealOnce: '한 제재에는 이의제기를 1번 접수할 수 있어요.',
     submit: '접수하기',
     submitting: '접수하는 중…',
@@ -131,6 +133,7 @@ export default {
     appealWindow: '제재가 시작된 뒤 30일 안에 접수할 수 있어요.',
     doneTitle: '이의제기를 접수했어요',
     doneText: '운영팀이 검토한 뒤 알림과 이메일로 답변을 드려요.',
+    doneTextBoard: '운영팀이 검토한 뒤 알림으로 답변을 드려요.',
     alreadyTitle: '이미 접수한 이의제기가 있어요.',
     alreadyText: '답변이 오면 알려 드릴게요.',
     sentReasonLabel: '접수한 내용',

@@ -34,6 +34,11 @@ public class PostModerationLog {
         events.persist(PostModerationEventEntity.create(ids.nextId(), postId, type, PostModerationEventEntity.BY_OPERATOR, operatorId, reason, json(detail), now));
     }
 
+    /** 게시판 매니저·스텝 처리 한 줄(V138 — board-staff-action-contract 정책 8) — 행위자 {@code BOARD_STAFF} + 회원 ID. 자리는 덧붙임 {@code staffRole} */
+    public void boardStaff(long postId, String type, long userId, String reason, Map<String, Object> detail, Instant now) {
+        events.persist(PostModerationEventEntity.create(ids.nextId(), postId, type, PostModerationEventEntity.BY_BOARD_STAFF, userId, reason, json(detail), now));
+    }
+
     /** 자동 조치 한 줄(신고 자동 숨김 등 — 사유 없음) */
     public void system(long postId, String type, Map<String, Object> detail, Instant now) {
         events.persist(PostModerationEventEntity.create(ids.nextId(), postId, type, PostModerationEventEntity.BY_SYSTEM, null, null, json(detail), now));

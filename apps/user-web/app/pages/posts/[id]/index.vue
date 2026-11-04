@@ -21,7 +21,9 @@
           작성자(`deal.business.applicationId` 가 있을 때)는 카드에 [일시 정지](신청 건 `useBusinessApi.pause`)와 「중단·환불은 신청 건에서」. 판매자가 내린 글(광고주 일시 정지·중단 — 글 단건 조회의 `403 DEAL_SELLER_HIDDEN`, biz-pause-contract 규칙 9)은
           404 대신 안내만: 「판매자가 잠시 내린 딜이에요」/「판매자가 내린 딜이에요」 + 게시판 이름 + [핫딜 게시판으로], 정지이고 보는 사람이 그 사업자면 「신청 건에서 다시 켤 수 있어요 ›」.
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
-        게시판 제재(board-sanction-contract): 그 게시판 매니저·스텝(`viewer.staffTools`)에게만 글 아래 ⋯ 와 댓글 ⋯ 에 「작성자 제재」(남의 회원 글·댓글만) → `BoardSanctionDialog`(흐름 `useBoardSanctionForm`).
+        게시판 제재(board-sanction-contract): 그 게시판 매니저·스텝(`viewer.staffTools.abilities.sanction`)에게만 글 아래 ⋯ 와 댓글 ⋯ 에 「작성자 제재」(남의 회원 글·댓글만) → `BoardSanctionDialog`(흐름 `useBoardSanctionForm`).
+        스텝 처리(board-staff-action-contract): 글 ⋯ 「글 숨기기」·「글 삭제」(`abilities.postHide|postDelete`, 본인 글·소모임 글 제외 — 공지·고정은 서버가 409 로 막는다), 댓글 ⋯ 「댓글 삭제」(`abilities.commentDelete`, 본인·지운 댓글 제외)
+          → `BoardStaffActionDialog`(사유 → 확인, 흐름 `useBoardStaffActionForm`) → 토스트(오늘 남은 횟수) → 글이면 게시판 목록으로, 댓글이면 그 목록 새로. 그새 상태가 바뀌었으면 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
         소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
@@ -214,12 +216,14 @@
                             :kind="opinions.kind.value"
                             :actions="opinionActions"
                             :debate-actions="debateActions"
-                            :sanction-enabled="Boolean(staffTools)"
+                            :sanction-enabled="sanctionEnabled"
+                            :comment-delete-enabled="commentDeleteEnabled"
                             @kind="opinions.setKind"
                             @retry="opinions.load"
                             @report="(c) => openReport('COMMENT', c.id)"
                             @settings="openDebateSettings"
                             @sanction="openCommentSanction"
+                            @staff-delete="(c) => openCommentDelete(c, 'debate')"
                         />
 
                         <!-- 자리 `AFTER_BODY` — 차단으로 접힌 글은 이 칸도 함께 접힌다 -->
@@ -248,14 +252,14 @@
                     </FoldedRow>
 
                     <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
-                    <div v-if="manageable || canOpenDebate || canSanctionPost" class="flex flex-wrap justify-end gap-1 border-t border-surface pt-2">
+                    <div v-if="manageable || canOpenDebate || postMenuItems.length" class="flex flex-wrap justify-end gap-1 border-t border-surface pt-2">
                         <Button v-if="canOpenDebate" type="button" icon="pi pi-comments" :label="t('comment.debateOpenAction')" size="small" severity="secondary" variant="text" data-testid="post-debate-open" @click="openDebateSettings" />
                         <template v-if="manageable">
                             <Button type="button" icon="pi pi-pencil" :label="t('common.edit')" size="small" severity="secondary" variant="text" data-testid="post-edit" @click="onEdit" />
                             <Button type="button" icon="pi pi-trash" :label="t('common.delete')" size="small" severity="danger" variant="text" data-testid="post-delete" @click="onDelete" />
                         </template>
-                        <!-- ⋯ 게시판 운영 메뉴 — 그 게시판 매니저·스텝에게만(본인·비회원 글에는 없다). 지금은 「작성자 제재」 하나(board-sanction-contract) -->
-                        <template v-if="canSanctionPost">
+                        <!-- ⋯ 게시판 운영 메뉴 — 그 게시판 매니저·스텝에게만(본인 글에는 없다). 「글 숨기기」·「글 삭제」(board-staff-action-contract) · 「작성자 제재」(남의 회원 글 — board-sanction-contract) -->
+                        <template v-if="postMenuItems.length">
                             <Button
                                 type="button"
                                 icon="pi pi-ellipsis-h"
@@ -333,11 +337,13 @@
                         :sort="comments.sort.value"
                         kind="GENERAL"
                         :actions="commentActions"
-                        :sanction-enabled="Boolean(staffTools)"
+                        :sanction-enabled="sanctionEnabled"
+                        :comment-delete-enabled="commentDeleteEnabled"
                         @sort="comments.setSort"
                         @retry="comments.load"
                         @report="(c) => openReport('COMMENT', c.id)"
                         @sanction="openCommentSanction"
+                        @staff-delete="(c) => openCommentDelete(c, 'general')"
                     />
                 </div>
             </article>
@@ -367,6 +373,17 @@
             @submit="sanctionForm.submit"
             @retry="sanctionForm.retry"
         />
+        <BoardStaffActionDialog
+            :visible="staffActionForm.visible.value"
+            :kind="staffActionForm.target.value?.kind ?? 'POST_HIDE'"
+            :target-text="staffActionForm.target.value?.text ?? ''"
+            :quota="staffActionForm.quota.value"
+            :submitting="staffActionForm.submitting.value"
+            :form-error="staffActionForm.formError.value"
+            :reason-field-error="staffActionForm.reasonFieldError.value"
+            @update:visible="(open) => !open && staffActionForm.close()"
+            @submit="staffActionForm.submit"
+        />
         <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :deal="Boolean(post?.deal) && reportTarget?.type === 'POST'" :deal-request-sent="Boolean(post?.deal?.endRequests.mine)" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
     </div>
 </template>
@@ -387,6 +404,7 @@ import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilBusiness from '~/utils/util-business';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -975,14 +993,31 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
 /* ── 작성자 제재(게시판 매니저·스텝 — board-sanction-contract) ── */
 /** 그 게시판 매니저·스텝 본인에게만 오는 운영 도구(소모임 글은 공개 게시판 응답이 아니라 없다) */
 const staffTools = computed(() => (post.value && !post.value.group ? (board.value?.viewer.staffTools ?? null) : null));
+/** 작성자 제재 권한(`staffTools` 는 처리 권한 중 하나만 있어도 온다) */
+const sanctionEnabled = computed(() => Boolean(staffTools.value?.abilities.sanction));
+const commentDeleteEnabled = computed(() => Boolean(staffTools.value?.abilities.commentDelete));
 const sanctionForm = useBoardSanctionForm(() => board.value);
 /** 글 ⋯ 「작성자 제재」 — 남의 회원 글만(본인·비회원·탈퇴 회원 글에는 없다. 그 밖의 대상 불가는 서버가 대화창에서 알린다) */
 const canSanctionPost = computed(() => {
     const p = post.value;
-    return Boolean(staffTools.value && p && !p.mine && p.author.kind === 'MEMBER' && p.author.memberId && p.author.name);
+    return Boolean(sanctionEnabled.value && p && !p.mine && p.author.kind === 'MEMBER' && p.author.memberId && p.author.name);
 });
 const postMenu = ref<{ toggle: (event: Event) => void } | null>(null);
-const postMenuItems = computed(() => [{ label: t('boardSanction.menuSanction'), icon: 'pi pi-ban', command: () => openPostSanction() }]);
+/** 글 ⋯ 메뉴 — 할 수 있는 것만(숨기기 · 삭제 · 작성자 제재). 비면 ⋯ 를 그리지 않는다 */
+const postMenuItems = computed(() => {
+    const p = post.value;
+    const items: { label: string; icon: string; command: () => void }[] = [];
+    if (!p) return items;
+    for (const kind of UtilBoardStaffAction.postKinds(staffTools.value, p)) {
+        items.push(
+            kind === 'POST_HIDE'
+                ? { label: t('boardStaffAction.menuHidePost'), icon: 'pi pi-eye-slash', command: () => openPostAction(kind) }
+                : { label: t('boardStaffAction.menuDeletePost'), icon: 'pi pi-trash', command: () => openPostAction(kind) },
+        );
+    }
+    if (canSanctionPost.value) items.push({ label: t('boardSanction.menuSanction'), icon: 'pi pi-ban', command: () => openPostSanction() });
+    return items;
+});
 
 function openPostSanction(): void {
     const p = post.value;
@@ -994,6 +1029,36 @@ function openPostSanction(): void {
 function openCommentSanction(c: CommentView): void {
     if (!c.author.memberId || !c.author.name) return;
     sanctionForm.open({ userId: c.author.memberId, nickname: c.author.name, postId: post.value?.id ?? null, commentId: c.id });
+}
+
+/* ── 스텝 처리(글 숨기기·글 삭제·댓글 삭제 — board-staff-action-contract) ── */
+/** 댓글 삭제를 누른 구획 — 뒤처리로 그 목록만 다시 받는다 */
+let staffCommentSection: 'general' | 'debate' = 'general';
+const staffActionForm = useBoardStaffActionForm(
+    () => board.value,
+    (target, result) => {
+        if (target.kind !== 'COMMENT_DELETE') {
+            // 숨기거나 지운 글은 게시판 목록으로, 그새 상태가 바뀌었으면 지금 글을 다시 읽는다
+            if (result === 'done') goBoard();
+            else void load();
+            return;
+        }
+        if (staffCommentSection === 'debate') void opinions.load();
+        else void comments.load();
+    },
+);
+
+function openPostAction(kind: 'POST_HIDE' | 'POST_DELETE'): void {
+    const p = post.value;
+    if (!p) return;
+    staffActionForm.open({ kind, postId: p.id, commentId: null, text: p.title });
+}
+
+function openCommentDelete(c: CommentView, section: 'general' | 'debate'): void {
+    const p = post.value;
+    if (!p) return;
+    staffCommentSection = section;
+    staffActionForm.open({ kind: 'COMMENT_DELETE', postId: p.id, commentId: c.id, text: UtilBoardStaffAction.commentExcerpt(c.content, c.contentFormat) });
 }
 
 useSeoMeta({

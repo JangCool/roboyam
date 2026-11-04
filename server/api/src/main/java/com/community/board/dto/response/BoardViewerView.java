@@ -8,7 +8,8 @@ import com.community.boardstaff.dto.response.BoardWriteRestrictionView;
  *
  * @param guest            로그인하지 않았다
  * @param staff            이 게시판의 매니저·스텝(운영진 전용 말머리를 고를 수 있다). 운영자는 공개 사이트에 로그인하지 않는다
- * @param staffTools       그 게시판에서 제재를 줄 수 있는 매니저·스텝 본인에게만 — 오늘 남은 한도·매니저 여부(board-sanction-contract). 그 밖·소모임 게시판은 null
+ * @param staffTools       그 게시판 매니저·스텝 본인에게만(계정 정상·인증 + 처리 권한 하나 이상) — 할 수 있는 일 · 오늘 남은 글·댓글·제재 한도 · 매니저 여부
+ *                         (board-staff-action-contract). 그 밖·소모임 게시판은 null
  * @param writeRestriction 보는 내가 이 게시판에서 쓰기 제한 중이면 끝·사유(처리자 없음), 아니면 null. 그때 {@code writeBlockedReason}·{@code commentBlockedReason} 은
  *                         다른 까닭이 없으면 {@code BOARD_WRITE_RESTRICTED}
  */

@@ -19,13 +19,13 @@
         <ErrorState v-else-if="state === 'error' && !page" :title="t('boardSanction.listFailed')" :description="errorMessage" retry data-testid="board-sanctions-error" @retry="load" />
 
         <template v-else-if="page && board">
-            <header class="flex flex-wrap items-start gap-x-3 gap-y-1">
+            <BoardStaffTabs :slug="slug" :board-name="localizedName(board.name, board.nameEn)" active="sanctions" />
+            <header class="mt-3 flex flex-wrap items-start gap-x-3 gap-y-1">
                 <div class="min-w-0 flex-1">
-                    <NuxtLink :to="`/boards/${slug}`" class="text-xs font-semibold text-primary hover:underline">{{ localizedName(board.name, board.nameEn) }}</NuxtLink>
-                    <h1 class="m-0 mt-0.5 text-lg font-bold">{{ t('boardSanction.listTitle') }}</h1>
+                    <h1 class="m-0 text-lg font-bold">{{ t('boardSanction.listTitle') }}</h1>
                     <p class="m-0 mt-0.5 text-xs text-muted-color">{{ page.manager ? t('boardSanction.listHintManager') : t('boardSanction.listHintStaff') }}</p>
                 </div>
-                <span v-if="staffTools" class="text-xs tabular-nums text-muted-color" data-testid="board-sanctions-quota">{{ UtilBoardSanctionMessages.quotaLine(t, staffTools.sanction) }}</span>
+                <span v-if="staffTools?.abilities.sanction" class="text-xs tabular-nums text-muted-color" data-testid="board-sanctions-quota">{{ UtilBoardSanctionMessages.quotaLine(t, staffTools.sanction) }}</span>
             </header>
 
             <!-- 범위 거르기 -->

@@ -54,8 +54,6 @@ export default {
     /* Board header staff bar */
     staffBarManager: 'Moderating · Manager',
     staffBarStaff: 'Moderating · Staff',
-    staffBarRemaining: '{n} sanctions left today',
-    listLink: 'Sanction log',
 
     /* Sanction list */
     listTitle: 'Sanction log',

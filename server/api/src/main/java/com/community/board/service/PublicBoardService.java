@@ -14,10 +14,9 @@ import com.community.board.dto.response.BoardViewerView;
 import com.community.board.dto.response.PrefixView;
 import com.community.board.exception.BoardInactiveException;
 import com.community.board.exception.BoardNotFoundException;
-import com.community.boardstaff.dto.response.BoardStaffQuotaView;
 import com.community.boardstaff.dto.response.BoardStaffToolsView;
 import com.community.boardstaff.dto.response.BoardWriteRestrictionView;
-import com.community.sanction.service.BoardSanctionService;
+import com.community.sanction.service.BoardStaffActionService;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.dto.response.DealRulesView;
 import com.community.hotdeal.service.DealSettingsReader;
@@ -41,11 +40,11 @@ public class PublicBoardService {
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
     private final DealSettingsReader dealSettings;
-    private final BoardSanctionService boardSanctions;
+    private final BoardStaffActionService staffActions;
 
-    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardSanctionService boardSanctions) {
+    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions) {
         this.catalog = catalog;
-        this.boardSanctions = boardSanctions;
+        this.staffActions = staffActions;
         this.actors = actors;
         this.dealSettings = dealSettings;
     }
@@ -76,9 +75,9 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = requireActive(s, slug);
         BoardActor actor = actors.resolve(userId, s);
-        // 게시판 제재(board-sanction-contract) — 쓰기 제한 중이면 다른 까닭이 없을 때 BOARD_WRITE_RESTRICTED, 매니저·스텝 본인에게는 오늘 남은 제재 한도
-        BoardStaffToolsView tools = actor.staffOf(b.id()) ? boardSanctions.staffTools(b.id(), actor.userId())
-                .map(t -> new BoardStaffToolsView(BoardStaffQuotaView.of(t.quota()), t.quota().resetsAt(), t.manager())).orElse(null) : null;
+        // 게시판 제재(board-sanction-contract) — 쓰기 제한 중이면 다른 까닭이 없을 때 BOARD_WRITE_RESTRICTED.
+        // 매니저·스텝 본인에게는 할 수 있는 일 + 오늘 남은 글·댓글·제재 한도(board-staff-action-contract — 네 처리 권한 중 하나라도 있을 때만)
+        BoardStaffToolsView tools = actor.staffOf(b.id()) ? staffActions.tools(b.id(), actor.userId()).map(BoardStaffToolsView::of).orElse(null) : null;
         return detail(s, b, actor, BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor),
                 BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.commentBlocked(b, actor, s), b, actor),
                 BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())));

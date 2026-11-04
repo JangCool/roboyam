@@ -61,6 +61,7 @@ import report from './report';
 import sanction from './sanction';
 import appeal from './appeal';
 import boardSanction from './boardSanction';
+import staffAction from './staffAction';
 import business from './business';
 import bizApplication from './bizApplication';
 import ad from './ad';
@@ -126,6 +127,7 @@ export default {
     sanction,
     appeal,
     boardSanction,
+    staffAction,
     business,
     bizApplication,
     ad,

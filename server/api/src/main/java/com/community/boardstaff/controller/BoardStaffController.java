@@ -3,6 +3,12 @@ package com.community.boardstaff.controller;
 import com.community.auth.dto.AuthUser;
 import com.community.boardstaff.dto.request.BoardSanctionIssueRequest;
 import com.community.boardstaff.dto.request.BoardSanctionLiftRequest;
+import com.community.boardstaff.dto.request.BoardStaffActionRestoreRequest;
+import com.community.boardstaff.dto.request.BoardStaffCommentDeleteRequest;
+import com.community.boardstaff.dto.request.BoardStaffPostActionRequest;
+import com.community.boardstaff.dto.response.BoardStaffActionDoneView;
+import com.community.boardstaff.dto.response.BoardStaffActionPageView;
+import com.community.boardstaff.dto.response.BoardStaffActionRowView;
 import com.community.boardstaff.dto.response.BoardSanctionIssuedView;
 import com.community.boardstaff.dto.response.BoardSanctionPreviewView;
 import com.community.boardstaff.dto.response.BoardStaffSanctionPageView;
@@ -35,6 +41,12 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET /api/board-staff/boards/{boardId}/sanctions?scope=ALL|ACTIVE|ENDED&page=} → {@code BoardStaffSanctionPage} · 404 {@code BOARD_STAFF_NOT_FOUND}</li>
  *   <li>{@code POST /api/board-staff/sanctions/{id}/lift} {@code { reason }} → 바뀐 줄 · 400 {@code fields.reason} · 403(매니저 + {@code board.staff-action.restore} 만) ·
  *       404 {@code BOARD_SANCTION_NOT_FOUND} · 409 {@code BOARD_SANCTION_NOT_LIFTABLE}</li>
+ *   <li>스텝 처리(board-staff-action-contract): {@code POST /posts/{postId}/hide|delete { reasonCode }} · {@code POST /comments/{commentId}/delete { postId, reasonCode }}
+ *       → 200 {@code { quota, resetsAt }} · 404 {@code POST_NOT_FOUND}·{@code COMMENT_NOT_FOUND} → 403 {@code BOARD_STAFF_FORBIDDEN} → 400 {@code fields.reasonCode} →
+ *       409 {@code BOARD_STAFF_TARGET_PROTECTED} → 409 {@code POST_STATE_INVALID}·{@code COMMENT_STATE_INVALID} → 409 {@code BOARD_STAFF_DAILY_LIMIT}(+{@code kind}·{@code limit}·{@code used}·{@code resetsAt})</li>
+ *   <li>{@code GET /boards/{boardId}/actions?kind=ALL|POST|COMMENT&page=}(1부터, 20개) → {@code BoardStaffActionPage} · 404 {@code BOARD_STAFF_NOT_FOUND}</li>
+ *   <li>{@code POST /actions/{id}/restore { reason }} → 바뀐 줄 · 400 {@code fields.reason} · 403(매니저 + {@code board.staff-action.restore} 만) · 404 {@code BOARD_STAFF_ACTION_NOT_FOUND}
+ *       · 409 {@code BOARD_STAFF_ACTION_RESTORED}·{@code POST_STATE_INVALID}·{@code POST_PURGED}·{@code COMMENT_STATE_INVALID}</li>
  * </ul>
  */
 @RestController
@@ -69,6 +81,39 @@ public class BoardStaffController {
     public ResponseEntity<ApiResponse<BoardStaffSanctionRowView>> lift(@PathVariable String id, @RequestBody(required = false) BoardSanctionLiftRequest body,
                                                                        Authentication authentication) {
         return noStore(service.lift(principal(authentication).id(), id, body));
+    }
+
+    // ── 스텝 처리(docs/features/board-staff-action-contract.md 「API > 공개」) ──
+
+    @PostMapping("/posts/{postId}/hide")
+    public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> hidePost(@PathVariable String postId, @RequestBody(required = false) BoardStaffPostActionRequest body,
+                                                                         Authentication authentication) {
+        return noStore(service.hidePost(principal(authentication).id(), postId, body));
+    }
+
+    @PostMapping("/posts/{postId}/delete")
+    public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> deletePost(@PathVariable String postId, @RequestBody(required = false) BoardStaffPostActionRequest body,
+                                                                           Authentication authentication) {
+        return noStore(service.deletePost(principal(authentication).id(), postId, body));
+    }
+
+    @PostMapping("/comments/{commentId}/delete")
+    public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> deleteComment(@PathVariable String commentId,
+                                                                              @RequestBody(required = false) BoardStaffCommentDeleteRequest body,
+                                                                              Authentication authentication) {
+        return noStore(service.deleteComment(principal(authentication).id(), commentId, body));
+    }
+
+    @GetMapping("/boards/{boardId}/actions")
+    public ResponseEntity<ApiResponse<BoardStaffActionPageView>> actions(@PathVariable String boardId, @RequestParam(required = false) String kind,
+                                                                        @RequestParam(required = false) String page, Authentication authentication) {
+        return noStore(service.actions(principal(authentication).id(), boardId, kind, page));
+    }
+
+    @PostMapping("/actions/{id}/restore")
+    public ResponseEntity<ApiResponse<BoardStaffActionRowView>> restore(@PathVariable String id, @RequestBody(required = false) BoardStaffActionRestoreRequest body,
+                                                                       Authentication authentication) {
+        return noStore(service.restore(principal(authentication).id(), id, body));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

@@ -1,0 +1,86 @@
+/**
+ * Board staff action messages (`docs/features/board-staff-action-contract.md`) — the manager/staff hide post, delete post and delete comment dialog, the staff bar on the board header,
+ * the action history (`/boards/{slug}/actions`) with restore, and the shared tab header over the action and sanction histories. Computed messages are picked by `utils/util-board-staff-action-messages.ts`.
+ * Reason names reuse `boardSanction.reason_*`. Keys are `boardStaffAction.what`. Same keys, same order as `ko/boardStaffAction.ts`. **Never put the handler in author-facing messages.**
+ */
+export default {
+    /* Kinds */
+    kind_POST_HIDE: 'Post hidden',
+    kind_POST_DELETE: 'Post deleted',
+    kind_COMMENT_DELETE: 'Comment deleted',
+    kind_OTHER: 'Action',
+
+    /* ⋯ menus */
+    menuHidePost: 'Hide post',
+    menuDeletePost: 'Delete post',
+    menuDeleteComment: 'Delete comment',
+
+    /* Action dialog */
+    title_POST_HIDE: 'Hide post',
+    title_POST_DELETE: 'Delete post',
+    title_COMMENT_DELETE: 'Delete comment',
+    title_OTHER: 'Action',
+    targetPost: 'Post',
+    targetComment: 'Comment',
+    reasonLegend: 'Reason',
+    reasonRequired: 'Choose a reason.',
+    next: 'Next',
+    back: 'Back',
+    confirm_POST_HIDE: 'Hide this post?',
+    confirm_POST_DELETE: 'Delete this post?',
+    confirm_COMMENT_DELETE: 'Delete this comment?',
+    confirm_OTHER: 'Go ahead?',
+    confirmReason: 'Reason: {reason}',
+    notice_POST_HIDE: 'The author will be notified with the reason.',
+    notice_POST_DELETE: 'The author will be notified.',
+    notice_COMMENT_DELETE: 'The author will be notified.',
+    notice_OTHER: 'The author will be notified.',
+    noticePrivate: "The author won't see who handled it.",
+    submit_POST_HIDE: 'Hide',
+    submit_POST_DELETE: 'Delete',
+    submit_COMMENT_DELETE: 'Delete',
+    submit_OTHER: 'Confirm',
+    quotaPost: 'Post actions left today: {n} / {limit}',
+    quotaComment: 'Comment deletions left today: {n} / {limit}',
+    quotaEmpty: "You've used up today's limit.",
+    done_POST_HIDE: 'Post hidden · {n} post actions left today',
+    done_POST_DELETE: 'Post deleted · {n} post actions left today',
+    done_COMMENT_DELETE: 'Comment deleted · {n} comment deletions left today',
+    done_OTHER: 'Done · {n} left today',
+
+    /* Staff bar on the board header */
+    barRemaining: 'Left today: {parts}',
+    barPost: 'posts {n}',
+    barComment: 'comments {n}',
+    barSanction: 'sanctions {n}',
+    listLink: 'Action history',
+
+    /* Tab header (actions · sanctions) */
+    tabsLabel: 'Board moderation history',
+    tabActions: 'Actions',
+    tabSanctions: 'Sanctions',
+
+    /* Action history */
+    listTitle: 'Action history',
+    listLoading: 'Loading action history',
+    listHintManager: 'Posts and comments the managers and staff hid or deleted on this board. You can restore them.',
+    listHintStaff: 'Posts and comments you hid or deleted on this board.',
+    listFailed: "Couldn't load the action history.",
+    filterLabel: 'Kind',
+    filterAll: 'All',
+    filterPost: 'Posts',
+    filterComment: 'Comments',
+    emptyTitle: 'No posts or comments handled yet',
+    emptyFilterTitle: 'No actions of this kind',
+    authorLine: 'By {name}',
+    restoredBadge: 'Restored',
+    restoredLine: 'Restored {date}',
+    restore: 'Restore',
+    restoreTitle: 'Restore action',
+    restoreText: 'Undo "{kind}" on {name}\'s content.',
+    restoreReasonLabel: 'Reason for restoring',
+    restoreReasonRequired: 'Enter a reason for restoring.',
+    restoreNotice: "The author won't be notified. Today's limit is not refunded.",
+    restoreSubmit: 'Restore',
+    restoredToast: 'Restored.',
+};
