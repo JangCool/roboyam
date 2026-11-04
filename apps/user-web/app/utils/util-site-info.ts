@@ -1,4 +1,5 @@
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
+import UtilVisitSignal from '#layers/analytics/utils/util-visit-signal';
 import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
 import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
@@ -99,6 +100,8 @@ export default class UtilSiteInfo {
             // 서버 값(`H24`·`YMD_DASH` 등)은 공유 레이어의 표시 값과 같은 이름이라 변환 없이 검사만 한다
             displayDefaults: UtilDisplayValues.sanitize(raw.displayDefaults),
             boardDisplay: UtilSiteInfo.cleanBoardDisplay(raw.boardDisplay),
+            // 방문 수집 스위치 — 칸이 없거나 객체가 아니면 null(보내지 않는다). 읽기 규칙은 방문 신호 레이어가 가진다
+            analytics: UtilVisitSignal.readSwitch(raw.analytics),
         };
     }
 

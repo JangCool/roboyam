@@ -121,6 +121,7 @@ export default {
     batchLogs: 'Batch logs',
     audit: 'Audit log',
     terms: 'Terms',
+    analyticsSettings: 'Analytics collection',
     memberSettings: 'Members',
     nicknameImageSettings: 'Nickname image',
 };

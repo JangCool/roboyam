@@ -28,6 +28,9 @@ roboyam:
   schema:
     # 자기 스트림(db/migration/api). 이 값이 있어야 자기 스트림이 이관된다 — shared 는 늘 먼저 이관된다
     stream: api
+    # 방문 분석 스트림(db/migration/analytics — 이 모듈에 있다)도 이 앱이 이관한다. 표를 쓰는 쪽(방문 신호 POST /api/visits)이 주인이고 관리자 앱은 집계 표를 읽기만 한다
+    # (site-analytics-contract). 분석 전용 연결(roboyam.analytics.datasource — 비면 메인 DB)로 이관한다
+    analytics: true
   # 관리자 테마 화면의 「실제 화면」(공개 사이트를 /?adminPreview=1 iframe 으로 띄운다 — site-theme-layout-contract). 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…)의
   # origin 만 그 요청의 frame-ancestors 로 허락한다(AdminPreviewFrame). 비우면 공개 화면은 어디서도 iframe 에 뜨지 않는다(X-Frame-Options: DENY)
   admin-preview:

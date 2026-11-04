@@ -88,9 +88,11 @@ export default {
     permissionNone: '권한 필요 없음',
     permissionOne: '필요 권한: {name}',
     permissionAny: '필요 권한(하나): {names}',
+    collectNeeded: '통계 수집 필요: {item}',
     group: {
         TODO: '처리할 일',
         COMMUNITY: '커뮤니티·신고',
+        ANALYTICS: '방문 분석',
         MEMBER: '회원',
         BIZ: '핫딜·광고·사업자',
         COMMERCE: '공구·결제',
@@ -131,6 +133,8 @@ export default {
         SANCTIONS: '제재',
         HOTDEAL_TOP: '인기 핫딜',
         NOTIFICATION_HEALTH: '알림 상태',
+        POPULAR_PAGES: '인기 페이지',
+        REFERRERS: '유입 경로',
     },
     kindDesc: {
         TODO: '광고·핫딜 심사, 입금·환불, 사업자 인증, 회원 핫딜 확인처럼 지금 처리할 건수',
@@ -165,6 +169,8 @@ export default {
         SANCTIONS: '진행 중 제재, 이의 신청 대기, 오늘 끝나는 제재',
         HOTDEAL_TOP: '지금 추천이 많은 핫딜(판매처·가격)',
         NOTIFICATION_HEALTH: '오늘 보낸 알림과 채널별 실패',
+        POPULAR_PAGES: '오늘 많이 본 페이지(화면 종류·제목·조회수)',
+        REFERRERS: '오늘 방문의 유입처(검색·SNS·직접·다른 사이트·캠페인)와 상위 도메인',
     },
 
     // ── 가젯 ⚙ 설정 ─
@@ -210,6 +216,10 @@ export default {
     forbiddenBody: '이 가젯의 내용을 볼 권한이 없어요.',
     unavailableTitle: '아직 준비 중인 가젯이에요',
     unavailableBody: '이 가젯의 내용은 아직 서버에서 제공하지 않아요. 준비되면 여기에 보여요.',
+    disabledTitle: '수집이 꺼져 있어요',
+    disabledBody: '통계 수집 설정에서 「{item}」 항목을 켜면 그때부터 모아요.',
+    disabledBodyAsk: '통계 수집 설정에서 「{item}」 항목이 꺼져 있어요. 사이트 설정을 바꿀 수 있는 운영자에게 켜 달라고 요청해 주세요.',
+    disabledLink: '통계 수집 설정에서 켜기',
     sameAsYesterday: '어제와 같아요',
     moreThanYesterday: '어제보다 {n} 많아요',
     lessThanYesterday: '어제보다 {n} 적어요',
@@ -339,4 +349,30 @@ export default {
     notificationChannelFailed: '{channel} 실패',
     notificationChannelSent: '오늘 {n}건 보냄',
     notificationRecentFailures: '최근 실패',
+
+    // ── 방문 분석(화면 확정 2026-11-04) ─
+    popularPagesNone: '오늘 본 페이지가 아직 없어요',
+    pageKind: {
+        HOME: '홈',
+        BOARD: '게시판',
+        POST: '글',
+        GROUP_BUY: '공구',
+        HOTDEAL: '핫딜',
+        GROUP: '소모임',
+        POINT_SHOP: '포인트 상점',
+        SEARCH: '검색',
+        MY: '내 정보',
+        OTHER: '기타',
+    },
+    referrersNone: '오늘 방문이 아직 없어요',
+    referrersTotal: '오늘 방문 {n}회',
+    referrersCount: '{n} · {rate}%',
+    referrersDomains: '많이 들어온 사이트',
+    referrerGroup: {
+        SEARCH: '검색',
+        SOCIAL: 'SNS',
+        DIRECT: '직접 방문',
+        OTHER_SITE: '다른 사이트',
+        CAMPAIGN: '캠페인',
+    },
 };

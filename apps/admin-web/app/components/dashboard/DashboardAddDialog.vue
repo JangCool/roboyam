@@ -1,7 +1,8 @@
 <template>
     <!--
-        가젯 추가 창 — 업무 묶음(처리할 일 · 커뮤니티·신고 · 회원 · 핫딜·광고·사업자 · 공구·결제 · 포인트 · 시스템·운영 · 개인)별 카드(아이콘 · 이름 · 설명 · 필요 권한).
+        가젯 추가 창 — 업무 묶음(처리할 일 · 커뮤니티·신고 · 방문 분석 · 회원 · 핫딜·광고·사업자 · 공구·결제 · 포인트 · 시스템·운영 · 개인)별 카드(아이콘 · 이름 · 설명 · 필요 권한).
         **권한이 없는 종류는 목록에 안 보인다**(묶음이 비면 묶음도). 같은 종류는 메모·바로가기만 여러 개, 나머지는 하나 — 이미 있으면 「추가됨」으로 막는다.
+        「통계 수집」 항목이 있어야 데이터가 생기는 종류는 카드에 그 항목을 적는다(꺼져 있으면 넣은 뒤 가젯이 「수집이 꺼져 있어요」).
         위에 서버 부담 원칙을 한 줄로 알린다. 고르면 `add`(창은 부모가 닫는다).
     -->
     <Dialog :visible="visible" modal :draggable="false" :header="t('dashboard.addTitle')" :style="{ width: 'min(44rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
@@ -27,6 +28,7 @@
                                 </span>
                                 <span class="text-xs leading-relaxed text-muted-color">{{ t(`dashboard.kindDesc.${spec.type}`) }}</span>
                                 <span class="text-[11px] text-muted-color">{{ permissionText(spec.permissions) }}</span>
+                                <span v-if="spec.collect" class="text-[11px] text-muted-color">{{ t('dashboard.collectNeeded', { item: t(`analytics.label.${spec.collect}`) }) }}</span>
                             </span>
                         </button>
                     </li>

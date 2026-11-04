@@ -65,5 +65,14 @@ export default {
         showOpenButton: '「열기」 버튼 보이기',
         openLabelKo: '버튼 글자(한국어)',
         openLabelEn: '버튼 글자(영어)',
+        // 통계 수집 설정 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
+        analyticsEnabled: '방문 수집(전체)',
+        visits: '방문자·페이지뷰·지금 접속',
+        rawEvents: '방문 원본 기록',
+        rawRetentionDays: '원본 보관 기간',
+        referrers: '유입 경로',
+        flows: '이동 흐름',
+        notificationSends: '알림 발송 기록',
+        boardActivity: '게시판 활동 집계',
     },
 };

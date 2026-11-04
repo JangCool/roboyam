@@ -1,5 +1,6 @@
 package com.community.notification.service;
 
+import com.community.analytics.aggregate.NotificationSendStats;
 import com.community.notification.channel.ChannelPostResult;
 import com.community.notification.channel.NotificationChannelPoster;
 import com.community.notification.dto.NotificationChannelPostRequested;
@@ -54,9 +55,11 @@ public class NotificationChannelPostSender {
     private final AdminNotificationMessages texts;
     private final NotificationMessageRenderer renderer;
     private final ThreadPoolExecutor executor;
+    private final NotificationSendStats sendStats;
 
     public NotificationChannelPostSender(NotificationChannelRepository channels, NotificationChannelPoster poster, SiteSettingRepository siteSettings,
-                                         AdminNotificationMessages texts, NotificationMessageRenderer renderer) {
+                                         AdminNotificationMessages texts, NotificationMessageRenderer renderer, NotificationSendStats sendStats) {
+        this.sendStats = sendStats;
         this.channels = channels;
         this.poster = poster;
         this.siteSettings = siteSettings;
@@ -97,6 +100,8 @@ public class NotificationChannelPostSender {
                     continue;
                 }
                 MessageChannel tool = channel.getChannelType() == NotificationChannelType.SLACK ? MessageChannel.SLACK : MessageChannel.MATTERMOST;
+                // 알림 발송 기록(site-analytics-contract) — 도구 한 번 게시 = 한 통. 출처 = 도구 ID
+                String statsChannel = tool == MessageChannel.SLACK ? NotificationSendStats.SLACK : NotificationSendStats.MATTERMOST;
                 RenderedChat card;
                 try {
                     card = cards.computeIfAbsent(tool, t -> renderer.renderChat(texts.request(notificationEvent, t, event.argsJson(), locale, event.conditions())
@@ -106,13 +111,16 @@ public class NotificationChannelPostSender {
                             .build()));
                 } catch (RuntimeException e) {
                     log.error("공유 채널 글을 그리지 못했다 event={} channelId={} 원인={}", event.eventCode(), channel.getId(), e.getClass().getSimpleName());
+                    sendStats.failed(statsChannel, ChannelPostResult.ERROR, String.valueOf(channel.getId()));
                     continue;
                 }
                 ChannelPostResult result = poster.post(channel, card);
                 if (result.ok()) {
                     log.info("공유 채널에 알림을 올렸다 event={} channelId={}", event.eventCode(), channel.getId());
+                    sendStats.sent(statsChannel);
                 } else {
                     log.warn("공유 채널에 알림을 올리지 못했다 event={} channelId={} 사유={}", event.eventCode(), channel.getId(), result.code());
+                    sendStats.failed(statsChannel, result.code(), String.valueOf(channel.getId()));
                 }
             }
         } catch (RuntimeException e) {

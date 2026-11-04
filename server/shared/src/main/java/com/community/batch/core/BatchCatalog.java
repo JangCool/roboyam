@@ -115,6 +115,30 @@ public enum BatchCatalog implements BatchDefinition {
      */
     MEMBER_WITHDRAWAL_CLEANUP("member-withdrawal-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 알림 발송 실패 기록({@code notification_send_failures}, V133) 정리 — 30일 지난 줄 삭제(일별 합은 그대로). DB 배치, 기본 매일 04:20 KST
+     * ({@code R__batch_37_notification_send_failure_cleanup.sql}, site-analytics-contract 「주기 작업」)
+     */
+    NOTIFICATION_SEND_FAILURE_CLEANUP("notification-send-failure-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 게시판 활동 일별 집계({@code board_activity_daily}·{@code site_activity_daily}, V133) — 오늘·어제를 원천에서 다시 센다(설정 「게시판 활동 집계」가 꺼지면 SKIP). DB 배치, 기본 10분마다
+     * ({@code R__batch_38_board_activity_daily.sql}, site-analytics-contract 「주기 작업」)
+     */
+    BOARD_ACTIVITY_DAILY("board-activity-daily", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 방문 원본({@code analytics_page_views}) 월 조각 만들기(원본 기록이 켜졌을 때) + 보관 기간 지난 원본 지우기. DB 배치(analytics 스트림), 기본 매일 00:25 KST
+     * ({@code R__analytics_10_page_view_partitions.sql}, site-analytics-contract 「주기 작업」)
+     */
+    ANALYTICS_PAGE_VIEW_PARTITIONS("analytics-page-view-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /** 방문자 「그 날 셌다」 표시({@code analytics_visit_marks}) 정리 — 오늘·어제만 남긴다. DB 배치(analytics 스트림), 기본 매일 00:35 KST({@code R__analytics_11_visit_mark_cleanup.sql}) */
+    ANALYTICS_VISIT_MARK_CLEANUP("analytics-visit-mark-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /** 「지금 접속」 표({@code analytics_visit_active}) 정리 — 10분 넘게 신호 없는 줄 삭제. DB 배치(analytics 스트림), 기본 10분마다({@code R__analytics_12_visit_active_cleanup.sql}) */
+    ANALYTICS_VISIT_ACTIVE_CLEANUP("analytics-visit-active-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 

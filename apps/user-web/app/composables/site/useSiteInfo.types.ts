@@ -1,6 +1,7 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
 
 /**
  * 화면이 쓰는 사이트 정보 — `GET /api/site/info` 응답을 `UtilSiteInfo.fromResponse` 로 걸러 둔 것(쓸 수 없는 칸은 null).
@@ -19,4 +20,6 @@ export interface SiteInfo {
     displayDefaults: DisplayValues | null;
     /** 공개 게시판 표시 기본값 — 못 읽으면 null(게시판 화면은 표준형·24시간) */
     boardDisplay: BoardDisplaySettings | null;
+    /** 방문 수집 스위치 — 칸이 없으면(옛 서버) null, 그러면 방문 신호를 보내지 않는다(`plugins/04.analytics.client.ts`) */
+    analytics: VisitCollectSwitch | null;
 }

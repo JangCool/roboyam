@@ -1,0 +1,67 @@
+/** Analytics collection settings (`/settings/analytics`) — turn visit, notification and board statistics on or off per item (screen confirmed 2026-11-04) */
+export default {
+    title: 'Analytics collection',
+    subtitle: 'Turn visit, notification and board statistics on or off one by one. Everything starts off.',
+    readOnly: 'You can only view these settings because you do not have permission to change them.',
+    forbiddenBody: 'You do not have permission to view analytics collection settings.',
+    loadFailed: 'Could not load analytics collection settings.',
+    saved: 'Analytics collection settings saved.',
+    saveFieldsRejected: 'Some values are not valid. Check the marked fields.',
+
+    // ── How it works ─
+    howTitle: 'How collection works',
+    howVisitorId: 'Visitors are told apart by a random visitor ID kept in browser storage. IP addresses and raw browser details are not stored.',
+    howDelayVisits: 'The server writes visit numbers in batches every minute, so they can be up to 1 minute behind.',
+    howDelayBoard: 'Board activity is totaled every 10 minutes, so it can be up to 10 minutes behind.',
+    howDefaultOff: 'Collection starts when you turn an item on. There are no numbers for the time before that.',
+    updatedBy: 'Last changed: {at} · {by}',
+    neverUpdated: 'Not changed yet.',
+
+    // ── Sections ─
+    visitSection: 'Visit collection',
+    otherSection: 'Notification & board totals',
+    visitOffNote: 'Visit collection is off, so the items below do nothing. Your choices are kept.',
+
+    // ── Items ─
+    label: {
+        enabled: 'Visit collection',
+        visits: 'Visitors, page views, online now',
+        rawEvents: 'Raw visit records',
+        referrers: 'Traffic sources',
+        flows: 'Navigation flows',
+        notificationSends: 'Notification send log',
+        boardActivity: 'Board activity totals',
+    },
+    help: {
+        enabled: 'When off, visitors\' browsers send no visit signals at all. The visit items below only work while this is on.',
+        visits: 'Counts today\'s visitors and page views and who is online now (last 5 minutes).',
+        rawEvents: 'Keeps the raw record of which page was viewed when. It feeds "Popular pages" and later detailed analysis.',
+        referrers: 'Counts where visits came from (search, social, direct, other sites, campaigns) and the top referring sites.',
+        flows: 'Counts which page visitors moved to from which page.',
+        notificationSends: 'Records success and failure per channel each time a notification is sent.',
+        boardActivity: 'Totals posts, comments, sign-ups and activity per board.',
+    },
+    loadLow: 'Low load',
+    loadMedium: 'Medium load',
+    loadNote: {
+        visits: 'Written in batches every minute',
+        rawEvents: 'Several rows written in batches every minute',
+        referrers: 'Written with visit numbers every minute',
+        flows: 'Moves written in batches every minute',
+        notificationSends: 'One row per send',
+        boardActivity: 'A database job totals every 10 minutes',
+    },
+    usedBy: 'Used by',
+    usedByFlows: 'Upcoming "Visit analytics" page (coming soon)',
+    retentionLabel: 'Raw record retention',
+    retentionHelp: 'Raw records older than the retention period are deleted.',
+    retentionDays: '{n} days',
+    privacyNotice: 'To keep raw visit records (pages viewed, traffic sources), your privacy policy must describe them and how long they are kept.',
+    privacyLink: 'Go to terms & privacy policy',
+
+    // ── History & leaving ─
+    historyHint: 'Changes to analytics collection settings, newest first.',
+    leaveTitle: 'You have unsaved changes',
+    leaveMessage: 'If you leave this page, your changes will be lost.',
+    leaveConfirm: 'Leave without saving',
+};

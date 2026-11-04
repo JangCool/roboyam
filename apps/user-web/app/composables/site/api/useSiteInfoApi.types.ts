@@ -4,6 +4,8 @@
  */
 // 게시판 표시 기본값의 모양은 게시판 업무가 주인이다(타입만 가져온다)
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+// 방문 수집 스위치의 모양은 방문 신호 레이어가 주인이다(타입만 가져온다)
+import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
 
 /** 운영자가 올린 사이트 아이콘의 주소들 — 상대 주소(`/media/…`). `version` 은 내용이 바뀌면 바뀐다 */
 export interface SiteIconResponse {
@@ -38,4 +40,9 @@ export interface SiteInfoResponse {
     displayDefaults: SiteDisplayDefaultsResponse;
     /** 공개 게시판 표시 기본값(날짜 표시 방식·새 글 기준) — 서버 `BoardDisplayView`. 옛 응답에는 없을 수 있다 */
     boardDisplay?: BoardDisplaySettings | null;
+    /**
+     * 방문 수집 스위치(`{ enabled, visits, rawEvents, referrers, flows }` — `docs/features/site-analytics-contract.md` 「API (확정)」). 브라우저는 `enabled` 이고 하나라도 켜졌을 때만 방문 신호를 보낸다.
+     * 옛 응답에는 없다(없으면 보내지 않는다).
+     */
+    analytics?: VisitCollectSwitch | null;
 }

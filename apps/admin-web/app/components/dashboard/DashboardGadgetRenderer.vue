@@ -30,6 +30,8 @@ import DashboardShortcutsGadget from '~/components/dashboard/gadget/DashboardSho
 import DashboardSignupTrendGadget from '~/components/dashboard/gadget/DashboardSignupTrendGadget.vue';
 import DashboardTodoGadget from '~/components/dashboard/gadget/DashboardTodoGadget.vue';
 import DashboardVisitorsGadget from '~/components/dashboard/gadget/DashboardVisitorsGadget.vue';
+import DashboardPopularPagesGadget from '~/components/dashboard/gadget/DashboardPopularPagesGadget.vue';
+import DashboardReferrersGadget from '~/components/dashboard/gadget/DashboardReferrersGadget.vue';
 import DashboardTodayScheduleGadget from '~/components/dashboard/gadget/DashboardTodayScheduleGadget.vue';
 import DashboardOrderTrendGadget from '~/components/dashboard/gadget/DashboardOrderTrendGadget.vue';
 import DashboardRecentSignupsGadget from '~/components/dashboard/gadget/DashboardRecentSignupsGadget.vue';
@@ -70,6 +72,8 @@ const COMPONENTS: Record<DashboardGadgetType, Component> = {
     MEMO: DashboardMemoGadget,
     SHORTCUTS: DashboardShortcutsGadget,
     VISITORS: DashboardVisitorsGadget,
+    POPULAR_PAGES: DashboardPopularPagesGadget,
+    REFERRERS: DashboardReferrersGadget,
     TODAY_SCHEDULE: DashboardTodayScheduleGadget,
     ORDER_TREND: DashboardOrderTrendGadget,
     RECENT_SIGNUPS: DashboardRecentSignupsGadget,

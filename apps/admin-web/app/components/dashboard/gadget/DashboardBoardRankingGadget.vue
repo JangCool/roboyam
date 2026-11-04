@@ -8,6 +8,8 @@
         :ready="!!v"
         :forbidden="state.forbidden.value"
         :unavailable="state.unavailable.value"
+        :disabled="state.disabled.value"
+        :collect="state.collect"
         :empty="!v?.items.length"
         empty-icon="pi pi-sort-amount-down"
         :empty-title="t('dashboard.boardRankingNone')"

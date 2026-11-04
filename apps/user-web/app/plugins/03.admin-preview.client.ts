@@ -23,7 +23,7 @@ import UtilMenuPosition, {
 import UtilTheme, { type ThemeId } from '~/utils/util-theme';
 
 export default defineNuxtPlugin(() => {
-    if (window.parent === window || new URLSearchParams(window.location.search).get('adminPreview') !== '1') return;
+    if (!UtilAdminPreview.isPreviewWindow(window.parent !== window, window.location.search)) return;
 
     // 관리자 주소 — 개발 서버는 runtimeConfig, 빌드한 화면은 서버가 이 응답 머리에 넣은 메타(ADMIN_URL — 서버가 같은 주소만 frame-ancestors 로 허락한다)
     const served = document.querySelector<HTMLMetaElement>('meta[name="roboyam-admin-origin"]')?.content ?? '';

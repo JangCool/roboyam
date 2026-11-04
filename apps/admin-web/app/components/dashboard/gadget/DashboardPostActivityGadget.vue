@@ -1,6 +1,6 @@
 <template>
     <!-- 글·댓글 활동 — 오늘 글·댓글 수(어제 대비) + 7일 일별 막대(배치가 만든 일별 집계만 읽는다). 누르면 글 관리 -->
-    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" more="/posts" @refresh="state.reload">
+    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" :disabled="state.disabled.value" :collect="state.collect" more="/posts" @refresh="state.reload">
         <div v-if="v" class="flex flex-col gap-3">
             <DashboardStatGrid :min="9" :stats="stats" />
             <DashboardMiniBars :days="postDays" :summary="t('dashboard.postsTrendSummary', { days: postDays.length })" />

@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
  *   <tr><td>{@code shared}</td><td>{@code db/migration/shared}</td><td>{@code flyway_schema_history}</td><td>api·admin 이 같이 쓰는 표</td></tr>
  *   <tr><td>{@code api}</td><td>{@code db/migration/api}</td><td>{@code flyway_schema_history_api}</td><td>공개 사이트만 쓰는 새 표</td></tr>
  *   <tr><td>{@code admin}</td><td>{@code db/migration/admin}</td><td>{@code flyway_schema_history_admin}</td><td>관리자 앱만 쓰는 새 표</td></tr>
+ *   <tr><td>{@code analytics}</td><td>{@code db/migration/analytics}</td><td>{@code flyway_schema_history_analytics}</td><td>방문 분석 표({@code analytics_*}) — 파일은 server/api 에 있고
+ *       <b>api 만</b> 분석 전용 연결({@code AnalyticsDatabase})로 이관한다(쓰는 쪽이 표의 주인, 관리자 앱은 집계 표를 읽기만). 나중에 다른 DB(TimescaleDB)로 옮기기 쉽게 따로 둔다</td></tr>
  * </table>
  *
  * <p><b>왜 이력 표를 갈랐나</b>: 이력 표 하나에 위치를 셋 두면 앱마다 일부 위치만 보게 되어 다른 쪽이 적용한 기록이 "해석되지 않는 이력"으로 보이고,
@@ -105,6 +107,21 @@ public final class SchemaMigration {
             }
             migrateOwn(dataSource, stream);
         }
+    }
+
+    /** 방문 분석 스트림 이름(site-analytics-contract) */
+    public static final String ANALYTICS = "analytics";
+
+    /**
+     * 다른 연결(분석 전용 DB 등)에 스트림 하나를 이관한다 — {@link #migrate(Flyway, Collection)} 뒤에 부른다. 규칙은 자기 스트림과 같다(파일도 이력 표도 없으면 건너뜀).
+     *
+     * @param dataSource 그 스트림의 표가 있는 DB
+     */
+    public void migrateStream(DataSource dataSource, String stream) {
+        if (SHARED.equals(checked(stream))) {
+            throw new IllegalArgumentException("shared 는 따로 이관하지 않는다: " + stream);
+        }
+        migrateOwn(dataSource, stream);
     }
 
     /**
