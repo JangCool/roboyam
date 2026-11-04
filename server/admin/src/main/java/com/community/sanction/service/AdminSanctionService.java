@@ -196,7 +196,7 @@ public class AdminSanctionService {
         }
     }
 
-    private static Instant instant(String raw, String field, Map<String, MessageRef> invalid) {
+    static Instant instant(String raw, String field, Map<String, MessageRef> invalid) {
         String text = trim(raw);
         if (text == null) {
             return null;
@@ -217,7 +217,7 @@ public class AdminSanctionService {
         return s.isEmpty() ? null : s;
     }
 
-    private static String cut(String text, int max) {
+    static String cut(String text, int max) {
         return text.codePointCount(0, text.length()) <= max ? text : text.substring(0, text.offsetByCodePoints(0, max));
     }
 

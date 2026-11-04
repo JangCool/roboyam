@@ -14,6 +14,10 @@ import com.community.board.dto.response.BoardViewerView;
 import com.community.board.dto.response.PrefixView;
 import com.community.board.exception.BoardInactiveException;
 import com.community.board.exception.BoardNotFoundException;
+import com.community.boardstaff.dto.response.BoardStaffQuotaView;
+import com.community.boardstaff.dto.response.BoardStaffToolsView;
+import com.community.boardstaff.dto.response.BoardWriteRestrictionView;
+import com.community.sanction.service.BoardSanctionService;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.dto.response.DealRulesView;
 import com.community.hotdeal.service.DealSettingsReader;
@@ -37,9 +41,11 @@ public class PublicBoardService {
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
     private final DealSettingsReader dealSettings;
+    private final BoardSanctionService boardSanctions;
 
-    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings) {
+    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardSanctionService boardSanctions) {
         this.catalog = catalog;
+        this.boardSanctions = boardSanctions;
         this.actors = actors;
         this.dealSettings = dealSettings;
     }
@@ -62,7 +68,7 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         BoardActor actor = actors.resolve(userId, s);
         return new BoardListResponse(s.boards().stream()
-                .filter(b -> b.active() && isPublic(b) && BoardAccessPolicy.writeBlocked(b, actor, s) == null)
+                .filter(b -> b.active() && isPublic(b) && BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor) == null)
                 .map(PublicBoardService::view).toList());
     }
 
@@ -70,8 +76,12 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = requireActive(s, slug);
         BoardActor actor = actors.resolve(userId, s);
-        return detail(s, b, actor, BoardAccessPolicy.writeBlocked(b, actor, s), BoardAccessPolicy.commentBlocked(b, actor, s),
-                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null);
+        // 게시판 제재(board-sanction-contract) — 쓰기 제한 중이면 다른 까닭이 없을 때 BOARD_WRITE_RESTRICTED, 매니저·스텝 본인에게는 오늘 남은 제재 한도
+        BoardStaffToolsView tools = actor.staffOf(b.id()) ? boardSanctions.staffTools(b.id(), actor.userId())
+                .map(t -> new BoardStaffToolsView(BoardStaffQuotaView.of(t.quota()), t.quota().resetsAt(), t.manager())).orElse(null) : null;
+        return detail(s, b, actor, BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor),
+                BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.commentBlocked(b, actor, s), b, actor),
+                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())));
     }
 
     /**
@@ -79,11 +89,12 @@ public class PublicBoardService {
      * {@code GET /api/groups/{id}/board}, 소모임 2단계).
      */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked) {
-        return detail(s, b, actor, writeBlocked, commentBlocked, null);
+        return detail(s, b, actor, writeBlocked, commentBlocked, null, null, null);
     }
 
     /** @param deal 핫딜 게시판이면 핫딜 설정(공개 칸 {@code dealAffiliateMode}·{@code dealRules} 를 싣는다), 아니면 null */
-    public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked, DealSettings deal) {
+    public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked, DealSettings deal,
+                                         BoardStaffToolsView staffTools, BoardWriteRestrictionView writeRestriction) {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
@@ -96,7 +107,8 @@ public class PublicBoardService {
                 new BoardGuestRulesView(sec.guestCaptchaRequired(), sec.guestNameMin(), sec.guestNameMax(), sec.guestPasswordMin(),
                         ContentRules.GUEST_PASSWORD_MAX, sec.guestLinkLimit(), sec.guestImageUploadAllowed()),
                 new BoardNewMemberRulesView(BoardAccessPolicy.newMemberRules(b, actor, s), sec.newMemberLinkLimit(), sec.newMemberImageLimit()),
-                new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked),
+                new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked, staffTools,
+                        writeRestriction),
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()));
     }

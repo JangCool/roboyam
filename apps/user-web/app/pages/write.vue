@@ -12,6 +12,7 @@
           좁은 화면(md 미만)은 `Stepper` 단계 입력(딜 정보 → 설명) — [다음]은 딜 칸 검사를 통과해야 넘어가고, 2단계에서 딜 칸 오류가 생기면 「딜 정보에 확인할 칸이 N개」 + [딜 정보로].
           제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`). `?from={postId}`(끝난 딜에서 새 딜)면 `prefill` 로 링크·몰·이미지·제목을 채운다(가격·마감은 비움).
           하루 글 한도·같은 쇼핑몰 간격(`429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`)은 폼 아래 안내, 저장 응답 `warnings[]` 는 토스트.
+        게시판 제재(board-sanction-contract): 고른 게시판에서 쓰기 제한 중이면 폼 대신 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」. 등록 때 `403 BOARD_WRITE_RESTRICTED` 면 폼 위에 같은 안내(쓰던 글은 그대로).
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
     -->
@@ -33,8 +34,10 @@
         </EmptyState>
 
         <template v-else>
+            <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 게시판 응답(`viewer.writeRestriction`) 또는 등록 때 받은 `403 BOARD_WRITE_RESTRICTED`. 쓰던 글은 그대로 둔다 -->
+            <BoardWriteRestrictionNotice v-if="writeRestriction" :restriction="writeRestriction" class="mb-4" />
             <!-- 주소의 게시판에 쓸 수 없다 — 까닭(로그인 필요·등급 미달·잠금·운영진 전용) -->
-            <Message v-if="requestedBlocked" severity="warn" :closable="false" class="mb-4" data-testid="write-blocked">
+            <Message v-else-if="requestedBlocked" severity="warn" :closable="false" class="mb-4" data-testid="write-blocked">
                 {{ requestedBlocked }}
                 <Button v-if="requestedReason === 'LOGIN_REQUIRED'" type="button" :label="t('common.login')" size="small" class="ml-2" @click="prompt('write')" />
             </Message>
@@ -108,6 +111,8 @@
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail, BoardView, WriteBlockedReason } from '~/composables/board/api/useBoardApi.types';
+import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
+import UtilBoardSanction from '~/utils/util-board-sanction';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
 import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/components/board/PostEditorForm.types';
@@ -161,9 +166,22 @@ const requestedBlocked = computed(() =>
 );
 const loggedIn = computed(() => Boolean(user.value) && board.value?.viewer.guest !== true);
 
+/* ── 게시판 제재(board-sanction-contract) — 이 게시판에서 쓰기 제한 중 ── */
+/** 주소의 게시판(쓸 수 있는 목록에 없을 때)의 쓰기 제한 */
+const requestedRestriction = ref<BoardWriteRestriction | null>(null);
+/** 등록하다 `403 BOARD_WRITE_RESTRICTED` 로 처음 알게 된 쓰기 제한 — 고른 게시판을 바꾸면 지운다 */
+const errorRestriction = ref<{ slug: string; restriction: BoardWriteRestriction } | null>(null);
+/** 보일 쓰기 제한 — 고른 게시판의 것 → 등록 때 받은 것(그 게시판일 때만) → 주소의 게시판의 것(막힌 까닭 안내와 같은 자리) */
+const writeRestriction = computed<BoardWriteRestriction | null>(() => {
+    if (board.value?.viewer.writeRestriction) return board.value.viewer.writeRestriction;
+    if (errorRestriction.value && errorRestriction.value.slug === selectedSlug.value) return errorRestriction.value.restriction;
+    return requestedRestriction.value;
+});
+
 async function loadBoards(): Promise<void> {
     boardsState.value = 'loading';
     requestedReason.value = null;
+    requestedRestriction.value = null;
     try {
         writable.value = await boardApi.writable();
         boardsState.value = 'ready';
@@ -184,6 +202,7 @@ async function explainBlocked(slug: string): Promise<void> {
     try {
         const detail = await boardApi.board(slug);
         requestedReason.value = detail.viewer.writeBlockedReason;
+        requestedRestriction.value = detail.viewer.writeRestriction ?? null;
         requestedGrade.value = detail.writeMinGradeLabel;
         requestedDeal.value = UtilHotdeal.isDealBoard(detail);
     } catch {
@@ -366,7 +385,10 @@ async function submit(): Promise<void> {
         await router.replace(`/posts/${result.id}`);
     } catch (e) {
         const dealLimit = isDeal.value && e instanceof ApiError && (e.code === 'DEAL_DAILY_POST_LIMIT' || e.code === 'DEAL_SAME_STORE_TOO_SOON');
+        const restricted = UtilBoardSanction.restrictionFromError(e);
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
+        // 이 게시판에서 쓰기 제한 중(게시판 제재) — 폼 위 안내(쓰던 내용은 그대로)
+        else if (restricted) errorRestriction.value = { slug: b.slug, restriction: restricted };
         // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)
         else if (dealLimit) formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e);
         // 핫딜 쓰기 자격(403 — 이메일 인증·첫 등급·정지) — 게시판 목록 판정에 없는 핫딜 자격이라 저장 때 처음 알 수 있다. 핫딜 문구로(등급 이름은 서버가 주지 않아 「일반 등급부터」)

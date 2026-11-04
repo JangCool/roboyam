@@ -58,7 +58,7 @@ function messageOf(error: unknown): string {
 /**
  * 제재 화면의 계산이 낀 문구 — 전역 배너·제재 안내·이의제기. **문구 본문은 `i18n/locales/{ko,en}/sanction.ts`** 에 있고 여기는 "어느 키를 고를지"만 안다.
  * 상수 문구(「자세히 보기」「확인하고 계속」…)는 컴포넌트가 `t('sanction.…')` 를 바로 부른다. 날짜는 표시 값(`useDisplayTime`)의 시간대·날짜 형식으로 그린다.
- * 원본(community) `UtilSanctionMessages` 에서 게시판 한정 제재·알림 문구를 뺐다.
+ * 원본(community) `UtilSanctionMessages` 에서 게시판 한정 제재·알림 문구를 뺐다(게시판 제재 문구는 `UtilBoardSanctionMessages`).
  */
 export default class UtilSanctionMessages {
     /**
@@ -316,7 +316,7 @@ export default class UtilSanctionMessages {
      * @param {number | null} submittedNo - 방금 접수한 번호.
      * @returns {SanctionSummaryRow[]} 줄들.
      */
-    static appealRows(t: Translate, screen: AppealScreen, s: MySanction | null, time: DisplayTime, submittedNo: number | null = null): SanctionSummaryRow[] {
+    static appealRows(t: Translate, screen: AppealScreen, s: Pick<MySanction, 'appeal' | 'status' | 'endsAt'> | null, time: DisplayTime, submittedNo: number | null = null): SanctionSummaryRow[] {
         const appeal = s?.appeal ?? null;
         const no = appeal?.no ?? submittedNo;
         const noRow: SanctionSummaryRow[] = no === null ? [] : [{ label: t('sanction.rowAppealNo'), value: `#${no}` }];

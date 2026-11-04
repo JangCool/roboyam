@@ -35,7 +35,8 @@ public class AdminSanctionStore {
     }
 
     /** 대시보드의 오래된 대기 이의제기 한 줄 */
-    public record PendingAppealRow(long id, String nickname, SanctionKind kind, Integer warningNo, Instant appealedAt) {
+    /** @param kind 사이트 제재 단계, 게시판 제재면 {@code BOARD_} + 단계(번들 {@code member.sanction.kind.BOARD_*}) */
+    public record PendingAppealRow(long id, String nickname, String kind, Integer warningNo, Instant appealedAt) {
     }
 
     private final JdbcTemplate jdbc;
@@ -160,9 +161,11 @@ public class AdminSanctionStore {
 
     /** 대기 이의제기 오래된 차례(대시보드) — 색인 {@code ix_sanction_appeals_pending} */
     public List<PendingAppealRow> oldestPending(int limit) {
-        return jdbc.query("SELECT a.id, p.nickname, s.kind, s.warning_no, a.created_at FROM sanction_appeals a JOIN member_sanctions s ON s.id = a.sanction_id "
+        // 게시판 제재 이의제기(V137)도 — 사이트 제재 · 게시판 제재 중 하나만 있다
+        return jdbc.query("SELECT a.id, p.nickname, coalesce(s.kind, 'BOARD_' || bs.kind), s.warning_no, a.created_at FROM sanction_appeals a "
+                        + "LEFT JOIN member_sanctions s ON s.id = a.sanction_id LEFT JOIN board_sanctions bs ON bs.id = a.board_sanction_id "
                         + "LEFT JOIN profiles p ON p.user_id = a.user_id WHERE a.status = 'PENDING' ORDER BY a.created_at, a.id LIMIT ?",
-                (rs, i) -> new PendingAppealRow(rs.getLong(1), rs.getString(2), SanctionKind.valueOf(rs.getString(3)), nullableInt(rs.getInt(4), rs.wasNull()),
+                (rs, i) -> new PendingAppealRow(rs.getLong(1), rs.getString(2), rs.getString(3), nullableInt(rs.getInt(4), rs.wasNull()),
                         MemberSanctionStore.instant(rs, 5)), limit);
     }
 

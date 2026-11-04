@@ -96,6 +96,8 @@ export default class UtilNotification {
         if (type === 'SANCTION_ISSUED') return 'pi pi-ban';
         if (type === 'SANCTION_LIFTED') return 'pi pi-lock-open';
         if (type === 'APPEAL_ANSWERED') return 'pi pi-check-square';
+        // 게시판 제재(board-sanction-contract 결정 6) — 그 게시판 매니저·스텝이 준 경고·쓰기 제한은 느낌표 동그라미(사이트 제재의 금지 표시와 가른다, 서버 `link` 가 `/sanction`)
+        if (type === 'BOARD_SANCTION_ISSUED') return 'pi pi-exclamation-circle';
         if (type === 'POST_REMOVED' || type === 'COMMENT_REMOVED') return 'pi pi-trash';
         if (type === 'REPORT_RESULT') return 'pi pi-flag';
         if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';

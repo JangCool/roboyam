@@ -68,6 +68,7 @@ export default {
     reports: '신고 관리',
     sanctions: '제재',
     appeals: '이의제기',
+    boardSanctions: '게시판 제재',
     content: '콘텐츠',
     posts: '게시글 관리',
     highlights: '하이라이트',

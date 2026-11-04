@@ -2,11 +2,13 @@ import type { MySanctions } from '~/composables/sanction/api/useSanctionApi.type
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
+import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 
 /**
  * `/sanction`(제재 안내)의 흐름 — **내 제재 불러오기 → 안내 갈래 → (경고) 확인하고 계속** (community `useMySanctions` 에서 게시판 한정 제재를 뺐다).
  * 한 화면이 들고 있는 값이라 `useState` 에 두지 않는다 — 제재는 늘 새로 받는다(옛 목록을 기억해 두면 해제·인용 뒤에도 정지로 보인다). 서버와 말하는 것은 `useSanctionApi` 다.
  *  - `load`: 앞 요청을 끊고 처음부터 받는다(늦게 온 옛 응답은 요청 번호로 버린다). 받고 나면 로그인 정보(`useAuth().refresh`)도 뒤에서 다시 읽어 전역 배너를 서버 값에 맞춘다.
+ *  - `acknowledgeBoard`: 「게시판 제재」 구획의 경고 한 줄 [확인했어요](board-sanction-contract) — 사이트 경고 안내 갈래와 상관없다.
  *  - `acknowledge`: 「확인하고 계속」 — 경고 안내에서 「안내를 확인했어요」에 체크했을 때만 확인하지 않은 경고를 모두 확인한다(멱등). 이미 없어진 제재(404)는 넘긴다. 성공하면 `DONE` — 이동은 부르는 쪽이 한다.
  * ⚠ setup 에서 부른다(`await` 뒤에는 Nuxt 문맥이 없다) — 번역은 `useTranslate`(뒤에서도 안전)로 잡아 둔다.
  */
@@ -33,6 +35,34 @@ export function useMySanctions() {
     const warningCount = computed(() => (data.value ? UtilSanction.warningCount(data.value, focus.value) : 0));
     const rows = computed(() => (data.value ? data.value.items.map((s) => UtilSanctionMessages.historyRow(t, s, time.value)) : []));
     const canAcknowledge = computed(() => screen.value === 'WARNING' && confirmed.value && !acknowledging.value);
+
+    /* ── 게시판 제재(board-sanction-contract — 처리자 없음) ── */
+    const { localizedName } = useLocalizedName();
+    /** 「게시판 제재」 구획의 줄 — 최근 것이 위(서버 차례 그대로) */
+    const boardRows = computed(() =>
+        (data.value?.boardSanctions ?? []).map((s) => UtilBoardSanctionMessages.myRow(t, s, time.value, localizedName(s.board.name, s.board.nameEn))),
+    );
+    /** [확인했어요]를 보내는 중인 게시판 제재 ID */
+    const boardAckBusy = ref('');
+
+    /**
+     * 게시판 제재 경고 하나를 확인했다고 표시한다 — 성공하면 그 줄의 「확인 필요」가 사라진다. 이미 없어진 제재(404)도 확인할 것이 없으니 성공으로 본다.
+     * @returns 실패하면 보일 문구, 성공하면 빈 글자.
+     */
+    async function acknowledgeBoard(id: string): Promise<string> {
+        if (boardAckBusy.value) return '';
+        boardAckBusy.value = id;
+        try {
+            await api.acknowledgeBoard(id);
+        } catch (e) {
+            if (!(e instanceof ApiError && e.code === 'BOARD_SANCTION_NOT_FOUND')) return e instanceof ApiError && e.message ? e.message : t('sanction.ackFailed');
+        } finally {
+            boardAckBusy.value = '';
+        }
+        const target = data.value?.boardSanctions?.find((s) => s.id === id);
+        if (target) target.acknowledged = true;
+        return '';
+    }
 
     async function load(): Promise<void> {
         const mine = ++seq;
@@ -89,5 +119,5 @@ export function useMySanctions() {
         return 'DONE';
     }
 
-    return { status, data, errorMessage, screen, focus, warningCount, rows, confirmed, acknowledging, ackError, canAcknowledge, load, cancel, acknowledge };
+    return { status, data, errorMessage, screen, focus, warningCount, rows, boardRows, boardAckBusy, confirmed, acknowledging, ackError, canAcknowledge, load, cancel, acknowledge, acknowledgeBoard };
 }

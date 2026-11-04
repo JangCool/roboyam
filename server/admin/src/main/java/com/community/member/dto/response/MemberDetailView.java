@@ -37,6 +37,7 @@ import java.util.List;
  * @param nicknameChange 닉네임 변경 횟수·무료 한도 — 탈퇴한 회원은 null
  * @param nicknameImage  닉네임 이미지(적용 중·최근 대기/반려 신청) — 탈퇴한 회원은 null
  * @param businessVerified 승인된 사업자인가(사업자 신원 {@code APPROVED} — 역할 기준 {@code memberType} 과 따로)
+ * @param boardSanctions 게시판 제재 요약(게시판별 건수 + 최근 이력 5개 · 열린 반복 검토 수 — board-sanction-contract) — 탈퇴한 회원은 null
  * @param identity       본인 인증(커머스 0-4) — 인증 여부·시각·만 19세 이상·수단만(생년월일·해시 없음). 미인증이면 {@code verified:false}, <b>탈퇴한 회원은 null</b>
  */
 public record MemberDetailView(
@@ -47,5 +48,6 @@ public record MemberDetailView(
         String bio, List<MemberSocialLink> social, Boolean adultConfirmed, Boolean acceptDm, Object dormancy, Instant withdrawnAt,
         List<MemberNicknameChange> nicknameHistory, boolean piiMasked,
         MemberGradePoint gradePoint, MemberSettingsView settings, Object contact, Object profile, MemberConsents consents, Object groupBuy,
-        MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage, MemberIdentityView identity, boolean businessVerified) {
+        MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage, MemberIdentityView identity, boolean businessVerified,
+        com.community.sanction.dto.response.MemberBoardSanctionSummaryView boardSanctions) {
 }

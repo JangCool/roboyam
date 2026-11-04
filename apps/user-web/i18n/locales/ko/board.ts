@@ -1,5 +1,5 @@
 /**
- * 게시판 업무의 고정 문구 — 게시판 목록 화면(`pages/boards/[slug].vue`)·목록 모양 컴포넌트·`utils/util-board.ts`·`util-board-messages.ts` 가 쓴다.
+ * 게시판 업무의 고정 문구 — 게시판 목록 화면(`pages/boards/[slug]/index.vue`)·목록 모양 컴포넌트·`utils/util-board.ts`·`util-board-messages.ts` 가 쓴다.
  * 게시판 **이름**은 운영자가 정하는 동적 이름이다(`nameEn` 규칙). `en/board.ts` 와 같은 키, 같은 차례.
  */
 export default {

@@ -1,6 +1,6 @@
 <template>
     <!--
-        게시판 레이아웃 틀(2026-10-30 — `useBoardLayoutApi`, `GET /api/boards/{slug}/layout`) — 게시판 목록(`pages/boards/[slug].vue`)·글 보기(`pages/posts/[id]/index.vue`)가 자기 화면 내용을 기본 슬롯으로 감싼다.
+        게시판 레이아웃 틀(2026-10-30 — `useBoardLayoutApi`, `GET /api/boards/{slug}/layout`) — 게시판 목록(`pages/boards/[slug]/index.vue`)·글 보기(`pages/posts/[id]/index.vue`)가 자기 화면 내용을 기본 슬롯으로 감싼다.
         지금 테마의 게시판 레이아웃(테마마다 하나, 모든 게시판에 같이)이 이 화면(`screen`)에 켜져 있고 본문 말고 다른 가젯이 있거나 본문이 전체 폭이 아니면 `BoardLayoutGrid` 로 그린다 —
         격자의 고정 칸 「게시판 본문」 자리에 슬롯이 그대로 들어간다. 그 밖(본문만 · 끈 화면 · 아직 못 받음 · 받기 실패(404 `BOARD_NOT_FOUND`·403 `BOARD_INACTIVE` 포함) · 게시판 모름)은 **슬롯만 그대로** — 지금 공개 화면과 똑같다.
         게시판이 바뀔 때 · 로그인한 사람이 바뀔 때 다시 받는다(가젯 페이지 `pages/p/[key].vue` 와 같다).

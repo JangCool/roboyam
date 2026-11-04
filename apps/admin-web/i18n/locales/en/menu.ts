@@ -68,6 +68,7 @@ export default {
     reports: 'Reports',
     sanctions: 'Sanctions',
     appeals: 'Appeals',
+    boardSanctions: 'Board sanctions',
     content: 'Content',
     posts: 'Posts',
     highlights: 'Highlights',

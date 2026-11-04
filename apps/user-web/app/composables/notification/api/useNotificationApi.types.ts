@@ -69,7 +69,12 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      */
     | 'SANCTION_ISSUED'
     | 'SANCTION_LIFTED'
-    | 'APPEAL_ANSWERED';
+    | 'APPEAL_ANSWERED'
+    /**
+     * 게시판 제재를 받음(`docs/features/board-sanction-contract.md` 결정 6 — 묶음 `system`, 끌 수 없음, 메일 없음): 그 게시판 매니저·스텝이 경고·쓰기 제한을 줬다.
+     * 문구(게시판 이름·단계·사유)는 서버 `title`·`body`, **처리자는 없다**(결정 7). `link` `/sanction`. 이의제기 답변은 `APPEAL_ANSWERED` 를 같이 쓴다
+     */
+    | 'BOARD_SANCTION_ISSUED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

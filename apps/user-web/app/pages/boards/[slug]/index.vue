@@ -10,6 +10,8 @@
         가정: 게시판 정보·판정(canWrite·reason)·유효 정책은 `GET /api/boards/{slug}` 한 번에 온다. 고정 공지는 첫 쪽·말머리/검색 없음일 때만 위에(최대 pinnedMax).
           19금 글은 목록에 「19」 표시와 함께 보이고 글 보기에서 성인 확인으로 가린다(community 는 서버가 목록에서 뺀다 — 성인 인증이 아직 없다).
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
+        게시판 제재(board-sanction-contract): 매니저·스텝 본인에게만 머리 아래 「게시판 운영 중 · 오늘 남은 제재 n건 · [제재 내역]」(`viewer.staffTools`),
+          이 게시판에서 쓰기 제한 중이면 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」(`viewer.writeRestriction`)이고 글쓰기 단추는 흐리게(누르면 같은 한 줄).
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
@@ -49,6 +51,22 @@
                         @click="onWrite"
                     />
                 </header>
+
+                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만(board-sanction-contract). 오늘 남은 제재 · [제재 내역] -->
+                <p v-if="staffTools" class="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="board-staff-bar">
+                    <i class="pi pi-shield text-[0.6875rem] text-muted-color" aria-hidden="true" />
+                    <span class="font-semibold">{{ staffTools.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff') }}</span>
+                    <span aria-hidden="true" class="text-muted-color">·</span>
+                    <span class="tabular-nums" :class="staffTools.sanction.remaining > 0 ? 'text-muted-color' : 'font-semibold text-red-600 dark:text-red-400'" data-testid="board-staff-remaining">
+                        {{ t('boardSanction.staffBarRemaining', { n: Math.max(0, staffTools.sanction.remaining) }) }}
+                    </span>
+                    <NuxtLink :to="UtilBoardSanction.listPath(slug)" class="ml-auto font-semibold text-primary underline-offset-2 hover:underline" data-testid="board-staff-sanctions-link">
+                        {{ t('boardSanction.listLink') }}
+                    </NuxtLink>
+                </p>
+
+                <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 글쓰기 단추 자리의 안내(끝 시각·사유·[자세히]) -->
+                <BoardWriteRestrictionNotice v-if="writeRestriction" :restriction="writeRestriction" class="mt-3" />
 
                 <!-- 쓰기 잠금 · 글쓰기가 막힌 까닭(등급 미달 등) — 판정은 서버, 이 안내는 편의 -->
                 <Message v-if="lockNotice" severity="warn" :closable="false" size="small" class="mt-3" data-testid="board-lock">{{ lockNotice }}</Message>
@@ -202,6 +220,8 @@ import HotdealPostList from '~/components/hotdeal/HotdealPostList.vue';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
+import UtilBoardSanction from '~/utils/util-board-sanction';
+import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilTheme from '~/utils/util-theme';
@@ -223,6 +243,7 @@ const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
 const viewMode = useBoardViewMode();
 const recentBoards = useRecentBoards();
 const publicAds = usePublicAds();
+const time = useDisplayTime();
 void ensureDisplay();
 
 const slug = computed(() => String(route.params.slug ?? ''));
@@ -287,6 +308,9 @@ async function loadBoard(): Promise<void> {
 }
 
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
+/** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */
+const staffTools = computed(() => detail.value?.viewer.staffTools ?? null);
+const writeRestriction = computed(() => detail.value?.viewer.writeRestriction ?? null);
 /** 단추가 꺼진 까닭 중 머리에 미리 알릴 것 — 등급 미달·정지·이메일 미인증(로그인 필요·운영진 전용은 단추가 말한다) */
 const blockedNotice = computed(() => {
     const reason = detail.value?.viewer.writeBlockedReason ?? null;
@@ -387,6 +411,8 @@ function onWrite(): void {
     const reason = d ? d.viewer.writeBlockedReason : user.value ? null : 'LOGIN_REQUIRED';
     if (!reason) return void navigateTo(target);
     if (reason === 'LOGIN_REQUIRED') return prompt('write', router.resolve(target).fullPath);
+    // 이 게시판에서 쓰기 제한 중 — 끝 시각을 담은 한 줄(안내 상자는 머리에 이미 있다)
+    if (writeRestriction.value) return toast.show(UtilBoardSanctionMessages.restrictionTitle(t, writeRestriction.value, time.value));
     toast.show(isDeal.value ? UtilHotdealMessages.writeBlocked(t, reason, d?.writeMinGradeLabel ?? null) : UtilBoardMessages.writeBlocked(t, reason, d?.writeMinGradeLabel ?? null));
 }
 

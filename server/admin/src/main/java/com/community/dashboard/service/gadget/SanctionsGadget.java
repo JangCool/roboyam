@@ -38,9 +38,9 @@ public class SanctionsGadget implements DashboardGadgetProvider {
     }
 
     private String kindName(AdminSanctionStore.PendingAppealRow r) {
-        if (r.kind().isWarning() && r.warningNo() != null) {
+        if ("WARNING".equals(r.kind()) && r.warningNo() != null) {
             return messages.get(new MessageRef("member.sanction.kind.WARNING.n", String.valueOf(r.warningNo())));
         }
-        return messages.get(new MessageRef("member.sanction.kind." + r.kind().name()));
+        return messages.get(new MessageRef("member.sanction.kind." + r.kind())); // 게시판 제재는 BOARD_* (「게시판 쓰기 제한 3일」)
     }
 }

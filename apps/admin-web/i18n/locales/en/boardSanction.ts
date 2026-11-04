@@ -1,0 +1,221 @@
+/**
+ * Board sanction messages — the board sanction screen (`/board-sanctions` history · repeat reviews), its drawers, the member detail "Board sanctions" section and the board sanction badge on appeals
+ * (contract `docs/features/board-sanction-contract.md`). Same keys and order as `ko/boardSanction.ts`. Text shared with site sanctions (status names, search, periods, some headers) uses `sanction.*`.
+ * Notes written by managers/staff, operator memos and server error messages are not here (they come from the server).
+ */
+export default {
+    title: 'Board sanctions',
+    subtitle: 'Warnings and posting restrictions (1, 3 or 7 days) that board managers and staff gave on their boards. Lift or void them here. A repeat review opens when one member gets 3 on the same board within 7 days.',
+    tabsLabel: 'Board sanction views',
+    tab: {
+        history: 'History',
+        reviews: 'Repeat reviews',
+    },
+    openBadge: '{n} open reviews',
+    readOnly: 'View only — lifting, voiding and closing repeat reviews need the sanction management (sanction.manage) permission.',
+
+    // Search
+    searchLabel: 'Search board sanctions',
+    searchPlaceholder: {
+        NICKNAME: 'Member nickname (2+ characters)',
+        SANCTION_NO: 'Board sanction number',
+    },
+    filterBoard: 'Board',
+    filterBoardAll: 'All boards',
+    loadFailed: 'Could not load board sanctions',
+    empty: 'No board sanctions yet',
+    emptyHint: 'Sanctions that board managers and staff give with "Sanction author" on posts and comments appear here.',
+
+    // Table
+    col: {
+        no: 'No.',
+        member: 'Member',
+        board: 'Board',
+        kind: 'Type',
+        reason: 'Reason',
+        issuedBy: 'Given by',
+        startsAt: 'Start',
+        endsAt: 'End',
+        status: 'Status',
+        appeal: 'Appeal',
+        actions: 'Actions',
+    },
+    actionsMenu: 'Actions for board sanction #{no}',
+    kind: {
+        WARNING: 'Warning',
+        RESTRICT_1: '1-day posting restriction',
+        RESTRICT_3: '3-day posting restriction',
+        RESTRICT_7: '7-day posting restriction',
+    },
+    reason: {
+        SPAM: 'Spam / advertising',
+        ABUSE: 'Insults / personal attacks',
+        INVESTMENT: 'Investment solicitation',
+        OFF_TOPIC: 'Off-topic for the board',
+        OTHER: 'Other',
+    },
+    reasonLine: '{name} — {text}',
+    role: {
+        MANAGER: 'Manager',
+        STAFF: 'Staff',
+    },
+    issuerValue: '{name} · {role}',
+    issuerGone: 'Unknown member',
+    liftedBy: {
+        MANAGER: 'manager',
+        OPERATOR: 'operator',
+    },
+    liftedByValue: '{name} ({who})',
+
+    // Drawer
+    drawerTitle: 'Board sanction #{no} · {name}',
+    drawerTitleEmpty: 'Board sanction',
+    prev: 'Previous board sanction',
+    next: 'Next board sanction',
+    detailFailed: 'Could not load the board sanction',
+    infoTitle: 'Sanction details',
+    period: 'Period',
+    trigger: 'Triggered by',
+    triggerPost: 'Post "{title}"',
+    triggerComment: 'Comment on "{title}"',
+    triggerUntitled: 'Deleted post',
+    triggerNone: 'No linked post or comment',
+    acknowledged: 'Member check',
+    acknowledgedAt: 'Checked {at}',
+    notAcknowledged: 'Not checked yet',
+    reasonTitle: 'Reason',
+    reasonTextNone: 'No note added',
+    reasonSentNote: 'The member received the reason and note as written. Who gave it is never shown.',
+    liftedTitle: 'Lifted',
+    liftedLine: 'Lifted by {name} · {at}',
+    voidedTitle: 'Voided',
+    voidedLine: '{at} · {source}',
+    voidSource: {
+        OPERATOR: 'voided by an operator',
+        REVIEW: 'voided in a repeat review',
+        APPEAL: 'appeal accepted',
+    },
+    endedTitle: 'Ended at',
+    memberHistoryTitle: "{name}'s board sanctions",
+    historyEmpty: 'No board sanctions received.',
+    needsManage: 'Lifting and voiding need the sanction management (sanction.manage) permission.',
+    memberOnly: "Only this member's board sanctions",
+
+    // Lift · void
+    lift: 'Lift',
+    liftTitle: 'Lift the posting restriction?',
+    liftReasonLabel: 'Reason for lifting',
+    liftNotice: 'The member can post and comment on this board again right away. This sanction still counts toward the suggested step and repeat reviews.',
+    lifted: "Lifted {name}'s posting restriction.",
+    void: 'Void',
+    voidTitle: 'Void this board sanction?',
+    voidReasonLabel: 'Reason for voiding',
+    voidNotice: 'A voided sanction no longer counts toward the suggested step or repeat reviews, and a running restriction ends right away. This cannot be undone.',
+    voided: 'Voided board sanction #{no}.',
+
+    // Repeat reviews
+    review: {
+        filterStatus: 'Status',
+        status: {
+            OPEN: 'Open',
+            CLOSED: 'Closed',
+        },
+        col: {
+            no: 'No.',
+            member: 'Member',
+            board: 'Board',
+            recent: 'Last 7 days',
+            openedAt: 'Opened',
+            closedAt: 'Closed',
+            result: 'Result',
+        },
+        recentValue: '{n}',
+        multiBoard: 'Several boards',
+        multiBoardHint: 'Received on {n} boards in the last 7 days',
+        sortOpen: 'Sort: by opening (oldest first)',
+        sortClosed: 'Sort: by closing (latest first)',
+        loadFailed: 'Could not load repeat reviews',
+        emptyOpen: 'No open repeat reviews',
+        emptyOpenHint: 'A review opens here when one member gets 3 or more sanctions on the same board within 7 days.',
+        emptyClosed: 'No closed repeat reviews',
+        result: {
+            KEPT: 'Kept as is',
+            SITE_SANCTIONED: 'Site sanction given',
+            VOIDED: 'Board sanctions voided',
+        },
+
+        // Drawer
+        drawerTitle: 'Repeat review #{no} · {name}',
+        drawerTitleEmpty: 'Repeat review',
+        prev: 'Previous review',
+        next: 'Next review',
+        detailFailed: 'Could not load the repeat review',
+        why: 'Opened after {n} sanctions on {board} in the last 7 days.',
+        boardSanctionsTitle: 'Sanctions on {board}',
+        inReview: 'In this review',
+        otherBoardsTitle: 'Other boards',
+        otherBoardsEmpty: 'No sanctions on other boards.',
+        otherBoardValue: '{recent} in 7 days · {total} in total',
+        activeUntil: 'Restricted until {at}',
+        siteTitle: 'Site sanction status',
+        openSiteSanctions: 'Open in site sanctions',
+
+        // Close
+        closeTitle: 'Close the review',
+        closeHelp: 'Close it with one of three outcomes. Sanctions counted here are not counted again in a later review.',
+        choice: {
+            KEPT: 'Keep as is',
+            SITE_SANCTIONED: 'Give a site sanction',
+            VOIDED: 'Void board sanctions',
+        },
+        choiceHelp: {
+            KEPT: 'Leave the decisions as they are and close.',
+            SITE_SANCTIONED: 'Opens the site sanction dialog. Once given, the review closes with that sanction number.',
+            VOIDED: 'Voids the board sanctions you pick below and closes (to correct misuse).',
+        },
+        voidPick: 'Sanctions to void',
+        voidPickCount: 'Pick the sanctions to void in the list above — {n} of {max} picked.',
+        voidPickRequired: 'Pick at least one sanction to void.',
+        voidPickNone: 'No sanctions can be voided.',
+        memoLabel: 'Memo (optional)',
+        memoHelp: 'Only operators see this. It is not sent to the member or managers.',
+        memoPlaceholder: 'e.g. First repeat, so we will keep watching.',
+        memoTooLong: 'The memo can be up to {max} characters.',
+        submit: {
+            KEPT: 'Keep and close',
+            SITE_SANCTIONED: 'Give a site sanction',
+            VOIDED: 'Void and close',
+        },
+        closedToast: 'Closed repeat review #{no} — {result}.',
+        closedNote: 'Already closed — another operator closed it first.',
+        reload: 'Reload',
+        siteIssuedCloseFailed: 'Site sanction #{no} was given, but the review could not be closed. {reason}',
+        readOnly: 'View only — closing a review needs the sanction management (sanction.manage) permission.',
+
+        // Result
+        resultTitle: 'Result',
+        closedByLine: '{name} · {at}',
+        siteSanctionLink: 'View site sanction #{no}',
+        voidedCount: 'Voided {n} board sanctions',
+        memoNone: 'No memo',
+    },
+
+    // Member detail
+    memberSection: {
+        title: 'Board sanctions',
+        summary: '{total} not voided · {active} running restrictions',
+        openReviews: '{n} open repeat reviews',
+        boardLine: '{w} warnings · {r} restrictions',
+        boardsTitle: 'By board',
+        recentTitle: 'Recent board sanctions',
+        viewAll: 'View board sanction history',
+        empty: 'No board sanctions received.',
+        notReady: 'The board sanction summary is not available yet.',
+    },
+
+    // Appeal kind badge
+    appealKind: {
+        SITE: 'Site sanction',
+        BOARD: 'Board sanction',
+    },
+};

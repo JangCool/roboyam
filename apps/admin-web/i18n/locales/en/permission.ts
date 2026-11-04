@@ -219,7 +219,7 @@ export default {
         reportManage: 'Handle reports and reviews',
         reportManageDesc: 'Handle reports and approve or reject posts awaiting review.',
         sanctionRead: 'View sanctions and appeals',
-        sanctionReadDesc: 'See sanction history and appeals.',
+        sanctionReadDesc: 'See site and board sanction history and appeals.',
         sanctionManage: 'Handle sanctions',
         sanctionManageDesc: 'Give and lift warnings and suspensions and review repeated board sanctions.',
         appealManage: 'Decide appeals',

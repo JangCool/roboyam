@@ -17,6 +17,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  * 공개 표시 기본값(날짜 표시 방식·새 글 기준)은 따로 묻지 않는다 — `GET /api/site/info` 의 `boardDisplay`(`useBoardDisplay`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
+ * 게시판 제재(board-sanction-contract)의 `viewer.staffTools`·`viewer.writeRestriction` 도 서버가 준다(2026-11-04 연결).
  */
 const PATH = {
     boards: '/api/boards',

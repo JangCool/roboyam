@@ -15,6 +15,27 @@ public class BoardWriteBlockedException extends CommonException {
         super(HttpStatus.FORBIDDEN, reason, new MessageRef("error." + reason));
     }
 
+    private BoardWriteBlockedException(String reason, MessageRef message) {
+        super(HttpStatus.FORBIDDEN, reason, message);
+    }
+
+    /** 끝 시각 표시 형식(한국 시간) */
+    private static final java.time.format.DateTimeFormatter UNTIL = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    /**
+     * 이 게시판에서 쓰기 제한 중({@code BOARD_WRITE_RESTRICTED} — docs/features/board-sanction-contract.md 「쓰기 막힘 오류」). 문구 「이 게시판에서는 {날짜}까지 글·댓글을 쓸 수 없어요.」
+     * (한국 시간), 본문 최상위 {@code until}(UTC ISO)·{@code boardSanctionId}·{@code reasonCode}. 처리자는 싣지 않는다(결정 7).
+     */
+    public static BoardWriteBlockedException boardRestricted(com.community.board.dto.BoardWriteRestriction restriction) {
+        String until = UNTIL.format(restriction.until().atZone(com.community.zconfiguration.time.ServiceTime.ZONE));
+        BoardWriteBlockedException e = new BoardWriteBlockedException(com.community.board.service.BoardAccessPolicy.BOARD_WRITE_RESTRICTED,
+                new MessageRef("error.BOARD_WRITE_RESTRICTED.until", until));
+        e.extra("until", restriction.until());
+        e.extra("boardSanctionId", Long.toString(restriction.boardSanctionId()));
+        e.extra("reasonCode", restriction.reasonCode());
+        return e;
+    }
+
     /**
      * 글쓰기 {@code GRADE_TOO_LOW} — 오류 본문 최상위 {@code minGrade}(등급 키)·{@code minGradeLabel}(등급 이름). 소모임 개설 {@code GROUP_GRADE_TOO_LOW} 의 {@code minGrade} 와 같은 이름이다.
      * 등급을 정할 수 없으면 칸 없이.

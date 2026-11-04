@@ -1,9 +1,15 @@
+import type { AppealBoardSanctionBrief, BoardSanctionLine } from '~/composables/sanction/api/useBoardSanctionApi.types';
 import type { AppealStatus, SanctionActorRef, SanctionKind, SanctionLine, SanctionStatus, SanctionUserRef } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 관리자 이의제기 API(`/api/admin/appeals…`)가 주고받는 모양 — 서버 `com.community.sanction.dto`(`AppealItemView`·`AppealListView`·`AppealDetailView`·`AppealSummaryView`·`AppealAnswerRequest`)와 같은 칸 이름. 계약 `docs/features/member-sanction-contract.md` 정책 6,
- * 모양은 community `docs/api-sanction.md` 4절에서 게시판 한정 제재(`kind`·`boardSanction`)를 뺐다. 목록·상세는 `sanction.read`, 인용·기각은 `appeal.manage`.
+ * 모양은 community `docs/api-sanction.md` 4절. 목록·상세는 `sanction.read`, 인용·기각은 `appeal.manage`.
+ * 게시판 제재 이의제기(`docs/features/board-sanction-contract.md` 결정 4 — 같은 표·같은 화면·같은 규칙): `kind`(SITE · BOARD)는 늘 온다. 게시판 제재 이의제기는 `sanction` 이 null 이고
+ * `boardSanction`·`boardHistory` 가 있다. 사이트 제재 이의제기는 `boardSanction` 이 null · `boardHistory` 가 빈 배열이다.
  */
+
+/** 이의제기 대상 — 사이트 제재 · 게시판 제재 */
+export type AppealKind = 'SITE' | 'BOARD';
 
 /** 상태 거르기 — 대기(기본) · 인용 · 기각 · 전체 */
 export type AppealStatusFilter = AppealStatus | 'ALL';
@@ -20,6 +26,8 @@ export interface AppealSanctionBrief {
     warningNo: number | null;
     startsAt: string;
     endsAt: string | null;
+    /** 부여한 운영자(처리자 칸) — 지워진 운영자면 null */
+    issuedBy: SanctionActorRef | null;
 }
 
 export interface AppealItem {
@@ -28,7 +36,11 @@ export interface AppealItem {
     no: number;
     status: AppealStatus;
     user: SanctionUserRef;
-    sanction: AppealSanctionBrief;
+    kind: AppealKind;
+    /** 사이트 제재 이의제기의 대상 — 게시판 제재 이의제기는 null */
+    sanction: AppealSanctionBrief | null;
+    /** 게시판 제재 이의제기의 대상(게시판 이름 · 처리자 닉네임 + 매니저/스텝) — 사이트 제재 이의제기는 null */
+    boardSanction: AppealBoardSanctionBrief | null;
     createdAt: string;
     answeredAt: string | null;
 }
@@ -69,10 +81,15 @@ export interface AppealDetail {
     answeredAt: string | null;
     answeredBy: SanctionActorRef | null;
     user: SanctionUserRef;
-    /** 대상 제재(근거 신고 사건은 `sanction.reportCase`) */
-    sanction: SanctionLine;
-    /** 그 회원의 제재 전체(현황 `preview.history` 와 같다) */
+    kind: AppealKind;
+    /** 대상 사이트 제재(근거 신고 사건은 `sanction.reportCase`) — 게시판 제재 이의제기는 null */
+    sanction: SanctionLine | null;
+    /** 그 회원의 사이트 제재 전체(현황 `preview.history` 와 같다 — 빈 배열일 수 있다) */
     history: SanctionLine[];
+    /** 대상 게시판 제재 — 인용하면 VOIDED(진행 중 쓰기 제한은 즉시 풀림, 반복 검토 수에서 빠짐). 사이트 제재 이의제기는 null */
+    boardSanction: BoardSanctionLine | null;
+    /** 그 회원의 게시판 제재 이력(모든 게시판, 최근 것이 위) — 사이트 제재 이의제기는 빈 배열 */
+    boardHistory: BoardSanctionLine[];
 }
 
 /**

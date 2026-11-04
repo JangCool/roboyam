@@ -219,7 +219,7 @@ export default {
         reportManage: '신고·검토 처리',
         reportManageDesc: '신고를 처리하고 검토 대기 글을 승인하거나 반려합니다.',
         sanctionRead: '제재·이의제기 조회',
-        sanctionReadDesc: '제재 내역과 이의제기를 봅니다.',
+        sanctionReadDesc: '사이트·게시판 제재 내역과 이의제기를 봅니다.',
         sanctionManage: '제재 처리',
         sanctionManageDesc: '경고·정지를 주고 풀며 게시판 제재 반복을 검토합니다.',
         appealManage: '이의제기 판단',

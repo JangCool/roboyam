@@ -315,6 +315,13 @@ public class MemberNotificationService {
                 };
                 link = MemberNotificationPublisher.SANCTION_PATH;
             }
+            case BOARD_SANCTION_ISSUED -> {
+                // 게시판 제재(V137 — board-sanction-contract 결정 6) — 게시판 이름(알릴 때) · 단계 · 끝 · 사유 한 줄. 처리자는 없다(결정 7). 누르면 내 제재
+                facts = MemberNotificationMessages.Facts.boardSanctionIssued(payload.get("boardName") instanceof String n ? n : null,
+                        payload.get("kind") instanceof String k ? k : "", instantOf(payload.get("until")), payload.get("reasonCode") instanceof String c ? c : null,
+                        payload.get("reasonText") instanceof String t && !t.isBlank() ? t : null);
+                link = MemberNotificationPublisher.SANCTION_PATH;
+            }
             case POINT_SHOP_REFUND_REJECTED -> {
                 // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,

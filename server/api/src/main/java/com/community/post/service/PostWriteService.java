@@ -143,6 +143,7 @@ public class PostWriteService {
         BoardActor actor = actors.resolve(userId, s);
         // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
         requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
+        requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
         DealWriter.requireWriter(b, actor, s);
         BoardSecurityValues sec = s.security();
 
@@ -535,6 +536,17 @@ public class PostWriteService {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         throw new BoardWriteBlockedException(reason);
+    }
+
+    /**
+     * 게시판 제재로 이 게시판에서 쓰기 제한 중이면 403 {@code BOARD_WRITE_RESTRICTED}(+{@code until}) — 새 글·댓글·답글만 막는다(수정·삭제·추천은 막지 않는다, 결정 5).
+     * 판정은 {@link BoardActor} 를 만들 때 읽은 진행 중 제한(요청당 색인 질의 하나)이다.
+     */
+    public static void requireNotRestricted(BoardActor actor, long boardId) {
+        com.community.board.dto.BoardWriteRestriction restriction = actor.writeRestriction(boardId);
+        if (restriction != null) {
+            throw BoardWriteBlockedException.boardRestricted(restriction);
+        }
     }
 
     /** 새 글 쓰기 판정 — {@code GRADE_TOO_LOW} 면 오류 본문에 필요한 등급({@code minGrade}·{@code minGradeLabel} — 핫딜 게시판은 첫 등급 바로 위)을 싣는다 */

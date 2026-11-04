@@ -89,10 +89,12 @@ public class MemberSanctionService {
     private final NotificationPublisher operatorNotices;
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
+    private final BoardSanctionService boardSanctions;
 
     public MemberSanctionService(MemberSanctionStore store, AuditLogService audit, MemberNotificationPublisher memberNotices, NotificationPublisher operatorNotices,
-                                 SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                                 SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks, BoardSanctionService boardSanctions) {
         this.store = store;
+        this.boardSanctions = boardSanctions;
         this.audit = audit;
         this.memberNotices = memberNotices;
         this.operatorNotices = operatorNotices;
@@ -362,6 +364,9 @@ public class MemberSanctionService {
         String answer = clean(answerText);
         if (answer == null || length(answer) > TEXT_MAX) {
             throw ValidationException.of("answer", new MessageRef("appeal.answer.length", 1, TEXT_MAX));
+        }
+        if (appeal.board()) {
+            return boardSanctions.answerAppeal(appeal, accept, answer, operatorId, ip); // 게시판 제재 이의제기(V137 — board-sanction-contract 결정 4)
         }
         store.lockMember(appeal.userId());
         Instant now = now();

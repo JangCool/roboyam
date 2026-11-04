@@ -45,6 +45,8 @@ export default class UtilBoardMessages {
                 return t('board.writeGroupNotMember');
             case 'GROUP_DISSOLVED':
                 return t('board.writeGroupDissolved');
+            case 'BOARD_WRITE_RESTRICTED':
+                return t('boardSanction.restrictedPlain');
             default:
                 return t('board.writeBlocked');
         }
@@ -75,6 +77,8 @@ export default class UtilBoardMessages {
                 return t('board.writeEmail');
             case 'ACCOUNT_RESTRICTED':
                 return t('board.writeRestricted');
+            case 'BOARD_WRITE_RESTRICTED':
+                return t('boardSanction.restrictedPlain');
             default:
                 return t('board.commentBlocked');
         }

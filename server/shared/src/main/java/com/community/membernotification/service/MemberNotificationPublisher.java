@@ -971,6 +971,54 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 게시판 제재를 받았다({@code BOARD_SANCTION_ISSUED} — board-sanction-contract 결정 6). 덧붙임 {@code boardSanctionId}·{@code boardId}·{@code boardName}·{@code kind}·
+     * {@code until}·{@code reasonCode}·{@code reasonText}. <b>처리자는 싣지 않는다</b>(결정 7). 끌 수 없는 계정 알림, 누르면 내 제재. <b>메일은 보내지 않는다</b>(결정 6 —
+     * 회원 이벤트 설정의 이메일 값과 상관없이). 업무 트랜잭션 안에서 부른다.
+     */
+    public int boardSanctionIssued(long userId, long boardSanctionId, long boardId, String boardName, String kind, Instant until, String reasonCode, String reasonText) {
+        return isolated.run("member-notification:board-sanction-issued", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.BOARD_SANCTION_ISSUED, userId);
+            if (!on.delivers() || !on.inApp() || !writer.receivable(userId)) {
+                return 0;
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("boardSanctionId", Long.toString(boardSanctionId));
+            payload.put("boardId", Long.toString(boardId));
+            payload.put("boardName", cut(boardName, SNAPSHOT_MAX));
+            payload.put("kind", kind);
+            payload.put("until", until == null ? null : until.toString());
+            payload.put("reasonCode", reasonCode);
+            payload.put("reasonText", reasonText);
+            writer.insert(ids.nextId(), userId, MemberNotificationType.BOARD_SANCTION_ISSUED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+            return 1;
+        }, 0);
+    }
+
+    /**
+     * 게시판 제재 이의제기에 답했다 — 사이트 제재와 같은 {@code APPEAL_ANSWERED}(결정 4·6). 덧붙임 {@code boardSanctionId}·{@code appealId}·{@code kind}({@code BOARD_} + 단계 —
+     * 문구가 「게시판 경고」·「게시판 쓰기 제한 n일」)·{@code result}·{@code answer}. <b>메일은 보내지 않는다</b>(메일은 사이트 제재 답변만 — 결정 6).
+     */
+    public int boardAppealAnswered(long userId, long boardSanctionId, long appealId, String kind, String result, String answer) {
+        return isolated.run("member-notification:board-appeal-answered", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.APPEAL_ANSWERED, userId);
+            if (!on.delivers() || !on.inApp() || !writer.receivable(userId)) {
+                return 0;
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("boardSanctionId", Long.toString(boardSanctionId));
+            payload.put("appealId", Long.toString(appealId));
+            payload.put("kind", BOARD_KIND_PREFIX + kind);
+            payload.put("result", result);
+            payload.put("answer", answer);
+            writer.insert(ids.nextId(), userId, MemberNotificationType.APPEAL_ANSWERED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+            return 1;
+        }, 0);
+    }
+
+    /** 게시판 제재 단계를 사이트 제재 단계와 가르는 앞머리(이의 답변 알림의 {@code kind} — 번들 {@code member.sanction.kind.BOARD_*}) */
+    public static final String BOARD_KIND_PREFIX = "BOARD_";
+
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));
     }
