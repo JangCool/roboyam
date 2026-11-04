@@ -5,6 +5,7 @@
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
 import type { AffiliateMode, DealRules } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { BoardStaffTools, BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 
 export interface PrefixView {
     id: string;
@@ -113,7 +114,9 @@ export type WriteBlockedReason =
     | 'PROMO_PERIOD_REQUIRED'
     | 'PROMO_DAILY_LIMIT'
     | 'GROUP_NOT_MEMBER'
-    | 'GROUP_DISSOLVED';
+    | 'GROUP_DISSOLVED'
+    /** 이 게시판에서 쓰기 제한 중(게시판 제재 — 끝 시각·사유는 `viewer.writeRestriction`). 가정: 서버가 이 값으로 줄지는 계약에 없다(board-sanction-contract) */
+    | 'BOARD_WRITE_RESTRICTED';
 
 /** 최소 자격의 「비회원 포함 모두」 값 — 게시판별로만 고른다(관리자 `BOARD_MIN_GUEST` 와 같은 값) */
 export const BOARD_MIN_GUEST = 'GUEST';
@@ -199,6 +202,16 @@ export interface BoardViewer {
     canComment: boolean;
     /** 댓글을 못 쓰는 까닭 — `COMMENTS_OFF`(댓글 받지 않음) · `LOGIN_REQUIRED` · `GRADE_TOO_LOW` · `STAFF_ONLY` · `WRITE_LOCKED` · `ACCOUNT_RESTRICTED` */
     commentBlockedReason: WriteBlockedReason | null;
+    /**
+     * 그 게시판 매니저·스텝 본인에게만 — 오늘 남은 제재 한도·매니저 여부(board-sanction-contract 「API 후보 > 공개」). 그 밖에는 null.
+     * 서버가 아직 안 주면 `undefined` — ⚠ MOCK: 목업(`board-staff-mock.ts` 의 `mockBoardViewerExtras`)이 채운다
+     */
+    staffTools?: BoardStaffTools | null;
+    /**
+     * 보는 내가 이 게시판에서 쓰기 제한 중이면 끝 시각·사유(처리자 없음), 아니면 null.
+     * 서버가 아직 안 주면 `undefined` — ⚠ MOCK: 목업이 채운다
+     */
+    writeRestriction?: BoardWriteRestriction | null;
 }
 
 /**

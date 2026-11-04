@@ -91,6 +91,22 @@
                     <Button v-if="manageable" type="button" :label="t('common.edit')" size="small" variant="text" severity="secondary" @click="$emit('edit')" />
                     <Button v-if="manageable" type="button" :label="t('common.delete')" size="small" variant="text" severity="secondary" @click="$emit('delete')" />
                     <Button v-if="reportable" type="button" :label="t('post.report')" size="small" variant="text" severity="secondary" @click="$emit('report')" />
+                    <!-- ⋯ 게시판 운영 메뉴 — 그 게시판 매니저·스텝이 보는 남의 회원 댓글만(board-sanction-contract). 지금은 「작성자 제재」 하나 -->
+                    <template v-if="sanctionable && !best">
+                        <Button
+                            type="button"
+                            icon="pi pi-ellipsis-h"
+                            size="small"
+                            variant="text"
+                            severity="secondary"
+                            rounded
+                            :aria-label="t('boardSanction.commentMenu')"
+                            aria-haspopup="menu"
+                            data-testid="comment-staff-menu"
+                            @click="staffMenu?.toggle($event)"
+                        />
+                        <Menu ref="staffMenu" :model="staffMenuItems" popup />
+                    </template>
                     <!-- 내 의견의 고정 요청 -->
                     <template v-if="pinRequestShown">
                         <span v-if="comment.pinRequest?.status === 'PENDING'" class="inline-flex flex-wrap items-center gap-1 text-xs text-muted-color" data-testid="comment-pin-pending">
@@ -140,6 +156,8 @@ interface Props {
     pinRequests?: boolean;
     /** 고정 요청을 보내거나 취소하는 중 */
     pinBusy?: boolean;
+    /** ⋯ 에 「작성자 제재」를 보인다(매니저·스텝이 보는 남의 회원 댓글 — 판정은 부르는 쪽) */
+    sanctionable?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -151,11 +169,16 @@ const props = withDefaults(defineProps<Props>(), {
     reactions: null,
     pinRequests: false,
     pinBusy: false,
+    sanctionable: false,
 });
 
-defineEmits<{ like: []; dislike: []; reply: []; edit: []; delete: []; report: []; 'view-delayed': []; 'pin-request': []; 'pin-cancel': [] }>();
+const emit = defineEmits<{ like: []; dislike: []; reply: []; edit: []; delete: []; report: []; 'view-delayed': []; 'pin-request': []; 'pin-cancel': []; sanction: [] }>();
 
 const { t } = useI18n();
+
+/** ⋯ 게시판 운영 메뉴 */
+const staffMenu = ref<{ toggle: (event: Event) => void } | null>(null);
+const staffMenuItems = computed(() => [{ label: t('boardSanction.menuSanction'), icon: 'pi pi-ban', command: () => emit('sanction') }]);
 const time = useDisplayTime();
 
 /** 숨긴 자리의 문구 — 운영자 숨김 · 소모임을 나간 멤버의 댓글 · 멤버 전용 댓글(소모임 5단계 — 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글) · 신고 숨김 */

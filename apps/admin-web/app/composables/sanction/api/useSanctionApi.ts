@@ -1,3 +1,4 @@
+import { isMockBoardUser, isMockSiteSanction, mockSiteCreate, mockSiteGet, mockSitePreview } from '~/composables/sanction/api/mock/board-sanction-mock';
 import type { SanctionCreateRequest, SanctionLine, SanctionListView, SanctionPreview, SanctionQuery, SanctionTarget } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
@@ -10,6 +11,9 @@ import type { SanctionCreateRequest, SanctionLine, SanctionListView, SanctionPre
  *   - `POST /` `SanctionCreateRequest` (입구 `sanction.manage` 또는 `sanction.ban` — 경고·기간 정지는 `sanction.manage`, 영구 정지·건너뛰기는 `sanction.ban`) → `201 SanctionLine` · 오류는 `SanctionCreateRequest` 주석
  *   - `POST /{id}/lift { reason }` (기간 정지 `sanction.manage` · 영구 정지 `sanction.ban`) → `200 SanctionLine` · 409 `SANCTION_NOT_LIFTABLE` · 404 `SANCTION_NOT_FOUND`
  * 권한이 모자라면 403 `PERMISSION_DENIED`. 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
+ *
+ * ⚠ MOCK(게시판 제재 목업): 게시판 제재 목업의 회원(`isMockBoardUser`)·그 회원에게 준 목업 제재(`isMockSiteSanction`)만 `./mock/board-sanction-mock.ts` 가 답한다 —
+ *   반복 검토의 「사이트 제재 부여」를 끝까지 눌러 보게. 실제 회원은 늘 서버를 부른다. 게시판 제재 서버가 붙으면 `// MOCK:` 표시가 붙은 분기와 목업 import 를 지운다.
  */
 const ROOT = '/api/admin/sanctions';
 const PATH = {
@@ -44,16 +48,25 @@ export function useSanctionApi() {
             }),
 
         /** 제재 하나 */
-        get: (id: string): Promise<SanctionLine> => client.get<SanctionLine>(PATH.one(id)),
+        get: (id: string): Promise<SanctionLine> =>
+            // MOCK: 게시판 제재 목업 회원에게 준 제재
+            isMockSiteSanction(id) ? mockSiteGet(id) :
+            client.get<SanctionLine>(PATH.one(id)),
 
         /** 부여 대화창의 회원 찾기 */
         targets: (q: string): Promise<SanctionTarget[]> => client.get<SanctionTarget[]>(PATH.targets, { query: { q } }),
 
         /** 회원 하나의 제재 현황(경고 수·다음 단계·선택지·진행 중·이력) */
-        preview: (userId: string): Promise<SanctionPreview> => client.get<SanctionPreview>(PATH.preview, { query: { userId } }),
+        preview: (userId: string): Promise<SanctionPreview> =>
+            // MOCK: 게시판 제재 목업 회원
+            isMockBoardUser(userId) ? mockSitePreview(userId) :
+            client.get<SanctionPreview>(PATH.preview, { query: { userId } }),
 
         /** 제재 부여 */
-        create: (body: SanctionCreateRequest): Promise<SanctionLine> => client.post<SanctionLine>(PATH.list, body),
+        create: (body: SanctionCreateRequest): Promise<SanctionLine> =>
+            // MOCK: 게시판 제재 목업 회원
+            isMockBoardUser(body.userId) ? mockSiteCreate(body) :
+            client.post<SanctionLine>(PATH.list, body),
 
         /** 진행 중 정지·영구 정지 해제 */
         lift: (id: string, reason: string): Promise<SanctionLine> => client.post<SanctionLine>(PATH.lift(id), { reason }),

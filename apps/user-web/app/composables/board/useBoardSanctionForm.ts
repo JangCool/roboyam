@@ -1,0 +1,141 @@
+import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
+import type { BoardSanctionPreview, BoardStaffQuota } from '~/composables/board/api/useBoardStaffApi.types';
+import type { BoardSanctionDialogState, BoardSanctionDialogValue } from '~/components/board/BoardSanctionDialog.types';
+import { ApiError } from '~/composables/common/useApiClient';
+import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBoardSanction from '~/utils/util-board-sanction';
+import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
+
+/** 제재할 작성자 — 누른 글·댓글에서 */
+export interface BoardSanctionTargetRef {
+    userId: string;
+    nickname: string;
+    /** 계기 글 */
+    postId: string | null;
+    /** 계기 댓글(댓글 ⋯ 메뉴에서 열었을 때) */
+    commentId: string | null;
+}
+
+/**
+ * 글 보기의 「작성자 제재」 흐름(board-sanction-contract) — **대상 고르기 → 현황 읽기(`preview`) → 단계·사유 → 제출 → 토스트·남은 한도 갱신**.
+ * 한 화면(글 보기)의 값이라 `useState` 에 두지 않는다. 서버와 말하는 것은 `useBoardStaffApi`, 그리기는 `BoardSanctionDialog`.
+ * 결과는 오류 **코드**로 가른다(`UtilBoardSanction.outcomeOf`):
+ *  - 한도 초과 `409 BOARD_STAFF_DAILY_LIMIT` → 서버 문구 + 남은 0건으로 맞춘다(`limit`·`used`)
+ *  - 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED` → 폼 대신 서버 문구(「제재할 수 없는 회원이에요」)
+ *  - 이미 제한 중 `409 BOARD_STAFF_ALREADY_RESTRICTED` → 서버 문구 + 현황을 다시 읽어 제한 단계를 막는다(고른 사유·덧붙임은 그대로)
+ *  - 입력 `400 VALIDATION` → 칸 아래 · 권한 없음(403) → 대화창을 닫고 토스트 · 그 밖 → 폼 아래 한 줄
+ * 성공·한도 초과 때 게시판의 `viewer.staffTools`(게시판 머리 「오늘 남은 제재 n건」)도 같은 값으로 고친다.
+ * ⚠ setup 에서 부른다 — 번역은 `useTranslate`(뒤에서도 안전)로 잡아 둔다.
+ */
+export function useBoardSanctionForm(board: () => BoardDetail | null) {
+    const api = useBoardStaffApi();
+    const t = useTranslate();
+    const toast = useAppToast();
+
+    const visible = ref(false);
+    const target = ref<BoardSanctionTargetRef | null>(null);
+    const state = ref<BoardSanctionDialogState>('loading');
+    const preview = ref<BoardSanctionPreview | null>(null);
+    const loadError = ref('');
+    const submitting = ref(false);
+    const formError = ref('');
+    const fieldErrors = ref<Record<string, string>>({});
+
+    let seq = 0;
+    let abort: AbortController | null = null;
+
+    function setQuota(quota: BoardStaffQuota, resetsAt: string | null): void {
+        if (preview.value) preview.value = { ...preview.value, quota, resetsAt: resetsAt ?? preview.value.resetsAt };
+        const tools = board()?.viewer.staffTools;
+        if (tools) {
+            tools.sanction = quota;
+            if (resetsAt) tools.resetsAt = resetsAt;
+        }
+    }
+
+    async function loadPreview(options: { silent?: boolean } = {}): Promise<void> {
+        const b = board();
+        const who = target.value;
+        if (!b || !who) return;
+        const mine = ++seq;
+        abort?.abort();
+        const controller = new AbortController();
+        abort = controller;
+        if (!options.silent) {
+            state.value = 'loading';
+            preview.value = null;
+        }
+        loadError.value = '';
+        try {
+            const res = await api.preview(b.id, who.userId, controller.signal);
+            if (mine !== seq) return;
+            preview.value = res;
+            state.value = 'ready';
+            setQuota(res.quota, res.resetsAt);
+        } catch (e) {
+            if (mine !== seq) return;
+            if (e instanceof ApiError && e.code === 'ABORTED') return;
+            loadError.value = UtilBoardMessages.of(t, e);
+            state.value = UtilBoardSanction.outcomeOf(e) === 'TARGET_PROTECTED' ? 'protected' : 'error';
+        }
+    }
+
+    /** 대화창을 연다 — 앞 대상의 입력·오류는 비운다 */
+    function open(next: BoardSanctionTargetRef): void {
+        target.value = next;
+        formError.value = '';
+        fieldErrors.value = {};
+        visible.value = true;
+        void loadPreview();
+    }
+
+    function close(): void {
+        visible.value = false;
+        seq++;
+        abort?.abort();
+    }
+
+    async function submit(value: BoardSanctionDialogValue): Promise<void> {
+        const b = board();
+        const who = target.value;
+        if (!b || !who || submitting.value) return;
+        submitting.value = true;
+        formError.value = '';
+        fieldErrors.value = {};
+        try {
+            const res = await api.issue(
+                { boardId: b.id, userId: who.userId, kind: value.kind, reasonCode: value.reasonCode, reasonText: value.reasonText, postId: who.postId, commentId: who.commentId },
+                who.nickname,
+            );
+            setQuota(res.quota, res.resetsAt);
+            visible.value = false;
+            toast.success(UtilBoardSanctionMessages.issuedToast(t, who.nickname, res.kind, res.quota), 5000);
+        } catch (e) {
+            const outcome = UtilBoardSanction.outcomeOf(e);
+            const message = UtilBoardMessages.of(t, e);
+            if (outcome === 'DAILY_LIMIT') {
+                const limit = UtilBoardSanction.limitOf(e);
+                if (limit) setQuota({ limit: limit.limit, used: limit.used, remaining: Math.max(0, limit.limit - limit.used) }, limit.resetsAt);
+                formError.value = message;
+            } else if (outcome === 'TARGET_PROTECTED') {
+                loadError.value = message;
+                state.value = 'protected';
+            } else if (outcome === 'ALREADY_RESTRICTED') {
+                formError.value = message;
+                void loadPreview({ silent: true });
+            } else if (outcome === 'VALIDATION' && e instanceof ApiError && e.fields && Object.keys(e.fields).length) {
+                fieldErrors.value = { ...e.fields };
+            } else if (outcome === 'FORBIDDEN') {
+                // 그새 매니저·스텝이 아니게 됐다 — 닫고 알린다(다음에 게시판을 읽으면 메뉴도 사라진다)
+                visible.value = false;
+                toast.error(message, 8000);
+            } else formError.value = message;
+        } finally {
+            submitting.value = false;
+        }
+    }
+
+    onBeforeUnmount(() => abort?.abort());
+
+    return { visible, target, state, preview, loadError, submitting, formError, fieldErrors, open, close, submit, retry: () => loadPreview() };
+}

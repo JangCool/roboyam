@@ -1,5 +1,5 @@
 import type { AccountStatus, Restriction } from '~/composables/auth/api/useAuthApi.types';
-import type { AppealRequest, MySanction, MySanctions, SanctionStatus } from '~/composables/sanction/api/useSanctionApi.types';
+import type { AppealRequest, MyBoardSanction, MySanction, MySanctions, SanctionStatus } from '~/composables/sanction/api/useSanctionApi.types';
 import UtilRedirect from '~/utils/util-redirect';
 
 /**
@@ -300,7 +300,7 @@ export default class UtilSanction {
      * @param {boolean} submitted - 방금 접수했는가.
      * @returns {AppealScreen} 갈래.
      */
-    static appealScreenOf(sanction: MySanction | null, submitted: boolean): AppealScreen {
+    static appealScreenOf(sanction: Pick<MySanction, 'appeal' | 'status' | 'appealDeadline'> | null, submitted: boolean): AppealScreen {
         if (submitted) return 'DONE';
         if (!sanction) return 'MISSING';
         if (sanction.appeal) {
@@ -342,6 +342,46 @@ export default class UtilSanction {
      */
     static toAppealRequest(sanctionId: string, text: string): AppealRequest {
         return { sanctionId, reason: cleanText(text) };
+    }
+
+    /* ── 게시판 제재(board-sanction-contract — 그 게시판 매니저·스텝이 준 것, 이의제기는 사이트 제재와 같은 규칙) ── */
+
+    /**
+     * 게시판 제재 이의제기 화면으로 가는 주소
+     * @param {string} boardSanctionId - 게시판 제재 ID.
+     * @returns {{ path: string; query: { boardSanctionId: string } }} 주소.
+     */
+    static boardAppealTo(boardSanctionId: string): { path: string; query: { boardSanctionId: string } } {
+        return { path: UtilSanction.APPEAL_PATH, query: { boardSanctionId } };
+    }
+
+    /**
+     * 게시판 제재 이력에서 ID 로 찾기
+     * @param {readonly MyBoardSanction[]} items - 게시판 제재 이력.
+     * @param {string | null} id - 게시판 제재 ID.
+     * @returns {MyBoardSanction | null} 제재. 없으면 null.
+     */
+    static findBoardById(items: readonly MyBoardSanction[] | undefined, id: string | null): MyBoardSanction | null {
+        return id && items ? (items.find((s) => s.id === id) ?? null) : null;
+    }
+
+    /**
+     * 게시판 제재 이의제기 요청 — 사유는 앞뒤 공백을 뗀다
+     * @param {string} boardSanctionId - 게시판 제재 ID.
+     * @param {string} text - 사유.
+     * @returns {AppealRequest} 요청 본문.
+     */
+    static toBoardAppealRequest(boardSanctionId: string, text: string): AppealRequest {
+        return { boardSanctionId, reason: cleanText(text) };
+    }
+
+    /**
+     * 확인하지 않은 게시판 제재 경고가 있는가(무효 제외)
+     * @param {MyBoardSanction} s - 게시판 제재.
+     * @returns {boolean} [확인했어요]를 보일 경고면 true.
+     */
+    static boardNeedsConfirm(s: MyBoardSanction): boolean {
+        return s.kind === 'WARNING' && s.status !== 'VOIDED' && !s.acknowledged;
     }
 
     /**

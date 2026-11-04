@@ -121,6 +121,71 @@
                 </EmptyState>
             </section>
 
+            <!--
+                게시판 제재(board-sanction-contract) — 그 게시판 매니저·스텝이 준 경고·쓰기 제한. 사이트 제재와 따로 센다. 처리자는 보이지 않는다.
+                줄: 게시판 이름 · 종류 · 상태 · (확인 필요) · 날짜 / 사유(코드 · 덧붙임) / 기간 / 이의제기 · [확인했어요](확인 안 한 경고) · [이의제기] → `/sanction/appeal?boardSanctionId=`
+            -->
+            <section v-if="boardRows.length" class="mt-8" :aria-labelledby="boardHistoryId" data-testid="sanction-board">
+                <h2 :id="boardHistoryId" class="m-0 text-base font-semibold">{{ t('boardSanction.myTitle') }}</h2>
+                <p class="mb-0 mt-0.5 text-xs text-muted-color">{{ t('boardSanction.myHint') }}</p>
+                <p v-if="boardAckError" role="alert" class="mb-0 mt-2 text-sm text-red-600 dark:text-red-400" data-testid="sanction-board-ack-error">{{ boardAckError }}</p>
+
+                <ul class="m-0 mt-2 list-none border-t border-surface p-0">
+                    <li v-for="row in boardRows" :key="row.id" class="border-b border-surface py-3" :data-voided="row.voided ? 'true' : 'false'" data-testid="sanction-board-row">
+                        <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <NuxtLink :to="`/boards/${row.boardSlug}`" class="text-xs font-semibold text-primary hover:underline">{{ row.boardName }}</NuxtLink>
+                            <span :class="[TAG, UtilSanction.toneClass(row.voided ? 'gray' : row.kindTone)]"><span class="relative top-[-0.09em]">{{ row.title }}</span></span>
+                            <span :class="[TAG, UtilSanction.toneClass(row.statusTone)]"><span class="relative top-[-0.09em]">{{ row.statusLabel }}</span></span>
+                            <span v-if="row.needsConfirm" :class="[TAG, UtilSanction.toneClass('amber')]"><span class="relative top-[-0.09em]">{{ t('sanction.needsConfirm') }}</span></span>
+                            <time class="ml-auto text-xs text-muted-color">{{ row.dateText }}</time>
+                        </p>
+
+                        <p class="mb-0 mt-1.5 break-words text-sm leading-snug [overflow-wrap:anywhere]" :class="row.voided ? 'text-muted-color line-through decoration-surface-400' : ''">
+                            <span class="font-medium">{{ row.reasonLabel }}</span><template v-if="row.reason"> · <span class="whitespace-pre-line">{{ row.reason }}</span></template>
+                        </p>
+                        <p v-if="row.periodText" class="mb-0 mt-1 text-xs text-muted-color">{{ t('sanction.periodLine', { period: row.periodText }) }}</p>
+                        <p v-if="row.voided" class="mb-0 mt-1 text-xs text-muted-color">{{ t('sanction.voidedNote') }}</p>
+
+                        <div v-if="row.appeal" class="mt-2 rounded-lg bg-surface-100 p-2.5 text-xs dark:bg-surface-800/60" data-testid="sanction-board-row-appeal">
+                            <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="font-medium">{{ t('sanction.appealLabel', { no: row.appeal.no }) }}</span>
+                                <span :class="[TAG, UtilSanction.toneClass(row.appeal.tone)]"><span class="relative top-[-0.09em]">{{ row.appeal.statusLabel }}</span></span>
+                            </p>
+                            <template v-if="row.appeal.answer">
+                                <p class="mb-0 mt-2 font-medium">{{ t('sanction.answerLabel') }}</p>
+                                <p class="m-0 mt-0.5 whitespace-pre-line break-words leading-relaxed [overflow-wrap:anywhere]">{{ row.appeal.answer }}</p>
+                            </template>
+                        </div>
+
+                        <div v-if="row.needsConfirm || row.canAppeal || row.appeal" class="mt-2 flex flex-wrap items-center gap-2">
+                            <Button
+                                v-if="row.needsConfirm"
+                                type="button"
+                                :label="t('boardSanction.ackButton')"
+                                icon="pi pi-check"
+                                size="small"
+                                :loading="boardAckBusy === row.id"
+                                :disabled="Boolean(boardAckBusy) && boardAckBusy !== row.id"
+                                data-testid="sanction-board-ack"
+                                @click="onBoardAck(row.id)"
+                            />
+                            <Button
+                                v-if="row.canAppeal || row.appeal"
+                                as="router-link"
+                                :to="UtilSanction.boardAppealTo(row.id)"
+                                :label="row.canAppeal ? t('sanction.appealButton') : t('sanction.appealView')"
+                                size="small"
+                                severity="secondary"
+                                variant="outlined"
+                                :data-testid="row.canAppeal ? 'sanction-board-appeal-link' : 'sanction-board-appeal-view'"
+                            />
+                            <span v-if="row.appealDeadlineText" class="text-xs text-muted-color">{{ t('sanction.appealDeadlineLine', { date: row.appealDeadlineText }) }}</span>
+                        </div>
+                        <p v-else-if="row.appealExpired" class="mb-0 mt-2 text-xs text-muted-color">{{ t('sanction.appealExpired') }}</p>
+                    </li>
+                </ul>
+            </section>
+
             <!-- 내 제재 이력 — 최근 것이 위. 무효가 된 제재도 「무효」 표시와 함께 남고, 이의제기 상태와 운영자 답변이 붙는다(글자로만 그린다) -->
             <section class="mt-8" :aria-labelledby="historyId" data-testid="sanction-history">
                 <h2 :id="historyId" class="m-0 text-base font-semibold">{{ t('sanction.historyTitle') }}</h2>
@@ -186,7 +251,8 @@ import UtilSanctionMessages from '~/utils/util-sanction-messages';
  * 이의제기는 제재 시작 후 30일 안에만(`appealDeadline`, member-sanction-contract 결정 3) — 접수할 수 있으면 마감을, 접수 없이 지났으면 단추 대신 「이의제기 기한이 지났어요」를 보인다.
  * 로그인 직후 이동(`UtilSanction.afterLoginPath`)이 이곳으로 올 때 원래 가려던 곳을 `?next=` 로 들고 온다 — 「확인하고 계속」·「홈으로」 뒤에 그곳으로 간다(같은 사이트 안의 경로만).
  * 흐름은 `useMySanctions`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`.
- * 원본과 달라진 점: 게시판 한정 제재 구획(게시판 지킴이)은 로보얌에 없어 뺐다. 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
+ * 게시판 제재(board-sanction-contract): 이력 위에 「게시판 제재」 구획(있을 때만) — 게시판 이름·종류·사유·기간·상태, 확인 안 한 경고 [확인했어요], [이의제기](`?boardSanctionId=`). 처리자 신원은 없다.
+ * 원본과 달라진 점: 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -198,7 +264,15 @@ const ackId = useId();
 const historyId = useId();
 const time = useDisplayTime();
 const { busy: logoutBusy, run: logout } = useLogoutFlow();
-const { status, errorMessage, screen, focus, warningCount, rows, confirmed, acknowledging, ackError, canAcknowledge, load, cancel, acknowledge } = useMySanctions();
+const { status, errorMessage, screen, focus, warningCount, rows, boardRows, boardAckBusy, confirmed, acknowledging, ackError, canAcknowledge, load, cancel, acknowledge, acknowledgeBoard } =
+    useMySanctions();
+const boardHistoryId = useId();
+const boardAckError = ref('');
+
+/** 게시판 제재 경고 [확인했어요] — 실패하면 구획 위 한 줄 */
+async function onBoardAck(id: string) {
+    boardAckError.value = await acknowledgeBoard(id);
+}
 
 const TAG = 'inline-flex items-center justify-center rounded px-1.5 py-1 text-[0.6875rem] font-semibold leading-none';
 

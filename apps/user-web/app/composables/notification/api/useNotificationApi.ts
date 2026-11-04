@@ -1,3 +1,4 @@
+import { mockMarkRead, mockWithBoardSanctionNotice } from '~/composables/notification/api/mock/notification-mock';
 import type {
     MemberNotificationFilter,
     MemberNotificationItem,
@@ -39,13 +40,26 @@ export function useNotificationApi() {
         unreadCount: (): Promise<UnreadCountResponse> => client.get<UnreadCountResponse>(PATH.unreadCount),
 
         /** 내 알림 한 쪽 */
-        list: (query: MemberNotificationQuery = {}): Promise<MemberNotificationPage> => client.get<MemberNotificationPage>(PATH.list, { query: { ...query } }),
+        list: (query: MemberNotificationQuery = {}): Promise<MemberNotificationPage> =>
+            client
+                .get<MemberNotificationPage>(PATH.list, { query: { ...query } })
+                // MOCK: 게시판 제재 알림(`BOARD_SANCTION_ISSUED`)을 맨 위에 한 건(`?mock=notification-board-sanction`)
+                .then((page) => mockWithBoardSanctionNotice(page, query)),
+        // REAL: list: (query: MemberNotificationQuery = {}): Promise<MemberNotificationPage> => client.get<MemberNotificationPage>(PATH.list, { query: { ...query } }),
 
         /** 알림 패널에 보일 최근 알림(`size=8` 의 `items`) */
-        recent: (): Promise<MemberNotificationItem[]> => client.get<MemberNotificationPage>(PATH.list, { query: { size: RECENT_SIZE } }).then((page) => page.items),
+        recent: (): Promise<MemberNotificationItem[]> =>
+            client
+                .get<MemberNotificationPage>(PATH.list, { query: { size: RECENT_SIZE } })
+                // MOCK: 게시판 제재 알림을 맨 위에 한 건
+                .then((page) => mockWithBoardSanctionNotice(page).items),
+        // REAL: recent: (): Promise<MemberNotificationItem[]> => client.get<MemberNotificationPage>(PATH.list, { query: { size: RECENT_SIZE } }).then((page) => page.items),
 
         /** 알림 하나를 읽음으로 — 이미 읽었어도 성공(204) */
-        markRead: (id: string): Promise<void> => client.post<void>(PATH.read(id)),
+        markRead: (id: string): Promise<void> =>
+            // MOCK: 목업 알림은 서버에 보내지 않는다
+            mockMarkRead(id) ? Promise.resolve() : client.post<void>(PATH.read(id)),
+        // REAL: markRead: (id: string): Promise<void> => client.post<void>(PATH.read(id)),
 
         /** 모두 읽음 — `filter` 를 주면 그 묶음(`comment`·`system`)의 알림만, 없거나 `all` 이면 전부 */
         markAllRead: (filter?: MemberNotificationFilter): Promise<ReadAllResponse> =>

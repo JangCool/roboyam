@@ -1,3 +1,4 @@
+import { mockBoardWriteGuard } from '~/composables/board/api/mock/board-staff-mock';
 import type {
     PostDeleteRequest,
     PostDeleteResult,
@@ -47,7 +48,12 @@ export function usePostApi() {
     return {
         post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
 
-        create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
+        create: (body: PostWriteRequest): Promise<PostWriteResult> =>
+            // MOCK: `?mock=board-write-error` 면 서버가 게시판 쓰기 제한(403 BOARD_WRITE_RESTRICTED)으로 거절한 것처럼(board-sanction-contract)
+            Promise.resolve()
+                .then(mockBoardWriteGuard)
+                .then(() => client.post<PostWriteResult>(PATH.posts, body)),
+        // REAL: create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 
         update: (id: string, body: PostUpdateRequest): Promise<PostDetail> => client.put<PostDetail>(PATH.post(id), body),
 

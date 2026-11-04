@@ -1,6 +1,10 @@
 <template>
     <div class="content-card mx-auto max-w-xl">
         <h1 class="mb-3 text-lg font-bold">{{ headerTitle }}</h1>
+        <!-- 게시판 제재의 이의제기 — 사이트 전체가 아니라 그 게시판에서만 적용된 제재다 -->
+        <p v-if="isBoard" class="-mt-1.5 mb-3 flex items-center gap-1.5 text-xs text-muted-color" data-testid="appeal-board-scope">
+            <i class="pi pi-info-circle text-[0.6875rem]" aria-hidden="true" />{{ t('boardSanction.appealScope') }}
+        </p>
 
         <!-- 불러오는 중 -->
         <div v-if="status === 'loading'" role="status" :aria-label="t('sanction.loading')" data-testid="appeal-loading">
@@ -120,15 +124,16 @@
 </template>
 
 <script setup lang="ts">
+import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
 /**
- * 이의제기 — `/sanction/appeal?sanctionId=…`(community `pages/sanction/appeal.vue`, `docs/api-sanction.md` 2절). 정지·영구 정지 중에도 쓴다.
+ * 이의제기 — `/sanction/appeal?sanctionId=…` · 게시판 제재는 `?boardSanctionId=…`(board-sanction-contract 결정 4 — 같은 규칙, 머리에 「이 게시판에서만 적용된 제재예요」 한 줄)(community `pages/sanction/appeal.vue`, `docs/api-sanction.md` 2절). 정지·영구 정지 중에도 쓴다.
  * 제재의 상태에 따라 바뀐다 — 접수 폼(제재 요약 + 사유 10~500자 · 글자 수 · 접수) → 접수 완료 / 이미 접수함(검토 중) / 답변 도착(인용·기각, 운영자 답변) /
  * 이미 무효가 된 제재(`SANCTION_NOT_APPEALABLE`) / 마감(시작 + 30일, `appealDeadline`)이 지난 제재(접수 중 `409 APPEAL_EXPIRED` 도 다시 받아 이 화면) / 없는 제재. **제재 하나에 1번**이라 기각된 뒤에도 폼을 다시 열지 않는다.
  * 흐름은 `useAppealForm`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`.
- * 원본과 달라진 점: 게시판 한정 제재(`?kind=board`)의 이의제기는 로보얌에 없어 뺐다.
+ * 원본과 달라진 점: 게시판 제재는 `?kind=board` 대신 `?boardSanctionId=` 로 가른다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -137,14 +142,28 @@ useSeoMeta({ title: () => t('sanction.appealSeoTitle'), description: () => t('sa
 
 const route = useRoute();
 const time = useDisplayTime();
-const { status, errorMessage, sanction, screen, reason, sending, submitted, failure, length, problem, reasonMessage, canSubmit, load, cancel, touch, submit } = useAppealForm(
-    () => route.query.sanctionId,
-);
+const { status, errorMessage, sanction: siteSanction, boardSanction, isBoard, screen, reason, sending, submitted, failure, length, problem, reasonMessage, canSubmit, load, cancel, touch, submit } =
+    useAppealForm(
+        () => route.query.sanctionId,
+        () => route.query.boardSanctionId,
+    );
+const { localizedName } = useLocalizedName();
+
+/** 화면이 그리는 제재 — 사이트 제재 또는 게시판 제재(이의 흐름·갈래는 같다) */
+const sanction = computed(() => (isBoard.value ? boardSanction.value : siteSanction.value));
+const boardName = computed(() => (boardSanction.value ? localizedName(boardSanction.value.board.name, boardSanction.value.board.nameEn) : ''));
 
 const headerTitle = computed(() => UtilSanctionMessages.appealHeaderTitle(t, screen.value ?? 'FORM'));
 const answeredTitle = computed(() => (screen.value === 'ACCEPTED' ? t('sanction.acceptedTitle') : t('sanction.rejectedTitle')));
-const targetRows = computed(() => (sanction.value ? UtilSanctionMessages.appealTargetRows(t, sanction.value, time.value) : []));
-const resultRows = computed(() => (screen.value ? UtilSanctionMessages.appealRows(t, screen.value, sanction.value, time.value, submitted.value?.no ?? null) : []));
+const targetRows = computed(() => {
+    if (boardSanction.value) return UtilBoardSanctionMessages.appealTargetRows(t, boardSanction.value, time.value, boardName.value);
+    return siteSanction.value ? UtilSanctionMessages.appealTargetRows(t, siteSanction.value, time.value) : [];
+});
+/** 결과 요약 — 게시판 제재는 맨 위에 게시판 이름을 더한다 */
+const resultRows = computed(() => {
+    const rows = screen.value ? UtilSanctionMessages.appealRows(t, screen.value, sanction.value, time.value, submitted.value?.no ?? null) : [];
+    return boardName.value ? [{ label: t('boardSanction.rowBoard'), value: boardName.value }, ...rows] : rows;
+});
 
 function onSubmit() {
     void submit();

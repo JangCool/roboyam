@@ -3,7 +3,8 @@
         이의제기 — 회원이 제재에 낸 이의제기를 접수 차례대로 보고 인용·기각한다. 계약 `docs/features/member-sanction-contract.md` 정책 6.
         모양은 제재 화면(`pages/sanctions/index.vue`)·신고 관리와 같다.
         - 조회: 상태 라디오(대기(기본)·인용·기각·전체 — 건수는 거르기와 무관한 전체) · 정렬은 「접수」 머리(오래된 순 기본 · 최신 순). **모두 주소 쿼리**(`?status=&sort=&page=&size=&appeal=`).
-        - 표: 접수번호 · 회원 · 제재(단계/상태) · 상태 · 접수 시각 · 대기 시간(대기 중 하루 넘으면 강조) · 처리 시각.
+        - 표: 접수번호 · 회원 · 종류(사이트 제재/게시판 제재 — board-sanction-contract 결정 4) · 제재(단계/상태) · 게시판 · 처리자(사이트 = 운영자, 게시판 = 닉네임 + 매니저/스텝) · 상태 · 접수 시각 · 대기 시간(대기 중 하루 넘으면 강조) · 처리 시각.
+          ⚠ MOCK: `?mock=appeal-board` 면 게시판 제재 이의제기 2건이 섞인다(`useAppealApi` 머리말).
         - 서랍 `?appeal=`(`AppealDetailDrawer`): 이의 사유 전문 · 대상 제재 · 근거 신고 사건 · 회원 제재 이력 · 처리 폼(답변 1~500자 + [인용]/[기각], `appeal.manage` 없으면 읽기 전용).
           `409 APPEAL_CLOSED` 는 서랍 안 「이미 처리됐어요 — 다시 불러오기」. 처리하면 목록을 조용히 다시 받는다.
         - 권한: 보기 `sanction.read`(메뉴), 처리 `appeal.manage`.
@@ -68,12 +69,35 @@
                             <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ data.user.nickname }}</button>
                         </template>
                     </Column>
+                    <Column :header="t('appeal.col.kind')" style="min-width: 6.5rem">
+                        <template #body="{ data }"><Tag :value="t(`boardSanction.appealKind.${kindOf(data)}`)" :severity="kindOf(data) === 'BOARD' ? 'info' : 'secondary'" class="text-[11px]!" /></template>
+                    </Column>
                     <Column :header="t('appeal.col.sanction')" style="min-width: 11rem">
                         <template #body="{ data }">
-                            <div class="flex flex-wrap items-center gap-1">
+                            <div v-if="data.boardSanction" class="flex flex-wrap items-center gap-1">
+                                <BoardSanctionTag type="kind" :kind="data.boardSanction.kind" />
+                                <BoardSanctionTag type="status" :kind="data.boardSanction.kind" :status="data.boardSanction.status" />
+                            </div>
+                            <div v-else-if="data.sanction" class="flex flex-wrap items-center gap-1">
                                 <SanctionTag type="kind" :kind="data.sanction.kind" :warning-no="data.sanction.warningNo" />
                                 <SanctionTag type="status" :kind="data.sanction.kind" :status="data.sanction.status" />
                             </div>
+                        </template>
+                    </Column>
+                    <Column :header="t('appeal.col.board')" style="min-width: 7rem">
+                        <template #body="{ data }">
+                            <span v-if="data.boardSanction" class="block truncate text-[13px]">{{ localizedName(data.boardSanction.board.name, data.boardSanction.board.nameEn) }}</span>
+                            <span v-else class="text-[13px] text-muted-color">—</span>
+                        </template>
+                    </Column>
+                    <Column :header="t('appeal.col.issuedBy')" style="min-width: 8rem">
+                        <template #body="{ data }">
+                            <span v-if="data.boardSanction" class="flex min-w-0 items-center gap-1.5 text-[13px]">
+                                <span class="truncate">{{ data.boardSanction.issuedBy?.nickname ?? t('boardSanction.issuerGone') }}</span>
+                                <span v-if="data.boardSanction.issuedBy" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardSanctionMessages.roleName(t, data.boardSanction.issuedBy.role) }}</span>
+                            </span>
+                            <span v-else-if="data.sanction?.issuedBy" class="block truncate text-[13px]">{{ UtilSanctionMessages.actor(t, data.sanction.issuedBy) }}</span>
+                            <span v-else class="text-[13px] text-muted-color">—</span>
                         </template>
                     </Column>
                     <Column :header="t('appeal.col.status')" style="min-width: 6rem">
@@ -125,6 +149,7 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AppealDetail, AppealItem, AppealListView, AppealStatusFilter } from '~/composables/sanction/api/useAppealApi.types';
+import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilSanction, { type AppealFilters } from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
@@ -138,9 +163,15 @@ const toast = useAppToast();
 const errorOf = useApiErrorOf();
 const time = useDisplayTime();
 const { prefs } = useLayoutPrefs();
+const { localizedName } = useLocalizedName();
 const permission = useSanctionPermission();
 /** 대기 시간의 「지금」 — 목록을 받을 때 정한다(줄마다 다른 지금이 되지 않게) */
 const now = ref(Date.now());
+
+/** 종류 — 서버가 `kind` 를 주지 않으면 사이트 제재(게시판 제재 이의제기는 `boardSanction` 이 있다) */
+function kindOf(item: AppealItem): 'SITE' | 'BOARD' {
+    return item.kind ?? (item.boardSanction ? 'BOARD' : 'SITE');
+}
 
 const LIST_PATH = '/appeals';
 const filters = computed<AppealFilters>(() => UtilSanction.parseAppeal(route.query));

@@ -1,4 +1,5 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
+import type { MemberBoardSanctionSummary } from '~/composables/sanction/api/useBoardSanctionApi.types';
 import type { SanctionKind, SanctionLine, SanctionStatus } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
@@ -475,6 +476,8 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     sanctionSummary: MemberSanctionSummary | null;
     /** 신고 요약 — 서버가 채운다(탈퇴 회원은 null). 제재 이력 구획 위쪽에 세 수치로 보인다 */
     reports: MemberReportSummary | null;
+    /** 게시판 제재 요약(게시판별 건수 + 최근 이력) — docs/features/board-sanction-contract.md. 서버가 아직 주지 않는다(⚠ MOCK: `useMemberApi` 가 목업으로 채운다), 탈퇴 회원은 null */
+    boardSanctions?: MemberBoardSanctionSummary | null;
     /** 한 줄 소개 — 프로필·메모 탭에서 보인다 */
     bio: string | null;
     social: MemberSocialLink[];

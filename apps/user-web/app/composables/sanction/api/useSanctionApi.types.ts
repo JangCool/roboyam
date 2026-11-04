@@ -1,10 +1,11 @@
 /**
  * 내 제재·이의제기 API 가 주고받는 모양 — 서버 `server/api` `com.community.sanction.dto`(`MySanctionsView`·`MySanctionView`·`MyAppealView`·`AppealRequest`·`AppealCreatedView`)와 같은 칸 이름. 모양의 근거는 community `docs/api-sanction.md` 2절(회원 쪽)이고,
- * 게시판 한정 제재(`boardSanctions`·`BOARD_SANCTION` — community 게시판 지킴이 기능)는 로보얌에 없어 뺐다. 계약 후보: `docs/features/member-activity-contract.md`.
+ * 게시판 제재(`boardSanctions` — 그 게시판 매니저·스텝이 준 것)는 `docs/features/board-sanction-contract.md` 로 다시 들였다(목업 단계). 계약 후보: `docs/features/member-activity-contract.md`.
  * 로그인 정보의 요약(`restriction`)은 `useAuthApi.types.ts` 의 `Restriction` 이다(이미 서버에 있다).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
 import type { AccountStatus } from '~/composables/auth/api/useAuthApi.types';
+import type { BoardSanctionKind, BoardSanctionReasonCode } from '~/composables/board/api/useBoardStaffApi.types';
 
 /** 제재 종류 — 경고 · 정지 3일 · 7일 · 30일 · 영구 정지(단계는 한 칸씩 오른다: 경고 → 경고 → 3일 → 7일 → 30일 → 영구) */
 export type SanctionKind = 'WARNING' | 'SUSPEND_3' | 'SUSPEND_7' | 'SUSPEND_30' | 'BAN';
@@ -51,6 +52,31 @@ export interface MySanction {
     appealDeadline: string | null;
 }
 
+/**
+ * 내가 받은 게시판 제재 하나(`docs/features/board-sanction-contract.md` — 그 게시판의 매니저·스텝이 준 경고·쓰기 제한 1·3·7일).
+ * **처리자 신원은 없다**(결정 7). 사이트 제재와 단계·횟수를 따로 센다. 이의제기는 사이트 제재와 같은 규칙(1번 · 시작 후 30일 · 10~500자).
+ */
+export interface MyBoardSanction {
+    id: string;
+    no: number;
+    /** 제재가 적용된 게시판 — `nameEn` 은 선택 영문명 */
+    board: { id: string; slug: string; name: string; nameEn?: string | null };
+    kind: BoardSanctionKind | (string & {});
+    status: SanctionStatus;
+    reasonCode: BoardSanctionReasonCode | (string & {});
+    /** 처리자가 덧붙인 글(없으면 null — 글자로만 그린다) */
+    reasonText: string | null;
+    startsAt: string;
+    /** 쓰기 제한만 — 경고는 null */
+    endsAt: string | null;
+    createdAt: string;
+    /** 경고의 「확인했어요」 여부 — 쓰기 제한은 늘 true(가정) */
+    acknowledged: boolean;
+    appeal: AppealView | null;
+    /** 이의제기 마감(시작 + 30일), 무효면 null */
+    appealDeadline: string | null;
+}
+
 /** `GET /api/me/sanctions` — 로그인 필요(정지 중·인증 전에도). 읽기 전에 서버가 지난 정지를 먼저 끝낸다 */
 export interface MySanctions {
     status: AccountStatus;
@@ -60,13 +86,18 @@ export interface MySanctions {
     current: MySanction | null;
     /** 이력 — 최근 것이 위, 최대 50개, 무효 포함 */
     items: MySanction[];
+    /**
+     * 게시판 제재 이력 — 최근 것이 위(board-sanction-contract 「API 후보 > 공개」). 서버가 아직 안 주면 `undefined`
+     * ⚠ MOCK: 목업(`sanction-mock.ts`)이 채운다
+     */
+    boardSanctions?: MyBoardSanction[];
 }
 
-/** `POST /api/me/appeals` 요청 — 사유 10~500자 */
-export interface AppealRequest {
-    sanctionId: string;
-    reason: string;
-}
+/**
+ * `POST /api/me/appeals` 요청 — 사유 10~500자. 사이트 제재(`sanctionId`)와 게시판 제재(`boardSanctionId`) 중 **하나만** 보낸다(board-sanction-contract 결정 4).
+ * ⚠ MOCK: `boardSanctionId` 는 서버가 아직 받지 않아 목업으로 보낸다
+ */
+export type AppealRequest = { sanctionId: string; reason: string } | { boardSanctionId: string; reason: string };
 
 /** `POST /api/me/appeals` 응답(201) */
 export interface AppealCreated {

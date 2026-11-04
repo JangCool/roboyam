@@ -12,6 +12,8 @@
         두 구획 모두: 추천·비추천(`reactions` — 하나를 누르면 다른 하나가 풀린 서버 값을 그대로), 고치기·지우기(비회원 비밀번호), 신고(`report` 이벤트 → 페이지 대화상자), 숨김 문구(`hiddenBy`)·차단 접기(`FoldedRow`)는 `CommentItem`.
         서버 호출은 페이지가 `usePostComments` 로 하고 여기에는 그 함수(`actions`·`debateActions`)만 내려온다. 토론 오류(`DEBATE_NOT_OPEN`·`STANCE_REQUIRED`·`STANCE_LOCKED`·`STANCE_CHANGE_LOCKED`)는 서버 문구를 보이고 목록을 다시 받아 지금 상태로 맞춘다.
         입장 색은 `main.css` 「토론 입장 색」(찬성 파랑 · 반대 빨강 · 중립 초록) — 늘 입장 글자와 함께 쓴다.
+        게시판 제재(board-sanction-contract): 쓰기 제한 중이면(`viewer.writeRestriction`, 또는 쓰다가 받은 `403 BOARD_WRITE_RESTRICTED`) 댓글·의견 입력 자리에 `BoardWriteRestrictionNotice`, 답글 단추 없음.
+          매니저·스텝(`sanctionEnabled`)에게는 남의 회원 댓글 ⋯ 에 「작성자 제재」(`sanction` 이벤트 → 페이지 대화창).
     -->
     <section
         :aria-labelledby="headingId"
@@ -127,12 +129,14 @@
                         :reactions="reactions"
                         :pin-requests="pinRequestsOpen"
                         :pin-busy="pinBusyId === thread.id"
+                        :sanctionable="sanctionable(thread)"
                         @like="like(thread)"
                         @dislike="dislike(thread)"
                         @reply="openReply(thread, thread)"
                         @edit="openEdit(thread)"
                         @delete="askDelete(thread)"
                         @report="$emit('report', thread)"
+                        @sanction="$emit('sanction', thread)"
                         @view-delayed="viewDelayed(thread)"
                         @pin-request="requestPin(thread)"
                         @pin-cancel="cancelPin(thread)"
@@ -166,12 +170,14 @@
                         :report-enabled="board.reportEnabled"
                         :editing="editingId === r.id"
                         :reactions="reactions"
+                        :sanctionable="sanctionable(r)"
                         @like="like(r)"
                         @dislike="dislike(r)"
                         @reply="openReply(thread, r)"
                         @edit="openEdit(r)"
                         @delete="askDelete(r)"
                         @report="$emit('report', r)"
+                        @sanction="$emit('sanction', r)"
                         @view-delayed="viewDelayed(r)"
                     >
                         <template #editor>
@@ -216,6 +222,9 @@
                 </div>
             </div>
         </template>
+
+        <!-- 토론: 이 게시판에서 쓰기 제한 중이면 의견 쓰기 자리에 안내(게시판 제재) -->
+        <BoardWriteRestrictionNotice v-if="isDebate && debateOpen && restriction && !board.viewer.guest" :restriction="restriction" compact />
 
         <!-- ── 토론: 의견 쓰기 — 열린 토론에서 투표한 회원만 ── -->
         <div v-if="isDebate && composerOpen && debate?.myStance" class="flex flex-col gap-2 rounded-lg border border-surface bg-surface-0 p-3 dark:bg-surface-900" data-testid="debate-composer">
@@ -271,8 +280,10 @@
 
         <!-- ── 일반 댓글: 새 댓글 — 막혔으면 까닭(댓글 받지 않음·로그인 필요·등급 미달·잠금) ── -->
         <div v-if="!isDebate" class="mt-4 border-t border-surface pt-4">
+            <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 다른 까닭보다 먼저, 끝 시각·사유와 함께 -->
+            <BoardWriteRestrictionNotice v-if="restriction" :restriction="restriction" compact />
             <CommentForm
-                v-if="board.viewer.canComment"
+                v-else-if="board.viewer.canComment"
                 :key="`new-${formSeq}`"
                 :board="board"
                 :guest-mode="board.viewer.guest"
@@ -308,7 +319,9 @@ import type { Commenter, CommentKind, DebateStance, OpinionKind } from '~/compos
 import type { ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import type { CommentLoadState } from '~/composables/board/usePostComments';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
+import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 
@@ -325,6 +338,8 @@ interface Props {
     actions: CommentActions;
     /** 토론 구획의 동작(투표·@ 지정·고정 요청) — `variant="debate"` 일 때 */
     debateActions?: DebateActions | null;
+    /** 보는 사람이 그 게시판 매니저·스텝이다 — 남의 회원 댓글 ⋯ 에 「작성자 제재」(`sanction` 이벤트 → 페이지 대화창, board-sanction-contract) */
+    sanctionEnabled?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -332,9 +347,10 @@ const props = withDefaults(defineProps<Props>(), {
     kind: 'GENERAL',
     variant: 'general',
     debateActions: null,
+    sanctionEnabled: false,
 });
 
-const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView]; settings: [] }>();
+const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView]; settings: []; sanction: [comment: CommentView] }>();
 
 const SORTS: readonly CommentSort[] = ['OLDEST', 'LATEST'];
 const KINDS: readonly OpinionKind[] = ['OPINION', 'PRO', 'CON', 'NEUTRAL'];
@@ -364,6 +380,16 @@ const replyTarget = ref<{ parentId: string; replyToId: string | null; name: stri
 const editingId = ref<string | null>(null);
 
 const blockedText = computed(() => UtilBoardMessages.commentBlocked(t, props.board.viewer.commentBlockedReason, props.board.commentMinGradeLabel));
+
+/* ── 게시판 제재(board-sanction-contract) ── */
+/** 쓰다가 `403 BOARD_WRITE_RESTRICTED` 로 처음 알게 된 쓰기 제한 — 게시판 응답(`viewer.writeRestriction`)에 없던 경우 */
+const errorRestriction = ref<BoardWriteRestriction | null>(null);
+/** 이 게시판에서 쓰기 제한 중 — 댓글·답글·의견 입력 자리에 안내를 보인다 */
+const restriction = computed(() => props.board.viewer.writeRestriction ?? errorRestriction.value);
+/** 댓글 ⋯ 「작성자 제재」 — 매니저·스텝이 보는 남의 회원 댓글만(지운·숨긴 댓글·탈퇴 회원 제외) */
+function sanctionable(c: CommentView): boolean {
+    return props.sanctionEnabled && !c.mine && c.state === 'VISIBLE' && c.author.kind === 'MEMBER' && Boolean(c.author.memberId) && Boolean(c.author.name);
+}
 const reactions = computed(() => props.data?.reactions ?? null);
 const isDebate = computed(() => props.variant === 'debate');
 
@@ -379,7 +405,7 @@ const shownStances = computed(() => UtilDebate.stances(neutralShown.value));
 const shownKinds = computed(() => KINDS.filter((k) => k !== 'NEUTRAL' || neutralShown.value));
 const shares = computed(() => UtilDebate.shares(votes.value, shownStances.value));
 /** 투표·의견 쓰기를 할 수 있는 회원 — 열린 토론 + 댓글 쓰기 자격(비회원은 단추를 누르면 로그인 안내) */
-const composerOpen = computed(() => debateOpen.value && !props.board.viewer.guest && props.board.viewer.canComment);
+const composerOpen = computed(() => debateOpen.value && !props.board.viewer.guest && props.board.viewer.canComment && !restriction.value);
 /**
  * 내 의견에 고정 요청을 보낼 수 있다 — 게시판이 요청을 받지 않으면(`debate.pinRequestEnabled` false) 처음부터 숨기고,
  * 그 사이 정책이 바뀌어 `PIN_REQUEST_OFF` 를 받으면 이 화면에서 단추를 거둔다. 이미 보낸 요청의 대기·거절 상태는 `CommentItem` 이 따로 보인다
@@ -393,7 +419,7 @@ const pinRequestsOpen = computed(
 const generalCount = computed(() => props.data?.debate?.counts.generalTotal ?? props.data?.totalCount ?? 0);
 
 /** 답글 단추 — 일반 구획은 댓글 쓰기 자격, 토론 구획은 열린 토론에서만(의견 답글 = 의견) */
-const canReply = computed(() => props.board.viewer.canComment && (!isDebate.value || debateOpen.value));
+const canReply = computed(() => props.board.viewer.canComment && !restriction.value && (!isDebate.value || debateOpen.value));
 const replyMax = computed(() => (isDebate.value && debate.value ? debate.value.opinionMax : UtilPost.COMMENT_MAX));
 function editMax(comment: CommentView): number {
     return comment.stance && debate.value ? debate.value.opinionMax : UtilPost.COMMENT_MAX;
@@ -630,6 +656,13 @@ function showError(e: unknown, action: 'comment' | 'reply' | 'opinion'): void {
         return;
     }
     if (handleStale(e)) return;
+    // 이 게시판에서 쓰기 제한 중(403 BOARD_WRITE_RESTRICTED) — 폼을 닫고 입력 자리에 쓰기 제한 안내(게시판 머리와 같은 문구)
+    const restricted = UtilBoardSanction.restrictionFromError(e);
+    if (restricted) {
+        errorRestriction.value = restricted;
+        closeForms();
+        return;
+    }
     if (e instanceof ApiError && e.fields && Object.keys(e.fields).length) {
         fieldErrors.value = { ...e.fields };
         // 답글 대상 오류(@ 회원 지정한 의견이 그새 지워짐 등)·입장 칸 오류는 폼에 칸이 없다 — 아래 한 줄로
