@@ -482,6 +482,9 @@ public class CommentService {
         BoardActor actor = actors.resolve(userId, s);
         // 소모임 글의 댓글은 게시판 댓글 정책(최소 등급·잠금·끔)을 받지 않는다 — 계정 자격만(비회원 401)
         PostWriteService.requireWritable(post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s));
+        if (!post.isGroupPost()) {
+            PostWriteService.requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한 — 새 댓글·답글(board-sanction-contract 결정 5)
+        }
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();

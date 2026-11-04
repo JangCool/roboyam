@@ -239,6 +239,11 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.APPEAL_ANSWERED, List.of(MessageVariable.of("sanction", "sanctionKind"), MessageVariable.of("result", "appealResult"),
                         MessageVariable.of("answer", "appealAnswer")),
                 new InAppText("member.notification.APPEAL_ANSWERED.title", null, "{{answer}}", List.of("sanction", "result")), "/sanction", List.of()));
+        // 게시판 제재(V137 — board-sanction-contract 결정 6) — 게시판 이름 · 단계(+끝) · 사유 한 줄. 처리자는 없다(결정 7). 누르면 내 제재
+        out.add(member(MemberEvent.BOARD_SANCTION_ISSUED, List.of(MessageVariable.of("board", "sanctionBoard"), MessageVariable.of("sanction", "boardSanctionKind"),
+                        MessageVariable.of("until", "sanctionUntil"), MessageVariable.of("reason", "boardSanctionReason")),
+                new InAppText("member.notification.BOARD_SANCTION_ISSUED.title", null, "{{reason}}", List.of("board", "sanction", "until")), "/sanction",
+                List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));

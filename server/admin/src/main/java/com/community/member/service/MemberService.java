@@ -95,12 +95,14 @@ public class MemberService {
     private final ProfileNicknameHistoryRepository nicknameHistory;
     private final MemberSettingsAssembler settingsAssembler;
     private final IdentityVerificationService identities;
+    private final com.community.sanction.service.BoardSanctionViews boardSanctionViews;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
                          ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints,
                          ProfileNicknameHistoryRepository nicknameHistory, MemberSettingsAssembler settingsAssembler,
-                         IdentityVerificationService identities) {
+                         IdentityVerificationService identities, com.community.sanction.service.BoardSanctionViews boardSanctionViews) {
+        this.boardSanctionViews = boardSanctionViews;
         this.nicknameHistory = nicknameHistory;
         this.settingsAssembler = settingsAssembler;
         this.identities = identities;
@@ -179,7 +181,8 @@ public class MemberService {
                 null, activity, List.of(), null, reports,
                 withdrawn ? null : profile.getBio(), social, null, acceptDm, null, withdrawn ? record.deletedAt() : null,
                 withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
-                gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id));
+                gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id),
+                withdrawn ? null : boardSanctionViews.memberSummary(id)); // 게시판 제재 요약(board-sanction-contract) — 탈퇴 회원은 null
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));

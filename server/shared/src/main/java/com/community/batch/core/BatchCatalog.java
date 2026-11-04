@@ -99,6 +99,13 @@ public enum BatchCatalog implements BatchDefinition {
     SANCTION_EXPIRE("sanction-expire", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 게시판 제재 만료 — 끝난 쓰기 제한을 ENDED 로 정리하고 지난 매니저·스텝 하루 사용량을 지운다. DB 배치, 기본 1분마다
+     * ({@code R__batch_40_board_sanction_expire.sql}, docs/features/board-sanction-contract.md). <b>업무 배치</b>(분류 MEMBER) — pg_cron 이 없으면 기동 WARN.
+     * 쓰기 막힘·목록은 읽을 때 {@code ends_at > 지금} 으로 판정하므로 크론이 늦어도 동작은 같다({@code BoardSanctionStore#endDue} — 같은 판정의 Java 쪽).
+     */
+    BOARD_SANCTION_EXPIRE("board-sanction-expire", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 탈퇴 대비·본인인증 개인정보 정리(기간이 끝난 재가입 제한 해시 · 파기 예정일이 지난 탈퇴 회원 연락처 · 30일 지난 본인인증 시도) — DB 배치, 기본 매일 04:25 KST
      * ({@code R__batch_28_member_privacy_retention.sql}, docs/features/commerce-foundation-contract.md 「0-4」).
      */

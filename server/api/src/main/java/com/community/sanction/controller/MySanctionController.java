@@ -25,8 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
  * <ul>
  *   <li>{@code GET /api/me/sanctions} → {@code MySanctions}</li>
  *   <li>{@code POST /api/me/sanctions/{id}/acknowledge} → 204(멱등) · 404 {@code SANCTION_NOT_FOUND}</li>
- *   <li>{@code POST /api/me/appeals} {@code { sanctionId, reason }} → 201 {@code { id, no, status }} · 400 {@code fields.reason} · 404 {@code SANCTION_NOT_FOUND} ·
- *       409 {@code SANCTION_NOT_APPEALABLE}·{@code APPEAL_ALREADY}·{@code APPEAL_EXPIRED}</li>
+ *   <li>{@code POST /api/me/board-sanctions/{id}/acknowledge} → 204(멱등) · 404 {@code BOARD_SANCTION_NOT_FOUND}</li>
+ *   <li>{@code POST /api/me/appeals} {@code { sanctionId | boardSanctionId, reason }}(둘 중 하나 — 둘 다면 400 {@code fields.boardSanctionId}) → 201 {@code { id, no, status }} ·
+ *       400 {@code fields.reason} · 404 {@code SANCTION_NOT_FOUND}·{@code BOARD_SANCTION_NOT_FOUND} · 409 {@code SANCTION_NOT_APPEALABLE}·{@code APPEAL_ALREADY}·{@code APPEAL_EXPIRED}</li>
  * </ul>
  */
 @RestController
@@ -46,6 +47,13 @@ public class MySanctionController {
     @PostMapping("/api/me/sanctions/{id}/acknowledge")
     public ResponseEntity<Void> acknowledge(@PathVariable String id, Authentication authentication) {
         service.acknowledge(principal(authentication).id(), id);
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    /** 게시판 경고 확인(board-sanction-contract) → 204(멱등) · 404 {@code BOARD_SANCTION_NOT_FOUND} */
+    @PostMapping("/api/me/board-sanctions/{id}/acknowledge")
+    public ResponseEntity<Void> acknowledgeBoard(@PathVariable String id, Authentication authentication) {
+        service.acknowledgeBoard(principal(authentication).id(), id);
         return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
 

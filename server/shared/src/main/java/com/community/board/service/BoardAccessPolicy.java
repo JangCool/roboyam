@@ -34,6 +34,8 @@ public final class BoardAccessPolicy {
     public static final String BOARD_RESTRICTED = "BOARD_RESTRICTED";
     public static final String COMMENTS_OFF = "COMMENTS_OFF";
     public static final String BUSINESS_ACCOUNT_RESTRICTED = "BUSINESS_ACCOUNT_RESTRICTED";
+    /** 이 게시판에서 쓰기 제한 중(게시판 제재 — docs/features/board-sanction-contract.md 결정 5). 새 글·댓글·답글만 막는다 */
+    public static final String BOARD_WRITE_RESTRICTED = "BOARD_WRITE_RESTRICTED";
 
     private BoardAccessPolicy() {
     }
@@ -133,6 +135,18 @@ public final class BoardAccessPolicy {
             return null; // 지워진 등급 키 — 첫 등급처럼(누구나) 본다
         }
         return actor.gradeLevel() >= required ? null : GRADE_TOO_LOW;
+    }
+
+    /**
+     * 게시판 판정({@link #writeBlocked}·{@link #commentBlocked})에 게시판 제재의 쓰기 제한을 더한다 — 앞의 까닭이 없을 때만 {@code BOARD_WRITE_RESTRICTED}.
+     * 게시판 응답의 {@code viewer.*BlockedReason}·쓸 수 있는 게시판 목록이 쓴다(쓰기 API 는 {@code PostWriteService#requireNotRestricted} 로 {@code until} 을 싣는다).
+     * 수정·삭제·추천·토론 입장은 이 판정을 쓰지 않는다(결정 5).
+     */
+    public static String withWriteRestriction(String reason, EffectiveBoard board, BoardActor actor) {
+        if (reason != null) {
+            return reason;
+        }
+        return actor.writeRestriction(board.id()) != null ? BOARD_WRITE_RESTRICTED : null;
     }
 
     /** 이 회원에게 「새 회원」(첫 등급) 링크·이미지 규칙이 걸리는가 — 매니저·스텝은 면제 */

@@ -152,7 +152,11 @@ public enum MemberNotificationType {
     /** 운영자가 내 정지·영구 정지를 풀었다 — 덧붙임 sanctionId·kind(해제 사유는 싣지 않는다) */
     SANCTION_LIFTED("system"),
     /** 내 이의제기에 답이 왔다(인용·기각) — 덧붙임 sanctionId·appealId·kind·warningNo·result(ACCEPTED · REJECTED)·answer. 메일도(인증된 이메일) */
-    APPEAL_ANSWERED("system");
+    APPEAL_ANSWERED("system"),
+
+    // ── 게시판 제재(V137 — docs/features/board-sanction-contract.md 결정 6). 끌 수 없는 계정 알림, 누르면 /sanction, 메일 없음 ──
+    /** 게시판 매니저·스텝에게 게시판 제재를 받았다 — 덧붙임 boardSanctionId·boardId·boardName·kind·until(쓰기 제한의 끝)·reasonCode·reasonText. 처리자는 싣지 않는다 */
+    BOARD_SANCTION_ISSUED("system");
 
     private final String category;
 

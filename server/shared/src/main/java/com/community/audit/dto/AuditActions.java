@@ -233,6 +233,13 @@ public final class AuditActions {
     public static final String APPEAL_ACCEPT = "APPEAL_ACCEPT";
     /** 이의제기 기각 — {@code appealId}·{@code appealNo}·{@code sanctionId}·{@code kind}·{@code answer} */
     public static final String APPEAL_REJECT = "APPEAL_REJECT";
+    // ── 게시판 제재(docs/features/board-sanction-contract.md) — 운영자의 처리만(매니저·스텝의 처리는 board_staff_actions). 대상 MEMBER + 회원 ID ──
+    /** 운영자의 게시판 쓰기 제한 해제 — {@code boardSanctionId}·{@code boardSanctionNo}·{@code boardId}·{@code kind}·해제 사유 {@code reason} */
+    public static final String BOARD_SANCTION_LIFT = "BOARD_SANCTION_LIFT";
+    /** 운영자의 게시판 제재 무효 — {@code boardSanctionId}·{@code boardSanctionNo}·{@code boardId}·{@code kind}·{@code reason}·진행 중 제한이 풀렸는지 {@code released}·같이 인용한 이의제기 {@code appealAccepted} */
+    public static final String BOARD_SANCTION_VOID = "BOARD_SANCTION_VOID";
+    /** 반복 검토 닫기 — {@code reviewId}·{@code reviewNo}·{@code boardId}·{@code result}(KEPT · SITE_SANCTIONED · VOIDED)·{@code memo}·{@code siteSanctionId}·{@code voidedBoardSanctionIds} */
+    public static final String BOARD_SANCTION_REVIEW_CLOSE = "BOARD_SANCTION_REVIEW_CLOSE";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──

@@ -109,6 +109,15 @@ public class MemberNotificationMessages {
                     new Sanction(kind, warningNo, null, result));
         }
 
+        /**
+         * 게시판 제재를 받았다(board-sanction-contract 결정 6) — 게시판 이름(snapshot) · 단계(sanction.kind — WARNING·RESTRICT_n) · 끝 · 사유 코드(reasonCode) · 덧붙임(note).
+         * 처리자는 없다(결정 7).
+         */
+        public static Facts boardSanctionIssued(String boardName, String kind, Instant until, String reasonCode, String reasonText) {
+            return new Facts(MemberNotificationType.BOARD_SANCTION_ISSUED, null, null, null, 1, 0, null, reasonText, false, boardName, null, reasonCode, null, null, null,
+                    new Sanction(kind, null, until, null));
+        }
+
         /** 소멸 예정 알림 밖의 사실 — 소멸 예정은 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
                      boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
@@ -420,6 +429,8 @@ public class MemberNotificationMessages {
             case SANCTION_ISSUED -> builder.variable("sanction", sanctionName(facts, locale)).variable("until", sanctionUntil(facts, locale))
                     .variable("reason", nz(facts.note()));
             case SANCTION_LIFTED -> builder.variable("sanction", sanctionName(facts, locale));
+            case BOARD_SANCTION_ISSUED -> builder.variable("board", nz(facts.snapshot())).variable("sanction", boardSanctionName(facts, locale))
+                    .variable("until", sanctionUntil(facts, locale)).variable("reason", boardSanctionReason(facts, locale));
             case APPEAL_ANSWERED -> builder.variable("sanction", sanctionName(facts, locale)).variable("result", appealResult(facts, locale))
                     .variable("answer", nz(facts.note()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
@@ -455,8 +466,34 @@ public class MemberNotificationMessages {
         }
         return switch (sanction.kind()) {
             case "WARNING", "SUSPEND_3", "SUSPEND_7", "SUSPEND_30", "BAN" -> messages.get(new MessageRef("member.sanction.kind." + sanction.kind()), locale);
+            // 게시판 제재(이의 답변 알림 — 「게시판 경고」·「게시판 쓰기 제한 n일」)
+            case "BOARD_WARNING", "BOARD_RESTRICT_1", "BOARD_RESTRICT_3", "BOARD_RESTRICT_7" -> messages.get(new MessageRef("member.sanction.kind." + sanction.kind()), locale);
             default -> sanction.kind();
         };
+    }
+
+    /** 게시판 제재 단계 이름(번들 — 「경고」·「쓰기 제한 3일」). 모르는 단계는 그 글자 */
+    private String boardSanctionName(Facts facts, Locale locale) {
+        Facts.Sanction sanction = facts.sanction();
+        if (sanction == null || sanction.kind() == null) {
+            return "";
+        }
+        return switch (sanction.kind()) {
+            case "WARNING", "RESTRICT_1", "RESTRICT_3", "RESTRICT_7" -> messages.get(new MessageRef("member.boardSanction.kind." + sanction.kind()), locale);
+            default -> sanction.kind();
+        };
+    }
+
+    /** 게시판 제재 사유 한 줄 — 「사유: 스팸·광고 · 덧붙임」(덧붙임이 없으면 사유 이름만) */
+    private String boardSanctionReason(Facts facts, Locale locale) {
+        String code = facts.reasonCode();
+        String name = switch (code == null ? "" : code) {
+            case "SPAM", "ABUSE", "INVESTMENT", "OFF_TOPIC", "OTHER" -> messages.get(new MessageRef("member.boardSanction.reason." + code), locale);
+            default -> nz(code);
+        };
+        String text = facts.note();
+        return text == null || text.isBlank() ? messages.get(new MessageRef("member.boardSanction.reasonLine", name), locale)
+                : messages.get(new MessageRef("member.boardSanction.reasonLine.text", name, text), locale);
     }
 
     /** 기간 정지의 끝 — 한국 시간 「YYYY-MM-DD HH:mm까지」, 끝이 없으면 빈 글자 */

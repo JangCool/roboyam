@@ -5,6 +5,7 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.entity.BoardStaffEntity;
 import com.community.board.repository.master.BoardStaffRepository;
 import com.community.role.repository.master.MemberRoleQueries;
+import com.community.sanction.service.BoardSanctionService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
@@ -26,8 +27,11 @@ public class BoardActorResolver {
     private final ProfileRepository profiles;
     private final BoardStaffRepository boardStaff;
     private final MemberRoleQueries memberRoles;
+    private final BoardSanctionService boardSanctions;
 
-    public BoardActorResolver(UserRepository users, ProfileRepository profiles, BoardStaffRepository boardStaff, MemberRoleQueries memberRoles) {
+    public BoardActorResolver(UserRepository users, ProfileRepository profiles, BoardStaffRepository boardStaff, MemberRoleQueries memberRoles,
+                              BoardSanctionService boardSanctions) {
+        this.boardSanctions = boardSanctions;
         this.users = users;
         this.profiles = profiles;
         this.boardStaff = boardStaff;
@@ -51,6 +55,8 @@ public class BoardActorResolver {
         boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED || u.getStatus() == UserStatus.WITHDRAWING;
         MemberRoleQueries.MemberRoles roles = memberRoles.of(userId, gradeKey);
         Set<Long> staffBoards = boardStaff.findByUserId(userId).stream().map(BoardStaffEntity::getBoardId).collect(Collectors.toUnmodifiableSet());
-        return new BoardActor(userId, gradeKey, level == null ? 0 : level, u.isEmailVerified(), restricted, roles.business(), roles.permissions(), staffBoards);
+        // 게시판 제재의 진행 중 쓰기 제한(board-sanction-contract 결정 5) — 회원 범위 부분 색인 질의 하나(ux_board_sanctions_running)
+        return new BoardActor(userId, gradeKey, level == null ? 0 : level, u.isEmailVerified(), restricted, roles.business(), roles.permissions(), staffBoards,
+                boardSanctions.writeRestrictions(userId));
     }
 }

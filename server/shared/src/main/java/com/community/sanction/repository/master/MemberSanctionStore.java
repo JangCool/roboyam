@@ -40,7 +40,7 @@ public class MemberSanctionStore {
 
     /** 이의제기 한 줄 — 답변한 운영자 이름을 함께 */
     public static final String APPEAL_SELECT = "SELECT a.id, a.appeal_no, a.sanction_id, a.user_id, a.status, a.reason, a.answer, a.answered_by, ao.operator_name, "
-            + "a.answered_at, a.created_at FROM sanction_appeals a LEFT JOIN operators ao ON ao.id = a.answered_by";
+            + "a.answered_at, a.created_at, a.board_sanction_id FROM sanction_appeals a LEFT JOIN operators ao ON ao.id = a.answered_by";
 
     /**
      * 제재 한 줄.
@@ -76,9 +76,16 @@ public class MemberSanctionStore {
         }
     }
 
-    /** 이의제기 한 줄 */
-    public record AppealRow(long id, long no, long sanctionId, long userId, AppealStatus status, String reason, String answer, Long answeredBy, String answeredByName,
-                            Instant answeredAt, Instant createdAt) {
+    /**
+     * 이의제기 한 줄 — 사이트 제재({@code sanctionId}) · 게시판 제재({@code boardSanctionId}, V137) 중 하나만 있다.
+     */
+    public record AppealRow(long id, long no, Long sanctionId, long userId, AppealStatus status, String reason, String answer, Long answeredBy, String answeredByName,
+                            Instant answeredAt, Instant createdAt, Long boardSanctionId) {
+
+        /** 게시판 제재 이의제기인가 */
+        public boolean board() {
+            return boardSanctionId != null;
+        }
     }
 
     /**
@@ -249,12 +256,12 @@ public class MemberSanctionStore {
 
     /** 회원의 이의제기 전부(내 제재 화면 — 제재 ID 로 잇는다) */
     public List<AppealRow> appealsOfUser(long userId) {
-        return jdbc.query(APPEAL_SELECT + " WHERE a.user_id = ?", MemberSanctionStore::appeal, userId);
+        return jdbc.query(APPEAL_SELECT + " WHERE a.user_id = ? AND a.sanction_id IS NOT NULL", MemberSanctionStore::appeal, userId);
     }
 
     /** 이의제기 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 답해도 한 번만(차례: 이의제기 행 → 회원 행 → 제재 행) */
     public Optional<AppealRow> lockAppeal(long id) {
-        return jdbc.query("SELECT a.id, a.appeal_no, a.sanction_id, a.user_id, a.status, a.reason, a.answer, a.answered_by, NULL, a.answered_at, a.created_at "
+        return jdbc.query("SELECT a.id, a.appeal_no, a.sanction_id, a.user_id, a.status, a.reason, a.answer, a.answered_by, NULL, a.answered_at, a.created_at, a.board_sanction_id "
                 + "FROM sanction_appeals a WHERE a.id = ? FOR UPDATE", MemberSanctionStore::appeal, id).stream().findFirst();
     }
 
@@ -276,8 +283,8 @@ public class MemberSanctionStore {
     }
 
     public static AppealRow appeal(ResultSet rs, int i) throws SQLException {
-        return new AppealRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), AppealStatus.valueOf(rs.getString(5)), rs.getString(6), rs.getString(7),
-                nullableLong(rs, 8), rs.getString(9), instant(rs, 10), instant(rs, 11));
+        return new AppealRow(rs.getLong(1), rs.getLong(2), nullableLong(rs, 3), rs.getLong(4), AppealStatus.valueOf(rs.getString(5)), rs.getString(6), rs.getString(7),
+                nullableLong(rs, 8), rs.getString(9), instant(rs, 10), instant(rs, 11), nullableLong(rs, 12));
     }
 
     private static MemberRow member(ResultSet rs, int i) throws SQLException {

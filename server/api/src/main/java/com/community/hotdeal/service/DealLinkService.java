@@ -91,6 +91,7 @@ public class DealLinkService {
         }
         BoardActor actor = actors.resolve(userId, s);
         PostWriteService.requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
+        PostWriteService.requireNotRestricted(actor, b.id()); // 새 딜 글 쓰기 전 링크 확인 — 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
         DealWriter.requireWriter(b, actor, s);
         String link = url == null ? null : url.strip();
         if (link == null || link.isEmpty() || link.length() > DealHosts.URL_MAX || !DealHosts.isHttpUrl(link)) {

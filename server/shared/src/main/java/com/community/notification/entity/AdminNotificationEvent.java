@@ -90,9 +90,13 @@ public enum AdminNotificationEvent {
      * 회원이 제재에 이의제기를 접수했다(api {@code MySanctionService} — member-sanction-contract 정책 8). 2026-11-04 예약을 풀었다. 처리는 이의제기 서랍({@code appealId})
      */
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).link("/appeals?appeal={appealId}")),
+    /**
+     * 게시판 제재 반복 검토가 열렸다(shared {@code BoardSanctionService} — 같은 회원 · 같은 게시판 · 7일 · 3건 이상, board-sanction-contract 결정 3). 2026-11-04 예약을 풀었다.
+     * 발행은 부여 트랜잭션 안(롤백되면 없다), 이메일은 커밋 뒤. 처리는 반복 검토 서랍({@code reviewId})
+     */
+    BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).link("/board-sanctions/reviews?review={reviewId}")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
-    BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).reserved()),
     /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */
     NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).link("/members/nickname-images").collapse(300)),
     /** 소모임 개설 신청 대기 — 승인제에서 회원이 개설을 신청할 때(api GroupCreateService, V90). 5분 안의 연속 신청은 한 건. 2026-10-26 예약을 풀었다 */
