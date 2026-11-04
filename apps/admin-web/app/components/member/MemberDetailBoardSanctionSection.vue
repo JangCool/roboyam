@@ -3,7 +3,7 @@
         회원 상세 — 「게시판 제재」 구획(docs/features/board-sanction-contract.md 「화면 > admin-web」). 사이트 제재 구획(`MemberDetailSanctionSection`)과 따로 센다.
         위에 한 줄 요약(무효 아닌 n건 · 진행 중 쓰기 제한 n건 · 열린 반복 검토 n건) + [게시판 제재 이력 보기](`/board-sanctions?q=<닉네임>`, `sanction.read`),
         가운데 게시판별 건수(경고 n · 쓰기 제한 n · 진행 중이면 끝 시각), 아래 최근 이력 몇 줄(`BoardSanctionHistoryList` — 번호는 게시판 제재 서랍 링크).
-        값은 회원 상세 응답의 `boardSanctions`(⚠ MOCK: 서버가 아직 주지 않아 `useMemberApi` 가 목업으로 채운다). 없으면(null — 탈퇴 회원 등) 「아직 연동되지 않았어요」 안내.
+        값은 회원 상세 응답의 `boardSanctions`(서버 `MemberBoardSanctionSummaryView`). 없으면(null — 탈퇴 회원) 「아직 연동되지 않았어요」 안내.
         조치(해제·무효)는 여기서 하지 않는다 — 게시판 제재 화면에서 한다.
     -->
     <EmptyState v-if="!summary" icon="pi pi-link" :title="t('member.detail.notReady.title')" :description="t('boardSanction.memberSection.notReady')" />

@@ -1,4 +1,3 @@
-import { mockBoardViewerExtras } from '~/composables/board/api/mock/board-staff-mock';
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -18,7 +17,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  * 공개 표시 기본값(날짜 표시 방식·새 글 기준)은 따로 묻지 않는다 — `GET /api/site/info` 의 `boardDisplay`(`useBoardDisplay`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
- * ⚠ MOCK: 게시판 제재(board-sanction-contract)의 새 칸 `viewer.staffTools`·`viewer.writeRestriction` 은 서버가 아직 주지 않아 `board` 응답에 목업으로 덧붙인다(서버가 주면 그 값 그대로).
+ * 게시판 제재(board-sanction-contract)의 `viewer.staffTools`·`viewer.writeRestriction` 도 서버가 준다(2026-11-04 연결).
  */
 const PATH = {
     boards: '/api/boards',
@@ -40,12 +39,7 @@ export function useBoardApi() {
         writable: async (signal?: AbortSignal): Promise<BoardView[]> => (await client.get<{ boards: BoardView[] }>(PATH.writable, { signal })).boards,
 
         /** 게시판 하나 — 유효 정책과 지금 사용자의 글쓰기·댓글 판정 */
-        board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> =>
-            client
-                .get<BoardDetail>(PATH.board(slug), { signal })
-                // MOCK: 서버가 아직 주지 않는 `viewer.staffTools`·`viewer.writeRestriction` 을 채운다(`?mock=board-manager|board-staff|board-restricted`)
-                .then(mockBoardViewerExtras),
-        // REAL: board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
+        board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
 
         /** 글 목록 — 빈 말머리·검색어는 보내지 않는다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>

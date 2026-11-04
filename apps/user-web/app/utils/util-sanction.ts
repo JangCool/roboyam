@@ -397,7 +397,7 @@ export default class UtilSanction {
         if (code === 'APPEAL_ALREADY') return 'ALREADY';
         if (code === 'SANCTION_NOT_APPEALABLE') return 'NOT_APPEALABLE';
         if (code === 'APPEAL_EXPIRED') return 'EXPIRED';
-        if (code === 'SANCTION_NOT_FOUND') return 'NOT_FOUND';
+        if (code === 'SANCTION_NOT_FOUND' || code === 'BOARD_SANCTION_NOT_FOUND') return 'NOT_FOUND';
         if (code === 'VALIDATION') return 'VALIDATION';
         if (status === 0) return 'NETWORK';
         if (status >= 500) return 'SERVER';

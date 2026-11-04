@@ -55,7 +55,7 @@ export function useMySanctions() {
         try {
             await api.acknowledgeBoard(id);
         } catch (e) {
-            if (!(e instanceof ApiError && e.code === 'SANCTION_NOT_FOUND')) return e instanceof ApiError && e.message ? e.message : t('sanction.ackFailed');
+            if (!(e instanceof ApiError && e.code === 'BOARD_SANCTION_NOT_FOUND')) return e instanceof ApiError && e.message ? e.message : t('sanction.ackFailed');
         } finally {
             boardAckBusy.value = '';
         }

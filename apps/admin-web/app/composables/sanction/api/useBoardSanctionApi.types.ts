@@ -2,7 +2,7 @@ import type { SanctionActorRef, SanctionAppealRef, SanctionScope, SanctionSearch
 
 /**
  * 관리자 게시판 제재 API(`/api/admin/board-sanctions…`)가 주고받는 모양 — 계약 `docs/features/board-sanction-contract.md`(「규칙」·「API 후보 > 관리자」).
- * 서버 DTO 후보 이름: `BoardSanctionLineView`·`BoardSanctionListView`·`BoardSanctionDetailView`·`BoardSanctionLiftRequest`·`BoardSanctionVoidRequest`, 회원 상세 요약 `MemberBoardSanctionSummaryView`.
+ * 서버 `server/admin` `com.community.sanction.dto`(`BoardSanctionLineView`·`BoardSanctionListView`·`BoardSanctionDetailView`·`BoardSanctionReasonRequest`, 회원 상세 요약 `MemberBoardSanctionSummaryView`)와 같은 칸 이름.
  * 게시판 제재는 매니저·스텝이 맡은 게시판에서 준 경고·쓰기 제한(1·3·7일)이다 — 사이트 제재(`useSanctionApi.types.ts`)와 단계·횟수를 따로 센다.
  * **처리자(매니저·스텝) 신원은 관리자 응답에만 있다**(정책 7). ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
@@ -89,7 +89,7 @@ export interface BoardSanctionLine {
     appealDeadline: string | null;
 }
 
-/** `GET /api/admin/board-sanctions` 조건 — 빈 값은 보내지 않는다. 범위 `ACTIVE` = 진행 중인 쓰기 제한, `CLOSED` = 기간 끝·해제·무효 */
+/** `GET /api/admin/board-sanctions` 조건 — 빈 값은 보내지 않는다. 범위 `ACTIVE` = 진행 중인 쓰기 제한만(경고 제외 — 결정 11), `CLOSED` = 기간 끝·해제·무효 */
 export interface BoardSanctionQuery {
     scope?: SanctionScope;
     boardId?: string;
@@ -125,7 +125,7 @@ export interface BoardSanctionDetail {
 
 /**
  * `POST /api/admin/board-sanctions/{id}/lift { reason }` (`sanction.manage`) → `200 BoardSanctionDetail` — 진행 중 쓰기 제한만(LIFTED, 권장 계산엔 남는다).
- * 400 `fields.reason`(1~500자) · 404 `BOARD_SANCTION_NOT_FOUND` · 409 `BOARD_SANCTION_NOT_LIFTABLE`(경고·이미 끝남·해제·무효)
+ * 400 `fields.reason`(1~200자 — 결정 11) · 404 `BOARD_SANCTION_NOT_FOUND` · 409 `BOARD_SANCTION_NOT_LIFTABLE`(경고·이미 끝남·해제·무효)
  */
 export interface BoardSanctionLiftRequest {
     reason: string;
@@ -133,7 +133,7 @@ export interface BoardSanctionLiftRequest {
 
 /**
  * `POST /api/admin/board-sanctions/{id}/void { reason }` (`sanction.manage`) → `200 BoardSanctionDetail` — VOIDED(진행 중 쓰기 제한은 바로 풀리고, 반복 검토·권장 수에서 빠진다).
- * 400 `fields.reason`(1~500자) · 404 `BOARD_SANCTION_NOT_FOUND` · 409 `BOARD_SANCTION_ALREADY_VOIDED`. 대기 중 이의제기가 있으면 서버 정책 미확정(보고 참고).
+ * 400 `fields.reason`(1~200자 — 결정 11) · 404 `BOARD_SANCTION_NOT_FOUND` · 409 `BOARD_SANCTION_ALREADY_VOIDED`. 대기 중 이의제기가 있으면 같은 트랜잭션에서 「인용」으로 닫는다(결정 10).
  */
 export interface BoardSanctionVoidRequest {
     reason: string;

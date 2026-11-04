@@ -6,6 +6,9 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 
+/** 대화창이 칸 아래에 보이는 서버 `fields` 키 — 그 밖의 키는 폼 아래 한 줄 */
+const FIELD_KEYS: ReadonlySet<string> = new Set(['reasonCode', 'reasonText']);
+
 /** 제재할 작성자 — 누른 글·댓글에서 */
 export interface BoardSanctionTargetRef {
     userId: string;
@@ -23,7 +26,7 @@ export interface BoardSanctionTargetRef {
  *  - 한도 초과 `409 BOARD_STAFF_DAILY_LIMIT` → 서버 문구 + 남은 0건으로 맞춘다(`limit`·`used`)
  *  - 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED` → 폼 대신 서버 문구(「제재할 수 없는 회원이에요」)
  *  - 이미 제한 중 `409 BOARD_STAFF_ALREADY_RESTRICTED` → 서버 문구 + 현황을 다시 읽어 제한 단계를 막는다(고른 사유·덧붙임은 그대로)
- *  - 입력 `400 VALIDATION` → 칸 아래 · 권한 없음(403) → 대화창을 닫고 토스트 · 그 밖 → 폼 아래 한 줄
+ *  - 입력 `400 VALIDATION` → `fields.reasonCode|reasonText` 는 칸 아래, `fields.kind|postId|commentId` 는 폼 아래 한 줄 · 권한 없음(403 `BOARD_STAFF_FORBIDDEN`) → 대화창을 닫고 토스트 · 그 밖 → 폼 아래 한 줄
  * 성공·한도 초과 때 게시판의 `viewer.staffTools`(게시판 머리 「오늘 남은 제재 n건」)도 같은 값으로 고친다.
  * ⚠ setup 에서 부른다 — 번역은 `useTranslate`(뒤에서도 안전)로 잡아 둔다.
  */
@@ -103,10 +106,15 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
         formError.value = '';
         fieldErrors.value = {};
         try {
-            const res = await api.issue(
-                { boardId: b.id, userId: who.userId, kind: value.kind, reasonCode: value.reasonCode, reasonText: value.reasonText, postId: who.postId, commentId: who.commentId },
-                who.nickname,
-            );
+            const res = await api.issue({
+                boardId: b.id,
+                userId: who.userId,
+                kind: value.kind,
+                reasonCode: value.reasonCode,
+                reasonText: value.reasonText,
+                postId: who.postId,
+                commentId: who.commentId,
+            });
             setQuota(res.quota, res.resetsAt);
             visible.value = false;
             toast.success(UtilBoardSanctionMessages.issuedToast(t, who.nickname, res.kind, res.quota), 5000);
@@ -125,6 +133,9 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
                 void loadPreview({ silent: true });
             } else if (outcome === 'VALIDATION' && e instanceof ApiError && e.fields && Object.keys(e.fields).length) {
                 fieldErrors.value = { ...e.fields };
+                // 대화창에 칸이 없는 오류(`fields.kind` · 계기 `fields.postId|commentId` — 그새 글·댓글이 지워졌거나 대상의 것이 아님)는 폼 아래 한 줄로
+                const other = Object.entries(e.fields).find(([key]) => !FIELD_KEYS.has(key));
+                if (other) formError.value = other[1];
             } else if (outcome === 'FORBIDDEN') {
                 // 그새 매니저·스텝이 아니게 됐다 — 닫고 알린다(다음에 게시판을 읽으면 메뉴도 사라진다)
                 visible.value = false;

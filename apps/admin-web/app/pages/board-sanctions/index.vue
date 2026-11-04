@@ -7,10 +7,9 @@
           회원 상세의 [게시판 제재 이력 보기]는 `?q=<닉네임>`, 줄 메뉴 「이 회원의 게시판 제재만 보기」는 `?userId=`(툴바에 풀기 칩).
         - 표: 번호 · 회원 · 게시판 · 종류 · 사유 코드 · 처리자(닉네임 + 매니저/스텝) · 시작 · 끝 · 상태 · 이의 · ⋯(자세히 · 해제 · 무효 · 이의제기 · 이 회원만).
           줄을 누르면 서랍(`BoardSanctionDetailDrawer`, `?boardSanction=` — replace, 목록을 다시 받지 않는다). 이전/다음은 지금 쪽의 줄 순서.
-        - 해제(진행 중 쓰기 제한 → LIFTED)·무효(→ VOIDED, 반복 검토·권장 수에서 빠짐): 사유 1~500자(`MemberReasonDialog`), `sanction.manage`.
+        - 해제(진행 중 쓰기 제한 → LIFTED)·무효(→ VOIDED, 반복 검토·권장 수에서 빠짐): 사유 1~200자(결정 11)(`MemberReasonDialog`), `sanction.manage`.
           `409 BOARD_SANCTION_NOT_LIFTABLE`·`BOARD_SANCTION_ALREADY_VOIDED` 는 토스트(서버 문구) + 새로 받기.
         - 권한: 보기 `sanction.read`(메뉴). `sanction.manage` 가 없으면 읽기 전용 안내.
-        ⚠ MOCK: API 는 목업(`composables/sanction/api/mock/board-sanction-mock.ts` — `?mock=` 스위치는 그 파일 머리).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('boardSanction.title')" :subtitle="t('boardSanction.subtitle')">
@@ -168,7 +167,7 @@
             :danger="actKind === 'void'"
             :notice="t(actKind === 'void' ? 'boardSanction.voidNotice' : 'boardSanction.liftNotice')"
             :min="1"
-            :max="UtilSanction.TEXT_MAX"
+            :max="UtilBoardSanction.REASON_MAX"
             :busy="acting"
             :error="actError"
             :field-error="actFieldError"

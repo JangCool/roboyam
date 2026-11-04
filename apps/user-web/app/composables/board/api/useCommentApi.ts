@@ -1,4 +1,3 @@
-import { mockBoardWriteGuard } from '~/composables/board/api/mock/board-staff-mock';
 import type { CommentKind } from '~/composables/board/api/useDebateApi.types';
 import type {
     CommentDeleteRequest,
@@ -44,12 +43,7 @@ export function useCommentApi() {
         list: (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
             client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
 
-        create: (postId: string, body: CommentWriteRequest): Promise<CommentView> =>
-            // MOCK: `?mock=board-write-error` 면 서버가 게시판 쓰기 제한(403 BOARD_WRITE_RESTRICTED)으로 거절한 것처럼(board-sanction-contract)
-            Promise.resolve()
-                .then(mockBoardWriteGuard)
-                .then(() => client.post<CommentView>(PATH.list(postId), body)),
-        // REAL: create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),
+        create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),
 
         update: (id: string, body: CommentUpdateRequest): Promise<CommentView> => client.put<CommentView>(PATH.comment(id), body),
 

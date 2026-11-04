@@ -4,7 +4,6 @@
         모양은 제재 화면(`pages/sanctions/index.vue`)·신고 관리와 같다.
         - 조회: 상태 라디오(대기(기본)·인용·기각·전체 — 건수는 거르기와 무관한 전체) · 정렬은 「접수」 머리(오래된 순 기본 · 최신 순). **모두 주소 쿼리**(`?status=&sort=&page=&size=&appeal=`).
         - 표: 접수번호 · 회원 · 종류(사이트 제재/게시판 제재 — board-sanction-contract 결정 4) · 제재(단계/상태) · 게시판 · 처리자(사이트 = 운영자, 게시판 = 닉네임 + 매니저/스텝) · 상태 · 접수 시각 · 대기 시간(대기 중 하루 넘으면 강조) · 처리 시각.
-          ⚠ MOCK: `?mock=appeal-board` 면 게시판 제재 이의제기 2건이 섞인다(`useAppealApi` 머리말).
         - 서랍 `?appeal=`(`AppealDetailDrawer`): 이의 사유 전문 · 대상 제재 · 근거 신고 사건 · 회원 제재 이력 · 처리 폼(답변 1~500자 + [인용]/[기각], `appeal.manage` 없으면 읽기 전용).
           `409 APPEAL_CLOSED` 는 서랍 안 「이미 처리됐어요 — 다시 불러오기」. 처리하면 목록을 조용히 다시 받는다.
         - 권한: 보기 `sanction.read`(메뉴), 처리 `appeal.manage`.
@@ -168,9 +167,9 @@ const permission = useSanctionPermission();
 /** 대기 시간의 「지금」 — 목록을 받을 때 정한다(줄마다 다른 지금이 되지 않게) */
 const now = ref(Date.now());
 
-/** 종류 — 서버가 `kind` 를 주지 않으면 사이트 제재(게시판 제재 이의제기는 `boardSanction` 이 있다) */
+/** 종류 — 서버가 늘 준다(SITE · BOARD) */
 function kindOf(item: AppealItem): 'SITE' | 'BOARD' {
-    return item.kind ?? (item.boardSanction ? 'BOARD' : 'SITE');
+    return item.kind;
 }
 
 const LIST_PATH = '/appeals';

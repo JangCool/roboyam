@@ -8,7 +8,6 @@
           「사이트 제재 부여」는 기존 제재 대화창(`SanctionIssueDialog` · `useSanctionIssue`, 회원 고정)을 열고, 부여에 성공하면 그 제재 번호로 `SITE_SANCTIONED` 닫기를 보낸다.
           닫기가 실패해도 준 사이트 제재는 남는다(토스트로 알린다). `409 BOARD_SANCTION_REVIEW_CLOSED` 는 서랍 안 「이미 닫혔어요 — 다시 불러오기」.
         - 권한: 보기 `sanction.read`(메뉴), 닫기 `sanction.manage`(사이트 제재 단계는 대화창이 `sanction.manage`·`sanction.ban` 으로 가른다).
-        ⚠ MOCK: API 는 목업(`composables/sanction/api/mock/board-sanction-mock.ts`). 목업 회원의 사이트 제재 현황·부여도 목업이 답한다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('boardSanction.title')" :subtitle="t('boardSanction.subtitle')">

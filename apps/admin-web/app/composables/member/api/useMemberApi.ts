@@ -1,4 +1,3 @@
-import { mockMemberBoardSanctions } from '~/composables/sanction/api/mock/board-sanction-mock';
 import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/composables/member/api/useMemberApi.types';
 
 /**
@@ -43,11 +42,7 @@ export function useMemberApi() {
         search: (query: MemberQuery): Promise<MemberPage> => client.get<MemberPage>(PATH.root, { query: { ...query } }),
 
         /** 회원 한 명의 상세 — 상세 Drawer 가 연다 */
-        getMember: (memberId: string): Promise<MemberDetail> =>
-            client
-                .get<MemberDetail>(PATH.one(memberId))
-                // MOCK: 게시판 제재 요약(`boardSanctions` — docs/features/board-sanction-contract.md)을 서버가 아직 주지 않아 목업으로 채운다. 서버가 주면 이 줄과 목업 import 를 지운다
-                .then((d) => (d.boardSanctions === undefined ? { ...d, boardSanctions: d.status === 'WITHDRAWN' ? null : mockMemberBoardSanctions(d) } : d)),
+        getMember: (memberId: string): Promise<MemberDetail> => client.get<MemberDetail>(PATH.one(memberId)),
 
         /** 역할 고르개가 쓸 목록 */
         loadRoleOptions: (): Promise<MemberRoleOption[]> => client.get<MemberRoleOption[]>(PATH.roleOptions()),

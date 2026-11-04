@@ -1,6 +1,6 @@
 /**
  * 게시판 매니저·스텝 도구 API 가 주고받는 모양 — 게시판 제재(`docs/features/board-sanction-contract.md` 「API 후보 > 공개」).
- * 서버가 아직 없어 이름은 후보다(서버 DTO 가 생기면 그 이름으로 맞춘다). 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
+ * 서버 `server/api` `com.community.boardstaff.dto`(`BoardSanctionPreviewView`·`BoardSanctionIssuedView`·`BoardStaffSanctionPageView`·`BoardStaffSanctionRowView`·`BoardStaffToolsView`·`BoardWriteRestrictionView` …)와 같은 칸 이름. 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
  * **처리자 신원**(`issuer`)은 그 게시판 매니저에게만 온다 — 스텝 목록·받은 회원 쪽 응답에는 없다(계약 결정 7).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
@@ -20,7 +20,10 @@ export const BOARD_SANCTION_REASONS: readonly BoardSanctionReasonCode[] = ['SPAM
 /** 상태 — 유효(경고는 늘, 쓰기 제한은 끝 전) · 기간 끝 · 매니저·운영자 해제 · 무효(이의 인용·운영자 무효) */
 export type BoardSanctionStatus = 'ACTIVE' | 'ENDED' | 'LIFTED' | 'VOIDED';
 
-/** 제재 내역 범위 거르기 — 전체 · 진행 중(`ACTIVE`) · 끝남(`ENDED`·`LIFTED`·`VOIDED`) */
+/**
+ * 제재 내역 범위 거르기 — 전체 · 진행 중(`ACTIVE` = 진행 중인 쓰기 제한만, 경고 제외 — 결정 11) · 끝남(`ENDED`·`LIFTED`·`VOIDED`).
+ * 서버 기준: 유효한 경고(`ACTIVE`)는 「전체」에만 나온다(「끝남」에도 넣지 않는다)
+ */
 export type BoardSanctionScope = 'ALL' | 'ACTIVE' | 'ENDED';
 
 /** 오늘(한국 시간 0시 기준) 처리자 1명·게시판 1개의 제재 한도 — 경고 + 쓰기 제한 합산, 해제·무효로 돌려받지 않는다 */
@@ -58,7 +61,7 @@ export interface BoardSanctionTarget {
 /**
  * `GET /api/board-staff/sanctions/preview?boardId=&userId=` — 제재 대화창을 열 때.
  * 받을 수 없는 대상(본인·같은 게시판 매니저·스텝·탈퇴·소모임 글)은 `409 BOARD_STAFF_TARGET_PROTECTED`(「제재할 수 없는 회원이에요」 하나로 통일).
- * 매니저·스텝이 아니면 `403 BOARD_STAFF_FORBIDDEN`(후보).
+ * 매니저·스텝이 아니면 `403 BOARD_STAFF_FORBIDDEN`(역할 권한 `board.sanction.issue` 없음·계정 정상·인증 아님도 같다).
  */
 export interface BoardSanctionPreview {
     target: BoardSanctionTarget;
@@ -131,7 +134,7 @@ export interface BoardStaffSanctionRow {
 
 /**
  * `GET /api/board-staff/boards/{boardId}/sanctions?scope=&page=` — 매니저 = 그 게시판 전체(처리자 포함), 스텝 = 내가 준 것만(처리자 칸 없음).
- * 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`(후보 — 화면은 404 안내).
+ * 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`(자리가 없거나 계정이 정상이 아님 — 화면은 404 안내. 역할 권한이 없어도 자리만 있으면 본다).
  */
 export interface BoardStaffSanctionPage {
     manager: boolean;
@@ -146,7 +149,7 @@ export interface BoardStaffSanctionQuery {
     page: number;
 }
 
-/** `POST /api/board-staff/sanctions/{id}/lift` 요청 — 사유 1~200자(가정). 응답은 바뀐 줄(`BoardStaffSanctionRow`) */
+/** `POST /api/board-staff/sanctions/{id}/lift` 요청 — 사유 1~200자(결정 11, `400 fields.reason`). 응답은 바뀐 줄(`BoardStaffSanctionRow`) */
 export interface BoardSanctionLiftRequest {
     reason: string;
 }

@@ -4,7 +4,7 @@ import type { SanctionActorRef, SanctionKind, SanctionUserRef } from '~/composab
 /**
  * 관리자 게시판 제재 반복 검토 API(`/api/admin/board-sanction-reviews…`)가 주고받는 모양 — 계약 `docs/features/board-sanction-contract.md` 결정 3.
  * 같은 회원 · 같은 게시판 · 최근 7일(롤링) · VOIDED 아닌 제재 3건 이상이면 서버가 검토 건을 연다((회원, 게시판)당 열린 건 하나, 마지막으로 닫힌 검토의 `closedAt` 이전 제재는 다시 세지 않는다).
- * 서버 DTO 후보 이름: `BoardSanctionReviewItemView`·`BoardSanctionReviewListView`·`BoardSanctionReviewDetailView`·`BoardSanctionReviewSummaryView`·`BoardSanctionReviewCloseRequest`.
+ * 서버 `server/admin` `com.community.sanction.dto`(`BoardSanctionReviewItemView`·`BoardSanctionReviewListView`·`BoardSanctionReviewDetailView`·`BoardSanctionReviewSummaryView`·`BoardSanctionReviewCloseRequest`)와 같은 칸 이름.
  */
 
 export type BoardSanctionReviewStatus = 'OPEN' | 'CLOSED';
@@ -88,7 +88,7 @@ export interface BoardSanctionReviewDetail extends BoardSanctionReviewItem {
  *  - `KEPT`: 그대로 둔다.
  *  - `SITE_SANCTIONED`: 화면이 먼저 기존 사이트 제재 대화창(`POST /api/admin/sanctions`)으로 부여하고, 받은 제재 번호를 `siteSanctionId` 로 보낸다(서버는 그 회원의 제재인지 본다).
  *  - `VOIDED`: `voidSanctionIds`(이 검토가 센 제재 중, 1개 이상)를 VOIDED 로 하고 닫는다(같은 트랜잭션).
- * 400 `fields.memo`(0~200자) · `fields.siteSanctionId` · `fields.voidSanctionIds` · 404 `BOARD_SANCTION_REVIEW_NOT_FOUND` · 409 `BOARD_SANCTION_REVIEW_CLOSED`(이미 닫힘 — 행 잠금으로 한 번만)
+ * 400 `fields.result` · `fields.memo`(0~200자) · `fields.siteSanctionId` · `fields.voidSanctionIds` · 404 `BOARD_SANCTION_REVIEW_NOT_FOUND` · 409 `BOARD_SANCTION_REVIEW_CLOSED`(이미 닫힘 — 행 잠금으로 한 번만)
  */
 export interface BoardSanctionReviewCloseRequest {
     result: BoardSanctionReviewResult;

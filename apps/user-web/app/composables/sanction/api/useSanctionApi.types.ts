@@ -1,6 +1,6 @@
 /**
  * 내 제재·이의제기 API 가 주고받는 모양 — 서버 `server/api` `com.community.sanction.dto`(`MySanctionsView`·`MySanctionView`·`MyAppealView`·`AppealRequest`·`AppealCreatedView`)와 같은 칸 이름. 모양의 근거는 community `docs/api-sanction.md` 2절(회원 쪽)이고,
- * 게시판 제재(`boardSanctions` — 그 게시판 매니저·스텝이 준 것)는 `docs/features/board-sanction-contract.md` 로 다시 들였다(목업 단계). 계약 후보: `docs/features/member-activity-contract.md`.
+ * 게시판 제재(`boardSanctions` — 그 게시판 매니저·스텝이 준 것, 서버 `MyBoardSanctionView`·`MyBoardRefView`)는 `docs/features/board-sanction-contract.md`. 계약 후보: `docs/features/member-activity-contract.md`.
  * 로그인 정보의 요약(`restriction`)은 `useAuthApi.types.ts` 의 `Restriction` 이다(이미 서버에 있다).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
@@ -60,7 +60,7 @@ export interface MyBoardSanction {
     id: string;
     no: number;
     /** 제재가 적용된 게시판 — `nameEn` 은 선택 영문명 */
-    board: { id: string; slug: string; name: string; nameEn?: string | null };
+    board: { id: string; slug: string; name: string; nameEn: string | null };
     kind: BoardSanctionKind | (string & {});
     status: SanctionStatus;
     reasonCode: BoardSanctionReasonCode | (string & {});
@@ -70,7 +70,7 @@ export interface MyBoardSanction {
     /** 쓰기 제한만 — 경고는 null */
     endsAt: string | null;
     createdAt: string;
-    /** 경고의 「확인했어요」 여부 — 쓰기 제한은 늘 true(가정) */
+    /** 경고의 「확인했어요」 여부 — 쓰기 제한은 늘 true */
     acknowledged: boolean;
     appeal: AppealView | null;
     /** 이의제기 마감(시작 + 30일), 무효면 null */
@@ -87,15 +87,13 @@ export interface MySanctions {
     /** 이력 — 최근 것이 위, 최대 50개, 무효 포함 */
     items: MySanction[];
     /**
-     * 게시판 제재 이력 — 최근 것이 위(board-sanction-contract 「API 후보 > 공개」). 서버가 아직 안 주면 `undefined`
-     * ⚠ MOCK: 목업(`sanction-mock.ts`)이 채운다
+     * 게시판 제재 이력 — 최근 것이 위, 최대 50개, 무효 포함(board-sanction-contract — 처리자 없음)
      */
-    boardSanctions?: MyBoardSanction[];
+    boardSanctions: MyBoardSanction[];
 }
 
 /**
- * `POST /api/me/appeals` 요청 — 사유 10~500자. 사이트 제재(`sanctionId`)와 게시판 제재(`boardSanctionId`) 중 **하나만** 보낸다(board-sanction-contract 결정 4).
- * ⚠ MOCK: `boardSanctionId` 는 서버가 아직 받지 않아 목업으로 보낸다
+ * `POST /api/me/appeals` 요청 — 사유 10~500자. 사이트 제재(`sanctionId`)와 게시판 제재(`boardSanctionId`) 중 **하나만** 보낸다(board-sanction-contract 결정 4). 둘 다 보내면 `400 fields.boardSanctionId`.
  */
 export type AppealRequest = { sanctionId: string; reason: string } | { boardSanctionId: string; reason: string };
 

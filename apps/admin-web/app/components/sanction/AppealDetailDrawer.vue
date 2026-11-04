@@ -118,7 +118,7 @@
 
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-history`">
                 <h3 :id="`${titleId}-history`" class="text-sm font-semibold">{{ t(b ? 'boardSanction.memberHistoryTitle' : 'sanction.memberHistoryTitle', { name: detail.user.nickname }) }}</h3>
-                <BoardSanctionHistoryList v-if="b" :lines="detail.boardHistory ?? []" :current-id="b.id" link-sanction />
+                <BoardSanctionHistoryList v-if="b" :lines="detail.boardHistory" :current-id="b.id" link-sanction />
                 <SanctionHistoryList v-else :lines="detail.history" :current-id="s?.id ?? null" link-sanction />
             </section>
         </div>
@@ -201,8 +201,8 @@ const head = computed(() => props.detail ?? props.item);
 /** 대상 — 사이트 제재(`s`) 또는 게시판 제재(`b`, `kind=BOARD`). 상세가 있을 때만 읽는다 */
 const s = computed(() => props.detail?.sanction ?? null);
 const b = computed(() => props.detail?.boardSanction ?? null);
-/** 종류 — 서버가 `kind` 를 주지 않으면 사이트 제재 */
-const kind = computed(() => head.value?.kind ?? (b.value ? 'BOARD' : 'SITE'));
+/** 종류 — 서버가 늘 준다(SITE · BOARD). 상세·줄이 없으면 사이트 제재로 그린다 */
+const kind = computed(() => head.value?.kind ?? 'SITE');
 
 const answer = ref('');
 const tried = ref(false);

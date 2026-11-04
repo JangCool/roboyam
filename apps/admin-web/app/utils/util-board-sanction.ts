@@ -55,6 +55,8 @@ export default class UtilBoardSanction {
     static readonly REASONS = REASONS;
     static readonly REVIEW_STATUSES = REVIEW_STATUSES;
     static readonly REVIEW_RESULTS = REVIEW_RESULTS;
+    /** 해제·무효 사유 최대 글자 수(1~200자 — 결정 11, 서버 `fields.reason`) */
+    static readonly REASON_MAX = 200;
     /** 반복 검토 닫기 메모 0~200자 */
     static readonly MEMO_MAX = 200;
     /** 반복 검토가 열리는 건수(같은 회원 · 같은 게시판 · 최근 7일) */

@@ -27,7 +27,7 @@ export default class UtilBoardSanction {
     static readonly TEXT_MAX = 200;
     /** 사유가 기타(`OTHER`)일 때 덧붙임 최소 글자 수 */
     static readonly OTHER_TEXT_MIN = 5;
-    /** 해제 사유 최대 글자 수(가정 — 계약에 없어 덧붙임과 같게) */
+    /** 해제 사유 최대 글자 수(결정 11 — 1~200자) */
     static readonly LIFT_REASON_MAX = 200;
     /**
      * 제재 내역 화면 주소
@@ -118,7 +118,7 @@ export default class UtilBoardSanction {
     }
 
     /**
-     * 해제 사유 검사 — 1~200자(가정)
+     * 해제 사유 검사 — 1~200자(결정 11)
      * @param {string} text - 사유.
      * @returns {'EMPTY' | 'TOO_LONG' | null} 문제. 괜찮으면 null.
      */

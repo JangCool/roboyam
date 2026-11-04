@@ -2,8 +2,8 @@
     <!--
         제재 내역 `/boards/{slug}/sanctions?scope=ALL|ACTIVE|ENDED&page=` — 그 게시판 매니저·스텝만(board-sanction-contract 「화면 > user-web」).
         매니저 = 그 게시판 전체(처리자 닉네임 + 매니저/스텝, 진행 중 쓰기 제한 [해제] + 사유) · 스텝 = 내가 준 것만(처리자 칸 없음, 해제 없음).
-        매니저·스텝이 아니면(게시판 응답 `viewer.staffTools` 가 없거나 목록이 `404`) 404 안내 — 누가 운영진인지 새지 않게 다른 화면과 같은 「찾을 수 없어요」.
-        범위 거르기(전체·진행 중·끝남) + 쪽 번호. 주소의 쿼리가 화면 상태다. 「진행 중」은 상태 `ACTIVE`(유효한 경고 포함 — 가정)다.
+        매니저·스텝이 아니면(목록이 `404 BOARD_STAFF_NOT_FOUND`) 404 안내 — 누가 운영진인지 새지 않게 다른 화면과 같은 「찾을 수 없어요」.
+        범위 거르기(전체·진행 중·끝남) + 쪽 번호. 주소의 쿼리가 화면 상태다. 「진행 중」은 진행 중인 쓰기 제한만이다(경고 제외 — 결정 11).
     -->
     <div class="content-card mx-auto max-w-3xl">
         <div v-if="state === 'loading' && !page" role="status" :aria-label="t('boardSanction.listLoading')" data-testid="board-sanctions-loading">
@@ -116,7 +116,7 @@ import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
 /**
- * 게시판 제재 내역(매니저·스텝) — 흐름: 게시판 읽기(`viewer.staffTools` 로 운영진인지) → 목록 한 쪽 → (매니저) [해제] 대화창.
+ * 게시판 제재 내역(매니저·스텝) — 흐름: 게시판 읽기 → 목록 한 쪽(운영진이 아니면 `404 BOARD_STAFF_NOT_FOUND`) → (매니저) [해제] 대화창.
  * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useBoardApi`·`useBoardStaffApi`.
  */
 definePageMeta({ middleware: 'auth' });
@@ -160,11 +160,7 @@ async function load(): Promise<void> {
         const b = board.value?.slug === slug.value ? board.value : await boardApi.board(slug.value, controller.signal);
         if (mine !== seq) return;
         board.value = b;
-        if (!b.viewer.staffTools) {
-            page.value = null;
-            state.value = 'notfound';
-            return;
-        }
+        // 운영진인지는 목록이 가른다(`404 BOARD_STAFF_NOT_FOUND`) — `viewer.staffTools` 는 제재를 줄 수 있는 사람에게만 와서, 자리만 있고 역할 권한이 없는 매니저·스텝도 내역은 본다
         const res = await staffApi.list(b.id, { scope: scope.value, page: pageNo.value }, controller.signal);
         if (mine !== seq) return;
         page.value = res;

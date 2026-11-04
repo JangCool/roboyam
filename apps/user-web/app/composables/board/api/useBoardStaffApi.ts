@@ -1,4 +1,3 @@
-import { mockSanctionIssue, mockSanctionPreview, mockStaffLift, mockStaffSanctions } from '~/composables/board/api/mock/board-staff-mock';
 import type {
     BoardSanctionIssued,
     BoardSanctionIssueRequest,
@@ -11,14 +10,16 @@ import type {
 
 /**
  * 게시판 매니저·스텝 도구 API — 서버 주소 문자열(`/api/board-staff/…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약: `docs/features/board-sanction-contract.md` 「API 후보 > 공개」. 로그인 + 그 게시판 매니저·스텝(`board.sanction.issue`) — 처리할 때마다 서버가 다시 판정한다.
+ * 계약: `docs/features/board-sanction-contract.md`(서버 `server/api` `BoardStaffController`). 로그인 + 그 게시판 매니저·스텝(`board.sanction.issue`) — 처리할 때마다 서버가 다시 판정한다.
  *
- *  - `GET  /api/board-staff/sanctions/preview?boardId=&userId=` → `BoardSanctionPreview` · `409 BOARD_STAFF_TARGET_PROTECTED` · `403 BOARD_STAFF_FORBIDDEN`(후보)
- *  - `POST /api/board-staff/sanctions` `BoardSanctionIssueRequest` → `201 BoardSanctionIssued` · `409 BOARD_STAFF_DAILY_LIMIT`(`limit`·`used`·`resetsAt`) · `409 BOARD_STAFF_TARGET_PROTECTED` · `409 BOARD_STAFF_ALREADY_RESTRICTED` · `400 VALIDATION`
- *  - `GET  /api/board-staff/boards/{boardId}/sanctions?scope=ALL|ACTIVE|ENDED&page=` → `BoardStaffSanctionPage` · 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`(후보)
- *  - `POST /api/board-staff/sanctions/{id}/lift` `{ reason }` → 바뀐 줄 · 매니저만(`403`) · 진행 중 쓰기 제한만(`409 BOARD_SANCTION_NOT_LIFTABLE` 후보)
+ *  - `GET  /api/board-staff/sanctions/preview?boardId=&userId=` → `BoardSanctionPreview` · `403 BOARD_STAFF_FORBIDDEN` · `409 BOARD_STAFF_TARGET_PROTECTED`
+ *  - `POST /api/board-staff/sanctions` `BoardSanctionIssueRequest` → `201 BoardSanctionIssued` · `400 VALIDATION fields.kind|reasonCode|reasonText|postId|commentId` · `403 BOARD_STAFF_FORBIDDEN`
+ *    · `409 BOARD_STAFF_TARGET_PROTECTED` · `409 BOARD_STAFF_ALREADY_RESTRICTED` · `409 BOARD_STAFF_DAILY_LIMIT`(본문 최상위 `limit`·`used`·`resetsAt`)
+ *  - `GET  /api/board-staff/boards/{boardId}/sanctions?scope=ALL|ACTIVE|ENDED&page=`(1부터, 20개) → `BoardStaffSanctionPage` · 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`
+ *  - `POST /api/board-staff/sanctions/{id}/lift` `{ reason }`(1~200자) → 바뀐 줄 · `400 fields.reason` · 매니저 + `board.staff-action.restore` 만(`403`) · `404 BOARD_SANCTION_NOT_FOUND`
+ *    · 진행 중 쓰기 제한만(`409 BOARD_SANCTION_NOT_LIFTABLE`)
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/board-staff-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ * 서버 연결됨(2026-11-04).
  */
 const PATH = {
     preview: '/api/board-staff/sanctions/preview',
@@ -28,33 +29,22 @@ const PATH = {
 };
 
 export function useBoardStaffApi() {
-    // REAL: const auth = useAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 제재 대화창의 현황 — 그 게시판에서 대상이 받은 제재 수·진행 중 제한·권장 단계·오늘 남은 한도 */
         preview: (boardId: string, userId: string, signal?: AbortSignal): Promise<BoardSanctionPreview> =>
-            // MOCK:
-            (void signal, mockSanctionPreview(boardId, userId)),
-        // REAL: client.get<BoardSanctionPreview>(PATH.preview, { query: { boardId, userId }, signal }),
+            client.get<BoardSanctionPreview>(PATH.preview, { query: { boardId, userId }, signal }),
 
-        /** 제재 주기 — `nickname` 은 목업이 내역 줄에 쓰려고 받는다(서버에는 보내지 않는다) */
-        issue: (body: BoardSanctionIssueRequest, nickname: string): Promise<BoardSanctionIssued> =>
-            // MOCK:
-            mockSanctionIssue(body, nickname),
-        // REAL: (void nickname, client.post<BoardSanctionIssued>(PATH.sanctions, body)),
+        /** 제재 주기 */
+        issue: (body: BoardSanctionIssueRequest): Promise<BoardSanctionIssued> => client.post<BoardSanctionIssued>(PATH.sanctions, body),
 
         /** 제재 내역 한 쪽 — 매니저는 그 게시판 전체, 스텝은 내가 준 것만 */
         list: (boardId: string, query: BoardStaffSanctionQuery, signal?: AbortSignal): Promise<BoardStaffSanctionPage> =>
-            // MOCK:
-            (void signal, mockStaffSanctions(boardId, query)),
-        // REAL: client.get<BoardStaffSanctionPage>(PATH.boardSanctions(boardId), { query: { scope: query.scope, page: query.page }, signal }),
+            client.get<BoardStaffSanctionPage>(PATH.boardSanctions(boardId), { query: { scope: query.scope, page: query.page }, signal }),
 
         /** 진행 중인 쓰기 제한 해제(매니저) — 응답은 바뀐 줄 */
-        lift: (id: string, body: BoardSanctionLiftRequest): Promise<BoardStaffSanctionRow> =>
-            // MOCK:
-            mockStaffLift(id, body),
-        // REAL: client.post<BoardStaffSanctionRow>(PATH.lift(id), body),
+        lift: (id: string, body: BoardSanctionLiftRequest): Promise<BoardStaffSanctionRow> => client.post<BoardStaffSanctionRow>(PATH.lift(id), body),
     };
 }
