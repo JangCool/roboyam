@@ -44,7 +44,7 @@ class WithdrawalMailTest extends CommerceApiTestBase {
         private final List<Sent> sent = new ArrayList<>();
 
         FakeDispatcher() {
-            super(null, null, null);
+            super(null, null, null, null);
         }
 
         @Override

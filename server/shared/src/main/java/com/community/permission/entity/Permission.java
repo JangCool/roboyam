@@ -65,6 +65,8 @@ public enum Permission {
     MEMBER_PII("member.pii", MEMBER_VIEW, SENSITIVE, true),
     /** 탈퇴 회원 연락용 이메일(분리 보관) 열람 — 사유 + 감사(commerce.md 17-2, 커머스 0-4) */
     MEMBER_WITHDRAWN_CONTACT("member.withdrawn.contact", MEMBER_VIEW, SENSITIVE, true),
+    /** 회원 강제 탈퇴·탈퇴 대리 취소(member-withdrawal-contract 「관리자」 — 탈퇴 관리 화면 보기는 {@code member.read}). 기본은 최고 관리자만 */
+    MEMBER_WITHDRAW("member.withdraw", MEMBER_VIEW, SENSITIVE, true),
     NICKNAME_IMAGE_READ("nickname-image.read", NICKNAME_IMAGE, READ, true),
     NICKNAME_IMAGE_MANAGE("nickname-image.manage", NICKNAME_IMAGE, MANAGE, true),
     GRADE_READ("grade.read", GRADE_POINT, READ, true),

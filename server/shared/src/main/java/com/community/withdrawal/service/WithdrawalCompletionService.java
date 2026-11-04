@@ -31,7 +31,8 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 탈퇴 <b>완료(익명화)</b> — 한 트랜잭션(commerce.md 17-2, 분석 문서 4절 「완료 때」). 신청 즉시 완료(남은 일 없음, api)와 배치 자동 완료가 <b>같은 코드</b>를 쓴다.
+ * 탈퇴 <b>완료(익명화)</b> — 한 트랜잭션(commerce.md 17-2, 분석 문서 4절 「완료 때」). 신청 즉시 완료(남은 일 없음 — 회원 신청·운영자 강제 탈퇴)와 배치 자동 완료가
+ * <b>같은 코드</b>를 쓴다. 감사 {@code MEMBER_WITHDRAW} 의 행위자는 {@link Actor}(회원 · SYSTEM · 운영자) 가 정한다.
  *
  * <ol>
  *   <li>내가 모임장인 소모임은 신청 때 저장한 선택(넘기기·해산·자동 — 대상이 멤버가 아니거나 신청 뒤 새로 모임장이 됐으면 자동)으로 처리 → 모든 소모임에서 나가기(글 가림·멤버 수) + 줄 삭제</li>
@@ -53,6 +54,29 @@ public class WithdrawalCompletionService {
 
     /** 완료 결과 — 완료 화면에 보일 것 */
     public record Completed(long withdrawalId, Instant completedAt, Instant rejoinUntil, boolean hasPaymentHistory, int retentionYears, String supportEmail) {
+    }
+
+    /**
+     * 완료를 일으킨 행위자(감사 {@code MEMBER_WITHDRAW} 의 행위자) — 회원 본인의 즉시 완료 · 배치(SYSTEM) · 운영자 강제 탈퇴의 즉시 완료.
+     *
+     * @param ip 요청의 IP(배치면 null)
+     */
+    public record Actor(AuditActorType type, Long id, String ip) {
+
+        public static final Actor SYSTEM = new Actor(AuditActorType.SYSTEM, null, null);
+
+        public static Actor member(long userId, String ip) {
+            return new Actor(AuditActorType.MEMBER, userId, ip);
+        }
+
+        public static Actor operator(long operatorId, String ip) {
+            return new Actor(AuditActorType.OPERATOR, operatorId, ip);
+        }
+
+        AuditEvent event(long userId) {
+            return new AuditEvent(type, id, AuditActions.MEMBER_WITHDRAW, AuditResult.SUCCESS, "MEMBER", Long.toString(userId), ip, Map.of())
+                    .with("forced", type == AuditActorType.OPERATOR);
+        }
     }
 
     private final WithdrawalQueries queries;
@@ -93,13 +117,23 @@ public class WithdrawalCompletionService {
     }
 
     /**
-     * 진행 중 신청이 있는 회원을 완료 처리한다. 신청 줄과 회원 줄을 잠근다 — 이미 완료·취소됐거나 회원이 없으면 비어 있다.
+     * 진행 중 신청이 있는 회원을 완료 처리한다 — 회원 본인(즉시 완료) 또는 배치(SYSTEM).
      *
      * @param byMember 회원 자신의 요청(즉시 완료)이면 true — 감사 행위자가 MEMBER, 배치면 SYSTEM
      * @param ip       회원 요청의 IP(배치면 null)
      */
     @Transactional
     public Optional<Completed> complete(long userId, boolean byMember, String ip) {
+        return complete(userId, byMember ? Actor.member(userId, ip) : Actor.SYSTEM);
+    }
+
+    /**
+     * 진행 중 신청이 있는 회원을 완료 처리한다. 신청 줄과 회원 줄을 잠근다 — 이미 완료·취소됐거나 회원이 없으면 비어 있다.
+     *
+     * @param actor 완료를 일으킨 행위자(감사) — 회원 본인 · 배치 · 운영자 강제 탈퇴
+     */
+    @Transactional
+    public Optional<Completed> complete(long userId, Actor actor) {
         Optional<String> status = queries.lockStatus(userId);
         if (status.isEmpty() || "WITHDRAWN".equals(status.get())) {
             return Optional.empty();
@@ -167,8 +201,8 @@ public class WithdrawalCompletionService {
         detail.put("revokedItems", revokedItems);
         detail.put("leftGroups", leftGroups);
         detail.put("endedDeals", dealResult.endedDeals());
-        AuditEvent event = byMember ? AuditEvent.byMember(userId, ip, AuditActions.MEMBER_WITHDRAW, AuditResult.SUCCESS).target("MEMBER", Long.toString(userId))
-                : new AuditEvent(AuditActorType.SYSTEM, null, AuditActions.MEMBER_WITHDRAW, AuditResult.SUCCESS, "MEMBER", Long.toString(userId), null, Map.of());
+        detail.put("source", request.source().name());
+        AuditEvent event = actor.event(userId);
         for (Map.Entry<String, Object> e : detail.entrySet()) {
             event = event.with(e.getKey(), e.getValue());
         }

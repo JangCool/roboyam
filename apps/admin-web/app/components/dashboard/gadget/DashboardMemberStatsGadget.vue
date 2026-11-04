@@ -8,6 +8,7 @@
 </template>
 
 <script setup lang="ts">
+import UtilTime from '#layers/display-time/utils/util-time';
 import type { DashboardStat } from '~/components/dashboard/DashboardStatCard.types';
 import type { DashboardGadgetItem } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
 
@@ -27,9 +28,16 @@ const stats = computed<DashboardStat[]>(() => {
     if (!d) return [];
     return [
         { key: 'joined', label: t('dashboard.membersJoined'), count: d.joinedToday, note: t('dashboard.membersJoinedNote'), to: '/members' },
-        { key: 'withdrawn', label: t('dashboard.membersWithdrawn'), count: d.withdrawnToday, note: t('dashboard.membersWithdrawnNote'), to: '/members' },
+        // 오늘 탈퇴·탈퇴 대기는 탈퇴 관리 화면으로(완료 오늘 = 서비스 하루(한국 시간) 기준 — 요약의 「오늘 0시부터」와 같은 기준)
+        { key: 'withdrawn', label: t('dashboard.membersWithdrawn'), count: d.withdrawnToday, note: t('dashboard.membersWithdrawnNote'), to: withdrawnTodayLink.value },
         { key: 'suspended', label: t('dashboard.membersSuspended'), count: d.suspended, note: t('dashboard.membersSuspendedNote'), tone: d.suspended > 0 ? 'warn' : 'normal', to: '/members' },
-        { key: 'withdrawing', label: t('dashboard.membersWithdrawing'), count: d.withdrawing, note: t('dashboard.membersWithdrawingNote'), to: '/members' },
+        { key: 'withdrawing', label: t('dashboard.membersWithdrawing'), count: d.withdrawing, note: t('dashboard.membersWithdrawingNote'), to: '/members/withdrawals?status=SCHEDULED' },
     ];
+});
+
+/** 「오늘 탈퇴」 링크 — 탈퇴 관리의 완료 탭을 오늘(서비스 날짜) 완료일로 거른다 */
+const withdrawnTodayLink = computed(() => {
+    const today = UtilTime.serviceDayOf(state.at.value ?? Date.now());
+    return today ? `/members/withdrawals?status=COMPLETED&completedFrom=${today}&completedTo=${today}` : '/members/withdrawals?status=COMPLETED';
 });
 </script>

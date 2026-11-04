@@ -102,6 +102,8 @@ export default class UtilAdminMenu {
             labelKey: 'menu.member',
             items: [
                 { key: 'members', to: '/members', icon: 'pi pi-user', labelKey: 'menu.members', permission: 'member.read' },
+                // 탈퇴 관리 — 주소가 `/members` 아래지만 다른 화면이다(member-withdrawal-contract 「관리자」). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+                { key: 'memberWithdrawals', to: '/members/withdrawals', icon: 'pi pi-user-minus', labelKey: 'menu.memberWithdrawals', permission: 'member.read' },
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
                 // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
                 { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },

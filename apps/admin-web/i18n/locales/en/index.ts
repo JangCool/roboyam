@@ -27,6 +27,7 @@ import mail from './mail';
 import notificationMessage from './notificationMessage';
 import notificationTemplate from './notificationTemplate';
 import member from './member';
+import memberWithdrawal from './memberWithdrawal';
 import menu from './menu';
 import menuConfig from './menuConfig';
 import mfa from './mfa';
@@ -87,6 +88,7 @@ export default {
     notificationMessage,
     notificationTemplate,
     member,
+    memberWithdrawal,
     menu,
     menuConfig,
     mfa,

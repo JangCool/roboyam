@@ -94,6 +94,7 @@ export default {
         ACTIVE: 'Active',
         SUSPENDED: 'Suspended',
         BANNED: 'Banned',
+        WITHDRAWING: 'Leaving',
         WITHDRAWN: 'Withdrawn',
         DORMANT: 'Dormant',
     },

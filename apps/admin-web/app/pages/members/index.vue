@@ -150,6 +150,11 @@
             :restrictions="restrictionsView"
             :withdrawn-contact="contactView"
             :point-lots="canReadPoints ? pointLotsView : null"
+            :withdrawal="withdrawalView"
+            :can-force-withdraw="canForceWithdraw"
+            @retry-withdrawal="withdrawal.retry"
+            @force-withdraw="openForce"
+            @cancel-withdrawal="openCancel"
             @retry="retryDetail"
             @retry-restrictions="restrictions.retry"
             @restrict="restrictOpen = true"
@@ -185,6 +190,32 @@
         >
             <p v-if="liftTarget" class="m-0 text-sm">{{ t('restriction.liftTarget', { type: t(`restriction.type.${liftTarget.type}`), reason: liftTarget.reason }) }}</p>
         </MemberReasonDialog>
+        <!-- 강제 탈퇴(운영자, `member.withdraw`) — 남은 일·돈 미리보기를 받아 보이고, 사유 종류·운영 메모를 받는다 -->
+        <MemberForceWithdrawDialog
+            v-model:visible="forceOpen"
+            :member-name="selectedRow?.nickname ?? detail?.nickname ?? ''"
+            :member-no="selectedRow?.memberNo ?? detail?.memberNo ?? ''"
+            :preview="withdrawal.preview.value"
+            :preview-loading="withdrawal.previewLoading.value"
+            :preview-error="withdrawal.previewError.value"
+            :busy="forceBusy"
+            :error="forceError"
+            :field-errors="forceFieldErrors"
+            @retry-preview="loadForcePreview"
+            @submit="submitForce"
+        />
+        <!-- 운영자 대리 취소(회원 요청 시) — 탈퇴 진행 중 회원의 「탈퇴 신청」 블록 [대리 취소]가 연다 -->
+        <MemberWithdrawalCancelDialog
+            v-if="withdrawal.record.value"
+            v-model:visible="cancelOpen"
+            :member-name="selectedRow?.nickname ?? detail?.nickname ?? ''"
+            :member-no="withdrawal.record.value.memberNo"
+            :prior-status="withdrawal.record.value.priorStatus"
+            :busy="cancelBusy"
+            :error="cancelError"
+            :field-errors="cancelFieldErrors"
+            @submit="submitCancel"
+        />
         <MemberReasonDialog
             v-model:visible="revealOpen"
             :title="t('withdrawnContact.revealTitle')"
@@ -204,7 +235,9 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberRestriction, MemberRestrictionCreateRequest } from '~/composables/member/api/useMemberRestrictionApi.types';
-import type { MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { ForceWithdrawRequest, WithdrawalCancelRequest } from '~/composables/member/api/useMemberWithdrawalApi.types';
+import UtilMemberWithdrawal from '~/utils/util-member-withdrawal';
 import UtilMember, { type MemberColumnKey, type MemberDetailRow, type MemberFilter } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
 
@@ -280,6 +313,9 @@ function onRowClick(e: { originalEvent: Event; data: MemberRow }) {
     void restrictions.open(e.data.memberNo);
     if (e.data.status === 'WITHDRAWN') void contact.open(e.data.memberNo);
     else contact.clear();
+    // 회원 탈퇴 관리 — 탈퇴 진행 중·완료 회원은 「탈퇴 신청」·「탈퇴 완료」 블록에 그 회원의 기록을 보인다
+    if (e.data.status === 'WITHDRAWING' || e.data.status === 'WITHDRAWN') void withdrawal.open(e.data.memberNo);
+    else withdrawal.clear();
     // 커머스 1-1 — 포인트 묶음(적립/충전·소멸 예정·미회수)은 `point.read` 가 있을 때만(탈퇴 회원은 등급·포인트 구획이 비어 받지 않는다)
     if (canReadPoints.value && e.data.status !== 'WITHDRAWN') pointLots.open(e.data.memberNo);
     else pointLots.clear();
@@ -301,6 +337,97 @@ const pointLotsView = computed<MemberPointLotsView>(() => ({
 const restrictions = useMemberRestrictions();
 const contact = useWithdrawnContact();
 const toast = useAppToast();
+
+// ── 회원 탈퇴 관리 — 탈퇴 블록이 보는 그 회원의 기록 + 강제 탈퇴(미리보기·요청)·대리 취소. 서버 호출은 `useMemberWithdrawal` 한 겹이다
+const withdrawal = useMemberWithdrawal();
+const withdrawalView = computed<MemberWithdrawalView>(() => ({ record: withdrawal.record.value, loading: withdrawal.loading.value, error: withdrawal.error.value }));
+/** 강제 탈퇴·대리 취소 권한(`member.withdraw` — SENSITIVE, 서버 `Permission.MEMBER_WITHDRAW`) */
+const canForceWithdraw = computed(() => can('member.withdraw'));
+
+const forceOpen = ref(false);
+const forceBusy = ref(false);
+const forceError = ref('');
+const forceFieldErrors = ref<Record<string, string>>({});
+
+function loadForcePreview(): void {
+    const row = selectedRow.value ?? detail.value;
+    if (row) void withdrawal.loadPreview(row.memberNo);
+}
+
+function openForce(): void {
+    forceError.value = '';
+    forceFieldErrors.value = {};
+    loadForcePreview();
+    forceOpen.value = true;
+}
+
+/** 강제 탈퇴 — 즉시 완료면 목록을 다시 받고(상태가 탈퇴로), 진행 중이면 그 회원의 블록이 「탈퇴 신청」으로 바뀐다 */
+async function submitForce(body: ForceWithdrawRequest): Promise<void> {
+    if (forceBusy.value) return;
+    const name = selectedRow.value?.nickname ?? detail.value?.nickname ?? '';
+    forceBusy.value = true;
+    forceError.value = '';
+    forceFieldErrors.value = {};
+    try {
+        const result = await withdrawal.force(body);
+        forceOpen.value = false;
+        if (result.status === 'COMPLETED') toast.success(t('memberWithdrawal.force.resultCompleted', { name }));
+        else toast.success(t('memberWithdrawal.force.resultScheduled', { name, count: result.pendingCount }), 8000);
+        // 상태가 바뀌었으니(탈퇴·탈퇴 진행 중) 목록·상세를 다시 받는다
+        void reload();
+        if (selectedRow.value) void openDetail(selectedRow.value.memberNo);
+    } catch (e) {
+        const failure = errorOf(e);
+        const split = splitError(failure, ['reasonKind', 'memo']);
+        forceFieldErrors.value = split.fields;
+        forceError.value = split.form;
+    } finally {
+        forceBusy.value = false;
+    }
+}
+
+// ── 운영자 대리 취소(회원 요청 시) — 진행 중 + 회원 신청 건만. 성공하면 블록이 「취소됨」 안내로 바뀌고 목록·상세를 다시 받는다(상태가 신청 전으로 돌아간다)
+const cancelOpen = ref(false);
+const cancelBusy = ref(false);
+const cancelError = ref('');
+const cancelFieldErrors = ref<Record<string, string>>({});
+
+function openCancel(): void {
+    const record = withdrawal.record.value;
+    if (!record || !UtilMemberWithdrawal.canOperatorCancel(record.status, record.source)) return;
+    cancelError.value = '';
+    cancelFieldErrors.value = {};
+    cancelOpen.value = true;
+}
+
+async function submitCancel(body: WithdrawalCancelRequest): Promise<void> {
+    if (cancelBusy.value) return;
+    const name = selectedRow.value?.nickname ?? detail.value?.nickname ?? '';
+    cancelBusy.value = true;
+    cancelError.value = '';
+    cancelFieldErrors.value = {};
+    try {
+        await withdrawal.cancel(body);
+        cancelOpen.value = false;
+        toast.success(t('memberWithdrawal.cancel.done', { name }));
+        void reload();
+        if (selectedRow.value) void openDetail(selectedRow.value.memberNo);
+    } catch (e) {
+        const failure = errorOf(e);
+        if (failure.status === 409) {
+            // 그 사이 끝났다(배치 완료·회원 취소) — 상태 컴포저블이 기록을 새로 받았다. 문구는 서버 것 그대로
+            cancelOpen.value = false;
+            toast.error(failure.message, 8000);
+            void reload();
+            return;
+        }
+        const split = splitError(failure, ['memberConfirmed', 'requestChannel', 'memo']);
+        cancelFieldErrors.value = split.fields;
+        cancelError.value = split.form;
+    } finally {
+        cancelBusy.value = false;
+    }
+}
 
 const restrictionsView = computed<MemberRestrictionsView>(() => ({ items: restrictions.items.value, loading: restrictions.loading.value, error: restrictions.error.value }));
 const contactView = computed<WithdrawnContactView>(() => ({
@@ -425,6 +552,8 @@ const summary = computed(() =>
     }),
 );
 
+const route = useRoute();
+
 onMounted(async () => {
     // 등급 목록(필터 옵션·뱃지) — 못 받아도 목록은 봐야 한다. 못 받으면 중립 뱃지 + 등급 키로 보인다.
     void gradeState.ensureLoaded();
@@ -433,6 +562,14 @@ onMounted(async () => {
         .loadRoleOptions()
         .then((found) => (roleOptions.value = found))
         .catch(() => undefined);
+    // 다른 화면(탈퇴 관리 서랍의 「회원 관리에서 보기」)이 회원 번호로 열면 그 번호로 바로 검색한다
+    const memberNo = typeof route.query.memberNo === 'string' ? route.query.memberNo.trim() : '';
+    if (memberNo) {
+        filter.searchField = 'MEMBER_NO';
+        filter.keyword = memberNo;
+        search();
+        return;
+    }
     await reload();
 });
 

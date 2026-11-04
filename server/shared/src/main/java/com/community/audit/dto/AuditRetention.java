@@ -49,7 +49,9 @@ public final class AuditRetention {
             // 운영자 추가 환불(클레임 — 닫힌·끝난 건의 남은 금액, biz-pause-contract 「추가 환불」)
             AuditActions.BIZ_APP_REFUND_CLAIM,
             // 회원 탈퇴 완료 — 충전 포인트·광고 남은 기간 포기 동의의 증빙(member-withdrawal-contract, 5년)
-            AuditActions.MEMBER_WITHDRAW);
+            AuditActions.MEMBER_WITHDRAW,
+            // 운영자 강제 탈퇴 — 회원 동의 없이 포인트 소멸·계정 종료를 일으킨 결정(사유 종류·운영 메모). 완료 기록(금액)과 같은 기간 남겨 증빙 사슬을 끊지 않는다
+            AuditActions.MEMBER_WITHDRAW_FORCE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,

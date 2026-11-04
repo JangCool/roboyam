@@ -84,7 +84,7 @@ export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' |
  */
 export default class UtilMember {
     static readonly SEARCH_FIELDS: readonly MemberSearchField[] = ['ALL', 'EMAIL', 'NICKNAME', 'MEMBER_NO'];
-    static readonly STATUSES: readonly MemberStatus[] = ['ACTIVE', 'SUSPENDED', 'BANNED', 'WITHDRAWN', 'DORMANT'];
+    static readonly STATUSES: readonly MemberStatus[] = ['ACTIVE', 'SUSPENDED', 'BANNED', 'WITHDRAWING', 'WITHDRAWN', 'DORMANT'];
     static readonly TYPES: readonly MemberType[] = ['GENERAL', 'BUSINESS'];
     static readonly AUTH_METHODS: readonly MemberAuthMethod[] = ['EMAIL', 'KAKAO', 'NAVER', 'GOOGLE'];
     static readonly BOARD_ROLES: readonly MemberBoardRole[] = ['MANAGER', 'STAFF', 'NONE'];
@@ -268,12 +268,12 @@ export default class UtilMember {
     }
 
     static statusSeverity(status: MemberStatus): TagSeverity {
-        return { ACTIVE: 'success', SUSPENDED: 'warn', BANNED: 'danger', WITHDRAWN: 'secondary', DORMANT: 'info' }[status] as TagSeverity;
+        return { ACTIVE: 'success', SUSPENDED: 'warn', BANNED: 'danger', WITHDRAWING: 'warn', WITHDRAWN: 'secondary', DORMANT: 'info' }[status] as TagSeverity;
     }
 
-    /** 색만으로 구분하지 않도록 딱지에 함께 붙이는 아이콘 */
+    /** 색만으로 구분하지 않도록 딱지에 함께 붙이는 아이콘(탈퇴 진행 중은 모래시계 — 기간 정지의 시계와 구분) */
     static statusIcon(status: MemberStatus): string {
-        return { ACTIVE: 'pi pi-check-circle', SUSPENDED: 'pi pi-clock', BANNED: 'pi pi-ban', WITHDRAWN: 'pi pi-sign-out', DORMANT: 'pi pi-moon' }[status];
+        return { ACTIVE: 'pi pi-check-circle', SUSPENDED: 'pi pi-clock', BANNED: 'pi pi-ban', WITHDRAWING: 'pi pi-hourglass', WITHDRAWN: 'pi pi-sign-out', DORMANT: 'pi pi-moon' }[status];
     }
 
     static sanctionKindSeverity(kind: MemberSanctionKind): TagSeverity {

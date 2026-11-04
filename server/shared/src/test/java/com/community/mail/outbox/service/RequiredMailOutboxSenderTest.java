@@ -49,7 +49,7 @@ class RequiredMailOutboxSenderTest {
         boolean configured = true;
 
         FakeDispatcher() {
-            super(null, null, null);
+            super(null, null, null, null);
         }
 
         @Override

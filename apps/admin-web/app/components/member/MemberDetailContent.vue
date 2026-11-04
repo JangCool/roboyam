@@ -22,7 +22,14 @@
                     </template>
                     <div v-if="section.key === 'basic'" class="flex flex-col gap-4">
                         <MemberDetailBasicSection :detail="detail" />
+                        <!-- 탈퇴 진행 중이면 「탈퇴 신청」 블록, 탈퇴 완료면 「탈퇴 완료」 블록(완료 시각·신청 경로·사유) — `useMemberWithdrawal` -->
+                        <MemberWithdrawalBlock v-if="detail.status === 'WITHDRAWING' || detail.status === 'WITHDRAWN'" :view="withdrawal" :scheduled="detail.status === 'WITHDRAWING'" :can-cancel="canForceWithdraw" @retry="emit('retry-withdrawal')" @cancel="emit('cancel-withdrawal')" />
                         <MemberWithdrawnContactBlock v-if="detail.status === 'WITHDRAWN'" :view="withdrawnContact" @reveal="emit('reveal-contact')" @mask="emit('mask-contact')" @retry="emit('retry-contact')" />
+                        <!-- 위험 동작 — 강제 탈퇴(`member.withdraw`). 탈퇴 진행 중·완료 회원에게는 없다(진행 중 회원의 대리 취소는 위 탈퇴 블록 안에 있다) -->
+                        <div v-if="canForceWithdraw && detail.status !== 'WITHDRAWING' && detail.status !== 'WITHDRAWN'" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-red-300 px-3 py-2.5 dark:border-red-900">
+                            <span class="inline-flex items-center gap-1.5 text-[13px] text-muted-color"><i class="pi pi-exclamation-triangle text-red-600 dark:text-red-400" aria-hidden="true" />{{ t('memberWithdrawal.force.pendingNotice') }}</span>
+                            <Button type="button" :label="t('memberWithdrawal.force.action')" icon="pi pi-user-minus" size="small" severity="danger" variant="outlined" data-testid="member-force-withdraw" @click="emit('force-withdraw')" />
+                        </div>
                     </div>
                     <MemberDetailContactSection v-else-if="section.key === 'contact'" :detail="detail" />
                     <MemberDetailProfileSection v-else-if="section.key === 'profile'" :detail="detail" />
@@ -60,7 +67,7 @@
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 
-import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 
 interface Props {
     detail: MemberDetail;
@@ -70,9 +77,13 @@ interface Props {
     withdrawnContact?: WithdrawnContactView | null;
     /** 「등급·포인트」 구획의 포인트 묶음(커머스 1-1) — 없으면(권한 없음·받지 않는 화면) 묶음 부분을 그리지 않는다 */
     pointLots?: MemberPointLotsView | null;
+    /** 탈퇴 블록 — 탈퇴 진행 중·완료 회원일 때만 쓴다 */
+    withdrawal?: MemberWithdrawalView | null;
+    /** 위험 동작 [강제 탈퇴]를 보일지 */
+    canForceWithdraw?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();

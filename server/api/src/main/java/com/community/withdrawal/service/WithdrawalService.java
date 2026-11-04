@@ -6,7 +6,11 @@ import com.community.group.service.GroupPeople;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.UserRepository;
 import com.community.withdrawal.config.WithdrawalProperties;
+import com.community.withdrawal.dto.WithdrawalApplication;
+import com.community.withdrawal.dto.WithdrawalApplication.Consent;
+import com.community.withdrawal.dto.WithdrawalApplication.GroupPlan;
 import com.community.withdrawal.dto.WithdrawalChoices;
+import com.community.withdrawal.dto.WithdrawalOutcome;
 import com.community.withdrawal.dto.WithdrawalPending;
 import com.community.withdrawal.dto.request.WithdrawalRequest;
 import com.community.withdrawal.dto.response.WithdrawalResult;
@@ -43,8 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>신청</b>: 입력 검사(400 {@code fields.reason|reasonNote|groupChoices|password|forfeitConsent}) → 본인 확인(비밀번호 계정은 비밀번호 — 비밀번호 변경과 같은 횟수·잠금,
- *       소셜 전용은 최근 {@code reauth-minutes} 안 로그인) → 트랜잭션: 회원 잠금(진행 중이면 409) → 모임장 처리(D6) → 남은 일 셈 → 신청 줄 + WITHDRAWING + 감사 → 남은 일이 없으면
- *       그 자리에서 완료({@link WithdrawalCompletionService} — 배치와 같은 코드), 있으면 SCHEDULED.</li>
+ *       소셜 전용은 최근 {@code reauth-minutes} 안 로그인) → 트랜잭션(shared {@link WithdrawalRequestWriter} — 운영자 강제 탈퇴와 같은 코드): 회원 잠금(진행 중이면 409) →
+ *       남은 일 셈 → 신청 줄 + WITHDRAWING + 감사 → 남은 일이 없으면 그 자리에서 완료({@link WithdrawalCompletionService} — 배치와 같은 코드), 있으면 SCHEDULED.</li>
  *   <li>포기 동의 금액은 서버 계산과 같아야 한다(다르면 400 {@code fields.forfeitConsent} — 금액이 바뀌었으니 다시 보라).</li>
  *   <li><b>취소</b>: 진행 중일 때만(아니면 409) — 신청 전 상태로 되돌린다. 모임장 처리는 완료 때 하므로 소모임은 그대로다.</li>
  * </ul>
@@ -202,7 +206,9 @@ public class WithdrawalService {
         } else if (!recentLoginOk(member, now)) {
             throw new WithdrawalReauthRequiredException();
         }
-        return writer.apply(userId, reason, note, choices, plans, consent, ip);
+        WithdrawalOutcome outcome = writer.apply(WithdrawalApplication.byMember(userId, reason, note, choices, plans, consent, ip));
+        return new WithdrawalResult(outcome.status().name(), items(outcome.pending()), outcome.expectedCompleteAt(), outcome.rejoinUntil(), outcome.hasPaymentHistory(),
+                outcome.retentionYears(), outcome.supportEmail());
     }
 
     // ── 취소 ─────────────────────────────────────────────────────────────────
@@ -214,18 +220,6 @@ public class WithdrawalService {
 
     // ── 안쪽 ────────────────────────────────────────────────────────────────
 
-    /** 소모임 하나의 처리 */
-    public record GroupPlan(String action, Long toMemberId) {
-    }
-
-    /** 포기 동의 — 검사한 금액(동의가 필요 없으면 null) */
-    public record Consent(Long paidPoints, Long refundEstimate, Long bizForfeit) {
-
-        public boolean consented() {
-            return paidPoints != null || bizForfeit != null;
-        }
-    }
-
     private WithdrawalQueries.Member requireMember(long userId) {
         return queries.member(userId).filter(m -> !"WITHDRAWN".equals(m.status())).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
     }
@@ -233,7 +227,7 @@ public class WithdrawalService {
     /** 모임마다 처리 계획 — 빠진 모임은 AUTO. 모르는 모임·동작·후보는 {@code groupChoices} 위반 */
     private Map<Long, GroupPlan> groupPlans(List<GroupEntity> led, List<WithdrawalRequest.GroupChoice> choices, long me, Map<String, MessageRef> errors) {
         Map<Long, GroupPlan> plans = new LinkedHashMap<>();
-        led.forEach(g -> plans.put(g.getId(), new GroupPlan("AUTO", null)));
+        led.forEach(g -> plans.put(g.getId(), GroupPlan.AUTO));
         if (choices == null) {
             return plans;
         }
@@ -302,30 +296,5 @@ public class WithdrawalService {
 
     static List<WithdrawalView.PendingItem> items(List<WithdrawalPending> pending) {
         return pending.stream().map(p -> new WithdrawalView.PendingItem(p.code().name(), p.label(), p.link(), p.waitUntil())).toList();
-    }
-
-    static List<Map<String, Object>> pendingJson(List<WithdrawalPending> pending) {
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (WithdrawalPending p : pending) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("code", p.code().name());
-            m.put("label", p.label());
-            m.put("link", p.link());
-            m.put("waitUntil", p.waitUntil() == null ? null : p.waitUntil().toString());
-            out.add(m);
-        }
-        return out;
-    }
-
-    static List<Map<String, Object>> plansJson(Map<Long, GroupPlan> plans) {
-        List<Map<String, Object>> out = new ArrayList<>();
-        plans.forEach((groupId, plan) -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("groupId", Long.toString(groupId));
-            m.put("action", plan.action());
-            m.put("toMemberId", plan.toMemberId() == null ? null : Long.toString(plan.toMemberId()));
-            out.add(m);
-        });
-        return out;
     }
 }
