@@ -15,14 +15,14 @@ export type SanctionDestination = string | { path: string; query: Record<string,
 /** 제재 안내 화면의 갈래 — 영구 정지 · 기간 정지 · 확인하지 않은 경고 · 제한 없음(이력만) */
 export type SanctionScreen = 'BANNED' | 'SUSPENDED' | 'WARNING' | 'CLEAN';
 
-/** 이의제기 화면의 갈래 — 없는 제재 · 접수 폼 · 방금 접수함 · 검토 중 · 인용 · 기각 · 무효가 된 제재 */
-export type AppealScreen = 'MISSING' | 'FORM' | 'DONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'VOIDED';
+/** 이의제기 화면의 갈래 — 없는 제재 · 접수 폼 · 방금 접수함 · 검토 중 · 인용 · 기각 · 무효가 된 제재 · 마감(시작 + 30일)이 지남 */
+export type AppealScreen = 'MISSING' | 'FORM' | 'DONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'VOIDED' | 'EXPIRED';
 
 /** 이의 사유가 걸리는 까닭 */
 export type AppealReasonProblem = 'EMPTY' | 'TOO_SHORT' | 'TOO_LONG';
 
-/** 이의제기 접수 실패의 갈래 — 오류 **코드**로 가른다 */
-export type AppealOutcome = 'LOGIN' | 'ALREADY' | 'NOT_APPEALABLE' | 'NOT_FOUND' | 'VALIDATION' | 'NETWORK' | 'SERVER' | 'OTHER';
+/** 이의제기 접수 실패의 갈래 — 오류 **코드**로 가른다(`EXPIRED` = `409 APPEAL_EXPIRED`) */
+export type AppealOutcome = 'LOGIN' | 'ALREADY' | 'NOT_APPEALABLE' | 'EXPIRED' | 'NOT_FOUND' | 'VALIDATION' | 'NETWORK' | 'SERVER' | 'OTHER';
 
 /** 태그 색 */
 export type SanctionTone = 'amber' | 'red' | 'green' | 'gray';
@@ -253,12 +253,35 @@ export default class UtilSanction {
     }
 
     /**
-     * 이의제기를 접수할 수 있는가 — 아직 접수하지 않았고 무효가 아니다(제재 하나에 1번, 기각 뒤에도 다시 못 한다)
-     * @param {Pick<MySanction, 'appeal' | 'status'> | null | undefined} sanction - 제재.
+     * 이의제기를 접수할 수 있는가 — 아직 접수하지 않았고 무효가 아니고 마감 전이다(제재 하나에 1번, 기각 뒤에도 다시 못 한다, 시작 후 30일 안).
+     * 판정은 서버(`409 APPEAL_EXPIRED`)가 한다 — 화면은 미리 단추를 감춘다.
+     * @param {Pick<MySanction, 'appeal' | 'status' | 'appealDeadline'> | null | undefined} sanction - 제재.
+     * @param {number} now - 지금(밀리초) — 기본은 `Date.now()`.
      * @returns {boolean} 접수할 수 있으면 true.
      */
-    static canAppeal(sanction: Pick<MySanction, 'appeal' | 'status'> | null | undefined): boolean {
-        return Boolean(sanction) && sanction!.appeal === null && sanction!.status !== 'VOIDED';
+    static canAppeal(sanction: Pick<MySanction, 'appeal' | 'status' | 'appealDeadline'> | null | undefined, now: number = Date.now()): boolean {
+        return Boolean(sanction) && sanction!.appeal === null && sanction!.status !== 'VOIDED' && !UtilSanction.isAppealExpired(sanction!, now);
+    }
+
+    /**
+     * 이의제기 마감이 지났는가 — 마감이 없으면(무효·옛 응답) 지나지 않은 것으로 본다(서버가 판정한다)
+     * @param {Pick<MySanction, 'appealDeadline'>} sanction - 제재.
+     * @param {number} now - 지금(밀리초).
+     * @returns {boolean} 지났으면 true.
+     */
+    static isAppealExpired(sanction: Pick<MySanction, 'appealDeadline'>, now: number = Date.now()): boolean {
+        const deadline = sanction.appealDeadline ? Date.parse(sanction.appealDeadline) : Number.NaN;
+        return !Number.isNaN(deadline) && deadline <= now;
+    }
+
+    /**
+     * 이의제기를 하지 않은 채 마감이 지났는가 — 이력·안내에 접수 단추 대신 「이의제기 기한이 지났어요」를 보일 때
+     * @param {Pick<MySanction, 'appeal' | 'status' | 'appealDeadline'>} sanction - 제재.
+     * @param {number} now - 지금(밀리초).
+     * @returns {boolean} 접수 없이 마감이 지났으면 true.
+     */
+    static missedAppeal(sanction: Pick<MySanction, 'appeal' | 'status' | 'appealDeadline'>, now: number = Date.now()): boolean {
+        return sanction.appeal === null && sanction.status !== 'VOIDED' && UtilSanction.isAppealExpired(sanction, now);
     }
 
     /**
@@ -285,7 +308,8 @@ export default class UtilSanction {
             if (sanction.appeal.status === 'REJECTED') return 'REJECTED';
             return 'PENDING';
         }
-        return sanction.status === 'VOIDED' ? 'VOIDED' : 'FORM';
+        if (sanction.status === 'VOIDED') return 'VOIDED';
+        return UtilSanction.isAppealExpired(sanction) ? 'EXPIRED' : 'FORM';
     }
 
     /**
@@ -332,6 +356,7 @@ export default class UtilSanction {
         if (code === 'UNAUTHENTICATED' || status === 401) return 'LOGIN';
         if (code === 'APPEAL_ALREADY') return 'ALREADY';
         if (code === 'SANCTION_NOT_APPEALABLE') return 'NOT_APPEALABLE';
+        if (code === 'APPEAL_EXPIRED') return 'EXPIRED';
         if (code === 'SANCTION_NOT_FOUND') return 'NOT_FOUND';
         if (code === 'VALIDATION') return 'VALIDATION';
         if (status === 0) return 'NETWORK';

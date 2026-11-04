@@ -15,6 +15,9 @@
         - 처리: 처리 대화창(`ReportActionDialog` — 사유 코드 + 글, 무시는 「허위 신고로 표시」) · 다시 열기(무시한 사건, 확인 대화상자).
           `409 REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID`·`REPORT_CASE_OPEN_EXISTS`·`404 REPORT_CASE_NOT_FOUND`(그 사이 바뀜)는 토스트(서버 문구) + 새로 받기.
         - 일괄: 열린 사건을 고르면 아래에 일괄 줄 — [무시](허위 표시 체크) → 결과 대화창(사건마다 처리됨/못 함 + 까닭).
+        - 작성자 제재(member-sanction-contract 결정 4): 처리 대화창에 「작성자 제재 곁들이기」 + 조치 [제재만](회원 작성자 + `sanction.manage`), 서랍 작성자 카드에 제재 현황(`sanction.read`).
+          작성자 현황은 사건 상세의 `authorCard.sanction`(서버 preview — 비회원·탈퇴는 null)을 쓰고, 줄 메뉴로 서랍 밖 사건을 처리할 때만 제재 API 현황(`useSanctionPreview`)을 따로 받는다.
+          제재 오류(`SANCTION_STEP_TOO_LOW`·`SANCTION_ALREADY_*`·`SANCTION_TARGET_NOT_FOUND`)는 현황을 새로 받고 대화창 안에 서버 문구, 칸 오류 `fields["sanction.*"]` 는 단계 고르개·제재 사유 칸 아래.
         - 권한: 보기 `report.read`(메뉴). `report.manage` 가 없으면 읽기 전용 안내 + 체크·처리 없음. 게시판 고르개는 게시글 관리의 게시판 선택지(`post.read`)를 빌려 쓴다 — 없으면 「전체」만.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -258,7 +261,7 @@
 
         <Menu ref="rowMenu" :model="rowMenuItems" popup />
 
-        <ReportActionDialog v-model:visible="actOpen" :kind="actKind" :item="actTarget" :busy="acting" :error="actError" :field-errors="actFieldErrors" @submit="submitAct" />
+        <ReportActionDialog v-model:visible="actOpen" :kind="actKind" :item="actTarget" :busy="acting" :error="actError" :field-errors="actFieldErrors" :sanction="actSanction" @submit="submitAct" @retry-sanction="retryActSanction" />
         <ReportBulkDialog v-model:visible="bulkOpen" :count="bulkTargetIds.length" :busy="acting" :error="bulkError" :field-error="bulkFieldError" :result="bulkResult" :titles="bulkTitles" @submit="submitBulk" />
 
         <ReportDetailDrawer
@@ -275,7 +278,9 @@
             :can-view-post="canViewPost"
             :can-view-group="canViewGroup"
             :author-grade="authorGrade"
+            :author-sanction="authorSanction"
             @retry="detail.reload(false)"
+            @retry-sanction="detail.reload(false)"
             @act="onDrawerAct"
             @reopen="reopen"
             @prev="neighbors.prev && openCase(neighbors.prev)"
@@ -293,6 +298,10 @@ import type { ReportBulkResult, ReportCaseDetail, ReportCaseItem, ReportCaseList
 import UtilDateRange from '~/utils/util-date-range';
 import UtilReport, { type ReportActKind, type ReportFilters } from '~/utils/util-report';
 import UtilReportMessages from '~/utils/util-report-messages';
+import type { ReportActPayload, ReportSanctionContext } from '~/components/report/ReportActionDialog.types';
+import type { ReportAuthorRef } from '~/composables/report/api/useReportApi.types';
+import UtilSanction from '~/utils/util-sanction';
+import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('report.title') });
@@ -315,6 +324,9 @@ const uid = useId();
 const canManage = computed(() => can('report.manage'));
 const canViewPost = computed(() => can('post.read'));
 const canViewGroup = computed(() => can('group.read'));
+/** 작성자 제재(member-sanction-contract) — 현황 보기 `sanction.read` · 곁들이기·제재만 `sanction.manage`(영구 정지·건너뛰기는 `sanction.ban`) */
+const sanctionPerm = useSanctionPermission();
+const sanctionStepPerm = computed(() => ({ canManage: sanctionPerm.canManage.value, canBan: sanctionPerm.canBan.value }));
 
 /* ── 주소 ↔ 필터 ── */
 
@@ -603,7 +615,60 @@ function openAct(item: ReportCaseItem, kind: ReportActKind): void {
     actKind.value = kind;
     actError.value = '';
     actFieldErrors.value = {};
+    // 서랍에 열린 사건은 상세의 작성자 현황을 쓰고, 그 밖(줄 메뉴)은 따로 받는다
+    if (UtilReport.allowsSanction(kind) && detail.detail.value?.case.id !== item.id) loadAuthor(actPreview, item.author);
     actOpen.value = true;
+}
+
+/* ── 작성자 제재 — 서랍 작성자 카드·서랍에서 연 처리는 상세의 `authorCard.sanction`, 줄 메뉴로 연 다른 사건은 `actPreview` ── */
+
+const actPreview = useSanctionPreview();
+/** 제재 오류 — 그 사이 작성자 상태가 바뀌었다(현황을 새로 받고 대화창 안에 서버 문구, 쓴 글은 그대로) */
+const SANCTION_STALE = new Set(['SANCTION_STEP_TOO_LOW', 'SANCTION_ALREADY_SUSPENDED', 'SANCTION_ALREADY_BANNED', 'SANCTION_TARGET_NOT_FOUND']);
+
+/** 작성자 현황을 받는다 — 제재할 수 있는 회원이고 `sanction.read` 가 있을 때만 */
+function loadAuthor(state: ReturnType<typeof useSanctionPreview>, author: ReportAuthorRef | null | undefined): void {
+    if (!sanctionPerm.canRead.value || !author || !author.id || !UtilReport.canSanctionAuthor(author)) {
+        state.clear();
+        return;
+    }
+    if (state.userId.value !== author.id) void state.open(author.id);
+}
+
+/** 서랍의 사건 — 작성자 카드의 서버 현황. 회원인데 현황이 null 이면 탈퇴(진행 중 포함)라 제재할 수 없다 */
+const authorSanction = computed<ReportSanctionContext | null>(() => {
+    const d = detail.detail.value;
+    if (!sanctionPerm.canRead.value || !d) return null;
+    const preview = d.authorCard?.sanction ?? null;
+    return {
+        eligible: UtilReport.canSanctionAuthor(d.case.author) && preview !== null,
+        authorName: d.case.author.name,
+        preview,
+        loading: detail.loading.value,
+        error: null,
+        perm: sanctionStepPerm.value,
+    };
+});
+/** 처리 대화창 — 서랍에 열린 사건이면 위와 같고, 아니면 따로 받은 현황 */
+const actFromDrawer = computed(() => Boolean(actTarget.value && detail.detail.value?.case.id === actTarget.value.id));
+const actSanction = computed<ReportSanctionContext | null>(() => {
+    if (actFromDrawer.value) return authorSanction.value;
+    const author = actTarget.value?.author;
+    if (!sanctionPerm.canRead.value || !author) return null;
+    return {
+        eligible: UtilReport.canSanctionAuthor(author),
+        authorName: author.name,
+        preview: actPreview.preview.value,
+        loading: actPreview.loading.value,
+        error: actPreview.error.value,
+        perm: sanctionStepPerm.value,
+    };
+});
+
+/** 처리 대화창의 작성자 현황을 다시 받는다 */
+function retryActSanction(): void {
+    if (actFromDrawer.value) void detail.reload();
+    else actPreview.retry();
 }
 
 /** 그 사이 다른 운영자가 처리했거나 상태가 바뀌었다 — 서버 문구로 알리고 새로 받는다(대화창은 닫는다) */
@@ -619,7 +684,7 @@ async function afterChange(id: string, next: ReportCaseDetail | null): Promise<v
     if (!next && detail.openId.value === id) await detail.reload();
 }
 
-async function submitAct(payload: { reasonCode: ReportReasonCode | null; note: string; falseReport: boolean }): Promise<void> {
+async function submitAct(payload: ReportActPayload): Promise<void> {
     const item = actTarget.value;
     const kind = actKind.value;
     if (!item || !kind || acting.value) return;
@@ -631,7 +696,7 @@ async function submitAct(payload: { reasonCode: ReportReasonCode | null; note: s
         result =
             kind === 'DISMISS'
                 ? await api.dismiss(item.id, { reasonCode: payload.reasonCode ?? undefined, note: payload.note || undefined, falseReport: payload.falseReport })
-                : await api.resolve(item.id, { action: kind, reasonCode: payload.reasonCode as ReportReasonCode, note: payload.note });
+                : await api.resolve(item.id, { action: UtilReport.requestAction(kind), reasonCode: payload.reasonCode as ReportReasonCode, note: payload.note, sanction: payload.sanction });
     } catch (e) {
         acting.value = false;
         const error = errorOf(e);
@@ -641,19 +706,30 @@ async function submitAct(payload: { reasonCode: ReportReasonCode | null; note: s
             await afterChange(item.id, null);
             return;
         }
+        // 작성자 제재가 막혔다 — 조치도 일어나지 않았다. 현황을 새로 받고 대화창 안에 서버 문구
+        if (SANCTION_STALE.has(error.code)) {
+            actFieldErrors.value = {};
+            actError.value = error.message;
+            if (actFromDrawer.value) void detail.reload();
+            else void actPreview.reload();
+            return;
+        }
         // 칸 오류는 그 칸 아래, 그 밖은 대화창 안 한 줄(서버 문구 그대로) — 쓰던 글은 그대로 둔다
         const fields = error.status === 400 ? (error.fields ?? {}) : {};
         actFieldErrors.value = { ...fields };
         const other = Object.entries(fields)
-            .filter(([k]) => k !== 'reasonCode' && k !== 'note')
+            .filter(([k]) => k !== 'reasonCode' && k !== 'note' && k !== 'sanction' && !k.startsWith('sanction.'))
             .map(([, v]) => v);
         actError.value = Object.keys(fields).length > 0 ? other.join(' ') : error.message;
         return;
     }
     acting.value = false;
     actOpen.value = false;
-    toast.success(UtilReportMessages.done(t, kind, payload.falseReport));
+    const issued = result.issuedSanction ?? null;
+    toast.success(issued ? t('report.doneWithSanction', { done: UtilReportMessages.done(t, kind, payload.falseReport), sanction: UtilSanctionMessages.issued(t, issued) }) : UtilReportMessages.done(t, kind, payload.falseReport));
     await afterChange(item.id, result);
+    // 서랍의 작성자 카드는 응답 상세(`afterChange`)로 바뀐다
+    if (issued) actPreview.clear();
 }
 
 /** 무시한 사건을 다시 연다 — 신고들이 다시 대기가 되고 허위 표시가 풀린다(복구한 자동 숨김은 다시 숨기지 않는다) */
@@ -685,7 +761,7 @@ const rowMenuTarget = ref<ReportCaseItem | null>(null);
 
 /** 줄 메뉴 — 처리(열린 사건 + `report.manage`) · 게시글 관리에서 보기(`post.read`) */
 function rowMenuFor(item: ReportCaseItem): MenuItem[] {
-    const menu: MenuItem[] = UtilReport.actionList(UtilReport.actionsOf(item, canManage.value)).map((kind) => ({
+    const menu: MenuItem[] = UtilReport.actionList(UtilReport.actionsOf(item, canManage.value, UtilSanction.canIssue(sanctionStepPerm.value))).map((kind) => ({
         label: t(`report.act.${kind}`),
         icon: UtilReport.actIcon(kind),
         class: UtilReport.isDanger(kind) ? 'report-menu-danger' : undefined,
@@ -716,7 +792,7 @@ const drawerItem = computed<ReportCaseItem | null>(() => {
     return detail.detail.value?.case ?? items.value.find((item) => item.id === id) ?? null;
 });
 const neighbors = computed(() => UtilReport.neighbors(items.value, detail.openId.value));
-const drawerActions = computed(() => (detail.detail.value ? UtilReport.actionsOf(detail.detail.value.case, canManage.value) : UtilReport.noActions()));
+const drawerActions = computed(() => (detail.detail.value ? UtilReport.actionsOf(detail.detail.value.case, canManage.value, UtilSanction.canIssue(sanctionStepPerm.value)) : UtilReport.noActions()));
 const authorGrade = computed(() => {
     const grade = detail.detail.value?.authorCard.grade;
     return grade ? gradeAppearance.badgeOf(grade) : null;
@@ -729,6 +805,7 @@ watch(
         if (next) patchRow(next);
     },
 );
+
 
 function rowClass(data: ReportCaseItem): string {
     return drawerOpen.value && data.id === detail.openId.value ? 'report-row-open cursor-pointer' : 'cursor-pointer';

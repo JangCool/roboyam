@@ -69,6 +69,7 @@ export default {
     rowAppealDate: '접수일',
     rowStatus: '상태',
     rowResult: '처리 결과',
+    rowAppealDeadline: '이의제기 마감',
 
     // 종류·상태
     kindWarning: '경고',
@@ -102,6 +103,8 @@ export default {
     appealView: '이의제기 보기',
     appealViewStatus: '이의제기 보기 · {status}',
     backToHistory: '내 제재 이력으로',
+    appealDeadlineLine: '이의제기 마감 {date}',
+    appealExpired: '이의제기 기한이 지났어요',
 
     // 이의제기
     reasonLabel: '이의 사유',
@@ -123,6 +126,9 @@ export default {
     missingText: '없는 제재예요. 내 제재 이력에서 다시 골라 주세요.',
     voidedTitle: '이의제기할 수 없는 제재예요',
     voidedText: '이미 무효가 된 제재에는 이의제기를 할 수 없어요.',
+    expiredTitle: '이의제기 기한이 지났어요',
+    expiredText: '이의제기는 제재가 시작된 뒤 30일 안에만 접수할 수 있어요.',
+    appealWindow: '제재가 시작된 뒤 30일 안에 접수할 수 있어요.',
     doneTitle: '이의제기를 접수했어요',
     doneText: '운영팀이 검토한 뒤 알림과 이메일로 답변을 드려요.',
     alreadyTitle: '이미 접수한 이의제기가 있어요.',

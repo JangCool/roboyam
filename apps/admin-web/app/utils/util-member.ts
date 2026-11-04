@@ -10,14 +10,11 @@ import type {
     MemberGradeRequirement,
     MemberOptionalConsentKey,
     MemberOrderStatus,
-    MemberSanction,
     MemberSocialProvider,
     MemberGrade,
     MemberQuery,
     MemberRoleRef,
     MemberRoleTypeId,
-    MemberSanctionKind,
-    MemberSanctionStatus,
     MemberSearchField,
     MemberSortField,
     MemberStatus,
@@ -276,21 +273,7 @@ export default class UtilMember {
         return { ACTIVE: 'pi pi-check-circle', SUSPENDED: 'pi pi-clock', BANNED: 'pi pi-ban', WITHDRAWING: 'pi pi-hourglass', WITHDRAWN: 'pi pi-sign-out', DORMANT: 'pi pi-moon' }[status];
     }
 
-    static sanctionKindSeverity(kind: MemberSanctionKind): TagSeverity {
-        return { WARNING: 'warn', SUSPENSION: 'danger', BAN: 'danger' }[kind] as TagSeverity;
-    }
-
-    static sanctionKindIcon(kind: MemberSanctionKind): string {
-        return { WARNING: 'pi pi-exclamation-triangle', SUSPENSION: 'pi pi-clock', BAN: 'pi pi-ban' }[kind];
-    }
-
-    static sanctionStatusSeverity(status: MemberSanctionStatus): TagSeverity {
-        return { ACTIVE: 'danger', ENDED: 'secondary', RELEASED: 'success' }[status] as TagSeverity;
-    }
-
-    static sanctionStatusIcon(status: MemberSanctionStatus): string {
-        return { ACTIVE: 'pi pi-circle-fill', ENDED: 'pi pi-check', RELEASED: 'pi pi-unlock' }[status];
-    }
+    // 제재 단계·상태의 색·아이콘은 `UtilSanction`(제재 화면과 같은 알약 `SanctionTag`)
 
     // ── 상세 보강(후보 계약, 확정 전) ─
 
@@ -343,11 +326,6 @@ export default class UtilMember {
 
     static requirementMet(requirement: MemberGradeRequirement): boolean {
         return requirement.current >= requirement.required;
-    }
-
-    /** 진행 중인 제재들 */
-    static activeSanctions(sanctions: readonly MemberSanction[]): MemberSanction[] {
-        return sanctions.filter((s) => s.status === 'ACTIVE');
     }
 
     /** 증감 글자 — 늘면 `+120`, 줄면 `−500`(숫자는 화면 언어의 자리 구분) */

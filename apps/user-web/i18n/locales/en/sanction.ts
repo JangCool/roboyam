@@ -68,6 +68,7 @@ export default {
     rowAppealDate: 'Submitted',
     rowStatus: 'Status',
     rowResult: 'Result',
+    rowAppealDeadline: 'Appeal by',
 
     // Kinds · statuses
     kindWarning: 'Warning',
@@ -101,6 +102,8 @@ export default {
     appealView: 'View appeal',
     appealViewStatus: 'View appeal · {status}',
     backToHistory: 'Back to my sanction history',
+    appealDeadlineLine: 'Appeal by {date}',
+    appealExpired: 'The appeal period has ended',
 
     // Appeal
     reasonLabel: 'Reason for appeal',
@@ -122,6 +125,9 @@ export default {
     missingText: "This sanction doesn't exist. Pick one again from your sanction history.",
     voidedTitle: "This sanction can't be appealed",
     voidedText: "A sanction that has already been voided can't be appealed.",
+    expiredTitle: 'The appeal period has ended',
+    expiredText: 'You can appeal a sanction only within 30 days of when it started.',
+    appealWindow: 'You can appeal within 30 days of when the sanction started.',
     doneTitle: 'Appeal submitted',
     doneText: "The team will review it and reply by notification and email.",
     alreadyTitle: "You've already appealed this sanction.",

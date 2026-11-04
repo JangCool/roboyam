@@ -1,5 +1,6 @@
 import type { GroupCategoryRef, GroupPerson } from '~/composables/group/api/useGroupAdminApi.types';
 import type { DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { SanctionLine, SanctionPreview, SanctionWithReport } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 신고 관리 API(`/api/admin/reports…`)가 주고받는 모양 — 계약 `docs/features/report-admin-contract.md` 「API」 그대로(서버 `server/admin` 의 신고 관리 DTO 와 같은 칸 이름).
@@ -44,10 +45,16 @@ export type ReportHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
  * 조치 — 숨김 · 삭제 · 자동 숨김 확정 · 소모임 비활성화(소모임 대상만) · 핫딜 종료(핫딜 글 대상만) · 무시.
  * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다(처리 글 1~200자, 글은 숨기지 않는다 — 핫딜 글이 아니면 `409 REPORT_ACTION_INVALID`).
  */
-export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'DISMISS';
+export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'SANCTION_ONLY' | 'DISMISS';
 
-/** `POST /{id}/resolve` 의 조치 */
+/**
+ * 처리 대화창의 조치 — `SANCTION_ONLY`(제재만 — 대상은 그대로 두고 작성자만 제재, member-sanction-contract 결정 4)는 요청에서 `action: 'NONE'` + `sanction` 필수다.
+ * 사건의 기록된 조치(`ReportCaseItem.action`)는 `SANCTION_ONLY` 로 남는다(community 와 같다).
+ */
 export type ReportResolveAction = Exclude<ReportCaseAction, 'DISMISS'>;
+
+/** `POST /{id}/resolve` 요청의 `action` — 「제재만」은 `NONE`(직접 `SANCTION_ONLY` 를 보내면 `400 VALIDATION fields.action`) */
+export type ReportResolveRequestAction = Exclude<ReportResolveAction, 'SANCTION_ONLY'> | 'NONE';
 
 /** 사건 안 신고 한 건의 상태 — 조치로 닫힘 ACCEPTED, 허위 표시 무시 REJECTED, 그냥 무시 DISMISSED */
 export type ReportEntryStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'DISMISSED';
@@ -197,7 +204,10 @@ export interface ReportEntry {
     status: ReportEntryStatus;
 }
 
-/** 작성자 카드 — 제재(`sanction`)는 커머스 병합 뒤라 지금은 늘 null */
+/**
+ * 작성자 카드 — `sanction` 은 작성자의 제재 현황(제재 API `GET /api/admin/sanctions/preview` 와 같은 모양, member-sanction-contract 「API 후보」).
+ * 비회원·탈퇴(진행 중 포함) 회원이면 null(서버 `ReportAuthorCardView.sanction`). 서랍 작성자 카드·서랍에서 연 처리 대화창이 이 값을 쓴다.
+ */
 export interface ReportAuthorCard {
     id: string | null;
     name: string;
@@ -206,7 +216,7 @@ export interface ReportAuthorCard {
     joinedAt: string | null;
     /** 이 작성자 대상 사건의 최근 90일 결과 */
     closedCases: { resolved: number; dismissed: number };
-    sanction: null;
+    sanction: SanctionPreview | null;
 }
 
 /** 처리 기록 한 줄 — 모양은 가정(게시글 관리 조치 기록과 같은 꼴). `detail` 은 서버가 정한 덧붙임(reasonCode·note·falseReport·action 등) */
@@ -229,6 +239,8 @@ export interface ReportCaseDetail {
     publicUrl: string | null;
     /** 소모임 사건의 대상 소모임(지금 값) — 글·댓글 사건이거나 소모임 행이 없으면 null(옛 서버는 칸이 없다) */
     group?: ReportGroup | null;
+    /** 이 처리(`resolve`)에서 준 제재 — 조치 응답에만 있고, 제재가 없거나 그 밖의 응답이면 null(서버 `ReportCaseDetailView.issuedSanction`) */
+    issuedSanction?: SanctionLine | null;
 }
 
 /** 소모임 사건의 대상 소모임(서버 `ReportGroupView`) — 신고 당시 이름·소개는 `content.snapshot` */
@@ -254,11 +266,18 @@ export interface ReportGroup {
 
 /** `POST /{id}/resolve` */
 export interface ReportResolveRequest {
-    action: ReportResolveAction;
+    action: ReportResolveRequestAction;
     reasonCode: ReportReasonCode;
     /** 1~500자 */
     note: string;
+    /**
+     * 작성자 제재 곁들이기(member-sanction-contract 결정 4) — 대상은 사건 작성자(서버가 정한다), 같은 트랜잭션, 제재에 이 사건이 이어진다. `action: 'NONE'` 이면 필수(`400 fields.sanction`). 칸 오류 키는 `sanction.kind`·`sanction.reason`·`sanction.skipStep`·`sanction.confirmNickname`.
+     * 제재 오류(`409 SANCTION_*`·`403`·`400 fields.sanction.*`)가 나면 콘텐츠 조치도 일어나지 않는다. 비회원·탈퇴 작성자는 `404 SANCTION_TARGET_NOT_FOUND`.
+     */
+    sanction?: SanctionWithReport | null;
 }
+
+
 
 /** `POST /{id}/dismiss` */
 export interface ReportDismissRequest {

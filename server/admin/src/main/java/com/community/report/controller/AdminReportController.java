@@ -14,6 +14,7 @@ import com.community.report.dto.response.ReportCaseListView;
 import com.community.report.dto.response.ReportSummaryView;
 import com.community.report.service.AdminReportQueryService;
 import com.community.report.service.ReportCaseActionService;
+import com.community.sanction.dto.response.SanctionLineView;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -80,13 +81,15 @@ public class AdminReportController {
         return noStore(queries.open(actor, id));
     }
 
-    /** 조치 — {@code { action: HIDE|DELETE|KEEP_HIDDEN|DEACTIVATE(소모임 사건만), reasonCode, note }} */
+    /** 조치 — {@code { action: HIDE|DELETE|KEEP_HIDDEN|DEACTIVATE(소모임 사건만)|DEAL_END(핫딜 글 사건만)|NONE(제재만 — sanction 필수), reasonCode, note, sanction? }} */
     @RequirePermission(Permission.REPORT_MANAGE)
     @PostMapping("/{id}/resolve")
     public ResponseEntity<ApiResponse<ReportCaseDetailView>> resolve(@PathVariable String id, @RequestBody(required = false) ReportResolveRequest body,
                                                                      AdminActor actor) {
-        actions.resolve(actor, id, body);
-        return noStore(queries.detail(id));
+        // 작성자 제재를 곁들였으면(sanction — member-sanction-contract 결정 4) 응답 상세의 issuedSanction 에 그 제재 줄. 조치 NONE = 제재만
+        SanctionLineView issued = actions.resolve(actor, id, body);
+        ReportCaseDetailView detail = queries.detail(id);
+        return noStore(issued == null ? detail : detail.withIssuedSanction(issued));
     }
 
     /** 무시 — {@code { reasonCode?, note?, falseReport }}. 자동 숨김이었으면 복구 */

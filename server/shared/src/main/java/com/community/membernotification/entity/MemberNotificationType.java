@@ -144,7 +144,15 @@ public enum MemberNotificationType {
     /** 마감 없는 내 딜이 기간 종료됐다 — 한 번만(배치 hotdeal-expiry-notice, {@code post_deals.expiry_notified_at}) */
     DEAL_EXPIRED("system"),
     /** 내 딜이 다시 진행 중이 됐는데 기간이 이미 지났다 — 「마감을 고쳐 주세요」 */
-    DEAL_REOPENED_FIX_ENDS("system");
+    DEAL_REOPENED_FIX_ENDS("system"),
+
+    // ── 사이트 제재(V136 — docs/features/member-sanction-contract.md 정책 8). 끌 수 없는 계정 알림, 누르면 /sanction ──
+    /** 제재를 받았다(경고·정지·영구 정지) — 덧붙임 sanctionId·kind·warningNo(경고 몇 번째)·until(기간 정지의 끝)·reason(운영자가 적은 사유). 메일도(인증된 이메일) */
+    SANCTION_ISSUED("system"),
+    /** 운영자가 내 정지·영구 정지를 풀었다 — 덧붙임 sanctionId·kind(해제 사유는 싣지 않는다) */
+    SANCTION_LIFTED("system"),
+    /** 내 이의제기에 답이 왔다(인용·기각) — 덧붙임 sanctionId·appealId·kind·warningNo·result(ACCEPTED · REJECTED)·answer. 메일도(인증된 이메일) */
+    APPEAL_ANSWERED("system");
 
     private final String category;
 

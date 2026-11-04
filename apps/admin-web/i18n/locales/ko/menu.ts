@@ -61,6 +61,8 @@ export default {
     boardDefaultsPrivacy: '개인정보 보유기간',
     safety: '커뮤니티 안전',
     reports: '신고 관리',
+    sanctions: '제재',
+    appeals: '이의제기',
     content: '콘텐츠',
     posts: '게시글 관리',
     highlights: '하이라이트',

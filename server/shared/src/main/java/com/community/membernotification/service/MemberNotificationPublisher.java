@@ -889,6 +889,88 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /** 제재 알림이 가는 곳(user-web 내 제재 화면) */
+    public static final String SANCTION_PATH = "/sanction";
+
+    /**
+     * 사이트 제재를 받았다({@code SANCTION_ISSUED} — member-sanction-contract 정책 8). 덧붙임 {@code sanctionId}·{@code kind}·{@code warningNo}·{@code until}·{@code reason}.
+     * 끌 수 없는 계정 알림, 누르면 내 제재. 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때(처음 값 켬 — 인증된 이메일만, 발송기가 거른다). 업무 트랜잭션 안에서 부른다.
+     */
+    public int sanctionIssued(long userId, long sanctionId, String kind, Integer warningNo, Instant until, String reason) {
+        return isolated.run("member-notification:sanction-issued", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.SANCTION_ISSUED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("sanctionId", Long.toString(sanctionId));
+                payload.put("kind", kind);
+                payload.put("warningNo", warningNo);
+                payload.put("until", until == null ? null : until.toString());
+                payload.put("reason", reason);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.SANCTION_ISSUED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.sanctionIssued(kind, warningNo, until, reason), null, null, SANCTION_PATH);
+            }
+            return made;
+        }, 0);
+    }
+
+    /** 운영자가 정지·영구 정지를 풀었다({@code SANCTION_LIFTED}) — 덧붙임 {@code sanctionId}·{@code kind}(해제 사유는 싣지 않는다). 메일은 이벤트 설정이 켜졌을 때만(처음 값 끔) */
+    public int sanctionLifted(long userId, long sanctionId, String kind) {
+        return isolated.run("member-notification:sanction-lifted", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.SANCTION_LIFTED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("sanctionId", Long.toString(sanctionId));
+                payload.put("kind", kind);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.SANCTION_LIFTED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.sanctionLifted(kind), null, null, SANCTION_PATH);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 이의제기에 답했다({@code APPEAL_ANSWERED}) — 덧붙임 {@code sanctionId}·{@code appealId}·{@code kind}·{@code warningNo}·{@code result}(ACCEPTED · REJECTED)·{@code answer}.
+     * 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때(처음 값 켬).
+     */
+    public int appealAnswered(long userId, long sanctionId, long appealId, String kind, Integer warningNo, String result, String answer) {
+        return isolated.run("member-notification:appeal-answered", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.APPEAL_ANSWERED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("sanctionId", Long.toString(sanctionId));
+                payload.put("appealId", Long.toString(appealId));
+                payload.put("kind", kind);
+                payload.put("warningNo", warningNo);
+                payload.put("result", result);
+                payload.put("answer", answer);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.APPEAL_ANSWERED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.appealAnswered(kind, warningNo, result, answer), null, null, SANCTION_PATH);
+            }
+            return made;
+        }, 0);
+    }
+
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));
     }

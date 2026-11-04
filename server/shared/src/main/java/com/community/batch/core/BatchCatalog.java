@@ -92,6 +92,13 @@ public enum BatchCatalog implements BatchDefinition {
     POPULAR_RANK("popular-rank", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 회원 제재 만료 — 끝난 기간 정지를 끝내고(ENDED) 다른 진행 중 정지가 없는 회원을 정상(ACTIVE)으로, 어긋난 상태(막혔는데 진행 중 정지가 없음)도 바로잡는다. DB 배치, 기본 1분마다
+     * ({@code R__batch_39_sanction_expire.sql}, docs/features/member-sanction-contract.md 정책 7). <b>업무 배치</b>(분류 MEMBER) — pg_cron 이 없으면 기동 WARN.
+     * 회원이 로그인 정보·내 제재를 읽을 때도 지난 정지를 먼저 끝낸다({@code MemberSanctionService#settle} — 같은 판정의 Java 쪽).
+     */
+    SANCTION_EXPIRE("sanction-expire", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 탈퇴 대비·본인인증 개인정보 정리(기간이 끝난 재가입 제한 해시 · 파기 예정일이 지난 탈퇴 회원 연락처 · 30일 지난 본인인증 시도) — DB 배치, 기본 매일 04:25 KST
      * ({@code R__batch_28_member_privacy_retention.sql}, docs/features/commerce-foundation-contract.md 「0-4」).
      */

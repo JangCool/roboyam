@@ -57,7 +57,9 @@
                     <NuxtLink :to="UtilSanction.appealTo(focus.id)" class="text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="sanction-appeal-link">
                         {{ t('sanction.appealButton') }}
                     </NuxtLink>
+                    <span v-if="focus.appealDeadline" class="mt-0.5 block text-xs text-muted-color" data-testid="sanction-appeal-deadline">{{ t('sanction.appealDeadlineLine', { date: UtilSanctionMessages.releaseText(focus.appealDeadline, time) }) }}</span>
                 </p>
+                <p v-else-if="focus && UtilSanction.missedAppeal(focus)" class="mb-0 mt-3 text-center text-xs text-muted-color" data-testid="sanction-appeal-expired">{{ t('sanction.appealExpired') }}</p>
             </section>
 
             <!-- ②③ 기간 정지 · 영구 정지 — 읽기와 이의제기만 -->
@@ -98,6 +100,13 @@
                         fluid
                         data-testid="sanction-appeal-view"
                     />
+                    <!-- 접수할 수 있으면 마감, 접수 없이 30일이 지났으면 단추 대신 안내 한 줄 -->
+                    <p v-if="focus && UtilSanction.canAppeal(focus) && focus.appealDeadline" class="m-0 text-center text-xs text-muted-color" data-testid="sanction-appeal-deadline">
+                        {{ t('sanction.appealDeadlineLine', { date: UtilSanctionMessages.releaseText(focus.appealDeadline, time) }) }}
+                    </p>
+                    <p v-else-if="focus && UtilSanction.missedAppeal(focus)" class="m-0 rounded-lg bg-surface-100 px-3 py-2.5 text-center text-sm text-muted-color dark:bg-surface-800/60" data-testid="sanction-appeal-expired">
+                        {{ t('sanction.appealExpired') }}
+                    </p>
                     <Button type="button" :label="continueLabel" size="large" severity="secondary" variant="outlined" fluid data-testid="sanction-home" @click="goContinue" />
                     <!-- 영구 정지 계정은 로그아웃 길을 남긴다 -->
                     <Button v-if="screen === 'BANNED'" type="button" :label="t('common.logout')" variant="text" severity="secondary" fluid :loading="logoutBusy" data-testid="sanction-logout" @click="logout" />
@@ -156,7 +165,9 @@
                                 variant="outlined"
                                 :data-testid="row.canAppeal ? 'sanction-row-appeal-link' : 'sanction-row-appeal-view'"
                             />
+                            <span v-if="row.appealDeadlineText" class="ml-2 text-xs text-muted-color" data-testid="sanction-row-deadline">{{ t('sanction.appealDeadlineLine', { date: row.appealDeadlineText }) }}</span>
                         </div>
+                        <p v-else-if="row.appealExpired" class="mb-0 mt-2 text-xs text-muted-color" data-testid="sanction-row-expired">{{ t('sanction.appealExpired') }}</p>
                     </li>
                 </ul>
             </section>
@@ -172,8 +183,9 @@ import UtilSanctionMessages from '~/utils/util-sanction-messages';
  * 제재 안내 — `/sanction`(community `pages/sanction/index.vue`, `docs/api-sanction.md` 2절). 로그인한 회원이면 정지·영구 정지 중에도 쓴다(읽기 전용 계정).
  * 계정 상태에 따라 안내가 바뀐다 — ① 확인하지 않은 경고(누적 N/2회 · 「안내를 확인했어요」 체크 뒤 「확인하고 계속」) ② 기간 정지(사유·기간·해제 예정·단계 · 「정지 중에는」 · 이의제기하기)
  * ③ 영구 정지(로그아웃 길) ④ 정상이면 이력만. 아래에는 늘 **내 제재 이력**.
+ * 이의제기는 제재 시작 후 30일 안에만(`appealDeadline`, member-sanction-contract 결정 3) — 접수할 수 있으면 마감을, 접수 없이 지났으면 단추 대신 「이의제기 기한이 지났어요」를 보인다.
  * 로그인 직후 이동(`UtilSanction.afterLoginPath`)이 이곳으로 올 때 원래 가려던 곳을 `?next=` 로 들고 온다 — 「확인하고 계속」·「홈으로」 뒤에 그곳으로 간다(같은 사이트 안의 경로만).
- * 흐름은 `useMySanctions`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`. ⚠ 목업 API(`useSanctionApi`) — `?mock=sanction-warning` 등으로 갈래를 고른다.
+ * 흐름은 `useMySanctions`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`.
  * 원본과 달라진 점: 게시판 한정 제재 구획(게시판 지킴이)은 로보얌에 없어 뺐다. 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
  */
 definePageMeta({ middleware: 'auth' });

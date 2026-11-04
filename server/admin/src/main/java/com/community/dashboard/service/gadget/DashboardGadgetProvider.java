@@ -8,7 +8,7 @@ import com.community.dashboard.dto.response.gadget.DashboardGadgetData;
  * 가젯 종류 하나의 데이터를 만드는 빈 — 종류마다 하나({@code DashboardGadgetService} 가 {@link #type()} 으로 모은다). 종류 권한(그중 하나라도)은 서비스가 먼저 거르고,
  * 종류 안의 항목별 권한(예: 오늘 일정의 광고·포인트 상점·배치)은 제공자가 {@link DashboardGadgetQuery#actor()} 로 거른다.
  *
- * <p><b>제공자가 없는 종류</b>는 「서버가 아직 줄 수 없음」으로 null + {@code unavailable} 이 된다 — 지금은 제재뿐이다(방문 현황 · 인기 페이지 · 유입 경로 · 알림 상태 · 글 활동 · 가입 추이 · 게시판 순위는
+ * <p><b>제공자가 없는 종류</b>는 「서버가 아직 줄 수 없음」으로 null + {@code unavailable} 이 된다 — 지금은 없다(제재는 2026-11-04 member-sanction-contract 로 붙였다)(방문 현황 · 인기 페이지 · 유입 경로 · 알림 상태 · 글 활동 · 가입 추이 · 게시판 순위는
  * 2026-11-04 통계 수집 집계 표로 붙였다 — 수집이 꺼진 종류는 null + {@code disabled}, site-analytics-contract). 예전 목록:
  * 제재). 회원 현황({@code MEMBER_STATS})은 휴면을 빼고 붙였다(2026-11-03). 커머스 종류(GROUPBUY_PROGRESS · GROUPBUY_QNA · SALES_SUMMARY · ORDER_TREND · RECONCILE)는 2단계에서 붙였다({@code DashboardCommerceStore}).
  *

@@ -3,6 +3,7 @@ import type { MemberRestriction } from '~/composables/member/api/useMemberRestri
 import type { MemberWithdrawalOfMember } from '~/composables/member/api/useMemberWithdrawalApi.types';
 import type { WithdrawnContact, WithdrawnContactRevealResult } from '~/composables/member/api/useWithdrawnContactApi.types';
 import type { PointMemberLots } from '~/composables/point/api/usePointApi.types';
+import type { SanctionLine, SanctionPreview } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 회원 상세 서랍이 부모(회원 관리 화면)에게서 받아 구획까지 내려보내는 값 — 서랍(`MemberDetailDrawer`) → 본문(`MemberDetailContent`) → 구획.
@@ -28,6 +29,14 @@ export interface MemberPointLotsView {
     /** 묶음 쪽(0부터) */
     page: number;
     size: number;
+}
+
+/** 「제재」 구획 — `useSanctionPreview` 의 값(제재 API 현황 `GET /api/admin/sanctions/preview?userId=`) */
+export interface MemberSanctionsView {
+    /** 아직 받지 못했거나 실패했으면 null */
+    preview: SanctionPreview | null;
+    loading: boolean;
+    error: ApiError | null;
 }
 
 /** 탈퇴 회원 연락처 블록 — `useWithdrawnContact` 의 값 */
@@ -72,4 +81,10 @@ export interface MemberDetailEmits {
     'point-lots-query': [query: { active: boolean; page: number }];
     /** 포인트 묶음 다시 받기 */
     'retry-point-lots': [];
+    /** 제재 구획의 [제재하기] */
+    sanction: [];
+    /** 진행 중 정지의 [해제] */
+    'lift-sanction': [line: SanctionLine];
+    /** 제재 현황 다시 받기 */
+    'retry-sanctions': [];
 }

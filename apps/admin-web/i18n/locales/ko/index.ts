@@ -58,6 +58,8 @@ import highlight from './highlight';
 import popular from './popular';
 import post from './post';
 import report from './report';
+import sanction from './sanction';
+import appeal from './appeal';
 import business from './business';
 import bizApplication from './bizApplication';
 import ad from './ad';
@@ -120,6 +122,8 @@ export default {
     popular,
     post,
     report,
+    sanction,
+    appeal,
     business,
     bizApplication,
     ad,

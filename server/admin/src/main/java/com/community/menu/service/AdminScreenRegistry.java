@@ -65,7 +65,10 @@ public final class AdminScreenRegistry {
                             s("boardDefaultsPrivacy", "/boards/defaults/privacy", "menu.boardDefaultsPrivacy", null, Permission.BOARD_READ))),
             // 커뮤니티 안전 묶음 — 신고 관리(docs/features/report-admin-contract.md). admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.safety", "pi pi-shield",
-                    leaf(s("reports", "/reports", "menu.reports", "pi pi-flag", Permission.REPORT_READ))),
+                    leaf(s("reports", "/reports", "menu.reports", "pi pi-flag", Permission.REPORT_READ)),
+                    // 제재·이의제기(docs/features/member-sanction-contract.md) — 둘 다 보기 sanction.read(처리는 화면 안에서 sanction.manage·sanction.ban·appeal.manage)
+                    leaf(s("sanctions", "/sanctions", "menu.sanctions", "pi pi-ban", Permission.SANCTION_READ)),
+                    leaf(s("appeals", "/appeals", "menu.appeals", "pi pi-comments", Permission.SANCTION_READ))),
             // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md).
             // admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.content", "pi pi-star",

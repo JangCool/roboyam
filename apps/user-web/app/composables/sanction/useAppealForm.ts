@@ -9,7 +9,7 @@ import UtilSanctionMessages from '~/utils/util-sanction-messages';
  * `/sanction/appeal?sanctionId=…`(이의제기)의 흐름 — **내 제재 불러오기 → 그 제재 찾기 → 화면 갈래 → 사유 쓰기 → 접수** (community `useAppealForm` 에서 게시판 한정 제재를 뺐다).
  * 제재 하나를 따로 읽는 API 는 없어 내 제재(`GET /api/me/sanctions`)에서 ID 로 찾는다. 한 화면의 값이라 `useState` 에 두지 않는다.
  * `submit`: 사유가 10~500자일 때만, 보내는 중에는 다시 보내지 않는다. 결과는 오류 **코드**로 가른다(`UtilSanction.appealOutcomeOf`) —
- * 이미 접수함·무효·없는 제재 → 최신 상태를 다시 받아 그 화면으로 · 입력 오류 → 서버 `fields.reason` 을 칸 아래에 · 그 밖 → 붉은 안내(쓴 사유는 그대로).
+ * 이미 접수함·무효·마감 지남(`409 APPEAL_EXPIRED`)·없는 제재 → 최신 상태를 다시 받아 그 화면으로 · 입력 오류 → 서버 `fields.reason` 을 칸 아래에 · 그 밖 → 붉은 안내(쓴 사유는 그대로).
  * **기각된 뒤에는 폼을 다시 열지 않는다** — 제재 하나에 1번이다.
  * ⚠ setup 에서 부른다 — 번역은 `useTranslate` 로 잡아 둔다.
  */
@@ -106,7 +106,7 @@ export function useAppealForm(sanctionId: () => unknown) {
         } catch (e) {
             const outcome = UtilSanction.appealOutcomeOf(e);
             sending.value = false;
-            if (outcome === 'ALREADY' || outcome === 'NOT_APPEALABLE' || outcome === 'NOT_FOUND') await load();
+            if (outcome === 'ALREADY' || outcome === 'NOT_APPEALABLE' || outcome === 'EXPIRED' || outcome === 'NOT_FOUND') await load();
             else if (outcome === 'VALIDATION' && e instanceof ApiError && e.field('reason')) serverReasonError.value = e.field('reason') ?? '';
             else if (outcome !== 'LOGIN') failure.value = UtilSanctionMessages.submitFailure(t, outcome, e);
             return outcome;

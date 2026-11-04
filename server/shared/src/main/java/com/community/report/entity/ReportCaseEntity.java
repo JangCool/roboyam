@@ -37,6 +37,8 @@ public class ReportCaseEntity {
     public static final String ACTION_DEACTIVATE = "DEACTIVATE";
     /** 조치: 핫딜 종료(핫딜 글 사건만 — hotdeal-contract, V122). 글은 숨기지 않고 딜을 운영진 종료로 바꾼다(처리 글 = 작성자에게 가는 종료 사유) */
     public static final String ACTION_DEAL_END = "DEAL_END";
+    /** 조치: 제재만(대상은 그대로 두고 작성자만 제재 — member-sanction-contract 결정 4, V136). 요청의 조치는 NONE */
+    public static final String ACTION_SANCTION_ONLY = "SANCTION_ONLY";
     /** 무시 */
     public static final String ACTION_DISMISS = "DISMISS";
 
@@ -112,7 +114,7 @@ public class ReportCaseEntity {
         return true;
     }
 
-    /** 조치로 닫는다 — {@code action} 은 HIDE · DELETE · KEEP_HIDDEN · DEACTIVATE(소모임) */
+    /** 조치로 닫는다 — {@code action} 은 HIDE · DELETE · KEEP_HIDDEN · DEACTIVATE(소모임) · DEAL_END · SANCTION_ONLY */
     public void resolve(String action, String reasonCode, String note, long operatorId, Instant now) {
         close(RESOLVED, action, reasonCode, note, false, operatorId, now);
     }

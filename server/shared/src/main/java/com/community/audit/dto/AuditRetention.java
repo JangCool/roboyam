@@ -101,6 +101,8 @@ public final class AuditRetention {
             AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE,
             // 0-4 회원 기능 제한·해제 — 제재와 같은 운영 일(사용자 확정 2026-10-26)
             AuditActions.MEMBER_RESTRICTION_GRANT, AuditActions.MEMBER_RESTRICTION_LIFT,
+            // 사이트 제재·이의제기(member-sanction-contract) — 기능 제한과 같은 운영 일
+            AuditActions.SANCTION_ISSUE, AuditActions.SANCTION_LIFT, AuditActions.APPEAL_ACCEPT, AuditActions.APPEAL_REJECT,
             // 회원 탈퇴 신청·취소 — 계정 상태 변경(완료는 포기 동의 증빙이라 돈 관련)
             AuditActions.MEMBER_WITHDRAW_REQUEST, AuditActions.MEMBER_WITHDRAW_CANCEL,
             // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고

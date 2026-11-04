@@ -20,6 +20,12 @@
             <ErrorState v-else-if="screen === 'VOIDED'" :title="t('sanction.voidedTitle')" :description="t('sanction.voidedText')" data-testid="appeal-voided">
                 <Button as="router-link" :to="UtilSanction.PATH" :label="t('sanction.backToHistory')" />
             </ErrorState>
+            <!-- 이의제기 없이 마감(시작 + 30일)이 지났다 — 접수 중 409 APPEAL_EXPIRED 를 받아도 다시 받아 여기로 온다 -->
+            <section v-else-if="screen === 'EXPIRED' && sanction" :aria-label="t('sanction.expiredTitle')" data-testid="appeal-expired">
+                <SanctionNotice tone="warn" :title="t('sanction.expiredTitle')" :text="t('sanction.expiredText')" />
+                <SanctionSummary class="mt-3" :rows="targetRows" />
+                <Button as="router-link" :to="UtilSanction.PATH" :label="t('sanction.backToHistory')" size="large" severity="secondary" variant="outlined" fluid class="mt-4" />
+            </section>
 
             <!-- 접수 완료 -->
             <section v-else-if="screen === 'DONE'" :aria-label="t('sanction.doneTitle')" data-testid="appeal-done">
@@ -93,7 +99,7 @@
                     </LabeledField>
                 </div>
 
-                <SanctionNotice class="mt-3" :text="`${t('sanction.appealInfo')} ${t('sanction.appealOnce')}`" data-testid="appeal-info" />
+                <SanctionNotice class="mt-3" :text="`${t('sanction.appealInfo')} ${t('sanction.appealOnce')} ${t('sanction.appealWindow')}`" data-testid="appeal-info" />
 
                 <!-- 보내지 못했다 — 쓴 사유는 그대로 남아 있다 -->
                 <SanctionNotice v-if="failure" class="mt-3" tone="red" :title="failure.title" :text="failure.text" data-testid="appeal-failure" />
@@ -120,8 +126,8 @@ import UtilSanctionMessages from '~/utils/util-sanction-messages';
 /**
  * 이의제기 — `/sanction/appeal?sanctionId=…`(community `pages/sanction/appeal.vue`, `docs/api-sanction.md` 2절). 정지·영구 정지 중에도 쓴다.
  * 제재의 상태에 따라 바뀐다 — 접수 폼(제재 요약 + 사유 10~500자 · 글자 수 · 접수) → 접수 완료 / 이미 접수함(검토 중) / 답변 도착(인용·기각, 운영자 답변) /
- * 이미 무효가 된 제재(`SANCTION_NOT_APPEALABLE`) / 없는 제재. **제재 하나에 1번**이라 기각된 뒤에도 폼을 다시 열지 않는다.
- * 흐름은 `useAppealForm`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`. ⚠ 목업 API(`useSanctionApi`).
+ * 이미 무효가 된 제재(`SANCTION_NOT_APPEALABLE`) / 마감(시작 + 30일, `appealDeadline`)이 지난 제재(접수 중 `409 APPEAL_EXPIRED` 도 다시 받아 이 화면) / 없는 제재. **제재 하나에 1번**이라 기각된 뒤에도 폼을 다시 열지 않는다.
+ * 흐름은 `useAppealForm`, 문구는 `UtilSanctionMessages`, 계산은 `UtilSanction`.
  * 원본과 달라진 점: 게시판 한정 제재(`?kind=board`)의 이의제기는 로보얌에 없어 뺐다.
  */
 definePageMeta({ middleware: 'auth' });

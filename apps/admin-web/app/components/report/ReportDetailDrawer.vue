@@ -4,9 +4,9 @@
         열리는 쪽은 설정의 "서랍 위치"(`prefs.drawerPosition`), 표를 가리지 않는다(`modal=false`) — 열린 채 다른 줄을 누르면 그 사건으로 바뀐다. 서랍·표 줄·떠 있는 창 밖을 누르면 닫는다.
         머리: 대상 제목 · 이전/다음 사건(지금 쪽의 줄 순서). 본문 맨 위 요약 영역(`DrawerSummary`): 대상 종류 · 사건 상태 알약 · 사건 번호 · 검토자(열린 사건).
         본문(위에서 아래): 대상(종류·게시판·작성자·대상 상태·첫/마지막 신고 · [게시글 관리에서 보기] `/posts?post=` · [공개 사이트에서 보기] `publicUrl`) ·
-          지금 원문 + 신고 당시 스냅샷(다르면 「신고 뒤 수정됨」) · 신고 목록(신고자·사유·메모·시각) · 작성자 카드(제재 자리 「준비 중」) · 처리 결과(닫힌 사건) · 처리 기록(최근 것부터).
+          지금 원문 + 신고 당시 스냅샷(다르면 「신고 뒤 수정됨」) · 신고 목록(신고자·사유·메모·시각) · 작성자 카드(제재 현황 — 경고 n/2·진행 중·다음 단계 + 「이 회원 제재 보기」 `/sanctions?userId=`, 비회원·탈퇴 회원은 제재 불가 안내) · 처리 결과(닫힌 사건) · 처리 기록(최근 것부터).
         핫딜 글 사건(`UtilReport.isDealCase`)이면 신고 목록 위에 「핫딜 글(상태)」 + D4 안내 한 줄.
-        바닥: 열린 사건 + `report.manage` 면 처리 단추(`actions` — 핫딜 종료 핫딜 글만 · 숨기기 공개 대상만 · 자동 숨김 확정 자동 숨김 대상만 · 삭제 · 무시), 무시한 사건이면 [다시 열기], 그 밖은 까닭 한 줄.
+        바닥: 열린 사건 + `report.manage` 면 처리 단추(`actions` — 핫딜 종료 핫딜 글만 · 숨기기 공개 대상만 · 자동 숨김 확정 자동 숨김 대상만 · 삭제 · 제재만(회원 작성자 + `sanction.manage`) · 무시), 무시한 사건이면 [다시 열기], 그 밖은 까닭 한 줄.
         소모임 대상: 게시판 줄은 소모임 게시판이 있을 때만, 작성자 줄은 「모임장」, 링크는 [소모임 관리에서 보기] `/groups?group=`(`group.read`), 원문은 소개(글자), 처리 단추는 [소모임 비활성화](열린 소모임만)·[무시].
         서버 호출은 하지 않는다(`components.md`) — 사건은 `useReportDetail` 로 부른 화면이 받는다. 대기 사건은 열람과 함께 서버가 검토 중으로 바꾼다.
     -->
@@ -180,10 +180,20 @@
                             <dd class="m-0 tabular-nums">{{ UtilReportMessages.closedCases(t, detail.authorCard.closedCases) }}</dd>
                         </template>
                     </dl>
-                    <!-- 제재(정지·이의제기)는 커머스 병합 뒤 — 자리만 -->
-                    <p class="m-0 flex items-center gap-1.5 rounded-md border border-dashed border-(--line) px-2.5 py-1.5 text-xs text-muted-color">
-                        <i class="pi pi-ban text-[11px]" aria-hidden="true" /><b class="font-medium">{{ t('report.sanctionLabel') }}</b> — {{ t('report.sanctionPending') }}
-                    </p>
+                    <!-- 제재 현황(member-sanction-contract) — 부른 화면이 작성자 현황을 받아 내려 준다 -->
+                    <div v-if="authorSanction" class="flex flex-col gap-1.5">
+                        <p class="m-0 flex items-center gap-1.5 text-xs font-medium"><i class="pi pi-ban text-[11px]" aria-hidden="true" />{{ t('report.sanctionLabel') }}</p>
+                        <p v-if="!authorSanction.eligible" class="m-0 rounded-md border border-dashed border-(--line) px-2.5 py-1.5 text-xs text-muted-color">{{ t('report.sanctionNotMember') }}</p>
+                        <ErrorState v-else-if="authorSanction.error" :title="t('sanction.previewFailed')" :description="authorSanction.error.message" retry :retrying="authorSanction.loading" @retry="emit('retry-sanction')" />
+                        <Skeleton v-else-if="!authorSanction.preview" height="4.5rem" />
+                        <SanctionPreviewSummary v-else :preview="authorSanction.preview" compact>
+                            <template #actions>
+                                <NuxtLink :to="{ path: '/sanctions', query: { userId: authorSanction.preview.user.id } }" class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                                    <i class="pi pi-shield text-[10px]" aria-hidden="true" />{{ t('sanction.openMemberSanctions') }}
+                                </NuxtLink>
+                            </template>
+                        </SanctionPreviewSummary>
+                    </div>
                 </div>
             </section>
 
@@ -260,6 +270,7 @@
 import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { ReportCaseDetail, ReportCaseItem } from '~/composables/report/api/useReportApi.types';
+import type { ReportSanctionContext } from '~/components/report/ReportActionDialog.types';
 import UtilReport, { type ReportActKind, type ReportActions } from '~/utils/util-report';
 import UtilReportMessages from '~/utils/util-report-messages';
 
@@ -284,6 +295,8 @@ interface Props {
     canViewGroup?: boolean;
     /** 작성자 등급 뱃지 값(`useGradeAppearance().badgeOf`) — 회원이 아니면 null */
     authorGrade?: { label: string; color: string; icon: string | null } | null;
+    /** 작성자 제재 현황(`sanction.read`) — 없으면 제재 줄을 그리지 않는다 */
+    authorSanction?: ReportSanctionContext | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -298,9 +311,11 @@ const props = withDefaults(defineProps<Props>(), {
     canViewPost: false,
     canViewGroup: false,
     authorGrade: null,
+    authorSanction: null,
 });
 const emit = defineEmits<{
     retry: [];
+    'retry-sanction': [];
     act: [kind: ReportActKind];
     reopen: [];
     prev: [];

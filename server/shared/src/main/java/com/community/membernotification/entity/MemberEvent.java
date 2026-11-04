@@ -109,7 +109,11 @@ public enum MemberEvent {
     DEAL_AUTO_ENDED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_AUTO_ENDED, MemberEventLockReason.ACTION, null),
     DEAL_MANAGER_ENDED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_MANAGER_ENDED, MemberEventLockReason.ACTION, null),
     DEAL_EXPIRED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_EXPIRED, MemberEventLockReason.ACTION, null),
-    DEAL_REOPENED_FIX_ENDS(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_REOPENED_FIX_ENDS, MemberEventLockReason.ACTION, null);
+    DEAL_REOPENED_FIX_ENDS(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_REOPENED_FIX_ENDS, MemberEventLockReason.ACTION, null),
+    /** 사이트 제재(V136 — member-sanction-contract 정책 8) — 내 계정 상태가 바뀐 알림이라 회원이 끌 수 없다. 부여·이의제기 답변은 처음부터 메일도 켬({@link #defaultEmail}) */
+    SANCTION_ISSUED(NotificationArea.SAFETY, MemberNotificationType.SANCTION_ISSUED, MemberEventLockReason.ACCOUNT, null),
+    SANCTION_LIFTED(NotificationArea.SAFETY, MemberNotificationType.SANCTION_LIFTED, MemberEventLockReason.ACCOUNT, null),
+    APPEAL_ANSWERED(NotificationArea.SAFETY, MemberNotificationType.APPEAL_ANSWERED, MemberEventLockReason.ACCOUNT, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 
@@ -165,8 +169,9 @@ public enum MemberEvent {
         return true;
     }
 
+    /** 처음 이메일 — 제재 부여·이의제기 답변만 켬(정책 8 「메일은 부여·이의제기 답변만, 인증된 이메일에게」 — 인증 확인은 발송기가 한다), 그 밖은 끔 */
     public boolean defaultEmail() {
-        return false;
+        return this == SANCTION_ISSUED || this == APPEAL_ANSWERED;
     }
 
     public boolean defaultMemberCanTurnOff() {
