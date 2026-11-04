@@ -62,7 +62,7 @@
                         :format="numFmt"
                         :current="minuteItems[minuteItems.length - 1]?.key ?? ''"
                         :current-text="t('visitAnalytics.chartNow')"
-                        :label-every="5"
+                        :label-every="1"
                         :height="120"
                     />
                 </AppGadget>
@@ -150,7 +150,9 @@ const minuteItems = computed(() => {
     const list = rt.value?.perMinute ?? [];
     return list.map((p, i) => {
         const ago = list.length - 1 - i;
-        return { key: p.at, label: ago === 0 ? t('visitAnalytics.nowLabel') : t('visitAnalytics.minutesAgo', { n: ago }), short: ago === 0 ? t('visitAnalytics.nowLabel') : `-${ago}`, value: p.pageViews };
+        const label = ago === 0 ? t('visitAnalytics.nowLabel') : t('visitAnalytics.minutesAgo', { n: ago });
+        // 아래 눈금은 5분 단위 「25분 전 · 20분 전 … 지금」만(사용자 결정 2026-11-04 — 「-29」 대신 읽기 쉬운 말), 나머지 칸은 비운다
+        return { key: p.at, label, short: ago % 5 === 0 ? label : '', value: p.pageViews };
     });
 });
 
