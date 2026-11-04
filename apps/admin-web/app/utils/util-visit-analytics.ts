@@ -111,7 +111,48 @@ export default class UtilVisitAnalytics {
         flows: '/analytics/visits/flows',
         time: '/analytics/visits/time',
         realtime: '/analytics/visits/realtime',
+        environment: '/analytics/visits/environment',
+        search: '/analytics/visits/search',
+        bots: '/analytics/visits/bots',
+        health: '/analytics/visits/health',
+        requests: '/analytics/visits/requests',
     } as const;
+
+    /** 기기·봇 종류의 색(CSS 식 — 비율 막대·쌓은 막대가 같은 색) */
+    static readonly DEVICE_COLORS: Readonly<Record<string, string>> = {
+        MOBILE: 'var(--p-blue-500)',
+        DESKTOP: 'var(--p-emerald-500)',
+        TABLET: 'var(--p-amber-500)',
+    };
+
+    static readonly BOT_COLORS: Readonly<Record<string, string>> = {
+        GOOGLE: 'var(--p-blue-500)',
+        NAVER: 'var(--p-emerald-500)',
+        BING: 'var(--p-sky-400)',
+        DAUM: 'var(--p-amber-500)',
+        OTHER_CRAWLER: 'var(--p-violet-500)',
+        TOOL: 'var(--p-surface-400)',
+    };
+
+    /**
+     * 정수 비중(%) — 합이 정확히 100 이 되게 큰 나머지 차례로 1씩 더한다(쌓은 막대의 「비중」). 합이 0 이면 모두 0.
+     * @param {number[]} values - 값들.
+     * @returns {number[]} 같은 차례의 비중.
+     */
+    static wholeShares(values: number[]): number[] {
+        const total = values.reduce((a, b) => a + b, 0);
+        if (total <= 0) return values.map(() => 0);
+        const raw = values.map((v) => (v / total) * 100);
+        const out = raw.map((v) => Math.floor(v));
+        let rest = 100 - out.reduce((a, b) => a + b, 0);
+        const order = raw.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac);
+        for (const { i } of order) {
+            if (rest <= 0) break;
+            out[i]! += 1;
+            rest -= 1;
+        }
+        return out;
+    }
 
     /** 유입 분류의 색(CSS 식 — 차트 레이어가 풀어 쓴다, 막대·범례·쌓은 막대가 같은 색) */
     static readonly GROUP_COLORS: Readonly<Record<string, string>> = {

@@ -1,7 +1,8 @@
 <template>
     <!--
         통계 수집(`/settings/analytics`) — 방문 분석·알림 발송 기록·게시판 활동 집계를 항목별로 켜고 끈다. **모든 항목은 기본 꺼짐**(사용자 결정 2026-11-04 「필요하면 켤 수 있게」).
-        구획: ① 수집 방식(방문자 구분·늦음·마지막 변경 — 내비에 올리지 않는다) ② 방문 수집(전체 스위치 + 방문자·페이지뷰 / 원본 기록(+ 보관 기간) / 유입 경로 / 이동 흐름)
+        구획: ① 수집 방식(방문자 구분·늦음·마지막 변경 — 내비에 올리지 않는다) ② 방문 수집(전체 스위치 + 방문자·페이지뷰 / 원본 기록(+ 보관 기간) / 유입 경로 / 이동 흐름 / 환경 / 검색어 / 봇·크롤러)
+        환경·검색어·봇·크롤러(2단계)도 서버 설정 칸이다(PUT 에 늘 함께 싣는다, 이력 칸 차례는 화면 차례와 같다). 수집 진단·정보주체 요청은 스위치 없이 늘 동작한다.
         ③ 알림·게시판 집계(알림 발송 기록 · 게시판 활동 집계). 항목마다 부담 꼬리표와 「쓰는 곳」(대시보드 가젯 — 종류표 `collect` 에서 읽는다 · 가젯이 없는 이동 흐름은 「방문자 통계 › 이동 흐름」 쪽 링크).
         - 방문 하위 항목은 방문 수집이 꺼지면 잠긴다(값은 그대로 저장). 원본 기록을 켜면 개인정보 처리방침 안내 + 약관 관리 링크(`terms.read` 가 있을 때).
         - 항목 줄의 `id` = `UtilAnalytics.anchor`(`analytics-raw-events` …) — 대시보드 가젯의 「수집 꺼짐」 링크가 `#앵커` 로 들어오면 불러온 뒤 그 줄로 옮기고 잠깐 강조한다.
@@ -110,6 +111,12 @@
                                             <NuxtLink v-if="can('terms.read')" to="/settings/terms" class="font-medium text-primary hover:underline">{{ t('analytics.privacyLink') }}</NuxtLink>
                                         </Message>
                                     </div>
+
+                                    <!-- 검색어 — 처리방침 안내(개인정보 모양은 서버가 거른다) -->
+                                    <Message v-if="key === 'searchTerms' && form.searchTerms" severity="warn" :closable="false" size="small" class="mt-2">
+                                        {{ t('analytics.searchPrivacyNotice') }}
+                                        <NuxtLink v-if="can('terms.read')" to="/settings/terms" class="font-medium text-primary hover:underline">{{ t('analytics.privacyLink') }}</NuxtLink>
+                                    </Message>
                                 </div>
                             </div>
                         </li>
@@ -174,7 +181,7 @@ const OTHER_SECTION: readonly AnalyticsSwitch[] = ['notificationSends', 'boardAc
 /** 수집 방식 안내 줄 */
 const HOW_KEYS = ['howVisitorId', 'howDelayVisits', 'howDelayBoard', 'howDefaultOff'] as const;
 /** 저장 값의 칸(바뀐 칸 세기) */
-const FIELDS: readonly (keyof AnalyticsSettingsRequest)[] = ['enabled', 'visits', 'rawEvents', 'rawRetentionDays', 'referrers', 'flows', 'notificationSends', 'boardActivity'];
+const FIELDS: readonly (keyof AnalyticsSettingsRequest)[] = ['enabled', 'visits', 'rawEvents', 'rawRetentionDays', 'referrers', 'flows', 'environment', 'searchTerms', 'bots', 'notificationSends', 'boardActivity'];
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('analytics.title') });
@@ -214,6 +221,9 @@ function formOf(view: AnalyticsSettingsView | null): AnalyticsSettingsRequest {
         rawRetentionDays: view?.rawRetentionDays ?? 90,
         referrers: view?.referrers ?? false,
         flows: view?.flows ?? false,
+        environment: view?.environment ?? false,
+        searchTerms: view?.searchTerms ?? false,
+        bots: view?.bots ?? false,
         notificationSends: view?.notificationSends ?? false,
         boardActivity: view?.boardActivity ?? false,
     };
@@ -244,6 +254,9 @@ function usedBy(key: AnalyticsSwitch): string[] {
 /** 대시보드 가젯이 없는 항목의 「방문자 통계」 쪽(메뉴 키 · 주소) */
 const USED_BY_PAGES: Partial<Record<AnalyticsSwitch, { menu: string; to: string }[]>> = {
     flows: [{ menu: 'visitFlows', to: '/analytics/visits/flows' }],
+    environment: [{ menu: 'visitEnvironment', to: '/analytics/visits/environment' }],
+    searchTerms: [{ menu: 'visitSearch', to: '/analytics/visits/search' }],
+    bots: [{ menu: 'visitBots', to: '/analytics/visits/bots' }],
 };
 
 /** 이 항목의 데이터를 읽는 「방문자 통계」 쪽 링크(「방문자 통계 › 이동 흐름」) */
@@ -317,6 +330,9 @@ async function save(): Promise<void> {
         rawRetentionDays: f.rawRetentionDays,
         referrers: f.referrers,
         flows: f.flows,
+        environment: f.environment,
+        searchTerms: f.searchTerms,
+        bots: f.bots,
         notificationSends: f.notificationSends,
         boardActivity: f.boardActivity,
     };

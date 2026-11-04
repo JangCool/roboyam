@@ -243,3 +243,270 @@ export interface VisitFlows {
     /** 기간 전체 상위 이동 10 */
     top: VisitFlowMove[];
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// 2단계(2026-11-04 — 사용자 결정): 환경 · 검색어 · 봇·크롤러 · 수집 진단 · 정보주체 요청.
+// 서버 `VisitAnalyticsAdmin`(admin)의 2단계 레코드와 같은 모양이다. 권한은 모두 `site.read`.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 2단계 수집 스위치 — 각 칸은 「방문 수집 전체(`enabled`) && 그 항목」으로 서버가 접어서 준다(`VisitCollect` 와 같은 규칙) */
+export interface VisitCollectMore {
+    enabled: boolean;
+    /** 환경(브라우저·OS·화면 너비 분류값 — 세션 첫 페이지 신호의 `env`) */
+    environment: boolean;
+    /** 우리 사이트 검색어(서버가 `GET /api/search` 요청에서 센다) */
+    searchTerms: boolean;
+    /** 봇·크롤러 요청 수(서버가 요청의 UA 로 센다) */
+    bots: boolean;
+    /** 방문자·페이지뷰 — 봇 쪽의 「사람 대비」 분모(사람 페이지뷰)를 쓸 수 있나 */
+    visits: boolean;
+}
+
+/** 기기 — 서버가 신호 요청의 UA(Mobile·Tablet 표시)로 가른다(원본 UA 는 저장하지 않는다) */
+export const VISIT_DEVICES = ['MOBILE', 'TABLET', 'DESKTOP'] as const;
+export type VisitDevice = (typeof VISIT_DEVICES)[number];
+
+/** 브라우저 분류값 — user-web `@roboyam/analytics` 의 `util-visit-env.ts` 와 같은 값(그 밖은 OTHER) */
+export const VISIT_BROWSERS = ['CHROME', 'SAFARI', 'EDGE', 'SAMSUNG', 'WHALE', 'FIREFOX', 'OTHER'] as const;
+export type VisitBrowser = (typeof VISIT_BROWSERS)[number];
+
+/** OS 분류값 — 같은 파일과 같은 값 */
+export const VISIT_OSES = ['WINDOWS', 'MACOS', 'ANDROID', 'IOS', 'LINUX', 'OTHER'] as const;
+export type VisitOs = (typeof VISIT_OSES)[number];
+
+/** 화면 너비 구간(`window.innerWidth`) — ~480 · ~768 · ~1024 · ~1440 · 1440 넘음. 같은 파일과 같은 값 */
+export const VISIT_SCREENS = ['W480', 'W768', 'W1024', 'W1440', 'WIDE'] as const;
+export type VisitScreen = (typeof VISIT_SCREENS)[number];
+
+/** 분류 한 줄 */
+export interface VisitShareRow<K extends string> {
+    key: K;
+    /** 방문(세션 첫 페이지) 수 */
+    visits: number;
+}
+
+/** 일별 기기 한 칸(오래된 차례, 빈 날 없이 — 없는 기기는 0) */
+export interface VisitDeviceSeriesPoint {
+    date: string;
+    devices: Record<VisitDevice, number>;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/environment?from&to` — **방문 기준**(세션 첫 페이지 하나 = 1)으로 센다.
+ * 원천: `analytics_env_daily(day, device, browser, os, screen, visits)` 하나 — 네 분류를 한 줄에 두고 기간으로 묶어 분류별 합을 낸다(하루 줄 수 ≤ 3×7×6×5 = 630).
+ */
+export interface VisitEnvironment {
+    range: VisitRange;
+    asOf: string;
+    collect: VisitCollectMore;
+    /** 분류한 방문 합(분모) */
+    total: number;
+    devices: VisitShareRow<VisitDevice>[];
+    browsers: VisitShareRow<VisitBrowser>[];
+    oses: VisitShareRow<VisitOs>[];
+    screens: VisitShareRow<VisitScreen>[];
+    series: VisitDeviceSeriesPoint[];
+}
+
+/** 검색어 한 줄 */
+export interface VisitSearchTerm {
+    /** 서버가 다듬은 검색어(앞뒤 공백·연속 공백 정리, 영문 소문자) */
+    term: string;
+    searches: number;
+    /** 결과가 0건이었던 검색 수 */
+    noResult: number;
+}
+
+/** 결과 없는 검색어 한 줄 */
+export interface VisitNoResultTerm {
+    term: string;
+    /** 결과 없이 끝난 검색 수 */
+    searches: number;
+    /** 마지막으로 결과 없이 검색된 날(한국 날짜) */
+    lastDay: string;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/search?from&to` — 우리 사이트 검색(`/search`)의 검색어. 외부 검색 엔진 검색어는 요즘 넘어오지 않아 없다.
+ * 원천: `analytics_search_daily(day, term, searches, no_result)` + `analytics_search_filtered_daily` — 서버가 `GET /api/search` 성공 응답 중 첫 쪽(`page == 1`)만 메모리에 세다가 1분마다 더하기 upsert.
+ * 저장하지 않는 검색어(`totals.filtered` 로만 센다): 전화번호·이메일·주민등록번호 모양 · 2글자 미만 · 50자 초과.
+ */
+export interface VisitSearch {
+    range: VisitRange;
+    asOf: string;
+    collect: VisitCollectMore;
+    totals: {
+        /** 검색 수(걸러진 것 제외) */
+        searches: number;
+        /** 결과 없는 검색 수 */
+        noResult: number;
+        /** 서로 다른 검색어 수 */
+        terms: number;
+        /** 개인정보 모양·길이로 저장하지 않은 검색 수 */
+        filtered: number;
+    };
+    /** 검색 수 상위 20 */
+    terms: VisitSearchTerm[];
+    /** 결과 없는 검색 수 상위 20 */
+    noResultTerms: VisitNoResultTerm[];
+}
+
+/** 봇 종류 — 서버가 UA 로 가른다(광고 노출과 같은 봇 정규식 + 종류 이름) */
+export const VISIT_BOT_KINDS = ['GOOGLE', 'NAVER', 'BING', 'DAUM', 'OTHER_CRAWLER', 'TOOL'] as const;
+export type VisitBotKind = (typeof VISIT_BOT_KINDS)[number];
+
+/** 봇 요청 · 사람 페이지뷰 */
+export interface VisitBotCounts {
+    bots: number;
+    /** 사람 페이지뷰(`analytics_visit_hourly`) — 방문자·페이지뷰 수집이 꺼져 있으면 null(비율을 내지 않는다) */
+    humans: number | null;
+}
+
+/** 일별 봇 한 칸(오래된 차례, 빈 날 없이) */
+export interface VisitBotSeriesPoint {
+    date: string;
+    kinds: Record<VisitBotKind, number>;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/bots?from&to` — 봇·크롤러 요청 수(봇은 방문 통계에서 빠져 있다).
+ * 원천: `analytics_bot_daily(day, kind, requests)` — 공개 화면 HTML(api `SiteHeadFilter` 가 `index.html` 을 내릴 때) 요청 하나를 1로 세다가 1분마다 더하기 upsert(`/api/**` 는 세지 않는다).
+ */
+export interface VisitBots {
+    range: VisitRange;
+    asOf: string;
+    collect: VisitCollectMore;
+    /** 오늘(기간과 무관) */
+    today: VisitBotCounts;
+    /** 기간 합 */
+    totals: VisitBotCounts;
+    kinds: { kind: VisitBotKind; requests: number }[];
+    series: VisitBotSeriesPoint[];
+}
+
+/** 수집 상태 — 서버가 판정한다(정상 · 지연 · 멈춤 · 꺼짐) */
+export type VisitHealthStatus = 'OK' | 'DELAYED' | 'STOPPED' | 'OFF';
+
+/**
+ * 문제 코드 — 화면은 코드로 문장을 고른다(숫자·이름은 칸에서).
+ *  - `INSTANCE_SILENT` 서버(`instance`)가 `since` 뒤로 기록하지 않음 · `FLUSH_FAILED` 지난 24시간 1분 기록 실패 `count` 번
+ *  - `BUFFER_DROPPED` 버퍼가 넘쳐 신호 `count` 개를 버림 · `CRON_FAILED` 크론(`job`) 마지막 실행 실패(`since` = 그 실행 시각) · `CRON_LATE` 크론(`job`)이 `since` 뒤로 돌지 않음
+ *  - `RAW_BACKLOG` 보관 기간이 지난 원본이 `count` 일치 남음 · `NEXT_PARTITION_MISSING` 다음 달 원본 조각이 없음 · `COLLECT_OFF` 방문 수집이 꺼짐
+ */
+export const VISIT_HEALTH_ISSUE_CODES = ['INSTANCE_SILENT', 'FLUSH_FAILED', 'BUFFER_DROPPED', 'CRON_FAILED', 'CRON_LATE', 'RAW_BACKLOG', 'NEXT_PARTITION_MISSING', 'COLLECT_OFF'] as const;
+export type VisitHealthIssueCode = (typeof VISIT_HEALTH_ISSUE_CODES)[number];
+
+/** 문제 한 줄(심각한 차례) */
+export interface VisitHealthIssue {
+    code: VisitHealthIssueCode;
+    /** 빨강(멈춤·실패) · 노랑(지연·버림) */
+    level: 'ERROR' | 'WARN';
+    instance: string | null;
+    job: string | null;
+    count: number | null;
+    since: string | null;
+}
+
+/** 서버(인스턴스) 한 줄 — 최근 24시간 */
+export interface VisitHealthInstance {
+    /** 서버 이름(호스트 이름·작업 ID) */
+    instance: string;
+    /** 마지막 1분 기록 시각(신호가 없어도 1분마다 「살아 있음」을 적는다) — 없으면 null */
+    lastWriteAt: string | null;
+    flushOk: number;
+    flushFail: number;
+    /** 버퍼가 넘쳐 버린 신호 */
+    dropped: number;
+    /** 무시한 신호 — 봇 UA */
+    ignoredBot: number;
+    /** 무시한 신호 — 형식 오류 */
+    ignoredInvalid: number;
+}
+
+/** 최근 기록 실패 한 줄 */
+export interface VisitHealthFailure {
+    at: string;
+    instance: string;
+    /** 사유 코드(`DB_TIMEOUT` · `DB_UNAVAILABLE` · `CONSTRAINT` · `UNKNOWN`) */
+    reason: string;
+    /** 서버가 남긴 짧은 설명 — 「예외 이름 (SQLSTATE x) — 묶음 이름」(개인 정보 없음) */
+    detail: string | null;
+}
+
+/** 크론 결과 — 배치 로그와 같은 값 */
+export type VisitCronStatus = 'RUNNING' | 'OK' | 'FAIL' | 'SKIP';
+
+/** 크론 한 줄 — 배치 로그(`batch_runs`)의 마지막 실행 */
+export interface VisitHealthCron {
+    /** 배치 키(`analytics-page-view-partitions` …) — 배치 로그 화면 `?jobName=` */
+    job: string;
+    /** 실행 주기 — 배치 정의의 cron 식(배치 관리 화면과 같은 값, 한국 시각 — `*\/10 * * * *` · `25 0 * * *`). 화면은 `UtilBatchMessages.scheduleText` 로 읽는다 */
+    cron: string | null;
+    lastRunAt: string | null;
+    /** 돈 적 없으면 null */
+    lastStatus: VisitCronStatus | null;
+    processed: number | null;
+    /** 실패·건너뜀 사유 */
+    message: string | null;
+    /** 예정보다 늦음(서버 판정 — 주기의 2배를 넘김) */
+    late: boolean;
+}
+
+/** 원본 보관 현황 */
+export interface VisitHealthRaw {
+    /** 원본 기록이 켜져 있나 */
+    rawEvents: boolean;
+    retentionDays: number;
+    /** 가장 오래된 원본의 날(한국 날짜) — 없으면 null */
+    oldestDay: string | null;
+    /** 월 조각 수 */
+    partitions: number;
+    /** 대략 줄 수(`pg_class.reltuples` 합 — 정확하지 않다) */
+    approxRows: number | null;
+    /** 다음 달 조각이 만들어져 있나 */
+    nextPartitionReady: boolean;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/health` — 기간 없음(최근 24시간). 운영 점검용.
+ * 원천: `analytics_collector_beats(instance, last_write_at)`(1분마다 한 줄 upsert) · `analytics_collector_hourly(hour, instance, flush_ok, flush_fail, dropped, ignored_bot, ignored_invalid)` ·
+ * `analytics_collector_failures(at, instance, reason, detail)`(7일 보관) · `batch_runs`(배치 로그) · `pg_inherits`/`pg_class`(조각).
+ */
+export interface VisitHealth {
+    asOf: string;
+    status: VisitHealthStatus;
+    /** 문제(심각한 차례) — 비면 「문제 없음」 */
+    issues: VisitHealthIssue[];
+    instances: VisitHealthInstance[];
+    /** 최근 실패 5 */
+    failures: VisitHealthFailure[];
+    crons: VisitHealthCron[];
+    raw: VisitHealthRaw;
+}
+
+/** 정보주체 요청 상태 — 대기(DB 작업이 아직 돌지 않음) · 완료 */
+export type VisitForgetStatus = 'PENDING' | 'DONE';
+
+/** 방문 기록 삭제 요청 한 줄 — 방문자 ID 해시로만 처리하므로 회원·방문자 ID 는 보이지 않는다 */
+export interface VisitForgetRequest {
+    /** 요청 번호 — 서버 Snowflake 숫자를 글자로(정밀도 때문에 number 로 바꾸지 않는다) */
+    id: string;
+    receivedAt: string;
+    status: VisitForgetStatus;
+    /** 지운 줄 수(원본 + 「그 날 셌다」 표시 + 지금 접속) — 대기면 null */
+    deletedRows: number | null;
+    processedAt: string | null;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/requests?page&size` — 최신 차례. 원천: `analytics_forget_requests(id, visitor_hash, received_at, status, deleted_rows, processed_at)`.
+ * 처리는 DB 크론(`analytics-forget-requests`, 5분마다) — 운영자가 할 일은 없다.
+ */
+export interface VisitForgetPage {
+    items: VisitForgetRequest[];
+    total: number;
+    /** 지금 대기 중인 요청 수 */
+    pending: number;
+    /** 지난 30일 요청 수 */
+    last30Days: number;
+}

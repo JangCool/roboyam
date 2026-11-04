@@ -218,6 +218,70 @@ public class VisitAnalyticsStore {
                 (rs, i) -> new Count(rs.getString(1), rs.getLong(2)), ts(since));
     }
 
+    // ── 2단계 — 환경(analytics_env_daily) ───────────────────────────────────
+
+    /** 환경 묶음 한 줄 — {@code dim} D(기기 — 날마다) · B(브라우저) · O(OS) · S(화면), 기기만 {@code day} 가 있다 */
+    public record EnvCount(String dim, LocalDate day, String key, long visits) {
+    }
+
+    /**
+     * 기간의 일별 기기 · 브라우저 · OS · 화면 합 — 한 번 훑어 묶음 넷(GROUPING SETS). PK(day, device, browser, os, screen) 앞 칸(day) 범위 — 하루 최대 630 줄 × 최대 90일.
+     */
+    public List<EnvCount> envCounts(LocalDate from, LocalDate to) {
+        return jdbc.query("SELECT CASE WHEN GROUPING(day) = 0 THEN 'D' WHEN GROUPING(browser) = 0 THEN 'B' WHEN GROUPING(os) = 0 THEN 'O' ELSE 'S' END AS dim, "
+                        + "day, coalesce(device, browser, os, screen) AS k, sum(visits) FROM analytics_env_daily WHERE day BETWEEN ? AND ? "
+                        + "GROUP BY GROUPING SETS ((day, device), (browser), (os), (screen))",
+                (rs, i) -> new EnvCount(rs.getString(1), rs.getDate(2) == null ? null : rs.getDate(2).toLocalDate(), rs.getString(3), rs.getLong(4)),
+                Date.valueOf(from), Date.valueOf(to));
+    }
+
+    // ── 2단계 — 검색어(analytics_search_daily · analytics_search_filtered_daily) ─
+
+    public record SearchTotals(long searches, long noResult, long terms, long filtered) {
+    }
+
+    public record TermCount(String term, long searches, long noResult, LocalDate lastNoResultDay) {
+    }
+
+    /** 기간의 합 — PK(day, term) 앞 칸 범위 + 걸러진 수 PK(day) 범위(한 문장) */
+    public SearchTotals searchTotals(LocalDate from, LocalDate to) {
+        return jdbc.queryForObject("SELECT coalesce(sum(searches), 0), coalesce(sum(no_result), 0), count(DISTINCT term), "
+                        + "(SELECT coalesce(sum(f.searches), 0) FROM analytics_search_filtered_daily f WHERE f.day BETWEEN ? AND ?) "
+                        + "FROM analytics_search_daily WHERE day BETWEEN ? AND ?",
+                (rs, i) -> new SearchTotals(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)), Date.valueOf(from), Date.valueOf(to), Date.valueOf(from),
+                Date.valueOf(to));
+    }
+
+    /** 검색 수 상위 — 같은 범위를 검색어로 묶어 정렬(같으면 검색어 차례) */
+    public List<TermCount> topTerms(LocalDate from, LocalDate to, int limit) {
+        return jdbc.query("SELECT term, sum(searches) AS n, sum(no_result) FROM analytics_search_daily WHERE day BETWEEN ? AND ? GROUP BY term ORDER BY n DESC, term LIMIT ?",
+                (rs, i) -> new TermCount(rs.getString(1), rs.getLong(2), rs.getLong(3), null), Date.valueOf(from), Date.valueOf(to), limit);
+    }
+
+    /** 결과 없는 검색 수 상위 — 결과 없던 줄만, 마지막으로 결과 없던 날 */
+    public List<TermCount> noResultTerms(LocalDate from, LocalDate to, int limit) {
+        return jdbc.query("SELECT term, sum(searches), sum(no_result) AS z, max(day) FROM analytics_search_daily WHERE day BETWEEN ? AND ? AND no_result > 0 "
+                        + "GROUP BY term ORDER BY z DESC, term LIMIT ?",
+                (rs, i) -> new TermCount(rs.getString(1), rs.getLong(2), rs.getLong(3), rs.getDate(4).toLocalDate()), Date.valueOf(from), Date.valueOf(to), limit);
+    }
+
+    // ── 2단계 — 봇(analytics_bot_daily) · 사람 페이지뷰 ─────────────────────
+
+    public record BotDay(LocalDate day, String kind, long requests) {
+    }
+
+    /** 기간 + 오늘의 봇 줄 — PK(day, kind) 범위(하루 최대 6 줄) */
+    public List<BotDay> botDays(LocalDate from, LocalDate to, LocalDate today) {
+        return jdbc.query("SELECT day, kind, requests FROM analytics_bot_daily WHERE day BETWEEN ? AND ? OR day = ?",
+                (rs, i) -> new BotDay(rs.getDate(1).toLocalDate(), rs.getString(2), rs.getLong(3)), Date.valueOf(from), Date.valueOf(to), Date.valueOf(today));
+    }
+
+    /** [from, to) 의 사람 페이지뷰 합 — analytics_visit_hourly PK(hour) 범위 */
+    public long pageViews(Instant from, Instant to) {
+        Long n = jdbc.queryForObject("SELECT coalesce(sum(page_views), 0) FROM analytics_visit_hourly WHERE hour >= ? AND hour < ?", Long.class, ts(from), ts(to));
+        return n == null ? 0 : n;
+    }
+
     private static String escapeLike(String v) {
         return v.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }

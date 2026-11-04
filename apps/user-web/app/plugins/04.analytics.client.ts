@@ -7,6 +7,8 @@
  *    설치가 끝난 것(`installed`)을 알기 전에는 사이트 정보를 묻지 않고 보내지 않는다. 운영자가 스위치를 바꾸면 사용자가 화면을 새로 열 때부터 따른다.
  *  - **뺄 창**: 관리자 미리보기(관리자 테마 화면의 iframe — `UtilAdminPreview.isPreviewWindow`, 앱이 뜰 때의 주소로 한 번 본다). 로그인 여부와 상관없이 같은 규칙이다.
  *  - **화면 종류**: `UtilVisitKind.of`(이 앱의 라우트 표).
+ *  - **환경 분류값**(2단계): 사이트 정보의 `analytics.environment` 가 켜졌으면 세션 첫 페이지 신호에 `env`(브라우저·OS·화면 너비 구간)를 싣는다.
+ *  - 이용자가 처리방침 화면에서 수집을 거부했으면 레이어가 스스로 보내지 않는다(`UtilVisitStore.optedOut`).
  *
  * 파일 이름의 `04.` 는 순서다 — 사이트 정보(`02.`)·관리자 미리보기(`03.`) 다음.
  */
@@ -27,6 +29,11 @@ export default defineNuxtPlugin(() => {
             if (install.phase.value !== 'installed') return false;
             const info = await ensureLoaded();
             return UtilVisitSignal.isCollecting(info?.analytics);
+        },
+        // 환경 분류값(2단계) — 사이트 정보의 `analytics.environment`(이미 받은 값)
+        environment: async () => {
+            const info = await ensureLoaded();
+            return info?.analytics?.environment === true;
         },
         classify: (path) => UtilVisitKind.of(path),
     });

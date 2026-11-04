@@ -1,5 +1,6 @@
 package com.community.site.config;
 
+import com.community.analytics.collect.VisitCollector;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.service.IndexHtmlRenderer;
@@ -27,6 +28,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 내려 보내는 {@code index.html} 은 {@code Cache-Control: no-cache} + {@code ETag} 라 브라우저가 매번 물어보되 같으면 {@code 304} 다(설정을 바꾸면 곧 따라온다).
  * 관리자 미리보기 요청({@link AdminPreviewFrame#isPreview} — {@code ?adminPreview=1})이면 머리에 관리자 origin 메타를 더한 사본을 내린다(프레임 헤더는 보안 설정이 붙인다).
  *
+ * <p>봇·크롤러 통계(site-analytics-contract 「2단계 — 봇」): 화면은 SPA(서버 렌더링 없음)라 크롤러가 받는 첫 응답이 이 {@code index.html} 이다 — 요청마다 원래 User-Agent 로
+ * {@link VisitCollector#countBotPage} 가 봇만 종류별로 메모리에 센다(DB 에 쓰지 않는다, 1분 몰아쓰기). 화면 요청 하나 = 1, 그 뒤 화면이 부르는 {@code /api/**} 는 세지 않는다.
+ *
  * <p>보안 필터 체인 뒤에서 돈다 — 요청 정리(HttpFirewall)를 거친 경로만 온다.
  */
 @Component
@@ -41,11 +45,13 @@ public class SiteHeadFilter extends OncePerRequestFilter {
     private final PublicSiteService siteService;
     private final IndexHtmlRenderer renderer;
     private final AdminPreviewFrame preview;
+    private final VisitCollector visits;
 
-    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview) {
+    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview, VisitCollector visits) {
         this.siteService = siteService;
         this.renderer = renderer;
         this.preview = preview;
+        this.visits = visits;
     }
 
     @Override
@@ -75,6 +81,7 @@ public class SiteHeadFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
+        visits.countBotPage(request.getHeader(HttpHeaders.USER_AGENT)); // 봇 통계 — 메모리에 센다(꺼져 있으면 아무것도 하지 않는다)
         Optional<RenderedIndex> rendered;
         try {
             PublicSiteSnapshot snapshot = siteService.snapshot();

@@ -76,7 +76,7 @@
 - shared `com.community.address` — 엔티티(설정·적재 줄) · `AddressEntryQueries`(JDBC 검색) · `AddressSearchPolicy`(한도·검사) · `AddressSearchService`.
 - api `com.community.address` — `AddressController` · `AddressSearchRateLimiter`. admin `com.community.address` — `AddressSettingsController` · `AddressSettingsService` ·
   `AddressImportService`(시작·서버 폴더에서 시작·진행·이력·재시작 정리) · `AddressServerFiles`(서버 폴더 목록·이름 확인) · `AddressImportWorker`(적재) · `AddressFileReader`/`AddressFileParser` · `AddressUploadLimitFilter`. `AdminScreenRegistry` 한 줄.
-- 시험(`--tests 'com.community.address.*'`, DB 없음 — Testcontainers 는 커머스 시험 전용): 검색어·설정 칸 규칙, 파서 표기 규칙, zip 읽기(종류 판정·덩어리·글자 집합·깨진 zip·도로명 없음),
+- 시험(`--tests 'com.community.address.*'`, DB 없음 — Testcontainers 는 DB 가 있어야 막히는 정확성 규칙에만, `docs/domain/commerce.md` 18절): 검색어·설정 칸 규칙, 파서 표기 규칙, zip 읽기(종류 판정·덩어리·글자 집합·깨진 zip·도로명 없음),
   올리기 검사, 업로드 한도 필터, IP 한도, 서버 폴더(목록 거르기·폴더 밖 이름 거절·지우지 않음) — 39개 통과. 메뉴 차례 `AdminScreenRegistryLoginSecurityTest` 통과.
   적재·검색 SQL(V109 · 스테이징 → 붙이기 → 색인 → 맞바꾸기 · 낱말 AND · `%`/`_` 글자 그대로 · GIN 색인 사용 · 동시 적재 막힘)은 임시 postgres:18 컨테이너에서 손으로 돌려 확인했다(시험 코드로는 남기지 않음).
 

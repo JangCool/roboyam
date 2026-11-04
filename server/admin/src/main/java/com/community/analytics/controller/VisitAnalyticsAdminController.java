@@ -2,6 +2,7 @@ package com.community.analytics.controller;
 
 import com.community.analytics.dto.VisitAnalyticsAdmin;
 import com.community.analytics.service.VisitAnalyticsAdminService;
+import com.community.analytics.service.VisitDiagnosticsAdminService;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.entity.Permission;
 import com.community.zconfiguration.response.ApiResponse;
@@ -22,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class VisitAnalyticsAdminController {
 
     private final VisitAnalyticsAdminService service;
+    private final VisitDiagnosticsAdminService diagnostics;
 
-    public VisitAnalyticsAdminController(VisitAnalyticsAdminService service) {
+    public VisitAnalyticsAdminController(VisitAnalyticsAdminService service, VisitDiagnosticsAdminService diagnostics) {
         this.service = service;
+        this.diagnostics = diagnostics;
     }
 
     /** 합계·직전 기간·추이·수집 스위치·지금 접속 */
@@ -79,6 +82,45 @@ public class VisitAnalyticsAdminController {
     @GetMapping("/realtime")
     public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Realtime>> realtime() {
         return ok(service.realtime());
+    }
+
+    // ── 2단계(site-analytics-contract 「2단계」) ──────────────────────────────
+
+    /** 환경 — 방문(세션 첫 페이지) 기준 기기·브라우저·OS·화면 너비 + 일별 기기 */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/environment")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Environment>> environment(@RequestParam(required = false) String from,
+                                                                                   @RequestParam(required = false) String to) {
+        return ok(service.environment(from, to));
+    }
+
+    /** 우리 사이트 검색어 — 합 · 상위 20 · 결과 없는 검색어 상위 20 */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Search>> search(@RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return ok(service.search(from, to));
+    }
+
+    /** 봇·크롤러 — 오늘 · 기간 합(사람 페이지뷰 함께) · 종류별 · 일별 */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/bots")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Bots>> bots(@RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return ok(service.bots(from, to));
+    }
+
+    /** 수집 진단 — 기간 없음(최근 24시간), 상태·문제는 서버 판정({@link VisitDiagnosticsAdminService}) */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/health")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Health>> health() {
+        return ok(diagnostics.health());
+    }
+
+    /** 정보주체 요청 — 최신 차례 한 쪽(page 0부터 · size 기본 20, 최대 100) */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/requests")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.ForgetPage>> requests(@RequestParam(required = false) String page,
+                                                                               @RequestParam(required = false) String size) {
+        return ok(diagnostics.requests(page, size));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> ok(T body) {

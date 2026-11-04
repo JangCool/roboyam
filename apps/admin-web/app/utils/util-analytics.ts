@@ -14,6 +14,9 @@ const LOAD: Partial<Record<AnalyticsSwitch, 'LOW' | 'MEDIUM'>> = {
     rawEvents: 'MEDIUM',
     referrers: 'LOW',
     flows: 'MEDIUM',
+    environment: 'LOW',
+    searchTerms: 'LOW',
+    bots: 'LOW',
     notificationSends: 'LOW',
     boardActivity: 'LOW',
 };
