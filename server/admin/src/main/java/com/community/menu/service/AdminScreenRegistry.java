@@ -37,6 +37,15 @@ public final class AdminScreenRegistry {
 
     private static final List<Def> ITEMS = List.of(
             leaf(NORMAL, s("dashboard", "/", "menu.dashboard", "pi pi-home", null)),
+            // 방문자 통계 묶음(site-analytics-contract 「「방문자 통계」 화면」) — 대시보드 바로 아래, 모두 site.read. 수집 설정(/settings/analytics)은 설정 메뉴 그대로.
+            // admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.visitStats", "pi pi-chart-line",
+                    leaf(s("visitOverview", "/analytics/visits", "menu.visitOverview", "pi pi-chart-line", Permission.SITE_READ)),
+                    leaf(s("visitPages", "/analytics/visits/pages", "menu.visitPages", "pi pi-file", Permission.SITE_READ)),
+                    leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.SITE_READ)),
+                    leaf(s("visitFlows", "/analytics/visits/flows", "menu.visitFlows", "pi pi-sitemap", Permission.SITE_READ)),
+                    leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-clock", Permission.SITE_READ)),
+                    leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.SITE_READ))),
             section(NORMAL, "menu.member", "pi pi-users",
                     leaf(s("members", "/members", "menu.members", "pi pi-user", Permission.MEMBER_READ)),
                     // 탈퇴 관리(member-withdrawal-contract 「관리자」) — 주소가 /members 아래지만 다른 화면. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례

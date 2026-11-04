@@ -64,6 +64,7 @@ import ad from './ad';
 import adAdvertiser from './adAdvertiser';
 import drawerSummary from './drawerSummary';
 import hotdeal from './hotdeal';
+import visitAnalytics from './visitAnalytics';
 
 export default {
     account,
@@ -125,4 +126,5 @@ export default {
     adAdvertiser,
     drawerSummary,
     hotdeal,
+    visitAnalytics,
 };

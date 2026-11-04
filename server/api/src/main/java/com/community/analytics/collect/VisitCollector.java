@@ -28,8 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
  *       해시 키({@code ROBOYAM_INDEX_KEY}) 없음.</li>
  *   <li>방문자·세션 키 = {@link BlindIndex} HMAC(용도 {@code analytics.visitor}·{@code analytics.session}, <b>날짜를 섞지 않는다</b> — 같은 브라우저는 날이 바뀌어도 같은 키라
  *       신규·재방문을 가를 수 있다). 원본 UUID·IP·원본 User-Agent 는 남기지 않는다.</li>
- *   <li>켜진 항목만 모은다: 방문자·페이지뷰·지금 접속({@code visits}) · 원본 + 페이지별 일별 조회({@code rawEvents}) · 유입처(세션 첫 페이지 = {@code prevPath} 없음, {@code referrers}) ·
- *       이동(직전 → 이번, 같은 경로 다시 보기는 빼고, {@code flows}).</li>
+ *   <li>켜진 항목만 모은다: 방문자·페이지뷰·지금 접속({@code visits}) · 원본 + 페이지별 일별 조회({@code rawEvents}) · 유입처 + 캠페인 utm 묶음(세션 첫 페이지 = {@code prevPath} 없음,
+ *       {@code referrers}) · 이동(직전 → 이번, 같은 경로 다시 보기는 빼고 — 세션 첫 페이지는 직전 {@code ""} 「바로 들어옴」, {@code flows}).</li>
  *   <li>유입처: {@code utm_*} 가 있으면 CAMPAIGN, 주소가 없으면 DIRECT, 그 밖은 도메인만 남기고 분류({@link ReferrerClassifier}). 기기: User-Agent 에서 MOBILE/DESKTOP 만.</li>
  *   <li>날짜·시간 칸은 서버가 받은 시각(한국 날짜, 정시) — 브라우저 시계를 믿지 않는다.</li>
  * </ul>
@@ -125,9 +125,9 @@ public class VisitCollector {
         LocalDate day = ServiceTime.dateOf(now);
         Instant hour = now.truncatedTo(ChronoUnit.HOURS); // 한국 시간은 UTC 와 정시 단위로 어긋나 한국 정시와 같다
         boolean sessionStart = prevPath == null;
+        boolean hasUtm = utmSource != null || utmMedium != null || utmCampaign != null;
         ReferrerClassifier.Referrer referrer = null;
         if (sessionStart) {
-            boolean hasUtm = utmSource != null || utmMedium != null || utmCampaign != null;
             referrer = ReferrerClassifier.classify(text(root.get("referrer"), PATH_MAX), hasUtm, ownHost);
         }
 
@@ -140,10 +140,15 @@ public class VisitCollector {
         }
         if (s.referrersOn() && referrer != null) {
             buffer.referrer(day, referrer.group(), referrer.domain());
+            // 캠페인 일별 집계(analytics V3) — 세션 첫 페이지의 utm 묶음. 원본 기록이 아니라 유입 경로 수집에 딸린다(관리자 화면이 원본을 읽지 않게)
+            if (hasUtm) {
+                buffer.campaign(day, utmSource, utmMedium, utmCampaign);
+            }
         }
-        // 이동 — 새로 고침(같은 경로 다시)은 이동이 아니다(화면 쪽 합의 2026-11-04)
-        if (s.flowsOn() && prevPath != null && !prevPath.equals(path)) {
-            buffer.flow(day, prevPath, path);
+        // 이동 — 새로 고침(같은 경로 다시)은 이동이 아니다(화면 쪽 합의 2026-11-04).
+        // 세션 첫 페이지는 직전 "" 줄 = 「바로 들어옴」(「방문자 통계」 서버 결정 2026-11-04 — 경로는 늘 「/」로 시작해 "" 와 겹치지 않는다)
+        if (s.flowsOn() && (prevPath == null || !prevPath.equals(path))) {
+            buffer.flow(day, prevPath == null ? "" : prevPath, path);
         }
         return true;
     }

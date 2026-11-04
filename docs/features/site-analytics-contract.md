@@ -43,6 +43,21 @@
 - 관리자 `GET/PUT /api/admin/analytics/settings`(site.read / site.manage·CSRF·감사) `{ enabled, visits, rawEvents, rawRetentionDays(30|90|180|365), referrers, flows, notificationSends, boardActivity, updatedAt, updatedBy }` · `GET …/settings/history?page&size`(기존 설정 이력 모양). 설정 표는 메인 DB(shared 스트림 — TimescaleDB 로 옮길 대상이 아니라서 `analytics_` 접두사를 쓰지 않음).
 - 대시보드 묶음 응답에 `disabled: type[]`(권한은 있으나 수집이 꺼진 종류). 새 종류 응답: `POPULAR_PAGES` `{ items[{ path, kind, title|null, titleEn|null, views }] }` · `REFERRERS` `{ total, groups[{ group: SEARCH|SOCIAL|DIRECT|OTHER_SITE|CAMPAIGN, visits }], domains[{ domain, visits }] }`. `VISITORS` 에 `newVisitorsToday`.
 
+## 「방문자 통계」 화면 (화면 확정 2026-11-04)
+- 메뉴 묶음 `visitStats` 「방문자 통계」(대시보드 바로 아래, `pi pi-chart-line`, site.read) — 「설정 › 통계 수집」은 원래 자리. 그누보드 7 「방문자 통계」를 기준으로 더 보기 좋게(쪽마다 한 줄 요약·증감 칩·미니 추이).
+  | 쪽 | 메뉴 키 | 주소 |
+  |---|---|---|
+  | 개요 | `visitOverview` | `/analytics/visits` |
+  | 페이지 | `visitPages` | `/analytics/visits/pages` (줄 → 오른쪽 서랍: 일별 조회·들어온/나간 곳) |
+  | 유입 경로 | `visitReferrers` | `/analytics/visits/referrers` (분류 비율·분류별 일별 쌓은 막대·사이트 10·캠페인) |
+  | 이동 흐름 | `visitFlows` | `/analytics/visits/flows` (흐름 그림 들어온 5 → 기준 → 나간 5, 「바로 들어옴」, 상위 이동 10, `path` 쿼리) |
+  | 요일·시간대 | `visitTime` | `/analytics/visits/time` (요일×시간 히트맵·붐비는/한산한 때·시간대별 평균 + 하루 넷 비중·요일별 하루 평균 — 두 카드 같은 높이) |
+  | 실시간 | `visitRealtime` | `/analytics/visits/realtime` (지금 접속·최근 30분 분당 페이지뷰·최근 5분 페이지·유입, 보일 때만 30초 새로 고침) |
+- 기간: 주소 `from`·`to`(한국 날짜, 최대 90일), 쪽을 옮겨도 유지, 메뉴로 들어오면 마지막 기간(브라우저 저장). 여러 날 「방문자」는 일별 합(툴팁·일평균).
+- API(관리자, site.read, 모양의 원천 `apps/admin-web/app/composables/analytics/api/useVisitAnalyticsApi.types.ts`): `GET /api/admin/analytics/visits/summary` · `…/pages`(kind·q·page·size) · `…/pages/detail`(path) · `…/referrers`(detail) · `…/flows`(path?) · `…/time` · `…/realtime`.
+- 서버 구현(2026-11-04): analytics **V3** — `analytics_campaign_daily(day, utm_source, utm_medium, utm_campaign, visits)`(빈 칸 '', 세션 첫 페이지에 utm 이 있으면 방문 1 — **「유입 경로」 수집에 딸림**, 원본을 읽지 않음) · `ix_analytics_flow_daily_to (day, to_path)`. 세션 첫 페이지는 이동 `('' → path)` 한 줄(응답에서는 들어온 곳 `path: null`). 기간 오류 400: 비었거나·형식·`from>to`·90일 초과 = `fields.from`, 오늘 뒤 = `fields.to`. 결과 캐시 60초(실시간 20초 공유), 키에 수집 스위치 포함. 페이지 순위·서랍 일별은 `collect.rawEvents`(원본과 함께 쌓이는 `analytics_page_daily`). `q` 는 경로·게시판 이름만(글·공구 제목은 큰 표라 제외).
+- 서버 결정(권장 채택): 세션 첫 페이지도 이동 「바로 들어옴」 줄로 저장(`from_path=''`) · 캠페인은 일별 집계 표(원본을 읽지 않음) · 이동 흐름 `(day, to_path)` 인덱스 · 결과 캐시(실시간 15~30초 공유, 나머지 60초) · 실시간 분당 숫자는 원본 최근 30분(원본 꺼짐이면 지금 접속만).
+
 ## 테스트 (QA 2026-11-04)
 - api `com.community.analytics.*`(수집 조건·유입 분류 43, 서버 여러 대 동시 기록·자정 경계 7, 원본 파티션·보관 경계 6) · shared `com.community.analytics.*`(게시판 활동 크론 멱등·제외, 알림 발송 기록 8) · admin `com.community.analytics.*`·`DashboardAnalyticsGadgetsTest`(설정 이력·권한·disabled, 어제 같은 시각 7) — Testcontainers.
 - 알려진 경미한 점: 정시 직전·직후에 다른 서버로 간 같은 방문자는 먼저 쓴 서버의 시간 칸에 들어간다(하루 합은 정확). 사용자 화면 신호 규칙은 프론트 테스트 도구가 없어 시나리오로만.

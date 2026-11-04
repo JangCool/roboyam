@@ -2,7 +2,7 @@
     <!--
         인기 페이지 — 오늘 많이 본 페이지 TOP N(순위 · 화면 종류 꼬리표 · 제목 · 조회수). 제목은 글이면 글 제목, 아니면 화면 이름 — 서버가 모르면 경로(툴팁은 늘 경로).
         방문 원본 기록(통계 수집 `rawEvents`)을 서버가 1분마다 몰아 센 오늘 페이지별 집계를 읽는다. 수집이 꺼져 있으면 틀이 「수집이 꺼져 있어요」.
-        이동할 방문 분석 화면이 아직 없어 링크가 없다. 값은 묶음 응답의 `POPULAR_PAGES`(`useDashboardGadgetApi`).
+        바로 가기 = 「방문자 통계 › 페이지」의 오늘. 값은 묶음 응답의 `POPULAR_PAGES`(`useDashboardGadgetApi`).
     -->
     <DashboardGadgetFrame
         :title="title"
@@ -14,6 +14,7 @@
         :unavailable="state.unavailable.value"
         :disabled="state.disabled.value"
         :collect="state.collect"
+        :more="moreLink"
         :empty="!v?.items.length"
         empty-icon="pi pi-desktop"
         :empty-title="t('dashboard.popularPagesNone')"
@@ -35,6 +36,7 @@
 <script setup lang="ts">
 import type { DashboardPageKind } from '~/composables/dashboard/api/useDashboardGadgetApi.types';
 import type { DashboardGadgetItem } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
+import UtilVisitAnalytics from '~/utils/util-visit-analytics';
 
 interface Props {
     gadget: DashboardGadgetItem;
@@ -47,6 +49,8 @@ const { t, te, locale } = useI18n();
 const { localizedName } = useLocalizedName();
 const state = useDashboardKindData('POPULAR_PAGES', () => props.gadget);
 const v = computed(() => state.data.value);
+/** 바로 가기 — 방문 분석 화면의 오늘(날짜는 그릴 때 계산) */
+const moreLink = computed(() => UtilVisitAnalytics.link('TODAY', UtilVisitAnalytics.PAGES.pages));
 
 /** 화면 종류 꼬리표 — 모르는 종류는 「기타」 */
 function kindName(kind: DashboardPageKind | string): string {

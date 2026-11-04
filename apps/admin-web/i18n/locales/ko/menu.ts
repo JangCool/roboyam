@@ -5,6 +5,13 @@
  */
 export default {
     dashboard: '대시보드',
+    visitStats: '방문자 통계',
+    visitOverview: '개요',
+    visitPages: '페이지',
+    visitReferrers: '유입 경로',
+    visitFlows: '이동 흐름',
+    visitTime: '요일·시간대',
+    visitRealtime: '실시간',
     system: '시스템',
     general: '일반',
     theme: '테마',

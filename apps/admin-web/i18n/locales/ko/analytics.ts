@@ -35,7 +35,7 @@ export default {
     help: {
         enabled: '끄면 사용자 브라우저가 방문 신호를 아예 보내지 않아요. 아래 방문 항목은 이것이 켜져야 동작해요.',
         visits: '오늘 방문자·페이지뷰와 지금 접속(최근 5분)을 세요.',
-        rawEvents: '어떤 페이지를 언제 봤는지 원본을 보관해요. 「인기 페이지」의 원천이고, 나중에 자세히 분석할 때 써요.',
+        rawEvents: '어떤 페이지를 언제 봤는지 원본을 보관해요. 「인기 페이지」와 방문자 통계의 페이지 순위·실시간의 원천이에요.',
         referrers: '방문이 어디서 왔는지(검색·SNS·직접·다른 사이트·캠페인)와 많이 들어온 사이트를 세요.',
         flows: '방문자가 어느 페이지에서 어느 페이지로 옮겨 갔는지 세요.',
         notificationSends: '알림을 보낼 때마다 채널별 성공·실패를 기록해요.',
@@ -52,7 +52,7 @@ export default {
         boardActivity: 'DB 작업이 10분마다 집계해요',
     },
     usedBy: '쓰는 곳',
-    usedByFlows: '다음 단계 「방문 분석」 화면(준비 중)',
+    usedByPage: '{group} › {page}',
     retentionLabel: '원본 보관 기간',
     retentionHelp: '보관 기간이 지난 원본 기록은 지워요.',
     retentionDays: '{n}일',

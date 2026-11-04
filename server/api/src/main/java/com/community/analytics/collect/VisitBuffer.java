@@ -26,6 +26,7 @@ final class VisitBuffer {
     static final int MAX_PAGES = 50_000;
     static final int MAX_REFERRERS = 20_000;
     static final int MAX_FLOWS = 100_000;
+    static final int MAX_CAMPAIGNS = 20_000;
 
     record VisitorKey(LocalDate day, String visitorHash) {
     }
@@ -40,7 +41,12 @@ final class VisitBuffer {
     record ReferrerKey(LocalDate day, String group, String domain) {
     }
 
+    /** 이동 — 세션 첫 페이지(「바로 들어옴」)는 {@code from = ""} */
     record FlowKey(LocalDate day, String from, String to) {
+    }
+
+    /** 세션 첫 페이지의 utm 묶음(빈 칸은 {@code ""}) — analytics V3 {@code analytics_campaign_daily} */
+    record CampaignKey(LocalDate day, String source, String medium, String campaign) {
     }
 
     /** 원본 한 줄(원본 기록을 켰을 때만) */
@@ -50,10 +56,12 @@ final class VisitBuffer {
 
     /** 한 번에 넘기는 모음 — 넘긴 뒤에는 이 버퍼와 공유하지 않는다 */
     record Batch(LinkedHashMap<VisitorKey, FirstSeen> visitors, LinkedHashMap<Instant, Long> pageViews, LinkedHashMap<String, Instant> active,
-                 ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows) {
+                 ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows,
+                 LinkedHashMap<CampaignKey, Long> campaigns) {
 
         boolean isEmpty() {
-            return visitors.isEmpty() && pageViews.isEmpty() && active.isEmpty() && raw.isEmpty() && pages.isEmpty() && referrers.isEmpty() && flows.isEmpty();
+            return visitors.isEmpty() && pageViews.isEmpty() && active.isEmpty() && raw.isEmpty() && pages.isEmpty() && referrers.isEmpty() && flows.isEmpty()
+                    && campaigns.isEmpty();
         }
     }
 
@@ -62,7 +70,7 @@ final class VisitBuffer {
 
     private static Batch empty() {
         return new Batch(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new ArrayDeque<>(), new LinkedHashMap<>(), new LinkedHashMap<>(),
-                new LinkedHashMap<>());
+                new LinkedHashMap<>(), new LinkedHashMap<>());
     }
 
     // ── 넣기 ─────────────────────────────────────────────────────────────────
@@ -90,6 +98,12 @@ final class VisitBuffer {
     synchronized void referrer(LocalDate day, String group, String domain) {
         current.referrers().merge(new ReferrerKey(day, group, domain == null ? "" : domain), 1L, Long::sum);
         trim(current.referrers(), MAX_REFERRERS);
+    }
+
+    /** 캠페인 방문 1 — 유입처({@link #referrer})와 같은 신호에서 모으고, 같은 몰아쓰기 트랜잭션으로 쓴다 */
+    synchronized void campaign(LocalDate day, String source, String medium, String campaign) {
+        current.campaigns().merge(new CampaignKey(day, source == null ? "" : source, medium == null ? "" : medium, campaign == null ? "" : campaign), 1L, Long::sum);
+        trim(current.campaigns(), MAX_CAMPAIGNS);
     }
 
     synchronized void flow(LocalDate day, String from, String to) {
@@ -134,9 +148,12 @@ final class VisitBuffer {
         trim(current.pages(), MAX_PAGES);
     }
 
+    /** 유입처와 캠페인은 한 트랜잭션으로 쓰므로 함께 되돌린다 */
     synchronized void restoreReferrers(Batch b) {
         b.referrers().forEach((k, v) -> current.referrers().merge(k, v, Long::sum));
         trim(current.referrers(), MAX_REFERRERS);
+        b.campaigns().forEach((k, v) -> current.campaigns().merge(k, v, Long::sum));
+        trim(current.campaigns(), MAX_CAMPAIGNS);
     }
 
     synchronized void restoreFlows(Batch b) {
