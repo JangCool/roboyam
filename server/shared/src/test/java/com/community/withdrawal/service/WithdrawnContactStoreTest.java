@@ -65,7 +65,7 @@ class WithdrawnContactStoreTest {
         }
     };
 
-    private final WithdrawnContactStore store = new WithdrawnContactStore(rows, cipher, audit, new WithdrawalProperties(30, 365, 5, 6, 1, 10, 10, ""),
+    private final WithdrawnContactStore store = new WithdrawnContactStore(rows, cipher, audit, new WithdrawalProperties(30, 365, 5, 10, 10, ""),
             new StaticListableBeanFactory().getBeanProvider(Clock.class));
 
     @Test

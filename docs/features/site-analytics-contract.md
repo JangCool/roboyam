@@ -58,8 +58,25 @@
 - 서버 구현(2026-11-04): analytics **V3** — `analytics_campaign_daily(day, utm_source, utm_medium, utm_campaign, visits)`(빈 칸 '', 세션 첫 페이지에 utm 이 있으면 방문 1 — **「유입 경로」 수집에 딸림**, 원본을 읽지 않음) · `ix_analytics_flow_daily_to (day, to_path)`. 세션 첫 페이지는 이동 `('' → path)` 한 줄(응답에서는 들어온 곳 `path: null`). 기간 오류 400: 비었거나·형식·`from>to`·90일 초과 = `fields.from`, 오늘 뒤 = `fields.to`. 결과 캐시 60초(실시간 20초 공유), 키에 수집 스위치 포함. 페이지 순위·서랍 일별은 `collect.rawEvents`(원본과 함께 쌓이는 `analytics_page_daily`). `q` 는 경로·게시판 이름만(글·공구 제목은 큰 표라 제외).
 - 서버 결정(권장 채택): 세션 첫 페이지도 이동 「바로 들어옴」 줄로 저장(`from_path=''`) · 캠페인은 일별 집계 표(원본을 읽지 않음) · 이동 흐름 `(day, to_path)` 인덱스 · 결과 캐시(실시간 15~30초 공유, 나머지 60초) · 실시간 분당 숫자는 원본 최근 30분(원본 꺼짐이면 지금 접속만).
 
+## 2단계 — 환경·검색어·봇·수집 진단·정보주체 요청 (화면 확정 2026-11-04, 전환은 하지 않음)
+- 메뉴 `visitStats` 에 실시간 다음 차례로(모두 site.read): 환경 `visitEnvironment` `/analytics/visits/environment` · 검색어 `visitSearch` `…/search` · 봇·크롤러 `visitBots` `…/bots` · 수집 진단 `visitHealth` `…/health`(기간 없음, 최근 24시간) · 정보주체 요청 `visitRequests` `…/requests`. 응답 모양의 원천은 `useVisitAnalyticsApi.types.ts`(`VisitEnvironment`·`VisitSearch`·`VisitBots`·`VisitHealth`·`VisitForgetPage`) — 각 응답에 접은 `collect`.
+- 설정 칸 추가(기본 꺼짐, 방문 수집 전체가 꺼지면 잠김): `environment` · `searchTerms` · `bots`. 수집 진단·정보주체 요청은 스위치 없음(늘 동작). `GET /api/site/info` 의 `analytics` 에 `environment`.
+- 환경: 신호 `env: { browser, os, screen } | null` — 세션 첫 페이지이고 `environment` 가 켜졌을 때만, 분류값만(원본 UA·화면 크기 원값 없음). **기기는 서버가 UA 로 가른다**(지금 방식 그대로, 사용자 결정 2026-11-04). 방문(세션 첫 페이지) 기준 일별 집계.
+- 검색어: 신호 칸 없음 — 서버가 사이트 검색 요청에서 직접 센다(첫 쪽만 — 쪽 넘김은 다시 세지 않음). 다듬기(앞뒤 공백·연속 공백·소문자) 뒤 2자 미만·50자 초과·전화번호·이메일 모양은 저장 없이 「걸러진 검색」 횟수만. 결과 0건은 따로 셈.
+- 봇: 봇 UA 요청을 종류별(구글·네이버·빙·다음·기타 크롤러·도구) 일별로 센다. 비율 = 봇 ÷ (봇 + 사람 페이지뷰) — 대략값임을 화면에 적음.
+- 수집 진단: 서버(인스턴스)마다 1분 기록 성공·실패·버린 신호(버퍼 넘침)·무시한 신호(봇·형식)를 몰아 쓰고, 최근 실패(7일 보관), 크론 상태(배치 실행 기록), 원본 보관(가장 오래된 날·조각 수). 상태(정상·지연·멈춤·꺼짐)·문제 문장은 서버가 판정.
+- 정보주체 요청: 공개 `POST /api/visits/forget { visitorId }`(로그인·CSRF 없음) → 202 `{ requestId, receivedAt }`, 빈도 제한 넘으면 429. 서버는 방문자 ID 해시만 요청 표에 두고 DB 크론(5분)이 원본·판정 표·지금 접속에서 지운다(합산 숫자는 사람을 가리키지 않아 남김). 처리한 뒤 해시는 비운다. 관리자 목록은 확인용.
+- 사용자 화면 `/privacy` 「방문 통계」 칸: 수집 거부 스위치(이 브라우저만, 로컬 스토리지) · 방문 기록 지우기. **거부를 켤 때 방문자 ID 가 있으면 「기록도 지우고 거부」를 먼저 권한다**(지우기 실패면 거부도 하지 않음, 사용자 결정 2026-11-04). 처리방침 문구 초안 `docs/features/site-analytics-privacy-draft.md`(법률 검토 전).
+- 서버 구현(2026-11-04): shared **V135**(설정 칸 3개 — PUT 에서 빠지면 저장값 유지) · analytics **V4**(`analytics_env_daily`·`analytics_search_daily`·`analytics_search_filtered_daily`·`analytics_bot_daily`·`analytics_collector_beats`·`analytics_collector_hourly`·`analytics_collector_failures`·`analytics_forget_requests`) · 크론 `R__analytics_13` `analytics-forget-requests`(5분) · `R__analytics_14` `analytics-log-cleanup`(매일 00:45 — 진단 7일, 처리 끝난 요청 1년).
+- 봇 셈 지점: user-web 은 SPA(`ssr: false`)라 운영에서 api `SiteHeadFilter` 가 `index.html` 을 내릴 때 화면 HTML 요청 하나를 1로 센다(`/api/**` 는 세지 않아 중복 없음). `/api` 만 두드리는 도구·로컬 Nuxt 개발 서버로 온 봇은 안 잡힌다. 봇 판정 `BotClassifier` 에 네이버(Yeti)·다음을 더해 **방문 신호에서도 이 둘을 봇으로 뺀다**.
+- 검색어: `SearchController` 성공 응답 중 `page == 1` 만. 주민등록번호 모양도 거른다. 환경: 맥 UA + `env.os=IOS` 면 TABLET.
+- 진단: 서버 이름 기본 `api-<NODE_ID>`(`roboyam.analytics.instance-name`). 판정 — 마지막 기록 3분 넘음 WARN·10분 ERROR, 24시간 안 기록 실패 WARN(지난 1시간이면 ERROR), 버린 신호 WARN, 크론 마지막 실패 ERROR·주기 2배 지남 WARN, 원본이 보관 기간+1일 넘게 남음 WARN, 다음 달 조각 없음 WARN(그 달 마지막 3일 ERROR). 상태 OFF → STOPPED(3분 안 기록 서버 0) → DELAYED → OK.
+- 삭제 요청: 원본에 `visitor_hash` 인덱스를 두지 않고, 받은 지 2분 넘은 대기 요청을 최대 500개씩 모아 월 조각마다 `visitor_hash = ANY(…)` 한 번(1분 몰아쓰기 직전 신호가 처리 뒤에 써지는 것을 막으려고 2분). 빈도 제한 IP당 1시간 5회(서버 메모리, IP 저장 안 함 — 서버 2~3대면 그 배수까지). 요청 번호는 Snowflake 숫자. 같은 해시가 대기 중이면 그 요청을 돌려준다.
+- 알려진 점: 지운 그날 같은 브라우저가 다시 오면 방문자 1로 다시 센다(판정 표시를 지웠으므로). 요청 목록은 캐시 60초.
+
 ## 테스트 (QA 2026-11-04)
 - api `com.community.analytics.*`(수집 조건·유입 분류 43, 서버 여러 대 동시 기록·자정 경계 7, 원본 파티션·보관 경계 6) · shared `com.community.analytics.*`(게시판 활동 크론 멱등·제외, 알림 발송 기록 8) · admin `com.community.analytics.*`·`DashboardAnalyticsGadgetsTest`(설정 이력·권한·disabled, 어제 같은 시각 7) — Testcontainers.
+- 관리자 방문자 통계 API 7개(2026-11-04): admin `VisitAnalyticsAdminServiceTest` 34(고정 시계 — 칸 수·같은 시각 비교·오늘 칸 제외·LIKE 이스케이프·「바로 들어옴」·캐시)·`VisitResultCacheTest` 4·`VisitAnalyticsAdminHttpTest` 4(기간 검증·권한 403·no-store). 2단계 서버 뒤 analytics·메뉴·배치 목록 시험 166건 다시 돌려 통과(2단계 새 API 시험은 아직 없음 — 로컬 서버로 수집·삭제 크론만 확인).
 - 알려진 경미한 점: 정시 직전·직후에 다른 서버로 간 같은 방문자는 먼저 쓴 서버의 시간 칸에 들어간다(하루 합은 정확). 사용자 화면 신호 규칙은 프론트 테스트 도구가 없어 시나리오로만.
 
 ## 미확정

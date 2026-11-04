@@ -1,5 +1,9 @@
 import type {
+    VisitBots,
+    VisitEnvironment,
     VisitFlows,
+    VisitForgetPage,
+    VisitHealth,
     VisitPageDetail,
     VisitPagePage,
     VisitPageQuery,
@@ -7,6 +11,7 @@ import type {
     VisitRealtime,
     VisitReferrerQuery,
     VisitReferrers,
+    VisitSearch,
     VisitSummary,
     VisitTime,
 } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
@@ -21,6 +26,12 @@ import type {
  *   - `GET …/visits/flows?from&to&path` → `VisitFlows`  — `analytics_flow_daily`
  *   - `GET …/visits/time?from&to` → `VisitTime`(요일 × 시 168칸)  — `analytics_visit_hourly`
  *   - `GET …/visits/realtime` → `VisitRealtime`  — `analytics_visit_active` + 원본 최근 30분
+ * 2단계(계약 「2단계」 — 각 응답의 `collect` 는 「방문 수집 전체 && 그 항목」으로 접은 값):
+ *   - `GET …/visits/environment?from&to` → `VisitEnvironment`(기기·브라우저·OS·화면 너비 + 일별 기기)  — `analytics_env_daily`
+ *   - `GET …/visits/search?from&to` → `VisitSearch`(검색어 순위 · 결과 없는 검색어)  — `analytics_search_daily` + `analytics_search_filtered_daily`
+ *   - `GET …/visits/bots?from&to` → `VisitBots`(오늘·기간 · 종류별 · 일별)  — `analytics_bot_daily` + 사람 페이지뷰 `analytics_visit_hourly`
+ *   - `GET …/visits/health` → `VisitHealth`(최근 24시간 — 서버별 기록·실패·크론·원본 보관)  — `analytics_collector_*` + 배치 로그
+ *   - `GET …/visits/requests?page&size` → `VisitForgetPage`(정보주체 방문 기록 삭제 요청)  — `analytics_forget_requests`
  * 오류는 모두 `ApiError`(useApiClient)로 던져진다.
  */
 const PATH = {
@@ -31,6 +42,11 @@ const PATH = {
     flows: '/api/admin/analytics/visits/flows',
     time: '/api/admin/analytics/visits/time',
     realtime: '/api/admin/analytics/visits/realtime',
+    environment: '/api/admin/analytics/visits/environment',
+    search: '/api/admin/analytics/visits/search',
+    bots: '/api/admin/analytics/visits/bots',
+    health: '/api/admin/analytics/visits/health',
+    requests: '/api/admin/analytics/visits/requests',
 };
 
 export function useVisitAnalyticsApi() {
@@ -58,5 +74,20 @@ export function useVisitAnalyticsApi() {
 
         /** 실시간 */
         realtime: (): Promise<VisitRealtime> => client.get<VisitRealtime>(PATH.realtime),
+
+        /** 환경(기기·브라우저·OS·화면 너비) */
+        environment: (range: VisitRange): Promise<VisitEnvironment> => client.get<VisitEnvironment>(PATH.environment, { query: { ...range } }),
+
+        /** 우리 사이트 검색어 */
+        search: (range: VisitRange): Promise<VisitSearch> => client.get<VisitSearch>(PATH.search, { query: { ...range } }),
+
+        /** 봇·크롤러 */
+        bots: (range: VisitRange): Promise<VisitBots> => client.get<VisitBots>(PATH.bots, { query: { ...range } }),
+
+        /** 수집 진단(최근 24시간 — 기간 없음) */
+        health: (): Promise<VisitHealth> => client.get<VisitHealth>(PATH.health),
+
+        /** 정보주체 요청 한 쪽(`page` 0부터, 최신 차례) */
+        requests: (params: { page: number; size: number }): Promise<VisitForgetPage> => client.get<VisitForgetPage>(PATH.requests, { query: { ...params } }),
     };
 }

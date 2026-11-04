@@ -30,17 +30,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * 「방문자 통계」(site-analytics-contract 「「방문자 통계」 화면 (화면 확정 2026-11-04)」) — 관리자 API 7개의 계산. 모두 site.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
+ * 「방문자 통계」(site-analytics-contract 「「방문자 통계」 화면 (화면 확정 2026-11-04)」·「2단계」) — 관리자 API 7개 + 2단계 환경·검색어·봇 3개의 계산(수집 진단·정보주체 요청은
+ * {@link VisitDiagnosticsAdminService}). 모두 site.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
  *
  * <ul>
  *   <li><b>기간</b>: 한국 날짜 {@code from}·{@code to}(양끝 포함). 비었거나 형식이 틀리거나 {@code from > to} 이거나 {@value #MAX_DAYS}일을 넘으면 400 {@code fields.from},
  *       {@code to} 가 오늘보다 뒤면 400 {@code fields.to}.</li>
  *   <li><b>원천</b>: 요약·추이·요일·시간대 = {@code analytics_visit_hourly} · 지금 접속 = {@code analytics_visit_active} · 페이지·서랍 일별 = {@code analytics_page_daily} ·
  *       유입 = {@code analytics_referrer_daily} · 캠페인 = {@code analytics_campaign_daily}(analytics V3) · 이동·서랍 들어온/나간 곳 = {@code analytics_flow_daily} — 모두 집계 표.
- *       원본({@code analytics_page_views})은 실시간의 최근 30분만.</li>
+ *       원본({@code analytics_page_views})은 실시간의 최근 30분만. 2단계: 환경 = {@code analytics_env_daily} · 검색어 = {@code analytics_search_daily}(+ 걸러진 수
+ *       {@code analytics_search_filtered_daily}) · 봇 = {@code analytics_bot_daily}(사람 대비 = {@code analytics_visit_hourly} 페이지뷰, 방문자·페이지뷰 수집이 꺼지면 null) — analytics V4.</li>
  *   <li><b>수집 스위치</b>: 응답의 {@code collect} = 「전체 && 항목」(설정 30초 사본). <b>꺼진 항목의 원천은 읽지 않는다</b>(그 칸은 0·빈 배열).
  *       페이지 순위·서랍 일별은 원본 기록({@code rawEvents})과 함께 쌓이는 표라 그 스위치를 따른다. 캠페인은 유입 경로({@code referrers}) 스위치를 따른다.</li>
  *   <li><b>오늘</b>: 오늘이 낀 기간의 직전 기간은 「같은 시각이 든 시간 칸까지」(대시보드 방문 현황과 같은 칸 단위). 요일·시간대는 오늘의 지금 시간(집계 중)과 그 뒤 칸을 빼고
@@ -75,20 +79,42 @@ public class VisitAnalyticsAdminService {
     static final Set<String> KINDS = Set.of("HOME", "BOARD", "POST", "GROUP_BUY", "HOTDEAL", "GROUP", "POINT_SHOP", "SEARCH", "MY", "OTHER");
     /** 유입 분류 — 화면 차례(같은 수일 때의 차례) */
     static final List<String> GROUPS = List.of("SEARCH", "SOCIAL", "DIRECT", "OTHER_SITE", "CAMPAIGN");
+    /** 2단계 분류값 — 화면 차례(admin-web {@code VISIT_DEVICES}·{@code VISIT_BROWSERS}·{@code VISIT_OSES}·{@code VISIT_SCREENS}·{@code VISIT_BOT_KINDS}, 수집기와 같은 값) */
+    static final List<String> DEVICES = List.of("MOBILE", "TABLET", "DESKTOP");
+    static final List<String> BROWSERS = List.of("CHROME", "SAFARI", "EDGE", "SAMSUNG", "WHALE", "FIREFOX", "OTHER");
+    static final List<String> OSES = List.of("WINDOWS", "MACOS", "ANDROID", "IOS", "LINUX", "OTHER");
+    static final List<String> SCREENS = List.of("W480", "W768", "W1024", "W1440", "WIDE");
+    static final List<String> BOT_KINDS = List.of("GOOGLE", "NAVER", "BING", "DAUM", "OTHER_CRAWLER", "TOOL");
+    static final int SEARCH_TERMS = 20;
     private static final Pattern CONTROL = Pattern.compile("[\\p{Cntrl}\\s]");
 
     private final VisitAnalyticsStore store;
     private final VisitPageTitles titles;
     private final StatsCollectionSettings settings;
     private final Messages messages;
-    private final Clock clock = Clock.systemUTC();
-    private final VisitResultCache cache = new VisitResultCache(clock);
+    private final Clock clock;
+    private final VisitResultCache cache;
 
-    public VisitAnalyticsAdminService(VisitAnalyticsStore store, VisitPageTitles titles, StatsCollectionSettings settings, Messages messages) {
+    /** 시계는 {@code Clock} 빈이 하나면 그것(없으면 UTC 시스템 시계) — 다른 서비스와 같은 주입 방식 */
+    @Autowired
+    public VisitAnalyticsAdminService(VisitAnalyticsStore store, VisitPageTitles titles, StatsCollectionSettings settings, Messages messages,
+                                      ObjectProvider<Clock> clocks) {
+        this(store, titles, settings, messages, clocks.getIfUnique(Clock::systemUTC));
+    }
+
+    /** 시험용 — 시계를 직접 준다 */
+    VisitAnalyticsAdminService(VisitAnalyticsStore store, VisitPageTitles titles, StatsCollectionSettings settings, Messages messages, Clock clock) {
         this.store = store;
         this.titles = titles;
         this.settings = settings;
         this.messages = messages;
+        this.clock = clock;
+        this.cache = new VisitResultCache(clock);
+    }
+
+    /** 결과 캐시(시험·점검용) */
+    VisitResultCache cache() {
+        return cache;
     }
 
     // ── 요약 ─────────────────────────────────────────────────────────────────
@@ -459,6 +485,127 @@ public class VisitAnalyticsAdminService {
         return new VisitAnalyticsAdmin.Realtime(asOf(at), collect(s), active, perMinute, rows, groups(byGroup));
     }
 
+    // ── 2단계 — 환경 ─────────────────────────────────────────────────────────
+
+    public VisitAnalyticsAdmin.Environment environment(String fromText, String toText) {
+        Period p = period(fromText, toText);
+        StatsCollection s = settings.current();
+        return cache.get(key("environment", s, p.from, p.to), TTL, at -> computeEnvironment(p, s, at));
+    }
+
+    private VisitAnalyticsAdmin.Environment computeEnvironment(Period p, StatsCollection s, Instant at) {
+        Map<String, Long> devices = new HashMap<>();
+        Map<String, Long> browsers = new HashMap<>();
+        Map<String, Long> oses = new HashMap<>();
+        Map<String, Long> screens = new HashMap<>();
+        Map<LocalDate, Map<String, Long>> byDay = new HashMap<>();
+        if (s.environmentOn()) {
+            for (VisitAnalyticsStore.EnvCount c : store.envCounts(p.from, p.to)) {
+                switch (c.dim()) {
+                    case "D" -> {
+                        devices.merge(c.key(), c.visits(), Long::sum);
+                        byDay.computeIfAbsent(c.day(), k -> new HashMap<>()).merge(c.key(), c.visits(), Long::sum);
+                    }
+                    case "B" -> browsers.merge(c.key(), c.visits(), Long::sum);
+                    case "O" -> oses.merge(c.key(), c.visits(), Long::sum);
+                    default -> screens.merge(c.key(), c.visits(), Long::sum);
+                }
+            }
+        }
+        long total = devices.values().stream().mapToLong(Long::longValue).sum();
+        List<VisitAnalyticsAdmin.DeviceSeriesPoint> series = new ArrayList<>();
+        if (s.environmentOn()) {
+            for (LocalDate d = p.from; !d.isAfter(p.to); d = d.plusDays(1)) {
+                series.add(new VisitAnalyticsAdmin.DeviceSeriesPoint(d.toString(), filled(DEVICES, byDay.getOrDefault(d, Map.of()))));
+            }
+        }
+        return new VisitAnalyticsAdmin.Environment(p.range(), asOf(at), collectMore(s), total, shares(DEVICES, devices, true), shares(BROWSERS, browsers, true),
+                shares(OSES, oses, true), shares(SCREENS, screens, false), series);
+    }
+
+    // ── 2단계 — 검색어 ───────────────────────────────────────────────────────
+
+    public VisitAnalyticsAdmin.Search search(String fromText, String toText) {
+        Period p = period(fromText, toText);
+        StatsCollection s = settings.current();
+        return cache.get(key("search", s, p.from, p.to), TTL, at -> computeSearch(p, s, at));
+    }
+
+    private VisitAnalyticsAdmin.Search computeSearch(Period p, StatsCollection s, Instant at) {
+        if (!s.searchTermsOn()) {
+            return new VisitAnalyticsAdmin.Search(p.range(), asOf(at), collectMore(s), new VisitAnalyticsAdmin.SearchTotals(0, 0, 0, 0), List.of(), List.of());
+        }
+        VisitAnalyticsStore.SearchTotals t = store.searchTotals(p.from, p.to);
+        List<VisitAnalyticsAdmin.SearchTerm> terms = store.topTerms(p.from, p.to, SEARCH_TERMS).stream()
+                .map(r -> new VisitAnalyticsAdmin.SearchTerm(r.term(), r.searches(), r.noResult())).toList();
+        List<VisitAnalyticsAdmin.NoResultTerm> misses = store.noResultTerms(p.from, p.to, SEARCH_TERMS).stream()
+                .map(r -> new VisitAnalyticsAdmin.NoResultTerm(r.term(), r.noResult(), r.lastNoResultDay().toString())).toList();
+        return new VisitAnalyticsAdmin.Search(p.range(), asOf(at), collectMore(s), new VisitAnalyticsAdmin.SearchTotals(t.searches(), t.noResult(), t.terms(), t.filtered()),
+                terms, misses);
+    }
+
+    // ── 2단계 — 봇·크롤러 ────────────────────────────────────────────────────
+
+    public VisitAnalyticsAdmin.Bots bots(String fromText, String toText) {
+        Period p = period(fromText, toText);
+        StatsCollection s = settings.current();
+        return cache.get(key("bots", s, p.from, p.to), TTL, at -> computeBots(p, s, at));
+    }
+
+    private VisitAnalyticsAdmin.Bots computeBots(Period p, StatsCollection s, Instant at) {
+        LocalDate today = ServiceTime.dateOf(at);
+        Map<String, Long> kinds = new HashMap<>();
+        Map<LocalDate, Map<String, Long>> byDay = new HashMap<>();
+        long todayBots = 0;
+        if (s.botsOn()) {
+            for (VisitAnalyticsStore.BotDay d : store.botDays(p.from, p.to, today)) {
+                if (d.day().isEqual(today)) {
+                    todayBots += d.requests();
+                }
+                if (!d.day().isBefore(p.from) && !d.day().isAfter(p.to)) {
+                    kinds.merge(d.kind(), d.requests(), Long::sum);
+                    byDay.computeIfAbsent(d.day(), k -> new HashMap<>()).merge(d.kind(), d.requests(), Long::sum);
+                }
+            }
+        }
+        long totalBots = kinds.values().stream().mapToLong(Long::longValue).sum();
+        Long humansToday = s.visitsOn() ? store.pageViews(startOf(today), startOf(today.plusDays(1))) : null;
+        Long humansRange = s.visitsOn() ? store.pageViews(startOf(p.from), startOf(p.to.plusDays(1))) : null;
+        List<VisitAnalyticsAdmin.BotKindCount> kindRows = new ArrayList<>(BOT_KINDS.size());
+        BOT_KINDS.forEach(k -> kindRows.add(new VisitAnalyticsAdmin.BotKindCount(k, kinds.getOrDefault(k, 0L))));
+        kindRows.sort(Comparator.comparingLong(VisitAnalyticsAdmin.BotKindCount::requests).reversed());
+        List<VisitAnalyticsAdmin.BotSeriesPoint> series = new ArrayList<>();
+        if (s.botsOn()) {
+            for (LocalDate d = p.from; !d.isAfter(p.to); d = d.plusDays(1)) {
+                series.add(new VisitAnalyticsAdmin.BotSeriesPoint(d.toString(), filled(BOT_KINDS, byDay.getOrDefault(d, Map.of()))));
+            }
+        }
+        return new VisitAnalyticsAdmin.Bots(p.range(), asOf(at), collectMore(s), new VisitAnalyticsAdmin.BotCounts(todayBots, humansToday),
+                new VisitAnalyticsAdmin.BotCounts(totalBots, humansRange), kindRows, series);
+    }
+
+    /** 정해진 키 모두(없으면 0) — 키 차례 그대로 */
+    private static Map<String, Long> filled(List<String> keys, Map<String, Long> counts) {
+        Map<String, Long> out = new LinkedHashMap<>();
+        keys.forEach(k -> out.put(k, counts.getOrDefault(k, 0L)));
+        return out;
+    }
+
+    /** 정해진 키 모두(없으면 0, 모르는 키는 버린다) — {@code sorted} 면 많은 차례(같으면 키 차례), 아니면 키 차례 그대로(화면 너비 구간) */
+    private static List<VisitAnalyticsAdmin.ShareRow> shares(List<String> keys, Map<String, Long> counts, boolean sorted) {
+        List<VisitAnalyticsAdmin.ShareRow> out = new ArrayList<>(keys.size());
+        keys.forEach(k -> out.add(new VisitAnalyticsAdmin.ShareRow(k, counts.getOrDefault(k, 0L))));
+        if (sorted) {
+            out.sort(Comparator.comparingLong(VisitAnalyticsAdmin.ShareRow::visits).reversed());
+        }
+        return out;
+    }
+
+    /** 2단계 수집 스위치(접은 값) — 수집 진단 서비스도 쓴다 */
+    static VisitAnalyticsAdmin.CollectMore collectMore(StatsCollection s) {
+        return new VisitAnalyticsAdmin.CollectMore(s.enabled(), s.environmentOn(), s.searchTermsOn(), s.botsOn(), s.visitsOn());
+    }
+
     // ── 도우미 ───────────────────────────────────────────────────────────────
 
     private record Period(LocalDate from, LocalDate to) {
@@ -567,10 +714,10 @@ public class VisitAnalyticsAdminService {
         return new Collect(s.enabled(), s.visitsOn(), s.rawEventsOn(), s.referrersOn(), s.flowsOn());
     }
 
-    /** 결과에 영향을 주는 설정 값(동작 여부 네 칸 + 보관 일수) */
-    private static String fingerprint(StatsCollection s) {
+    /** 결과에 영향을 주는 설정 값(동작 여부 일곱 칸 + 보관 일수) */
+    static String fingerprint(StatsCollection s) {
         return (s.enabled() ? "E" : "e") + (s.visitsOn() ? "V" : "v") + (s.rawEventsOn() ? "R" : "r") + (s.referrersOn() ? "F" : "f") + (s.flowsOn() ? "L" : "l")
-                + s.rawRetentionDays();
+                + (s.environmentOn() ? "N" : "n") + (s.searchTermsOn() ? "S" : "s") + (s.botsOn() ? "B" : "b") + s.rawRetentionDays();
     }
 
     /** 캐시 키 — API 이름 + 언어 + 수집 스위치 + 질의 값(구분자 \u0001, null 은 빈 칸) */

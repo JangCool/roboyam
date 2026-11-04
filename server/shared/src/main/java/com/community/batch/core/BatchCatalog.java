@@ -146,6 +146,18 @@ public enum BatchCatalog implements BatchDefinition {
     /** 「지금 접속」 표({@code analytics_visit_active}) 정리 — 10분 넘게 신호 없는 줄 삭제. DB 배치(analytics 스트림), 기본 10분마다({@code R__analytics_12_visit_active_cleanup.sql}) */
     ANALYTICS_VISIT_ACTIVE_CLEANUP("analytics-visit-active-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 방문 기록 삭제 요청({@code analytics_forget_requests}, analytics V4) 처리 — 대기 요청의 방문자 해시로 원본·「그 날 셌다」 표시·지금 접속 줄을 지우고 해시를 비운다(합산 표는 남김).
+     * DB 배치(analytics 스트림), 기본 5분마다({@code R__analytics_13_forget_requests.sql}, site-analytics-contract 「2단계」)
+     */
+    ANALYTICS_FORGET_REQUESTS("analytics-forget-requests", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 방문 수집 진단 기록·처리 끝난 삭제 요청 정리 — 기록 실패·서버별 시간 기록·멈춘 서버 7일, 처리 끝난 삭제 요청 1년. DB 배치(analytics 스트림), 기본 매일 00:45 KST
+     * ({@code R__analytics_14_log_cleanup.sql}, site-analytics-contract 「2단계」)
+     */
+    ANALYTICS_LOG_CLEANUP("analytics-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 

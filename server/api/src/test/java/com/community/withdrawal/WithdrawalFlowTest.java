@@ -263,7 +263,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
         }
 
         @Test
-        void P30d_결제_이력이_있으면_연락용_이메일을_분리_보관하고_파기일은_다음_해_6월_1일_더하기_5년() {
+        void P30d_결제_이력이_있으면_연락용_이메일을_분리_보관하고_파기일은_마지막_거래_더하기_5년() {
             long member = memberWithPassword();
             String email = emailOf(member);
             paidOrder(member, Instant.parse("2026-03-01T05:00:00Z"));
@@ -276,7 +276,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             assertThat(result.hasPaymentHistory()).isTrue();
             Map<String, Object> contact = jdbc.queryForMap("SELECT email_cipher, purge_after FROM withdrawn_member_contacts WHERE user_id = ?", member);
             assertThat(String.valueOf(contact.get("email_cipher"))).startsWith("d").doesNotContain(email);
-            assertThat(((Timestamp) contact.get("purge_after")).toInstant()).isEqualTo(LocalDateTime.of(2032, 6, 1, 0, 0).atZone(ServiceTime.ZONE).toInstant());
+            assertThat(((Timestamp) contact.get("purge_after")).toInstant()).isEqualTo(Instant.parse("2031-03-01T05:00:00Z"));
             assertThat(status(member)).isEqualTo("WITHDRAWN");
         }
 

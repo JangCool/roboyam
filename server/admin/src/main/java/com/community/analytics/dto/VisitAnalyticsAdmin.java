@@ -94,4 +94,83 @@ public final class VisitAnalyticsAdmin {
     /** {@code GET …/visits/realtime} */
     public record Realtime(Instant asOf, Collect collect, long activeNow, List<MinutePoint> perMinute, List<PageRow> pages, List<GroupCount> referrers) {
     }
+
+    // ── 2단계(site-analytics-contract 「2단계」) — 환경 · 검색어 · 봇 · 수집 진단 · 정보주체 요청 ─────────────
+
+    /** 2단계 수집 스위치 — 각 칸은 「방문 수집 전체 && 그 항목」으로 접은 값({@code visits} = 봇 쪽 「사람 대비」 분모를 쓸 수 있나) */
+    public record CollectMore(boolean enabled, boolean environment, boolean searchTerms, boolean bots, boolean visits) {
+    }
+
+    /** 분류 한 줄 — {@code visits} = 방문(세션 첫 페이지) 수 */
+    public record ShareRow(String key, long visits) {
+    }
+
+    /** 일별 기기 한 칸 — {@code devices} = MOBILE · TABLET · DESKTOP 모두(없으면 0) */
+    public record DeviceSeriesPoint(String date, Map<String, Long> devices) {
+    }
+
+    /** {@code GET …/visits/environment} — 기기·브라우저·OS 는 많은 차례, 화면 너비는 구간 차례 */
+    public record Environment(Range range, Instant asOf, CollectMore collect, long total, List<ShareRow> devices, List<ShareRow> browsers, List<ShareRow> oses,
+                              List<ShareRow> screens, List<DeviceSeriesPoint> series) {
+    }
+
+    public record SearchTerm(String term, long searches, long noResult) {
+    }
+
+    /** 결과 없는 검색어 — {@code searches} = 결과 없이 끝난 검색 수, {@code lastDay} = 마지막으로 결과 없던 날(한국 날짜) */
+    public record NoResultTerm(String term, long searches, String lastDay) {
+    }
+
+    public record SearchTotals(long searches, long noResult, long terms, long filtered) {
+    }
+
+    /** {@code GET …/visits/search} */
+    public record Search(Range range, Instant asOf, CollectMore collect, SearchTotals totals, List<SearchTerm> terms, List<NoResultTerm> noResultTerms) {
+    }
+
+    /** 봇 요청 · 사람 페이지뷰(방문자·페이지뷰 수집이 꺼져 있으면 null) */
+    public record BotCounts(long bots, Long humans) {
+    }
+
+    public record BotKindCount(String kind, long requests) {
+    }
+
+    /** 일별 봇 한 칸 — {@code kinds} = 여섯 종류 모두(없으면 0) */
+    public record BotSeriesPoint(String date, Map<String, Long> kinds) {
+    }
+
+    /** {@code GET …/visits/bots} */
+    public record Bots(Range range, Instant asOf, CollectMore collect, BotCounts today, BotCounts totals, List<BotKindCount> kinds, List<BotSeriesPoint> series) {
+    }
+
+    /** 수집 진단의 문제 한 줄 — {@code level} ERROR · WARN */
+    public record HealthIssue(String code, String level, String instance, String job, Long count, Instant since) {
+    }
+
+    /** 서버 한 줄(최근 24시간) */
+    public record HealthInstance(String instance, Instant lastWriteAt, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid) {
+    }
+
+    public record HealthFailure(Instant at, String instance, String reason, String detail) {
+    }
+
+    /** 크론 한 줄 — 배치 로그의 마지막 실행. {@code cron} = pg_cron 의 식(배치 관리 화면과 같은 값) */
+    public record HealthCron(String job, String cron, Instant lastRunAt, String lastStatus, Long processed, String message, boolean late) {
+    }
+
+    public record HealthRaw(boolean rawEvents, int retentionDays, String oldestDay, int partitions, Long approxRows, boolean nextPartitionReady) {
+    }
+
+    /** {@code GET …/visits/health} — 기간 없음(최근 24시간). {@code status} OK · DELAYED · STOPPED · OFF */
+    public record Health(Instant asOf, String status, List<HealthIssue> issues, List<HealthInstance> instances, List<HealthFailure> failures, List<HealthCron> crons,
+                         HealthRaw raw) {
+    }
+
+    /** 정보주체 요청 한 줄 — {@code status} PENDING · DONE, 대기면 {@code deletedRows}·{@code processedAt} null */
+    public record ForgetRequest(String id, Instant receivedAt, String status, Long deletedRows, Instant processedAt) {
+    }
+
+    /** {@code GET …/visits/requests} — 최신 차례 */
+    public record ForgetPage(List<ForgetRequest> items, long total, long pending, long last30Days) {
+    }
 }

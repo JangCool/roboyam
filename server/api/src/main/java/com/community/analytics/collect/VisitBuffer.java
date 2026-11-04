@@ -11,9 +11,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 방문 신호의 서버 메모리 모음 — 1분마다 {@link #drain()} 으로 통째로 넘기고 새로 시작한다({@code VisitFlusher}). 모든 메서드는 이 객체로 잠근다(신호 하나의 일은 맵 몇 번이라 짧다).
+ * 2단계(site-analytics-contract 「2단계」)의 환경·검색어·봇 숫자와 수집 진단의 「무시한 신호」도 같은 모음에 든다(같은 1분 몰아쓰기).
  *
  * <p><b>메모리 상한</b>: 칸마다 줄 수 상한이 있고, 넘으면 <b>가장 오래 든 것부터 버리고</b> 1분에 한 번 경고 로그를 남긴다(방문 폭주·꾸민 신호로 메모리가 터지지 않게).
- * 버린 만큼 숫자가 덜 세진다 — 정상 방문량에서는 닿지 않는 값이다(분당 신호 기준).
+ * 버린 만큼 숫자가 덜 세진다 — 정상 방문량에서는 닿지 않는 값이다(분당 신호 기준). 버린 줄 수는 {@link Batch#dropped()} 로 넘겨 수집 진단에 남긴다.
  */
 final class VisitBuffer {
 
@@ -27,6 +28,11 @@ final class VisitBuffer {
     static final int MAX_REFERRERS = 20_000;
     static final int MAX_FLOWS = 100_000;
     static final int MAX_CAMPAIGNS = 20_000;
+    /** 환경 묶음 — 하루 최대 3 × 7 × 6 × 5 = 630 줄이라 넉넉하다 */
+    static final int MAX_ENV = 5_000;
+    static final int MAX_SEARCH_TERMS = 20_000;
+    static final int MAX_DAYS = 10;
+    static final int MAX_BOTS = 100;
 
     record VisitorKey(LocalDate day, String visitorHash) {
     }
@@ -49,28 +55,58 @@ final class VisitBuffer {
     record CampaignKey(LocalDate day, String source, String medium, String campaign) {
     }
 
+    /** 환경 한 묶음(세션 첫 페이지 = 방문 1) — analytics V4 {@code analytics_env_daily} */
+    record EnvKey(LocalDate day, String device, String browser, String os, String screen) {
+    }
+
+    /** 다듬은 검색어 — analytics V4 {@code analytics_search_daily} */
+    record SearchKey(LocalDate day, String term) {
+    }
+
+    /** 검색 수 · 결과 없는 검색 수 */
+    record SearchCount(long searches, long noResult) {
+
+        SearchCount plus(SearchCount o) {
+            return new SearchCount(searches + o.searches, noResult + o.noResult);
+        }
+    }
+
+    /** 봇 종류({@link BotClassifier}) — analytics V4 {@code analytics_bot_daily} */
+    record BotKey(LocalDate day, String kind) {
+    }
+
     /** 원본 한 줄(원본 기록을 켰을 때만) */
     record RawView(long id, Instant viewedAt, String visitorHash, String sessionHash, String path, String kind, String prevPath, String referrerDomain,
                    String referrerGroup, String utmSource, String utmMedium, String utmCampaign, String device, boolean newVisitor) {
     }
 
-    /** 한 번에 넘기는 모음 — 넘긴 뒤에는 이 버퍼와 공유하지 않는다 */
+    /**
+     * 한 번에 넘기는 모음 — 넘긴 뒤에는 이 버퍼와 공유하지 않는다.
+     *
+     * @param dropped        이 1분 사이 상한 때문에 버린 줄 수(수집 진단)
+     * @param ignoredBot     이 1분 사이 봇·빈 User-Agent 라 무시한 방문 신호 수(수집 진단)
+     * @param ignoredInvalid 이 1분 사이 형식이 틀려 무시한 방문 신호 수(수집 진단)
+     */
     record Batch(LinkedHashMap<VisitorKey, FirstSeen> visitors, LinkedHashMap<Instant, Long> pageViews, LinkedHashMap<String, Instant> active,
                  ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows,
-                 LinkedHashMap<CampaignKey, Long> campaigns) {
+                 LinkedHashMap<CampaignKey, Long> campaigns, LinkedHashMap<EnvKey, Long> env, LinkedHashMap<SearchKey, SearchCount> searches,
+                 LinkedHashMap<LocalDate, Long> searchFiltered, LinkedHashMap<BotKey, Long> bots, long dropped, long ignoredBot, long ignoredInvalid) {
 
+        /** 쓸 숫자가 없나(수집 진단 칸은 따로 — 비어도 「살아 있음」은 쓴다) */
         boolean isEmpty() {
             return visitors.isEmpty() && pageViews.isEmpty() && active.isEmpty() && raw.isEmpty() && pages.isEmpty() && referrers.isEmpty() && flows.isEmpty()
-                    && campaigns.isEmpty();
+                    && campaigns.isEmpty() && env.isEmpty() && searches.isEmpty() && searchFiltered.isEmpty() && bots.isEmpty();
         }
     }
 
     private Batch current = empty();
     private long dropped;
+    private long ignoredBot;
+    private long ignoredInvalid;
 
     private static Batch empty() {
         return new Batch(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new ArrayDeque<>(), new LinkedHashMap<>(), new LinkedHashMap<>(),
-                new LinkedHashMap<>(), new LinkedHashMap<>());
+                new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), 0, 0, 0);
     }
 
     // ── 넣기 ─────────────────────────────────────────────────────────────────
@@ -111,16 +147,54 @@ final class VisitBuffer {
         trim(current.flows(), MAX_FLOWS);
     }
 
+    /** 환경 방문 1(세션 첫 페이지) */
+    synchronized void env(LocalDate day, String device, String browser, String os, String screen) {
+        current.env().merge(new EnvKey(day, device, browser, os, screen), 1L, Long::sum);
+        trim(current.env(), MAX_ENV);
+    }
+
+    /** 검색 1(다듬은 검색어) */
+    synchronized void search(LocalDate day, String term, boolean noResult) {
+        current.searches().merge(new SearchKey(day, term), new SearchCount(1, noResult ? 1 : 0), SearchCount::plus);
+        trim(current.searches(), MAX_SEARCH_TERMS);
+    }
+
+    /** 저장하지 않는 검색 1(개인정보 모양·길이) — 횟수만 */
+    synchronized void searchFiltered(LocalDate day) {
+        current.searchFiltered().merge(day, 1L, Long::sum);
+        trim(current.searchFiltered(), MAX_DAYS);
+    }
+
+    /** 봇 요청 1 */
+    synchronized void bot(LocalDate day, String kind) {
+        current.bots().merge(new BotKey(day, kind), 1L, Long::sum);
+        trim(current.bots(), MAX_BOTS);
+    }
+
+    /** 봇·빈 User-Agent 라 무시한 방문 신호 1(수집 진단) */
+    synchronized void ignoredBot() {
+        ignoredBot++;
+    }
+
+    /** 형식이 틀려 무시한 방문 신호 1(수집 진단) */
+    synchronized void ignoredInvalid() {
+        ignoredInvalid++;
+    }
+
     // ── 넘기기·되돌리기 ───────────────────────────────────────────────────────
 
     /** 지금까지 모은 것을 통째로 넘기고 비운다. 그 사이 상한 때문에 버린 줄이 있으면 경고한다 */
     synchronized Batch drain() {
-        Batch out = current;
+        Batch b = current;
+        Batch out = new Batch(b.visitors(), b.pageViews(), b.active(), b.raw(), b.pages(), b.referrers(), b.flows(), b.campaigns(), b.env(), b.searches(),
+                b.searchFiltered(), b.bots(), dropped, ignoredBot, ignoredInvalid);
         current = empty();
         if (dropped > 0) {
             log.warn("방문 신호 모음이 메모리 상한을 넘어 오래된 {}줄을 버렸다(이 서버의 지난 1분 숫자가 그만큼 덜 세졌다)", dropped);
-            dropped = 0;
         }
+        dropped = 0;
+        ignoredBot = 0;
+        ignoredInvalid = 0;
         return out;
     }
 
@@ -159,6 +233,24 @@ final class VisitBuffer {
     synchronized void restoreFlows(Batch b) {
         b.flows().forEach((k, v) -> current.flows().merge(k, v, Long::sum));
         trim(current.flows(), MAX_FLOWS);
+    }
+
+    synchronized void restoreEnv(Batch b) {
+        b.env().forEach((k, v) -> current.env().merge(k, v, Long::sum));
+        trim(current.env(), MAX_ENV);
+    }
+
+    /** 검색어와 걸러진 검색 수는 한 트랜잭션으로 쓰므로 함께 되돌린다 */
+    synchronized void restoreSearches(Batch b) {
+        b.searches().forEach((k, v) -> current.searches().merge(k, v, SearchCount::plus));
+        trim(current.searches(), MAX_SEARCH_TERMS);
+        b.searchFiltered().forEach((k, v) -> current.searchFiltered().merge(k, v, Long::sum));
+        trim(current.searchFiltered(), MAX_DAYS);
+    }
+
+    synchronized void restoreBots(Batch b) {
+        b.bots().forEach((k, v) -> current.bots().merge(k, v, Long::sum));
+        trim(current.bots(), MAX_BOTS);
     }
 
     /** 상한을 넘으면 가장 오래 든 키부터 버린다(LinkedHashMap 은 넣은 차례) — lock 안 */

@@ -76,7 +76,7 @@
 - **테스트**(commerce.md 18절): shared `com.community.batch.core.*` 32개 + admin `com.community.batch.*` 7개 통과(실제 PostgreSQL). 규칙 → 테스트: 덩어리 저장 확정·실패 덩어리만 한 건씩·성공 건 건별 기록 없음·실패 한도·건수 규칙·고를 수 없는 단계·실패 문구 가림 = `BatchChunkProcessingTest` / 실패 지점부터·한 번만 이어 받기·실패 건만 다시 = `BatchRerunTest` / 파라미터·단계 검사 = `BatchParameterValidatorTest` / 요청 하나·`SKIP LOCKED`·집을 때 실행 중이면 거절·남은 요청 정리 = `BatchRequestQueueTest` / 잠금 = `BatchLockTest` / 워커 기록 = `WorkerHeartbeatsTest` / 매시 도우미·로그 정리 CASCADE = `DbBatchHelpersTest` / 가림 = `BatchErrorTextTest` / `roboyam.batch.enabled` = admin `BatchEnabledSwitchTest` / 화면 API 한 바퀴 = admin `BatchScreenApiSmokeTest`.
 
 ## 시험 기반 (2026-10-23 — commerce.md 18절: 규칙은 모두 테스트, 통과 필수)
-- **Testcontainers(PostgreSQL)는 커머스 테스트에만 쓴다**(사용자 승인 2026-10-23). 버전은 Spring Boot BOM(4.1.1 → Testcontainers 2.0.5), 시험 PC 에 Docker 가 있어야 한다.
+- **Testcontainers(PostgreSQL)는 커머스 테스트에만 쓴다**(사용자 승인 2026-10-23). 2026-11-04 부터 DB 가 있어야 막히는 정확성 규칙(방문 통계·대시보드 집계)도 쓴다 — `docs/domain/commerce.md` 18절. 버전은 Spring Boot BOM(4.1.1 → Testcontainers 2.0.5), 시험 PC 에 Docker 가 있어야 한다.
 - 공용 시험 DB: `server/shared/src/testFixtures/java/com/community/testsupport/CommerceTestDatabase.java`(Gradle `java-test-fixtures`).
   - shared 의 시험은 그대로 쓴다. api·admin 의 시험은 그 모듈 `build.gradle` 에 `testImplementation testFixtures(project(':server:shared'))` 를 더한다.
   - `CommerceTestDatabase.migrated("admin")` 이 컨테이너(`postgres:18`, 시험 JVM 하나에 하나)를 띄우고, 앱과 같은 길(`SchemaMigration.STANDARD`, shared → 자기 스트림)로 이관한 `DataSource` 를 준다(풀 없음 — 동시성 시험은 연결을 따로 잡는다). 스프링 문맥에는 `jdbcUrl()`·`username()`·`password()`.

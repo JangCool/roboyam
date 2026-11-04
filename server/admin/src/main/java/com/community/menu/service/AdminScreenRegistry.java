@@ -45,7 +45,13 @@ public final class AdminScreenRegistry {
                     leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.SITE_READ)),
                     leaf(s("visitFlows", "/analytics/visits/flows", "menu.visitFlows", "pi pi-sitemap", Permission.SITE_READ)),
                     leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-clock", Permission.SITE_READ)),
-                    leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.SITE_READ))),
+                    leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.SITE_READ)),
+                    // 2단계(site-analytics-contract 「2단계」, 화면 확정 2026-11-04) — 화면 util-admin-menu.ts 와 같은 키·주소·아이콘·차례
+                    leaf(s("visitEnvironment", "/analytics/visits/environment", "menu.visitEnvironment", "pi pi-mobile", Permission.SITE_READ)),
+                    leaf(s("visitSearch", "/analytics/visits/search", "menu.visitSearch", "pi pi-search", Permission.SITE_READ)),
+                    leaf(s("visitBots", "/analytics/visits/bots", "menu.visitBots", "pi pi-microchip-ai", Permission.SITE_READ)),
+                    leaf(s("visitHealth", "/analytics/visits/health", "menu.visitHealth", "pi pi-wave-pulse", Permission.SITE_READ)),
+                    leaf(s("visitRequests", "/analytics/visits/requests", "menu.visitRequests", "pi pi-eraser", Permission.SITE_READ))),
             section(NORMAL, "menu.member", "pi pi-users",
                     leaf(s("members", "/members", "menu.members", "pi pi-user", Permission.MEMBER_READ)),
                     // 탈퇴 관리(member-withdrawal-contract 「관리자」) — 주소가 /members 아래지만 다른 화면. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
