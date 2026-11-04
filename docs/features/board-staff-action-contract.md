@@ -61,3 +61,9 @@
 - **admin**: `/api/admin/board-staff-actions`(목록 `page` 0부터 · `q` 처리자 닉네임 앞뒤 공백 제거·50자·최소 없음 · `from`·`to` 형식 400 · `/{id}` · `/{id}/restore`) · `keeper-action.read`·`.restore` featureReady true · `AdminScreenRegistry` `staffActions` · 게시글 관리 상세 조치 기록 행위자 `{kind:'BOARD_STAFF', id(회원), name(닉네임), role}`(`role` 칸 새로 — 그 밖 행위자는 null).
 - **계약과 다른 점·정한 것**: 표에 `reason_code` 칸을 더했다(계약 DB 절에 없음). 댓글 줄 `target.state` 는 댓글의 지금 상태 — 신고로 숨겨진 댓글이면 `HIDDEN` 도 나온다. 댓글 복구는 회수한 포인트를 되돌리지 않는다(포인트 되돌림은 글만 있다). 없는 처리 기록은 404 `BOARD_STAFF_ACTION_NOT_FOUND`(제재 기록 id 도). 홈 목록 캐시는 서버에 없어 무효화할 것이 없다.
 - **검증**: `compileJava`·`compileTestJava`(shared·api·admin) 통과. 로컬 DB(V135 까지)에 V136+V137+V138 을 `BEGIN … ROLLBACK`(CHECK 7가지 막힘 · 조건부 되돌림 · 한도 증가 1→2→0행 · 판정·한도·한 줄 질의 · EXPLAIN 부분 색인). 테스트·bootRun·API 호출 안 함.
+
+## 화면 검증 (2026-11-04, 로컬 — api·admin bootJar + user-web·admin-web dev, 로컬 DB V136~V138 적용)
+- 시험 데이터: `ai` 게시판에 매니저 `e2e.veteran1`·스텝 `e2e.veteran2`(board_staff SQL), 관리자는 로컬 시험 운영자(제재·스텝 감독·게시글 조회·회원 조회 역할 — 로컬 DB 에만).
+- 확인한 것(게시판 제재 포함): 게시판 머리 남은 횟수 · 글 ⋯ 숨기기(사유 → 확인 → 토스트·목록 숨김 자리·횟수 줄어듦) · 댓글 ⋯ 삭제 · 작성자 제재(권장 배지 + 권장 아닌 단계 선택 가능) · 처리 내역(매니저 = 처리자 칸·되돌리기, 스텝 = 본인 것만·처리자 null·`restore` false) · 되돌려도 한도 그대로 · 제재 내역 · 쓰기 제한 회원의 게시판 안내·글쓰기 막힘·`403 BOARD_WRITE_RESTRICTED` · `/sanction` 게시판 제재·이의제기 접수 · 관리자 스텝 처리 감독(목록·서랍·되돌리기·두 번째 되돌리기 409) · 게시판 제재 이력 · 이의제기(게시판 제재 종류·인용 → VOIDED·쓰기 제한 풀림) · 반복 검토(3건에 자동 열림·운영자 알림·「그대로 둠」 닫기) · `OTHER` 사유 400 · 매니저 대상 409 `BOARD_STAFF_TARGET_PROTECTED` · 이미 제한 중 409.
+- 검증 중 고친 것: ① 관리자 목록 종류 거르기가 비면 500(`Set.of(..).contains(null)` NPE) → null 검사 ② 되돌리기 응답의 `target.state` 가 되돌리기 전 값(JPA 변경을 내보내기 전 JDBC 로 다시 읽음) → `posts.flush()` 뒤 읽기 ③ 게시판 제재 이의제기 화면 문구 「알림과 이메일」 → 「알림」(결정 6 — 메일은 사이트 제재 답변만).
+- 남은 것: 글 상세 응답에 공지·고정 칸이 없어 ⋯ 메뉴가 공지·고정 글에도 보인다(누르면 서버가 409 로 막는다). 테스트 코드는 없다.

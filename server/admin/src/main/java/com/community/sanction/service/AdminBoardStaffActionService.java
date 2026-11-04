@@ -62,7 +62,7 @@ public class AdminBoardStaffActionService {
         Long boardId = AdminSanctionService.trim(boardRaw) == null ? null : orNone(AdminSanctionService.parseId(boardRaw));
         int page = Math.max(0, AdminSanctionService.number(pageRaw, 0));
         int size = Math.min(AdminSanctionService.SIZE_MAX, Math.max(1, AdminSanctionService.number(sizeRaw, AdminSanctionService.SIZE_DEFAULT)));
-        AdminBoardStaffActionStore.Filter filter = new AdminBoardStaffActionStore.Filter(boardId, KINDS.contains(kind) ? kind : null,
+        AdminBoardStaffActionStore.Filter filter = new AdminBoardStaffActionStore.Filter(boardId, kind != null && KINDS.contains(kind) ? kind : null,
                 "OPEN".equals(restored) || "RESTORED".equals(restored) ? restored : null, nicknameLike, from, to);
         Instant now = actions.now();
         List<AdminBoardStaffActionView> items = store.page(filter, page, size).stream().map(r -> view(r, now)).toList();

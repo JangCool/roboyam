@@ -294,6 +294,7 @@ public class BoardStaffActionService {
         String reason = requireRestoreReason(reasonText);
         Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_MANAGER, ModerationActor.boardStaff(actorId, access.role()), reason, now());
         log.info("스텝 처리 되돌리기(매니저) actionId={} kind={} by userId={} detail={}", actionId, row.apiKind(), actorId, detail);
+        posts.flush(); // 되살린 글·댓글(JPA)을 내보낸 뒤 JDBC 로 다시 읽어야 지금 상태가 맞다
         return store.find(actionId).orElseThrow();
     }
 
@@ -316,6 +317,7 @@ public class BoardStaffActionService {
         }
         audit.record(event);
         log.info("스텝 처리 되돌리기(운영자) actionId={} kind={} by operatorId={}", actionId, row.apiKind(), operatorId);
+        posts.flush(); // 되살린 글·댓글(JPA)을 내보낸 뒤 JDBC 로 다시 읽어야 지금 상태가 맞다
         return store.find(actionId).orElseThrow();
     }
 

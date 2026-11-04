@@ -33,7 +33,7 @@
 
             <!-- 접수 완료 -->
             <section v-else-if="screen === 'DONE'" :aria-label="t('sanction.doneTitle')" data-testid="appeal-done">
-                <StatusPanel icon="pi pi-check" tone="success" :title="t('sanction.doneTitle')">{{ t('sanction.doneText') }}</StatusPanel>
+                <StatusPanel icon="pi pi-check" tone="success" :title="t('sanction.doneTitle')">{{ t(isBoard ? 'sanction.doneTextBoard' : 'sanction.doneText') }}</StatusPanel>
                 <SanctionSummary class="mt-4" :rows="resultRows" />
                 <Button as="router-link" :to="UtilSanction.PATH" :label="t('common.confirm')" size="large" fluid class="mt-4" data-testid="appeal-done-confirm" />
             </section>
@@ -103,7 +103,7 @@
                     </LabeledField>
                 </div>
 
-                <SanctionNotice class="mt-3" :text="`${t('sanction.appealInfo')} ${t('sanction.appealOnce')} ${t('sanction.appealWindow')}`" data-testid="appeal-info" />
+                <SanctionNotice class="mt-3" :text="`${t(isBoard ? 'sanction.appealInfoBoard' : 'sanction.appealInfo')} ${t('sanction.appealOnce')} ${t('sanction.appealWindow')}`" data-testid="appeal-info" />
 
                 <!-- 보내지 못했다 — 쓴 사유는 그대로 남아 있다 -->
                 <SanctionNotice v-if="failure" class="mt-3" tone="red" :title="failure.title" :text="failure.text" data-testid="appeal-failure" />
