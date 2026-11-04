@@ -3,7 +3,8 @@ import type { DashboardGadgetRequest, DashboardGadgetsResponse } from '~/composa
 /**
  * 대시보드 가젯 숫자·목록 API — 서버 주소 문자열(`/api/admin/dashboard/gadgets`)이 있는 **유일한 곳**이다. 상태는 없다.
  *  - `GET /api/admin/dashboard/gadgets?types=A,B,C&limit.A=5&days.B=30` → `DashboardGadgetsResponse`
- *    (종류마다 값 — 권한이 없거나 서버가 아직 줄 수 없으면 null, 후자는 `unavailable` 에도 든다. **한 종류만** 요청했는데 권한이 없으면 403)
+ *    (종류마다 값 — 권한이 없거나 서버가 아직 줄 수 없거나 수집이 꺼졌으면 null, 둘째는 `unavailable`·셋째는 `disabled` 에도 든다. **한 종류만** 요청했는데 권한이 없으면 403)
+ *    방문 분석 종류(`POPULAR_PAGES`·`REFERRERS`)도 같은 묶음으로 보낸다(`docs/features/site-analytics-contract.md` 「API (확정)」).
  * 한 화면의 가젯을 묶어 부르는 일(같은 틱에 그려진 가젯 모으기)은 `useDashboardKindData`(`useDashboardGadgetData.ts`)가 한다 — 여기는 받은 요청 그대로 한 번 부른다.
  * (서버 `DashboardGadgetController`·`DashboardGadgetService`)
  */

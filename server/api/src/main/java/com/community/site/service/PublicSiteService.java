@@ -1,6 +1,8 @@
 package com.community.site.service;
 
+import com.community.analytics.settings.StatsCollectionSettings;
 import com.community.board.entity.BoardDefaultsEntity;
+import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.SiteThemeMenu;
@@ -51,9 +53,12 @@ public class PublicSiteService {
     private final SiteAssets assets;
     private final BoardDefaultsRepository boardDefaults;
     private final SiteThemeMenuRepository themeMenus;
+    private final StatsCollectionSettings statsSettings;
     private volatile Cached cached;
 
-    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus) {
+    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus,
+                             StatsCollectionSettings statsSettings) {
+        this.statsSettings = statsSettings;
         this.boardDefaults = boardDefaults;
         this.settings = settings;
         this.assets = assets;
@@ -105,7 +110,9 @@ public class PublicSiteService {
         String dateDisplay = boardDefaults.findById(BoardDefaultsEntity.ROW_ID).map(row -> row.values().dateDisplay()).orElse("STANDARD");
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
-        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme);
+        // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
+        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
+                SiteAnalyticsView.of(statsSettings.current()));
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();

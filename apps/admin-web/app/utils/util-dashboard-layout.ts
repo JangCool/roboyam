@@ -1,6 +1,7 @@
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import type { DashboardGadgetColor, DashboardGadgetConfig, DashboardGadgetItem, DashboardGadgetType, DashboardLayoutBody } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
 import { DASHBOARD_GADGET_COLORS, DASHBOARD_GADGET_TYPES } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
+import type { AnalyticsSwitch } from '~/composables/analytics/api/useAnalyticsSettingsApi.types';
 import UtilAdminMenu from '~/utils/util-admin-menu';
 
 /**
@@ -15,8 +16,8 @@ import UtilAdminMenu from '~/utils/util-admin-menu';
  * 배치된 가젯만 부르고 자동 새로 고침은 최소 1분·탭이 안 보이면 멈춘다.
  */
 
-/** 가젯 추가 창의 업무 묶음(보일 순서) */
-export const DASHBOARD_GROUPS = ['TODO', 'COMMUNITY', 'MEMBER', 'BIZ', 'COMMERCE', 'POINT', 'SYSTEM', 'PERSONAL'] as const;
+/** 가젯 추가 창의 업무 묶음(보일 순서) — 「방문 분석」(`ANALYTICS`)은 방문 수집 데이터를 읽는 가젯(방문 현황·인기 페이지·유입 경로, 2026-11-04) */
+export const DASHBOARD_GROUPS = ['TODO', 'COMMUNITY', 'ANALYTICS', 'MEMBER', 'BIZ', 'COMMERCE', 'POINT', 'SYSTEM', 'PERSONAL'] as const;
 export type DashboardGroup = (typeof DASHBOARD_GROUPS)[number];
 
 /** 가젯 ⚙ 설정의 종류별 칸 */
@@ -36,6 +37,11 @@ export interface DashboardKindSpec {
     refreshable: boolean;
     /** ⚙ 설정의 종류별 칸 */
     options: readonly DashboardOption[];
+    /**
+     * 이 가젯의 데이터를 만드는 「통계 수집」 항목(`/settings/analytics`) — 꺼져 있으면 서버가 묶음 응답 `disabled` 에 넣고 가젯은 「수집이 꺼져 있어요」.
+     * 없으면 수집 설정과 무관한 가젯.
+     */
+    collect?: AnalyticsSwitch;
     minW: number;
     minH: number;
     /** 새로 넣을 때 폭·높이 */
@@ -81,15 +87,18 @@ const KINDS_12: readonly DashboardKindSpec[] = [
     // 오늘·내일 일정 — 항목마다 그 종류 권한이 있을 때만(광고 · 공구 · 포인트 상점 · 배치)
     { type: 'TODAY_SCHEDULE', group: 'TODO', icon: 'pi pi-calendar-clock', permissions: ['ad.read', 'commerce.product.read', 'pointshop.read', 'batch.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 7 },
     { type: 'REPORTS', group: 'COMMUNITY', icon: 'pi pi-flag', permissions: ['report.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 5, w: 4, h: 7 },
-    { type: 'POST_ACTIVITY', group: 'COMMUNITY', icon: 'pi pi-comments', permissions: ['post.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 5 },
+    { type: 'POST_ACTIVITY', group: 'COMMUNITY', icon: 'pi pi-comments', permissions: ['post.read'], multiple: false, refreshable: true, options: [], collect: 'boardActivity', minW: 3, minH: 4, w: 4, h: 5 },
     { type: 'RECENT_POSTS', group: 'COMMUNITY', icon: 'pi pi-file', permissions: ['post.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 8 },
-    { type: 'BOARD_RANKING', group: 'COMMUNITY', icon: 'pi pi-sort-amount-down', permissions: ['post.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 6 },
+    { type: 'BOARD_RANKING', group: 'COMMUNITY', icon: 'pi pi-sort-amount-down', permissions: ['post.read'], multiple: false, refreshable: true, options: [], collect: 'boardActivity', minW: 3, minH: 4, w: 4, h: 6 },
     { type: 'POPULAR_NOW', group: 'COMMUNITY', icon: 'pi pi-star', permissions: ['popular.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 8 },
-    // 방문 현황 — 시간별 집계만 읽는다(원본 로그 GROUP BY 없음). 이동할 화면이 없어 링크 없음
-    { type: 'VISITORS', group: 'COMMUNITY', icon: 'pi pi-eye', permissions: ['site.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 5, w: 4, h: 7 },
     { type: 'GROUP_REQUESTS', group: 'COMMUNITY', icon: 'pi pi-users', permissions: ['group.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 7 },
+    // 방문 분석 — 방문 수집(`/settings/analytics`)이 만든 집계만 읽는다(원본 로그 GROUP BY 없음). 이동할 방문 분석 화면이 아직 없어 링크 없음
+    // 방문 현황 = 시간별 집계 · 인기 페이지 = 원본 기록을 1분마다 몰아 센 오늘 페이지별 조회 · 유입 경로 = 오늘 유입처 분류·도메인 집계
+    { type: 'VISITORS', group: 'ANALYTICS', icon: 'pi pi-eye', permissions: ['site.read'], multiple: false, refreshable: true, options: [], collect: 'visits', minW: 3, minH: 5, w: 4, h: 7 },
+    { type: 'POPULAR_PAGES', group: 'ANALYTICS', icon: 'pi pi-desktop', permissions: ['site.read'], multiple: false, refreshable: true, options: ['limit'], collect: 'rawEvents', minW: 3, minH: 4, w: 4, h: 8 },
+    { type: 'REFERRERS', group: 'ANALYTICS', icon: 'pi pi-directions', permissions: ['site.read'], multiple: false, refreshable: true, options: [], collect: 'referrers', minW: 3, minH: 5, w: 4, h: 8 },
     { type: 'MEMBER_STATS', group: 'MEMBER', icon: 'pi pi-user', permissions: ['member.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 3, h: 8 },
-    { type: 'SIGNUP_TREND', group: 'MEMBER', icon: 'pi pi-chart-bar', permissions: ['member.read'], multiple: false, refreshable: true, options: ['days'], minW: 3, minH: 4, w: 4, h: 5 },
+    { type: 'SIGNUP_TREND', group: 'MEMBER', icon: 'pi pi-chart-bar', permissions: ['member.read'], multiple: false, refreshable: true, options: ['days'], collect: 'boardActivity', minW: 3, minH: 4, w: 4, h: 5 },
     { type: 'RECENT_SIGNUPS', group: 'MEMBER', icon: 'pi pi-user-plus', permissions: ['member.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 7 },
     // 제재 — 권한 sanction.read 는 카탈로그에 있으나 아직 화면 없음(featureReady false) — 이동은 회원 관리
     { type: 'SANCTIONS', group: 'MEMBER', icon: 'pi pi-ban', permissions: ['sanction.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 5, w: 4, h: 7 },
@@ -106,7 +115,7 @@ const KINDS_12: readonly DashboardKindSpec[] = [
     { type: 'POINT_SUMMARY', group: 'POINT', icon: 'pi pi-database', permissions: ['point.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 5 },
     { type: 'POINTSHOP', group: 'POINT', icon: 'pi pi-gift', permissions: ['pointshop.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 6 },
     { type: 'BATCH_HEALTH', group: 'SYSTEM', icon: 'pi pi-server', permissions: ['batch.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 4, h: 6 },
-    { type: 'NOTIFICATION_HEALTH', group: 'SYSTEM', icon: 'pi pi-bell', permissions: ['notification.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 5, w: 4, h: 7 },
+    { type: 'NOTIFICATION_HEALTH', group: 'SYSTEM', icon: 'pi pi-bell', permissions: ['notification.read'], multiple: false, refreshable: true, options: [], collect: 'notificationSends', minW: 3, minH: 5, w: 4, h: 7 },
     { type: 'AUDIT_RECENT', group: 'SYSTEM', icon: 'pi pi-history', permissions: ['audit.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 7 },
     { type: 'OPERATOR_SECURITY', group: 'SYSTEM', icon: 'pi pi-shield', permissions: ['operator.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 3, w: 4, h: 4 },
     { type: 'MEMO', group: 'PERSONAL', icon: 'pi pi-pencil', permissions: [], multiple: true, refreshable: false, options: ['text'], minW: 2, minH: 3, w: 4, h: 5 },

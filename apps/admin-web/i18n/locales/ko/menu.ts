@@ -122,6 +122,7 @@ export default {
     batchLogs: '배치 로그',
     audit: '감사 로그',
     terms: '약관',
+    analyticsSettings: '통계 수집',
     memberSettings: '회원',
     nicknameImageSettings: '닉네임 이미지',
 };

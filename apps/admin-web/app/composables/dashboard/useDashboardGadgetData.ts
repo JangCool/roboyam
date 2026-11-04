@@ -17,7 +17,7 @@ type DashboardLoadMode = 'mount' | 'reload';
  * 대시보드 가젯 하나의 데이터 받기 — 처음 그릴 때 한 번, 새로 고침 단추, 자동 새로 고침(설정 `refresh` 초, 0 = 끔)을 한 곳에서 한다. 가젯마다 따로 쓰는 상태라 `useState` 를 두지 않는다.
  *  - 자동 새로 고침은 탭이 안 보이면 멈추고, 다시 보일 때 주기가 지났으면 바로 한 번 받는다(서버 부담 — 배치된 가젯만, 최소 1분).
  *  - 받는 중 다시 부르면 앞의 결과는 버린다. 실패해도 이미 받은 값은 둔다(화면은 값이 없을 때만 오류 화면, 있으면 머리에 경고).
- *  - `403` 은 오류가 아니라 「권한 없음」(`forbidden`). 결과의 `data` 가 null 이면 `unavailable` 일 때 「준비 중」(`unavailable`), 아니면 「권한 없음」.
+ *  - `403` 은 오류가 아니라 「권한 없음」(`forbidden`). 결과의 `data` 가 null 이면 `disabled` 일 때 「수집 꺼짐」(`disabled` — 통계 수집 설정에서 꺼짐), `unavailable` 일 때 「준비 중」(`unavailable`), 아니면 「권한 없음」.
  *  - `deps` 가 바뀌면(목록 개수·기간 설정) 다시 받는다.
  *
  * @param fetcher - 받기 — 결과 값과 센 시각(`generatedAt`, ISO). 인자는 받기의 계기.
@@ -33,6 +33,7 @@ export function useDashboardGadgetData<T>(fetcher: (mode: DashboardLoadMode) => 
     const error = shallowRef<ApiError | null>(null);
     const forbidden = ref(false);
     const unavailable = ref(false);
+    const disabled = ref(false);
 
     let seq = 0;
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -46,20 +47,23 @@ export function useDashboardGadgetData<T>(fetcher: (mode: DashboardLoadMode) => 
             const res = await fetcher(mode);
             if (mine !== seq) return;
             if (res.data === null) {
-                unavailable.value = !!res.unavailable;
-                forbidden.value = !res.unavailable;
+                disabled.value = !!res.disabled;
+                unavailable.value = !res.disabled && !!res.unavailable;
+                forbidden.value = !res.disabled && !res.unavailable;
                 return;
             }
             data.value = res.data;
             at.value = res.generatedAt;
             forbidden.value = false;
             unavailable.value = false;
+            disabled.value = false;
         } catch (e) {
             if (mine !== seq) return;
             const failure = toApiError(e);
             if (failure.status === 403) {
                 forbidden.value = true;
                 unavailable.value = false;
+                disabled.value = false;
             } else error.value = failure;
         } finally {
             if (mine === seq) {
@@ -112,7 +116,7 @@ export function useDashboardGadgetData<T>(fetcher: (mode: DashboardLoadMode) => 
         document.removeEventListener('visibilitychange', onVisibility);
     });
 
-    return { data, at, loading, error, forbidden, unavailable, reload };
+    return { data, at, loading, error, forbidden, unavailable, disabled, reload };
 }
 
 /* ── 묶어 부르기 ──
@@ -169,15 +173,16 @@ function loadBatched(api: GadgetApi, request: DashboardGadgetRequest): Promise<D
     });
 }
 
-/** 묶음 응답에서 한 종류를 꺼낸다 — 값이 null 이면 「준비 중」(`unavailable` 에 있으면)이거나 권한 없음 */
+/** 묶음 응답에서 한 종류를 꺼낸다 — 값이 null 이면 「수집 꺼짐」(`disabled` 에 있으면 — 서버가 아직 이 칸을 안 주면 빈 배열) · 「준비 중」(`unavailable` 에 있으면)이거나 권한 없음 */
 function pick<K extends DashboardDataType>(res: DashboardGadgetsResponse, type: K): DashboardGadgetResult<DashboardGadgetDataMap[K]> {
     const data = (res.gadgets[type] ?? null) as DashboardGadgetDataMap[K] | null;
-    return { generatedAt: res.generatedAt, data, unavailable: data === null && (res.unavailable ?? []).includes(type) };
+    return { generatedAt: res.generatedAt, data, unavailable: data === null && (res.unavailable ?? []).includes(type), disabled: data === null && (res.disabled ?? []).includes(type) };
 }
 
 /**
  * 가젯 숫자·목록 API(`useDashboardGadgetApi`) 한 종류를 받는다 — 목록 개수(`limit`, 기본 5)·기간(`days`, 기본 7)은 그 가젯 설정에서 읽고, 바뀌면 다시 받는다.
  * 처음 받기는 같은 틱의 다른 가젯과 묶어 한 번에 부르고, 새로 고침·자동 새로 고침·설정 변경은 이 종류만 부른다.
+ * `collect` = 이 종류의 데이터를 만드는 「통계 수집」 항목(없으면 undefined) — 틀(`DashboardGadgetFrame`)의 「수집 꺼짐」 링크.
  * @param type - 종류.
  * @param gadget - 가젯(설정을 읽는 순간의 값).
  */
@@ -188,7 +193,7 @@ export function useDashboardKindData<K extends DashboardDataType>(type: K, gadge
         limit: spec.options.includes('limit') ? (gadget().config.limit ?? 5) : undefined,
         days: spec.options.includes('days') ? (gadget().config.days ?? 7) : undefined,
     });
-    return useDashboardGadgetData<DashboardGadgetDataMap[K]>(
+    const state = useDashboardGadgetData<DashboardGadgetDataMap[K]>(
         async (mode) => {
             const request: DashboardGadgetRequest = { type, query: query() };
             const res = mode === 'mount' ? await loadBatched(api, request) : await api.load([request]);
@@ -199,4 +204,5 @@ export function useDashboardKindData<K extends DashboardDataType>(type: K, gadge
             deps: () => queryKey(query()),
         },
     );
+    return { ...state, collect: spec.collect };
 }

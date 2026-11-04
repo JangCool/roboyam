@@ -64,5 +64,14 @@ export default {
         showOpenButton: 'Show "Open" button',
         openLabelKo: 'Button text (Korean)',
         openLabelEn: 'Button text (English)',
+        // Analytics collection settings history (mock — the server will send the same labelKey)
+        analyticsEnabled: 'Visit collection (all)',
+        visits: 'Visitors, page views, online now',
+        rawEvents: 'Raw visit records',
+        rawRetentionDays: 'Raw record retention',
+        referrers: 'Traffic sources',
+        flows: 'Navigation flows',
+        notificationSends: 'Notification send log',
+        boardActivity: 'Board activity totals',
     },
 };

@@ -1,6 +1,10 @@
 package com.community.mail.service;
 
+import com.community.analytics.aggregate.NotificationSendStats;
 import com.community.mail.entity.MailSettingEntity;
+import com.community.notification.channel.ChannelPostResult;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
 import com.community.mail.repository.master.MailSettingRepository;
 import com.community.zconfiguration.crypto.SecretEncryptor;
 import jakarta.mail.MessagingException;
@@ -38,11 +42,13 @@ public class MailDispatcher {
     private final MailSettingRepository settings;
     private final SecretEncryptor encryptor;
     private final MailSenderFactory factory;
+    private final NotificationSendStats sendStats;
 
-    public MailDispatcher(MailSettingRepository settings, SecretEncryptor encryptor, MailSenderFactory factory) {
+    public MailDispatcher(MailSettingRepository settings, SecretEncryptor encryptor, MailSenderFactory factory, NotificationSendStats sendStats) {
         this.settings = settings;
         this.encryptor = encryptor;
         this.factory = factory;
+        this.sendStats = sendStats;
     }
 
     /**
@@ -62,17 +68,38 @@ public class MailDispatcher {
      * @return 보냈으면 true, 메일 서버가 설정돼 있지 않아 보내지 못했으면 false
      */
     public boolean sendTagged(String to, String taggedSubject, String untaggedSubject, String html) {
+        // 알림 발송 기록(site-analytics-contract) — 한 통마다 성공·실패를 센다(설정 「알림 발송 기록」이 꺼져 있으면 세지 않는다). 수신자·본문은 넘기지 않는다
+        String failure;
+        try {
+            failure = attempt(to, taggedSubject, untaggedSubject, html);
+        } catch (MailAuthenticationException e) {
+            sendStats.failed(NotificationSendStats.EMAIL, ChannelPostResult.AUTH_FAILED, null);
+            throw e;
+        } catch (RuntimeException e) {
+            sendStats.failed(NotificationSendStats.EMAIL, e instanceof MailException ? ChannelPostResult.MAIL_FAILED : ChannelPostResult.ERROR, null);
+            throw e;
+        }
+        if (failure == null) {
+            sendStats.sent(NotificationSendStats.EMAIL);
+            return true;
+        }
+        sendStats.failed(NotificationSendStats.EMAIL, failure, null);
+        return false;
+    }
+
+    /** 보냈으면 null, 메일 서버 설정·키가 없어 보내지 못했으면 그 사유 코드({@link ChannelPostResult}). 연결·전송 실패는 던진다 */
+    private String attempt(String to, String taggedSubject, String untaggedSubject, String html) {
         Optional<MailSettingEntity> found = settings.findById(MailSettingEntity.ROW_ID);
         if (found.isEmpty()) {
             log.warn("메일 서버가 설정되지 않아 메일을 보내지 못했다 — 설치 마법사나 설정 화면에서 메일 서버를 등록해 주세요");
-            return false;
+            return ChannelPostResult.MAIL_NOT_CONFIGURED;
         }
         MailSettingEntity setting = found.get();
         String password = null;
         if (setting.getUsername() != null) {
             if (setting.getPasswordEnc() == null || !encryptor.isConfigured()) {
                 log.warn("메일 서버 비밀번호를 풀 수 없어 메일을 보내지 못했다 — 서버에 ROBOYAM_CRYPTO_KEY 가 있는지, 비밀번호가 저장돼 있는지 확인해 주세요");
-                return false;
+                return ChannelPostResult.CRYPTO_KEY_MISSING;
             }
             try {
                 password = encryptor.decrypt(setting.getPasswordEnc());
@@ -95,7 +122,7 @@ public class MailDispatcher {
             helper.setSubject(subject(headerText(setting.getSubjectPrefix()), taggedSubject, untaggedSubject));
             helper.setText(html, true);
             sender.send(message);
-            return true;
+            return null;
         } catch (MessagingException | UnsupportedEncodingException e) {
             throw new IllegalStateException("메일을 만들지 못했다"); // 수신자 주소를 담지 않는다
         }

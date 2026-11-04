@@ -53,7 +53,9 @@ public class SecurityConfig {
                         // 포트원 웹훅(서버 대 서버 — 브라우저 쿠키가 없다). 대신 Standard Webhooks 서명을 원본 바이트로 검증한다(commerce-payment-contract 결정 5)
                         .ignoringRequestMatchers(PaymentWebhookPaths.PORTONE)
                         // 공개 광고 노출·클릭 집계 — 화면이 sendBeacon 으로 보내 머리글을 못 붙인다. 셈만 늘고(하루 1번 거르기) 상태를 바꾸지 않는다(ad-contract 확정 2026-11-01)
-                        .ignoringRequestMatchers(PublicAdPaths.IMPRESSIONS, PublicAdPaths.CLICKS))
+                        .ignoringRequestMatchers(PublicAdPaths.IMPRESSIONS, PublicAdPaths.CLICKS)
+                        // 방문 신호 — 광고 집계와 같은 이유(sendBeacon). 통계 숫자만 늘고 상태를 바꾸지 않는다(site-analytics-contract)
+                        .ignoringRequestMatchers(PublicVisitPaths.VISITS))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 // 로그인 상태는 서버 세션(Spring Session JDBC)에 둔다 — 컨트롤러가 저장하고 필터가 요청마다 읽는다
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
@@ -118,6 +120,8 @@ public class SecurityConfig {
                         // 공개 광고(ad-contract 「공개 노출」) — 나가는 광고·노출 자리 설정 읽기와 노출·클릭 집계(CSRF 제외는 위). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.GET, "/api/ads", "/api/ads/placements").permitAll()
                         .requestMatchers(HttpMethod.POST, PublicAdPaths.IMPRESSIONS, PublicAdPaths.CLICKS).permitAll()
+                        // 방문 신호(site-analytics-contract) — 로그인 없이(CSRF 제외는 위). 공개 사이트 서버(api)에만 있는 주소
+                        .requestMatchers(HttpMethod.POST, PublicVisitPaths.VISITS).permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

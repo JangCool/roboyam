@@ -301,6 +301,8 @@ export default class UtilAdminMenu {
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
                 { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
+                // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(약관 다음)
+                { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'site.read' },
             ],
         },
         // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·로보얌)를 고르고,
