@@ -96,7 +96,7 @@ export default class UtilAdminMenu {
     static readonly ITEMS: readonly AdminMenuNode[] = [
         { key: 'dashboard', to: '/', icon: 'pi pi-home', labelKey: 'menu.dashboard' },
         // 방문자 통계 묶음(site-analytics-contract — 사용자 결정 2026-11-04, 그누보드 「방문자 통계」처럼 여러 쪽) — 모두 `site.read`. 수집 설정(`/settings/analytics`)은 설정 메뉴에 그대로 둔다.
-        // ⚠ 서버 `AdminScreenRegistry` 에 같은 키·주소·권한·아이콘·차례로 맞춘다(다음 단계). 지금은 목업 화면이다.
+        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례다(바꿀 때 함께).
         {
             key: 'visitStats',
             icon: 'pi pi-chart-line',
@@ -108,6 +108,12 @@ export default class UtilAdminMenu {
                 { key: 'visitFlows', to: '/analytics/visits/flows', icon: 'pi pi-sitemap', labelKey: 'menu.visitFlows', permission: 'site.read' },
                 { key: 'visitTime', to: '/analytics/visits/time', icon: 'pi pi-clock', labelKey: 'menu.visitTime', permission: 'site.read' },
                 { key: 'visitRealtime', to: '/analytics/visits/realtime', icon: 'pi pi-bolt', labelKey: 'menu.visitRealtime', permission: 'site.read' },
+                // 2단계(사용자 결정 2026-11-04)
+                { key: 'visitEnvironment', to: '/analytics/visits/environment', icon: 'pi pi-mobile', labelKey: 'menu.visitEnvironment', permission: 'site.read' },
+                { key: 'visitSearch', to: '/analytics/visits/search', icon: 'pi pi-search', labelKey: 'menu.visitSearch', permission: 'site.read' },
+                { key: 'visitBots', to: '/analytics/visits/bots', icon: 'pi pi-microchip-ai', labelKey: 'menu.visitBots', permission: 'site.read' },
+                { key: 'visitHealth', to: '/analytics/visits/health', icon: 'pi pi-wave-pulse', labelKey: 'menu.visitHealth', permission: 'site.read' },
+                { key: 'visitRequests', to: '/analytics/visits/requests', icon: 'pi pi-eraser', labelKey: 'menu.visitRequests', permission: 'site.read' },
             ],
         },
         // 회원 묶음 — 공개 사이트 이용자(회원)를 다룬다. 관리자 앱 계정(운영자)은 아래 `operatorsAndPermissions` 다.

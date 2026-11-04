@@ -41,7 +41,7 @@ export interface SiteInfoResponse {
     /** 공개 게시판 표시 기본값(날짜 표시 방식·새 글 기준) — 서버 `BoardDisplayView`. 옛 응답에는 없을 수 있다 */
     boardDisplay?: BoardDisplaySettings | null;
     /**
-     * 방문 수집 스위치(`{ enabled, visits, rawEvents, referrers, flows }` — `docs/features/site-analytics-contract.md` 「API (확정)」). 브라우저는 `enabled` 이고 하나라도 켜졌을 때만 방문 신호를 보낸다.
+     * 방문 수집 스위치(`{ enabled, visits, rawEvents, referrers, flows }` — `docs/features/site-analytics-contract.md` 「API (확정)」 + 2단계 `environment`(켜졌으면 세션 첫 페이지 신호에 `env`)). 브라우저는 `enabled` 이고 하나라도 켜졌을 때만 방문 신호를 보낸다.
      * 옛 응답에는 없다(없으면 보내지 않는다).
      */
     analytics?: VisitCollectSwitch | null;

@@ -65,6 +65,7 @@ import verify from './verify';
 import view from './view';
 import terms from './terms';
 import withdrawal from './withdrawal';
+import visitPrivacy from './visitPrivacy';
 
 export default {
     account,
@@ -124,4 +125,5 @@ export default {
     view,
     terms,
     withdrawal,
+    visitPrivacy,
 };

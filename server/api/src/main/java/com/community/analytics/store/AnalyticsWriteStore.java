@@ -1,6 +1,7 @@
 package com.community.analytics.store;
 
 import java.sql.PreparedStatement;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -80,8 +81,64 @@ public class AnalyticsWriteStore {
             + "SELECT t.d, t.s, t.m, t.c, t.n FROM unnest(?::date[], ?::text[], ?::text[], ?::text[], ?::bigint[]) AS t(d, s, m, c, n) ORDER BY t.d, t.s, t.m, t.c "
             + "ON CONFLICT (day, utm_source, utm_medium, utm_campaign) DO UPDATE SET visits = analytics_campaign_daily.visits + EXCLUDED.visits";
 
+    // ── 2단계(analytics V4) — 환경·검색어·봇·수집 진단 ───────────────────────────
+    // 모두 서버마다 자기 몫을 더하는 upsert 다(신호·요청 하나는 서버 한 대만 받는다 — 유입처·이동과 같은 근거). 키 차례로 넣어 서버끼리 잠그는 차례가 같다.
+
+    private static final String ENV = "INSERT INTO analytics_env_daily (day, device, browser, os, screen, visits) "
+            + "SELECT t.d, t.v, t.b, t.o, t.s, t.n FROM unnest(?::date[], ?::text[], ?::text[], ?::text[], ?::text[], ?::bigint[]) AS t(d, v, b, o, s, n) "
+            + "ORDER BY t.d, t.v, t.b, t.o, t.s "
+            + "ON CONFLICT (day, device, browser, os, screen) DO UPDATE SET visits = analytics_env_daily.visits + EXCLUDED.visits";
+
+    private static final String SEARCHES = "INSERT INTO analytics_search_daily (day, term, searches, no_result) "
+            + "SELECT t.d, t.t, t.n, t.z FROM unnest(?::date[], ?::text[], ?::bigint[], ?::bigint[]) AS t(d, t, n, z) ORDER BY t.d, t.t "
+            + "ON CONFLICT (day, term) DO UPDATE SET searches = analytics_search_daily.searches + EXCLUDED.searches, "
+            + "no_result = analytics_search_daily.no_result + EXCLUDED.no_result";
+
+    private static final String SEARCH_FILTERED = "INSERT INTO analytics_search_filtered_daily (day, searches) "
+            + "SELECT t.d, t.n FROM unnest(?::date[], ?::bigint[]) AS t(d, n) ORDER BY t.d "
+            + "ON CONFLICT (day) DO UPDATE SET searches = analytics_search_filtered_daily.searches + EXCLUDED.searches";
+
+    private static final String BOTS = "INSERT INTO analytics_bot_daily (day, kind, requests) "
+            + "SELECT t.d, t.k, t.n FROM unnest(?::date[], ?::text[], ?::bigint[]) AS t(d, k, n) ORDER BY t.d, t.k "
+            + "ON CONFLICT (day, kind) DO UPDATE SET requests = analytics_bot_daily.requests + EXCLUDED.requests";
+
+    /**
+     * 수집 진단 한 문장 — 「살아 있음」(서버별 마지막 기록 시각, 늦게 온 옛 시각이 덮지 않게 greatest) + 실패 줄 넣기 + 시간 칸 더하기.
+     * PostgreSQL 은 WITH 안의 쓰기 문장을 바깥에서 쓰지 않아도 한 번씩 실행한다. 칸 수는 서버 수와 같아 작다(서버 한 대가 한 줄씩).
+     */
+    private static final String DIAGNOSTICS = "WITH beat AS ("
+            + "  INSERT INTO analytics_collector_beats (instance, last_write_at) VALUES (?, ?)"
+            + "  ON CONFLICT (instance) DO UPDATE SET last_write_at = greatest(analytics_collector_beats.last_write_at, EXCLUDED.last_write_at)"
+            + "), fails AS ("
+            + "  INSERT INTO analytics_collector_failures (failed_at, instance, reason, detail)"
+            + "  SELECT t.f, ?, t.r, t.d FROM unnest(?::timestamptz[], ?::text[], ?::text[]) AS t(f, r, d)"
+            + ") "
+            + "INSERT INTO analytics_collector_hourly (hour, instance, flush_ok, flush_fail, dropped, ignored_bot, ignored_invalid) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            + "ON CONFLICT (hour, instance) DO UPDATE SET flush_ok = analytics_collector_hourly.flush_ok + EXCLUDED.flush_ok, "
+            + "flush_fail = analytics_collector_hourly.flush_fail + EXCLUDED.flush_fail, dropped = analytics_collector_hourly.dropped + EXCLUDED.dropped, "
+            + "ignored_bot = analytics_collector_hourly.ignored_bot + EXCLUDED.ignored_bot, "
+            + "ignored_invalid = analytics_collector_hourly.ignored_invalid + EXCLUDED.ignored_invalid";
+
     /** 캠페인 한 줄 — 그 날 · utm 세 칸(빈 칸 '') · 더할 방문 수 */
     public record CampaignRow(LocalDate day, String source, String medium, String campaign, long count) {
+    }
+
+    /** 환경 한 줄 — 그 날 · 기기 · 브라우저 · OS · 화면 구간 · 더할 방문 수 */
+    public record EnvRow(LocalDate day, String device, String browser, String os, String screen, long count) {
+    }
+
+    /** 검색어 한 줄 — 그 날 · 다듬은 검색어 · 더할 검색 수 · 그중 결과 없는 수 */
+    public record SearchRow(LocalDate day, String term, long searches, long noResult) {
+    }
+
+    /** 기록 실패 한 줄 — 사유 코드(DB_TIMEOUT · DB_UNAVAILABLE · CONSTRAINT · UNKNOWN) · 짧은 설명(예외 이름 — 개인 정보 없음) */
+    public record FailureRow(Instant at, String reason, String detail) {
+    }
+
+    /** 수집 진단의 1분 몫 */
+    public record Diagnostics(String instance, Instant at, Instant hour, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid,
+                              List<FailureRow> failures) {
     }
 
     /** 방문자 줄 — 그 날 · 방문자 키 · 이 1분에 처음 본 정시 · 신규 방문자 신호가 있었나 */
@@ -185,6 +242,83 @@ public class AnalyticsWriteStore {
             ps.setArray(3, SqlArrays.text(con, rows.stream().map(CampaignRow::medium).toList()));
             ps.setArray(4, SqlArrays.text(con, rows.stream().map(CampaignRow::campaign).toList()));
             ps.setArray(5, SqlArrays.text(con, rows.stream().map(CampaignRow::count).toList()));
+            return ps;
+        });
+    }
+
+    /** 환경 일별 더하기(한 문장) */
+    public void env(List<EnvRow> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(ENV);
+            ps.setArray(1, SqlArrays.text(con, rows.stream().map(EnvRow::day).toList()));
+            ps.setArray(2, SqlArrays.text(con, rows.stream().map(EnvRow::device).toList()));
+            ps.setArray(3, SqlArrays.text(con, rows.stream().map(EnvRow::browser).toList()));
+            ps.setArray(4, SqlArrays.text(con, rows.stream().map(EnvRow::os).toList()));
+            ps.setArray(5, SqlArrays.text(con, rows.stream().map(EnvRow::screen).toList()));
+            ps.setArray(6, SqlArrays.text(con, rows.stream().map(EnvRow::count).toList()));
+            return ps;
+        });
+    }
+
+    /** 검색어 일별 더하기(한 문장) + 걸러진 검색 수 일별 더하기(한 문장) — 한 트랜잭션에서 부른다 */
+    public void searches(List<SearchRow> rows, Map<LocalDate, Long> filtered) {
+        if (!rows.isEmpty()) {
+            jdbc.update(con -> {
+                PreparedStatement ps = con.prepareStatement(SEARCHES);
+                ps.setArray(1, SqlArrays.text(con, rows.stream().map(SearchRow::day).toList()));
+                ps.setArray(2, SqlArrays.text(con, rows.stream().map(SearchRow::term).toList()));
+                ps.setArray(3, SqlArrays.text(con, rows.stream().map(SearchRow::searches).toList()));
+                ps.setArray(4, SqlArrays.text(con, rows.stream().map(SearchRow::noResult).toList()));
+                return ps;
+            });
+        }
+        if (!filtered.isEmpty()) {
+            List<LocalDate> days = new ArrayList<>(filtered.keySet());
+            List<Long> counts = days.stream().map(filtered::get).toList();
+            jdbc.update(con -> {
+                PreparedStatement ps = con.prepareStatement(SEARCH_FILTERED);
+                ps.setArray(1, SqlArrays.text(con, days));
+                ps.setArray(2, SqlArrays.text(con, counts));
+                return ps;
+            });
+        }
+    }
+
+    /** 봇 요청 일별 더하기(한 문장) — {@link DailyRow#a()} = 종류, {@link DailyRow#b()} 는 쓰지 않는다 */
+    public void bots(List<DailyRow> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(BOTS);
+            ps.setArray(1, SqlArrays.text(con, rows.stream().map(DailyRow::day).toList()));
+            ps.setArray(2, SqlArrays.text(con, rows.stream().map(DailyRow::a).toList()));
+            ps.setArray(3, SqlArrays.text(con, rows.stream().map(DailyRow::count).toList()));
+            return ps;
+        });
+    }
+
+    /** 수집 진단(한 문장) — 신호가 없어도 1분마다 부른다(「살아 있음」) */
+    public void diagnostics(Diagnostics d) {
+        List<FailureRow> f = d.failures();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(DIAGNOSTICS);
+            ps.setString(1, d.instance());
+            ps.setTimestamp(2, Timestamp.from(d.at()));
+            ps.setString(3, d.instance());
+            ps.setArray(4, SqlArrays.text(con, f.stream().map(FailureRow::at).toList()));
+            ps.setArray(5, SqlArrays.text(con, f.stream().map(FailureRow::reason).toList()));
+            ps.setArray(6, SqlArrays.text(con, f.stream().map(FailureRow::detail).toList()));
+            ps.setTimestamp(7, Timestamp.from(d.hour()));
+            ps.setString(8, d.instance());
+            ps.setLong(9, d.flushOk());
+            ps.setLong(10, d.flushFail());
+            ps.setLong(11, d.dropped());
+            ps.setLong(12, d.ignoredBot());
+            ps.setLong(13, d.ignoredInvalid());
             return ps;
         });
     }

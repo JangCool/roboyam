@@ -20,17 +20,21 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 방문 신호 받기({@code POST /api/visits} — docs/features/site-analytics-contract.md 「API」). <b>DB 에 쓰지 않는다</b> — 검사·분류·해시만 하고 메모리 모음({@link VisitBuffer})에 넣는다.
- * 1분마다 {@link VisitFlusher} 가 몰아 쓴다.
+ * 방문 신호 받기({@code POST /api/visits} — docs/features/site-analytics-contract.md 「API」)와 2단계의 검색어·봇 세기. <b>DB 에 쓰지 않는다</b> — 검사·분류·해시만 하고
+ * 메모리 모음({@link VisitBuffer})에 넣는다. 1분마다 {@link VisitFlusher} 가 몰아 쓴다.
  *
  * <ul>
- *   <li>조용히 버리는 신호(응답은 늘 204): 설정이 꺼짐(방문 하위 항목이 하나도 동작하지 않음) · 봇·빈 User-Agent(광고 노출과 같은 정규식) · 형식 오류(본문 JSON·UUID·경로·종류) ·
- *       해시 키({@code ROBOYAM_INDEX_KEY}) 없음.</li>
+ *   <li>조용히 버리는 신호(응답은 늘 204): 설정이 꺼짐(방문 하위 항목이 하나도 동작하지 않음) · 봇·빈 User-Agent({@link BotClassifier}) · 형식 오류(본문 JSON·UUID·경로·종류) ·
+ *       해시 키({@code ROBOYAM_INDEX_KEY}) 없음. 설정이 켜진 동안 봇·형식 오류로 버린 신호는 수집 진단용으로 센다(내용은 남기지 않는다).</li>
  *   <li>방문자·세션 키 = {@link BlindIndex} HMAC(용도 {@code analytics.visitor}·{@code analytics.session}, <b>날짜를 섞지 않는다</b> — 같은 브라우저는 날이 바뀌어도 같은 키라
  *       신규·재방문을 가를 수 있다). 원본 UUID·IP·원본 User-Agent 는 남기지 않는다.</li>
  *   <li>켜진 항목만 모은다: 방문자·페이지뷰·지금 접속({@code visits}) · 원본 + 페이지별 일별 조회({@code rawEvents}) · 유입처 + 캠페인 utm 묶음(세션 첫 페이지 = {@code prevPath} 없음,
- *       {@code referrers}) · 이동(직전 → 이번, 같은 경로 다시 보기는 빼고 — 세션 첫 페이지는 직전 {@code ""} 「바로 들어옴」, {@code flows}).</li>
- *   <li>유입처: {@code utm_*} 가 있으면 CAMPAIGN, 주소가 없으면 DIRECT, 그 밖은 도메인만 남기고 분류({@link ReferrerClassifier}). 기기: User-Agent 에서 MOBILE/DESKTOP 만.</li>
+ *       {@code referrers}) · 이동(직전 → 이번, 같은 경로 다시 보기는 빼고 — 세션 첫 페이지는 직전 {@code ""} 「바로 들어옴」, {@code flows}) ·
+ *       환경(세션 첫 페이지의 {@code env} 분류값 + 서버가 UA 로 가른 기기, {@code environment}).</li>
+ *   <li>유입처: {@code utm_*} 가 있으면 CAMPAIGN, 주소가 없으면 DIRECT, 그 밖은 도메인만 남기고 분류({@link ReferrerClassifier}). 원본의 기기: User-Agent 에서 MOBILE/DESKTOP 만(1단계 그대로).</li>
+ *   <li>환경의 기기: MOBILE · TABLET · DESKTOP — UA 로 가르고, 맥 UA 인데 브라우저가 iOS 라고 분류했으면(iPadOS 13 뒤의 아이패드) TABLET.
+ *       {@code env} 의 브라우저·OS 가 허용 목록 밖이면 OTHER, 화면 구간이 목록 밖이거나 {@code env} 가 객체가 아니면 환경만 세지 않는다(신호의 나머지는 그대로).</li>
+ *   <li>검색어({@link #countSearch}) · 봇({@link #countBotPage}) — 신호가 아니라 그 요청을 받는 곳(검색 API · 화면 HTML 필터)이 부른다. 같은 모음·같은 1분 몰아쓰기.</li>
  *   <li>날짜·시간 칸은 서버가 받은 시각(한국 날짜, 정시) — 브라우저 시계를 믿지 않는다.</li>
  * </ul>
  */
@@ -46,15 +50,30 @@ public class VisitCollector {
     public static final int BODY_MAX = 4096;
     static final int PATH_MAX = 300;
     static final int UTM_MAX = 100;
-    private static final int UA_MAX = 512;
 
     static final Set<String> KINDS = Set.of("HOME", "BOARD", "POST", "GROUP_BUY", "HOTDEAL", "GROUP", "POINT_SHOP", "SEARCH", "MY", "OTHER");
+    /** 환경 분류값 — user-web {@code @roboyam/analytics} 의 {@code util-visit-env.ts} · admin-web {@code useVisitAnalyticsApi.types.ts} 와 같은 값 */
+    static final Set<String> BROWSERS = Set.of("CHROME", "SAFARI", "EDGE", "SAMSUNG", "WHALE", "FIREFOX", "OTHER");
+    static final Set<String> OSES = Set.of("WINDOWS", "MACOS", "ANDROID", "IOS", "LINUX", "OTHER");
+    static final Set<String> SCREENS = Set.of("W480", "W768", "W1024", "W1440", "WIDE");
 
-    /** 세지 않는 User-Agent — 광고 노출 집계(PublicAdService.BOT)와 같은 목록이다. 한쪽을 고치면 같이 고친다 */
-    private static final Pattern BOT = Pattern.compile("(?i)(bot|crawl|spider|slurp|scrap|facebookexternalhit|embedly|preview|headless|phantomjs|lighthouse|pingdom|uptime"
-            + "|monitor|curl|wget|python|java/|go-http|okhttp|axios|node-fetch|httpclient|libwww|postman|insomnia)");
+    /** 검색어 저장 길이(글자 — 코드 포인트) */
+    static final int TERM_MIN = 2;
+    static final int TERM_MAX = 50;
+
     private static final Pattern MOBILE = Pattern.compile("(?i)(mobi|android|iphone|ipad|ipod|windows phone|blackberry|opera mini|silk/)");
+    private static final Pattern TABLET = Pattern.compile("(?i)(ipad|tablet|kindle|silk/|playbook)");
+    private static final Pattern PHONE_LIKE = Pattern.compile("(?i)(iphone|ipod|windows phone|blackberry|opera mini|mobi)");
+    private static final Pattern ANDROID = Pattern.compile("(?i)android");
+    private static final Pattern MAC = Pattern.compile("(?i)macintosh");
     private static final Pattern CONTROL = Pattern.compile("[\\p{Cntrl}\\s]");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
+    /** 공백을 한 칸으로 줄인 뒤에도 제어 문자가 남은 검색어(남기지 않는다) */
+    private static final Pattern CONTROL_ONLY = Pattern.compile("\\p{Cntrl}");
+    /** 저장하지 않는 검색어 모양 — 이메일 · 전화번호(국내 휴대·지역 번호, +82) · 주민등록번호 */
+    private static final Pattern EMAIL = Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
+    private static final Pattern PHONE = Pattern.compile("(?<!\\d)(?:\\+?82[-.\\s]?|0)\\d{1,2}[-.\\s)]?\\d{3,4}[-.\\s]?\\d{4}(?!\\d)");
+    private static final Pattern RRN = Pattern.compile("(?<!\\d)\\d{6}[-\\s]?[1-8]\\d{6}(?!\\d)");
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final StatsCollectionSettings settings;
@@ -81,20 +100,30 @@ public class VisitCollector {
      */
     public boolean accept(String body, String userAgent, String ownHost) {
         StatsCollection s = settings.current();
-        if (!s.anyVisitOn() || body == null || body.isEmpty() || body.length() > BODY_MAX || !index.isConfigured()) {
+        if (!s.anyVisitOn()) {
+            return false;
+        }
+        if (body == null || body.isEmpty() || body.length() > BODY_MAX) {
+            buffer.ignoredInvalid();
+            return false;
+        }
+        if (!index.isConfigured()) {
             return false;
         }
         String ua = userAgent == null ? "" : userAgent.strip();
-        if (ua.isEmpty() || BOT.matcher(ua.length() > UA_MAX ? ua.substring(0, UA_MAX) : ua).find()) {
+        if (BotClassifier.isBot(ua)) {
+            buffer.ignoredBot();
             return false;
         }
         JsonNode root;
         try {
             root = MAPPER.readTree(body);
         } catch (RuntimeException e) {
+            buffer.ignoredInvalid();
             return false;
         }
         if (root == null || !root.isObject()) {
+            buffer.ignoredInvalid();
             return false;
         }
         UUID visitorId = uuid(root.get("visitorId"));
@@ -102,6 +131,7 @@ public class VisitCollector {
         String path = path(root.get("path"));
         String kind = text(root.get("kind"), 20);
         if (visitorId == null || sessionId == null || path == null || kind == null || !KINDS.contains(kind)) {
+            buffer.ignoredInvalid();
             return false;
         }
         String prevPath = path(root.get("prevPath"));
@@ -150,7 +180,88 @@ public class VisitCollector {
         if (s.flowsOn() && (prevPath == null || !prevPath.equals(path))) {
             buffer.flow(day, prevPath == null ? "" : prevPath, path);
         }
+        // 환경(2단계) — 방문(세션 첫 페이지) 기준. 브라우저는 세션 첫 페이지에만 env 를 싣는다
+        if (s.environmentOn() && sessionStart) {
+            JsonNode env = root.get("env");
+            if (env != null && env.isObject()) {
+                String screen = text(env.get("screen"), 10);
+                if (screen != null && SCREENS.contains(screen)) {
+                    String browser = allowed(text(env.get("browser"), 10), BROWSERS);
+                    String os = allowed(text(env.get("os"), 10), OSES);
+                    buffer.env(day, device(ua, os), browser, os, screen);
+                }
+            }
+        }
         return true;
+    }
+
+    /**
+     * 사이트 검색 한 번(검색 API 의 첫 쪽 응답 뒤 — 쪽 넘김·커서 더보기는 부르지 않는다). 검색어 수집이 꺼졌거나 봇이면 세지 않는다.
+     * 다듬기(앞뒤 공백·연속 공백 한 칸·영문 소문자) 뒤 {@value #TERM_MIN}자 미만 · {@value #TERM_MAX}자 초과 · 이메일·전화번호·주민등록번호 모양은 검색어를 남기지 않고 「걸러진 검색」만 센다.
+     *
+     * @param query     요청의 검색어 원문
+     * @param noResult  결과가 0건이었나
+     * @param userAgent User-Agent 머리글
+     */
+    public void countSearch(String query, boolean noResult, String userAgent) {
+        if (!settings.current().searchTermsOn() || query == null || BotClassifier.isBot(userAgent)) {
+            return;
+        }
+        LocalDate day = ServiceTime.dateOf(Instant.now());
+        String term = normalizeTerm(query);
+        if (term == null) {
+            buffer.searchFiltered(day);
+            return;
+        }
+        buffer.search(day, term, noResult);
+    }
+
+    /**
+     * 화면 HTML 요청 한 번(공개 사이트 서버가 SPA 주소에 머리를 채운 {@code index.html} 을 내릴 때) — 봇 UA 면 종류별로 센다. 봇 수집이 꺼졌거나 사람이면 아무것도 하지 않는다.
+     * 한 화면 요청 = 1(화면이 그 뒤에 부르는 {@code /api/**} 는 세지 않는다 — 요청 하나가 여러 API 를 불러도 한 번).
+     */
+    public void countBotPage(String userAgent) {
+        if (!settings.current().botsOn()) {
+            return;
+        }
+        String kind = BotClassifier.kind(userAgent);
+        if (kind != null) {
+            buffer.bot(ServiceTime.dateOf(Instant.now()), kind);
+        }
+    }
+
+    /** 저장할 검색어 — 다듬은 뒤 길이·개인정보 모양에 걸리면 null */
+    static String normalizeTerm(String query) {
+        String term = WHITESPACE.matcher(query).replaceAll(" ").strip().toLowerCase(Locale.ROOT);
+        int length = term.codePointCount(0, term.length());
+        if (length < TERM_MIN || length > TERM_MAX || CONTROL_ONLY.matcher(term).find()) {
+            return null;
+        }
+        if (EMAIL.matcher(term).find() || PHONE.matcher(term).find() || RRN.matcher(term).find()) {
+            return null;
+        }
+        return term;
+    }
+
+    /** 환경의 기기 — MOBILE · TABLET · DESKTOP */
+    static String device(String ua, String os) {
+        if (TABLET.matcher(ua).find()) {
+            return "TABLET";
+        }
+        if (ANDROID.matcher(ua).find() && !PHONE_LIKE.matcher(ua).find()) {
+            return "TABLET"; // 안드로이드 태블릿은 UA 에 Mobile 이 없다
+        }
+        if (MOBILE.matcher(ua).find()) {
+            return "MOBILE";
+        }
+        if ("IOS".equals(os) && MAC.matcher(ua).find()) {
+            return "TABLET"; // iPadOS 13 뒤 아이패드는 맥 UA — 브라우저가 터치 점 수로 iOS 라고 분류했다
+        }
+        return "DESKTOP";
+    }
+
+    private static String allowed(String value, Set<String> values) {
+        return value != null && values.contains(value) ? value : "OTHER";
     }
 
     private static UUID uuid(JsonNode node) {

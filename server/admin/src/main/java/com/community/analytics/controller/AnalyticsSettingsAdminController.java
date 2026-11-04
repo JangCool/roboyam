@@ -35,7 +35,7 @@ public class AnalyticsSettingsAdminController {
         return ok(service.get());
     }
 
-    /** 저장 — 여덟 칸 모두, 틀리면 400 {@code fields.<칸>}(보관 일수 {@code fields.rawRetentionDays}), 감사 {@code STATS_COLLECTION_UPDATE}. 같은 값이면 이력·감사 없음 */
+    /** 저장 — 1단계 여덟 칸 모두(2단계 세 칸 environment·searchTerms·bots 는 비면 그대로), 틀리면 400 {@code fields.<칸>}(보관 일수 {@code fields.rawRetentionDays}), 감사 {@code STATS_COLLECTION_UPDATE}. 같은 값이면 이력·감사 없음 */
     @RequirePermission(Permission.SITE_MANAGE)
     @PutMapping
     public ResponseEntity<ApiResponse<AnalyticsSettingsAdmin.View>> save(@RequestBody(required = false) AnalyticsSettingsAdmin.Save body, AdminActor actor) {

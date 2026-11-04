@@ -25,8 +25,8 @@ public class StatsCollectionStore {
     public record HistoryRow(long id, String action, String source, Long operatorId, String operatorName, Instant changedAt, String changesJson) {
     }
 
-    private static final String COLUMNS = "s.enabled, s.visits, s.raw_events, s.raw_retention_days, s.referrers, s.flows, s.notification_sends, s.board_activity, "
-            + "s.updated_at, s.updated_by";
+    private static final String COLUMNS = "s.enabled, s.visits, s.raw_events, s.raw_retention_days, s.referrers, s.flows, s.environment, s.search_terms, s.bots, "
+            + "s.notification_sends, s.board_activity, s.updated_at, s.updated_by";
 
     private final JdbcTemplate jdbc;
 
@@ -45,13 +45,14 @@ public class StatsCollectionStore {
     }
 
     public void save(StatsCollection v, long operatorId, Instant now) {
-        jdbc.update("INSERT INTO stats_collection_settings (id, enabled, visits, raw_events, raw_retention_days, referrers, flows, notification_sends, board_activity, "
-                        + "updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET enabled = EXCLUDED.enabled, visits = EXCLUDED.visits, "
-                        + "raw_events = EXCLUDED.raw_events, raw_retention_days = EXCLUDED.raw_retention_days, referrers = EXCLUDED.referrers, flows = EXCLUDED.flows, "
-                        + "notification_sends = EXCLUDED.notification_sends, board_activity = EXCLUDED.board_activity, updated_at = EXCLUDED.updated_at, "
+        jdbc.update("INSERT INTO stats_collection_settings (id, enabled, visits, raw_events, raw_retention_days, referrers, flows, environment, search_terms, bots, "
+                        + "notification_sends, board_activity, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET "
+                        + "enabled = EXCLUDED.enabled, visits = EXCLUDED.visits, raw_events = EXCLUDED.raw_events, raw_retention_days = EXCLUDED.raw_retention_days, "
+                        + "referrers = EXCLUDED.referrers, flows = EXCLUDED.flows, environment = EXCLUDED.environment, search_terms = EXCLUDED.search_terms, "
+                        + "bots = EXCLUDED.bots, notification_sends = EXCLUDED.notification_sends, board_activity = EXCLUDED.board_activity, updated_at = EXCLUDED.updated_at, "
                         + "updated_by = EXCLUDED.updated_by",
-                v.enabled(), v.visits(), v.rawEvents(), v.rawRetentionDays(), v.referrers(), v.flows(), v.notificationSends(), v.boardActivity(), Timestamp.from(now),
-                operatorId);
+                v.enabled(), v.visits(), v.rawEvents(), v.rawRetentionDays(), v.referrers(), v.flows(), v.environment(), v.searchTerms(), v.bots(), v.notificationSends(),
+                v.boardActivity(), Timestamp.from(now), operatorId);
     }
 
     public void addHistory(long id, long operatorId, Instant changedAt, String changesJson) {
@@ -77,7 +78,7 @@ public class StatsCollectionStore {
         int days = rs.getInt("raw_retention_days");
         StatsCollection v = new StatsCollection(rs.getBoolean("enabled"), rs.getBoolean("visits"), rs.getBoolean("raw_events"),
                 StatsCollection.RETENTION_DAYS.contains(days) ? days : StatsCollection.DEFAULT_RETENTION_DAYS, rs.getBoolean("referrers"), rs.getBoolean("flows"),
-                rs.getBoolean("notification_sends"), rs.getBoolean("board_activity"));
+                rs.getBoolean("environment"), rs.getBoolean("search_terms"), rs.getBoolean("bots"), rs.getBoolean("notification_sends"), rs.getBoolean("board_activity"));
         Timestamp at = rs.getTimestamp("updated_at");
         return new Stored(v, at == null ? null : at.toInstant(), rs.getObject("updated_by", Long.class), operatorName);
     }

@@ -3,6 +3,7 @@
  * 신호 모양은 서버 계약 그대로다(`docs/features/site-analytics-contract.md` 「API (확정)」 — 공개 `POST /api/visits`).
  * 이 파일은 `vue`·Nuxt 자동 임포트를 쓰지 않는다.
  */
+import type { VisitEnv } from './util-visit-env';
 
 /** 화면 종류 — 서버가 인기 페이지 묶음·제목 찾기에 쓴다. 어느 주소가 어느 종류인지는 앱이 정한다(라우트를 아는 쪽) */
 export const VISIT_KINDS = ['HOME', 'BOARD', 'POST', 'GROUP_BUY', 'HOTDEAL', 'GROUP', 'POINT_SHOP', 'SEARCH', 'MY', 'OTHER'] as const;
@@ -33,6 +34,11 @@ export interface VisitSignal {
     utm: VisitUtm | null;
     /** 이 방문자 ID 를 이번에 처음 만들었다(그 방문의 첫 신호만 true) */
     newVisitor: boolean;
+    /**
+     * 환경 분류값(브라우저·OS·화면 너비 구간 — `util-visit-env.ts`) — **세션 첫 페이지**이고 환경 수집(`environment`)이 켜졌을 때만, 아니면 null.
+     * 2단계 — 서버는 브라우저·OS 가 허용 목록 밖이면 OTHER, 화면 구간이 목록 밖이면 환경만 세지 않는다. 원본 UA 는 싣지 않는다.
+     */
+    env: VisitEnv | null;
 }
 
 /**
@@ -45,6 +51,8 @@ export interface VisitCollectSwitch {
     rawEvents: boolean;
     referrers: boolean;
     flows: boolean;
+    /** 환경(2단계) — 켜졌으면 세션 첫 페이지 신호에 `env` 를 싣는다. 옛 서버에는 칸이 없다(false) */
+    environment: boolean;
 }
 
 /** 경로·유입 주소 길이 상한(글자) — 서버 계약 `path ≤300` */
@@ -98,16 +106,17 @@ export default class UtilVisitSignal {
             rawEvents: raw.rawEvents === true,
             referrers: raw.referrers === true,
             flows: raw.flows === true,
+            environment: raw.environment === true,
         };
     }
 
     /**
-     * 신호를 보낼까 — 방문 수집 전체가 켜졌고 방문 항목(방문자·원본·유입·흐름) 하나라도 켜졌을 때.
+     * 신호를 보낼까 — 방문 수집 전체가 켜졌고 방문 항목(방문자·원본·유입·흐름·환경) 하나라도 켜졌을 때. 이용자가 거부한 브라우저인지는 `UtilVisitStore.optedOut` 이 따로 본다.
      * @param {VisitCollectSwitch | null | undefined} sw - 스위치(모르면 null).
      * @returns {boolean} 보내면 true.
      */
     static isCollecting(sw: VisitCollectSwitch | null | undefined): boolean {
-        return !!sw && sw.enabled && (sw.visits || sw.rawEvents || sw.referrers || sw.flows);
+        return !!sw && sw.enabled && (sw.visits || sw.rawEvents || sw.referrers || sw.flows || sw.environment);
     }
 
     /**
