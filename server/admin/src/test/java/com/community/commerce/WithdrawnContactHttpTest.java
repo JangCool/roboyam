@@ -41,7 +41,8 @@ class WithdrawnContactHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 상태는_member_read_로_보고_이메일은_싣지_않는다() throws Exception {
-        Instant lastTx = Instant.parse("2026-03-10T15:30:00Z"); // 한국 시간 3월 11일 00:30 — 파기 예정일은 서비스 날짜 기준
+        // 한국 시간 2026-03-11 00:30 — 파기 예정일은 서비스 날짜 기준, 마지막 거래 시각 + 5년(커머스 17-3, 2026-11-04)
+        Instant lastTx = Instant.parse("2026-03-10T15:30:00Z");
         long member = withdrawnWithContact("left.someone@example.com", lastTx);
         Cookie reader = login(operatorWith(Permission.MEMBER_READ));
 

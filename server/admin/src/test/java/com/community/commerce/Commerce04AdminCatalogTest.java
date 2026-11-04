@@ -39,7 +39,8 @@ class Commerce04AdminCatalogTest {
         assertThat(permission.unit()).isEqualTo(PermissionUnit.SENSITIVE);
         assertThat(permission.featureReady()).isTrue();
         assertThat(permission.ordinal()).isEqualTo(Permission.MEMBER_PII.ordinal() + 1);
-        assertThat(Permission.candidatesOf(PermissionType.MEMBER_VIEW)).containsExactly(Permission.MEMBER_READ, Permission.MEMBER_PII, Permission.MEMBER_WITHDRAWN_CONTACT);
+        // 강제 탈퇴·대리 취소 권한(member.withdraw, 2026-11-04)이 연락처 권한 바로 다음에 붙는다
+        assertThat(Permission.candidatesOf(PermissionType.MEMBER_VIEW)).containsExactly(Permission.MEMBER_READ, Permission.MEMBER_PII, Permission.MEMBER_WITHDRAWN_CONTACT, Permission.MEMBER_WITHDRAW);
     }
 
     @Test
