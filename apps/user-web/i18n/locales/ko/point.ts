@@ -85,6 +85,7 @@ export default {
     calLoading: '출석 달력을 불러오는 중',
     calLoadFailed: '출석 달력을 불러오지 못했어요',
     calDay: '{month}월 {day}일',
+    calDayHoliday: '{date}({names})',
     calDayAttended: '{date} 출석함',
     calDayToday: '{label} · 오늘',
     calLegend: '파란 칸은 출석한 날, 굵은 테두리는 오늘이에요.',

@@ -72,6 +72,7 @@ import drawerSummary from './drawerSummary';
 import docIntake from './docIntake';
 import hotdeal from './hotdeal';
 import visitAnalytics from './visitAnalytics';
+import holiday from './holiday';
 
 export default {
     account,
@@ -141,4 +142,5 @@ export default {
     docIntake,
     hotdeal,
     visitAnalytics,
+    holiday,
 };

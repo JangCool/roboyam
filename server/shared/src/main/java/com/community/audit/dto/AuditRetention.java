@@ -164,6 +164,9 @@ public final class AuditRetention {
             AuditActions.ADDRESS_SEARCH_SETTINGS_UPDATE, AuditActions.ADDRESS_DB_IMPORT,
             // 공공데이터포털 서비스 키 저장·지우기(business-contract) — 일반 운영(돈이 움직이지 않는 조회 키)
             AuditActions.PUBLIC_DATA_SETTINGS_UPDATE, AuditActions.PUBLIC_DATA_SETTINGS_DELETE,
+            // 공공데이터 API 주소 · 사이트 쉬는 날(회사 휴무일 더하기·지우기 · 공휴일 지금 받기) — 일반 운영(돈이 움직이지 않는다 — 이미 정한 기한·굳힌 지급일은 다시 계산하지 않는다)
+            AuditActions.PUBLIC_DATA_ENDPOINT_UPDATE, AuditActions.PUBLIC_DATA_ENDPOINT_RESET, AuditActions.SITE_HOLIDAY_CREATE, AuditActions.SITE_HOLIDAY_DELETE,
+            AuditActions.SITE_HOLIDAY_SYNC,
             // 사업자 신원 심사(business-contract) — 승인·반려·정지·해제·국세청 조회(표에 빠져 있던 것을 더함)
             AuditActions.BUSINESS_APPROVE, AuditActions.BUSINESS_REJECT, AuditActions.BUSINESS_SUSPEND, AuditActions.BUSINESS_UNSUSPEND, AuditActions.BUSINESS_SERVICE_SUSPEND, AuditActions.BUSINESS_SERVICE_RESUME, AuditActions.BUSINESS_NTS_CHECK,
             AuditActions.BUSINESS_NTS_OVERRIDE, AuditActions.BUSINESS_DELETE,

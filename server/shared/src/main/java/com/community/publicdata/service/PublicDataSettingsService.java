@@ -58,9 +58,11 @@ public class PublicDataSettingsService {
     private final OdcloudNtsApi odcloud;
     private final AuditLogService audit;
     private final Clock clock;
+    private final PublicDataEndpointService endpoints;
 
     public PublicDataSettingsService(PublicDataSettingStore store, SecretEncryptor encryptor, NtsProperties nts, OdcloudNtsApi odcloud, AuditLogService audit,
-                                     ObjectProvider<Clock> clocks) {
+                                     ObjectProvider<Clock> clocks, PublicDataEndpointService endpoints) {
+        this.endpoints = endpoints;
         this.store = store;
         this.encryptor = encryptor;
         this.nts = nts;
@@ -74,6 +76,13 @@ public class PublicDataSettingsService {
      * 결과를 응답·로그에 싣지 않는다.
      */
     public String ntsServiceKey() {
+        return serviceKey();
+    }
+
+    /**
+     * 공공데이터포털 일반 인증키 하나 — 국세청 조회와 특일 정보(공휴일 받기 {@code HolidaySyncService})가 같이 쓴다(활용 신청은 API 마다 따로, 키는 같다). 읽는 차례는 {@link #ntsServiceKey} 와 같다.
+     */
+    public String serviceKey() {
         String screen = screenKey().orElse(null);
         if (screen != null) {
             return screen;
@@ -87,7 +96,7 @@ public class PublicDataSettingsService {
         PublicDataSettingsView.Source source = row != null && row.configured() ? PublicDataSettingsView.Source.SCREEN
                 : envKey() != null ? PublicDataSettingsView.Source.ENV : PublicDataSettingsView.Source.NONE;
         PublicDataSettingsView.KeyState key = new PublicDataSettingsView.KeyState(source, row == null ? null : row.updatedAt(), row == null ? null : row.updatedByName());
-        return new PublicDataSettingsView(nts.provider(), encryptor.isConfigured(), key, test(row));
+        return new PublicDataSettingsView(nts.provider(), encryptor.isConfigured(), key, test(row), endpoints.view());
     }
 
     /**

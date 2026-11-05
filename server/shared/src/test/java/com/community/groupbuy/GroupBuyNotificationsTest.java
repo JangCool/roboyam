@@ -261,8 +261,12 @@ class GroupBuyNotificationsTest {
         while (holiday.getDayOfWeek() == DayOfWeek.SATURDAY || holiday.getDayOfWeek() == DayOfWeek.SUNDAY) {
             holiday = holiday.minusDays(1);
         }
-        List<LocalDate> holidays = List.of(holiday);
-        kit.jdbc.update("UPDATE group_buy_settings SET holidays = ARRAY[?::date] WHERE id = 1", holiday.toString());
+        // 쉬는 날 = 사이트 휴일 표 하나(V150) — 회사 휴무일 한 줄을 더하고, 셈은 표 전체(기본값 공휴일 포함)로 한다
+        kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES (?::date, '시험 회사 휴무일', 'OPERATOR') ON CONFLICT DO NOTHING", holiday.toString());
+        LocalDate added = holiday;
+        com.community.holiday.service.BusinessDayCalendar holidays = kit.groupStore.settings().calendar();
+        com.community.holiday.service.BusinessDayCalendar without = com.community.holiday.service.BusinessDayCalendar.of(
+                holidays.holidays().stream().filter(d -> !d.equals(added)).toList());
         try {
             long gb = kit.spec(kit.policy(3_000, null, 3_000, "ONE_WAY")).open();
             long m = kit.newMember();
@@ -275,7 +279,7 @@ class GroupBuyNotificationsTest {
             while (GroupBuyBusinessDays.elapsed(start, today, holidays) < 2) {
                 start = start.minusDays(1);
             }
-            assertThat(GroupBuyBusinessDays.elapsed(start, today, List.of())).as("휴일이 없으면 하루 더 센다").isGreaterThan(2);
+            assertThat(GroupBuyBusinessDays.elapsed(start, today, without)).as("그 휴일이 없으면 하루 더 센다").isGreaterThan(2);
             backdate(created.requestId(), start);
             kit.operatorNotices.clear();
             kit.operatorContexts.clear();
@@ -295,7 +299,7 @@ class GroupBuyNotificationsTest {
             assertThat(levels()).as("3영업일 — 심각 한 번 더").containsExactly(NotificationSeverity.WARNING, NotificationSeverity.CRITICAL);
             assertThat(kit.jdbc.queryForObject("SELECT deadline_alert_level FROM group_buy_requests WHERE id = ?", String.class, created.requestId())).isEqualTo("CRITICAL");
         } finally {
-            kit.jdbc.update("UPDATE group_buy_settings SET holidays = '{}' WHERE id = 1");
+            kit.jdbc.update("DELETE FROM site_holidays WHERE source = 'OPERATOR' AND name = '시험 회사 휴무일'");
         }
     }
 

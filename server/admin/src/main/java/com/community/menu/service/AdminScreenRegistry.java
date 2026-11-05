@@ -165,6 +165,9 @@ public final class AdminScreenRegistry {
                     leaf(s("publicData", "/settings/public-data", "menu.publicData", "pi pi-database", Permission.SITE_READ)),
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
                     leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
+                    // 휴일 관리(사이트 쉬는 날 표 하나 — 공공데이터 공휴일·회사 휴무일, 사용자 지시 2026-11-05) — 조회 site.read, 회사 휴무일 더하기·지우기·지금 받기는 화면 안에서 site.manage.
+                    // admin-web util-admin-menu 와 같은 키·주소·문구 키·아이콘·권한·차례(로그인 보안 다음)
+                    leaf(s("holidays", "/settings/holidays", "menu.holidays", "pi pi-calendar", Permission.SITE_READ)),
                     // 주소 검색(address-search-contract) — 우편번호 찾기 제공처·자체 주소 DB 올리기. 조회 site.read, 저장·올리기는 화면 안에서 site.manage
                     leaf(s("addressSearch", "/settings/address", "menu.addressSearch", "pi pi-map-marker", Permission.SITE_READ)),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ)),

@@ -74,7 +74,7 @@ public class GroupBuySupplyService {
             Instant now = now();
             GroupBuyRow g = groups.find(groupBuyId).orElseThrow(GroupBuyException::notFound);
             groups.skus(groupBuyId).stream().filter(s -> s.id() == skuId).findFirst().orElseThrow(GroupBuyException::notFound);
-            Instant until = GroupBuyBusinessDays.endOfBusinessDays(now, groups.settings().supplyChoiceBusinessDays(), groups.settings().holidays());
+            Instant until = GroupBuyBusinessDays.endOfBusinessDays(now, groups.settings().supplyChoiceBusinessDays(), groups.settings().calendar());
             try {
                 requests.insertSupplyFailure(failureId, g.id(), skuId, why, until, operatorId, now);
             } catch (org.springframework.dao.DuplicateKeyException e) {

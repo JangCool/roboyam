@@ -201,10 +201,8 @@ export default {
     gbRange: '{min}–{max} · default {def}',
     gbOutOfRange: 'Enter a number from {min} to {max}.',
     gbOff: 'Off',
-    gbHolidays: 'Holidays',
-    gbHolidaysHelp: 'Days off besides weekends. Used for handling deadlines (2/3 business day alerts) and ship deadlines. Add public holidays yourself.',
-    gbNoHolidays: 'No holidays added.',
-    gbHolidayAdd: 'Add holiday',
+    gbHolidaysMoved: 'Days off are set in Holidays.',
+    gbHolidaysLink: 'Go to Holidays',
     gbSaved: 'Group buy settings saved.',
     gbLoadFailed: 'Could not load group buy settings.',
 };

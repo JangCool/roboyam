@@ -1,5 +1,6 @@
 package com.community.groupbuy.feedback;
 
+import com.community.holiday.service.BusinessDayCalendar;
 import com.community.audit.dto.AuditActions;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.exception.GroupBuyException;
@@ -227,7 +228,7 @@ public class GroupBuyQnaService {
     private record AdminRow(FeedbackView.QnaRow row, String body) {
     }
 
-    private AdminRow adminRow(ResultSet rs, List<LocalDate> holidays, LocalDate today) throws SQLException {
+    private AdminRow adminRow(ResultSet rs, BusinessDayCalendar holidays, LocalDate today) throws SQLException {
         long userId = rs.getLong(5);
         boolean gone = rs.getBoolean(7);
         String body = rs.getString(8);
@@ -276,7 +277,7 @@ public class GroupBuyQnaService {
             }
         }
         String order = "OPEN".equals(t) ? " ORDER BY q.created_at, q.id" : " ORDER BY q.created_at DESC, q.id DESC";
-        List<LocalDate> holidays = groups.settings().holidays();
+        BusinessDayCalendar holidays = groups.settings().calendar();
         LocalDate today = ServiceTime.today(clock());
         int s = Math.min(Math.max(size, 1), 100);
         int p = Math.max(0, page);
@@ -306,7 +307,7 @@ public class GroupBuyQnaService {
     }
 
     private FeedbackView.QnaDetail detail(long id) {
-        List<LocalDate> holidays = groups.settings().holidays();
+        BusinessDayCalendar holidays = groups.settings().calendar();
         LocalDate today = ServiceTime.today(clock());
         AdminRow a = jdbc.query(ADMIN_SELECT + "WHERE q.id = ?", (rs, i) -> adminRow(rs, holidays, today), id).stream().findFirst()
                 .orElseThrow(FeedbackException::questionNotFound);

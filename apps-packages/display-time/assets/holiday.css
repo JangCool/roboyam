@@ -1,0 +1,19 @@
+/*
+ * 달력 날짜 칸의 쉬는 날 색(`UtilHoliday.cellClass`) — 모든 달력(PrimeVue DatePicker 의 날짜 글자 · 앱이 직접 그린 월 달력의 날짜 숫자)이 같은 클래스를 쓴다.
+ * 레이어 `nuxt.config.ts` 의 `css` 로 전역에 싣는다(Tailwind 는 레이어를 훑지 않으므로 Tailwind 클래스가 아니라 이 규칙이다).
+ *  · 공휴일 = 빨강(광고 일정표 머리의 일요일 빨강과 같은 계열) · 회사 휴무일(관리자 앱만) = 보라 — 빨강·주황은 색약에 가려지기 쉬워 거리가 먼 색으로 가른다.
+ *  · 고른 날(`aria-selected="true"` — 강조 바탕)에는 바탕 대비 글자색을 그대로 둔다.
+ *  · 다크는 두 앱의 판정(admin `[data-theme='dark']` · user `[data-color-scheme='dark']`)을 모두 본다.
+ */
+.app-holiday--holiday:not([aria-selected='true']) {
+    color: #dc2626;
+}
+.app-holiday--company:not([aria-selected='true']) {
+    color: #7c3aed;
+}
+:where([data-theme='dark'], [data-color-scheme='dark']) .app-holiday--holiday:not([aria-selected='true']) {
+    color: #f87171;
+}
+:where([data-theme='dark'], [data-color-scheme='dark']) .app-holiday--company:not([aria-selected='true']) {
+    color: #a78bfa;
+}

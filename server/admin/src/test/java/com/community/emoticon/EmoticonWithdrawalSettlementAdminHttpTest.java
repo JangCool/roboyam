@@ -49,7 +49,7 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
     @Autowired
     private PlatformTransactionManager transactions;
     @Autowired
-    private com.community.holiday.service.PublicHolidayService holidays;
+    private com.community.holiday.service.SiteHolidayService holidays;
 
     private Map<String, Object> settingsWas;
 

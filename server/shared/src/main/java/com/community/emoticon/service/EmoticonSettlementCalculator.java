@@ -9,7 +9,7 @@ import com.community.emoticon.repository.master.EmoticonSettlementStore.Activity
 import com.community.emoticon.repository.master.EmoticonSettlementStore.Frozen;
 import com.community.emoticon.repository.master.EmoticonSettlementStore.SettlementRow;
 import com.community.holiday.service.BusinessDayCalendar;
-import com.community.holiday.service.PublicHolidayService;
+import com.community.holiday.service.SiteHolidayService;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -99,9 +99,9 @@ public class EmoticonSettlementCalculator {
     private final EmoticonSettlementStore store;
     private final EmoticonPayoutStore payouts;
     private final EmoticonSettingsService settings;
-    private final PublicHolidayService holidays;
+    private final SiteHolidayService holidays;
 
-    public EmoticonSettlementCalculator(EmoticonSettlementStore store, EmoticonPayoutStore payouts, EmoticonSettingsService settings, PublicHolidayService holidays) {
+    public EmoticonSettlementCalculator(EmoticonSettlementStore store, EmoticonPayoutStore payouts, EmoticonSettingsService settings, SiteHolidayService holidays) {
         this.store = store;
         this.payouts = payouts;
         this.settings = settings;

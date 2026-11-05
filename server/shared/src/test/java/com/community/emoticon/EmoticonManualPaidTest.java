@@ -281,11 +281,11 @@ class EmoticonManualPaidTest extends EmoticonTestBase {
                 .isEqualTo("emoticon.settlement.transferDate.notBusinessDay");
         // 공휴일(시험용 임시공휴일 — 처리 시각 전 업무일 하나를 막는다)
         LocalDate holiday = businessDay();
-        kit.jdbc.update("INSERT INTO public_holidays (holiday_date, name, kind) VALUES (?, '시험 임시공휴일', 'TEMPORARY')", java.sql.Date.valueOf(holiday));
+        kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES (?, '시험 임시공휴일', 'SEED')", java.sql.Date.valueOf(holiday));
         try {
             assertThat(fields(() -> pay(id, holiday.toString(), null, REASON)).get("transferDate").key()).isEqualTo("emoticon.settlement.transferDate.notBusinessDay");
         } finally {
-            kit.jdbc.update("DELETE FROM public_holidays WHERE holiday_date = ? AND name = '시험 임시공휴일'", java.sql.Date.valueOf(holiday));
+            kit.jdbc.update("DELETE FROM site_holidays WHERE holiday_date = ? AND name = '시험 임시공휴일'", java.sql.Date.valueOf(holiday));
         }
         assertThat(fields(() -> pay(id, businessDay().toString(), "가".repeat(201), REASON))).containsOnlyKeys("memo");
         assertThat(fields(() -> pay(id, businessDay().toString(), "가".repeat(200), "짧음"))).containsOnlyKeys("reason");

@@ -153,7 +153,7 @@ export interface SalesToggleRequest {
     reason: string;
 }
 
-/** 공구 설정 값(결정 10·8·51·53) — 칸 이름은 서버 `group_buy_settings` 열 후보 */
+/** 공구 설정 값(결정 10·8·51·53) — 칸 이름은 서버 `group_buy_settings` 열 후보. 영업일 계산의 휴일은 여기 없다 — 사이트 휴일 표 하나(휴일 관리 `/settings/holidays`) */
 export interface GroupBuySettingsValues {
     holdMinutes: number;
     thresholdPeriodMaxDays: number;
@@ -168,12 +168,10 @@ export interface GroupBuySettingsValues {
     expiredAddressRetentionDays: number;
     shipWithinBusinessDays: number;
     supplyChoiceBusinessDays: number;
-    /** 휴일(주말 외) `YYYY-MM-DD` */
-    holidays: string[];
 }
 
 /** 숫자 칸 이름 */
-export type GroupBuySettingsNumberKey = Exclude<keyof GroupBuySettingsValues, 'holidays'>;
+export type GroupBuySettingsNumberKey = keyof GroupBuySettingsValues;
 
 /** `GET`·`PUT /api/admin/commerce/group-buy-settings` — 범위·기본값은 서버가 준다 */
 export interface GroupBuySettingsView {

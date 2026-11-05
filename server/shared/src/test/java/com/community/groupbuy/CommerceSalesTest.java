@@ -166,35 +166,32 @@ class CommerceSalesTest {
     }
 
     @Test
-    void 공구_설정은_범위_밖이면_400_바뀐_칸만_전후_감사_휴일은_겹침을_지우고_차례대로() {
+    void 공구_설정은_범위_밖이면_400_바뀐_칸만_전후_감사_휴일_칸은_없다() {
         GroupBuySettingsService settings = kit.settingsService;
         GroupBuySettingsService.Values before = settings.load();
         Map<String, Long> numbers = new LinkedHashMap<>(before.numbers());
         try {
             Map<String, Long> bad = new LinkedHashMap<>(numbers);
             bad.put("holdMinutes", 2L);
-            assertThatThrownBy(() -> settings.save(bad, List.of(), kit.operator, "ip"))
+            assertThatThrownBy(() -> settings.save(bad, kit.operator, "ip"))
                     .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("values.holdMinutes"));
             Map<String, Long> missing = new LinkedHashMap<>(numbers);
             missing.remove("largeRefundThreshold");
-            assertThatThrownBy(() -> settings.save(missing, List.of(), kit.operator, "ip")).isInstanceOf(ValidationException.class);
+            assertThatThrownBy(() -> settings.save(missing, kit.operator, "ip")).isInstanceOf(ValidationException.class);
 
             kit.audits.clear();
             Map<String, Long> changed = new LinkedHashMap<>(numbers);
             changed.put("largeRefundThreshold", 0L);
             changed.put("holdMinutes", 7L);
-            LocalDate d1 = LocalDate.of(2026, 12, 25);
-            LocalDate d2 = LocalDate.of(2026, 10, 9);
-            GroupBuySettingsService.Values after = settings.save(changed, List.of(d1, d2, d1), kit.operator, "ip");
+            GroupBuySettingsService.Values after = settings.save(changed, kit.operator, "ip");
             assertThat(after.numbers()).containsEntry("largeRefundThreshold", 0L).containsEntry("holdMinutes", 7L);
-            assertThat(after.holidays()).containsExactly(d2, d1);
             assertThat(kit.groupStore.settings().holdMinutes()).as("업무가 읽는 값도 바로 바뀐다(결정 19)").isEqualTo(7);
             assertThat(kit.audits).singleElement().satisfies(a -> {
                 assertThat(a.action()).isEqualTo(AuditActions.GROUPBUY_SETTINGS_UPDATE);
-                assertThat(((Map<?, ?>) a.detail().get("after")).keySet().stream().map(Object::toString).toList()).containsExactlyInAnyOrder("largeRefundThreshold", "holdMinutes", "holidays");
+                assertThat(((Map<?, ?>) a.detail().get("after")).keySet().stream().map(Object::toString).toList()).containsExactlyInAnyOrder("largeRefundThreshold", "holdMinutes");
             });
         } finally {
-            settings.save(numbers, before.holidays(), kit.operator, "ip");
+            settings.save(numbers, kit.operator, "ip");
         }
     }
 

@@ -269,7 +269,14 @@ public enum BatchCatalog implements BatchDefinition {
     HOTDEAL_CLEANUP("hotdeal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 5 4 * * *", true),
 
     /** 위장 홍보 의심 후보 계산(회원·판매처 — 자동 제재 없음, 관리자 알림). Java 배치 {@code DealSuspicionJob}, 기본 매시 40분. 알리기만 하므로 정리(SYSTEM) 분류 */
-    HOTDEAL_SUSPICION("hotdeal-suspicion", BatchCategory.SYSTEM, BatchSource.JAVA, "0 40 * * * *", true);
+    HOTDEAL_SUSPICION("hotdeal-suspicion", BatchCategory.SYSTEM, BatchSource.JAVA, "0 40 * * * *", true),
+
+    /**
+     * 공공데이터 공휴일 받기 — 한국천문연구원 특일 정보에서 올해·내년 공휴일을 받아 사이트 쉬는 날 표({@code site_holidays})의 공공데이터 줄을 응답과 같게 맞춘다(회사 휴무일은 건드리지 않음,
+     * 빈 해는 그대로, 실패한 해만 그대로 — Java 배치 {@code HolidaySyncJob}, 사용자 지시 2026-11-05). 기본 <b>매월 1일 03:15</b> KST, 휴일 관리 화면 「지금 받기」도 같은 서비스.
+     * 인증키가 없으면 건너뜀. 영업일 판정이 바뀌는 일이지만 늦어도 표가 그대로일 뿐이라 정리(SYSTEM) 분류.
+     */
+    HOLIDAY_SYNC("holiday-sync", BatchCategory.SYSTEM, BatchSource.JAVA, "0 15 3 1 * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

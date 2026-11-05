@@ -281,6 +281,21 @@ public final class AuditActions {
     public static final String PUBLIC_DATA_SETTINGS_UPDATE = "PUBLIC_DATA_SETTINGS_UPDATE";
     /** 공공데이터포털 서비스 키 지우기 — 대상 PUBLIC_DATA_SETTINGS/nts, 칸 이름 {@code field}. 일반 */
     public static final String PUBLIC_DATA_SETTINGS_DELETE = "PUBLIC_DATA_SETTINGS_DELETE";
+    /**
+     * 공공데이터 API 주소 저장(사용자 지시 2026-11-05) — 대상 PUBLIC_DATA_SETTINGS/{@code nts}·{@code holiday}, 바꾼 칸 {@code fields} + 전후 값 {@code before}·{@code after}
+     * (주소·요청 글자 틀·칸 이름 — 비밀이 아니다. 인증키는 글자 틀에 넣지 않고 {serviceKey} 자리로만 둔다). 일반
+     */
+    public static final String PUBLIC_DATA_ENDPOINT_UPDATE = "PUBLIC_DATA_ENDPOINT_UPDATE";
+    /** 공공데이터 API 주소 기본값으로 되돌리기 — 대상 PUBLIC_DATA_SETTINGS/{@code nts}·{@code holiday}, 되돌리기 전 값 {@code before}. 일반 */
+    public static final String PUBLIC_DATA_ENDPOINT_RESET = "PUBLIC_DATA_ENDPOINT_RESET";
+
+    // ── 사이트 쉬는 날(휴일 관리 /settings/holidays — commerce.md 영업일 · emoticon-contract 결정 4) — 대상 SITE_HOLIDAY ──
+    /** 회사 휴무일 더하기 — 대상 SITE_HOLIDAY + 줄 ID, {@code date}·{@code name}. 일반 */
+    public static final String SITE_HOLIDAY_CREATE = "SITE_HOLIDAY_CREATE";
+    /** 회사 휴무일 지우기 — 대상 SITE_HOLIDAY + 줄 ID, {@code date}·{@code name}. 일반 */
+    public static final String SITE_HOLIDAY_DELETE = "SITE_HOLIDAY_DELETE";
+    /** 공공데이터 공휴일 「지금 받기」(운영자) — 대상 SITE_HOLIDAY/{@code sync}, {@code outcome}·{@code appliedYears}·{@code failedYears}·{@code changed}. 일반(예약 실행은 배치 실행 로그가 남긴다) */
+    public static final String SITE_HOLIDAY_SYNC = "SITE_HOLIDAY_SYNC";
 
     // ── 커머스 1-2 포인트 상점(commerce-stage1-contract 「B」) — 대상 POINT_SHOP_ITEM·POINT_SHOP_AVATARS·POINT_SHOP_SETTINGS·POINT_SHOP_PURCHASE ──
     /** 품목 만들기 — 대상 POINT_SHOP_ITEM + 품목 ID, {@code code}·{@code kind}·{@code after}(칸 값) */

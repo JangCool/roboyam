@@ -1,5 +1,6 @@
 package com.community.groupbuy.service;
 
+import com.community.holiday.service.BusinessDayCalendar;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.zconfiguration.time.ServiceTime;
 import java.sql.Date;
@@ -55,7 +56,7 @@ public class GroupBuyShipDeadlines {
     }
 
     private List<Due> query(String where, Object... args) {
-        List<LocalDate> holidays = groups.settings().holidays();
+        BusinessDayCalendar holidays = groups.settings().calendar();
         return jdbc.query("SELECT pa.id, pa.group_buy_id, g.fulfillment, g.ship_planned_at, g.ship_within_business_days, COALESCE(pa.confirmed_at, pa.joined_at), "
                 + "(SELECT n.new_planned_at FROM group_buy_delay_notices n WHERE n.group_buy_id = g.id AND n.created_at >= COALESCE(pa.confirmed_at, pa.joined_at) "
                 + "ORDER BY n.created_at DESC LIMIT 1) FROM group_buy_participations pa JOIN group_buys g ON g.id = pa.group_buy_id "

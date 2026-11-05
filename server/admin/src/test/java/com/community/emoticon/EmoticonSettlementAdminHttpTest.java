@@ -161,7 +161,7 @@ class EmoticonSettlementAdminHttpTest extends Commerce04AdminTestBase {
 
         // 지급 완료 기록
         // 이체일은 오늘 이전의 업무일만(후속 결정 4) — 오늘 이전 가장 가까운 업무일로 기록하고, 토요일은 400
-        List<LocalDate> holidays = jdbc.queryForList("SELECT holiday_date FROM public_holidays", java.sql.Date.class).stream().map(java.sql.Date::toLocalDate).toList();
+        List<LocalDate> holidays = jdbc.queryForList("SELECT holiday_date FROM site_holidays", java.sql.Date.class).stream().map(java.sql.Date::toLocalDate).toList();
         LocalDate business = LocalDate.now(SEOUL);
         while (business.getDayOfWeek().getValue() >= 6 || holidays.contains(business)) {
             business = business.minusDays(1);

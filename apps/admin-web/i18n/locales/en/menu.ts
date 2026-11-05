@@ -26,6 +26,7 @@ export default {
     publicData: 'Public data portal',
     addressSearch: 'Address search',
     loginSecurity: 'Sign-in security',
+    holidays: 'Holidays',
     mail: 'Mail',
     mailSettings: 'Mail server',
     notifications: 'Notifications & events',

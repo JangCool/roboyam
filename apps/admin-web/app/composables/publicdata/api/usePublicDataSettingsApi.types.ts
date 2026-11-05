@@ -31,14 +31,64 @@ export interface PublicDataTest {
     testedBy: string | null;
 }
 
+/** API 주소 설정의 칸 하나 — 지금 쓰는 값 · 기본값 · 직접 넣었나(false 면 기본값을 쓰는 중) */
+export interface PublicDataEndpointField {
+    value: string;
+    defaultValue: string;
+    custom: boolean;
+}
+
+/** 국세청 사업자 상태 조회 주소 */
+export interface PublicDataNtsEndpoint {
+    url: PublicDataEndpointField;
+    updatedAt: string | null;
+    updatedBy: string | null;
+}
+
+/** 공휴일 받기(한국천문연구원 특일 정보) — 주소 · 요청 글자 틀 · 응답의 날짜·이름 칸 이름 */
+export interface PublicDataHolidayEndpoint {
+    url: PublicDataEndpointField;
+    queryTemplate: PublicDataEndpointField;
+    dateField: PublicDataEndpointField;
+    nameField: PublicDataEndpointField;
+    updatedAt: string | null;
+    updatedBy: string | null;
+    /** 마지막 특일 정보 연결 시험 — 없으면 null */
+    lastTest: PublicDataTest | null;
+}
+
+/** API 주소 설정 — 저장·되돌리기 응답도 이 모양 전체다 */
+export interface PublicDataEndpoints {
+    nts: PublicDataNtsEndpoint;
+    holiday: PublicDataHolidayEndpoint;
+}
+
+/** 주소 묶음 이름(`…/endpoints/{kind}`) */
+export type PublicDataEndpointKind = keyof PublicDataEndpoints;
+
+/** `PUT …/endpoints/nts` — 빈 칸은 기본값으로 돌아간다 */
+export interface PublicDataNtsEndpointSaveRequest {
+    url: string;
+}
+
+/** `PUT …/endpoints/holiday` — 빈 칸은 기본값으로 돌아간다 */
+export interface PublicDataHolidayEndpointSaveRequest {
+    url: string;
+    queryTemplate: string;
+    dateField: string;
+    nameField: string;
+}
+
 /** `GET /api/admin/public-data-settings` */
 export interface PublicDataSettingsView {
     ntsProvider: NtsProvider;
     /** false 면 서버에 암호화 키(`ROBOYAM_CRYPTO_KEY`)가 없어 저장할 수 없다(지우기는 된다) */
     cryptoKeyConfigured: boolean;
     serviceKey: PublicDataKeyState;
-    /** 마지막 연결 시험 — 없으면 null */
+    /** 마지막 국세청 연결 시험 — 없으면 null */
     lastTest: PublicDataTest | null;
+    /** API 주소 설정 */
+    endpoints: PublicDataEndpoints;
 }
 
 /** `PUT /api/admin/public-data-settings` */

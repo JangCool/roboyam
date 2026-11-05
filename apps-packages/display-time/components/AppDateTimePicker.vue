@@ -7,6 +7,7 @@
         표시 값이 바뀌면 즉시 바뀐다(`useDisplay().setDisplay`). 어느 시간대로 고르는지 입력 아래에 이름표(`(UTC+09:00) Asia/Seoul`)를 적는다(`show-zone`).
         날짜만 고르는 쓰임(서비스 날짜 등 시간대와 무관한 날짜)은 `AppDatePicker` 를 쓴다.
         입력 안 왼쪽에 달력 아이콘을 둔다(`calendarIcon`, 기본 켬 — PrimeVue `IconField` + `InputIcon`). 아이콘 자리·패딩 규칙은 `assets/date-field-icon.css`(AppDatePicker 와 같이 쓴다).
+        달력에 쉬는 날을 표시한다(`useHolidayCalendar` — AppDatePicker 와 같다. 고르지 못하게 하는 선택은 없다 — 시각 칸이라 표시만).
     -->
     <div class="flex flex-col gap-1">
         <IconField class="app-date-field" :class="{ 'app-date-field--icon': calendarIcon }">
@@ -28,9 +29,12 @@
                 :invalid="invalid"
                 :placeholder="placeholder ?? defaultPlaceholder"
                 :input-class="inputClass"
-                :pt="inputPt"
+                :pt="pickerPt"
                 fluid
                 @update:model-value="onUpdate"
+                @show="calendar.onShow"
+                @month-change="calendar.onMonthChange"
+                @year-change="calendar.onYearChange"
             />
         </IconField>
         <small v-if="showZone" class="text-xs text-muted-color" data-testid="date-time-zone">{{ zoneText }}</small>
@@ -96,13 +100,19 @@ const defaultPlaceholder = computed(() => UtilDatePicker.placeholder(values.valu
 const formatKey = computed(() => `${dateFormat.value}|${hourFormat.value}`);
 const zoneText = computed(() => time.value.zoneLabel());
 
-/** 안내 문구 연결 — DatePicker 도 aria-describedby 를 prop 으로 받지 않아 입력 요소(pcInputText)로 직접 건다 */
-const inputPt = computed(() => (props.describedBy ? { pcInputText: { root: { 'aria-describedby': props.describedBy } } } : undefined));
-
 /** 순간 → 고르개가 읽는 Date(표시 시간대의 벽시계 숫자). 읽을 수 없으면 null */
 const asDate = computed<Date | null>(() => UtilDatePicker.toPickerDate(model.value, values.value));
 const minDate = computed<Date | undefined>(() => UtilDatePicker.toPickerDate(props.min, values.value) ?? undefined);
 const maxDate = computed<Date | undefined>(() => UtilDatePicker.toPickerDate(props.max, values.value) ?? undefined);
+
+/** 쉬는 날 표시(날짜 칸은 표시 시간대의 달력 날짜다) — 열 때 값·최소·최대·오늘이 든 달의 해를 받는다 */
+const calendar = useHolidayCalendar({ anchors: () => [asDate.value, minDate.value, maxDate.value] });
+
+/** 안내 문구 연결(DatePicker 도 aria-describedby 를 prop 으로 받지 않아 입력 요소 pcInputText 로 직접 건다) + 날짜 칸의 쉬는 날 표시 */
+const pickerPt = computed(() => ({
+    ...calendar.pt,
+    ...(props.describedBy ? { pcInputText: { root: { 'aria-describedby': props.describedBy } } } : {}),
+}));
 
 /** 고르개가 준 값 → 순간. Date 면 표시 시간대의 그 시각으로 읽고, 글자(시험 대역 등)면 그대로 */
 function onUpdate(value: Date | Date[] | (Date | null)[] | null | undefined | string): void {

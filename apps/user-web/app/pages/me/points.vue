@@ -156,8 +156,10 @@
                             :class="[
                                 cell.attended ? 'bg-primary-100 font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-300' : '',
                                 cell.today ? 'border-primary font-bold' : 'border-transparent',
+                                cell.day === null ? '' : UtilHoliday.cellClass(holidayOf(cell.day)),
                             ]"
-                            :aria-label="cell.day === null ? undefined : UtilPointMessages.cellLabel(t, calMonth, cell)"
+                            :title="cell.day === null ? undefined : UtilHolidayMessages.title(t, holidayOf(cell.day))"
+                            :aria-label="cell.day === null ? undefined : UtilPointMessages.cellLabel(t, calMonth, cell, UtilHolidayMessages.names(t, holidayOf(cell.day)))"
                             :aria-hidden="cell.day === null ? 'true' : undefined"
                             :data-testid="cell.day === null ? undefined : `cal-day-${cell.day}`"
                             :data-attended="cell.day === null ? undefined : String(cell.attended)"
@@ -302,6 +304,8 @@
 </template>
 
 <script setup lang="ts">
+import UtilHoliday, { type HolidayMark } from '#layers/display-time/utils/util-holiday';
+import UtilHolidayMessages from '#layers/display-time/utils/util-holiday-messages';
 import type { MyPointLedgerItem, MyPointLedgerKind, PointCount } from '~/composables/point/api/usePointApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilBusiness from '~/utils/util-business';
@@ -349,6 +353,13 @@ const {
     cells: calCells,
     emptyMonth: calEmpty,
 } = attendance;
+
+// 출석 달력의 공휴일 표시(빨간 숫자 · 칸 이름) — 보는 달이 바뀌면 그 해를 받는다(레이어 `useHolidays`, 못 받으면 표시만 빠진다)
+const holidays = useHolidays();
+watch(calMonth, (month) => holidays.ensure(UtilHoliday.yearsForDate(month)), { immediate: true });
+function holidayOf(day: number): HolidayMark {
+    return holidays.markOf(`${calMonth.value}-${String(day).padStart(2, '0')}`);
+}
 
 /** 정지 중·이메일 인증 전 — 화면이 미리 아는 까닭. 서버가 막았다고 하면(`403`) 그 까닭이 먼저 */
 const attendBlocked = computed(() => attendServerBlocked.value ?? UtilPoint.blockedReason({ emailVerified: emailVerified.value, restriction: restriction.value }));

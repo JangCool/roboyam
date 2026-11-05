@@ -89,9 +89,9 @@
 5. **현금영수증**: 카드·간편결제만 받으므로 주문서 입력은 두지 않고 표 열만(SDK 현금영수증 인자는 가상계좌·계좌이체용).
 6. **계좌 송금 표** `commerce_bank_transfers`(V102 — 계좌 암호문 `ROBOYAM_DATA_KEY`, 「송금 완료」 후 계좌 삭제): 보상이 남은 결제액을 넘는 부분(9-3)·PG 로 못 돌려주는 환불(67). 3단계 충전 환불도 이어 쓴다.
 7. **배송완료**: 운영자가 처리(일괄 가능). 자동 배송완료 없음(청약철회 7일의 시작점이라 추측하지 않는다). 누락은 대시보드 「발송 뒤 7일 지난 SHIPPED」.
-8. **영업일**: 주말 + 관리자 휴일 목록(`group_buy_settings`, 설정 화면 편집), 공휴일 API 없음. 2·3영업일 기한(P35)과 환불 기한 표시가 같이 쓴다.
+8. **영업일**: ~~주말 + 관리자 휴일 목록(`group_buy_settings`, 설정 화면 편집), 공휴일 API 없음~~ → **쉬는 날 = 사이트 휴일 표 하나**(사용자 지시 2026-11-05): 토·일 + `site_holidays`(공공데이터 공휴일 — 매월 1일 배치 `holiday-sync` · 기본값 · 운영자가 넣는 회사 휴무일) 의 모든 날, 판정은 `BusinessDayCalendar` 하나(`GroupBuyStore#settings().calendar()`). 공구 설정의 휴일 칸은 없앴고 옛 값은 회사 휴무일 「공동구매 휴일(옮김)」로 옮겼다(V150). 휴일은 「설정 › 시스템 › 휴일 관리」(`/settings/holidays`)에서 정한다. 이미 정해 저장한 기한은 휴일이 바뀌어도 다시 계산하지 않는다. 2·3영업일 기한(P35)·환불 기한 표시·발송 기한·공급 불가 선택 기한·Q&A 답변 기한이 같이 쓴다.
 9. **공구 COMPLETED**: 선착순 즉시 발송은 마감됐고 수량에 든 주문이 모두 DELIVERED·CANCELED·REFUNDED 이면. 마감 후 발주는 `ORDERED → SHIPPING`(첫 발송 처리) `→ COMPLETED`(같은 조건). 판단은 배송완료 트랜잭션이 아니라 1분 워커의 조건부 sweep(`… WHERE NOT EXISTS 진행 중 주문`). 반품 요청은 COMPLETED 뒤에도 받는다(주문·요청 기준).
-10. **공구 설정**(`GroupBuySettingsService` — 범위·처음 값의 정본, 바뀐 칸만 전→후 감사 `GROUPBUY_SETTINGS_UPDATE`): 선점 5분(3~30) · 성사형 기간 상한 14일 · 선착순 30일 · 연장 최대 30분 · 연장 판단 창 5분 · 판정 여유 2분 · 고객 택배비 보상 상한(`compensation_cap`) 10,000원 · 고액 환불 문턱 100,000원(0 = 끔) · 배송지 열람 유지 10분 · 휴일 목록 · 만료 주문 배송지 보관 30일 · 즉시 발송 기본 3영업일(51) · 공급 불가 선택 기한 3영업일(53) · Q&A 답변 기한 2영업일(60).
+10. **공구 설정**(`GroupBuySettingsService` — 범위·처음 값의 정본, 바뀐 칸만 전→후 감사 `GROUPBUY_SETTINGS_UPDATE`): 선점 5분(3~30) · 성사형 기간 상한 14일 · 선착순 30일 · 연장 최대 30분 · 연장 판단 창 5분 · 판정 여유 2분 · 고객 택배비 보상 상한(`compensation_cap`) 10,000원 · 고액 환불 문턱 100,000원(0 = 끔) · 배송지 열람 유지 10분 · ~~휴일 목록~~(휴일 관리로 옮김 — 결정 8) · 만료 주문 배송지 보관 30일 · 즉시 발송 기본 3영업일(51) · 공급 불가 선택 기한 3영업일(53) · Q&A 답변 기한 2영업일(60).
 11. **택배사·local 시드**: 택배사는 마이그레이션 시드(전 환경) 6개 `CJ`·`HANJIN`·`LOTTE`·`EPOST`·`LOGEN`·`KDEXP` + 조회 주소 템플릿(`https://`, `{no}` 한 번 — CHECK). 목록은 통째 저장, 발송 이력 있는 코드는 지우지 못하고 끄기만(409 `COMMERCE_CARRIER_IN_USE`), 송장번호는 숫자·영문 6~30자로 정리. local 시드(`GroupBuyLocalSeeder` — local + 배치 켠 서버): 사업자 정보·체크 여섯을 채우고 **켜는 조건 검사를 그대로 통과해야** 판매를 켬, 배송비 정책 `STANDARD`(3,000 · 무료 50,000 · 반품 3,000 · 편도), 예시 품목 여덟(햅쌀·사과/감귤·고등어·김치·소스·티셔츠·러닝화·로봇 키트 — 고시 양식 완성, 신선식품은 `DATE_LIKE` 대체 표기 예시), 공구 여덟(성사형 모집 중 셋 · 선착순 즉시 발송 둘 · 마감 임박 · 조기 마감으로 끝난 1차 · 공개된 예정). (고침)
 12. **운영자 알림**(받는 사람 `commerce.order.manage`·`commerce.refund.approve` 보유자): `COMMERCE_ORDER_ANOMALY`(불변식이 깨진 결제 거절 — 주문마다 묶음, 도메인 거절은 회원 안내만) · `COMMERCE_REFUND_REQUESTED`(요청 접수 — WARNING, 2영업일 경고·3영업일 CRITICAL) · `COMMERCE_SHIP_OVERDUE`(51) · `COMMERCE_GROUPBUY_CANCELED`(중단) · `COMMERCE_SALES_TOGGLE` · `COMMERCE_QNA_RECEIVED`·`COMMERCE_QNA_REPORTED`·`COMMERCE_REVIEW_REPORTED`(INFO, 묶기). (고침 — 옛 `COMMERCE_GROUPBUY_QUESTION` 대신 Q&A·리뷰 셋)
 13. **주문 번호**: `G` + KST `yyyyMMdd` + 그날 일련 5자리(예 `G2026102800012`, `group_buy_order_counters`, 하루 99,999건을 넘으면 자리를 늘린다). 회원 주소·결제창 주문명·메일·고객 응대에 쓴다. 포트원 `redirectUrl` 은 쿼리 없이 주문 상세로.
@@ -389,7 +389,8 @@
 | 20절 · 2b-4 정한 세부 9 | 판매 스위치 — 설치 직후 꺼짐·켜기는 최고 관리자·자동 조건 + 체크리스트·감사·알림·끄기는 설정 권한자도·사유 | `CommerceSalesTest.설치_직후에는_…` · admin `GroupBuyAdminHttpTest.판매_켜기는_…` |
 | 결정 19 | 판매 스위치는 트랜잭션 안 DB 값 · 꺼지면 주문 403·단추 `SALES_CLOSED` | `CommerceSalesTest.판매_스위치_구현은_…` · api `GroupBuyHttpTest.판매가_꺼지면_…` |
 | 결정 18 | 사업자등록번호 체크섬·칸 길이·전자우편, 바뀐 칸 이름만 감사 | `CommerceSalesTest.사업자등록번호는_…` · admin `GroupBuyAdminHttpTest.판매_켜기는_…`(400 `values.businessNo`) |
-| 결정 10 | 공구 설정 범위·바뀐 칸만 감사·휴일 정리·업무가 바로 읽음 | `CommerceSalesTest.공구_설정은_…` |
+| 결정 10 | 공구 설정 범위·바뀐 칸만 감사·업무가 바로 읽음(휴일 칸 없음 — 결정 8) | `CommerceSalesTest.공구_설정은_…` |
+| 결정 8 | 쉬는 날 = 사이트 휴일 표 하나(회사 휴무일을 더하면 다음 판정부터 쉼) · 옛 공구 휴일 → 회사 휴무일로 옮김 | `SiteHolidayServiceTest.공구_영업일도_같은_표를_본다_…` · `SiteHolidayMigrationTest` · `GroupBuyNotificationsTest.G21_P35_…` |
 | 결정 2 | 상품 설명 정화 · 남이 올리지 않은 이미지 키 거절 | `CommerceSalesTest.상품_설명은_…` · admin `GroupBuyAdminHttpTest.결정2_…` |
 | 결정 34 · 10-9 | 개인정보 파기(배송지·만료·열린 요청 미룸 / 수정 이력 / 요청 3년) | `GroupBuyPrivacyCleanupBatchTest`(4) |
 | P26 | 같은 멱등 키·다른 본문 409, 키 없음 400, 같은 본문은 처음 응답 · `GROUPBUY_JOIN` 1분 5번 넘으면 429 | api `GroupBuyHttpTest.P26_…` · `주문_요청_제한_…` |

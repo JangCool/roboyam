@@ -26,6 +26,7 @@ export default {
     publicData: '공공데이터포털',
     addressSearch: '주소 검색',
     loginSecurity: '로그인 보안',
+    holidays: '휴일 관리',
     mail: '메일',
     mailSettings: '메일 서버',
     notifications: '알림·이벤트',

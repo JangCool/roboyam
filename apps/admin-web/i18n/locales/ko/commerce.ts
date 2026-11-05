@@ -201,10 +201,8 @@ export default {
     gbRange: '{min}~{max} · 기본 {def}',
     gbOutOfRange: '{min}부터 {max} 사이로 입력해 주세요.',
     gbOff: '끔',
-    gbHolidays: '휴일',
-    gbHolidaysHelp: '주말 말고 쉬는 날이에요. 처리 기한(2·3영업일 경고)과 발송 기한 계산에 써요. 공휴일은 직접 넣어 주세요.',
-    gbNoHolidays: '넣은 휴일이 없어요.',
-    gbHolidayAdd: '휴일 더하기',
+    gbHolidaysMoved: '휴일은 휴일 관리에서 정해요.',
+    gbHolidaysLink: '휴일 관리로 가기',
     gbSaved: '공구 설정을 저장했어요.',
     gbLoadFailed: '공구 설정을 불러오지 못했어요.',
 };
