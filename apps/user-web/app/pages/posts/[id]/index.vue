@@ -378,6 +378,7 @@
             :kind="staffActionForm.target.value?.kind ?? 'POST_HIDE'"
             :target-text="staffActionForm.target.value?.text ?? ''"
             :quota="staffActionForm.quota.value"
+            :unlimited="staffActionForm.unlimited.value"
             :submitting="staffActionForm.submitting.value"
             :form-error="staffActionForm.formError.value"
             :reason-field-error="staffActionForm.reasonFieldError.value"

@@ -43,16 +43,23 @@ export default {
     quotaPost: '오늘 남은 글 처리 {n}건 / {limit}건',
     quotaComment: '오늘 남은 댓글 삭제 {n}건 / {limit}건',
     quotaEmpty: '오늘 처리 한도를 다 썼어요.',
+    quotaUnlimited: '운영자 계정 · 하루 한도 없음',
     done_POST_HIDE: '글을 숨겼어요 · 오늘 남은 글 처리 {n}건',
     done_POST_DELETE: '글을 삭제했어요 · 오늘 남은 글 처리 {n}건',
     done_COMMENT_DELETE: '댓글을 삭제했어요 · 오늘 남은 댓글 삭제 {n}건',
     done_OTHER: '처리했어요 · 오늘 남은 처리 {n}건',
+    donePlain_POST_HIDE: '글을 숨겼어요',
+    donePlain_POST_DELETE: '글을 삭제했어요',
+    donePlain_COMMENT_DELETE: '댓글을 삭제했어요',
+    donePlain_OTHER: '처리했어요',
 
     /* 게시판 머리 운영 줄 */
     barRemaining: '오늘 남은 처리 {parts}',
     barPost: '글 {n}',
     barComment: '댓글 {n}',
     barSanction: '제재 {n}',
+    barOperator: '운영자 계정으로 관리 중',
+    barUnlimited: '하루 한도 없음',
     listLink: '처리 내역',
 
     /* 탭 머리(처리 내역 · 제재 내역) */

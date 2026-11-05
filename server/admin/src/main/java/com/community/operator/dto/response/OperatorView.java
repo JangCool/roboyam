@@ -9,7 +9,9 @@ import java.util.List;
  *
  * @param isSuper   최고 관리자(루트 계정) — 역할·상태·기간을 바꿀 수 없다. 역할은 비어 있다
  * @param periodOver 기간이 끝났나(또는 아직 시작 전인가) — 표시({@code expired})와 별개로 지금 시각으로 판정한 값
+ * @param memberAccount 이어진 사이트 회원 계정(operator-member-account-contract) — 없으면 null. 목록 이름 옆 딱지
  */
 public record OperatorView(String operatorId, String email, String operatorName, @JsonProperty("isSuper") boolean isSuper, List<OperatorRoleRef> roles, Instant accountStartAt,
-                           Instant accountEndAt, boolean approved, boolean locked, boolean expired, boolean enabled, boolean periodOver, Instant createdAt) {
+                           Instant accountEndAt, boolean approved, boolean locked, boolean expired, boolean enabled, boolean periodOver, Instant createdAt,
+                           OperatorMemberAccountRef memberAccount) {
 }

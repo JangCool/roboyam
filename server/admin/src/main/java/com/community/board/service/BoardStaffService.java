@@ -16,6 +16,7 @@ import com.community.board.exception.BoardStaffKindException;
 import com.community.board.exception.BoardStaffLimitException;
 import com.community.board.repository.master.BoardRepository;
 import com.community.board.repository.master.BoardStaffQueries;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.board.repository.master.BoardStaffRepository;
 import com.community.member.exception.MemberNotFoundException;
 import com.community.member.service.MemberMasking;
@@ -57,9 +58,11 @@ public class BoardStaffService {
     private final UserRepository users;
     private final BoardViews views;
     private final AuditLogService audit;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public BoardStaffService(BoardRepository boards, BoardStaffRepository staff, BoardStaffQueries queries, UserRepository users, BoardViews views,
-                             AuditLogService audit) {
+                             AuditLogService audit, OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.boards = boards;
         this.staff = staff;
         this.queries = queries;
@@ -93,7 +96,8 @@ public class BoardStaffService {
             throw new BoardStaffKindException();
         }
         boolean assigned = staff.existsByBoardIdAndUserId(board.getId(), userId);
-        if (ineligible(assigned, member.status(), member.emailVerified(), member.gradeLevel(), staff.countByUserId(userId)) != null) {
+        // 운영자 회원 계정은 지정할 수 없다(operator-member-account-contract 정책 4) — 회원 행을 잠근 뒤라 연결(같은 잠금)과 줄을 선다
+        if (ineligible(assigned, operatorAccounts.isLinked(userId), member.status(), member.emailVerified(), member.gradeLevel(), staff.countByUserId(userId)) != null) {
             throw new BoardStaffIneligibleException();
         }
         boolean manager = BoardStaffEntity.MANAGER.equals(role);
@@ -131,17 +135,21 @@ public class BoardStaffService {
         List<BoardStaffQueries.CandidateRow> rows = queries.candidates(keyword, CANDIDATE_LIMIT);
         Map<Long, Long> counts = queries.boardCountsOf(rows.stream().map(BoardStaffQueries.CandidateRow::userId).toList());
         Set<Long> assigned = staff.findByBoardId(board.getId()).stream().map(BoardStaffEntity::getUserId).collect(Collectors.toSet());
+        Set<Long> operatorAccountIds = operatorAccounts.linkedUserIds(rows.stream().map(BoardStaffQueries.CandidateRow::userId).toList());
         return rows.stream().map(row -> {
             long count = counts.getOrDefault(row.userId(), 0L);
             return new BoardStaffCandidateView(Long.toString(row.userId()), row.nickname(), MemberMasking.email(row.email()), row.gradeKey(), count,
-                    ineligible(assigned.contains(row.userId()), row.status(), row.emailVerified(), row.gradeLevel(), count));
+                    ineligible(assigned.contains(row.userId()), operatorAccountIds.contains(row.userId()), row.status(), row.emailVerified(), row.gradeLevel(), count));
         }).toList();
     }
 
     /** 자격 미달 사유(목업과 같은 차례) — null 이면 지정할 수 있다. 사업자(BUSINESS) 판정은 칸이 없어 하지 않는다 */
-    private static String ineligible(boolean assigned, UserStatus status, boolean emailVerified, int gradeLevel, long boardCount) {
+    private static String ineligible(boolean assigned, boolean operatorAccount, UserStatus status, boolean emailVerified, int gradeLevel, long boardCount) {
         if (assigned) {
             return "ALREADY_ASSIGNED";
+        }
+        if (operatorAccount) {
+            return "OPERATOR_ACCOUNT"; // 운영자 회원 계정(이어진 동안 — 힘과 상관없이)
         }
         if (status != UserStatus.ACTIVE) {
             return "SUSPENDED";

@@ -82,7 +82,7 @@ public class BoardSanctionViews {
     }
 
     public static BoardSanctionIssuerView issuer(BoardSanctionRow r) {
-        return r.issuedBy() == null ? null : new BoardSanctionIssuerView(Long.toString(r.issuedBy()), r.issuedByNickname(), r.issuedRole());
+        return r.issuedBy() == null ? null : new BoardSanctionIssuerView(Long.toString(r.issuedBy()), r.issuedByNickname(), r.issuedRole(), r.issuedOperatorName());
     }
 
     public static BoardSanctionBoardRefView board(BoardSanctionRow r) {

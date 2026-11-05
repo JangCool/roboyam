@@ -1,5 +1,5 @@
 import type { AuthUser, LoginRequest, MeResponse, SignupRequest, SocialSignupRequest } from '~/composables/auth/api/useAuthApi.types';
-import type { Restriction } from '~/composables/auth/api/useAuthApi.types';
+import type { OperatorAccountLink, Restriction } from '~/composables/auth/api/useAuthApi.types';
 import UtilAdminLink from '~/utils/util-admin-link';
 
 /**
@@ -30,6 +30,8 @@ export function useAuth() {
     const adminUrlState = useState<string | null>('auth-admin-url', () => null);
     /** 서버가 로그인 정보에 실어 준 「탈퇴 진행 중」 원본(member-withdrawal-contract). 화면은 로그인 여부를 거친 `withdrawalScheduled` 를 쓴다 */
     const withdrawalScheduledState = useState<boolean>('auth-withdrawal-scheduled', () => false);
+    /** 서버가 로그인 정보에 실어 준 운영자 회원 계정 연결 원본. 화면은 로그인 여부를 거친 `operatorAccount` 를 쓴다 */
+    const operatorAccountState = useState<OperatorAccountLink | null>('auth-operator-account', () => null);
 
     /**
      * 정지·영구 정지 중이거나 확인하지 않은 경고가 있을 때의 요약(`/api/auth/me`·로그인·가입 응답의 `restriction`, docs/api-sanction.md 2절).
@@ -51,6 +53,12 @@ export function useAuth() {
      */
     const withdrawalScheduled = computed(() => user.value !== null && withdrawalScheduledState.value);
 
+    /**
+     * 운영자 회원 계정 연결(`/api/auth/me`·로그인 응답의 `operatorAccount` — 서버 연결됨 2026-11-05) — 관리자 앱 운영자에게 연결돼 있고 힘이 살아 있을 때만 값이 있다.
+     * 계정 화면의 읽기 전용 카드·탈퇴 화면의 막힘 안내가 본다. **로그인하지 않았으면 늘 null.**
+     */
+    const operatorAccount = computed<OperatorAccountLink | null>(() => (user.value ? operatorAccountState.value : null));
+
     const isLoggedIn = computed(() => user.value !== null);
     const emailVerified = computed(() => user.value?.emailVerified ?? false);
 
@@ -59,6 +67,7 @@ export function useAuth() {
         restrictionState.value = res.authenticated ? (res.restriction ?? null) : null;
         adminUrlState.value = res.authenticated ? (res.adminUrl ?? null) : null;
         withdrawalScheduledState.value = res.authenticated && res.withdrawalScheduled === true;
+        operatorAccountState.value = res.authenticated ? (res.operatorAccount ?? null) : null;
         return user.value;
     }
 
@@ -125,7 +134,8 @@ export function useAuth() {
         restrictionState.value = null;
         adminUrlState.value = null;
         withdrawalScheduledState.value = false;
+        operatorAccountState.value = null;
     }
 
-    return { user, restriction, adminUrl, withdrawalScheduled, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, signup, completeSocialSignup, logout, clear };
+    return { user, restriction, adminUrl, withdrawalScheduled, operatorAccount, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, signup, completeSocialSignup, logout, clear };
 }

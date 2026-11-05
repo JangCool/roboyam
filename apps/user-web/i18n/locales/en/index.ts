@@ -46,6 +46,7 @@ import menu from './menu';
 import nicknameImage from './nicknameImage';
 import notification from './notification';
 import onboarding from './onboarding';
+import operatorAccount from './operatorAccount';
 import password from './password';
 import payment from './payment';
 import point from './point';
@@ -109,6 +110,7 @@ export default {
     nicknameImage,
     notification,
     onboarding,
+    operatorAccount,
     password,
     payment,
     point,

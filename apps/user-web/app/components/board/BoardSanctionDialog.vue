@@ -98,7 +98,7 @@
             <Message v-if="formError" severity="error" variant="simple" size="small" data-testid="board-sanction-error">{{ formError }}</Message>
 
             <div class="flex flex-wrap items-center justify-between gap-2 border-t border-surface pt-3">
-                <span class="text-xs tabular-nums" :class="preview.quota.remaining > 0 ? 'text-muted-color' : 'font-semibold text-red-600 dark:text-red-400'" data-testid="board-sanction-quota">
+                <span class="text-xs tabular-nums" :class="!preview.quota || preview.quota.remaining > 0 ? 'text-muted-color' : 'font-semibold text-red-600 dark:text-red-400'" data-testid="board-sanction-quota">
                     {{ UtilBoardSanctionMessages.quotaLine(t, preview.quota) }}
                 </span>
                 <div class="flex gap-2">
@@ -171,7 +171,12 @@ const textError = computed(() => {
     return '';
 });
 const reasonError = computed(() => props.fieldErrors.reasonCode || (tried.value && !reasonCode.value ? t('boardSanction.reasonRequired') : ''));
-const canSubmit = computed(() => !props.submitting && Boolean(props.preview) && props.preview!.quota.remaining > 0 && !kindDisabled(kind.value));
+/** 한도가 null 이면 하루 한도 없음(운영자 회원 계정) — 다 쓸 일이 없다 */
+const quotaLeft = computed(() => {
+    const quota = props.preview?.quota;
+    return !quota || quota.remaining > 0;
+});
+const canSubmit = computed(() => !props.submitting && Boolean(props.preview) && quotaLeft.value && !kindDisabled(kind.value));
 
 /** 현황이 새로 오면 단계를 권장으로 둔다(진행 중 제한이 있어 권장이 막혔으면 경고) */
 watch(

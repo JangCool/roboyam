@@ -1,3 +1,5 @@
+import type { OperatorMemberAccountRef } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+
 /**
  * 운영자 API 가 주고받는 모양 — 후보 계약이고 확정 전이다. 칸 이름은 hamonica3 `MemberController`·`MemberDtos` 를 따르되 이 제품의 말로 바꿨다
  * (`userId` → `operatorId`, `userName` → `operatorName`, `approvalYn`·`lockYn`·`expireYn`·`useYn` → 불리언 `approved`·`locked`·`expired`·`enabled`, 역할 하나 `roleId` → 여럿 `roles`).
@@ -36,6 +38,10 @@ export interface OperatorView {
     /** 기간이 끝났나(또는 아직 시작 전인가) — 표시(`expired`)와 별개로 지금 시각으로 판정한 값 */
     periodOver: boolean;
     createdAt: string;
+    /**
+     * 이어진 사이트 회원 계정(운영자 회원 계정 — 서버 연결됨 2026-11-05). 없으면 null. 목록 이름 옆 딱지에 쓴다.
+     */
+    memberAccount: OperatorMemberAccountRef | null;
 }
 
 export interface OperatorCounts {

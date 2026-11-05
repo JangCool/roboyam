@@ -43,16 +43,23 @@ export default {
     quotaPost: 'Post actions left today: {n} / {limit}',
     quotaComment: 'Comment deletions left today: {n} / {limit}',
     quotaEmpty: "You've used up today's limit.",
+    quotaUnlimited: 'Operator account · no daily limit',
     done_POST_HIDE: 'Post hidden · {n} post actions left today',
     done_POST_DELETE: 'Post deleted · {n} post actions left today',
     done_COMMENT_DELETE: 'Comment deleted · {n} comment deletions left today',
     done_OTHER: 'Done · {n} left today',
+    donePlain_POST_HIDE: 'Post hidden',
+    donePlain_POST_DELETE: 'Post deleted',
+    donePlain_COMMENT_DELETE: 'Comment deleted',
+    donePlain_OTHER: 'Done',
 
     /* Staff bar on the board header */
     barRemaining: 'Left today: {parts}',
     barPost: 'posts {n}',
     barComment: 'comments {n}',
     barSanction: 'sanctions {n}',
+    barOperator: 'Moderating as an operator account',
+    barUnlimited: 'No daily limit',
     listLink: 'Action history',
 
     /* Tab header (actions · sanctions) */

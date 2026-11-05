@@ -48,8 +48,10 @@ export default {
     textOtherRequired: 'For “Other”, write at least {min} characters.',
     noticeToMember: 'The member is notified with the reason. Who issued it is not shown.',
     quotaLine: '{n} of {limit} sanctions left today',
+    quotaUnlimited: 'Operator account · no daily limit',
     submit: 'Sanction',
     issuedToast: 'Gave {name} a {kind} · {n} left today',
+    issuedToastPlain: 'Gave {name} a {kind}',
 
     /* Board header staff bar */
     staffBarManager: 'Moderating · Manager',
@@ -74,6 +76,7 @@ export default {
     issuerLine: 'By {name} · {role}',
     roleManager: 'Manager',
     roleStaff: 'Staff',
+    roleOperator: 'Operator',
     sourcePost: 'Source post',
     sourceComment: 'Source comment',
     liftedLine: 'Lifted {date} · {reason}',

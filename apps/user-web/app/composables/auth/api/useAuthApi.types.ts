@@ -46,6 +46,7 @@ export interface AuthUser {
  * `adminUrl`(7-4): 관리자 앱 주소 — **관리자 앱에 들어갈 수 있는 사람**(정상 상태의 운영자, 메뉴 권한이 하나라도 `NONE` 이 아닌 운영진)에게만 값이 있고 그 밖에는 null.
  * 사용자 메뉴의 "관리자 앱" 링크가 쓴다(`useAuth().adminUrl` — http(s) 주소인지 한 번 더 거른 값). 옛 응답에는 칸 자체가 없을 수도 있어 선택으로 둔다
  * `withdrawalScheduled`(member-withdrawal-contract): 탈퇴 진행 중(`users.status = WITHDRAWING`) — 전역 안내 띠(`WithdrawalBanner`)가 탈퇴 화면으로 이어 준다. 옛 응답에는 없을 수 있어 선택으로 둔다
+ * `operatorAccount`(운영자 회원 계정 — 서버 연결됨 2026-11-05): 이 회원 계정이 관리자 앱 운영자에게 연결돼 있고 힘이 살아 있을 때만 값이 있다(그 밖은 null). 계정 화면의 읽기 전용 카드·탈퇴 화면의 막힘 안내가 쓴다
  */
 export interface MeResponse {
     authenticated: boolean;
@@ -53,6 +54,12 @@ export interface MeResponse {
     restriction?: Restriction | null;
     adminUrl?: string | null;
     withdrawalScheduled?: boolean;
+    operatorAccount?: OperatorAccountLink | null;
+}
+
+/** 로그인 정보의 `operatorAccount` — 연결된 운영자(관리자 앱 계정)의 표시 이름 */
+export interface OperatorAccountLink {
+    operatorName: string;
 }
 
 export interface SocialProvider {

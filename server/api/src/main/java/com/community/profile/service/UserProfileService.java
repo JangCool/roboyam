@@ -6,6 +6,7 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.business.service.BusinessEligibility;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.RichText;
 import com.community.group.dto.response.ProfileGroupsView;
@@ -79,10 +80,12 @@ public class UserProfileService {
     private final PostFeedRows feedRows;
     private final GroupQueryService groups;
     private final BusinessEligibility businesses;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
-                              GroupQueryService groups, BusinessEligibility businesses) {
+                              GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.feedRows = feedRows;
         this.groups = groups;
         this.businesses = businesses;
@@ -109,7 +112,7 @@ public class UserProfileService {
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 bio == null || bio.isBlank() ? null : bio, m.user().getCreatedAt(), viewerId != null && viewerId == m.id(),
                 new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(),
-                !businesses.approvedUserIds(List.of(m.id())).isEmpty());
+                !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()));
     }
 
     /**

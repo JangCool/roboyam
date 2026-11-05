@@ -9,6 +9,9 @@ import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
+import com.community.operator.service.OperatorMemberAccountService;
+import com.community.operator.service.OperatorMemberAccountService.ActiveOperatorAccount;
+import com.community.permission.entity.Permission;
 import com.community.sanction.entity.AppealStatus;
 import com.community.sanction.entity.BoardSanctionKind;
 import com.community.sanction.entity.BoardSanctionReason;
@@ -106,23 +109,47 @@ public class BoardSanctionService {
     }
 
     /** 부여 요청 — ID 는 부르는 쪽이 숫자로 바꿨다(모르면 null) */
-    public record Issue(long actorId, long boardId, long targetId, String kind, String reasonCode, String reasonText, Long postId, Long commentId) {
+    public record Issue(long actorId, long boardId, long targetId, String kind, String reasonCode, String reasonText, Long postId, Long commentId, String ip) {
     }
 
-    /** 대화창 현황 */
+    /** 대화창 현황 — {@code quota} 운영자 회원 계정은 null(하루 한도 없음) */
     public record Preview(TargetRow target, Counts counts, BoardWriteRestriction active, BoardSanctionKind recommended, Quota quota) {
     }
 
-    /** 부여 결과 — 새 줄 + 남은 한도 */
+    /** 부여 결과 — 새 줄 + 남은 한도(운영자 회원 계정은 null — 세지 않는다) */
     public record Issued(BoardSanctionRow row, Quota quota) {
+    }
+
+    /** 제재를 주는 사람 — 그 게시판 매니저·스텝({@code gate}) 또는 힘이 살아 있는 운영자 회원 계정({@code operator}, operator-member-account-contract 정책 7) */
+    private record Issuer(StaffGate gate, ActiveOperatorAccount operator) {
+
+        boolean isOperator() {
+            return operator != null;
+        }
+
+        String role() {
+            return operator != null ? BoardSanctionStore.ROLE_OPERATOR : gate.role();
+        }
+
+        Long operatorId() {
+            return operator == null ? null : operator.operatorId();
+        }
     }
 
     /** 매니저·스텝 도구(게시판 응답 {@code viewer.staffTools}) */
     public record StaffTools(Quota quota, boolean manager) {
     }
 
-    /** 매니저·스텝 내역 한 쪽(1부터) — 매니저는 전체, 스텝은 내가 준 것만. {@code canLift} 매니저 + {@code board.staff-action.restore} */
-    public record StaffPage(boolean manager, boolean canLift, List<BoardSanctionRow> rows, long total, int page, int size) {
+    /**
+     * 매니저·스텝 내역 한 쪽(1부터) — 매니저는 전체, 스텝은 내가 준 것만. {@code canLift} 매니저 + {@code board.staff-action.restore}(운영자 회원 계정은 {@code sanction.manage}).
+     * {@code operator} 운영자 회원 계정이 보는 내역 — 매니저는 운영자 회원 계정이 준 쓰기 제한을 풀지 못한다.
+     */
+    public record StaffPage(boolean manager, boolean canLift, boolean operator, List<BoardSanctionRow> rows, long total, int page, int size) {
+
+        /** 이 줄을 지금 보는 사람이 풀 수 있나 */
+        public boolean canLift(BoardSanctionRow row, Instant now) {
+            return canLift && row.runningAt(now) && (operator || !row.byOperator());
+        }
     }
 
     /** 반복 검토 닫기 요청 — 검사는 여기서 */
@@ -137,9 +164,12 @@ public class BoardSanctionService {
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public BoardSanctionService(BoardSanctionStore store, MemberSanctionStore memberStore, AuditLogService audit, MemberNotificationPublisher memberNotices,
-                                NotificationPublisher operatorNotices, Messages messages, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                                NotificationPublisher operatorNotices, Messages messages, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks,
+                                OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.store = store;
         this.memberStore = memberStore;
         this.audit = audit;
@@ -201,38 +231,57 @@ public class BoardSanctionService {
     }
 
     /**
-     * 대화창 현황 — 판정은 부여와 같다(계정 · 게시판 · 자리·권한 403, 대상 보호 409). 잠그지 않는다(부여가 다시 본다).
+     * 대화창 현황 — 판정은 부여와 같다(계정 · 게시판 · 자리·권한 403, 대상 보호 409). 잠그지 않는다(부여가 다시 본다). 운영자 회원 계정은 한도가 없다(null).
      */
     public Preview preview(long actorId, long boardId, long targetId) {
-        requireIssuer(boardId, actorId);
+        Issuer issuer = requireIssuer(boardId, actorId);
         TargetRow target = store.target(targetId).orElseThrow(BoardSanctionException::targetProtected);
-        requireTargetable(target, boardId, actorId);
+        requireTargetable(target, boardId, actorId, issuer);
         Instant now = now();
         Counts counts = store.counts(targetId, boardId);
         BoardWriteRestriction running = store.running(targetId, boardId, now).orElse(null);
-        return new Preview(target, counts, running, BoardSanctionKind.recommended(counts.total()), quota(boardId, actorId, now));
+        return new Preview(target, counts, running, BoardSanctionKind.recommended(counts.total()), issuer.isOperator() ? null : quota(boardId, actorId, now));
     }
 
-    /** 매니저·스텝 제재 내역 — 매니저·스텝(계정 정상)이 아니면 404 {@code BOARD_STAFF_NOT_FOUND}. {@code scope} ALL · ACTIVE · ENDED, {@code page} 1부터 */
+    /**
+     * 매니저·스텝 제재 내역 — 매니저·스텝(계정 정상)이 아니면 404 {@code BOARD_STAFF_NOT_FOUND}. {@code scope} ALL · ACTIVE · ENDED, {@code page} 1부터.
+     * 운영자 회원 계정은 {@code keeper-action.read} 가 있으면 그 게시판 전체(매니저처럼), 없으면 404(소모임 게시판도 404). 해제는 {@code sanction.manage}.
+     */
     public StaffPage staffPage(long actorId, long boardId, String scope, int page) {
-        StaffGate gate = store.gate(boardId, actorId);
-        if (gate.role() == null || !gate.accountOk()) {
-            throw BoardSanctionException.staffNotFound();
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        boolean manager;
+        boolean canLift;
+        Long issuedBy;
+        if (operator.isPresent()) {
+            String kind = store.boardKind(boardId).orElse(null);
+            if (!operator.get().can(Permission.KEEPER_ACTION_READ) || kind == null || "GROUP".equals(kind)) {
+                throw BoardSanctionException.staffNotFound();
+            }
+            manager = true;
+            canLift = operator.get().can(Permission.SANCTION_MANAGE);
+            issuedBy = null;
+        } else {
+            StaffGate gate = store.gate(boardId, actorId);
+            if (gate.role() == null || !gate.accountOk()) {
+                throw BoardSanctionException.staffNotFound();
+            }
+            manager = gate.manager();
+            canLift = gate.manager() && gate.canRestore();
+            issuedBy = gate.manager() ? null : actorId;
         }
         Instant now = now();
-        Long issuedBy = gate.manager() ? null : actorId;
         long total = store.staffTotal(boardId, issuedBy, scope, now);
         int pages = (int) Math.max(1, (total + STAFF_PAGE_SIZE - 1) / STAFF_PAGE_SIZE);
         int p = Math.min(Math.max(1, page), pages);
         List<BoardSanctionRow> rows = store.staffPage(boardId, issuedBy, scope, now, (p - 1) * STAFF_PAGE_SIZE, STAFF_PAGE_SIZE);
-        return new StaffPage(gate.manager(), gate.manager() && gate.canRestore(), rows, total, p, STAFF_PAGE_SIZE);
+        return new StaffPage(manager, canLift, operator.isPresent(), rows, total, p, STAFF_PAGE_SIZE);
     }
 
     // ── 부여 ──────────────────────────────────────────────────────────────
 
     @Transactional
     public Issued issue(Issue request) {
-        StaffGate gate = requireIssuer(request.boardId(), request.actorId());
+        Issuer issuer = requireIssuer(request.boardId(), request.actorId());
 
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         BoardSanctionKind kind = BoardSanctionKind.of(request.kind()).orElse(null);
@@ -255,34 +304,51 @@ public class BoardSanctionService {
         }
 
         TargetRow target = store.lockTarget(request.targetId()).orElseThrow(BoardSanctionException::targetProtected);
-        requireTargetable(target, request.boardId(), request.actorId());
+        requireTargetable(target, request.boardId(), request.actorId(), issuer);
         Instant now = now();
         store.endDue(target.id(), request.boardId(), now);
         if (kind.restricts() && store.running(target.id(), request.boardId(), now).isPresent()) {
             throw BoardSanctionException.alreadyRestricted();
         }
 
-        int limit = store.dailyLimit(request.boardId());
-        LocalDate today = ServiceTime.dateOf(now);
-        Instant resetsAt = nextResetAfter(now);
-        Integer used = store.consume(request.boardId(), request.actorId(), today, limit, now).orElse(null);
-        if (used == null) {
-            throw BoardSanctionException.dailyLimit(limit, store.used(request.boardId(), request.actorId(), today), resetsAt);
+        Quota quota = null; // 운영자 회원 계정은 하루 한도가 없다(세지도 않는다 — operator-member-account-contract 정책 7)
+        if (!issuer.isOperator()) {
+            int limit = store.dailyLimit(request.boardId());
+            LocalDate today = ServiceTime.dateOf(now);
+            Instant resetsAt = nextResetAfter(now);
+            Integer used = store.consume(request.boardId(), request.actorId(), today, limit, now).orElse(null);
+            if (used == null) {
+                throw BoardSanctionException.dailyLimit(limit, store.used(request.boardId(), request.actorId(), today), resetsAt);
+            }
+            quota = new Quota(limit, used, resetsAt);
         }
 
         Instant endsAt = kind.restricts() ? now.plus(kind.length()) : null;
         long id = ids.nextId();
-        long no = store.insert(id, request.boardId(), target.id(), kind, reason.name(), text, request.actorId(), gate.role(), request.postId(), request.commentId(),
-                sourceTitle, now, endsAt, now);
-        store.insertAction(ids.nextId(), request.boardId(), request.actorId(), gate.role(), ACTION_ISSUE, target.id(), id, request.postId(), request.commentId(), text, now);
-        Long reviewId = openReviewIfRepeated(target.id(), request.boardId(), now);
+        long no = store.insert(id, request.boardId(), target.id(), kind, reason.name(), text, request.actorId(), issuer.role(), issuer.operatorId(), request.postId(),
+                request.commentId(), sourceTitle, now, endsAt, now);
+        store.insertAction(ids.nextId(), request.boardId(), request.actorId(), issuer.role(), issuer.operatorId(), ACTION_ISSUE, target.id(), id, request.postId(),
+                request.commentId(), text, now);
+        Long reviewId = openReviewIfRepeated(target.id(), request.boardId(), now); // 운영자 회원 계정의 제재도 합산한다(정책 7)
 
         BoardSanctionRow row = store.find(id).orElseThrow();
         memberNotices.boardSanctionIssued(target.id(), id, request.boardId(), row.boardName(), kind.name(), endsAt, reason.name(), text);
-        log.info("게시판 제재 부여 boardSanctionId={} no={} boardId={} userId={} kind={} by userId={} role={} reviewId={}", id, no, request.boardId(), target.id(), kind,
-                request.actorId(), gate.role(), reviewId);
-        return new Issued(row, new Quota(limit, used, resetsAt));
+        if (issuer.isOperator()) {
+            AuditEvent event = AuditEvent.byOperator(issuer.operatorId(), request.ip(), AuditActions.SITE_BOARD_SANCTION, AuditResult.SUCCESS)
+                    .target(TARGET, Long.toString(target.id())).with("viaUserId", Long.toString(request.actorId())).with("boardId", Long.toString(request.boardId()));
+            if (request.postId() != null) {
+                event = event.with("postId", Long.toString(request.postId()));
+            }
+            if (request.commentId() != null) {
+                event = event.with("commentId", Long.toString(request.commentId()));
+            }
+            audit.record(event.with("reasonCode", reason.name()).with("kind", kind.name()).with("boardSanctionId", Long.toString(id)).with("boardSanctionNo", no));
+        }
+        log.info("게시판 제재 부여 boardSanctionId={} no={} boardId={} userId={} kind={} by userId={} role={} operatorId={} reviewId={}", id, no, request.boardId(),
+                target.id(), kind, request.actorId(), issuer.role(), issuer.operatorId(), reviewId);
+        return new Issued(row, quota);
     }
+
 
     /**
      * 반복 검토 판정(결정 3) — 대상 회원 행을 잠근 뒤. 같은 (회원, 게시판)에 열린 건이 없고 최근 7일 · VOIDED 제외 · 마지막으로 닫힌 검토 이후 제재가 3건 이상이면 연다.
@@ -339,17 +405,39 @@ public class BoardSanctionService {
 
     /** 매니저 해제 — 자기 게시판 + {@code board.staff-action.restore}(아니면 403), 진행 중 쓰기 제한만(409). 처리 기록 LIFT */
     @Transactional
-    public BoardSanctionRow liftByManager(long actorId, long sanctionId, String reasonText) {
+    public BoardSanctionRow liftByManager(long actorId, long sanctionId, String reasonText, String ip) {
         long[] owner = store.ownerOf(sanctionId).orElseThrow(BoardSanctionException::notFound);
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        if (operator.isPresent()) {
+            return liftByOperatorAccount(owner, sanctionId, operator.get(), actorId, reasonText, ip);
+        }
         StaffGate gate = store.gate(owner[1], actorId);
-        if (!(gate.manager() && gate.accountOk() && gate.canRestore())) {
-            throw BoardSanctionException.forbidden();
+        if (!(gate.manager() && gate.accountOk() && gate.canRestore()) || store.find(sanctionId).map(BoardSanctionRow::byOperator).orElse(false)) {
+            throw BoardSanctionException.forbidden(); // 매니저는 운영자 회원 계정이 준 쓰기 제한을 풀지 못한다(operator-member-account-contract 정책 7)
         }
         String reason = requireReason(reasonText);
         Instant now = now();
         BoardSanctionRow row = liftLocked(owner, sanctionId, actorId, null, reason, now);
-        store.insertAction(ids.nextId(), owner[1], actorId, gate.role(), ACTION_LIFT, owner[0], sanctionId, row.postId(), row.commentId(), reason, now);
+        store.insertAction(ids.nextId(), owner[1], actorId, gate.role(), null, ACTION_LIFT, owner[0], sanctionId, row.postId(), row.commentId(), reason, now);
         log.info("게시판 제재 해제(매니저) boardSanctionId={} by userId={}", sanctionId, actorId);
+        return store.find(sanctionId).orElseThrow();
+    }
+
+    /** 운영자 회원 계정의 해제 — 관리자 권한 {@code sanction.manage}(운영자 해제 입구와 같다), 해제한 사람 = 운영자, 처리 기록 LIFT(OPERATOR), 감사 {@code SITE_BOARD_SANCTION_LIFT} */
+    private BoardSanctionRow liftByOperatorAccount(long[] owner, long sanctionId, ActiveOperatorAccount operator, long userId, String reasonText, String ip) {
+        String kind = store.boardKind(owner[1]).orElse(null);
+        if (!operator.can(Permission.SANCTION_MANAGE) || "GROUP".equals(kind)) {
+            throw BoardSanctionException.forbidden();
+        }
+        String reason = requireReason(reasonText);
+        Instant now = now();
+        BoardSanctionRow row = liftLocked(owner, sanctionId, null, operator.operatorId(), reason, now);
+        store.insertAction(ids.nextId(), owner[1], userId, BoardSanctionStore.ROLE_OPERATOR, operator.operatorId(), ACTION_LIFT, owner[0], sanctionId, row.postId(),
+                row.commentId(), reason, now);
+        audit.record(AuditEvent.byOperator(operator.operatorId(), ip, AuditActions.SITE_BOARD_SANCTION_LIFT, AuditResult.SUCCESS).target(TARGET, Long.toString(owner[0]))
+                .with("viaUserId", Long.toString(userId)).with("boardId", Long.toString(owner[1])).with("boardSanctionId", Long.toString(sanctionId))
+                .with("boardSanctionNo", row.no()).with("kind", row.kind().name()).with("reason", reason));
+        log.info("게시판 제재 해제(운영자 회원 계정) boardSanctionId={} by userId={} operatorId={}", sanctionId, userId, operator.operatorId());
         return store.find(sanctionId).orElseThrow();
     }
 
@@ -622,7 +710,19 @@ public class BoardSanctionService {
      * 그 게시판에서 제재를 줄 수 있는 매니저·스텝(계정 정상 · 이메일 인증 · 역할 권한) — 아니면 403. 게시판이 없으면 403, 소모임 게시판(소모임 글)이면 409 대상 보호
      * (user-web 「소모임 글은 제재할 수 없는 회원이에요」).
      */
-    private StaffGate requireIssuer(long boardId, long actorId) {
+    private Issuer requireIssuer(long boardId, long actorId) {
+        // 운영자 회원 계정(힘이 살아 있음 — 회원 상태 정상은 판정에 들어 있다) — 모든 공개 게시판, 관리자 권한 sanction.manage(operator-member-account-contract 정책 7)
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        if (operator.isPresent()) {
+            String kind = store.boardKind(boardId).orElseThrow(BoardSanctionException::forbidden);
+            if ("GROUP".equals(kind)) {
+                throw BoardSanctionException.targetProtected();
+            }
+            if (!operator.get().can(Permission.SANCTION_MANAGE)) {
+                throw BoardSanctionException.forbidden();
+            }
+            return new Issuer(null, operator.get());
+        }
         StaffGate gate = store.gate(boardId, actorId);
         if (!gate.accountOk()) {
             throw BoardSanctionException.forbidden();
@@ -634,12 +734,16 @@ public class BoardSanctionService {
         if (!gate.issuer()) {
             throw BoardSanctionException.forbidden();
         }
-        return gate;
+        return new Issuer(gate, null);
     }
 
-    /** 받을 수 없는 대상(본인 · 같은 게시판 매니저·스텝 · 탈퇴) — 409 하나 */
-    private void requireTargetable(TargetRow target, long boardId, long actorId) {
-        if (target.gone() || target.id() == actorId || store.staffOf(boardId, target.id())) {
+    /**
+     * 받을 수 없는 대상 — 409 하나: 본인 · 탈퇴 · 운영자 회원 계정(힘이 살아 있음 — 매니저·스텝에게도 다른 운영자 회원 계정에게도) · 같은 게시판 매니저·스텝(매니저·스텝이 줄 때만 —
+     * 운영자 회원 계정은 매니저·스텝을 제재할 수 있다).
+     */
+    private void requireTargetable(TargetRow target, long boardId, long actorId, Issuer issuer) {
+        if (target.gone() || target.id() == actorId || operatorAccounts.isActiveOperatorAccount(target.id())
+                || (!issuer.isOperator() && store.staffOf(boardId, target.id()))) {
             throw BoardSanctionException.targetProtected();
         }
     }

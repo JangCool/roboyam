@@ -37,6 +37,8 @@ public class BoardStaffActionStore {
     public static final String ACTION_DELETE = "DELETE";
     public static final String BY_MANAGER = "MANAGER";
     public static final String BY_OPERATOR = "OPERATOR";
+    /** 처리자 자리 — 운영자 회원 계정(V141, operator-member-account-contract 정책 11) */
+    public static final String ROLE_OPERATOR = "OPERATOR";
 
     /** 제재 줄을 뺀 처리 기록(부분 색인 {@code ix_board_staff_actions_*_content} 와 같은 조건) — 별칭 {@code a} */
     public static final String CONTENT = "a.kind <> 'SANCTION'";
@@ -49,8 +51,9 @@ public class BoardStaffActionStore {
             + "tp.nickname, a.post_id, a.comment_id, a.reason_code, a.target_title, a.target_excerpt, a.target_author_name, a.created_at, a.restored_at, "
             + "a.restored_by_kind, a.restored_by_id, CASE a.restored_by_kind WHEN 'MANAGER' THEN rp.nickname WHEN 'OPERATOR' THEN ro.operator_name END, a.restore_reason, "
             + "p.id IS NOT NULL, p.status, p.deleted_at, p.delete_scheduled_at, p.hidden_at, p.hidden_until, p.purged_at, "
-            + "c.id IS NOT NULL, c.deleted_at, c.hidden_at, c.hidden_until, c.purged_at "
+            + "c.id IS NOT NULL, c.deleted_at, c.hidden_at, c.hidden_until, c.purged_at, a.actor_operator_id, aop.operator_name "
             + "FROM board_staff_actions a JOIN boards b ON b.id = a.board_id LEFT JOIN profiles ap ON ap.user_id = a.actor_id "
+            + "LEFT JOIN operators aop ON aop.id = a.actor_operator_id "
             + "LEFT JOIN profiles tp ON tp.user_id = a.target_user_id "
             + "LEFT JOIN profiles rp ON a.restored_by_kind = 'MANAGER' AND rp.user_id = a.restored_by_id "
             + "LEFT JOIN operators ro ON a.restored_by_kind = 'OPERATOR' AND ro.id = a.restored_by_id "
@@ -64,11 +67,19 @@ public class BoardStaffActionStore {
      * @param targetNickname    대상 회원의 지금 닉네임(비회원 · 지워진 회원 null — 그때는 {@code targetAuthorName} 스냅숏)
      * @param restoredByKind    MANAGER · OPERATOR(되돌리지 않았으면 null)
      * @param restoredByName    되돌린 매니저 닉네임 · 운영자 이름
+     * @param actorRole         MANAGER · STAFF · OPERATOR(운영자 회원 계정 — {@code actorId} = 그 회원, {@code actorOperatorId} = 운영자)
+     * @param actorOperatorId   운영자 회원 계정의 처리면 그 운영자(아니면 null)
+     * @param actorOperatorName 그 운영자의 지금 이름(아니면 null)
      */
     public record ActionRow(long id, long boardId, String boardSlug, String boardName, String boardNameEn, Long actorId, String actorNickname, String actorRole,
                             String kind, String action, Long targetUserId, String targetNickname, long postId, Long commentId, String reasonCode, String targetTitle,
                             String targetExcerpt, String targetAuthorName, Instant createdAt, Instant restoredAt, String restoredByKind, Long restoredById,
-                            String restoredByName, String restoreReason, TargetState post, TargetState comment) {
+                            String restoredByName, String restoreReason, TargetState post, TargetState comment, Long actorOperatorId, String actorOperatorName) {
+
+        /** 운영자 회원 계정이 한 처리인가 — 매니저는 되돌리지 못한다(operator-member-account-contract 정책 7) */
+        public boolean byOperator() {
+            return ROLE_OPERATOR.equals(actorRole);
+        }
 
         /** 화면 종류 — POST_HIDE · POST_DELETE · COMMENT_DELETE */
         public String apiKind() {
@@ -217,12 +228,16 @@ public class BoardStaffActionStore {
 
     // ── 처리 기록 쓰기 ─────────────────────────────────────────────────────
 
-    /** 글·댓글 처리 한 줄 — 스냅숏(제목 · 댓글 앞 40자 · 작성자 이름)과 함께 */
-    public void insert(long id, long boardId, long actorId, String actorRole, String kind, String action, Long targetUserId, long postId, Long commentId,
-                       String reasonCode, String title, String excerpt, String authorName, Instant now) {
-        jdbc.update("INSERT INTO board_staff_actions (id, board_id, actor_id, actor_role, kind, action, target_user_id, post_id, comment_id, reason_code, target_title, "
-                        + "target_excerpt, target_author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, boardId, actorId, actorRole, kind, action,
-                targetUserId, postId, commentId, reasonCode, title, excerpt, authorName, ts(now));
+    /**
+     * 글·댓글 처리 한 줄 — 스냅숏(제목 · 댓글 앞 40자 · 작성자 이름)과 함께.
+     *
+     * @param actorOperatorId 운영자 회원 계정의 처리면 그 운영자({@code actorRole} OPERATOR), 아니면 null
+     */
+    public void insert(long id, long boardId, long actorId, String actorRole, Long actorOperatorId, String kind, String action, Long targetUserId, long postId,
+                       Long commentId, String reasonCode, String title, String excerpt, String authorName, Instant now) {
+        jdbc.update("INSERT INTO board_staff_actions (id, board_id, actor_id, actor_role, actor_operator_id, kind, action, target_user_id, post_id, comment_id, reason_code, "
+                        + "target_title, target_excerpt, target_author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, boardId, actorId, actorRole,
+                actorOperatorId, kind, action, targetUserId, postId, commentId, reasonCode, title, excerpt, authorName, ts(now));
     }
 
     /** 이 처리를 되돌림으로(조건부 — 이미 되돌렸으면 바꾸지 않는다). 바꿨으면 true */
@@ -286,7 +301,7 @@ public class BoardStaffActionStore {
         return new ActionRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4), rs.getString(5), nullableLong(rs, 6), rs.getString(7), rs.getString(8),
                 rs.getString(9), rs.getString(10), nullableLong(rs, 11), rs.getString(12), rs.getLong(13), nullableLong(rs, 14), rs.getString(15), rs.getString(16),
                 rs.getString(17), rs.getString(18), instant(rs, 19), instant(rs, 20), rs.getString(21), nullableLong(rs, 22), rs.getString(23), rs.getString(24), post,
-                comment);
+                comment, nullableLong(rs, 37), rs.getString(38));
     }
 
     private static Set<String> codes(Array array) throws SQLException {

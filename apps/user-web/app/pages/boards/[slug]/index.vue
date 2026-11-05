@@ -12,6 +12,7 @@
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
         게시판 제재·스텝 처리(board-sanction-contract · board-staff-action-contract): 매니저·스텝 본인에게만 머리 아래
           「게시판 운영 중 · 오늘 남은 처리 글 n · 댓글 n · 제재 n · [처리 내역]」(`viewer.staffTools` — 할 수 있는 처리만, [처리 내역] → `/boards/{slug}/actions`, 그 위 탭으로 제재 내역),
+          운영자 회원 계정(`staffTools.operator` — 모든 게시판)이면 「운영자 계정으로 관리 중 · 하루 한도 없음 · [처리 내역]」,
           이 게시판에서 쓰기 제한 중이면 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」(`viewer.writeRestriction`)이고 글쓰기 단추는 흐리게(누르면 같은 한 줄).
           이 게시판에서 받고 확인하지 않은 경고가 있으면 「이 게시판에서 경고를 받았어요 · 사유 · [자세히] · [확인했어요]」(`viewer.pendingWarnings`, 쓰기는 막지 않는다).
     -->
@@ -54,10 +55,10 @@
                     />
                 </header>
 
-                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만. 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만) · [처리 내역] -->
+                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만(운영자 회원 계정은 모든 게시판). 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만, 운영자는 「하루 한도 없음」) · [처리 내역] -->
                 <p v-if="staffTools" class="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="board-staff-bar">
                     <i class="pi pi-shield text-[0.6875rem] text-muted-color" aria-hidden="true" />
-                    <span class="font-semibold">{{ staffTools.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff') }}</span>
+                    <span class="font-semibold" data-testid="board-staff-bar-role">{{ staffBarLabel }}</span>
                     <template v-if="staffRemaining">
                         <span aria-hidden="true" class="text-muted-color">·</span>
                         <span class="tabular-nums" :class="UtilBoardStaffActionMessages.anyExhausted(staffTools) ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'" data-testid="board-staff-remaining">
@@ -320,7 +321,13 @@ async function loadBoard(): Promise<void> {
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
 /** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */
 const staffTools = computed(() => detail.value?.viewer.staffTools ?? null);
-/** 게시판 운영 줄의 오늘 남은 처리 — 할 수 있는 것만(비면 줄에서 뺀다) */
+/** 게시판 운영 줄 앞머리 — 운영자 회원 계정 · 매니저 · 스텝 */
+const staffBarLabel = computed(() => {
+    const tools = staffTools.value;
+    if (tools?.operator) return t('boardStaffAction.barOperator');
+    return tools?.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff');
+});
+/** 게시판 운영 줄의 오늘 남은 처리 — 할 수 있는 것만(비면 줄에서 뺀다). 운영자 회원 계정이면 「하루 한도 없음」 */
 const staffRemaining = computed(() => (staffTools.value ? UtilBoardStaffActionMessages.remainingLine(t, staffTools.value) : ''));
 const writeRestriction = computed(() => detail.value?.viewer.writeRestriction ?? null);
 const pendingWarnings = computed(() => detail.value?.viewer.pendingWarnings ?? []);

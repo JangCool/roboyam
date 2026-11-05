@@ -51,6 +51,10 @@
 
         <!-- 한 화면: 사실 고지(사라지는 것·남는 것·끝나야 하는 일) → 정할 것 → 재가입 → 사유(선택) → 본인 확인 → 단추 하나. 단계 나누기·만류 팝업 없음 -->
         <form v-else-if="view" class="flex flex-col gap-6" novalidate :aria-label="t('withdrawal.title')" @submit.prevent="submit">
+            <!-- 운영자 회원 계정(로그인 정보의 `operatorAccount`) — 연결된 동안은 탈퇴할 수 없다(서버 `409 OPERATOR_ACCOUNT_LINKED`). 사실 고지는 그대로 보이고 단추만 잠긴다 -->
+            <Message v-if="operatorLinked" severity="warn" :closable="false" size="small" data-testid="withdraw-operator-blocked">
+                <b>{{ t('operatorAccount.withdrawBlockedTitle') }}</b> {{ t('operatorAccount.withdrawBlockedText') }}
+            </Message>
             <p class="m-0 text-sm leading-relaxed text-muted-color">{{ t('withdrawal.intro') }}</p>
 
             <!-- 사라지는 것 -->
@@ -382,6 +386,8 @@ import UtilWithdrawal from '~/utils/util-withdrawal';
  *   비밀번호는 이 화면의 `password` 하나에만 있고 성공·잠금 때 비운다.
  * - 오류는 서버 문구 그대로, 코드로 갈라 자리에 붙인다(`400 VALIDATION` 의 `fields.password`·`forfeitConsent`·`groupChoices`·`reason`·`reasonNote`, 그 밖은 폼 아래 한 줄).
  *   `409 WITHDRAWAL_ALREADY_SCHEDULED`·취소의 `409 WITHDRAWAL_NOT_SCHEDULED` 는 화면이 낡은 것이므로 다시 받는다.
+ * - **운영자 회원 계정**(로그인 정보의 `operatorAccount`): 맨 위에 「연결된 동안은 탈퇴할 수 없어요 · 관리자에게 연결 해제를 요청해 주세요」, 탈퇴 단추는 비활성.
+ *   서버 거절 `409 OPERATOR_ACCOUNT_LINKED` 는 서버 문구를 폼 아래 한 줄로 보이고 로그인 정보를 새로 받는다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -457,7 +463,9 @@ const choices = computed(() => ({
 }));
 /** 지금 선택대로면 탈퇴 진행 중이 되는가(아니면 즉시 완료) — 단추 이름·안내가 달라진다 */
 const willSchedule = computed(() => Boolean(view.value && UtilWithdrawal.pendingAfter(view.value, choices.value).length > 0));
-const canSubmit = computed(() => Boolean(view.value) && status.value === 'ready' && !busy.value && !passwordError.value && UtilWithdrawal.verified(view.value!, password.value));
+/** 운영자 회원 계정이라 탈퇴할 수 없다(연결 해제는 관리자 앱) — 판정은 서버(`409 OPERATOR_ACCOUNT_LINKED`) */
+const operatorLinked = computed(() => auth.operatorAccount.value !== null);
+const canSubmit = computed(() => Boolean(view.value) && status.value === 'ready' && !busy.value && !operatorLinked.value && !passwordError.value && UtilWithdrawal.verified(view.value!, password.value));
 
 /** 금액 — `12,000원` */
 function won(amount: number): string {
@@ -606,6 +614,11 @@ async function onFailed(e: unknown) {
             // 소셜 전용 회원인데 최근 로그인이 아니다 — 다시 로그인 안내로 바뀐다
             if (view.value) view.value.verification = { method: 'RECENT_LOGIN', recentLoginOk: false };
             formError.value = e.message;
+            return;
+        case 'OPERATOR_ACCOUNT_LINKED':
+            // 운영자 회원 계정이다(그새 연결됐을 수 있다) — 서버 문구를 보이고 로그인 정보를 새로 받아 위 안내와 단추 잠금을 맞춘다
+            formError.value = e.message;
+            await refreshAuth();
             return;
         case 'WITHDRAWAL_ALREADY_SCHEDULED':
             // 이미 진행 중이다(다른 탭에서 신청 등) — 진행 중 화면으로 바뀌고 띠도 켜진다

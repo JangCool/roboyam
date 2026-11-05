@@ -242,6 +242,23 @@ public final class AuditActions {
     public static final String BOARD_SANCTION_REVIEW_CLOSE = "BOARD_SANCTION_REVIEW_CLOSE";
     /** 게시판 스텝 처리 되돌리기(운영자 — board-staff-action-contract 정책 6) — 대상 POST + 글 ID, {@code boardStaffActionId}·{@code kind}(POST_HIDE · POST_DELETE · COMMENT_DELETE)·{@code boardId}·{@code commentId}·처리한 회원 {@code actorUserId}·{@code reason}·{@code restoredPoints} */
     public static final String BOARD_STAFF_ACTION_RESTORE = "BOARD_STAFF_ACTION_RESTORE";
+    // ── 운영자 회원 계정(docs/features/operator-member-account-contract.md 정책 11) — 「운영자 X 가 회원 계정 Y 로」: 행위자 OPERATOR(운영자 ID), detail.viaUserId = 그 회원 ──
+    /** 연결(대상 OPERATOR + 운영자 ID) — {@code userId}·끝낸 게시판 담당 {@code releasedBoards} */
+    public static final String OPERATOR_MEMBER_LINK = "OPERATOR_MEMBER_LINK";
+    /** 해제(대상 OPERATOR + 운영자 ID) — {@code userId} */
+    public static final String OPERATOR_MEMBER_UNLINK = "OPERATOR_MEMBER_UNLINK";
+    /** 사이트에서 글 숨기기(대상 POST + 글 ID) — {@code viaUserId}·{@code boardId}·{@code postId}·{@code reasonCode}·{@code boardStaffActionId} */
+    public static final String SITE_POST_HIDE = "SITE_POST_HIDE";
+    /** 사이트에서 글 삭제(대상 POST) — 위와 같은 칸 + {@code revokedPoints} */
+    public static final String SITE_POST_DELETE = "SITE_POST_DELETE";
+    /** 사이트에서 댓글 삭제(대상 COMMENT + 댓글 ID) — {@code viaUserId}·{@code boardId}·{@code postId}·{@code commentId}·{@code reasonCode}·{@code boardStaffActionId} */
+    public static final String SITE_COMMENT_DELETE = "SITE_COMMENT_DELETE";
+    /** 사이트에서 게시판 제재(대상 MEMBER + 받은 회원) — {@code viaUserId}·{@code boardId}·{@code postId}·{@code commentId}·{@code reasonCode}·{@code kind}·{@code boardSanctionId} */
+    public static final String SITE_BOARD_SANCTION = "SITE_BOARD_SANCTION";
+    /** 사이트에서 게시판 쓰기 제한 해제(대상 MEMBER) — {@code viaUserId}·{@code boardId}·{@code boardSanctionId}·{@code reason} */
+    public static final String SITE_BOARD_SANCTION_LIFT = "SITE_BOARD_SANCTION_LIFT";
+    /** 사이트에서 처리 되돌리기(대상 POST + 글 ID) — {@code viaUserId}·{@code boardId}·{@code postId}·{@code commentId}·{@code reasonCode}·{@code boardStaffActionId}·{@code reason} */
+    public static final String SITE_ACTION_RESTORE = "SITE_ACTION_RESTORE";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──

@@ -47,7 +47,8 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
     let seq = 0;
     let abort: AbortController | null = null;
 
-    function setQuota(quota: BoardStaffQuota, resetsAt: string | null): void {
+    /** 남은 한도를 맞춘다 — null 은 하루 한도 없음(운영자 회원 계정) */
+    function setQuota(quota: BoardStaffQuota | null, resetsAt: string | null): void {
         if (preview.value) preview.value = { ...preview.value, quota, resetsAt: resetsAt ?? preview.value.resetsAt };
         const tools = board()?.viewer.staffTools;
         if (tools) {

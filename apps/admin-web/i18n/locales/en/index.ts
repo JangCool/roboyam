@@ -33,6 +33,7 @@ import menuConfig from './menuConfig';
 import mfa from './mfa';
 import notification from './notification';
 import operator from './operator';
+import operatorMember from './operatorMember';
 import permission from './permission';
 import point from './point';
 import payment from './payment';
@@ -100,6 +101,7 @@ export default {
     mfa,
     notification,
     operator,
+    operatorMember,
     permission,
     point,
     payment,

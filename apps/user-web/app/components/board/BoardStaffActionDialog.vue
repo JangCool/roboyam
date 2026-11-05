@@ -33,8 +33,8 @@
             <Message v-if="formError" severity="error" variant="simple" size="small" data-testid="board-staff-action-error">{{ formError }}</Message>
 
             <div class="flex flex-wrap items-center justify-between gap-2 border-t border-surface pt-3">
-                <span v-if="quota" class="text-xs tabular-nums" :class="exhausted ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'" data-testid="board-staff-action-quota">
-                    {{ exhausted ? t('boardStaffAction.quotaEmpty') : UtilBoardStaffActionMessages.quotaLine(t, kind, quota) }}
+                <span v-if="quota || unlimited" class="text-xs tabular-nums" :class="exhausted ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'" data-testid="board-staff-action-quota">
+                    {{ exhausted ? t('boardStaffAction.quotaEmpty') : UtilBoardStaffActionMessages.quotaLine(t, kind, unlimited ? null : quota) }}
                 </span>
                 <span v-else />
                 <div class="flex gap-2">
@@ -64,6 +64,8 @@ interface Props {
     targetText?: string;
     /** 이 종류의 오늘 남은 한도(글 처리면 글 한도, 댓글 삭제면 댓글 한도) — 모르면 null */
     quota?: BoardStaffQuota | null;
+    /** 하루 한도 없음(운영자 회원 계정 — `staffTools.operator`) — 남은 횟수 대신 「운영자 계정 · 하루 한도 없음」 */
+    unlimited?: boolean;
     submitting?: boolean;
     /** 제출 실패 서버 문구(칸에 붙지 않는 것) */
     formError?: string;
@@ -74,6 +76,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     targetText: '',
     quota: null,
+    unlimited: false,
     submitting: false,
     formError: '',
     reasonFieldError: '',
@@ -92,7 +95,7 @@ const reasonCode = ref<BoardStaffActionReasonCode | null>(null);
 const tried = ref(false);
 
 const isComment = computed(() => props.kind === 'COMMENT_DELETE');
-const exhausted = computed(() => Boolean(props.quota && props.quota.remaining <= 0));
+const exhausted = computed(() => Boolean(!props.unlimited && props.quota && props.quota.remaining <= 0));
 const reasonError = computed(() => props.reasonFieldError || (tried.value && !reasonCode.value ? t('boardStaffAction.reasonRequired') : ''));
 
 /** 닫히면 처음 단계로 비운다 */

@@ -18,11 +18,13 @@ export type BoardStaffActionReasonCode = 'SPAM' | 'ABUSE' | 'INVESTMENT' | 'OFF_
 /** 대상의 지금 상태 */
 export type BoardStaffActionTargetState = 'PUBLIC' | 'HIDDEN' | 'DELETED';
 
-/** 처리한 매니저·스텝(회원) */
+/** 처리한 매니저·스텝(회원) 또는 운영자 회원 계정(`role` OPERATOR, 닉네임 = 그 회원 닉네임) */
 export interface BoardStaffActionActor {
     id: string;
     nickname: string | null;
     role: BoardStaffRole;
+    /** 운영자 회원 계정 줄이면 그 운영자의 지금 이름 — 그 밖 null */
+    operatorName: string | null;
 }
 
 /** 대상 작성자 — 회원(닉네임) 또는 비회원(이름) */

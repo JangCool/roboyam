@@ -46,10 +46,11 @@ public class BoardSanctionStore {
     public static final String SELECT = "SELECT s.id, s.sanction_no, s.board_id, b.slug, b.name, b.name_en, s.user_id, p.nickname, p.grade_key, u.status, "
             + "s.kind, s.status, s.reason_code, s.reason_text, s.issued_by, ip.nickname, s.issued_role, s.post_id, s.comment_id, s.source_title, "
             + "s.starts_at, s.ends_at, s.acknowledged_at, s.lifted_at, s.lifted_by_type, s.lifted_by_user, lp.nickname, s.lifted_by_operator, lo.operator_name, s.lift_reason, "
-            + "s.voided_at, s.void_source, s.voided_by, vo.operator_name, s.void_reason, s.ended_at, s.created_at, a.id, a.appeal_no, a.status "
+            + "s.voided_at, s.void_source, s.voided_by, vo.operator_name, s.void_reason, s.ended_at, s.created_at, a.id, a.appeal_no, a.status, s.issued_operator_id, iop.operator_name "
             + "FROM board_sanctions s JOIN boards b ON b.id = s.board_id JOIN users u ON u.id = s.user_id LEFT JOIN profiles p ON p.user_id = s.user_id "
             + "LEFT JOIN profiles ip ON ip.user_id = s.issued_by LEFT JOIN profiles lp ON lp.user_id = s.lifted_by_user "
             + "LEFT JOIN operators lo ON lo.id = s.lifted_by_operator LEFT JOIN operators vo ON vo.id = s.voided_by "
+            + "LEFT JOIN operators iop ON iop.id = s.issued_operator_id "
             + "LEFT JOIN sanction_appeals a ON a.board_sanction_id = s.id";
 
     /** 반복 검토 한 줄 — 게시판·회원·닫은 운영자 이름·닫으며 부여한 사이트 제재(번호·단계)를 함께 */
@@ -62,11 +63,14 @@ public class BoardSanctionStore {
     /** 반복 검토 기준 기간 — 최근 7일(롤링, 결정 3) */
     public static final java.time.Duration REVIEW_WINDOW = java.time.Duration.ofDays(7);
 
+    /** 준 사람 자리 — 운영자 회원 계정(V141, operator-member-account-contract 정책 11) */
+    public static final String ROLE_OPERATOR = "OPERATOR";
+
     /**
      * 게시판 제재 한 줄.
      *
      * @param status        저장된 상태 — 끝이 지났지만 아직 정리되지 않은 쓰기 제한은 {@link #effectiveStatus} 가 ENDED 로 본다
-     * @param issuedRole    줄 때의 자리(MANAGER · STAFF)
+     * @param issuedRole    줄 때의 자리(MANAGER · STAFF · OPERATOR — 운영자 회원 계정, {@code issuedBy} = 그 회원 · {@code issuedOperatorId} = 운영자)
      * @param liftedByType  MANAGER(그 게시판 매니저 — {@code liftedByUser}) · OPERATOR(운영자 — {@code liftedByOperator})
      * @param voidSource    APPEAL · OPERATOR · REVIEW
      */
@@ -75,7 +79,13 @@ public class BoardSanctionStore {
                                    Long issuedBy, String issuedByNickname, String issuedRole, Long postId, Long commentId, String sourceTitle, Instant startsAt,
                                    Instant endsAt, Instant acknowledgedAt, Instant liftedAt, String liftedByType, Long liftedByUser, String liftedByUserNickname,
                                    Long liftedByOperator, String liftedByOperatorName, String liftReason, Instant voidedAt, String voidSource, Long voidedBy,
-                                   String voidedByName, String voidReason, Instant endedAt, Instant createdAt, Long appealId, Long appealNo, AppealStatus appealStatus) {
+                                   String voidedByName, String voidReason, Instant endedAt, Instant createdAt, Long appealId, Long appealNo, AppealStatus appealStatus,
+                                   Long issuedOperatorId, String issuedOperatorName) {
+
+        /** 운영자 회원 계정이 준 제재인가 — 매니저는 풀지 못한다(operator-member-account-contract 정책 7) */
+        public boolean byOperator() {
+            return ROLE_OPERATOR.equals(issuedRole);
+        }
 
         /** {@code now} 의 상태 — 진행 중인데 끝이 지난 쓰기 제한은 ENDED(크론이 1분 안에 그렇게 만든다) */
         public SanctionStatus effectiveStatus(Instant now) {
@@ -327,22 +337,26 @@ public class BoardSanctionStore {
                 + "WHERE user_id = ? AND board_id = ? AND status = 'ACTIVE' AND ends_at IS NOT NULL AND ends_at <= ?", ts(now), userId, boardId, ts(now));
     }
 
-    /** 새 제재 — 번호는 DB 시퀀스가 매긴다(돌려준다) */
-    public long insert(long id, long boardId, long userId, BoardSanctionKind kind, String reasonCode, String reasonText, long issuedBy, String issuedRole, Long postId,
-                       Long commentId, String sourceTitle, Instant startsAt, Instant endsAt, Instant now) {
-        Long no = jdbc.queryForObject("INSERT INTO board_sanctions (id, board_id, user_id, kind, status, reason_code, reason_text, issued_by, issued_role, post_id, "
-                        + "comment_id, source_title, starts_at, ends_at, created_at, updated_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                        + "RETURNING sanction_no", Long.class, id, boardId, userId, kind.name(), reasonCode, reasonText, issuedBy, issuedRole, postId, commentId, sourceTitle,
-                ts(startsAt), ts(endsAt), ts(now), ts(now));
+    /**
+     * 새 제재 — 번호는 DB 시퀀스가 매긴다(돌려준다).
+     *
+     * @param issuedOperatorId 운영자 회원 계정이 주면 그 운영자({@code issuedRole} OPERATOR), 아니면 null
+     */
+    public long insert(long id, long boardId, long userId, BoardSanctionKind kind, String reasonCode, String reasonText, long issuedBy, String issuedRole,
+                       Long issuedOperatorId, Long postId, Long commentId, String sourceTitle, Instant startsAt, Instant endsAt, Instant now) {
+        Long no = jdbc.queryForObject("INSERT INTO board_sanctions (id, board_id, user_id, kind, status, reason_code, reason_text, issued_by, issued_role, issued_operator_id, "
+                        + "post_id, comment_id, source_title, starts_at, ends_at, created_at, updated_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "RETURNING sanction_no", Long.class, id, boardId, userId, kind.name(), reasonCode, reasonText, issuedBy, issuedRole, issuedOperatorId, postId, commentId,
+                sourceTitle, ts(startsAt), ts(endsAt), ts(now), ts(now));
         return no == null ? 0 : no;
     }
 
-    /** 매니저·스텝 처리 기록 한 줄(kind SANCTION) */
-    public void insertAction(long id, long boardId, long actorId, String actorRole, String action, long targetUserId, long boardSanctionId, Long postId, Long commentId,
-                             String reason, Instant now) {
-        jdbc.update("INSERT INTO board_staff_actions (id, board_id, actor_id, actor_role, kind, action, target_user_id, board_sanction_id, post_id, comment_id, reason, "
-                + "created_at) VALUES (?, ?, ?, ?, 'SANCTION', ?, ?, ?, ?, ?, ?, ?)", id, boardId, actorId, actorRole, action, targetUserId, boardSanctionId, postId, commentId,
-                reason, ts(now));
+    /** 매니저·스텝(·운영자 회원 계정 — {@code actorOperatorId}) 처리 기록 한 줄(kind SANCTION) */
+    public void insertAction(long id, long boardId, long actorId, String actorRole, Long actorOperatorId, String action, long targetUserId, long boardSanctionId,
+                             Long postId, Long commentId, String reason, Instant now) {
+        jdbc.update("INSERT INTO board_staff_actions (id, board_id, actor_id, actor_role, actor_operator_id, kind, action, target_user_id, board_sanction_id, post_id, "
+                + "comment_id, reason, created_at) VALUES (?, ?, ?, ?, ?, 'SANCTION', ?, ?, ?, ?, ?, ?, ?)", id, boardId, actorId, actorRole, actorOperatorId, action,
+                targetUserId, boardSanctionId, postId, commentId, reason, ts(now));
     }
 
     /** 진행 중 쓰기 제한 해제 — 매니저({@code byUser}) 또는 운영자({@code byOperator}). 조건부(끝이 지났거나 이미 끝났으면 바꾸지 않는다). 풀었으면 true */
@@ -513,7 +527,7 @@ public class BoardSanctionStore {
                 rs.getString(14), nullableLong(rs, 15), rs.getString(16), rs.getString(17), nullableLong(rs, 18), nullableLong(rs, 19), rs.getString(20), instant(rs, 21),
                 instant(rs, 22), instant(rs, 23), instant(rs, 24), rs.getString(25), nullableLong(rs, 26), rs.getString(27), nullableLong(rs, 28), rs.getString(29),
                 rs.getString(30), instant(rs, 31), rs.getString(32), nullableLong(rs, 33), rs.getString(34), rs.getString(35), instant(rs, 36), instant(rs, 37),
-                nullableLong(rs, 38), nullableLong(rs, 39), appealStatus == null ? null : AppealStatus.valueOf(appealStatus));
+                nullableLong(rs, 38), nullableLong(rs, 39), appealStatus == null ? null : AppealStatus.valueOf(appealStatus), nullableLong(rs, 41), rs.getString(42));
     }
 
     public static ReviewRow review(ResultSet rs, int i) throws SQLException {

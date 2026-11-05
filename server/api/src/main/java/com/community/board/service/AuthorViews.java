@@ -2,6 +2,7 @@ package com.community.board.service;
 
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.business.service.BusinessEligibility;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
@@ -32,8 +33,10 @@ public class AuthorViews {
     private final ProfileRepository profiles;
     private final ShopDecorationResolver decorations;
     private final BusinessEligibility businesses;
+    private final OperatorMemberAccountService operatorAccounts;
 
-    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses) {
+    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.profiles = profiles;
         this.decorations = decorations;
         this.businesses = businesses;
@@ -51,7 +54,8 @@ public class AuthorViews {
         profiles.findAllById(wanted).forEach(p -> out.put(p.getUserId(), p));
         Map<Long, AuthorLook> looks = decorations.resolve(wanted);
         Set<Long> approved = businesses.approvedUserIds(wanted);
-        return new AuthorMembers(out, looks, approved);
+        Set<Long> operators = operatorAccounts.activeOperatorUserIds(wanted); // 운영자 뱃지(정책 10) — 힘이 살아 있는 연결만, 한 질의
+        return new AuthorMembers(out, looks, approved, operators);
     }
 
     /**
@@ -60,19 +64,20 @@ public class AuthorViews {
      */
     public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, false);
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, false, false);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
         String label = gradeKey == null ? null : catalog.gradeLabel(gradeKey);
         AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
-                ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), members.business(authorId));
+                ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), members.business(authorId),
+                members.operator(authorId));
     }
 
-    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타·사업자 뱃지를 비운다(종류·회원 ID 는 그대로) */
+    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타·사업자 뱃지·운영자 뱃지를 비운다(종류·회원 ID 는 그대로) */
     public static PostAuthorView blank(PostAuthorView author) {
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, false);
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, false, false);
     }
 
     /** IP 앞 두 자리 — IPv4 {@code 123.45.*.*}, IPv6 앞 두 묶음 {@code 2001:db8:*:*}. IP 가 없으면(보유기간이 지나 지움) null, 읽지 못하면 {@code *} */

@@ -13,6 +13,7 @@ import com.community.member.dto.MemberRoles;
 import com.community.member.dto.MemberSearchCriteria;
 import com.community.member.dto.request.MemberSearchRequest;
 import com.community.member.dto.response.MemberActivity;
+import com.community.member.dto.response.MemberOperatorAccountRef;
 import com.community.member.dto.response.MemberConsentRecord;
 import com.community.member.dto.response.MemberConsents;
 import com.community.member.dto.response.MemberDetailView;
@@ -96,12 +97,15 @@ public class MemberService {
     private final MemberSettingsAssembler settingsAssembler;
     private final IdentityVerificationService identities;
     private final com.community.sanction.service.BoardSanctionViews boardSanctionViews;
+    private final com.community.operator.service.OperatorMemberAccountService operatorAccounts;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
                          ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints,
                          ProfileNicknameHistoryRepository nicknameHistory, MemberSettingsAssembler settingsAssembler,
-                         IdentityVerificationService identities, com.community.sanction.service.BoardSanctionViews boardSanctionViews) {
+                         IdentityVerificationService identities, com.community.sanction.service.BoardSanctionViews boardSanctionViews,
+                         com.community.operator.service.OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.boardSanctionViews = boardSanctionViews;
         this.nicknameHistory = nicknameHistory;
         this.settingsAssembler = settingsAssembler;
@@ -182,7 +186,8 @@ public class MemberService {
                 withdrawn ? null : profile.getBio(), social, null, acceptDm, null, withdrawn ? record.deletedAt() : null,
                 withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
                 gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id),
-                withdrawn ? null : boardSanctionViews.memberSummary(id)); // 게시판 제재 요약(board-sanction-contract) — 탈퇴 회원은 null
+                withdrawn ? null : boardSanctionViews.memberSummary(id), // 게시판 제재 요약(board-sanction-contract) — 탈퇴 회원은 null
+                operatorAccounts.linkOfUser(id).map(l -> new MemberOperatorAccountRef(Long.toString(l.operatorId()), l.operatorName(), l.active())).orElse(null));
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));
