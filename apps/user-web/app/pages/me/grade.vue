@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto max-w-md md:max-w-xl">
+    <div class="content-card">
         <h1 class="mb-3 text-lg font-bold">{{ t('grade.title') }}</h1>
 
         <!-- 자동 승급이 멈춰 있다 — 정지 중 보류(빨강, 제재 안내로) · 운영자가 등급을 직접 바꿈(노랑). 운영자가 적은 사유는 이 화면에 없다 -->
@@ -113,6 +113,7 @@ import UtilSanction from '~/utils/util-sanction';
  * API 는 `useGradeApi`(`GET /api/grade-rules`·`GET /api/me/grade`). 원본과 달라진 점: 인기글 조건·닉네임 이미지 신청·공식 뱃지 안내는 로보얌에 없어 뺐다. 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
  * 메뉴의 「등급 안내」(BUILTIN `MY_GRADE`)는 로그인 필요 항목이지만 화면은 비회원에게도 조건표를 보인다(community 와 같다).
  */
+definePageMeta({ meMenu: true });
 const { t } = useI18n();
 const route = useRoute();
 const { user, loaded } = useAuth();

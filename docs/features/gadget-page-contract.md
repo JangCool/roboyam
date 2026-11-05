@@ -9,7 +9,8 @@
   - 고르기 줄 `components/theme/GadgetPagePicker.vue`(목록 · 공개 주소 새 탭 · [페이지 정보] · [새 페이지], 없으면 빈 안내) · 만들기/고치기 창 `GadgetPageDialog.vue`(처음 배치 미리, [페이지 지우기]).
   - 편집은 홈과 같은 `HomeLayoutEditor`(prop `page`) + `ThemeLivePreview`(prop `path` `/p/{key}` · `page` 머리). 「테마 기본 배치로」 대신 「처음 배치로」.
   - 가젯 ⚙ 설정 창 `GadgetSettingsDialog.vue` — 칸·범위·처음 값의 원천은 admin `utils/util-gadget-config.ts`(아래 「가젯 설정」). 홈에서도 같은 창이다.
-- 공개 `/p/{key}`(user-web `pages/p/[key].vue`) — 고정 머리 `components/page/GadgetPageHeader.vue`(이름 h1 · 설명 · 글쓰기 단추) + 지금 테마의 홈 템플릿(`HomeGadgetGrid`). 없는 페이지는 「찾을 수 없어요」.
+- 공개 `/p/{key}`(user-web `pages/p/[key].vue`) — 지금 테마의 홈 템플릿(`HomeGadgetGrid`). 없는 페이지는 「찾을 수 없어요」.
+  - 머리(사용자 결정 2026-11-05): 이름·설명은 화면에 그리지 않는다(이름은 화면 읽기용 `h1.sr-only` 만). 글쓰기 단추를 켰으면 오른쪽 아래 떠 있는 둥근 글쓰기 단추(`components/page/GadgetPageWriteFab.vue` — 하위 메뉴 없이 누르면 바로 `/write?board=`). 관리자의 「설명」 칸은 지금 공개 화면에 쓰이지 않는다.
 - 메뉴 관리: 「누르면 가는 곳 › 사이트 화면 › 목록에서 고르기」 맨 위 「가젯 페이지」 묶음(연결 유형 `GADGET_PAGE`, 아래 「세션 정리 결정」).
 
 ## 필드·검증

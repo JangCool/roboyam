@@ -24,7 +24,8 @@
 
             <ErrorState v-else-if="phase === 'error'" :title="t('dm.newLoadFailed')" :description="loadError" retry data-testid="dm-new-error" @retry="loadMe" />
 
-            <form v-else class="mx-auto w-full max-w-xl space-y-4 p-4" novalidate :aria-label="t('dm.newFormLabel')" @submit.prevent="onSubmit">
+            <!-- 줄 사이는 gap — `space-y-*` 는 `m-0` 이 붙은 줄(한도 칸·안내 문장)에서 아래 여백이 지워져 붙어 보였다 -->
+            <form v-else class="mx-auto flex w-full max-w-xl flex-col gap-4 p-4" novalidate :aria-label="t('dm.newFormLabel')" @submit.prevent="onSubmit">
                 <!-- 못 보내는 이유 — 받는 사람을 고르기 전에는 나 때문인 이유만, 고른 뒤에는 서버가 그 사람에게 보낼 수 있나를 알려 준다 -->
                 <DmReasonBanner v-if="blockReason" :reason="blockReason" :available-from="availableFrom" :quota="quota" :min-days="minDays" />
 

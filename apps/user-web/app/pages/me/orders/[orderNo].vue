@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="my-order">
+    <div class="content-card flex flex-col gap-4" data-testid="my-order">
         <NuxtLink :to="UtilCommerce.ORDERS_PATH" class="inline-flex w-fit items-center gap-1 text-sm text-muted-color hover:underline">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" /> {{ t('commerce.ordersTitle') }}
         </NuxtLink>
@@ -474,7 +474,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
  * - 요청 철회 · 요청 상태(거절 사유 코드 문구 포함) · 발송 지연 공지의 「바로 전액 취소」 · 단품 공급 불가 「나머지만 받기 / 전체 취소」.
  * 단추는 모두 서버 `actions` 로만 보인다(감추는 것은 편의, 막는 것은 서버).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 const route = useRoute();

@@ -7,7 +7,7 @@ export default {
     seoDescription: '{site} 계정 설정이에요.',
 
     // 메뉴
-    profile: '프로필',
+    profile: '프로필 편집',
     profileHint: '닉네임·한 줄 소개',
     notifications: '알림 설정',
     notificationsHint: '어떤 알림을 받을지',

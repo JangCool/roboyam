@@ -4,6 +4,7 @@
  *
  * `write` 는 게시판 목록 화면이 받은 "지금 사용자의 글쓰기 가능 여부"(`useBoardApi().board` 의 `viewer.canWrite`·`viewer.writeBlockedReason`)다 —
  * 떠 있는 글쓰기 버튼(FAB)이 운영진 전용 게시판에서 일반 회원에게는 보이지 않게 하려는 것이다.
+ * `writeInView` 는 게시판 머리(글쓰기 단추가 있는 줄)가 화면에 보이는가 — 보이는 동안은 떠 있는 버튼을 숨긴다(게시판 화면이 지켜본다, 모르면 보인다고 친다).
  */
 import type { WriteBlockedReason } from '~/composables/board/api/useBoardApi.types';
 
@@ -16,6 +17,7 @@ export interface CurrentBoardWrite {
 export function useCurrentBoard() {
     const slug = useState<string | null>('current-board', () => null);
     const write = useState<CurrentBoardWrite | null>('current-board-write', () => null);
+    const writeInView = useState<boolean>('current-board-write-in-view', () => true);
 
     function set(next: string): void {
         slug.value = next;
@@ -27,11 +29,16 @@ export function useCurrentBoard() {
         if (ifSlug && slug.value !== ifSlug) return;
         slug.value = null;
         write.value = null;
+        writeInView.value = true;
     }
 
     function setWrite(value: CurrentBoardWrite | null): void {
         write.value = value;
     }
 
-    return { slug, write, set, clear, setWrite };
+    function setWriteInView(value: boolean): void {
+        writeInView.value = value;
+    }
+
+    return { slug, write, writeInView, set, clear, setWrite, setWriteInView };
 }

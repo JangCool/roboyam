@@ -1,6 +1,6 @@
 <template>
     <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 설정」 -->
-    <div>
+    <div class="content-card">
         <h1 class="mb-4 text-lg font-bold">{{ t('account.title') }}</h1>
 
         <!-- 소셜 연결이 끝나지 않고 돌아왔다 — 다른 회원에 연결된 소셜 계정 · 취소·실패·시간 초과 -->

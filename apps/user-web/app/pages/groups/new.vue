@@ -7,7 +7,7 @@
         공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
           고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
     -->
-    <div class="content-card mx-auto max-w-xl">
+    <div class="content-card">
         <NuxtLink :to="UtilGroup.LIST_PATH" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ t('group.backToList') }}
         </NuxtLink>

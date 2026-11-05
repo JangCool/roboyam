@@ -1,6 +1,6 @@
 <template>
     <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 설정」 -->
-    <div data-testid="identity-page">
+    <div class="content-card" data-testid="identity-page">
         <h1 class="mb-4 text-lg font-bold">{{ t('identity.title') }}</h1>
 
         <!-- 인증 실패 — 사용자가 인증창을 닫은 것은 보이지 않는다 -->

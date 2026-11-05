@@ -74,7 +74,7 @@ import UtilDm from '~/utils/util-dm';
  * 보이는 동안 약 60초마다 첫 쪽을 다시 받아 합친다(`useDmPoll`). 안쪽 화면(`shell: 'inner'`)인지는 자식 페이지가 정한다. 로그인 필요, `noindex,nofollow`.
  * API 는 `useDmApi` — `docs/features/member-social-contract.md`.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('dm.inboxTitle'), description: () => t('dm.inboxSeo', { site: siteLabel.value }), robots: 'noindex,nofollow' });

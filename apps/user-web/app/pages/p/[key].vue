@@ -2,7 +2,7 @@
     <!--
         가젯 페이지 `/p/{key}`(사용자 결정 2026-10-29 — 홈처럼 가젯 격자로 꾸미는 페이지. 첫 페이지 「커뮤니티」 `/p/community`, 다음 「주제」).
         `GET /api/pages/{key}`가 준 머리(이름·설명·글쓰기 단추) + 지금 테마의 그 페이지 배치·가젯을 그린다:
-          · 위: 고정 머리 `GadgetPageHeader` — 배치와 상관없이 늘 붙는다.
+          · 머리: 이름은 화면 읽기용 제목(`sr-only`)으로만 두고, 운영자가 글쓰기 단추를 켰으면 오른쪽 아래 떠 있는 글쓰기 단추(`WriteFloatButton` — 누르면 바로 `/write?board=` 기준 폴더의 첫 게시판, 게시판이 없으면 `/write`)를 띄운다(설명은 그리지 않는다 — 2026-11-05).
           · 아래: 지금 테마의 홈 템플릿(`UtilTheme.resolve(theme, 'home')` — 겉모양만)이 공통 격자 `HomeGadgetGrid` 로 그린다. 가젯 부품·읽기(`UtilHomeGadget.sanitize`)는 홈과 같다.
         메뉴 폴더의 「누르면 가는 곳」이 이 페이지를 가리킬 수 있다(관리자 메뉴 관리, 연결 유형 `GADGET_PAGE`) — 메뉴의 「지금 있는 곳」은 공개 메뉴 응답의 `path` 로 맞춘다.
         없는 페이지는 「찾을 수 없어요」. 응답에 보는 사람 몫이 섞여 캐시하지 않고, 로그인·로그아웃하면 다시 받는다. 투자 고지 게시판 글이 보이면 맨 아래에 고지를 붙인다.
@@ -16,13 +16,16 @@
         <ErrorState v-else-if="status === 'error'" :title="t('gadgetPage.loadFailed')" :description="errorMessage" retry @retry="load" />
 
         <div v-else class="flex flex-col gap-4" :aria-busy="status === 'loading'">
-            <GadgetPageHeader v-if="head" :name="head.name" :description="head.description" :write-button="head.writeButton" :write-board="writeBoard" />
-            <div v-else class="h-11 w-48 animate-pulse rounded bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('gadgetPage.loading')" />
+            <!-- 제목은 화면에 그리지 않는다(사용자 결정 2026-11-05 — 메뉴가 이미 이 페이지 이름을 짚는다). 화면 읽기용 제목만 남긴다 -->
+            <h1 v-if="head" class="sr-only" data-testid="gadget-page-title">{{ head.name }}</h1>
 
             <HomeGadgetSkeleton v-if="!shown" />
             <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
 
             <BoardInvestmentNotice v-if="hasInvestment" variant="home" data-testid="gadget-page-investment" />
+
+            <!-- 글쓰기 — 운영자가 켰을 때 오른쪽 아래에 떠 있는 단추(누르면 바로 글쓰기) -->
+            <WriteFloatButton v-if="head?.writeButton" :to="writeTarget" data-testid="gadget-page-write" />
         </div>
     </div>
 </template>
@@ -68,6 +71,8 @@ const head = computed(() => {
     return p ? { name: p.name, description: p.description, writeButton: p.writeButton } : { name: localizedName(h.name, h.nameEn), description: h.description, writeButton: h.writeButton };
 });
 const writeBoard = computed(() => raw.value?.head.writeBoard ?? null);
+/** 떠 있는 글쓰기 단추가 갈 곳 — 기준 폴더의 첫 게시판을 골라 둔 글쓰기(없으면 글쓰기 화면이 고르게 한다) */
+const writeTarget = computed(() => (writeBoard.value ? { path: '/write', query: { board: writeBoard.value } } : { path: '/write' }));
 
 /** 그릴 배치·가젯 — 관리자 미리보기면 관리자의 저장 전 구성을 덮는다 */
 const data = computed(() => {

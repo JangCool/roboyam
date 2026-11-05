@@ -8,7 +8,7 @@
           일정 응답에는 소모임 이름·모임장 여부가 없어, 고지가 보일 때만 소모임 상세를 한 번 받아 쓴다(community 와 같다). 못 받으면 이름 없이 신고한다(모임장이면 서버가 거절).
         상태: 로딩 · 비회원(로그인 안내, 요청 없음) · 멤버 아님(잠금) · 일정 없음(404) · 소모임 없음/비활성 · 오류(다시 시도) · 열림.
     -->
-    <div class="mx-auto max-w-2xl" data-testid="event-page">
+    <div class="content-card" data-testid="event-page">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-angle-left" variant="text" severity="secondary" :aria-label="t('common.back')" @click="goBack" />
             <span class="min-w-0 flex-1 text-sm font-semibold">{{ t('groupEvent.detailTitle') }}</span>
