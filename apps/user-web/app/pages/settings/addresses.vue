@@ -1,6 +1,7 @@
 <template>
     <div class="content-card flex flex-col gap-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+        <!-- 머리(`header` — 카드 테마에서 제목 줄 위 여백이 다른 설정 화면의 h1 과 같다). 좁은 화면은 오른쪽 끝에 「‹ 설정」 링크가 겹쳐 서므로(`pages/settings.vue`) 그만큼 비운다 -->
+        <header class="flex flex-wrap items-center justify-between gap-2 max-md:pr-16">
             <h1 class="text-lg font-bold">{{ t('settings.addresses') }}</h1>
             <div v-if="status === 'ready'" class="flex items-center gap-2">
                 <span class="text-xs tabular-nums text-muted-color" :aria-label="t('addressBook.countLabel', { count: items.length, max })" data-testid="addresses-count">
@@ -8,7 +9,7 @@
                 </span>
                 <Button type="button" :label="t('addressBook.add')" icon="pi pi-plus" size="small" :disabled="full || busyId !== null" data-testid="addresses-add" @click="openAdd" />
             </div>
-        </div>
+        </header>
 
         <div v-if="status === 'loading'" class="space-y-2" role="status" :aria-label="t('addressBook.loading')" data-testid="addresses-loading">
             <div v-for="n in 2" :key="n" class="h-24 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
