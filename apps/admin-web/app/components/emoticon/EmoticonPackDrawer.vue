@@ -2,7 +2,8 @@
     <!--
         로보티콘 팩 서랍 — 팩 관리 화면(`/robotikon/packs`)에서 줄을 누르면 연다(`?id=`). 서버는 부르지 않는다 — 동작은 emit.
         보기: 요약(출처 · 작가 · 개수 · 받은 수 · 작가 보상 합계 · 승인/고친 시각) · 판매 중단 사유 · 새 판 심사 안내(심사 화면 링크) · 설명·태그 · 로보티콘 격자(크기·바탕 조절).
-        아래: 판매 중이면 [판매 중단](사유 — 부모 대화상자), 판매 중단이면 [다시 판매] (`emoticon.review`). 심사 중·반려 팩은 심사 화면으로 잇는다.
+        아래: 판매 중이면 [판매 중단](사유 — 부모 대화상자), 운영자 판매 중단이면(`resumable`) [다시 판매] (`emoticon.review`). 심사 중·반려 팩은 심사 화면으로 잇는다.
+        작가 탈퇴로 멈춘 팩(`suspendKind: CREATOR_WITHDRAWN`)은 딱지 「작가 탈퇴로 판매 중단」 · 처리한 사람 「시스템」 · [다시 판매]·[가격 바꾸기] 없음(후속 결정 6).
         운영 팩(`OFFICIAL`)은 [고치기]로 편집 상태가 된다(최소 구성): 이름·설명·태그 · 로보티콘 칸마다 이름표 입력 · 앞/뒤로 옮기기 · 빼기 · [로보티콘 올리기](GIF·PNG, 여럿).
         올리기는 부모가 한 장씩 서버에 올리고 결과를 `addItems`(노출 메서드)로 넣는다. 저장은 `save`(이름·설명·태그·로보티콘 차례와 이름표) — 부모가 만들기(POST)·고치기(PUT)를 고른다.
         `creating` 이면 빈 운영 팩을 처음부터 편집 상태로 연다.
@@ -14,7 +15,7 @@
                 <div class="flex min-w-0 flex-col gap-1">
                     <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold">{{ creating ? t('emoticon.official.createTitle') : head?.name }}</h2>
                     <div v-if="head" class="flex flex-wrap items-center gap-1.5">
-                        <Tag :value="t(`emoticon.packStatus.${head.status}`)" :severity="UtilEmoticon.packStatusSeverity(head.status)" />
+                        <Tag :value="UtilEmoticonMessages.packStatus(t, head.status, head.suspendKind ?? null)" :severity="UtilEmoticon.packStatusSeverity(head.status)" />
                         <Tag :value="t(`emoticon.source.${head.source}`)" :severity="head.source === 'OFFICIAL' ? 'contrast' : 'secondary'" />
                     </div>
                 </div>
@@ -128,7 +129,7 @@
         <!-- ── 보기 ─ -->
         <div v-else-if="detail" class="flex min-w-0 flex-col gap-6">
             <Message v-if="detail.suspension" severity="error" :closable="false">
-                <span class="text-[13px]">{{ t('emoticon.suspendedNote', { by: detail.suspension.by, at: time.shortDateTime(detail.suspension.at) }) }} — {{ detail.suspension.reason }}</span>
+                <span class="text-[13px]">{{ UtilEmoticonMessages.suspensionNote(t, detail.suspension, detail.suspendKind ?? null, time.shortDateTime(detail.suspension.at)) }}</span>
             </Message>
             <Message v-if="detail.pendingReviewId" severity="info" :closable="false">
                 <span class="text-[13px]">
@@ -449,9 +450,10 @@ const footer = computed<'edit' | string[] | null>(() => {
     if (d.source === 'OFFICIAL') out.push('officialEdit');
     // 판매 중 작가 팩이면 무료든 유료든 [가격 바꾸기](유료 ↔ 무료 전환 포함). 운영 팩은 늘 무료
     // `UtilEmoticon.PRICE_CHANGE_READY` — S2 서버(`POST …/packs/{id}/price`)가 붙어 true
+    // 작가 탈퇴로 멈춘 팩(`resumable: false`)은 판매 중단이라 가격 단추가 이미 없고, [다시 판매]도 두지 않는다(서버도 `409 EMOTICON_PACK_CREATOR_WITHDRAWN`)
     if (UtilEmoticon.PRICE_CHANGE_READY && d.status === 'APPROVED' && d.source === 'CREATOR') out.push('price');
     if (d.status === 'APPROVED') out.push('suspend');
-    if (d.status === 'SUSPENDED') out.push('resume');
+    if (d.status === 'SUSPENDED' && d.resumable) out.push('resume');
     if ((d.status === 'PENDING' || d.status === 'REJECTED') && d.pendingReviewId) out.push('toReview');
     return out.length ? out : null;
 });

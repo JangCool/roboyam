@@ -36,7 +36,7 @@
                     <!-- 받기 · 구매 -->
                     <div class="mt-4 flex flex-col gap-1.5" data-testid="emoticon-detail-acquire">
                         <div v-if="pack.saleState === 'SUSPENDED'" role="status" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                            {{ pack.acquired ? t('emoticon.suspendedOwned') : t('emoticon.suspendedText') }}
+                            {{ pack.suspendKind === 'CREATOR_WITHDRAWN' ? t('emoticon.suspendedCreatorWithdrawn') : pack.acquired ? t('emoticon.suspendedOwned') : t('emoticon.suspendedText') }}
                         </div>
                         <template v-else-if="usable">
                             <p class="m-0 inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400" role="status" data-testid="emoticon-detail-acquired">

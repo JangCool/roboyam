@@ -38,8 +38,10 @@ public final class EmoticonAdminView {
                               List<ItemView> items) {
     }
 
-    /** 처리 기록 */
-    public record Decision(String status, String reason, Instant decidedAt, String decidedBy) {
+    /**
+     * 처리 기록 — {@code cause} = 누가 닫았나({@code OPERATOR} 운영자 · {@code CREATOR_WITHDRAWN} 작가 탈퇴로 시스템이 반려 — 그때 {@code decidedBy} null, 후속 결정 6)
+     */
+    public record Decision(String status, String reason, Instant decidedAt, String decidedBy, String cause) {
     }
 
     /** {@code GET /api/admin/emoticons/reviews} 의 한 줄 */
@@ -65,9 +67,12 @@ public final class EmoticonAdminView {
     public record Suspension(String reason, Instant at, String by) {
     }
 
-    /** {@code GET /api/admin/emoticons/packs} 의 한 줄 — 운영 팩은 {@code rewardTotal} null, 유료로 나온 적 없는 팩은 판매 칸 null */
+    /**
+     * {@code GET /api/admin/emoticons/packs} 의 한 줄 — 운영 팩은 {@code rewardTotal} null, 유료로 나온 적 없는 팩은 판매 칸 null.
+     * {@code suspendKind} = 판매 중단의 종류({@code OPERATOR} 운영자 · {@code CREATOR_WITHDRAWN} 작가 탈퇴 — 판매 중단이 아니면 null, 후속 결정 6).
+     */
     public record PackRow(String id, String name, String coverUrl, String source, CreatorRef creator, int itemCount, int price, int acquireCount, Long rewardTotal,
-                          Integer salesCount, Long salesAmount, String status, boolean pendingUpdate, Instant updatedAt) {
+                          Integer salesCount, Long salesAmount, String status, boolean pendingUpdate, Instant updatedAt, String suspendKind) {
     }
 
     public record PackList(List<PackRow> items) {
@@ -81,11 +86,14 @@ public final class EmoticonAdminView {
     public record PriceEvent(Instant at, String by, int from, int to, String reason) {
     }
 
-    /** {@code GET /api/admin/emoticons/packs/{id}} */
+    /**
+     * {@code GET /api/admin/emoticons/packs/{id}}. {@code suspendKind} 는 목록과 같다. {@code resumable} = 「다시 판매」를 받는가(운영자 판매 중단만 true — 작가 탈퇴로 멈춘 팩은 false,
+     * 후속 결정 6). 작가 탈퇴로 멈춘 팩의 {@code suspension.by} 는 null(시스템).
+     */
     public record PackDetail(String id, String name, String coverUrl, String source, CreatorRef creator, int itemCount, int price, int acquireCount, Long rewardTotal,
                              Integer salesCount, Long salesAmount, String status, boolean pendingUpdate, Instant updatedAt, String description, List<String> tags,
                              CoverView cover, List<ItemView> items, Suspension suspension, String pendingReviewId, Instant approvedAt, PaidReady paidReady,
-                             List<PriceEvent> priceEvents) {
+                             List<PriceEvent> priceEvents, String suspendKind, boolean resumable) {
     }
 
     /** 상품화 계약 요약(지금 판 · 시행일 · 그 판에 동의한 작가 수) — 게시본이 없으면 null */

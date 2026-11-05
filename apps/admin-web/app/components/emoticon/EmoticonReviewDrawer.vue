@@ -1,7 +1,7 @@
 <template>
     <!--
         로보티콘 심사 서랍 — 심사 화면(`/robotikon/reviews`)에서 줄을 누르면 연다(`?id=`). 서버는 부르지 않는다 — 승인·반려는 emit, 부모가 확인·사유 대화상자를 띄운다.
-        위에서 아래로: 요약(작가 · 개수 · 신청 시각 · 판 · 작가의 심사 대기) · 처리 기록(반려 사유 / 승인) · 규격 검사(화면이 계산 — `UtilEmoticon.packIssues`)
+        위에서 아래로: 요약(작가 · 개수 · 신청 시각 · 판 · 작가의 심사 대기) · 처리 기록(반려 사유 / 승인 / 작가 탈퇴로 자동 반려 — 처리한 사람 「시스템」) · 규격 검사(화면이 계산 — `UtilEmoticon.packIssues`)
         · 새 판 비교(새 판일 때 — 더해진·빠진·그림 바뀐·이름표 바뀐 것, 이름·설명·태그·대표·차례) · 로보티콘 격자(크기 100/80/64 · 밝은/어두운 바탕, 칸 아래 이름표)
         · 설명·태그·대표 · 유료 희망이면 상품화 계약 동의(판·시각)·정산 정보 등록 여부 · 작가 동의 3개 기록. 아래: 심사 대기면 [반려]·[승인](`emoticon.review` — 부모가 가격 고르기 대화상자 `EmoticonPriceDialog` 를 띄운다). 규격 어긋남이 있으면 승인 단추 위에 한 줄 경고(막지는 않는다).
     -->
@@ -12,7 +12,7 @@
                 <div class="flex min-w-0 flex-col gap-1">
                     <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold">{{ head.packName }}</h2>
                     <div class="flex flex-wrap items-center gap-1.5">
-                        <Tag :value="t(`emoticon.reviewStatus.${head.status}`)" :severity="UtilEmoticon.reviewStatusSeverity(head.status)" />
+                        <Tag :value="closedByWithdrawal ? t('emoticon.rejectedCreatorWithdrawn') : t(`emoticon.reviewStatus.${head.status}`)" :severity="UtilEmoticon.reviewStatusSeverity(head.status)" />
                         <Tag :value="head.kind === 'UPDATE' ? t('emoticon.kindUpdate', { version: head.version }) : t('emoticon.kindFirst')" :severity="head.kind === 'UPDATE' ? 'contrast' : 'secondary'" />
                     </div>
                 </div>
@@ -33,11 +33,15 @@
 
         <div v-else class="flex min-w-0 flex-col gap-6">
             <!-- 처리 기록 -->
-            <Message v-if="detail.decision?.status === 'REJECTED'" severity="warn" :closable="false">
-                <span class="text-[13px]">{{ t('emoticon.rejectedNote', { by: detail.decision.decidedBy, at: time.shortDateTime(detail.decision.decidedAt) }) }} — {{ detail.decision.reason }}</span>
+            <!-- 작가 탈퇴로 시스템이 닫은 건은 처리한 운영자가 없다(`decidedBy` null → 「시스템」) · 서버 사유는 고정 문구라 화면 문구를 쓴다(후속 결정 6) -->
+            <Message v-if="closedByWithdrawal && detail.decision" severity="warn" :closable="false">
+                <span class="text-[13px]">{{ t('emoticon.rejectedCreatorWithdrawnNote', { by: t('emoticon.systemActor'), at: time.shortDateTime(detail.decision.decidedAt) }) }}</span>
+            </Message>
+            <Message v-else-if="detail.decision?.status === 'REJECTED'" severity="warn" :closable="false">
+                <span class="text-[13px]">{{ t('emoticon.rejectedNote', { by: detail.decision.decidedBy ?? t('emoticon.priceEventByUnknown'), at: time.shortDateTime(detail.decision.decidedAt) }) }} — {{ detail.decision.reason }}</span>
             </Message>
             <Message v-else-if="detail.decision?.status === 'APPROVED'" severity="success" :closable="false">
-                <span class="text-[13px]">{{ t('emoticon.approvedNote', { by: detail.decision.decidedBy, at: time.shortDateTime(detail.decision.decidedAt) }) }}</span>
+                <span class="text-[13px]">{{ t('emoticon.approvedNote', { by: detail.decision.decidedBy ?? t('emoticon.priceEventByUnknown'), at: time.shortDateTime(detail.decision.decidedAt) }) }}</span>
             </Message>
             <Message v-if="detail.kind === 'UPDATE' && detail.status === 'PENDING'" severity="info" :closable="false">
                 <span class="text-[13px]">{{ t('emoticon.updateNote') }}</span>
@@ -226,6 +230,9 @@ const size = ref<number>(UtilEmoticon.SPEC.displaySize);
 const dark = ref(false);
 
 const head = computed(() => props.detail ?? props.summary);
+
+/** 작가 탈퇴로 시스템이 반려한 건인가(상세의 `decision.cause` — 목록 줄에는 칸이 없다) */
+const closedByWithdrawal = computed(() => props.detail?.decision?.cause === 'CREATOR_WITHDRAWN');
 
 /** 가격 글자 — 0 은 「무료」 */
 function priceText(price: number): string {

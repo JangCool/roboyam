@@ -38,6 +38,9 @@
             <Message v-if="detail.paid" severity="success" :closable="false">
                 <span class="text-[13px]">{{ t('emoticon.paidNote', { date: detail.paid.transferDate, by: detail.paid.by ?? t('emoticon.settlementByUnknown') }) }}<template v-if="detail.paid.memo"> — {{ detail.paid.memo }}</template></span>
             </Message>
+            <Message v-if="detail.creator.withdrawn" severity="warn" :closable="false">
+                <span class="text-[13px]">{{ t('emoticon.settlementWithdrawnNote') }}</span>
+            </Message>
             <Message v-if="detail.status === 'ESTIMATED' && !closable" severity="info" :closable="false">
                 <span class="text-[13px]">{{ t('emoticon.notClosedNote', { at: time.shortDateTime(detail.closesAt) }) }}</span>
             </Message>

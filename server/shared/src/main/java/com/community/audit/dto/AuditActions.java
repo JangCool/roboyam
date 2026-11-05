@@ -307,6 +307,11 @@ public final class AuditActions {
     public static final String EMOTICON_PACK_SUSPEND = "EMOTICON_PACK_SUSPEND";
     /** 다시 판매 — 대상 EMOTICON_PACK + 팩 ID */
     public static final String EMOTICON_PACK_RESUME = "EMOTICON_PACK_RESUME";
+    /**
+     * 작가 탈퇴로 새 판매를 멈춤(시스템 — 탈퇴 완료 트랜잭션, 후속 결정 6) — 대상 EMOTICON_PACK + 팩 ID, {@code creator}·{@code from}(멈추기 전 상태 APPROVED·SUSPENDED)·
+     * {@code fromKind}(운영자 판매 중단이었으면 OPERATOR)·{@code fromReason}(그 사유). 탈퇴 작가의 대기 심사 건은 {@link #EMOTICON_REVIEW_REJECT}(시스템, {@code cause CREATOR_WITHDRAWN})
+     */
+    public static final String EMOTICON_PACK_CREATOR_WITHDRAWN = "EMOTICON_PACK_CREATOR_WITHDRAWN";
     /** 운영 팩 만들기 — 대상 EMOTICON_PACK + 팩 ID, {@code name}·{@code count} */
     public static final String EMOTICON_PACK_CREATE = "EMOTICON_PACK_CREATE";
     /** 운영 팩 고치기(새 판) — 대상 EMOTICON_PACK + 팩 ID, {@code version}·{@code before}/{@code after}(이름·개수) */

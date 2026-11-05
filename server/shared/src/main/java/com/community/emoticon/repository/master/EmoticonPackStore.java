@@ -3,6 +3,7 @@ package com.community.emoticon.repository.master;
 import com.community.emoticon.entity.EmoticonPackSource;
 import com.community.emoticon.entity.EmoticonPackStatus;
 import com.community.emoticon.entity.EmoticonSaleWish;
+import com.community.emoticon.entity.EmoticonSuspendKind;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,9 +34,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class EmoticonPackStore {
 
-    /** 팩 한 줄(판매 중단한 운영자 이름 포함 — 없으면 null) */
+    /** 팩 한 줄(판매 중단한 운영자 이름 포함 — 없으면 null). {@code suspendKind} = 판매 중단의 종류(판매 중단일 때만 — V147) */
     public record PackRow(long id, EmoticonPackSource source, Long creatorId, EmoticonPackStatus status, int price, Long liveRevisionId, int acquireCount,
-                          Instant publishedAt, String suspendReason, Instant suspendedAt, Long suspendedBy, String suspendedByName, Instant createdAt, Instant updatedAt) {
+                          Instant publishedAt, String suspendReason, Instant suspendedAt, Long suspendedBy, String suspendedByName, Instant createdAt, Instant updatedAt,
+                          EmoticonSuspendKind suspendKind) {
+
+        /** 작가 탈퇴로 멈춘 팩 — 되살리지 못한다(후속 결정 6) */
+        public boolean creatorWithdrawn() {
+            return suspendKind == EmoticonSuspendKind.CREATOR_WITHDRAWN;
+        }
+    }
+
+    /** 작가 탈퇴로 멈춘 팩 한 줄 — 멈추기 전 상태·종류·사유(감사) */
+    public record StoppedRow(long id, EmoticonPackStatus previousStatus, EmoticonSuspendKind previousKind, String previousReason) {
     }
 
     /** 판 한 줄 — {@code version} 이 null 이면 아직 내지 않은 임시 판 */
@@ -52,7 +63,7 @@ public class EmoticonPackStore {
     }
 
     private static final String PACK_COLUMNS = "p.id, p.source, p.creator_id, p.status, p.price, p.live_revision_id, p.acquire_count, p.published_at, p.suspend_reason, "
-            + "p.suspended_at, p.suspended_by, o.operator_name, p.created_at, p.updated_at";
+            + "p.suspended_at, p.suspended_by, o.operator_name, p.created_at, p.updated_at, p.suspend_kind";
     private static final String PACK_FROM = " FROM emoticon_packs p LEFT JOIN operators o ON o.id = p.suspended_by";
     private static final String REVISION_COLUMNS = "id, pack_id, version, name, description, tags, cover_image_id, sale_wish, price_request_memo, created_at, submitted_at";
 
@@ -117,7 +128,7 @@ public class EmoticonPackStore {
      */
     public void publish(long id, long liveRevisionId, Instant now) {
         jdbc.update("UPDATE emoticon_packs SET live_revision_id = ?, status = 'APPROVED', published_at = coalesce(published_at, ?), suspend_reason = NULL, suspended_at = NULL, "
-                + "suspended_by = NULL, updated_at = ? WHERE id = ?", liveRevisionId, Timestamp.from(now), Timestamp.from(now), id);
+                + "suspended_by = NULL, suspend_kind = NULL, updated_at = ? WHERE id = ?", liveRevisionId, Timestamp.from(now), Timestamp.from(now), id);
     }
 
     /** 상점의 판만 바꾼다(운영 팩 고치기 — 판매 중단이면 그대로 판매 중단) */
@@ -126,13 +137,33 @@ public class EmoticonPackStore {
     }
 
     public void suspend(long id, String reason, long operatorId, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET status = 'SUSPENDED', suspend_reason = ?, suspended_at = ?, suspended_by = ?, updated_at = ? WHERE id = ?", reason,
-                Timestamp.from(now), operatorId, Timestamp.from(now), id);
+        jdbc.update("UPDATE emoticon_packs SET status = 'SUSPENDED', suspend_kind = 'OPERATOR', suspend_reason = ?, suspended_at = ?, suspended_by = ?, updated_at = ? "
+                + "WHERE id = ?", reason, Timestamp.from(now), operatorId, Timestamp.from(now), id);
     }
 
     public void resume(long id, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET status = 'APPROVED', suspend_reason = NULL, suspended_at = NULL, suspended_by = NULL, updated_at = ? WHERE id = ?",
-                Timestamp.from(now), id);
+        jdbc.update("UPDATE emoticon_packs SET status = 'APPROVED', suspend_reason = NULL, suspended_at = NULL, suspended_by = NULL, suspend_kind = NULL, updated_at = ? "
+                + "WHERE id = ?", Timestamp.from(now), id);
+    }
+
+    /**
+     * 작가 탈퇴 — 그 작가의 상점에 나온 팩(판매 중 · 운영자 판매 중단)을 작가 탈퇴 판매 중단으로 바꾼다(후속 결정 6). 팩 행을 팩 ID 차례로 잠근 뒤 바꾼다
+     * (받기·결제 준비·결제 확정·가격 바꾸기·심사 승인과 줄을 선다). 이미 작가 탈퇴로 멈춘 팩은 그대로(다시 불러도 같다). 멈춘 팩과 멈추기 전 값.
+     */
+    public List<StoppedRow> stopForCreatorWithdrawal(long creatorId, String reason, Instant now) {
+        List<StoppedRow> locked = jdbc.query("SELECT id, status, suspend_kind, suspend_reason FROM emoticon_packs WHERE creator_id = ? AND status IN ('APPROVED', 'SUSPENDED') "
+                        + "AND suspend_kind IS DISTINCT FROM 'CREATOR_WITHDRAWN' ORDER BY id FOR UPDATE",
+                (rs, i) -> new StoppedRow(rs.getLong(1), EmoticonPackStatus.valueOf(rs.getString(2)),
+                        rs.getString(3) == null ? null : EmoticonSuspendKind.valueOf(rs.getString(3)), rs.getString(4)), creatorId);
+        List<StoppedRow> out = new ArrayList<>();
+        for (StoppedRow row : locked) {
+            int n = jdbc.update("UPDATE emoticon_packs SET status = 'SUSPENDED', suspend_kind = 'CREATOR_WITHDRAWN', suspend_reason = ?, suspended_at = ?, suspended_by = NULL, "
+                    + "updated_at = ? WHERE id = ? AND status IN ('APPROVED', 'SUSPENDED')", reason, Timestamp.from(now), Timestamp.from(now), row.id());
+            if (n == 1) {
+                out.add(row);
+            }
+        }
+        return out;
     }
 
     /** 가격을 바꾼다(승인·운영자 가격 바꾸기 — 팩 행을 잠근 트랜잭션에서). 유료 가격은 트리거가 설정의 열린 가격 단계인지 한 번 더 본다(V143) */
@@ -311,7 +342,7 @@ public class EmoticonPackStore {
     static PackRow packOf(ResultSet rs, int i) throws SQLException {
         return new PackRow(rs.getLong(1), EmoticonPackSource.valueOf(rs.getString(2)), rs.getObject(3, Long.class), EmoticonPackStatus.valueOf(rs.getString(4)),
                 rs.getInt(5), rs.getObject(6, Long.class), rs.getInt(7), instant(rs, 8), rs.getString(9), instant(rs, 10), rs.getObject(11, Long.class), rs.getString(12),
-                instant(rs, 13), instant(rs, 14));
+                instant(rs, 13), instant(rs, 14), rs.getString(15) == null ? null : EmoticonSuspendKind.valueOf(rs.getString(15)));
     }
 
     static RevisionRow revisionOf(ResultSet rs, int i) throws SQLException {

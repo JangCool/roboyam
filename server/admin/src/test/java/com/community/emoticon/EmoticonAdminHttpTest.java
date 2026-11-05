@@ -37,6 +37,8 @@ class EmoticonAdminHttpTest extends Commerce04AdminTestBase {
     private DataCipher cipher;
     @Autowired
     private PlatformTransactionManager transactions;
+    @Autowired
+    private com.community.emoticon.service.EmoticonCreatorWithdrawal creatorWithdrawal;
 
     /** 작가가 낸 처음 신청(그림은 정적 경로 줄을 장부에 바로 넣는다 — 파일을 쓰지 않는다) — 팩 ID */
     private long submitted(long creator) {
@@ -101,6 +103,37 @@ class EmoticonAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.error.fields.rewardPerAcquire").exists());
         Cookie none = login(operatorWith(Permission.POINTSHOP_READ));
         mvc.perform(get("/api/admin/emoticons/packs").cookie(none)).andExpect(status().isForbidden());
+    }
+
+    /** 후속 결정 6 — 작가 탈퇴로 멈춘 팩: 목록·상세의 {@code suspendKind} · {@code resumable} · 다시 판매·가격 바꾸기 409(두 언어 문구) · 운영자 판매 중단 팩은 다시 판매 */
+    @Test
+    void 작가_탈퇴로_멈춘_팩은_목록_상세에_구분되고_다시_판매와_가격_바꾸기가_409() throws Exception {
+        Cookie reviewer = login(operatorWith(Permission.EMOTICON_READ, Permission.EMOTICON_REVIEW));
+        long creator = creator();
+        long packId = submitted(creator);
+        long otherPack = submitted(creator());
+        for (long id : new long[] {packId, otherPack}) {
+            String reviewId = jdbc.queryForObject("SELECT id FROM emoticon_reviews WHERE pack_id = ?", Long.class, id).toString();
+            mvc.perform(withCsrf(post("/api/admin/emoticons/reviews/" + reviewId + "/approve"), reviewer).content("{\"price\":0}")).andExpect(status().isNoContent());
+        }
+        new TransactionTemplate(transactions).executeWithoutResult(s -> creatorWithdrawal.withdraw(creator));
+        jdbc.update("UPDATE users SET status = 'WITHDRAWN' WHERE id = ?", creator);
+
+        mvc.perform(get("/api/admin/emoticons/packs/" + packId).cookie(reviewer)).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("SUSPENDED"))
+                .andExpect(jsonPath("$.data.suspendKind").value("CREATOR_WITHDRAWN")).andExpect(jsonPath("$.data.resumable").value(false))
+                .andExpect(jsonPath("$.data.suspension.by").doesNotExist()).andExpect(jsonPath("$.data.creator.withdrawn").value(true));
+        mvc.perform(get("/api/admin/emoticons/packs").param("creator", Long.toString(creator)).cookie(reviewer)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].suspendKind").value("CREATOR_WITHDRAWN"));
+        mvc.perform(withCsrf(post("/api/admin/emoticons/packs/" + packId + "/resume"), reviewer).header("Accept-Language", "ko")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("EMOTICON_PACK_CREATOR_WITHDRAWN"))
+                .andExpect(jsonPath("$.error.message").value("작가가 탈퇴해 판매를 멈춘 팩이라 다시 판매할 수 없어요."));
+        mvc.perform(withCsrf(post("/api/admin/emoticons/packs/" + packId + "/price"), reviewer).content("{\"price\":2500,\"reason\":\"유료로 바꿔요\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PACK_CREATOR_WITHDRAWN"));
+        // 운영 판단의 판매 중단은 그대로 — OPERATOR · 다시 판매 단추 · 다시 판매
+        mvc.perform(withCsrf(post("/api/admin/emoticons/packs/" + otherPack + "/suspend"), reviewer).content("{\"reason\":\"운영 판단으로 멈춤\"}")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suspendKind").value("OPERATOR")).andExpect(jsonPath("$.data.resumable").value(true));
+        mvc.perform(withCsrf(post("/api/admin/emoticons/packs/" + otherPack + "/resume"), reviewer)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("APPROVED")).andExpect(jsonPath("$.data.suspendKind").doesNotExist());
     }
 
     /**

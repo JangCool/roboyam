@@ -68,6 +68,15 @@ public class EmoticonSettlementStore {
         }, creatorId);
     }
 
+    /** 그 가운데 탈퇴한 작가(회원 {@code status = 'WITHDRAWN'} — 파기 배치 R__batch_41 과 같은 판정) — 최소 지급액 없이 지급한다(후속 결정 6) */
+    public java.util.Set<Long> withdrawn(Collection<Long> creatorIds) {
+        if (creatorIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return new java.util.HashSet<>(jdbc.queryForList("SELECT id FROM users WHERE status = 'WITHDRAWN' AND id IN (" + EmoticonPackStore.marks(creatorIds.size()) + ")",
+                Long.class, creatorIds.toArray()));
+    }
+
     // ── 정산 줄 ─────────────────────────────────────────────────────────────
 
     public Optional<SettlementRow> find(long creatorId, LocalDate month) {

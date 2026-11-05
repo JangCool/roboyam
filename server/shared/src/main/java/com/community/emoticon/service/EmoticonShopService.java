@@ -123,7 +123,8 @@ public class EmoticonShopService {
         EmoticonPublicView.Creator creator = creatorOf(p, p.creatorId() == null ? Map.of() : reads.members(List.of(p.creatorId())));
         return new EmoticonPublicView.PackDetail(Long.toString(p.id()), live.revision().name(), p.source().name(), creator, content.coverUrl(live), live.items().size(),
                 p.price(), p.acquireCount(), owned, p.publishedAt(), live.revision().description(), live.revision().tags(),
-                p.status() == EmoticonPackStatus.SUSPENDED ? "SUSPENDED" : "ON_SALE", content.publicItems(live), operatorUsable);
+                p.status() == EmoticonPackStatus.SUSPENDED ? "SUSPENDED" : "ON_SALE", content.publicItems(live), operatorUsable,
+                p.suspendKind() == null ? null : p.suspendKind().name());
     }
 
     /** 팩 카드들(입력 차례) */

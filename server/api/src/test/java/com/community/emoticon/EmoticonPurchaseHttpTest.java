@@ -73,6 +73,10 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
     private PaymentConfirmService confirm;
     @Autowired
     private com.community.emoticon.service.EmoticonPackAdminService packAdmin;
+    @Autowired
+    private com.community.withdrawal.service.WithdrawalService withdrawals;
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder encoder;
 
     private MockMvc mvc;
     private FakePgStore fakePg;
@@ -277,6 +281,61 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
                 .isEqualTo("/robotikon/" + pack);
         assertThat(jdbc.queryForObject("SELECT (payload->>'amount')::int FROM member_notifications WHERE user_id = ? AND type = 'EMOTICON_PURCHASE'", Integer.class, buyer))
                 .isEqualTo(PRICE - 500);
+    }
+
+    // ── 후속 결정 6(2026-11-05) — 탈퇴 작가의 팩은 새 판매만 멈춘다 ─────────
+
+    @Test
+    void 작가가_탈퇴하면_같은_트랜잭션에서_팩_판매가_멈추고_새_구매는_409_결제창_주문은_자동_취소_가진_회원은_계속_쓰고_셀프_환불한다() throws Exception {
+        long pack = paidPack();
+        long creator = jdbc.queryForObject("SELECT creator_id FROM emoticon_packs WHERE id = ?", Long.class, pack);
+        long otherPack = paidPack();
+        long user = buyer();
+        buy(user, pack);                       // 글에 쓸 회원
+        long refunder = buyer();
+        long refundable = buy(refunder, pack); // 셀프 환불할 회원(쓰지 않았다)
+        long waiting = buyer();
+        String[] window = start(waiting, pack); // 탈퇴 순간 결제창에 있다
+
+        com.community.withdrawal.WithdrawalTestSupport.withPassword(jdbc, encoder, creator, clock.instant());
+        assertThat(withdrawals.request(creator, com.community.withdrawal.WithdrawalTestSupport.plain(), "127.0.0.1").state()).isEqualTo("COMPLETED");
+
+        // 탈퇴 완료 트랜잭션 안에서 — 작가 탈퇴 판매 중단 · 감사(시스템) · 탈퇴 감사에 멈춘 수
+        Map<String, Object> row = jdbc.queryForMap("SELECT status, suspend_kind, suspended_by FROM emoticon_packs WHERE id = ?", pack);
+        assertThat(row).containsEntry("status", "SUSPENDED").containsEntry("suspend_kind", "CREATOR_WITHDRAWN");
+        assertThat(row.get("suspended_by")).isNull();
+        Map<String, Object> audit = lastAudit("EMOTICON_PACK", Long.toString(pack), "EMOTICON_PACK_CREATOR_WITHDRAWN");
+        assertThat(audit).isNotNull().containsEntry("actor_type", "SYSTEM");
+        assertThat(audit.get("actor_id")).isNull();
+        assertThat((Integer) JsonPath.read((String) lastAudit("MEMBER", Long.toString(creator), "MEMBER_WITHDRAW").get("detail"), "$.stoppedEmoticonPacks")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM emoticon_packs WHERE id = ?", String.class, otherPack)).isEqualTo("APPROVED");
+
+        // 새 구매 409(판매 중단과 같은 코드) · 다른 작가의 팩은 그대로 산다
+        prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PACK_SUSPENDED"));
+        prepare(buyer(), otherPack).andExpect(status().isOk());
+
+        // 결제창 주문 — 완료는 「판매 중 아님」 거절 → 자동 취소(구매 CLOSED · 보유 없음 · 자동 취소 알림)
+        fakePg.pay(window[0], PRICE, "KRW", clock.instant());
+        complete(waiting, window).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepted").value(false));
+        assertThat(purchaseStatus(Long.parseLong(window[1]))).isEqualTo("CLOSED");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM emoticon_acquisitions WHERE user_id = ? AND pack_id = ?", Integer.class, waiting, pack)).isZero();
+        Instant until = Instant.now().plusSeconds(10);
+        while (Instant.now().isBefore(until) && purchaseNotices(waiting).isEmpty()) {
+            Thread.onSpinWait();
+        }
+        assertThat(purchaseNotices(waiting)).containsExactly("AUTO_CANCELED");
+
+        // 가진 회원 — 글에 계속 쓰고, 상세는 판매 중단(작가 탈퇴)으로 보인다 · 가지지 않은 회원에게는 없다
+        mvc.perform(as(user, post("/api/posts").contentType(MediaType.APPLICATION_JSON).content("{\"boardSlug\":\"" + slug + "\",\"title\":\"탈퇴 작가 팩\","
+                + "\"contentFormat\":\"TEXT\",\"content\":" + json("계속 써요 " + token(emoticons(pack).get(0))) + "}"))).andExpect(status().isCreated());
+        mvc.perform(as(user, get("/api/emoticons/packs/" + pack))).andExpect(status().isOk()).andExpect(jsonPath("$.data.saleState").value("SUSPENDED"))
+                .andExpect(jsonPath("$.data.suspendKind").value("CREATOR_WITHDRAWN")).andExpect(jsonPath("$.data.acquired").value(true));
+        mvc.perform(as(buyer(), get("/api/emoticons/packs/" + pack))).andExpect(status().isNotFound());
+        mvc.perform(as(user, get("/api/me/emoticons"))).andExpect(jsonPath("$.data.packs[0].id").value(Long.toString(pack)))
+                .andExpect(jsonPath("$.data.packs[0].suspended").value(true));
+        // 셀프 환불 규칙은 그대로(쓰지 않았고 기한 안)
+        refund(refunder, refundable, "withdrawn-creator-" + refundable).andExpect(status().isOk());
+        assertThat(purchaseStatus(refundable)).isEqualTo("REFUNDED");
     }
 
     // ── 결제 준비 ───────────────────────────────────────────────────────────

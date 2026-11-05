@@ -85,11 +85,16 @@ export interface EmoticonPackList {
 /** 팩 판매 상태(상점 기준) — 판매 중 · 운영자 판매 중단(이미 받은 사람은 계속 쓴다) */
 export type EmoticonPackSaleState = 'ON_SALE' | 'SUSPENDED';
 
+/** 판매 중단의 종류 — 운영자 판단 · 작가 탈퇴(새 판매만 멈춤 — 후속 결정 6) */
+export type EmoticonPackSuspendKind = 'OPERATOR' | 'CREATOR_WITHDRAWN';
+
 /** `GET /api/emoticons/packs/{id}` — 없는 팩·심사 전 팩(남의 것) `404 EMOTICON_PACK_NOT_FOUND` */
 export interface EmoticonPackDetail extends EmoticonPackCard {
     description: string;
     tags: string[];
     saleState: EmoticonPackSaleState;
+    /** 판매 중단의 종류 — 판매 중이면 null. 판매 중단 팩 상세는 가진 사람(과 작가)에게만 보인다 */
+    suspendKind: EmoticonPackSuspendKind | null;
     emoticons: EmoticonItem[];
     /**
      * 보는 사람이 힘이 살아 있는 운영자 회원 계정이고 판매 중 팩이다(서버 `EmoticonPublicView.PackDetail.operatorUsable`) — 가진 팩이어도 true.

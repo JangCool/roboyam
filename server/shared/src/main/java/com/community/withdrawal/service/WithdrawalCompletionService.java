@@ -6,6 +6,7 @@ import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.business.service.BusinessWithdrawal;
+import com.community.emoticon.service.EmoticonCreatorWithdrawal;
 import com.community.hotdeal.service.DealWithdrawal;
 import com.community.media.service.ImageStorage;
 import com.community.point.service.PointService;
@@ -36,7 +37,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ol>
  *   <li>내가 모임장인 소모임은 신청 때 저장한 선택(넘기기·해산·자동 — 대상이 멤버가 아니거나 신청 뒤 새로 모임장이 됐으면 자동)으로 처리 → 모든 소모임에서 나가기(글 가림·멤버 수) + 줄 삭제</li>
- *   <li>포인트: 남은 묶음 전부 {@code WITHDRAW_FORFEIT}(원장 보존) · 아이템 회수 · 사업자 신원 탈퇴(기다리기/포기) · 핫딜 작성자 종료</li>
+ *   <li>포인트: 남은 묶음 전부 {@code WITHDRAW_FORFEIT}(원장 보존) · 아이템 회수 · 사업자 신원 탈퇴(기다리기/포기) · 핫딜 작성자 종료 ·
+ *       로보티콘 작가 팩 새 판매 멈춤·대기 심사 건 닫기({@link EmoticonCreatorWithdrawal})</li>
  *   <li>재가입 제한 해시(이메일·소셜·본인인증, {@link WithdrawalRejoinPolicy} 의 끝까지) · 결제 이력이 있으면 연락용 이메일 분리 보관</li>
  *   <li>설정·이력·관계·역할·토큰·알림·내 쪽지함 삭제, 대기 요청·대기 메일 취소, 주소록 삭제, 배송지 암호문 즉시 마스킹, 작성 90일 지난 글·댓글 IP 삭제</li>
  *   <li>프로필·계정 익명화(닉네임·이메일·비밀번호 NULL, WITHDRAWN, deleted_at) · 세션 모두 종료 · 감사 {@code MEMBER_WITHDRAW}(돈 관련) · 신청 줄 COMPLETED</li>
@@ -87,6 +89,7 @@ public class WithdrawalCompletionService {
     private final PointService points;
     private final BusinessWithdrawal business;
     private final DealWithdrawal deals;
+    private final EmoticonCreatorWithdrawal emoticons;
     private final IdentityWithdrawalRecorder identities;
     private final WithdrawnContactStore contacts;
     private final AuditLogService audit;
@@ -96,7 +99,7 @@ public class WithdrawalCompletionService {
     private final Clock clock;
 
     public WithdrawalCompletionService(WithdrawalQueries queries, WithdrawalEraseStore erase, MemberWithdrawalStore withdrawals, WithdrawalGroupHandler groupHandler,
-                                       WithdrawalRejoinPolicy rejoinPolicy, PointService points, BusinessWithdrawal business, DealWithdrawal deals,
+                                       WithdrawalRejoinPolicy rejoinPolicy, PointService points, BusinessWithdrawal business, DealWithdrawal deals, EmoticonCreatorWithdrawal emoticons,
                                        IdentityWithdrawalRecorder identities, WithdrawnContactStore contacts, AuditLogService audit, WithdrawalMailSender mail,
                                        ImageStorage storage, WithdrawalProperties properties, ObjectProvider<Clock> clocks) {
         this.queries = queries;
@@ -107,6 +110,7 @@ public class WithdrawalCompletionService {
         this.points = points;
         this.business = business;
         this.deals = deals;
+        this.emoticons = emoticons;
         this.identities = identities;
         this.contacts = contacts;
         this.audit = audit;
@@ -158,6 +162,8 @@ public class WithdrawalCompletionService {
         int revokedItems = erase.revokeItems(userId, now);
         business.withdraw(userId, request.choices().forfeitBiz());
         DealWithdrawal.Result dealResult = deals.withdraw(userId);
+        // 로보티콘 작가 팩 — 새 판매만 멈춘다(가진 사람은 계속 쓴다) · 대기 심사 건 닫기(후속 결정 6). 남은 정산은 정산 계산이 최소 지급액 없이 지급한다
+        EmoticonCreatorWithdrawal.Result emoticonResult = emoticons.withdraw(userId);
 
         // 3. 재가입 제한·연락용 이메일(지우기 전에 읽는다)
         WithdrawalRejoinPolicy.Rejoin rejoin = rejoinPolicy.of(userId, request.priorStatus(), now);
@@ -201,6 +207,8 @@ public class WithdrawalCompletionService {
         detail.put("revokedItems", revokedItems);
         detail.put("leftGroups", leftGroups);
         detail.put("endedDeals", dealResult.endedDeals());
+        detail.put("stoppedEmoticonPacks", emoticonResult.stoppedPacks());
+        detail.put("closedEmoticonReviews", emoticonResult.closedReviews());
         detail.put("source", request.source().name());
         AuditEvent event = actor.event(userId);
         for (Map.Entry<String, Object> e : detail.entrySet()) {

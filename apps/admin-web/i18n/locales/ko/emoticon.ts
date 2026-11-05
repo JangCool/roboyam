@@ -90,6 +90,8 @@ export default {
         REJECTED: '반려',
         SUSPENDED: '판매 중단',
     },
+    /** 작가 탈퇴로 멈춘 팩의 상태 딱지(`suspendKind: CREATOR_WITHDRAWN`) */
+    packStatusCreatorWithdrawn: '작가 탈퇴로 판매 중단',
     source: {
         OFFICIAL: '운영',
         CREATOR: '작가',
@@ -130,6 +132,11 @@ export default {
     approvedNote: '{by} · {at} 승인했어요.',
     updateNote: '판매 중인 팩을 고친 새 판이에요. 심사하는 동안에도 지금 판이 계속 나와요.',
     suspendedNote: '{by} · {at} 판매 중단',
+    /** 작가 탈퇴로 시스템이 처리한 것 — 처리한 사람 칸 */
+    systemActor: '시스템',
+    suspendedCreatorWithdrawnNote: '{by} · {at} 작가 탈퇴로 판매 중단 — 작가가 탈퇴해 새 판매만 멈췄어요. 이미 가진 회원은 계속 쓸 수 있고, 다시 판매하거나 가격을 바꿀 수 없어요.',
+    rejectedCreatorWithdrawn: '작가 탈퇴로 자동 반려',
+    rejectedCreatorWithdrawnNote: '{by} · {at} 작가 탈퇴로 자동 반려 — 작가가 탈퇴해 심사를 닫았어요.',
     pendingUpdateNote: '새 판 심사가 걸려 있어요(심사하는 동안에도 지금 판이 나와요).',
     pendingFirstNote: '심사를 기다리는 팩이에요.',
     goReview: '심사 화면에서 보기',
@@ -626,6 +633,8 @@ export default {
         ACCOUNT_VIEWED: '계좌 전체 보기',
     },
     carriedNothingToPay: '지급할 금액이 없어요(다음 달로 넘김)',
+    /** 탈퇴한 작가의 정산 줄(`creator.withdrawn`) — 최소 지급액 없이 남은 금액을 한 번에 지급 */
+    settlementWithdrawnNote: '탈퇴 작가 — 최소 지급액과 상관없이 남은 금액을 지급해요',
     actConfirm: '확정',
     actHold: '보류',
     actUnhold: '보류 풀기',

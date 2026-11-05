@@ -22,6 +22,7 @@ import com.community.emoticon.service.EmoticonSettlementCalculator;
 import com.community.emoticon.service.EmoticonSettlementService;
 import com.community.emoticon.handler.EmoticonPackPaymentHandler;
 import com.community.emoticon.service.EmoticonContractService;
+import com.community.emoticon.service.EmoticonCreatorWithdrawal;
 import com.community.emoticon.service.EmoticonPayoutService;
 import com.community.emoticon.service.EmoticonPurchaseNotices;
 import com.community.holiday.repository.master.PublicHolidayStore;
@@ -143,6 +144,8 @@ final class EmoticonTestKit {
     final DataCipher cipher;
     /** 운영자 회원 계정 판정(운영자 회원 계정 연결 2026-11-05) */
     final OperatorMemberAccountService operatorAccounts;
+    /** 탈퇴 작가의 팩(후속 결정 6) — 탈퇴 완료 트랜잭션이 부르는 그 서비스 */
+    final EmoticonCreatorWithdrawal creatorWithdrawal;
     final long operator;
 
     EmoticonTestKit() {
@@ -210,6 +213,7 @@ final class EmoticonTestKit {
         acquisitionStore = acquisitions;
         purchaseNotices = new EmoticonPurchaseNotices(memberPublisher);
         handler = new EmoticonPackPaymentHandler(purchases, packStore, acquisitions, settings, purchaseNotices, ids, clocks);
+        creatorWithdrawal = new EmoticonCreatorWithdrawal(packStore, reviewStore, audit, clocks);
         operator = newOperator();
     }
 
