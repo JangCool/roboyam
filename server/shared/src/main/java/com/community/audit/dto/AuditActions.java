@@ -298,6 +298,37 @@ public final class AuditActions {
     /** 정지 중 환불 신청 거절(운영자 pointshop.refund — V87) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code requestId}·{@code userId}·{@code itemId}·{@code itemCode}·{@code reason}. 돈 관련(5년). 수락은 {@link #POINT_SHOP_REFUND}({@code kind REQUEST}) */
     public static final String POINT_SHOP_REFUND_REJECT = "POINT_SHOP_REFUND_REJECT";
 
+    // ── 로보티콘 S1(docs/features/emoticon-contract.md) — 대상 EMOTICON_REVIEW·EMOTICON_PACK·EMOTICON_SETTINGS ──
+    /** 심사 승인 — 대상 EMOTICON_REVIEW + 심사 건 ID, {@code packId}·{@code kind}(FIRST·UPDATE)·{@code version}·{@code price}(S1 은 0) */
+    public static final String EMOTICON_REVIEW_APPROVE = "EMOTICON_REVIEW_APPROVE";
+    /** 심사 반려 — 대상 EMOTICON_REVIEW + 심사 건 ID, {@code packId}·{@code kind}·{@code version}·{@code reason} */
+    public static final String EMOTICON_REVIEW_REJECT = "EMOTICON_REVIEW_REJECT";
+    /** 판매 중단 — 대상 EMOTICON_PACK + 팩 ID, {@code reason} */
+    public static final String EMOTICON_PACK_SUSPEND = "EMOTICON_PACK_SUSPEND";
+    /** 다시 판매 — 대상 EMOTICON_PACK + 팩 ID */
+    public static final String EMOTICON_PACK_RESUME = "EMOTICON_PACK_RESUME";
+    /** 운영 팩 만들기 — 대상 EMOTICON_PACK + 팩 ID, {@code name}·{@code count} */
+    public static final String EMOTICON_PACK_CREATE = "EMOTICON_PACK_CREATE";
+    /** 운영 팩 고치기(새 판) — 대상 EMOTICON_PACK + 팩 ID, {@code version}·{@code before}/{@code after}(이름·개수) */
+    public static final String EMOTICON_PACK_UPDATE = "EMOTICON_PACK_UPDATE";
+    /** 설정 저장 — 대상 EMOTICON_SETTINGS + 1, 바뀐 칸만 before/after(S2 부터 유료 판매·수수료·가격 단계·정산·환불 칸 — 돈 관련 5년) */
+    public static final String EMOTICON_SETTINGS_UPDATE = "EMOTICON_SETTINGS_UPDATE";
+    /** 판매 중 작가 팩 가격 바꾸기(유료↔무료 · 단계 — S2) — 대상 EMOTICON_PACK + 팩 ID, {@code from}·{@code to}·{@code reason}. 돈 관련(5년) */
+    public static final String EMOTICON_PACK_PRICE = "EMOTICON_PACK_PRICE";
+    /** 작가 정산 계좌 원문 보기(emoticon.payout.pii — S2) — 대상 EMOTICON_PAYOUT_ACCOUNT + 회원 번호, {@code reason}(값은 싣지 않는다). 개인정보 열람(2년) */
+    public static final String EMOTICON_PAYOUT_REVEAL = "EMOTICON_PAYOUT_REVEAL";
+    /** 유료 팩 판매 예외 환불(emoticon.sales — S3) — 대상 EMOTICON_PURCHASE + 구매 ID, {@code packId}·{@code buyer}·{@code amount}·{@code reason}·{@code used}·{@code withinSelfRefund}. 돈 관련(5년) */
+    public static final String EMOTICON_SALE_REFUND = "EMOTICON_SALE_REFUND";
+    // ── 로보티콘 S4 작가 정산(emoticon.settlement) — 대상 EMOTICON_SETTLEMENT + 정산 줄 ID(yyyyMM-작가회원번호). 돈 관련(5년) ──
+    /** 정산 확정(금액 굳힘) — {@code creator}·{@code month}·{@code salesAmount}·{@code refundAmount}·{@code shareAmount}·{@code carriedIn}·{@code withholdingAmount}·{@code payoutAmount}·{@code carriedOut}·{@code payeeType}·{@code feeRatePercent} */
+    public static final String EMOTICON_SETTLEMENT_CONFIRM = "EMOTICON_SETTLEMENT_CONFIRM";
+    /** 정산 보류 — {@code creator}·{@code month}·{@code from}(예정·확정)·{@code reason} */
+    public static final String EMOTICON_SETTLEMENT_HOLD = "EMOTICON_SETTLEMENT_HOLD";
+    /** 정산 보류 풀기 — {@code creator}·{@code month}·{@code to}(예정·확정) */
+    public static final String EMOTICON_SETTLEMENT_UNHOLD = "EMOTICON_SETTLEMENT_UNHOLD";
+    /** 지급 완료 기록(이체는 사이트 밖) — {@code creator}·{@code month}·{@code payoutAmount}·{@code transferDate}·{@code memo} */
+    public static final String EMOTICON_SETTLEMENT_PAID = "EMOTICON_SETTLEMENT_PAID";
+
     // ── 소모임 분류(docs/features/group-contract.md) — 대상 GROUP_CATEGORY + 분류 ID(순서는 order) ──
     /** 분류 만들기 — {@code after.name} */
     public static final String GROUP_CATEGORY_CREATE = "GROUP_CATEGORY_CREATE";

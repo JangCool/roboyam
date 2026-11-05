@@ -88,7 +88,7 @@
                         <i :class="[UtilNotification.icon(item.type), 'mt-0.5 text-muted-color']" aria-hidden="true" />
                         <span class="min-w-0 flex-1" :class="item.read ? 'text-muted-color' : 'font-semibold'">
                             <span class="block break-words">{{ item.title }}</span>
-                            <span v-if="item.body" class="mt-0.5 block break-words text-xs font-normal text-muted-color">{{ item.body }}</span>
+                            <span v-if="item.body" class="mt-0.5 block break-words text-xs font-normal text-muted-color">{{ UtilEmoticonMessages.summary(t, item.body) }}</span>
                             <time class="mt-1 block text-xs font-normal text-muted-color" :datetime="item.createdAt" :title="time.full(item.createdAt)">{{ time.ago(item.createdAt) }}</time>
                         </span>
                         <span v-if="!item.read" class="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
@@ -97,7 +97,7 @@
                         <i :class="[UtilNotification.icon(item.type), 'mt-0.5 text-muted-color']" aria-hidden="true" />
                         <span class="min-w-0 flex-1" :class="item.read ? 'text-muted-color' : 'font-semibold'">
                             <span class="block break-words">{{ item.title }}</span>
-                            <span v-if="item.body" class="mt-0.5 block break-words text-xs font-normal text-muted-color">{{ item.body }}</span>
+                            <span v-if="item.body" class="mt-0.5 block break-words text-xs font-normal text-muted-color">{{ UtilEmoticonMessages.summary(t, item.body) }}</span>
                             <time class="mt-1 block text-xs font-normal text-muted-color" :datetime="item.createdAt" :title="time.full(item.createdAt)">{{ time.ago(item.createdAt) }}</time>
                         </span>
                         <span v-if="!item.read" class="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
@@ -117,6 +117,7 @@
 <script setup lang="ts">
 import type { MemberNotificationFilter, MemberNotificationItem } from '~/composables/notification/api/useNotificationApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
+import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilNotification from '~/utils/util-notification';
 
 /**
@@ -173,7 +174,7 @@ const summaryText = computed(() => {
 });
 
 function rowLabel(item: MemberNotificationItem): string {
-    const parts = [item.title, item.body, time.value.ago(item.createdAt)].filter(Boolean);
+    const parts = [item.title, UtilEmoticonMessages.summary(t, item.body), time.value.ago(item.createdAt)].filter(Boolean);
     return item.read ? parts.join(', ') : `${t('notification.unread')}, ${parts.join(', ')}`;
 }
 

@@ -4,17 +4,21 @@
  */
 export default {
     // ── 본문 화면 ──
+    /** 로보티콘 상품화 계약 화면(`/robotikon/contract`)의 제목 — 이용약관·개인정보처리방침 이름은 공통 `common.*` */
+    robotikonContract: '로보티콘 상품화 계약',
     loadError: '약관을 불러오지 못했어요',
     versionLine: '버전 {version} · 시행 {date}',
     changeNote: '변경 요지',
     emptyTitle: {
         TERMS: '아직 시행 중인 이용약관이 없어요',
         PRIVACY: '아직 시행 중인 개인정보처리방침이 없어요',
+        ROBOTIKON_CONTRACT: '아직 시행 중인 로보티콘 상품화 계약이 없어요',
     },
     upcomingLabel: '시행 예정 안내',
     upcomingBox: {
         TERMS: '{date}부터 바뀐 이용약관이 시행돼요',
         PRIVACY: '{date}부터 바뀐 개인정보처리방침이 시행돼요',
+        ROBOTIKON_CONTRACT: '{date}부터 바뀐 로보티콘 상품화 계약이 시행돼요',
     },
     viewUpcoming: '바뀐 약관 보기',
     viewingUpcoming: '{date}부터 시행되는 버전이에요.',

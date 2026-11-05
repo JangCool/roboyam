@@ -66,7 +66,7 @@
 - 처리 내역 `GET /api/board-staff/boards/{boardId}/actions`: 운영자 회원 계정은 `keeper-action.read` 가 있으면 전체(처리자 포함, `manager: true`), 없으면 404 `BOARD_STAFF_NOT_FOUND`. 제재 내역도 같은 규칙(`keeper-action.read`). 줄 `actor.role` 에 `OPERATOR`.
 - 탈퇴 `POST /api/me/withdrawal` 409 `OPERATOR_ACCOUNT_LINKED`(`GET /api/me/withdrawal` 은 그대로).
 
-## DB (shared `V141__operator_member_accounts.sql` — develop 의 V140 은 사업자 서류 접수. ⚠ 로보티콘 브랜치가 V140~V141 을 가번호로 쓴다 — 합칠 때 뒤에 합치는 쪽이 번호를 다시 매긴다)
+## DB (shared `V141__operator_member_accounts.sql` — develop 의 V142 은 사업자 서류 접수. ⚠ 로보티콘 브랜치가 V142~V143 을 가번호로 쓴다 — 합칠 때 뒤에 합치는 쪽이 번호를 다시 매긴다)
 - `operator_member_accounts(operator_id bigint PK → operators ON DELETE CASCADE, user_id bigint NOT NULL UNIQUE → users ON DELETE CASCADE, linked_at timestamptz NOT NULL, linked_by bigint → operators ON DELETE SET NULL)`.
 - `board_staff_actions`: `actor_role` CHECK ∪ `OPERATOR`, `actor_operator_id bigint → operators ON DELETE SET NULL`(OPERATOR 줄이면 필수 CHECK). `restored_by_kind` 는 그대로(MANAGER·OPERATOR — 운영자 회원 계정이 되돌리면 OPERATOR + `restored_by_id` = 운영자).
 - `board_sanctions`: `issued_role` CHECK ∪ `OPERATOR`, `issued_operator_id bigint → operators`(OPERATOR 줄이면 필수).

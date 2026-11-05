@@ -4,8 +4,11 @@
  * ⚠ 서비스 이름(용어 — `useSiteTerms`·`SiteTerms`)과 다른 기능이다. 이름이 겹치지 않게 `Terms*` 로 시작한다.
  */
 
-/** 약관 종류 — 본문의 `kind`. 경로에는 소문자(`terms`·`privacy`)로 들어간다(`useTermsApi`) */
-export type TermsKind = 'TERMS' | 'PRIVACY';
+/**
+ * 약관 종류 — 본문의 `kind`. 경로에는 소문자(`terms`·`privacy`·`robotikon_contract`)로 들어간다(`useTermsApi`).
+ * `ROBOTIKON_CONTRACT`(로보티콘 상품화 계약 — 유료 팩 작가가 동의, emoticon-contract S2)는 공개 화면(`/robotikon/contract`)만 있고 요약(`/api/terms/summary` — 가입·로그인 링크·변경 안내 띠)에는 오지 않는다.
+ */
+export type TermsKind = 'TERMS' | 'PRIVACY' | 'ROBOTIKON_CONTRACT';
 
 /** 게시본 상태 — 지금 약관 · 시행 예정 · 지난 */
 export type TermsVersionStatus = 'CURRENT' | 'UPCOMING' | 'PAST';

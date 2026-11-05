@@ -52,6 +52,7 @@ import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.service.GroupPostGate;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
+import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.response.PostAuthorView;
@@ -157,13 +158,16 @@ public class CommentService {
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
     private final BoardStaffActionService staffActions;
+    /** 로보티콘 토큰 검사(개수 400 → 자격 409 — emoticon-contract 목업 5차) */
+    private final EmoticonGuard emoticons;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
                           GroupPostGate groupGate, GroupMemberRepository groupMembers, GroupPostQueries groupPosts, Messages messages,
-                          PlatformTransactionManager txManager, BoardStaffActionService staffActions) {
+                          PlatformTransactionManager txManager, BoardStaffActionService staffActions, EmoticonGuard emoticons) {
+        this.emoticons = emoticons;
         this.staffActions = staffActions;
         this.groupGate = groupGate;
         this.groupMembers = groupMembers;
@@ -534,9 +538,11 @@ public class CommentService {
             ContentRules.checkGuest(body.guest(), sec, fields);
             guestName = body.guest() == null ? null : ContentRules.normalize(body.guest().name());
         }
+        EmoticonGuard.countInto(content.content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
+        emoticons.requireOwned(actor.guest() ? null : actor.userId(), content.content()); // 가지지 않은 팩의 로보티콘 409 — 금지어·속도 제한 앞
         Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack(), guestName);
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -562,6 +568,7 @@ public class CommentService {
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
                     stance.stanceName(), now);
             comments.persist(comment);
+            emoticons.recordUse(authorId, content.content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3)
             counters.addCommentCount(post.getId(), 1);
             Map<Long, CommentEntity> byId = new HashMap<>();
             if (replyTo != null) {
@@ -693,9 +700,11 @@ public class CommentService {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         int max = comment.getStance() == null ? ContentRules.COMMENT_MAX : DebateReader.OPINION_MAX; // 의견이면 의견 한도 — 배지는 고칠 때 바뀌지 않는다
         ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, max, fields);
+        EmoticonGuard.countInto(content.content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
+        emoticons.requireOwned(comment.getAuthorId(), content.content()); // 고칠 때도 본문 전체를 다시 본다
         Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -709,6 +718,7 @@ public class CommentService {
                 throw new CommentHiddenException();
             }
             locked.edit(masked.format(), masked.content(), now);
+            emoticons.recordUse(locked.getAuthorId(), content.content());
             Map<Long, CommentEntity> byId = new HashMap<>();
             if (locked.getReplyToId() != null) {
                 comments.findByPostIdAndId(locked.getPostId(), locked.getReplyToId()).ifPresent(t -> byId.put(t.getId(), t));

@@ -189,6 +189,7 @@ export default {
         POINT_SHOP_REFUND: '포인트 상점 구매 취소',
         REVOKE_DEBT_OFFSET: '미회수 포인트 차감',
         EXPIRE: '유효기간 만료',
+        EMOTICON_CREATOR_REWARD: '로보티콘 받기 보상',
     },
     col: {
         createdAt: '일시',

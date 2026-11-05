@@ -39,6 +39,7 @@
             :withdrawal="withdrawal"
             :can-force-withdraw="canForceWithdraw"
             :sanctions="sanctions"
+            :emoticon-creator="emoticonCreator"
             @sanction="emit('sanction')"
             @lift-sanction="(line) => emit('lift-sanction', line)"
             @retry-sanctions="emit('retry-sanctions')"
@@ -59,6 +60,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
+import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember from '~/utils/util-member';
@@ -87,9 +89,11 @@ interface Props {
     canForceWithdraw?: boolean;
     /** 「제재」 구획의 현황(제재 API `preview`) — 받지 않는 화면은 null(제재 화면 링크만) */
     sanctions?: MemberSanctionsView | null;
+    /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
+    emoticonCreator?: EmoticonCreatorSummary | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null, emoticonCreator: null });
 const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();

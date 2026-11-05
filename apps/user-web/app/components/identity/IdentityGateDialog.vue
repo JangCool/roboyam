@@ -4,6 +4,7 @@
         - 미인증(`NEED`): 용도별 한 줄(「포인트 충전하려면 본인인증이 필요해요」) + 왜·무엇을 저장하는지 짧게 + [본인인증 하기]. 인증이 실패하면 대화상자 안 한 줄(사용자가 인증창을 닫으면 조용히 그대로).
         - 만 19세 미만(`MINOR`): 막는 안내 + 19세 생일이 지나면 다시 인증하지 않아도 된다 + [확인].
         - 상태를 받지 못함(`LOAD_ERROR`): 서버 문구 + [다시 시도].
+        - 한 번 더 인증(`reverify` — 서버가 인증 기록을 다시 받아야 한다고 답했을 때): 「본인인증을 한 번 더 해 주세요」 + 까닭 + [본인인증 하기].
         인증 흐름이 진행 중이면(가짜 대화상자가 위에 떠 있는 동안 포함) 닫을 수 없다.
     -->
     <Dialog
@@ -19,7 +20,7 @@
     >
         <div class="flex flex-col gap-3 text-sm leading-relaxed">
             <template v-if="state.mode === 'NEED'">
-                <p class="m-0">{{ t('identity.gateNeedText') }}</p>
+                <p class="m-0">{{ state.reverify ? t('identity.gateReverifyText') : t('identity.gateNeedText') }}</p>
                 <p class="m-0 text-xs text-muted-color">{{ t('identity.storedShort') }}</p>
                 <Message v-if="failureCopy" severity="error" size="small" variant="simple" :closable="false" data-testid="identity-gate-failure">
                     <b>{{ failureCopy.title }}</b> {{ failureCopy.text }}
@@ -60,6 +61,7 @@ const state = gate.state;
 
 const title = computed(() => {
     if (state.value.mode === 'MINOR') return t('identity.minorTitle');
+    if (state.value.reverify) return t('identity.gateReverifyTitle');
     return t(`identity.gateNeed_${state.value.purpose}`);
 });
 

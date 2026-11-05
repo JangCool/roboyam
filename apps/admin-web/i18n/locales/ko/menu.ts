@@ -83,6 +83,13 @@ export default {
     pointShopItems: '품목 관리',
     pointShopPurchases: '구매 내역',
     pointShopSettings: '포인트 상점 설정',
+    // 로보티콘 묶음(일반 모드, 포인트 상점 묶음 다음 — 키 이름은 emoticon 그대로)
+    emoticon: '로보티콘',
+    emoticonReviews: '로보티콘 심사',
+    emoticonPacks: '팩 관리',
+    emoticonSales: '판매 내역',
+    emoticonSettlements: '작가 정산',
+    emoticonSettings: '로보티콘 설정',
     // 공구 묶음(일반 모드, 결제 묶음 앞) — 운영자가 파는 실물 공동구매
     groupBuy: '공구',
     groupBuyProducts: '상품',

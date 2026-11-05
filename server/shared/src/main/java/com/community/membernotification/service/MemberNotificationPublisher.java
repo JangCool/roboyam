@@ -1000,6 +1000,88 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 로보티콘 팩 처리 알림(V142 — {@code EMOTICON_PACK}, 받는 사람 = 작가). 덧붙임 {@code kind}·{@code packId}·{@code packName}·{@code note}(반려·판매 중단 사유).
+     * 끌 수 없는 처리 알림, 누르면 스튜디오의 그 팩({@code /robotikon/studio/{packId}}). 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
+     * 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때만.
+     *
+     * @param kind 종류(번들 {@code member.notification.EMOTICON_PACK.kind.<kind>})
+     * @param note 반려·판매 중단 사유(없으면 null)
+     */
+    public int emoticonPack(long userId, String kind, long packId, String packName, String note) {
+        return emoticonPack(userId, kind, packId, packName, note, Map.of());
+    }
+
+    /**
+     * 로보티콘 팩 가격 바뀜 알림(S2 — 운영자 가격 바꾸기 {@code PRICE_CHANGED}(사유) · 새 판 승인으로 바뀐 가격 {@code UPDATE_PRICE_CHANGED}(사유 없음)). 덧붙임에 {@code from}·{@code to}(원, 0 = 무료).
+     */
+    public int emoticonPackPrice(long userId, long packId, String packName, int from, int to, String reason) {
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("from", from);
+        extra.put("to", to);
+        return emoticonPack(userId, reason == null ? "UPDATE_PRICE_CHANGED" : "PRICE_CHANGED", packId, packName, reason, extra);
+    }
+
+    private int emoticonPack(long userId, String kind, long packId, String packName, String note, Map<String, Object> extra) {
+        return isolated.run("member-notification:emoticon-pack", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.EMOTICON_PACK, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(packName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("kind", kind);
+                payload.put("packId", Long.toString(packId));
+                payload.put("packName", name);
+                if (note != null) {
+                    payload.put("note", note);
+                }
+                payload.putAll(extra);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.EMOTICON_PACK.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.emoticonPack(kind, name, note), null, null, "/robotikon/studio/" + packId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 로보티콘 유료 팩 구매 알림(V146 — {@code EMOTICON_PURCHASE}, 받는 사람 = 산 회원). 덧붙임 {@code kind}·{@code purchaseId}·{@code packId}·{@code packName}·{@code amount}·
+     * {@code path}. 끌 수 없는 거래 알림. 결제·환불 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다, 커밋돼야 보인다). 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때만.
+     *
+     * @param kind 종류(번들 {@code member.notification.EMOTICON_PURCHASE.kind.<kind>})
+     * @param path 누르면 갈 사이트 안 경로(메일 버튼도 같은 곳)
+     */
+    public int emoticonPurchase(long userId, String kind, long purchaseId, long packId, String packName, long amount, String path) {
+        return isolated.run("member-notification:emoticon-purchase", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.EMOTICON_PURCHASE, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(packName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("kind", kind);
+                payload.put("purchaseId", Long.toString(purchaseId));
+                payload.put("packId", Long.toString(packId));
+                payload.put("packName", name);
+                payload.put("amount", amount);
+                payload.put("path", path);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.EMOTICON_PURCHASE.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.emoticonPurchase(kind, name, amount), null, null, path);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 게시판 제재를 받았다({@code BOARD_SANCTION_ISSUED} — board-sanction-contract 결정 6). 덧붙임 {@code boardSanctionId}·{@code boardId}·{@code boardName}·{@code kind}·
      * {@code until}·{@code reasonCode}·{@code reasonText}. <b>처리자는 싣지 않는다</b>(결정 7). 끌 수 없는 계정 알림, 누르면 내 제재. <b>메일은 보내지 않는다</b>(결정 6 —
      * 회원 이벤트 설정의 이메일 값과 상관없이). 업무 트랜잭션 안에서 부른다.

@@ -9,6 +9,8 @@
         - 권한: 화면 `terms.read`(메뉴가 거른다) · 초안·게시·옵션 `terms.manage` — 없으면 스위치가 잠기고 편집기는 읽기 전용, 단추가 없다. 감사는 서버가 남긴다.
         - 저장하지 않은 초안 변경이 있는데 다른 탭·화면으로 가면 묻는다.
         서버 API: `useTermsApi`.
+        - 종류 「로보티콘 상품화 계약」(`ROBOTIKON_CONTRACT`, emoticon-contract — 2026-11-05 결정): 유료 로보티콘 팩 작가가 동의하는 판 있는 문서. 다른 종류와 같은 서버 API(S2 — 서버 `TermsKind`). 작가 신청 화면의 제목·요약은 서버가 본문의 첫 제목·첫 목록에서 뽑는다.
+          가입·로그인 약관 링크(①)의 대상이 아니다. `?kind=robotikon_contract` 로 그 탭을 바로 연다(로보티콘 설정의 링크).
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('terms.title')" :subtitle="t('terms.subtitle')" />
@@ -43,9 +45,19 @@
             <!-- ② 종류 탭 -->
             <Tabs :key="tabsKey" :value="activeKind" class="min-w-0" @update:value="(v: string | number) => selectKind(String(v) as TermsKind)">
                 <TabList :aria-label="t('terms.kindTabs')">
-                    <Tab v-for="kind in KINDS" :key="kind" :value="kind">{{ kindLabel(kind) }}</Tab>
+                    <Tab v-for="kind in KINDS" :key="kind" :value="kind">
+                        <span class="inline-flex items-center gap-1.5">
+                            {{ kindLabel(kind) }}
+                        </span>
+                    </Tab>
                 </TabList>
             </Tabs>
+
+            <!-- 로보티콘 상품화 계약(emoticon-contract S2) — 가입·로그인 약관 링크 대상이 아니다. 작가 신청 화면의 제목·요약은 본문에서 뽑는다 -->
+            <Message v-if="activeKind === 'ROBOTIKON_CONTRACT'" severity="info" :closable="false">
+                <span class="text-[13px]">{{ t('terms.robotikonNote') }}</span>
+                <NuxtLink to="/robotikon/settings" class="ml-1 text-[13px] font-medium whitespace-nowrap text-primary hover:underline">{{ t('terms.robotikonSettingsLink') }} ›</NuxtLink>
+            </Message>
 
             <!-- 상태 -->
             <AppGadget :title="t('terms.statusTitle')">
@@ -188,13 +200,22 @@ const { prefs } = useLayoutPrefs();
 /** 초안·게시·옵션에 필요한 권한 — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('terms.manage'));
 
-const KINDS: readonly TermsKind[] = ['TERMS', 'PRIVACY'];
+/** 종류 탭 차례 — 로보티콘 상품화 계약(`ROBOTIKON_CONTRACT`)도 같은 서버 API(emoticon-contract S2) */
+const KINDS: readonly TermsKind[] = ['TERMS', 'PRIVACY', 'ROBOTIKON_CONTRACT'];
 const linksId = useId();
 const bodyLabelId = useId();
 const bodyMessageId = useId();
+const route = useRoute();
 
 function kindLabel(kind: TermsKind): string {
+    if (kind === 'ROBOTIKON_CONTRACT') return t('terms.kindRobotikonContract');
     return kind === 'TERMS' ? t('common.terms') : t('common.privacy');
+}
+
+/** 주소의 `?kind=robotikon_contract`(로보티콘 설정의 링크)로 그 종류를 연다 */
+function kindFromQuery(): TermsKind {
+    const value = typeof route.query.kind === 'string' ? route.query.kind.toUpperCase() : '';
+    return (KINDS as readonly string[]).includes(value) ? (value as TermsKind) : 'TERMS';
 }
 
 /* ── 개요(옵션·종류별 상태) ── */
@@ -215,7 +236,7 @@ async function loadOverview(): Promise<void> {
     }
 }
 
-const activeKind = ref<TermsKind>('TERMS');
+const activeKind = ref<TermsKind>(kindFromQuery());
 const activeOverview = computed(() => overview.value?.kinds.find((k) => k.kind === activeKind.value) ?? null);
 
 /* ── 링크 옵션 ── */

@@ -75,6 +75,7 @@ import type { PollFormValues } from '~/components/board/PollSettingsFields.types
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilPoll from '~/utils/util-poll';
@@ -84,6 +85,9 @@ import UtilPost from '~/utils/util-post';
 definePageMeta({ shell: 'inner' });
 
 const { t } = useI18n();
+/** 저장 때 서버의 로보티콘 오류(`409 EMOTICON_NOT_OWNED`)를 미리 검사와 같은 문구로 — 이름표는 카탈로그에서 */
+const emoticonCatalog = useEmoticonCatalog();
+const emoticonLabel = (id: string): string => emoticonCatalog.resolve(id)?.label ?? id;
 const route = useRoute();
 const router = useRouter();
 const api = useGroupApi();
@@ -250,6 +254,8 @@ async function submit(): Promise<void> {
             prompt('write', route.fullPath);
         } else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') {
             fieldErrors.value = { content: e.message };
+        } else if (UtilEmoticonMessages.bodyError(t, e, emoticonLabel)) {
+            fieldErrors.value = { content: UtilEmoticonMessages.bodyError(t, e, emoticonLabel) ?? '' }; // 가지지 않은 팩의 로보티콘 — 본문 칸 아래
         } else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };
         } else {

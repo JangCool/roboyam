@@ -37,6 +37,12 @@
             <RichEditorToolButton v-if="imageUpload" :label="t('richEditor.image')" icon="pi pi-image" :disabled="off" data-testid="tool-image" @click="emit('image')" />
             <RichEditorToolButton :label="t('richEditor.youtube')" icon="pi pi-youtube" toggle :active="youtubeActive" :disabled="off" data-testid="tool-youtube" @click="emit('youtube')" />
         </template>
+
+        <!-- 쓰는 앱이 덧붙이는 도구(user-web 의 이모티콘 고르기) — 레이어는 무엇이 오는지 모른다 -->
+        <template v-if="$slots.extra">
+            <span class="mx-0.5 h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700" aria-hidden="true" />
+            <slot name="extra" />
+        </template>
     </div>
 </template>
 

@@ -33,7 +33,9 @@ export type PointReasonCode =
     | 'POINT_SHOP_PURCHASE'
     | 'POINT_SHOP_REFUND'
     | 'REVOKE_DEBT_OFFSET'
-    | 'EXPIRE';
+    | 'EXPIRE'
+    // 로보티콘(emoticon-contract S1) — 다른 회원이 무료 팩을 받을 때 작가에게 주는 적립(인정된 받기만 · 작가 하루 상한)
+    | 'EMOTICON_CREATOR_REWARD';
 
 /** 원장 한 줄 — 최신이 위 */
 export interface PointLedgerItem {

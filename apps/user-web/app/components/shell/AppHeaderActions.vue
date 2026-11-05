@@ -64,6 +64,7 @@ import UtilDm from '~/utils/util-dm';
 import UtilPoint from '~/utils/util-point';
 import UtilRedirect from '~/utils/util-redirect';
 import UtilPointShop from '~/utils/util-point-shop';
+import UtilEmoticon from '~/utils/util-emoticon';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -118,6 +119,8 @@ const menuItems = computed(() => [
               // 포인트 상점 — 포인트로 닉네임 색·프로필 테두리·닉네임 변경권을 산다(공동구매 주문 내역과 따로)
               { label: term('POINT_SHOP'), icon: 'pi pi-shopping-bag', command: () => void navigateTo(UtilPointShop.PATH) },
           ]),
+    // 이모티콘 상점 — 무료 팩 받기·작가 팩(포인트 상점과 따로, docs/features/emoticon-contract.md). 공개 메뉴는 서버 메뉴 카탈로그라 여기(셸 고정 항목)에만 둔다
+    { label: t('emoticon.shopTitle'), icon: 'pi pi-face-smile', command: () => void navigateTo(UtilEmoticon.PATH) },
     // 쪽지함 — 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6)
     { label: dmText.value ? t('shell.messageBoxUnread', { count: dmText.value }) : t('shell.messageBox'), icon: 'pi pi-envelope', command: () => void navigateTo(UtilDm.INBOX_PATH) },
     // 사업자 센터(신청했거나 사업자 전용 계정) · 사업자 신청(일반 회원, 신청 전) — H-2

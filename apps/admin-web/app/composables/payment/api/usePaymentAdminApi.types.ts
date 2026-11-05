@@ -5,7 +5,7 @@
  */
 
 /** 결제 주문의 대상 종류 — 충전(3단계)·공구(2b)·시험 주문(local·dev) */
-export type PaymentOrderType = 'POINT_CHARGE' | 'GROUP_BUY' | 'PAYMENT_TEST';
+export type PaymentOrderType = 'POINT_CHARGE' | 'GROUP_BUY' | 'ROBOTIKON_PACK' | 'PAYMENT_TEST';
 export type PaymentStatus = 'READY' | 'PAID' | 'PARTIAL_CANCELED' | 'CANCELED' | 'EXPIRED';
 /** 이상 결제 — 받아들이지 않은 결제(자동 취소 대상) */
 export type PaymentAnomaly = 'AMOUNT_MISMATCH' | 'DOMAIN_REJECTED' | 'LATE_PAYMENT';
@@ -21,7 +21,7 @@ export type ReconcileIssueStatus = 'OPEN' | 'RESOLVED';
 /** 날짜 하나의 대사 상태 — 아직 안 함 · 도는 중 · 끝(불일치 없음) · 끝(불일치 있음) · 실패(포트원 장애 등) */
 export type ReconcileDayStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'MISMATCH' | 'FAILED';
 
-export const PAYMENT_ORDER_TYPES: readonly PaymentOrderType[] = ['POINT_CHARGE', 'GROUP_BUY', 'PAYMENT_TEST'];
+export const PAYMENT_ORDER_TYPES: readonly PaymentOrderType[] = ['POINT_CHARGE', 'GROUP_BUY', 'ROBOTIKON_PACK', 'PAYMENT_TEST'];
 export const PAYMENT_STATUSES: readonly PaymentStatus[] = ['READY', 'PAID', 'PARTIAL_CANCELED', 'CANCELED', 'EXPIRED'];
 export const PAYMENT_ANOMALIES: readonly PaymentAnomaly[] = ['AMOUNT_MISMATCH', 'DOMAIN_REJECTED', 'LATE_PAYMENT'];
 export const PAYMENT_WEBHOOK_RESULTS: readonly PaymentWebhookResult[] = ['PROCESSED', 'IGNORED', 'REJECTED', 'RETRY'];

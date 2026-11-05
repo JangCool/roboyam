@@ -217,6 +217,22 @@ export default class UtilAdminMenu {
                 { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
             ],
         },
+        // 로보티콘 묶음(포인트 상점 묶음 다음) — 로보티콘 상점(회원 `/robotikon`, 무료 받기 + 실결제 유료 팩)은 포인트 상점과 메뉴를 따로 둔다(계약 emoticon-contract 「이름」). 코드 식별자는 `emoticon` 그대로.
+        // 심사(작가 신청 팩) · 팩 관리(판매 중단·운영 팩) · 판매 내역(실결제·예외 환불) · 작가 정산(월 정산·지급 기록) · 설정(작가 보상·팩 규격·유료 판매·정산 규칙). 모두 실제 API(`useEmoticonAdminApi`, S1~S4).
+        // 서버 `AdminScreenRegistry` 의 같은 다섯 줄 · 권한 `emoticon.*`(서버 `Permission`)와 맞춘다(정본은 서버).
+        // 판매 내역은 `emoticon.sales`(조회·예외 환불), 작가 정산은 `emoticon.settlement`(조회·처리)로 거른다 — 돈과 구매 회원·작가 정보를 다루므로 일반 조회(`emoticon.read`)와 나눴다.
+        {
+            key: 'emoticon',
+            icon: 'pi pi-face-smile',
+            labelKey: 'menu.emoticon',
+            items: [
+                { key: 'emoticonReviews', to: '/robotikon/reviews', icon: 'pi pi-check-square', labelKey: 'menu.emoticonReviews', permission: 'emoticon.read' },
+                { key: 'emoticonPacks', to: '/robotikon/packs', icon: 'pi pi-images', labelKey: 'menu.emoticonPacks', permission: 'emoticon.read' },
+                { key: 'emoticonSales', to: '/robotikon/sales', icon: 'pi pi-receipt', labelKey: 'menu.emoticonSales', permission: 'emoticon.sales' },
+                { key: 'emoticonSettlements', to: '/robotikon/settlements', icon: 'pi pi-wallet', labelKey: 'menu.emoticonSettlements', permission: 'emoticon.settlement' },
+                { key: 'emoticonSettings', to: '/robotikon/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.emoticonSettings', permission: 'emoticon.read' },
+            ],
+        },
         // 공구 묶음(결제 묶음 앞) — 운영자가 파는 실물 공동구매(현금 결제): 공구(목록·등록·운영 동작) · 수량(총량·선점·변동·추가 입고/줄이기) · 주문(발주·발송·운영 환불·명단) · 취소·반품 요청 대기열.
         // 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 3·35. ⚠ 화면은 아직 목업(`useGroupBuy*Api`)이다. 서버 `AdminScreenRegistry` 에도 같은 네 줄이 필요하고, 쓰는 권한의 `featureReady` 를 켜야 한다(2b-2~2b-4).
         // 조회는 공구·수량 `commerce.product.read`, 주문·요청 `commerce.order.read`. 화면 안 처리는 `commerce.product.manage`·`commerce.stock.adjust`·`commerce.groupbuy.cancel`·`commerce.order.manage`·`commerce.refund.approve`·`commerce.refund.large`·`commerce.address.reveal`·`commerce.export` 를 따로 본다.

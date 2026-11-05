@@ -1,5 +1,6 @@
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
+import UtilEmoticon from '~/utils/util-emoticon';
 import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPointShop from '~/utils/util-point-shop';
@@ -32,7 +33,7 @@ export type MeMenuMeta = true | 'self';
 
 /**
  * 내 정보 메뉴 — 데스크톱은 셸이 오른쪽 열에 두고(`MeFrame`), 모바일은 `/me` 화면이 목록으로 그린다. 두 곳이 같은 줄을 쓴다.
- * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 사업자 센터) · 포인트(사업자 전용 계정 제외) · 알림·쪽지.
+ * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 사업자 센터 · 내 로보티콘) · 포인트(사업자 전용 계정 제외) · 알림·쪽지.
  * 설정은 이 메뉴에 두지 않는다(사용자 결정 2026-11-05) — 헤더 계정 메뉴의 「설정」으로 가고, 설정 화면들은 설정 메뉴(`pages/settings.vue`)만 보인다.
  */
 export function useMeMenu() {
@@ -69,6 +70,8 @@ export function useMeMenu() {
         if (business) {
             activity.push(entry(UtilBusiness.CENTER_PATH, UtilBusinessMessages.ENTRY_CENTER_ICON, business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), 'me-entry-business'));
         }
+        // 내 로보티콘(받은·산 팩 · 구매 내역 — `docs/features/emoticon-contract.md`). 무료 팩도 있어 사업자 전용 계정도 줄이 있다
+        activity.push(entry(UtilEmoticon.MY_PATH, 'pi pi-face-smile', t('emoticon.myTitle'), 'me-entry-emoticons'));
         list.push({ key: 'activity', title: t('me.menuGroupActivity'), entries: activity });
 
         if (!businessAccount.value) {

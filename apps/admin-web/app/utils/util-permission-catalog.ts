@@ -212,6 +212,16 @@ export default class UtilPermissionCatalog {
         { code: 'pointshop.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointshopRead', descKey: 'permission.item.pointshopReadDesc', featureReady: true },
         { code: 'pointshop.manage', unit: 'MANAGE', type: 'gradePoint', nameKey: 'permission.item.pointshopManage', descKey: 'permission.item.pointshopManageDesc', featureReady: true },
         { code: 'pointshop.refund', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointshopRefund', descKey: 'permission.item.pointshopRefundDesc', featureReady: true },
+        // 로보티콘(`/robotikon/reviews`·`packs`·`sales`·`settlements`·`settings`, emoticon-contract) — S1 서버 `Permission.EMOTICON_READ`·`EMOTICON_REVIEW`·`EMOTICON_SETTINGS`
+        //   (GRADE_POINT · READ / MANAGE / CONFIG)가 생겨 켰다. `emoticon.sales`·`emoticon.settlement`·`emoticon.payout.pii`
+        //   (SENSITIVE)는 S2 서버가 `featureReady false` 로 더했고, `emoticon.sales` 는 S3 서버(판매 내역)가, `emoticon.settlement`·`emoticon.payout.pii` 는
+        //   S4 서버(작가 월 정산 `EmoticonSettlementAdminController` — 계좌 원문 보기는 정산 줄 주소)가 켰다. 여섯 모두 켜짐(정본은 서버 `Permission`).
+        { code: 'emoticon.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.emoticonRead', descKey: 'permission.item.emoticonReadDesc', featureReady: true },
+        { code: 'emoticon.review', unit: 'MANAGE', type: 'gradePoint', nameKey: 'permission.item.emoticonReview', descKey: 'permission.item.emoticonReviewDesc', featureReady: true },
+        { code: 'emoticon.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.emoticonSettings', descKey: 'permission.item.emoticonSettingsDesc', featureReady: true },
+        { code: 'emoticon.sales', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonSales', descKey: 'permission.item.emoticonSalesDesc', featureReady: true },
+        { code: 'emoticon.settlement', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonSettlement', descKey: 'permission.item.emoticonSettlementDesc', featureReady: true },
+        { code: 'emoticon.payout.pii', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonPayoutPii', descKey: 'permission.item.emoticonPayoutPiiDesc', featureReady: true },
         { code: 'dormancy.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.dormancyRead', descKey: 'permission.item.dormancyReadDesc', featureReady: false },
         { code: 'dormancy.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.dormancySettings', descKey: 'permission.item.dormancySettingsDesc', featureReady: false },
         { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: true },

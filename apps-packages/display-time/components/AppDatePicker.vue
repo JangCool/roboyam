@@ -16,6 +16,7 @@
             :show-button-bar="showButtonBar"
             :min-date="minDate"
             :max-date="maxDate"
+            :disabled-days="disabledDays"
             :size="size"
             :disabled="disabled"
             :readonly="readonly"
@@ -40,6 +41,8 @@ interface Props {
     min?: string;
     /** 고를 수 있는 가장 늦은 날(`YYYY-MM-DD`) */
     max?: string;
+    /** 달력에서 고를 수 없는 요일(0 = 일요일 … 6 = 토요일 — PrimeVue `disabledDays`). 입력칸에 직접 쓴 날은 막지 않는다(부르는 쪽이 다시 본다) */
+    disabledDays?: number[];
     inputId?: string;
     /** 입력칸 크기(PrimeVue DatePicker 의 size) */
     size?: 'small' | 'large';
@@ -59,6 +62,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     min: undefined,
     max: undefined,
+    disabledDays: undefined,
     inputId: undefined,
     size: undefined,
     disabled: false,

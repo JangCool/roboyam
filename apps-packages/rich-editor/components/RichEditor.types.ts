@@ -1,3 +1,5 @@
+import type { RichEmoticonResolve } from '#layers/rich-editor/utils/util-rich-emoticon';
+
 /**
  * `RichEditor` 의 계약 타입 — 쓰는 앱(글쓰기·댓글·나중에 관리자 메일 템플릿)이 명시적으로 import 한다(`#layers/rich-editor/components/RichEditor.types`).
  */
@@ -30,6 +32,15 @@ export interface RichImageUploadOptions {
  * 실패는 앱의 `ApiError`(`status`·`code`·`message`)를 그대로 던진다 — 문구는 서버 문구를 쓴다.
  */
 export type RichImageUploader = (file: File, options: RichImageUploadOptions) => Promise<RichImageUploadResult>;
+
+/**
+ * 이모티콘 그림 찾기 — 쓰는 앱이 자기 카탈로그로 만들어 준다(레이어는 서버를 부르지 않는다). 주면 이모티콘 노드가 켜진다(`editor/emoticonInline.ts`, user-web 만).
+ * `version` 이 바뀌면(카탈로그를 늦게 받았을 때) 본문의 이모티콘을 다시 그린다.
+ */
+export interface RichEmoticonSource {
+    resolve: RichEmoticonResolve;
+    version?: number;
+}
 
 /** 에디터의 첨부 상태 — 부모가 「올리는 중·실패한 이미지가 있으면 저장 막기」에 쓴다 */
 export interface RichEditorMediaState {

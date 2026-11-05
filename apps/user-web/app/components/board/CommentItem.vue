@@ -55,10 +55,11 @@
                 <div v-else-if="comment.contentFormat === 'HTML'" class="mt-1 break-words text-sm">
                     <span v-if="comment.replyTo" class="float-left mr-1 font-semibold leading-[1.75] text-primary">@{{ comment.replyTo.name }}</span>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div class="rich-text" v-html="comment.content ?? ''" />
+                    <div ref="htmlBody" class="rich-text" v-html="comment.content ?? ''" />
                 </div>
+                <!-- 평문 댓글 — 이모티콘 토큰은 조각으로 나눠 그림으로(`EmoticonText`, v-html 없음) -->
                 <p v-else class="mt-1 whitespace-pre-line break-words text-sm leading-relaxed">
-                    <span v-if="comment.replyTo" class="mr-1 font-semibold text-primary">@{{ comment.replyTo.name }}</span>{{ comment.content }}
+                    <span v-if="comment.replyTo" class="mr-1 font-semibold text-primary">@{{ comment.replyTo.name }}</span><EmoticonText :text="comment.content ?? ''" />
                 </p>
 
                 <div v-if="comment.state === 'VISIBLE'" class="mt-1.5 flex flex-wrap items-center gap-1">
@@ -140,6 +141,7 @@
 <script setup lang="ts">
 import type { CommentReactions, CommentView } from '~/composables/board/api/useCommentApi.types';
 import UtilCommentDelayMessages from '~/utils/util-comment-delay-messages';
+import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 
 interface Props {
     comment: CommentView;
@@ -200,6 +202,23 @@ const staffMenuItems = computed(() => {
     return items;
 });
 const time = useDisplayTime();
+
+/**
+ * 에디터 댓글 본문의 이모티콘 — 정화된 HTML 을 넣은 뒤 글자 노드의 토큰만 그림으로 바꾼다(링크·코드 안 제외, `UtilRichEmoticon.replaceIn`).
+ * 토큰이 있을 때만 카탈로그를 받고, 늦게 오면(`version`) 다시 바꾼다. 카탈로그에 없으면 글자 그대로.
+ */
+const htmlBody = ref<HTMLElement | null>(null);
+const catalog = useEmoticonCatalog();
+watch(
+    [htmlBody, () => props.comment.content, catalog.version],
+    () => {
+        const el = htmlBody.value;
+        if (!el || !UtilRichEmoticon.has(props.comment.content)) return;
+        void catalog.ensureLoaded();
+        UtilRichEmoticon.replaceIn(el, catalog.resolve);
+    },
+    { flush: 'post' },
+);
 
 /** 숨긴 자리의 문구 — 운영자 숨김 · 소모임을 나간 멤버의 댓글 · 멤버 전용 댓글(소모임 5단계 — 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글) · 신고 숨김 */
 const HIDDEN_KEY: Record<NonNullable<CommentView['hiddenBy']> | 'NONE', string> = {

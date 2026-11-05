@@ -118,6 +118,16 @@ public class MemberNotificationMessages {
                     new Sanction(kind, null, until, null));
         }
 
+        /** 로보티콘 팩 처리(V142) — 종류({@code result} — APPROVED·REJECTED·UPDATE_APPROVED·UPDATE_REJECTED·SUSPENDED·RESUMED)·팩 이름({@code snapshot})·사유({@code note}) */
+        public static Facts emoticonPack(String kind, String packName, String note) {
+            return new Facts(MemberNotificationType.EMOTICON_PACK, null, null, null, 1, 0, null, note, false, packName, kind);
+        }
+
+        /** 로보티콘 유료 팩 구매(V146) — 종류({@code result} — PAID·AUTO_CANCELED·REFUNDED_SELF·REFUNDED_EXCEPTION)·팩 이름({@code snapshot})·금액({@code amount}) */
+        public static Facts emoticonPurchase(String kind, String packName, long amount) {
+            return new Facts(MemberNotificationType.EMOTICON_PURCHASE, null, null, null, 1, amount, null, null, false, packName, kind);
+        }
+
         /** 소멸 예정 알림 밖의 사실 — 소멸 예정은 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
                      boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
@@ -431,6 +441,11 @@ public class MemberNotificationMessages {
             case SANCTION_LIFTED -> builder.variable("sanction", sanctionName(facts, locale));
             case BOARD_SANCTION_ISSUED -> builder.variable("board", nz(facts.snapshot())).variable("sanction", boardSanctionName(facts, locale))
                     .variable("until", sanctionUntil(facts, locale)).variable("reason", boardSanctionReason(facts, locale));
+            case EMOTICON_PACK -> builder.variable("packName", nz(facts.snapshot()))
+                    .variable("detail", messages.get(new MessageRef("member.notification.EMOTICON_PACK.kind." + nz(facts.result()), nz(facts.note())), locale));
+            case EMOTICON_PURCHASE -> builder.variable("packName", nz(facts.snapshot()))
+                    .variable("detail", messages.get(new MessageRef("member.notification.EMOTICON_PURCHASE.kind." + nz(facts.result()),
+                            String.format("%,d", facts.amount())), locale));
             case APPEAL_ANSWERED -> builder.variable("sanction", sanctionName(facts, locale)).variable("result", appealResult(facts, locale))
                     .variable("answer", nz(facts.note()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))

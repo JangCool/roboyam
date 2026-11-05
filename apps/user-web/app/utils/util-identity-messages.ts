@@ -33,6 +33,8 @@ export default class UtilIdentityMessages {
                 return { title: t('identity.failProviderTitle'), text: t('identity.failProvider') };
             case 'IDENTITY_VERIFICATION_EXPIRED':
                 return { title: t('identity.failExpiredTitle'), text: t('identity.failExpired') };
+            case 'IDENTITY_PERSON_MISMATCH':
+                return { title: t('identity.failMismatchTitle'), text: t('identity.failMismatch') };
             default:
                 return { title: t('identity.failTitle'), text: outcome.message };
         }

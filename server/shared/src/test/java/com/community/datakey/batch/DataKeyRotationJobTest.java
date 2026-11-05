@@ -26,6 +26,8 @@ import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
+import com.community.emoticon.service.EmoticonPayoutService;
+import com.community.identity.service.IdentityVerificationService;
 import com.community.withdrawal.service.WithdrawnContactStore;
 import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.crypto.DataCipher;
@@ -593,9 +595,11 @@ class DataKeyRotationJobTest {
         assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::purpose).doesNotHaveDuplicates()
                 .startsWith(WithdrawnContactStore.EMAIL)
                 .contains(AddressBookService.RECIPIENT, AddressBookService.PHONE, AddressBookService.ADDRESS1, AddressBookService.ADDRESS2, AddressBookService.MEMO)
-                .contains(GroupBuyJoinService.RECIPIENT, GroupBuyJoinService.PHONE, GroupBuyJoinService.ADDRESS1, GroupBuyJoinService.ADDRESS2, GroupBuyJoinService.MEMO);
+                .contains(GroupBuyJoinService.RECIPIENT, GroupBuyJoinService.PHONE, GroupBuyJoinService.ADDRESS1, GroupBuyJoinService.ADDRESS2, GroupBuyJoinService.MEMO)
+                .contains(IdentityVerificationService.NAME, EmoticonPayoutService.ACCOUNT, EmoticonPayoutService.HOLDER, EmoticonPayoutService.BUSINESS_NUMBER);
         assertThat(DataKeyColumns.MEMBER_ADDRESS).extracting(EncryptedColumn::table).containsOnly("member_addresses");
         assertThat(DataKeyColumns.GROUP_BUY_ADDRESS).extracting(EncryptedColumn::table).containsOnly("group_buy_participations");
+        assertThat(DataKeyColumns.EMOTICON_PAYOUT).extracting(EncryptedColumn::table).containsOnly("emoticon_payout_accounts");
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.table()).isEqualTo("withdrawn_member_contacts");
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.cipherColumn()).isEqualTo("email_cipher");
 

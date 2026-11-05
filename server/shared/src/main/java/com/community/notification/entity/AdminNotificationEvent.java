@@ -95,6 +95,11 @@ public enum AdminNotificationEvent {
      * 발행은 부여 트랜잭션 안(롤백되면 없다), 이메일은 커밋 뒤. 처리는 반복 검토 서랍({@code reviewId})
      */
     BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).link("/board-sanctions/reviews?review={reviewId}")),
+    /**
+     * 로보티콘 심사 대기 — 작가가 팩(처음 신청 · 새 판)을 심사 요청했다(shared {@code EmoticonStudioService}, V142 — emoticon-contract S1). 신청마다 한 건.
+     * 처리는 관리자 심사 화면의 그 건 서랍({@code /robotikon/reviews?id=}) — 승인·반려 {@code emoticon.review}
+     */
+    EMOTICON_REVIEW_PENDING(spec(MEMBER, INFO).holders(Permission.EMOTICON_REVIEW).link("/robotikon/reviews?id={reviewId}")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */

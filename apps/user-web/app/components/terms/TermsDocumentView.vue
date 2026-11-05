@@ -108,7 +108,10 @@ const { t } = useI18n();
 const time = useDisplayTime();
 const historyId = useId();
 
-const title = computed(() => (props.kind === 'TERMS' ? t('common.terms') : t('common.privacy')));
+const title = computed(() => {
+    if (props.kind === 'ROBOTIKON_CONTRACT') return t('terms.robotikonContract');
+    return props.kind === 'TERMS' ? t('common.terms') : t('common.privacy');
+});
 
 /** 이전 버전 목록 — 지금 보는 버전은 뺀다 */
 const others = computed(() => (props.doc?.history ?? []).filter((item) => item.version !== props.shown?.version));

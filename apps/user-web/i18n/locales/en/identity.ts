@@ -50,11 +50,16 @@ export default {
     failProvider: 'Please try again in a moment.',
     failExpiredTitle: 'Verification timed out.',
     failExpired: 'Please start again.',
+    failMismatchTitle: 'This isn’t the person who first verified this account.',
+    failMismatch: 'Please verify again with the details of the person who first verified this account.',
 
     // Pre-payment check
     gateNeed_CHARGE: 'Verify your identity to charge points',
     gateNeed_GROUP_BUY: 'Verify your identity to join group buys',
+    gateNeed_ROBOTIKON: 'Verify your identity to buy Robotikon packs',
     gateNeedText: 'Payments are limited to one account per person, aged 19 or older. You only need to verify once.',
+    gateReverifyTitle: 'Please verify your identity once more',
+    gateReverifyText: 'Your earlier verification has no name record, so we cannot match the payout account holder. Verify once more and you can continue saving.',
 
     // Fake verification (development)
     fakeTitle: 'Fake verification (development)',

@@ -195,7 +195,7 @@
                                             :rel="UtilPost.linkRel(seg.external, post.externalLinkNofollow)"
                                             class="break-all text-primary underline underline-offset-2"
                                         >{{ seg.text }}</a>
-                                        <template v-else>{{ seg.text }}</template>
+                                        <EmoticonText v-else :text="seg.text" />
                                     </template>
                                 </template>
                             </p>
@@ -402,6 +402,7 @@ import type { DebateSettingsValues } from '~/components/board/DebateSettingsFiel
 import type { PollCardActions } from '~/components/board/PostPollCard.types';
 import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
+import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -763,6 +764,18 @@ watch(
     [htmlBody, () => post.value?.content],
     () => {
         if (htmlBody.value) UtilRichBody.enhance(t, htmlBody.value);
+    },
+    { flush: 'post' },
+);
+/** 글 본문의 이모티콘 토큰 — 글자 노드만 그림으로(링크·코드 안 제외). 토큰이 있을 때만 카탈로그를 받고, 늦게 오면 다시 바꾼다 */
+const emoticonCatalog = useEmoticonCatalog();
+watch(
+    [htmlBody, () => post.value?.content, emoticonCatalog.version],
+    () => {
+        const el = htmlBody.value;
+        if (!el || !UtilRichEmoticon.has(post.value?.content)) return;
+        void emoticonCatalog.ensureLoaded();
+        UtilRichEmoticon.replaceIn(el, emoticonCatalog.resolve);
     },
     { flush: 'post' },
 );

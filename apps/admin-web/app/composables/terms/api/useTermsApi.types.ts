@@ -3,8 +3,12 @@
  * 날짜 `effectiveDate` 는 `YYYY-MM-DD`(사이트 시간대의 달력 날짜), 시각(`publishedAt`·`updatedAt`)은 ISO-8601.
  */
 
-/** 약관 종류 — 본문의 `kind`. 경로에는 소문자(`terms`·`privacy`)로 들어간다(`useTermsApi`) */
-export type TermsKind = 'TERMS' | 'PRIVACY';
+/**
+ * 약관 종류 — 본문의 `kind`. 경로에는 소문자(`terms`·`privacy`·`robotikon_contract`)로 들어간다(`useTermsApi`).
+ * `ROBOTIKON_CONTRACT`(로보티콘 상품화 계약 — 유료 팩 작가가 동의, emoticon-contract S2)는 서버 `TermsKind` 의 종류다(다른 종류와 같은 API).
+ * 가입·로그인 화면의 약관 링크 대상이 아니다(회원 전체가 아니라 유료 신청 작가가 동의한다).
+ */
+export type TermsKind = 'TERMS' | 'PRIVACY' | 'ROBOTIKON_CONTRACT';
 
 /** 게시본 상태 — 지금 약관 · 시행 예정 · 지난 */
 export type TermsVersionStatus = 'CURRENT' | 'UPCOMING' | 'PAST';

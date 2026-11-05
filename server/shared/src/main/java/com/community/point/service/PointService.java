@@ -81,6 +81,8 @@ public class PointService {
     public static final String REF_USER = "USER";
     /** 핫딜 종료 요청 보상의 대상 — 그 요청 줄({@code deal_end_requests.id}, V122 — 원장 유일로 요청마다 한 번) */
     public static final String REF_DEAL_END_REQUEST = "DEAL_END_REQUEST";
+    /** 무료 로보티콘 팩 받기 보상의 대상 — 그 받기 줄({@code emoticon_acquisitions.id}, V142 — 원장 유일로 줄마다 한 번) */
+    public static final String REF_EMOTICON_ACQUIRE = "EMOTICON_ACQUIRE";
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
     public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
@@ -271,6 +273,53 @@ public class PointService {
             }
             return grant(userId, PointReason.DEAL_END_REQUEST, REF_DEAL_END_REQUEST, requestId, rules.dealEndRequestPoints(), rules.dealEndRequestDailyLimit(), rules,
                     null);
+        }, 0L);
+    }
+
+    /**
+     * 무료 로보티콘 팩 받기 보상(emoticon-contract 가정 6 — S1) — 다른 회원이 작가의 무료 팩을 <b>처음</b> 받은 트랜잭션에서 부른다(받기 줄을 넣은 뒤). 사유
+     * {@code EMOTICON_CREATOR_REWARD}, 대상 = 그 받기 줄({@code EMOTICON_ACQUIRE} — 원장 유일로 줄마다 한 번 = 같은 회원의 같은 팩은 빼고 다시 받아도 처음 한 번만).
+     * 작가 하루 상한은 <b>포인트 합</b>({@code dailyCap}, 한국 0시부터 이 사유로 받은 양 — 걸치면 남은 만큼만)이고 잔액 행 잠금 아래에서 세므로 동시 받기가 넘지 못한다.
+     * 하루 총 한도(활동 적립)에 들지 않는다(보상 계열 — 인기글 보상·핫딜 종료 요청 보상과 같다). 동결·정상 회원 아님·미회수 상계는 다른 적립과 같다.
+     * <b>인정된 받기</b>만 센다 — 본인(작가) 아님 · 받은 회원이 이메일 인증 정상 회원이고 등급이 가장 낮은 등급(새싹)보다 높다(인정된 추천과 같은 판정 + 이메일 인증 —
+     * {@link PointLedgerWriter#recognizedAcquirer}). 운영 팩·유료 팩 제외는 부르는 쪽이 본다.
+     * <b>실패해도 받기는 그대로</b>(판정·적립 모두 세이브포인트 안 — point-contract 가정 1).
+     *
+     * @param acquirerId 받은 회원
+     * @param points     한 번 보상({@code reward_per_acquire}, 0 이면 끔)
+     * @param dailyCap   작가 하루 상한(P)
+     * @return 지급한 포인트(없으면 0)
+     */
+    public long emoticonCreatorReward(long creatorId, long acquirerId, long acquisitionId, int points, int dailyCap) {
+        if (points <= 0 || dailyCap <= 0 || creatorId == acquirerId) {
+            return 0;
+        }
+        return isolated.run("point:emoticon-creator-reward", () -> {
+            if (!ledger.recognizedAcquirer(acquirerId)) {
+                return 0L; // 인정되지 않는 받기 — 이메일 인증 전·정지·새싹
+            }
+            if (!ledger.earnable(creatorId)) {
+                return 0L;
+            }
+            if (restrictions.hasActive(creatorId, RestrictionType.POINT_FREEZE)) {
+                return 0L;
+            }
+            Account a = open(creatorId);
+            if (ledger.exists(PointReason.EMOTICON_CREATOR_REWARD.name(), REF_EMOTICON_ACQUIRE, acquisitionId)) {
+                return 0L;
+            }
+            long left = dailyCap - ledger.earnedSince(creatorId, List.of(PointReason.EMOTICON_CREATOR_REWARD.name()), todayStartId());
+            if (left <= 0) {
+                log.debug("작가 하루 상한이라 받기 보상을 주지 않는다 creatorId={}", creatorId);
+                return 0L;
+            }
+            long give = Math.min(points, left);
+            if (a.debt > 0) {
+                expireDue(a); // 상계는 차감이다 — 지난 묶음을 먼저 소멸
+            }
+            Credit credit = creditNewLot(a, PointReason.EMOTICON_CREATOR_REWARD, give, null, REF_EMOTICON_ACQUIRE, acquisitionId, null);
+            offsetDebt(a, credit);
+            return give;
         }, 0L);
     }
 

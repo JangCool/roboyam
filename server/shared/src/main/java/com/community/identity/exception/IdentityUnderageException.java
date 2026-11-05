@@ -9,7 +9,12 @@ import org.springframework.http.HttpStatus;
 public class IdentityUnderageException extends CommonException {
 
     public IdentityUnderageException(LocalDate adultFrom) {
-        super(HttpStatus.FORBIDDEN, "IDENTITY_UNDERAGE", new MessageRef("error.IDENTITY_UNDERAGE"));
+        this(adultFrom, "error.IDENTITY_UNDERAGE");
+    }
+
+    /** 같은 코드에 그 자리의 문구(예: 로보티콘 작가 정산 정보·유료 희망 — 「무료 팩은 만들 수 있어요」) */
+    public IdentityUnderageException(LocalDate adultFrom, String messageKey) {
+        super(HttpStatus.FORBIDDEN, "IDENTITY_UNDERAGE", new MessageRef(messageKey));
         extra("adultFrom", adultFrom.toString());
     }
 }

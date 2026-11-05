@@ -85,7 +85,9 @@
                 <RichEditor
                     v-if="editorLevel !== 'NONE'"
                     :key="editorLevel"
+                    ref="editorRef"
                     :model-value="modelValue.content"
+                    :emoticons="emoticonSource"
                     :level="editorLevel"
                     :image-upload="imageOn"
                     :upload="upload"
@@ -97,7 +99,12 @@
                     @update:model-value="patch({ content: $event })"
                     @ready="$emit('editorReady', $event)"
                     @media="media = $event"
-                />
+                >
+                    <!-- 이모티콘 고르기(이모지 탭 + 받은 팩) — 이모티콘은 그림 노드, 저장은 토큰 글자 `:emo-ID:` -->
+                    <template #tools>
+                        <EmoticonPicker icon :disabled="submitting" @emoji="editorRef?.insertText($event)" @emoticon="editorRef?.insertEmoticon($event)" />
+                    </template>
+                </RichEditor>
                 <Textarea
                     v-else
                     :id="id"
@@ -168,6 +175,8 @@ import type { PostBoardOption, PostFixedTarget, PostFormValues } from '~/compone
 import UtilBoard from '~/utils/util-board';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
+import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 
 interface Props {
     board: BoardDetail;
@@ -240,6 +249,18 @@ const prefixOptions = computed(() => [
 const editorLevel = computed(() => UtilBoard.postEditor(props.board));
 /** 에디터 이미지 올리기 — 고급 + 게시판 허용 + 회원(비회원 글쓰기·비회원 글 고치기는 감춘다) + 올리기 함수 */
 const imageOn = computed(() => props.upload !== null && UtilBoard.imageUploadOn(props.board, props.guestMode || props.guestRules || props.board.viewer.guest));
+/** 에디터 — 이모티콘 고르기 창이 커서 자리에 넣는다 */
+const editorRef = ref<{ insertText: (text: string) => void; insertEmoticon: (id: string) => void } | null>(null);
+/** 에디터의 이모티콘 그림 찾기(카탈로그) — 고치는 글에 토큰이 있으면 그림으로 보이게 미리 받는다(늦게 오면 에디터가 다시 그린다) */
+const catalog = useEmoticonCatalog();
+const emoticonSource = catalog.editorSource;
+watch(
+    () => UtilRichEmoticon.has(props.modelValue.content),
+    (has) => {
+        if (has) void catalog.ensureLoaded();
+    },
+    { immediate: true },
+);
 /** 에디터의 첨부 상태 — 올리는 중·실패한 이미지가 있으면 등록을 막는다 */
 const media = ref<RichEditorMediaState>({ images: 0, videos: 0, uploading: 0, failed: 0 });
 const mediaProblem = computed(() => (media.value.uploading > 0 ? t('post.imagesUploading') : media.value.failed > 0 ? t('post.imagesFailed') : ''));
@@ -253,7 +274,23 @@ const passwordProblem = computed(() => (props.guestMode ? UtilPost.guestPassword
 const captchaMissing = computed(() => props.guestMode && props.board.guestRules.captchaRequired && !props.modelValue.captcha);
 
 const titleError = computed(() => props.fieldErrors.title || (tried.value ? UtilPostMessages.title(t, titleProblem.value) : ''));
-const contentError = computed(() => props.fieldErrors.content || (tried.value ? UtilPostMessages.content(t, contentProblem.value) : ''));
+/** 이모티콘 토큰이 한 본문 한도(20개)를 넘었다 — 판정은 서버(`400 VALIDATION`), 화면은 미리 막는다 */
+/** 본문 로보티콘 — 저장 직전 서버 검사와 같은 규칙(개수 21개부터 · 가지지 않은 팩)으로 미리 막는다(`useEmoticonBodyCheck` → `UtilEmoticonRule.check`) */
+const emoticonCheck = useEmoticonBodyCheck(() => props.modelValue.content);
+const emoticonOver = computed(() => emoticonCheck.problem.value !== null);
+watch(
+    () => UtilRichEmoticon.has(props.modelValue.content),
+    (has) => {
+        if (has) emoticonCheck.prepare();
+    },
+    { immediate: true },
+);
+const contentError = computed(
+    () =>
+        props.fieldErrors.content ||
+        (tried.value ? UtilPostMessages.content(t, contentProblem.value) : '') ||
+        (tried.value ? UtilEmoticonMessages.bodyProblem(t, emoticonCheck.problem.value, emoticonCheck.labelOf) : ''),
+);
 const guestNameError = computed(() => props.fieldErrors['guest.name'] || (tried.value ? UtilPostMessages.guestName(t, nameProblem.value, props.board.guestRules) : ''));
 const guestPasswordError = computed(() => props.fieldErrors['guest.password'] || (tried.value ? UtilPostMessages.guestPassword(t, passwordProblem.value, props.board.guestRules) : ''));
 const captchaError = computed(() => props.fieldErrors['guest.captchaToken'] || (tried.value && captchaMissing.value ? t('post.captchaRequired') : ''));
@@ -280,7 +317,7 @@ function submit(): void {
     emit('attempt');
     tried.value = true;
     if (props.submitting) return;
-    if (titleProblem.value || contentProblem.value || nameProblem.value || passwordProblem.value || captchaMissing.value || mediaProblem.value) return;
+    if (titleProblem.value || contentProblem.value || emoticonOver.value || nameProblem.value || passwordProblem.value || captchaMissing.value || mediaProblem.value) return;
     emit('submit');
 }
 </script>

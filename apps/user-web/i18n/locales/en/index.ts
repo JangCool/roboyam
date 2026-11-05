@@ -24,6 +24,7 @@ import comment from './comment';
 import commerce from './commerce';
 import dev from './dev';
 import dm from './dm';
+import emoticon from './emoticon';
 import error from './error';
 import identity from './identity';
 import feed from './feed';
@@ -88,6 +89,7 @@ export default {
     commerce,
     dev,
     dm,
+    emoticon,
     error,
     identity,
     feed,

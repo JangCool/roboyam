@@ -30,7 +30,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>요청: {@code GET https://api.portone.io/identity-verifications/{identityVerificationId}?storeId=<상점 ID>} + {@code Authorization: PortOne <API 비밀키>}
  *       (포트원 V2 REST API 「본인인증 단건 조회」). 인증 번호는 서버가 먼저 발급한 값({@code identity_verification_attempts.id})이다.</li>
  *   <li>응답: {@code status} 가 {@code VERIFIED} 일 때만 받아들인다({@code READY} = 아직 끝나지 않음, {@code FAILED} = 실패). 결과의 {@code id} 가 조회한 인증 번호와 같아야 하고,
- *       {@code verifiedCustomer} 의 {@code ci}·{@code di}(둘 중 하나는 있어야 한다)·{@code birthDate}({@code YYYY-MM-DD})를 쓴다. 이름·전화번호·성별·통신사는 읽지 않는다.</li>
+ *       {@code verifiedCustomer} 의 {@code ci}·{@code di}(둘 중 하나는 있어야 한다)·{@code birthDate}({@code YYYY-MM-DD})·{@code name}(있으면 — 암호문으로만 저장, 로보티콘 작가 정산 계좌의 예금주 대조)을 쓴다.
+ *       전화번호·성별·통신사는 읽지 않는다.</li>
  *   <li>실패(4xx·5xx·연결 실패·모양이 틀림)는 모두 502 {@code IDENTITY_PROVIDER_FAILED}. 로그에는 HTTP 상태와 포트원 오류 {@code type} 만 — 응답 본문·CI·DI·생년월일·비밀키는 남기지 않는다.</li>
  *   <li>설정(상점 ID·API 비밀키·채널 키)은 요청마다 DB({@link PortOneSettingsService})에서 읽는다 — 관리자 화면에서 바꾸면 바로 반영된다. 비었으면 503 {@code IDENTITY_NOT_CONFIGURED}.</li>
  * </ul>
@@ -136,7 +137,8 @@ public class PortOneIdentityVerifier implements IdentityVerifier {
             log.warn("포트원 본인인증 응답의 생년월일을 읽지 못했다");
             throw new IdentityProviderFailedException();
         }
-        return new VerifiedPerson(ci, di, birthDate, verificationId);
+        // 이름은 로보티콘 작가 정산 계좌의 예금주 대조에만 쓴다(암호문 저장 — emoticon-contract S2). 없어도 인증은 성공한다
+        return new VerifiedPerson(ci, di, birthDate, verificationId, text(customer.get("name")));
     }
 
     private PortOneIdentityCredentials credentials() {

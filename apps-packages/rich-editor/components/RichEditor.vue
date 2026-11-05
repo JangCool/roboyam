@@ -3,7 +3,8 @@
         서식 에디터(TipTap) — community `frontend/app/components/write/RichEditor.vue` 를 레이어로 옮겼다. HTML 을 주고받는다(`v-model`) — 서버가 받은 HTML 을 다시 정화해 저장한다.
         수준(`level`)이 도구 모음과 확장을 정한다(`RichEditor.types.ts`). 수준은 만들 때 한 번 정해진다 — 바꾸려면 부르는 쪽이 `:key` 로 새로 만든다.
         고급 수준: 이미지(`imageUpload` + 올리기 함수 `upload` 가 있을 때 — 올리기 단추·드롭존·붙여넣기·끌어놓기)·유튜브·블록 끌기 손잡이.
-        이모티콘·투표는 로보얌에 없어 뺐다(「없는 기능은 감춘다」).
+        투표는 로보얌에 없어 뺐다(「없는 기능은 감춘다」). 이모티콘은 쓰는 앱이 `emoticons`(그림 찾기)를 줄 때만 켜진다 — 그림 노드로 보이고 저장(`v-model`)은 토큰 글자 `:emo-ID:`
+        (이모티콘 계약 가정 7). 고르기 단추는 앱이 `#tools` 칸으로 도구 모음 끝에 넣고, 고른 것은 노출한 `insertEmoticon`·`insertText` 로 넣는다.
         이미지는 올리기가 **끝난 뒤에** 문서에 들어간다(올리는 중·실패는 아래 목록에 남는다 — 문서는 늘 깨끗하다). 올리는 중이거나 실패가 남아 있으면 `media` 로 알려 부모가 저장을 막는다.
         빈 에디터는 `''` 를 낸다(`<p></p>` 가 아니다) — 부모의 「고쳤는가」·「비었는가」 판정이 평문과 같아진다.
     -->
@@ -23,7 +24,11 @@
             @link="openLink"
             @image="pickImages"
             @youtube="openYoutube"
-        />
+        >
+            <template v-if="$slots.tools" #extra>
+                <slot name="tools" />
+            </template>
+        </RichEditorToolbar>
         <input v-if="imageOn" ref="fileInput" type="file" class="sr-only" multiple :accept="UtilRichMedia.ACCEPT" tabindex="-1" aria-hidden="true" data-testid="image-input" @change="onFilesPicked" />
 
         <!-- 이미지 올리기 띠 — 끌어다 놓거나 눌러서 고른다 -->
@@ -55,10 +60,12 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import type { Editor, Extensions } from '@tiptap/vue-3';
-import type { RichEditorLevel, RichEditorMediaState, RichImageUploader, RichImageUploadResult } from '#layers/rich-editor/components/RichEditor.types';
+import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichImageUploader, RichImageUploadResult } from '#layers/rich-editor/components/RichEditor.types';
 import { richFormatExtensions } from '#layers/rich-editor/editor/richExtensions';
 import { ImageBlock } from '#layers/rich-editor/editor/imageBlock';
 import { YoutubeBlock } from '#layers/rich-editor/editor/youtubeBlock';
+import { EmoticonInline } from '#layers/rich-editor/editor/emoticonInline';
+import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import { UploadSlots, releaseSlot, reserveSlot, takeSlot } from '#layers/rich-editor/editor/uploadSlots';
 import { countMedia } from '#layers/rich-editor/editor/mediaCount';
 import UtilRichFormats from '#layers/rich-editor/utils/util-rich-formats';
@@ -79,6 +86,8 @@ interface Props {
     ariaLabel?: string;
     /** 낮은 높이(댓글) */
     compact?: boolean;
+    /** 이모티콘 그림 찾기 — 주면 이모티콘 노드가 켜진다(user-web 만). 켜고 끄는 것은 만들 때 정해진다(그림은 `version` 이 바뀌면 다시 찾는다) */
+    emoticons?: RichEmoticonSource | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -92,6 +101,7 @@ const props = withDefaults(defineProps<Props>(), {
     describedby: '',
     ariaLabel: '',
     compact: false,
+    emoticons: null,
 });
 
 const html = defineModel<string>({ default: '' });
@@ -154,8 +164,17 @@ function htmlOf(e: Pick<Editor, 'isEmpty' | 'getHTML'>): string {
     return advanced ? UtilRichFormats.normalizeColors(e.getHTML()) : e.getHTML();
 }
 
+/** 이모티콘이 켜졌다 — 만들 때 한 번 정한다(확장은 만들 때 정해진다) */
+const emoticonOn = props.emoticons !== null;
+
+/** 에디터에 넣는 HTML — 이모티콘이 켜졌으면 토큰 글자를 노드 표식으로 바꿔 넣는다 */
+function editorContent(value: string): string {
+    return emoticonOn ? UtilRichEmoticon.toEditorHtml(value) : value;
+}
+
 function extensions(): Extensions {
     const list = richFormatExtensions(props.level);
+    if (emoticonOn) list.push(EmoticonInline.configure({ resolve: (id) => props.emoticons?.resolve(id) ?? null }));
     if (!advanced) return list;
     return [
         ...list,
@@ -172,7 +191,7 @@ function refuseFiles(): void {
 }
 
 const editor = useEditor({
-    content: html.value,
+    content: editorContent(html.value),
     extensions: extensions(),
     editable: !props.disabled,
     editorProps: {
@@ -357,10 +376,20 @@ function removeLink(): void {
 watch(html, (value) => {
     const e = editor.value;
     if (e && value !== htmlOf(e)) {
-        e.commands.setContent(value, { emitUpdate: false });
+        e.commands.setContent(editorContent(value), { emitUpdate: false });
         refreshCounts();
     }
 });
+
+/* 카탈로그가 늦게 왔다 — 본문의 이모티콘 노드를 다시 그린다(노드 화면은 만들 때 그림을 찾는다) */
+watch(
+    () => props.emoticons?.version,
+    () => {
+        const e = editor.value;
+        if (!e || !emoticonOn) return;
+        e.commands.setContent(editorContent(htmlOf(e)), { emitUpdate: false });
+    },
+);
 
 watch(
     () => props.disabled,
@@ -379,6 +408,11 @@ defineExpose({
     insertText: (text: string) => {
         if (props.disabled || !editor.value) return;
         editor.value.chain().focus().insertContent({ type: 'text', text }).run();
+    },
+    /** 커서 자리에 이모티콘 노드를 넣는다(이모티콘이 켜졌을 때만) — 저장 모양은 토큰 글자 */
+    insertEmoticon: (id: string) => {
+        if (props.disabled || !editor.value || !emoticonOn) return;
+        editor.value.chain().focus().insertContent({ type: 'emoticon', attrs: { id } }).run();
     },
     /** 커서가 있는 문단 바로 뒤에 글자 한 줄짜리 새 문단을 넣는다(메일 템플릿의 「버튼」 자리 `{{button}}`) */
     insertParagraph: (text: string) => {

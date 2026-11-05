@@ -154,6 +154,7 @@
             :point-lots="canReadPoints ? pointLotsView : null"
             :withdrawal="withdrawalView"
             :can-force-withdraw="canForceWithdraw"
+            :emoticon-creator="emoticonCreator"
             @retry-withdrawal="withdrawal.retry"
             @force-withdraw="openForce"
             @cancel-withdrawal="openCancel"
@@ -261,6 +262,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
+import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 import type { MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberRestriction, MemberRestrictionCreateRequest } from '~/composables/member/api/useMemberRestrictionApi.types';
 import type { MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
@@ -351,6 +353,8 @@ function onRowClick(e: { originalEvent: Event; data: MemberRow }) {
     // 커머스 1-1 — 포인트 묶음(적립/충전·소멸 예정·미회수)은 `point.read` 가 있을 때만(탈퇴 회원은 등급·포인트 구획이 비어 받지 않는다)
     if (canReadPoints.value && e.data.status !== 'WITHDRAWN') pointLots.open(e.data.memberNo);
     else pointLots.clear();
+    // 로보티콘 작가 한 줄(실제 API) — `emoticon.read` 가 있을 때만
+    void loadEmoticonCreator(e.data.status !== 'WITHDRAWN' ? e.data.memberNo : null);
     // 제재 — 탈퇴(진행 중 포함) 회원은 제재 현황이 없다(서버 404)
     if (sanctionPerm.canRead.value && e.data.status !== 'WITHDRAWN' && e.data.status !== 'WITHDRAWING') void sanctionPreview.open(e.data.memberNo);
     else sanctionPreview.clear();
@@ -423,6 +427,22 @@ const pointLotsView = computed<MemberPointLotsView>(() => ({
     page: pointLots.page.value,
     size: pointLots.size,
 }));
+
+// ── 로보티콘 작가 한 줄(emoticon-contract — 실제 API `useEmoticonAdminApi.creator`) — 「등급·포인트」 구획. 작가가 아니면 null(줄을 그리지 않는다). 못 받아도 조용히 넘긴다(보조 정보)
+const emoticonApi = useEmoticonAdminApi();
+const emoticonCreator = ref<EmoticonCreatorSummary | null>(null);
+let emoticonTicket = 0;
+async function loadEmoticonCreator(memberNo: string | null): Promise<void> {
+    const mine = ++emoticonTicket;
+    emoticonCreator.value = null;
+    if (!memberNo || !can('emoticon.read')) return;
+    try {
+        const found = await emoticonApi.creator(memberNo);
+        if (mine === emoticonTicket) emoticonCreator.value = found;
+    } catch {
+        // 보조 한 줄이라 오류로 올리지 않는다
+    }
+}
 
 // ── 기능 제한·탈퇴 회원 연락처(커머스 0-4) — 서랍 구획이 보는 상태와 대화상자. 서버 호출은 상태 컴포저블 한 겹이다
 const restrictions = useMemberRestrictions();

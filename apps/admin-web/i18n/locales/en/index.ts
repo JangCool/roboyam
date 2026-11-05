@@ -38,6 +38,7 @@ import permission from './permission';
 import point from './point';
 import payment from './payment';
 import pointShop from './pointShop';
+import emoticon from './emoticon';
 import portone from './portone';
 import publicData from './publicData';
 import profile from './profile';
@@ -106,6 +107,7 @@ export default {
     point,
     payment,
     pointShop,
+    emoticon,
     portone,
     publicData,
     profile,

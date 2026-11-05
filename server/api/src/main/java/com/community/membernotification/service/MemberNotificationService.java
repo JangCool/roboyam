@@ -322,6 +322,18 @@ public class MemberNotificationService {
                         payload.get("reasonText") instanceof String t && !t.isBlank() ? t : null);
                 link = MemberNotificationPublisher.SANCTION_PATH;
             }
+            case EMOTICON_PACK -> {
+                // 로보티콘 팩 처리(V142) — 종류 · 팩 이름(알릴 때) · 반려·판매 중단 사유. 누르면 스튜디오의 그 팩
+                facts = MemberNotificationMessages.Facts.emoticonPack(payload.get("kind") instanceof String k ? k : "", payload.get("packName") instanceof String n ? n : null,
+                        payload.get("note") instanceof String why && !why.isBlank() ? why : null);
+                link = payload.get("packId") instanceof String id && id.matches("^[0-9]{1,19}$") ? "/robotikon/studio/" + id : "/robotikon/studio";
+            }
+            case EMOTICON_PURCHASE -> {
+                // 로보티콘 유료 팩 구매(V146) — 종류 · 팩 이름(산 때) · 금액. 누르면 발행 때 정한 곳(내 로보티콘 또는 그 팩)
+                facts = MemberNotificationMessages.Facts.emoticonPurchase(payload.get("kind") instanceof String k ? k : "", payload.get("packName") instanceof String n ? n : null,
+                        number(payload.get("amount")));
+                link = payload.get("path") instanceof String p && p.startsWith("/") ? p : "/me/robotikon";
+            }
             case POINT_SHOP_REFUND_REJECTED -> {
                 // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,

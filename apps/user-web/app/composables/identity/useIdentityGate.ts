@@ -15,6 +15,7 @@ import type { IdentityGateOptions, IdentityGateState } from '~/composables/ident
  * - 미인증 → 「포인트 충전하려면 본인인증이 필요해요」(용도별) + [본인인증 하기] → `useIdentity().verify()` → 성공 & 조건 충족이면 닫고 true.
  *   인증했는데 만 19세 미만이면 같은 대화상자가 막는 안내로 바뀐다. 실패는 대화상자 안 한 줄, 사용자가 인증창을 닫으면 조용히 그대로.
  * - 만 19세 미만 → 막는 안내(19세 생일이 지나면 다시 인증하지 않아도 된다) → 닫으면 false.
+ * - `reverify: true` — 이미 인증했어도 대화상자를 띄워 한 번 더 인증하게 한다(「본인인증을 한 번 더 해 주세요」). 인증이 끝나면 true.
  * - 서버가 최종 판정한다 — 결제 API 도 본인인증·나이를 다시 검사한다(화면 검사는 편의).
  * ⚠ 컴포넌트·페이지 setup 에서 부른다.
  */
@@ -28,6 +29,7 @@ export function useIdentityGate() {
         open: false,
         purpose: 'CHARGE',
         requireAdult: true,
+        reverify: false,
         mode: 'NEED',
         busy: false,
         failure: null,
@@ -54,8 +56,9 @@ export function useIdentityGate() {
     /** 결제를 시작해도 되는가 — 필요하면 대화상자를 띄우고 답을 기다린다 */
     async function ensure(options: IdentityGateOptions): Promise<boolean> {
         const requireAdult = options.requireAdult ?? true;
+        const reverify = options.reverify ?? false;
         const status = await identity.ensureLoaded();
-        if (passes(status, requireAdult)) return true;
+        if (!reverify && passes(status, requireAdult)) return true;
         pending?.(false);
         return new Promise<boolean>((resolve) => {
             pending = resolve;
@@ -63,7 +66,9 @@ export function useIdentityGate() {
                 open: true,
                 purpose: options.purpose,
                 requireAdult,
-                mode: modeOf(status),
+                reverify,
+                // 한 번 더 인증은 인증 상태와 상관없이 [본인인증 하기]부터(상태를 못 받았으면 그 안내)
+                mode: reverify && (status || identity.loadStatus.value !== 'error') ? 'NEED' : modeOf(status),
                 busy: false,
                 failure: null,
                 adultFrom: status?.adultFrom ?? null,
@@ -96,6 +101,11 @@ export function useIdentityGate() {
         state.value = { ...state.value, busy: true };
         const status = await identity.load();
         if (!state.value.open) return;
+        // 한 번 더 인증이면 상태를 받은 것만으로 끝내지 않고 [본인인증 하기]로 간다
+        if (state.value.reverify && status) {
+            state.value = { ...state.value, busy: false, mode: 'NEED', loadError: '' };
+            return;
+        }
         if (passes(status, state.value.requireAdult)) return settle(true);
         state.value = { ...state.value, busy: false, mode: modeOf(status), adultFrom: status?.adultFrom ?? null, loadError: identity.loadError.value };
     }

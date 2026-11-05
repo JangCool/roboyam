@@ -4,8 +4,10 @@ import com.community.ad.service.AdAdvertiserService;
 import com.community.addressbook.service.AddressBookService;
 import com.community.bizapplication.service.BizApplicationReviewService;
 import com.community.business.service.BusinessPii;
+import com.community.emoticon.service.EmoticonPayoutService;
 import com.community.groupbuy.service.BankTransferService;
 import com.community.groupbuy.service.GroupBuyJoinService;
+import com.community.identity.service.IdentityVerificationService;
 import com.community.withdrawal.service.WithdrawnContactStore;
 import com.community.zconfiguration.crypto.DataPurpose;
 import java.util.ArrayList;
@@ -25,6 +27,19 @@ public final class DataKeyColumns {
     /** 탈퇴 회원 연락용 이메일(분리 보관 — commerce.md 17-2) */
     public static final EncryptedColumn WITHDRAWN_CONTACT_EMAIL = new EncryptedColumn("withdrawn-contact-email", "withdrawn_member_contacts", "user_id", "email_cipher",
             WithdrawnContactStore.EMAIL, "WITHDRAWN_CONTACT");
+
+    /** 본인인증 이름(V143 — 로보티콘 작가 정산 계좌의 예금주 대조, emoticon-contract S2). 이 칸 앞에 인증한 회원은 NULL */
+    public static final EncryptedColumn IDENTITY_NAME = new EncryptedColumn("identity-name", "identity_verifications", "user_id", "name_enc",
+            IdentityVerificationService.NAME, "IDENTITY_VERIFICATION");
+
+    /** 로보티콘 작가 정산 정보(V143 — emoticon-contract S2). 사업자 번호는 사업자 작가만(그 밖 NULL) */
+    public static final List<EncryptedColumn> EMOTICON_PAYOUT = List.of(
+            new EncryptedColumn("emoticon-payout-account", "emoticon_payout_accounts", "user_id", "account_number_enc", EmoticonPayoutService.ACCOUNT,
+                    "EMOTICON_PAYOUT_ACCOUNT"),
+            new EncryptedColumn("emoticon-payout-holder", "emoticon_payout_accounts", "user_id", "holder_name_enc", EmoticonPayoutService.HOLDER,
+                    "EMOTICON_PAYOUT_ACCOUNT"),
+            new EncryptedColumn("emoticon-payout-business-number", "emoticon_payout_accounts", "user_id", "business_number_enc", EmoticonPayoutService.BUSINESS_NUMBER,
+                    "EMOTICON_PAYOUT_ACCOUNT"));
 
     /** 공구 주문 배송지(주문마다 저장한 사본 — commerce.md 10-9) */
     public static final List<EncryptedColumn> GROUP_BUY_ADDRESS = List.of(
@@ -82,6 +97,8 @@ public final class DataKeyColumns {
         all.addAll(BUSINESS_PROFILE);
         all.addAll(AD_ADVERTISER);
         all.addAll(FILES);
+        all.add(IDENTITY_NAME);
+        all.addAll(EMOTICON_PAYOUT);
         return List.copyOf(all);
     }
 

@@ -155,6 +155,8 @@ const REASON_CODES: readonly PointReasonCode[] = [
     'POINT_SHOP_REFUND',
     'REVOKE_DEBT_OFFSET',
     'EXPIRE',
+    // 로보티콘 S1 — 무료 팩 받기 보상(작가)
+    'EMOTICON_CREATOR_REWARD',
 ];
 
 const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE', 'EXPIRE', 'REFUND'];

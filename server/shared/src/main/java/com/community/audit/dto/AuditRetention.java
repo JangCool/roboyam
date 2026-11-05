@@ -53,7 +53,13 @@ public final class AuditRetention {
             // 회원 탈퇴 완료 — 충전 포인트·광고 남은 기간 포기 동의의 증빙(member-withdrawal-contract, 5년)
             AuditActions.MEMBER_WITHDRAW,
             // 운영자 강제 탈퇴 — 회원 동의 없이 포인트 소멸·계정 종료를 일으킨 결정(사유 종류·운영 메모). 완료 기록(금액)과 같은 기간 남겨 증빙 사슬을 끊지 않는다
-            AuditActions.MEMBER_WITHDRAW_FORCE);
+            AuditActions.MEMBER_WITHDRAW_FORCE,
+            // 로보티콘 S2 — 판매 중 팩 가격 바꾸기(유료↔무료) · 설정(유료 판매 켜기·수수료율·가격 단계·정산·환불 기간) — 판매 조건·돈의 기준을 바꾸는 일
+            AuditActions.EMOTICON_PACK_PRICE, AuditActions.EMOTICON_SETTINGS_UPDATE,
+            // 로보티콘 S3 — 유료 팩 판매 예외 환불(결제 취소 · 보유 해제)
+            AuditActions.EMOTICON_SALE_REFUND,
+            // 로보티콘 S4 — 작가 정산 확정(금액 굳힘)·보류·보류 풀기·지급 완료 기록
+            AuditActions.EMOTICON_SETTLEMENT_CONFIRM, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditActions.EMOTICON_SETTLEMENT_UNHOLD, AuditActions.EMOTICON_SETTLEMENT_PAID);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -69,7 +75,9 @@ public final class AuditRetention {
             // 사업자 신원 평문·등록증 열람 · 신청 건 계약서 사본 열람
             AuditActions.BUSINESS_REVEAL, AuditActions.BUSINESS_CERT_VIEW, AuditActions.BIZ_APP_CONTRACT_VIEW,
             // 광고주 연락처 평문 열람(ad-contract)
-            AuditActions.AD_CONTACT_REVEAL);
+            AuditActions.AD_CONTACT_REVEAL,
+            // 로보티콘 작가 정산 계좌 원문 보기(emoticon.payout.pii — 사유, emoticon-contract S2)
+            AuditActions.EMOTICON_PAYOUT_REVEAL);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -129,6 +137,9 @@ public final class AuditRetention {
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
             AuditActions.POINT_SHOP_SETTINGS_UPDATE,
+            // 로보티콘 심사·판매 중단·운영 팩 — 콘텐츠 운영 일(승인 가격은 승인 감사의 price 칸 — 판매 뒤 가격 바꾸기·설정 저장은 돈 관련, 받기 보상은 감사가 아니라 원장)
+            AuditActions.EMOTICON_REVIEW_APPROVE, AuditActions.EMOTICON_REVIEW_REJECT, AuditActions.EMOTICON_PACK_SUSPEND, AuditActions.EMOTICON_PACK_RESUME,
+            AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE,
             // 소모임 분류(이름·게시판 할당·순서) — 게시판 구성과 같은 운영 일
             AuditActions.GROUP_CATEGORY_CREATE, AuditActions.GROUP_CATEGORY_UPDATE, AuditActions.GROUP_CATEGORY_ORDER, AuditActions.GROUP_CATEGORY_DELETE,
             // 소모임 개설 승인·반려·비활성화·다시 열기 · 소모임 설정 네 구획 — 콘텐츠·커뮤니티 운영 일(분류와 같다, 돈·개인정보가 움직이지 않는다)

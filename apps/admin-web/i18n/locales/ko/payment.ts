@@ -120,6 +120,8 @@ export default {
         POINT_CHARGE: '포인트 충전',
         GROUP_BUY: '공동구매',
         PAYMENT_TEST: '시험 결제',
+        // 로보티콘 유료 팩(emoticon-contract — 서버 order_type 후보). 이름표만 — 거르기 목록(`PAYMENT_ORDER_TYPES`)에는 서버가 받기 전까지 넣지 않는다
+        ROBOTIKON_PACK: '로보티콘 팩',
     },
     confirmedVia: {
         COMPLETE_API: '회원 화면의 완료 요청',
