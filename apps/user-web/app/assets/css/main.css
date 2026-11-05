@@ -338,6 +338,13 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
     line-height: 28px;
     font-weight: 700;
 }
+/* 모바일 안쪽 화면 막대(`md:hidden` — 글쓰기의 ✕ 막대)가 카드 첫 줄이면 위 0 규칙이 `-mt-4` 를 지워 본문 위 여백(16)·카드 위 여백(4)이 회색으로 남는다 — 둘 다 끌어올려 헤더에 붙인다(사용자 결정 2026-11-05) */
+@media (max-width: 47.99rem) {
+    html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child,
+    html[data-theme='naver'] .content-card > .md\:hidden:first-child {
+        margin-top: calc(-1rem - 4px);
+    }
+}
 /* 첫 줄이 모바일 전용 막대(`md:hidden` — 글쓰기의 ✕ 막대)라 넓은 화면에서 숨으면, 그 다음 머리·제목에 같은 위 여백을 준다 */
 @media (min-width: 48rem) {
     html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child + :is(header, h1),
