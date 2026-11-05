@@ -57,7 +57,10 @@ public class EmoticonSettlementStore {
                               LocalDate settlementMonth, LocalDate refundSettlementMonth) {
     }
 
-    /** 처리 기록 한 줄 — {@code amount}·{@code consentedAt} 은 포기(WAIVED) 기록만(V148 — 포기한 금액 · 회원 동의 시각, 운영자 포기 처리는 동의 시각 없음) */
+    /**
+     * 처리 기록 한 줄 — {@code amount} 는 포기(WAIVED, V148 — 포기한 금액)·수동 지급(MANUAL_PAID, V149 — 그 줄의 지급액) 기록만, {@code consentedAt} 은 포기 기록만(회원 동의 시각,
+     * 운영자 포기 처리는 없음)
+     */
     public record EventRow(String action, Instant at, String byName, String note, Long amount, Instant consentedAt) {
     }
 
@@ -206,7 +209,31 @@ public class EmoticonSettlementStore {
                 creatorId, Date.valueOf(month)) == 1;
     }
 
+    /**
+     * 수동 지급 기록(V149 — 정산 정보 없이 탈퇴한 작가) — 굳히지 않은 예정·보류 줄만. 금액을 굳히고({@code f} — 탈퇴 작가 규칙 · 개인), 보류 칸을 비운다. 지급액이 있으면 곧바로 지급 완료
+     * (확정 시각 = 지급 기록 시각 · 이체일 · 메모), 0 이면 확정(음수 이월 — 지급 기록 없음). 줄이 없으면 만든다.
+     */
+    public boolean manualPay(long creatorId, LocalDate month, Frozen f, LocalDate transferDate, String memo, long operatorId, Instant now) {
+        boolean pays = f.payout() > 0;
+        insertIfAbsent(creatorId, month, now);
+        return jdbc.update("UPDATE emoticon_settlements SET status = ?, sales_count = ?, sales_amount = ?, refund_count = ?, refund_amount = ?, vat_amount = ?, "
+                        + "base_amount = ?, fee_rate_percent = ?, fee_amount = ?, share_amount = ?, carried_in = ?, withholding_amount = ?, payout_amount = ?, carried_out = ?, "
+                        + "payee_type = ?, pay_date = ?, closes_at = ?, confirmed_at = ?, confirmed_by = ?, hold_reason = NULL, held_at = NULL, held_by = NULL, "
+                        + "paid_at = ?, paid_by = ?, transfer_date = ?, paid_memo = ?, updated_at = ? "
+                        + "WHERE creator_id = ? AND sales_month = ? AND status IN ('ESTIMATED', 'HELD') AND confirmed_at IS NULL", pays ? "PAID" : "CONFIRMED", f.salesCount(),
+                f.salesAmount(), f.refundCount(), f.refundAmount(), f.vat(), f.base(), f.feeRatePercent(), f.fee(), f.share(), f.carriedIn(), f.withholding(), f.payout(),
+                f.carriedOut(), f.payeeType(), Date.valueOf(f.payDate()), Timestamp.from(f.closesAt()), Timestamp.from(now), operatorId,
+                pays ? Timestamp.from(now) : null, pays ? operatorId : null, pays ? Date.valueOf(transferDate) : null, pays ? memo : null, Timestamp.from(now), creatorId,
+                Date.valueOf(month)) == 1;
+    }
+
     // ── 처리 기록 ───────────────────────────────────────────────────────────
+
+    /** 수동 지급 기록(V149) — 사유 · 그 줄의 지급액(0 이상) */
+    public void insertManualPaidEvent(long id, long creatorId, LocalDate month, Instant at, long operatorId, String note, long amount) {
+        jdbc.update("INSERT INTO emoticon_settlement_events (id, creator_id, sales_month, action, at, operator_id, note, amount) VALUES (?, ?, ?, 'MANUAL_PAID', ?, ?, ?, ?)", id,
+                creatorId, Date.valueOf(month), Timestamp.from(at), operatorId, note, amount);
+    }
 
     public void insertEvent(long id, long creatorId, LocalDate month, String action, Instant at, Long operatorId, String note) {
         jdbc.update("INSERT INTO emoticon_settlement_events (id, creator_id, sales_month, action, at, operator_id, note) VALUES (?, ?, ?, ?, ?, ?, ?)", id, creatorId,

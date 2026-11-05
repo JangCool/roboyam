@@ -433,13 +433,13 @@ export interface EmoticonSettlementPackLine {
 
 /** 정산 처리 기록 — 최근이 앞, 맨 끝 `CREATED` 는 그 달 첫 판매·환불 시각(서버가 만들어 넣는다) */
 export interface EmoticonSettlementEvent {
-    action: 'CREATED' | 'CONFIRMED' | 'HELD' | 'UNHELD' | 'PAID' | 'ACCOUNT_VIEWED' | 'WAIVED';
+    action: 'CREATED' | 'CONFIRMED' | 'HELD' | 'UNHELD' | 'PAID' | 'ACCOUNT_VIEWED' | 'WAIVED' | 'MANUAL_PAID';
     at: string;
     /** 운영자 이름 — null 이면 시스템(`CREATED` · 작가 탈퇴의 시스템 보류 `HELD` · 작가 동의 포기 `WAIVED`) */
     by: string | null;
-    /** 보류·계좌 보기·포기 처리 사유 · 지급 메모 */
+    /** 보류·계좌 보기·포기 처리·수동 지급 기록 사유 · 지급 메모 */
     note: string | null;
-    /** 포기(`WAIVED`)만 — 그 줄에서 포기한 금액(원, 원천징수 전). 다른 기록은 null */
+    /** 포기(`WAIVED`) — 그 줄에서 포기한 금액(원, 원천징수 전) · 수동 지급 기록(`MANUAL_PAID`, V149) — 그 줄의 지급액(원천징수 뒤, 0 이면 확정만). 다른 기록은 null */
     amount: number | null;
     /** 포기(`WAIVED`)만 — 작가가 탈퇴할 때 받지 않기로 동의한 시각. 운영자 포기 처리는 null(그때 `by` = 처리한 운영자 · `note` = 사유) */
     consentedAt: string | null;
@@ -536,6 +536,15 @@ export interface EmoticonSettlementPaidRequest {
     transferDate: string;
     /** 빈 메모는 서버가 null 로 둔다 */
     memo: string;
+}
+
+/**
+ * 수동 지급 기록(V149 — 정산 정보 없이 탈퇴한 작가에게 은행에서 직접 보낸 뒤 기록만). 계좌는 보내지 않는다(시스템에 저장하지 않는다).
+ * `400 fields.transferDate|memo|reason` · `409 EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE` · `409 EMOTICON_SETTLEMENT_NOTHING_TO_PAY`
+ */
+export interface EmoticonSettlementManualPaidRequest extends EmoticonSettlementPaidRequest {
+    /** 사유 5~200자(필수) — 처리 기록 `MANUAL_PAID` 의 `note` */
+    reason: string;
 }
 
 /** 정산 정보의 작가 구분(서버 S2 정산 정보) — 개인 · 사업자. S4 정산 줄의 `EmoticonPayeeType` 과 같은 이름 */

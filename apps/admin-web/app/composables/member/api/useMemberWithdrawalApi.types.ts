@@ -201,6 +201,22 @@ export interface ForceWithdrawPreview {
     hasPaymentHistory: boolean;
     /** 완료 때 적용될 재가입 가능일(예상) */
     rejoinUntil: string;
+    /** 로보티콘 작가 요약 — 사이트 탈퇴 미리 보기와 같은 계산(서버 shared). 작가(만든 팩이 있거나 정산 정보 등록)가 아니면 null(또는 빠짐) */
+    emoticonCreator?: ForceWithdrawEmoticonCreator | null;
+}
+
+/**
+ * 강제 탈퇴 미리보기의 로보티콘 작가 요약. 정산 정보가 없고 받지 못한 수익이 있으면 탈퇴 완료 때 시스템 보류로 남는다 —
+ * 작가 정산 화면에서 연락이 닿으면 수동 지급 기록, 닿지 않으면 포기 처리로 끝낸다(막지는 않는다)
+ */
+export interface ForceWithdrawEmoticonCreator {
+    /** 판매 중 팩 — 탈퇴하면 새 판매가 멈춘다(가진 회원은 계속 쓴다) */
+    onSalePacks: number;
+    /** 심사 대기 — 탈퇴하면 반려로 닫힌다 */
+    pendingReviews: number;
+    /** 받지 못한 수익(원, 원천징수 전 · 최소 지급액과 상관없이) */
+    unpaidEarnings: number;
+    payoutAccountRegistered: boolean;
 }
 
 /** 강제 탈퇴 — `POST /api/admin/members/{memberId}/withdrawal`. 선택값은 회원에게 유리한 기본값으로 서버가 고정한다(배송 대기·광고 기다리기·충전 환불·모임 자동) */

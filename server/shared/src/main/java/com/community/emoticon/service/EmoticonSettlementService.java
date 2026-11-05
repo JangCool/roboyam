@@ -6,6 +6,7 @@ import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.emoticon.dto.request.EmoticonSettlementConfirmRequest;
+import com.community.emoticon.dto.request.EmoticonSettlementManualPaidRequest;
 import com.community.emoticon.dto.request.EmoticonSettlementPaidRequest;
 import com.community.emoticon.dto.response.EmoticonAdminView;
 import com.community.emoticon.dto.response.EmoticonSettlementView;
@@ -246,30 +247,11 @@ public class EmoticonSettlementService {
     public EmoticonSettlementView.AdminDetail markPaid(long operatorId, String ip, String idText, EmoticonSettlementPaidRequest body) {
         EmoticonSettlementPaidRequest b = body == null ? new EmoticonSettlementPaidRequest(null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        LocalDate transferDate = null;
-        if (b.transferDate() == null || !DATE_TEXT.matcher(b.transferDate().trim()).matches()) {
-            fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate"));
-        } else {
-            try {
-                transferDate = LocalDate.parse(b.transferDate().trim());
-                if (transferDate.isAfter(ServiceTime.today(clock))) {
-                    fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate.future"));
-                } else if (!calculator.calendar().businessDay(transferDate)) {
-                    // 지급은 평일 업무일에만(사용자 결정 2026-11-05) — 토·일·공휴일 이체일은 받지 않는다(날짜 기준만, 시각은 보지 않는다)
-                    fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate.notBusinessDay"));
-                }
-            } catch (DateTimeParseException e) {
-                fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate"));
-            }
-        }
-        String memo = b.memo() == null ? null : b.memo().strip();
-        if (memo != null && memo.codePointCount(0, memo.length()) > MEMO_MAX) {
-            fields.put("memo", new MessageRef("emoticon.settlement.memo", MEMO_MAX));
-        }
+        LocalDate transferDate = transferDate(b.transferDate(), fields);
+        String savedMemo = memo(b.memo(), fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        String savedMemo = memo == null || memo.isEmpty() ? null : memo;
         Key key = key(idText);
         store.lockCreator(key.creatorId());
         Line line = linesOrThrow(key).at(key.month());
@@ -288,6 +270,96 @@ public class EmoticonSettlementService {
                 .with("creator", Long.toString(key.creatorId())).with("month", key.month().format(MONTH)).with("payoutAmount", line.payout())
                 .with("transferDate", transferDate.toString()).with("memo", savedMemo == null ? "" : savedMemo));
         return detail(key, calculator.creator(key.creatorId(), key.month(), false));
+    }
+
+    /**
+     * 수동 지급 기록(V149 — 정산 정보 없이 탈퇴한 작가에게 연락이 닿아 은행에서 직접 보낸 뒤 그 사실만 남긴다. 계좌는 받지도 저장하지도 않는다).
+     * 입력 400(이체일 — 지급 기록과 같은 규칙: 오늘 이전 · 업무일 / 메모 200자 / 사유 5~200자) → 줄 404 → {@code 409 EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE}(탈퇴한 작가 · 정산 정보 없음 ·
+     * 그 줄이 굳히지 않은 보류 · 그 달과 그 앞 굳히지 않은 줄의 확정 가능 시각이 지남) → 지급할 금액이 없음 {@code 409 EMOTICON_SETTLEMENT_NOTHING_TO_PAY}.
+     * 그 달과 그 앞의 굳히지 않은 줄을 탈퇴 작가 규칙(최소 지급액 없음 · 작가 구분이 없어 개인 — 원천징수를 뗀 지급액)으로 굳힌다: 지급액이 있으면 지급 완료(PAID), 0 이면 확정(음수 이월).
+     * 줄마다 처리 기록 {@code MANUAL_PAID}(사유 · 그 줄의 지급액) · 감사 {@code EMOTICON_SETTLEMENT_MANUAL_PAID}(돈 관련). 그 뒤의 굳히지 않은 줄은 그대로.
+     */
+    @Transactional
+    public EmoticonSettlementView.AdminDetail markManualPaid(long operatorId, String ip, String idText, EmoticonSettlementManualPaidRequest body) {
+        EmoticonSettlementManualPaidRequest b = body == null ? new EmoticonSettlementManualPaidRequest(null, null, null) : body;
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        LocalDate transferDate = transferDate(b.transferDate(), fields);
+        String savedMemo = memo(b.memo(), fields);
+        // 사유 — 보류·포기 처리와 같은 규칙(5~200자 · {@link EmoticonPackAdminService#reason}), 다른 칸과 함께 모아 돌려준다
+        String reason = b.reason() == null ? "" : b.reason().trim();
+        if (EmoticonSpec.length(reason) < EmoticonSpec.REASON_MIN || EmoticonSpec.length(reason) > EmoticonSpec.REASON_MAX) {
+            fields.put("reason", new MessageRef("emoticon.reason.length", EmoticonSpec.REASON_MIN, EmoticonSpec.REASON_MAX));
+        }
+        if (!fields.isEmpty()) {
+            throw new ValidationException(fields);
+        }
+        Key key = key(idText);
+        store.lockCreator(key.creatorId());
+        CreatorLines c = calculator.creator(key.creatorId(), key.month(), true);
+        Line line = c.at(key.month());
+        if (line == null) {
+            throw new EmoticonSettlementNotFoundException();
+        }
+        Instant now = clock.instant();
+        boolean withdrawn = store.withdrawn(List.of(key.creatorId())).contains(key.creatorId());
+        List<Line> targets = c.lines().stream().filter(l -> !l.frozen() && !l.month().isAfter(key.month())).toList();
+        if (!withdrawn || c.payee() != null || line.frozen() || line.status() != EmoticonSettlementStatus.HELD
+                || targets.stream().anyMatch(l -> now.isBefore(l.closesAt()))) {
+            throw new EmoticonConflictException(EmoticonConflictException.SETTLEMENT_NOT_MANUAL_PAYABLE);
+        }
+        if (targets.stream().mapToLong(Line::payout).sum() <= 0) {
+            throw new EmoticonConflictException(EmoticonConflictException.SETTLEMENT_NOTHING_TO_PAY);
+        }
+        for (Line l : targets) {
+            Frozen frozen = l.freeze();
+            if (!store.manualPay(l.creatorId(), l.month(), frozen, transferDate, savedMemo, operatorId, now)) {
+                throw new IllegalStateException("수동 지급으로 굳힐 정산 줄이 그사이 바뀌었다 creator=" + l.creatorId() + " month=" + l.month());
+            }
+            store.markPurchases(l.creatorId(), l.month(), l.sales().stream().map(ActivityRow::purchaseId).toList(),
+                    l.refunds().stream().map(ActivityRow::purchaseId).toList());
+            store.insertManualPaidEvent(ids.nextId(), l.creatorId(), l.month(), now, operatorId, reason, frozen.payout());
+            audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.EMOTICON_SETTLEMENT_MANUAL_PAID, AuditResult.SUCCESS).target(TARGET, id(l.creatorId(), l.month()))
+                    .with("creator", Long.toString(l.creatorId())).with("month", l.month().format(MONTH)).with("from", l.status().name())
+                    .with("to", frozen.payout() > 0 ? "PAID" : "CONFIRMED").with("salesAmount", frozen.salesAmount()).with("refundAmount", frozen.refundAmount())
+                    .with("shareAmount", frozen.share()).with("carriedIn", frozen.carriedIn()).with("withholdingAmount", frozen.withholding())
+                    .with("payoutAmount", frozen.payout()).with("carriedOut", frozen.carriedOut()).with("payeeType", frozen.payeeType())
+                    .with("feeRatePercent", frozen.feeRatePercent()).with("transferDate", transferDate.toString()).with("memo", savedMemo == null ? "" : savedMemo)
+                    .with("reason", reason));
+        }
+        return detail(key, calculator.creator(key.creatorId(), key.month(), false));
+    }
+
+    /** 이체일 검사(지급 기록 · 수동 지급 기록) — 오늘 이전 {@code YYYY-MM-DD} · 업무일. 틀리면 {@code fields.transferDate} 를 넣고 null */
+    private LocalDate transferDate(String text, Map<String, MessageRef> fields) {
+        if (text == null || !DATE_TEXT.matcher(text.trim()).matches()) {
+            fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate"));
+            return null;
+        }
+        try {
+            LocalDate date = LocalDate.parse(text.trim());
+            if (date.isAfter(ServiceTime.today(clock))) {
+                fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate.future"));
+                return null;
+            }
+            if (!calculator.calendar().businessDay(date)) {
+                // 지급은 평일 업무일에만(사용자 결정 2026-11-05) — 토·일·공휴일 이체일은 받지 않는다(날짜 기준만, 시각은 보지 않는다)
+                fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate.notBusinessDay"));
+                return null;
+            }
+            return date;
+        } catch (DateTimeParseException e) {
+            fields.put("transferDate", new MessageRef("emoticon.settlement.transferDate"));
+            return null;
+        }
+    }
+
+    /** 메모 검사(200자) — 저장할 값(비면 null). 넘치면 {@code fields.memo} */
+    private static String memo(String text, Map<String, MessageRef> fields) {
+        String memo = text == null ? null : text.strip();
+        if (memo != null && memo.codePointCount(0, memo.length()) > MEMO_MAX) {
+            fields.put("memo", new MessageRef("emoticon.settlement.memo", MEMO_MAX));
+        }
+        return memo == null || memo.isEmpty() ? null : memo;
     }
 
     /** 정산 줄의 계좌 원문 보기 — 사유 → 줄 404 → 계좌 404 · 감사(S2 서비스) → 처리 기록 {@code ACCOUNT_VIEWED} */

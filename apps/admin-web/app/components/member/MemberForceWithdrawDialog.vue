@@ -29,7 +29,19 @@
                         <li v-if="preview.ownedGroups.length" class="inline-flex items-center gap-1.5"><i class="pi pi-users text-muted-color" aria-hidden="true" />{{ t('memberWithdrawal.force.previewGroups', { count: preview.ownedGroups.length }) }}</li>
                         <li v-if="preview.hasPaymentHistory" class="inline-flex items-center gap-1.5"><i class="pi pi-inbox text-muted-color" aria-hidden="true" />{{ t('memberWithdrawal.force.previewPaymentHistory') }}</li>
                         <li class="inline-flex items-center gap-1.5 tabular-nums"><i class="pi pi-calendar text-muted-color" aria-hidden="true" />{{ t('memberWithdrawal.force.previewRejoin', { at: time.date(preview.rejoinUntil) }) }}</li>
+                        <!-- 로보티콘 작가 요약(서버 `emoticonCreator` — 사이트 탈퇴 미리 보기와 같은 계산). 받지 못한 수익은 원천징수 전 -->
+                        <li v-if="creator" class="inline-flex items-start gap-1.5" data-testid="force-withdraw-emoticon-creator">
+                            <i class="pi pi-face-smile mt-0.5 text-muted-color" aria-hidden="true" />
+                            <span>
+                                {{ t('memberWithdrawal.force.previewEmoticon', { packs: creator.onSalePacks, reviews: creator.pendingReviews, amount: creator.unpaidEarnings.toLocaleString(locale) }) }}
+                                <small class="text-[11px] text-muted-color">{{ t('memberWithdrawal.force.previewEmoticonBeforeTax') }}</small>
+                            </span>
+                        </li>
                     </ul>
+                    <!-- 정산 정보 없이 수익이 남으면 경고만(막지 않는다) — 탈퇴 완료 때 시스템 보류로 남는다 -->
+                    <Message v-if="creator && !creator.payoutAccountRegistered && creator.unpaidEarnings > 0" severity="warn" size="small" :closable="false" data-testid="force-withdraw-emoticon-held">
+                        {{ t('memberWithdrawal.force.previewEmoticonHeld') }}
+                    </Message>
                 </template>
             </section>
 
@@ -108,6 +120,9 @@ const emit = defineEmits<{ 'update:visible': [visible: boolean]; submit: [body: 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
 const formId = useId();
+
+/** 로보티콘 작가 요약 — 작가가 아니면 null */
+const creator = computed(() => props.preview?.emoticonCreator ?? null);
 
 const reasonKind = ref<ForceWithdrawReasonKind>('UNDER_14');
 const memo = ref('');

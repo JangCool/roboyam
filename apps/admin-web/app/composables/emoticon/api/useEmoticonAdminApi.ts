@@ -8,6 +8,7 @@ import type {
     EmoticonSettlementBulkResult,
     EmoticonSettlementDetail,
     EmoticonSettlementList,
+    EmoticonSettlementManualPaidRequest,
     EmoticonSettlementPaidRequest,
     EmoticonCreatorSummary,
     EmoticonCoverView,
@@ -37,7 +38,8 @@ import type {
  *  - 판매(유료 팩 실결제): `GET /api/admin/emoticons/sales?from&to&packId&status&page&size` → `EmoticonSalePage` · `POST …/sales/{id}/refund { reason }`(예외 환불 — 결제 취소, 이미 환불이면 `409`). 권한 `emoticon.sales`
  *  - 정산: `GET /api/admin/emoticons/settlements?month=YYYY-MM` → `EmoticonSettlementList` · `GET …/settlements/{id}` · `POST …/settlements/confirm { ids }`
  *      · `POST …/{id}/hold { reason }` · `…/unhold` · `…/paid { transferDate, memo }` · `…/waive { reason }`(포기 처리, V148 — 사유 `400 fields.reason` → 404
- *      → `409 EMOTICON_SETTLEMENT_NOT_WAIVABLE`: 탈퇴한 작가 · 정산 정보 없음 · 굳히지 않은 보류 줄만) 권한 `emoticon.settlement`
+ *      → `409 EMOTICON_SETTLEMENT_NOT_WAIVABLE`: 탈퇴한 작가 · 정산 정보 없음 · 굳히지 않은 보류 줄만)
+ *      · `…/manual-paid { transferDate, memo, reason }`(수동 지급 기록, V149 — 같은 대상 + 셀프 환불 기간이 지남, `409 EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE`) 권한 `emoticon.settlement`
  *  - 정산 계좌 원문: `POST /api/admin/emoticons/settlements/{id}/account/reveal { reason }` 권한 `emoticon.payout.pii`(S4 정산 줄 단위 — 처리 기록 `ACCOUNT_VIEWED`).
  *      S2 작가 단위 `POST …/creators/{memberNo}/payout-account/reveal` 은 서버에 남아 있지만 화면은 부르지 않는다
  *
@@ -205,6 +207,13 @@ export function useEmoticonAdminApi() {
         /** 지급 완료 기록(실제 이체는 사이트 밖) */
         markSettlementPaid: (id: string, body: EmoticonSettlementPaidRequest): Promise<EmoticonSettlementDetail> =>
             client.post<EmoticonSettlementDetail>(PATH.settlementAction(id, 'paid'), body),
+
+        /**
+         * 수동 지급 기록(V149) — 정산 정보 없이 탈퇴한 작가에게 은행에서 직접 보낸 뒤 기록만 남긴다(계좌는 보내지 않는다). 서버가 그 달과 그 앞의 굳히지 않은 줄을
+         * 개인 원천징수로 굳혀 지급 완료로 기록하고 처리 기록 `MANUAL_PAID`·감사 `EMOTICON_SETTLEMENT_MANUAL_PAID` 를 남긴다
+         */
+        markSettlementManualPaid: (id: string, body: EmoticonSettlementManualPaidRequest): Promise<EmoticonSettlementDetail> =>
+            client.post<EmoticonSettlementDetail>(PATH.settlementAction(id, 'manual-paid'), body),
 
         /**
          * 정산 줄의 작가 계좌 원문 보기(정산 줄 ID · 사유 5~200자) — 서버가 감사 `EMOTICON_PAYOUT_REVEAL`(덧붙임 정산 줄 ID)과 처리 기록 `ACCOUNT_VIEWED` 를 남긴다.

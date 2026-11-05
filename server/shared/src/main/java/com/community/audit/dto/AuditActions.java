@@ -338,6 +338,11 @@ public final class AuditActions {
      * ({@code MEMBER_CONSENT} 탈퇴 때 회원 동의 — 행위자 SYSTEM, {@code consentedAmount}·{@code consentedAt} · {@code OPERATOR} 운영자 포기 처리 — {@code reason})
      */
     public static final String EMOTICON_SETTLEMENT_WAIVE = "EMOTICON_SETTLEMENT_WAIVE";
+    /**
+     * 수동 지급 기록(V149 — 정산 정보 없이 탈퇴한 작가에게 은행에서 직접 보낸 뒤, 줄마다 · 계좌는 싣지 않는다) — {@code creator}·{@code month}·{@code from}(예정·보류)·{@code to}
+     * (지급 완료 · 지급액 0 이면 확정)·{@code payoutAmount}·{@code withholdingAmount}·{@code carriedOut}·{@code payeeType}(개인)·{@code transferDate}·{@code memo}·{@code reason}
+     */
+    public static final String EMOTICON_SETTLEMENT_MANUAL_PAID = "EMOTICON_SETTLEMENT_MANUAL_PAID";
 
     // ── 소모임 분류(docs/features/group-contract.md) — 대상 GROUP_CATEGORY + 분류 ID(순서는 order) ──
     /** 분류 만들기 — {@code after.name} */

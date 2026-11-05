@@ -637,7 +637,10 @@ export default {
         PAID: '지급 완료 기록',
         ACCOUNT_VIEWED: '계좌 전체 보기',
         WAIVED: '포기',
+        MANUAL_PAID: '수동 지급 기록',
     },
+    /** 처리 기록의 수동 지급 기록(`MANUAL_PAID`, V149) 줄 — 그 줄의 지급액(0 이면 확정만) */
+    manualPaidEventLine: '은행에서 직접 보낸 뒤 기록 · {amount}',
     /** 처리 기록의 포기(`WAIVED`) 줄 — 동의 시각이 있으면 작가 동의, 없으면 운영자 포기 처리(V148) */
     waivedByConsent: '작가 동의로 포기 · {amount} · 동의 {at}',
     waivedByOperator: '운영자 포기 처리 · {amount}',
@@ -650,12 +653,13 @@ export default {
     settlementWithdrawnNote: '탈퇴 작가 — 최소 지급액과 상관없이 남은 금액을 지급해요',
     /** 정산 정보 없이 탈퇴한 작가(강제 탈퇴 — 시스템 보류). 연락처는 회원 상세의 분리 보관 연락 이메일(권한 `member.withdrawn.contact`) */
     settlementWithdrawnNoAccountShort: '탈퇴 작가 — 정산 정보가 없어 지급할 곳이 없어요',
-    settlementWithdrawnNoAccountNote:'정산 정보 없이 탈퇴한 작가예요 — 지급할 곳이 없어요. 회원 상세의 연락용 이메일로 연락하고, 닿지 않거나 받지 않겠다고 하면 포기 처리로 끝내요.',
+    settlementWithdrawnNoAccountNote:'정산 정보 없이 탈퇴한 작가예요 — 지급할 곳이 없어요. 회원 상세의 연락용 이메일로 연락해, 계좌를 받으면 은행에서 직접 보낸 뒤 수동 지급 기록으로, 닿지 않거나 받지 않겠다고 하면 포기 처리로 끝내요.',
     actConfirm: '확정',
     actHold: '보류',
     actUnhold: '보류 풀기',
     actPaid: '지급 완료 기록',
     actWaive: '포기 처리',
+    actManualPaid: '수동 지급 기록',
     confirmTitle: '정산 {count}줄을 확정할까요?',
     confirmBody: '확정하면 금액이 정해져 지급 대상이 돼요. 지급 합계 {amount}원.',
     confirmed: '정산 {confirmed}줄을 확정했어요.',
@@ -711,6 +715,15 @@ export default {
     paidMemoHint: '선택 · 200자까지',
     paidNotice: '금액은 확정 때 굳은 값이에요(확정 뒤 환불은 다음 정산에서 빼요).',
     paidDone: '{name} 정산을 지급 완료로 기록했어요.',
+    /** 수동 지급 기록(V149) — 정산 정보 없이 탈퇴한 작가에게 연락이 닿아 은행에서 직접 보낸 뒤 */
+    manualPaidTitle: '{name} 수동 지급 기록',
+    manualPaidBody: '이 달과 그 앞의 보류된 정산을 개인 기준 원천징수({rate}%)를 뗀 금액으로 굳혀 지급 완료로 기록해요. 이 달 지급액 {amount}원 — 앞 달의 보류도 함께 기록돼요.',
+    manualPaidAccountNotice: '계좌는 시스템에 저장하지 않아요 — 은행에서 직접 보낸 뒤 기록만 남겨요.',
+    manualPaidReason: '사유',
+    manualPaidReasonHint: '필수 · 5~200자 — 처리 기록과 감사에 남아요',
+    manualPaidReasonRequired: '사유를 5~200자로 적어 주세요.',
+    manualPaidNotClosed: '셀프 환불 기간이 지나야 기록할 수 있어요',
+    manualPaidDone: '{name} 정산을 수동 지급으로 기록했어요.',
 
     // ── 회원 상세 ─
     creatorLine: '로보티콘 작가 — 팩 {count}개 · 받은 보상 {amount}P · 판매 {sales}원',
