@@ -35,7 +35,7 @@
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
-        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
+        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-chevron-left" variant="text" severity="secondary" :aria-label="t('post.backToBoard')" @click="goBoard" />
             <span class="truncate text-sm font-semibold">{{ post?.group ? UtilGroupMessages.postLocation(t, post.group) : boardName }}</span>
         </div>

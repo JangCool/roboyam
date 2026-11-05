@@ -8,7 +8,7 @@
         등록하면(`201 { id, pointsEarned }` — 일반 글쓰기처럼 포인트 토스트는 띄우지 않는다) 토스트를 띄우고 글 상세(`/posts/{id}`)로 간다(`replace` — 뒤로 가기가 글쓰기로 돌아오지 않게). 저장하지 않고 나가면 확인을 묻는다.
     -->
     <div class="content-card">
-        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
+        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('group.writeTitle') }}</span>
         </div>
