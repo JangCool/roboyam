@@ -6,7 +6,8 @@
           금액은 서버가 계산한 그대로(음수 가능 — 확정 뒤 환불). 정산 정보가 없는 예정 줄(`payeeType` null)의 원천징수는 개인 기준 어림값이라 그렇게 적는다.
         · 그 달의 팩별 내역 · 정산 계좌(가린 값 · [전체 보기] — `emoticon.payout.pii`, 사유 뒤 정해진 시간만 보이고 저절로 가린다) · 처리 기록.
         아래(`emoticon.settlement`): 예정이면 [보류]·[확정](환불 기간이 끝난 달만) · 확정이면 [보류]·[지급 완료 기록](지급할 금액이 있을 때) · 보류면 [보류 풀기]
-          (+ 정산 정보 없이 탈퇴한 작가의 보류면 [포기 처리] — V148, 사유 대화상자는 부모). 지급 완료·포기 줄은 더 할 일이 없다.
+          (+ 정산 정보 없이 탈퇴한 작가의 보류면 [포기 처리] — V148, 사유 대화상자는 부모 · [수동 지급 기록] — V149, 셀프 환불 기간이 지난 줄만, 이체일·메모·사유 대화상자는 부모).
+          지급 완료·포기 줄은 더 할 일이 없다.
         포기(`WAIVED`) 줄: 위 안내(작가 동의로 포기 · 운영자 포기 처리 — 처리 기록의 `WAIVED` 로 가른다) · 금액 계산 끝에 「포기한 금액」 · 요약의 시각은 「포기 시각」.
         보류한 사람이 없으면(`hold.by` null) 시스템 보류(작가 강제 탈퇴)로 보인다.
         계좌 전체 값은 부모 메모리에만 있다 — 토스트·로그·주소에 싣지 않는다.
@@ -119,6 +120,7 @@
                             <span class="text-muted-color"> · {{ eventBy(ev) }} · {{ time.shortDateTime(ev.at) }}</span>
                         </span>
                         <span v-if="ev.action === 'WAIVED'" class="text-xs text-amber-700 dark:text-amber-400">{{ waivedEventLine(ev) }}</span>
+                        <span v-else-if="ev.action === 'MANUAL_PAID'" class="text-xs text-muted-color">{{ t('emoticon.manualPaidEventLine', { amount: won(ev.amount ?? 0) }) }}</span>
                         <span v-if="ev.note" class="text-xs text-muted-color [overflow-wrap:anywhere]">{{ ev.note }}</span>
                     </li>
                 </ul>
@@ -130,6 +132,19 @@
                 <template v-if="detail.status === 'HELD'">
                     <!-- 포기 처리(V148) — 정산 정보 없이 탈퇴한 작가의 보류만. 판정은 서버(`409 EMOTICON_SETTLEMENT_NOT_WAIVABLE`) -->
                     <Button v-if="UtilEmoticon.settlementWaivable(detail)" type="button" :label="t('emoticon.actWaive')" icon="pi pi-ban" severity="danger" variant="outlined" :disabled="busy" data-testid="emoticon-settlement-waive" @click="emit('waive')" />
+                    <!-- 수동 지급 기록(V149) — 같은 대상, 셀프 환불 기간이 지난 줄만(서버 `409 EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE`). 이체일·메모·사유 대화상자는 부모 -->
+                    <span v-if="UtilEmoticon.settlementWaivable(detail) && !closable" class="text-xs text-muted-color">{{ t('emoticon.manualPaidNotClosed') }}</span>
+                    <Button
+                        v-if="UtilEmoticon.settlementWaivable(detail)"
+                        type="button"
+                        :label="t('emoticon.actManualPaid')"
+                        icon="pi pi-send"
+                        severity="secondary"
+                        variant="outlined"
+                        :disabled="busy || !closable"
+                        data-testid="emoticon-settlement-manual-paid"
+                        @click="emit('manualPaid')"
+                    />
                     <Button type="button" :label="t('emoticon.actUnhold')" icon="pi pi-replay" :loading="busy" :disabled="busy" @click="emit('unhold')" />
                 </template>
                 <template v-else>
@@ -183,7 +198,7 @@ const props = withDefaults(defineProps<Props>(), {
     revealRemaining: 0,
     now: 0,
 });
-const emit = defineEmits<{ retry: []; confirm: []; hold: []; unhold: []; paid: []; waive: []; reveal: []; mask: [] }>();
+const emit = defineEmits<{ retry: []; confirm: []; hold: []; unhold: []; paid: []; waive: []; manualPaid: []; reveal: []; mask: [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();

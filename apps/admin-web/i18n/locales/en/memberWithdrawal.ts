@@ -230,6 +230,10 @@ export default {
         previewGroups: '{count} owned groups (auto-delegate)',
         previewPaymentHistory: 'Has payment history — the contact email will be kept separately.',
         previewRejoin: 'Can rejoin from {at}',
+        /** Robotikon creator summary (server `emoticonCreator`) */
+        previewEmoticon: 'Robotikon — new sales of {packs} packs on sale stop · {reviews} reviews rejected · unpaid earnings ₩{amount}',
+        previewEmoticonBeforeTax: '(before withholding)',
+        previewEmoticonHeld: 'No payout info, so the earnings will be held — if you reach the creator, record a manual payout; if not, waive it (Robotikon › Creator payouts).',
         choicesNote: 'Choices are fixed in the member’s favor: wait for return windows · wait for ads to end · refund charged points · auto-delegate groups.',
         pendingNotice: 'If anything is pending, the withdrawal stays in progress and completes automatically when done. Operators cannot skip refunds or orders either.',
         auditNotice: 'Recorded in the audit log (MEMBER_WITHDRAW_FORCE). On completion all sessions end and rejoining is blocked for 30 days. A forced withdrawal cannot be canceled on the member’s behalf.',

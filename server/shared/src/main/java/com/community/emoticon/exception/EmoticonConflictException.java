@@ -55,6 +55,11 @@ public class EmoticonConflictException extends CommonException {
      * 포기 처리(V148)는 정산 정보 없이 탈퇴한 작가의 보류(굳히지 않은) 줄만 — 탈퇴하지 않은 작가 · 정산 정보가 있는 작가(지급하면 된다) · 보류가 아닌 줄 · 굳힌 줄은 받지 않는다
      */
     public static final String SETTLEMENT_NOT_WAIVABLE = "EMOTICON_SETTLEMENT_NOT_WAIVABLE";
+    /**
+     * 수동 지급 기록(V149)은 정산 정보 없이 탈퇴한 작가의 보류(굳히지 않은) 줄만, 그 달과 그 앞 줄의 확정 가능 시각(셀프 환불 기한)이 모두 지난 뒤에만 — 탈퇴하지 않은 작가 ·
+     * 정산 정보가 있는 작가(확정한 뒤 지급 기록) · 보류가 아닌 줄 · 굳힌 줄 · 기한 전은 받지 않는다
+     */
+    public static final String SETTLEMENT_NOT_MANUAL_PAYABLE = "EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE";
 
     public EmoticonConflictException(String code) {
         super(HttpStatus.CONFLICT, code, new MessageRef("error." + code));

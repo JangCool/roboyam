@@ -92,9 +92,21 @@ public final class MemberWithdrawalAdminView {
     public record OwnedGroup(String groupId, String groupName) {
     }
 
-    /** 강제 탈퇴 미리보기 — 화면 타입 {@code ForceWithdrawPreview}. 선택값 기본(배송·광고 기다리기 · 충전 환불 · 모임 자동)으로 센 남은 일 */
+    /**
+     * 강제 탈퇴 미리보기 — 화면 타입 {@code ForceWithdrawPreview}. 선택값 기본(배송·광고 기다리기 · 충전 환불 · 모임 자동)으로 센 남은 일.
+     *
+     * @param emoticonCreator 로보티콘 작가 요약 — 사이트 탈퇴 미리 보기({@code GET /api/me/withdrawal})와 같은 계산(shared {@code EmoticonCreatorWithdrawal.summary}).
+     *                        작가(만든 팩이 있거나 정산 정보를 등록함)가 아니면 null
+     */
     public record Preview(String memberNo, String nickname, List<PendingItem> pending, long earnedPoints, long paidPoints, int activeBizCount, List<OwnedGroup> ownedGroups,
-                          boolean hasPaymentHistory, Instant rejoinUntil) {
+                          boolean hasPaymentHistory, Instant rejoinUntil, EmoticonCreator emoticonCreator) {
+    }
+
+    /**
+     * 강제 탈퇴 미리보기의 로보티콘 작가 요약 — 판매 중 내 팩(탈퇴하면 새 판매가 멈춘다) · 심사 대기(반려로 닫힌다) · 받지 못한 수익(원천징수 전 · 최소 지급액과 상관없이) · 정산 정보 등록 여부.
+     * 정산 정보가 없고 수익이 있으면 탈퇴 완료 때 시스템 보류로 남는다(운영자가 수동 지급 기록 또는 포기 처리로 끝낸다).
+     */
+    public record EmoticonCreator(int onSalePacks, int pendingReviews, long unpaidEarnings, boolean payoutAccountRegistered) {
     }
 
     /** 강제 탈퇴 결과 — 화면 타입 {@code ForceWithdrawResult} */

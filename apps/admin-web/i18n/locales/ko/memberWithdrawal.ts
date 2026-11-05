@@ -243,6 +243,10 @@ export default {
         previewGroups: '모임장인 소모임 {count}개 (자동 위임)',
         previewPaymentHistory: '결제 이력이 있어 연락용 이메일을 분리 보관해요.',
         previewRejoin: '재가입 가능일 {at}',
+        /** 로보티콘 작가 요약(서버 `emoticonCreator`) */
+        previewEmoticon: '로보티콘 — 판매 중 팩 {packs}개의 새 판매가 멈춰요 · 심사 {reviews}건 반려 · 받지 못한 수익 {amount}원',
+        previewEmoticonBeforeTax: '(원천징수 전)',
+        previewEmoticonHeld: '정산 정보가 없어 수익이 보류돼요 — 연락이 닿으면 수동 지급 기록, 닿지 않으면 포기 처리(로보티콘 › 작가 정산).',
         choicesNote: '선택값은 회원에게 유리한 쪽으로 고정돼요: 배송완료 주문은 반품 기한까지 기다리기 · 광고는 끝날 때까지 기다리기 · 충전 포인트는 환불 · 소모임은 자동 위임.',
         pendingNotice: '남은 일이 있으면 「진행 중」으로 두고 끝나면 자동 완료돼요. 운영자도 환불·주문을 건너뛸 수 없어요.',
         auditNotice: '감사 기록(MEMBER_WITHDRAW_FORCE)에 남아요. 완료되면 회원의 세션이 모두 끊기고 재가입이 30일 제한돼요. 운영자가 강제한 탈퇴는 회원이 요청해도 대리 취소할 수 없어요.',

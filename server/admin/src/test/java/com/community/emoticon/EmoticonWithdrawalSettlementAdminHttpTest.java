@@ -48,6 +48,8 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
     private EmoticonReviewService reviews;
     @Autowired
     private PlatformTransactionManager transactions;
+    @Autowired
+    private com.community.holiday.service.PublicHolidayService holidays;
 
     private Map<String, Object> settingsWas;
 
@@ -160,6 +162,96 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
         // 목록 — 포기한 금액 합계
         mvc.perform(get(base).param("month", month.toString()).cookie(s)).andExpect(jsonPath("$.data.items[?(@.id == '" + id + "')].status").value("WAIVED"))
                 .andExpect(jsonPath("$.data.totals.waivedAmount").isNumber());
+    }
+
+    /** 오늘(서비스 시간대) 이전의 가장 가까운 업무일 */
+    private java.time.LocalDate businessDay() {
+        java.time.LocalDate d = java.time.LocalDate.now(SEOUL);
+        while (!holidays.calendar().businessDay(d)) {
+            d = d.minusDays(1);
+        }
+        return d;
+    }
+
+    private static String manualPaid(String date, String memo, String reason) {
+        StringBuilder b = new StringBuilder("{");
+        if (date != null) {
+            b.append("\"transferDate\":\"").append(date).append("\",");
+        }
+        if (memo != null) {
+            b.append("\"memo\":\"").append(memo).append("\",");
+        }
+        if (reason != null) {
+            b.append("\"reason\":\"").append(reason).append("\",");
+        }
+        if (b.length() > 1) {
+            b.setLength(b.length() - 1);
+        }
+        return b.append("}").toString();
+    }
+
+    @Test
+    void 강제_탈퇴_미리_보기에_작가_요약이_있고_보류로_남은_수익을_수동_지급_기록으로_끝낸다() throws Exception {
+        long setup = operatorWith(Permission.EMOTICON_READ, Permission.EMOTICON_REVIEW);
+        long creator = member();
+        long pack = approved(creator, setup);
+        submitted(creator); // 심사 대기 1건
+        YearMonth month = YearMonth.now(SEOUL).minusMonths(3);
+        sale(creator, pack, LocalDateTime.of(month.getYear(), month.getMonthValue(), 10, 12, 0).atZone(SEOUL).toInstant());
+        String id = month.toString().replace("-", "") + "-" + creator;
+        String base = "/api/admin/emoticons/settlements";
+
+        // 강제 탈퇴 미리 보기 — 사이트 탈퇴 미리 보기와 같은 작가 요약(원천징수 전 · 최소 지급액과 상관없이) · 작가가 아니면 없다
+        Cookie force = login(operatorWith(Permission.MEMBER_WITHDRAW));
+        mvc.perform(get("/api/admin/members/" + creator + "/withdrawal/preview").cookie(force)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.emoticonCreator.onSalePacks").value(1)).andExpect(jsonPath("$.data.emoticonCreator.pendingReviews").value(1))
+                .andExpect(jsonPath("$.data.emoticonCreator.unpaidEarnings").value(SHARE))
+                .andExpect(jsonPath("$.data.emoticonCreator.payoutAccountRegistered").value(false));
+        String plain = mvc.perform(get("/api/admin/members/" + member() + "/withdrawal/preview").cookie(force)).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        Map<String, Object> plainData = com.jayway.jsonpath.JsonPath.read(plain, "$.data");
+        assertThat(plainData.get("emoticonCreator")).as("작가가 아님(빠지거나 null)").isNull();
+
+        mvc.perform(withCsrf(post("/api/admin/members/" + creator + "/withdrawal"), force).content("{\"reasonKind\":\"POLICY_VIOLATION\",\"memo\":\"" + MEMO + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("COMPLETED"));
+        assertThat(jdbc.queryForObject("SELECT status FROM emoticon_settlements WHERE creator_id = ?", String.class, creator)).isEqualTo("HELD");
+
+        // 수동 지급 기록 — 권한 403 → 입력 400(이체일·메모·사유 함께) → 토요일 400 → 404 → 처리 → 다시 하면 409
+        String date = businessDay().toString();
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), login(operatorWith(Permission.EMOTICON_SALES))).content(manualPaid(date, null, "은행에서 직접 보냈어요")))
+                .andExpect(status().isForbidden());
+        Cookie s = login(operatorWith(Permission.EMOTICON_SETTLEMENT));
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), s).content(manualPaid(null, "가".repeat(201), "짧음"))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fields.transferDate").exists()).andExpect(jsonPath("$.error.fields.memo").exists())
+                .andExpect(jsonPath("$.error.fields.reason").exists());
+        java.time.LocalDate saturday = java.time.LocalDate.now(SEOUL).minusDays(1);
+        while (saturday.getDayOfWeek() != java.time.DayOfWeek.SATURDAY) {
+            saturday = saturday.minusDays(1);
+        }
+        String saturdayText = saturday.toString();
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), s).content(manualPaid(saturdayText, null, "은행에서 직접 보냈어요")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.transferDate").exists());
+        mvc.perform(withCsrf(post(base + "/202001-" + creator + "/manual-paid"), s).content(manualPaid(date, null, "은행에서 직접 보냈어요")))
+                .andExpect(status().isNotFound());
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), s).content(manualPaid(date, "국민은행 이체", "은행에서 직접 보냈어요"))).andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store")).andExpect(jsonPath("$.data.status").value("PAID"))
+                .andExpect(jsonPath("$.data.payoutAmount").value(SHARE - 50)).andExpect(jsonPath("$.data.withholdingAmount").value(50))
+                .andExpect(jsonPath("$.data.payeeType").value("INDIVIDUAL")).andExpect(jsonPath("$.data.paid.transferDate").value(date))
+                .andExpect(jsonPath("$.data.paid.memo").value("국민은행 이체")).andExpect(jsonPath("$.data.hold").doesNotExist())
+                .andExpect(jsonPath("$.data.account").doesNotExist()).andExpect(jsonPath("$.data.events[0].action").value("MANUAL_PAID"))
+                .andExpect(jsonPath("$.data.events[0].amount").value(SHARE - 50)).andExpect(jsonPath("$.data.events[0].note").value("은행에서 직접 보냈어요"))
+                .andExpect(jsonPath("$.data.events[0].by").isNotEmpty());
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), s).header("Accept-Language", "ko").content(manualPaid(date, null, "은행에서 직접 보냈어요")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE"))
+                .andExpect(jsonPath("$.error.message").value("정산 정보 없이 탈퇴한 작가의 보류 정산만, 셀프 환불 기간이 지난 뒤 수동 지급으로 기록할 수 있어요."));
+        mvc.perform(withCsrf(post(base + "/" + id + "/manual-paid"), s).header("Accept-Language", "en").content(manualPaid(date, null, "은행에서 직접 보냈어요")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.startsWith("Only held settlements")));
+        // 계좌는 저장하지 않았다 · 감사(운영자 · 돈 관련 5년)
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM emoticon_payout_accounts WHERE user_id = ?", Integer.class, creator)).isZero();
+        Map<String, Object> audit = jdbc.queryForMap("SELECT actor_type, retention_class, detail::text AS detail FROM audit_logs WHERE action = 'EMOTICON_SETTLEMENT_MANUAL_PAID' "
+                + "AND target_id = ? ORDER BY id DESC LIMIT 1", id);
+        assertThat(audit).containsEntry("actor_type", "OPERATOR").containsEntry("retention_class", "MONEY");
+        assertThat((String) audit.get("detail")).contains("\"to\":\"PAID\"").contains("\"transferDate\":\"" + date + "\"").contains("은행에서 직접 보냈어요");
     }
 
     @Test

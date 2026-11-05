@@ -1,6 +1,7 @@
 package com.community.withdrawal.service;
 
 import com.community.dashboard.dto.DashboardGadgetQuery;
+import com.community.emoticon.service.EmoticonCreatorWithdrawal;
 import com.community.group.entity.GroupEntity;
 import com.community.member.service.MemberLookup;
 import com.community.permission.dto.AdminActor;
@@ -89,11 +90,13 @@ public class MemberWithdrawalAdminService {
     private final WithdrawalRequestWriter writer;
     private final MemberLookup members;
     private final WithdrawalProperties properties;
+    private final EmoticonCreatorWithdrawal emoticons;
     private final Clock clock;
 
     public MemberWithdrawalAdminService(MemberWithdrawalAdminStore store, MemberWithdrawalStore withdrawals, WithdrawalQueries queries, WithdrawalPendingResolver pending,
                                         WithdrawalBusinessInfo business, WithdrawalGroupHandler groups, WithdrawalRejoinPolicy rejoin, WithdrawalRequestWriter writer,
-                                        MemberLookup members, WithdrawalProperties properties, ObjectProvider<Clock> clocks) {
+                                        MemberLookup members, WithdrawalProperties properties, EmoticonCreatorWithdrawal emoticons, ObjectProvider<Clock> clocks) {
+        this.emoticons = emoticons;
         this.store = store;
         this.withdrawals = withdrawals;
         this.queries = queries;
@@ -305,7 +308,9 @@ public class MemberWithdrawalAdminService {
         List<MemberWithdrawalAdminView.OwnedGroup> owned = groups.led(member.id()).stream()
                 .map(g -> new MemberWithdrawalAdminView.OwnedGroup(Long.toString(g.getId()), g.getName())).toList();
         return new MemberWithdrawalAdminView.Preview(Long.toString(member.id()), member.nickname(), items(remaining), losses.freePoints(), losses.paidPoints(),
-                business.of(member.id(), now).running().size(), owned, queries.lastTransactionAt(member.id()).isPresent(), rejoin.of(member.id(), member.status(), now).until());
+                business.of(member.id(), now).running().size(), owned, queries.lastTransactionAt(member.id()).isPresent(), rejoin.of(member.id(), member.status(), now).until(),
+                emoticons.summary(member.id()).map(s -> new MemberWithdrawalAdminView.EmoticonCreator(s.onSalePacks(), s.pendingReviews(), s.unpaidEarnings(),
+                        s.payoutAccountRegistered())).orElse(null));
     }
 
     /**

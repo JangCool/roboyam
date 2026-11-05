@@ -11,6 +11,8 @@
           10분만 준다 → 저절로 가린다. 값은 이 화면 메모리에만 둔다. 열람 뒤 서랍을 다시 읽어 처리 기록 줄을 보인다.
         포기(V148 — 정산 정보 없이 탈퇴한 작가): 상태 `WAIVED`(포기) 딱지 · 합계 「포기한 금액」 · 줄의 이월 칸에 「포기 N원」. 탈퇴 때 작가가 동의했으면 서버가 탈퇴 완료 때 포기로 굳히고,
           강제 탈퇴는 시스템 보류(`hold.by` null)로 남는다 → 서랍 [포기 처리](보류 + 탈퇴 작가 + 정산 정보 없음일 때만) → 사유 대화상자 → `POST …/{id}/waive`(그 달과 그 앞의 끝나지 않은 줄을 포기로 굳힌다).
+        수동 지급 기록(V149 — 같은 대상, 연락이 닿아 은행에서 직접 보낸 경우): 서랍 [수동 지급 기록](셀프 환불 기간이 지난 줄만) → 지급 기록 대화상자 + 사유 칸 · 「계좌는 저장하지 않아요」 안내
+          → `POST …/{id}/manual-paid { transferDate, memo, reason }`(그 달과 그 앞의 보류를 개인 원천징수로 굳혀 지급 완료로). 계좌는 받지 않는다.
         권한: 화면·처리 `emoticon.settlement`(메뉴 — 포기 처리 포함) · 계좌 전체 보기 `emoticon.payout.pii`(서버 `Permission`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -153,6 +155,7 @@
             @unhold="unhold"
             @paid="openPaid"
             @waive="openWaive"
+            @manual-paid="openManualPaid"
             @reveal="detail && openReveal(detail)"
             @mask="detail && mask(detail.id)"
         />
@@ -196,9 +199,21 @@
             @submit="submitReveal"
         />
 
-        <Dialog v-model:visible="paidOpen" modal :draggable="false" :closable="working !== 'paid'" :header="t('emoticon.paidTitle', { name: detail?.creator.nickname ?? '' })" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }">
+        <!-- 지급 완료 기록 · 수동 지급 기록(V149 — 정산 정보 없이 탈퇴한 작가: 사유 칸 · 「계좌는 저장하지 않아요」 안내)을 한 대화상자로 -->
+        <Dialog
+            v-model:visible="paidOpen"
+            modal
+            :draggable="false"
+            :closable="working !== 'paid'"
+            :header="t(paidManual ? 'emoticon.manualPaidTitle' : 'emoticon.paidTitle', { name: detail?.creator.nickname ?? '' })"
+            :style="{ width: 'min(30rem, calc(100vw - 2rem))' }"
+        >
             <form :id="ids.paidForm" class="flex flex-col gap-4" novalidate @submit.prevent="submitPaid">
-                <p v-if="detail" class="m-0 text-sm leading-relaxed">{{ t('emoticon.paidBody', { amount: detail.payoutAmount.toLocaleString(locale) }) }}</p>
+                <p v-if="detail && paidManual" class="m-0 text-sm leading-relaxed">
+                    {{ t('emoticon.manualPaidBody', { amount: detail.payoutAmount.toLocaleString(locale), rate: UtilEmoticon.WITHHOLDING_PERCENT }) }}
+                </p>
+                <p v-else-if="detail" class="m-0 text-sm leading-relaxed">{{ t('emoticon.paidBody', { amount: detail.payoutAmount.toLocaleString(locale) }) }}</p>
+                <Message v-if="paidManual" severity="warn" size="small" :closable="false" data-testid="emoticon-manual-paid-account-notice">{{ t('emoticon.manualPaidAccountNotice') }}</Message>
                 <!-- 이체일은 평일 업무일만(후속 결정 4) — 달력은 토·일을 막고, 공휴일은 목록 API 가 없어 서버 `400 fields.transferDate` 문구를 칸 아래에 보인다 -->
                 <LabeledField :label="t('emoticon.paidDate')" :help="t('emoticon.paidDateBusinessDay')" :error="paidDateError">
                     <template #default="{ id, describedBy, invalid }">
@@ -210,12 +225,17 @@
                         <Textarea :id="id" v-model="paidMemo" rows="2" auto-resize maxlength="200" :invalid="invalid" :aria-describedby="describedBy" fluid />
                     </template>
                 </LabeledField>
-                <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ t('emoticon.paidNotice') }}</p>
+                <LabeledField v-if="paidManual" :label="t('emoticon.manualPaidReason')" :hint="t('emoticon.manualPaidReasonHint')" :error="paidReasonError">
+                    <template #default="{ id, describedBy, invalid }">
+                        <Textarea :id="id" v-model="paidReason" rows="2" auto-resize maxlength="200" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                    </template>
+                </LabeledField>
+                <p v-if="!paidManual" class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ t('emoticon.paidNotice') }}</p>
                 <Message v-if="dialogError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ dialogError }}</Message>
             </form>
             <template #footer>
                 <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="working === 'paid'" @click="paidOpen = false" />
-                <Button type="submit" :form="ids.paidForm" :label="t('emoticon.actPaid')" icon="pi pi-check" :loading="working === 'paid'" />
+                <Button type="submit" :form="ids.paidForm" :label="t(paidManual ? 'emoticon.actManualPaid' : 'emoticon.actPaid')" icon="pi pi-check" :loading="working === 'paid'" />
             </template>
         </Dialog>
     </div>
@@ -593,27 +613,55 @@ function onPaidDateChange(): void {
     paidFieldErrors.value = next;
 }
 
-function openPaid(): void {
+/**
+ * 수동 지급 기록(V149) 모드 — 정산 정보 없이 탈퇴한 작가의 보류 줄. 같은 대화상자에 사유 칸(5~200자 필수)과 「계좌는 저장하지 않아요」 안내를 더하고
+ * `POST …/{id}/manual-paid` 를 부른다. 이체일·메모 규칙은 지급 완료 기록과 같다. 404·409(`EMOTICON_SETTLEMENT_NOT_MANUAL_PAYABLE`·`NOTHING_TO_PAY`)는 토스트 후 다시 읽기
+ */
+const paidManual = ref(false);
+const paidReason = ref('');
+
+/** 사유 칸 아래 한 줄 — 서버 문구 → 보낸 뒤 5~200자가 아님 */
+const paidReasonError = computed(() => {
+    if (paidFieldErrors.value.reason) return paidFieldErrors.value.reason;
+    const length = [...paidReason.value.trim()].length;
+    if (paidSubmitted.value && (length < 5 || length > 200)) return t('emoticon.manualPaidReasonRequired');
+    return '';
+});
+
+function openPaidDialog(manual: boolean): void {
     if (!detail.value || working.value) return;
+    paidManual.value = manual;
     paidDate.value = lastWeekday();
     paidMemo.value = '';
+    paidReason.value = '';
     paidSubmitted.value = false;
     paidFieldErrors.value = {};
     dialogError.value = '';
     paidOpen.value = true;
 }
 
+function openPaid(): void {
+    openPaidDialog(false);
+}
+
+function openManualPaid(): void {
+    if (detail.value && UtilEmoticon.settlementWaivable(detail.value)) openPaidDialog(true);
+}
+
 async function submitPaid(): Promise<void> {
     const target = detail.value;
     paidSubmitted.value = true;
     if (!target || working.value || !paidDate.value || weekend(paidDate.value)) return;
+    const manual = paidManual.value;
+    if (manual && paidReasonError.value) return;
     working.value = 'paid';
     dialogError.value = '';
     paidFieldErrors.value = {};
     try {
-        afterAction(await api.markSettlementPaid(target.id, { transferDate: paidDate.value, memo: paidMemo.value.trim() }));
+        const body = { transferDate: paidDate.value, memo: paidMemo.value.trim() };
+        afterAction(manual ? await api.markSettlementManualPaid(target.id, { ...body, reason: paidReason.value.trim() }) : await api.markSettlementPaid(target.id, body));
         paidOpen.value = false;
-        toast.success(t('emoticon.paidDone', { name: target.creator.nickname }));
+        toast.success(t(manual ? 'emoticon.manualPaidDone' : 'emoticon.paidDone', { name: target.creator.nickname }));
     } catch (e) {
         const error = toApiError(e);
         if (handleStale(error)) paidOpen.value = false;

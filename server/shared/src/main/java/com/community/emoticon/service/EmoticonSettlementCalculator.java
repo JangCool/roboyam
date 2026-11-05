@@ -42,10 +42,12 @@ public class EmoticonSettlementCalculator {
                        int refundCount, long refundAmount, long vat, long base, int feeRatePercent, long fee, long share, long carriedIn, long withholding, long payout,
                        long carriedOut, String payeeType, LocalDate payDate, Instant closesAt, List<ActivityRow> sales, List<ActivityRow> refunds) {
 
-        /** 확정할 때 굳힐 값(작가 구분은 그때의 정산 정보) */
+        /**
+         * 확정할 때 굳힐 값(작가 구분은 그때의 정산 정보). 작가 구분이 없으면(정산 정보 없음 — 확정은 막히고, 탈퇴 작가의 수동 지급 기록만 여기로 온다) 개인으로 굳힌다(계산도 개인으로 했다).
+         */
         public Frozen freeze() {
             return new Frozen(salesCount, salesAmount, refundCount, refundAmount, vat, base, feeRatePercent, fee, share, carriedIn, withholding, payout, carriedOut,
-                    payeeType, payDate, closesAt);
+                    payeeType == null ? "INDIVIDUAL" : payeeType, payDate, closesAt);
         }
 
         /** 이 줄의 합(작가 몫 + 넘어온 금액, 원천징수 전) — 양수면 탈퇴 작가 규칙에서 지급 대상, 포기하면 포기한 금액 */

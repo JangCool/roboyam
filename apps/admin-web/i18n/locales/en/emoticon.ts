@@ -636,7 +636,10 @@ export default {
         PAID: 'Marked as paid',
         ACCOUNT_VIEWED: 'Full account viewed',
         WAIVED: 'Waived',
+        MANUAL_PAID: 'Recorded as paid manually',
     },
+    /** Manual payout record (`MANUAL_PAID`, V149) history line — the payout of that row (0 means confirmed only) */
+    manualPaidEventLine: 'Recorded after a direct bank transfer · {amount}',
     /** Waived (`WAIVED`) history line — consent time means the creator agreed, otherwise an admin waived it (V148) */
     waivedByConsent: 'Waived with creator consent · {amount} · consented {at}',
     waivedByOperator: 'Waived by an admin · {amount}',
@@ -649,12 +652,13 @@ export default {
     settlementWithdrawnNote: 'Withdrawn creator — the remaining amount is paid regardless of the minimum payout',
     /** Creator withdrew without payout info (forced withdrawal — system hold). Contact via the separately kept email on the member detail (`member.withdrawn.contact`) */
     settlementWithdrawnNoAccountShort: 'Withdrawn creator — no payout info, nowhere to pay',
-    settlementWithdrawnNoAccountNote:'This creator withdrew without payout info, so there is nowhere to pay. Contact them via the contact email on the member detail; if they cannot be reached or decline, close it by waiving.',
+    settlementWithdrawnNoAccountNote:'This creator withdrew without payout info, so there is nowhere to pay. Contact them via the contact email on the member detail; if you get an account, transfer at the bank and record it as paid manually; if they cannot be reached or decline, close it by waiving.',
     actConfirm: 'Confirm',
     actHold: 'Hold',
     actUnhold: 'Release hold',
     actPaid: 'Mark as paid',
     actWaive: 'Waive',
+    actManualPaid: 'Record manual payout',
     confirmTitle: 'Confirm {count} payouts?',
     confirmBody: 'Confirmed amounts are fixed and ready to pay. Total payout ₩{amount}.',
     confirmed: 'Confirmed {confirmed} payouts.',
@@ -710,6 +714,15 @@ export default {
     paidMemoHint: 'Optional · up to 200 characters',
     paidNotice: 'The amount is the one fixed at confirmation (refunds after confirmation are deducted next time).',
     paidDone: 'Marked the payout for {name} as paid.',
+    /** Manual payout record (V149) — after reaching a creator who withdrew without payout info and transferring at the bank */
+    manualPaidTitle: 'Record manual payout for {name}',
+    manualPaidBody: 'This fixes this month and any earlier held payouts at the amount after individual withholding ({rate}%) and records them as paid. This month pays ₩{amount} — earlier held months are recorded too.',
+    manualPaidAccountNotice: 'The account is not stored in the system — transfer at the bank yourself and only record it here.',
+    manualPaidReason: 'Reason',
+    manualPaidReasonHint: 'Required · 5–200 characters — kept in the history and audit log',
+    manualPaidReasonRequired: 'Enter a reason of 5–200 characters.',
+    manualPaidNotClosed: 'Available after the self-refund period ends',
+    manualPaidDone: 'Recorded a manual payout for {name}.',
 
     // ── Member detail ─
     creatorLine: 'Robotikon creator — {count} packs · {amount}P earned · ₩{sales} sold',
