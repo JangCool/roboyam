@@ -26,6 +26,8 @@ export default {
     memosHint: 'Notes on members only you can see',
     messages: 'Messages',
     messagesHint: 'Whether to accept messages',
+    addresses: 'Shipping addresses',
+    addressesHint: 'Addresses you pick on group-buy orders',
 
     // Leaving without saving
     leaveTitle: 'Leave without saving?',

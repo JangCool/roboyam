@@ -1,0 +1,61 @@
+/**
+ * Address book — Settings › Shipping addresses (`/settings/addresses`) and the group-buy order form's address section (card, “Change address” sheet, save to list).
+ * Field names (recipient, phone, delivery note) are `groupBuy.addr*`, postcode and address are `address.*`, the menu name is `settings.addresses`. Same keys and order as `ko/addressBook.ts`.
+ */
+export default {
+    // Shipping addresses screen
+    seo: 'Keep your shipping addresses on {site} and choose a default one.',
+    add: 'Add address',
+    count: '{count}/{max}',
+    countLabel: '{count} of up to {max} addresses',
+    notice: 'You can pick these on group-buy order forms. They are stored encrypted, admins can’t see this list, and they are deleted as soon as you close your account.',
+    loading: 'Loading addresses',
+    loadFailed: 'Couldn’t load your addresses',
+    emptyTitle: 'No saved addresses',
+    emptyText: 'Save the places you often receive orders and pick them right on the order form.',
+    full: 'You can keep up to {max} addresses. Delete one you no longer use to add another.',
+    defaultTag: 'Default',
+    makeDefault: 'Make default',
+    makeDefaultLabel: '{name} — make default address',
+    editLabel: '{name} — edit address',
+    removeLabel: '{name} — delete address',
+    removeTitle: 'Delete this address?',
+    removeMessage: '“{name}” will be deleted right away. This can’t be undone.',
+    removeMessageDefault: '“{name}” is your default address. If you delete it, the most recent remaining address becomes the default. This can’t be undone.',
+    removed: 'Address deleted',
+    removeFailed: 'Couldn’t delete the address. {reason}',
+    defaultDone: 'Default address changed',
+    defaultFailed: 'Couldn’t change the default address. {reason}',
+
+    // Add / edit sheet
+    addTitle: 'Add address',
+    editTitle: 'Edit address',
+    sheetHelp: 'Recipient, phone and address are required.',
+    label: 'Nickname',
+    labelHint: 'Optional · 20 characters',
+    labelPlaceholder: 'e.g. Home, Work',
+    labelTooLong: 'Nicknames can be up to 20 characters.',
+    makeDefaultCheck: 'Make this my default address',
+    firstIsDefault: 'Your first address becomes the default.',
+    created: 'Address added',
+    saved: 'Address updated',
+
+    // Group-buy order form
+    orderLoadFailed: 'Couldn’t load your saved addresses. Please enter a new address.',
+    change: 'Change address',
+    changeHelp: 'Pick a saved address or enter a new one.',
+    pickLegend: 'Saved addresses',
+    pickConfirm: 'Ship to this address',
+    newAddress: 'Enter a new address',
+    manage: 'Manage addresses',
+    backToSaved: 'Pick from saved addresses',
+    orderMemoHint: 'Optional · this order only',
+    saveToBook: 'Save to my addresses',
+    saveToBookFirst: 'It will become your default address.',
+    saveToBookHelp: 'You can pick it on your next order.',
+    saveToBookFull: 'You already have {max} addresses, so this one can’t be saved. Tidy them up in Manage addresses.',
+    savedToBook: 'Saved to your addresses',
+    saveToBookFailed: 'Your order goes ahead, but the address wasn’t saved to your list. {reason}',
+    cardInvalid: 'Some fields of this address need fixing.',
+    fixThis: 'Fix this address',
+};

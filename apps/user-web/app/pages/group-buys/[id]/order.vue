@@ -70,11 +70,72 @@
                 <Button v-if="quoteError && !started" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="outlined" class="mt-2" />
             </section>
 
-            <!-- 3. 배송지 -->
-            <section :aria-labelledby="`${uid}-address`" class="panel-card p-4">
+            <!-- 3. 배송지 — 저장된 배송지가 있으면 기본 배송지 카드(「배송지 변경」 시트), 없거나 「새 주소 입력」이면 입력 칸 -->
+            <section :aria-labelledby="`${uid}-address`" class="panel-card p-4" data-testid="group-buy-order-address">
                 <h2 :id="`${uid}-address`" class="m-0 mb-1 text-base font-semibold">{{ t('groupBuy.addressTitle') }}</h2>
                 <p class="m-0 mb-3 text-xs text-muted-color">{{ t('groupBuy.addressHelp') }}</p>
-                <GroupBuyAddressFields v-model="address" :errors="addressErrors" :disabled="locked" />
+
+                <div v-if="bookState === 'loading'" class="h-24 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('addressBook.loading')" />
+
+                <!-- 카드 모드 — 고른 저장 배송지 + 이번 주문의 배송 메모 -->
+                <div v-else-if="addressMode === 'card' && pickedAddress" class="flex flex-col gap-3">
+                    <div class="flex items-start gap-3 rounded-lg border border-surface p-3" :class="{ 'border-red-500!': cardErrors.length > 0 }" data-testid="group-buy-address-card">
+                        <AddressBookSummary :address="pickedAddress" :show-memo="false" class="flex-1" />
+                        <Button
+                            type="button"
+                            :label="t('addressBook.change')"
+                            size="small"
+                            severity="secondary"
+                            variant="outlined"
+                            class="shrink-0"
+                            :disabled="locked"
+                            aria-haspopup="dialog"
+                            data-testid="group-buy-address-change"
+                            @click="openChange"
+                        />
+                    </div>
+                    <div v-if="cardErrors.length > 0" class="flex flex-col gap-1.5" role="alert" data-testid="group-buy-address-card-error">
+                        <p class="m-0 text-sm font-medium text-red-600 dark:text-red-400">{{ t('addressBook.cardInvalid') }}</p>
+                        <ul class="m-0 list-disc pl-5 text-xs leading-relaxed text-red-600 dark:text-red-400">
+                            <li v-for="(message, i) in cardErrors" :key="i">{{ message }}</li>
+                        </ul>
+                        <Button type="button" :label="t('addressBook.fixThis')" icon="pi pi-pencil" size="small" severity="secondary" variant="outlined" class="w-fit" :disabled="locked" data-testid="group-buy-address-fix" @click="fixPicked" />
+                    </div>
+                    <LabeledField :label="t('groupBuy.addrMemo')" :hint="t('addressBook.orderMemoHint')" :error="addressErrors.memo">
+                        <template #default="{ id: memoId, describedBy, invalid }">
+                            <InputText :id="memoId" v-model="cardMemo" maxlength="50" :invalid="invalid" :aria-describedby="describedBy" :disabled="locked" fluid data-testid="group-buy-address-card-memo" />
+                        </template>
+                    </LabeledField>
+                </div>
+
+                <!-- 입력 모드 — 새 주소(또는 고칠 저장 배송지의 값) + 「배송지 목록에 저장」 -->
+                <div v-else class="flex flex-col gap-3">
+                    <Message v-if="bookState === 'failed'" severity="warn" size="small" :closable="false" role="status" data-testid="group-buy-address-book-failed">{{ t('addressBook.orderLoadFailed') }}</Message>
+                    <GroupBuyAddressFields :key="inputKey" v-model="address" :errors="addressErrors" :disabled="locked" :manual-first="inputManual" />
+                    <div v-if="bookState === 'ready'" class="flex flex-col gap-1">
+                        <label class="flex cursor-pointer items-start gap-2 text-sm">
+                            <Checkbox v-model="saveToBook" :input-id="`${uid}-save-address`" binary class="mt-0.5" :disabled="locked || bookFull" data-testid="group-buy-address-save" />
+                            <span class="min-w-0">
+                                <span class="font-medium">{{ t('addressBook.saveToBook') }}</span>
+                                <span class="block text-xs leading-relaxed text-muted-color">
+                                    {{ bookFull ? t('addressBook.saveToBookFull', { max: bookMax }) : book.length === 0 ? t('addressBook.saveToBookFirst') : t('addressBook.saveToBookHelp') }}
+                                </span>
+                            </span>
+                        </label>
+                        <Button
+                            v-if="book.length > 0"
+                            type="button"
+                            variant="link"
+                            size="small"
+                            icon="pi pi-angle-left"
+                            class="w-fit px-0!"
+                            :label="t('addressBook.backToSaved')"
+                            :disabled="locked"
+                            data-testid="group-buy-address-back-to-saved"
+                            @click="backToSaved"
+                        />
+                    </div>
+                </div>
             </section>
 
             <!-- 4. 결제 안내 · 동의 3종(기본 체크 없음) -->
@@ -153,6 +214,33 @@
             </div>
         </AppSheet>
 
+        <!-- 배송지 변경 — 저장된 배송지 고르기 · 새 주소 입력 · 배송지 관리 -->
+        <AppSheet v-if="book.length > 0" v-model:visible="changeOpen" :title="t('addressBook.change')" :description="t('addressBook.changeHelp')">
+            <div class="flex flex-col gap-3 px-5 pt-3" data-testid="group-buy-address-sheet">
+                <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
+                    <legend class="sr-only">{{ t('addressBook.pickLegend') }}</legend>
+                    <label
+                        v-for="a in book"
+                        :key="a.id"
+                        :for="`${uid}-pick-${a.id}`"
+                        class="flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+                        :class="pendingId === a.id ? 'border-primary bg-primary-50 dark:bg-primary-950/30' : 'border-surface'"
+                        data-testid="group-buy-address-option"
+                    >
+                        <RadioButton v-model="pendingId" :value="a.id" :input-id="`${uid}-pick-${a.id}`" :name="`${uid}-pick`" class="mt-0.5" />
+                        <AddressBookSummary :address="a" class="flex-1" />
+                    </label>
+                </fieldset>
+                <Button type="button" :label="t('addressBook.pickConfirm')" :disabled="pendingId === null" data-testid="group-buy-address-pick" @click="confirmPick" />
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <Button type="button" :label="t('addressBook.newAddress')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" data-testid="group-buy-address-new" @click="chooseNewAddress" />
+                    <NuxtLink :to="UtilAddressBook.SETTINGS_PATH" class="rounded text-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="group-buy-address-manage">
+                        {{ t('addressBook.manage') }}
+                    </NuxtLink>
+                </div>
+            </div>
+        </AppSheet>
+
         <PaymentFakeCheckoutDialog
             :visible="pay.fakeOpen.value"
             :checkout="pay.target.value?.checkout ?? null"
@@ -169,7 +257,10 @@
 import type { GroupBuyAddressInput, GroupBuyDetail, GroupBuyOrderCreated, GroupBuyOrderLine, GroupBuyQuote } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { GroupBuyPickedLine } from '~/components/groupbuy/GroupBuyPickedLines.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
+import type { ShippingAddress } from '~/composables/address/api/useAddressBookApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
+import UtilAddressBook from '~/utils/util-address-book';
+import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroupBuy from '~/utils/util-group-buy';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
 import UtilIdempotency from '~/utils/util-idempotency';
@@ -186,6 +277,9 @@ import UtilTime from '#layers/display-time/utils/util-time';
  *   `409 GROUP_BUY_AMOUNT_CHANGED` 면 결제창 대신 「금액이 바뀌었어요」 확인 → 새 견적으로 다시 보낸다.
  * - 선점 5분(`reservedUntil`) 남은 시간을 보이고, 창을 닫았거나 실패했으면 「결제 다시 열기」(남은 선점 1분 미만이면 서버가 `GROUP_BUY_HOLD_EXPIRED`).
  * - 결제를 받아들이면 주문 상세로 간다. 모바일 리디렉션은 주문 상세로 돌아오고 거기서 이어 간다.
+ * - 배송지: 처음 열 때 배송지 목록(`useAddressBookApi` — ⚠ 아직 목업)을 받는다. 있으면 기본 배송지(없으면 첫 줄) **카드** + 「배송지 변경」 시트(저장된 배송지 고르기 ·
+ *   새 주소 입력 · 배송지 관리), 배송 메모는 주문마다 적는 칸(고른 배송지의 메모로 미리 채움). 없거나 「새 주소 입력」이면 **입력 칸** + 「배송지 목록에 저장」
+ *   (목록이 비어 있으면 기본 체크 — 그 주소가 기본 배송지가 된다, 10개가 차 있으면 끔). 목록을 못 받아도 주문은 막지 않는다(입력 칸으로 열고 작게 안내).
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -296,7 +390,133 @@ onBeforeUnmount(() => quoteSeq++);
 
 /* ── 배송지 · 동의 ── */
 
-const address = ref<GroupBuyAddressInput>({ recipient: '', phone: '', postcode: '', address1: '', address2: '', memo: '' });
+const address = ref<GroupBuyAddressInput>(UtilAddressBook.emptyInput());
+
+/* ── 배송지 목록(주소록) — 카드 모드 · 입력 모드 ── */
+
+const bookApi = useAddressBookApi();
+const book = ref<ShippingAddress[]>([]);
+const bookMax = ref(UtilAddressBook.MAX);
+const bookState = ref<'loading' | 'ready' | 'failed'>('loading');
+const bookFull = computed(() => book.value.length >= bookMax.value);
+/** card = 저장된 배송지를 골랐다 · input = 칸에 직접 넣는다 */
+const addressMode = ref<'card' | 'input'>('input');
+const pickedId = ref<string | null>(null);
+const pickedAddress = computed(() => book.value.find((a) => a.id === pickedId.value) ?? null);
+/** 카드 모드의 이번 주문 배송 메모 — 고른 배송지의 저장된 메모로 미리 채운다 */
+const cardMemo = ref('');
+/** 입력 모드의 「배송지 목록에 저장」 — 목록이 비어 있으면 기본 체크(정책) */
+const saveToBook = ref(false);
+/** 입력 칸을 다시 만든다(직접 입력으로 열지 바뀔 때) */
+const inputKey = ref(0);
+const inputManual = ref(false);
+
+async function loadBook(): Promise<void> {
+    try {
+        const res = await bookApi.list();
+        book.value = res.items;
+        bookMax.value = res.max;
+        bookState.value = 'ready';
+        const first = UtilAddressBook.initial(res.items);
+        if (first) pick(first);
+        else enterInput(false);
+    } catch {
+        // 못 받아도 주문은 막지 않는다 — 새 주소 입력으로 열고 작게 안내(저장 체크는 감춘다)
+        bookState.value = 'failed';
+        enterInput(false);
+    }
+}
+
+function pick(a: ShippingAddress): void {
+    pickedId.value = a.id;
+    cardMemo.value = a.memo;
+    addressMode.value = 'card';
+    clearAddressErrors();
+}
+
+/** 입력 모드로 — `fromPicked` 면 고른 배송지 값으로 채운다(저장된 배송지를 고칠 때, 직접 입력으로 연다). 아니면 빈 칸 */
+function enterInput(fromPicked: boolean): void {
+    const picked = pickedAddress.value;
+    if (fromPicked && picked) {
+        address.value = { ...UtilAddressBook.toInput(picked), memo: cardMemo.value };
+        inputManual.value = true;
+    } else {
+        address.value = UtilAddressBook.emptyInput();
+        inputManual.value = false;
+    }
+    saveToBook.value = bookState.value === 'ready' && book.value.length === 0;
+    addressMode.value = 'input';
+    inputKey.value++;
+}
+
+function clearAddressErrors(): void {
+    fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => !k.startsWith('address.')));
+}
+
+/* 「배송지 변경」 시트 */
+const changeOpen = ref(false);
+const pendingId = ref<string | null>(null);
+
+function openChange(): void {
+    if (locked.value) return;
+    pendingId.value = pickedId.value ?? UtilAddressBook.initial(book.value)?.id ?? null;
+    changeOpen.value = true;
+}
+
+function confirmPick(): void {
+    const a = book.value.find((x) => x.id === pendingId.value);
+    if (a) pick(a);
+    changeOpen.value = false;
+}
+
+function chooseNewAddress(): void {
+    clearAddressErrors();
+    enterInput(false);
+    changeOpen.value = false;
+}
+
+/** 입력 모드에서 저장된 배송지로 돌아간다 — 고르던 것, 없으면 기본 */
+function backToSaved(): void {
+    const a = pickedAddress.value ?? UtilAddressBook.initial(book.value);
+    if (a) pick(a);
+}
+
+/** 카드 모드에서 서버가 배송지 칸을 거절했다 — 그 값을 입력 칸에 채워 고치게(칸 오류는 그대로 칸에 붙는다) */
+function fixPicked(): void {
+    enterInput(true);
+}
+
+/** 주문에 넣을 배송지 — 카드면 고른 배송지 값 + 이번 메모, 입력이면 칸 값(평범한 객체로) */
+function orderAddress(): GroupBuyAddressInput {
+    const picked = pickedAddress.value;
+    if (addressMode.value === 'card' && picked) return { ...UtilAddressBook.toInput(picked), memo: cardMemo.value };
+    return { ...toRaw(address.value) };
+}
+
+/**
+ * 주문을 넣은 뒤 「배송지 목록에 저장」 — 실패해도 주문은 계속(토스트만).
+ * ⚠ 목업 단계라 주문 API(실서버)의 요청 모양을 바꾸지 않고 화면이 따로 `create` 를 부른다.
+ * 서버 단계에서 주문 요청을 `addressId`(+ 메모)·`saveAddress` 로 바꿔 서버가 주소록에서 복사·저장하게 한다(이 함수는 지운다).
+ * 저장 시점은 **주문을 만들 때**(결제 확정을 기다리지 않는다 — 사용자 결정 2026-11-05). 서버도 주문 생성 트랜잭션에서 저장한다.
+ */
+async function saveOrderedAddress(input: GroupBuyAddressInput): Promise<void> {
+    saveToBook.value = false;
+    try {
+        await bookApi.create(UtilAddressBook.toRequest(input, '', book.value.length === 0));
+        toast.success(t('addressBook.savedToBook'));
+    } catch (e) {
+        toast.error(t('addressBook.saveToBookFailed', { reason: UtilBoardMessages.of(t, e) }), 8000);
+        return;
+    }
+    try {
+        const res = await bookApi.list();
+        book.value = res.items;
+        bookMax.value = res.max;
+    } catch {
+        // 목록을 다시 못 받아도 주문 흐름과는 무관하다
+    }
+}
+
 type AgreementKey = 'purchaseTerms' | 'refundPolicy' | 'privacy';
 const agreements = reactive<Record<AgreementKey, boolean>>({ purchaseTerms: false, refundPolicy: false, privacy: false });
 const agreementItems = computed(() =>
@@ -320,10 +540,13 @@ const addressErrors = computed(() => {
     return out;
 });
 
+/** 카드 모드에서 배송지 칸(메모 말고)에 붙은 오류 — 칸이 없으니 카드 아래에 모아 보이고 「이 배송지 고치기」 */
+const cardErrors = computed(() => (addressMode.value === 'card' ? Object.entries(addressErrors.value).filter(([k]) => k !== 'memo').map(([, v]) => v) : []));
+
 /** 화면 미리 검사(편의 — 판정은 서버) */
 function precheck(): Record<string, string> {
     const out: Record<string, string> = {};
-    const a = address.value;
+    const a = orderAddress();
     if (!a.recipient.trim()) out['address.recipient'] = t('groupBuy.errRecipient');
     if (!a.phone.trim()) out['address.phone'] = t('groupBuy.errPhone');
     if (!a.postcode.trim()) out['address.postcode'] = t('groupBuy.errPostcode');
@@ -380,13 +603,17 @@ async function submit(): Promise<void> {
 }
 
 async function place(g: GroupBuyDetail, expectedAmount: number): Promise<void> {
+    // 서버 단계에서 카드 모드는 `addressId`(+ 메모), 입력 모드의 저장 체크는 `saveAddress` 로 보내 서버가 주소록에서 복사·저장한다 — 지금은 주문 API 모양 그대로(값을 `address` 로)
+    const shipTo = orderAddress();
+    const keep = addressMode.value === 'input' && saveToBook.value && bookState.value === 'ready' && !bookFull.value;
     try {
-        const created = await api.order(g.id, { items: lines.value.map((l) => ({ ...l })), address: { ...address.value }, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
+        const created = await api.order(g.id, { items: lines.value.map((l) => ({ ...l })), address: shipTo, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
         idempotencyKey = UtilIdempotency.newKey();
         started.value = created;
         holdEndsAt.value = Date.parse(created.reservedUntil);
         resultText.value = '';
         pay.open(created.payment);
+        if (keep) void saveOrderedAddress({ ...shipTo });
     } catch (e) {
         // 서버가 판정해 거절(4xx)했으면 새 키 — 같은 키로 다시 보내면 같은 거절이 돌아온다
         if (e instanceof ApiError && e.status >= 400 && e.status < 500) idempotencyKey = UtilIdempotency.newKey();
@@ -460,4 +687,5 @@ function restart(): void {
 }
 
 void load();
+void loadBook();
 </script>

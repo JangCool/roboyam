@@ -1,0 +1,61 @@
+/**
+ * 배송지 목록(주소록)의 문구 — 설정 › 배송지 관리(`/settings/addresses`)와 공구 주문서의 「배송지」 칸(카드·「배송지 변경」 시트·목록에 저장).
+ * 칸 이름(받는 분·연락처·배송 메모)은 `groupBuy.addr*`, 우편번호·주소는 `address.*`, 메뉴 이름은 `settings.addresses`. `en/addressBook.ts` 와 같은 키, 같은 차례.
+ */
+export default {
+    // 배송지 관리 화면
+    seo: '{site}에서 쓸 배송지를 모아 두고 기본 배송지를 정해요.',
+    add: '배송지 추가',
+    count: '{count}/{max}',
+    countLabel: '배송지 {count}개, 최대 {max}개',
+    notice: '공동구매 주문서에서 고를 수 있어요. 암호화해 보관하고 운영자는 이 목록을 볼 수 없어요. 탈퇴하면 바로 지워요.',
+    loading: '배송지를 불러오는 중',
+    loadFailed: '배송지를 불러오지 못했어요',
+    emptyTitle: '저장한 배송지가 없어요',
+    emptyText: '자주 받는 곳을 저장해 두면 주문서에서 바로 골라요.',
+    full: '배송지는 {max}개까지 둘 수 있어요. 쓰지 않는 배송지를 지운 뒤 더해 주세요.',
+    defaultTag: '기본',
+    makeDefault: '기본으로',
+    makeDefaultLabel: '{name} — 기본 배송지로 정하기',
+    editLabel: '{name} — 배송지 수정',
+    removeLabel: '{name} — 배송지 삭제',
+    removeTitle: '이 배송지를 지울까요?',
+    removeMessage: '「{name}」 배송지를 바로 지워요. 되돌릴 수 없어요.',
+    removeMessageDefault: '「{name}」 배송지를 바로 지워요. 기본 배송지라서 남은 배송지 중 가장 최근 것이 기본이 돼요. 되돌릴 수 없어요.',
+    removed: '배송지를 지웠어요',
+    removeFailed: '배송지를 지우지 못했어요. {reason}',
+    defaultDone: '기본 배송지를 바꿨어요',
+    defaultFailed: '기본 배송지를 바꾸지 못했어요. {reason}',
+
+    // 추가·수정 시트
+    addTitle: '배송지 추가',
+    editTitle: '배송지 수정',
+    sheetHelp: '받는 분·연락처·주소는 꼭 넣어 주세요.',
+    label: '별칭',
+    labelHint: '선택 · 20자',
+    labelPlaceholder: '예) 집, 회사',
+    labelTooLong: '별칭은 20자까지 쓸 수 있어요.',
+    makeDefaultCheck: '기본 배송지로 정하기',
+    firstIsDefault: '첫 배송지는 기본 배송지가 돼요.',
+    created: '배송지를 더했어요',
+    saved: '배송지를 고쳤어요',
+
+    // 공구 주문서
+    orderLoadFailed: '저장된 배송지를 불러오지 못했어요. 새 주소를 입력해 주세요.',
+    change: '배송지 변경',
+    changeHelp: '저장된 배송지에서 고르거나 새 주소를 입력해요.',
+    pickLegend: '저장된 배송지',
+    pickConfirm: '이 배송지로 받기',
+    newAddress: '새 주소 입력',
+    manage: '배송지 관리',
+    backToSaved: '저장된 배송지에서 고르기',
+    orderMemoHint: '선택 · 이번 주문에만 써요',
+    saveToBook: '배송지 목록에 저장',
+    saveToBookFirst: '저장하면 기본 배송지가 돼요.',
+    saveToBookHelp: '다음 주문부터 고를 수 있어요.',
+    saveToBookFull: '배송지가 {max}개 차 있어 저장할 수 없어요. 배송지 관리에서 정리해 주세요.',
+    savedToBook: '배송지 목록에 저장했어요',
+    saveToBookFailed: '주문은 그대로 진행해요. 배송지 목록에는 저장하지 못했어요. {reason}',
+    cardInvalid: '이 배송지에 맞지 않는 칸이 있어요.',
+    fixThis: '이 배송지 고치기',
+};
