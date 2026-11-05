@@ -68,7 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       정책(잠금·안내문·가젯 노출 금지 포함) {@code board.settings}, 매니저·스텝 한도 칸 {@code board.staff.limit}. 모자라면 403 {@code PERMISSION_DENIED} + 감사 기록(DENIED).</li>
  *   <li>입력 오류는 400 {@code VALIDATION} + 칸 경로({@code name} · {@code policy.writeMin} · {@code prefixes[0].name} …). 칸 범위·값 목록은 {@link BoardFields}.</li>
  *   <li>이름은 대소문자 무시 유일(409 {@code BOARD_NAME_DUPLICATE}), slug 는 유일·만든 뒤 변경 불가(409 {@code BOARD_SLUG_DUPLICATE}).
- *       투자 고지는 켜기만(409 {@code BOARD_INVESTMENT_NOTICE_LOCKED}). 사용 중 고유 말머리 최대 6(409 {@code PREFIX_LIMIT}), 글이 있는 말머리는 못 지운다(409 {@code PREFIX_IN_USE}).</li>
+ *       투자 고지는 켜기만(409 {@code BOARD_INVESTMENT_NOTICE_LOCKED}). 사용 중 고유 말머리 최대 15(409 {@code PREFIX_LIMIT}), 글이 있는 말머리는 못 지운다(409 {@code PREFIX_IN_USE}).</li>
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>

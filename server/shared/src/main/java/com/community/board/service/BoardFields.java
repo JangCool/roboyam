@@ -90,7 +90,7 @@ public final class BoardFields {
     public static final int TEXT_MAX = 500;
     public static final int PREFIX_NAME_MAX = 20;
     /** 사용 중인 고유 말머리 최대 수 */
-    public static final int PREFIX_ACTIVE_MAX = 6;
+    public static final int PREFIX_ACTIVE_MAX = 15;
     /** 한 회원이 맡을 수 있는 게시판 수(매니저·스텝 합산) */
     public static final int MEMBER_BOARD_MAX = 5;
     public static final int BLOCKED_WORDS_MAX = 500;

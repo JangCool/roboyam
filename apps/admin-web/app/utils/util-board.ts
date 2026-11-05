@@ -292,7 +292,7 @@ export default class UtilBoard {
     static readonly TEXT_MAX = 500;
     static readonly PREFIX_NAME_MAX = 20;
     /** 사용 중인 고유 말머리 최대 수 */
-    static readonly PREFIX_ACTIVE_MAX = 6;
+    static readonly PREFIX_ACTIVE_MAX = 15;
     /** 한 회원이 맡을 수 있는 게시판 수(매니저·스텝 합산) */
     static readonly MEMBER_BOARD_MAX = 5;
     /** 금지어 최대 개수 · 단어당 최대 글자 */
