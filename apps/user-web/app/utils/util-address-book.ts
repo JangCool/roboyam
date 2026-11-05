@@ -6,7 +6,7 @@ export type AddressRequiredField = 'recipient' | 'phone' | 'postcode' | 'address
 
 /**
  * 배송지 목록(주소록) 도우미 — 설정 › 배송지 관리(`/settings/addresses`)와 공구 주문서(`/group-buys/{id}/order`)가 같이 쓴다.
- * 순수 함수만(서버 판정이 정본 — 화면 검사는 미리 알림). 서버 규칙 이름은 서버 단계에서 정한다(지금은 목업 `address-book-mock.ts` 의 `validate`).
+ * 순수 함수만(서버 판정이 정본 — 화면 검사는 미리 알림). 서버 규칙은 shared `AddressFieldRules`(주소록·공구 주문 배송지가 같이 쓴다).
  */
 export default class UtilAddressBook {
     /** 둘 수 있는 배송지 수(서버가 `max` 로도 알려 준다 — 화면은 서버 값을 먼저 쓴다) */

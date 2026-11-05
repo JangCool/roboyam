@@ -54,8 +54,7 @@ export default {
     saveToBookFirst: '저장하면 기본 배송지가 돼요.',
     saveToBookHelp: '다음 주문부터 고를 수 있어요.',
     saveToBookFull: '배송지가 {max}개 차 있어 저장할 수 없어요. 배송지 관리에서 정리해 주세요.',
-    savedToBook: '배송지 목록에 저장했어요',
-    saveToBookFailed: '주문은 그대로 진행해요. 배송지 목록에는 저장하지 못했어요. {reason}',
     cardInvalid: '이 배송지에 맞지 않는 칸이 있어요.',
+    pickAgain: '저장된 배송지를 다시 불러왔어요. 받을 배송지를 확인하고 골라 주세요.',
     fixThis: '이 배송지 고치기',
 };

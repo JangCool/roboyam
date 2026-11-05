@@ -54,8 +54,7 @@ export default {
     saveToBookFirst: 'It will become your default address.',
     saveToBookHelp: 'You can pick it on your next order.',
     saveToBookFull: 'You already have {max} addresses, so this one can’t be saved. Tidy them up in Manage addresses.',
-    savedToBook: 'Saved to your addresses',
-    saveToBookFailed: 'Your order goes ahead, but the address wasn’t saved to your list. {reason}',
     cardInvalid: 'Some fields of this address need fixing.',
+    pickAgain: 'We reloaded your saved addresses. Check and pick where to ship.',
     fixThis: 'Fix this address',
 };

@@ -79,7 +79,7 @@
 
                 <!-- 카드 모드 — 고른 저장 배송지 + 이번 주문의 배송 메모 -->
                 <div v-else-if="addressMode === 'card' && pickedAddress" class="flex flex-col gap-3">
-                    <div class="flex items-start gap-3 rounded-lg border border-surface p-3" :class="{ 'border-red-500!': cardErrors.length > 0 }" data-testid="group-buy-address-card">
+                    <div class="flex items-start gap-3 rounded-lg border border-surface p-3" :class="{ 'border-red-500!': cardErrors.length > 0 || !!addressIdError }" data-testid="group-buy-address-card">
                         <AddressBookSummary :address="pickedAddress" :show-memo="false" class="flex-1" />
                         <Button
                             type="button"
@@ -93,6 +93,11 @@
                             data-testid="group-buy-address-change"
                             @click="openChange"
                         />
+                    </div>
+                    <!-- 고른 배송지를 서버가 거절(400 `fields.addressId`) — 서버 문구 + 다시 고르기(주소록은 다시 받았다) -->
+                    <div v-if="addressIdError" class="flex flex-col gap-1.5" role="alert" data-testid="group-buy-address-id-error">
+                        <p class="m-0 text-sm font-medium text-red-600 dark:text-red-400">{{ addressIdError }}</p>
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('addressBook.pickAgain') }}</p>
                     </div>
                     <div v-if="cardErrors.length > 0" class="flex flex-col gap-1.5" role="alert" data-testid="group-buy-address-card-error">
                         <p class="m-0 text-sm font-medium text-red-600 dark:text-red-400">{{ t('addressBook.cardInvalid') }}</p>
@@ -254,13 +259,12 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupBuyAddressInput, GroupBuyDetail, GroupBuyOrderCreated, GroupBuyOrderLine, GroupBuyQuote } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { GroupBuyAddressInput, GroupBuyDetail, GroupBuyOrderCreated, GroupBuyOrderLine, GroupBuyOrderShipping, GroupBuyQuote } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { GroupBuyPickedLine } from '~/components/groupbuy/GroupBuyPickedLines.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import type { ShippingAddress } from '~/composables/address/api/useAddressBookApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilAddressBook from '~/utils/util-address-book';
-import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroupBuy from '~/utils/util-group-buy';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
 import UtilIdempotency from '~/utils/util-idempotency';
@@ -277,9 +281,10 @@ import UtilTime from '#layers/display-time/utils/util-time';
  *   `409 GROUP_BUY_AMOUNT_CHANGED` 면 결제창 대신 「금액이 바뀌었어요」 확인 → 새 견적으로 다시 보낸다.
  * - 선점 5분(`reservedUntil`) 남은 시간을 보이고, 창을 닫았거나 실패했으면 「결제 다시 열기」(남은 선점 1분 미만이면 서버가 `GROUP_BUY_HOLD_EXPIRED`).
  * - 결제를 받아들이면 주문 상세로 간다. 모바일 리디렉션은 주문 상세로 돌아오고 거기서 이어 간다.
- * - 배송지: 처음 열 때 배송지 목록(`useAddressBookApi` — ⚠ 아직 목업)을 받는다. 있으면 기본 배송지(없으면 첫 줄) **카드** + 「배송지 변경」 시트(저장된 배송지 고르기 ·
+ * - 배송지: 처음 열 때 배송지 목록(`useAddressBookApi`)을 받는다. 있으면 기본 배송지(없으면 첫 줄) **카드** + 「배송지 변경」 시트(저장된 배송지 고르기 ·
  *   새 주소 입력 · 배송지 관리), 배송 메모는 주문마다 적는 칸(고른 배송지의 메모로 미리 채움). 없거나 「새 주소 입력」이면 **입력 칸** + 「배송지 목록에 저장」
  *   (목록이 비어 있으면 기본 체크 — 그 주소가 기본 배송지가 된다, 10개가 차 있으면 끔). 목록을 못 받아도 주문은 막지 않는다(입력 칸으로 열고 작게 안내).
+ *   주문 요청은 카드 모드 `addressId` + `address.memo`, 입력 모드 `address` 전체 + `saveAddress` — 복사·저장은 서버가 주문 생성 트랜잭션에서 한다(계약 address-book-contract).
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -465,12 +470,16 @@ function openChange(): void {
 
 function confirmPick(): void {
     const a = book.value.find((x) => x.id === pendingId.value);
-    if (a) pick(a);
+    if (a) {
+        pick(a);
+        clearAddressIdError();
+    }
     changeOpen.value = false;
 }
 
 function chooseNewAddress(): void {
     clearAddressErrors();
+    clearAddressIdError();
     enterInput(false);
     changeOpen.value = false;
 }
@@ -478,7 +487,10 @@ function chooseNewAddress(): void {
 /** 입력 모드에서 저장된 배송지로 돌아간다 — 고르던 것, 없으면 기본 */
 function backToSaved(): void {
     const a = pickedAddress.value ?? UtilAddressBook.initial(book.value);
-    if (a) pick(a);
+    if (a) {
+        pick(a);
+        clearAddressIdError();
+    }
 }
 
 /** 카드 모드에서 서버가 배송지 칸을 거절했다 — 그 값을 입력 칸에 채워 고치게(칸 오류는 그대로 칸에 붙는다) */
@@ -486,7 +498,7 @@ function fixPicked(): void {
     enterInput(true);
 }
 
-/** 주문에 넣을 배송지 — 카드면 고른 배송지 값 + 이번 메모, 입력이면 칸 값(평범한 객체로) */
+/** 화면 미리 검사에 쓸 배송지 — 카드면 고른 배송지 값 + 이번 메모, 입력이면 칸 값(평범한 객체로) */
 function orderAddress(): GroupBuyAddressInput {
     const picked = pickedAddress.value;
     if (addressMode.value === 'card' && picked) return { ...UtilAddressBook.toInput(picked), memo: cardMemo.value };
@@ -494,27 +506,57 @@ function orderAddress(): GroupBuyAddressInput {
 }
 
 /**
- * 주문을 넣은 뒤 「배송지 목록에 저장」 — 실패해도 주문은 계속(토스트만).
- * ⚠ 목업 단계라 주문 API(실서버)의 요청 모양을 바꾸지 않고 화면이 따로 `create` 를 부른다.
- * 서버 단계에서 주문 요청을 `addressId`(+ 메모)·`saveAddress` 로 바꿔 서버가 주소록에서 복사·저장하게 한다(이 함수는 지운다).
- * 저장 시점은 **주문을 만들 때**(결제 확정을 기다리지 않는다 — 사용자 결정 2026-11-05). 서버도 주문 생성 트랜잭션에서 저장한다.
+ * 주문 요청의 배송지 부분(계약 address-book-contract — 서버가 주소록에서 복사·저장한다):
+ *  - 카드 모드 `{ addressId, address: { memo } }` — 메모는 이 칸 값 그대로(서버는 저장된 메모를 대신 쓰지 않는다. 칸은 저장된 메모로 미리 채워 둔다)
+ *  - 입력 모드 `{ address: 전체 칸, saveAddress }` — 「배송지 목록에 저장」이면 서버가 주문 생성 트랜잭션에서 저장한다(10개면 건너뜀, 주문이 실패하면 저장 없음)
  */
-async function saveOrderedAddress(input: GroupBuyAddressInput): Promise<void> {
-    saveToBook.value = false;
-    try {
-        await bookApi.create(UtilAddressBook.toRequest(input, '', book.value.length === 0));
-        toast.success(t('addressBook.savedToBook'));
-    } catch (e) {
-        toast.error(t('addressBook.saveToBookFailed', { reason: UtilBoardMessages.of(t, e) }), 8000);
-        return;
-    }
+function orderShipping(): GroupBuyOrderShipping {
+    const picked = pickedAddress.value;
+    if (addressMode.value === 'card' && picked) return { addressId: picked.id, address: { memo: cardMemo.value } };
+    return { address: { ...toRaw(address.value) }, saveAddress: saveToBook.value && bookState.value === 'ready' && !bookFull.value };
+}
+
+/** 주소록을 조용히 다시 받는다 — 못 받으면 지금 목록을 둔다(주문 흐름과는 무관). 받았으면 true */
+async function refreshBook(): Promise<boolean> {
     try {
         const res = await bookApi.list();
         book.value = res.items;
         bookMax.value = res.max;
+        bookState.value = 'ready';
+        return true;
     } catch {
-        // 목록을 다시 못 받아도 주문 흐름과는 무관하다
+        return false;
     }
+}
+
+/**
+ * 입력 모드로 주문을 만들었다 — 저장은 서버가 주문과 함께 했으니 체크를 끄고(다시 주문해도 두 번 저장하지 않게) 주소록만 다시 받는다.
+ * 모드는 입력 그대로 둔다: 선점이 끝나 다시 주문할 때(restart) 같은 칸 값으로 이어 가고, 「저장된 배송지에서 고르기」로 카드에 돌아갈 수 있다.
+ */
+function afterInputOrder(saved: boolean): void {
+    saveToBook.value = false;
+    if (saved) void refreshBook();
+}
+
+/** 카드 모드에서 400 `fields.addressId`(남의·없는 배송지) — 주소록을 다시 받아 지금 있는 배송지로 카드를 맞추고 고르게 시트를 연다(오류는 고를 때까지 카드 아래에) */
+async function addressIdRejected(): Promise<void> {
+    if (!(await refreshBook())) return;
+    const still = book.value.find((a) => a.id === pickedId.value);
+    const next = still ?? UtilAddressBook.initial(book.value);
+    if (!next) {
+        // 주소록이 비었다 — 새 주소 입력으로(오류 문구는 폼 위에 남긴다)
+        formError.value = fieldErrors.value.addressId ?? formError.value;
+        enterInput(false);
+        return;
+    }
+    pickedId.value = next.id;
+    if (!still) cardMemo.value = next.memo;
+    openChange();
+}
+
+function clearAddressIdError(): void {
+    if (!('addressId' in fieldErrors.value)) return;
+    fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'addressId'));
 }
 
 type AgreementKey = 'purchaseTerms' | 'refundPolicy' | 'privacy';
@@ -542,6 +584,8 @@ const addressErrors = computed(() => {
 
 /** 카드 모드에서 배송지 칸(메모 말고)에 붙은 오류 — 칸이 없으니 카드 아래에 모아 보이고 「이 배송지 고치기」 */
 const cardErrors = computed(() => (addressMode.value === 'card' ? Object.entries(addressErrors.value).filter(([k]) => k !== 'memo').map(([, v]) => v) : []));
+/** 카드 모드에서 서버가 고른 배송지를 거절했다(400 `fields.addressId` — 남의·없는 배송지). 다시 고를 때까지 카드 아래에 */
+const addressIdError = computed(() => (addressMode.value === 'card' ? (fieldErrors.value.addressId ?? '') : ''));
 
 /** 화면 미리 검사(편의 — 판정은 서버) */
 function precheck(): Record<string, string> {
@@ -603,17 +647,16 @@ async function submit(): Promise<void> {
 }
 
 async function place(g: GroupBuyDetail, expectedAmount: number): Promise<void> {
-    // 서버 단계에서 카드 모드는 `addressId`(+ 메모), 입력 모드의 저장 체크는 `saveAddress` 로 보내 서버가 주소록에서 복사·저장한다 — 지금은 주문 API 모양 그대로(값을 `address` 로)
-    const shipTo = orderAddress();
-    const keep = addressMode.value === 'input' && saveToBook.value && bookState.value === 'ready' && !bookFull.value;
+    // 배송지: 카드 모드는 `addressId` + 메모, 입력 모드는 전체 칸 + `saveAddress`(서버가 주문 생성 트랜잭션에서 주소록에 저장)
+    const shipping = orderShipping();
     try {
-        const created = await api.order(g.id, { items: lines.value.map((l) => ({ ...l })), address: shipTo, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
+        const created = await api.order(g.id, { items: lines.value.map((l) => ({ ...l })), ...shipping, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
         idempotencyKey = UtilIdempotency.newKey();
         started.value = created;
         holdEndsAt.value = Date.parse(created.reservedUntil);
         resultText.value = '';
         pay.open(created.payment);
-        if (keep) void saveOrderedAddress({ ...shipTo });
+        if (shipping.addressId === undefined) afterInputOrder(shipping.saveAddress === true);
     } catch (e) {
         // 서버가 판정해 거절(4xx)했으면 새 키 — 같은 키로 다시 보내면 같은 거절이 돌아온다
         if (e instanceof ApiError && e.status >= 400 && e.status < 500) idempotencyKey = UtilIdempotency.newKey();
@@ -624,6 +667,7 @@ async function place(g: GroupBuyDetail, expectedAmount: number): Promise<void> {
             const itemsError = Object.entries(e.fields).find(([k]) => k.startsWith('items'))?.[1];
             formError.value = itemsError ?? t('groupBuy.errCheck');
             repickHint.value = !!itemsError;
+            if (shipping.addressId !== undefined && e.fields.addressId) void addressIdRejected();
             return;
         }
         formError.value = UtilGroupBuyMessages.error(t, e);

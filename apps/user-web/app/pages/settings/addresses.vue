@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-3">
+    <div class="content-card flex flex-col gap-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="text-lg font-bold">{{ t('settings.addresses') }}</h1>
             <div v-if="status === 'ready'" class="flex items-center gap-2">
@@ -122,11 +122,11 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 
 /**
  * 배송지 관리 `/settings/addresses` — 로그인 필요. 공구 주문서에서 고를 배송지를 최대 10개 두고 하나를 기본으로 정한다(추가·수정·삭제·기본 지정).
- *  - 회원 본인 화면이라 값을 가리지 않는다(저장은 서버가 암호화 — 나중 단계, 운영자는 이 목록을 볼 수 없다). 값은 이 화면 메모리에만(forms.md 2-1).
+ *  - 회원 본인 화면이라 값을 가리지 않는다(저장은 서버가 암호화, 운영자는 이 목록을 볼 수 없다). 값은 이 화면 메모리에만(forms.md 2-1).
  *  - 차례는 서버가 정한다(기본이 맨 위, 나머지는 최근 만든/고친 순). 고치거나 지우거나 기본을 바꾸면 목록을 조용히 다시 받는다(기본 배송지를 지우면 서버가 새 기본을 고른다).
  *  - 첫 배송지는 자동으로 기본(체크 상자가 켜진 채 잠김). 지우면 바로 삭제(확인 대화상자).
  *  - 칸 오류는 화면 미리 검사(받는 분·연락처·우편번호·주소 — 주문서와 같은 문구) + 서버 `400 VALIDATION fields`(`label`·`recipient`·`phone`·`postcode`·`address1`·`address2`·`memo`).
- * ⚠ MOCK: `useAddressBookApi` 가 아직 목업이다(`?mock=addresses-empty|addresses-full|addresses-fail|addresses-save-fail`).
+ * 서버 연결됨(`useAddressBookApi`, 계약 `docs/features/address-book-contract.md`). 데이터 키가 없으면 503 `DATA_KEY_MISSING` — 서버 문구 그대로 ErrorState·토스트·폼 오류에 보인다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
