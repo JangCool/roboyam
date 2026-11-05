@@ -817,11 +817,19 @@ html[data-theme='roboyam'] .gadget-more {
         border-color: var(--hairline);
     }
 }
+/* 모바일 메뉴 줄(`app-top-tabs`)의 넘침 화살표 그라데이션 바탕 = 줄 바탕(기본 surface-0 · 다크 surface-900, 흰 바는 카드 바탕) */
+.app-top-tabs {
+    --scroll-fade-bg: var(--p-surface-0);
+}
+html[data-color-scheme='dark'] .app-top-tabs {
+    --scroll-fade-bg: var(--p-surface-900);
+}
 html[data-mobile-header='plain'] .app-top-tabs {
     background-color: var(--card-bg);
     border-color: var(--hairline);
+    --scroll-fade-bg: var(--card-bg);
 }
-html[data-mobile-header='plain'] .app-top-tabs :is(a, button) {
+html[data-mobile-header='plain'] .app-top-tabs :is(a, button):not(.scroll-row-arrow) {
     font-weight: 700;
     color: var(--tab-fg);
 }

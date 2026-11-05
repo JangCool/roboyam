@@ -5,10 +5,10 @@
           둘째 줄: 기본은 상단 띠 그룹(주제 …)을 「그룹 이름(작은 글자) + 칸」으로 — 데스크톱 둘째 줄과 같다(홈에서도 주제가 보인다).
             커뮤니티·소모임 단추를 누르거나 그 그룹 안에 있으면 둘째 줄이 그 그룹의 칸으로 바뀐다(데스크톱에서는 오른쪽 사이드에 뜨는 것 — 모바일은 사이드가 없어 둘째 줄이 대신한다). 같은 단추를 다시 누르면 주제로 돌아간다.
         고른 그룹 상태는 데스크톱 사이드와 같은 `useSideGroupPick` 이다. 상단 띠·사이드 나누기는 데스크톱과 같은 `useMenuItems('bar' | 'side')`(`UtilMenu.split`).
-        두 줄 모두 옆으로 밀고 활성 칸을 가운데로 끌어온다. 겉모양은 테마 CSS(`app-top-tabs` 고리 클래스)가 정한다.
+        두 줄 모두 옆으로 밀고 활성 칸을 가운데로 끌어온다. 넘치면 양끝에 그라데이션 화살표(`AppScrollRow` `ARROWS` + `touch` — 게시판 말머리 줄과 같다, 사용자 결정 2026-11-05). 겉모양은 테마 CSS(`app-top-tabs` 고리 클래스)가 정한다.
     -->
     <nav v-if="visible" :aria-label="t('menu.tabsLabel')" class="app-top-tabs border-b border-surface bg-surface-0 text-sm dark:bg-surface-900" data-testid="mobile-menu-rows">
-        <div ref="firstRow" class="no-scrollbar flex overflow-x-auto whitespace-nowrap px-2">
+        <AppScrollRow ref="firstRow" mode="ARROWS" touch scroller-class="flex whitespace-nowrap px-2">
             <template v-if="state === 'loading'">
                 <span v-for="n in 5" :key="n" class="mx-2 my-3 h-3.5 w-12 animate-pulse rounded bg-surface-200 dark:bg-surface-800" aria-hidden="true" />
             </template>
@@ -51,7 +51,7 @@
                     {{ t('menu.tabsRetry') }}
                 </button>
             </template>
-        </div>
+        </AppScrollRow>
 
         <!-- 메뉴 설명 줄 — 고른 그룹이 없고 지금 있는 곳이 최상위 항목(인기글·최신글·공지 …)이면 주제 대신 그 메뉴의 한 줄 설명(데스크톱과 같다, `useMenuDescription`) -->
         <p v-if="!sidePick.current.value && showDesc && menuDesc" class="app-top-tabs-sub m-0 flex items-center gap-2 overflow-hidden border-t border-hairline px-4 py-2 text-[0.8125rem]" data-testid="mobile-menu-desc">
@@ -61,7 +61,7 @@
         </p>
 
         <!-- 둘째 줄 — 고른 사이드 그룹이 있으면 그 그룹, 없으면 상단 띠 그룹(주제 …). 첫 줄과의 사이에 머리카락 선 -->
-        <div v-else-if="secondGroups.length" :id="rowId" ref="secondRow" class="app-top-tabs-sub no-scrollbar flex items-center overflow-x-auto whitespace-nowrap border-t border-hairline px-2">
+        <AppScrollRow v-else-if="secondGroups.length" :id="rowId" ref="secondRow" mode="ARROWS" touch class="app-top-tabs-sub border-t border-hairline" scroller-class="flex items-center whitespace-nowrap px-2">
             <section
                 v-for="(group, index) in secondGroups"
                 :key="group.key"
@@ -88,7 +88,7 @@
                     </li>
                 </ul>
             </section>
-        </div>
+        </AppScrollRow>
     </nav>
 </template>
 
@@ -128,8 +128,9 @@ const { nodes } = useMenu();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
 const rowId = useId();
-const firstRow = ref<HTMLElement | null>(null);
-const secondRow = ref<HTMLElement | null>(null);
+/** 두 줄(`AppScrollRow`)과 그 안의 스크롤 상자 — 활성 칸 가운데로 끌어오기가 쓴다 */
+const { row: firstRow, scroller: firstScroller } = useScrollRowRef();
+const { row: secondRow, scroller: secondScroller } = useScrollRowRef();
 
 /** 그룹의 구분선 — 메뉴 트리에서 같은 ID 의 최상위 그룹을 찾는다 */
 function groupDivider(key: string): MenuDivider | null {
@@ -197,6 +198,6 @@ function subClass(active: boolean): string {
 }
 
 // 활성 칸이 화면 밖이면 가운데로 끌어온다(줄만 민다 — `useCenterActive`)
-useCenterActive(firstRow, [activeId, () => tabs.value.length, state]);
-useCenterActive(secondRow, [activeId, () => sidePick.picked.value]);
+useCenterActive(firstScroller, [activeId, () => tabs.value.length, state]);
+useCenterActive(secondScroller, [activeId, () => sidePick.picked.value]);
 </script>
