@@ -9,7 +9,7 @@
             class="inline-flex min-h-8 shrink-0 items-center rounded-full border px-3 py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             :class="
                 model === category.id
-                    ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900'
+                    ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-300 dark:bg-surface-300 dark:text-surface-900'
                     : 'border-surface bg-surface-0 text-color hover:bg-surface-100 dark:bg-surface-900 dark:hover:bg-surface-800'
             "
             :aria-pressed="model === category.id"

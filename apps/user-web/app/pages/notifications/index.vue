@@ -34,7 +34,7 @@
                     :key="option.value"
                     type="button"
                     class="min-h-9 rounded-full px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                    :class="filter === option.value ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-100 dark:text-surface-900' : 'bg-surface-0 text-muted-color hover:text-color dark:bg-surface-900'"
+                    :class="filter === option.value ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-300 dark:text-surface-900' : 'bg-surface-0 text-muted-color hover:text-color dark:bg-surface-900'"
                     :aria-pressed="filter === option.value"
                     :data-testid="`notifications-filter-${option.value}`"
                     @click="filter = option.value"

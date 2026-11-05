@@ -376,7 +376,7 @@ const DEBATE_CODES: ReadonlySet<string> = new Set(['DEBATE_NOT_OPEN', 'STANCE_LO
 /** 고정 요청이 지금 상태와 맞지 않는 거절 — 알리고 목록을 맞춘다 */
 const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPINION_UNAVAILABLE', 'DEBATE_NOT_OPEN', 'OPINION_ALREADY_PINNED', 'PIN_REQUEST_EXISTS']);
 /** 고른 칩 — 중립 surface 채움(시안: 글자·바탕을 뒤집은 칩) */
-const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
+const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-300 dark:text-surface-900';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -646,7 +646,7 @@ onBeforeUnmount(() => {
 function sortClass(s: CommentSort): string {
     return [
         'rounded-full px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-primary',
-        props.sort === s ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-100 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
+        props.sort === s ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-300 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
     ].join(' ');
 }
 

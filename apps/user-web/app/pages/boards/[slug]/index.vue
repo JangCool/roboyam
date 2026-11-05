@@ -97,7 +97,7 @@
                                 <NuxtLink
                                     :to="listLink({ prefix: chip.id, page: 1 })"
                                     class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                                    :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
+                                    :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-300 dark:bg-surface-300 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
                                     :aria-current="query.prefix === chip.id ? 'page' : undefined"
                                 >
                                     {{ chip.name }}
@@ -396,7 +396,7 @@ function onView(mode: BoardViewMode): void {
 function pillClass(on: boolean): string {
     return [
         'inline-flex items-center rounded-full px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-primary',
-        on ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-100 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
+        on ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-300 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
     ].join(' ');
 }
 
