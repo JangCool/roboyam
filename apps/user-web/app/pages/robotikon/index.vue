@@ -10,7 +10,8 @@
                 <h2 :id="`${uid}-create`" class="m-0 text-sm font-semibold">{{ t('emoticon.createTitle') }}</h2>
                 <p class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">{{ t('emoticon.createText') }}</p>
             </div>
-            <div class="flex flex-wrap gap-2 max-sm:w-full">
+            <!-- 좁은 화면은 단추 셋이 한 줄에 들어가도록 아이콘을 빼고 글자를 한 줄로 둔다(아이콘 + 글자면 두 줄로 꺾인다) -->
+            <div class="flex flex-wrap gap-2 max-sm:w-full max-sm:[&_.p-button-icon]:hidden! [&_.p-button-label]:whitespace-nowrap">
                 <Button as="router-link" :to="UtilEmoticon.GUIDE_PATH" :label="t('emoticon.guideTitle')" icon="pi pi-book" size="small" severity="secondary" variant="outlined" class="max-sm:flex-1" data-testid="emoticon-shop-guide" />
                 <Button as="router-link" :to="UtilEmoticon.STUDIO_PATH" :label="t('emoticon.studioTitle')" icon="pi pi-pen-to-square" size="small" class="max-sm:flex-1" data-testid="emoticon-shop-studio" />
                 <Button v-if="user" as="router-link" :to="UtilEmoticon.MY_PATH" :label="t('emoticon.myTitle')" icon="pi pi-face-smile" size="small" severity="secondary" variant="outlined" class="max-sm:flex-1" data-testid="emoticon-shop-mine" />
