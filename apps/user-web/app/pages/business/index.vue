@@ -8,8 +8,8 @@
         「진행 중 광고」 카드(광고 성과 2026-11-02 — `useBusinessApi.adStatsSummary`): 진행 중·일시 정지 중·내려짐(긴급 내림·사업자/서비스 정지 — 사용자 결정 2026-11-02, 광고주 중단 제외)이고 노출 자리가 있는 건 최대 5개 — 상태 딱지·종류·제목 ·
           최근 7일(오늘 포함) 노출·클릭·클릭률 · 7일 미니 막대(`BusinessStatsChart compact` — 오늘 빗금, 정지 날 띠) · 줄을 누르면 상세의 성과 칸(`#performance`). 없으면 카드를 감춘다.
     -->
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="business-home">
+        <header class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="m-0 text-lg font-bold">{{ t('business.home.title') }}</h1>
             <Button
                 v-if="profile?.status === 'APPROVED'"
@@ -21,7 +21,7 @@
                 severity="secondary"
                 variant="outlined"
             />
-        </div>
+        </header>
 
         <div v-if="status === 'loading'" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
             <div v-for="n in 3" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
@@ -244,7 +244,7 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
  * 사업자 센터 홈 `/business` — 로그인 필요. 사용자 메뉴의 「사업자 센터/사업자 신청」 줄·마이페이지 바로가기가 온다.
  * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` ★ · 01 §7-2 F. ⚠ 목업 단계(`useBusinessApi` — 서버 없음).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 const { siteLabel } = useSiteName();

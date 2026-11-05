@@ -84,8 +84,8 @@
             </template>
         </template>
 
-        <!-- ── 일반 댓글 머리: 제목 · 정렬 ── -->
-        <div v-else class="flex items-center justify-between gap-2 border-b border-surface pb-2">
+        <!-- ── 일반 댓글 머리: 제목 · 정렬 — 위 여백은 다른 카드 머리(카드 첫 줄 `header` 의 14px)와 맞춘다 ── -->
+        <div v-else class="flex items-center justify-between gap-2 border-b border-surface pt-3.5 pb-3">
             <h2 :id="headingId" class="text-base font-semibold">
                 {{ t('comment.title') }} <span class="text-primary tabular-nums">{{ generalCount }}</span>
             </h2>

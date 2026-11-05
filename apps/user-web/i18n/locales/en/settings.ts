@@ -6,7 +6,7 @@ export default {
     seoDescription: 'Your {site} account settings.',
 
     // Menu
-    profile: 'Profile',
+    profile: 'Edit profile',
     profileHint: 'Nickname and bio',
     notifications: 'Notification settings',
     notificationsHint: 'Choose which notifications you get',

@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ term('POINT_SHOP') }}</h1>
 
         <!-- 사업자 전용 계정(H-2) — 포인트가 없다 -->
@@ -16,8 +16,8 @@
                 <Button as="router-link" :to="UtilPointShop.MY_ITEMS_PATH" :label="t('pointShop.myItems')" icon="pi pi-box" size="small" severity="secondary" variant="outlined" data-testid="pointshop-my-items" />
             </section>
 
-            <!-- 종류 탭 · 품목 격자 · 안내를 한 카드에 — 기본 테마는 카드가 보이지 않고, 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-            <div class="content-card flex flex-col gap-4" data-testid="pointshop-catalog">
+            <!-- 종류 탭 · 품목 격자 · 안내 — 제목과 함께 화면 카드(맨 바깥 `content-card`) 안에 -->
+            <div class="flex flex-col gap-4" data-testid="pointshop-catalog">
                 <!-- 종류 거르기 — 주소의 `?kind=` 가 상태다(공동구매 목록과 같은 밑줄 탭) -->
                 <div role="group" :aria-label="t('pointShop.kindFilter')" class="no-scrollbar flex gap-5 overflow-x-auto border-b border-hairline" data-testid="pointshop-kind">
                     <button
@@ -164,7 +164,7 @@ import UtilPointShopMessages from '~/utils/util-point-shop-messages';
  *   구매 확인(상세와 같은 대화상자 `PointShopPurchaseDialog`) → 성공 뒤 「바로 프로필로 쓰기」(고르면 환불할 수 없어 한 번 묻는다 — `PUT /api/me/profile/avatar`).
  * 계약 `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」. 서버 연결됨(`usePointShopApi`·`useAvatarApi`). 구매 뒤 헤더·포인트 화면 잔액도 다시 받는다(`usePointSummary`).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { term } = useSiteTerms();
 const { siteLabel } = useSiteName();

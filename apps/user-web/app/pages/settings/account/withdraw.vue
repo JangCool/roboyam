@@ -1,6 +1,6 @@
 <template>
     <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 계정·로그인 연결」 -->
-    <div>
+    <div class="content-card">
         <h1 class="mb-4 text-lg font-bold">{{ t('withdrawal.title') }}</h1>
 
         <!-- 로딩 -->

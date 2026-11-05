@@ -3,8 +3,8 @@
         내 리뷰 `/me/reviews` — 공구 리뷰(계약 「리뷰 규칙」, 2b-6 가정). 새 것이 위, 10개씩 「더 보기」.
         한 장: 공구 제목(상세 리뷰로) · 주문 번호 · 리뷰 카드(숨김이면 사유) · 고칠 수 있는 기한(작성 + 30일) · 고치기 · 지우기.
     -->
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="my-reviews">
-        <h1 class="m-0 text-xl font-bold">{{ t('groupBuyReview.myTitle') }}</h1>
+    <div class="content-card flex flex-col gap-4" data-testid="my-reviews">
+        <h1 class="m-0 text-lg font-bold">{{ t('groupBuyReview.myTitle') }}</h1>
 
         <div v-if="status === 'loading'" class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
             <div v-for="n in 3" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
@@ -48,7 +48,7 @@ import UtilCommerce from '~/utils/util-commerce';
 import UtilGroupBuy from '~/utils/util-group-buy';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
 
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 const time = useDisplayTime();

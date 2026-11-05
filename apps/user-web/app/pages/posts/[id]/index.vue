@@ -520,7 +520,11 @@ async function load(): Promise<void> {
             adult: loaded.adult || loadedBoard.allowAdult === true,
             group: Boolean(loaded.group),
         });
-        if (!loaded.group) current.set(loaded.board.slug);
+        if (!loaded.group) {
+            current.set(loaded.board.slug);
+            // 떠 있는 글쓰기 단추(`WriteFab`)가 이 게시판에 쓸 수 있을 때만 보이게 판정을 알린다
+            current.setWrite({ slug: loaded.board.slug, canWrite: loadedBoard.viewer.canWrite, reason: loadedBoard.viewer.writeBlockedReason });
+        }
         pageState.value = 'ready';
         opinionsStarted = false;
         void comments.load();

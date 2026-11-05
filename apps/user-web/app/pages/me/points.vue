@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('point.title') }}</h1>
 
         <!-- 사업자 전용 계정(H-2) — 포인트가 없다(서버 `403 BUSINESS_ACCOUNT_RESTRICTED`) -->
@@ -317,7 +317,7 @@ import UtilPointMessages from '~/utils/util-point-messages';
  *   출석체크 구획(community `AttendancePanel` 을 옮겼다 — `usePointAttendance`, `GET·POST /api/me/attendance`): 달 넘기기(이번 달까지·24달 전까지)·출석한 날·오늘·연속 N일·다음 연속 보너스까지·[오늘 출석하기].
  *   409 `ATTENDANCE_ALREADY_DONE` 는 다시 읽어 출석 완료로, 403(정지·이메일 인증 전)은 단추를 끄고 까닭과 안내 링크를 보인다. 출석으로 포인트가 바뀌면 내역을 다시 받는다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('point.title'), description: () => t('point.seoDescription', { site: siteLabel.value }), robots: 'noindex' });

@@ -5,7 +5,7 @@
         매니저·스텝이 아니면(목록이 `404 BOARD_STAFF_NOT_FOUND`) 404 안내 — 누가 운영진인지 새지 않게 다른 화면과 같은 「찾을 수 없어요」.
         종류 거르기(전체·글·댓글) + 쪽 번호. 주소의 쿼리가 화면 상태다. 대상 제목·댓글 앞부분·작성자는 처리 때 스냅숏이다.
     -->
-    <div class="content-card mx-auto max-w-3xl">
+    <div class="content-card">
         <div v-if="state === 'loading' && !page" role="status" :aria-label="t('boardStaffAction.listLoading')" data-testid="board-actions-loading">
             <div class="h-6 w-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             <div class="mt-4 h-9 w-64 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />

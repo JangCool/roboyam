@@ -3,8 +3,8 @@
         내 신청 건 `/business/applications` — 상태 SelectButton(전체·심사 중·결제 대기·입금 대기·예약·진행·종료·반려/취소, 건수 함께) + 카드 목록(`DataView` — 모바일 친화 한 열).
         카드: 종류 · 제목 · 기간 · 금액(확정 전이면 「예상」) · 상태 딱지 · 결제/입금 기한. 고른 상태는 주소 `?status=` 에 남긴다(뒤로 와도 그 자리).
     -->
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-applications">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="business-applications">
+        <header class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <Button as="router-link" :to="UtilBusiness.CENTER_PATH" icon="pi pi-angle-left" severity="secondary" variant="text" rounded :aria-label="t('business.home.title')" />
                 <h1 class="m-0 text-lg font-bold">{{ t('business.list.title') }}</h1>
@@ -13,7 +13,7 @@
                 <Button as="router-link" :to="UtilBusiness.AD_NEW_PATH" :label="t('business.list.newAd')" icon="pi pi-megaphone" size="small" severity="secondary" variant="outlined" />
                 <Button as="router-link" :to="UtilBusiness.DEAL_NEW_PATH" :label="t('business.list.newDeal')" icon="pi pi-tag" size="small" severity="secondary" variant="outlined" />
             </div>
-        </div>
+        </header>
 
         <!-- 상태 거르기 — 좁은 화면은 가로로 민다 -->
         <div class="max-w-full overflow-x-auto [scrollbar-width:none]">
@@ -61,7 +61,7 @@ import UtilBusiness from '~/utils/util-business';
 /**
  * 내 신청 건 `/business/applications` — 로그인 필요. 사업자 센터 홈의 [내 신청 건]·[전체 보기]가 온다. ⚠ 목업 단계(`useBusinessApi`).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('business.list.title'), description: () => t('business.list.seoDescription'), robots: 'noindex' });

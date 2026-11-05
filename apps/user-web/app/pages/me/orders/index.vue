@@ -1,9 +1,9 @@
 <template>
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="my-orders">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="my-orders">
+        <header class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="m-0 text-lg font-bold">{{ t('commerce.ordersTitle') }}</h1>
             <Button as="router-link" :to="UtilGroupBuy.LIST_PATH" :label="term('GROUP_BUY')" icon="pi pi-shopping-bag" size="small" severity="secondary" variant="outlined" />
-        </div>
+        </header>
 
         <div v-if="status === 'loading'" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')" data-testid="my-orders-loading">
             <div v-for="n in 4" :key="n" class="h-24 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
@@ -55,7 +55,7 @@ import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
  * 내 주문 `/me/orders` — 로그인 필요. 공구 주문을 최근 것부터(주문 번호·상태·금액·환불 누계·할 일 표시 — 결제 대기 · 공급 불가 답 · 지연 공지 · 반품비 결제).
  * 계약 commerce-groupbuy 화면 목록. 햄버거 메뉴 「주문 내역」(`UtilCommerce.ORDERS_PATH`)이 여기로 온다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 const { term } = useSiteTerms();

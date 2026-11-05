@@ -16,6 +16,11 @@ export default {
 
     // Shortcuts
     shortcuts: 'Shortcuts',
-    entryProfile: 'View my profile',
+    entryProfile: 'Activity',
     entryGrade: 'Grades',
+    // My page menu (desktop right column · mobile list) — group names
+    menuLabel: 'My page menu',
+    menuGroupActivity: 'My activity',
+    menuGroupPoint: 'Points',
+    menuGroupInbox: 'Notifications & messages',
 };

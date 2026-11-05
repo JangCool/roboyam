@@ -1,9 +1,9 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="content-card flex flex-col gap-4">
+        <header class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="text-lg font-bold">{{ t('pointShop.myItems') }}</h1>
             <Button as="router-link" :to="UtilPointShop.PATH" :label="term('POINT_SHOP')" icon="pi pi-shopping-bag" size="small" severity="secondary" variant="outlined" data-testid="myitems-shop" />
-        </div>
+        </header>
 
         <EmptyState v-if="businessAccount" class="panel-card" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" />
 
@@ -178,7 +178,7 @@ import UtilSanction from '~/utils/util-sanction';
  * - 한 줄 동작 실패는 토스트(사유 8초). `409 POINT_SHOP_REFUND_NOT_ALLOWED`·`USER_ITEM_EXPIRED` 는 목록을 다시 읽는다. 장착·해제 결과는 내 장식 겹치기(`useMyDecoration`)에 바로 넣는다 — 글·댓글·프로필의 내 이름이 바로 바뀐다.
  * 계약 `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」. 서버 연결됨(`useMyItemsApi`·`useAvatarApi`). 환불 뒤 헤더·포인트 화면 잔액도 다시 받는다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { term } = useSiteTerms();
 useSeoMeta({ title: () => t('pointShop.myItems'), robots: 'noindex' });

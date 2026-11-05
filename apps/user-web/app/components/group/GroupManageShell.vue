@@ -1,6 +1,6 @@
 <template>
     <!-- 소모임 관리 화면의 틀(모임장·매니저) — 뒤로 링크 · 제목 · 불러오는 중 · 모임장도 매니저도 아님 · 맡기지 않은 일(매니저) · 모임장 고정 · 없는·비활성 소모임 · 불러오기 실패 · (쓸 수 있을 때) 정지·인증 전 띠 + 본문 슬롯 -->
-    <div class="mx-auto max-w-2xl">
+    <div class="content-card">
         <NuxtLink :to="backTo" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="group-manage-back">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ backLabel }}
         </NuxtLink>

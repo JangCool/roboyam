@@ -317,7 +317,7 @@ html[data-theme='naver'] {
 
 /*
  * 2단계(themes.md 2-1) — 카드가 보이는 테마(다음식·네이버식)에서만:
- *  - 카드 첫 줄의 바깥 위 여백(댓글 구획의 `mt-6` 등)은 카드 위 여백이 대신하므로 없앤다. 머리(`<header>`)가 첫 줄이면 위 여백을 조금 준다.
+ *  - 카드 첫 줄의 바깥 위 여백(댓글 구획의 `mt-6` 등)은 카드 위 여백이 대신하므로 없앤다. 머리(`<header>`)·화면 제목(`<h1>`)·돌아가기 링크(`<a>`)가 첫 줄이면 위 여백을 조금 준다.
  *  - 글 제목(`.post-title`)은 다음식에서 22/30 굵게(모바일 20/28).
  * 층 밖 규칙이라 Tailwind 유틸리티를 이긴다.
  */
@@ -325,14 +325,21 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :first-chil
 html[data-theme='naver'] .content-card > :first-child {
     margin-top: 0;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > header:first-child,
-html[data-theme='naver'] .content-card > header:first-child {
+html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :is(header, h1, a):first-child,
+html[data-theme='naver'] .content-card > :is(header, h1, a):first-child {
     padding-top: 14px;
 }
 html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
     font-size: calc(20px * var(--text-scale, 1));
     line-height: 28px;
     font-weight: 700;
+}
+/* 첫 줄이 모바일 전용 막대(`md:hidden` — 글쓰기의 ✕ 막대)라 넓은 화면에서 숨으면, 그 다음 머리·제목에 같은 위 여백을 준다 */
+@media (min-width: 48rem) {
+    html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child + :is(header, h1),
+    html[data-theme='naver'] .content-card > .md\:hidden:first-child + :is(header, h1) {
+        padding-top: 14px;
+    }
 }
 @media (min-width: 48rem) {
     html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {

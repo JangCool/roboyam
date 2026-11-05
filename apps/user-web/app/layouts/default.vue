@@ -29,7 +29,9 @@
                 <TermsChangeNotice />
             </template>
 
-            <slot />
+            <!-- 내 정보 묶음 화면(`definePageMeta({ meMenu })`)은 오른쪽 메뉴 틀 안에 — 틀이 화면 사이에 남아 메뉴는 그대로, 왼쪽만 바뀐다 -->
+            <MeFrame v-if="meMenu"><slot /></MeFrame>
+            <slot v-else />
         </component>
 
         <AdWings />
@@ -51,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import type { MeMenuMeta } from '~/composables/me/useMeMenu';
 import UtilTheme from '~/utils/util-theme';
 
 const { t } = useI18n();
@@ -61,6 +64,13 @@ const menuOpen = ref(false);
 const inner = computed(() => route.meta.shell === 'inner');
 /** 데스크톱 메뉴 — 글쓰기처럼 넓은 화면이 필요한 곳은 페이지가 끈다. 어디에 놓느냐는 테마가 정한다 */
 const sideMenu = computed(() => route.meta.sideMenu !== false);
+/** 내 정보 메뉴 틀 — 로그인했을 때만. 공개 프로필(`'self'`)은 내 프로필일 때만 */
+const { user } = useAuth();
+const meMenu = computed(() => {
+    const meta = route.meta.meMenu as MeMenuMeta | undefined;
+    if (!user.value || !meta) return false;
+    return meta === true || String(route.params.id ?? '') === user.value.id;
+});
 
 /** 현재 테마의 셸 컴포넌트(없으면 기본 테마 것) */
 const { theme } = useTheme();
