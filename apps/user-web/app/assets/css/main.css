@@ -235,6 +235,8 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
     --content-card-pad: 0px;
     --content-card-gap: 0px;
     --content-card-bleed: 0px;
+    /* 카드 위 끝에서 첫 줄 제목(h1)까지 — 제목 줄에 겹쳐 놓는 것(설정 화면의 모바일 돌아가기 링크)이 읽는다 */
+    --content-card-title-top: 0px;
 }
 @utility content-card {
     background-color: var(--content-card-bg);
@@ -308,6 +310,8 @@ html[data-theme='naver'] {
         --content-card-shadow: none;
         --content-card-pad: 4px 16px 14px;
         --content-card-bleed: -1rem;
+        /* 카드 위 여백 4 + 첫 줄 제목의 위 여백 14(아래 2단계 규칙) */
+        --content-card-title-top: 18px;
     }
     /* 좌우 바깥 여백은 화면 끝까지 닿을 때(카드 테마의 모바일)만 건다 — 데스크톱에서 가운데 정렬(`mx-auto`)한 카드와 부딪치지 않게 */
     html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {

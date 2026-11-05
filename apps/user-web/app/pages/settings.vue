@@ -8,11 +8,13 @@
     <div class="w-full md:grid md:grid-cols-[13rem_minmax(0,1fr)] md:items-start md:gap-6">
         <AppSideNav class="max-md:hidden md:sticky md:top-16" :items="navItems" :title="t('settings.title')" :nav-label="t('settings.title')" />
 
-        <div class="min-w-0">
+        <!-- 좁은 화면의 돌아가기 링크는 카드 위 줄이 아니라 화면 제목 줄 오른쪽 끝에 겹쳐 둔다(사용자 결정 2026-11-05) — 모든 설정 화면이 「카드 > 제목(h1)」으로 시작한다.
+             높이는 카드 첫 줄 제목의 위치(`--content-card-title-top` — 카드 테마 모바일은 카드 위 여백 + 제목 위 여백)에 맞추고, 링크(36)와 제목 줄(28)의 높이 차 절반만큼 올린다 -->
+        <div class="relative min-w-0">
             <NuxtLink
                 v-if="!atIndex"
                 :to="back.to"
-                class="mb-2 inline-flex min-h-9 items-center gap-1 rounded text-sm text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary md:hidden"
+                class="absolute right-0 top-[calc(var(--content-card-title-top)-4px)] z-10 inline-flex min-h-9 items-center gap-1 rounded text-sm text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary md:hidden"
                 data-testid="settings-back"
             >
                 <i class="pi pi-angle-left" aria-hidden="true" />{{ back.label }}
