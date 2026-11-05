@@ -51,6 +51,7 @@ export default {
     youtubePlay: 'Play YouTube video',
     youtubeFrame: 'YouTube video',
     imageNotAllowed: "Images can't be uploaded here",
+    youtubeLinkLimit: 'Only {max} YouTube video can be added here, so it was pasted as a link',
     mediaCount: '{images} images · {videos} videos',
 
     // Insert link

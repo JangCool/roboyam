@@ -44,8 +44,8 @@
         <!-- 올리는 중·올리지 못한 이미지 -->
         <RichEditorUploadList v-if="uploadItems.length" :items="uploadItems" @retry="retryUpload" @remove="removeUpload" />
 
-        <!-- 첨부 수 -->
-        <p v-if="counts.images > 0 || counts.videos > 0" class="m-0 border-t border-surface px-3 py-1.5 text-xs text-muted-color" data-testid="media-count">
+        <!-- 첨부 수 — 고급(글)만. 댓글의 붙여 넣은 유튜브 카드는 1개뿐이라 세지 않는다 -->
+        <p v-if="advanced && (counts.images > 0 || counts.videos > 0)" class="m-0 border-t border-surface px-3 py-1.5 text-xs text-muted-color" data-testid="media-count">
             {{ t('richEditor.mediaCount', { images: counts.images, videos: counts.videos }) }}
         </p>
         <!-- 이미지를 받지 않는 에디터에 파일을 놓거나 붙여넣었다 — 잠깐 한 줄 -->
@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import type { Editor, Extensions } from '@tiptap/vue-3';
+import type { EditorView } from '@tiptap/pm/view';
 import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichImageUploader, RichImageUploadResult } from '#layers/rich-editor/components/RichEditor.types';
 import { richFormatExtensions } from '#layers/rich-editor/editor/richExtensions';
 import { ImageBlock } from '#layers/rich-editor/editor/imageBlock';
@@ -88,6 +89,8 @@ interface Props {
     compact?: boolean;
     /** 이모티콘 그림 찾기 — 주면 이모티콘 노드가 켜진다(user-web 만). 켜고 끄는 것은 만들 때 정해진다(그림은 `version` 이 바뀌면 다시 찾는다) */
     emoticons?: RichEmoticonSource | null;
+    /** 간단 수준에서 유튜브 주소를 붙여 넣으면 영상 카드로 바꾸는 최대 수(0 = 끔, 댓글 — 사용자 결정 2026-11-06). 넘으면 링크로 붙는다. 고급 수준은 도구 모음의 유튜브 넣기를 쓴다 */
+    youtubeLinks?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -102,6 +105,7 @@ const props = withDefaults(defineProps<Props>(), {
     ariaLabel: '',
     compact: false,
     emoticons: null,
+    youtubeLinks: 0,
 });
 
 const html = defineModel<string>({ default: '' });
@@ -158,10 +162,11 @@ function refreshCounts(): void {
     counts.videos = next.videos;
 }
 
-/** 빈 문서는 `''` — 「비었는가」·「고쳤는가」가 평문과 같게. 색은 `#rrggbb` 로 되돌린다(TipTap 이 `rgb(...)` 로 직렬화한다) */
+/** 빈 문서는 `''` — 「비었는가」·「고쳤는가」가 평문과 같게. 색은 `#rrggbb` 로 되돌린다(TipTap 이 `rgb(...)` 로 직렬화한다). 이모티콘은 표식을 벗겨 토큰 글자로 */
 function htmlOf(e: Pick<Editor, 'isEmpty' | 'getHTML'>): string {
     if (e.isEmpty) return '';
-    return advanced ? UtilRichFormats.normalizeColors(e.getHTML()) : e.getHTML();
+    const html = emoticonOn ? UtilRichEmoticon.fromEditorHtml(e.getHTML()) : e.getHTML();
+    return advanced ? UtilRichFormats.normalizeColors(html) : html;
 }
 
 /** 이모티콘이 켜졌다 — 만들 때 한 번 정한다(확장은 만들 때 정해진다) */
@@ -175,14 +180,39 @@ function editorContent(value: string): string {
 function extensions(): Extensions {
     const list = richFormatExtensions(props.level);
     if (emoticonOn) list.push(EmoticonInline.configure({ resolve: (id) => props.emoticons?.resolve(id) ?? null }));
-    if (!advanced) return list;
+    if (!advanced) return youtubeLinksOn ? [...list, youtubeBlock()] : list;
     return [
         ...list,
         // 이미 글에 있는 이미지는 올리기가 꺼져 있어도 보이고 지울 수 있다
         ImageBlock.configure({ labels: { image: t('richEditor.imageAlt'), remove: t('richEditor.imageRemove'), broken: t('richEditor.imageBroken') } }),
-        YoutubeBlock.configure({ labels: { video: t('richEditor.youtubeLabel'), remove: t('richEditor.youtubeRemove') } }),
+        youtubeBlock(),
         UploadSlots,
     ];
+}
+
+/** 간단 수준의 유튜브 주소 붙여넣기가 켜졌다 — 만들 때 한 번 정한다 */
+const youtubeLinksOn = !advanced && props.youtubeLinks > 0;
+
+function youtubeBlock() {
+    return YoutubeBlock.configure({ labels: { video: t('richEditor.youtubeLabel'), remove: t('richEditor.youtubeRemove') } });
+}
+
+/**
+ * 붙여 넣은 글자가 유튜브 주소 하나뿐이면 영상 카드로 넣는다(간단 수준 + `youtubeLinks`). 이미 한도만큼 있으면 안내하고 링크로 붙게 둔다.
+ * @returns {boolean} 카드로 넣었으면 true.
+ */
+function pasteYoutube(view: EditorView, text: string): boolean {
+    if (!youtubeLinksOn || !/^https?:\/\/\S+$/i.test(text)) return false;
+    const videoId = UtilRichMedia.youtubeIdOf(text);
+    if (!videoId) return false;
+    if (countMedia(view.state.doc).videos >= props.youtubeLinks) {
+        showNotice(t('richEditor.youtubeLinkLimit', { max: props.youtubeLinks }));
+        return false;
+    }
+    const e = editor.value;
+    if (!e) return false;
+    e.chain().focus().insertContentAt(view.state.selection.to, { type: 'youtube', attrs: { videoId } }).run();
+    return true;
 }
 
 /** 이미지를 받지 않는 에디터에 파일이 왔다 */
@@ -214,7 +244,9 @@ const editor = useEditor({
             const data = event.clipboardData;
             if (!data || props.disabled) return false;
             const images = Array.from(data.files).filter((f) => f.type.startsWith('image/'));
-            if (!images.length || data.getData('text/plain').trim()) return false;
+            const text = data.getData('text/plain').trim();
+            if (!images.length && text && pasteYoutube(view, text)) return true;
+            if (!images.length || text) return false;
             if (!imageOn.value) {
                 refuseFiles();
                 return true;

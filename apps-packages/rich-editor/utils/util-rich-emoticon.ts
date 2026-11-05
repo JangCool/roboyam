@@ -33,6 +33,8 @@ export default class UtilRichEmoticon {
     static readonly MAX_PER_BODY = 20;
     /** `<img>` 에 붙이는 클래스 — 크기는 앱 CSS(`img.emoticon`, 100px · 모바일 80px) */
     static readonly CLASS = 'emoticon';
+    /** 에디터 직렬화 때 토큰을 감싸는 표식 속성 — 저장 전에 `fromEditorHtml` 이 벗긴다 */
+    static readonly MARKER_ATTR = 'data-emoticon-token';
 
     /**
      * 토큰 글자를 만든다.
@@ -162,6 +164,16 @@ export default class UtilRichEmoticon {
             return img;
         });
         return doc.body.innerHTML;
+    }
+
+    /**
+     * 에디터에서 나온 HTML — 이모티콘 노드의 직렬화 표식(`<span data-emoticon-token>토큰</span>`)을 벗겨 토큰 글자만 남긴다.
+     * ProseMirror 직렬화는 글자만 내보낼 수 없어(문자열을 주면 첫 글자를 태그 이름으로 써서 `<:>emo-ID:</:>` 가 된다) 표식 span 으로 감싸 내보내고 여기서 벗긴다.
+     * @param {string} html - 에디터 `getHTML()` 결과.
+     * @returns {string} 저장할 HTML(토큰 글자).
+     */
+    static fromEditorHtml(html: string): string {
+        return html.replace(new RegExp(`<span ${UtilRichEmoticon.MARKER_ATTR}="">(${TOKEN_SOURCE})</span>`, 'g'), '$1');
     }
 
     /** 글자 노드를 훑어 토큰 자리를 `make` 가 준 노드(또는 글자)로 바꾼다 */

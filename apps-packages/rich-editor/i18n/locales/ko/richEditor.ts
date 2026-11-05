@@ -51,6 +51,7 @@ export default {
     youtubePlay: '유튜브 영상 재생',
     youtubeFrame: '유튜브 영상',
     imageNotAllowed: '여기에서는 이미지를 올릴 수 없어요',
+    youtubeLinkLimit: '유튜브 영상은 {max}개까지 넣을 수 있어 링크로 붙였어요',
     mediaCount: '이미지 {images}장 · 유튜브 {videos}개',
 
     // 링크 넣기

@@ -38,15 +38,25 @@ export const EmoticonInline = TiptapNode.create<EmoticonInlineOptions>({
     },
 
     parseHTML() {
-        return [{ tag: 'img[data-emoticon-id]' }];
+        return [
+            { tag: 'img[data-emoticon-id]' },
+            // 에디터 안 복사·붙여넣기 — 직렬화 표식 span 을 다시 노드로
+            {
+                tag: `span[${UtilRichEmoticon.MARKER_ATTR}]`,
+                getAttrs: (el: HTMLElement) => {
+                    const part = UtilRichEmoticon.split(el.textContent ?? '').find((p) => p.kind === 'emoticon');
+                    return part?.kind === 'emoticon' ? { id: part.id } : false;
+                },
+            },
+        ];
     },
 
     /**
-     * 저장 모양 = 토큰 글자. ProseMirror `DOMSerializer.renderSpec` 은 문자열 출력을 글자 노드로 만든다 — TipTap 의 타입(`DOMOutputSpec`)이 문자열을 빼 두어 형만 맞춘다.
-     * (`['span', 토큰]` 으로 하면 저장 HTML 에 태그가 남아 서버 정화·글자 수가 달라진다)
+     * 저장 모양 = 토큰 글자. ProseMirror `renderSpec` 은 글자만 내보낼 수 없어(문자열을 주면 첫 글자를 태그 이름으로 써 `<:>emo-ID:</:>` 가 된다)
+     * 표식 span 으로 감싸 내보내고, `RichEditor` 가 저장 전에 `UtilRichEmoticon.fromEditorHtml` 로 벗긴다(저장 HTML 에 태그가 남으면 서버 정화·글자 수가 달라진다).
      */
     renderHTML({ node }) {
-        return UtilRichEmoticon.token(String(node.attrs.id ?? '')) as unknown as DOMOutputSpec;
+        return ['span', { [UtilRichEmoticon.MARKER_ATTR]: '' }, UtilRichEmoticon.token(String(node.attrs.id ?? ''))] as DOMOutputSpec;
     },
 
     renderText({ node }) {

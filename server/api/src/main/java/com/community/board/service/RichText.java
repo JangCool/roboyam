@@ -26,6 +26,7 @@ import org.springframework.web.util.HtmlUtils;
  *   <li><b>고급</b>(글만): 간단 + {@code h2 h3 hr code pre} + 이미지 표식 {@code <img data-image-id="숫자">}(주소·크기는 서버가 채운다 — {@link #expandImages})
  *       + 글자색·배경색 {@code span}({@code style} 의 {@code color}·{@code background-color} 중 팔레트 값만, 그 밖은 버리고 남는 것이 없으면 span 을 벗긴다)
  *       + YouTube 표식 {@code <div data-youtube-id="11자"></div>}(iframe 은 저장하지 않는다 — 화면이 ID 로 youtube-nocookie 를 그린다).</li>
+ *   <li><b>댓글</b>: 간단 + YouTube 표식(에디터가 붙여 넣은 유튜브 주소를 표식으로 바꾼다 — 사용자 결정 2026-11-06, 개수는 {@link ContentRules#COMMENT_YOUTUBE_MAX}).</li>
  * </ul>
  * 팔레트는 community 에디터({@code richFormats.TEXT_COLORS}·{@code BACKGROUND_COLORS})와 같은 값이다 — user-web 에디터도 같은 값을 써야 한다.
  */
@@ -34,7 +35,9 @@ public final class RichText {
     /** 에디터 수준 */
     public enum Level {
         SIMPLE,
-        ADVANCED
+        ADVANCED,
+        /** 댓글 — 간단 + YouTube 표식 */
+        COMMENT
     }
 
     /** 글자색 팔레트(7) — 소문자 {@code #rrggbb} */
@@ -60,17 +63,24 @@ public final class RichText {
 
     private static final PolicyFactory SIMPLE = base().toFactory();
 
-    private static final PolicyFactory ADVANCED = base()
+    private static final PolicyFactory COMMENT = youtube(base()).toFactory();
+
+    private static final PolicyFactory ADVANCED = youtube(base()
             .allowElements("h2", "h3", "hr", "code", "pre")
             .allowElements(colorSpan(), "span")
             .allowAttributes("style").onElements("span")
             .allowElements(requireAttribute("data-image-id", DIGITS), "img")
-            .allowAttributes("data-image-id").matching(DIGITS).onElements("img")
-            .allowElements(requireAttribute("data-youtube-id", YOUTUBE_ID), "div")
-            .allowAttributes("data-youtube-id").matching(YOUTUBE_ID).onElements("div")
+            .allowAttributes("data-image-id").matching(DIGITS).onElements("img"))
             .toFactory();
 
     private RichText() {
+    }
+
+    /** YouTube 표식 {@code <div data-youtube-id="11자">} 를 더한다 */
+    private static HtmlPolicyBuilder youtube(HtmlPolicyBuilder builder) {
+        return builder
+                .allowElements(requireAttribute("data-youtube-id", YOUTUBE_ID), "div")
+                .allowAttributes("data-youtube-id").matching(YOUTUBE_ID).onElements("div");
     }
 
     private static HtmlPolicyBuilder base() {
@@ -95,8 +105,13 @@ public final class RichText {
      * (안에 들어온 글자는 블록 뒤로 나온다).
      */
     public static String sanitize(String raw, Level level) {
-        String safe = (level == Level.ADVANCED ? ADVANCED : SIMPLE).sanitize(raw == null ? "" : raw);
-        if (level == Level.ADVANCED) {
+        PolicyFactory policy = level == null ? SIMPLE : switch (level) {
+            case ADVANCED -> ADVANCED;
+            case COMMENT -> COMMENT;
+            case SIMPLE -> SIMPLE;
+        };
+        String safe = policy.sanitize(raw == null ? "" : raw);
+        if (policy != SIMPLE) {
             // 정화기가 남기는 div 는 YouTube 표식뿐이다 — 닫는 태그를 모두 떼고 여는 태그를 빈 블록으로 바꾼다(균형이 깨지지 않는다)
             safe = YOUTUBE_OPEN.matcher(safe.replace("</div>", "")).replaceAll("<div data-youtube-id=\"$1\"></div>");
         }
