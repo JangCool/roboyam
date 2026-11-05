@@ -283,6 +283,12 @@ html[data-color-scheme='dark'] .rt-img-fail b {
     line-height: 1.25rem;
 }
 
+/* 세로 영상(틱톡·인스타그램 — `div[data-embed]`) — 9:16, 플레이어가 그리는 최소 폭(325px)에 맞춘다 */
+.rt-yt--tall {
+    max-width: 325px;
+    aspect-ratio: 9 / 16;
+}
+
 /* ── 에디터 안의 이미지·유튜브 노드 ── */
 
 .rt-figure {

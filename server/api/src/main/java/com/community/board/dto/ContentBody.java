@@ -14,10 +14,10 @@ import java.util.List;
  * @param images   이미지 수(TEXT 는 이미지 주소·마크다운 이미지, HTML 은 이미지 표식)
  * @param imageIds HTML 이미지 표식의 ID(본문 순서, 겹친 것 포함) — TEXT 는 비어 있다
  * @param hrefs    HTML 링크 주소(금지어 검사) — TEXT 는 비어 있다
- * @param youtube  YouTube 표식 수
+ * @param videos   영상 표식 수(YouTube + 그 밖의 플랫폼)
  */
 public record ContentBody(ContentFormat format, String content, String plain, int links, int images, List<Long> imageIds, List<String> hrefs,
-                          int youtube) {
+                          int videos) {
 
     /** 평문 본문 */
     public static ContentBody text(String raw) {
@@ -30,7 +30,7 @@ public record ContentBody(ContentFormat format, String content, String plain, in
         String safe = RichText.sanitize(raw, level);
         List<Long> ids = RichText.imageIds(safe);
         return new ContentBody(ContentFormat.HTML, safe, RichText.plainText(safe), RichText.linkCount(safe), ids.size(), List.copyOf(ids),
-                RichText.hrefs(safe), RichText.youtubeCount(safe));
+                RichText.hrefs(safe), RichText.videoCount(safe));
     }
 
     public boolean isHtml() {
@@ -46,9 +46,9 @@ public record ContentBody(ContentFormat format, String content, String plain, in
     public ContentBody masked(BoardSecurityValues sec) {
         if (!isHtml()) {
             String content = ContentRules.mask(sec, this.content);
-            return content.equals(this.content) ? this : new ContentBody(format, content, content, links, images, imageIds, hrefs, youtube);
+            return content.equals(this.content) ? this : new ContentBody(format, content, content, links, images, imageIds, hrefs, videos);
         }
         String html = RichText.maskText(content, text -> ContentRules.mask(sec, text));
-        return html.equals(content) ? this : new ContentBody(format, html, RichText.plainText(html), links, images, imageIds, hrefs, youtube);
+        return html.equals(content) ? this : new ContentBody(format, html, RichText.plainText(html), links, images, imageIds, hrefs, videos);
     }
 }

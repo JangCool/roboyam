@@ -51,7 +51,17 @@ export default {
     youtubePlay: 'Play YouTube video',
     youtubeFrame: 'YouTube video',
     imageNotAllowed: "Images can't be uploaded here",
-    youtubeLinkLimit: 'Only {max} YouTube video can be added here, so it was pasted as a link',
+    videoLinkLimit: 'Only {max} video can be added here, so it was pasted as a link',
+    // Video cards other than YouTube (CHZZK clips, SOOP VODs, TikTok, Instagram) — {name} is the platform name below
+    embedNames: {
+        chzzk: 'CHZZK clip',
+        soop: 'SOOP VOD',
+        tiktok: 'TikTok',
+        instagram: 'Instagram',
+    },
+    embedRemove: 'Remove {name}',
+    embedPlay: 'Play {name}',
+    embedFrame: '{name} video',
     mediaCount: '{images} images · {videos} videos',
 
     // Insert link

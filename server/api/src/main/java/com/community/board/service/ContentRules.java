@@ -33,8 +33,8 @@ public final class ContentRules {
     /** 글 하나에 넣을 수 있는 이미지·YouTube 수(새 회원은 보안 설정의 새 회원 이미지 수가 먼저 걸린다 — 가정) */
     public static final int POST_IMAGE_MAX = 30;
     public static final int POST_YOUTUBE_MAX = 10;
-    /** 댓글 하나에 넣을 수 있는 YouTube 수(사용자 결정 2026-11-06 — 댓글마다 플레이어가 여럿 뜨지 않게) */
-    public static final int COMMENT_YOUTUBE_MAX = 1;
+    /** 댓글 하나에 넣을 수 있는 영상 수(YouTube·치지직·SOOP·틱톡·인스타그램 합 — 사용자 결정 2026-11-06, 댓글마다 플레이어가 여럿 뜨지 않게) */
+    public static final int COMMENT_VIDEO_MAX = 1;
     /** 비회원 비밀번호 최대 길이(관리자 설정에 없는 값 — 가정) */
     public static final int GUEST_PASSWORD_MAX = 20;
     /** bcrypt 는 72바이트를 넘는 부분을 무시하므로 해시하기 전에 거절한다 */

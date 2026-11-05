@@ -207,7 +207,7 @@ const time = useDisplayTime();
 /**
  * 에디터 댓글 본문의 이모티콘 — 정화된 HTML 을 넣은 뒤 글자 노드의 토큰만 그림으로 바꾼다(링크·코드 안 제외, `UtilRichEmoticon.replaceIn`).
  * 토큰이 있을 때만 카탈로그를 받고, 늦게 오면(`version`) 다시 바꾼다. 카탈로그에 없으면 글자 그대로.
- * 유튜브 표식(붙여 넣은 주소 — 댓글 하나에 1개)은 글 보기처럼 `UtilRichBody.enhance` 가 썸네일 → 누르면 재생으로 바꾼다.
+ * 영상 표식(붙여 넣은 유튜브·치지직 클립·SOOP·틱톡·인스타그램 주소 — 댓글 하나에 1개)은 글 보기처럼 `UtilRichBody.enhance` 가 썸네일 → 누르면 재생으로 바꾼다.
  */
 const htmlBody = ref<HTMLElement | null>(null);
 const catalog = useEmoticonCatalog();

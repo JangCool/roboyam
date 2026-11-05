@@ -21,6 +21,65 @@ const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 /** 유튜브 주소로 받는 호스트 */
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'www.youtube-nocookie.com', 'youtube-nocookie.com']);
 
+/** 유튜브 밖의 영상 플랫폼 — 공식 퍼가기 플레이어가 있고 다른 사이트에서 띄울 수 있는 것만(2026-11-06 확인) */
+export type RichEmbedProvider = 'chzzk' | 'soop' | 'tiktok' | 'instagram';
+
+/** 영상 하나 — 플랫폼과 ID. 글에는 `<div data-embed="플랫폼:ID">` 로만 실린다(주소는 싣지 않는다) */
+export interface RichEmbed {
+    provider: RichEmbedProvider;
+    id: string;
+}
+
+/** 플랫폼별 ID 형식 — 서버 `RichText.EMBED` 와 같다 */
+const EMBED_ID: Record<RichEmbedProvider, RegExp> = {
+    chzzk: /^[A-Za-z0-9]{6,20}$/,
+    soop: /^[1-9]\d{0,11}$/,
+    tiktok: /^\d{10,25}$/,
+    instagram: /^[A-Za-z0-9_-]{5,40}$/,
+};
+
+/**
+ * 누른 뒤에 만드는 퍼가기 주소 — 플랫폼이 정한 틀에 ID 만 끼운다(사용자가 쓴 주소는 쓰지 않는다)
+ *  - 치지직: 클립만 퍼가기가 있다(`/embed/clip/{클립ID}` — 다시보기·생방송은 없다)
+ *  - SOOP: 다시보기·클립 플레이어의 `/player/{번호}/embed`
+ *  - 틱톡: 공식 Embed Player `player/v1/{영상번호}`
+ *  - 인스타그램: 게시물·릴스의 `/p/{단축 코드}/embed`(공개 게시물만 보인다)
+ */
+const EMBED_URL: Record<RichEmbedProvider, (id: string) => string> = {
+    chzzk: (id) => `https://chzzk.naver.com/embed/clip/${id}`,
+    soop: (id) => `https://vod.sooplive.com/player/${id}/embed`,
+    tiktok: (id) => `https://www.tiktok.com/player/v1/${id}?autoplay=1`,
+    instagram: (id) => `https://www.instagram.com/p/${id}/embed`,
+};
+
+/** 세로 영상 플랫폼(카드가 9:16) */
+const TALL_PROVIDERS = new Set<RichEmbedProvider>(['tiktok', 'instagram']);
+
+/** 주소 → 플랫폼·ID. 호스트와 경로 꼴이 맞을 때만 읽는다 */
+function embedFromUrl(url: URL): RichEmbed | null {
+    const host = url.hostname.toLowerCase().replace(/^(www|m)\./, '');
+    const parts = url.pathname.split('/').filter(Boolean);
+    let found: RichEmbed | null = null;
+    if (host === 'chzzk.naver.com') {
+        // chzzk.naver.com/clips/{ID} · /embed/clip/{ID}
+        if (parts[0] === 'clips' && parts[1]) found = { provider: 'chzzk', id: parts[1] };
+        else if (parts[0] === 'embed' && parts[1] === 'clip' && parts[2]) found = { provider: 'chzzk', id: parts[2] };
+    } else if (['vod.sooplive.co.kr', 'vod.sooplive.com', 'vod.afreecatv.com'].includes(host)) {
+        // vod.sooplive.co.kr/player/{번호}(/embed …)
+        if (parts[0] === 'player' && parts[1]) found = { provider: 'soop', id: parts[1] };
+    } else if (host === 'tiktok.com') {
+        // tiktok.com/@아이디/video/{번호} · /player/v1/{번호} · /embed/v2/{번호}
+        if (parts[0]?.startsWith('@') && parts[1] === 'video' && parts[2]) found = { provider: 'tiktok', id: parts[2] };
+        else if (parts[0] === 'player' && parts[1] === 'v1' && parts[2]) found = { provider: 'tiktok', id: parts[2] };
+        else if (parts[0] === 'embed' && parts[1] === 'v2' && parts[2]) found = { provider: 'tiktok', id: parts[2] };
+    } else if (host === 'instagram.com') {
+        // instagram.com/p/{코드} · /reel/{코드} · /reels/{코드} · /tv/{코드} (앞에 아이디가 붙은 /{아이디}/reel/{코드} 도)
+        const at = parts.findIndex((part) => ['p', 'reel', 'reels', 'tv'].includes(part));
+        if (at >= 0 && at <= 1 && parts[at + 1]) found = { provider: 'instagram', id: parts[at + 1] as string };
+    }
+    return found && EMBED_ID[found.provider].test(found.id) ? found : null;
+}
+
 /** 파일 이름 끝의 확장자(소문자). 없으면 빈 문자열 */
 function extensionOf(name: string): string {
     const dot = name.lastIndexOf('.');
@@ -121,6 +180,62 @@ export default class UtilRichMedia {
      */
     static youtubeEmbedUrl(id: string): string {
         return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`;
+    }
+
+    /**
+     * 붙여 넣은 주소에서 유튜브 밖의 영상(치지직 클립·SOOP 다시보기·틱톡·인스타그램)을 읽는다. 단축 주소(`vm.tiktok.com` 등)는 화면이 풀 수 없어 읽지 않는다(링크로 붙는다).
+     * @param {string} raw - 입력한 주소(http·https).
+     * @returns {RichEmbed | null} 플랫폼·ID. 읽을 수 없으면 null.
+     */
+    static embedOf(raw: string): RichEmbed | null {
+        let url: URL;
+        try {
+            url = new URL(raw.trim());
+        } catch {
+            return null;
+        }
+        if (!['http:', 'https:'].includes(url.protocol)) return null;
+        return embedFromUrl(url);
+    }
+
+    /**
+     * 글에 싣는 표식 값 `플랫폼:ID`
+     * @param {RichEmbed} embed - 영상.
+     * @returns {string} 표식 값.
+     */
+    static embedMarker(embed: RichEmbed): string {
+        return `${embed.provider}:${embed.id}`;
+    }
+
+    /**
+     * 표식 값 `플랫폼:ID` → 영상. 모르는 플랫폼이거나 ID 형식이 틀리면 null(그리지 않는다)
+     * @param {string | null | undefined} value - `data-embed` 값.
+     * @returns {RichEmbed | null} 영상.
+     */
+    static parseEmbedMarker(value: string | null | undefined): RichEmbed | null {
+        const at = value?.indexOf(':') ?? -1;
+        if (!value || at < 0) return null;
+        const provider = value.slice(0, at) as RichEmbedProvider;
+        const id = value.slice(at + 1);
+        return Object.hasOwn(EMBED_ID, provider) && EMBED_ID[provider].test(id) ? { provider, id } : null;
+    }
+
+    /**
+     * 누른 뒤에만 만드는 퍼가기 주소 — 플랫폼이 정한 틀에 ID 만 끼운다
+     * @param {RichEmbed} embed - 영상(형식을 본 것).
+     * @returns {string} 퍼가기 주소.
+     */
+    static embedUrl(embed: RichEmbed): string {
+        return EMBED_URL[embed.provider](embed.id);
+    }
+
+    /**
+     * 세로 영상 플랫폼인가(틱톡·인스타그램 — 카드가 9:16)
+     * @param {RichEmbedProvider} provider - 플랫폼.
+     * @returns {boolean} 세로면 true.
+     */
+    static isTallEmbed(provider: RichEmbedProvider): boolean {
+        return TALL_PROVIDERS.has(provider);
     }
 
     /**
