@@ -1,6 +1,8 @@
 package com.community.auth.service;
 
 import com.community.auth.dto.response.MeResponse;
+import com.community.auth.dto.response.OperatorAccountView;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.auth.dto.response.RestrictionView;
 import com.community.auth.dto.response.UserView;
 import com.community.business.service.BusinessEligibility;
@@ -43,9 +45,11 @@ public class MeService {
     private final GradeRepository grades;
     private final BusinessEligibility business;
     private final MemberSanctionService sanctions;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, GradeRepository grades, BusinessEligibility business,
-                     MemberSanctionService sanctions) {
+                     MemberSanctionService sanctions, OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.sanctions = sanctions;
         this.business = business;
         this.users = users;
@@ -82,7 +86,10 @@ public class MeService {
 
         RestrictionView restriction = restrictionOf(u);
 
-        return Optional.of(new MeResponse(true, view, restriction, null, u.getStatus() == UserStatus.WITHDRAWING));
+        // 운영자 회원 계정(힘이 살아 있을 때만 — 요청마다 판정)
+        OperatorAccountView operatorAccount = operatorAccounts.linkOfUser(userId).filter(link -> link.active()).map(link -> new OperatorAccountView(link.operatorName()))
+                .orElse(null);
+        return Optional.of(new MeResponse(true, view, restriction, null, u.getStatus() == UserStatus.WITHDRAWING, operatorAccount));
     }
 
     /** 제한 요약 — 정지·영구 정지면 늘, 정상이면 확인 안 한 유효 경고가 있을 때만, 그 밖 null */

@@ -64,7 +64,7 @@ public class IdentityVerificationService {
     public static final DataPurpose DI = DataPurpose.of("identity.di");
     /** CI 해시의 용도 */
     public static final DataPurpose CI = DataPurpose.of("identity.ci");
-    /** 인증 이름 암호문의 용도(V141 {@code identity_verifications.name_enc}) — 로보티콘 작가 정산 계좌의 예금주 대조에만 푼다(emoticon-contract S2) */
+    /** 인증 이름 암호문의 용도(V143 {@code identity_verifications.name_enc}) — 로보티콘 작가 정산 계좌의 예금주 대조에만 푼다(emoticon-contract S2) */
     public static final DataPurpose NAME = DataPurpose.of("identity.name");
 
     /** 시도를 실패로 끝내는 거절 — 이 밖의 오류(입력·설정·키)는 시도를 그대로 둔다 */
@@ -115,7 +115,7 @@ public class IdentityVerificationService {
      */
     public IdentityStartView start(long userId) {
         if (store.findVerification(userId).isPresent() && !nameMissing(userId)) {
-            throw new IdentityAlreadyVerifiedException(); // 이름 암호문이 없는 회원(V141 전 인증)만 이름 채우기 재인증을 한 번 할 수 있다(emoticon-contract S3)
+            throw new IdentityAlreadyVerifiedException(); // 이름 암호문이 없는 회원(V143 전 인증)만 이름 채우기 재인증을 한 번 할 수 있다(emoticon-contract S3)
         }
         index.requireConfigured(); // 결과를 저장할 수 없으면(해시 키 없음 — 503 INDEX_KEY_MISSING) 업체 인증을 시작하지 않는다
         IdentityStartInfo info = verifier.startInfo();
@@ -185,7 +185,7 @@ public class IdentityVerificationService {
     }
 
     /**
-     * 이름 채우기 재인증(emoticon-contract S3 — 사용자 결정 2026-11-05) — 이미 인증했지만 이름 암호문이 없는 회원(V141 전 인증). 한 트랜잭션: 같은 사람(DI 해시 또는 CI 해시가 저장된 값과
+     * 이름 채우기 재인증(emoticon-contract S3 — 사용자 결정 2026-11-05) — 이미 인증했지만 이름 암호문이 없는 회원(V143 전 인증). 한 트랜잭션: 같은 사람(DI 해시 또는 CI 해시가 저장된 값과
      * 같음)이 아니면 409 {@code IDENTITY_PERSON_MISMATCH}(시도 FAILED) → 이름 암호문만 채운다(비어 있을 때만 — 동시에 두 번 와도 처음 것) → 시도 VERIFIED.
      * 생년월일·인증 시각·DI/CI·업체 건 번호는 그대로 두고, 가입 포인트 같은 한 번뿐인 혜택은 다시 주지 않는다. 데이터 키가 없거나 업체가 이름을 주지 않으면 이름 없이 끝난다(그대로 재인증 가능).
      */
@@ -210,7 +210,7 @@ public class IdentityVerificationService {
         return statusOf(v);
     }
 
-    /** 인증했지만 이름 암호문이 없다(V141 전 인증 — 이름 채우기 재인증 대상) */
+    /** 인증했지만 이름 암호문이 없다(V143 전 인증 — 이름 채우기 재인증 대상) */
     public boolean nameMissing(long userId) {
         return store.findVerification(userId).isPresent() && store.findNameCipher(userId).isEmpty();
     }

@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 상품화 계약 — 문서는 약관 게시본({@code terms_versions} 의 종류 {@code ROBOTIKON_CONTRACT}, 약관 관리가 쓴다), 동의 기록은 {@code emoticon_contract_consents}(V141 — 추가만).
+ * 로보티콘 상품화 계약 — 문서는 약관 게시본({@code terms_versions} 의 종류 {@code ROBOTIKON_CONTRACT}, 약관 관리가 쓴다), 동의 기록은 {@code emoticon_contract_consents}(V143 — 추가만).
  * 「지금 판」 = 시행일이 사이트 표시 시간대의 오늘 이전(오늘 포함)인 가장 큰 버전 — {@code TermsTimeline} 과 같은 규칙이다(JDBC 인 이유는 {@link EmoticonPackStore} 와 같다).
  */
 @Repository

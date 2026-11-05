@@ -48,8 +48,10 @@ export default {
     textOtherRequired: 'For “Other”, write at least {min} characters.',
     noticeToMember: 'The member is notified with the reason. Who issued it is not shown.',
     quotaLine: '{n} of {limit} sanctions left today',
+    quotaUnlimited: 'Operator account · no daily limit',
     submit: 'Sanction',
     issuedToast: 'Gave {name} a {kind} · {n} left today',
+    issuedToastPlain: 'Gave {name} a {kind}',
 
     /* Board header staff bar */
     staffBarManager: 'Moderating · Manager',
@@ -74,6 +76,7 @@ export default {
     issuerLine: 'By {name} · {role}',
     roleManager: 'Manager',
     roleStaff: 'Staff',
+    roleOperator: 'Operator',
     sourcePost: 'Source post',
     sourceComment: 'Source comment',
     liftedLine: 'Lifted {date} · {reason}',
@@ -92,6 +95,11 @@ export default {
     restrictedReason: 'Reason: {reason}',
     restrictedMore: 'Details',
     restrictedAllowed: 'You can still read, like, edit your posts and use other boards.',
+
+    /* Unacknowledged warning notice (member — that board's header) */
+    warnedTitle: 'You got a warning on this board',
+    warnedMore: '+{count} more',
+    warnedHint: 'You can still post and comment. Repeated issues may lead to a posting restriction.',
 
     /* My board sanctions (/sanction) */
     myTitle: 'Board sanctions',

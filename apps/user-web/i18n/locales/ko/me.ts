@@ -17,6 +17,11 @@ export default {
 
     // 바로가기
     shortcuts: '바로가기',
-    entryProfile: '내 프로필 보기',
+    entryProfile: '활동 현황',
     entryGrade: '등급 안내',
+    // 내 정보 메뉴(데스크톱 오른쪽 열 · 모바일 내 정보 목록) — 묶음 이름
+    menuLabel: '내 정보 메뉴',
+    menuGroupActivity: '내 활동',
+    menuGroupPoint: '포인트',
+    menuGroupInbox: '알림·쪽지',
 };

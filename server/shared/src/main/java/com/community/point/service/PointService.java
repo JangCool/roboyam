@@ -81,7 +81,7 @@ public class PointService {
     public static final String REF_USER = "USER";
     /** 핫딜 종료 요청 보상의 대상 — 그 요청 줄({@code deal_end_requests.id}, V122 — 원장 유일로 요청마다 한 번) */
     public static final String REF_DEAL_END_REQUEST = "DEAL_END_REQUEST";
-    /** 무료 로보티콘 팩 받기 보상의 대상 — 그 받기 줄({@code emoticon_acquisitions.id}, V140 — 원장 유일로 줄마다 한 번) */
+    /** 무료 로보티콘 팩 받기 보상의 대상 — 그 받기 줄({@code emoticon_acquisitions.id}, V142 — 원장 유일로 줄마다 한 번) */
     public static final String REF_EMOTICON_ACQUIRE = "EMOTICON_ACQUIRE";
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */

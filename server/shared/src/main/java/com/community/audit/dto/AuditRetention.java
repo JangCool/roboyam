@@ -42,6 +42,8 @@ public final class AuditRetention {
             // 사업자 신청 건 — 금액 확정(승인·조정)·계약서 사본·입금 확인·예약 확정·취소·환불 승인·거절·송금 — 계약·대금 기록(5년, biz-application-contract)
             AuditActions.BIZ_APP_APPROVE, AuditActions.BIZ_APP_PRICE_ADJUST, AuditActions.BIZ_APP_CONTRACT_UPLOAD, AuditActions.BIZ_DEPOSIT_CONFIRM, AuditActions.BIZ_APP_CONFIRM,
             AuditActions.BIZ_APP_CANCEL, AuditActions.BIZ_APP_REFUND_APPROVE, AuditActions.BIZ_APP_REFUND_DENY, AuditActions.BIZ_APP_REFUND_TRANSFER,
+            // 계약서 종이 접수 기록 — 수동 결제 근거(계약 기록 5년, biz-doc-intake-contract)
+            AuditActions.BIZ_APP_PAPER_RECEIVE, AuditActions.BIZ_APP_PAPER_HANDLING, AuditActions.BIZ_APP_PAPER_DISPOSE, AuditActions.BIZ_APP_PAPER_VOID,
             // 광고 일정표 — 운영자 등록(계약 시작)·긴급 내림 되돌리기(연장·일할 환불, F5)
             AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE,
             // 광고주 요청 중단(운영자 대신 — 일할 환불·중도 해지 수수료, biz-pause-contract)
@@ -115,6 +117,9 @@ public final class AuditRetention {
             AuditActions.BOARD_SANCTION_LIFT, AuditActions.BOARD_SANCTION_VOID, AuditActions.BOARD_SANCTION_REVIEW_CLOSE,
             // 게시판 스텝 처리 되돌리기(board-staff-action-contract) — 운영자 게시글 관리 복구와 같은 콘텐츠 관리
             AuditActions.BOARD_STAFF_ACTION_RESTORE,
+            // 운영자 회원 계정(operator-member-account-contract) — 연결·해제는 운영자 관리, 사이트 처리·제재·되돌리기는 운영자 게시글 관리·게시판 제재와 같은 콘텐츠 관리
+            AuditActions.OPERATOR_MEMBER_LINK, AuditActions.OPERATOR_MEMBER_UNLINK, AuditActions.SITE_POST_HIDE, AuditActions.SITE_POST_DELETE,
+            AuditActions.SITE_COMMENT_DELETE, AuditActions.SITE_BOARD_SANCTION, AuditActions.SITE_BOARD_SANCTION_LIFT, AuditActions.SITE_ACTION_RESTORE,
             // 회원 탈퇴 신청·취소 — 계정 상태 변경(완료는 포기 동의 증빙이라 돈 관련)
             AuditActions.MEMBER_WITHDRAW_REQUEST, AuditActions.MEMBER_WITHDRAW_CANCEL,
             // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고
@@ -159,6 +164,9 @@ public final class AuditRetention {
             // 사업자 신원 심사(business-contract) — 승인·반려·정지·해제·국세청 조회(표에 빠져 있던 것을 더함)
             AuditActions.BUSINESS_APPROVE, AuditActions.BUSINESS_REJECT, AuditActions.BUSINESS_SUSPEND, AuditActions.BUSINESS_UNSUSPEND, AuditActions.BUSINESS_SERVICE_SUSPEND, AuditActions.BUSINESS_SERVICE_RESUME, AuditActions.BUSINESS_NTS_CHECK,
             AuditActions.BUSINESS_NTS_OVERRIDE, AuditActions.BUSINESS_DELETE,
+            // 사업자등록증 종이 접수 기록·운영자의 등록증 사본 올리기(biz-doc-intake-contract) — 심사 서류 받기(열람은 BUSINESS_CERT_VIEW 가 개인정보 열람으로 남긴다)
+            AuditActions.BUSINESS_PAPER_RECEIVE, AuditActions.BUSINESS_PAPER_HANDLING, AuditActions.BUSINESS_PAPER_DISPOSE, AuditActions.BUSINESS_PAPER_VOID,
+            AuditActions.BUSINESS_CERT_UPLOAD,
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
             AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
             // 광고주 요청 일시 정지·다시 켜기(운영자 대신 — 돈은 중단이 움직인다, biz-pause-contract)

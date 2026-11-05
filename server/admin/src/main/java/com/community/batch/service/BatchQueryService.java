@@ -212,10 +212,11 @@ public class BatchQueryService {
         if (java && run.getStatus() == BatchRunStatus.RUNNING && !stepRows.isEmpty()) {
             // 실행 중에는 실행 줄의 건수가 비어 있다 — 덩어리마다 고쳐지는 단계 건수로 보인다(확정 규칙 1)
             BatchRunStepEntity main = mainStepRow(run.getJobKey(), stepRows);
-            boolean retry = run.getRunMode() == BatchRunMode.RETRY_FAILED;
-            read = retry ? stepRows.stream().mapToLong(BatchRunStepEntity::getReadCount).sum() : main.getReadCount();
-            processed = retry ? stepRows.stream().mapToLong(BatchRunStepEntity::getProcessedCount).sum() : main.getProcessedCount();
-            skipped = retry ? stepRows.stream().mapToLong(BatchRunStepEntity::getSkippedCount).sum() : main.getSkippedCount();
+            BatchCatalog definition = BatchCatalog.ofKey(run.getJobKey());
+            boolean sum = run.getRunMode() == BatchRunMode.RETRY_FAILED || (definition != null && registry.countsAllStepsOf(definition));
+            read = sum ? stepRows.stream().mapToLong(BatchRunStepEntity::getReadCount).sum() : main.getReadCount();
+            processed = sum ? stepRows.stream().mapToLong(BatchRunStepEntity::getProcessedCount).sum() : main.getProcessedCount();
+            skipped = sum ? stepRows.stream().mapToLong(BatchRunStepEntity::getSkippedCount).sum() : main.getSkippedCount();
             failed = stepRows.stream().mapToLong(BatchRunStepEntity::getFailedCount).sum();
         }
         long unresolved = java ? details.countUnresolved(run.getId()) : 0;

@@ -56,6 +56,13 @@ public class MyBusinessController {
         return noStore(service.upload(user(authentication), file));
     }
 
+    /** 등록증을 우편·팩스로 보낼 곳(서버 설정값 — biz-doc-intake-contract). 주소·팩스가 둘 다 null 이면 「우편·팩스로 보내기」를 받지 않는다 */
+    @GetMapping("/doc-send-to")
+    public ResponseEntity<ApiResponse<MyBusinessView.DocSendTo>> docSendTo(Authentication authentication) {
+        user(authentication);
+        return noStore(service.docSendTo());
+    }
+
     private static long user(Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() instanceof AuthUser principal) {
             return principal.id();

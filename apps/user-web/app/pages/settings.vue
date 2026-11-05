@@ -2,9 +2,10 @@
     <!--
         설정 묶음의 틀 — 넓은 화면(md 이상)은 왼쪽 메뉴(`AppSideNav`) + 오른쪽 화면, 좁은 화면은 `/settings` 가 목록이고 각 화면 위에 「‹ 설정」 돌아가기 링크가 선다
         (하위 화면 — 이메일·비밀번호 변경 — 은 「‹ 계정·로그인 연결」로 부모에 돌아간다).
+        내 정보 메뉴(`MeFrame`)와 따로다 — 설정 화면에는 이 설정 메뉴만 보인다(사용자 결정 2026-11-05). 헤더 계정 메뉴의 「설정」이 여기로 온다.
         메뉴의 차례·이름은 `UtilSettings.ENTRIES` 한 곳에서 온다(좁은 화면 목록과 같다). 하위 화면은 왼쪽 메뉴에만 들여 써서 보인다.
     -->
-    <div class="mx-auto w-full max-w-4xl md:grid md:grid-cols-[13rem_minmax(0,1fr)] md:items-start md:gap-6">
+    <div class="w-full md:grid md:grid-cols-[13rem_minmax(0,1fr)] md:items-start md:gap-6">
         <AppSideNav class="max-md:hidden md:sticky md:top-16" :items="navItems" :title="t('settings.title')" :nav-label="t('settings.title')" />
 
         <div class="min-w-0">
@@ -27,7 +28,7 @@ import UtilSettings from '~/utils/util-settings';
 /**
  * 설정 묶음 `/settings/*` 의 부모 화면 — 로그인 필요(`auth` 미들웨어 — 아래 화면들도 각자 건다).
  * 화면(차례는 `UtilSettings.ENTRIES`): 프로필 · 닉네임 이미지(`/settings/nickname-image`) · 성인 확인(`/settings/adult`) · 보기(`/settings/view`) · 시간 표시(`/settings/display`) ·
- * 차단 관리(`/settings/blocks`) · 이용자 메모(`/settings/memos`) · 알림 설정(`/settings/notifications`) · 쪽지 수신(`/settings/messages`) · 계정·로그인 연결(`/settings/account`)
+ * 차단 관리(`/settings/blocks`) · 이용자 메모(`/settings/memos`) · 알림 설정(`/settings/notifications`) · 쪽지 수신(`/settings/messages`) · 배송지 관리(`/settings/addresses`) · 계정·로그인 연결(`/settings/account`)
  * › 이메일 변경(`/settings/account/email`) · 비밀번호 변경(`/settings/account/password`).
  */
 definePageMeta({ middleware: 'auth' });

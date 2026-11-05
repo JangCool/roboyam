@@ -1,6 +1,6 @@
 <template>
     <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 설정」 -->
-    <div>
+    <div class="content-card">
         <h1 class="mb-4 text-lg font-bold">{{ t('account.title') }}</h1>
 
         <!-- 소셜 연결이 끝나지 않고 돌아왔다 — 다른 회원에 연결된 소셜 계정 · 취소·실패·시간 초과 -->
@@ -18,6 +18,29 @@
         <ErrorState v-else-if="status === 'error'" :title="t('account.loadFailed')" :description="loadError" retry data-testid="account-error" @retry="load()" />
 
         <template v-else-if="view">
+            <!-- 운영자 회원 계정 — 로그인 정보의 `operatorAccount`(힘이 살아 있을 때만)가 있으면 읽기 전용 카드. 연결·해제는 관리자 앱에서만 -->
+            <section v-if="operatorAccount" class="mb-6" :aria-labelledby="`${uid}-operator`" data-testid="account-operator">
+                <h2 :id="`${uid}-operator`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('operatorAccount.sectionTitle') }}</h2>
+                <div class="panel-card px-4 py-3.5">
+                    <div class="flex items-start gap-3">
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900" aria-hidden="true">
+                            <i class="pi pi-shield" />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-semibold leading-snug">{{ t('operatorAccount.cardTitle') }}</span>
+                            <small class="block break-all text-xs leading-snug text-muted-color" data-testid="account-operator-name">{{ t('operatorAccount.cardOperator', { name: operatorAccount.operatorName }) }}</small>
+                        </span>
+                    </div>
+                    <ul class="m-0 mt-3 flex list-none flex-col gap-1.5 border-t border-surface p-0 pt-3 text-sm" :aria-label="t('operatorAccount.powersLabel')" data-testid="account-operator-powers">
+                        <li v-for="power in operatorPowers" :key="power" class="flex items-start gap-2">
+                            <i class="pi pi-check mt-1 text-[0.6875rem] text-primary" aria-hidden="true" />
+                            <span class="min-w-0 flex-1 leading-snug">{{ power }}</span>
+                        </li>
+                    </ul>
+                </div>
+                <p class="mt-2 px-1 text-xs leading-relaxed text-muted-color">{{ t('operatorAccount.unlinkNote') }}</p>
+            </section>
+
             <!-- 로그인 정보 — 이메일(인증 상태 + 미인증이면 인증 메일 다시 보내기) · 비밀번호 유무 · 이메일 변경 · 비밀번호 변경 -->
             <section class="mb-6" :aria-labelledby="`${uid}-methods`">
                 <h2 :id="`${uid}-methods`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('account.methodsTitle') }}</h2>
@@ -196,6 +219,8 @@ import UtilTime from '#layers/display-time/utils/util-time';
  *   읽은 뒤 주소에서 지운다(새로고침해도 같은 안내가 다시 뜨지 않게). 연결 완료는 토스트, 실패는 위의 안내.
  * - **해제**는 확인 대화상자를 거친다(`DELETE`). `409 SOCIAL_LAST_LOGIN_METHOD` 는 「다른 로그인 수단이 없어 해제할 수 없어요」, 그 밖의 실패는 서버 문구를 토스트(8초)로 보이고 서버 상태를 다시 받는다.
  * - 운영자가 꺼 둔(키 없는) 공급자는 줄은 보이고 단추가 없다(`linkable=false`). 마지막 로그인 수단의 해제 단추는 비활성 + 줄 설명에 이유.
+ * - **운영자 회원 계정**(로그인 정보의 `operatorAccount`)이면 맨 위에 읽기 전용 카드: 「운영자 계정에 연결된 회원 계정이에요 — 운영자 {이름}」 ·
+ *   세 힘(로보티콘 모든 팩 · 「운영자」 뱃지 · 모든 게시판 관리, 하루 한도 없음) · 「연결 해제는 관리자 앱에서 해요」. 이 화면에서 바꿀 수 있는 것은 없다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -208,6 +233,15 @@ const api = useMeSocialApi();
 const accountApi = useAccountApi();
 const auth = useAuth();
 const user = auth.user;
+/** 운영자 회원 계정 연결(로그인 정보의 `operatorAccount`) */
+const operatorAccount = auth.operatorAccount;
+const { term } = useSiteTerms();
+/** 운영자 회원 계정의 세 힘 — 로보티콘 모든 팩 · 「운영자」 뱃지(사이트 용어) · 모든 게시판 관리(하루 한도 없음) */
+const operatorPowers = computed(() => [
+    t('operatorAccount.powerRobotikon'),
+    t('operatorAccount.powerBadge', { badge: term('ADMIN_BADGE') }),
+    t('operatorAccount.powerBoards'),
+]);
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { sending, cooldownRemaining, coolingDown, errorMessage: resendError, resend } = useEmailResend();

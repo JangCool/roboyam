@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('me.title') }}</h1>
 
         <template v-if="user">
@@ -64,38 +64,8 @@
                 </template>
             </section>
 
-            <!-- 바로가기 — 지금 만들어진 화면만(스크랩은 기능이 없어 넣지 않는다). 포인트 상점·내 아이템은 포인트 내역 다음(사업자 전용 계정 제외). 내 프로필 보기·등급 안내는 회원 활동 화면, 쪽지함은 소통 화면 -->
-            <nav class="panel-card p-2" :aria-label="t('me.shortcuts')">
-                <ul class="m-0 list-none p-0">
-                    <li v-for="entry in entries" :key="entry.to">
-                        <NuxtLink
-                            :to="entry.to"
-                            class="flex min-h-11 items-center justify-between gap-2 rounded-lg px-2 py-2.5 text-sm hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
-                            :aria-label="entry.ariaLabel"
-                            :data-testid="entry.testid"
-                        >
-                            <span class="flex items-center gap-2"><i :class="[entry.icon, 'text-muted-color']" aria-hidden="true" />{{ entry.label }}</span>
-                            <span class="flex items-center gap-1.5 text-muted-color">
-                                <span v-if="entry.hint" class="text-xs">{{ entry.hint }}</span>
-                                <!-- 안 읽은 알림 수 — 숫자는 눈으로만(링크 이름 `ariaLabel` 에 수가 들어간다) -->
-                                <span v-if="entry.badge" class="grid min-w-5 place-items-center rounded-full bg-red-600 px-1.5 text-[0.6875rem] font-bold leading-5 text-white" aria-hidden="true">
-                                    {{ entry.badge }}
-                                </span>
-                                <i class="pi pi-angle-right" aria-hidden="true" />
-                            </span>
-                        </NuxtLink>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- 운영자·운영진만 — 관리자 앱(별도 사이트, 새 탭) -->
-            <nav v-if="adminUrl" class="panel-card p-2" :aria-label="t('shell.adminApp')">
-                <AdminAppLink class="min-h-11 rounded-lg px-2 py-2.5 text-sm hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800" />
-            </nav>
-
-            <div>
-                <Button type="button" :label="t('common.logout')" icon="pi pi-sign-out" severity="secondary" variant="outlined" :loading="busy" data-testid="me-logout" @click="logout" />
-            </div>
+            <!-- 내 정보 메뉴 — 모바일은 여기 목록으로. 데스크톱은 셸의 오른쪽 열(`MeFrame`)에 늘 있어 숨긴다 -->
+            <MeMenu class="lg:hidden" :home="false" />
         </template>
     </div>
 </template>
@@ -104,34 +74,25 @@
 import type { PointCount } from '~/composables/point/api/usePointApi.types';
 import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
-import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilPoint from '~/utils/util-point';
-import UtilPointMessages from '~/utils/util-point-messages';
-import UtilPointShop from '~/utils/util-point-shop';
-import UtilProfile from '~/utils/util-profile';
-import UtilEmoticon from '~/utils/util-emoticon';
-import UtilSettings from '~/utils/util-settings';
 
 /**
  * 내 정보 `/me` — 로그인 필요(`auth` 미들웨어). 하단 탭·헤더 프로필 메뉴·햄버거의 「내 정보」가 온다.
- * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 `GET /api/me/profile`) · 포인트 요약(`GET /api/me/points`) · 바로가기(포인트 내역·알림·설정 화면들) · 로그아웃.
+ * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 `GET /api/me/profile`) · 포인트 요약(`GET /api/me/points`).
+ * 메뉴(바로가기 묶음 · 관리자 앱 · 로그아웃)는 `MeMenu` — 모바일은 이 화면 아래 목록, 데스크톱은 셸의 오른쪽 열(`MeFrame`)에 늘 있다.
  * 원본(community) `pages/me/index.vue` 의 구성에서 로보얌에 없는 것(스크랩·소모임·주문·쪽지·프로필 그림)을 뺐다. 포인트 상점(`/point-shop`)·내 아이템(`/me/items`) 바로가기가 있다. 바로가기에 내 공개 프로필(`/users/{내 ID}`)·등급 안내(`/me/grade`)가 있다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('me.title'), description: () => t('me.seoDescription', { site: siteLabel.value }), robots: 'noindex' });
 
 const uid = useId();
 const time = useDisplayTime();
-const { user, adminUrl, emailVerified, restriction } = useAuth();
-const { busy, run: logout } = useLogoutFlow();
+const { user } = useAuth();
 const profileApi = useProfileApi();
 const points = usePointSummary();
 const { summary, status: pointStatus } = points;
-const badge = useNotificationBadge();
-const dmBadge = useDmBadge();
-const { term } = useSiteTerms();
 
 /** 사업자 전용 계정(H-2) — 포인트가 없다 */
 const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value?.role));
@@ -185,50 +146,5 @@ const todayRows = computed(() => {
         { key: 'likeBonus', labelKey: 'point.todayLikeBonus', value: today.likeBonus },
     ];
     return rows.filter((row) => row.value.cap > 0);
-});
-
-interface Entry {
-    to: string;
-    icon: string;
-    label: string;
-    hint: string;
-    badge: string;
-    ariaLabel?: string;
-    testid: string;
-}
-
-/** 바로가기 — 포인트 내역(사업자 전용 계정 제외) · 알림(안 읽은 수) · 설정 묶음의 화면들 */
-const entries = computed<Entry[]>(() => {
-    const list: Entry[] = [];
-    // 내 공개 프로필(남이 보는 모양) · 등급 안내 — `docs/features/member-activity-contract.md`
-    if (user.value) list.push({ to: UtilProfile.path(user.value.id), icon: 'pi pi-id-card', label: t('me.entryProfile'), hint: '', badge: '', testid: 'me-entry-profile' });
-    list.push({ to: '/me/grade', icon: 'pi pi-star', label: t('me.entryGrade'), hint: user.value?.role === 'USER' ? user.value.gradeLabel : '', badge: '', testid: 'me-entry-grade' });
-    if (!businessAccount.value) {
-        // 포인트·출석체크(커머스 1-3) — 출석 기능이 있으면 「포인트·출석체크」, 오른쪽에 보유 포인트(+ 오늘 출석 전이면 「· 출석 +10P」)
-        const s = summary.value;
-        list.push({
-            to: '/me/points',
-            icon: 'pi pi-wallet',
-            label: s?.attendanceAvailable ? t('point.entry') : t('point.history'),
-            hint: s ? UtilPointMessages.entryHint(t, s.balance, UtilPoint.attendable(s, { emailVerified: emailVerified.value, restriction: restriction.value }), s.rules.attendance) : '',
-            badge: '',
-            testid: 'me-entry-points',
-        });
-        // 포인트 상점 · 내 아이템(`commerce-stage1-contract.md` 「1-2 화면 목업」) — 공동구매(주문 내역)와 따로
-        list.push({ to: UtilPointShop.PATH, icon: 'pi pi-shopping-bag', label: term('POINT_SHOP'), hint: '', badge: '', testid: 'me-entry-point-shop' });
-        list.push({ to: UtilPointShop.MY_ITEMS_PATH, icon: 'pi pi-box', label: t('pointShop.myItems'), hint: '', badge: '', testid: 'me-entry-my-items' });
-    }
-    // 내 이모티콘(받은 팩) — `docs/features/emoticon-contract.md`. 무료라 사업자 전용 계정도 줄이 있다(가정 — 포인트 보상은 스튜디오에서만)
-    list.push({ to: UtilEmoticon.MY_PATH, icon: 'pi pi-face-smile', label: t('emoticon.myTitle'), hint: '', badge: '', testid: 'me-entry-emoticons' });
-    // 사업자 센터 — 신청했거나 사업자 전용 계정이면 「사업자 센터」, 일반 회원이고 신청 전이면 「사업자 신청」(운영진은 줄 없음, 셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`)
-    const business = UtilBusiness.entryOf(user.value);
-    if (business) list.push({ to: UtilBusiness.CENTER_PATH, icon: UtilBusinessMessages.ENTRY_CENTER_ICON, label: business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), hint: '', badge: '', testid: 'me-entry-business' });
-    list.push({ to: '/notifications', icon: 'pi pi-bell', label: t('notification.title'), hint: '', badge: badge.text.value, ariaLabel: badge.label.value, testid: 'me-entry-notifications' });
-    // 쪽지함 — 안 읽은 대화 수(`docs/features/member-social-contract.md`)
-    list.push({ to: '/messages', icon: 'pi pi-envelope', label: t('notification.dmTitle'), hint: '', badge: dmBadge.text.value, ariaLabel: dmBadge.label.value, testid: 'me-entry-messages' });
-    for (const entry of UtilSettings.ENTRIES) {
-        list.push({ to: entry.to, icon: entry.icon, label: t(entry.labelKey), hint: '', badge: '', testid: `me-entry-${entry.testid}` });
-    }
-    return list;
 });
 </script>

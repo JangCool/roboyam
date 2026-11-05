@@ -259,7 +259,7 @@ final class EmoticonTestKit {
 
     // ── 본인인증 · 정산 정보 · 계약 · 유료 설정(S2) ────────────────────────────
 
-    /** 본인인증한 회원으로 만든다 — 인증 이름 {@code name}(null 이면 이름 없음 = V141 전에 인증한 회원) */
+    /** 본인인증한 회원으로 만든다 — 인증 이름 {@code name}(null 이면 이름 없음 = V143 전에 인증한 회원) */
     void verify(long userId, String name) {
         identities.insertVerification(userId, String.format("%064x", userId), null, LocalDate.of(1990, 1, 1), IdentityProviderKind.FAKE, "emo-fake:" + userId,
                 clock.instant());

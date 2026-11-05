@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>보기</b>({@code GET …/payout-account}): 가린 값만 — 사업자 번호 {@code 123-45-*****} · 계좌 {@code ****1234} · 예금주 {@code 홍*동} · 인증 이름(가림, 미인증이면 null).</li>
  *   <li><b>저장</b>({@code PUT}) 차례: 작가 자격(정상 회원 403 · 이메일 인증 403) → 본인인증 {@code 403 IDENTITY_REQUIRED}(계정에 한 번 — 이미 했으면 다시 묻지 않는다) →
- *       만 19세 미만 {@code 403 IDENTITY_UNDERAGE}(+{@code adultFrom} — 후속 결정 3, 무료 팩 등록·판매는 된다) → 인증 이름이 남아 있지 않음 {@code 409 EMOTICON_IDENTITY_NAME_MISSING}(V141 전에 인증한 회원) → 칸 {@code 400}(모아서 — {@code type} · {@code businessNumber}(사업자만, 10자리 +
+ *       만 19세 미만 {@code 403 IDENTITY_UNDERAGE}(+{@code adultFrom} — 후속 결정 3, 무료 팩 등록·판매는 된다) → 인증 이름이 남아 있지 않음 {@code 409 EMOTICON_IDENTITY_NAME_MISSING}(V143 전에 인증한 회원) → 칸 {@code 400}(모아서 — {@code type} · {@code businessNumber}(사업자만, 10자리 +
  *       국세청 검증 숫자) · {@code bankCode}(11가지) · {@code accountNumber}(숫자 10~14자리, 하이픈·띄어쓰기는 뗀다) · {@code holderName}(인증 이름과 같아야 — 띄어쓰기 무시)) →
  *       데이터 키 없음 {@code 503 DATA_KEY_MISSING} → 넣거나 바꾼다. 원문은 {@link DataCipher} 암호문으로만.</li>
  *   <li><b>원천징수 판단</b>: {@code INDIVIDUAL} = 개인 작가(사업소득 3.3% — S4 계산), {@code BUSINESS} = 사업자 작가(세금계산서 — 원천징수 0). S2 는 구분만 저장한다.</li>
@@ -59,7 +59,7 @@ public class EmoticonPayoutService {
     public static final DataPurpose ACCOUNT = DataPurpose.of("emoticon.payout.account");
     public static final DataPurpose HOLDER = DataPurpose.of("emoticon.payout.holder");
     public static final DataPurpose BUSINESS_NUMBER = DataPurpose.of("emoticon.payout.business-number");
-    /** 은행 코드 — user-web {@code UtilEmoticon.banks()} · V141 CHECK 와 같다 */
+    /** 은행 코드 — user-web {@code UtilEmoticon.banks()} · V143 CHECK 와 같다 */
     public static final List<String> BANKS = List.of("KB", "SHINHAN", "WOORI", "HANA", "NH", "IBK", "KAKAO", "TOSS", "KBANK", "SC", "POST");
     public static final int ACCOUNT_MIN = 10;
     public static final int ACCOUNT_MAX = 14;

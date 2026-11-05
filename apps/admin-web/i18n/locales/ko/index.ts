@@ -33,6 +33,7 @@ import menuConfig from './menuConfig';
 import mfa from './mfa';
 import notification from './notification';
 import operator from './operator';
+import operatorMember from './operatorMember';
 import permission from './permission';
 import point from './point';
 import payment from './payment';
@@ -68,6 +69,7 @@ import bizApplication from './bizApplication';
 import ad from './ad';
 import adAdvertiser from './adAdvertiser';
 import drawerSummary from './drawerSummary';
+import docIntake from './docIntake';
 import hotdeal from './hotdeal';
 import visitAnalytics from './visitAnalytics';
 
@@ -100,6 +102,7 @@ export default {
     mfa,
     notification,
     operator,
+    operatorMember,
     permission,
     point,
     payment,
@@ -135,6 +138,7 @@ export default {
     ad,
     adAdvertiser,
     drawerSummary,
+    docIntake,
     hotdeal,
     visitAnalytics,
 };

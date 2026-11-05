@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 설정 행({@code emoticon_settings}, V140 — 한 행 · 유료 칸 V141) 읽기·쓰기. Native SQL(JDBC)인 이유는 {@link EmoticonPackStore} 와 같다(받기·심사와 같은 연결에서 잠금 차례를 지키고,
+ * 로보티콘 설정 행({@code emoticon_settings}, V142 — 한 행 · 유료 칸 V143) 읽기·쓰기. Native SQL(JDBC)인 이유는 {@link EmoticonPackStore} 와 같다(받기·심사와 같은 연결에서 잠금 차례를 지키고,
  * 시험이 스프링 문맥 없이 서비스를 조립한다). 트랜잭션은 부르는 서비스가 연다.
  */
 @Repository

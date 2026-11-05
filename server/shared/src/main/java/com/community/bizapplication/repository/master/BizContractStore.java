@@ -3,6 +3,7 @@ package com.community.bizapplication.repository.master;
 import static com.community.bizapplication.repository.master.BizApplicationStore.instant;
 import static com.community.bizapplication.repository.master.BizApplicationStore.ts;
 
+import com.community.docintake.entity.DocFileChannel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -18,9 +19,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class BizContractStore {
 
-    /** 계약서 한 장의 정보(내용 없음) — 올린 사람·대체한 사람 이름 포함 */
+    /** 계약서 한 장의 정보(내용 없음) — 올린 사람·대체한 사람 이름 포함. {@code channel} = 들어온 길(V140 — 올림 · 전자 팩스) */
     public record ContractRow(long id, long applicationId, String fileName, String contentType, int sizeBytes, String sha256, Long uploadedBy, String uploadedByName,
-                              Instant uploadedAt, Instant replacedAt, Long replacedBy, String replacedByName, Long replacedByFileId) {
+                              Instant uploadedAt, Instant replacedAt, Long replacedBy, String replacedByName, Long replacedByFileId, DocFileChannel channel) {
 
         public boolean active() {
             return replacedAt == null;
@@ -28,7 +29,7 @@ public class BizContractStore {
     }
 
     private static final String SELECT = "SELECT c.id, c.application_id, c.file_name, c.content_type, c.size_bytes, c.sha256, c.uploaded_by, u.operator_name AS uploader, "
-            + "c.uploaded_at, c.replaced_at, c.replaced_by, r.operator_name AS replacer, c.replaced_by_file_id FROM biz_contract_files c "
+            + "c.uploaded_at, c.replaced_at, c.replaced_by, r.operator_name AS replacer, c.replaced_by_file_id, c.channel FROM biz_contract_files c "
             + "LEFT JOIN operators u ON u.id = c.uploaded_by LEFT JOIN operators r ON r.id = c.replaced_by ";
 
     private final JdbcTemplate jdbc;
@@ -38,8 +39,14 @@ public class BizContractStore {
     }
 
     public void insert(long id, long applicationId, String fileName, String contentType, int sizeBytes, byte[] encrypted, String sha256, long operatorId, Instant now) {
-        jdbc.update("INSERT INTO biz_contract_files (id, application_id, file_name, content_type, size_bytes, content, sha256, uploaded_by, uploaded_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, applicationId, fileName, contentType, sizeBytes, encrypted, sha256, operatorId, ts(now));
+        insert(id, applicationId, fileName, contentType, sizeBytes, encrypted, sha256, DocFileChannel.UPLOAD, operatorId, now);
+    }
+
+    /** 들어온 길(올림 · 전자 팩스)을 적어 더한다 */
+    public void insert(long id, long applicationId, String fileName, String contentType, int sizeBytes, byte[] encrypted, String sha256, DocFileChannel channel,
+                       long operatorId, Instant now) {
+        jdbc.update("INSERT INTO biz_contract_files (id, application_id, file_name, content_type, size_bytes, content, sha256, channel, uploaded_by, uploaded_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, applicationId, fileName, contentType, sizeBytes, encrypted, sha256, channel.name(), operatorId, ts(now));
     }
 
     /** 건이 생기기 전에 올린 사본(광고 일정표 운영자 등록 서랍 — application_id 없음, V115) */
@@ -91,6 +98,6 @@ public class BizContractStore {
         return new ContractRow(rs.getLong("id"), rs.getLong("application_id"), rs.getString("file_name"), rs.getString("content_type"), rs.getInt("size_bytes"),
                 rs.getString("sha256"), (Long) rs.getObject("uploaded_by", Long.class), rs.getString("uploader"), instant(rs.getTimestamp("uploaded_at")),
                 instant(rs.getTimestamp("replaced_at")), (Long) rs.getObject("replaced_by", Long.class), rs.getString("replacer"),
-                (Long) rs.getObject("replaced_by_file_id", Long.class));
+                (Long) rs.getObject("replaced_by_file_id", Long.class), DocFileChannel.valueOf(rs.getString("channel")));
     }
 }

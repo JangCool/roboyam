@@ -19,7 +19,7 @@ public record BoardStaffActionRowView(String id, String kind, String reasonCode,
     public record Author(String nickname) {
     }
 
-    /** 처리자 닉네임 · 자리(MANAGER · STAFF) */
+    /** 처리자 닉네임 · 자리(MANAGER · STAFF · OPERATOR — 운영자 회원 계정, 닉네임 = 그 회원 닉네임) */
     public record Actor(String nickname, String role) {
     }
 

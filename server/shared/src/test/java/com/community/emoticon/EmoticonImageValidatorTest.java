@@ -44,7 +44,7 @@ class EmoticonImageValidatorTest {
         assertThat(checked.frames()).isEqualTo(24);
         assertThat(checked.loopForever()).isTrue();
         assertThat(checked.data()).isEqualTo(gif);
-        // V140 시드의 지문과 같다(그 파일에서 잰 값)
+        // V142 시드의 지문과 같다(그 파일에서 잰 값)
         assertThat(checked.contentHash()).isEqualTo("753ee3db31d1be83f0242e6c4ebcdd3e15f9de5422a98c1d15ccf1807f30de87");
         EmoticonImageValidator.Checked cover = validator.check(TestImages.robotikon("robotikon-f/cover.png"), EmoticonImageKind.COVER, true, "cover");
         assertThat(cover.format()).isEqualTo(EmoticonImageFormat.PNG);

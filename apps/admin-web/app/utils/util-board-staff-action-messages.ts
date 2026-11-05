@@ -27,15 +27,22 @@ export default class UtilBoardStaffActionMessages {
         return UtilBoardSanctionMessages.roleName(t, role);
     }
 
+    /** 처리자 자리 딱지 — 운영자 회원 계정이면 「운영자 · 운영팀 민지」 */
+    static roleLabel(t: Translate, actor: BoardStaffActionActor): string {
+        return UtilBoardSanctionMessages.roleLabel(t, actor);
+    }
+
     /** 처리자 닉네임 — 탈퇴 등으로 없으면 「(알 수 없음)」 */
     static actorName(t: Translate, actor: BoardStaffActionActor | null): string {
         return actor?.nickname ?? t('staffAction.actorGone');
     }
 
-    /** 처리자 「숲지기 · 매니저」 */
+    /** 처리자 「숲지기 · 매니저」, 운영자 회원 계정이면 「숲지기 (운영자 · 운영팀 민지)」 */
     static actor(t: Translate, actor: BoardStaffActionActor | null): string {
         if (!actor) return t('staffAction.actorGone');
-        return t('staffAction.actorValue', { name: UtilBoardStaffActionMessages.actorName(t, actor), role: UtilBoardStaffActionMessages.roleName(t, actor.role) });
+        const name = UtilBoardStaffActionMessages.actorName(t, actor);
+        if (actor.role === 'OPERATOR') return t('staffAction.actorOperatorValue', { name, role: UtilBoardStaffActionMessages.roleLabel(t, actor) });
+        return t('staffAction.actorValue', { name, role: UtilBoardStaffActionMessages.roleName(t, actor.role) });
     }
 
     /** 대상 작성자 — 회원 닉네임, 비회원은 「이름(비회원)」 */

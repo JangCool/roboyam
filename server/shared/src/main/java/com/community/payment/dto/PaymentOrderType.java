@@ -13,7 +13,7 @@ public enum PaymentOrderType {
     GROUP_BUY_RETURN_FEE,
     /** 사업자 신청 건(광고·핫딜) 온라인 결제(V112 — 대상 = 신청 건, 금액 = 승인 확정 합계, 처리기 {@code BizApplicationPaymentHandler}) */
     BIZ_APPLICATION,
-    /** 로보티콘 유료 팩 구매(V142 — 대상 = 구매 기록 {@code emoticon_purchases}, 금액 = 결제 준비 때의 팩 가격, 처리기 {@code EmoticonPackPaymentHandler}) */
+    /** 로보티콘 유료 팩 구매(V144 — 대상 = 구매 기록 {@code emoticon_purchases}, 금액 = 결제 준비 때의 팩 가격, 처리기 {@code EmoticonPackPaymentHandler}) */
     ROBOTIKON_PACK,
     /** 결제 모듈 시험 주문(local·dev 의 {@code roboyam.payment.test-orders} — prod 에서 켜면 기동하지 않는다) */
     PAYMENT_TEST

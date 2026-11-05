@@ -48,8 +48,8 @@ export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
 export type BoardPinReviewer = 'POST_AUTHOR' | 'BOARD_MANAGER' | 'OPERATOR';
 /** 게시판 담당 역할 — 매니저 · 스텝 */
 export type BoardStaffRole = 'MANAGER' | 'STAFF';
-/** 담당 지정 자격 미달 사유 — 새싹 등급 · 이메일 미인증 · 정지 · 사업자 · 이미 5개 게시판 담당 · 이미 이 게시판 담당 */
-export type BoardStaffIneligible = 'GRADE_TOO_LOW' | 'EMAIL_UNVERIFIED' | 'SUSPENDED' | 'BUSINESS' | 'BOARD_LIMIT' | 'ALREADY_ASSIGNED';
+/** 담당 지정 자격 미달 사유 — 새싹 등급 · 이메일 미인증 · 정지 · 사업자 · 이미 5개 게시판 담당 · 이미 이 게시판 담당 · 운영자 회원 계정(이어진 동안 — operator-member-account-contract 정책 4) */
+export type BoardStaffIneligible = 'GRADE_TOO_LOW' | 'EMAIL_UNVERIFIED' | 'SUSPENDED' | 'BUSINESS' | 'BOARD_LIMIT' | 'ALREADY_ASSIGNED' | 'OPERATOR_ACCOUNT';
 
 /**
  * 게시판 기본 설정(전역 한 행) — 모든 게시판에 일괄 적용되고, 게시판이 비워 둔(`null`) 정책 칸은 이 값을 따른다.

@@ -62,6 +62,7 @@ export default {
     },
     restoredByValue: '{name}({who})',
     actorValue: '{name} · {role}',
+    actorOperatorValue: '{name} ({role})',
     actorGone: '(알 수 없음)',
     authorGuest: '{name}(비회원)',
     authorGone: '(알 수 없음)',

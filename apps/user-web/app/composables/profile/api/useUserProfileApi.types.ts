@@ -25,8 +25,13 @@ export interface PublicProfile {
     /** 등급 키(등급 목록의 `gradeKey`) */
     grade: string;
     gradeLabel: string;
-    /** 회원은 늘 `USER`(운영자는 공개 사이트 회원이 아니다) */
+    /** 회원은 늘 `USER`(관리자 앱 운영자 자체는 공개 사이트 회원이 아니다 — 운영자에게 연결된 회원 계정은 아래 `operator`) */
     role: Role;
+    /**
+     * 운영자 회원 계정인가 — 닉네임 옆 「운영자」 공식 뱃지(사이트 용어 `ADMIN_BADGE`). 서버 연결됨(2026-11-05) — 힘이 살아 있을 때만 true.
+     * 칸이 없는 옛 응답이면 뱃지 없음
+     */
+    operator?: boolean;
     /** 한 줄 소개 — 없으면 null */
     bio: string | null;
     joinedAt: string;

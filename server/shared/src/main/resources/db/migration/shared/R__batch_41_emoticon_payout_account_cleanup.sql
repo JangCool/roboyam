@@ -1,4 +1,4 @@
--- DB 배치 `emoticon-payout-account-cleanup` — 탈퇴한 로보티콘 작가의 정산 정보(emoticon_payout_accounts, V141 — 계좌번호·예금주·사업자 번호 암호문과 가린 값) 파기.
+-- DB 배치 `emoticon-payout-account-cleanup` — 탈퇴한 로보티콘 작가의 정산 정보(emoticon_payout_accounts, V143 — 계좌번호·예금주·사업자 번호 암호문과 가린 값) 파기.
 -- docs/features/emoticon-contract.md 「후속 결정 반영(2026-11-05)」 5.
 -- 번호: shared R__batch_40 다음. ⚠ 가번호 — develop 도 R__batch_40 이 마지막이라 합칠 때 다른 세션이 41 을 먼저 썼으면 뒤로 민다(파일 이름만 바꾸면 된다 — 반복 마이그레이션).
 -- 규칙: 회원이 탈퇴(users.status = 'WITHDRAWN')했고 그 작가의 정산이 모두 끝난 줄을 지운다. 「끝남」 =

@@ -42,11 +42,11 @@ public class WithdrawalEraseStore {
         jdbc.update("UPDATE profiles SET nickname = NULL, bio = NULL, profile_image = NULL, nickname_image = NULL, updated_at = ? WHERE user_id = ?", Timestamp.from(now), userId);
     }
 
-    /** 설정·이력·관계·역할·토큰 — 회원 번호가 키인 줄을 지운다 */
+    /** 설정·이력·관계·역할·토큰·주소록(배송지 관리 — 탈퇴하면 즉시 삭제) — 회원 번호가 키인 줄을 지운다 */
     public void deleteOwnRows(long userId) {
         for (String table : List.of("profile_nickname_history", "member_grade_changes", "auth_tokens", "user_identities", "member_display_preferences", "member_view_settings",
                 "member_notification_preferences", "dm_user_states", "blocked_words", "user_roles", "board_staff", "member_notifications", "group_buy_watches",
-                "group_buy_supply_choices", "user_equipped", "nickname_image_requests", "group_event_responses", "dm_boxes")) {
+                "group_buy_supply_choices", "user_equipped", "nickname_image_requests", "group_event_responses", "dm_boxes", "member_addresses")) {
             jdbc.update("DELETE FROM " + table + " WHERE user_id = ?", userId);
         }
         // 차단·메모는 양방향(남이 나에 대해 적은 메모도 나에 관한 정보다)

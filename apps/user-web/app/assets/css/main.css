@@ -114,7 +114,7 @@ html:is([data-theme='daum'], [data-theme='roboyam'])[data-color-scheme='dark'] {
     --hairline: #2e3036;
     --hairline-strong: #41444c;
     --tab-fg: rgba(236, 238, 241, 0.72);
-    --tab-fg-active: #eceef1;
+    --tab-fg-active: #dcdee2;
     --subtab-fg: rgba(236, 238, 241, 0.48);
 }
 
@@ -317,22 +317,33 @@ html[data-theme='naver'] {
 
 /*
  * 2단계(themes.md 2-1) — 카드가 보이는 테마(다음식·네이버식)에서만:
- *  - 카드 첫 줄의 바깥 위 여백(댓글 구획의 `mt-6` 등)은 카드 위 여백이 대신하므로 없앤다. 머리(`<header>`)가 첫 줄이면 위 여백을 조금 준다.
+ *  - 카드 첫 줄의 바깥 위 여백(댓글 구획의 `mt-6` 등)은 카드 위 여백이 대신하므로 없앤다. 머리(`<header>`)·화면 제목(`<h1>`)·돌아가기 링크(`<a>`)가 첫 줄이면 위 여백을 조금 준다.
  *  - 글 제목(`.post-title`)은 다음식에서 22/30 굵게(모바일 20/28).
  * 층 밖 규칙이라 Tailwind 유틸리티를 이긴다.
  */
+/* 카드 안에 놓인 가로 줄의 그라데이션 화살표(`AppScrollRow`)는 카드 바탕에서 사라진다 */
+html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {
+    --scroll-fade-bg: var(--content-card-bg);
+}
 html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :first-child,
 html[data-theme='naver'] .content-card > :first-child {
     margin-top: 0;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > header:first-child,
-html[data-theme='naver'] .content-card > header:first-child {
+html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :is(header, h1, a):first-child,
+html[data-theme='naver'] .content-card > :is(header, h1, a):first-child {
     padding-top: 14px;
 }
 html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
     font-size: calc(20px * var(--text-scale, 1));
     line-height: 28px;
     font-weight: 700;
+}
+/* 첫 줄이 모바일 전용 막대(`md:hidden` — 글쓰기의 ✕ 막대)라 넓은 화면에서 숨으면, 그 다음 머리·제목에 같은 위 여백을 준다 */
+@media (min-width: 48rem) {
+    html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child + :is(header, h1),
+    html[data-theme='naver'] .content-card > .md\:hidden:first-child + :is(header, h1) {
+        padding-top: 14px;
+    }
 }
 @media (min-width: 48rem) {
     html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
@@ -432,7 +443,7 @@ html[data-theme='naver'] {
 /*
  * 홈 한 열(모바일 — 홈 격자 `stack`) 모양. 데스크톱·태블릿 격자에는 쓰이지 않는다(가젯이 한 열 + 템플릿 한 열 모양 `mobile` 일 때만 이 클래스를 붙이고, 아래 규칙은 `[data-grid-mode='stack']` 안에서만).
  *   --gadget-bleed  가젯 내용이 좌우로 나갈 수 있는 폭 — 카드 안이면 카드 안쪽 좌우 여백(`--gadget-card-pad-x`), 카드 없는 구역은 모바일 본문 좌우 여백(1rem, 셸 `px-4`)·그 밖 0
- *   --row-item      가로로 미는 줄 한 칸의 폭(컴포넌트가 준다 — 갤러리 42% ≈ 2.3장 · 하이라이트 64% · 공동구매 84% · 소모임 8.75rem …)
+ *   --row-item      가로로 미는 줄 한 칸의 폭(컴포넌트가 준다 — 갤러리 42% ≈ 2.3장 · 하이라이트 88% · 공동구매 84% · 소모임 8.75rem …)
  * 가로로 미는 줄(`gadget-scroll-row`): 스크롤바 숨김(손가락 밀기) · 칸 시작에 스냅 · 줄은 `--gadget-bleed` 만큼 좌우 끝까지 나가고 첫 칸은 본문 글자와 줄을 맞춘다.
  * 칸 안은 링크라 Tab 으로 차례로 넘어가고(초점 칸이 보이게 브라우저가 민다), 키보드 초점 윤곽이 잘리지 않게 위아래 4px 여유를 둔다. 줄 이름(`aria-label`)은 컴포넌트가 단다.
  */
@@ -825,11 +836,19 @@ html[data-theme='roboyam'] .gadget-more {
         border-color: var(--hairline);
     }
 }
+/* 모바일 메뉴 줄(`app-top-tabs`)의 넘침 화살표 그라데이션 바탕 = 줄 바탕(기본 surface-0 · 다크 surface-900, 흰 바는 카드 바탕) */
+.app-top-tabs {
+    --scroll-fade-bg: var(--p-surface-0);
+}
+html[data-color-scheme='dark'] .app-top-tabs {
+    --scroll-fade-bg: var(--p-surface-900);
+}
 html[data-mobile-header='plain'] .app-top-tabs {
     background-color: var(--card-bg);
     border-color: var(--hairline);
+    --scroll-fade-bg: var(--card-bg);
 }
-html[data-mobile-header='plain'] .app-top-tabs :is(a, button) {
+html[data-mobile-header='plain'] .app-top-tabs :is(a, button):not(.scroll-row-arrow) {
     font-weight: 700;
     color: var(--tab-fg);
 }

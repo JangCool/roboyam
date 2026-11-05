@@ -2,6 +2,7 @@ import type { DisplayTime } from '#layers/display-time/utils/util-time';
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BizPauseChannel, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import { BIZ_DEAL_FAIL_REASONS, BIZ_HISTORY_ACTIONS, BIZ_PAUSE_CHANNELS, BIZ_REJECT_CODES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import { DOC_INTAKE_CHANNELS, DOC_INTAKE_OPEN_HANDLINGS } from '~/composables/docintake/api/useDocIntakeApi.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 
 /**
@@ -89,6 +90,10 @@ export default class UtilBizApplicationMessages {
             }
             case 'DEPOSIT_CONFIRMED':
                 return note.startsWith('MISMATCH · ') ? t('bizApplication.note.MISMATCH', { reason: note.slice(11) }) : note;
+            case 'PAPER_RECEIVED':
+                return (DOC_INTAKE_CHANNELS as readonly string[]).includes(note) ? t(`docIntake.channel.${note}`) : note;
+            case 'PAPER_HANDLING':
+                return (DOC_INTAKE_OPEN_HANDLINGS as readonly string[]).includes(note) ? t(`docIntake.handling.${note}`) : note;
             case 'REFUND_APPROVED':
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':

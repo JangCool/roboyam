@@ -1,5 +1,5 @@
 -- 로보티콘 S4(작가 월 정산) — docs/features/emoticon-contract.md 「서버 구현 단계」 S4 · 「S4 구현 결과」.
--- ⚠ 합칠 때 번호 재확인(가번호 V143 — S1 V140 · S2 V141 · S3 V142). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
+-- ⚠ 합칠 때 번호 재확인(가번호 V145 — S1 V142 · S2 V143 · S3 V144). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
 --
 -- 무엇이 바뀌나
 --   ① 정산 표(emoticon_settlements — 작가 × 판매 달 한 줄, 키 = (작가, 달 첫날)). 예정(ESTIMATED)인 동안 금액은 저장하지 않고 조회 때 구매 기록에서 계산한다
@@ -11,7 +11,7 @@
 --   ③ 구매 기록에 「들어간 정산 달」(settlement_month — 판매가 들어간 달) · 「환불을 뺀 정산 달」(refund_settlement_month): 확정할 때 그 줄에 들어간 판매·환불에 찍는다(한 번만).
 --      아직 찍히지 않은 판매·환불이 예정 계산의 입력이다 — 판매는 결제 달, 환불은 판매가 아직 확정 전이면 판매 달 · 이미 확정된 판매면 환불한 달(확정 뒤 환불은 환불한 달에서 뺀다).
 --      들어갈 달이 이미 굳었으면(늦게 들어온 결제 등) 다음에 열린 달로 넘긴다. 관리자 판매 줄의 settlementMonth 는 settlement_month.
--- 새 표는 users 에 외래 키를 걸지 않는다(V140 과 같다 — 탈퇴해도 정산 기록은 남는다). 운영자는 ON DELETE SET NULL.
+-- 새 표는 users 에 외래 키를 걸지 않는다(V142 과 같다 — 탈퇴해도 정산 기록은 남는다). 운영자는 ON DELETE SET NULL.
 -- 정기 작업(R__batch)은 없다 — 예정 금액은 조회 때 계산하고, 확정은 운영자가 한다.
 
 -- ── ① 정산 표 ───────────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ CREATE INDEX ix_emoticon_purchases_unsettled_refunds ON emoticon_purchases (crea
 CREATE INDEX ix_emoticon_purchases_settlement ON emoticon_purchases (creator_id, settlement_month) WHERE settlement_month IS NOT NULL;
 CREATE INDEX ix_emoticon_purchases_refund_settlement ON emoticon_purchases (creator_id, refund_settlement_month) WHERE refund_settlement_month IS NOT NULL;
 
--- 구매 기록 지키기(V142) + 정산 달은 한 번만 찍고, 찍을 때 그 정산 줄이 확정(굳힘)돼 있어야 한다
+-- 구매 기록 지키기(V144) + 정산 달은 한 번만 찍고, 찍을 때 그 정산 줄이 확정(굳힘)돼 있어야 한다
 CREATE OR REPLACE FUNCTION emoticon_purchases_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN

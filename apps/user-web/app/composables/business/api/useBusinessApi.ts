@@ -14,6 +14,7 @@ import type {
     BizPaymentStart,
     BizRefundPolicy,
     BusinessApplyRequest,
+    BusinessDocSendTo,
     BusinessFile,
     BusinessProfile,
     DealApplyRequest,
@@ -27,6 +28,9 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」(사전 심사 → 결제, 온라인/수동 결제, 신청 건 상태). 계약 `docs/features/business-contract.md`·`biz-application-contract.md`.
  *  - 신원(V111): `GET/POST/PUT /api/business/me` · 사업자등록증 사본 `POST /api/business/files`(multipart, PDF·JPG·PNG 10MB) — 409 `BUSINESS_DUPLICATE`·`BUSINESS_ALREADY_APPLIED`·
  *    `BUSINESS_NOT_EDITABLE`, 429 `BUSINESS_REAPPLY_LIMIT`, 400 `fields.*` · 국세청 진위확인 불일치 400 `BUSINESS_NTS_MISMATCH`(`fields.companyName`·`ownerName`·`openedOn` — 화면 문구는 화면 i18n)
+ *  - 등록증 「우편·팩스로 보내기」(V140 — biz-doc-intake-contract): 신청·재신청 본문 `certificateDelivery: 'MAIL_FAX'` + `certificateFileId: null`(수정 `PUT` 은 파일만 — 400 `fields.certificateDelivery`) ·
+ *    보낼 곳 `GET /api/business/doc-send-to` → `BusinessDocSendTo`(서버 설정값, 빈 칸 null — 주소·팩스가 둘 다 없으면 서버도 `MAIL_FAX` 신청을 400 `fields.certificateDelivery`) ·
+ *    `GET /api/business/me` 의 `certificateDelivery`·`certificateReceived`(받으면 심사 시작 안내)
  *  - 상품·남은 칸(V112): `GET /api/business/ad-products` · `GET /api/business/deal-products` · `GET /api/business/availability?slot=&from=&to=`(92일까지) · `GET /api/business/deal-link-check?url=`
  *  - 광고 이미지: `POST /api/business/ad-images`(multipart `file`, JPG·PNG·GIF·WEBP 10MB — 등록증 `/files` 와 따로) — 400 `fields.file`, 413 `FILE_TOO_LARGE`
  *  - 신청 건: `POST /api/business/applications/{ads|deals}`(201 `{ id }`) · `GET /api/business/applications[?bucket=]` · `GET …/{id}` · `POST …/{id}/cancel` ·
@@ -50,6 +54,7 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
 const PATH = {
     me: '/api/business/me',
     files: '/api/business/files',
+    docSendTo: '/api/business/doc-send-to',
     adImages: '/api/business/ad-images',
     adProducts: '/api/business/ad-products',
     dealProducts: '/api/business/deal-products',
@@ -70,11 +75,17 @@ export function useBusinessApi() {
         /** 내 사업자 신원 */
         profile: (): Promise<BusinessProfile> => client.get<BusinessProfile>(PATH.me),
 
-        /** 사업자 신청(새로·반려 뒤 다시) — 심사 대기가 된다. 번호·상호·대표자명·개업일이 국세청 정보와 다르면 400 `BUSINESS_NTS_MISMATCH` */
+        /**
+         * 사업자 신청(새로·반려 뒤 다시) — 심사 대기가 된다. 번호·상호·대표자명·개업일이 국세청 정보와 다르면 400 `BUSINESS_NTS_MISMATCH`.
+         * 등록증을 우편·팩스로 보내면 `certificateDelivery: 'MAIL_FAX'` + `certificateFileId: null` — 운영자가 받은 것을 기록해야 승인할 수 있다
+         */
         apply: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.post<BusinessProfile>(PATH.me, body),
 
         /** 사업자 정보 수정 — 상호·번호를 바꾸면 다시 심사(F7). 번호·상호·대표자명·개업일 중 하나라도 바뀌면 진위확인을 다시 한다 */
         update: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.put<BusinessProfile>(PATH.me, body),
+
+        /** 등록증 보낼 곳(우편 주소·팩스 번호 — 서버 설정값, 빈 칸 null). 주소·팩스가 둘 다 없으면 「우편·팩스로 보내기」를 보이지 않는다 */
+        docSendTo: (): Promise<BusinessDocSendTo> => client.get<BusinessDocSendTo>(PATH.docSendTo),
 
         /** 사업자등록증 사본 올리기(PDF·JPG·PNG 10MB) — 신청·수정이 `certificateFileId` 로 붙인다 */
         uploadCertificate: (file: File): Promise<BusinessFile> => client.upload<BusinessFile>(PATH.files, ((f) => (f.append('file', file), f))(new FormData())),

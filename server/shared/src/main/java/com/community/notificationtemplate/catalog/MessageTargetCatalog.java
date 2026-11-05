@@ -244,11 +244,11 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("until", "sanctionUntil"), MessageVariable.of("reason", "boardSanctionReason")),
                 new InAppText("member.notification.BOARD_SANCTION_ISSUED.title", null, "{{reason}}", List.of("board", "sanction", "until")), "/sanction",
                 List.of()));
-        // 로보티콘 팩 처리(V140 — emoticon-contract S1) — 팩 이름 · 종류별 한 줄(승인·반려·새 판 승인·반려·판매 중단·다시 판매 — 번들 member.notification.EMOTICON_PACK.kind.*)
+        // 로보티콘 팩 처리(V142 — emoticon-contract S1) — 팩 이름 · 종류별 한 줄(승인·반려·새 판 승인·반려·판매 중단·다시 판매 — 번들 member.notification.EMOTICON_PACK.kind.*)
         out.add(member(MemberEvent.EMOTICON_PACK, List.of(MessageVariable.of("packName", "emoticonPackName"), MessageVariable.of("detail", "emoticonPackDetail")),
                 new InAppText("member.notification.EMOTICON_PACK.title", "member.notification.EMOTICON_PACK.body", null, List.of("packName", "detail")),
                 "/robotikon/studio/123", List.of()));
-        // 로보티콘 유료 팩 구매(V144 — emoticon-contract 후속 결정 2) — 팩 이름 · 종류별 한 줄(구매 완료·자동 취소·셀프 환불 접수·예외 환불 — 번들 member.notification.EMOTICON_PURCHASE.kind.*)
+        // 로보티콘 유료 팩 구매(V146 — emoticon-contract 후속 결정 2) — 팩 이름 · 종류별 한 줄(구매 완료·자동 취소·셀프 환불 접수·예외 환불 — 번들 member.notification.EMOTICON_PURCHASE.kind.*)
         out.add(member(MemberEvent.EMOTICON_PURCHASE, List.of(MessageVariable.of("packName", "emoticonPurchasePackName"),
                         MessageVariable.of("detail", "emoticonPurchaseDetail")),
                 new InAppText("member.notification.EMOTICON_PURCHASE.title", "member.notification.EMOTICON_PURCHASE.body", null, List.of("packName", "detail")),

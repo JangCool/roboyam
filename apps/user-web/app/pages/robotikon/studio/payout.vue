@@ -131,7 +131,7 @@ import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
  * 본인인증 상태(미인증이면 `/settings/identity` 로 — 칸이 잠긴다) · 개인/사업자(사업자 번호) · 은행·계좌·예금주(본인인증 이름과 같아야 한다 — 판정은 서버).
  * 저장하면 가린 값만 보인다(`국민 ****1234`). 계좌 번호 원문은 이 화면 메모리에만 두고 저장 뒤 비운다(forms.md 2-1). 개인은 「원천징수 3.3% 뒤 지급」, 사업자는 「세금계산서 발행」 안내.
  * 실제 API(S2 — `GET·PUT /api/me/emoticon-studio/payout-account`). 저장 오류는 `applySaveError`(본인인증 403 → 인증 이름 없음 409 → 칸 400 → 데이터 키 503).
- * 인증했는데 가린 인증 이름(`identityNameMasked`)이 오지 않으면 인증 이름이 남아 있지 않은 것이라(V141 전 인증) 저장 전에 안내하고 [본인인증 다시 하기]를 둔다.
+ * 인증했는데 가린 인증 이름(`identityNameMasked`)이 오지 않으면 인증 이름이 남아 있지 않은 것이라(V143 전 인증) 저장 전에 안내하고 [본인인증 다시 하기]를 둔다.
  * 저장이 `409 EMOTICON_IDENTITY_NAME_MISSING` 이면(사용자 결정 2026-11-05) 입력값을 그대로 두고 본인인증 대화상자(`useIdentityGate` purpose `ROBOTIKON`, `reverify`)를 연다 —
  * 인증이 끝나면 [저장]을 다시 누르면 된다. 판단은 오류 코드만으로 한다(서버가 `extras.reverify` 같은 표시를 더해도 보지 않는다).
  */

@@ -52,7 +52,7 @@ public enum PointReason {
     EXPIRE,
     /** 탈퇴로 포기·소멸(17-2) */
     WITHDRAW_FORFEIT,
-    /** 무료 로보티콘 팩 받기 보상 — 작가에게 적립(V140, emoticon-contract 가정 6). 대상 = 그 받기 줄({@code EMOTICON_ACQUIRE}) */
+    /** 무료 로보티콘 팩 받기 보상 — 작가에게 적립(V142, emoticon-contract 가정 6). 대상 = 그 받기 줄({@code EMOTICON_ACQUIRE}) */
     EMOTICON_CREATOR_REWARD;
 
     /** 묶음 출처 전용 코드 — 기존 잔액을 전환한 묶음(V85, D4). 원장 줄이 없으므로 원장 사유가 아니다. 이름은 번들 {@code point.reason.MIGRATION} */

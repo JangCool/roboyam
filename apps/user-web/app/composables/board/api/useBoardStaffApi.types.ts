@@ -1,6 +1,6 @@
 /**
  * 게시판 매니저·스텝 도구 API 가 주고받는 모양 — 게시판 제재(`docs/features/board-sanction-contract.md` 「API 후보 > 공개」).
- * 서버 `server/api` `com.community.boardstaff.dto`(`BoardSanctionPreviewView`·`BoardSanctionIssuedView`·`BoardStaffSanctionPageView`·`BoardStaffSanctionRowView`·`BoardStaffToolsView`·`BoardWriteRestrictionView` …)와 같은 칸 이름. 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
+ * 서버 `server/api` `com.community.boardstaff.dto`(`BoardSanctionPreviewView`·`BoardSanctionIssuedView`·`BoardStaffSanctionPageView`·`BoardStaffSanctionRowView`·`BoardStaffToolsView`·`BoardWriteRestrictionView` …)와 같은 칸 이름. 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction`·`viewer.pendingWarnings` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
  * **처리자 신원**(`issuer`)은 그 게시판 매니저에게만 온다 — 스텝 목록·받은 회원 쪽 응답에는 없다(계약 결정 7).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
@@ -49,13 +49,20 @@ export interface BoardStaffAbilities {
  * `GET /api/boards/{slug}` 의 `viewer.staffTools` — 그 게시판 매니저·스텝이고 계정 정상·인증이며 네 처리 권한 중 하나라도 있으면 온다(그 밖에는 null).
  * `manager` 가 참이면 매니저(그 게시판 처리·제재 전체를 보고 되돌릴 수 있다), 거짓이면 스텝(내가 한 것만 본다).
  * 한도: `post` = 글 숨기기 + 글 삭제 합산 · `comment` = 댓글 삭제 · `sanction` = 제재(경고 + 쓰기 제한). 모두 한국 시간 0시 기준, 되돌려도 돌려받지 않는다.
+ * **운영자 회원 계정**(`operator` true)이면 모든 공개 게시판에 오고 `manager` 도 true, 한도 셋은 **null(하루 한도 없음)** — `abilities` 는 관리자 앱 권한의 거울이다.
+ * 매니저·스텝에게는 지금처럼 늘 숫자가 온다.
  */
 export interface BoardStaffTools {
+    /** 운영자 회원 계정으로 관리 중(서버 연결됨 2026-11-05) */
+    operator: boolean;
     manager: boolean;
     abilities: BoardStaffAbilities;
-    post: BoardStaffQuota;
-    comment: BoardStaffQuota;
-    sanction: BoardStaffQuota;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    post: BoardStaffQuota | null;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    comment: BoardStaffQuota | null;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    sanction: BoardStaffQuota | null;
     /** 한도가 다시 채워지는 시각(다음 한국 시간 0시) */
     resetsAt: string;
 }
@@ -66,6 +73,14 @@ export interface BoardWriteRestriction {
     /** 제한이 끝나는 시각 */
     until: string;
     reasonCode: BoardSanctionReasonCode | (string & {});
+}
+
+/** `GET /api/boards/{slug}` 의 `viewer.pendingWarnings` 한 줄 — 보는 내가 이 게시판에서 받고 아직 확인하지 않은 경고(최근 것이 위, 최대 10). 처리자는 오지 않는다 */
+export interface BoardPendingWarning {
+    boardSanctionId: string;
+    reasonCode: BoardSanctionReasonCode | (string & {});
+    /** 받은 시각 */
+    issuedAt: string;
 }
 
 /** 제재 대상 회원 — 닉네임은 읽을 때의 값 */
@@ -87,7 +102,8 @@ export interface BoardSanctionPreview {
     activeRestriction: { boardSanctionId: string; until: string } | null;
     /** 권장 단계(유효한 제재 수로 계산: 경고 → 1일 → 3일 → 7일, 그 뒤 7일) — 안내일 뿐 막지 않는다 */
     recommended: BoardSanctionKind;
-    quota: BoardStaffQuota;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    quota: BoardStaffQuota | null;
     resetsAt: string;
 }
 
@@ -116,14 +132,15 @@ export interface BoardSanctionIssued {
     startsAt: string;
     /** 쓰기 제한만 — 경고는 null */
     endsAt: string | null;
-    quota: BoardStaffQuota;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    quota: BoardStaffQuota | null;
     resetsAt: string;
 }
 
-/** 처리자 — 그 게시판 매니저가 보는 목록에만 온다 */
+/** 처리자 — 그 게시판 매니저가 보는 목록에만 온다. `OPERATOR` 는 운영자 회원 계정(닉네임 = 그 회원 닉네임) */
 export interface BoardSanctionIssuer {
     nickname: string;
-    role: 'MANAGER' | 'STAFF';
+    role: 'MANAGER' | 'STAFF' | 'OPERATOR';
 }
 
 /** 제재 내역 한 줄 */
@@ -144,7 +161,7 @@ export interface BoardStaffSanctionRow {
     lift: { reason: string; at: string } | null;
     /** 계기 글·댓글 — 없거나 지워졌으면 null */
     source: { postId: string; commentId: string | null; title: string | null } | null;
-    /** 지금 보는 사람이 [해제]할 수 있다(매니저 · 진행 중인 쓰기 제한) */
+    /** 지금 보는 사람이 [해제]할 수 있다(매니저 · 진행 중인 쓰기 제한). 운영자 회원 계정이 준 제한은 매니저에게 false */
     canLift: boolean;
 }
 
@@ -201,7 +218,8 @@ export interface BoardStaffCommentDeleteRequest {
  * → 409 `POST_STATE_INVALID`·`COMMENT_STATE_INVALID` → 409 `BOARD_STAFF_DAILY_LIMIT`(본문 최상위 `kind` POST|COMMENT·`limit`·`used`·`resetsAt`).
  */
 export interface BoardStaffActionDone {
-    quota: BoardStaffQuota;
+    /** null = 하루 한도 없음(운영자 회원 계정) */
+    quota: BoardStaffQuota | null;
     resetsAt: string;
 }
 
@@ -214,11 +232,12 @@ export interface BoardStaffActionRow {
     target: { postId: string; commentId: string | null; title: string; excerpt: string | null };
     /** 대상 작성자 — 회원 닉네임 또는 비회원 이름 */
     targetAuthor: { nickname: string };
-    actor: { nickname: string; role: 'MANAGER' | 'STAFF' } | null;
+    /** 처리자 — `OPERATOR` 는 운영자 회원 계정(닉네임 = 그 회원 닉네임, operator-member-account-contract) */
+    actor: { nickname: string; role: 'MANAGER' | 'STAFF' | 'OPERATOR' } | null;
     createdAt: string;
     /** 되돌렸으면 그 시각(되돌린 사람·사유는 공개 쪽에 없다) */
     restored: { at: string } | null;
-    /** 지금 보는 사람이 [되돌리기] 할 수 있다(매니저 + `board.staff-action.restore` · 아직 되돌리지 않음) */
+    /** 지금 보는 사람이 [되돌리기] 할 수 있다(매니저 + `board.staff-action.restore` · 아직 되돌리지 않음). 운영자 회원 계정이 한 처리는 매니저에게 false */
     canRestore: boolean;
 }
 

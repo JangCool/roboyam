@@ -4,6 +4,7 @@
         PDF·JPG·PNG, 한 장 10MB, 여러 장. 원본은 지우지 않는다 — [바꾸기] 는 새 파일을 더하고 옛 파일에 「대체됨」을 남긴다.
         열람은 권한(`ad.manage` 이상) + 기록(안내 한 줄) — `viewable` 이면 줄마다 [보기](`view`, 부모가 `data:` 주소를 받아 연다).
         서버는 부르지 않는다 — 고른 파일은 `upload`·`replace` 로 올린다(신청 건 화면은 한 장씩 나눠 올린다).
+        전자 팩스로 받은 파일(파일 줄 `channel === 'FAX'`)은 줄에 작은 Tag 「전자 팩스」.
     -->
     <div class="flex flex-col gap-2">
         <ul v-if="files.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
@@ -13,6 +14,7 @@
                     <span class="inline-flex min-w-0 items-center gap-2">
                         <span class="truncate" :class="f.replacedAt ? 'line-through' : 'font-medium'">{{ f.fileName }}</span>
                         <Tag v-if="f.replacedAt" :value="t('bizApplication.contract.replaced')" severity="secondary" />
+                        <Tag v-if="f.channel === 'FAX'" :value="t('docIntake.efax')" severity="info" icon="pi pi-print" />
                     </span>
                     <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.uploadedAt) }} · {{ f.uploadedBy }}</span>
                 </div>

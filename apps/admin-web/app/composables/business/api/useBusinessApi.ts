@@ -18,7 +18,8 @@ import type {
  *  - `GET  /api/admin/businesses/{id}` → `BusinessDetail`
  *  - `POST /api/admin/businesses/{id}/nts-check` → `BusinessDetail`(국세청 다시 조회 — 개업일이 있으면 진위확인, 없으면 상태조회만 + `UNCHECKED`, 결과 스냅샷 저장)
  *  - `POST /api/admin/businesses/{id}/approve` `{ ntsOverrideReason? }` → 계속사업자 + 진위 일치만. 휴·폐업·없는 번호 409 `BUSINESS_NTS_NOT_ACTIVE`, 진위 불일치 409 `BUSINESS_NTS_MISMATCH`,
- *    조회 전 409 `BUSINESS_NTS_NOT_CHECKED`, 조회 불가·진위 미확인 + 사유 없음 400 `fields.ntsOverrideReason`
+ *    조회 전 409 `BUSINESS_NTS_NOT_CHECKED`, 조회 불가·진위 미확인 + 사유 없음 400 `fields.ntsOverrideReason`,
+ *    등록증을 우편·팩스로 보낸다고 했는데 아직 받지 않음 409 `BUSINESS_CERT_NOT_RECEIVED`(상세 `certificateDelivery` — biz-doc-intake-contract)
  *  - `POST /api/admin/businesses/{id}/reject` `{ code, text }`
  *  - `POST /api/admin/businesses/{id}/suspend` `{ code, text, pendingAction, scheduledAction, runningAction }`(H2)
  *  - `POST /api/admin/businesses/{id}/unsuspend` `{ restore, note? }`(`business.unsuspend`)

@@ -36,7 +36,9 @@ public final class BizAdminView {
     public record OnlinePayment(Instant paidAt, String pgTxId) {
     }
 
-    public record Contract(String id, String fileName, String mimeType, long size, Instant uploadedAt, String uploadedBy, Instant replacedAt, String replacedBy) {
+    /** 계약서 사본 한 장 — {@code channel} 들어온 길 {@code UPLOAD}·{@code FAX}(전자 팩스, V140) */
+    public record Contract(String id, String fileName, String mimeType, long size, Instant uploadedAt, String uploadedBy, Instant replacedAt, String replacedBy,
+                           String channel) {
     }
 
     public record Deposit(long amount, LocalDate depositedOn, String depositorName, String mismatchReason, String confirmedBy, Instant confirmedAt) {

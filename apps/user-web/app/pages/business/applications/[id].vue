@@ -17,11 +17,11 @@
           시작 뒤(진행·정지·내림·끝남·시작 뒤 취소) 합계 3칸·날짜별 차트·멈춘 구간·자리별·버전별, 예약(시작 전)이면 「시작하면 여기에 하루 단위로 쌓여요」 한 줄, 그 밖은 칸 없음(`UtilAdStats.section`).
           기간 = 시작 날짜 ~ min(끝 날짜, 오늘 — 한국 날짜) 고정(기간 최대 30일이라 고르개 없음). 서버 `useBusinessApi.stats`(`ad_daily_stats` 합 — 정지·내림 구간은 서버가 처리 기록에서 계산).
     -->
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
-        <div class="flex items-center gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="business-application">
+        <header class="flex items-center gap-2">
             <Button as="router-link" :to="UtilBusiness.APPLICATIONS_PATH" icon="pi pi-angle-left" severity="secondary" variant="text" rounded :aria-label="t('business.detail.back')" />
             <h1 class="m-0 min-w-0 truncate text-lg font-bold">{{ app?.title ?? t('business.detail.title') }}</h1>
-        </div>
+        </header>
 
         <div v-if="status === 'loading' && !app" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
             <div v-for="n in 3" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
@@ -467,7 +467,7 @@ import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
  * 신청 건 상세 `/business/applications/{id}` — 로그인 필요. 내 신청 건 목록·사업자 센터 홈의 할 일 카드·알림(결제 요청·기한 임박)이 온다.
  * 결제는 `payment` 모듈 한 길(`BIZ_APPLICATION`) — 결제 시작(`useBusinessApi.startPayment`) 뒤 공용 결제창 흐름(`usePaymentCheckout`)으로 완료하고 상세를 다시 읽는다(공구 결제 화면과 같은 방식).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('business.detail.title'), description: () => t('business.detail.seoDescription'), robots: 'noindex' });

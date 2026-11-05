@@ -1,5 +1,5 @@
 -- 로보티콘 S3(유료 팩 실결제 · 「사용함」 기록 · 셀프·예외 환불 · 판매 내역) — docs/features/emoticon-contract.md 「서버 구현 단계」 S3 · 「S3 구현 결과」.
--- ⚠ 합칠 때 번호 재확인(가번호 V142 — S1 V140 · S2 V141). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
+-- ⚠ 합칠 때 번호 재확인(가번호 V144 — S1 V142 · S2 V143). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
 --
 -- 무엇이 바뀌나
 --   ① 구매 기록(emoticon_purchases): 결제 준비 한 번 = 한 줄(결제 주문 payment_orders.order_ref_id = 이 줄 ID, 주문 종류 ROBOTIKON_PACK).
@@ -10,7 +10,7 @@
 --      무료일 때 받은 회원 · 산 회원 모두 「이미 가진 팩」이고, 산 팩이 무료가 된 뒤 「받기」를 눌러도 새 받기 줄·받은 수·작가 보상이 생기지 않는다(받기 보상은 줄마다 한 번).
 --      환불하면 그 줄에 removed_at(보유 해제). 토큰 검사·내 로보티콘·팩의 acquired 는 그대로 이 표 하나를 본다.
 --   ③ 결제 주문 종류 ∪ ROBOTIKON_PACK(V112 목록 ∪).
--- 새 표는 users 에 외래 키를 걸지 않는다(V140 과 같다). 운영자는 ON DELETE SET NULL.
+-- 새 표는 users 에 외래 키를 걸지 않는다(V142 과 같다). 운영자는 ON DELETE SET NULL.
 
 -- ── ③ 결제 주문 종류 ─────────────────────────────────────────────────────────
 ALTER TABLE payment_orders DROP CONSTRAINT ck_payment_orders_type;

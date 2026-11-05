@@ -329,7 +329,7 @@ public class AdAdminService {
 
     private static BizAdminView.Contract contract(ContractRow c) {
         return new BizAdminView.Contract(Long.toString(c.id()), c.fileName(), c.contentType(), c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(),
-                c.replacedByName());
+                c.replacedByName(), c.channel().name());
     }
 
     private static BizAdminView.Amount amount(com.community.bizapplication.service.BizPricing.Amount a) {

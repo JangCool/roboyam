@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 유료 팩 구매 기록({@code emoticon_purchases}, V142) — 결제 준비 한 번이 한 줄(결제 주문의 {@code order_ref_id}). 지우기·사본 고치기·되돌리기는 DB 트리거가 막는다.
+ * 로보티콘 유료 팩 구매 기록({@code emoticon_purchases}, V144) — 결제 준비 한 번이 한 줄(결제 주문의 {@code order_ref_id}). 지우기·사본 고치기·되돌리기는 DB 트리거가 막는다.
  * Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다(잠금 차례 · 결제 모듈의 JDBC 와 같은 연결 · 스프링 없는 시험). 트랜잭션은 부르는 서비스가 연다.
  */
 @Repository

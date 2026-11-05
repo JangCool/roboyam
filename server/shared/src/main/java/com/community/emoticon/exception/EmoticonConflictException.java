@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
  *   <li>{@link #PACK_LOCKED} 심사 중·판매 중이라 임시 저장할 수 없다 / 이미 심사 중이다</li>
  *   <li>{@link #PAYOUT_REQUIRED} 유료 판매 희망(또는 유료 팩의 새 판)인데 정산 정보가 없다 · {@link #CONTRACT_REQUIRED} 지금 판 로보티콘 상품화 계약 동의가 없다
  *       (보낸 판이 지금 판이 아니거나 게시된 계약이 없다 — S2)</li>
- *   <li>{@link #IDENTITY_NAME_MISSING} 본인인증은 했지만 인증 이름이 남아 있지 않아 예금주를 대조할 수 없다(V141 전에 인증한 회원 — S2)</li>
+ *   <li>{@link #IDENTITY_NAME_MISSING} 본인인증은 했지만 인증 이름이 남아 있지 않아 예금주를 대조할 수 없다(V143 전에 인증한 회원 — S2)</li>
  *   <li>{@link #REVIEW_NOT_PENDING} 이미 처리된 심사 건 · {@link #PACK_NOT_ON_SALE} 판매 중이 아니다 · {@link #PACK_NOT_SUSPENDED} 판매 중단이 아니다 ·
  *       {@link #PACK_NOT_OFFICIAL} 운영 팩이 아니다</li>
  *   <li>S3 유료 구매: {@link #PACK_FREE} 무료 팩은 사지 않는다(받기) · {@link #PACK_OWNED} 이미 가진 팩(산 팩 · 무료일 때 받은 팩 — 뺐어도) ·

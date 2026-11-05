@@ -1,6 +1,6 @@
 <template>
     <!-- 좁은 화면의 설정 목록 — 넓은 화면은 왼쪽 메뉴가 있어 첫 화면(프로필)으로 바로 간다 -->
-    <div class="flex flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('settings.title') }}</h1>
 
         <ul class="m-0 list-none panel-card p-0" data-testid="settings-list">

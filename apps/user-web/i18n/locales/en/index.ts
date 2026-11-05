@@ -12,6 +12,7 @@ import account from './account';
 import ad from './ad';
 import adult from './adult';
 import address from './address';
+import addressBook from './addressBook';
 import auth from './auth';
 import avatar from './avatar';
 import block from './block';
@@ -46,6 +47,7 @@ import menu from './menu';
 import nicknameImage from './nicknameImage';
 import notification from './notification';
 import onboarding from './onboarding';
+import operatorAccount from './operatorAccount';
 import password from './password';
 import payment from './payment';
 import point from './point';
@@ -75,6 +77,7 @@ export default {
     ad,
     adult,
     address,
+    addressBook,
     auth,
     avatar,
     block,
@@ -109,6 +112,7 @@ export default {
     nicknameImage,
     notification,
     onboarding,
+    operatorAccount,
     password,
     payment,
     point,

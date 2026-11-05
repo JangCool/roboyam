@@ -1,5 +1,5 @@
 -- 로보티콘 S1(무료 팩·심사·카탈로그·토큰 검사·받기 보상) — docs/features/emoticon-contract.md 「서버 구현 단계」 S1 · 「S1 구현 결과」.
--- ⚠ 합칠 때 번호 재확인(가번호 V140 — develop 의 V139 는 배송지) — develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
+-- ⚠ 합칠 때 번호 재확인(가번호 V142 — develop 의 V139 는 배송지) — develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
 --
 -- 무엇이 생기나
 --   · 설정(emoticon_settings, 1행): 받기 보상(rewardPerAcquire 10P · 작가 하루 상한 500P) · 팩당 개수(8~40) · 한 사람 심사 대기 상한(3). 유료·정산 칸은 S2~S4 마이그레이션이 더한다.

@@ -1,5 +1,5 @@
 -- 로보티콘 S2(상품화 계약 · 작가 정산 정보 · 유료 희망 신청 · 승인 가격 · 가격 바꾸기 · 설정의 유료 칸) — docs/features/emoticon-contract.md 「서버 구현 단계」 S2 · 「S2 구현 결과」.
--- ⚠ 합칠 때 번호 재확인(가번호 V141 — S1 은 V140, develop 의 V139 는 배송지). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
+-- ⚠ 합칠 때 번호 재확인(가번호 V143 — S1 은 V142, develop 의 V139 는 배송지). develop 에 합치기 직전에 shared 스트림의 마지막 번호를 다시 보고 정한다.
 --
 -- 무엇이 바뀌나
 --   ① 약관 종류 ∪ ROBOTIKON_CONTRACT(로보티콘 상품화 계약 — 판·시행일·이력은 약관 관리 그대로). 종류 칸 varchar(10) → varchar(20)(이름이 18자).
@@ -15,7 +15,7 @@
 --   ⑦ 상품화 계약 동의 기록(emoticon_contract_consents — 추가만): (작가, 판) 하나에 한 줄, 동의 시각 · 그때 낸 팩.
 --   ⑧ 작가 정산 정보(emoticon_payout_accounts — 작가마다 한 줄): 개인·사업자 · 사업자 번호 · 은행 · 계좌번호 · 예금주(암호문 + 가린 값). 원문은 화면에 내지 않고
 --      운영자 원문 보기(권한 emoticon.payout.pii + 사유 + 감사 EMOTICON_PAYOUT_REVEAL)만 푼다.
--- 새 표는 users 에 외래 키를 걸지 않는다(V140 과 같다). 암호문 칸은 DataKeyColumns 에 올렸다(키 교체 배치).
+-- 새 표는 users 에 외래 키를 걸지 않는다(V142 과 같다). 암호문 칸은 DataKeyColumns 에 올렸다(키 교체 배치).
 
 -- ── ① 약관 종류 ─────────────────────────────────────────────────────────────
 ALTER TABLE terms_versions ALTER COLUMN kind TYPE varchar(20);

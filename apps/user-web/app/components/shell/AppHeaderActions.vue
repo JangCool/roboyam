@@ -99,6 +99,8 @@ const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
  */
 const menuItems = computed(() => [
     { label: t('shell.myInfo'), icon: 'pi pi-user', command: () => void navigateTo('/me') },
+    // 설정 — 내 정보와 따로 둔 묶음(사용자 결정 2026-11-05). 누르면 설정 화면들만 보인다(`pages/settings.vue` 의 설정 메뉴)
+    { label: t('settings.title'), icon: 'pi pi-cog', command: () => void navigateTo('/settings') },
     // 계정·로그인 연결(소셜 계정 연결·해제) — 셸 고정 항목이다(이 앱은 메뉴 관리의 마이페이지 그룹을 그리지 않는다)
     { label: t('account.title'), icon: 'pi pi-link', command: () => void navigateTo('/settings/account') },
     ...(businessAccount.value

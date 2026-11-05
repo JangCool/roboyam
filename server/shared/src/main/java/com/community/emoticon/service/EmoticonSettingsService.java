@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 로보티콘 설정(계약 가정 1·4·6·9 — 받기 보상 · 작가 하루 상한 · 팩당 개수 · 심사 대기 상한 · 유료 판매 켜기 · 수수료율 · 가격 단계 · 정산일 · 최소 지급액 · 셀프 환불 기간).
  * 공개 규칙({@code GET /api/emoticons/rules})과 관리자 설정 화면이 같은 값을 본다. 설정 행은 받기·신청·승인이 그때그때 읽는다(메모리 사본 없음 — 바로 반영).
  *
- * <p>저장 범위는 admin-web {@code UtilEmoticon.SETTING_RANGES}(목업 {@code mockEmoticonSaveSettings})와 같고 DB CHECK 가 한 번 더 막는다(V140·V141).
+ * <p>저장 범위는 admin-web {@code UtilEmoticon.SETTING_RANGES}(목업 {@code mockEmoticonSaveSettings})와 같고 DB CHECK 가 한 번 더 막는다(V142·V143).
  * 가격 단계 = 1~10개 · 100원 단위 100~100,000원 · 겹침 없음(저장은 오름차순) · <b>상점에 나온 팩(판매 중·판매 중단)이 쓰는 단계는 뺄 수 없다</b>(목업은 판매 중만 — 서버는 판매 중단도 센다:
  * 다시 판매하면 그 가격으로 나오므로). 수수료·정산일·최소 지급액·환불 기간은 S2 에서 저장만 하고 S3·S4 가 쓴다.
  */
@@ -38,7 +38,7 @@ public class EmoticonSettingsService {
 
     public static final String TARGET = "EMOTICON_SETTINGS";
 
-    /** 계약의 기본값(V140·V141 의 DEFAULT 와 같다) */
+    /** 계약의 기본값(V142·V143 의 DEFAULT 와 같다) */
     public static final int DEFAULT_REWARD = 10;
     public static final int DEFAULT_DAILY_CAP = 500;
     public static final int DEFAULT_ITEM_MIN = 8;

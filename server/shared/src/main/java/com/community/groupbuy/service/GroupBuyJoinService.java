@@ -1,5 +1,6 @@
 package com.community.groupbuy.service;
 
+import com.community.addressbook.service.AddressFieldRules;
 import com.community.groupbuy.dto.GroupBuyBuyer;
 import com.community.groupbuy.dto.JoinRequest;
 import com.community.groupbuy.dto.JoinResult;
@@ -211,32 +212,11 @@ public class GroupBuyJoinService {
         if (request.items() == null || request.items().isEmpty()) {
             fields.put("items", new MessageRef("groupbuy.order.lines.required"));
         }
-        ShippingAddress a = request.address();
-        if (a == null || blankOrLonger(a.recipient(), 50)) {
-            fields.put("address.recipient", new MessageRef("groupbuy.order.address.invalid"));
-        }
-        if (a == null || a.phone() == null || !a.phone().strip().matches("[0-9-]{9,15}")) {
-            fields.put("address.phone", new MessageRef("groupbuy.order.address.invalid"));
-        }
-        if (a == null || a.postcode() == null || !a.postcode().strip().matches("[0-9]{5,6}")) {
-            fields.put("address.postcode", new MessageRef("groupbuy.order.address.invalid"));
-        }
-        if (a == null || blankOrLonger(a.address1(), 200)) {
-            fields.put("address.address1", new MessageRef("groupbuy.order.address.invalid"));
-        }
-        if (a != null && a.address2() != null && a.address2().strip().length() > 200) {
-            fields.put("address.address2", new MessageRef("groupbuy.order.address.invalid"));
-        }
-        if (a != null && a.memo() != null && a.memo().strip().length() > 200) {
-            fields.put("address.memo", new MessageRef("groupbuy.order.address.invalid"));
-        }
+        ShippingAddress a = request.address() == null ? new ShippingAddress(null, null, null, null, null, null) : request.address();
+        fields.putAll(AddressFieldRules.violations("address.", a.recipient(), a.phone(), a.postcode(), a.address1(), a.address2(), a.memo())); // 주소록과 같은 규칙(한 곳)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-    }
-
-    private static boolean blankOrLonger(String value, int max) {
-        return value == null || value.isBlank() || value.strip().length() > max;
     }
 
     private Instant now() {

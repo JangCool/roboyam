@@ -4,6 +4,8 @@
         구획: ① 신원(가린 값 + 평문 보기) ② 국세청 상태조회 ③ 사업자등록증 사본(열람 기록) ④ 서비스 카드 ⑤ 처리 기록 Timeline. 맨 아래 처리 단추.
         ④ 서비스 카드: 「서비스만 정지」(`suspendCode != null`)면 사유 칸, 신원이 승인이면 카드마다 [서비스 정지]·[서비스 해제](2026-11-02).
         [승인] 은 계속사업자일 때만(조회 불가면 부모가 사유를 받는다), 휴·폐업이면 잠그고 이유를 적는다. 서버는 부르지 않는다 — 동작은 emit.
+        ③ 아래 인쇄본·팩스 접수 기록(부모 `intake` 값, 동작은 `intake` 이벤트): 전자 팩스 파일 줄 · 종이 접수 줄 · [접수 기록](`business.manage`).
+          「우편·팩스로 보냄」(상세 `certificateDelivery`) 신원인데 받은 것이 없으면 경고 + [승인] 잠금(서버도 409). 반려·탈퇴 90일이 지났는데 보관 중인 인쇄본은 「폐기 기한 지남」.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
         <template #header>
@@ -49,6 +51,37 @@
                 </div>
                 <p v-else class="m-0 text-[13px] text-muted-color">{{ t('business.certNone') }}</p>
                 <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-eye mt-0.5 text-xs" aria-hidden="true" />{{ t('business.certViewLog') }}</p>
+
+                <!-- 인쇄본·팩스로 받은 등록증 -->
+                <template v-if="intake?.bundle">
+                    <Message v-if="certAwaiting" severity="warn" :closable="false" icon="pi pi-envelope" data-testid="doc-intake-cert-awaiting">
+                        <span class="text-[13px]">{{ t('docIntake.cert.awaiting') }}</span>
+                    </Message>
+                    <p v-else-if="detail.certificateDelivery === 'MAIL_FAX'" class="m-0 flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400"><i class="pi pi-check-circle text-xs" aria-hidden="true" />{{ t('docIntake.cert.received') }}</p>
+                    <Message v-if="disposeOverdue" severity="error" :closable="false" icon="pi pi-exclamation-triangle"><span class="text-[13px]">{{ t('docIntake.cert.overdueNote') }}</span></Message>
+                    <!-- 전자 팩스로 받은 예전 등록증 파일(이름·크기 — 지금 등록증은 위 사본 카드에서 연다) -->
+                    <ul v-if="earlierFaxFiles.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                        <li v-for="f in earlierFaxFiles" :key="f.id" class="flex items-center gap-3 px-3 py-2 text-[13px]">
+                            <i :class="f.mimeType === 'application/pdf' ? 'pi pi-file-pdf' : 'pi pi-image'" class="text-muted-color" aria-hidden="true" />
+                            <div class="flex min-w-0 flex-1 flex-col">
+                                <span class="inline-flex min-w-0 items-center gap-2">
+                                    <span class="truncate font-medium">{{ f.fileName }}</span>
+                                    <Tag :value="t('docIntake.efax')" severity="info" icon="pi pi-print" />
+                                </span>
+                                <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.receivedAt) }} · {{ f.receivedBy ?? '—' }}</span>
+                            </div>
+                        </li>
+                    </ul>
+                    <DocIntakeSection
+                        doc="CERTIFICATE"
+                        :host="intake"
+                        :files="certScanFiles"
+                        :editable="canManage && detail.status !== 'WITHDRAWN'"
+                        :handleable="canManage"
+                        :dispose-due-at="disposeDueAt"
+                        @intake="(e) => emit('intake', e)"
+                    />
+                </template>
             </section>
 
             <!-- ④ 서비스 -->
@@ -118,6 +151,7 @@
             <div class="flex flex-col gap-2">
                 <p v-if="canDelete && hasLiveDealings" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.deleteLocked') }}</p>
                 <template v-if="footer === 'review'">
+                    <p v-if="certAwaiting" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('docIntake.cert.approveLocked') }}</p>
                     <p v-if="ntsRule === 'LOCKED_MISMATCH'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLockedMismatch') }}</p>
                     <p v-else-if="ntsRule === 'LOCKED_STATUS'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail!.nts.status}`) }) }}</p>
                     <p v-else-if="ntsRule === 'NEEDS_REASON_UNCHECKED'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReasonUnchecked') }}</p>
@@ -140,7 +174,7 @@
                     />
                     <template v-if="footer === 'review'">
                         <Button type="button" :label="t('business.actReject')" severity="danger" variant="outlined" :disabled="busy" @click="emit('reject')" />
-                        <Button type="button" :label="t('business.actApprove')" icon="pi pi-check" :disabled="busy || approvability === 'LOCKED'" @click="emit('approve')" />
+                        <Button type="button" :label="t('business.actApprove')" icon="pi pi-check" :disabled="busy || approvability === 'LOCKED' || certAwaiting" @click="emit('approve')" />
                     </template>
                     <Button v-else-if="footer === 'suspend'" type="button" :label="t('business.actSuspend')" icon="pi pi-ban" severity="danger" variant="outlined" :disabled="busy" @click="emit('suspend')" />
                     <Button v-else-if="footer === 'unsuspend'" type="button" :label="t('business.actUnsuspend')" icon="pi pi-replay" :disabled="busy" @click="emit('unsuspend')" />
@@ -157,8 +191,10 @@ import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types'
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { BusinessDetail, BusinessReveal, BusinessRow, BusinessService, BusinessServiceCard } from '~/composables/business/api/useBusinessApi.types';
 import type { BusinessScreenMode } from '~/components/business/BusinessDetailDrawer.types';
+import type { DocIntakeEvent, DocIntakeHost, DocScanFile } from '~/composables/docintake/useDocIntake.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBusiness from '~/utils/util-business';
+import UtilDocIntake from '~/utils/util-doc-intake';
 
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -176,6 +212,8 @@ interface Props {
     /** 사업자 삭제(`business.delete`) */
     canDelete?: boolean;
     reveal?: BusinessReveal | null;
+    /** 등록증 인쇄본·팩스 접수 기록 — 부모의 `useDocIntake().host` */
+    intake?: DocIntakeHost | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -190,6 +228,7 @@ const props = withDefaults(defineProps<Props>(), {
     canUnsuspend: false,
     canDelete: false,
     reveal: null,
+    intake: null,
 });
 const emit = defineEmits<{
     retry: [];
@@ -206,6 +245,8 @@ const emit = defineEmits<{
     hide: [];
     openCert: [];
     remove: [];
+    /** 등록증 인쇄본·팩스 접수 기록 */
+    intake: [event: DocIntakeEvent];
 }>();
 
 const { t } = useI18n();
@@ -247,6 +288,19 @@ function serviceAction(card: BusinessServiceCard): 'suspend' | 'resume' | null {
     if (serviceOnlySuspended(card)) return props.canUnsuspend ? 'resume' : null;
     return null;
 }
+
+/** 「우편·팩스로 보냄」인데 아직 받은 것이 없다 — [승인] 을 잠근다(부모 `approve` 도 막는다, 서버 409 `BUSINESS_CERT_NOT_RECEIVED`) */
+const certAwaiting = computed(() => {
+    const d = props.detail;
+    return d ? UtilDocIntake.certificateAwaiting(d.certificateDelivery, d.certificateReceived) : false;
+});
+/** 전자 팩스 파일 중 지금 등록증이 아닌 것 — 지금 등록증은 위 사본 카드에 이미 있다 */
+const earlierFaxFiles = computed(() => (props.intake?.bundle?.faxFiles ?? []).filter((f) => f.id !== props.detail?.certificate?.id));
+/** 등록증 인쇄본 폐기 기한(반려·탈퇴 처리 기록 + 90일) */
+const disposeDueAt = computed(() => (props.detail ? UtilDocIntake.certificateDisposeDue(props.detail.status, props.detail.history) : null));
+const disposeOverdue = computed(() => (props.intake?.bundle?.intakes ?? []).some((i) => UtilDocIntake.disposeOverdue(i, disposeDueAt.value)));
+/** 폐기 스캔본 후보 — 그 사업자의 등록증 파일(회원이 올린 것 + 전자 팩스, 등록증은 선택) */
+const certScanFiles = computed<DocScanFile[]>(() => UtilDocIntake.certificateScanFiles(props.intake?.bundle, props.detail?.certificate ?? null, t('docIntake.cert.earlierFile')));
 
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));

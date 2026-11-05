@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 작가 정산 정보({@code emoticon_payout_accounts}, V141 — 작가마다 한 줄). 원문 칸은 {@code DataCipher} 암호문만 오가고(이 클래스는 풀지 않는다), 화면용 가린 값은 따로 둔다.
+ * 로보티콘 작가 정산 정보({@code emoticon_payout_accounts}, V143 — 작가마다 한 줄). 원문 칸은 {@code DataCipher} 암호문만 오가고(이 클래스는 풀지 않는다), 화면용 가린 값은 따로 둔다.
  * JDBC 인 이유는 {@link EmoticonPackStore} 와 같다.
  */
 @Repository

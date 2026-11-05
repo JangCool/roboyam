@@ -96,7 +96,7 @@ public enum AdminNotificationEvent {
      */
     BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).link("/board-sanctions/reviews?review={reviewId}")),
     /**
-     * 로보티콘 심사 대기 — 작가가 팩(처음 신청 · 새 판)을 심사 요청했다(shared {@code EmoticonStudioService}, V140 — emoticon-contract S1). 신청마다 한 건.
+     * 로보티콘 심사 대기 — 작가가 팩(처음 신청 · 새 판)을 심사 요청했다(shared {@code EmoticonStudioService}, V142 — emoticon-contract S1). 신청마다 한 건.
      * 처리는 관리자 심사 화면의 그 건 서랍({@code /robotikon/reviews?id=}) — 승인·반려 {@code emoticon.review}
      */
     EMOTICON_REVIEW_PENDING(spec(MEMBER, INFO).holders(Permission.EMOTICON_REVIEW).link("/robotikon/reviews?id={reviewId}")),

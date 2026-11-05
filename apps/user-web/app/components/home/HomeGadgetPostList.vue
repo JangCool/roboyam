@@ -3,11 +3,11 @@
         글 목록 가젯(`POST_LIST`) — 게시판·정렬·개수는 서버가 정해 `data.items` 로 준다(화면은 자르지 않는다). 줄 모양·꾸미기는 `HomeGadgetPostRow` 가 지킨다.
         두 열(`columns: 2`)은 첫 글을 크게 하지 않으면 세로로 먼저 채운다(1~5위 왼쪽, 6~10위 오른쪽 — `gadget-cols2`), 첫 글을 크게 하면 가로로(큰 글이 두 칸). 칸이 좁으면 한 열.
         인기글 기간 탭(`data.periods` — 실시간·어제·이번 주, 사용자 결정 2026-10-28): 기간별 순위를 한 번에 받아 탭으로 바꿔 그린다(가젯은 서버를 부르지 않는다). 탭은 `/popular` 화면과 같은 이름이다.
-        한 열(모바일, 격자 `stack` — 모든 테마): 두 열을 쓰지 않고 한 열, 기간 탭은 손가락에 맞게 큰 알약(높이 36px · 가로로 밀 수 있는 줄).
+        한 열(모바일, 격자 `stack` — 모든 테마): 두 열을 쓰지 않고 한 열. 기간 탭은 알약이 아닌 작은 글자 탭(고른 탭만 굵게 + 밑줄, 2026-11-05 사용자 결정) — 모바일은 누르기 쉽게 높이 32px.
         community 와 다른 점: 글 사이 광고(`inlineAd`)·채운 줄 표시(`fills`)는 옮기지 않았다.
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="gadget.empty || (!periods && items.length === 0)" :empty-icon="cfg.sort === 'POPULAR' ? 'pi pi-chart-line' : 'pi pi-file'">
-        <div v-if="periods" role="tablist" :aria-label="t('home.periodTabs')" class="mb-2 flex" :class="stacked ? 'no-scrollbar -mx-1 gap-1.5 overflow-x-auto p-1' : 'gap-1'" data-testid="home-period-tabs">
+        <div v-if="periods" role="tablist" :aria-label="t('home.periodTabs')" class="mb-1.5 flex gap-3.5" data-testid="home-period-tabs">
             <button
                 v-for="key in periodKeys"
                 :id="`${uid}-tab-${key}`"
@@ -16,8 +16,8 @@
                 role="tab"
                 :aria-selected="key === period"
                 :aria-controls="`${uid}-panel`"
-                class="rounded-full font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                :class="[key === period ? 'bg-primary text-primary-contrast' : 'bg-surface-100 text-muted-color hover:text-color dark:bg-surface-800', stacked ? 'h-9 shrink-0 px-4 text-[0.8125rem]' : 'px-3 py-1 text-xs']"
+                class="inline-flex shrink-0 items-center border-b-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                :class="[key === period ? 'border-primary font-bold text-color' : 'border-transparent text-muted-color hover:text-color', stacked ? 'min-h-8' : 'min-h-7']"
                 @click="period = key"
             >
                 {{ UtilFeedMessages.periodLabel(t, key) }}

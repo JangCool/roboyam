@@ -1,12 +1,12 @@
 <template>
-    <div class="flex flex-col gap-4" data-testid="group-buys">
+    <!-- 제목 · 거르기 줄(구분 탭 · 카테고리 · 개수 · 정렬) · 상품 격자를 한 카드에 — 기본 테마는 카드가 보이지 않고, 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <div class="content-card flex flex-col gap-4" data-testid="group-buys">
         <header class="flex flex-wrap items-center justify-between gap-2">
-            <h1 class="m-0 text-xl font-bold">{{ term('GROUP_BUY') }}</h1>
+            <h1 class="m-0 text-lg font-bold">{{ term('GROUP_BUY') }}</h1>
             <Button v-if="user" as="router-link" :to="UtilCommerce.ORDERS_PATH" :label="t('commerce.ordersTitle')" icon="pi pi-receipt" size="small" severity="secondary" variant="outlined" data-testid="group-buys-my-orders" />
         </header>
 
-        <!-- 거르기 줄(구분 탭 · 카테고리 · 개수 · 정렬) + 상품 격자를 한 카드에 — 기본 테마는 카드가 보이지 않고, 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-        <div class="content-card" data-testid="group-buys-card">
+        <div data-testid="group-buys-card">
             <!-- 구분 탭 — 주소의 `?phase=` 가 상태다 -->
             <div role="group" :aria-label="t('groupBuy.phaseLabel')" class="flex gap-5 border-b border-hairline" data-testid="group-buys-phase">
                 <button

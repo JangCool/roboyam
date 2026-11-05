@@ -243,6 +243,11 @@ public class BizApplicationStore {
         jdbc.update("UPDATE biz_applications SET active_contract_count = ?, updated_at = ? WHERE id = ?", count, ts(now), id);
     }
 
+    /** 계약서 종이 근거 수(V140 — 잘못 기록 아닌 종이 접수, 폐기한 줄 포함) — 수동 확정 CHECK 가 파일 수와 더해 본다 */
+    public void setPaperContractCount(long id, int count, Instant now) {
+        jdbc.update("UPDATE biz_applications SET paper_contract_count = ?, updated_at = ? WHERE id = ?", count, ts(now), id);
+    }
+
     public void setDepositConfirmed(long id, Instant at, Instant now) {
         jdbc.update("UPDATE biz_applications SET deposit_confirmed_at = ?, updated_at = ? WHERE id = ?", ts(at), ts(now), id);
     }

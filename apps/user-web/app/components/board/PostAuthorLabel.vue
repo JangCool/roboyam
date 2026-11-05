@@ -1,6 +1,7 @@
 <template>
-    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 뱃지 + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
-         운영진 공식 뱃지는 그리지 않는다 — 서버가 작성자 `role` 을 회원이면 늘 `USER` 로 준다(운영자는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다) -->
+    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 뱃지(운영자 회원 계정이면 그 자리에 「운영자」 공식 뱃지) + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
+         공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
+         「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`) -->
     <span class="inline-flex min-w-0 items-center gap-1">
         <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지) -->
         <NuxtLink
@@ -13,7 +14,9 @@
             >{{ name }}</NuxtLink
         >
         <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
-        <GradeBadge v-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
+        <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
+        <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
+        <GradeBadge v-else-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
         <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
@@ -73,6 +76,8 @@ const nameStyle = computed(() => {
     return color ? { color } : undefined;
 });
 const guest = computed(() => props.author.kind === 'GUEST');
+/** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */
+const operator = computed(() => props.author.kind === 'MEMBER' && props.author.operator === true);
 /** 이용자 메모 — 서버가 준 `author.memo`(나에게만 오는 값, 서버 후보)에 이 기기에서 방금 남기거나 지운 것을 겹친다 */
 const memo = computed(() => (props.author.kind === 'MEMBER' ? overrides.memoOf(props.author.memberId, props.author.memo) : null));
 const profilePath = computed(() => (props.link && props.author.kind === 'MEMBER' && props.author.memberId ? UtilProfile.path(props.author.memberId) : null));

@@ -61,7 +61,7 @@ public class IdentityStore {
                 + "ON CONFLICT DO NOTHING", userId, diHash, ciHash, birthDate, provider.name(), providerTxId, ts(verifiedAt)) == 1;
     }
 
-    /** 인증 이름 암호문을 넣는다(확정과 같은 트랜잭션 — V141 {@code name_enc}, DataCipher 용도 {@code identity.name}) */
+    /** 인증 이름 암호문을 넣는다(확정과 같은 트랜잭션 — V143 {@code name_enc}, DataCipher 용도 {@code identity.name}) */
     public void saveNameCipher(long userId, String nameCipher) {
         jdbc.update("UPDATE identity_verifications SET name_enc = ? WHERE user_id = ?", nameCipher, userId);
     }

@@ -138,7 +138,8 @@ public class BizApplicationAdminService {
         return view(actor, id);
     }
 
-    public BizAdminView.Detail uploadContracts(AdminActor actor, long id, List<MultipartFile> files, String replaceId) {
+    /** @param channel 들어온 길 {@code UPLOAD}(비우면 기본) · {@code FAX}(전자 팩스 — biz-doc-intake-contract) */
+    public BizAdminView.Detail uploadContracts(AdminActor actor, long id, List<MultipartFile> files, String replaceId, String channel) {
         canManage(actor, id);
         List<BizUpload> uploads = new ArrayList<>();
         for (MultipartFile f : files == null ? List.<MultipartFile>of() : files) {
@@ -148,7 +149,7 @@ public class BizApplicationAdminService {
                 throw ValidationException.of("file", new MessageRef("bizapp.file.required"));
             }
         }
-        review.uploadContracts(op(actor), id, uploads, replaceId);
+        review.uploadContracts(op(actor), id, uploads, replaceId, channel);
         return view(actor, id);
     }
 
@@ -287,7 +288,7 @@ public class BizApplicationAdminService {
                 a.approvedAt(), s.approvedByName());
         BizAdminView.OnlinePayment online = a.paidAt() == null ? null : new BizAdminView.OnlinePayment(a.paidAt(), s.payment() == null ? null : s.payment().pgTxId());
         List<BizAdminView.Contract> contracts = s.contracts().stream().map(c -> new BizAdminView.Contract(Long.toString(c.id()), c.fileName(), c.contentType(),
-                c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(), c.replacedByName())).toList();
+                c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(), c.replacedByName(), c.channel().name())).toList();
         BizAdminView.Deposit deposit = s.deposit() == null ? null : new BizAdminView.Deposit(s.deposit().amount(), s.deposit().depositedOn(), s.deposit().depositorName(),
                 s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt());
         BizAdminView.Refund refund = BizAdminView.Refund.of(s.refund());

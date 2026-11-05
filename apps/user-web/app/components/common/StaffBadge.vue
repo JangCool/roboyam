@@ -12,7 +12,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {});
 
-const OFFICIAL_CLASS = 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
+const OFFICIAL_CLASS = 'bg-surface-900 text-surface-0 dark:bg-surface-300 dark:text-surface-900';
 const BUSINESS_CLASS = 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300';
 
 const business = computed(() => props.role === 'BUSINESS');

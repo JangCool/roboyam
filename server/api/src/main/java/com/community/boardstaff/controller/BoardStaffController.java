@@ -17,6 +17,8 @@ import com.community.boardstaff.service.BoardStaffService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.response.ApiResponse;
+import com.community.zconfiguration.web.ClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,9 +56,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BoardStaffController {
 
     private final BoardStaffService service;
+    private final ClientIpResolver clientIps;
 
-    public BoardStaffController(BoardStaffService service) {
+    public BoardStaffController(BoardStaffService service, ClientIpResolver clientIps) {
         this.service = service;
+        this.clientIps = clientIps;
     }
 
     @GetMapping("/sanctions/preview")
@@ -66,8 +70,9 @@ public class BoardStaffController {
     }
 
     @PostMapping("/sanctions")
-    public ResponseEntity<ApiResponse<BoardSanctionIssuedView>> issue(@RequestBody(required = false) BoardSanctionIssueRequest body, Authentication authentication) {
-        BoardSanctionIssuedView issued = service.issue(principal(authentication).id(), body);
+    public ResponseEntity<ApiResponse<BoardSanctionIssuedView>> issue(@RequestBody(required = false) BoardSanctionIssueRequest body, Authentication authentication,
+                                                                 HttpServletRequest request) {
+        BoardSanctionIssuedView issued = service.issue(principal(authentication).id(), body, clientIps.resolve(request));
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(issued));
     }
 
@@ -79,29 +84,29 @@ public class BoardStaffController {
 
     @PostMapping("/sanctions/{id}/lift")
     public ResponseEntity<ApiResponse<BoardStaffSanctionRowView>> lift(@PathVariable String id, @RequestBody(required = false) BoardSanctionLiftRequest body,
-                                                                       Authentication authentication) {
-        return noStore(service.lift(principal(authentication).id(), id, body));
+                                                                       Authentication authentication, HttpServletRequest request) {
+        return noStore(service.lift(principal(authentication).id(), id, body, clientIps.resolve(request)));
     }
 
     // ── 스텝 처리(docs/features/board-staff-action-contract.md 「API > 공개」) ──
 
     @PostMapping("/posts/{postId}/hide")
     public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> hidePost(@PathVariable String postId, @RequestBody(required = false) BoardStaffPostActionRequest body,
-                                                                         Authentication authentication) {
-        return noStore(service.hidePost(principal(authentication).id(), postId, body));
+                                                                         Authentication authentication, HttpServletRequest request) {
+        return noStore(service.hidePost(principal(authentication).id(), postId, body, clientIps.resolve(request)));
     }
 
     @PostMapping("/posts/{postId}/delete")
     public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> deletePost(@PathVariable String postId, @RequestBody(required = false) BoardStaffPostActionRequest body,
-                                                                           Authentication authentication) {
-        return noStore(service.deletePost(principal(authentication).id(), postId, body));
+                                                                           Authentication authentication, HttpServletRequest request) {
+        return noStore(service.deletePost(principal(authentication).id(), postId, body, clientIps.resolve(request)));
     }
 
     @PostMapping("/comments/{commentId}/delete")
     public ResponseEntity<ApiResponse<BoardStaffActionDoneView>> deleteComment(@PathVariable String commentId,
                                                                               @RequestBody(required = false) BoardStaffCommentDeleteRequest body,
-                                                                              Authentication authentication) {
-        return noStore(service.deleteComment(principal(authentication).id(), commentId, body));
+                                                                              Authentication authentication, HttpServletRequest request) {
+        return noStore(service.deleteComment(principal(authentication).id(), commentId, body, clientIps.resolve(request)));
     }
 
     @GetMapping("/boards/{boardId}/actions")
@@ -112,8 +117,8 @@ public class BoardStaffController {
 
     @PostMapping("/actions/{id}/restore")
     public ResponseEntity<ApiResponse<BoardStaffActionRowView>> restore(@PathVariable String id, @RequestBody(required = false) BoardStaffActionRestoreRequest body,
-                                                                       Authentication authentication) {
-        return noStore(service.restore(principal(authentication).id(), id, body));
+                                                                       Authentication authentication, HttpServletRequest request) {
+        return noStore(service.restore(principal(authentication).id(), id, body, clientIps.resolve(request)));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

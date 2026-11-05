@@ -15,7 +15,7 @@ import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 로보티콘 심사 건({@code emoticon_reviews}, V140) 읽기·쓰기. Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다 */
+/** 로보티콘 심사 건({@code emoticon_reviews}, V142) 읽기·쓰기. Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다 */
 @Repository
 public class EmoticonReviewStore {
 

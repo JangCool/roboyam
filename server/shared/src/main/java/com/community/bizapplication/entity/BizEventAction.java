@@ -60,7 +60,16 @@ public enum BizEventAction {
     STOPPED(true),
     // ── 운영자 추가 환불(클레임 — V128). 돈은 기존 REFUNDED(온라인 PG 취소 완료)·REFUND_TRANSFERRED(수동 송금 완료) 줄로 이어진다 ──
     /** 추가 환불(바로 승인) — note = 금액(사유는 관리자 상세의 환불 줄·감사에만) */
-    CLAIM_REFUNDED(true);
+    CLAIM_REFUNDED(true),
+    // ── 계약서 종이 접수 기록(V140 — biz-doc-intake-contract). 운영 기록이라 공개 처리 기록에는 내보내지 않는다(user-web 코드 묶음에 없다) ──
+    /** 인쇄본·종이 팩스 접수 — note = 접수 방식 {@code MAIL}·{@code VISIT}·{@code FAX} */
+    PAPER_RECEIVED(false),
+    /** 인쇄본 처리 바꾸기 — note = 새 처리 {@code KEEP}·{@code DISPOSE_PENDING} */
+    PAPER_HANDLING(false),
+    /** 인쇄본 폐기 — note = 폐기 사유 */
+    PAPER_DISPOSED(false),
+    /** 접수 기록 잘못 기록(줄 긋기) — note = 사유 */
+    PAPER_VOIDED(false);
 
     private final boolean publicVisible;
 

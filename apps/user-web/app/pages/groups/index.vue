@@ -1,13 +1,14 @@
 <template>
     <!--
-        소모임 목록 `/groups?category=&sort=&q=` (메뉴 `GROUPS_ALL`) — 분류 칩 · 정렬 · 컴팩트 목록 · 더보기 · 검색 · 만들기. 데스크톱 오른쪽에 내 소모임 요약.
+        소모임 목록 `/groups?category=&sort=&q=` (메뉴 `GROUPS_ALL`) — 분류 칩 · 정렬 · 컴팩트 목록 · 더보기 · 검색 · 만들기.
         주소의 쿼리가 화면 상태다(뒤로 가기·공유·새로고침이 같은 결과). 칩·정렬·검색어 지우기는 링크라 주소만 바뀌고, 이상한 값은 기본값으로 돌린다.
         분류 칩은 `GET /api/groups/categories`(관리자가 정한 이름·순서·소모임 수). 분류 목록에 없는 `?category=` 는 목록을 받지 않고 안내 + [전체 보기].
         맨 위 「지금 뜨는 소모임」 슬라이드(6단계, `GET /api/groups/trending`)는 한 번 받아 고정하고 검색 중에는 숨긴다. 아래 목록은 슬라이드를 기다렸다가 그 소모임들을 `exclude` 로 뺀다
         (「내 소모임」 정렬은 빼지 않는다). 슬라이드가 실패해도 목록은 `exclude` 없이 그대로 받고, 두 오류는 따로 보인다.
         community 대비: 사이드의 광고 자리는 로보얌에 광고가 없어 뺐다.
     -->
-    <div>
+    <!-- 제목·검색·목록을 한 카드에(내 소모임 화면과 같은 모양) — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <div class="content-card">
         <header class="flex items-center gap-2">
             <h1 class="min-w-0 flex-1 text-lg font-bold leading-tight">{{ t('group.title') }}</h1>
             <Button
@@ -46,9 +47,8 @@
             <p class="mt-1 text-xs text-muted-color">{{ t('group.searchHelp') }}</p>
         </form>
 
-        <div class="mt-3 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-6">
-            <!-- 본문 열(지금 뜨는 소모임 ~ 목록)을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-            <div class="content-card min-w-0" data-testid="group-list-card">
+        <div class="mt-3">
+            <div class="min-w-0" data-testid="group-list-card">
                 <!-- 지금 뜨는 소모임 — 가로로 밀어 넘기는 카드 줄(scroll-snap, 자동으로 넘어가지 않는다). 검색 중에는 숨기고, 후보가 없으면(빈 응답) 자리를 통째로 생략한다.
                      카드 전체가 상세로 가는 링크이고 오른쪽 아래 「가입하기」는 모양만이다(링크 안에 단추를 넣지 않는다 — 상세에서 가입한다) -->
                 <section
@@ -255,38 +255,6 @@
                     </template>
                 </div>
             </div>
-
-            <!-- 데스크톱 오른쪽 — 내 소모임 요약(로그인했을 때만). 받지 못해도 이 카드만 오류를 말한다 -->
-            <aside class="max-lg:hidden" :aria-label="t('group.myTitle')">
-                <section v-if="user" class="panel-card p-4" data-testid="group-my-summary">
-                    <h2 class="text-sm font-semibold">{{ t('group.myTitle') }}</h2>
-                    <div v-if="my.status.value === 'idle' || my.status.value === 'loading'" class="mt-3 space-y-2" aria-hidden="true">
-                        <div v-for="n in 3" :key="n" class="h-4 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-3/4' : 'w-1/2'" />
-                    </div>
-                    <div v-else-if="my.status.value === 'error'" class="mt-2 text-xs text-muted-color" role="alert">
-                        <p>{{ t('group.myError') }}</p>
-                        <Button type="button" :label="t('common.retry')" size="small" severity="secondary" variant="outlined" class="mt-2" @click="my.load" />
-                    </div>
-                    <template v-else-if="my.data.value">
-                        <p v-if="my.data.value.joined.length === 0" class="mt-2 text-xs text-muted-color">{{ t('group.myEmptyTitle') }}</p>
-                        <ul v-else class="m-0 mt-1 list-none p-0">
-                            <li v-for="g in my.data.value.joined.slice(0, 3)" :key="g.id">
-                                <NuxtLink
-                                    :to="UtilGroup.detailPath(g.id)"
-                                    class="flex items-center justify-between gap-2 rounded px-1 py-1.5 text-sm hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
-                                >
-                                    <span class="min-w-0 truncate">{{ g.name }}</span>
-                                    <GroupTag v-if="g.newPostCount > 0" tone="red">{{ t('group.myNewPosts', { n: g.newPostCount }) }}</GroupTag>
-                                </NuxtLink>
-                            </li>
-                        </ul>
-                        <p v-if="my.data.value.applications.length" class="mt-1 truncate text-xs text-muted-color">{{ UtilGroupMessages.pendingSummary(t, my.data.value.applications) }}</p>
-                        <NuxtLink :to="UtilGroup.MY_PATH" class="mt-2 block rounded text-xs text-muted-color hover:text-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
-                            {{ t('group.myMoreLink') }} ›
-                        </NuxtLink>
-                    </template>
-                </section>
-            </aside>
         </div>
     </div>
 </template>
@@ -323,7 +291,7 @@ function chipClass(active: boolean): string {
     return [
         'inline-flex shrink-0 items-center rounded-full border px-3 py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         active
-            ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900'
+            ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-300 dark:bg-surface-300 dark:text-surface-900'
             : 'border-surface bg-surface-0 text-color hover:bg-surface-100 dark:bg-surface-900 dark:hover:bg-surface-800',
     ].join(' ');
 }
@@ -602,16 +570,4 @@ async function onCreate() {
     }
     prompt('groupCreate', UtilGroup.NEW_PATH);
 }
-
-/* ── 데스크톱 내 소모임 요약 ── */
-const my = useMyGroups();
-const wide = useMediaQuery('(min-width: 1024px)');
-watch(
-    [() => user.value?.id, wide],
-    ([id, isWide]) => {
-        if (id && isWide && my.status.value === 'idle') void my.load();
-    },
-    { immediate: true },
-);
-onBeforeUnmount(my.stop);
 </script>

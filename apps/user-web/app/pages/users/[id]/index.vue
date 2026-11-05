@@ -1,5 +1,5 @@
 <template>
-    <div class="content-card mx-auto max-w-2xl">
+    <div class="content-card">
         <!-- 로딩 -->
         <div v-if="status === 'loading'" role="status" :aria-label="t('profile.publicLoading')" data-testid="profile-loading">
             <div class="flex items-start gap-3">
@@ -47,6 +47,8 @@
                     <h1 class="m-0 flex min-w-0 flex-wrap items-center gap-1.5 text-lg font-bold leading-tight">
                         <span class="min-w-0 break-all" :style="nicknameStyle" data-testid="profile-nickname">{{ profile.nickname }}</span>
                         <StaffBadge v-if="profile.role !== 'USER'" :role="profile.role" class="shrink-0" />
+                        <!-- 운영자 회원 계정(`operator` — 힘이 살아 있을 때만) — 등급 대신 「운영자」 공식 뱃지(사이트 용어 `ADMIN_BADGE`) -->
+                        <StaffBadge v-else-if="profile.operator" role="ADMIN" class="shrink-0" data-testid="profile-operator-badge" />
                         <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
                         <!-- 승인된 사업자(서버 `business` — 재심사 중·정지는 false). 홍보 전용 계정(역할 BUSINESS)은 위 공식 뱃지가 이미 「사업자」라 겹쳐 그리지 않는다 -->
                         <StaffBadge v-if="profile.business && profile.role !== 'BUSINESS'" role="BUSINESS" class="shrink-0" data-testid="profile-business-badge" />
@@ -292,6 +294,8 @@ import UtilProfile from '~/utils/util-profile';
  * 프로필·작성글·댓글(`useUserProfileApi`)과 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 모두 실제 API 다. 공개 프로필 응답의 `blockedByMe`·`memo` 는 서버가 채운다(로그인한 사람 기준). 머리의 닉네임 색·이니셜 테두리는 포인트 상점 장식(`decoration` 후보 + `useMyDecoration` 겹치기)이다. 원본과 달라진 점: 프로필 이미지·닉네임 이미지, 프로필 이미지·닉네임 이미지 신고, 스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다. 소모임 탭(`useUserProfileApi.groups`)은 소모임 6단계에 더했다.
  * 모바일 ‹ 머리(`InnerHeader`)가 없어 셸의 머리 그대로다.
  */
+// 내 프로필이면 내 정보 메뉴 틀 안에(`MeFrame`) — 남의 프로필은 그대로
+definePageMeta({ meMenu: 'self' });
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();

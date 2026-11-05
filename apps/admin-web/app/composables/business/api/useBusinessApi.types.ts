@@ -55,6 +55,8 @@ export interface BusinessRow {
 }
 
 export interface BusinessCertificate {
+    /** 문서 번호 — 접수 기록 묶음 `fileChannels`·폐기 스캔본과 같은 번호 */
+    id: string;
     fileName: string;
     mimeType: string;
     size: number;
@@ -96,10 +98,36 @@ export interface BusinessSuspendImpact {
     running: number;
 }
 
+/**
+ * 처리 기록 코드(서버 `BusinessStore`). 등록증 종이 접수(V140 — biz-doc-intake-contract): 접수 · 처리 바꾸기 · 폐기 · 잘못 기록 · 운영자 등록증 올리기 —
+ * `note` 는 서버가 읽는 사람 언어로 바꾼 글(접수 방식·처리·들어온 길) 또는 사유 그대로.
+ */
+export type BusinessHistoryAction =
+    | 'APPLIED'
+    | 'NTS_CHECKED'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'SUSPENDED'
+    | 'UNSUSPENDED'
+    | 'SERVICE_SUSPENDED'
+    | 'SERVICE_RESUMED'
+    | 'REVEALED'
+    | 'CERT_VIEWED'
+    | 'UPDATED'
+    | 'WITHDRAWN'
+    | 'PAPER_RECEIVED'
+    | 'PAPER_HANDLING'
+    | 'PAPER_DISPOSED'
+    | 'PAPER_VOIDED'
+    | 'CERT_UPLOADED';
+
+/** 등록증을 내는 길 — 파일 올리기 · 우편·팩스로 보냄(V140) */
+export type BusinessCertificateDelivery = 'UPLOAD' | 'MAIL_FAX';
+
 export interface BusinessHistory {
     at: string;
     /** `SERVICE_SUSPENDED`·`SERVICE_RESUMED` = 서비스별 정지·해제(`service` 칸에 그 서비스, `note` 는 서버가 읽기 좋게 만든 글) */
-    action: 'APPLIED' | 'NTS_CHECKED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'UNSUSPENDED' | 'SERVICE_SUSPENDED' | 'SERVICE_RESUMED' | 'REVEALED' | 'CERT_VIEWED' | 'UPDATED' | 'WITHDRAWN';
+    action: BusinessHistoryAction;
     actor: string;
     note: string | null;
     /** 서비스 하나에 대한 처리면 그 서비스(서비스별 정지·해제), 아니면 null */
@@ -117,6 +145,12 @@ export interface BusinessDetail extends BusinessRow {
     rejection: { code: BusinessRejectCode; text: string } | null;
     suspension: { code: BusinessSuspendCode; text: string; at: string } | null;
     history: BusinessHistory[];
+    /**
+     * 등록증을 내는 길 — 우편·팩스(`MAIL_FAX`)인데 아직 받지 않았으면(지금 등록증 사본도, 이번 신청 뒤 종이 접수도 없음) 승인 409 `BUSINESS_CERT_NOT_RECEIVED`.
+     */
+    certificateDelivery: BusinessCertificateDelivery;
+    /** 등록증을 받았나(서버 판정 — 지금 등록증 사본 · 이번 신청 뒤 잘못 기록이 아닌 종이 접수). 승인 잠금 `UtilDocIntake.certificateAwaiting` 이 쓴다 */
+    certificateReceived: boolean;
 }
 
 export interface BusinessQuery {

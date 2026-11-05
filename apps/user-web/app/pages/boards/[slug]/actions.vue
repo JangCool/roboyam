@@ -5,7 +5,7 @@
         매니저·스텝이 아니면(목록이 `404 BOARD_STAFF_NOT_FOUND`) 404 안내 — 누가 운영진인지 새지 않게 다른 화면과 같은 「찾을 수 없어요」.
         종류 거르기(전체·글·댓글) + 쪽 번호. 주소의 쿼리가 화면 상태다. 대상 제목·댓글 앞부분·작성자는 처리 때 스냅숏이다.
     -->
-    <div class="content-card mx-auto max-w-3xl">
+    <div class="content-card">
         <div v-if="state === 'loading' && !page" role="status" :aria-label="t('boardStaffAction.listLoading')" data-testid="board-actions-loading">
             <div class="h-6 w-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             <div class="mt-4 h-9 w-64 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
@@ -26,8 +26,10 @@
                     <p class="m-0 mt-0.5 text-xs text-muted-color">{{ page.manager ? t('boardStaffAction.listHintManager') : t('boardStaffAction.listHintStaff') }}</p>
                 </div>
                 <span v-if="staffTools" class="flex flex-col items-end text-xs tabular-nums text-muted-color" data-testid="board-actions-quota">
-                    <span v-if="staffTools.abilities.postHide || staffTools.abilities.postDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'POST_HIDE', staffTools.post) }}</span>
-                    <span v-if="staffTools.abilities.commentDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'COMMENT_DELETE', staffTools.comment) }}</span>
+                    <!-- 운영자 회원 계정 — 한도가 없어 한 줄 -->
+                    <span v-if="staffTools.operator">{{ t('boardStaffAction.quotaUnlimited') }}</span>
+                    <span v-else-if="staffTools.abilities.postHide || staffTools.abilities.postDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'POST_HIDE', staffTools.post) }}</span>
+                    <span v-if="!staffTools.operator && staffTools.abilities.commentDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'COMMENT_DELETE', staffTools.comment) }}</span>
                 </span>
             </header>
 

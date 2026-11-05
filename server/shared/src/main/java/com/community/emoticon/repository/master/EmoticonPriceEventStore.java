@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 가격 전환 기록({@code emoticon_price_events}, V141 — 추가만). 운영자 가격 바꾸기(사유) · 새 판 승인으로 바뀐 가격(심사 건, 사유 없음).
+ * 로보티콘 가격 전환 기록({@code emoticon_price_events}, V143 — 추가만). 운영자 가격 바꾸기(사유) · 새 판 승인으로 바뀐 가격(심사 건, 사유 없음).
  * JDBC 인 이유는 {@link EmoticonPackStore} 와 같다.
  */
 @Repository

@@ -613,6 +613,7 @@ export default {
         BUSINESS: 'Business accounts cannot be assigned',
         BOARD_LIMIT: 'Already handles {max} boards',
         ALREADY_ASSIGNED: 'Already a manager or staff of this board',
+        OPERATOR_ACCOUNT: 'Operator member accounts cannot be assigned',
     },
     appointConfirmTitle: 'Assign {name} as {role}?',
     appointConfirmMessage: 'They join "{board}" as {role}. Takes effect immediately.',

@@ -48,8 +48,10 @@ export default {
     textOtherRequired: '기타 사유는 {min}자 이상 적어 주세요.',
     noticeToMember: '받는 회원에게 사유와 함께 알림이 가요. 누가 처리했는지는 보이지 않아요.',
     quotaLine: '오늘 남은 제재 {n}건 / {limit}건',
+    quotaUnlimited: '운영자 계정 · 하루 한도 없음',
     submit: '제재하기',
     issuedToast: '{name} 님에게 {kind} 제재를 줬어요 · 오늘 남은 제재 {n}건',
+    issuedToastPlain: '{name} 님에게 {kind} 제재를 줬어요',
 
     /* 게시판 머리 운영 줄 */
     staffBarManager: '게시판 운영 중 · 매니저',
@@ -74,6 +76,7 @@ export default {
     issuerLine: '처리 {name} · {role}',
     roleManager: '매니저',
     roleStaff: '스텝',
+    roleOperator: '운영자',
     sourcePost: '계기 글',
     sourceComment: '계기 댓글',
     liftedLine: '{date} 해제 · {reason}',
@@ -92,6 +95,11 @@ export default {
     restrictedReason: '사유: {reason}',
     restrictedMore: '자세히',
     restrictedAllowed: '읽기·추천·내 글 수정과 다른 게시판은 그대로 쓸 수 있어요.',
+
+    /* 확인하지 않은 경고 안내(받은 회원 — 그 게시판 머리) */
+    warnedTitle: '이 게시판에서 경고를 받았어요',
+    warnedMore: '외 {count}건',
+    warnedHint: '글·댓글은 그대로 쓸 수 있어요. 반복되면 쓰기가 제한될 수 있어요.',
 
     /* 내 게시판 제재(/sanction) */
     myTitle: '게시판 제재',

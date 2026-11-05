@@ -27,6 +27,7 @@ export type BoardStaffActionFinish = (target: BoardStaffActionTarget, result: 'd
  *  - 이미 숨김·삭제 `409 POST_STATE_INVALID`·`COMMENT_STATE_INVALID`, 그새 없어짐 `404 POST_NOT_FOUND`·`COMMENT_NOT_FOUND` → 닫고 토스트 + 다시 읽기(`stale`)
  *  - 권한 없음 `403 BOARD_STAFF_FORBIDDEN` → 닫고 토스트 · 입력 `400 fields.reasonCode` → 사유 칸 아래 · 그 밖 → 대화창 안 한 줄
  * 성공·한도 초과 때 게시판의 `viewer.staffTools.post|comment`(게시판 머리 운영 줄)도 같은 값으로 고친다.
+ * 운영자 회원 계정(`staffTools.operator`)은 한도가 null(하루 한도 없음)로 오고 처리 응답의 `quota` 도 null — 토스트는 남은 횟수 없이 「글을 숨겼어요」.
  * ⚠ setup 에서 부른다 — 번역은 `useTranslate`(뒤에서도 안전)로 잡아 둔다.
  */
 export function useBoardStaffActionForm(board: () => BoardDetail | null, finish: BoardStaffActionFinish) {
@@ -40,15 +41,17 @@ export function useBoardStaffActionForm(board: () => BoardDetail | null, finish:
     const formError = ref('');
     const reasonFieldError = ref('');
 
-    /** 지금 대상 종류의 남은 한도(게시판 응답의 `viewer.staffTools`) */
+    /** 지금 대상 종류의 남은 한도(게시판 응답의 `viewer.staffTools`) — 운영자 회원 계정은 null(한도 없음) */
     const quota = computed<BoardStaffQuota | null>(() => {
         const tools = board()?.viewer.staffTools;
         const kind = target.value?.kind;
         if (!tools || !kind) return null;
         return UtilBoardStaffAction.isPostKind(kind) ? tools.post : tools.comment;
     });
+    /** 하루 한도 없음 — 운영자 회원 계정(`staffTools.operator`) */
+    const unlimited = computed(() => board()?.viewer.staffTools?.operator === true);
 
-    function setQuota(isPost: boolean, next: BoardStaffQuota, resetsAt: string | null): void {
+    function setQuota(isPost: boolean, next: BoardStaffQuota | null, resetsAt: string | null): void {
         const tools = board()?.viewer.staffTools;
         if (!tools) return;
         if (isPost) tools.post = next;
@@ -113,5 +116,5 @@ export function useBoardStaffActionForm(board: () => BoardDetail | null, finish:
         }
     }
 
-    return { visible, target, quota, submitting, formError, reasonFieldError, open, close, submit };
+    return { visible, target, quota, unlimited, submitting, formError, reasonFieldError, open, close, submit };
 }

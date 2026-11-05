@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 보유({@code emoticon_acquisitions}, V140 · V142) — (회원, 팩) 하나에 줄 하나. 출처 {@code kind} = {@code FREE}(무료 받기) · {@code PURCHASE}(유료 구매 — {@code purchase_id}).
+ * 로보티콘 보유({@code emoticon_acquisitions}, V142 · V144) — (회원, 팩) 하나에 줄 하나. 출처 {@code kind} = {@code FREE}(무료 받기) · {@code PURCHASE}(유료 구매 — {@code purchase_id}).
  * 빼거나 환불하면 {@code removed_at} 만 찍고 줄은 남긴다(다시 가지면 지운다) — 받기 보상·받은 수는 그 줄의 처음 한 번만이다. 토큰 검사·내 로보티콘·팩의 {@code acquired} 는
  * 출처와 상관없이 이 표의 「지금 가진 줄」을 본다. Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다.
  *

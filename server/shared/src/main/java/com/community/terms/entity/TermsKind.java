@@ -14,7 +14,7 @@ public enum TermsKind {
     /** 개인정보처리방침 — 동의 버전 문자열의 {@code P} */
     PRIVACY("privacy", "P", true),
     /**
-     * 로보티콘 상품화 계약(docs/features/emoticon-contract.md S2, V141) — 유료 팩 작가가 동의하는 판 있는 문서. 동의 기록은 로보티콘 쪽 표({@code emoticon_contract_consents}).
+     * 로보티콘 상품화 계약(docs/features/emoticon-contract.md S2, V143) — 유료 팩 작가가 동의하는 판 있는 문서. 동의 기록은 로보티콘 쪽 표({@code emoticon_contract_consents}).
      * 가입 동의·가입·로그인 링크에는 넣지 않는다.
      */
     ROBOTIKON_CONTRACT("robotikon_contract", "R", false);

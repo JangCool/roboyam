@@ -11,7 +11,10 @@ import com.community.board.service.BoardFields;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.membernotification.service.MemberNotificationPublisher;
+import com.community.operator.service.OperatorMemberAccountService;
+import com.community.operator.service.OperatorMemberAccountService.ActiveOperatorAccount;
 import com.community.permission.entity.MemberPermission;
+import com.community.permission.entity.Permission;
 import com.community.point.service.PointService;
 import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
@@ -63,6 +66,10 @@ import org.springframework.web.util.HtmlUtils;
  *   <li><b>되돌리기</b>(정책 6): 매니저({@code board.staff-action.restore} + 자기 게시판) · 운영자({@code keeper-action.restore} — 입구가 본다, 감사 {@code BOARD_STAFF_ACTION_RESTORE}).
  *       글 행(→ 댓글 행) 잠금 → 기록 조건부 UPDATE(이미 되돌림 409 {@code BOARD_STAFF_ACTION_RESTORED}) → 숨김 해제(까닭 STAFF 인 숨긴 글만) · 글 복구(파기 409 POST_PURGED, 회수한 포인트 되돌림)
  *       · 댓글 복구(지운 댓글만, 보이는 댓글이면 댓글 수 +1). 작성자에게 알리지 않는다. 한도는 돌려받지 않는다.</li>
+ *   <li><b>운영자 회원 계정</b>(docs/features/operator-member-account-contract.md 정책 7·9·11): 힘이 살아 있으면 모든 공개 게시판에서 매니저처럼 — 권한은 그 운영자의
+ *       관리자 앱 권한 거울(글·댓글 {@code post.manage} · 내역 {@code keeper-action.read} · 되돌리기 {@code keeper-action.restore}), <b>하루 한도 없음</b>(세지 않는다).
+ *       대상 보호: 본인 · 다른 운영자 회원 계정(매니저·스텝의 것은 처리할 수 있다 — 감독). 매니저·스텝에게는 운영자 회원 계정의 것이 보호되고, 매니저는 운영자 회원 계정의
+ *       처리를 되돌리지 못한다. 기록: 처리 기록 자리 OPERATOR + 운영자 ID · 조치 기록 행위자 OPERATOR(운영자 ID, 덧붙임 {@code viaUserId}) · 감사 {@code SITE_*}.</li>
  * </ul>
  */
 @Service
@@ -83,18 +90,48 @@ public class BoardStaffActionService {
     public static final int REASON_MAX = 200;
     /** 감사 대상 */
     public static final String AUDIT_TARGET = "POST";
+    /** 감사 대상 — 댓글(운영자 회원 계정의 댓글 삭제) */
+    public static final String AUDIT_TARGET_COMMENT = "COMMENT";
 
-    /** 매니저·스텝 도구({@code viewer.staffTools}) — 할 수 있는 일 + 오늘 한도 셋 */
-    public record Tools(boolean manager, boolean postHide, boolean postDelete, boolean commentDelete, boolean sanction, boolean restore, Quota post, Quota comment,
-                        Quota sanctionQuota, Instant resetsAt) {
+    /**
+     * 매니저·스텝 도구({@code viewer.staffTools}) — 할 수 있는 일 + 오늘 한도 셋. <b>운영자 회원 계정</b>({@code operator})이면 {@code manager} 도 참이고 한도 셋은 null(하루 한도 없음),
+     * 할 수 있는 일은 관리자 앱 권한의 거울(operator-member-account-contract 정책 7).
+     */
+    public record Tools(boolean operator, boolean manager, boolean postHide, boolean postDelete, boolean commentDelete, boolean sanction, boolean restore, Quota post,
+                        Quota comment, Quota sanctionQuota, Instant resetsAt) {
     }
 
-    /** 처리 결과 — 그 종류의 남은 한도 */
+    /** 처리 결과 — 그 종류의 남은 한도(운영자 회원 계정은 null — 세지 않는다) */
     public record Done(Quota quota, long actionId) {
     }
 
-    /** 공개 내역 한 쪽(1부터) — {@code canRestore} 매니저 + {@code board.staff-action.restore} */
-    public record Page(boolean manager, boolean canRestore, List<ActionRow> rows, long total, int page, int size) {
+    /**
+     * 공개 내역 한 쪽(1부터) — {@code canRestore} 매니저 + {@code board.staff-action.restore}(운영자 회원 계정은 {@code keeper-action.restore}).
+     * {@code operator} 운영자 회원 계정이 보는 내역 — 매니저는 운영자 회원 계정의 처리를 되돌리지 못한다({@link ActionRow#byOperator}).
+     */
+    public record Page(boolean manager, boolean canRestore, boolean operator, List<ActionRow> rows, long total, int page, int size) {
+
+        /** 이 줄을 지금 보는 사람이 되돌릴 수 있나 */
+        public boolean canRestore(ActionRow row) {
+            return canRestore && !row.restored() && (operator || !row.byOperator());
+        }
+    }
+
+    /** 처리하는 사람 — 그 게시판 매니저·스텝({@code access}) 또는 힘이 살아 있는 운영자 회원 계정({@code operator}) */
+    private record Who(StaffAccess access, ActiveOperatorAccount operator) {
+
+        boolean isOperator() {
+            return operator != null;
+        }
+
+        /** 처리 기록의 자리 — MANAGER · STAFF · OPERATOR */
+        String role() {
+            return operator != null ? BoardStaffActionStore.ROLE_OPERATOR : access.role();
+        }
+
+        Long operatorId() {
+            return operator == null ? null : operator.operatorId();
+        }
     }
 
     private final BoardStaffActionStore store;
@@ -109,10 +146,13 @@ public class BoardStaffActionService {
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
     private final BoardSanctionService sanctions;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public BoardStaffActionService(BoardStaffActionStore store, PostRepository posts, CommentRepository comments, PostCounterQueries counters,
                                    PostModerationActions actions, PointService points, BoardCatalog catalog, MemberNotificationPublisher memberNotices,
-                                   AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, BoardSanctionService sanctions) {
+                                   AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, BoardSanctionService sanctions,
+                                   OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.store = store;
         this.posts = posts;
         this.comments = comments;
@@ -139,6 +179,10 @@ public class BoardStaffActionService {
      * {@code restore} = 매니저 + {@code board.staff-action.restore}.
      */
     public Optional<Tools> tools(long boardId, long userId) {
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(userId);
+        if (operator.isPresent()) {
+            return operatorTools(boardId, operator.get());
+        }
         StaffAccess access = store.access(boardId, userId);
         boolean hide = access.can(MemberPermission.BOARD_POST_HIDE);
         boolean delete = access.can(MemberPermission.BOARD_POST_DELETE);
@@ -151,72 +195,99 @@ public class BoardStaffActionService {
         Instant resetsAt = BoardSanctionService.nextResetAfter(now);
         Limits limits = store.limits(boardId);
         Usage used = store.usage(boardId, userId, ServiceTime.dateOf(now));
-        return Optional.of(new Tools(access.manager(), hide, delete, comment, sanction, access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE),
-                new Quota(limits.posts(), used.posts(), resetsAt), new Quota(limits.comments(), used.comments(), resetsAt),
-                new Quota(limits.sanctions(), used.sanctions(), resetsAt), resetsAt));
+        return Optional.of(new Tools(false, access.manager(), hide, delete, comment, sanction,
+                access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE), new Quota(limits.posts(), used.posts(), resetsAt),
+                new Quota(limits.comments(), used.comments(), resetsAt), new Quota(limits.sanctions(), used.sanctions(), resetsAt), resetsAt));
+    }
+
+    /**
+     * 운영자 회원 계정의 도구 — 모든 공개 게시판(소모임 게시판 제외), 관리자 앱 권한의 거울(글 · 댓글 = {@code post.manage} · 제재 = {@code sanction.manage} ·
+     * 되돌리기 = {@code keeper-action.restore}), 네 권한({@code + keeper-action.read}) 중 하나도 없으면 빈 값. 한도는 없다(null).
+     */
+    private Optional<Tools> operatorTools(long boardId, ActiveOperatorAccount operator) {
+        if (groupBoard(boardId)) {
+            return Optional.empty();
+        }
+        boolean post = operator.can(Permission.POST_MANAGE);
+        boolean sanction = operator.can(Permission.SANCTION_MANAGE);
+        boolean restore = operator.can(Permission.KEEPER_ACTION_RESTORE);
+        if (!(post || sanction || restore || operator.can(Permission.KEEPER_ACTION_READ))) {
+            return Optional.empty();
+        }
+        return Optional.of(new Tools(true, true, post, post, post, sanction, restore, null, null, null, BoardSanctionService.nextResetAfter(now())));
     }
 
     // ── 글 숨기기 · 글 삭제 ───────────────────────────────────────────────
 
+    /** @param ip 요청 IP — 운영자 회원 계정의 처리면 감사 기록에 남는다 */
     @Transactional
-    public Done hidePost(long actorId, long postId, String reasonCode) {
-        return onPost(actorId, postId, reasonCode, BoardStaffActionStore.ACTION_HIDE);
+    public Done hidePost(long actorId, long postId, String reasonCode, String ip) {
+        return onPost(actorId, postId, reasonCode, BoardStaffActionStore.ACTION_HIDE, ip);
     }
 
     @Transactional
-    public Done deletePost(long actorId, long postId, String reasonCode) {
-        return onPost(actorId, postId, reasonCode, BoardStaffActionStore.ACTION_DELETE);
+    public Done deletePost(long actorId, long postId, String reasonCode, String ip) {
+        return onPost(actorId, postId, reasonCode, BoardStaffActionStore.ACTION_DELETE, ip);
     }
 
-    private Done onPost(long actorId, long postId, String reasonCode, String action) {
+    private Done onPost(long actorId, long postId, String reasonCode, String action, String ip) {
         boolean hide = BoardStaffActionStore.ACTION_HIDE.equals(action);
         MemberPermission permission = hide ? MemberPermission.BOARD_POST_HIDE : MemberPermission.BOARD_POST_DELETE;
         long seenBoard = store.publishedPostBoard(postId).orElseThrow(BoardStaffActionException::postNotFound);
-        requireAble(seenBoard, actorId, permission);
+        requireAble(seenBoard, actorId, permission, Permission.POST_MANAGE);
         String code = requireReason(reasonCode);
 
         PostEntity post = posts.findWithLockById(postId).orElseThrow(BoardStaffActionException::postNotFound);
-        StaffAccess access = requireAble(post.getBoardId(), actorId, permission); // 그새 옮겨졌을 수 있다 — 잠근 글의 게시판으로 다시
+        Who who = requireAble(post.getBoardId(), actorId, permission, Permission.POST_MANAGE); // 그새 옮겨졌을 수 있다 — 잠근 글의 게시판으로 다시
         long boardId = post.getBoardId();
         Instant now = now();
-        if (post.isGroupPost() || groupBoard(boardId) || notice(post) || post.getPinnedAt() != null || protectedAuthor(boardId, post.getAuthorId(), actorId)) {
+        if (post.isGroupPost() || groupBoard(boardId) || notice(post) || post.getPinnedAt() != null || protectedAuthor(boardId, post.getAuthorId(), actorId, who)) {
             throw BoardStaffActionException.targetProtected();
         }
         if (hide ? post.isGoneAt(now) || post.isHiddenAt(now) : post.isGoneAt(now)) {
             throw new PostStateInvalidException();
         }
-        Quota quota = consume(BoardStaffActionStore.KIND_POST, boardId, actorId, now);
+        Quota quota = who.isOperator() ? null : consume(BoardStaffActionStore.KIND_POST, boardId, actorId, now); // 운영자 회원 계정은 한도가 없다(세지도 않는다)
 
         long actionId = ids.nextId();
         String label = reasonLabel(code);
         Map<String, Object> extra = new LinkedHashMap<>();
+        if (who.isOperator()) {
+            extra.put("viaUserId", Long.toString(actorId));
+        }
         extra.put("boardStaffActionId", Long.toString(actionId));
         extra.put("reasonCode", code);
-        ModerationActor actor = ModerationActor.boardStaff(actorId, access.role());
+        ModerationActor actor = moderationActor(actorId, who);
         String authorName = post.getAuthorId() == null ? post.getGuestName() : store.nickname(post.getAuthorId());
+        long revoked = 0;
         if (hide) {
             actions.hide(actor, post, label, extra, now);
         } else {
-            long revoked = PostModerationActions.revokedOf(actions.delete(actor, post, label, extra, now));
-            extra.put("revokedPoints", revoked);
+            revoked = PostModerationActions.revokedOf(actions.delete(actor, post, label, extra, now));
         }
-        store.insert(actionId, boardId, actorId, access.role(), BoardStaffActionStore.KIND_POST, action, post.getAuthorId(), post.getId(), null, code,
+        store.insert(actionId, boardId, actorId, who.role(), who.operatorId(), BoardStaffActionStore.KIND_POST, action, post.getAuthorId(), post.getId(), null, code,
                 cut(post.getTitle(), 200), null, cut(authorName, 40), now);
         if (post.getAuthorId() != null) {
             if (hide) {
                 memberNotices.postHiddenByBoardStaff(post.getAuthorId(), post.getId(), post.getTitle(), label);
             } else {
-                memberNotices.removedByBoardStaff(post.getAuthorId(), post.getId(), null, post.getTitle(), label, PostModerationActions.revokedOf(extra));
+                memberNotices.removedByBoardStaff(post.getAuthorId(), post.getId(), null, post.getTitle(), label, revoked);
             }
         }
-        log.info("스텝 글 처리 action={} postId={} boardId={} by userId={} role={} actionId={}", action, post.getId(), boardId, actorId, access.role(), actionId);
+        if (who.isOperator()) {
+            AuditEvent event = siteEvent(who, ip, hide ? AuditActions.SITE_POST_HIDE : AuditActions.SITE_POST_DELETE, AUDIT_TARGET, post.getId(), actorId, boardId,
+                    post.getId(), null, code, actionId);
+            audit.record(hide ? event : event.with("revokedPoints", revoked));
+        }
+        log.info("스텝 글 처리 action={} postId={} boardId={} by userId={} role={} operatorId={} actionId={}", action, post.getId(), boardId, actorId, who.role(),
+                who.operatorId(), actionId);
         return new Done(quota, actionId);
     }
 
     // ── 댓글 삭제 ─────────────────────────────────────────────────────────
 
     @Transactional
-    public Done deleteComment(long actorId, Long postId, long commentId, String reasonCode) {
+    public Done deleteComment(long actorId, Long postId, long commentId, String reasonCode, String ip) {
         if (postId == null) {
             throw BoardStaffActionException.commentNotFound();
         }
@@ -224,21 +295,21 @@ public class BoardStaffActionService {
         if (!store.commentExists(postId, commentId)) {
             throw BoardStaffActionException.commentNotFound();
         }
-        requireAble(seenBoard, actorId, MemberPermission.BOARD_COMMENT_DELETE);
+        requireAble(seenBoard, actorId, MemberPermission.BOARD_COMMENT_DELETE, Permission.POST_MANAGE);
         String code = requireReason(reasonCode);
 
         PostEntity post = posts.findWithLockById(postId).orElseThrow(BoardStaffActionException::commentNotFound);
         CommentEntity comment = comments.findWithLockByPostIdAndId(postId, commentId).orElseThrow(BoardStaffActionException::commentNotFound);
-        StaffAccess access = requireAble(post.getBoardId(), actorId, MemberPermission.BOARD_COMMENT_DELETE);
+        Who who = requireAble(post.getBoardId(), actorId, MemberPermission.BOARD_COMMENT_DELETE, Permission.POST_MANAGE);
         long boardId = post.getBoardId();
         Instant now = now();
-        if (post.isGroupPost() || groupBoard(boardId) || protectedAuthor(boardId, comment.getAuthorId(), actorId)) {
+        if (post.isGroupPost() || groupBoard(boardId) || protectedAuthor(boardId, comment.getAuthorId(), actorId, who)) {
             throw BoardStaffActionException.targetProtected();
         }
         if (comment.isDeleted() || post.isGoneAt(now)) {
             throw BoardStaffActionException.commentStateInvalid();
         }
-        Quota quota = consume(BoardStaffActionStore.KIND_COMMENT, boardId, actorId, now);
+        Quota quota = who.isOperator() ? null : consume(BoardStaffActionStore.KIND_COMMENT, boardId, actorId, now);
 
         // 운영자 댓글 삭제(신고 처리)와 같은 규칙 — 보이던 댓글이면 글의 댓글 수 −1, 포인트 회수. 답글이 있으면 목록에 자리가 남는다(목록 규칙)
         boolean wasVisible = !comment.isHiddenAt(now);
@@ -252,12 +323,17 @@ public class BoardStaffActionService {
         long actionId = ids.nextId();
         String text = plain(comment.getContentFormat(), comment.getContent());
         String authorName = comment.getAuthorId() == null ? comment.getGuestName() : store.nickname(comment.getAuthorId());
-        store.insert(actionId, boardId, actorId, access.role(), BoardStaffActionStore.KIND_COMMENT, BoardStaffActionStore.ACTION_DELETE, comment.getAuthorId(), post.getId(),
-                comment.getId(), code, cut(post.getTitle(), 200), excerpt(text, EXCERPT_MAX), cut(authorName, 40), now);
+        store.insert(actionId, boardId, actorId, who.role(), who.operatorId(), BoardStaffActionStore.KIND_COMMENT, BoardStaffActionStore.ACTION_DELETE,
+                comment.getAuthorId(), post.getId(), comment.getId(), code, cut(post.getTitle(), 200), excerpt(text, EXCERPT_MAX), cut(authorName, 40), now);
         if (comment.getAuthorId() != null) {
             memberNotices.removedByBoardStaff(comment.getAuthorId(), post.getId(), comment.getId(), excerpt(text, NOTICE_EXCERPT_MAX), reasonLabel(code), revoked);
         }
-        log.info("스텝 댓글 삭제 postId={} commentId={} boardId={} by userId={} role={} actionId={}", post.getId(), comment.getId(), boardId, actorId, access.role(), actionId);
+        if (who.isOperator()) {
+            audit.record(siteEvent(who, ip, AuditActions.SITE_COMMENT_DELETE, AUDIT_TARGET_COMMENT, comment.getId(), actorId, boardId, post.getId(), comment.getId(), code,
+                    actionId).with("revokedPoints", revoked));
+        }
+        log.info("스텝 댓글 삭제 postId={} commentId={} boardId={} by userId={} role={} operatorId={} actionId={}", post.getId(), comment.getId(), boardId, actorId,
+                who.role(), who.operatorId(), actionId);
         return new Done(quota, actionId);
     }
 
@@ -267,35 +343,80 @@ public class BoardStaffActionService {
         return store.find(id);
     }
 
-    /** 공개 내역 — 매니저·스텝(계정 정상)이 아니면 404 {@code BOARD_STAFF_NOT_FOUND}. 매니저 = 그 게시판 전체, 스텝 = 본인 것. {@code kind} ALL · POST · COMMENT, {@code page} 1부터 */
+    /**
+     * 공개 내역 — 매니저·스텝(계정 정상)이 아니면 404 {@code BOARD_STAFF_NOT_FOUND}. 매니저 = 그 게시판 전체, 스텝 = 본인 것. {@code kind} ALL · POST · COMMENT, {@code page} 1부터.
+     * 운영자 회원 계정은 {@code keeper-action.read} 가 있으면 그 게시판 전체(처리자 포함 — 매니저처럼), 없으면 404(소모임 게시판도 404).
+     */
     public Page page(long actorId, long boardId, String kind, int page) {
-        StaffAccess access = store.access(boardId, actorId);
-        if (access.role() == null || !access.accountOk()) {
-            throw BoardSanctionException.staffNotFound();
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        boolean manager;
+        boolean canRestore;
+        Long onlyActor;
+        if (operator.isPresent()) {
+            if (!operator.get().can(Permission.KEEPER_ACTION_READ) || groupBoard(boardId) || catalog.snapshot().board(boardId).isEmpty()) {
+                throw BoardSanctionException.staffNotFound();
+            }
+            manager = true;
+            canRestore = operator.get().can(Permission.KEEPER_ACTION_RESTORE);
+            onlyActor = null;
+        } else {
+            StaffAccess access = store.access(boardId, actorId);
+            if (access.role() == null || !access.accountOk()) {
+                throw BoardSanctionException.staffNotFound();
+            }
+            manager = access.manager();
+            canRestore = access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE);
+            onlyActor = access.manager() ? null : actorId;
         }
-        PageFilter filter = new PageFilter(boardId, access.manager() ? null : actorId, kind);
+        PageFilter filter = new PageFilter(boardId, onlyActor, kind);
         long total = store.total(filter);
         int pages = (int) Math.max(1, (total + PAGE_SIZE - 1) / PAGE_SIZE);
         int p = Math.min(Math.max(1, page), pages);
         List<ActionRow> rows = store.page(filter, (p - 1) * PAGE_SIZE, PAGE_SIZE);
-        return new Page(access.manager(), access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE), rows, total, p, PAGE_SIZE);
+        return new Page(manager, canRestore, operator.isPresent(), rows, total, p, PAGE_SIZE);
     }
 
     // ── 되돌리기 ──────────────────────────────────────────────────────────
 
-    /** 매니저 되돌리기 — 자기 게시판 + {@code board.staff-action.restore}(아니면 403). 스텝은 되돌리지 못한다(본인 것도) */
+    /**
+     * 사이트 되돌리기 — 매니저(자기 게시판 + {@code board.staff-action.restore}, 운영자 회원 계정의 처리는 403) 또는 운영자 회원 계정({@code keeper-action.restore} — 그 게시판
+     * 모든 처리, 감사 {@code SITE_ACTION_RESTORE}). 그 밖은 403. 스텝은 되돌리지 못한다(본인 것도).
+     */
     @Transactional
-    public ActionRow restoreByManager(long actorId, long actionId, String reasonText) {
+    public ActionRow restoreByManager(long actorId, long actionId, String reasonText, String ip) {
         ActionRow row = store.find(actionId).orElseThrow(BoardStaffActionException::actionNotFound);
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        if (operator.isPresent()) {
+            return restoreByOperatorAccount(row, operator.get(), actorId, reasonText, ip);
+        }
         StaffAccess access = store.access(row.boardId(), actorId);
-        if (!(access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE))) {
+        if (!(access.manager() && access.can(MemberPermission.BOARD_STAFF_ACTION_RESTORE)) || row.byOperator()) {
             throw BoardSanctionException.forbidden();
         }
         String reason = requireRestoreReason(reasonText);
-        Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_MANAGER, ModerationActor.boardStaff(actorId, access.role()), reason, now());
+        Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_MANAGER, ModerationActor.boardStaff(actorId, access.role()), reason, Map.of(), now());
         log.info("스텝 처리 되돌리기(매니저) actionId={} kind={} by userId={} detail={}", actionId, row.apiKind(), actorId, detail);
         posts.flush(); // 되살린 글·댓글(JPA)을 내보낸 뒤 JDBC 로 다시 읽어야 지금 상태가 맞다
         return store.find(actionId).orElseThrow();
+    }
+
+    private ActionRow restoreByOperatorAccount(ActionRow row, ActiveOperatorAccount operator, long userId, String reasonText, String ip) {
+        if (!operator.can(Permission.KEEPER_ACTION_RESTORE) || groupBoard(row.boardId())) {
+            throw BoardSanctionException.forbidden();
+        }
+        String reason = requireRestoreReason(reasonText);
+        Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_OPERATOR, ModerationActor.operator(operator.operatorId()), reason,
+                Map.of("viaUserId", Long.toString(userId)), now());
+        Who who = new Who(null, operator);
+        AuditEvent event = siteEvent(who, ip, AuditActions.SITE_ACTION_RESTORE, AUDIT_TARGET, row.postId(), userId, row.boardId(), row.postId(), row.commentId(),
+                row.reasonCode(), row.id()).with("kind", row.apiKind()).with("reason", reason);
+        if (detail.get("restoredPoints") != null) {
+            event = event.with("restoredPoints", detail.get("restoredPoints"));
+        }
+        audit.record(event);
+        log.info("스텝 처리 되돌리기(운영자 회원 계정) actionId={} kind={} by userId={} operatorId={}", row.id(), row.apiKind(), userId, operator.operatorId());
+        posts.flush();
+        return store.find(row.id()).orElseThrow();
     }
 
     /** 운영자 되돌리기 — 권한({@code keeper-action.restore})은 입구가 본다. 감사 {@code BOARD_STAFF_ACTION_RESTORE}(대상 POST) */
@@ -303,7 +424,7 @@ public class BoardStaffActionService {
     public ActionRow restoreByOperator(long actionId, String reasonText, long operatorId, String ip) {
         ActionRow row = store.find(actionId).orElseThrow(BoardStaffActionException::actionNotFound);
         String reason = requireRestoreReason(reasonText);
-        Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_OPERATOR, ModerationActor.operator(operatorId), reason, now());
+        Map<String, Object> detail = restoreLocked(row, BoardStaffActionStore.BY_OPERATOR, ModerationActor.operator(operatorId), reason, Map.of(), now());
         AuditEvent event = AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_STAFF_ACTION_RESTORE, AuditResult.SUCCESS).target(AUDIT_TARGET, Long.toString(row.postId()))
                 .with("boardStaffActionId", Long.toString(actionId)).with("kind", row.apiKind()).with("boardId", Long.toString(row.boardId())).with("reason", reason);
         if (row.commentId() != null) {
@@ -322,7 +443,7 @@ public class BoardStaffActionService {
     }
 
     /** 글 행(→ 댓글 행) 잠금 → 기록 조건부 UPDATE → 대상 되살리기. 글 조치 덧붙임(댓글이면 빈 맵)을 돌려준다 */
-    private Map<String, Object> restoreLocked(ActionRow row, String byKind, ModerationActor actor, String reason, Instant now) {
+    private Map<String, Object> restoreLocked(ActionRow row, String byKind, ModerationActor actor, String reason, Map<String, Object> more, Instant now) {
         PostEntity post = posts.findWithLockById(row.postId()).orElseThrow(PostStateInvalidException::new);
         CommentEntity comment = null;
         if (BoardStaffActionStore.KIND_COMMENT.equals(row.kind())) {
@@ -331,7 +452,7 @@ public class BoardStaffActionService {
         if (!store.markRestored(row.id(), byKind, actor.id(), reason, now)) {
             throw BoardStaffActionException.alreadyRestored();
         }
-        Map<String, Object> extra = new LinkedHashMap<>();
+        Map<String, Object> extra = new LinkedHashMap<>(more);
         extra.put("boardStaffActionId", Long.toString(row.id()));
         if (comment != null) {
             if (!comment.isDeleted() || comment.getPurgedAt() != null) {
@@ -356,15 +477,42 @@ public class BoardStaffActionService {
     // ── 안쪽 ──────────────────────────────────────────────────────────────
 
     /** 그 게시판 매니저·스텝 + 계정 정상·인증 + 그 권한 — 아니면 403 */
-    private StaffAccess requireAble(Long boardId, long actorId, MemberPermission permission) {
+    /**
+     * 그 게시판 매니저·스텝 + 계정 정상·인증 + 그 역할 권한 — 아니면 403. 힘이 살아 있는 운영자 회원 계정이면 관리자 앱 권한 {@code operatorPermission}(정책 7) 만 본다
+     * (모든 공개 게시판 — 소모임 글은 뒤의 대상 보호 409 가 막는다). 요청마다 판정한다(캐시 없음).
+     */
+    private Who requireAble(Long boardId, long actorId, MemberPermission permission, Permission operatorPermission) {
         if (boardId == null) {
             throw BoardSanctionException.forbidden();
+        }
+        Optional<ActiveOperatorAccount> operator = operatorAccounts.activeOperator(actorId);
+        if (operator.isPresent()) {
+            if (!operator.get().can(operatorPermission)) {
+                throw BoardSanctionException.forbidden();
+            }
+            return new Who(null, operator.get());
         }
         StaffAccess access = store.access(boardId, actorId);
         if (!access.can(permission)) {
             throw BoardSanctionException.forbidden();
         }
-        return access;
+        return new Who(access, null);
+    }
+
+    /** 조치 기록의 행위자 — 운영자 회원 계정은 운영자(덧붙임 viaUserId), 매니저·스텝은 BOARD_STAFF(회원 + 자리) */
+    private static ModerationActor moderationActor(long actorId, Who who) {
+        return who.isOperator() ? ModerationActor.operator(who.operatorId()) : ModerationActor.boardStaff(actorId, who.role());
+    }
+
+    /** 운영자 회원 계정의 사이트 처리 감사(정책 11 — 행위자 운영자, 「운영자 X 가 회원 계정 Y 로」) */
+    private static AuditEvent siteEvent(Who who, String ip, String action, String targetType, long targetId, long viaUserId, long boardId, long postId, Long commentId,
+                                        String reasonCode, long actionId) {
+        AuditEvent event = AuditEvent.byOperator(who.operatorId(), ip, action, AuditResult.SUCCESS).target(targetType, Long.toString(targetId))
+                .with("viaUserId", Long.toString(viaUserId)).with("boardId", Long.toString(boardId)).with("postId", Long.toString(postId));
+        if (commentId != null) {
+            event = event.with("commentId", Long.toString(commentId));
+        }
+        return event.with("reasonCode", reasonCode).with("boardStaffActionId", Long.toString(actionId));
     }
 
     private Quota consume(String kind, long boardId, long actorId, Instant now) {
@@ -381,8 +529,14 @@ public class BoardStaffActionService {
     }
 
     /** 본인 것 · 같은 게시판 매니저·스텝의 것(비회원 것은 처리할 수 있다 — 정책 4) */
-    private boolean protectedAuthor(long boardId, Long authorId, long actorId) {
-        return authorId != null && (authorId == actorId || store.staffOf(boardId, authorId));
+    private boolean protectedAuthor(long boardId, Long authorId, long actorId, Who who) {
+        if (authorId == null) {
+            return false;
+        }
+        if (authorId == actorId || operatorAccounts.isActiveOperatorAccount(authorId)) {
+            return true; // 본인 · 운영자 회원 계정의 것(정책 7 — 매니저·스텝도 다른 운영자 회원 계정도 처리하지 못한다)
+        }
+        return !who.isOperator() && store.staffOf(boardId, authorId); // 운영자 회원 계정은 매니저·스텝의 것을 처리할 수 있다(감독)
     }
 
     private boolean groupBoard(long boardId) {
@@ -403,8 +557,21 @@ public class BoardStaffActionService {
         if (viewerId == null) {
             return Set.of();
         }
+        // 운영자 회원 계정(힘이 살아 있음)의 것은 매니저·스텝과 다른 운영자 회원 계정에게 보호된다(operator-member-account-contract 정책 9)
+        Set<Long> operators = operatorAccounts.allActiveOperatorUserIds();
+        if (operators.contains(viewerId)) {
+            return operators; // 운영자 회원 계정은 매니저·스텝의 것을 처리할 수 있다(감독) — 운영자 회원 계정끼리만 보호
+        }
         Set<Long> staff = store.staffIds(boardId);
-        return staff.contains(viewerId) ? staff : Set.of();
+        if (!staff.contains(viewerId)) {
+            return Set.of();
+        }
+        if (operators.isEmpty()) {
+            return staff;
+        }
+        Set<Long> out = new java.util.HashSet<>(staff);
+        out.addAll(operators);
+        return Set.copyOf(out);
     }
 
     /**

@@ -23,7 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 팩·판·로보티콘(토큰 ID)·판의 차례 읽기·쓰기({@code emoticon_packs}·{@code emoticon_pack_revisions}·{@code emoticons}·{@code emoticon_revision_items}, V140).
+ * 로보티콘 팩·판·로보티콘(토큰 ID)·판의 차례 읽기·쓰기({@code emoticon_packs}·{@code emoticon_pack_revisions}·{@code emoticons}·{@code emoticon_revision_items}, V142).
  * {@code com.community.emoticon.service} 만 부른다.
  *
  * <p>Native SQL(JDBC)인 이유: (1) 받기는 팩 행을 잠근 뒤 받은 수를 올리고 같은 트랜잭션·같은 연결에서 작가 포인트({@code PointLedgerWriter}, JDBC)를 적립한다 — 잠금 차례(팩 → 잔액)를
@@ -135,7 +135,7 @@ public class EmoticonPackStore {
                 Timestamp.from(now), id);
     }
 
-    /** 가격을 바꾼다(승인·운영자 가격 바꾸기 — 팩 행을 잠근 트랜잭션에서). 유료 가격은 트리거가 설정의 열린 가격 단계인지 한 번 더 본다(V141) */
+    /** 가격을 바꾼다(승인·운영자 가격 바꾸기 — 팩 행을 잠근 트랜잭션에서). 유료 가격은 트리거가 설정의 열린 가격 단계인지 한 번 더 본다(V143) */
     public void setPrice(long id, int price, Instant now) {
         jdbc.update("UPDATE emoticon_packs SET price = ?, updated_at = ? WHERE id = ?", price, Timestamp.from(now), id);
     }

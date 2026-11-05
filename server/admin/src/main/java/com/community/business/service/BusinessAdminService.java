@@ -8,6 +8,7 @@ import com.community.audit.service.AuditLogService;
 import com.community.business.dto.BusinessAdminRequest;
 import com.community.business.dto.BusinessAdminView;
 import com.community.business.dto.BusinessSuspendPlan;
+import com.community.business.entity.BusinessCertificateDelivery;
 import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessRejectCode;
 import com.community.business.entity.BusinessServiceEntity;
@@ -82,6 +83,7 @@ public class BusinessAdminService {
     private final BusinessServiceRows serviceRows;
     private final BusinessNotices notices;
     private final ObjectProvider<BusinessApplicationHook> hooks;
+    private final BusinessCertificateReceipt receipt;
     private final AuditLogService audit;
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
@@ -92,9 +94,10 @@ public class BusinessAdminService {
     private final Clock clock;
 
     public BusinessAdminService(BusinessProfileRepository profiles, BusinessServiceRepository services, BusinessStore store, BusinessPii pii, BusinessNtsService nts,
-                                BusinessServiceRows serviceRows, BusinessNotices notices, ObjectProvider<BusinessApplicationHook> hooks, AuditLogService audit,
-                                Messages messages, SnowflakeIdGenerator ids, DataSource dataSource, PlatformTransactionManager transactions,
+                                BusinessServiceRows serviceRows, BusinessNotices notices, ObjectProvider<BusinessApplicationHook> hooks, BusinessCertificateReceipt receipt,
+                                AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, DataSource dataSource, PlatformTransactionManager transactions,
                                 ObjectProvider<Clock> clocks, EntityManager entityManager) {
+        this.receipt = receipt;
         this.profiles = profiles;
         this.services = services;
         this.store = store;
@@ -199,6 +202,9 @@ public class BusinessAdminService {
         return tx.execute(status -> {
             Instant now = now();
             BusinessProfileEntity p = lockPending(id);
+            if (p.getCertificateDelivery() == BusinessCertificateDelivery.MAIL_FAX && !receipt.received(p)) {
+                throw BusinessException.certificateNotReceived(); // 우편·팩스로 보낸다고 했는데 아직 등록증 파일도 종이 접수도 없다(biz-doc-intake-contract)
+            }
             NtsRow check = store.latestNtsCheck(id).orElseThrow(BusinessException::ntsNotChecked);
             String reason = null;
             if (approvalRule(check) == ApprovalRule.NEEDS_REASON) {
@@ -496,8 +502,8 @@ public class BusinessAdminService {
                 BusinessFields.maskPhone(plain.phone()), BusinessFields.maskEmail(plain.email()));
         DocumentRow doc = p.getCertificateId() == null ? null : store.document(p.getCertificateId()).filter(d -> d.erasedAt() == null).orElse(null);
         BusinessAdminView.Certificate cert = doc == null ? null : store.lastView(id, "CERTIFICATE")
-                .map(v -> new BusinessAdminView.Certificate(doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), v.operatorName(), v.at()))
-                .orElseGet(() -> new BusinessAdminView.Certificate(doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), null, null));
+                .map(v -> new BusinessAdminView.Certificate(Long.toString(doc.id()), doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), v.operatorName(), v.at()))
+                .orElseGet(() -> new BusinessAdminView.Certificate(Long.toString(doc.id()), doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), null, null));
         List<BusinessAdminView.ServiceCard> cards = sorted(rows).stream().map(s -> {
             BusinessApplicationHook.ServiceCounts c = hook.counts(id, s.getService());
             BusinessApplicationHook.SuspendImpact si = hook.impact(id, s.getService());
@@ -515,7 +521,8 @@ public class BusinessAdminService {
         return new BusinessAdminView.Detail(Long.toString(id), p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), p.getStatus().name(), p.isReReview(),
                 serviceRows(rows), new BusinessAdminView.Applicant(Long.toString(p.getUserId()), nickname), p.getSubmittedAt(),
                 ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
-                new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running()), rejection, suspension, history);
+                new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running()), rejection, suspension, history,
+                p.getCertificateDelivery().name(), receipt.received(p));
     }
 
     /** 승인 판정의 갈래 — 바로 · 사유를 적으면 */
@@ -586,7 +593,11 @@ public class BusinessAdminService {
             case BusinessStore.REJECTED -> messages.get(new MessageRef("business.rejectCode." + note));
             case BusinessStore.SUSPENDED, BusinessStore.SERVICE_SUSPENDED -> messages.get(new MessageRef("business.suspendCode." + note));
             case BusinessStore.UNSUSPENDED, BusinessStore.SERVICE_RESUMED -> messages.get(new MessageRef("business.restore." + note));
-            case BusinessStore.APPROVED, BusinessStore.UPDATED -> messages.get(new MessageRef("business.history.note." + note));
+            case BusinessStore.APPLIED, BusinessStore.APPROVED, BusinessStore.UPDATED -> messages.get(new MessageRef("business.history.note." + note));
+            // 등록증 종이 접수·운영자 올리기(V140) — 접수 방식·처리·들어온 길 코드는 읽는 사람 언어로, 폐기·잘못 기록은 사유 그대로
+            case BusinessStore.PAPER_RECEIVED -> messages.get(new MessageRef("docintake.channel." + note));
+            case BusinessStore.PAPER_HANDLING -> messages.get(new MessageRef("docintake.handling." + note));
+            case BusinessStore.CERT_UPLOADED -> messages.get(new MessageRef("docintake.fileChannel." + note));
             default -> note;
         };
     }

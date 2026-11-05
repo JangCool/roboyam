@@ -7,7 +7,7 @@ export default {
     seoDescription: '{site} 계정 설정이에요.',
 
     // 메뉴
-    profile: '프로필',
+    profile: '프로필 편집',
     profileHint: '닉네임·한 줄 소개',
     notifications: '알림 설정',
     notificationsHint: '어떤 알림을 받을지',
@@ -27,6 +27,8 @@ export default {
     memosHint: '나에게만 보이는 회원 메모',
     messages: '쪽지 수신',
     messagesHint: '쪽지를 받을지',
+    addresses: '배송지 관리',
+    addressesHint: '공동구매 주문서에서 고르는 배송지',
 
     // 저장하지 않고 떠날 때
     leaveTitle: '저장하지 않고 나갈까요?',

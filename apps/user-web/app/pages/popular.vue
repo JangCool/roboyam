@@ -9,7 +9,7 @@
 
         <!-- 기간 탭 — 주소의 `?period=` 와 같이 움직인다(누르면 주소가 바뀌고 1쪽으로). 고른 탭만 Tab 키로 닿고, 화살표·Home·End 로 초점을 옮긴 뒤 Enter·Space 로 고른다 -->
         <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <div role="tablist" :aria-label="t('feed.periodTabs', { name })" class="flex shrink-0 gap-1" data-testid="popular-period-tabs" @keydown="onTabKeydown">
+            <div role="tablist" :aria-label="t('feed.periodTabs', { name })" class="flex shrink-0 gap-3.5" data-testid="popular-period-tabs" @keydown="onTabKeydown">
                 <button
                     v-for="p in UtilPopular.PERIODS"
                     :id="UtilPopular.tabId(uid, p)"
@@ -105,9 +105,9 @@ const page = computed(() => UtilPopular.parsePage(route.query));
 const period = computed<PopularPeriod>(() => UtilPopular.parsePeriod(route.query));
 const periodName = computed(() => `${UtilFeedMessages.periodLabel(t, period.value)} ${name.value}`);
 
-const TAB = 'relative cursor-pointer whitespace-nowrap rounded-full px-2.5 py-1 text-[0.8125rem] leading-none after:absolute after:inset-x-0 after:-inset-y-2 after:content-[""] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
-const TAB_ON = 'bg-primary font-semibold text-primary-contrast';
-const TAB_OFF = 'text-muted-color hover:text-color';
+const TAB = 'relative cursor-pointer whitespace-nowrap inline-flex min-h-8 items-center border-b-2 text-[0.8125rem] leading-none after:absolute after:inset-x-0 after:-inset-y-2 after:content-[""] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+const TAB_ON = 'border-primary font-bold text-color';
+const TAB_OFF = 'border-transparent text-muted-color hover:text-color';
 
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const result = ref<PopularListResponse | null>(null);

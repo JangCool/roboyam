@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * 이름 채우기 재인증(emoticon-contract S3 — 사용자 결정 2026-11-05 「추천대로」) — 본인인증은 했지만 이름 암호문이 없는 회원(V141 전 인증)만 한 번 다시 인증할 수 있다.
+ * 이름 채우기 재인증(emoticon-contract S3 — 사용자 결정 2026-11-05 「추천대로」) — 본인인증은 했지만 이름 암호문이 없는 회원(V143 전 인증)만 한 번 다시 인증할 수 있다.
  * 같은 사람(DI·CI 같음)이면 이름만 채우고(생년월일·인증 시각·DI/CI 그대로, 가입 포인트 다시 없음) 정산 정보 등록이 통과하고, 다른 사람이면 막힌다. 이름이 있으면 지금처럼 막힌다.
  * 정산 정보의 {@code 409 EMOTICON_IDENTITY_NAME_MISSING} 은 최상위 {@code reverify: true} 로 화면이 재인증으로 보낼 수 있다.
  */
@@ -77,7 +77,7 @@ class EmoticonIdentityNameReverifyTest extends CommerceApiTestBase {
         identity.confirm(userId, identity.start(userId).verificationId(), new FakeIdentityInput(birth, person, name));
     }
 
-    /** V141 전에 인증한 회원처럼 — 이름 암호문을 지운다 */
+    /** V143 전에 인증한 회원처럼 — 이름 암호문을 지운다 */
     private void dropName(long userId) {
         jdbc.update("UPDATE identity_verifications SET name_enc = NULL WHERE user_id = ?", userId);
     }

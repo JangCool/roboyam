@@ -5,7 +5,7 @@
         매니저·스텝이 아니면(목록이 `404 BOARD_STAFF_NOT_FOUND`) 404 안내 — 누가 운영진인지 새지 않게 다른 화면과 같은 「찾을 수 없어요」.
         범위 거르기(전체·진행 중·끝남) + 쪽 번호. 주소의 쿼리가 화면 상태다. 「진행 중」은 진행 중인 쓰기 제한만이다(경고 제외 — 결정 11).
     -->
-    <div class="content-card mx-auto max-w-3xl">
+    <div class="content-card">
         <div v-if="state === 'loading' && !page" role="status" :aria-label="t('boardSanction.listLoading')" data-testid="board-sanctions-loading">
             <div class="h-6 w-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             <div class="mt-4 h-9 w-64 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
@@ -67,7 +67,7 @@
                             <span v-if="row.endsAt">{{ t('sanction.periodLine', { period: UtilSanctionMessages.period(row.startsAt, row.endsAt, time) }) }}</span>
                             <!-- 처리자 — 매니저에게만 온다 -->
                             <span v-if="row.issuer" data-testid="board-sanction-issuer">
-                                {{ t('boardSanction.issuerLine', { name: row.issuer.nickname, role: row.issuer.role === 'MANAGER' ? t('boardSanction.roleManager') : t('boardSanction.roleStaff') }) }}
+                                {{ UtilBoardSanctionMessages.issuerLine(t, row.issuer) }}
                             </span>
                             <NuxtLink v-if="row.source" :to="sourceLink(row.source)" class="text-primary hover:underline">{{ row.source.commentId ? t('boardSanction.sourceComment') : t('boardSanction.sourcePost') }}</NuxtLink>
                         </p>

@@ -13,7 +13,7 @@
         ⋯ 메뉴: 링크 복사 · 신고(모임장 본인 제외 — 매니저·멤버·비멤버·비회원, 비회원은 로그인 안내) · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리).
           신고는 글·댓글과 같은 신고 시트(`BoardReportDialog` target `GROUP`, 소모임 사유 — 투자 고지 소모임이면 「종목 추천·유료 모집」이 더해진다)와 `useGroupReport` — 닫힌·없는 소모임이라는 답이면 상세를 다시 받는다.
     -->
-    <div class="mx-auto max-w-2xl lg:max-w-none">
+    <div>
         <div v-if="status === 'loading'" role="status" :aria-label="t('common.loading')" data-testid="group-loading">
             <div class="flex items-start gap-3">
                 <div class="size-11 shrink-0 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />

@@ -158,14 +158,14 @@ public enum MemberNotificationType {
     /** 게시판 매니저·스텝에게 게시판 제재를 받았다 — 덧붙임 boardSanctionId·boardId·boardName·kind·until(쓰기 제한의 끝)·reasonCode·reasonText. 처리자는 싣지 않는다 */
     BOARD_SANCTION_ISSUED("system"),
 
-    // ── 로보티콘(V140 — docs/features/emoticon-contract.md S1). 받는 사람 = 그 팩의 작가. 끌 수 없는 처리 알림, 누르면 스튜디오의 그 팩 ──
+    // ── 로보티콘(V142 — docs/features/emoticon-contract.md S1). 받는 사람 = 그 팩의 작가. 끌 수 없는 처리 알림, 누르면 스튜디오의 그 팩 ──
     /**
      * 내 로보티콘 팩이 처리됐다 — 덧붙임 {@code kind}(APPROVED 승인 · REJECTED 반려 · UPDATE_APPROVED 새 판 승인 · UPDATE_REJECTED 새 판 반려 · SUSPENDED 판매 중단 ·
      * RESUMED 다시 판매) · {@code packId} · {@code packName}(알릴 때 이름) · {@code note}(반려·판매 중단 사유)
      */
     EMOTICON_PACK("system"),
     /**
-     * 로보티콘 유료 팩 구매(V144 — emoticon-contract 「후속 결정 반영(2026-11-05)」 2, 받는 사람 = 산 회원). 끌 수 없는 거래 알림. 덧붙임 {@code kind}(PAID 구매 완료 ·
+     * 로보티콘 유료 팩 구매(V146 — emoticon-contract 「후속 결정 반영(2026-11-05)」 2, 받는 사람 = 산 회원). 끌 수 없는 거래 알림. 덧붙임 {@code kind}(PAID 구매 완료 ·
      * AUTO_CANCELED 결제를 받아들이지 않아 자동 취소 · REFUNDED_SELF 셀프 환불 접수 · REFUNDED_EXCEPTION 운영자 예외 환불) · {@code purchaseId} · {@code packId} ·
      * {@code packName}(산 때 이름) · {@code amount}(원) · {@code path}(누르면 갈 곳 — 내 로보티콘 또는 그 팩)
      */

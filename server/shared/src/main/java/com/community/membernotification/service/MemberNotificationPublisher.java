@@ -1000,7 +1000,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 로보티콘 팩 처리 알림(V140 — {@code EMOTICON_PACK}, 받는 사람 = 작가). 덧붙임 {@code kind}·{@code packId}·{@code packName}·{@code note}(반려·판매 중단 사유).
+     * 로보티콘 팩 처리 알림(V142 — {@code EMOTICON_PACK}, 받는 사람 = 작가). 덧붙임 {@code kind}·{@code packId}·{@code packName}·{@code note}(반려·판매 중단 사유).
      * 끌 수 없는 처리 알림, 누르면 스튜디오의 그 팩({@code /robotikon/studio/{packId}}). 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
      * 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때만.
      *
@@ -1049,7 +1049,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 로보티콘 유료 팩 구매 알림(V144 — {@code EMOTICON_PURCHASE}, 받는 사람 = 산 회원). 덧붙임 {@code kind}·{@code purchaseId}·{@code packId}·{@code packName}·{@code amount}·
+     * 로보티콘 유료 팩 구매 알림(V146 — {@code EMOTICON_PURCHASE}, 받는 사람 = 산 회원). 덧붙임 {@code kind}·{@code purchaseId}·{@code packId}·{@code packName}·{@code amount}·
      * {@code path}. 끌 수 없는 거래 알림. 결제·환불 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다, 커밋돼야 보인다). 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때만.
      *
      * @param kind 종류(번들 {@code member.notification.EMOTICON_PURCHASE.kind.<kind>})

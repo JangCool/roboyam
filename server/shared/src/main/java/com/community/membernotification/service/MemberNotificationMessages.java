@@ -118,12 +118,12 @@ public class MemberNotificationMessages {
                     new Sanction(kind, null, until, null));
         }
 
-        /** 로보티콘 팩 처리(V140) — 종류({@code result} — APPROVED·REJECTED·UPDATE_APPROVED·UPDATE_REJECTED·SUSPENDED·RESUMED)·팩 이름({@code snapshot})·사유({@code note}) */
+        /** 로보티콘 팩 처리(V142) — 종류({@code result} — APPROVED·REJECTED·UPDATE_APPROVED·UPDATE_REJECTED·SUSPENDED·RESUMED)·팩 이름({@code snapshot})·사유({@code note}) */
         public static Facts emoticonPack(String kind, String packName, String note) {
             return new Facts(MemberNotificationType.EMOTICON_PACK, null, null, null, 1, 0, null, note, false, packName, kind);
         }
 
-        /** 로보티콘 유료 팩 구매(V144) — 종류({@code result} — PAID·AUTO_CANCELED·REFUNDED_SELF·REFUNDED_EXCEPTION)·팩 이름({@code snapshot})·금액({@code amount}) */
+        /** 로보티콘 유료 팩 구매(V146) — 종류({@code result} — PAID·AUTO_CANCELED·REFUNDED_SELF·REFUNDED_EXCEPTION)·팩 이름({@code snapshot})·금액({@code amount}) */
         public static Facts emoticonPurchase(String kind, String packName, long amount) {
             return new Facts(MemberNotificationType.EMOTICON_PURCHASE, null, null, null, 1, amount, null, null, false, packName, kind);
         }

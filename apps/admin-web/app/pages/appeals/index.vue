@@ -93,7 +93,7 @@
                         <template #body="{ data }">
                             <span v-if="data.boardSanction" class="flex min-w-0 items-center gap-1.5 text-[13px]">
                                 <span class="truncate">{{ data.boardSanction.issuedBy?.nickname ?? t('boardSanction.issuerGone') }}</span>
-                                <span v-if="data.boardSanction.issuedBy" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardSanctionMessages.roleName(t, data.boardSanction.issuedBy.role) }}</span>
+                                <span v-if="data.boardSanction.issuedBy" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardSanctionMessages.roleLabel(t, data.boardSanction.issuedBy) }}</span>
                             </span>
                             <span v-else-if="data.sanction?.issuedBy" class="block truncate text-[13px]">{{ UtilSanctionMessages.actor(t, data.sanction.issuedBy) }}</span>
                             <span v-else class="text-[13px] text-muted-color">—</span>

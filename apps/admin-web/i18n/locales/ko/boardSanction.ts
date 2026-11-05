@@ -58,8 +58,11 @@ export default {
     role: {
         MANAGER: '매니저',
         STAFF: '스텝',
+        OPERATOR: '운영자',
     },
+    roleOperatorOf: '운영자 · {operator}',
     issuerValue: '{name} · {role}',
+    issuerOperatorValue: '{name} ({role})',
     issuerGone: '알 수 없는 회원',
     liftedBy: {
         MANAGER: '매니저',

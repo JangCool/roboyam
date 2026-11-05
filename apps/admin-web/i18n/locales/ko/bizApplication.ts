@@ -141,7 +141,6 @@ export default {
     canceled: '취소했어요.',
     depositOverdue: '입금 기한({at})이 지났어요. 연장하거나 취소하세요.',
     confirmTitle: '예약 확정',
-    condContract: '계약서 사본 {n}장',
     condDeposit: '입금 확인 기록',
     condDepositSaved: '입금 확인 {amount}',
     confirmed: '예약을 확정했어요.',
@@ -327,6 +326,10 @@ export default {
         RESUMED: '다시 켜기',
         STOPPED: '중단',
         CLAIM_REFUNDED: '추가 환불(클레임)',
+        PAPER_RECEIVED: '계약서 인쇄본 접수',
+        PAPER_HANDLING: '인쇄본 처리 바꿈',
+        PAPER_DISPOSED: '인쇄본 폐기',
+        PAPER_VOIDED: '접수 기록 잘못 기록',
     },
     note: {
         PERIOD_MOVED: '기간 옮김',

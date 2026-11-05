@@ -18,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 작가 월 정산({@code emoticon_settlements} · {@code emoticon_settlement_events} · 구매 기록의 정산 달 칸, V143). 예정 줄의 금액은 저장하지 않는다 — 계산은
+ * 로보티콘 작가 월 정산({@code emoticon_settlements} · {@code emoticon_settlement_events} · 구매 기록의 정산 달 칸, V145). 예정 줄의 금액은 저장하지 않는다 — 계산은
  * {@code EmoticonSettlementCalculator}. 확정 뒤 금액·지급 기록 고치기·지우기는 DB 트리거가 막는다. JDBC 인 이유는 {@link EmoticonPackStore} 와 같다(잠금 차례 · 구매 기록과 같은 연결 ·
  * 스프링 없는 시험). 트랜잭션은 부르는 서비스가 연다.
  */
@@ -52,7 +52,7 @@ public class EmoticonSettlementStore {
             + "LEFT JOIN operators oh ON oh.id = s.held_by LEFT JOIN operators op ON op.id = s.paid_by";
     private static final String ACTIVITY = "SELECT p.id, p.creator_id, p.pack_id, p.pack_name, p.amount, p.paid_at, p.refund_until, p.refunded_at, p.settlement_month, "
             + "p.refund_settlement_month FROM emoticon_purchases p";
-    /** 아직 정산에 들어가지 않은 판매 · 환불(V143 부분 색인 두 개와 같은 조건) */
+    /** 아직 정산에 들어가지 않은 판매 · 환불(V145 부분 색인 두 개와 같은 조건) */
     private static final String UNSETTLED = "((p.paid_at IS NOT NULL AND p.settlement_month IS NULL AND p.creator_id IS NOT NULL) "
             + "OR (p.refunded_at IS NOT NULL AND p.refund_settlement_month IS NULL AND p.creator_id IS NOT NULL))";
 

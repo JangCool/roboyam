@@ -1,6 +1,6 @@
 <template>
     <!--
-        회원 상세 — 기본 정보 구획(읽기 전용). 이메일은 서버가 준 대로 그린다: `member.pii` 가 없으면 가려진 값이고 그렇다고 스크린리더에도 알린다.
+        회원 상세 — 기본 정보 구획(읽기 전용). 운영자 회원 계정이면 맨 위에 「운영자 회원 계정 · 운영자 이름」 딱지(멈춤이면 함께). 이메일은 서버가 준 대로 그린다: `member.pii` 가 없으면 가려진 값이고 그렇다고 스크린리더에도 알린다.
         소셜 연동·성인 확인(출생연도는 보이지 않는다)·쪽지 수신·휴면 예정은 정상 회원에게만(서버가 아직 모르는 성인 확인·쪽지 수신은 `-`), 탈퇴 회원은 줄어든 표시(탈퇴 시각이 보이고 이메일·소개 등이 없다).
         닉네임 줄에는 변경 횟수(「변경 N/한도회 사용」), 닉네임 이미지 줄에는 지금 이미지·최근 신청(심사 대기면 심사 화면 링크 — `nickname-image.read` 가 있을 때만).
         아래에 닉네임 변경 이력 — `member.pii` 가 없으면 값 대신 잠금 문구(이메일 가림과 같은 결). 한 줄 소개는 「프로필·메모」 구획에서 한 곳에만 보인다.
@@ -10,6 +10,15 @@
             <i class="pi pi-sign-out mt-0.5" aria-hidden="true" />
             <span>{{ t('member.detail.withdrawnNotice') }}</span>
         </p>
+
+        <!-- 운영자 회원 계정(`operatorAccount`) — 이어진 운영자 이름, 멈춤이면 함께 표시 -->
+        <div v-if="detail.operatorAccount" class="flex flex-col gap-1.5 rounded-lg border border-(--line) px-3 py-2.5">
+            <div class="flex flex-wrap items-center gap-1.5">
+                <MemberDetailTag :value="t('operatorMember.memberTag', { name: detail.operatorAccount.operatorName })" icon="pi pi-shield" :severity="detail.operatorAccount.active ? 'info' : 'secondary'" />
+                <MemberDetailTag v-if="!detail.operatorAccount.active" :value="t('operatorMember.memberTagPaused')" icon="pi pi-pause-circle" severity="warn" />
+            </div>
+            <p class="m-0 text-xs text-muted-color">{{ t('operatorMember.memberNote') }}</p>
+        </div>
 
         <dl class="m-0 flex flex-col">
             <div v-for="field in fields" :key="field.key" class="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 border-b border-(--line) py-2.5 last:border-b-0">

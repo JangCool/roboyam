@@ -1,5 +1,6 @@
 package com.community.groupbuy.service;
 
+import com.community.addressbook.service.AddressFieldRules;
 import com.community.audit.dto.AuditActions;
 import com.community.groupbuy.dto.ShippingAddress;
 import com.community.groupbuy.entity.GroupBuyStatus;
@@ -242,22 +243,12 @@ public class AddressRevealService {
         return value == null ? "" : value;
     }
 
-    /** 주문서와 같은 배송지 칸 규칙(400 {@code address.*}) */
+    /** 주문서·주소록과 같은 배송지 칸 규칙(400 {@code address.*} — 틀린 칸을 모두, {@link AddressFieldRules}) */
     private static void validate(ShippingAddress a) {
-        String field = null;
-        if (a == null || a.recipient() == null || a.recipient().isBlank() || a.recipient().strip().length() > 50) {
-            field = "address.recipient";
-        } else if (a.phone() == null || !a.phone().strip().matches("[0-9-]{9,15}")) {
-            field = "address.phone";
-        } else if (a.postcode() == null || !a.postcode().strip().matches("[0-9]{5,6}")) {
-            field = "address.postcode";
-        } else if (a.address1() == null || a.address1().isBlank() || a.address1().strip().length() > 200) {
-            field = "address.address1";
-        } else if ((a.address2() != null && a.address2().strip().length() > 200) || (a.memo() != null && a.memo().strip().length() > 200)) {
-            field = "address.address2";
-        }
-        if (field != null) {
-            throw ValidationException.of(field, new MessageRef("groupbuy.order.address.invalid"));
+        ShippingAddress v = a == null ? new ShippingAddress(null, null, null, null, null, null) : a;
+        Map<String, MessageRef> fields = AddressFieldRules.violations("address.", v.recipient(), v.phone(), v.postcode(), v.address1(), v.address2(), v.memo());
+        if (!fields.isEmpty()) {
+            throw new ValidationException(fields);
         }
     }
 

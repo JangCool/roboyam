@@ -15,7 +15,7 @@ import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 올린 로보티콘 그림({@code emoticon_images}, V140) 장부 — 파일 바이트는 저장소({@code ImageStorage}) 또는 앱 정적 파일(시드)에 있다. Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다 */
+/** 올린 로보티콘 그림({@code emoticon_images}, V142) 장부 — 파일 바이트는 저장소({@code ImageStorage}) 또는 앱 정적 파일(시드)에 있다. Native SQL 인 이유는 {@link EmoticonPackStore} 와 같다 */
 @Repository
 public class EmoticonImageStore {
 

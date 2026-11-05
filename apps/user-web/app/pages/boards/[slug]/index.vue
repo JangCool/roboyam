@@ -12,7 +12,9 @@
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
         게시판 제재·스텝 처리(board-sanction-contract · board-staff-action-contract): 매니저·스텝 본인에게만 머리 아래
           「게시판 운영 중 · 오늘 남은 처리 글 n · 댓글 n · 제재 n · [처리 내역]」(`viewer.staffTools` — 할 수 있는 처리만, [처리 내역] → `/boards/{slug}/actions`, 그 위 탭으로 제재 내역),
+          운영자 회원 계정(`staffTools.operator` — 모든 게시판)이면 「운영자 계정으로 관리 중 · 하루 한도 없음 · [처리 내역]」,
           이 게시판에서 쓰기 제한 중이면 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」(`viewer.writeRestriction`)이고 글쓰기 단추는 흐리게(누르면 같은 한 줄).
+          이 게시판에서 받고 확인하지 않은 경고가 있으면 「이 게시판에서 경고를 받았어요 · 사유 · [자세히] · [확인했어요]」(`viewer.pendingWarnings`, 쓰기는 막지 않는다).
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
@@ -27,8 +29,8 @@
 
             <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
             <div v-else class="content-card" data-testid="board-card">
-                <!-- 머리 -->
-                <header class="flex items-start gap-3">
+                <!-- 머리 — 화면에 보이는 동안은 떠 있는 글쓰기 단추를 숨긴다(`boardHead` 를 지켜본다) -->
+                <header ref="boardHead" class="flex items-start gap-3">
                     <div class="min-w-0 flex-1">
                         <h1 class="break-words text-lg font-bold leading-tight" :style="UtilBoard.textStyle(view?.color)" data-testid="board-title">
                             <template v-if="view">{{ localizedName(view.name, view.nameEn) }}</template>
@@ -53,10 +55,10 @@
                     />
                 </header>
 
-                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만. 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만) · [처리 내역] -->
+                <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만(운영자 회원 계정은 모든 게시판). 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만, 운영자는 「하루 한도 없음」) · [처리 내역] -->
                 <p v-if="staffTools" class="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="board-staff-bar">
                     <i class="pi pi-shield text-[0.6875rem] text-muted-color" aria-hidden="true" />
-                    <span class="font-semibold">{{ staffTools.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff') }}</span>
+                    <span class="font-semibold" data-testid="board-staff-bar-role">{{ staffBarLabel }}</span>
                     <template v-if="staffRemaining">
                         <span aria-hidden="true" class="text-muted-color">·</span>
                         <span class="tabular-nums" :class="UtilBoardStaffActionMessages.anyExhausted(staffTools) ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'" data-testid="board-staff-remaining">
@@ -70,6 +72,9 @@
 
                 <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 글쓰기 단추 자리의 안내(끝 시각·사유·[자세히]) -->
                 <BoardWriteRestrictionNotice v-if="writeRestriction" :restriction="writeRestriction" class="mt-3" />
+
+                <!-- 이 게시판에서 받고 확인하지 않은 경고(게시판 제재) — 사유·[자세히]·[확인했어요](전부 확인) -->
+                <BoardWarningNotice v-if="pendingWarnings.length" :warnings="pendingWarnings" :busy="warningAckBusy" :error="warningAckError" class="mt-3" @acknowledge="acknowledgeWarnings" />
 
                 <!-- 쓰기 잠금 · 글쓰기가 막힌 까닭(등급 미달 등) — 판정은 서버, 이 안내는 편의 -->
                 <Message v-if="lockNotice" severity="warn" :closable="false" size="small" class="mt-3" data-testid="board-lock">{{ lockNotice }}</Message>
@@ -85,24 +90,26 @@
                     <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
                 </p>
 
-                <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례 -->
-                <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3 overflow-x-auto px-4" :aria-label="t('board.prefixNav')">
-                    <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
-                        <li v-for="chip in prefixChips" :key="chip.id">
-                            <NuxtLink
-                                :to="listLink({ prefix: chip.id, page: 1 })"
-                                class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                                :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
-                                :aria-current="query.prefix === chip.id ? 'page' : undefined"
-                            >
-                                {{ chip.name }}
-                            </NuxtLink>
-                        </li>
-                    </ul>
+                <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례. 넘치면 양끝에 그라데이션 화살표(모바일도 — 누르면 한 쪽씩 넘어간다, 손가락 밀기도 된다) -->
+                <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3" :aria-label="t('board.prefixNav')">
+                    <AppScrollRow mode="ARROWS" touch scroller-class="px-4 py-0.5">
+                        <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                            <li v-for="chip in prefixChips" :key="chip.id">
+                                <NuxtLink
+                                    :to="listLink({ prefix: chip.id, page: 1 })"
+                                    class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+                                    :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-300 dark:bg-surface-300 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
+                                    :aria-current="query.prefix === chip.id ? 'page' : undefined"
+                                >
+                                    {{ chip.name }}
+                                </NuxtLink>
+                            </li>
+                        </ul>
+                    </AppScrollRow>
                 </nav>
 
                 <!-- 핫딜 쇼핑몰 칩 — 말머리 아래, 전체 + 상위 8몰(서버 `stores`, 글 수 차례). 고른 몰이 상위 8에 없으면 끝에 붙인다. 주소 `?store=` -->
-                <nav v-if="isDeal && storeChips.length > 1" class="-mx-4 mt-1 overflow-x-auto px-4" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
+                <nav v-if="isDeal && storeChips.length > 1" class="no-scrollbar -mx-4 mt-1 overflow-x-auto px-4 py-0.5" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
                     <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
                         <li v-for="chip in storeChips" :key="chip.name || '-'">
                             <NuxtLink
@@ -314,9 +321,40 @@ async function loadBoard(): Promise<void> {
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
 /** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */
 const staffTools = computed(() => detail.value?.viewer.staffTools ?? null);
-/** 게시판 운영 줄의 오늘 남은 처리 — 할 수 있는 것만(비면 줄에서 뺀다) */
+/** 게시판 운영 줄 앞머리 — 운영자 회원 계정 · 매니저 · 스텝 */
+const staffBarLabel = computed(() => {
+    const tools = staffTools.value;
+    if (tools?.operator) return t('boardStaffAction.barOperator');
+    return tools?.manager ? t('boardSanction.staffBarManager') : t('boardSanction.staffBarStaff');
+});
+/** 게시판 운영 줄의 오늘 남은 처리 — 할 수 있는 것만(비면 줄에서 뺀다). 운영자 회원 계정이면 「하루 한도 없음」 */
 const staffRemaining = computed(() => (staffTools.value ? UtilBoardStaffActionMessages.remainingLine(t, staffTools.value) : ''));
 const writeRestriction = computed(() => detail.value?.viewer.writeRestriction ?? null);
+const pendingWarnings = computed(() => detail.value?.viewer.pendingWarnings ?? []);
+const sanctionApi = useSanctionApi();
+const warningAckBusy = ref(false);
+const warningAckError = ref('');
+/** [확인했어요] — 안내에 실린 경고를 모두 확인한다(멱등). 그새 없어진 제재(404)는 확인할 것이 없으니 넘긴다. 다 되면 안내를 뺀다 */
+async function acknowledgeWarnings(): Promise<void> {
+    const viewer = detail.value?.viewer;
+    if (!viewer || warningAckBusy.value) return;
+    warningAckBusy.value = true;
+    warningAckError.value = '';
+    try {
+        for (const w of pendingWarnings.value) {
+            try {
+                await sanctionApi.acknowledgeBoard(w.boardSanctionId);
+            } catch (e) {
+                if (!(e instanceof ApiError && e.code === 'BOARD_SANCTION_NOT_FOUND')) throw e;
+            }
+        }
+        viewer.pendingWarnings = [];
+    } catch (e) {
+        warningAckError.value = e instanceof ApiError && e.message ? e.message : t('sanction.ackFailed');
+    } finally {
+        warningAckBusy.value = false;
+    }
+}
 /** 단추가 꺼진 까닭 중 머리에 미리 알릴 것 — 등급 미달·정지·이메일 미인증(로그인 필요·운영진 전용은 단추가 말한다) */
 const blockedNotice = computed(() => {
     const reason = detail.value?.viewer.writeBlockedReason ?? null;
@@ -365,7 +403,7 @@ function onView(mode: BoardViewMode): void {
 function pillClass(on: boolean): string {
     return [
         'inline-flex items-center rounded-full px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-primary',
-        on ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-100 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
+        on ? 'bg-surface-900 font-semibold text-surface-0 dark:bg-surface-300 dark:text-surface-900' : 'text-muted-color hover:bg-surface-100 dark:hover:bg-surface-800',
     ].join(' ');
 }
 
@@ -484,8 +522,34 @@ watch(
     () => void loadBoard(),
 );
 
+/* ── 머리가 보이는가 — 창 위에 붙는 셸 막대 아래로 들어가면 안 보인다고 친다. 떠 있는 글쓰기 단추(`WriteFab`)가 이것을 본다 ── */
+const boardHead = ref<HTMLElement | null>(null);
+let headObserver: IntersectionObserver | null = null;
+
+/** 창 위에 붙는 셸 막대(본문 밖 `sticky`·`fixed` 이고 위가 0)의 가장 큰 높이 — 테마마다 다르다(로보얌은 메뉴 줄까지 붙어 `--shell-header-h` 보다 높다) */
+function shellHeaderPx(): number {
+    const main = document.getElementById('main-content');
+    let max = 0;
+    for (const el of document.querySelectorAll<HTMLElement>('header, nav, div')) {
+        if (main?.contains(el)) continue;
+        const style = getComputedStyle(el);
+        if ((style.position === 'sticky' || style.position === 'fixed') && style.top === '0px' && el.offsetHeight < 300) max = Math.max(max, el.offsetHeight);
+    }
+    return max;
+}
+
+watch(boardHead, (el) => {
+    headObserver?.disconnect();
+    headObserver = null;
+    current.setWriteInView(true);
+    if (!el) return;
+    headObserver = new IntersectionObserver((entries) => current.setWriteInView(Boolean(entries.at(-1)?.isIntersecting)), { rootMargin: `-${Math.round(shellHeaderPx())}px 0px 0px 0px` });
+    headObserver.observe(el);
+});
+
 onBeforeUnmount(() => {
     listAbort?.abort();
+    headObserver?.disconnect();
     current.clear(slug.value);
 });
 

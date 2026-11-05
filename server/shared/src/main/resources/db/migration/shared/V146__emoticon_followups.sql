@@ -1,10 +1,10 @@
--- 로보티콘 후속 결정(2026-11-05 — docs/features/emoticon-contract.md 「후속 결정 반영(2026-11-05)」). ⚠ 가번호 — V140~V143 과 함께 develop 에 합칠 때 번호를 옮긴다.
+-- 로보티콘 후속 결정(2026-11-05 — docs/features/emoticon-contract.md 「후속 결정 반영(2026-11-05)」). ⚠ 가번호 — V142~V145 과 함께 develop 에 합칠 때 번호를 옮긴다.
 --   · 회원 알림 종류 ∪ EMOTICON_PURCHASE(구매 완료·자동 취소·셀프 환불 접수·예외 환불 — 결정 2)
 --   · 공휴일 표 public_holidays + 2026·2027 한국 공휴일 시드(작가 정산 지급일을 다음 업무일로 미루고, 지급 기록의 이체일을 업무일만 받는다 — 결정 4)
 -- 작가 자기 팩(결정 1)은 파생 규칙(creator_id = 나)이라 스키마 변경이 없다. 미성년 작가(결정 3)·탈퇴 작가 정산 정보 파기(결정 5 — R__batch_41)도 이 파일에 없다.
 
--- ── 회원 알림 종류: V140 목록 ∪ EMOTICON_PURCHASE ──
--- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다). develop 의 V140·V141(2026-11-05 기준)은 이 CHECK 를 건드리지 않는다.
+-- ── 회원 알림 종류: V142 목록 ∪ EMOTICON_PURCHASE ──
+-- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다). develop 의 V142·V143(2026-11-05 기준)은 이 CHECK 를 건드리지 않는다.
 ALTER TABLE member_notifications DROP CONSTRAINT ck_member_notifications_type;
 ALTER TABLE member_notifications ADD CONSTRAINT ck_member_notifications_type
     CHECK (type IN ('COMMENT', 'REPLY', 'POINTS_REVOKED', 'POST_HIDDEN', 'COMMENT_HIDDEN', 'DM', 'NICKNAME_IMAGE_REVIEWED', 'OPINION_PIN_REQUESTED',

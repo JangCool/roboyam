@@ -11,7 +11,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 
 /**
- * V140 의 표·제약·트리거·시드(emoticon-contract S1) — 실제 PostgreSQL. 낸 판 고치기 금지 · 상점 판은 그 팩의 판 · 팩마다 대기 건 하나 · 무료만 · 고정 규격 CHECK · 판의 로보티콘은 그 팩의 것 ·
+ * V142 의 표·제약·트리거·시드(emoticon-contract S1) — 실제 PostgreSQL. 낸 판 고치기 금지 · 상점 판은 그 팩의 판 · 팩마다 대기 건 하나 · 무료만 · 고정 규격 CHECK · 판의 로보티콘은 그 팩의 것 ·
  * 운영 팩 시드(로보얌콘 남·여 32개씩 — 이름표는 robotikon/meta.json, 그림 정보는 두 앱 public 의 파일과 같다).
  */
 class EmoticonSchemaTest extends EmoticonTestBase {
