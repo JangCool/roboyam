@@ -89,24 +89,26 @@
                     <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
                 </p>
 
-                <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례 -->
-                <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3 overflow-x-auto px-4" :aria-label="t('board.prefixNav')">
-                    <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
-                        <li v-for="chip in prefixChips" :key="chip.id">
-                            <NuxtLink
-                                :to="listLink({ prefix: chip.id, page: 1 })"
-                                class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                                :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
-                                :aria-current="query.prefix === chip.id ? 'page' : undefined"
-                            >
-                                {{ chip.name }}
-                            </NuxtLink>
-                        </li>
-                    </ul>
+                <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례. 넘치면 양끝에 그라데이션 화살표(모바일도 — 누르면 한 쪽씩 넘어간다, 손가락 밀기도 된다) -->
+                <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3" :aria-label="t('board.prefixNav')">
+                    <AppScrollRow mode="ARROWS" touch scroller-class="px-4 py-0.5">
+                        <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                            <li v-for="chip in prefixChips" :key="chip.id">
+                                <NuxtLink
+                                    :to="listLink({ prefix: chip.id, page: 1 })"
+                                    class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+                                    :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
+                                    :aria-current="query.prefix === chip.id ? 'page' : undefined"
+                                >
+                                    {{ chip.name }}
+                                </NuxtLink>
+                            </li>
+                        </ul>
+                    </AppScrollRow>
                 </nav>
 
                 <!-- 핫딜 쇼핑몰 칩 — 말머리 아래, 전체 + 상위 8몰(서버 `stores`, 글 수 차례). 고른 몰이 상위 8에 없으면 끝에 붙인다. 주소 `?store=` -->
-                <nav v-if="isDeal && storeChips.length > 1" class="-mx-4 mt-1 overflow-x-auto px-4" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
+                <nav v-if="isDeal && storeChips.length > 1" class="no-scrollbar -mx-4 mt-1 overflow-x-auto px-4 py-0.5" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
                     <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
                         <li v-for="chip in storeChips" :key="chip.name || '-'">
                             <NuxtLink

@@ -41,7 +41,7 @@
                 <span class="text-sm font-medium">{{ t('groupBuyReview.photoStrip', { count: summary.photoCount }) }}</span>
                 <button type="button" class="text-xs text-muted-color hover:text-(--p-text-color) hover:underline" @click="changePhotoOnly(true)">{{ t('groupBuyReview.photoStripOpen') }} ›</button>
             </div>
-            <div class="flex gap-1.5 overflow-x-auto">
+            <div class="no-scrollbar flex gap-1.5 overflow-x-auto">
                 <button
                     v-for="(p, i) in summary.photos"
                     :key="`${p.reviewId}-${i}`"
