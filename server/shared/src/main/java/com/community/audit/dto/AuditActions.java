@@ -423,6 +423,17 @@ public final class AuditActions {
     public static final String BUSINESS_NTS_OVERRIDE = "BUSINESS_NTS_OVERRIDE";
     /** 사업자 삭제(신청 건이 없는 신원만) — {@code companyName}·{@code bizNoLast4}·{@code status}(지우기 전 상태)·{@code reReview}·{@code reason}. 평문·암호문은 싣지 않는다. 일반 */
     public static final String BUSINESS_DELETE = "BUSINESS_DELETE";
+    // ── 사업자 서류 종이 접수 기록(biz-doc-intake-contract, V140) — 사업자등록증은 대상 BUSINESS · 신원 ID. detail 에 개인정보를 싣지 않는다(방식·날짜·처리·사유·파일 이름만) ──
+    /** 등록증 인쇄본·종이 팩스 접수 — {@code intakeId}·{@code channel}·{@code receivedOn}·{@code pages}·{@code handling}. 일반 */
+    public static final String BUSINESS_PAPER_RECEIVE = "BUSINESS_PAPER_RECEIVE";
+    /** 등록증 인쇄본 처리 바꾸기 — {@code intakeId}·{@code from}·{@code to}. 일반 */
+    public static final String BUSINESS_PAPER_HANDLING = "BUSINESS_PAPER_HANDLING";
+    /** 등록증 인쇄본 폐기 — {@code intakeId}·{@code disposedOn}·{@code reason}·{@code scanFileId}. 일반 */
+    public static final String BUSINESS_PAPER_DISPOSE = "BUSINESS_PAPER_DISPOSE";
+    /** 등록증 접수 기록 잘못 기록 — {@code intakeId}·{@code reason}. 일반 */
+    public static final String BUSINESS_PAPER_VOID = "BUSINESS_PAPER_VOID";
+    /** 운영자의 등록증 사본 올리기(전자 팩스·스캔) — {@code fileId}·{@code fileName}·{@code channel}·{@code size}. 일반 */
+    public static final String BUSINESS_CERT_UPLOAD = "BUSINESS_CERT_UPLOAD";
     // ── 사업자 신청 건(biz-application-contract, V112) — 대상 BIZ_APPLICATION + 신청 건 ID. detail 에 개인정보를 싣지 않는다(금액·기간·사유·파일 이름만) ──
     /** 승인 — {@code method}·{@code supply}·{@code total}·기간·{@code deadlineAt}. 돈 관련(금액 확정) */
     public static final String BIZ_APP_APPROVE = "BIZ_APP_APPROVE";
@@ -434,6 +445,14 @@ public final class AuditActions {
     public static final String BIZ_APP_CONTRACT_UPLOAD = "BIZ_APP_CONTRACT_UPLOAD";
     /** 계약서 사본 열람 — {@code fileId}·{@code fileName}. 개인정보 열람 */
     public static final String BIZ_APP_CONTRACT_VIEW = "BIZ_APP_CONTRACT_VIEW";
+    /** 계약서 인쇄본·종이 팩스 접수(V140) — {@code intakeId}·{@code channel}·{@code receivedOn}·{@code pages}·{@code handling}. 돈 관련(계약 기록 5년) */
+    public static final String BIZ_APP_PAPER_RECEIVE = "BIZ_APP_PAPER_RECEIVE";
+    /** 계약서 인쇄본 처리 바꾸기 — {@code intakeId}·{@code from}·{@code to}. 돈 관련 */
+    public static final String BIZ_APP_PAPER_HANDLING = "BIZ_APP_PAPER_HANDLING";
+    /** 계약서 인쇄본 폐기 — {@code intakeId}·{@code disposedOn}·{@code reason}·{@code scanFileId}. 돈 관련 */
+    public static final String BIZ_APP_PAPER_DISPOSE = "BIZ_APP_PAPER_DISPOSE";
+    /** 계약서 접수 기록 잘못 기록 — {@code intakeId}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_PAPER_VOID = "BIZ_APP_PAPER_VOID";
     /** 입금 확인 기록 — {@code amount}·{@code depositedOn}·{@code approvedTotal}·{@code mismatchReason}. 돈 관련(5년) */
     public static final String BIZ_DEPOSIT_CONFIRM = "BIZ_DEPOSIT_CONFIRM";
     /** 수동 예약 확정 — {@code contracts}·{@code deposit}. 돈 관련 */

@@ -79,13 +79,17 @@ public class BizApplicationAdminController {
         return ok(service.switchToManual(actor, BizApplicationAdminService.parseId(id), body));
     }
 
-    /** 계약서 사본 — multipart {@code files}(1~10장) + {@code replaceId}(그 사본 하나를 대체됨으로, 이때 1장) */
+    /**
+     * 계약서 사본 — multipart {@code files}(1~10장) + {@code replaceId}(그 사본 하나를 대체됨으로, 이때 1장) + {@code channel}(들어온 길 {@code UPLOAD} 기본 · {@code FAX} 전자 팩스,
+     * 모르는 값 400 {@code fields.channel} — biz-doc-intake-contract)
+     */
     @RequirePermission(anyOf = {Permission.AD_MANAGE, Permission.HOTDEAL_MANAGE})
     @PostMapping("/{id}/contracts")
     public ResponseEntity<ApiResponse<BizAdminView.Detail>> contracts(@PathVariable String id,
                                                                       @RequestParam(value = "files", required = false) List<MultipartFile> files,
-                                                                      @RequestParam(value = "replaceId", required = false) String replaceId, AdminActor actor) {
-        return ok(service.uploadContracts(actor, BizApplicationAdminService.parseId(id), files, replaceId));
+                                                                      @RequestParam(value = "replaceId", required = false) String replaceId,
+                                                                      @RequestParam(value = "channel", required = false) String channel, AdminActor actor) {
+        return ok(service.uploadContracts(actor, BizApplicationAdminService.parseId(id), files, replaceId, channel));
     }
 
     /** 계약서 사본 열람 — 열 때마다 처리 기록·감사 */

@@ -1,6 +1,7 @@
 package com.community.business.repository.master;
 
 import com.community.business.entity.NtsBizStatus;
+import com.community.docintake.entity.DocFileChannel;
 import com.community.business.entity.NtsValidity;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -38,6 +39,13 @@ public class BusinessStore {
     /** 서비스만 정지·해제(V130 — 처리 기록에 서비스가 함께 남는다) */
     public static final String SERVICE_SUSPENDED = "SERVICE_SUSPENDED";
     public static final String SERVICE_RESUMED = "SERVICE_RESUMED";
+    /** 등록증 종이 접수 기록(V140 — biz-doc-intake-contract): 접수 · 처리 바꾸기 · 폐기 · 잘못 기록 */
+    public static final String PAPER_RECEIVED = "PAPER_RECEIVED";
+    public static final String PAPER_HANDLING = "PAPER_HANDLING";
+    public static final String PAPER_DISPOSED = "PAPER_DISPOSED";
+    public static final String PAPER_VOIDED = "PAPER_VOIDED";
+    /** 운영자가 등록증 사본을 올렸다(전자 팩스·스캔 — V140) */
+    public static final String CERT_UPLOADED = "CERT_UPLOADED";
 
     // 기록한 사람 종류(ck_bh_actor)
     public static final String MEMBER = "MEMBER";
@@ -52,6 +60,11 @@ public class BusinessStore {
     /** 국세청 조회 한 줄 — 상태 + 진위(V125, 그 전 줄은 UNCHECKED) */
     public record NtsRow(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy,
                          NtsValidity validity) {
+    }
+
+    /** 신원에 붙은 등록증 사본 한 장(내용 없음) — 들어온 길·올린 운영자(회원이 올렸으면 null, V140) */
+    public record ProfileFileRow(long id, String fileName, String contentType, int sizeBytes, Instant createdAt, DocFileChannel channel, Long uploadedBy,
+                                 String uploadedByName) {
     }
 
     /** 처리 기록 한 줄 — 이름은 운영자 이름 또는 회원 닉네임(지워졌으면 null) */
@@ -90,9 +103,28 @@ public class BusinessStore {
                 + "AND (profile_id IS NULL OR profile_id = ?)", profileId, Timestamp.from(now), id, profileId) == 1;
     }
 
-    /** 그 시각 뒤 회원이 올린 사본 수(하루 한도) */
+    /**
+     * 운영자가 올린 등록증 사본(V140 — 전자 팩스·스캔본) — 주인은 그 신원의 회원, 올리면서 바로 그 신원에 붙는다. 지금 등록증으로 바꾸는 것은 부르는 쪽(신원 엔티티)
+     */
+    public void insertOperatorDocument(long id, long userId, long profileId, String fileName, String contentType, int sizeBytes, byte[] encrypted, String sha256,
+                                       DocFileChannel channel, long operatorId, Instant now) {
+        jdbc.update("INSERT INTO business_documents (id, user_id, profile_id, kind, file_name, content_type, size_bytes, content, sha256, channel, uploaded_by, created_at, "
+                        + "attached_at) VALUES (?, ?, ?, 'CERTIFICATE', ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, userId, profileId, fileName, contentType, sizeBytes, encrypted, sha256,
+                channel.name(), operatorId, Timestamp.from(now), Timestamp.from(now));
+    }
+
+    /** 신원에 붙은 등록증 사본 중 파기되지 않은 것(올린 순) */
+    public List<ProfileFileRow> profileDocuments(long profileId) {
+        return jdbc.query("SELECT d.id, d.file_name, d.content_type, d.size_bytes, d.created_at, d.channel, d.uploaded_by, o.operator_name FROM business_documents d "
+                        + "LEFT JOIN operators o ON o.id = d.uploaded_by WHERE d.profile_id = ? AND d.erased_at IS NULL ORDER BY d.created_at, d.id",
+                (rs, i) -> new ProfileFileRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getInt(4), instant(rs.getTimestamp(5)),
+                        DocFileChannel.valueOf(rs.getString(6)), (Long) rs.getObject(7, Long.class), rs.getString(8)), profileId);
+    }
+
+    /** 그 시각 뒤 회원이 올린 사본 수(하루 한도 — 운영자가 올린 줄은 세지 않는다, V140) */
     public int uploadsSince(long userId, Instant since) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM business_documents WHERE user_id = ? AND created_at >= ?", Integer.class, userId, Timestamp.from(since));
+        Integer n = jdbc.queryForObject("SELECT count(*) FROM business_documents WHERE user_id = ? AND uploaded_by IS NULL AND created_at >= ?", Integer.class, userId,
+                Timestamp.from(since));
         return n == null ? 0 : n;
     }
 
@@ -191,6 +223,8 @@ public class BusinessStore {
      */
     public int deleteProfile(long profileId) {
         jdbc.update("UPDATE business_profiles SET certificate_id = NULL WHERE id = ?", profileId);
+        // 등록증 종이 접수 기록(V140) — 등록증 사본보다 먼저(스캔본 외래키)
+        jdbc.update("DELETE FROM biz_doc_intakes WHERE doc = 'CERTIFICATE' AND profile_id = ?", profileId);
         jdbc.update("DELETE FROM business_documents WHERE profile_id = ?", profileId);
         jdbc.update("DELETE FROM business_nts_checks WHERE profile_id = ?", profileId);
         jdbc.update("DELETE FROM business_services WHERE profile_id = ?", profileId);
