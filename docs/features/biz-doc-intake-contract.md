@@ -53,3 +53,13 @@
 - 보낼 곳 관리자 설정 화면(지금은 서버 설정값).
 - 인쇄본 폐기 방법(파쇄·위탁) 칸, 「폐기 기한 지남」 대상 모아 보기 화면.
 - 보존 기간(5년·90일) 법무 확인은 `business-contract.md`·`biz-application-contract.md` 와 같이.
+
+## 서버 구현 결정 (2026-11-05, shared V140)
+- 표 `biz_doc_intakes`(대상 CHECK — 계약서 `application_id` / 등록증 `profile_id`, 처리·폐기·잘못 기록 일관성 CHECK, 스캔본 `scan_contract_file_id`·`scan_document_id`). 메모·보관 위치는 평문(키 교체 대상 아님).
+- `biz_contract_files.channel`·`business_documents.channel`(UPLOAD·FAX) + `business_documents.uploaded_by`(운영자 올림 — 회원 하루 한도에 안 셈), `business_profiles.certificate_delivery`, `biz_applications.paper_contract_count` + `ck_ba_manual_confirmed` = 파일 + 종이 ≥ 1. 사업자 처리 기록 행위 ∪ `PAPER_RECEIVED`·`PAPER_HANDLING`·`PAPER_DISPOSED`·`PAPER_VOIDED`·`CERT_UPLOADED`(신청 건 처리 기록도 `PAPER_*` — 회원 공개 처리 기록에는 안 나감).
+- 「받았다」 = 지금 등록증 사본(파기 안 됨) 또는 **이번 신청(`submitted_at`) 뒤** 잘못 기록이 아닌 등록증 종이 접수(`BusinessCertificateReceipt`) — 사업자 상세 `certificateReceived`, 회원 `certificateReceived`. 반려 뒤 재신청이면 예전 종이 접수는 안 센다.
+- 관리자가 올린 등록증이 지금 등록증이 된다(옛 사본 줄은 신원에 붙은 채 남고 파기 배치가 신원 단위로 지운다). 사업자 상세 등록증에 문서 `id`.
+- 묶음 GET 은 조회 권한(`ad.read`·`hotdeal.read` / `business.read`), 쓰기는 처리 권한. 등록증 잘못 기록은 상태 제한 없음(열린 줄이면).
+- user-web 수정(`PUT`)은 늘 `UPLOAD`. 보낼 곳 `GET /api/business/doc-send-to` → `{postcode, address, recipient, fax}`(빈 칸 null) — api 설정 `roboyam.biz.doc-send-to.*`(환경 변수 `ROBOYAM_BIZ_DOC_POSTCODE·ADDRESS·RECIPIENT·FAX`, 기본 빈 값). 주소·팩스 둘 다 비면 `MAIL_FAX` 신청 400 `fields.certificateDelivery`.
+- 감사: `BIZ_APP_PAPER_RECEIVE·HANDLING·DISPOSE·VOID`(돈 — 5년), `BUSINESS_PAPER_RECEIVE·HANDLING·DISPOSE·VOID`·`BUSINESS_CERT_UPLOAD`.
+- 테스트는 쓰지 않았다(컴파일·타입 검사만). V140 은 로컬 DB 에서 트랜잭션으로 돌려 보고 되돌림.
