@@ -9,6 +9,7 @@
         · 광고주 요청 「정지 중」·「중단」(`takedownCause` — biz-pause-contract): 달력 점·표 상태를 긴급 내림과 가르고, 대신 처리는 심사 화면에서(서랍의 「광고 심사에서 열기」).
         권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission`).
         서버 호출은 `useAdApi`(V115). 달력은 `calendar` 한 번(그 달에 걸친 장부 건 `bookings` 포함). 사업자 신청 심사에서 승인한 광고 건도 이 장부에 나타난다.
+        서랍 「결제」 탭의 계약서 인쇄본·팩스 접수 기록은 목업(`useDocIntake` — 서버 없음, 처리 바꾸기·폐기만).
         서랍 「성과」 탭(`api.stats` — `/api/admin/ads/{id}/stats`): 탭을 처음 열 때 그 건에 한 번 받는다. 광고 성과 화면(`/ads/performance`)의 건별 표가 `?type=&id=` 로 이 서랍을 연다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -132,6 +133,9 @@
             @stats-retry="loadStats(true)"
             @takedown="openDialog('takedown')"
             @restore="openDialog('restore')"
+            :intake="docIntake.host.value"
+            :can-handle-intake="drawerDetail ? can(UtilBizApplication.DOMAIN_SCREENS[drawerDetail.domain].manage) : false"
+            @intake="docIntake.handle"
         />
 
         <AdManualDrawer
@@ -346,6 +350,9 @@ async function loadDetail(): Promise<void> {
         if (mine === dseq) drawerLoading.value = false;
     }
 }
+
+/** 서랍 결제 탭의 계약서 인쇄본·팩스 접수 기록(목업 — 수동 결제 건만). 광고 건 id = 신청 건 id. 여기서는 처리 바꾸기·폐기만(새 기록은 심사 화면) */
+const docIntake = useDocIntake(() => (drawerDetail.value?.paymentMethod === 'MANUAL' ? { doc: 'CONTRACT' as const, ownerId: drawerDetail.value.id } : null));
 
 // ── 서랍 「성과」 탭 — 탭을 처음 열 때 그 건에 한 번 ──
 const drawerStats = ref<AdApplicationStats | null>(null);

@@ -27,6 +27,10 @@ export default {
         applyCta: 'Apply as a business',
         pendingTitle: 'We are reviewing your application',
         pendingText: 'It usually takes 1–2 business days. We will notify you of the result. You cannot edit it during review.',
+        pendingMailTitle: 'Review starts when we receive your certificate',
+        pendingMailText: 'You chose to send your business registration certificate by mail or fax. Send it to the address below — review starts the day we receive it.',
+        mockMailNote: 'Mock — mail/fax applications are not saved on the server yet; they stay in this tab only.',
+        mockMailClear: 'Clear mock',
         rejectedTitle: 'Your business application was rejected',
         rejectedText: 'Check the reason below, fix it and apply again.',
         reapplyCta: 'Apply again',
@@ -133,6 +137,26 @@ export default {
         blockedPending: 'You cannot edit during review.',
         blockedSuspended: 'You cannot edit business info while suspended.',
         failed: 'Could not apply',
+        delivery: {
+            title: 'How to submit your registration certificate',
+            option: { UPLOAD: 'Upload a file', MAIL_FAX: 'Send by mail or fax' },
+            help: {
+                UPLOAD: 'Upload a PDF, JPG or PNG file now. This is the fastest way.',
+                MAIL_FAX: 'No file? Send a printed copy by mail or fax. Review starts the day we receive it.',
+            },
+            summary: 'Sent by mail or fax',
+            mockSubmitted: 'Mock — this will be submitted for real once the server is connected',
+        },
+    },
+
+    docSend: {
+        title: 'Where to send your certificate',
+        mockTag: 'Mock',
+        mail: 'Mail',
+        fax: 'Fax',
+        markMargin: 'Write your business name and registration number in the margin.',
+        markExample: 'e.g. {company} · {bizNo}',
+        reviewFromReceipt: 'We start the review the day we receive the certificate.',
     },
 
     gate: {

@@ -11,6 +11,7 @@
         · 사업자 핫딜 글(2차): 상세 `post` 로 「게시」 칸(게시 전·게시됨·실패·숨김) — 실패 건은 [취소(전액 환불)](기존 취소 API — 실패 건은 시작 뒤여도 전액 환불). 운영자 알림 `HOTDEAL_POST_FAILED` 의 링크가 `?id=` 로 들어온다.
         · 광고주 요청 일시 정지·중단(biz-pause-contract — 상세 `pause` 가 있을 때만): 운영자 대신 [일시 정지]·[다시 켜기]·[중단(환불 심사)] → `BizPauseDialog`(요청 경로 + 메모, 중단이면 예상 환불액).
           처리 권한은 심사·결제 처리와 같은 `ad.manage`·`hotdeal.manage`. 중단 건의 환불 승인·거절은 기존 환불 흐름(`deal-order.refund`).
+        · 계약서 인쇄본·팩스 접수 기록(목업 2026-11-05 — `useDocIntake`, 서버 없음): 파일 목록 아래 종이 접수 줄 · [접수 기록] · 처리 바꾸기 · 폐기 · 잘못 기록. 전자 팩스는 실제 계약서 올리기 API 로 올린다.
         · 운영자 등록 건(광고 일정표 수동 등록, 「운영자 등록」 Tag): 수동 결제 고정 · 공급가 처음 값 = 제안 · 자기 승인 경고·메모(막는 설정이면 안내만) · 심사 대기에서도 취소·계약서 올리기.
         권한: 화면 조회는 메뉴 항목의 권한(`ad.read`·`hotdeal.read` — 셸이 거른다) · 심사·결제 처리 `ad.manage`·`hotdeal.manage`(그 도메인 것) · 환불 승인·거절·송금 `deal-order.refund`(서버 `Permission`).
         다른 도메인 건을 `?id=` 로 열면 서버가 403 을 준다(권한 없음 안내). 관리자 알림(`AD_REVIEW_PENDING`·`HOTDEAL_REVIEW_PENDING`·`*_REFUND_REQUESTED`·`HOTDEAL_POST_FAILED`)의 링크가 `?id=` 로 들어온다.
@@ -88,6 +89,8 @@
                         @pause="openPause('pause')"
                         @resume="openPause('resume')"
                         @stop="openPause('stop')"
+                        :intake="docIntake.host.value"
+                        @intake="docIntake.handle"
                     />
                 </SplitterPanel>
                 <SplitterPanel :size="30" :min-size="20" class="min-h-0 overflow-y-auto!">
@@ -490,6 +493,22 @@ async function uploadContracts(files: File[], replaceId?: string): Promise<void>
         replaceId ? t('bizApplication.contract.replacedDone') : t('bizApplication.contract.uploaded', { n: files.length }),
     );
 }
+
+/**
+ * 계약서 인쇄본·팩스 접수 기록(목업 — `useDocIntake`). 전자 팩스(파일로 받은 팩스)는 실제 계약서 올리기 API 로 올린 뒤 새 파일에 「전자 팩스」를 표시한다.
+ * 올리기 실패는 접수 기록 창 안에 보인다(창이 열려 있으므로).
+ */
+const docIntake = useDocIntake(() => (detail.value ? { doc: 'CONTRACT' as const, ownerId: detail.value.id } : null), {
+    uploadFile: async (file: File) => {
+        const d = detail.value;
+        if (!d) return null;
+        const before = new Set(d.contracts.map((c) => c.id));
+        const updated = await api.uploadContracts(d.id, [file]);
+        detail.value = updated;
+        void reload();
+        return updated.contracts.find((c) => !before.has(c.id))?.id ?? null;
+    },
+});
 
 const contractOpen = ref(false);
 const contractUrl = ref('');

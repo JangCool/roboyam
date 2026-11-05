@@ -94,6 +94,24 @@ export interface BusinessApplyRequest {
     agreedPrivacyVersion: string;
 }
 
+/**
+ * 사업자등록증을 내는 길 — 파일 올리기 · 우편·팩스로 보내기(**목업 2026-11-05 — 서버 없음**). 우편·팩스면 신청 본문에 `certificateFileId` 가 없고
+ * 서버가 나중에 `certificateDelivery: 'MAIL_FAX'` 로 받아 「받은 날부터 심사」한다(관리자 접수 기록 화면이 받은 것을 기록).
+ */
+export type BusinessCertificateDelivery = 'UPLOAD' | 'MAIL_FAX';
+
+/** 우편·팩스로 보내기 신청 본문(목업) — 등록증 파일 없이 */
+export type BusinessApplyByMailRequest = Omit<BusinessApplyRequest, 'certificateFileId'>;
+
+/** 등록증을 보낼 곳(목업 상수 — 나중에 사이트 설정) */
+export interface BusinessDocSendTo {
+    postcode: string;
+    address: string;
+    /** 받는 사람(부서) */
+    recipient: string;
+    fax: string;
+}
+
 /* ── 사업자 신청 건(광고·핫딜) ─────────────────────────────── */
 
 /** 신청 건 종류(★-1) */

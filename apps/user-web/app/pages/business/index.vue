@@ -1,7 +1,7 @@
 <template>
     <!--
         사업자 센터 홈 `/business` — 상태가 하나뿐인 화면이라 탭 대신 「지금 할 일 하나」를 맨 위에 둔다(§6, 01 §7-2 F).
-        미신청 = 안내 + [사업자 신청] · 심사 중 = 확인 중 안내 + 가린 요약 · 반려 = 사유 + [다시 신청] · 정지 = 사유 + 문의 안내 ·
+        미신청 = 안내 + [사업자 신청] · 심사 중 = 확인 중 안내 + 가린 요약(등록증을 우편·팩스로 보낸 신청이면 「받으면 심사 시작」 + 보낼 곳 — 목업 판정) · 반려 = 사유 + [다시 신청] · 정지 = 사유 + 문의 안내 ·
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
         사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
         승인인데 한 서비스만 정지면(2026-11-02 — `services[]`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
@@ -50,11 +50,23 @@
 
         <!-- 심사 중 -->
         <template v-else-if="profile.status === 'PENDING'">
-            <Message severity="info" :closable="false" data-testid="business-home-pending">
+            <!-- 우편·팩스로 낸 신청(목업 — 이 탭에 남긴 신청) — 등록증 사본을 받아야 심사를 시작한다 -->
+            <template v-if="mailPreview">
+                <Message severity="warn" :closable="false" data-testid="business-home-pending-mail">
+                    <p class="m-0 flex flex-wrap items-center gap-2 font-semibold">{{ t('business.home.pendingMailTitle') }}<PointShopTag tone="warn">{{ t('business.docSend.mockTag') }}</PointShopTag></p>
+                    <p class="m-0 mt-1 text-sm">{{ t('business.home.pendingMailText') }}</p>
+                </Message>
+                <BusinessDocSendToCard class="panel-card" :send-to="sendTo" :company-name="profile.companyName ?? ''" />
+            </template>
+            <Message v-else severity="info" :closable="false" data-testid="business-home-pending">
                 <p class="m-0 font-semibold">{{ t('business.home.pendingTitle') }}</p>
                 <p class="m-0 mt-1 text-sm">{{ t('business.home.pendingText') }}</p>
             </Message>
             <BusinessProfileSummary :profile="profile" />
+            <div v-if="mailPreview" class="flex items-center justify-between gap-2 rounded-lg border border-dashed border-amber-400 px-3 py-2 text-xs dark:border-amber-700">
+                <span class="text-muted-color">{{ t('business.home.mockMailNote') }}</span>
+                <Button type="button" :label="t('business.home.mockMailClear')" size="small" severity="secondary" variant="text" @click="clearMailPreview" />
+            </div>
         </template>
 
         <!-- 반려 -->
@@ -235,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BizAdStatsSummary, BizAdStatsSummaryItem, BizApplicationSummary, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
+import type { BizAdStatsSummary, BizAdStatsSummaryItem, BizApplicationSummary, BusinessDocSendTo, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
 import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
@@ -262,13 +274,29 @@ const appsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
 /** 사업자 핫딜 글 게시 받기 — 모르면(못 읽음) null 로 두고 단추를 연다(신청 화면이 다시 막는다) */
 const dealAccepting = ref<boolean | null>(null);
 
+/**
+ * 우편·팩스로 낸 신청 미리보기(⚠ 목업 2026-11-05 — 신청 화면이 실제 API 없이 이 탭에 남긴 것). 서버 신원이 미신청·반려·심사 중일 때만 「심사 중 — 등록증을 받으면 시작」으로 보인다.
+ * 서버가 붙으면 `profile()` 의 `certificateDelivery === 'MAIL_FAX'` + 아직 받지 않음으로 판정한다.
+ */
+const mailPreview = ref(false);
+const sendTo = ref<BusinessDocSendTo | null>(null);
+
+function clearMailPreview(): void {
+    api.mockClearMailApplication();
+    void load();
+}
+
 async function load(): Promise<void> {
     status.value = 'loading';
     loadError.value = '';
     try {
-        profile.value = await api.profile();
+        const real = await api.profile();
+        const mail = api.mockMailApplication();
+        mailPreview.value = mail !== null && (real.status === 'NONE' || real.status === 'REJECTED' || real.status === 'PENDING');
+        profile.value = mail !== null && mailPreview.value && real.status !== 'PENDING' ? mail : real;
+        if (mailPreview.value && !sendTo.value) void api.docSendTo().then((v) => (sendTo.value = v)).catch(() => undefined);
         status.value = 'ready';
-        if (profile.value.status === 'APPROVED') {
+        if (real.status === 'APPROVED') {
             void loadApplications();
             void loadDealProduct();
             void loadAdStats();

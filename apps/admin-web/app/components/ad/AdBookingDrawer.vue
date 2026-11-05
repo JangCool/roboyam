@@ -7,6 +7,7 @@
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
         광고주 요청 정지·중단(biz-pause-contract): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
           [되돌리기]는 긴급 내림만 — 대신 정지·다시 켜기·중단은 「광고 심사에서 열기」로 가서 한다.
+        결제 탭 계약서 사본 아래: 인쇄본·팩스 접수 기록(목업 — 단추 없이 보이고, 권한이 있으면 인쇄본 [처리 바꾸기]·[폐기 처리]만. 새 기록은 심사 화면에서).
         결제 탭 맨 아래: 환불 합계 「결제 · 환불 · 남은 환불 가능」(상세 `refundSummary` — 결제 뒤만). [추가 환불](클레임)은 「광고 심사에서 열기」로 가서 한다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
@@ -126,7 +127,8 @@
                             </template>
                             <template v-else>
                                 <h3 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.contract.title') }}</h3>
-                                <BizContractFiles :files="detail.contracts" />
+                                <BizContractFiles :files="detail.contracts" :fax-file-ids="UtilDocIntake.faxFileIds(intake?.bundle)" />
+                                <DocIntakeSection doc="CONTRACT" :host="intake" :files="UtilDocIntake.contractScanFiles(detail.contracts)" :handleable="canHandleIntake" @intake="(e) => emit('intake', e)" />
                                 <h3 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.deposit.title') }}</h3>
                                 <p v-if="detail.deposit" class="m-0 text-[13px]">
                                     {{ t('bizApplication.depositLine', { amount: won(detail.deposit.amount), date: time.serviceDate(detail.deposit.depositedOn), name: detail.deposit.depositorName, who: detail.deposit.confirmedBy, at: time.shortDateTime(detail.deposit.confirmedAt) }) }}
@@ -182,7 +184,9 @@
 import type { AdDrawerSummaryItem } from '~/components/ad/AdDrawerSummary.types';
 import type { AdApplicationStats, AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
+import type { DocIntakeEvent, DocIntakeHost } from '~/composables/docintake/useDocIntake.types';
 import UtilAd from '~/utils/util-ad';
+import UtilDocIntake from '~/utils/util-doc-intake';
 import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
@@ -201,10 +205,27 @@ interface Props {
     stats?: AdApplicationStats | null;
     statsLoading?: boolean;
     statsError?: ApiError | null;
+    /** 계약서 인쇄본·팩스 접수 기록(목업) — 부모의 `useDocIntake().host`. 여기서는 새 기록·잘못 기록 없이 보이기만 */
+    intake?: DocIntakeHost | null;
+    /** 인쇄본 [처리 바꾸기]·[폐기 처리](그 건 도메인의 처리 권한) */
+    canHandleIntake?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { summary: null, detail: null, loading: false, error: null, busy: false, canTakedown: false, canRestore: false, stats: null, statsLoading: false, statsError: null });
-const emit = defineEmits<{ retry: []; takedown: []; restore: []; stats: []; 'stats-retry': [] }>();
+const props = withDefaults(defineProps<Props>(), {
+    summary: null,
+    detail: null,
+    loading: false,
+    error: null,
+    busy: false,
+    canTakedown: false,
+    canRestore: false,
+    stats: null,
+    statsLoading: false,
+    statsError: null,
+    intake: null,
+    canHandleIntake: false,
+});
+const emit = defineEmits<{ retry: []; takedown: []; restore: []; stats: []; 'stats-retry': []; intake: [event: DocIntakeEvent] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
