@@ -114,7 +114,7 @@ html:is([data-theme='daum'], [data-theme='roboyam'])[data-color-scheme='dark'] {
     --hairline: #2e3036;
     --hairline-strong: #41444c;
     --tab-fg: rgba(236, 238, 241, 0.72);
-    --tab-fg-active: #eceef1;
+    --tab-fg-active: #dcdee2;
     --subtab-fg: rgba(236, 238, 241, 0.48);
 }
 

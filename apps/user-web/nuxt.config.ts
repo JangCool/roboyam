@@ -49,8 +49,11 @@ const RoboyamPreset = definePreset(Aura, {
          * 흐린 글자(`text-muted-color` — 날짜·조회·시각·배지 등 11~13px 보조 글자)의 라이트 색.
          * 기본 surface.500 은 옅은 회색 면 위에서 4.5:1 미만이 되는 곳이 있어, 라이트만 한 단계 진한 surface.600 으로 올린다.
          * `light-dark()` 의 뒤 값(다크)은 Aura 기본(surface.400 · hover surface.300)과 같다.
+         * 본문 글자(`text-color`)의 다크 색 — Aura 기본은 순백(surface.0)이라 어두운 면 위에서 눈이 부시다(2026-11-05 사용자 결정). 살짝 낮춘 #dcdee2(카드 #202125 위 약 12:1)로 둔다. 라이트는 Aura 기본(surface.700 · hover surface.800).
          */
         text: {
+            color: 'light-dark({surface.700}, #dcdee2)',
+            hoverColor: 'light-dark({surface.800}, #eceef1)',
             mutedColor: 'light-dark({surface.600}, {surface.400})',
             hoverMutedColor: 'light-dark({surface.700}, {surface.300})',
         },

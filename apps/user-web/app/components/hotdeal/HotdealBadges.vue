@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<Props>(), { flagged: true, revision: true
 const { t } = useI18n();
 
 const TONE = {
-    ad: 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900',
+    ad: 'bg-surface-900 text-surface-0 dark:bg-surface-300 dark:text-surface-900',
     affiliate: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200',
     over: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-100',
     flagged: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
