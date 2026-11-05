@@ -28,8 +28,8 @@
 
             <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
             <div v-else class="content-card" data-testid="board-card">
-                <!-- 머리 -->
-                <header class="flex items-start gap-3">
+                <!-- 머리 — 화면에 보이는 동안은 떠 있는 글쓰기 단추를 숨긴다(`boardHead` 를 지켜본다) -->
+                <header ref="boardHead" class="flex items-start gap-3">
                     <div class="min-w-0 flex-1">
                         <h1 class="break-words text-lg font-bold leading-tight" :style="UtilBoard.textStyle(view?.color)" data-testid="board-title">
                             <template v-if="view">{{ localizedName(view.name, view.nameEn) }}</template>
@@ -513,8 +513,34 @@ watch(
     () => void loadBoard(),
 );
 
+/* ── 머리가 보이는가 — 창 위에 붙는 셸 막대 아래로 들어가면 안 보인다고 친다. 떠 있는 글쓰기 단추(`WriteFab`)가 이것을 본다 ── */
+const boardHead = ref<HTMLElement | null>(null);
+let headObserver: IntersectionObserver | null = null;
+
+/** 창 위에 붙는 셸 막대(본문 밖 `sticky`·`fixed` 이고 위가 0)의 가장 큰 높이 — 테마마다 다르다(로보얌은 메뉴 줄까지 붙어 `--shell-header-h` 보다 높다) */
+function shellHeaderPx(): number {
+    const main = document.getElementById('main-content');
+    let max = 0;
+    for (const el of document.querySelectorAll<HTMLElement>('header, nav, div')) {
+        if (main?.contains(el)) continue;
+        const style = getComputedStyle(el);
+        if ((style.position === 'sticky' || style.position === 'fixed') && style.top === '0px' && el.offsetHeight < 300) max = Math.max(max, el.offsetHeight);
+    }
+    return max;
+}
+
+watch(boardHead, (el) => {
+    headObserver?.disconnect();
+    headObserver = null;
+    current.setWriteInView(true);
+    if (!el) return;
+    headObserver = new IntersectionObserver((entries) => current.setWriteInView(Boolean(entries.at(-1)?.isIntersecting)), { rootMargin: `-${Math.round(shellHeaderPx())}px 0px 0px 0px` });
+    headObserver.observe(el);
+});
+
 onBeforeUnmount(() => {
     listAbort?.abort();
+    headObserver?.disconnect();
     current.clear(slug.value);
 });
 

@@ -1,6 +1,6 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-3">
-        <div class="flex items-center gap-2">
+    <div class="content-card flex flex-col gap-3">
+        <header class="flex items-center gap-2">
             <h1 class="flex-1 text-lg font-bold">{{ t('notification.title') }}</h1>
             <Button
                 v-if="status === 'ready' && hasUnread"
@@ -24,7 +24,7 @@
                 :aria-label="t('notification.settingsLink')"
                 data-testid="notifications-settings"
             />
-        </div>
+        </header>
 
         <!-- 거르기 — 묶음은 서버(`filter=all|comment|system`), 「안 읽은 것만」은 서버에 거르기가 없어 불러온 알림 안에서만 거른다 -->
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -125,7 +125,7 @@ import UtilNotification from '~/utils/util-notification';
  * 「안 읽은 것만」은 서버에 거르기가 없어 **불러온 알림 안에서만** 거른다(더 보기로 더 불러온다) — 서버에 `unread` 거르기가 생기면 그것으로 바꾼다.
  * 문장(`title`·`body`)은 서버가 요청 언어로 푼 그대로다. 안 읽은 수 배지는 목록 응답의 `unreadCount` 로 맞춘다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('notification.title'), description: () => t('notification.seoDescription', { site: siteLabel.value }), robots: 'noindex' });

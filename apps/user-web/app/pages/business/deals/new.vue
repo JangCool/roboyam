@@ -8,11 +8,11 @@
         ⑤ 결제 방식 + 예상 금액 + 게시 정책 4줄(시작 시각에 게시 · 종료 요청 받음 · 끝나도 환불 없음 · 게시 뒤 고칠 수 없음) + 동의 → [심사 신청].
         「사업자 핫딜은 심사 뒤 결제하면 게시돼요」. 노출을 고르면 같은 신청 건에 묶어 한 번에 결제한다(목업 가정).
     -->
-    <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-deal-new">
-        <div class="flex items-center gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="business-deal-new">
+        <header class="flex items-center gap-2">
             <Button as="router-link" :to="UtilBusiness.CENTER_PATH" icon="pi pi-angle-left" severity="secondary" variant="text" rounded :aria-label="t('business.home.title')" />
             <h1 class="m-0 text-lg font-bold">{{ t('business.deal.title') }}</h1>
-        </div>
+        </header>
 
         <div v-if="status === 'loading'" class="h-64 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
         <ErrorState v-else-if="status === 'error' || !profile || !dealProduct" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
@@ -282,7 +282,7 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
 /**
  * 사업자 핫딜 신청 `/business/deals/new` — 로그인 + 승인된 사업자. 사업자 센터 홈의 핫딜 카드가 온다. ⚠ 목업 단계(`useBusinessApi`).
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('business.deal.title'), description: () => t('business.deal.seoDescription'), robots: 'noindex' });

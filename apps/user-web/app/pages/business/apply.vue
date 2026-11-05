@@ -4,11 +4,11 @@
         미신청·반려 = 새 신청(반려면 가리지 않은 칸을 채워 둔다) · 승인 = 수정(번호·연락처는 비워 두면 그대로 — 가린 값을 자리표시로) · 심사 중·정지 = 고칠 수 없음 안내.
         수정에서 상호·번호를 바꾸면 「저장하면 다시 심사받아요」 경고 + 저장 전 확인 창(F7). 모바일은 단계당 한 화면 + 하단 고정 [다음](`BusinessStepNav`).
     -->
-    <div class="mx-auto flex max-w-2xl flex-col gap-4" data-testid="business-apply">
-        <div class="flex items-center gap-2">
+    <div class="content-card flex flex-col gap-4" data-testid="business-apply">
+        <header class="flex items-center gap-2">
             <Button as="router-link" :to="UtilBusiness.CENTER_PATH" icon="pi pi-angle-left" severity="secondary" variant="text" rounded :aria-label="t('business.home.title')" />
             <h1 class="m-0 text-lg font-bold">{{ editMode ? t('business.apply.editTitle') : t('business.apply.title') }}</h1>
-        </div>
+        </header>
 
         <div v-if="status === 'loading'" class="h-64 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
         <ErrorState v-else-if="status === 'error' || !profile" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
@@ -149,7 +149,7 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
  * 판정은 서버다(번호 체크섬·중복 409 `BUSINESS_DUPLICATE`·국세청 진위확인은 제출 때 서버가 — 불일치면 400 `BUSINESS_NTS_MISMATCH` 로 막고, 조회 불가면 받는다 ·
  * 심사 때 운영자가 다시 조회). 사본은 `uploadCertificate` 로 먼저 올린다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('business.apply.title'), robots: 'noindex' });

@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-3">
+    <div class="content-card flex flex-col gap-3">
         <h1 class="text-lg font-bold">{{ t('settings.memos') }}</h1>
 
         <div v-if="status === 'loading'" class="space-y-2" role="status" :aria-label="t('block.memosLoading')" data-testid="memos-loading">

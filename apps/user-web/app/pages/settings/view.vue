@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('settings.view') }}</h1>
 
         <div v-if="phase === 'loading' || phase === 'idle'" class="space-y-3" role="status" :aria-label="t('view.loading')" data-testid="view-loading">

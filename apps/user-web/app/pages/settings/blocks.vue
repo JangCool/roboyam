@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-3">
+    <div class="content-card flex flex-col gap-3">
         <h1 class="text-lg font-bold">{{ t('settings.blocks') }}</h1>
 
         <!-- 탭 둘 — 닉네임 차단 목록(해제) · 차단 단어(추가·삭제). 개수는 탭 이름에 붙는다 -->

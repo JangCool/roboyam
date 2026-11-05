@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4" data-testid="group-buy-order-page">
+    <div class="content-card flex flex-col gap-4" data-testid="group-buy-order-page">
         <NuxtLink :to="detailLink" class="inline-flex w-fit items-center gap-1 text-sm text-muted-color hover:underline">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" /> {{ gb?.title ?? term('GROUP_BUY') }}
         </NuxtLink>

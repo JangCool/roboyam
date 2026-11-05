@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <NuxtLink :to="UtilPointShop.PATH" class="inline-flex w-fit items-center gap-1 rounded text-sm text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="pointshop-back">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ term('POINT_SHOP') }}
         </NuxtLink>
@@ -164,7 +164,7 @@ import UtilPointShopMessages from '~/utils/util-point-shop-messages';
  *   `409 POINT_SHOP_*`·`POINT_INSUFFICIENT` → 서버 문구 그대로 + 품목을 다시 읽는다 · 그 밖은 서버 문구 그대로.
  * - 잔액·환불 날 수는 목록 API(`balance`·`refundDays`)에서 읽는다 — 상세 응답(`PointShopItemView`)에는 없다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 const { term } = useSiteTerms();
 const route = useRoute();

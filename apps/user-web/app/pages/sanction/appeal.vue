@@ -1,5 +1,5 @@
 <template>
-    <div class="content-card mx-auto max-w-xl">
+    <div class="content-card">
         <h1 class="mb-3 text-lg font-bold">{{ headerTitle }}</h1>
         <!-- 게시판 제재의 이의제기 — 사이트 전체가 아니라 그 게시판에서만 적용된 제재다 -->
         <p v-if="isBoard" class="-mt-1.5 mb-3 flex items-center gap-1.5 text-xs text-muted-color" data-testid="appeal-board-scope">

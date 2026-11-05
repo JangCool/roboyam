@@ -1,6 +1,6 @@
 <template>
     <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 계정·로그인 연결」 -->
-    <div>
+    <div class="content-card">
         <!-- 결과 화면(바꿨어요·소셜 가입자)은 제목(h1)을 StatusPanel 이 그린다 -->
         <h1 v-if="view === 'loading' || view === 'error' || view === 'form'" class="mb-4 text-lg font-bold">{{ t('account.passwordChange') }}</h1>
 

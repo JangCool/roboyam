@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-4">
+    <div class="content-card flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('notification.settingsTitle') }}</h1>
 
         <div v-if="status === 'loading'" class="flex flex-col gap-4" role="status" :aria-label="t('notification.settingsLoading')" data-testid="notify-settings-loading">
