@@ -118,7 +118,7 @@ public class WithdrawalRequestWriter {
         withdrawals.insert(new MemberWithdrawalStore.NewRow(withdrawalId, userId, WithdrawalStatus.SCHEDULED, app.source(), status, app.reason(), app.reasonNote(), app.choices(),
                 JSON.writeValueAsString(plansJson(app.groupPlans())), app.consent().paidPoints(), app.consent().refundEstimate(), app.consent().bizForfeit(),
                 app.consent().consented() ? now : null, JSON.writeValueAsString(pendingJson(remaining)), remaining.size(), expected, rj.until(), hasPaymentHistory, now,
-                force == null ? null : new MemberWithdrawalStore.Force(force.reasonKind(), force.memo(), force.operatorId())));
+                force == null ? null : new MemberWithdrawalStore.Force(force.reasonKind(), force.memo(), force.operatorId()), app.consent().emoticonEarnings()));
         erase.markWithdrawing(userId, now);
 
         String result = remaining.isEmpty() ? "COMPLETED" : "SCHEDULED";
@@ -128,7 +128,8 @@ public class WithdrawalRequestWriter {
                 : AuditEvent.byMember(userId, app.ip(), AuditActions.MEMBER_WITHDRAW_REQUEST, AuditResult.SUCCESS).with("reason", app.reason() == null ? "" : app.reason());
         audit.record(event.target("MEMBER", Long.toString(userId)).with("withdrawalId", Long.toString(withdrawalId)).with("result", result).with("pendingCount", remaining.size())
                 .with("paidPointChoice", app.choices().paidPointChoice()).with("deliveredChoice", app.choices().deliveredChoice()).with("bizChoice", app.choices().bizChoice())
-                .with("groups", app.groupPlans().size()));
+                .with("groups", app.groupPlans().size())
+                .with("forfeitEmoticonEarnings", app.consent().emoticonEarnings() == null ? 0L : app.consent().emoticonEarnings()));
 
         if (remaining.isEmpty()) {
             WithdrawalCompletionService.Actor actor = byOperator ? WithdrawalCompletionService.Actor.operator(force.operatorId(), app.ip())

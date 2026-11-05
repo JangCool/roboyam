@@ -23,6 +23,7 @@ export default {
     kindRobotikonContract: '로보티콘 상품화 계약',
     robotikonNote: '유료 로보티콘 팩 작가가 신청 때 동의하는 계약이에요. 가입·로그인 화면의 약관 링크와 변경 안내 띠에는 들어가지 않고, 공개 화면은 /robotikon/contract 예요. 판이 바뀌면 작가는 다음 유료 신청 때 다시 동의해요. 작가 신청 화면의 계약 제목은 본문의 첫 제목, 요약은 본문의 첫 목록 항목(8개까지)에서 가져와요.',
     robotikonSettingsLink: '로보티콘 설정',
+    robotikonClauses: '본문에 넣을 조항(초안 — 게시 전 법무 확인): 정산 금액 · 원천징수·세금계산서 · 지급일 · 작가 탈퇴 — 판매 중지 · 작가 탈퇴 — 이용자 보호 · 작가 탈퇴 — 남은 수익 · 정산 정보 없는 탈퇴 · 강제 탈퇴 때의 연락.',
     statusTitle: '상태',
     statusCurrent: '지금 약관',
     statusUpcoming: '시행 예정',

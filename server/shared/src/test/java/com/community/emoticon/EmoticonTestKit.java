@@ -213,7 +213,7 @@ final class EmoticonTestKit {
         acquisitionStore = acquisitions;
         purchaseNotices = new EmoticonPurchaseNotices(memberPublisher);
         handler = new EmoticonPackPaymentHandler(purchases, packStore, acquisitions, settings, purchaseNotices, ids, clocks);
-        creatorWithdrawal = new EmoticonCreatorWithdrawal(packStore, reviewStore, audit, clocks);
+        creatorWithdrawal = new EmoticonCreatorWithdrawal(packStore, reviewStore, payoutStore, settlements, audit, clocks);
         operator = newOperator();
     }
 

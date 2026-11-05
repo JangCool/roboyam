@@ -2,6 +2,7 @@ package com.community.emoticon.service;
 
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
+import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.emoticon.dto.request.EmoticonSettlementConfirmRequest;
@@ -141,7 +142,8 @@ public class EmoticonSettlementService {
         EmoticonSettlementView.Totals totals = new EmoticonSettlementView.Totals(sum(items, EmoticonSettlementView.AdminRow::salesAmount),
                 sum(items, EmoticonSettlementView.AdminRow::refundAmount), sum(items, EmoticonSettlementView.AdminRow::vatAmount),
                 sum(items, EmoticonSettlementView.AdminRow::feeAmount), sum(items, EmoticonSettlementView.AdminRow::withholdingAmount),
-                sum(items, EmoticonSettlementView.AdminRow::payoutAmount), sum(items, EmoticonSettlementView.AdminRow::carriedOut));
+                sum(items, EmoticonSettlementView.AdminRow::payoutAmount), sum(items, EmoticonSettlementView.AdminRow::carriedOut),
+                sum(items, EmoticonSettlementView.AdminRow::waivedAmount));
         return new EmoticonSettlementView.AdminList(picked.format(MONTH), items, totals, months,
                 new EmoticonSettlementView.Rules(rules.feeRatePercent(), rules.payoutMinimum(), rules.refundDays(), rules.settlementDay()));
     }
@@ -302,6 +304,139 @@ public class EmoticonSettlementService {
         return revealed;
     }
 
+    /**
+     * 운영자 포기 처리(V148 — 정산 정보 없이 탈퇴한 작가의 보류를 끝낸다, 사유 5~200자). 사유 400 → 줄 404 → 포기할 수 없음 {@code 409 EMOTICON_SETTLEMENT_NOT_WAIVABLE}
+     * (탈퇴한 작가 · 정산 정보 없음 · 그 줄이 굳히지 않은 보류여야 한다). 그 달과 그 앞의 굳히지 않은 줄을 모두 포기로 굳힌다(이월이 달 차례로 이어지므로) — 처리 기록 {@code WAIVED}(운영자 · 사유 ·
+     * 그 줄에서 포기한 금액) · 감사 {@code EMOTICON_SETTLEMENT_WAIVE}(줄마다, 돈 관련). 그 뒤의 굳히지 않은 줄은 그대로(따로 처리한다 — 포기한 양수는 이어지지 않는다).
+     */
+    @Transactional
+    public EmoticonSettlementView.AdminDetail waive(long operatorId, String ip, String idText, String reasonText) {
+        String reason = EmoticonPackAdminService.reason(reasonText);
+        Key key = key(idText);
+        store.lockCreator(key.creatorId());
+        CreatorLines c = calculator.creator(key.creatorId(), key.month(), true);
+        Line line = c.at(key.month());
+        if (line == null) {
+            throw new EmoticonSettlementNotFoundException();
+        }
+        boolean withdrawn = store.withdrawn(List.of(key.creatorId())).contains(key.creatorId());
+        if (!withdrawn || c.payee() != null || line.frozen() || line.status() != EmoticonSettlementStatus.HELD) {
+            throw new EmoticonConflictException(EmoticonConflictException.SETTLEMENT_NOT_WAIVABLE);
+        }
+        Instant now = clock.instant();
+        List<Waived> waived = waiveOpen(c, key.month(), operatorId, reason, null, now);
+        for (Waived w : waived) {
+            audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.EMOTICON_SETTLEMENT_WAIVE, AuditResult.SUCCESS).target(TARGET, id(key.creatorId(), w.month()))
+                    .with("creator", Long.toString(key.creatorId())).with("month", w.month().format(MONTH)).with("basis", "OPERATOR").with("amount", w.amount())
+                    .with("from", w.from().name()).with("reason", reason));
+        }
+        return detail(key, calculator.creator(key.creatorId(), key.month(), false));
+    }
+
+    // ── 작가 탈퇴(V148 — 탈퇴 화면 · 탈퇴 완료 트랜잭션) ─────────────────────
+
+    /** 탈퇴 완료 때 정산 정보가 없어 남긴 보류의 사유(DB 칸이 5~200자를 요구 — 화면은 이 글을 그대로 보인다) */
+    public static final String WITHDRAWN_HOLD_REASON = "작가 탈퇴 — 정산 정보가 없어 지급할 곳이 없어요(시스템 처리).";
+    /** 탈퇴 때 회원 동의로 포기한 줄의 처리 기록 사유 */
+    public static final String WAIVED_BY_CONSENT_NOTE = "작가가 탈퇴하며 남은 수익을 받지 않기로 동의했어요(시스템 처리).";
+
+    /** 포기로 굳힌 줄 하나 — 그 줄에서 포기한 금액(0 이상) · 포기 전 상태 */
+    record Waived(LocalDate month, long amount, EmoticonSettlementStatus from) {
+    }
+
+    /**
+     * 탈퇴 완료 트랜잭션의 정산 정리 결과.
+     *
+     * @param outcome {@code NONE}(남은 수익 없음 — 0 이하는 끝난 것) · {@code PAYABLE}(정산 정보가 있어 다음 확정에서 모두 지급 — 후속 결정 6) ·
+     *                {@code WAIVED}(회원 동의로 포기) · {@code HELD}(정산 정보도 동의도 없어 보류 — 운영자 강제 탈퇴, 동의한 금액보다 늘어남 등)
+     * @param amount  그때 남은 수익(원천징수 전)
+     */
+    public record WithdrawalClosure(String outcome, long amount) {
+
+        public static final WithdrawalClosure NONE = new WithdrawalClosure("NONE", 0);
+    }
+
+    /**
+     * 탈퇴하면 받을 남은 수익(원천징수 전, 원 — 탈퇴 작가 규칙: 최소 지급액 없음). 탈퇴 화면의 작가 요약 · 탈퇴 신청의 막힘·포기 동의 금액이 같은 값을 본다.
+     * 확정·보류된 굳힌 줄의 지급 대상 + 굳히지 않은 줄의 계산한 지급 대상(양수만) — {@link EmoticonSettlementCalculator#unpaid}.
+     */
+    @Transactional(readOnly = true)
+    public long unpaidForWithdrawal(long creatorId) {
+        return EmoticonSettlementCalculator.unpaid(calculator.creator(creatorId, EmoticonSettlementCalculator.monthOf(clock.instant()), false, true));
+    }
+
+    /**
+     * 탈퇴 완료 트랜잭션(회원 상태는 아직 WITHDRAWN 이 아니다 — 탈퇴 작가 규칙으로 센다)에서 그 작가의 남은 정산을 정리한다. 작가 정산을 줄 세우고(권고 잠금) 아직 정산에 들어가지 않은 구매를 잠근다.
+     * <ul>
+     *   <li>남은 수익이 0 이하 → 할 일 없음({@code NONE}). 정산 정보가 있으면 → 그대로({@code PAYABLE} — 다음 확정에서 최소 지급액 없이 지급).</li>
+     *   <li>정산 정보가 없고 회원이 탈퇴 신청 때 포기에 동의했으며 남은 수익이 동의한 금액 이하 → 이번 달까지의 굳히지 않은 줄을 모두 포기로 굳힌다({@code WAIVED}) — 처리 기록
+     *       {@code WAIVED}(동의 시각 · 금액) · 감사 {@code EMOTICON_SETTLEMENT_WAIVE}(시스템, 근거 {@code MEMBER_CONSENT}).</li>
+     *   <li>그 밖(운영자 강제 탈퇴 · 동의 없음 · 진행 중에 판매가 늘어 동의한 금액보다 큼) → 굳히지 않은 예정 줄을 시스템 보류({@link #WITHDRAWN_HOLD_REASON}, {@code HELD}) —
+     *       운영자가 분리 보관 연락 이메일로 연락하고 포기 처리({@link #waive})로 끝낸다. 동의한 금액보다 많이 포기시키지 않는다(회원에게 불리하게 넓히지 않는다).</li>
+     * </ul>
+     *
+     * @param consentedAmount 탈퇴 신청 때 동의한 포기 금액(없으면 null)
+     * @param consentedAt     그 동의 시각
+     */
+    @Transactional
+    public WithdrawalClosure closeForWithdrawal(long creatorId, Long consentedAmount, Instant consentedAt) {
+        store.lockCreator(creatorId);
+        Instant now = clock.instant();
+        LocalDate current = EmoticonSettlementCalculator.monthOf(now);
+        CreatorLines c = calculator.creator(creatorId, current, true, true);
+        long unpaid = EmoticonSettlementCalculator.unpaid(c);
+        if (unpaid <= 0) {
+            return WithdrawalClosure.NONE;
+        }
+        if (c.payee() != null) {
+            return new WithdrawalClosure("PAYABLE", unpaid);
+        }
+        if (consentedAmount != null && unpaid <= consentedAmount) {
+            List<Waived> waived = waiveOpen(c, current, null, WAIVED_BY_CONSENT_NOTE, consentedAt, now);
+            for (Waived w : waived) {
+                audit.record(new AuditEvent(AuditActorType.SYSTEM, null, AuditActions.EMOTICON_SETTLEMENT_WAIVE, AuditResult.SUCCESS, TARGET, id(creatorId, w.month()), null,
+                        Map.of()).with("creator", Long.toString(creatorId)).with("month", w.month().format(MONTH)).with("basis", "MEMBER_CONSENT").with("amount", w.amount())
+                        .with("from", w.from().name()).with("consentedAmount", consentedAmount).with("consentedAt", consentedAt == null ? "" : consentedAt.toString()));
+            }
+            return new WithdrawalClosure("WAIVED", waived.stream().mapToLong(Waived::amount).sum());
+        }
+        for (Line l : c.lines()) {
+            if (l.frozen() || l.status() != EmoticonSettlementStatus.ESTIMATED || l.month().isAfter(current)) {
+                continue;
+            }
+            if (store.holdBySystem(creatorId, l.month(), WITHDRAWN_HOLD_REASON, now)) {
+                store.insertEvent(ids.nextId(), creatorId, l.month(), "HELD", now, null, WITHDRAWN_HOLD_REASON);
+                audit.record(new AuditEvent(AuditActorType.SYSTEM, null, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditResult.SUCCESS, TARGET, id(creatorId, l.month()), null,
+                        Map.of()).with("creator", Long.toString(creatorId)).with("month", l.month().format(MONTH)).with("from", "ESTIMATED")
+                        .with("reason", WITHDRAWN_HOLD_REASON).with("cause", "CREATOR_WITHDRAWN").with("amount", Math.max(0, l.payout() + l.withholding()))
+                        .with("consentedAmount", consentedAmount == null ? 0L : consentedAmount));
+            }
+        }
+        return new WithdrawalClosure("HELD", unpaid);
+    }
+
+    /**
+     * {@code upTo} 까지의 굳히지 않은 줄(예정·보류)을 달 차례로 포기로 굳힌다 — 계산한 값({@code c} — 탈퇴 작가 규칙)을 지급하지 않고 굳히고(넘긴 금액 = 합), 그 줄에 들어간 판매·환불에 정산 달을 찍고,
+     * 처리 기록 {@code WAIVED}(그 줄에서 포기한 금액 = 합의 양수). 부르는 쪽이 {@code lockCreator} 를 잡고 구매 행을 잠가 계산했다.
+     */
+    private List<Waived> waiveOpen(CreatorLines c, LocalDate upTo, Long operatorId, String note, Instant consentedAt, Instant now) {
+        List<Waived> out = new ArrayList<>();
+        for (Line l : c.lines()) {
+            if (l.frozen() || l.month().isAfter(upTo)) {
+                continue;
+            }
+            if (!store.waive(l.creatorId(), l.month(), l.waive(), operatorId, now)) {
+                throw new IllegalStateException("포기할 정산 줄이 그사이 바뀌었다 creator=" + l.creatorId() + " month=" + l.month());
+            }
+            store.markPurchases(l.creatorId(), l.month(), l.sales().stream().map(ActivityRow::purchaseId).toList(),
+                    l.refunds().stream().map(ActivityRow::purchaseId).toList());
+            long amount = Math.max(0, l.total());
+            store.insertWaivedEvent(ids.nextId(), l.creatorId(), l.month(), now, operatorId, note, amount, consentedAt);
+            out.add(new Waived(l.month(), amount, l.status()));
+        }
+        return out;
+    }
+
     // ── 작가 ────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -309,9 +444,13 @@ public class EmoticonSettlementService {
         LocalDate current = EmoticonSettlementCalculator.monthOf(clock.instant());
         List<Line> lines = new ArrayList<>(calculator.creator(creatorId, current, false).lines());
         java.util.Collections.reverse(lines);
-        return new EmoticonSettlementView.StudioList(lines.stream().map(l -> new EmoticonSettlementView.StudioRow(id(l.creatorId(), l.month()), l.month().format(MONTH),
-                l.salesCount(), l.salesAmount(), l.refundAmount(), l.vat(), l.base(), l.fee(), l.share(), l.withholding(), l.payout(), l.carriedIn(), l.carriedOut() != 0,
-                l.carriedOut(), l.status().name(), l.row() == null ? null : l.row().holdReason(), l.carriedOut() != 0 ? null : l.payDate().toString())).toList());
+        return new EmoticonSettlementView.StudioList(lines.stream().map(l -> {
+            long carried = l.carriedOut() - (l.row() == null ? 0 : l.row().waivedAmount()); // 포기한 양수는 넘긴 금액이 아니다(V148)
+            boolean waived = l.status() == EmoticonSettlementStatus.WAIVED;
+            return new EmoticonSettlementView.StudioRow(id(l.creatorId(), l.month()), l.month().format(MONTH), l.salesCount(), l.salesAmount(), l.refundAmount(), l.vat(),
+                    l.base(), l.fee(), l.share(), l.withholding(), l.payout(), l.carriedIn(), carried != 0, carried, l.status().name(),
+                    l.row() == null ? null : l.row().holdReason(), carried != 0 || waived ? null : l.payDate().toString());
+        }).toList());
     }
 
     // ── 안쪽 ────────────────────────────────────────────────────────────────
@@ -356,7 +495,7 @@ public class EmoticonSettlementService {
         Set<Long> candidates = new HashSet<>(open.keySet());
         candidates.addAll(activity.keySet());
         bases.forEach((creator, row) -> {
-            if (row.frozen().carriedOut() != 0) {
+            if (row.carryForward() != 0) { // 포기한 줄의 양수는 이어지지 않는다(V148)
                 candidates.add(creator);
             }
         });
@@ -367,7 +506,7 @@ public class EmoticonSettlementService {
             SettlementRow base = bases.get(creator);
             PayoutRow payee = payees.get(creator);
             List<Line> lines = EmoticonSettlementCalculator.walk(creator, open.getOrDefault(creator, new TreeMap<>()), activity.getOrDefault(creator, List.of()),
-                    base == null ? 0 : base.frozen().carriedOut(), base == null ? null : base.month().plusMonths(1), month, rules.forCreator(withdrawn.contains(creator)),
+                    base == null ? 0 : base.carryForward(), base == null ? null : base.month().plusMonths(1), month, rules.forCreator(withdrawn.contains(creator)),
                     payee == null ? null : payee.payeeType());
             lines.stream().filter(l -> l.month().equals(month)).findFirst().ifPresent(out::add);
         }
@@ -404,8 +543,10 @@ public class EmoticonSettlementService {
         }
         List<EmoticonSettlementView.Event> events = new ArrayList<>();
         Instant createdAt = firstActivity(sales, refunds);
-        events.add(new EmoticonSettlementView.Event("CREATED", createdAt == null ? key.month().atStartOfDay(ServiceTime.ZONE).toInstant() : createdAt, null, null));
-        store.events(key.creatorId(), key.month()).forEach(e -> events.add(new EmoticonSettlementView.Event(e.action(), e.at(), e.byName(), e.note())));
+        events.add(new EmoticonSettlementView.Event("CREATED", createdAt == null ? key.month().atStartOfDay(ServiceTime.ZONE).toInstant() : createdAt, null, null, null,
+                null));
+        store.events(key.creatorId(), key.month())
+                .forEach(e -> events.add(new EmoticonSettlementView.Event(e.action(), e.at(), e.byName(), e.note(), e.amount(), e.consentedAt())));
         java.util.Collections.reverse(events);
         return EmoticonSettlementView.AdminDetail.of(row, packLines(sales, refunds), events);
     }
@@ -458,11 +599,12 @@ public class EmoticonSettlementService {
                 : new EmoticonSettlementView.Hold(row.holdReason(), row.heldAt(), row.heldByName());
         EmoticonSettlementView.Paid paid = row == null || row.paidAt() == null ? null
                 : new EmoticonSettlementView.Paid(row.transferDate().toString(), row.paidMemo(), row.paidAt(), row.paidByName());
+        long waived = row == null ? 0 : row.waivedAmount();
         return new EmoticonSettlementView.AdminRow(id(l.creatorId(), l.month()), l.month().format(MONTH),
                 new EmoticonAdminView.CreatorRef(Long.toString(l.creatorId()), member == null ? null : member.nickname(), member == null || member.withdrawn()),
                 l.payeeType(), payee == null ? null : payee.businessNumberMasked(), l.salesCount(), l.salesAmount(), l.refundCount(), l.refundAmount(), l.vat(), l.base(),
-                l.feeRatePercent(), l.fee(), l.share(), l.withholding(), l.carriedIn(), l.payout(), l.carriedOut(), l.status().name(), l.payDate().toString(), l.closesAt(),
-                row == null ? null : row.confirmedAt(), account, hold, paid);
+                l.feeRatePercent(), l.fee(), l.share(), l.withholding(), l.carriedIn(), l.payout(), l.carriedOut() - waived, waived, l.status().name(), l.payDate().toString(),
+                l.closesAt(), row == null ? null : row.confirmedAt(), account, hold, paid);
     }
 
     private static long sum(List<EmoticonSettlementView.AdminRow> rows, java.util.function.ToLongFunction<EmoticonSettlementView.AdminRow> f) {

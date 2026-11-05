@@ -34,6 +34,22 @@ public class EmoticonSettlementStore {
     public record SettlementRow(long creatorId, LocalDate month, EmoticonSettlementStatus status, Frozen frozen, Instant confirmedAt, String confirmedByName,
                                 String holdReason, Instant heldAt, String heldByName, Instant paidAt, String paidByName, LocalDate transferDate, String paidMemo,
                                 Instant createdAt) {
+
+        /**
+         * 굳힌 줄 다음 달로 이어지는 금액 — 굳힌 넘긴 금액 그대로, 다만 포기(WAIVED, V148)한 줄의 양수는 포기한 금액이라 이어지지 않는다(음수 = 받을 돈은 그대로 이어진다).
+         * 굳히지 않은 줄이면 0.
+         */
+        public long carryForward() {
+            if (frozen == null) {
+                return 0;
+            }
+            return status == EmoticonSettlementStatus.WAIVED ? Math.min(0, frozen.carriedOut()) : frozen.carriedOut();
+        }
+
+        /** 포기한 금액(포기 줄의 양수 넘긴 금액, 아니면 0) */
+        public long waivedAmount() {
+            return status == EmoticonSettlementStatus.WAIVED && frozen != null ? Math.max(0, frozen.carriedOut()) : 0;
+        }
     }
 
     /** 정산 입력이 되는 구매 한 줄(판매 · 환불) — 정산 달 칸은 이미 들어간 달(없으면 null) */
@@ -41,8 +57,8 @@ public class EmoticonSettlementStore {
                               LocalDate settlementMonth, LocalDate refundSettlementMonth) {
     }
 
-    /** 처리 기록 한 줄 */
-    public record EventRow(String action, Instant at, String byName, String note) {
+    /** 처리 기록 한 줄 — {@code amount}·{@code consentedAt} 은 포기(WAIVED) 기록만(V148 — 포기한 금액 · 회원 동의 시각, 운영자 포기 처리는 동의 시각 없음) */
+    public record EventRow(String action, Instant at, String byName, String note, Long amount, Instant consentedAt) {
     }
 
     private static final String COLUMNS = "s.creator_id, s.sales_month, s.status, s.sales_count, s.sales_amount, s.refund_count, s.refund_amount, s.vat_amount, s.base_amount, "
@@ -145,6 +161,31 @@ public class EmoticonSettlementStore {
         }
     }
 
+    /**
+     * 포기(V148) — 굳히지 않은 예정·보류 줄만. 지급액·원천징수 0 으로 굳히고(넘긴 금액 = 작가 몫 + 넘어온 금액 — 부르는 쪽이 그렇게 만든 {@code f}), 보류 칸을 비운다.
+     * 줄이 없으면 만든다. {@code operatorId} 는 운영자 포기 처리일 때만(회원 동의로 탈퇴 때 포기하면 null — 시스템).
+     */
+    public boolean waive(long creatorId, LocalDate month, Frozen f, Long operatorId, Instant now) {
+        if (f.payout() != 0 || f.withholding() != 0 || f.carriedOut() != f.share() + f.carriedIn()) {
+            throw new IllegalArgumentException("포기한 줄은 지급액·원천징수가 0 이고 넘긴 금액 = 작가 몫 + 넘어온 금액이어야 한다");
+        }
+        insertIfAbsent(creatorId, month, now);
+        return jdbc.update("UPDATE emoticon_settlements SET status = 'WAIVED', sales_count = ?, sales_amount = ?, refund_count = ?, refund_amount = ?, vat_amount = ?, "
+                        + "base_amount = ?, fee_rate_percent = ?, fee_amount = ?, share_amount = ?, carried_in = ?, withholding_amount = 0, payout_amount = 0, carried_out = ?, "
+                        + "payee_type = ?, pay_date = ?, closes_at = ?, confirmed_at = ?, confirmed_by = ?, hold_reason = NULL, held_at = NULL, held_by = NULL, updated_at = ? "
+                        + "WHERE creator_id = ? AND sales_month = ? AND status IN ('ESTIMATED', 'HELD') AND confirmed_at IS NULL", f.salesCount(), f.salesAmount(), f.refundCount(),
+                f.refundAmount(), f.vat(), f.base(), f.feeRatePercent(), f.fee(), f.share(), f.carriedIn(), f.carriedOut(), f.payeeType(), Date.valueOf(f.payDate()),
+                Timestamp.from(f.closesAt()), Timestamp.from(now), operatorId, Timestamp.from(now), creatorId, Date.valueOf(month)) == 1;
+    }
+
+    /** 시스템 보류(작가 탈퇴 — 정산 정보 없음, V148) — 예정(굳히지 않은) 줄만, 줄이 없으면 만든다. 보류한 운영자 없음 */
+    public boolean holdBySystem(long creatorId, LocalDate month, String reason, Instant now) {
+        insertIfAbsent(creatorId, month, now);
+        return jdbc.update("UPDATE emoticon_settlements SET status = 'HELD', hold_reason = ?, held_at = ?, held_by = NULL, updated_at = ? "
+                + "WHERE creator_id = ? AND sales_month = ? AND status = 'ESTIMATED' AND confirmed_at IS NULL", reason, Timestamp.from(now), Timestamp.from(now), creatorId,
+                Date.valueOf(month)) == 1;
+    }
+
     /** 보류 — 예정·확정일 때만 */
     public boolean hold(long creatorId, LocalDate month, String reason, long operatorId, Instant now) {
         return jdbc.update("UPDATE emoticon_settlements SET status = 'HELD', hold_reason = ?, held_at = ?, held_by = ?, updated_at = ? "
@@ -172,11 +213,19 @@ public class EmoticonSettlementStore {
                 Date.valueOf(month), action, Timestamp.from(at), operatorId, note);
     }
 
+    /** 포기 기록(V148) — 그 줄에서 포기한 금액 · 회원 동의 시각(운영자 포기 처리면 null) · 사유 */
+    public void insertWaivedEvent(long id, long creatorId, LocalDate month, Instant at, Long operatorId, String note, long amount, Instant consentedAt) {
+        jdbc.update("INSERT INTO emoticon_settlement_events (id, creator_id, sales_month, action, at, operator_id, note, amount, consented_at) "
+                + "VALUES (?, ?, ?, 'WAIVED', ?, ?, ?, ?, ?)", id, creatorId, Date.valueOf(month), Timestamp.from(at), operatorId, note, amount,
+                consentedAt == null ? null : Timestamp.from(consentedAt));
+    }
+
     /** 처리 기록(오래된 것 먼저) */
     public List<EventRow> events(long creatorId, LocalDate month) {
-        return jdbc.query("SELECT e.action, e.at, o.operator_name, e.note FROM emoticon_settlement_events e LEFT JOIN operators o ON o.id = e.operator_id "
-                        + "WHERE e.creator_id = ? AND e.sales_month = ? ORDER BY e.at, e.id",
-                (rs, i) -> new EventRow(rs.getString(1), EmoticonPackStore.instant(rs, 2), rs.getString(3), rs.getString(4)), creatorId, Date.valueOf(month));
+        return jdbc.query("SELECT e.action, e.at, o.operator_name, e.note, e.amount, e.consented_at FROM emoticon_settlement_events e "
+                        + "LEFT JOIN operators o ON o.id = e.operator_id WHERE e.creator_id = ? AND e.sales_month = ? ORDER BY e.at, e.id",
+                (rs, i) -> new EventRow(rs.getString(1), EmoticonPackStore.instant(rs, 2), rs.getString(3), rs.getString(4), rs.getObject(5, Long.class),
+                        EmoticonPackStore.instant(rs, 6)), creatorId, Date.valueOf(month));
     }
 
     // ── 정산 입력(구매 기록) ────────────────────────────────────────────────

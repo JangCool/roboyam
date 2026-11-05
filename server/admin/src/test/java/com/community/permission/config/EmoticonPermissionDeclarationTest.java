@@ -107,6 +107,8 @@ class EmoticonPermissionDeclarationTest {
                 "POST /{id}/hold", List.of(Permission.EMOTICON_SETTLEMENT),
                 "POST /{id}/unhold", List.of(Permission.EMOTICON_SETTLEMENT),
                 "POST /{id}/paid", List.of(Permission.EMOTICON_SETTLEMENT),
+                // 탈퇴 작가 보류의 포기 처리(V148) — 정산 처리와 같은 권한
+                "POST /{id}/waive", List.of(Permission.EMOTICON_SETTLEMENT),
                 "POST /{id}/account/reveal", List.of(Permission.EMOTICON_PAYOUT_PII)));
     }
 }

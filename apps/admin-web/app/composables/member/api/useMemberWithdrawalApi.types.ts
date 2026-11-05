@@ -60,6 +60,8 @@ export interface WithdrawalForfeit {
     bizAmount: number;
     /** 동의 시각 — 포기한 것이 없으면 null */
     consentedAt: string | null;
+    /** 정산 정보 없이 남은 로보티콘 수익을 받지 않기로 동의한 금액(원, 원천징수 전 — V148). 없으면 0 */
+    emoticonEarnings: number;
 }
 
 /** 처리 이력 한 줄 — 신청·안내 메일·완료·회원 취소·운영자 대리 취소·강제(운영자) */

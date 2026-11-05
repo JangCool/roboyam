@@ -18,6 +18,7 @@
   - `SCHEDULED`: 남은 일(선택과 무관한 것 + 「기다리기」를 고른 것)이 있을 때.
   - 오류: `400 VALIDATION`(`fields.password|forfeitConsent|groupChoices|reasonNote`), `401 CURRENT_PASSWORD_WRONG`, `429 LOGIN_LOCKED`(+`retryAfterSeconds`, 비밀번호 실패 잠금 공유), `401 REAUTH_REQUIRED`(소셜 전용·최근 10분 로그인 아님), `409 WITHDRAWAL_ALREADY_SCHEDULED`.
   - 포기를 고르면 `forfeitConsent` 금액이 서버 계산과 같아야 한다(다르면 `400 fields.forfeitConsent` — 금액이 바뀌었으니 다시 보라).
+  - 로보티콘 작가(2026-11-05, shared V148 — 상세는 `emoticon-contract.md` 「탈퇴 작가 미확정 정리」): `GET` 에 작가 요약 `emoticonCreator`(작가가 아니면 null). 지급할 수익이 있는데 정산 정보가 없으면 `waiveEmoticonEarnings: true` + `forfeitConsent.emoticonEarnings`(같은 금액)가 있어야 한다 — 없으면 `409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID`(최상위 `unpaidEarnings`, 입력 400 다음 · 본인 확인 앞). 운영자 강제 탈퇴는 동의를 받을 수 없어 정산을 시스템 보류로 남긴다. 판매 수익이 있던 작가는 결제 이력이 없어도 연락용 이메일을 분리 보관한다(마지막 거래 = 내 팩 판매·환불 · 정산 지급 기록 포함).
 - `DELETE /api/me/withdrawal` → 204 · `409 WITHDRAWAL_NOT_SCHEDULED`.
 - `GET /api/auth/me`(로그인 정보)에 `withdrawalScheduled: boolean` — 진행 중이면 화면이 안내 띠·탈퇴 화면 링크를 보인다.
 - 가입 거절(이메일 가입·소셜 가입 완료): `409 REJOIN_BLOCKED` + `retryAfterSeconds` + 최상위 `rejoinAvailableAt`. `GET /api/auth/email-available` 은 제한을 알리지 않는다(가입 시도 때만).
@@ -32,7 +33,7 @@
 - 탈퇴 진행 중(`users.status = WITHDRAWING`): 로그인은 되고 남은 일 처리(주문 보기·반품 요청·환불 계좌 입력)·탈퇴 취소만. 새 활동(글·댓글·공구 참여·결제·충전·포인트샵 구매·소모임 가입/개설·쪽지 보내기) 막음. 공개 프로필·회원 검색·쪽지 받는 사람 검색에서 빠짐, 쪽지 받기 불가. 글·댓글은 완료 전까지 닉네임 그대로.
 - 정지·기능 제한 중에도 탈퇴 가능, 재가입 제한 = max(30일, 제재 끝) — 영구는 상한 1년(설정값).
 - 완료 처리·데이터 정리는 분석 문서 4절 표대로. 결제 이력이 있으면 연락용 이메일 분리 보관(파기 = 마지막 거래 시각 + 5년, 설정값 — 세법 보존 기준일은 거래 기록에만, 2026-11-04).
-- 감사: `MEMBER_WITHDRAW_REQUEST`·`MEMBER_WITHDRAW`(MONEY — 포기 동의 증빙)·`MEMBER_WITHDRAW_CANCEL`.
+- 감사: `MEMBER_WITHDRAW_REQUEST`·`MEMBER_WITHDRAW`(MONEY — 포기 동의 증빙, 로보티콘 수익 포기 `forfeitEmoticonEarnings`·정리 결과 `emoticonSettlement` 포함)·`MEMBER_WITHDRAW_CANCEL`.
 - 메일: 완료 메일(익명화 전 주소로, **이메일 인증한 주소에만** — 미인증 주소는 남의 것일 수 있다), 신청 10일 뒤에도 진행 중이면 진행 상태 메일 1회. 둘 다 outbox 를 거치지 않고 커밋 뒤 바로 보낸다.
 - 모임장 처리(넘기기·해산·자동 위임)는 **완료 때** 한다 — 진행 중에 취소하면 모임은 그대로. 완료 때 넘길 대상이 멤버가 아니면 자동 위임 규칙으로.
 - 본인 확인의 「최근 10분 로그인」은 `users.last_login_at` 기준(세션 인증 시각은 저장하지 않는다).

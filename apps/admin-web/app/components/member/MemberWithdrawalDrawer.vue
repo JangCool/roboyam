@@ -80,6 +80,14 @@
                         <dt class="text-muted-color">{{ t('memberWithdrawal.forfeit.bizAmount') }}</dt>
                         <dd class="m-0 tabular-nums" :class="EMPH.refund">{{ t('memberWithdrawal.forfeit.won', { amount: detail.forfeit.bizAmount.toLocaleString(locale) }) }}</dd>
                     </template>
+                    <!-- 로보티콘 작가 — 정산 정보 없이 남은 수익을 받지 않기로 동의(V148, 원천징수 전 금액) -->
+                    <template v-if="detail.forfeit.emoticonEarnings">
+                        <dt class="text-muted-color">{{ t('memberWithdrawal.forfeit.emoticonEarnings') }}</dt>
+                        <dd class="m-0 tabular-nums" :class="EMPH.refund" data-testid="withdrawal-forfeit-emoticon">
+                            {{ t('memberWithdrawal.forfeit.won', { amount: detail.forfeit.emoticonEarnings.toLocaleString(locale) }) }}
+                            <span class="ml-1 text-[11px] font-normal text-muted-color">{{ t('memberWithdrawal.forfeit.emoticonEarningsNote') }}</span>
+                        </dd>
+                    </template>
                     <dt class="text-muted-color">{{ t('memberWithdrawal.forfeit.consentedAt') }}</dt>
                     <dd class="m-0 tabular-nums">{{ detail.forfeit.consentedAt ? time.full(detail.forfeit.consentedAt) : '—' }}</dd>
                 </dl>
@@ -183,7 +191,7 @@ const overdue = computed(() => (props.detail ? UtilMemberWithdrawal.isOverdue(pr
 const canOperatorCancel = computed(() => (props.detail ? UtilMemberWithdrawal.canOperatorCancel(props.detail.status, props.detail.source) : false));
 const hasForfeit = computed(() => {
     const f = props.detail?.forfeit;
-    return !!f && (f.paidPoints > 0 || f.refundEstimate > 0 || f.bizAmount > 0);
+    return !!f && (f.paidPoints > 0 || f.refundEstimate > 0 || f.bizAmount > 0 || f.emoticonEarnings > 0);
 });
 
 const summaryItems = computed<DrawerSummaryItem[]>(() => {

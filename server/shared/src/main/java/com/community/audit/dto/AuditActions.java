@@ -333,6 +333,11 @@ public final class AuditActions {
     public static final String EMOTICON_SETTLEMENT_UNHOLD = "EMOTICON_SETTLEMENT_UNHOLD";
     /** 지급 완료 기록(이체는 사이트 밖) — {@code creator}·{@code month}·{@code payoutAmount}·{@code transferDate}·{@code memo} */
     public static final String EMOTICON_SETTLEMENT_PAID = "EMOTICON_SETTLEMENT_PAID";
+    /**
+     * 정산 포기(V148 — 정산 정보 없이 탈퇴한 작가의 남은 수익, 줄마다) — {@code creator}·{@code month}·{@code amount}(그 줄에서 포기한 금액)·{@code from}(예정·보류)·{@code basis}
+     * ({@code MEMBER_CONSENT} 탈퇴 때 회원 동의 — 행위자 SYSTEM, {@code consentedAmount}·{@code consentedAt} · {@code OPERATOR} 운영자 포기 처리 — {@code reason})
+     */
+    public static final String EMOTICON_SETTLEMENT_WAIVE = "EMOTICON_SETTLEMENT_WAIVE";
 
     // ── 소모임 분류(docs/features/group-contract.md) — 대상 GROUP_CATEGORY + 분류 ID(순서는 order) ──
     /** 분류 만들기 — {@code after.name} */

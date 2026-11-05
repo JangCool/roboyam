@@ -8,6 +8,8 @@ export interface WithdrawalChoices {
     groupChoices: WithdrawalGroupChoice[];
     paidForfeitConsent: boolean;
     bizForfeitConsent: boolean;
+    /** 정산 정보 없이 남은 로보티콘 수익을 받지 않기로 동의(V148 — `emoticonCreator.decisionRequired` 일 때만 쓴다) */
+    emoticonWaiveConsent: boolean;
 }
 
 /**
@@ -44,7 +46,29 @@ export default class UtilWithdrawal {
     static consentMissing(view: WithdrawalView, choices: WithdrawalChoices): boolean {
         if (view.money && choices.paidPointChoice === 'FORFEIT' && !choices.paidForfeitConsent) return true;
         if (view.business && view.business.running.length > 0 && choices.bizChoice === 'FORFEIT' && !choices.bizForfeitConsent) return true;
-        return false;
+        return UtilWithdrawal.emoticonDecisionMissing(view, choices);
+    }
+
+    /**
+     * 로보티콘 남은 수익을 어떻게 할지 아직 안 골랐는가(V148) — 수익이 있는데 정산 정보가 없으면(`decisionRequired`) 정산 정보를 등록하거나(등록 뒤 다시 읽으면 false) 포기에 동의해야 한다.
+     * 판정은 서버(`409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID`). 화면은 고르기 전까지 탈퇴 단추를 막는다.
+     * @param {WithdrawalView} view - 탈퇴 정보.
+     * @param {WithdrawalChoices} choices - 고른 것.
+     * @returns {boolean} 아직 안 골랐으면 true.
+     */
+    static emoticonDecisionMissing(view: WithdrawalView, choices: WithdrawalChoices): boolean {
+        return Boolean(view.emoticonCreator?.decisionRequired) && !choices.emoticonWaiveConsent;
+    }
+
+    /**
+     * 로보티콘 남은 수익을 포기하고 보내는가 — 결정이 필요한 작가가 동의했을 때만. 요청의 `waiveEmoticonEarnings`·`forfeitConsent.emoticonEarnings` 를 이것으로 채운다.
+     * @param {WithdrawalView} view - 탈퇴 정보.
+     * @param {WithdrawalChoices} choices - 고른 것.
+     * @returns {number | null} 동의한 금액(화면에 보인 `unpaidEarnings` 그대로). 포기하지 않으면 null.
+     */
+    static emoticonWaivedAmount(view: WithdrawalView, choices: WithdrawalChoices): number | null {
+        const creator = view.emoticonCreator;
+        return creator && creator.decisionRequired && choices.emoticonWaiveConsent ? creator.unpaidEarnings : null;
     }
 
     /**

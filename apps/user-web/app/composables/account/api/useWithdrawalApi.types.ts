@@ -112,13 +112,30 @@ export interface WithdrawalVerification {
     recentLoginOk: boolean;
 }
 
-/** 남는 것 — 글·댓글 수(「탈퇴한 회원」으로 남는다), 결제 이력(있으면 연락용 이메일 분리 보관) */
+/** 남는 것 — 글·댓글 수(「탈퇴한 회원」으로 남는다), 거래 이력(있으면 연락용 이메일 분리 보관 — 결제 외에 로보티콘 판매 수익이 있던 작가도 true, V148) */
 export interface WithdrawalRemains {
     posts: number;
     comments: number;
     hasPaymentHistory: boolean;
     /** 거래 기록·연락용 이메일 보관 기간(년) */
     retentionYears: number;
+}
+
+/**
+ * 로보티콘 작가 요약(V148 — 계약 `emoticon-contract.md` 「탈퇴 작가 미확정 정리」) — 작가(만든 팩이 하나라도 있거나 정산 정보를 등록함)만 온다.
+ *  탈퇴 완료 때 판매 중인 팩의 새 판매가 멈추고(가진 회원은 계속 쓴다), 심사 대기 건은 반려로 닫힌다. 남은 수익은 정산 정보가 있으면 최소 지급액과 상관없이 다음 지급일에 한 번에 지급.
+ */
+export interface WithdrawalEmoticonCreator {
+    /** 판매 중인 내 팩 수 — 탈퇴하면 새 판매가 멈춘다 */
+    onSalePacks: number;
+    /** 심사 대기 건 수 — 탈퇴하면 반려로 닫힌다 */
+    pendingReviews: number;
+    /** 아직 받지 못한 수익(원, **원천징수 전** — 예정·확정·보류 + 넘긴 금액, 양수만, 최소 지급액과 상관없이 셈) */
+    unpaidEarnings: number;
+    /** 정산 정보(계좌 등) 등록 여부 */
+    payoutAccountRegistered: boolean;
+    /** 수익이 있는데 정산 정보가 없다 — 「정산 정보 등록」 또는 「남은 수익 포기 동의」를 골라야 탈퇴된다(아니면 `409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID`) */
+    decisionRequired: boolean;
 }
 
 /** 탈퇴 진행 중일 때의 정보 */
@@ -148,6 +165,8 @@ export interface WithdrawalView {
     supportEmail: string;
     /** 탈퇴 진행 중일 때만 */
     scheduled: WithdrawalScheduled | null;
+    /** 로보티콘 작가 요약 — 작가가 아니면 null */
+    emoticonCreator: WithdrawalEmoticonCreator | null;
 }
 
 export type WithdrawalReasonCode = 'NOT_USING' | 'PRIVACY' | 'INCONVENIENT' | 'OTHER_SERVICE' | 'REJOIN' | 'OTHER';
@@ -168,6 +187,8 @@ export interface WithdrawalForfeitConsent {
     paidPoints: number | null;
     refundEstimate: number | null;
     bizForfeit: number | null;
+    /** 로보티콘 남은 수익 포기(V148) — 화면이 보인 `emoticonCreator.unpaidEarnings` 그대로. 포기하지 않으면 null */
+    emoticonEarnings: number | null;
 }
 
 /** `POST /api/me/withdrawal` */
@@ -181,6 +202,11 @@ export interface WithdrawalRequest {
     bizChoice: BizChoice | null;
     groupChoices: WithdrawalGroupChoice[];
     forfeitConsent: WithdrawalForfeitConsent;
+    /**
+     * 정산 정보 없이 남은 로보티콘 수익을 받지 않기로 동의(V148) — 서버는 `emoticonCreator.decisionRequired` 일 때만 본다.
+     * true 면 `forfeitConsent.emoticonEarnings` 가 서버 금액과 같아야 한다(다르면 `400 fields.forfeitConsent`)
+     */
+    waiveEmoticonEarnings: boolean;
 }
 
 /** `POST /api/me/withdrawal` 의 답 — 즉시 완료면 세션은 끝나 있다 */

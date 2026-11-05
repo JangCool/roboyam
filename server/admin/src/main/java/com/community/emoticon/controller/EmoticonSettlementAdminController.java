@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET …/settlements/{id}} → 줄 + {@code packs} + {@code events} · {@code 404 EMOTICON_SETTLEMENT_NOT_FOUND}</li>
  *   <li>{@code POST …/settlements/confirm { ids }} → {@code { confirmed, skipped, skippedItems }} · ids 없음·200개 넘음 {@code 400 fields.ids}</li>
  *   <li>{@code POST …/{id}/hold { reason }} · {@code …/unhold} · {@code …/paid { transferDate, memo }} → 상세</li>
+ *   <li>{@code POST …/{id}/waive { reason }} → 상세 — 포기 처리(V148): 사유 {@code 400 fields.reason} → {@code 404} → {@code 409 EMOTICON_SETTLEMENT_NOT_WAIVABLE}</li>
  *   <li>{@code POST …/{id}/account/reveal { reason }}(emoticon.payout.pii) → {@code { type, bank, number, holder, businessNumber, expiresAt }}(S2 와 같은 모양) — 처리 기록 ACCOUNT_VIEWED</li>
  * </ul>
  */
@@ -77,6 +78,14 @@ public class EmoticonSettlementAdminController {
     public ResponseEntity<ApiResponse<EmoticonSettlementView.AdminDetail>> paid(@PathVariable String id, @RequestBody(required = false) EmoticonSettlementPaidRequest body,
                                                                                AdminActor actor) {
         return noStore(settlements.markPaid(actor.operatorId(), actor.ip(), id, body));
+    }
+
+    /** 포기 처리(V148) — 정산 정보 없이 탈퇴한 작가의 보류를 사유와 함께 끝낸다(그 달과 그 앞의 굳히지 않은 줄) */
+    @RequirePermission(Permission.EMOTICON_SETTLEMENT)
+    @PostMapping("/{id}/waive")
+    public ResponseEntity<ApiResponse<EmoticonSettlementView.AdminDetail>> waive(@PathVariable String id, @RequestBody(required = false) EmoticonReviewDecisionRequest body,
+                                                                                AdminActor actor) {
+        return noStore(settlements.waive(actor.operatorId(), actor.ip(), id, body == null ? null : body.reason()));
     }
 
     @RequirePermission(Permission.EMOTICON_PAYOUT_PII)

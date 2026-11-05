@@ -226,7 +226,7 @@ public class MemberWithdrawalAdminService {
         MemberWithdrawalAdminView.Cancel cancel = r.cancelOperatorId() != null
                 ? new MemberWithdrawalAdminView.Cancel(r.cancelChannel(), r.cancelMemo(), operators.get(r.cancelOperatorId())) : null;
         MemberWithdrawalAdminView.Forfeit forfeit = new MemberWithdrawalAdminView.Forfeit(nz(r.forfeitPaidPoints()), nz(r.forfeitRefundEstimate()), nz(r.forfeitBizAmount()),
-                r.forfeitConsentedAt());
+                r.forfeitConsentedAt(), nz(r.forfeitEmoticonEarnings()));
         return new Detail(base.id(), base.memberNo(), base.nickname(), base.status(), base.source(), base.requestedAt(), base.pendingCounts(), base.pendingCount(),
                 base.expectedCompleteAt(), base.progressNotifiedAt(), base.hasPaymentHistory(), base.completedAt(), base.canceledAt(), r.priorStatus(), r.reason(), r.reasonNote(),
                 choices(r), forfeit, items(pendingNow), r.status() == WithdrawalStatus.COMPLETED ? r.rejoinUntil() : null, force, cancel, events(r, force, cancel));

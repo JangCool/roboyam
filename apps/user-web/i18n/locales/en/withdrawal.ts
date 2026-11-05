@@ -31,6 +31,18 @@ export default {
     remainTradesHelp: 'Payment, order, refund and point records are kept for the legally required period ({years} years). Only amounts and dates remain; they cannot identify you.',
     remainContact: 'Contact email',
     remainContactHelp: 'Because you have a payment history, one email address is kept encrypted and separate for {years} years so we can reach you about disputes or tax matters. It is separated from other data and not visible on normal screens.',
+    /** Robotikon creator (`emoticonCreator` present) — creators with sales earnings count as having a transaction history even without paying themselves (V148) */
+    remainContactHelpCreator: 'Because you have a payment or Robotikon sales earnings history, one email address is kept encrypted and separate for {years} years so we can reach you about disputes, tax or payout matters. It is separated from other data and not visible on normal screens.',
+
+    // Robotikon creator (`emoticonCreator` — V148)
+    creatorTitle: 'My Robotikon (creator)',
+    creatorPacks: 'When you leave, new sales of your {count} packs stop. Members who already bought or received them can keep using them.',
+    creatorPacksHelp: 'Stopped packs are not put on sale again.',
+    creatorReviews: 'Your {count} submissions under review are closed as rejected.',
+    creatorEarnings: 'Earnings not yet paid {amount}',
+    creatorEarningsGross: 'This is before withholding tax.',
+    creatorEarningsPayout: 'The remaining earnings are sent in one payment on the next payout date, regardless of the minimum payout.',
+    creatorEarningsNoAccount: 'You have no payout info, so choose what to do under "Your choices" below.',
 
     // Pending
     pendingTitle: 'Things that must finish first',
@@ -82,6 +94,18 @@ export default {
     bizForfeit: 'Forfeit and delete now',
     bizForfeitHelp: 'Ends the running items now; the remaining period is not refunded. Requires the consent below.',
     bizForfeitConsent: 'I forfeit the remaining {amount} of my running ads and hot deals. The {waiting} waiting for refund is still refunded.',
+
+    // Choice: unpaid Robotikon earnings (no payout info, V148). Both options look the same
+    emoticonTitle: 'Unpaid Robotikon earnings {amount}',
+    emoticonHelp: 'You have no payout info (bank account), so there is nowhere to send them. Register payout info or agree not to receive them before you leave. The amount is before withholding tax.',
+    emoticonRegister: 'Register payout info and get paid',
+    emoticonRegisterHelp: 'Once registered, it is sent in one payment on the next payout date regardless of the minimum payout. Come back to this page after registering and it is checked again.',
+    emoticonRegisterLink: 'Register payout info',
+    emoticonRecheck: 'Check again',
+    emoticonWaive: 'Leave without receiving them',
+    emoticonWaiveHelp: 'They are gone once deletion completes and cannot be restored.',
+    emoticonWaiveConsent: 'I will not receive the remaining earnings of {amount}.',
+    emoticonDecisionRequired: 'Choose what to do with your Robotikon earnings first.',
 
     // Choice: groups I lead
     groupsTitle: '{count} groups you lead',
@@ -168,7 +192,7 @@ export default {
     doneRemainsTitle: 'What stays',
     doneRemainPosts: 'Posts and comments — the author is shown as "Withdrawn member".',
     doneRemainTrades: 'Transaction records — kept for {years} years, then deleted (amounts and dates only; they cannot identify you).',
-    doneRemainContact: 'Contact email — because of your payment history, one email is kept encrypted and separate for {years} years.',
+    doneRemainContact: 'Contact email — because of your transaction history (payments or sales earnings), one email is kept encrypted and separate for {years} years.',
     doneRemainHashes: 'Rejoin-restriction hashes — kept only until {date}, then deleted.',
     doneContactTitle: 'Need help?',
     doneContactText: 'For returns, refunds or defects after deletion, and to request that a post be hidden, email customer support. Including the order number or post link speeds things up.',

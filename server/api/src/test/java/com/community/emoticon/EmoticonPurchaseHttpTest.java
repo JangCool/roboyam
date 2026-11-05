@@ -298,6 +298,9 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         String[] window = start(waiting, pack); // 탈퇴 순간 결제창에 있다
 
         com.community.withdrawal.WithdrawalTestSupport.withPassword(jdbc, encoder, creator, clock.instant());
+        // 판매 수익이 남은 작가 — 정산 정보가 있어야 포기 동의 없이 탈퇴한다(V148 — 없으면 409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID, api WithdrawalEmoticonEarningsHttpTest)
+        jdbc.update("INSERT INTO emoticon_payout_accounts (user_id, payee_type, bank_code, account_number_enc, account_last4, holder_name_enc, holder_masked, created_at, "
+                + "updated_at) VALUES (?, 'INDIVIDUAL', 'KB', 'd1:AAAA', '1234', 'd1:AAAA', '홍*동', now(), now())", creator);
         assertThat(withdrawals.request(creator, com.community.withdrawal.WithdrawalTestSupport.plain(), "127.0.0.1").state()).isEqualTo("COMPLETED");
 
         // 탈퇴 완료 트랜잭션 안에서 — 작가 탈퇴 판매 중단 · 감사(시스템) · 탈퇴 감사에 멈춘 수

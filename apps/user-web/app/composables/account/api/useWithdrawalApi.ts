@@ -8,7 +8,8 @@ import type { WithdrawalRequest, WithdrawalResult, WithdrawalView } from '~/comp
  *  - `GET /api/me/withdrawal` → `WithdrawalView`(사라지는 것·남는 것·남은 일·선택이 필요한 것·재가입 가능일·본인 확인 방식). 탈퇴 완료 회원의 낡은 세션은 401.
  *  - `POST /api/me/withdrawal` `WithdrawalRequest` → `WithdrawalResult`. 즉시 완료(`COMPLETED`)면 서버가 모든 세션을 끝냈다 — 화면은 로그인 상태를 비우고 `/withdrawn` 으로.
  *    오류: `400 VALIDATION`(`fields.reason`·`reasonNote`·`groupChoices`·`password`·`forfeitConsent`) · `401 CURRENT_PASSWORD_WRONG` · `429 LOGIN_LOCKED`(+`retryAfterSeconds`) ·
- *    `401 REAUTH_REQUIRED`(소셜 전용 회원이 최근 10분 안 로그인이 아님) · `409 WITHDRAWAL_ALREADY_SCHEDULED`
+ *    `401 REAUTH_REQUIRED`(소셜 전용 회원이 최근 10분 안 로그인이 아님) · `409 WITHDRAWAL_ALREADY_SCHEDULED` ·
+ *    `409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID`(+최상위 `unpaidEarnings` — 정산 정보 없이 로보티콘 수익이 남았는데 포기 동의가 없다, 입력 400 다음 · 본인 확인 앞, V148)
  *  - `DELETE /api/me/withdrawal` → `204`(탈퇴 진행 중 취소) · `409 WITHDRAWAL_NOT_SCHEDULED`
  */
 const PATH = {

@@ -131,6 +131,8 @@ export interface EmoticonReviewRow {
     /** 이 신청의 판 번호(처음 = 1) */
     version: number;
     status: EmoticonReviewStatus;
+    /** 처리한 까닭 — 운영자 · 작가 탈퇴로 시스템이 반려(V148, 상세 `decision.cause` 와 같은 판정). 대기 중이면 null */
+    cause: EmoticonReviewDecisionCause | null;
 }
 
 /** `GET /api/admin/emoticons/reviews?status=` 응답 — 오래된 신청이 위(심사 대기는 기다린 차례대로) */
@@ -140,8 +142,8 @@ export interface EmoticonReviewList {
     counts: Record<Exclude<EmoticonReviewTab, 'ALL'>, number>;
 }
 
-/** `GET /api/admin/emoticons/reviews/{id}` 응답 */
-export interface EmoticonReviewDetail extends EmoticonReviewRow {
+/** `GET /api/admin/emoticons/reviews/{id}` 응답 — 처리한 까닭은 줄의 `cause` 가 아니라 `decision.cause` */
+export interface EmoticonReviewDetail extends Omit<EmoticonReviewRow, 'cause'> {
     /** 이 신청의 내용 */
     next: EmoticonPackVersionView;
     /** 새 판 심사면 지금 상점에 나오는 판(비교용), 처음 신청이면 null */
@@ -401,9 +403,9 @@ export interface EmoticonSaleRefundResult {
 
 // ── 작가 정산 ─
 
-/** 정산 상태 — 예정 → 확정 → 지급 완료 / 보류 */
-export type EmoticonSettlementStatus = 'ESTIMATED' | 'CONFIRMED' | 'PAID' | 'HELD';
-export const EMOTICON_SETTLEMENT_STATUSES: readonly EmoticonSettlementStatus[] = ['ESTIMATED', 'CONFIRMED', 'PAID', 'HELD'];
+/** 정산 상태 — 예정 → 확정 → 지급 완료 / 보류 / 포기(V148 — 정산 정보 없이 탈퇴한 작가의 남은 수익: 탈퇴 때 작가 동의 또는 운영자 포기 처리, 더 바뀌지 않는다) */
+export type EmoticonSettlementStatus = 'ESTIMATED' | 'CONFIRMED' | 'PAID' | 'HELD' | 'WAIVED';
+export const EMOTICON_SETTLEMENT_STATUSES: readonly EmoticonSettlementStatus[] = ['ESTIMATED', 'CONFIRMED', 'PAID', 'HELD', 'WAIVED'];
 /** 작가 갈래 — 개인(원천징수 3.3%) · 사업자(세금계산서). 서버 S2 정산 정보·user-web 과 같은 이름 */
 export type EmoticonPayeeType = 'INDIVIDUAL' | 'BUSINESS';
 
@@ -431,12 +433,16 @@ export interface EmoticonSettlementPackLine {
 
 /** 정산 처리 기록 — 최근이 앞, 맨 끝 `CREATED` 는 그 달 첫 판매·환불 시각(서버가 만들어 넣는다) */
 export interface EmoticonSettlementEvent {
-    action: 'CREATED' | 'CONFIRMED' | 'HELD' | 'UNHELD' | 'PAID' | 'ACCOUNT_VIEWED';
+    action: 'CREATED' | 'CONFIRMED' | 'HELD' | 'UNHELD' | 'PAID' | 'ACCOUNT_VIEWED' | 'WAIVED';
     at: string;
-    /** 운영자 이름 — null 이면 시스템(`CREATED`) */
+    /** 운영자 이름 — null 이면 시스템(`CREATED` · 작가 탈퇴의 시스템 보류 `HELD` · 작가 동의 포기 `WAIVED`) */
     by: string | null;
-    /** 보류·계좌 보기 사유 · 지급 메모 */
+    /** 보류·계좌 보기·포기 처리 사유 · 지급 메모 */
     note: string | null;
+    /** 포기(`WAIVED`)만 — 그 줄에서 포기한 금액(원, 원천징수 전). 다른 기록은 null */
+    amount: number | null;
+    /** 포기(`WAIVED`)만 — 작가가 탈퇴할 때 받지 않기로 동의한 시각. 운영자 포기 처리는 null(그때 `by` = 처리한 운영자 · `note` = 사유) */
+    consentedAt: string | null;
 }
 
 /**
@@ -476,16 +482,18 @@ export interface EmoticonSettlementRow {
     payoutAmount: number;
     /** 다음 달로 넘기는 원천징수 전 금액(원) — 합이 최소 지급액 미만이거나 0 이하일 때(음수면 다음 달에서 뺀다) */
     carriedOut: number;
+    /** 포기한 금액(원, 원천징수 전) — 포기(`WAIVED`) 줄만, 다른 상태는 0. 포기 줄의 `carriedOut` 은 이어지는 금액만이라 0 이하, `payoutAmount` 0 */
+    waivedAmount: number;
     status: EmoticonSettlementStatus;
     /** 지급 예정일(`YYYY-MM-DD`, 다음 달 정산일 — 확정 때 굳는다) */
     payoutDate: string;
     /** 확정 가능 시각 = max(다음 달 1일 0시 KST, 그 줄 판매의 환불 기한 최댓값) — 이 뒤에야 확정할 수 있다(서버는 건너뛴다 `NOT_CLOSED`) */
     closesAt: string;
-    /** 확정 시각 — 확정 전이면 null */
+    /** 확정 시각 — 확정 전이면 null. 포기 줄은 포기한 시각 */
     confirmedAt: string | null;
     /** 지금 정산 정보의 가린 계좌 — 정산 정보가 없으면 null */
     account: EmoticonPayoutAccountMasked | null;
-    /** 운영자 이름이 null 이면 지워진 운영자 */
+    /** 보류한 운영자 이름 — null 이면 시스템 보류(작가 강제 탈퇴: 정산 정보가 없어 지급할 곳이 없다, V148) */
     hold: { reason: string; at: string; by: string | null } | null;
     paid: { transferDate: string; memo: string | null; at: string; by: string | null } | null;
 }
@@ -494,7 +502,7 @@ export interface EmoticonSettlementList {
     month: string;
     items: EmoticonSettlementRow[];
     /** 그 달 합계 */
-    totals: { salesAmount: number; refundAmount: number; vatAmount: number; feeAmount: number; withholdingAmount: number; payoutAmount: number; carriedOut: number };
+    totals: { salesAmount: number; refundAmount: number; vatAmount: number; feeAmount: number; withholdingAmount: number; payoutAmount: number; carriedOut: number; waivedAmount: number };
     /** 고를 수 있는 달(최근이 앞) */
     months: string[];
     /** 지금 설정의 규칙(굳힌 줄의 수수료율은 줄의 `feeRatePercent`) */

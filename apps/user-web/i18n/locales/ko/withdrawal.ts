@@ -32,6 +32,18 @@ export default {
     remainTradesHelp: '결제·주문·환불·포인트 기록은 법이 정한 기간({years}년) 동안 보관돼요. 금액·날짜만 남고 누구인지는 알 수 없어요.',
     remainContact: '연락용 이메일',
     remainContactHelp: '결제 이력이 있어서 분쟁·세무 문의 때 연락할 수 있게 이메일 하나만 암호화해 따로 보관해요({years}년). 다른 개인정보와 분리되고 일반 화면에서는 볼 수 없어요.',
+    /** 로보티콘 작가(`emoticonCreator` 가 있음) — 판매 수익이 있던 작가는 직접 결제한 적이 없어도 거래 이력으로 본다(V148) */
+    remainContactHelpCreator: '결제나 로보티콘 판매 수익 이력이 있어서 분쟁·세무·정산 문의 때 연락할 수 있게 이메일 하나만 암호화해 따로 보관해요({years}년). 다른 개인정보와 분리되고 일반 화면에서는 볼 수 없어요.',
+
+    // 로보티콘 작가(`emoticonCreator` — V148)
+    creatorTitle: '내 로보티콘(작가)',
+    creatorPacks: '탈퇴하면 내 팩 {count}개의 새 판매가 멈춰요. 이미 산·받은 회원은 계속 쓸 수 있어요.',
+    creatorPacksHelp: '멈춘 팩은 다시 판매되지 않아요.',
+    creatorReviews: '심사 중인 {count}건은 반려로 닫혀요.',
+    creatorEarnings: '아직 받지 못한 수익 {amount}',
+    creatorEarningsGross: '원천징수 전 금액이에요.',
+    creatorEarningsPayout: '남은 수익은 최소 지급액과 상관없이 다음 지급일에 한 번에 보내드려요.',
+    creatorEarningsNoAccount: '정산 정보가 없어서 아래 「정할 것」에서 어떻게 할지 골라야 해요.',
 
     // 남은 일
     pendingTitle: '끝나야 하는 일',
@@ -83,6 +95,18 @@ export default {
     bizForfeit: '포기하고 지금 탈퇴',
     bizForfeitHelp: '진행 중인 건을 지금 끝내고 남은 기간분은 돌려받지 않아요. 아래 동의가 필요해요.',
     bizForfeitConsent: '진행 중인 광고·핫딜의 남은 금액 {amount}을 포기합니다. 환불 대기 중인 {waiting}은 그대로 환불받아요.',
+
+    // 선택 — 로보티콘 남은 수익(정산 정보 없음, V148). 두 선택지는 같은 모양
+    emoticonTitle: '받지 못한 로보티콘 수익 {amount}',
+    emoticonHelp: '정산 정보(계좌)가 없어서 보낼 곳이 없어요. 정산 정보를 등록하거나 받지 않기로 해야 탈퇴할 수 있어요. 금액은 원천징수 전이에요.',
+    emoticonRegister: '정산 정보 등록하고 받기',
+    emoticonRegisterHelp: '등록하면 최소 지급액과 상관없이 다음 지급일에 한 번에 보내드려요. 등록하고 이 화면으로 돌아오면 다시 확인해요.',
+    emoticonRegisterLink: '정산 정보 등록',
+    emoticonRecheck: '다시 확인',
+    emoticonWaive: '받지 않고 탈퇴',
+    emoticonWaiveHelp: '탈퇴가 끝나면 사라지고 되돌릴 수 없어요.',
+    emoticonWaiveConsent: '남은 수익 {amount}을 받지 않을게요.',
+    emoticonDecisionRequired: '로보티콘 수익을 어떻게 할지 먼저 골라 주세요.',
 
     // 선택 — 모임장
     groupsTitle: '내가 모임장인 소모임 {count}개',
@@ -169,7 +193,7 @@ export default {
     doneRemainsTitle: '남는 것',
     doneRemainPosts: '글·댓글 — 작성자가 「탈퇴한 회원」으로 보여요.',
     doneRemainTrades: '거래 기록 — {years}년 동안 보관한 뒤 지워요(금액·날짜만, 누구인지는 알 수 없어요).',
-    doneRemainContact: '연락용 이메일 — 결제 이력이 있어 {years}년 동안 암호화해 따로 보관해요.',
+    doneRemainContact: '연락용 이메일 — 결제·판매 수익 같은 거래 이력이 있어 {years}년 동안 암호화해 따로 보관해요.',
     doneRemainHashes: '재가입 제한용 해시 — {date}까지만 보관하고 지워요.',
     doneContactTitle: '도움이 필요하면',
     doneContactText: '탈퇴 뒤 반품·환불·하자 문의, 남긴 글의 블라인드 요청은 고객센터 메일로 보내 주세요. 주문번호나 글 주소를 함께 적으면 빨라요.',

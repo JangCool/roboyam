@@ -9,6 +9,7 @@ import com.community.emoticon.entity.EmoticonPackStatus;
 import com.community.emoticon.entity.EmoticonReviewKind;
 import com.community.emoticon.repository.master.EmoticonPackStore;
 import com.community.emoticon.repository.master.EmoticonPackStore.StoppedRow;
+import com.community.emoticon.repository.master.EmoticonPayoutStore;
 import com.community.emoticon.repository.master.EmoticonReviewStore;
 import com.community.emoticon.repository.master.EmoticonReviewStore.ClosedRow;
 import java.time.Clock;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -36,7 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>감사(시스템): 팩마다 {@code EMOTICON_PACK_CREATOR_WITHDRAWN} · 닫은 심사 건마다 {@code EMOTICON_REVIEW_REJECT}({@code cause CREATOR_WITHDRAWN}). 회원 알림은 보내지 않는다
  *       (탈퇴한 사람 — 알림 행도 탈퇴 정리에서 지운다).</li>
  * </ol>
- * 남은 정산은 {@link EmoticonSettlementCalculator} 가 탈퇴 작가의 최소 지급액을 없애 다음 확정 때 모두 지급 대상으로 만든다(이 클래스는 정산을 건드리지 않는다).
+ * 남은 정산은 {@link EmoticonSettlementCalculator} 가 탈퇴 작가의 최소 지급액을 없애 다음 확정 때 모두 지급 대상으로 만든다({@link #withdraw} 는 정산을 건드리지 않는다).
+ *
+ * <p><b>정산 정보 없이 수익이 남은 작가</b>(탈퇴 작가 미확정 정리 2026-11-05, V148): 탈퇴 화면의 작가 요약({@link #summary}) · 탈퇴 완료 트랜잭션의 정산 정리({@link #closeSettlement} —
+ * 회원 동의면 포기, 동의가 없으면(운영자 강제 탈퇴 포함) 시스템 보류 — {@link EmoticonSettlementService#closeForWithdrawal}).
  */
 @Service
 public class EmoticonCreatorWithdrawal {
@@ -52,16 +57,62 @@ public class EmoticonCreatorWithdrawal {
     public record Result(int stoppedPacks, int closedReviews) {
     }
 
+    /**
+     * 탈퇴 화면의 작가 요약 — 작가(만든 팩이 하나라도 있거나 정산 정보를 등록함)가 아니면 {@link #summary} 가 비어 있다.
+     *
+     * @param onSalePacks             판매 중인 내 팩 수(탈퇴하면 새 판매가 멈춘다)
+     * @param pendingReviews          심사 대기 건 수(탈퇴하면 반려로 닫힌다)
+     * @param unpaidEarnings          아직 지급되지 않은 수익(원천징수 전, 원 — 예정·확정·보류 + 넘긴 금액, 양수만 · 탈퇴 작가 규칙 = 최소 지급액 없음)
+     * @param payoutAccountRegistered 정산 정보 등록 여부
+     */
+    public record Summary(int onSalePacks, int pendingReviews, long unpaidEarnings, boolean payoutAccountRegistered) {
+
+        /** 탈퇴 전에 정할 것이 있다 — 지급할 수익이 있는데 정산 정보가 없다(등록하거나 포기에 동의해야 탈퇴가 된다) */
+        public boolean decisionRequired() {
+            return unpaidEarnings > 0 && !payoutAccountRegistered;
+        }
+    }
+
     private final EmoticonPackStore packs;
     private final EmoticonReviewStore reviews;
+    private final EmoticonPayoutStore payouts;
+    private final EmoticonSettlementService settlements;
     private final AuditLogService audit;
     private final Clock clock;
 
-    public EmoticonCreatorWithdrawal(EmoticonPackStore packs, EmoticonReviewStore reviews, AuditLogService audit, ObjectProvider<Clock> clocks) {
+    public EmoticonCreatorWithdrawal(EmoticonPackStore packs, EmoticonReviewStore reviews, EmoticonPayoutStore payouts, EmoticonSettlementService settlements,
+                                     AuditLogService audit, ObjectProvider<Clock> clocks) {
         this.packs = packs;
         this.reviews = reviews;
+        this.payouts = payouts;
+        this.settlements = settlements;
         this.audit = audit;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
+    }
+
+    /** 탈퇴 화면·탈퇴 신청의 작가 요약 — 작가가 아니면 비어 있다 */
+    @Transactional(readOnly = true)
+    public Optional<Summary> summary(long userId) {
+        List<EmoticonPackStore.PackRow> mine = packs.byCreator(userId);
+        boolean registered = payouts.registered(userId);
+        if (mine.isEmpty() && !registered) {
+            return Optional.empty();
+        }
+        int onSale = (int) mine.stream().filter(p -> p.status() == EmoticonPackStatus.APPROVED).count();
+        return Optional.of(new Summary(onSale, reviews.pendingCount(userId), settlements.unpaidForWithdrawal(userId), registered));
+    }
+
+    /**
+     * 탈퇴 완료 트랜잭션의 정산 정리({@link EmoticonSettlementService#closeForWithdrawal}) — 남은 수익이 없거나 정산 정보가 있으면 그대로, 정산 정보 없이 남았으면 회원 동의(금액 이하)면 포기 ·
+     * 아니면 시스템 보류. 작가가 아니면 할 일이 없다.
+     */
+    @Transactional
+    public EmoticonSettlementService.WithdrawalClosure closeSettlement(long creatorId, Long consentedAmount, Instant consentedAt) {
+        EmoticonSettlementService.WithdrawalClosure closure = settlements.closeForWithdrawal(creatorId, consentedAmount, consentedAt);
+        if (!"NONE".equals(closure.outcome())) {
+            log.info("탈퇴 작가의 로보티콘 정산을 정리했다 creatorId={} 결과={} 금액={}", creatorId, closure.outcome(), closure.amount());
+        }
+        return closure;
     }
 
     @Transactional

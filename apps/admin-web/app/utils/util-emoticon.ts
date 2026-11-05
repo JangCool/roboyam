@@ -5,6 +5,7 @@ import type {
     EmoticonPackStatus,
     EmoticonPackVersionView,
     EmoticonReviewStatus,
+    EmoticonSettlementRow,
     EmoticonSettlementStatus,
 } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 
@@ -183,11 +184,22 @@ export default class UtilEmoticon {
         return null;
     }
 
-    static settlementSeverity(status: EmoticonSettlementStatus): 'secondary' | 'info' | 'success' | 'danger' {
+    /** 정산 상태 딱지 색 — 포기(`WAIVED`)는 끝난 줄이지만 지급하지 않았으므로 지급 완료와 다른 경고 색 */
+    static settlementSeverity(status: EmoticonSettlementStatus): 'secondary' | 'info' | 'success' | 'danger' | 'warn' {
         if (status === 'CONFIRMED') return 'info';
         if (status === 'PAID') return 'success';
         if (status === 'HELD') return 'danger';
+        if (status === 'WAIVED') return 'warn';
         return 'secondary';
+    }
+
+    /**
+     * 포기 처리(V148)를 할 수 있는 줄인가 — 보류이면서 작가가 탈퇴했고 정산 정보가 없다. 판정은 서버(`409 EMOTICON_SETTLEMENT_NOT_WAIVABLE` — 굳히지 않은 보류여야 한다)
+     * @param {Pick<EmoticonSettlementRow, 'status' | 'creator' | 'account'>} row - 정산 줄.
+     * @returns {boolean} 단추를 보이면 true.
+     */
+    static settlementWaivable(row: Pick<EmoticonSettlementRow, 'status' | 'creator' | 'account'>): boolean {
+        return row.status === 'HELD' && row.creator.withdrawn && row.account === null;
     }
 
     /** 원 — `2,500원`(문구 키 없이 숫자만 — 단위는 부모 문구가 붙인다) */
