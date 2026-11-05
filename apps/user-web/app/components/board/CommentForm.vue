@@ -14,6 +14,7 @@
             :invalid="Boolean(contentError)"
             :disabled="submitting"
             :emoticons="emoticonSource"
+            :youtube-links="UtilPost.COMMENT_YOUTUBE_MAX"
         >
             <!-- 이모티콘 고르기 — 이모지는 글자로, 이모티콘은 그림 노드로(저장은 토큰 글자) -->
             <template #tools>

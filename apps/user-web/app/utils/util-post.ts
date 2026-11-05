@@ -46,6 +46,8 @@ export default class UtilPost {
     static readonly CONTENT_MAX = 200_000;
     /** 댓글 길이 — 관리자 설정에 없는 값이라 가정(1~2,000자) */
     static readonly COMMENT_MAX = 2000;
+    /** 댓글 하나에 넣을 수 있는 유튜브 영상 수 — 붙여 넣은 주소가 카드가 된다(서버 `ContentRules.COMMENT_YOUTUBE_MAX` 와 같다) */
+    static readonly COMMENT_YOUTUBE_MAX = 1;
     /** 기타 신고 사유 설명 최대 길이(가정) */
     static readonly REPORT_DETAIL_MAX = 300;
     /** 자리 표시 체크("로봇이 아닙니다")가 내는 토큰 — Turnstile 위젯이 붙으면 그 토큰으로 바뀐다. 비밀키가 설정된 서버는 이 값을 `fields['guest.captchaToken']` 으로 거절한다 */
@@ -234,7 +236,8 @@ export default class UtilPost {
      */
     static commentProblem(content: string, format: ContentFormat = 'TEXT', max: number = UtilPost.COMMENT_MAX): LengthProblem | null {
         const length = UtilPost.contentLength(content, format);
-        if (length === 0) return 'REQUIRED';
+        // 영상만 있는 댓글(붙여 넣은 유튜브 카드)은 보이는 글자가 없어도 된다(서버와 같다)
+        if (length === 0 && !(format === 'HTML' && UtilRichText.hasContent(content))) return 'REQUIRED';
         return length > max ? 'LENGTH' : null;
     }
 
