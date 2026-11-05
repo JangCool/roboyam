@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+    <div class="content-card mx-auto flex w-full max-w-3xl flex-col gap-4">
         <NuxtLink :to="UtilEmoticon.PATH" class="inline-flex w-fit items-center gap-1 rounded text-sm text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ t('emoticon.shopTitle') }}
         </NuxtLink>
