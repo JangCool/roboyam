@@ -26,8 +26,10 @@
                     <p class="m-0 mt-0.5 text-xs text-muted-color">{{ page.manager ? t('boardStaffAction.listHintManager') : t('boardStaffAction.listHintStaff') }}</p>
                 </div>
                 <span v-if="staffTools" class="flex flex-col items-end text-xs tabular-nums text-muted-color" data-testid="board-actions-quota">
-                    <span v-if="staffTools.abilities.postHide || staffTools.abilities.postDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'POST_HIDE', staffTools.post) }}</span>
-                    <span v-if="staffTools.abilities.commentDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'COMMENT_DELETE', staffTools.comment) }}</span>
+                    <!-- 운영자 회원 계정 — 한도가 없어 한 줄 -->
+                    <span v-if="staffTools.operator">{{ t('boardStaffAction.quotaUnlimited') }}</span>
+                    <span v-else-if="staffTools.abilities.postHide || staffTools.abilities.postDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'POST_HIDE', staffTools.post) }}</span>
+                    <span v-if="!staffTools.operator && staffTools.abilities.commentDelete">{{ UtilBoardStaffActionMessages.quotaLine(t, 'COMMENT_DELETE', staffTools.comment) }}</span>
                 </span>
             </header>
 

@@ -4,6 +4,8 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.operator.exception.OperatorAccountLinkedException;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.dto.WithdrawalApplication;
 import com.community.withdrawal.dto.WithdrawalApplication.GroupPlan;
@@ -41,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  * (admin {@code MemberWithdrawalAdminService})가 <b>같은 코드</b>를 쓴다(member-withdrawal-contract 「관리자」). 회원 행을 잠가 같은 회원의 동시 요청을 줄 세운다.
  *
  * <ul>
- *   <li>신청: 회원 잠금(진행 중 409, 이미 탈퇴 — 회원이면 401, 운영자면 409 {@code MEMBER_ALREADY_WITHDRAWN}) → 남은 일 셈 → 신청 줄(모임장 처리 선택은 저장만) + WITHDRAWING
+ *   <li>신청: 회원 잠금(진행 중 409, 이미 탈퇴 — 회원이면 401, 운영자면 409 {@code MEMBER_ALREADY_WITHDRAWN} · 운영자 회원 계정으로 이어짐 409 {@code OPERATOR_ACCOUNT_LINKED}) → 남은 일 셈 → 신청 줄(모임장 처리 선택은 저장만) + WITHDRAWING
  *       + 감사(회원 {@code MEMBER_WITHDRAW_REQUEST} · 운영자 {@code MEMBER_WITHDRAW_FORCE}) → 남은 일이 없으면 <b>같은 트랜잭션</b>에서 완료(익명화)까지.</li>
  *   <li>취소: 진행 중일 때만(아니면 409) — 신청 전 상태로 되돌린다. 운영자 대리 취소는 회원이 신청한 것만(강제 탈퇴는 409 {@code WITHDRAWAL_NOT_MEMBER_REQUESTED}).
  *       감사는 둘 다 {@code MEMBER_WITHDRAW_CANCEL}, 운영자 것은 행위자가 운영자이고 {@code requestChannel}·{@code memo} 가 붙는다.</li>
@@ -64,10 +66,13 @@ public class WithdrawalRequestWriter {
     private final SnowflakeIdGenerator ids;
     private final WithdrawalProperties properties;
     private final Clock clock;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public WithdrawalRequestWriter(WithdrawalQueries queries, WithdrawalEraseStore erase, MemberWithdrawalStore withdrawals, WithdrawalPendingResolver pending,
                                    WithdrawalRejoinPolicy rejoin, WithdrawalCompletionService completion, WithdrawalMailSender mail,
-                                   AuditLogService audit, SnowflakeIdGenerator ids, WithdrawalProperties properties, ObjectProvider<Clock> clocks) {
+                                   AuditLogService audit, SnowflakeIdGenerator ids, WithdrawalProperties properties, ObjectProvider<Clock> clocks,
+                                   OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.queries = queries;
         this.erase = erase;
         this.withdrawals = withdrawals;
@@ -97,6 +102,10 @@ public class WithdrawalRequestWriter {
         }
         if ("WITHDRAWN".equals(status)) {
             throw byOperator ? new MemberAlreadyWithdrawnException() : new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        // 운영자 회원 계정으로 이어진 동안은 탈퇴할 수 없다(operator-member-account-contract 정책 12) — 회원 행을 잠근 뒤라 연결(같은 잠금)과 줄을 선다
+        if (operatorAccounts.isLinked(userId)) {
+            throw byOperator ? OperatorAccountLinkedException.byOperator() : OperatorAccountLinkedException.byMember();
         }
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         long paidPoints = queries.losses(userId, ServiceTime.dateOf(now), now).paidPoints();

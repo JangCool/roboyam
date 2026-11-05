@@ -78,61 +78,66 @@ export default class UtilBoardStaffActionMessages {
     }
 
     /**
-     * 오늘 남은 횟수 — 「오늘 남은 글 처리 7건 / 10건」 · 「오늘 남은 댓글 삭제 18건 / 20건」
+     * 오늘 남은 횟수 — 「오늘 남은 글 처리 7건 / 10건」 · 「오늘 남은 댓글 삭제 18건 / 20건」 · 한도가 null(운영자 회원 계정)이면 「하루 한도 없음」
      * @param {Translate} t - 번역 함수.
      * @param {string} kind - 처리 종류(글 처리면 글 한도).
-     * @param {BoardStaffQuota} quota - 한도.
+     * @param {BoardStaffQuota | null} quota - 한도(null = 한도 없음).
      * @returns {string} 글자.
      */
-    static quotaLine(t: Translate, kind: string, quota: BoardStaffQuota): string {
+    static quotaLine(t: Translate, kind: string, quota: BoardStaffQuota | null): string {
+        if (!quota) return t('boardStaffAction.quotaUnlimited');
         const key = UtilBoardStaffAction.isPostKind(kind) ? 'boardStaffAction.quotaPost' : 'boardStaffAction.quotaComment';
         return t(key, { n: Math.max(0, quota.remaining), limit: quota.limit });
     }
 
     /**
-     * 성공 토스트 — 「글을 숨겼어요 · 오늘 남은 글 처리 6건」
+     * 성공 토스트 — 「글을 숨겼어요 · 오늘 남은 글 처리 6건」 · 한도가 null(운영자 회원 계정)이면 남은 횟수 없이 「글을 숨겼어요」
      * @param {Translate} t - 번역 함수.
      * @param {BoardStaffActionKind} kind - 처리 종류.
-     * @param {BoardStaffQuota} quota - 남은 한도.
+     * @param {BoardStaffQuota | null} quota - 남은 한도(null = 한도 없음).
      * @returns {string} 글자.
      */
-    static doneToast(t: Translate, kind: BoardStaffActionKind, quota: BoardStaffQuota): string {
+    static doneToast(t: Translate, kind: BoardStaffActionKind, quota: BoardStaffQuota | null): string {
+        if (!quota) return t(`boardStaffAction.donePlain_${suffix(kind)}`);
         return t(`boardStaffAction.done_${suffix(kind)}`, { n: Math.max(0, quota.remaining) });
     }
 
     /**
-     * 게시판 머리 운영 줄의 남은 횟수 — 「오늘 남은 처리 글 8 · 댓글 20 · 제재 5」(할 수 있는 것만)
+     * 게시판 머리 운영 줄의 남은 횟수 — 「오늘 남은 처리 글 8 · 댓글 20 · 제재 5」(할 수 있는 것만) · 운영자 회원 계정이면 「하루 한도 없음」
+     * 한도가 null 인 칸(한도 없음)은 남은 횟수에서 뺀다.
      * @param {Translate} t - 번역 함수.
      * @param {BoardStaffTools} tools - 게시판의 `viewer.staffTools`.
      * @returns {string} 글자. 할 수 있는 처리가 없으면 빈 글자.
      */
     static remainingLine(t: Translate, tools: BoardStaffTools): string {
+        if (tools.operator) return t('boardStaffAction.barUnlimited');
         const parts: string[] = [];
         const a = tools.abilities;
-        if (a.postHide || a.postDelete) parts.push(t('boardStaffAction.barPost', { n: Math.max(0, tools.post.remaining) }));
-        if (a.commentDelete) parts.push(t('boardStaffAction.barComment', { n: Math.max(0, tools.comment.remaining) }));
-        if (a.sanction) parts.push(t('boardStaffAction.barSanction', { n: Math.max(0, tools.sanction.remaining) }));
+        if ((a.postHide || a.postDelete) && tools.post) parts.push(t('boardStaffAction.barPost', { n: Math.max(0, tools.post.remaining) }));
+        if (a.commentDelete && tools.comment) parts.push(t('boardStaffAction.barComment', { n: Math.max(0, tools.comment.remaining) }));
+        if (a.sanction && tools.sanction) parts.push(t('boardStaffAction.barSanction', { n: Math.max(0, tools.sanction.remaining) }));
         return parts.length ? t('boardStaffAction.barRemaining', { parts: parts.join(' · ') }) : '';
     }
 
     /**
-     * 게시판 머리 운영 줄의 남은 횟수가 하나라도 0 인가(빨갛게)
+     * 게시판 머리 운영 줄의 남은 횟수가 하나라도 0 인가(빨갛게) — 한도가 null(한도 없음)인 칸은 다 쓸 일이 없다
      * @param {BoardStaffTools} tools - 게시판의 `viewer.staffTools`.
      * @returns {boolean} 그러면 true.
      */
     static anyExhausted(tools: BoardStaffTools): boolean {
         const a = tools.abilities;
-        return ((a.postHide || a.postDelete) && tools.post.remaining <= 0) || (a.commentDelete && tools.comment.remaining <= 0) || (a.sanction && tools.sanction.remaining <= 0);
+        const out = (quota: BoardStaffQuota | null): boolean => Boolean(quota && quota.remaining <= 0);
+        return ((a.postHide || a.postDelete) && out(tools.post)) || (a.commentDelete && out(tools.comment)) || (a.sanction && out(tools.sanction));
     }
 
     /**
-     * 처리 내역의 처리자 — 「처리 봄바람 · 스텝」(매니저에게만 온다)
+     * 처리 내역의 처리자 — 「처리 봄바람 · 스텝」, 운영자 회원 계정이면 「… · 운영자」(매니저에게만 온다)
      * @param {Translate} t - 번역 함수.
      * @param {{ nickname: string; role: string }} actor - 처리자.
      * @returns {string} 글자.
      */
     static actorLine(t: Translate, actor: { nickname: string; role: string }): string {
-        return t('boardSanction.issuerLine', { name: actor.nickname, role: actor.role === 'MANAGER' ? t('boardSanction.roleManager') : t('boardSanction.roleStaff') });
+        return UtilBoardSanctionMessages.issuerLine(t, actor);
     }
 
     /**

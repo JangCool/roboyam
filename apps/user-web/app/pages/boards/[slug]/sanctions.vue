@@ -67,7 +67,7 @@
                             <span v-if="row.endsAt">{{ t('sanction.periodLine', { period: UtilSanctionMessages.period(row.startsAt, row.endsAt, time) }) }}</span>
                             <!-- 처리자 — 매니저에게만 온다 -->
                             <span v-if="row.issuer" data-testid="board-sanction-issuer">
-                                {{ t('boardSanction.issuerLine', { name: row.issuer.nickname, role: row.issuer.role === 'MANAGER' ? t('boardSanction.roleManager') : t('boardSanction.roleStaff') }) }}
+                                {{ UtilBoardSanctionMessages.issuerLine(t, row.issuer) }}
                             </span>
                             <NuxtLink v-if="row.source" :to="sourceLink(row.source)" class="text-primary hover:underline">{{ row.source.commentId ? t('boardSanction.sourceComment') : t('boardSanction.sourcePost') }}</NuxtLink>
                         </p>

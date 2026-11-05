@@ -1,6 +1,7 @@
 <template>
     <!--
-        운영자 상세 — 표에서 행을 고르면 여는 PrimeVue `Drawer`(알림·화면 설정 서랍과 같이 설정의 "서랍 위치"를 따른다). 안의 구성은 탭 둘: ① 기본 정보(이름·이메일·역할·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용) + 그 아래 「2차 인증」 구획(상태 딱지·등록일·신뢰 기기 수, 루트이고 본인이 아니면 [OTP 초기화] — 값과 초기화 호출은 페이지가 한다).
+        운영자 상세 — 표에서 행을 고르면 여는 PrimeVue `Drawer`(알림·화면 설정 서랍과 같이 설정의 "서랍 위치"를 따른다). 안의 구성은 탭 셋: ① 기본 정보(이름·이메일·역할·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용) + 그 아래 「2차 인증」 구획(상태 딱지·등록일·신뢰 기기 수, 루트이고 본인이 아니면 [OTP 초기화] — 값과 초기화 호출은 페이지가 한다)
+        ③ 사이트 계정(`OperatorMemberAccountPanel` — 이 운영자가 사이트에서 쓰는 회원 계정 하나를 잇고 끊는다. 값·연결·해제 호출·확인창은 페이지가 한다).
         기본 정보의 저장·초기화는 하단 고정 푸터에 있다(그 탭에서만, 변경이 없으면 비활성). 계정 상태는 탭 안의 「상태 저장」을 쓴다. 최고 관리자(루트)는 읽기 전용이다.
         **표를 가리지 않는다(`modal=false`)** — 서랍이 열린 채로 다른 행을 누르면 내용이 그 운영자로 바뀐다. 대신 서랍·표 행·떠 있는 창(확인 대화상자·고르개 목록) 밖을 누르면 닫히도록 여기서 바깥 누르기를 듣는다. Esc 도 닫는다.
         닫기 요청(Esc·바깥·X)은 스스로 닫지 않고 `update:visible(false)` 로 알린다 — 저장하지 않은 변경이 있으면 부모가 확인을 묻고 닫는다. 변경 여부는 `update:dirty` 로 알린다.
@@ -41,6 +42,7 @@
                 <TabList>
                     <Tab value="basic">{{ t('operator.tabBasic') }}</Tab>
                     <Tab value="status">{{ t('operator.tabStatus') }}</Tab>
+                    <Tab value="account">{{ t('operatorMember.tab') }}</Tab>
                 </TabList>
                 <TabPanels class="px-0!">
                     <TabPanel value="basic">
@@ -89,6 +91,21 @@
                             </template>
                         </section>
                     </TabPanel>
+                    <!-- 사이트 계정 — 서랍 푸터를 쓰지 않는다(연결·해제는 탭 안 단추 + 페이지의 확인창) -->
+                    <TabPanel value="account">
+                        <OperatorMemberAccountPanel
+                            :operator="operator"
+                            :account="memberAccount"
+                            :loading="memberAccountLoading"
+                            :error="memberAccountError"
+                            :can-manage="canManage"
+                            :is-self="isSelf"
+                            :busy="memberAccountBusy"
+                            @link="(userId: string) => emit('link-member', userId)"
+                            @unlink="emit('unlink-member')"
+                            @retry="emit('retry-member-account')"
+                        />
+                    </TabPanel>
                 </TabPanels>
             </Tabs>
         </div>
@@ -108,6 +125,7 @@ import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types'
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorStatusRequest, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
+import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
 import UtilMfaMessages from '~/utils/util-mfa-messages';
 import UtilOperator from '~/utils/util-operator';
 import UtilOperatorMessages from '~/utils/util-operator-messages';
@@ -136,6 +154,15 @@ interface Props {
     /** [OTP 초기화]를 보인다 — 최고 관리자이고 본인이 아닐 때 */
     canResetMfa?: boolean;
     mfaResetting?: boolean;
+    /** 이 운영자의 사이트 계정(운영자 회원 계정 — 페이지가 받는다). null = 받는 중이거나 못 받았다 */
+    memberAccount?: OperatorMemberAccountView | null;
+    memberAccountLoading?: boolean;
+    /** 사이트 계정을 못 받았을 때 서버 문구 */
+    memberAccountError?: string;
+    /** 사이트 계정 연결·해제 중 */
+    memberAccountBusy?: boolean;
+    /** 보고 있는 운영자가 로그인한 본인인가 — 최고 관리자의 사이트 계정은 본인만 바꾼다 */
+    isSelf?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -153,6 +180,11 @@ const props = withDefaults(defineProps<Props>(), {
     mfaError: '',
     canResetMfa: false,
     mfaResetting: false,
+    memberAccount: null,
+    memberAccountLoading: false,
+    memberAccountError: '',
+    memberAccountBusy: false,
+    isSelf: false,
 });
 const emit = defineEmits<{
     'update:visible': [visible: boolean];
@@ -162,6 +194,12 @@ const emit = defineEmits<{
     'save-status': [body: OperatorStatusRequest];
     /** [OTP 초기화] — 확인은 페이지가 묻는다 */
     'reset-mfa': [];
+    /** 사이트 계정 [연결] — 확인은 페이지가 묻는다 */
+    'link-member': [userId: string];
+    /** 사이트 계정 [연결 해제] — 확인은 페이지가 묻는다 */
+    'unlink-member': [];
+    /** 사이트 계정을 다시 받는다(읽기 실패 뒤) */
+    'retry-member-account': [];
     /** 서랍이 닫혔다(전환이 끝났다) — 부모가 눌렀던 행으로 초점을 돌려준다 */
     hide: [];
 }>();

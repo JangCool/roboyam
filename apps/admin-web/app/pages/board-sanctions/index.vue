@@ -124,7 +124,7 @@
                         <template #body="{ data }">
                             <span class="flex min-w-0 items-center gap-1.5 text-[13px]">
                                 <span class="truncate">{{ data.issuedBy?.nickname ?? t('boardSanction.issuerGone') }}</span>
-                                <span v-if="data.issuedBy" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardSanctionMessages.roleName(t, data.issuedBy.role) }}</span>
+                                <span v-if="data.issuedBy" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardSanctionMessages.roleLabel(t, data.issuedBy) }}</span>
                             </span>
                         </template>
                     </Column>

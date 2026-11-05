@@ -116,7 +116,7 @@
                         <template #body="{ data }">
                             <span class="flex min-w-0 items-center gap-1.5 text-[13px]">
                                 <span class="truncate">{{ UtilBoardStaffActionMessages.actorName(t, data.actor) }}</span>
-                                <span v-if="data.actor" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardStaffActionMessages.roleName(t, data.actor.role) }}</span>
+                                <span v-if="data.actor" class="shrink-0 rounded border border-(--line) px-1 text-[11px] text-muted-color">{{ UtilBoardStaffActionMessages.roleLabel(t, data.actor) }}</span>
                             </span>
                         </template>
                     </Column>

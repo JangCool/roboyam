@@ -83,7 +83,7 @@ public class AdminBoardStaffActionService {
 
     static AdminBoardStaffActionView view(ActionRow r, Instant now) {
         AdminBoardStaffActionView.Actor actor = new AdminBoardStaffActionView.Actor(r.actorId() == null ? null : Long.toString(r.actorId()), r.actorNickname(),
-                r.actorRole());
+                r.actorRole(), r.actorOperatorName());
         AdminBoardStaffActionView.Author author = r.targetUserId() != null
                 ? new AdminBoardStaffActionView.Author("MEMBER", Long.toString(r.targetUserId()), r.authorName())
                 : new AdminBoardStaffActionView.Author("GUEST", null, r.targetAuthorName());

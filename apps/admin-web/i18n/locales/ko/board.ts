@@ -614,6 +614,7 @@ export default {
         BUSINESS: '사업자 계정은 지정할 수 없어요',
         BOARD_LIMIT: '이미 {max}개 게시판을 맡고 있어요',
         ALREADY_ASSIGNED: '이미 이 게시판의 매니저·스텝이에요',
+        OPERATOR_ACCOUNT: '운영자 회원 계정이라 지정할 수 없어요',
     },
     appointConfirmTitle: '{name}을(를) {role}로 지정할까요?',
     appointConfirmMessage: '「{board}」 게시판의 {role}가 돼요. 바로 반영돼요.',

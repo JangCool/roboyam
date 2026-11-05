@@ -23,13 +23,21 @@ export default class UtilBoardSanctionMessages {
     }
 
     static roleName(t: Translate, role: string): string {
-        return role === 'MANAGER' || role === 'STAFF' ? t(`boardSanction.role.${role}`) : role;
+        return role === 'MANAGER' || role === 'STAFF' || role === 'OPERATOR' ? t(`boardSanction.role.${role}`) : role;
     }
 
-    /** 처리자 「숲지기 · 매니저」 — 관리자 화면에만 보인다(정책 7) */
+    /** 처리자 자리 딱지 — 「매니저」「스텝」, 운영자 회원 계정이면 「운영자 · 운영팀 민지」(운영자 이름이 없으면 「운영자」) */
+    static roleLabel(t: Translate, who: { role: string; operatorName: string | null }): string {
+        if (who.role === 'OPERATOR' && who.operatorName) return t('boardSanction.roleOperatorOf', { operator: who.operatorName });
+        return UtilBoardSanctionMessages.roleName(t, who.role);
+    }
+
+    /** 처리자 「숲지기 · 매니저」, 운영자 회원 계정이면 「숲지기 (운영자 · 운영팀 민지)」 — 관리자 화면에만 보인다(정책 7) */
     static issuer(t: Translate, issuer: BoardSanctionIssuer | null): string {
         if (!issuer) return t('boardSanction.issuerGone');
-        return t('boardSanction.issuerValue', { name: issuer.nickname ?? t('boardSanction.issuerGone'), role: UtilBoardSanctionMessages.roleName(t, issuer.role) });
+        const name = issuer.nickname ?? t('boardSanction.issuerGone');
+        if (issuer.role === 'OPERATOR') return t('boardSanction.issuerOperatorValue', { name, role: UtilBoardSanctionMessages.roleLabel(t, issuer) });
+        return t('boardSanction.issuerValue', { name, role: UtilBoardSanctionMessages.roleName(t, issuer.role) });
     }
 
     /** 해제한 사람 「볼트너트(매니저)」「운영팀 민지(운영자)」 */

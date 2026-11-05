@@ -16,8 +16,8 @@ export type BoardSanctionStatus = SanctionStatus;
 /** 사유 코드 — 스팸·광고 · 비방·인신공격 · 투자 권유 · 게시판 주제와 맞지 않음 · 기타(덧붙임 5자 이상 필수) */
 export type BoardSanctionReasonCode = 'SPAM' | 'ABUSE' | 'INVESTMENT' | 'OFF_TOPIC' | 'OTHER';
 
-/** 처리자의 게시판 역할 */
-export type BoardStaffRole = 'MANAGER' | 'STAFF';
+/** 처리자의 자리 — 그 게시판 매니저 · 스텝 · 운영자 회원 계정(`OPERATOR` — operator-member-account-contract, 서버 연결됨 2026-11-05) */
+export type BoardStaffRole = 'MANAGER' | 'STAFF' | 'OPERATOR';
 
 /** 무효가 된 까닭 — 운영자 직접 · 반복 검토 닫기(`VOIDED`) · 이의제기 인용 */
 export type BoardSanctionVoidSource = 'OPERATOR' | 'REVIEW' | 'APPEAL';
@@ -30,11 +30,13 @@ export interface BoardSanctionBoardRef {
     nameEn: string | null;
 }
 
-/** 준 사람 — 그 게시판의 매니저·스텝(회원). 탈퇴했으면 닉네임이 null 일 수 있다 */
+/** 준 사람 — 그 게시판의 매니저·스텝(회원) 또는 운영자 회원 계정(`role` OPERATOR, 닉네임 = 그 회원 닉네임). 탈퇴했으면 닉네임이 null 일 수 있다 */
 export interface BoardSanctionIssuer {
     id: string;
     nickname: string | null;
     role: BoardStaffRole;
+    /** 운영자 회원 계정 줄이면 그 운영자의 지금 이름 — 그 밖 null */
+    operatorName: string | null;
 }
 
 /** 해제한 사람 — 그 게시판 매니저(회원) 또는 운영자 */

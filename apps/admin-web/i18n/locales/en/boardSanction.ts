@@ -58,8 +58,11 @@ export default {
     role: {
         MANAGER: 'Manager',
         STAFF: 'Staff',
+        OPERATOR: 'Operator',
     },
+    roleOperatorOf: 'Operator · {operator}',
     issuerValue: '{name} · {role}',
+    issuerOperatorValue: '{name} ({role})',
     issuerGone: 'Unknown member',
     liftedBy: {
         MANAGER: 'manager',

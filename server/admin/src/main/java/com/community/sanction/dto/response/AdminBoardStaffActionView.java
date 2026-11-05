@@ -12,8 +12,11 @@ import java.time.Instant;
 public record AdminBoardStaffActionView(String id, BoardSanctionBoardRefView board, String kind, String reasonCode, Actor actor, Target target, Instant createdAt,
                                         Restored restored) {
 
-    /** 처리한 매니저·스텝(회원) — 닉네임은 지금 값(없으면 null), 자리는 처리 때 */
-    public record Actor(String id, String nickname, String role) {
+    /**
+     * 처리한 매니저·스텝(회원) — 닉네임은 지금 값(없으면 null), 자리는 처리 때. 운영자 회원 계정이면 {@code role} OPERATOR(닉네임 = 그 회원 닉네임) +
+     * {@code operatorName}(운영자의 지금 이름 — operator-member-account-contract), 그 밖 null
+     */
+    public record Actor(String id, String nickname, String role, String operatorName) {
     }
 
     /**

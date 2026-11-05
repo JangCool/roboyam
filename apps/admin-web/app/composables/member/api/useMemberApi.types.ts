@@ -504,6 +504,18 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     groupBuy: MemberGroupBuy | null;
     /** 본인 인증(커머스 0-4) — 미인증도 `verified:false` 로 온다. null 은 탈퇴 회원뿐 */
     identity: MemberIdentity | null;
+    /**
+     * 이 회원이 운영자 회원 계정이면 그 운영자(서버 연결됨 2026-11-05). 아니면 null.
+     */
+    operatorAccount: MemberOperatorAccountRef | null;
+}
+
+/** 회원 상세의 「운영자 회원 계정」 표시 — 이 회원 계정이 이어진 운영자 */
+export interface MemberOperatorAccountRef {
+    operatorId: string;
+    operatorName: string;
+    /** 힘이 살아 있나 — false 면 「멈춤」(운영자 계정을 쓸 수 없거나 회원 계정 정지 중) */
+    active: boolean;
 }
 
 /**

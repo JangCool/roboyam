@@ -11,6 +11,7 @@ import com.community.operator.dto.request.OperatorCreateRequest;
 import com.community.operator.dto.request.OperatorRejectRequest;
 import com.community.operator.dto.request.OperatorStatusRequest;
 import com.community.operator.dto.request.OperatorUpdateRequest;
+import com.community.operator.dto.response.OperatorMemberAccountRef;
 import com.community.operator.dto.response.OperatorPage;
 import com.community.operator.dto.response.OperatorRoleRef;
 import com.community.operator.dto.response.OperatorView;
@@ -24,6 +25,7 @@ import com.community.operator.exception.OperatorNotPendingException;
 import com.community.operator.exception.OperatorPeriodReversedException;
 import com.community.operator.exception.OperatorRootProtectedException;
 import com.community.operator.repository.master.OperatorInvitationRepository;
+import com.community.operator.repository.master.OperatorMemberAccountStore;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.operator.repository.master.OperatorRepositoryQDSL;
 import com.community.permission.dto.AdminActor;
@@ -87,11 +89,13 @@ public class OperatorService {
     private final ApplicationEventPublisher events;
     private final AdminNotices notices;
     private final TrustedDeviceService trustedDevices;
+    private final OperatorMemberAccountService memberAccounts;
 
     public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager,
                            RoleRepositoryQDSL roleQueries, OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder,
                            SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events, AdminNotices notices,
-                           TrustedDeviceService trustedDevices) {
+                           TrustedDeviceService trustedDevices, OperatorMemberAccountService memberAccounts) {
+        this.memberAccounts = memberAccounts;
         this.operators = operators;
         this.operatorQueries = operatorQueries;
         this.invitations = invitations;
@@ -114,7 +118,8 @@ public class OperatorService {
         Instant now = Instant.now();
         List<OperatorEntity> found = operatorQueries.search(tab, keyword, now);
         Map<Long, List<OperatorRoleRow>> roles = roleQueries.rolesOfOperators(found.stream().map(OperatorEntity::getId).toList());
-        List<OperatorView> items = found.stream().map(operator -> view(operator, roles.getOrDefault(operator.getId(), List.of()), now)).toList();
+        Map<Long, OperatorMemberAccountStore.Link> links = memberAccounts.linksOfOperators(found.stream().map(OperatorEntity::getId).toList());
+        List<OperatorView> items = found.stream().map(operator -> view(operator, roles.getOrDefault(operator.getId(), List.of()), links.get(operator.getId()), now)).toList();
         return new OperatorPage(items, items.size(), operatorQueries.counts(now));
     }
 
@@ -161,7 +166,7 @@ public class OperatorService {
         events.publishEvent(new OperatorCredentialsIssued(email, name, temporaryPassword));
         notices.accountCreated(actor, name);
         log.info("운영자를 만들었다 operatorId={} 역할={}개 by operatorId={}", operator.getId(), roles.size(), actor.operatorId());
-        return view(operator, roles.stream().map(role -> new OperatorRoleRow(operator.getId(), role.getRoleId(), role.getRoleName())).toList(), now);
+        return view(operator, roles.stream().map(role -> new OperatorRoleRow(operator.getId(), role.getRoleId(), role.getRoleName())).toList(), null, now);
     }
 
     /**
@@ -301,14 +306,16 @@ public class OperatorService {
     }
 
     private OperatorView viewOf(OperatorEntity operator, Instant now) {
-        return view(operator, roleQueries.rolesOfOperators(List.of(operator.getId())).getOrDefault(operator.getId(), List.of()), now);
+        return view(operator, roleQueries.rolesOfOperators(List.of(operator.getId())).getOrDefault(operator.getId(), List.of()),
+                memberAccounts.linkOfOperator(operator.getId()).orElse(null), now);
     }
 
-    private static OperatorView view(OperatorEntity operator, List<OperatorRoleRow> roles, Instant now) {
+    private static OperatorView view(OperatorEntity operator, List<OperatorRoleRow> roles, OperatorMemberAccountStore.Link link, Instant now) {
         List<OperatorRoleRef> refs = operator.isRoot() ? List.of() : new ArrayList<>(roles.stream().map(row -> new OperatorRoleRef(row.roleId(), row.roleName())).toList());
         return new OperatorView(Long.toString(operator.getId()), operator.getEmail(), operator.getOperatorName(), operator.isRoot(), refs,
                 operator.getAccountStartAt(), operator.getAccountEndAt(), operator.isApproved(), operator.isLocked(), operator.isExpired(),
-                operator.isEnabled(), operator.isPeriodOver(now), operator.getCreatedAt());
+                operator.isEnabled(), operator.isPeriodOver(now), operator.getCreatedAt(),
+                link == null ? null : new OperatorMemberAccountRef(Long.toString(link.userId()), link.nickname() == null ? "" : link.nickname(), link.active()));
     }
 
     private static AuditEvent operatorEvent(AdminActor actor, String action, long operatorId) {

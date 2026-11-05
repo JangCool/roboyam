@@ -6,10 +6,12 @@ package com.community.auth.dto.response;
  * @param restriction         정지·영구 정지 중일 때만 값이 있다. 그 밖에는 null
  * @param adminUrl            항상 null — 운영자는 공개 사이트에 로그인하지 않는다(화면 타입의 칸은 남겨 두었다)
  * @param withdrawalScheduled 탈퇴 진행 중({@code users.status = WITHDRAWING}) — 화면이 안내 띠·탈퇴 화면 링크를 보인다(member-withdrawal-contract)
+ * @param operatorAccount     운영자 회원 계정이고 힘이 살아 있을 때만 값이 있다(operator-member-account-contract) — 그 밖 null
  */
-public record MeResponse(boolean authenticated, UserView user, RestrictionView restriction, String adminUrl, boolean withdrawalScheduled) {
+public record MeResponse(boolean authenticated, UserView user, RestrictionView restriction, String adminUrl, boolean withdrawalScheduled,
+                         OperatorAccountView operatorAccount) {
 
     public static MeResponse anonymous() {
-        return new MeResponse(false, null, null, null, false);
+        return new MeResponse(false, null, null, null, false, null);
     }
 }

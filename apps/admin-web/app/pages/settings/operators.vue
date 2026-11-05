@@ -3,7 +3,7 @@
         운영자 관리 — hamonica3 의 `members.vue`(설정 › 애플리케이션)(회원 관리)를 옮긴 것이다. 이 제품에서 회원은 공개 사이트 이용자이고, 관리자 앱에 로그인하는 계정은 운영자다(정책: docs/domain/operator-permissions.md).
         **탭이 목록을 가른다**: 활성 · 신규(승인 대기) · 잠김 · 초대 대기 — 몇 명(건)인지가 탭에 보인다. 우측 상단 「운영자 추가」(계정 생성)·「초대」(초대 링크 메일)는 한 다이얼로그의 두 방식이다.
         신청(승인 대기)은 신규 탭에서 「승인」하거나 「반려」한다(반려는 확인창에서 사유를 선택으로 적는다). 보낸 초대는 「초대 대기」 탭에서 보고 「초대 취소」한다 — 초대 링크의 유효기간은 기본 72시간(가정)이고 기한이 지난 초대는 「기한 지남」으로 남는다.
-        표는 화면 폭 전체를 쓰고, 행을 누르면(Enter·Space 도) 상세 서랍(`OperatorDetailDrawer`, PrimeVue Drawer — 열리는 쪽은 화면 설정의 "서랍 위치")이 열린다: ① 기본 정보(이름·이메일·역할 여러 개·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용).
+        표는 화면 폭 전체를 쓰고, 행을 누르면(Enter·Space 도) 상세 서랍(`OperatorDetailDrawer`, PrimeVue Drawer — 열리는 쪽은 화면 설정의 "서랍 위치")이 열린다: ① 기본 정보(이름·이메일·역할 여러 개·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용) ③ 사이트 계정(운영자 회원 계정 — 연결·해제. 표 이름 옆 딱지는 `OperatorView.memberAccount`).
         이 페이지는 표·탭·검색·선택(서랍 열기·전환·닫기 보호)과 저장 호출을 맡는다. 서랍이 열린 채로 다른 행을 누르면 그 운영자로 바뀌고, 저장하지 않은 변경이 있으면 닫기·전환 전에 확인을 묻는다.
         hamonica3 에서 뺀 것: 국가·전화·회사·설명(운영자 정책에 없는 프로필 칸)과 워크스페이스 참여(이 제품에 워크스페이스가 없다). 역할은 하나가 아니라 여러 개다(합집합).
         본문 여백은 셸(`.app-content`)이 준다 — hamonica3 의 `p-4 md:p-6` 은 옮기지 않았다.
@@ -65,6 +65,15 @@
                         <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                             <span class="truncate text-[13px]">{{ data.operatorName }}</span>
                             <Tag v-if="data.isSuper" :value="t('operator.superTag')" icon="pi pi-shield" severity="warn" />
+                            <!-- 사이트 계정(운영자 회원 계정)이 이어져 있으면 — 멈춤이면 다른 색·아이콘. 닉네임은 풍선 도움말로 -->
+                            <Tag
+                                v-if="data.memberAccount"
+                                v-tooltip.top="memberAccountTitle(data)"
+                                :value="t('operatorMember.listTag')"
+                                :aria-label="memberAccountTitle(data)"
+                                :icon="data.memberAccount.active ? 'pi pi-link' : 'pi pi-pause-circle'"
+                                :severity="data.memberAccount.active ? 'info' : 'secondary'"
+                            />
                         </div>
                     </template>
                 </Column>
@@ -199,11 +208,19 @@
             :mfa-error="mfaError"
             :can-reset-mfa="canResetMfa"
             :mfa-resetting="mfaResetting"
+            :member-account="drawerMemberAccount"
+            :member-account-loading="memberAccountLoading"
+            :member-account-error="memberAccountError"
+            :member-account-busy="memberAccountBusy"
+            :is-self="!!drawerOperator && drawerOperator.operatorId === user?.id"
             @update:visible="onDrawerVisible"
             @update:dirty="(v: boolean) => (drawerDirty = v)"
             @save-info="saveInfo"
             @save-status="saveStatus"
             @reset-mfa="resetMfa"
+            @link-member="linkMemberAccount"
+            @unlink-member="unlinkMemberAccount"
+            @retry-member-account="drawerOperator && loadMemberAccount(drawerOperator.operatorId)"
             @hide="onDrawerHide"
         />
 
@@ -229,6 +246,7 @@ import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorInvitationView, OperatorRoleRef, OperatorStatusRequest, OperatorTab, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
+import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
 import type { RoleView } from '~/composables/role/api/useRoleApi.types';
 import type { RoleTypeView } from '~/composables/role/api/useRoleTypeApi.types';
 import UtilOperator from '~/utils/util-operator';
@@ -240,6 +258,9 @@ useSeoMeta({ title: () => t('operator.title') });
 
 const api = useOperatorApi();
 const mfaApi = useMfaApi();
+const memberAccountApi = useOperatorMemberAccountApi();
+// 사이트 계정 카드의 등급 뱃지 — 등급 목록(이름·색·아이콘)은 앱 전체가 공유한다
+const gradeState = useGradeAppearance();
 const { user } = useAdminAuth();
 const roleApi = useRoleApi();
 const roleTypeApi = useRoleTypeApi();
@@ -342,6 +363,7 @@ const roleOptions = computed<OperatorRoleOption[]>(() =>
 );
 
 onMounted(async () => {
+    if (can('grade.read')) void gradeState.ensureLoaded();
     if (can('role.read')) {
         try {
             // 운영자에게 줄 수 있는 것은 운영자 역할뿐이다 — 회원 역할(등급·회원 유형 등)은 섞이지 않는다
@@ -454,13 +476,92 @@ async function loadMfa(operatorId: string): Promise<void> {
     }
 }
 
-// 서랍이 열려 있고 운영자가 바뀌면 그 운영자의 2차 인증 상태를 받는다
+// 서랍이 열려 있고 운영자가 바뀌면 그 운영자의 2차 인증 상태와 사이트 계정을 받는다
 watch(
     () => (drawerOpen.value ? (drawerOperator.value?.operatorId ?? null) : null),
     (operatorId, previous) => {
-        if (operatorId && operatorId !== previous) void loadMfa(operatorId);
+        if (operatorId && operatorId !== previous) {
+            void loadMfa(operatorId);
+            void loadMemberAccount(operatorId);
+        }
     },
 );
+
+/* ── 사이트 계정(운영자 회원 계정) — 서랍이 보여 주는 운영자에 이어진 사이트 회원 계정. 읽기는 운영자 조회 권한자 모두, 연결·해제는 `operator.manage`(최고 관리자 대상은 본인만) ── */
+
+const drawerMemberAccount = ref<OperatorMemberAccountView | null>(null);
+const memberAccountLoading = ref(false);
+const memberAccountError = ref('');
+const memberAccountBusy = ref(false);
+
+/** 표 이름 옆 딱지의 풀이 — 닉네임과 멈춤 여부 */
+function memberAccountTitle(operator: OperatorView): string {
+    const account = operator.memberAccount;
+    if (!account) return '';
+    return account.active ? t('operatorMember.listTagTitle', { nickname: account.nickname }) : t('operatorMember.listTagPausedTitle', { nickname: account.nickname });
+}
+
+async function loadMemberAccount(operatorId: string): Promise<void> {
+    memberAccountLoading.value = true;
+    memberAccountError.value = '';
+    drawerMemberAccount.value = null;
+    try {
+        const view = await memberAccountApi.get(operatorId);
+        // 그 사이 다른 운영자로 바뀌었으면 버린다
+        if (drawerOperator.value?.operatorId === operatorId) drawerMemberAccount.value = view;
+    } catch (e) {
+        if (drawerOperator.value?.operatorId === operatorId) memberAccountError.value = errorOf(e).message;
+    } finally {
+        memberAccountLoading.value = false;
+    }
+}
+
+/** 연결·해제 뒤 표 이름 옆 딱지를 맞춘다 */
+async function refreshMemberAccountBadges(): Promise<void> {
+    await reload();
+}
+
+/** [연결] — 맡은 게시판 매니저·스텝 지정이 끝난다는 것을 확인창에서 알린다(0개면 그 말은 뺀다) */
+async function linkMemberAccount(userId: string): Promise<void> {
+    const target = drawerOperator.value;
+    const candidate = drawerMemberAccount.value?.candidate;
+    if (!target || !candidate || candidate.userId !== userId) return;
+    const boards = candidate.boardManagerCount + candidate.boardStaffCount;
+    const message = boards > 0 ? t('operatorMember.linkMessageBoards', { nickname: candidate.nickname, count: boards }) : t('operatorMember.linkMessage', { nickname: candidate.nickname });
+    const ok = await confirm({ title: t('operatorMember.linkTitle'), message, confirmLabel: t('operatorMember.link') });
+    if (!ok) return;
+    memberAccountBusy.value = true;
+    try {
+        const view = await memberAccountApi.link(target.operatorId, { userId });
+        if (drawerOperator.value?.operatorId === target.operatorId) drawerMemberAccount.value = view;
+        toast.success(t('operatorMember.linked'));
+        await refreshMemberAccountBadges();
+    } catch (e) {
+        toast.error(errorOf(e).message, 8000);
+    } finally {
+        memberAccountBusy.value = false;
+    }
+}
+
+/** [연결 해제] — 바로 일반 회원이 된다 */
+async function unlinkMemberAccount(): Promise<void> {
+    const target = drawerOperator.value;
+    const linked = drawerMemberAccount.value?.linked;
+    if (!target || !linked) return;
+    const ok = await confirm({ title: t('operatorMember.unlinkTitle'), message: t('operatorMember.unlinkMessage', { nickname: linked.nickname }), confirmLabel: t('operatorMember.unlink'), tone: 'danger' });
+    if (!ok) return;
+    memberAccountBusy.value = true;
+    try {
+        const view = await memberAccountApi.unlink(target.operatorId);
+        if (drawerOperator.value?.operatorId === target.operatorId) drawerMemberAccount.value = view;
+        toast.success(t('operatorMember.unlinked'));
+        await refreshMemberAccountBadges();
+    } catch (e) {
+        toast.error(errorOf(e).message, 8000);
+    } finally {
+        memberAccountBusy.value = false;
+    }
+}
 
 async function resetMfa(): Promise<void> {
     const target = drawerOperator.value;
@@ -507,6 +608,8 @@ async function saveStatus(body: OperatorStatusRequest) {
         drawerOperator.value = await api.changeStatus(drawerOperator.value.operatorId, body);
         await reload();
         toast.success(t('operator.statusSaved'));
+        // 운영자를 쓸 수 없게 되면 사이트 계정도 멈춘다(반대도) — 사이트 계정 탭을 다시 받는다
+        void loadMemberAccount(drawerOperator.value.operatorId);
     } catch (e) {
         statusError.value = errorOf(e).message;
     } finally {

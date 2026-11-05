@@ -1,5 +1,6 @@
 package com.community.block.service;
 
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.block.exception.MemberProfileNotFoundException;
 import com.community.board.repository.master.BoardStaffRepository;
 import com.community.user.entity.ProfileEntity;
@@ -19,8 +20,10 @@ public class SocialMembers {
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final BoardStaffRepository boardStaff;
+    private final OperatorMemberAccountService operatorAccounts;
 
-    public SocialMembers(UserRepository users, ProfileRepository profiles, BoardStaffRepository boardStaff) {
+    public SocialMembers(UserRepository users, ProfileRepository profiles, BoardStaffRepository boardStaff, OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.users = users;
         this.profiles = profiles;
         this.boardStaff = boardStaff;
@@ -52,8 +55,8 @@ public class SocialMembers {
         return profiles.findById(id).map(p -> new Member(user.get(), p));
     }
 
-    /** 공개 사이트의 운영진인가(게시판 매니저·스텝) */
+    /** 공개 사이트의 운영진인가(게시판 매니저·스텝 · 힘이 살아 있는 운영자 회원 계정 — operator-member-account-contract 정책 9) */
     public boolean staff(long userId) {
-        return boardStaff.countByUserId(userId) > 0;
+        return boardStaff.countByUserId(userId) > 0 || operatorAccounts.isActiveOperatorAccount(userId);
     }
 }

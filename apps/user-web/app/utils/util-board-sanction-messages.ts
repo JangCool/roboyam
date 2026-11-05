@@ -105,13 +105,25 @@ export default class UtilBoardSanctionMessages {
     }
 
     /**
-     * 오늘 남은 횟수 — 「오늘 남은 제재 7건 / 10건」
+     * 오늘 남은 횟수 — 「오늘 남은 제재 7건 / 10건」 · 한도가 null(운영자 회원 계정)이면 「하루 한도 없음」
      * @param {Translate} t - 번역 함수.
-     * @param {BoardStaffQuota} quota - 한도.
+     * @param {BoardStaffQuota | null} quota - 한도(null = 한도 없음).
      * @returns {string} 글자.
      */
-    static quotaLine(t: Translate, quota: BoardStaffQuota): string {
+    static quotaLine(t: Translate, quota: BoardStaffQuota | null): string {
+        if (!quota) return t('boardSanction.quotaUnlimited');
         return t('boardSanction.quotaLine', { n: Math.max(0, quota.remaining), limit: quota.limit });
+    }
+
+    /**
+     * 처리자 줄 — 「처리 봄바람 · 스텝」 · 운영자 회원 계정(`OPERATOR`)이면 「처리 봄바람 · 운영자」(매니저에게만 온다). 처리 내역·제재 내역이 같이 쓴다
+     * @param {Translate} t - 번역 함수.
+     * @param {{ nickname: string; role: string }} who - 처리자.
+     * @returns {string} 글자.
+     */
+    static issuerLine(t: Translate, who: { nickname: string; role: string }): string {
+        const role = who.role === 'MANAGER' ? t('boardSanction.roleManager') : who.role === 'OPERATOR' ? t('boardSanction.roleOperator') : t('boardSanction.roleStaff');
+        return t('boardSanction.issuerLine', { name: who.nickname, role });
     }
 
     /**
@@ -139,14 +151,15 @@ export default class UtilBoardSanctionMessages {
     }
 
     /**
-     * 성공 토스트 — 「봄바람 님에게 쓰기 제한 3일을 줬어요 · 오늘 남은 제재 6건」
+     * 성공 토스트 — 「봄바람 님에게 쓰기 제한 3일을 줬어요 · 오늘 남은 제재 6건」 · 한도가 null(운영자 회원 계정)이면 남은 횟수 없이
      * @param {Translate} t - 번역 함수.
      * @param {string} nickname - 대상.
      * @param {string} kind - 준 단계.
-     * @param {BoardStaffQuota} quota - 남은 한도.
+     * @param {BoardStaffQuota | null} quota - 남은 한도(null = 한도 없음).
      * @returns {string} 글자.
      */
-    static issuedToast(t: Translate, nickname: string, kind: string, quota: BoardStaffQuota): string {
+    static issuedToast(t: Translate, nickname: string, kind: string, quota: BoardStaffQuota | null): string {
+        if (!quota) return t('boardSanction.issuedToastPlain', { name: nickname, kind: UtilBoardSanctionMessages.kindLabel(t, kind) });
         return t('boardSanction.issuedToast', { name: nickname, kind: UtilBoardSanctionMessages.kindLabel(t, kind), n: Math.max(0, quota.remaining) });
     }
 

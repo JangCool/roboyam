@@ -18,12 +18,14 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  * @param avatarUrl  프로필 아바타 그림 주소 — 회원은 늘 채운다(고르지 않았으면 {@code basic-default}), 비회원·숨긴 글·지운 댓글은 null(커머스 1-2 결정 14)
  * @param business   사업자 뱃지 — 그 회원의 사업자 신원이 {@code APPROVED}(재심사 중·반려·정지·탈퇴는 false, 서비스별 승인은 보지 않는다, 본인이 숨길 수 없다).
  *                   비회원·숨긴 글·지운 댓글은 false
+ * @param operator   운영자 회원 계정(관리자 앱 운영자에게 연결되고 힘이 살아 있음 — operator-member-account-contract 정책 10)의 글·댓글이면 true —
+ *                   이름 옆 「운영자」 공식 뱃지. 비회원·숨긴 글·지운 댓글은 false
  */
 public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
-                             AuthorDecorationView decoration, String avatarUrl, boolean business) {
+                             AuthorDecorationView decoration, String avatarUrl, boolean business, boolean operator) {
 
     /** 같은 작성자에 메모만 바꾼 것 */
     public PostAuthorView withMemo(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, business);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, business, operator);
     }
 }
