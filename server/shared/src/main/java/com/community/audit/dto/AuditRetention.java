@@ -58,8 +58,9 @@ public final class AuditRetention {
             AuditActions.EMOTICON_PACK_PRICE, AuditActions.EMOTICON_SETTINGS_UPDATE,
             // 로보티콘 S3 — 유료 팩 판매 예외 환불(결제 취소 · 보유 해제)
             AuditActions.EMOTICON_SALE_REFUND,
-            // 로보티콘 S4 — 작가 정산 확정(금액 굳힘)·보류·보류 풀기·지급 완료 기록
-            AuditActions.EMOTICON_SETTLEMENT_CONFIRM, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditActions.EMOTICON_SETTLEMENT_UNHOLD, AuditActions.EMOTICON_SETTLEMENT_PAID);
+            // 로보티콘 S4 — 작가 정산 확정(금액 굳힘)·보류·보류 풀기·지급 완료 기록 · 포기(탈퇴 작가 — 회원 동의·운영자 포기 처리, V148)
+            AuditActions.EMOTICON_SETTLEMENT_CONFIRM, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditActions.EMOTICON_SETTLEMENT_UNHOLD, AuditActions.EMOTICON_SETTLEMENT_PAID,
+            AuditActions.EMOTICON_SETTLEMENT_WAIVE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,

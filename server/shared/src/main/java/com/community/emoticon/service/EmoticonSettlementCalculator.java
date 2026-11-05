@@ -47,6 +47,19 @@ public class EmoticonSettlementCalculator {
             return new Frozen(salesCount, salesAmount, refundCount, refundAmount, vat, base, feeRatePercent, fee, share, carriedIn, withholding, payout, carriedOut,
                     payeeType, payDate, closesAt);
         }
+
+        /** 이 줄의 합(작가 몫 + 넘어온 금액, 원천징수 전) — 양수면 탈퇴 작가 규칙에서 지급 대상, 포기하면 포기한 금액 */
+        public long total() {
+            return share + carriedIn;
+        }
+
+        /**
+         * 포기(V148)할 때 굳힐 값 — 지급하지 않는다(지급액·원천징수 0, 넘긴 금액 = 합). 작가 구분이 없으면(정산 정보 없음) 개인으로 굳힌다(계산도 개인으로 어림했다).
+         */
+        public Frozen waive() {
+            return new Frozen(salesCount, salesAmount, refundCount, refundAmount, vat, base, feeRatePercent, fee, share, carriedIn, 0, 0, total(),
+                    payeeType == null ? "INDIVIDUAL" : payeeType, payDate, closesAt);
+        }
     }
 
     /** 계산에 쓰는 설정 값 + 업무일 달력(지급 예정일을 미룬다 — 후속 결정 4) */
@@ -116,11 +129,34 @@ public class EmoticonSettlementCalculator {
      * 한 작가의 처음 달부터 {@code end} 까지(굳힌 달 포함). {@code lock} 이면 아직 정산에 들어가지 않은 구매 행을 잠근다(확정 — 부르는 쪽이 {@code lockCreator} 를 먼저 잡는다).
      */
     public CreatorLines creator(long creatorId, LocalDate end, boolean lock) {
+        return creator(creatorId, end, lock, store.withdrawn(List.of(creatorId)).contains(creatorId));
+    }
+
+    /**
+     * {@link #creator(long, LocalDate, boolean)} 와 같되 탈퇴 작가 규칙(최소 지급액 없음)을 쓸지 부르는 쪽이 정한다 — 탈퇴 화면의 「탈퇴하면 받을 남은 수익」과 탈퇴 완료 트랜잭션
+     * (회원 상태가 아직 WITHDRAWN 이 아니다)이 탈퇴 뒤의 계산으로 본다.
+     */
+    public CreatorLines creator(long creatorId, LocalDate end, boolean lock, boolean withdrawnRules) {
         Map<LocalDate, SettlementRow> rows = store.byCreator(creatorId).stream().collect(Collectors.toMap(SettlementRow::month, Function.identity(), (a, b) -> a, TreeMap::new));
         List<ActivityRow> activity = store.unsettled(creatorId, lock);
         PayoutRow payee = payouts.find(creatorId).orElse(null);
-        Rules rules = rules().forCreator(store.withdrawn(List.of(creatorId)).contains(creatorId));
+        Rules rules = rules().forCreator(withdrawnRules);
         return new CreatorLines(walk(creatorId, rows, activity, 0, null, end, rules, payee == null ? null : payee.payeeType()), payee);
+    }
+
+    /**
+     * 아직 지급되지 않은 수익(원천징수 전, 원) — 탈퇴 작가 규칙(최소 지급액 없음)으로 본 줄마다: 확정·보류된 굳힌 줄은 굳힌 지급 대상(지급액 + 원천징수), 굳히지 않은 줄은 계산한 지급 대상.
+     * 지급 완료·포기 줄은 0. 음수(받을 돈)는 더하지 않는다(줄마다 0 이상 — 음수 이월 = 끝남).
+     */
+    public static long unpaid(CreatorLines c) {
+        long sum = 0;
+        for (Line l : c.lines()) {
+            if (l.status() == EmoticonSettlementStatus.PAID || l.status() == EmoticonSettlementStatus.WAIVED) {
+                continue;
+            }
+            sum += Math.max(0, l.payout() + l.withholding());
+        }
+        return sum;
     }
 
     /**
@@ -171,7 +207,7 @@ public class EmoticonSettlementCalculator {
                 out.add(new Line(creatorId, m, row, row.status(), true, f.salesCount(), f.salesAmount(), f.refundCount(), f.refundAmount(), f.vat(), f.base(),
                         f.feeRatePercent(), f.fee(), f.share(), f.carriedIn(), f.withholding(), f.payout(), f.carriedOut(), f.payeeType(), f.payDate(), f.closesAt(),
                         List.of(), List.of()));
-                carry = f.carriedOut();
+                carry = row.carryForward(); // 포기한 줄의 양수는 이어지지 않는다(V148)
                 continue;
             }
             List<ActivityRow> s = new ArrayList<>(pendingSales);

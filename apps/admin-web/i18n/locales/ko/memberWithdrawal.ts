@@ -132,6 +132,8 @@ export default {
         paidPoints: '충전 포인트',
         refundEstimate: '환불 예상액',
         bizAmount: '광고 남은 기간',
+        emoticonEarnings: '로보티콘 수익 포기',
+        emoticonEarningsNote: '원천징수 전',
         consentedAt: '동의 시각',
         none: '포기한 것이 없어요.',
         won: '{amount}원',

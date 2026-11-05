@@ -7,6 +7,7 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.business.service.BusinessWithdrawal;
 import com.community.emoticon.service.EmoticonCreatorWithdrawal;
+import com.community.emoticon.service.EmoticonSettlementService;
 import com.community.hotdeal.service.DealWithdrawal;
 import com.community.media.service.ImageStorage;
 import com.community.point.service.PointService;
@@ -38,7 +39,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <ol>
  *   <li>내가 모임장인 소모임은 신청 때 저장한 선택(넘기기·해산·자동 — 대상이 멤버가 아니거나 신청 뒤 새로 모임장이 됐으면 자동)으로 처리 → 모든 소모임에서 나가기(글 가림·멤버 수) + 줄 삭제</li>
  *   <li>포인트: 남은 묶음 전부 {@code WITHDRAW_FORFEIT}(원장 보존) · 아이템 회수 · 사업자 신원 탈퇴(기다리기/포기) · 핫딜 작성자 종료 ·
- *       로보티콘 작가 팩 새 판매 멈춤·대기 심사 건 닫기({@link EmoticonCreatorWithdrawal})</li>
+ *       로보티콘 작가 팩 새 판매 멈춤·대기 심사 건 닫기({@link EmoticonCreatorWithdrawal}) · 정산 정보 없이 남은 로보티콘 수익은 동의했으면 포기, 아니면 시스템 보류(V148)</li>
  *   <li>재가입 제한 해시(이메일·소셜·본인인증, {@link WithdrawalRejoinPolicy} 의 끝까지) · 결제 이력이 있으면 연락용 이메일 분리 보관</li>
  *   <li>설정·이력·관계·역할·토큰·알림·내 쪽지함 삭제, 대기 요청·대기 메일 취소, 주소록 삭제, 배송지 암호문 즉시 마스킹, 작성 90일 지난 글·댓글 IP 삭제</li>
  *   <li>프로필·계정 익명화(닉네임·이메일·비밀번호 NULL, WITHDRAWN, deleted_at) · 세션 모두 종료 · 감사 {@code MEMBER_WITHDRAW}(돈 관련) · 신청 줄 COMPLETED</li>
@@ -164,6 +165,8 @@ public class WithdrawalCompletionService {
         DealWithdrawal.Result dealResult = deals.withdraw(userId);
         // 로보티콘 작가 팩 — 새 판매만 멈춘다(가진 사람은 계속 쓴다) · 대기 심사 건 닫기(후속 결정 6). 남은 정산은 정산 계산이 최소 지급액 없이 지급한다
         EmoticonCreatorWithdrawal.Result emoticonResult = emoticons.withdraw(userId);
+        // 로보티콘 남은 정산(V148) — 정산 정보 없이 남은 수익은 신청 때 동의했으면(그 금액 이하) 포기, 아니면(운영자 강제 탈퇴 포함) 시스템 보류. 정산 정보가 있으면 그대로(최소 지급액 없이 지급)
+        EmoticonSettlementService.WithdrawalClosure emoticonSettlement = emoticons.closeSettlement(userId, request.forfeitEmoticonEarnings(), request.forfeitConsentedAt());
 
         // 3. 재가입 제한·연락용 이메일(지우기 전에 읽는다)
         WithdrawalRejoinPolicy.Rejoin rejoin = rejoinPolicy.of(userId, request.priorStatus(), now);
@@ -209,6 +212,10 @@ public class WithdrawalCompletionService {
         detail.put("endedDeals", dealResult.endedDeals());
         detail.put("stoppedEmoticonPacks", emoticonResult.stoppedPacks());
         detail.put("closedEmoticonReviews", emoticonResult.closedReviews());
+        // 로보티콘 수익 포기 동의의 증빙(돈 관련 5년) — 동의 금액 · 정리 결과(NONE·PAYABLE·WAIVED·HELD)와 그 금액
+        detail.put("forfeitEmoticonEarnings", request.forfeitEmoticonEarnings() == null ? 0L : request.forfeitEmoticonEarnings());
+        detail.put("emoticonSettlement", emoticonSettlement.outcome());
+        detail.put("emoticonSettlementAmount", emoticonSettlement.amount());
         detail.put("source", request.source().name());
         AuditEvent event = actor.event(userId);
         for (Map.Entry<String, Object> e : detail.entrySet()) {

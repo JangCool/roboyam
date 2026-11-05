@@ -107,14 +107,18 @@ public class WithdrawalQueries {
     /**
      * 마지막 거래 시각 — 결제 주문(결제 완료·취소 완료), 공구 환불, 사업자 신청 건 결제·입금 확인 중 가장 늦은 것. 결제 이력이 없으면 비어 있다(연락용 이메일을 저장하지 않는다 — 17-2).
      * 포인트샵 구매는 포인트 거래라 돈 거래 이력으로 보지 않는다.
+     * 로보티콘 <b>작가 쪽</b> 돈 거래(내 팩이 팔리거나 환불된 시각 · 정산 지급 기록)도 넣는다(V148 — 정산 정보 없이 탈퇴한 작가의 보류 정산을 운영자가 분리 보관 연락 이메일로 연락해 끝내므로,
+     * 판매 수익이 있는 작가는 직접 결제한 적이 없어도 연락처를 남긴다).
      */
     public Optional<Instant> lastTransactionAt(long userId) {
         OffsetDateTime at = jdbc.queryForObject("SELECT greatest("
                 + "(SELECT max(o.paid_at) FROM payment_orders o WHERE o.user_id = ? AND o.status IN ('PAID', 'PARTIAL_CANCELED', 'CANCELED')), "
                 + "(SELECT max(c.completed_at) FROM payment_cancels c JOIN payment_orders o ON o.id = c.payment_order_id WHERE o.user_id = ? AND c.status = 'SUCCEEDED'), "
                 + "(SELECT max(p.refunded_at) FROM group_buy_participations p WHERE p.user_id = ?), "
-                + "(SELECT max(greatest(b.paid_at, b.deposit_confirmed_at)) FROM biz_applications b WHERE b.user_id = ? AND (b.paid_at IS NOT NULL OR b.deposit_confirmed_at IS NOT NULL)))",
-                OffsetDateTime.class, userId, userId, userId, userId);
+                + "(SELECT max(greatest(b.paid_at, b.deposit_confirmed_at)) FROM biz_applications b WHERE b.user_id = ? AND (b.paid_at IS NOT NULL OR b.deposit_confirmed_at IS NOT NULL)), "
+                + "(SELECT max(greatest(e.paid_at, e.refunded_at)) FROM emoticon_purchases e WHERE e.creator_id = ? AND e.paid_at IS NOT NULL), "
+                + "(SELECT max(s.paid_at) FROM emoticon_settlements s WHERE s.creator_id = ?))",
+                OffsetDateTime.class, userId, userId, userId, userId, userId, userId);
         return Optional.ofNullable(at).map(OffsetDateTime::toInstant);
     }
 

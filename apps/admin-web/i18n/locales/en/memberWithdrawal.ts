@@ -122,6 +122,8 @@ export default {
         paidPoints: 'Charged points',
         refundEstimate: 'Refund estimate',
         bizAmount: 'Remaining ad period',
+        emoticonEarnings: 'Robotikon earnings waived',
+        emoticonEarningsNote: 'before withholding',
         consentedAt: 'Consented at',
         none: 'Nothing was forfeited.',
         won: '₩{amount}',

@@ -9,7 +9,9 @@
           (찾을 수 없음 · 예정 아님 · 환불 기간 · 앞 달 미확정 · 정산 정보 없음). 서랍에서 [보류](사유)·[보류 풀기](보류 전 상태로 — 확정했던 줄은 확정)·[지급 완료 기록](이체일·메모 — 실제 이체는 사이트 밖).
         정산 계좌 전체 보기: 사유 대화상자(`MemberReasonDialog` — 탈퇴 회원 연락처 열람과 같은 모양) → 정산 줄 주소 `POST …/settlements/{id}/account/reveal` → 서버가 감사·처리 기록(`ACCOUNT_VIEWED`)을 남기고
           10분만 준다 → 저절로 가린다. 값은 이 화면 메모리에만 둔다. 열람 뒤 서랍을 다시 읽어 처리 기록 줄을 보인다.
-        권한: 화면·처리 `emoticon.settlement`(메뉴) · 계좌 전체 보기 `emoticon.payout.pii`(서버 `Permission`).
+        포기(V148 — 정산 정보 없이 탈퇴한 작가): 상태 `WAIVED`(포기) 딱지 · 합계 「포기한 금액」 · 줄의 이월 칸에 「포기 N원」. 탈퇴 때 작가가 동의했으면 서버가 탈퇴 완료 때 포기로 굳히고,
+          강제 탈퇴는 시스템 보류(`hold.by` null)로 남는다 → 서랍 [포기 처리](보류 + 탈퇴 작가 + 정산 정보 없음일 때만) → 사유 대화상자 → `POST …/{id}/waive`(그 달과 그 앞의 끝나지 않은 줄을 포기로 굳힌다).
+        권한: 화면·처리 `emoticon.settlement`(메뉴 — 포기 처리 포함) · 계좌 전체 보기 `emoticon.payout.pii`(서버 `Permission`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('emoticon.settlementsTitle')" :subtitle="t('emoticon.settlementsSubtitle')" />
@@ -20,7 +22,7 @@
                 <Select v-model="month" :input-id="ids.month" :options="monthOptions" option-label="label" option-value="value" :loading="loading" class="w-56" @update:model-value="selectMonth" />
                 <span v-if="list" class="text-xs text-muted-color">{{ t('emoticon.monthPayoutLine', { date: payoutDateText, day: list.rules.settlementDay }) }}</span>
             </div>
-            <dl v-if="list" class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            <dl v-if="list" class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
                 <div v-for="cell in totalCells" :key="cell.key" class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ cell.label }}</dt>
                     <dd class="m-0 mt-0.5 text-[13px] font-semibold tabular-nums" :class="cell.tone">{{ cell.value }}</dd>
@@ -78,8 +80,10 @@
                         <NuxtLink v-if="!data.creator.withdrawn" :to="UtilEmoticon.memberLink(data.creator.memberNo)" class="text-[13px] text-primary hover:underline" @click.stop>{{ data.creator.nickname }}</NuxtLink>
                         <template v-else>
                             <span class="text-[13px] text-muted-color">{{ data.creator.nickname }}</span>
-                            <!-- 탈퇴 작가는 최소 지급액 없이 남은 금액을 지급한다(후속 결정 6 — 서버 `Rules#forCreator`) -->
-                            <span class="mt-0.5 block max-w-56 text-[11px] leading-snug text-amber-700 dark:text-amber-400">{{ t('emoticon.settlementWithdrawnNote') }}</span>
+                            <!-- 탈퇴 작가는 최소 지급액 없이 남은 금액을 지급한다(후속 결정 6 — 서버 `Rules#forCreator`). 정산 정보가 없으면 지급할 곳이 없다(V148 — 보류 → 포기 처리). 포기로 끝난 줄은 안내 없음 -->
+                            <span v-if="data.status !== 'WAIVED'" class="mt-0.5 block max-w-56 text-[11px] leading-snug text-amber-700 dark:text-amber-400">
+                                {{ data.account ? t('emoticon.settlementWithdrawnNote') : t('emoticon.settlementWithdrawnNoAccountShort') }}
+                            </span>
                         </template>
                     </template>
                 </Column>
@@ -103,7 +107,8 @@
                             <div v-else-if="data.carriedIn < 0" class="text-amber-700 dark:text-amber-400">{{ t('emoticon.carriedInDeductShort', { amount: (-data.carriedIn).toLocaleString(locale) }) }}</div>
                             <div v-if="data.carriedOut > 0" class="text-amber-700 dark:text-amber-400">{{ t('emoticon.carriedOutShort', { amount: data.carriedOut.toLocaleString(locale) }) }}</div>
                             <div v-else-if="data.carriedOut < 0" class="text-amber-700 dark:text-amber-400">{{ t('emoticon.carriedOutDeductShort', { amount: (-data.carriedOut).toLocaleString(locale) }) }}</div>
-                            <span v-if="!data.carriedIn && !data.carriedOut" class="text-muted-color">—</span>
+                            <div v-if="data.waivedAmount > 0" class="text-amber-700 dark:text-amber-400">{{ t('emoticon.waivedShort', { amount: data.waivedAmount.toLocaleString(locale) }) }}</div>
+                            <span v-if="!data.carriedIn && !data.carriedOut && !data.waivedAmount" class="text-muted-color">—</span>
                         </div>
                     </template>
                 </Column>
@@ -147,6 +152,7 @@
             @hold="openHold"
             @unhold="unhold"
             @paid="openPaid"
+            @waive="openWaive"
             @reveal="detail && openReveal(detail)"
             @mask="detail && mask(detail.id)"
         />
@@ -162,6 +168,19 @@
             :error="dialogError"
             :field-error="dialogFieldError"
             @submit="submitHold"
+        />
+
+        <EmoticonReasonDialog
+            v-model:visible="waiveOpen"
+            :title="t('emoticon.waiveTitle', { name: detail?.creator.nickname ?? '' })"
+            :description="t('emoticon.waiveBody')"
+            :label="t('emoticon.waiveReason')"
+            :confirm-label="t('emoticon.actWaive')"
+            :presets="waivePresets"
+            :busy="working === 'waive'"
+            :error="dialogError"
+            :field-error="dialogFieldError"
+            @submit="submitWaive"
         />
 
         <MemberReasonDialog
@@ -273,6 +292,7 @@ const totalCells = computed(() => {
         { key: 'withholding', label: t('emoticon.calc.withholding'), value: won(s.withholdingAmount), tone: '' },
         { key: 'payout', label: t('emoticon.calc.payout'), value: won(s.payoutAmount), tone: 'text-primary' },
         { key: 'carriedOut', label: t('emoticon.calc.carriedOut'), value: won(s.carriedOut), tone: s.carriedOut ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color' },
+        { key: 'waived', label: t('emoticon.calc.waived'), value: won(s.waivedAmount), tone: s.waivedAmount ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color' },
     ];
 });
 
@@ -330,7 +350,7 @@ function toggleAll(on: boolean): void {
     selectedIds.value = on ? [...confirmableIds.value] : [];
 }
 
-const working = ref<'confirm' | 'hold' | 'unhold' | 'paid' | 'reveal' | null>(null);
+const working = ref<'confirm' | 'hold' | 'unhold' | 'paid' | 'waive' | 'reveal' | null>(null);
 const dialogError = ref('');
 const dialogFieldError = ref('');
 
@@ -490,6 +510,39 @@ async function unhold(): Promise<void> {
     } catch (e) {
         const error = toApiError(e);
         if (!handleStale(error)) toast.error(`${t('emoticon.actionFailed')} — ${error.message}`, 8000);
+    } finally {
+        working.value = null;
+    }
+}
+
+// 포기 처리(V148) — 정산 정보 없이 탈퇴한 작가의 보류. 사유 400 `fields.reason` 은 칸 아래, 404·409 `EMOTICON_SETTLEMENT_NOT_WAIVABLE` 은 토스트 후 다시 읽기
+const waiveOpen = ref(false);
+const waivePresets = computed<EmoticonReasonPreset[]>(() =>
+    (['NO_CONTACT', 'DECLINED'] as const).map((code) => ({ code, label: t(`emoticon.waivePreset.${code}`), text: t(`emoticon.waivePresetText.${code}`) })),
+);
+
+function openWaive(): void {
+    if (!detail.value || working.value || !UtilEmoticon.settlementWaivable(detail.value)) return;
+    dialogError.value = '';
+    dialogFieldError.value = '';
+    waiveOpen.value = true;
+}
+
+async function submitWaive(reason: string): Promise<void> {
+    const target = detail.value;
+    if (!target || working.value) return;
+    working.value = 'waive';
+    dialogError.value = '';
+    dialogFieldError.value = '';
+    try {
+        afterAction(await api.waiveSettlement(target.id, reason));
+        waiveOpen.value = false;
+        toast.success(t('emoticon.waived', { name: target.creator.nickname }));
+    } catch (e) {
+        const error = toApiError(e);
+        if (handleStale(error)) waiveOpen.value = false;
+        else if (error.field('reason')) dialogFieldError.value = error.field('reason')!;
+        else dialogError.value = `${t('emoticon.actionFailed')} — ${error.message}`;
     } finally {
         working.value = null;
     }

@@ -34,8 +34,8 @@ public final class MemberWithdrawalAdminView {
     public record Choices(String paidPointChoice, String deliveredChoice, String bizChoice, List<GroupChoice> groupChoices) {
     }
 
-    /** 포기 동의 금액 — 포기한 것이 없으면 모두 0, {@code consentedAt} null */
-    public record Forfeit(long paidPoints, long refundEstimate, long bizAmount, Instant consentedAt) {
+    /** 포기 동의 금액 — 포기한 것이 없으면 모두 0, {@code consentedAt} null. {@code emoticonEarnings} = 정산 정보 없이 남은 로보티콘 수익을 받지 않기로 한 금액(V148) */
+    public record Forfeit(long paidPoints, long refundEstimate, long bizAmount, Instant consentedAt, long emoticonEarnings) {
     }
 
     /**

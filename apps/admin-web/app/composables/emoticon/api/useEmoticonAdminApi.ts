@@ -36,7 +36,8 @@ import type {
  *  - `GET  /api/admin/emoticons/creators/{memberNo}` → `EmoticonCreatorSummary | null`(회원 상세 한 줄). 권한 `emoticon.read`
  *  - 판매(유료 팩 실결제): `GET /api/admin/emoticons/sales?from&to&packId&status&page&size` → `EmoticonSalePage` · `POST …/sales/{id}/refund { reason }`(예외 환불 — 결제 취소, 이미 환불이면 `409`). 권한 `emoticon.sales`
  *  - 정산: `GET /api/admin/emoticons/settlements?month=YYYY-MM` → `EmoticonSettlementList` · `GET …/settlements/{id}` · `POST …/settlements/confirm { ids }`
- *      · `POST …/{id}/hold { reason }` · `…/unhold` · `…/paid { transferDate, memo }` 권한 `emoticon.settlement`
+ *      · `POST …/{id}/hold { reason }` · `…/unhold` · `…/paid { transferDate, memo }` · `…/waive { reason }`(포기 처리, V148 — 사유 `400 fields.reason` → 404
+ *      → `409 EMOTICON_SETTLEMENT_NOT_WAIVABLE`: 탈퇴한 작가 · 정산 정보 없음 · 굳히지 않은 보류 줄만) 권한 `emoticon.settlement`
  *  - 정산 계좌 원문: `POST /api/admin/emoticons/settlements/{id}/account/reveal { reason }` 권한 `emoticon.payout.pii`(S4 정산 줄 단위 — 처리 기록 `ACCOUNT_VIEWED`).
  *      S2 작가 단위 `POST …/creators/{memberNo}/payout-account/reveal` 은 서버에 남아 있지만 화면은 부르지 않는다
  *
@@ -193,6 +194,13 @@ export function useEmoticonAdminApi() {
         /** 보류 풀기 — 보류 전 상태로 돌아간다(굳힌 줄은 확정, 아니면 예정) */
         unholdSettlement: (id: string): Promise<EmoticonSettlementDetail> =>
             client.post<EmoticonSettlementDetail>(PATH.settlementAction(id, 'unhold')),
+
+        /**
+         * 포기 처리(사유 5~200자) — 정산 정보 없이 탈퇴한 작가의 보류 줄을 끝낸다. 서버가 그 달과 그 앞의 굳히지 않은 줄을 포기로 굳히고
+         * 처리 기록 `WAIVED`·감사 `EMOTICON_SETTLEMENT_WAIVE` 를 남긴다
+         */
+        waiveSettlement: (id: string, reason: string): Promise<EmoticonSettlementDetail> =>
+            client.post<EmoticonSettlementDetail>(PATH.settlementAction(id, 'waive'), { reason }),
 
         /** 지급 완료 기록(실제 이체는 사이트 밖) */
         markSettlementPaid: (id: string, body: EmoticonSettlementPaidRequest): Promise<EmoticonSettlementDetail> =>

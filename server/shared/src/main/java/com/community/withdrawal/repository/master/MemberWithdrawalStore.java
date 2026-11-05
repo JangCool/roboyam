@@ -28,12 +28,13 @@ public class MemberWithdrawalStore {
      * @param source           신청 경로(회원 본인 · 운영자 강제)
      * @param forceReasonKind  운영자 강제 탈퇴의 사유 종류(회원 신청이면 null) — {@code forceMemo}·{@code forceOperatorId} 도 같다
      * @param cancelChannel    운영자 대리 취소의 요청 경로(회원 본인 취소·취소 아님이면 null) — {@code cancelMemo}·{@code cancelOperatorId} 도 같다
+     * @param forfeitEmoticonEarnings 로보티콘 수익 포기 동의 금액(V148 — 정산 정보 없이 수익이 남은 작가가 동의했을 때만, 동의 시각은 {@code forfeitConsentedAt})
      */
     public record Row(long id, long userId, WithdrawalStatus status, WithdrawalSource source, String priorStatus, String reason, String reasonNote, WithdrawalChoices choices,
                       String groupChoicesJson, Long forfeitPaidPoints, Long forfeitRefundEstimate, Long forfeitBizAmount, Instant forfeitConsentedAt, String pendingJson,
                       int pendingCount, Instant expectedCompleteAt, Instant rejoinUntil, Boolean hasPaymentHistory, Instant progressNotifiedAt, Instant requestedAt,
                       Instant completedAt, Instant canceledAt, String forceReasonKind, String forceMemo, Long forceOperatorId, String cancelChannel, String cancelMemo,
-                      Long cancelOperatorId) {
+                      Long cancelOperatorId, Long forfeitEmoticonEarnings) {
 
         public boolean scheduled() {
             return status == WithdrawalStatus.SCHEDULED;
@@ -43,7 +44,8 @@ public class MemberWithdrawalStore {
     /** 새 신청 줄 — {@code force} 는 운영자 강제 탈퇴일 때만(회원 신청이면 null) */
     public record NewRow(long id, long userId, WithdrawalStatus status, WithdrawalSource source, String priorStatus, String reason, String reasonNote, WithdrawalChoices choices,
                          String groupChoicesJson, Long forfeitPaidPoints, Long forfeitRefundEstimate, Long forfeitBizAmount, Instant forfeitConsentedAt, String pendingJson,
-                         int pendingCount, Instant expectedCompleteAt, Instant rejoinUntil, Boolean hasPaymentHistory, Instant requestedAt, Force force) {
+                         int pendingCount, Instant expectedCompleteAt, Instant rejoinUntil, Boolean hasPaymentHistory, Instant requestedAt, Force force,
+                         Long forfeitEmoticonEarnings) {
     }
 
     /** 운영자 강제 탈퇴 정보 */
@@ -57,7 +59,7 @@ public class MemberWithdrawalStore {
     public static final String COLUMNS = "id, user_id, status, source, prior_status, reason, reason_note, paid_point_choice, delivered_choice, biz_choice, group_choices::text, "
             + "forfeit_paid_points, forfeit_refund_estimate, forfeit_biz_amount, forfeit_consented_at, pending_snapshot::text, pending_count, expected_complete_at, rejoin_until, "
             + "has_payment_history, progress_notified_at, requested_at, completed_at, canceled_at, force_reason_kind, force_memo, force_operator_id, cancel_channel, cancel_memo, "
-            + "cancel_operator_id";
+            + "cancel_operator_id, forfeit_emoticon_earnings";
 
     private final JdbcTemplate jdbc;
 
@@ -69,13 +71,13 @@ public class MemberWithdrawalStore {
         Force force = r.force();
         jdbc.update("INSERT INTO member_withdrawals (id, user_id, status, source, prior_status, reason, reason_note, paid_point_choice, delivered_choice, biz_choice, group_choices, "
                         + "forfeit_paid_points, forfeit_refund_estimate, forfeit_biz_amount, forfeit_consented_at, pending_snapshot, pending_count, expected_complete_at, "
-                        + "rejoin_until, has_payment_history, requested_at, completed_at, force_reason_kind, force_memo, force_operator_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "rejoin_until, has_payment_history, requested_at, completed_at, force_reason_kind, force_memo, force_operator_id, forfeit_emoticon_earnings) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 r.id(), r.userId(), r.status().name(), r.source().name(), r.priorStatus(), r.reason(), r.reasonNote(), r.choices().paidPointChoice(), r.choices().deliveredChoice(),
                 r.choices().bizChoice(), r.groupChoicesJson(), r.forfeitPaidPoints(), r.forfeitRefundEstimate(), r.forfeitBizAmount(), ts(r.forfeitConsentedAt()), r.pendingJson(),
                 r.pendingCount(), ts(r.expectedCompleteAt()), ts(r.rejoinUntil()), r.hasPaymentHistory(), ts(r.requestedAt()),
                 r.status() == WithdrawalStatus.COMPLETED ? ts(r.requestedAt()) : null, force == null ? null : force.reasonKind(), force == null ? null : force.memo(),
-                force == null ? null : force.operatorId());
+                force == null ? null : force.operatorId(), r.forfeitEmoticonEarnings());
     }
 
     public Optional<Row> find(long id) {
@@ -139,7 +141,8 @@ public class MemberWithdrawalStore {
                 longOrNull(rs, "forfeit_paid_points"), longOrNull(rs, "forfeit_refund_estimate"), longOrNull(rs, "forfeit_biz_amount"), at(rs, "forfeit_consented_at"),
                 rs.getString("pending_snapshot"), rs.getInt("pending_count"), at(rs, "expected_complete_at"), at(rs, "rejoin_until"), (Boolean) rs.getObject("has_payment_history"),
                 at(rs, "progress_notified_at"), at(rs, "requested_at"), at(rs, "completed_at"), at(rs, "canceled_at"), rs.getString("force_reason_kind"), rs.getString("force_memo"),
-                longOrNull(rs, "force_operator_id"), rs.getString("cancel_channel"), rs.getString("cancel_memo"), longOrNull(rs, "cancel_operator_id"));
+                longOrNull(rs, "force_operator_id"), rs.getString("cancel_channel"), rs.getString("cancel_memo"), longOrNull(rs, "cancel_operator_id"),
+                longOrNull(rs, "forfeit_emoticon_earnings"));
     }
 
     private static Long longOrNull(ResultSet rs, String column) throws SQLException {

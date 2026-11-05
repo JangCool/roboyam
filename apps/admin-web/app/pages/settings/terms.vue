@@ -57,6 +57,8 @@
             <Message v-if="activeKind === 'ROBOTIKON_CONTRACT'" severity="info" :closable="false">
                 <span class="text-[13px]">{{ t('terms.robotikonNote') }}</span>
                 <NuxtLink to="/robotikon/settings" class="ml-1 text-[13px] font-medium whitespace-nowrap text-primary hover:underline">{{ t('terms.robotikonSettingsLink') }} ›</NuxtLink>
+                <!-- 넣을 조항 초안의 제목 8개(정본: docs/features/emoticon-contract.md 「상품화 계약에 넣을 조항(초안, 법무 확인 필요)」) — 운영자 화면이라 문서 경로 대신 조항 제목만 보인다 -->
+                <span class="mt-1.5 block text-[13px]" data-testid="terms-robotikon-clauses">{{ t('terms.robotikonClauses') }}</span>
             </Message>
 
             <!-- 상태 -->

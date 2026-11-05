@@ -26,15 +26,17 @@ public final class EmoticonSettlementView {
 
     /**
      * {@code GET /api/admin/emoticons/settlements?month=} 의 한 줄. {@code payeeType} 은 굳힌 줄이면 확정 때의 구분, 예정이면 지금 정산 정보(없으면 null — 원천징수는 개인으로 어림).
-     * 목업에 없던 칸: {@code refundCount} · {@code shareAmount}(원천징수 전 작가 몫) · {@code feeRatePercent}(굳힌 줄은 확정 때 값) · {@code confirmedAt}.
+     * 목업에 없던 칸: {@code refundCount} · {@code shareAmount}(원천징수 전 작가 몫) · {@code feeRatePercent}(굳힌 줄은 확정 때 값) · {@code confirmedAt}(포기 줄은 포기한 시각).
+     * 포기({@code status = WAIVED}, V148): {@code waivedAmount} = 그 줄에서 포기한 금액(원천징수 전 — 다른 상태는 0), {@code carriedOut} 은 다음 달로 이어지는 금액만(포기한 양수는 빠진다),
+     * {@code payoutAmount} 0. 처리 기록의 {@code WAIVED} 가 회원 동의(동의 시각) · 운영자 포기 처리(사유·처리자)를 가른다.
      */
     public record AdminRow(String id, String month, EmoticonAdminView.CreatorRef creator, String payeeType, String businessNoMasked, int salesCount, long salesAmount,
                            int refundCount, long refundAmount, long vatAmount, long baseAmount, int feeRatePercent, long feeAmount, long shareAmount, long withholdingAmount,
-                           long carriedIn, long payoutAmount, long carriedOut, String status, String payoutDate, Instant closesAt, Instant confirmedAt, AccountMasked account,
-                           Hold hold, Paid paid) {
+                           long carriedIn, long payoutAmount, long carriedOut, long waivedAmount, String status, String payoutDate, Instant closesAt, Instant confirmedAt,
+                           AccountMasked account, Hold hold, Paid paid) {
     }
 
-    public record Totals(long salesAmount, long refundAmount, long vatAmount, long feeAmount, long withholdingAmount, long payoutAmount, long carriedOut) {
+    public record Totals(long salesAmount, long refundAmount, long vatAmount, long feeAmount, long withholdingAmount, long payoutAmount, long carriedOut, long waivedAmount) {
     }
 
     public record Rules(int feeRatePercent, int payoutMinimum, int refundDays, int settlementDay) {
@@ -48,20 +50,23 @@ public final class EmoticonSettlementView {
     public record PackLine(String packId, String packName, String coverUrl, int price, int salesCount, long salesAmount, int refundCount, long refundAmount) {
     }
 
-    /** 처리 기록 — {@code CREATED} 는 그 달 첫 판매(또는 첫 환불) 때로 서버가 만들어 넣는다({@code by} null = 시스템) */
-    public record Event(String action, Instant at, String by, String note) {
+    /**
+     * 처리 기록 — {@code CREATED} 는 그 달 첫 판매(또는 첫 환불) 때로 서버가 만들어 넣는다({@code by} null = 시스템). {@code WAIVED}(포기, V148)만 {@code amount}(그 줄에서 포기한 금액) ·
+     * {@code consentedAt}(회원이 탈퇴 때 동의한 시각 — 운영자 포기 처리는 null, 그때 {@code by} = 처리한 운영자 · {@code note} = 사유). 다른 기록은 둘 다 null.
+     */
+    public record Event(String action, Instant at, String by, String note, Long amount, Instant consentedAt) {
     }
 
     /** {@code GET /api/admin/emoticons/settlements/{id}} — 줄 + 팩별 내역 + 처리 기록(최근이 앞) */
     public record AdminDetail(String id, String month, EmoticonAdminView.CreatorRef creator, String payeeType, String businessNoMasked, int salesCount, long salesAmount,
                               int refundCount, long refundAmount, long vatAmount, long baseAmount, int feeRatePercent, long feeAmount, long shareAmount,
-                              long withholdingAmount, long carriedIn, long payoutAmount, long carriedOut, String status, String payoutDate, Instant closesAt,
-                              Instant confirmedAt, AccountMasked account, Hold hold, Paid paid, List<PackLine> packs, List<Event> events) {
+                              long withholdingAmount, long carriedIn, long payoutAmount, long carriedOut, long waivedAmount, String status, String payoutDate,
+                              Instant closesAt, Instant confirmedAt, AccountMasked account, Hold hold, Paid paid, List<PackLine> packs, List<Event> events) {
 
         public static AdminDetail of(AdminRow r, List<PackLine> packs, List<Event> events) {
             return new AdminDetail(r.id(), r.month(), r.creator(), r.payeeType(), r.businessNoMasked(), r.salesCount(), r.salesAmount(), r.refundCount(), r.refundAmount(),
                     r.vatAmount(), r.baseAmount(), r.feeRatePercent(), r.feeAmount(), r.shareAmount(), r.withholdingAmount(), r.carriedIn(), r.payoutAmount(), r.carriedOut(),
-                    r.status(), r.payoutDate(), r.closesAt(), r.confirmedAt(), r.account(), r.hold(), r.paid(), packs, events);
+                    r.waivedAmount(), r.status(), r.payoutDate(), r.closesAt(), r.confirmedAt(), r.account(), r.hold(), r.paid(), packs, events);
         }
     }
 

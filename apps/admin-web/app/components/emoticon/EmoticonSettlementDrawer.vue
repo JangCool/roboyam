@@ -5,7 +5,10 @@
         · 금액 계산(판매액 − 환불 − 부가세 = 정산 기준 − 수수료(줄의 수수료율) = 작가 몫 + 이월 받음 − 원천징수 = 지급액 / 다음 달로 넘김 · 음수면 다음 달에서 차감)
           금액은 서버가 계산한 그대로(음수 가능 — 확정 뒤 환불). 정산 정보가 없는 예정 줄(`payeeType` null)의 원천징수는 개인 기준 어림값이라 그렇게 적는다.
         · 그 달의 팩별 내역 · 정산 계좌(가린 값 · [전체 보기] — `emoticon.payout.pii`, 사유 뒤 정해진 시간만 보이고 저절로 가린다) · 처리 기록.
-        아래(`emoticon.settlement`): 예정이면 [보류]·[확정](환불 기간이 끝난 달만) · 확정이면 [보류]·[지급 완료 기록](지급할 금액이 있을 때) · 보류면 [보류 풀기].
+        아래(`emoticon.settlement`): 예정이면 [보류]·[확정](환불 기간이 끝난 달만) · 확정이면 [보류]·[지급 완료 기록](지급할 금액이 있을 때) · 보류면 [보류 풀기]
+          (+ 정산 정보 없이 탈퇴한 작가의 보류면 [포기 처리] — V148, 사유 대화상자는 부모). 지급 완료·포기 줄은 더 할 일이 없다.
+        포기(`WAIVED`) 줄: 위 안내(작가 동의로 포기 · 운영자 포기 처리 — 처리 기록의 `WAIVED` 로 가른다) · 금액 계산 끝에 「포기한 금액」 · 요약의 시각은 「포기 시각」.
+        보류한 사람이 없으면(`hold.by` null) 시스템 보류(작가 강제 탈퇴)로 보인다.
         계좌 전체 값은 부모 메모리에만 있다 — 토스트·로그·주소에 싣지 않는다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
@@ -33,13 +36,16 @@
 
         <div v-else class="flex min-w-0 flex-col gap-6">
             <Message v-if="detail.hold" severity="error" :closable="false">
-                <span class="text-[13px]">{{ t('emoticon.holdNote', { by: detail.hold.by ?? t('emoticon.settlementByUnknown'), at: time.shortDateTime(detail.hold.at) }) }} — {{ detail.hold.reason }}</span>
+                <span class="text-[13px]">{{ t('emoticon.holdNote', { by: detail.hold.by ?? t('emoticon.settlementBySystem'), at: time.shortDateTime(detail.hold.at) }) }} — {{ detail.hold.reason }}</span>
+            </Message>
+            <Message v-if="detail.status === 'WAIVED'" severity="warn" :closable="false" data-testid="emoticon-settlement-waived">
+                <span class="text-[13px]">{{ waivedNote }}</span>
             </Message>
             <Message v-if="detail.paid" severity="success" :closable="false">
                 <span class="text-[13px]">{{ t('emoticon.paidNote', { date: detail.paid.transferDate, by: detail.paid.by ?? t('emoticon.settlementByUnknown') }) }}<template v-if="detail.paid.memo"> — {{ detail.paid.memo }}</template></span>
             </Message>
-            <Message v-if="detail.creator.withdrawn" severity="warn" :closable="false">
-                <span class="text-[13px]">{{ t('emoticon.settlementWithdrawnNote') }}</span>
+            <Message v-if="detail.creator.withdrawn && detail.status !== 'WAIVED'" severity="warn" :closable="false">
+                <span class="text-[13px]">{{ detail.account ? t('emoticon.settlementWithdrawnNote') : t('emoticon.settlementWithdrawnNoAccountNote') }}</span>
             </Message>
             <Message v-if="detail.status === 'ESTIMATED' && !closable" severity="info" :closable="false">
                 <span class="text-[13px]">{{ t('emoticon.notClosedNote', { at: time.shortDateTime(detail.closesAt) }) }}</span>
@@ -112,15 +118,18 @@
                             <b class="font-medium">{{ t(`emoticon.settlementAction.${ev.action}`) }}</b>
                             <span class="text-muted-color"> · {{ eventBy(ev) }} · {{ time.shortDateTime(ev.at) }}</span>
                         </span>
+                        <span v-if="ev.action === 'WAIVED'" class="text-xs text-amber-700 dark:text-amber-400">{{ waivedEventLine(ev) }}</span>
                         <span v-if="ev.note" class="text-xs text-muted-color [overflow-wrap:anywhere]">{{ ev.note }}</span>
                     </li>
                 </ul>
             </section>
         </div>
 
-        <template v-if="detail && canManage && detail.status !== 'PAID'" #footer>
+        <template v-if="detail && canManage && detail.status !== 'PAID' && detail.status !== 'WAIVED'" #footer>
             <div class="flex flex-wrap items-center justify-end gap-2">
                 <template v-if="detail.status === 'HELD'">
+                    <!-- 포기 처리(V148) — 정산 정보 없이 탈퇴한 작가의 보류만. 판정은 서버(`409 EMOTICON_SETTLEMENT_NOT_WAIVABLE`) -->
+                    <Button v-if="UtilEmoticon.settlementWaivable(detail)" type="button" :label="t('emoticon.actWaive')" icon="pi pi-ban" severity="danger" variant="outlined" :disabled="busy" data-testid="emoticon-settlement-waive" @click="emit('waive')" />
                     <Button type="button" :label="t('emoticon.actUnhold')" icon="pi pi-replay" :loading="busy" :disabled="busy" @click="emit('unhold')" />
                 </template>
                 <template v-else>
@@ -174,7 +183,7 @@ const props = withDefaults(defineProps<Props>(), {
     revealRemaining: 0,
     now: 0,
 });
-const emit = defineEmits<{ retry: []; confirm: []; hold: []; unhold: []; paid: []; reveal: []; mask: [] }>();
+const emit = defineEmits<{ retry: []; confirm: []; hold: []; unhold: []; paid: []; waive: []; reveal: []; mask: [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
@@ -187,11 +196,29 @@ function bankName(code: string): string {
     return UtilEmoticonMessages.bankName(code, localizedName);
 }
 
-/** 처리 기록의 운영자 — null 은 시스템(`CREATED`), 그 밖의 null 은 지워진 운영자 */
+/**
+ * 처리 기록의 운영자 — null 은 시스템(`CREATED` · 작가 탈퇴의 시스템 보류 `HELD` · 작가 동의 포기 `WAIVED`), 그 밖의 null 은 지워진 운영자.
+ * 운영자 포기 처리(`WAIVED` + 동의 시각 없음)의 null 은 지워진 운영자다
+ */
 function eventBy(ev: EmoticonSettlementEvent): string {
     if (ev.by) return ev.by;
-    return ev.action === 'CREATED' ? t('emoticon.settlementBySystem') : t('emoticon.settlementByUnknown');
+    const system = ev.action === 'CREATED' || ev.action === 'HELD' || (ev.action === 'WAIVED' && ev.consentedAt !== null);
+    return system ? t('emoticon.settlementBySystem') : t('emoticon.settlementByUnknown');
 }
+
+/** 포기 기록의 한 줄 — 「작가 동의로 포기 · N원 · 동의 시각」 / 「운영자 포기 처리 · N원」(사유는 `note` 줄) */
+function waivedEventLine(ev: EmoticonSettlementEvent): string {
+    const amount = won(ev.amount ?? 0);
+    return ev.consentedAt ? t('emoticon.waivedByConsent', { amount, at: time.value.shortDateTime(ev.consentedAt) }) : t('emoticon.waivedByOperator', { amount });
+}
+
+/** 포기 줄 위 안내 — 가장 최근 포기 기록으로 작가 동의 · 운영자 포기 처리를 가른다(기록이 없으면 한 줄 안내만) */
+const waivedNote = computed(() => {
+    const ev = props.detail?.events.find((e) => e.action === 'WAIVED');
+    if (!ev) return t('emoticon.waivedNote');
+    if (ev.consentedAt) return t('emoticon.waivedConsentNote', { at: time.value.shortDateTime(ev.consentedAt) });
+    return t('emoticon.waivedOperatorNote', { by: eventBy(ev), at: time.value.shortDateTime(ev.at) });
+});
 
 const head = computed(() => props.detail ?? props.summary);
 const closable = computed(() => (props.detail ? (props.now || Date.now()) >= Date.parse(props.detail.closesAt) : false));
@@ -215,7 +242,8 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
         { key: 'month', label: t('emoticon.col.month'), value: t('emoticon.monthLabel', UtilEmoticon.monthParts(h.month)) },
         { key: 'payoutDate', label: t('emoticon.col.payoutDate'), value: h.payoutDate, valueClass: UtilBizApplication.EMPH.date },
     ];
-    if (h.confirmedAt) items.push({ key: 'confirmedAt', label: t('emoticon.confirmedAt'), value: time.value.shortDateTime(h.confirmedAt) });
+    // 포기 줄의 `confirmedAt` 은 포기한 시각
+    if (h.confirmedAt) items.push({ key: 'confirmedAt', label: h.status === 'WAIVED' ? t('emoticon.waivedAt') : t('emoticon.confirmedAt'), value: time.value.shortDateTime(h.confirmedAt) });
     items.push({ key: 'id', label: t('emoticon.settlementId'), value: h.id, code: true });
     return items;
 });
@@ -242,6 +270,12 @@ const calcLines = computed(() => {
     ];
     if (d.carriedIn) out.push({ key: 'carriedIn', label: t('emoticon.calc.carriedIn'), value: d.carriedIn > 0 ? `+${won(d.carriedIn)}` : won(d.carriedIn), note: t('emoticon.calc.carriedInNote'), tone: d.carriedIn < 0 ? amber : undefined });
     out.push({ key: 'withholding', label: t('emoticon.calc.withholding'), value: minus(d.withholdingAmount), note: withholdingNote(d), tone: d.withholdingAmount ? undefined : 'text-muted-color' });
+    // 포기 줄(V148) — 지급액 0, 포기한 금액이 끝 줄. 이어지는 음수(받을 돈)가 있으면 그 줄도 보인다
+    if (d.status === 'WAIVED') {
+        out.push({ key: 'waived', label: t('emoticon.calc.waived'), value: won(d.waivedAmount), note: t('emoticon.calc.waivedNote'), tone: amber, strong: true });
+        if (d.carriedOut < 0) out.push({ key: 'carriedOut', label: t('emoticon.calc.carriedOutDeduct'), value: won(-d.carriedOut), note: t('emoticon.calc.carriedOutDeductNote'), tone: amber });
+        return out;
+    }
     if (d.carriedOut > 0) out.push({ key: 'carriedOut', label: t('emoticon.calc.carriedOut'), value: won(d.carriedOut), note: t('emoticon.calc.carriedOutNote'), tone: amber, strong: true });
     else if (d.carriedOut < 0) out.push({ key: 'carriedOut', label: t('emoticon.calc.carriedOutDeduct'), value: won(-d.carriedOut), note: t('emoticon.calc.carriedOutDeductNote'), tone: amber, strong: true });
     else out.push({ key: 'payout', label: t('emoticon.calc.payout'), value: won(d.payoutAmount), strong: true });

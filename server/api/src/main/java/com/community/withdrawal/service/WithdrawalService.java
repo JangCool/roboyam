@@ -1,6 +1,8 @@
 package com.community.withdrawal.service;
 
 import com.community.account.service.CurrentPasswordVerifier;
+import com.community.emoticon.service.EmoticonCreatorWithdrawal;
+import com.community.withdrawal.exception.WithdrawalEmoticonEarningsUnpaidException;
 import com.community.group.entity.GroupEntity;
 import com.community.group.service.GroupPeople;
 import com.community.user.entity.UserEntity;
@@ -50,6 +52,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       소셜 전용은 최근 {@code reauth-minutes} 안 로그인) → 트랜잭션(shared {@link WithdrawalRequestWriter} — 운영자 강제 탈퇴와 같은 코드): 회원 잠금(진행 중이면 409) →
  *       남은 일 셈 → 신청 줄 + WITHDRAWING + 감사 → 남은 일이 없으면 그 자리에서 완료({@link WithdrawalCompletionService} — 배치와 같은 코드), 있으면 SCHEDULED.</li>
  *   <li>포기 동의 금액은 서버 계산과 같아야 한다(다르면 400 {@code fields.forfeitConsent} — 금액이 바뀌었으니 다시 보라).</li>
+ *   <li><b>로보티콘 수익</b>(V148): 지급할 수익(양수)이 있는데 정산 정보가 없으면 {@code waiveEmoticonEarnings: true} + {@code forfeitConsent.emoticonEarnings}(같은 금액)가 있어야 한다 —
+ *       없으면 입력 검사(400) 다음, 본인 확인 앞에서 409 {@code WITHDRAWAL_EMOTICON_EARNINGS_UNPAID}(최상위 {@code unpaidEarnings}), 금액이 다르면 400 {@code fields.forfeitConsent}.
+ *       본인 확인 앞인 까닭: 정할 것이 남았는데 비밀번호 시도 횟수를 쓰게 하지 않는다. 정산 정보가 있거나 0 이하면 지금처럼 진행한다.</li>
  *   <li><b>취소</b>: 진행 중일 때만(아니면 409) — 신청 전 상태로 되돌린다. 모임장 처리는 완료 때 하므로 소모임은 그대로다.</li>
  * </ul>
  * 비밀번호 확인(느린 해시)은 트랜잭션 밖이다.
@@ -78,12 +83,14 @@ public class WithdrawalService {
     private final UserRepository users;
     private final CurrentPasswordVerifier passwords;
     private final WithdrawalProperties properties;
+    private final EmoticonCreatorWithdrawal emoticons;
     private final Clock clock;
 
     public WithdrawalService(WithdrawalQueries queries, MemberWithdrawalStore withdrawals, WithdrawalPendingResolver pending,
                              WithdrawalBusinessInfo business, WithdrawalGroupHandler groups, WithdrawalRejoinPolicy rejoin, WithdrawalRequestWriter writer,
                              WithdrawalMailSender mail, GroupPeople people, UserRepository users, CurrentPasswordVerifier passwords,
-                             WithdrawalProperties properties, ObjectProvider<Clock> clocks) {
+                             WithdrawalProperties properties, EmoticonCreatorWithdrawal emoticons, ObjectProvider<Clock> clocks) {
+        this.emoticons = emoticons;
         this.queries = queries;
         this.withdrawals = withdrawals;
         this.pending = pending;
@@ -130,7 +137,9 @@ public class WithdrawalService {
                 groupsLed(userId),
                 new WithdrawalView.Rejoin(rj.until(), rj.extendedByRestriction(), rj.restrictionEndsAt(), rj.restrictionReason()),
                 new WithdrawalView.Verification(member.hasPassword() ? "PASSWORD" : "RECENT_LOGIN", recentLoginOk(member, now)),
-                mail.supportEmail(), scheduledView);
+                mail.supportEmail(), scheduledView,
+                emoticons.summary(userId).map(s -> new WithdrawalView.EmoticonCreator(s.onSalePacks(), s.pendingReviews(), s.unpaidEarnings(), s.payoutAccountRegistered(),
+                        s.decisionRequired())).orElse(null));
     }
 
     private WithdrawalView.Money money(long userId, long paidPoints, Instant now) {
@@ -196,9 +205,28 @@ public class WithdrawalService {
         WithdrawalQueries.Losses losses = queries.losses(userId, ServiceTime.dateOf(now), now);
         WithdrawalBusinessInfo.Info biz = business.of(userId, now);
         Consent consent = consent(r, choices, losses.paidPoints(), money(userId, losses.paidPoints(), now), biz, errors);
+        // 로보티콘 — 지급할 수익이 있는데 정산 정보가 없으면 포기 동의(금액이 서버 계산과 같아야 한다) 없이는 막는다(V148). 정산 정보가 있거나 0 이하면 그대로
+        Long emoticonWaive = null;
+        Long emoticonBlocked = null;
+        Optional<EmoticonCreatorWithdrawal.Summary> creator = emoticons.summary(userId).filter(EmoticonCreatorWithdrawal.Summary::decisionRequired);
+        if (creator.isPresent()) {
+            long unpaid = creator.get().unpaidEarnings();
+            if (r.waivesEmoticonEarnings()) {
+                if (r.forfeitConsent() == null || !Objects.equals(r.forfeitConsent().emoticonEarnings(), unpaid)) {
+                    errors.put("forfeitConsent", new MessageRef("withdrawal.forfeitConsent.mismatch"));
+                }
+                emoticonWaive = unpaid;
+            } else {
+                emoticonBlocked = unpaid;
+            }
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
+        if (emoticonBlocked != null) {
+            throw new WithdrawalEmoticonEarningsUnpaidException(emoticonBlocked);
+        }
+        consent = new Consent(consent.paidPoints(), consent.refundEstimate(), consent.bizForfeit(), emoticonWaive);
 
         // 본인 확인 — 비밀번호 계정은 비밀번호(비밀번호 변경과 같은 횟수·잠금), 소셜 전용은 최근 로그인
         if (user.hasPassword()) {

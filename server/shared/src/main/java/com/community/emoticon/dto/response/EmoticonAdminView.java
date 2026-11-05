@@ -44,9 +44,12 @@ public final class EmoticonAdminView {
     public record Decision(String status, String reason, Instant decidedAt, String decidedBy, String cause) {
     }
 
-    /** {@code GET /api/admin/emoticons/reviews} 의 한 줄 */
+    /**
+     * {@code GET /api/admin/emoticons/reviews} 의 한 줄 — {@code cause} = 처리한 까닭({@code OPERATOR} 운영자 · {@code CREATOR_WITHDRAWN} 작가 탈퇴로 시스템이 닫음), 대기 중이면 null
+     * (상세 {@link Decision#cause} 와 같은 판정)
+     */
     public record ReviewRow(String id, String packId, String packName, String coverUrl, CreatorRef creator, int itemCount, String saleWish, int currentPrice,
-                            Instant submittedAt, String kind, int version, String status) {
+                            Instant submittedAt, String kind, int version, String status, String cause) {
     }
 
     /** 탭 숫자 {@code PENDING}·{@code UPDATE}·{@code REJECTED} */

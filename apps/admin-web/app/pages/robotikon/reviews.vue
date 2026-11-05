@@ -4,7 +4,7 @@
         실제 API(S1·S2). 승인·반려는 본문 없는 204 — 끝나면 목록을 다시 읽는다. 승인 `{ price }` 는 가격 대화상자에서 고른다 — 유료는 설정이 켜져 있고(`rules.paidSalesEnabled`, 기본 꺼짐)
         작가가 정산 정보(`payoutRegistered`)·지금 판 계약 동의(`contractConsent.current`)를 갖췄을 때만(걸리면 서버 `400 fields.price` — 문구로 까닭을 가른다, 대화상자 칸 아래에 보인다).
         탭(숫자): 심사 대기(처음 신청) · 새 판 심사(판매 중인 팩을 고친 것 — 심사 중에도 옛 판이 나온다) · 반려 · 전체. 고른 탭은 `?status=`, 연 건은 `?id=`(알림 링크 후보).
-        한 줄: 대표 · 팩 이름 · 작가(회원 관리 링크) · 개수 · 신청 시각 · 판(처음 / 새 판 vN) · 상태(반려·전체 탭). 줄을 누르면 서랍(`EmoticonReviewDrawer`).
+        한 줄: 대표 · 팩 이름 · 작가(회원 관리 링크) · 개수 · 신청 시각 · 판(처음 / 새 판 vN) · 상태(반려·전체 탭 — 작가 탈퇴로 닫힌 반려는 「작가 탈퇴로 자동 반려」, 줄 `cause`). 줄을 누르면 서랍(`EmoticonReviewDrawer`).
         승인: 확인창(규격 어긋남이 있으면 그 수를 함께 말한다) → 토스트 → 서랍 닫기 → 목록 다시 읽기. 반려: `EmoticonReasonDialog`(자주 쓰는 사유 + 직접 입력, 5~200자 — 작가에게 그대로).
         이미 처리된 건(409 `EMOTICON_REVIEW_NOT_PENDING`)·없는 건(404)은 토스트 + 다시 읽기.
         권한(후보 — 서버 `Permission` 에 아직 없다): 조회 `emoticon.read`(메뉴) · 승인·반려 `emoticon.review`(없으면 단추가 없다).
@@ -88,6 +88,8 @@
                 <Column v-if="tab === 'ALL' || tab === 'REJECTED'" :header="t('emoticon.col.status')" style="min-width: 6rem">
                     <template #body="{ data }">
                         <Tag :value="t(`emoticon.reviewStatus.${data.status}`)" :severity="UtilEmoticon.reviewStatusSeverity(data.status)" />
+                        <!-- 작가 탈퇴로 시스템이 닫은 반려(줄 `cause`, V148 — 상세 `decision.cause` 와 같은 판정) -->
+                        <span v-if="data.cause === 'CREATOR_WITHDRAWN'" class="mt-0.5 block text-[11px] leading-snug text-amber-700 dark:text-amber-400" data-testid="emoticon-review-creator-withdrawn">{{ t('emoticon.rejectedCreatorWithdrawn') }}</span>
                     </template>
                 </Column>
             </DataTable>

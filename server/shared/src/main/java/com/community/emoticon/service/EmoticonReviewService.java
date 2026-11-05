@@ -105,7 +105,7 @@ public class EmoticonReviewService {
                 new EmoticonAdminView.ConsentRecord("LICENSE", r.agreeLicenseAt(), r.consentVersion()),
                 new EmoticonAdminView.ConsentRecord("POLICY", r.agreePolicyAt(), r.consentVersion()));
         EmoticonAdminView.Decision decision = r.status() == EmoticonReviewStatus.PENDING ? null
-                : new EmoticonAdminView.Decision(r.status().name(), r.reason(), r.decidedAt(), r.decidedByName(), r.systemCause() == null ? "OPERATOR" : r.systemCause());
+                : new EmoticonAdminView.Decision(r.status().name(), r.reason(), r.decidedAt(), r.decidedByName(), cause(r));
         return new EmoticonAdminView.ReviewDetail(row.id(), row.packId(), row.packName(), row.coverUrl(), row.creator(), row.itemCount(), row.saleWish(), row.currentPrice(),
                 row.submittedAt(), row.kind(), row.version(), row.status(), content.adminVersion(loaded.get(r.revisionId())),
                 r.previousRevisionId() == null ? null : content.adminVersion(loaded.get(r.previousRevisionId())), consents, settings.packRules(settings.current()),
@@ -246,7 +246,7 @@ public class EmoticonReviewService {
             out.add(new EmoticonAdminView.ReviewRow(Long.toString(r.id()), Long.toString(r.packId()), l == null ? "" : l.revision().name(),
                     l == null || l.cover() == null ? null : content.url(l.cover()), creatorRef(r.creatorId(), members), l == null ? 0 : l.items().size(),
                     l == null ? "FREE" : l.revision().saleWish().name(), r.kind() == EmoticonReviewKind.UPDATE && p != null ? p.price() : 0, r.submittedAt(), r.kind().name(),
-                    l == null || l.revision().version() == null ? 0 : l.revision().version(), r.status().name()));
+                    l == null || l.revision().version() == null ? 0 : l.revision().version(), r.status().name(), cause(r)));
         }
         return out;
     }
@@ -257,5 +257,13 @@ public class EmoticonReviewService {
         }
         MemberRef m = members.get(creatorId);
         return new EmoticonAdminView.CreatorRef(Long.toString(creatorId), m == null ? null : m.nickname(), m == null || m.withdrawn());
+    }
+
+    /** 처리한 까닭 — 대기 중이면 null, 시스템이 닫았으면 그 까닭({@code CREATOR_WITHDRAWN}), 아니면 {@code OPERATOR}(목록 줄·상세 처리 기록이 같은 판정) */
+    static String cause(ReviewRow r) {
+        if (r.status() == EmoticonReviewStatus.PENDING) {
+            return null;
+        }
+        return r.systemCause() == null ? "OPERATOR" : r.systemCause();
     }
 }

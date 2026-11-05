@@ -114,7 +114,38 @@
                         <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-at" /></span>
                         <span class="min-w-0 flex-1">
                             <span class="block text-sm font-medium">{{ t('withdrawal.remainContact') }}</span>
-                            <small class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.remainContactHelp', { years: view.remains.retentionYears }) }}</small>
+                            <small class="block text-xs leading-snug text-muted-color">
+                                {{ view.emoticonCreator ? t('withdrawal.remainContactHelpCreator', { years: view.remains.retentionYears }) : t('withdrawal.remainContactHelp', { years: view.remains.retentionYears }) }}
+                            </small>
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 내 로보티콘(작가일 때만, V148) — 판매 중 팩의 새 판매 멈춤 · 심사 대기 반려 · 아직 받지 못한 수익(원천징수 전). 알릴 것이 없으면 칸을 두지 않는다 -->
+            <section v-if="creatorShown && view.emoticonCreator" :aria-labelledby="`${uid}-creator`">
+                <h2 :id="`${uid}-creator`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('withdrawal.creatorTitle') }}</h2>
+                <div class="panel-card" data-testid="withdraw-creator">
+                    <div v-if="view.emoticonCreator.onSalePacks > 0" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="withdraw-creator-packs">
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-images" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('withdrawal.creatorPacks', { count: view.emoticonCreator.onSalePacks }) }}</span>
+                            <small class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.creatorPacksHelp') }}</small>
+                        </span>
+                    </div>
+                    <div v-if="view.emoticonCreator.pendingReviews > 0" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="withdraw-creator-reviews">
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-hourglass" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('withdrawal.creatorReviews', { count: view.emoticonCreator.pendingReviews }) }}</span>
+                        </span>
+                    </div>
+                    <div v-if="view.emoticonCreator.unpaidEarnings > 0" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="withdraw-creator-earnings">
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-wallet" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium tabular-nums">{{ t('withdrawal.creatorEarnings', { amount: won(view.emoticonCreator.unpaidEarnings) }) }}</span>
+                            <small class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.creatorEarningsGross') }}</small>
+                            <small v-if="view.emoticonCreator.payoutAccountRegistered" class="mt-1 block text-xs leading-snug text-blue-700 dark:text-blue-300" data-testid="withdraw-creator-payout">{{ t('withdrawal.creatorEarningsPayout') }}</small>
+                            <small v-else-if="view.emoticonCreator.decisionRequired" class="mt-1 block text-xs leading-snug text-amber-700 dark:text-amber-300">{{ t('withdrawal.creatorEarningsNoAccount') }}</small>
                         </span>
                     </div>
                 </div>
@@ -220,6 +251,40 @@
                         <label :for="`${uid}-biz-consent`" class="min-w-0 flex-1 cursor-pointer text-sm leading-snug">
                             {{ t('withdrawal.bizForfeitConsent', { amount: won(view.business.forfeitTotal), waiting: won(view.business.refundWaitingTotal) }) }}
                         </label>
+                    </div>
+                </fieldset>
+
+                <!--
+                    로보티콘 남은 수익(V148 — 수익이 있는데 정산 정보가 없는 작가) — (가) 정산 정보 등록 화면으로 가서 등록하고 돌아오면 다시 읽는다(`decisionRequired: false` 가 되면 이 칸이 사라진다)
+                    / (나) 「남은 수익 N원을 받지 않을게요」 동의. 두 선택지는 같은 모양·크기, 고르기 전에는 탈퇴 단추가 잠긴다. 금액은 원천징수 전
+                -->
+                <fieldset v-if="view.emoticonCreator?.decisionRequired" class="m-0 flex flex-col gap-3 panel-card border-0 p-4" data-testid="withdraw-emoticon">
+                    <legend class="float-left mb-1 w-full text-sm font-medium">{{ t('withdrawal.emoticonTitle', { amount: won(view.emoticonCreator.unpaidEarnings) }) }}</legend>
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('withdrawal.emoticonHelp') }}</p>
+                    <Message v-if="emoticonError" severity="warn" :closable="false" size="small" data-testid="withdraw-emoticon-error">{{ emoticonError }}</Message>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <div :class="optionCardClass(false)" data-testid="withdraw-emoticon-register">
+                            <span class="min-w-0">
+                                <span class="block font-medium">{{ t('withdrawal.emoticonRegister') }}</span>
+                                <span class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.emoticonRegisterHelp') }}</span>
+                            </span>
+                            <span class="flex flex-wrap gap-2">
+                                <Button as="router-link" :to="UtilEmoticon.PAYOUT_PATH" :label="t('withdrawal.emoticonRegisterLink')" size="small" :disabled="busy" data-testid="withdraw-emoticon-payout-link" />
+                                <Button type="button" :label="t('withdrawal.emoticonRecheck')" icon="pi pi-refresh" size="small" severity="secondary" variant="outlined" :loading="refreshing" :disabled="busy || refreshing" data-testid="withdraw-emoticon-recheck" @click="recheckEmoticon" />
+                            </span>
+                        </div>
+                        <div :class="optionCardClass(emoticonWaiveConsent)" data-testid="withdraw-emoticon-waive">
+                            <span class="min-w-0">
+                                <span class="block font-medium">{{ t('withdrawal.emoticonWaive') }}</span>
+                                <span class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.emoticonWaiveHelp') }}</span>
+                            </span>
+                            <span class="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 dark:border-red-900 dark:bg-red-950/40">
+                                <Checkbox v-model="emoticonWaiveConsent" binary :input-id="`${uid}-emoticon-consent`" :disabled="busy" class="mt-0.5 shrink-0" data-testid="withdraw-emoticon-consent" />
+                                <label :for="`${uid}-emoticon-consent`" class="min-w-0 flex-1 cursor-pointer text-sm leading-snug">
+                                    {{ t('withdrawal.emoticonWaiveConsent', { amount: won(view.emoticonCreator.unpaidEarnings) }) }}
+                                </label>
+                            </span>
+                        </div>
                     </div>
                 </fieldset>
 
@@ -350,6 +415,7 @@
 
             <div class="flex flex-col gap-2">
                 <Button type="submit" severity="danger" fluid size="large" :label="submitting ? t('withdrawal.submitting') : willSchedule ? t('withdrawal.submitScheduled') : t('withdrawal.submit')" :loading="submitting" :disabled="!canSubmit" data-testid="withdraw-submit" />
+                <p v-if="emoticonBlocked" class="m-0 text-xs leading-relaxed text-amber-700 dark:text-amber-300" data-testid="withdraw-emoticon-required">{{ t('withdrawal.emoticonDecisionRequired') }}</p>
                 <p class="m-0 text-xs leading-relaxed text-muted-color">{{ willSchedule ? t('withdrawal.submitHelpScheduled') : t('withdrawal.submitHelpNow') }}</p>
             </div>
         </form>
@@ -370,6 +436,7 @@ import type {
 } from '~/composables/account/api/useWithdrawalApi.types';
 import UtilAccount from '~/utils/util-account';
 import UtilAccountMessages from '~/utils/util-account-messages';
+import UtilEmoticon from '~/utils/util-emoticon';
 import UtilPoint from '~/utils/util-point';
 import UtilWithdrawal from '~/utils/util-withdrawal';
 
@@ -388,6 +455,10 @@ import UtilWithdrawal from '~/utils/util-withdrawal';
  *   `409 WITHDRAWAL_ALREADY_SCHEDULED`·취소의 `409 WITHDRAWAL_NOT_SCHEDULED` 는 화면이 낡은 것이므로 다시 받는다.
  * - **운영자 회원 계정**(로그인 정보의 `operatorAccount`): 맨 위에 「연결된 동안은 탈퇴할 수 없어요 · 관리자에게 연결 해제를 요청해 주세요」, 탈퇴 단추는 비활성.
  *   서버 거절 `409 OPERATOR_ACCOUNT_LINKED` 는 서버 문구를 폼 아래 한 줄로 보이고 로그인 정보를 새로 받는다.
+ * - **로보티콘 작가**(`emoticonCreator`, V148 — 계약 `emoticon-contract.md` 「탈퇴 작가 미확정 정리」): 「내 로보티콘」 칸에 새 판매가 멈출 팩 수 · 반려로 닫힐 심사 건 · 아직 받지 못한 수익(원천징수 전).
+ *   수익이 있는데 정산 정보가 없으면(`decisionRequired`) 「정할 것」에 (가) 정산 정보 등록(스튜디오 화면 — 돌아오면 이 화면이 다시 마운트되어 다시 읽는다, [다시 확인]도 있다)
+ *   / (나) 「남은 수익 N원을 받지 않을게요」 동의. 고르기 전에는 탈퇴 단추가 잠긴다. 동의하면 `waiveEmoticonEarnings: true` + `forfeitConsent.emoticonEarnings`(보인 금액 그대로).
+ *   `409 WITHDRAWAL_EMOTICON_EARNINGS_UNPAID` · `400 fields.forfeitConsent`(금액이 바뀜)는 미리 보기를 조용히 다시 읽고(고른 것은 두되 포기 동의는 풀어) 서버 문구로 다시 고르게 한다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -413,6 +484,8 @@ const bizChoice = ref<BizChoice>('WAIT');
 const groupChoices = ref<WithdrawalGroupChoice[]>([]);
 const paidForfeitConsent = ref(false);
 const bizForfeitConsent = ref(false);
+/** 로보티콘 남은 수익을 받지 않기로 동의(`decisionRequired` 일 때만 쓴다) */
+const emoticonWaiveConsent = ref(false);
 const reason = ref<WithdrawalReasonCode | null>(null);
 const reasonNote = ref('');
 /** 비밀번호는 여기에만 있다 */
@@ -420,9 +493,12 @@ const password = ref('');
 
 const submitting = ref(false);
 const cancelling = ref(false);
-/** 비밀번호 칸 아래 · 동의 칸 · 넘길 멤버 칸 · 사유 칸 · 사유 글 칸 · 칸에 못 붙이는 오류 · 취소 실패 */
+/** 미리 보기를 조용히 다시 읽는 중(로보티콘 [다시 확인] · 금액이 바뀐 오류 뒤) */
+const refreshing = ref(false);
+/** 비밀번호 칸 아래 · 동의 칸 · 로보티콘 수익 칸 · 넘길 멤버 칸 · 사유 칸 · 사유 글 칸 · 칸에 못 붙이는 오류 · 취소 실패 */
 const passwordError = ref('');
 const consentError = ref('');
+const emoticonError = ref('');
 const transferError = ref('');
 const reasonError = ref('');
 const reasonNoteError = ref('');
@@ -450,7 +526,13 @@ const reloginPath = computed(() => `/login?next=${encodeURIComponent('/settings/
 
 const hasChoices = computed(() => {
     const v = view.value;
-    return Boolean(v && (v.delivered.length > 0 || v.money || (v.business && v.business.running.length > 0) || v.groupsLed.length > 0));
+    return Boolean(v && (v.delivered.length > 0 || v.money || (v.business && v.business.running.length > 0) || v.groupsLed.length > 0 || v.emoticonCreator?.decisionRequired));
+});
+
+/** 「내 로보티콘」 칸에 알릴 것이 있는가 — 작가라도 판매 중 팩·심사 대기·남은 수익이 모두 없으면 칸을 두지 않는다 */
+const creatorShown = computed(() => {
+    const c = view.value?.emoticonCreator;
+    return Boolean(c && (c.onSalePacks > 0 || c.pendingReviews > 0 || c.unpaidEarnings > 0));
 });
 
 const choices = computed(() => ({
@@ -460,12 +542,25 @@ const choices = computed(() => ({
     groupChoices: groupChoices.value,
     paidForfeitConsent: paidForfeitConsent.value,
     bizForfeitConsent: bizForfeitConsent.value,
+    emoticonWaiveConsent: emoticonWaiveConsent.value,
 }));
+/** 로보티콘 수익을 어떻게 할지 아직 안 골랐다 — 탈퇴 단추를 잠근다(판정은 서버 409) */
+const emoticonBlocked = computed(() => Boolean(view.value && UtilWithdrawal.emoticonDecisionMissing(view.value, choices.value)));
 /** 지금 선택대로면 탈퇴 진행 중이 되는가(아니면 즉시 완료) — 단추 이름·안내가 달라진다 */
 const willSchedule = computed(() => Boolean(view.value && UtilWithdrawal.pendingAfter(view.value, choices.value).length > 0));
 /** 운영자 회원 계정이라 탈퇴할 수 없다(연결 해제는 관리자 앱) — 판정은 서버(`409 OPERATOR_ACCOUNT_LINKED`) */
 const operatorLinked = computed(() => auth.operatorAccount.value !== null);
-const canSubmit = computed(() => Boolean(view.value) && status.value === 'ready' && !busy.value && !operatorLinked.value && !passwordError.value && UtilWithdrawal.verified(view.value!, password.value));
+const canSubmit = computed(
+    () =>
+        Boolean(view.value) &&
+        status.value === 'ready' &&
+        !busy.value &&
+        !refreshing.value &&
+        !operatorLinked.value &&
+        !emoticonBlocked.value &&
+        !passwordError.value &&
+        UtilWithdrawal.verified(view.value!, password.value),
+);
 
 /** 금액 — `12,000원` */
 function won(amount: number): string {
@@ -481,6 +576,11 @@ function pendingTitle(item: WithdrawalPendingItem): string {
 /** 선택지 카드 — 두 선택지가 같은 모양·크기(고른 쪽만 테두리 색) */
 function choiceClass(selected: boolean): string {
     return `flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${selected ? 'border-primary bg-primary-50/40 dark:bg-primary-950/30' : 'border-surface'}`;
+}
+
+/** 안에 단추·체크가 든 선택지 카드(로보티콘 수익) — `choiceClass` 와 같은 테두리·크기, 세로 배치 */
+function optionCardClass(selected: boolean): string {
+    return `flex flex-col gap-2 rounded-lg border p-3 text-sm ${selected ? 'border-primary bg-primary-50/40 dark:bg-primary-950/30' : 'border-surface'}`;
 }
 
 function candidateOptions(group: WithdrawalGroupLed): { id: string; label: string }[] {
@@ -505,8 +605,11 @@ watch(password, () => {
     passwordError.value = '';
     formError.value = '';
 });
-watch([paidForfeitConsent, bizForfeitConsent, paidPointChoice, bizChoice], () => {
+watch([paidForfeitConsent, bizForfeitConsent, paidPointChoice, bizChoice, emoticonWaiveConsent], () => {
     consentError.value = '';
+});
+watch(emoticonWaiveConsent, () => {
+    emoticonError.value = '';
 });
 watch(reason, () => {
     reasonError.value = '';
@@ -530,6 +633,7 @@ async function load() {
         if (mine !== loadSeq) return;
         view.value = value;
         groupChoices.value = value.groupsLed.map((g) => ({ groupId: g.id, action: 'AUTO', toMemberId: null }));
+        emoticonWaiveConsent.value = false;
         status.value = 'ready';
     } catch (e) {
         if (mine !== loadSeq) return;
@@ -540,11 +644,43 @@ async function load() {
 void load();
 onBeforeUnmount(() => loadSeq++);
 
+/**
+ * 미리 보기를 조용히 다시 읽는다(뼈대 없이) — 금액이 바뀐 오류(409·400 forfeitConsent) 뒤와 로보티콘 [다시 확인]. 고른 것은 그대로 두고,
+ * 소모임 목록이 바뀌었을 때만 모임 선택을 새로 만든다. 실패하면 폼 아래 한 줄.
+ * @returns {Promise<boolean>} 다시 읽었으면 true.
+ */
+async function refreshPreview(): Promise<boolean> {
+    const mine = ++loadSeq;
+    refreshing.value = true;
+    try {
+        const value = await api.view();
+        if (mine !== loadSeq) return false;
+        const sameGroups = value.groupsLed.map((g) => g.id).join() === groupChoices.value.map((c) => c.groupId).join();
+        view.value = value;
+        if (!sameGroups) groupChoices.value = value.groupsLed.map((g) => ({ groupId: g.id, action: 'AUTO', toMemberId: null }));
+        return true;
+    } catch (e) {
+        if (mine === loadSeq) formError.value = UtilAccountMessages.of(t, e);
+        return false;
+    } finally {
+        if (mine === loadSeq) refreshing.value = false;
+    }
+}
+
+/** 로보티콘 [다시 확인] — 다른 탭에서 정산 정보를 등록했을 때. 등록됐으면 `decisionRequired` 가 풀려 「정할 것」 칸이 사라진다 */
+async function recheckEmoticon() {
+    if (refreshing.value || busy.value) return;
+    emoticonError.value = '';
+    formError.value = '';
+    await refreshPreview();
+}
+
 async function submit() {
     const v = view.value;
     if (!v || !canSubmit.value) return;
     passwordError.value = '';
     consentError.value = '';
+    emoticonError.value = '';
     transferError.value = '';
     reasonError.value = '';
     reasonNoteError.value = '';
@@ -560,6 +696,8 @@ async function submit() {
     }
 
     submitting.value = true;
+    /** 로보티콘 남은 수익 포기 — 결정이 필요한 작가가 동의했을 때만 금액(보인 `unpaidEarnings` 그대로) */
+    const emoticonEarnings = UtilWithdrawal.emoticonWaivedAmount(v, choices.value);
     try {
         const result = await api.withdraw({
             password: v.verification.method === 'PASSWORD' ? password.value : null,
@@ -573,7 +711,9 @@ async function submit() {
                 paidPoints: v.money && paidPointChoice.value === 'FORFEIT' ? v.money.paidPoints : null,
                 refundEstimate: v.money && paidPointChoice.value === 'FORFEIT' ? v.money.refundEstimate : null,
                 bizForfeit: v.business && bizChoice.value === 'FORFEIT' ? v.business.forfeitTotal : null,
+                emoticonEarnings,
             },
+            waiveEmoticonEarnings: emoticonEarnings !== null,
         });
         password.value = '';
         if (result.state === 'COMPLETED') {
@@ -624,7 +764,22 @@ async function onFailed(e: unknown) {
             // 이미 진행 중이다(다른 탭에서 신청 등) — 진행 중 화면으로 바뀌고 띠도 켜진다
             await Promise.all([load(), refreshAuth()]);
             return;
+        case 'WITHDRAWAL_EMOTICON_EARNINGS_UNPAID':
+            // 정산 정보 없이 로보티콘 수익이 남았는데 포기 동의가 없다(그새 판매가 생겼거나 정산 정보가 지워짐) — 다시 읽고 다시 고르게 한다.
+            // 최상위 `unpaidEarnings` 는 서버 문구에 이미 들어 있고, 화면 금액은 다시 읽은 미리 보기로 맞춘다
+            emoticonWaiveConsent.value = false;
+            await refreshPreview();
+            if (view.value?.emoticonCreator?.decisionRequired) emoticonError.value = e.message;
+            else formError.value = e.message;
+            return;
         case 'VALIDATION':
+            if (e.field('forfeitConsent')) {
+                // 동의한 금액이 서버 금액과 다르다(그새 바뀜) — 다시 읽어 새 금액을 보이고, 포기 동의는 새 금액으로 다시 받는다(문구는 서버 것)
+                paidForfeitConsent.value = false;
+                bizForfeitConsent.value = false;
+                emoticonWaiveConsent.value = false;
+                await refreshPreview();
+            }
             passwordError.value = e.field('password') ?? '';
             consentError.value = e.field('forfeitConsent') ?? '';
             transferError.value = e.field('groupChoices') ?? '';

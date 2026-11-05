@@ -34,13 +34,19 @@ public record WithdrawalApplication(long userId, WithdrawalSource source, String
         public static final GroupPlan AUTO = new GroupPlan("AUTO", null);
     }
 
-    /** 포기 동의 — 검사한 금액(동의가 필요 없으면 null) */
-    public record Consent(Long paidPoints, Long refundEstimate, Long bizForfeit) {
+    /**
+     * 포기 동의 — 검사한 금액(동의가 필요 없으면 null). {@code emoticonEarnings} = 정산 정보 없이 남은 로보티콘 수익을 받지 않기로 한 금액(V148 — 탈퇴 완료 때 그 금액 이하면 포기로 굳힌다)
+     */
+    public record Consent(Long paidPoints, Long refundEstimate, Long bizForfeit, Long emoticonEarnings) {
 
-        public static final Consent NONE = new Consent(null, null, null);
+        public static final Consent NONE = new Consent(null, null, null, null);
+
+        public Consent(Long paidPoints, Long refundEstimate, Long bizForfeit) {
+            this(paidPoints, refundEstimate, bizForfeit, null);
+        }
 
         public boolean consented() {
-            return paidPoints != null || bizForfeit != null;
+            return paidPoints != null || bizForfeit != null || emoticonEarnings != null;
         }
     }
 
