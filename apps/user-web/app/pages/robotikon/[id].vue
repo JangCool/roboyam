@@ -1,5 +1,6 @@
 <template>
-    <div class="mx-auto flex max-w-3xl flex-col gap-4">
+    <!-- 포인트 상점 품목 상세(`/point-shop/{id}`)와 같은 틀 — 바깥 화면 카드 하나에 돌아가기 · 머리(이름·설명·가격·딱지) · 미리보기 · 받기/구매 자리 · 판매자 -->
+    <div class="content-card mx-auto flex w-full max-w-3xl flex-col gap-4">
         <NuxtLink :to="UtilEmoticon.PATH" class="inline-flex w-fit items-center gap-1 rounded text-sm text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="emoticon-detail-back">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ t('emoticon.shopTitle') }}
         </NuxtLink>
@@ -14,13 +15,13 @@
         <ErrorState v-else-if="status === 'error' || !pack" :title="t('emoticon.loadFailed')" :description="loadError" retry data-testid="emoticon-detail-error" @retry="load" />
 
         <template v-else>
-            <!-- 머리: 대표 그림 · 이름 · 작가 · 설명 · 태그 · 가격 · 받기/구매 -->
+            <!-- 머리: 대표 그림 · 이름 · 작가 · 설명 · 태그 · 가격 · 딱지(포인트 상점 상세 머리와 같은 차례 — 가격 · 사용 방식 · 그 밖의 딱지) -->
             <section class="flex flex-wrap gap-4 panel-card p-4" :aria-labelledby="titleId" data-testid="emoticon-detail">
                 <EmoticonPackCover :src="pack.coverUrl" size="lg" />
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-1 basis-56">
                     <h1 :id="titleId" class="m-0 text-lg font-bold leading-snug">{{ pack.name }}</h1>
                     <p class="m-0 mt-0.5 text-sm text-muted-color">{{ pack.creator ? t('emoticon.byCreator', { name: pack.creator.nickname }) : t('emoticon.official') }}</p>
-                    <p v-if="pack.description" class="m-0 mt-2 whitespace-pre-line break-words text-sm leading-relaxed">{{ pack.description }}</p>
+                    <p v-if="pack.description" class="m-0 mt-1 whitespace-pre-line break-words text-sm leading-relaxed text-muted-color">{{ pack.description }}</p>
                     <ul v-if="pack.tags.length" class="m-0 mt-2 flex list-none flex-wrap gap-1 p-0" :aria-label="t('emoticon.tagsLabel')">
                         <li v-for="tag in pack.tags" :key="tag">
                             <NuxtLink :to="{ path: UtilEmoticon.PATH, query: { q: tag } }" class="rounded text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">#{{ tag }}</NuxtLink>
@@ -28,55 +29,18 @@
                     </ul>
                     <div class="mt-3 flex flex-wrap items-center gap-1.5">
                         <span class="mr-1 text-xl font-bold tabular-nums" :class="paid ? 'text-primary' : 'text-green-700 dark:text-green-400'" data-testid="emoticon-detail-price">{{ UtilEmoticonMessages.price(t, pack.price) }}</span>
-                        <PointShopTag>{{ t('emoticon.countTag', { count: pack.count }) }}</PointShopTag>
                         <PointShopTag>{{ t('emoticon.usagePermanent') }}</PointShopTag>
+                        <PointShopTag>{{ t('emoticon.countTag', { count: pack.count }) }}</PointShopTag>
                         <span class="text-xs tabular-nums text-muted-color">{{ t(paid ? 'emoticon.buyCount' : 'emoticon.acquireCount', { count: pack.acquireCount.toLocaleString() }) }}</span>
-                    </div>
-
-                    <!-- 받기 · 구매 -->
-                    <div class="mt-4 flex flex-col gap-1.5" data-testid="emoticon-detail-acquire">
-                        <div v-if="pack.saleState === 'SUSPENDED'" role="status" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                            {{ pack.suspendKind === 'CREATOR_WITHDRAWN' ? t('emoticon.suspendedCreatorWithdrawn') : pack.acquired ? t('emoticon.suspendedOwned') : t('emoticon.suspendedText') }}
-                        </div>
-                        <template v-else-if="usable">
-                            <p class="m-0 inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400" role="status" data-testid="emoticon-detail-acquired">
-                                <i :class="operatorHere ? 'pi pi-shield' : 'pi pi-check-circle'" aria-hidden="true" />{{ usableLine }}
-                            </p>
-                            <NuxtLink :to="UtilEmoticon.MY_PATH" class="w-fit rounded text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('emoticon.myTitle') }}</NuxtLink>
-                        </template>
-                        <Button v-else-if="!user" as="router-link" :to="UtilRedirect.toLogin(route.fullPath)" :label="paid ? t('emoticon.loginToBuy') : t('emoticon.loginToAcquire')" icon="pi pi-sign-in" class="w-full sm:w-fit" data-testid="emoticon-detail-login" />
-                        <Button
-                            v-else-if="paid && !reacquire"
-                            type="button"
-                            :label="t('emoticon.buyFor', { price: UtilEmoticonMessages.won(t, pack.price) })"
-                            icon="pi pi-shopping-cart"
-                            :loading="starting || pay.busy.value"
-                            :disabled="pay.fakeOpen.value"
-                            class="w-full sm:w-fit"
-                            data-testid="emoticon-detail-buy"
-                            @click="openBuy"
-                        />
-                        <Button v-else type="button" :label="t('emoticon.acquireFree')" icon="pi pi-download" :loading="acquiring" class="w-full sm:w-fit" data-testid="emoticon-detail-acquire-button" @click="acquire" />
-
-                        <!-- 결제 결과 한 줄 — 창 닫기·실패·받지 않은 결제·완료 요청 실패 -->
-                        <p v-if="!usable && pay.note.value" class="m-0 text-sm text-muted-color" role="status" data-testid="emoticon-detail-pay-note">{{ t(`emoticon.payNote.${pay.note.value}`) }}</p>
-                        <Message v-if="buyNotice" severity="warn" variant="simple" size="small" role="alert" data-testid="emoticon-detail-buy-notice">{{ buyNotice }}</Message>
-                        <Message v-if="rejectedLine" severity="warn" variant="simple" size="small" role="alert">{{ rejectedLine }}</Message>
-                        <Message v-if="pay.completeError.value" severity="error" variant="simple" size="small" role="alert">{{ t('emoticon.payCompleteFailed', { message: pay.completeError.value }) }}</Message>
-                        <Message v-if="acquireError" severity="error" variant="simple" size="small" role="alert">{{ acquireError }}</Message>
-                        <p v-if="paid && !reacquire && !usable && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
                     </div>
                 </div>
             </section>
 
-            <!-- 로보티콘 전부 — 글·댓글과 같은 100px(모바일 80px), 움직이는 그림 그대로. 밝은·어두운 바탕을 바꿔 본다 -->
+            <!-- 로보티콘 전부 — 글·댓글과 같은 100px(모바일 80px), 움직이는 그림 그대로. 밝은·어두운 바탕을 바꿔 본다(알약 칩 — 상점 거르기와 같은 모양) -->
             <section class="panel-card p-4" :aria-labelledby="`${titleId}-grid`" data-testid="emoticon-detail-grid">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 :id="`${titleId}-grid`" class="m-0 text-sm font-semibold">{{ t('emoticon.previewTitle', { count: pack.count }) }}</h2>
-                    <div role="group" :aria-label="t('emoticon.previewBackground')" class="flex gap-1" data-testid="emoticon-detail-bg">
-                        <Button type="button" icon="pi pi-sun" :label="t('emoticon.bgLight')" size="small" :severity="dark ? 'secondary' : undefined" :variant="dark ? 'text' : 'outlined'" :aria-pressed="!dark" @click="dark = false" />
-                        <Button type="button" icon="pi pi-moon" :label="t('emoticon.bgDark')" size="small" :severity="dark ? undefined : 'secondary'" :variant="dark ? 'outlined' : 'text'" :aria-pressed="dark" @click="dark = true" />
-                    </div>
+                    <EmoticonChipGroup v-model="previewBg" :options="bgOptions" :label="t('emoticon.previewBackground')" testid="emoticon-detail-bg" />
                 </div>
                 <ul class="m-0 mt-3 grid list-none grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2 rounded-xl p-3 sm:grid-cols-[repeat(auto-fill,minmax(7rem,1fr))]" :style="{ background: dark ? BG_DARK : BG_LIGHT }">
                     <li v-for="e in pack.emoticons" :key="e.id" class="flex flex-col items-center gap-1">
@@ -85,6 +49,57 @@
                     </li>
                 </ul>
                 <p class="m-0 mt-2 text-xs leading-relaxed text-muted-color">{{ t('emoticon.previewNote') }}</p>
+            </section>
+
+            <!-- 받기 · 구매 — 포인트 상점 상세의 구매 자리(미리보기 아래, 카드 밖 단추 줄)와 같다 -->
+            <section class="flex flex-col gap-2" data-testid="emoticon-detail-acquire">
+                <div v-if="pack.saleState === 'SUSPENDED'" role="status" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    {{ pack.suspendKind === 'CREATOR_WITHDRAWN' ? t('emoticon.suspendedCreatorWithdrawn') : pack.acquired ? t('emoticon.suspendedOwned') : t('emoticon.suspendedText') }}
+                </div>
+                <template v-else-if="usable">
+                    <p class="m-0 inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400" role="status" data-testid="emoticon-detail-acquired">
+                        <i :class="operatorHere ? 'pi pi-shield' : 'pi pi-check-circle'" aria-hidden="true" />{{ usableLine }}
+                    </p>
+                    <NuxtLink :to="UtilEmoticon.MY_PATH" class="w-fit rounded text-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('emoticon.myTitle') }}</NuxtLink>
+                </template>
+                <Button
+                    v-else-if="!user"
+                    as="router-link"
+                    :to="UtilRedirect.toLogin(route.fullPath)"
+                    :label="paid ? t('emoticon.loginToBuy') : t('emoticon.loginToAcquire')"
+                    icon="pi pi-sign-in"
+                    class="w-full sm:w-auto sm:self-start"
+                    data-testid="emoticon-detail-login"
+                />
+                <Button
+                    v-else-if="paid && !reacquire"
+                    type="button"
+                    :label="t('emoticon.buyFor', { price: UtilEmoticonMessages.won(t, pack.price) })"
+                    icon="pi pi-shopping-cart"
+                    :loading="starting || pay.busy.value"
+                    :disabled="pay.fakeOpen.value"
+                    class="w-full sm:w-auto sm:self-start"
+                    data-testid="emoticon-detail-buy"
+                    @click="openBuy"
+                />
+                <Button
+                    v-else
+                    type="button"
+                    :label="t('emoticon.acquireFree')"
+                    icon="pi pi-download"
+                    :loading="acquiring"
+                    class="w-full sm:w-auto sm:self-start"
+                    data-testid="emoticon-detail-acquire-button"
+                    @click="acquire"
+                />
+
+                <!-- 결제 결과 한 줄 — 창 닫기·실패·받지 않은 결제·완료 요청 실패 -->
+                <p v-if="!usable && pay.note.value" class="m-0 text-sm text-muted-color" role="status" data-testid="emoticon-detail-pay-note">{{ t(`emoticon.payNote.${pay.note.value}`) }}</p>
+                <Message v-if="buyNotice" severity="warn" variant="simple" size="small" role="alert" data-testid="emoticon-detail-buy-notice">{{ buyNotice }}</Message>
+                <Message v-if="rejectedLine" severity="warn" variant="simple" size="small" role="alert">{{ rejectedLine }}</Message>
+                <Message v-if="pay.completeError.value" severity="error" variant="simple" size="small" role="alert">{{ t('emoticon.payCompleteFailed', { message: pay.completeError.value }) }}</Message>
+                <Message v-if="acquireError" severity="error" variant="simple" size="small" role="alert">{{ acquireError }}</Message>
+                <p v-if="paid && !reacquire && !usable && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
             </section>
 
             <!-- 판매자 — 유료 팩은 사이트가 판매자(카카오 방식), 작가는 따로 -->
@@ -98,10 +113,11 @@
             :draggable="false"
             :closable="!starting"
             :header="t('emoticon.buyTitle')"
-            :style="{ width: 'min(26rem, calc(100vw - 2rem))' }"
+            :style="{ width: '26rem', maxWidth: 'calc(100vw - 2rem)' }"
             data-testid="emoticon-buy-dialog"
         >
-            <form v-if="pack" class="flex flex-col gap-4" novalidate @submit.prevent="startPurchase">
+            <!-- 포인트 상점 구매 확인(`PointShopPurchaseDialog`)과 같은 폭·간격 — 결제가 실결제라 단추는 폼 안(제출)에 둔다 -->
+            <form v-if="pack" class="flex flex-col gap-3 text-sm" novalidate @submit.prevent="startPurchase">
                 <div class="flex items-center gap-3">
                     <EmoticonPackCover :src="pack.coverUrl" size="md" />
                     <div class="min-w-0">
@@ -144,6 +160,7 @@
 </template>
 
 <script setup lang="ts">
+import type { EmoticonChipOption } from '~/components/emoticon/EmoticonChipGroup.types';
 import type { EmoticonPackDetail, EmoticonPurchaseStart } from '~/composables/emoticon/api/useEmoticonApi.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
@@ -168,7 +185,10 @@ import UtilRedirect from '~/utils/util-redirect';
  *   본인인증 `403 IDENTITY_REQUIRED`·`IDENTITY_UNDERAGE` 는 화면의 인증 상태가 서버와 어긋난 것 — 상태를 새로 받아 다음 시도에 확인 대화상자가 뜨게 한다.
  * - 판매자 표시(카카오 방식): 유료 팩은 사이트가 판매자 — 상세 아래와 구매 확인창에 사이트 사업자 정보(`useCommerceInfo`)와 「작가」를 따로 보인다.
  * - 가지게 되면 내 로보티콘 상태(`useMyEmoticons`)를 다시 받아 고르기 창에 바로 보인다. 판매 중단 팩은 가진 사람만 본다. 받기·유료 구매 모두 실제 API(S1·S3).
+ * - 모양은 포인트 상점 품목 상세(`/point-shop/{id}`)와 같다 — 바깥 `content-card` · 머리 panel-card · 미리보기 panel-card · 그 아래 받기/구매 단추 줄.
+ *   내 정보 메뉴 틀(`meMenu`)은 로그인했을 때만 셸이 그린다(비회원은 틀 없이 이 화면만).
  */
+definePageMeta({ meMenu: true });
 const { t } = useI18n();
 const route = useRoute();
 const api = useEmoticonApi();
@@ -184,6 +204,17 @@ const titleId = useId();
 const BG_LIGHT = '#ffffff';
 const BG_DARK = '#0f172a';
 const dark = ref(false);
+/** 바탕 칩(상점 거르기와 같은 알약 칩) — 값은 `dark` 하나에 묶는다 */
+const previewBg = computed<'light' | 'dark'>({
+    get: () => (dark.value ? 'dark' : 'light'),
+    set: (value) => {
+        dark.value = value === 'dark';
+    },
+});
+const bgOptions = computed<EmoticonChipOption<'light' | 'dark'>[]>(() => [
+    { value: 'light', label: t('emoticon.bgLight'), icon: 'pi pi-sun' },
+    { value: 'dark', label: t('emoticon.bgDark'), icon: 'pi pi-moon' },
+]);
 
 const id = computed(() => String(route.params.id ?? ''));
 const pack = ref<EmoticonPackDetail | null>(null);

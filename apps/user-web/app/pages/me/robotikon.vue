@@ -1,55 +1,60 @@
 <template>
-    <div class="mx-auto flex max-w-2xl flex-col gap-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
+    <!-- 내 아이템(`/me/items`)과 같은 틀 — 바깥 화면 카드 하나에 머리(제목 + 상점 단추) · 구획마다 panel-card · 구획 안은 줄(머리카락 선으로 나눈다) -->
+    <div class="content-card flex flex-col gap-4">
+        <header class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="text-lg font-bold">{{ t('emoticon.myTitle') }}</h1>
             <Button as="router-link" :to="UtilEmoticon.PATH" :label="t('emoticon.shopTitle')" icon="pi pi-shopping-bag" size="small" severity="secondary" variant="outlined" data-testid="my-emoticons-shop" />
-        </div>
+        </header>
 
         <!-- 가진 팩 -->
-        <div v-if="packs === undefined" class="flex flex-col gap-3" role="status" :aria-label="t('emoticon.loading')" data-testid="my-emoticons-loading">
-            <div v-for="n in 3" :key="n" class="h-24 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
+        <div v-if="packs === undefined" class="flex flex-col gap-4" role="status" :aria-label="t('emoticon.loading')" data-testid="my-emoticons-loading">
+            <div class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
+            <div v-for="n in 3" :key="n" class="h-16 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
         <ErrorState v-else-if="error && !packs?.length" :title="t('emoticon.myLoadFailed')" retry data-testid="my-emoticons-error" @retry="mine.reload()" />
         <EmptyState v-else-if="!packs || packs.length === 0" class="panel-card" :title="t('emoticon.myEmpty')" :description="t('emoticon.myEmptyText')" icon="pi pi-face-smile" data-testid="my-emoticons-empty">
             <Button as="router-link" :to="UtilEmoticon.PATH" :label="t('emoticon.shopTitle')" />
         </EmptyState>
 
-        <ul v-else class="m-0 flex list-none flex-col gap-3 p-0" data-testid="my-emoticons-list">
-            <li v-for="pack in packs" :key="pack.id" class="panel-card p-4" data-testid="my-emoticons-row">
-                <div class="flex flex-wrap items-center gap-3">
-                    <EmoticonPackCover :src="pack.coverUrl" size="md" />
-                    <div class="min-w-0 flex-1">
-                        <p class="m-0 flex flex-wrap items-center gap-1.5">
-                            <NuxtLink :to="UtilEmoticon.packPath(pack.id)" class="rounded text-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ pack.name }}</NuxtLink>
-                            <PointShopTag v-if="pack.mine" tone="success" data-testid="my-emoticons-mine">{{ t('emoticon.mineTag') }}</PointShopTag>
-                            <PointShopTag v-else :tone="pack.purchaseId ? 'primary' : 'neutral'">{{ pack.purchaseId ? t('emoticon.boughtTag') : t('emoticon.free') }}</PointShopTag>
-                        </p>
-                        <p class="m-0 mt-0.5 text-xs text-muted-color">
-                            {{ pack.creatorNickname ?? t('emoticon.official') }} · {{ t('emoticon.countTag', { count: pack.emoticons.length }) }} ·
-                            <time :datetime="pack.acquiredAt">{{ t(pack.mine ? 'emoticon.publishedAt' : pack.purchaseId ? 'emoticon.boughtAt' : 'emoticon.acquiredAt', { date: time.listLabel(pack.acquiredAt) }) }}</time>
-                        </p>
-                        <p v-if="pack.suspended" class="m-0 mt-1 text-xs text-amber-700 dark:text-amber-400">{{ t('emoticon.suspendedOwned') }}</p>
+        <section v-else class="panel-card" :aria-label="t('emoticon.myTitle')">
+            <ul class="m-0 list-none p-0" data-testid="my-emoticons-list">
+                <li v-for="pack in packs" :key="pack.id" class="border-t border-surface px-4 py-3 first:border-t-0" data-testid="my-emoticons-row">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <EmoticonPackCover :src="pack.coverUrl" size="sm" />
+                        <div class="min-w-0 flex-1">
+                            <p class="m-0 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+                                <NuxtLink :to="UtilEmoticon.packPath(pack.id)" class="min-w-0 break-words rounded hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ pack.name }}</NuxtLink>
+                                <PointShopTag v-if="pack.mine" tone="success" data-testid="my-emoticons-mine">{{ t('emoticon.mineTag') }}</PointShopTag>
+                                <PointShopTag v-else :tone="pack.purchaseId ? 'primary' : 'neutral'">{{ pack.purchaseId ? t('emoticon.boughtTag') : t('emoticon.free') }}</PointShopTag>
+                            </p>
+                            <p class="m-0 mt-0.5 text-xs text-muted-color">
+                                {{ pack.creatorNickname ?? t('emoticon.official') }} · {{ t('emoticon.countTag', { count: pack.emoticons.length }) }} ·
+                                <time :datetime="pack.acquiredAt">{{ t(pack.mine ? 'emoticon.publishedAt' : pack.purchaseId ? 'emoticon.boughtAt' : 'emoticon.acquiredAt', { date: time.listLabel(pack.acquiredAt) }) }}</time>
+                            </p>
+                            <p v-if="pack.suspended" class="m-0 mt-1 text-xs text-amber-700 dark:text-amber-400">{{ t('emoticon.suspendedOwned') }}</p>
+                        </div>
+                        <!-- 무료로 받은 팩만 목록에서 뺀다 — 산 팩은 아래 구매 내역에서 환불(조건이 맞을 때), 내가 만든 팩은 빼지 않는다(후속 결정 1) -->
+                        <div v-if="!pack.purchaseId && !pack.mine" class="flex shrink-0 gap-2 max-sm:w-full max-sm:justify-end">
+                            <Button
+                                type="button"
+                                :label="t('emoticon.removeFromList')"
+                                size="small"
+                                severity="secondary"
+                                variant="text"
+                                :loading="removing === pack.id"
+                                :disabled="removing !== null"
+                                data-testid="my-emoticons-remove"
+                                @click="remove(pack.id, pack.name)"
+                            />
+                        </div>
                     </div>
-                    <!-- 무료로 받은 팩만 목록에서 뺀다 — 산 팩은 아래 구매 내역에서 환불(조건이 맞을 때), 내가 만든 팩은 빼지 않는다(후속 결정 1) -->
-                    <Button
-                        v-if="!pack.purchaseId && !pack.mine"
-                        type="button"
-                        :label="t('emoticon.removeFromList')"
-                        size="small"
-                        severity="secondary"
-                        variant="text"
-                        :loading="removing === pack.id"
-                        :disabled="removing !== null"
-                        data-testid="my-emoticons-remove"
-                        @click="remove(pack.id, pack.name)"
-                    />
-                </div>
-                <!-- 미리 몇 개 — 고르기 창과 같은 64px -->
-                <div class="mt-3 flex flex-wrap gap-1" aria-hidden="true">
-                    <img v-for="e in pack.emoticons.slice(0, 8)" :key="e.id" :src="e.url" alt="" class="size-12 object-contain sm:size-16" loading="lazy" decoding="async" />
-                </div>
-            </li>
-        </ul>
+                    <!-- 미리 몇 개 — 고르기 창과 같은 64px(모바일 48px) -->
+                    <div class="mt-2 flex flex-wrap gap-1" aria-hidden="true">
+                        <img v-for="e in pack.emoticons.slice(0, 8)" :key="e.id" :src="e.url" alt="" class="size-12 object-contain sm:size-16" loading="lazy" decoding="async" />
+                    </div>
+                </li>
+            </ul>
+        </section>
 
         <!-- 구매 내역 — 결제 금액·시각·환불 가능 기한, 조건이 맞으면 환불 -->
         <section class="panel-card" :aria-labelledby="`${uid}-purchases`" data-testid="my-emoticons-purchases">
@@ -93,18 +98,20 @@
                             </a>
                         </p>
                     </div>
-                    <Button
-                        v-if="p.refundable"
-                        type="button"
-                        :label="t('emoticon.refund')"
-                        size="small"
-                        severity="secondary"
-                        variant="outlined"
-                        :loading="refunding === p.id"
-                        :disabled="refunding !== null"
-                        data-testid="my-emoticons-refund"
-                        @click="refund(p)"
-                    />
+                    <!-- 환불 — 내 아이템의 환불 단추와 같은 모양(작은 글자 단추) -->
+                    <div v-if="p.refundable" class="flex shrink-0 gap-2 max-sm:w-full max-sm:justify-end">
+                        <Button
+                            type="button"
+                            :label="t('emoticon.refund')"
+                            size="small"
+                            severity="secondary"
+                            variant="text"
+                            :loading="refunding === p.id"
+                            :disabled="refunding !== null"
+                            data-testid="my-emoticons-refund"
+                            @click="refund(p)"
+                        />
+                    </div>
                 </li>
             </ul>
             <p class="m-0 border-t border-surface px-4 py-3 text-xs leading-relaxed text-muted-color">{{ t('emoticon.purchasesNote', { days: refundDays }) }}</p>
@@ -134,8 +141,9 @@ import { ApiError } from '~/composables/common/useApiClient';
  *   산 팩은 빼기 단추가 없다(서버도 `409 EMOTICON_PACK_PAID`). 그 오류가 오면(그새 산 경우) 가진 팩을 다시 받는다.
  * - 내가 만든 팩(`mine` — 후속 결정 1, 사지 않아도 가진다): 「내가 만든 팩」 딱지 · 「상점에 나옴」 날짜 · 빼기 단추 없음(서버 `409 EMOTICON_PACK_OWNED` `reason: "CREATOR"`).
  * - 운영자 회원 계정(`allPacks`)이면 맨 아래에 「상점의 판매 중 팩을 모두 쓸 수 있어요」 한 줄(목록에는 실제로 가진 팩만).
+ * - 모양은 내 아이템(`/me/items`)과 같다. 내 정보 메뉴의 「내 로보티콘」 줄(`useMeMenu`)이 오는 화면이라 그 틀(`meMenu`) 안에 둔다.
  */
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
 useSeoMeta({ title: () => t('emoticon.myTitle'), robots: 'noindex' });
 
