@@ -76,7 +76,11 @@
                 <Column :header="t('emoticon.col.creator')" style="min-width: 8rem">
                     <template #body="{ data }">
                         <NuxtLink v-if="!data.creator.withdrawn" :to="UtilEmoticon.memberLink(data.creator.memberNo)" class="text-[13px] text-primary hover:underline" @click.stop>{{ data.creator.nickname }}</NuxtLink>
-                        <span v-else class="text-[13px] text-muted-color">{{ data.creator.nickname }}</span>
+                        <template v-else>
+                            <span class="text-[13px] text-muted-color">{{ data.creator.nickname }}</span>
+                            <!-- 탈퇴 작가는 최소 지급액 없이 남은 금액을 지급한다(후속 결정 6 — 서버 `Rules#forCreator`) -->
+                            <span class="mt-0.5 block max-w-56 text-[11px] leading-snug text-amber-700 dark:text-amber-400">{{ t('emoticon.settlementWithdrawnNote') }}</span>
+                        </template>
                     </template>
                 </Column>
 

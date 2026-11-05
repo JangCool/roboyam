@@ -361,12 +361,13 @@ public class EmoticonSettlementService {
             }
         });
         Map<Long, PayoutRow> payees = payouts.findAll(candidates);
+        Set<Long> withdrawn = store.withdrawn(candidates); // 탈퇴 작가는 최소 지급액 없이(후속 결정 6) — 작가 상세·확정과 같은 규칙
         List<Line> out = new ArrayList<>();
         for (long creator : candidates) {
             SettlementRow base = bases.get(creator);
             PayoutRow payee = payees.get(creator);
             List<Line> lines = EmoticonSettlementCalculator.walk(creator, open.getOrDefault(creator, new TreeMap<>()), activity.getOrDefault(creator, List.of()),
-                    base == null ? 0 : base.frozen().carriedOut(), base == null ? null : base.month().plusMonths(1), month, rules,
+                    base == null ? 0 : base.frozen().carriedOut(), base == null ? null : base.month().plusMonths(1), month, rules.forCreator(withdrawn.contains(creator)),
                     payee == null ? null : payee.payeeType());
             lines.stream().filter(l -> l.month().equals(month)).findFirst().ifPresent(out::add);
         }

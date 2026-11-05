@@ -22,11 +22,18 @@ public class EmoticonReviewStore {
     /** 심사 건 한 줄(처리한 운영자 이름 포함 — 없으면 null) */
     public record ReviewRow(long id, long packId, long revisionId, Long previousRevisionId, long creatorId, EmoticonReviewKind kind, EmoticonReviewStatus status,
                             Instant submittedAt, Instant agreeOwnershipAt, Instant agreeLicenseAt, Instant agreePolicyAt, String consentVersion, Instant decidedAt,
-                            Long decidedBy, String decidedByName, String reason, Integer approvedPrice) {
+                            Long decidedBy, String decidedByName, String reason, Integer approvedPrice, String systemCause) {
     }
 
+    /** 작가 탈퇴로 닫은 대기 건 한 줄(V147 — 후속 결정 6) */
+    public record ClosedRow(long id, long packId, EmoticonReviewKind kind) {
+    }
+
+    /** 시스템이 닫은 까닭 — 작가 탈퇴(V147 {@code system_cause}) */
+    public static final String CAUSE_CREATOR_WITHDRAWN = "CREATOR_WITHDRAWN";
+
     private static final String COLUMNS = "r.id, r.pack_id, r.revision_id, r.previous_revision_id, r.creator_id, r.kind, r.status, r.submitted_at, r.agree_ownership_at, "
-            + "r.agree_license_at, r.agree_policy_at, r.consent_version, r.decided_at, r.decided_by, o.operator_name, r.reason, r.approved_price";
+            + "r.agree_license_at, r.agree_policy_at, r.consent_version, r.decided_at, r.decided_by, o.operator_name, r.reason, r.approved_price, r.system_cause";
     private static final String FROM = " FROM emoticon_reviews r LEFT JOIN operators o ON o.id = r.decided_by";
 
     private final JdbcTemplate jdbc;
@@ -58,6 +65,17 @@ public class EmoticonReviewStore {
     public int decide(long id, EmoticonReviewStatus status, long operatorId, String reason, Integer approvedPrice, Instant now) {
         return jdbc.update("UPDATE emoticon_reviews SET status = ?, decided_at = ?, decided_by = ?, reason = ?, approved_price = ? WHERE id = ? AND status = 'PENDING'",
                 status.name(), Timestamp.from(now), operatorId, reason, approvedPrice, id);
+    }
+
+    /**
+     * 작가 탈퇴 — 그 작가의 대기 건을 모두 반려로 닫는다(처리한 운영자 없음 · {@code system_cause = CREATOR_WITHDRAWN} · 사유 {@code reason}). 심사 건 행이 먼저 잠긴다(승인·반려와 같은
+     * 차례 — 심사 건 → 팩). 닫은 건.
+     */
+    public List<ClosedRow> closeForCreatorWithdrawal(long creatorId, String reason, Instant now) {
+        return jdbc.query("UPDATE emoticon_reviews SET status = 'REJECTED', decided_at = ?, decided_by = NULL, reason = ?, approved_price = NULL, system_cause = ? "
+                        + "WHERE id IN (SELECT id FROM emoticon_reviews WHERE creator_id = ? AND status = 'PENDING' ORDER BY id FOR UPDATE) AND status = 'PENDING' "
+                        + "RETURNING id, pack_id, kind", (rs, i) -> new ClosedRow(rs.getLong(1), rs.getLong(2), EmoticonReviewKind.valueOf(rs.getString(3))),
+                Timestamp.from(now), reason, CAUSE_CREATOR_WITHDRAWN, creatorId);
     }
 
     /** 그 팩의 대기 건 */
@@ -126,6 +144,6 @@ public class EmoticonReviewStore {
         return new ReviewRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getObject(4, Long.class), rs.getLong(5), EmoticonReviewKind.valueOf(rs.getString(6)),
                 EmoticonReviewStatus.valueOf(rs.getString(7)), EmoticonPackStore.instant(rs, 8), EmoticonPackStore.instant(rs, 9), EmoticonPackStore.instant(rs, 10),
                 EmoticonPackStore.instant(rs, 11), rs.getString(12), EmoticonPackStore.instant(rs, 13), rs.getObject(14, Long.class), rs.getString(15), rs.getString(16),
-                rs.getObject(17, Integer.class));
+                rs.getObject(17, Integer.class), rs.getString(18));
     }
 }

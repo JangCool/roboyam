@@ -42,7 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>목록</b> 탭: {@code PENDING}(처음 신청 대기) · {@code UPDATE}(새 판 대기) · {@code REJECTED} · {@code ALL}. 대기·새 판은 오래 기다린 것이 위, 반려·전체는 최근이 위. 탭 숫자 함께.</li>
  *   <li><b>상세</b>: 신청 때의 판({@code next}) + 새 판이면 신청 순간의 상점 판({@code current}, 처리가 끝난 건도 같은 비교 — 심사 건이 판 번호를 가리킨다) · 동의 셋 · 심사 기준 · 처리 기록.</li>
- *   <li><b>승인</b> {@code { price }}: 없는 건 404 → 처리된 건 {@code 409 EMOTICON_REVIEW_NOT_PENDING} → 가격 {@code 400 fields.price}(0 또는 가격 단계 — {@link #approve}).
+ *   <li><b>승인</b> {@code { price }}: 없는 건 404 → 처리된 건 {@code 409 EMOTICON_REVIEW_NOT_PENDING} → 가격 없음 400 → 작가 탈퇴로 멈춘 팩·탈퇴한 작가
+ *       {@code 409 EMOTICON_PACK_CREATOR_WITHDRAWN}(후속 결정 6) → 가격 {@code 400 fields.price}(0 또는 가격 단계 — {@link #approve}).
  *       그 판이 상점 판이 된다(처음이면 판매 시작, 새 판이면 내용 교체 — 판매 중단 팩의 새 판이면 다시 판매). 감사 · 작가 알림(유료 승인은 가격과 함께).</li>
  *   <li><b>반려</b> {@code { reason }}: 사유 5~200자 {@code 400 fields.reason} → 404 → 409. 처음 신청이면 팩이 반려, 새 판이면 상점 판이 그대로. 감사 · 작가 알림(사유).</li>
  * </ul>
@@ -104,7 +105,7 @@ public class EmoticonReviewService {
                 new EmoticonAdminView.ConsentRecord("LICENSE", r.agreeLicenseAt(), r.consentVersion()),
                 new EmoticonAdminView.ConsentRecord("POLICY", r.agreePolicyAt(), r.consentVersion()));
         EmoticonAdminView.Decision decision = r.status() == EmoticonReviewStatus.PENDING ? null
-                : new EmoticonAdminView.Decision(r.status().name(), r.reason(), r.decidedAt(), r.decidedByName());
+                : new EmoticonAdminView.Decision(r.status().name(), r.reason(), r.decidedAt(), r.decidedByName(), r.systemCause() == null ? "OPERATOR" : r.systemCause());
         return new EmoticonAdminView.ReviewDetail(row.id(), row.packId(), row.packName(), row.coverUrl(), row.creator(), row.itemCount(), row.saleWish(), row.currentPrice(),
                 row.submittedAt(), row.kind(), row.version(), row.status(), content.adminVersion(loaded.get(r.revisionId())),
                 r.previousRevisionId() == null ? null : content.adminVersion(loaded.get(r.previousRevisionId())), consents, settings.packRules(settings.current()),
@@ -128,6 +129,10 @@ public class EmoticonReviewService {
             throw ValidationException.of("price", new MessageRef("emoticon.review.price.required"));
         }
         PackRow p = packs.lock(r.packId()).orElseThrow(EmoticonReviewNotFoundException::new);
+        if (p.creatorWithdrawn() || creatorWithdrawn(r.creatorId())) {
+            // 작가 탈퇴로 멈춘 팩 · 탈퇴한 작가의 건 — 승인하면 다시 판매가 되므로 받지 않는다(후속 결정 6, 탈퇴 때 대기 건은 이미 닫힌다 — 그 사이의 그물)
+            throw new EmoticonConflictException(EmoticonConflictException.PACK_CREATOR_WITHDRAWN, "error.EMOTICON_PACK_CREATOR_WITHDRAWN.review");
+        }
         SettingsRow s = settings.currentForPricing();
         EmoticonPackStore.RevisionRow revision = packs.revision(r.revisionId()).orElseThrow(EmoticonReviewNotFoundException::new);
         if (price != 0) {
@@ -164,6 +169,11 @@ public class EmoticonReviewService {
         } else {
             memberNotices.emoticonPack(r.creatorId(), "APPROVED", p.id(), name, null);
         }
+    }
+
+    private boolean creatorWithdrawn(long creatorId) {
+        MemberRef m = reads.members(List.of(creatorId)).get(creatorId);
+        return m != null && m.withdrawn();
     }
 
     /** 유료 가격 검사 — 설정의 가격 단계 중 하나 · 유료 판매 켜짐({@code 400 fields.price}) */

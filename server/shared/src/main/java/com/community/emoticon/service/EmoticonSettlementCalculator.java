@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
  *   <li><b>들어갈 달</b>: 아직 정산에 들어가지 않은 판매는 결제 달(서비스 시간대 KST). 아직 빼지 않은 환불은 그 판매가 아직 정산에 들어가지 않았으면 판매 달(예정 ~ 확정 사이 환불은 그 달에서),
  *       이미 확정된 줄에 들어갔으면 <b>환불한 달</b>(확정 뒤 환불은 환불한 달에서 뺀다 — 계약 「화면 확정」). 들어갈 달이 이미 굳었으면(확정 뒤 늦게 들어온 결제 등) 다음에 열린 달로 넘긴다.</li>
  *   <li><b>이월</b>: 달마다 합 = 작가 몫 + 앞 달의 넘김. 최소 지급액(설정) 미만이거나 0 이하면 지급하지 않고 합 전부를 다음 달로 넘긴다 — 음수(확정 뒤 환불이 그 달 판매보다 큼)도 넘겨 다음 달에서 뺀다.
- *       넘어온 금액만 있는 달도 줄이 생긴다(목업과 같다). 계산은 {@link EmoticonSettlementMath#month}.</li>
+ *       넘어온 금액만 있는 달도 줄이 생긴다(목업과 같다). 계산은 {@link EmoticonSettlementMath#month}. <b>탈퇴한 작가</b>는 최소 지급액이 없다({@link Rules#forCreator} — 후속 결정 6).</li>
  *   <li><b>예정 달의 값</b>: 수수료율·최소 지급액·정산일은 지금 설정, 작가 구분은 지금 정산 정보(없으면 개인으로 어림 — 원천징수를 떼고 보인다). 지급 예정일 = 다음 달 정산일(토·일·공휴일이면 다음 업무일 — {@link Rules#payDate}).
  *       확정 가능 시각 = max(다음 달 1일 0시 KST, 그 달 판매들의 셀프 환불 기한 {@code refund_until} 최댓값).</li>
  * </ul>
@@ -62,6 +62,14 @@ public class EmoticonSettlementCalculator {
          */
         public LocalDate payDate(LocalDate month) {
             return calendar.onOrAfter(month.plusMonths(1).withDayOfMonth(settlementDay));
+        }
+
+        /**
+         * 그 작가에게 쓸 규칙 — 탈퇴한 작가는 최소 지급액이 없다(후속 결정 6 「남은 정산은 한 번에 지급」): 아직 굳히지 않은 달의 합이 0 보다 크면 넘긴 금액까지 모두 지급 대상이고
+         * 이월하지 않는다. 0 이하(음수 = 확정 뒤 환불로 받을 돈)는 지금처럼 넘긴다(끝난 것으로 본다 — 파기 배치 조건 ③). 이미 굳힌 달은 그대로.
+         */
+        public Rules forCreator(boolean withdrawn) {
+            return withdrawn ? new Rules(feeRatePercent, 0, settlementDay, refundDays, calendar) : this;
         }
     }
 
@@ -111,7 +119,8 @@ public class EmoticonSettlementCalculator {
         Map<LocalDate, SettlementRow> rows = store.byCreator(creatorId).stream().collect(Collectors.toMap(SettlementRow::month, Function.identity(), (a, b) -> a, TreeMap::new));
         List<ActivityRow> activity = store.unsettled(creatorId, lock);
         PayoutRow payee = payouts.find(creatorId).orElse(null);
-        return new CreatorLines(walk(creatorId, rows, activity, 0, null, end, rules(), payee == null ? null : payee.payeeType()), payee);
+        Rules rules = rules().forCreator(store.withdrawn(List.of(creatorId)).contains(creatorId));
+        return new CreatorLines(walk(creatorId, rows, activity, 0, null, end, rules, payee == null ? null : payee.payeeType()), payee);
     }
 
     /**

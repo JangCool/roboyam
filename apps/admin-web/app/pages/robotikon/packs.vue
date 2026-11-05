@@ -6,6 +6,7 @@
         `?creator=<회원 번호>`(회원 상세의 「로보티콘 작가」 링크)로 들어오면 그 작가의 팩만 — 위에 지울 수 있는 칩으로 보인다. 연 팩은 `?id=`.
         한 줄: 대표 · 이름(새 판 심사 중이면 딱지) · 출처 · 작가 · 개수 · 받은 수 · 작가 보상 합계(운영 팩은 「보상 없음」) · 상태. 줄을 누르면 서랍(`EmoticonPackDrawer`).
         판매 중단: `EmoticonReasonDialog`(자주 쓰는 사유 + 직접 입력 — 작가에게 보인다) → 토스트 → 서랍 갱신 → 목록 다시 읽기. 다시 판매: 확인창 → 같은 흐름.
+        작가 탈퇴로 멈춘 팩(`suspendKind: CREATOR_WITHDRAWN`)은 상태 딱지 「작가 탈퇴로 판매 중단」, 서랍에 [다시 판매]가 없다. 그래도 오는 `409 EMOTICON_PACK_CREATOR_WITHDRAWN`(다시 판매·가격)은 서버 문구 토스트 + 다시 읽기.
         운영 팩: [운영 팩 만들기] → 빈 편집 서랍 · 서랍의 [고치기] → 이름·설명·태그·로보티콘 이름표·차례·빼기 · [로보티콘 올리기](한 장씩 올려 서랍 편집에 붙인다) → 저장.
         권한(후보 — 서버 `Permission` 에 아직 없다): 조회 `emoticon.read`(메뉴) · 판매 중단·다시 판매·운영 팩 만들기·고치기 `emoticon.review`.
     -->
@@ -121,7 +122,7 @@
 
                 <Column :header="t('emoticon.col.status')" style="min-width: 6rem">
                     <template #body="{ data }">
-                        <Tag :value="t(`emoticon.packStatus.${data.status}`)" :severity="UtilEmoticon.packStatusSeverity(data.status)" />
+                        <Tag :value="UtilEmoticonMessages.packStatus(t, data.status, data.suspendKind ?? null)" :severity="UtilEmoticon.packStatusSeverity(data.status)" />
                     </template>
                 </Column>
             </DataTable>

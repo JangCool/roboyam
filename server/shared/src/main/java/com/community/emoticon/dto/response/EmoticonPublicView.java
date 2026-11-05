@@ -40,9 +40,11 @@ public final class EmoticonPublicView {
     /**
      * {@code GET /api/emoticons/packs/{id}} — 판매 상태 {@code ON_SALE}·{@code SUSPENDED}. {@code operatorUsable} = 보는 사람이 힘이 살아 있는 운영자 회원 계정이고 판매 중 팩이다
      * (가지지 않아도 쓴다 — {@code acquired} 와 따로, 가진 것으로 치지 않는다. 운영자 회원 계정 연결 2026-11-05). 화면은 구매·받기 단추 대신 「운영자 계정은 모든 팩을 쓸 수 있어요」.
+     * {@code suspendKind} = 판매 중단의 종류({@code OPERATOR} · {@code CREATOR_WITHDRAWN} 작가 탈퇴 — 판매 중이면 null, 후속 결정 6). 판매 중단 팩 상세는 가진 사람(과 작가)에게만 보인다.
      */
     public record PackDetail(String id, String name, String source, Creator creator, String coverUrl, int count, int price, int acquireCount, boolean acquired,
-                             Instant publishedAt, String description, List<String> tags, String saleState, List<Item> emoticons, boolean operatorUsable) {
+                             Instant publishedAt, String description, List<String> tags, String saleState, List<Item> emoticons, boolean operatorUsable,
+                             String suspendKind) {
     }
 
     /** {@code POST /api/emoticons/packs/{id}/acquire} */

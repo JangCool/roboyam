@@ -52,6 +52,8 @@ export default {
     boughtToast: 'You bought "{name}". Use it from the Robotikon button in posts and comments.',
     suspendedText: "Sales of this pack are suspended, so you can't get or buy it right now.",
     suspendedOwned: 'Sales of this pack are suspended. You already own it, so you can keep using it.',
+    /** Pack stopped because its creator withdrew (`suspendKind: CREATOR_WITHDRAWN`) */
+    suspendedCreatorWithdrawn: 'The creator has left, so this pack is no longer sold — if you already have it, you can keep using it',
     buyFor: 'Buy {price}',
     refundRule: "Once you use it, it can't be refunded · unused packs can be refunded within {days} days.",
     buyTitle: 'Buy Robotikon pack',

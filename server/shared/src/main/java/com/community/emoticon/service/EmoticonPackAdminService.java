@@ -55,7 +55,8 @@ import org.springframework.web.multipart.MultipartFile;
  *       판매 칸은 null(실결제 S3). 상세에 작가의 유료 판매 준비({@code paidReady} — 지금 판 계약 동의 · 정산 정보)와 가격 전환 기록({@code priceEvents}, 최근이 앞 — S2).</li>
  *   <li><b>가격 바꾸기</b>(S2 — {@link #changePrice}): 판매 중 작가 팩의 유료↔무료 · 단계 바꾸기, 사유 · 기록 · 감사 · 작가 알림.</li>
  *   <li><b>판매 중단</b> {@code { reason }}: 사유 5~200자 → 없는 팩 404 → 판매 중이 아니면 {@code 409 EMOTICON_PACK_NOT_ON_SALE}. 이미 가진 사람은 계속 쓴다(카탈로그에 남는다).
- *       작가 팩이면 작가 알림(사유). <b>다시 판매</b>: 판매 중단이 아니면 {@code 409 EMOTICON_PACK_NOT_SUSPENDED}.</li>
+ *       작가 팩이면 작가 알림(사유). <b>다시 판매</b>: 작가 탈퇴로 멈춘 팩이면 {@code 409 EMOTICON_PACK_CREATOR_WITHDRAWN}(후속 결정 6 — 가격 바꾸기도 같은 코드) →
+ *       판매 중단이 아니면 {@code 409 EMOTICON_PACK_NOT_SUSPENDED}. 목록·상세의 {@code suspendKind}(OPERATOR·CREATOR_WITHDRAWN) · 상세의 {@code resumable}(다시 판매 단추).</li>
  *   <li><b>운영 팩 만들기·고치기</b>: 칸 검사(이름 2~20자 · 태그 5개 · 개수 설정 최소~최대 · 이름표 1~10자·겹침 없음 · 대표 필수 — admin-web 목업 {@code officialFields}) → (고치기) 없는 팩 404 ·
  *       운영 팩이 아니면 {@code 409 EMOTICON_PACK_NOT_OFFICIAL} → 대표·로보티콘이 지금 것이거나 운영자가 올린 것인지({@code fields.cover}·{@code fields.items}). 만들기는 심사 없이 판매 중,
  *       고치기는 새 판(판 번호 + 1)이 바로 상점 판이 된다(판매 중단이면 그대로 판매 중단). 로보티콘 ID 는 판이 바뀌어도 그대로(지금 로보티콘 ID 로 가리킨 칸은 그 로보티콘,
@@ -179,6 +180,9 @@ public class EmoticonPackAdminService {
     @Transactional
     public EmoticonAdminView.PackDetail resume(long operatorId, String ip, String idText) {
         PackRow p = lock(idText);
+        if (p.creatorWithdrawn()) {
+            throw new EmoticonConflictException(EmoticonConflictException.PACK_CREATOR_WITHDRAWN); // 작가 탈퇴로 멈춘 팩은 되살리지 않는다(후속 결정 6)
+        }
         if (p.status() != EmoticonPackStatus.SUSPENDED) {
             throw new EmoticonConflictException(EmoticonConflictException.PACK_NOT_SUSPENDED);
         }
@@ -451,7 +455,9 @@ public class EmoticonPackAdminService {
                     shown == null ? List.of() : content.adminItems(shown),
                     p.suspendReason() == null ? null : new EmoticonAdminView.Suspension(p.suspendReason(), p.suspendedAt(), p.suspendedByName()),
                     pending ? Long.toString(review.id()) : null, p.publishedAt(),
-                    official ? null : new EmoticonAdminView.PaidReady(agreed.contains(p.creatorId()), registered.contains(p.creatorId())), withEvents ? events(p.id()) : List.of()));
+                    official ? null : new EmoticonAdminView.PaidReady(agreed.contains(p.creatorId()), registered.contains(p.creatorId())), withEvents ? events(p.id()) : List.of(),
+                    p.suspendKind() == null ? null : p.suspendKind().name(),
+                    p.status() == EmoticonPackStatus.SUSPENDED && p.suspendKind() == com.community.emoticon.entity.EmoticonSuspendKind.OPERATOR));
         }
         return out;
     }
@@ -473,6 +479,9 @@ public class EmoticonPackAdminService {
     public EmoticonAdminView.PackDetail changePrice(long operatorId, String ip, String idText, EmoticonReviewDecisionRequest body) {
         String reason = reason(body == null ? null : body.reason());
         PackRow p = lock(idText);
+        if (p.creatorWithdrawn()) {
+            throw new EmoticonConflictException(EmoticonConflictException.PACK_CREATOR_WITHDRAWN, "error.EMOTICON_PACK_CREATOR_WITHDRAWN.price");
+        }
         if (p.status() != EmoticonPackStatus.APPROVED || p.source() != EmoticonPackSource.CREATOR || p.creatorId() == null) {
             throw new EmoticonConflictException(EmoticonConflictException.PACK_NOT_ON_SALE, "error.EMOTICON_PACK_NOT_ON_SALE.price");
         }
@@ -505,6 +514,6 @@ public class EmoticonPackAdminService {
 
     private static EmoticonAdminView.PackRow row(EmoticonAdminView.PackDetail d) {
         return new EmoticonAdminView.PackRow(d.id(), d.name(), d.coverUrl(), d.source(), d.creator(), d.itemCount(), d.price(), d.acquireCount(), d.rewardTotal(),
-                d.salesCount(), d.salesAmount(), d.status(), d.pendingUpdate(), d.updatedAt());
+                d.salesCount(), d.salesAmount(), d.status(), d.pendingUpdate(), d.updatedAt(), d.suspendKind());
     }
 }

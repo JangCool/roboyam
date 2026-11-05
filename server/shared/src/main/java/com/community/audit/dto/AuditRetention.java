@@ -140,6 +140,8 @@ public final class AuditRetention {
             // 로보티콘 심사·판매 중단·운영 팩 — 콘텐츠 운영 일(승인 가격은 승인 감사의 price 칸 — 판매 뒤 가격 바꾸기·설정 저장은 돈 관련, 받기 보상은 감사가 아니라 원장)
             AuditActions.EMOTICON_REVIEW_APPROVE, AuditActions.EMOTICON_REVIEW_REJECT, AuditActions.EMOTICON_PACK_SUSPEND, AuditActions.EMOTICON_PACK_RESUME,
             AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE,
+            // 작가 탈퇴로 새 판매 멈춤(시스템) — 판매 중단과 같은 콘텐츠 운영 일(돈은 정산이 움직인다, 후속 결정 6)
+            AuditActions.EMOTICON_PACK_CREATOR_WITHDRAWN,
             // 소모임 분류(이름·게시판 할당·순서) — 게시판 구성과 같은 운영 일
             AuditActions.GROUP_CATEGORY_CREATE, AuditActions.GROUP_CATEGORY_UPDATE, AuditActions.GROUP_CATEGORY_ORDER, AuditActions.GROUP_CATEGORY_DELETE,
             // 소모임 개설 승인·반려·비활성화·다시 열기 · 소모임 설정 네 구획 — 콘텐츠·커뮤니티 운영 일(분류와 같다, 돈·개인정보가 움직이지 않는다)

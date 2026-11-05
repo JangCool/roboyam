@@ -37,6 +37,11 @@ public class EmoticonConflictException extends CommonException {
     public static final String PAID_SALES_CLOSED = "EMOTICON_PAID_SALES_CLOSED";
     public static final String ALREADY_REFUNDED = "EMOTICON_ALREADY_REFUNDED";
     public static final String SALE_ALREADY_REFUNDED = "EMOTICON_SALE_ALREADY_REFUNDED";
+    /**
+     * 작가 탈퇴로 판매를 멈춘 팩(또는 탈퇴한 작가의 심사 건)이라 다시 판매·가격 바꾸기·새 판 승인을 받지 않는다(후속 결정 6 — 운영자 판단의 판매 중단과 달리 되살리지 못한다).
+     * 새로 사기·받기는 기존 {@link #PACK_SUSPENDED} 그대로(사는 사람에게는 까닭을 가르지 않는다).
+     */
+    public static final String PACK_CREATOR_WITHDRAWN = "EMOTICON_PACK_CREATOR_WITHDRAWN";
     // S4 작가 정산 — 목업 코드 그대로
     /** 예정·확정 정산만 보류할 수 있다 */
     public static final String SETTLEMENT_NOT_HOLDABLE = "EMOTICON_SETTLEMENT_NOT_HOLDABLE";

@@ -1,7 +1,7 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import UtilEmoticon, { type EmoticonReasonProblem, type EmoticonSpecIssue } from '~/utils/util-emoticon';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { EmoticonPayeeType } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
+import type { EmoticonPackStatus, EmoticonPayeeType, EmoticonSuspendKind, EmoticonSuspension } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 
 /** 그림 올리기를 서버가 거절한 이유 코드(`400 VALIDATION fields.file`·`fields.cover` — 서버 `EmoticonImageInvalidException`) */
 const UPLOAD_REASONS: ReadonlySet<string> = new Set(['TYPE', 'COVER_TYPE', 'DIMENSION', 'TOO_LARGE', 'TOO_MANY_FRAMES', 'NOT_LOOP']);
@@ -64,6 +64,31 @@ export default class UtilEmoticonMessages {
         const range = UtilEmoticon.SETTING_RANGES[field];
         if (value < range.min || value > range.max) return t('emoticon.settings.outOfRange', { min: range.min.toLocaleString(locale), max: range.max.toLocaleString(locale) });
         return '';
+    }
+
+    /**
+     * 팩 상태 딱지 글자 — 작가 탈퇴로 멈춘 판매 중단(`suspendKind: CREATOR_WITHDRAWN`)은 「작가 탈퇴로 판매 중단」, 그 밖은 상태 이름.
+     * @param {Translate} t - 번역 함수.
+     * @param {EmoticonPackStatus} status - 팩 상태.
+     * @param {EmoticonSuspendKind | null} suspendKind - 판매 중단의 종류.
+     * @returns {string} 글자.
+     */
+    static packStatus(t: Translate, status: EmoticonPackStatus, suspendKind: EmoticonSuspendKind | null): string {
+        return status === 'SUSPENDED' && suspendKind === 'CREATOR_WITHDRAWN' ? t('emoticon.packStatusCreatorWithdrawn') : t(`emoticon.packStatus.${status}`);
+    }
+
+    /**
+     * 판매 중단 안내 한 줄 — 작가 탈퇴로 멈춘 팩은 처리한 사람 「시스템」 + 화면 문구(서버 사유는 고정 문구라 쓰지 않는다),
+     * 운영자 판매 중단은 처리한 운영자(지워졌으면 「지워진 운영자」) + 서버 사유.
+     * @param {Translate} t - 번역 함수.
+     * @param {EmoticonSuspension} suspension - 판매 중단 기록.
+     * @param {EmoticonSuspendKind | null} suspendKind - 판매 중단의 종류.
+     * @param {string} at - 표시용 시각 글자.
+     * @returns {string} 한 줄.
+     */
+    static suspensionNote(t: Translate, suspension: EmoticonSuspension, suspendKind: EmoticonSuspendKind | null, at: string): string {
+        if (suspendKind === 'CREATOR_WITHDRAWN') return t('emoticon.suspendedCreatorWithdrawnNote', { by: t('emoticon.systemActor'), at });
+        return `${t('emoticon.suspendedNote', { by: suspension.by ?? t('emoticon.priceEventByUnknown'), at })} — ${suspension.reason}`;
     }
 
     /**

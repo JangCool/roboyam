@@ -105,8 +105,14 @@ export interface EmoticonReviewDecision {
     /** 반려 사유(작가에게 그대로 보인다) — 승인이면 null */
     reason: string | null;
     decidedAt: string;
-    decidedBy: string;
+    /** 처리한 운영자 이름 — 작가 탈퇴로 시스템이 닫았으면 null */
+    decidedBy: string | null;
+    /** 누가 닫았나 — 운영자 · 작가 탈퇴로 시스템이 반려(후속 결정 6) */
+    cause: EmoticonReviewDecisionCause;
 }
+
+/** 심사 건을 닫은 까닭 — 운영자 처리 · 작가 탈퇴로 시스템이 반려 */
+export type EmoticonReviewDecisionCause = 'OPERATOR' | 'CREATOR_WITHDRAWN';
 
 /** `GET /api/admin/emoticons/reviews?status=` 의 한 줄 */
 export interface EmoticonReviewRow {
@@ -170,10 +176,15 @@ export interface EmoticonReasonRequest {
 
 /** 판매 중단 기록 */
 export interface EmoticonSuspension {
+    /** 판매 중단 사유 — 작가 탈퇴로 멈춘 팩은 서버 고정 문구(화면은 `suspendKind` 로 문구를 고른다) */
     reason: string;
     at: string;
-    by: string;
+    /** 처리한 운영자 이름 — 작가 탈퇴로 멈춘 팩은 null(시스템) */
+    by: string | null;
 }
+
+/** 판매 중단의 종류 — 운영자 판단 · 작가 탈퇴(새 판매만 멈춤, 되살리지 못한다 — 후속 결정 6) */
+export type EmoticonSuspendKind = 'OPERATOR' | 'CREATOR_WITHDRAWN';
 
 /** `GET /api/admin/emoticons/packs` 의 한 줄 */
 export interface EmoticonPackRow {
@@ -198,6 +209,8 @@ export interface EmoticonPackRow {
     /** 새 판 심사가 걸려 있나 — 심사 중에도 옛 판이 계속 나온다 */
     pendingUpdate: boolean;
     updatedAt: string;
+    /** 판매 중단의 종류 — 판매 중단이 아니면 null */
+    suspendKind: EmoticonSuspendKind | null;
 }
 
 export interface EmoticonPackQuery {
@@ -228,6 +241,8 @@ export interface EmoticonPackDetail extends EmoticonPackRow {
     paidReady: { contractAgreed: boolean; payoutRegistered: boolean } | null;
     /** 가격 전환 기록(최근이 앞) */
     priceEvents: EmoticonPriceEvent[];
+    /** 「다시 판매」를 받는가 — 운영자 판매 중단만 true(작가 탈퇴로 멈춘 팩은 false) */
+    resumable: boolean;
 }
 
 /** 가격 전환 한 줄 — 언제·누가·얼마 → 얼마·사유 */

@@ -132,7 +132,7 @@ class EmoticonAdminCatalogTest {
     @Test
     void 감사_행위는_분류가_정해져_있고_대상_종류는_거르기_선택지에_있다() {
         for (String action : List.of(AuditActions.EMOTICON_REVIEW_APPROVE, AuditActions.EMOTICON_REVIEW_REJECT, AuditActions.EMOTICON_PACK_SUSPEND,
-                AuditActions.EMOTICON_PACK_RESUME, AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE)) {
+                AuditActions.EMOTICON_PACK_RESUME, AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE, AuditActions.EMOTICON_PACK_CREATOR_WITHDRAWN)) {
             assertThat(AuditRetention.declared(action)).as(action).contains(AuditRetentionClass.GENERAL);
         }
         // S2 — 가격 바꾸기·설정(유료 판매·수수료·가격 단계)은 돈 관련, 정산 계좌 원문 보기는 개인정보 열람
@@ -169,7 +169,8 @@ class EmoticonAdminCatalogTest {
         for (String code : List.of("EMOTICON_PACK_NOT_FOUND", "EMOTICON_PACK_SUSPENDED", "EMOTICON_PACK_PAID", "EMOTICON_PACK_LOCKED", "EMOTICON_PAYOUT_REQUIRED",
                 "EMOTICON_PENDING_LIMIT", "EMOTICON_NOT_OWNED", "EMOTICON_REVIEW_NOT_FOUND", "EMOTICON_REVIEW_NOT_PENDING", "EMOTICON_PACK_NOT_ON_SALE",
                 "EMOTICON_PACK_NOT_SUSPENDED", "EMOTICON_PACK_NOT_OFFICIAL", "EMOTICON_UPLOAD_LIMIT", "EMOTICON_CONTRACT_REQUIRED", "EMOTICON_IDENTITY_NAME_MISSING",
-                "EMOTICON_PAYOUT_ACCOUNT_NOT_FOUND", "EMOTICON_PACK_NOT_ON_SALE.price")) {
+                "EMOTICON_PAYOUT_ACCOUNT_NOT_FOUND", "EMOTICON_PACK_NOT_ON_SALE.price", "EMOTICON_PACK_CREATOR_WITHDRAWN", "EMOTICON_PACK_CREATOR_WITHDRAWN.price",
+                "EMOTICON_PACK_CREATOR_WITHDRAWN.review")) {
             keys.add("error." + code);
         }
         keys.addAll(List.of("emoticon.contract.title", "emoticon.studio.saleWish.paidDisabled", "emoticon.payout.type", "emoticon.payout.businessNumber",
@@ -182,7 +183,8 @@ class EmoticonAdminCatalogTest {
             keys.add("emoticon.image." + reason);
         }
         for (String action : List.of(AuditActions.EMOTICON_REVIEW_APPROVE, AuditActions.EMOTICON_REVIEW_REJECT, AuditActions.EMOTICON_PACK_SUSPEND,
-                AuditActions.EMOTICON_PACK_RESUME, AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE, AuditActions.EMOTICON_SETTINGS_UPDATE)) {
+                AuditActions.EMOTICON_PACK_RESUME, AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE, AuditActions.EMOTICON_SETTINGS_UPDATE,
+                AuditActions.EMOTICON_PACK_CREATOR_WITHDRAWN)) {
             keys.add("audit.action." + action);
         }
         // S3 — 유료 구매 · 환불 · 판매 내역 · 이름 채우기 재인증

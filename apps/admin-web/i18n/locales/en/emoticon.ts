@@ -90,6 +90,8 @@ export default {
         REJECTED: 'Rejected',
         SUSPENDED: 'Suspended',
     },
+    /** Status tag of a pack stopped because its creator withdrew (`suspendKind: CREATOR_WITHDRAWN`) */
+    packStatusCreatorWithdrawn: 'Suspended: creator withdrew',
     source: {
         OFFICIAL: 'Official',
         CREATOR: 'Creator',
@@ -130,6 +132,11 @@ export default {
     approvedNote: 'Approved by {by} · {at}.',
     updateNote: 'This is a new version of a pack on sale. The current version stays in the shop during review.',
     suspendedNote: 'Suspended by {by} · {at}',
+    /** Handled by the system because the creator withdrew — the "by" field */
+    systemActor: 'System',
+    suspendedCreatorWithdrawnNote: 'Suspended by {by} · {at} because the creator withdrew — only new sales are stopped. Members who already have it can keep using it; it can’t be put back on sale or repriced.',
+    rejectedCreatorWithdrawn: 'Auto-rejected: creator withdrew',
+    rejectedCreatorWithdrawnNote: 'Auto-rejected by {by} · {at} because the creator withdrew — the review was closed.',
     pendingUpdateNote: 'A new version is in review (the current version stays in the shop meanwhile).',
     pendingFirstNote: 'This pack is waiting for review.',
     goReview: 'Open in reviews',
@@ -625,6 +632,8 @@ export default {
         ACCOUNT_VIEWED: 'Full account viewed',
     },
     carriedNothingToPay: 'Nothing to pay (carried to next month)',
+    /** Settlement row of a withdrawn creator (`creator.withdrawn`) — the rest is paid out with no minimum */
+    settlementWithdrawnNote: 'Withdrawn creator — the remaining amount is paid regardless of the minimum payout',
     actConfirm: 'Confirm',
     actHold: 'Hold',
     actUnhold: 'Release hold',

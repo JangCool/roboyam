@@ -54,6 +54,8 @@ export default {
     boughtToast: '「{name}」을 샀어요. 글·댓글의 로보티콘 단추에서 쓸 수 있어요.',
     suspendedText: '판매가 중단된 팩이라 지금은 받거나 살 수 없어요.',
     suspendedOwned: '판매가 중단된 팩이에요. 이미 가지고 있으니 계속 쓸 수 있어요.',
+    /** 작가 탈퇴로 멈춘 팩(`suspendKind: CREATOR_WITHDRAWN`) */
+    suspendedCreatorWithdrawn: '작가가 탈퇴해 더 이상 판매하지 않아요 — 이미 가진 팩은 계속 쓸 수 있어요',
     buyFor: '구매 {price}',
     refundRule: '한 번이라도 쓰면 환불할 수 없어요 · {days}일 안에 쓰지 않으면 환불할 수 있어요.',
     buyTitle: '로보티콘 팩 구매',
