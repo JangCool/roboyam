@@ -21,11 +21,13 @@ import com.community.batch.core.BatchRunner.RunReport;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.batch.entity.BatchRunStatus;
 import com.community.batch.entity.BatchSource;
+import com.community.business.service.BusinessPii;
 import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
 import com.community.withdrawal.service.WithdrawnContactStore;
+import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.crypto.DataPurpose;
 import com.community.zconfiguration.exception.CommonException;
@@ -37,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -385,6 +388,63 @@ class DataKeyRotationJobTest {
         assertThatThrownBy(() -> before.list(member)).isInstanceOf(CommonException.class);
     }
 
+    /** 사업자등록증 사본 한 줄(회원 것으로 올린 상태) — 행 ID */
+    private static long certificate(long member, byte[] content) {
+        long id = ids.nextId();
+        jdbc.update("INSERT INTO business_documents (id, user_id, kind, file_name, content_type, size_bytes, content, sha256, created_at, erased_at) "
+                + "VALUES (?, ?, 'CERTIFICATE', 'cert.pdf', 'application/pdf', ?, ?, ?, now(), ?)", id, member, Math.max(1, content == null ? 1 : content.length), content,
+                String.format("%064x", id), content == null ? Timestamp.from(Instant.now()) : null);
+        return id;
+    }
+
+    private static byte[] certificateContent(long id) {
+        return jdbc.queryForObject("SELECT content FROM business_documents WHERE id = ?", byte[].class, id);
+    }
+
+    @Test
+    void 사업자등록증_사본_파일은_한_건씩_새_키로_바뀌고_예전_키를_비운_서버에서_원본_그대로_열린다() {
+        // 0) 옛 키(버전 1)만 있던 때 올린 사본 둘 · 잃어버린 키(버전 3)로 잠긴 사본 하나 · 파기한(내용 NULL) 사본 하나
+        long member = ids.nextId();
+        jdbc.update("INSERT INTO users (id, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, 'v1', now(), now())", member);
+        BusinessPii before = new BusinessPii(cipher(K1), new BlindIndex(""));
+        byte[] first = ("%PDF-1.7 첫 사본 " + member).getBytes(StandardCharsets.UTF_8);
+        byte[] second = new byte[64 * 1024]; // 내용 바이트에 NUL·% 같은 값이 섞여도 앞머리만 본다
+        new SecureRandom().nextBytes(second);
+        long[] documents = {certificate(member, before.encryptFile(first)), certificate(member, before.encryptFile(second))};
+        long lost = certificate(member, new BusinessPii(cipher(K3), new BlindIndex("")).encryptFile("잃어버린 키".getBytes(StandardCharsets.UTF_8)));
+        long erased = certificate(member, null);
+
+        // 1) 덩어리 크기 1(파일은 한 건씩) 2) 사본 칸 하나로 배치
+        Fixture fixture = fixture(); // 배치 키만 빌린다
+        setting(fixture.definition().key(), "chunk_size", 1);
+        setting(fixture.definition().key(), "failure_limit", 100_000); // 같은 DB 의 다른 시험이 남긴 사본은 건별 실패로 넘긴다
+        EncryptedColumn column = DataKeyColumns.FILES.get(0);
+        RunReport report = run(new DataKeyRotationJob(fixture.definition(), List.of(column), dataSource, cipher(K2, K1)), BatchRequestKind.NOW, null);
+
+        assertThat(report.status()).isEqualTo(BatchRunStatus.OK);
+        List<Object> failedIds = failures(report.runId()).stream().map(row -> row.get("target_id")).toList();
+        assertThat(failedIds).contains(Long.toString(lost)).doesNotContain(Long.toString(documents[0]), Long.toString(documents[1]), Long.toString(erased));
+        assertThat(failures(report.runId())).filteredOn(row -> row.get("target_id").equals(Long.toString(lost))).singleElement().satisfies(row -> {
+            assertThat(row.get("error_code")).isEqualTo(DataKeyRotationJob.UNREADABLE);
+            assertThat(row.get("target_type")).isEqualTo("BUSINESS_DOCUMENT");
+            assertThat((String) row.get("message")).contains("3").doesNotContain("잃어버린");
+        });
+
+        // 3) 예전 키를 비운 서버의 열람 길(BusinessPii.decryptFile)로 원본 그대로
+        BusinessPii after = new BusinessPii(cipher(K2), new BlindIndex(""));
+        assertThat(new String(certificateContent(documents[0]), 0, 3, StandardCharsets.US_ASCII)).isEqualTo("d2:");
+        assertThat(after.decryptFile(certificateContent(documents[0]))).isEqualTo(first);
+        assertThat(after.decryptFile(certificateContent(documents[1]))).isEqualTo(second);
+        assertThat(certificateContent(erased)).as("파기한 사본은 고르지 않는다").isNull();
+        assertThat(new String(certificateContent(lost), 0, 3, StandardCharsets.US_ASCII)).as("풀 수 없는 사본은 그대로").isEqualTo("d3:");
+        assertThatThrownBy(() -> before.decryptFile(certificateContent(documents[0]))).as("옛 키만으로는 못 푼다").isInstanceOf(CommonException.class);
+
+        // 다시 돌리면 우리 사본은 더 할 일이 없다(잃어버린 키 사본만 또 실패)
+        RunReport again = run(new DataKeyRotationJob(fixture.definition(), List.of(column), dataSource, cipher(K2, K1)), BatchRequestKind.NOW, null);
+        assertThat(failures(again.runId()).stream().map(row -> row.get("target_id")).toList()).contains(Long.toString(lost))
+                .doesNotContain(Long.toString(documents[0]), Long.toString(documents[1]));
+    }
+
     @Test
     void 목록의_모든_칸이_실제_표_모양에서_새_키로_바뀌고_예전_키를_비워도_그_칸의_용도로_읽힌다() {
         // 표마다 실제 표와 같은 칸의 사본(제약·외래 키 없이 — 다른 시험의 행이 섞이지 않게)을 만들고, 목록 칸을 같은 이름의 사본 칸으로 옮긴다
@@ -399,7 +459,7 @@ class DataKeyRotationJobTest {
             copies.put(table, copy);
         }
         List<EncryptedColumn> columns = DataKeyColumns.ALL.stream()
-                .map(c -> new EncryptedColumn(c.step(), copies.get(c.table()), c.idColumn(), c.cipherColumn(), c.purpose(), c.targetType())).toList();
+                .map(c -> new EncryptedColumn(c.step(), copies.get(c.table()), c.idColumn(), c.cipherColumn(), c.purpose(), c.targetType(), c.bytes())).toList();
 
         // 표마다 옛 키 행 둘 · 이미 새 키인 행 하나 · 칸을 비운(마스킹·파기) 행 하나
         DataCipher old = cipher(K1);
@@ -417,7 +477,7 @@ class DataKeyRotationJobTest {
                 List<Object> values = new ArrayList<>(List.of(id));
                 for (EncryptedColumn column : ofTable) {
                     String plain = column.step() + " 평문 " + id;
-                    values.add(with.encrypt(column.purpose(), plain));
+                    values.add(seal(with, column, plain));
                     expected.computeIfAbsent(copy + "." + column.cipherColumn(), k -> new LinkedHashMap<>()).put(id, plain);
                 }
                 jdbc.update("INSERT INTO " + copy + " (" + idColumn + ", " + names + ") VALUES (?, " + marks + ")", values.toArray());
@@ -429,7 +489,7 @@ class DataKeyRotationJobTest {
             jdbc.update("INSERT INTO " + copy + " (" + idColumn + ") VALUES (?)", id);
             emptied.put(copy, id);
         });
-        Map<String, String> currentBefore = new LinkedHashMap<>();
+        Map<String, Object> currentBefore = new LinkedHashMap<>();
         columns.forEach(c -> currentBefore.put(c.table() + "." + c.cipherColumn(), cell(c, alreadyCurrent.get(c.table()))));
 
         Fixture fixture = fixture(); // 배치 키만 빌린다
@@ -444,19 +504,38 @@ class DataKeyRotationJobTest {
             String name = column.table() + "." + column.cipherColumn();
             assertThat(number(step(report.runId(), column.step()).get("processed_count"))).as(column.step() + " — 옛 키 행만").isEqualTo(2);
             expected.get(name).forEach((id, plain) -> {
-                String now = cell(column, id);
-                assertThat(now).as(name).startsWith("d2:");
-                assertThat(current.decrypt(column.purpose(), now)).as(name).isEqualTo(plain);
+                Object now = cell(column, id);
+                assertThat(head(column, now)).as(name).isEqualTo("d2:");
+                assertThat(open(current, column, now)).as(name).isEqualTo(plain);
             });
             assertThat(cell(column, alreadyCurrent.get(column.table()))).as(name + " — 이미 새 키인 행은 그대로").isEqualTo(currentBefore.get(name));
             assertThat(cell(column, emptied.get(column.table()))).as(name + " — 비운 칸은 고르지 않는다").isNull();
             long anyOld = expected.get(name).keySet().iterator().next();
-            assertThatThrownBy(() -> old.decrypt(column.purpose(), cell(column, anyOld))).as(name + " — 옛 키만으로는 못 푼다").isInstanceOf(CommonException.class);
+            assertThatThrownBy(() -> open(old, column, cell(column, anyOld))).as(name + " — 옛 키만으로는 못 푼다").isInstanceOf(CommonException.class);
         }
+        assertThat(columns).as("파일 바이트 칸도 함께 돈다").anyMatch(EncryptedColumn::bytes);
     }
 
-    private static String cell(EncryptedColumn column, long id) {
-        return jdbc.queryForObject("SELECT " + column.cipherColumn() + " FROM " + column.table() + " WHERE " + column.idColumn() + " = ?", String.class, id);
+    /** 칸 종류에 맞춰 잠근다 — 글자 칸은 글자, 파일 칸은 바이트 */
+    private static Object seal(DataCipher with, EncryptedColumn column, String plain) {
+        return column.bytes() ? with.encryptBytes(column.purpose(), plain.getBytes(StandardCharsets.UTF_8)) : with.encrypt(column.purpose(), plain);
+    }
+
+    private static String open(DataCipher with, EncryptedColumn column, Object value) {
+        return column.bytes() ? new String(with.decryptBytes(column.purpose(), (byte[]) value), StandardCharsets.UTF_8) : with.decrypt(column.purpose(), (String) value);
+    }
+
+    /** 암호문 앞머리 세 글자({@code d<버전>:}) */
+    private static String head(EncryptedColumn column, Object value) {
+        return column.bytes() ? new String((byte[]) value, 0, 3, StandardCharsets.US_ASCII) : ((String) value).substring(0, 3);
+    }
+
+    private static Object cell(EncryptedColumn column, long id) {
+        String sql = "SELECT " + column.cipherColumn() + " FROM " + column.table() + " WHERE " + column.idColumn() + " = ?";
+        if (column.bytes()) {
+            return jdbc.queryForObject(sql, byte[].class, id);
+        }
+        return jdbc.queryForObject(sql, String.class, id);
     }
 
     /** {@code DataCipher} 가 아니라 설정 비밀값 키(ROBOYAM_CRYPTO_KEY, {@code SecretEncryptor} — {@code v1:} 암호문)로 잠그는 칸 */
@@ -467,11 +546,14 @@ class DataKeyRotationJobTest {
     /** 칸은 있지만 아직 저장하는 코드가 없다 — 저장을 시작하면 여기서 빼고 {@link DataKeyColumns} 에 올린다 */
     private static final Set<String> NOT_WRITTEN_YET = Set.of("group_buy_participations.cash_receipt_no_enc");
 
+    /** 데이터 키로 잠그지 않는 바이트 칸 — 스프링 세션 속성(직렬화한 세션 값, 수명이 짧다) */
+    private static final Set<String> NOT_DATA_CIPHER_BYTES = Set.of("spring_session_attributes.attribute_bytes");
+
     @Test
-    void 스키마의_암호문_칸은_모두_교체_목록이나_설정_비밀값_칸으로_적혀_있다() {
+    void 스키마의_암호문_칸과_바이트_칸은_모두_교체_목록이나_다른_키_칸으로_적혀_있다() {
         Map<String, String> schema = new LinkedHashMap<>(); // 「표.칸」 → 자료형
-        jdbc.query("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND column_name ~ '_(enc|cipher)$' "
-                + "AND table_name NOT LIKE 'zz\\_%' ORDER BY table_name, column_name", rs -> {
+        jdbc.query("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() "
+                + "AND (column_name ~ '_(enc|cipher)$' OR data_type = 'bytea') AND table_name NOT LIKE 'zz\\_%' ORDER BY table_name, column_name", rs -> {
                     schema.put(rs.getString(1) + "." + rs.getString(2), rs.getString(3));
                 });
         Set<String> listed = new LinkedHashSet<>(DataKeyColumns.ALL.stream().map(c -> c.table() + "." + c.cipherColumn()).toList());
@@ -481,11 +563,14 @@ class DataKeyRotationJobTest {
         unclassified.removeAll(listed);
         unclassified.removeAll(SECRET_ENCRYPTOR_COLUMNS);
         unclassified.removeAll(NOT_WRITTEN_YET);
-        assertThat(unclassified).as("DataCipher 로 잠그면 DataKeyColumns 에, SecretEncryptor 면 이 시험의 목록에 올린다").isEmpty();
+        unclassified.removeAll(NOT_DATA_CIPHER_BYTES);
+        assertThat(unclassified).as("DataCipher 로 잠그면 DataKeyColumns 에(파일이면 ofBytes), 다른 키·평문이면 이 시험의 목록에 올린다").isEmpty();
         assertThat(NOT_WRITTEN_YET).isSubsetOf(schema.keySet());
         assertThat(SECRET_ENCRYPTOR_COLUMNS).isSubsetOf(schema.keySet());
+        assertThat(NOT_DATA_CIPHER_BYTES).isSubsetOf(schema.keySet());
         for (EncryptedColumn column : DataKeyColumns.ALL) {
-            assertThat(schema.get(column.table() + "." + column.cipherColumn())).as(column.step()).isIn("text", "character varying");
+            assertThat(schema.get(column.table() + "." + column.cipherColumn())).as(column.step())
+                    .isIn(column.bytes() ? List.of("bytea") : List.of("text", "character varying"));
             assertThat(jdbc.queryForObject("SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
                     String.class, column.table(), column.idColumn())).as(column.step() + " 행 키").isEqualTo("bigint");
         }
