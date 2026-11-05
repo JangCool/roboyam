@@ -47,4 +47,4 @@
 - **칸 규칙 통일로 주문 쪽이 좁아졌다** — 예전 주문 검사(받는 분 50·전화 `[0-9-]{9,15}`·우편번호 5~6자리·주소/상세/메모 200)는 화면 `maxlength`(30·13·5·100·100·50)보다 넓었다. 이제 계약 값 그대로. 내 주문 배송지 수정 오류도 첫 칸 하나 대신 틀린 칸을 모두(`address.memo` 가 `address.address2` 로 나가던 것 바로잡음). 칸 문구 키 `address.field.*`(예전 `groupbuy.order.address.invalid` 는 지움).
 - **탈퇴** 완료 때 `WithdrawalEraseStore.deleteOwnRows` 가 `member_addresses` 를 지운다.
 - **시험** `AddressFieldRulesTest`(shared, 12) · `AddressBookHttpTest`(api, 주소록 13 + 주문 연결 7). 규칙 → 시험 대응은 시험 클래스 머리 주석.
-- **남은 것** 데이터 키 교체 배치(`DataKeyColumns`)에 주소록 칸을 아직 올리지 않았다(공구 주문 배송지 칸도 아직 없음 — 함께 올릴 일).
+- **데이터 키 교체** 배치(`DataKeyColumns`)에 주소록 5칸(`member-address-*`)과 공구 주문 배송지 5칸(`groupbuy-address-*`)을 올렸다(같은 때 빠져 있던 입금 계좌·사업자 신원·광고주 연락처 칸도). 「교체 → 예전 키 비움 → 주소록 목록 그대로」·스키마의 `*_enc`/`*_cipher` 칸 누락 감시는 `DataKeyRotationJobTest`.

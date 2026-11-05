@@ -33,6 +33,14 @@ public interface BatchJob {
         return steps().get(0).name();
     }
 
+    /**
+     * 실행 줄의 읽음·처리·건너뜀을 주 단계 대신 <b>단계 합</b>으로 세는가 — 모든 단계가 같은 일을 다른 대상에 하는 작업만 true
+     * (예: 데이터 키 교체 — 칸마다 한 단계). 기본 false(확정 규칙 1).
+     */
+    default boolean countsAllSteps() {
+        return false;
+    }
+
     /** 받을 수 있는 실행 파라미터. 기본은 없음 */
     default List<BatchParamDefinition> params() {
         return List.of();

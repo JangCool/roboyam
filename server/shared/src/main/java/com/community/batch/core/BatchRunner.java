@@ -298,7 +298,7 @@ public class BatchRunner {
         long read;
         long processed;
         long skipped;
-        if (mode == BatchRunMode.RETRY_FAILED) {
+        if (mode == BatchRunMode.RETRY_FAILED || job.countsAllSteps()) {
             read = ran.stream().mapToLong(BatchStep::readCount).sum();
             processed = ran.stream().mapToLong(BatchStep::processedCount).sum();
             skipped = ran.stream().mapToLong(BatchStep::skippedCount).sum();

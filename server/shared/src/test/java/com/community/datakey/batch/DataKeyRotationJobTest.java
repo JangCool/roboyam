@@ -3,6 +3,10 @@ package com.community.datakey.batch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.addressbook.dto.AddressInput;
+import com.community.addressbook.dto.SavedAddress;
+import com.community.addressbook.repository.master.MemberAddressStore;
+import com.community.addressbook.service.AddressBookService;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.service.AuditLogService;
 import com.community.batch.core.BatchCatalog;
@@ -17,6 +21,7 @@ import com.community.batch.core.BatchRunner.RunReport;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.batch.entity.BatchRunStatus;
 import com.community.batch.entity.BatchSource;
+import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
@@ -37,9 +42,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
@@ -54,7 +62,8 @@ import org.springframework.scheduling.support.CronExpression;
  * 데이터 키 교체 배치 {@code data-key-rotation}(계약 「0-1」 키 교체 절차 · 「0-4」) — 실제 PostgreSQL 위에서 배치 core({@link BatchRunner})로 돌린다(commerce.md 18절).
  *
  * <p>DB 를 다른 시험과 같이 쓰므로 규칙 시험은 시험마다 만든 표({@code zz_rot_<n>})를 칸 하나로 삼은 작업으로 돈다(다른 시험의 행이 섞이지 않게). 마지막 시험은 실제 칸 목록
- * ({@link DataKeyColumns#ALL} — 탈퇴 회원 연락처 표)으로 「새 키 → 배치 → 예전 키 비움」을 끝까지 해 본다.
+ * ({@link DataKeyColumns#ALL})으로 「새 키 → 배치 → 예전 키 비움」을 끝까지 해 본다 — 탈퇴 회원 연락처·회원 주소록은 실제 표와 실제 열람 길로, 목록의 모든 칸은
+ * 실제 표 모양의 사본으로. 스키마의 암호문 칸이 목록에서 빠지지 않았는지도 여기서 본다.
  */
 class DataKeyRotationJobTest {
 
@@ -348,6 +357,141 @@ class DataKeyRotationJobTest {
     }
 
     @Test
+    void 키_교체_절차를_거친_회원_주소록은_예전_키를_비운_서버에서_주소록_화면_길로_그대로_읽힌다() {
+        // 0) 옛 키(버전 1)만 있던 때 주소록 저장 길(AddressBookService.create)로 저장 — 상세 주소·메모가 있는 것과 없는 것
+        MemberAddressStore store = new MemberAddressStore(dataSource);
+        long member = ids.nextId();
+        jdbc.update("INSERT INTO users (id, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, 'v1', now(), now())", member);
+        AddressBookService before = new AddressBookService(store, cipher(K1), ids, new StaticListableBeanFactory().getBeanProvider(Clock.class));
+        SavedAddress full = before.create(member, new AddressInput("집", "홍길동", "010-1234-5678", "06236", "서울 강남구 테헤란로 1", "101동 1001호", "문 앞에 두세요", true));
+        SavedAddress bare = before.create(member, new AddressInput(null, "김철수", "01098765432", "48058", "부산 해운대구 센텀로 2", null, null, false));
+
+        // 1) 새 키를 지금 키로, 옛 키를 예전 키로  2) 실제 칸 목록으로 배치
+        setting(BatchCatalog.DATA_KEY_ROTATION.key(), "failure_limit", 100_000); // 같은 DB 의 다른 시험이 남긴(이 키로 풀 수 없는) 행은 건별 실패로 넘긴다
+        RunReport report = run(new DataKeyRotationJob(dataSource, cipher(K2, K1)), BatchRequestKind.NOW, null);
+        jdbc.update("DELETE FROM batch_params WHERE job_key = ? AND param_key = 'failure_limit'", BatchCatalog.DATA_KEY_ROTATION.key());
+        assertThat(report.status()).isEqualTo(BatchRunStatus.OK);
+        assertThat(failures(report.runId())).extracting(row -> row.get("target_id")).doesNotContain(Long.toString(full.id()), Long.toString(bare.id()));
+
+        // 3) 예전 키를 비운 서버의 주소록 목록 — 값이 그대로
+        List<SavedAddress> after = new AddressBookService(store, cipher(K2), ids, new StaticListableBeanFactory().getBeanProvider(Clock.class)).list(member);
+        assertThat(after).extracting(SavedAddress::id).containsExactly(full.id(), bare.id());
+        assertThat(after.get(0)).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(full);
+        assertThat(after.get(1)).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(bare);
+        Map<String, Object> row = jdbc.queryForMap("SELECT recipient_enc, phone_enc, address1_enc, address2_enc, memo_enc FROM member_addresses WHERE id = ?", full.id());
+        assertThat(row.values()).allSatisfy(value -> assertThat((String) value).startsWith("d2:"));
+        assertThat(jdbc.queryForMap("SELECT address2_enc, memo_enc FROM member_addresses WHERE id = ?", bare.id()).values()).as("빈 칸은 그대로 비어 있다").containsOnlyNulls();
+        // 옛 키만 가진 서버는 이제 풀지 못한다
+        assertThatThrownBy(() -> before.list(member)).isInstanceOf(CommonException.class);
+    }
+
+    @Test
+    void 목록의_모든_칸이_실제_표_모양에서_새_키로_바뀌고_예전_키를_비워도_그_칸의_용도로_읽힌다() {
+        // 표마다 실제 표와 같은 칸의 사본(제약·외래 키 없이 — 다른 시험의 행이 섞이지 않게)을 만들고, 목록 칸을 같은 이름의 사본 칸으로 옮긴다
+        Map<String, String> copies = new LinkedHashMap<>();
+        for (String table : DataKeyColumns.ALL.stream().map(EncryptedColumn::table).distinct().toList()) {
+            String copy = "zz_rotc_" + SUFFIX + "_" + TABLES.incrementAndGet();
+            jdbc.execute("CREATE TABLE " + copy + " (LIKE " + table + ")");
+            for (String column : jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND is_nullable = 'NO'",
+                    String.class, copy)) {
+                jdbc.execute("ALTER TABLE " + copy + " ALTER COLUMN " + column + " DROP NOT NULL");
+            }
+            copies.put(table, copy);
+        }
+        List<EncryptedColumn> columns = DataKeyColumns.ALL.stream()
+                .map(c -> new EncryptedColumn(c.step(), copies.get(c.table()), c.idColumn(), c.cipherColumn(), c.purpose(), c.targetType())).toList();
+
+        // 표마다 옛 키 행 둘 · 이미 새 키인 행 하나 · 칸을 비운(마스킹·파기) 행 하나
+        DataCipher old = cipher(K1);
+        DataCipher current = cipher(K2);
+        Map<String, Map<Long, String>> expected = new LinkedHashMap<>(); // 「표.칸」 → 행 → 평문
+        Map<String, Long> emptied = new LinkedHashMap<>();
+        Map<String, Long> alreadyCurrent = new LinkedHashMap<>();
+        copies.forEach((table, copy) -> {
+            List<EncryptedColumn> ofTable = columns.stream().filter(c -> c.table().equals(copy)).toList();
+            String idColumn = ofTable.get(0).idColumn();
+            String names = ofTable.stream().map(EncryptedColumn::cipherColumn).reduce((a, b) -> a + ", " + b).orElseThrow();
+            String marks = ofTable.stream().map(c -> "?").reduce((a, b) -> a + ", " + b).orElseThrow();
+            for (DataCipher with : List.of(old, old, current)) {
+                long id = ROW_IDS.incrementAndGet();
+                List<Object> values = new ArrayList<>(List.of(id));
+                for (EncryptedColumn column : ofTable) {
+                    String plain = column.step() + " 평문 " + id;
+                    values.add(with.encrypt(column.purpose(), plain));
+                    expected.computeIfAbsent(copy + "." + column.cipherColumn(), k -> new LinkedHashMap<>()).put(id, plain);
+                }
+                jdbc.update("INSERT INTO " + copy + " (" + idColumn + ", " + names + ") VALUES (?, " + marks + ")", values.toArray());
+                if (with == current) {
+                    alreadyCurrent.put(copy, id);
+                }
+            }
+            long id = ROW_IDS.incrementAndGet();
+            jdbc.update("INSERT INTO " + copy + " (" + idColumn + ") VALUES (?)", id);
+            emptied.put(copy, id);
+        });
+        Map<String, String> currentBefore = new LinkedHashMap<>();
+        columns.forEach(c -> currentBefore.put(c.table() + "." + c.cipherColumn(), cell(c, alreadyCurrent.get(c.table()))));
+
+        Fixture fixture = fixture(); // 배치 키만 빌린다
+        RunReport report = run(new DataKeyRotationJob(fixture.definition(), columns, dataSource, cipher(K2, K1)), BatchRequestKind.NOW, null);
+
+        assertThat(report.status()).isEqualTo(BatchRunStatus.OK);
+        assertThat(failures(report.runId())).isEmpty();
+        Map<String, Object> runRow = jdbc.queryForMap("SELECT affected_count, read_count FROM batch_runs WHERE id = ?", report.runId());
+        assertThat(number(runRow.get("affected_count"))).as("실행 줄 건수는 첫 단계가 아니라 단계 합").isEqualTo(2L * columns.size());
+        assertThat(number(runRow.get("read_count"))).isEqualTo(2L * columns.size());
+        for (EncryptedColumn column : columns) {
+            String name = column.table() + "." + column.cipherColumn();
+            assertThat(number(step(report.runId(), column.step()).get("processed_count"))).as(column.step() + " — 옛 키 행만").isEqualTo(2);
+            expected.get(name).forEach((id, plain) -> {
+                String now = cell(column, id);
+                assertThat(now).as(name).startsWith("d2:");
+                assertThat(current.decrypt(column.purpose(), now)).as(name).isEqualTo(plain);
+            });
+            assertThat(cell(column, alreadyCurrent.get(column.table()))).as(name + " — 이미 새 키인 행은 그대로").isEqualTo(currentBefore.get(name));
+            assertThat(cell(column, emptied.get(column.table()))).as(name + " — 비운 칸은 고르지 않는다").isNull();
+            long anyOld = expected.get(name).keySet().iterator().next();
+            assertThatThrownBy(() -> old.decrypt(column.purpose(), cell(column, anyOld))).as(name + " — 옛 키만으로는 못 푼다").isInstanceOf(CommonException.class);
+        }
+    }
+
+    private static String cell(EncryptedColumn column, long id) {
+        return jdbc.queryForObject("SELECT " + column.cipherColumn() + " FROM " + column.table() + " WHERE " + column.idColumn() + " = ?", String.class, id);
+    }
+
+    /** {@code DataCipher} 가 아니라 설정 비밀값 키(ROBOYAM_CRYPTO_KEY, {@code SecretEncryptor} — {@code v1:} 암호문)로 잠그는 칸 */
+    private static final Set<String> SECRET_ENCRYPTOR_COLUMNS = Set.of("portone_settings.value_cipher", "public_data_settings.value_cipher",
+            "social_provider_settings.client_secret_enc", "mail_settings.password_enc", "notification_channels.bot_token_enc",
+            "notification_channels.webhook_url_enc");
+
+    /** 칸은 있지만 아직 저장하는 코드가 없다 — 저장을 시작하면 여기서 빼고 {@link DataKeyColumns} 에 올린다 */
+    private static final Set<String> NOT_WRITTEN_YET = Set.of("group_buy_participations.cash_receipt_no_enc");
+
+    @Test
+    void 스키마의_암호문_칸은_모두_교체_목록이나_설정_비밀값_칸으로_적혀_있다() {
+        Map<String, String> schema = new LinkedHashMap<>(); // 「표.칸」 → 자료형
+        jdbc.query("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND column_name ~ '_(enc|cipher)$' "
+                + "AND table_name NOT LIKE 'zz\\_%' ORDER BY table_name, column_name", rs -> {
+                    schema.put(rs.getString(1) + "." + rs.getString(2), rs.getString(3));
+                });
+        Set<String> listed = new LinkedHashSet<>(DataKeyColumns.ALL.stream().map(c -> c.table() + "." + c.cipherColumn()).toList());
+
+        assertThat(listed).as("교체 목록 칸은 스키마에 있다").isSubsetOf(schema.keySet());
+        Set<String> unclassified = new TreeSet<>(schema.keySet());
+        unclassified.removeAll(listed);
+        unclassified.removeAll(SECRET_ENCRYPTOR_COLUMNS);
+        unclassified.removeAll(NOT_WRITTEN_YET);
+        assertThat(unclassified).as("DataCipher 로 잠그면 DataKeyColumns 에, SecretEncryptor 면 이 시험의 목록에 올린다").isEmpty();
+        assertThat(NOT_WRITTEN_YET).isSubsetOf(schema.keySet());
+        assertThat(SECRET_ENCRYPTOR_COLUMNS).isSubsetOf(schema.keySet());
+        for (EncryptedColumn column : DataKeyColumns.ALL) {
+            assertThat(schema.get(column.table() + "." + column.cipherColumn())).as(column.step()).isIn("text", "character varying");
+            assertThat(jdbc.queryForObject("SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+                    String.class, column.table(), column.idColumn())).as(column.step() + " 행 키").isEqualTo("bigint");
+        }
+    }
+
+    @Test
     void 카탈로그_줄은_수동_실행_위주의_Java_배치이고_칸마다_고를_수_있는_단계_문구는_두_언어() throws IOException {
         BatchCatalog definition = BatchCatalog.DATA_KEY_ROTATION;
         assertThat(BatchCatalog.ofKey("data-key-rotation")).isEqualTo(definition);
@@ -357,9 +501,16 @@ class DataKeyRotationJobTest {
 
         DataKeyRotationJob job = new DataKeyRotationJob(dataSource, cipher(K2));
         assertThat(job.resumable()).isTrue();
-        assertThat(job.steps()).extracting(s -> s.name()).containsExactly("withdrawn-contact-email");
+        assertThat(job.steps()).extracting(s -> s.name()).containsExactlyElementsOf(DataKeyColumns.ALL.stream().map(EncryptedColumn::step).toList());
         assertThat(job.steps()).allMatch(s -> s.selectable());
-        assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::purpose).containsExactly(WithdrawnContactStore.EMAIL);
+        assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::step).doesNotHaveDuplicates();
+        assertThat(DataKeyColumns.ALL).extracting(c -> c.table() + "." + c.cipherColumn()).doesNotHaveDuplicates();
+        assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::purpose).doesNotHaveDuplicates()
+                .startsWith(WithdrawnContactStore.EMAIL)
+                .contains(AddressBookService.RECIPIENT, AddressBookService.PHONE, AddressBookService.ADDRESS1, AddressBookService.ADDRESS2, AddressBookService.MEMO)
+                .contains(GroupBuyJoinService.RECIPIENT, GroupBuyJoinService.PHONE, GroupBuyJoinService.ADDRESS1, GroupBuyJoinService.ADDRESS2, GroupBuyJoinService.MEMO);
+        assertThat(DataKeyColumns.MEMBER_ADDRESS).extracting(EncryptedColumn::table).containsOnly("member_addresses");
+        assertThat(DataKeyColumns.GROUP_BUY_ADDRESS).extracting(EncryptedColumn::table).containsOnly("group_buy_participations");
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.table()).isEqualTo("withdrawn_member_contacts");
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.cipherColumn()).isEqualTo("email_cipher");
 

@@ -106,6 +106,12 @@ public class BatchRegistry {
         return job == null ? BatchStepDefinition.MAIN : job.mainStep();
     }
 
+    /** 실행 줄 건수를 단계 합으로 세는가({@link BatchJob#countsAllSteps}) — DB 배치는 아니다 */
+    public boolean countsAllStepsOf(BatchDefinition definition) {
+        BatchJob job = jobOf(definition);
+        return job != null && job.countsAllSteps();
+    }
+
     /** 파라미터 — DB 배치는 없음 */
     public List<BatchParamDefinition> paramsOf(BatchDefinition definition) {
         BatchJob job = jobOf(definition);
