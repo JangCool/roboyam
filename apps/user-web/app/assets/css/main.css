@@ -321,6 +321,10 @@ html[data-theme='naver'] {
  *  - 글 제목(`.post-title`)은 다음식에서 22/30 굵게(모바일 20/28).
  * 층 밖 규칙이라 Tailwind 유틸리티를 이긴다.
  */
+/* 카드 안에 놓인 가로 줄의 그라데이션 화살표(`AppScrollRow`)는 카드 바탕에서 사라진다 */
+html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {
+    --scroll-fade-bg: var(--content-card-bg);
+}
 html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :first-child,
 html[data-theme='naver'] .content-card > :first-child {
     margin-top: 0;

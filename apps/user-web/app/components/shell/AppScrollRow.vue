@@ -5,7 +5,7 @@
           SCROLLBAR  줄 아래 예약 자리(`--scroll-reserve`)에 얇은 트랙 + 손잡이(폭·위치 = 보이는 폭/전체 폭, 끌어서 넘기기·트랙 누르면 한 쪽). 넘치지 않으면 자리만 비어 있다.
                      자리는 줄 안 아래쪽 여백을 쓴다 — 줄 높이 안에 빈 여백이 없는 막대는 `reserve` 로 그만큼 처음부터 줄 아래에 덧붙인다(넘침과 무관하게 같은 높이).
           ARROWS     줄 양끝에 바탕색에서 투명으로 사라지는 그라데이션 화살표 단추(줄 폭의 80% 씩 부드럽게). 끝에 닿은 쪽 단추는 숨는다. 글자 위에 겹치므로 줄 높이는 그대로다.
-        두 방식 모두 손가락·트랙패드 밀기는 그대로이고, 모바일(md 미만)은 표시 없이 손가락 밀기만이다. 키보드는 Tab 으로 칸을 돌며 넘어가고(초점 칸이 단추에 가리지 않게 민다) 단추는 Tab 순서에서 뺀다.
+        두 방식 모두 손가락·트랙패드 밀기는 그대로이고, 모바일(md 미만)은 표시 없이 손가락 밀기만이다 — 단 `touch` 면 모바일에서도 화살표를 그린다(게시판 말머리 칩 줄 등 본문 안 줄). 키보드는 Tab 으로 칸을 돌며 넘어가고(초점 칸이 단추에 가리지 않게 민다) 단추는 Tab 순서에서 뺀다.
         색은 역할 변수(`--scroll-fade-bg`·`--scroll-track`·`--scroll-thumb`·`--scroll-arrow-fg` …, `main.css`)라 놓인 면(카드·주 색상 바)이 채운다.
         활성 칸 가운데로 끌어오기는 부모가 `useScrollRowRef()` 의 `scroller` 로 `useCenterActive` 를 잇는다(이 부품이 스크롤 상자를 내놓는다).
     -->
@@ -27,10 +27,10 @@
         </div>
 
         <template v-if="mode === 'ARROWS' && overflowing">
-            <button v-if="!atStart" type="button" tabindex="-1" class="scroll-row-arrow max-md:hidden" data-edge="start" :aria-label="t('shell.scrollMenuLeft')" data-testid="scroll-row-prev" @click="page(-1)">
+            <button v-if="!atStart" type="button" tabindex="-1" class="scroll-row-arrow" :class="touch ? '' : 'max-md:hidden'" data-edge="start" :aria-label="t('shell.scrollMenuLeft')" data-testid="scroll-row-prev" @click="page(-1)">
                 <i class="pi pi-angle-left" aria-hidden="true" />
             </button>
-            <button v-if="!atEnd" type="button" tabindex="-1" class="scroll-row-arrow max-md:hidden" data-edge="end" :aria-label="t('shell.scrollMenuRight')" data-testid="scroll-row-next" @click="page(1)">
+            <button v-if="!atEnd" type="button" tabindex="-1" class="scroll-row-arrow" :class="touch ? '' : 'max-md:hidden'" data-edge="end" :aria-label="t('shell.scrollMenuRight')" data-testid="scroll-row-next" @click="page(1)">
                 <i class="pi pi-angle-right" aria-hidden="true" />
             </button>
         </template>
@@ -47,8 +47,10 @@ interface Props {
     scrollerClass?: string;
     /** 줄 높이 안에 빈 아래 여백이 없는 줄인가(활성 밑줄이 줄 바닥에 붙는 막대) — 그렇다면 `SCROLLBAR` 일 때 예약 자리를 줄 아래에 덧붙인다(데스크톱) */
     reserve?: boolean;
+    /** `ARROWS` 화살표를 모바일(md 미만)에서도 그리는가 — 기본은 데스크톱만(셸 메뉴 줄) */
+    touch?: boolean;
 }
-withDefaults(defineProps<Props>(), { scrollerClass: '', reserve: false });
+withDefaults(defineProps<Props>(), { scrollerClass: '', reserve: false, touch: false });
 
 const { t } = useI18n();
 const root = ref<HTMLElement | null>(null);
