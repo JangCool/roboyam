@@ -11,6 +11,9 @@
             <i class="pi pi-search text-lg" aria-hidden="true" />
         </NuxtLink>
 
+        <!-- 다크·라이트 바꾸기 — 모바일에서만(사용자 결정 2026-11-05) -->
+        <ColorSchemeToggle class="md:hidden" />
+
         <!-- 알림 종 + 알림 패널(드롭다운) — 로그인한 사람에게만, 데스크톱에서만 -->
         <NotificationBell v-if="loaded && user" />
 
@@ -19,18 +22,22 @@
 
         <nav v-if="loaded" class="flex items-center gap-2 text-sm" :aria-label="t('shell.accountNav')">
             <template v-if="user">
+                <!-- 넓은 화면은 등급 + 닉네임 + ⌄, 모바일은 계정 아이콘 하나(닉네임·등급은 메뉴 안에서 — 사용자 결정 2026-11-05) -->
                 <button
                     type="button"
-                    class="flex max-w-48 items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
+                    class="flex items-center justify-center hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary max-md:size-10 max-md:rounded-full md:max-w-48 md:gap-1.5 md:rounded-lg md:px-2 md:py-1.5 dark:hover:bg-surface-800"
                     aria-haspopup="menu"
                     :aria-expanded="menuOpen"
                     :aria-label="t('shell.accountMenu')"
+                    data-testid="account-menu-button"
                     @click="toggleMenu"
                 >
-                    <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" />
-                    <StaffBadge v-else :role="user.role" />
-                    <span class="min-w-0 truncate font-medium">{{ user.nickname }}</span>
-                    <i class="pi pi-angle-down text-xs text-muted-color" aria-hidden="true" />
+                    <!-- `.pi` 의 display 가 Tailwind 층보다 세서 아이콘의 숨기기는 `!` 로 건다 -->
+                    <i class="pi pi-user text-lg md:hidden!" aria-hidden="true" />
+                    <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" class="max-md:hidden" />
+                    <StaffBadge v-else :role="user.role" class="max-md:hidden" />
+                    <span class="min-w-0 truncate font-medium max-md:hidden">{{ user.nickname }}</span>
+                    <i class="pi pi-angle-down text-xs text-muted-color max-md:hidden!" aria-hidden="true" />
                 </button>
                 <Menu ref="menu" :model="menuItems" popup @show="onMenuShow" @hide="menuOpen = false">
                     <!-- 보유 포인트 요약(8단계) — 요약을 받았을 때만. 메뉴가 열릴 때 최신으로 받는다 -->

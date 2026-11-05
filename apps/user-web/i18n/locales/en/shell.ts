@@ -7,6 +7,8 @@ export default {
     homeLink: '{site} home',
     accountNav: 'Account',
     accountMenu: 'My account menu',
+    darkMode: 'Switch to dark mode',
+    lightMode: 'Switch to light mode',
     // Theme shell top menus (Daum-style sub menu, Naver-style top links)
     subMenuLabel: '{title} menu',
     quickLinks: 'Quick links',
