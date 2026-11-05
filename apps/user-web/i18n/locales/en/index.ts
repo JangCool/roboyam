@@ -12,6 +12,7 @@ import account from './account';
 import ad from './ad';
 import adult from './adult';
 import address from './address';
+import addressBook from './addressBook';
 import auth from './auth';
 import avatar from './avatar';
 import block from './block';
@@ -74,6 +75,7 @@ export default {
     ad,
     adult,
     address,
+    addressBook,
     auth,
     avatar,
     block,

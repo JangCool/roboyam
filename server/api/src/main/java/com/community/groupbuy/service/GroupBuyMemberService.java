@@ -1,5 +1,7 @@
 package com.community.groupbuy.service;
 
+import com.community.addressbook.dto.SavedAddress;
+import com.community.addressbook.service.AddressBookService;
 import com.community.board.dto.BoardActor;
 import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
@@ -88,12 +90,14 @@ public class GroupBuyMemberService {
     private final BoardCatalog boards;
     private final ImageStorage storage;
     private final ObjectProvider<Clock> clocks;
+    private final AddressBookService addressBook;
 
     public GroupBuyMemberService(DataSource dataSource, GroupBuyStore groups, GroupBuyProductStore products, GroupBuyNoticeStore noticeStore, GroupBuyNoticeCatalog catalog,
                                  ParticipationStore participations, GroupBuyQuoteService quotes, GroupBuyJoinService joins, HoldExpiryService holds, GroupBuyEligibility eligibility,
                                  GroupBuyWatchService watches, BoardActorResolver actors, BoardCatalog boards, ImageStorage storage, ObjectProvider<Clock> clocks,
-                                 GroupBuyReviewService reviews) {
+                                 GroupBuyReviewService reviews, AddressBookService addressBook) {
         this.reviews = reviews;
+        this.addressBook = addressBook;
         this.jdbc = new JdbcTemplate(dataSource);
         this.groups = groups;
         this.products = products;
@@ -253,12 +257,30 @@ public class GroupBuyMemberService {
         visible(id);
         GroupBuyMemberRequest.Order b = body == null ? new GroupBuyMemberRequest.Order(null, null, null, null) : body;
         GroupBuyMemberRequest.Address a = b.address() == null ? new GroupBuyMemberRequest.Address(null, null, null, null, null, null) : b.address();
-        ShippingAddress address = new ShippingAddress(a.recipient(), a.phone(), a.postcode(), a.address1(), a.address2(), a.memo());
+        boolean fromBook = b.addressId() != null && !b.addressId().isBlank();
+        ShippingAddress address = fromBook ? fromAddressBook(userId, b.addressId(), a.memo())
+                : new ShippingAddress(a.recipient(), a.phone(), a.postcode(), a.address1(), a.address2(), a.memo());
         GroupBuyMemberRequest.Agreements ag = b.agreements() == null ? new GroupBuyMemberRequest.Agreements(false, false, false) : b.agreements();
         JoinResult r = joins.join(buyer(userId), new JoinRequest(id, lines(b.items(), "items"), address, Boolean.TRUE.equals(ag.purchaseTerms()),
                 Boolean.TRUE.equals(ag.refundPolicy()), Boolean.TRUE.equals(ag.privacy()), b.expectedAmount()));
+        if (!fromBook && Boolean.TRUE.equals(b.saveAddress())) {
+            addressBook.saveFromOrder(userId, address); // 같은 트랜잭션 — 주문이 실패하면 저장도 없다. 10개면 건너뛴다(주문은 그대로)
+        }
         return new GroupBuyMemberView.OrderCreated(r.orderNo(), r.amount(), r.reservedUntil(),
                 paymentStart("GROUP_BUY", r.participationId(), r.orderNo(), r.checkout(), userId, address.recipient(), address.phone()));
+    }
+
+    /** 주소록의 배송지를 주문 배송지로 복사한다(메모만 이번 주문 값) — 없거나 남의 ID 는 400 {@code fields.addressId}. 키가 없으면 503 */
+    private ShippingAddress fromAddressBook(long userId, String addressIdText, String memo) {
+        long addressId;
+        try {
+            addressId = Long.parseLong(addressIdText.strip());
+        } catch (NumberFormatException e) {
+            throw ValidationException.of("addressId", new MessageRef("groupbuy.order.addressId.invalid"));
+        }
+        SavedAddress saved = addressBook.forOrder(userId, addressId)
+                .orElseThrow(() -> ValidationException.of("addressId", new MessageRef("groupbuy.order.addressId.invalid")));
+        return new ShippingAddress(saved.recipient(), saved.phone(), saved.postcode(), saved.address1(), saved.address2(), memo);
     }
 
     public GroupBuyBuyer buyer(long userId) {

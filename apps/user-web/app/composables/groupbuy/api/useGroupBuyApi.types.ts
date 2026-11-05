@@ -325,10 +325,22 @@ export interface GroupBuyAddressInput {
     memo: string;
 }
 
-/** `POST /api/group-buys/{id}/orders` + 머리글 `Idempotency-Key` */
-export interface GroupBuyOrderRequest {
+/**
+ * `POST /api/group-buys/{id}/orders` + 머리글 `Idempotency-Key`. 배송지는 둘 중 하나(계약 `docs/features/address-book-contract.md`):
+ *  - 저장된 배송지(카드 모드) — `addressId` + `address: { memo }`. 서버가 주소록에서 복사하고, 메모는 요청 값만 쓴다(비우면 메모 없음, 저장된 메모를 대신 쓰지 않는다).
+ *    남의·없는 `addressId` 는 400 `fields.addressId`. `addressId` 가 있으면 `saveAddress` 는 무시된다.
+ *  - 새 주소(입력 모드) — `address` 전체 칸 + `saveAddress`(주문 생성 트랜잭션에서 주소록에 저장 — 별칭 없음, 주소록이 비었으면 기본, 10개면 건너뜀).
+ */
+export type GroupBuyOrderRequest = GroupBuyOrderRequestBase & GroupBuyOrderShipping;
+
+/** 주문 요청의 배송지 부분 — 저장된 배송지(`addressId` + 메모만) 또는 새 주소(전체 칸 + `saveAddress`) */
+export type GroupBuyOrderShipping =
+    | { addressId: string; address: Pick<GroupBuyAddressInput, 'memo'>; saveAddress?: never }
+    | { addressId?: never; address: GroupBuyAddressInput; saveAddress?: boolean };
+
+/** 주문 요청에서 배송지를 뺀 공통 칸 */
+export interface GroupBuyOrderRequestBase {
     items: GroupBuyOrderLine[];
-    address: GroupBuyAddressInput;
     /** 동의 3종(결정 59 — 기본 체크 없음, 셋 다 true 여야 받는다) */
     agreements: { purchaseTerms: boolean; refundPolicy: boolean; privacy: boolean };
     /** 화면이 본 합계 — 비교용으로만(다르면 409 `GROUP_BUY_AMOUNT_CHANGED`, 청구액은 늘 서버 계산 — 결정 72) */
