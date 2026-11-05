@@ -2,6 +2,7 @@ package com.community.datakey.batch;
 
 import com.community.ad.service.AdAdvertiserService;
 import com.community.addressbook.service.AddressBookService;
+import com.community.bizapplication.service.BizApplicationReviewService;
 import com.community.business.service.BusinessPii;
 import com.community.groupbuy.service.BankTransferService;
 import com.community.groupbuy.service.GroupBuyJoinService;
@@ -16,8 +17,8 @@ import java.util.List;
  * 줄의 차례가 배치 단계의 차례다. 단계 이름·대상 종류는 번들 두 곳에 이름을 둔다(docs/features/commerce-foundation-contract.md 「0-4」).
  * 용도는 쓰는 쪽의 상수를 그대로 가리킨다 — 용도가 다르면 풀리지 않는다(AAD). 마스킹·파기로 비운 칸(NULL)은 고르지 않는다.
  *
- * <p>스키마에 {@code *_enc}·{@code *_cipher} 칸이 새로 생기면 {@code DataKeyRotationJobTest} 가 여기에도, 설정 비밀값(ROBOYAM_CRYPTO_KEY) 칸 목록에도 없는 칸을 잡는다.
- * 파일 바이트 칸(사업자등록증 사본·계약서 사본 — {@code DataCipher#encryptBytes})은 이 배치가 옮기지 않는다.
+ * <p>스키마에 {@code *_enc}·{@code *_cipher} 칸이나 {@code bytea} 칸이 새로 생기면 {@code DataKeyRotationJobTest} 가 여기에도, 다른 키·평문 칸 목록에도 없는 칸을 잡는다.
+ * 파일 바이트 칸({@code DataCipher#encryptBytes})은 {@link EncryptedColumn#ofBytes} 로 올린다.
  */
 public final class DataKeyColumns {
 
@@ -62,6 +63,11 @@ public final class DataKeyColumns {
             advertiser("ad-advertiser-phone", "contact_phone_enc", AdAdvertiserService.CONTACT_PHONE),
             advertiser("ad-advertiser-email", "email_enc", AdAdvertiserService.EMAIL));
 
+    /** 파일 사본(DB 안의 바이트 암호문 — 한 건 최대 10MB). 파기한 등록증 사본은 NULL */
+    public static final List<EncryptedColumn> FILES = List.of(
+            EncryptedColumn.ofBytes("business-certificate-file", "business_documents", "id", "content", BusinessPii.CERTIFICATE, "BUSINESS_DOCUMENT"),
+            EncryptedColumn.ofBytes("biz-contract-file", "biz_contract_files", "id", "content", BizApplicationReviewService.CONTRACT, "BIZ_CONTRACT_FILE"));
+
     public static final List<EncryptedColumn> ALL = all();
 
     private DataKeyColumns() {
@@ -75,6 +81,7 @@ public final class DataKeyColumns {
         all.addAll(BANK_TRANSFER);
         all.addAll(BUSINESS_PROFILE);
         all.addAll(AD_ADVERTISER);
+        all.addAll(FILES);
         return List.copyOf(all);
     }
 
