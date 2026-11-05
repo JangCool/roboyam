@@ -10,6 +10,7 @@
         · 환불 합계(상세 `refundSummary` — 결제 뒤만): 환불 카드 안(없으면 결제 기록 아래)에 「결제 · 환불 · 남은 환불 가능」 + [추가 환불](`deal-order.refund` · 남은 환불 가능 > 0 —
           대상 상태는 서버가 판정, 아니면 409).
         · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
+          계약서 파일 아래 인쇄본·팩스 접수 기록(`DocIntakeSection` — 부모 `intake` 값, 동작은 `intake` 이벤트): 업로드 허용 상태에서는 [접수 기록]·[잘못 기록]까지, 결제 기록에서는 처리 바꾸기·폐기만.
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
         · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김 — 숨김 까닭 「판매자 일시 정지」·「판매자 중단」)과 노출 줄 상태.
         · 광고주 요청 일시 정지·중단(상세 `pause` 가 있을 때만 — biz-pause-contract): 까닭 · 멈춘 시각 · 누가(+ 요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내,
@@ -219,6 +220,7 @@
             <div v-if="operator && canManage" class="flex flex-col gap-1.5">
                 <h4 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.contract.title') }}</h4>
                 <BizContractFiles :files="detail.contracts" editable viewable :busy="busy" :error="fieldErrors.file ?? error" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" @view="(id) => emit('viewContract', id)" />
+                <DocIntakeSection doc="CONTRACT" :host="intake" :files="scanFiles" editable handleable @intake="(e) => emit('intake', e)" />
             </div>
             <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">
                 <Button v-if="operator" type="button" :label="t('bizApplication.actCancel')" severity="secondary" variant="outlined" :disabled="busy" @click="emit('cancel')" />
@@ -258,6 +260,8 @@
             @extend="emit('extend')"
             @cancel="emit('cancel')"
             @view-contract="(id) => emit('viewContract', id)"
+            :intake="intake"
+            @intake="(e) => emit('intake', e)"
         />
 
         <Message v-if="detail.rejection" severity="warn" :closable="false">
@@ -338,7 +342,8 @@
         </section>
 
         <!-- 결제 기록(확정 뒤) -->
-        <section v-if="detail.onlinePayment || (detail.status !== 'AWAITING_DEPOSIT' && !(operator && canManage && detail.status === 'SUBMITTED') && (detail.contracts.length || detail.deposit))" class="flex flex-col gap-2">
+        <!-- 인쇄본·팩스 접수 기록은 단추 없이 보이되, 종이는 확정 뒤에도 남아 있어 [처리 바꾸기]·[폐기 처리] 는 권한이 있으면 할 수 있다 -->
+        <section v-if="detail.onlinePayment || (detail.status !== 'AWAITING_DEPOSIT' && !(operator && canManage && detail.status === 'SUBMITTED') && (detail.contracts.length || detail.deposit || paperRows > 0))" class="flex flex-col gap-2">
             <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.paymentRecord') }}</h3>
             <i18n-t v-if="detail.onlinePayment" keypath="bizApplication.paidOnline" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
                 <template #at><span :class="EMPH.date">{{ time.shortDateTime(detail.onlinePayment.paidAt) }}</span></template>
@@ -346,6 +351,7 @@
             </i18n-t>
             <template v-else>
                 <BizContractFiles :files="detail.contracts" :viewable="canManage" :busy="busy" @view="(id) => emit('viewContract', id)" />
+                <DocIntakeSection doc="CONTRACT" :host="intake" :files="scanFiles" :handleable="canManage" @intake="(e) => emit('intake', e)" />
                 <i18n-t v-if="detail.deposit" keypath="bizApplication.depositLine" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
                     <template #amount><span :class="EMPH.money">{{ won(detail.deposit.amount) }}</span></template>
                     <template #date><span :class="EMPH.date">{{ time.serviceDate(detail.deposit.depositedOn) }}</span></template>
@@ -380,8 +386,10 @@
 
 <script setup lang="ts">
 import type { BizApplicationDetail, BizDepositRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { DocIntakeEvent, DocIntakeHost } from '~/composables/docintake/useDocIntake.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
+import UtilDocIntake from '~/utils/util-doc-intake';
 
 interface Props {
     detail: BizApplicationDetail;
@@ -391,9 +399,11 @@ interface Props {
     error?: string;
     fieldErrors?: Record<string, string>;
     now?: number;
+    /** 계약서 인쇄본·팩스 접수 기록 — 부모의 `useDocIntake().host` */
+    intake?: DocIntakeHost | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { canManage: false, canRefund: false, busy: false, error: '', fieldErrors: () => ({}), now: () => Date.now() });
+const props = withDefaults(defineProps<Props>(), { canManage: false, canRefund: false, busy: false, error: '', fieldErrors: () => ({}), now: () => Date.now(), intake: null });
 const emit = defineEmits<{
     approve: [];
     reject: [];
@@ -414,6 +424,8 @@ const emit = defineEmits<{
     pause: [];
     resume: [];
     stop: [];
+    /** 인쇄본·팩스 접수 기록 */
+    intake: [event: DocIntakeEvent];
 }>();
 
 const { t, locale } = useI18n();
@@ -452,6 +464,9 @@ const selfDenied = computed(() => props.detail.registrant?.me === true && props.
 /** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
 const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));
+/** 계약서 인쇄본·팩스 접수 — 줄 수(잘못 기록 포함, 결제 기록 칸을 보일까) · 스캔본 후보 */
+const paperRows = computed(() => props.intake?.bundle?.intakes.length ?? 0);
+const scanFiles = computed(() => UtilDocIntake.contractScanFiles(props.detail.contracts));
 
 /** 광고주 요청 일시 정지·중단 — 서버가 `pause` 를 내려 줄 때만 */
 const pause = computed(() => props.detail.pause ?? null);

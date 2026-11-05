@@ -3,6 +3,7 @@
  * 흐름: 신청(SUBMITTED) → 심사 승인 → 온라인 결제 대기(AWAITING_PAYMENT, 72시간) 또는 입금·계약 확인 대기(AWAITING_DEPOSIT, 기본 7일) → 예약(SCHEDULED) → 진행 → 종료.
  * 기간은 반열림 `[startAt, endAt)`(ISO) — 끝 시각은 포함하지 않는다.
  */
+import type { DocFileChannel } from '~/composables/docintake/api/useDocIntakeApi.types';
 
 export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT';
 export const BIZ_APPLICATION_KINDS: readonly BizApplicationKind[] = ['AD_BANNER', 'AD_TEXT_LINE', 'HOTDEAL_POST', 'HOTDEAL_PLACEMENT'];
@@ -149,6 +150,8 @@ export interface BizContractFile {
     uploadedBy: string;
     replacedAt: string | null;
     replacedBy: string | null;
+    /** 들어온 길 — 올림 · 전자 팩스(V140, biz-doc-intake-contract) */
+    channel: DocFileChannel;
 }
 
 /** 계약서 사본 열람 — `data:` 주소(사업자등록증 열람과 같은 모양). 열람 기록이 남는다 */
@@ -283,6 +286,11 @@ export const BIZ_HISTORY_ACTIONS = [
     'STOPPED',
     // 운영자 추가 환불(클레임 — V128) — note = 금액(원)
     'CLAIM_REFUNDED',
+    // 계약서 종이 접수 기록(V140 — biz-doc-intake-contract, 관리자 화면 전용) — 접수(note = 방식 MAIL·VISIT·FAX) · 처리 바꾸기(note = KEEP·DISPOSE_PENDING) · 폐기·잘못 기록(note = 사유)
+    'PAPER_RECEIVED',
+    'PAPER_HANDLING',
+    'PAPER_DISPOSED',
+    'PAPER_VOIDED',
 ] as const;
 export type BizHistoryAction = (typeof BIZ_HISTORY_ACTIONS)[number];
 

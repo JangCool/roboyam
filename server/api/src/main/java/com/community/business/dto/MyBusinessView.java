@@ -19,14 +19,23 @@ public final class MyBusinessView {
      * @param reReview 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7) — 이미 예약·진행 중인 건은 그대로, 새 신청만 막힌다
      * @param openedOn 개업일 — 개업일 칸이 생기기 전 신청이면 null
      * @param services 서비스별 이용 상태(2026-11-02 — 신원이 승인인데 한 서비스만 정지면 그 줄이 {@code SUSPENDED} + 사유). 신청 전이면 빈 목록
+     * @param certificateDelivery 등록증을 내는 길 {@code UPLOAD}·{@code MAIL_FAX}(V140 — 신청 전이면 null)
+     * @param certificateReceived 등록증을 받았는가 — 지금 등록증 사본이 있거나 이번 신청 뒤 운영자가 종이 접수를 기록했다(우편·팩스 신청의 「받으면 심사 시작」 안내, 신청 전이면 false)
      */
     public record Profile(String status, String companyName, String bizNoMasked, String ownerName, LocalDate openedOn, String phoneMasked, String email, Address address,
                           Certificate certificate, Instant submittedAt, Instant reviewedAt, String rejectCode, String rejectReason, String suspendReason,
-                          boolean reReview, List<Service> services) {
+                          boolean reReview, List<Service> services, String certificateDelivery, boolean certificateReceived) {
 
         public static Profile none() {
-            return new Profile("NONE", null, null, null, null, null, null, null, null, null, null, null, null, null, false, List.of());
+            return new Profile("NONE", null, null, null, null, null, null, null, null, null, null, null, null, null, false, List.of(), null, false);
         }
+    }
+
+    /**
+     * {@code GET /api/business/doc-send-to} — 등록증을 우편·팩스로 보낼 곳(서버 설정 {@code roboyam.biz.doc-send-to.*}). 비어 있는 칸은 null — 주소와 팩스가 둘 다 없으면 화면은
+     * 「우편·팩스로 보내기」를 보이지 않고, 서버도 {@code MAIL_FAX} 신청을 400 으로 막는다.
+     */
+    public record DocSendTo(String postcode, String address, String recipient, String fax) {
     }
 
     /** 서비스 한 줄 — 「서비스만 정지」면 사유 코드·글·시각(신원 정지를 따라간 정지면 null) */

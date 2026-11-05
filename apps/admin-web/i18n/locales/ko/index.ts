@@ -67,6 +67,7 @@ import bizApplication from './bizApplication';
 import ad from './ad';
 import adAdvertiser from './adAdvertiser';
 import drawerSummary from './drawerSummary';
+import docIntake from './docIntake';
 import hotdeal from './hotdeal';
 import visitAnalytics from './visitAnalytics';
 
@@ -133,6 +134,7 @@ export default {
     ad,
     adAdvertiser,
     drawerSummary,
+    docIntake,
     hotdeal,
     visitAnalytics,
 };

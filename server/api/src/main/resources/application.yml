@@ -78,3 +78,11 @@ roboyam:
   media:
     max-concurrent-processing: 2  # 동시에 디코딩·변환할 이미지 수 — 모자라면 기다리다 10초가 지나면 503 IMAGE_BUSY
     acquire-timeout-seconds: 10
+  # 사업자등록증을 우편·팩스로 보낼 곳(biz-doc-intake-contract — BusinessDocSendToProperties, GET /api/business/doc-send-to). 기본은 비어 있다 —
+  # 주소와 팩스 번호가 둘 다 비면 user-web 은 「우편·팩스로 보내기」를 보이지 않고 서버도 MAIL_FAX 신청을 400 으로 막는다(관리자 설정 화면은 후속)
+  biz:
+    doc-send-to:
+      postcode: ${ROBOYAM_BIZ_DOC_POSTCODE:}
+      address: ${ROBOYAM_BIZ_DOC_ADDRESS:}
+      recipient: ${ROBOYAM_BIZ_DOC_RECIPIENT:}
+      fax: ${ROBOYAM_BIZ_DOC_FAX:}

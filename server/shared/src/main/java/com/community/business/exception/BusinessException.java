@@ -24,6 +24,7 @@ public class BusinessException extends CommonException {
     public static final String HAS_DEALINGS = "BUSINESS_HAS_DEALINGS";
     public static final String FILE_NOT_FOUND = "BUSINESS_FILE_NOT_FOUND";
     public static final String CERT_NOT_FOUND = "BUSINESS_CERT_NOT_FOUND";
+    public static final String CERT_NOT_RECEIVED = "BUSINESS_CERT_NOT_RECEIVED";
     public static final String UPLOAD_LIMIT = "BUSINESS_UPLOAD_LIMIT";
     public static final String NOT_APPROVED = "BUSINESS_NOT_APPROVED";
     public static final String RE_REVIEW = "BUSINESS_RE_REVIEW";
@@ -115,6 +116,11 @@ public class BusinessException extends CommonException {
     /** 사업자등록증 사본이 없다(파기됨) */
     public static BusinessException certificateNotFound() {
         return new BusinessException(HttpStatus.NOT_FOUND, CERT_NOT_FOUND);
+    }
+
+    /** 등록증을 「우편·팩스로 보냄」으로 골랐는데 아직 등록증 사본도 종이 접수 기록도 없다 — 승인할 수 없다(biz-doc-intake-contract) */
+    public static BusinessException certificateNotReceived() {
+        return new BusinessException(HttpStatus.CONFLICT, CERT_NOT_RECEIVED);
     }
 
     /** 사본은 하루 20장까지 올릴 수 있다 */

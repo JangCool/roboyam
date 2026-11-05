@@ -21,10 +21,15 @@ import org.hibernate.annotations.DynamicUpdate;
 @DynamicUpdate
 public class BusinessProfileEntity {
 
-    /** 신청서의 신원 칸(암호문·해시까지 만든 값) — 신청·재신청·수정이 같은 모양을 넘긴다 */
+    /**
+     * 신청서의 신원 칸(암호문·해시까지 만든 값) — 신청·재신청·수정이 같은 모양을 넘긴다.
+     *
+     * @param certificateId       붙일 등록증 사본 — 「우편·팩스로 보냄」(V140 {@code MAIL_FAX})이면 null
+     * @param certificateDelivery 등록증을 내는 길
+     */
     public record Identity(String companyName, String bizNoEnc, String bizNoHash, String bizNoLast4, String ownerNameEnc, String phoneEnc, String emailEnc,
-                           String postcode, String address1Enc, String address2Enc, long certificateId, String termsVersion, String privacyVersion,
-                           LocalDate openedOn) {
+                           String postcode, String address1Enc, String address2Enc, Long certificateId, String termsVersion, String privacyVersion,
+                           LocalDate openedOn, BusinessCertificateDelivery certificateDelivery) {
     }
 
     @Id
@@ -47,6 +52,9 @@ public class BusinessProfileEntity {
     private String address1Enc;
     private String address2Enc;
     private Long certificateId;
+    /** 등록증을 내는 길(V140) — 우편·팩스면 운영자가 받은 것을 접수 기록·등록증 파일로 남긴 뒤에야 승인한다 */
+    @Enumerated(EnumType.STRING)
+    private BusinessCertificateDelivery certificateDelivery;
     private String termsVersion;
     private String privacyVersion;
     /** 개업일(V125 — 진위확인에 쓴다). 개업일 칸이 생기기 전 신청은 null(진위 미확인) */
@@ -196,6 +204,16 @@ public class BusinessProfileEntity {
         this.updatedAt = now;
     }
 
+    /**
+     * 운영자가 올린 등록증 사본(V140 — 전자 팩스·스캔본)을 지금 등록증으로 — 탈퇴·파기 전만. 상태·심사는 그대로이고 옛 사본 줄은 그 신원에 붙은 채 남는다
+     * (회원이 수정으로 사본을 바꿀 때와 같은 모델 — 파기 배치가 신원 단위로 지운다).
+     */
+    public void useCertificate(long documentId, Instant now) {
+        require(status != BusinessStatus.WITHDRAWN && erasedAt == null);
+        this.certificateId = documentId;
+        this.updatedAt = now;
+    }
+
     /** 회원 탈퇴(F8) — 탈퇴 가드는 부르는 쪽(신청 건 훅)이 먼저 본다 */
     public void withdraw(Instant now) {
         require(status != BusinessStatus.WITHDRAWN);
@@ -217,6 +235,7 @@ public class BusinessProfileEntity {
         this.address1Enc = identity.address1Enc();
         this.address2Enc = identity.address2Enc();
         this.certificateId = identity.certificateId();
+        this.certificateDelivery = identity.certificateDelivery() == null ? BusinessCertificateDelivery.UPLOAD : identity.certificateDelivery();
         this.termsVersion = identity.termsVersion();
         this.privacyVersion = identity.privacyVersion();
         this.openedOn = identity.openedOn();
@@ -287,6 +306,11 @@ public class BusinessProfileEntity {
 
     public Long getCertificateId() {
         return certificateId;
+    }
+
+    /** 등록증을 내는 길 — V140 전 줄은 기본값 {@code UPLOAD} */
+    public BusinessCertificateDelivery getCertificateDelivery() {
+        return certificateDelivery == null ? BusinessCertificateDelivery.UPLOAD : certificateDelivery;
     }
 
     public String getTermsVersion() {

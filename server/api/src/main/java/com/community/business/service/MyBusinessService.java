@@ -2,6 +2,7 @@ package com.community.business.service;
 
 import com.community.business.dto.BusinessApplyRequest;
 import com.community.business.dto.MyBusinessView;
+import com.community.business.entity.BusinessCertificateDelivery;
 import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessServiceStatus;
 import com.community.business.entity.BusinessStatus;
@@ -76,12 +77,17 @@ public class MyBusinessService {
     private final BusinessNtsDailyLimiter ntsLimit;
     private final BusinessNotices notices;
     private final SnowflakeIdGenerator ids;
+    private final BusinessCertificateReceipt receipt;
+    private final BusinessDocSendToProperties sendTo;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public MyBusinessService(BusinessProfileRepository profiles, BusinessStore store, BusinessPii pii, BusinessServiceRows serviceRows, BusinessServiceRepository services,
-                             BusinessNtsService nts, BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
+                             BusinessNtsService nts, BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids,
+                             BusinessCertificateReceipt receipt, BusinessDocSendToProperties sendTo, PlatformTransactionManager transactions,
                              ObjectProvider<Clock> clocks) {
+        this.receipt = receipt;
+        this.sendTo = sendTo;
         this.profiles = profiles;
         this.store = store;
         this.pii = pii;
@@ -104,7 +110,7 @@ public class MyBusinessService {
     // ── 신청·재신청 ─────────────────────────────────────────────────────────
 
     public MyBusinessView.Profile apply(long userId, BusinessApplyRequest body) {
-        Input in = validate(body);
+        Input in = validate(body, true);
         pii.requireConfigured();
         BusinessProfileEntity current = profiles.findByUserId(userId).orElse(null);
         if (current != null && current.getStatus() != BusinessStatus.REJECTED) {
@@ -134,11 +140,12 @@ public class MyBusinessService {
                 existing.reapply(identity, now);
             }
             profiles.flush(); // 아래 JDBC 줄(사본 붙이기·처리 기록)이 신원 줄을 외래키로 가리킨다 — 유일 색인 위반도 여기서 드러난다
-            if (!store.attachDocument(identity.certificateId(), id, now)) {
+            if (identity.certificateId() != null && !store.attachDocument(identity.certificateId(), id, now)) {
                 throw BusinessException.fileNotFound();
             }
             serviceRows.sync(id, BusinessServiceStatus.PENDING, null, now);
-            store.insertHistory(ids.nextId(), id, BusinessStore.APPLIED, BusinessStore.MEMBER, userId, null, now);
+            store.insertHistory(ids.nextId(), id, BusinessStore.APPLIED, BusinessStore.MEMBER, userId,
+                    in.delivery() == BusinessCertificateDelivery.MAIL_FAX ? BusinessCertificateDelivery.MAIL_FAX.name() : null, now);
             nts.record(id, verified.lookup(), null, null);
             notices.member(userId, BusinessNotices.SUBMITTED, identity.companyName(), null);
             notices.operators(id, false);
@@ -150,7 +157,7 @@ public class MyBusinessService {
     // ── 수정(F7) ────────────────────────────────────────────────────────────
 
     public MyBusinessView.Profile update(long userId, BusinessApplyRequest body) {
-        Input in = validate(body);
+        Input in = validate(body, false);
         pii.requireConfigured();
         BusinessProfileEntity current = profiles.findByUserId(userId).orElseThrow(BusinessException::notEditable);
         if (!current.editable()) {
@@ -268,16 +275,33 @@ public class MyBusinessService {
 
     // ── 안 ──────────────────────────────────────────────────────────────────
 
-    /** 정규화한 입력(숫자만 남긴 번호·연락처 — 바꾸지 않으면 null) */
+    /** 정규화한 입력(숫자만 남긴 번호·연락처 — 바꾸지 않으면 null). 등록증을 우편·팩스로 보내면 {@code certificateId} 는 null */
     private record Input(String companyName, String bizNo, String ownerName, String phone, String email, String postcode, String address1, String address2,
-                         long certificateId, String termsVersion, String privacyVersion, LocalDate openedOn) {
+                         Long certificateId, String termsVersion, String privacyVersion, LocalDate openedOn, BusinessCertificateDelivery delivery) {
     }
 
-    private Input validate(BusinessApplyRequest b) {
+    /**
+     * @param mailAllowed 신청·재신청이면 true — 「우편·팩스로 보냄」({@code MAIL_FAX})을 받는다(보낼 곳 설정이 비었으면 400 {@code fields.certificateDelivery}). 수정은 파일만(400)
+     */
+    private Input validate(BusinessApplyRequest b, boolean mailAllowed) {
         if (b == null) {
             throw ValidationException.of("companyName", new MessageRef("business.field.required"));
         }
         Map<String, MessageRef> errors = new LinkedHashMap<>();
+        BusinessCertificateDelivery delivery = BusinessCertificateDelivery.UPLOAD;
+        String deliveryText = strip(b.certificateDelivery());
+        if (deliveryText != null) {
+            try {
+                delivery = BusinessCertificateDelivery.valueOf(deliveryText);
+            } catch (IllegalArgumentException e) {
+                errors.put("certificateDelivery", new MessageRef("business.value.invalid"));
+            }
+        }
+        if (delivery == BusinessCertificateDelivery.MAIL_FAX && !mailAllowed) {
+            errors.put("certificateDelivery", new MessageRef("business.certificateDelivery.uploadOnly"));
+        } else if (delivery == BusinessCertificateDelivery.MAIL_FAX && !sendTo.available()) {
+            errors.put("certificateDelivery", new MessageRef("business.docSendTo.missing"));
+        }
         String company = strip(b.companyName());
         if (company == null || company.length() > 60) {
             errors.put("companyName", new MessageRef(company == null ? "business.field.required" : "business.field.tooLong", 60));
@@ -313,11 +337,13 @@ public class MyBusinessService {
                 || (address2 != null && address2.length() > 200)) {
             errors.put("address1", new MessageRef("business.address.invalid"));
         }
-        long certificateId = 0;
-        try {
-            certificateId = Long.parseLong(strip(b.certificateFileId()) == null ? "" : b.certificateFileId().strip());
-        } catch (NumberFormatException e) {
-            errors.put("certificate", new MessageRef("business.certificate.required"));
+        Long certificateId = null;
+        if (delivery != BusinessCertificateDelivery.MAIL_FAX) {
+            try {
+                certificateId = Long.parseLong(strip(b.certificateFileId()) == null ? "" : b.certificateFileId().strip());
+            } catch (NumberFormatException e) {
+                errors.put("certificate", new MessageRef("business.certificate.required"));
+            }
         }
         String terms = strip(b.agreedTermsVersion());
         String privacy = strip(b.agreedPrivacyVersion());
@@ -327,7 +353,7 @@ public class MyBusinessService {
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Input(company, bizNo, owner, phone, email, postcode, address1, address2, certificateId, terms, privacy, openedOn);
+        return new Input(company, bizNo, owner, phone, email, postcode, address1, address2, certificateId, terms, privacy, openedOn, delivery);
     }
 
     /** 입력 + 지금 값(바꾸지 않은 민감 칸) → 암호문·해시까지 만든 신원. 사본은 회원 것이고 파기되지 않았으며 다른 신원에 붙지 않았어야 한다 */
@@ -357,9 +383,11 @@ public class MyBusinessService {
             errors.put("phone", new MessageRef("business.field.required"));
             phoneEnc = null;
         }
-        DocumentRow doc = store.document(in.certificateId()).orElse(null);
-        if (doc == null || doc.userId() != userId || doc.erasedAt() != null || (doc.profileId() != null && doc.profileId() != profileId)) {
-            errors.put("certificate", new MessageRef("business.certificate.required"));
+        if (in.certificateId() != null) {
+            DocumentRow doc = store.document(in.certificateId()).orElse(null);
+            if (doc == null || doc.userId() != userId || doc.erasedAt() != null || (doc.profileId() != null && doc.profileId() != profileId)) {
+                errors.put("certificate", new MessageRef("business.certificate.required"));
+            }
         }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
@@ -369,7 +397,7 @@ public class MyBusinessService {
         }
         return new BusinessProfileEntity.Identity(in.companyName(), bizNoEnc, bizNoHash, last4, pii.encrypt(BusinessPii.OWNER, in.ownerName()), phoneEnc,
                 pii.encrypt(BusinessPii.EMAIL, in.email()), in.postcode(), pii.encrypt(BusinessPii.ADDRESS1, in.address1()),
-                pii.encrypt(BusinessPii.ADDRESS2, in.address2()), in.certificateId(), in.termsVersion(), in.privacyVersion(), in.openedOn());
+                pii.encrypt(BusinessPii.ADDRESS2, in.address2()), in.certificateId(), in.termsVersion(), in.privacyVersion(), in.openedOn(), in.delivery());
     }
 
     private MyBusinessView.Profile view(BusinessProfileEntity p) {
@@ -389,7 +417,14 @@ public class MyBusinessService {
                 .sorted(java.util.Comparator.comparing(com.community.business.entity.BusinessServiceEntity::getService))
                 .map(s -> new MyBusinessView.Service(s.getService().name(), s.getStatus().name(), s.getSuspendCode() == null ? null : s.getSuspendCode().name(),
                         s.getSuspendText(), s.getSuspendedAt()))
-                .toList());
+                .toList(), p.getCertificateDelivery().name(), receipt.received(p));
+    }
+
+    // ── 등록증 보낼 곳(biz-doc-intake-contract) ─────────────────────────────
+
+    /** 우편·팩스로 보낼 곳 — 서버 설정값(비어 있는 칸은 null) */
+    public MyBusinessView.DocSendTo docSendTo() {
+        return new MyBusinessView.DocSendTo(strip(sendTo.postcode()), strip(sendTo.address()), strip(sendTo.recipient()), strip(sendTo.fax()));
     }
 
     /** 동시 신청으로 유일 색인(같은 회원 · 살아 있는 같은 번호)에 걸리면 409 */

@@ -12,6 +12,7 @@ import type {
     BizRejectCode,
     BizTransferRequest,
 } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { DocFileChannel } from '~/composables/docintake/api/useDocIntakeApi.types';
 
 /**
  * 사업자 신청 건(광고·핫딜) 심사 API(관리자) — 서버 주소(`/api/admin/biz-applications/…`)가 있는 **유일한 곳**이다. 상태는 없다.
@@ -25,7 +26,8 @@ import type {
  *    운영자 등록 건(source=OPERATOR)은 수동 결제만(400 `fields.method`). 자기 승인은 `memo` 1~200자 필수(400 `fields.memo`), 막는 설정이면 409 `BIZ_SELF_APPROVAL_DENIED`
  *  - `POST …/{id}/reject` `{ code, text }`(결제 전이라 환불 없음)
  *  - `POST …/{id}/manual` `{ deadlineAt, reason }`(결제 대기 → 수동 결제로 전환)
- *  - `POST …/{id}/contracts` 멀티파트 `files`(+ `replaceId`) — 원본 보존, 옛 파일은 「대체됨」. 서버 요청 한도(11MB) 때문에 **한 장씩** 올린다(화면이 차례로 부른다)
+ *  - `POST …/{id}/contracts` 멀티파트 `files`(+ `replaceId`, + `channel` 들어온 길 `UPLOAD` 기본 · `FAX` 전자 팩스 — biz-doc-intake-contract) — 원본 보존, 옛 파일은 「대체됨」.
+ *    서버 요청 한도(11MB) 때문에 **한 장씩** 올린다(화면이 차례로 부른다)
  *  - `GET  …/{id}/contracts/{fileId}` → `BizContractView`(`data:` 주소 — 열람 기록·감사)
  *  - `PUT  …/{id}/deposit` `{ amount, depositedOn, depositorName, mismatchReason? }`(감사 `BIZ_DEPOSIT_CONFIRM`)
  *  - `POST …/{id}/confirm` — 계약서 1장 이상 + 입금 확인 둘 다(서버 CHECK, 아니면 409 `BIZ_DEPOSIT_INCOMPLETE`)
@@ -69,11 +71,12 @@ export function useBizApplicationApi() {
         switchToManual: (id: string, body: { deadlineAt: string; reason: string }): Promise<BizApplicationDetail> =>
             client.post<BizApplicationDetail>(PATH.action(id, 'manual'), body),
 
-        /** 계약서 사본 올리기 — 서버는 여러 장을 받지만 요청 한도(11MB)가 있어 화면은 한 장씩 부른다. `replaceId` 면 정확히 1장 */
-        uploadContracts: (id: string, files: File[], replaceId?: string): Promise<BizApplicationDetail> => {
+        /** 계약서 사본 올리기 — 서버는 여러 장을 받지만 요청 한도(11MB)가 있어 화면은 한 장씩 부른다. `replaceId` 면 정확히 1장. 전자 팩스면 `channel = 'FAX'` */
+        uploadContracts: (id: string, files: File[], replaceId?: string, channel?: DocFileChannel): Promise<BizApplicationDetail> => {
             const form = new FormData();
             for (const f of files) form.append('files', f);
             if (replaceId) form.append('replaceId', replaceId);
+            if (channel) form.append('channel', channel);
             return client.post<BizApplicationDetail>(PATH.action(id, 'contracts'), form);
         },
 

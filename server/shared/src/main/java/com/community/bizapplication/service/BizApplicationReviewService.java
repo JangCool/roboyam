@@ -25,6 +25,8 @@ import com.community.bizapplication.repository.master.BizRefundStore.RefundRow;
 import com.community.bizapplication.service.BizPeriods.Period;
 import com.community.bizapplication.service.BizPricing.Amount;
 import com.community.bizapplication.service.BizTransitions.Action;
+import com.community.docintake.entity.DocFileChannel;
+import com.community.docintake.repository.master.DocIntakeStore;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.crypto.DataPurpose;
 import com.community.zconfiguration.time.ServiceTime;
@@ -67,11 +69,14 @@ public class BizApplicationReviewService {
     private final DataCipher cipher;
     private final BizApplicationProperties props;
     private final com.community.bizapplication.repository.master.BizDealPostStore dealPosts;
+    private final DocIntakeStore intakes;
     private final TransactionTemplate tx;
 
     public BizApplicationReviewService(BizApplicationStore store, BizContractStore contracts, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
                                        BizApplicationMemberService pricing, DataCipher cipher, BizApplicationProperties props,
-                                       com.community.bizapplication.repository.master.BizDealPostStore dealPosts, PlatformTransactionManager transactions) {
+                                       com.community.bizapplication.repository.master.BizDealPostStore dealPosts, DocIntakeStore intakes,
+                                       PlatformTransactionManager transactions) {
+        this.intakes = intakes;
         this.store = store;
         this.contracts = contracts;
         this.refunds = refunds;
@@ -242,6 +247,15 @@ public class BizApplicationReviewService {
      * 원본은 지우지 않는다. 대체되지 않은 사본 수를 같은 트랜잭션에서 맞춘다(수동 확정 CHECK).
      */
     public void uploadContracts(BizOperator actor, long id, List<BizUpload> files, String replaceIdText) {
+        uploadContracts(actor, id, files, replaceIdText, null);
+    }
+
+    /**
+     * 계약서 사본 올리기 + 들어온 길(V140 — biz-doc-intake-contract) {@code channel}: {@code UPLOAD}(비우면 기본) · {@code FAX}(전자 팩스로 받은 파일). 모르는 값이면 400
+     * {@code fields.channel}. 나머지 규칙은 위와 같다(감사 detail 에 {@code channel}).
+     */
+    public void uploadContracts(BizOperator actor, long id, List<BizUpload> files, String replaceIdText, String channelText) {
+        DocFileChannel channel = fileChannel(channelText);
         List<BizUpload> list = files == null ? List.of() : files;
         Long replaceId = BizFields.strip(replaceIdText) == null ? null : BizFields.id(replaceIdText);
         if (list.isEmpty() || list.size() > FILES_MAX || (BizFields.strip(replaceIdText) != null && (replaceId == null || list.size() != 1))) {
@@ -274,7 +288,7 @@ public class BizApplicationReviewService {
             List<String> names = new ArrayList<>();
             for (Prepared p : prepared) {
                 long fileId = ops.nextId();
-                contracts.insert(fileId, id, p.name(), p.type(), p.size(), p.encrypted(), p.sha(), actor.operatorId(), now);
+                contracts.insert(fileId, id, p.name(), p.type(), p.size(), p.encrypted(), p.sha(), channel, actor.operatorId(), now);
                 if (replaceId != null && !contracts.replace(replaceId, id, fileId, actor.operatorId(), now)) {
                     throw BizApplicationException.stateChanged();
                 }
@@ -285,6 +299,7 @@ public class BizApplicationReviewService {
                     String.valueOf(prepared.size()), now);
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("files", names);
+            detail.put("channel", channel.name());
             if (replaceId != null) {
                 detail.put("replaced", Long.toString(replaceId));
             }
@@ -399,21 +414,26 @@ public class BizApplicationReviewService {
         });
     }
 
-    /** 예약 확정(수동) — 대체되지 않은 계약서 1장 이상 + 입금 기록 둘 다 없으면 409 {@code BIZ_DEPOSIT_INCOMPLETE}. DB CHECK 가 한 번 더 막는다 */
+    /**
+     * 예약 확정(수동) — 계약서 근거(대체되지 않은 파일 + 잘못 기록이 아닌 종이 접수, V140) 1건 이상 + 입금 기록 둘 다 없으면 409 {@code BIZ_DEPOSIT_INCOMPLETE}.
+     * DB CHECK 가 한 번 더 막는다(두 수를 같은 트랜잭션에서 맞춘다).
+     */
     public void confirm(BizOperator actor, long id) {
         tx.executeWithoutResult(status -> {
             AppRow app = store.lock(id).orElseThrow(BizApplicationException::notFound);
             BizTransitions.require(Action.CONFIRM, app.status());
             Instant now = ops.now();
             int active = contracts.activeCount(id);
+            int paper = intakes.contractEvidence(id);
             DepositRow deposit = store.deposit(id).orElse(null);
-            if (active < 1 || deposit == null) {
+            if (active + paper < 1 || deposit == null) {
                 throw BizApplicationException.depositIncomplete();
             }
             store.setContractCount(id, active, now);
+            store.setPaperContractCount(id, paper, now);
             ops.move(app, Action.CONFIRM, now);
             ops.event(id, BizEventAction.SCHEDULED, BizActorType.OPERATOR, actor.operatorId(), null, now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONFIRM, app, Map.of("contracts", active, "deposit", deposit.amount()));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONFIRM, app, Map.of("contracts", active, "paperContracts", paper, "deposit", deposit.amount()));
             ops.notices().member(app, BizApplicationNotices.Kind.CONFIRMED, deposit.amount(), null);
             ops.scheduled(app);
         });
@@ -633,7 +653,8 @@ public class BizApplicationReviewService {
     // ── 안 ──────────────────────────────────────────────────────────────────
 
     /** 계약서 사본을 올릴 수 있는 상태 — 입금 대기, 운영자 등록 건은 심사 대기도 */
-    static boolean contractsAllowed(AppRow app) {
+    /** 계약서 사본을 올리거나 계약서 종이 접수를 새로 기록·잘못 기록할 수 있는 상태 — 입금 대기 · 운영자 등록 건의 심사 대기 */
+    public static boolean contractsAllowed(AppRow app) {
         return app.status() == BizApplicationStatus.AWAITING_DEPOSIT || (app.status() == BizApplicationStatus.SUBMITTED && app.source() == BizSource.OPERATOR);
     }
 
@@ -697,6 +718,19 @@ public class BizApplicationReviewService {
             name = "contract" + (type.equals("application/pdf") ? ".pdf" : type.equals("image/png") ? ".png" : ".jpg");
         }
         return name.length() <= 120 ? name : name.substring(name.length() - 120);
+    }
+
+    /** 파일 사본이 들어온 길 — 비우면 올림, 모르는 값이면 400 {@code fields.channel} */
+    static DocFileChannel fileChannel(String text) {
+        String s = BizFields.strip(text);
+        if (s == null) {
+            return DocFileChannel.UPLOAD;
+        }
+        try {
+            return DocFileChannel.valueOf(s);
+        } catch (IllegalArgumentException e) {
+            throw com.community.zconfiguration.exception.ValidationException.of("channel", new com.community.zconfiguration.message.MessageRef("bizapp.value.invalid"));
+        }
     }
 
     private static String sha256(byte[] data) {
