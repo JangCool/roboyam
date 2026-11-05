@@ -5,7 +5,7 @@
         소모임 상세를 받지 않는다 — 멤버인지는 서버가 정한다(`403 GROUP_NOT_MEMBER` → 잠금). 로그인 전이면 요청하지 않고 로그인 안내.
     -->
     <div class="content-card" data-testid="events-past">
-        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
+        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-angle-left" variant="text" severity="secondary" :aria-label="t('common.back')" @click="goBack" />
             <span class="text-sm font-semibold">{{ t('groupEvent.pastTitle') }}</span>
         </div>
