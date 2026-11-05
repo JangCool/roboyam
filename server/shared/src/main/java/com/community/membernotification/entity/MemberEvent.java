@@ -115,7 +115,11 @@ public enum MemberEvent {
     SANCTION_LIFTED(NotificationArea.SAFETY, MemberNotificationType.SANCTION_LIFTED, MemberEventLockReason.ACCOUNT, null),
     APPEAL_ANSWERED(NotificationArea.SAFETY, MemberNotificationType.APPEAL_ANSWERED, MemberEventLockReason.ACCOUNT, null),
     /** 게시판 제재(V137 — board-sanction-contract 결정 6) — 끌 수 없는 계정 알림, 메일은 보내지 않는다(발행기가 이메일 값을 보지 않는다) */
-    BOARD_SANCTION_ISSUED(NotificationArea.SAFETY, MemberNotificationType.BOARD_SANCTION_ISSUED, MemberEventLockReason.ACCOUNT, null);
+    BOARD_SANCTION_ISSUED(NotificationArea.SAFETY, MemberNotificationType.BOARD_SANCTION_ISSUED, MemberEventLockReason.ACCOUNT, null),
+    /** 로보티콘 팩 처리(V140 — 승인·반려·새 판 승인·반려·판매 중단·다시 판매) — 작가가 낸 신청의 처리 알림이라 회원이 끌 수 없다 */
+    EMOTICON_PACK(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PACK, MemberEventLockReason.ACTION, null),
+    /** 로보티콘 유료 팩 구매(V144 — 구매 완료·자동 취소·셀프 환불 접수·예외 환불) — 회원 돈이 오가는 거래 알림이라 회원이 끌 수 없다(공구·사업자 신청 건과 같다) */
+    EMOTICON_PURCHASE(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PURCHASE, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

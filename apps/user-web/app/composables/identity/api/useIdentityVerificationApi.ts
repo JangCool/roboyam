@@ -11,6 +11,9 @@ import type { IdentityConfirmRequest, IdentityStatus, IdentityVerificationStart 
  *    오류: `404 IDENTITY_VERIFICATION_NOT_FOUND`(남의 번호 포함) · `410 IDENTITY_VERIFICATION_EXPIRED`(30분 지남·이미 끝난 번호) · `409 IDENTITY_ALREADY_LINKED` ·
  *    `409 IDENTITY_REVERIFY_BLOCKED`(오류 본문 최상위 `retryAfter` → `ApiError.extras`) · `409 IDENTITY_ALREADY_VERIFIED` · `502 IDENTITY_PROVIDER_FAILED` ·
  *    `400 VALIDATION`(가짜 입력 `fields['fake.birthDate'|'fake.personKey']`)
+ *  - 이름 채우기 재인증(emoticon-contract S3): 인증은 했지만 인증 이름 암호문이 없는 회원(V141 전 인증)만 `start`·`confirm` 이 한 번 더 열린다 — 같은 사람이면 이름만 채우고
+ *    (생년월일·인증 시각 그대로, 가입 포인트 다시 없음), 다른 사람이면 `409 IDENTITY_PERSON_MISMATCH`. 이름이 이미 있으면 지금처럼 `409 IDENTITY_ALREADY_VERIFIED`.
+ *    화면은 `useIdentityGate().ensure({ reverify: true })` 로 연다(로보티콘 정산 정보 `409 EMOTICON_IDENTITY_NAME_MISSING`).
  */
 const PATH = {
     root: '/api/identity-verifications',

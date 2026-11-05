@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 공개 약관 API(docs/features/terms-contract.md) — 로그인 없이 부른다. 경로의 {@code {kind}} 는 {@code terms}·{@code privacy}(모르면 404).
+ * 공개 약관 API(docs/features/terms-contract.md) — 로그인 없이 부른다. 경로의 {@code {kind}} 는 {@code terms}·{@code privacy}·{@code robotikon_contract}(로보티콘 상품화 계약 — 요약에는 없다, 모르면 404).
  * 캐시 규칙은 {@code /api/site/info} 와 같다 — 브라우저는 쓸 때마다 묻고({@code Cache-Control: no-cache}), {@code ETag}(본문 내용의 지문)가 같으면 {@code 304} 로 답한다.
  */
 @RestController

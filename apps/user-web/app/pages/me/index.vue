@@ -109,6 +109,7 @@ import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
+import UtilEmoticon from '~/utils/util-emoticon';
 import UtilSettings from '~/utils/util-settings';
 
 /**
@@ -217,6 +218,8 @@ const entries = computed<Entry[]>(() => {
         list.push({ to: UtilPointShop.PATH, icon: 'pi pi-shopping-bag', label: term('POINT_SHOP'), hint: '', badge: '', testid: 'me-entry-point-shop' });
         list.push({ to: UtilPointShop.MY_ITEMS_PATH, icon: 'pi pi-box', label: t('pointShop.myItems'), hint: '', badge: '', testid: 'me-entry-my-items' });
     }
+    // 내 이모티콘(받은 팩) — `docs/features/emoticon-contract.md`. 무료라 사업자 전용 계정도 줄이 있다(가정 — 포인트 보상은 스튜디오에서만)
+    list.push({ to: UtilEmoticon.MY_PATH, icon: 'pi pi-face-smile', label: t('emoticon.myTitle'), hint: '', badge: '', testid: 'me-entry-emoticons' });
     // 사업자 센터 — 신청했거나 사업자 전용 계정이면 「사업자 센터」, 일반 회원이고 신청 전이면 「사업자 신청」(운영진은 줄 없음, 셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`)
     const business = UtilBusiness.entryOf(user.value);
     if (business) list.push({ to: UtilBusiness.CENTER_PATH, icon: UtilBusinessMessages.ENTRY_CENTER_ICON, label: business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), hint: '', badge: '', testid: 'me-entry-business' });

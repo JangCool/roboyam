@@ -1,12 +1,17 @@
 import type { IdentityVerifyOutcome } from '~/composables/identity/useIdentity.types';
 
 /** 본인인증이 필요한 용도 — 대화상자 문구가 용도마다 다르다(`identity.gateNeed_<용도>`) */
-export type IdentityPurpose = 'CHARGE' | 'GROUP_BUY';
+export type IdentityPurpose = 'CHARGE' | 'GROUP_BUY' | 'ROBOTIKON';
 
 export interface IdentityGateOptions {
     purpose: IdentityPurpose;
     /** 만 19세 이상이어야 하는가(충전·공구 결제 — commerce.md 12-1). 기본 true */
     requireAdult?: boolean;
+    /**
+     * 이미 인증했어도 한 번 더 인증하게 한다(대화상자를 늘 띄운다) — 서버가 인증 기록을 다시 받아야 한다고 답했을 때
+     * (예: 로보티콘 정산 정보 `409 EMOTICON_IDENTITY_NAME_MISSING` — 인증 이름이 남아 있지 않은 옛 인증). 기본 false
+     */
+    reverify?: boolean;
 }
 
 /**
@@ -19,6 +24,8 @@ export interface IdentityGateState {
     open: boolean;
     purpose: IdentityPurpose;
     requireAdult: boolean;
+    /** 한 번 더 인증(`IdentityGateOptions.reverify`) — `NEED` 의 제목·문구가 「한 번 더」로 바뀐다 */
+    reverify: boolean;
     mode: 'NEED' | 'MINOR' | 'LOAD_ERROR';
     /** 인증 흐름·상태 다시 받기가 진행 중 */
     busy: boolean;

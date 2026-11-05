@@ -101,12 +101,15 @@ public class PublicTermsService {
         for (Map.Entry<TermsKind, TermsTimeline> entry : timelines.entrySet()) {
             TermsKind kind = entry.getKey();
             TermsTimeline timeline = entry.getValue();
+            pages.put(kind, page(kind, timeline));
+            if (!kind.signup()) {
+                continue; // 로보티콘 상품화 계약 — 화면({@code /api/terms/robotikon_contract})은 있고, 가입·로그인 링크·변경 안내(요약)에는 넣지 않는다
+            }
             TermsCurrentBrief currentBrief = timeline.current().map(v -> new TermsCurrentBrief(v.version(), v.effectiveDate().toString())).orElse(null);
             TermsNoticeView notice = timeline.notice()
                     .map(v -> new TermsNoticeView(v.version(), v.effectiveDate().toString(), v.effectiveDate().isAfter(timeline.today()), v.changeNote()))
                     .orElse(null);
             kinds.add(new TermsSummaryKind(kind.name(), currentBrief, notice));
-            pages.put(kind, page(kind, timeline));
         }
         return new PublicTermsSnapshot(new TermsSummaryResponse(terms.linksVisible(), List.copyOf(kinds)), pages);
     }

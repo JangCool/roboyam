@@ -51,7 +51,9 @@ export type IdentityErrorCode =
     /** 502 — 인증 업체 오류 */
     | 'IDENTITY_PROVIDER_FAILED'
     /** 410 — 발급 후 30분이 지났거나 이미 끝난 인증 번호 */
-    | 'IDENTITY_VERIFICATION_EXPIRED';
+    | 'IDENTITY_VERIFICATION_EXPIRED'
+    /** 409 — 이름 채우기 재인증(인증 이름이 남아 있지 않은 옛 인증)에서 처음 인증한 사람과 다른 사람이 인증했다(emoticon-contract S3) */
+    | 'IDENTITY_PERSON_MISMATCH';
 
 /** 화면 검사 상한 — 가짜 인증의 사람 번호 길이(서버 `FakeIdentityInput` 1~40자) */
 export const IDENTITY_PERSON_KEY_MAX = 40;

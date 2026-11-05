@@ -79,7 +79,7 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한·제재 받음은 금지 표시, 제재 풀림은 열린 자물쇠, 이의제기 답변은 체크 상자, 회원 핫딜은 의심 경고·마감 고치기 달력·그 밖 종료 가격표. 모르는 종류는 말풍선.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한·제재 받음은 금지 표시, 제재 풀림은 열린 자물쇠, 이의제기 답변은 체크 상자, 회원 핫딜은 의심 경고·마감 고치기 달력·그 밖 종료 가격표, 로보티콘 팩 처리는 웃는 얼굴. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
@@ -98,6 +98,8 @@ export default class UtilNotification {
         if (type === 'APPEAL_ANSWERED') return 'pi pi-check-square';
         // 게시판 제재(board-sanction-contract 결정 6) — 그 게시판 매니저·스텝이 준 경고·쓰기 제한은 느낌표 동그라미(사이트 제재의 금지 표시와 가른다, 서버 `link` 가 `/sanction`)
         if (type === 'BOARD_SANCTION_ISSUED') return 'pi pi-exclamation-circle';
+        // 로보티콘 팩 처리(승인·반려·새 판·판매 중단·다시 판매 6가지 + S2 유료 승인·가격 바뀜·새 판 가격 바뀜 모두 — 문장은 서버가 준다) — 고르기 단추와 같은 웃는 얼굴(서버 `link` 가 스튜디오의 그 팩)
+        if (type === 'EMOTICON_PACK') return 'pi pi-face-smile';
         if (type === 'POST_REMOVED' || type === 'COMMENT_REMOVED') return 'pi pi-trash';
         if (type === 'REPORT_RESULT') return 'pi pi-flag';
         if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';

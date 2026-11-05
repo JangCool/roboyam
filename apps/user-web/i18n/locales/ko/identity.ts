@@ -50,11 +50,16 @@ export default {
     failProvider: '잠시 후 다시 시도해 주세요.',
     failExpiredTitle: '인증 시간이 지났어요.',
     failExpired: '처음부터 다시 시도해 주세요.',
+    failMismatchTitle: '처음 본인인증한 사람과 달라요.',
+    failMismatch: '이 계정에 처음 인증한 본인의 정보로 다시 인증해 주세요.',
 
     // 결제 직전 확인
     gateNeed_CHARGE: '포인트 충전하려면 본인인증이 필요해요',
     gateNeed_GROUP_BUY: '공동구매에 참여하려면 본인인증이 필요해요',
+    gateNeed_ROBOTIKON: '로보티콘 팩을 사려면 본인인증이 필요해요',
     gateNeedText: '한 사람이 한 계정으로만, 만 19세 이상만 결제할 수 있어요. 휴대폰 본인인증은 한 번만 하면 돼요.',
+    gateReverifyTitle: '본인인증을 한 번 더 해 주세요',
+    gateReverifyText: '예전에 한 본인인증에는 이름 확인 기록이 없어 정산 계좌의 예금주를 확인할 수 없어요. 한 번 더 인증하면 이어서 저장할 수 있어요.',
 
     // 가짜 본인인증(개발용)
     fakeTitle: '가짜 본인인증(개발용)',

@@ -95,6 +95,15 @@ public final class AdminScreenRegistry {
                     leaf(s("pointShopItems", "/point-shop/items", "menu.pointShopItems", "pi pi-box", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopPurchases", "/point-shop/purchases", "menu.pointShopPurchases", "pi pi-receipt", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopSettings", "/point-shop/settings", "menu.pointShopSettings", "pi pi-sliders-h", Permission.POINTSHOP_READ))),
+            // 로보티콘 묶음(docs/features/emoticon-contract.md S1) — 포인트 상점 묶음 바로 다음. 세 화면 모두 조회 emoticon.read(화면 안에서 승인·반려·판매 중단·운영 팩 emoticon.review ·
+            // 설정 저장 emoticon.settings). admin-web UtilAdminMenu 의 emoticon 묶음과 같은 키·주소·권한·아이콘·차례 — 판매 내역·작가 정산(emoticon.sales·emoticon.settlement)은 S3·S4 에서 더했다
+            section(NORMAL, "menu.emoticon", "pi pi-face-smile",
+                    leaf(s("emoticonReviews", "/robotikon/reviews", "menu.emoticonReviews", "pi pi-check-square", Permission.EMOTICON_READ)),
+                    leaf(s("emoticonPacks", "/robotikon/packs", "menu.emoticonPacks", "pi pi-images", Permission.EMOTICON_READ)),
+                    // 판매 내역(S3 — 조회·예외 환불 emoticon.sales) · 작가 정산(S4 — 조회·확정·보류·지급 기록 emoticon.settlement, 계좌 원문 보기는 화면 안에서 emoticon.payout.pii)
+                    leaf(s("emoticonSales", "/robotikon/sales", "menu.emoticonSales", "pi pi-receipt", Permission.EMOTICON_SALES)),
+                    leaf(s("emoticonSettlements", "/robotikon/settlements", "menu.emoticonSettlements", "pi pi-wallet", Permission.EMOTICON_SETTLEMENT)),
+                    leaf(s("emoticonSettings", "/robotikon/settings", "menu.emoticonSettings", "pi pi-sliders-h", Permission.EMOTICON_READ))),
             // 공구 묶음(커머스 2b — commerce-groupbuy-contract 「화면 목록」·결정 89) — 결제 묶음 앞. 상품·옵션 종류·카테고리·공구·수량은 조회 commerce.product.read,
             // 주문·요청은 commerce.order.read(화면 안의 처리는 각 권한). admin-web util-admin-menu 의 groupBuy 묶음과 같은 키·주소·권한·아이콘·차례
             section(NORMAL, "menu.groupBuy", "pi pi-truck",

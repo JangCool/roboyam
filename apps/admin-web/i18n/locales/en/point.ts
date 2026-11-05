@@ -189,6 +189,7 @@ export default {
         POINT_SHOP_REFUND: 'Point shop purchase canceled',
         REVOKE_DEBT_OFFSET: 'Unrecovered points deducted',
         EXPIRE: 'Expired',
+        EMOTICON_CREATOR_REWARD: 'Robotikon pack reward',
     },
     col: {
         createdAt: 'Date',

@@ -9,6 +9,7 @@ import com.community.identity.dto.response.IdentityStartView;
 import com.community.identity.dto.response.IdentityStatusView;
 import com.community.identity.exception.IdentityAlreadyLinkedException;
 import com.community.identity.exception.IdentityAlreadyVerifiedException;
+import com.community.identity.exception.IdentityPersonMismatchException;
 import com.community.identity.exception.IdentityRequiredException;
 import com.community.identity.exception.IdentityReverifyBlockedException;
 import com.community.identity.exception.IdentityUnderageException;
@@ -20,6 +21,7 @@ import com.community.point.service.PointService;
 import com.community.withdrawal.entity.WithdrawalKind;
 import com.community.withdrawal.repository.master.IdentityWithdrawalStore;
 import com.community.zconfiguration.crypto.BlindIndex;
+import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.crypto.DataPurpose;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -50,7 +52,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       되돌려져도 남도록 실패 표시는 <b>따로</b> 확정한다. 입력 오류(400)·설정 없음(503)은 시도를 끝내지 않는다(다시 낼 수 있다).</li>
  *   <li><b>만 19세</b>({@link #requireAdult}): 서비스 날짜(한국 시간) 기준 만 나이, 2월 29일생은 평년에 3월 1일({@link AdultAge}). 결제 직전마다 다시 계산한다.</li>
  * </ol>
- * 원문 CI·DI·이름·휴대폰 번호는 저장하지도 로그에 남기지도 않는다.
+ * 원문 CI·DI·휴대폰 번호는 저장하지도 로그에 남기지도 않는다. 이름은 데이터 키가 있을 때 <b>암호문으로만</b> 남긴다({@link #NAME} — 로보티콘 작가 정산 계좌의 예금주 대조,
+ * emoticon-contract S2 · commerce.md 12-1 「필요해지면 암호문」). 로그에는 싣지 않는다.
  */
 @Service
 public class IdentityVerificationService {
@@ -61,9 +64,11 @@ public class IdentityVerificationService {
     public static final DataPurpose DI = DataPurpose.of("identity.di");
     /** CI 해시의 용도 */
     public static final DataPurpose CI = DataPurpose.of("identity.ci");
+    /** 인증 이름 암호문의 용도(V141 {@code identity_verifications.name_enc}) — 로보티콘 작가 정산 계좌의 예금주 대조에만 푼다(emoticon-contract S2) */
+    public static final DataPurpose NAME = DataPurpose.of("identity.name");
 
     /** 시도를 실패로 끝내는 거절 — 이 밖의 오류(입력·설정·키)는 시도를 그대로 둔다 */
-    private static final Set<String> FAILING_CODES = Set.of("IDENTITY_ALREADY_LINKED", "IDENTITY_REVERIFY_BLOCKED", "IDENTITY_ALREADY_VERIFIED",
+    private static final Set<String> FAILING_CODES = Set.of("IDENTITY_ALREADY_LINKED", "IDENTITY_REVERIFY_BLOCKED", "IDENTITY_ALREADY_VERIFIED", "IDENTITY_PERSON_MISMATCH",
             "IDENTITY_PROVIDER_FAILED", "IDENTITY_VERIFICATION_EXPIRED");
 
     private final IdentityStore store;
@@ -71,6 +76,7 @@ public class IdentityVerificationService {
     private final IdentityVerifier verifier;
     private final IdentityProperties properties;
     private final BlindIndex index;
+    private final DataCipher cipher;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate writes;
     private final TransactionTemplate separate;
@@ -78,8 +84,9 @@ public class IdentityVerificationService {
     private final Clock clock;
 
     public IdentityVerificationService(IdentityStore store, IdentityWithdrawalStore withdrawals, IdentityVerifier verifier, IdentityProperties properties,
-                                       BlindIndex index, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, PointService points,
-                                       ObjectProvider<Clock> clocks) {
+                                       BlindIndex index, DataCipher cipher, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
+                                       PointService points, ObjectProvider<Clock> clocks) {
+        this.cipher = cipher;
         this.points = points;
         this.store = store;
         this.withdrawals = withdrawals;
@@ -107,8 +114,8 @@ public class IdentityVerificationService {
      * @throws com.community.identity.exception.IdentityNotConfiguredException 포트원인데 설정 칸이 비었을 때(503)
      */
     public IdentityStartView start(long userId) {
-        if (store.findVerification(userId).isPresent()) {
-            throw new IdentityAlreadyVerifiedException();
+        if (store.findVerification(userId).isPresent() && !nameMissing(userId)) {
+            throw new IdentityAlreadyVerifiedException(); // 이름 암호문이 없는 회원(V141 전 인증)만 이름 채우기 재인증을 한 번 할 수 있다(emoticon-contract S3)
         }
         index.requireConfigured(); // 결과를 저장할 수 없으면(해시 키 없음 — 503 INDEX_KEY_MISSING) 업체 인증을 시작하지 않는다
         IdentityStartInfo info = verifier.startInfo();
@@ -127,7 +134,8 @@ public class IdentityVerificationService {
         IdentityStore.Attempt attempt = store.findAttempt(verificationId).filter(a -> a.userId() == userId)
                 .orElseThrow(IdentityVerificationNotFoundException::new);
         try {
-            if (store.findVerification(userId).isPresent()) {
+            Optional<IdentityStore.Verification> existing = store.findVerification(userId);
+            if (existing.isPresent() && !nameMissing(userId)) {
                 throw new IdentityAlreadyVerifiedException();
             }
             Instant now = clock.instant();
@@ -137,6 +145,9 @@ public class IdentityVerificationService {
             VerifiedPerson person = verifier.verify(attempt.id(), fake); // 트랜잭션 밖 — 외부 호출
             String diHash = person.di() == null ? null : index.hash(DI, person.di());
             String ciHash = person.ci() == null ? null : index.hash(CI, person.ci());
+            if (existing.isPresent()) {
+                return writes.execute(status -> fillName(userId, attempt, person, diHash, ciHash));
+            }
             return writes.execute(status -> settle(userId, attempt, person, diHash, ciHash));
         } catch (CommonException e) {
             if (FAILING_CODES.contains(e.getErrorCode())) {
@@ -160,6 +171,10 @@ public class IdentityVerificationService {
             }
             throw new IdentityAlreadyLinkedException(); // DI·CI(또는 업체 건 번호)가 다른 회원에게 있다
         }
+        if (person.name() != null && cipher != null && cipher.isConfigured()) {
+            // 데이터 키가 없으면 이름은 남기지 않는다(인증은 성공 — 로보티콘 정산 계좌 등록만 막힌다)
+            store.saveNameCipher(userId, cipher.encrypt(NAME, person.name().strip()));
+        }
         if (!store.finishAttempt(attempt.id(), true, null, now)) {
             throw new IdentityAlreadyVerifiedException(); // 같은 번호의 다른 확정이 먼저 끝냈다 — 되돌린다
         }
@@ -167,6 +182,37 @@ public class IdentityVerificationService {
         long signup = points.signup(userId);
         log.info("본인인증 확정 userId={} provider={} signupPoints={}", userId, verifier.kind(), signup);
         return statusOf(store.findVerification(userId).orElseThrow());
+    }
+
+    /**
+     * 이름 채우기 재인증(emoticon-contract S3 — 사용자 결정 2026-11-05) — 이미 인증했지만 이름 암호문이 없는 회원(V141 전 인증). 한 트랜잭션: 같은 사람(DI 해시 또는 CI 해시가 저장된 값과
+     * 같음)이 아니면 409 {@code IDENTITY_PERSON_MISMATCH}(시도 FAILED) → 이름 암호문만 채운다(비어 있을 때만 — 동시에 두 번 와도 처음 것) → 시도 VERIFIED.
+     * 생년월일·인증 시각·DI/CI·업체 건 번호는 그대로 두고, 가입 포인트 같은 한 번뿐인 혜택은 다시 주지 않는다. 데이터 키가 없거나 업체가 이름을 주지 않으면 이름 없이 끝난다(그대로 재인증 가능).
+     */
+    private IdentityStatusView fillName(long userId, IdentityStore.Attempt attempt, VerifiedPerson person, String diHash, String ciHash) {
+        Instant now = clock.instant();
+        IdentityStore.Verification v = store.findVerification(userId).orElseThrow(IdentityRequiredException::new);
+        boolean same = (v.diHash() != null && v.diHash().equals(diHash)) || (v.ciHash() != null && v.ciHash().equals(ciHash));
+        if (!same) {
+            throw new IdentityPersonMismatchException();
+        }
+        boolean filled = false;
+        if (person.name() != null && !person.name().isBlank() && cipher != null && cipher.isConfigured()) {
+            filled = store.fillNameCipher(userId, cipher.encrypt(NAME, person.name().strip()));
+        }
+        if (!filled && store.findNameCipher(userId).isPresent()) {
+            throw new IdentityAlreadyVerifiedException(); // 같은 회원의 다른 재인증이 먼저 채웠다
+        }
+        if (!store.finishAttempt(attempt.id(), true, null, now)) {
+            throw new IdentityAlreadyVerifiedException();
+        }
+        log.info("본인인증 이름 채우기 재인증 userId={} provider={} filled={}", userId, verifier.kind(), filled);
+        return statusOf(v);
+    }
+
+    /** 인증했지만 이름 암호문이 없다(V141 전 인증 — 이름 채우기 재인증 대상) */
+    public boolean nameMissing(long userId) {
+        return store.findVerification(userId).isPresent() && store.findNameCipher(userId).isEmpty();
     }
 
     /** 시도를 실패로 끝낸다 — 거절로 업무 트랜잭션이 되돌려져도 남도록 따로 확정한다 */

@@ -273,6 +273,15 @@ public class PointLedgerWriter {
         return !jdbc.queryForList("select 1 from (select ?::bigint as user_id) l where exists (" + RECOGNIZED + ")", Integer.class, userId).isEmpty();
     }
 
+    /**
+     * 무료 로보티콘 팩 받기 보상의 「인정된 받기」(emoticon-contract 가정 6) — 인정된 추천({@link #recognizedLiker})과 같은 회원 조건(정상 회원 · 등급이 가장 낮은 등급보다 높다) +
+     * 이메일 인증. 본인(작가)이 아닌지는 부르는 쪽이 본다.
+     */
+    public boolean recognizedAcquirer(long userId) {
+        return !jdbc.queryForList("select 1 from (select ?::bigint as user_id) l where exists (" + RECOGNIZED + " and u.email_verified_at is not null)", Integer.class,
+                userId).isEmpty();
+    }
+
     /** 인정되는 추천인가 — {@code l.user_id} 를 바깥에서 받는다 */
     private static final String RECOGNIZED = "select 1 from users u join profiles p on p.user_id = u.id join grades g on g.grade_key = p.grade_key "
             + "where u.id = l.user_id and u.status = 'ACTIVE' and u.deleted_at is null and g.level > (select min(level) from grades)";

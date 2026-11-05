@@ -22,6 +22,8 @@ public class FakeIdentityVerifier implements IdentityVerifier {
 
     /** 사람 번호 최대 길이(화면 {@code IDENTITY_PERSON_KEY_MAX}) */
     public static final int PERSON_KEY_MAX = 40;
+    /** 이름을 비웠을 때의 인증 이름(개발용 — 로보티콘 정산 계좌 예금주 대조 시험, user-web 목업과 같은 이름) */
+    public static final String DEFAULT_NAME = "홍길동";
 
     private static final Pattern DATE = Pattern.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}");
     private static final LocalDate EARLIEST = LocalDate.of(1900, 1, 1);
@@ -64,7 +66,8 @@ public class FakeIdentityVerifier implements IdentityVerifier {
         if (!violations.isEmpty()) {
             throw new ValidationException(violations);
         }
-        return new VerifiedPerson("fake-ci:" + person, "fake-di:" + person, birthDate, "fake:" + verificationId);
+        String name = fake.name() == null || fake.name().isBlank() ? DEFAULT_NAME : fake.name().strip();
+        return new VerifiedPerson("fake-ci:" + person, "fake-di:" + person, birthDate, "fake:" + verificationId, name);
     }
 
     private static LocalDate parse(String value) {

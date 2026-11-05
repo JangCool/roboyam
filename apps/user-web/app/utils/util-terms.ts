@@ -11,9 +11,10 @@ export default class UtilTerms {
     /**
      * 종류의 공개 화면 주소.
      * @param {TermsKind} kind - 약관 종류.
-     * @returns {string} `/terms` 또는 `/privacy`.
+     * @returns {string} `/terms` · `/privacy` · `/robotikon/contract`(로보티콘 상품화 계약).
      */
     static pathOf(kind: TermsKind): string {
+        if (kind === 'ROBOTIKON_CONTRACT') return '/robotikon/contract';
         return kind === 'TERMS' ? '/terms' : '/privacy';
     }
 

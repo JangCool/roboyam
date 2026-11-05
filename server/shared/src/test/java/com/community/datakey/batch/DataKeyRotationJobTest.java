@@ -20,6 +20,8 @@ import com.community.batch.entity.BatchSource;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
+import com.community.emoticon.service.EmoticonPayoutService;
+import com.community.identity.service.IdentityVerificationService;
 import com.community.withdrawal.service.WithdrawnContactStore;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.crypto.DataPurpose;
@@ -357,9 +359,11 @@ class DataKeyRotationJobTest {
 
         DataKeyRotationJob job = new DataKeyRotationJob(dataSource, cipher(K2));
         assertThat(job.resumable()).isTrue();
-        assertThat(job.steps()).extracting(s -> s.name()).containsExactly("withdrawn-contact-email");
+        assertThat(job.steps()).extracting(s -> s.name()).containsExactly("withdrawn-contact-email", "identity-name", "emoticon-payout-account", "emoticon-payout-holder",
+                "emoticon-payout-business-number");
         assertThat(job.steps()).allMatch(s -> s.selectable());
-        assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::purpose).containsExactly(WithdrawnContactStore.EMAIL);
+        assertThat(DataKeyColumns.ALL).extracting(EncryptedColumn::purpose).containsExactly(WithdrawnContactStore.EMAIL, IdentityVerificationService.NAME,
+                EmoticonPayoutService.ACCOUNT, EmoticonPayoutService.HOLDER, EmoticonPayoutService.BUSINESS_NUMBER);
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.table()).isEqualTo("withdrawn_member_contacts");
         assertThat(DataKeyColumns.WITHDRAWN_CONTACT_EMAIL.cipherColumn()).isEqualTo("email_cipher");
 

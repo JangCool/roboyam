@@ -19,6 +19,9 @@ export default {
 
     // ── Kind and status ──
     kindTabs: 'Terms kind',
+    kindRobotikonContract: 'Robotikon commercialization agreement',
+    robotikonNote: 'The agreement paid Robotikon pack creators accept when submitting. It is not linked from the sign-up or login screens or the change notice bar; its public page is /robotikon/contract. When the version changes, creators agree again on their next paid submission. The title shown on the creator submission screen comes from the first heading in the text, and the summary from the items of the first list (up to 8).',
+    robotikonSettingsLink: 'Robotikon settings',
     statusTitle: 'Status',
     statusCurrent: 'In effect',
     statusUpcoming: 'Upcoming',

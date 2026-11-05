@@ -93,6 +93,20 @@ public enum Permission {
     POINTSHOP_MANAGE("pointshop.manage", GRADE_POINT, MANAGE, true),
     /** 포인트 상점 구매 예외 환불(셀프 환불 조건 밖 — 사유·감사 돈 관련 5년) */
     POINTSHOP_REFUND("pointshop.refund", GRADE_POINT, SENSITIVE, true),
+    // 로보티콘(docs/features/emoticon-contract.md) — admin-web 카탈로그와 같은 차례·featureReady. 판매(S3)·정산·정산 계좌(S4 — 원문 보기는 정산 화면 안) 세 줄은
+    // 그 화면 API 가 생긴 단계에서 켰다(권한 판정은 featureReady 와 상관없이 늘 한다)
+    /** 로보티콘 심사·팩·설정 조회(관리자 /robotikon/reviews·packs·settings — S1) */
+    EMOTICON_READ("emoticon.read", GRADE_POINT, READ, true),
+    /** 로보티콘 심사 승인(가격 단계 고르기)·반려 · 판매 중단·다시 판매 · 판매 중 팩 가격 바꾸기(S2) · 운영 팩 만들기·고치기·그림 올리기 */
+    EMOTICON_REVIEW("emoticon.review", GRADE_POINT, MANAGE, true),
+    /** 로보티콘 설정 저장(받기 보상 · 하루 상한 · 팩당 개수 · 심사 대기 상한 · 유료 판매 켜기 · 수수료율 · 가격 단계 · 정산일 · 최소 지급액 · 환불 기간) */
+    EMOTICON_SETTINGS("emoticon.settings", GRADE_POINT, CONFIG, true),
+    /** 로보티콘 판매 내역 조회·운영자 예외 환불(/robotikon/sales — S3 서버 API 가 생겨 켰다, admin-web 카탈로그도 같이 켠다) */
+    EMOTICON_SALES("emoticon.sales", GRADE_POINT, SENSITIVE, true),
+    /** 로보티콘 작가 정산 조회·확정·보류·지급 기록(/robotikon/settlements — S4 서버 API 가 생겨 켰다, admin-web 카탈로그도 같이 켠다) */
+    EMOTICON_SETTLEMENT("emoticon.settlement", GRADE_POINT, SENSITIVE, true),
+    /** 로보티콘 작가 정산 계좌 원문 보기(사유 · 감사 EMOTICON_PAYOUT_REVEAL · 10분 뒤 화면이 다시 가린다 — S2 작가 단위 · S4 정산 줄 주소. 정산 화면 API 가 생겨 켰다) */
+    EMOTICON_PAYOUT_PII("emoticon.payout.pii", GRADE_POINT, SENSITIVE, true),
     DORMANCY_READ("dormancy.read", GRADE_POINT, READ, false),
     DORMANCY_SETTINGS("dormancy.settings", GRADE_POINT, CONFIG, false),
     GROUP_READ("group.read", CLUB, READ, true),

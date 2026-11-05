@@ -61,6 +61,21 @@ public class IdentityStore {
                 + "ON CONFLICT DO NOTHING", userId, diHash, ciHash, birthDate, provider.name(), providerTxId, ts(verifiedAt)) == 1;
     }
 
+    /** 인증 이름 암호문을 넣는다(확정과 같은 트랜잭션 — V141 {@code name_enc}, DataCipher 용도 {@code identity.name}) */
+    public void saveNameCipher(long userId, String nameCipher) {
+        jdbc.update("UPDATE identity_verifications SET name_enc = ? WHERE user_id = ?", nameCipher, userId);
+    }
+
+    /** 인증 이름 암호문 — 미인증이거나 이 칸이 생기기 전에 인증했으면 비어 있다 */
+    /** 이름 암호문이 비어 있을 때만 채운다(이름 채우기 재인증 — 채웠으면 true) */
+    public boolean fillNameCipher(long userId, String nameCipher) {
+        return jdbc.update("UPDATE identity_verifications SET name_enc = ? WHERE user_id = ? AND name_enc IS NULL", nameCipher, userId) == 1;
+    }
+
+    public Optional<String> findNameCipher(long userId) {
+        return jdbc.queryForList("SELECT name_enc FROM identity_verifications WHERE user_id = ? AND name_enc IS NOT NULL", String.class, userId).stream().findFirst();
+    }
+
     /** 같은 DI 또는 CI 가 <b>다른</b> 회원에게 묶여 있는가 */
     public boolean linkedToOther(long userId, String diHash, String ciHash) {
         return !jdbc.queryForList("SELECT 1 FROM identity_verifications WHERE user_id <> ? AND ((di_hash IS NOT NULL AND di_hash = ?) OR (ci_hash IS NOT NULL AND ci_hash = ?)) "

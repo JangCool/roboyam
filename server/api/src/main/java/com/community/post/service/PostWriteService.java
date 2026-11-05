@@ -28,6 +28,7 @@ import com.community.hotdeal.service.DealWriter;
 import com.community.permission.entity.MemberPermission;
 import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
+import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.request.PostUpdateRequest;
@@ -70,7 +71,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>쓰기 검사 순서</b>(user-web 목업 {@code mockPostCreate} 와 같다): 게시판(404·403 꺼짐) → 쓰기 판정({@link BoardAccessPolicy} — 로그인 필요는 401, 나머지 403 까닭 코드)
  * → 칸(제목, 본문 형식 {@code contentFormat}, 본문 길이[HTML 은 보이는 글자], 말머리, 19금, 링크·이미지 수, 비회원 이름·비밀번호·자동입력 방지 토큰 — {@code 400 VALIDATION})
- * → (HTML) 본문 이미지가 쓸 수 있는 것인지({@code 400 fields.content}) → 이미지 금지 게시판의 새 이미지({@code 422 IMAGE_UPLOAD_NOT_ALLOWED}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
+ * → (HTML) 본문 이미지가 쓸 수 있는 것인지({@code 400 fields.content}) → 이미지 금지 게시판의 새 이미지({@code 422 IMAGE_UPLOAD_NOT_ALLOWED})
+ * → 로보티콘 자격({@code 409 EMOTICON_NOT_OWNED} — 토큰 개수 21개부터는 칸 검사의 {@code fields.content}, {@link EmoticonGuard}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
  * → 자동입력 방지 확인(비회원, 트랜잭션 밖 외부 요청 — 실패는 {@code fields.guest.captchaToken}) → 작성 간격({@code 429 POST_TOO_FAST}) → 하루 한도({@code 429 POST_DAILY_LIMIT})
  * → 같은 글 반복({@code 409 DUPLICATE_POST}). 본문 {@code debate} 가 있으면 칸 검사에서 회원 + 게시판 {@code debateEnabled} 를 보고({@code fields.debate}) 저장과 같은 트랜잭션에서
  * 글의 찬반 토론을 연다(글쓴이가 연 토론 — docs/features/post-debate-contract.md). 본문 {@code poll} 도 같은 자리에서 보고({@link PollWriter} — 회원 + 게시판
@@ -108,12 +110,14 @@ public class PostWriteService {
     private final PollWriter polls;
     private final GroupPostGate groupGate;
     private final DealWriter deals;
+    private final EmoticonGuard emoticons;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
-                            DealWriter deals, PlatformTransactionManager txManager) {
+                            DealWriter deals, EmoticonGuard emoticons, PlatformTransactionManager txManager) {
+        this.emoticons = emoticons;
         this.groupGate = groupGate;
         this.deals = deals;
         this.postImages = postImages;
@@ -163,6 +167,7 @@ public class PostWriteService {
         PollRules.Valid poll = polls.checkForCreate(body.poll(), actor.guest(), b, Instant.now(), fields); // 회원 + 게시판 pollEnabled, 칸 오류는 poll.*
         // 핫딜 게시판이면 딜 필수(칸 오류는 deal.*), 아니면 거절 — 새 링크의 리디렉션 체인은 여기(트랜잭션 밖)서 가져온다
         DealWriter.Checked deal = deals.checkForCreate(body.deal(), b, actor.guest() ? null : actor.userId(), fields);
+        EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -173,6 +178,7 @@ public class PostWriteService {
                 throw new ImageUploadNotAllowedException(); // 새 글의 이미지는 모두 새 이미지다
             }
         }
+        emoticons.requireOwned(authorId, c.body().content()); // 가지지 않은 팩의 로보티콘 409 — 입력 오류 다음, 금지어·속도 제한 앞
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName);
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -197,6 +203,7 @@ public class PostWriteService {
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
             posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now));
+            emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
             if (body.debate() != null) {
                 debates.apply(id, true, body.debate().neutralEnabled(), body.debate().stanceChangeAllowed(), PostDebateEntity.BY_MEMBER, authorId, now);
             }
@@ -245,6 +252,7 @@ public class PostWriteService {
         }
         PollRules.Valid poll = polls.checkForCreate(body.poll(), false, b, Instant.now(), fields);
         deals.checkForCreate(body.deal(), b, actor.userId(), fields); // 소모임 게시판은 핫딜이 아니다 — deal 을 보내면 fields.deal
+        EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -255,6 +263,7 @@ public class PostWriteService {
                 throw new ImageUploadNotAllowedException();
             }
         }
+        emoticons.requireOwned(authorId, c.body().content()); // 일반 글과 같은 자리(입력 오류 → 자격 → 금지어·속도 제한)
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -267,6 +276,7 @@ public class PostWriteService {
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
         posts.persist(PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
                 publicGroup, now));
+        emoticons.recordUse(authorId, c.body().content()); // 일반 글과 같다(부르는 쪽 트랜잭션 — 소모임 행을 잠근 그 트랜잭션)
         if (poll != null) {
             polls.create(id, poll, now);
         }
@@ -404,6 +414,7 @@ public class PostWriteService {
         if (post.isGroupPost() && c.adult()) {
             fields.put("adult", new MessageRef("group.post.adult.notAllowed")); // 소모임 글은 19금이 될 수 없다
         }
+        EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -415,6 +426,7 @@ public class PostWriteService {
                 throw new ImageUploadNotAllowedException(); // 이미지 금지 게시판 — 이미 있던 이미지는 둘 수 있고 새 이미지만 막는다
             }
         }
+        emoticons.requireOwned(post.getAuthorId(), c.body().content()); // 고칠 때도 본문 전체를 다시 본다(예전에 쓴 토큰이어도 — 팩을 뺐으면 409)
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -442,6 +454,7 @@ public class PostWriteService {
             List<DealWarningView> warnings = deals.apply(locked, dealChange, deals.now());
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             posts.flush();
+            emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)
             return queries.viewAfterEdit(locked, gate, s, userId, now, warnings);
         });
     }

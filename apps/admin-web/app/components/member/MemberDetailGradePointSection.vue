@@ -113,6 +113,14 @@
                 </div>
             </dl>
 
+            <!-- 로보티콘 작가 한 줄(emoticon-contract — 실제 API, 작가 요약) — 작가인 회원만. 그 작가의 팩만 보는 팩 관리 화면으로 잇는다 -->
+            <p v-if="emoticonCreator" class="m-0 mt-2 flex flex-wrap items-center gap-x-1.5 text-[13px]">
+                <i class="pi pi-face-smile text-xs text-muted-color" aria-hidden="true" />
+                <NuxtLink :to="{ path: '/robotikon/packs', query: { creator: emoticonCreator.memberNo } }" class="text-primary hover:underline">
+                    {{ t('emoticon.creatorLine', { count: emoticonCreator.packCount.toLocaleString(locale), amount: emoticonCreator.rewardTotal.toLocaleString(locale), sales: emoticonCreator.salesAmount.toLocaleString(locale) }) }} ›
+                </NuxtLink>
+            </p>
+
             <!-- 소멸 예정 · 미회수 · 포인트 묶음(커머스 1-1) — 부모가 `useMemberPointLots` 로 받아 내려 준다 -->
             <template v-if="pointLots">
                 <ErrorState v-if="pointLots.error" class="mt-3" :title="t('member.detail.point.lotsLoadFailed')" :description="pointLots.error.message" retry :retrying="pointLots.loading" @retry="emit('retry-lots')" />
@@ -220,6 +228,7 @@
 import type { MemberDetail, MemberPointKind } from '~/composables/member/api/useMemberApi.types';
 import type { PointLot } from '~/composables/point/api/usePointApi.types';
 import type { MemberPointLotsView } from '~/components/member/MemberDetailContent.types';
+import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 import UtilMember from '~/utils/util-member';
 import UtilPoint from '~/utils/util-point';
 
@@ -227,9 +236,11 @@ interface Props {
     detail: MemberDetail;
     /** 포인트 묶음(커머스 1-1) — 부모가 받아 내려 준다. null 이면(권한 없음·받지 않는 화면) 합계만 보이고 묶음 부분을 그리지 않는다 */
     pointLots?: MemberPointLotsView | null;
+    /** 로보티콘 작가 요약(실제 API `useEmoticonAdminApi.creator`) — 작가가 아니거나 받지 않는 화면은 null(줄을 그리지 않는다) */
+    emoticonCreator?: EmoticonCreatorSummary | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { pointLots: null });
+const props = withDefaults(defineProps<Props>(), { pointLots: null, emoticonCreator: null });
 const emit = defineEmits<{ 'lots-query': [query: { active: boolean; page: number }]; 'retry-lots': [] }>();
 
 const { t, te, locale } = useI18n();

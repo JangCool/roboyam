@@ -33,6 +33,15 @@
                     >
                         <i class="pi pi-shopping-bag text-xs" aria-hidden="true" />{{ term('POINT_SHOP') }}
                     </NuxtLink>
+                    <!-- 이모티콘 상점 — 무료 팩 받기·작가 팩(포인트 상점과 따로). 공개 메뉴는 서버 메뉴 카탈로그라 셸 고정 줄로만 둔다 -->
+                    <NuxtLink
+                        :to="UtilEmoticon.PATH"
+                        class="mt-1 flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        data-testid="drawer-emoticons"
+                        @click="close"
+                    >
+                        <i class="pi pi-face-smile text-xs" aria-hidden="true" />{{ t('emoticon.shopTitle') }}
+                    </NuxtLink>
                     <!-- 주문 내역(9단계, 공동구매) — 사업자 전용 계정은 살 수 없어 줄이 없다 -->
                     <NuxtLink
                         v-if="!businessAccount"
@@ -114,6 +123,7 @@ import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilRedirect from '~/utils/util-redirect';
 import UtilPointShop from '~/utils/util-point-shop';
+import UtilEmoticon from '~/utils/util-emoticon';
 
 const open = defineModel<boolean>('visible', { required: true });
 

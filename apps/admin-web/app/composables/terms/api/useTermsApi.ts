@@ -20,7 +20,8 @@ import type {
  *   - `DELETE /terms/{kind}/draft` → null(없어도 성공)  (`terms.manage`)
  *   - `POST /terms/{kind}/publish` `{effectiveDate, changeNote?}` → 새 게시본 · `fields.effectiveDate`·`changeNote`, 초안 없음 `fields.draft`  (`terms.manage`)
  *   - `PUT /terms/settings` `{showLinks}` → `{showLinks}`  (`terms.manage`)
- * 경로의 `{kind}` 는 소문자(`terms`·`privacy`), 본문의 `kind` 는 대문자다.
+ * 경로의 `{kind}` 는 소문자(`terms`·`privacy`·`robotikon_contract`), 본문의 `kind` 는 대문자다.
+ * 종류 `ROBOTIKON_CONTRACT`(로보티콘 상품화 계약 — emoticon-contract S2)도 같은 서버·같은 모양이다(개요 `GET /terms` 에 그 줄이 나온다).
  */
 const PATH = {
     root: '/api/admin/terms',
@@ -38,15 +39,20 @@ export function useTermsApi() {
     return {
         overview: (): Promise<TermsOverview> => client.get<TermsOverview>(PATH.root),
 
-        detail: (kind: TermsKind): Promise<TermsKindDetail> => client.get<TermsKindDetail>(PATH.kind(kind)),
+        detail: (kind: TermsKind): Promise<TermsKindDetail> =>
+            client.get<TermsKindDetail>(PATH.kind(kind)),
 
-        version: (kind: TermsKind, version: number): Promise<TermsVersionDetail> => client.get<TermsVersionDetail>(PATH.version(kind, version)),
+        version: (kind: TermsKind, version: number): Promise<TermsVersionDetail> =>
+            client.get<TermsVersionDetail>(PATH.version(kind, version)),
 
-        saveDraft: (kind: TermsKind, body: TermsDraftSaveRequest): Promise<TermsDraft> => client.put<TermsDraft>(PATH.draft(kind), body),
+        saveDraft: (kind: TermsKind, body: TermsDraftSaveRequest): Promise<TermsDraft> =>
+            client.put<TermsDraft>(PATH.draft(kind), body),
 
-        deleteDraft: (kind: TermsKind): Promise<void> => client.del<void>(PATH.draft(kind)),
+        deleteDraft: (kind: TermsKind): Promise<void> =>
+            client.del<void>(PATH.draft(kind)),
 
-        publish: (kind: TermsKind, body: TermsPublishRequest): Promise<TermsVersionDetail> => client.post<TermsVersionDetail>(PATH.publish(kind), body),
+        publish: (kind: TermsKind, body: TermsPublishRequest): Promise<TermsVersionDetail> =>
+            client.post<TermsVersionDetail>(PATH.publish(kind), body),
 
         saveSettings: (body: TermsSettings): Promise<TermsSettings> => client.put<TermsSettings>(PATH.settings(), body),
     };

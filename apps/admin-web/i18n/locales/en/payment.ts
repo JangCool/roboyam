@@ -119,6 +119,8 @@ export default {
         POINT_CHARGE: 'Point charge',
         GROUP_BUY: 'Group buy',
         PAYMENT_TEST: 'Test payment',
+        // Robotikon paid pack (server order_type candidate). Label only — not in the filter list until the server accepts it
+        ROBOTIKON_PACK: 'Robotikon pack',
     },
     confirmedVia: {
         COMPLETE_API: 'Member’s completion request',

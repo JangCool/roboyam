@@ -38,6 +38,7 @@
                         v-else-if="section.key === 'gradePoint'"
                         :detail="detail"
                         :point-lots="pointLots"
+                        :emoticon-creator="emoticonCreator"
                         @lots-query="(q) => emit('point-lots-query', q)"
                         @retry-lots="emit('retry-point-lots')"
                     />
@@ -67,6 +68,7 @@
 
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
+import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 
 import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 
@@ -84,9 +86,11 @@ interface Props {
     canForceWithdraw?: boolean;
     /** 「제재」 구획의 현황(제재 API) — 받지 않는 화면은 null(제재 화면 링크만) */
     sanctions?: MemberSanctionsView | null;
+    /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
+    emoticonCreator?: EmoticonCreatorSummary | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null, emoticonCreator: null });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();

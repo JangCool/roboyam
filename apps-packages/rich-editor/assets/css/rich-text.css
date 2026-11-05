@@ -380,3 +380,21 @@ html[data-color-scheme='dark'] .rt-img-fail b {
         font-size: 0.875rem;
     }
 }
+
+/* ── 이모티콘 노드(에디터 안 — 쓰는 앱이 `emoticons` 를 줄 때만). 그림 크기는 앱 CSS 의 `img.emoticon` 이 정한다 ── */
+.rt-emoticon {
+    display: inline-block;
+    vertical-align: bottom;
+    border-radius: 0.375rem;
+}
+
+.rt-emoticon.ProseMirror-selectednode {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 1px;
+}
+
+/* 카탈로그에 없는 이모티콘 — 토큰 글자를 흐린 글자로(저장하면 같은 글자 그대로 나간다) */
+.rt-emoticon-unknown {
+    color: var(--p-text-muted-color);
+    font-size: 0.875em;
+}

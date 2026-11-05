@@ -42,6 +42,9 @@ public class TermsService {
         Map<TermsKind, TermsTimeline> timelines = timelines();
         StringBuilder out = new StringBuilder();
         for (TermsKind kind : TermsKind.values()) {
+            if (!kind.signup()) {
+                continue; // 로보티콘 상품화 계약 — 가입 동의가 아니다
+            }
             if (!out.isEmpty()) {
                 out.append('.');
             }

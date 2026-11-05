@@ -105,6 +105,11 @@ export interface RequestOptions {
      * 주지 않으면 지금까지와 같다(다른 호출에 영향 없음).
      */
     headers?: Record<string, string>;
+    /**
+     * 성공 응답의 머리글을 읽는다(예 로보티콘 카탈로그의 `ETag` — 다음 요청의 `If-None-Match`). 주지 않으면 지금까지와 같다.
+     * ⚠ 조건부 요청(`If-None-Match`)에 `304` 가 오면 성공이 아니라 `ApiError`(`status` 304)로 던진다 — 부르는 쪽이 가진 사본을 그대로 쓴다.
+     */
+    onHeaders?: (get: (name: string) => string | null) => void;
 }
 
 /** 파일 올리기 — 진행률을 알려면 XHR 이 필요해 `$fetch` 대신 이것을 쓴다(같은 통로 안에서) */
@@ -374,7 +379,9 @@ export function useApiClient(options: ApiClientOptions = {}) {
                 timeout: TIMEOUT_MS,
                 retry: 0,
             });
-            return unwrap<T>(response._data, response.status, response.headers.get('x-request-id'));
+            const data = unwrap<T>(response._data, response.status, response.headers.get('x-request-id'));
+            request.onHeaders?.((name) => response.headers.get(name));
+            return data;
         });
     }
 

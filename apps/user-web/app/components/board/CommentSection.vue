@@ -326,6 +326,7 @@ import type { CommentLoadState } from '~/composables/board/usePostComments';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilDebate from '~/utils/util-debate';
@@ -379,6 +380,9 @@ const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPIN
 const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
 
 const { t } = useI18n();
+/** 저장 때 서버의 로보티콘 오류(`409 EMOTICON_NOT_OWNED`)를 미리 검사와 같은 문구로 — 이름표는 카탈로그에서 */
+const emoticonCatalog = useEmoticonCatalog();
+const emoticonLabel = (id: string): string => emoticonCatalog.resolve(id)?.label ?? id;
 const route = useRoute();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
@@ -682,6 +686,12 @@ function showError(e: unknown, action: 'comment' | 'reply' | 'opinion'): void {
     if (restricted) {
         errorRestriction.value = restricted;
         closeForms();
+        return;
+    }
+    // 가지지 않은 팩의 로보티콘(`409 EMOTICON_NOT_OWNED`) — 미리 검사와 같은 문구를 본문 칸 아래로
+    const emoticonError = UtilEmoticonMessages.bodyError(t, e, emoticonLabel);
+    if (emoticonError) {
+        fieldErrors.value = { content: emoticonError };
         return;
     }
     if (e instanceof ApiError && e.fields && Object.keys(e.fields).length) {

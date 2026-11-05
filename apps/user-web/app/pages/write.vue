@@ -119,6 +119,7 @@ import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/co
 import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilDebate from '~/utils/util-debate';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -129,6 +130,9 @@ import UtilPost from '~/utils/util-post';
 definePageMeta({ shell: 'inner' });
 
 const { t } = useI18n();
+/** 저장 때 서버의 로보티콘 오류(`409 EMOTICON_NOT_OWNED`)를 미리 검사와 같은 문구로 — 이름표는 카탈로그에서 */
+const emoticonCatalog = useEmoticonCatalog();
+const emoticonLabel = (id: string): string => emoticonCatalog.resolve(id)?.label ?? id;
 const route = useRoute();
 const router = useRouter();
 const boardApi = useBoardApi();
@@ -394,6 +398,7 @@ async function submit(): Promise<void> {
         // 핫딜 쓰기 자격(403 — 이메일 인증·첫 등급·정지) — 게시판 목록 판정에 없는 핫딜 자격이라 저장 때 처음 알 수 있다. 핫딜 문구로(등급 이름은 서버가 주지 않아 「일반 등급부터」)
         else if (isDeal.value && e instanceof ApiError && UtilHotdeal.isWriteBlockedCode(e.code)) formError.value = UtilHotdealMessages.writeBlocked(t, e.code, UtilHotdealMessages.gradeLabelOf(e));
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
+        else if (UtilEmoticonMessages.bodyError(t, e, emoticonLabel)) fieldErrors.value = { content: UtilEmoticonMessages.bodyError(t, e, emoticonLabel) ?? '' }; // 가지지 않은 팩의 로보티콘 — 본문 칸 아래
         else if (e instanceof ApiError && UtilHotdeal.isFieldErrorCode(e.code) && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };
             // 딜 칸 오류만 있으면 단계 입력은 딜 정보 단계로

@@ -83,6 +83,13 @@ export default {
     pointShopItems: 'Items',
     pointShopPurchases: 'Purchases',
     pointShopSettings: 'Point shop settings',
+    // Robotikon section (normal mode, after Point shop; key names stay "emoticon")
+    emoticon: 'Robotikon',
+    emoticonReviews: 'Robotikon reviews',
+    emoticonPacks: 'Packs',
+    emoticonSales: 'Sales',
+    emoticonSettlements: 'Creator payouts',
+    emoticonSettings: 'Robotikon settings',
     // Group buy section (normal mode, before Payments) — physical group buys sold by the operator
     groupBuy: 'Group buys',
     groupBuyProducts: 'Products',

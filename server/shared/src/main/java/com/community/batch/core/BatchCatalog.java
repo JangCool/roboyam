@@ -130,6 +130,12 @@ public enum BatchCatalog implements BatchDefinition {
     MEMBER_WITHDRAWAL_CLEANUP("member-withdrawal-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 탈퇴한 로보티콘 작가의 정산 정보(계좌·예금주·사업자 번호 암호문) 파기 — 그 작가의 정산이 모두 끝나고(남은 예정·확정·보류·넘긴 금액 없음) 30일(설정값) 지난 줄. 정산 기록은 남긴다.
+     * DB 배치, 기본 매일 04:35 KST({@code R__batch_41_emoticon_payout_account_cleanup.sql} — 가번호, docs/features/emoticon-contract.md 「후속 결정 반영(2026-11-05)」 5).
+     */
+    EMOTICON_PAYOUT_ACCOUNT_CLEANUP("emoticon-payout-account-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 알림 발송 실패 기록({@code notification_send_failures}, V133) 정리 — 30일 지난 줄 삭제(일별 합은 그대로). DB 배치, 기본 매일 04:20 KST
      * ({@code R__batch_37_notification_send_failure_cleanup.sql}, site-analytics-contract 「주기 작업」)
      */

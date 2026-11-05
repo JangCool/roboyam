@@ -553,6 +553,25 @@ body {
 }
 /* 부품 층에 둔다 — 모바일에서 숨기는 `max-md:hidden` 유틸리티가 이긴다 */
 @layer components {
+    /*
+     * 이모티콘 그림(글·댓글 본문 · 에디터 노드) — 토큰 `:emo-ID:` 를 그린 `<img class="emoticon">`(`EmoticonText` · `UtilRichEmoticon`).
+     * 글줄 안에 놓이는 100×100(모바일 80×80, docs/features/emoticon-contract.md 가정 4). 투명 그림이라 바탕·테두리를 두지 않는다.
+     */
+    img.emoticon {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        object-fit: contain;
+        vertical-align: bottom;
+        margin: 2px 1px;
+    }
+    @media (max-width: 767.98px) {
+        img.emoticon {
+            width: 80px;
+            height: 80px;
+        }
+    }
+
     .scroll-row-track {
         position: absolute;
         inset-inline: 0;
