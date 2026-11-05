@@ -353,7 +353,7 @@ public class PostWriteService {
                 ContentRules.checkLinksImages(body.links(), body.images(), writer, b.imageSetting(), sec, "content", fields);
             } else if (body.images() > ContentRules.POST_IMAGE_MAX) {
                 fields.put("content", new MessageRef("board.content.image.limit", ContentRules.POST_IMAGE_MAX));
-            } else if (body.youtube() > ContentRules.POST_YOUTUBE_MAX) {
+            } else if (body.videos() > ContentRules.POST_YOUTUBE_MAX) {
                 fields.put("content", new MessageRef("board.content.youtube.limit", ContentRules.POST_YOUTUBE_MAX));
             } else {
                 // HTML: 게시판의 이미지 금지는 새 이미지만 422 로 막는다(고치기에서 이미 있던 이미지는 둔다) — 여기서는 비회원·새 회원 규칙만

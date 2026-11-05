@@ -65,6 +65,9 @@ import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichIma
 import { richFormatExtensions } from '#layers/rich-editor/editor/richExtensions';
 import { ImageBlock } from '#layers/rich-editor/editor/imageBlock';
 import { YoutubeBlock } from '#layers/rich-editor/editor/youtubeBlock';
+import { EmbedBlock } from '#layers/rich-editor/editor/embedBlock';
+import type { EmbedBlockLabels } from '#layers/rich-editor/editor/embedBlock';
+import type { RichEmbed, RichEmbedProvider } from '#layers/rich-editor/utils/util-rich-media';
 import { EmoticonInline } from '#layers/rich-editor/editor/emoticonInline';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import { UploadSlots, releaseSlot, reserveSlot, takeSlot } from '#layers/rich-editor/editor/uploadSlots';
@@ -89,8 +92,11 @@ interface Props {
     compact?: boolean;
     /** 이모티콘 그림 찾기 — 주면 이모티콘 노드가 켜진다(user-web 만). 켜고 끄는 것은 만들 때 정해진다(그림은 `version` 이 바뀌면 다시 찾는다) */
     emoticons?: RichEmoticonSource | null;
-    /** 간단 수준에서 유튜브 주소를 붙여 넣으면 영상 카드로 바꾸는 최대 수(0 = 끔, 댓글 — 사용자 결정 2026-11-06). 넘으면 링크로 붙는다. 고급 수준은 도구 모음의 유튜브 넣기를 쓴다 */
-    youtubeLinks?: number;
+    /**
+     * 간단 수준에서 영상 주소(유튜브·치지직 클립·SOOP 다시보기·틱톡·인스타그램)를 붙여 넣으면 영상 카드로 바꾸는 최대 수(0 = 끔, 댓글 — 사용자 결정 2026-11-06).
+     * 넘으면 링크로 붙는다. 고급 수준은 도구 모음의 유튜브 넣기를 쓴다
+     */
+    videoLinks?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -105,7 +111,7 @@ const props = withDefaults(defineProps<Props>(), {
     ariaLabel: '',
     compact: false,
     emoticons: null,
-    youtubeLinks: 0,
+    videoLinks: 0,
 });
 
 const html = defineModel<string>({ default: '' });
@@ -180,38 +186,47 @@ function editorContent(value: string): string {
 function extensions(): Extensions {
     const list = richFormatExtensions(props.level);
     if (emoticonOn) list.push(EmoticonInline.configure({ resolve: (id) => props.emoticons?.resolve(id) ?? null }));
-    if (!advanced) return youtubeLinksOn ? [...list, youtubeBlock()] : list;
+    if (!advanced) return videoLinksOn ? [...list, ...videoBlocks()] : list;
     return [
         ...list,
         // 이미 글에 있는 이미지는 올리기가 꺼져 있어도 보이고 지울 수 있다
         ImageBlock.configure({ labels: { image: t('richEditor.imageAlt'), remove: t('richEditor.imageRemove'), broken: t('richEditor.imageBroken') } }),
-        youtubeBlock(),
+        ...videoBlocks(),
         UploadSlots,
     ];
 }
 
-/** 간단 수준의 유튜브 주소 붙여넣기가 켜졌다 — 만들 때 한 번 정한다 */
-const youtubeLinksOn = !advanced && props.youtubeLinks > 0;
+/** 간단 수준의 영상 주소 붙여넣기가 켜졌다 — 만들 때 한 번 정한다 */
+const videoLinksOn = !advanced && props.videoLinks > 0;
 
-function youtubeBlock() {
-    return YoutubeBlock.configure({ labels: { video: t('richEditor.youtubeLabel'), remove: t('richEditor.youtubeRemove') } });
+/** 영상 노드 — 유튜브 + 그 밖의 플랫폼 */
+function videoBlocks(): Extensions {
+    const providers: RichEmbedProvider[] = ['chzzk', 'soop', 'tiktok', 'instagram'];
+    const names = Object.fromEntries(providers.map((p) => [p, t(`richEditor.embedNames.${p}`)])) as EmbedBlockLabels['names'];
+    const remove = Object.fromEntries(providers.map((p) => [p, t('richEditor.embedRemove', { name: names[p] })])) as EmbedBlockLabels['remove'];
+    return [
+        YoutubeBlock.configure({ labels: { video: t('richEditor.youtubeLabel'), remove: t('richEditor.youtubeRemove') } }),
+        EmbedBlock.configure({ labels: { names, remove } }),
+    ];
 }
 
 /**
- * 붙여 넣은 글자가 유튜브 주소 하나뿐이면 영상 카드로 넣는다(간단 수준 + `youtubeLinks`). 이미 한도만큼 있으면 안내하고 링크로 붙게 둔다.
+ * 붙여 넣은 글자가 영상 주소 하나뿐이면 영상 카드로 넣는다(간단 수준 + `videoLinks`). 이미 한도만큼 있으면 안내하고 링크로 붙게 둔다.
  * @returns {boolean} 카드로 넣었으면 true.
  */
-function pasteYoutube(view: EditorView, text: string): boolean {
-    if (!youtubeLinksOn || !/^https?:\/\/\S+$/i.test(text)) return false;
+function pasteVideo(view: EditorView, text: string): boolean {
+    if (!videoLinksOn || !/^https?:\/\/\S+$/i.test(text)) return false;
     const videoId = UtilRichMedia.youtubeIdOf(text);
-    if (!videoId) return false;
-    if (countMedia(view.state.doc).videos >= props.youtubeLinks) {
-        showNotice(t('richEditor.youtubeLinkLimit', { max: props.youtubeLinks }));
+    const embed = videoId ? null : UtilRichMedia.embedOf(text);
+    if (!videoId && !embed) return false;
+    if (countMedia(view.state.doc).videos >= props.videoLinks) {
+        showNotice(t('richEditor.videoLinkLimit', { max: props.videoLinks }));
         return false;
     }
     const e = editor.value;
     if (!e) return false;
-    e.chain().focus().insertContentAt(view.state.selection.to, { type: 'youtube', attrs: { videoId } }).run();
+    const node = videoId ? { type: 'youtube', attrs: { videoId } } : { type: 'embed', attrs: { marker: UtilRichMedia.embedMarker(embed as RichEmbed) } };
+    e.chain().focus().insertContentAt(view.state.selection.to, node).run();
     return true;
 }
 
@@ -245,7 +260,7 @@ const editor = useEditor({
             if (!data || props.disabled) return false;
             const images = Array.from(data.files).filter((f) => f.type.startsWith('image/'));
             const text = data.getData('text/plain').trim();
-            if (!images.length && text && pasteYoutube(view, text)) return true;
+            if (!images.length && text && pasteVideo(view, text)) return true;
             if (!images.length || text) return false;
             if (!imageOn.value) {
                 refuseFiles();

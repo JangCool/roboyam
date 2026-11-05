@@ -51,7 +51,17 @@ export default {
     youtubePlay: '유튜브 영상 재생',
     youtubeFrame: '유튜브 영상',
     imageNotAllowed: '여기에서는 이미지를 올릴 수 없어요',
-    youtubeLinkLimit: '유튜브 영상은 {max}개까지 넣을 수 있어 링크로 붙였어요',
+    videoLinkLimit: '영상은 {max}개까지 넣을 수 있어 링크로 붙였어요',
+    // 유튜브 밖의 영상 카드(치지직 클립·SOOP 다시보기·틱톡·인스타그램) — {name} 은 아래 플랫폼 이름
+    embedNames: {
+        chzzk: '치지직 클립',
+        soop: 'SOOP 다시보기',
+        tiktok: '틱톡',
+        instagram: '인스타그램',
+    },
+    embedRemove: '{name} 지우기',
+    embedPlay: '{name} 재생',
+    embedFrame: '{name} 영상',
     mediaCount: '이미지 {images}장 · 유튜브 {videos}개',
 
     // 링크 넣기

@@ -623,7 +623,7 @@ public class CommentService {
     /**
      * 본문 형식 + 본문 1~{@code max}자(HTML 은 보이는 글자 — 일반 댓글 {@link ContentRules#COMMENT_MAX}, 입장 배지가 붙는 댓글 {@link DebateReader#OPINION_MAX})
      * + 링크·이미지(댓글은 이미지 불가). 형식이 빠지면 TEXT, 모르는 형식·댓글 에디터 NONE 게시판의 HTML 은
-     * {@code fields.contentFormat}. HTML 은 댓글 허용 목록(간단 + YouTube 표식 1개까지)으로 정화한다(이미지 표식은 목록에 없어 사라진다). 영상만 있는 댓글은 글자가 없어도 받는다.
+     * {@code fields.contentFormat}. HTML 은 댓글 허용 목록(간단 + 영상 표식 1개까지)으로 정화한다(이미지 표식은 목록에 없어 사라진다). 영상만 있는 댓글은 글자가 없어도 받는다.
      */
     private static ContentBody checkContent(EffectiveBoard b, String formatText, String raw, ContentRules.Writer writer, BoardSecurityValues sec, int max,
                                             Map<String, MessageRef> fields) {
@@ -638,13 +638,13 @@ public class CommentService {
         }
         ContentBody content = format == ContentFormat.HTML ? ContentBody.html(raw, RichText.Level.COMMENT) : ContentBody.text(raw);
         int length = ContentRules.length(content.plain());
-        // 영상만 있는 댓글(유튜브 주소를 붙여 넣은 것)은 보이는 글자가 없어도 받는다
-        if ((length < 1 && content.youtube() == 0) || length > max) {
+        // 영상만 있는 댓글(영상 주소를 붙여 넣은 것)은 보이는 글자가 없어도 받는다
+        if ((length < 1 && content.videos() == 0) || length > max) {
             fields.put("content", new MessageRef("board.comment.length", String.format("%,d", max)));
         } else if (content.isHtml() && content.content().length() > ContentRules.COMMENT_HTML_MAX) {
             fields.put("content", new MessageRef("board.comment.html.tooLong"));
-        } else if (content.youtube() > ContentRules.COMMENT_YOUTUBE_MAX) {
-            fields.put("content", new MessageRef("board.comment.youtube.limit", ContentRules.COMMENT_YOUTUBE_MAX));
+        } else if (content.videos() > ContentRules.COMMENT_VIDEO_MAX) {
+            fields.put("content", new MessageRef("board.comment.video.limit", ContentRules.COMMENT_VIDEO_MAX));
         } else {
             ContentRules.checkCommentLinksImages(content, writer, sec, fields);
         }

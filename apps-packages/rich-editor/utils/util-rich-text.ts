@@ -5,7 +5,7 @@
  */
 
 /** 줄을 나누는 블록 요소 — 평문으로 바꿀 때 뒤에 빈 줄을 둔다 */
-const BLOCKS = 'p, h1, h2, h3, h4, li, blockquote, pre, div[data-youtube-id], hr';
+const BLOCKS = 'p, h1, h2, h3, h4, li, blockquote, pre, div[data-youtube-id], div[data-embed], hr';
 /** 글자 속 `http(s)://`·`www.` 주소(링크 아닌 글자에 남은 것) */
 const URL_IN_TEXT = /(https?:\/\/[^\s<>"']+|\bwww\.[^\s<>"']+)/gi;
 
@@ -45,7 +45,7 @@ export default class UtilRichText {
     static hasContent(html: string): boolean {
         if (!html) return false;
         if (UtilRichText.plainText(html)) return true;
-        return parse(html).body.querySelector('img[data-image-id], div[data-youtube-id]') !== null;
+        return parse(html).body.querySelector('img[data-image-id], div[data-youtube-id], div[data-embed]') !== null;
     }
 
     /**

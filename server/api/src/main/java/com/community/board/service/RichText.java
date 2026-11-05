@@ -4,6 +4,7 @@ import com.community.post.entity.ContentFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,8 +27,11 @@ import org.springframework.web.util.HtmlUtils;
  *   <li><b>고급</b>(글만): 간단 + {@code h2 h3 hr code pre} + 이미지 표식 {@code <img data-image-id="숫자">}(주소·크기는 서버가 채운다 — {@link #expandImages})
  *       + 글자색·배경색 {@code span}({@code style} 의 {@code color}·{@code background-color} 중 팔레트 값만, 그 밖은 버리고 남는 것이 없으면 span 을 벗긴다)
  *       + YouTube 표식 {@code <div data-youtube-id="11자"></div>}(iframe 은 저장하지 않는다 — 화면이 ID 로 youtube-nocookie 를 그린다).</li>
- *   <li><b>댓글</b>: 간단 + YouTube 표식(에디터가 붙여 넣은 유튜브 주소를 표식으로 바꾼다 — 사용자 결정 2026-11-06, 개수는 {@link ContentRules#COMMENT_YOUTUBE_MAX}).</li>
+ *   <li><b>댓글</b>: 간단 + 영상 표식(에디터가 붙여 넣은 영상 주소를 표식으로 바꾼다 — 사용자 결정 2026-11-06, 개수는 {@link ContentRules#COMMENT_VIDEO_MAX}).</li>
  * </ul>
+ * 영상 표식은 둘이다 — YouTube {@code <div data-youtube-id="11자"></div>} 와 그 밖의 플랫폼 {@code <div data-embed="플랫폼:ID"></div>}
+ * (치지직 클립 {@code chzzk:영문·숫자} · SOOP 다시보기 {@code soop:숫자} · 틱톡 {@code tiktok:숫자} · 인스타그램 {@code instagram:단축 코드}). 고급·댓글 수준이 받는다.
+ * 주소는 저장하지 않는다 — 화면이 플랫폼마다 정해진 퍼가기 주소 틀에 ID 만 끼워 iframe 을 만든다(사용자가 쓴 주소가 iframe 에 들어가지 않는다).
  * 팔레트는 community 에디터({@code richFormats.TEXT_COLORS}·{@code BACKGROUND_COLORS})와 같은 값이다 — user-web 에디터도 같은 값을 써야 한다.
  */
 public final class RichText {
@@ -36,7 +40,7 @@ public final class RichText {
     public enum Level {
         SIMPLE,
         ADVANCED,
-        /** 댓글 — 간단 + YouTube 표식 */
+        /** 댓글 — 간단 + 영상 표식 */
         COMMENT
     }
 
@@ -47,13 +51,17 @@ public final class RichText {
 
     private static final Pattern DIGITS = Pattern.compile("[1-9]\\d{0,18}");
     private static final Pattern YOUTUBE_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
+    /** 그 밖의 플랫폼 영상 표식 값 {@code 플랫폼:ID} — user-web {@code UtilRichMedia} 의 ID 규칙과 같다 */
+    private static final Pattern EMBED = Pattern.compile("chzzk:[A-Za-z0-9]{6,20}|soop:[1-9]\\d{0,11}|tiktok:\\d{10,25}|instagram:[A-Za-z0-9_-]{5,40}");
     private static final Pattern HEX_COLOR = Pattern.compile("#[0-9a-f]{6}");
     private static final Pattern RGB_COLOR = Pattern.compile("rgb[(] *([0-9]{1,3}) *, *([0-9]{1,3}) *, *([0-9]{1,3}) *[)]");
 
     /** 정화된 HTML 안의 표식·요소(정화기가 내보내는 모양 그대로라 정규식으로 읽어도 안전하다 — 글 속 {@code <} 는 모두 {@code &lt;} 다) */
     private static final Pattern IMG_MARKER = Pattern.compile("<img data-image-id=\"(\\d{1,19})\"\\s*/?>");
-    private static final Pattern YOUTUBE_OPEN = Pattern.compile("<div data-youtube-id=\"([A-Za-z0-9_-]{11})\">");
-    private static final Pattern YOUTUBE_MARKER = Pattern.compile("<div data-youtube-id=\"[A-Za-z0-9_-]{11}\"></div>");
+    private static final Pattern DIV_OPEN = Pattern.compile("<div\\b([^>]*)>");
+    private static final Pattern YOUTUBE_ATTR = Pattern.compile("\\sdata-youtube-id=\"([A-Za-z0-9_-]{11})\"");
+    private static final Pattern EMBED_ATTR = Pattern.compile("\\sdata-embed=\"([^\"]+)\"");
+    private static final Pattern VIDEO_MARKER = Pattern.compile("<div data-(?:youtube-id|embed)=\"[^\"]+\"></div>");
     private static final Pattern ANCHOR = Pattern.compile("(?s)<a\\b[^>]*>.*?</a>");
     private static final Pattern HREF = Pattern.compile("<a\\b[^>]*?\\shref=\"([^\"]*)\"");
     private static final Pattern TAG = Pattern.compile("<[^>]*>");
@@ -63,9 +71,9 @@ public final class RichText {
 
     private static final PolicyFactory SIMPLE = base().toFactory();
 
-    private static final PolicyFactory COMMENT = youtube(base()).toFactory();
+    private static final PolicyFactory COMMENT = video(base()).toFactory();
 
-    private static final PolicyFactory ADVANCED = youtube(base()
+    private static final PolicyFactory ADVANCED = video(base()
             .allowElements("h2", "h3", "hr", "code", "pre")
             .allowElements(colorSpan(), "span")
             .allowAttributes("style").onElements("span")
@@ -76,11 +84,12 @@ public final class RichText {
     private RichText() {
     }
 
-    /** YouTube 표식 {@code <div data-youtube-id="11자">} 를 더한다 */
-    private static HtmlPolicyBuilder youtube(HtmlPolicyBuilder builder) {
+    /** 영상 표식 {@code <div data-youtube-id="11자">} · {@code <div data-embed="플랫폼:ID">} 를 더한다(둘 중 하나가 형식에 맞는 div 만 남는다) */
+    private static HtmlPolicyBuilder video(HtmlPolicyBuilder builder) {
         return builder
-                .allowElements(requireAttribute("data-youtube-id", YOUTUBE_ID), "div")
-                .allowAttributes("data-youtube-id").matching(YOUTUBE_ID).onElements("div");
+                .allowElements(requireAnyAttribute(Map.of("data-youtube-id", YOUTUBE_ID, "data-embed", EMBED)), "div")
+                .allowAttributes("data-youtube-id").matching(YOUTUBE_ID).onElements("div")
+                .allowAttributes("data-embed").matching(EMBED).onElements("div");
     }
 
     private static HtmlPolicyBuilder base() {
@@ -101,8 +110,8 @@ public final class RichText {
     }
 
     /**
-     * 허용 목록으로 정화한 HTML. 앞뒤의 빈 문단은 저장하지 않고(에디터가 이미지·영상 뒤에 커서 자리로 붙인다), YouTube 표식은 늘 빈 블록으로 맞춘다
-     * (안에 들어온 글자는 블록 뒤로 나온다).
+     * 허용 목록으로 정화한 HTML. 앞뒤의 빈 문단은 저장하지 않고(에디터가 이미지·영상 뒤에 커서 자리로 붙인다), 영상 표식은 늘 속성 하나짜리 빈 블록으로 맞춘다
+     * (안에 들어온 글자는 블록 뒤로 나온다. 두 속성이 다 있으면 YouTube 를 남긴다).
      */
     public static String sanitize(String raw, Level level) {
         PolicyFactory policy = level == null ? SIMPLE : switch (level) {
@@ -112,8 +121,8 @@ public final class RichText {
         };
         String safe = policy.sanitize(raw == null ? "" : raw);
         if (policy != SIMPLE) {
-            // 정화기가 남기는 div 는 YouTube 표식뿐이다 — 닫는 태그를 모두 떼고 여는 태그를 빈 블록으로 바꾼다(균형이 깨지지 않는다)
-            safe = YOUTUBE_OPEN.matcher(safe.replace("</div>", "")).replaceAll("<div data-youtube-id=\"$1\"></div>");
+            // 정화기가 남기는 div 는 영상 표식뿐이다 — 닫는 태그를 모두 떼고 여는 태그를 빈 블록으로 바꾼다(균형이 깨지지 않는다)
+            safe = DIV_OPEN.matcher(safe.replace("</div>", "")).replaceAll(match -> Matcher.quoteReplacement(videoMarker(match.group(1))));
         }
         // 정화기는 rel 을 「noreferrer noopener nofollow」 차례로 쓴다 — 계약의 차례로 맞춘다(뜻은 같다)
         safe = safe.replace(" rel=\"noreferrer noopener nofollow\"", " rel=\"nofollow noopener noreferrer\"");
@@ -173,9 +182,19 @@ public final class RichText {
         return ids;
     }
 
-    /** YouTube 표식 수 */
-    public static int youtubeCount(String safeHtml) {
-        return count(YOUTUBE_MARKER, safeHtml);
+    /** 영상 표식 수(YouTube + 그 밖의 플랫폼) */
+    public static int videoCount(String safeHtml) {
+        return count(VIDEO_MARKER, safeHtml);
+    }
+
+    /** 정화된 div 여는 태그의 속성 → 빈 영상 표식 하나. 정화기가 형식을 이미 봤으므로 값은 그대로 쓴다 */
+    private static String videoMarker(String attributes) {
+        Matcher youtube = YOUTUBE_ATTR.matcher(attributes);
+        if (youtube.find()) {
+            return "<div data-youtube-id=\"" + youtube.group(1) + "\"></div>";
+        }
+        Matcher embed = EMBED_ATTR.matcher(attributes);
+        return embed.find() && EMBED.matcher(embed.group(1)).matches() ? "<div data-embed=\"" + embed.group(1) + "\"></div>" : "";
     }
 
     /** 이미지 표식을 서버가 만든 태그로 바꾼다({@code tag} 가 ID → 태그. null 이면 그 표식을 지운다) */
@@ -252,6 +271,19 @@ public final class RichText {
         return (elementName, attributes) -> {
             for (int i = 0; i + 1 < attributes.size(); i += 2) {
                 if (attributes.get(i).equalsIgnoreCase(attribute) && valuePattern.matcher(attributes.get(i + 1)).matches()) {
+                    return elementName;
+                }
+            }
+            return null;
+        };
+    }
+
+    /** 여러 표식 속성 중 하나라도 있고 값이 형식에 맞으면 요소를 남긴다 */
+    private static ElementPolicy requireAnyAttribute(Map<String, Pattern> patterns) {
+        return (elementName, attributes) -> {
+            for (int i = 0; i + 1 < attributes.size(); i += 2) {
+                Pattern pattern = patterns.get(attributes.get(i).toLowerCase(Locale.ROOT));
+                if (pattern != null && pattern.matcher(attributes.get(i + 1)).matches()) {
                     return elementName;
                 }
             }
