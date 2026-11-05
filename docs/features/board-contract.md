@@ -18,7 +18,7 @@
   - `posts`: **`id` RANGE 월 파티션**(Snowflake 시각 = ID 범위). 조각은 DB 함수가 지난달~6개월 뒤까지 만들고(어드바이저리 락, 있으면 건너뜀) 앱 시작 때와 매일 배치로 부른다 — **조각 없는 달의 글은 저장 실패**. 글 조각은 떼거나 지우지 않는다. 게시판 기준(LIST) 파티션·게시판별 표는 쓰지 않는다(근거: community board-menu-03).
   - `comments`: **`post_id` HASH 64**. 답글 1단계(`parent_id`, `reply_to_id`).
   - 비회원 칸: 글·댓글에 작성자 이름·비밀번호 해시·작성 IP(회원 글도 IP). 파티션 표를 가리키는 외래 키는 두지 않는다.
-- 말머리 `board_prefixes`(게시판별 고유, 사용 중 최대 6) + 공통 말머리 4개(질문·후기·잡담·공지[운영진 전용]) 게시판별 켜고 끄기. 글이 있는 말머리는 삭제 불가(`PREFIX_IN_USE`).
+- 말머리 `board_prefixes`(게시판별 고유, 사용 중 최대 15 — 2026-11-06 6→15, 사용자 결정) + 공통 말머리 4개(질문·후기·잡담·공지[운영진 전용]) 게시판별 켜고 끄기. 글이 있는 말머리는 삭제 불가(`PREFIX_IN_USE`).
 - 매니저·스텝 지정 표(게시판·회원·역할·지정 시각·지정한 운영자). 규칙은 `docs/domain/operator-permissions.md` 「게시판 매니저 · 스텝」(자격·인원·한 회원 최대 5게시판·하루 한도).
 - 설치 때 고른 프리셋(`installation.board_preset`)으로 기본 게시판을 만든다. 이미 설치된 곳은 게시판이 하나도 없을 때 한 번 적용한다.
 - **가젯 노출 금지**(2026-10-24, shared `V69`): `boards.gadget_exclusions varchar(16)[] NOT NULL DEFAULT '{}'` — 고른 홈 가젯에 이 게시판 글을 내지 않는다. 가젯 목록의 원천은 shared `BoardGadget`(`POPULAR` 인기글 · `LATEST` 최신글, 이름 번들 `board.gadget.<KEY>`). 게시판마다의 값(기본 설정에서 물려받지 않음, `diffCount` 에 세지 않음). 새 게시판은 `kind` DEAL·PROMO 면 `{POPULAR}`, 그 밖은 빈 배열(관리자 만들기·설치 프리셋 같은 `BoardCreator`), 기존 DEAL·PROMO 는 V69 가 `{POPULAR}` 로 채웠다. API: 게시판 GET/PUT 응답 `gadgetExclusions: string[]`(목록 순서) + `gadgets: [{key, label}]`(고를 수 있는 전부, 요청 언어), PUT 요청 `gadgetExclusions`(null = 그대로, 중복은 하나로, 모르는 값 `400 VALIDATION fields.gadgetExclusions`). 바꾸면 `board.settings` 권한·`BOARD_UPDATE` 감사(`gadgetExclusions` before/after). 공개 쪽 반영은 게시판 사본 주기(15초)만큼 늦을 수 있다. 통합 검색은 가젯이 아니다(정책 칸 `searchable`).
