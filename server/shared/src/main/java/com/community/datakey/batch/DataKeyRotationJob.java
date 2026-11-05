@@ -79,6 +79,12 @@ public class DataKeyRotationJob implements BatchJob {
         return true;
     }
 
+    /** 칸마다 같은 일이라 실행 줄 건수는 단계 합 */
+    @Override
+    public boolean countsAllSteps() {
+        return true;
+    }
+
     @Override
     public BatchResult run(BatchContext context) {
         cipher.requireConfigured();

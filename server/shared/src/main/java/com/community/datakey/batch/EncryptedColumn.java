@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  * @param step       단계 이름(소문자·숫자·하이픈 — 이름 문구는 번들 {@code batch.job.data-key-rotation.step.<단계>})
  * @param table      표
  * @param idColumn   행 키 칸(bigint, 유일) — 키셋·체크포인트·실패 건의 대상 ID
- * @param cipherColumn 암호문 칸({@code d<버전>:…}, NOT NULL)
+ * @param cipherColumn 암호문 칸({@code d<버전>:…}) — NULL 인 행(비었거나 파기한 칸)은 고르지 않는다
  * @param purpose    그 칸의 암호화 용도(AAD) — 쓰는 쪽과 같은 상수를 쓴다
  * @param targetType 실패 건의 대상 종류 코드(이름 문구는 번들 {@code batch.target.<코드>})
  */

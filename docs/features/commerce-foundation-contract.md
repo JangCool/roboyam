@@ -222,7 +222,7 @@
 - **기능 제한(12-3)**: `member_restrictions`(+ `lift_reason`, `auto_rule`). 진행 중 = 해제 안 됨 ∧ 시작 ≤ 지금 ∧ (끝 없음 ∨ 끝 > 지금). 막는 것: `POINT_FREEZE` = 포인트 적립·사용·충전(충전 포인트 환불 신청은 허용), `GROUP_BUY_BAN` = 새 공구 참여, `CHARGE_BAN` = 새 충전. `MemberRestrictionService.assertAllowed(userId, 기능)` → 403 `MEMBER_RESTRICTED` + `restriction{type, until(같은 종류 중 가장 늦은 끝, 무기한이 있으면 null), reason}`(운영 메모 없음). 지금 있는 포인트 적립은 동결이면 **조용히 건너뛴다**(글쓰기는 성공). 자동 부여 `grantAuto(userId, GROUP_BUY_BAN, 24시간, GROUP_BUY_HOLD_EXPIRED)` — 같은 종류가 그보다 늦게까지 진행 중이면 만들지 않는다. 해제는 조건부 UPDATE(이미 해제·만료면 409). 부여·해제 모두 감사, 부여 때 회원 알림(종류·끝·공개 사유 — 운영 메모 없음). `hasActive(userId)` 는 탈퇴 전 검증(17-1)이 쓴다.
 - **탈퇴 연락처(17-2)**: `withdrawn_member_contacts`(회원 번호 PK, 이메일 `DataCipher` 암호문 — 용도 `member.withdrawn-contact.email`, 탈퇴 시각, `purge_after` = 마지막 거래일 + 5년). 일반 회원 조회 쿼리는 이 표를 읽지 않는다. 열람은 권한 + 사유 → **감사(`WITHDRAWN_CONTACT_REVEAL`, 사유 포함·이메일 없음)를 같은 트랜잭션에 남긴 뒤에만** 값을 준다. 열람 기록은 감사에서 읽는다.
 - **정리 DB 배치 `member-privacy-retention`**(shared `R__`, 매일): 만료된 재가입 제한 해시(`expires_at ≤ 지금`), 파기 예정일이 지난 연락처, 30일(설정값) 지난 인증 시도.
-- **데이터 키 교체 Java 배치 `data-key-rotation`**(shared `batch.core`, 수동 실행 위주): `DataCipher` 를 쓰는 칸 목록(지금은 연락처 이메일)마다 단계 하나, 지금 키가 아닌 암호문(`NOT LIKE 'd<버전>:%'`)을 키셋으로 덩어리 처리 → `reencrypt` → 조건부 UPDATE(읽은 값 그대로일 때만). 체크포인트로 이어 받기, 풀 수 없는 행은 건별 실패.
+- **데이터 키 교체 Java 배치 `data-key-rotation`**(shared `batch.core`, 수동 실행 위주): `DataCipher` 를 쓰는 칸 목록(`DataKeyColumns` — 연락처 이메일·공구 주문 배송지·회원 주소록·입금 계좌·사업자 신원·광고주 연락처, 2026-11-05)마다 단계 하나, 지금 키가 아닌 암호문(`NOT LIKE 'd<버전>:%'`)을 키셋으로 덩어리 처리 → `reencrypt` → 조건부 UPDATE(읽은 값 그대로일 때만). 체크포인트로 이어 받기, 풀 수 없는 행은 건별 실패.
 - **권한**: `member.withdrawn.contact`(SENSITIVE, 유형 `MEMBER_VIEW`, featureReady true).
 - **감사 행위**: `MEMBER_RESTRICTION_GRANT`(운영자·`SYSTEM` 자동 — detail `source`·`type`·`until`·`autoRule`) · `MEMBER_RESTRICTION_LIFT` · `WITHDRAWN_CONTACT_REVEAL` · `PORTONE_SETTINGS_UPDATE`(바꾼 칸 이름) · `PORTONE_SETTINGS_DELETE`. 본인인증 성공·실패는 회원 행동이라 감사가 아니라 인증 시도 표에 남긴다.
 
@@ -236,7 +236,7 @@
   - 회원 상세 `identity`: 미인증 `{verified:false, …null}`, null 은 탈퇴 회원뿐.
   - 연락처: 탈퇴 안 한 회원 GET 은 `stored:false`, reveal 은 404(감사 없음). `purgeAfter` 는 서비스 날짜. 값을 푸는 길은 `reveal` 하나뿐(감사 먼저). 분리 보관 표를 읽는 main 코드는 허용 목록(`WithdrawnContactRows`·`DataKeyColumns`)뿐 — 소스 검사 테스트.
   - 포트원: 칸 지우기는 값만 NULL(마지막 변경 표시 유지). 연락처·포트원 응답 `no-store`.
-  - 키 교체 배치 `data-key-rotation`: Java, **예약 기본 꺼짐**(cron `0 0 5 * * *` 자리만), 칸마다 단계(`withdrawn-contact-email`), 풀 수 없는 행 `DATA_KEY_UNREADABLE` 건별 실패(키 버전만), 읽은 뒤 바뀐 행은 건너뜀, 지금 키 없으면 실행 FAIL.
+  - 키 교체 배치 `data-key-rotation`: Java, **예약 기본 꺼짐**(cron `0 0 5 * * *` 자리만), 칸마다 단계(`withdrawn-contact-email`·`groupbuy-address-*`·`member-address-*`·`bank-transfer-*`·`business-*`·`ad-advertiser-*`), 비운(NULL) 칸은 고르지 않음, 파일 바이트 칸(등록증·계약서 사본)은 옮기지 않음, 풀 수 없는 행 `DATA_KEY_UNREADABLE` 건별 실패(키 버전만), 읽은 뒤 바뀐 행은 건너뜀, 지금 키 없으면 실행 FAIL.
   - 설정: `roboyam.identity.provider`(공통 portone, local fake)·`verification-ttl`(30m), `roboyam.withdrawal.rejoin-block-days`(30)·`contact-retention-years`(5).
 
 ### 0-4 규칙 → 테스트
@@ -269,7 +269,7 @@
 | 새 핸들러 권한 선언·권한별 403 | `Commerce04PermissionDeclarationTest`, `MemberRestrictionHttpTest.권한` |
 | 권한 `member.withdrawn.contact`(MEMBER_VIEW·SENSITIVE)·admin-web 사본 일치·메뉴 줄·감사 대상 | `Commerce04AdminCatalogTest`, `AdminScreenRegistryLoginSecurityTest` |
 | 오류 코드·감사·배치·알림 이벤트 문구 두 언어 | `Commerce04CatalogTest` |
-| 키 교체: 새 키로·지금 키는 안 건드림·조건부 UPDATE·건별 실패·체크포인트 이어 받기·0-1 절차 끝까지(예전 키 뺀 서버에서 읽힘) | `DataKeyRotationJobTest` |
+| 키 교체: 새 키로·지금 키는 안 건드림·조건부 UPDATE·건별 실패·체크포인트 이어 받기·0-1 절차 끝까지(예전 키 뺀 서버에서 읽힘 — 연락처·주소록은 실제 열람 길로, 목록 전 칸은 실제 표 모양 사본으로)·스키마의 `*_enc`/`*_cipher` 칸이 목록이나 설정 비밀값 칸으로 다 적혀 있음 | `DataKeyRotationJobTest` |
 - **실행**(2026-10-26): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.{commerce,identity,restriction,withdrawal,portone,zconfiguration,batch.core,datakey,testsupport}.*' :server:api:test --rerun --tests 'com.community.{identity,restriction,point,withdrawal}.*' :server:admin:test --rerun --tests 'com.community.{commerce,permission.config,menu,batch,mfa}.*'`(패턴은 하나씩 `--tests`) → **shared 133 · api 67 · admin 208(0-3 의 mfa 168 포함) 통과, 0 실패**. admin-web·user-web 타입 검사 통과. **develop 346c3d1 을 합치고 번호를 V84·`R__batch_28` 로 옮긴 뒤 같은 묶음(+ admin `member.*`·`audit.*`·`permission.*`)을 다시 돌려 같은 수 통과·0 실패**(2026-10-26), 두 앱 타입 검사 통과.
 - **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양·`storeId` 쿼리 필요 여부·다날/KCP 의 ci·di·인증 번호 길이 제한은 포트원 V2 문서 기준으로 만들고 실제 호출로 확인하지 못함 — 대역 HTTP 로만), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 만), 기능 제한 알림 메일 실제 발송(알림함 행·문구까지), 운영 키 교체의 재기동(시험은 `DataCipher` 를 키별로 새로 만들어 대신), 포트원 설정 동시 저장(마지막 저장이 이김 — 시험 안 함), 화면(타입 검사만 — 브라우저 확인은 개발자).
 
