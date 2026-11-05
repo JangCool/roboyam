@@ -11,6 +11,7 @@ import com.community.emoticon.repository.master.EmoticonReadStore;
 import com.community.emoticon.repository.master.EmoticonReadStore.CatalogRow;
 import com.community.emoticon.repository.master.EmoticonReadStore.MemberRef;
 import com.community.emoticon.repository.master.EmoticonReadStore.ShopQuery;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.nio.charset.StandardCharsets;
@@ -50,8 +51,11 @@ public class EmoticonShopService {
     private final EmoticonReadStore reads;
     private final EmoticonAcquisitionStore acquisitions;
     private final EmoticonContent content;
+    private final OperatorMemberAccountService operatorAccounts;
 
-    public EmoticonShopService(EmoticonPackStore packs, EmoticonReadStore reads, EmoticonAcquisitionStore acquisitions, EmoticonContent content) {
+    public EmoticonShopService(EmoticonPackStore packs, EmoticonReadStore reads, EmoticonAcquisitionStore acquisitions, EmoticonContent content,
+                               OperatorMemberAccountService operatorAccounts) {
+        this.operatorAccounts = operatorAccounts;
         this.packs = packs;
         this.reads = reads;
         this.acquisitions = acquisitions;
@@ -113,11 +117,13 @@ public class EmoticonShopService {
         if (p.status() == EmoticonPackStatus.SUSPENDED && !owned && !(userId != null && userId.equals(p.creatorId()))) {
             throw new EmoticonPackNotFoundException();
         }
+        // 운영자 회원 계정 — 판매 중 팩은 가지지 않아도 쓴다(가진 것으로 치지 않아 acquired 와 따로, 운영자 회원 계정 연결 2026-11-05)
+        boolean operatorUsable = userId != null && p.status() == EmoticonPackStatus.APPROVED && operatorAccounts.isActiveOperatorAccount(userId);
         EmoticonContent.Loaded live = content.load(p.liveRevisionId());
         EmoticonPublicView.Creator creator = creatorOf(p, p.creatorId() == null ? Map.of() : reads.members(List.of(p.creatorId())));
         return new EmoticonPublicView.PackDetail(Long.toString(p.id()), live.revision().name(), p.source().name(), creator, content.coverUrl(live), live.items().size(),
                 p.price(), p.acquireCount(), owned, p.publishedAt(), live.revision().description(), live.revision().tags(),
-                p.status() == EmoticonPackStatus.SUSPENDED ? "SUSPENDED" : "ON_SALE", content.publicItems(live));
+                p.status() == EmoticonPackStatus.SUSPENDED ? "SUSPENDED" : "ON_SALE", content.publicItems(live), operatorUsable);
     }
 
     /** 팩 카드들(입력 차례) */

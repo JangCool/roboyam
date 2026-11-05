@@ -23,6 +23,7 @@ import com.community.emoticon.repository.master.EmoticonReadStore;
 import com.community.emoticon.repository.master.EmoticonReadStore.MemberRef;
 import com.community.emoticon.repository.master.EmoticonReadStore.MemberState;
 import com.community.identity.service.IdentityVerificationService;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.payment.dto.CancelKind;
 import com.community.payment.dto.PaymentCancelOrder;
 import com.community.payment.dto.PaymentCheckout;
@@ -61,7 +62,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 본인인증·만 19세(403 {@code IDENTITY_REQUIRED}·{@code IDENTITY_UNDERAGE} — 계정에 한 번, commerce.md D3) → 환불 고지 동의(400 {@code fields.agreeRefundNotice}) →
  * 상점에 나온 팩(404) → 판매 중단(409 {@code EMOTICON_PACK_SUSPENDED}) → 무료 팩(409 {@code EMOTICON_PACK_FREE}) → 유료 판매 꺼짐(409 {@code EMOTICON_PAID_SALES_CLOSED}
  * — <b>새 구매만</b> 막는다, 이미 결제창에 들어간 주문의 완료는 처리기가 받는다) → 이미 가짐(409 {@code EMOTICON_PACK_OWNED} — 내가 만든 팩(최상위 {@code reason: CREATOR},
- * 후속 결정 1) · 산 팩 · 무료일 때 받은 팩(뺐어도)).
+ * 후속 결정 1) · 운영자 회원 계정(최상위 {@code reason: OPERATOR} — 판매 중 팩은 사지 않아도 쓴다, 운영자 회원 계정 연결 2026-11-05) · 산 팩 · 무료일 때 받은 팩(뺐어도)).
  * 같은 회원·팩의 준비는 권고 잠금으로 줄 세우고, 앞의 결제 대기는 <b>결제 행을 먼저</b> 닫은 뒤(결제 확정과 같은 잠금 차례) 구매를 CLOSED 로. 금액·이름·작가는 팩 행을 공유 잠금으로
  * 읽은 그때의 값(사본) — 유효 시간 30분(목업과 같다). 결제 ID·금액·유효 시각은 결제 모듈이 정한다.
  *
@@ -90,12 +91,14 @@ public class EmoticonPurchaseService {
     private final CommerceSalesStore commerce;
     private final EmoticonPurchaseNotices notices;
     private final SnowflakeIdGenerator ids;
+    private final OperatorMemberAccountService operatorAccounts;
     private final Clock clock;
 
     public EmoticonPurchaseService(EmoticonPurchaseStore purchases, EmoticonPackStore packs, EmoticonAcquisitionStore acquisitions, EmoticonReadStore reads,
                                    EmoticonSettingsService settings, EmoticonContent content, IdentityVerificationService identity, PaymentOrderService payments,
                                    PaymentCancelService cancels, CommerceSalesStore commerce, EmoticonPurchaseNotices notices, SnowflakeIdGenerator ids,
-                                   ObjectProvider<Clock> clocks) {
+                                   OperatorMemberAccountService operatorAccounts, ObjectProvider<Clock> clocks) {
+        this.operatorAccounts = operatorAccounts;
         this.notices = notices;
         this.purchases = purchases;
         this.packs = packs;
@@ -152,6 +155,9 @@ public class EmoticonPurchaseService {
         }
         if (Long.valueOf(userId).equals(p.creatorId())) {
             throw EmoticonConflictException.creatorOwned("error.EMOTICON_PACK_OWNED.creator"); // 내가 만든 팩 — 사지 않아도 가진다(후속 결정 1)
+        }
+        if (operatorAccounts.isActiveOperatorAccount(userId)) {
+            throw EmoticonConflictException.operatorUsable(); // 운영자 회원 계정 — 판매 중 팩은 사지 않아도 쓴다(돈을 내지 않게, 운영자 회원 계정 연결 2026-11-05)
         }
         Optional<AcquisitionRow> row = acquisitions.find(userId, packId);
         if (row.isPresent() && (row.get().owned() || !row.get().purchased())) {

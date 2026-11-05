@@ -115,6 +115,18 @@ public class EmoticonAcquisitionStore {
                 + "UNION SELECT k.id FROM emoticon_packs k WHERE k.creator_id = ? AND " + CREATOR_OWNED + " AND k.id IN (" + marks + ")", Long.class, args.toArray()));
     }
 
+    /**
+     * 이 팩들 중 판매 중(APPROVED)인 것 — 운영자 회원 계정이 가지지 않아도 쓰는 팩(운영자 회원 계정 연결 2026-11-05). 가진 것으로 치지 않으므로 {@link #ownedAmong} 에 넣지 않는다
+     * (팩의 {@code acquired}·내 로보티콘·받은 수·판매에 들어가지 않는다).
+     */
+    public Set<Long> onSaleAmong(Collection<Long> packIds) {
+        if (packIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.queryForList("SELECT id FROM emoticon_packs WHERE status = 'APPROVED' AND id IN (" + EmoticonPackStore.marks(packIds.size()) + ")",
+                Long.class, packIds.toArray()));
+    }
+
     /** 회원이 상점에 나온 그 팩의 작가인가(작가 자기 팩 — 사지 않아도 가진다) */
     public boolean creatorOwns(long userId, long packId) {
         Integer n = jdbc.queryForObject("SELECT count(*) FROM emoticon_packs k WHERE k.id = ? AND k.creator_id = ? AND " + CREATOR_OWNED, Integer.class, packId, userId);

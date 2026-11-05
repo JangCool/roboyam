@@ -229,5 +229,26 @@
   3. 탈퇴 작가에게 최소 지급액 미만으로 넘겨 둔 돈이 남으면 정산 정보가 지워지지 않는다(정산이 끝나지 않음) — 탈퇴 작가의 남은 돈을 최소 지급액과 상관없이 지급할지, 탈퇴 작가 팩의 판매를 멈출지(지금은 탈퇴해도 팩이 계속 팔린다)는 정하지 않았다. 여유 30일·「음수 이월 = 끝남」은 법무 확인 전 기준.
   4. 이체일 업무일 검사는 날짜만 본다(오늘 이전 · 업무일). 지급 예정일보다 이른 이체일을 막을지는 정하지 않았다.
   5. 구매 완료의 계약 내용 통지 메일(전자상거래법 — 공구의 `GROUP_BUY_ORDER_CONFIRMED` 같은 꼭 가는 메일)은 만들지 않았다 — 로보티콘 디지털 콘텐츠에도 필요한지 법무와 함께 정한다.
-  6. 운영자 회원 계정이 모든 팩을 쓰는 것(develop 합친 뒤 사용자가 붙인다) · 결제창 구매자 전화번호(PG 확인 때)는 이번에 손대지 않았다.
+  6. ~~운영자 회원 계정이 모든 팩을 쓰는 것(develop 합친 뒤 사용자가 붙인다)~~ → 아래 「운영자 회원 계정 연결(2026-11-05)」 · 결제창 구매자 전화번호(PG 확인 때)는 이번에 손대지 않았다.
   7. 개발 서버에서 새 API 를 실제로 부르는 확인은 하지 않았다(이 세션은 서버를 띄우지 않는다).
+
+## 운영자 회원 계정 연결(2026-11-05 — 사용자 결정, 서버만 · 화면 연결은 다음 단계)
+원천: `operator-member-account-contract.md` 정책 15·「shared 서비스」 — 판정은 `OperatorMemberAccountService#isActiveOperatorAccount(userId)`(힘이 살아 있나 — 연결 + 운영자 `canLogin` + 회원 정상, 요청마다 DB 판정·캐시 없음). 마이그레이션 없음.
+- **규칙**: 힘이 살아 있는 운영자 회원 계정은 **판매 중(APPROVED) 팩 전부**(운영 팩·작가 팩, 무료·유료)를 가지지 않아도 쓴다. 판매 중단 팩은 일반 규칙(가졌거나 만든 팩만). 20개 상한 그대로. 힘이 멈추면(연결 해제·운영자 사용 중지·잠김·기간 밖·회원 정지) 바로 일반 규칙.
+- **가진 것으로 치지 않음** — 작가 자기 팩(후속 결정 1)과 같은 **파생 규칙**이지만 `ownedAmong`·`owned`·`acquired` 에는 넣지 않았다(운영자는 「가진 사람」이 아니라 「쓸 수 있는 사람」). 받기 줄·받은 수·받기 보상·「사용함」(구매가 없으니 찍을 것이 없다)·판매·정산이 생기지 않는다.
+- **같은 판정을 쓰는 곳**
+  - 토큰 검사 `EmoticonGuard.requireOwned`(글·글 고치기·소모임 글·댓글 쓰기·고치기 — 다섯 지점 모두 이 한 곳, `recordUse` 의 다시 보기도 같다): 가진 팩으로 모두 덮이면 운영자 판정을 묻지 않는다 → 아니면 운영자 회원 계정일 때 `EmoticonAcquisitionStore.onSaleAmong`(그 팩들 중 APPROVED)을 더한다. 고치기는 그 글·댓글 작성자로 판정한다(연결이 풀린 뒤 고치면 409 — 팩을 뺀 것과 같다).
+  - 결제 준비 `POST /api/emoticons/packs/{id}/purchase` → **`409 EMOTICON_PACK_OWNED` + 최상위 `reason: "OPERATOR"`**, 문구 「운영자 계정은 판매 중인 모든 팩을 사지 않아도 쓸 수 있어요.」/ "Operator accounts can use every pack on sale without buying it."(`error.EMOTICON_PACK_OWNED.operator`). 차례 = 작가 자기 팩(`CREATOR`) 바로 다음(판매 중단·무료 팩·유료 판매 꺼짐 다음, 산 팩·받은 팩 앞). 결제 행·구매 행을 만들지 않는다.
+  - 받기 `POST …/acquire`(정함 — 추천대로): 운영자 회원 계정이면 **200, 아무것도 바꾸지 않는다** — 받기 줄을 만들지도, 뺀 줄을 되살리지도 않는다(받은 수·보상이 부풀지 않게). 응답 `acquired` = 정말 가졌는가(연결 전에 받거나 산 줄이 살아 있으면 true, 아니면 false — 팩 상세 `acquired` 와 같은 뜻), `acquireCount` 그대로. 차례 = 판매 중단 409 · 내가 만든 팩 다음이라 유료 팩 받기도 409 `EMOTICON_PACK_PAID` 대신 이 200 이 된다.
+  - 빼기 `DELETE /api/me/emoticons/{packId}`: 그대로(정말 가진 무료 줄만 뺀다).
+  - 결제 확정 처리기(`EmoticonPackPaymentHandler`): **바꾸지 않았다** — 결제 준비 뒤 결제창에 있는 동안 연결된 경우의 결제는 받아들인다(진짜 구매 — 보통 환불 규칙). 작가 팩의 `REJECT_OWNED` 그물과 달리 운영자는 「가진 사람」이 아니고, 연결이 풀리면 그 구매가 다시 쓸모 있기 때문.
+- **API 변화**(화면에 넘길 모양)
+  - `GET /api/me/emoticons` 최상위 **`allPacks: boolean`** — 힘이 살아 있는 운영자 회원 계정이면 true. `packs` 는 가진 팩만 그대로.
+  - `GET /api/emoticons/packs/{id}` 에 **`operatorUsable: boolean`**(정함) — 보는 사람이 운영자 회원 계정이고 그 팩이 판매 중이면 true(가졌어도 true — `acquired` 와 따로 본다). 로그인 안 함·일반 회원·판매 중단 팩은 false. 판매 중단 팩 상세는 일반 규칙(가지지 않은 운영자에게 404). `acquired` 는 그대로. 상점 카드(`PackCard`)에는 칸을 더하지 않았다.
+- **바꾼 코드**: shared `EmoticonGuard`(`usable`) · `EmoticonAcquisitionStore.onSaleAmong` · `EmoticonAcquireService`(받기 · `mine` 의 `allPacks`) · `EmoticonShopService.pack`(`operatorUsable`) · `EmoticonPurchaseService.start` · `EmoticonConflictException.operatorUsable` · `EmoticonPublicView.MyPacks.allPacks`·`PackDetail.operatorUsable` · 번들 두 언어.
+- **테스트**(실제 PostgreSQL — 모두 통과): shared 새 `EmoticonOperatorAccountTest` 7(판매 중 팩 토큰 통과 · 받기 줄·받은 수·보상·사용함·구매 없음 · 판매 중단 409(가졌으면 통과)·상세 404 · 연결 해제·사용 중지·회원 정지 409, 다시 켜면 통과 · 매니저·스텝 그대로 · 받기 200 줄 없음·되살리지 않음·연결 풀면 보통 받기 · `allPacks` · `operatorUsable`·`acquired` 그대로) + 기존 `com.community.emoticon.*` 112. api 새 `EmoticonOperatorAccountHttpTest` 7(글·글 고치기·댓글·댓글 고치기·소모임 글 통과 · 21개 400(글·댓글·소모임 글)·20개 201 · 판매 중단 409 · 연결 해제·사용 중지 뒤 409(글 고치기 포함) · 매니저·스텝 409·`allPacks` false · 결제 준비 409 `reason OPERATOR`·문구·구매·결제 행 없음·해제 뒤 200 · `allPacks`·`operatorUsable`·받기 200) + 기존 33. admin `com.community.emoticon.*` 13.
+- **화면 연결 때(이 세션은 화면을 고치지 않았다)**: `MyEmoticons.allPacks` · `PackDetail.operatorUsable`(true 면 구매·받기 단추 대신 「운영자 계정은 모든 팩을 쓸 수 있어요」) · `EMOTICON_PACK_OWNED` 의 `reason: 'OPERATOR'`(서버 `message` 를 그대로 써도 된다) · 받기 응답 `acquired: false` 를 「받음」으로 바꾸지 않는다.
+- **미확정**
+  1. **고르기 창 재료**: 카탈로그(`GET /api/emoticons/catalog`)는 로보티콘마다 `packId` 만 있고 판매 상태·팩 이름·대표 그림이 없다(판매 중단 팩도 들어 있다). 화면 작업 중인 `useOnSaleEmoticonPacks` 는 상점 목록(`GET /api/emoticons/packs` — 판매 중만, 24개씩 키셋)을 끝까지 넘겨 받고 그림은 카탈로그에서 찾는다 — 지금 서버 그대로 된다(쪽 상한 50 = 1,200팩). 판매 중 팩이 그보다 많아지거나 요청 수가 부담되면 ① 카탈로그에 팩 단위 `{id, name, coverUrl, onSale}` 을 더하거나 ② `allPacks` 일 때만 `GET /api/me/emoticons` 에 판매 중 팩 줄을 따로 싣는다(`packs` 는 가진 팩만 그대로).
+  2. 운영자 판정은 요청마다 한 질의(`linkOfUser`)다 — 토큰 검사는 가진 팩으로 다 덮이면 묻지 않지만, 팩 상세·내 로보티콘·받기·결제 준비는 늘 한 번 묻는다(색인 `operator_member_accounts.user_id` UNIQUE — 재지 않았다).
+  3. 개발 서버에서 실제로 부르는 확인은 하지 않았다.

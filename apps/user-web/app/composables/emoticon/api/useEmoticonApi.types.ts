@@ -91,12 +91,20 @@ export interface EmoticonPackDetail extends EmoticonPackCard {
     tags: string[];
     saleState: EmoticonPackSaleState;
     emoticons: EmoticonItem[];
+    /**
+     * 보는 사람이 힘이 살아 있는 운영자 회원 계정이고 판매 중 팩이다(서버 `EmoticonPublicView.PackDetail.operatorUsable`) — 가진 팩이어도 true.
+     * true 면 구매·받기 대신 「운영자 계정은 판매 중인 모든 팩을 쓸 수 있어요」. `acquired` 는 바뀌지 않는다(정말 가졌는가). 판매 중단 팩은 일반 규칙(가지지 않았으면 404)
+     */
+    operatorUsable: boolean;
 }
 
-/** `POST /api/emoticons/packs/{id}/acquire`(무료 팩만) — 이미 받았으면 같은 결과(멱등). 판매 중단 `409 EMOTICON_PACK_SUSPENDED` · 유료 팩 `409 EMOTICON_PACK_PAID` · 로그인 필요(401) */
+/**
+ * `POST /api/emoticons/packs/{id}/acquire`(무료 팩만) — 이미 받았으면 같은 결과(멱등). 판매 중단 `409 EMOTICON_PACK_SUSPENDED` · 유료 팩 `409 EMOTICON_PACK_PAID` · 로그인 필요(401).
+ * 운영자 회원 계정은 200 이지만 아무것도 바뀌지 않는다 — `acquired` 는 「정말 가졌는가」라 false 일 수 있다(「받음」으로 바꾸지 않는다)
+ */
 export interface EmoticonAcquireResult {
     packId: string;
-    acquired: true;
+    acquired: boolean;
     acquireCount: number;
 }
 

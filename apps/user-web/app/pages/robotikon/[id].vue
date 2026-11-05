@@ -38,9 +38,9 @@
                         <div v-if="pack.saleState === 'SUSPENDED'" role="status" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                             {{ pack.acquired ? t('emoticon.suspendedOwned') : t('emoticon.suspendedText') }}
                         </div>
-                        <template v-else-if="pack.acquired">
+                        <template v-else-if="usable">
                             <p class="m-0 inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400" role="status" data-testid="emoticon-detail-acquired">
-                                <i class="pi pi-check-circle" aria-hidden="true" />{{ bought ? t('emoticon.boughtUsable') : t('emoticon.acquiredUsable') }}
+                                <i :class="operatorHere ? 'pi pi-shield' : 'pi pi-check-circle'" aria-hidden="true" />{{ usableLine }}
                             </p>
                             <NuxtLink :to="UtilEmoticon.MY_PATH" class="w-fit rounded text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('emoticon.myTitle') }}</NuxtLink>
                         </template>
@@ -59,12 +59,12 @@
                         <Button v-else type="button" :label="t('emoticon.acquireFree')" icon="pi pi-download" :loading="acquiring" class="w-full sm:w-fit" data-testid="emoticon-detail-acquire-button" @click="acquire" />
 
                         <!-- 결제 결과 한 줄 — 창 닫기·실패·받지 않은 결제·완료 요청 실패 -->
-                        <p v-if="!pack.acquired && pay.note.value" class="m-0 text-sm text-muted-color" role="status" data-testid="emoticon-detail-pay-note">{{ t(`emoticon.payNote.${pay.note.value}`) }}</p>
+                        <p v-if="!usable && pay.note.value" class="m-0 text-sm text-muted-color" role="status" data-testid="emoticon-detail-pay-note">{{ t(`emoticon.payNote.${pay.note.value}`) }}</p>
                         <Message v-if="buyNotice" severity="warn" variant="simple" size="small" role="alert" data-testid="emoticon-detail-buy-notice">{{ buyNotice }}</Message>
                         <Message v-if="rejectedLine" severity="warn" variant="simple" size="small" role="alert">{{ rejectedLine }}</Message>
                         <Message v-if="pay.completeError.value" severity="error" variant="simple" size="small" role="alert">{{ t('emoticon.payCompleteFailed', { message: pay.completeError.value }) }}</Message>
                         <Message v-if="acquireError" severity="error" variant="simple" size="small" role="alert">{{ acquireError }}</Message>
-                        <p v-if="paid && !reacquire && !pack.acquired && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
+                        <p v-if="paid && !reacquire && !usable && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
                     </div>
                 </div>
             </section>
@@ -156,7 +156,12 @@ import UtilRedirect from '~/utils/util-redirect';
  * - 무료 팩: 「받기(무료)」 → 「받음 · 글·댓글에서 쓸 수 있어요」.
  * - 유료 팩(실결제, 포인트로는 사지 않는다 — 계약 「가격과 결제」): 「구매 2,500원」 → 구매 확인(이름·가격·환불 규칙 동의) → 본인인증 확인(`useIdentityGate`, 용도 `ROBOTIKON`, 만 19세 이상)
  *   → 결제 준비(`POST …/purchase` — 결제 모듈 주문 `ROBOTIKON_PACK`) → 공용 결제창(`useEmoticonCheckout` = `usePaymentCheckout`, 가짜 게이트웨이면 `PaymentFakeCheckoutDialog`)
- *   → 완료 요청 → 받아들인 결제면 「구매 완료 · 글·댓글에서 쓸 수 있어요」 + 보유. 창 닫기·실패·받지 않은 결제(자동 취소 — 결과의 `anomaly` 를 결제 공용 문구로)는 한 줄로 알리고 다시 살 수 있다.
+ *   → 완료 요청 → 받아들인 결제면 「구매 완료 · 글·댓글에서 쓸 수 있어요」 + 보유. 창 닫기·실패·받지 않은 결제(자동 취소 — 결과의 `anomaly` 와 다시 읽은 팩으로 고른 로보티콘 전용 문구
+ *   `UtilEmoticonMessages.payRejected`)는 한 줄로 알리고 다시 살 수 있다.
+ * - 내가 만든 팩(후속 결정 1 — 내 로보티콘 `mine` 또는 작가가 나)은 구매·받기 대신 「내가 만든 팩 — 바로 쓸 수 있어요」. 결제 준비 `409 EMOTICON_PACK_OWNED` 의 최상위 `reason`
+ *   `CREATOR`(내가 만든 팩)·`OPERATOR`(운영자 회원 계정 — 모든 팩)도 같은 자리에 「쓸 수 있어요」 한 줄로 바꾼다(받기로 다시 넣지 않는다).
+ * - 운영자 회원 계정: 팩 상세 `operatorUsable`(판매 중 팩이면 가진 팩이어도 true)이면 구매·받기 대신 「운영자 계정은 판매 중인 모든 팩을 쓸 수 있어요」.
+ *   `acquired` 는 「정말 가졌는가」 그대로 — 받기 응답의 `acquired: false` 를 「받음」으로 바꾸지 않는다.
  *   모바일 리디렉션은 이 화면으로 돌아와 `resumeRedirect()` 로 이어 간다.
  * - 결제 준비 오류(서버 S3): 동의 `400 fields.agreeRefundNotice` 는 동의 칸 아래, 그 밖은 서버 문구 한 줄. 404·판매 중단·무료가 됨·이미 가짐은 팩을 다시 읽어 화면을 맞춘다.
  *   `409 EMOTICON_PACK_OWNED` 인데 다시 읽은 팩이 `acquired: false` 면 무료일 때 받았다 뺀 회원이다 — 구매 대신 「받기」 단추를 보인다(서버가 받기로 다시 넣어 준다).
@@ -201,6 +206,37 @@ const reacquireFor = ref<string | null>(null);
 const reacquire = computed(() => reacquireFor.value !== null && reacquireFor.value === pack.value?.id);
 /** 결제 준비가 막혀 구매 확인창을 다시 열지 않는 경우의 한 줄(서버 문구 — 판매 중단·무료가 됨·이미 가짐·유료 판매 꺼짐·본인인증) */
 const buyNotice = ref('');
+/** 결제 준비가 `409 EMOTICON_PACK_OWNED` + `reason` 으로 알려 준 「사지 않아도 쓰는」 팩 — 작가 자기 팩(`CREATOR`) · 운영자 회원 계정(`OPERATOR`). 이 팩·이 회원에서만 */
+const ownedReason = ref<{ packId: string; reason: 'CREATOR' | 'OPERATOR' } | null>(null);
+/**
+ * 내가 만든 팩(후속 결정 1 — 사지 않아도 가진다). 상점에 나온 팩(`acquired`)이면서 내 로보티콘 줄의 `mine` 이거나 작가가 나다(내 로보티콘을 아직 못 받았을 때).
+ * 상점에 나오기 전(임시·심사 중·반려)은 가진 것이 아니다 — 서버가 `acquired: false` 를 준다
+ */
+const createdByMe = computed(() => {
+    const current = pack.value;
+    if (!current) return false;
+    if (ownedReason.value?.packId === current.id && ownedReason.value.reason === 'CREATOR') return true;
+    if (!current.acquired) return false;
+    const own = mine.packs.value?.find((p) => p.id === current.id);
+    return own ? own.mine : Boolean(user.value && current.creator?.memberId === user.value.id);
+});
+/**
+ * 운영자 회원 계정이라 쓰는 팩 — 팩 상세의 `operatorUsable`(운영자 회원 계정 + 판매 중, 가진 팩이어도 true)로 구매·받기 단추를 미리 감춘다.
+ * 그 칸이 낡았을 때의 그물: 결제 준비의 `409 EMOTICON_PACK_OWNED` + `reason: "OPERATOR"`
+ */
+const operatorHere = computed(() => {
+    const current = pack.value;
+    if (!current) return false;
+    return current.operatorUsable === true || (ownedReason.value?.packId === current.id && ownedReason.value.reason === 'OPERATOR');
+});
+/** 이 팩을 지금 쓸 수 있다 — 가짐 · 내가 만든 팩 · 운영자 회원 계정 */
+const usable = computed(() => Boolean(pack.value?.acquired) || createdByMe.value || operatorHere.value);
+/** 쓸 수 있을 때의 한 줄 — 운영자 회원 계정이면 그 안내가 먼저다(가진 팩·내가 만든 팩이어도) */
+const usableLine = computed(() => {
+    if (operatorHere.value) return t('emoticon.operatorUsable');
+    if (createdByMe.value) return t('emoticon.mineUsable');
+    return bought.value ? t('emoticon.boughtUsable') : t('emoticon.acquiredUsable');
+});
 
 /** 판매자 표시 — 사이트 사업자 정보(공구·푸터와 같은 `useCommerceInfo`, 칸이 다 찼을 때만). 없으면 사이트 이름만 */
 const commerce = useCommerceInfo();
@@ -245,6 +281,7 @@ watch(
     [id, () => user.value?.id ?? null],
     () => {
         reacquireFor.value = null;
+        ownedReason.value = null;
         buyNotice.value = '';
         void load();
     },
@@ -274,12 +311,14 @@ async function acquire(): Promise<void> {
     acquireError.value = '';
     try {
         const result = await api.acquire(current.id);
-        pack.value = { ...current, acquired: true, acquireCount: result.acquireCount };
+        // `acquired` 는 「정말 가졌는가」 — 운영자 회원 계정은 200 인데 false 일 수 있다(아무것도 바뀌지 않는다). 서버 값을 그대로 둔다
+        pack.value = { ...current, acquired: result.acquired, acquireCount: result.acquireCount };
         reacquireFor.value = null;
         buyNotice.value = '';
         // 고르기 창(댓글·글 에디터)에 바로 보이게 내 팩을 다시 받는다. 앱을 연 뒤 상점에 나온 팩이면 카탈로그에 없을 수 있어 사본도 다시 묻는다(바뀌지 않았으면 304)
         await Promise.all([mine.reload(), catalog.refresh()]);
-        toast.success(t('emoticon.acquiredToast', { name: current.name }));
+        if (result.acquired) toast.success(t('emoticon.acquiredToast', { name: current.name }));
+        else void refresh(); // 받지 않았다(운영자 회원 계정) — 팩을 다시 읽어 `operatorUsable` 안내로 맞춘다
     } catch (e) {
         acquireError.value = UtilEmoticonMessages.error(t, e);
     } finally {
@@ -298,11 +337,11 @@ const starting = ref(false);
 /** 받지 않은 결제(금액 불일치·늦은 결제·도메인 거절 — 결제 모듈이 전액 자동 취소) */
 const rejected = ref<PaymentResult | null>(null);
 const buyAgreeError = computed(() => (buyTried.value && !buyAgreed.value ? t('emoticon.buyAgreeRequired') : ''));
-/** 받지 않은 결제의 한 줄 — 결제 공용 문구(까닭이 있으면 까닭별, 없으면 「아직 확정되지 않음」) */
+/** 받지 않은 결제의 한 줄 — 로보티콘 전용 문구(자동 취소 + 까닭 한 줄, 까닭은 다시 읽은 팩 상태로 좁힌다 · 까닭이 없으면 「아직 확정되지 않음」) */
 const rejectedLine = computed(() => {
     const result = rejected.value;
     if (!result) return '';
-    return result.anomaly ? t(`payment.devAnomaly.${result.anomaly}`) : t('payment.devNotAccepted');
+    return UtilEmoticonMessages.payRejected(t, result.anomaly, pack.value);
 });
 
 const pay = useEmoticonCheckout(onPaid);
@@ -347,6 +386,16 @@ async function onPurchaseError(e: unknown, packId: string): Promise<void> {
         // 화면의 인증 상태가 서버와 어긋났다 — 새로 받아 다음 시도에 확인 대화상자가 뜨게 한다
         if (e.code === 'IDENTITY_REQUIRED' || e.code === 'IDENTITY_UNDERAGE') void identity.load();
         return;
+    }
+    if (e.code === 'EMOTICON_PACK_OWNED') {
+        // 사지 않아도 쓰는 팩(후속 결정 1 · 운영자 회원 계정) — 구매 단추 대신 「쓸 수 있어요」 한 줄. 받기로 다시 넣지 않는다
+        const reason = e.extraText('reason');
+        if (reason === 'CREATOR' || reason === 'OPERATOR') {
+            ownedReason.value = { packId, reason };
+            buyNotice.value = '';
+            await Promise.all([refresh(), mine.reload()]);
+            return;
+        }
     }
     if (STATE_CODES.has(e.code)) {
         buyNotice.value = message;

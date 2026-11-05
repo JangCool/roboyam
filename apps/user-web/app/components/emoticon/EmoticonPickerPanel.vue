@@ -2,6 +2,7 @@
     <!--
         이모티콘 고르기 창의 내용 — 데스크톱 팝오버·모바일 하단 시트(`EmoticonPicker`)가 같이 넣는다.
         탭: 「이모지」(유니코드 글자 — 최근 사용 + 묶음, 누구나) + 받은 팩마다 한 탭(대표 그림, 64px 격자 — 누르면 토큰).
+        운영자 회원 계정(`useMyEmoticons().allPacks`)이면 가진 팩 뒤에 나머지 판매 중 팩을 더하고 작은 「운영자」 표시를 붙인다(판매 중단 팩은 가진 것만).
         받은 팩이 없으면 상점 링크, 로그인하지 않았으면 이모지 탭만 + 로그인 안내 한 줄.
     -->
     <div class="flex flex-col" data-testid="emoticon-picker-panel">
@@ -29,13 +30,22 @@
                 role="tab"
                 :aria-selected="tab === pack.id"
                 :aria-controls="`${uid}-panel`"
-                class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg p-0.5 focus-visible:outline-2 focus-visible:outline-primary"
+                class="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg p-0.5 focus-visible:outline-2 focus-visible:outline-primary"
                 :class="tab === pack.id ? 'bg-surface-200 dark:bg-surface-700' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
-                :title="pack.name"
+                :title="pack.operator ? t('emoticon.pickerOperatorPack', { name: pack.name }) : pack.name"
                 :data-testid="`picker-tab-${pack.id}`"
                 @click="tab = pack.id"
             >
-                <img :src="pack.coverUrl" :alt="pack.name" class="size-full object-contain" loading="lazy" />
+                <img :src="pack.coverUrl" :alt="pack.operator ? t('emoticon.pickerOperatorPack', { name: pack.name }) : pack.name" class="size-full object-contain" loading="lazy" />
+                <!-- 운영자 회원 계정이라 쓸 수 있는 팩(가지지 않은 판매 중 팩) — 오른쪽 아래 작은 방패 -->
+                <span
+                    v-if="pack.operator"
+                    class="absolute bottom-0 right-0 grid size-3.5 place-items-center rounded-full bg-primary text-primary-contrast"
+                    aria-hidden="true"
+                    data-testid="picker-tab-operator"
+                >
+                    <i class="pi pi-shield text-[0.5rem]" />
+                </span>
             </button>
             <NuxtLink
                 v-if="loggedIn"
@@ -73,7 +83,10 @@
 
             <!-- 받은 팩 — 64px 격자 -->
             <template v-else-if="currentPack">
-                <p class="m-0 truncate px-1 pb-1.5 text-xs font-semibold">{{ currentPack.name }}</p>
+                <p class="m-0 flex min-w-0 items-center gap-1.5 px-1 pb-1.5">
+                    <span class="min-w-0 truncate text-xs font-semibold">{{ currentPack.name }}</span>
+                    <PointShopTag v-if="currentPack.operator" tone="primary" data-testid="picker-operator-tag">{{ t('emoticon.operatorTag') }}</PointShopTag>
+                </p>
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(4rem,1fr))] gap-1">
                     <button
                         v-for="e in currentPack.emoticons"
@@ -94,8 +107,19 @@
 </template>
 
 <script setup lang="ts">
+import type { EmoticonItem } from '~/composables/emoticon/api/useEmoticonApi.types';
 import UtilEmoji from '~/utils/util-emoji';
 import UtilEmoticon from '~/utils/util-emoticon';
+
+/** 탭 하나 — 가진 팩, 또는 운영자 회원 계정이 쓰는 판매 중 팩(`operator`) */
+interface PickerPack {
+    id: string;
+    name: string;
+    coverUrl: string;
+    emoticons: EmoticonItem[];
+    /** 가지지 않았지만 운영자 회원 계정이라 쓰는 판매 중 팩 — 「운영자」 표시 */
+    operator: boolean;
+}
 
 const emit = defineEmits<{
     /** 유니코드 이모지 한 글자(그대로 넣는다) */
@@ -110,6 +134,8 @@ const { t } = useI18n();
 const uid = useId();
 const { user } = useAuth();
 const mine = useMyEmoticons();
+const onSale = useOnSaleEmoticonPacks();
+const catalog = useEmoticonCatalog();
 const recent = useRecentEmoji();
 
 const EMOJI = '__emoji__';
@@ -117,7 +143,31 @@ const EMOJI_CELL = 'grid aspect-square place-items-center rounded-lg text-[1.375
 
 const loggedIn = computed(() => Boolean(user.value));
 const loaded = computed(() => mine.packs.value !== undefined);
-const packList = computed(() => mine.packs.value ?? []);
+
+/** 운영자 회원 계정의 나머지 판매 중 팩 — 그림은 카탈로그에서 팩 ID 로 묶는다(카탈로그에 그림이 없는 팩은 뺀다) */
+const operatorPacks = computed<PickerPack[]>(() => {
+    if (!mine.allPacks.value) return [];
+    const cards = onSale.packs.value;
+    const items = catalog.items.value;
+    if (!cards || !items) return [];
+    const owned = new Set((mine.packs.value ?? []).map((p) => p.id));
+    const byPack = new Map<string, EmoticonItem[]>();
+    for (const item of Object.values(items)) {
+        if (owned.has(item.packId)) continue;
+        const list = byPack.get(item.packId) ?? [];
+        list.push({ id: item.id, label: item.label, url: item.url, animated: item.animated });
+        byPack.set(item.packId, list);
+    }
+    return cards
+        .filter((card) => !owned.has(card.id) && (byPack.get(card.id)?.length ?? 0) > 0)
+        .map((card) => ({ id: card.id, name: card.name, coverUrl: card.coverUrl, emoticons: byPack.get(card.id) ?? [], operator: true }));
+});
+
+/** 가진 팩 먼저(받은·산·내가 만든), 그다음 운영자 회원 계정의 나머지 판매 중 팩 */
+const packList = computed<PickerPack[]>(() => [
+    ...(mine.packs.value ?? []).map((p) => ({ id: p.id, name: p.name, coverUrl: p.coverUrl, emoticons: p.emoticons, operator: false })),
+    ...operatorPacks.value,
+]);
 const groups = UtilEmoji.groups();
 const recentList = computed(() => recent.recent.value ?? []);
 
@@ -129,6 +179,12 @@ onMounted(() => {
     recent.ensureLoaded();
     void mine.ensureLoaded().then(() => {
         if (tab.value === EMOJI && packList.value[0]) tab.value = packList.value[0].id;
+        // 운영자 회원 계정 — 판매 중 팩 목록과 그림(카탈로그)을 받아 가진 팩 뒤에 더한다
+        if (mine.allPacks.value) {
+            void Promise.all([onSale.ensureLoaded(), catalog.ensureLoaded()]).then(() => {
+                if (tab.value === EMOJI && packList.value[0]) tab.value = packList.value[0].id;
+            });
+        }
     });
 });
 

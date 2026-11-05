@@ -54,6 +54,8 @@ import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
+import com.community.operator.repository.master.OperatorMemberAccountStore;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.point.repository.master.PointLedgerWriter;
 import com.community.point.service.PointPolicy;
 import com.community.point.service.PointService;
@@ -139,6 +141,8 @@ final class EmoticonTestKit {
     final EmoticonPurchaseNotices purchaseNotices;
     /** 시험용 데이터 키(버전 1) */
     final DataCipher cipher;
+    /** 운영자 회원 계정 판정(운영자 회원 계정 연결 2026-11-05) */
+    final OperatorMemberAccountService operatorAccounts;
     final long operator;
 
     EmoticonTestKit() {
@@ -187,8 +191,10 @@ final class EmoticonTestKit {
         EmoticonImageValidator validator = new EmoticonImageValidator(new ImageCodec(new ImageGate(new MediaProperties(2, 10, 24))));
         images = new EmoticonImageService(validator, imageStore, storage, ids, dataSource, txManager, clocks);
         content = new EmoticonContent(packStore, imageStore, storage);
-        shop = new EmoticonShopService(packStore, reads, acquisitions, content);
-        acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, clocks);
+        // 운영자 회원 계정 판정(힘이 살아 있나만 — 권한 거울은 읽지 않으므로 역할 저장소 없이)
+        operatorAccounts = new OperatorMemberAccountService(new OperatorMemberAccountStore(dataSource), null, clocks);
+        shop = new EmoticonShopService(packStore, reads, acquisitions, content, operatorAccounts);
+        acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks);
         purchases = new EmoticonPurchaseStore(dataSource);
         settlementStore = new EmoticonSettlementStore(dataSource);
         holidays = new PublicHolidayService(new PublicHolidayStore(dataSource));
@@ -200,7 +206,7 @@ final class EmoticonTestKit {
                 purchases, ids, clocks);
         payouts = new EmoticonPayoutService(payoutStore, identities, studio, cipher, audit, clocks);
         settlements = new EmoticonSettlementService(settlementStore, settlementCalculator, payoutStore, payouts, reads, packStore, content, audit, ids, clocks);
-        guard = new EmoticonGuard(reads, acquisitions, purchases, clocks);
+        guard = new EmoticonGuard(reads, acquisitions, purchases, operatorAccounts, clocks);
         acquisitionStore = acquisitions;
         purchaseNotices = new EmoticonPurchaseNotices(memberPublisher);
         handler = new EmoticonPackPaymentHandler(purchases, packStore, acquisitions, settings, purchaseNotices, ids, clocks);

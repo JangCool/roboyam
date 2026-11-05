@@ -1,10 +1,13 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { EmoticonRules } from '~/composables/emoticon/api/useEmoticonApi.types';
+import type { EmoticonPackDetail, EmoticonRules } from '~/composables/emoticon/api/useEmoticonApi.types';
+import type { PaymentAnomaly } from '~/composables/payment/api/usePaymentApi.types';
 import type { EmoticonSettlementStatus, EmoticonStudioStatus } from '~/composables/emoticon/api/useEmoticonStudioApi.types';
 import type { EmoticonFieldProblem, EmoticonImageInfo, EmoticonSpecProblem } from '~/utils/util-emoticon-spec';
 import type { EmoticonBodyProblem } from '~/utils/util-emoticon-rule';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilAuthMessages from '~/utils/util-auth-messages';
+import UtilEmoticon from '~/utils/util-emoticon';
+import UtilIdentityMessages from '~/utils/util-identity-messages';
 import UtilEmoticonSpec from '~/utils/util-emoticon-spec';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 
@@ -99,6 +102,41 @@ export default class UtilEmoticonMessages {
         if (!(e instanceof ApiError) || e.code !== 'EMOTICON_NOT_OWNED') return null;
         const id = e.extraText('emoticonId');
         return id ? t('emoticon.notOwnedInBody', { name: labelOf(id) }) : e.message;
+    }
+
+    /**
+     * 받지 않은 결제의 한 줄(팩 상세) — 결제 공용 개발용 문구(`payment.devAnomaly.*`)를 쓰지 않고 회원에게 보일 로보티콘 문구를 고른다.
+     * 이상(`anomaly`)이 있으면 결제 모듈이 전액 자동 취소한다 → 「자동으로 취소했어요(카드사 사정에 따라 며칠)」 + 까닭 한 줄.
+     * 도메인 거절(`DOMAIN_REJECTED` — 서버 처리기가 까닭을 싣지 않는다)은 다시 읽은 팩으로 좁힌다: 이미 가짐 → 판매 중단 → 그새 무료 → 그 밖.
+     * 이상이 없는데 받아들이지 않았으면 아직 확정 전이다(자동 취소가 아니다).
+     * @param {Translate} t - 번역 함수.
+     * @param {PaymentAnomaly | null} anomaly - 완료 결과의 `anomaly`.
+     * @param {EmoticonPackDetail | null} pack - 다시 읽은 팩(못 읽었으면 보던 팩).
+     * @returns {string} 한 줄.
+     */
+    static payRejected(t: Translate, anomaly: PaymentAnomaly | null, pack: EmoticonPackDetail | null): string {
+        if (!anomaly) return t('emoticon.payNotConfirmed');
+        return `${t('emoticon.payAutoCanceled')} ${UtilEmoticonMessages.payRejectedReason(t, anomaly, pack)}`;
+    }
+
+    /** 자동 취소의 까닭 한 줄 — `payRejected` 가 쓴다 */
+    static payRejectedReason(t: Translate, anomaly: PaymentAnomaly, pack: EmoticonPackDetail | null): string {
+        if (anomaly === 'LATE_PAYMENT') return t('emoticon.payRejectedLate');
+        if (anomaly === 'AMOUNT_MISMATCH') return t('emoticon.payRejectedAmount');
+        if (pack?.acquired) return t('emoticon.payRejectedOwned');
+        if (pack?.saleState === 'SUSPENDED') return t('emoticon.payRejectedSuspended');
+        if (pack && !UtilEmoticon.paid(pack.price)) return t('emoticon.payRejectedFree');
+        return t('emoticon.payRejectedOther');
+    }
+
+    /**
+     * 만 19세 미만 작가의 안내 둘째 줄 — 「만 19세 생일(…)이 지나면 다시 인증하지 않아도 이용할 수 있어요」(본인인증 화면과 같은 문구).
+     * @param {Translate} t - 번역 함수.
+     * @param {string | null | undefined} adultFrom - 만 19세가 되는 날(`YYYY-MM-DD` — 본인인증 상태 또는 `403 IDENTITY_UNDERAGE` 의 최상위 `adultFrom`).
+     * @returns {string} 한 줄.
+     */
+    static underageRelease(t: Translate, adultFrom: string | null | undefined): string {
+        return UtilIdentityMessages.minorRelease(t, adultFrom ?? null);
     }
 
     /** 가격 단계 글자 — 「1,500 · 2,500 · 3,500원」 */

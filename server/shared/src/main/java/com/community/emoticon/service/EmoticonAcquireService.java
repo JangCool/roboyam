@@ -12,6 +12,7 @@ import com.community.emoticon.repository.master.EmoticonPackStore.PackRow;
 import com.community.emoticon.repository.master.EmoticonReadStore;
 import com.community.emoticon.repository.master.EmoticonReadStore.MemberRef;
 import com.community.emoticon.repository.master.EmoticonSettingsStore.SettingsRow;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.point.service.PointService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -35,7 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 무료 팩 받기 · 목록에서 빼기 · 내 로보티콘(계약 가정 6·11, S1).
  *
  * <p><b>받기</b>({@link #acquire}) — 한 트랜잭션: 팩 행을 잠근다(같은 팩의 받기·심사 처리가 줄을 선다) → 없거나 상점에 나오지 않은 팩 {@code 404} → 판매 중단 {@code 409 EMOTICON_PACK_SUSPENDED}
- * → <b>내가 만든 팩</b>이면 같은 결과(받기 줄·받은 수·보상 없음 — 사지 않아도 가진다, 후속 결정 1) → 이미 가졌으면 같은 결과(멱등) → 뺐던 팩이면 다시 가진다(받은 수·보상 없음 — 무료일 때 받은 팩이 그 뒤 유료가 됐어도, S2) → 유료 {@code 409 EMOTICON_PACK_PAID}(구매 — S3)
+ * → <b>내가 만든 팩</b>이면 같은 결과(받기 줄·받은 수·보상 없음 — 사지 않아도 가진다, 후속 결정 1)
+ * → <b>운영자 회원 계정</b>(힘이 살아 있을 때)이면 아무것도 바꾸지 않고 200 — 판매 중 팩은 이미 쓸 수 있다, 받기 줄을 만들거나 되살리지 않는다({@code acquired} = 정말 가졌는가,
+ * 운영자 회원 계정 연결 2026-11-05) → 이미 가졌으면 같은 결과(멱등) → 뺐던 팩이면 다시 가진다(받은 수·보상 없음 — 무료일 때 받은 팩이 그 뒤 유료가 됐어도, S2) → 유료 {@code 409 EMOTICON_PACK_PAID}(구매 — S3)
  * → 처음이면 받기 줄 + 받은 수 + 1 +
  * <b>받기 보상</b>(작가 팩만 — 운영 팩·본인·인정되지 않는 받기는 없음, {@link PointService#emoticonCreatorReward} 한 길, 작가 잔액 행 잠금이 마지막 잠금, 실패해도 받기는 성공).
  * 받기 줄은 지우지 않으므로 같은 회원의 같은 팩 보상은 처음 한 번만이다(빼고 다시 받아도).
@@ -55,10 +58,13 @@ public class EmoticonAcquireService {
     private final EmoticonContent content;
     private final PointService points;
     private final SnowflakeIdGenerator ids;
+    private final OperatorMemberAccountService operatorAccounts;
     private final Clock clock;
 
     public EmoticonAcquireService(EmoticonPackStore packs, EmoticonAcquisitionStore acquisitions, EmoticonReadStore reads, EmoticonSettingsService settings,
-                                  EmoticonContent content, PointService points, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                                  EmoticonContent content, PointService points, SnowflakeIdGenerator ids, OperatorMemberAccountService operatorAccounts,
+                                  ObjectProvider<Clock> clocks) {
+        this.operatorAccounts = operatorAccounts;
         this.packs = packs;
         this.acquisitions = acquisitions;
         this.reads = reads;
@@ -90,8 +96,13 @@ public class EmoticonAcquireService {
             // 내가 만든 팩 — 사지 않아도 가진다(후속 결정 1). 받기 줄·받은 수·보상 없이 같은 결과
             return new Acquired(new EmoticonPublicView.AcquireResult(Long.toString(packId), true, p.acquireCount()), 0);
         }
-        Instant now = clock.instant();
         Optional<AcquisitionRow> existing = acquisitions.find(userId, packId);
+        if (operatorAccounts.isActiveOperatorAccount(userId)) {
+            // 운영자 회원 계정 — 판매 중 팩은 이미 쓸 수 있다. 받기 줄을 만들거나 되살리지 않는다(받은 수·보상이 부풀지 않게, 운영자 회원 계정 연결 2026-11-05).
+            // acquired = 정말 가졌는가(팩 상세의 acquired 와 같은 뜻 — 연결 전에 받거나 산 줄이 살아 있으면 true)
+            return new Acquired(new EmoticonPublicView.AcquireResult(Long.toString(packId), existing.map(AcquisitionRow::owned).orElse(false), p.acquireCount()), 0);
+        }
+        Instant now = clock.instant();
         if (existing.isPresent()) {
             AcquisitionRow row = existing.get();
             // 이미 가졌다(무료로 받았거나 샀다 — 산 팩이 그 뒤 무료가 됐어도 새 받기 줄·받은 수·보상은 없다, S3) → 같은 결과
@@ -142,9 +153,10 @@ public class EmoticonAcquireService {
     /** 내 로보티콘 — 지금 가진 팩 중 상점에 나와 있는 것(판매 중단 포함 — 가졌으면 계속 쓴다), 최근 가진 것 먼저 */
     @Transactional(readOnly = true)
     public EmoticonPublicView.MyPacks mine(long userId) {
+        boolean allPacks = operatorAccounts.isActiveOperatorAccount(userId); // 운영자 회원 계정 — 판매 중 팩 전부를 쓴다(목록은 가진 팩만 그대로)
         Map<Long, EmoticonAcquisitionStore.OwnedPack> owned = acquisitions.owned(userId);
         if (owned.isEmpty()) {
-            return new EmoticonPublicView.MyPacks(List.of());
+            return new EmoticonPublicView.MyPacks(List.of(), allPacks);
         }
         Map<Long, PackRow> byId = packs.byIds(owned.keySet()).stream().filter(p -> p.status().published()).collect(Collectors.toMap(PackRow::id, p -> p));
         Map<Long, EmoticonContent.Loaded> lives = content.load(byId.values().stream().map(PackRow::liveRevisionId).toList());
@@ -168,6 +180,6 @@ public class EmoticonAcquireService {
                     content.coverUrl(live), o.acquiredAt(), o.purchaseId() == null ? 0 : o.purchaseAmount(), o.purchaseId() == null ? null : Long.toString(o.purchaseId()),
                     p.status() == EmoticonPackStatus.SUSPENDED, content.publicItems(live), o.creator()));
         }
-        return new EmoticonPublicView.MyPacks(out);
+        return new EmoticonPublicView.MyPacks(out, allPacks);
     }
 }

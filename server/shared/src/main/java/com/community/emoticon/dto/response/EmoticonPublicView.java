@@ -37,9 +37,12 @@ public final class EmoticonPublicView {
     public record PackList(List<PackCard> items, String nextCursor) {
     }
 
-    /** {@code GET /api/emoticons/packs/{id}} — 판매 상태 {@code ON_SALE}·{@code SUSPENDED} */
+    /**
+     * {@code GET /api/emoticons/packs/{id}} — 판매 상태 {@code ON_SALE}·{@code SUSPENDED}. {@code operatorUsable} = 보는 사람이 힘이 살아 있는 운영자 회원 계정이고 판매 중 팩이다
+     * (가지지 않아도 쓴다 — {@code acquired} 와 따로, 가진 것으로 치지 않는다. 운영자 회원 계정 연결 2026-11-05). 화면은 구매·받기 단추 대신 「운영자 계정은 모든 팩을 쓸 수 있어요」.
+     */
     public record PackDetail(String id, String name, String source, Creator creator, String coverUrl, int count, int price, int acquireCount, boolean acquired,
-                             Instant publishedAt, String description, List<String> tags, String saleState, List<Item> emoticons) {
+                             Instant publishedAt, String description, List<String> tags, String saleState, List<Item> emoticons, boolean operatorUsable) {
     }
 
     /** {@code POST /api/emoticons/packs/{id}/acquire} */
@@ -63,7 +66,10 @@ public final class EmoticonPublicView {
                          boolean suspended, List<Item> emoticons, boolean mine) {
     }
 
-    /** {@code GET /api/me/emoticons} */
-    public record MyPacks(List<MyPack> packs) {
+    /**
+     * {@code GET /api/me/emoticons}. {@code packs} 는 가진 팩만. {@code allPacks} = 힘이 살아 있는 운영자 회원 계정이다(요청마다 판정) — 판매 중 팩 전부를 가지지 않아도 쓴다,
+     * 화면은 카탈로그의 판매 중 팩으로 고르기 창을 채운다(운영자 회원 계정 연결 2026-11-05).
+     */
+    public record MyPacks(List<MyPack> packs, boolean allPacks) {
     }
 }

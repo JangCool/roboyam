@@ -71,6 +71,16 @@ public class EmoticonConflictException extends CommonException {
         return e;
     }
 
+    /**
+     * {@code 409 EMOTICON_PACK_OWNED} — 운영자 회원 계정이라 판매 중 팩을 사지 않아도 쓴다(결제 준비 — 돈을 내지 않게, 운영자 회원 계정 연결 2026-11-05). 최상위 {@code reason: "OPERATOR"}.
+     * 가진 것으로 치지는 않는다(팩의 {@code acquired} 는 그대로 — 화면은 {@code operatorUsable} 을 본다).
+     */
+    public static EmoticonConflictException operatorUsable() {
+        EmoticonConflictException e = new EmoticonConflictException(PACK_OWNED, "error.EMOTICON_PACK_OWNED.operator");
+        e.extra("reason", "OPERATOR");
+        return e;
+    }
+
     /** 같은 코드에 그 자리의 문구(예: 가격 바꾸기의 {@code EMOTICON_PACK_NOT_ON_SALE} — 「판매 중인 작가 팩만 가격을 바꿀 수 있어요」) */
     public EmoticonConflictException(String code, String messageKey) {
         super(HttpStatus.CONFLICT, code, new MessageRef(messageKey));

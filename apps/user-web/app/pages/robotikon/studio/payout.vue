@@ -25,7 +25,12 @@
                     <p class="m-0 mt-0.5 text-xs text-muted-color">{{ verified ? t('emoticon.payoutIdentityDone') : t('emoticon.payoutIdentityNeed') }}</p>
                 </div>
                 <Button v-if="!verified" as="router-link" to="/settings/identity" :label="t('emoticon.payoutIdentityGo')" size="small" />
-                <div v-if="identityNameMissing" role="status" class="flex w-full flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-payout-name-missing">
+                <!-- 만 19세 미만(본인인증 `adult: false` 또는 저장의 `403 IDENTITY_UNDERAGE`) — 정산 정보 등록을 막는다. 무료 팩은 만들 수 있다(후속 결정 3) -->
+                <div v-if="underage" role="status" class="flex w-full flex-col gap-0.5 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-payout-underage">
+                    <span class="font-semibold">{{ underageText }}</span>
+                    <span>{{ UtilEmoticonMessages.underageRelease(t, underageFrom) }}</span>
+                </div>
+                <div v-else-if="identityNameMissing" role="status" class="flex w-full flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-payout-name-missing">
                     <span class="min-w-0 flex-1">{{ t('emoticon.payoutIdentityNameMissing') }}</span>
                     <Button type="button" :label="t('emoticon.payoutReverifyButton')" icon="pi pi-mobile" size="small" severity="warn" variant="outlined" :loading="reverifying" data-testid="emoticon-payout-reverify" @click="reverify" />
                 </div>
@@ -38,7 +43,7 @@
             <section v-if="account.registered && !editing" class="panel-card p-4" :aria-labelledby="`${uid}-saved`" data-testid="emoticon-payout-saved">
                 <div class="flex items-center justify-between gap-2">
                     <h2 :id="`${uid}-saved`" class="m-0 text-sm font-semibold">{{ t('emoticon.payoutSaved') }}</h2>
-                    <Button type="button" :label="t('common.edit')" size="small" severity="secondary" variant="outlined" :disabled="!verified" @click="startEdit" />
+                    <Button type="button" :label="t('common.edit')" size="small" severity="secondary" variant="outlined" :disabled="!editable" @click="startEdit" />
                 </div>
                 <dl class="m-0 mt-3 grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
                     <dt class="text-muted-color">{{ t('emoticon.payoutType') }}</dt>
@@ -65,11 +70,11 @@
                     <legend class="mb-1.5 p-0 text-sm font-medium">{{ t('emoticon.payoutType') }}</legend>
                     <div class="flex flex-wrap gap-4">
                         <div class="flex items-center gap-2">
-                            <RadioButton v-model="form.type" :input-id="`${uid}-ind`" value="INDIVIDUAL" :disabled="!verified" />
+                            <RadioButton v-model="form.type" :input-id="`${uid}-ind`" value="INDIVIDUAL" :disabled="!editable" />
                             <label :for="`${uid}-ind`" class="text-sm">{{ t('emoticon.payoutIndividual') }}</label>
                         </div>
                         <div class="flex items-center gap-2">
-                            <RadioButton v-model="form.type" :input-id="`${uid}-biz`" value="BUSINESS" :disabled="!verified" />
+                            <RadioButton v-model="form.type" :input-id="`${uid}-biz`" value="BUSINESS" :disabled="!editable" />
                             <label :for="`${uid}-biz`" class="text-sm">{{ t('emoticon.payoutBusiness') }}</label>
                         </div>
                     </div>
@@ -79,19 +84,19 @@
 
                 <LabeledField v-if="form.type === 'BUSINESS'" :label="t('emoticon.payoutBusinessNumber')" :hint="t('emoticon.payoutBusinessNumberHint')" :error="fieldErrors.businessNumber ?? ''">
                     <template #default="{ id: fieldId, describedBy, invalid }">
-                        <InputText :id="fieldId" v-model="form.businessNumber" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="000-00-00000" :invalid="invalid" :aria-describedby="describedBy" :disabled="!verified" fluid />
+                        <InputText :id="fieldId" v-model="form.businessNumber" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="000-00-00000" :invalid="invalid" :aria-describedby="describedBy" :disabled="!editable" fluid />
                     </template>
                 </LabeledField>
 
                 <LabeledField :label="t('emoticon.payoutBank')" :error="fieldErrors.bankCode ?? ''">
                     <template #default="{ id: fieldId, describedBy, invalid }">
-                        <Select :input-id="fieldId" v-model="form.bankCode" :options="bankOptions" option-label="label" option-value="value" :placeholder="t('emoticon.payoutBankPick')" :invalid="invalid" :aria-describedby="describedBy" :disabled="!verified" fluid />
+                        <Select :input-id="fieldId" v-model="form.bankCode" :options="bankOptions" option-label="label" option-value="value" :placeholder="t('emoticon.payoutBankPick')" :invalid="invalid" :aria-describedby="describedBy" :disabled="!editable" fluid />
                     </template>
                 </LabeledField>
 
                 <LabeledField :label="t('emoticon.payoutAccountNumber')" :hint="t('emoticon.payoutAccountHint')" :error="fieldErrors.accountNumber ?? ''">
                     <template #default="{ id: fieldId, describedBy, invalid }">
-                        <InputText :id="fieldId" v-model="form.accountNumber" inputmode="numeric" autocomplete="off" maxlength="20" :invalid="invalid" :aria-describedby="describedBy" :disabled="!verified" fluid />
+                        <InputText :id="fieldId" v-model="form.accountNumber" inputmode="numeric" autocomplete="off" maxlength="20" :invalid="invalid" :aria-describedby="describedBy" :disabled="!editable" fluid />
                     </template>
                 </LabeledField>
 
@@ -101,7 +106,7 @@
                     :error="fieldErrors.holderName ?? ''"
                 >
                     <template #default="{ id: fieldId, describedBy, invalid }">
-                        <InputText :id="fieldId" v-model="form.holderName" autocomplete="off" maxlength="30" :invalid="invalid" :aria-describedby="describedBy" :disabled="!verified" fluid />
+                        <InputText :id="fieldId" v-model="form.holderName" autocomplete="off" maxlength="30" :invalid="invalid" :aria-describedby="describedBy" :disabled="!editable" fluid />
                     </template>
                 </LabeledField>
 
@@ -110,7 +115,7 @@
 
                 <div class="flex justify-end gap-2 border-t border-surface pt-3">
                     <Button v-if="account.registered" type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="saving" @click="cancelEdit" />
-                    <Button type="submit" :label="t('common.save')" :loading="saving" :disabled="!verified" data-testid="emoticon-payout-save" />
+                    <Button type="submit" :label="t('common.save')" :loading="saving" :disabled="!editable" data-testid="emoticon-payout-save" />
                 </div>
             </form>
 
@@ -134,6 +139,8 @@ import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
  * 인증했는데 가린 인증 이름(`identityNameMasked`)이 오지 않으면 인증 이름이 남아 있지 않은 것이라(V143 전 인증) 저장 전에 안내하고 [본인인증 다시 하기]를 둔다.
  * 저장이 `409 EMOTICON_IDENTITY_NAME_MISSING` 이면(사용자 결정 2026-11-05) 입력값을 그대로 두고 본인인증 대화상자(`useIdentityGate` purpose `ROBOTIKON`, `reverify`)를 연다 —
  * 인증이 끝나면 [저장]을 다시 누르면 된다. 판단은 오류 코드만으로 한다(서버가 `extras.reverify` 같은 표시를 더해도 보지 않는다).
+ * 만 19세 미만 작가(후속 결정 3): 본인인증 상태의 `adult` 가 false 면 입력·저장을 미리 잠그고 안내(+ 19세 생일)를 보인다. 저장이 `403 IDENTITY_UNDERAGE`(+ 최상위 `adultFrom`)면
+ * 서버 문구로 같은 안내를 띄운다. 무료 팩은 그대로 만들 수 있다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -155,6 +162,15 @@ const loadError = ref('');
 const editing = ref(false);
 
 const verified = computed(() => identity.status.value?.verified === true);
+/** 서버가 저장을 `403 IDENTITY_UNDERAGE` 로 막았다 — 그 문구와 최상위 `adultFrom`(화면이 아는 인증 상태가 낡았어도 서버를 따른다) */
+const underageError = ref<{ message: string; adultFrom: string | null } | null>(null);
+/** 만 19세 미만 작가(후속 결정 3) — 본인인증 상태의 `adult: false` 또는 서버 거절. 정산 정보를 등록할 수 없다(무료 팩은 된다) */
+const underage = computed(() => underageError.value !== null || (verified.value && identity.status.value?.adult === false));
+/** 안내 첫 줄 — 서버 문구가 있으면 그것, 아니면 화면 문구 */
+const underageText = computed(() => underageError.value?.message || t('emoticon.underageCreator'));
+const underageFrom = computed(() => underageError.value?.adultFrom ?? identity.status.value?.adultFrom ?? null);
+/** 입력·저장을 열어 둔다 — 본인인증을 마쳤고 만 19세 이상 */
+const editable = computed(() => verified.value && !underage.value);
 /** 서버가 `409 EMOTICON_IDENTITY_NAME_MISSING` 로 막았다(본인인증은 했지만 인증 이름이 남아 있지 않다 — 예금주를 대조할 수 없다) */
 const nameMissing = ref(false);
 /** 한 번 더 인증하는 중 · 방금 마쳤다(저장을 다시 누르면 된다) */
@@ -253,7 +269,7 @@ function cancelEdit(): void {
 }
 
 async function save(): Promise<void> {
-    if (saving.value || !form.bankCode || !verified.value) {
+    if (saving.value || !form.bankCode || !editable.value) {
         if (!form.bankCode) fieldErrors.value = { ...fieldErrors.value, bankCode: t('emoticon.payoutBankPick') };
         return;
     }
@@ -279,10 +295,17 @@ async function save(): Promise<void> {
 }
 
 /**
- * 저장 오류 — 서버 차례: 작가 자격 403(`ACCOUNT_RESTRICTED`·`EMAIL_NOT_VERIFIED`) → 본인인증 `403 IDENTITY_REQUIRED` → 인증 이름 없음 `409 EMOTICON_IDENTITY_NAME_MISSING`
+ * 저장 오류 — 서버 차례: 작가 자격 403(`ACCOUNT_RESTRICTED`·`EMAIL_NOT_VERIFIED`) → 본인인증 `403 IDENTITY_REQUIRED` → 만 19세 미만 `403 IDENTITY_UNDERAGE` → 인증 이름 없음 `409 EMOTICON_IDENTITY_NAME_MISSING`
  * → `400 VALIDATION fields.*`(칸 아래) → 데이터 키 없음 `503 DATA_KEY_MISSING`. 문구는 서버 것 그대로.
  */
 function applySaveError(e: unknown): void {
+    if (e instanceof ApiError && e.code === 'IDENTITY_UNDERAGE') {
+        // 만 19세 미만 작가(후속 결정 3) — 서버 문구·`adultFrom` 으로 안내 칸을 띄우고 입력을 잠근다. 인증 상태도 새로 받는다
+        underageError.value = { message: e.message, adultFrom: e.extraText('adultFrom') ?? null };
+        clearSecrets();
+        void identity.load();
+        return;
+    }
     if (e instanceof ApiError && e.code === 'IDENTITY_REQUIRED') {
         // 화면이 아는 인증 상태가 낡았다(다른 탭에서 인증이 풀렸거나 만료) — 다시 받아 본인인증 안내 칸을 띄우고 입력칸을 잠근다
         void identity.load();

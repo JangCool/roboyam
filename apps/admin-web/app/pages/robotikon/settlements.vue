@@ -29,6 +29,7 @@
             <ul v-if="list" class="m-0 flex list-none flex-col gap-1 p-0 text-xs leading-relaxed text-muted-color">
                 <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('emoticon.settlementRuleLine', { rate: list.rules.feeRatePercent, refundDays: list.rules.refundDays, minimum: list.rules.payoutMinimum.toLocaleString(locale) }) }}</span></li>
                 <li class="flex items-start gap-2"><i class="pi pi-send mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('emoticon.settlementTransferNote') }}</span></li>
+                <li class="flex items-start gap-2" data-testid="emoticon-settlement-business-day"><i class="pi pi-calendar mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('emoticon.settlementBusinessDayNote') }}</span></li>
             </ul>
         </div>
 
@@ -175,9 +176,10 @@
         <Dialog v-model:visible="paidOpen" modal :draggable="false" :closable="working !== 'paid'" :header="t('emoticon.paidTitle', { name: detail?.creator.nickname ?? '' })" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }">
             <form :id="ids.paidForm" class="flex flex-col gap-4" novalidate @submit.prevent="submitPaid">
                 <p v-if="detail" class="m-0 text-sm leading-relaxed">{{ t('emoticon.paidBody', { amount: detail.payoutAmount.toLocaleString(locale) }) }}</p>
-                <LabeledField :label="t('emoticon.paidDate')" :error="paidFieldErrors.transferDate ?? (paidSubmitted && !paidDate ? t('emoticon.paidDateRequired') : '')">
+                <!-- 이체일은 평일 업무일만(후속 결정 4) — 달력은 토·일을 막고, 공휴일은 목록 API 가 없어 서버 `400 fields.transferDate` 문구를 칸 아래에 보인다 -->
+                <LabeledField :label="t('emoticon.paidDate')" :help="t('emoticon.paidDateBusinessDay')" :error="paidDateError">
                     <template #default="{ id, describedBy, invalid }">
-                        <AppDatePicker v-model="paidDate" :input-id="id" :invalid="invalid" :described-by="describedBy" />
+                        <AppDatePicker v-model="paidDate" :input-id="id" :invalid="invalid" :described-by="describedBy" :disabled-days="WEEKEND_DAYS" @update:model-value="onPaidDateChange" />
                     </template>
                 </LabeledField>
                 <LabeledField :label="t('emoticon.paidMemo')" :hint="t('emoticon.paidMemoHint')" :error="paidFieldErrors.memo ?? ''">
@@ -496,13 +498,47 @@ const paidMemo = ref('');
 const paidSubmitted = ref(false);
 const paidFieldErrors = ref<Record<string, string>>({});
 
+/** 달력에서 막는 요일 — 일(0)·토(6). 공휴일은 서버가 막는다(`400 fields.transferDate`) */
+const WEEKEND_DAYS = [0, 6];
+
 function kstToday(): string {
     return new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
 }
 
+/** 달력 날짜 글자(`YYYY-MM-DD`)가 토·일인가 — 입력칸에 직접 쓴 날도 다시 본다(시간대와 무관한 달력 날짜로 센다) */
+function weekend(ymd: string): boolean {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+    if (!match) return false;
+    const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay();
+    return WEEKEND_DAYS.includes(day);
+}
+
+/** 오늘(KST)이 토·일이면 그 전 금요일 — 지급 기록 칸의 처음 값(이체일은 오늘이나 그 전이어야 한다) */
+function lastWeekday(): string {
+    let ymd = kstToday();
+    for (let i = 0; i < 2 && weekend(ymd); i++) ymd = new Date(Date.parse(`${ymd}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    return ymd;
+}
+
+/** 이체일 칸 아래 한 줄 — 서버 문구(공휴일·오늘 뒤 등) → 비었음 → 토·일 */
+const paidDateError = computed(() => {
+    if (paidFieldErrors.value.transferDate) return paidFieldErrors.value.transferDate;
+    if (paidSubmitted.value && !paidDate.value) return t('emoticon.paidDateRequired');
+    if (paidDate.value && weekend(paidDate.value)) return t('emoticon.paidDateWeekend');
+    return '';
+});
+
+/** 날을 바꾸면 서버가 준 이체일 문구는 낡았다 — 지운다 */
+function onPaidDateChange(): void {
+    if (!paidFieldErrors.value.transferDate) return;
+    const next = { ...paidFieldErrors.value };
+    delete next.transferDate;
+    paidFieldErrors.value = next;
+}
+
 function openPaid(): void {
     if (!detail.value || working.value) return;
-    paidDate.value = kstToday();
+    paidDate.value = lastWeekday();
     paidMemo.value = '';
     paidSubmitted.value = false;
     paidFieldErrors.value = {};
@@ -513,7 +549,7 @@ function openPaid(): void {
 async function submitPaid(): Promise<void> {
     const target = detail.value;
     paidSubmitted.value = true;
-    if (!target || working.value || !paidDate.value) return;
+    if (!target || working.value || !paidDate.value || weekend(paidDate.value)) return;
     working.value = 'paid';
     dialogError.value = '';
     paidFieldErrors.value = {};

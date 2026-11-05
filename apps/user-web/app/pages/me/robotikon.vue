@@ -21,17 +21,18 @@
                     <div class="min-w-0 flex-1">
                         <p class="m-0 flex flex-wrap items-center gap-1.5">
                             <NuxtLink :to="UtilEmoticon.packPath(pack.id)" class="rounded text-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ pack.name }}</NuxtLink>
-                            <PointShopTag :tone="pack.purchaseId ? 'primary' : 'neutral'">{{ pack.purchaseId ? t('emoticon.boughtTag') : t('emoticon.free') }}</PointShopTag>
+                            <PointShopTag v-if="pack.mine" tone="success" data-testid="my-emoticons-mine">{{ t('emoticon.mineTag') }}</PointShopTag>
+                            <PointShopTag v-else :tone="pack.purchaseId ? 'primary' : 'neutral'">{{ pack.purchaseId ? t('emoticon.boughtTag') : t('emoticon.free') }}</PointShopTag>
                         </p>
                         <p class="m-0 mt-0.5 text-xs text-muted-color">
                             {{ pack.creatorNickname ?? t('emoticon.official') }} · {{ t('emoticon.countTag', { count: pack.emoticons.length }) }} ·
-                            <time :datetime="pack.acquiredAt">{{ t(pack.purchaseId ? 'emoticon.boughtAt' : 'emoticon.acquiredAt', { date: time.listLabel(pack.acquiredAt) }) }}</time>
+                            <time :datetime="pack.acquiredAt">{{ t(pack.mine ? 'emoticon.publishedAt' : pack.purchaseId ? 'emoticon.boughtAt' : 'emoticon.acquiredAt', { date: time.listLabel(pack.acquiredAt) }) }}</time>
                         </p>
                         <p v-if="pack.suspended" class="m-0 mt-1 text-xs text-amber-700 dark:text-amber-400">{{ t('emoticon.suspendedOwned') }}</p>
                     </div>
-                    <!-- 무료 팩만 목록에서 뺀다 — 산 팩은 아래 구매 내역에서 환불(조건이 맞을 때) -->
+                    <!-- 무료로 받은 팩만 목록에서 뺀다 — 산 팩은 아래 구매 내역에서 환불(조건이 맞을 때), 내가 만든 팩은 빼지 않는다(후속 결정 1) -->
                     <Button
-                        v-if="!pack.purchaseId"
+                        v-if="!pack.purchaseId && !pack.mine"
                         type="button"
                         :label="t('emoticon.removeFromList')"
                         size="small"
@@ -110,6 +111,9 @@
         </section>
 
         <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.myNote') }}</p>
+        <p v-if="allPacks" class="m-0 inline-flex items-start gap-1.5 text-xs leading-relaxed text-muted-color" data-testid="my-emoticons-operator">
+            <i class="pi pi-shield mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('emoticon.operatorAllPacksNote') }}
+        </p>
     </div>
 </template>
 
@@ -128,6 +132,8 @@ import { ApiError } from '~/composables/common/useApiClient';
  *   판매자 이름(`sellerName`)이 비어 오면(사업자 정보 미설정) 사이트 사업자 정보(`useCommerceInfo`)의 상호, 그것도 없으면 사이트 이름.
  * - 모두 실제 API(S1 가진 팩·빼기, S3 구매 내역·환불). 환불 요청 키는 구매마다 하나 — 네트워크·5xx 는 같은 키로 다시, 서버가 판정한 4xx(429 포함)면 다음은 새 키.
  *   산 팩은 빼기 단추가 없다(서버도 `409 EMOTICON_PACK_PAID`). 그 오류가 오면(그새 산 경우) 가진 팩을 다시 받는다.
+ * - 내가 만든 팩(`mine` — 후속 결정 1, 사지 않아도 가진다): 「내가 만든 팩」 딱지 · 「상점에 나옴」 날짜 · 빼기 단추 없음(서버 `409 EMOTICON_PACK_OWNED` `reason: "CREATOR"`).
+ * - 운영자 회원 계정(`allPacks`)이면 맨 아래에 「상점의 판매 중 팩을 모두 쓸 수 있어요」 한 줄(목록에는 실제로 가진 팩만).
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -135,7 +141,7 @@ useSeoMeta({ title: () => t('emoticon.myTitle'), robots: 'noindex' });
 
 const uid = useId();
 const mine = useMyEmoticons();
-const { packs, error } = mine;
+const { packs, allPacks, error } = mine;
 const api = useMyEmoticonsApi();
 const publicApi = useEmoticonApi();
 const toast = useAppToast();
@@ -188,6 +194,8 @@ async function remove(packId: string, name: string): Promise<void> {
         toast.error(UtilEmoticonMessages.error(t, e), 8000);
         // 산 팩은 뺄 수 없다(`409 EMOTICON_PACK_PAID` — 그새 산 경우) — 가진 팩·구매 내역을 다시 받아 단추를 맞춘다
         if (e instanceof ApiError && e.code === 'EMOTICON_PACK_PAID') void Promise.all([mine.reload(), loadPurchases()]);
+        // 내가 만든 팩은 뺄 수 없다(`409 EMOTICON_PACK_OWNED` + `reason: "CREATOR"` — 화면이 받은 `mine` 이 낡았다) — 가진 팩을 다시 받아 단추를 숨긴다
+        else if (e instanceof ApiError && e.code === 'EMOTICON_PACK_OWNED') void mine.reload();
     } finally {
         removing.value = null;
     }

@@ -87,12 +87,16 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <!-- 유료 판매가 꺼져 있으면 「유료」를 새로 고를 수 없다(이미 고른 임시 저장은 무료로만 돌릴 수 있다 — 서버 `400 fields.saleWish`) -->
-                            <RadioButton v-model="form.saleWish" :input-id="`${uid}-paid`" value="PAID" :disabled="locked || !rules.paidSalesEnabled" />
-                            <label :for="`${uid}-paid`" class="text-sm" :class="{ 'text-muted-color': !rules.paidSalesEnabled }">{{ t('emoticon.saleWishPaid') }}</label>
+                            <RadioButton v-model="form.saleWish" :input-id="`${uid}-paid`" value="PAID" :disabled="locked || !rules.paidSalesEnabled || underage" />
+                            <label :for="`${uid}-paid`" class="text-sm" :class="{ 'text-muted-color': !rules.paidSalesEnabled || underage }">{{ t('emoticon.saleWishPaid') }}</label>
                         </div>
                     </div>
                     <p v-if="!rules.paidSalesEnabled" class="m-0 inline-flex items-start gap-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400" data-testid="emoticon-edit-paid-off">
                         <i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('emoticon.paidSalesOff') }}
+                    </p>
+                    <!-- 만 19세 미만 작가(후속 결정 3) — 유료 판매 희망을 고를 수 없다(무료 팩은 된다) -->
+                    <p v-else-if="underage" class="m-0 inline-flex items-start gap-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400" data-testid="emoticon-edit-underage">
+                        <i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" /><span>{{ underageText }} {{ UtilEmoticonMessages.underageRelease(t, underageFrom) }}</span>
                     </p>
                     <p :id="`${uid}-price-help`" class="m-0 text-xs leading-relaxed text-muted-color">
                         {{ form.saleWish === 'PAID' ? t('emoticon.priceHelpPaid', { tiers: UtilEmoticonMessages.tiers(t, rules.priceTiers), rate: UtilEmoticonMessages.percent(rules.feeRate) }) : t('emoticon.priceHelpFree') }}
@@ -104,8 +108,13 @@
                     유료 조건 — 새 유료 희망(유료 판매가 켜져 있을 때) · 이미 유료로 나온 팩의 새 판(서버 「S2 구현 결과」 결정 1). 정산 정보 + 지금 판 상품화 계약 동의가 있어야 심사 요청이 된다(임시 저장은 된다)
                 -->
                 <div v-if="paidCondition" class="flex flex-col gap-1.5" data-testid="emoticon-edit-paid-condition">
+                    <!-- 만 19세 미만 작가 — 유료 신청(새 유료 희망·유료 팩의 새 판)을 막는다. 정산 정보도 등록할 수 없어 등록 단추를 보이지 않는다 -->
+                    <div v-if="underage" role="alert" class="flex flex-col gap-0.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-edit-underage-block">
+                        <span>{{ underageText }}</span>
+                        <span class="text-xs">{{ UtilEmoticonMessages.underageRelease(t, underageFrom) }}</span>
+                    </div>
                     <!-- 정산 정보 — 없으면 심사 요청을 막는다 -->
-                    <div v-if="needsPayout" role="alert" class="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-edit-payout-needed">
+                    <div v-else-if="needsPayout" role="alert" class="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="emoticon-edit-payout-needed">
                         <span class="min-w-0 flex-1">{{ payoutNeededText }}</span>
                         <Button as="router-link" :to="UtilEmoticon.PAYOUT_PATH" :label="t('emoticon.payoutRegister')" size="small" severity="warn" variant="outlined" />
                     </div>
@@ -247,7 +256,8 @@ import UtilTerms from '~/utils/util-terms';
  * 유료 판매가 꺼져 있으면(`rules.paidSalesEnabled=false`, 기본) 「유료」를 고를 수 없고 안내를 띄운다(서버 `400 fields.saleWish`).
  * 유료 조건(S2 실제 API): 새 유료 희망 · **이미 유료로 나온 팩의 새 판** — 정산 정보(`GET …/payout-account`) + 지금 판 로보티콘 상품화 계약 동의(`GET …/contract` — 요약·판,
  * 전문은 공개 약관 화면 `/robotikon/contract` 새 창, 지금 판에 이미 동의했으면 다시 묻지 않는다, 게시된 계약이 없으면 null 이라 유료로 낼 수 없다)가 있어야 심사 요청이 된다(임시 저장은 된다).
- * 서버 차례: 칸 400(`fields.saleWish`) → `409 EMOTICON_PAYOUT_REQUIRED` → `409 EMOTICON_CONTRACT_REQUIRED`(계약을 다시 받아 동의 칸을 다시 보인다) → `409 EMOTICON_PENDING_LIMIT`.
+ * 서버 차례: 칸 400(`fields.saleWish`) → 만 19세 미만 `403 IDENTITY_UNDERAGE`(+ `adultFrom`, 후속 결정 3) → `409 EMOTICON_PAYOUT_REQUIRED` → `409 EMOTICON_CONTRACT_REQUIRED`(계약을 다시 받아 동의 칸을 다시 보인다) → `409 EMOTICON_PENDING_LIMIT`.
+ * 만 19세 미만 작가(본인인증 상태 `adult: false`)는 「유료 판매 희망」을 고를 수 없고 안내(+ 19세 생일)를 보인다. 무료 팩은 그대로 낸다.
  * 승인된 팩은 정해진 가격을 읽기만 하고 「가격 변경 요청 메모」(선택)만 남긴다 — 바꾸는 것은 운영자다.
  * 그림은 고르는 즉시 검사하고, 맞으면 바로 올린다(`POST …/images` — 서버가 저장한 그림 주소). 맞지 않는 그림은 목록에 남아 이유를 보이고 저장·신청을 막는다(지우면 풀린다).
  */
@@ -262,6 +272,7 @@ const publicApi = useEmoticonApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const time = useDisplayTime();
+const identity = useIdentity();
 
 const id = computed(() => String(route.params.id ?? ''));
 const isNew = computed(() => id.value === 'new');
@@ -371,7 +382,14 @@ async function load(): Promise<void> {
     status.value = 'loading';
     loadError.value = '';
     try {
-        const [r, p, account, terms] = await Promise.all([publicApi.rules(), isNew.value ? Promise.resolve(null) : api.pack(id.value), api.payoutAccount(), api.contract()]);
+        // 본인인증 상태는 만 19세 미만 작가의 유료 희망을 미리 막는 데만 쓴다(받지 못해도 화면은 연다 — 판정은 서버)
+        const [r, p, account, terms] = await Promise.all([
+            publicApi.rules(),
+            isNew.value ? Promise.resolve(null) : api.pack(id.value),
+            api.payoutAccount(),
+            api.contract(),
+            identity.ensureLoaded(),
+        ]);
         rules.value = r;
         pack.value = p;
         payout.value = account;
@@ -397,10 +415,22 @@ const paidOff = computed(() => paidWish.value && rules.value?.paidSalesEnabled =
 const paidRevision = computed(() => priceFixed.value && (pack.value?.price ?? 0) > 0);
 /** 유료 조건(정산 정보 + 지금 판 상품화 계약 동의)을 보는 신청 */
 const paidCondition = computed(() => (paidWish.value && !paidOff.value) || paidRevision.value);
+/** 서버가 심사 요청을 `403 IDENTITY_UNDERAGE` 로 막았다 — 그 문구와 최상위 `adultFrom`(화면이 아는 인증 상태가 낡았어도 서버를 따른다) */
+const underageError = ref<{ message: string; adultFrom: string | null } | null>(null);
+/**
+ * 만 19세 미만 작가(후속 결정 3) — 본인인증 상태의 `adult: false` 또는 서버 거절. 유료 판매 희망·유료 팩의 새 판을 낼 수 없다(무료 팩은 된다).
+ * 본인인증 전이면 여기서 막지 않는다(서버도 지금처럼 `409 EMOTICON_PAYOUT_REQUIRED` — 정산 정보 등록 화면이 본인인증으로 이끈다)
+ */
+const underage = computed(() => underageError.value !== null || (identity.status.value?.verified === true && identity.status.value.adult === false));
+/** 안내 첫 줄 — 서버 문구가 있으면 그것, 아니면 화면 문구 */
+const underageText = computed(() => underageError.value?.message || t('emoticon.underageCreator'));
+const underageFrom = computed(() => underageError.value?.adultFrom ?? identity.status.value?.adultFrom ?? null);
+/** 유료 조건인데 만 19세 미만이다 — 심사 요청을 막는다 */
+const underageBlocked = computed(() => paidCondition.value && !locked.value && underage.value);
 /** 서버가 심사 요청을 `409 EMOTICON_PAYOUT_REQUIRED` 로 막았다 — 화면이 받은 정산 정보와 달라도 서버를 따른다 */
 const payoutRequired = ref(false);
-/** 유료 조건인데 정산 정보가 없다 */
-const needsPayout = computed(() => paidCondition.value && !locked.value && ((payout.value !== null && !payout.value.registered) || payoutRequired.value));
+/** 유료 조건인데 정산 정보가 없다(만 19세 미만이면 그 안내가 먼저다) */
+const needsPayout = computed(() => paidCondition.value && !locked.value && !underage.value && ((payout.value !== null && !payout.value.registered) || payoutRequired.value));
 const payoutNeededText = computed(() => (paidRevision.value ? t('emoticon.payoutNeededRevision') : t('emoticon.payoutNeeded')));
 /** 내 최근 동의(동의 기록은 추가만 — 가장 늦은 것) */
 const latestAgreement = computed(() => (contract.value ? UtilEmoticon.latestAgreement(contract.value.agreements) : null));
@@ -578,6 +608,13 @@ function filesProblem(): string {
 }
 
 function applyError(e: unknown): void {
+    if (e instanceof ApiError && e.code === 'IDENTITY_UNDERAGE') {
+        // 만 19세 미만 작가의 유료 신청(후속 결정 3) — 서버 문구로 안내하고 인증 상태를 새로 받는다
+        underageError.value = { message: e.message, adultFrom: e.extraText('adultFrom') ?? null };
+        formError.value = e.message;
+        void identity.load();
+        return;
+    }
     if (e instanceof ApiError && e.code === 'EMOTICON_PAYOUT_REQUIRED') {
         payoutRequired.value = true;
         formError.value = payoutNeededText.value;
@@ -647,6 +684,7 @@ async function submit(): Promise<void> {
         UtilEmoticonSpec.tagsProblem(tags.value, r) ||
         UtilEmoticonSpec.countProblem(rows.value.length, r) ||
         paidOff.value ||
+        underageBlocked.value ||
         needsPayout.value ||
         needsContract.value ||
         rows.value.some((row) => UtilEmoticonSpec.labelProblem(row.label, r)) ||
@@ -661,13 +699,15 @@ async function submit(): Promise<void> {
                 ? t('emoticon.coverRequired')
                 : paidOff.value
                   ? t('emoticon.paidSalesOff')
-                  : needsPayout.value
-                    ? payoutNeededText.value
-                    : needsContract.value
-                      ? contract.value
-                          ? contractRequiredText.value
-                          : t('emoticon.contractMissing')
-                      : t('emoticon.fixFields'));
+                  : underageBlocked.value
+                    ? underageText.value
+                    : needsPayout.value
+                      ? payoutNeededText.value
+                      : needsContract.value
+                        ? contract.value
+                            ? contractRequiredText.value
+                            : t('emoticon.contractMissing')
+                        : t('emoticon.fixFields'));
         return;
     }
     busy.value = 'submit';

@@ -4,11 +4,13 @@ import com.community.emoticon.exception.EmoticonNotOwnedException;
 import com.community.emoticon.repository.master.EmoticonAcquisitionStore;
 import com.community.emoticon.repository.master.EmoticonPurchaseStore;
 import com.community.emoticon.repository.master.EmoticonReadStore;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.zconfiguration.message.MessageRef;
 import java.math.BigInteger;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       long 범위를 넘는 19자리 ID 도 센다. 21개부터 {@code 400 VALIDATION fields.content} — 그 칸에 다른 오류가 이미 있으면 그 오류가 남는다. 입력 오류와 함께 모은다.</li>
  *   <li><b>자격</b>({@link #requireOwned}): 입력 오류가 없을 때, 본문 순서로 long 범위 안 + 카탈로그(상점에 나왔던 팩의 상점 판)에 있는 로보티콘이 작성자가 지금 가진 팩의 것이 아니면
  *       {@code 409 EMOTICON_NOT_OWNED}(최상위 {@code emoticonId} = 처음 걸린 것). 없는 ID·범위 밖 ID 는 글자라 오류가 아니다. 비회원(작성자 없음)은 아무 팩도 가지지 않았다.
- *       <b>운영진·최고 관리자 면제는 없다</b>(회원과 같이 가진 팩만). 「가진 팩」에는 작가 자신이 만든 상점 팩이 들어간다(후속 결정 1 — {@link EmoticonAcquisitionStore#ownedAmong}).</li>
+ *       게시판 매니저·스텝 면제는 없다(회원과 같이 가진 팩만). 「가진 팩」에는 작가 자신이 만든 상점 팩이 들어간다(후속 결정 1 — {@link EmoticonAcquisitionStore#ownedAmong}).
+ *       <b>운영자 회원 계정</b>(힘이 살아 있을 때 — {@link OperatorMemberAccountService#isActiveOperatorAccount}, 요청마다 판정)은 가지지 않은 <b>판매 중</b> 팩도 쓴다
+ *       (판매 중단 팩은 위 규칙 그대로 — 가졌거나 만든 팩만). 가진 것으로 치지 않으므로 받기 줄·받은 수·보상·「사용함」·판매가 생기지 않는다(운영자 회원 계정 연결 2026-11-05).</li>
  *   <li><b>사용함</b>({@link #recordUse} — S3): 저장이 성공하는 <b>같은 트랜잭션</b>에서(글·소모임 글·댓글의 행을 쓴 뒤) 본문 토큰의 팩마다 그 회원이 산(보유 중인) 구매에 처음 쓴
  *       시각을 찍고, 같은 트랜잭션에서 자격을 한 번 더 본다 — 검사와 저장 사이에 환불·빼기가 끼어들면 409 로 저장 전체가 되돌아간다(환불은 구매 행을 잠그고 「안 씀」을 보므로
  *       찍힌 뒤의 셀프 환불은 막힌다). 고르기 창에서 넣기만 하고 저장하지 않으면 찍히지 않는다.</li>
@@ -45,12 +49,15 @@ public class EmoticonGuard {
     private final EmoticonReadStore reads;
     private final EmoticonAcquisitionStore acquisitions;
     private final EmoticonPurchaseStore purchases;
+    private final OperatorMemberAccountService operatorAccounts;
     private final Clock clock;
 
-    public EmoticonGuard(EmoticonReadStore reads, EmoticonAcquisitionStore acquisitions, EmoticonPurchaseStore purchases, ObjectProvider<Clock> clocks) {
+    public EmoticonGuard(EmoticonReadStore reads, EmoticonAcquisitionStore acquisitions, EmoticonPurchaseStore purchases, OperatorMemberAccountService operatorAccounts,
+                         ObjectProvider<Clock> clocks) {
         this.reads = reads;
         this.acquisitions = acquisitions;
         this.purchases = purchases;
+        this.operatorAccounts = operatorAccounts;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
@@ -129,12 +136,23 @@ public class EmoticonGuard {
         if (packOf.isEmpty()) {
             return;
         }
-        Set<Long> owned = authorId == null ? Set.of() : acquisitions.ownedAmong(authorId, new LinkedHashSet<>(packOf.values()));
+        Set<Long> usable = authorId == null ? Set.of() : usable(authorId, new LinkedHashSet<>(packOf.values()));
         for (Long id : ids) {
             Long pack = packOf.get(id);
-            if (pack != null && !owned.contains(pack)) {
+            if (pack != null && !usable.contains(pack)) {
                 throw new EmoticonNotOwnedException(id);
             }
         }
+    }
+
+    /** 이 팩들 중 작성자가 지금 쓸 수 있는 것 — 가진 팩 + (운영자 회원 계정이면) 판매 중 팩. 모두 가졌으면 운영자 판정을 묻지 않는다 */
+    private Set<Long> usable(long authorId, Set<Long> packIds) {
+        Set<Long> owned = acquisitions.ownedAmong(authorId, packIds);
+        if (owned.containsAll(packIds) || !operatorAccounts.isActiveOperatorAccount(authorId)) {
+            return owned;
+        }
+        Set<Long> out = new HashSet<>(owned);
+        out.addAll(acquisitions.onSaleAmong(packIds));
+        return out;
     }
 }

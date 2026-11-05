@@ -8,6 +8,8 @@ import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
  *     long 범위를 넘는 19자리 ID 여도 센다. 21개부터 `400 VALIDATION`(운영진·최고 관리자도 같다).
  *  2. 자격: 본문 순서로 토큰을 보며 **ID 로 읽히고(long 범위) 카탈로그에 있는** 로보티콘이 그 작성자가 가진 팩의 것이 아니면 `409 EMOTICON_NOT_OWNED`(처음 걸린 ID).
  *     없는 ID·범위를 넘는 ID 는 그냥 글자라 오류가 아니다. 운영진·최고 관리자(`unlimited`)는 자격을 보지 않는다.
+ *     운영자 회원 계정(operator-member-account-contract 15 — 서버 `EmoticonGuard` 의 운영자 회원 계정 판정)은 **판매 중** 팩을 가진 것으로 본다(`operatorOnSale`).
+ *     판매 중단 팩은 일반 규칙(실제로 가졌는가) 그대로이고, 개수 상한도 같다.
  *  순서는 개수(400) → 자격(409).
  */
 
@@ -25,6 +27,8 @@ export interface EmoticonBodyContext {
     owns: (packId: string) => boolean;
     /** 운영진·최고 관리자 — 자격을 보지 않는다(개수 제한은 같다) */
     unlimited: boolean;
+    /** 운영자 회원 계정이면 「판매 중 팩인가」 — 참이면 가진 것으로 본다. 운영자 회원 계정이 아니면 생략(null) */
+    operatorOnSale?: ((packId: string) => boolean) | null;
 }
 
 export default class UtilEmoticonRule {
@@ -54,7 +58,8 @@ export default class UtilEmoticonRule {
         for (const id of UtilRichEmoticon.ids(content)) {
             if (!UtilEmoticonRule.isId(id)) continue;
             const packId = ctx.packOf(id);
-            if (packId !== null && !ctx.owns(packId)) return { code: 'NOT_OWNED', emoticonId: id };
+            if (packId === null || ctx.owns(packId) || ctx.operatorOnSale?.(packId)) continue;
+            return { code: 'NOT_OWNED', emoticonId: id };
         }
         return null;
     }

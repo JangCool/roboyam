@@ -22,11 +22,21 @@ export interface MyEmoticonPack {
     /** 판매가 중단된 팩도 가졌으면 계속 쓴다 */
     suspended: boolean;
     emoticons: EmoticonItem[];
+    /**
+     * 내가 만든 팩(후속 결정 1 — 사지 않아도 가진다, 서버 `EmoticonPublicView.MyPack.mine`). `price` 0 · `purchaseId` null · `acquiredAt` = 상점에 처음 나온 시각.
+     * 목록에서 뺄 수 없다(서버 `409 EMOTICON_PACK_OWNED` + `reason: "CREATOR"`) — 화면은 「내가 만든 팩」 딱지를 붙이고 빼기 단추를 숨긴다
+     */
+    mine: boolean;
 }
 
 /** `GET /api/me/emoticons` — 지금 쓸 수 있는 팩(최근 가진 것 먼저). 없으면 `packs: []` */
 export interface MyEmoticons {
     packs: MyEmoticonPack[];
+    /**
+     * 운영자 회원 계정(operator-member-account-contract 15 — 서버 연결됨 2026-11-05)이면 true — 상점의 **판매 중** 팩을 모두 쓴다(`packs` 에는 실제로 가진 팩만 온다).
+     * 고르기 창이 나머지 판매 중 팩을 「운영자」 표시와 함께 더 보이고, 미리 검사도 판매 중 팩을 통과시킨다. 판매 중단 팩은 일반 규칙. 칸이 없으면(옛 응답) false 로 읽는다
+     */
+    allPacks?: boolean;
 }
 
 /** 구매 상태 — 결제 완료(보유) · 환불됨(결제 취소, 보유 해제) */

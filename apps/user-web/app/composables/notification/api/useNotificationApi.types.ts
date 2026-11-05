@@ -79,7 +79,13 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * 로보티콘 팩 처리(`docs/features/emoticon-contract.md` S1 — 묶음 `system`, 받는 사람 = 그 팩의 작가, 끌 수 없는 처리 알림). 종류 6가지(승인 · 반려 · 새 판 승인 · 새 판 반려 ·
      * 판매 중단 · 다시 판매)는 서버가 `title`·`body` 로 풀어 준다(사유도 문장에). `link` 는 스튜디오의 그 팩 `/robotikon/studio/{packId}`(팩 번호가 없으면 `/robotikon/studio`)
      */
-    | 'EMOTICON_PACK';
+    | 'EMOTICON_PACK'
+    /**
+     * 로보티콘 구매·환불(`docs/features/emoticon-contract.md` 「후속 결정 반영」 2 — 묶음 `system`, 받는 사람 = 산 회원, 끌 수 없는 거래 알림 `lockReason: ACTION`).
+     * kind 네 가지(구매 완료 `PAID` · 결제 자동 취소 `AUTO_CANCELED` · 셀프 환불 접수 `REFUNDED_SELF` · 운영자 예외 환불 `REFUNDED_EXCEPTION`)는 서버가 `title`·`body` 로 풀어 준다(kind 는 응답에 따로 오지 않는다).
+     * `link` 는 서버 값 그대로 — 구매 완료·환불 `/me/robotikon`, 자동 취소 `/robotikon/{packId}`
+     */
+    | 'EMOTICON_PURCHASE';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·
