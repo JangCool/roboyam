@@ -9,6 +9,8 @@ export default {
     homeLink: '{site} 홈',
     accountNav: '계정',
     accountMenu: '내 계정 메뉴',
+    darkMode: '다크 모드로 보기',
+    lightMode: '라이트 모드로 보기',
     // 테마 셸의 상단 메뉴(다음식 LNB · 네이버식 윗줄 링크)
     subMenuLabel: '{title} 메뉴',
     quickLinks: '바로가기',
