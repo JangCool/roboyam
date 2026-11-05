@@ -55,7 +55,7 @@
                 <div v-else-if="comment.contentFormat === 'HTML'" class="mt-1 break-words text-sm">
                     <span v-if="comment.replyTo" class="float-left mr-1 font-semibold leading-[1.75] text-primary">@{{ comment.replyTo.name }}</span>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div ref="htmlBody" class="rich-text" v-html="comment.content ?? ''" />
+                    <div ref="htmlBody" class="rich-text [--rt-video-max:30rem]" v-html="comment.content ?? ''" />
                 </div>
                 <!-- 평문 댓글 — 이모티콘 토큰은 조각으로 나눠 그림으로(`EmoticonText`, v-html 없음) -->
                 <p v-else class="mt-1 whitespace-pre-line break-words text-sm leading-relaxed">

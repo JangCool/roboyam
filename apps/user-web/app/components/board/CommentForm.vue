@@ -1,7 +1,8 @@
 <template>
     <!-- 댓글 입력 — 새 댓글·답글·고치기가 같이 쓴다. 비회원(댓글 자격 GUEST 게시판)은 이름·비밀번호·자동입력 방지를 함께 받는다. 링크·이미지 규칙은 미리 알리고 판정은 서버.
          본문은 게시판 댓글 에디터 설정(`commentEditor` 유효값)을 따른다: 평문은 Textarea(`TEXT`), 간단은 서식 에디터(`HTML` — 이미지 없음). 글자 수는 보이는 글자 기준 -->
-    <form class="flex flex-col gap-2" novalidate @submit.prevent="submit">
+    <!-- `--rt-video-max`: 붙여 넣은 영상 카드는 넓은 화면에서도 30rem 까지만(보이는 댓글과 같은 크기) -->
+    <form class="flex flex-col gap-2 [--rt-video-max:30rem]" novalidate @submit.prevent="submit">
         <p v-if="replyToName" class="text-xs text-muted-color">{{ t('comment.replyingTo', { name: replyToName }) }}</p>
         <RichEditor
             v-if="format === 'HTML'"

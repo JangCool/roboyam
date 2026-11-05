@@ -201,11 +201,13 @@ html[data-color-scheme='dark'] .rt-img-fail b {
     color: var(--p-red-400);
 }
 
-/* 유튜브 — 썸네일 + 재생 단추(누르면 iframe 으로 바뀐다). 16:9 자리를 미리 잡는다 */
+/* 유튜브 — 썸네일 + 재생 단추(누르면 iframe 으로 바뀐다). 16:9 자리를 미리 잡는다.
+   최대 폭은 쓰는 곳이 `--rt-video-max` 로 줄일 수 있다(댓글 — 넓은 화면에서 영상이 본문 폭만큼 커지지 않게) */
 .rt-yt {
     position: relative;
     box-sizing: border-box;
     width: 100%;
+    max-width: var(--rt-video-max, none);
     aspect-ratio: 16 / 9;
     margin: 0.75em 0;
     overflow: hidden;
