@@ -25,8 +25,8 @@ import com.community.emoticon.service.EmoticonContractService;
 import com.community.emoticon.service.EmoticonCreatorWithdrawal;
 import com.community.emoticon.service.EmoticonPayoutService;
 import com.community.emoticon.service.EmoticonPurchaseNotices;
-import com.community.holiday.repository.master.PublicHolidayStore;
-import com.community.holiday.service.PublicHolidayService;
+import com.community.holiday.repository.master.SiteHolidayStore;
+import com.community.holiday.service.SiteHolidayService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
 import com.community.identity.service.IdentityVerificationService;
@@ -138,7 +138,7 @@ final class EmoticonTestKit {
     final EmoticonSettlementCalculator settlementCalculator;
     final EmoticonSettlementService settlements;
     /** 후속 결정 — 공휴일 표 · 구매 알림 */
-    final PublicHolidayService holidays;
+    final SiteHolidayService holidays;
     final EmoticonPurchaseNotices purchaseNotices;
     /** 시험용 데이터 키(버전 1) */
     final DataCipher cipher;
@@ -200,7 +200,7 @@ final class EmoticonTestKit {
         acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks);
         purchases = new EmoticonPurchaseStore(dataSource);
         settlementStore = new EmoticonSettlementStore(dataSource);
-        holidays = new PublicHolidayService(new PublicHolidayStore(dataSource));
+        holidays = new SiteHolidayService(new SiteHolidayStore(dataSource), audit, clocks);
         settlementCalculator = new EmoticonSettlementCalculator(settlementStore, payoutStore, settings, holidays);
         studio = new EmoticonStudioService(packStore, reviewStore, imageStore, reads, settings, content, operatorPublisher, images, contracts, payoutStore, priceEvents,
                 purchases, settlementCalculator, identities, ids, clocks);

@@ -629,7 +629,7 @@ public class GroupBuyRequestService {
             return GroupBuyBusinessDays.Level.NONE;
         }
         Instant start = r.type() == RequestType.CANCEL ? r.createdAt() : r.receivedAt();
-        return start == null ? GroupBuyBusinessDays.Level.NONE : GroupBuyBusinessDays.deadlineLevel(start, now(), groups.settings().holidays());
+        return start == null ? GroupBuyBusinessDays.Level.NONE : GroupBuyBusinessDays.deadlineLevel(start, now(), groups.settings().calendar());
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────

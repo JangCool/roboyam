@@ -99,17 +99,19 @@ export default class UtilPointMessages {
     }
 
     /**
-     * 칸 하나의 스크린리더 이름 — "10월 6일 출석함 · 오늘"
+     * 칸 하나의 스크린리더 이름 — "10월 6일 출석함 · 오늘", 공휴일이면 이름을 덧붙인다("10월 3일, 개천절").
      * @param {Translate} t - 번역 함수.
      * @param {string} month - `YYYY-MM`.
      * @param {AttendanceCalendarCell} cell - 달력 칸.
+     * @param {string} [holidayNames] - 그날 공휴일 이름(`UtilHolidayMessages.names`). 없으면 ''.
      * @returns {string} 이름. 빈 칸이면 빈 글자.
      */
-    static cellLabel(t: Translate, month: string, cell: AttendanceCalendarCell): string {
+    static cellLabel(t: Translate, month: string, cell: AttendanceCalendarCell, holidayNames = ''): string {
         const parts = UtilPoint.monthParts(month);
         if (!parts || cell.day === null) return '';
         const date = t('point.calDay', { month: parts.month, day: cell.day, monthName: monthName(parts.month) });
-        const label = cell.attended ? t('point.calDayAttended', { date }) : date;
+        const named = holidayNames ? t('point.calDayHoliday', { date, names: holidayNames }) : date;
+        const label = cell.attended ? t('point.calDayAttended', { date: named }) : named;
         return cell.today ? t('point.calDayToday', { label }) : label;
     }
 

@@ -45,10 +45,12 @@ class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
     void keepRows() {
         saved = jdbc.queryForList("SELECT * FROM public_data_settings");
         jdbc.update("DELETE FROM public_data_settings");
+        jdbc.update("DELETE FROM public_data_endpoints");
     }
 
     @AfterEach
     void restoreRows() {
+        jdbc.update("DELETE FROM public_data_endpoints");
         jdbc.update("DELETE FROM public_data_settings");
         for (Map<String, Object> row : saved) {
             jdbc.update("INSERT INTO public_data_settings (key, value_cipher, updated_at, updated_by, tested_result, tested_at, tested_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -144,5 +146,57 @@ class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
 
         mvc.perform(withCsrf(put("/api/admin/public-data-settings"), session).content("{\"serviceKey\":\"" + SCREEN_KEY + "-new\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.lastTest").isEmpty());
+    }
+
+    // ── API 주소(사용자 지시 2026-11-05) ─────────────────────────────────────
+
+    @Test
+    void API_주소는_보기_site_read_저장과_되돌리기는_site_secret_없으면_403() throws Exception {
+        Cookie reader = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE));
+
+        mvc.perform(get("/api/admin/public-data-settings").cookie(reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.endpoints.nts.url.value").value("http://127.0.0.1:9")) // 배포 설정 값(이 시험) — 화면에서 넣은 값이 없을 때
+                .andExpect(jsonPath("$.data.endpoints.nts.url.custom").value(false))
+                .andExpect(jsonPath("$.data.endpoints.holiday.url.value").value("https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"))
+                .andExpect(jsonPath("$.data.endpoints.holiday.dateField.defaultValue").value("locdate"));
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/nts"), reader).content("{\"url\":\"https://nts.example.kr\"}")).andExpect(status().isForbidden());
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/holiday"), reader).content("{\"url\":\"https://h.example.kr\"}")).andExpect(status().isForbidden());
+        mvc.perform(withCsrf(delete("/api/admin/public-data-settings/endpoints/holiday"), reader)).andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM public_data_endpoints", Integer.class)).isZero();
+    }
+
+    @Test
+    void API_주소를_저장하면_바로_쓰고_감사를_남기며_https_가_아니면_400_기본값으로_되돌린다() throws Exception {
+        long operator = operatorWith(Permission.SITE_READ, Permission.SITE_SECRET);
+        Cookie session = login(operator);
+
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/nts"), session).content("{\"url\":\"http://nts.example.kr\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.url").isNotEmpty());
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/holiday"), session).content("{\"queryTemplate\":\"solYear={year}\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.queryTemplate").isNotEmpty());
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/other"), session).content("{}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("PUBLIC_DATA_ENDPOINT_NOT_FOUND"));
+
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/nts"), session).content("{\"url\":\"https://127.0.0.1:9/\"}"))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.data.nts.url.value").value("https://127.0.0.1:9")).andExpect(jsonPath("$.data.nts.url.custom").value(true))
+                .andExpect(jsonPath("$.data.nts.updatedBy").value(operatorName(operator)));
+        assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_ENDPOINT_UPDATE' ORDER BY id DESC LIMIT 1",
+                String.class, operator)).contains("https://127.0.0.1:9").contains("url");
+
+        // 키를 넣고 특일 정보 연결 시험 — 지금 주소(닫힌 포트)로 불러 응답 없음(바깥으로 나가지 않는다)
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings"), session).content("{\"serviceKey\":\"" + SCREEN_KEY + "\"}")).andExpect(status().isOk());
+        mvc.perform(withCsrf(put("/api/admin/public-data-settings/endpoints/holiday"), session)
+                        .content("{\"url\":\"https://127.0.0.1:9/getRestDeInfo\",\"dateField\":\"ymd\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.holiday.dateField.value").value("ymd"))
+                .andExpect(jsonPath("$.data.holiday.queryTemplate.custom").value(false));
+        mvc.perform(withCsrf(post("/api/admin/public-data-settings/holiday-test"), session)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.result").value("TIMEOUT")).andExpect(jsonPath("$.data.testedBy").value(operatorName(operator)));
+        mvc.perform(get("/api/admin/public-data-settings").cookie(session)).andExpect(jsonPath("$.data.endpoints.holiday.lastTest.result").value("TIMEOUT"));
+
+        mvc.perform(withCsrf(delete("/api/admin/public-data-settings/endpoints/holiday"), session)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.holiday.url.custom").value(false)).andExpect(jsonPath("$.data.holiday.dateField.value").value("locdate"))
+                .andExpect(jsonPath("$.data.nts.url.custom").value(true));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_ENDPOINT_RESET'", Integer.class, operator)).isEqualTo(1);
     }
 }

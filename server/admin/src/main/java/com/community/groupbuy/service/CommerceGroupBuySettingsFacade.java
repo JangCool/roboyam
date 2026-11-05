@@ -1,5 +1,7 @@
 package com.community.groupbuy.service;
 
+import com.community.holiday.service.BusinessDayCalendar;
+import com.community.holiday.service.SiteHolidayService;
 import com.community.commerce.sales.BusinessInfo;
 import com.community.commerce.sales.CommerceSalesService;
 import com.community.groupbuy.dto.request.GroupBuyAdminRequest;
@@ -47,10 +49,12 @@ public class CommerceGroupBuySettingsFacade {
     private final GroupBuyShipDeadlines shipDeadlines;
     private final PaymentAdminQueries payments;
     private final ObjectProvider<Clock> clocks;
+    private final SiteHolidayService siteHolidays;
 
     public CommerceGroupBuySettingsFacade(DataSource dataSource, ShippingPolicyService policies, ShippingPolicyStore policyStore, FulfillmentService fulfillment,
                                           FulfillmentStore fulfillmentStore, CommerceSalesService sales, GroupBuySettingsService settings,
-                                          GroupBuyShipDeadlines shipDeadlines, PaymentAdminQueries payments, ObjectProvider<Clock> clocks) {
+                                          GroupBuyShipDeadlines shipDeadlines, PaymentAdminQueries payments, ObjectProvider<Clock> clocks,
+                                          SiteHolidayService siteHolidays) {
         this.jdbc = new JdbcTemplate(dataSource);
         this.policies = policies;
         this.policyStore = policyStore;
@@ -61,6 +65,7 @@ public class CommerceGroupBuySettingsFacade {
         this.shipDeadlines = shipDeadlines;
         this.payments = payments;
         this.clocks = clocks;
+        this.siteHolidays = siteHolidays;
     }
 
     // ── 배송비 정책 ─────────────────────────────────────────────────────────
@@ -147,7 +152,7 @@ public class CommerceGroupBuySettingsFacade {
 
     public CommerceGroupBuySettingsView.Settings saveGroupBuySettings(AdminActor actor, GroupBuyAdminRequest.Settings body) {
         GroupBuyAdminRequest.SettingsValues v = body == null || body.values() == null
-                ? new GroupBuyAdminRequest.SettingsValues(null, null, null, null, null, null, null, null, null, null, null, null, null) : body.values();
+                ? new GroupBuyAdminRequest.SettingsValues(null, null, null, null, null, null, null, null, null, null, null, null) : body.values();
         Map<String, Long> numbers = new LinkedHashMap<>();
         numbers.put("holdMinutes", v.holdMinutes());
         numbers.put("thresholdPeriodMaxDays", v.thresholdPeriodMaxDays());
@@ -161,7 +166,7 @@ public class CommerceGroupBuySettingsFacade {
         numbers.put("expiredAddressRetentionDays", v.expiredAddressRetentionDays());
         numbers.put("shipWithinBusinessDays", v.shipWithinBusinessDays());
         numbers.put("supplyChoiceBusinessDays", v.supplyChoiceBusinessDays());
-        return view(settings.save(numbers, v.holidays(), actor.operatorId(), actor.ip()));
+        return view(settings.save(numbers, actor.operatorId(), actor.ip()));
     }
 
     // ── 대시보드 ────────────────────────────────────────────────────────────
@@ -175,13 +180,7 @@ public class CommerceGroupBuySettingsFacade {
         Long preparing = orders ? count("SELECT count(*) FROM group_buy_participations WHERE status = 'CONFIRMED'") : null;
         CommerceGroupBuySettingsView.OpenRequests open = null;
         if (orders) {
-            List<LocalDate> holidays = jdbc.queryForObject("SELECT holidays FROM group_buy_settings WHERE id = 1", (rs, i) -> {
-                List<LocalDate> out = new ArrayList<>();
-                for (Object d : (Object[]) rs.getArray(1).getArray()) {
-                    out.add(((java.sql.Date) d).toLocalDate());
-                }
-                return out;
-            });
+            BusinessDayCalendar holidays = siteHolidays.calendar();
             long total = 0;
             long warn = 0;
             long critical = 0;
@@ -242,7 +241,7 @@ public class CommerceGroupBuySettingsFacade {
         return new CommerceGroupBuySettingsView.Settings(new CommerceGroupBuySettingsView.SettingsValues(n.get("holdMinutes"), n.get("thresholdPeriodMaxDays"),
                 n.get("firstComePeriodMaxDays"), n.get("extensionMaxMinutes"), n.get("extensionWindowMinutes"), n.get("judgeGraceMinutes"), n.get("compensationCap"),
                 n.get("largeRefundThreshold"), n.get("addressRevealMinutes"), n.get("expiredAddressRetentionDays"), n.get("shipWithinBusinessDays"),
-                n.get("supplyChoiceBusinessDays"), v.holidays()), defaults, ranges, v.updatedAt(), v.updatedBy());
+                n.get("supplyChoiceBusinessDays")), defaults, ranges, v.updatedAt(), v.updatedBy());
     }
 
     private Instant now() {

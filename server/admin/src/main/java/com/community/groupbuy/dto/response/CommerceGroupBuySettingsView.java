@@ -48,7 +48,7 @@ public final class CommerceGroupBuySettingsView {
 
     public record SettingsValues(long holdMinutes, long thresholdPeriodMaxDays, long firstComePeriodMaxDays, long extensionMaxMinutes, long extensionWindowMinutes,
                                  long judgeGraceMinutes, long compensationCap, long largeRefundThreshold, long addressRevealMinutes, long expiredAddressRetentionDays,
-                                 long shipWithinBusinessDays, long supplyChoiceBusinessDays, List<LocalDate> holidays) {
+                                 long shipWithinBusinessDays, long supplyChoiceBusinessDays) {
     }
 
     public record Settings(SettingsValues values, Map<String, Long> defaults, Map<String, Range> ranges, Instant updatedAt, String updatedBy) {

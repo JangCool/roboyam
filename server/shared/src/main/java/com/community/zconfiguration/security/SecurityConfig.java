@@ -108,6 +108,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/avatars").permitAll()
                         // 로보티콘(docs/features/emoticon-contract.md S1) — 카탈로그·규격·상점 목록·팩 상세는 비회원·정지 회원도 읽는다(로그인했으면 보유 칸). 받기·내 로보티콘·스튜디오는 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/emoticons/catalog", "/api/emoticons/rules", "/api/emoticons/packs", "/api/emoticons/packs/*").permitAll()
+                        // 공개 공휴일(달력 표시 — 공휴일만, 회사 휴무일은 보내지 않는다) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/holidays").permitAll()
                         // 소모임(docs/features/group-contract.md 1단계) — 목록·분류·개설 규칙 안내·상세는 비회원도 읽는다(보는 사람에 따라 칸이 달라진다). 멤버 탭·쓰기는 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/groups", "/api/groups/categories", "/api/groups/creation-rules", "/api/groups/*").permitAll()
                         // 소모임 글(2단계) — 글 탭(비회원은 공개로 전환된 글만)·소모임 게시판 정보는 비회원도 읽는다. 글쓰기·공개 전환·봤어요는 로그인 필요

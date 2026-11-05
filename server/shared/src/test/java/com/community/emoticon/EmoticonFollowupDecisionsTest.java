@@ -353,10 +353,10 @@ class EmoticonFollowupDecisionsTest extends EmoticonTestBase {
     // ── 4. 업무일 ───────────────────────────────────────────────────────────
 
     @Test
-    void 공휴일_표는_2026_2027_만_시드하고_다음_업무일은_토_일_공휴일_대체공휴일을_건너뛴다() {
-        assertThat(kit.count("SELECT count(*) FROM public_holidays WHERE holiday_date BETWEEN '2026-01-01' AND '2026-12-31'")).isEqualTo(22);
-        assertThat(kit.count("SELECT count(*) FROM public_holidays WHERE holiday_date BETWEEN '2027-01-01' AND '2027-12-31'")).isEqualTo(24);
-        assertThat(kit.count("SELECT count(*) FROM public_holidays WHERE holiday_date BETWEEN '2028-01-01' AND '2028-12-31'")).isZero();
+    void 쉬는_날_표의_기본값은_2026_2027_만_시드하고_다음_업무일은_토_일_공휴일_대체공휴일을_건너뛴다() {
+        assertThat(kit.count("SELECT count(*) FROM site_holidays WHERE source = 'SEED' AND holiday_date BETWEEN '2026-01-01' AND '2026-12-31'")).isEqualTo(22);
+        assertThat(kit.count("SELECT count(*) FROM site_holidays WHERE source = 'SEED' AND holiday_date BETWEEN '2027-01-01' AND '2027-12-31'")).isEqualTo(24);
+        assertThat(kit.count("SELECT count(*) FROM site_holidays WHERE source = 'SEED' AND holiday_date BETWEEN '2028-01-01' AND '2028-12-31'")).isZero();
         BusinessDayCalendar cal = kit.holidays.calendar();
         assertThat(cal.covers(2026)).isTrue();
         assertThat(cal.covers(2027)).isTrue();
@@ -379,10 +379,10 @@ class EmoticonFollowupDecisionsTest extends EmoticonTestBase {
         Rules day3 = new Rules(30, 10_000, 3, 7, cal);
         assertThat(day3.payDate(LocalDate.parse("2026-09-01"))).isEqualTo("2026-10-06"); // 개천절(토) 다음 월요일 대체공휴일 → 화
         assertThat(day3.payDate(LocalDate.parse("2026-09-01")).getDayOfWeek()).isEqualTo(DayOfWeek.TUESDAY);
-        // DB CHECK — 모르는 종류 · 빈 이름
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO public_holidays (holiday_date, name, kind) VALUES ('2099-01-01', '시험', 'OTHER')"))
+        // DB CHECK — 모르는 출처 · 빈 이름 (V150 site_holidays)
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES ('2099-01-01', '시험', 'OTHER')"))
                 .isInstanceOf(org.springframework.dao.DataAccessException.class);
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO public_holidays (holiday_date, name, kind) VALUES ('2099-01-01', ' ', 'HOLIDAY')"))
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES ('2099-01-01', ' ', 'SEED')"))
                 .isInstanceOf(org.springframework.dao.DataAccessException.class);
     }
 

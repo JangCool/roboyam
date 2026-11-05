@@ -21,7 +21,7 @@
 
             <LabeledField :label="t('identity.fakeBirthDate')" :help="t('identity.fakeBirthDateHelp')" :error="errors.birthDate">
                 <template #default="{ id, describedBy, invalid }">
-                    <InputText :id="id" v-model="birthDate" type="date" name="birthDate" :max="today" :invalid="invalid" :aria-describedby="describedBy" :disabled="fake.busy" fluid data-testid="identity-fake-birth" />
+                    <AppDatePicker v-model="birthDate" :input-id="id" :max="today" :invalid="invalid" :described-by="describedBy" :disabled="fake.busy" data-testid="identity-fake-birth" />
                 </template>
             </LabeledField>
 

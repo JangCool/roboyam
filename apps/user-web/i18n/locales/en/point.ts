@@ -84,6 +84,7 @@ export default {
     calLoading: 'Loading the check-in calendar',
     calLoadFailed: 'Couldn’t load the check-in calendar',
     calDay: '{monthName} {day}',
+    calDayHoliday: '{date} ({names})',
     calDayAttended: '{date}, checked in',
     calDayToday: '{label} · today',
     calLegend: 'Blue days are check-ins; the bold outline is today.',

@@ -8,6 +8,7 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -42,9 +43,16 @@ public class OdcloudNtsApi {
     }
 
     private final RestClient client;
+    /** 지금 쓸 기본 주소(호출마다 — 화면에서 바꾸면 다음 호출부터, {@code PublicDataEndpointService#ntsBaseUrl}). null 이면 클라이언트의 기본 주소 */
+    private final Supplier<String> baseUrl;
 
     public OdcloudNtsApi(RestClient client) {
+        this(client, () -> null);
+    }
+
+    public OdcloudNtsApi(RestClient client, Supplier<String> baseUrl) {
         this.client = client;
+        this.baseUrl = baseUrl;
     }
 
     /** 상태조회 — 진위는 {@code UNCHECKED} */
@@ -95,8 +103,12 @@ public class OdcloudNtsApi {
     }
 
     private Map<?, ?> post(String path, String serviceKey, Object body) {
-        return client.post()
-                .uri(b -> b.path(path).queryParam("serviceKey", "{key}").queryParam("returnType", "JSON").build(serviceKey))
+        String base = baseUrl.get();
+        RestClient.RequestBodyUriSpec spec = client.post();
+        RestClient.RequestBodySpec request = base == null || base.isBlank()
+                ? spec.uri(b -> b.path(path).queryParam("serviceKey", "{key}").queryParam("returnType", "JSON").build(serviceKey))
+                : spec.uri(base + path + "?serviceKey={key}&returnType=JSON", serviceKey);
+        return request
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON).body(body)
                 .retrieve().body(Map.class);
     }

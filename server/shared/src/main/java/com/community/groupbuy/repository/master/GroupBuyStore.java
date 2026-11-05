@@ -2,6 +2,8 @@ package com.community.groupbuy.repository.master;
 
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.SkuKind;
+import com.community.holiday.repository.master.SiteHolidayStore;
+import com.community.holiday.service.BusinessDayCalendar;
 import java.sql.Array;
 import java.sql.Date;
 import java.sql.ResultSet;
@@ -84,9 +86,13 @@ public class GroupBuyStore {
     public record ImageRow(String imageKey, String thumbKey, int sortOrder) {
     }
 
-    /** 공구 설정(1행) — 돈·시각에 닿는 값은 그 트랜잭션 안에서 읽는다(결정 19) */
+    /**
+     * 공구 설정(1행) — 돈·시각에 닿는 값은 그 트랜잭션 안에서 읽는다(결정 19).
+     *
+     * @param calendar 영업일 판정 — 사이트 쉬는 날 표({@code site_holidays}) 전부를 같은 문장에서 읽는다(공구 설정에 따로 휴일 칸이 없다 — 사용자 지시 2026-11-05)
+     */
     public record Settings(int holdMinutes, int demandMaxDays, int firstComeMaxDays, int extensionMinutes, int extensionWindowMinutes, int judgeGraceMinutes,
-                           int shipWithinBusinessDays, List<LocalDate> holidays, long compensationCap, long largeRefundThreshold, int addressRevealMinutes,
+                           int shipWithinBusinessDays, BusinessDayCalendar calendar, long compensationCap, long largeRefundThreshold, int addressRevealMinutes,
                            int supplyChoiceBusinessDays) {
     }
 
@@ -100,8 +106,10 @@ public class GroupBuyStore {
 
     public Settings settings() {
         return jdbc.queryForObject("SELECT hold_minutes, demand_max_days, first_come_max_days, extension_minutes, extension_window_minutes, judge_grace_minutes, "
-                + "ship_within_business_days, holidays, compensation_cap, large_refund_threshold, address_reveal_minutes, supply_choice_business_days FROM group_buy_settings WHERE id = 1",
-                (rs, i) -> new Settings(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), dates(rs.getArray(8)), rs.getLong(9),
+                + "ship_within_business_days, ARRAY(" + SiteHolidayStore.ALL_DATES_SQL + ") AS holidays, compensation_cap, large_refund_threshold, address_reveal_minutes, "
+                + "supply_choice_business_days FROM group_buy_settings WHERE id = 1",
+                (rs, i) -> new Settings(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7),
+                        BusinessDayCalendar.of(dates(rs.getArray(8))), rs.getLong(9),
                         rs.getLong(10), rs.getInt(11), rs.getInt(12)));
     }
 

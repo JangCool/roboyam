@@ -1,5 +1,6 @@
 package com.community.business.nts;
 
+import com.community.publicdata.service.PublicDataEndpointService;
 import com.community.publicdata.service.PublicDataSettingsService;
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -29,11 +30,12 @@ public class NtsConfig {
     static final Duration READ_TIMEOUT = Duration.ofSeconds(4);
 
     @Bean
-    public OdcloudNtsApi odcloudNtsApi(NtsProperties properties) {
+    public OdcloudNtsApi odcloudNtsApi(NtsProperties properties, PublicDataEndpointService endpoints) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build());
         factory.setReadTimeout(READ_TIMEOUT);
-        return new OdcloudNtsApi(RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build());
+        // 기본 주소는 호출마다 읽는다 — 화면(설정 › 공공데이터포털 › API 주소)에서 넣은 값 → 배포 설정 roboyam.business.nts.base-url(사용자 지시 2026-11-05)
+        return new OdcloudNtsApi(RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build(), endpoints::ntsBaseUrl);
     }
 
     @Bean

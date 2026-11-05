@@ -2,6 +2,7 @@
     <!--
         기간 고르기 달력(§6 「언제 비었는지가 첫 질문」) — `DatePicker inline` 범위 고르기. 날짜마다 남은 칸 점(초록 = 신청 가능 · 노랑 = 자리 적음 · 꽉 찬 날은 고를 수 없음).
         값은 달력 날짜 글자(`YYYY-MM-DD`, 끝 포함)이고 시간대로 바꾸지 않는다. 저장 때 서버가 다시 판정한다. 광고 신청·핫딜 노출이 같이 쓴다.
+        공휴일은 빨간 숫자 + 칸 `title`·`aria-label` 에 이름(레이어 `useHolidayCalendar` — 처음 그릴 때 고를 수 있는 범위의 해를 받는다). 표시만 하고 막지 않는다.
     -->
     <div class="flex flex-col gap-2" data-testid="business-period-calendar">
         <div class="w-full max-w-sm self-center sm:self-start">
@@ -15,8 +16,10 @@
                 :manual-input="false"
                 :aria-label="t('business.ad.calendarLabel')"
                 class="w-full"
-                :pt="{ panel: { class: 'w-full min-w-0' } }"
+                :pt="{ ...holidayCalendar.pt, panel: { class: 'w-full min-w-0' } }"
                 @update:model-value="onPick"
+                @month-change="holidayCalendar.onMonthChange"
+                @year-change="holidayCalendar.onYearChange"
             >
                 <template #date="{ date }">
                     <span class="flex flex-col items-center leading-none">
@@ -65,6 +68,9 @@ function toYmd(d: Date): string {
 
 const minAsDate = computed(() => toDate(props.min));
 const maxAsDate = computed(() => toDate(props.max));
+
+/** 공휴일 표시 — inline 달력이라 「열기」가 없어 처음에 범위·고른 날이 든 해를 받는다 */
+const holidayCalendar = useHolidayCalendar({ anchors: () => [minAsDate.value, maxAsDate.value, model.value.start ? toDate(model.value.start) : null], immediate: true });
 const fullDates = computed(() => props.days.filter((d) => d.remaining <= 0).map((d) => toDate(d.date)));
 
 const pickerValue = computed<Date[] | null>(() => {

@@ -1,7 +1,7 @@
 <template>
     <!--
         커머스 설정 구획 「공구 설정」(계약 결정 8·10·51·53) — 선점 시간(3~30분) · 기간 상한(성사형·선착순) · 연장 최대·판단 창 · 판정 여유 · 고객 택배비 보상 상한 · 고액 환불 문턱(0 = 끔)
-        · 배송지 열람 화면 유지 · 만료 주문 배송지 보관 · 즉시 발송 기본 N영업일 · 공급 불가 선택 기한 + 휴일 목록(주말 외 — 영업일 계산에 쓴다, 공휴일 API 는 쓰지 않는다).
+        · 배송지 열람 화면 유지 · 만료 주문 배송지 보관 · 즉시 발송 기본 N영업일 · 공급 불가 선택 기한. 영업일 계산의 휴일은 여기서 정하지 않는다 — 휴일 관리(`/settings/holidays`, 사이트 휴일 표 하나)로 가는 링크만 둔다.
         범위·기본값은 서버가 준다(`ranges`·`defaults`). 칸은 `InputText` + `inputmode=numeric`. 이 구획만 저장한다(PUT 한 번 — 구획 맨 아래 저장 줄). 바꿀 때 감사(전→후).
         돈과 시각에 닿는 값은 서버가 트랜잭션 안에서 DB 의 지금 값을 읽는다(결정 19) — 저장하면 다음 요청부터 쓴다.
     -->
@@ -28,21 +28,11 @@
                 </li>
             </ul>
 
-            <!-- 휴일 -->
-            <div class="flex flex-col gap-2">
-                <span class="text-sm font-medium">{{ t('commerce.gbHolidays') }}</span>
-                <p class="m-0 text-xs text-muted-color">{{ t('commerce.gbHolidaysHelp') }}</p>
-                <div class="flex flex-wrap gap-1.5">
-                    <Chip v-for="d in holidays" :key="d" :label="time.serviceDate(d)" :removable="editable" @remove="holidays = holidays.filter((x) => x !== d)" />
-                    <span v-if="!holidays.length" class="text-xs text-muted-color">{{ t('commerce.gbNoHolidays') }}</span>
-                </div>
-                <div v-if="editable" class="flex flex-wrap items-center gap-2">
-                    <label :for="`${uid}-holiday`" class="sr-only">{{ t('commerce.gbHolidayAdd') }}</label>
-                    <div class="w-44"><AppDatePicker v-model="newHoliday" :input-id="`${uid}-holiday`" /></div>
-                    <Button type="button" :label="t('common.add')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" :disabled="!newHoliday" @click="addHoliday" />
-                </div>
-                <p v-for="(msg, k) in holidayErrors" :key="k" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ msg }}</p>
-            </div>
+            <!-- 휴일 — 영업일 계산의 쉬는 날은 사이트 휴일 표 하나(휴일 관리)에서 정한다 -->
+            <p class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color">
+                <i class="pi pi-calendar mt-0.5 text-xs" aria-hidden="true" />
+                <span>{{ t('commerce.gbHolidaysMoved') }} <NuxtLink to="/settings/holidays" class="font-medium text-primary underline">{{ t('commerce.gbHolidaysLink') }}</NuxtLink></span>
+            </p>
 
             <p class="m-0 text-xs text-muted-color">{{ saved.updatedAt ? t('commerce.lastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy ?? '—' }) : t('commerce.neverSaved') }}</p>
             <SaveBar v-if="canEdit" :dirty="changed.length > 0" :count="changed.length" :saving="saving" :disabled="problemCount > 0" :error-count="problemCount" :error="formError" @save="save" @revert="applySaved(saved)" />
@@ -87,8 +77,6 @@ const uid = useId();
 
 const saved = ref<GroupBuySettingsView | null>(null);
 const form = ref<Record<GroupBuySettingsNumberKey, string>>(Object.fromEntries(KEYS.map((k) => [k, ''])) as Record<GroupBuySettingsNumberKey, string>);
-const holidays = ref<string[]>([]);
-const newHoliday = ref('');
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
 const saving = ref(false);
@@ -96,13 +84,10 @@ const formError = ref('');
 const serverErrors = ref<Record<string, string>>({});
 const editable = computed(() => props.canEdit && !saving.value);
 
-const holidaysChanged = computed(() => !!saved.value && [...holidays.value].sort().join() !== [...saved.value.values.holidays].sort().join());
-const changed = computed(() => {
+const changed = computed<string[]>(() => {
     const s = saved.value;
     if (!s) return [];
-    const out: string[] = KEYS.filter((k) => UtilGroupBuy.int(form.value[k]) !== s.values[k]);
-    if (holidaysChanged.value) out.push('holidays');
-    return out;
+    return KEYS.filter((k) => UtilGroupBuy.int(form.value[k]) !== s.values[k]);
 });
 watch(
     () => changed.value.length > 0,
@@ -125,7 +110,6 @@ function errorOf(key: GroupBuySettingsNumberKey): string {
 }
 
 const problemCount = computed(() => KEYS.filter((k) => localProblem(k)).length);
-const holidayErrors = computed(() => Object.entries(serverErrors.value).filter(([k]) => k.startsWith('values.holidays')).map(([, v]) => v));
 
 function onInput(key: GroupBuySettingsNumberKey, value: string): void {
     form.value = { ...form.value, [key]: value };
@@ -136,15 +120,9 @@ function onInput(key: GroupBuySettingsNumberKey, value: string): void {
     }
 }
 
-function addHoliday(): void {
-    if (newHoliday.value && !holidays.value.includes(newHoliday.value)) holidays.value = [...holidays.value, newHoliday.value].sort();
-    newHoliday.value = '';
-}
-
 function applySaved(view: GroupBuySettingsView): void {
     saved.value = view;
     form.value = Object.fromEntries(KEYS.map((k) => [k, String(view.values[k])])) as Record<GroupBuySettingsNumberKey, string>;
-    holidays.value = [...view.values.holidays];
     serverErrors.value = {};
     formError.value = '';
 }
@@ -168,7 +146,7 @@ async function save(): Promise<void> {
     serverErrors.value = {};
     try {
         const numbers = Object.fromEntries(KEYS.map((k) => [k, UtilGroupBuy.int(form.value[k]) ?? 0])) as Record<GroupBuySettingsNumberKey, number>;
-        applySaved(await api.saveGroupBuySettings({ values: { ...numbers, holidays: holidays.value } }));
+        applySaved(await api.saveGroupBuySettings({ values: numbers }));
         toast.success(t('commerce.gbSaved'));
     } catch (e) {
         const failure = toApiError(e);

@@ -21,4 +21,7 @@ export default defineNuxtConfig({
 
     // 이 레이어의 컴포넌트는 폴더명을 이름에 붙이지 않고, `.ts` 파일을 컴포넌트로 잡지 않는다(`.vue` 만)
     components: [{ path: fileURLToPath(new URL('./components', import.meta.url)), pathPrefix: false, extensions: ['vue'] }],
+
+    // 달력 날짜 칸의 쉬는 날 색(`UtilHoliday.cellClass`) — 레이어 부품과 앱이 직접 그린 달력이 같이 쓰므로 전역에 싣는다
+    css: [fileURLToPath(new URL('./assets/holiday.css', import.meta.url))],
 });

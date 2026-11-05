@@ -217,7 +217,7 @@
                 <!-- 이체일은 평일 업무일만(후속 결정 4) — 달력은 토·일을 막고, 공휴일은 목록 API 가 없어 서버 `400 fields.transferDate` 문구를 칸 아래에 보인다 -->
                 <LabeledField :label="t('emoticon.paidDate')" :help="t('emoticon.paidDateBusinessDay')" :error="paidDateError">
                     <template #default="{ id, describedBy, invalid }">
-                        <AppDatePicker v-model="paidDate" :input-id="id" :invalid="invalid" :described-by="describedBy" :disabled-days="WEEKEND_DAYS" @update:model-value="onPaidDateChange" />
+                        <AppDatePicker v-model="paidDate" :input-id="id" :invalid="invalid" :described-by="describedBy" :disabled-days="WEEKEND_DAYS" disable-holidays @update:model-value="onPaidDateChange" />
                     </template>
                 </LabeledField>
                 <LabeledField :label="t('emoticon.paidMemo')" :hint="t('emoticon.paidMemoHint')" :error="paidFieldErrors.memo ?? ''">
@@ -575,7 +575,7 @@ const paidMemo = ref('');
 const paidSubmitted = ref(false);
 const paidFieldErrors = ref<Record<string, string>>({});
 
-/** 달력에서 막는 요일 — 일(0)·토(6). 공휴일은 서버가 막는다(`400 fields.transferDate`) */
+/** 달력에서 막는 요일 — 일(0)·토(6). 쉬는 날(공휴일·회사 휴무일)은 달력에서 고를 수 없게 하고(`disable-holidays`), 공휴일은 서버도 막는다(`400 fields.transferDate` — 입력칸에 직접 쓴 날) */
 const WEEKEND_DAYS = [0, 6];
 
 function kstToday(): string {

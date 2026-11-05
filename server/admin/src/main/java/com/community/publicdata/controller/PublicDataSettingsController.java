@@ -1,6 +1,12 @@
 package com.community.publicdata.controller;
 
+import com.community.holiday.service.HolidaySyncService;
 import com.community.permission.annotation.RequirePermission;
+import com.community.publicdata.dto.request.PublicDataEndpointRequest;
+import com.community.publicdata.dto.response.PublicDataEndpointsView;
+import com.community.publicdata.service.PublicDataEndpointService;
+import com.community.publicdata.exception.PublicDataEndpointNotFoundException;
+import org.springframework.web.bind.annotation.PathVariable;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.publicdata.dto.request.PublicDataSaveRequest;
@@ -27,9 +33,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicDataSettingsController {
 
     private final PublicDataSettingsService service;
+    private final PublicDataEndpointService endpoints;
+    private final HolidaySyncService holidaySync;
 
-    public PublicDataSettingsController(PublicDataSettingsService service) {
+    public PublicDataSettingsController(PublicDataSettingsService service, PublicDataEndpointService endpoints, HolidaySyncService holidaySync) {
         this.service = service;
+        this.endpoints = endpoints;
+        this.holidaySync = holidaySync;
     }
 
     @RequirePermission(Permission.SITE_READ)
@@ -58,6 +68,43 @@ public class PublicDataSettingsController {
     @PostMapping("/test")
     public ResponseEntity<ApiResponse<PublicDataSettingsView.Test>> test(AdminActor actor) {
         return noStore(service.test(actor.operatorId()));
+    }
+
+    /**
+     * API 주소 저장(사용자 지시 2026-11-05) — {@code api} = {@code nts}(국세청 기본 주소) · {@code holiday}(특일 정보 주소·요청 글자 틀·응답 칸 이름). 빈 칸은 기본값.
+     * 400 {@code fields.url} 등 · 404 {@code PUBLIC_DATA_ENDPOINT_NOT_FOUND}(모르는 API). 다음 요청부터 그 주소를 쓴다.
+     */
+    @RequirePermission(Permission.SITE_SECRET)
+    @PutMapping("/endpoints/{api}")
+    public ResponseEntity<ApiResponse<PublicDataEndpointsView>> saveEndpoint(@PathVariable String api, @RequestBody(required = false) PublicDataEndpointRequest body,
+                                                                            AdminActor actor) {
+        PublicDataEndpointRequest b = body == null ? new PublicDataEndpointRequest(null, null, null, null) : body;
+        return noStore(switch (api(api)) {
+            case PublicDataEndpointService.NTS -> endpoints.saveNts(b.url(), actor.operatorId(), actor.ip());
+            default -> endpoints.saveHoliday(b.url(), b.queryTemplate(), b.dateField(), b.nameField(), actor.operatorId(), actor.ip());
+        });
+    }
+
+    /** API 주소 기본값으로 되돌리기 — 모든 칸 */
+    @RequirePermission(Permission.SITE_SECRET)
+    @DeleteMapping("/endpoints/{api}")
+    public ResponseEntity<ApiResponse<PublicDataEndpointsView>> resetEndpoint(@PathVariable String api, AdminActor actor) {
+        return noStore(endpoints.reset(api(api), actor.operatorId(), actor.ip()));
+    }
+
+    /** 특일 정보 연결 시험 — 지금 키·주소로 올해 1월 한 달 조회(표는 바꾸지 않는다). {@code { result, testedAt, testedBy }} */
+    @RequirePermission(Permission.SITE_READ)
+    @PostMapping("/holiday-test")
+    public ResponseEntity<ApiResponse<PublicDataSettingsView.Test>> holidayTest(AdminActor actor) {
+        return noStore(holidaySync.probe(actor.operatorId()));
+    }
+
+    private static String api(String path) {
+        String value = path == null ? "" : path.strip().toUpperCase(java.util.Locale.ROOT);
+        if (!PublicDataEndpointService.NTS.equals(value) && !PublicDataEndpointService.HOLIDAY.equals(value)) {
+            throw new PublicDataEndpointNotFoundException();
+        }
+        return value;
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

@@ -324,7 +324,7 @@ public class GroupBuyAdminFacade {
                         .mapToLong(l -> ((Number) l.get("held")).longValue() * ((Number) l.get("unit_price")).longValue()).sum();
             }
         }
-        Instant deadline = GroupBuyBusinessDays.endOfBusinessDays(now(), groups.settings().supplyChoiceBusinessDays(), groups.settings().holidays());
+        Instant deadline = GroupBuyBusinessDays.endOfBusinessDays(now(), groups.settings().supplyChoiceBusinessDays(), groups.settings().calendar());
         return new GroupBuyAdminView.SupplyFailurePreview(Long.toString(skuId), sku.name(), sku.kind().name(), cancelLines, refund, full, choice, deadline);
     }
 

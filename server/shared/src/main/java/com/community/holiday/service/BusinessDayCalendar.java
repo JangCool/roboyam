@@ -10,17 +10,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 업무일 달력(값 객체) — 업무일 = 토·일이 아니고 공휴일 표({@code public_holidays})에 없는 날. 날짜는 한국 날짜(서비스 시간대)다. 시각(업무시간)은 보지 않는다.
+ * 쉬는 날 판정 하나(값 객체) — <b>사이트 전체가 이것만 쓴다</b>(사용자 지시 2026-11-05). 업무일(영업일) = 토·일이 아니고 사이트 쉬는 날 표({@code site_holidays} —
+ * 공공데이터 공휴일 · 기본값 · 회사 휴무일 모두)에 없는 날. 날짜는 한국 날짜(서비스 시간대)다. 시각(업무시간)은 보지 않는다.
+ * 쓰는 곳: 공동구매 영업일({@code GroupBuyBusinessDays} — 처리 기한·공급 불가 선택 기한·발송 기한·문의 답변 기한) · 로보티콘 정산 지급일·이체일.
  *
- * <p>공휴일 표에 그 해가 없으면(시드를 넣지 않은 해) 주말만 거른다 — 그 해를 처음 물을 때 한 번 WARN 을 남긴다(해마다 다음 해 공휴일을 마이그레이션으로 더해야 한다).
- * 공구의 영업일({@code GroupBuyBusinessDays} — 관리자가 넣는 공구 설정 휴일 목록)과는 따로다(emoticon-contract 「후속 결정 반영(2026-11-05)」 미확정).
+ * <p>표에 그 해의 날이 하나도 없으면(공공데이터를 아직 받지 못한 해) 주말만 거른다 — 그 해를 처음 물을 때 한 번 WARN 을 남긴다(공휴일은 매월 1일 배치 {@code holiday-sync} 가 받는다).
  *
- * @param holidays 공휴일(대체공휴일·선거일 포함)
+ * @param holidays 쉬는 날(공휴일·대체공휴일·선거일·회사 휴무일)
  */
 public record BusinessDayCalendar(Set<LocalDate> holidays) {
 
     private static final Logger log = LoggerFactory.getLogger(BusinessDayCalendar.class);
-    /** 공휴일이 없는 해를 이미 알렸다(같은 서버에서 한 번) */
+    /** 쉬는 날이 없는 해를 이미 알렸다(같은 서버에서 한 번) */
     private static final Set<Integer> WARNED = ConcurrentHashMap.newKeySet();
 
     public BusinessDayCalendar {
@@ -31,12 +32,12 @@ public record BusinessDayCalendar(Set<LocalDate> holidays) {
         return new BusinessDayCalendar(new TreeSet<>(holidays));
     }
 
-    /** 주말만 거르는 달력(공휴일 없음) */
+    /** 주말만 거르는 달력(쉬는 날 없음) */
     public static BusinessDayCalendar weekendsOnly() {
         return new BusinessDayCalendar(Set.of());
     }
 
-    /** 공휴일 표에 그 해의 공휴일이 하나라도 있는가 */
+    /** 표에 그 해의 쉬는 날이 하나라도 있는가 */
     public boolean covers(int year) {
         return holidays.stream().anyMatch(d -> d.getYear() == year);
     }
@@ -46,7 +47,7 @@ public record BusinessDayCalendar(Set<LocalDate> holidays) {
             return false;
         }
         if (!holidays.isEmpty() && !covers(day.getYear()) && WARNED.add(day.getYear())) {
-            log.warn("공휴일 표에 {}년이 없다 — 주말만 거른다(public_holidays 에 그 해를 더해야 한다)", day.getYear());
+            log.warn("쉬는 날 표에 {}년이 없다 — 주말만 거른다(공공데이터 공휴일 받기 holiday-sync 를 확인)", day.getYear());
         }
         return !holidays.contains(day);
     }

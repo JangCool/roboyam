@@ -6,6 +6,7 @@
         · 광고 건을 누르면 `open`(상세 서랍), 칸의 빈 곳을 누르면 `pick`(그 날짜로 수동 등록 시작 — 부모가 권한을 본다).
         · 좁은 화면은 칸이 작아 이름 대신 남은 칸 숫자와 점만 보인다.
         서버가 저장 때 다시 판정하므로 남은 칸은 안내다. 날짜 계산은 서비스 시간대(KST) 기준.
+        · 쉬는 날은 날짜 숫자 색(공휴일 빨강 · 회사 휴무일 보라)과 숫자 옆 이름(좁은 화면은 숫자 색만), 칸 `title`·숫자 `aria-label` 에 이름(레이어 `useHolidays`).
     -->
     <div class="flex min-w-0 flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2">
@@ -45,14 +46,16 @@
                         canPick && !d.past ? 'cursor-pointer hover:bg-(--p-content-hover-background)' : '',
                     ]"
                     :style="{ minHeight: compact ? '56px' : '112px' }"
-                    :title="canPick && !d.past ? t('ad.pickDayHint') : undefined"
+                    :title="cellTitle(d)"
                     @click="onPick(d)"
                 >
                     <div class="mb-1 flex items-center gap-1">
                         <span
                             class="flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] tabular-nums"
-                            :class="[d.ymd === today ? 'bg-(--p-primary-color) font-semibold text-(--p-primary-contrast-color)' : d.inMonth ? '' : 'text-muted-color', d.past && d.ymd !== today ? 'opacity-60' : '']"
+                            :class="[d.ymd === today ? 'bg-(--p-primary-color) font-semibold text-(--p-primary-contrast-color)' : d.inMonth ? UtilHoliday.cellClass(d.holiday) : 'text-muted-color', d.past && d.ymd !== today ? 'opacity-60' : '']"
+                            :aria-label="UtilHolidayMessages.ariaLabel(t, d.year, d.month, d.day, d.holiday)"
                         >{{ d.day }}</span>
+                        <span v-if="!compact && d.holiday.label" class="min-w-0 truncate text-[10.5px]" :class="[UtilHoliday.cellClass(d.holiday), d.inMonth ? '' : 'opacity-60']" aria-hidden="true">{{ d.holiday.label }}</span>
                         <span class="flex-1" />
                         <span
                             v-if="d.slot"
@@ -87,6 +90,8 @@
 </template>
 
 <script setup lang="ts">
+import UtilHoliday, { type HolidayMark } from '#layers/display-time/utils/util-holiday';
+import UtilHolidayMessages from '#layers/display-time/utils/util-holiday-messages';
 import type { AdBookingRow, AdBookingStatus, AdDaySlot } from '~/composables/ad/api/useAdApi.types';
 import type { BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilAd from '~/utils/util-ad';
@@ -107,7 +112,12 @@ interface Props {
 
 interface Cell {
     ymd: string;
+    year: number;
+    /** 1 = 1월 */
+    month: number;
     day: number;
+    /** 쉬는 날 표시(공휴일 빨강 · 회사 휴무일 보라 — 레이어 `UtilHoliday`) */
+    holiday: HolidayMark;
     inMonth: boolean;
     past: boolean;
     slot: AdDaySlot | undefined;
@@ -140,6 +150,20 @@ const title = computed(() => {
 
 const byDate = computed(() => new Map(props.days.map((d) => [d.date, d])));
 
+// 쉬는 날 표시 — 보는 달이 바뀌면 그 해를 받는다(못 받으면 표시만 빠진다)
+const holidays = useHolidays();
+watch(
+    () => props.month,
+    (month) => holidays.ensure(UtilHoliday.yearsForDate(month)),
+    { immediate: true },
+);
+
+/** 칸 마우스 올림 글자 — 쉬는 날 이름, 고를 수 있으면 「눌러서 등록」 안내를 잇는다 */
+function cellTitle(d: Cell): string | undefined {
+    const parts = [UtilHolidayMessages.title(t, d.holiday), props.canPick && !d.past ? t('ad.pickDayHint') : undefined].filter((s): s is string => !!s);
+    return parts.length ? parts.join(' · ') : undefined;
+}
+
 /** 6주 칸 — 그 달 1일이 든 주의 일요일부터 */
 const cells = computed<Cell[]>(() => {
     const [y, m] = props.month.split('-').map(Number);
@@ -152,7 +176,10 @@ const cells = computed<Cell[]>(() => {
         const to = Date.parse(UtilBizApplication.kstMidnight(UtilBizApplication.addDays(ymd, 1)));
         return {
             ymd,
+            year: at.getUTCFullYear(),
+            month: at.getUTCMonth() + 1,
             day: at.getUTCDate(),
+            holiday: holidays.markOf(ymd),
             inMonth: at.getUTCMonth() === m! - 1,
             past: ymd < today.value,
             slot: byDate.value.get(ymd),

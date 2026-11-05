@@ -525,7 +525,7 @@ class EmoticonSettlementTest extends EmoticonTestBase {
         sales(creator, cp[1], 8, kst("2031-03-10T12:00"));
         confirm(id(creator, "2031-03"));
         // 2031 년은 공휴일 표에 없다 — 시험 동안만 5월 19일(월)을 공휴일로 넣는다
-        kit.jdbc.update("INSERT INTO public_holidays (holiday_date, name, kind) VALUES ('2031-05-19', '시험 임시공휴일', 'TEMPORARY')");
+        kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES ('2031-05-19', '시험 임시공휴일', 'SEED')");
         try {
             assertThat(fields(() -> paid(creator, "2031-03", "2031-05-17", null))).containsKey("transferDate"); // 토
             assertThat(fields(() -> paid(creator, "2031-03", "2031-05-18", null))).containsKey("transferDate"); // 일
@@ -539,10 +539,10 @@ class EmoticonSettlementTest extends EmoticonTestBase {
             sales(creator, cp[1], 8, kst("2031-05-02T12:00"));
             assertThat(listed("2031-05", creator).payoutDate()).isEqualTo("2031-06-10");
             // 지급 예정일이 공휴일이면 그다음 업무일(6월 10일을 시험 공휴일로)
-            kit.jdbc.update("INSERT INTO public_holidays (holiday_date, name, kind) VALUES ('2031-06-10', '시험 임시공휴일', 'TEMPORARY')");
+            kit.jdbc.update("INSERT INTO site_holidays (holiday_date, name, source) VALUES ('2031-06-10', '시험 임시공휴일', 'SEED')");
             assertThat(listed("2031-05", creator).payoutDate()).isEqualTo("2031-06-11");
         } finally {
-            kit.jdbc.update("DELETE FROM public_holidays WHERE holiday_date IN ('2031-05-19', '2031-06-10')");
+            kit.jdbc.update("DELETE FROM site_holidays WHERE holiday_date IN ('2031-05-19', '2031-06-10') AND name = '시험 임시공휴일'");
         }
     }
 

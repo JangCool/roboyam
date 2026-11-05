@@ -7,19 +7,15 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
-import java.sql.Array;
-import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeSet;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,11 +48,8 @@ public class GroupBuySettingsService {
             new Field("shipWithinBusinessDays", "ship_within_business_days", 1, 30, 3),
             new Field("supplyChoiceBusinessDays", "supply_choice_business_days", 1, 30, 3));
 
-    /** 휴일 최대 수 */
-    public static final int HOLIDAYS_MAX = 200;
-
     /** 저장된 값 한 벌 */
-    public record Values(Map<String, Long> numbers, List<LocalDate> holidays, Instant updatedAt, String updatedBy) {
+    public record Values(Map<String, Long> numbers, Instant updatedAt, String updatedBy) {
     }
 
     private final JdbcTemplate jdbc;
@@ -73,42 +66,28 @@ public class GroupBuySettingsService {
     public Values load() {
         StringBuilder sql = new StringBuilder("SELECT ");
         FIELDS.forEach(f -> sql.append("s.").append(f.column()).append(", "));
-        sql.append("s.holidays, s.updated_at, o.operator_name FROM group_buy_settings s LEFT JOIN operators o ON o.id = s.updated_by WHERE s.id = 1");
+        sql.append("s.updated_at, o.operator_name FROM group_buy_settings s LEFT JOIN operators o ON o.id = s.updated_by WHERE s.id = 1");
         return jdbc.queryForObject(sql.toString(), (rs, i) -> {
             Map<String, Long> numbers = new LinkedHashMap<>();
             for (int k = 0; k < FIELDS.size(); k++) {
                 numbers.put(FIELDS.get(k).name(), rs.getLong(k + 1));
             }
-            List<LocalDate> holidays = new ArrayList<>();
-            Array array = rs.getArray(FIELDS.size() + 1);
-            if (array != null) {
-                for (Object d : (Object[]) array.getArray()) {
-                    holidays.add(d instanceof Date date ? date.toLocalDate() : LocalDate.parse(d.toString()));
-                }
-            }
-            Timestamp at = rs.getTimestamp(FIELDS.size() + 2);
-            return new Values(numbers, holidays, at == null ? null : at.toInstant(), rs.getString(FIELDS.size() + 3));
+            Timestamp at = rs.getTimestamp(FIELDS.size() + 1);
+            return new Values(numbers, at == null ? null : at.toInstant(), rs.getString(FIELDS.size() + 2));
         });
     }
 
     /**
-     * 통째로 저장 — 빠진 칸·범위 밖은 400 {@code fields.values.<이름>}, 휴일은 겹침을 지우고 차례대로(최대 {@value #HOLIDAYS_MAX}).
+     * 통째로 저장 — 빠진 칸·범위 밖은 400 {@code fields.values.<이름>}. 휴일은 여기 없다 — 사이트 휴일 표 하나(휴일 관리 화면, {@code SiteHolidayService}).
      */
     @Transactional
-    public Values save(Map<String, Long> numbers, List<LocalDate> holidays, long operatorId, String ip) {
+    public Values save(Map<String, Long> numbers, long operatorId, String ip) {
         Map<String, Long> in = numbers == null ? Map.of() : numbers;
         for (Field f : FIELDS) {
             Long v = in.get(f.name());
             if (v == null || v < f.min() || v > f.max()) {
                 throw ValidationException.of("values." + f.name(), new MessageRef("groupbuy.settings.range", f.min(), f.max()));
             }
-        }
-        TreeSet<LocalDate> days = new TreeSet<>();
-        if (holidays != null) {
-            holidays.stream().filter(Objects::nonNull).forEach(days::add);
-        }
-        if (days.size() > HOLIDAYS_MAX) {
-            throw ValidationException.of("values.holidays", new MessageRef("groupbuy.settings.holidays.tooMany", HOLIDAYS_MAX));
         }
         jdbc.queryForObject("SELECT id FROM group_buy_settings WHERE id = 1 FOR UPDATE", Integer.class);
         Values before = load();
@@ -118,8 +97,7 @@ public class GroupBuySettingsService {
             sql.append(f.column()).append(" = ?, ");
             args.add(in.get(f.name()));
         }
-        sql.append("holidays = ?::date[], updated_by = ?, updated_at = ? WHERE id = 1");
-        args.add(days.stream().map(LocalDate::toString).toList().toString().replace('[', '{').replace(']', '}').replace(" ", ""));
+        sql.append("updated_by = ?, updated_at = ? WHERE id = 1");
         args.add(operatorId);
         args.add(Timestamp.from(clocks.getIfUnique(Clock::systemUTC).instant().truncatedTo(ChronoUnit.MICROS)));
         jdbc.update(sql.toString(), args.toArray());
@@ -131,11 +109,6 @@ public class GroupBuySettingsService {
                 beforeChanged.put(f.name(), before.numbers().get(f.name()));
                 afterChanged.put(f.name(), in.get(f.name()));
             }
-        }
-        List<LocalDate> newDays = List.copyOf(days);
-        if (!before.holidays().equals(newDays)) {
-            beforeChanged.put("holidays", before.holidays().size());
-            afterChanged.put("holidays", newDays.size());
         }
         if (!afterChanged.isEmpty()) {
             Map<String, Object> detail = new LinkedHashMap<>();

@@ -139,7 +139,7 @@ public final class GroupBuyAdminRequest {
 
     public record SettingsValues(Long holdMinutes, Long thresholdPeriodMaxDays, Long firstComePeriodMaxDays, Long extensionMaxMinutes, Long extensionWindowMinutes,
                                  Long judgeGraceMinutes, Long compensationCap, Long largeRefundThreshold, Long addressRevealMinutes, Long expiredAddressRetentionDays,
-                                 Long shipWithinBusinessDays, Long supplyChoiceBusinessDays, List<LocalDate> holidays) {
+                                 Long shipWithinBusinessDays, Long supplyChoiceBusinessDays) {
     }
 
     public record Settings(SettingsValues values) {

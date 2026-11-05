@@ -1,5 +1,6 @@
 package com.community.groupbuy.service;
 
+import com.community.holiday.service.BusinessDayCalendar;
 import com.community.commerce.image.GroupBuyImageUploader;
 import com.community.groupbuy.dto.request.GroupBuyAdminRequest;
 import com.community.groupbuy.dto.response.GroupBuyOrderAdminView;
@@ -257,7 +258,7 @@ public class GroupBuyRequestAdminFacade {
         List<GroupBuyRequestStore.ItemRow> lines = requests.items(r.id());
         Instant now = clocks.getIfUnique(Clock::systemUTC).instant();
         Instant start = r.type() == RequestType.CANCEL ? r.createdAt() : r.receivedAt();
-        List<LocalDate> holidays = groups.settings().holidays();
+        BusinessDayCalendar holidays = groups.settings().calendar();
         int elapsed = start == null ? 0 : GroupBuyBusinessDays.elapsed(ServiceTime.dateOf(start), ServiceTime.dateOf(now), holidays);
         GroupBuyBusinessDays.Level level = start == null || !RequestStatus.OPEN.contains(r.status()) ? GroupBuyBusinessDays.Level.NONE
                 : GroupBuyBusinessDays.deadlineLevel(start, now, holidays);

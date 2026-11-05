@@ -1,5 +1,6 @@
 package com.community.groupbuy.service;
 
+import com.community.holiday.service.BusinessDayCalendar;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
@@ -73,7 +74,7 @@ public class GroupBuyDeadlineWatch {
     }
 
     private int requestDeadlines(Instant now) {
-        List<LocalDate> holidays = groups.settings().holidays();
+        BusinessDayCalendar holidays = groups.settings().calendar();
         int sent = 0;
         List<Object[]> rows = jdbc.query("SELECT id, type, created_at, received_at, deadline_alert_level FROM group_buy_requests "
                 + "WHERE status IN ('REQUESTED', 'APPROVED', 'RECEIVED') AND (deadline_alert_level IS NULL OR deadline_alert_level <> 'CRITICAL') ORDER BY created_at LIMIT 500",
