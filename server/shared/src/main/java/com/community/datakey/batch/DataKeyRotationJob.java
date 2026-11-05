@@ -13,7 +13,9 @@ import com.community.batch.core.ChunkSource;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.message.MessageRef;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
+import java.util.Arrays;
 import java.util.List;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +25,7 @@ import org.springframework.stereotype.Component;
 /**
  * 데이터 키 교체 Java 배치 {@code data-key-rotation}(docs/features/commerce-foundation-contract.md 「0-1」 키 교체 절차 · 「0-4」, commerce.md 10-9) —
  * {@link DataCipher} 로 암호화한 칸({@link DataKeyColumns#ALL})마다 단계 하나, <b>지금 키가 아닌 암호문</b>(DB 에서 {@code NOT LIKE 'd<지금 버전>:%'})을 키셋으로 덩어리 처리해
- * {@link DataCipher#reencrypt} 로 지금 키로 다시 잠근다.
+ * {@link DataCipher#reencrypt} 로 지금 키로 다시 잠근다. 파일 바이트 칸(사업자등록증·계약서 사본)은 행 키만 덩어리로 고르고 내용은 한 건씩 읽어 {@link DataCipher#reencryptBytes} 로.
  *
  * <ul>
  *   <li>키 교체 절차: 새 키를 버전을 올려 {@code ROBOYAM_DATA_KEY} 에, 옛 키를 {@code ROBOYAM_DATA_KEY_PREVIOUS} 에 두고 재기동 → <b>이 배치를 「지금 실행」</b> →
@@ -92,7 +94,11 @@ public class DataKeyRotationJob implements BatchJob {
         long rotated = 0;
         for (EncryptedColumn column : columns) {
             BatchStep step = context.step(column.step());
-            step.chunks(source(column, version), processor(column));
+            if (column.bytes()) {
+                step.chunks(fileSource(column, version), fileProcessor(column, version));
+            } else {
+                step.chunks(source(column, version), processor(column));
+            }
             rotated += step.processedCount();
         }
         return BatchResult.of(rotated == 0 ? new MessageRef("batch.result.dataKeyRotation.none", String.valueOf(version))
@@ -161,6 +167,83 @@ public class DataKeyRotationJob implements BatchJob {
             }
             return changed;
         };
+    }
+
+    /**
+     * 파일 바이트 칸 — 파일이 커서(최대 10MB) 덩어리는 <b>행 키만</b> 고르고, 내용은 처리할 때 한 건씩 읽는다(메모리에 파일 한두 개만).
+     * 지금 키가 아닌 것은 DB 에서 {@code NOT LIKE 'd<지금 버전>:%'::bytea} 로 가른다.
+     */
+    ChunkSource<Long> fileSource(EncryptedColumn column, int version) {
+        byte[] notCurrent = notCurrentPattern(version);
+        String select = "SELECT " + column.idColumn() + " FROM " + column.table() + " WHERE " + column.cipherColumn() + " NOT LIKE ? ";
+        return new ChunkSource<>() {
+            @Override
+            public String targetType() {
+                return column.targetType();
+            }
+
+            @Override
+            public List<Long> next(String afterKey, int size) {
+                long after = afterKey == null ? Long.MIN_VALUE : Long.parseLong(afterKey);
+                return jdbc.queryForList(select + "AND " + column.idColumn() + " > ? ORDER BY " + column.idColumn() + " LIMIT ?", Long.class, notCurrent, after, size);
+            }
+
+            @Override
+            public List<Long> byIds(List<String> targetIds) {
+                return jdbc.query(connection -> {
+                    PreparedStatement statement = connection.prepareStatement(select + "AND " + column.idColumn() + " = ANY (?) ORDER BY " + column.idColumn());
+                    statement.setBytes(1, notCurrent);
+                    statement.setArray(2, connection.createArrayOf("bigint", targetIds.stream().map(Long::valueOf).toArray()));
+                    return statement;
+                }, (rs, i) -> rs.getLong(1));
+            }
+
+            @Override
+            public String keyOf(Long item) {
+                return Long.toString(item);
+            }
+
+            @Override
+            public String targetIdOf(Long item) {
+                return Long.toString(item);
+            }
+        };
+    }
+
+    /** 한 건씩 읽어 다시 잠그고 조건부 UPDATE — 읽은 암호문 그대로인 행만. 그사이 지금 키가 됐거나 비워졌으면 건너뜀 */
+    ChunkProcessor<Long> fileProcessor(EncryptedColumn column, int version) {
+        byte[] notCurrent = notCurrentPattern(version);
+        String read = "SELECT " + column.cipherColumn() + " FROM " + column.table() + " WHERE " + column.idColumn() + " = ? AND " + column.cipherColumn() + " NOT LIKE ?";
+        String update = "UPDATE " + column.table() + " SET " + column.cipherColumn() + " = ? WHERE " + column.idColumn() + " = ? AND " + column.cipherColumn() + " = ?";
+        return ids -> {
+            long changed = 0;
+            for (long id : ids) {
+                List<byte[]> found = jdbc.query(read, (rs, i) -> rs.getBytes(1), id, notCurrent);
+                if (found.isEmpty()) {
+                    continue;
+                }
+                byte[] before = found.get(0);
+                byte[] next = reencryptFile(column, before);
+                if (Arrays.equals(next, before)) {
+                    continue;
+                }
+                changed += jdbc.update(update, next, id, before);
+            }
+            return changed;
+        };
+    }
+
+    private static byte[] notCurrentPattern(int version) {
+        return ("d" + version + ":%").getBytes(StandardCharsets.US_ASCII);
+    }
+
+    private byte[] reencryptFile(EncryptedColumn column, byte[] content) {
+        try {
+            return cipher.reencryptBytes(column.purpose(), content);
+        } catch (CommonException | IllegalArgumentException e) {
+            String head = new String(content, 0, Math.min(content.length, 5), StandardCharsets.US_ASCII);
+            throw new BatchItemException(UNREADABLE, "풀 수 없는 암호문이다(키 버전 " + versionOf(head) + " — 예전 키가 ROBOYAM_DATA_KEY_PREVIOUS 에 있는지 확인)");
+        }
     }
 
     private String reencrypt(EncryptedColumn column, Row row) {

@@ -14,11 +14,22 @@ import java.util.regex.Pattern;
  * @param cipherColumn 암호문 칸({@code d<버전>:…}) — NULL 인 행(비었거나 파기한 칸)은 고르지 않는다
  * @param purpose    그 칸의 암호화 용도(AAD) — 쓰는 쪽과 같은 상수를 쓴다
  * @param targetType 실패 건의 대상 종류 코드(이름 문구는 번들 {@code batch.target.<코드>})
+ * @param bytes      파일 바이트 칸({@code bytea} — {@code DataCipher#encryptBytes})인가. 아니면 글자 칸
  */
-public record EncryptedColumn(String step, String table, String idColumn, String cipherColumn, DataPurpose purpose, String targetType) {
+public record EncryptedColumn(String step, String table, String idColumn, String cipherColumn, DataPurpose purpose, String targetType, boolean bytes) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[a-z][a-z0-9_]{0,62}");
     private static final Pattern TARGET_TYPE = Pattern.compile("[A-Z][A-Z0-9_]{0,39}");
+
+    /** 글자 칸 */
+    public EncryptedColumn(String step, String table, String idColumn, String cipherColumn, DataPurpose purpose, String targetType) {
+        this(step, table, idColumn, cipherColumn, purpose, targetType, false);
+    }
+
+    /** 파일 바이트 칸 */
+    public static EncryptedColumn ofBytes(String step, String table, String idColumn, String cipherColumn, DataPurpose purpose, String targetType) {
+        return new EncryptedColumn(step, table, idColumn, cipherColumn, purpose, targetType, true);
+    }
 
     public EncryptedColumn {
         new BatchStepDefinition(step, true); // 단계 이름 규칙 확인

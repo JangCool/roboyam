@@ -150,7 +150,7 @@ public class DataCipher {
 
     /**
      * 파일 내용(사업자등록증 사본처럼 DB 에 두는 바이트)을 지금 키로 암호화한다 — 형식은 글자 암호문과 같은 앞머리({@code d<버전>:}, ASCII) ‖ IV 12바이트 ‖ 암호문 ‖ 태그.
-     * 키 교체 배치는 글자 칸만 다시 암호화하므로, 바이트 칸은 옛 키를 {@code ROBOYAM_DATA_KEY_PREVIOUS} 에 남겨 두는 동안 읽힌다.
+     * 키 교체 배치가 바이트 칸도 다시 암호화한다({@link #reencryptBytes} — 칸 목록 {@code DataKeyColumns}).
      *
      * @throws CommonException 키가 없을 때({@code 503 DATA_KEY_MISSING})
      */
@@ -178,22 +178,8 @@ public class DataCipher {
      */
     public byte[] decryptBytes(DataPurpose purpose, byte[] cipherBytes) {
         requireConfigured();
-        int colon = -1;
-        for (int i = 1; cipherBytes != null && i < Math.min(cipherBytes.length, 5); i++) {
-            if (cipherBytes[i] == ':') {
-                colon = i;
-                break;
-            }
-        }
-        if (colon < 2 || cipherBytes[0] != 'd' || cipherBytes.length <= colon + 1 + IV_BYTES) {
-            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
-        }
-        int version;
-        try {
-            version = Integer.parseInt(new String(cipherBytes, 1, colon - 1, StandardCharsets.US_ASCII));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
-        }
+        int colon = bytesColon(cipherBytes);
+        int version = bytesVersion(cipherBytes, colon);
         SecretKeySpec key = keys.get(version);
         if (key == null) {
             log.error("암호문의 키 버전 {} 이 설정에 없다 — ROBOYAM_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
@@ -230,6 +216,52 @@ public class DataCipher {
             return cipherText;
         }
         return encrypt(purpose, decrypt(purpose, cipherText));
+    }
+
+    /**
+     * 지금 키로 잠긴 바이트 암호문인가({@link #isCurrent} 의 바이트판 — DB 에서는 {@code NOT LIKE 'd<지금 버전>:%'::bytea}).
+     *
+     * @throws IllegalArgumentException 암호문 형식이 아닐 때
+     */
+    public boolean isCurrentBytes(byte[] cipherBytes) {
+        int colon = bytesColon(cipherBytes);
+        return isConfigured() && bytesVersion(cipherBytes, colon) == activeVersion;
+    }
+
+    /**
+     * 지금 키가 아닌 바이트 암호문을 지금 키로 다시 암호화한다. 이미 지금 키면 그대로 돌려준다.
+     *
+     * @throws CommonException          키가 없을 때({@code 503 DATA_KEY_MISSING})
+     * @throws IllegalArgumentException 풀 수 없는 암호문일 때
+     */
+    public byte[] reencryptBytes(DataPurpose purpose, byte[] cipherBytes) {
+        if (isCurrentBytes(cipherBytes)) {
+            return cipherBytes;
+        }
+        return encryptBytes(purpose, decryptBytes(purpose, cipherBytes));
+    }
+
+    /** 바이트 암호문 앞머리 {@code d<버전>:} 의 {@code :} 자리 */
+    private static int bytesColon(byte[] cipherBytes) {
+        int colon = -1;
+        for (int i = 1; cipherBytes != null && i < Math.min(cipherBytes.length, 5); i++) {
+            if (cipherBytes[i] == ':') {
+                colon = i;
+                break;
+            }
+        }
+        if (colon < 2 || cipherBytes[0] != 'd' || cipherBytes.length <= colon + 1 + IV_BYTES) {
+            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
+        }
+        return colon;
+    }
+
+    private static int bytesVersion(byte[] cipherBytes, int colon) {
+        try {
+            return Integer.parseInt(new String(cipherBytes, 1, colon - 1, StandardCharsets.US_ASCII));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
+        }
     }
 
     /** 키가 없으면 {@code 503 DATA_KEY_MISSING} */

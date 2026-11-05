@@ -126,6 +126,21 @@ class DataCipherTest {
         }
 
         @Test
+        void 파일_바이트도_지금_키인지_가르고_다시_암호화하면_지금_키가_되고_원본_그대로다() {
+            byte[] file = "%PDF-1.7 사본".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] before = old.encryptBytes(ADDRESS, file);
+
+            assertThat(rotated.isCurrentBytes(before)).isFalse();
+            byte[] after = rotated.reencryptBytes(ADDRESS, before);
+            assertThat(new String(after, 0, 3, java.nio.charset.StandardCharsets.US_ASCII)).isEqualTo("d2:");
+            assertThat(rotated.isCurrentBytes(after)).isTrue();
+            assertThat(cipher("2:" + KEY_B, "").decryptBytes(ADDRESS, after)).as("예전 키 없이").isEqualTo(file);
+            assertThat(rotated.reencryptBytes(ADDRESS, after)).as("이미 지금 키면 그대로").isSameAs(after);
+            assertThatThrownBy(() -> rotated.reencryptBytes(EMAIL, before)).as("용도가 다르면 풀리지 않는다").isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> rotated.isCurrentBytes("평문".getBytes(java.nio.charset.StandardCharsets.UTF_8))).isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
         void 예전_키를_여럿_줄_수_있고_공백은_무시한다() {
             String key3 = SecretCipher.generateKey();
             String v1 = old.encrypt(EMAIL, "하나");
