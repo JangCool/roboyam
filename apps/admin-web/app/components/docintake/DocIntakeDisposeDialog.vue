@@ -8,7 +8,7 @@
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <Message severity="warn" :closable="false" icon="pi pi-exclamation-triangle"><span class="text-[13px]">{{ t('docIntake.dispose.warn') }}</span></Message>
             <p v-if="intake" class="m-0 text-[13px] text-muted-color">
-                {{ t(`docIntake.channel.${intake.channel}`) }}<template v-if="intake.pages"> · {{ t('docIntake.pagesN', { n: intake.pages }) }}</template> · {{ t('docIntake.receivedLine', { date: time.serviceDate(intake.receivedOn), who: intake.receivedBy }) }}
+                {{ t(`docIntake.channel.${intake.channel}`) }}<template v-if="intake.pages"> · {{ t('docIntake.pagesN', { n: intake.pages }) }}</template> · {{ t('docIntake.receivedLine', { date: time.serviceDate(intake.receivedOn), who: intake.receivedBy ?? '—' }) }}
             </p>
 
             <LabeledField :label="t('docIntake.dispose.disposedOn')" :error="err('disposedOn')">

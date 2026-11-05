@@ -6,7 +6,7 @@
     <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :close-on-escape="!busy" :header="t('docIntake.handlingDialog.title')" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <p v-if="intake" class="m-0 text-[13px] text-muted-color">
-                {{ t(`docIntake.channel.${intake.channel}`) }} · {{ t('docIntake.receivedLine', { date: time.serviceDate(intake.receivedOn), who: intake.receivedBy }) }} ·
+                {{ t(`docIntake.channel.${intake.channel}`) }} · {{ t('docIntake.receivedLine', { date: time.serviceDate(intake.receivedOn), who: intake.receivedBy ?? '—' }) }} ·
                 {{ t('docIntake.handlingDialog.now', { handling: t(`docIntake.handling.${intake.handling}`) }) }}
             </p>
             <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">

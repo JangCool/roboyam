@@ -26,7 +26,7 @@ export type DocIntakeProblem = 'REQUIRED' | 'FUTURE' | 'RANGE' | 'TOO_LONG' | 'B
 const DAY_MS = 86_400_000;
 
 /**
- * 사업자 서류 접수 기록(인쇄본·팩스) 화면 규칙 — 입력만 보고 답하는 순수 함수. **목업 단계 가정**이며 서버(예정 `DocIntakePolicy`)가 다시 판정한다.
+ * 사업자 서류 접수 기록(인쇄본·팩스) 화면 규칙 — 입력만 보고 답하는 순수 함수. 서버 `DocIntakeAdminService`(칸 검사)·`BusinessCertificateReceipt`(등록증을 받았나)가 다시 판정한다.
  * 파일 규칙: 계약서는 `UtilBizApplication.contractProblem`(서버 `biz_contract_files` 와 같은 PDF·JPG·PNG 10MB), 등록증은 등록증 규칙(user-web `UtilBusiness.CERTIFICATE_ACCEPT` · 서버 `business_documents` — 값은 같다).
  */
 export default class UtilDocIntake {
@@ -42,8 +42,6 @@ export default class UtilDocIntake {
     /** 사업자등록증 — PDF·JPG·PNG, 10MB(신청 화면과 같은 규칙) */
     static readonly CERTIFICATE_ACCEPT = 'application/pdf,image/jpeg,image/png';
     static readonly CERTIFICATE_MAX_BYTES = 10 * 1024 * 1024;
-    /** 등록증 폐기 때 스캔본으로 고를 수 있는 「신청자가 올린 등록증 파일」의 자리 id(목업 — 서버는 등록증 파일 id) */
-    static readonly CERTIFICATE_FILE_ID = 'certificate';
 
     static acceptOf(doc: DocIntakeDoc): string {
         return doc === 'CONTRACT' ? UtilBizApplication.CONTRACT_ACCEPT : UtilDocIntake.CERTIFICATE_ACCEPT;
@@ -95,9 +93,16 @@ export default class UtilDocIntake {
         return files.map((f) => ({ id: f.id, label: f.fileName, active: !f.replacedAt }));
     }
 
-    /** 전자 팩스로 받은 파일 id */
-    static faxFileIds(bundle: DocIntakeBundle | null | undefined): string[] {
-        return bundle ? Object.entries(bundle.fileChannels).filter(([, c]) => c === 'FAX').map(([id]) => id) : [];
+    /**
+     * 등록증 파일 사본 → 스캔본 후보 — 그 사업자의 등록증 파일(묶음 `fileChannels` 의 id, 올린 순). 이름은 지금 등록증(`current` — 상세 등록증 카드, 같은 문서 번호)이면 그 이름,
+     * 전자 팩스 파일이면 그 이름, 나머지는 `earlierLabel`.
+     */
+    static certificateScanFiles(bundle: DocIntakeBundle | null | undefined, current: { id: string; fileName: string } | null, earlierLabel: string): DocScanFile[] {
+        if (!bundle) return [];
+        return Object.keys(bundle.fileChannels).map((id) => {
+            const label = id === current?.id ? current.fileName : (bundle.faxFiles.find((f) => f.id === id)?.fileName ?? earlierLabel);
+            return { id, label, active: true };
+        });
     }
 
     /** 처리를 바꾸거나 폐기할 수 있는 줄 — 잘못 기록·폐기함이 아님 */
@@ -118,18 +123,16 @@ export default class UtilDocIntake {
     }
 
     /**
-     * 등록증을 「우편·팩스로 보냄」이라고 했는데 아직 아무것도 받지 않았나 — 그러면 심사 승인을 막는다.
-     * 받은 것 = 전자 팩스 파일 · 잘못 기록이 아닌 종이 접수 · (목업) 우편·팩스를 고르지 않은 신청자의 실제 등록증 파일.
-     * ⚠ 목업 스위치를 켠 동안은 실제 등록증 파일을 받은 것으로 치지 않는다(우편·팩스를 고른 신청자에게는 올린 파일이 없다).
+     * 등록증을 「우편·팩스로 보냄」(`certificateDelivery === 'MAIL_FAX'`)이라고 했는데 아직 받지 않았나 — 그러면 심사 승인을 막는다(서버도 409 `BUSINESS_CERT_NOT_RECEIVED`).
+     * 받았는가는 서버가 상세 `certificateReceived` 로 준다(`BusinessCertificateReceipt` — 지금 등록증 사본 · 이번 신청 뒤 잘못 기록이 아닌 종이 접수).
      */
-    static certificateAwaiting(bundle: DocIntakeBundle | null | undefined): boolean {
-        if (!bundle?.mailDeclared) return false;
-        return bundle.faxFiles.length === 0 && UtilDocIntake.activeIntakes(bundle.intakes).length === 0;
+    static certificateAwaiting(delivery: string | null | undefined, received: boolean): boolean {
+        return delivery === 'MAIL_FAX' && !received;
     }
 
     /**
      * 등록증 인쇄본 폐기 기한(ISO) — 반려·탈퇴 상태면 그 처리 기록(가장 최근 `REJECTED`·`WITHDRAWN`) 시각 + 90일. 기록이 없거나 다른 상태면 null.
-     * (가정 — 서버 파기 배치의 기준 시각이 정해지면 그 값을 상세에 받는다)
+     * (계약 「규칙」 — 경고만, 자동 파기 배치는 종이를 지울 수 없다)
      */
     static certificateDisposeDue(status: string, history: readonly { action: string; at: string }[]): string | null {
         if (status !== 'REJECTED' && status !== 'WITHDRAWN') return null;

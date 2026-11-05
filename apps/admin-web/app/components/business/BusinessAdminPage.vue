@@ -8,7 +8,7 @@
         · 줄을 누르면 상세 서랍(`?id=`). 심사 화면에서 이미 끝난 건은 사업자 목록으로, 목록 화면의 심사 중 건은 인증 심사로 가는 단추를 보인다.
         권한: 화면 `business.read`(메뉴 항목 — 셸이 거른다) · 처리 `business.manage` · 평문 `business.reveal`(SENSITIVE) · 정지 해제 `business.unsuspend`(SENSITIVE). 계약 `docs/features/business-contract.md`.
         서버 호출은 `useBusinessApi` — 화면 한 벌을 두 주소가 같이 쓰려고 컴포넌트가 직접 부른다(페이지 파일은 `mode` 만 넘긴다). 등록증 사본은 `data:` 주소로 온다 — 그림은 `<img>`, PDF 는 `<iframe>`.
-        · 서랍 ③ 등록증 아래 인쇄본·팩스 접수 기록(목업 2026-11-05 — `useDocIntake`, 서버 없음). 「우편·팩스로 보냄」인데 받은 것이 없으면 승인을 막는다.
+        · 서랍 ③ 등록증 아래 인쇄본·팩스 접수 기록(`useDocIntake` — biz-doc-intake-contract). 「우편·팩스로 보냄」인데 받은 것이 없으면 승인을 막는다(서버 409 `BUSINESS_CERT_NOT_RECEIVED`).
         ⚠ 서버 목록은 상태(`status`)만 거르고 신청일 최신순으로 준다. 심사 큐는 한 번에 100건(서버 최대)을 받아 화면에서 오래된 순으로 다시 세운다 — 100건이 넘으면 쪽 사이 차례는 서버 차례를 따른다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -426,6 +426,8 @@ async function run(work: Work, call: () => Promise<BusinessDetail>, done: string
     } catch (e) {
         const failure = toApiError(e);
         if (failure.status === 409) void loadDetail();
+        // 등록증을 아직 받지 않았다(우편·팩스 신청) — 다른 운영자가 접수를 지웠을 수 있어 접수 기록도 다시 받는다
+        if (failure.code === 'BUSINESS_CERT_NOT_RECEIVED') void docIntake.load();
         if (!dialog) {
             toast.error(failure.message, 8000);
             return;
@@ -437,14 +439,14 @@ async function run(work: Work, call: () => Promise<BusinessDetail>, done: string
     }
 }
 
-/** 등록증 인쇄본·팩스 접수 기록(목업 — `useDocIntake`, 서버 없음). 서랍 ③ 아래에 보인다 */
-const docIntake = useDocIntake(() => (drawerDetail.value ? { doc: 'CERTIFICATE' as const, ownerId: drawerDetail.value.id } : null));
+/** 등록증 인쇄본·팩스 접수 기록(`useDocIntake`). 서랍 ③ 아래에 보인다. 쓰기·등록증 올리기 뒤에는 상세(처리 기록·등록증 카드)를 다시 읽는다 */
+const docIntake = useDocIntake(() => (drawerDetail.value ? { doc: 'CERTIFICATE' as const, ownerId: drawerDetail.value.id } : null), { onChanged: () => void loadDetail() });
 
 async function approve(): Promise<void> {
     const d = drawerDetail.value;
     if (!d) return;
-    // 「우편·팩스로 보냄」인데 아직 받은 등록증이 없으면 승인하지 않는다(서랍 단추도 잠겨 있다 — 목업 판정, 서버가 붙으면 서버도 막는다)
-    if (UtilDocIntake.certificateAwaiting(docIntake.bundle.value)) return;
+    // 「우편·팩스로 보냄」인데 아직 받은 등록증이 없으면 승인하지 않는다(서랍 단추도 잠겨 있다 — 서버도 409 `BUSINESS_CERT_NOT_RECEIVED`)
+    if (UtilDocIntake.certificateAwaiting(d.certificateDelivery, d.certificateReceived)) return;
     const rule = UtilBusiness.approvability(d.nts);
     if (rule === 'LOCKED') return;
     if (rule === 'NEEDS_REASON') {

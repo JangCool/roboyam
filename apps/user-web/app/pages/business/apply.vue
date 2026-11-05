@@ -1,7 +1,8 @@
 <template>
     <!--
         사업자 신청/수정 `/business/apply` — Stepper 3단계(01 §7-2 G): ① 사업자 정보(개업일 — 국세청 진위확인, 불일치면 이 단계로 돌아와 안내) ② 사업자등록증 사본(필수 — B2) + 국세청 조회 안내(B1) ③ 약관 동의 + 요약 → 신청.
-        ② 등록증은 「파일 올리기」/「우편·팩스로 보내기」 중 고른다(새 신청만 — 목업 2026-11-05): 우편·팩스면 파일 칸 대신 보낼 곳 안내(`BusinessDocSendToCard`)이고 [신청] 은 실제 API 없이 목업 처리.
+        ② 등록증은 「파일 올리기」/「우편·팩스로 보내기」 중 고른다(새 신청·재신청만, 보낼 곳 설정이 있을 때만 — biz-doc-intake-contract): 우편·팩스면 파일 칸 대신 보낼 곳 안내(`BusinessDocSendToCard`)이고
+          신청 본문은 `certificateDelivery: 'MAIL_FAX'` + 파일 없음.
         미신청·반려 = 새 신청(반려면 가리지 않은 칸을 채워 둔다) · 승인 = 수정(번호·연락처는 비워 두면 그대로 — 가린 값을 자리표시로) · 심사 중·정지 = 고칠 수 없음 안내.
         수정에서 상호·번호를 바꾸면 「저장하면 다시 심사받아요」 경고 + 저장 전 확인 창(F7). 모바일은 단계당 한 화면 + 하단 고정 [다음](`BusinessStepNav`).
     -->
@@ -82,8 +83,8 @@
 
                 <!-- ② 증빙 첨부 -->
                 <template v-else-if="step === 2">
-                    <!-- 등록증 내는 길 — 파일 올리기(기존) / 우편·팩스로 보내기(목업 2026-11-05). 정보 수정(승인)은 파일만 -->
-                    <fieldset v-if="!editMode" class="m-0 flex flex-col gap-2 border-0 p-0" data-testid="business-apply-delivery">
+                    <!-- 등록증 내는 길 — 파일 올리기(기존) / 우편·팩스로 보내기. 정보 수정(승인)은 파일만, 보낼 곳(주소·팩스)이 없으면 고르지 않는다 -->
+                    <fieldset v-if="!editMode && mailFaxOpen" class="m-0 flex flex-col gap-2 border-0 p-0" data-testid="business-apply-delivery">
                         <legend class="mb-2 text-sm font-semibold">{{ t('business.apply.delivery.title') }}</legend>
                         <label
                             v-for="d in DELIVERIES"
@@ -99,8 +100,9 @@
                                 <span class="mt-0.5 block text-xs leading-relaxed text-muted-color">{{ t(`business.apply.delivery.help.${d}`) }}</span>
                             </span>
                         </label>
+                        <Message v-if="errors.certificateDelivery" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ errors.certificateDelivery }}</Message>
                     </fieldset>
-                    <BusinessDocSendToCard v-if="delivery === 'MAIL_FAX'" :send-to="sendTo" :company-name="form.companyName.trim()" :biz-no="bizNoDigits.length === 10 ? form.bizNo : ''" />
+                    <BusinessDocSendToCard v-if="byMail" :send-to="sendTo" :company-name="form.companyName.trim()" :biz-no="bizNoDigits.length === 10 ? form.bizNo : ''" />
                     <LabeledField v-else :label="t('business.field.certificate')" :help="t('business.apply.certificateHelp')" :error="errors.certificate">
                         <template #default="{ id, describedBy }">
                             <BusinessFilePicker
@@ -203,12 +205,15 @@ const form = reactive({
 const certificate = ref<Pick<BusinessFile, 'fileId' | 'name' | 'size' | 'previewUrl'> | null>(null);
 const uploadBusy = ref(false);
 /**
- * 등록증 내는 길 — 파일 올리기 · 우편·팩스로 보내기(목업 2026-11-05). 우편·팩스면 파일 칸 대신 보낼 곳 안내, 신청은 실제 API 를 부르지 않는다(`api.applyByMail` 목업).
- * 보낼 곳은 목업 상수(나중에 사이트 설정) — 2단계에 처음 들어갈 때 받는다.
+ * 등록증 내는 길 — 파일 올리기 · 우편·팩스로 보내기. 우편·팩스면 파일 칸 대신 보낼 곳 안내, 신청 본문은 `certificateDelivery: 'MAIL_FAX'` + 파일 없음.
+ * 보낼 곳은 서버 설정값(`GET /api/business/doc-send-to`) — 새 신청·재신청이면 처음에 받고, 주소·팩스가 둘 다 없거나 못 받았으면 「우편·팩스로 보내기」를 보이지 않는다.
  */
 const DELIVERIES: readonly BusinessCertificateDelivery[] = ['UPLOAD', 'MAIL_FAX'];
 const delivery = ref<BusinessCertificateDelivery>('UPLOAD');
 const sendTo = ref<BusinessDocSendTo | null>(null);
+const mailFaxOpen = computed(() => UtilBusiness.docSendToAvailable(sendTo.value));
+/** 이번 신청을 우편·팩스로 내나 — 수정(승인)은 파일만 */
+const byMail = computed(() => !editMode.value && mailFaxOpen.value && delivery.value === 'MAIL_FAX');
 async function loadSendTo(): Promise<void> {
     if (sendTo.value) return;
     try {
@@ -245,6 +250,7 @@ async function load(): Promise<void> {
             if (p.address) form.address = { ...p.address };
             if (p.status === 'APPROVED' && p.certificate) certificate.value = { ...p.certificate, previewUrl: null };
         }
+        if (p.status === 'NONE' || p.status === 'REJECTED') void loadSendTo();
         status.value = 'ready';
     } catch (e) {
         loadError.value = e instanceof Error ? e.message : '';
@@ -280,7 +286,7 @@ const errors = computed(() => {
     else if (s1 && phone && (phone.length < 9 || phone.length > 11)) out.phone = t('business.apply.phoneInvalid');
     if (s1 && !form.email.trim()) out.email = t('business.apply.emailRequired');
     else if (s1 && !EMAIL_RE.test(form.email.trim())) out.email = t('business.apply.emailInvalid');
-    if (tried.value[2] && delivery.value === 'UPLOAD' && !certificate.value) out.certificate = t('business.apply.certificateRequired');
+    if (tried.value[2] && !byMail.value && !certificate.value) out.certificate = t('business.apply.certificateRequired');
     if (tried.value[3] && !agreeItems.value.every((i) => agreed.value[i.key])) out.agree = t('business.apply.agreeRequired');
     return out;
 });
@@ -324,7 +330,7 @@ const summaryRows = computed(() => [
     { label: t('business.field.address'), value: `(${form.address.postcode}) ${form.address.address1} ${form.address.address2}`.trim() },
     {
         label: t('business.field.certificate'),
-        value: delivery.value === 'MAIL_FAX' ? t('business.apply.delivery.summary') : certificate.value ? `${certificate.value.name} · ${UtilBusinessMessages.fileSize(certificate.value.size)}` : '',
+        value: byMail.value ? t('business.apply.delivery.summary') : certificate.value ? `${certificate.value.name} · ${UtilBusinessMessages.fileSize(certificate.value.size)}` : '',
     },
 ]);
 
@@ -347,45 +353,17 @@ async function next(): Promise<void> {
     if (!stepValid(step.value)) return;
     if (step.value < TOTAL) {
         step.value++;
-        if (step.value === 2) void loadSendTo();
+        // 처음에 보낼 곳을 못 받았으면 2단계에 들어갈 때 한 번 더(새 신청·재신청만)
+        if (step.value === 2 && !editMode.value) void loadSendTo();
         return;
     }
-    if (delivery.value === 'MAIL_FAX' && !editMode.value) await submitByMail();
-    else await submit();
+    await submit();
 }
 
-/**
- * 우편·팩스로 보내기 신청 — ⚠ 목업: 실제 신청 API 를 부르지 않는다(`api.applyByMail` 이 이 탭에 남긴다). 사업자 센터 홈이 「등록증을 받으면 심사를 시작해요」를 미리 보인다.
- * 서버가 붙으면 신청 본문에 `certificateDelivery: 'MAIL_FAX'` 를 실어 `submit` 과 같은 오류 처리를 한다.
- */
-async function submitByMail(): Promise<void> {
-    if (!profile.value) return;
-    submitBusy.value = true;
-    formError.value = '';
-    serverFields.value = {};
-    try {
-        await api.applyByMail({
-            companyName: form.companyName.trim(),
-            bizNo: bizNoDigits.value || null,
-            ownerName: form.ownerName.trim(),
-            openedOn: form.openedOn,
-            phone: UtilBusiness.digits(form.phone) || null,
-            email: form.email.trim(),
-            address: { ...toRaw(form.address) },
-            agreedTermsVersion: TERMS_VERSION,
-            agreedPrivacyVersion: PRIVACY_VERSION,
-        });
-        toast.success(t('business.apply.delivery.mockSubmitted'), 6000);
-        await navigateTo(UtilBusiness.CENTER_PATH);
-    } catch (e) {
-        formError.value = e instanceof Error ? e.message : t('business.apply.failed');
-    } finally {
-        submitBusy.value = false;
-    }
-}
-
+/** 신청·수정 — 우편·팩스로 내면(`byMail`) 등록증 파일 없이 `certificateDelivery: 'MAIL_FAX'` 를 싣는다(서버는 받은 날부터 심사) */
 async function submit(): Promise<void> {
-    if (!profile.value || !certificate.value) return;
+    const mail = byMail.value;
+    if (!profile.value || (!mail && !certificate.value)) return;
     if (identityChanged.value) {
         const ok = await confirm({ title: t('business.apply.reReviewConfirmTitle'), message: t('business.apply.reReviewConfirmMessage'), confirmLabel: t('business.apply.reReviewConfirm') });
         if (!ok) return;
@@ -398,9 +376,11 @@ async function submit(): Promise<void> {
         phone: UtilBusiness.digits(form.phone) || null,
         email: form.email.trim(),
         address: { ...toRaw(form.address) },
-        certificateFileId: certificate.value.fileId,
+        certificateFileId: mail ? null : (certificate.value?.fileId ?? null),
         agreedTermsVersion: TERMS_VERSION,
         agreedPrivacyVersion: PRIVACY_VERSION,
+        // 수정(`PUT`)은 파일만 — 칸을 싣지 않는다(JSON 에서 빠진다)
+        certificateDelivery: editMode.value ? undefined : mail ? 'MAIL_FAX' : 'UPLOAD',
     };
     const wasReReview = identityChanged.value;
     submitBusy.value = true;
@@ -420,7 +400,9 @@ async function submit(): Promise<void> {
             step.value = 1;
         } else if (e instanceof ApiError && e.fields) {
             serverFields.value = { ...e.fields };
-            step.value = 1;
+            // 등록증 칸(`certificate`·`certificateDelivery` — 보낼 곳 설정이 비었다 등)만 틀렸으면 2단계로, 그 밖은 1단계로
+            const keys = Object.keys(e.fields);
+            step.value = keys.length > 0 && keys.every((k) => k === 'certificate' || k === 'certificateDelivery') ? 2 : 1;
         } else {
             formError.value = e instanceof Error ? e.message : t('business.apply.failed');
         }

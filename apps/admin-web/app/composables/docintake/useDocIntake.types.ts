@@ -33,5 +33,4 @@ export type DocIntakeEvent =
     | { type: 'createFile'; file: File }
     | { type: 'handling'; id: string; body: DocIntakeHandlingRequest }
     | { type: 'dispose'; id: string; body: DocIntakeDisposeRequest }
-    | { type: 'void'; id: string; reason: string }
-    | { type: 'mailDeclared'; on: boolean };
+    | { type: 'void'; id: string; reason: string };

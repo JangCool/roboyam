@@ -4,14 +4,12 @@
         작은 제목 + 종이 접수 줄(`DocIntakeList`) + [접수 기록](`editable`) + 대화상자 넷(접수 기록 · 처리 바꾸기 · 폐기 처리 · 잘못 기록 — 사유 5~200자는 `BizReasonDialog`).
         `editable` = 새 접수 기록·잘못 기록(기존 업로드 허용 상태에서만), `handleable` = 처리 바꾸기·폐기 처리(확정 뒤에도 — 종이는 남아 있으니까). 둘 다 권한이 있을 때만.
         값·대화상자 상태는 부모의 `useDocIntake().host` 한 값으로 받고 동작은 `intake` 이벤트 하나로 올린다. 서버는 부르지 않는다.
-        ⚠ 목업 — 접수 기록 API 는 아직 없다(`useDocIntakeApi`).
     -->
     <div v-if="host?.bundle && (rows.length || editable)" class="flex flex-col gap-2" data-testid="doc-intake-section">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <h5 class="m-0 inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted-color">
                 <i class="pi pi-inbox text-[11px]" aria-hidden="true" />{{ t('docIntake.title') }}
                 <span v-if="rows.length" class="font-normal tabular-nums">{{ activeCount }}</span>
-                <Tag :value="t('docIntake.mockTag')" severity="secondary" class="text-[10px]!" />
             </h5>
             <Button v-if="editable" type="button" :label="t('docIntake.add')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" :disabled="host.busy" data-testid="doc-intake-add" @click="open({ kind: 'create' })" />
         </div>

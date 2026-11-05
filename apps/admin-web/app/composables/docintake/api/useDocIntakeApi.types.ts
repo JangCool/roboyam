@@ -1,6 +1,6 @@
 /**
- * 사업자 서류 「접수 기록」(인쇄본·팩스로 받은 계약서 사본·사업자등록증 사본) — 서버와 주고받을 모양(**목업 — 서버 연결 전, API 후보**).
- * 설계 메모 2026-11-05(사용자 결정): 계약서 사본(신청 건) + 사업자등록증 사본(사업자 신원) 둘 다. 팩스는 받은 형태 종이·파일 중 고른다 —
+ * 사업자 서류 「접수 기록」(인쇄본·팩스로 받은 계약서 사본·사업자등록증 사본) — 서버 `DocIntakeAdminView`·`DocIntakeAdminRequest` 와 주고받는 모양(docs/features/biz-doc-intake-contract.md).
+ * 계약서 사본(신청 건) + 사업자등록증 사본(사업자 신원) 둘 다. 팩스는 받은 형태 종이·파일 중 고른다 —
  * 종이면 아래 `DocIntake` 줄(보관·폐기 상태), 파일(전자 팩스)이면 파일 사본으로 올리고 파일 줄에 방식만 `FAX` 로 표시한다.
  */
 
@@ -33,8 +33,8 @@ export interface DocIntake {
     channel: DocIntakeChannel;
     /** 받은 날(`YYYY-MM-DD`, KST 오늘 이전) */
     receivedOn: string;
-    /** 접수한 운영자 이름(서버가 로그인 운영자로 채운다) */
-    receivedBy: string;
+    /** 접수한 운영자 이름(서버가 로그인 운영자로 채운다) — 지워진 운영자면 null */
+    receivedBy: string | null;
     /** 기록한 시각(ISO) */
     recordedAt: string;
     /** 쪽수(1~200) — 모르면 null */
@@ -55,31 +55,29 @@ export interface DocIntake {
     voidReason: string | null;
 }
 
-/**
- * 등록증 전자 팩스 파일(목업 전용 줄) — 관리자가 등록증 파일을 올리는 API 가 아직 없어 목업 메모리에 이름·크기만 둔다.
- * 서버가 붙으면 `business_documents` 의 등록증 파일 줄(+ 들어온 길 `FAX`)이 된다.
- */
+/** 등록증 전자 팩스 파일 — 그 사업자의 등록증 파일(`business_documents`, 파기되지 않은 것) 중 들어온 길이 `FAX` 인 줄 */
 export interface DocIntakeFaxFile {
     id: string;
     fileName: string;
     mimeType: string;
     size: number;
     receivedAt: string;
-    receivedBy: string;
+    /** 올린 운영자 — 회원이 올렸거나 지워진 운영자면 null */
+    receivedBy: string | null;
 }
 
 /** 한 대상의 접수 기록 묶음 */
 export interface DocIntakeBundle {
     target: DocIntakeTarget;
     intakes: DocIntake[];
-    /** 파일 사본 id → 들어온 길(없으면 올림) — 계약서 파일 줄의 「전자 팩스」 표시 */
-    fileChannels: Record<string, DocFileChannel>;
-    /** 등록증 전자 팩스 파일(목업) — 계약서는 늘 빈 목록 */
-    faxFiles: DocIntakeFaxFile[];
     /**
-     * 신청자가 등록증을 「우편·팩스로 보냄」으로 골랐나(등록증만) — 서버가 붙으면 사업자 상세의 `certificateDelivery` 가 된다.
-     * 목업은 서랍의 「목업」 스위치나 `?mock=docintake-mailfax` 로 켠다.
+     * 파일 사본 id → 들어온 길 — 계약서는 그 건의 계약서 파일, 등록증은 그 사업자의 등록증 파일(파기되지 않은 것, 올린 순).
+     * 계약서 「전자 팩스」 표시는 파일 줄 `channel` 로 하고, 이 값은 등록증 폐기의 스캔본 후보(파일 id)에 쓴다.
      */
+    fileChannels: Record<string, DocFileChannel>;
+    /** 등록증 전자 팩스 파일 — 계약서는 늘 빈 목록 */
+    faxFiles: DocIntakeFaxFile[];
+    /** 신청자가 등록증을 「우편·팩스로 보냄」으로 골랐나(등록증만 — 사업자 상세 `certificateDelivery === 'MAIL_FAX'` 와 같은 값) */
     mailDeclared: boolean;
 }
 

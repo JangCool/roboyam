@@ -29,8 +29,6 @@ export default {
         pendingText: 'It usually takes 1–2 business days. We will notify you of the result. You cannot edit it during review.',
         pendingMailTitle: 'Review starts when we receive your certificate',
         pendingMailText: 'You chose to send your business registration certificate by mail or fax. Send it to the address below — review starts the day we receive it.',
-        mockMailNote: 'Mock — mail/fax applications are not saved on the server yet; they stay in this tab only.',
-        mockMailClear: 'Clear mock',
         rejectedTitle: 'Your business application was rejected',
         rejectedText: 'Check the reason below, fix it and apply again.',
         reapplyCta: 'Apply again',
@@ -145,13 +143,11 @@ export default {
                 MAIL_FAX: 'No file? Send a printed copy by mail or fax. Review starts the day we receive it.',
             },
             summary: 'Sent by mail or fax',
-            mockSubmitted: 'Mock — this will be submitted for real once the server is connected',
         },
     },
 
     docSend: {
         title: 'Where to send your certificate',
-        mockTag: 'Mock',
         mail: 'Mail',
         fax: 'Fax',
         markMargin: 'Write your business name and registration number in the margin.',

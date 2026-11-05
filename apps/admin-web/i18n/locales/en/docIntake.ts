@@ -1,5 +1,5 @@
 /**
- * Business document intake records (contract copies and business registration certificates received on paper or by fax — mockup 2026-11-05).
+ * Business document intake records (contract copies and business registration certificates received on paper or by fax, 2026-11-05 — biz-doc-intake-contract).
  * Same keys and order as `ko/docIntake.ts`.
  */
 export default {
@@ -9,7 +9,6 @@ export default {
         CONTRACT: 'Record contracts received by mail, in person or by fax. Paper records count as contract evidence.',
         CERTIFICATE: 'Record registration certificates received by mail, in person or by fax.',
     },
-    mockTag: 'Mock',
     efax: 'E-fax',
     doc: { CONTRACT: 'Contract copy', CERTIFICATE: 'Registration certificate' },
     channel: { MAIL: 'Mail', VISIT: 'In person', FAX: 'Fax (paper)' },
@@ -97,13 +96,11 @@ export default {
         voided: 'Marked as recorded in error.',
     },
     condEvidence: '{n} contract evidence — {files} files · {papers} paper',
-    mockPaperOnly: 'Mock — the server currently needs at least one contract file to confirm (it will count paper copies later).',
     cert: {
         awaiting: 'The applicant said the certificate would come by mail or fax — not received yet.',
         received: 'The certificate sent by mail or fax has been received.',
         approveLocked: 'Receive the registration certificate before approving.',
         overdueNote: 'More than 90 days since rejection or withdrawal — dispose of the stored paper copies.',
-        mockToggle: 'Treat as “Sending by mail or fax” chosen by the applicant',
-        mockToggleHelp: 'While on, an uploaded certificate file does not count as received (the real value will come from the application).',
+        earlierFile: 'Earlier certificate file',
     },
 };

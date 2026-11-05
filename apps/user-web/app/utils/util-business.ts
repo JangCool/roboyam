@@ -9,6 +9,7 @@ import type {
     BizHistoryEntry,
     BizSchedulePhase,
     BizTakedownCause,
+    BusinessDocSendTo,
     BusinessProfile,
     BusinessProfileService,
     BusinessServiceKind,
@@ -93,6 +94,16 @@ export default class UtilBusiness {
     /** 그 서비스만 정지됐나 — 광고·핫딜 신청 화면의 막힘 안내 */
     static serviceSuspension(profile: Pick<BusinessProfile, 'status' | 'services'>, service: BusinessServiceKind): BusinessProfileService | null {
         return UtilBusiness.suspendedServices(profile).find((s) => s.service === service) ?? null;
+    }
+
+    /** 등록증을 우편·팩스로 보낼 곳이 있나 — 주소나 팩스 번호 중 하나라도(서버 `BusinessDocSendToProperties.available`). 없으면 「우편·팩스로 보내기」를 보이지 않는다 */
+    static docSendToAvailable(sendTo: BusinessDocSendTo | null | undefined): boolean {
+        return Boolean(sendTo?.address?.trim() || sendTo?.fax?.trim());
+    }
+
+    /** 심사 중인데 우편·팩스로 보낸다고 한 등록증을 아직 받지 않았나 — 「등록증 사본을 받으면 심사를 시작해요」(서버 `certificateReceived` 판정) */
+    static awaitingCertificate(profile: Pick<BusinessProfile, 'status' | 'certificateDelivery' | 'certificateReceived'>): boolean {
+        return profile.status === 'PENDING' && profile.certificateDelivery === 'MAIL_FAX' && !profile.certificateReceived;
     }
 
     /** 신청 건 상세 주소 */

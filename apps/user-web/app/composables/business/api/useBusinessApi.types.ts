@@ -56,6 +56,10 @@ export interface BusinessProfile {
      * 서버 순서에 기대지 않는다. 그 서비스 줄이 없으면 신원 상태를 따른다.
      */
     services: BusinessProfileService[];
+    /** 등록증을 내는 길(V140) — 신청 전이면 null */
+    certificateDelivery: BusinessCertificateDelivery | null;
+    /** 등록증을 받았나 — 지금 등록증 사본이 있거나 이번 신청 뒤 운영자가 종이 접수를 기록했다(우편·팩스 신청의 「받으면 심사 시작」 안내, 신청 전이면 false) */
+    certificateReceived: boolean;
 }
 
 /** 사업자 서비스 — 관리자 화면 `BusinessService` 와 같은 값 */
@@ -88,28 +92,28 @@ export interface BusinessApplyRequest {
     phone: string | null;
     email: string;
     address: AddressValue;
-    certificateFileId: string;
+    /** 올린 등록증 사본 번호 — 우편·팩스로 보내면(`certificateDelivery: 'MAIL_FAX'`) null */
+    certificateFileId: string | null;
     /** 동의한 약관 버전 — 서버가 저장한다(H4) */
     agreedTermsVersion: string;
     agreedPrivacyVersion: string;
+    /** 등록증을 내는 길 — 비우면 `UPLOAD`. `MAIL_FAX` 는 신청·재신청만(수정 400 `fields.certificateDelivery`) */
+    certificateDelivery?: BusinessCertificateDelivery;
 }
 
 /**
- * 사업자등록증을 내는 길 — 파일 올리기 · 우편·팩스로 보내기(**목업 2026-11-05 — 서버 없음**). 우편·팩스면 신청 본문에 `certificateFileId` 가 없고
- * 서버가 나중에 `certificateDelivery: 'MAIL_FAX'` 로 받아 「받은 날부터 심사」한다(관리자 접수 기록 화면이 받은 것을 기록).
+ * 사업자등록증을 내는 길 — 파일 올리기 · 우편·팩스로 보내기(V140 — biz-doc-intake-contract). 우편·팩스면 신청 본문에 등록증 파일이 없고,
+ * 운영자가 받은 것을 접수 기록(또는 파일)으로 남겨야 승인할 수 있다 — 「받은 날부터 심사」.
  */
 export type BusinessCertificateDelivery = 'UPLOAD' | 'MAIL_FAX';
 
-/** 우편·팩스로 보내기 신청 본문(목업) — 등록증 파일 없이 */
-export type BusinessApplyByMailRequest = Omit<BusinessApplyRequest, 'certificateFileId'>;
-
-/** 등록증을 보낼 곳(목업 상수 — 나중에 사이트 설정) */
+/** `GET /api/business/doc-send-to` — 등록증을 보낼 곳(서버 설정값). 비어 있는 칸은 null — 주소와 팩스가 둘 다 없으면 「우편·팩스로 보내기」를 보이지 않는다 */
 export interface BusinessDocSendTo {
-    postcode: string;
-    address: string;
+    postcode: string | null;
+    address: string | null;
     /** 받는 사람(부서) */
-    recipient: string;
-    fax: string;
+    recipient: string | null;
+    fax: string | null;
 }
 
 /* ── 사업자 신청 건(광고·핫딜) ─────────────────────────────── */

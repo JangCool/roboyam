@@ -16,7 +16,7 @@
                     <Tag v-if="UtilDocIntake.disposeOverdue(row, disposeDueAt, now)" :value="t('docIntake.overdue')" severity="danger" icon="pi pi-exclamation-triangle" />
                 </span>
                 <span class="text-[11px] tabular-nums text-muted-color">
-                    {{ t('docIntake.receivedLine', { date: time.serviceDate(row.receivedOn), who: row.receivedBy }) }}<template v-if="row.storageLocation"> · {{ t('docIntake.storageLine', { where: row.storageLocation }) }}</template>
+                    {{ t('docIntake.receivedLine', { date: time.serviceDate(row.receivedOn), who: row.receivedBy ?? '—' }) }}<template v-if="row.storageLocation"> · {{ t('docIntake.storageLine', { where: row.storageLocation }) }}</template>
                 </span>
                 <span v-if="row.memo" class="text-xs [overflow-wrap:anywhere]">{{ row.memo }}</span>
                 <span v-if="row.handling === 'DISPOSED'" class="text-xs text-muted-color [overflow-wrap:anywhere]">

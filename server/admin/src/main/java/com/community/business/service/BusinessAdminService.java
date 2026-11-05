@@ -502,8 +502,8 @@ public class BusinessAdminService {
                 BusinessFields.maskPhone(plain.phone()), BusinessFields.maskEmail(plain.email()));
         DocumentRow doc = p.getCertificateId() == null ? null : store.document(p.getCertificateId()).filter(d -> d.erasedAt() == null).orElse(null);
         BusinessAdminView.Certificate cert = doc == null ? null : store.lastView(id, "CERTIFICATE")
-                .map(v -> new BusinessAdminView.Certificate(doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), v.operatorName(), v.at()))
-                .orElseGet(() -> new BusinessAdminView.Certificate(doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), null, null));
+                .map(v -> new BusinessAdminView.Certificate(Long.toString(doc.id()), doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), v.operatorName(), v.at()))
+                .orElseGet(() -> new BusinessAdminView.Certificate(Long.toString(doc.id()), doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), null, null));
         List<BusinessAdminView.ServiceCard> cards = sorted(rows).stream().map(s -> {
             BusinessApplicationHook.ServiceCounts c = hook.counts(id, s.getService());
             BusinessApplicationHook.SuspendImpact si = hook.impact(id, s.getService());
@@ -522,7 +522,7 @@ public class BusinessAdminService {
                 serviceRows(rows), new BusinessAdminView.Applicant(Long.toString(p.getUserId()), nickname), p.getSubmittedAt(),
                 ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
                 new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running()), rejection, suspension, history,
-                p.getCertificateDelivery().name());
+                p.getCertificateDelivery().name(), receipt.received(p));
     }
 
     /** 승인 판정의 갈래 — 바로 · 사유를 적으면 */

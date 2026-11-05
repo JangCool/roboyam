@@ -30,8 +30,6 @@ export default {
         pendingText: '보통 영업일 1~2일 걸려요. 결과는 알림으로 알려 드려요. 심사 중에는 내용을 고칠 수 없어요.',
         pendingMailTitle: '등록증 사본을 받으면 심사를 시작해요',
         pendingMailText: '사업자등록증을 우편·팩스로 보낸다고 하셨어요. 아래 보낼 곳으로 보내 주시면 받은 날부터 심사해요.',
-        mockMailNote: '목업 — 우편·팩스 신청은 아직 서버에 저장되지 않고 이 탭에만 남아 있어요.',
-        mockMailClear: '목업 지우기',
         rejectedTitle: '사업자 신청이 반려됐어요',
         rejectedText: '아래 사유를 확인하고 고쳐서 다시 신청해 주세요.',
         reapplyCta: '다시 신청',
@@ -146,13 +144,11 @@ export default {
                 MAIL_FAX: '파일이 없으면 인쇄본을 우편이나 팩스로 보내 주세요. 받은 날부터 심사해요.',
             },
             summary: '우편·팩스로 보냄',
-            mockSubmitted: '목업 — 서버 연결 뒤 실제로 신청돼요',
         },
     },
 
     docSend: {
         title: '등록증 사본 보낼 곳',
-        mockTag: '목업',
         mail: '우편',
         fax: '팩스',
         markMargin: '서류 여백에 상호와 사업자등록번호를 적어 주세요.',

@@ -73,7 +73,7 @@ export default {
     secServices: 'Services',
     serviceCounts: 'Running/scheduled {live} · awaiting payment {pending}',
     secHistory: 'History',
-    action: { APPLIED: 'Applied', NTS_CHECKED: 'NTS check', APPROVED: 'Approved', REJECTED: 'Rejected', SUSPENDED: 'Suspended', UNSUSPENDED: 'Suspension lifted', SERVICE_SUSPENDED: 'Service suspended', SERVICE_RESUMED: 'Service resumed', REVEALED: 'Plain text viewed', CERT_VIEWED: 'Certificate viewed', UPDATED: 'Info updated', WITHDRAWN: 'Withdrawn' },
+    action: { APPLIED: 'Applied', NTS_CHECKED: 'NTS check', APPROVED: 'Approved', REJECTED: 'Rejected', SUSPENDED: 'Suspended', UNSUSPENDED: 'Suspension lifted', SERVICE_SUSPENDED: 'Service suspended', SERVICE_RESUMED: 'Service resumed', REVEALED: 'Plain text viewed', CERT_VIEWED: 'Certificate viewed', UPDATED: 'Info updated', WITHDRAWN: 'Withdrawn', PAPER_RECEIVED: 'Paper certificate received', PAPER_HANDLING: 'Paper copy handling changed', PAPER_DISPOSED: 'Paper copy disposed', PAPER_VOIDED: 'Intake record voided', CERT_UPLOADED: 'Certificate uploaded (operator)' },
     actApprove: 'Approve',
     actReject: 'Reject',
     actSuspend: 'Suspend',

@@ -2,7 +2,7 @@
     <!--
         입금·계약 확인 대기 건(수동 결제 — ★-2 · F3) — ① 계약서 사본(필수, 여러 장, 옛 파일 「대체됨」) ② 입금 확인(입금액·입금일·입금자명) ③ [예약 확정].
         [예약 확정] 은 계약서 근거 1건 이상 + 저장된 입금 기록이 둘 다 있을 때만 켜진다(서버도 CHECK). 입금액이 계약 금액과 다르면 경고 + 사유.
-        계약서 근거 = 대체 안 된 파일 + 잘못 기록이 아닌 인쇄본·팩스 접수 기록(① 아래 `DocIntakeSection` — 목업, 2026-11-05 사용자 결정. 서버 CHECK 는 나중에 바꾼다).
+        계약서 근거 = 대체 안 된 파일 + 잘못 기록이 아닌 인쇄본·팩스 접수 기록(① 아래 `DocIntakeSection` — 2026-11-05 사용자 결정, 서버 CHECK 도 「파일 + 종이 ≥ 1」).
         입금 기한이 지난 건은 위에 경고와 [기한 연장]·[취소] 를 둔다(자동 취소하지 않는다 — F2). 서버는 부르지 않는다 — 동작은 emit.
     -->
     <div class="flex flex-col gap-4">
@@ -18,7 +18,7 @@
 
         <section class="flex flex-col gap-2" :aria-labelledby="`${uid}-c`">
             <h4 :id="`${uid}-c`" class="m-0 text-[13px] font-semibold">① {{ t('bizApplication.contract.title') }} <span class="text-red-600">*</span></h4>
-            <BizContractFiles :files="detail.contracts" editable viewable :busy="busy" :error="fieldErrors.file ?? ''" :fax-file-ids="faxFileIds" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" @view="(id) => emit('viewContract', id)" />
+            <BizContractFiles :files="detail.contracts" editable viewable :busy="busy" :error="fieldErrors.file ?? ''" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" @view="(id) => emit('viewContract', id)" />
             <DocIntakeSection doc="CONTRACT" :host="intake" :files="scanFiles" editable handleable @intake="(e) => emit('intake', e)" />
         </section>
 
@@ -40,7 +40,6 @@
                     <i :class="c.ok ? 'pi pi-check-circle' : 'pi pi-circle'" aria-hidden="true" />{{ c.label }}
                 </li>
             </ul>
-            <p v-if="paperOnly" class="m-0 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ t('docIntake.mockPaperOnly') }}</p>
             <Message v-if="error" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ error }}</Message>
             <div class="flex justify-end">
                 <Button type="button" :label="t('bizApplication.actConfirmBooking')" icon="pi pi-calendar-plus" :disabled="busy || !ready" @click="emit('confirm')" />
@@ -62,7 +61,7 @@ interface Props {
     error?: string;
     fieldErrors?: Record<string, string>;
     now?: number;
-    /** 인쇄본·팩스 접수 기록(목업) — 부모의 `useDocIntake().host` */
+    /** 인쇄본·팩스 접수 기록 — 부모의 `useDocIntake().host` */
     intake?: DocIntakeHost | null;
 }
 
@@ -90,13 +89,10 @@ const tried = ref(false);
 
 const overdue = computed(() => Boolean(props.detail.deadlineAt) && Date.parse(props.detail.deadlineAt!) < props.now);
 const activeContracts = computed(() => props.detail.contracts.filter((c) => !c.replacedAt).length);
-/** 잘못 기록이 아닌 인쇄본·팩스 접수 기록(목업) */
+/** 잘못 기록이 아닌 인쇄본·팩스 접수 기록 */
 const paperCount = computed(() => UtilDocIntake.activeIntakes(props.intake?.bundle?.intakes ?? []).length);
 /** 계약서 근거 = 대체 안 된 파일 + 종이 접수 */
 const evidence = computed(() => activeContracts.value + paperCount.value);
-/** 파일 없이 종이 접수만으로 켜졌다 — 지금 서버 CHECK 는 파일 1장 이상이라 확정이 409 로 막힌다(목업 안내) */
-const paperOnly = computed(() => activeContracts.value === 0 && paperCount.value > 0);
-const faxFileIds = computed(() => UtilDocIntake.faxFileIds(props.intake?.bundle));
 const scanFiles = computed(() => UtilDocIntake.contractScanFiles(props.detail.contracts));
 const depositOk = computed(() => {
     const d = props.detail.deposit;

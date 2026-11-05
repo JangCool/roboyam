@@ -141,7 +141,6 @@ export default {
     canceled: 'Canceled.',
     depositOverdue: 'The deposit deadline ({at}) has passed. Extend or cancel.',
     confirmTitle: 'Confirm booking',
-    condContract: '{n} contract copies',
     condDeposit: 'Deposit record',
     condDepositSaved: 'Deposit {amount}',
     confirmed: 'Booking confirmed.',
@@ -327,6 +326,10 @@ export default {
         RESUMED: 'Resumed',
         STOPPED: 'Stopped',
         CLAIM_REFUNDED: 'Additional refund (claim)',
+        PAPER_RECEIVED: 'Paper contract received',
+        PAPER_HANDLING: 'Paper copy handling changed',
+        PAPER_DISPOSED: 'Paper copy disposed',
+        PAPER_VOIDED: 'Intake record voided',
     },
     note: {
         PERIOD_MOVED: 'Period moved',

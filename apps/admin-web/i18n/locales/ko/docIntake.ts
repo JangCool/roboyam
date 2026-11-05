@@ -1,5 +1,5 @@
 /**
- * 사업자 서류 「접수 기록」(인쇄본·팩스로 받은 계약서 사본·사업자등록증 사본 — 목업 2026-11-05). 계약서 쪽(`bizApplication`)과 등록증 쪽(`business`)이 같이 쓴다.
+ * 사업자 서류 「접수 기록」(인쇄본·팩스로 받은 계약서 사본·사업자등록증 사본, 2026-11-05 — biz-doc-intake-contract). 계약서 쪽(`bizApplication`)과 등록증 쪽(`business`)이 같이 쓴다.
  * `en/docIntake.ts` 와 같은 키·차례.
  */
 export default {
@@ -9,7 +9,6 @@ export default {
         CONTRACT: '우편·직접 전달·팩스로 받은 계약서를 기록해요. 인쇄본 기록도 계약서 근거로 세요.',
         CERTIFICATE: '우편·직접 전달·팩스로 받은 사업자등록증을 기록해요.',
     },
-    mockTag: '목업',
     efax: '전자 팩스',
     doc: { CONTRACT: '계약서 사본', CERTIFICATE: '사업자등록증 사본' },
     channel: { MAIL: '우편', VISIT: '직접 전달', FAX: '팩스(종이)' },
@@ -97,13 +96,11 @@ export default {
         voided: '잘못 기록으로 돌렸어요.',
     },
     condEvidence: '계약서 근거 {n}건 — 파일 {files} · 인쇄본 {papers}',
-    mockPaperOnly: '목업 — 지금 서버는 파일 사본이 1장 이상 있어야 예약을 확정해요(인쇄본도 세도록 서버를 바꿀 예정).',
     cert: {
         awaiting: '등록증을 우편·팩스로 보낸다고 했어요 — 아직 받지 않았어요.',
         received: '우편·팩스로 보낸다고 한 등록증을 받았어요.',
         approveLocked: '등록증 사본을 받아야 승인할 수 있어요.',
         overdueNote: '반려·탈퇴 뒤 90일이 지났어요 — 보관 중인 인쇄본을 폐기해 주세요.',
-        mockToggle: '신청자가 「우편·팩스로 보냄」을 고른 것으로 보기',
-        mockToggleHelp: '켜면 신청자가 올린 등록증 파일은 받은 것으로 치지 않아요(서버가 붙으면 신청 값으로 정해져요).',
+        earlierFile: '이전 등록증 파일',
     },
 };

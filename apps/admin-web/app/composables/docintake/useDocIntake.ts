@@ -3,15 +3,17 @@ import type { DocIntakeDialog, DocIntakeEvent, DocIntakeHost } from '~/composabl
 
 interface Options {
     /**
-     * 계약서 전자 팩스 — 파일을 기존 계약서 올리기 API 로 올리고 새 파일 id 를 돌려준다(부모가 상세를 새로 고친다). 없으면 등록증처럼 접수 기록 API 로 올린다.
+     * 계약서 전자 팩스 — 파일을 기존 계약서 올리기 API 에 `channel=FAX` 를 실어 올린다(부모가 상세를 바꾼다). 등록증 전자 팩스는 이 컴포저블이 관리자 등록증 올리기로 올린다.
      */
-    uploadFile?: (file: File) => Promise<string | null>;
+    uploadContract?: (file: File) => Promise<void>;
+    /** 쓰기가 끝난 뒤 — 처리 기록(`PAPER_*`·`CERT_UPLOADED`)·등록증 카드가 바뀌므로 부모가 상세를 다시 읽는다 */
+    onChanged?: () => void;
 }
 
 /**
  * 접수 기록(인쇄본·팩스) 한 대상의 화면 상태 — 심사 화면(`BizAppReviewPage`)·광고 일정(`/ads`)·사업자 화면(`BusinessAdminPage`)이 같은 흐름을 쓴다.
  * 공유 상태가 아니라 부른 화면마다 따로 든다(`useState` 없음). 대상(`target`)이 바뀌면 그 대상 것을 다시 받는다.
- * 서버 호출은 `useDocIntakeApi`(**목업**). 성공하면 대화상자를 닫고 토스트, 칸 오류는 `fieldErrors`, 그 밖은 `error`(대화상자 안). 409 는 다시 읽는다.
+ * 서버 호출은 `useDocIntakeApi`. 성공하면 대화상자를 닫고 토스트 + `onChanged`, 칸 오류는 `fieldErrors`, 그 밖은 `error`(대화상자 안). 409 는 다시 읽는다.
  * ⚠ 컴포넌트 setup 에서 부른다(토스트·번역을 그때 붙잡는다).
  */
 export function useDocIntake(target: MaybeRefOrGetter<DocIntakeTarget | null>, options: Options = {}) {
@@ -66,7 +68,7 @@ export function useDocIntake(target: MaybeRefOrGetter<DocIntakeTarget | null>, o
         { immediate: true },
     );
 
-    async function run(call: (current: DocIntakeTarget) => Promise<DocIntakeBundle>, done: string, closeDialog = true): Promise<void> {
+    async function run(call: (current: DocIntakeTarget) => Promise<DocIntakeBundle>, done: string): Promise<void> {
         const current = toValue(target);
         if (!current || working.value) return;
         working.value = true;
@@ -74,8 +76,9 @@ export function useDocIntake(target: MaybeRefOrGetter<DocIntakeTarget | null>, o
         fieldErrors.value = {};
         try {
             bundle.value = await call({ ...current });
-            if (closeDialog) dialog.value = null;
-            if (done) toast.success(done);
+            dialog.value = null;
+            toast.success(done);
+            options.onChanged?.();
         } catch (e) {
             const failure = toApiError(e);
             if (failure.status === 409) void load();
@@ -99,11 +102,11 @@ export function useDocIntake(target: MaybeRefOrGetter<DocIntakeTarget | null>, o
                 return;
             case 'createFile':
                 void run(async (c) => {
-                    if (c.doc === 'CONTRACT' && options.uploadFile) {
-                        const fileId = await options.uploadFile(event.file);
-                        return fileId ? api.markFileChannel(c, fileId, 'FAX') : api.list(c);
-                    }
-                    return api.uploadFaxFile(c, event.file);
+                    if (c.doc === 'CERTIFICATE') return api.uploadCertificate(c, event.file, 'FAX');
+                    // 계약서는 부모의 계약서 올리기(`channel=FAX`) — 파일 줄이 늘었으니 묶음(`fileChannels`)도 다시 받는다
+                    if (!options.uploadContract) throw new Error('uploadContract 가 없는 화면에서 계약서 전자 팩스를 올렸다');
+                    await options.uploadContract(event.file);
+                    return api.list(c);
                 }, t('docIntake.done.fileUploaded'));
                 return;
             case 'handling':
@@ -114,9 +117,6 @@ export function useDocIntake(target: MaybeRefOrGetter<DocIntakeTarget | null>, o
                 return;
             case 'void':
                 void run((c) => api.void(c, event.id, event.reason), t('docIntake.done.voided'));
-                return;
-            case 'mailDeclared':
-                void run((c) => api.setMailDeclared(c, event.on), '', false);
                 return;
         }
     }

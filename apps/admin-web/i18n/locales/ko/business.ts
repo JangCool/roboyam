@@ -74,7 +74,7 @@ export default {
     secServices: '서비스',
     serviceCounts: '진행·예약 {live}건 · 결제 대기 {pending}건',
     secHistory: '처리 기록',
-    action: { APPLIED: '신청', NTS_CHECKED: '국세청 조회', APPROVED: '승인', REJECTED: '반려', SUSPENDED: '정지', UNSUSPENDED: '정지 해제', SERVICE_SUSPENDED: '서비스 정지', SERVICE_RESUMED: '서비스 해제', REVEALED: '평문 열람', CERT_VIEWED: '등록증 열람', UPDATED: '정보 수정', WITHDRAWN: '탈퇴' },
+    action: { APPLIED: '신청', NTS_CHECKED: '국세청 조회', APPROVED: '승인', REJECTED: '반려', SUSPENDED: '정지', UNSUSPENDED: '정지 해제', SERVICE_SUSPENDED: '서비스 정지', SERVICE_RESUMED: '서비스 해제', REVEALED: '평문 열람', CERT_VIEWED: '등록증 열람', UPDATED: '정보 수정', WITHDRAWN: '탈퇴', PAPER_RECEIVED: '등록증 인쇄본 접수', PAPER_HANDLING: '인쇄본 처리 바꿈', PAPER_DISPOSED: '인쇄본 폐기', PAPER_VOIDED: '접수 기록 잘못 기록', CERT_UPLOADED: '등록증 올림(운영자)' },
     actApprove: '승인',
     actReject: '반려',
     actSuspend: '정지',

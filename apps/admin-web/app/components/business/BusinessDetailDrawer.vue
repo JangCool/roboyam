@@ -4,8 +4,8 @@
         구획: ① 신원(가린 값 + 평문 보기) ② 국세청 상태조회 ③ 사업자등록증 사본(열람 기록) ④ 서비스 카드 ⑤ 처리 기록 Timeline. 맨 아래 처리 단추.
         ④ 서비스 카드: 「서비스만 정지」(`suspendCode != null`)면 사유 칸, 신원이 승인이면 카드마다 [서비스 정지]·[서비스 해제](2026-11-02).
         [승인] 은 계속사업자일 때만(조회 불가면 부모가 사유를 받는다), 휴·폐업이면 잠그고 이유를 적는다. 서버는 부르지 않는다 — 동작은 emit.
-        ③ 아래 인쇄본·팩스 접수 기록(목업 — 부모 `intake` 값, 동작은 `intake` 이벤트): 전자 팩스 파일 줄 · 종이 접수 줄 · [접수 기록](`business.manage`).
-          「우편·팩스로 보냄」 신원인데 받은 것이 없으면 경고 + [승인] 잠금. 반려·탈퇴 90일이 지났는데 보관 중인 인쇄본은 「폐기 기한 지남」. 목업 스위치로 「우편·팩스로 보냄」을 켠다.
+        ③ 아래 인쇄본·팩스 접수 기록(부모 `intake` 값, 동작은 `intake` 이벤트): 전자 팩스 파일 줄 · 종이 접수 줄 · [접수 기록](`business.manage`).
+          「우편·팩스로 보냄」(상세 `certificateDelivery`) 신원인데 받은 것이 없으면 경고 + [승인] 잠금(서버도 409). 반려·탈퇴 90일이 지났는데 보관 중인 인쇄본은 「폐기 기한 지남」.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
         <template #header>
@@ -52,23 +52,23 @@
                 <p v-else class="m-0 text-[13px] text-muted-color">{{ t('business.certNone') }}</p>
                 <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-eye mt-0.5 text-xs" aria-hidden="true" />{{ t('business.certViewLog') }}</p>
 
-                <!-- 인쇄본·팩스로 받은 등록증(목업 — 접수 기록 API 없음) -->
+                <!-- 인쇄본·팩스로 받은 등록증 -->
                 <template v-if="intake?.bundle">
                     <Message v-if="certAwaiting" severity="warn" :closable="false" icon="pi pi-envelope" data-testid="doc-intake-cert-awaiting">
                         <span class="text-[13px]">{{ t('docIntake.cert.awaiting') }}</span>
                     </Message>
-                    <p v-else-if="intake.bundle.mailDeclared" class="m-0 flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400"><i class="pi pi-check-circle text-xs" aria-hidden="true" />{{ t('docIntake.cert.received') }}</p>
+                    <p v-else-if="detail.certificateDelivery === 'MAIL_FAX'" class="m-0 flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400"><i class="pi pi-check-circle text-xs" aria-hidden="true" />{{ t('docIntake.cert.received') }}</p>
                     <Message v-if="disposeOverdue" severity="error" :closable="false" icon="pi pi-exclamation-triangle"><span class="text-[13px]">{{ t('docIntake.cert.overdueNote') }}</span></Message>
-                    <!-- 전자 팩스로 받은 등록증 파일(목업 — 이름·크기만, 열람 없음) -->
-                    <ul v-if="intake.bundle.faxFiles.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
-                        <li v-for="f in intake.bundle.faxFiles" :key="f.id" class="flex items-center gap-3 px-3 py-2 text-[13px]">
+                    <!-- 전자 팩스로 받은 예전 등록증 파일(이름·크기 — 지금 등록증은 위 사본 카드에서 연다) -->
+                    <ul v-if="earlierFaxFiles.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                        <li v-for="f in earlierFaxFiles" :key="f.id" class="flex items-center gap-3 px-3 py-2 text-[13px]">
                             <i :class="f.mimeType === 'application/pdf' ? 'pi pi-file-pdf' : 'pi pi-image'" class="text-muted-color" aria-hidden="true" />
                             <div class="flex min-w-0 flex-1 flex-col">
                                 <span class="inline-flex min-w-0 items-center gap-2">
                                     <span class="truncate font-medium">{{ f.fileName }}</span>
                                     <Tag :value="t('docIntake.efax')" severity="info" icon="pi pi-print" />
                                 </span>
-                                <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.receivedAt) }} · {{ f.receivedBy }}</span>
+                                <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.receivedAt) }} · {{ f.receivedBy ?? '—' }}</span>
                             </div>
                         </li>
                     </ul>
@@ -81,14 +81,6 @@
                         :dispose-due-at="disposeDueAt"
                         @intake="(e) => emit('intake', e)"
                     />
-                    <!-- 목업 스위치 — 신청자가 「우편·팩스로 보냄」을 고른 신원처럼 보기(서버가 붙으면 상세 값이라 없앤다) -->
-                    <div class="flex items-start gap-2 rounded-md border border-dashed border-amber-400 px-2.5 py-1.5 dark:border-amber-700" data-testid="doc-intake-mock-mailfax">
-                        <Checkbox :model-value="intake.bundle.mailDeclared" binary :input-id="`${titleId}-mailfax`" :disabled="intake.busy" class="mt-0.5" @update:model-value="(v: boolean) => emit('intake', { type: 'mailDeclared', on: v })" />
-                        <label :for="`${titleId}-mailfax`" class="flex min-w-0 flex-col text-xs">
-                            <span class="inline-flex items-center gap-1.5"><Tag :value="t('docIntake.mockTag')" severity="warn" class="text-[10px]!" />{{ t('docIntake.cert.mockToggle') }}</span>
-                            <span class="text-[11px] text-muted-color">{{ t('docIntake.cert.mockToggleHelp') }}</span>
-                        </label>
-                    </div>
                 </template>
             </section>
 
@@ -220,7 +212,7 @@ interface Props {
     /** 사업자 삭제(`business.delete`) */
     canDelete?: boolean;
     reveal?: BusinessReveal | null;
-    /** 등록증 인쇄본·팩스 접수 기록(목업) — 부모의 `useDocIntake().host` */
+    /** 등록증 인쇄본·팩스 접수 기록 — 부모의 `useDocIntake().host` */
     intake?: DocIntakeHost | null;
 }
 
@@ -253,7 +245,7 @@ const emit = defineEmits<{
     hide: [];
     openCert: [];
     remove: [];
-    /** 등록증 인쇄본·팩스 접수 기록(목업) */
+    /** 등록증 인쇄본·팩스 접수 기록 */
     intake: [event: DocIntakeEvent];
 }>();
 
@@ -297,16 +289,18 @@ function serviceAction(card: BusinessServiceCard): 'suspend' | 'resume' | null {
     return null;
 }
 
-/** 「우편·팩스로 보냄」인데 아직 받은 것이 없다 — [승인] 을 잠근다(부모 `approve` 도 막는다) */
-const certAwaiting = computed(() => UtilDocIntake.certificateAwaiting(props.intake?.bundle));
-/** 등록증 인쇄본 폐기 기한(반려·탈퇴 처리 기록 + 90일 — 가정) */
+/** 「우편·팩스로 보냄」인데 아직 받은 것이 없다 — [승인] 을 잠근다(부모 `approve` 도 막는다, 서버 409 `BUSINESS_CERT_NOT_RECEIVED`) */
+const certAwaiting = computed(() => {
+    const d = props.detail;
+    return d ? UtilDocIntake.certificateAwaiting(d.certificateDelivery, d.certificateReceived) : false;
+});
+/** 전자 팩스 파일 중 지금 등록증이 아닌 것 — 지금 등록증은 위 사본 카드에 이미 있다 */
+const earlierFaxFiles = computed(() => (props.intake?.bundle?.faxFiles ?? []).filter((f) => f.id !== props.detail?.certificate?.id));
+/** 등록증 인쇄본 폐기 기한(반려·탈퇴 처리 기록 + 90일) */
 const disposeDueAt = computed(() => (props.detail ? UtilDocIntake.certificateDisposeDue(props.detail.status, props.detail.history) : null));
 const disposeOverdue = computed(() => (props.intake?.bundle?.intakes ?? []).some((i) => UtilDocIntake.disposeOverdue(i, disposeDueAt.value)));
-/** 폐기 스캔본 후보 — 신청자가 올린 등록증 파일 + 전자 팩스 파일(등록증은 선택) */
-const certScanFiles = computed<DocScanFile[]>(() => [
-    ...(props.detail?.certificate ? [{ id: UtilDocIntake.CERTIFICATE_FILE_ID, label: props.detail.certificate.fileName, active: true }] : []),
-    ...(props.intake?.bundle?.faxFiles ?? []).map((f) => ({ id: f.id, label: f.fileName, active: true })),
-]);
+/** 폐기 스캔본 후보 — 그 사업자의 등록증 파일(회원이 올린 것 + 전자 팩스, 등록증은 선택) */
+const certScanFiles = computed<DocScanFile[]>(() => UtilDocIntake.certificateScanFiles(props.intake?.bundle, props.detail?.certificate ?? null, t('docIntake.cert.earlierFile')));
 
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
