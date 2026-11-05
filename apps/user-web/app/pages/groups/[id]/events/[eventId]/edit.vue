@@ -6,7 +6,7 @@
         저장하면 토스트 후 일정 상세로(`replace`). 고치던 내용이 있으면 나갈 때 묻는다.
     -->
     <div class="content-card">
-        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
+        <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('groupEvent.editTitle') }}</span>
         </div>
