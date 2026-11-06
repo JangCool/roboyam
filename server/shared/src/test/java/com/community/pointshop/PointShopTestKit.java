@@ -4,6 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.service.AuditLogService;
+import com.community.avatarupload.repository.master.AvatarUploadStore;
+import com.community.avatarupload.service.AvatarUploadReviewService;
+import com.community.avatarupload.service.AvatarUploadService;
+import com.community.media.service.ImageStorage;
+import com.community.pointshop.service.AvatarLooks;
+import com.community.pointshop.service.UploadTicketService;
+import java.util.concurrent.ConcurrentHashMap;
 import com.community.point.entity.PointKind;
 import com.community.point.entity.PointLotKind;
 import com.community.point.entity.PointReason;
@@ -95,6 +102,13 @@ final class PointShopTestKit {
     final NicknameTicketService tickets;
     final ProfileAvatarService profileAvatars;
     final ShopDecorationResolver decorations;
+    /** 올리기 변경권·아바타 올리기(commerce-motion-avatar-contract) */
+    final AvatarUploadStore uploadStore;
+    final MemoryImageStorage storage = new MemoryImageStorage();
+    final AvatarLooks looks;
+    final UploadTicketService uploadTickets;
+    final AvatarUploadService avatarUploads;
+    final AvatarUploadReviewService avatarReviews;
     final long operator;
 
     PointShopTestKit() {
@@ -131,8 +145,13 @@ final class PointShopTestKit {
         refunds = new PointShopRefundService(itemStore, purchaseStore, userItemStore, members, points, audit, operatorPublisher, memberPublisher, ids, clocks);
         userItems = new UserItemService(userItemStore, itemStore, members, purchaseStore, avatars, clocks);
         tickets = new NicknameTicketService(userItemStore, itemStore, clocks);
-        profileAvatars = new ProfileAvatarService(avatars, itemStore, userItemStore, members, clocks);
-        decorations = new ShopDecorationResolver(userItemStore, members, avatars, clocks);
+        uploadStore = new AvatarUploadStore(dataSource);
+        looks = new AvatarLooks(avatars, uploadStore, storage);
+        profileAvatars = new ProfileAvatarService(avatars, itemStore, userItemStore, members, uploadStore, looks, clocks);
+        decorations = new ShopDecorationResolver(userItemStore, members, looks, clocks);
+        uploadTickets = new UploadTicketService(userItemStore, itemStore, clocks);
+        avatarUploads = new AvatarUploadService(uploadStore, uploadTickets, members, profileAvatars, storage, operatorPublisher, clocks);
+        avatarReviews = new AvatarUploadReviewService(uploadStore, uploadTickets, members, profileAvatars, looks, storage, audit, memberPublisher, clocks);
         operator = newOperator();
     }
 
@@ -317,6 +336,80 @@ final class PointShopTestKit {
     int count(String sql, Object... args) {
         Integer count = jdbc.queryForObject(sql, Integer.class, args);
         return count == null ? 0 : count;
+    }
+
+    // ── 올리기 변경권·아바타 올리기 ─────────────────────────────────────────
+
+    /** 메모리 저장소(시험용 — 공개 주소는 {@code /media/<키>}) */
+    static final class MemoryImageStorage implements ImageStorage {
+
+        final Map<String, byte[]> files = new ConcurrentHashMap<>();
+
+        @Override
+        public void put(String key, byte[] data) {
+            files.put(key, data);
+        }
+
+        @Override
+        public void delete(String key) {
+            files.remove(key);
+        }
+
+        @Override
+        public String publicUrl(String key) {
+            return "/media/" + key;
+        }
+    }
+
+    /** V157 이 넣은 변경권 품목 ID */
+    long seedItem(String code) {
+        return jdbc.queryForObject("SELECT id FROM point_shop_items WHERE code = ?", Long.class, code);
+    }
+
+    /** 이메일 인증 전 회원 + 프로필 */
+    long newUnverifiedMember() {
+        long id = newMember();
+        jdbc.update("UPDATE users SET email_verified_at = NULL WHERE id = ?", id);
+        return id;
+    }
+
+    /** 아바타 올리기 대기 신청을 만든다(파일은 메모리 저장소에) — 새 신청 ID */
+    long submitUpload(long userId, boolean animated) {
+        long requestId = ids.nextId();
+        String folder = "avatar-upload/t" + requestId;
+        storage.put(folder + "/image." + (animated ? "gif" : "png"), new byte[] {1});
+        if (animated) {
+            storage.put(folder + "/still.png", new byte[] {2});
+        }
+        List<String> stale = inTx(() -> avatarUploads.submit(userId, new AvatarUploadService.NewUpload(requestId, folder + "/image." + (animated ? "gif" : "png"),
+                animated ? folder + "/still.png" : null, animated ? "image/gif" : "image/png", 1000, 200, 200, animated ? 12 : 1)));
+        stale.forEach(storage::delete);
+        return requestId;
+    }
+
+    /** 운영자 심사(관리자 앱과 같은 한 트랜잭션) */
+    com.community.avatarupload.dto.response.AdminAvatarUploadView approveUpload(String id) {
+        return inTx(() -> avatarReviews.approve(operator, "127.0.0.1", id));
+    }
+
+    com.community.avatarupload.dto.response.AdminAvatarUploadView rejectUpload(String id, String reason) {
+        return inTx(() -> avatarReviews.reject(operator, "127.0.0.1", id, reason));
+    }
+
+    com.community.avatarupload.dto.response.AdminAvatarUploadView revokeUpload(String id, String reason) {
+        return inTx(() -> avatarReviews.revoke(operator, "127.0.0.1", id, reason));
+    }
+
+    String profileImage(long userId) {
+        return jdbc.queryForObject("SELECT profile_image FROM profiles WHERE user_id = ?", String.class, userId);
+    }
+
+    String lastStill(long userId) {
+        return jdbc.queryForObject("SELECT last_still_avatar FROM profiles WHERE user_id = ?", String.class, userId);
+    }
+
+    String uploadStatus(long requestId) {
+        return jdbc.queryForObject("SELECT status FROM avatar_upload_requests WHERE id = ?", String.class, requestId);
     }
 
     // ── 동시에 ──────────────────────────────────────────────────────────────

@@ -105,6 +105,17 @@
                 <p v-if="ticketStatus" class="m-0 mt-3 rounded-lg bg-surface-50 px-3 py-2 text-sm dark:bg-surface-950" data-testid="pointshop-ticket-status">{{ ticketStatus }}</p>
             </section>
 
+            <!-- 올리기 변경권(닉네임 이미지·아바타) — 미리보기가 없어 쓰는 법을 늘 적는다. 예약·반환 규칙은 사기 전에 알린다 -->
+            <section v-else-if="uploadTicket" class="panel-card p-4" :aria-labelledby="`${titleId}-about`" data-testid="pointshop-upload-ticket-about">
+                <h2 :id="`${titleId}-about`" class="m-0 text-sm font-semibold">{{ uploadTicket.title }}</h2>
+                <dl class="m-0 mt-2 flex flex-col gap-2 text-sm">
+                    <div v-for="line in uploadTicket.lines" :key="line.key" class="grid grid-cols-[5.5rem_1fr] gap-2">
+                        <dt class="text-muted-color">{{ line.label }}</dt>
+                        <dd class="m-0 leading-relaxed">{{ line.text }}</dd>
+                    </div>
+                </dl>
+            </section>
+
             <!-- 구매 -->
             <section class="flex flex-col gap-2" data-testid="pointshop-buy">
                 <Button
@@ -276,6 +287,22 @@ const ticketLines = computed(() => [
     { key: 'period', label: t('pointShop.ticketPeriodLabel'), text: t('pointShop.ticketPeriod') },
     { key: 'refund', label: t('pointShop.ticketRefundLabel'), text: t('pointShop.ticketRefund', { days: refundDays.value }) },
 ]);
+/** 올리기 변경권(닉네임 이미지·아바타)의 안내 다섯 줄 — 서버 품목 `NICKNAME_IMAGE_TICKET`·`AVATAR_UPLOAD_TICKET` */
+const uploadTicket = computed(() => {
+    const kind = item.value?.kind;
+    if (kind !== 'NICKNAME_IMAGE_TICKET' && kind !== 'AVATAR_UPLOAD_TICKET') return null;
+    const avatar = kind === 'AVATAR_UPLOAD_TICKET';
+    return {
+        title: avatar ? t('pointShop.avatarTicketAboutTitle') : t('pointShop.nicknameImageTicketAboutTitle'),
+        lines: [
+            { key: 'what', label: t('pointShop.ticketWhatLabel'), text: avatar ? t('pointShop.avatarTicketWhat') : t('pointShop.nicknameImageTicketWhat') },
+            { key: 'when', label: t('pointShop.ticketWhenLabel'), text: t('pointShop.uploadTicketWhen') },
+            { key: 'where', label: t('pointShop.ticketWhereLabel'), text: avatar ? t('pointShop.avatarTicketWhere') : t('pointShop.nicknameImageTicketWhere') },
+            { key: 'period', label: t('pointShop.ticketPeriodLabel'), text: t('pointShop.ticketPeriod') },
+            { key: 'refund', label: t('pointShop.ticketRefundLabel'), text: t('pointShop.uploadTicketRefund', { days: refundDays.value }) },
+        ],
+    };
+});
 const ticketStatus = computed(() => {
     const change = profile.value?.nicknameChange;
     if (!change) return '';
@@ -296,6 +323,8 @@ const hasMine = computed(() => {
 });
 const mineLink = computed(() => {
     if (item.value?.kind === 'NICKNAME_CHANGE_TICKET') return { to: '/settings/profile', label: t('pointShop.useInProfile') };
+    if (item.value?.kind === 'NICKNAME_IMAGE_TICKET') return { to: UtilPointShop.ticketUsePath(item.value.kind), label: t('pointShop.useNicknameImageTicket') };
+    if (item.value?.kind === 'AVATAR_UPLOAD_TICKET') return { to: UtilPointShop.ticketUsePath(item.value.kind), label: t('pointShop.useAvatarTicket') };
     if (item.value?.kind === 'PROFILE_AVATAR') return { to: '/settings/profile', label: t('avatar.useInProfile') };
     return { to: UtilPointShop.MY_ITEMS_PATH, label: t('pointShop.goEquip') };
 });
@@ -322,7 +351,7 @@ async function useAvatarNow(avatarId: string) {
     if (!(await confirm({ title: t('avatar.useConfirmTitle'), message: t('avatar.useConfirmText'), confirmLabel: t('avatar.useNow') }))) return;
     try {
         const profile = await avatarApi.select({ avatarId });
-        decoration.applyAvatar(profile.avatarUrl);
+        decoration.applyAvatar(profile.avatarUrl, profile.avatarStillUrl ?? null);
         toast.success(t('avatar.saved'));
     } catch (e) {
         toast.error(UtilPointShopMessages.error(t, time.value, e), 8000);
@@ -344,9 +373,11 @@ async function purchase() {
     const action =
         result.item.kind === 'NICKNAME_CHANGE_TICKET'
             ? { label: t('pointShop.useInProfile'), run: () => void router.push('/settings/profile') }
-            : result.item.kind === 'PROFILE_AVATAR' && avatarId
-              ? { label: t('avatar.useNow'), run: () => void useAvatarNow(avatarId) }
-              : { label: t('pointShop.goEquip'), run: () => void router.push(UtilPointShop.MY_ITEMS_PATH) };
+            : result.item.kind === 'NICKNAME_IMAGE_TICKET' || result.item.kind === 'AVATAR_UPLOAD_TICKET'
+              ? { label: t(result.item.kind === 'AVATAR_UPLOAD_TICKET' ? 'pointShop.useAvatarTicket' : 'pointShop.useNicknameImageTicket'), run: () => void router.push(UtilPointShop.ticketUsePath(result.item.kind)) }
+              : result.item.kind === 'PROFILE_AVATAR' && avatarId
+                ? { label: t('avatar.useNow'), run: () => void useAvatarNow(avatarId) }
+                : { label: t('pointShop.goEquip'), run: () => void router.push(UtilPointShop.MY_ITEMS_PATH) };
     toast.show(t('pointShop.bought', { name }), { tone: 'success', life: 6000, action });
 }
 </script>

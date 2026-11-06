@@ -15,9 +15,17 @@
             :data-testid="`avatar-option-${cell.id}`"
             @click="$emit('choose', cell.id)"
         >
-            <ProfileBorderAvatar :src="cell.url" size="sm" lazy :class="busyId === cell.id ? 'opacity-50' : ''" />
+            <ProfileBorderAvatar :src="cell.url" :still-src="cell.stillUrl ?? null" size="sm" lazy :class="busyId === cell.id ? 'opacity-50' : ''" />
             <span class="w-full truncate text-center text-xs leading-tight" :class="cell.active ? 'font-semibold' : 'text-muted-color'">{{ cell.name }}</span>
             <span v-if="cell.caption" class="w-full truncate text-center text-[0.6875rem] leading-tight text-muted-color">{{ cell.caption }}</span>
+            <!-- 움직이는 아바타 — 색만으로 가르지 않게 글자로(스크린리더는 칸 이름에 들어 있다) -->
+            <span
+                v-if="cell.animated"
+                class="absolute left-1 top-1 inline-flex items-center rounded bg-violet-100 px-1 py-0.5 text-[0.5625rem] font-semibold leading-none text-violet-800 dark:bg-violet-900/50 dark:text-violet-200"
+                aria-hidden="true"
+                data-testid="avatar-motion-badge"
+                >{{ t('avatar.motionBadge') }}</span
+            >
             <i v-if="cell.active" class="pi pi-check absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-primary text-[0.5rem] text-primary-contrast" aria-hidden="true" />
         </button>
     </div>
@@ -47,4 +55,6 @@ withDefaults(defineProps<Props>(), {
 });
 
 defineEmits<{ choose: [id: string] }>();
+
+const { t } = useI18n();
 </script>

@@ -13,7 +13,7 @@
                         <div class="min-w-0 flex-1">
                             <p class="line-clamp-2 text-sm leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" /></p>
                             <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                                <PostAuthorLabel :author="row.author" />
+                                <PostAuthorLabel :author="row.author" avatar />
                                 <span aria-hidden="true">·</span>
                                 <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                 <span aria-hidden="true">·</span>
@@ -64,7 +64,7 @@
                                     {{ t('block.hideAgain') }}
                                 </button>
                             </td>
-                            <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" link class="max-w-full" /></td>
+                            <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" link avatar class="max-w-full" /></td>
                             <td class="py-2.5 text-center text-xs text-muted-color tabular-nums"><PostListDate :iso="row.createdAt" :mode="dateDisplay" /></td>
                             <td class="py-2.5 text-right text-xs text-muted-color tabular-nums">{{ row.viewCount.toLocaleString() }}</td>
                             <td class="py-2.5 pr-1 text-right text-xs text-muted-color tabular-nums">{{ row.likeCount.toLocaleString() }}</td>

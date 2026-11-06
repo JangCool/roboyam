@@ -1,7 +1,7 @@
 import type { MyNicknameImage, NicknameImageLimits, NicknameImageRequirement } from '~/composables/profile/api/useNicknameImageApi.types';
 
 /** 서버가 거절한 갈래 — 오류 **코드**로 가른다 */
-export type NicknameImageOutcome = 'REQUIREMENTS_NOT_MET' | 'REAPPLY_TOO_SOON' | 'RESTRICTED' | 'UNVERIFIED' | 'VALIDATION' | 'RATE_LIMITED' | 'TOO_LARGE' | 'NOT_FOUND' | 'NETWORK' | 'SERVER' | 'OTHER';
+export type NicknameImageOutcome = 'REQUIREMENTS_NOT_MET' | 'TICKET_REQUIRED' | 'REAPPLY_TOO_SOON' | 'RESTRICTED' | 'UNVERIFIED' | 'VALIDATION' | 'RATE_LIMITED' | 'TOO_LARGE' | 'NOT_FOUND' | 'NETWORK' | 'SERVER' | 'OTHER';
 
 /** 화면 덩어리 — `layout` 의 결과 */
 export interface NicknameImageLayout {
@@ -136,6 +136,7 @@ export default class UtilNicknameImage {
         const status = typeof e.status === 'number' ? e.status : 0;
         const code = typeof e.code === 'string' ? e.code : '';
         if (code === 'NICKNAME_IMAGE_REQUIREMENTS_NOT_MET') return 'REQUIREMENTS_NOT_MET';
+        if (code === 'NICKNAME_IMAGE_TICKET_REQUIRED') return 'TICKET_REQUIRED';
         if (code === 'NICKNAME_IMAGE_REAPPLY_TOO_SOON') return 'REAPPLY_TOO_SOON';
         if (code === 'ACCOUNT_RESTRICTED') return 'RESTRICTED';
         if (code === 'EMAIL_NOT_VERIFIED') return 'UNVERIFIED';
@@ -150,7 +151,7 @@ export default class UtilNicknameImage {
 
     /** 서버 상태를 다시 받아야 하는 갈래 — 화면이 아는 것과 서버가 어긋났다 */
     static needsReload(outcome: NicknameImageOutcome): boolean {
-        return outcome === 'REQUIREMENTS_NOT_MET' || outcome === 'REAPPLY_TOO_SOON' || outcome === 'NOT_FOUND';
+        return outcome === 'REQUIREMENTS_NOT_MET' || outcome === 'TICKET_REQUIRED' || outcome === 'REAPPLY_TOO_SOON' || outcome === 'NOT_FOUND';
     }
 
     /** 막힌 까닭을 굳혀 둘 갈래 — 정지 중·이메일 인증 전 */

@@ -57,10 +57,12 @@ export default class UtilPointShopMessages {
      * 셀프 환불이 안 되는 이유 한 마디.
      * @param {Translate} t - 번역 함수.
      * @param {PointShopSelfRefundBlock} block - 이유.
-     * @returns {string} 「사용함」·「기한 지남」.
+     * @returns {string} 「사용함」·「신청에 예약됨」·「기한 지남」.
      */
     static selfRefundBlock(t: Translate, block: PointShopSelfRefundBlock): string {
-        return block === 'USED' ? t('pointShop.selfRefund.used') : t('pointShop.selfRefund.expired');
+        if (block === 'USED') return t('pointShop.selfRefund.used');
+        if (block === 'RESERVED') return t('pointShop.selfRefund.reserved');
+        return t('pointShop.selfRefund.expired');
     }
 
     /**

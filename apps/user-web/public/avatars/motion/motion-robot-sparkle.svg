@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 200 200"><style>.s1,.s2,.s3{transform-box:fill-box;transform-origin:center;animation:tw 1.8s ease-in-out infinite}.s2{animation-delay:.6s}.s3{animation-delay:1.2s}@keyframes tw{0%,100%{transform:scale(.2);opacity:0}50%{transform:scale(1);opacity:1}}@media (prefers-reduced-motion: reduce){*{animation:none!important}}</style><g class="">
+<line x1="100" y1="42" x2="46" y2="164" stroke="#3D2B00" stroke-width="16" stroke-linecap="round"/>
+<line x1="100" y1="42" x2="154" y2="164" stroke="#3D2B00" stroke-width="16" stroke-linecap="round"/>
+<circle class="" cx="100" cy="36" r="12" fill="#FFF7CC"/>
+<rect x="16" y="92" width="18" height="34" rx="9" fill="#3D2B00"/>
+<rect x="166" y="92" width="18" height="34" rx="9" fill="#3D2B00"/>
+<rect class="" x="28" y="62" width="144" height="90" rx="40" fill="#EAB308"/>
+<rect x="46" y="76" width="108" height="62" rx="28" fill="#3D2B00"/>
+<g class=""><rect x="70" y="92" width="20" height="26" rx="10" fill="#FFFFFF"/><rect x="110" y="92" width="20" height="26" rx="10" fill="#FFFFFF"/><circle cx="78" cy="98" r="3.5" fill="#FFFFFF"/><circle cx="118" cy="98" r="3.5" fill="#FFFFFF"/></g>
+
+</g><path class="s1" d="M28 28 L31.6 36.4 L40 40 L31.6 43.6 L28 52 L24.4 43.6 L16 40 L24.4 36.4 Z" fill="#FDE047"/><path class="s2" d="M176 44 L179 51 L186 54 L179 57 L176 64 L173 57 L166 54 L173 51 Z" fill="#FFFFFF"/><path class="s3" d="M168 167 L170.7 173.3 L177 176 L170.7 178.7 L168 185 L165.3 178.7 L159 176 L165.3 173.3 Z" fill="#FDE047"/></svg>

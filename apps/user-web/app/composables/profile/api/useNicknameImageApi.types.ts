@@ -1,6 +1,6 @@
 /**
- * 닉네임 이미지(닉네임 이미지) API 가 주고받는 모양 — 서버 `server/api`(`/api/me/nickname-image`). 처음 모양은 community `docs/api-nickname-image.md` 2절에서
- * 닉네임 이미지 변경권 칸(포인트 상점 1단계 품목이 아니다)(`ticketCount`·`ticketRequired`)을 뺀 것이다. 계약 후보: `docs/features/member-social-contract.md`.
+ * 닉네임 이미지(닉네임 이미지) API 가 주고받는 모양 — 서버 `server/api`(`/api/me/nickname-image`, `MyNicknameImageView`). 처음 모양은 community `docs/api-nickname-image.md` 2절이다.
+ * 닉네임 이미지 변경권(`ticketCount`·`ticketPrice`·`ticketItemId`·`request.ticketReserved`)과 쉬는 중(`paused`)·다시 쓰기는 `docs/features/commerce-motion-avatar-contract.md` 「API 계약」(서버 연결됨).
  * 신청은 관리자 심사 뒤 적용된다 — 심사 대기가 생기면 운영자 알림 `NICKNAME_IMAGE_PENDING`(이미 예약된 이벤트)이 나간다(서버 몫).
  */
 
@@ -39,7 +39,7 @@ export interface NicknameImageRequirements {
     items: NicknameImageRequirement[];
 }
 
-/** 가장 최근의 대기·반려 신청 — 반려면 `rejectReason`·`canReapplyAt`(반려 + 재신청 대기 시간) */
+/** 가장 최근의 대기·반려 신청 — 반려면 `rejectReason`·`canReapplyAt`(반려 + 재신청 대기 시간). `ticketReserved` 는 대기 신청에 변경권 한 장이 예약돼 있다(이 규칙 전 대기 신청·반려 신청은 false) */
 export interface NicknameImageRequest {
     id: string;
     status: 'PENDING' | 'REJECTED';
@@ -47,6 +47,7 @@ export interface NicknameImageRequest {
     createdAt: string;
     rejectReason: string | null;
     canReapplyAt: string | null;
+    ticketReserved: boolean;
 }
 
 /** 올리기 한도 — 화면이 미리 검사할 값(판정은 서버) */
@@ -75,6 +76,14 @@ export interface MyNicknameImage {
     /** 지금 새 신청을 막는 시각 제한의 끝(반려 3일·운영 해제 7일), 없으면 null */
     reapplyAt?: string | null;
     limits: NicknameImageLimits;
+    /** 쓸 수 있는 닉네임 이미지 변경권 수(대기 신청에 예약된 장은 빼고) */
+    ticketCount: number;
+    /** 한 장 값(P) — 품목이 없으면 null */
+    ticketPrice: number | null;
+    /** 사러 갈 변경권 품목 ID — 없으면 null */
+    ticketItemId: string | null;
+    /** 적용 중인 그림이 움직이고 움직이는 아바타를 쓰는 중이라 쉬는 중(서버가 판정 — 다시 쓰기 `POST …/resume`) */
+    paused: boolean;
 }
 
 /** 올리기 전에 화면이 알아낸 문제 — `message` 는 그릴 때의 글자(`t` 로 만든다) */

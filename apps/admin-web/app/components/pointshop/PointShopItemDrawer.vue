@@ -381,6 +381,8 @@ function pickKind(kind: PointShopItemKind): void {
 
 function kindIcon(kind: PointShopItemKind): string {
     if (kind === 'NICKNAME_CHANGE_TICKET') return 'pi pi-ticket';
+    if (kind === 'NICKNAME_IMAGE_TICKET') return 'pi pi-image';
+    if (kind === 'AVATAR_UPLOAD_TICKET') return 'pi pi-user-plus';
     if (kind === 'NICKNAME_COLOR') return 'pi pi-palette';
     if (kind === 'PROFILE_AVATAR') return 'pi pi-user';
     return 'pi pi-circle';

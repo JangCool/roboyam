@@ -24,6 +24,8 @@ interface DecorationState {
 interface AvatarState {
     ownerId: string;
     url: string;
+    /** 움직이는 아바타의 정지 그림 — 정지 아바타면 null */
+    stillUrl: string | null;
 }
 
 export function useMyDecoration() {
@@ -36,7 +38,8 @@ export function useMyDecoration() {
     /** 지금 로그인한 사람이 방금 바꾼 장식 — 없으면 undefined */
     const changed = (): AuthorDecoration | undefined => (state.value && user.value && state.value.ownerId === user.value.id ? state.value.decoration : undefined);
     /** 지금 로그인한 사람이 방금 고른 아바타 — 없으면 undefined */
-    const changedAvatar = (): string | undefined => (avatarState.value && user.value && avatarState.value.ownerId === user.value.id ? avatarState.value.url : undefined);
+    const changedAvatarState = (): AvatarState | undefined => (avatarState.value && user.value && avatarState.value.ownerId === user.value.id ? avatarState.value : undefined);
+    const changedAvatar = (): string | undefined => changedAvatarState()?.url;
 
     /**
      * 작성자 한 명의 장식
@@ -67,9 +70,24 @@ export function useMyDecoration() {
         return server || UtilAvatar.FALLBACK_URL;
     }
 
+    /**
+     * 작성자 한 명의 아바타 정지 그림 — 움직이는 아바타일 때만 있다(움직임 줄이기에서 그린다). 정지 아바타·비회원은 null
+     * @param memberId 회원 ID
+     * @param server 서버가 준 `avatarStillUrl` — 칸이 없으면 undefined(정지로 본다)
+     */
+    function avatarStillOf(memberId: string | null | undefined, server: string | null | undefined): string | null {
+        if (!memberId) return null;
+        if (isMe(memberId)) {
+            const mine = changedAvatarState();
+            if (mine !== undefined) return mine.stillUrl;
+        }
+        return server ?? null;
+    }
+
     return {
         decorationOf,
         avatarOf,
+        avatarStillOf,
 
         /**
          * 지금 내 장식 — 방금 바꾼 것, 없으면 넘긴 서버 값(내 아이템의 장착·`/me` 등)
@@ -83,16 +101,22 @@ export function useMyDecoration() {
          */
         myAvatarUrl: (server?: string | null): string => avatarOf(user.value?.id ?? null, server) ?? UtilAvatar.FALLBACK_URL,
 
+        /**
+         * 지금 내 아바타의 정지 그림 — 움직이는 아바타가 아니면 null
+         * @param server 서버가 준 내 `avatarStillUrl`(모르면 생략)
+         */
+        myAvatarStillUrl: (server?: string | null): string | null => avatarStillOf(user.value?.id ?? null, server),
+
         /** 장착·해제 응답(또는 내 아이템 목록에서 읽은 장착)을 넣는다 */
         applyEquipped(equipped: MyEquipped): void {
             if (!user.value) return;
             state.value = { ownerId: user.value.id, decoration: UtilPointShop.decorationOf(equipped) };
         },
 
-        /** 아바타를 골랐다 — 고르기 응답(또는 내 프로필)의 `avatarUrl` 을 넣는다 */
-        applyAvatar(url: string | null | undefined): void {
+        /** 아바타를 골랐다 — 고르기 응답(또는 내 프로필)의 `avatarUrl`·`avatarStillUrl`(움직이는 아바타의 정지 그림) 을 넣는다 */
+        applyAvatar(url: string | null | undefined, stillUrl: string | null = null): void {
             if (!user.value) return;
-            avatarState.value = { ownerId: user.value.id, url: url || UtilAvatar.FALLBACK_URL };
+            avatarState.value = { ownerId: user.value.id, url: url || UtilAvatar.FALLBACK_URL, stillUrl };
         },
     };
 }

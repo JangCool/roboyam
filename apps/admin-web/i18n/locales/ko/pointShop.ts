@@ -83,12 +83,16 @@ export default {
     },
     kind: {
         NICKNAME_CHANGE_TICKET: '닉네임 변경권',
+        NICKNAME_IMAGE_TICKET: '닉네임 이미지 변경권',
+        AVATAR_UPLOAD_TICKET: '아바타 변경권',
         NICKNAME_COLOR: '닉네임 색',
         PROFILE_BORDER: '프로필 테두리',
         PROFILE_AVATAR: '프로필 아바타',
     },
     kindDesc: {
         NICKNAME_CHANGE_TICKET: '닉네임을 한 번 더 바꾸는 소모형 변경권',
+        NICKNAME_IMAGE_TICKET: '닉네임 이미지를 한 번 신청하는 소모형 변경권(신청에 예약 → 승인되면 사용)',
+        AVATAR_UPLOAD_TICKET: '직접 만든 아바타를 한 번 신청하는 소모형 변경권(신청에 예약 → 승인되면 사용)',
         NICKNAME_COLOR: '닉네임 글자 색 — 영구 또는 기간제',
         PROFILE_BORDER: '프로필 동그라미의 고리 — 영구 또는 기간제',
         PROFILE_AVATAR: '프로필 동그라미의 그림 — 카탈로그 품목(영구)',
@@ -132,6 +136,7 @@ export default {
         blocked: '불가',
         until: '~{until}',
         used: '사용함',
+        reserved: '신청에 예약됨',
         expired: '기한 지남',
     },
     field: {
@@ -262,6 +267,13 @@ export default {
         refundLabel: '환불',
         refund: '쓰지 않았고 산 뒤 {days}일 안이면 환불할 수 있어요.',
         refundNoDays: '쓰지 않았고 환불 기한 안이면 환불할 수 있어요.',
+        nicknameImageWhat: '닉네임 자리에 보일 이미지(정지·움직이는 GIF)를 한 번 신청할 수 있어요. 1장에 1번이에요.',
+        avatarWhat: '직접 만든 그림(정지·움직이는 GIF)을 아바타로 한 번 신청할 수 있어요. 1장에 1번이에요.',
+        uploadWhen: '신청할 때 1장이 예약되고 운영팀이 승인하면 쓰여요. 반려되거나 신청을 취소하면 돌려받아요.',
+        nicknameImageWhere: '설정 › 닉네임 이미지에서 신청할 때 써요.',
+        avatarWhere: '설정 › 아바타 올리기에서 신청할 때 써요.',
+        uploadRefund: '쓰지도 예약되지도 않았고 산 뒤 {days}일 안이면 환불할 수 있어요. 승인돼 쓴 변경권은 환불할 수 없어요.',
+        uploadRefundNoDays: '쓰지도 예약되지도 않았고 환불 기한 안이면 환불할 수 있어요.',
     },
 
     // ── 예외 환불 ─

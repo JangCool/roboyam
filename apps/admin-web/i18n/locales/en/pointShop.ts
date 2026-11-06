@@ -83,12 +83,16 @@ export default {
     },
     kind: {
         NICKNAME_CHANGE_TICKET: 'Nickname change ticket',
+        NICKNAME_IMAGE_TICKET: 'Nickname image ticket',
+        AVATAR_UPLOAD_TICKET: 'Avatar upload ticket',
         NICKNAME_COLOR: 'Nickname color',
         PROFILE_BORDER: 'Profile border',
         PROFILE_AVATAR: 'Profile avatar',
     },
     kindDesc: {
         NICKNAME_CHANGE_TICKET: 'A consumable ticket for one more nickname change',
+        NICKNAME_IMAGE_TICKET: 'A consumable ticket for one nickname image application (reserved on apply, used on approval)',
+        AVATAR_UPLOAD_TICKET: 'A consumable ticket for one custom avatar application (reserved on apply, used on approval)',
         NICKNAME_COLOR: 'Nickname text color — permanent or timed',
         PROFILE_BORDER: 'A ring around the profile circle — permanent or timed',
         PROFILE_AVATAR: 'The picture in the profile circle — a catalog item (permanent)',
@@ -132,6 +136,7 @@ export default {
         blocked: 'Not allowed',
         until: 'until {until}',
         used: 'Used',
+        reserved: 'Reserved for an application',
         expired: 'Expired',
     },
     field: {
@@ -262,6 +267,13 @@ export default {
         refundLabel: 'Refund',
         refund: 'Refundable within {days} days of purchase if unused.',
         refundNoDays: 'Refundable within the refund window if unused.',
+        nicknameImageWhat: 'Apply once for an image (still or animated GIF) shown in place of your nickname. One ticket, one application.',
+        avatarWhat: 'Apply once to use your own image (still or animated GIF) as your avatar. One ticket, one application.',
+        uploadWhen: 'One ticket is reserved when you apply and used when the team approves. If it’s rejected or you cancel, you get it back.',
+        nicknameImageWhere: 'Used when you apply in Settings › Nickname image.',
+        avatarWhere: 'Used when you apply in Settings › Upload avatar.',
+        uploadRefund: 'Refundable within {days} days of purchase if it hasn’t been used or reserved. Approved tickets can’t be refunded.',
+        uploadRefundNoDays: 'Refundable within the refund window if it hasn’t been used or reserved.',
     },
 
     // ── Exception refund ─

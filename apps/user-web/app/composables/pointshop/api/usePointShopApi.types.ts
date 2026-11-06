@@ -4,8 +4,14 @@
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO, 포인트는 정수.
  */
 
-/** 품목 종류 — 1단계는 넷(결정 9·14). 아바타(`PROFILE_AVATAR`, 유료 306종·영구)는 품목 목록에 섞이지 않고 `GET /api/avatars` 로 온다. 화면은 모르는 종류가 와도 이름·가격은 그린다(미리보기만 없다) */
-export type PointShopItemKind = 'NICKNAME_CHANGE_TICKET' | 'NICKNAME_COLOR' | 'PROFILE_BORDER' | 'PROFILE_AVATAR';
+/** 품목 종류 — 1단계 넷(결정 9·14) + 올리기 변경권 둘(`UploadTicketKind`). 아바타(`PROFILE_AVATAR`, 유료 306종·영구)는 품목 목록에 섞이지 않고 `GET /api/avatars` 로 온다. 화면은 모르는 종류가 와도 이름·가격은 그린다(미리보기만 없다) */
+export type PointShopItemKind = 'NICKNAME_CHANGE_TICKET' | 'NICKNAME_COLOR' | 'PROFILE_BORDER' | 'PROFILE_AVATAR' | UploadTicketKind;
+
+/**
+ * 올리기 변경권(소모형 — 사용자 확정 2026-11-06, 서버 V157): 닉네임 이미지 변경권 · 아바타 변경권. 신청할 때 한 장이 그 신청에 예약되고 승인되면 쓴 것,
+ * 반려·본인 취소·새 신청으로 대체되면 같은 장이 돌아온다. 적용된 뒤의 해제·지우기는 돌려주지 않는다(community `docs/api-nickname-image.md` 의 변경권 규칙).
+ */
+export type UploadTicketKind = 'NICKNAME_IMAGE_TICKET' | 'AVATAR_UPLOAD_TICKET';
 
 /** 사용 방식 — 영구(기본, 이미 가졌으면 다시 못 산다) · 소모형(쓰면 사라지고 여러 장 살 수 있다 — 변경권만) · 기간제(산 순간부터 `durationDays`일) */
 export type PointShopUsageType = 'PERMANENT' | 'CONSUMABLE' | 'PERIOD';

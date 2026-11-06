@@ -451,10 +451,11 @@ public class DmService {
         if (person == null || person.gone()) {
             String base = GradeEntity.BASE_KEY;
             return new DmPartnerView(null, messages.get(new MessageRef("member.notification.actor.withdrawn"), locale), base, BlockService.label(s, base), ROLE_USER,
-                    true, null, null, null, false);
+                    true, null, null, null, null, false);
         }
         AuthorLook look = looks.get(person.id());
         return new DmPartnerView(Long.toString(person.id()), person.nickname(), person.gradeKey(), BlockService.label(s, person.gradeKey()), ROLE_USER, false,
-                memos.get(person.id()), look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), approved.contains(person.id()));
+                memos.get(person.id()), look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), look == null ? null : look.avatarStillUrl(),
+                approved.contains(person.id()));
     }
 }

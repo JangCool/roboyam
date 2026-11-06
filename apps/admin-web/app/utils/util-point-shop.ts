@@ -55,6 +55,8 @@ export type PointShopRefundDaysProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RA
 /** 종류마다 고를 수 있는 사용 방식(계약 B절 — 변경권은 소모형만, 색·테두리는 영구·기간제) */
 const USAGES_BY_KIND: Record<PointShopItemKind, readonly PointShopUsageType[]> = {
     NICKNAME_CHANGE_TICKET: ['CONSUMABLE'],
+    NICKNAME_IMAGE_TICKET: ['CONSUMABLE'],
+    AVATAR_UPLOAD_TICKET: ['CONSUMABLE'],
     NICKNAME_COLOR: ['PERMANENT', 'PERIOD'],
     PROFILE_BORDER: ['PERMANENT', 'PERIOD'],
     PROFILE_AVATAR: ['PERMANENT'],

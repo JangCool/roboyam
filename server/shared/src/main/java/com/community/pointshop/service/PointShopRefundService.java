@@ -129,9 +129,9 @@ public class PointShopRefundService {
             throw new PointShopRefundPendingException();
         }
         Instant now = now();
-        String blocked = PointShopRules.selfRefundBlock(item.status(), item.firstUsedAt(), purchase.createdAt(), items.refundDays(), now);
+        String blocked = PointShopRules.selfRefundBlock(item.status(), item.firstUsedAt(), item.reservedAt(), purchase.createdAt(), items.refundDays(), now);
         if (blocked != null) {
-            throw new PointShopRefundNotAllowedException(blocked);
+            throw new PointShopRefundNotAllowedException(blocked); // 예약된 올리기 변경권도(RESERVED) — 반려·취소로 풀린 뒤에
         }
         boolean suspended = members.state(userId).filter(state -> !state.gone()).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED)).suspended();
         if (suspended) {
@@ -227,6 +227,7 @@ public class PointShopRefundService {
      * @throws PointShopPurchaseNotFoundException 없는 구매(404)
      * @throws PointShopAlreadyRefundedException  이미 환불함(409)
      * @throws PointShopRefundPendingException    환불 신청 대기 중(409)
+     * @throws PointShopRefundNotAllowedException 대기 신청에 예약된 올리기 변경권(409 {@code blockedBy RESERVED})
      */
     @Transactional
     public PointShopOperatorRefundView refundByOperator(long purchaseId, String reason, long operatorId, String ip) {
@@ -239,6 +240,10 @@ public class PointShopRefundService {
             throw new PointShopRefundPendingException();
         }
         UserItemRow item = userItems.byPurchaseForUpdate(purchaseId).orElseThrow(PointShopPurchaseNotFoundException::new);
+        if (item.reservedAt() != null) {
+            // 대기 신청에 예약된 올리기 변경권 — 예외 환불도 막는다(commerce-motion-avatar-contract 규칙 0 「예약된 장은 환불할 수 없다」). 신청을 반려하면 풀린다
+            throw new PointShopRefundNotAllowedException(PointShopRules.BLOCKED_RESERVED);
+        }
         Instant now = now();
         boolean selfRefundable = PointShopRules.selfRefundBlock(item.status(), item.firstUsedAt(), purchase.createdAt(), items.refundDays(), now) == null;
         long refunded = refund(purchase, item, PointShopRefundKind.EXCEPTION, operatorId, text, now);

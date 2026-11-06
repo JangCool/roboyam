@@ -324,7 +324,7 @@ function clearAll(): void {
 
 /** 「사용」 칸의 말 — 변경권은 사용함, 아바타는 프로필로 고름, 꾸미기는 장착함(모두 `firstUsedAt` — 환불 판정) */
 function usedLabel(kind: PointShopItemKind): string {
-    if (kind === 'NICKNAME_CHANGE_TICKET') return t('pointShop.usedTicket');
+    if (kind === 'NICKNAME_CHANGE_TICKET' || kind === 'NICKNAME_IMAGE_TICKET' || kind === 'AVATAR_UPLOAD_TICKET') return t('pointShop.usedTicket');
     if (kind === 'PROFILE_AVATAR') return t('pointShop.usedAvatar');
     return t('pointShop.usedEquip');
 }

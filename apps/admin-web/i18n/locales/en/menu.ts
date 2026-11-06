@@ -54,6 +54,7 @@ export default {
     memberWithdrawals: 'Withdrawals',
     grades: 'Grade settings',
     nicknameImages: 'Nickname image review',
+    avatarUploads: 'Avatar upload review',
     siteMenu: 'Menus',
     menusPublic: 'Public site menu',
     menusAdmin: 'Admin menu',

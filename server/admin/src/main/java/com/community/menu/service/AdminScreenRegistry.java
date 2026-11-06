@@ -57,7 +57,9 @@ public final class AdminScreenRegistry {
                     // 탈퇴 관리(member-withdrawal-contract 「관리자」) — 주소가 /members 아래지만 다른 화면. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
                     leaf(s("memberWithdrawals", "/members/withdrawals", "menu.memberWithdrawals", "pi pi-user-minus", Permission.MEMBER_READ)),
                     leaf(s("grades", "/grades", "menu.grades", "pi pi-trophy", Permission.GRADE_READ)),
-                    leaf(s("nicknameImages", "/members/nickname-images", "menu.nicknameImages", "pi pi-image", Permission.NICKNAME_IMAGE_READ))),
+                    leaf(s("nicknameImages", "/members/nickname-images", "menu.nicknameImages", "pi pi-image", Permission.NICKNAME_IMAGE_READ)),
+                    // 아바타 올리기 심사(commerce-motion-avatar-contract) — 닉네임 이미지 심사와 같은 권한. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
+                    leaf(s("avatarUploads", "/members/avatar-uploads", "menu.avatarUploads", "pi pi-user-plus", Permission.NICKNAME_IMAGE_READ))),
             section(NORMAL, "menu.siteMenu", "pi pi-bars",
                     leaf(s("menusPublic", "/menus/public", "menu.menusPublic", "pi pi-globe", Permission.LAYOUT_READ)),
                     leaf(s("menusAdmin", "/menus/admin", "menu.menusAdmin", "pi pi-desktop", Permission.LAYOUT_READ))),

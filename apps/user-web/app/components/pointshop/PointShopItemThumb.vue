@@ -3,7 +3,10 @@
     <span class="grid shrink-0 place-items-center overflow-hidden rounded-lg bg-surface-50 dark:bg-surface-950" :class="compact ? 'size-12' : 'h-16 w-full'" aria-hidden="true">
         <span v-if="kind === 'NICKNAME_COLOR' && colorCss" class="max-w-full truncate px-1.5 font-bold" :class="compact ? 'text-xs' : 'text-sm'" :style="{ color: colorCss }">{{ compact ? initialText : nickname }}</span>
         <ProfileBorderAvatar v-else-if="kind === 'PROFILE_BORDER'" :initial="initialText" :src="myAvatarSrc" :border-style="borderStyle" :size="compact ? 'sm' : 'md'" surface="page" />
-        <ProfileBorderAvatar v-else-if="kind === 'PROFILE_AVATAR'" :initial="initialText" :src="avatarSrc" :size="compact ? 'sm' : 'md'" surface="page" lazy />
+        <ProfileBorderAvatar v-else-if="kind === 'PROFILE_AVATAR'" :initial="initialText" :src="avatarSrc" :still-src="avatarStillSrc" :size="compact ? 'sm' : 'md'" surface="page" lazy />
+        <!-- 올리기 변경권 — 닉네임 이미지(그림) · 아바타(사람 + 올리기) -->
+        <i v-else-if="kind === 'NICKNAME_IMAGE_TICKET'" class="pi pi-image text-primary" :class="compact ? 'text-lg' : 'text-2xl'" />
+        <i v-else-if="kind === 'AVATAR_UPLOAD_TICKET'" class="pi pi-user-plus text-primary" :class="compact ? 'text-lg' : 'text-2xl'" />
         <i v-else-if="kind === 'NICKNAME_CHANGE_TICKET'" class="pi pi-ticket text-primary" :class="compact ? 'text-lg' : 'text-2xl'" />
         <i v-else class="pi pi-gift text-muted-color" :class="compact ? 'text-lg' : 'text-2xl'" />
     </span>
@@ -22,6 +25,8 @@ interface Props {
     borderStyle?: string | null;
     /** 아바타 품목의 그림 주소 */
     avatarSrc?: string | null;
+    /** 움직이는 아바타 품목의 정지 그림(움직임 줄이기) */
+    avatarStillSrc?: string | null;
     /** 내 아바타 그림 주소 — 테두리 미리보기의 동그라미 */
     myAvatarSrc?: string | null;
     /** 내 닉네임 — 미리보기 글자 */
@@ -34,6 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
     color: null,
     borderStyle: null,
     avatarSrc: null,
+    avatarStillSrc: null,
     myAvatarSrc: null,
     nickname: '',
     compact: false,

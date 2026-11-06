@@ -12,10 +12,11 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  * @param grade      등급 뱃지 — 운영자·모르는 등급·탈퇴면 null
  * @param decoration 장착한 포인트 상점 장식(공개 사이트만, 없으면 null)
  * @param avatarUrl  아바타 그림 주소(공개 사이트만, 탈퇴면 null)
+ * @param avatarStillUrl 움직이는 아바타의 정지 그림(공개 사이트만, 움직이는 것만 — 그 밖 null)
  * @param business   사업자 뱃지 — 사업자 신원 {@code APPROVED}(재심사 중·반려·정지·탈퇴는 false). 공개 사이트만 채우고 관리자 응답·운영자는 늘 false
  */
 public record GroupPersonView(String id, String nickname, boolean withdrawn, GroupGradeView grade, AuthorDecorationView decoration, String avatarUrl,
-                              boolean business) {
+                              String avatarStillUrl, boolean business) {
 
     /**
      * 등급 뱃지(등급 설정의 키·이름·색·아이콘).

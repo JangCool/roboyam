@@ -247,6 +247,11 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
         }
 
+        /** 아바타 올리기 심사 결과(V157) — 반려·해제면 사유 */
+        public static Facts avatarUploadReviewed(String result, String reason) {
+            return new Facts(MemberNotificationType.AVATAR_UPLOAD_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
+        }
+
         /** 의견 고정 요청이 옴 — 요청한 회원(메일은 보낼 때 지금 닉네임으로 채운다)·글 제목·의견 앞부분 */
         public static Facts pinRequested(String actorName, String postTitle, String excerpt) {
             return new Facts(MemberNotificationType.OPINION_PIN_REQUESTED, actorName, postTitle, excerpt, 1, 0, null, null, false, null, null);
@@ -394,6 +399,8 @@ public class MemberNotificationMessages {
             case DM -> builder.variable("actorName", facts.actorName());
             case NICKNAME_IMAGE_REVIEWED -> builder.variable("result", messages.get(new MessageRef(reviewResultKey(facts.result())), locale))
                     .variable("reason", facts.note() == null ? "" : facts.note());
+            case AVATAR_UPLOAD_REVIEWED -> builder.variable("result", messages.get(new MessageRef("member.notification.AVATAR_UPLOAD_REVIEWED.result." + reviewResult(facts.result())),
+                    locale)).variable("reason", facts.note() == null ? "" : facts.note());
             case OPINION_PIN_REQUESTED -> builder.variable("actorName", facts.actorName()).variable("postTitle", facts.postTitle())
                     .variable("excerpt", facts.excerpt());
             case OPINION_PIN_REVIEWED -> builder.variable("result", messages.get(new MessageRef(pinResultKey(facts.result())), locale))
@@ -590,6 +597,9 @@ public class MemberNotificationMessages {
         }
         if (facts.type() == MemberNotificationType.NICKNAME_IMAGE_REVIEWED) {
             return messages.get(new MessageRef("member.notification.NICKNAME_IMAGE_REVIEWED.title." + reviewResult(facts.result())), locale);
+        }
+        if (facts.type() == MemberNotificationType.AVATAR_UPLOAD_REVIEWED) {
+            return messages.get(new MessageRef("member.notification.AVATAR_UPLOAD_REVIEWED.title." + reviewResult(facts.result())), locale);
         }
         if (facts.type() == MemberNotificationType.OPINION_PIN_REVIEWED) {
             return messages.get(new MessageRef("member.notification.OPINION_PIN_REVIEWED.title." + pinResult(facts.result())), locale);

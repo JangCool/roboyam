@@ -19,9 +19,9 @@ public final class GroupUsers {
             return null;
         }
         if (person.withdrawn()) {
-            return new DmPartnerView(null, person.nickname(), null, null, ROLE_USER, true, null, null, null, false);
+            return new DmPartnerView(null, person.nickname(), null, null, ROLE_USER, true, null, null, null, null, false);
         }
         return new DmPartnerView(person.id(), person.nickname(), person.grade() == null ? null : person.grade().key(),
-                person.grade() == null ? null : person.grade().label(), ROLE_USER, false, null, person.decoration(), person.avatarUrl(), person.business());
+                person.grade() == null ? null : person.grade().label(), ROLE_USER, false, null, person.decoration(), person.avatarUrl(), person.avatarStillUrl(), person.business());
     }
 }

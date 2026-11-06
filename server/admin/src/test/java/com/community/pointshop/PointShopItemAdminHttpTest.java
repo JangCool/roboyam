@@ -186,7 +186,7 @@ class PointShopItemAdminHttpTest extends PointShopAdminHttpTestBase {
         Cookie session = login(operatorWith(Permission.POINTSHOP_MANAGE, Permission.POINTSHOP_READ));
         String row = mvc.perform(get(BASE + "/items").param("kind", "PROFILE_AVATAR").cookie(session)).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
-        assertThat(JsonPath.<List<Object>>read(row, "$.data.items")).hasSize(306);
+        assertThat(JsonPath.<List<Object>>read(row, "$.data.items")).hasSize(314);
         String id = JsonPath.read(row, "$.data.items[0].id");
         String avatarId = JsonPath.read(row, "$.data.items[0].avatarId");
         String code = JsonPath.read(row, "$.data.items[0].code");

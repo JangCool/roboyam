@@ -39,7 +39,7 @@ public class PointShopPurchaseStore {
     }
 
     /** 관리자 구매 내역 한 줄 — 구매 + 회원(닉네임·탈퇴) + 보유 줄의 처음 사용 시각 + 아바타 ID + 예외 환불 운영자 이름 */
-    public record AdminRow(PurchaseRow purchase, String nickname, boolean withdrawn, Instant firstUsedAt, String avatarId, String operatorName) {
+    public record AdminRow(PurchaseRow purchase, String nickname, boolean withdrawn, Instant firstUsedAt, String avatarId, String operatorName, Instant reservedAt) {
     }
 
     /**
@@ -149,9 +149,9 @@ public class PointShopPurchaseStore {
         String where = adminWhere(query, args);
         args.add(query.size());
         args.add((long) query.page() * query.size());
-        return jdbc.query("SELECT " + COLUMNS + ", pr.nickname, (u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL), ui.first_used_at, i.avatar_id, o.operator_name "
+        return jdbc.query("SELECT " + COLUMNS + ", pr.nickname, (u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL), ui.first_used_at, i.avatar_id, o.operator_name, ui.reserved_at "
                 + ADMIN_FROM + where + " ORDER BY p.id DESC LIMIT ? OFFSET ?", (rs, i) -> new AdminRow(rowOf(rs, i), rs.getString(19), rs.getBoolean(20), instant(rs, 21),
-                rs.getString(22), rs.getString(23)), args.toArray());
+                rs.getString(22), rs.getString(23), instant(rs, 24)), args.toArray());
     }
 
     public long adminCount(AdminQuery query) {

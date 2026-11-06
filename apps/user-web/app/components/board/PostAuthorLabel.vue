@@ -3,17 +3,21 @@
          공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
          「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`) -->
     <span class="inline-flex min-w-0 items-center gap-1">
-        <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지) -->
+        <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지).
+             `avatar` 를 켜면(게시판 목록) 닉네임 왼쪽에 작은 아바타(20px, 장착 테두리 포함) — 링크가 있으면 아바타도 같은 링크 안(누를 자리가 넓어진다). 장식이라 스크린리더는 건너뛴다(이름이 옆에 있다) -->
         <NuxtLink
             v-if="profilePath"
             :to="profilePath"
-            class="truncate hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-            :class="strong ? 'font-semibold text-color' : ''"
-            :style="nameStyle"
+            class="group/author inline-flex min-w-0 items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
             data-testid="author-profile-link"
-            >{{ name }}</NuxtLink
         >
-        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
+            <ProfileBorderAvatar v-if="avatar" v-bind="avatarProps" size="2xs" class="-my-px shrink-0" data-testid="author-avatar" />
+            <span class="truncate group-hover/author:underline" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
+        </NuxtLink>
+        <span v-else class="inline-flex min-w-0 items-center gap-1.5">
+            <ProfileBorderAvatar v-if="avatar" v-bind="avatarProps" size="2xs" class="-my-px shrink-0" data-testid="author-avatar" />
+            <span class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
+        </span>
         <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
         <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
         <GradeBadge v-else-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
@@ -39,6 +43,7 @@
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
+import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
 
 interface Props {
@@ -51,6 +56,12 @@ interface Props {
     link?: boolean;
     /** 포인트 상점 미리보기 — `author.decoration` 을 겹치기 없이 그대로 그린다(내 장착을 덮어쓰지 않는다) */
     preview?: boolean;
+    /**
+     * 닉네임 왼쪽에 작은 아바타(게시판 목록) — 회원은 아바타(장착 테두리 둘레), 비회원·탈퇴·숨긴 글은 이니셜.
+     * **움직이는 아바타는 목록에서 정지 그림**으로 그린다 — 닉네임 그림(GIF)과 같은 규칙(「글 목록에서는 정지, 글 보기·댓글·프로필에서 움직인다」). 한 화면 수십 줄이 함께 움직이지 않게(성능·산만함).
+     * 그림은 지연 로딩(`lazy`)이고, 같은 회원의 그림은 브라우저가 한 번만 받는다.
+     */
+    avatar?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -58,6 +69,7 @@ const props = withDefaults(defineProps<Props>(), {
     strong: false,
     link: false,
     preview: false,
+    avatar: false,
 });
 
 const { t } = useI18n();
@@ -67,13 +79,26 @@ const decorations = useMyDecoration();
 const name = computed(() => props.author.name ?? t('board.authorWithdrawn'));
 /**
  * 닉네임 색 — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`). 대비 보정은 홈 가젯 색과 같은 규칙(`UtilColor.cssPair` — 두 테마 값을 `light-dark()` 로).
- * 뱃지·메모 칩 등 줄의 나머지는 그대로다. 테두리는 이 줄이 그리지 않는다(글 보기 머리·공개 프로필이 `ProfileBorderAvatar` 로).
+ * 뱃지·메모 칩 등 줄의 나머지는 그대로다. 테두리는 `avatar` 를 켰을 때만 작은 아바타 둘레에 그린다(글 보기 머리·공개 프로필은 따로 `ProfileBorderAvatar` 로).
  */
+const decoration = computed(() => {
+    if (props.author.kind !== 'MEMBER') return null;
+    return props.preview ? (props.author.decoration ?? null) : decorations.decorationOf(props.author.memberId, props.author.decoration);
+});
 const nameStyle = computed(() => {
-    if (props.author.kind !== 'MEMBER') return undefined;
-    const decoration = props.preview ? (props.author.decoration ?? null) : decorations.decorationOf(props.author.memberId, props.author.decoration);
-    const color = UtilColor.cssPair(decoration?.nicknameColor);
+    const color = UtilColor.cssPair(decoration.value?.nicknameColor);
     return color ? { color } : undefined;
+});
+/** 작은 아바타 — 회원은 그림(내 것은 방금 고른 것, 움직이는 아바타는 정지 그림), 비회원·탈퇴·숨긴 글(서버가 `avatarUrl: null`)은 이니셜 */
+const avatarProps = computed(() => {
+    const url = props.author.kind === 'MEMBER' ? decorations.avatarOf(props.author.memberId, props.author.avatarUrl) : null;
+    const still = url ? decorations.avatarStillOf(props.author.memberId, props.author.avatarStillUrl) : null;
+    return {
+        initial: UtilPointShop.initial(props.author.name ?? ''),
+        src: still ?? url,
+        borderStyle: decoration.value?.profileBorder ?? null,
+        lazy: true,
+    };
 });
 const guest = computed(() => props.author.kind === 'GUEST');
 /** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */
