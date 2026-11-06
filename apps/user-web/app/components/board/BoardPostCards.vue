@@ -17,7 +17,7 @@
                         <div class="flex min-w-0 flex-1 flex-col">
                             <p class="line-clamp-2 text-sm font-medium leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" /></p>
                             <p class="mt-auto flex flex-wrap items-center gap-x-1.5 pt-1 text-xs text-muted-color">
-                                <PostAuthorLabel :author="row.author" />
+                                <PostAuthorLabel :author="row.author" avatar />
                                 <span aria-hidden="true">·</span>
                                 <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                 <span aria-hidden="true">·</span>

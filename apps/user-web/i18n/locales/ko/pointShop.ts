@@ -70,7 +70,7 @@ export default {
     previewProfile: '내 프로필',
     previewPostHead: '글 보기의 작성자',
     borderName: '고리 · {name}',
-    borderWhere: '테두리는 내 프로필과 글 보기의 작성자 자리에 보여요. 목록·댓글·쪽지에서는 닉네임 색만 보여요.',
+    borderWhere: '테두리는 내 프로필, 글 보기와 글 목록의 작성자 자리에 보여요. 댓글·쪽지에서는 닉네임 색만 보여요.',
 
     // 변경권 — 미리보기 대신 다섯 줄
     ticketAboutTitle: '닉네임 변경권은 이런 아이템이에요',

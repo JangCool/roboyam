@@ -23,7 +23,7 @@
                 <HotdealPriceLine :deal="deal" shipping :compact="compact" />
             </p>
             <p v-if="!compact" class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                <PostAuthorLabel :author="author" />
+                <PostAuthorLabel :author="author" avatar />
                 <span aria-hidden="true">·</span>
                 <span>{{ t('hotdeal.likesShort', { n: row.likeCount }) }}</span>
                 <span aria-hidden="true">·</span>

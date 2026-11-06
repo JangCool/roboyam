@@ -68,7 +68,7 @@ export default {
     previewProfile: 'My profile',
     previewPostHead: 'Post author',
     borderName: 'Ring · {name}',
-    borderWhere: 'The border shows on your profile and as the author on a post page. Lists, comments and messages show only the nickname color.',
+    borderWhere: 'The border shows on your profile and as the author on post pages and post lists. Comments and messages show only the nickname color.',
 
     // Ticket — five lines instead of a preview
     ticketAboutTitle: 'About the nickname change ticket',

@@ -3,6 +3,17 @@
          공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
          「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`) -->
     <span class="inline-flex min-w-0 items-center gap-1">
+        <!-- 글 목록·피드·홈 가젯 글 줄의 작성자 앞 작은 프로필 동그라미(`avatar`) — 글 보기 머리와 같은 크기(`xs`)·같은 테두리. 회원만(비회원·숨긴 글·사업자 핫딜 글은 그리지 않는다 — `memberId` 가 없다) -->
+        <ProfileBorderAvatar
+            v-if="showAvatar"
+            :initial="UtilPointShop.initial(name)"
+            :src="avatarSrc"
+            size="xs"
+            :border-style="decoration?.profileBorder ?? null"
+            lazy
+            class="mr-1"
+            data-testid="author-avatar"
+        />
         <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지) -->
         <NuxtLink
             v-if="profilePath"
@@ -39,6 +50,7 @@
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
+import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
 
 interface Props {
@@ -51,6 +63,8 @@ interface Props {
     link?: boolean;
     /** 포인트 상점 미리보기 — `author.decoration` 을 겹치기 없이 그대로 그린다(내 장착을 덮어쓰지 않는다) */
     preview?: boolean;
+    /** 이름 앞에 프로필 동그라미(글 보기 머리와 같은 `xs`) — 글 목록·피드·홈 가젯 글 줄 */
+    avatar?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -58,6 +72,7 @@ const props = withDefaults(defineProps<Props>(), {
     strong: false,
     link: false,
     preview: false,
+    avatar: false,
 });
 
 const { t } = useI18n();
@@ -69,12 +84,17 @@ const name = computed(() => props.author.name ?? t('board.authorWithdrawn'));
  * 닉네임 색 — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`). 대비 보정은 홈 가젯 색과 같은 규칙(`UtilColor.cssPair` — 두 테마 값을 `light-dark()` 로).
  * 뱃지·메모 칩 등 줄의 나머지는 그대로다. 테두리는 이 줄이 그리지 않는다(글 보기 머리·공개 프로필이 `ProfileBorderAvatar` 로).
  */
+const decoration = computed(() => {
+    if (props.author.kind !== 'MEMBER') return null;
+    return props.preview ? (props.author.decoration ?? null) : decorations.decorationOf(props.author.memberId, props.author.decoration);
+});
 const nameStyle = computed(() => {
-    if (props.author.kind !== 'MEMBER') return undefined;
-    const decoration = props.preview ? (props.author.decoration ?? null) : decorations.decorationOf(props.author.memberId, props.author.decoration);
-    const color = UtilColor.cssPair(decoration?.nicknameColor);
+    const color = UtilColor.cssPair(decoration.value?.nicknameColor);
     return color ? { color } : undefined;
 });
+/** 프로필 동그라미 — 회원 글이고 이름이 보일 때만(서버 `avatarUrl` 에 내가 방금 고른 것을 겹친다 — 글 보기 머리와 같은 규칙) */
+const showAvatar = computed(() => props.avatar && props.author.kind === 'MEMBER' && !!props.author.memberId && props.author.name !== '');
+const avatarSrc = computed(() => (props.preview ? (props.author.avatarUrl ?? null) : decorations.avatarOf(props.author.memberId, props.author.avatarUrl)));
 const guest = computed(() => props.author.kind === 'GUEST');
 /** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */
 const operator = computed(() => props.author.kind === 'MEMBER' && props.author.operator === true);

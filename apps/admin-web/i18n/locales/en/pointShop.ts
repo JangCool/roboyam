@@ -245,7 +245,7 @@ export default {
         correctedDark: 'Shown slightly adjusted on dark screens to stay readable (the saved value is unchanged).',
         colorRule: 'If contrast with the background is below 4.5:1, only brightness is adjusted. The hue stays.',
         borderLabel: '{name} border',
-        borderPlaces: 'Shown on the large circle of the public profile and on the author in the post header. Lists and comments show the nickname color only.',
+        borderPlaces: 'Shown on the large circle of the public profile and on the author in the post header and post lists. Comments show the nickname color only.',
         avatarPlaces: 'Shown in the circle of the public profile header and the post header. An equipped border goes around it.',
         ticketLead: 'The member product page always says this.',
         untitled: '(no name)',
