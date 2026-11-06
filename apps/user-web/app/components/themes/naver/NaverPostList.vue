@@ -18,9 +18,9 @@
                     <NuxtLink
                         :to="`/posts/${row.id}`"
                         class="group flex gap-3.5 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5"
-                        :class="row.thumbnailUrl ? 'md:min-h-[104px]' : ''"
                     >
-                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-[75px] w-[115px] shrink-0 rounded-md object-cover" loading="lazy" />
+                        <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
+                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
                         <div class="flex min-w-0 flex-1 flex-col">
                             <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
                                 <PostRowTitle :row="row" :new-post-hours="newPostHours" :comment-count="false" />

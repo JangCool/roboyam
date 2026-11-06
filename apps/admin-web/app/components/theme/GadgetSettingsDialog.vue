@@ -210,6 +210,20 @@
                                     </div>
                                     <small class="text-xs text-muted-color">{{ t('homeLayout.settingsCardHeadHint') }}</small>
                                 </div>
+                                <!-- 선 — 기본은 둘 다 끔(선 없이 여백으로 나눈다, 2026-11-06 사용자) -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <ToggleSwitch v-model="cardOutlineModel" :input-id="`${uid}-cout`" />
+                                            <label :for="`${uid}-cout`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsCardOutline') }}</label>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <ToggleSwitch v-model="cardDividersModel" :input-id="`${uid}-cdiv`" />
+                                            <label :for="`${uid}-cdiv`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsCardDividers') }}</label>
+                                        </div>
+                                    </div>
+                                    <small class="text-xs text-muted-color">{{ t('homeLayout.settingsCardLinesHint') }}</small>
+                                </div>
                             </template>
 
                             <!-- 하이라이트 — 큰 글 · 사진 -->
@@ -613,8 +627,22 @@ const cardHeadModel = computed<boolean>({
     },
 });
 
+/** 게시판 카드의 외곽선·줄 구분선 — 둘 다 기본 끔(글 목록의 구분선 기본 켬과 다르다) */
+const cardOutlineModel = computed<boolean>({
+    get: () => draft.value?.outline === true,
+    set: (value) => {
+        if (draft.value) draft.value.outline = value;
+    },
+});
+const cardDividersModel = computed<boolean>({
+    get: () => draft.value?.dividers === true,
+    set: (value) => {
+        if (draft.value) draft.value.dividers = value;
+    },
+});
+
 const dividersModel = computed<boolean>({
-    get: () => draft.value?.dividers !== false,
+    get: () => draft.value?.dividers === true,
     set: (value) => {
         if (draft.value) draft.value.dividers = value;
     },

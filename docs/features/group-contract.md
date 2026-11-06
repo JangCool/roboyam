@@ -97,3 +97,4 @@
 ### 소모임 신고 (2026-10-26 — 서버 `e955b0f`, V95)
 - 공개 `POST /api/reports {targetType:"GROUP", targetId, reason, detail?}`(로보얌 기존 신고 경로·오류 그대로), 사유 `PROMOTION`·`OFFLINE_RISK`·`STOCK_RECOMMENDATION`(투자 고지 게시판 소모임만)·`OTHER`. 자동 숨김 없음. 관리자 신고 목록·상세의 소모임 사건(`target.groupId`, 상세 `group`), 조치 `DEACTIVATE`(소모임 비활성화 + `groups.deactivate_case_id` + 모임장 알림), 신고자 결과 알림. 관리자 소모임 상세 `reportCaseCount`·`deactivation.reportCase`.
 - 사용자 결정(「추천대로」): 신고 처리의 비활성화는 `report.manage` 만 본다(`group.manage` 를 따로 묻지 않는다). 모임장이 받은 소모임 신고도 회원 상세의 「받은 신고 수」에 든다.
+- **세션 정리 결정(2026-11-06, 사용자)**: user-web `/groups` 목록은 「지금 뜨는 소모임」 슬라이드의 모임을 `exclude` 로 빼지 않는다 — 소모임이 적으면 목록이 거의 비어 보인다(6개 중 1개). 서버의 `exclude` 칸은 그대로 둔다(화면이 안 보낼 뿐).

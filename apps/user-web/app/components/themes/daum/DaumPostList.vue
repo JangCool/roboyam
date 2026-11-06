@@ -30,7 +30,8 @@
                                 <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                             </p>
                         </div>
-                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-[72px] w-28 shrink-0 rounded-lg object-cover" loading="lazy" />
+                        <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
+                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
                     </NuxtLink>
                 </FoldedRow>
             </li>

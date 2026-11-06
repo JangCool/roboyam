@@ -137,6 +137,10 @@ export interface BoardCardsConfig {
     badge: GadgetBadgeConfig;
     /** 카드 머리(게시판 로고·이름)와 「게시판 가기」를 보이는가 — 끄면 가젯 제목·「더보기」만(게시판 하나짜리 카드 가젯에서 이름이 두 번 나오지 않게). 없으면 보인다 */
     cardHead: boolean;
+    /** 카드마다 둥근 외곽선 — 없으면 끔(2026-11-06) */
+    outline: boolean;
+    /** 줄 구분선(목록 줄 사이·카드 아래 줄) — 없으면 끔 */
+    dividers: boolean;
 }
 
 export interface HighlightConfig {

@@ -220,13 +220,13 @@ export default class UtilGadgetConfig {
                     titleLines: 0,
                     lead: 'NONE',
                     meta: [...DEFAULT_META],
-                    dividers: true,
+                    dividers: false,
                     newBadgeHours: 0,
                     hotBadgeLikes: 0,
                 } satisfies HomeGadgetConfig);
                 break;
             case 'BOARD_CARDS':
-                Object.assign(out, { cardHead: true, columns: 'AUTO' } satisfies HomeGadgetConfig);
+                Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false } satisfies HomeGadgetConfig);
                 break;
             case 'HIGHLIGHT':
                 Object.assign(out, { lead: 'HERO', thumbs: 'ALL' } satisfies HomeGadgetConfig);
@@ -281,12 +281,14 @@ export default class UtilGadgetConfig {
                 out.titleLines = c.titleLines === 1 || c.titleLines === 2 ? c.titleLines : 0;
                 out.lead = c.lead === 'HERO' ? 'HERO' : 'NONE';
                 out.meta = Array.isArray(c.meta) ? META.filter((k) => (c.meta as unknown[]).includes(k)) : [...DEFAULT_META];
-                out.dividers = typeof c.dividers === 'boolean' ? c.dividers : true;
+                out.dividers = typeof c.dividers === 'boolean' ? c.dividers : false; // 기본 끔(2026-11-06 사용자)
                 out.newBadgeHours = clamp(c.newBadgeHours, UtilGadgetConfig.NEW_BADGE.min, UtilGadgetConfig.NEW_BADGE.max, 0);
                 out.hotBadgeLikes = clamp(c.hotBadgeLikes, UtilGadgetConfig.HOT_BADGE.min, UtilGadgetConfig.HOT_BADGE.max, 0);
                 break;
             case 'BOARD_CARDS':
                 out.cardHead = c.cardHead !== false;
+                out.outline = c.outline === true;
+                out.dividers = c.dividers === true;
                 out.columns = c.columns === 2 || c.columns === '2' ? 2 : c.columns === 3 || c.columns === '3' ? 3 : 'AUTO';
                 break;
             case 'HIGHLIGHT':
