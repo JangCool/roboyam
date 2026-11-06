@@ -20,6 +20,17 @@
 }
 
 /*
+ * 모바일 상단 바 — 사이트 설정 「흰 바」(`html[data-mobile-header='plain']`, main.css)는 모바일 폭에서 `.app-nav` 요소에 직접 흰 바탕을 다시 채운다.
+ * 색상 테마를 골랐으면(`data-palette` — 기본 테마는 속성이 없어 흰 바 그대로) 그 위에서 PC 로고 줄과 같은 색으로 다시 덮는다(명시도 0,3,1 > 0,2,1).
+ */
+@media (max-width: 47.99rem) {
+    html[data-palette]:not([data-color-scheme='dark']) .app-nav {
+        --nav-bg: var(--topbar-bg, var(--card-bg));
+        --nav-fg: var(--topbar-fg, var(--p-text-color));
+    }
+}
+
+/*
  * 카드(본문·가젯·사이드 메뉴)와 PC 메뉴 카드는 모든 테마에서 기본 카드 색(흰색) 그대로 둔다 — 테마 색을 섞었다가 되돌렸다(사용자 결정 2026-11-06).
  */
 
