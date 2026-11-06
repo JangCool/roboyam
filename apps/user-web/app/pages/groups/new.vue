@@ -6,6 +6,7 @@
         비회원은 로그인 안내, 이메일 인증 전·등급 미달·상한 도달·해산 패널티(`me.reason = DISSOLVE_PENALTY` + `penaltyUntil`, 신청은 `403 GROUP_DISSOLVE_PENALTY`)는 폼은 두고 단추만 끈다(정지 중은 서버가 `403 ACCOUNT_RESTRICTED` 로 막는다 — 안내 띠).
         공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
           고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
+        대표 이미지(선택, 로보얌 추가): 고르면 바로 올리고(`POST /api/groups/images`) 신청 본문에 `imageFileId`. 올리는 중에는 신청 단추를 끈다. 반려된 신청을 다시 낼 때 신청의 이미지를 되살린다.
     -->
     <div class="content-card">
         <NuxtLink :to="UtilGroup.LIST_PATH" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
@@ -39,7 +40,7 @@
             <h1 :id="`${uid}-pending`" ref="pendingHeading" tabindex="-1" class="m-0 text-lg font-bold">{{ t('group.pendingTitle') }}</h1>
             <div class="panel-card p-4">
                 <div class="flex items-center gap-3">
-                    <GroupInitial :name="sent.name" size="lg" />
+                    <GroupInitial :name="sent.name" :src="sent.imageUrl" size="lg" />
                     <div class="min-w-0 flex-1">
                         <h2 class="m-0 break-words text-base font-bold leading-tight">{{ sent.name }}</h2>
                         <p class="m-0 mt-0.5 text-xs text-muted-color">{{ sent.summary }}</p>
@@ -92,6 +93,9 @@
                     <Textarea :id="id" v-model="form.description" name="description" rows="5" auto-resize :placeholder="t('group.descriptionPlaceholder')" :disabled="submitting" :invalid="invalid" :aria-describedby="describedBy" fluid data-field="description" data-testid="group-create-description" />
                 </template>
             </LabeledField>
+
+            <!-- 대표 이미지(선택) — 고르면 바로 올리고, 신청에 `imageFileId` 로 붙인다 -->
+            <GroupImagePicker v-model="form.image" :name="form.name.trim()" :disabled="submitting" :error="imageError" @uploading="(busy: boolean) => (imageUploading = busy)" />
 
             <!-- 분류 — 관리자가 정한 이름·순서. 고르면 그 분류의 게시판이 아래 칸으로 채워진다 -->
             <fieldset class="m-0 min-w-0 border-0 p-0">
@@ -230,8 +234,9 @@
             </fieldset>
 
             <div>
-                <Button type="submit" fluid size="large" :label="submitLabel" :loading="submitting" :disabled="submitting || Boolean(blocked)" data-testid="group-create-submit" />
+                <Button type="submit" fluid size="large" :label="submitLabel" :loading="submitting" :disabled="submitting || imageUploading || Boolean(blocked)" data-testid="group-create-submit" />
                 <p v-if="submitting" class="mt-2 text-center text-xs text-muted-color" role="status">{{ t('group.submittingHint') }}</p>
+                <p v-else-if="imageUploading" class="mt-2 text-center text-xs text-muted-color" role="status">{{ t('group.imageUploadingWait') }}</p>
                 <p v-else class="mt-2 text-center text-xs text-muted-color">
                     {{ t('group.listHint') }}
                     <NuxtLink :to="UtilGroup.LIST_PATH" class="text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('group.listLink') }}</NuxtLink>
@@ -306,6 +311,13 @@ const prefilled = ref(false);
 const prefilling = ref(false);
 const rejectReason = ref<string | null>(null);
 const pending = ref(false);
+/** 대표 이미지 — 올리는 중이면 신청을 막고, 신청 때 서버가 파일을 거절하면(`fields.imageFileId` — 올린 지 오래된 파일 등) 칸 아래에 */
+const imageUploading = ref(false);
+const imageError = ref('');
+watch(
+    () => form.image,
+    () => (imageError.value = ''),
+);
 
 const selectedCategory = computed(() => UtilGroup.categoryById(categories.value, form.categoryId));
 const showBoardChoice = computed(() => UtilGroup.needsBoardChoice(selectedCategory.value));
@@ -436,7 +448,13 @@ watch(
 /* ── 제출 ── */
 const formRoot = ref<HTMLFormElement | null>(null);
 const pendingHeading = ref<HTMLElement | null>(null);
-const sent = reactive<{ name: string; description: string; summary: string; visibility: GroupVisibility | null }>({ name: '', description: '', summary: '', visibility: null });
+const sent = reactive<{ name: string; description: string; summary: string; visibility: GroupVisibility | null; imageUrl: string | null }>({
+    name: '',
+    description: '',
+    summary: '',
+    visibility: null,
+    imageUrl: null,
+});
 
 async function focusField(field: GroupCreateField | null) {
     if (!field) return;
@@ -447,7 +465,7 @@ async function focusField(field: GroupCreateField | null) {
 }
 
 async function onSubmit() {
-    if (submitting.value || blocked.value) return;
+    if (submitting.value || imageUploading.value || blocked.value) return;
     for (const field of UtilGroup.CREATE_ORDER) touched[field] = true;
     const first = UtilGroup.firstField(problems.value, UtilGroup.CREATE_ORDER);
     if (first) return focusField(first);
@@ -466,6 +484,7 @@ async function onSubmit() {
         sent.description = form.description.trim();
         sent.summary = UtilGroupMessages.pendingSummaryLine(t, selectedCategory.value?.name ?? '', form.joinType, UtilGroup.parseCapacity(form.capacity) ?? 0);
         sent.visibility = visibilityChoice.value ? form.visibility : null;
+        sent.imageUrl = form.image?.url ?? null;
         pending.value = true;
         if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
         await nextTick();
@@ -476,8 +495,11 @@ async function onSubmit() {
             serverErrors.value = { name: e.message };
             return focusField('name');
         }
+        const imageProblem = UtilGroup.imageFieldError(e);
+        if (imageProblem) imageError.value = imageProblem;
         const fields = UtilGroup.serverFields(e, UtilGroup.CREATE_ORDER);
         const firstServer = UtilGroup.firstField(fields, UtilGroup.CREATE_ORDER);
+        if (imageProblem && !firstServer) return;
         if (firstServer) {
             serverErrors.value = fields;
             return focusField(firstServer);

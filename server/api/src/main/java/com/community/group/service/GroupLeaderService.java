@@ -28,12 +28,14 @@ import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
+import com.community.media.entity.FileEntity;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -46,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>모임장 고정</b>: 정보 수정 · 채팅 링크 · 모임장 넘기기 · 해산.</li>
  *   <li><b>체크형</b>(모임장 + 그 일을 맡은 매니저): 모집 마감·재개(RECRUITING) · 가입 신청 열람·승인·거절(APPLICATIONS) · 강퇴(KICK — 매니저는 일반 멤버만).</li>
+ *   <li>대표 이미지(V154)는 정보 수정의 {@code imageFileId} 로 바로 바뀐다(심사 없음 — 이름 바꾸기와 같다). 떨어져 나간 파일은 {@link GroupImages#detach} 로 정리 배치에 맡긴다(해산도).</li>
  *   <li>정지 중이거나 이메일 인증 전인 모임장·매니저는 쓰기가 모두 멈춘다(열람은 열려 있다).</li>
  *   <li>해산: 소모임째 DELETED, 멤버 전원에게 알림. 소모임 글은 공개 여부와 상관없이 모두 지운다. 포인트는 회수하지 않고, 1년 미만 유지된 소모임이면 모임장에게
  *       해산 패널티(설정 {@code dissolvePenaltyDays} 동안 개설 신청 불가 — {@link GroupDissolvePenalty}, V96)를 남긴다.</li>
@@ -66,9 +69,12 @@ public class GroupLeaderService {
     private final GroupPostQueries groupPosts;
     private final BoardActorResolver actors;
     private final BoardCatalog catalog;
+    private final GroupImages images;
 
     public GroupLeaderService(GroupAccess access, GroupRepository groups, GroupMemberRepository members, GroupSettingsService settings, GroupViews views,
-                              GroupPeople people, GroupNotices notices, BoardActorResolver actors, BoardCatalog catalog, GroupPostQueries groupPosts) {
+                              GroupPeople people, GroupNotices notices, BoardActorResolver actors, BoardCatalog catalog, GroupPostQueries groupPosts,
+                              GroupImages images) {
+        this.images = images;
         this.groupPosts = groupPosts;
         this.access = access;
         this.groups = groups;
@@ -83,14 +89,17 @@ public class GroupLeaderService {
 
     // ── 모임장 고정 ──────────────────────────────────────────────────────────
 
-    /** 정보 수정 — 모든 칸. 정원은 운영 한도 범위 안이고 지금 멤버 수보다 작게 줄일 수 없다. 응답은 상세 */
+    /**
+     * 정보 수정 — 모든 칸. 정원은 운영 한도 범위 안이고 지금 멤버 수보다 작게 줄일 수 없다. 대표 이미지 {@code imageFileId}: 지금 파일 ID 면 그대로, 새 파일이면
+     * {@link GroupImages#claimable} 검사 뒤 바꾸고(틀리면 다른 칸과 함께 {@code 400 fields.imageFileId}), null·빈 값이면 지운다. 응답은 상세
+     */
     @Transactional
     public GroupDetailView update(String rawId, Long userId, GroupUpdateRequest request) {
         long me = GroupAccess.requireUser(userId);
         GroupEntity group = access.lockActive(GroupAccess.parseId(rawId));
         access.requireLeader(group, me);
         access.requireWriter(me);
-        GroupUpdateRequest r = request == null ? new GroupUpdateRequest(null, null, null, null, null) : request;
+        GroupUpdateRequest r = request == null ? new GroupUpdateRequest(null, null, null, null, null, null) : request;
         GroupRuleValues.Policy policy = settings.policy();
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         String nameProblem = GroupRules.nameProblem(r.name());
@@ -113,6 +122,13 @@ public class GroupLeaderService {
         if (r.offline() == null) {
             invalid.put("offline", new MessageRef("group.offline.required"));
         }
+        String rawImage = r.imageFileId() == null || r.imageFileId().isBlank() ? null : r.imageFileId().strip();
+        Long imageId = rawImage == null ? null : GroupQueryService.parseLong(rawImage);
+        boolean keepImage = imageId != null && Objects.equals(imageId, group.getImageFileId());
+        FileEntity nextImage = rawImage == null || keepImage || imageId == null ? null : images.claimable(me, imageId);
+        if (rawImage != null && !keepImage && nextImage == null) {
+            invalid.put(GroupImages.FIELD, new MessageRef(GroupImages.INVALID));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -130,7 +146,15 @@ public class GroupLeaderService {
             }
             throw e;
         }
-        log.info("소모임 정보를 고쳤다 groupId={} by userId={}", group.getId(), me);
+        // 대표 이미지는 이름 저장(고유 색인 확인)을 내보낸 뒤에 — 붙이기의 질의가 자동 flush 로 이름 충돌을 이 try 밖에서 터뜨리지 않게
+        Long previousImage = group.getImageFileId();
+        if (!keepImage) {
+            images.detach(group);
+            if (nextImage != null) {
+                images.attach(group, nextImage, Instant.now());
+            }
+        }
+        log.info("소모임 정보를 고쳤다 groupId={} 이미지={}→{} by userId={}", group.getId(), previousImage, group.getImageFileId(), me);
         return views.detail(group, me, actors.resolve(me, catalog.snapshot()), Instant.now());
     }
 
@@ -198,6 +222,7 @@ public class GroupLeaderService {
         List<GroupMemberEntity> active = members.findByGroupIdAndStatus(group.getId(), GroupMemberStatus.ACTIVE);
         Instant now = Instant.now();
         Instant penaltyUntil = GroupDissolvePenalty.penaltyUntil(group, settings.creation().dissolvePenaltyDays(), now);
+        images.detach(group);
         group.dissolve(now, penaltyUntil);
         groups.flush();
         // 글은 공개 여부와 상관없이 모두 지운다(2026-10-26 사용자 결정 — community 의 「공개 글은 연결 유지」를 바꿨다)

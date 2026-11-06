@@ -13,7 +13,7 @@
                     class="flex w-full min-w-0 flex-col items-start gap-1 rounded-xl border border-surface p-3 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
                     data-testid="home-group-card"
                 >
-                    <GroupInitial :name="row.name" class="mb-1" />
+                    <GroupInitial :name="row.name" :src="row.imageUrl" class="mb-1" />
                     <b class="w-full truncate text-sm">{{ row.name }}</b>
                     <span class="text-xs text-muted-color">{{ UtilGroupMessages.members(t, row) }}</span>
                     <span v-if="row.stockNotice" class="text-[0.6875rem] font-semibold text-amber-700 dark:text-amber-400">{{ t('group.stockRowNote') }}</span>
@@ -24,7 +24,7 @@
         <ul v-else class="m-0 list-none p-0" data-testid="home-groups">
             <li v-for="row in rows" :key="row.id" class="border-b border-surface last:border-b-0">
                 <NuxtLink :to="UtilGroup.detailPath(row.id)" class="flex items-start gap-3 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
-                    <GroupInitial :name="row.name" />
+                    <GroupInitial :name="row.name" :src="row.imageUrl" />
                     <span class="min-w-0 flex-1">
                         <span class="flex items-center gap-1.5">
                             <b class="min-w-0 truncate text-sm">{{ row.name }}</b>

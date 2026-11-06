@@ -5,8 +5,9 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * {@code GET /api/groups/{id}} — 소모임 상세(community {@code GroupDetail}). 비활성({@code status: INACTIVE})이면 {@code id}·{@code name}·{@code status} 만 값이 있고 나머지는 null(목록 칸은 빈 값).
+ * {@code GET /api/groups/{id}} — 소모임 상세(community {@code GroupDetail}). 비활성({@code status: INACTIVE})이면 {@code id}·{@code name}·{@code image}·{@code status} 만 값이 있고 나머지는 null(목록 칸은 빈 값).
  *
+ * @param image                  대표 이미지(V154) {@code {fileId, url}} — 없으면 null. 비활성 응답에도 싣는다
  * @param description            소개 전문
  * @param board                  소모임 게시판(말머리·투자 고지 — 글쓰기는 2단계)
  * @param leader                 모임장
@@ -27,15 +28,15 @@ import java.util.List;
  * @param visibilityInfo         모임장에게만 공개 범위 변경 정보, 그 밖 null(5단계)
  * @param dissolveInfo           모임장에게만 지금 해산하면 패널티가 걸리는지(V96), 그 밖 null
  */
-public record GroupDetailView(String id, String name, String description, GroupCategoryRefView category, String joinType, Integer capacity, Integer memberCount,
+public record GroupDetailView(String id, String name, GroupImageView image, String description, GroupCategoryRefView category, String joinType, Integer capacity, Integer memberCount,
                               Boolean recruiting, String recruitState, Boolean offline, String visibility, Board board, String status, Instant openedAt,
                               DmPartnerView leader, Boolean stockNotice, String myState, String myRole, Join join, Chat chat, Boolean chatLocked,
                               Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits,
                               Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo, DissolveInfo dissolveInfo) {
 
     /** 비활성 소모임 — 안내 화면에 쓸 칸만 */
-    public static GroupDetailView inactive(String id, String name) {
-        return new GroupDetailView(id, name, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
+    public static GroupDetailView inactive(String id, String name, GroupImageView image) {
+        return new GroupDetailView(id, name, image, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null);
     }
 

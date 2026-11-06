@@ -14,12 +14,14 @@ import com.community.group.dto.response.GroupCategoriesView;
 import com.community.group.dto.response.GroupCreateResultView;
 import com.community.group.dto.response.GroupCreationRulesView;
 import com.community.group.dto.response.GroupDetailView;
+import com.community.group.dto.response.GroupImageUploadView;
 import com.community.group.dto.response.GroupJoinResultView;
 import com.community.group.dto.response.GroupListPageView;
 import com.community.group.dto.response.GroupMemberCountView;
 import com.community.group.dto.response.GroupMemberPageView;
 import com.community.group.dto.response.GroupTrendingView;
 import com.community.group.service.GroupCreateService;
+import com.community.group.service.GroupImageUploadService;
 import com.community.group.service.GroupLeaderService;
 import com.community.group.service.GroupMembershipService;
 import com.community.group.service.GroupQueryService;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 소모임(공개 사이트) — community docs/api-groups.md 1~5절의 경로 그대로(5-1 매니저는 {@link GroupManagerController}). 읽기(목록·분류·개설 규칙·상세)는 로그인 없이, 나머지는 회원만
@@ -50,8 +53,11 @@ public class GroupController {
     private final GroupMembershipService membership;
     private final GroupCreateService creates;
     private final GroupLeaderService leaders;
+    private final GroupImageUploadService images;
 
-    public GroupController(GroupQueryService queries, GroupMembershipService membership, GroupCreateService creates, GroupLeaderService leaders) {
+    public GroupController(GroupQueryService queries, GroupMembershipService membership, GroupCreateService creates, GroupLeaderService leaders,
+                           GroupImageUploadService images) {
+        this.images = images;
         this.queries = queries;
         this.membership = membership;
         this.creates = creates;
@@ -103,6 +109,16 @@ public class GroupController {
         GroupCreateResultView result = creates.create(userId(authentication), body);
         HttpStatus status = "ACTIVE".equals(result.status()) ? HttpStatus.CREATED : HttpStatus.ACCEPTED;
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(ApiResponse.success(result));
+    }
+
+    /**
+     * 대표 이미지 올리기(로보얌 추가, V154) — multipart {@code file} 한 장 → {@code 201 {fileId, url, width, height}}. 개설 신청·정보 수정의 {@code imageFileId} 로 붙인다.
+     * 칸이 빠진 요청도 서비스가 칸 오류({@code fields.file})로 거절하도록 {@code required = false}.
+     */
+    @PostMapping("/images")
+    public ResponseEntity<ApiResponse<GroupImageUploadView>> uploadImage(@RequestParam(value = "file", required = false) MultipartFile file,
+                                                                         Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(images.upload(userId(authentication), file)));
     }
 
     /** 가입 200 JOINED · 신청 202 APPLIED */

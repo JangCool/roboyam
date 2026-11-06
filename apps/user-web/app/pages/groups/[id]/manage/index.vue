@@ -15,7 +15,7 @@
         <template v-if="group">
             <section class="panel-card p-4" data-testid="group-manage-head">
                 <div class="flex items-center gap-3">
-                    <GroupInitial :name="group.name" size="lg" />
+                    <GroupInitial :name="group.name" :src="group.image?.url" size="lg" />
                     <div class="min-w-0 flex-1">
                         <h2 class="break-words text-base font-semibold leading-snug [overflow-wrap:anywhere]">{{ group.name }}</h2>
                         <p class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-muted-color">

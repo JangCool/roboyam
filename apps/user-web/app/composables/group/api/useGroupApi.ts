@@ -33,6 +33,7 @@ import type {
     GroupPublishRequestPage,
     GroupPublishRequestQuery,
     GroupPublishRequestResult,
+    GroupImageUploadResult,
     GroupTrendingResponse,
     GroupUpdateRequest,
     GroupVisibility,
@@ -139,6 +140,7 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  */
 const PATH = {
     groups: '/api/groups',
+    images: '/api/groups/images',
     categories: '/api/groups/categories',
     trending: '/api/groups/trending',
     creationRules: '/api/groups/creation-rules',
@@ -204,6 +206,9 @@ export function useGroupApi() {
 
         /** 개설 신청 — 승인제는 `202 PENDING`, 자유 개설·운영자는 `201 ACTIVE` */
         create: (body: GroupCreateRequest) => client.post<GroupCreateResult>(PATH.groups, body),
+
+        /** 대표 이미지 올리기(JPG·PNG·WebP·GIF 10MB, 움직이는 GIF·WebP 는 그대로) — 개설 신청·정보 수정이 `imageFileId` 로 붙인다. `400 fields.file` */
+        uploadImage: (file: File): Promise<GroupImageUploadResult> => client.upload<GroupImageUploadResult>(PATH.images, ((f) => (f.append('file', file), f))(new FormData())),
 
         /** 내 승인 대기 개설 신청 취소(204). 이미 처리됐으면 `404 GROUP_NOT_FOUND` */
         cancelRequest: (id: string) => client.del<void>(PATH.myRequest(id)),

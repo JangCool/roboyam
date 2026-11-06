@@ -9,6 +9,7 @@ import com.community.group.dto.GroupRuleValues;
 import com.community.group.dto.response.GroupBoardRefView;
 import com.community.group.dto.response.GroupCategoryRefView;
 import com.community.group.dto.response.GroupDetailView;
+import com.community.group.dto.response.GroupImageView;
 import com.community.group.dto.response.GroupPersonView;
 import com.community.group.dto.response.GroupRowView;
 import com.community.group.entity.GroupCategoryEntity;
@@ -27,7 +28,10 @@ import com.community.group.repository.master.GroupRepositoryQDSL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
@@ -56,9 +60,11 @@ public class GroupViews {
     private final GroupMemberRepository members;
     private final GroupPostQueries groupPosts;
     private final GroupPublishRequestQueries publishRequests;
+    private final GroupImages images;
 
     public GroupViews(BoardCatalog catalog, GroupCategoryLookup categories, GroupSettingsService settings, GroupPeople people, GroupRepositoryQDSL queries,
-                      GroupMemberRepository members, GroupPostQueries groupPosts, GroupPublishRequestQueries publishRequests) {
+                      GroupMemberRepository members, GroupPostQueries groupPosts, GroupPublishRequestQueries publishRequests, GroupImages images) {
+        this.images = images;
         this.groupPosts = groupPosts;
         this.publishRequests = publishRequests;
         this.catalog = catalog;
@@ -79,9 +85,37 @@ public class GroupViews {
 
     // ── 한 줄 ────────────────────────────────────────────────────────────────
 
-    public GroupRowView row(GroupEntity g, String myState, Context ctx) {
+    /** 줄들의 대표 이미지 주소(소모임 ID → 주소, 이미지가 있는 것만) — 파일 장부를 한 번에 읽는다. {@link #row} 의 {@code imageUrl} 재료 */
+    public Map<Long, String> imageUrls(Collection<GroupEntity> rows) {
+        return images.urls(rows);
+    }
+
+    /** 대표 이미지 {@code {fileId, url}} — 없으면 null */
+    public GroupImageView image(GroupEntity g) {
+        if (g.getImageFileId() == null) {
+            return null;
+        }
+        String url = images.urls(List.of(g)).get(g.getId());
+        return url == null ? null : new GroupImageView(Long.toString(g.getImageFileId()), url);
+    }
+
+    /** 대표 이미지들 — 소모임 ID → {@code {fileId, url}}(이미지가 있는 것만), 한 번에 */
+    public Map<Long, GroupImageView> imageViews(Collection<GroupEntity> rows) {
+        Map<Long, String> urls = images.urls(rows);
+        Map<Long, GroupImageView> out = new HashMap<>();
+        for (GroupEntity g : rows) {
+            String url = urls.get(g.getId());
+            if (url != null) {
+                out.put(g.getId(), new GroupImageView(Long.toString(g.getImageFileId()), url));
+            }
+        }
+        return out;
+    }
+
+    /** @param imageUrl 대표 이미지 주소({@link #imageUrls}) — 없으면 null */
+    public GroupRowView row(GroupEntity g, String myState, Context ctx, String imageUrl) {
         EffectiveBoard board = ctx.boards().board(g.getBoardId()).orElse(null);
-        return new GroupRowView(Long.toString(g.getId()), g.getName(), GroupRules.summary(g.getDescription()), category(g, ctx), boardRef(board),
+        return new GroupRowView(Long.toString(g.getId()), g.getName(), imageUrl, GroupRules.summary(g.getDescription()), category(g, ctx), boardRef(board),
                 g.getJoinType().name(), g.getCapacity(), g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(),
                 board != null && board.investmentNotice(), visibility(g, ctx), myState);
     }
@@ -130,7 +164,7 @@ public class GroupViews {
      */
     public GroupDetailView detail(GroupEntity g, Long userId, BoardActor actor, Instant now) {
         if (g.getStatus() == GroupStatus.INACTIVE) {
-            return GroupDetailView.inactive(Long.toString(g.getId()), g.getName());
+            return GroupDetailView.inactive(Long.toString(g.getId()), g.getName(), image(g));
         }
         Context ctx = context();
         GroupMemberEntity row = userId == null ? null : members.findByGroupIdAndUserId(g.getId(), userId).orElse(null);
@@ -197,7 +231,7 @@ public class GroupViews {
         GroupDetailView.DissolveInfo dissolveInfo = !leader ? null : new GroupDetailView.DissolveInfo(settings.creation().dissolvePenaltyDays(),
                 GroupDissolvePenalty.exempt(g, now), GroupDissolvePenalty.exemptAt(g));
 
-        return new GroupDetailView(Long.toString(g.getId()), g.getName(), g.getDescription(), category(g, ctx), g.getJoinType().name(), g.getCapacity(),
+        return new GroupDetailView(Long.toString(g.getId()), g.getName(), image(g), g.getDescription(), category(g, ctx), g.getJoinType().name(), g.getCapacity(),
                 g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(), visibility(g, ctx), boardView, g.getStatus().name(), g.getOpenedAt(),
                 GroupUsers.of(persons.of(g.getLeaderId())), board != null && board.investmentNotice(), myState(g, row, userId), myRole, join(g, row, userId, actor, now, policy),
                 chat, !member, permissions, managerInfo, newcomers, pending,

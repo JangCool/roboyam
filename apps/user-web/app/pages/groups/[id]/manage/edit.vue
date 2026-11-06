@@ -1,6 +1,7 @@
 <template>
     <!--
-        소모임 정보 수정 `/groups/{id}/manage/edit` (모임장 고정) — 이름·소개·가입 방식·정원·오프라인. 분류는 읽기 전용(만든 뒤에 바꿀 수 없다).
+        소모임 정보 수정 `/groups/{id}/manage/edit` (모임장 고정) — 대표 이미지·이름·소개·가입 방식·정원·오프라인. 분류는 읽기 전용(만든 뒤에 바꿀 수 없다).
+        대표 이미지(로보얌 추가)는 고르면 바로 올리고 다른 칸과 함께 저장한다(`imageFileId` — 지금 것 그대로·새 파일·null 지움). 올리는 중에는 저장 단추를 끈다.
         `PUT /api/groups/{id}` 에 모든 칸을 보내고, 응답(바뀐 상세)으로 화면을 맞춘다. 정원은 지금 멤버 수보다 작게 줄일 수 없고 범위는 상세의 `limits`(없으면 5~200).
         저장하지 않은 변경이 있는데 다른 화면으로 가면 묻는다.
     -->
@@ -15,6 +16,8 @@
         @retry="load()"
     >
         <form v-if="group" class="content-card flex flex-col gap-5" novalidate data-testid="group-edit-form" @submit.prevent="save">
+            <GroupImagePicker v-model="form.image" :name="UtilGroup.normalizeName(form.name)" :disabled="saving" :error="fieldError('image')" @uploading="(busy: boolean) => (imageUploading = busy)" />
+
             <LabeledField :label="t('group.fieldName')" :hint="t('group.nameHint', { min: UtilGroup.NAME_MIN, max: UtilGroup.NAME_MAX })" :error="fieldError('name')">
                 <template #aside>
                     <small class="text-xs tabular-nums" :class="nameLength > UtilGroup.NAME_MAX ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">{{ t('group.counter', { n: nameLength, max: UtilGroup.NAME_MAX }) }}</small>
@@ -69,7 +72,8 @@
 
             <div class="flex flex-col gap-2">
                 <Message v-if="saveSummary" severity="error" variant="simple" data-testid="group-edit-summary">{{ saveSummary }}</Message>
-                <p v-if="changed" role="status" class="text-xs text-amber-700 dark:text-amber-400">{{ t('common.saveBarDirty') }}</p>
+                <p v-if="imageUploading" role="status" class="text-xs text-muted-color">{{ t('group.imageUploadingWait') }}</p>
+                <p v-else-if="changed" role="status" class="text-xs text-amber-700 dark:text-amber-400">{{ t('common.saveBarDirty') }}</p>
                 <Button type="submit" :label="t('common.save')" fluid :loading="saving" :disabled="!canSave" data-testid="group-edit-save" />
             </div>
         </form>
@@ -94,8 +98,9 @@ const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { state, errorMessage, group, load, apply, block } = useGroupManage(id, 'LEADER');
 
-const form = reactive<GroupEditForm>({ name: '', description: '', joinType: 'OPEN', capacity: '', offline: false });
+const form = reactive<GroupEditForm>({ name: '', description: '', joinType: 'OPEN', capacity: '', offline: false, image: null });
 const saving = ref(false);
+const imageUploading = ref(false);
 const serverErrors = ref<Partial<Record<GroupEditField, string>>>({});
 const saveSummary = ref('');
 
@@ -125,9 +130,12 @@ const descriptionLength = computed(() => UtilGroup.trimmedLength(form.descriptio
 const range = computed(() => UtilGroup.capacityRange(group.value?.limits));
 const problems = computed(() => (group.value ? UtilGroup.editProblems(form, group.value.memberCount, range.value) : {}));
 const changed = computed(() => (group.value ? UtilGroup.isEditChanged(form, group.value) : false));
-const canSave = computed(() => group.value !== null && !group.value.blockedReason && changed.value && Object.keys(problems.value).length === 0 && !saving.value);
+const canSave = computed(
+    () => group.value !== null && !group.value.blockedReason && changed.value && Object.keys(problems.value).length === 0 && !saving.value && !imageUploading.value,
+);
 
 const FIELD_LABEL: Record<GroupEditField, string> = {
+    image: 'group.fieldImage',
     name: 'group.fieldName',
     description: 'group.fieldDescription',
     joinType: 'group.fieldJoinType',
@@ -178,6 +186,8 @@ async function save() {
             return;
         }
         const fields = UtilGroup.serverFields(e, UtilGroup.EDIT_FIELDS);
+        const imageProblem = UtilGroup.imageFieldError(e);
+        if (imageProblem) fields.image = imageProblem;
         const keys = Object.keys(fields) as GroupEditField[];
         if (keys.length) {
             serverErrors.value = fields;

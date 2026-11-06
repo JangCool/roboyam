@@ -50,7 +50,7 @@
             <div class="content-card min-w-0" data-testid="group-main-card">
                 <header>
                     <div class="flex items-start gap-3">
-                        <GroupInitial :name="group.name" size="lg" />
+                        <GroupInitial :name="group.name" :src="group.image?.url" size="lg" />
                         <div class="min-w-0 flex-1">
                             <h1 class="m-0 break-words text-lg font-bold leading-tight" data-testid="group-name">{{ group.name }}</h1>
                             <p class="mt-0.5 text-xs text-muted-color" data-testid="group-meta">{{ UtilGroupMessages.metaLine(t, group, time) }}</p>

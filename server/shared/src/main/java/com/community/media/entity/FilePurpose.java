@@ -13,5 +13,8 @@ public enum FilePurpose {
     HIGHLIGHT_IMAGE,
 
     /** 사업자 광고 이미지(JPEG·PNG·WebP·GIF) — 저장소 키 {@code biz-ad/{년월}/{버전}.{확장자}}. 승인 사업자가 공개 사이트에서 올린다({@code POST /api/business/ad-images}, V112). 공개 노출이라 /media */
-    BIZ_AD_IMAGE
+    BIZ_AD_IMAGE,
+
+    /** 소모임 대표 이미지(JPEG·PNG·WebP·GIF) — 저장소 키 {@code group/{년월}/{버전}.{확장자}}. 회원이 공개 사이트에서 올리고({@code POST /api/groups/images}, V154) 개설 신청·정보 수정에 붙인다 */
+    GROUP_IMAGE
 }

@@ -59,6 +59,8 @@ public class GroupEntity {
     private Long reactivatedBy;
     private String reactivateMemo;
     private Instant dissolvePenaltyUntil;
+    /** 대표 이미지(V154 — files, 용도 GROUP_IMAGE). 없으면 null(화면은 이름 첫 글자). 붙이고 떼는 길은 {@code GroupImages} 하나 */
+    private Long imageFileId;
 
     protected GroupEntity() {
     }
@@ -157,6 +159,11 @@ public class GroupEntity {
         this.joinType = joinType;
         this.capacity = capacity;
         this.offline = offline;
+    }
+
+    /** 대표 이미지를 바꾼다(null 이면 뗀다) — 파일 장부 상태는 부르는 쪽({@code GroupImages})이 맞춘다 */
+    public void changeImage(Long fileId) {
+        this.imageFileId = fileId;
     }
 
     public void setRecruiting(boolean recruiting) {
@@ -325,6 +332,10 @@ public class GroupEntity {
 
     public Instant getDeletedAt() {
         return deletedAt;
+    }
+
+    public Long getImageFileId() {
+        return imageFileId;
     }
 
     public Instant getDissolvePenaltyUntil() {

@@ -11,7 +11,8 @@ package com.community.group.dto.request;
  * @param agreeRules   운영 원칙 동의(true)
  * @param agreeStock   투자 고지 게시판이면 true
  * @param agreeOffline 오프라인 모임이면 true
+ * @param imageFileId  대표 이미지(선택, V154) — {@code POST /api/groups/images} 로 내가 올린 파일(또는 내 반려된 신청의 이미지). 아니면 {@code 400 fields.imageFileId}
  */
 public record GroupCreateRequest(String name, String description, String categoryId, String boardSlug, String joinType, Integer capacity, Boolean offline,
-                                 String visibility, Boolean agreeRules, Boolean agreeStock, Boolean agreeOffline) {
+                                 String visibility, Boolean agreeRules, Boolean agreeStock, Boolean agreeOffline, String imageFileId) {
 }

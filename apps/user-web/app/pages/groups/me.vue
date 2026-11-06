@@ -48,7 +48,7 @@
                                     :to="UtilGroup.detailPath(row.id)"
                                     class="flex items-center gap-3 px-4 py-3 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 dark:hover:bg-surface-800"
                                 >
-                                    <GroupInitial :name="row.name" class="opacity-70" />
+                                    <GroupInitial :name="row.name" :src="row.imageUrl" class="opacity-70" />
                                     <span class="min-w-0 flex-1">
                                         <span class="flex items-center gap-1.5">
                                             <b class="min-w-0 truncate text-sm">{{ row.name }}</b>
@@ -69,7 +69,7 @@
                         <ul class="-mx-4 m-0 mt-1 list-none border-t border-surface p-0 md:mx-0">
                             <li v-for="req in data.requests" :key="req.id" class="border-b border-surface px-4 py-3 last:border-b-0 md:px-2" :data-status="req.status" data-testid="group-request">
                                 <div class="flex items-start gap-3">
-                                    <GroupInitial :name="req.name" class="opacity-70" />
+                                    <GroupInitial :name="req.name" :src="req.image?.url" class="opacity-70" />
                                     <div class="min-w-0 flex-1">
                                         <p class="flex items-center gap-1.5">
                                             <b class="min-w-0 truncate text-sm">{{ req.name }}</b>
