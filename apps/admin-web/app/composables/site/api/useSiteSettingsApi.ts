@@ -7,7 +7,9 @@ import type {
     SiteIconSvgRequest,
     SiteLogoFileRequest,
     SiteLogoFileUploadResponse,
+    SiteLogoNameRequest,
     SiteLogoResponse,
+    SiteLogoSetResponse,
     SiteLogoSvgRequest,
     SiteNoticeBarRequest,
     SiteNoticeBarSettingsResponse,
@@ -16,6 +18,8 @@ import type {
     SiteThemeRequest,
     SiteThemeResponse,
 } from '~/composables/site/api/useSiteSettingsApi.types';
+import SiteLogoMock from '~/composables/site/api/mock/site-logo-mock';
+import type { SiteLogoVariant } from '~/utils/util-site-logo';
 
 /**
  * 사이트 설정 API — 서버 주소 문자열(`/api/admin/site…`)이 있는 **유일한 곳**이다. 상태는 없다(화면이 쓰는 값은 일반 화면의 `ref`).
@@ -58,6 +62,11 @@ const PATH = {
     displayDefaults: '/api/admin/site/display-defaults',
     logo: '/api/admin/site/logo',
     logoSvg: '/api/admin/site/logo/svg',
+    // 로고 4칸 후보 주소(계약 미정 — 지금은 목업이라 부르지 않는다)
+    logos: '/api/admin/site/logos',
+    logoVariant: (variant: string) => `/api/admin/site/logos/${encodeURIComponent(variant)}`,
+    logoVariantSvg: (variant: string) => `/api/admin/site/logos/${encodeURIComponent(variant)}/svg`,
+    logoName: '/api/admin/site/logos/name-in-logo',
     icon: '/api/admin/site/icon',
     iconSvg: '/api/admin/site/icon/svg',
     ogImage: '/api/admin/site/og-image',
@@ -97,6 +106,49 @@ export function useSiteSettingsApi() {
 
         /** 로고를 뗀다 — 이름 글자만 보이는 기본으로 돌아간다 */
         clearLogo: (): Promise<SiteLogoResponse> => client.del<SiteLogoResponse>(PATH.logo),
+
+        /*
+         * 로고 4칸(언어 × 바탕) + 「이름 포함」 — ⚠ 목업(화면 확정 전, 2026-11-06). 서버에 칸이 없어 이 탭 메모리만 바꾼다(`mock/site-logo-mock.ts`).
+         * 지금의 단일 로고 API(위 `uploadLogoFile`·`setLogoFile`·`setLogoSvg`·`clearLogo`)는 그대로 두었다 — 목업 동안 화면은 부르지 않는다. 처음 값의 ① 은 서버의 단일 로고(`basic.logoUrl`)가 있으면 그것이다.
+         * REAL 줄은 후보 주소다(계약 미정 — 칸 이름을 주소에 넣는 안. 바이트 올리기는 지금처럼 파일 API 두 걸음).
+         */
+
+        /** 로고 4칸과 「이름 포함」 */
+        async logoSet(): Promise<SiteLogoSetResponse> {
+            // MOCK:
+            const basic = await client.get<SiteBasicResponse>(PATH.basic);
+            return SiteLogoMock.read(basic.logoUrl);
+            // REAL: return client.get<SiteLogoSetResponse>(PATH.logos);
+        },
+
+        /** 그림 파일을 한 칸의 로고로 — 바뀐 4칸 전체를 돌려준다 */
+        async setLogoVariantFile(variant: SiteLogoVariant, file: File): Promise<SiteLogoSetResponse> {
+            // MOCK:
+            return SiteLogoMock.setFile(variant, file);
+            // REAL: const { fileId } = await files.upload(file, 'SITE_LOGO');
+            // REAL: return client.put<SiteLogoSetResponse>(PATH.logoVariant(variant), { fileId });
+        },
+
+        /** SVG 소스를 한 칸의 로고로 */
+        async setLogoVariantSvg(variant: SiteLogoVariant, body: SiteLogoSvgRequest): Promise<SiteLogoSetResponse> {
+            // MOCK:
+            return SiteLogoMock.setSvg(variant, body.svgSource);
+            // REAL: return client.put<SiteLogoSetResponse>(PATH.logoVariantSvg(variant), body);
+        },
+
+        /** 한 칸의 로고를 뗀다 — 빈 칸은 대체 순서(`UtilSiteLogo`)의 다른 칸이 대신한다 */
+        async clearLogoVariant(variant: SiteLogoVariant): Promise<SiteLogoSetResponse> {
+            // MOCK:
+            return SiteLogoMock.clear(variant);
+            // REAL: return client.del<SiteLogoSetResponse>(PATH.logoVariant(variant));
+        },
+
+        /** 「로고에 사이트 이름이 들어 있음」을 바꾼다(즉시 적용) */
+        async setLogoNameInLogo(body: SiteLogoNameRequest): Promise<SiteLogoSetResponse> {
+            // MOCK:
+            return SiteLogoMock.setNameInLogo(body.nameInLogo);
+            // REAL: return client.put<SiteLogoSetResponse>(PATH.logoName, body);
+        },
 
         /** 사이트 아이콘 상태(올려 둔 것이 있는지, 미리보기·기본 아이콘 주소) */
         icon: (): Promise<SiteIconResponse> => client.get<SiteIconResponse>(PATH.icon),
