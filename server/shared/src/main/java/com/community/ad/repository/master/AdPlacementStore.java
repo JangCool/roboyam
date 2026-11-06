@@ -65,13 +65,14 @@ public class AdPlacementStore {
     /** 자리 설정만 저장한다 — 수수료율은 그대로(처음 저장이면 기본 10) */
     public void save(AdPlacements p, long operatorId, Instant now) {
         jdbc.update("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, wing_right, wing_screens, "
-                        + "board_list_enabled, board_list_after, adult_enabled, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?, ?) "
+                        + "board_list_enabled, board_list_after, board_list_count, board_list_gap, adult_enabled, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (id) DO UPDATE SET post_inline_enabled = EXCLUDED.post_inline_enabled, post_inline_type = EXCLUDED.post_inline_type, "
                         + "post_inline_position = EXCLUDED.post_inline_position, wing_left = EXCLUDED.wing_left, wing_right = EXCLUDED.wing_right, "
                         + "wing_screens = EXCLUDED.wing_screens, board_list_enabled = EXCLUDED.board_list_enabled, board_list_after = EXCLUDED.board_list_after, "
+                        + "board_list_count = EXCLUDED.board_list_count, board_list_gap = EXCLUDED.board_list_gap, "
                         + "adult_enabled = EXCLUDED.adult_enabled, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
                 p.postInline().enabled(), p.postInline().adType(), p.postInline().position(), p.wings().left(), p.wings().right(),
-                String.join(",", p.wings().screens()), p.boardList().enabled(), p.boardList().after(), p.adult().enabled(), Timestamp.from(now), operatorId);
+                String.join(",", p.wings().screens()), p.boardList().enabled(), p.boardList().after(), p.boardList().count(), p.boardList().gap(), p.adult().enabled(), Timestamp.from(now), operatorId);
     }
 
     private static Stored stored(ResultSet rs) throws SQLException {
@@ -79,7 +80,8 @@ public class AdPlacementStore {
         List<String> list = screens == null ? List.of() : Arrays.stream((Object[]) screens.getArray()).map(String::valueOf).filter(s -> !s.isEmpty()).toList();
         AdPlacements value = new AdPlacements(new AdPlacements.PostInline(rs.getBoolean("post_inline_enabled"), rs.getString("post_inline_type"),
                 rs.getString("post_inline_position")), new AdPlacements.Wings(rs.getBoolean("wing_left"), rs.getBoolean("wing_right"), list),
-                new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after")), new AdPlacements.Adult(rs.getBoolean("adult_enabled")));
+                new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after"), rs.getInt("board_list_count"),
+                        rs.getInt("board_list_gap")), new AdPlacements.Adult(rs.getBoolean("adult_enabled")));
         return new Stored(value, rs.getTimestamp("updated_at").toInstant(), rs.getLong("updated_by"), rs.getString("operator_name"), rs.getInt("stop_fee_rate"));
     }
 }

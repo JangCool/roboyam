@@ -245,6 +245,13 @@ public class AdPlacementAdminService {
             if (bl.after() == null || bl.after() < AdPlacements.AFTER_MIN || bl.after() > AdPlacements.AFTER_MAX) {
                 fields.put("boardList.after", new MessageRef("ad.placement.after", String.valueOf(AdPlacements.AFTER_MIN), String.valueOf(AdPlacements.AFTER_MAX)));
             }
+            // 개수·간격(V155) — 빠지면 기본값(옛 화면·요청과 맞게), 있으면 범위 검사
+            if (bl.count() != null && (bl.count() < AdPlacements.COUNT_MIN || bl.count() > AdPlacements.COUNT_MAX)) {
+                fields.put("boardList.count", new MessageRef("ad.placement.after", String.valueOf(AdPlacements.COUNT_MIN), String.valueOf(AdPlacements.COUNT_MAX)));
+            }
+            if (bl.gap() != null && (bl.gap() < AdPlacements.GAP_MIN || bl.gap() > AdPlacements.GAP_MAX)) {
+                fields.put("boardList.gap", new MessageRef("ad.placement.after", String.valueOf(AdPlacements.GAP_MIN), String.valueOf(AdPlacements.GAP_MAX)));
+            }
         }
         if (ad == null) {
             fields.put("adult", required);
@@ -260,10 +267,11 @@ public class AdPlacementAdminService {
             throw new ValidationException(fields);
         }
         return new AdPlacements(new AdPlacements.PostInline(pi.enabled(), pi.adType(), pi.position()), new AdPlacements.Wings(w.left(), w.right(), screens),
-                new AdPlacements.BoardList(bl.enabled(), bl.after()), new AdPlacements.Adult(ad.enabled()));
+                new AdPlacements.BoardList(bl.enabled(), bl.after(), bl.count() == null ? AdPlacements.COUNT_DEFAULT : bl.count(),
+                        bl.gap() == null ? AdPlacements.GAP_DEFAULT : bl.gap()), new AdPlacements.Adult(ad.enabled()));
     }
 
-    /** 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) — 끝에 V127 {@code refund.stopFeeRate} */
+    /** 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) — 끝에 V127 {@code refund.stopFeeRate}, V155 {@code boardList.count}·{@code boardList.gap} */
     private static Map<String, Object> flat(AdPlacements p, int stopFeeRate) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("postInline.enabled", p.postInline().enabled());
@@ -276,6 +284,8 @@ public class AdPlacementAdminService {
         out.put("boardList.after", p.boardList().after());
         out.put("adult.enabled", p.adult().enabled());
         out.put("refund.stopFeeRate", stopFeeRate);
+        out.put("boardList.count", p.boardList().count());
+        out.put("boardList.gap", p.boardList().gap());
         return out;
     }
 }

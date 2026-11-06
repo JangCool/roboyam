@@ -13,6 +13,8 @@ const FIELD_KEYS: Record<AdPlacementHistoryField, string> = {
     'wings.screens': 'ad.placementHistoryField.wingsScreens',
     'boardList.enabled': 'ad.placementHistoryField.boardListEnabled',
     'boardList.after': 'ad.placementHistoryField.boardListAfter',
+    'boardList.count': 'ad.placementHistoryField.boardListCount',
+    'boardList.gap': 'ad.placementHistoryField.boardListGap',
     'adult.enabled': 'ad.placementHistoryField.adultEnabled',
     'refund.stopFeeRate': 'ad.placementHistoryField.refundStopFeeRate',
 };

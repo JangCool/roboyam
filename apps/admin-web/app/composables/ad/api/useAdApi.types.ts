@@ -240,7 +240,7 @@ export type AdPostInlineType = 'TEXT_LINE' | 'STRIP_BANNER' | 'SQUARE_BANNER';
 export type AdPostInlinePosition = 'BETWEEN_CARDS' | 'AFTER_BODY';
 
 /** 날개 배너를 둘 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기 */
-export type AdWingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST';
+export type AdWingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST' | 'FEED' | 'GROUP_BUY' | 'GROUPS';
 
 export interface AdPostInlineSetting {
     enabled: boolean;
@@ -258,6 +258,10 @@ export interface AdBoardListSetting {
     enabled: boolean;
     /** 일반 글(공지·고정 제외) 몇 번째 뒤 — 1~20 */
     after: number;
+    /** 한 쪽 광고 수 — 1~2(V155, 기본 1) */
+    count: number;
+    /** 첫 광고와 둘째 광고 사이 일반 글 수 — 3~20(V155, 기본 10) */
+    gap: number;
 }
 
 /** 19금 게시판·19금 글에도 광고(목록 한 줄·글 보기·핫딜 노출·날개)를 낼지 — 기본 false. 게시판 「광고 숨김」·소모임은 이 값과 상관없이 늘 빠진다 */
@@ -301,6 +305,8 @@ export type AdPlacementHistoryField =
     | 'wings.screens'
     | 'boardList.enabled'
     | 'boardList.after'
+    | 'boardList.count'
+    | 'boardList.gap'
     | 'adult.enabled'
     | 'refund.stopFeeRate';
 

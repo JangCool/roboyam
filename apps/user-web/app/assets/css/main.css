@@ -436,6 +436,10 @@ html[data-theme='naver'] {
 .gadget-card[data-headless] {
     padding: var(--gadget-card-pad-x);
 }
+/* 한 줄 광고 가젯 — 줄 자체가 40px 높이라 위아래는 얇게(2026-11-06 사용자: 「여백이 너무 넓다」) */
+.gadget-card[data-headless][data-gadget='AD_TEXT_LINE'] {
+    padding-block: 0.5rem;
+}
 /* 가젯 칸 — 세로로 쌓는 줄(칸 안 카드 사이 간격) */
 .gadget-stack {
     display: flex;

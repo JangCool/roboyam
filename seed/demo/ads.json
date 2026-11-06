@@ -1,0 +1,285 @@
+{
+  "_readme": "데모 광고 — 운영자 등록(심사 요청) → 승인(수동 결제) → 계약서·입금 → 예약 확정 → 시작 시각을 지금으로. 광고주는 새 광고주(advertiser) 또는 사업자(business — 상호로 찾음). 날개(WING_BANNER)는 세로 160×600 — 화면이 넓을 때 본문 바깥 양옆. 홈·가젯 페이지 광고 가젯은 homeGadgets·pageGadgets(페이지마다 따로 — 사용자 결정 2026-11-06, place.afterFirst = 첫 가젯 바로 아래(맨 위는 보기 안 좋다 — 사용자 2026-11-06), place.top = 맨 위 전체 폭, 같은 제목의 광고 가젯이 있으면 건너뜀). 배너 그림은 scripts/seed-demo-images.ps1 이 images/ad-<key>.png 로 그린다. 링크는 예시 주소(example.com)다. placements = 광고 자리 설정 덮어쓰기(왼쪽 날개 끔·날개 일곱 화면·목록 한 줄 2개 간격 10 — 사용자 2026-11-06, V155 필요).",
+  "advertisers": [
+    {
+      "key": "roboedu",
+      "name": "로보에듀 코딩학원",
+      "contactName": "김지원",
+      "contactPhone": "0212345678",
+      "email": "ad-roboedu@example.com"
+    },
+    {
+      "key": "makerspace",
+      "name": "메이커스페이스 판교",
+      "contactName": "박서준",
+      "contactPhone": "0311234567",
+      "email": "ad-makerspace@example.com"
+    },
+    {
+      "key": "ailab",
+      "name": "AI 러닝랩",
+      "contactName": "이하린",
+      "contactPhone": "0223456789",
+      "email": "ad-ailab@example.com"
+    },
+    {
+      "key": "camping",
+      "name": "모두의캠핑",
+      "contactName": "최도윤",
+      "contactPhone": "0511234567",
+      "email": "ad-camping@example.com"
+    },
+    {
+      "key": "robofest",
+      "name": "로보페스타 2026",
+      "contactName": "정유나",
+      "contactPhone": "0221234567",
+      "email": "ad-robofest@example.com"
+    }
+  ],
+  "ads": [
+    {
+      "key": "sq-roboedu",
+      "type": "SQUARE_BANNER",
+      "advertiser": "roboedu",
+      "title": "로보에듀 주말 로봇 코딩반",
+      "linkUrl": "https://www.example.com/roboedu/weekend",
+      "altText": "로보에듀 코딩학원 주말 로봇 코딩반 모집",
+      "banner": {
+        "brand": "로보에듀 코딩학원",
+        "headline": "주말 로봇 코딩반",
+        "sub": "초등 4학년~중등 · 12월 개강",
+        "cta": "무료 체험 신청",
+        "palette": [
+          "#1e3a8a",
+          "#3b82f6"
+        ]
+      }
+    },
+    {
+      "key": "sq-pionnet",
+      "type": "SQUARE_BANNER",
+      "business": "파이언넷",
+      "title": "파이언넷 서보모터·센서 할인전",
+      "linkUrl": "https://www.example.com/pionnet/sale",
+      "altText": "파이언넷 서보모터·센서 11월 할인전 최대 35%",
+      "banner": {
+        "brand": "파이언넷",
+        "headline": "서보모터·센서 할인전",
+        "sub": "11월 한정 · 최대 35% 할인",
+        "cta": "기획전 보기",
+        "palette": [
+          "#7c2d12",
+          "#fb923c"
+        ]
+      }
+    },
+    {
+      "key": "st-makerspace",
+      "type": "STRIP_BANNER",
+      "advertiser": "makerspace",
+      "title": "메이커스페이스 1일 이용권",
+      "linkUrl": "https://www.example.com/makerspace/day-pass",
+      "altText": "메이커스페이스 판교 3D 프린터·레이저 커터 1일 이용권 9,900원",
+      "banner": {
+        "brand": "메이커스페이스 판교",
+        "headline": "3D 프린터·레이저 커터 1일 이용권 9,900원",
+        "cta": "예약하기",
+        "palette": [
+          "#065f46",
+          "#34d399"
+        ]
+      }
+    },
+    {
+      "key": "st-camping",
+      "type": "STRIP_BANNER",
+      "advertiser": "camping",
+      "title": "모두의캠핑 겨울 시즌오프",
+      "linkUrl": "https://www.example.com/camping/season-off",
+      "altText": "모두의캠핑 겨울 캠핑용품 시즌오프 최대 40%",
+      "banner": {
+        "brand": "모두의캠핑",
+        "headline": "겨울 캠핑용품 시즌오프 최대 40%",
+        "cta": "보러 가기",
+        "palette": [
+          "#134e4a",
+          "#2dd4bf"
+        ]
+      }
+    },
+    {
+      "key": "tl-ailab",
+      "type": "TEXT_LINE",
+      "advertiser": "ailab",
+      "title": "AI 러닝랩 LLM 실무 과정",
+      "text": "실무 LLM 활용 4주 과정, 얼리버드 30% 할인 중",
+      "linkUrl": "https://www.example.com/ailab/llm-course",
+      "altText": "AI 러닝랩 LLM 실무 과정"
+    },
+    {
+      "key": "tl-roboedu",
+      "type": "TEXT_LINE",
+      "advertiser": "roboedu",
+      "title": "로보에듀 무료 체험수업",
+      "text": "초등 로봇 코딩 체험수업, 이번 주말 무료로 들어 보세요",
+      "linkUrl": "https://www.example.com/roboedu/trial",
+      "altText": "로보에듀 무료 체험수업"
+    },
+    {
+      "key": "tl-pionnet",
+      "type": "TEXT_LINE",
+      "business": "파이언넷",
+      "title": "파이언넷 아두이노 입문 키트",
+      "text": "아두이노 입문 키트 오늘 주문하면 내일 도착",
+      "linkUrl": "https://www.example.com/pionnet/arduino",
+      "altText": "파이언넷 아두이노 입문 키트"
+    },
+    {
+      "key": "tl-makerspace",
+      "type": "TEXT_LINE",
+      "advertiser": "makerspace",
+      "title": "메이커스페이스 원데이 클래스",
+      "text": "레이저 커터로 나만의 무드등 만들기 원데이 클래스",
+      "linkUrl": "https://www.example.com/makerspace/class",
+      "altText": "메이커스페이스 원데이 클래스"
+    },
+    {
+      "key": "wg-robofest",
+      "type": "WING_BANNER",
+      "advertiser": "robofest",
+      "title": "로보페스타 2026 사전 등록",
+      "linkUrl": "https://www.example.com/robofest/register",
+      "altText": "로보페스타 2026 사전 등록 — 12월 코엑스",
+      "banner": {
+        "brand": "로보페스타 2026",
+        "headline": "휴머노이드부터\n드론까지",
+        "sub": "12월 12~14일 · 코엑스",
+        "cta": "사전 등록",
+        "palette": [
+          "#581c87",
+          "#c084fc"
+        ]
+      }
+    },
+    {
+      "key": "wg-ailab",
+      "type": "WING_BANNER",
+      "advertiser": "ailab",
+      "title": "AI 러닝랩 겨울 특강",
+      "linkUrl": "https://www.example.com/ailab/winter",
+      "altText": "AI 러닝랩 겨울 특강 — 에이전트 만들기",
+      "banner": {
+        "brand": "AI 러닝랩",
+        "headline": "겨울 특강\n에이전트\n만들기",
+        "sub": "4주 · 온라인 라이브",
+        "cta": "수강 신청",
+        "palette": [
+          "#0f172a",
+          "#64748b"
+        ]
+      }
+    }
+  ],
+  "homeGadgets": [
+    {
+      "key": "home-square",
+      "type": "AD",
+      "title": "광고",
+      "config": {
+        "adType": "SQUARE_BANNER"
+      },
+      "place": {
+        "column": "right",
+        "after": "109141180830191617",
+        "h": 8
+      }
+    },
+    {
+      "key": "home-textline",
+      "type": "AD_TEXT_LINE",
+      "title": "한 줄 광고",
+      "config": {
+        "count": 2
+      },
+      "place": {
+        "column": "left",
+        "after": "109141180830191620",
+        "h": 3
+      }
+    },
+    {
+      "key": "home-strip",
+      "type": "AD",
+      "title": "띠 배너",
+      "config": {
+        "adType": "STRIP_BANNER"
+      },
+      "place": {
+        "column": "left",
+        "after": "111996527412514816",
+        "x": 0,
+        "w": 17,
+        "h": 3
+      }
+    },
+    {
+      "key": "home-top-strip",
+      "type": "AD",
+      "title": "상단 띠 배너",
+      "config": {
+        "adType": "STRIP_BANNER"
+      },
+      "place": {
+        "after": "110040215887810560",
+        "h": 3
+      }
+    }
+  ],
+  "pageGadgets": [
+    {
+      "key": "community-top-strip",
+      "page": "community",
+      "type": "AD",
+      "title": "상단 띠 배너",
+      "config": {
+        "adType": "STRIP_BANNER"
+      },
+      "place": {
+        "afterFirst": true,
+        "h": 3
+      }
+    },
+    {
+      "key": "topics-top-textline",
+      "page": "topics",
+      "type": "AD_TEXT_LINE",
+      "title": "상단 한 줄 광고",
+      "config": {
+        "count": 2
+      },
+      "place": {
+        "afterFirst": true,
+        "h": 3
+      }
+    }
+  ],
+  "placements": {
+    "wings": {
+      "left": false,
+      "screens": [
+        "HOME",
+        "PAGE",
+        "BOARD",
+        "POST",
+        "FEED",
+        "GROUP_BUY",
+        "GROUPS"
+      ]
+    },
+    "boardList": {
+      "count": 2,
+      "gap": 10
+    }
+  }
+}

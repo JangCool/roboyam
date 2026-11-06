@@ -204,6 +204,43 @@
                                             </template>
                                         </LabeledField>
                                     </div>
+                                    <!-- 한 쪽 광고 수 · 두 광고 사이 글 수(V155 — 2개까지, 사용자 2026-11-06) -->
+                                    <div class="flex flex-col gap-1" :class="{ 'opacity-60': !form.boardList.enabled }">
+                                        <span :id="`${idBase}-feed-count`" class="text-sm font-medium">{{ t('ad.boardListCount') }}</span>
+                                        <SelectButton
+                                            :model-value="form.boardList.count"
+                                            :options="feedCountOptions"
+                                            option-label="label"
+                                            option-value="value"
+                                            :allow-empty="false"
+                                            :disabled="locked"
+                                            size="small"
+                                            :aria-labelledby="`${idBase}-feed-count`"
+                                            @update:model-value="onFeedCount"
+                                        />
+                                        <small v-if="errorOf('boardList.count')" class="text-xs text-red-600 dark:text-red-400">{{ errorOf('boardList.count') }}</small>
+                                    </div>
+                                    <div v-if="form.boardList.count > 1" class="max-w-xs" :class="{ 'opacity-60': !form.boardList.enabled }">
+                                        <LabeledField :label="t('ad.boardListGap')" :help="t('ad.boardListGapHelp', { min: UtilAd.FEED_GAP.min, max: UtilAd.FEED_GAP.max })" :error="errorOf('boardList.gap')">
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <InputGroup>
+                                                    <InputNumber
+                                                        v-model="gapModel"
+                                                        :input-id="id"
+                                                        :min="UtilAd.FEED_GAP.min"
+                                                        :max="UtilAd.FEED_GAP.max"
+                                                        :allow-empty="false"
+                                                        show-buttons
+                                                        :readonly="locked"
+                                                        :invalid="invalid"
+                                                        :aria-describedby="describedBy"
+                                                        input-class="w-16 text-right tabular-nums"
+                                                    />
+                                                    <InputGroupAddon>{{ t('ad.boardListGapSuffix') }}</InputGroupAddon>
+                                                </InputGroup>
+                                            </template>
+                                        </LabeledField>
+                                    </div>
                                 </div>
                             </div>
 
@@ -406,6 +443,24 @@ const afterModel = computed<number | null>({
         if (!form.value || value === null) return;
         form.value.boardList.after = value;
         clearServer('boardList.after');
+    },
+});
+
+/** 목록 한 쪽 광고 수(1~2) */
+const feedCountOptions = computed(() => [1, 2].map((n) => ({ value: n, label: t('ad.boardListCountOption', { n }) })));
+function onFeedCount(value: number | null): void {
+    if (!form.value || value === null) return;
+    form.value.boardList.count = value;
+    clearServer('boardList.count');
+}
+
+/** 두 광고 사이 글 수 — 지우는 중의 null 은 버린다 */
+const gapModel = computed<number | null>({
+    get: () => form.value?.boardList.gap ?? null,
+    set: (value) => {
+        if (!form.value || value === null) return;
+        form.value.boardList.gap = value;
+        clearServer('boardList.gap');
     },
 });
 

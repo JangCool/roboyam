@@ -29,7 +29,7 @@ void ads.ensurePlacements();
 
 /**
  * 그릴 쪽과 물을 게시판 — 홈·가젯 페이지는 `board` 없이, 게시판 화면(BOARD)·글 보기(POST)는 그 게시판 `board` 로(서버 판정: 소모임·숨김·19금 옵션 꺼짐이면 빈 목록).
- * 소모임 화면(`/groups/**`)은 `wingScreen` 이 null. 글 보기는 글을 받아 맥락을 알려 주기 전에는 그리지 않고(소모임 글에 잠깐 비치지 않게),
+ * 소모임 목록·상세(`/groups`, `/groups/{id}`)는 화면 GROUPS(2026-11-06 넓힘 — 홈처럼 `board` 없이 묻는다), 소모임 글 보기는 그대로 뺀다. 글 보기는 글을 받아 맥락을 알려 주기 전에는 그리지 않고(소모임 글에 잠깐 비치지 않게),
  * 게시판 화면은 맥락(상세의 `adsHidden`)을 아직 못 받았으면 주소의 slug 로 불러 서버 판정에 맡긴다.
  */
 const wing = computed<{ left: boolean; right: boolean; board: string }>(() => {

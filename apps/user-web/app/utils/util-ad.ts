@@ -19,13 +19,17 @@ export interface AdFrame {
 export interface BoardFeedPlacement {
     enabled: boolean;
     after: number;
+    /** 한 쪽 광고 수 1~2 */
+    count: number;
+    /** 두 광고 사이 일반 글 수 */
+    gap: number;
 }
 
 const TYPES: readonly PublicAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
 const BANNER_TYPES: readonly BannerAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const PLACEMENTS: readonly AdPlacement[] = ['HOME', 'PAGE', 'BOARD', 'POST_INLINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY', 'WING_LEFT', 'WING_RIGHT', 'BOARD_LIST'];
 const INLINE_TYPES: readonly PostInlineAdType[] = ['TEXT_LINE', 'STRIP_BANNER', 'SQUARE_BANNER'];
-const WING_SCREENS: readonly WingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST'];
+const WING_SCREENS: readonly WingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST', 'FEED', 'GROUP_BUY', 'GROUPS'];
 
 /** 비율은 규격(1200×300 · 1200×100 · 300×250 · 300×100 · 160×600)과 같다(`BusinessAdPreview` 와 같은 값) — 이미지가 늦게 와도 자리가 흔들리지 않게 */
 const FRAMES: Readonly<Record<ImageAdType, AdFrame>> = {
@@ -39,6 +43,8 @@ const FRAMES: Readonly<Record<ImageAdType, AdFrame>> = {
 /** 날개 폭 · 본문과 날개 사이 · 날개와 창 끝 사이(px) */
 const WING = { width: 160, gap: 16, edge: 16 } as const;
 const FEED_AFTER = { min: 1, max: 20, initial: 5 } as const;
+const FEED_COUNT = { min: 1, max: 2, initial: 1 } as const;
+const FEED_GAP = { min: 3, max: 20, initial: 10 } as const;
 const GADGET_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 const TEXT_MAX = 40;
 const LINES = { min: 1, max: 5, initial: 3 } as const;
@@ -217,12 +223,17 @@ export default class UtilAd {
         return value === 'AFTER_BODY' ? 'AFTER_BODY' : 'BETWEEN_CARDS';
     }
 
-    /** 날개를 둘 수 있는 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기(로그인·설정·결제 등은 null) */
+    /** 날개를 둘 수 있는 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기 · 최신글·인기글 · 공동구매 · 소모임(2026-11-06 넓힘 — 로그인·설정·결제 등은 null) */
     static wingScreen(path: string): WingScreen | null {
         if (path === '/' || path === '') return 'HOME';
         if (/^\/p\/[^/]+\/?$/.test(path)) return 'PAGE';
         if (/^\/boards\/[^/]+\/?$/.test(path)) return 'BOARD';
         if (/^\/posts\/[^/]+\/?$/.test(path)) return 'POST';
+        if (/^\/(latest|popular)\/?$/.test(path)) return 'FEED';
+        // 공동구매 목록·상세만(주문·결제 화면은 뺀다)
+        if (/^\/group-buys(\/[^/]+)?\/?$/.test(path)) return 'GROUP_BUY';
+        // 소모임 목록·상세(소모임 글 보기는 POST — 글 보기가 소모임 글이면 날개를 그리지 않는다)
+        if (/^\/groups(\/[^/]+)?\/?$/.test(path)) return 'GROUPS';
         return null;
     }
 
@@ -240,8 +251,30 @@ export default class UtilAd {
 
     static feedPlacement(value: unknown): BoardFeedPlacement {
         const v = obj(value);
-        const after = typeof v.after === 'number' && Number.isFinite(v.after) ? Math.min(FEED_AFTER.max, Math.max(FEED_AFTER.min, Math.round(v.after))) : FEED_AFTER.initial;
-        return { enabled: v.enabled === true, after };
+        const num = (value: unknown, range: { min: number; max: number; initial: number }) =>
+            typeof value === 'number' && Number.isFinite(value) ? Math.min(range.max, Math.max(range.min, Math.round(value))) : range.initial;
+        return { enabled: v.enabled === true, after: num(v.after, FEED_AFTER), count: num(v.count, FEED_COUNT), gap: num(v.gap, FEED_GAP) };
+    }
+
+    /**
+     * 한 줄 광고들을 넣을 일반 글 차례(그 줄 뒤, 0부터) — 첫 광고는 `after` 번째 뒤(글이 적으면 맨 끝), 둘째부터는 앞 광고에서 `gap` 개 글을 지나서.
+     * 둘째부터는 글이 모자라면 넣지 않는다(맨 끝에 몰리지 않게). 글이 없으면 빈 목록.
+     */
+    static feedIndexes(rows: number, placement: BoardFeedPlacement): number[] {
+        const first = UtilAd.feedIndex(rows, placement.after);
+        if (first === null) return [];
+        const out = [first];
+        for (let n = 1; n < placement.count; n++) {
+            const next = out[out.length - 1]! + placement.gap;
+            if (next > rows - 1) break;
+            out.push(next);
+        }
+        return out;
+    }
+
+    /** 일반 글 차례 `i` 뒤에 넣을 한 줄 광고 — 없으면 null */
+    static feedAdAt(list: readonly { ad: PublicAd; afterIndex: number }[] | null | undefined, i: number): PublicAd | null {
+        return list?.find((f) => f.afterIndex === i)?.ad ?? null;
     }
 
     /** 한 줄 광고를 넣을 일반 글 차례(그 줄 뒤, 0부터) — 글이 적으면 맨 끝, 없으면 null */
