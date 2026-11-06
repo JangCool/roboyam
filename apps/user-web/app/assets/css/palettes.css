@@ -4,7 +4,7 @@
  * PrimeVue 위젯과 Tailwind(`primary-*`)가 함께 바뀐다. 셸 역할 변수는 라이트에서만 바꾼다(다크는 기본 어두운 면 그대로, 강조색만 바뀐다):
  *   --page-bg    페이지 바탕(따뜻한 미색 계열)
  *   --topbar-bg / --topbar-fg / --brand-color   PC 로고 줄(`.site-topbar` — 다음식·로보얌 셸)의 바탕 · 글자·아이콘 · 로고 글자(진한 바만 흰색, 그 밖은 본문 글자색 — 로고는 사이트 얼굴이라 테마를 따르지 않는다, 2026-11-06)
- *   --nav-bg / --nav-fg                          모바일 상단 바(`.app-nav`) — 로고 줄과 같은 색
+ *   --nav-bg / --nav-fg                          모바일 상단 바(`.app-nav`) — 로고 줄과 같은 색(로고 `.site-brand` 도 PC 와 같은 `--brand-color`, 그라데이션도 같이)
  * 채움 단계: 흰 글자가 4.5:1 에 가깝게 읽히는 단계(600 또는 700)를 라이트 채움으로, 다크는 400(PrimeVue 기본과 같은 간격).
  * 명시도: 층 밖 규칙 + `html[data-palette]`(0,1,1) 이라 PrimeVue `:root` 를 이기고, 셸 값은 `:not([data-color-scheme='dark'])` 로 테마 규칙(0,1,1)보다 높다.
  */
@@ -14,8 +14,9 @@
     background-color: var(--topbar-bg, transparent);
     color: var(--topbar-fg, inherit);
 }
-.site-topbar .site-brand {
-    color: var(--brand-color, var(--p-text-color));
+.site-topbar .site-brand,
+.app-nav .site-brand {
+    color: var(--brand-color, inherit);
 }
 
 /*
@@ -49,6 +50,7 @@ html[data-palette='peach']:not([data-color-scheme='dark']) {
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
     --topbar-shade: var(--topbar-fg);
+    --brand-color: var(--p-surface-700);
 }
 
 /* ── 꿀 · 버터 ── 노랑 계열이라 흰 글자가 읽히게 채움을 700(호박 갈색) 으로 */
@@ -67,6 +69,7 @@ html[data-palette='honey']:not([data-color-scheme='dark']) {
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
     --topbar-shade: var(--topbar-fg);
+    --brand-color: var(--p-surface-700);
 }
 
 /* ── 세이지 그린 ── */
@@ -85,6 +88,7 @@ html[data-palette='sage']:not([data-color-scheme='dark']) {
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
     --topbar-shade: var(--topbar-fg);
+    --brand-color: var(--p-surface-700);
 }
 
 /* ── 하늘 · 크림 ── 파랑 그대로, 바탕을 미색 · 로고 줄을 하늘색으로 */
@@ -103,6 +107,7 @@ html[data-palette='sky']:not([data-color-scheme='dark']) {
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
     --topbar-shade: var(--topbar-fg);
+    --brand-color: var(--p-surface-700);
 }
 
 /* ── 청록 바다 ── */
@@ -121,6 +126,7 @@ html[data-palette='ocean']:not([data-color-scheme='dark']) {
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
     --topbar-shade: var(--topbar-fg);
+    --brand-color: var(--p-surface-700);
 }
 
 /* ── 진한 파랑 ── 로고 줄 전체를 파랑으로 칠하고 흰 글자(모바일 상단 바와 같은 모양) */
