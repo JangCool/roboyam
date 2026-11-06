@@ -2,15 +2,16 @@
     <!--
         통신판매업자 정보(전자상거래법 제10조 ① — 계약 결정 18·56). 사이트 푸터(`AppFooter`, 데스크톱)와 공구 상세 하단이 같이 쓴다.
         값은 부르는 쪽이 `useCommerceInfo().shownBusiness`(판매 스위치 켜짐 + 칸 완비일 때만)로 넘긴다 — 여기서는 서버를 부르지 않는다.
-        `footer`: 작은 글씨 몇 줄 — 뜻 묶음(사업자 · 연락처 · 기타)마다 한 줄, 칸은 통째로 줄바꿈한다(칸 중간에서 끊기지 않게) · `panel`: 정의 목록(공구 화면 하단).
+        `footer`: 이름표·값 표 — 넓은 화면(lg)은 두 쌍씩(이름표 | 값 | 이름표 | 값), 그보다 좁으면 한 쌍씩. 긴 칸(주소·개인정보 관리책임자)은 한 줄을 다 쓴다 · `panel`: 정의 목록(공구 화면 하단).
     -->
-    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'flex flex-col gap-1 text-xs leading-relaxed text-muted-color' : 'panel-card p-4 text-sm'" data-testid="commerce-business-info">
+    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'text-xs leading-relaxed text-muted-color' : 'panel-card p-4 text-sm'" data-testid="commerce-business-info">
         <template v-if="variant === 'footer'">
-            <p v-for="(line, index) in footerLines" :key="index" class="m-0 flex flex-wrap gap-x-4 gap-y-0.5">
-                <span v-for="row in line" :key="row.key" :class="row.key === 'address' ? 'min-w-0' : 'whitespace-nowrap'">
-                    {{ row.label }} <span class="text-surface-600 dark:text-surface-300">{{ row.value }}</span>
-                </span>
-            </p>
+            <dl class="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 lg:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <template v-for="row in footerRows" :key="row.key">
+                    <dt class="whitespace-nowrap" :class="{ 'col-start-1': FOOTER_WIDE.includes(row.key) }">{{ row.label }}</dt>
+                    <dd class="m-0 min-w-0 text-surface-600 [overflow-wrap:anywhere] dark:text-surface-300" :class="{ 'lg:col-span-3': FOOTER_WIDE.includes(row.key) }">{{ row.value }}</dd>
+                </template>
+            </dl>
         </template>
         <template v-else>
             <h2 class="m-0 mb-2 text-sm font-semibold">{{ t('commerce.bizTitle') }}</h2>
@@ -55,11 +56,8 @@ const rows = computed(() => {
     return all.filter((row): row is { key: string; label: string; value: string } => !!row.value);
 });
 
-/** 푸터 줄 나누기 — 사업자 / 연락처 / 기타. 빈 줄은 뺀다 */
-const FOOTER_GROUPS: string[][] = [
-    ['company', 'ceo', 'businessNo', 'mailOrder'],
-    ['address', 'phone', 'email', 'hours'],
-    ['privacy', 'hosting'],
-];
-const footerLines = computed(() => FOOTER_GROUPS.map((keys) => rows.value.filter((row) => keys.includes(row.key))).filter((line) => line.length > 0));
+/** 푸터 표에서 한 줄을 다 쓰는 긴 칸 — 짧은 칸 다음, 맨 아래에 둔다 */
+const FOOTER_WIDE = ['privacy', 'address'];
+/** 푸터 표 차례 — 짧은 칸(두 쌍씩 짝) 먼저, 긴 칸은 뒤로 */
+const footerRows = computed(() => [...rows.value.filter((row) => !FOOTER_WIDE.includes(row.key)), ...FOOTER_WIDE.flatMap((key) => rows.value.filter((row) => row.key === key))]);
 </script>
