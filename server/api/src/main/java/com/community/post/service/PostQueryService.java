@@ -79,11 +79,13 @@ public class PostQueryService {
     private final DealSettingsReader dealSettings;
     private final BoardStaffActionService staffActions;
     private final AdultContentGate adultGate;
+    private final PostThumbnails thumbnails;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
-                            BoardStaffActionService staffActions, AdultContentGate adultGate) {
+                            BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails) {
+        this.thumbnails = thumbnails;
         this.adultGate = adultGate;
         this.staffActions = staffActions;
         this.dealReader = dealReader;
@@ -173,14 +175,15 @@ public class PostQueryService {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
         Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
+        Map<Long, String> thumbs = thumbnails.of(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         Map<Long, PostDealView> deals = deal ? dealReader.forRows(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now)).toList(), b,
                 viewerId, now) : Map.of();
         List<DealStoreChipView> stores = !deal ? null : impossible ? List.of()
                 : dealQueries.storeChips(b.id(), prefixId, hide, autoExpireDays, now, STORE_CHIPS).stream().map(c -> new DealStoreChipView(c.name(), c.count()))
                 .toList();
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals)).toList(), current, totalPages, result.total(), stores);
+        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs)).toList(), current, totalPages, result.total(), stores);
     }
 
     /** 쇼핑몰 칩 수 */
@@ -199,11 +202,11 @@ public class PostQueryService {
     }
 
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> polls, Map<Long, PostDealView> deals) {
+                            Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
-                !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
+                !hidden && Boolean.TRUE.equals(r.hasImage()), hidden ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && polls.contains(r.id()), hidden ? null : deals.get(r.id()));
     }

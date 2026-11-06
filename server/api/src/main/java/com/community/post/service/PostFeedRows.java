@@ -42,8 +42,10 @@ public class PostFeedRows {
     private final PollQueries polls;
     private final GroupRepository groups;
     private final DealReader deals;
+    private final PostThumbnails thumbnails;
 
-    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals) {
+    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals, PostThumbnails thumbnails) {
+        this.thumbnails = thumbnails;
         this.deals = deals;
         this.groups = groups;
         this.authors = authors;
@@ -61,6 +63,7 @@ public class PostFeedRows {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
+        Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         Map<Long, PostGroupView> groupRefs = groupRefs(rows);
         Map<Long, PostDealView> dealRows = dealRows(rows, s, now, viewerId);
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
@@ -69,7 +72,7 @@ public class PostFeedRows {
             if (b == null) {
                 continue;
             }
-            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id())),
+            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs),
                     new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId())));
         }
         return out;
@@ -118,16 +121,17 @@ public class PostFeedRows {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
-        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll, null)).toList();
+        Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll, null, thumbs)).toList();
     }
 
     /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> withPoll, PostDealView deal) {
+                            Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
-                hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(),
+                hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), hidden ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), hidden ? null : deal);
     }

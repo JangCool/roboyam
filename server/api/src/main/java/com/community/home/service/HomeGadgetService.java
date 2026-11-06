@@ -379,9 +379,9 @@ public class HomeGadgetService {
 
     private List<GalleryItemView> gallery(JsonNode config, Ctx ctx) {
         int count = HomeLayoutJson.number(config, "count", 6, 1, 24);
-        // 19금 글은 누구에게나 빼므로 질의에서 거른다(성인 아님 = false)
+        // 19금 글은 누구에게나 빼므로 질의에서 거른다(성인 아님 = false). 썸네일 = 첫 이미지, 없으면 YouTube 영상(PostThumbnails) — 영상만 있는 글도 든다
         List<PostRowData> withImage = feeds.latest(boardIds(boardSlugs(config, ctx), ctx), null, Math.min(count * 8, 200), false, ctx.now()).stream()
-                .filter(r -> Boolean.TRUE.equals(r.hasImage()) && !Boolean.TRUE.equals(r.adult())).toList();
+                .filter(r -> !Boolean.TRUE.equals(r.adult())).toList();
         return rows.of(withImage, ctx.s(), ctx.now(), ctx.viewerId()).stream()
                 .filter(r -> r.thumbnailUrl() != null)
                 .limit(count)
