@@ -2,7 +2,9 @@ package com.community.site.controller;
 
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.response.SiteInfoResponse;
+import com.community.site.dto.response.SiteNoticeBarResponse;
 import com.community.site.dto.response.SiteThemeResponse;
+import com.community.site.service.PublicSiteNoticeService;
 import com.community.site.service.PublicSiteService;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicSiteController {
 
     private final PublicSiteService siteService;
+    private final PublicSiteNoticeService noticeService;
 
-    public PublicSiteController(PublicSiteService siteService) {
+    public PublicSiteController(PublicSiteService siteService, PublicSiteNoticeService noticeService) {
         this.siteService = siteService;
+        this.noticeService = noticeService;
     }
 
     @GetMapping("/info")
@@ -33,6 +37,19 @@ public class PublicSiteController {
                 .cacheControl(CacheControl.noCache())
                 .eTag(snapshot.etag())
                 .body(ApiResponse.success(snapshot.info()));
+    }
+
+    /**
+     * 공지 띠 — 꺼져 있으면 {@code { version: "off", items: [] }}. 자기 사본({@link PublicSiteNoticeService}, 20초)을 쓰고 캐시 규칙은 {@code /info} 와 같다
+     * ({@code ETag} 는 공지 띠 사본의 지문).
+     */
+    @GetMapping("/notice-bar")
+    public ResponseEntity<ApiResponse<SiteNoticeBarResponse>> noticeBar() {
+        PublicSiteNoticeService.Snapshot snapshot = noticeService.snapshot();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .eTag(snapshot.etag())
+                .body(ApiResponse.success(snapshot.response()));
     }
 
     /** 테마 + 그 테마의 메뉴 설정 — {@code /info} 와 같은 사본·같은 캐시 규칙({@code theme} 은 {@code info.theme} 과 같은 값) */

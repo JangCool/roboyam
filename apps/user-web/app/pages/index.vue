@@ -4,7 +4,7 @@
         `GET /api/home/gadgets`(목업) 가 준 격자 배치(테마마다 운영자가 정한 칸 수·가젯별 위치·크기) + 가젯 목록을 지금 테마의 홈 템플릿(`UtilTheme.resolve(theme, 'home')`, 계약 `HomeTemplate.types.ts` — 겉모양만)이 공통 격자 `HomeGadgetGrid` 로 그리고,
         가젯 하나하나는 테마 공통 부품(`components/home/`, `UtilHomeGadgetRegistry`)이 그린다. 모르는 종류는 건너뛴다.
         홈은 한 번에 받으므로 오류도 하나다(다시 시도). 응답에 보는 사람 몫(차단·메모·보는 사람)이 섞여 캐시하지 않고, 로그인·로그아웃하면 다시 받는다.
-        산업·주식(투자 고지) 게시판 글이 보이면 맨 아래에 투자 고지를 붙인다.
+        맨 아래 투자 고지는 뺐다(사용자 결정 2026-11-06 — 대신 모든 화면의 메뉴 줄 아래에 공지 띠 `SiteNoticeBar`). 투자 고지는 그 게시판의 목록 머리·글 아래에 그대로 있다.
     -->
     <div>
         <h1 class="sr-only">{{ siteLabel }}</h1>
@@ -14,8 +14,6 @@
         <div v-else :aria-busy="status === 'loading'">
             <HomeGadgetSkeleton v-if="!shown" />
             <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
-
-            <BoardInvestmentNotice v-if="hasInvestment" variant="home" class="mt-4" data-testid="home-investment" />
         </div>
     </div>
 </template>
@@ -35,7 +33,7 @@ const { user } = useAuth();
 const { theme } = useTheme();
 const { siteName, siteLabel } = useSiteName();
 const { tagline } = useSiteTagline();
-const { bySlug, ensureLoaded: ensureBoards } = useBoards();
+const { ensureLoaded: ensureBoards } = useBoards();
 const { ensureLoaded: ensureDisplay } = useBoardDisplay();
 void ensureBoards();
 void ensureDisplay();
@@ -53,9 +51,6 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const data = ref<HomeGadgetsResponse | null>(null);
 const errorMessage = ref('');
 const shown = useAdGadgets(data, 'HOME');
-
-/** 투자 고지 — 홈에 투자 고지 게시판(게시판 목록의 `investmentNotice`)의 글이 보이면 */
-const hasInvestment = computed(() => (data.value ? UtilHomeGadget.hasInvestmentBoard(data.value, (slug) => bySlug(slug)?.investmentNotice === true) : false));
 
 const preview = useAdminPreview();
 

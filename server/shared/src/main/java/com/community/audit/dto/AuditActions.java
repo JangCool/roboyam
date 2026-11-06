@@ -43,6 +43,8 @@ public final class AuditActions {
     public static final String SITE_THEME_UPDATE = "SITE_THEME_UPDATE";
     /** 테마 하나의 메뉴 설정 저장 — 대상 SITE/1, {@code theme} + 바뀐 칸의 {@code before}/{@code after} */
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
+    /** 공지 띠 설정 저장(설정 > 일반 「공지 띠」) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
+    public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
     /** 테마 하나의 홈 구성 저장 — 대상 SITE/1, {@code theme} + 칸 수·가젯 수 전후와 넣은·뺀 가젯 수 */
     public static final String HOME_LAYOUT_UPDATE = "HOME_LAYOUT_UPDATE";
     /** 가젯 페이지 만들기 — 대상 GADGET_PAGE/id, {@code key}·{@code name}·{@code folderId} */

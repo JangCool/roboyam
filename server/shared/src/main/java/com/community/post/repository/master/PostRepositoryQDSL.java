@@ -105,6 +105,21 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     /**
+     * 손님에게 보이는 최근 글 — 공지 띠(BOARD 출처, {@code SiteNoticeBarReader})가 쓴다. 보이는 글({@link #alive})이고 숨기지 않았고({@link #notHidden} — 게시판 목록의
+     * 「숨겨진 글」 줄도 빼고) 19금이 아닌({@link #adultVisible} 비성인) 글, 등록 최신순(id 내림차순). 게시판 판정(켜짐·소모임 아님)은 부르는 쪽이 한다.
+     */
+    public List<PostRowData> guestLatest(long boardId, int limit, Instant now) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return query.select(row()).from(POST)
+                .where(POST.boardId.eq(boardId), alive(POST, now), notHidden(POST, now), feedVisible(POST), adultVisible(POST, false))
+                .orderBy(POST.id.desc())
+                .limit(limit)
+                .fetch();
+    }
+
+    /**
      * 글 목록 한 쪽.
      *
      * @param prefixId      말머리 — null 이면 전체

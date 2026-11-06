@@ -1,5 +1,6 @@
 package com.community.site.entity;
 
+import com.community.site.service.SiteNoticeBars;
 import com.community.site.service.SiteThemes;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -7,7 +8,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마).
+ * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠).
  * 사이트 이름과 공개 주소(서버가 밖으로 내보내는 링크의 기준), 슬로건, 로고·사이트 아이콘·링크 미리보기 이미지, 표시 기본값, 공개 사이트 테마다.
  * 행은 설치 때 처음 생기고, 이후 관리자 앱의 설정 > 일반 화면이 고친다(공개 주소는 그 화면이 건드리지 않는다).
  */
@@ -65,6 +66,21 @@ public class SiteSettingEntity {
     /** 가입·로그인 화면에 약관 「보기」 링크를 보일지(V62, 기본 끔) — docs/features/terms-contract.md */
     private boolean termsLinksVisible;
 
+    /** 공지 띠를 보일지(V156, 기본 켬) — 규칙은 {@link SiteNoticeBars} */
+    private boolean noticeBarEnabled;
+
+    /** 공지 띠 출처 {@code BOARD}(slug notice 게시판 최근 글) · {@code CUSTOM}(운영자 문구) */
+    private String noticeBarSource;
+
+    /** {@code BOARD} 일 때 차례로 보일 글 수 — 5 또는 10 */
+    private int noticeBarBoardCount;
+
+    /** {@code CUSTOM} 문구(없으면 null) — 출처가 {@code BOARD} 여도 지우지 않고 둔다 */
+    private String noticeBarCustomText;
+
+    /** {@code CUSTOM} 문구를 누르면 갈 곳(선택, 없으면 null) */
+    private String noticeBarCustomLink;
+
     protected SiteSettingEntity() {
     }
 
@@ -80,6 +96,10 @@ public class SiteSettingEntity {
         setting.displayTimeFormat = DEFAULT_TIME_FORMAT;
         setting.displayDateFormat = DEFAULT_DATE_FORMAT;
         setting.theme = SiteThemes.DEFAULT;
+        // 공지 띠 처음 값 — V156 의 칸 기본값과 같다(JPA 가 모든 칸을 넣으므로 여기서도 채운다)
+        setting.noticeBarEnabled = true;
+        setting.noticeBarSource = SiteNoticeBars.SOURCE_BOARD;
+        setting.noticeBarBoardCount = SiteNoticeBars.DEFAULT_BOARD_COUNT;
         setting.updatedBy = updatedBy;
         setting.updatedAt = now;
         return setting;
@@ -143,6 +163,16 @@ public class SiteSettingEntity {
     /** 약관 「보기」 링크 표시를 바꾼다 */
     public void changeTermsLinksVisible(boolean visible, long operatorId, Instant now) {
         this.termsLinksVisible = visible;
+        touch(operatorId, now);
+    }
+
+    /** 공지 띠 설정을 통째로 바꾼다(값 검사·정리는 부르는 쪽이 끝냈다) */
+    public void changeNoticeBar(boolean enabled, String source, int boardCount, String customText, String customLink, long operatorId, Instant now) {
+        this.noticeBarEnabled = enabled;
+        this.noticeBarSource = source;
+        this.noticeBarBoardCount = boardCount;
+        this.noticeBarCustomText = customText;
+        this.noticeBarCustomLink = customLink;
         touch(operatorId, now);
     }
 
@@ -213,5 +243,25 @@ public class SiteSettingEntity {
 
     public boolean isTermsLinksVisible() {
         return termsLinksVisible;
+    }
+
+    public boolean isNoticeBarEnabled() {
+        return noticeBarEnabled;
+    }
+
+    public String getNoticeBarSource() {
+        return noticeBarSource;
+    }
+
+    public int getNoticeBarBoardCount() {
+        return noticeBarBoardCount;
+    }
+
+    public String getNoticeBarCustomText() {
+        return noticeBarCustomText;
+    }
+
+    public String getNoticeBarCustomLink() {
+        return noticeBarCustomLink;
     }
 }
