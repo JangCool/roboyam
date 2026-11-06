@@ -27,7 +27,8 @@
         </main>
     </div>
 
-    <AppFooter class="max-md:hidden" />
+    <!-- 푸터 — 모바일에도 보인다(사용자 요청 2026-11-06, 통신판매업자 정보 포함). 모바일 안쪽 화면(글 보기·글쓰기)은 셸 막대처럼 숨긴다 -->
+    <AppFooter :class="inner ? 'max-md:hidden' : ''" />
 </template>
 
 <script setup lang="ts">
