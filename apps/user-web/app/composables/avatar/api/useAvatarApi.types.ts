@@ -9,9 +9,11 @@ export interface AvatarCategory {
     /** 무료 카테고리(`basic`·`hobby`) */
     free: boolean;
     count: number;
+    /** 움직이는 아바타 카테고리(`motion`) */
+    animated: boolean;
 }
 
-/** 아바타 한 개(카탈로그 순서) */
+/** 아바타 한 개(카탈로그 순서) — 승인된 내가 올린 아바타는 `id: upload-mine`(`UtilAvatar.UPLOAD_ID`)·`itemId: null`·`price: null` 줄 하나 */
 export interface AvatarItem {
     /** 카탈로그 ID(카테고리 접두 포함 — `job-doctor-m`) */
     id: string;
@@ -33,6 +35,13 @@ export interface AvatarItem {
     refundable: boolean;
     /** 그림 주소(`/avatars/roboyam/<id>.svg`) — `<img>` 로만 그린다 */
     url: string;
+    /**
+     * 움직이는 아바타(카탈로그 `motion`·움직이는 GIF 를 올린 내가 올린 아바타). 움직이는 아바타와 움직이는 닉네임 그림은 함께 쓰지 못한다(하나만 — 나중에 고른 쪽이 남는다, `useAvatarChoice`).
+     * 그림은 움직이는 SVG·GIF·WebP 를 `<img>` 로만 그린다.
+     */
+    animated: boolean;
+    /** 움직이는 아바타의 정지 그림 — 움직임 줄이기·글 목록에서 쓴다. 정지 아바타는 null */
+    stillUrl: string | null;
 }
 
 /** `GET /api/avatars` — 로그인했을 때만 `balance`·`owned`·`selected`·`refundable` 이 채워진다 */

@@ -8,7 +8,7 @@
                 <h2 :id="`${uid}-profile`" class="sr-only">{{ t('me.profileTitle') }}</h2>
                 <div class="flex items-start gap-3">
                     <!-- 내 프로필 아바타(고르지 않았으면 basic-default — 결정 14) + 장착한 프로필 테두리. 방금 고른·장착한 것을 겹친다(`useMyDecoration`) -->
-                    <ProfileBorderAvatar :initial="initial" :src="myAvatar" size="md" surface="card" :border-style="myDecoration?.profileBorder ?? null" data-testid="me-avatar" />
+                    <ProfileBorderAvatar :initial="initial" :src="myAvatar" :still-src="myAvatarStill" size="md" surface="card" :border-style="myDecoration?.profileBorder ?? null" data-testid="me-avatar" />
                     <div class="min-w-0 flex-1">
                         <p class="flex items-center gap-1.5">
                             <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" />
@@ -103,6 +103,7 @@ const initial = computed(() => Array.from(user.value?.nickname ?? '')[0] ?? '');
 const decorations = useMyDecoration();
 const decorationSync = useMyDecorationSync();
 const myAvatar = computed(() => decorations.myAvatarUrl(profile.value?.avatarUrl));
+const myAvatarStill = computed(() => decorations.myAvatarStillUrl(profile.value?.avatarStillUrl));
 const myDecoration = computed(() => decorations.mine());
 
 const profile = ref<MyProfile | null>(null);

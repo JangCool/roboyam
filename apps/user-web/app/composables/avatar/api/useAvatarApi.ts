@@ -3,9 +3,10 @@ import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 
 /**
  * 프로필 아바타 API — 서버 주소 문자열(`/api/avatars`·`/api/me/profile/avatar`)이 있는 **유일한 곳**이다. 상태는 없다(내 아바타의 겹치기는 `useMyDecoration`). **서버 연결됨**.
- * 계약: `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」 API 후보 「아바타」.
- *  - `GET /api/avatars` → `AvatarCatalog`(328줄, 카탈로그 순서 — 비로그인도 읽는다: 그때 `balance` 0, `owned`·`selected`·`refundable` false)
- *  - `PUT /api/me/profile/avatar` `{ avatarId }` → `MyProfile`(`avatarUrl` 포함). 오류는 `AvatarSelectRequest` 주석
+ * 계약: `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」 API 후보 「아바타」 · `docs/features/commerce-motion-avatar-contract.md` 「API 계약」 카탈로그.
+ *  - `GET /api/avatars` → `AvatarCatalog`(카탈로그 순서 — 비로그인도 읽는다: 그때 `balance` 0, `owned`·`selected`·`refundable` false).
+ *    움직이는 아바타는 카테고리 `motion`(`animated: true`) · 줄 `animated`·`stillUrl`. 승인된 내가 올린 아바타가 있으면 카테고리 `upload`(무료 다음) 한 줄(`id: upload-mine`, `itemId: null` — 상점에 없다)
+ *  - `PUT /api/me/profile/avatar` `{ avatarId }` → `MyProfile`(`avatarUrl`·`avatarStillUrl` 포함). 오류는 `AvatarSelectRequest` 주석
  *  - 유료 아바타 사기는 따로 없다 — `usePointShopApi().purchase({ itemId })` 그대로(사도 프로필은 바뀌지 않는다, 화면이 「바로 프로필로 쓰기」로 이어 부른다)
  */
 const PATH = {

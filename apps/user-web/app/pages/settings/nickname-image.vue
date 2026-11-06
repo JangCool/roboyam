@@ -75,6 +75,7 @@
                 <NicknameImageFrame :src="state.request.url" :alt="t('nicknameImage.altRequested')" class="mt-3" />
                 <p class="m-0 mt-3 text-sm">{{ t('nicknameImage.pendingText') }}</p>
                 <p class="m-0 mt-1 text-xs text-muted-color">{{ layout.current ? t('nicknameImage.pendingKeepNote') : t('nicknameImage.pendingPlainNote') }}</p>
+                <p v-if="ticketReserved" class="m-0 mt-1 text-xs text-muted-color" data-testid="nickname-image-ticket-reserved">{{ t('nicknameImage.ticketReservedLine') }}</p>
                 <Button
                     type="button"
                     :label="t('nicknameImage.cancelRequest')"
@@ -121,7 +122,28 @@
 
             <!-- 적용 중 — 미리보기 · 이미지 바꾸기(승인 전까지 이전 이미지 유지) · 해제 -->
             <section v-if="layout.current && state.current" :aria-labelledby="`${uid}-current`" data-testid="nickname-image-current">
-                <div class="rounded-lg bg-green-50 px-3 py-2.5 text-sm leading-relaxed text-green-900 dark:bg-green-950/40 dark:text-green-200" role="status">
+                <!-- 쉬는 중 — 움직이는 닉네임 그림 + 움직이는 아바타를 쓰는 중(움직이는 꾸미기는 하나만). 지우지 않았고, 다시 쓰면 아바타가 마지막 정지 아바타로 돌아간다(심사 없음) -->
+                <div
+                    v-if="paused"
+                    class="rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                    role="status"
+                    data-testid="nickname-image-paused"
+                >
+                    <h2 :id="`${uid}-current`" class="m-0 text-sm font-semibold">{{ t('nicknameImage.pausedBanner') }}</h2>
+                    <p class="m-0 mt-0.5">{{ t('nicknameImage.pausedText') }}</p>
+                    <Button
+                        type="button"
+                        :label="t('nicknameImage.resume')"
+                        icon="pi pi-play"
+                        size="small"
+                        class="mt-2"
+                        :loading="busy === 'resume'"
+                        :disabled="busy !== null || blocked !== null"
+                        data-testid="nickname-image-resume"
+                        @click="resume"
+                    />
+                </div>
+                <div v-else class="rounded-lg bg-green-50 px-3 py-2.5 text-sm leading-relaxed text-green-900 dark:bg-green-950/40 dark:text-green-200" role="status">
                     <h2 :id="`${uid}-current`" class="m-0 text-sm font-semibold">{{ t('nicknameImage.currentBanner') }}</h2>
                 </div>
                 <NicknameImageFrame :src="state.current.url" :alt="t('nicknameImage.altCurrent')" class="mt-3" />
@@ -213,7 +235,18 @@
                     <div v-else class="aspect-[4/1] w-full max-w-60 animate-pulse rounded-md bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('nicknameImage.reading')" />
                     <p class="m-0 mt-1.5 text-xs text-muted-color">{{ file.name }} · {{ UtilNicknameImage.formatBytes(file.size) }}</p>
                     <p v-if="isGif" class="m-0 mt-2 text-xs text-muted-color" data-testid="nickname-image-gif-note">{{ t('nicknameImage.gifNote') }}</p>
+                    <!-- 움직이는 아바타를 쓰는 중에 GIF 를 신청 — 승인되면 나중에 고른 쪽(닉네임 그림)이 남는다 -->
+                    <p v-if="isGif && motionAvatarInUse" class="m-0 mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="nickname-image-motion-note">
+                        {{ t('nicknameImage.motionAvatarNote') }}
+                    </p>
                     <Button type="button" :label="t('nicknameImage.pickAgain')" severity="secondary" variant="outlined" size="small" class="mt-2" :disabled="formLocked" data-testid="nickname-image-repick" @click="fileInput?.click()" />
+                </div>
+
+                <!-- 닉네임 이미지 변경권 — 신청마다 1장(예약 → 승인되면 사용, 반려·취소·대체되면 반환). 대기 신청을 바꾸면 예약된 장을 그대로 쓴다 -->
+                <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="nickname-image-ticket">
+                    <span class="inline-flex items-center gap-1.5 font-semibold"><i class="pi pi-image text-primary" aria-hidden="true" />{{ t('nicknameImage.ticketLine', { count: ticketCount }) }}</span>
+                    <span class="min-w-0 flex-1 text-muted-color">{{ ticketCount > 0 || ticketReserved ? t('nicknameImage.ticketRule') : t('nicknameImage.ticketNone') }}</span>
+                    <NuxtLink :to="ticketPath" class="font-semibold text-primary hover:underline" data-testid="nickname-image-ticket-buy">{{ ticketPrice !== null ? t('nicknameImage.ticketBuy', { points: UtilPoint.points(ticketPrice) }) : t('nicknameImage.ticketBuyPlain') }}</NuxtLink>
                 </div>
 
                 <div class="mt-4 flex items-start gap-2.5">
@@ -240,6 +273,7 @@
                 </div>
             </section>
         </template>
+
     </div>
 </template>
 
@@ -249,6 +283,8 @@ import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilNicknameImage from '~/utils/util-nickname-image';
 import UtilNicknameImageMessages from '~/utils/util-nickname-image-messages';
+import UtilPoint from '~/utils/util-point';
+import UtilPointShop from '~/utils/util-point-shop';
 import type { NicknameImageBlockedReason } from '~/utils/util-nickname-image-messages';
 
 /**
@@ -256,7 +292,10 @@ import type { NicknameImageBlockedReason } from '~/utils/util-nickname-image-mes
  * 글자 닉네임 자리에 이미지를 보이게 하는 신청 화면 — **관리자가 정한 신청 조건**(`requirements` — 등급 기준 / 사용자 정의)을 채운 회원이 올리고 **운영자 심사 뒤** 적용된다(심사 대기는 운영자 알림 `NICKNAME_IMAGE_PENDING`, 관리자 심사 화면은 이번 범위 밖).
  * 한 화면이 서버 상태 하나로 그려진다(`UtilNicknameImage.layout`): 자격 미달 · 신청(파일 고르기 → 형식·용량·4:1 화면 검사 → 미리보기 → 동의 → 신청하기) · 승인 대기(취소) ·
  * 반려(사유 · 재신청까지 남은 시간) · 적용 중(미리보기 · 바꾸기 · 해제). 올린 뒤에는 서버 응답을 받고 상태를 다시 읽는다(낙관적으로 바꾸지 않는다).
- * community 대비 뺀 것: 닉네임 이미지 변경권(포인트 상점 1단계 품목이 아니다)·닉네임 이미지 신고, 작성자 표시의 이미지(서버 응답에 칸이 없다 — 미리보기만).
+ * community 대비 뺀 것: 닉네임 이미지 신고, 작성자 표시의 이미지(서버 응답에 칸이 없다 — 미리보기만).
+ * **닉네임 이미지 변경권(사용자 확정 2026-11-06, 서버 연결됨)** — community 방식: 신청마다 1장 예약 → 승인되면 사용 · 반려·본인 취소·대체되면 반환 · 적용 뒤 해제는 반환 없음.
+ * 장 수·값·품목은 서버 `GET` 의 `ticketCount`·`ticketPrice`·`ticketItemId`, 대기 신청의 예약은 `request.ticketReserved`. 변경권이 없으면 `409 NICKNAME_IMAGE_TICKET_REQUIRED`(상태를 다시 읽는다).
+ * 쉬는 중(움직이는 그림 + 움직이는 아바타)은 서버 `paused`, 다시 쓰기는 `POST …/resume`(응답 = 내 프로필).
  */
 definePageMeta({ middleware: 'auth' });
 const { t, locale } = useI18n();
@@ -276,7 +315,7 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const state = ref<MyNicknameImage | null>(null);
 const opened = ref(false);
-const busy = ref<'apply' | 'cancel' | 'remove' | null>(null);
+const busy = ref<'apply' | 'cancel' | 'remove' | 'resume' | null>(null);
 
 const file = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
@@ -320,7 +359,7 @@ const reapplyHours = computed(() => UtilNicknameImage.reapplyHoursOf(state.value
 const isGif = computed(() => (file.value ? UtilNicknameImage.isGif(file.value) : false));
 
 const canSubmit = computed(
-    () => Boolean(file.value && previewUrl.value) && !fileProblem.value && consent.value && blocked.value === null && busy.value === null && (layout.value?.form ?? false) && (layout.value?.waitSeconds ?? 0) === 0,
+    () => (ticketCount.value > 0 || ticketReserved.value) && Boolean(file.value && previewUrl.value) && !fileProblem.value && consent.value && blocked.value === null && busy.value === null && (layout.value?.form ?? false) && (layout.value?.waitSeconds ?? 0) === 0,
 );
 
 /* ── 서버 상태 ── */
@@ -343,6 +382,42 @@ async function load(silent = false): Promise<void> {
     }
 }
 void load();
+
+/* ── 움직이는 꾸미기는 하나만 — 움직이는 아바타를 쓰는 중이면 움직이는 닉네임 그림(정지 그림 `still` 이 있는 것)은 쉰다(`useAvatarChoice`) ── */
+const decorations = useMyDecoration();
+const avatarChoice = useAvatarChoice();
+// 내 아바타(움직이는지)를 서버에서 한 번 받는다
+void useMyDecorationSync().ensure();
+/** 지금 움직이는 아바타를 쓰는 중 — 정지 그림이 있으면 움직이는 아바타다 */
+const motionAvatarInUse = computed(() => decorations.myAvatarStillUrl() !== null);
+/** 쉬는 중 — 적용된 그림이 움직이고 움직이는 아바타를 쓰는 중(서버 `paused` — 따로 저장하지 않고 서버가 판정한다) */
+const paused = computed(() => state.value?.paused ?? false);
+
+/** 다시 쓰기 — 아바타가 마지막으로 쓴 정지 아바타로 돌아간다(심사는 다시 받지 않는다) */
+async function resume() {
+    if (busy.value !== null) return;
+    const ok = await confirm({ title: t('nicknameImage.resumeConfirmTitle'), message: t('nicknameImage.resumeConfirmMessage'), confirmLabel: t('nicknameImage.resume') });
+    if (!ok) return;
+    busy.value = 'resume';
+    try {
+        await avatarChoice.resumeNicknameImage();
+        if (!alive) return;
+        toast.success(t('nicknameImage.toastResumed'));
+        await load(true);
+    } catch (e) {
+        if (!alive) return;
+        toast.error(await onFailed(e), 8000);
+    } finally {
+        busy.value = null;
+    }
+}
+
+/* ── 닉네임 이미지 변경권 — 서버 `GET` 의 `ticketCount`·`ticketPrice`·`ticketItemId` · 대기 신청의 `ticketReserved` ── */
+const ticketCount = computed(() => state.value?.ticketCount ?? 0);
+const ticketReserved = computed(() => state.value?.request?.status === 'PENDING' && state.value.request.ticketReserved);
+const ticketPrice = computed(() => state.value?.ticketPrice ?? null);
+/** 사러 갈 곳 — 변경권 품목 상세(품목이 없으면 상점 「변경권」 탭) */
+const ticketPath = computed(() => (state.value?.ticketItemId ? UtilPointShop.itemPath(state.value.ticketItemId) : UtilPointShop.listPath('NICKNAME_CHANGE_TICKET')));
 
 /* ── 파일 고르기 ── */
 function measure(url: string): Promise<{ width: number; height: number } | null> {
@@ -460,7 +535,9 @@ async function removeCurrent() {
     if (busy.value !== null || !user.value) return;
     const ok = await confirm({
         title: t('nicknameImage.removeConfirmTitle'),
-        message: t('nicknameImage.removeConfirmMessage', { nickname: user.value.nickname }),
+        message: `${t('nicknameImage.removeConfirmMessage', { nickname: user.value.nickname })}
+
+${t('nicknameImage.removeTicketNote')}`,
         confirmLabel: t('nicknameImage.removeConfirmLabel'),
         tone: 'danger',
     });

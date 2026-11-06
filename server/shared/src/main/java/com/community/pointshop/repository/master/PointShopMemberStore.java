@@ -70,6 +70,32 @@ public class PointShopMemberStore {
         return jdbc.update("UPDATE profiles SET profile_image = ?, updated_at = ? WHERE user_id = ?", value, ts(now), userId) == 1;
     }
 
+    /** 프로필 아바타 칸 — 고른 값·마지막 정지 아바타(V157) */
+    public record AvatarState(String profileImage, String lastStillAvatar) {
+    }
+
+    /** 프로필 행을 잠그고 아바타 칸을 읽는다(올리기 신청·심사·하나만 규칙이 프로필 행 → 신청 행 차례로 잠근다). 프로필 행이 없으면 빈 값 */
+    public Optional<AvatarState> lockAvatar(long userId) {
+        return jdbc.query("SELECT profile_image, last_still_avatar FROM profiles WHERE user_id = ? FOR UPDATE", (rs, i) -> new AvatarState(rs.getString(1), rs.getString(2)),
+                userId).stream().findFirst();
+    }
+
+    /** 아바타 칸(잠그지 않는다) — 프로필 행이 없으면 빈 값 */
+    public Optional<AvatarState> avatarState(long userId) {
+        return jdbc.query("SELECT profile_image, last_still_avatar FROM profiles WHERE user_id = ?", (rs, i) -> new AvatarState(rs.getString(1), rs.getString(2)), userId)
+                .stream().findFirst();
+    }
+
+    /**
+     * 프로필 아바타를 바꾼다 — 정지 아바타면 마지막 정지 아바타도 그것으로(commerce-motion-avatar-contract 규칙 3). 프로필 행이 있으면 true
+     *
+     * @param lastStill 새 마지막 정지 아바타 ID(움직이는 아바타를 골랐으면 null — 앞 값을 그대로 둔다)
+     */
+    public boolean setAvatar(long userId, String profileImage, String lastStill, Instant now) {
+        return jdbc.update("UPDATE profiles SET profile_image = ?, last_still_avatar = coalesce(?, last_still_avatar), updated_at = ? WHERE user_id = ?", profileImage,
+                lastStill, ts(now), userId) == 1;
+    }
+
     /** 그 값을 쓰고 있을 때만 비운다(예외 환불한 아바타 → 기본 아바타) — 비웠으면 true */
     public boolean clearProfileImageIf(long userId, String value, Instant now) {
         return jdbc.update("UPDATE profiles SET profile_image = NULL, updated_at = ? WHERE user_id = ? AND profile_image = ?", ts(now), userId, value) == 1;

@@ -98,10 +98,10 @@ class ProfileAvatarTest extends PointShopTestBase {
     }
 
     @Test
-    void 비로그인_목록은_보유와_고른_것이_비어_있고_328줄_카탈로그_차례() {
+    void 비로그인_목록은_보유와_고른_것이_비어_있고_336줄_카탈로그_차례() {
         AvatarCatalogView view = kit.profileAvatars.catalog(null);
 
-        assertThat(view.items()).hasSize(328);
+        assertThat(view.items()).as("정지 328 + 움직이는 8(V157)").hasSize(336);
         assertThat(view.items().get(0).id()).isEqualTo("basic-default");
         assertThat(view.selectedId()).isNull();
         assertThat(view.balance()).isZero();
@@ -111,7 +111,7 @@ class ProfileAvatarTest extends PointShopTestBase {
         assertThat(paid.price()).isEqualTo(1000);
         assertThat(paid.itemId()).isEqualTo(Long.toString(kit.avatarItem("job-doctor-m")));
         assertThat(item(view, "basic-default").price()).isNull();
-        assertThat(view.categories()).hasSize(14);
+        assertThat(view.categories()).as("14 + 움직이는 아바타(V157) — 내가 올린 아바타 카테고리는 승인된 그림이 있을 때만").hasSize(15);
         assertThat(view.refundDays()).isEqualTo(7);
     }
 }

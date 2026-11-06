@@ -131,4 +131,32 @@ class AuthorDecorationHttpTest extends PointShopApiTestBase {
         mvc.perform(get("/api/posts/" + postId + "/comments")).andExpect(jsonPath("$.data.threads[0].author.decoration").isEmpty());
         mvc.perform(get("/api/users/" + writer + "/profile")).andExpect(jsonPath("$.data.decoration").isEmpty());
     }
+
+    @Test
+    void 움직이는_아바타는_글_보기_목록_댓글_공개_프로필에_정지_그림이_같이_나가고_정지_아바타_비회원은_null() throws Exception {
+        long writer = member();
+        grant(writer, 5_000);
+        buy(writer, avatarItem("motion-robot-scan"));
+        mvc.perform(as(writer, put("/api/me/profile/avatar").contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"motion-robot-scan\"}")))
+                .andExpect(status().isOk());
+        String moving = "/avatars/motion/motion-robot-scan.svg";
+        String still = "/avatars/motion/motion-robot-scan-still.svg";
+        long postId = post(writer, null);
+        comment(postId, writer, null);
+        long plain = member();
+        long plainPost = post(plain, null);
+        long guestPost = post(null, "손님");
+
+        mvc.perform(get("/api/posts/" + postId)).andExpect(status().isOk()).andExpect(jsonPath("$.data.author.avatarUrl").value(moving))
+                .andExpect(jsonPath("$.data.author.avatarStillUrl").value(still));
+        mvc.perform(get("/api/boards/" + slug + "/posts")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id == '" + postId + "')].author.avatarStillUrl").value(still))
+                .andExpect(jsonPath("$.data.items[?(@.id == '" + plainPost + "')].author.avatarStillUrl").value(org.hamcrest.Matchers.contains((Object) null)));
+        mvc.perform(get("/api/posts/" + postId + "/comments")).andExpect(status().isOk()).andExpect(jsonPath("$.data.threads[0].author.avatarStillUrl").value(still));
+        mvc.perform(get("/api/users/" + writer + "/profile")).andExpect(status().isOk()).andExpect(jsonPath("$.data.avatarStillUrl").value(still));
+        mvc.perform(get("/api/posts/" + plainPost)).andExpect(jsonPath("$.data.author.avatarStillUrl").isEmpty());
+        mvc.perform(get("/api/posts/" + guestPost)).andExpect(jsonPath("$.data.author.avatarStillUrl").isEmpty());
+        mvc.perform(as(writer, get("/api/me/items"))).andExpect(jsonPath("$.data.items[0].animated").value(true))
+                .andExpect(jsonPath("$.data.items[0].avatarStillUrl").value(still)).andExpect(jsonPath("$.data.items[0].inUse").value(true));
+    }
 }

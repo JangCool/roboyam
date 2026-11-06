@@ -205,6 +205,26 @@ export default class UtilPointShop {
     }
 
     /**
+     * 변경권(소모형)을 쓰는 곳 — 닉네임 변경권은 프로필 설정, 닉네임 이미지 변경권은 닉네임 이미지, 아바타 변경권은 아바타 올리기
+     * @param {string} kind - 품목 종류.
+     * @returns {string} 화면 주소.
+     */
+    static ticketUsePath(kind: string): string {
+        if (kind === 'NICKNAME_IMAGE_TICKET') return '/settings/nickname-image';
+        if (kind === 'AVATAR_UPLOAD_TICKET') return '/settings/avatar-upload';
+        return '/settings/profile';
+    }
+
+    /**
+     * 변경권(소모형) 종류인가 — 닉네임 변경권 · 닉네임 이미지 변경권 · 아바타 변경권
+     * @param {string} kind - 품목 종류.
+     * @returns {boolean} 변경권이면 true.
+     */
+    static isTicket(kind: string): boolean {
+        return kind === 'NICKNAME_CHANGE_TICKET' || kind === 'NICKNAME_IMAGE_TICKET' || kind === 'AVATAR_UPLOAD_TICKET';
+    }
+
+    /**
      * 보유 목록을 화면 구획으로 나눈다 — 장착하는 자리별(닉네임 색·프로필 테두리) · 프로필 아바타(쓰는 중이 위) · 소모형(품목별 카드) · 회수됨.
      * 자리별 목록은 장착 중 → 기간이 남은 것 → 기간 끝 차례, 같은 차례면 최근에 산 것이 위다.
      * @param {MyItemView[]} items - `GET /api/me/items` 의 줄.
@@ -225,8 +245,8 @@ export default class UtilPointShop {
         for (const row of live.filter((r) => r.usageType === 'CONSUMABLE')) {
             const group = ticketMap.get(row.itemId) ?? { itemId: row.itemId, name: row.name, nameEn: row.nameEn, rows: [], ownedCount: 0 };
             group.rows.push(row);
-            // 환불 신청을 기다리는 장은 쓸 수 없어 장수에서 뺀다(서버의 변경권 수와 같다)
-            if (row.status === 'OWNED' && !UtilPointShop.refundPending(row)) group.ownedCount++;
+            // 환불 신청을 기다리는 장·대기 신청에 예약된 장은 쓸 수 없어 장수에서 뺀다(서버의 변경권 수와 같다)
+            if (row.status === 'OWNED' && !row.reserved && !UtilPointShop.refundPending(row)) group.ownedCount++;
             ticketMap.set(row.itemId, group);
         }
         for (const group of ticketMap.values()) group.rows.sort((a, b) => Date.parse(b.purchasedAt) - Date.parse(a.purchasedAt));

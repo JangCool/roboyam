@@ -31,7 +31,7 @@ export function useMyDecorationSync() {
                 profileBorder: border?.borderStyle ? { userItemId: border.id, itemId: border.itemId, borderStyle: border.borderStyle, expiresAt: border.expiresAt } : null,
             });
         }
-        if (profile.status === 'fulfilled') decoration.applyAvatar(profile.value.avatarUrl);
+        if (profile.status === 'fulfilled') decoration.applyAvatar(profile.value.avatarUrl, profile.value.avatarStillUrl ?? null);
         // 둘 다 못 받았으면 다음에 다시 묻는다
         if (items.status === 'rejected' && profile.status === 'rejected') syncedFor.value = null;
     }

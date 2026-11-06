@@ -79,13 +79,14 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한·제재 받음은 금지 표시, 제재 풀림은 열린 자물쇠, 이의제기 답변은 체크 상자, 회원 핫딜은 의심 경고·마감 고치기 달력·그 밖 종료 가격표, 로보티콘 팩 처리는 웃는 얼굴, 로보티콘 구매·환불은 영수증. 모르는 종류는 말풍선.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 아바타 올리기 심사는 사람 더하기, 기능 제한·제재 받음은 금지 표시, 제재 풀림은 열린 자물쇠, 이의제기 답변은 체크 상자, 회원 핫딜은 의심 경고·마감 고치기 달력·그 밖 종료 가격표, 로보티콘 팩 처리는 웃는 얼굴, 로보티콘 구매·환불은 영수증. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
     static icon(type: MemberNotificationType): string {
         if (type === 'DM') return 'pi pi-envelope';
         if (type === 'NICKNAME_IMAGE_REVIEWED') return 'pi pi-image';
+        if (type === 'AVATAR_UPLOAD_REVIEWED') return 'pi pi-user-plus';
         if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
         if (type === 'POINTS_EXPIRING') return 'pi pi-hourglass';
         if (type === 'POINT_SHOP_REFUND_APPROVED') return 'pi pi-replay';

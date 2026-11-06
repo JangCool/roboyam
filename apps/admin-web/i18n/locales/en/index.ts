@@ -9,6 +9,7 @@ import account from './account';
 import address from './address';
 import analytics from './analytics';
 import audit from './audit';
+import avatarUpload from './avatarUpload';
 import batch from './batch';
 import board from './board';
 import commerce from './commerce';
@@ -80,6 +81,7 @@ export default {
     address,
     analytics,
     audit,
+    avatarUpload,
     batch,
     board,
     commerce,

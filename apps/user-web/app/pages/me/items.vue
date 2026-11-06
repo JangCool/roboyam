@@ -29,7 +29,7 @@
                 <h2 :id="`${uid}-equipped`" class="m-0 text-sm font-semibold">{{ t('pointShop.equippedTitle') }}</h2>
                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                     <div v-for="slot in slots" :key="slot.key" class="flex items-center gap-3 rounded-lg bg-surface-50 p-3 dark:bg-surface-950" :data-testid="`myitems-slot-${slot.key}`">
-                        <ProfileBorderAvatar :initial="initial" :src="myAvatar" size="md" :border-style="slot.key === 'PROFILE_BORDER' ? (slot.row?.borderStyle ?? null) : null" />
+                        <ProfileBorderAvatar :initial="initial" :src="myAvatar" :still-src="myAvatarStill" size="md" :border-style="slot.key === 'PROFILE_BORDER' ? (slot.row?.borderStyle ?? null) : null" />
                         <div class="min-w-0 flex-1">
                             <p class="m-0 text-xs text-muted-color">{{ slot.label }}</p>
                             <p v-if="slot.row" class="m-0 mt-0.5 truncate text-sm font-semibold" :style="slot.key === 'NICKNAME_COLOR' ? { color: UtilColor.cssPair(slot.row.color) ?? undefined } : undefined">
@@ -87,11 +87,12 @@
                 <h2 :id="`${uid}-avatar`" class="m-0 px-4 pt-4 text-sm font-semibold">{{ t('pointShop.kindAvatar') }}</h2>
                 <ul class="m-0 mt-2 list-none p-0">
                     <li v-for="row in grouped.avatars" :key="row.id" class="flex flex-wrap items-center gap-3 border-t border-surface px-4 py-3" data-testid="myitems-avatar-row">
-                        <PointShopItemThumb kind="PROFILE_AVATAR" :avatar-src="row.avatarUrl" :nickname="nickname" compact />
+                        <PointShopItemThumb kind="PROFILE_AVATAR" :avatar-src="row.avatarUrl" :avatar-still-src="row.avatarStillUrl ?? null" :nickname="nickname" compact />
                         <div class="min-w-0 flex-1">
                             <p class="m-0 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
                                 <span class="min-w-0 break-words">{{ localizedName(row.name, row.nameEn) }}</span>
                                 <PointShopTag v-if="row.inUse" tone="primary">{{ t('avatar.inUse') }}</PointShopTag>
+                                <PointShopTag v-if="row.animated">{{ t('avatar.motionBadge') }}</PointShopTag>
                                 <PointShopTag>{{ UtilPointShopMessages.usage(t, row) }}</PointShopTag>
                             </p>
                             <p class="m-0 mt-0.5 text-xs text-muted-color">{{ rowMeta(row) }}</p>
@@ -117,7 +118,7 @@
                     :aria-controls="`${uid}-t-${group.itemId}`"
                     @click="toggleTicket(group.itemId)"
                 >
-                    <PointShopItemThumb kind="NICKNAME_CHANGE_TICKET" compact />
+                    <PointShopItemThumb :kind="group.rows[0]?.kind ?? 'NICKNAME_CHANGE_TICKET'" compact />
                     <span class="min-w-0 flex-1">
                         <span class="block text-sm font-semibold">{{ localizedName(group.name, group.nameEn) }}</span>
                         <span class="block text-xs text-muted-color">{{ t('pointShop.ticketCount', { count: group.ownedCount }) }}</span>
@@ -129,7 +130,8 @@
                         <div class="min-w-0 flex-1 text-sm">
                             <p class="m-0 flex items-center gap-1.5">
                                 {{ t('pointShop.boughtOn', { date: time.date(row.purchasedAt) }) }}
-                                <PointShopTag v-if="!UtilPointShop.refundPending(row)" :tone="row.status === 'USED' ? 'neutral' : 'success'">{{ row.status === 'USED' ? t('pointShop.ticketUsed') : t('pointShop.ticketOwned') }}</PointShopTag>
+                                <PointShopTag v-if="row.reserved" tone="warn">{{ t('pointShop.ticketReserved') }}</PointShopTag>
+                                <PointShopTag v-else-if="!UtilPointShop.refundPending(row)" :tone="row.status === 'USED' ? 'neutral' : 'success'">{{ row.status === 'USED' ? t('pointShop.ticketUsed') : t('pointShop.ticketOwned') }}</PointShopTag>
                             </p>
                             <p class="m-0 mt-0.5 text-xs text-muted-color">{{ rowMeta(row) }}</p>
                             <p v-if="requestLine(row)" class="m-0 mt-1 flex flex-wrap items-center gap-1.5 text-xs" data-testid="myitems-refund-request">
@@ -141,7 +143,7 @@
                     </li>
                 </ul>
                 <div class="border-t border-surface px-4 py-2.5">
-                    <NuxtLink to="/settings/profile" class="text-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('pointShop.useInProfile') }}</NuxtLink>
+                    <NuxtLink :to="UtilPointShop.ticketUsePath(group.rows[0]?.kind ?? '')" class="text-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ ticketUseLabel(group.rows[0]?.kind ?? '') }}</NuxtLink>
                 </div>
             </section>
 
@@ -186,6 +188,7 @@ useSeoMeta({ title: () => t('pointShop.myItems'), robots: 'noindex' });
 const uid = useId();
 const api = useMyItemsApi();
 const avatarApi = useAvatarApi();
+const avatarChoice = useAvatarChoice();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const time = useDisplayTime();
@@ -204,6 +207,7 @@ const nickname = computed(() => user.value?.nickname ?? '');
 const initial = computed(() => UtilPointShop.initial(nickname.value));
 /** 내 아바타(방금 고른 것 포함) */
 const myAvatar = computed(() => decoration.myAvatarUrl());
+const myAvatarStill = computed(() => decoration.myAvatarStillUrl());
 
 const items = ref<MyItemView[]>([]);
 const refundDays = ref(7);
@@ -289,6 +293,8 @@ function rowMeta(row: MyItemView): string {
     const parts = [t('pointShop.boughtOn', { date: time.value.date(row.purchasedAt) }), UtilPoint.points(row.pricePaid)];
     if (row.refundable && row.refundUntil) parts.push(t('pointShop.refundUntil', { date: time.value.shortDateTime(row.refundUntil) }));
     else if (row.firstUsedAt) parts.push(t('pointShop.usedNoRefund'));
+    // 올리기 변경권이 대기 신청에 예약됨 — 환불 불가(서버 `blockedBy RESERVED`), 신청이 반려·취소되면 풀린다
+    else if (row.reserved) parts.push(t('pointShop.reservedNoRefund'));
     // 신청 대기·정지 중 거절은 아래 신청 줄이 까닭을 보인다(기한이 지난 것이 아니다)
     else if (row.status === 'OWNED' && !row.refundRequest) parts.push(t('pointShop.refundExpired'));
     return parts.join(' · ');
@@ -349,14 +355,15 @@ async function unequip(slot: EquipSlot) {
     }
 }
 
-/** 산 아바타를 프로필로 쓴다 — 환불할 수 있는 것만 한 번 묻는다(고르면 「사용함」이 남는다). `PUT /api/me/profile/avatar` */
+/** 산 아바타를 프로필로 쓴다 — 환불할 수 있는 것(고르면 「사용함」이 남는다)·움직이는 닉네임 그림과 겹치는 움직이는 아바타(하나만)는 한 번 묻는다(`useAvatarChoice`). `PUT /api/me/profile/avatar` */
 async function useAvatar(row: MyItemView) {
     if (busy.value || !row.avatarId) return;
-    if (row.refundable && !(await confirm({ title: t('avatar.useConfirmTitle'), message: t('avatar.useConfirmText'), confirmLabel: t('avatar.useNow') }))) return;
+    const motionInUse = grouped.value.avatars.some((r) => r.inUse && r.animated);
+    if (!(await avatarChoice.confirmChoose(row, motionInUse))) return;
     busyId.value = `avatar:${row.id}`;
     try {
         const profile = await avatarApi.select({ avatarId: row.avatarId });
-        decoration.applyAvatar(profile.avatarUrl);
+        decoration.applyAvatar(profile.avatarUrl, profile.avatarStillUrl ?? null);
         toast.success(t('avatar.saved'));
         await load(true);
     } catch (e) {
@@ -364,6 +371,13 @@ async function useAvatar(row: MyItemView) {
     } finally {
         busyId.value = '';
     }
+}
+
+/** 변경권 카드 아래 「쓰러 가기」 글자 — 종류마다 쓰는 곳이 다르다 */
+function ticketUseLabel(kind: string): string {
+    if (kind === 'NICKNAME_IMAGE_TICKET') return t('pointShop.useNicknameImageTicket');
+    if (kind === 'AVATAR_UPLOAD_TICKET') return t('pointShop.useAvatarTicket');
+    return t('pointShop.useInProfile');
 }
 
 async function refund(row: MyItemView) {

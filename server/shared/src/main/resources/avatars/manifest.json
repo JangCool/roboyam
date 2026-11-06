@@ -1,5 +1,5 @@
 {
- "total": 328,
+ "total": 336,
  "categories": [
   {
    "id": "basic",
@@ -10,6 +10,12 @@
    "id": "hobby",
    "name": "취미·캐릭터 (성별 구분 없음)",
    "count": 16
+  },
+  {
+   "id": "motion",
+   "name": "움직이는 아바타",
+   "count": 8,
+   "animated": true
   },
   {
    "id": "job",
@@ -1712,6 +1718,54 @@
    "id": "traditional-potter-f",
    "name": "도공 여",
    "category": "traditional"
+  },
+  {
+   "id": "motion-robot-blink",
+   "name": "깜빡 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-antenna",
+   "name": "안테나 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-bob",
+   "name": "둥실 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-wave",
+   "name": "손인사 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-heart",
+   "name": "두근 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-rainbow",
+   "name": "무지개 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-sparkle",
+   "name": "반짝별 로보",
+   "category": "motion",
+   "animated": true
+  },
+  {
+   "id": "motion-robot-scan",
+   "name": "레이더 로보",
+   "category": "motion",
+   "animated": true
   }
  ]
 }

@@ -128,6 +128,8 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
                 // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
                 { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
+                // 아바타 올리기 심사(서버 연결됨 — commerce-motion-avatar-contract) — 권한은 닉네임 이미지 심사와 같다. 서버 `AdminScreenRegistry.avatarUploads` 와 같은 줄
+                { key: 'avatarUploads', to: '/members/avatar-uploads', icon: 'pi pi-user-plus', labelKey: 'menu.avatarUploads', permission: 'nickname-image.read' },
             ],
         },
         // 메뉴 관리 묶음 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다

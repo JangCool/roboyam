@@ -194,7 +194,7 @@ class PointShopCatalogTest extends PointShopTestBase {
         PointShopItemView mine = all.items().stream().filter(view -> view.id().equals(Long.toString(onSale))).findFirst().orElseThrow();
         assertThat(mine.mine().owned()).isTrue();
         assertThat(kit.catalog.memberItem(member, ended).saleState().name()).as("상세는 판매가 끝나도 열린다").isEqualTo("ENDED");
-        assertThat(kit.catalog.memberList(member, PointShopItemKind.PROFILE_AVATAR).items()).as("아바타 거르기").hasSize(306);
+        assertThat(kit.catalog.memberList(member, PointShopItemKind.PROFILE_AVATAR).items()).as("아바타 거르기 — 정지 306 + 움직이는 8(V157)").hasSize(314);
     }
 
     @Test
@@ -248,9 +248,9 @@ class PointShopCatalogTest extends PointShopTestBase {
             assertThat(basic.category()).isEqualTo("basic");
             assertThat(basic.free()).isTrue();
             assertThat(basic.minPrice()).isNull();
-            assertThat(summary.totals().total()).isEqualTo(328);
+            assertThat(summary.totals().total()).isEqualTo(336);
             assertThat(summary.totals().freeCount()).isEqualTo(22);
-            assertThat(summary.totals().paidCount()).isEqualTo(306);
+            assertThat(summary.totals().paidCount()).isEqualTo(314);
             assertThat(summary.totals().stopped()).isEqualTo(2);
 
             var avatarView = kit.profileAvatars.catalog(null).items().stream().filter(a -> a.itemId() != null && a.itemId().equals(Long.toString(traditional.get(0))))
@@ -274,10 +274,10 @@ class PointShopCatalogTest extends PointShopTestBase {
             assertThat(kit.audits.stream().filter(e -> e.action().equals(AuditActions.POINT_SHOP_AVATAR_SALE)).findFirst().orElseThrow().detail())
                     .containsEntry("matched", 2).containsEntry("changed", 2).containsEntry("active", false);
         } finally {
-            kit.jdbc.update("UPDATE point_shop_items SET price_point = 1000, active = true WHERE kind = 'PROFILE_AVATAR'");
+            kit.jdbc.update("UPDATE point_shop_items SET price_point = CASE WHEN avatar_id LIKE 'motion-%' THEN 3000 ELSE 1000 END, active = true WHERE kind = 'PROFILE_AVATAR'");
         }
         PointShopAvatarBulkResultView all = kit.inTx(() -> kit.catalog.avatarSale(new PointShopAvatarTarget(PointShopAvatarScope.ALL, null, null), true, kit.operator, null));
-        assertThat(all.matched()).isEqualTo(306);
+        assertThat(all.matched()).isEqualTo(314);
         assertThat(all.changed()).isZero();
     }
 
@@ -307,7 +307,7 @@ class PointShopCatalogTest extends PointShopTestBase {
         assertThat(withoutAvatars).isNotEmpty().noneMatch(view -> view.kind() == PointShopItemKind.PROFILE_AVATAR);
         assertThat(withoutAvatars).anyMatch(view -> view.code().equals("nickname-change"));
         var avatarsOnly = kit.catalog.adminItems(PointShopItemKind.PROFILE_AVATAR, null).items();
-        assertThat(avatarsOnly).hasSize(306).allMatch(view -> view.category() != null && view.createdBy() == null);
+        assertThat(avatarsOnly).hasSize(314).allMatch(view -> view.category() != null && view.createdBy() == null);
         assertThatThrownBy(() -> kit.catalog.adminItem(Long.MAX_VALUE)).isInstanceOf(CommonException.class)
                 .extracting(e -> ((CommonException) e).getErrorCode()).isEqualTo("POINT_SHOP_ITEM_NOT_FOUND");
     }

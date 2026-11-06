@@ -3,6 +3,8 @@ package com.community.nicknameimage.controller;
 import com.community.auth.dto.AuthUser;
 import com.community.nicknameimage.dto.response.MyNicknameImageView;
 import com.community.nicknameimage.service.NicknameImageService;
+import com.community.profile.dto.response.MyProfileView;
+import com.community.profile.service.MyProfileService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.response.ApiResponse;
@@ -27,9 +29,11 @@ import org.springframework.web.multipart.MultipartFile;
 public class NicknameImageController {
 
     private final NicknameImageService service;
+    private final MyProfileService profiles;
 
-    public NicknameImageController(NicknameImageService service) {
+    public NicknameImageController(NicknameImageService service, MyProfileService profiles) {
         this.service = service;
+        this.profiles = profiles;
     }
 
     @GetMapping
@@ -48,6 +52,14 @@ public class NicknameImageController {
     public ResponseEntity<Void> cancelRequest(Authentication authentication) {
         service.cancelRequest(userId(authentication));
         return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    /** 다시 쓰기(쉬는 중인 움직이는 그림 — commerce-motion-avatar-contract 규칙 3) — 200 + 내 프로필(아바타가 마지막 정지 아바타로 돌아갔을 수 있다) */
+    @PostMapping("/resume")
+    public ResponseEntity<ApiResponse<MyProfileView>> resume(Authentication authentication) {
+        long userId = userId(authentication);
+        service.resume(userId);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(profiles.get(userId)));
     }
 
     @DeleteMapping

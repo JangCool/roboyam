@@ -36,6 +36,8 @@ export interface MyProfile {
      * 고르기는 `useAvatarApi().select`(`PUT /api/me/profile/avatar`).
      */
     avatarUrl?: string | null;
+    /** 움직이는 아바타의 정지 그림 주소 — 서버 연결됨(정지 아바타면 null) */
+    avatarStillUrl?: string | null;
 }
 
 /** `PUT /api/me/profile` 요청 — 두 칸 모두 보낸다(닉네임이 그대로면 변경 횟수·변경권을 쓰지 않는다 — 소개만 고치는 저장) */

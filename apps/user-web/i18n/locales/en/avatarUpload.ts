@@ -1,0 +1,66 @@
+/**
+ * Avatar upload (`/settings/avatar-upload`) copy — ticket · apply · pending · rejected · my uploaded avatar. Same keys and order as `ko/avatarUpload.ts`.
+ */
+export default {
+    seo: 'Use your own image as your avatar on {site}.',
+    intro: 'Use an image you made as your avatar. Apply with one avatar upload ticket — once the team reviews it, it becomes your profile avatar. Still images and animated GIFs both work.',
+    loading: 'Loading your avatar upload status',
+    loadFailed: 'Couldn’t load your avatar upload status',
+    emailTitle: 'Verify your email to apply.',
+    restrictedTitle: 'While your account is suspended you can’t apply, cancel, or delete.',
+
+    ticketTitle: '{count} avatar upload ticket(s)',
+    ticketRule: 'One ticket is reserved when you apply and used when approved. If it’s rejected or you cancel, you get it back.',
+    ticketReservedNote: 'One ticket is reserved for the application waiting for review.',
+    buyTicket: 'Buy ticket · {points}',
+    buyTicketPlain: 'Buy ticket',
+
+    currentTitle: 'My uploaded avatar',
+    currentInUse: 'This is your profile avatar now.',
+    currentKept: 'You’re using another avatar. Switching back doesn’t need a ticket.',
+    whereView: 'Post page',
+    whereList: 'Post list',
+    remove: 'Delete',
+    removeConfirmTitle: 'Delete your uploaded avatar?',
+    removeConfirmText: 'To use it again you’ll need to apply again, and the used ticket isn’t returned. If it was in use, you go back to the last still avatar you used.',
+    altCurrent: 'My uploaded avatar',
+    altRequested: 'Avatar waiting for review',
+    altPicked: 'Chosen image',
+
+    pendingText: 'Once the team approves it, it becomes your profile avatar.',
+    pendingTicket: 'One ticket is reserved for this application. You get it back if you cancel or it’s rejected.',
+    cancelConfirmTitle: 'Cancel this application?',
+    cancelConfirmText: 'The reserved ticket comes back to you.',
+    rejectedTitle: 'Your application was rejected',
+    rejectedTicket: 'The reserved ticket was returned. You can fix the image and apply again.',
+
+    formTitle: 'Apply for an avatar',
+    formTitleChange: 'Apply with a new image',
+    ruleFormat: 'PNG, JPG, WebP or GIF, square (1:1)',
+    ruleSize: 'Up to {kb}KB, at least {min}×{min}px',
+    ruleMotion: 'Animated GIFs move in posts, comments and profiles, and show their first frame in post lists. Animated WebP isn’t allowed.',
+    ruleReview: 'Other people’s faces, characters, logos or works, and offensive images are rejected.',
+    consent: 'I made this image or have the right to use it.',
+    motionNicknameNote: 'You’re using an animated nickname image. If this animated avatar is approved, the nickname image takes a break (only one animated decoration — the later choice stays).',
+    noTicket: 'You need an avatar upload ticket to apply.',
+    goBuy: 'Buy in the shop',
+    submit: 'Apply with 1 ticket',
+    submitReplace: 'Replace application with this image',
+    replaceConfirmTitle: 'Replace your pending application?',
+    replaceConfirmText: 'Your pending application is cancelled and this image is submitted instead. The reserved ticket carries over, so no extra ticket is used.',
+
+    toastSubmitted: 'Applied. We’ll let you know once it’s reviewed.',
+    toastCancelled: 'Application cancelled. Your ticket is back.',
+    toastRemoved: 'Uploaded avatar deleted',
+    failStale: 'This has already changed. Reloading the latest status.',
+
+    problem: {
+        FORMAT: 'Only PNG, JPG, WebP or GIF.',
+        EMPTY: 'The file is empty.',
+        TOO_LARGE: 'Up to {kb}KB only.',
+        UNREADABLE: 'Couldn’t read the image. Try another file.',
+        RATIO: 'Only square (1:1) images.',
+        TOO_SMALL: 'The image is too small. Use at least {min}×{min}px.',
+        ANIMATED_WEBP: 'Animated WebP isn’t allowed. Upload animations as GIF.',
+    },
+};

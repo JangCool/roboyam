@@ -25,7 +25,7 @@
             -->
             <section class="panel-card p-4" :aria-labelledby="`${uid}-avatar`" data-testid="profile-avatar">
                 <div class="flex flex-wrap items-center gap-3">
-                    <ProfileBorderAvatar :initial="UtilPointShop.initial(saved.nickname)" :src="avatarShown" size="lg" surface="card" :border-style="myDecoration?.profileBorder ?? null" />
+                    <ProfileBorderAvatar :initial="UtilPointShop.initial(saved.nickname)" :src="avatarShown" :still-src="avatarStill" size="lg" surface="card" :border-style="myDecoration?.profileBorder ?? null" />
                     <div class="min-w-0 flex-1">
                         <h2 :id="`${uid}-avatar`" class="m-0 text-sm font-semibold">{{ t('avatar.sectionTitle') }}</h2>
                         <p class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">{{ t('avatar.sectionHint') }}</p>
@@ -54,14 +54,23 @@
                         <AvatarCategoryChips v-model="pickerCategory" :categories="pickerCategories" :label="t('avatar.categoriesLabel')" testid="profile-avatar-categories" />
                         <AvatarGrid :cells="pickerCells" :label="t(UtilAvatar.categoryKey(pickerCategory))" :disabled="Boolean(savingAvatarId) || restricted" :busy-id="savingAvatarId" testid="profile-avatar-grid" @choose="chooseAvatar" />
                     </template>
-                    <NuxtLink
-                        v-if="!businessAccount"
-                        :to="UtilPointShop.listPath('PROFILE_AVATAR')"
-                        class="inline-flex w-fit items-center gap-1 rounded text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                        data-testid="profile-avatar-shop"
-                    >
-                        <i class="pi pi-shopping-bag text-xs" aria-hidden="true" />{{ t('avatar.moreInShop') }}
-                    </NuxtLink>
+                    <div v-if="!businessAccount" class="flex flex-wrap gap-x-4 gap-y-1">
+                        <NuxtLink
+                            :to="UtilPointShop.listPath('PROFILE_AVATAR')"
+                            class="inline-flex w-fit items-center gap-1 rounded text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                            data-testid="profile-avatar-shop"
+                        >
+                            <i class="pi pi-shopping-bag text-xs" aria-hidden="true" />{{ t('avatar.moreInShop') }}
+                        </NuxtLink>
+                        <!-- 직접 만든 그림 — 아바타 변경권으로 신청(심사 뒤 「내가 올린 아바타」 칸에 생긴다) -->
+                        <NuxtLink
+                            to="/settings/avatar-upload"
+                            class="inline-flex w-fit items-center gap-1 rounded text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                            data-testid="profile-avatar-upload"
+                        >
+                            <i class="pi pi-user-plus text-xs" aria-hidden="true" />{{ t('avatar.uploadOwn') }}
+                        </NuxtLink>
+                    </div>
                 </div>
             </section>
             <form :key="formKey" class="flex flex-col gap-4" novalidate data-testid="profile-form" @submit.prevent="save">
@@ -328,12 +337,15 @@ async function save() {
 /* ── 프로필 아바타(고르면 바로 저장 — 폼과 따로) ── */
 const uid = useId();
 const avatarApi = useAvatarApi();
+const avatarChoice = useAvatarChoice();
 const decorations = useMyDecoration();
 // 지금 아바타 둘레의 장착 테두리 — 서버에서 한 번 받는다
 void useMyDecorationSync().ensure();
 const businessAccount = computed(() => UtilBusiness.isBusinessAccount(auth.user.value?.role));
 /** 지금 아바타 — 서버 `avatarUrl`(후보)에 방금 고른 것을 겹친다 */
 const avatarShown = computed(() => decorations.avatarOf(auth.user.value?.id ?? null, saved.value?.avatarUrl) ?? UtilAvatar.FALLBACK_URL);
+/** 움직이는 아바타의 정지 그림(움직임 줄이기) */
+const avatarStill = computed(() => decorations.avatarStillOf(auth.user.value?.id ?? null, saved.value?.avatarStillUrl));
 /** 장착한 테두리 — 지금 아바타 둘레 */
 const myDecoration = computed(() => decorations.mine());
 
@@ -352,7 +364,8 @@ const pickerCells = computed<AvatarGridCell[]>(() =>
         .filter((a) => a.category === pickerCategory.value)
         .map((a) => {
             const caption = a.selected ? t('avatar.inUse') : a.refundable ? t('avatar.refundableCaption') : '';
-            return { id: a.id, name: a.name, url: a.url, active: a.selected, caption, dim: false, ariaLabel: caption ? `${a.name} · ${caption}` : a.name };
+            const name = a.animated ? t('avatar.motionAria', { name: a.name }) : a.name;
+            return { id: a.id, name: a.name, url: a.url, stillUrl: a.stillUrl ?? null, animated: a.animated, active: a.selected, caption, dim: false, ariaLabel: caption ? `${name} · ${caption}` : name };
         }),
 );
 
@@ -381,17 +394,18 @@ function togglePicker() {
     if (pickerOpen.value && catalogStatus.value !== 'ready') void loadCatalog();
 }
 
-/** 고르면 바로 저장한다 — 환불 기한 안의 유료 아바타는 고르면 환불할 수 없어 한 번 묻는다 */
+/** 고르면 바로 저장한다 — 환불 기한 안의 유료 아바타(고르면 환불 불가)·움직이는 닉네임 그림과 겹치는 움직이는 아바타(하나만)는 한 번 묻는다(`useAvatarChoice`) */
 async function chooseAvatar(id: string) {
     const avatar = catalog.value?.items.find((a) => a.id === id);
     if (!avatar || avatar.selected || savingAvatarId.value || restricted.value) return;
-    if (avatar.refundable && !(await confirm({ title: t('avatar.useConfirmTitle'), message: t('avatar.useConfirmText'), confirmLabel: t('avatar.useNow') }))) return;
+    const motionInUse = Boolean(catalog.value?.items.find((a) => a.selected)?.animated);
+    if (!(await avatarChoice.confirmChoose(avatar, motionInUse))) return;
     savingAvatarId.value = id;
     try {
         const profile = await avatarApi.select({ avatarId: id });
         // 닉네임·소개 폼은 건드리지 않는다(저장하지 않은 입력이 있을 수 있다) — 아바타 칸만 맞춘다
         if (saved.value) saved.value = { ...saved.value, avatarUrl: profile.avatarUrl };
-        decorations.applyAvatar(profile.avatarUrl);
+        decorations.applyAvatar(profile.avatarUrl, profile.avatarStillUrl ?? null);
         toast.success(t('avatar.saved'));
         await loadCatalog(true);
     } catch (e) {

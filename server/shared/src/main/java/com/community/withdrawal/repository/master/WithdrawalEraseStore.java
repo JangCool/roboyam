@@ -46,7 +46,7 @@ public class WithdrawalEraseStore {
     public void deleteOwnRows(long userId) {
         for (String table : List.of("profile_nickname_history", "member_grade_changes", "auth_tokens", "user_identities", "member_display_preferences", "member_view_settings",
                 "member_notification_preferences", "dm_user_states", "blocked_words", "user_roles", "board_staff", "member_notifications", "group_buy_watches",
-                "group_buy_supply_choices", "user_equipped", "nickname_image_requests", "group_event_responses", "dm_boxes", "member_addresses")) {
+                "group_buy_supply_choices", "user_equipped", "nickname_image_requests", "avatar_upload_requests", "group_event_responses", "dm_boxes", "member_addresses")) {
             jdbc.update("DELETE FROM " + table + " WHERE user_id = ?", userId);
         }
         // 차단·메모는 양방향(남이 나에 대해 적은 메모도 나에 관한 정보다)
@@ -82,9 +82,10 @@ public class WithdrawalEraseStore {
                 Timestamp.from(now), Timestamp.from(now), userId);
     }
 
-    /** 포인트샵 아이템 소멸 — 가진·쓴 아이템을 회수(REVOKED). 구매 기록은 남는다 */
+    /** 포인트샵 아이템 소멸 — 가진·쓴 아이템을 회수(REVOKED). 구매 기록은 남는다. 대기 신청에 예약된 올리기 변경권은 예약을 푼다(V157 — 예약은 가진 장에만) */
     public int revokeItems(long userId, Instant now) {
-        return jdbc.update("UPDATE user_items SET status = 'REVOKED', revoked_at = ? WHERE user_id = ? AND status IN ('OWNED', 'USED')", Timestamp.from(now), userId);
+        return jdbc.update("UPDATE user_items SET status = 'REVOKED', revoked_at = ?, reserved_at = NULL WHERE user_id = ? AND status IN ('OWNED', 'USED')", Timestamp.from(now),
+                userId);
     }
 
     /**

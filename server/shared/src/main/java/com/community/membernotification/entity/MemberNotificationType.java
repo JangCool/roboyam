@@ -31,6 +31,8 @@ public enum MemberNotificationType {
     DM("dm"),
     /** 내 닉네임 그림이 승인·반려·해제됐다(운영자 처리 — 사유와 함께) */
     NICKNAME_IMAGE_REVIEWED("system"),
+    /** 내 아바타 올리기가 승인·반려·해제됐다(운영자 처리 — 사유와 함께, V157 commerce-motion-avatar-contract) */
+    AVATAR_UPLOAD_REVIEWED("system"),
     /** 내가 확인할 의견 고정 요청이 왔다(글쓴이·게시판 매니저 — 게시판 정책 pinRequestReviewers, V78) — 일으킨 사람 = 요청한 회원, 글·댓글을 가리킨다 */
     OPINION_PIN_REQUESTED("comment"),
     /** 내 의견 고정 요청이 승인·거절됐다(거절 사유와 함께, V78) */

@@ -160,6 +160,13 @@ public final class AuditActions {
     public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
     /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
     public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
+    // ── 아바타 올리기 심사(docs/features/commerce-motion-avatar-contract.md) — 대상 AVATAR_UPLOAD + 신청 ID, detail 에 회원 ID·사유 ──
+    /** 아바타 올리기 승인 — 변경권 사용, 회원의 내가 올린 아바타가 되고 바로 프로필 아바타(앞 그림은 교체) — {@code animated}·{@code ticketUsed} */
+    public static final String AVATAR_UPLOAD_APPROVE = "AVATAR_UPLOAD_APPROVE";
+    /** 아바타 올리기 반려 — 변경권 반환, {@code reason}·{@code ticketReturned} */
+    public static final String AVATAR_UPLOAD_REJECT = "AVATAR_UPLOAD_REJECT";
+    /** 내가 올린 아바타 해제 — 변경권 반환 없음, 쓰는 중이었으면 마지막 정지 아바타로 — {@code reason}·{@code wasInUse} */
+    public static final String AVATAR_UPLOAD_REVOKE = "AVATAR_UPLOAD_REVOKE";
     // ── 인기글·하이라이트·토론(docs/features/popular-highlight-contract.md) ──
     /** 인기글 설정 저장 — 대상 POPULAR_SETTINGS + {@code popular}, 바뀐 칸만 before/after, 다시 계산 요청 여부 {@code recomputeRequested} */
     public static final String POPULAR_SETTINGS_UPDATE = "POPULAR_SETTINGS_UPDATE";

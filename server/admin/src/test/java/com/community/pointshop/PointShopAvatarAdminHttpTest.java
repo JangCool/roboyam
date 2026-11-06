@@ -38,20 +38,21 @@ class PointShopAvatarAdminHttpTest extends PointShopAdminHttpTestBase {
     }
 
     @Test
-    void 요약은_카탈로그_차례의_14_카테고리와_합계() throws Exception {
+    void 요약은_카탈로그_차례의_15_카테고리와_합계_움직이는_아바타_포함() throws Exception {
         Cookie reader = login(operatorWith(Permission.POINTSHOP_READ));
         long sportsItem = avatarItem(jdbc.queryForObject("SELECT avatar_id FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' AND avatar_id LIKE 'sports-%' "
                 + "ORDER BY sort_order LIMIT 1", String.class));
         jdbc.update("UPDATE point_shop_items SET active = false, price_point = 2500 WHERE id = ?", sportsItem);
 
         String body = mvc.perform(get(BASE + "/avatars/summary").cookie(reader)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.data.categories.length()").value(14))
+                .andExpect(jsonPath("$.data.categories.length()").value(15))
                 .andExpect(jsonPath("$.data.categories[0].category").value("basic")).andExpect(jsonPath("$.data.categories[0].free").value(true))
                 .andExpect(jsonPath("$.data.categories[0].forSale").value(0)).andExpect(jsonPath("$.data.categories[0].stopped").value(0))
                 .andExpect(jsonPath("$.data.categories[0].minPrice").value(nullValue()))
                 .andExpect(jsonPath("$.data.categories[1].category").value("hobby"))
-                .andExpect(jsonPath("$.data.totals.total").value(328)).andExpect(jsonPath("$.data.totals.freeCount").value(22))
-                .andExpect(jsonPath("$.data.totals.paidCount").value(306))
+                .andExpect(jsonPath("$.data.categories[2].category").value("motion"))
+                .andExpect(jsonPath("$.data.totals.total").value(336)).andExpect(jsonPath("$.data.totals.freeCount").value(22))
+                .andExpect(jsonPath("$.data.totals.paidCount").value(314))
                 .andReturn().getResponse().getContentAsString();
         List<Map<String, Object>> categories = JsonPath.read(body, "$.data.categories");
         Map<String, Object> sports = categories.stream().filter(c -> "sports".equals(c.get("category"))).findFirst().orElseThrow();
@@ -59,7 +60,7 @@ class PointShopAvatarAdminHttpTest extends PointShopAdminHttpTestBase {
                 .containsEntry("maxPrice", 2500);
         int forSale = JsonPath.read(body, "$.data.totals.forSale");
         int stopped = JsonPath.read(body, "$.data.totals.stopped");
-        assertThat(forSale + stopped).isEqualTo(306);
+        assertThat(forSale + stopped).isEqualTo(314);
         assertThat(stopped).isGreaterThanOrEqualTo(1);
     }
 
@@ -97,8 +98,8 @@ class PointShopAvatarAdminHttpTest extends PointShopAdminHttpTestBase {
         // 같은 값으로 다시 — 하나도 바뀌지 않는다
         price(session, "{\"scope\":\"CATEGORIES\",\"categories\":[\"sports\"],\"price\":1700}").andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.matched").value(12)).andExpect(jsonPath("$.data.changed").value(0));
-        // 전체 — 유료 306
-        price(session, "{\"scope\":\"ALL\",\"price\":1700}").andExpect(status().isOk()).andExpect(jsonPath("$.data.matched").value(306));
+        // 전체 — 유료 314(정지 306 + 움직이는 8)
+        price(session, "{\"scope\":\"ALL\",\"price\":1700}").andExpect(status().isOk()).andExpect(jsonPath("$.data.matched").value(314));
         assertInvariants(member);
     }
 

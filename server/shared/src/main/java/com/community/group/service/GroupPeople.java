@@ -74,14 +74,14 @@ public class GroupPeople {
             UserEntity user = userById.get(userId);
             ProfileEntity profile = profileById.get(userId);
             if (user == null || user.isGone() || profile == null) {
-                return new GroupPersonView(null, messages.get(new MessageRef("member.notification.actor.withdrawn")), true, null, null, null, false);
+                return new GroupPersonView(null, messages.get(new MessageRef("member.notification.actor.withdrawn")), true, null, null, null, null, false);
             }
             GradeEntity grade = profile.getGradeKey() == null ? null : gradeByKey.get(profile.getGradeKey());
             GroupPersonView.GroupGradeView badge = grade == null ? null
                     : new GroupPersonView.GroupGradeView(grade.getGradeKey(), grade.getLabel(), grade.getBadgeColor(), grade.getBadgeIcon());
             AuthorLook look = looks.get(userId);
             return new GroupPersonView(Long.toString(userId), profile.getNickname(), false, badge, look == null ? null : look.decoration(),
-                    look == null ? null : look.avatarUrl(), businesses.contains(userId));
+                    look == null ? null : look.avatarUrl(), look == null ? null : look.avatarStillUrl(), businesses.contains(userId));
         }
 
         /** 그 회원의 지금 닉네임(탈퇴면 「탈퇴한 회원」) */
@@ -131,8 +131,8 @@ public class GroupPeople {
         for (Long id : wanted) {
             OperatorEntity op = byId.get(id);
             out.put(id, op == null
-                    ? new GroupPersonView(Long.toString(id), messages.get(new MessageRef("group.person.operatorDeleted")), true, null, null, null, false)
-                    : new GroupPersonView(Long.toString(id), op.getOperatorName(), false, null, null, null, false));
+                    ? new GroupPersonView(Long.toString(id), messages.get(new MessageRef("group.person.operatorDeleted")), true, null, null, null, null, false)
+                    : new GroupPersonView(Long.toString(id), op.getOperatorName(), false, null, null, null, null, false));
         }
         return out;
     }

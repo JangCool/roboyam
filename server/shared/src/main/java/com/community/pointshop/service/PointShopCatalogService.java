@@ -109,12 +109,15 @@ public class PointShopCatalogService {
     /**
      * 회원 품목 목록 — {@code GET /api/point-shop/items?kind=}.
      *
-     * @param kind 이 종류만(null = 아바타를 뺀 전부)
+     * @param kind 이 종류만(null = 아바타를 뺀 전부). {@code NICKNAME_CHANGE_TICKET} 은 「변경권」 탭이라 세 변경권(닉네임·닉네임 이미지·아바타)을 함께 준다(commerce-motion-avatar-contract)
      */
     public PointShopItemListView memberList(long userId, PointShopItemKind kind) {
         Instant now = now();
         Map<Long, PointShopItemMineView> mine = mineOf(userId, now);
-        List<PointShopItemView> list = items.list(kind, kind == null ? PointShopItemKind.PROFILE_AVATAR : null).stream()
+        List<ItemRow> rows = kind == PointShopItemKind.NICKNAME_CHANGE_TICKET
+                ? items.list(null, PointShopItemKind.PROFILE_AVATAR).stream().filter(row -> row.kind().ticket()).toList()
+                : items.list(kind, kind == null ? PointShopItemKind.PROFILE_AVATAR : null);
+        List<PointShopItemView> list = rows.stream()
                 .map(row -> memberView(row, mine.getOrDefault(row.id(), PointShopItemMineView.NONE), now))
                 .filter(view -> view.saleState() != PointShopSaleState.ENDED).toList();
         return new PointShopItemListView(items.refundDays(), members.balance(userId), list);
@@ -137,8 +140,14 @@ public class PointShopCatalogService {
 
     private PointShopItemView memberView(ItemRow row, PointShopItemMineView mine, Instant now) {
         return new PointShopItemView(Long.toString(row.id()), row.code(), row.kind(), row.usageType(), row.name(), row.nameEn(), row.description(), row.descriptionEn(),
-                row.color(), row.borderStyle(), row.avatarId(), row.avatarId() == null ? null : AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg", row.price(),
+                row.color(), row.borderStyle(), row.avatarId(), row.avatarId() == null ? null : avatarUrl(row.avatarId()), row.price(),
                 row.durationDays(), row.stock(), row.saleStartAt(), row.saleEndAt(), saleState(row, now), mine);
+    }
+
+    /** 아바타 품목의 그림 주소 — 움직이는 아바타는 {@code /avatars/motion/…}(카탈로그에 없는 옛 ID 는 정지 주소 규칙 그대로) */
+    private String avatarUrl(String avatarId) {
+        String url = avatars.urlOfId(avatarId);
+        return url != null ? url : AvatarCatalog.URL_PREFIX + avatarId + ".svg";
     }
 
     static PointShopSaleState saleState(ItemRow row, Instant now) {
@@ -154,7 +163,7 @@ public class PointShopCatalogService {
             switch (h.usageType()) {
                 case PERMANENT -> owned.put(h.itemId(), new boolean[] {true});
                 case CONSUMABLE -> {
-                    if (h.status() == UserItemStatus.OWNED) {
+                    if (h.status() == UserItemStatus.OWNED && !h.reserved()) { // 대기 신청에 예약된 올리기 변경권은 쓸 수 있는 장이 아니다
                         counts.merge(h.itemId(), 1, Integer::sum);
                     }
                 }

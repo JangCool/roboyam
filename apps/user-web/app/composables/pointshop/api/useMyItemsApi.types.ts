@@ -41,9 +41,15 @@ export interface MyItemView {
     avatarId: string | null;
     /** 프로필 아바타만 — 그림 주소(`<img>` 로만) */
     avatarUrl: string | null;
+    /** 프로필 아바타만 — 움직이는 아바타의 정지 그림(정지 아바타·그 밖은 null) */
+    avatarStillUrl: string | null;
+    /** 프로필 아바타만 — 움직이는 아바타 */
+    animated: boolean;
     /** 프로필 아바타만 — 지금 내 프로필 아바타로 쓰는 중(`profiles.profile_image`). 아바타는 장착 칸을 쓰지 않아 `equipped` 는 늘 false — 계약 후보에 더한 칸 */
     inUse: boolean;
     status: UserItemStatus;
+    /** 올리기 변경권만 — 대기 신청에 예약된 장(쓸 수 없고 환불할 수 없다 — 셀프 환불 `409 blockedBy RESERVED`, 반려·취소되면 풀린다) */
+    reserved: boolean;
     /** 기간제의 기간이 끝났다(서버 계산) */
     expired: boolean;
     /** 지금 장착 중 */

@@ -94,7 +94,13 @@ const nameStyle = computed(() => {
 });
 /** 프로필 동그라미 — 회원 글이고 이름이 보일 때만(서버 `avatarUrl` 에 내가 방금 고른 것을 겹친다 — 글 보기 머리와 같은 규칙) */
 const showAvatar = computed(() => props.avatar && props.author.kind === 'MEMBER' && !!props.author.memberId && props.author.name !== '');
-const avatarSrc = computed(() => (props.preview ? (props.author.avatarUrl ?? null) : decorations.avatarOf(props.author.memberId, props.author.avatarUrl)));
+/** 움직이는 아바타는 글 줄에서 정지 그림(`avatarStillUrl`) — 닉네임 그림(GIF)과 같은 규칙(글 목록에서는 정지, 글 보기·댓글·프로필에서 움직인다) */
+const avatarSrc = computed(() => {
+    const { memberId, avatarUrl, avatarStillUrl } = props.author;
+    if (props.preview) return avatarStillUrl ?? avatarUrl ?? null;
+    const url = decorations.avatarOf(memberId, avatarUrl);
+    return (url ? decorations.avatarStillOf(memberId, avatarStillUrl) : null) ?? url;
+});
 const guest = computed(() => props.author.kind === 'GUEST');
 /** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */
 const operator = computed(() => props.author.kind === 'MEMBER' && props.author.operator === true);

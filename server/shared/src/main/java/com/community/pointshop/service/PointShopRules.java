@@ -15,6 +15,8 @@ public final class PointShopRules {
     public static final String BLOCKED_USED = "USED";
     /** 셀프 환불이 안 되는 이유 — 기한이 지났다 */
     public static final String BLOCKED_EXPIRED = "EXPIRED";
+    /** 셀프 환불이 안 되는 이유 — 올리기 변경권이 대기 신청에 예약됐다(commerce-motion-avatar-contract 규칙 0 — 반려·취소되면 풀린다) */
+    public static final String BLOCKED_RESERVED = "RESERVED";
 
     private PointShopRules() {
     }
@@ -30,8 +32,21 @@ public final class PointShopRules {
      * @return {@link #BLOCKED_USED} · {@link #BLOCKED_EXPIRED} · null
      */
     public static String selfRefundBlock(UserItemStatus status, Instant firstUsedAt, Instant purchasedAt, int refundDays, Instant now) {
+        return selfRefundBlock(status, firstUsedAt, null, purchasedAt, refundDays, now);
+    }
+
+    /**
+     * 셀프 환불이 안 되는 이유 — 예약 칸까지 본다(쓴 것 → 예약됨 → 기한 차례).
+     *
+     * @param reservedAt 올리기 변경권이 대기 신청에 예약된 시각(아니면 null)
+     * @return {@link #BLOCKED_USED} · {@link #BLOCKED_RESERVED} · {@link #BLOCKED_EXPIRED} · null
+     */
+    public static String selfRefundBlock(UserItemStatus status, Instant firstUsedAt, Instant reservedAt, Instant purchasedAt, int refundDays, Instant now) {
         if (status != UserItemStatus.OWNED || firstUsedAt != null) {
             return BLOCKED_USED;
+        }
+        if (reservedAt != null) {
+            return BLOCKED_RESERVED;
         }
         if (now.isAfter(refundUntil(purchasedAt, refundDays))) {
             return BLOCKED_EXPIRED;
@@ -41,7 +56,13 @@ public final class PointShopRules {
 
     /** 지금 셀프 환불할 수 있나(완료된 구매·가진 줄·안 씀·기한 안) */
     public static boolean selfRefundable(PointShopPurchaseStatus purchase, UserItemStatus status, Instant firstUsedAt, Instant purchasedAt, int refundDays, Instant now) {
+        return selfRefundable(purchase, status, firstUsedAt, null, purchasedAt, refundDays, now);
+    }
+
+    /** 지금 셀프 환불할 수 있나 — 예약된 변경권은 안 된다 */
+    public static boolean selfRefundable(PointShopPurchaseStatus purchase, UserItemStatus status, Instant firstUsedAt, Instant reservedAt, Instant purchasedAt,
+                                         int refundDays, Instant now) {
         return purchase == PointShopPurchaseStatus.COMPLETED && status != UserItemStatus.REVOKED
-                && selfRefundBlock(status, firstUsedAt, purchasedAt, refundDays, now) == null;
+                && selfRefundBlock(status, firstUsedAt, reservedAt, purchasedAt, refundDays, now) == null;
     }
 }

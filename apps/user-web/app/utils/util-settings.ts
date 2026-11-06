@@ -30,6 +30,7 @@ export default class UtilSettings {
     static readonly ENTRIES: readonly SettingsEntry[] = [
         { to: '/settings/profile', labelKey: 'settings.profile', hintKey: 'settings.profileHint', icon: 'pi pi-user-edit', testid: 'settings-profile' },
         { to: '/settings/nickname-image', labelKey: 'settings.nicknameImage', hintKey: 'settings.nicknameImageHint', icon: 'pi pi-image', testid: 'settings-nickname-image' },
+        { to: '/settings/avatar-upload', labelKey: 'settings.avatarUpload', hintKey: 'settings.avatarUploadHint', icon: 'pi pi-user-plus', testid: 'settings-avatar-upload' },
         { to: '/settings/view', labelKey: 'settings.view', hintKey: 'settings.viewHint', icon: 'pi pi-eye', testid: 'settings-view' },
         { to: '/settings/display', labelKey: 'settings.display', hintKey: 'settings.displayHint', icon: 'pi pi-clock', testid: 'settings-display' },
         { to: '/settings/blocks', labelKey: 'settings.blocks', hintKey: 'settings.blocksHint', icon: 'pi pi-ban', testid: 'settings-blocks' },

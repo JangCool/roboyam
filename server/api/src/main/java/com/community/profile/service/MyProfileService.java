@@ -4,6 +4,7 @@ import com.community.board.exception.BoardWriteBlockedException;
 import com.community.board.service.BoardAccessPolicy;
 import com.community.pointshop.dto.NicknameTicketInfo;
 import com.community.pointshop.service.NicknameTicketService;
+import com.community.pointshop.service.AvatarLooks;
 import com.community.pointshop.service.ProfileAvatarService;
 import com.community.profile.dto.request.AvatarSelectRequest;
 import com.community.profile.dto.request.MyProfileRequest;
@@ -168,7 +169,8 @@ public class MyProfileService {
     private MyProfileView view(UserEntity user, ProfileEntity profile) {
         int count = profile.getNicknameChangeCount();
         NicknameTicketInfo ticket = tickets.info(user.getId());
+        AvatarLooks.Look look = avatars.look(user.getId());
         return new MyProfileView(profile.getNickname(), profile.getBio() == null ? "" : profile.getBio(), user.getCreatedAt(),
-                new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), avatars.avatarUrl(user.getId()));
+                new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), look.url(), look.stillUrl());
     }
 }

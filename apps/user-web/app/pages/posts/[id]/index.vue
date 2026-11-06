@@ -122,7 +122,7 @@
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·홈 가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 홈 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
-                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
+                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" :still-src="authorAvatarStill" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
                             <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />
                             <span aria-hidden="true">·</span>
                             <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
@@ -462,6 +462,8 @@ const pageState = ref<PageState>('loading');
 const authorDecoration = computed(() => (post.value ? decorations.decorationOf(post.value.author.memberId, post.value.author.decoration) : null));
 /** 글쓴이 아바타 — 서버 `author.avatarUrl`(후보)에 내가 방금 고른 것을 겹친다(비회원은 null → 이니셜) */
 const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
+/** 움직이는 아바타의 정지 그림(움직임 줄이기) */
+const authorAvatarStill = computed(() => (post.value ? decorations.avatarStillOf(post.value.author.memberId, post.value.author.avatarStillUrl) : null));
 const pageError = ref('');
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);

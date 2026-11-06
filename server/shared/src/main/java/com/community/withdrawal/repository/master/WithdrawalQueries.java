@@ -164,9 +164,10 @@ public class WithdrawalQueries {
         return jdbc.query("SELECT provider, provider_user_id FROM user_identities WHERE user_id = ?", (rs, i) -> new SocialIdentity(rs.getString(1), rs.getString(2)), userId);
     }
 
-    /** 닉네임 이미지 저장소 키(지우기 전에 읽는다 — 디스크 파일 삭제용) */
+    /** 닉네임 이미지·아바타 올리기(V157) 저장소 키(지우기 전에 읽는다 — 디스크 파일 삭제용) */
     public List<String> nicknameImageKeys(long userId) {
-        return jdbc.query("SELECT image_key, still_key FROM nickname_image_requests WHERE user_id = ?", (rs, i) -> new String[] {rs.getString(1), rs.getString(2)}, userId)
+        return jdbc.query("SELECT image_key, still_key FROM nickname_image_requests WHERE user_id = ? UNION ALL SELECT image_key, still_key FROM avatar_upload_requests WHERE user_id = ?",
+                        (rs, i) -> new String[] {rs.getString(1), rs.getString(2)}, userId, userId)
                 .stream().flatMap(keys -> java.util.stream.Stream.of(keys[0], keys[1])).filter(key -> key != null && !key.isBlank()).toList();
     }
 
