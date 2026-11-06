@@ -58,6 +58,9 @@ export default {
     groupBuyPosition: '{total}개 중 {n}번째',
     periodTabs: '인기글 기간',
     periodEmpty: '이 기간의 인기글이 아직 없어요',
+    rankPages: '인기글 순위 쪽',
+    rankRange: '{from}~{to}',
+    rankRangeLabel: '{from}~{to}위 보기',
     // 한 열(모바일) 가로로 미는 줄의 이름
     scrollRowLabel: '{name} — 옆으로 밀어서 더 보기',
     // 관리자 미리보기 편집(관리자 테마 화면의 실제 화면 — 홈 격자 손잡이)

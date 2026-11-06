@@ -35,8 +35,8 @@
             <ul v-if="rest.length" class="m-0 flex list-none flex-col border-t border-surface p-0 @min-[40rem]:border-t-0" data-testid="home-highlight-list">
                 <li v-for="h in rest" :key="h.id" class="border-b border-surface last:border-b-0 @min-[40rem]:first:-mt-3 @min-[40rem]:last:-mb-3">
                     <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
-                        <NuxtLink :to="`/posts/${h.post.id}`" class="flex items-center gap-3.5 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
-                            <HomeThumb v-if="cfg.thumbs === 'ALL'" :src="imageOf(h)" ratio="4 / 3" class="w-[5.5rem] shrink-0" />
+                        <NuxtLink :to="`/posts/${h.post.id}`" class="flex items-center gap-3.5 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                            <HomeThumb v-if="cfg.thumbs === 'ALL'" :src="imageOf(h)" ratio="16 / 10" class="w-20 shrink-0" />
                             <div class="min-w-0 flex-1">
                                 <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug">{{ titleOf(h) }}</p>
                                 <HomeGadgetHighlightMeta :post="h.post" class="mt-1.5" />

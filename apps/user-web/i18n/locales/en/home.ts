@@ -57,6 +57,9 @@ export default {
     groupBuyPosition: '{n} of {total}',
     periodTabs: 'Popular period',
     periodEmpty: 'No popular posts for this period yet',
+    rankPages: 'Popular rank pages',
+    rankRange: '{from}–{to}',
+    rankRangeLabel: 'Show ranks {from}–{to}',
     // Horizontal swipe row (single-column / mobile home)
     scrollRowLabel: '{name} — swipe sideways for more',
     // Admin preview editing (live view in the admin theme screen — home grid handles)

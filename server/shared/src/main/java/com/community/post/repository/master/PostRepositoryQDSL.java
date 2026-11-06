@@ -22,6 +22,7 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
@@ -216,6 +217,14 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(query.select(Projections.constructor(PostNeighborData.class, POST.id, POST.title)).from(POST)
                 .where(POST.boardId.eq(boardId), POST.id.gt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer))
                 .orderBy(POST.id.asc()).fetchFirst());
+    }
+
+    /** 본문에 YouTube 표식이 있는 글의 본문(글 ID → 본문) — 이미지 없는 글의 목록 썸네일을 영상에서 고른다 */
+    public List<Tuple> youtubeContents(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return query.select(POST.id, POST.content).from(POST).where(POST.id.in(ids), POST.content.contains("data-youtube-id=\"")).fetch();
     }
 
     /** 같은 작성자 조건 — 회원은 회원 ID, 비회원은 작성 IP */

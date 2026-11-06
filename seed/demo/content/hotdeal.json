@@ -1,0 +1,496 @@
+{
+  "board": "hotdeal",
+  "posts": [
+    {
+      "key": "hotdeal-01",
+      "title": "[쿠팡] 생수 2L 24병 9,900원 (무료배송)",
+      "prefix": "기타",
+      "paragraphs": [
+        "정가 15,800원 → 9,900원, 로켓배송 무료입니다.",
+        "와우 회원 아니어도 무료배송 떠요. 병당 412원꼴이라 쟁여둘 만합니다."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/7845123901", "normalPrice": 15800, "dealPrice": 9900, "shippingFee": 0, "state": "ended" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "끝났네요 ㅠ 가격 돌아왔어요" },
+        { "text": "감사합니다 탑승했어요", "replies": ["저도 두 묶음 탔습니다"] },
+        { "text": "물은 역시 쟁여야 제맛" }
+      ]
+    },
+    {
+      "key": "hotdeal-02",
+      "title": "[11번가] 라이다 로봇청소기 + 자동먼지비움 299,000원",
+      "prefix": "로봇",
+      "paragraphs": [
+        "정가 529,000원인데 11월 십일절 사전 행사로 299,000원 떴습니다.",
+        "■ 결제 페이지에서 11페이 즉시할인 쿠폰 받기 → 적용하면 이 가격이에요.",
+        "작년 모델이긴 한데 흡입력·맵핑 다 쓸 만합니다. 원룸·투룸이면 충분해요."
+      ],
+      "deal": { "storeName": "11번가", "productUrl": "https://www.11st.co.kr/products/6123456789", "normalPrice": 529000, "dealPrice": 299000, "shippingFee": 0, "couponNote": "11페이 즉시할인 쿠폰 적용가", "state": "ended" },
+      "popularity": "hot",
+      "comments": [
+        { "text": "감사합니다 탑승 완료! 와이프한테 칭찬받았어요 {emo}", "replies": ["가정의 평화 지키셨네요 ㅋㅋ"] },
+        { "text": "쿠폰 적용 안 되는데요? 30만원대로 나와요", "replies": ["11페이로 결제 수단 바꿔야 쿠폰 떠요", "아 그거였군요 감사합니다"] },
+        { "text": "저 이 모델 쓰는데 문턱 2cm까지는 잘 넘어요" },
+        { "text": "물걸레 기능은 없는 모델이죠?", "replies": ["네 흡입 전용이에요"] },
+        { "text": "벌써 종료됐네요 ㅠㅠ 한발 늦음" },
+        { "text": "십일절 본행사 때 더 내려갈까요?" },
+        { "text": "로봇청소기는 맵핑 되는 거 사야 후회 안 하더라고요" },
+        { "text": "핫딜 게시판 덕분에 잘 샀습니다" },
+        { "text": "고양이가 타고 다니는 그 영상 생각남 ㅋㅋ" }
+      ]
+    },
+    {
+      "key": "hotdeal-03",
+      "title": "[G마켓] 즉석밥 210g 36개 25,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "개당 719원입니다. 스마일클럽 회원은 추가 할인 쿠폰 있어요.",
+        "자취생 필수템이라 공유합니다."
+      ],
+      "deal": { "storeName": "G마켓", "productUrl": "https://item.gmarket.co.kr/Item?goodscode=3456789012", "normalPrice": 38900, "dealPrice": 25900, "shippingFee": 0, "couponNote": "스마일클럽 중복 쿠폰 5%", "state": "soldout" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "품절이네요ㅠ" },
+        { "text": "올라오자마자 샀는데 다행이다", "replies": ["부럽습니다 ㅠㅠ"] }
+      ]
+    },
+    {
+      "key": "hotdeal-04",
+      "title": "[알리] PLA 필라멘트 1kg 4롤 39,800원",
+      "prefix": "메이킹",
+      "paragraphs": [
+        "롤당 9,950원꼴입니다. 국내 창고 발송이라 3~4일이면 와요.",
+        "흰색·검정·회색·빨강 중 골라 담기 가능합니다."
+      ],
+      "deal": { "storeName": "알리익스프레스", "productUrl": "https://ko.aliexpress.com/item/1005006789012345.html", "normalPrice": 68000, "dealPrice": 39800, "shippingFee": 0, "state": "ended" },
+      "popularity": "quiet",
+      "comments": [
+        { "text": "이 브랜드 출력 품질 괜찮나요?" }
+      ]
+    },
+    {
+      "key": "hotdeal-05",
+      "title": "[네이버쇼핑] AI 스피커 2세대 39,000원",
+      "prefix": "AI",
+      "paragraphs": [
+        "정가 89,000원 → 39,000원. 네이버페이 포인트 적립 별도입니다.",
+        "알람·날씨·음악용으로 쓰기 좋아요. 스마트홈 기기 연동도 됩니다."
+      ],
+      "deal": { "storeName": "네이버쇼핑", "productUrl": "https://smartstore.naver.com/aihome/products/9876543210", "normalPrice": 89000, "dealPrice": 39000, "shippingFee": 0, "couponNote": "네이버페이 결제 시 5% 적립", "state": "soldout" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "품절이네요ㅠ 30분 만에 나갔네", "replies": ["재입고 알림 걸어두세요"] },
+        { "text": "부모님 댁에 하나 놔드리려 했는데 아쉽다" },
+        { "text": "이거 생각보다 음질 괜찮아요" }
+      ]
+    },
+    {
+      "key": "hotdeal-06",
+      "title": "[SSG] 캡슐커피 100개입 29,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "개당 299원. 쓱배송 기준 무료배송입니다.",
+        "호환 캡슐이라 맛은 무난해요."
+      ],
+      "deal": { "storeName": "SSG", "productUrl": "https://www.ssg.com/item/itemView.ssg?itemId=1000567890123", "normalPrice": 45000, "dealPrice": 29900, "shippingFee": 0, "state": "ended" },
+      "popularity": "quiet",
+      "comments": []
+    },
+    {
+      "key": "hotdeal-07",
+      "title": "[오늘의집] 탄소매트 전기요 더블 49,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "오늘의딜 특가로 정가 99,000원 → 49,900원입니다.",
+        "전자파 인증 제품이고 타이머 기능 있어요. 이제 진짜 겨울 준비할 때네요."
+      ],
+      "deal": { "storeName": "오늘의집", "productUrl": "https://ohou.se/productions/1234567/selling", "normalPrice": 99000, "dealPrice": 49900, "shippingFee": 0, "couponNote": "첫 구매 쿠폰 추가 3,000원", "state": "soldout" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "품절이네요ㅠ 날씨 추워지니까 다들 빠르시네", "replies": ["저녁에 재고 풀린다는 말 있던데 확인해 보세요"] },
+        { "text": "첫 구매 쿠폰까지 하면 46,900원이었어요 탑승 성공" }
+      ]
+    },
+    {
+      "key": "hotdeal-08",
+      "title": "[쿠팡] 아두이노 호환 스타터 키트 (센서 30종) 24,900원",
+      "prefix": "메이킹",
+      "paragraphs": [
+        "우노 호환보드 + 브레드보드 + 센서 30종 + 점퍼선 구성입니다.",
+        "입문용으로는 이 가격이면 충분해요. 예제 코드 QR도 들어 있음."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8123456702", "normalPrice": 42000, "dealPrice": 24900, "shippingFee": 0, "state": "ended" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "조카 선물로 샀습니다 감사합니다 탑승", "replies": ["조카분 미래의 로봇공학자 ㅋㅋ"] },
+        { "text": "호환보드 드라이버 설치 따로 해야 하나요?", "replies": ["CH340 드라이버 깔아야 해요 검색하면 바로 나옵니다"] },
+        { "text": "종료됐네요 다음에 또 올라오길" }
+      ]
+    },
+    {
+      "key": "hotdeal-09",
+      "title": "[무신사] 경량 패딩 점퍼 39,900원 (블프 선행)",
+      "prefix": "기타",
+      "paragraphs": [
+        "블랙프라이데이 선행 할인으로 정가 89,000원 → 39,900원입니다.",
+        "■ 회원 등급 쿠폰 + 적립금 사용하면 3만원 중반까지 내려가요.",
+        "사이즈는 정사이즈~살짝 크게 나왔다는 후기가 많네요."
+      ],
+      "deal": { "storeName": "무신사", "productUrl": "https://www.musinsa.com/products/4567890", "normalPrice": 89000, "dealPrice": 39900, "shippingFee": 0, "couponNote": "등급 쿠폰 최대 10% 추가", "state": "active" },
+      "popularity": "hot",
+      "comments": [
+        { "text": "감사합니다 탑승! 블랙 L로 갔어요", "replies": ["저도 블랙 ㅋㅋ 회사에서 겹칠 듯"] },
+        { "text": "카드 할인 안 되는데요?", "replies": ["카드 할인은 없고 등급 쿠폰만 돼요", "아 그렇군요 감사합니다"] },
+        { "text": "175에 70이면 M L 중 뭐가 나을까요?", "replies": ["안에 니트 입으실 거면 L 추천요"] },
+        { "text": "작년에 이거 샀는데 가볍고 따뜻해요 강추" },
+        { "text": "베이지 색상 이쁘네요 {emo}" },
+        { "text": "적립금까지 쓰니까 34,000원대 됐어요" },
+        { "text": "핫딜 게시판 무섭다 지갑이 열림" },
+        { "text": "네이비는 벌써 품절이에요" }
+      ]
+    },
+    {
+      "key": "hotdeal-10",
+      "title": "[쿠팡] 실시간 AI 통역 무선 이어폰 79,000원",
+      "prefix": "AI",
+      "paragraphs": [
+        "앱 연동으로 40개 언어 실시간 통역 지원하는 이어폰입니다. 정가 149,000원.",
+        "해외 출장 잦은 분들 써볼 만할 것 같아요. 통역은 인터넷 연결 필요합니다."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8234567810", "normalPrice": 149000, "dealPrice": 79000, "shippingFee": 0, "couponNote": "카드 즉시할인 7%", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "통역 정확도는 어떤가요? 써보신 분?", "replies": ["일상 회화 수준은 괜찮았어요. 전문 용어는 좀 틀림"] },
+        { "text": "음악 듣는 용도로도 괜찮나요?" },
+        { "text": "일본 여행 전에 사볼까 고민되네요" }
+      ]
+    },
+    {
+      "key": "hotdeal-11",
+      "title": "[G마켓] 물걸레 회전 로봇청소기 189,000원",
+      "prefix": "로봇",
+      "paragraphs": [
+        "물걸레 회전 + 흡입 겸용 모델입니다. 정가 319,000원.",
+        "■ 상품 페이지에서 15% 중복 쿠폰 다운 → 장바구니 적용하면 이 가격.",
+        "스테이션은 없는 모델이라 물통은 직접 채워야 해요."
+      ],
+      "deal": { "storeName": "G마켓", "productUrl": "https://item.gmarket.co.kr/Item?goodscode=3567890123", "normalPrice": 319000, "dealPrice": 189000, "shippingFee": 0, "couponNote": "중복 쿠폰 15% 다운로드", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "쿠폰 다운받으니까 진짜 18만원대 나오네요 감사합니다" },
+        { "text": "스테이션 없는 건 좀 아쉽네요", "replies": ["그 대신 가격이 반값이니까요 ㅎㅎ"] }
+      ]
+    },
+    {
+      "key": "hotdeal-12",
+      "title": "[옥션] 부사 사과 5kg (16~18과) 24,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "산지 직송이고 정가 39,900원입니다.",
+        "제철이라 맛있을 때예요. 후기 보니 당도 괜찮다고 하네요."
+      ],
+      "deal": { "storeName": "옥션", "productUrl": "https://itempage3.auction.co.kr/DetailView.aspx?itemno=D812345678", "normalPrice": 39900, "dealPrice": 24900, "shippingFee": 0, "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "작년에 여기서 샀는데 맛있었어요 재구매합니다" },
+        { "text": "흠과 섞여 오나요?", "replies": ["정품 선별이라고 써 있어요"] },
+        { "text": "부모님 댁으로 바로 보냈습니다 감사합니다" }
+      ]
+    },
+    {
+      "key": "hotdeal-13",
+      "title": "[알리] 라즈베리파이 피코 2 W 5개 세트 32,000원",
+      "prefix": "메이킹",
+      "paragraphs": [
+        "개당 6,400원꼴입니다. 무선 되는 W 버전이에요.",
+        "센서 노드 여러 개 만들 분들한테 좋을 듯."
+      ],
+      "deal": { "storeName": "알리익스프레스", "productUrl": "https://ko.aliexpress.com/item/1005007123456789.html", "normalPrice": 52000, "dealPrice": 32000, "shippingFee": 0, "couponNote": "신규 가입 쿠폰 별도", "state": "active" },
+      "popularity": "quiet",
+      "comments": [
+        { "text": "정품 맞을까요? 알리라 살짝 걱정", "replies": ["공식 스토어 표시 있는 판매자라 괜찮아 보여요"] }
+      ]
+    },
+    {
+      "key": "hotdeal-14",
+      "title": "[다나와] NVMe SSD 2TB 129,000원 (역대가)",
+      "prefix": "기타",
+      "paragraphs": [
+        "PCIe 4.0 2TB 모델, 다나와 최저가 기준 역대가입니다. 정가 219,000원.",
+        "■ 결제 시 제휴 카드 선택하면 추가 5% 청구할인 있어요.",
+        "게임 설치용이나 로컬 LLM 모델 파일 보관용으로 딱입니다."
+      ],
+      "deal": { "storeName": "다나와", "productUrl": "https://prod.danawa.com/info/?pcode=45678901", "normalPrice": 219000, "dealPrice": 129000, "shippingFee": 0, "couponNote": "제휴 카드 청구할인 5%", "state": "active" },
+      "popularity": "hot",
+      "comments": [
+        { "text": "감사합니다 탑승했어요 모델 파일 때문에 용량 부족했는데 {emo}", "replies": ["저도요 LLM 몇 개 받으니까 1TB 금방 차더라고요"] },
+        { "text": "방열판 포함인가요?", "replies": ["방열판 없는 모델이에요. 메인보드 방열판 쓰시면 됩니다"] },
+        { "text": "이 가격이면 하나 더 사서 레이드 해야겠다" },
+        { "text": "카드 할인 안 되는데요?", "replies": ["제휴 카드가 따로 있어요 결제창에 표시된 카드만 됩니다"] },
+        { "text": "TLC 맞나요? QLC면 패스하려고요" },
+        { "text": "벌써 배송 출발했네요 빠르다" },
+        { "text": "SSD 가격 다시 오른다던데 지금 사는 게 맞을 듯" },
+        { "text": "노트북에도 들어가나요? 2280 규격이죠?", "replies": ["네 2280이에요"] },
+        { "text": "핫딜 감사합니다 덕분에 싸게 샀어요" },
+        { "text": "회사 PC용으로 하나 질렀습니다 ㅋㅋ" }
+      ]
+    },
+    {
+      "key": "hotdeal-15",
+      "title": "[11번가] AI 가속 NPU 탑재 14인치 노트북 899,000원",
+      "prefix": "AI",
+      "paragraphs": [
+        "NPU 내장 최신 CPU, 램 16GB, SSD 512GB 구성입니다. 정가 1,390,000원.",
+        "■ T멤버십 할인 + 카드 즉시할인 중복 적용 가격이에요.",
+        "윈도우 AI 기능 써보고 싶은 분들한테 괜찮을 듯합니다."
+      ],
+      "deal": { "storeName": "11번가", "productUrl": "https://www.11st.co.kr/products/6234567890", "normalPrice": 1390000, "dealPrice": 899000, "shippingFee": 0, "couponNote": "카드 즉시할인 10% + T멤버십", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "램 16GB 온보드라 업그레이드 안 되는 거 참고하세요", "replies": ["아 그건 아쉽네요 정보 감사합니다"] },
+        { "text": "학생 노트북으로 괜찮아 보이네요" },
+        { "text": "T멤버십 없으면 얼마인가요?" }
+      ]
+    },
+    {
+      "key": "hotdeal-16",
+      "title": "[쿠팡] 3겹 화장지 30롤 x 2팩 22,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "롤당 381원. 로켓배송 무료입니다.",
+        "생필품은 쌀 때 쟁이는 거죠."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/7956789012", "normalPrice": 32900, "dealPrice": 22900, "shippingFee": 0, "state": "active" },
+      "popularity": "quiet",
+      "comments": [
+        { "text": "감사합니다 탑승" }
+      ]
+    },
+    {
+      "key": "hotdeal-17",
+      "title": "[네이버쇼핑] 창문 청소 로봇 119,000원",
+      "prefix": "로봇",
+      "paragraphs": [
+        "흡착식 창문 청소 로봇입니다. 정가 239,000원.",
+        "■ 스토어 알림 받기 쿠폰 5,000원 받고 결제하세요.",
+        "고층 아파트 바깥 유리 닦기 힘든 분들 추천. 안전줄 꼭 거세요!"
+      ],
+      "deal": { "storeName": "네이버쇼핑", "productUrl": "https://smartstore.naver.com/cleanbot/products/8765432109", "normalPrice": 239000, "dealPrice": 119000, "shippingFee": 0, "couponNote": "알림 받기 쿠폰 5,000원", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "이거 실제로 잘 닦이나요? 신기하네", "replies": ["저 쓰는데 얼룩은 좀 남지만 먼지는 확실히 빠져요"] },
+        { "text": "안전줄 필수죠 떨어지면 큰일" },
+        { "text": "베란다 바깥 창 때문에 고민이었는데 감사합니다" }
+      ]
+    },
+    {
+      "key": "hotdeal-18",
+      "title": "[롯데ON] 6L 대용량 에어프라이어 59,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "정가 109,000원. 바스켓 스테인리스 재질입니다.",
+        "■ 엘포인트 회원 쿠폰 받으면 5천원 더 빠져요."
+      ],
+      "deal": { "storeName": "롯데ON", "productUrl": "https://www.lotteon.com/p/product/LO2345678901", "normalPrice": 109000, "dealPrice": 59900, "shippingFee": 3000, "couponNote": "엘포인트 회원 쿠폰 5,000원", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "배송비 3천원 있는 거 참고하세요" },
+        { "text": "스테인리스 바스켓이면 코팅 벗겨질 걱정 없겠네요", "replies": ["그게 제일 큰 장점이에요"] }
+      ]
+    },
+    {
+      "key": "hotdeal-19",
+      "title": "[쿠팡] PETG 필라멘트 1kg 4롤 54,900원",
+      "prefix": "메이킹",
+      "paragraphs": [
+        "롤당 13,725원입니다. 로봇 부품처럼 강도 필요한 출력에 PETG 좋아요.",
+        "색상은 블랙 고정 구성이에요."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8345678921", "normalPrice": 79600, "dealPrice": 54900, "shippingFee": 0, "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "PETG 습기 잘 먹으니까 건조기 같이 쓰세요", "replies": ["필라멘트 건조기 핫딜도 뜨면 좋겠네요 ㅋㅋ"] },
+        { "text": "로봇팔 브래킷 뽑으려고 탑승합니다" }
+      ]
+    },
+    {
+      "key": "hotdeal-20",
+      "title": "[G마켓] 제주 감귤 10kg (로열과) 19,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "산지 직송, 정가 32,900원입니다.",
+        "귤 시즌 시작이네요. 박스째 놓고 까먹기 좋습니다."
+      ],
+      "deal": { "storeName": "G마켓", "productUrl": "https://item.gmarket.co.kr/Item?goodscode=3678901234", "normalPrice": 32900, "dealPrice": 19900, "shippingFee": 0, "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "겨울엔 귤이죠 감사합니다 탑승", "replies": ["귤 까먹으면서 롤드컵 보는 게 국룰"] },
+        { "text": "10kg이면 혼자 다 못 먹을 것 같은데 ㅋㅋ" },
+        { "text": "작년에 이 판매자 거 맛있었어요" }
+      ]
+    },
+    {
+      "key": "hotdeal-21",
+      "title": "[쿠팡] 10인치 AI 스마트 디스플레이 89,000원",
+      "prefix": "AI",
+      "paragraphs": [
+        "음성 비서 + 영상통화 + 스마트홈 제어 되는 디스플레이입니다. 정가 169,000원.",
+        "주방에서 레시피 띄워놓기 좋아요."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8456789032", "normalPrice": 169000, "dealPrice": 89000, "shippingFee": 0, "state": "active" },
+      "popularity": "quiet",
+      "comments": []
+    },
+    {
+      "key": "hotdeal-22",
+      "title": "[SSG] 고양이 자동 화장실 239,000원",
+      "prefix": "로봇",
+      "paragraphs": [
+        "센서로 고양이 들어갔다 나온 거 감지해서 자동으로 모래 정리하는 제품입니다. 정가 399,000원.",
+        "■ SSG 카드 결제 시 7% 추가 청구할인.",
+        "다묘 가정이면 확실히 편하다는 후기가 많네요."
+      ],
+      "deal": { "storeName": "SSG", "productUrl": "https://www.ssg.com/item/itemView.ssg?itemId=1000678901234", "normalPrice": 399000, "dealPrice": 239000, "shippingFee": 0, "couponNote": "SSG 카드 7% 청구할인", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "우리 냥이가 무서워할까 봐 고민이에요", "replies": ["저희 애도 처음 일주일은 경계했는데 지금은 잘 써요", "적응 기간 동안 수동 모드로 두면 괜찮대요"] },
+        { "text": "앱으로 사용 횟수 나오는 거 건강 체크에 좋더라고요" },
+        { "text": "이 가격이면 탑승 각" }
+      ]
+    },
+    {
+      "key": "hotdeal-23",
+      "title": "[11번가] 노이즈캔슬링 무선 이어폰 69,000원 (정가 179,000원)",
+      "prefix": "기타",
+      "paragraphs": [
+        "작년 플래그십 모델이 61% 할인입니다.",
+        "■ 상품 쿠폰 + 11페이 결제 시 카드 즉시할인 10% 중복 가능.",
+        "출퇴근용으로 노캔 성능 충분합니다. 이 가격이면 막 쓰기 좋아요."
+      ],
+      "deal": { "storeName": "11번가", "productUrl": "https://www.11st.co.kr/products/6345678901", "normalPrice": 179000, "dealPrice": 69000, "shippingFee": 0, "couponNote": "카드 즉시할인 10%", "state": "active" },
+      "popularity": "hot",
+      "comments": [
+        { "text": "감사합니다 탑승! 지난번 거 잃어버려서 딱 필요했어요", "replies": ["저도 한쪽 잃어버려서 탑승 ㅋㅋ"] },
+        { "text": "카드 할인 안 되는데요?", "replies": ["11페이로 결제하셔야 카드 할인 붙어요", "아 결제 수단 바꾸니까 되네요 감사합니다"] },
+        { "text": "이 모델 통화 품질 어때요?" },
+        { "text": "노캔 이 가격에 이 정도면 혜자죠 {emo}" },
+        { "text": "화이트는 품절이고 블랙만 남았어요" },
+        { "text": "케이스 무선충전 되나요?", "replies": ["네 무선충전 돼요"] },
+        { "text": "핫딜 보자마자 결제함 손이 먼저 나감" },
+        { "text": "벌써 리뷰 이벤트도 하네요 리뷰 쓰면 포인트 줌" }
+      ]
+    },
+    {
+      "key": "hotdeal-24",
+      "title": "[다나와] 온도조절 납땜 인두 스테이션 45,000원",
+      "prefix": "메이킹",
+      "paragraphs": [
+        "디지털 온도조절, 인두팁 5종 포함입니다. 정가 72,000원.",
+        "기판 작업 입문용으로 무난해요."
+      ],
+      "deal": { "storeName": "다나와", "productUrl": "https://prod.danawa.com/info/?pcode=45789012", "normalPrice": 72000, "dealPrice": 45000, "shippingFee": 2500, "state": "active" },
+      "popularity": "quiet",
+      "comments": [
+        { "text": "인두기는 좋은 거 사야 스트레스 안 받죠 탑승합니다" }
+      ]
+    },
+    {
+      "key": "hotdeal-25",
+      "title": "[컬리] 한우 1++ 등심 300g 39,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "정가 64,000원. 컬리 멤버스 쿠폰 쓰면 더 저렴해요.",
+        "주말에 집에서 고기 구워 먹기 좋은 가격입니다."
+      ],
+      "deal": { "storeName": "마켓컬리", "productUrl": "https://www.kurly.com/goods/5123456", "normalPrice": 64000, "dealPrice": 39900, "shippingFee": 3000, "couponNote": "컬리 멤버스 쿠폰 추가 할인", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "배송비 붙는 거 참고하세요 4만원 이상이면 무료예요", "replies": ["다른 거 하나 같이 담으면 되겠네요"] },
+        { "text": "고기 핫딜은 못 참지" }
+      ]
+    },
+    {
+      "key": "hotdeal-26",
+      "title": "[네이버쇼핑] AI 얼굴 추적 스마트폰 짐벌 59,000원",
+      "prefix": "AI",
+      "paragraphs": [
+        "AI 얼굴·몸 추적으로 알아서 따라 돌아가는 짐벌 거치대입니다. 정가 99,000원.",
+        "■ 네이버페이 첫 결제 쿠폰 받으면 3천원 추가 할인.",
+        "혼자 운동 영상이나 브이로그 찍을 때 편해요."
+      ],
+      "deal": { "storeName": "네이버쇼핑", "productUrl": "https://smartstore.naver.com/gimbalstore/products/8654321098", "normalPrice": 99000, "dealPrice": 59000, "shippingFee": 0, "couponNote": "네이버페이 첫 결제 쿠폰 3,000원", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "앱 없이도 추적 되나요?", "replies": ["제스처 인식이라 앱 없이도 된다고 써 있어요"] },
+        { "text": "홈트 영상 찍을 때 좋겠네요" },
+        { "text": "영상·짤 게시판 업로드용으로 하나 삽니다 ㅋㅋ" }
+      ]
+    },
+    {
+      "key": "hotdeal-27",
+      "title": "[오늘의집] 저소음 PTC 온풍기 39,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "정가 69,000원. 넘어짐 자동 차단 기능 있어요.",
+        "책상 밑에 두고 쓰기 딱 좋은 크기입니다."
+      ],
+      "deal": { "storeName": "오늘의집", "productUrl": "https://ohou.se/productions/1345678/selling", "normalPrice": 69000, "dealPrice": 39900, "shippingFee": 0, "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "전기세 많이 나올까요?", "replies": ["약하게 틀면 생각보다 괜찮아요. 하루종일은 비추"] },
+        { "text": "사무실 발 시려운데 탑승합니다" }
+      ]
+    },
+    {
+      "key": "hotdeal-28",
+      "title": "[쿠팡] 초등 코딩 교육 로봇 (블록코딩) 49,900원",
+      "prefix": "로봇",
+      "paragraphs": [
+        "태블릿 블록코딩으로 움직이는 교육용 로봇입니다. 정가 119,000원.",
+        "■ 쿠팡 카드 결제 시 즉시할인 5% 더 됩니다.",
+        "크리스마스 선물 미리 준비하시는 분들 지금이 기회예요. 라인트레이싱 센서도 달려 있어요."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8567890143", "normalPrice": 119000, "dealPrice": 49900, "shippingFee": 0, "couponNote": "쿠팡 카드 즉시할인 5%", "state": "active" },
+      "popularity": "hot",
+      "comments": [
+        { "text": "조카 크리스마스 선물로 딱이네요 감사합니다 탑승", "replies": ["삼촌 최고 소리 들으시겠어요 ㅋㅋ"] },
+        { "text": "몇 살부터 가지고 놀 수 있나요?", "replies": ["상세페이지엔 7세 이상이라고 되어 있어요", "블록코딩이라 초1도 충분히 해요"] },
+        { "text": "학교 방과후에서 쓰는 거랑 비슷한 모델이네요" },
+        { "text": "아이패드 말고 갤럭시탭도 되나요?", "replies": ["안드로이드 앱도 있어요"] },
+        { "text": "로봇 게시판 사람들 다 여기 모였네 ㅋㅋ {emo}" },
+        { "text": "이 가격이면 두 개 사서 형제 싸움 방지" },
+        { "text": "배터리 충전식인가요? 건전지면 패스하려고요", "replies": ["USB-C 충전식이에요"] },
+        { "text": "후기 보니까 애들이 엄청 좋아한대요" },
+        { "text": "벌써 로켓 마감 임박 뜨네요" }
+      ]
+    },
+    {
+      "key": "hotdeal-29",
+      "title": "[쿠팡] 대용량 핫팩 150g 100개 29,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "개당 299원. 출퇴근, 캠핑, 야구 직관 때 쓰기 좋아요."
+      ],
+      "deal": { "storeName": "쿠팡", "productUrl": "https://www.coupang.com/vp/products/8678901254", "normalPrice": 45000, "dealPrice": 29900, "shippingFee": 0, "state": "active" },
+      "popularity": "quiet",
+      "comments": []
+    },
+    {
+      "key": "hotdeal-30",
+      "title": "[SSG] 진공 보온 텀블러 500ml 2개 19,900원",
+      "prefix": "기타",
+      "paragraphs": [
+        "2개 묶음, 정가 35,800원입니다. 보온 12시간.",
+        "■ 쓱페이 결제 시 2천원 추가 할인 쿠폰 있어요.",
+        "회사에 하나 집에 하나 두기 좋네요."
+      ],
+      "deal": { "storeName": "SSG", "productUrl": "https://www.ssg.com/item/itemView.ssg?itemId=1000789012345", "normalPrice": 35800, "dealPrice": 19900, "shippingFee": 3000, "couponNote": "쓱페이 2,000원 할인", "state": "active" },
+      "popularity": "normal",
+      "comments": [
+        { "text": "세척하기 편한 구조인가요?", "replies": ["입구 넓어서 솔 들어가요"] },
+        { "text": "감사합니다 탑승했어요" }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,9 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -50,6 +52,19 @@ public class FileRepositoryQDSL extends RoboyamRepositoryQDSL {
     /** 이 글이 쓰는 이미지의 ID(잠그지 않음) */
     public List<Long> idsByPost(long postId) {
         return query.select(FILE.id).from(FILE).where(FILE.postId.eq(postId), FILE.purpose.eq(FilePurpose.POST_IMAGE)).orderBy(FILE.id.asc()).fetch();
+    }
+
+    /** 글마다 쓰는 첫 이미지(id 가 가장 작은 것 = 먼저 올린 것)의 저장소 키 — 목록 썸네일. 이미지가 없는 글은 빠진다 */
+    public Map<Long, String> firstImageKeys(Collection<Long> postIds) {
+        Map<Long, String> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        query.select(FILE.postId, FILE.storageKey).from(FILE)
+                .where(FILE.postId.in(postIds), FILE.purpose.eq(FilePurpose.POST_IMAGE), FILE.status.eq(FileStatus.IN_USE))
+                .orderBy(FILE.id.asc()).fetch()
+                .forEach(t -> out.putIfAbsent(t.get(FILE.postId), t.get(FILE.storageKey)));
+        return out;
     }
 
     /** 이 글이 쓰는 이미지(쓰기 잠금) */
