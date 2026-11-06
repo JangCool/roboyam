@@ -250,6 +250,11 @@ public class IdentityVerificationService {
         }
     }
 
+    /** 지금(서비스 날짜) 성인인가 — 로그인 + 본인인증 + 만 19세 이상(19금 글 보기·쓰기, adult-content-contract). 비회원·미인증은 false */
+    public boolean isAdult(Long userId) {
+        return userId != null && store.findVerification(userId).map(v -> AdultAge.isAdult(v.birthDate(), ServiceTime.today(clock))).orElse(false);
+    }
+
     /** 만 19세가 되는 날(미인증이면 빈 값) */
     public Optional<LocalDate> adultFrom(long userId) {
         return store.findVerification(userId).map(v -> AdultAge.adultFrom(v.birthDate()));

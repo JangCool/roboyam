@@ -10,7 +10,6 @@
  */
 import account from './account';
 import ad from './ad';
-import adult from './adult';
 import address from './address';
 import addressBook from './addressBook';
 import auth from './auth';
@@ -75,7 +74,6 @@ import visitPrivacy from './visitPrivacy';
 export default {
     account,
     ad,
-    adult,
     address,
     addressBook,
     auth,

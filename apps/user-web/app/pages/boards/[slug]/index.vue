@@ -8,7 +8,7 @@
         community 대비: 직접홍보·지킴이·한 줄 광고·커서 이어 보기·목록 캐시를 뺐다. 검색을 별도 화면 대신 게시판 안 검색칸으로 했다(`q`).
           비회원 글쓰기(`writeMin = GUEST`)가 있어 비회원도 글쓰기 단추가 켜질 수 있다. 날짜는 관리자 기본 설정의 날짜 표시 방식(표준형·유동형)을 따른다.
         가정: 게시판 정보·판정(canWrite·reason)·유효 정책은 `GET /api/boards/{slug}` 한 번에 온다. 고정 공지는 첫 쪽·말머리/검색 없음일 때만 위에(최대 pinnedMax).
-          19금 글은 목록에 「19」 표시와 함께 보이고 글 보기에서 성인 확인으로 가린다(community 는 서버가 목록에서 뺀다 — 성인 인증이 아직 없다).
+          19금 글은 성인(로그인 + 본인인증 + 만 19세 이상)에게만 목록에 「19」 표시와 함께 나오고, 그 밖에는 서버가 목록에서 아예 뺀다(adult-content-contract).
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
         게시판 제재·스텝 처리(board-sanction-contract · board-staff-action-contract): 매니저·스텝 본인에게만 머리 아래
           「게시판 운영 중 · 오늘 남은 처리 글 n · 댓글 n · 제재 n · [처리 내역]」(`viewer.staffTools` — 할 수 있는 처리만, [처리 내역] → `/boards/{slug}/actions`, 그 위 탭으로 제재 내역),
@@ -85,7 +85,7 @@
 
                 <BoardInvestmentNotice v-if="view?.investmentNotice" class="mt-3" />
 
-                <!-- 19금 글을 허용하는 게시판 — 가정: 성인 인증이 아직 없어 안내만 하고, 글 보기에서 확인 단추로 가린다 -->
+                <!-- 19금 글을 허용하는 게시판 — 안내만(19금 글은 성인이 아니면 서버가 목록에서 뺀다, adult-content-contract) -->
                 <p v-if="view?.allowAdult" class="mt-3 flex items-center gap-1.5 text-xs text-muted-color" data-testid="board-adult">
                     <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
                 </p>

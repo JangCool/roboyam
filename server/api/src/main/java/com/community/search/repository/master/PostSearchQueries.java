@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
  *   <li>{@code title} 제목 · {@code body} 본문 평문({@code coalesce(content_text, content)} — HTML 글은 태그를 뗀 평문 칸, 게시판 안 검색 {@code PostRepositoryQDSL#page} 와 같은 식)
  *       · {@code author} 회원 닉네임(profiles) 또는 비회원 이름 · {@code all} 셋 중 어디든.</li>
  *   <li>나오는 글: 주어진 게시판의 보이는 글(지움·임시저장·예약 삭제 시각 지남 제외)이고 신고로 숨기지 않은 글({@code PostRepositoryQDSL#alive}·{@code #notHidden} 과 같은 뜻).
- *       소모임 글은 비멤버에게 보이는 것만({@code PostRepositoryQDSL#feedVisible} 과 같은 뜻 — 소모임 6단계).</li>
+ *       소모임 글은 비멤버에게 보이는 것만({@code PostRepositoryQDSL#feedVisible} 과 같은 뜻 — 소모임 6단계). 19금 글은 성인에게만({@code PostRepositoryQDSL#adultVisible}).</li>
  * </ul>
  *
  * <p><b>색인</b>: V68 의 pg_trgm GIN — {@code lower(title)} · {@code lower(coalesce(content_text, content))} · {@code lower(guest_name)}(비회원 글) ·
@@ -44,8 +44,9 @@ public class PostSearchQueries {
      *
      * @param tokens 단어(다듬은 것, 1~5개)
      * @param cursor 이 ID 의 다음부터(최신순이면 더 오래된 글, 오래된순이면 더 새 글) — null 이면 처음부터
+     * @param adultViewer 보는 사람이 성인인가 — 아니면 19금 글을 뺀다({@code PostRepositoryQDSL#adultVisible} 과 같은 뜻)
      */
-    public record Criteria(List<Long> boardIds, List<String> tokens, String scope, boolean oldest, Long cursor, Instant now) {
+    public record Criteria(List<Long> boardIds, List<String> tokens, String scope, boolean oldest, Long cursor, boolean adultViewer, Instant now) {
     }
 
     /**
@@ -129,6 +130,9 @@ public class PostSearchQueries {
                 AND (p.group_id IS NULL OR (p.is_public AND p.group_left_at IS NULL \
                 AND NOT EXISTS (SELECT 1 FROM groups g WHERE g.id = p.group_id AND g.status = 'INACTIVE')))""");
         // ↑ 소모임 글은 비멤버에게 보이는 것만(PostRepositoryQDSL#feedVisible 과 같은 판정 — 소모임 6단계)
+        if (!c.adultViewer()) {
+            sql.append(" AND NOT p.adult"); // 성인이 아니면 19금 글을 뺀다(PostRepositoryQDSL#adultVisible 과 같은 판정)
+        }
         if (c.cursor() != null) {
             sql.append(c.oldest() ? " AND p.id > :cursor" : " AND p.id < :cursor");
         }

@@ -57,7 +57,9 @@ export default {
     gateNeed_CHARGE: 'Verify your identity to charge points',
     gateNeed_GROUP_BUY: 'Verify your identity to join group buys',
     gateNeed_ROBOTIKON: 'Verify your identity to buy Robotikon packs',
+    gateNeed_ADULT_CONTENT: 'Verify your identity to see 18+ posts',
     gateNeedText: 'Payments are limited to one account per person, aged 19 or older. You only need to verify once.',
+    gateNeedText_ADULT_CONTENT: '18+ posts are shown only to members verified as 19 or older. You only need to verify once.',
     gateReverifyTitle: 'Please verify your identity once more',
     gateReverifyText: 'Your earlier verification has no name record, so we cannot match the payout account holder. Verify once more and you can continue saving.',
 

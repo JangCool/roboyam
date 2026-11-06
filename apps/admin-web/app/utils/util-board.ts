@@ -86,6 +86,7 @@ export interface BoardPrefixForm {
     id: string | null;
     name: string;
     staffOnly: boolean;
+    adultOnly: boolean;
     color: BoardColor | null;
     active: boolean;
     usageCount: number;
@@ -610,7 +611,7 @@ export default class UtilBoard {
             adsHidden: detail.adsHidden === true,
             policy: UtilBoard.policyFormOf(detail.policy),
             commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
-            prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
+            prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, adultOnly: p.adultOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
         };
     }
 
@@ -632,7 +633,7 @@ export default class UtilBoard {
             writeGuideText: UtilBoard.normalizeText(form.writeGuideText),
             policy,
             commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
-            prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, color: p.color, active: p.active })),
+            prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: p.color, active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
             adsHidden: form.adsHidden,
         };
@@ -687,7 +688,7 @@ export default class UtilBoard {
     }
 
     private static prefixKey(p: BoardPrefixForm): string {
-        return JSON.stringify([p.id, p.name.trim(), p.staffOnly, p.color, p.active]);
+        return JSON.stringify([p.id, p.name.trim(), p.staffOnly, p.adultOnly, p.color, p.active]);
     }
 
     /**
@@ -778,7 +779,7 @@ export default class UtilBoard {
 
     /** 새 고유 말머리 행 */
     static newPrefix(seq: number): BoardPrefixForm {
-        return { key: `new-${seq}`, id: null, name: '', staffOnly: false, color: null, active: true, usageCount: 0 };
+        return { key: `new-${seq}`, id: null, name: '', staffOnly: false, adultOnly: false, color: null, active: true, usageCount: 0 };
     }
 
     /** 배열에서 한 칸 옮긴 새 배열 */

@@ -9,7 +9,7 @@
         「노출」의 광고 숨김(adsHidden, 기본 끔)도 게시판 전용 칸이다(권한 `board.settings` — 서버가 정책 묶음으로 본다). 켜면 목록 한 줄·글 보기·핫딜 노출·날개 배너 광고가 없다. 19금 게시판은 광고 자리 설정의 19금 옵션(`adult.enabled`)을 따르고, 소모임 게시판은 이 칸과 상관없이 늘 없다(안내 문구).
         community 와 다른 점:
           · 최소 자격은 등급 목록(`useGradeAppearance`)의 등급 또는 운영진만(댓글은 끔도). 「지킴이」 → 매니저·스텝(정책 `docs/domain/operator-permissions.md`): 매니저 기본 3·최대 10, 스텝 최대 10, 한 회원 최대 5개 게시판. 핫딜·직접홍보·소모임 게시판은 지정 불가.
-          · 말머리를 따로 저장하지 않고 게시판 저장에 함께 보낸다(서버가 목록을 diff — 빠진 말머리는 지우고, 쓰는 글이 있으면 409 `PREFIX_IN_USE`). 화면은 글이 있는 말머리의 삭제 단추를 잠그고 끄기를 안내한다. 사용 중 고유 말머리는 최대 15개(`UtilBoard.PREFIX_ACTIVE_MAX`).
+          · 말머리를 따로 저장하지 않고 게시판 저장에 함께 보낸다(서버가 목록을 diff — 빠진 말머리는 지우고, 쓰는 글이 있으면 409 `PREFIX_IN_USE`). 화면은 글이 있는 말머리의 삭제 단추를 잠그고 끄기를 안내한다. 사용 중 고유 말머리는 최대 15개(`UtilBoard.PREFIX_ACTIVE_MAX`). 19금 허용을 켠 게시판에서만 말머리에 「성인 전용」 체크가 보인다(고른 글은 서버가 19금으로 저장, 켜고 저장하면 그 말머리의 기존 글도 19금 — adult-content-contract).
           · 안내문은 지금 평문 textarea(보이는 글자 500자 카운터, 서버도 평문 500자)다 — 원본은 정화된 HTML·이미지 5장이고 에디터는 후속이다.
           · **글 없는 게시판은 지울 수 있다**(roboyam 카탈로그의 `board.delete` — 가정). community 는 끄기만 있었다. 글이 있으면 삭제 대신 끄기를 안내하고, 삭제는 이름을 입력해 확인한다.
           · 공개 사이트에서 보기 링크는 두지 않는다(공개 주소가 아직 없다). 신고 누적 자동 숨김은 없다(읽기 전용 한 줄).
@@ -208,6 +208,11 @@
                                 <div class="flex h-8 items-center gap-1.5">
                                     <Checkbox v-model="p.staffOnly" binary :input-id="`${idBase}-so-${p.key}`" :disabled="!canManage || saving" />
                                     <label :for="`${idBase}-so-${p.key}`" class="text-[13px]">{{ t('board.staffOnly') }}</label>
+                                </div>
+                                <div v-if="form.allowAdult" v-tooltip.top="t('board.adultOnlyHelp')" class="flex h-8 items-center gap-1.5" data-testid="board-prefix-adult-only">
+                                    <Checkbox v-model="p.adultOnly" binary :input-id="`${idBase}-ao-${p.key}`" :disabled="!canManage || saving" :aria-describedby="`${idBase}-aoh-${p.key}`" />
+                                    <label :for="`${idBase}-ao-${p.key}`" class="text-[13px]">{{ t('board.adultOnly') }}</label>
+                                    <span :id="`${idBase}-aoh-${p.key}`" class="sr-only">{{ t('board.adultOnlyHelp') }}</span>
                                 </div>
                                 <div class="flex h-8 items-center gap-1.5">
                                     <span v-tooltip.top="!p.active && activeOwn >= UtilBoard.PREFIX_ACTIVE_MAX ? t('board.prefixActiveLimit', { max: UtilBoard.PREFIX_ACTIVE_MAX }) : undefined" class="inline-flex">
@@ -578,7 +583,8 @@ function prefixErrorOf(p: BoardPrefixForm, index: number): string {
     const problem = prefixProblems.value[p.key];
     if (problem) return UtilBoardMessages.problem(t, problem);
     const sentAt = sentPrefixes.findIndex((s) => s.key === p.key);
-    return serverFields.value[`prefixes[${sentAt >= 0 ? sentAt : index}].name`] ?? '';
+    const at = sentAt >= 0 ? sentAt : index;
+    return serverFields.value[`prefixes[${at}].name`] ?? serverFields.value[`prefixes[${at}].adultOnly`] ?? '';
 }
 
 // ── 정책 칸 ─

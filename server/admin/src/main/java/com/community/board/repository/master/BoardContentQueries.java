@@ -1,5 +1,6 @@
 package com.community.board.repository.master;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -49,6 +50,23 @@ public class BoardContentQueries {
                     out.put(rs.getLong(1), rs.getLong(2));
                 }, boardId);
         return out;
+    }
+
+    /**
+     * 성인 전용으로 새로 켠 말머리의 글을 19금으로 바꾼다(adult-content-contract — 말머리 「성인 전용」). 끈 말머리의 글은 되돌리지 않는다(글쓴이가 따로 19금으로 고른 글일 수 있다).
+     * {@code ix_posts_board_prefix} 를 탄다.
+     *
+     * @return 바꾼 글 수
+     */
+    public int markAdult(long boardId, Collection<Long> prefixIds) {
+        if (prefixIds.isEmpty()) {
+            return 0;
+        }
+        int changed = 0;
+        for (Long prefixId : prefixIds) {
+            changed += jdbc.update("UPDATE posts SET adult = true WHERE board_id = ? AND prefix_id = ? AND NOT adult", boardId, prefixId);
+        }
+        return changed;
     }
 
     /**

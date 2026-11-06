@@ -274,7 +274,7 @@
 - **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양·`storeId` 쿼리 필요 여부·다날/KCP 의 ci·di·인증 번호 길이 제한은 포트원 V2 문서 기준으로 만들고 실제 호출로 확인하지 못함 — 대역 HTTP 로만), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 만), 기능 제한 알림 메일 실제 발송(알림함 행·문구까지), 운영 키 교체의 재기동(시험은 `DataCipher` 를 키별로 새로 만들어 대신), 포트원 설정 동시 저장(마지막 저장이 이김 — 시험 안 함), 화면(타입 검사만 — 브라우저 확인은 개발자).
 
 ### 0-4 세션 정리 결정 (develop 346c3d1 합칠 때, 2026-10-26)
-1. **「성인 확인」 ≠ 본인인증의 만 19세**: develop 의 user-web `/settings/adult`(출생연도 자기 입력 — 19금 글 보기)와 관리자 회원 상세의 「성인 확인」은 커뮤니티 기능이고, **충전·공구 결제의 만 19세 판정은 본인인증 생년월일(`requireAdult`)만** 쓴다(자기 입력 출생연도는 결제 판정에 쓰지 않는다). 설정 묶음에는 두 항목이 따로 있다.
+1. **「성인 확인」 ≠ 본인인증의 만 19세**: develop 의 user-web `/settings/adult`(출생연도 자기 입력 — 19금 글 보기)와 관리자 회원 상세의 「성인 확인」은 커뮤니티 기능이고, **충전·공구 결제의 만 19세 판정은 본인인증 생년월일(`requireAdult`)만** 쓴다(자기 입력 출생연도는 결제 판정에 쓰지 않는다). 설정 묶음에는 두 항목이 따로 있다. **정정(2026-11-06, `adult-content-contract.md`)**: `/settings/adult` 를 없애고 19금 글 보기도 본인인증 만 19세 이상(`isAdult`)으로 바꿨다 — 판정은 이제 하나다.
 2. **기능 제한 ≠ 제재(정지·이의제기)**: develop 신고 관리(`report-admin-contract.md`)의 작성자 카드 「제재 — 준비 중」 자리는 그대로 두고 커머스 기능 제한을 싣지 않는다. 제재 기능을 만들 때 commerce.md 12-3 대로 같은 관리 화면에서 함께 다룬다. 회원 상세의 「제재 이력」 구획과 「기능 제한」 구획도 따로다.
 3. **기능 제한 알림의 잠금 이유는 `ACCOUNT`**: develop 은 운영자 처리 알림(글 삭제·닉네임 그림 검토 등)에 `ACTION` 을 쓰지만 기능 제한은 자동 부여도 있어 계정 알림(`ACCOUNT` — 포인트 회수·신고 숨김과 같은 무리)으로 둔다. 둘 다 회원이 끌 수 없다.
 4. **정본 확인**: 권한(`Permission` — `member.withdrawn.contact` 는 `MEMBER_PII` 다음, develop 이 바꾼 `nickname-image.*` featureReady true 그대로), 메뉴(`AdminScreenRegistry` — socialLogin → portone → loginSecurity), 감사 대상(`AuditLabels` — develop 목록 끝에 `PORTONE_SETTINGS`), 배치 카탈로그(develop `POPULAR_RANK` 다음에 0-4 두 줄), 회원 알림(`MemberNotificationType` develop 종류 뒤에 `FEATURE_RESTRICTED`, `Facts` 는 develop 의 13칸 + `restriction`)을 develop 원천에 맞췄다.

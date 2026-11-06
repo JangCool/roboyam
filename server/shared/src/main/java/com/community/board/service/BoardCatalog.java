@@ -121,7 +121,7 @@ public class BoardCatalog {
         Map<Long, List<BoardPrefixInfo>> prefixMap = new HashMap<>();
         for (BoardPrefixEntity p : prefixes.findAll()) {
             prefixMap.computeIfAbsent(p.getBoardId(), k -> new ArrayList<>())
-                    .add(new BoardPrefixInfo(p.getId(), p.getName(), p.isStaffOnly(), p.getCommonKey(), p.getColor(), p.isActive(), p.getSortOrder()));
+                    .add(new BoardPrefixInfo(p.getId(), p.getName(), p.isStaffOnly(), p.isAdultOnly(), p.getCommonKey(), p.getColor(), p.isActive(), p.getSortOrder()));
         }
         prefixMap.values().forEach(list -> list.sort(Comparator.comparingInt(BoardPrefixInfo::sortOrder).thenComparingLong(BoardPrefixInfo::id)));
 

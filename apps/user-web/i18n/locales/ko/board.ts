@@ -47,7 +47,7 @@ export default {
     inactiveTitle: '지금은 운영하지 않는 게시판이에요',
     loadFailed: '게시판을 불러오지 못했어요',
     loadingName: '게시판 이름을 불러오는 중',
-    adultNotice: '19금 글이 올라올 수 있는 게시판이에요. 19금 글은 성인 확인 뒤에 볼 수 있어요.',
+    adultNotice: '19금 글이 올라올 수 있는 게시판이에요. 19금 글은 본인인증으로 만 19세 이상이 확인된 회원에게만 보여요.',
 
     // 말머리·정렬·보기·검색
     prefixNav: '말머리',

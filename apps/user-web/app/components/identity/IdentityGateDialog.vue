@@ -20,7 +20,7 @@
     >
         <div class="flex flex-col gap-3 text-sm leading-relaxed">
             <template v-if="state.mode === 'NEED'">
-                <p class="m-0">{{ state.reverify ? t('identity.gateReverifyText') : t('identity.gateNeedText') }}</p>
+                <p class="m-0">{{ state.reverify ? t('identity.gateReverifyText') : state.purpose === 'ADULT_CONTENT' ? t('identity.gateNeedText_ADULT_CONTENT') : t('identity.gateNeedText') }}</p>
                 <p class="m-0 text-xs text-muted-color">{{ t('identity.storedShort') }}</p>
                 <Message v-if="failureCopy" severity="error" size="small" variant="simple" :closable="false" data-testid="identity-gate-failure">
                     <b>{{ failureCopy.title }}</b> {{ failureCopy.text }}

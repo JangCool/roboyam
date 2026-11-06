@@ -78,11 +78,13 @@ public class PostQueryService {
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
     private final BoardStaffActionService staffActions;
+    private final AdultContentGate adultGate;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
-                            BoardStaffActionService staffActions) {
+                            BoardStaffActionService staffActions, AdultContentGate adultGate) {
+        this.adultGate = adultGate;
         this.staffActions = staffActions;
         this.dealReader = dealReader;
         this.dealQueries = dealQueries;
@@ -155,7 +157,8 @@ public class PostQueryService {
         String storeName = store == null || store.isBlank() ? null : store.strip();
         int autoExpireDays = deal ? dealSettings.current().autoExpireDays() : 0;
 
-        List<PostRowData> pinned = plain && current == 1 ? postQueries.pinned(b.id(), b.pinnedMax(), now) : List.of();
+        boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
+        List<PostRowData> pinned = plain && current == 1 ? postQueries.pinned(b.id(), b.pinnedMax(), adultViewer, now) : List.of();
         PostRepositoryQDSL.Page result;
         if (impossible) {
             result = new PostRepositoryQDSL.Page(List.of(), 0);
@@ -163,7 +166,7 @@ public class PostQueryService {
             result = postQueries.dealPage(b.id(), prefixId, search, dealSort(sort), hide, storeName, plain, autoExpireDays, (long) (current - 1) * listSize, listSize,
                     now);
         } else {
-            result = postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
+            result = postQueries.page(b.id(), prefixId, search, oldest, plain, adultViewer, (long) (current - 1) * listSize, listSize, now);
         }
 
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
@@ -261,8 +264,9 @@ public class PostQueryService {
     private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
                                 ViewerBlocks.Lens lens, PostGroupView group, List<DealWarningView> warnings) {
         AuthorMembers members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
-        Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), now);
-        Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), now);
+        boolean adultViewer = !post.isGroupPost() && adultGate.adult(userId); // 성인이 아니면 이전·다음 글에서 19금 글을 건너뛴다
+        Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), adultViewer, now);
+        Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), adultViewer, now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);

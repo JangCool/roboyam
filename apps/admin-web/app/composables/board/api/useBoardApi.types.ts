@@ -253,6 +253,8 @@ export interface BoardPrefix {
     common: BoardCommonPrefix | null;
     /** 운영진 전용 — 운영진·매니저·스텝만 고른다 */
     staffOnly: boolean;
+    /** 성인 전용 — 고른 글은 19금으로 저장된다(19금 허용 게시판에서만, 고유 말머리만) */
+    adultOnly: boolean;
     /** 표시색 — null = 자동 */
     color: BoardColor | null;
     active: boolean;
@@ -307,6 +309,8 @@ export interface BoardPrefixSaveItem {
     id: string | null;
     name: string;
     staffOnly: boolean;
+    /** 성인 전용 — 새로 켜면 그 말머리의 기존 글도 19금이 된다 */
+    adultOnly: boolean;
     color: BoardColor | null;
     active: boolean;
 }

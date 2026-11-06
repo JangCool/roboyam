@@ -46,6 +46,7 @@ import com.community.media.service.ImageStorage;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
+import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
 import com.community.site.service.PublicSiteService;
 import com.community.site.service.SiteThemes;
@@ -114,12 +115,14 @@ public class HomeGadgetService {
     private final BoardLayoutRepository boardLayouts;
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
+    private final AdultContentGate adultGate;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
                              ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
-                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings) {
+                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate) {
+        this.adultGate = adultGate;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
         this.boardLayouts = boardLayouts;
@@ -158,7 +161,7 @@ public class HomeGadgetService {
             layout = row.toLayout();
             specs = gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
         }
-        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, null, null);
+        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null);
         return new HomeGadgetsResponse(theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
     }
 
@@ -190,7 +193,7 @@ public class HomeGadgetService {
         for (String slug : folderSlugs) {
             snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
         }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, activeFolder.isEmpty() ? null : activeFolder, null);
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), activeFolder.isEmpty() ? null : activeFolder, null);
         String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
         GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(), page.isWriteButton(),
                 writeBoard);
@@ -223,7 +226,7 @@ public class HomeGadgetService {
             layout = row.toLayout();
             specs = gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
         }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, null, board.slug());
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), null, board.slug());
         return new BoardLayoutResponse(theme, screens, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
     }
 
@@ -336,7 +339,7 @@ public class HomeGadgetService {
 
     /** 최신글 — 최신글 전체와 같은 게시판 범위(켜짐 · 최신글 가젯 노출 금지 아님), 또는 정한 게시판 */
     private List<PostFeedRowView> latest(List<Long> boardIds, int count, Ctx ctx) {
-        List<PostRowData> found = feeds.latest(boardIds, null, count, ctx.now());
+        List<PostRowData> found = feeds.latest(boardIds, null, count, ctx.adult(), ctx.now());
         return rows.of(found, ctx.s(), ctx.now(), ctx.viewerId());
     }
 
@@ -350,7 +353,7 @@ public class HomeGadgetService {
             return new HighlightDataView(List.of());
         }
         // 보이는 글 중 켜진 게시판의 것만(하이라이트를 고른 뒤 게시판을 끈 경우)
-        List<PostRowData> visible = feeds.visibleRows(showing.stream().map(HighlightEntity::getPostId).toList(), ctx.now()).stream()
+        List<PostRowData> visible = feeds.visibleRows(showing.stream().map(HighlightEntity::getPostId).toList(), ctx.adult(), ctx.now()).stream()
                 .filter(r -> r.boardId() != null && ctx.s().board(r.boardId()).map(EffectiveBoard::active).orElse(false)).toList();
         Map<Long, PostFeedRowView> posts = rows.of(visible, ctx.s(), ctx.now(), ctx.viewerId()).stream()
                 .collect(Collectors.toMap(r -> Long.parseLong(r.id()), Function.identity()));
@@ -376,7 +379,8 @@ public class HomeGadgetService {
 
     private List<GalleryItemView> gallery(JsonNode config, Ctx ctx) {
         int count = HomeLayoutJson.number(config, "count", 6, 1, 24);
-        List<PostRowData> withImage = feeds.latest(boardIds(boardSlugs(config, ctx), ctx), null, Math.min(count * 8, 200), ctx.now()).stream()
+        // 19금 글은 누구에게나 빼므로 질의에서 거른다(성인 아님 = false)
+        List<PostRowData> withImage = feeds.latest(boardIds(boardSlugs(config, ctx), ctx), null, Math.min(count * 8, 200), false, ctx.now()).stream()
                 .filter(r -> Boolean.TRUE.equals(r.hasImage()) && !Boolean.TRUE.equals(r.adult())).toList();
         return rows.of(withImage, ctx.s(), ctx.now(), ctx.viewerId()).stream()
                 .filter(r -> r.thumbnailUrl() != null)
@@ -418,7 +422,7 @@ public class HomeGadgetService {
      * 「더 보기」 = 고른 첫 핫딜 게시판, 고르지 않았으면 켜진 핫딜 게시판의 첫째(게시판 차례), 없으면 null.
      */
     public HotDealsDataView hotDeals(JsonNode config, Long viewerId) {
-        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, null, null));
+        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null));
     }
 
     HotDealsDataView hotDeals(JsonNode config, Ctx ctx) {
@@ -434,7 +438,7 @@ public class HomeGadgetService {
         DealQueries.GadgetSort sort = DealQueries.GadgetSort.valueOf(HomeGadgetKinds.hotDealsSort(config));
         List<Long> ids = dealQueries.gadgetDealIds(boards.stream().map(EffectiveBoard::id).toList(), sort, dealSettings.current().autoExpireDays(), ctx.now(),
                 HomeGadgetKinds.hotDealsCount(config));
-        Map<Long, PostRowData> found = feeds.visibleRows(ids, ctx.now()).stream().collect(Collectors.toMap(PostRowData::id, Function.identity()));
+        Map<Long, PostRowData> found = feeds.visibleRows(ids, ctx.adult(), ctx.now()).stream().collect(Collectors.toMap(PostRowData::id, Function.identity()));
         List<PostRowData> ordered = ids.stream().map(found::get).filter(Objects::nonNull).toList();
         return new HotDealsDataView(rows.of(ordered, ctx.s(), ctx.now(), ctx.viewerId()), more);
     }
@@ -475,8 +479,9 @@ public class HomeGadgetService {
      * 한 요청 동안 같이 쓰는 값
      *
      * @param folder 가젯 페이지 기준 폴더의 켜진 게시판 slug — 홈이거나 없으면 null(대상 {@code FOLDER} 는 전체)
+     * @param adult  보는 사람이 성인인가({@link AdultContentGate#adult}) — 아니면 글 목록 가젯에서 19금 글을 뺀다
      * @param board  게시판 레이아웃이 그리는 게시판 slug(켜진 게시판) — 게시판 레이아웃이 아니면 null(대상 {@code BOARD} 는 전체)
      */
-    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, Set<String> folder, String board) {
+    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, boolean adult, Set<String> folder, String board) {
     }
 }

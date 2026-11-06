@@ -21,6 +21,7 @@ import com.community.post.dto.response.PostFeedPageView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostPrefixRefView;
+import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
 import com.community.profile.dto.response.AuthorCommentPageView;
@@ -81,10 +82,13 @@ public class UserProfileService {
     private final GroupQueryService groups;
     private final BusinessEligibility businesses;
     private final OperatorMemberAccountService operatorAccounts;
+    private final AdultContentGate adultGate;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
-                              GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts) {
+                              GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
+                              AdultContentGate adultGate) {
+        this.adultGate = adultGate;
         this.operatorAccounts = operatorAccounts;
         this.feedRows = feedRows;
         this.groups = groups;
@@ -103,7 +107,7 @@ public class UserProfileService {
     public PublicProfileView profile(String idText, Long viewerId) {
         Member m = requireMember(idText);
         BoardCatalogSnapshot s = catalog.snapshot();
-        UserActivityQueries.Stats stats = activity.stats(m.id(), activeBoardIds(s), Instant.now());
+        UserActivityQueries.Stats stats = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), Instant.now());
         String gradeKey = m.profile().getGradeKey();
         String label = s.gradeLabel(gradeKey);
         String bio = m.profile().getBio();
@@ -132,7 +136,7 @@ public class UserProfileService {
         Member m = requireMember(idText);
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
-        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, now);
+        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), now);
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
         AuthorMembers members = authors.members(page.stream().map(PostRowData::authorId).toList());
@@ -151,7 +155,7 @@ public class UserProfileService {
         Long before = cursorOf(cursor);
         Member m = requireMember(idText);
         BoardCatalogSnapshot s = catalog.snapshot();
-        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, Instant.now());
+        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), Instant.now());
         boolean more = rows.size() > size;
         List<UserActivityQueries.CommentRow> page = more ? rows.subList(0, size) : rows;
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
