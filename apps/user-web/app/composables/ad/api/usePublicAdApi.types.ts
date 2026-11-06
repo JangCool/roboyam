@@ -58,7 +58,7 @@ export interface PostInlinePlacement {
     position: PostInlinePosition;
 }
 
-export type WingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST';
+export type WingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST' | 'FEED' | 'GROUP_BUY' | 'GROUPS';
 
 export interface WingPlacement {
     left: boolean;
@@ -70,6 +70,10 @@ export interface BoardListPlacement {
     enabled: boolean;
     /** 일반 글(공지·고정 제외) 몇 번째 뒤 — 1~20 */
     after: number;
+    /** 한 쪽 광고 수 1~2(V155 — 없으면 1) */
+    count?: number;
+    /** 첫 광고와 둘째 광고 사이 일반 글 수 3~20(V155 — 없으면 10) */
+    gap?: number;
 }
 
 /** 19금 게시판·19금 글에도 광고(목록 한 줄·글 보기·핫딜 노출·날개)를 낼지 — 기본 false. 「광고 숨김」 게시판·소모임은 늘 빠진다 */

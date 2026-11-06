@@ -71,7 +71,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.items[0].operatorName").value(operatorName(me)))
                 .andExpect(jsonPath("$.data.items[0].operatorDeleted").value(false))
                 .andExpect(jsonPath("$.data.items[0].changedAt").isString())
-                .andExpect(jsonPath("$.data.items[0].changes.length()").value(10))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(12))
                 .andExpect(jsonPath("$.data.items[0].changes[0].field").value("postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].labelKey").value("settingHistory.field.postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].before").doesNotExist())
@@ -102,7 +102,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
         Cookie session = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
         save(session, DEFAULTS);
         mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(10))
+                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(12))
                 .andExpect(jsonPath("$.data.items[0].changes[5].after").value("HOME,PAGE,BOARD,POST"));
         // 그다음 같은 값 — 줄 없음
         save(session, DEFAULTS);

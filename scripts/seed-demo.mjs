@@ -9,7 +9,7 @@
  *
  * 순서: 회원 40명(SQL) → 데모 운영자(SQL, 이 실행 동안만 켬) → 게시판 기본 글 에디터 고급·소모임 공개 범위 켬(관리자 API) → 로보티콘 무료 팩 받기
  *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → 사업자 핫딜(신청→승인→계약서→입금→확인)
- *      → 공동구매 15개(관리자 API) → 하이라이트 5개. 끝나면 데모 운영자를 끈다.
+ *      → 공동구매(관리자 API) → 하이라이트 5개 → 광고(운영자 등록→승인→계약서·입금→확정, 홈 광고 가젯 셋). 끝나면 데모 운영자를 끈다.
  * 글·댓글은 공개 API 로 쓰고(서버 규칙·카운터·포인트·알림이 그대로), 바로 뒤에 SQL 로 작성 시각을 지난 21일 안의 계획 시각으로 옮긴다
  * (작성 간격·하루 한도 판정이 created_at 을 보므로 이렇게 해야 막히지 않고, 목록 차례(id)와 시각 차례도 같게 계획 차례대로 쓴다). 조회수는 SQL 로 넣는다.
  *
@@ -28,7 +28,7 @@ const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'roboyam-local-postgres';
 const DB_NAME = process.env.SEED_DB_NAME ?? 'roboyam';
 const DB_USER = process.env.SEED_DB_USER ?? 'roboyam';
 const FORCE = process.argv.includes('--force');
-/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,biz,groupbuys,highlights: 그 단계만(회원·운영자·설정은 늘 한다) */
+/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,biz,groupbuys,highlights,ads: 그 단계만(회원·운영자·설정은 늘 한다) */
 const LIMIT = Number(process.argv.find((a) => a.startsWith('--limit='))?.slice(8)) || Infinity;
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',') ?? null;
 const step = (name) => !ONLY || ONLY.includes(name);
@@ -243,6 +243,7 @@ async function main() {
         if (step('biz')) await seedBusinessDeals(admin, boards);
         if (step('groupbuys')) await seedGroupBuys(admin);
         if (step('highlights')) await seedHighlights(admin);
+        if (step('ads')) await seedAds(admin);
     } finally {
         await psql.close();
         sql(`UPDATE operators SET enabled = false, updated_at = now() WHERE email = ${q(membersDoc.operator.email)}`);
@@ -869,6 +870,172 @@ async function seedHighlights(admin) {
         ok(r) ? made++ : failed(`하이라이트 ${postId}`, r);
     }
     console.log(`  ${made}개 만듦`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 10) 광고 — 운영자 등록(심사 요청) → 승인(수동 결제 — 이때 소재가 승인된다) → 계약서 → 입금 → 확정 → 시작 시각을 지금으로(공개 사본 20초 뒤 나온다).
+//     게시판 목록 한 줄·글 보기 사이는 자리 설정 기본값(한 줄 광고)이 그대로 쓰고, 홈에는 광고 가젯 셋(네모·한 줄·띠)을 놓는다
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+async function seedAds(admin) {
+    console.log('\n광고');
+    const doc = json(join(DEMO, 'ads.json'));
+    const have = new Set(rows(sql(`SELECT title FROM biz_applications WHERE title IN (${doc.ads.map((a) => q(a.title)).join(',')}) AND status <> 'CANCELED'`)).map(([t]) => t));
+    const advertiserIds = new Map();
+    async function advertiserOf(ad) {
+        const name = ad.business ?? doc.advertisers.find((a) => a.key === ad.advertiser)?.name;
+        if (advertiserIds.has(name)) return advertiserIds.get(name);
+        const found = (await admin.request('GET', `/api/admin/ads/advertisers?q=${encodeURIComponent(name)}`)).data ?? [];
+        let id = (Array.isArray(found) ? found : found.items ?? []).find((o) => o.name === name)?.id ?? null;
+        if (!id && !ad.business) {
+            const a = doc.advertisers.find((x) => x.key === ad.advertiser);
+            const r = await admin.request('POST', '/api/admin/ads/advertisers', { name: a.name, contactName: a.contactName, contactPhone: a.contactPhone, email: a.email, memo: '데모 광고주' });
+            id = ok(r) ? r.data?.id : null;
+            if (!id) failed(`광고주 ${a.name}`, r);
+        }
+        advertiserIds.set(name, id);
+        return id;
+    }
+    let made = 0;
+    for (const ad of doc.ads) {
+        if (have.has(ad.title) && !FORCE) continue;
+        const advertiserId = await advertiserOf(ad);
+        if (!advertiserId) continue;
+        const creative = { linkUrl: ad.linkUrl, altText: ad.altText };
+        if (ad.type === 'TEXT_LINE') {
+            creative.text = ad.text;
+        } else {
+            const up = await admin.request('POST', '/api/admin/ads/images', fileForm(join(DEMO, 'images', `ad-${ad.key}.png`)));
+            if (!ok(up)) {
+                failed(`광고 그림 ${ad.key}`, up);
+                continue;
+            }
+            creative.imageFileId = up.data.id;
+        }
+        const start = new Date(Math.ceil((Date.now() + 3 * 60_000) / 60_000) * 60_000);
+        const end = new Date(start.getTime() + 14 * DAY);
+        const period = { startAt: start.toISOString(), endAt: end.toISOString() };
+        const quote = (await admin.request('GET', `/api/admin/ads/availability?type=${ad.type}&startAt=${encodeURIComponent(period.startAt)}&endAt=${encodeURIComponent(period.endAt)}`)).data?.quote;
+        const reg = await admin.request('POST', '/api/admin/ads/manual', { advertiserId, type: ad.type, period, weight: 5, creative, supply: quote?.supply ?? null, contractFileIds: [], memo: '데모 광고' });
+        if (!ok(reg)) {
+            failed(`광고 등록 ${ad.key}`, reg);
+            continue;
+        }
+        const id = reg.data.id;
+        sql(`UPDATE biz_applications SET title = ${q(ad.title)} WHERE id = ${id}`);
+        const supply = Number(rows(sql(`SELECT coalesce(proposed_supply, quote_supply) FROM biz_applications WHERE id = ${id}`))[0]?.[0]) || quote?.supply;
+        const payer = ad.business ?? doc.advertisers.find((a) => a.key === ad.advertiser).name;
+        const steps = [
+            ['승인', () => admin.request('POST', `/api/admin/biz-applications/${id}/approve`, {
+                method: 'MANUAL', supply, deadlineAt: new Date(Date.now() + 3 * DAY).toISOString(), period, memo: '데모 데이터 — 운영자 등록 건을 같은 운영자가 승인',
+            })],
+            ['계약서', () => {
+                const fd = new FormData();
+                fd.append('files', new Blob([PDF], { type: 'application/pdf' }), `${ad.key}-contract.pdf`);
+                return admin.request('POST', `/api/admin/biz-applications/${id}/contracts`, fd);
+            }],
+            ['입금', () => {
+                const total = Number(rows(sql(`SELECT approved_total FROM biz_applications WHERE id = ${id}`))[0]?.[0]);
+                return admin.request('PUT', `/api/admin/biz-applications/${id}/deposit`, { amount: total, depositedOn: kstDate(Date.now()), depositorName: payer });
+            }],
+            ['확정', () => admin.request('POST', `/api/admin/biz-applications/${id}/confirm`)],
+        ];
+        let good = true;
+        for (const [name, run] of steps) {
+            const r = await run();
+            if (!ok(r)) {
+                failed(`광고 ${name} ${ad.key}`, r);
+                good = false;
+                break;
+            }
+        }
+        if (!good) continue;
+        sql(`UPDATE biz_applications SET start_at = date_trunc('minute', now()) WHERE id = ${id};
+             UPDATE biz_application_items SET start_at = date_trunc('minute', now()) WHERE application_id = ${id}`);
+        made++;
+    }
+    console.log(`  광고 ${made}건 확정(시작 = 지금)`);
+    if (doc.placements) {
+        // 광고 자리 설정 — 원고의 칸만 덮어쓴다(같은 값이면 서버가 기록을 남기지 않는다)
+        const cur = (await admin.request('GET', '/api/admin/ads/placements')).data;
+        if (cur) {
+            const body = { postInline: cur.postInline, wings: cur.wings, boardList: cur.boardList, adult: cur.adult };
+            for (const [k, v] of Object.entries(doc.placements)) body[k] = { ...body[k], ...v };
+            const r = await admin.request('PUT', '/api/admin/ads/placements', body);
+            ok(r) ? console.log(`  광고 자리 설정: ${JSON.stringify(doc.placements)}`) : failed('광고 자리 설정', r);
+        }
+    }
+    await placeAdGadgets(admin, '홈', '/api/admin/home-layouts/roboyam', doc.homeGadgets);
+    await placePageAdGadgets(admin, doc.pageGadgets);
+}
+
+/**
+ * 홈(roboyam 테마)·가젯 페이지에 광고 가젯을 놓는다(페이지마다 따로 — 사용자 결정 2026-11-06). 같은 제목의 광고 가젯이 이미 있으면 그 가젯만 건너뛴다.
+ * 자리: `place.top` = 맨 위 전체 폭(모든 가젯을 그만큼 내림) · `place.afterFirst` = 첫 가젯 바로 아래 · 아니면 `place.after` 가젯 아래(폭은 그 가젯, 원고의 x·w 가 있으면 그것 — 아래 같은 열 가젯을 내림).
+ */
+async function placeAdGadgets(admin, label, layoutPath, specs) {
+    if (!specs?.length) return;
+    const cur = (await admin.request('GET', layoutPath)).data;
+    if (!cur) return failed(`${label} 배치 읽기`, layoutPath);
+    const titles = new Set(cur.gadgets.filter((g) => g.type === 'AD' || g.type === 'AD_TEXT_LINE').map((g) => g.title));
+    const todo = specs.filter((spec) => !titles.has(spec.title));
+    if (!todo.length) {
+        console.log(`  ${label}: 광고 가젯이 이미 다 있어 배치는 건너뛴다`);
+        return;
+    }
+    const items = cur.layout.items.map((i) => ({ ...i }));
+    const typeOf = new Map(cur.gadgets.map((g) => [g.id, g.type]));
+    const overlapsX = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w;
+    // 서버의 종류별 최소 높이(HomeGadgetKinds.minSizes)에 못 미치는 칸은 저장이 거절된다 — 최소값으로 올리고 아래 같은 열 가젯을 그만큼 내린다
+    const MIN_H = { HIGHLIGHT: 8, POST_LIST: 6, BOARD_CARDS: 8, GALLERY: 6, GROUPS: 6, GROUP_BUY: 8, HOT_DEALS: 8, QUICK_LINKS: 2, NOTICE_TEXT: 3, AD: 2, AD_TEXT_LINE: 2 };
+    for (const it of [...items].sort((a, b) => a.y - b.y)) {
+        const need = MIN_H[typeOf.get(it.gadgetId)] ?? 2;
+        if (it.h >= need) continue;
+        const grow = need - it.h;
+        for (const o of items) if (o !== it && overlapsX(o, it) && o.y >= it.y + it.h) o.y += grow;
+        it.h = need;
+        console.log(`  ${label}: 가젯 ${it.gadgetId} 높이를 최소값 ${need}칸으로 올림(종류 ${typeOf.get(it.gadgetId)})`);
+    }
+    const added = [];
+    todo.forEach((spec, n) => {
+        let box;
+        let y;
+        if (spec.place.top) {
+            box = { x: 0, w: cur.layout.columns };
+            y = 0;
+        } else {
+            // afterFirst = 맨 위 첫 가젯(광고 아님) 바로 아래
+            const firstId = [...items].filter((i) => !['AD', 'AD_TEXT_LINE'].includes(typeOf.get(i.gadgetId))).sort((m, k) => m.y - k.y || m.x - k.x)[0]?.gadgetId;
+            const after = items.find((i) => i.gadgetId === (spec.place.afterFirst ? firstId : spec.place.after));
+            if (!after) return failed(`${label} 광고 가젯 ${spec.key}`, '기준 가젯 없음');
+            // 폭은 기준 가젯 폭, 원고에 x·w 가 있으면 그것(예: 나란한 두 가젯 아래를 가로지르는 띠 배너). 위 끝 = 그 폭에 걸친 기준 줄 가젯들의 아래 끝
+            box = { x: spec.place.x ?? after.x, w: spec.place.w ?? after.w };
+            y = Math.max(...items.filter((i) => overlapsX(i, box) && i.y <= after.y).map((i) => i.y + i.h));
+        }
+        for (const i of items) if (overlapsX(i, box) && i.y >= y) i.y += spec.place.h;
+        const id = `new-${n + 1}`;
+        items.push({ gadgetId: id, x: box.x, y, w: box.w, h: spec.place.h });
+        added.push({ id, type: spec.type, title: spec.title, config: spec.config });
+    });
+    const body = {
+        layout: { columns: cur.layout.columns, items },
+        gadgets: [...cur.gadgets.map((g) => ({ id: g.id, type: g.type, title: g.title, desktop: g.desktop, mobile: g.mobile })), ...added],
+    };
+    const r = await admin.request('PUT', layoutPath, body);
+    ok(r) ? console.log(`  ${label}: 광고 가젯 ${added.length}개를 놓았다`) : failed(`${label} 광고 가젯 저장`, r);
+}
+
+/** 가젯 페이지(주소 key — community·topics …)의 roboyam 테마 배치에 광고 가젯을 놓는다 */
+async function placePageAdGadgets(admin, specs) {
+    const pages = (await admin.request('GET', '/api/admin/gadget-pages')).data;
+    const list = Array.isArray(pages) ? pages : (pages?.items ?? pages?.pages ?? Object.values(pages ?? {}).find(Array.isArray) ?? []);
+    for (const key of [...new Set((specs ?? []).map((s) => s.page))]) {
+        const page = list.find((p) => (p.key ?? p.slug) === key);
+        if (!page) {
+            failed(`가젯 페이지 ${key}`, '없음');
+            continue;
+        }
+        await placeAdGadgets(admin, `가젯 페이지 ${key}`, `/api/admin/gadget-pages/${page.id}/layouts/roboyam`, specs.filter((s) => s.page === key));
+    }
 }
 
 /** 글 제목 → 그 원고의 첫 데모 그림(하이라이트 대표 이미지는 저장소 파일 대신 원본 그림을 다시 올린다) */

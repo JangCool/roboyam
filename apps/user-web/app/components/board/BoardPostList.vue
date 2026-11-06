@@ -26,7 +26,7 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
-            <li v-if="feedAd && i === feedAt" class="border-b border-surface"><AdFeedRow :ad="feedAd.ad" variant="compact" /></li>
+            <li v-if="UtilAd.feedAdAt(feedAd, i - pinned.length)" class="border-b border-surface"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i - pinned.length)!" variant="compact" /></li>
             </template>
         </ul>
 
@@ -71,7 +71,7 @@
                         </template>
                     </tr>
                 </FoldedRow>
-                <AdFeedRow v-if="feedAd && i === feedAt" :ad="feedAd.ad" variant="table" />
+                <AdFeedRow v-if="UtilAd.feedAdAt(feedAd, i - pinned.length)" :ad="UtilAd.feedAdAt(feedAd, i - pinned.length)!" variant="table" />
                 </template>
             </tbody>
         </table>
@@ -79,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import UtilAd from '~/utils/util-ad';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
@@ -91,7 +92,6 @@ const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
 /** `all` 에서 한 줄 광고가 뒤에 붙는 차례 — 공지는 세지 않는다 */
-const feedAt = computed(() => (props.feedAd ? props.pinned.length + props.feedAd.afterIndex : -1));
 
 /** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */
 function foldOf(row: PostRow) {

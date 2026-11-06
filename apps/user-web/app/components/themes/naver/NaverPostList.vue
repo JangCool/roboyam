@@ -44,13 +44,14 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
-            <li v-if="feedAd && i === feedAd.afterIndex" class="border-b border-hairline last:border-b-0"><AdFeedRow :ad="feedAd.ad" variant="article" /></li>
+            <li v-if="UtilAd.feedAdAt(feedAd, i)" class="border-b border-hairline last:border-b-0"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i)!" variant="article" /></li>
             </template>
         </ul>
     </div>
 </template>
 
 <script setup lang="ts">
+import UtilAd from '~/utils/util-ad';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 

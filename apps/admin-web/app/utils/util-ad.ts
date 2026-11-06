@@ -119,9 +119,12 @@ export default class UtilAd {
 
     static readonly INLINE_TYPES: readonly AdPostInlineType[] = ['TEXT_LINE', 'STRIP_BANNER', 'SQUARE_BANNER'];
     static readonly INLINE_POSITIONS: readonly AdPostInlinePosition[] = ['BETWEEN_CARDS', 'AFTER_BODY'];
-    static readonly WING_SCREENS: readonly AdWingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST'];
+    static readonly WING_SCREENS: readonly AdWingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST', 'FEED', 'GROUP_BUY', 'GROUPS'];
     /** 게시판 목록 한 줄 — 일반 글 몇 번째 뒤(서버 400 `fields.boardList.after`) */
     static readonly FEED_AFTER = { min: 1, max: 20 } as const;
+    /** 게시판 목록 한 쪽 광고 수 · 두 광고 사이 글 수(서버 V155 — 400 `fields.boardList.count|gap`) */
+    static readonly FEED_COUNT = { min: 1, max: 2 } as const;
+    static readonly FEED_GAP = { min: 3, max: 20, def: 10 } as const;
     /** 중도 해지 수수료율(%) — 서버 `AdPlacementStore`·`ad_placement_settings.stop_fee_rate`(0~30 정수, 기본 10). 미리보기 예시의 남은 일할 금액 */
     static readonly STOP_FEE_RATE = { min: 0, max: 30, def: 10, example: 100_000 } as const;
     /** 칸 아래·묶음 위에 붙이는 서버 오류 키(`fields.*`) — 나머지는 저장 줄에 모은다 */
@@ -137,6 +140,8 @@ export default class UtilAd {
         'boardList',
         'boardList.enabled',
         'boardList.after',
+        'boardList.count',
+        'boardList.gap',
         'adult',
         'adult.enabled',
         'refund',
@@ -206,7 +211,12 @@ export default class UtilAd {
         return {
             postInline: [form.postInline.enabled !== saved.postInline.enabled, form.postInline.adType !== saved.postInline.adType, form.postInline.position !== saved.postInline.position].filter(Boolean).length,
             wings: [form.wings.left !== saved.wings.left, form.wings.right !== saved.wings.right, screens(form.wings.screens) !== screens(saved.wings.screens)].filter(Boolean).length,
-            boardList: [form.boardList.enabled !== saved.boardList.enabled, form.boardList.after !== saved.boardList.after].filter(Boolean).length,
+            boardList: [
+                form.boardList.enabled !== saved.boardList.enabled,
+                form.boardList.after !== saved.boardList.after,
+                form.boardList.count !== saved.boardList.count,
+                form.boardList.gap !== saved.boardList.gap,
+            ].filter(Boolean).length,
             adult: [(form.adult?.enabled === true) !== (saved.adult?.enabled === true)].filter(Boolean).length,
             refund: [form.refund.stopFeeRate !== saved.refund.stopFeeRate].filter(Boolean).length,
         };

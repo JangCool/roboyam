@@ -153,7 +153,8 @@ const rootStyle = computed(() => {
 const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col`);
 
 const card = ref<HTMLElement | null>(null);
-useGadgetInk(card, () => style.value.cardLook !== 'FLAT');
+// 한 줄 광고 가젯은 맞추지 않는다 — 줄이 40px 높이라 위아래는 얇게(`main.css` `[data-gadget='AD_TEXT_LINE']`, 2026-11-06 사용자)
+useGadgetInk(card, () => style.value.cardLook !== 'FLAT' && props.gadget.type !== 'AD_TEXT_LINE');
 
 /** 기본형 「더보기」 줄은 카드 좌우 끝까지 — 아래 바깥 여백은 `useGadgetInk` 가 건다 */
 const classicMoreStyle = computed(() =>

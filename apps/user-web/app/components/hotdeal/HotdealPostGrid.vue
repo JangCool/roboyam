@@ -39,8 +39,8 @@
                         </NuxtLink>
                     </FoldedRow>
                 </li>
-                <li v-if="variant === 'CARD' && feedAd && i === feedAd.afterIndex" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900">
-                    <AdFeedRow :ad="feedAd.ad" variant="card" />
+                <li v-if="variant === 'CARD' && UtilAd.feedAdAt(feedAd, i)" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900">
+                    <AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i)!" variant="card" />
                 </li>
             </template>
         </ul>
@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import UtilAd from '~/utils/util-ad';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 

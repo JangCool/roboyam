@@ -46,7 +46,8 @@ public final class AdPlacementAdmin {
     public record Wings(Boolean left, Boolean right, List<String> screens) {
     }
 
-    public record BoardList(Boolean enabled, Integer after) {
+    /** @param count 1~2(없으면 1) · @param gap 3~20(없으면 10) — V155, 옛 요청은 두 칸 없이 와도 된다 */
+    public record BoardList(Boolean enabled, Integer after, Integer count, Integer gap) {
     }
 
     /** 19금 게시판에도 광고 보이기 */

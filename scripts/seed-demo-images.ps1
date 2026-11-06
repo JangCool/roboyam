@@ -1,5 +1,5 @@
 ﻿# 데모 원고(seed/demo/content/*.json, seed/demo/groupbuys.json)의 이미지 칸을 자리표시 그림(JPEG)으로 그린다 — Windows PowerShell 5.1 + System.Drawing.
-# 결과: seed/demo/images/<글 key>-<번호>.jpg (이미 있으면 건너뛴다, -Force 면 다시 그린다). 로더(scripts/seed-demo.mjs)는 이 파일만 읽으므로
+# 결과: seed/demo/images/<글 key>-<번호>.jpg · 광고 배너 ad-<key>.png(seed/demo/ads.json) (이미 있으면 건너뛴다, -Force 면 다시 그린다). 로더(scripts/seed-demo.mjs)는 이 파일만 읽으므로
 # 그림을 저장소에 두면 다른 OS(AWS dev)에서는 이 스크립트 없이 로더만 돌린다. 문서: docs/seed-demo.md
 param([switch]$Force)
 
@@ -166,4 +166,50 @@ foreach ($p in $posts) {
         $count++
     }
 }
+# 광고 배너(seed/demo/ads.json) — 규격 비율 그대로(띠 1200×100 · 네모 600×500 = 6:5 · 날개 320×1200 = 4:15), PNG. 광고 자리는 규격 틀에 맞춰 보이므로 비율이 ±3% 안이어야 한다
+function RenderBanner($ad, [string]$file) {
+    $b = $ad.banner
+    if ($ad.type -eq 'STRIP_BANNER') { $imgW = 1200; $imgH = 100 } elseif ($ad.type -eq 'WING_BANNER') { $imgW = 320; $imgH = 1200 } else { $imgW = 600; $imgH = 500 }
+    $bmp = [System.Drawing.Bitmap]::new($imgW, $imgH)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAlias
+    $full = [System.Drawing.Rectangle]::new(0, 0, $imgW, $imgH)
+    $g.FillRectangle([System.Drawing.Drawing2D.LinearGradientBrush]::new($full, (Col $b.palette[0]), (Col $b.palette[1]), 20), $full)
+    $white = [System.Drawing.Color]::White
+    $rnd = [System.Random]::new((Hash $ad.key))
+    for ($i = 0; $i -lt 6; $i++) { $r = $rnd.Next([int]($imgH * 0.6), [int]($imgH * 2)); $g.FillEllipse([System.Drawing.SolidBrush]::new((Col '#ffffff' 28)), $rnd.Next(0, $imgW), $rnd.Next(-$r, $imgH), $r, $r) }
+    if ($ad.type -eq 'STRIP_BANNER') {
+        DrawText $g $b.brand 20 ([System.Drawing.RectangleF]::new(36, 0, 280, $imgH)) (Col '#ffffff' 220) 'Near' $true
+        DrawText $g $b.headline 27 ([System.Drawing.RectangleF]::new(290, 0, $imgW - 530, $imgH)) $white 'Near' $true
+        $g.FillRectangle([System.Drawing.SolidBrush]::new($white), $imgW - 220, 26, 180, 48)
+        DrawText $g $b.cta 20 ([System.Drawing.RectangleF]::new($imgW - 220, 26, 180, 48)) (Col $b.palette[0]) 'Center' $true
+    } elseif ($ad.type -eq 'WING_BANNER') {
+        DrawText $g $b.brand 26 ([System.Drawing.RectangleF]::new(24, 60, $imgW - 48, 80)) (Col '#ffffff' 220) 'Near' $true
+        DrawText $g $b.headline 34 ([System.Drawing.RectangleF]::new(24, 200, $imgW - 48, 380)) $white 'Near' $true
+        DrawText $g $b.sub 24 ([System.Drawing.RectangleF]::new(24, 620, $imgW - 48, 100)) (Col '#ffffff' 230) 'Near' $false
+        $g.FillRectangle([System.Drawing.SolidBrush]::new($white), 24, 1040, $imgW - 48, 84)
+        DrawText $g $b.cta 28 ([System.Drawing.RectangleF]::new(24, 1040, $imgW - 48, 84)) (Col $b.palette[0]) 'Center' $true
+    } else {
+        DrawText $g $b.brand 26 ([System.Drawing.RectangleF]::new(40, 36, $imgW - 80, 40)) (Col '#ffffff' 220) 'Near' $true
+        DrawText $g $b.headline 52 ([System.Drawing.RectangleF]::new(40, 110, $imgW - 80, 150)) $white 'Near' $true
+        DrawText $g $b.sub 26 ([System.Drawing.RectangleF]::new(40, 270, $imgW - 80, 50)) (Col '#ffffff' 230) 'Near' $false
+        $g.FillRectangle([System.Drawing.SolidBrush]::new($white), 40, 370, 260, 76)
+        DrawText $g $b.cta 28 ([System.Drawing.RectangleF]::new(40, 370, 260, 76)) (Col $b.palette[0]) 'Center' $true
+    }
+    $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png)
+    $g.Dispose(); $bmp.Dispose()
+}
+
+$adsFile = Join-Path $demo 'ads.json'
+if (Test-Path $adsFile) {
+    foreach ($ad in (Get-Content $adsFile -Raw -Encoding UTF8 | ConvertFrom-Json).ads) {
+        if (-not $ad.banner) { continue }
+        $file = Join-Path $out ("ad-{0}.png" -f $ad.key)
+        if ((Test-Path $file) -and -not $Force) { $skipped++; continue }
+        RenderBanner $ad $file
+        $count++
+    }
+}
+
 Write-Output "그림 $count 장 그림, $skipped 장은 이미 있어 건너뜀 → $out"

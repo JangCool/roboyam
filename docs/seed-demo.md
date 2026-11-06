@@ -9,6 +9,7 @@
 | `seed/demo/content/<게시판>.json` | 게시판 원고 — 글·말머리·문단·이미지 설명·유튜브·댓글·답글·인기도(형식: `seed/demo/CONTENT-FORMAT.md`) |
 | `seed/demo/content/groups.json` · `biz-hotdeal.json` | 소모임 6개와 그 글 · 사업자 핫딜 6건 |
 | `seed/demo/groupbuys.json` | 공동구매 상품·공구 23개 |
+| `seed/demo/ads.json` | 데모 광고 — 광고주 5곳(+사업자 파이언넷) · 네모 배너 2 · 띠 배너 2 · 한 줄 광고 4 · 날개 2 · 홈·가젯 페이지 광고 가젯. 배너 그림 `images/ad-<key>.png`(규격 비율) |
 | `seed/demo/images/*.jpg` | 원고의 이미지 칸을 그린 자리표시 그림(238장). `scripts/seed-demo-images.ps1`(Windows PowerShell + System.Drawing)이 만든다 — 저장소에 두므로 다른 OS 에서는 다시 그릴 필요가 없다 |
 | `scripts/seed-demo.mjs` | 로더(Node 내장 `fetch` + `docker exec … psql`, 의존성 없음) |
 
@@ -21,7 +22,7 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 
 - 공개 서버(8910)·관리자 서버(8920, **배치 켬** — 사업자 핫딜 게시 배치가 돈다)가 떠 있어야 한다. 시간은 약 10~15분.
 - **다시 돌려도 된다** — 회원·운영자·설정은 늘 맞추고, 콘텐츠는 이미 있는 것을 건너뛴다(같은 게시판·같은 제목의 데모 회원 글, 같은 이름의 소모임·공구 상품, 같은 제목의 사업자 신청). 중간에 멈췄으면 다시 돌리면 이어서 넣는다. `--force` 는 글·댓글을 한 벌 더 넣는다.
-- 시험: `node scripts/seed-demo.mjs --limit=1 --only=boards`(원고마다 앞 1개, 게시판 단계만). `--only` 값: `boards,groups,biz,groupbuys,highlights`.
+- 시험: `node scripts/seed-demo.mjs --limit=1 --only=boards`(원고마다 앞 1개, 게시판 단계만). `--only` 값: `boards,groups,biz,groupbuys,highlights,ads`.
 - 그림을 고치려면 원고를 고친 뒤 `powershell -File scripts/seed-demo-images.ps1 -Force`.
 - 환경 변수는 `seed-local.mjs` 와 같고 `SEED_ADMIN_API`(기본 `http://localhost:8920`)가 더 있다. 서버는 localhost 만 받는다 — AWS dev 에서는 서버(EC2) 안에서 돌리거나 SSH 터널로 8910·8920·DB 컨테이너를 붙인다.
 
@@ -38,6 +39,8 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 9. **사업자 핫딜 6건**: 사업자(파이언넷)가 광고 이미지를 올리고 신청(수동 결제) → 운영자 승인(기간 = 2분 뒤 ~ 14일 뒤) → 계약서(PDF) → 입금(33,000원) → 확정 → 시작 시각을 SQL 로 지금으로 당긴다 → **관리자 서버의 게시 배치(1분마다)**가 핫딜 글로 올린다.
 10. **공동구매 23개**(관리자 API): 상품(기존 공구 카테고리, 고시 항목 전부 채움, 대표 이미지) → 공구 → 공개. 모집 중 18 · 공개된 예정 3 · 조기 마감 2 — local 공구 시더의 9개와 합쳐 「진행 중」 탭이 2쪽(한 쪽 20개)이 된다. 참여(주문)는 넣지 않는다.
 11. **하이라이트 5개**: 이미지가 있고 반응이 가장 많은 데모 글(19금·핫딜 제외), 대표 이미지는 그 원고의 그림.
+
+12. **광고**(2026-11-06): 광고주(관리자 API `POST /api/admin/ads/advertisers` — 같은 이름이 있으면 그것, 사업자는 상호로 찾음) → 배너 그림 `POST /api/admin/ads/images` → 운영자 등록 `POST /api/admin/ads/manual`(14일) → 승인(수동 결제 — 이때 소재 승인, 같은 운영자 승인이라 메모) → 계약서 → 입금 → 확정 → 시작 시각을 SQL 로 지금으로(공개 사본 20초 뒤 노출). 자리 설정은 기본값 그대로라 **게시판 목록 5번째 뒤 한 줄**·**글과 댓글 사이 한 줄**에 한 줄 광고가 나온다. 광고 가젯은 페이지마다 따로 둔다(사용자 결정 2026-11-06) — 홈(roboyam): 하이라이트 바로 아래 띠 배너 · 인기글 아래 네모 배너 · 방금 올라온 글 아래 한 줄 광고(2줄) · 팁과강좌·사용기 아래 띠 배너(왼쪽 열 전체 폭), 커뮤니티: 첫 가젯(인기글) 아래 띠 배너, 핫 로토픽: 첫 가젯 아래 한 줄 광고(2줄) — 맨 위는 보기 안 좋아 첫 가젯 아래로(사용자 2026-11-06). 같은 제목의 광고 가젯이 있으면 그 가젯만 건너뛰고, 종류별 최소 높이에 못 미치는 칸은 최소값으로 올린다. **날개**(세로 160×600, 본문 바깥 양옆 — 화면이 넓을 때만) 2건. 넓은 배너는 넣지 않는다.
 
 인기글은 DB 배치 `popular-rank`(5분마다)가 다음 차례에 채운다.
 

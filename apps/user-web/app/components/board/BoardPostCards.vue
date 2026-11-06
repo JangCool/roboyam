@@ -28,13 +28,14 @@
                 </FoldedRow>
             </li>
             <!-- 한 줄 광고는 카드 한 칸이 아니라 두 열을 가로지르는 한 줄 -->
-            <li v-if="feedAd && i === feedAd.afterIndex" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900"><AdFeedRow :ad="feedAd.ad" variant="card" /></li>
+            <li v-if="UtilAd.feedAdAt(feedAd, i)" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i)!" variant="card" /></li>
             </template>
         </ul>
     </div>
 </template>
 
 <script setup lang="ts">
+import UtilAd from '~/utils/util-ad';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 
 interface Props extends BoardPostListProps {}
