@@ -14,7 +14,7 @@
                 <i class="pi pi-bars text-lg" aria-hidden="true" />
             </button>
 
-            <NuxtLink to="/" class="flex min-w-0 items-center rounded px-1 text-base font-bold tracking-wider focus-visible:outline-2 focus-visible:outline-primary max-md:min-h-10 max-md:min-w-8 md:px-0" :aria-label="t('shell.homeLink', { site: siteLabel })"><SiteBrand /></NuxtLink>
+            <NuxtLink to="/" class="site-brand flex min-w-0 items-center rounded px-1 text-base font-bold tracking-wider focus-visible:outline-2 focus-visible:outline-primary max-md:min-h-10 max-md:min-w-8 md:px-0" :aria-label="t('shell.homeLink', { site: siteLabel })"><SiteBrand /></NuxtLink>
 
             <!-- 로고 옆 자리 — 데스크톱 셸이 최상위 항목 링크 줄(`AppLogoLinks`)을 넣는다(기본 테마, 「로고 옆」일 때). 모바일 상단 바로만 쓰는 테마는 비워 둔다 -->
             <slot name="links" />
