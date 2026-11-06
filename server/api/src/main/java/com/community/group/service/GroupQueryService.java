@@ -9,6 +9,7 @@ import com.community.group.dto.GroupRuleValues;
 import com.community.group.dto.response.GroupCategoriesView;
 import com.community.group.dto.response.GroupCreationRulesView;
 import com.community.group.dto.response.GroupDetailView;
+import com.community.group.dto.response.GroupImageView;
 import com.community.group.dto.response.GroupListPageView;
 import com.community.group.dto.response.GroupMemberPageView;
 import com.community.group.dto.response.GroupRowView;
@@ -188,7 +189,8 @@ public class GroupQueryService {
         if (userId != null && !rows.isEmpty()) {
             members.findByUserIdAndGroupIdIn(userId, rows.stream().map(GroupEntity::getId).toList()).forEach(m -> mine.put(m.getGroupId(), m));
         }
-        return rows.stream().map(g -> views.row(g, GroupViews.myState(g, mine.get(g.getId()), userId), ctx)).toList();
+        Map<Long, String> imageUrls = views.imageUrls(rows);
+        return rows.stream().map(g -> views.row(g, GroupViews.myState(g, mine.get(g.getId()), userId), ctx, imageUrls.get(g.getId()))).toList();
     }
 
     // ── 지금 뜨는 소모임 ─────────────────────────────────────────────────────
@@ -342,6 +344,7 @@ public class GroupQueryService {
         Map<Long, Long> newPosts = groupPosts.newPostCounts(me, joinedIds, now);
         // 다음 일정(4단계) — 가입한 소모임 모두의 가장 가까운 시작 전 일정을 질의 한 번으로
         Map<Long, GroupEventEntity> nextEvents = groupEvents.nextEvents(joinedIds, now);
+        Map<Long, String> imageUrls = views.imageUrls(byId.values());
         List<MyGroupsView.Joined> joined = new ArrayList<>();
         List<MyGroupsView.Application> applications = new ArrayList<>();
         rows.stream().sorted((a, b) -> compareDesc(a.getStatus() == GroupMemberStatus.ACTIVE ? a.getJoinedAt() : a.getAppliedAt(),
@@ -350,7 +353,7 @@ public class GroupQueryService {
             if (g == null || g.getStatus() != GroupStatus.ACTIVE) {
                 return;
             }
-            GroupRowView row = views.row(g, GroupViews.myState(g, m, me), ctx);
+            GroupRowView row = views.row(g, GroupViews.myState(g, m, me), ctx, imageUrls.get(g.getId()));
             if (m.getStatus() == GroupMemberStatus.ACTIVE) {
                 GroupEventEntity next = nextEvents.get(g.getId());
                 joined.add(new MyGroupsView.Joined(row, m.getRole().name(), m.getJoinedAt(), newPosts.getOrDefault(g.getId(), 0L).intValue(),
@@ -359,8 +362,10 @@ public class GroupQueryService {
                 applications.add(new MyGroupsView.Application(row, m.getAppliedAt()));
             }
         });
-        List<MyGroupsView.Request> requests = groups.findByCreatorIdAndStatusInOrderByRequestedAtDesc(me, List.of(GroupStatus.PENDING, GroupStatus.REJECTED))
-                .stream().map(g -> new MyGroupsView.Request(Long.toString(g.getId()), g.getName(), GroupViews.category(g, ctx),
+        List<GroupEntity> requested = groups.findByCreatorIdAndStatusInOrderByRequestedAtDesc(me, List.of(GroupStatus.PENDING, GroupStatus.REJECTED));
+        Map<Long, GroupImageView> requestImages = views.imageViews(requested);
+        List<MyGroupsView.Request> requests = requested
+                .stream().map(g -> new MyGroupsView.Request(Long.toString(g.getId()), g.getName(), requestImages.get(g.getId()), GroupViews.category(g, ctx),
                         GroupViews.boardRef(ctx.boards().board(g.getBoardId()).orElse(null)), g.getJoinType().name(), g.getCapacity(), g.getDescription(),
                         g.isOffline(), GroupViews.visibility(g, ctx), g.getStatus().name(), g.getRejectReason(), g.getRequestedAt(), g.getReviewedAt())).toList();
         return new MyGroupsView(List.copyOf(joined), List.copyOf(applications), requests);

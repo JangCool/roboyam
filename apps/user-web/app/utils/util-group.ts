@@ -7,6 +7,7 @@ import type {
     GroupChatLink,
     GroupChatLinksRequest,
     GroupDetail,
+    GroupImage,
     GroupJoinInfo,
     GroupJoinType,
     GroupLimits,
@@ -58,6 +59,8 @@ export interface GroupCapacityRange {
 export interface ActiveGroup {
     id: string;
     name: string;
+    /** 대표 이미지 — 없으면 null(첫 글자) */
+    image: GroupImage | null;
     description: string;
     category: GroupCategory | null;
     joinType: GroupJoinType;
@@ -118,6 +121,8 @@ export interface GroupCreateForm {
     agreeOffline: boolean;
     /** 공개 범위(5단계) — 기본 비공개. 개설 규칙의 `visibilityChoice` 가 true 일 때만 보낸다 */
     visibility: GroupVisibility;
+    /** 대표 이미지(고르기) — 올린 뒤의 파일. 없으면 null */
+    image: GroupImage | null;
 }
 
 export type GroupCreateField =
@@ -145,9 +150,11 @@ export interface GroupEditForm {
     joinType: GroupJoinType;
     capacity: string;
     offline: boolean;
+    /** 대표 이미지 — 지금 것 그대로·새로 올린 것, null 이면 지움 */
+    image: GroupImage | null;
 }
 
-export type GroupEditField = 'name' | 'description' | 'joinType' | 'capacity' | 'offline';
+export type GroupEditField = 'name' | 'description' | 'joinType' | 'capacity' | 'offline' | 'image';
 export type GroupEditProblems = Partial<Record<GroupEditField, GroupProblem>>;
 
 /** 채팅 링크 폼 */
@@ -202,6 +209,16 @@ export default class UtilGroup {
     static readonly DEFAULT_CAPACITY = 30;
     /** 검색어 최대 글자 수 — 서버 `q`(1~30자) */
     static readonly Q_MAX = 30;
+    /** 대표 이미지 — 글 이미지와 같은 형식·용량(서버 `PostImageProcessor` — 서버는 파일 첫 바이트로 본다) */
+    static readonly IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
+    static readonly IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+    /** 올리기 전에 미리 알려 줄 문제 — 형식(브라우저가 알려 준 종류)·용량. 없으면 null */
+    static imageProblem(file: Pick<File, 'type' | 'size'>): 'TYPE' | 'SIZE' | null {
+        if (!(UtilGroup.IMAGE_TYPES as readonly string[]).includes(file.type)) return 'TYPE';
+        if (file.size > UtilGroup.IMAGE_MAX_BYTES) return 'SIZE';
+        return null;
+    }
     static readonly PAGE_SIZE = 20;
     static readonly MEMBER_PAGE_SIZE = 30;
     /** 글 탭 한 쪽 — 서버 `size` 1~50(기본 20) */
@@ -419,6 +436,7 @@ export default class UtilGroup {
         return {
             id: detail.id,
             name: detail.name,
+            image: detail.image?.url ? detail.image : null,
             description: detail.description ?? '',
             category: detail.category ?? null,
             joinType,
@@ -622,6 +640,7 @@ export default class UtilGroup {
             agreeStock: false,
             agreeOffline: false,
             visibility: 'PRIVATE',
+            image: null,
         };
     }
 
@@ -637,6 +656,7 @@ export default class UtilGroup {
             capacity: String(request.capacity),
             offline: request.offline,
             visibility: UtilGroup.visibilityOf(request.visibility) ?? 'PRIVATE',
+            image: request.image?.url ? request.image : null,
         };
     }
 
@@ -674,6 +694,7 @@ export default class UtilGroup {
     static toCreateRequest(form: GroupCreateForm, isStock: boolean, visibilityChoice = false): GroupCreateRequest {
         return {
             ...(visibilityChoice ? { visibility: form.visibility } : {}),
+            ...(form.image ? { imageFileId: form.image.fileId } : {}),
             name: UtilGroup.normalizeName(form.name),
             description: form.description.trim(),
             categoryId: form.categoryId,
@@ -719,10 +740,10 @@ export default class UtilGroup {
 
     /* ── 정보 수정 ── */
 
-    static readonly EDIT_FIELDS: readonly GroupEditField[] = ['name', 'description', 'joinType', 'capacity', 'offline'];
+    static readonly EDIT_FIELDS: readonly GroupEditField[] = ['image', 'name', 'description', 'joinType', 'capacity', 'offline'];
 
-    static editFormOf(group: Pick<ActiveGroup, 'name' | 'description' | 'joinType' | 'capacity' | 'offline'>): GroupEditForm {
-        return { name: group.name, description: group.description, joinType: group.joinType, capacity: String(group.capacity), offline: group.offline };
+    static editFormOf(group: Pick<ActiveGroup, 'name' | 'description' | 'joinType' | 'capacity' | 'offline' | 'image'>): GroupEditForm {
+        return { name: group.name, description: group.description, joinType: group.joinType, capacity: String(group.capacity), offline: group.offline, image: group.image };
     }
 
     static editProblems(form: GroupEditForm, memberCount: number, range: GroupCapacityRange): GroupEditProblems {
@@ -743,8 +764,9 @@ export default class UtilGroup {
         return problems;
     }
 
-    static isEditChanged(form: GroupEditForm, group: Pick<ActiveGroup, 'name' | 'description' | 'joinType' | 'capacity' | 'offline'>): boolean {
+    static isEditChanged(form: GroupEditForm, group: Pick<ActiveGroup, 'name' | 'description' | 'joinType' | 'capacity' | 'offline' | 'image'>): boolean {
         return (
+            (form.image?.fileId ?? null) !== (group.image?.fileId ?? null) ||
             UtilGroup.normalizeName(form.name) !== group.name ||
             form.description.trim() !== group.description.trim() ||
             form.joinType !== group.joinType ||
@@ -756,10 +778,22 @@ export default class UtilGroup {
     static toUpdateRequest(form: GroupEditForm): GroupUpdateRequest | null {
         const capacity = UtilGroup.parseCapacity(form.capacity);
         if (capacity === null) return null;
-        return { name: UtilGroup.normalizeName(form.name), description: form.description.trim(), joinType: form.joinType, capacity, offline: form.offline };
+        return {
+            name: UtilGroup.normalizeName(form.name),
+            description: form.description.trim(),
+            joinType: form.joinType,
+            capacity,
+            offline: form.offline,
+            imageFileId: form.image?.fileId ?? null,
+        };
     }
 
     /* ── 오류 ── */
+
+    /** 신청·정보 수정 때 서버가 대표 이미지 파일을 거절한 문구(`fields.imageFileId` — 남의 파일·지워진 파일 등) — 없으면 '' */
+    static imageFieldError(e: unknown): string {
+        return e instanceof ApiError ? (e.field('imageFileId') ?? '') : '';
+    }
 
     /** 서버 칸 오류 중 이 폼의 칸만 */
     static serverFields<F extends string>(e: unknown, fields: readonly F[]): Partial<Record<F, string>> {

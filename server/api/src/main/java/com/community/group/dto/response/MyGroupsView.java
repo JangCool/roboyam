@@ -31,11 +31,12 @@ public record MyGroupsView(List<Joined> joined, List<Application> applications, 
     }
 
     /**
+     * @param image        신청에 붙인 대표 이미지(V154) {@code {fileId, url}} — 없으면 null. 반려된 신청을 다시 낼 때 이 {@code fileId} 를 보내면 새 신청으로 옮긴다
      * @param board        신청이 쓴 게시판(반려된 신청을 다시 낼 때 폼이 되살린다)
      * @param status       PENDING · REJECTED
      * @param rejectReason 반려 사유(반려일 때)
      */
-    public record Request(String id, String name, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity, String description,
+    public record Request(String id, String name, GroupImageView image, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity, String description,
                           boolean offline, String visibility, String status, String rejectReason, Instant requestedAt, Instant reviewedAt) {
     }
 }

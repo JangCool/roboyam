@@ -92,10 +92,24 @@ export type GroupMyState = 'NONE' | 'MEMBER' | 'LEADER' | 'APPLIED' | 'REJECTED'
 /** 목록 정렬 — 인기순(기본) · 신규 · 모집중 · 내 소모임(로그인 필요) */
 export type GroupSort = 'popular' | 'new' | 'recruiting' | 'mine';
 
+/** 대표 이미지(로보얌 추가) — 올리기 응답·상세·개설 신청이 같은 모양. `url` 은 공개 주소(움직이는 GIF·WebP 는 그대로 움직인다) */
+export interface GroupImage {
+    fileId: string;
+    url: string;
+}
+
+/** `POST /api/groups/images`(multipart `file`) — 개설 신청·정보 수정이 `imageFileId` 로 붙인다 */
+export interface GroupImageUploadResult extends GroupImage {
+    width: number;
+    height: number;
+}
+
 /** 목록·검색·내 소모임의 한 줄 */
 export interface GroupRow {
     id: string;
     name: string;
+    /** 대표 이미지 주소 — 없으면 null(이름 첫 글자를 그린다) */
+    imageUrl?: string | null;
     /** 소개를 한 줄로 줄인 것 */
     summary: string;
     category: GroupCategory | null;
@@ -273,6 +287,8 @@ export interface GroupDetail {
     id: string;
     name: string;
     status: GroupStatus;
+    /** 대표 이미지 — 없으면 null(이름 첫 글자) */
+    image?: GroupImage | null;
     description?: string | null;
     category?: GroupCategory | null;
     board?: GroupDetailBoard | null;
@@ -392,6 +408,8 @@ export interface MyApplicationRow extends GroupRow {
 export interface MyGroupRequest {
     id: string;
     name: string;
+    /** 신청에 붙인 대표 이미지 — 반려된 신청을 다시 낼 때 되살린다 */
+    image?: GroupImage | null;
     category: GroupCategory | null;
     /** 신청이 쓴 게시판 — 반려된 신청을 다시 낼 때 고른 게시판을 되살린다 */
     board?: GroupBoard | null;
@@ -428,6 +446,8 @@ export interface GroupCreateRequest {
     agreeOffline: boolean;
     /** 공개 범위 — 개설 규칙의 `visibilityChoice` 가 true 일 때만 보낸다(생략 = 비공개, 기능이 꺼진 서버는 무시) */
     visibility?: GroupVisibility;
+    /** 대표 이미지 — 올리기(`POST /api/groups/images`)가 준 파일. 없으면 싣지 않는다 */
+    imageFileId?: string;
 }
 
 /** 개설 규칙으로 못 내는 까닭 */
@@ -487,6 +507,8 @@ export interface GroupUpdateRequest {
     joinType: GroupJoinType;
     capacity: number;
     offline: boolean;
+    /** 대표 이미지 — 지금 파일 그대로·새로 올린 파일, null 이면 지운다(글자로 돌아간다) */
+    imageFileId: string | null;
 }
 
 export interface GroupChatLinkInput {

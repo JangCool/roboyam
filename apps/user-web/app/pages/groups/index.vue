@@ -94,7 +94,7 @@
                                     data-testid="group-trending-card"
                                 >
                                     <span class="flex items-center gap-2.5">
-                                        <GroupInitial :name="row.name" size="lg" />
+                                        <GroupInitial :name="row.name" :src="row.imageUrl" size="lg" />
                                         <span class="min-w-0 flex-1">
                                             <span class="flex items-center gap-1.5">
                                                 <b class="min-w-0 truncate text-sm" data-testid="group-trending-name">{{ row.name }}</b>

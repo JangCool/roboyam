@@ -98,3 +98,21 @@
 - 공개 `POST /api/reports {targetType:"GROUP", targetId, reason, detail?}`(로보얌 기존 신고 경로·오류 그대로), 사유 `PROMOTION`·`OFFLINE_RISK`·`STOCK_RECOMMENDATION`(투자 고지 게시판 소모임만)·`OTHER`. 자동 숨김 없음. 관리자 신고 목록·상세의 소모임 사건(`target.groupId`, 상세 `group`), 조치 `DEACTIVATE`(소모임 비활성화 + `groups.deactivate_case_id` + 모임장 알림), 신고자 결과 알림. 관리자 소모임 상세 `reportCaseCount`·`deactivation.reportCase`.
 - 사용자 결정(「추천대로」): 신고 처리의 비활성화는 `report.manage` 만 본다(`group.manage` 를 따로 묻지 않는다). 모임장이 받은 소모임 신고도 회원 상세의 「받은 신고 수」에 든다.
 - **세션 정리 결정(2026-11-06, 사용자)**: user-web `/groups` 목록은 「지금 뜨는 소모임」 슬라이드의 모임을 `exclude` 로 빼지 않는다 — 소모임이 적으면 목록이 거의 비어 보인다(6개 중 1개). 서버의 `exclude` 칸은 그대로 둔다(화면이 안 보낼 뿐).
+
+## 대표 이미지 (2026-11-06 — 화면 확정 · 서버 구현 · 실제 API 연결)
+- **의도**: 소모임을 만들 때·만든 뒤(모임장 정보 수정) 대표 이미지를 올리면, 이름 첫 글자 상자가 보이던 모든 자리(`GroupInitial` — 지금 뜨는 카드·목록 줄·내 소모임·프로필 소모임 탭·홈 인기 소모임 가젯·상세·관리 머리·신청 완료)에 그 이미지가 보인다. 움직이는 GIF·WebP 는 움직인다. 없으면 지금처럼 글자.
+- **화면**: `/groups/new`(소개 아래 「대표 이미지 · 선택」) · `/groups/{id}/manage/edit`(맨 위) — 공통 `GroupImagePicker`: 64px 칸(비면 점선 + 그림 아이콘, 눌러도 고른다) 옆에 [이미지 올리기|바꾸기]·[지우기]와 안내 한 줄(사용자 「어수선해 정돈」 — 목록·카드 작은 미리보기와 긴 안내문을 뺐다). 고르면 바로 올리고, 올리는 중에는 신청·저장 단추를 끈다. 이미지는 `object-cover` 로 가운데 정사각형.
+- **목업은 걷었다**: 화면은 아래 「서버」 API 를 바로 부른다(`useGroupApi.uploadImage`·`create`·`update`, `GroupInitial :src`).
+- **API 후보**:
+  - `POST /api/groups/images`(multipart `file`) → `{ fileId, url, width, height }` — 글 이미지와 같은 `PostImageProcessor`(JPEG·PNG·WebP·GIF, 10MB, 움직이는 GIF·WebP 는 원본 유지), 공개 저장소, 파일 장부 새 용도 `GROUP_IMAGE` PENDING → 쓰이면 IN_USE. 쓰기 자격(이메일 인증·정지·사업자)은 개설과 같다. `400 fields.file`.
+  - `POST /api/groups` 본문 `imageFileId?` · `PUT /api/groups/{id}` 본문 `imageFileId: string|null`(그대로·새 파일·null 지움) — 내 PENDING 파일(또는 지금 이 소모임의 파일)이 아니면 `400 fields.imageFileId`. 바뀐 옛 파일은 정리 대상.
+  - 읽기: 목록·지금 뜨는·내 소모임·프로필 소모임·홈 `GROUPS` 가젯 줄 `imageUrl|null`, 상세·내 개설 신청 `image{fileId,url}|null`.
+  - 표: `groups.image_file_id`(+ 개설 신청이 같은 표면 그 행에) — shared 다음 번호(지금 V154).
+- ~~미확정 4가지~~ → 아래 「확정」.
+- **확정(2026-11-06 사용자 — 미확정 4가지는 지금 동작대로)**: ① 관리자 화면 표시는 범위 밖 ② 열린 뒤 바꾸기는 심사 없이 바로 ③ 큰 움직이는 GIF 는 글 이미지 규칙 그대로 ④ 모임장만(정보 수정과 같은 권한).
+- **서버 (2026-11-06, 브랜치 `claude/group-cover-image`)**:
+  - `POST /api/groups/images`(multipart `file`, 로그인) → `201 { fileId, url, width, height }` — 401 → 쓰기 자격 403 `EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED` → `400 fields.file`(없음·빈 파일·읽을 수 없음·형식/크기 — `PostImageProcessor`) → 글 이미지와 같은 1분 한도 `429 IMAGE_RATE_LIMITED`. 저장소 키 `group/yyyyMM/<32자>.<확장자>`(공개 `/media`), 장부 `files.purpose = GROUP_IMAGE` PENDING. 하루 한도는 세지 않는다.
+  - `POST /api/groups` `imageFileId?` · `PUT /api/groups/{id}` `imageFileId`(지금 파일 ID = 그대로 · 새 ID = 교체 · null/빈 값/칸 없음 = 지움 — PUT 은 모든 칸 관례라 칸이 빠지면 지움). 붙일 수 있는 파일 = 내가 올린 PENDING `GROUP_IMAGE`, 또는 **내 반려된 개설 신청이 쥔 파일**(다시 내기 — 새 신청으로 옮기고 반려 행에서는 뗀다). 아니면 다른 칸과 함께 `400 VALIDATION fields.imageFileId`(`group.imageFileId.invalid`). 붙으면 IN_USE.
+  - 떼기(바꾸기·지우기·신청 취소·모임장 해산·탈퇴 해산) = 파일을 PENDING 으로 되돌림(`FileEntity.release`) → 「올리다 만 파일 정리」(file-orphan-cleanup)가 지운다. 반려된 신청·비활성 소모임은 이미지를 그대로 둔다. 코드 한 곳: shared `GroupImages`.
+  - 읽기: 목록·검색·`trending`·내 소모임 joined/applications·프로필 소모임·홈 `GROUPS` 가젯 줄 `imageUrl|null`(줄들의 파일을 한 번에 읽는다), 상세 `image{fileId,url}|null`(비활성 응답에도), 내 개설 신청 `requests[].image`.
+  - 표: shared `V154__group_image.sql` — `groups.image_file_id → files ON DELETE SET NULL` + 고유 부분 색인 `ux_groups_image_file`(한 파일 = 한 행), `ck_files_purpose` 에 `GROUP_IMAGE`. 개설 신청은 같은 `groups` 행(PENDING)이라 표는 하나.

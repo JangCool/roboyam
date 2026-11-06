@@ -3,6 +3,7 @@ package com.community.group.dto.response;
 /**
  * 소모임 한 줄 — 목록·검색(community {@code GroupRow}).
  *
+ * @param imageUrl     대표 이미지 공개 주소(V154) — 없으면 null(화면은 이름 첫 글자)
  * @param summary      소개를 한 줄로(공백을 접고 60자에서 …)
  * @param category     분류(게시판이 어느 분류에도 없으면 null)
  * @param board        소모임 게시판 {@code {slug, name, nameEn}}
@@ -12,6 +13,6 @@ package com.community.group.dto.response;
  * @param visibility   PUBLIC · PRIVATE · null(공개 범위 기능이 꺼져 있고 비공개 소모임 — 화면은 칩을 그리지 않는다)
  * @param myState      NONE · MEMBER · LEADER · APPLIED · REJECTED · KICKED — 비로그인 null
  */
-public record GroupRowView(String id, String name, String summary, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity,
+public record GroupRowView(String id, String name, String imageUrl, String summary, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity,
                            int memberCount, boolean recruiting, String recruitState, boolean offline, boolean stockNotice, String visibility, String myState) {
 }

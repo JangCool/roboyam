@@ -8,6 +8,7 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
+import com.community.group.service.GroupImages;
 import com.community.group.service.GroupNotices;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -40,8 +41,10 @@ public class WithdrawalGroupHandler {
     private final GroupMemberRepository members;
     private final GroupPostQueries groupPosts;
     private final GroupNotices notices;
+    private final GroupImages images;
 
-    public WithdrawalGroupHandler(GroupRepository groups, GroupMemberRepository members, GroupPostQueries groupPosts, GroupNotices notices) {
+    public WithdrawalGroupHandler(GroupRepository groups, GroupMemberRepository members, GroupPostQueries groupPosts, GroupNotices notices, GroupImages images) {
+        this.images = images;
         this.groups = groups;
         this.members = members;
         this.groupPosts = groupPosts;
@@ -90,7 +93,7 @@ public class WithdrawalGroupHandler {
         log.info("탈퇴로 모임장을 넘겼다 groupId={} from={} to={}", group.getId(), me, target);
     }
 
-    /** 해산 — 소모임째 DELETED, 글 모두 삭제, 멤버 전원(나 제외)에게 알림. 패널티 없음 */
+    /** 해산 — 소모임째 DELETED, 글 모두 삭제, 멤버 전원(나 제외)에게 알림. 패널티 없음. 대표 이미지는 떼어 정리 배치에 맡긴다(V154) */
     @Transactional
     public void dissolve(long groupId, long me, Instant now) {
         GroupEntity group = lockLed(groupId, me).orElse(null);
@@ -98,6 +101,7 @@ public class WithdrawalGroupHandler {
             return;
         }
         List<GroupMemberEntity> active = members.findByGroupIdAndStatus(group.getId(), GroupMemberStatus.ACTIVE);
+        images.detach(group);
         group.dissolve(now, null);
         groups.flush();
         int deleted = groupPosts.deleteOnDissolve(group.getId(), now);

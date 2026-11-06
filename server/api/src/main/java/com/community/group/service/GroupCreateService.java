@@ -22,6 +22,7 @@ import com.community.group.exception.GroupRateLimitedException;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
+import com.community.media.entity.FileEntity;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
@@ -50,7 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>차례</b>: 401 → 쓰기 자격(403 {@code EMAIL_NOT_VERIFIED} · {@code ACCOUNT_RESTRICTED}) → 회원 권한 {@code group.create}(403 {@code GROUP_CREATE_NOT_PERMITTED} — 로보얌) →
  * 입력 400 {@code fields.*} → 최소 등급 403 {@code GROUP_GRADE_TOO_LOW} → 1인 상한 409 {@code GROUP_LIMIT_REACHED}(+{@code max}) →
  * 해산 패널티 403 {@code GROUP_DISSOLVE_PENALTY}(+{@code retryAfterSeconds}·{@code until} — V96) → 하루 한도 429 {@code RATE_LIMITED} →
- * 같은 이름 409 {@code GROUP_NAME_TAKEN}. 회원 행을 잠가 같은 회원의 동시 신청을 줄 세운다(상한·하루 한도가 넘치지 않게).
+ * 같은 이름 409 {@code GROUP_NAME_TAKEN}. 대표 이미지 {@code imageFileId}(선택, V154)는 다른 칸과 함께 {@code 400 fields.imageFileId} 로 모은다 — 내가 올린 PENDING 파일이거나
+ * 내 반려된 신청이 쥔 파일만({@link GroupImages#claimable} — 반려 행에서 새 신청으로 옮긴다). 신청 취소는 이미지를 떼어 정리 배치에 맡긴다. 회원 행을 잠가 같은 회원의 동시 신청을 줄 세운다(상한·하루 한도가 넘치지 않게).
  * 승인제면 PENDING(202) + 운영자 알림 {@code CLUB_OPEN_REQUEST_PENDING}, 자유 개설이면 바로 ACTIVE(201 — 신청자가 모임장·첫 멤버). 로보얌에는 공개 사이트에 로그인하는
  * 최고 관리자가 없어(운영자는 관리자 앱) 「최고 관리자가 만들면 바로 열림·등급 면제」는 없다.
  */
@@ -67,9 +69,11 @@ public class GroupCreateService {
     private final UserRepository users;
     private final SnowflakeIdGenerator ids;
     private final NotificationPublisher operatorNotices;
+    private final GroupImages images;
 
     public GroupCreateService(GroupAccess access, GroupRepository groups, GroupMemberRepository members, GroupSettingsService settings, GroupViews views,
-                              UserRepository users, SnowflakeIdGenerator ids, NotificationPublisher operatorNotices) {
+                              UserRepository users, SnowflakeIdGenerator ids, NotificationPublisher operatorNotices, GroupImages images) {
+        this.images = images;
         this.access = access;
         this.groups = groups;
         this.members = members;
@@ -95,7 +99,10 @@ public class GroupCreateService {
 
         GroupViews.Context ctx = views.context();
         GroupRuleValues.Policy policy = settings.policy();
-        Input input = validate(request, ctx, policy);
+        String rawImage = request == null || request.imageFileId() == null || request.imageFileId().isBlank() ? null : request.imageFileId().strip();
+        Long imageId = rawImage == null ? null : GroupQueryService.parseLong(rawImage);
+        FileEntity image = imageId == null ? null : images.claimable(me, imageId);
+        Input input = validate(request, ctx, policy, rawImage != null && image == null);
 
         GroupRuleValues.Creation rules = settings.creation();
         Integer required = ctx.boards().gradeLevel(rules.minGrade());
@@ -128,6 +135,9 @@ public class GroupCreateService {
         GroupVisibility visibility = ctx.visibilityEnabled() && input.visibility != null ? input.visibility : GroupVisibility.PRIVATE;
         GroupEntity group = GroupEntity.request(ids.nextId(), input.name, nameKey, input.description, input.board.id(), input.joinType, input.capacity,
                 input.offline, visibility, me, settings.manager().limitDefault(), input.board.investmentNotice() && input.agreeStock, open, now);
+        if (image != null) {
+            images.attach(group, image, now);
+        }
         groups.persist(group);
         if (open) {
             members.persist(GroupMemberEntity.leader(group.getId(), me, now));
@@ -161,6 +171,7 @@ public class GroupCreateService {
         GroupEntity group = groups.findWithLockById(GroupAccess.parseId(rawId))
                 .filter(g -> g.getStatus() == GroupStatus.PENDING && me == (g.getCreatorId() == null ? -1L : g.getCreatorId()))
                 .orElseThrow(GroupNotFoundException::new);
+        images.detach(group);
         group.delete(Instant.now());
         log.info("소모임 개설 신청을 거뒀다 groupId={} userId={}", group.getId(), me);
     }
@@ -178,11 +189,11 @@ public class GroupCreateService {
         boolean agreeStock;
     }
 
-    /** 칸별 위반을 모은다 — name · description · categoryId · boardSlug · joinType · capacity · visibility · agreeRules · agreeStock · agreeOffline */
-    private static Input validate(GroupCreateRequest r, GroupViews.Context ctx, GroupRuleValues.Policy policy) {
+    /** 칸별 위반을 모은다 — name · description · categoryId · boardSlug · joinType · capacity · visibility · agreeRules · agreeStock · agreeOffline · imageFileId(판정은 부르는 쪽) */
+    private static Input validate(GroupCreateRequest r, GroupViews.Context ctx, GroupRuleValues.Policy policy, boolean imageInvalid) {
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         Input in = new Input();
-        GroupCreateRequest req = r == null ? new GroupCreateRequest(null, null, null, null, null, null, null, null, null, null, null) : r;
+        GroupCreateRequest req = r == null ? new GroupCreateRequest(null, null, null, null, null, null, null, null, null, null, null, null) : r;
 
         String nameProblem = GroupRules.nameProblem(req.name());
         if (nameProblem != null) {
@@ -247,6 +258,9 @@ public class GroupCreateService {
         }
         if (in.offline && !Boolean.TRUE.equals(req.agreeOffline())) {
             invalid.put("agreeOffline", new MessageRef("group.agreeOffline.required"));
+        }
+        if (imageInvalid) {
+            invalid.put(GroupImages.FIELD, new MessageRef(GroupImages.INVALID));
         }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);

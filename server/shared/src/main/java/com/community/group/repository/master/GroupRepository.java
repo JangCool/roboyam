@@ -41,6 +41,9 @@ public interface GroupRepository extends RoboyamRepository<GroupEntity, Long> {
     /** 승인 대기 — 오래된 신청이 위 */
     List<GroupEntity> findByStatusOrderByRequestedAtAscIdAsc(GroupStatus status);
 
+    /** 그 대표 이미지 파일을 쓰는 소모임 행(V154 {@code ux_groups_image_file} — 많아야 하나) */
+    Optional<GroupEntity> findByImageFileId(Long imageFileId);
+
     /** 그 게시판의 소모임이 하나라도 있나(게시판 지우기 막기 — 상태 무관) */
     boolean existsByBoardId(Long boardId);
 }
