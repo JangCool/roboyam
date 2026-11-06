@@ -36,10 +36,14 @@ public class GroupPostController {
         this.ipResolver = ipResolver;
     }
 
+    /** 글 탭 — {@code page} 를 보내면 게시판 목록처럼 쪽 번호(정렬·말머리·검색), 아니면 커서로 더보기 */
     @GetMapping("/{id}/posts")
     public ResponseEntity<ApiResponse<GroupPostPageView>> list(@PathVariable String id, @RequestParam(required = false) String cursor,
-                                                               @RequestParam(required = false) String size, Authentication authentication) {
-        return noStore(posts.list(id, GroupController.userId(authentication), cursor, size));
+                                                               @RequestParam(required = false) String size, @RequestParam(required = false) Integer page,
+                                                               @RequestParam(required = false) String sort, @RequestParam(required = false) String q,
+                                                               @RequestParam(required = false) String prefix, Authentication authentication) {
+        Long userId = GroupController.userId(authentication);
+        return noStore(page != null ? posts.page(id, userId, page, sort, q, prefix) : posts.list(id, userId, cursor, size));
     }
 
     /** 글쓰기(201) — 비공개 글로 만들어진다 */

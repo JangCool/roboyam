@@ -1,8 +1,10 @@
 <template>
-    <!-- 글 줄의 제목 부분 — 말머리 · 19 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다 -->
+    <!-- 글 줄의 제목 부분 — (소모임 상세면 공개 라벨) · 말머리 · 19 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다 -->
     <span>
         <i v-if="row.pinned && pinnedMark" class="pi pi-thumbtack mr-1 text-xs text-muted-color" aria-hidden="true" />
         <span v-if="row.pinned && pinnedMark" class="sr-only">{{ t('board.pinned') }}</span>
+        <!-- 소모임 상세 목록의 공개 라벨(`provideGroupRowTag` 를 건 목록에서만) — 글자가 늘 있다(색만으로 가르지 않는다) -->
+        <GroupTag v-if="groupTag" :tone="groupTag === 'PUBLIC' ? 'blue' : 'gray'" class="mr-1 align-[1px]" data-testid="group-post-visibility">{{ UtilGroupMessages.postRowVisibility(t, groupTag) }}</GroupTag>
         <PostPrefixTag v-if="row.prefix && showPrefix" :prefix="row.prefix" class="mr-1 align-[1px]" />
         <span v-if="row.adult" class="mr-1 inline-flex size-4 items-center justify-center rounded-full bg-red-600 align-[1px] text-[0.5625rem] font-bold leading-none text-white" :title="t('board.adultMark')">
             <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
@@ -34,6 +36,7 @@
 
 <script setup lang="ts">
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
+import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilPost from '~/utils/util-post';
 import UtilSearchRules from '~/utils/util-search-rules';
 
@@ -60,4 +63,6 @@ const props = withDefaults(defineProps<Props>(), {
 const { t } = useI18n();
 const titleParts = computed(() => UtilSearchRules.highlightParts(props.row.title, props.tokens));
 const isNew = computed(() => UtilPost.isNew(props.row.createdAt, props.newPostHours, Date.now()));
+/** 소모임 상세 목록의 공개 라벨 — 그 밖의 목록은 null */
+const groupTag = useGroupRowTag(() => props.row);
 </script>

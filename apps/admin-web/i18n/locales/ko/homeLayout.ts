@@ -75,6 +75,8 @@ export default {
     settingsCardHead: '카드 머리 보이기',
     settingsCardOutline: '카드 외곽선',
     settingsCardDividers: '줄 구분선',
+    settingsCardLeadPlaceholder: '사진 없는 대표 글에 「이미지 없음」 자리',
+    settingsCardLeadPlaceholderHint: '켜면(기본) 대표 글에 사진이 없어도 같은 크기의 「이미지 없음」 자리를 둬 카드끼리 모양이 같아요. 끄면 제목만 보여요.',
     settingsCardLinesHint: '끄면 선 없이 여백으로 나눠요(기본). 카드 테마의 흰 카드 모양은 테마가 정해요.',
     settingsCardHeadHint: '게시판 로고·이름과 「게시판 가기」예요. 게시판 하나짜리 가젯은 가젯 제목·「더보기」와 겹치니 꺼 두세요.',
     settingsPeriodTabs: '실시간 · 어제 · 이번 주 탭 보이기',

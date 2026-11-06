@@ -8,7 +8,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
  * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`) ·
- * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns` · 하이라이트 `count`·`lead`·`thumbs` · 소모임 `count` ·
+ * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs` · 소모임 `count` ·
  * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
 export interface AdminPreviewGadgetConfig {
@@ -20,6 +20,8 @@ export interface AdminPreviewGadgetConfig {
     periodTabs?: boolean;
     perBoard?: number;
     cardHead?: boolean;
+    outline?: boolean;
+    leadPlaceholder?: boolean;
     rowStyle?: string;
     columns?: number | 'AUTO';
     thumbnail?: string;
@@ -254,6 +256,9 @@ export default class UtilAdminPreview {
                     boardScope,
                     boardIds,
                     cardHead: value.cardHead !== false,
+                    outline: value.outline === true,
+                    dividers: value.dividers === true,
+                    leadPlaceholder: value.leadPlaceholder !== false,
                     columns: value.columns === 'AUTO' || value.columns === 2 || value.columns === 3 ? value.columns : undefined,
                 });
             case 'HIGHLIGHT':
@@ -368,7 +373,7 @@ export default class UtilAdminPreview {
             const cards = (data as unknown as BoardCardsData).cards;
             const picked = config.boardScope === 'PICK' && config.boardIds?.length ? config.boardIds.map((slug) => cards.find((c) => c.board.slug === slug)).filter((c) => c !== undefined) : cards;
             data.cards = picked.map((c) => ({ ...c, items: config.perBoard ? c.items.slice(0, config.perBoard) : c.items }));
-            gadget.config = { ...gadget.config, cardHead: config.cardHead !== false };
+            gadget.config = { ...gadget.config, cardHead: config.cardHead !== false, outline: config.outline === true, dividers: config.dividers === true, leadPlaceholder: config.leadPlaceholder !== false };
         }
     }
 

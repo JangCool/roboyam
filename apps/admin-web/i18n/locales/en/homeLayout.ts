@@ -74,6 +74,8 @@ export default {
     settingsCardHead: 'Show card heading',
     settingsCardOutline: 'Card outline',
     settingsCardDividers: 'Row dividers',
+    settingsCardLeadPlaceholder: '“No image” box for the top post',
+    settingsCardLeadPlaceholderHint: 'On by default — the top post keeps a same-size “No image” box when it has no picture, so cards line up. Off shows the title only.',
     settingsCardLinesHint: 'Off by default — rows are separated by spacing instead of lines. Card themes keep their own white cards.',
     settingsCardHeadHint: 'Board logo, name and “Go to board”. Turn it off for a single-board gadget — the gadget title and “More” already point there.',
     settingsPeriodTabs: 'Show Now · Yesterday · This week tabs',

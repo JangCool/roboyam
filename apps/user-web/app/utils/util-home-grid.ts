@@ -102,6 +102,36 @@ export default class UtilHomeGrid {
     }
 
     /**
+     * 한 열 순서 「옆 열 끼워 넣기」(템플릿 한 열 모양 `mobile.order: 'beside'` — 로보얌, 2026-11-06 사용자) — 열 나누기는 `byColumns` 와 같고,
+     * 오른쪽 열의 가젯은 본문 열(맨 왼쪽 열)이 그 가젯의 아래 끝까지 내려온 자리에 끼운다 = 본문 열에서 위 끝(y)이 그 가젯의 아래 끝(y + h) 이하인 마지막 가젯 바로 뒤
+     * (그런 가젯이 없으면 맨 앞). 같은 자리에 여럿이면 (y, x) 순서. 나눌 경계가 없으면 (y, x) 순서 그대로다.
+     * 예) 로보얌 = 하이라이트 · 방금 올라온 글 · 인기글(데스크톱에서 방금 올라온 글 옆까지 내려온다) · 팁과강좌 · 사용기 · 영상·짤 · 인기 소모임.
+     * @param {readonly T[]} items - 보이는 가젯의 자리(운영자 배치).
+     * @param {number} columns - 운영자 배치의 칸 수.
+     * @returns {T[]} 한 열 순서로 정렬한 새 배열.
+     */
+    static besideColumns<T extends HomeLayoutItem>(items: readonly T[], columns: number): T[] {
+        const lanes = UtilHomeGrid.byColumns(items, columns);
+        const cut = Math.min(...Array.from({ length: columns - 1 }, (_, i) => i + 1).filter((b) => items.every((it) => it.x >= b || it.x + it.w <= b)), Number.POSITIVE_INFINITY);
+        if (!Number.isFinite(cut)) return lanes;
+        const main = lanes.filter((it) => it.x + it.w <= cut);
+        const out: T[] = [...main];
+        for (const side of lanes.filter((it) => it.x >= cut)) {
+            const bottom = side.y + side.h;
+            let anchor = -1;
+            main.forEach((it, i) => {
+                if (it.y <= bottom) anchor = i;
+            });
+            // 앞서 같은 자리에 끼운 옆 가젯 뒤로(차례 유지)
+            const after = anchor < 0 ? -1 : out.indexOf(main[anchor]!);
+            let at = after + 1;
+            while (at < out.length && !main.includes(out[at]!)) at++;
+            out.splice(at, 0, side);
+        }
+        return out;
+    }
+
+    /**
      * 게시판 레이아웃의 한 열 순서 — 본문(`bodyId`)을 먼저 둔다(사용자 결정 2026-10-30: 모바일은 본문 먼저, 그 다음 가젯).
      * 단, 본문 위에 통째로 놓인 가젯(아래 끝 ≤ 본문 위 끝 — 본문 위의 전체 폭 띠 등)은 본문 위 그대로 둔다. 나머지 차례는 받은 차례(템플릿의 한 열 순서) 그대로.
      * 예) 추천 배치(본문 17 + 오른쪽 열 7) → 본문 → 이 게시판 인기글 → 공동구매 → 인기 소모임 / 본문 위에 바로가기 띠 → 바로가기 → 본문 → ….

@@ -1,5 +1,5 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
-import type { PostGroupPublicBy, PostGroupVisibility, PostRow, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
+import type { PostGroupPublicBy, PostGroupVisibility, PostRow, PostSort, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -539,14 +539,24 @@ export interface GroupApplicationListResponse {
 
 // ── 소모임 글(2단계 — community `docs/api-groups.md` 8절. 11절 공개 범위·공개 요청은 아래 5단계 절) ──
 
-/** `GET /api/groups/{id}/posts?cursor=&size=` 의 조건 — `size` 1~50(기본 20) */
+/**
+ * `GET /api/groups/{id}/posts` 의 조건 — 커서(`cursor`·`size` 1~50, 기본 20) 또는 쪽 번호(`page` 를 보내면 — 게시판 목록처럼 `sort`·`q`·`prefix`,
+ * 쪽 크기는 소모임 게시판의 목록 크기, 2026-11-06 사용자)
+ */
 export interface GroupPostListQuery {
     cursor?: string;
     size?: number;
+    /** 1부터 */
+    page?: number;
+    sort?: PostSort;
+    /** 게시판 안 검색과 같다(제목·내용·작성자) */
+    q?: string;
+    /** 말머리 ID */
+    prefix?: string;
 }
 
 /**
- * 글 탭 한 쪽 — 최신이 위, 커서로 더보기. 멤버는 비공개 글까지, 비멤버·비회원은 공개로 전환된 글만. 지운 글·숨긴 글(나간 멤버의 글 포함)은 없다.
+ * 글 탭 한 쪽 — 커서로 더보기(최신이 위) 또는 쪽 번호. 멤버는 비공개 글까지, 비멤버·비회원은 공개로 전환된 글만. 지운 글·숨긴 글(나간 멤버의 글 포함)은 없다.
  * 줄은 게시판 글 줄(`PostRow`)에 `group`(`PostGroupRef`)이 붙은 모양이다.
  */
 export interface GroupPostPage {
@@ -557,6 +567,10 @@ export interface GroupPostPage {
     locked: boolean;
     /** 잠긴 글 수(멤버는 0) — 「멤버에게만 보이는 글 N개」 줄 */
     privateCount: number;
+    /** 쪽 번호로 받았을 때만 — 지금 쪽(1부터) · 전체 쪽 수 · 조건에 맞는 글 수(커서로 받으면 null) */
+    page?: number | null;
+    totalPages?: number | null;
+    totalCount?: number | null;
 }
 
 /**

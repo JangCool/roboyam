@@ -55,7 +55,7 @@ export interface HomeQuickLink {
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
  *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
- *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3 · `outline`·`dividers`(카드 외곽선·줄 구분선, 기본 끔)
+ *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3 · `outline`·`dividers`(카드 외곽선·줄 구분선, 기본 끔) · `leadPlaceholder`(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬)
  *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
  *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
@@ -73,6 +73,8 @@ export interface HomeGadgetConfig {
     cardHead?: boolean;
     /** 게시판 카드 — 카드마다 둥근 외곽선(기본 끔) */
     outline?: boolean;
+    /** 게시판 카드 — 사진 없는 대표 글에도 사진 자리(「이미지 없음」, 기본 켬) */
+    leadPlaceholder?: boolean;
     rowStyle?: HomePostRowStyle;
     /** 글 목록 1·2 · 게시판 카드 `AUTO`·2·3 */
     columns?: number | 'AUTO';
