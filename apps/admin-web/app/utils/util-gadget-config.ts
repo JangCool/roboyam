@@ -226,7 +226,7 @@ export default class UtilGadgetConfig {
                 } satisfies HomeGadgetConfig);
                 break;
             case 'BOARD_CARDS':
-                Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false } satisfies HomeGadgetConfig);
+                Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies HomeGadgetConfig);
                 break;
             case 'HIGHLIGHT':
                 Object.assign(out, { lead: 'HERO', thumbs: 'ALL' } satisfies HomeGadgetConfig);
@@ -289,6 +289,7 @@ export default class UtilGadgetConfig {
                 out.cardHead = c.cardHead !== false;
                 out.outline = c.outline === true;
                 out.dividers = c.dividers === true;
+                out.leadPlaceholder = c.leadPlaceholder !== false;
                 out.columns = c.columns === 2 || c.columns === '2' ? 2 : c.columns === 3 || c.columns === '3' ? 3 : 'AUTO';
                 break;
             case 'HIGHLIGHT':

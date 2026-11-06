@@ -78,6 +78,38 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
         return tuples.stream().map(t -> new Row(t.get(row), Boolean.TRUE.equals(t.get(POST.publicPost)))).toList();
     }
 
+    /** 쪽 번호 목록의 한 쪽 — 줄 + 조건에 맞는 전체 수 */
+    public record Paged(List<Row> rows, long total) {
+    }
+
+    /**
+     * 글 탭 — 게시판 목록처럼 쪽 번호로(정렬·말머리·검색, 2026-11-06 사용자). 보이는 글 조건은 {@link #rows} 와 같다.
+     *
+     * @param includePrivate 멤버면 true(비공개 글까지), 아니면 공개로 전환된 글만
+     * @param prefixId       말머리 — null 이면 전체
+     * @param q              검색어(게시판 안 검색과 같다 — {@link PostRepositoryQDSL#search}) — null 이면 검색하지 않는다
+     * @param oldest         오래된순(아니면 최신순)
+     */
+    public Paged page(long groupId, boolean includePrivate, Long prefixId, String q, boolean oldest, long offset, int limit, Instant now) {
+        BooleanExpression where = visible(POST, groupId, now);
+        if (!includePrivate) {
+            where = where.and(POST.publicPost.isTrue());
+        }
+        if (prefixId != null) {
+            where = where.and(POST.prefixId.eq(prefixId));
+        }
+        if (q != null) {
+            where = where.and(PostRepositoryQDSL.search(q, now));
+        }
+        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        if (total == null || total == 0 || offset >= total) {
+            return new Paged(List.of(), total == null ? 0 : total);
+        }
+        ConstructorExpression<PostRowData> row = row();
+        List<Tuple> tuples = query.select(row, POST.publicPost).from(POST).where(where).orderBy(oldest ? POST.id.asc() : POST.id.desc()).offset(offset).limit(limit).fetch();
+        return new Paged(tuples.stream().map(t -> new Row(t.get(row), Boolean.TRUE.equals(t.get(POST.publicPost)))).toList(), total);
+    }
+
     /** 보이는 글 수 — {@code publicOnly} 면 공개로 전환된 글만 */
     public long count(long groupId, boolean publicOnly, Instant now) {
         BooleanExpression where = visible(POST, groupId, now);

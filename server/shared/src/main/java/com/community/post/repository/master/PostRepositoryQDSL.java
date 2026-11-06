@@ -135,8 +135,8 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return new Page(items, total);
     }
 
-    /** 게시판 안 검색 — 숨긴 글은 빼고 제목·본문(평문 칸)·비회원 이름·회원 닉네임(대소문자 무시) */
-    private static BooleanExpression search(String q, Instant now) {
+    /** 게시판 안 검색 — 숨긴 글은 빼고 제목·본문(평문 칸)·비회원 이름·회원 닉네임(대소문자 무시). 소모임 글 목록도 같은 검색을 쓴다({@code GroupPostQueries#page}) */
+    public static BooleanExpression search(String q, Instant now) {
         QProfileEntity profile = QProfileEntity.profileEntity;
         return notHidden(POST, now).and(POST.title.containsIgnoreCase(q)
                 .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(q))

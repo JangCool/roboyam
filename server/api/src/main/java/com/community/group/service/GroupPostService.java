@@ -6,6 +6,7 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.dto.response.BoardDetailView;
 import com.community.board.service.BoardAccessPolicy;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
 import com.community.group.dto.response.GroupPostPageView;
 import com.community.group.dto.response.GroupPostRowView;
@@ -23,6 +24,7 @@ import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
 import com.community.post.repository.master.PostRepository;
+import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
@@ -113,16 +115,55 @@ public class GroupPostService {
         List<GroupPostQueries.Row> found = new ArrayList<>(postQueries.rows(group.getId(), member, cursor, size + 1, now));
         boolean hasNext = found.size() > size;
         List<GroupPostQueries.Row> page = hasNext ? found.subList(0, size) : found;
+        List<GroupPostRowView> items = items(group, page, b, s, now, userId);
+        String next = hasNext && !page.isEmpty() ? Long.toString(page.getLast().data().id()) : null;
+        // 공개 소모임이면 잠금 줄·숨은 수를 만들지 않는다(비멤버에게는 비멤버에게 보이는 글만 — 멤버 전용으로 돌린 글은 세지 않는다, api-groups.md 11-2)
+        boolean locked = !member && !group.isPublicGroup();
+        return new GroupPostPageView(items, hasNext, next, locked, locked ? postQueries.privateCount(group.getId(), now) : 0);
+    }
+
+    /**
+     * 글 탭 — 게시판 목록처럼 쪽 번호로(2026-11-06 사용자). 쪽 크기는 소모임 게시판의 목록 크기, 정렬 LATEST(기본)·OLDEST, 말머리·검색은 게시판 목록과 같다
+     * (없는 말머리면 빈 쪽, 검색어는 다듬어 {@value PostRepositoryQDSL#QUERY_MAX}자까지). 보이는 글·잠금 줄은 {@link #list} 와 같다.
+     *
+     * @param pageNo 1부터(1보다 작으면 1)
+     */
+    @Transactional(readOnly = true)
+    public GroupPostPageView page(String rawId, Long userId, int pageNo, String sort, String q, String prefix) {
+        GroupEntity group = access.active(GroupAccess.parseId(rawId));
+        boolean member = isMember(group, userId);
+        Instant now = Instant.now();
+        BoardCatalogSnapshot s = catalog.snapshot();
+        EffectiveBoard b = s.board(group.getBoardId()).orElseThrow(GroupNotFoundException::new);
+        int listSize = b.listSize();
+        int current = Math.max(1, pageNo);
+        Long prefixId = null;
+        boolean impossible = false;
+        if (prefix != null && !prefix.isBlank()) {
+            prefixId = PostQueryService.parseId(prefix);
+            impossible = prefixId == null || b.prefix(prefixId).isEmpty();
+        }
+        String query = ContentRules.normalize(q);
+        if (query.length() > PostRepositoryQDSL.QUERY_MAX) {
+            query = query.substring(0, PostRepositoryQDSL.QUERY_MAX);
+        }
+        GroupPostQueries.Paged found = impossible ? new GroupPostQueries.Paged(List.of(), 0)
+                : postQueries.page(group.getId(), member, prefixId, query.isEmpty() ? null : query, "OLDEST".equals(sort), (long) (current - 1) * listSize, listSize, now);
+        int totalPages = (int) ((found.total() + listSize - 1) / listSize);
+        boolean locked = !member && !group.isPublicGroup();
+        return new GroupPostPageView(items(group, found.rows(), b, s, now, userId), current < totalPages, null, locked, locked ? postQueries.privateCount(group.getId(), now) : 0,
+                current, totalPages, found.total());
+    }
+
+    /** 글 줄 — 게시판 글 줄에 소모임 공개 여부를 붙인다 */
+    private List<GroupPostRowView> items(GroupEntity group, List<GroupPostQueries.Row> page, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long userId) {
         List<PostRowView> views = rows.boardRows(page.stream().map(GroupPostQueries.Row::data).toList(), b, s, now, userId);
         List<GroupPostRowView> items = new ArrayList<>(views.size());
         String groupId = Long.toString(group.getId());
         for (int i = 0; i < views.size(); i++) {
             items.add(new GroupPostRowView(views.get(i), PostGroupView.ref(groupId, group.getName(), page.get(i).publicPost(), false)));
         }
-        String next = hasNext && !page.isEmpty() ? Long.toString(page.getLast().data().id()) : null;
-        // 공개 소모임이면 잠금 줄·숨은 수를 만들지 않는다(비멤버에게는 비멤버에게 보이는 글만 — 멤버 전용으로 돌린 글은 세지 않는다, api-groups.md 11-2)
-        boolean locked = !member && !group.isPublicGroup();
-        return new GroupPostPageView(items, hasNext, next, locked, locked ? postQueries.privateCount(group.getId(), now) : 0);
+        return items;
     }
 
     /** 글 탭을 봤다(204) — 내 마지막으로 본 시각을 지금으로. 멤버가 아니거나 없는 소모임이면 아무 일도 없다(비회원 401) */

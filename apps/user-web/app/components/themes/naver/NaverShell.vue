@@ -37,7 +37,7 @@
 
     <div class="mx-auto flex w-full max-w-[var(--content-max)] flex-1 items-start" :class="side ? 'md:gap-4 md:px-4' : ''">
         <!-- 사이드 메뉴(데스크톱, 사이드 위치일 때만) — 흰 면 카드. 본문 첫 줄과 높이를 맞춘다 -->
-        <AppSideMenu v-if="side" :side="side" :with-bar="hasBar" :bar-overflow="menuOverflow" class="shell-card mt-6 py-2" />
+        <AppSideMenu v-if="side" :side="side" :with-bar="hasBar" :bar-overflow="menuOverflow" card-class="shell-card py-2" class="mt-6" />
         <main id="main-content" class="min-w-0 flex-1 px-4 py-4 md:py-6" :class="side ? 'md:px-0' : ''">
             <slot />
         </main>

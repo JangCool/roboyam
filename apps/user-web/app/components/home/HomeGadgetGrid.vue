@@ -6,7 +6,7 @@
           · `full` 데스크톱(lg 이상) + 홈 폭 52rem 이상 — 운영자 배치 그대로
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
-            순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
+            순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`) · `beside` 오른쪽 열을 본문 열 사이에 끼워 넣기(`UtilHomeGrid.besideColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
         **px 배치**: 칸 높이 = `UtilHomeGrid.boxHeight`(운영자 h 의 px 가 잰 내용보다 한 칸(31px) 이상 크면 그 px, 아니면 내용 높이), 위 끝 = 열이 겹치는 앞선 가젯 아래 끝 + 16px(`place`). 게시판 본문 칸은 내용 높이만.
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
         같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞춘다(「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
@@ -145,7 +145,8 @@ const cells = computed<Cell[]>(() => {
 
 /** 한 열 순서 — 템플릿이 고른다(기본 (y, x)). 게시판 레이아웃이면 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`) */
 function stackOrder(items: readonly HomeLayoutItem[]): HomeLayoutItem[] {
-    const order = mobileOrder === 'columns' ? UtilHomeGrid.byColumns(items, props.layout.columns) : UtilHomeLayout.byReadingOrder(items);
+    const order =
+        mobileOrder === 'columns' ? UtilHomeGrid.byColumns(items, props.layout.columns) : mobileOrder === 'beside' ? UtilHomeGrid.besideColumns(items, props.layout.columns) : UtilHomeLayout.byReadingOrder(items);
     const body = boardBody ? props.gadgets.find((g) => g.type === BOARD_BODY) : undefined;
     return body ? UtilHomeGrid.bodyFirst(order, body.id) : order;
 }

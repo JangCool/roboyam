@@ -37,6 +37,7 @@ export default {
     boardGoLabel: 'Go to the {name} board',
     boardEmpty: 'No posts yet',
     boardStockNote: 'Not investment advice',
+    noImage: 'No image',
 
     // Quick links
     quickLinks: 'Quick links',

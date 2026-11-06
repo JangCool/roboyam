@@ -206,6 +206,9 @@ final class GadgetPatches {
             }
             case "BOARD_CARDS" -> {
                 bool(raw, out, "cardHead", base, fields);
+                bool(raw, out, "outline", base, fields);
+                bool(raw, out, "dividers", base, fields);
+                bool(raw, out, "leadPlaceholder", base, fields);
                 if (present(raw, "columns")) {
                     JsonNode c = raw.get("columns");
                     Integer n = integer(c);

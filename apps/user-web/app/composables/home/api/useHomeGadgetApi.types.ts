@@ -139,6 +139,8 @@ export interface BoardCardsConfig {
     cardHead: boolean;
     /** 카드마다 둥근 외곽선 — 없으면 끔(2026-11-06) */
     outline: boolean;
+    /** 사진 없는 대표 글에도 사진 자리(「이미지 없음」) — 없으면 켬(카드끼리 모양이 같게, 2026-11-06 사용자) */
+    leadPlaceholder: boolean;
     /** 줄 구분선(목록 줄 사이·카드 아래 줄) — 없으면 끔 */
     dividers: boolean;
 }

@@ -38,6 +38,7 @@ export default {
     boardGoLabel: '{name} 게시판 가기',
     boardEmpty: '아직 글이 없어요',
     boardStockNote: '투자 권유가 아니에요',
+    noImage: '이미지 없음',
 
     // 바로가기
     quickLinks: '바로가기',

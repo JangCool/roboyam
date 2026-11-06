@@ -210,6 +210,14 @@
                                     </div>
                                     <small class="text-xs text-muted-color">{{ t('homeLayout.settingsCardHeadHint') }}</small>
                                 </div>
+                                <!-- 대표 글 사진 자리 — 기본 켬(사진 없으면 「이미지 없음」, 카드끼리 모양이 같게 — 2026-11-06 사용자) -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-2">
+                                        <ToggleSwitch v-model="cardLeadPlaceholderModel" :input-id="`${uid}-clead`" />
+                                        <label :for="`${uid}-clead`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsCardLeadPlaceholder') }}</label>
+                                    </div>
+                                    <small class="text-xs text-muted-color">{{ t('homeLayout.settingsCardLeadPlaceholderHint') }}</small>
+                                </div>
                                 <!-- 선 — 기본은 둘 다 끔(선 없이 여백으로 나눈다, 2026-11-06 사용자) -->
                                 <div class="flex flex-col gap-1">
                                     <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -624,6 +632,14 @@ const cardHeadModel = computed<boolean>({
     get: () => draft.value?.cardHead !== false,
     set: (value) => {
         if (draft.value) draft.value.cardHead = value;
+    },
+});
+
+/** 게시판 카드의 대표 글 사진 자리 — 기본 켬 */
+const cardLeadPlaceholderModel = computed<boolean>({
+    get: () => draft.value?.leadPlaceholder !== false,
+    set: (value) => {
+        if (draft.value) draft.value.leadPlaceholder = value;
     },
 });
 

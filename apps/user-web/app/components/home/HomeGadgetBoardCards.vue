@@ -6,6 +6,7 @@
         산업·주식(투자 고지) 게시판 카드에는 고지 한 줄이 늘 붙는다 — 카드의 `board.investmentNotice`(slug 로 짐작하지 않는다).
         로고 색: 자동은 운영자가 고른 게시판 표시색, 없으면 순서로 정한 색(`UtilBoard.toneAt`) · 고정 색 · 회색. 로고에는 글자가 늘 있다(색만으로 뜻을 전하지 않는다).
         설정 `cardHead` 가 꺼지면(관리자 ⚙ — 게시판 하나짜리 카드 가젯) 카드 머리(로고·이름)와 「게시판 가기 ›」를 그리지 않는다 — 가젯 제목·「더보기」가 그 게시판을 가리킨다. 투자 고지 줄은 그대로 붙는다.
+        대표 글 사진 자리(`leadPlaceholder`, 기본 켬): 사진이 없어도 「이미지 없음」 자리를 둬 카드끼리 모양이 같다.
         선: 카드 외곽선(`outline`)·줄 구분선(`dividers`)은 설정으로 켜고 기본은 끈다 — 선 대신 여백으로 나누고(가젯 제목과 첫 글 사이 10px — 글 목록 가젯과 같게) 줄에 마우스를 올리면 옅은 배경(2026-11-06 사용자). 카드 테마의 평평한 카드형은 테마 카드 그대로.
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="gadget.empty || cards.length === 0" empty-icon="pi pi-th-large">
@@ -23,9 +24,9 @@
                 </header>
 
                 <FoldedRow v-if="card.lead" :reason="foldOf(card.lead)" kind="post" class="mb-2 py-2 text-sm" hide-class="pb-2">
-                    <!-- 대표 글 = 작은 사진(글 두 줄 높이) + 제목 — 사진이 줄보다 커지지 않게, 사진이 없으면 제목만(2026-11-06 사용자) -->
+                    <!-- 대표 글 = 작은 사진(글 두 줄 높이) + 제목 — 사진이 줄보다 커지지 않게. 사진이 없으면 같은 크기의 「이미지 없음」 자리(설정 `leadPlaceholder`, 기본 켬 — 끄면 제목만, 2026-11-06 사용자) -->
                     <NuxtLink :to="`/posts/${card.lead.id}`" class="mb-2 flex items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-primary" data-testid="home-board-lead">
-                        <HomeThumb v-if="card.lead.thumbnailUrl" :src="card.lead.thumbnailUrl" ratio="16 / 10" class="w-[4.5rem] shrink-0" />
+                        <HomeThumb v-if="card.lead.thumbnailUrl || cfg.leadPlaceholder" :src="card.lead.thumbnailUrl" ratio="16 / 10" class="w-[4.5rem] shrink-0" />
                         <p class="m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug">{{ card.lead.title }}</p>
                     </NuxtLink>
                 </FoldedRow>

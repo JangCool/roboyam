@@ -14,7 +14,7 @@ import tools.jackson.databind.node.ObjectNode;
  * <ul>
  *   <li>{@code GROUP_BUY} {@code count} 1~10(5) · {@code sort} · {@code POST_LIST} 대상 게시판 · {@code count} 1~30(10) · {@code sort} · {@code periodTabs} · 보기 모양
  *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
- *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) ·
+ *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) ·
  *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
@@ -183,6 +183,7 @@ public final class GadgetConfigs {
                 out.put("cardHead", cardHead(config));
                 out.put("outline", bool(config, "outline", false));
                 out.put("dividers", bool(config, "dividers", false));
+                out.put("leadPlaceholder", bool(config, "leadPlaceholder", true)); // 대표 글 사진 자리를 늘 둔다(사진 없으면 「이미지 없음」 — 2026-11-06 사용자)
                 int columns = intOrDigit(config, "columns");
                 if (columns == 2 || columns == 3) {
                     out.put("columns", columns);

@@ -27,8 +27,9 @@ export interface HomeGadgetMobileLook {
     /**
      * 한 열의 가젯 순서 — `reading`(기본): 운영자 배치의 (y, x) · `columns`: 본문 열 먼저, 오른쪽 열은 그 뒤(`UtilHomeGrid.byColumns` — 어떤 가젯도 가로지르지 않는 칸 경계로 열을 나눈다. 나눌 경계가 없으면 `reading`).
      * 모바일에서만 보일 가젯(`mobile` 노출)을 본문 열 중간에 두면 그 자리에 끼어든다.
+     * `beside`: 열 나누기는 `columns` 와 같고, 오른쪽 열 가젯은 본문 열이 그 가젯의 아래 끝까지 내려온 자리에 끼운다(`UtilHomeGrid.besideColumns` — 로보얌, 2026-11-06).
      */
-    order: 'reading' | 'columns';
+    order: 'reading' | 'columns' | 'beside';
     /** 하이라이트(`heroSplit` 큰 글)의 나머지 글을 가로로 미는 카드 줄로 */
     highlightScroll: boolean;
     /** 하이라이트 큰 글(`heroSplit`)의 사진을 카드 좌우 끝까지(반경 0) */
