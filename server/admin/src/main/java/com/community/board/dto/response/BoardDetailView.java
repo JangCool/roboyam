@@ -15,7 +15,7 @@ import java.util.List;
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                               String color, boolean allowAdult, boolean investmentNotice, boolean active, long postCount, String writeLock, String introText,
-                              String writeGuideText, List<String> gadgetExclusions, BoardPolicyValues policy, List<BoardPrefixView> prefixes,
+                              String writeGuideText, String writeTemplate, List<String> gadgetExclusions, BoardPolicyValues policy, List<BoardPrefixView> prefixes,
                               BoardDefaultsValues defaults, int diffCount, List<BoardGadgetView> gadgets, String groupCategoryId,
                               String groupCategoryName, boolean adsHidden) {
 }

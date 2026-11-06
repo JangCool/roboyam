@@ -236,6 +236,8 @@ export interface BoardDetail extends BoardView {
     introText: string | null;
     /** 글쓰기 안내문 — 평문, null = 없음 */
     writeGuideText: string | null;
+    /** 글 양식 — 새 글 본문에 미리 채우는 평문(V153), null = 없음. 옛 서버 응답에는 칸이 없을 수 있다 */
+    writeTemplate?: string | null;
     /** 신고 기능 사용(관리자 신고 정책 `reportEnabled`) */
     reportEnabled: boolean;
     /**

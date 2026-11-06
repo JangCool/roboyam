@@ -41,24 +41,24 @@
         font-size: calc(0.9375rem * var(--text-scale, 1));
     }
     .text-\[13px\] {
-        font-size: calc(13px * var(--text-scale, 1));
+        font-size: calc(13px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
     /* 테마 셸의 탭·링크 글자(다음식 GNB 17px · 네이버식 탭 16.5px · 네이버식 윗줄 링크 13.5px) */
     .text-\[13\.5px\] {
-        font-size: calc(13.5px * var(--text-scale, 1));
+        font-size: calc(13.5px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
     .text-\[16\.5px\] {
-        font-size: calc(16.5px * var(--text-scale, 1));
+        font-size: calc(16.5px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
     .text-\[17px\] {
-        font-size: calc(17px * var(--text-scale, 1));
+        font-size: calc(17px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
     /* 테마의 목록 줄(다음식 헤드라인형·네이버식 기사형) — 제목 15.5px · 메타 12.5px */
     .text-\[12\.5px\] {
-        font-size: calc(12.5px * var(--text-scale, 1));
+        font-size: calc(12.5px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
     .text-\[15\.5px\] {
-        font-size: calc(15.5px * var(--text-scale, 1));
+        font-size: calc(15.5px * var(--text-scale, 1) * var(--ui-scale, 1));
     }
 }
 
@@ -105,7 +105,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) {
     --tab-fg: rgba(0, 0, 0, 0.72);
     --tab-fg-active: #000000;
     --subtab-fg: rgba(0, 0, 0, 0.48);
-    --content-max: 1168px;
+    --content-max: calc(1168px * var(--ui-scale, 1));
 }
 html:is([data-theme='daum'], [data-theme='roboyam'])[data-color-scheme='dark'] {
     --page-bg: #17181b;
@@ -192,7 +192,7 @@ html[data-theme='naver'] {
 }
 /* 2단계 — 다음식 로고 옆 링크 줄(최상위 항목 「로고 옆」)은 다음 뉴스 서비스 링크처럼 16px */
 html:is([data-theme='daum'], [data-theme='roboyam']) .logo-links a {
-    font-size: calc(16px * var(--text-scale, 1));
+    font-size: calc(16px * var(--text-scale, 1) * var(--ui-scale, 1));
 }
 /* 2단계 — 네이버식 사이드 메뉴의 지금 있는 곳: 연한 바탕 위에 본문 쪽 가장자리 3px 주 색상 막대 */
 html[data-theme='naver'] .side-menu[data-side='LEFT'] [aria-current='page'] {
@@ -338,7 +338,7 @@ html[data-theme='naver'] .content-card > :is(header, h1, a):first-child {
     padding-top: 14px;
 }
 html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
-    font-size: calc(20px * var(--text-scale, 1));
+    font-size: calc(20px * var(--text-scale, 1) * var(--ui-scale, 1));
     line-height: 28px;
     font-weight: 700;
 }
@@ -358,7 +358,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
 }
 @media (min-width: 48rem) {
     html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
-        font-size: calc(22px * var(--text-scale, 1));
+        font-size: calc(22px * var(--text-scale, 1) * var(--ui-scale, 1));
         line-height: 30px;
     }
 }
@@ -526,6 +526,18 @@ html {
     background-color: var(--page-bg);
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * PC 화면 비율 95%(사용자 결정 2026-11-06 — 브라우저 95% 확대와 비슷한 크기). 모바일(48rem 미만)은 그대로.
+ * 글자·여백 대부분은 rem 이라 기준 글자 크기(95%)를 따라 줄고, px 로 적은 글자(`calc(…px * var(--text-scale) * var(--ui-scale))`)와 본문 폭(`--content-max`)은 `--ui-scale` 을 곱한다.
+ * 미디어 쿼리의 rem 은 처음 글자 크기(16px) 기준이라 이 규칙의 영향을 받지 않는다.
+ */
+@media (min-width: 48rem) {
+    html {
+        font-size: 95%;
+        --ui-scale: 0.95;
+    }
 }
 
 html[data-color-scheme='dark'] {

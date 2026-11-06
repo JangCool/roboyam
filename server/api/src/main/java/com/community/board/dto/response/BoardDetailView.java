@@ -11,6 +11,7 @@ import java.util.List;
  * @param commentMinGradeLabel {@code commentMin} 이 등급 키일 때 그 등급의 이름, 아니면 null
  * @param introText            게시판 안내문(평문), 없으면 null
  * @param writeGuideText       글쓰기 안내문(평문), 없으면 null
+ * @param writeTemplate        글 양식(평문 — 새 글 본문에 미리 채운다, V153), 없으면 null
  * @param reportEnabled        신고 기능 사용(관리자 신고 정책)
  * @param debateEnabled        글쓴이가 자기 글에 찬반 토론을 열 수 있는가(유효 정책, {@link BoardView#debateEnabled()} 와 같다)
  * @param pollEnabled          글쓴이가 자기 글에 투표를 붙일 수 있는가(유효 정책, {@link BoardView#pollEnabled()} 와 같다)
@@ -23,7 +24,7 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
                               String layout, boolean dealEnabled,
                               boolean promo, boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, String writeMinGradeLabel,
-                              String commentMinGradeLabel, String introText, String writeGuideText, boolean reportEnabled, BoardPolicyView policy,
+                              String commentMinGradeLabel, String introText, String writeGuideText, String writeTemplate, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules) {
 }

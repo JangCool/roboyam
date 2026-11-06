@@ -357,12 +357,12 @@ export default class UtilHomeGadget {
     }
 
     /**
-     * 순위 번호를 그리는가 — `rank.show` 가 null 이면 줄 모양이 `RANK` 일 때만
+     * 순위 번호를 그리는가 — `rank.show` 가 null 이면 줄 모양이 `RANK` 일 때, 또는 인기순 촘촘 목록(좁은 칸의 인기글 10개 — 2026-11-06)일 때
      * @param {PostListConfig} cfg - 설정.
      * @returns {boolean} 그리면 true.
      */
     static rankShown(cfg: PostListConfig): boolean {
-        return cfg.rank.show ?? cfg.rowStyle === 'RANK';
+        return cfg.rank.show ?? (cfg.rowStyle === 'RANK' || (cfg.rowStyle === 'COMPACT' && cfg.sort === 'POPULAR'));
     }
 
     /**

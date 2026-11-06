@@ -64,6 +64,8 @@ export default class UtilBoardMessages {
                 return t('board.problemDescLength', { max: UtilBoard.DESC_MAX });
             case 'TEXT_LENGTH':
                 return t('board.problemTextLength', { max: UtilBoard.TEXT_MAX });
+            case 'TEMPLATE_LENGTH':
+                return t('board.problemTextLength', { max: UtilBoard.TEMPLATE_MAX });
             case 'PREFIX_NAME_REQUIRED':
                 return t('board.problemPrefixRequired');
             case 'PREFIX_NAME_LENGTH':

@@ -42,6 +42,7 @@ public class BoardEntity {
     private String writeLock;
     private String introText;
     private String writeGuideText;
+    private String writeTemplate;
     @JdbcTypeCode(SqlTypes.ARRAY)
     private String[] gadgetExclusions = new String[0];
 
@@ -132,6 +133,11 @@ public class BoardEntity {
         this.writeLock = writeLock;
         this.introText = introText;
         this.writeGuideText = writeGuideText;
+    }
+
+    /** 글 양식을 바꾼다(새 글 본문에 미리 채우는 평문, null = 없음) */
+    public void changeWriteTemplate(String writeTemplate) {
+        this.writeTemplate = writeTemplate;
     }
 
     /** 가젯 노출 금지를 바꾼다(enum 순서·중복 없이 저장) */
@@ -254,6 +260,10 @@ public class BoardEntity {
 
     public String getIntroText() {
         return introText;
+    }
+
+    public String getWriteTemplate() {
+        return writeTemplate;
     }
 
     public String getWriteGuideText() {

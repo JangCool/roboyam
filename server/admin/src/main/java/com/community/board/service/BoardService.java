@@ -265,6 +265,7 @@ public class BoardService {
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
+                | (in.writeTemplateGiven && diff(before, after, "writeTemplate", board.getWriteTemplate(), in.writeTemplate))
                 | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions))
                 | diff(before, after, "adsHidden", board.isAdsHidden(), in.adsHidden);
         boolean limitChanged = false;
@@ -327,6 +328,9 @@ public class BoardService {
         if (BoardRules.length(in.writeGuideText) > BoardFields.TEXT_MAX) {
             invalid.put("writeGuideText", new MessageRef("board.text.length", String.valueOf(BoardFields.TEXT_MAX)));
         }
+        if (BoardRules.length(in.writeTemplate) > BoardFields.TEMPLATE_MAX) {
+            invalid.put("writeTemplate", new MessageRef("board.text.length", String.valueOf(BoardFields.TEMPLATE_MAX)));
+        }
         BoardRules.check(newPolicy, policySpecs(), "policy.", true, gradeKeys, BoardFields.guestAllowed(board.getKind()), invalid);
         if (BoardFields.KIND_DEAL.equals(board.getKind()) && !gradeList.isEmpty() && gradeList.get(0).getGradeKey().equals(in.policy.writeMin())) {
             invalid.putIfAbsent("policy.writeMin", new MessageRef("board.policy.dealGrade"));
@@ -376,6 +380,9 @@ public class BoardService {
         Instant now = Instant.now();
         board.changeBasic(in.name, in.nameEn, in.description, in.layout, in.viewToggle, in.color, in.allowAdult, in.investmentNotice);
         board.changeGuides(in.writeLock, in.introText, in.writeGuideText);
+        if (in.writeTemplateGiven) {
+            board.changeWriteTemplate(in.writeTemplate);
+        }
         board.changeGadgetExclusions(in.gadgetExclusions);
         board.changeAdsHidden(in.adsHidden);
         board.changePolicy(in.policy);
@@ -505,6 +512,9 @@ public class BoardService {
         String writeLock;
         String introText;
         String writeGuideText;
+        /** 글 양식 — 요청에 칸이 없으면(null) 바꾸지 않는다(`writeTemplateGiven = false`) */
+        String writeTemplate;
+        boolean writeTemplateGiven;
         BoardPolicyValues policy;
         List<BoardPrefixSaveRequest> prefixes;
         /** 고를 가젯(enum 순서·중복 없음 — 모르는 값은 빼고 {@link #gadgetUnknown}) */
@@ -532,6 +542,8 @@ public class BoardService {
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());
+        in.writeTemplateGiven = request.writeTemplate() != null;
+        in.writeTemplate = BoardRules.normalizeText(request.writeTemplate());
         in.policy = request.policy() == null ? board.policy() : request.policy();
         in.prefixes = request.prefixes() == null ? null : request.prefixes().stream().filter(Objects::nonNull).toList();
         if (request.gadgetExclusions() == null) {

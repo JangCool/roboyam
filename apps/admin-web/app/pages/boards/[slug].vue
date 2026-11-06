@@ -243,15 +243,15 @@
                     </div>
                 </AppGadget>
 
-                <!-- 4. 안내문 — 평문 textarea(원본은 정화된 HTML·이미지 5장, 에디터는 후속) -->
-                <AppGadget :title="t('board.section.guide')" anchor="board-guide" :changes="changes.guide" :invalid="invalidOf(['introText', 'writeGuideText'])">
+                <!-- 4. 안내문 — 평문 textarea(원본은 정화된 HTML·이미지 5장, 에디터는 후속). 글 양식은 새 글 본문에 미리 채우는 평문(2,000자, 2026-11-06) -->
+                <AppGadget :title="t('board.section.guide')" anchor="board-guide" :changes="changes.guide" :invalid="invalidOf(['introText', 'writeGuideText', 'writeTemplate'])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField v-for="field in GUIDE_FIELDS" :key="field" :label="t(`board.field.${field}`)" :help="t(`board.fieldHelp.${field}`)" :error="textErrorOf(field)">
                             <template #aside>
-                                <span class="text-xs tabular-nums" :class="UtilBoard.textLength(form[field]) > UtilBoard.TEXT_MAX ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ UtilBoard.textLength(form[field]) }} / {{ UtilBoard.TEXT_MAX }}</span>
+                                <span class="text-xs tabular-nums" :class="UtilBoard.textLength(form[field]) > guideMax(field) ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ UtilBoard.textLength(form[field]) }} / {{ guideMax(field) }}</span>
                             </template>
                             <template #default="{ id, describedBy, invalid }">
-                                <Textarea :id="id" v-model="form[field]" :name="field" rows="4" auto-resize :readonly="!canSettings || saving" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                                <Textarea :id="id" v-model="form[field]" :name="field" :rows="field === 'writeTemplate' ? 8 : 4" auto-resize :readonly="!canSettings || saving" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
                     </div>
@@ -476,7 +476,11 @@ const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as 
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode', 'pointMinLengthApplied'] as const;
 const REACTION_FIELDS = ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
-const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
+const GUIDE_FIELDS = ['introText', 'writeGuideText', 'writeTemplate'] as const;
+/** 안내문 칸의 글자 수 상한 — 글 양식만 2,000자 */
+function guideMax(field: (typeof GUIDE_FIELDS)[number]): number {
+    return field === 'writeTemplate' ? UtilBoard.TEMPLATE_MAX : UtilBoard.TEXT_MAX;
+}
 const ROLES: readonly BoardStaffRole[] = ['MANAGER', 'STAFF'];
 /** 표시색 선택지 — 자동(색 없음) + 프리셋 12색 */
 const COLOR_CHOICES = ['AUTO', ...UtilBoard.COLORS] as const;
@@ -561,6 +565,7 @@ const textProblems = computed(() => {
         description: UtilBoard.descProblem(f.description),
         introText: UtilBoard.textProblem(f.introText),
         writeGuideText: UtilBoard.textProblem(f.writeGuideText),
+        writeTemplate: UtilBoard.templateProblem(f.writeTemplate),
     };
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v));
 });

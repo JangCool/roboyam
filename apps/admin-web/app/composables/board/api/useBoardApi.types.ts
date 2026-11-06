@@ -283,6 +283,8 @@ export interface BoardDetail extends BoardRef {
     introText: string | null;
     /** 글쓰기 안내문 — 위와 같다 */
     writeGuideText: string | null;
+    /** 글 양식 — 새 글 본문에 미리 채우는 평문(2,000자, V153). null = 없음(옛 서버 응답에는 칸이 없을 수 있다) */
+    writeTemplate?: string | null;
     /** 「가젯 노출 금지」로 고른 가젯 키(`gadgets[].key`, 목록 순서) — 게시판마다의 값(기본 설정에서 물려받지 않고 `diffCount` 에 세지 않는다) */
     gadgetExclusions: string[];
     policy: BoardPolicy;
@@ -337,6 +339,8 @@ export interface BoardSaveRequest {
     writeLock: BoardWriteLock | null;
     introText: string | null;
     writeGuideText: string | null;
+    /** 글 양식 — 빈 글자면 지운다(null 이면 서버가 그대로 둔다) */
+    writeTemplate: string;
     policy: BoardPolicy;
     commonPrefixes: BoardCommonPrefixSaveItem[];
     prefixes: BoardPrefixSaveItem[];

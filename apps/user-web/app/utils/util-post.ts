@@ -216,6 +216,37 @@ export default class UtilPost {
     }
 
     /**
+     * 게시판 글 양식(`writeTemplate`, 평문) → 새 글 본문 — 에디터 게시판은 줄마다 한 문단(빈 줄은 빈 문단)으로, 평문 게시판은 그대로.
+     * 글자는 이스케이프한다(양식 속 `<` 는 태그가 아니다).
+     * @param {string | null | undefined} template - 게시판 글 양식.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {string} 미리 채울 본문(양식이 없으면 빈 글자).
+     */
+    static templateContent(template: string | null | undefined, format: ContentFormat): string {
+        if (!template?.trim()) return '';
+        const text = template.replace(/\r\n?/g, '\n');
+        if (format !== 'HTML') return text;
+        const escape = (line: string) => line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return text
+            .split('\n')
+            .map((line) => `<p>${escape(line)}</p>`)
+            .join('');
+    }
+
+    /**
+     * 본문이 미리 채운 양식 그대로인가(손대지 않았나) — 에디터가 HTML 을 다듬어 다시 내보내도 보이는 글자로 비교한다.
+     * @param {string} content - 지금 본문.
+     * @param {string} applied - 미리 채운 양식 본문.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {boolean} 그대로면 true(양식을 채운 적이 없으면 false).
+     */
+    static isUntouchedTemplate(content: string, applied: string, format: ContentFormat): boolean {
+        if (!applied) return false;
+        if (content === applied) return true;
+        return format === 'HTML' && UtilRichText.textFromHtml(content).trim() === UtilRichText.textFromHtml(applied).trim();
+    }
+
+    /**
      * 본문 문제 — 10~200,000자(평문은 앞뒤 공백 제외, 에디터 HTML 은 보이는 글자 수)
      * @param {string} content - 본문.
      * @param {ContentFormat} format - 본문 형식.
