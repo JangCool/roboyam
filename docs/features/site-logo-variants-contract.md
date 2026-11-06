@@ -11,7 +11,7 @@
   - 영문: 「Robo**yam**」만 쓴다.
   - 강조색: 밝은 바탕에서는 파랑, 어두운 바탕에서는 노랑 `#FFC83D` 이다.
 - 정렬: 머리 몸통의 세로 중앙을 글자에 맞추고, 안테나는 위로 튀어나오게 둔다.
-- 파일: `apps/{admin,user}-web/public/brand/roboyam-logo-{ko,en}-{light,dark}.svg`(viewBox 높이 40, 한글 198 · 영문 176 너비).
+- 파일: `apps/{admin,user}-web/public/brand/roboyam-logo-{ko,en}-{light,dark}.svg`(viewBox 높이 40, 한글 198 · 영문 176 너비, 루트 width·height 없음, 글자만 영역 `<view id="wordmark">` 포함).
   - 생성 스크립트: `robotikon/logo/build.mjs`(opentype.js + @fontsource/gaegu, `STROKE=0.5 SUB=16 node build.mjs <출력폴더>`).
 
 ## 화면
@@ -27,6 +27,9 @@
     - 어두운 바탕용: 기본 테마의 파란 바, 진한 색상 테마, 야간 모드 전체
     - 밝은 바탕용: 흰 모바일 바, 옅은 색상 테마, 네이버형·다음형 흰 줄, 서랍·로그인·설치
   - 크기: 높이 28px(md 이상 32px), 너비 최대 220px, 모바일은 화면 폭의 45%까지.
+  - 모바일(md 미만, 사용자 결정 2026-11-06): 아이콘을 빼고 글자만 보인다. `<picture><source media="(max-width: 767.98px)" srcset="…#wordmark">` 로 SVG 안의 `<view id="wordmark" viewBox="…">` 영역만 그린다. 기본 로고의 이 영역은 심볼만 뺀 글자다(한글은 「로보얌 Roboyam」, 영문은 「Roboyam」). 글자는 아이콘이 있던 자리(메뉴 단추 바로 옆)부터 시작한다.
+    - `wordmark` 영역이 없는 SVG 나 PNG 는 조각 주소가 무시되어 로고 전체가 보인다.
+    - ⚠ SVG 루트에 `width`·`height` 가 있으면 Chrome 이 영역을 무시한다. 기본 로고는 `viewBox` 만 둔다. 운영자가 올린 SVG 에 대해서는 안내만 할지, 서버가 루트 크기를 지워 줄지 정해야 한다(미확정).
   - 「이름 포함」이 켜져 있으면 이름 글자를 숨기고 `<img alt>` 에 사이트 이름을 넣는다. 꺼져 있거나 쓸 그림이 없으면 이름 글자를 보이고 `alt=""` 로 둔다.
 
 ## 정책
