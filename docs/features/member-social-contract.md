@@ -13,9 +13,9 @@
 | `/settings/blocks` | 탭 「닉네임 N」(차단한 회원·해제(실행 취소)·더 보기) / 「단어 N」(2~20자·최대 50개 추가·삭제) | `GET /api/me/blocks/users` · `PUT·DELETE /api/users/{id}/block` · `GET·POST /api/me/blocks/words` · `DELETE …/{id}` |
 | `/settings/memos` | 내가 남긴 메모 목록 · 수정(셸의 메모 시트) · 삭제(확인) · 더 보기 | `GET /api/me/memos` · `PUT·DELETE /api/users/{id}/memo` |
 | `/settings/nickname-image` | 자격 미달(신청 조건 체크리스트 — 「지금 N / 필요 M」·등급 안내) · 신청(파일 → 형식·200KB·4:1 화면 검사 → 4:1 미리보기 → 동의 → 확인 → 진행률) · 검토 대기(취소) · 반려(사유·재신청까지 남은 시간) · 적용 중(목록·댓글 미리보기·바꾸기·해제) | `GET·POST·DELETE /api/me/nickname-image` · `DELETE /api/me/nickname-image/request` |
-| `/settings/adult` | 상태 카드 · 출생연도(올해−14~올해−100) · 사실 확인 체크 · 저장 · 안내 3줄 | `GET·PUT /api/me/adult` |
+| ~~`/settings/adult`~~ | **없앴다(2026-11-06)** — 19금 글 보기는 본인인증 만 19세 이상으로 정했다(`adult-content-contract.md`), 설정은 `/settings/identity` | — |
 | `/settings/view` | 화면: 야간 모드(자동·라이트·다크)·글자 크기(90/100/110/125%) · 댓글: 처음 정렬 · 시간 표시(기존 `/settings/display`)로 잇는 줄 · 라이트/다크 미리보기 | `GET·PUT /api/me/settings` |
-- **들어가는 길**: 데스크톱 헤더 쪽지 아이콘(안 읽은 대화 수 배지, `AppMessageLink`) · 프로필 메뉴 「쪽지함 · 안 읽음 N」 · 햄버거 메뉴 「쪽지함」 · `/me` 바로가기 「쪽지함」(배지) · 설정 왼쪽 메뉴/목록(차례: 프로필 · 닉네임 그림 · 성인 확인 · 보기 · 시간 표시 · 차단 관리 · 이용자 메모 · 알림 설정 · 쪽지 수신 · 계정).
+- **들어가는 길**: 데스크톱 헤더 쪽지 아이콘(안 읽은 대화 수 배지, `AppMessageLink`) · 프로필 메뉴 「쪽지함 · 안 읽음 N」 · 햄버거 메뉴 「쪽지함」 · `/me` 바로가기 「쪽지함」(배지) · 설정 왼쪽 메뉴/목록(차례: 프로필 · 닉네임 그림 · 보기 · 시간 표시 · 차단 관리 · 이용자 메모 · 알림 설정 · 쪽지 수신 · 계정).
 - **회원 프로필 `/users/{id}`**: 남의 프로필 → ⋯ 시트(이 사용자 차단/차단 해제 · 메모 남기기/수정, 비회원은 로그인 유도) · 차단한 회원이면 맨 위 「차단한 회원이에요 · 차단 해제」 · 닉네임 옆 메모 칩 · 「쪽지 보내기」(보낼 수 있나를 따로 읽어 활성 / 비활성+이유, 비회원 로그인 유도, 사업자 계정은 이유만). 내 프로필 → 「프로필 편집」 옆 「쪽지함」.
 - **차단 접힘(community 방식)**: 게시판 목록 LIST(모바일 줄·데스크톱 표 한 줄 통째)·CARD·GALLERY 와 댓글을 「차단한 사용자의 글/댓글이에요 · 보기」 한 줄로 접는다(`FoldedRow`, 펼치면 「다시 숨기기」, 내 글·댓글은 안 접음). 작성자 이름 옆 메모 칩은 `PostAuthorLabel` 이 그린다(글 줄·댓글·쪽지 상대).
 - **보기 설정 적용**: 야간 모드 → `<html data-color-scheme>`(`plugins/view-theme.client.ts`, 첫 그림 전 이 브라우저 사본으로), 글자 크기 → `--text-scale`(`main.css` Tailwind 글자 토큰·임의 크기·body, `text-scale.css` PrimeVue 글자 크기 토큰 30개, `nuxt.config.ts` 프리셋 `css` 의 Button·InputText·Textarea·ToggleButton·Select 라벨 기본 크기에 곱함 — community 방식), 댓글 정렬 → 글 보기의 첫 정렬(`usePostComments`).
@@ -42,7 +42,7 @@
 - `GET /api/me/nickname-image` → `{eligible, ineligibleReason: REQUIREMENTS_NOT_MET|SUSPENDED|null, grade{code,label}, requirements{mode, items}(아래 「신청 조건」), current{id,url,still}|null, request{id, status: PENDING|REJECTED, url, createdAt, rejectReason, canReapplyAt}|null, reapplyAt, limits{maxBytes:204800, width:240, height:60, ratio:"4:1", maxGifFrames:30, formats, rejectedReapplyHours:72}}`
 - `POST`(multipart `file`) → `201` 같은 모양 · `403 NICKNAME_IMAGE_REQUIREMENTS_NOT_MET` · `409 NICKNAME_IMAGE_REAPPLY_TOO_SOON`(`retryAfterSeconds`·`canReapplyAt`) · `400 VALIDATION fields.file` · `429 RATE_LIMITED`(10초·하루 10번) · `403 EMAIL_NOT_VERIFIED`(설정이 요구할 때만)·`ACCOUNT_RESTRICTED`. 대기 신청은 회원당 하나(새로 올리면 대체). 검토 대기가 생기면 운영자 알림 **`NICKNAME_IMAGE_PENDING`**(이미 예약된 이벤트).
 - `DELETE /api/me/nickname-image/request` 204 · `404 NICKNAME_IMAGE_REQUEST_NOT_FOUND` · `DELETE /api/me/nickname-image` 204 · `404 NICKNAME_IMAGE_NOT_FOUND`
-### 성인 확인 (`composables/adult/api/useAdultApi.ts`) — community 4차 계약 B절
+### ~~성인 확인~~ (없앴다 2026-11-06 — `adult-content-contract.md`, 아래는 옛 목업 기록)
 - `GET /api/me/adult` → `{birthYear|null, adult, method: SELF|IDENTITY|null, confirmedAt, minYear, maxYear}`(저장 전에도 200) · `PUT {birthYear, confirm:true}` → 같은 모양 · `400 fields.birthYear`(범위·만 14세 미만)·`fields.confirm`. 성인 = 한국 시간 올해 − 출생연도 ≥ 19. 출생연도는 개인정보(로그 금지).
 ### 보기 설정 (`composables/view/api/useViewSettingsApi.ts`) — community `GET·PUT /api/me/settings` 경로·규칙, 칸 셋
 - `GET` → `{theme: AUTO|LIGHT|DARK, textScale: 90|100|110|125, commentOrder: OLDEST|LATEST}`(저장 전 기본값 AUTO·100·OLDEST) · `PUT` 세 칸 통째 → 저장된 값 · `400 fields.<칸>`. 서버는 값만 저장, 적용은 화면.
@@ -67,7 +67,7 @@
 2. 회원 알림에 `DM`(쪽지 받음) 이벤트를 더할지 — 회원 알림 카탈로그(`member-notification-contract.md`)와 겹치는 개념이라 그 계약과 맞춘다. 닉네임 그림 검토 결과 알림(`NICKNAME_IMAGE_REVIEWED`)도 같다.
 3. 차단·메모를 글·댓글 ⋯ 메뉴에도 둘지(로보얌 글 상세·댓글에 회원 메뉴가 생길 때). 글 상세의 차단 안내는 붙였다(2026-10-24, 아래 「글 상세 접힘」).
 4. 닉네임 그림 관리자 검토 화면(승인·반려·해제)과 그 권한·메뉴, 아이템샵 변경권을 둘지.
-5. 성인 확인 결과를 어디에 쓰나(19금 글 보기 판정 — 게시판 `adult` 글 처리, 서버 몫), 본인인증 도입 시 자기 신고 값을 어떻게 다룰지.
+5. 성인 확인 결과를 어디에 쓰나(19금 글 보기 판정 — 게시판 `adult` 글 처리, 서버 몫), 본인인증 도입 시 자기 신고 값을 어떻게 다룰지. → **정함(2026-11-06)**: 본인인증 만 19세 이상만 19금 글을 본다, 자기 신고는 없앴다(`adult-content-contract.md`).
 6. 보기 설정의 글자 크기를 PrimeVue 위젯(단추·입력칸) 글자에도 적용할지(지금은 Tailwind 글자만 — community 의 `text-scale.css`·프리셋 보정은 옮기지 않았다).
 
 ## 결정 (2026-10-24, 사용자 "추천대로")
@@ -78,7 +78,7 @@
 ## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 로보얌에 맞춤)
 - **쪽지 나머지 값(미확정 1)**: 연속 전송 3초 간격(`429 RATE_LIMITED` + `retryAfterSeconds`)·500자·1년 보관(매일 정리, 신고된 대화는 처리 끝까지 보관)도 서버 상수로 둔다(community `api-dm.md` 와 같다). 관리자 화면은 두지 않는다.
 - **글·댓글의 차단·메모(미확정 3)**: 로보얌 글 상세·댓글에 회원 메뉴(⋯)가 생길 때 차단·메모를 넣는다. 이번 범위가 아니다.
-- **성인 확인(미확정 5)**: 19금 글은 성인 열람자(성인 확인 회원·글쓴이·운영진)만 보고 그 밖에는 글 ID 로 와도 `404`, 여러 게시판 모음에는 싣지 않는다(community `api-board.md`). **본인인증과의 관계는 커머스 0-4(본인인증·기능 제한) 병합 뒤에 정한다** — 커머스는 다른 작업에서 진행 중이다.
+- **성인 확인(미확정 5)**: 19금 글은 성인 열람자(성인 확인 회원·글쓴이·운영진)만 보고 그 밖에는 글 ID 로 와도 `404`, 여러 게시판 모음에는 싣지 않는다(community `api-board.md`). **본인인증과의 관계는 커머스 0-4(본인인증·기능 제한) 병합 뒤에 정한다** — 커머스는 다른 작업에서 진행 중이다. → **정함(2026-11-06, `adult-content-contract.md`)**: 성인 = 본인인증 만 19세 이상(글쓴이·운영진 예외 없음), 목록에서 빼고 글 보기는 `403 POST_ADULT_ONLY`.
 - **글자 크기(미확정 6)**: 보기 설정의 글자 크기를 PrimeVue 위젯(단추·입력칸·선택 등) 글자에도 적용한다. community 의 `--text-scale` 방식을 user-web 에 맞춰 옮긴다(화면 몫, 서버 계약은 그대로).
 
 ## 결정 (2026-10-24 3차, 사용자 지시)

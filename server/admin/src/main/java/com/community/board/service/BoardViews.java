@@ -87,7 +87,7 @@ public class BoardViews {
         BoardDefaultsValues base = defaultsRow().values();
         Map<Long, Long> usage = content.prefixUsage(board.getId());
         List<BoardPrefixView> prefixViews = sortedPrefixes(board.getId()).stream()
-                .map(p -> new BoardPrefixView(Long.toString(p.getId()), p.getName(), p.getCommonKey(), p.isStaffOnly(), p.getColor(), p.isActive(),
+                .map(p -> new BoardPrefixView(Long.toString(p.getId()), p.getName(), p.getCommonKey(), p.isStaffOnly(), p.isAdultOnly(), p.getColor(), p.isActive(),
                         usage.getOrDefault(p.getId(), 0L)))
                 .toList();
         BoardPolicyValues policy = board.policy();

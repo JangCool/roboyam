@@ -78,18 +78,26 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .and(p.groupId.notIn(JPAExpressions.select(INACTIVE_GROUP.id).from(INACTIVE_GROUP).where(INACTIVE_GROUP.status.eq(GroupStatus.INACTIVE)))));
     }
 
+    /**
+     * 19금 글 거름(adult-content-contract) — 성인(로그인 + 본인인증 + 만 19세 이상)이면 null(거르지 않음), 아니면 19금이 아닌 글만. 목록에서 <b>아예 뺀다</b>(자리·건수도 없다).
+     * 통합 검색의 원시 SQL({@code PostSearchQueries})이 같은 판정을 SQL 로 쓴다.
+     */
+    public static BooleanExpression adultVisible(QPostEntity p, boolean adultViewer) {
+        return adultViewer ? null : p.adult.isFalse();
+    }
+
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
                 POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId);
     }
 
     /** 고정 공지 — 고정한 차례 최신순, 최대 {@code max} 개 */
-    public List<PostRowData> pinned(long boardId, int max, Instant now) {
+    public List<PostRowData> pinned(long boardId, int max, boolean adultViewer, Instant now) {
         if (max <= 0) {
             return List.of();
         }
         return query.select(row()).from(POST)
-                .where(POST.boardId.eq(boardId), POST.pinnedAt.isNotNull(), alive(POST, now))
+                .where(POST.boardId.eq(boardId), POST.pinnedAt.isNotNull(), alive(POST, now), adultVisible(POST, adultViewer))
                 .orderBy(POST.pinnedAt.desc(), POST.id.desc())
                 .limit(max)
                 .fetch();
@@ -102,9 +110,10 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
      * @param q             검색어(제목·본문[HTML 글은 태그를 뗀 평문 칸]·작성자 이름, 대소문자 무시) — null 이면 검색하지 않는다. 숨긴 글은 검색 결과에서 뺀다
      * @param oldest        오래된순(아니면 최신순)
      * @param excludePinned 고정 공지를 목록에서 뺀다(첫 쪽 위에 따로 보일 때)
+     * @param adultViewer   보는 사람이 성인인가 — 아니면 19금 글을 뺀다({@link #adultVisible})
      */
-    public Page page(long boardId, Long prefixId, String q, boolean oldest, boolean excludePinned, long offset, int limit, Instant now) {
-        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now));
+    public Page page(long boardId, Long prefixId, String q, boolean oldest, boolean excludePinned, boolean adultViewer, long offset, int limit, Instant now) {
+        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now)).and(adultVisible(POST, adultViewer));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
         }
@@ -195,17 +204,17 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return new Page(items, total);
     }
 
-    /** 바로 앞(더 오래된) 글 — 같은 게시판, 보이고 숨기지 않은 글 */
-    public Optional<PostNeighborData> older(long boardId, long id, Instant now) {
+    /** 바로 앞(더 오래된) 글 — 같은 게시판, 보이고 숨기지 않은 글(성인이 아니면 19금 글을 건너뛴다) */
+    public Optional<PostNeighborData> older(long boardId, long id, boolean adultViewer, Instant now) {
         return Optional.ofNullable(query.select(Projections.constructor(PostNeighborData.class, POST.id, POST.title)).from(POST)
-                .where(POST.boardId.eq(boardId), POST.id.lt(id), alive(POST, now), notHidden(POST, now))
+                .where(POST.boardId.eq(boardId), POST.id.lt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer))
                 .orderBy(POST.id.desc()).fetchFirst());
     }
 
     /** 바로 뒤(더 새) 글 */
-    public Optional<PostNeighborData> newer(long boardId, long id, Instant now) {
+    public Optional<PostNeighborData> newer(long boardId, long id, boolean adultViewer, Instant now) {
         return Optional.ofNullable(query.select(Projections.constructor(PostNeighborData.class, POST.id, POST.title)).from(POST)
-                .where(POST.boardId.eq(boardId), POST.id.gt(id), alive(POST, now), notHidden(POST, now))
+                .where(POST.boardId.eq(boardId), POST.id.gt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer))
                 .orderBy(POST.id.asc()).fetchFirst());
     }
 

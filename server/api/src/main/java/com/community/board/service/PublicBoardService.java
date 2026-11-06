@@ -143,7 +143,7 @@ public class PublicBoardService {
 
     static BoardView view(EffectiveBoard b) {
         List<PrefixView> prefixes = b.activePrefixes().stream()
-                .map(p -> new PrefixView(Long.toString(p.id()), p.name(), p.staffOnly(), p.common(), p.color()))
+                .map(p -> new PrefixView(Long.toString(p.id()), p.name(), p.staffOnly(), p.common(), p.color(), p.adultOnly()))
                 .toList();
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),

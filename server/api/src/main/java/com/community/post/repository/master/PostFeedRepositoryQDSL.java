@@ -40,13 +40,14 @@ public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
      *
      * @param beforeId 이 ID 보다 오래된 글만(커서) — null 이면 처음부터
      * @param limit    읽을 줄 수(다음 쪽이 있는지 보려면 쪽 크기 + 1)
+     * @param adultViewer 보는 사람이 성인인가 — 아니면 19금 글을 뺀다({@link PostRepositoryQDSL#adultVisible})
      */
-    public List<PostRowData> latest(Collection<Long> boardIds, Long beforeId, int limit, Instant now) {
+    public List<PostRowData> latest(Collection<Long> boardIds, Long beforeId, int limit, boolean adultViewer, Instant now) {
         if (boardIds.isEmpty()) {
             return List.of();
         }
         BooleanExpression where = POST.boardId.in(boardIds).and(PostRepositoryQDSL.alive(POST, now)).and(PostRepositoryQDSL.notHidden(POST, now))
-                .and(PostRepositoryQDSL.feedVisible(POST));
+                .and(PostRepositoryQDSL.feedVisible(POST)).and(PostRepositoryQDSL.adultVisible(POST, adultViewer));
         if (beforeId != null) {
             where = where.and(POST.id.lt(beforeId));
         }
@@ -55,15 +56,15 @@ public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     /**
      * 글 ID 로 줄 읽기 — 지금 보이고 숨기지 않은 글만(게시판 판정은 부르는 쪽). 순서는 정하지 않는다. 소모임 글은 지금 비멤버에게 보이는 것만
-     * ({@link PostRepositoryQDSL#feedVisible} — 인기글 스냅샷 뒤에 멤버 전용으로 돌린 글은 빠진다)
+     * ({@link PostRepositoryQDSL#feedVisible} — 인기글 스냅샷 뒤에 멤버 전용으로 돌린 글은 빠진다). 성인이 아니면 19금 글도 빠진다
      */
-    public List<PostRowData> visibleRows(Collection<Long> ids, Instant now) {
+    public List<PostRowData> visibleRows(Collection<Long> ids, boolean adultViewer, Instant now) {
         if (ids.isEmpty()) {
             return List.of();
         }
         return query.select(row()).from(POST)
                 .where(POST.id.in(ids), PostRepositoryQDSL.alive(POST, now), PostRepositoryQDSL.notHidden(POST, now),
-                        PostRepositoryQDSL.feedVisible(POST))
+                        PostRepositoryQDSL.feedVisible(POST), PostRepositoryQDSL.adultVisible(POST, adultViewer))
                 .fetch();
     }
 }

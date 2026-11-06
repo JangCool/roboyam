@@ -40,7 +40,7 @@ export default {
     inactiveTitle: 'This board is closed',
     loadFailed: 'Couldn’t load the board',
     loadingName: 'Loading board name',
-    adultNotice: 'This board may have 18+ posts. They open after you confirm your age.',
+    adultNotice: 'This board may have 18+ posts. They are shown only to members verified as 19 or older.',
 
     prefixNav: 'Tags',
     sortLabel: 'Sort',

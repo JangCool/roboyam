@@ -1,9 +1,9 @@
 <template>
     <!--
-        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (투표) → (찬반 토론) → [추천][링크 복사][신고] · [찬반 토론 열기][수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
+        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문 → (투표) → (찬반 토론) → [추천][링크 복사][신고] · [찬반 토론 열기][수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
         community 대비: 투표·스크랩·글 ⋯ 메뉴의 차단·메모·지킴이 처리·리비전·소모임 글·핫딜/리뷰 글 모양을 뺐다. 본문은 에디터 HTML 이 아니라 평문(빈 줄 = 문단, 주소만 링크 — `v-html` 없음).
           비회원 글이 있어 작성자 옆에 「비회원」과 작성 IP 앞 두 자리가 보이고, 비회원 글의 수정·삭제는 비밀번호 확인 뒤에 한다.
-        비회원 글 IP 는 서버가 앞 두 묶음만 남겨 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`, 회원 글은 없다). 19금 글은 성인 인증이 아직 없어 「성인입니다」 확인 단추로 이번 방문만 연다.
+        비회원 글 IP 는 서버가 앞 두 묶음만 남겨 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`, 회원 글은 없다). 19금 글은 서버가 성인(로그인 + 본인인증 + 만 19세 이상)에게만 준다 — 아니면 `403 POST_ADULT_ONLY`(`reason` LOGIN·IDENTITY·UNDERAGE)라 본문 대신 안내(로그인 · 「본인인증하고 보기」 → `useIdentityGate` 대화상자 → 인증되면 다시 읽기 · 미성년은 19세 생일 안내). adult-content-contract.
           추천은 한 번만(취소·비추천 없음). 신고는 회원만. 수정은 비회원 글이면 수정 화면에서 비밀번호를 다시 묻는다(비밀번호를 화면 사이로 넘기지 않는다).
           댓글 많은 글 보호(commentProtect*)는 서버가 `protection` 으로 알려 주고, 막힌 동작은 단추를 누르면 까닭을 알린다.
         차단한 회원의 글·차단한 단어가 제목에 든 글(`blocked`)은 제목·본문·추천 줄을 「차단한 사용자의 글이에요 · 보기」로 접는다(목록처럼 제목도 가린다 — 단어 차단은 제목에 걸린다).
@@ -12,7 +12,7 @@
         찬반 토론은 글의 기능이다(`post-debate-contract.md` — 하이라이트와 무관, 글쓴이·운영자·그 게시판 매니저가 연다).
         토론 화면 배치(확정 시안 — `popular-highlight-contract.md` 「결정」): **본문 영역 안**(본문 글 바로 다음, 추천 줄 위)에 토론 구획(`CommentSection variant="debate"`, 목록 `kind=OPINION|PRO|CON|NEUTRAL`),
           **맨 아래 원래 댓글 자리**에 일반 댓글(`variant="general"`, 늘 `kind=GENERAL`). 댓글 목록을 둘 부른다(`usePostComments` 두 개). 토론 구획은 `UtilDebate.visible`(열림 · 표 · 의견이 있음)일 때만 보이고,
-          그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히거나 19금 확인 전이면 토론도 함께 가린다.
+          그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히면 토론도 함께 가린다.
           토론을 바꿀 수 있는 사람(`debate.canManage`)은 토론 구획 머리의 [토론 설정], 토론이 없는 글에서는 글 아래 [찬반 토론 열기]로 설정 대화창(`DebateSettingsDialog`)을 열어 `PUT /api/posts/{id}/debate` 한다.
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
         핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
@@ -25,7 +25,7 @@
         스텝 처리(board-staff-action-contract): 글 ⋯ 「글 숨기기」·「글 삭제」(`abilities.postHide|postDelete`, 본인 글·소모임 글·`staffProtected`(공지·고정·같은 게시판 운영진의 글) 제외 — 「작성자 제재」는 `sanctionProtected` 면 없음), 댓글 ⋯ 「댓글 삭제」(`abilities.commentDelete`, 본인·지운 댓글 제외)
           → `BoardStaffActionDialog`(사유 → 확인, 흐름 `useBoardStaffActionForm`) → 토스트(오늘 남은 횟수) → 글이면 게시판 목록으로, 댓글이면 그 목록 새로. 그새 상태가 바뀌었으면 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
-          카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
+          카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히면 함께 가린다.
         소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
           공개 라벨(「멤버에게만 보여요」/「전체 공개」). 게시판 정보(댓글 설정 등)는 공개 게시판 API 가 아니라 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다.
           글 아래 공개 범위 패널(`GroupPostPanel` — 5단계, 11-6 네 가지 일): 공개 범위 기능이 꺼진 서버(`group.groupVisibility` 없음)는 옛 패널(작성자의 [전체 공개로 전환]·[비공개로 되돌리기]),
@@ -80,6 +80,17 @@
             <ErrorState v-else-if="pageState === 'groupPrivate'" :title="t('group.privatePostTitle')" :description="user ? t('group.privatePostText') : t('group.privatePostLoginText')" data-testid="post-group-private">
                 <Button v-if="!user" type="button" :label="t('common.login')" @click="prompt('view')" />
                 <Button v-else as="router-link" :to="UtilGroup.LIST_PATH" :label="t('group.browse')" />
+            </ErrorState>
+            <!-- 19금 글을 성인(로그인 + 본인인증 + 만 19세 이상)이 아닌 사람이 열었다(403 POST_ADULT_ONLY) — 본문·댓글을 받지 못한다 -->
+            <ErrorState
+                v-else-if="pageState === 'adultOnly' && adultBlock"
+                :title="t('post.adultGateTitle')"
+                :description="adultBlock.reason === 'LOGIN' ? t('post.adultGateLoginText') : adultBlock.reason === 'UNDERAGE' ? `${t('post.adultGateMinorText')} ${UtilIdentityMessages.minorRelease(t, adultBlock.adultFrom)}` : t('post.adultGateText')"
+                data-testid="post-adult-gate"
+            >
+                <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="router.back()" />
+                <Button v-if="adultBlock.reason === 'LOGIN'" type="button" :label="t('common.login')" @click="prompt('view')" />
+                <Button v-else-if="adultBlock.reason === 'IDENTITY'" type="button" :label="t('post.adultVerify')" icon="pi pi-mobile" :loading="adultVerifying" data-testid="post-adult-verify" @click="verifyForAdult" />
             </ErrorState>
             <ErrorState v-else-if="pageState === 'error' || !post || !board" :title="t('post.loadFailed')" :description="pageError" retry @retry="load" />
 
@@ -166,23 +177,13 @@
                             @update:moderation="onDealModerationUpdate"
                             @stale="refreshDeal(post.id)"
                         />
-                        <!-- 본문 — 19금 글은 확인 전에 가린다(가정: 성인 인증이 생기면 서버 판정으로 바뀐다) -->
-                        <div v-if="post.adult && !adultConfirmed" class="my-6 flex flex-col items-center rounded-lg border border-surface px-5 py-8 text-center" data-testid="post-adult-gate">
-                            <span class="mb-3 grid size-12 place-items-center rounded-full bg-red-600 text-base font-bold text-white" aria-hidden="true">19</span>
-                            <p class="font-semibold">{{ t('post.adultGateTitle') }}</p>
-                            <p class="mt-1 text-sm text-muted-color">{{ t('post.adultGateText') }}</p>
-                            <div class="mt-4 flex gap-2">
-                                <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="goBoard" />
-                                <Button type="button" :label="t('post.adultConfirm')" severity="danger" @click="adultConfirmed = true" />
-                            </div>
-                        </div>
                         <!--
                             에디터로 쓴 글(`contentFormat === 'HTML'`) — 서버가 정화(sanitize)한 HTML 만 온다(공개 게시판 계약 「에디터 화면」: 서버가 허용 태그 밖을 지우고 이미지 주소를 채운다).
                             새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문)·`TermsDocumentView`(약관 본문 — 서버 정화본) 세 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
                             그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
                         -->
                         <!-- eslint-disable-next-line vue/no-v-html -->
-                        <div v-else-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
+                        <div v-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
                         <div v-else class="py-5 text-[0.9375rem] leading-relaxed" data-testid="post-body">
                             <p v-for="(lines, i) in paragraphs" :key="i" class="mb-4 break-words last:mb-0">
                                 <template v-for="(line, j) in lines" :key="j">
@@ -201,12 +202,12 @@
                             </p>
                         </div>
 
-                        <!-- 투표 — 본문 바로 다음, 찬반 토론 위(19금 확인 전에는 본문과 함께 가린다) -->
-                        <PostPollCard v-if="post.poll && !(post.adult && !adultConfirmed)" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
+                        <!-- 투표 — 본문 바로 다음, 찬반 토론 위 -->
+                        <PostPollCard v-if="post.poll" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
 
-                        <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
+                        <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위 -->
                         <CommentSection
-                            v-if="showDebate && !(post.adult && !adultConfirmed)"
+                            v-if="showDebate"
                             variant="debate"
                             :board="board"
                             :data="opinions.data.value"
@@ -416,6 +417,7 @@ import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilIdentityMessages from '~/utils/util-identity-messages';
 import UtilPostGroupPanel, { type PostGroupPatch } from '~/utils/util-post-group-panel';
 
 definePageMeta({ shell: 'inner' });
@@ -446,8 +448,12 @@ const id = computed(() => String(route.params.id ?? ''));
 const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
 /* ── 불러오기 ── */
-type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'error';
+type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'error';
 const post = ref<PostDetail | null>(null);
+/** 19금 글을 성인이 아닌 사람이 열었다(`403 POST_ADULT_ONLY` 의 extras — `reason` LOGIN·IDENTITY·UNDERAGE, `adultFrom` 은 미성년일 때) */
+const adultBlock = ref<{ reason: 'LOGIN' | 'IDENTITY' | 'UNDERAGE'; adultFrom: string | null } | null>(null);
+const identityGate = useIdentityGate();
+const adultVerifying = ref(false);
 /** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
 const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
@@ -457,8 +463,6 @@ const authorDecoration = computed(() => (post.value ? decorations.decorationOf(p
 /** 글쓴이 아바타 — 서버 `author.avatarUrl`(후보)에 내가 방금 고른 것을 겹친다(비회원은 null → 이니셜) */
 const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
 const pageError = ref('');
-/** 19금 확인 — 이 글을 보는 동안만(가정) */
-const adultConfirmed = ref(false);
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);
 
@@ -499,7 +503,6 @@ let request = 0;
 async function load(): Promise<void> {
     const mine = ++request;
     pageState.value = 'loading';
-    adultConfirmed.value = false;
     foldRevealed.value = false;
     try {
         const loaded = await postApi.post(id.value);
@@ -537,17 +540,35 @@ async function load(): Promise<void> {
         pageError.value = UtilBoardMessages.of(t, e);
         const code = e instanceof ApiError ? e.code : '';
         sellerHidden.value = e instanceof ApiError && code === 'DEAL_SELLER_HIDDEN' ? sellerHiddenOf(e) : null;
+        adultBlock.value = e instanceof ApiError && code === 'POST_ADULT_ONLY' ? adultBlockOf(e) : null;
         pageState.value = sellerHidden.value
             ? 'sellerHidden'
-            : code === 'DEAL_SELLER_HIDDEN'
-              ? 'hidden'
-              : code === 'GROUP_POST_PRIVATE'
-                ? 'groupPrivate'
-                : code === 'POST_NOT_FOUND' || code === 'BOARD_NOT_FOUND' || code === 'GROUP_NOT_FOUND'
-                  ? 'notfound'
-                  : code === 'POST_HIDDEN'
-                    ? 'hidden'
-                    : 'error';
+            : adultBlock.value
+              ? 'adultOnly'
+              : code === 'DEAL_SELLER_HIDDEN'
+                ? 'hidden'
+                : code === 'GROUP_POST_PRIVATE'
+                  ? 'groupPrivate'
+                  : code === 'POST_NOT_FOUND' || code === 'BOARD_NOT_FOUND' || code === 'GROUP_NOT_FOUND'
+                    ? 'notfound'
+                    : code === 'POST_HIDDEN'
+                      ? 'hidden'
+                      : 'error';
+    }
+}
+
+function adultBlockOf(e: ApiError): NonNullable<typeof adultBlock.value> {
+    const reason = e.extraText('reason');
+    return { reason: reason === 'LOGIN' || reason === 'UNDERAGE' ? reason : 'IDENTITY', adultFrom: e.extraText('adultFrom') ?? null };
+}
+
+/** 「본인인증하고 보기」 — 본인인증 대화상자(인증 → 만 19세 이상이면 닫힘)가 통과하면 글을 다시 읽는다. 미성년이면 대화상자가 막는 안내로 바뀐다 */
+async function verifyForAdult(): Promise<void> {
+    adultVerifying.value = true;
+    try {
+        if (await identityGate.ensure({ purpose: 'ADULT_CONTENT' })) await load();
+    } finally {
+        adultVerifying.value = false;
     }
 }
 
@@ -747,6 +768,13 @@ watch(
 );
 
 watch(id, () => void load(), { immediate: true });
+// 19금 안내에서 로그인했으면 다시 읽는다(성인이면 글이 열리고, 아니면 「본인인증하고 보기」로 바뀐다)
+watch(
+    () => user.value?.id,
+    (now, before) => {
+        if (now && now !== before && pageState.value === 'adultOnly') void load();
+    },
+);
 onBeforeUnmount(() => {
     if (post.value && !post.value.group) current.clear(post.value.board.slug);
 });
@@ -1082,6 +1110,6 @@ function openCommentDelete(c: CommentView, section: 'general' | 'debate'): void 
 useSeoMeta({
     // 접힌 글은 탭 제목에도 제목을 쓰지 않는다(차단 단어가 제목에 있다)
     title: () => (post.value && !folded.value ? post.value.title : t('post.pageTitle')),
-    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || pageState.value === 'sellerHidden' || post.value?.adult ? 'noindex' : undefined),
+    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || pageState.value === 'sellerHidden' || pageState.value === 'adultOnly' || post.value?.adult ? 'noindex' : undefined),
 });
 </script>

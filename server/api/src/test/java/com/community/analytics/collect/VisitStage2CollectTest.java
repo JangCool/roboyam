@@ -437,7 +437,7 @@ class VisitStage2CollectTest {
         Supplier<SearchResponse> next;
 
         FakeSearchService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override

@@ -7,6 +7,7 @@ import com.community.board.service.PublicBoardService;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
+import com.community.post.service.AdultContentGate;
 import com.community.post.service.FeedParams;
 import com.community.post.service.PostFeedRows;
 import com.community.search.dto.response.SearchResponse;
@@ -62,9 +63,12 @@ public class SearchService {
     private final PostSearchQueries searches;
     private final PostFeedRepositoryQDSL feeds;
     private final PostFeedRows rows;
+    private final AdultContentGate adultGate;
     private final TransactionTemplate tx;
 
-    public SearchService(BoardCatalog catalog, PostSearchQueries searches, PostFeedRepositoryQDSL feeds, PostFeedRows rows, PlatformTransactionManager txManager) {
+    public SearchService(BoardCatalog catalog, PostSearchQueries searches, PostFeedRepositoryQDSL feeds, PostFeedRows rows, AdultContentGate adultGate,
+                         PlatformTransactionManager txManager) {
+        this.adultGate = adultGate;
         this.catalog = catalog;
         this.searches = searches;
         this.feeds = feeds;
@@ -73,7 +77,8 @@ public class SearchService {
         this.tx.setReadOnly(true);
     }
 
-    /** @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(결과에서 빼지 않고 표시만, 개수·쪽 수도 그대로) */
+    /** @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(결과에서 빼지 않고 표시만, 개수·쪽 수도 그대로).
+     *                 성인(본인인증 만 19세 이상)이 아니면 19금 글은 결과에서 뺀다(개수·쪽 수도 뺀 기준 — adult-content-contract) */
     public SearchResponse search(String qRaw, String scopeRaw, String boardRaw, String orderRaw, String pageRaw, String cursorRaw, String sizeRaw, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -117,7 +122,8 @@ public class SearchService {
         List<String> tokens = SearchQueryPolicy.distinctWords(qRaw);
         List<Long> boardIds = board != null ? List.of(board.id())
                 : s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).toList(); // 소모임 게시판도 — 비멤버에게 보이는 소모임 글만 걸린다(6단계, PostSearchQueries)
-        PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, Instant.now());
+        PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, adultGate.adult(viewerId),
+                Instant.now());
         String boardSlug = board == null ? null : board.slug();
         int currentPage = page;
         long deadline = System.nanoTime() + Duration.ofMillis(TIME_LIMIT_MILLIS).toNanos();
@@ -149,7 +155,7 @@ public class SearchService {
         List<PostSearchQueries.Hit> shown = hasNext ? hits.subList(0, size) : hits;
 
         searches.limitTime(remaining(deadline));
-        Map<Long, PostRowData> found = feeds.visibleRows(shown.stream().map(PostSearchQueries.Hit::id).toList(), c.now()).stream()
+        Map<Long, PostRowData> found = feeds.visibleRows(shown.stream().map(PostSearchQueries.Hit::id).toList(), c.adultViewer(), c.now()).stream()
                 .collect(Collectors.toMap(PostRowData::id, Function.identity()));
         List<PostRowData> ordered = new ArrayList<>(shown.size());
         Map<String, String> snippets = new HashMap<>();

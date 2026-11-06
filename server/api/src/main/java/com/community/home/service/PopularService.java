@@ -95,7 +95,7 @@ public class PopularService {
         List<Long> ids = entries.stream().map(PopularRankQueries.Entry::postId).toList();
         Set<Long> excluded = ids.isEmpty() ? Set.of()
                 : exclusions.findAllById(ids).stream().map(PopularExclusionEntity::getPostId).collect(Collectors.toSet());
-        Map<Long, PostRowData> found = feeds.visibleRows(ids, now).stream()
+        Map<Long, PostRowData> found = feeds.visibleRows(ids, false, now).stream() // 19금 글은 인기글에 누구에게나 나오지 않는다(배치도 NOT p.adult)
                 .collect(Collectors.toMap(PostRowData::id, Function.identity()));
         // 핫딜 글은 종료·기간 종료·사업자 글이면 지금 상태로 다시 뺀다(규칙 8 — 스냅샷 뒤에 끝난 딜, 배치 popular_rank_candidates 와 같은 판정)
         found.keySet().removeAll(dealQueries.unrankable(found.keySet(), dealSettings.current().autoExpireDays(), now));

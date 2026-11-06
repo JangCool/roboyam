@@ -16,6 +16,8 @@ export interface PrefixView {
     common: boolean;
     /** 운영자가 고른 표시색의 프리셋 이름 또는 null(자동). 서버가 아직 안 주면(옛 응답) `undefined` — 자동으로 그린다. 운영진 전용 말머리는 값과 무관하게 회색 */
     color?: string | null;
+    /** 성인 전용 — 고르면 서버가 글을 19금으로 저장한다(글쓰기 화면은 19금 체크를 켜고 잠근다, adult-content-contract). 옛 응답은 `undefined` = false */
+    adultOnly?: boolean;
 }
 
 export interface BoardView {

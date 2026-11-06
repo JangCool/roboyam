@@ -111,12 +111,14 @@ public class PostWriteService {
     private final GroupPostGate groupGate;
     private final DealWriter deals;
     private final EmoticonGuard emoticons;
+    private final AdultContentGate adultGate;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
-                            DealWriter deals, EmoticonGuard emoticons, PlatformTransactionManager txManager) {
+                            DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, PlatformTransactionManager txManager) {
+        this.adultGate = adultGate;
         this.emoticons = emoticons;
         this.groupGate = groupGate;
         this.deals = deals;
@@ -138,7 +140,8 @@ public class PostWriteService {
     }
 
     /** 검사를 마친 글 칸 */
-    private record Cleaned(Long prefixId, String title, ContentBody body, boolean adult, boolean hasImage) {
+    /** @param adultByPrefix 성인 전용 말머리를 골라 19금이 됐다(글쓴이가 고르지 않았어도) */
+    private record Cleaned(Long prefixId, String title, ContentBody body, boolean adult, boolean adultByPrefix, boolean hasImage) {
     }
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
@@ -156,6 +159,7 @@ public class PostWriteService {
                 : BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
         Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, null, body.prefixId(), body.title(), body.contentFormat(), body.content(), body.adult(), sec,
                 fields);
+        requireAdultWriter(c, userId, fields);
         String guestName = null;
         if (actor.guest()) {
             ContentRules.checkGuest(body.guest(), sec, fields);
@@ -333,6 +337,7 @@ public class PostWriteService {
             }
         }
         Long prefixId = null;
+        boolean adultByPrefix = false;
         if (prefixText != null && !prefixText.isBlank()) {
             prefixId = PostQueryService.parseId(prefixText);
             Optional<BoardPrefixInfo> prefix = b.prefix(prefixId);
@@ -341,9 +346,11 @@ public class PostWriteService {
                 fields.put("prefixId", new MessageRef("board.content.prefix.unknown"));
             } else if (!keep && prefix.get().staffOnly() && !staff) {
                 fields.put("prefixId", new MessageRef("board.content.prefix.staffOnly"));
+            } else {
+                adultByPrefix = prefix.get().adultOnly() && b.allowAdult(); // 성인 전용 말머리 = 19금으로 저장(adult-content-contract)
             }
         }
-        boolean adult = Boolean.TRUE.equals(adultFlag);
+        boolean adult = adultByPrefix || Boolean.TRUE.equals(adultFlag);
         if (adult && !b.allowAdult()) {
             fields.put("adult", new MessageRef("board.content.adult"));
         }
@@ -360,7 +367,17 @@ public class PostWriteService {
                 ContentRules.checkLinksImages(body.links(), body.images(), writer, true, sec, "content", fields);
             }
         }
-        return new Cleaned(prefixId, title, body, adult, body.images() > 0);
+        return new Cleaned(prefixId, title, body, adult, adultByPrefix, body.images() > 0);
+    }
+
+    /**
+     * 19금 글은 성인(로그인 + 본인인증 + 만 19세 이상)만 쓴다 — 볼 수 없는 글을 쓰지 않게(adult-content-contract). 성인 전용 말머리로 19금이 됐으면 {@code fields.prefixId},
+     * 직접 골랐으면 {@code fields.adult}.
+     */
+    private void requireAdultWriter(Cleaned c, Long userId, Map<String, MessageRef> fields) {
+        if (c.adult() && !fields.containsKey("adult") && !fields.containsKey("prefixId") && !adultGate.adult(userId)) {
+            fields.put(c.adultByPrefix() ? "prefixId" : "adult", new MessageRef("board.content.adult.identity"));
+        }
     }
 
     /**
@@ -409,6 +426,7 @@ public class PostWriteService {
         BoardSecurityValues sec = s.security();
         Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.contentFormat(), body.content(),
                 body.adult(), sec, fields);
+        requireAdultWriter(c, userId, fields);
         PollWriter.Change pollChange = polls.checkForUpdate(body.poll(), post, b, start, fields); // 칸 빠짐 = 그대로 · null = 빼기 · 값 = 만들기·고치기
         DealWriter.Change dealChange = deals.checkForUpdate(body.deal(), post, b, fields); // 핫딜 — 칸 빠짐 = 그대로(링크만 다시 판정) · 값 = 고치기, 종료된 딜은 409 DEAL_ENDED
         if (post.isGroupPost() && c.adult()) {
@@ -466,7 +484,7 @@ public class PostWriteService {
         Instant start = Instant.now();
         PostEntity post = queries.requireVisible(idText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = groupGate.resolve(s, post, userId).board();
+        EffectiveBoard b = groupGate.resolveIgnoringAdult(s, post, userId).board(); // 본인인증 전에 쓴 19금 글도 작성자는 지운다
         requireOwner(post, password, userId, ip);
         deals.requireNotBusiness(post.getId()); // 사업자 핫딜 글은 작성자도 지울 수 없다(403 DEAL_BUSINESS_POST_LOCKED)
         return tx.execute(status -> {

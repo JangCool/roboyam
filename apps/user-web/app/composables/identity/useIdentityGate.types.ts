@@ -1,7 +1,7 @@
 import type { IdentityVerifyOutcome } from '~/composables/identity/useIdentity.types';
 
-/** 본인인증이 필요한 용도 — 대화상자 문구가 용도마다 다르다(`identity.gateNeed_<용도>`) */
-export type IdentityPurpose = 'CHARGE' | 'GROUP_BUY' | 'ROBOTIKON';
+/** 본인인증이 필요한 용도 — 대화상자 문구가 용도마다 다르다(`identity.gateNeed_<용도>`). `ADULT_CONTENT` 는 19금 글 보기(adult-content-contract — 결제가 아니라 안내 글도 `gateNeedText_ADULT_CONTENT`) */
+export type IdentityPurpose = 'CHARGE' | 'GROUP_BUY' | 'ROBOTIKON' | 'ADULT_CONTENT';
 
 export interface IdentityGateOptions {
     purpose: IdentityPurpose;

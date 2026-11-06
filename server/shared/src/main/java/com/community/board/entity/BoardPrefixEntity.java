@@ -20,6 +20,8 @@ public class BoardPrefixEntity {
     private String commonKey;
     private String name;
     private boolean staffOnly;
+    /** 성인 전용(V152, 고유 말머리만) — 이 말머리를 고른 글은 19금({@code posts.adult})으로 저장한다 */
+    private boolean adultOnly;
     private String color;
     private boolean active;
     private int sortOrder;
@@ -44,11 +46,17 @@ public class BoardPrefixEntity {
     }
 
     public static BoardPrefixEntity own(long id, long boardId, String name, boolean staffOnly, String color, boolean active, int sortOrder, Instant now) {
+        return own(id, boardId, name, staffOnly, false, color, active, sortOrder, now);
+    }
+
+    public static BoardPrefixEntity own(long id, long boardId, String name, boolean staffOnly, boolean adultOnly, String color, boolean active, int sortOrder,
+                                        Instant now) {
         BoardPrefixEntity prefix = new BoardPrefixEntity();
         prefix.id = id;
         prefix.boardId = boardId;
         prefix.name = name;
         prefix.staffOnly = staffOnly;
+        prefix.adultOnly = adultOnly;
         prefix.color = color;
         prefix.active = active;
         prefix.sortOrder = sortOrder;
@@ -58,9 +66,10 @@ public class BoardPrefixEntity {
     }
 
     /** 고유 말머리를 고친다 */
-    public void change(String name, boolean staffOnly, String color, boolean active, int sortOrder, Instant now) {
+    public void change(String name, boolean staffOnly, boolean adultOnly, String color, boolean active, int sortOrder, Instant now) {
         this.name = name;
         this.staffOnly = staffOnly;
+        this.adultOnly = adultOnly;
         this.color = color;
         this.active = active;
         this.sortOrder = sortOrder;
@@ -95,6 +104,10 @@ public class BoardPrefixEntity {
 
     public boolean isStaffOnly() {
         return staffOnly;
+    }
+
+    public boolean isAdultOnly() {
+        return adultOnly;
     }
 
     public String getColor() {

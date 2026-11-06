@@ -23,6 +23,7 @@ import com.community.permission.entity.MemberPermission;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostNotFoundException;
+import com.community.post.service.AdultContentGate;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>일반 글: 지금까지처럼 공개 게시판 판정({@link PublicBoardService#requireActive(BoardCatalogSnapshot, long)} — 소모임 게시판이면 404).</li>
+ *   <li>19금 글: 성인(로그인 + 본인인증 + 만 19세 이상)만 — 아니면 403 {@code POST_ADULT_ONLY}({@link AdultContentGate}). 작성자의 지우기만 {@link #resolveIgnoringAdult} 로 판정을 건너뛴다.</li>
  *   <li>소모임 글: 작성자가 나가서 가린 글 404 {@code POST_NOT_FOUND} → 소모임 상태(열림만 — 비활성 403 {@code GROUP_INACTIVE}, 해산은 공개 글만 읽힌다, 그 밖 404)
  *       → 비멤버에게 보이지 않는 글({@code is_public} false — 비공개 소모임의 비공개 글 · 공개 소모임에서 멤버 전용으로 돌린 글)은 멤버(모임장 포함)만
  *       (아니면 비회원 포함 403 {@code GROUP_POST_PRIVATE}). 소모임 게시판이 꺼졌어도 막지 않는다(소모임은 멈추지 않는다 — 원본과 같다).</li>
@@ -53,14 +55,16 @@ public class GroupPostGate {
     private final GroupPublishRequestRepository requests;
     private final GroupPostQueries groupPosts;
     private final GroupVisibilityPolicy policy;
+    private final AdultContentGate adultGate;
 
     public GroupPostGate(GroupRepository groups, GroupMemberRepository members, GroupPublishRequestRepository requests, GroupPostQueries groupPosts,
-                         GroupVisibilityPolicy policy) {
+                         GroupVisibilityPolicy policy, AdultContentGate adultGate) {
         this.groups = groups;
         this.members = members;
         this.requests = requests;
         this.groupPosts = groupPosts;
         this.policy = policy;
+        this.adultGate = adultGate;
     }
 
     /**
@@ -86,6 +90,17 @@ public class GroupPostGate {
      * @param viewerId 보는 회원(비회원 null)
      */
     public Resolved resolve(BoardCatalogSnapshot s, PostEntity post, Long viewerId) {
+        Resolved resolved = resolveIgnoringAdult(s, post, viewerId);
+        adultGate.requireViewable(post, viewerId); // 19금 글은 성인만(403 POST_ADULT_ONLY — adult-content-contract)
+        return resolved;
+    }
+
+    /**
+     * {@link #resolve} 에서 19금 판정만 뺀 것 — 작성자가 자기 글을 지울 때(작성자 확인이 뒤따른다). 본인인증 전에 쓴 19금 글도 작성자는 지울 수 있다.
+     *
+     * @param viewerId 보는 회원(비회원 null)
+     */
+    public Resolved resolveIgnoringAdult(BoardCatalogSnapshot s, PostEntity post, Long viewerId) {
         if (!post.isGroupPost()) {
             return new Resolved(PublicBoardService.requireActive(s, post.getBoardId()), null, null, viewerId);
         }

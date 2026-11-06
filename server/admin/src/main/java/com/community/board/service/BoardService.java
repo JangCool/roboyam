@@ -248,7 +248,7 @@ public class BoardService {
         if (in.prefixes == null) {
             // 말머리 목록이 없으면 고유 말머리를 그대로 둔다(모두 지우라는 뜻으로 읽지 않는다)
             in.prefixes = currentOwn.stream()
-                    .map(p -> new BoardPrefixSaveRequest(Long.toString(p.getId()), p.getName(), p.isStaffOnly(), p.getColor(), p.isActive())).toList();
+                    .map(p -> new BoardPrefixSaveRequest(Long.toString(p.getId()), p.getName(), p.isStaffOnly(), p.getColor(), p.isActive(), p.isAdultOnly())).toList();
         }
 
         // 1) 바뀐 부분의 권한
@@ -334,7 +334,7 @@ public class BoardService {
         if (BoardFields.KIND_DEAL.equals(board.getKind()) && in.allowAdult) {
             invalid.put("allowAdult", new MessageRef("board.allowAdult.deal")); // 핫딜 게시판은 19금 끔 고정(hotdeal-contract 서버 규칙 8)
         }
-        checkPrefixes(in.prefixes, currentOwn, invalid);
+        checkPrefixes(in.prefixes, currentOwn, in.allowAdult, invalid);
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
         }
@@ -390,18 +390,28 @@ public class BoardService {
         Map<Long, BoardPrefixEntity> ownById = new HashMap<>();
         currentOwn.forEach(p -> ownById.put(p.getId(), p));
         int order = 10;
+        List<Long> newlyAdult = new ArrayList<>();
         for (BoardPrefixSaveRequest item : in.prefixes) {
             String name = BoardRules.strip(item.name());
             boolean staffOnly = Boolean.TRUE.equals(item.staffOnly());
+            boolean adultOnly = Boolean.TRUE.equals(item.adultOnly());
             boolean active = !Boolean.FALSE.equals(item.active());
             Long id = BoardRules.parseId(item.id());
             if (id == null) {
-                prefixes.persist(BoardPrefixEntity.own(ids.nextId(), board.getId(), name, staffOnly, item.color(), active, order++, now));
+                prefixes.persist(BoardPrefixEntity.own(ids.nextId(), board.getId(), name, staffOnly, adultOnly, item.color(), active, order++, now));
             } else {
-                ownById.get(id).change(name, staffOnly, item.color(), active, order++, now);
+                BoardPrefixEntity prefix = ownById.get(id);
+                if (adultOnly && !prefix.isAdultOnly()) {
+                    newlyAdult.add(id);
+                }
+                prefix.change(name, staffOnly, adultOnly, item.color(), active, order++, now);
             }
         }
         flushOrDuplicated();
+        int markedAdult = content.markAdult(board.getId(), newlyAdult); // 성인 전용으로 새로 켠 말머리의 기존 글도 19금(adult-content-contract)
+        if (markedAdult > 0) {
+            after.put("adultMarkedPosts", markedAdult);
+        }
         audit.record(event(actor, AuditActions.BOARD_UPDATE, board.getId()).with("before", before).with("after", after));
         log.info("게시판 설정을 저장했다 boardId={} 칸={} by operatorId={}", board.getId(), after.keySet(), actor.operatorId());
         return views.detail(board);
@@ -554,7 +564,7 @@ public class BoardService {
     }
 
     /** 고유 말머리 검사 — 이름(비었나·길이·공통 이름 포함 중복)·색·모르는 id → {@code prefixes[i].…} */
-    private static void checkPrefixes(List<BoardPrefixSaveRequest> items, List<BoardPrefixEntity> currentOwn, Map<String, MessageRef> invalid) {
+    private static void checkPrefixes(List<BoardPrefixSaveRequest> items, List<BoardPrefixEntity> currentOwn, boolean allowAdult, Map<String, MessageRef> invalid) {
         Set<Long> ownIds = new HashSet<>();
         currentOwn.forEach(p -> ownIds.add(p.getId()));
         Map<String, Integer> seen = new HashMap<>();
@@ -587,6 +597,9 @@ public class BoardService {
             if (item.color() != null && !BoardFields.COLORS.contains(item.color())) {
                 invalid.put(path + ".color", new MessageRef("board.field.choice"));
             }
+            if (Boolean.TRUE.equals(item.adultOnly()) && !allowAdult) {
+                invalid.put(path + ".adultOnly", new MessageRef("board.prefix.adultOnly.needsAdult")); // 19금 허용 게시판에서만(adult-content-contract)
+            }
         }
     }
 
@@ -599,16 +612,16 @@ public class BoardService {
     }
 
     private static List<String> ownSummary(List<BoardPrefixEntity> own) {
-        return own.stream().map(p -> summary(Long.toString(p.getId()), p.getName(), p.isStaffOnly(), p.getColor(), p.isActive())).toList();
+        return own.stream().map(p -> summary(Long.toString(p.getId()), p.getName(), p.isStaffOnly(), p.isAdultOnly(), p.getColor(), p.isActive())).toList();
     }
 
     private static List<String> requestSummary(List<BoardPrefixSaveRequest> items) {
         return items.stream().map(p -> summary(p.id() == null ? "new" : p.id().strip(), BoardRules.strip(p.name()), Boolean.TRUE.equals(p.staffOnly()),
-                p.color(), !Boolean.FALSE.equals(p.active()))).toList();
+                Boolean.TRUE.equals(p.adultOnly()), p.color(), !Boolean.FALSE.equals(p.active()))).toList();
     }
 
-    private static String summary(String id, String name, boolean staffOnly, String color, boolean active) {
-        return name + (staffOnly ? " [staff]" : "") + (color == null ? "" : " [" + color + "]") + (active ? "" : " [off]") + ("new".equals(id) ? " [new]" : "");
+    private static String summary(String id, String name, boolean staffOnly, boolean adultOnly, String color, boolean active) {
+        return name + (staffOnly ? " [staff]" : "") + (adultOnly ? " [adult]" : "") + (color == null ? "" : " [" + color + "]") + (active ? "" : " [off]") + ("new".equals(id) ? " [new]" : "");
     }
 
     /** 다르면 before/after 에 담고 true */
