@@ -5,7 +5,7 @@
           · 머리: 이름은 화면 읽기용 제목(`sr-only`)으로만 두고, 운영자가 글쓰기 단추를 켰으면 오른쪽 아래 떠 있는 글쓰기 단추(`WriteFloatButton` — 누르면 바로 `/write?board=` 기준 폴더의 첫 게시판, 게시판이 없으면 `/write`)를 띄운다(설명은 그리지 않는다 — 2026-11-05).
           · 아래: 지금 테마의 홈 템플릿(`UtilTheme.resolve(theme, 'home')` — 겉모양만)이 공통 격자 `HomeGadgetGrid` 로 그린다. 가젯 부품·읽기(`UtilHomeGadget.sanitize`)는 홈과 같다.
         메뉴 폴더의 「누르면 가는 곳」이 이 페이지를 가리킬 수 있다(관리자 메뉴 관리, 연결 유형 `GADGET_PAGE`) — 메뉴의 「지금 있는 곳」은 공개 메뉴 응답의 `path` 로 맞춘다.
-        없는 페이지는 「찾을 수 없어요」. 응답에 보는 사람 몫이 섞여 캐시하지 않고, 로그인·로그아웃하면 다시 받는다. 투자 고지 게시판 글이 보이면 맨 아래에 고지를 붙인다.
+        없는 페이지는 「찾을 수 없어요」. 응답에 보는 사람 몫이 섞여 캐시하지 않고, 로그인·로그아웃하면 다시 받는다. 맨 아래 투자 고지 띠는 붙이지 않는다(2026-11-06 사용자 — 산업·주식 카드의 고지 한 줄은 가젯에 그대로).
         **관리자 미리보기**(관리자 테마 화면 「레이아웃 › 페이지」의 iframe, `useAdminPreview`): 관리자가 보낸 저장 전 배치(`home`)·머리(`page`)를 덮어 그리고, 편집 중이면 격자에 손잡이가 얹힌다(홈과 같다).
     -->
     <div>
@@ -21,8 +21,6 @@
 
             <HomeGadgetSkeleton v-if="!shown" />
             <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
-
-            <BoardInvestmentNotice v-if="hasInvestment" variant="home" data-testid="gadget-page-investment" />
 
             <!-- 글쓰기 — 운영자가 켰을 때 오른쪽 아래에 떠 있는 단추(누르면 바로 글쓰기) -->
             <WriteFloatButton v-if="head?.writeButton" :to="writeTarget" data-testid="gadget-page-write" />
@@ -45,9 +43,7 @@ const api = useGadgetPageApi();
 const { user } = useAuth();
 const { theme } = useTheme();
 const { localizedName } = useLocalizedName();
-const { bySlug, ensureLoaded: ensureBoards } = useBoards();
 const { ensureLoaded: ensureDisplay } = useBoardDisplay();
-void ensureBoards();
 void ensureDisplay();
 
 // 이 방문에서 가젯들이 나눠 쓰는 것 — 폭(lg)·지금 시각
@@ -81,9 +77,6 @@ const data = computed(() => {
     return UtilHomeGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
 });
 const shown = useAdGadgets(data, 'PAGE');
-
-/** 투자 고지 — 투자 고지 게시판(게시판 목록의 `investmentNotice`)의 글이 보이면 */
-const hasInvestment = computed(() => (data.value ? UtilHomeGadget.hasInvestmentBoard(data.value, (slug) => bySlug(slug)?.investmentNotice === true) : false));
 
 useSeoMeta({ title: () => head.value?.name ?? t('gadgetPage.loading') });
 
