@@ -6,11 +6,11 @@
         산업·주식(투자 고지) 게시판 카드에는 고지 한 줄이 늘 붙는다 — 카드의 `board.investmentNotice`(slug 로 짐작하지 않는다).
         로고 색: 자동은 운영자가 고른 게시판 표시색, 없으면 순서로 정한 색(`UtilBoard.toneAt`) · 고정 색 · 회색. 로고에는 글자가 늘 있다(색만으로 뜻을 전하지 않는다).
         설정 `cardHead` 가 꺼지면(관리자 ⚙ — 게시판 하나짜리 카드 가젯) 카드 머리(로고·이름)와 「게시판 가기 ›」를 그리지 않는다 — 가젯 제목·「더보기」가 그 게시판을 가리킨다. 투자 고지 줄은 그대로 붙는다.
-        선: 카드 외곽선(`outline`)·줄 구분선(`dividers`)은 설정으로 켜고 기본은 끈다 — 선 대신 여백으로 나누고 줄에 마우스를 올리면 옅은 배경(2026-11-06 사용자). 카드 테마의 평평한 카드형은 테마 카드 그대로.
+        선: 카드 외곽선(`outline`)·줄 구분선(`dividers`)은 설정으로 켜고 기본은 끈다 — 선 대신 여백으로 나누고(가젯 제목과 첫 글 사이 10px — 글 목록 가젯과 같게) 줄에 마우스를 올리면 옅은 배경(2026-11-06 사용자). 카드 테마의 평평한 카드형은 테마 카드 그대로.
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="gadget.empty || cards.length === 0" empty-icon="pi pi-th-large">
         <div
-            :class="scroll ? 'gadget-scroll-row' : ['grid grid-cols-1', boxed ? 'gap-2.5 md:gap-3.5' : 'gap-x-8 gap-y-6', colsClass]"
+            :class="scroll ? 'gadget-scroll-row' : ['grid grid-cols-1', boxed ? 'gap-2.5 md:gap-3.5' : 'gap-x-8 gap-y-6 pt-2.5', colsClass]"
             :style="scroll ? { ...fixedVars, '--row-item': '84%' } : fixedVars"
             :role="scroll ? 'group' : undefined"
             :aria-label="scroll ? t('home.scrollRowLabel', { name: gadget.title }) : undefined"
