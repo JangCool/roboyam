@@ -3,12 +3,13 @@
         소모임 목록 `/groups?category=&sort=&q=` (메뉴 `GROUPS_ALL`) — 분류 칩 · 정렬 · 컴팩트 목록 · 더보기 · 검색 · 만들기.
         주소의 쿼리가 화면 상태다(뒤로 가기·공유·새로고침이 같은 결과). 칩·정렬·검색어 지우기는 링크라 주소만 바뀌고, 이상한 값은 기본값으로 돌린다.
         분류 칩은 `GET /api/groups/categories`(관리자가 정한 이름·순서·소모임 수). 분류 목록에 없는 `?category=` 는 목록을 받지 않고 안내 + [전체 보기].
-        맨 위 「지금 뜨는 소모임」 슬라이드(6단계, `GET /api/groups/trending`)는 한 번 받아 고정하고 검색 중에는 숨긴다. 아래 목록은 슬라이드를 기다렸다가 그 소모임들을 `exclude` 로 뺀다
-        (「내 소모임」 정렬은 빼지 않는다). 슬라이드가 실패해도 목록은 `exclude` 없이 그대로 받고, 두 오류는 따로 보인다.
+        맨 위 「지금 뜨는 소모임」 슬라이드(6단계, `GET /api/groups/trending`)는 한 번 받아 고정하고 검색 중에는 숨긴다. 아래 목록은 슬라이드와 따로 전부 보인다
+        (슬라이드에 나온 모임도 목록에서 빼지 않는다 — 소모임이 적을 때 목록이 거의 비어 보여서, 사용자 결정 2026-11-06). 두 오류는 따로 보인다.
         community 대비: 사이드의 광고 자리는 로보얌에 광고가 없어 뺐다.
     -->
     <!-- 제목·검색·목록을 한 카드에(내 소모임 화면과 같은 모양) — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-    <div class="content-card">
+    <!-- 최소 높이 = 슬라이드 + 목록 6줄이 보일 때의 높이(md 이상) — 소모임이 없거나 적어도 화면 높이가 크게 줄지 않게(2026-11-06 사용자) -->
+    <div class="content-card md:min-h-[62.5rem]">
         <header class="flex items-center gap-2">
             <h1 class="min-w-0 flex-1 text-lg font-bold leading-tight">{{ t('group.title') }}</h1>
             <Button
@@ -320,8 +321,6 @@ const trendingTitleId = useId();
 const trending = ref<GroupRow[]>([]);
 const trendingStatus = ref<TrendingStatus>('idle');
 const trendingErrorMessage = ref('');
-/** 슬라이드 요청이 끝나면(성공·실패 모두) 풀리는 약속 — 목록이 이것을 기다렸다가 `exclude` 를 정한다. 던지지 않는다 */
-let trendingDone: Promise<void> | null = null;
 let trendingSeq = 0;
 let trendingAbort: AbortController | null = null;
 
@@ -346,7 +345,6 @@ function loadTrending(): Promise<void> {
             trendingErrorMessage.value = UtilBoardMessages.of(t, e);
             trendingStatus.value = 'error';
         });
-    trendingDone = done;
     return done;
 }
 
@@ -413,11 +411,8 @@ const loadingMore = ref(false);
 const moreError = ref('');
 let seq = 0;
 let abort: AbortController | null = null;
-/** 이 목록을 받을 때 `exclude` 로 보낸 값 — 2쪽부터도 같은 값을 보낸다(서버가 뺀 집합 위에서 쪽을 나눠, 첫 쪽에만 보내면 겹치거나 건너뛴다) */
-let excluded = '';
-
 function query(s: GroupListState, pageNo: number) {
-    return { category: s.category || undefined, sort: s.sort, q: s.q || undefined, page: pageNo, size: UtilGroup.PAGE_SIZE, exclude: excluded || undefined };
+    return { category: s.category || undefined, sort: s.sort, q: s.q || undefined, page: pageNo, size: UtilGroup.PAGE_SIZE };
 }
 
 /** 처음부터 다시 받는다 — 앞 요청은 끊고, 늦게 온 옛 응답은 요청 번호로 버린다 */
@@ -439,13 +434,6 @@ async function load(): Promise<void> {
     if (s.sort === 'mine' && !user.value) {
         status.value = 'login-required';
         return;
-    }
-    // 슬라이드를 먼저 받아 그 소모임들을 목록에서 뺀다(겹치지 않게). 슬라이드가 실패하면 빼지 않고 받는다
-    excluded = '';
-    if (UtilGroup.excludesTrending(s) && trendingDone) {
-        await trendingDone;
-        if (mine !== seq) return;
-        if (trendingStatus.value === 'ready') excluded = UtilGroup.excludeOf(trending.value);
     }
     const controller = new AbortController();
     abort = controller;

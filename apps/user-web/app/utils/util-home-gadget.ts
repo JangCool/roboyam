@@ -331,7 +331,7 @@ export default class UtilHomeGadget {
             titleLines: c.titleLines === 1 || c.titleLines === 2 ? c.titleLines : 0,
             newBadgeHours: int(c.newBadgeHours, 0, 0, 72),
             hotBadgeLikes: int(c.hotBadgeLikes, 0, 0, 1000),
-            dividers: bool(c.dividers, true),
+            dividers: bool(c.dividers, false), // 구분선은 켠 가젯만(기본 끔 — 2026-11-06 사용자)
             allBoards: !Array.isArray(c.boardIds) || c.boardIds.length === 0,
         };
     }
@@ -385,7 +385,7 @@ export default class UtilHomeGadget {
     static boardCardsConfig(config: Record<string, unknown>): BoardCardsConfig {
         const c = obj(config);
         const columns = c.columns === 2 || c.columns === '2' ? 2 : c.columns === 3 || c.columns === '3' ? 3 : 'AUTO';
-        return { columns, badge: readBadge(c.badge), cardHead: c.cardHead !== false };
+        return { columns, badge: readBadge(c.badge), cardHead: c.cardHead !== false, outline: c.outline === true, dividers: c.dividers === true };
     }
 
     /**

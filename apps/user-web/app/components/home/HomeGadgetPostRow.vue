@@ -5,7 +5,7 @@
         차단한 회원·단어의 글은 다른 목록과 같은 접힌 줄(`FoldedRow`) — 순위 칸은 남겨 순서가 밀리지 않는다. 줄 전체가 글 링크라 작성자 이름은 링크가 아니다(`<a>` 중첩 금지).
     -->
     <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? 'flex items-start' : '']" :style="rowVars" data-testid="home-post-row">
-        <span v-if="rank !== null" class="w-7 shrink-0 text-center font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rowStyle === 'COMPACT' ? 'pt-[2px] leading-[1.3]!' : 'pt-2.5']" :style="rankStyle" data-testid="home-post-rank">
+        <span v-if="rank !== null" class="w-7 shrink-0 text-center font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rowStyle === 'COMPACT' ? (dense ? 'pt-[5px] leading-[1.3]!' : 'pt-1') : 'pt-2.5']" :style="rankStyle" data-testid="home-post-rank">
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>
         <div class="min-w-0 flex-1">
@@ -30,10 +30,11 @@
                 </NuxtLink>
 
                 <!-- 보통 줄 -->
-                <NuxtLink v-else :to="`/posts/${row.id}`" class="flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowStyle === 'COMPACT' ? 'py-[2px]' : 'py-2.5'">
-                    <HomeThumb v-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="w-24 shrink-0 md:w-28" />
+                <NuxtLink v-else :to="`/posts/${row.id}`" class="flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowStyle === 'COMPACT' ? (dense ? 'py-[5px]' : 'py-1') : 'py-2.5'">
+                    <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(64×40, 2026-11-06 사용자) -->
+                    <HomeThumb v-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
                     <!-- 촘촘(`COMPACT`)은 한 줄 — 제목 오른쪽에 메타(게시판·추천·시간)를 나란히 둔다(좁은 칸에 글 10개가 들어가게, 2026-11-06).
-                         한 줄 약 21px(글자 13px · 줄 높이 1.3 · 위아래 2px) — 하이라이트 가젯 높이에 10개가 들어간다(사용자 요청 2026-11-06) -->
+                         인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
                         <p class="break-words leading-snug" :class="[lines === 1 ? 'line-clamp-1' : 'line-clamp-2', titleSize, rowStyle === 'COMPACT' ? 'min-w-0 flex-1' : '']">
                             <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" class="mr-1 align-[1px]" />
@@ -61,7 +62,7 @@
                             </span>
                         </p>
                     </div>
-                    <HomeThumb v-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="w-[5.5rem] shrink-0 md:w-28" />
+                    <HomeThumb v-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
                 </NuxtLink>
             </FoldedRow>
         </div>
@@ -83,9 +84,11 @@ interface Props {
     rank?: number | null;
     /** 첫 글을 크게 */
     hero?: boolean;
+    /** 촘촘 줄을 더 좁게(인기글 기간 탭 — 하이라이트 높이에 10개) */
+    dense?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { rank: null, hero: false });
+const props = withDefaults(defineProps<Props>(), { rank: null, hero: false, dense: false });
 
 const { t } = useI18n();
 const look = useHomeGadgetLook();
@@ -95,13 +98,13 @@ const { localizedName } = useLocalizedName();
 const overrides = useBlockOverrides();
 
 const rowStyle = computed(() => props.cfg.rowStyle);
-/** 제목·순위 글자 크기 — 촘촘은 한 단계 작게(카드 테마 15px → 14px, 그 밖 14px → 13px) */
+/** 제목·순위 글자 크기 — 인기글 촘촘(`dense`)은 한 단계 작게(카드 테마 15px → 14px, 그 밖 14px → 13px) */
 const titleSize = computed(() => {
-    if (rowStyle.value === 'COMPACT') return look === 'card' ? 'text-sm leading-[1.3]!' : 'text-[0.8125rem] leading-[1.3]!';
+    if (rowStyle.value === 'COMPACT' && props.dense) return look === 'card' ? 'text-sm leading-[1.3]!' : 'text-[0.8125rem] leading-[1.3]!';
     return look === 'card' ? 'text-[0.9375rem]' : 'text-sm';
 });
 const rankSize = computed(() => {
-    if (rowStyle.value === 'COMPACT') return look === 'card' ? 'text-[0.9375rem]' : 'text-[0.8125rem]';
+    if (rowStyle.value === 'COMPACT' && props.dense) return look === 'card' ? 'text-[0.9375rem]' : 'text-[0.8125rem]';
     return look === 'card' ? 'text-[1.0625rem]' : 'text-sm';
 });
 const thumb = computed(() => UtilHomeGadget.thumbPlacement(props.cfg));
