@@ -38,7 +38,7 @@ export default {
     tabHome: '홈',
     tabBoards: '게시판',
     tabGroups: '소모임', // 서비스 이름(GROUPS)을 못 읽을 때의 자리 — 보통은 운영자가 정한 이름이 보인다
-    tabNotifications: '알림',
+    tabCommunity: '커뮤니티', // 메뉴의 「커뮤니티」 묶음을 못 찾을 때의 자리 — 보통은 그 묶음의 이름이 보인다
 
     // 글쓰기 버튼
     write: '글쓰기',

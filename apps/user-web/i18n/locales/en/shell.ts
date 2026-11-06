@@ -36,7 +36,7 @@ export default {
     tabHome: 'Home',
     tabBoards: 'Boards',
     tabGroups: 'Clubs',
-    tabNotifications: 'Notifications',
+    tabCommunity: 'Community',
 
     // Write button
     write: 'Write',
