@@ -38,7 +38,7 @@
                             <template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
                         </p>
                         <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                            <PostAuthorLabel :author="row.author" />
+                            <PostAuthorLabel :author="row.author" avatar />
                             <span aria-hidden="true">·</span>
                             <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                             <span aria-hidden="true">·</span>
