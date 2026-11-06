@@ -1,6 +1,9 @@
 <template>
     <!-- 내 정보 메뉴 — 묶음마다 한 카드 안에서 줄로 나눈다. 지금 화면 줄은 짚어 둔다(aria-current). 아래에 관리자 앱(운영자·운영진만) · 로그아웃 -->
     <div class="flex flex-col gap-4" data-testid="me-menu">
+        <!-- 상점 두 칸 — 메뉴 맨 위(모바일은 포인트 요약 바로 아래, 데스크톱은 오른쪽 열 맨 위) -->
+        <MeShopLinks />
+
         <nav class="panel-card p-2" :aria-label="t('me.menuLabel')">
             <template v-for="(group, gi) in shown" :key="group.key">
                 <p v-if="group.title" class="m-0 px-2 pb-1 text-xs font-semibold text-muted-color" :class="gi > 0 ? 'mt-2 border-t border-surface pt-3' : 'pt-1'">{{ group.title }}</p>
@@ -58,7 +61,8 @@ const { busy, run: logout } = useLogoutFlow();
 const { groups } = useMeMenu();
 const points = usePointSummary();
 
-const shown = computed(() => (props.home ? groups.value : groups.value.filter((group) => group.key !== 'home')));
+/** 데스크톱 열(`home`)은 「설정」 묶음을 빼고(헤더 계정 메뉴에 있다), 모바일 목록은 「내 정보」 줄을 뺀다 */
+const shown = computed(() => groups.value.filter((group) => group.key !== (props.home ? 'settings' : 'home')));
 
 onMounted(() => {
     if (user.value && !UtilBusiness.isBusinessAccount(user.value.role) && points.status.value === 'idle') void points.load();

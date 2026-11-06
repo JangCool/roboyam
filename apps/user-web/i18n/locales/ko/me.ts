@@ -22,6 +22,10 @@ export default {
     // 내 정보 메뉴(데스크톱 오른쪽 열 · 모바일 내 정보 목록) — 묶음 이름
     menuLabel: '내 정보 메뉴',
     menuGroupActivity: '내 활동',
-    menuGroupPoint: '포인트',
+    menuGroupStorage: '내 보관함',
     menuGroupInbox: '알림·쪽지',
+    // 메뉴 맨 위 상점 두 칸(`MeShopLinks`) — 이름 아래 한 줄 설명
+    shopLinksLabel: '상점',
+    shopPointHint: '닉네임 색·테두리·아바타',
+    shopEmoticonHint: '이모티콘 팩',
 };

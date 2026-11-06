@@ -7,26 +7,15 @@
             두 칸이 같은 그림으로 대체되면 하나만 둔다.
           · 대체 순서·못 불러온 그림 건너뛰기는 `UtilSiteLogo.resolve` 한 곳.
           · 이름 글자: 「로고에 사이트 이름이 들어 있음」(`nameInLogo`)이 켜져 있으면 붙이지 않고 그림의 `alt` 가 이름이다. 꺼져 있거나 쓸 그림이 없으면 글자를 붙이고 그림의 `alt` 는 비운다(스크린 리더가 이름을 두 번 읽지 않게).
-          · 모바일(md 미만): 로고의 「글자만」 영역(SVG `#wordmark`)을 보인다 — 아래 `wordmark`.
+          · 모바일도 데스크톱처럼 로고 전체(아이콘 포함)를 보인다(사용자 결정 2026-11-06 — 메뉴 단추가 상단 바 오른쪽 끝으로 가면서 「글자만(#wordmark)」을 그만둠).
         ⚠ 그림은 `<img src>` 로만 그린다 — SVG 로 올린 것도 서버가 data URI 로 바꿔 주므로 `v-html` 을 쓰지 않는다.
         크기: 가로로 긴 그림 로고(약 200×36)가 잘리지 않게 높이 28px(데스크톱 32px), 가로는 비율대로 최대 220px(모바일은 화면 폭의 45% 까지) — 헤더(48·56·60px)·드로어·로그인·설치 레이아웃에서 넘치지 않는다.
     -->
     <span class="inline-flex min-w-0 items-center gap-2">
-        <template v-if="lightSrc && lightSrc === darkSrc">
-            <picture class="contents">
-                <source class="hidden" :media="MOBILE" :srcset="wordmark(lightSrc)" />
-                <img :src="lightSrc" :alt="imgAlt" :class="imgClass" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
-            </picture>
-        </template>
+        <img v-if="lightSrc && lightSrc === darkSrc" :src="lightSrc" :alt="imgAlt" :class="imgClass" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
         <template v-else>
-            <picture v-if="lightSrc" class="contents">
-                <source class="hidden" :media="MOBILE" :srcset="wordmark(lightSrc)" />
-                <img :src="lightSrc" :alt="imgAlt" :class="[imgClass, 'site-logo-light']" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
-            </picture>
-            <picture v-if="darkSrc" class="contents">
-                <source class="hidden" :media="MOBILE" :srcset="wordmark(darkSrc)" />
-                <img :src="darkSrc" :alt="imgAlt" :class="[imgClass, 'site-logo-dark']" data-testid="site-brand-logo-dark" @error="markFailed(darkSrc)" />
-            </picture>
+            <img v-if="lightSrc" :src="lightSrc" :alt="imgAlt" :class="[imgClass, 'site-logo-light']" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
+            <img v-if="darkSrc" :src="darkSrc" :alt="imgAlt" :class="[imgClass, 'site-logo-dark']" data-testid="site-brand-logo-dark" @error="markFailed(darkSrc)" />
         </template>
         <span v-if="showName" class="min-w-0 truncate" data-testid="site-brand-name">{{ siteLabel }}</span>
     </span>
@@ -55,15 +44,6 @@ const darkSrc = computed(() => UtilSiteLogo.resolve(siteLogos.value, UtilSiteLog
 const showName = computed(() => !nameInLogo.value || !lightSrc.value || !darkSrc.value);
 /** 그림의 대체 텍스트 — 이름 글자가 옆에 없을 때만 이름 */
 const imgAlt = computed(() => (showName.value ? '' : siteLabel.value));
-
-/**
- * 모바일(md 미만)에서는 로고의 「글자만」 영역을 보인다 — SVG 안 `<view id="wordmark" viewBox="…">`(기본 로고는 심볼·작은 Roboyam 을 뺀 「로보얌」/「Roboyam」).
- * 그 영역이 없는 SVG·PNG 는 조각 주소(`#wordmark`)가 무시되어 로고 전체가 그대로 보인다. ⚠ SVG 루트에 width·height 가 있으면 Chrome 이 영역을 무시한다(viewBox 만 둘 것).
- */
-const MOBILE = '(max-width: 767.98px)';
-function wordmark(url: string): string {
-    return `${url.split('#')[0]}#wordmark`;
-}
 
 const imgClass = 'block h-7 w-auto max-w-[min(13.75rem,45vw)] shrink-0 object-contain md:h-8 md:max-w-[13.75rem]';
 </script>

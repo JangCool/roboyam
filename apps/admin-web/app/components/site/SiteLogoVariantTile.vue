@@ -27,19 +27,6 @@
 
         <p :id="statusId" class="text-xs leading-relaxed" :class="fallback ? 'text-muted-color' : 'font-medium'">{{ statusLabel }}</p>
 
-        <!-- 모바일 미리보기 — 공개 헤더가 모바일(md 미만)에서 그리는 그대로(같은 그림 + `#wordmark`, 높이 28px). 영역이 없으면 그림 전체가 보이는 것도 그대로 -->
-        <div v-if="previewUrl && !broken" class="flex min-w-0 items-center gap-2">
-            <span class="shrink-0 text-xs text-muted-color">{{ t('site.logoMobile') }}</span>
-            <span
-                class="flex h-10 min-w-0 items-center overflow-hidden rounded-md border border-(--line) px-2"
-                :class="tone === 'dark' ? 'bg-surface-900' : 'bg-surface-0'"
-                data-testid="logo-mobile-preview"
-            >
-                <img :src="mobileUrl" alt="" class="block h-7 w-auto max-w-[45vw] object-contain" :class="fallback ? 'opacity-35' : ''" />
-            </span>
-            <span class="min-w-0 text-xs leading-snug text-muted-color">{{ wordmark ? t('site.logoMobileWordmark') : t('site.logoMobileFull') }}</span>
-        </div>
-
         <div v-if="editable" class="flex flex-wrap gap-1.5">
             <Button type="button" :label="t('site.logoUpload')" icon="pi pi-upload" size="small" variant="outlined" :loading="busy" @click="pickFile" />
             <Button type="button" :label="t('site.logoFromSvg')" icon="pi pi-code" size="small" variant="outlined" :disabled="busy" :aria-expanded="svgOpen" @click="emit('openSvg')" />
@@ -56,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import UtilSiteLogo, { type SiteLogoTone } from '~/utils/util-site-logo';
+import type { SiteLogoTone } from '~/utils/util-site-logo';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
 interface Props {
@@ -104,22 +91,6 @@ const broken = ref(false);
 watch(
     () => props.previewUrl,
     () => (broken.value = false),
-);
-
-/** 모바일 미리보기 주소 — 같은 그림에 `#wordmark` */
-const mobileUrl = computed(() => (props.previewUrl ? UtilSiteLogo.wordmarkUrl(props.previewUrl) : ''));
-/** 모바일에서 글자 부분만 보이나(SVG 안 영역 확인) — 안내 한 줄을 고른다 */
-const wordmark = ref(false);
-watch(
-    () => props.previewUrl,
-    async (url) => {
-        wordmark.value = false;
-        if (!url) return;
-        const ok = await UtilSiteLogo.wordmarkOf(url);
-        // 그 사이 그림이 바뀌었으면 옛 결과는 버린다
-        if (props.previewUrl === url) wordmark.value = ok;
-    },
-    { immediate: true },
 );
 
 function pickFile(): void {
