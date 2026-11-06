@@ -1,6 +1,6 @@
 <template>
     <!--
-        소모임 상세 `/groups/{id}?tab=posts|members|chat` — 머리(이름·멤버 수·개설·분류·모집·가입 방식·오프라인·내 상태·모임장) · 소개 · 오프라인/투자 고지 · 가입 영역 · 탭 · 데스크톱 오른쪽 「모임 정보」.
+        소모임 상세 `/groups/{id}?tab=posts|members|chat` — 머리(이름·멤버 수·개설·분류·모집·가입 방식·오프라인·내 상태·모임장) · 소개 · 오프라인/투자 고지 · 가입 영역 · 탭. 오른쪽 「모임 정보」 칸은 없앴다 — 모임장·신규 가입자는 위 카드에, 본문은 넓게(2026-11-06 사용자).
         가입 단추는 서버가 준 `join`(allowed·method·reason)으로 정한다 — 바로 가입(오프라인이면 확인 시트), 신청제·강퇴됐던 회원은 신청 시트(한마디). 비회원은 로그인 안내.
         탭은 글(기본 — 1단계 미확정 5번을 2단계에서 글로 정함)·일정(4단계)·멤버·채팅.
         일정 탭(4단계, community `GroupEventsTab`): 멤버만 「다가오는 일정 N」(가까운 순, 쪽 번호 「더보기」)과 「지난 일정 보기」, 모임장·`EVENTS` 매니저(`permissions.canManageEvents`)는
@@ -45,7 +45,7 @@
             </ErrorState>
         </div>
 
-        <div v-else-if="group" class="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-6">
+        <div v-else-if="group">
             <!-- 본문 열을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
             <div class="content-card min-w-0" data-testid="group-main-card">
                 <header>
@@ -54,7 +54,7 @@
                         <div class="min-w-0 flex-1">
                             <h1 class="m-0 break-words text-lg font-bold leading-tight" data-testid="group-name">{{ group.name }}</h1>
                             <p class="mt-0.5 text-xs text-muted-color" data-testid="group-meta">{{ UtilGroupMessages.metaLine(t, group, time) }}</p>
-                            <p v-if="group.leader" class="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-color lg:hidden" data-testid="group-leader-line">
+                            <p v-if="group.leader" class="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-color" data-testid="group-leader-line">
                                 <span class="shrink-0">{{ t('group.roleLeader') }}</span>
                                 <PostAuthorLabel :author="UtilGroup.authorOf(group.leader, t('group.withdrawn'))" link />
                             </p>
@@ -88,8 +88,8 @@
                         </GroupTag>
                     </div>
 
-                    <!-- 신규 가입자 — 모바일은 여기, 데스크톱은 오른쪽 「모임 정보」 -->
-                    <div v-if="newcomers" class="mt-3 space-y-1.5 rounded-lg border border-surface bg-surface-0 px-3 py-2.5 text-sm lg:hidden dark:bg-surface-900">
+                    <!-- 신규 가입자(관리할 수 있는 사람에게) -->
+                    <div v-if="newcomers" class="mt-3 space-y-1.5 rounded-lg border border-surface bg-surface-0 px-3 py-2.5 text-sm dark:bg-surface-900">
                         <p v-if="newcomers.pending" class="m-0">
                             <NuxtLink v-if="newcomers.pending.to" :to="newcomers.pending.to" class="font-semibold text-primary hover:underline">{{ newcomers.pending.text }} ›</NuxtLink>
                             <span v-else class="text-muted-color">{{ newcomers.pending.text }}</span>
@@ -369,59 +369,6 @@
                 </div>
             </div>
 
-            <!-- 오른쪽 — 데스크톱에서만: 모임 정보(신규 가입자 포함) · 채팅 열기(멤버만) -->
-            <aside class="space-y-4 max-lg:hidden" :aria-label="t('group.info')" data-testid="group-sidebar">
-                <section class="panel-card p-4">
-                    <h2 class="text-sm font-semibold">{{ t('group.info') }}</h2>
-                    <dl class="m-0 mt-3 space-y-2 text-sm">
-                        <div v-if="group.leader" class="flex items-center justify-between gap-3">
-                            <dt class="shrink-0 text-muted-color">{{ t('group.roleLeader') }}</dt>
-                            <dd class="m-0 flex min-w-0 justify-end"><PostAuthorLabel :author="UtilGroup.authorOf(group.leader, t('group.withdrawn'))" link /></dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <dt class="shrink-0 text-muted-color">{{ t('group.infoMembers') }}</dt>
-                            <dd class="m-0">{{ group.memberCount }} / {{ group.capacity }}</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <dt class="shrink-0 text-muted-color">{{ t('group.infoRecruit') }}</dt>
-                            <dd class="m-0 text-right">{{ UtilGroupMessages.recruitLabel(t, group.recruitState) }} · {{ UtilGroupMessages.joinTypeLabel(t, group.joinType) }}</dd>
-                        </div>
-                        <div v-if="group.offline" class="flex items-center justify-between gap-3">
-                            <dt class="shrink-0 text-muted-color">{{ t('group.infoMode') }}</dt>
-                            <dd class="m-0">{{ t('group.offlineGroup') }}</dd>
-                        </div>
-                    </dl>
-                    <div v-if="newcomers" class="mt-3 space-y-1.5 border-t border-surface pt-3 text-sm">
-                        <p v-if="newcomers.pending" class="m-0">
-                            <NuxtLink v-if="newcomers.pending.to" :to="newcomers.pending.to" class="font-semibold text-primary hover:underline">{{ newcomers.pending.text }} ›</NuxtLink>
-                            <span v-else class="text-muted-color">{{ newcomers.pending.text }}</span>
-                        </p>
-                        <div v-if="newcomers.recent">
-                            <p class="m-0" :class="newcomers.recent.empty ? 'text-muted-color' : 'font-semibold'">{{ newcomers.recent.title }}</p>
-                            <ul v-if="newcomers.recent.users.length" class="m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
-                                <li v-for="(u, i) in newcomers.recent.users" :key="u.id ?? `w-${i}`" class="min-w-0 max-w-full">
-                                    <PostAuthorLabel :author="UtilGroup.authorOf(u, t('group.withdrawn'))" link />
-                                </li>
-                            </ul>
-                            <NuxtLink v-if="newcomers.recent.more" :to="newcomers.recent.more" class="mt-1 inline-block text-xs text-primary hover:underline">{{ t('group.newcomersMore') }}</NuxtLink>
-                        </div>
-                    </div>
-                </section>
-
-                <section v-if="isMember" class="panel-card p-4">
-                    <h2 class="text-sm font-semibold">{{ t('group.tabChat') }}</h2>
-                    <template v-if="chats.length > 0">
-                        <p class="m-0 mt-1 text-xs leading-relaxed text-muted-color">{{ t('group.chatSideText') }}</p>
-                        <div class="mt-3 flex flex-col gap-2">
-                            <Button v-for="item in chats" :key="`${item.kind}:${item.url}`" type="button" :label="UtilGroupMessages.chatKindLabel(t, item.kind)" icon="pi pi-external-link" icon-pos="right" size="small" fluid @click="openChat(item)" />
-                        </div>
-                    </template>
-                    <template v-else>
-                        <p class="m-0 mt-1 text-xs leading-relaxed text-muted-color">{{ group.permissions.canEditGroup ? t('group.chatEmptyManageTitle') : t('group.chatEmptyTitle') }}</p>
-                        <NuxtLink v-if="group.permissions.canEditGroup" :to="UtilGroup.managePath(group.id, 'chat')" class="mt-2 inline-block text-xs text-primary hover:underline">{{ t('group.chatRegister') }}</NuxtLink>
-                    </template>
-                </section>
-            </aside>
         </div>
 
         <!-- ⋯ 메뉴 — 링크 복사 · (멤버) 탈퇴 -->
