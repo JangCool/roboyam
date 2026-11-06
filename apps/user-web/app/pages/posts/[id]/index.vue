@@ -120,7 +120,7 @@
                             <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
                         </h1>
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
-                            <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
+                            <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(게시판 글 목록도 같은 크기 — `PostAuthorLabel avatar` · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
                             <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
                             <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />

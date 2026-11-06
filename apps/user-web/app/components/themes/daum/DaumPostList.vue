@@ -21,7 +21,7 @@
                                 <PostRowTitle :row="row" :new-post-hours="newPostHours" />
                             </p>
                             <p class="m-0 mt-[3px] flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color">
-                                <PostAuthorLabel :author="row.author" />
+                                <PostAuthorLabel :author="row.author" avatar />
                                 <span aria-hidden="true">·</span>
                                 <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                 <span aria-hidden="true">·</span>
