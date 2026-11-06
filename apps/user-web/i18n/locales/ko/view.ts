@@ -2,7 +2,7 @@
  * 보기 설정(`/settings/view`) 문구 — 야간 모드·글자 크기·댓글 정렬·미리보기. 키는 `view.무엇` 두 마디. `en/view.ts` 와 같은 키, 같은 차례.
  */
 export default {
-    seo: '{site}의 야간 모드·글자 크기·댓글 정렬을 정해요.',
+    seo: '{site}의 야간 모드·글자 크기·색상·댓글 정렬을 정해요.',
     loading: '보기 설정을 불러오는 중',
     loadFailed: '보기 설정을 불러오지 못했어요',
     sectionScreen: '화면',
@@ -16,6 +16,21 @@ export default {
     textScaleValue: '{n}%',
     textSmaller: '글자 작게',
     textLarger: '글자 크게',
+    // 색상 테마(로고 줄·바탕·강조색)
+    sectionColor: '색상',
+    palette: '색상 테마',
+    paletteHint: '로고 줄·바탕·단추 색이 함께 바뀌어요',
+    paletteDeviceNote: '지금은 이 기기에만 저장돼요',
+    paletteDefault: '기본',
+    palettePeach: '살구·코랄',
+    paletteHoney: '꿀·버터',
+    paletteSage: '세이지 그린',
+    paletteSky: '하늘·크림',
+    paletteOcean: '청록 바다',
+    paletteBlue: '진한 파랑',
+    paletteNavy: '남색',
+    topbarGradient: '상단 그라데이션',
+    topbarGradientHint: '맨 위 로고 줄에 테마 색 그림자를 은은하게 깔아요',
     sectionMenu: '메뉴',
     menuPosition: '메뉴 위치',
     menuPositionHint: 'PC 화면에서 메뉴를 둘 곳이에요',
@@ -45,5 +60,6 @@ export default {
     previewAutoNote: '"자동"이면 기기의 라이트·다크 설정을 따라요.',
     saved: '보기 설정을 저장했어요',
     savedDevice: '이 기기에 저장했어요',
+    savedMemory: '이번 방문 동안만 적용했어요',
     saveFailed: '보기 설정을 저장하지 못했어요. {reason} 방금 바꾼 항목은 원래대로 돌려 놓았어요.',
 };

@@ -1,3 +1,4 @@
+import UtilColorPalette from '~/utils/util-color-palette';
 import UtilViewSettings from '~/utils/util-view-settings';
 
 /**
@@ -13,15 +14,23 @@ export default defineNuxtPlugin({
     order: -20,
     setup() {
         const values = useViewSettingsValues();
+        const { palette, gradient } = useColorPalette();
         const query = window.matchMedia('(prefers-color-scheme: dark)');
 
         const apply = () => {
             const html = document.documentElement;
             html.setAttribute('data-color-scheme', UtilViewSettings.resolveScheme(values.value.theme, query.matches));
             html.style.setProperty(UtilViewSettings.TEXT_SCALE_VAR, String(values.value.textScale / 100));
+            // 색상 테마 — 기본이면 속성을 지운다(`palettes.css`)
+            const paletteAttr = UtilColorPalette.attr(palette.value);
+            if (paletteAttr) html.setAttribute('data-palette', paletteAttr);
+            else html.removeAttribute('data-palette');
+            // 상단 그라데이션 — 켰을 때만 속성을 둔다(`palettes.css`)
+            if (gradient.value) html.setAttribute('data-topbar-gradient', '');
+            else html.removeAttribute('data-topbar-gradient');
         };
         apply();
         query.addEventListener('change', apply);
-        watch(values, apply, { deep: true });
+        watch([values, palette, gradient], apply, { deep: true });
     },
 });

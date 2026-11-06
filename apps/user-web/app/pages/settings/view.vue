@@ -71,6 +71,64 @@
                 </div>
             </section>
 
+            <!-- 색상 — 색상 테마 8가지(강조색·바탕·로고 줄). 누르는 즉시 바뀐다. ⚠ MOCK: 이 기기에만 저장(`useColorPalette`) -->
+            <section :aria-labelledby="`${uid}-color`">
+                <h2 :id="`${uid}-color`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionColor') }}</h2>
+                <div class="panel-card px-4 py-3">
+                    <p :id="`${uid}-palette-label`" class="m-0 text-sm font-medium">{{ t('view.palette') }}</p>
+                    <p :id="`${uid}-palette-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.paletteHint') }}</p>
+                    <div
+                        class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"
+                        role="radiogroup"
+                        :aria-labelledby="`${uid}-palette-label`"
+                        :aria-describedby="`${uid}-palette-hint`"
+                        data-testid="setting-palette"
+                    >
+                        <button
+                            v-for="swatch in UtilColorPalette.SWATCHES"
+                            :key="swatch.value"
+                            type="button"
+                            role="radio"
+                            :aria-checked="palette === swatch.value"
+                            class="min-w-0 overflow-hidden rounded-xl border-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            :class="palette === swatch.value ? 'border-primary' : 'border-surface-200 hover:border-surface-300 dark:border-surface-700 dark:hover:border-surface-600'"
+                            :data-palette-option="swatch.value"
+                            @click="changePalette(swatch.value)"
+                        >
+                            <!-- 견본 — 화면 모드와 상관없이 그 테마의 라이트 모양을 정해 둔 색으로 칠한다 -->
+                            <span class="block" aria-hidden="true" :style="{ backgroundColor: swatch.page }">
+                                <span class="flex h-7 items-center justify-between px-2" :style="{ backgroundColor: swatch.topbar }">
+                                    <b class="text-[0.6875rem] tracking-wide" :style="{ color: swatch.brand }">{{ siteLabel }}</b>
+                                    <i class="pi pi-bell text-[0.6875rem]" :style="{ color: swatch.brand }" />
+                                </span>
+                                <span class="flex h-8 items-center justify-end px-2">
+                                    <span class="rounded-full px-2 text-[0.625rem] font-semibold leading-4 text-white" :style="{ backgroundColor: swatch.accent }">{{ t('view.previewLike') }}</span>
+                                </span>
+                            </span>
+                            <span class="flex items-center justify-between gap-1 bg-card px-2 py-1.5 text-xs font-medium">
+                                <span class="truncate">{{ t(swatch.labelKey) }}</span>
+                                <i v-if="palette === swatch.value" class="pi pi-check-circle text-primary" aria-hidden="true" />
+                            </span>
+                        </button>
+                    </div>
+                    <!-- 상단 그라데이션 — 로고 줄 위쪽 끝의 그림자 띠(색은 고른 테마를 따른다) -->
+                    <div class="mt-3 flex items-center justify-between gap-4 border-t border-surface pt-3">
+                        <div class="min-w-0 flex-1">
+                            <label :for="`${uid}-gradient`" class="m-0 block text-sm font-medium">{{ t('view.topbarGradient') }}</label>
+                            <p :id="`${uid}-gradient-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.topbarGradientHint') }}</p>
+                        </div>
+                        <ToggleSwitch
+                            :model-value="gradient"
+                            :input-id="`${uid}-gradient`"
+                            :aria-describedby="`${uid}-gradient-hint`"
+                            data-testid="setting-topbar-gradient"
+                            @update:model-value="changeGradient"
+                        />
+                    </div>
+                    <p class="m-0 mt-2 text-xs text-muted-color" data-testid="setting-palette-device-note">{{ t('view.paletteDeviceNote') }}</p>
+                </div>
+            </section>
+
             <!-- 메뉴 — 데스크톱 메뉴 위치(자동 = 사이트 설정 따름). 모바일에는 적용하지 않는다(하단 탭·메뉴 단추 그대로) -->
             <section :aria-labelledby="`${uid}-menu`">
                 <h2 :id="`${uid}-menu`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionMenu') }}</h2>
@@ -174,13 +232,17 @@ import type { CommentOrderSetting, ThemeSetting, ViewSettings } from '~/composab
 import UtilBoardMessages from '~/utils/util-board-messages';
 import type { MemberMenuSetting, MenuPosition } from '~/utils/util-menu-position';
 import UtilViewSettings from '~/utils/util-view-settings';
+import type { ColorPalette } from '~/utils/util-color-palette';
+import UtilColorPalette from '~/utils/util-color-palette';
 
 /**
  * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 로보얌에 적용할 곳이 있는 것).
  * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기(90·100·110·125%), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
- * community 대비 뺀 것(themes.md — 사용자 개인 테마 금지, 사이트 테마 몫): 주 색상·배경 색상·본문 너비·목록 밀도·화면 꾸미기 되돌리기.
+ * 「색상」: 색상 테마 8가지(기본 · 살구·코랄 · 꿀·버터 · 세이지 그린 · 하늘·크림 · 청록 바다 · 진한 파랑 · 남색 — 사용자 결정 2026-11-06, 개인 색 금지였던 themes.md 결정을 바꿨다) + 상단 그라데이션 켜기.
+ *   강조색·페이지 바탕·로고 줄을 한 벌로 바꾼다(`palettes.css`). ⚠ MOCK: 서버 칸이 없어 이 기기에만 저장한다(`useColorPalette`).
+ * community 대비 뺀 것: 배경 색상(따로)·본문 너비·목록 밀도·화면 꾸미기 되돌리기.
  * 메뉴 위치는 ⚠ MOCK: 서버에 칸이 없어 이 브라우저에만 저장한다(`useViewSettingsApi`) — 로그인해 있어도 「이 기기에 저장했어요」로 알린다.
  * 적용할 곳이 아직 없어 뺀 것: 이미지 숨기기·답글 접기·한 번에 보는 댓글 수. 서버 `GET·PUT /api/me/settings`(`useViewSettingsApi`).
  */
@@ -239,6 +301,19 @@ async function change(partial: Partial<ViewSettings>) {
     } catch (e) {
         toast.error(t('view.saveFailed', { reason: UtilBoardMessages.of(t, e) }), 8000);
     }
+}
+
+/** 색상 테마 — 곧바로 바뀌고 이 기기에 남는다(서버 칸이 없다 — MOCK) */
+const { palette, gradient, set: setPalette, setGradient } = useColorPalette();
+function changePalette(next: ColorPalette) {
+    if (palette.value === next) return;
+    const where = setPalette(next);
+    toast.success(where === 'device' ? t('view.savedDevice') : t('view.savedMemory'));
+}
+function changeGradient(on: boolean) {
+    if (gradient.value === on) return;
+    const where = setGradient(on);
+    toast.success(where === 'device' ? t('view.savedDevice') : t('view.savedMemory'));
 }
 
 function stepText(by: number) {

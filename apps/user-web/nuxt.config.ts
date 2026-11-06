@@ -167,7 +167,7 @@ export default defineNuxtConfig({
     vite: { plugins: [tailwindcss()] },
 
     // text-scale.css(PrimeVue 위젯 글자 크기)는 보기 설정이 `<html>` 에 거는 `--text-scale` 을 본다(층 밖 — PrimeVue 변수를 이긴다)
-    css: ['~/assets/css/main.css', '~/assets/css/text-scale.css', 'primeicons/primeicons.css'],
+    css: ['~/assets/css/main.css', '~/assets/css/text-scale.css', '~/assets/css/palettes.css', 'primeicons/primeicons.css'],
 
     primevue: {
         options: {
