@@ -14,10 +14,11 @@
     -->
     <AppHeader :class="inner ? 'hidden' : 'md:hidden'" @open-menu="emit('open-menu')" />
 
-    <header class="max-md:hidden">
+    <!-- `site-topbar`: 보기 설정 색상 테마의 로고 줄 바탕·글자(`palettes.css`) — 기본은 페이지 바탕 그대로 -->
+    <header class="site-topbar max-md:hidden">
         <div class="mx-auto w-full max-w-[var(--content-max)] px-4">
             <div class="flex h-[60px] items-center gap-1">
-                <NuxtLink to="/" class="flex min-w-0 items-center rounded text-xl font-bold focus-visible:outline-2 focus-visible:outline-primary" :aria-label="t('shell.homeLink', { site: siteLabel })">
+                <NuxtLink to="/" class="site-brand flex min-w-0 items-center rounded text-xl font-bold focus-visible:outline-2 focus-visible:outline-primary" :aria-label="t('shell.homeLink', { site: siteLabel })">
                     <SiteBrand />
                 </NuxtLink>
                 <!-- 서비스 링크 자리(다음 뉴스의 로고 옆 링크) — 최상위 항목이 「로고 옆」일 때 그 링크 줄 -->

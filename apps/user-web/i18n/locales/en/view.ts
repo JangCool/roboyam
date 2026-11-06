@@ -2,7 +2,7 @@
  * View settings (`/settings/view`) — dark mode, text size, comment order, preview. Same keys and order as `ko/view.ts`.
  */
 export default {
-    seo: 'Choose dark mode, text size and comment order on {site}.',
+    seo: 'Choose dark mode, text size, colors and comment order on {site}.',
     loading: 'Loading view settings',
     loadFailed: 'Couldn’t load view settings',
     sectionScreen: 'Screen',
@@ -16,6 +16,21 @@ export default {
     textScaleValue: '{n}%',
     textSmaller: 'Smaller text',
     textLarger: 'Larger text',
+    // Color theme (logo bar, background, accent)
+    sectionColor: 'Colors',
+    palette: 'Color theme',
+    paletteHint: 'Changes the logo bar, background and button colors together',
+    paletteDeviceNote: 'Saved on this device only for now',
+    paletteDefault: 'Default',
+    palettePeach: 'Peach',
+    paletteHoney: 'Honey',
+    paletteSage: 'Sage',
+    paletteSky: 'Sky',
+    paletteOcean: 'Ocean',
+    paletteBlue: 'Deep blue',
+    paletteNavy: 'Navy',
+    topbarGradient: 'Top gradient',
+    topbarGradientHint: 'Adds a soft shadow in the theme color along the top bar',
     sectionMenu: 'Menu',
     menuPosition: 'Menu position',
     menuPositionHint: 'Where the menu sits on wide screens',
@@ -45,5 +60,6 @@ export default {
     previewAutoNote: '"Auto" follows your device’s light or dark setting.',
     saved: 'View settings saved',
     savedDevice: 'Saved on this device',
+    savedMemory: 'Applied for this visit only',
     saveFailed: 'Couldn’t save view settings. {reason} We changed it back.',
 };
