@@ -1,7 +1,7 @@
 <template>
-    <!-- 데스크톱 헤더의 알림 종 — 안 읽은 숫자 배지 + 누르면 알림 패널(드롭다운). 모바일은 하단 탭의 "알림"이 같은 일을 하므로 여기서는 숨긴다.
+    <!-- 상단 바의 알림 종 — 안 읽은 숫자 배지 + 누르면 알림 패널(드롭다운). 모바일·데스크톱 모두(모바일은 야간 모드 단추 오른쪽 — 사용자 요청 2026-11-06, 하단 탭의 「알림」은 뺐다).
          버튼의 이름에 안 읽은 수가 들어가고("알림, 안 읽은 알림 3개"), 점·숫자는 눈으로만 보는 것이라 aria-hidden 이다 -->
-    <span class="max-md:hidden">
+    <span>
         <button
             type="button"
             class="relative flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
