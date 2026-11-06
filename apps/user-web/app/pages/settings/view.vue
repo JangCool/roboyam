@@ -111,6 +111,33 @@
                             </span>
                         </button>
                     </div>
+                    <!-- 배경색 — 테마 기본이면 고른 색상 테마의 바탕, 그 밖은 고른 색으로 덮는다(`palettes.css` 의 `html[data-page-bg]`) -->
+                    <div class="mt-3 border-t border-surface pt-3">
+                        <p :id="`${uid}-bg-label`" class="m-0 text-sm font-medium">{{ t('view.background') }}</p>
+                        <p :id="`${uid}-bg-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.backgroundHint') }}</p>
+                        <div class="mt-2 flex flex-wrap gap-2" role="radiogroup" :aria-labelledby="`${uid}-bg-label`" :aria-describedby="`${uid}-bg-hint`" data-testid="setting-page-background">
+                            <button
+                                v-for="option in UtilColorPalette.BACKGROUNDS"
+                                :key="option.value"
+                                type="button"
+                                role="radio"
+                                :aria-checked="background === option.value"
+                                class="inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                :class="background === option.value ? 'border-primary text-primary' : 'border-surface-200 hover:border-surface-300 dark:border-surface-700'"
+                                :data-background-option="option.value"
+                                @click="changeBackground(option.value)"
+                            >
+                                <!-- 견본 — 테마 기본은 고른 테마의 바탕색 -->
+                                <span
+                                    class="size-4 shrink-0 rounded-full border border-surface-300 dark:border-surface-600"
+                                    :style="{ backgroundColor: option.color ?? currentSwatch.page }"
+                                    aria-hidden="true"
+                                />
+                                {{ t(option.labelKey) }}
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- 상단 그라데이션 — 로고 줄 위쪽 끝의 그림자 띠(색은 고른 테마를 따른다) -->
                     <div class="mt-3 flex items-center justify-between gap-4 border-t border-surface pt-3">
                         <div class="min-w-0 flex-1">
@@ -232,7 +259,7 @@ import type { CommentOrderSetting, ThemeSetting, ViewSettings } from '~/composab
 import UtilBoardMessages from '~/utils/util-board-messages';
 import type { MemberMenuSetting, MenuPosition } from '~/utils/util-menu-position';
 import UtilViewSettings from '~/utils/util-view-settings';
-import type { ColorPalette } from '~/utils/util-color-palette';
+import type { ColorPalette, PageBackground } from '~/utils/util-color-palette';
 import UtilColorPalette from '~/utils/util-color-palette';
 
 /**
@@ -240,7 +267,7 @@ import UtilColorPalette from '~/utils/util-color-palette';
  * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기(90·100·110·125%), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
- * 「색상」: 색상 테마 8가지(기본 · 살구·코랄 · 꿀·버터 · 세이지 그린 · 하늘·크림 · 청록 바다 · 진한 파랑 · 남색 — 사용자 결정 2026-11-06, 개인 색 금지였던 themes.md 결정을 바꿨다) + 상단 그라데이션 켜기.
+ * 「색상」: 색상 테마 8가지(기본 · 살구·코랄 · 꿀·버터 · 세이지 그린 · 하늘·크림 · 청록 바다 · 진한 파랑 · 남색 — 사용자 결정 2026-11-06, 개인 색 금지였던 themes.md 결정을 바꿨다) + 배경색(테마 기본 · 회색 · 아이보리 · 흰색 · 연한 하늘) + 상단 그라데이션 켜기.
  *   강조색·페이지 바탕·로고 줄을 한 벌로 바꾼다(`palettes.css`). ⚠ MOCK: 서버 칸이 없어 이 기기에만 저장한다(`useColorPalette`).
  * community 대비 뺀 것: 배경 색상(따로)·본문 너비·목록 밀도·화면 꾸미기 되돌리기.
  * 메뉴 위치는 ⚠ MOCK: 서버에 칸이 없어 이 브라우저에만 저장한다(`useViewSettingsApi`) — 로그인해 있어도 「이 기기에 저장했어요」로 알린다.
@@ -304,7 +331,14 @@ async function change(partial: Partial<ViewSettings>) {
 }
 
 /** 색상 테마 — 곧바로 바뀌고 이 기기에 남는다(서버 칸이 없다 — MOCK) */
-const { palette, gradient, set: setPalette, setGradient } = useColorPalette();
+const { palette, gradient, background, set: setPalette, setGradient, setBackground } = useColorPalette();
+/** 지금 고른 색상 테마의 견본(배경색 「테마 기본」 견본 색) */
+const currentSwatch = computed(() => UtilColorPalette.SWATCHES.find((s) => s.value === palette.value) ?? UtilColorPalette.SWATCHES[0]!);
+function changeBackground(next: PageBackground) {
+    if (background.value === next) return;
+    const where = setBackground(next);
+    toast.success(where === 'device' ? t('view.savedDevice') : t('view.savedMemory'));
+}
 function changePalette(next: ColorPalette) {
     if (palette.value === next) return;
     const where = setPalette(next);
