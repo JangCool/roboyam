@@ -110,7 +110,7 @@ public class PublicBoardService {
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
                 v.commentMin(), v.writeLock(), v.imageUploadAllowed(), v.postEditor(), v.commentEditor(), v.layout(), v.dealEnabled(), v.promo(), v.viewToggle(),
                 v.allowAdult(), v.prefixes(),
-                v.color(), s.gradeLabel(b.writeMin()), s.gradeLabel(b.commentMin()), b.introText(), b.writeGuideText(),
+                v.color(), s.gradeLabel(b.writeMin()), s.gradeLabel(b.commentMin()), b.introText(), b.writeGuideText(), b.writeTemplate(),
                 Boolean.TRUE.equals(s.report().reportEnabled()),
                 new BoardPolicyView(b.listSize(), b.pinnedMax(), b.commentProtectMin(), b.commentProtectEdit(), b.commentProtectDelete(),
                         b.commentProtectDelayMinutes(), b.commentGuestDelayMinutes(), s.defaults().bestCommentMinLikes()),

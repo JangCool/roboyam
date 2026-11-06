@@ -88,6 +88,8 @@ public final class BoardFields {
     public static final int NAME_EN_MAX = 40;
     public static final int DESCRIPTION_MAX = 200;
     public static final int TEXT_MAX = 500;
+    /** 글 양식(`boards.write_template`)의 보이는 글자 수 상한(V153) */
+    public static final int TEMPLATE_MAX = 2000;
     public static final int PREFIX_NAME_MAX = 20;
     /** 사용 중인 고유 말머리 최대 수 */
     public static final int PREFIX_ACTIVE_MAX = 15;

@@ -52,7 +52,7 @@ export type BoardLabelProblem = 'LABEL_LENGTH' | 'LABEL_CHARS';
 /** 정책 칸 하나의 화면 검사 결과(숫자 칸 + 이름 칸) — 문구는 `UtilBoardMessages.numProblem` */
 export type BoardFieldProblem = BoardNumProblem | BoardLabelProblem;
 /** 게시판 만들기·기본 정보·말머리 검사 결과 — 문구는 `UtilBoardMessages.problem` */
-export type BoardTextProblem = 'NAME_REQUIRED' | 'NAME_LENGTH' | 'NAME_DUPLICATE' | 'SLUG_REQUIRED' | 'SLUG_FORMAT' | 'SLUG_LENGTH' | 'SLUG_RESERVED' | 'SLUG_DUPLICATE' | 'DESC_LENGTH' | 'NAME_EN_LENGTH' | 'TEXT_LENGTH' | 'PREFIX_NAME_REQUIRED' | 'PREFIX_NAME_LENGTH' | 'PREFIX_NAME_DUPLICATE';
+export type BoardTextProblem = 'NAME_REQUIRED' | 'NAME_LENGTH' | 'NAME_DUPLICATE' | 'SLUG_REQUIRED' | 'SLUG_FORMAT' | 'SLUG_LENGTH' | 'SLUG_RESERVED' | 'SLUG_DUPLICATE' | 'DESC_LENGTH' | 'NAME_EN_LENGTH' | 'TEXT_LENGTH' | 'TEMPLATE_LENGTH' | 'PREFIX_NAME_REQUIRED' | 'PREFIX_NAME_LENGTH' | 'PREFIX_NAME_DUPLICATE';
 
 /** 숫자 칸들 — 화면에서는 글자로 들고 있다(`InputText` + `inputmode=numeric`, grades.vue 와 같은 이유) */
 export const BOARD_NUM_FIELDS = [
@@ -114,6 +114,8 @@ export interface BoardDetailForm {
     writeLock: BoardWriteLock | null;
     introText: string;
     writeGuideText: string;
+    /** 글 양식 — 새 글 본문에 미리 채우는 평문 */
+    writeTemplate: string;
     /** 가젯 노출 금지로 고른 가젯 키 — 게시판마다의 값(기본값 따름 없음) */
     gadgetExclusions: string[];
     /** 「이 게시판에 광고 숨김」 — 게시판마다의 값(기본값 따름 없음) */
@@ -291,6 +293,8 @@ export default class UtilBoard {
     static readonly SLUG_RESERVED: readonly string[] = ['defaults', 'order', 'new', 'writable'];
     /** 안내문의 보이는 글자 수 상한 */
     static readonly TEXT_MAX = 500;
+    /** 글 양식의 보이는 글자 수 상한(서버 `BoardFields.TEMPLATE_MAX`) */
+    static readonly TEMPLATE_MAX = 2000;
     static readonly PREFIX_NAME_MAX = 20;
     /** 사용 중인 고유 말머리 최대 수 */
     static readonly PREFIX_ACTIVE_MAX = 15;
@@ -605,6 +609,7 @@ export default class UtilBoard {
             writeLock: detail.writeLock,
             introText: detail.introText ?? '',
             writeGuideText: detail.writeGuideText ?? '',
+            writeTemplate: detail.writeTemplate ?? '',
             // 서버가 아직 주지 않으면(새 칸을 서버보다 먼저 배포한 경우) 빈 목록
             gadgetExclusions: [...(detail.gadgetExclusions ?? [])],
             // 옛 서버 응답에 칸이 없으면 끔
@@ -631,6 +636,8 @@ export default class UtilBoard {
             writeLock: form.writeLock,
             introText: UtilBoard.normalizeText(form.introText),
             writeGuideText: UtilBoard.normalizeText(form.writeGuideText),
+            // 비우면 빈 글자를 보내 지운다(null 은 서버가 「그대로」로 읽는다)
+            writeTemplate: UtilBoard.normalizeText(form.writeTemplate) ?? '',
             policy,
             commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: p.color, active: p.active })),
@@ -664,7 +671,7 @@ export default class UtilBoard {
             basic,
             write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock),
             prefix,
-            guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
+            guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText) + diff(form.writeTemplate, base.writeTemplate),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
             exposure:
                 policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)) + diff(form.adsHidden, base.adsHidden),
@@ -726,6 +733,15 @@ export default class UtilBoard {
 
     static textProblem(text: string): BoardTextProblem | null {
         return UtilBoard.textLength(text) > UtilBoard.TEXT_MAX ? 'TEXT_LENGTH' : null;
+    }
+
+    /**
+     * 글 양식 문제 — 2,000자 초과
+     * @param {string} text - 글 양식.
+     * @returns {BoardTextProblem | null} 문제가 없으면 null.
+     */
+    static templateProblem(text: string): BoardTextProblem | null {
+        return UtilBoard.textLength(text) > UtilBoard.TEMPLATE_MAX ? 'TEMPLATE_LENGTH' : null;
     }
 
     /**

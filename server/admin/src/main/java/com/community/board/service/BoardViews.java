@@ -94,7 +94,7 @@ public class BoardViews {
         GroupCategoryEntity category = groupCategories.categoryByBoard().get(board.getId());
         return new BoardDetailView(Long.toString(board.getId()), board.getSlug(), board.getName(), board.getNameEn(), board.getDescription(), board.getKind(),
                 board.getLayout(), board.isViewToggle(), board.getColor(), board.isAllowAdult(), board.isInvestmentNotice(), board.isActive(),
-                content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(),
+                content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(), board.getWriteTemplate(),
                 board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets(),
                 category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName(), board.isAdsHidden());
     }

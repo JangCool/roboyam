@@ -220,6 +220,9 @@ const boardState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
 const boardError = ref('');
 
 let boardRequest = 0;
+/** 마지막으로 미리 채운 글 양식 본문 — 손대지 않았는지 가르는 기준(게시판을 바꾸면 새 양식으로 갈아 끼운다) */
+let appliedTemplate = '';
+
 async function loadBoard(): Promise<void> {
     const slug = selectedSlug.value;
     if (!slug) {
@@ -240,7 +243,14 @@ async function loadBoard(): Promise<void> {
         if (!detail.allowAdult && form.value.adult) form.value = { ...form.value, adult: false };
         // 본문 형식은 게시판 글 에디터 설정을 따른다 — 다르면 쓰던 본문을 바꿔 들고 간다
         const format = UtilBoard.postFormat(detail);
-        if (form.value.contentFormat !== format) form.value = { ...form.value, content: UtilPost.convertContent(form.value.content, form.value.contentFormat, format), contentFormat: format };
+        // 글 양식(게시판 `writeTemplate`) — 본문이 비었거나 앞 게시판의 양식 그대로면 이 게시판의 양식으로 바꿔 채운다(손댄 본문은 그대로 둔다)
+        const untouched = !UtilPost.hasContent(form.value.content, form.value.contentFormat) || UtilPost.isUntouchedTemplate(form.value.content, appliedTemplate, form.value.contentFormat);
+        if (untouched) {
+            appliedTemplate = UtilPost.templateContent(detail.writeTemplate, format);
+            form.value = { ...form.value, content: appliedTemplate, contentFormat: format };
+        } else if (form.value.contentFormat !== format) {
+            form.value = { ...form.value, content: UtilPost.convertContent(form.value.content, form.value.contentFormat, format), contentFormat: format };
+        }
     } catch (e) {
         if (mine !== boardRequest) return;
         boardError.value = UtilBoardMessages.of(t, e);
@@ -349,7 +359,14 @@ function onStepPick(value: string | number | undefined): void {
     else if (value === 2) onStepNext();
 }
 
-const dirty = computed(() => (isDeal.value && dealForm.value.productUrl.trim() !== '') || form.value.title.trim() !== '' || UtilPost.hasContent(form.value.content, form.value.contentFormat) || (pollShown.value && poll.value.enabled));
+const dirty = computed(
+    () =>
+        (isDeal.value && dealForm.value.productUrl.trim() !== '') ||
+        form.value.title.trim() !== '' ||
+        // 미리 채운 글 양식 그대로면 쓴 것이 없다
+        (UtilPost.hasContent(form.value.content, form.value.contentFormat) && !UtilPost.isUntouchedTemplate(form.value.content, appliedTemplate, form.value.contentFormat)) ||
+        (pollShown.value && poll.value.enabled),
+);
 
 async function submit(): Promise<void> {
     const b = board.value;
