@@ -20,8 +20,30 @@
 }
 
 /*
+ * 카드(본문·가젯·사이드 메뉴)와 PC 메뉴 카드는 모든 테마에서 기본 카드 색(흰색) 그대로 둔다 — 테마 색을 섞었다가 되돌렸다(사용자 결정 2026-11-06).
+ */
+
+/*
+ * 따뜻한 테마(살구·코랄 · 꿀·버터)는 회색 단계 전체를 따뜻한 회색(Aura `stone`)으로 — 카드 안 상자·빈 썸네일·선·회색 글자가 푸르게 뜨지 않게(사용자 결정 2026-11-06).
+ * Aura 의 `--p-surface-N` 은 `light-dark(slate, zinc)` 라 라이트 쪽만 stone 으로 바꾸고 다크는 그대로 둔다. 다음식 셸의 고정 선 색(`--hairline`)도 stone 으로.
+ * 시원한 테마(세이지 · 하늘 · 청록)와 남색은 푸른 회색이 어울려 그대로 둔다(남색은 흰 카드·회색 바탕 — 사용자 결정 2026-11-06).
+ */
+html:is([data-palette='peach'], [data-palette='honey']) {
+    --p-surface-50: light-dark(var(--p-stone-50), var(--p-zinc-50)); --p-surface-100: light-dark(var(--p-stone-100), var(--p-zinc-100));
+    --p-surface-200: light-dark(var(--p-stone-200), var(--p-zinc-200)); --p-surface-300: light-dark(var(--p-stone-300), var(--p-zinc-300));
+    --p-surface-400: light-dark(var(--p-stone-400), var(--p-zinc-400)); --p-surface-500: light-dark(var(--p-stone-500), var(--p-zinc-500));
+    --p-surface-600: light-dark(var(--p-stone-600), var(--p-zinc-600)); --p-surface-700: light-dark(var(--p-stone-700), var(--p-zinc-700));
+    --p-surface-800: light-dark(var(--p-stone-800), var(--p-zinc-800)); --p-surface-900: light-dark(var(--p-stone-900), var(--p-zinc-900));
+    --p-surface-950: light-dark(var(--p-stone-950), var(--p-zinc-950));
+}
+html:is([data-palette='peach'], [data-palette='honey']):not([data-color-scheme='dark']) {
+    --hairline: var(--p-stone-200);
+    --hairline-strong: var(--p-stone-300);
+}
+
+/*
  * 상단 그라데이션(보기 설정 「색상」의 켜기 — `html[data-topbar-gradient]`, 사용자 결정 2026-11-06) — 로고 줄(PC)·상단 바(모바일) 위쪽 끝에서 내려오는 그림자 띠.
- * 색은 테마의 진한 색(`--topbar-shade` — 테마마다 로고 줄 글자색, 기본은 회색, 다크는 검정)이 위에서 진하고 14px 아래에서 사라진다. 바탕색 위에 겹쳐 그린다.
+ * 색은 테마의 진한 색(`--topbar-shade` — 테마마다 로고 줄 글자색, 기본은 회색, 다크는 검정)이 위에서 진하고 9px 아래에서 사라진다(2026-11-06 14px 에서 좁힘). 바탕색 위에 겹쳐 그린다.
  */
 html {
     --topbar-shade: var(--p-surface-500);
@@ -31,7 +53,7 @@ html[data-color-scheme='dark'] {
 }
 html[data-topbar-gradient] .site-topbar,
 html[data-topbar-gradient] .app-nav {
-    background-image: linear-gradient(to bottom, color-mix(in srgb, var(--topbar-shade) 38%, transparent) 0, color-mix(in srgb, var(--topbar-shade) 12%, transparent) 6px, transparent 14px);
+    background-image: linear-gradient(to bottom, color-mix(in srgb, var(--topbar-shade) 38%, transparent) 0, color-mix(in srgb, var(--topbar-shade) 12%, transparent) 4px, transparent 9px);
 }
 
 /* ── 살구 · 코랄 ── */
@@ -45,7 +67,7 @@ html[data-palette='peach'] {
 }
 html[data-palette='peach']:not([data-color-scheme='dark']) {
     --page-bg: #faf3eb;
-    --topbar-bg: #ffe7d4;
+    --topbar-bg: #ffe0c9;
     --topbar-fg: #8a4a2f;
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
@@ -64,7 +86,7 @@ html[data-palette='honey'] {
 }
 html[data-palette='honey']:not([data-color-scheme='dark']) {
     --page-bg: #fbf6e8;
-    --topbar-bg: #ffefc0;
+    --topbar-bg: #ffeab0;
     --topbar-fg: #7a5320;
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
@@ -83,7 +105,7 @@ html[data-palette='sage'] {
 }
 html[data-palette='sage']:not([data-color-scheme='dark']) {
     --page-bg: #f1f6f2;
-    --topbar-bg: #deeee3;
+    --topbar-bg: #d6ebdd;
     --topbar-fg: #2f5a45;
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
@@ -102,7 +124,7 @@ html[data-palette='sky'] {
 }
 html[data-palette='sky']:not([data-color-scheme='dark']) {
     --page-bg: #f8f5ee;
-    --topbar-bg: #dcecff;
+    --topbar-bg: #d4e7ff;
     --topbar-fg: #2a5c99;
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
@@ -121,7 +143,7 @@ html[data-palette='ocean'] {
 }
 html[data-palette='ocean']:not([data-color-scheme='dark']) {
     --page-bg: #f0f7f6;
-    --topbar-bg: #d6f0f3;
+    --topbar-bg: #ceecf0;
     --topbar-fg: #1b5e68;
     --nav-bg: var(--topbar-bg);
     --nav-fg: var(--topbar-fg);
@@ -177,4 +199,22 @@ html:is([data-palette='blue'], [data-palette='navy']):not([data-color-scheme='da
 }
 html:is([data-palette='blue'], [data-palette='navy']):not([data-color-scheme='dark']) .site-topbar .focus-visible\:outline-primary:focus-visible {
     outline-color: #ffffff;
+}
+
+/*
+ * 배경색(보기 설정 「색상」의 배경색 — `html[data-page-bg]`, 사용자 결정 2026-11-06) — 색상 테마의 페이지 바탕을 덮는다. 라이트에서만(다크는 기본 어두운 바탕).
+ * 테마 규칙(같은 명시도)보다 뒤에 둬야 이긴다 — 이 블록은 파일 끝에 둔다. 흰색이면 카드와 바탕이 같아지므로 카드에 옅은 테두리를 두른다.
+ */
+html[data-page-bg='gray']:not([data-color-scheme='dark']) {
+    --page-bg: #f2f4f7;
+}
+html[data-page-bg='ivory']:not([data-color-scheme='dark']) {
+    --page-bg: #f7f4ee;
+}
+html[data-page-bg='white']:not([data-color-scheme='dark']) {
+    --page-bg: #ffffff;
+    --card-shadow: 0 0 0 1px var(--hairline);
+}
+html[data-page-bg='sky']:not([data-color-scheme='dark']) {
+    --page-bg: #eef4fb;
 }

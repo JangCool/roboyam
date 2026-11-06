@@ -21,21 +21,60 @@ export interface ColorPaletteSwatch {
     page: string;
 }
 
+/** 페이지 배경색(보기 설정 「색상」의 배경색, 사용자 결정 2026-11-06) — `THEME` 은 고른 색상 테마의 바탕을 따른다 */
+export type PageBackground = 'THEME' | 'GRAY' | 'IVORY' | 'WHITE' | 'SKY';
+
+/** 배경색 견본 — 실제 색은 `palettes.css` 의 `html[data-page-bg]` 다(같은 값을 맞춰 둔다). `THEME` 은 견본 색이 없다 */
+export interface PageBackgroundSwatch {
+    value: PageBackground;
+    labelKey: string;
+    color: string | null;
+}
+
 export default class UtilColorPalette {
     /** 이 브라우저에 저장해 두는 열쇠 */
     static readonly STORAGE_KEY = 'roboyam:color-palette';
     /** 상단 그라데이션 켜짐(`on`·`off`)을 저장해 두는 열쇠 */
     static readonly GRADIENT_STORAGE_KEY = 'roboyam:topbar-gradient';
+    /** 배경색을 저장해 두는 열쇠 */
+    static readonly BACKGROUND_STORAGE_KEY = 'roboyam:page-background';
 
     static readonly DEFAULT: ColorPalette = 'DEFAULT';
+    static readonly DEFAULT_BACKGROUND: PageBackground = 'THEME';
+
+    static readonly BACKGROUNDS: readonly PageBackgroundSwatch[] = [
+        { value: 'THEME', labelKey: 'view.backgroundTheme', color: null },
+        { value: 'GRAY', labelKey: 'view.backgroundGray', color: '#f2f4f7' },
+        { value: 'IVORY', labelKey: 'view.backgroundIvory', color: '#f7f4ee' },
+        { value: 'WHITE', labelKey: 'view.backgroundWhite', color: '#ffffff' },
+        { value: 'SKY', labelKey: 'view.backgroundSky', color: '#eef4fb' },
+    ];
+
+    /**
+     * 저장해 둔 배경색을 읽는다 — 모르는 값은 테마 기본.
+     * @param {unknown} raw - 값.
+     * @returns {PageBackground} 배경색.
+     */
+    static sanitizeBackground(raw: unknown): PageBackground {
+        return UtilColorPalette.BACKGROUNDS.find((b) => b.value === raw)?.value ?? UtilColorPalette.DEFAULT_BACKGROUND;
+    }
+
+    /**
+     * `<html data-page-bg>` 값 — 테마 기본이면 null(속성을 지운다)
+     * @param {PageBackground} background - 배경색.
+     * @returns {string | null} 소문자 이름.
+     */
+    static backgroundAttr(background: PageBackground): string | null {
+        return background === UtilColorPalette.DEFAULT_BACKGROUND ? null : background.toLowerCase();
+    }
 
     static readonly SWATCHES: readonly ColorPaletteSwatch[] = [
         { value: 'DEFAULT', labelKey: 'view.paletteDefault', topbar: '#f2f4f7', brand: '#334155', accent: '#3b82f6', page: '#f2f4f7' },
-        { value: 'PEACH', labelKey: 'view.palettePeach', topbar: '#ffe7d4', brand: '#334155', accent: '#ea580c', page: '#faf3eb' },
-        { value: 'HONEY', labelKey: 'view.paletteHoney', topbar: '#ffefc0', brand: '#334155', accent: '#b45309', page: '#fbf6e8' },
-        { value: 'SAGE', labelKey: 'view.paletteSage', topbar: '#deeee3', brand: '#334155', accent: '#047857', page: '#f1f6f2' },
-        { value: 'SKY', labelKey: 'view.paletteSky', topbar: '#dcecff', brand: '#334155', accent: '#2563eb', page: '#f8f5ee' },
-        { value: 'OCEAN', labelKey: 'view.paletteOcean', topbar: '#d6f0f3', brand: '#334155', accent: '#0f766e', page: '#f0f7f6' },
+        { value: 'PEACH', labelKey: 'view.palettePeach', topbar: '#ffe0c9', brand: '#334155', accent: '#ea580c', page: '#faf3eb' },
+        { value: 'HONEY', labelKey: 'view.paletteHoney', topbar: '#ffeab0', brand: '#334155', accent: '#b45309', page: '#fbf6e8' },
+        { value: 'SAGE', labelKey: 'view.paletteSage', topbar: '#d6ebdd', brand: '#334155', accent: '#047857', page: '#f1f6f2' },
+        { value: 'SKY', labelKey: 'view.paletteSky', topbar: '#d4e7ff', brand: '#334155', accent: '#2563eb', page: '#f8f5ee' },
+        { value: 'OCEAN', labelKey: 'view.paletteOcean', topbar: '#ceecf0', brand: '#334155', accent: '#0f766e', page: '#f0f7f6' },
         { value: 'BLUE', labelKey: 'view.paletteBlue', topbar: '#2563eb', brand: '#ffffff', accent: '#2563eb', page: '#f2f4f7' },
         { value: 'NAVY', labelKey: 'view.paletteNavy', topbar: '#2646a2', brand: '#ffffff', accent: '#2646a2', page: '#f2f4f7' },
     ];

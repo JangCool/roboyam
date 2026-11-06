@@ -14,7 +14,7 @@ export default defineNuxtPlugin({
     order: -20,
     setup() {
         const values = useViewSettingsValues();
-        const { palette, gradient } = useColorPalette();
+        const { palette, gradient, background } = useColorPalette();
         const query = window.matchMedia('(prefers-color-scheme: dark)');
 
         const apply = () => {
@@ -28,9 +28,13 @@ export default defineNuxtPlugin({
             // 상단 그라데이션 — 켰을 때만 속성을 둔다(`palettes.css`)
             if (gradient.value) html.setAttribute('data-topbar-gradient', '');
             else html.removeAttribute('data-topbar-gradient');
+            // 배경색 — 테마 기본이면 속성을 지운다
+            const backgroundAttr = UtilColorPalette.backgroundAttr(background.value);
+            if (backgroundAttr) html.setAttribute('data-page-bg', backgroundAttr);
+            else html.removeAttribute('data-page-bg');
         };
         apply();
         query.addEventListener('change', apply);
-        watch([values, palette, gradient], apply, { deep: true });
+        watch([values, palette, gradient, background], apply, { deep: true });
     },
 });
