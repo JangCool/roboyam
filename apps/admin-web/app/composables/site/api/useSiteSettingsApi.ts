@@ -9,6 +9,8 @@ import type {
     SiteLogoFileUploadResponse,
     SiteLogoResponse,
     SiteLogoSvgRequest,
+    SiteNoticeBarRequest,
+    SiteNoticeBarSettingsResponse,
     SiteOgImageResponse,
     SiteThemeMenuFields,
     SiteThemeRequest,
@@ -45,6 +47,8 @@ import type {
  *       · `PUT /api/admin/site/theme` `{ theme }` → 200 새 테마의 메뉴 칸  (`site.manage`) · 400 VALIDATION(`fields.theme` 목록 밖·빈 값, `fields.site` 설정 행 없음)
  *       · `PUT /api/admin/site/themes/{id}/menu` 메뉴 설정 칸 전부 → 200 그 테마의 메뉴 칸  (`site.manage`) · 404(모르는 테마) · 400 VALIDATION(`fields.menuPosition` … `fields.menuStyle.<칸>`, `fields.barGroupIds`)
  *       공개 사이트(`GET /api/site/theme`)는 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 따라온다. 같은 값 저장은 감사·알림을 남기지 않는다.
+ *   - 공지 띠(`docs/features/site-notice-bar-contract.md`): `GET /api/admin/site/notice-bar` → 200 `SiteNoticeBarSettingsResponse`  (`site.read`) · `PUT` 같은 주소 `SiteNoticeBarRequest` → 200 저장된 모양  (`site.manage`)
+ *       · 400 VALIDATION(`fields.customText` CUSTOM 인데 비었거나 100자 초과·`<` `>`, `fields.customLink` `/…`·`http(s)://` 아님·500자 초과, `fields.boardCount` 5·10 아님)
  *
  * 그 밖의 오류: 503 `STORAGE_UNAVAILABLE`(저장소에 쓰지 못함) · 503 `IMAGE_BUSY`(이미지 동시 처리 자리 없음) · 413 `FILE_TOO_LARGE`(multipart 10MB 초과; 2MB 초과는 `fields.file` 문구로 안내) · 403 `PERMISSION_DENIED`.
  * 이미지 주소(`logoUrl`·`previewUrl`·`url`·`defaultPreviewUrl`·`defaultUrl`)는 `/media/…` 상대 주소다 — 운영은 같은 도메인에서 서빙되고, 개발 서버는 `nuxt.config.ts` 의 `/media` 프록시가 잇는다.
@@ -59,6 +63,7 @@ const PATH = {
     ogImage: '/api/admin/site/og-image',
     theme: '/api/admin/site/theme',
     themeMenu: (themeId: string) => `/api/admin/site/themes/${encodeURIComponent(themeId)}/menu`,
+    noticeBar: '/api/admin/site/notice-bar',
 };
 
 /** 아이콘·링크 미리보기 이미지 올리기 본문 — `file` 한 파트(multipart) */
@@ -129,5 +134,11 @@ export function useSiteSettingsApi() {
         /** 테마 하나의 메뉴 설정(배치·모양)을 저장한다 — 그 테마의 메뉴 설정을 담은 모양을 돌려준다 */
         saveThemeMenu: (themeId: string, menu: SiteThemeMenuFields): Promise<SiteThemeResponse> =>
             client.put<SiteThemeResponse>(PATH.themeMenu(themeId), menu),
+
+        /** 공지 띠 설정(켜기·출처·글 수·직접 입력 문구) + 지금 띠에 보일 줄 미리보기 */
+        noticeBar: (): Promise<SiteNoticeBarSettingsResponse> => client.get<SiteNoticeBarSettingsResponse>(PATH.noticeBar),
+
+        /** 공지 띠 설정을 저장한다 — 저장된 모양을 돌려준다. 띠 내용이 바뀌면 공개 사이트에서 닫아 둔 사람에게도 다시 보인다 */
+        saveNoticeBar: (body: SiteNoticeBarRequest): Promise<SiteNoticeBarSettingsResponse> => client.put<SiteNoticeBarSettingsResponse>(PATH.noticeBar, body),
     };
 }

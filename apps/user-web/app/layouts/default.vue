@@ -27,6 +27,8 @@
                 <EmailVerifyBanner />
                 <!-- 약관 변경 안내 띠(약관 요약의 `notice`, 닫기는 이 브라우저에 기억) -->
                 <TermsChangeNotice />
+                <!-- 공지 띠(운영자 설정 > 일반 「공지 띠」) — 메뉴 줄 아래·본문 위, 모든 화면. 모바일 안쪽 화면(셸 막대를 숨기는 곳)에서는 숨긴다 -->
+                <SiteNoticeBar :class="inner ? 'max-md:hidden' : ''" />
             </template>
 
             <!-- 내 정보 묶음 화면(`definePageMeta({ meMenu })`)은 오른쪽 메뉴 틀 안에 — 틀이 화면 사이에 남아 메뉴는 그대로, 왼쪽만 바뀐다 -->

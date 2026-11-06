@@ -63,6 +63,7 @@ import settings from './settings';
 import shell from './shell';
 import signup from './signup';
 import site from './site';
+import siteNotice from './siteNotice';
 import siteTerms from './siteTerms';
 import social from './social';
 import verify from './verify';
@@ -127,6 +128,7 @@ export default {
     shell,
     signup,
     site,
+    siteNotice,
     siteTerms,
     social,
     verify,

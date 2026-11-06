@@ -191,3 +191,28 @@ export type SiteTopItemsSetting = 'THEME' | SiteTopItemsPosition;
  * 관리자 앱 자신의 메뉴 위치(`useLayoutPrefs` 의 `MenuPosition`)와는 다른 값이다.
  */
 export type SiteMenuPositionSetting = 'THEME' | SiteThemeMenuPosition;
+
+/** 공지 띠 내용 출처 — `BOARD` 공지 게시판(slug `notice`) 최근 글 · `CUSTOM` 운영자가 직접 쓴 한 줄 */
+export type SiteNoticeBarSource = 'BOARD' | 'CUSTOM';
+
+/** 공지 게시판 글을 몇 개까지 차례로 보일지 */
+export type SiteNoticeBarCount = 5 | 10;
+
+/** `PUT /api/admin/site/notice-bar` 본문 — 출처가 아닌 쪽의 칸도 그대로 저장한다(출처를 바꿔 볼 때 지운 듯 보이지 않게) */
+export interface SiteNoticeBarRequest {
+    enabled: boolean;
+    source: SiteNoticeBarSource;
+    boardCount: SiteNoticeBarCount;
+    /** `CUSTOM` 일 때 필수 — 1~100자, `<` `>` 없음 */
+    customText: string | null;
+    /** 선택 — `/` 로 시작하는 사이트 안 주소 또는 `http(s)://` 주소, 500자 이하 */
+    customLink: string | null;
+}
+
+/** `GET`·`PUT /api/admin/site/notice-bar` 의 `data` */
+export interface SiteNoticeBarSettingsResponse extends SiteNoticeBarRequest {
+    /** 공지 게시판(slug `notice`) — 없으면(지웠거나 꺼짐) null 이고 `BOARD` 출처는 띠에 아무것도 안 보인다 */
+    noticeBoard: { slug: string; name: string; nameEn: string | null } | null;
+    /** 지금 띠에 보일 줄의 미리보기(서버가 만든 것과 같다) — 꺼져 있어도 채운다 */
+    preview: string[];
+}
