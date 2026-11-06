@@ -197,6 +197,11 @@ export default class UtilAd {
         return typeof n === 'number' && Number.isFinite(n) ? Math.min(LINES.max, Math.max(LINES.min, Math.round(n))) : LINES.initial;
     }
 
+    /** 한 줄 광고 가젯 모양 — BAND 글 보기 한 줄 광고처럼(기본) · CARD 가젯 카드 */
+    static textLineLook(config: Record<string, unknown>): 'BAND' | 'CARD' {
+        return obj(config).look === 'CARD' ? 'CARD' : 'BAND';
+    }
+
     static gadgetSlotType(gadget: Pick<HomeGadget, 'type' | 'config'>): PublicAdType | null {
         if (gadget.type === 'AD') return UtilAd.gadgetAdType(gadget.config);
         if (gadget.type === 'AD_TEXT_LINE') return 'TEXT_LINE';

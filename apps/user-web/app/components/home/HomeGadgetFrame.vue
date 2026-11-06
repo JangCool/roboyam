@@ -92,6 +92,7 @@
 
 <script setup lang="ts">
 import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
+import UtilAd from '~/utils/util-ad';
 import UtilHomeGadget from '~/utils/util-home-gadget';
 import UtilHomeGadgetMessages from '~/utils/util-home-gadget-messages';
 
@@ -150,11 +151,13 @@ const rootStyle = computed(() => {
 });
 
 /** 카드 — 평평한 가젯만 카드 없이. 세로 flex 라 운영자가 키운 높이의 남는 공간은 본문(`flex-1`)이 받는다 */
-const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col`);
+/** 카드 없는 가젯 — 꾸미기 「평평」, 또는 한 줄 광고의 띠 모양(BAND — 글 보기 한 줄 광고처럼, 카드·안 여백 없음) */
+const bare = computed(() => style.value.cardLook === 'FLAT' || (props.gadget.type === 'AD_TEXT_LINE' && UtilAd.textLineLook(props.gadget.config) === 'BAND'));
+const rootClass = computed(() => `${bare.value ? 'min-w-0' : 'gadget-card'} flex flex-col`);
 
 const card = ref<HTMLElement | null>(null);
 // 한 줄 광고 가젯은 맞추지 않는다 — 줄이 40px 높이라 위아래는 얇게(`main.css` `[data-gadget='AD_TEXT_LINE']`, 2026-11-06 사용자)
-useGadgetInk(card, () => style.value.cardLook !== 'FLAT' && props.gadget.type !== 'AD_TEXT_LINE');
+useGadgetInk(card, () => !bare.value && props.gadget.type !== 'AD_TEXT_LINE');
 
 /** 기본형 「더보기」 줄은 카드 좌우 끝까지 — 아래 바깥 여백은 `useGadgetInk` 가 건다 */
 const classicMoreStyle = computed(() =>
