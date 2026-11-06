@@ -240,6 +240,9 @@ export default class UtilGadgetConfig {
             case 'AD':
                 out.adType = 'WIDE_BANNER';
                 break;
+            case 'AD_TEXT_LINE':
+                out.look = 'BAND';
+                break;
             case 'HOT_DEALS':
                 // 비우면 모든 핫딜 게시판
                 out.boards = [];
@@ -309,6 +312,9 @@ export default class UtilGadgetConfig {
                 break;
             case 'AD':
                 out.adType = oneOf(c.adType, AD_BANNER_TYPES, 'WIDE_BANNER');
+                break;
+            case 'AD_TEXT_LINE':
+                out.look = c.look === 'CARD' ? 'CARD' : 'BAND';
                 break;
             case 'HOT_DEALS':
                 // 핫딜 게시판 slug — 모양이 맞는 것만, 겹침 없이 고른 차례로(20개까지)

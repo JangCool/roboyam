@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
- *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) ·
+ *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
  *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
  *       {@code PICK} {@code boardIds}(게시판 slug). 저장 설정에 {@code boardScope} 가 없으면(옛 시드) {@code boardIds} 가 있으면 PICK, 없으면 ALL 로 읽는다.</li>
@@ -46,6 +46,8 @@ public final class GadgetConfigs {
     /** 광고 배너 가젯의 배너 유형(상품 이름 — 날개 배너는 가젯에 없다) — admin-web {@code AD_BANNER_TYPES} 와 같은 차례 */
     public static final List<String> AD_TYPES = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER");
     public static final String AD_TYPE_DEFAULT = "WIDE_BANNER";
+    /** 한 줄 광고 가젯 모양 — BAND 글 보기 한 줄 광고처럼(카드·안 여백 없이 옅은 선 띠, 기본 — 사용자 2026-11-06) · CARD 가젯 카드 */
+    public static final List<String> TEXT_LINE_LOOKS = List.of("BAND", "CARD");
     public static final int NEW_BADGE_MAX = 72;
     public static final int HOT_BADGE_MAX = 1000;
     public static final int QUICK_LINK_MAX = 12;
@@ -219,6 +221,7 @@ public final class GadgetConfigs {
                 out.put("format", oneOf(config, "format", NOTICE_FORMATS, "PLAIN"));
             }
             case HomeGadgetKinds.AD -> out.put("adType", oneOf(config, "adType", AD_TYPES, AD_TYPE_DEFAULT));
+            case HomeGadgetKinds.AD_TEXT_LINE -> out.put("look", oneOf(config, "look", TEXT_LINE_LOOKS, "BAND"));
             case HomeGadgetKinds.HOT_DEALS -> {
                 ArrayNode boards = out.putArray("boards");
                 HomeGadgetKinds.hotDealsBoards(config).forEach(boards::add);

@@ -324,6 +324,22 @@
                                 <small :id="`${uid}-adtype-hint`" class="text-xs text-muted-color">{{ t('homeLayout.adTypeHint') }}</small>
                             </div>
 
+                            <!-- 한 줄 광고 — 모양(글 보기처럼 띠 · 가젯 카드) -->
+                            <div v-if="gadget.type === 'AD_TEXT_LINE'" class="flex flex-col gap-1">
+                                <span :id="`${uid}-tlook`" class="text-sm font-medium">{{ t('homeLayout.textLineLook') }}</span>
+                                <SelectButton
+                                    v-model="draft.look"
+                                    :options="textLineLookOptions"
+                                    option-label="label"
+                                    option-value="value"
+                                    :allow-empty="false"
+                                    size="small"
+                                    :aria-labelledby="`${uid}-tlook`"
+                                    data-testid="gadget-text-line-look"
+                                />
+                                <small class="text-xs text-muted-color">{{ t('homeLayout.textLineLookHint') }}</small>
+                            </div>
+
                             <!-- 안내 글 — 글 · 모양 -->
                             <template v-if="gadget.type === 'NOTICE_TEXT'">
                                 <div class="flex flex-col gap-1">
@@ -588,6 +604,7 @@ const hotDealBoardsModel = computed<unknown[]>({
 });
 
 /** 이름은 광고 일정표·신청 건과 같은 문구 */
+const textLineLookOptions = computed(() => (['BAND', 'CARD'] as const).map((value) => ({ value, label: t(`homeLayout.textLineLookOption.${value}`) })));
 const adTypeOptions = computed(() => UtilGadgetConfig.AD_BANNER_TYPES.map((value) => ({ value, label: `${t(`bizApplication.adType.${value}`)} · ${t(`homeLayout.adTypeSize_${value}`)}` })));
 
 const folderBoardNames = computed(() => (props.folder?.boards ?? []).map((b) => b.name).join(' · '));

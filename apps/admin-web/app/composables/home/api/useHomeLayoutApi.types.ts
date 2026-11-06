@@ -91,6 +91,8 @@ export interface HomeGadgetConfig {
     text?: string;
     format?: 'PLAIN' | 'BULLETS';
     adType?: HomeAdBannerType;
+    /** 한 줄 광고 가젯 모양 — BAND 글 보기 한 줄 광고처럼(기본) · CARD 가젯 카드 */
+    look?: 'BAND' | 'CARD';
 }
 
 /** 머리 모양 — 막대 · 밑줄 · 색 채움 · 장식 없음 · 머리 숨김 */
