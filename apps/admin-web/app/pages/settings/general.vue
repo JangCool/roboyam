@@ -4,6 +4,8 @@
           ① 사이트 기본 정보(`site-basic`) — 사이트 이름(필수)·한 줄 소개(선택)·로고·사이트 아이콘·링크 미리보기 이미지. 이름·소개는 서버 `SiteSettingEntity` 에 실제 있는 칸이다. 공개 주소는 뺐다(소셜 로그인 콜백·메일 링크의 기준이라 변경 정책이 먼저다).
             로고는 hamonica3 「제품 기본 정보」의 로고 줄과 같다: 이미지 업로드(PNG·JPG·GIF·WEBP 2MB) 또는 SVG 소스 입력(SVG 는 스크립트를 품을 수 있는 문서라 파일로 받지 않고 소스로 받는다) · 제거. **[저장]이 없고 올리는 즉시 적용**되며(이름·소개의 [저장]과 따로),
             관리자 화면 상단 로고 자리(`SiteBrand` — `useAdminAuth().siteLogoUrl`)와 공개 사이트 로고 자리가 같이 쓴다. 그림은 `<img src>` 하나로만 그린다(`v-html` 금지). 서버 API(`/api/admin/site/**`·`/api/admin/files`)에 연결돼 있고, 올린 그림 주소는 `/media/…` 상대 주소다.
+            ⚠ 2026-11-06 목업: 로고가 4칸(① 한글·밝은 바탕용 ② 한글·어두운 바탕용 ③ 영문·밝은 바탕용 ④ 영문·어두운 바탕용, 2×2 · 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」 스위치로 바뀌었다.
+              빈 칸은 대체 순서(`UtilSiteLogo` — 영문 → 같은 바탕의 한글, 어두운 → 같은 언어의 밝은, 그다음 ①, 없으면 이름 글자)대로 대신 쓰인다. 4칸·스위치는 MOCK(이 탭 메모리)이고 단일 로고 API 는 그대로 남겨 두었다(목업 동안 부르지 않는다).
             로고 줄 바로 아래에 이미지 줄이 둘 더 있고(`SiteImageField`), 둘 다 로고처럼 **[저장] 없이 올리면 즉시 적용**되며 소제목 옆 "올리면 바로 적용" 표시가 그 차이를 말한다. 아이콘·링크 이미지는 이름·소개와 따로 읽는다(불러오지 못해도 이름·소개 입력은 쓸 수 있고 그 줄에만 오류·다시 시도가 보인다).
               · 사이트 아이콘(탭 아이콘·홈 화면·알림 아이콘): 정사각 PNG 1장, 2MB 이하, 한 변 512~4000px. 파일 머리(PNG 서명 + IHDR 가로·세로)를 브라우저가 먼저 읽어 서버와 같은 순서로 거른다(빈 파일 → 형식 → 용량 → 읽기 → 너무 큼 → 정사각 아님 → 너무 작음, 지금 크기 포함 — `UtilSiteImage`). SVG 는 파일이 아니라 소스 입력(로고의 SVG 소스 입력과 같은 방식, 검사는 `UtilSiteSetting.logoSvg` 재사용, 정사각 여부는 서버 몫).
                 올려 둔 게 있을 때만 [기본으로 되돌리기](확인창). 올려 둔 게 없으면 "기본 아이콘" 상태 문구. 미리보기 타일은 버튼(누르면 파일 선택).
@@ -43,52 +45,75 @@
                     </template>
                 </LabeledField>
 
-                <!-- 로고 — 올리는 즉시 적용된다(아래 [저장]은 이름·소개만). 관리자 화면 상단과 공개 사이트 로고 자리에 같이 보인다 -->
-                <LabeledField :label="t('site.logoLabel')" :error="logoError">
-                    <template #default="{ id, describedBy }">
-                        <div class="flex items-start gap-3">
-                            <!-- 미리보기를 누르면 바로 그림을 고른다 — 누를 수 있다는 건 눌러 보기 전엔 모르니 단추도 함께 둔다 -->
-                            <button
-                                :id="id"
-                                v-tooltip.top="canManage ? t('site.logoPreviewTooltip') : undefined"
-                                type="button"
-                                class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-(--line) bg-surface-100 transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:hover:border-(--line) dark:bg-surface-800"
-                                :disabled="!canManage || logoBusy"
-                                :aria-label="logoUrl ? t('site.logoChange') : t('site.logoAdd')"
-                                :aria-describedby="describedBy"
-                                @click="pickLogoFile"
-                            >
-                                <img v-if="logoUrl && !logoBroken" :src="logoUrl" alt="" class="size-full object-contain" @error="logoBroken = true" />
-                                <i v-else class="pi pi-image text-lg text-muted-color" aria-hidden="true" />
-                            </button>
+                <!--
+                    로고 4칸(언어 × 바탕) — 올리는 즉시 적용된다(아래 [저장]은 이름·소개만). ⚠ 목업: 서버에 칸이 없어 이 탭 메모리만 바뀐다(`useSiteSettingsApi` 의 MOCK 줄).
+                    빈 칸은 대체 순서(`UtilSiteLogo`)대로 다른 칸이 대신하고, 타일이 그 그림을 흐리게 보인다. SVG 소스 칸은 한 번에 한 칸만 열린다(칸 아래가 아니라 4칸 아래 한 자리).
+                -->
+                <div role="group" :aria-labelledby="logoTitleId" class="flex flex-col gap-2">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3 :id="logoTitleId" class="text-sm font-medium">{{ t('site.logoLabel') }}</h3>
+                        <span class="rounded-full bg-surface-100 px-2 py-0.5 text-[0.6875rem] font-medium text-muted-color dark:bg-surface-800">{{ t('site.imageImmediate') }}</span>
+                    </div>
+                    <p class="text-xs leading-relaxed text-muted-color">{{ t('site.logoVariantsHelp') }} {{ t('site.logoFallbackOrder') }}</p>
 
-                            <div class="flex min-w-0 flex-col gap-1.5">
-                                <div v-if="canManage" class="flex flex-wrap gap-2">
-                                    <Button type="button" :label="t('site.logoUpload')" icon="pi pi-upload" size="small" variant="outlined" :loading="logoBusy" @click="pickLogoFile" />
-                                    <Button type="button" :label="t('site.logoFromSvg')" icon="pi pi-code" size="small" variant="outlined" :disabled="logoBusy" :aria-expanded="showSvgInput" @click="openSvgInput" />
-                                    <Button v-if="logoUrl" type="button" :label="t('site.logoRemove')" icon="pi pi-trash" size="small" severity="danger" variant="text" :disabled="logoBusy" @click="removeLogo" />
-                                </div>
-                                <p class="text-xs leading-relaxed text-muted-color">
-                                    {{ t('site.logoHint') }}
-                                    <!-- SVG 를 파일로 안 받는 이유를 적어 둔다 — 안 적으면 "왜 svg 를 못 올리지"로 읽힌다 -->
-                                    <strong class="font-semibold text-color">{{ t('site.logoSvgWhy') }}</strong>
-                                    {{ t('site.logoSvgWhyTail') }}
-                                    <code class="text-[0.6875rem]">xmlns</code> {{ t('site.logoSvgXmlns') }}
-                                </p>
-                                <input ref="logoInput" type="file" :accept="UtilSiteSetting.LOGO_ACCEPT" class="hidden" tabindex="-1" :aria-label="t('site.logoUpload')" @change="onLogoFileChange" />
+                    <div v-if="logoLoading && !logoSet" class="grid gap-3 sm:grid-cols-2" role="status" :aria-label="t('common.loading')">
+                        <Skeleton v-for="variant in UtilSiteLogo.VARIANTS" :key="variant" height="9.5rem" />
+                    </div>
+
+                    <div v-else-if="!logoSet" role="alert" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-red-600 dark:text-red-400">
+                        <span>{{ t('site.logoLoadFailed') }}<template v-if="logoLoadError"> — {{ logoLoadError.message }}</template></span>
+                        <Button type="button" :label="t('common.retry')" icon="pi pi-refresh" size="small" variant="text" @click="loadLogos" />
+                    </div>
+
+                    <template v-else>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <SiteLogoVariantTile
+                                v-for="variant in UtilSiteLogo.VARIANTS"
+                                :key="variant"
+                                :title="UtilSiteSettingMessages.logoVariantTitle(t, variant)"
+                                :tone="UtilSiteLogo.toneOf(variant)"
+                                :preview-url="UtilSiteLogo.resolve(logoSet.logos, variant)?.url ?? null"
+                                :fallback="!logoSet.logos[variant]"
+                                :status-label="UtilSiteSettingMessages.logoVariantStatus(t, logoSet.logos, variant)"
+                                :name-text="nameInput.trim() || (basicSaved?.siteName ?? '')"
+                                :tile-label="t(logoSet.logos[variant] ? 'site.logoVariantTileChange' : 'site.logoVariantTileAdd', { variant: UtilSiteSettingMessages.logoVariantTitle(t, variant) })"
+                                :editable="canManage"
+                                :busy="logoBusy"
+                                :svg-open="svgVariant === variant"
+                                :error="logoErrorVariant === variant ? logoError : ''"
+                                @pick="(file) => onLogoPicked(variant, file)"
+                                @open-svg="openSvgInput(variant)"
+                                @remove="removeLogo(variant)"
+                            />
+                        </div>
+
+                        <div v-if="svgVariant && canManage" class="flex flex-col gap-1.5 rounded-xl bg-surface-100 p-3 dark:bg-surface-800">
+                            <label :for="svgInputId" class="text-xs font-medium">{{ t('site.logoSvgSourceFor', { variant: UtilSiteSettingMessages.logoVariantTitle(t, svgVariant) }) }}</label>
+                            <Textarea :id="svgInputId" v-model="svgDraft" rows="5" fluid :invalid="Boolean(svgError)" :readonly="logoBusy" :aria-describedby="svgError ? `${svgInputId}-msg` : undefined" placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 36">...</svg>' class="font-mono! text-xs!" @input="svgError = ''" />
+                            <p v-if="svgError" :id="`${svgInputId}-msg`" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ svgError }}</p>
+                            <div class="flex gap-2">
+                                <Button type="button" :label="t('common.apply')" size="small" :disabled="!svgDraft.trim()" :loading="logoBusy" @click="applySvgLogo" />
+                                <Button type="button" :label="t('common.cancel')" size="small" severity="secondary" variant="text" :disabled="logoBusy" @click="closeSvgInput" />
+                            </div>
+                        </div>
+
+                        <p class="text-xs leading-relaxed text-muted-color">
+                            {{ t('site.logoVariantsHint') }}
+                            <!-- SVG 를 파일로 안 받는 이유를 적어 둔다 — 안 적으면 "왜 svg 를 못 올리지"로 읽힌다 -->
+                            <strong class="font-semibold text-color">{{ t('site.logoSvgWhy') }}</strong>
+                            {{ t('site.logoSvgWhyTail') }}
+                            <code class="text-[0.6875rem]">xmlns</code> {{ t('site.logoSvgXmlns') }}
+                        </p>
+
+                        <!-- 「이름 포함」 — 켜면 공개 헤더가 로고 옆 이름 글자를 붙이지 않는다(즉시 적용) -->
+                        <div class="flex items-center gap-3">
+                            <ToggleSwitch :model-value="Boolean(logoSet?.nameInLogo)" :input-id="nameInLogoId" :disabled="!canManage || logoBusy" :aria-describedby="`${nameInLogoId}-help`" @update:model-value="onNameInLogoChange" />
+                            <div>
+                                <label :for="nameInLogoId" class="text-sm">{{ t('site.logoNameInLogo') }}</label>
+                                <p :id="`${nameInLogoId}-help`" class="text-xs text-muted-color">{{ t('site.logoNameInLogoHelp') }}</p>
                             </div>
                         </div>
                     </template>
-                </LabeledField>
-
-                <div v-if="showSvgInput && canManage" class="flex flex-col gap-1.5 rounded-xl bg-surface-100 p-3 dark:bg-surface-800">
-                    <label :for="svgInputId" class="text-xs font-medium">{{ t('site.logoSvgSource') }}</label>
-                    <Textarea :id="svgInputId" v-model="svgDraft" rows="5" fluid :invalid="Boolean(svgError)" :readonly="logoBusy" :aria-describedby="svgError ? `${svgInputId}-msg` : undefined" placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">...</svg>' class="font-mono! text-xs!" @input="svgError = ''" />
-                    <p v-if="svgError" :id="`${svgInputId}-msg`" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ svgError }}</p>
-                    <div class="flex gap-2">
-                        <Button type="button" :label="t('common.apply')" size="small" :disabled="!svgDraft.trim()" :loading="logoBusy" @click="applySvgLogo" />
-                        <Button type="button" :label="t('common.cancel')" size="small" severity="secondary" variant="text" :disabled="logoBusy" @click="closeSvgInput" />
-                    </div>
                 </div>
 
                 <!-- 사이트 아이콘 — 로고 줄 바로 아래. 올리는 즉시 적용된다(아래 [저장]은 이름·소개만) -->
@@ -196,9 +221,11 @@ import type {
     SiteBasicResponse,
     SiteDisplayDefaultsResponse,
     SiteIconResponse,
+    SiteLogoSetResponse,
     SiteOgImageResponse,
 } from '~/composables/site/api/useSiteSettingsApi.types';
 import UtilSiteImage from '~/utils/util-site-image';
+import UtilSiteLogo, { type SiteLogoVariant } from '~/utils/util-site-logo';
 import UtilSiteImageMessages from '~/utils/util-site-image-messages';
 import UtilSiteSetting from '~/utils/util-site-setting';
 import UtilSiteSettingMessages from '~/utils/util-site-setting-messages';
@@ -210,7 +237,8 @@ const api = useSiteSettingsApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { can } = useAdminPermission();
-const { setSiteName, setSiteLogoUrl } = useAdminAuth();
+// 로고 4칸이 목업인 동안 관리자 상단 로고(`setSiteLogoUrl`)는 서버 단일 로고 그대로 둔다
+const { setSiteName } = useAdminAuth();
 const { confirm } = useConfirmDialog();
 const { load: reloadMyDisplay } = useMyDisplay();
 
@@ -299,77 +327,83 @@ async function saveBasic(): Promise<void> {
     }
 }
 
-/* ── ① 로고 — 저장 단추 없이 올리는 즉시 적용 ────────── */
+/*
+ * ── ① 로고 4칸(언어 × 바탕) + 「이름 포함」 — 저장 단추 없이 올리는 즉시 적용 ──────────
+ * ⚠ 목업(화면 확정 전, 2026-11-06): `api.logoSet`·`setLogoVariant*`·`clearLogoVariant`·`setLogoNameInLogo` 가 MOCK 이라 이 탭 메모리만 바뀐다(공개 사이트·관리자 상단 로고에는 닿지 않는다).
+ * 지금의 단일 로고 API(`uploadLogoFile`·`setLogoFile`·`setLogoSvg`·`clearLogo`)는 `useSiteSettingsApi` 에 그대로 있고 목업 동안 이 화면은 부르지 않는다 — 처음 값의 ① 은 서버 단일 로고(`basic.logoUrl`)가 있으면 그것이다.
+ * 이름·소개 구획과 따로 읽는다(불러오지 못해도 이름·소개 입력은 쓸 수 있다).
+ */
 
-const logoInput = useTemplateRef<HTMLInputElement>('logoInput');
+const logoTitleId = useId();
 const svgInputId = useId();
+const nameInLogoId = useId();
+const logoSet = ref<SiteLogoSetResponse | null>(null);
+const logoLoading = ref(false);
+const logoLoadError = ref<ApiError | null>(null);
 const logoBusy = ref(false);
+/** 칸 아래 거절 문구와 그 칸 — 한 번에 한 칸만 */
 const logoError = ref('');
-const showSvgInput = ref(false);
+const logoErrorVariant = ref<SiteLogoVariant | null>(null);
+/** SVG 소스 칸이 열린 칸 — 한 번에 한 칸만, 없으면 null */
+const svgVariant = ref<SiteLogoVariant | null>(null);
 const svgDraft = ref('');
 const svgError = ref('');
-/** 그림이 안 떠도(깨진 주소) 단추는 남긴다 — 다시 올릴 수 있어야 한다 */
-const logoBroken = ref(false);
 
-const logoUrl = computed(() => basicSaved.value?.logoUrl ?? null);
-watch(logoUrl, () => (logoBroken.value = false));
-
-/** 바뀐 로고를 이 화면과 상단 로고 자리에 바로 먹인다. 입력 중인 이름·소개는 건드리지 않는다 */
-function applyLogo(url: string | null): void {
-    if (basicSaved.value) basicSaved.value = { ...basicSaved.value, logoUrl: url };
-    setSiteLogoUrl(url);
+function setLogoError(variant: SiteLogoVariant | null, message: string): void {
+    logoErrorVariant.value = variant;
+    logoError.value = message;
 }
 
-function pickLogoFile(): void {
-    if (!canManage.value || logoBusy.value) return;
-    logoInput.value?.click();
+async function loadLogos(): Promise<void> {
+    logoLoading.value = true;
+    logoLoadError.value = null;
+    try {
+        logoSet.value = await api.logoSet();
+    } catch (e) {
+        logoLoadError.value = toApiError(e);
+    } finally {
+        logoLoading.value = false;
+    }
 }
 
-function openSvgInput(): void {
+/** 같은 칸을 다시 누르면 닫는다. 다른 칸이면 그 칸으로 바꿔 연다(초안은 비운다) */
+function openSvgInput(variant: SiteLogoVariant): void {
+    const same = svgVariant.value === variant;
     svgDraft.value = '';
     svgError.value = '';
-    showSvgInput.value = !showSvgInput.value;
+    svgVariant.value = same ? null : variant;
 }
 
 function closeSvgInput(): void {
-    showSvgInput.value = false;
+    svgVariant.value = null;
     svgError.value = '';
 }
 
-/** 그림을 골랐다 — 바이트를 올려 `fileId` 를 받고, 그 파일을 로고로 삼는다(두 걸음) */
-async function onLogoFileChange(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    // 고르기를 취소해도 change 가 오는 브라우저가 있다 — 그때 files 는 비어 있다
-    if (!file || logoBusy.value) return;
-    logoError.value = '';
-
+/** 그림을 골랐다 — 형식·용량을 먼저 거르고 그 칸의 로고로 삼는다 */
+async function onLogoPicked(variant: SiteLogoVariant, file: File): Promise<void> {
+    if (logoBusy.value || !canManage.value) return;
+    setLogoError(null, '');
     const problem = UtilSiteSetting.logoFile(file);
     if (problem) {
-        logoError.value = UtilSiteSettingMessages.logoFileProblem(t, problem);
-        input.value = '';
+        setLogoError(variant, UtilSiteSettingMessages.logoFileProblem(t, problem));
         return;
     }
-
     logoBusy.value = true;
     try {
-        const { fileId } = await api.uploadLogoFile(file);
-        const res = await api.setLogoFile({ fileId });
-        applyLogo(res.logoUrl);
+        logoSet.value = await api.setLogoVariantFile(variant, file);
         closeSvgInput();
         toast.success(t('site.logoChanged'));
     } catch (e) {
         const error = toApiError(e);
-        logoError.value = error.field('file') ?? error.field('fileId') ?? error.message;
+        setLogoError(variant, error.field('file') ?? error.field('fileId') ?? error.message);
     } finally {
         logoBusy.value = false;
-        // 같은 파일을 다시 고를 수 있게 비운다 — 안 비우면 change 가 안 온다
-        input.value = '';
     }
 }
 
 async function applySvgLogo(): Promise<void> {
-    if (logoBusy.value) return;
+    const variant = svgVariant.value;
+    if (logoBusy.value || !variant) return;
     const problem = UtilSiteSetting.logoSvg(svgDraft.value);
     if (problem) {
         svgError.value = UtilSiteSettingMessages.logoSvgProblem(t, problem);
@@ -377,10 +411,9 @@ async function applySvgLogo(): Promise<void> {
     }
     logoBusy.value = true;
     svgError.value = '';
-    logoError.value = '';
+    setLogoError(null, '');
     try {
-        const res = await api.setLogoSvg({ svgSource: svgDraft.value.trim() });
-        applyLogo(res.logoUrl);
+        logoSet.value = await api.setLogoVariantSvg(variant, { svgSource: svgDraft.value.trim() });
         closeSvgInput();
         toast.success(t('site.logoSvgApplied'));
     } catch (e) {
@@ -391,18 +424,37 @@ async function applySvgLogo(): Promise<void> {
     }
 }
 
-async function removeLogo(): Promise<void> {
-    if (logoBusy.value) return;
-    const ok = await confirm({ title: t('site.logoRemoveTitle'), message: t('site.logoRemoveMessage'), confirmLabel: t('site.logoRemove'), tone: 'danger' });
+async function removeLogo(variant: SiteLogoVariant): Promise<void> {
+    if (logoBusy.value || !canManage.value) return;
+    const ok = await confirm({
+        title: t('site.logoRemoveTitle'),
+        message: t('site.logoVariantRemoveMessage', { variant: UtilSiteSettingMessages.logoVariantTitle(t, variant) }),
+        confirmLabel: t('site.logoRemove'),
+        tone: 'danger',
+    });
     if (!ok) return;
     logoBusy.value = true;
-    logoError.value = '';
+    setLogoError(null, '');
     try {
-        const res = await api.clearLogo();
-        applyLogo(res.logoUrl);
+        logoSet.value = await api.clearLogoVariant(variant);
+        if (svgVariant.value === variant) closeSvgInput();
         toast.success(t('site.logoRemoved'));
     } catch (e) {
-        logoError.value = toApiError(e).message;
+        setLogoError(variant, toApiError(e).message);
+    } finally {
+        logoBusy.value = false;
+    }
+}
+
+async function onNameInLogoChange(nameInLogo: boolean): Promise<void> {
+    if (logoBusy.value || !canManage.value) return;
+    logoBusy.value = true;
+    setLogoError(null, '');
+    try {
+        logoSet.value = await api.setLogoNameInLogo({ nameInLogo });
+        toast.success(t('site.logoNameInLogoSaved'));
+    } catch (e) {
+        toast.error(toApiError(e).message);
     } finally {
         logoBusy.value = false;
     }
@@ -627,6 +679,7 @@ async function saveDisplay(): Promise<void> {
 
 onMounted(() => {
     void loadBasic();
+    void loadLogos();
     void loadIcon();
     void loadOg();
     void loadDisplay();

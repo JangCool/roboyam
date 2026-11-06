@@ -1,4 +1,5 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
+import type { SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 사이트 설정 API 가 주고받는 모양 — 서버 계약(`/api/admin/site/**`, `docs/features/site-settings-contract.md`)과 같은 모양이다.
@@ -40,6 +41,21 @@ export interface SiteLogoSvgRequest {
 
 export interface SiteLogoResponse {
     logoUrl: string | null;
+}
+
+/**
+ * 로고 4칸(언어 × 바탕) + 「로고에 사이트 이름이 들어 있음」 — ⚠ MOCK 후보 모양(화면 확정 전, 2026-11-06). 서버에는 아직 칸이 없다.
+ * 칸: `koLight` ① 한글·밝은 바탕용 · `koDark` ② 한글·어두운 바탕용 · `enLight` ③ 영문·밝은 바탕용 · `enDark` ④ 영문·어두운 바탕용 — 값은 `<img src>` 주소(없으면 null, 대체 순서는 `UtilSiteLogo`).
+ * `nameInLogo` 가 켜져 있으면 공개 헤더가 로고 옆 사이트 이름 글자를 붙이지 않는다.
+ */
+export interface SiteLogoSetResponse {
+    logos: SiteLogoSet;
+    nameInLogo: boolean;
+}
+
+/** 「이름 포함」 바꾸기 — ⚠ MOCK 후보 모양 */
+export interface SiteLogoNameRequest {
+    nameInLogo: boolean;
 }
 
 /**
