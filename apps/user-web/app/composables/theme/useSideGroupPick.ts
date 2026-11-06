@@ -1,4 +1,5 @@
 import type { MenuSection } from '~/utils/util-menu';
+import UtilMenu from '~/utils/util-menu';
 
 /**
  * 사이드 그룹 고르기(운영자 설정 「사이드 그룹」 `PICK` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28. 켤지는 셸이 `useMenuStyle` 로 정한다) — 사이드 몫의 최상위 그룹(커뮤니티·소모임 …)을 상단 메뉴 첫 줄에 탭으로 올리고,
@@ -18,9 +19,15 @@ export function useSideGroupPick() {
     /** 사이드 몫의 최상위 그룹(제목 있는 구역) */
     const groups = computed<MenuSection[]>(() => sections.value.filter((section) => section.group !== null));
 
-    /** 지금 있는 곳이 든 그룹 — 접힌 그룹 안이면 `useMenuItems` 가 먼저 펼쳐 둔다 */
+    /**
+     * 지금 있는 곳이 든 그룹 — 접힌 그룹 안이면 `useMenuItems` 가 먼저 펼쳐 둔다.
+     * 그룹의 「누르면 가는 곳」 화면(예: 커뮤니티 가젯 페이지)도 그 그룹이다 — 어디서 들어와도(상단 탭·주소 직접·링크) 같은 사이드 메뉴가 보이게
+     */
     const activeKey = computed<string | null>(
-        () => groups.value.find((section) => section.blocks.some((block) => block.items.some((row) => row.active)))?.key ?? null,
+        () =>
+            groups.value.find((section) => section.blocks.some((block) => block.items.some((row) => row.active)))?.key ??
+            groups.value.find((section) => UtilMenu.isGroupHome(section.group?.path, route.path))?.key ??
+            null,
     );
 
     watch([() => route.path, activeKey], () => (picked.value = activeKey.value), { immediate: true });

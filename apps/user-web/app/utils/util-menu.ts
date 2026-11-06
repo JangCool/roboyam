@@ -538,6 +538,16 @@ export default class UtilMenu {
     }
 
     /**
+     * 그룹의 「누르면 가는 곳」이 지금 주소인가 — 사이트 안 경로(`/…`)만 보고 끝의 `/` 는 무시한다(그룹 첫 화면 — 예: 커뮤니티 가젯 페이지)
+     * @param {string | null | undefined} groupPath - 그룹의 `path`.
+     * @param {string} path - 지금 주소의 경로(`route.path`).
+     * @returns {boolean} 같으면 true.
+     */
+    static isGroupHome(groupPath: string | null | undefined, path: string): boolean {
+        return Boolean(groupPath?.startsWith('/')) && normalizePath(groupPath as string) === normalizePath(path);
+    }
+
+    /**
      * 지금 있는 곳으로 밝힐 항목 **하나** — 모든 항목 중 주소가 가장 길게 맞는 것이다(그래서 `/groups/me` 는 내 소모임만, `/groups/12` 는 전체 소모임만 밝다).
      * - `matchPrefix` 가 false 면 주소가 정확히 같을 때만, true 면 `path === p || path.startsWith(p + '/')` 일 때 맞는다(홈은 `/` 에서만).
      * - 게시판 항목은 지금 보는 게시판(`currentSlug`)이 그 게시판이면 주소와 상관없이 밝다 — 글 상세·글쓰기 화면에서도 그 게시판 줄이 켜지게 하려는 것이다.
