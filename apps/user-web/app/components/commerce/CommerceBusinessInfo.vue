@@ -2,14 +2,13 @@
     <!--
         통신판매업자 정보(전자상거래법 제10조 ① — 계약 결정 18·56). 사이트 푸터(`AppFooter`, 데스크톱)와 공구 상세 하단이 같이 쓴다.
         값은 부르는 쪽이 `useCommerceInfo().shownBusiness`(판매 스위치 켜짐 + 칸 완비일 때만)로 넘긴다 — 여기서는 서버를 부르지 않는다.
-        `footer`: 작은 글씨 한 덩어리(구분점으로 잇는다) · `panel`: 정의 목록(공구 화면 하단).
+        `footer`: 작은 글씨 몇 줄 — 뜻 묶음(사업자 · 연락처 · 기타)마다 한 줄, 칸은 통째로 줄바꿈한다(칸 중간에서 끊기지 않게) · `panel`: 정의 목록(공구 화면 하단).
     -->
-    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'text-xs leading-relaxed text-muted-color' : 'panel-card p-4 text-sm'" data-testid="commerce-business-info">
+    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'flex flex-col gap-1 text-xs leading-relaxed text-muted-color' : 'panel-card p-4 text-sm'" data-testid="commerce-business-info">
         <template v-if="variant === 'footer'">
-            <p class="m-0">
-                <span v-for="(row, index) in rows" :key="row.key">
-                    <span v-if="index > 0" aria-hidden="true"> · </span>
-                    <span>{{ row.label }} {{ row.value }}</span>
+            <p v-for="(line, index) in footerLines" :key="index" class="m-0 flex flex-wrap gap-x-4 gap-y-0.5">
+                <span v-for="row in line" :key="row.key" :class="row.key === 'address' ? 'min-w-0' : 'whitespace-nowrap'">
+                    {{ row.label }} <span class="text-surface-600 dark:text-surface-300">{{ row.value }}</span>
                 </span>
             </p>
         </template>
@@ -55,4 +54,12 @@ const rows = computed(() => {
     ];
     return all.filter((row): row is { key: string; label: string; value: string } => !!row.value);
 });
+
+/** 푸터 줄 나누기 — 사업자 / 연락처 / 기타. 빈 줄은 뺀다 */
+const FOOTER_GROUPS: string[][] = [
+    ['company', 'ceo', 'businessNo', 'mailOrder'],
+    ['address', 'phone', 'email', 'hours'],
+    ['privacy', 'hosting'],
+];
+const footerLines = computed(() => FOOTER_GROUPS.map((keys) => rows.value.filter((row) => keys.includes(row.key))).filter((line) => line.length > 0));
 </script>
