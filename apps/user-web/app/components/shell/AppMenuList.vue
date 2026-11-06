@@ -53,8 +53,8 @@
                 <!-- 제목 있는 구역 — 최상위 그룹. 접을 수 있으면 제목이 단추다 -->
                 <section v-else :aria-labelledby="`${uid}-${section.key}`">
                     <h2 :id="`${uid}-${section.key}`" class="px-4 pb-1 pt-4 text-xs font-normal text-muted-color">
-                        <!-- 이름에 연결이 있으면 이름은 링크, 접기는 옆 표시 단추 -->
-                        <span v-if="section.group.path" class="flex w-full items-center justify-between gap-2">
+                        <!-- 이름에 연결이 있으면 이름은 링크, 접기는 옆 표시 단추. 데스크톱 사이드 메뉴(`side`)의 그룹 제목은 링크가 아니다 — 그 화면은 상단 탭으로 간다(사용자 결정 2026-11-06) -->
+                        <span v-if="section.group.path && scope !== 'side'" class="flex w-full items-center justify-between gap-2">
                             <AppMenuGroupLabel :group="section.group" @click="$emit('navigate')" />
                             <button
                                 v-if="section.collapsible"
