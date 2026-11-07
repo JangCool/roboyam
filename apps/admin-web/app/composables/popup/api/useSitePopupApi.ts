@@ -1,16 +1,18 @@
-import type { SitePopupItem, SitePopupListView, SitePopupSaveRequest } from '~/composables/popup/api/useSitePopupApi.types';
+import type { SitePopupItem, SitePopupLayout, SitePopupListView, SitePopupSaveRequest } from '~/composables/popup/api/useSitePopupApi.types';
 
 /**
  * 팝업 관리 API — 서버 주소(`/api/admin/site-popups…`)가 있는 **유일한 곳**이다. 상태는 없다. 계약: `docs/features/site-popup-contract.md`.
  * 그림 바이트 올리기는 하이라이트와 같은 두 걸음(파일 API `purpose=SITE_POPUP_IMAGE` → 받은 `fileId` 를 저장 본문 `imageFileId` 로).
  * 권한: 보기 `site.read`, 바꾸기 `site.manage`(공지 띠와 같다).
- *   - `GET /api/admin/site-popups` → `{ items, total, showingCount }`
- *   - `POST` → 201 한 줄 · `PUT /{id}` → 200 한 줄(모든 칸) · 400 `fields.name|imageFileId|imageAlt|link|heading|body|buttonLabel|devices|showUntil` · 404 `SITE_POPUP_NOT_FOUND`
+ *   - `GET /api/admin/site-popups` → `{ items, total, showingCount, layout }`
+ *   - `POST` → 201 한 줄 · `PUT /{id}` → 200 한 줄(모든 칸) · 400 `fields.name|imageFileId|imageAlt|link|heading|body|buttonLabel|devices|windowNo|showUntil` · 404 `SITE_POPUP_NOT_FOUND`
+ *   - `PUT /layout { layout }` → 목록(여러 창 배치 — 사이트 전체 하나, 400 `fields.layout`)
  *   - `PUT /order { ids }` → 목록(전체 ID 의 새 차례, 집합이 다르면 400 `fields.ids`) · `PUT /{id}/visible { visible }` → 200 한 줄 · `DELETE /{id}` → 204
  */
 const PATH = {
     root: '/api/admin/site-popups',
     order: '/api/admin/site-popups/order',
+    layout: '/api/admin/site-popups/layout',
     one: (id: string) => `/api/admin/site-popups/${encodeURIComponent(id)}`,
     visible: (id: string) => `/api/admin/site-popups/${encodeURIComponent(id)}/visible`,
 };
@@ -33,6 +35,9 @@ export function useSitePopupApi() {
 
         /** 전체 ID 의 새 차례 */
         reorder: (ids: string[]): Promise<SitePopupListView> => client.put<SitePopupListView>(PATH.order, { ids }),
+
+        /** 여러 창 배치를 바꾼다 — 새 목록 */
+        setLayout: (layout: SitePopupLayout): Promise<SitePopupListView> => client.put<SitePopupListView>(PATH.layout, { layout }),
 
         remove: (id: string): Promise<void> => client.del<void>(PATH.one(id)),
 

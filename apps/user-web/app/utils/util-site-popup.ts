@@ -31,6 +31,20 @@ export default class UtilSitePopup {
     }
 
     /**
+     * 띄울 창별로 묶기 — 창 번호 차례, 창 안은 받은 차례 그대로.
+     * @param {readonly PublicSitePopup[]} items - 띄울 팝업(서버 차례).
+     * @returns {{ no: number; items: PublicSitePopup[] }[]} 창 목록.
+     */
+    static windows(items: readonly PublicSitePopup[]): { no: number; items: PublicSitePopup[] }[] {
+        const map = new Map<number, PublicSitePopup[]>();
+        for (const item of items) {
+            const no = item.windowNo || 1;
+            map.set(no, [...(map.get(no) ?? []), item]);
+        }
+        return [...map.entries()].sort(([a], [b]) => a - b).map(([no, rows]) => ({ no, items: rows }));
+    }
+
+    /**
      * 「보지 않기」 기록 만들기.
      * @param {string} version - 그 팝업의 내용 표식.
      * @param {Exclude<SitePopupHideOption, 'NONE'>} option - 고른 선택지.

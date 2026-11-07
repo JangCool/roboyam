@@ -1,4 +1,4 @@
-import type { SitePopupDevice, SitePopupHideOption, SitePopupItem, SitePopupKind, SitePopupSaveRequest, SitePopupStatus, SitePopupTarget } from '~/composables/popup/api/useSitePopupApi.types';
+import type { SitePopupDevice, SitePopupHideOption, SitePopupItem, SitePopupKind, SitePopupLayout, SitePopupSaveRequest, SitePopupStatus, SitePopupTarget } from '~/composables/popup/api/useSitePopupApi.types';
 import UtilSiteNoticeBar from '~/utils/util-site-notice-bar';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
@@ -24,6 +24,8 @@ export interface SitePopupForm {
     target: SitePopupTarget;
     devices: SitePopupDevice[];
     hideOption: SitePopupHideOption;
+    /** 띄울 창 1~3 */
+    windowNo: number;
     visible: boolean;
     showFrom: string;
     showUntil: string;
@@ -49,6 +51,10 @@ export default class UtilSitePopup {
     static readonly TARGETS: readonly SitePopupTarget[] = ['HOME', 'ALL'];
     static readonly DEVICES: readonly SitePopupDevice[] = ['PC', 'MOBILE'];
     static readonly HIDE_OPTIONS: readonly SitePopupHideOption[] = ['TODAY', 'WEEK', 'NEVER', 'NONE'];
+    /** 띄울 창 번호(서버 `SitePopups.WINDOW_MAX` = 3) */
+    static readonly WINDOWS: readonly number[] = [1, 2, 3];
+    /** 여러 창 배치(서버 `SitePopups.LAYOUTS`) */
+    static readonly LAYOUTS: readonly SitePopupLayout[] = ['HORIZONTAL', 'VERTICAL'];
 
     static statusSeverity(status: SitePopupStatus): 'success' | 'info' | 'secondary' | 'warn' {
         if (status === 'SHOWING') return 'success';
@@ -91,6 +97,7 @@ export default class UtilSitePopup {
             target: 'HOME',
             devices: ['PC', 'MOBILE'],
             hideOption: 'TODAY',
+            windowNo: 1,
             visible: true,
             showFrom: '',
             showUntil: '',
@@ -111,6 +118,7 @@ export default class UtilSitePopup {
             target: item.target,
             devices: [...item.devices],
             hideOption: item.hideOption,
+            windowNo: item.windowNo,
             visible: item.visible,
             showFrom: item.showFrom ?? '',
             showUntil: item.showUntil ?? '',
@@ -158,6 +166,7 @@ export default class UtilSitePopup {
             target: form.target,
             devices: UtilSitePopup.DEVICES.filter((device) => form.devices.includes(device)),
             hideOption: form.hideOption,
+            windowNo: form.windowNo,
             visible: form.visible,
             showFrom: form.showFrom || null,
             showUntil: form.showUntil || null,
@@ -198,6 +207,7 @@ export default class UtilSitePopup {
             body: text(source.body),
             buttonLabel: text(source.buttonLabel),
             hideOption: source.hideOption,
+            windowNo: source.windowNo,
         };
     }
 }
@@ -213,4 +223,5 @@ export interface SitePopupPreview {
     body: string | null;
     buttonLabel: string | null;
     hideOption: SitePopupHideOption;
+    windowNo: number;
 }

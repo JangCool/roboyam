@@ -38,6 +38,27 @@
                 <template v-else>
                     <Message v-if="list.showingCount === 0" severity="warn" size="small" :closable="false" class="mb-3">{{ t('popup.noneShowing') }}</Message>
                     <Message v-else-if="list.showingCount > UtilSitePopup.SHOWING_SOFT_MAX" severity="info" size="small" :closable="false" class="mb-3">{{ t('popup.tooMany', { n: list.showingCount }) }}</Message>
+                    <!-- 여러 창 배치(사이트 전체 하나) — 바꾸면 바로 저장 -->
+                    <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-(--line) px-3 py-2">
+                        <span :id="layoutLabelId" class="text-sm font-medium">{{ t('popup.layoutLabel') }}</span>
+                        <SelectButton
+                            :model-value="list.layout"
+                            :options="layoutOptions"
+                            option-label="label"
+                            option-value="value"
+                            :allow-empty="false"
+                            size="small"
+                            :aria-labelledby="layoutLabelId"
+                            :disabled="!canManage || layoutSaving"
+                            @update:model-value="setLayout"
+                        >
+                            <template #option="{ option }">
+                                <i :class="option.icon" class="text-xs" aria-hidden="true" />
+                                <span>{{ option.label }}</span>
+                            </template>
+                        </SelectButton>
+                        <span class="text-xs leading-relaxed text-muted-color">{{ t('popup.layoutHelp') }}</span>
+                    </div>
                     <p class="m-0 mb-2 text-xs leading-relaxed text-muted-color">{{ t('popup.orderHint') }}</p>
                     <ol class="m-0 flex list-none flex-col divide-y divide-(--line) p-0" :aria-busy="busy || ordering">
                         <li v-for="(item, index) in list.items" :key="item.id" class="flex flex-col gap-3 py-3 sm:flex-row sm:items-start" data-testid="site-popup-row">
@@ -70,6 +91,7 @@
                                 <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                                     <Tag :value="t(`popup.status.${item.status}`)" :icon="UtilSitePopup.statusIcon(item.status)" :severity="UtilSitePopup.statusSeverity(item.status)" class="text-[11px]!" />
                                     <Tag :value="t(`popup.kind.${item.kind}`)" :icon="UtilSitePopup.kindIcon(item.kind)" severity="secondary" class="text-[11px]!" />
+                                    <Tag :value="t('popup.windowNo', { n: item.windowNo })" icon="pi pi-clone" severity="secondary" class="text-[11px]!" />
                                     <span class="min-w-0 break-words text-sm font-semibold [overflow-wrap:anywhere]">{{ item.name }}</span>
                                 </div>
                                 <p class="m-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-color">
@@ -107,13 +129,13 @@
         <SitePopupFormDialog v-model:visible="formOpen" :item="editing" :upload-image="api.uploadImage" :saving="saving" :server-errors="formFieldErrors" :form-error="formError" @save="save" />
 
         <!-- 미리보기 — 한 장(줄) 또는 지금 노출 중인 전부(제목 옆) -->
-        <Dialog v-model:visible="previewOpen" modal :draggable="false" :header="previewTarget ? t('popup.previewOneTitle', { name: previewTarget.name }) : t('popup.previewShowingTitle')" :style="{ width: 'min(52rem, calc(100vw - 2rem))' }">
+        <Dialog v-model:visible="previewOpen" modal :draggable="false" :header="previewTarget ? t('popup.previewOneTitle', { name: previewTarget.name }) : t('popup.previewShowingTitle')" :style="{ width: 'min(84rem, calc(100vw - 2rem))' }">
             <div class="flex flex-col gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <p class="m-0 text-xs leading-relaxed text-muted-color">{{ previewTarget ? t('popup.previewOneHelp') : t('popup.previewShowingHelp') }}</p>
                     <SelectButton v-model="previewDevice" :options="deviceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('popup.previewDevice')" />
                 </div>
-                <SitePopupPreviewFrame :popups="previewPopups" :device="previewDevice" :empty-text="previewEmpty" />
+                <SitePopupPreviewFrame :popups="previewPopups" :device="previewDevice" :empty-text="previewEmpty" :layout="list?.layout ?? 'HORIZONTAL'" />
             </div>
         </Dialog>
     </div>
@@ -121,7 +143,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { SitePopupDevice, SitePopupItem, SitePopupListView, SitePopupSaveRequest } from '~/composables/popup/api/useSitePopupApi.types';
+import type { SitePopupDevice, SitePopupItem, SitePopupLayout, SitePopupListView, SitePopupSaveRequest } from '~/composables/popup/api/useSitePopupApi.types';
 import UtilSitePopup from '~/utils/util-site-popup';
 import UtilSitePopupMessages from '~/utils/util-site-popup-messages';
 
@@ -171,7 +193,7 @@ async function reload(): Promise<void> {
 /** 처리 실패 — 이미 바뀐 팝업이면 목록을 다시 받는다 */
 function fail(e: unknown): void {
     const error = errorOf(e);
-    toast.error(error.fields?.ids ?? error.fields?.visible ?? error.message, 8000);
+    toast.error(error.fields?.ids ?? error.fields?.visible ?? error.fields?.layout ?? error.message, 8000);
     if (STALE_CODES.has(error.code) || error.fields?.ids) void reload();
 }
 
@@ -190,6 +212,24 @@ async function move(item: SitePopupItem, delta: -1 | 1): Promise<void> {
         fail(e);
     } finally {
         ordering.value = false;
+    }
+}
+
+/* ── 여러 창 배치 ── */
+const layoutLabelId = useId();
+const layoutSaving = ref(false);
+const layoutOptions = computed(() => UtilSitePopup.LAYOUTS.map((value) => ({ value, label: t(`popup.layout.${value}`), icon: value === 'HORIZONTAL' ? 'pi pi-arrows-h' : 'pi pi-arrows-v' })));
+
+async function setLayout(layout: SitePopupLayout): Promise<void> {
+    if (!list.value || layoutSaving.value || layout === list.value.layout) return;
+    layoutSaving.value = true;
+    try {
+        list.value = await api.setLayout(layout);
+        toast.success(t('popup.layoutSaved'));
+    } catch (e) {
+        fail(e);
+    } finally {
+        layoutSaving.value = false;
     }
 }
 

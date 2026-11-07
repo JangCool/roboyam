@@ -110,6 +110,13 @@
                     </fieldset>
                 </div>
 
+                <!-- 띄울 창 — 같은 번호끼리 한 창에서 슬라이드, 번호가 다르면 PC 는 나란히·모바일은 차례로 -->
+                <div class="flex flex-col gap-1.5">
+                    <span :id="`${formId}-window`" class="text-sm font-medium">{{ t('popup.windowLabel') }}</span>
+                    <SelectButton v-model="form.windowNo" :options="windowOptions" option-label="label" option-value="value" :allow-empty="false" :aria-labelledby="`${formId}-window`" :disabled="saving" />
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('popup.windowHelp') }}</p>
+                </div>
+
                 <!-- 닫기 줄 선택지 -->
                 <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
                     <legend class="mb-1.5 p-0 text-sm font-medium">{{ t('popup.hideLabel') }}</legend>
@@ -207,6 +214,7 @@ const problems = computed(() => UtilSitePopup.problems(form.value));
 
 const kindOptions = computed(() => UtilSitePopup.KINDS.map((value) => ({ value, label: t(`popup.kind.${value}`), icon: UtilSitePopup.kindIcon(value) })));
 const deviceOptions = computed(() => UtilSitePopup.DEVICES.map((value) => ({ value, label: t(`popup.device.${value}`) })));
+const windowOptions = computed(() => UtilSitePopup.WINDOWS.map((value) => ({ value, label: t('popup.windowNo', { n: value }) })));
 
 function counter(text: string, max: number): string {
     return t('popup.counter', { n: UtilSitePopup.length(text), max });

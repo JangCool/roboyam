@@ -81,6 +81,9 @@ public class SiteSettingEntity {
     /** {@code CUSTOM} 문구를 누르면 갈 곳(선택, 없으면 null) */
     private String noticeBarCustomLink;
 
+    /** 팝업 여러 창 배치(V165) — {@code HORIZONTAL}(PC 가로로 나란히) · {@code VERTICAL}(위아래로 쌓기). 규칙은 {@code SitePopups} */
+    private String popupLayout;
+
     protected SiteSettingEntity() {
     }
 
@@ -100,6 +103,8 @@ public class SiteSettingEntity {
         setting.noticeBarEnabled = true;
         setting.noticeBarSource = SiteNoticeBars.SOURCE_BOARD;
         setting.noticeBarBoardCount = SiteNoticeBars.DEFAULT_BOARD_COUNT;
+        // 팝업 배치 처음 값 — V165 의 칸 기본값과 같다
+        setting.popupLayout = "HORIZONTAL";
         setting.updatedBy = updatedBy;
         setting.updatedAt = now;
         return setting;
@@ -174,6 +179,17 @@ public class SiteSettingEntity {
         this.noticeBarCustomText = customText;
         this.noticeBarCustomLink = customLink;
         touch(operatorId, now);
+    }
+
+    /** 팝업 여러 창 배치를 바꾼다(값 검사는 부르는 쪽이 끝냈다) */
+    public void changePopupLayout(String layout, long operatorId, Instant now) {
+        this.popupLayout = layout;
+        touch(operatorId, now);
+    }
+
+    /** 팝업 여러 창 배치 — {@code HORIZONTAL} · {@code VERTICAL} */
+    public String getPopupLayout() {
+        return popupLayout;
     }
 
     private void touch(long operatorId, Instant now) {

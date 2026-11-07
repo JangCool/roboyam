@@ -43,41 +43,42 @@ public class PublicSitePopupService {
     /** 지금 보일 팝업 — 사본을 지금 시각으로 거른 것 */
     public Snapshot snapshot() {
         Instant now = Instant.now();
-        List<SitePopupPublicLine> lines = lines(now);
-        List<PublicSitePopupView> items = lines.stream().filter(line -> line.inPeriod(now)).map(PublicSitePopupService::view).toList();
-        SitePopupsResponse response = new SitePopupsResponse(items);
+        Cached current = load(now);
+        List<PublicSitePopupView> items = current.lines.stream().filter(line -> line.inPeriod(now)).map(PublicSitePopupService::view).toList();
+        SitePopupsResponse response = new SitePopupsResponse(current.layout, items);
         return new Snapshot(response, fingerprint(response));
     }
 
-    private List<SitePopupPublicLine> lines(Instant now) {
+    private Cached load(Instant now) {
         Cached current = cached;
         if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.lines;
+            return current;
         }
         synchronized (this) {
             current = cached;
             long nanos = System.nanoTime();
             if (current != null && nanos - current.loadedAt < TTL_NANOS) {
-                return current.lines;
+                return current;
             }
             try {
-                List<SitePopupPublicLine> loaded = reader.publicLines(now);
-                cached = new Cached(loaded, nanos);
+                Cached loaded = new Cached(reader.publicLines(now), reader.layout(), nanos);
+                cached = loaded;
                 return loaded;
             } catch (RuntimeException e) {
                 if (current == null) {
                     throw e;
                 }
                 log.warn("팝업을 다시 읽지 못해 이전 값을 쓴다: {}", e.toString());
-                cached = new Cached(current.lines, nanos - TTL_NANOS + RETRY_NANOS);
-                return current.lines;
+                Cached kept = new Cached(current.lines, current.layout, nanos - TTL_NANOS + RETRY_NANOS);
+                cached = kept;
+                return kept;
             }
         }
     }
 
     private static PublicSitePopupView view(SitePopupPublicLine line) {
         return new PublicSitePopupView(Long.toString(line.id()), line.version(), line.kind(), line.imageUrl(), line.imageAlt(), line.link(), line.heading(),
-                line.body(), line.buttonLabel(), line.target(), line.devices(), line.hideOption());
+                line.body(), line.buttonLabel(), line.target(), line.devices(), line.hideOption(), line.windowNo());
     }
 
     /** 응답 내용의 지문 — 레코드의 {@code toString} 은 칸 값을 모두 싣는다 */
@@ -94,6 +95,6 @@ public class PublicSitePopupService {
     public record Snapshot(SitePopupsResponse response, String etag) {
     }
 
-    private record Cached(List<SitePopupPublicLine> lines, long loadedAt) {
+    private record Cached(List<SitePopupPublicLine> lines, String layout, long loadedAt) {
     }
 }
