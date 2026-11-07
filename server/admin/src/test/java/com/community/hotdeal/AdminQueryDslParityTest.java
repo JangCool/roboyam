@@ -322,6 +322,92 @@ class AdminQueryDslParityTest extends HotdealAdminTestBase {
         assertThat(auditRetention.lastChange()).isEqualTo(last.stream().findFirst());
     }
 
+    // ── 2단계 — 쪽지 상태·알림 선택·탈퇴 신청 표(엔티티 신설) ─────────────────────
+
+    @Test
+    void 회원_쪽지_수신과_알림_선택은_예전과_같다() {
+        long user = newMember();
+        long none = newMember();
+        jdbc.update("INSERT INTO dm_user_states (user_id, accept_dm, updated_at) VALUES (?, false, now())", user);
+        jdbc.update("INSERT INTO member_notification_preferences (user_id, event_code, in_app, email, updated_at) VALUES (?, 'COMMENT', false, true, now()), "
+                + "(?, 'DM', true, false, now())", user, user);
+        TransactionTemplate tx = new TransactionTemplate(transactions);
+        assertThat(tx.execute(s -> memberSettings.countsOf(user)).acceptDm()).isFalse();
+        assertThat(tx.execute(s -> memberSettings.countsOf(none)).acceptDm()).as("상태 줄이 없으면 받기").isTrue();
+        Map<String, MemberSettingsQueries.Choice> choices = tx.execute(s -> memberSettings.choicesOf(user));
+        assertThat(choices)
+                .isEqualTo(Map.of("COMMENT", new MemberSettingsQueries.Choice(false, true), "DM", new MemberSettingsQueries.Choice(true, false)));
+        Map<String, MemberSettingsQueries.Choice> noChoices = tx.execute(s -> memberSettings.choicesOf(none));
+        assertThat(noChoices).isEmpty();
+    }
+
+    @Test
+    void 탈퇴_관리_목록_요약_사유_분포는_예전_네이티브_문장과_같다() {
+        long user = newMember();
+        Instant base = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        long scheduled = ids.nextId();
+        long completed = ids.nextId();
+        long canceled = ids.nextId();
+        String insert = "INSERT INTO member_withdrawals (id, user_id, status, reason, group_choices, pending_snapshot, pending_count, expected_complete_at, requested_at, "
+                + "completed_at, canceled_at) VALUES (?, ?, ?, ?, '[]'::jsonb, ?::jsonb, ?, ?, ?, ?, ?)";
+        jdbc.update(insert, scheduled, user, "SCHEDULED", "PRIVACY", "[{\"kind\": \"ORDER\"}]", 1, ts(base.plus(Duration.ofDays(5))), ts(base.minus(Duration.ofDays(3))),
+                null, null);
+        jdbc.update(insert, completed, user, "COMPLETED", null, "[]", 0, null, ts(base.minus(Duration.ofDays(2))), ts(base.minus(Duration.ofHours(1))), null);
+        jdbc.update(insert, canceled, user, "CANCELED", "PRIVACY", "[]", 0, ts(base.plus(Duration.ofDays(1))), ts(base.minus(Duration.ofDays(1))), null,
+                ts(base.minus(Duration.ofHours(2))));
+        TransactionTemplate tx = new TransactionTemplate(transactions);
+
+        for (String column : List.of("requested_at", "expected_complete_at", "completed_at", "canceled_at", "pending_count")) {
+            for (boolean asc : List.of(true, false)) {
+                MemberWithdrawalAdminStore.Criteria c = new MemberWithdrawalAdminStore.Criteria(null, user, null, null, null, null, column, asc, 0, 10);
+                List<Long> expected = jdbc.queryForList("SELECT id FROM member_withdrawals w WHERE w.user_id = ? ORDER BY w." + column + (asc ? " ASC" : " DESC")
+                        + " NULLS LAST, w.id DESC LIMIT 10", Long.class, user);
+                assertThat(tx.execute(s -> withdrawals.search(c)).stream().map(l -> l.row().id()).toList()).as(column + " " + asc).isEqualTo(expected);
+            }
+        }
+        MemberWithdrawalAdminStore.Criteria page = new MemberWithdrawalAdminStore.Criteria(null, user, base.minus(Duration.ofDays(3)), base.minus(Duration.ofDays(1)), null,
+                null, "requested_at", false, 1, 1);
+        assertThat(tx.execute(s -> withdrawals.search(page)).stream().map(l -> l.row().id()).toList()).as("[from, to) · 둘째 쪽").containsExactly(scheduled);
+        long total = tx.execute(s -> withdrawals.count(page));
+        assertThat(total).isEqualTo(2);
+        MemberWithdrawalAdminStore.Criteria done = new MemberWithdrawalAdminStore.Criteria(com.community.withdrawal.entity.WithdrawalStatus.COMPLETED, user, null, null,
+                base.minus(Duration.ofHours(2)), base, "requested_at", false, 0, 10);
+        assertThat(tx.execute(s -> withdrawals.search(done)).stream().map(l -> l.row().id()).toList()).containsExactly(completed);
+
+        MemberWithdrawalAdminStore.Listed found = tx.execute(s -> withdrawals.find(scheduled));
+        assertThat(found.nickname()).isEqualTo(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, user));
+        assertThat(found.row().pendingJson()).isEqualTo(jdbc.queryForObject("SELECT pending_snapshot::text FROM member_withdrawals WHERE id = ?", String.class, scheduled));
+        assertThat(found.row().groupChoicesJson()).isEqualTo("[]");
+        assertThat(found.row().expectedCompleteAt()).isEqualTo(base.plus(Duration.ofDays(5)));
+        assertThat(found.row().choices().paidPointChoice()).isEqualTo("REFUND");
+        assertThat(found.row().priorStatus()).isEqualTo("ACTIVE");
+        assertThat(found.row().source()).isEqualTo(com.community.withdrawal.entity.WithdrawalSource.MEMBER);
+        assertThat(found.row().hasPaymentHistory()).isNull();
+        assertThat(tx.execute(s -> withdrawals.latestOf(user)).row().id()).isEqualTo(canceled);
+        MemberWithdrawalAdminStore.Listed missing = tx.execute(s -> withdrawals.find(-1L));
+        assertThat(missing).isNull();
+
+        Instant today = base.minus(Duration.ofHours(3));
+        Instant month = base.minus(Duration.ofDays(30));
+        Instant overdue = base.minus(Duration.ofDays(2));
+        long[] summary = tx.execute(s -> withdrawals.summary(today, month, overdue));
+        long[] old = jdbc.queryForObject("SELECT (SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED'), "
+                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'COMPLETED' AND completed_at >= ?), "
+                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'COMPLETED' AND completed_at >= ?), "
+                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED' AND requested_at <= ?)",
+                (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)}, ts(today), ts(month), ts(overdue));
+        assertThat(summary).isEqualTo(old);
+
+        Instant from = base.minus(Duration.ofDays(4));
+        Map<String, Long> reasons = tx.execute(s -> withdrawals.reasonCounts(from, base));
+        Map<String, Long> oldReasons = new HashMap<>();
+        jdbc.query("SELECT reason, count(*) FROM member_withdrawals WHERE requested_at >= ? AND requested_at < ? GROUP BY reason", (ResultSet rs) -> {
+            oldReasons.put(rs.getString(1), rs.getLong(2));
+        }, ts(from), ts(base));
+        assertThat(reasons).isEqualTo(oldReasons).containsKey(null);
+        jdbc.update("DELETE FROM member_withdrawals WHERE user_id = ?", user);
+    }
+
     @Test
     void 주소_적재_단계는_진행_중인_줄만_바꾼다() {
         long running = load("RUNNING");

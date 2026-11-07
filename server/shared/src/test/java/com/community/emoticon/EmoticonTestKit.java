@@ -30,6 +30,7 @@ import com.community.holiday.repository.master.SiteHolidayStore;
 import com.community.holiday.service.SiteHolidayService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.identity.repository.master.IdentityVerificationAttemptRepository;
 import com.community.identity.service.IdentityVerificationService;
 import com.community.zconfiguration.crypto.DataCipher;
 import java.time.LocalDate;
@@ -193,7 +194,7 @@ final class EmoticonTestKit {
         EmoticonPayoutStore payoutStore = new EmoticonPayoutStore(dataSource);
         EmoticonPriceEventStore priceEvents = new EmoticonPriceEventStore(dataSource);
         cipher = new DataCipher("1:" + Base64.getEncoder().encodeToString(new byte[32]), "");
-        identities = new IdentityStore(dataSource);
+        identities = new IdentityStore(JpaTestContext.query(), JpaTestContext.context().getBean(IdentityVerificationAttemptRepository.class), dataSource);
         EmoticonImageValidator validator = new EmoticonImageValidator(new ImageCodec(new ImageGate(new MediaProperties(2, 10, 24))));
         images = new EmoticonImageService(validator, imageStore, storage, ids, dataSource, txManager, clocks);
         content = new EmoticonContent(packStore, imageStore, storage);
@@ -277,8 +278,13 @@ final class EmoticonTestKit {
         identities.insertVerification(userId, String.format("%064x", userId), null, LocalDate.of(1990, 1, 1), IdentityProviderKind.FAKE, "emo-fake:" + userId,
                 clock.instant());
         if (name != null) {
-            identities.saveNameCipher(userId, cipher.encrypt(IdentityVerificationService.NAME, name));
+            saveName(userId, name);
         }
+    }
+
+    /** 본인인증 줄에 이름 암호문을 넣는다 — 이름 칸은 JPA(QueryDSL) 쓰기라 JPA 트랜잭션에서 한다(이 키트의 JDBC 트랜잭션 관리자에는 실리지 않는다) */
+    void saveName(long userId, String name) {
+        new TransactionTemplate(JpaTestContext.transactions()).executeWithoutResult(s -> identities.saveNameCipher(userId, cipher.encrypt(IdentityVerificationService.NAME, name)));
     }
 
     /** 본인인증(이름 홍길동) + 정산 정보(개인 · 국민) — 유료 희망 신청 준비 */

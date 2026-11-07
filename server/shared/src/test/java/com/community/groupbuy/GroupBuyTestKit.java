@@ -36,6 +36,7 @@ import com.community.groupbuy.service.ParticipationCancelService;
 import com.community.groupbuy.service.ShippingPolicyService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.identity.repository.master.IdentityVerificationAttemptRepository;
 import com.community.identity.service.IdentityVerificationService;
 import com.community.membernotification.repository.master.MemberNotificationWriter;
 import com.community.membernotification.service.MemberNotificationPublisher;
@@ -63,6 +64,7 @@ import com.community.payment.service.PaymentOrderService;
 import com.community.restriction.repository.master.MemberRestrictionStore;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -268,7 +270,7 @@ final class GroupBuyTestKit {
         @Bean
         IdentityVerificationService identityVerificationService(DataSource dataSource, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
                                                                 ObjectProvider<Clock> clocks) {
-            return new IdentityVerificationService(new IdentityStore(dataSource), null, null, null, null, null, ids, transactions, null, clocks);
+            return new IdentityVerificationService(identityStore(dataSource), null, null, null, null, null, ids, transactions, null, clocks);
         }
 
         @Bean
@@ -545,8 +547,13 @@ final class GroupBuyTestKit {
         return id;
     }
 
+    /** 본인인증 저장소 — 운영과 같은 JPA·QueryDSL({@link JpaTestContext}). 공구는 읽기(만 19세 판정)만 하고 넣기({@link #verify})는 JDBC 한 문장(자동 커밋)이라 이 키트의 JDBC 트랜잭션과 엇갈리지 않는다 */
+    static IdentityStore identityStore(DataSource dataSource) {
+        return new IdentityStore(JpaTestContext.query(), JpaTestContext.context().getBean(IdentityVerificationAttemptRepository.class), dataSource);
+    }
+
     void verify(long userId, LocalDate birthDate) {
-        new IdentityStore(dataSource).insertVerification(userId, String.format("%064x", userId), "f" + String.format("%063x", userId), birthDate, IdentityProviderKind.FAKE, "fake:" + userId, now());
+        identityStore(dataSource).insertVerification(userId, String.format("%064x", userId), "f" + String.format("%063x", userId), birthDate, IdentityProviderKind.FAKE, "fake:" + userId, now());
     }
 
     long newOperator() {

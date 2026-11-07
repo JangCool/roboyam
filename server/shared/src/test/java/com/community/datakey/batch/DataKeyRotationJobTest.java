@@ -24,6 +24,7 @@ import com.community.batch.entity.BatchSource;
 import com.community.business.service.BusinessPii;
 import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
 import com.community.emoticon.service.EmoticonPayoutService;
@@ -327,7 +328,7 @@ class DataKeyRotationJobTest {
     void 키_교체_절차_새_키_배치_예전_키_비움이_실제_칸_목록으로_끝까지_된다() throws IOException {
         // 0) 옛 키(버전 1)만 있던 때 저장한 탈퇴 회원 연락처
         DataCipher before = cipher(K1);
-        WithdrawnContactRows contactRows = new WithdrawnContactRows(dataSource);
+        WithdrawnContactRows contactRows = new WithdrawnContactRows(JpaTestContext.query(), dataSource);
         long[] members = {ids.nextId(), ids.nextId()};
         for (long member : members) {
             contactRows.upsert(member, before.encrypt(WithdrawnContactStore.EMAIL, "left-" + member + "@example.com"), Instant.now(), Instant.now().plusSeconds(86_400));

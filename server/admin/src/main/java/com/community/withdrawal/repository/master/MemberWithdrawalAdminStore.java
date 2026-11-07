@@ -3,29 +3,33 @@ package com.community.withdrawal.repository.master;
 import com.community.group.entity.QGroupEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
+import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.ComparableExpressionBase;
+import com.querydsl.core.types.dsl.DateTimePath;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import java.sql.ResultSet;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 회원 탈퇴 관리 읽기(admin-web {@code /members/withdrawals}, member-withdrawal-contract 「관리자」) — 목록(거르기·정렬·쪽)·요약 4칸·사유 분포와 이름 찾기(닉네임·운영자·소모임).
- * 쓰기는 shared {@code WithdrawalRequestWriter}·{@code MemberWithdrawalStore}. 줄 모양은 shared {@link MemberWithdrawalStore.Row} 를 그대로 쓴다.
- * 이름 찾기(운영자·닉네임·소모임)는 엔티티로 읽고, 탈퇴 신청 표({@code member_withdrawals})는 엔티티가 없어 목록·요약·분포가 네이티브 SQL 이다.
+ * 쓰기는 shared {@code WithdrawalRequestWriter}·{@code MemberWithdrawalStore}. 줄 모양은 shared {@link MemberWithdrawalStore.Row} 를 그대로 쓴다(칸은 {@link MemberWithdrawalStore#columns()}).
+ * 모두 QueryDSL 이다(탈퇴 신청 표 = shared {@code MemberWithdrawalEntity}).
  *
  * <p>인덱스(V132·V134): 상태 탭 + 신청일 정렬 {@code ix_member_withdrawals_status_requested}, 전체 신청일 {@code ix_member_withdrawals_requested}, 완료일(요약 오늘·이번 달, 완료 탭)
  * {@code ix_member_withdrawals_completed}, 취소일 {@code ix_member_withdrawals_canceled}, 진행 중·10일 넘긴 진행 중 {@code ix_member_withdrawals_scheduled}, 회원별 {@code ix_member_withdrawals_user}.
@@ -33,6 +37,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
 
+    private static final QMemberWithdrawalEntity W = QMemberWithdrawalEntity.memberWithdrawalEntity;
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
     private static final QGroupEntity GROUP = QGroupEntity.groupEntity;
@@ -50,43 +55,43 @@ public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
     public static final Map<String, String> SORTS = Map.of("requestedAt", "requested_at", "expectedCompleteAt", "expected_complete_at", "completedAt", "completed_at",
             "canceledAt", "canceled_at", "pendingCount", "pending_count");
 
-    private static final String SELECT = "SELECT " + prefixed(MemberWithdrawalStore.COLUMNS) + ", p.nickname FROM member_withdrawals w LEFT JOIN profiles p ON p.user_id = w.user_id ";
+    /** {@link #SORTS} 의 칸 → 경로 */
+    private static final Map<String, ComparableExpressionBase<?>> SORT_PATHS = Map.of("requested_at", W.requestedAt, "expected_complete_at", W.expectedCompleteAt,
+            "completed_at", W.completedAt, "canceled_at", W.canceledAt, "pending_count", W.pendingCount);
 
-    private final NamedParameterJdbcTemplate named;
+    /** 신청 줄 칸 + 닉네임 */
+    private static final Expression<?>[] LISTED = listedColumns();
 
-    public MemberWithdrawalAdminStore(JPAQueryFactory query, DataSource dataSource) {
+    public MemberWithdrawalAdminStore(JPAQueryFactory query) {
         super(query);
-        this.named = new NamedParameterJdbcTemplate(dataSource);
     }
 
     public List<Listed> search(Criteria c) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        String order = "w." + c.sortColumn() + (c.ascending() ? " ASC NULLS LAST" : " DESC NULLS LAST") + ", w.id DESC";
-        params.addValue("limit", c.size()).addValue("offset", (long) c.page() * c.size());
-        return named.query(SELECT + where(c, params) + " ORDER BY " + order + " LIMIT :limit OFFSET :offset", params,
-                (rs, i) -> new Listed(MemberWithdrawalStore.row(rs, i), rs.getString("nickname")));
+        ComparableExpressionBase<?> sortPath = SORT_PATHS.get(c.sortColumn());
+        OrderSpecifier<?> order = c.ascending() ? sortPath.asc().nullsLast() : sortPath.desc().nullsLast();
+        return listed().where(where(c)).orderBy(order, W.id.desc()).offset((long) c.page() * c.size()).limit(c.size()).fetch().stream()
+                .map(MemberWithdrawalAdminStore::listed).toList();
     }
 
     public long count(Criteria c) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        Long total = named.queryForObject("SELECT count(*) FROM member_withdrawals w " + where(c, params), params, Long.class);
+        Long total = query.select(W.count()).from(W).where(where(c)).fetchOne();
         return total == null ? 0 : total;
     }
 
     /** 신청 줄 + 닉네임 한 건(없으면 null) */
     public Listed find(long id) {
-        return named.query(SELECT + "WHERE w.id = :id", new MapSqlParameterSource("id", id), (rs, i) -> new Listed(MemberWithdrawalStore.row(rs, i), rs.getString("nickname")))
-                .stream().findFirst().orElse(null);
+        Tuple t = listed().where(W.id.eq(id)).fetchFirst();
+        return t == null ? null : listed(t);
     }
 
     /** 그 회원의 가장 최근 신청(없으면 null) */
     public Listed latestOf(long userId) {
-        return named.query(SELECT + "WHERE w.user_id = :userId ORDER BY w.requested_at DESC, w.id DESC LIMIT 1", new MapSqlParameterSource("userId", userId),
-                (rs, i) -> new Listed(MemberWithdrawalStore.row(rs, i), rs.getString("nickname"))).stream().findFirst().orElse(null);
+        Tuple t = listed().where(W.userId.eq(userId)).orderBy(W.requestedAt.desc(), W.id.desc()).fetchFirst();
+        return t == null ? null : listed(t);
     }
 
     /**
-     * 요약 4칸 — 모두 인덱스로만 센다.
+     * 요약 4칸 — 모두 인덱스로만 센다(칸마다 한 문장).
      *
      * @param todayStart    서비스 하루의 0시(완료 ≥ 이 시각 = 오늘 완료)
      * @param monthStart    서비스 달의 1일 0시(완료 ≥ 이 시각 = 이번 달 완료)
@@ -94,31 +99,27 @@ public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
      * @return {진행 중, 오늘 완료, 이번 달 완료, 10일 넘긴 진행 중}
      */
     public long[] summary(Instant todayStart, Instant monthStart, Instant overdueBefore) {
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("today", ts(todayStart)).addValue("month", ts(monthStart)).addValue("overdue", ts(overdueBefore));
-        return named.queryForObject("SELECT (SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED'), "
-                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'COMPLETED' AND completed_at >= :today), "
-                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'COMPLETED' AND completed_at >= :month), "
-                + "(SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED' AND requested_at <= :overdue)", params,
-                (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)});
+        long scheduled = count(W.status.eq(WithdrawalStatus.SCHEDULED));
+        long today = count(W.status.eq(WithdrawalStatus.COMPLETED).and(W.completedAt.goe(todayStart)));
+        long month = count(W.status.eq(WithdrawalStatus.COMPLETED).and(W.completedAt.goe(monthStart)));
+        long overdue = count(W.status.eq(WithdrawalStatus.SCHEDULED).and(W.requestedAt.loe(overdueBefore)));
+        return new long[] {scheduled, today, month, overdue};
     }
 
     /** 사유별 건수(신청일 [from, to), 상태 무관) — 고르지 않음은 키 null */
     public Map<String, Long> reasonCounts(Instant from, Instant to) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        StringBuilder sql = new StringBuilder("SELECT reason, count(*) FROM member_withdrawals WHERE true");
+        BooleanBuilder where = new BooleanBuilder();
         if (from != null) {
-            sql.append(" AND requested_at >= :from");
-            params.addValue("from", ts(from));
+            where.and(W.requestedAt.goe(from));
         }
         if (to != null) {
-            sql.append(" AND requested_at < :to");
-            params.addValue("to", ts(to));
+            where.and(W.requestedAt.lt(to));
         }
-        sql.append(" GROUP BY reason");
         Map<String, Long> out = new HashMap<>();
-        named.query(sql.toString(), params, (ResultSet rs) -> {
-            out.put(rs.getString(1), rs.getLong(2));
-        });
+        NumberExpression<Long> n = W.count();
+        for (Tuple t : query.select(W.reason, n).from(W).where(where).groupBy(W.reason).fetch()) {
+            out.put(t.get(W.reason), t.get(n));
+        }
         return out;
     }
 
@@ -158,45 +159,46 @@ public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
         return out;
     }
 
-    private static String where(Criteria c, MapSqlParameterSource params) {
-        StringBuilder sql = new StringBuilder("WHERE true");
+    private long count(Predicate predicate) {
+        Long n = query.select(W.count()).from(W).where(predicate).fetchOne();
+        return n == null ? 0 : n;
+    }
+
+    /** 신청 줄 + 닉네임(프로필 왼쪽 조인) */
+    private JPAQuery<Tuple> listed() {
+        return query.select(LISTED).from(W).leftJoin(PROFILE).on(PROFILE.userId.eq(W.userId));
+    }
+
+    private static Listed listed(Tuple t) {
+        return new Listed(MemberWithdrawalStore.row(t), t.get(PROFILE.nickname));
+    }
+
+    private static Expression<?>[] listedColumns() {
+        Expression<?>[] columns = MemberWithdrawalStore.columns();
+        Expression<?>[] out = Arrays.copyOf(columns, columns.length + 1);
+        out[columns.length] = PROFILE.nickname;
+        return out;
+    }
+
+    private static BooleanBuilder where(Criteria c) {
+        BooleanBuilder where = new BooleanBuilder();
         if (c.status() != null) {
-            sql.append(" AND w.status = :status");
-            params.addValue("status", c.status().name());
+            where.and(W.status.eq(c.status()));
         }
         if (c.userId() != null) {
-            sql.append(" AND w.user_id = :userId");
-            params.addValue("userId", c.userId());
+            where.and(W.userId.eq(c.userId()));
         }
-        range(sql, params, "w.requested_at", "rf", c.requestedFrom(), "rt", c.requestedTo());
-        range(sql, params, "w.completed_at", "cf", c.completedFrom(), "ct", c.completedTo());
-        return sql.toString();
+        range(where, W.requestedAt, c.requestedFrom(), c.requestedTo());
+        range(where, W.completedAt, c.completedFrom(), c.completedTo());
+        return where;
     }
 
-    private static void range(StringBuilder sql, MapSqlParameterSource params, String column, String fromName, Instant from, String toName, Instant to) {
+    private static void range(BooleanBuilder where, DateTimePath<Instant> path, Instant from, Instant to) {
         if (from != null) {
-            sql.append(" AND ").append(column).append(" >= :").append(fromName);
-            params.addValue(fromName, ts(from));
+            where.and(path.goe(from));
         }
         if (to != null) {
-            sql.append(" AND ").append(column).append(" < :").append(toName);
-            params.addValue(toName, ts(to));
+            where.and(path.lt(to));
         }
-    }
-
-    /** {@code MemberWithdrawalStore.COLUMNS} 의 칸마다 {@code w.} 를 붙인다({@code ::text} 캐스트는 그대로) */
-    private static String prefixed(String columns) {
-        StringBuilder out = new StringBuilder();
-        for (String column : columns.split(",\\s*")) {
-            if (!out.isEmpty()) {
-                out.append(", ");
-            }
-            out.append("w.").append(column);
-        }
-        return out.toString();
-    }
-
-    private static OffsetDateTime ts(Instant at) {
-        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
     }
 }

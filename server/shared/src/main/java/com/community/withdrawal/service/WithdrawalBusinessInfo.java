@@ -10,14 +10,13 @@ import com.community.bizapplication.service.BizPricing;
 import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.repository.master.BusinessProfileRepository;
+import com.community.withdrawal.repository.master.WithdrawalQueries;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,14 +48,14 @@ public class WithdrawalBusinessInfo {
     private final BizApplicationStore applications;
     private final BizRefundStore refunds;
     private final BizApplicationOps ops;
-    private final JdbcTemplate jdbc;
+    private final WithdrawalQueries queries;
 
-    public WithdrawalBusinessInfo(BusinessProfileRepository profiles, BizApplicationStore applications, BizRefundStore refunds, BizApplicationOps ops, DataSource dataSource) {
+    public WithdrawalBusinessInfo(BusinessProfileRepository profiles, BizApplicationStore applications, BizRefundStore refunds, BizApplicationOps ops, WithdrawalQueries queries) {
         this.profiles = profiles;
         this.applications = applications;
         this.refunds = refunds;
         this.ops = ops;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
     }
 
     public Info of(long userId, Instant now) {
@@ -74,9 +73,7 @@ public class WithdrawalBusinessInfo {
             long forfeit = Math.max(0, Math.min(BizPricing.prorate(paid, app.startAt(), app.endAt(), now).proposed(), paid - refunds.approvedTotal(app.id())));
             running.add(new Running(app.id(), app.kind().service().name(), app.title(), app.endAt(), forfeit));
         }
-        Long waiting = jdbc.queryForObject("SELECT coalesce(sum(coalesce(r.approved_amount, r.proposed_amount)), 0) FROM biz_refunds r JOIN biz_applications a ON a.id = r.application_id "
-                + "WHERE a.business_profile_id = ? AND (r.status = 'REQUESTED' OR (r.status = 'APPROVED' AND r.completed_at IS NULL))", Long.class, profileId);
-        return new Info(List.copyOf(running), running.stream().mapToLong(Running::forfeitAmount).sum(), waiting == null ? 0 : waiting);
+        return new Info(List.copyOf(running), running.stream().mapToLong(Running::forfeitAmount).sum(), queries.bizRefundWaitingTotal(profileId));
     }
 
     /** 진행 중 — 예약이고 시작 ≤ 지금 < 끝, 또는 끝나지 않은 내림({@code BizApplicationHookImpl#running} 과 같다) */

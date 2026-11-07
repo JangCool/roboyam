@@ -7,6 +7,8 @@ import com.community.block.entity.QUserMemoEntity;
 import com.community.board.entity.QBoardStaffEntity;
 import com.community.comment.entity.QCommentEntity;
 import com.community.debate.entity.QDebatePinRequestEntity;
+import com.community.dm.entity.QDmBoxEntity;
+import com.community.dm.entity.QDmUserStateEntity;
 import com.community.grade.entity.QMemberGradeChangeEntity;
 import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupPublishRequestStatus;
@@ -17,6 +19,7 @@ import com.community.group.entity.QGroupMemberEntity;
 import com.community.group.entity.QGroupPublishRequestEntity;
 import com.community.group.repository.master.GroupRepository;
 import com.community.membernotification.entity.QMemberNotificationEntity;
+import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.pointshop.entity.QUserEquippedEntity;
 import com.community.post.entity.QPostEntity;
@@ -45,8 +48,8 @@ import org.springframework.stereotype.Repository;
  * 상대 쪽지함의 대화)은 건드리지 않는다. <b>문장 차례가 정리 차례다</b> — 바꾸지 않는다.
  *
  * <p>엔티티가 있는 표는 QueryDSL 대량 UPDATE·DELETE 다(부르는 트랜잭션 안 — 아직 내보내지 않은 엔티티 변경은 문장 전에 내보내진다). Native SQL 로 남긴 것과 이유:
- * 엔티티가 없는 표({@code member_notification_preferences}·{@code dm_user_states}·{@code group_buy_watches}·{@code group_buy_supply_choices}·
- * {@code avatar_upload_requests}·{@code dm_boxes}·{@code member_addresses}·{@code mail_outbox}·{@code group_buy_participations}·{@code spring_session}),
+ * 엔티티가 없는 표({@code group_buy_watches}·{@code group_buy_supply_choices}·
+ * {@code avatar_upload_requests}·{@code member_addresses}·{@code mail_outbox}·{@code group_buy_participations}·{@code spring_session}),
  * 엔티티가 매핑하지 않는 칸을 고치는 문장({@code profiles.profile_image}·{@code nickname_image}, {@code user_items.reserved_at}).
  */
 @Repository
@@ -107,8 +110,8 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
         deleteByUser(QUserIdentityEntity.userIdentityEntity, QUserIdentityEntity.userIdentityEntity.userId, userId);
         deleteByUser(QMemberDisplayPreferenceEntity.memberDisplayPreferenceEntity, QMemberDisplayPreferenceEntity.memberDisplayPreferenceEntity.userId, userId);
         deleteByUser(QMemberViewSettingEntity.memberViewSettingEntity, QMemberViewSettingEntity.memberViewSettingEntity.userId, userId);
-        deleteByUserNative("member_notification_preferences", userId);
-        deleteByUserNative("dm_user_states", userId);
+        deleteByUser(QMemberNotificationPreferenceEntity.memberNotificationPreferenceEntity, QMemberNotificationPreferenceEntity.memberNotificationPreferenceEntity.userId, userId);
+        deleteByUser(QDmUserStateEntity.dmUserStateEntity, QDmUserStateEntity.dmUserStateEntity.userId, userId);
         deleteByUser(QBlockedWordEntity.blockedWordEntity, QBlockedWordEntity.blockedWordEntity.userId, userId);
         deleteByUser(QUserRoleEntity.userRoleEntity, QUserRoleEntity.userRoleEntity.userId, userId);
         deleteByUser(QBoardStaffEntity.boardStaffEntity, QBoardStaffEntity.boardStaffEntity.userId, userId);
@@ -119,7 +122,7 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
         deleteByUser(QNicknameImageRequestEntity.nicknameImageRequestEntity, QNicknameImageRequestEntity.nicknameImageRequestEntity.userId, userId);
         deleteByUserNative("avatar_upload_requests", userId);
         deleteByUser(QGroupEventResponseEntity.groupEventResponseEntity, QGroupEventResponseEntity.groupEventResponseEntity.userId, userId);
-        deleteByUserNative("dm_boxes", userId);
+        deleteByUser(QDmBoxEntity.dmBoxEntity, QDmBoxEntity.dmBoxEntity.userId, userId);
         deleteByUserNative("member_addresses", userId);
         // 차단·메모는 양방향(남이 나에 대해 적은 메모도 나에 관한 정보다)
         query.delete(BLOCK).where(BLOCK.userId.eq(userId).or(BLOCK.targetId.eq(userId))).execute();
