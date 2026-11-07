@@ -1,13 +1,12 @@
 package com.community.hotdeal.service;
 
 import com.community.hotdeal.entity.PostDealEntity;
+import com.community.hotdeal.repository.master.DealQueries;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,12 +18,12 @@ public class DealNotices {
 
     private final MemberNotificationPublisher members;
     private final NotificationPublisher operators;
-    private final JdbcTemplate jdbc;
+    private final DealQueries queries;
 
-    public DealNotices(MemberNotificationPublisher members, NotificationPublisher operators, DataSource dataSource) {
+    public DealNotices(MemberNotificationPublisher members, NotificationPublisher operators, DealQueries queries) {
         this.members = members;
         this.operators = operators;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
     }
 
     /** 종료 요청이 문턱에 닿아 의심이 됐다 */
@@ -68,11 +67,6 @@ public class DealNotices {
         if (d.getAuthorId() == null) {
             return;
         }
-        members.deal(type, d.getAuthorId(), d.getPostId(), titleOf(d.getPostId()), note);
-    }
-
-    /** 알릴 때의 글 제목(글 표는 파티션 표라 연관이 없다 — 없으면 null) */
-    private String titleOf(long postId) {
-        return jdbc.queryForList("SELECT title FROM posts WHERE id = ?", String.class, postId).stream().findFirst().orElse(null);
+        members.deal(type, d.getAuthorId(), d.getPostId(), queries.titleOf(d.getPostId()), note);
     }
 }

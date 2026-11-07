@@ -99,6 +99,7 @@ class BusinessServiceSuspendHttpTest extends Commerce04AdminTestBase {
     @Test
     void 신원이_승인이_아니면_서비스_정지는_409() throws Exception {
         long[] b = business();
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'PENDING', re_review = true WHERE id = ?", b[0]);
         call(b[0], "AD", "suspend", SUSPEND, manager).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("BUSINESS_STATE_CHANGED"));
     }
@@ -115,7 +116,7 @@ class BusinessServiceSuspendHttpTest extends Commerce04AdminTestBase {
     }
 
     private int audits(long operatorId, String action) {
-        return jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = ?", Integer.class, operatorId, action);
+        return auditLogs.where().actor(operatorId).action(action).count();
     }
 
     private int memberKinds(long userId, String kind) {
@@ -127,13 +128,14 @@ class BusinessServiceSuspendHttpTest extends Commerce04AdminTestBase {
         long user = newMember();
         long id = ids.nextId();
         String number = bizNo();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, reviewed_at, first_approved_at, created_at, updated_at) "
                         + "VALUES (?, ?, 'APPROVED', false, '(주)서비스상사', ?, ?, ?, ?, ?, ?, '06236', ?, 'v1', 'v1', now(), now(), now(), now(), now(), now())",
                 id, user, pii.encrypt(BusinessPii.BIZ_NO, number), pii.bizNoHash(number), number.substring(6), pii.encrypt(BusinessPii.OWNER, "홍길동"),
                 pii.encrypt(BusinessPii.PHONE, "01012345678"), pii.encrypt(BusinessPii.EMAIL, "s" + user + "@test.local"), pii.encrypt(BusinessPii.ADDRESS1, "서울 강남구 테헤란로 1"));
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'APPROVED', now())", ids.nextId(), id, service);
+            businessFixture.service(ids.nextId(), id, service, "APPROVED");
         }
         return new long[] {id, user};
     }

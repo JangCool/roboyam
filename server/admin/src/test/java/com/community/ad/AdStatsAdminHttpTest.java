@@ -52,6 +52,7 @@ class AdStatsAdminHttpTest extends Commerce04AdminTestBase {
     /** 승인된 사업자 신원 한 줄(광고주 연결 없음) — 신원 ID */
     private long businessProfile(String company) {
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                         + "VALUES (?, ?, 'APPROVED', false, ?, 'x', ?, '6789', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
@@ -77,12 +78,15 @@ class AdStatsAdminHttpTest extends Commerce04AdminTestBase {
                 approved ? Timestamp.from(start.minus(Duration.ofDays(2))) : null, takenDown == null ? null : Timestamp.from(takenDown), cause,
                 status.equals("CANCELED") ? Timestamp.from(start.plus(Duration.ofDays(1))) : null, operatorId);
         for (String product : products) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO biz_application_items (id, application_id, product, unit_price, units, supply, start_at, end_at, created_at) "
                     + "VALUES (?, ?, ?, 1000, 1, 1000, ?, ?, now())", ids.nextId(), id, product, Timestamp.from(start), Timestamp.from(end));
         }
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO biz_creative_versions (id, application_id, version, content, created_by_type, created_by, created_at, approved_at) "
                 + "VALUES (?, ?, 1, '{}'::jsonb, 'OPERATOR', ?, now(), ?)", ids.nextId(), id, operatorId, approved ? Timestamp.from(start.minus(Duration.ofDays(3))) : null);
         if (cause != null) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO biz_application_events (id, application_id, action, actor_type, actor_id, note, created_at) VALUES (?, ?, 'TAKEN_DOWN', 'OPERATOR', ?, ?, ?)",
                     ids.nextId(), id, operatorId, cause, Timestamp.from(takenDown));
         }

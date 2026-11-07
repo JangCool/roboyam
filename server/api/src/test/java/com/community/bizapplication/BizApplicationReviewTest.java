@@ -60,9 +60,8 @@ class BizApplicationReviewTest extends BizApplicationApiTestBase {
         assertThat(a.depositDeadlineAt()).isEqualTo(Instant.parse(deadline));
         assertThat(a.paymentDeadlineAt()).isNull();
         assertThat(store.latestCreative(id).orElseThrow().approvedAt()).isNotNull();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_type = 'BIZ_APPLICATION' AND target_id = ? AND action IN ('BIZ_APP_APPROVE', 'BIZ_APP_PRICE_ADJUST')",
-                Integer.class, Long.toString(id))).isEqualTo(2);
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_PRICE_ADJUST'", String.class, Long.toString(id)))
+        assertThat(auditLogs.where().targetType("BIZ_APPLICATION").target(Long.toString(id)).action("BIZ_APP_APPROVE", "BIZ_APP_PRICE_ADJUST").count()).isEqualTo(2);
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_PRICE_ADJUST").single().retentionClass())
                 .isEqualTo("MONEY");
     }
 

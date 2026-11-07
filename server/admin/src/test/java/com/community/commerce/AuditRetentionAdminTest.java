@@ -91,13 +91,13 @@ class AuditRetentionAdminTest extends CommerceAdminTestBase {
         assertThat(param("personal_data_retention_days")).isEqualTo(730);
         assertThat(param("money_retention_days")).isEqualTo(2555);
         assertThat(saved.items()).extracting(AuditRetentionView.Item::days).containsExactly(180L, 730L, 2555L);
-        assertThat(saved.updatedBy()).isEqualTo(jdbc.queryForObject("SELECT operator_name FROM operators WHERE id = ?", String.class, root));
+        assertThat(saved.updatedBy()).isEqualTo(operatorName(root));
         assertThat(saved.updatedAt()).isNotNull();
 
-        Map<String, Object> audit = lastAudit(root, AuditActions.AUDIT_RETENTION_UPDATE);
-        assertThat(audit.get("retention_class")).isEqualTo("MONEY");
-        assertThat(audit.get("target_type")).isEqualTo("AUDIT_RETENTION");
-        assertThat((String) audit.get("detail")).contains("\"before\":{\"GENERAL\":365,\"MONEY\":1825}").contains("\"after\":{\"GENERAL\":180,\"MONEY\":2555}")
+        var audit = lastAudit(root, AuditActions.AUDIT_RETENTION_UPDATE);
+        assertThat(audit.retentionClass()).isEqualTo("MONEY");
+        assertThat(audit.targetType()).isEqualTo("AUDIT_RETENTION");
+        assertThat(audit.detail()).contains("\"before\":{\"GENERAL\":365,\"MONEY\":1825}").contains("\"after\":{\"GENERAL\":180,\"MONEY\":2555}")
                 .doesNotContain("PERSONAL_DATA");
     }
 

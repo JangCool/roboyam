@@ -103,7 +103,7 @@ class MfaLogSecrecyTest extends MfaMvcTestBase {
         MvcResult reconfirmed = postJson("/api/admin/mfa/enrollment/confirm", "{\"code\":\"" + otp(nextCode(secret2)) + "\"}", session);
         assertThat(reconfirmed.getResponse().getStatus()).isEqualTo(200);
         rememberRecovery(codes(reconfirmed));
-        secretValues.add(jdbc.queryForObject("SELECT secret_enc FROM operator_mfa WHERE operator_id = ?", String.class, operator));
+        secretValues.add(mfa.mfa(operator).orElseThrow().secretEnc());
 
         String logs = output.getAll();
         assertThat(logs).as("로그를 실제로 잡고 있다").contains("OTP 등록을 확정했다", "신뢰 기기를 모두 끊었다");

@@ -32,12 +32,22 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.sql.DataSource;
+import com.community.testsupport.JpaTestWiring;
+import com.community.zconfiguration.jpa.JpaMasterConfig;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.sql.SQLException;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.AbstractDataSource;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 /**
@@ -51,24 +61,64 @@ class DashboardCommerceGadgetsTest {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
+    /** 시험마다 바뀌는 연결 — JPA 문맥(QueryDSL 읽기)도 같은 연결·같은 되돌릴 트랜잭션을 쓰게 한다(닫기는 막는다) */
+    private static final CurrentConnection CURRENT = new CurrentConnection();
+    private static AnnotationConfigApplicationContext jpa;
+
     private Connection connection;
     private JdbcTemplate jdbc;
     private DashboardCommerceStore store;
+
+    @Configuration(proxyBeanMethods = false)
+    @Import(JpaTestWiring.class)
+    static class JpaWiring {
+        @Bean
+        DataSource dataSource() {
+            return CURRENT;
+        }
+    }
+
+    /** 지금 시험의 연결 하나를 돌려주는 데이터소스(닫아도 닫히지 않는다) */
+    static final class CurrentConnection extends AbstractDataSource {
+        volatile SingleConnectionDataSource single;
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return single.getConnection();
+        }
+
+        @Override
+        public Connection getConnection(String username, String password) throws SQLException {
+            return getConnection();
+        }
+    }
 
     @BeforeEach
     void open() throws Exception {
         DataSource base = CommerceTestDatabase.migrated("admin");
         connection = base.getConnection();
         connection.setAutoCommit(false);
-        DataSource single = new SingleConnectionDataSource(connection, true);
+        SingleConnectionDataSource single = new SingleConnectionDataSource(connection, true);
+        CURRENT.single = single;
+        if (jpa == null) {
+            jpa = new AnnotationConfigApplicationContext(JpaWiring.class);
+        }
         jdbc = new JdbcTemplate(single);
-        store = new DashboardCommerceStore(single);
+        store = new DashboardCommerceStore(jpa.getBean(JpaMasterConfig.QUERY_FACTORY, JPAQueryFactory.class), single);
     }
 
     @AfterEach
     void close() throws Exception {
         connection.rollback();
         connection.close();
+    }
+
+    @AfterAll
+    static void closeJpa() {
+        if (jpa != null) {
+            jpa.close();
+            jpa = null;
+        }
     }
 
     // ── 매출 요약 ───────────────────────────────────────────────────────────

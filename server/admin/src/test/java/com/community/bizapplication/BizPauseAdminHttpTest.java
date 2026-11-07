@@ -46,12 +46,13 @@ class BizPauseAdminHttpTest extends Commerce04AdminTestBase {
     private long approvedBusiness() {
         long user = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, 'APPROVED', false, '정지상사', 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())", profile, user,
                 String.format("%064x", profile));
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'APPROVED', now())", ids.nextId(), profile, service);
+            businessFixture.service(ids.nextId(), profile, service, "APPROVED");
         }
         return user;
     }
@@ -122,12 +123,12 @@ class BizPauseAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/ads/" + id + "/restore"), login(operatorWith(Permission.AD_READ, Permission.AD_RESTORE)))
                 .content("{\"compensation\":\"EXTEND\",\"reason\":\"되돌리기\"}")).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("BIZ_APPLICATION_STATE_CHANGED"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_PAUSE'", Integer.class, Long.toString(id))).isOne();
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_PAUSE").count()).isOne();
 
         mvc.perform(withCsrf(post(base + "/resume"), manager).content(action("EMAIL", "메일로 재개"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.takedownCause").doesNotExist()).andExpect(jsonPath("$.data.takedown").doesNotExist())
                 .andExpect(jsonPath("$.data.pause.used").value(1));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_RESUME'", Integer.class, Long.toString(id))).isOne();
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_RESUME").count()).isOne();
 
         mvc.perform(withCsrf(post(base + "/stop"), manager).content("{\"channel\":\"OTHER\",\"memo\":\"방문 요청\",\"reason\":\"행사 취소\"}")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.takedownCause").value("ADVERTISER_STOP")).andExpect(jsonPath("$.data.takedown.text").value("행사 취소"))
@@ -139,7 +140,7 @@ class BizPauseAdminHttpTest extends Commerce04AdminTestBase {
         long prorated = jdbc.queryForObject("SELECT prorated_amount FROM biz_refunds WHERE application_id = ? AND status = 'REQUESTED'", Long.class, id);
         long proposed = jdbc.queryForObject("SELECT proposed_amount FROM biz_refunds WHERE application_id = ? AND status = 'REQUESTED'", Long.class, id);
         assertThat(proposed).isEqualTo(prorated - Math.floorDiv(prorated * 10, 100));
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_STOP'", String.class, Long.toString(id)))
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_STOP").single().retentionClass())
                 .isEqualTo("MONEY");
         // 환불 심사 큐에 든다(한 건 한 큐) — 줄에 내림 까닭
         mvc.perform(get("/api/admin/biz-applications").param("domain", "AD").param("queue", "REFUND").cookie(manager)).andExpect(status().isOk())
@@ -227,8 +228,7 @@ class BizPauseAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.refund.stopFeeRate").value(15));
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(PLACEMENTS.replace("\"after\":5", "\"after\":6") + ",\"refund\":{\"stopFeeRate\":0}}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.refund.stopFeeRate").value(0));
-        String last = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class, me);
+        String last = auditLogs.where().actor(me).action("AD_PLACEMENT_UPDATE").latest().orElseThrow().detail();
         assertThat(last.replace(" ", "")).contains("\"before\":{\"refund.stopFeeRate\":15}", "\"after\":{\"refund.stopFeeRate\":0}");
         mvc.perform(get("/api/admin/ads/placements/history").cookie(reader)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].action").value("UPDATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(1))

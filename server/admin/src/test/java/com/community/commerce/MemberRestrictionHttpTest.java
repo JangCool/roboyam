@@ -85,8 +85,7 @@ class MemberRestrictionHttpTest extends Commerce04AdminTestBase {
 
             mvc.perform(get(path(member)).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(id))
                     .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
-            String audit = jdbc.queryForObject("SELECT detail FROM audit_logs WHERE action = 'MEMBER_RESTRICTION_GRANT' AND target_id = ? ORDER BY id DESC LIMIT 1",
-                    String.class, Long.toString(member));
+            String audit = auditLogs.where().action("MEMBER_RESTRICTION_GRANT").target(Long.toString(member)).lastById().orElseThrow().detail();
             assertThat(audit).contains("\"source\":\"OPERATOR\"", "\"type\":\"GROUP_BUY_BAN\"").doesNotContain("운영 메모");
             List<Map<String, Object>> notices = jdbc.queryForList("SELECT * FROM member_notifications WHERE user_id = ? AND type = 'FEATURE_RESTRICTED'", member);
             assertThat(notices).hasSize(1);
@@ -158,8 +157,7 @@ class MemberRestrictionHttpTest extends Commerce04AdminTestBase {
                     .andExpect(jsonPath("$.data.liftReason").value("확인 결과 문제 없음"))
                     .andExpect(jsonPath("$.data.liftedBy.id").value(Long.toString(operator)))
                     .andExpect(jsonPath("$.data.liftedAt").isNotEmpty());
-            assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE action = 'MEMBER_RESTRICTION_LIFT' AND target_id = ? ORDER BY id DESC LIMIT 1",
-                    String.class, Long.toString(member))).contains("\"restrictionId\":\"" + id + "\"", "확인 결과 문제 없음");
+            assertThat(auditLogs.where().action("MEMBER_RESTRICTION_LIFT").target(Long.toString(member)).lastById().orElseThrow().detail()).contains("\"restrictionId\":\"" + id + "\"", "확인 결과 문제 없음");
 
             // 이미 해제한 것은 409
             mvc.perform(withCsrf(post(path(member) + "/" + id + "/lift"), session).content("{\"reason\":\"다시 해제 시도\"}"))
@@ -195,6 +193,7 @@ class MemberRestrictionHttpTest extends Commerce04AdminTestBase {
                     .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("RESTRICTION_NOT_FOUND"));
 
             long expired = ids.nextId();
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO member_restrictions (id, user_id, type, reason, starts_at, until, source, created_by, created_at) "
                     + "VALUES (?, ?, 'CHARGE_BAN', '지난 제한', now() - interval '3 days', now() - interval '1 day', 'OPERATOR', ?, now() - interval '3 days')", expired, member, operator);
             mvc.perform(withCsrf(post(path(member) + "/" + expired + "/lift"), session).content("{\"reason\":\"기간이 끝난 제한\"}"))

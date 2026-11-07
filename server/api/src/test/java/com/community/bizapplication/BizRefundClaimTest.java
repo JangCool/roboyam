@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,7 +77,7 @@ class BizRefundClaimTest extends BizHotdealTestBase {
     private RefundRow stoppedAndApproved(Paid p) {
         at(p, Duration.ofHours(3));
         pauses.stop(p.user(), p.id(), "행사 취소");
-        RefundRow open = refunds.lockOpen(p.id()).orElseThrow();
+        RefundRow open = tx.execute(s -> refunds.lockOpen(p.id())).orElseThrow();
         review.approveRefund(operator, p.id(), open.proposedAmount(), "제안대로");
         assertThat(app(p.id()).status()).isEqualTo(BizApplicationStatus.CANCELED);
         return refunds.all(p.id()).stream().filter(r -> r.type() == BizRefundType.STOP_PRORATED).findFirst().orElseThrow();
@@ -122,7 +123,7 @@ class BizRefundClaimTest extends BizHotdealTestBase {
         Paid open = paidText(7);
         at(open, Duration.ofHours(3));
         pauses.stop(open.user(), open.id(), "중단");
-        assertThat(refunds.lockOpen(open.id())).isPresent();
+        assertThat(tx.<Optional<RefundRow>>execute(s -> refunds.lockOpen(open.id()))).isPresent();
         assertThat(stateCode(open.id())).as("열린 환불(중단 심사 중)").isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
 
         long user = approvedBusiness();
@@ -169,7 +170,7 @@ class BizRefundClaimTest extends BizHotdealTestBase {
             assertThat(c.type()).isEqualTo(BizRefundType.CLAIM);
             assertThat(c.status()).isEqualTo(BizRefundStatus.APPROVED);
             assertThat(c.approvedAmount()).isEqualTo(100);
-            assertThat(refunds.lockOpen(id)).as("바로 승인 — 열린 줄 없음").isEmpty();
+            assertThat(tx.<Optional<RefundRow>>execute(s -> refunds.lockOpen(id))).as("바로 승인 — 열린 줄 없음").isEmpty();
         }
     }
 
@@ -226,9 +227,9 @@ class BizRefundClaimTest extends BizHotdealTestBase {
         assertThat(refunds.latest(p.id()).orElseThrow().completedAt()).isNotNull();
         assertThat(eventNote(p.id(), "CLAIM_REFUNDED")).isEqualTo(String.valueOf(fee));
         assertThat(eventNote(p.id(), "REFUNDED")).isEqualTo(String.valueOf(fee));
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_CLAIM'", String.class, Long.toString(p.id())))
+        assertThat(auditLogs.where().target(Long.toString(p.id())).action("BIZ_APP_REFUND_CLAIM").single().retentionClass())
                 .isEqualTo("MONEY");
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_CLAIM'", String.class, Long.toString(p.id()));
+        String detail = auditLogs.where().target(Long.toString(p.id())).action("BIZ_APP_REFUND_CLAIM").single().detail();
         assertThat(detail.replace(" ", "")).contains("\"amount\":" + fee, "\"method\":\"ONLINE\"", "\"refundId\":\"" + c.id() + "\"",
                 "\"refundableBefore\":" + (paid(p.id()) - stop.approvedAmount()));
         assertThat(detail).contains("고객 클레임 — 수수료 돌려줌");

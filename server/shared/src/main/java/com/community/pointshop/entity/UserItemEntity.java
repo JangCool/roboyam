@@ -8,8 +8,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 회원이 가진 포인트 상점 아이템 한 줄(구매 하나 = 줄 하나) — {@code user_items}(V86). <b>읽기 전용 매핑</b>(보유·장착·사용·회수는 서비스가 JDBC 로 —
- * 변경권 한 장 쓰기는 {@code SKIP LOCKED} 조건부 UPDATE). 만료는 저장하지 않고 {@link #expiredAt} 으로 계산한다(결정 6). {@code firstUsedAt} 은 지워지지 않는다(트리거).
+ * 회원이 가진 포인트 상점 아이템 한 줄(구매 하나 = 줄 하나) — {@code user_items}(V86, V157 올리기 변경권 예약 칸). 만들기는 {@link #own}(구매와 같은 트랜잭션에서 넣고 바로
+ * 내보낸다). 사용·회수·예약은 저장소 {@code UserItemStore} 의 조건부 UPDATE(QueryDSL — 변경권 한 장 쓰기·예약은 {@code FOR UPDATE … SKIP LOCKED} 로 고른 한 줄을 고치는
+ * native {@code UPDATE … RETURNING} 한 문장). 만료는 저장하지 않고 {@link #expiredAt} 으로 계산한다(결정 6). {@code firstUsedAt} 은 지워지지 않는다(트리거).
  */
 @Entity
 @Table(name = "user_items")
@@ -31,8 +32,31 @@ public class UserItemEntity {
     private Instant usedAt;
     private Instant revokedAt;
     private Instant createdAt;
+    /** 올리기 변경권이 신청에 예약된 시각(V157 — 예약 중에만) */
+    private Instant reservedAt;
+    /** 예약·사용한 신청 종류(V157) */
+    @Enumerated(EnumType.STRING)
+    private UploadTicketUse refType;
+    /** 예약·사용한 신청 ID(V157) */
+    private Long refId;
 
     protected UserItemEntity() {
+    }
+
+    /** 새 보유 줄(OWNED) — 구매 하나에 하나 */
+    public static UserItemEntity own(long id, long userId, long itemId, long purchaseId, PointShopUsageType usageType, Instant startsAt, Instant expiresAt,
+                                     Instant createdAt) {
+        UserItemEntity ui = new UserItemEntity();
+        ui.id = id;
+        ui.userId = userId;
+        ui.itemId = itemId;
+        ui.purchaseId = purchaseId;
+        ui.usageType = usageType;
+        ui.status = UserItemStatus.OWNED;
+        ui.startsAt = startsAt;
+        ui.expiresAt = expiresAt;
+        ui.createdAt = createdAt;
+        return ui;
     }
 
     /** 기간제의 기간이 {@code now} 에 끝났나(끝 ≤ 지금) */
@@ -86,5 +110,17 @@ public class UserItemEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getReservedAt() {
+        return reservedAt;
+    }
+
+    public UploadTicketUse getRefType() {
+        return refType;
+    }
+
+    public Long getRefId() {
+        return refId;
     }
 }

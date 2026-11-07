@@ -96,7 +96,7 @@ class MemberWithdrawalAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     private String userStatus(long member) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, member);
+        return memberFixture.status(member);
     }
 
     private Map<String, Object> row(long withdrawalId) {
@@ -113,13 +113,12 @@ class MemberWithdrawalAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     private List<Map<String, Object>> audits(String action, long member) {
-        return jdbc.queryForList("SELECT actor_type, actor_id, detail, retention_class FROM audit_logs WHERE action = ? AND target_type = 'MEMBER' AND target_id = ? ORDER BY id",
-                action, Long.toString(member));
+        return auditLogs.where().action(action).targetType("MEMBER").target(Long.toString(member)).list().stream().map(row -> row.asMap()).toList();
     }
 
     private long board() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 992)", id, "wa" + Long.toString(id, 36), "탈퇴 관리 시험 " + (id % 1000));
+        boardFixture.board(id, "wa" + Long.toString(id, 36), "탈퇴 관리 시험 " + (id % 1000), 992);
         return id;
     }
 
@@ -135,7 +134,7 @@ class MemberWithdrawalAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     private String nicknameOf(long member) {
-        return jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member);
+        return memberFixture.nickname(member);
     }
 
     // ── 목록·요약·분포 ──────────────────────────────────────────────────────
@@ -219,6 +218,7 @@ class MemberWithdrawalAdminHttpTest extends Commerce04AdminTestBase {
             pendingBankTransfer(b);
             long second = memberRequest(b, null, Map.of()).withdrawalId();
             // 둘째 줄에 예상 완료일을 심어 오름차순에서 앞에 오게 한다(첫째는 모름 → 뒤)
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE member_withdrawals SET expected_complete_at = now() + interval '3 days' WHERE id = ?", second);
             Cookie reader = login(operatorWith(Permission.MEMBER_READ));
             Instant from = Instant.now().minusSeconds(600);
@@ -598,6 +598,7 @@ class MemberWithdrawalAdminHttpTest extends Commerce04AdminTestBase {
         @Test
         void 회원이_신청한_진행_중_탈퇴를_신청_전_상태로_되돌리고_감사에_운영자_경로_메모가_남는다() throws Exception {
             long member = newMember();
+            // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
             jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", member); // 정지 중 탈퇴 → 취소하면 정지로 돌아간다
             long transfer = pendingBankTransfer(member);
             long withdrawalId = memberRequest(member, "REJOIN", Map.of()).withdrawalId();

@@ -145,7 +145,8 @@ public class PaymentWebhookService {
             } else {
                 syncCancellations(order.get(), now);
             }
-            events.insertWebhook(ids.nextId(), order.get().id(), request.webhookId(), Map.of("type", body.type()), now);
+            // 한 문장짜리 새 트랜잭션(예전 자동 커밋과 같은 경계) — 확정·취소 맞춤은 이미 각자 확정됐다
+            separate.executeWithoutResult(status -> events.insertWebhook(ids.nextId(), order.get().id(), request.webhookId(), Map.of("type", body.type()), now));
             return record(request.webhookId(), body.type(), body.paymentId(), Result.PROCESSED, 200, null, now);
         } catch (PaymentGatewayUnavailableException | PaymentNotConfiguredException e) {
             return record(request.webhookId(), body.type(), body.paymentId(), Result.RETRY, 503, e.getErrorCode(), now);
@@ -203,7 +204,8 @@ public class PaymentWebhookService {
 
     private WebhookOutcome record(String webhookId, String type, String paymentId, Result result, int httpStatus, String errorCode, Instant now) {
         try {
-            logs.insert(ids.nextId(), webhookId, type, paymentId, result, httpStatus, errorCode, now);
+            // 업무와 따로 확정한다 — 한 줄짜리 새 트랜잭션(예전 자동 커밋과 같은 경계)
+            separate.executeWithoutResult(status -> logs.insert(ids.nextId(), webhookId, type, paymentId, result, httpStatus, errorCode, now));
         } catch (RuntimeException e) {
             log.warn("웹훅 수신 기록을 남기지 못했다 원인={}", e.getClass().getSimpleName());
         }

@@ -1,13 +1,27 @@
 package com.community.emoticon.repository.master;
 
+import com.community.emoticon.entity.EmoticonEntity;
+import com.community.emoticon.entity.EmoticonPackEntity;
+import com.community.emoticon.entity.EmoticonPackRevisionEntity;
 import com.community.emoticon.entity.EmoticonPackSource;
 import com.community.emoticon.entity.EmoticonPackStatus;
+import com.community.emoticon.entity.EmoticonRevisionItemEntity;
 import com.community.emoticon.entity.EmoticonSaleWish;
 import com.community.emoticon.entity.EmoticonSuspendKind;
-import java.sql.Array;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import com.community.emoticon.entity.QEmoticonEntity;
+import com.community.emoticon.entity.QEmoticonImageEntity;
+import com.community.emoticon.entity.QEmoticonPackEntity;
+import com.community.emoticon.entity.QEmoticonPackRevisionEntity;
+import com.community.emoticon.entity.QEmoticonRevisionItemEntity;
+import com.community.operator.entity.QOperatorEntity;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,19 +34,19 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Repository;
 
 /**
  * 로보티콘 팩·판·로보티콘(토큰 ID)·판의 차례 읽기·쓰기({@code emoticon_packs}·{@code emoticon_pack_revisions}·{@code emoticons}·{@code emoticon_revision_items}, V142).
- * {@code com.community.emoticon.service} 만 부른다.
+ * {@code com.community.emoticon.service} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>Native SQL(JDBC)인 이유: (1) 받기는 팩 행을 잠근 뒤 받은 수를 올리고 같은 트랜잭션·같은 연결에서 작가 포인트({@code PointLedgerWriter}, JDBC)를 적립한다 — 잠금 차례(팩 → 잔액)를
- * 지킨다(포인트 상점 {@code PointShopItemStore} 와 같은 방식). (2) 판·팩이 서로 가리키는 외래 키(커밋 때 확인)·태그 배열({@code text[]})·낸 판 고치기 금지 트리거를 그대로 쓴다.
- * (3) 시험이 스프링 문맥 없이 실제 PostgreSQL 위에서 서비스를 손으로 조립한다(commerce.md 18절). 트랜잭션은 부르는 서비스가 연다.
+ * <p>QueryDSL 이다 — 읽기는 한 줄 모양, 상태 전이·카운터는 조건부 UPDATE, 넣기는 {@code persist} + {@code flush}({@link EmoticonStoreSupport}). 팩 행 잠금은 팩 표만 고르는
+ * {@code PESSIMISTIC_WRITE}(받기의 받은 수 · 심사 처리 · 저장 · 작가 탈퇴가 같은 팩에서 줄을 선다) · {@code PESSIMISTIC_READ}(결제 준비가 가격·판매 상태를 읽는 동안).
+ * 판·팩이 서로 가리키는 외래 키는 커밋 때 확인하고(지연), 낸 판 고치기 금지·유료 가격 단계는 DB 트리거가 그대로 막는다. Native SQL 로 남긴 것은 없다.
  */
 @Repository
-public class EmoticonPackStore {
+public class EmoticonPackStore extends EmoticonStoreSupport {
 
     /** 팩 한 줄(판매 중단한 운영자 이름 포함 — 없으면 null). {@code suspendKind} = 판매 중단의 종류(판매 중단일 때만 — V147) */
     public record PackRow(long id, EmoticonPackSource source, Long creatorId, EmoticonPackStatus status, int price, Long liveRevisionId, int acquireCount,
@@ -62,26 +76,32 @@ public class EmoticonPackStore {
     public record ItemRow(long revisionId, int position, long emoticonId, long imageId, String label) {
     }
 
-    private static final String PACK_COLUMNS = "p.id, p.source, p.creator_id, p.status, p.price, p.live_revision_id, p.acquire_count, p.published_at, p.suspend_reason, "
-            + "p.suspended_at, p.suspended_by, o.operator_name, p.created_at, p.updated_at, p.suspend_kind";
-    private static final String PACK_FROM = " FROM emoticon_packs p LEFT JOIN operators o ON o.id = p.suspended_by";
-    private static final String REVISION_COLUMNS = "id, pack_id, version, name, description, tags, cover_image_id, sale_wish, price_request_memo, created_at, submitted_at";
+    private static final QEmoticonPackEntity P = QEmoticonPackEntity.emoticonPackEntity;
+    private static final QEmoticonPackRevisionEntity R = QEmoticonPackRevisionEntity.emoticonPackRevisionEntity;
+    private static final QEmoticonPackRevisionEntity R2 = new QEmoticonPackRevisionEntity("r2");
+    private static final QEmoticonEntity E = QEmoticonEntity.emoticonEntity;
+    private static final QEmoticonRevisionItemEntity I = QEmoticonRevisionItemEntity.emoticonRevisionItemEntity;
+    private static final QEmoticonImageEntity M = QEmoticonImageEntity.emoticonImageEntity;
+    private static final QOperatorEntity O = QOperatorEntity.operatorEntity;
 
-    private final JdbcTemplate jdbc;
-
-    public EmoticonPackStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public EmoticonPackStore(JPAQueryFactory query, EntityManager entityManager, DataSource dataSource) {
+        super(query, entityManager, dataSource);
     }
 
     // ── 팩 ──────────────────────────────────────────────────────────────────
 
-    public Optional<PackRow> find(long id) {
-        return jdbc.query("SELECT " + PACK_COLUMNS + PACK_FROM + " WHERE p.id = ?", EmoticonPackStore::packOf, id).stream().findFirst();
+    private JPAQuery<Tuple> packs() {
+        return query.select(P.id, P.source, P.creatorId, P.status, P.price, P.liveRevisionId, P.acquireCount, P.publishedAt, P.suspendReason, P.suspendedAt, P.suspendedBy,
+                O.operatorName, P.createdAt, P.updatedAt, P.suspendKind).from(P).leftJoin(O).on(O.id.eq(P.suspendedBy));
     }
 
-    /** 바꾸기 전에 — 팩 행을 잠근다(받기의 받은 수 · 심사 처리 · 저장이 같은 팩에서 줄을 선다) */
+    public Optional<PackRow> find(long id) {
+        return Optional.ofNullable(packs().where(P.id.eq(id)).fetchFirst()).map(EmoticonPackStore::packOf);
+    }
+
+    /** 바꾸기 전에 — 팩 행을 잠근다(받기의 받은 수 · 심사 처리 · 저장이 같은 팩에서 줄을 선다). 잠금은 팩 표만 고르는 문장, 칸은 그 뒤에 읽는다 */
     public Optional<PackRow> lock(long id) {
-        if (jdbc.queryForList("SELECT id FROM emoticon_packs WHERE id = ? FOR UPDATE", Long.class, id).isEmpty()) {
+        if (query.select(P.id).from(P).where(P.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         return find(id);
@@ -89,7 +109,7 @@ public class EmoticonPackStore {
 
     /** 읽는 동안 바뀌지 않게 — 팩 행 공유 잠금(유료 결제 준비가 가격·판매 상태를 읽는다 — 가격 바꾸기·판매 중단과 줄을 선다) */
     public Optional<PackRow> lockShare(long id) {
-        if (jdbc.queryForList("SELECT id FROM emoticon_packs WHERE id = ? FOR SHARE", Long.class, id).isEmpty()) {
+        if (query.select(P.id).from(P).where(P.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_READ).fetchFirst() == null) {
             return Optional.empty();
         }
         return find(id);
@@ -99,66 +119,72 @@ public class EmoticonPackStore {
         if (ids.isEmpty()) {
             return List.of();
         }
-        return jdbc.query("SELECT " + PACK_COLUMNS + PACK_FROM + " WHERE p.id IN (" + marks(ids.size()) + ")", EmoticonPackStore::packOf, ids.toArray());
+        return packs().where(P.id.in(ids)).fetch().stream().map(EmoticonPackStore::packOf).collect(Collectors.toList());
     }
 
     /** 작가의 팩 — 최근 고친 것 먼저 */
     public List<PackRow> byCreator(long creatorId) {
-        return jdbc.query("SELECT " + PACK_COLUMNS + PACK_FROM + " WHERE p.creator_id = ? ORDER BY p.updated_at DESC, p.id DESC", EmoticonPackStore::packOf, creatorId);
+        return packs().where(P.creatorId.eq(creatorId)).orderBy(P.updatedAt.desc(), P.id.desc()).fetch().stream().map(EmoticonPackStore::packOf).collect(Collectors.toList());
     }
 
     /** 새 팩 — 상점의 판({@code liveRevisionId})은 같은 트랜잭션에서 넣는다(외래 키는 커밋 때 본다) */
     public void insert(long id, EmoticonPackSource source, Long creatorId, EmoticonPackStatus status, Long liveRevisionId, Instant publishedAt, Instant now) {
-        jdbc.update("INSERT INTO emoticon_packs (id, source, creator_id, status, price, live_revision_id, acquire_count, published_at, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, ?, 0, ?, 0, ?, ?, ?)", id, source.name(), creatorId, status.name(), liveRevisionId, ts(publishedAt), Timestamp.from(now),
-                Timestamp.from(now));
+        insert(EmoticonPackEntity.create(id, source, creatorId, status, liveRevisionId, publishedAt, now));
     }
 
     public void setStatus(long id, EmoticonPackStatus status, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET status = ?, updated_at = ? WHERE id = ?", status.name(), Timestamp.from(now), id);
+        query.update(P).set(P.status, status).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     /** 고친 시각만 */
     public void touch(long id, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET updated_at = ? WHERE id = ?", Timestamp.from(now), id);
+        query.update(P).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     /**
      * 상점에 판을 건다(승인·운영 팩 고치기) — 판매 중으로, 처음 나온 시각은 처음 한 번만, 판매 중단 기록은 지운다(판매 중단 팩의 새 판을 승인하면 다시 판매).
      */
     public void publish(long id, long liveRevisionId, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET live_revision_id = ?, status = 'APPROVED', published_at = coalesce(published_at, ?), suspend_reason = NULL, suspended_at = NULL, "
-                + "suspended_by = NULL, suspend_kind = NULL, updated_at = ? WHERE id = ?", liveRevisionId, Timestamp.from(now), Timestamp.from(now), id);
+        query.update(P).set(P.liveRevisionId, liveRevisionId).set(P.status, EmoticonPackStatus.APPROVED)
+                .set(P.publishedAt, Expressions.dateTimeTemplate(Instant.class, "coalesce({0}, {1})", P.publishedAt, now)).setNull(P.suspendReason).setNull(P.suspendedAt)
+                .setNull(P.suspendedBy).setNull(P.suspendKind).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     /** 상점의 판만 바꾼다(운영 팩 고치기 — 판매 중단이면 그대로 판매 중단) */
     public void replaceLive(long id, long liveRevisionId, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET live_revision_id = ?, updated_at = ? WHERE id = ?", liveRevisionId, Timestamp.from(now), id);
+        query.update(P).set(P.liveRevisionId, liveRevisionId).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     public void suspend(long id, String reason, long operatorId, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET status = 'SUSPENDED', suspend_kind = 'OPERATOR', suspend_reason = ?, suspended_at = ?, suspended_by = ?, updated_at = ? "
-                + "WHERE id = ?", reason, Timestamp.from(now), operatorId, Timestamp.from(now), id);
+        query.update(P).set(P.status, EmoticonPackStatus.SUSPENDED).set(P.suspendKind, EmoticonSuspendKind.OPERATOR).set(P.suspendReason, reason).set(P.suspendedAt, now)
+                .set(P.suspendedBy, operatorId).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     public void resume(long id, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET status = 'APPROVED', suspend_reason = NULL, suspended_at = NULL, suspended_by = NULL, suspend_kind = NULL, updated_at = ? "
-                + "WHERE id = ?", Timestamp.from(now), id);
+        query.update(P).set(P.status, EmoticonPackStatus.APPROVED).setNull(P.suspendReason).setNull(P.suspendedAt).setNull(P.suspendedBy).setNull(P.suspendKind)
+                .set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
     /**
      * 작가 탈퇴 — 그 작가의 상점에 나온 팩(판매 중 · 운영자 판매 중단)을 작가 탈퇴 판매 중단으로 바꾼다(후속 결정 6). 팩 행을 팩 ID 차례로 잠근 뒤 바꾼다
      * (받기·결제 준비·결제 확정·가격 바꾸기·심사 승인과 줄을 선다). 이미 작가 탈퇴로 멈춘 팩은 그대로(다시 불러도 같다). 멈춘 팩과 멈추기 전 값.
+     * 잠금은 팩 표만 고르는 ID 문장(차례 = ID), 멈추기 전 값은 잠근 뒤 읽는다.
      */
     public List<StoppedRow> stopForCreatorWithdrawal(long creatorId, String reason, Instant now) {
-        List<StoppedRow> locked = jdbc.query("SELECT id, status, suspend_kind, suspend_reason FROM emoticon_packs WHERE creator_id = ? AND status IN ('APPROVED', 'SUSPENDED') "
-                        + "AND suspend_kind IS DISTINCT FROM 'CREATOR_WITHDRAWN' ORDER BY id FOR UPDATE",
-                (rs, i) -> new StoppedRow(rs.getLong(1), EmoticonPackStatus.valueOf(rs.getString(2)),
-                        rs.getString(3) == null ? null : EmoticonSuspendKind.valueOf(rs.getString(3)), rs.getString(4)), creatorId);
+        List<Long> ids = query.select(P.id).from(P)
+                .where(P.creatorId.eq(creatorId), P.status.in(EmoticonPackStatus.APPROVED, EmoticonPackStatus.SUSPENDED),
+                        P.suspendKind.isNull().or(P.suspendKind.ne(EmoticonSuspendKind.CREATOR_WITHDRAWN)))
+                .orderBy(P.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<StoppedRow> locked = query.select(P.id, P.status, P.suspendKind, P.suspendReason).from(P).where(P.id.in(ids)).orderBy(P.id.asc()).fetch().stream()
+                .map(t -> new StoppedRow(t.get(P.id), t.get(P.status), t.get(P.suspendKind), t.get(P.suspendReason))).toList();
         List<StoppedRow> out = new ArrayList<>();
         for (StoppedRow row : locked) {
-            int n = jdbc.update("UPDATE emoticon_packs SET status = 'SUSPENDED', suspend_kind = 'CREATOR_WITHDRAWN', suspend_reason = ?, suspended_at = ?, suspended_by = NULL, "
-                    + "updated_at = ? WHERE id = ? AND status IN ('APPROVED', 'SUSPENDED')", reason, Timestamp.from(now), Timestamp.from(now), row.id());
+            long n = query.update(P).set(P.status, EmoticonPackStatus.SUSPENDED).set(P.suspendKind, EmoticonSuspendKind.CREATOR_WITHDRAWN).set(P.suspendReason, reason)
+                    .set(P.suspendedAt, now).setNull(P.suspendedBy).set(P.updatedAt, now)
+                    .where(P.id.eq(row.id()), P.status.in(EmoticonPackStatus.APPROVED, EmoticonPackStatus.SUSPENDED)).execute();
             if (n == 1) {
                 out.add(row);
             }
@@ -168,18 +194,28 @@ public class EmoticonPackStore {
 
     /** 가격을 바꾼다(승인·운영자 가격 바꾸기 — 팩 행을 잠근 트랜잭션에서). 유료 가격은 트리거가 설정의 열린 가격 단계인지 한 번 더 본다(V143) */
     public void setPrice(long id, int price, Instant now) {
-        jdbc.update("UPDATE emoticon_packs SET price = ?, updated_at = ? WHERE id = ?", price, Timestamp.from(now), id);
+        query.update(P).set(P.price, price).set(P.updatedAt, now).where(P.id.eq(id)).execute();
     }
 
-    /** 받은 수 + 1(처음 받기 — 팩 행을 잠근 트랜잭션에서) */
+    /**
+     * 받은 수 + 1(처음 받기 — 팩 행을 잠근 트랜잭션에서) — 올린 뒤의 받은 수. 팩 행을 잠근 채라 올리기와 읽기 사이에 끼는 작업자가 없다(예전 {@code RETURNING} 과 같은 값).
+     * 팩이 없으면 예전처럼 {@link EmptyResultDataAccessException}.
+     */
     public int incrementAcquire(long id) {
-        return jdbc.queryForObject("UPDATE emoticon_packs SET acquire_count = acquire_count + 1 WHERE id = ? RETURNING acquire_count", Integer.class, id);
+        if (query.update(P).set(P.acquireCount, P.acquireCount.add(1)).where(P.id.eq(id)).execute() != 1) {
+            throw new EmptyResultDataAccessException(1);
+        }
+        return query.select(P.acquireCount).from(P).where(P.id.eq(id)).fetchFirst();
     }
 
     // ── 판 ──────────────────────────────────────────────────────────────────
 
+    private JPAQuery<Tuple> revisionRows() {
+        return query.select(R.id, R.packId, R.version, R.name, R.description, R.tags, R.coverImageId, R.saleWish, R.priceRequestMemo, R.createdAt, R.submittedAt).from(R);
+    }
+
     public Optional<RevisionRow> revision(long id) {
-        return jdbc.query("SELECT " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE id = ?", EmoticonPackStore::revisionOf, id).stream().findFirst();
+        return Optional.ofNullable(revisionRows().where(R.id.eq(id)).fetchFirst()).map(EmoticonPackStore::revisionOf);
     }
 
     public Map<Long, RevisionRow> revisions(Collection<Long> ids) {
@@ -187,36 +223,37 @@ public class EmoticonPackStore {
         if (ids.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE id IN (" + marks(ids.size()) + ")", rs -> {
-            RevisionRow row = revisionOf(rs, 0);
+        for (Tuple t : revisionRows().where(R.id.in(ids)).fetch()) {
+            RevisionRow row = revisionOf(t);
             out.put(row.id(), row);
-        }, ids.toArray());
+        }
         return out;
     }
 
     /** 아직 내지 않은 임시 판(팩마다 하나) */
     public Optional<RevisionRow> draftOf(long packId) {
-        return jdbc.query("SELECT " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE pack_id = ? AND version IS NULL", EmoticonPackStore::revisionOf, packId)
-                .stream().findFirst();
+        return Optional.ofNullable(revisionRows().where(R.packId.eq(packId), R.version.isNull()).fetchFirst()).map(EmoticonPackStore::revisionOf);
     }
 
     /** 마지막으로 낸 판 */
     public Optional<RevisionRow> latestSealed(long packId) {
-        return jdbc.query("SELECT " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE pack_id = ? AND version IS NOT NULL ORDER BY version DESC LIMIT 1",
-                EmoticonPackStore::revisionOf, packId).stream().findFirst();
+        return Optional.ofNullable(revisionRows().where(R.packId.eq(packId), R.version.isNotNull()).orderBy(R.version.desc()).fetchFirst())
+                .map(EmoticonPackStore::revisionOf);
     }
 
-    /** 팩마다 마지막으로 낸 판 */
+    /**
+     * 팩마다 마지막으로 낸 판 — 판 번호가 그 팩의 가장 큰 번호인 줄(팩 × 번호 유일 — 예전 {@code DISTINCT ON} 과 같은 줄, 팩 ID 차례).
+     */
     public Map<Long, RevisionRow> latestSealed(Collection<Long> packIds) {
         Map<Long, RevisionRow> out = new LinkedHashMap<>();
         if (packIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT DISTINCT ON (pack_id) " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE pack_id IN (" + marks(packIds.size())
-                + ") AND version IS NOT NULL ORDER BY pack_id, version DESC", rs -> {
-                    RevisionRow row = revisionOf(rs, 0);
-                    out.put(row.packId(), row);
-                }, packIds.toArray());
+        for (Tuple t : revisionRows().where(R.packId.in(packIds), R.version.eq(JPAExpressions.select(R2.version.max()).from(R2).where(R2.packId.eq(R.packId))))
+                .orderBy(R.packId.asc()).fetch()) {
+            RevisionRow row = revisionOf(t);
+            out.put(row.packId(), row);
+        }
         return out;
     }
 
@@ -226,49 +263,47 @@ public class EmoticonPackStore {
         if (packIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT " + REVISION_COLUMNS + " FROM emoticon_pack_revisions WHERE pack_id IN (" + marks(packIds.size()) + ") AND version IS NULL", rs -> {
-            RevisionRow row = revisionOf(rs, 0);
+        for (Tuple t : revisionRows().where(R.packId.in(packIds), R.version.isNull()).fetch()) {
+            RevisionRow row = revisionOf(t);
             out.put(row.packId(), row);
-        }, packIds.toArray());
+        }
         return out;
     }
 
     public int maxVersion(long packId) {
-        Integer max = jdbc.queryForObject("SELECT coalesce(max(version), 0) FROM emoticon_pack_revisions WHERE pack_id = ?", Integer.class, packId);
+        Integer max = query.select(R.version.max()).from(R).where(R.packId.eq(packId)).fetchFirst();
         return max == null ? 0 : max;
     }
 
     /** 임시 판을 넣는다(판을 내려면 차례를 넣은 뒤 {@link #seal}) */
     public void insertDraft(long id, long packId, String name, String description, List<String> tags, Long coverImageId, EmoticonSaleWish saleWish, String memo,
                             Instant now) {
-        jdbc.update("INSERT INTO emoticon_pack_revisions (id, pack_id, name, description, tags, cover_image_id, sale_wish, price_request_memo, created_at) "
-                        + "VALUES (?, ?, ?, ?, ?::text[], ?, ?, ?, ?)", id, packId, name, description, tags.toArray(String[]::new), coverImageId, saleWish.name(), memo,
-                Timestamp.from(now));
+        insert(EmoticonPackRevisionEntity.draft(id, packId, name, description, tags, coverImageId, saleWish, memo, now));
     }
 
     /** 임시 판 칸을 바꾼다(낸 판은 트리거가 막는다) */
     public void updateDraft(long id, String name, String description, List<String> tags, Long coverImageId, EmoticonSaleWish saleWish, String memo) {
-        jdbc.update("UPDATE emoticon_pack_revisions SET name = ?, description = ?, tags = ?::text[], cover_image_id = ?, sale_wish = ?, price_request_memo = ? WHERE id = ?",
-                name, description, tags.toArray(String[]::new), coverImageId, saleWish.name(), memo, id);
+        query.update(R).set(R.name, name).set(R.description, description).set(R.tags, tags.toArray(String[]::new)).set(R.coverImageId, coverImageId)
+                .set(R.saleWish, saleWish).set(R.priceRequestMemo, memo).where(R.id.eq(id)).execute();
     }
 
     /** 판을 낸다 — 그 뒤로 판 칸·차례를 고치지 못한다(트리거) */
     public void seal(long id, int version, Instant at) {
-        jdbc.update("UPDATE emoticon_pack_revisions SET version = ?, submitted_at = ? WHERE id = ? AND version IS NULL", version, Timestamp.from(at), id);
+        query.update(R).set(R.version, version).set(R.submittedAt, at).where(R.id.eq(id), R.version.isNull()).execute();
     }
 
     // ── 로보티콘 · 차례 ─────────────────────────────────────────────────────
 
     public void insertEmoticon(long id, long packId, Instant now) {
-        jdbc.update("INSERT INTO emoticons (id, pack_id, created_at) VALUES (?, ?, ?)", id, packId, Timestamp.from(now));
+        insert(EmoticonEntity.create(id, packId, now));
     }
 
-    /** 임시 판의 차례를 통째로 바꾼다 */
+    /** 임시 판의 차례를 통째로 바꾼다 — 지우고 차례대로 넣는다(낸 판의 차례는 트리거가 막는다) */
     public void replaceItems(long revisionId, long packId, List<ItemRow> items) {
-        jdbc.update("DELETE FROM emoticon_revision_items WHERE revision_id = ?", revisionId);
-        for (ItemRow item : items) {
-            jdbc.update("INSERT INTO emoticon_revision_items (revision_id, position, pack_id, emoticon_id, image_id, label) VALUES (?, ?, ?, ?, ?, ?)", revisionId,
-                    item.position(), packId, item.emoticonId(), item.imageId(), item.label());
+        query.delete(I).where(I.revisionId.eq(revisionId)).execute();
+        if (!items.isEmpty()) {
+            insertAll(items.stream().map(item -> EmoticonRevisionItemEntity.create(revisionId, item.position(), packId, item.emoticonId(), item.imageId(), item.label()))
+                    .toList());
         }
     }
 
@@ -279,11 +314,11 @@ public class EmoticonPackStore {
             return out;
         }
         revisionIds.forEach(id -> out.put(id, new ArrayList<>()));
-        jdbc.query("SELECT revision_id, position, emoticon_id, image_id, label FROM emoticon_revision_items WHERE revision_id IN (" + marks(revisionIds.size())
-                + ") ORDER BY revision_id, position", rs -> {
-                    ItemRow row = new ItemRow(rs.getLong(1), rs.getInt(2), rs.getLong(3), rs.getLong(4), rs.getString(5));
-                    out.computeIfAbsent(row.revisionId(), k -> new ArrayList<>()).add(row);
-                }, revisionIds.toArray());
+        for (Tuple t : query.select(I.revisionId, I.position, I.emoticonId, I.imageId, I.label).from(I).where(I.revisionId.in(revisionIds))
+                .orderBy(I.revisionId.asc(), I.position.asc()).fetch()) {
+            ItemRow row = new ItemRow(t.get(I.revisionId), t.get(I.position), t.get(I.emoticonId), t.get(I.imageId), t.get(I.label));
+            out.computeIfAbsent(row.revisionId(), k -> new ArrayList<>()).add(row);
+        }
         return out;
     }
 
@@ -293,60 +328,49 @@ public class EmoticonPackStore {
 
     /** 이 팩의 어느 판에서 이 그림을 쓰던 로보티콘(새 판에서도 같은 ID — 계약 S1) */
     public Optional<Long> emoticonByImage(long packId, long imageId) {
-        return jdbc.queryForList("SELECT emoticon_id FROM emoticon_revision_items WHERE pack_id = ? AND image_id = ? ORDER BY revision_id DESC LIMIT 1", Long.class, packId,
-                imageId).stream().findFirst();
+        return Optional.ofNullable(query.select(I.emoticonId).from(I).where(I.packId.eq(packId), I.imageId.eq(imageId)).orderBy(I.revisionId.desc()).fetchFirst());
     }
 
     /** 이 팩의 어느 판에서 같은 지문의 그림을 쓰던 로보티콘(같은 파일을 다시 올려도 같은 ID) */
     public Optional<Long> emoticonByHash(long packId, String contentHash) {
-        return jdbc.queryForList("SELECT i.emoticon_id FROM emoticon_revision_items i JOIN emoticon_images m ON m.id = i.image_id WHERE i.pack_id = ? AND m.content_hash = ? "
-                + "ORDER BY i.revision_id DESC LIMIT 1", Long.class, packId, contentHash).stream().findFirst();
+        return Optional.ofNullable(query.select(I.emoticonId).from(I).join(M).on(M.id.eq(I.imageId)).where(I.packId.eq(packId), M.contentHash.eq(contentHash))
+                .orderBy(I.revisionId.desc()).fetchFirst());
     }
 
     /** 이 팩의 로보티콘 ID 들 */
     public Set<Long> emoticonIds(long packId) {
-        return new HashSet<>(jdbc.queryForList("SELECT id FROM emoticons WHERE pack_id = ?", Long.class, packId));
+        return new HashSet<>(query.select(E.id).from(E).where(E.packId.eq(packId)).fetch());
     }
 
     /** 이 팩의 판들이 쓰는 그림(로보티콘·대표) */
     public Set<Long> imageIds(long packId) {
-        Set<Long> out = new HashSet<>(jdbc.queryForList("SELECT image_id FROM emoticon_revision_items WHERE pack_id = ?", Long.class, packId));
-        out.addAll(jdbc.queryForList("SELECT cover_image_id FROM emoticon_pack_revisions WHERE pack_id = ? AND cover_image_id IS NOT NULL", Long.class, packId));
+        Set<Long> out = new HashSet<>(query.select(I.imageId).from(I).where(I.packId.eq(packId)).fetch());
+        out.addAll(query.select(R.coverImageId).from(R).where(R.packId.eq(packId), R.coverImageId.isNotNull()).fetch());
         return out;
     }
 
-    // ── 도우미 ──────────────────────────────────────────────────────────────
+    // ── 안쪽 ────────────────────────────────────────────────────────────────
 
-    static String marks(int n) {
-        return String.join(", ", java.util.Collections.nCopies(n, "?"));
+    /** 상점에 나온(판매 중 · 판매 중단) 팩 — 별칭 {@code p} */
+    static BooleanExpression published(QEmoticonPackEntity p) {
+        return p.status.in(EmoticonPackStatus.APPROVED, EmoticonPackStatus.SUSPENDED);
     }
 
-    static Timestamp ts(Instant at) {
-        return at == null ? null : Timestamp.from(at);
-    }
-
-    static Instant instant(ResultSet rs, int i) throws SQLException {
-        Timestamp at = rs.getTimestamp(i);
-        return at == null ? null : at.toInstant();
-    }
-
-    static List<String> tags(ResultSet rs, int i) throws SQLException {
-        Array array = rs.getArray(i);
-        if (array == null) {
+    static List<String> tags(String[] values) {
+        if (values == null) {
             return List.of();
         }
-        Object[] values = (Object[]) array.getArray();
         return Arrays.stream(values).map(String::valueOf).collect(Collectors.toList());
     }
 
-    static PackRow packOf(ResultSet rs, int i) throws SQLException {
-        return new PackRow(rs.getLong(1), EmoticonPackSource.valueOf(rs.getString(2)), rs.getObject(3, Long.class), EmoticonPackStatus.valueOf(rs.getString(4)),
-                rs.getInt(5), rs.getObject(6, Long.class), rs.getInt(7), instant(rs, 8), rs.getString(9), instant(rs, 10), rs.getObject(11, Long.class), rs.getString(12),
-                instant(rs, 13), instant(rs, 14), rs.getString(15) == null ? null : EmoticonSuspendKind.valueOf(rs.getString(15)));
+    private static PackRow packOf(Tuple t) {
+        return new PackRow(t.get(P.id), t.get(P.source), t.get(P.creatorId), t.get(P.status), t.get(P.price), t.get(P.liveRevisionId), t.get(P.acquireCount),
+                t.get(P.publishedAt), t.get(P.suspendReason), t.get(P.suspendedAt), t.get(P.suspendedBy), t.get(O.operatorName), t.get(P.createdAt), t.get(P.updatedAt),
+                t.get(P.suspendKind));
     }
 
-    static RevisionRow revisionOf(ResultSet rs, int i) throws SQLException {
-        return new RevisionRow(rs.getLong(1), rs.getLong(2), rs.getObject(3, Integer.class), rs.getString(4), rs.getString(5), tags(rs, 6), rs.getObject(7, Long.class),
-                EmoticonSaleWish.valueOf(rs.getString(8)), rs.getString(9), instant(rs, 10), instant(rs, 11));
+    private static RevisionRow revisionOf(Tuple t) {
+        return new RevisionRow(t.get(R.id), t.get(R.packId), t.get(R.version), t.get(R.name), t.get(R.description), tags(t.get(R.tags)), t.get(R.coverImageId),
+                t.get(R.saleWish), t.get(R.priceRequestMemo), t.get(R.createdAt), t.get(R.submittedAt));
     }
 }

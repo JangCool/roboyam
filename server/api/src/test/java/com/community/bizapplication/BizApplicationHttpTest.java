@@ -98,11 +98,13 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
         long id = submitTextLine(user, 0, 3, "ONLINE");
         approve(id, "ONLINE", freshPeriod(3));
         // DB CHECK(ck_bp_pii)가 연락처 칸을 비우지 못하게 막으므로, 숫자가 하나도 없는 값으로 「연락처 없음」을 만든다
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET phone_enc = ? WHERE user_id = ?", pii.encrypt(BusinessPii.PHONE, "없음"), user);
         mvc.perform(as(user, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("BIZ_CONTACT_MISSING"));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM payment_orders WHERE order_type = 'BIZ_APPLICATION' AND order_ref_id = ?", Integer.class, id)).isZero();
         // 연락처를 넣으면 바로 시작된다
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET phone_enc = ? WHERE user_id = ?", pii.encrypt(BusinessPii.PHONE, "02-555-0101"), user);
         mvc.perform(as(user, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.customer.phoneNumber").value("025550101"));

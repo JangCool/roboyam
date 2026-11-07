@@ -100,19 +100,16 @@ class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
         String cipher = jdbc.queryForObject("SELECT value_cipher FROM public_data_settings WHERE key = 'NTS_SERVICE_KEY'", String.class);
         assertThat(cipher).startsWith("v1:").doesNotContain(SCREEN_KEY);
         assertThat(service.ntsServiceKey()).as("화면 값이 먼저 — 앞뒤 공백은 지운다(재기동 없이 바로)").isEqualTo(SCREEN_KEY);
-        String detail = jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_SETTINGS_UPDATE' ORDER BY id DESC LIMIT 1",
-                String.class, operator);
+        String detail = auditLogs.where().actor(operator).action("PUBLIC_DATA_SETTINGS_UPDATE").lastById().orElseThrow().detail();
         assertThat(detail).contains("serviceKey").doesNotContain(SCREEN_KEY);
-        assertThat(jdbc.queryForObject("SELECT target_type || '/' || target_id FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_SETTINGS_UPDATE' LIMIT 1",
-                String.class, operator)).isEqualTo("PUBLIC_DATA_SETTINGS/nts");
+        assertThat(auditLogs.where().actor(operator).action("PUBLIC_DATA_SETTINGS_UPDATE").lastById().map(row -> row.targetType() + "/" + row.targetId()).orElseThrow()).isEqualTo("PUBLIC_DATA_SETTINGS/nts");
 
         mvc.perform(withCsrf(delete("/api/admin/public-data-settings/service-key"), session)).andExpect(status().isNoContent());
         assertThat(service.ntsServiceKey()).isEqualTo(ENV_KEY);
         mvc.perform(get("/api/admin/public-data-settings").cookie(session)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.serviceKey.source").value("ENV"))
                 .andExpect(jsonPath("$.data.serviceKey.updatedBy").value(operatorName(operator)));
-        assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_SETTINGS_DELETE' ORDER BY id DESC LIMIT 1",
-                String.class, operator)).contains("\"field\":\"serviceKey\"");
+        assertThat(auditLogs.where().actor(operator).action("PUBLIC_DATA_SETTINGS_DELETE").lastById().orElseThrow().detail()).contains("\"field\":\"serviceKey\"");
 
         mvc.perform(withCsrf(delete("/api/admin/public-data-settings/service-key"), session))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("PUBLIC_DATA_KEY_NOT_FOUND"));
@@ -181,8 +178,7 @@ class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.nts.url.value").value("https://127.0.0.1:9")).andExpect(jsonPath("$.data.nts.url.custom").value(true))
                 .andExpect(jsonPath("$.data.nts.updatedBy").value(operatorName(operator)));
-        assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_ENDPOINT_UPDATE' ORDER BY id DESC LIMIT 1",
-                String.class, operator)).contains("https://127.0.0.1:9").contains("url");
+        assertThat(auditLogs.where().actor(operator).action("PUBLIC_DATA_ENDPOINT_UPDATE").lastById().orElseThrow().detail()).contains("https://127.0.0.1:9").contains("url");
 
         // 키를 넣고 특일 정보 연결 시험 — 지금 주소(닫힌 포트)로 불러 응답 없음(바깥으로 나가지 않는다)
         mvc.perform(withCsrf(put("/api/admin/public-data-settings"), session).content("{\"serviceKey\":\"" + SCREEN_KEY + "\"}")).andExpect(status().isOk());
@@ -197,6 +193,6 @@ class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(delete("/api/admin/public-data-settings/endpoints/holiday"), session)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.holiday.url.custom").value(false)).andExpect(jsonPath("$.data.holiday.dateField.value").value("locdate"))
                 .andExpect(jsonPath("$.data.nts.url.custom").value(true));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'PUBLIC_DATA_ENDPOINT_RESET'", Integer.class, operator)).isEqualTo(1);
+        assertThat(auditLogs.where().actor(operator).action("PUBLIC_DATA_ENDPOINT_RESET").count()).isEqualTo(1);
     }
 }

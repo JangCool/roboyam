@@ -72,8 +72,9 @@ class BusinessDeletedMemberHttpTest extends CommerceApiTestBase {
     void 지운_뒤_내_사업자는_NONE_이고_다시_신청할_수_있다() throws Exception {
         long user = newMember();
         String base = Long.toString(user, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "d" + base.substring(Math.max(0, base.length() - 11)));
+        memberFixture.profile(user, "d" + base.substring(Math.max(0, base.length() - 11)));
         service.apply(user, request(user));
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'APPROVED', reviewed_at = now(), first_approved_at = now() WHERE user_id = ?", user);
         long profileId = jdbc.queryForObject("SELECT id FROM business_profiles WHERE user_id = ?", Long.class, user);
         AuthUser principal = new AuthUser(user, Role.USER);

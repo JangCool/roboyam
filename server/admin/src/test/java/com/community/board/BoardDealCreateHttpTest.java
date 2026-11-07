@@ -137,8 +137,7 @@ class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
         assertThat((List<String>) JsonPath.read(detail, "$.data.gadgetExclusions")).containsExactly("POPULAR");
 
         // 감사 after 에 종류가 남는다
-        String audit = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'BOARD_CREATE' AND target_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class, id);
+        String audit = auditLogs.where().action("BOARD_CREATE").target(id).latest().orElseThrow().detail();
         assertThat(audit).contains("DEAL");
 
         // 카탈로그(공개 쪽 유효값)도 핫딜·19금 끔·비회원 글쓰기 없음
@@ -237,8 +236,8 @@ class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
     void 핫딜_게시판에도_매니저를_지정할_수_있다() throws Exception {
         String id = createDeal("LIST");
         long member = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", member);
-        jdbc.update("UPDATE profiles SET grade_key = ? WHERE user_id = ?", gradeAt(1), member);
+        memberFixture.verifyEmail(member);
+        memberFixture.grade(member, gradeAt(1));
         mvc.perform(withCsrf(post("/api/admin/boards/" + id + "/staff"), session).content("{\"memberId\":\"" + member + "\",\"role\":\"MANAGER\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].role").value("MANAGER"));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM board_staff WHERE board_id = ? AND user_id = ?", Integer.class, Long.parseLong(id), member)).isEqualTo(1);

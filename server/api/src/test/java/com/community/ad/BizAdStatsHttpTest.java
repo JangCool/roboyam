@@ -88,6 +88,7 @@ class BizAdStatsHttpTest extends BizApplicationApiTestBase {
 
     /** 결제한 건을 시험 기간 {@code [start, end)} 로 옮긴다(자리 판정 없이 — 요약 시험만) */
     private void move(long id, Instant start, Instant end) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE biz_applications SET start_at = ?, end_at = ? WHERE id = ?", Timestamp.from(start), Timestamp.from(end), id);
     }
 
@@ -214,6 +215,7 @@ class BizAdStatsHttpTest extends BizApplicationApiTestBase {
         clock.set(t);
         pauses.pause(user, b);
         ads.takedown(operator, c, "긴급 내림 시험", false);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE biz_applications SET status = 'TAKEN_DOWN', takedown_cause = 'SUSPENDED', taken_down_at = ? WHERE id = ?", Timestamp.from(t), d);
         pauses.stop(user, stopped, "광고주 중단 시험");
 

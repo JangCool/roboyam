@@ -52,7 +52,7 @@ class AttendanceHttpTest extends CommerceApiTestBase {
 
     private long verifiedMember() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         return id;
     }
 
@@ -87,6 +87,7 @@ class AttendanceHttpTest extends CommerceApiTestBase {
     void 이메일_인증_전은_403_EMAIL_NOT_VERIFIED_정지는_403_ACCOUNT_RESTRICTED_로그인_없으면_401() throws Exception {
         mvc.perform(as(newMember(), post("/api/me/attendance"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("EMAIL_NOT_VERIFIED"));
         long suspended = verifiedMember();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", suspended);
         mvc.perform(as(suspended, post("/api/me/attendance"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("ACCOUNT_RESTRICTED"));
         mvc.perform(post("/api/me/attendance")).andExpect(status().isUnauthorized());

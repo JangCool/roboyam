@@ -67,6 +67,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
     /** 승인 사업자 신원 — 대표자·연락처·이메일은 실제 암호문(용도 business.*) */
     private long businessProfile(String company, String owner, String phone, String email) {
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                         + "VALUES (?, ?, 'APPROVED', false, ?, 'x', ?, '4321', ?, ?, ?, '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
@@ -96,9 +97,11 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
                 approved && !online ? Timestamp.from(start.minus(Duration.ofDays(1))) : null, confirmed && online ? Timestamp.from(start.minus(Duration.ofDays(2))) : null,
                 confirmed && online ? ids.nextId() : null, approved && !online ? 1 : 0, confirmed && !online ? Timestamp.from(start.minus(Duration.ofDays(2))) : null,
                 operatorId);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO biz_application_items (id, application_id, product, unit_price, units, supply, start_at, end_at, created_at) "
                         + "VALUES (?, ?, ?, 1000, 1, 1000, ?, ?, now())", ids.nextId(), id, product == null ? "HOTDEAL_POST" : product, Timestamp.from(start),
                 Timestamp.from(end));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO biz_creative_versions (id, application_id, version, content, created_by_type, created_by, created_at, approved_at) "
                 + "VALUES (?, ?, 1, '{}'::jsonb, 'OPERATOR', ?, now(), ?)", ids.nextId(), id, operatorId, approved ? Timestamp.from(start.minus(Duration.ofDays(3))) : null);
         if (confirmed && !online) {
@@ -132,8 +135,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     private String lastAuditDetail(String action, String targetId) {
-        return jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = ? AND target_type = 'AD_ADVERTISER' AND target_id = ? ORDER BY occurred_at DESC, id DESC "
-                + "LIMIT 1", String.class, action, targetId);
+        return auditLogs.where().action(action).targetType("AD_ADVERTISER").target(targetId).latest().orElseThrow().detail();
     }
 
     @Test
@@ -283,11 +285,13 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/ad-advertisers/" + id + "/archive"), op)).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("AD_ADVERTISER_HAS_OPEN_BOOKINGS"));
         // 진행 중 건도 막는다
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE biz_applications SET status = 'CANCELED', closed_at = now() WHERE id = ?", waiting);
         booking("SCHEDULED", "MANUAL", now.minus(Duration.ofDays(1)), now.plus(Duration.ofDays(1)), raw, null, "TEXT_LINE", me);
         mvc.perform(withCsrf(post("/api/admin/ad-advertisers/" + id + "/archive"), op)).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("AD_ADVERTISER_HAS_OPEN_BOOKINGS"));
         // 끝난 건만 남으면 보관된다 — 삭제는 여전히 409
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE biz_applications SET start_at = ?, end_at = ? WHERE advertiser_id = ? AND status = 'SCHEDULED'", Timestamp.from(now.minus(Duration.ofDays(5))),
                 Timestamp.from(now.minus(Duration.ofDays(2))), raw);
         JsonNode archived = data(mvc.perform(withCsrf(post("/api/admin/ad-advertisers/" + id + "/archive"), op)).andExpect(status().isOk()));
@@ -436,7 +440,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         Cookie op = login(me);
         String company = "서비스상사" + tag();
         long profile = businessProfile(company, "정대표", "0212345678", "svc@biz.example");
-        jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, 'AD', 'APPROVED', now())", ids.nextId(), profile);
+        businessFixture.service(ids.nextId(), profile, "AD", "APPROVED");
         String biz = "biz-" + profile;
         JsonNode page = list(op, "q", company, "kind", "BUSINESS");
         assertThat(ids(page)).containsExactly(biz);

@@ -1,54 +1,69 @@
 package com.community.board.repository.master;
 
+import com.community.comment.entity.QCommentDislikeEntity;
+import com.community.comment.entity.QCommentEntity;
+import com.community.comment.entity.QCommentLikeEntity;
+import com.community.post.entity.PostEntity;
+import com.community.post.entity.QPostEntity;
+import com.community.post.entity.QPostLikeEntity;
+import com.community.post.entity.QPostViewEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 게시판 관리가 읽는 글·댓글 집계(글 수·말머리 사용 수·삭제 가능 판정)와 게시판을 지울 때의 글 정리.
+ * 게시판 관리가 읽는 글·댓글 집계(글 수·말머리 사용 수·삭제 가능 판정)와 게시판을 지울 때의 글 정리. 트랜잭션은 부르는 서비스의 것을 따른다.
  *
- * <p>native SQL 인 이유: 관리자 쪽은 글·댓글({@code posts} 월 파티션 · {@code comments} 해시 파티션)과 추천·조회 기록 표를 게시판 단위로 세거나 한꺼번에 지우기만 한다 —
- * 엔티티를 올리지 않고 집계·일괄 삭제 문장으로 끝낸다. 트랜잭션은 부르는 서비스의 것을 따른다(같은 DataSource).
+ * <p>글·댓글({@code posts} 월 파티션 · {@code comments} 해시 파티션)은 엔티티로 집계·일괄 수정·일괄 삭제한다(엔티티를 올리지 않는 대량 문장).
+ * 추천·조회 기록 표({@code post_likes}·{@code post_views}·{@code comment_likes}·{@code comment_dislikes})도 엔티티로 일괄 삭제한다(글 ID 를 이 게시판의 글에서 고르는 부분 질의).
  */
 @Repository
-public class BoardContentQueries {
+public class BoardContentQueries extends RoboyamRepositoryQDSL {
 
-    private final JdbcTemplate jdbc;
+    private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
+    private static final QPostLikeEntity POST_LIKE = QPostLikeEntity.postLikeEntity;
+    private static final QPostViewEntity POST_VIEW = QPostViewEntity.postViewEntity;
+    private static final QCommentLikeEntity COMMENT_LIKE = QCommentLikeEntity.commentLikeEntity;
+    private static final QCommentDislikeEntity COMMENT_DISLIKE = QCommentDislikeEntity.commentDislikeEntity;
 
-    public BoardContentQueries(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public BoardContentQueries(JPAQueryFactory query) {
+        super(query);
     }
 
     /** 게시판별 글 수 — 삭제되지 않은 게시된 글(숨김 포함, 임시저장 제외). 글이 없는 게시판은 빠진다 */
     public Map<Long, Long> postCounts() {
         Map<Long, Long> out = new HashMap<>();
-        jdbc.query("SELECT board_id, count(*) FROM posts WHERE deleted_at IS NULL AND status = 'PUBLISHED' GROUP BY board_id",
-                rs -> {
-                    out.put(rs.getLong(1), rs.getLong(2));
-                });
+        for (Tuple t : query.select(POST.boardId, POST.count()).from(POST).where(POST.deletedAt.isNull(), POST.status.eq(PostEntity.PUBLISHED))
+                .groupBy(POST.boardId).fetch()) {
+            out.put(t.get(POST.boardId), t.get(POST.count()));
+        }
         return out;
     }
 
     public long postCount(long boardId) {
-        Long count = jdbc.queryForObject("SELECT count(*) FROM posts WHERE board_id = ? AND deleted_at IS NULL AND status = 'PUBLISHED'", Long.class, boardId);
+        Long count = query.select(POST.count()).from(POST).where(POST.boardId.eq(boardId), POST.deletedAt.isNull(), POST.status.eq(PostEntity.PUBLISHED)).fetchOne();
         return count == null ? 0 : count;
     }
 
     /** 삭제되지 않은 글(임시저장 포함)이 하나라도 있는가 — 있으면 게시판을 지울 수 없다 */
     public boolean hasLivePosts(long boardId) {
-        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM posts WHERE board_id = ? AND deleted_at IS NULL)", Boolean.class, boardId));
+        return query.selectOne().from(POST).where(POST.boardId.eq(boardId), POST.deletedAt.isNull()).fetchFirst() != null;
     }
 
     /** 이 게시판의 말머리별 사용 수(삭제·임시저장 포함) */
     public Map<Long, Long> prefixUsage(long boardId) {
         Map<Long, Long> out = new HashMap<>();
-        jdbc.query("SELECT prefix_id, count(*) FROM posts WHERE board_id = ? AND prefix_id IS NOT NULL GROUP BY prefix_id",
-                rs -> {
-                    out.put(rs.getLong(1), rs.getLong(2));
-                }, boardId);
+        for (Tuple t : query.select(POST.prefixId, POST.count()).from(POST).where(POST.boardId.eq(boardId), POST.prefixId.isNotNull())
+                .groupBy(POST.prefixId).fetch()) {
+            out.put(t.get(POST.prefixId), t.get(POST.count()));
+        }
         return out;
     }
 
@@ -64,7 +79,7 @@ public class BoardContentQueries {
         }
         int changed = 0;
         for (Long prefixId : prefixIds) {
-            changed += jdbc.update("UPDATE posts SET adult = true WHERE board_id = ? AND prefix_id = ? AND NOT adult", boardId, prefixId);
+            changed += (int) query.update(POST).set(POST.adult, true).where(POST.boardId.eq(boardId), POST.prefixId.eq(prefixId), POST.adult.isFalse()).execute();
         }
         return changed;
     }
@@ -78,13 +93,20 @@ public class BoardContentQueries {
      *   <li><b>신고({@code reports})는 지우지 않는다</b> — 신고자·당시 내용 스냅샷은 증거라 게시판이 지워져도 남기고, 개인정보 보유기간 배치(신고 기록 축 {@code R__batch_18})가
      *       기간이 지나면 지운다.</li>
      * </ul>
+     * 부분 질의는 {@code post_id IN (SELECT id FROM posts WHERE board_id = ?)} 로 예전 SQL 과 같다.
      */
     public void deleteContent(long boardId) {
-        jdbc.update("DELETE FROM post_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM comment_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM comment_dislikes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM post_views WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM comments WHERE board_id = ?", boardId);
-        jdbc.update("DELETE FROM posts WHERE board_id = ?", boardId);
+        query.delete(POST_LIKE).where(POST_LIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(COMMENT_LIKE).where(COMMENT_LIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(COMMENT_DISLIKE).where(COMMENT_DISLIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(POST_VIEW).where(POST_VIEW.postId.in(boardPostIds(boardId))).execute();
+        query.delete(COMMENT).where(COMMENT.boardId.eq(boardId)).execute();
+        query.delete(POST).where(POST.boardId.eq(boardId)).execute();
+    }
+
+    /** 이 게시판의 글 ID(부분 질의) */
+    private static JPQLQuery<Long> boardPostIds(long boardId) {
+        QPostEntity p = new QPostEntity("boardPost");
+        return JPAExpressions.select(p.id).from(p).where(p.boardId.eq(boardId));
     }
 }

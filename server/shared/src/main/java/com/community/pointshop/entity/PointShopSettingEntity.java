@@ -6,7 +6,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 포인트 상점 설정(행 하나) — {@code point_shop_settings}(V86). <b>읽기 전용 매핑</b>(저장은 {@code PointShopCatalogService#updateSettings} 가 JDBC 로 — 감사와 한 트랜잭션).
+ * 포인트 상점 설정(행 하나) — {@code point_shop_settings}(V86). 행은 마이그레이션이 넣는다(없으면 저장소가 {@code ON CONFLICT DO NOTHING} 으로 만든다).
+ * 저장은 저장소 {@code PointShopItemStore} 의 UPDATE(행을 잠근 뒤 — {@code PointShopCatalogService#updateSettings}, 감사와 한 트랜잭션).
  * {@code refundDays}: 셀프 환불 기한 일수(1~30, 기본 {@value #DEFAULT_REFUND_DAYS}) — 이미 산 구매도 <b>지금 값</b>으로 판정한다.
  */
 @Entity

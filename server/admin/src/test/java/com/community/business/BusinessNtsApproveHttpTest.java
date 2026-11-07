@@ -60,6 +60,7 @@ class BusinessNtsApproveHttpTest extends Commerce04AdminTestBase {
     private long pending(String bizNo, LocalDate openedOn) {
         long user = newMember();
         long id = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at, opened_on) "
                         + "VALUES (?, ?, 'PENDING', false, '(주)심사상사', ?, ?, ?, ?, ?, ?, '06236', ?, 'v1', 'v1', now(), now(), now(), now(), ?)",
@@ -67,7 +68,7 @@ class BusinessNtsApproveHttpTest extends Commerce04AdminTestBase {
                 pii.encrypt(BusinessPii.PHONE, "01012345678"), pii.encrypt(BusinessPii.EMAIL, "b" + user + "@test.local"),
                 pii.encrypt(BusinessPii.ADDRESS1, "서울 강남구 테헤란로 1"), openedOn);
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'PENDING', now())", ids.nextId(), id, service);
+            businessFixture.service(ids.nextId(), id, service, "PENDING");
         }
         return id;
     }
@@ -124,10 +125,8 @@ class BusinessNtsApproveHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.nts.validity").value("UNCHECKED")).andExpect(jsonPath("$.data.openedOn").isEmpty());
         assertThat(statusOf(id)).isEqualTo("APPROVED");
         assertThat(jdbc.queryForObject("SELECT nts_override_reason FROM business_profiles WHERE id = ?", String.class, id)).isEqualTo(REASON);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_type = 'BUSINESS' AND target_id = ? AND action = 'BUSINESS_NTS_OVERRIDE'",
-                Integer.class, Long.toString(id))).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE target_type = 'BUSINESS' AND target_id = ? AND action = 'BUSINESS_APPROVE'", String.class,
-                Long.toString(id))).contains("\"ntsValidity\":\"UNCHECKED\"");
+        assertThat(auditLogs.where().targetType("BUSINESS").target(Long.toString(id)).action("BUSINESS_NTS_OVERRIDE").count()).isEqualTo(1);
+        assertThat(auditLogs.where().targetType("BUSINESS").target(Long.toString(id)).action("BUSINESS_APPROVE").single().detail()).contains("\"ntsValidity\":\"UNCHECKED\"");
     }
 
     @Test
@@ -151,8 +150,7 @@ class BusinessNtsApproveHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.nts.status").value("CONTINUING")).andExpect(jsonPath("$.data.nts.validity").value("MATCH"))
                 .andExpect(jsonPath("$.data.openedOn").value("2021-03-02"));
         assertThat(jdbc.queryForObject("SELECT nts_override_reason FROM business_profiles WHERE id = ?", String.class, id)).isNull();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_type = 'BUSINESS' AND target_id = ? AND action = 'BUSINESS_NTS_OVERRIDE'",
-                Integer.class, Long.toString(id))).isZero();
+        assertThat(auditLogs.where().targetType("BUSINESS").target(Long.toString(id)).action("BUSINESS_NTS_OVERRIDE").count()).isZero();
     }
 
     @Test
@@ -173,8 +171,7 @@ class BusinessNtsApproveHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/businesses/" + withoutDate + "/nts-check"), manager)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.nts.status").value("CONTINUING")).andExpect(jsonPath("$.data.nts.validity").value("UNCHECKED"));
 
-        Map<String, Object> audit = jdbc.queryForMap("SELECT actor_id, detail FROM audit_logs WHERE target_type = 'BUSINESS' AND target_id = ? AND action = 'BUSINESS_NTS_CHECK' "
-                + "ORDER BY id DESC LIMIT 1", Long.toString(withDate));
+        Map<String, Object> audit = auditLogs.where().targetType("BUSINESS").target(Long.toString(withDate)).action("BUSINESS_NTS_CHECK").lastById().orElseThrow().asMap();
         assertThat(((Number) audit.get("actor_id")).longValue()).isEqualTo(managerId);
         assertThat((String) audit.get("detail")).contains("\"validity\":\"MATCH\"").doesNotContain("홍길동");
         // 진위 미확인은 사유를 적어야 승인된다

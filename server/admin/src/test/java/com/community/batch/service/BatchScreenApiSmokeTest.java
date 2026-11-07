@@ -21,6 +21,7 @@ import com.community.batch.exception.BatchRunningException;
 import com.community.batch.exception.BatchUnavailableException;
 import com.community.permission.dto.AdminActor;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.OperatorFixture;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -67,10 +69,13 @@ class BatchScreenApiSmokeTest {
     @Autowired
     private SnowflakeIdGenerator ids;
 
+    @Autowired
+    private ApplicationContext context;
+
     private AdminActor operator() {
         long id = ids.nextId();
         String name = "배치" + (id % 100_000_000L);
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, is_root, approved) VALUES (?, ?, ?, 'x', false, true)", id, "batch" + id + "@test.invalid", name);
+        new OperatorFixture(context).operator(id, "batch" + id + "@test.invalid", name, "x");
         return new AdminActor(id, name, "batch" + id + "@test.invalid", true, Set.of(), "127.0.0.1");
     }
 
@@ -135,12 +140,14 @@ class BatchScreenApiSmokeTest {
     void 실패_건이_있는_실행의_상세와_실패_건만_다시_요청() {
         AdminActor actor = operator();
         long runId = ids.nextId();
+        // SQL 로 남김: batch_runs·batch_run_steps·batch_run_failures 엔티티는 읽기 전용(팩터리 없음 — 행은 실행기가 JDBC 로 쓴다). 과거에 실패로 끝난 실행을 바로 세운다
         jdbc.update("INSERT INTO batch_runs (id, job_key, status, trigger_type, started_at, finished_at, source, run_mode, read_count, affected_count, failed_count, "
                 + "skipped_count, checkpoint, params, error_message) VALUES (?, ?, 'FAIL', 'MANUAL', now() - interval '1 hour', now() - interval '50 minutes', 'JAVA', "
                 + "'NORMAL', 5, 3, 2, 0, '42', '{\"memberId\":\"7\"}', 'IllegalStateException: 끊김')", runId, JOB);
         jdbc.update("INSERT INTO batch_run_steps (run_id, step_name, step_order, status, read_count, processed_count, failed_count, checkpoint) "
                 + "VALUES (?, 'main', 1, 'FAIL', 5, 3, 2, '42')", runId);
         for (int i = 0; i < 2; i++) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO batch_run_failures (id, run_id, step_name, target_type, target_id, error_code, message, occurred_at) "
                     + "VALUES (?, ?, 'main', 'FILE', ?, 'STORAGE_DELETE_FAILED', '저장소에서 지우지 못했다', now() - interval '55 minutes')", ids.nextId(), runId, "f" + i);
         }
@@ -169,6 +176,7 @@ class BatchScreenApiSmokeTest {
         assertThat(retry.kind()).isEqualTo("RETRY_FAILED");
         assertThat(retry.params()).containsEntry("memberId", "7");
         assertThat(queries.detail(String.valueOf(runId)).pendingRequest()).as("이 실행에 대한 다시 실행 요청").isNotNull();
+        // SQL 로 남김: batch_run_requests 엔티티는 읽기 전용(팩터리·상태 전이 메서드 없음) — 남은 요청을 닫는다
         jdbc.update("UPDATE batch_run_requests SET status = 'REJECTED', started_at = now(), finished_at = now() WHERE id = ?", Long.parseLong(retry.requestId()));
     }
 

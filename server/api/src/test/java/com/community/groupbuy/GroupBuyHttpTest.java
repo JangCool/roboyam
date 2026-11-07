@@ -70,6 +70,8 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     @Autowired
     @Qualifier("springSecurityFilterChain")
     private Filter securityFilterChain;
+    @Autowired
+    private IdentityStore identityStore;
 
     private MockMvc mvc;
 
@@ -93,9 +95,9 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     /** 이메일 인증·본인인증(만 19세 이상)을 마친 회원 */
     private long buyer() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?) ON CONFLICT DO NOTHING", id, "h" + Long.toString(id, 36));
-        new IdentityStore(dataSource).insertVerification(id, String.format("%064x", id), "f" + String.format("%063x", id), LocalDate.of(1990, 1, 1),
+        memberFixture.verifyEmail(id);
+        memberFixture.profileIfAbsent(id, "h" + Long.toString(id, 36));
+        identityStore.insertVerification(id, String.format("%064x", id), "f" + String.format("%063x", id), LocalDate.of(1990, 1, 1),
                 IdentityProviderKind.FAKE, "fake:" + id, Instant.now());
         return id;
     }

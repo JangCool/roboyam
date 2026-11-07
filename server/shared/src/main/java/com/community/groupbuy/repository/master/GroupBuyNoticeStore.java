@@ -1,21 +1,33 @@
 package com.community.groupbuy.repository.master;
 
-import static com.community.groupbuy.repository.master.GroupBuyStore.ts;
-
+import com.community.groupbuy.entity.GroupBuyNoticeEntity;
+import com.community.groupbuy.entity.GroupBuyNoticeSkuEntity;
+import com.community.groupbuy.entity.GroupBuyNoticeValueEntity;
+import com.community.groupbuy.entity.QGroupBuyNoticeEntity;
+import com.community.groupbuy.entity.QGroupBuyNoticeSkuEntity;
+import com.community.groupbuy.entity.QGroupBuyNoticeValueEntity;
+import com.community.groupbuy.entity.QGroupBuyProductSkuEntity;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 상품정보제공고시 양식·적용 단품·항목 값·판매자 추가 항목(계약 결정 87). 상품마다(결정 89) — 저장은 상품 단위로 통째로 바꾼다(양식 줄을 지우면 적용 단품·값은 CASCADE).
+ * 읽기는 양식 한 번 · 적용 단품 한 번 · 값 한 번(양식마다 따로 읽지 않는다). 모두 QueryDSL({@link GroupBuyStoreSupport}).
  */
 @Repository
-public class GroupBuyNoticeStore {
+public class GroupBuyNoticeStore extends GroupBuyStoreSupport {
+
+    private static final QGroupBuyNoticeEntity N = QGroupBuyNoticeEntity.groupBuyNoticeEntity;
+    private static final QGroupBuyNoticeSkuEntity NS = QGroupBuyNoticeSkuEntity.groupBuyNoticeSkuEntity;
+    private static final QGroupBuyNoticeValueEntity NV = QGroupBuyNoticeValueEntity.groupBuyNoticeValueEntity;
+    private static final QGroupBuyProductSkuEntity PS = QGroupBuyProductSkuEntity.groupBuyProductSkuEntity;
 
     /** 양식 한 장(적용 단품 이름·고시 항목 값·판매자 추가 항목 포함) */
     public record NoticeRow(long id, int sortOrder, String categoryCode, String title, String catalogVersion, List<Long> skuIds, List<String> skuNames,
@@ -30,56 +42,57 @@ public class GroupBuyNoticeStore {
     public record CustomRow(String name, String value, int sortOrder) {
     }
 
-    private final JdbcTemplate jdbc;
-
-    public GroupBuyNoticeStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public GroupBuyNoticeStore(JPAQueryFactory query, EntityManager entityManager, DataSource dataSource) {
+        super(query, entityManager, dataSource);
     }
 
     public List<NoticeRow> notices(long productId) {
-        List<NoticeRow> out = new ArrayList<>();
-        jdbc.query("SELECT id, sort_order, category_code, title, catalog_version FROM group_buy_notices WHERE product_id = ? ORDER BY sort_order", rs -> {
-            out.add(new NoticeRow(rs.getLong(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5), new ArrayList<>(), new ArrayList<>(),
-                    new LinkedHashMap<>(), new ArrayList<>()));
-        }, productId);
-        for (NoticeRow notice : out) {
-            jdbc.query("SELECT o.id, o.name FROM group_buy_notice_skus n JOIN group_buy_product_skus o ON o.id = n.product_sku_id WHERE n.notice_id = ? ORDER BY o.sort_order, o.id",
-                    rs -> {
-                        notice.skuIds().add(rs.getLong(1));
-                        notice.skuNames().add(rs.getString(2));
-                    }, notice.id());
-            jdbc.query("SELECT custom, item_key, custom_name, sort_order, value, unavailable, unavailable_reason FROM group_buy_notice_values WHERE notice_id = ? "
-                    + "ORDER BY custom, sort_order, item_key", rs -> {
-                        if (rs.getBoolean(1)) {
-                            notice.customItems().add(new CustomRow(rs.getString(3), rs.getString(5), rs.getInt(4)));
-                        } else {
-                            notice.values().put(rs.getString(2), new ValueRow(rs.getString(2), rs.getString(5), rs.getBoolean(6), rs.getString(7)));
-                        }
-                    }, notice.id());
+        Map<Long, NoticeRow> byId = new LinkedHashMap<>();
+        query.select(N.id, N.sortOrder, N.categoryCode, N.title, N.catalogVersion).from(N).where(N.productId.eq(productId)).orderBy(N.sortOrder.asc()).fetch()
+                .forEach(t -> byId.put(t.get(N.id), new NoticeRow(t.get(N.id), n(t.get(N.sortOrder)), t.get(N.categoryCode), t.get(N.title), t.get(N.catalogVersion),
+                        new ArrayList<>(), new ArrayList<>(), new LinkedHashMap<>(), new ArrayList<>())));
+        if (byId.isEmpty()) {
+            return List.of();
         }
-        return out;
+        // 적용 단품 — 양식 안에서 단품 차례(sort_order, id)
+        query.select(NS.noticeId, PS.id, PS.name).from(NS).join(PS).on(PS.id.eq(NS.productSkuId)).where(NS.noticeId.in(byId.keySet()))
+                .orderBy(PS.sortOrder.asc(), PS.id.asc()).fetch().forEach(t -> {
+                    NoticeRow notice = byId.get(t.get(NS.noticeId));
+                    notice.skuIds().add(t.get(PS.id));
+                    notice.skuNames().add(t.get(PS.name));
+                });
+        // 값 — 양식 안에서 (custom, sort_order, item_key) 차례
+        query.select(NV.noticeId, NV.custom, NV.itemKey, NV.customName, NV.sortOrder, NV.value, NV.unavailable, NV.unavailableReason).from(NV)
+                .where(NV.noticeId.in(byId.keySet())).orderBy(NV.custom.asc(), NV.sortOrder.asc(), NV.itemKey.asc()).fetch().forEach(t -> {
+                    NoticeRow notice = byId.get(t.get(NV.noticeId));
+                    if (Boolean.TRUE.equals(t.get(NV.custom))) {
+                        notice.customItems().add(new CustomRow(t.get(NV.customName), t.get(NV.value), n(t.get(NV.sortOrder))));
+                    } else {
+                        notice.values().put(t.get(NV.itemKey), new ValueRow(t.get(NV.itemKey), t.get(NV.value), Boolean.TRUE.equals(t.get(NV.unavailable)),
+                                t.get(NV.unavailableReason)));
+                    }
+                });
+        return new ArrayList<>(byId.values());
     }
 
+    /** 상품의 양식을 모두 지운다(적용 단품·값은 DB 의 ON DELETE CASCADE) */
     public void deleteAll(long productId) {
-        jdbc.update("DELETE FROM group_buy_notices WHERE product_id = ?", productId);
+        query.delete(N).where(N.productId.eq(productId)).execute();
     }
 
     public void insertNotice(long id, long productId, int sortOrder, String categoryCode, String title, String catalogVersion, Instant now) {
-        jdbc.update("INSERT INTO group_buy_notices (id, product_id, sort_order, category_code, title, catalog_version, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", id, productId, sortOrder, categoryCode, title, catalogVersion, ts(now), ts(now));
+        insert(GroupBuyNoticeEntity.create(id, productId, sortOrder, categoryCode, title, catalogVersion, now));
     }
 
     public void insertSku(long noticeId, long productId, long productSkuId) {
-        jdbc.update("INSERT INTO group_buy_notice_skus (notice_id, product_id, product_sku_id) VALUES (?, ?, ?)", noticeId, productId, productSkuId);
+        insert(GroupBuyNoticeSkuEntity.create(noticeId, productId, productSkuId));
     }
 
     public void insertValue(long id, long noticeId, String itemKey, String value, boolean unavailable, String reason) {
-        jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, item_key, value, unavailable, unavailable_reason) VALUES (?, ?, false, ?, ?, ?, ?)", id,
-                noticeId, itemKey, value, unavailable, reason);
+        insert(GroupBuyNoticeValueEntity.item(id, noticeId, itemKey, value, unavailable, reason));
     }
 
     public void insertCustom(long id, long noticeId, String name, String value, int sortOrder) {
-        jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, custom_name, value, sort_order) VALUES (?, ?, true, ?, ?, ?)", id, noticeId, name, value,
-                sortOrder);
+        insert(GroupBuyNoticeValueEntity.custom(id, noticeId, name, value, sortOrder));
     }
 }

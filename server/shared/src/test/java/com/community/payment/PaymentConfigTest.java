@@ -50,7 +50,7 @@ class PaymentConfigTest {
     private static PaymentGateway build(PaymentGatewayKind kind, boolean testOrders, String... active) {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         StaticListableBeanFactory beans = new StaticListableBeanFactory();
-        beans.addBean("portOneSettingsService", new PortOneSettingsService(new PortOneSettingStore(dataSource), new SecretEncryptor(""),
+        beans.addBean("portOneSettingsService", new PortOneSettingsService(new PortOneSettingStore(null, dataSource), new SecretEncryptor(""),
                 new IdentityProperties(IdentityProviderKind.PORTONE, Duration.ofMinutes(30)), com.community.payment.config.PaymentProperties.DEFAULTS, null, new StaticListableBeanFactory().getBeanProvider(Clock.class)));
         return new PaymentConfig().paymentGateway(properties(kind, testOrders), profiles(active), dataSource, new DataSourceTransactionManager(dataSource),
                 beans.getBeanProvider(PortOneSettingsService.class), beans.getBeanProvider(Clock.class));

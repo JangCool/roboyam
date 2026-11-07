@@ -14,6 +14,7 @@ import com.community.notificationtemplate.engine.MessageTemplateStore;
 import com.community.notificationtemplate.engine.NotificationMessageRenderer;
 import com.community.notificationtemplate.engine.RenderedEmail;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.Messages;
 import java.util.ArrayList;
@@ -92,7 +93,7 @@ class RequiredMailOutboxSenderTest {
     @BeforeEach
     void setUp() {
         dispatcher = new FakeDispatcher();
-        sender = new RequiredMailOutboxSender(new MemberNotificationMailQueries(dataSource), renderer, dispatcher);
+        sender = new RequiredMailOutboxSender(new MemberNotificationMailQueries(JpaTestContext.query()), renderer, dispatcher);
     }
 
     /** 회원 한 명 — 상태·이메일·인증 여부·표시 언어 */

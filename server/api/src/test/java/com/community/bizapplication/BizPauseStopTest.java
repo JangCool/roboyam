@@ -103,7 +103,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
     }
 
     private RefundRow openRefund(long id) {
-        return refunds.lockOpen(id).orElseThrow();
+        return tx.execute(s -> refunds.lockOpen(id)).orElseThrow();
     }
 
     private static long fee(long prorated, int rate) {
@@ -322,12 +322,12 @@ class BizPauseStopTest extends BizHotdealTestBase {
 
     @Test
     void 규칙7_수수료율은_신청_때_고정되고_뒤에_설정을_바꿔도_그_건은_그대로() {
-        placementStore.save(AdPlacements.DEFAULTS, 20, operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(AdPlacements.DEFAULTS, 20, operator.operatorId(), clock.instant()));
         assertThat(members.refundPolicy().stopFeeRate()).isEqualTo(20);
         assertThat(view.refundPolicy().version()).isEqualTo("2026-11-02");
         Running r = paidText(4);
         assertThat(app(r.id()).stopFeeRate()).isEqualTo(20);
-        placementStore.save(AdPlacements.DEFAULTS, 5, operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(AdPlacements.DEFAULTS, 5, operator.operatorId(), clock.instant()));
         assertThat(view.refundPolicy().stopFeeRate()).isEqualTo(5);
         assertThat(app(r.id()).stopFeeRate()).isEqualTo(20);
         at(r, Duration.ofHours(3));
@@ -497,7 +497,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
         assertThat(s.takedownText()).as("메모는 사업자 화면의 사유로 옮기지 않는다").isNull();
         assertThat(openRefund(r.id()).reason()).isNull();
         assertThat(eventNote(r.id(), "STOPPED")).isEqualTo("OTHER · 방문 요청");
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_STOP'", String.class, Long.toString(r.id())))
+        assertThat(auditLogs.where().target(Long.toString(r.id())).action("BIZ_APP_STOP").single().retentionClass())
                 .isEqualTo("MONEY");
         Map<String, Object> audit = lastAudit("BIZ_APPLICATION", Long.toString(r.id()), "BIZ_APP_STOP");
         assertThat(audit.get("detail").toString()).contains("feeRate", "proposed", "OTHER");
@@ -553,7 +553,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
         // 같은 게시판의 운영 숨김 글 — 기존처럼 「숨겨진 글」 줄로 남아야 한다(먼저 만든다 — 게시하면 시계가 그 건의 기간으로 옮겨 간다)
         Booked staff = postedBooking("NONE");
         long staffId = postOf(staff.id());
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", staffId);
+        boardFixture.staffHide(staffId);
         Booked b = postedBooking("NONE");
         long postId = postOf(b.id());
         String pid = Long.toString(postId);
@@ -636,6 +636,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
         Booked b = postedBooking("NONE");
         long postId = postOf(b.id());
         pauses.pause(b.user(), b.id());
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE posts SET hidden_at = now() + interval '1 second', hidden_reason = 'STAFF' WHERE id = ?", postId); // 운영자가 따로 숨겼다
         pauses.resume(b.user(), b.id());
         assertThat(app(b.id()).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
@@ -650,7 +651,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
         assertThat(codeOf(() -> pauses.pause(ended.user(), ended.id()))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
         assertThat(codeOf(() -> pauses.stop(ended.user(), ended.id(), "중단"))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
         Booked hidden = postedBooking("NONE");
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", postOf(hidden.id()));
+        boardFixture.staffHide(postOf(hidden.id()));
         assertThat(codeOf(() -> pauses.pause(hidden.user(), hidden.id()))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
         // 게시 전(시작 전)도 없다
         Booked waiting = booked("NONE");

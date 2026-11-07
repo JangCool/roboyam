@@ -1,15 +1,14 @@
 package com.community.withdrawal;
 
 import static com.community.withdrawal.WithdrawalTestSupport.plain;
+import com.community.testsupport.BatchTestParts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditActions;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.commerce.CommerceApiTestBase;
@@ -39,8 +38,8 @@ class WithdrawalBatchTest extends CommerceApiTestBase {
     private PasswordEncoder encoder;
 
     private BatchRunner.RunReport run(BatchJob job) {
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 957),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 957), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(job)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()), null, null,
                 null));
         assertThat(report.runId()).as(String.valueOf(report)).isNotNull();
@@ -67,7 +66,7 @@ class WithdrawalBatchTest extends CommerceApiTestBase {
     }
 
     private String status(long userId) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.status(userId);
     }
 
     private Map<String, Object> withdrawalRow(long userId) {
@@ -111,6 +110,7 @@ class WithdrawalBatchTest extends CommerceApiTestBase {
         long brokenTransfer = scheduled(broken);
         finish(doneTransfer);
         finish(brokenTransfer);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE member_withdrawals SET requested_at = ? WHERE user_id = ?", ts(clock.instant().minus(Duration.ofDays(11))), overdue);
         failCompletionOf(broken);
         try {
@@ -138,11 +138,11 @@ class WithdrawalBatchTest extends CommerceApiTestBase {
                     Long.toString(brokenWithdrawal));
             assertThat(failure.get("target_type")).isEqualTo(WithdrawalAutoCompleteJob.TARGET);
             assertThat(String.valueOf(failure.get("message"))).contains("wd-test-fail");
-            assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND target_id = ?", AuditActions.MEMBER_WITHDRAW, Long.toString(broken))).isZero(); // 실패 건은 되돌아갔다
+            assertThat(auditLogs.where().action(AuditActions.MEMBER_WITHDRAW).target(Long.toString(broken)).count()).isZero(); // 실패 건은 되돌아갔다
 
             // 두 번째 실행 — 완료한 사람은 다시 집히지 않고, 안내는 두 번 가지 않으며, 실패한 사람은 다시 실패한다
             BatchRunner.RunReport second = run(job);
-            assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND target_id = ?", AuditActions.MEMBER_WITHDRAW, Long.toString(done))).isEqualTo(1);
+            assertThat(auditLogs.where().action(AuditActions.MEMBER_WITHDRAW).target(Long.toString(done)).count()).isEqualTo(1);
             assertThat(withdrawalRow(overdue).get("progress_notified_at")).isEqualTo(firstNotice);
             assertThat(status(waiting)).isEqualTo("WITHDRAWING");
             assertThat(count("SELECT count(*) FROM batch_run_failures WHERE run_id = ? AND target_id = ?", second.runId(), Long.toString(brokenWithdrawal))).isEqualTo(1);

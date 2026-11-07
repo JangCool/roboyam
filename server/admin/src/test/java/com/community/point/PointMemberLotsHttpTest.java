@@ -172,6 +172,7 @@ class PointMemberLotsHttpTest extends PointAdminHttpTestBase {
     void 미회수_기록은_최근_5건이_먼저_오고_미회수_잔액은_잔액_행이다() throws Exception {
         long member = newMember();
         for (int i = 0; i < 6; i++) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO point_revoke_shortfalls (id, user_id, reason, ref_type, ref_id, requested, applied, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     ids.nextId(), member, i % 2 == 0 ? "POST_REVOKE" : "COMMENT_REVOKE", i % 2 == 0 ? "POST" : "COMMENT", 9000L + i, 20, i,
                     OffsetDateTime.ofInstant(now.minus(Duration.ofHours(6 - i)), ZoneOffset.UTC));

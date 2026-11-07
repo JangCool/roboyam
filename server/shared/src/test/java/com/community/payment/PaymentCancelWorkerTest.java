@@ -141,9 +141,9 @@ class PaymentCancelWorkerTest {
         @Test
         void 취소_누계는_결제_금액을_넘지_않는다_조건부_증가() {
             PaymentTestKit.Created created = paid(5_000);
-            assertThat(kit.orderStore.addCanceled(created.orderId(), 5_001, kit.now())).isFalse();
-            assertThat(kit.orderStore.addCanceled(created.orderId(), 5_000, kit.now())).isTrue();
-            assertThat(kit.orderStore.addCanceled(created.orderId(), 1, kit.now())).as("이미 전액").isFalse();
+            assertThat(kit.tx.<Boolean>execute(status -> kit.orderStore.addCanceled(created.orderId(), 5_001, kit.now()))).isFalse();
+            assertThat(kit.tx.<Boolean>execute(status -> kit.orderStore.addCanceled(created.orderId(), 5_000, kit.now()))).isTrue();
+            assertThat(kit.tx.<Boolean>execute(status -> kit.orderStore.addCanceled(created.orderId(), 1, kit.now()))).as("이미 전액").isFalse();
             assertThat(kit.order(created.paymentId()).canceledAmount()).isEqualTo(5_000);
             assertThat(kit.order(created.paymentId()).status()).isEqualTo(PaymentStatus.CANCELED);
         }

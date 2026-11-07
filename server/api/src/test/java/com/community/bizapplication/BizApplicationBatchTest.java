@@ -1,13 +1,12 @@
 package com.community.bizapplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.testsupport.BatchTestParts;
 
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.bizapplication.batch.BizPaymentDueNoticeJob;
@@ -40,8 +39,8 @@ class BizApplicationBatchTest extends BizApplicationApiTestBase {
 
     private BatchRunner.RunReport run(BatchJob job) {
         // 앱의 트랜잭션 관리자(JPA) — 서비스의 @Transactional 이 덩어리 트랜잭션에 참여하게(운영과 같다)
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 953),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 953), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(job)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()), null, null, null));
         if (report.runId() != null) {
             Map<String, Object> row = jdbc.queryForMap("SELECT status, error_message, message_key FROM batch_runs WHERE id = ?", report.runId());

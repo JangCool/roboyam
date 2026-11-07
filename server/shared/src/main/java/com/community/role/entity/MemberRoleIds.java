@@ -1,6 +1,7 @@
 package com.community.role.entity;
 
 import com.community.permission.entity.MemberPermission;
+import java.util.List;
 
 /**
  * 제품이 넣는 내장 회원 역할의 아이디({@code BuiltinRoleSeeder} 시드). 등급 역할은 {@code GradeRoles} 가 정한다.
@@ -14,6 +15,14 @@ public final class MemberRoleIds {
     public static final String BUSINESS = "ROLE_MEMBER_BUSINESS";
     public static final String BOARD_MANAGER = "ROLE_BOARD_MANAGER";
     public static final String BOARD_STAFF = MemberPermission.BOARD_STAFF_ROLE_ID;
+
+    /**
+     * 일반 회원 역할을 처음 넣을 때 주는 기본 권한(정본 — 관리자 서버의 {@code BuiltinRoleSeeder} 와 시험 픽스처가 같이 쓴다). 운영자가 나중에 조정할 수 있다.
+     * 공구 주문({@code commerce.purchase})은 V104 가 포인트 상점 이용을 가진 역할에 같이 준 것과 맞춘다(새로 설치해 역할이 마이그레이션 뒤에 생기는 사이트도 같게).
+     */
+    public static final List<MemberPermission> GENERAL_DEFAULT_PERMISSIONS = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE,
+            MemberPermission.POST_REACT, MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE,
+            MemberPermission.GROUP_CREATE, MemberPermission.COMMERCE_PURCHASE);
 
     private MemberRoleIds() {
     }

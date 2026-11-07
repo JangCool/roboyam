@@ -1,13 +1,12 @@
 package com.community.bizapplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.testsupport.BatchTestParts;
 
 import com.community.ad.service.AdOperatorService;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.bizapplication.batch.BizHotdealPublishJob;
@@ -46,6 +45,7 @@ abstract class BizHotdealTestBase extends BizApplicationApiTestBase {
 
     @AfterEach
     void cleanDomains() {
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         domains.forEach(d -> jdbc.update("DELETE FROM deal_domains WHERE domain = ?", d));
         rules.invalidate();
     }
@@ -146,20 +146,19 @@ abstract class BizHotdealTestBase extends BizApplicationApiTestBase {
     /** 그 권한을 가진 활성 운영자(공개 사이트 문맥이라 권한 표가 없으면 코드 값으로 넣는다) */
     protected long operatorWith(Permission... permissions) {
         long id = newOperator();
-        String roleId = "ROLE_ZZ_BHD_" + id;
-        jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name) VALUES (?, 'op_general', 'OPERATOR', ?)", roleId, "bhd-" + (id % 1_000_000_000L));
         for (Permission permission : permissions) {
+            // SQL 로 남김(ON CONFLICT upsert): 권한 표는 관리자 앱이 뜰 때 맞춘다 — 공개 사이트 문맥만 띄운 시험이라 없으면 코드 값으로 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready, synced_at) VALUES (?, 'OPERATOR', ?, ?, ?, now()) ON CONFLICT (code) DO NOTHING",
                     permission.code(), permission.type().id(), permission.unit().name(), permission.featureReady());
-            jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?)", ids.nextId(), roleId, permission.code());
         }
-        jdbc.update("INSERT INTO operator_roles (id, operator_id, role_id) VALUES (?, ?, ?)", ids.nextId(), id, roleId);
+        operatorFixture.grantRole(id, "ROLE_ZZ_BHD_" + id, "bhd-" + (id % 1_000_000_000L), java.util.Arrays.stream(permissions).map(Permission::code).toList());
         return id;
     }
 
     /** 링크 규칙 한 줄 차단(시험이 끝나면 지운다) */
     protected void block(String domain) {
         domains.add(domain);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_domains (id, domain, rule, shortener, created_at, updated_at) VALUES (?, ?, 'BLOCK', false, now(), now())", ids.nextId(), domain);
         rules.invalidate();
     }
@@ -181,8 +180,8 @@ abstract class BizHotdealTestBase extends BizApplicationApiTestBase {
 
     /** 게시 배치를 「지금 실행」으로 한 번(운영과 같은 실행기 — OK·SKIP) */
     protected void runPublishJob() {
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 954),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(publishJob)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 954), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(publishJob)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(publishJob.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()),
                 null, null, null));
         assertThat(report.runId()).as(String.valueOf(report)).isNotNull();
