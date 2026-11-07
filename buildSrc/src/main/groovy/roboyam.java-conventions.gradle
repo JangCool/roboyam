@@ -39,4 +39,8 @@ tasks.withType(Test).configureEach {
     systemProperty 'user.timezone', 'UTC'
     // local 포트원 시드(roboyam-shared-local.yml)는 시험에서 끈다 — 앱 시험이 local 프로필로 떠서 시험 DB 의 포트원 설정을 채우지 않게(PortOneLocalSeeder)
     systemProperty 'roboyam.portone.seed.enabled', 'false'
+    // 앱 전체 문맥(엔티티 약 250개)을 띄우는 시험이 많다 — Gradle 기본 힙(512MB)으로는 모듈 시험 전체에서 문맥 캐시가 쌓여 OutOfMemoryError 가 난다(2026-11-07 JPA 전환 뒤 admin).
+    // 힙을 넉넉히 두고, 스프링 시험 문맥 캐시는 최근 것 몇 개만 남긴다(기본 32 — 넘친 문맥은 닫히고 필요하면 다시 띄운다)
+    maxHeapSize = '2g'
+    systemProperty 'spring.test.context.cache.maxSize', '8'
 }
