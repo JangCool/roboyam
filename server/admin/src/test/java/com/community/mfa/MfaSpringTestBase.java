@@ -44,7 +44,9 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @SpringBootTest(classes = AdminApplication.class, properties = {
         "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "roboyam.batch.scheduler-enabled=false",
+        // 배치를 끈다 — 예전 "roboyam.batch.scheduler-enabled" 는 없는 설정이라 배치가 켜진 채였고, 그 문맥이 뜰 때 local 공구 시드가 같이 쓰는 시험 DB 에
+        // 예시 분류·상품을 넣어 뒤에 도는 공구 시험(GroupBuyLocalSeederTest · GroupBuyAdminHttpTest)이 실행 순서에 따라 깨졌다
+        "roboyam.batch.enabled=false",
         "roboyam.notification.watcher-enabled=false"
 })
 @Import(MfaSpringTestBase.TestClockConfig.class)

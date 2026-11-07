@@ -16,8 +16,6 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 관리자 공구 API(커머스 2b-4) — 실제 관리자 앱 문맥 + PostgreSQL. 결정 35 권한(조회·관리·중단·수량 조정·환불·내보내기)·{@code featureReady}·메뉴 · 판매 켜기는 최고 관리자만(20절) ·
@@ -25,7 +23,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
 
-    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.community.groupbuy.service.GroupBuyProductService products;
 
     @AfterEach
     void restore() {
@@ -111,17 +110,9 @@ class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
     @Test
     void 결정2_상품_설명은_저장할_때_서버가_정화한다() throws Exception {
         Cookie manager = login(operatorWith(Permission.COMMERCE_PRODUCT_READ, Permission.COMMERCE_PRODUCT_MANAGE));
-        String categories = mvc.perform(withCsrf(put("/api/admin/group-buys/categories"), manager)
-                        .content("[{\"id\":null,\"tempKey\":\"t1\",\"parent\":null,\"name\":\"정화" + (ids.nextId() % 100000) + "\",\"hidden\":false}]"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        JsonNode created = null;
-        for (JsonNode c : MAPPER.readTree(categories).path("data")) {
-            if (c.path("name").asString().startsWith("정화")) {
-                created = c;
-            }
-        }
-        assertThat(created).isNotNull();
-        String body = "{\"categoryId\":\"" + created.path("id").asString() + "\",\"name\":\"정화 상품\",\"summary\":\"\",\"spec\":\"\","
+        // 분류는 서비스로 하나만 더한다 — 분류 전체 교체(PUT)는 같이 쓰는 시험 DB 의 남의 분류(쓰는 상품이 있으면 409)까지 지우려 한다(시험은 자기 행만)
+        long createdId = products.createCategory("정화" + (ids.nextId() % 100000), null, 0, null, "127.0.0.1");
+        String body = "{\"categoryId\":\"" + createdId + "\",\"name\":\"정화 상품\",\"summary\":\"\",\"spec\":\"\","
                 + "\"description\":\"<p onclick=\\\"x()\\\">설명<script>alert(1)</script></p><iframe src=\\\"https://evil.example\\\"></iframe>\","
                 + "\"normalPrice\":10000,\"normalPriceBasis\":\"OFFICIAL_STORE\",\"normalPriceSource\":\"시험\",\"withdrawalRestriction\":\"\",\"optionTypeCodes\":[],"
                 + "\"skus\":[{\"skuId\":null,\"name\":\"기본\",\"values\":[],\"defaultSupplyPrice\":5000,\"onSale\":true}],\"images\":[],\"notices\":null,\"version\":null}";

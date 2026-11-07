@@ -25,7 +25,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * <ul>
  *   <li><b>읽기는 한 줄 모양(프로젝션)</b>이다 — 엔티티를 영속성 컨텍스트에 올리지 않으므로 같은 트랜잭션의 조건부 UPDATE(QueryDSL DML · JDBC)가 바꾼 값을 늘 DB 에서 다시 읽는다.</li>
  *   <li><b>쓰기는 즉시 실행</b>이다 — 상태 전이·카운터는 QueryDSL DML({@code execute()} 가 바로 돈다), 넣기는 {@code persist} 뒤 바로 {@code flush}. 변경 감지에 맡기지 않는다
- *       (뒤따르는 JDBC 문장이 그 줄을 FK 로 보거나 읽어도 된다 · 결제 확정의 JDBC 세이브포인트 안에서도 그 문장이 그 자리에서 실패한다).</li>
+ *       (뒤따르는 JDBC 문장이 그 줄을 FK 로 보거나 읽어도 된다). 단 결제 확정의 JDBC 세이브포인트 안에서 도는 쓰기는 JDBC 로 둔다 — 그 안에서 JPA 문장이 실패하면
+ *       업무 트랜잭션 전체가 롤백 전용이 되어 거절로 되돌릴 수 없다(G25 ③ — {@code GroupBuySavepoint}).</li>
  *   <li><b>행 잠금</b>은 루트 표만 고르는 id 프로젝션에 {@code PESSIMISTIC_WRITE}(PostgreSQL {@code FOR NO KEY UPDATE}) — 잠그는 문장과 읽는 문장을 나눈다(조인 프로젝션에 잠금을 걸면 잠기지 않는다).
  *       공구 저장소의 잠금은 모두 같은 행을 잠그거나 조건부 UPDATE 하는 작업자끼리 줄 세우는 것이라 FK 참조 INSERT 를 막을 필요가 없다.</li>
  *   <li>JDBC({@link #jdbc}) 문장은 같은 트랜잭션의 연결을 쓴다(JPA 트랜잭션 관리자가 연결을 묶는다). 사유는 문장마다 주석으로 적는다.</li>

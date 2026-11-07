@@ -75,8 +75,7 @@ public class GroupBuySettingsStore extends GroupBuyStoreSupport {
 
     /** 설정 행을 잠근다(저장끼리 줄 선다) */
     public void lock() {
-        if (!query.select(S.id).from(S).where(S.id.eq(GroupBuySettingsEntity.ROW_ID)).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetch().iterator()
-                .hasNext()) {
+        if (query.select(S.id).from(S).where(S.id.eq(GroupBuySettingsEntity.ROW_ID)).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             throw new EmptyResultDataAccessException(1);
         }
     }
