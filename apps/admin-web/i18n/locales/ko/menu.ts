@@ -75,6 +75,7 @@ export default {
     content: '콘텐츠',
     posts: '게시글 관리',
     highlights: '하이라이트',
+    popups: '팝업 관리',
     popularPosts: '인기글 관리',
     popularSettings: '인기글 설정',
     point: '포인트',

@@ -27,7 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 파일 올리기({@code POST /api/admin/files}, multipart {@code file} + {@code purpose}) — 사이트 로고 그림({@code SITE_LOGO}, 권한 site.manage)과
- * 하이라이트 대표 이미지({@code HIGHLIGHT_IMAGE}, 권한 highlight.manage — 하이라이트 만들기·고치기의 {@code imageFileId} 로 지정한다. 같은 검사·다시 만들기, 키 {@code highlight/{버전}/image.{확장자}}).
+ * 하이라이트 대표 이미지({@code HIGHLIGHT_IMAGE}, 권한 highlight.manage — 하이라이트 만들기·고치기의 {@code imageFileId} 로 지정한다. 같은 검사·다시 만들기, 키 {@code highlight/{버전}/image.{확장자}}),
+ * 팝업 그림({@code SITE_POPUP_IMAGE}, 권한 site.manage — 팝업 만들기·고치기의 {@code imageFileId} 로 지정한다. 하이라이트와 같은 검사·다시 만들기, 키 {@code site-popup/{버전}/image.{확장자}}, V162).
  * 올린 파일은 {@code PENDING} 장부 행과 저장소 파일이 되고, 로고로 지정하기({@code PUT /api/admin/site/logo})까지는 아무 데도 쓰이지 않는다(공개 주소도 알려 주지 않는다).
  * 지정하지 않고 둔 파일은 「올리다 만 파일 정리」 배치({@code file-orphan-cleanup})가 지운다.
  *
@@ -39,6 +40,8 @@ public class FileUploadService {
     private static final Logger log = LoggerFactory.getLogger(FileUploadService.class);
     /** 하이라이트 대표 이미지의 저장소 키 머리 — {@code highlight/{버전}/image.{png|jpg|webp}} */
     static final String HIGHLIGHT_KEY_PREFIX = "highlight/";
+    /** 팝업 그림의 저장소 키 머리 — {@code site-popup/{버전}/image.{png|jpg|webp}} */
+    static final String SITE_POPUP_KEY_PREFIX = "site-popup/";
 
     private final LogoImageProcessor logoProcessor;
     private final SiteImageFiles imageFiles;
@@ -78,14 +81,20 @@ public class FileUploadService {
         } catch (IOException e) {
             throw new ValidationException(Map.of("file", new MessageRef("site.image.corrupt")));
         }
-        // 로고와 하이라이트 대표 이미지는 같은 검사·다시 만들기(PNG·JPG·GIF·WEBP, 2MB, 한 변 4000px)를 쓰고 거절 문구만 다르다
-        LogoImageProcessor.Processed processed = purpose == FilePurpose.HIGHLIGHT_IMAGE
-                ? logoProcessor.process(data, "highlight.image.type", "highlight.image.size")
-                : logoProcessor.process(data);
+        // 로고·하이라이트 대표 이미지·팝업 그림은 같은 검사·다시 만들기(PNG·JPG·GIF·WEBP, 2MB, 한 변 4000px)를 쓰고 거절 문구만 다르다
+        LogoImageProcessor.Processed processed = switch (purpose) {
+            case HIGHLIGHT_IMAGE -> logoProcessor.process(data, "highlight.image.type", "highlight.image.size");
+            case SITE_POPUP_IMAGE -> logoProcessor.process(data, "sitePopup.image.type", "sitePopup.image.size");
+            default -> logoProcessor.process(data);
+        };
 
         String version = imageFiles.newVersion();
-        String key = purpose == FilePurpose.HIGHLIGHT_IMAGE ? HIGHLIGHT_KEY_PREFIX + version + "/image." + processed.format().extension()
-                : SiteMediaKeys.logo(version, processed.format().extension());
+        String extension = processed.format().extension();
+        String key = switch (purpose) {
+            case HIGHLIGHT_IMAGE -> HIGHLIGHT_KEY_PREFIX + version + "/image." + extension;
+            case SITE_POPUP_IMAGE -> SITE_POPUP_KEY_PREFIX + version + "/image." + extension;
+            default -> SiteMediaKeys.logo(version, extension);
+        };
         imageFiles.writeAll(Map.of(key, processed.data()));
         long fileId = ids.nextId();
         try {
@@ -114,7 +123,7 @@ public class FileUploadService {
     /** 용도마다 올리는 데 필요한 권한 */
     private static Permission requiredPermission(FilePurpose purpose) {
         return switch (purpose) {
-            case SITE_LOGO -> Permission.SITE_MANAGE;
+            case SITE_LOGO, SITE_POPUP_IMAGE -> Permission.SITE_MANAGE;
             case HIGHLIGHT_IMAGE -> Permission.HIGHLIGHT_MANAGE;
             case POST_IMAGE, BIZ_AD_IMAGE, GROUP_IMAGE -> throw new IllegalStateException("글 이미지·사업자 광고 이미지·소모임 대표 이미지는 관리자 앱에서 올리지 않는다");
         };

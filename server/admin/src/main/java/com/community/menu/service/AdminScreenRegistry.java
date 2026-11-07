@@ -81,13 +81,15 @@ public final class AdminScreenRegistry {
                     // 스텝 처리 감독(docs/features/board-staff-action-contract.md) — 모든 게시판의 매니저·스텝 글·댓글 처리, 보기 keeper-action.read(되돌리기는 화면 안에서 keeper-action.restore)
                     leaf(s("staffActions", "/staff-actions", "menu.staffActions", "pi pi-user-edit", Permission.KEEPER_ACTION_READ)),
                     leaf(s("appeals", "/appeals", "menu.appeals", "pi pi-comments", Permission.SANCTION_READ))),
-            // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md).
+            // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md)·팝업 관리.
             // admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.content", "pi pi-star",
                     leaf(s("posts", "/posts", "menu.posts", "pi pi-file-edit", Permission.POST_READ)),
                     leaf(s("highlights", "/content/highlights", "menu.highlights", "pi pi-bookmark", Permission.HIGHLIGHT_READ)),
                     leaf(s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-chart-line", Permission.POPULAR_READ)),
-                    leaf(s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ))),
+                    leaf(s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ)),
+                    // 팝업 관리(docs/features/site-popup-contract.md) — 콘텐츠 묶음 맨 끝, 보기 site.read(바꾸기는 화면 안에서 site.manage)
+                    leaf(s("sitePopups", "/content/popups", "menu.popups", "pi pi-window-maximize", Permission.SITE_READ))),
             section(NORMAL, "menu.point", "pi pi-wallet",
                     leaf(s("points", "/points", "menu.points", "pi pi-receipt", Permission.POINT_READ)),
                     leaf(s("pointPolicy", "/points/policy", "menu.pointPolicy", "pi pi-percentage", Permission.POINT_READ))),

@@ -40,6 +40,9 @@
 
         <AdWings />
 
+        <!-- 팝업(운영자 관리자 「팝업 관리」) — 들어오면 화면 가운데 뜨는 이벤트·프로모션 창. 보일 곳(홈만/모든 화면)·기기는 부품이 가린다 -->
+        <SitePopupLayer />
+
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 
         <WriteFab />
