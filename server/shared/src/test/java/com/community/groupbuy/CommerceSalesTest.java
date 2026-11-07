@@ -18,6 +18,8 @@ import com.community.identity.provider.IdentityVerifier;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.payment.gateway.PaymentGateway;
+import com.community.site.entity.SiteOperatorStage;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -66,13 +68,19 @@ class CommerceSalesTest {
     private static void clear() {
         kit.jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false, changed_at = NULL, changed_by = NULL, change_reason = NULL WHERE id = 1");
         kit.jdbc.update("UPDATE commerce_sales_checklist SET checked = false, checked_by = NULL, checked_at = NULL");
-        kit.jdbc.update("UPDATE commerce_business_info SET company_name = '', representative = '', business_no = '', mail_order_no = '', mail_order_authority = '', "
-                + "address = '', phone = '', email = '', business_hours = '', privacy_officer = '', hosting_provider = '', shipping_refund_policy = '' WHERE id = 1");
+        kit.jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
+        SiteOperatorFixture.clear(kit.jdbc);
     }
 
+    /** 사업자 정보의 정본 = 운영 주체(terms-operator-contract) — 개인사업자 + 시험 사업자 정보 */
+    private static void fillOperator() {
+        SiteOperatorFixture.fillBusiness(kit.jdbc);
+    }
+
+    /** 커머스 사업자 정보 저장 요청 — 겹치는 칸에 운영 주체와 다른 값을 넣는다(저장이 무시해야 한다) */
     private static BusinessInfo filled() {
-        return new BusinessInfo("시험상회", "홍길동", "123-45-67891", "2026-서울-0001", "서울특별시 강남구", "서울특별시 강남구 1", "02-000-0000", "help@test.local",
-                "평일 10~17시", "홍길동", "시험 호스팅", "7일 안 청약철회", null, null);
+        return new BusinessInfo("다른상회", "김다른", "123-45-67890", "2099-다른-9999", "다른 기관", "다른 주소", "010-9999-9999", "other@test.local",
+                "평일 10~17시", "김다른", "다른 호스팅", "7일 안 청약철회", null, null);
     }
 
     private void checkAll() {
@@ -88,10 +96,10 @@ class CommerceSalesTest {
                 .isInstanceOfSatisfying(CommerceSalesException.class, e -> assertThat(e.getErrorCode()).isEqualTo(CommerceSalesException.ROOT_ONLY));
         assertThatThrownBy(() -> sales.toggle(true, "판매 시작합니다", kit.operator, true, "ip"))
                 .isInstanceOfSatisfying(CommerceSalesException.class, e -> assertThat(e.getErrorCode()).isEqualTo(CommerceSalesException.NOT_READY));
-        assertThat(sales.state().missing()).contains("BUSINESS_INFO", "BUSINESS_REG", "RETURN_ADDRESS");
+        assertThat(sales.state().missing()).contains("BUSINESS_INFO", "OPERATOR_STAGE", "BUSINESS_REG", "RETURN_ADDRESS");
 
-        sales.saveBusinessInfo(filled(), kit.operator, "ip");
-        assertThat(sales.state().missing()).doesNotContain("BUSINESS_INFO", "PG_KEYS", "CARRIER", "IDENTITY");
+        fillOperator();
+        assertThat(sales.state().missing()).doesNotContain("BUSINESS_INFO", "OPERATOR_STAGE", "PG_KEYS", "CARRIER", "IDENTITY");
         assertThatThrownBy(() -> sales.toggle(true, "판매 시작합니다", kit.operator, true, "ip")).isInstanceOf(CommerceSalesException.class);
         checkAll();
         assertThat(sales.state().canEnable()).isTrue();
@@ -126,6 +134,7 @@ class CommerceSalesTest {
     @Test
     void G41_공개_정보는_판매가_켜져_있고_필수_칸이_찼을_때만_사업자_정보를_싣는다() {
         assertThat(sales.publicInfo().business()).as("꺼짐 + 빈 칸").isNull();
+        fillOperator();
         sales.saveBusinessInfo(filled(), kit.operator, "ip");
         CommerceSalesService.PublicInfo closed = sales.publicInfo();
         assertThat(closed.salesOpen()).isFalse();
@@ -136,33 +145,118 @@ class CommerceSalesTest {
         assertThat(open.business()).isNotNull();
         assertThat(open.business().companyName()).isEqualTo("시험상회");
         assertThat(open.business().mailOrderAuthority()).isEqualTo("서울특별시 강남구");
-        kit.jdbc.update("UPDATE commerce_business_info SET phone = '' WHERE id = 1");
-        assertThat(sales.publicInfo().business()).as("필수 칸이 비면 숨김").isNull();
+        kit.jdbc.update("UPDATE site_operator SET phone = NULL WHERE id = 1");
+        assertThat(sales.publicInfo().business()).as("필수 칸(운영 주체 전화)이 비면 숨김").isNull();
     }
 
     @Test
-    void 사업자등록번호는_모양과_체크섬_칸_길이와_전자우편_모양을_본다_바뀐_칸만_감사() {
+    void 정본_공개_사업자_정보의_겹치는_칸은_운영_주체_값에서_나온다_법인은_회사명_보호책임자는_운영_주체의_보호책임자() {
+        fillOperator();
+        sales.saveBusinessInfo(filled(), kit.operator, "ip");
+        kit.jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = true WHERE id = 1");
+        BusinessInfo sole = sales.publicInfo().business();
+        assertThat(sole.companyName()).isEqualTo("시험상회");
+        assertThat(sole.representative()).isEqualTo("홍길동");
+        assertThat(sole.businessNo()).isEqualTo("123-45-67891");
+        assertThat(sole.mailOrderNo()).isEqualTo("2026-서울-0001");
+        assertThat(sole.address()).isEqualTo("서울특별시 강남구 1");
+        assertThat(sole.phone()).isEqualTo("02-000-0000");
+        assertThat(sole.email()).isEqualTo("help@test.local");
+        assertThat(sole.hostingProvider()).isEqualTo("시험 호스팅");
+        assertThat(sole.privacyOfficer()).as("「운영자와 같음」이면 운영자 이름").isEqualTo("홍길동");
+        assertThat(sole.businessHours()).as("커머스 고유 칸은 커머스 값").isEqualTo("평일 10~17시");
+        assertThat(sole.shippingRefundPolicy()).isEqualTo("7일 안 청약철회");
+
+        kit.jdbc.update("UPDATE site_operator SET stage = 'CORPORATION', business_name = '로보얌 주식회사', corporate_number = '110111-0000000', "
+                + "privacy_officer_same = false, privacy_officer_name = '김보호', privacy_officer_email = 'privacy@test.local' WHERE id = 1");
+        BusinessInfo corp = sales.publicInfo().business();
+        assertThat(corp.companyName()).as("법인은 상호 자리에 회사명").isEqualTo("로보얌 주식회사");
+        assertThat(corp.privacyOfficer()).as("따로 적은 보호책임자").isEqualTo("김보호");
+        assertThat(sales.businessInfo().companyName()).as("관리자 읽기 응답도 운영 주체 값").isEqualTo("로보얌 주식회사");
+    }
+
+    @Test
+    void 정본_커머스_사업자_정보_저장은_겹치는_칸을_받아도_무시하고_고유_칸만_검사_저장_바뀐_칸만_감사() {
         assertThat(CommerceSalesService.validBusinessNo("123-45-67891")).isTrue();
         assertThat(CommerceSalesService.validBusinessNo("123-45-67890")).isFalse();
         assertThat(CommerceSalesService.validBusinessNo("1234567891")).isFalse();
-        BusinessInfo wrong = new BusinessInfo("시험상회", "홍길동", "123-45-67890", "", "", "", "", "", "", "", "", "", null, null);
-        assertThatThrownBy(() -> sales.saveBusinessInfo(wrong, kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("values.businessNo"));
-        BusinessInfo email = new BusinessInfo("시험상회", "", "", "", "", "", "", "not-an-email", "", "", "", "", null, null);
-        assertThatThrownBy(() -> sales.saveBusinessInfo(email, kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("values.email"));
-        BusinessInfo longPolicy = new BusinessInfo("시험상회", "", "", "", "", "", "", "", "", "", "", "가".repeat(3001), null, null);
-        assertThatThrownBy(() -> sales.saveBusinessInfo(longPolicy, kit.operator, "ip")).isInstanceOf(ValidationException.class);
+        fillOperator();
+        // 겹치는 칸의 틀린 값(체크섬이 틀린 등록번호·이메일 모양 아님)은 검사하지 않고 버린다
+        BusinessInfo wrong = new BusinessInfo("시험상회", "홍길동", "123-45-67890", "", "", "", "", "not-an-email", "", "", "", "", null, null);
+        BusinessInfo saved = sales.saveBusinessInfo(wrong, kit.operator, "ip");
+        assertThat(saved.businessNo()).isEqualTo("123-45-67891");
+        assertThat(saved.email()).isEqualTo("help@test.local");
+        BusinessInfo longPolicy = new BusinessInfo("", "", "", "", "", "", "", "", "", "", "", "가".repeat(3001), null, null);
+        assertThatThrownBy(() -> sales.saveBusinessInfo(longPolicy, kit.operator, "ip"))
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("values.shippingRefundPolicy"));
+        BusinessInfo longHours = new BusinessInfo("", "", "", "", "", "", "", "", "가".repeat(101), "", "", "", null, null);
+        assertThatThrownBy(() -> sales.saveBusinessInfo(longHours, kit.operator, "ip"))
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("values.businessHours"));
 
         kit.audits.clear();
-        sales.saveBusinessInfo(filled(), kit.operator, "ip");
+        BusinessInfo after = sales.saveBusinessInfo(filled(), kit.operator, "ip");
+        assertThat(after.companyName()).as("다른 상호를 보내도 운영 주체 값 그대로").isEqualTo("시험상회");
+        assertThat(after.representative()).isEqualTo("홍길동");
+        assertThat(after.mailOrderNo()).isEqualTo("2026-서울-0001");
+        assertThat(after.phone()).isEqualTo("02-000-0000");
+        assertThat(after.privacyOfficer()).isEqualTo("홍길동");
+        assertThat(after.businessHours()).isEqualTo("평일 10~17시");
+        assertThat(kit.jdbc.queryForObject("SELECT business_name FROM site_operator WHERE id = 1", String.class)).as("운영 주체 행도 그대로").isEqualTo("시험상회");
         assertThat(kit.audits).singleElement().satisfies(a -> {
             assertThat(a.action()).isEqualTo(AuditActions.COMMERCE_BUSINESS_INFO_UPDATE);
-            assertThat(a.detail().get("fields").toString()).contains("companyName").contains("businessNo").doesNotContain("홍길동");
+            assertThat(a.detail().get("fields").toString()).contains("businessHours").contains("shippingRefundPolicy").doesNotContain("companyName")
+                    .doesNotContain("홍길동");
         });
         kit.audits.clear();
         sales.saveBusinessInfo(filled(), kit.operator, "ip");
         assertThat(kit.audits).as("바뀐 칸이 없으면 감사 없음").isEmpty();
+    }
+
+    @Test
+    void 정본_판매_켜기는_운영_주체가_개인사업자_이상이고_통신판매업_신고번호가_있어야_한다() {
+        checkAll();
+        // 개인 단계(연락 칸만 있음) — 켜기 조건 OPERATOR_STAGE 가 빠진다
+        kit.jdbc.update("UPDATE site_operator SET operator_name = '홍길동', contact_email = 'help@test.local', phone = '02-000-0000' WHERE id = 1");
+        assertThat(sales.state().missing()).contains("OPERATOR_STAGE");
+        assertThatThrownBy(() -> sales.toggle(true, "판매 시작합니다", kit.operator, true, "ip"))
+                .isInstanceOfSatisfying(CommerceSalesException.class, e -> {
+                    assertThat(e.getErrorCode()).isEqualTo(CommerceSalesException.NOT_READY);
+                    assertThat(e.getStatus().value()).isEqualTo(409);
+                });
+        // 개인사업자인데 통신판매업 신고번호가 없다
+        fillOperator();
+        kit.jdbc.update("UPDATE site_operator SET mail_order_number = NULL WHERE id = 1");
+        assertThat(sales.state().missing()).contains("OPERATOR_STAGE");
+        assertThatThrownBy(() -> sales.toggle(true, "판매 시작합니다", kit.operator, true, "ip")).isInstanceOf(CommerceSalesException.class);
+        kit.jdbc.update("UPDATE site_operator SET mail_order_number = '   ' WHERE id = 1");
+        assertThat(sales.state().missing()).as("공백만 있는 번호도 없는 것").contains("OPERATOR_STAGE");
+        // 법인 + 신고번호 — 켜진다
+        fillOperator();
+        kit.jdbc.update("UPDATE site_operator SET stage = 'CORPORATION', corporate_number = '110111-0000000' WHERE id = 1");
+        assertThat(sales.state().missing()).isEmpty();
+        assertThat(sales.toggle(true, "판매 시작합니다", kit.operator, true, "ip").enabled()).isTrue();
+    }
+
+    @Test
+    void 정본_판매가_켜져_있는_동안_개인_단계로_바꾸거나_통신판매업_신고번호를_비우는_저장은_409() {
+        fillOperator();
+        // 꺼져 있으면 무엇이든 된다
+        sales.assertOperatorChangeAllowed(SiteOperatorStage.INDIVIDUAL, null);
+        sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, null);
+
+        kit.jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = true WHERE id = 1");
+        for (Object[] blocked : new Object[][] {{SiteOperatorStage.INDIVIDUAL, null}, {SiteOperatorStage.INDIVIDUAL, "2026-서울-0001"},
+                {SiteOperatorStage.SOLE_PROPRIETOR, null}, {SiteOperatorStage.CORPORATION, " "}}) {
+            assertThatThrownBy(() -> sales.assertOperatorChangeAllowed((SiteOperatorStage) blocked[0], (String) blocked[1]))
+                    .as("%s / %s", blocked[0], blocked[1])
+                    .isInstanceOfSatisfying(CommerceSalesException.class, e -> {
+                        assertThat(e.getErrorCode()).isEqualTo(CommerceSalesException.SALES_OPEN);
+                        assertThat(e.getStatus().value()).isEqualTo(409);
+                    });
+        }
+        // 사업자 단계 + 신고번호면 바꿔도 된다(번호를 고치거나 법인으로 올리기)
+        sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, "2026-서울-0002");
+        sales.assertOperatorChangeAllowed(SiteOperatorStage.CORPORATION, "2026-서울-0001");
     }
 
     @Test

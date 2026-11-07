@@ -176,7 +176,7 @@ class EmoticonAdminCatalogTest {
         keys.addAll(List.of("emoticon.contract.title", "emoticon.studio.saleWish.paidDisabled", "emoticon.payout.type", "emoticon.payout.businessNumber",
                 "emoticon.payout.bankCode", "emoticon.payout.accountNumber", "emoticon.payout.holderName.required", "emoticon.payout.holderName.mismatch",
                 "emoticon.review.price.tier", "emoticon.review.price.paidDisabled", "emoticon.review.price.freeWish", "emoticon.review.price.noPayout",
-                "emoticon.review.price.noContract", "emoticon.review.price.same", "emoticon.settings.paidSalesEnabled.required", "emoticon.settings.priceTiers.count",
+                "emoticon.review.price.noContract", "emoticon.review.price.same", "emoticon.settings.paidSalesEnabled.required", "emoticon.settings.paidSales.operatorStage", "emoticon.settings.priceTiers.count",
                 "emoticon.settings.priceTiers.range", "emoticon.settings.priceTiers.duplicate", "emoticon.settings.priceTiers.inUse",
                 "audit.action." + AuditActions.EMOTICON_PACK_PRICE, "audit.action." + AuditActions.EMOTICON_PAYOUT_REVEAL, "audit.targetType.EMOTICON_PAYOUT_ACCOUNT"));
         for (String reason : List.of("TYPE", "COVER_TYPE", "DIMENSION", "TOO_LARGE", "TOO_MANY_FRAMES", "NOT_LOOP")) {
@@ -190,7 +190,8 @@ class EmoticonAdminCatalogTest {
         // S3 — 유료 구매 · 환불 · 판매 내역 · 이름 채우기 재인증
         for (String code : List.of("EMOTICON_PACK_FREE", "EMOTICON_PACK_OWNED", "EMOTICON_PACK_OWNED.free", "EMOTICON_PAID_SALES_CLOSED", "EMOTICON_PACK_SUSPENDED.purchase",
                 "EMOTICON_PACK_PAID.remove", "EMOTICON_PURCHASE_NOT_FOUND", "EMOTICON_ALREADY_REFUNDED", "EMOTICON_REFUND_NOT_ALLOWED.USED",
-                "EMOTICON_REFUND_NOT_ALLOWED.EXPIRED", "EMOTICON_SALE_NOT_FOUND", "EMOTICON_SALE_ALREADY_REFUNDED", "IDENTITY_PERSON_MISMATCH")) {
+                "EMOTICON_REFUND_NOT_ALLOWED.EXPIRED", "EMOTICON_SALE_NOT_FOUND", "EMOTICON_SALE_ALREADY_REFUNDED", "IDENTITY_PERSON_MISMATCH",
+                "EMOTICON_PAID_SALES_OPEN")) {
             keys.add("error." + code);
         }
         keys.addAll(List.of("emoticon.purchaseBlocked.ACCOUNT_RESTRICTED", "emoticon.purchaseBlocked.EMAIL_NOT_VERIFIED", "emoticon.purchase.agreeRefundNotice",

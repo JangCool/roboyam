@@ -45,6 +45,10 @@ public final class AuditActions {
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
     /** 공지 띠 설정 저장(설정 > 일반 「공지 띠」) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
     public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
+    /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
+    public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
+    /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */
+    public static final String SITE_OPERATOR_STAGE_CHANGE = "SITE_OPERATOR_STAGE_CHANGE";
     /** 테마 하나의 홈 구성 저장 — 대상 SITE/1, {@code theme} + 칸 수·가젯 수 전후와 넣은·뺀 가젯 수 */
     public static final String HOME_LAYOUT_UPDATE = "HOME_LAYOUT_UPDATE";
     /** 가젯 페이지 만들기 — 대상 GADGET_PAGE/id, {@code key}·{@code name}·{@code folderId} */

@@ -1,7 +1,7 @@
 <template>
     <!--
-        공개 약관 본문 화면(`/terms`·`/privacy` — `docs/features/terms-contract.md` 「변경 안내 모양」 ②③·「빈 상태」). 두 페이지가 같은 모양이라 부품 하나로 그린다(불러오기는 페이지가 `useTermsDocument` 로 한다).
-        맨 위 안내 상자: 시행 예정 버전이 있으면 「YYYY-MM-DD부터 바뀐 이용약관이 시행돼요 [바뀐 약관 보기]」 + 변경 요지(그 버전을 보고 있을 때는 접는다).
+        공개 약관 본문 화면(`/terms`·`/privacy`·`/policy`(운영정책) — `docs/features/terms-contract.md` 「변경 안내 모양」 ②③·「빈 상태」). 두 페이지가 같은 모양이라 부품 하나로 그린다(불러오기는 페이지가 `useTermsDocument` 로 한다).
+        맨 위 안내 상자: 시행 예정 버전이 있으면 「YYYY-MM-DD부터 바뀐 이용약관이 시행돼요 [바뀐 버전 보기]」 + 변경 요지(그 버전을 보고 있을 때는 접는다).
         본문: 주소에 `?version=N` 이 있으면 그 버전(시행 예정·지난 표시와 [지금 약관 보기]), 없으면 지금 약관. 게시본이 없으면 「아직 게시된 이용약관이 없어요」.
         아래 「이전 버전」: 지금 보는 것을 뺀 게시본(버전·시행일·상태) — 누르면 `?version=N`.
         ⚠ 본문은 서버가 정화한 HTML(`p br strong em u s a ul ol li blockquote h2 h3 hr`)만 `v-html` 로 그린다 — 다른 글자(제목·변경 요지·날짜)는 글자로 따로 그린다.
@@ -110,6 +110,7 @@ const historyId = useId();
 
 const title = computed(() => {
     if (props.kind === 'ROBOTIKON_CONTRACT') return t('terms.robotikonContract');
+    if (props.kind === 'OPERATION_POLICY') return t('terms.operationPolicy');
     return props.kind === 'TERMS' ? t('common.terms') : t('common.privacy');
 });
 

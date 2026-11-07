@@ -56,7 +56,7 @@ export default {
     salesOn: '판매 켜짐',
     salesOff: '판매 꺼짐',
     salesAuto: '자동 조건(서버 판정)',
-    salesAutoKey: { BUSINESS_INFO: '사업자 정보 필수 칸', PG_KEYS: '결제(PG) 키 설정', CARRIER: '켜진 택배사 1개 이상', IDENTITY: '본인인증 설정' },
+    salesAutoKey: { BUSINESS_INFO: '사업자 정보 필수 칸', OPERATOR_STAGE: '운영 주체가 개인사업자 이상이고 통신판매업 신고번호가 있음', PG_KEYS: '결제(PG) 키 설정', CARRIER: '켜진 택배사 1개 이상', IDENTITY: '본인인증 설정' },
     salesOk: '충족',
     salesMissing: '미충족',
     salesChecklist: '운영 체크 항목',
@@ -85,6 +85,10 @@ export default {
     // ── 사업자 정보 ─
     businessSection: '사업자 정보',
     businessLead: '공구 화면 하단과(판매가 켜져 있으면) 사이트 푸터에 그대로 나가요. 필수 여덟 칸이 판매 켜기 조건이에요.',
+    businessOperatorNote: '사업자 정보는 설정 › 운영·약관 › 운영 주체에서 바꿔요',
+    businessOperatorLink: '운영 주체 설정 열기',
+    businessOwnTitle: '커머스에서 정하는 칸',
+    businessEmpty: '비어 있음',
     businessReady: '필수 칸 채움',
     businessNotReady: '필수 칸 비어 있음',
     business: {
@@ -102,8 +106,6 @@ export default {
         shippingRefundPolicy: '배송·환불 정책 문구',
     },
     businessPolicyHelp: '공구 화면 하단에 보이는 안내예요. 공구별 반품 비용 금액은 공구 상세가 따로 보여요.',
-    businessNoProblem: '사업자등록번호가 맞지 않아요(000-00-00000, 검증 숫자 확인).',
-    emailProblem: '이메일 주소를 확인해 주세요.',
     businessSaved: '사업자 정보를 저장했어요.',
     businessLoadFailed: '사업자 정보를 불러오지 못했어요.',
 

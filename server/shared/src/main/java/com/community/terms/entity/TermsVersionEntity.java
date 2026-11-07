@@ -7,6 +7,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 게시한 약관 본문 한 버전 — V62__terms.sql 의 {@code terms_versions}. 게시한 뒤에는 고치지 않는다(바꾸는 메서드가 없다). {@code (kind, version)} 은 유일하다.
@@ -38,12 +40,23 @@ public class TermsVersionEntity {
     /** 게시한 운영자({@code operators.id}). FK 없음 — 운영자가 지워져도 남는다 */
     private Long publishedBy;
 
+    /** 회원에게 불리한 변경으로 게시했는가(V158 — 시행일 30일 뒤 이후 + 가입 회원 메일) */
+    private boolean unfavorable;
+
+    /** 게시 당시 운영 주체({@code TermsOperatorSnapshot} JSON, V158). 그 앞에 게시한 판은 null */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String operatorSnapshot;
+
     protected TermsVersionEntity() {
     }
 
-    /** 새 버전을 게시한다 — 값 검사(시행일·변경 요지·본문 정화)는 부르는 쪽이 끝냈다 */
+    /**
+     * 새 버전을 게시한다 — 값 검사(시행일·변경 요지·본문 정화·자리표시 바꾸기)는 부르는 쪽이 끝냈다.
+     *
+     * @param operatorSnapshotJson 게시 당시 운영 주체(JSON 글자)
+     */
     public static TermsVersionEntity publish(long id, TermsKind kind, int version, String body, LocalDate effectiveDate, String changeNote,
-            long operatorId, Instant now) {
+            boolean unfavorable, String operatorSnapshotJson, long operatorId, Instant now) {
         TermsVersionEntity entity = new TermsVersionEntity();
         entity.id = id;
         entity.kind = kind;
@@ -51,9 +64,19 @@ public class TermsVersionEntity {
         entity.body = body;
         entity.effectiveDate = effectiveDate;
         entity.changeNote = changeNote;
+        entity.unfavorable = unfavorable;
+        entity.operatorSnapshot = operatorSnapshotJson;
         entity.publishedAt = now;
         entity.publishedBy = operatorId;
         return entity;
+    }
+
+    public boolean isUnfavorable() {
+        return unfavorable;
+    }
+
+    public String getOperatorSnapshot() {
+        return operatorSnapshot;
     }
 
     public Long getId() {

@@ -11,6 +11,7 @@ import com.community.groupbuy.service.GroupBuyNoticeCatalog;
 import com.community.groupbuy.service.GroupBuyNoticeService;
 import com.community.groupbuy.service.GroupBuyProductService;
 import com.community.groupbuy.service.ShippingPolicyService;
+import com.community.testsupport.SiteOperatorFixture;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
@@ -46,16 +47,31 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
     void restore() {
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
         jdbc.update("UPDATE commerce_sales_checklist SET checked = false, checked_by = NULL, checked_at = NULL");
-        jdbc.update("UPDATE commerce_business_info SET company_name = '' WHERE id = 1");
+        SiteOperatorFixture.clear(jdbc);
+    }
+
+    @Test
+    void 운영_주체가_개인이면_운영_주체를_건드리지_않고_판매도_켜지_않는다() {
+        SiteOperatorFixture.clear(jdbc);
+        jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
+        GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
+                products, notices, catalog, admin, clocks);
+        seeder.seedSales();
+        assertThat(jdbc.queryForObject("SELECT stage FROM site_operator WHERE id = 1", String.class)).as("기본값 개인 그대로").isEqualTo("INDIVIDUAL");
+        assertThat(salesStore.businessInfo().businessHours()).as("커머스 고유 칸은 채운다").isNotBlank();
+        assertThat(salesStore.groupBuyOpen()).as("개인 단계 — OPERATOR_STAGE 가 막는다").isFalse();
+        assertThat(sales.state().missing()).contains("OPERATOR_STAGE");
     }
 
     @Test
     void 판매_조건을_실제로_채워_켜고_예시_품목_여덟과_공구_여덟을_넣는다() {
-        jdbc.update("UPDATE commerce_business_info SET company_name = '' WHERE id = 1");
+        SiteOperatorFixture.fillBusiness(jdbc);
+        jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
         GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
                 products, notices, catalog, admin, clocks);
         seeder.seedSales();
         assertThat(salesStore.businessInfo().ready()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT stage FROM site_operator WHERE id = 1", String.class)).as("운영 주체는 시험이 채운 개인사업자 그대로").isEqualTo("SOLE_PROPRIETOR");
         assertThat(salesStore.groupBuyOpen()).as("켜는 조건 검사를 통과해 켜짐(가짜 PG·가짜 본인인증·택배사 시드)").isTrue();
 
         int before = jdbc.queryForObject("SELECT count(*) FROM group_buy_products", Integer.class);

@@ -1,6 +1,6 @@
 <template>
     <!--
-        게시본 본문 보기 — 이력 표의 [보기] 가 연다. 버전·시행일·게시 시각·게시자·상태·변경 요지와 본문(서버가 정화한 HTML).
+        게시본 본문 보기 — 이력 표의 [보기] 가 연다. 버전·시행일·게시 시각·게시자·게시 당시 운영 주체(옛 판은 없음)·불리한 변경 태그·상태·변경 요지와 본문(서버가 정화한 HTML — 자리표시는 게시 때 이미 바뀌었다).
         [이 본문으로 초안 만들기] 는 본문을 초안 편집기에 넣는다(`copy` — 저장은 화면의 [초안 저장]). 서버를 부르지 않는다 — 본문은 화면이 받아 넘긴다.
         ⚠ 본문은 서버 정화본(`p br strong em u s a ul ol li blockquote h2 h3 hr`)만 `v-html` 로 그린다 — 다른 글자(운영자 이름·변경 요지)는 글자로 따로 그린다.
     -->
@@ -13,11 +13,19 @@
         <div v-else-if="detail" class="flex flex-col gap-3">
             <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                 <dt class="text-muted-color">{{ t('terms.colStatus') }}</dt>
-                <dd class="m-0"><Tag class="terms-tag" :value="t(`terms.status.${detail.status}`)" :severity="UtilTerms.statusSeverity(detail.status)" /></dd>
+                <dd class="m-0 flex flex-wrap items-center gap-1">
+                    <Tag class="terms-tag" :value="t(`terms.status.${detail.status}`)" :severity="UtilTerms.statusSeverity(detail.status)" />
+                    <Tag v-if="detail.unfavorable" class="terms-tag" :value="t('terms.unfavorableTag')" severity="warn" />
+                </dd>
                 <dt class="text-muted-color">{{ t('terms.effectiveDate') }}</dt>
                 <dd class="m-0 tabular-nums">{{ time.serviceDate(detail.effectiveDate) }}</dd>
                 <dt class="text-muted-color">{{ t('terms.colPublishedAt') }}</dt>
                 <dd class="m-0 tabular-nums">{{ time.full(detail.publishedAt) }} · {{ detail.publishedBy ?? t('terms.unknownOperator') }}</dd>
+                <!-- 게시 당시 운영 주체 — 서버가 게시 때 남긴 사본. 운영 주체 기능 앞에 게시한 판은 null 이라 이 줄을 숨긴다 -->
+                <template v-if="detail.operatorSnapshot">
+                    <dt class="text-muted-color">{{ t('terms.versionOperator') }}</dt>
+                    <dd class="m-0" data-testid="terms-version-operator">{{ t('terms.versionOperatorValue', { stage: t(`operatorStage.stage.${detail.operatorSnapshot.stage}`), name: detail.operatorSnapshot.businessName ?? detail.operatorSnapshot.operatorName }) }}</dd>
+                </template>
                 <template v-if="detail.changeNote">
                     <dt class="text-muted-color">{{ t('terms.changeNote') }}</dt>
                     <dd class="m-0 whitespace-pre-line break-words">{{ detail.changeNote }}</dd>

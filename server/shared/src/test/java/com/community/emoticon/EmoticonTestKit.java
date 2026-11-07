@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.service.AuditLogService;
+import com.community.commerce.sales.CommerceSalesStore;
 import com.community.emoticon.dto.request.EmoticonReviewDecisionRequest;
 import com.community.emoticon.dto.request.EmoticonStudioSaveRequest;
 import com.community.emoticon.dto.response.EmoticonStudioView;
@@ -65,6 +66,7 @@ import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.MutableTestClock;
 import com.community.testsupport.PointInvariants;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import jakarta.persistence.EntityManager;
@@ -186,7 +188,7 @@ final class EmoticonTestKit {
         EmoticonAcquisitionStore acquisitions = new EmoticonAcquisitionStore(dataSource);
         reads = new EmoticonReadStore(dataSource);
         contracts = new EmoticonContractService(new EmoticonContractStore(dataSource), ids, clocks);
-        settings = new EmoticonSettingsService(new EmoticonSettingsStore(dataSource), contracts, audit, clocks);
+        settings = new EmoticonSettingsService(new EmoticonSettingsStore(dataSource), contracts, audit, new CommerceSalesStore(dataSource), clocks);
         EmoticonPayoutStore payoutStore = new EmoticonPayoutStore(dataSource);
         EmoticonPriceEventStore priceEvents = new EmoticonPriceEventStore(dataSource);
         cipher = new DataCipher("1:" + Base64.getEncoder().encodeToString(new byte[32]), "");
@@ -301,15 +303,38 @@ final class EmoticonTestKit {
     static final String CONTRACT_BODY = "<h2>로보티콘 상품화 계약 v{v}</h2><ul><li>사이트가 판매자예요.</li><li>정산 기준의 70%를 받아요 &amp; 매달 정산해요.</li></ul>"
             + "<p><strong>제1조(목적)</strong> 이 계약은 판매 조건을 정한다.</p><p>제2조<br>둘째 줄</p>";
 
-    /** 유료 판매 켜기·가격 단계를 잠시 바꾼다 — 끝나면 되돌린다(되돌릴 단계 밖의 유료 팩은 무료로 돌려 다른 시험에 남기지 않는다) */
+    /**
+     * 유료 판매 켜기·가격 단계를 잠시 바꾼다 — 끝나면 되돌린다(되돌릴 단계 밖의 유료 팩은 무료로 돌려 다른 시험에 남기지 않는다). 운영 주체도 판매할 수 있는 단계로 둔다({@link #withSeller} —
+     * 유료 판매 켜기·구매 조건, 사용자 결정 2026-11-07).
+     */
     void withPaid(boolean enabled, List<Integer> tiers, Runnable work) {
-        Map<String, Object> before = jdbc.queryForMap("SELECT paid_sales_enabled, price_tiers::text AS tiers FROM emoticon_settings WHERE id = 1");
-        setPaid(enabled, tiers);
+        withSeller(() -> {
+            Map<String, Object> before = jdbc.queryForMap("SELECT paid_sales_enabled, price_tiers::text AS tiers FROM emoticon_settings WHERE id = 1");
+            setPaid(enabled, tiers);
+            try {
+                work.run();
+            } finally {
+                jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE price > 0"); // 유료 팩은 로보티콘 시험만 만든다 — 다른 시험의 단계 검사(쓰는 단계)에 남기지 않는다
+                jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = ?, price_tiers = ?::integer[] WHERE id = 1", before.get("paid_sales_enabled"),
+                        before.get("tiers"));
+            }
+        });
+    }
+
+    /**
+     * 운영 주체를 판매할 수 있는 단계(개인사업자 + 통신판매업 신고번호 — {@link SiteOperatorFixture#fillBusiness})로 잠시 둔다. 이미 그 단계면 그대로, 아니었으면 끝나면 처음 값(개인)으로 되돌린다
+     * (1행 표를 다른 시험과 같이 쓴다).
+     */
+    void withSeller(Runnable work) {
+        if (new CommerceSalesStore(dataSource).operatorCanSell()) {
+            work.run();
+            return;
+        }
+        SiteOperatorFixture.fillBusiness(jdbc);
         try {
             work.run();
         } finally {
-            jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE price > 0"); // 유료 팩은 로보티콘 시험만 만든다 — 다른 시험의 단계 검사(쓰는 단계)에 남기지 않는다
-            jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = ?, price_tiers = ?::integer[] WHERE id = 1", before.get("paid_sales_enabled"), before.get("tiers"));
+            SiteOperatorFixture.clear(jdbc);
         }
     }
 

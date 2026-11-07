@@ -13,6 +13,7 @@ import com.community.groupbuy.service.GroupBuyRequestService;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationSeverity;
 import com.community.zconfiguration.time.ServiceTime;
+import com.community.testsupport.SiteOperatorFixture;
 import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -36,8 +37,8 @@ class GroupBuyNotificationsTest {
     @BeforeAll
     static void setUp() {
         kit = GroupBuyTestKit.get();
-        kit.jdbc.update("UPDATE commerce_business_info SET company_name = '시험상회', representative = '홍길동', business_no = '123-45-67891', mail_order_no = '2026-서울-0001', "
-                + "mail_order_authority = '서울특별시 강남구', address = '서울특별시 강남구 1', phone = '02-000-0000', email = 'help@test.local' WHERE id = 1");
+        // 사업자 정보의 정본 = 운영 주체(terms-operator-contract) — 주문 확인 메일의 판매자 줄
+        SiteOperatorFixture.fillBusiness(kit.jdbc);
     }
 
     @BeforeEach

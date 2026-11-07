@@ -30,7 +30,9 @@
 ## 관리자 사이트 메뉴
 - 모드 둘(`normal`·`settings`) 고정, 두 층: `SECTION`(최상위만) → `SCREEN` 또는 `FOLDER` → 하위 `SCREEN`(아이콘 없음). 유형 `ADMIN_SCREEN`(`targetKey` = 관리자 화면 키) · `URL`(권한 하나 선택 가능).
 - 화면 레지스트리(키 → 주소·권한)는 서버에도 둔다(`UtilAdminMenu.ITEMS` 잎과 같다). 한 화면은 두 모드 통틀어 한 번. 화면 권한은 요청으로 바꿀 수 없다.
-- 행이 없으면 레지스트리 기본 구성(지금 `UtilAdminMenu.ITEMS`)을 돌려준다. **관리자 셸은 이번에 바꾸지 않는다**(저장만).
+- 행이 없으면 레지스트리 기본 구성(지금 `UtilAdminMenu.ITEMS`)을 돌려준다.
+- **관리자 셸은 저장한 구성을 그린다**(2026-11-07 사용자 지시 「DB 메뉴 표에서 읽어 보여 줘야지」): `GET /api/admin/admin-menu/shell`(로그인한 운영자 누구나, 조회와 같은 모양) → `UtilAdminMenu.fromConfig` → `useAdminMenuTree`(셸이 뜰 때 한 번, 저장하면 바로 바꿔 끼움). 숨김 노드·레지스트리에 없는 화면은 빠지고, 권한 거르기는 화면 레지스트리 권한(외부 링크는 고른 권한)으로 화면이 한다. 받기 전에는 빈 메뉴, 못 받으면 메뉴 정의(`ITEMS`)로 그린다.
+  메뉴에 없는 화면(편집 화면의 「메뉴에 없는 화면」)은 셸에도 없다 — 저장한 적이 있으면 **새로 만든 화면은 [넣기] 해야 보인다**. 주소로 들어오면 권한(`canOpen`, 레지스트리)대로 열린다. 사이드바·상단 메뉴·검색·역할 미리보기가 같은 노드를 쓰고, 대시보드 바로가기 후보는 레지스트리 그대로다.
 
 ## API
 `useMenuApi.ts` 머리말 그대로: `/api/admin/menu-sets…`(목록·만들기·수정·삭제·트리 조회·트리 전체 교체 `version`·미리보기 후보) · `GET /api/admin/menu/target-options?set=` · `GET·PUT /api/admin/admin-menu` · 공개 `GET /api/menu`. 오류: 400 `VALIDATION` + `fields["nodes[i].children[j].<칸>"]` · 409 `MENU_VERSION_CONFLICT`·`MENU_SET_KEY_DUPLICATE`·`MENU_SET_SYSTEM` · 404 `MENU_SET_NOT_FOUND`. 감사: `MENU_SET_CREATE`·`MENU_SET_UPDATE`·`MENU_SET_DELETE`·`MENU_TREE_UPDATE`·`ADMIN_MENU_UPDATE`.
@@ -76,7 +78,7 @@
 - 페이지를 지우면 그 페이지를 가리키는 항목은 모든 그룹에서 지우고 폴더는 연결만 비운다(게시판 삭제와 같은 규칙, 바뀐 그룹 버전을 올린다).
 
 ## 미확정 사항
-1. 저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지.
+1. ~~저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지~~ → 2026-11-07 셸이 읽는다(위 「관리자 사이트 메뉴」).
 2. 공동구매 판매 스위치(공동구매 기능 생길 때).
 3. `PAGE`(고정 페이지) 유형은 CMS 기능이 생길 때.
 

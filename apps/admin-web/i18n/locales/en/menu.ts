@@ -146,6 +146,8 @@ export default {
     batches: 'Batch jobs',
     batchLogs: 'Batch logs',
     audit: 'Audit log',
+    legal: 'Operator & terms',
+    siteOperator: 'Operator',
     terms: 'Terms',
     analyticsSettings: 'Analytics collection',
     memberSettings: 'Members',

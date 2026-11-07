@@ -56,6 +56,7 @@ import withdrawnContact from './withdrawnContact';
 import terms from './terms';
 import nicknameImage from './nicknameImage';
 import noticeBar from './noticeBar';
+import operatorStage from './operatorStage';
 import content from './content';
 import debate from './debate';
 import highlight from './highlight';
@@ -128,6 +129,7 @@ export default {
     terms,
     nicknameImage,
     noticeBar,
+    operatorStage,
     content,
     debate,
     highlight,

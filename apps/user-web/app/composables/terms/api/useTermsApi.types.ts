@@ -7,8 +7,9 @@
 /**
  * 약관 종류 — 본문의 `kind`. 경로에는 소문자(`terms`·`privacy`·`robotikon_contract`)로 들어간다(`useTermsApi`).
  * `ROBOTIKON_CONTRACT`(로보티콘 상품화 계약 — 유료 팩 작가가 동의, emoticon-contract S2)는 공개 화면(`/robotikon/contract`)만 있고 요약(`/api/terms/summary` — 가입·로그인 링크·변경 안내 띠)에는 오지 않는다.
+ * `OPERATION_POLICY`(운영정책 — 2026-11-06, 공개 화면 `/policy`, 경로 조각 `operation_policy`)는 같은 API 로 읽는다. 요약(가입 동의·변경 안내 띠)에는 오지 않는다.
  */
-export type TermsKind = 'TERMS' | 'PRIVACY' | 'ROBOTIKON_CONTRACT';
+export type TermsKind = 'TERMS' | 'PRIVACY' | 'ROBOTIKON_CONTRACT' | 'OPERATION_POLICY';
 
 /** 게시본 상태 — 지금 약관 · 시행 예정 · 지난 */
 export type TermsVersionStatus = 'CURRENT' | 'UPCOMING' | 'PAST';

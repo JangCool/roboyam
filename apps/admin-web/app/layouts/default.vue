@@ -92,6 +92,9 @@ const route = useRoute();
 const toast = useToast();
 const { mode, follow } = useAppMenu();
 const { can } = useAdminPermission();
+// 셸 메뉴 — DB 의 관리자 메뉴 구성을 셸이 뜰 때 한 번 받는다(못 받으면 메뉴 정의로 그린다 — useAdminMenuTree)
+const menuTree = useAdminMenuTree();
+onMounted(() => void menuTree.load());
 /** 지금 주소의 화면을 열 권한이 없는가(메뉴 항목에 걸린 권한 — `UtilAdminMenu.canOpen`) */
 const forbidden = computed(() => !UtilAdminMenu.canOpen(route.path, can));
 

@@ -53,4 +53,7 @@ export default {
     gradeRegular: '일반',
     gradeLoyal: '단골',
     gradeVeteran: '베테랑',
+
+    // 푸터 — 사업자 정보가 없을 때(개인 단계) 왼쪽 단의 연락처 한 줄
+    footerContact: '문의 {email}',
 };

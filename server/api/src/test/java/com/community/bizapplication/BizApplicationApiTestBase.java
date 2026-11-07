@@ -20,6 +20,7 @@ import com.community.payment.dto.ConfirmedVia;
 import com.community.payment.dto.PaymentCheckout;
 import com.community.payment.gateway.fake.FakePgStore;
 import com.community.payment.service.PaymentConfirmService;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  *   <li>DB 를 다른 시험과 같이 쓴다 — 자리(한도)는 상품·기간 전체가 공유하므로, 승인하는 시험은 {@link #freshPeriod} 로 <b>겹치지 않는 먼 미래 기간</b>으로 옮겨 승인한다
  *       (승인은 미리 신청 일수 제한이 없다). 신청 때의 기간은 가까운 날짜(내일~)지만 신청은 자리를 차지하지 않는다.</li>
  *   <li>시계는 시험마다 지금으로 되돌린다(기반 클래스). 「진행 중」·「종료」는 시계를 기간 안·뒤로 옮겨 만든다.</li>
+ *   <li>운영 주체는 시험마다 개인사업자 + 통신판매업 신고번호로 두고 끝나면 개인으로 되돌린다(돈을 받는 길의 조건 — 개인 단계 규칙은 {@code BizApplicationOperatorStageTest}).</li>
  * </ul>
  */
 public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
@@ -82,6 +85,13 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     void bizSetUp() {
         fakePg = new FakePgStore(dataSource);
         operator = new BizOperator(newOperator(), "127.0.0.1");
+        // 유료 신청·결제·승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) — 시험은 판매할 수 있는 단계에서 시작한다
+        SiteOperatorFixture.fillBusiness(jdbc);
+    }
+
+    @AfterEach
+    void bizTearDown() {
+        SiteOperatorFixture.clear(jdbc); // 1행 표 — 처음 값(개인)으로 되돌린다
     }
 
     // ── 사업자 ─────────────────────────────────────────────────────────────

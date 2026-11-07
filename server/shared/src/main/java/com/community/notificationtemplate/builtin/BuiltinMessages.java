@@ -232,6 +232,13 @@ public class BuiltinMessages {
                             + p("{{pendingSummary}}")
                             + p(text(new MessageRef("mail.withdrawalProgress.expected", "{{expectedDate}}"), locale))
                             + p(text(new MessageRef("mail.withdrawalProgress.support", "{{supportEmail}}"), locale))};
+            case MEMBER_TERMS_CHANGE -> new String[] {text(new MessageRef("mail.termsChange.subject", "{{termsName}}"), locale),
+                    strong(text(new MessageRef("mail.termsChange.title", "{{termsName}}"), locale))
+                            + p(text(new MessageRef("mail.termsChange.greeting", "{{recipientName}}", "{{siteName}}", "{{termsName}}", "{{effectiveDate}}"), locale))
+                            + p(text(new MessageRef("mail.termsChange.note", "{{changeNote}}"), locale))
+                            + p(text("mail.termsChange.disagree", locale))
+                            + button("termsLink", text("mail.termsChange.button", locale))
+                            + "<p>{{termsLink}}</p>"};
         };
     }
 

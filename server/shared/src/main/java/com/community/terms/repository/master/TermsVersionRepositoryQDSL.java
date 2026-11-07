@@ -21,7 +21,7 @@ public class TermsVersionRepositoryQDSL extends RoboyamRepositoryQDSL {
     /** 모든 종류의 게시본(본문 없이) — 종류, 버전 큰 것 먼저 */
     public List<TermsVersionMeta> allMeta() {
         return query.select(Projections.constructor(TermsVersionMeta.class, VERSION.kind, VERSION.version, VERSION.effectiveDate, VERSION.publishedAt,
-                        VERSION.publishedBy, VERSION.changeNote))
+                        VERSION.publishedBy, VERSION.changeNote, VERSION.unfavorable, VERSION.operatorSnapshot))
                 .from(VERSION)
                 .orderBy(VERSION.kind.asc(), VERSION.version.desc())
                 .fetch();
@@ -30,7 +30,7 @@ public class TermsVersionRepositoryQDSL extends RoboyamRepositoryQDSL {
     /** 한 종류의 게시본(본문 없이) — 버전 큰 것 먼저 */
     public List<TermsVersionMeta> metaOf(TermsKind kind) {
         return query.select(Projections.constructor(TermsVersionMeta.class, VERSION.kind, VERSION.version, VERSION.effectiveDate, VERSION.publishedAt,
-                        VERSION.publishedBy, VERSION.changeNote))
+                        VERSION.publishedBy, VERSION.changeNote, VERSION.unfavorable, VERSION.operatorSnapshot))
                 .from(VERSION)
                 .where(VERSION.kind.eq(kind))
                 .orderBy(VERSION.version.desc())

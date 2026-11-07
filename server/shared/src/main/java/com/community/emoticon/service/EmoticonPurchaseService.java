@@ -150,7 +150,8 @@ public class EmoticonPurchaseService {
         if (p.price() == 0) {
             throw new EmoticonConflictException(EmoticonConflictException.PACK_FREE);
         }
-        if (!settings.current().paidSalesEnabled()) {
+        // 스위치 꺼짐 또는 운영 주체가 판매할 수 없는 단계(개인 · 신고번호 없음 — 사용자 결정 2026-11-07, 방어선). 이미 결제창에 들어간 주문의 완료는 처리기가 그대로 받는다
+        if (!settings.current().paidSalesEnabled() || !commerce.operatorCanSell()) {
             throw new EmoticonConflictException(EmoticonConflictException.PAID_SALES_CLOSED);
         }
         if (Long.valueOf(userId).equals(p.creatorId())) {

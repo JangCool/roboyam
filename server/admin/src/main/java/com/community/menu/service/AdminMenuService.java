@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       관리자 화면 키(레지스트리에 있는 것, 두 모드 통틀어 한 번) · 외부 링크 주소({@link MenuRules#hrefProblem}) · 외부 링크의 권한(카탈로그에 있는 코드).
  *       화면 항목의 권한은 레지스트리가 정해 저장하지 않는다. 경로는 {@code modes.normal[0].children[1].label} 꼴.</li>
  *   <li>상태 행을 잠근 뒤 {@code version} 을 견주고 다르면 409 {@code MENU_VERSION_CONFLICT}. 감사 기록 {@code ADMIN_MENU_UPDATE}(전·후 요약).</li>
- *   <li>이번 단계에서 관리자 셸은 저장된 구성을 읽지 않는다(admin-web 메뉴 정의를 그대로 쓴다).</li>
+ *   <li>관리자 셸은 {@code GET /api/admin/admin-menu/shell} 로 같은 구성을 읽어 그린다(2026-11-07 — menu-contract 미확정 1 해소). 메뉴에 없는 화면은 셸에도 없다(메뉴 편집 화면의 「메뉴에 없는 화면」 [넣기]).</li>
  * </ul>
  */
 @Service

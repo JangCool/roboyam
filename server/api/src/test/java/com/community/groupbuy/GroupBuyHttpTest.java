@@ -23,6 +23,7 @@ import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
 import com.community.installation.service.InstallationState;
 import com.community.user.entity.Role;
+import com.community.testsupport.SiteOperatorFixture;
 import jakarta.servlet.Filter;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,7 +82,7 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     @AfterEach
     void restore() {
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
-        jdbc.update("UPDATE commerce_business_info SET company_name = '', phone = '' WHERE id = 1");
+        SiteOperatorFixture.clear(jdbc);
     }
 
     private static MockHttpServletRequestBuilder as(long memberId, MockHttpServletRequestBuilder request) {
@@ -200,8 +201,7 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
 
     @Test
     void G41_공개_정보는_판매가_켜져_있고_필수_칸이_찼을_때만_사업자_정보() throws Exception {
-        jdbc.update("UPDATE commerce_business_info SET company_name = '시험상회', representative = '홍길동', business_no = '123-45-67891', mail_order_no = '2026-서울-0001', "
-                + "mail_order_authority = '서울특별시 강남구', address = '서울특별시 강남구 1', phone = '02-000-0000', email = 'help@test.local' WHERE id = 1");
+        SiteOperatorFixture.fillBusiness(jdbc); // 사업자 정보의 정본 = 운영 주체(terms-operator-contract)
         mvc.perform(get("/api/commerce/info")).andExpect(status().isOk()).andExpect(jsonPath("$.data.salesOpen").value(true))
                 .andExpect(jsonPath("$.data.business.companyName").value("시험상회")).andExpect(jsonPath("$.data.business.ceoName").value("홍길동"));
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
