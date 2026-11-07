@@ -11,6 +11,7 @@ import com.community.groupbuy.entity.QGroupBuySkuEntity;
 import com.community.groupbuy.entity.QGroupBuyWatchEntity;
 import com.community.groupbuy.entity.SkuKind;
 import com.community.groupbuy.entity.WatchKind;
+import com.community.payment.entity.QPaymentOrderEntity;
 import com.community.site.entity.QSiteSettingEntity;
 import com.community.site.entity.SiteSettingEntity;
 import com.querydsl.core.Tuple;
@@ -34,8 +35,7 @@ import org.springframework.stereotype.Repository;
  * 공구 알림({@code GroupBuyNotifications})이 읽는 값 — 알림에 쓰는 주문 한 줄·공구 제목·수량 풀림 판단·관심 신청자·계약 내용 통지의 판매 조건. 서비스 안에 있던 SQL 을 옮겼다.
  *
  * <p>QueryDSL 이 기본이다({@link GroupBuyStoreSupport}). Native SQL 로 남긴 것과 이유: 관심 신청에 알린 시각을 찍는 두 문장({@link #claimRestockWatchers} ·
- * {@link #claimClosingSoon} — 일괄 {@code UPDATE … RETURNING}: 10분·한 번 조건을 이긴 신청만 같은 문장에서 받아 그 회원에게만 알린다), 결제 표({@code payment_orders})를
- * 읽는 {@link #paymentAmount} — 결제 엔티티는 3단계 2차에서 만든다.
+ * {@link #claimClosingSoon} — 일괄 {@code UPDATE … RETURNING}: 10분·한 번 조건을 이긴 신청만 같은 문장에서 받아 그 회원에게만 알린다).
  */
 @Repository
 public class GroupBuyNotificationStore extends GroupBuyStoreSupport {
@@ -48,6 +48,7 @@ public class GroupBuyNotificationStore extends GroupBuyStoreSupport {
     private static final QGroupBuyWatchEntity W = QGroupBuyWatchEntity.groupBuyWatchEntity;
     private static final QGroupBuyRefundEntity R = QGroupBuyRefundEntity.groupBuyRefundEntity;
     private static final QSiteSettingEntity SITE = QSiteSettingEntity.siteSettingEntity;
+    private static final QPaymentOrderEntity PO = QPaymentOrderEntity.paymentOrderEntity;
 
     /** 알림에 쓰는 주문 한 줄 — {@code title} 공구 제목(비었으면 상품 이름) */
     public record OrderRow(long id, String orderNo, long groupBuyId, long userId, long amount, long shippingFee, String title, ParticipationStatus status) {
@@ -195,9 +196,9 @@ public class GroupBuyNotificationStore extends GroupBuyStoreSupport {
         return t == null ? Optional.empty() : Optional.of(new RefundBrief(t.get(R.participationId), n(t.get(R.amount)), t.get(R.method)));
     }
 
-    /** 결제 주문 금액(없으면 0). JDBC 인 이유: 결제 표({@code payment_orders}) — 결제 엔티티는 다른 작업자가 만드는 중이라 3단계 2차에서 결제 엔티티로 바꾼다 */
+    /** 결제 주문 금액(없으면 0) — 결제 엔티티({@code payment_orders})를 읽는다(알림 리스너는 세이브포인트 밖이다) */
     public long paymentAmount(long paymentOrderId) {
-        return jdbc.query("SELECT amount FROM payment_orders WHERE id = ?", (rs, i) -> rs.getLong(1), paymentOrderId).stream().findFirst().orElse(0L);
+        return n(query.select(PO.amount).from(PO).where(PO.id.eq(paymentOrderId)).fetchFirst());
     }
 
     /** 사이트 공개 주소(없으면 null) */

@@ -8,6 +8,7 @@ import com.community.groupbuy.entity.QGroupBuyRequestEntity;
 import com.community.groupbuy.entity.RefundCause;
 import com.community.groupbuy.entity.RefundStatus;
 import com.community.groupbuy.service.GroupBuyRefundService.Parts;
+import com.community.payment.entity.QReconciliationIssueEntity;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Repository;
  *
  * <p>QueryDSL 이 기본이다({@link GroupBuyStoreSupport}). Native SQL 로 남긴 것과 이유: 결제 취소 결과로 기록을 바꾸는 세 문장({@link #completeByCancel} ·
  * {@link #markManualByCancel} · {@link #switchToBankByCancel} — 조건부 {@code UPDATE … RETURNING}: 이긴 쪽만 바뀐 그 기록을 같은 문장에서 받아 알림을 낸다. 결제 모듈의
- * {@code onCanceled} 가 결제 트랜잭션 안에서 부른다), 결제 표({@code reconciliation_issues})를 읽는 {@link #paymentUnreconciled} — 결제 엔티티는 3단계 2차에서 만든다.
+ * {@code onCanceled} 가 결제 트랜잭션 안에서 부른다).
  */
 @Repository
 public class GroupBuyRefundStore extends GroupBuyStoreSupport {
@@ -35,6 +36,7 @@ public class GroupBuyRefundStore extends GroupBuyStoreSupport {
     private static final QGroupBuyRefundEntity R = QGroupBuyRefundEntity.groupBuyRefundEntity;
     private static final QGroupBuyAdminRefundEntity AR = QGroupBuyAdminRefundEntity.groupBuyAdminRefundEntity;
     private static final QGroupBuyRequestEntity RQ = QGroupBuyRequestEntity.groupBuyRequestEntity;
+    private static final QReconciliationIssueEntity RI = QReconciliationIssueEntity.reconciliationIssueEntity;
 
     /** 환불 기록 한 줄 */
     public record RefundRow(long id, long participationId, long groupBuyId, long userId, RefundCause cause, Long requestId, long itemRefund, long shippingRefund,
@@ -132,15 +134,13 @@ public class GroupBuyRefundStore extends GroupBuyStoreSupport {
 
     /**
      * 그 결제에 열린 대사 이슈 CANCEL_MISMATCH 가 있는가(콘솔 직접 취소 — 결정 73).
-     * JDBC 인 이유: 결제 표({@code reconciliation_issues})다 — 결제 엔티티는 다른 작업자가 만드는 중이라 3단계 2차에서 결제 엔티티로 바꾼다.
+     * 결제 엔티티({@code reconciliation_issues})를 읽는다.
      */
     public boolean paymentUnreconciled(Long paymentOrderId) {
         if (paymentOrderId == null) {
             return false;
         }
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM reconciliation_issues WHERE payment_order_id = ? AND type = 'CANCEL_MISMATCH' AND status = 'OPEN'",
-                Integer.class, paymentOrderId);
-        return n != null && n > 0;
+        return query.selectOne().from(RI).where(RI.paymentOrderId.eq(paymentOrderId), RI.issueType.eq("CANCEL_MISMATCH"), RI.status.eq("OPEN")).fetchFirst() != null;
     }
 
     // ── 운영 환불 승인 대기(결정 70) ─────────────────────────────────────────
