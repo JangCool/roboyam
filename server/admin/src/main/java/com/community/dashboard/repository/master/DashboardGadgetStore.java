@@ -14,6 +14,7 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.entity.QGroupEntity;
 import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.hotdeal.repository.master.AdminDealQueries;
+import com.community.mfa.entity.QOperatorMfaEntity;
 import com.community.nicknameimage.entity.NicknameImageStatus;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.operator.entity.QOperatorEntity;
@@ -68,7 +69,7 @@ import org.springframework.stereotype.Repository;
  * 상태별 건수는 {@code CaseBuilder} 합({@code count(*) FILTER} 와 같다)으로 한 번에 센다. 질의마다 쓰는 인덱스를 주석으로 적는다 — 표·인덱스를 바꾸면 여기도 본다.
  *
  * <p>네이티브 SQL 로 남긴 것(엔티티가 없는 표): 광고 일별 집계({@code ad_daily_stats}) · 광고 신청({@code biz_applications} + {@code LEFT JOIN LATERAL}) ·
- * 탈퇴 대기({@code member_withdrawals}) · 운영자 2차 인증({@code operator_mfa}).
+ * 탈퇴 대기({@code member_withdrawals}). 운영자 2차 인증({@code operator_mfa})은 admin 모듈의 엔티티({@code com.community.mfa.entity})로 QueryDSL 이다.
  */
 @Repository
 public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
@@ -90,6 +91,7 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
     private static final QBatchRunEntity RUN = QBatchRunEntity.batchRunEntity;
     private static final QAuditLogEntity AUDIT = QAuditLogEntity.auditLogEntity;
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
+    private static final QOperatorMfaEntity MFA = QOperatorMfaEntity.operatorMfaEntity;
 
     private static final List<String> OPEN_CASE = List.of("PENDING", "IN_REVIEW");
 
@@ -387,13 +389,16 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
 
     /**
      * 운영자 보안 — 운영자 표는 작다(수십 줄). 2차 인증 미등록 = 승인·사용 중·만료 아님 운영자 중 operator_mfa(PK) 에 등록이 없는 사람.
-     * Native SQL — {@code operator_mfa} 는 엔티티가 없다(세 건수를 한 문장으로 센다).
+     * 세 건수를 한 문장으로 센다(전체 · 잠김 · 미등록 — {@code count(*) FILTER} 는 {@code CaseBuilder} 합, 빈 표면 0).
      */
     public DashboardOperatorSecurityView operatorSecurity() {
-        return jdbc.queryForObject("SELECT count(*), count(*) FILTER (WHERE o.locked), "
-                + "count(*) FILTER (WHERE o.approved AND o.enabled AND NOT o.expired AND NOT EXISTS "
-                + "(SELECT 1 FROM operator_mfa m WHERE m.operator_id = o.id AND m.enrolled_at IS NOT NULL)) FROM operators o",
-                (rs, i) -> new DashboardOperatorSecurityView(rs.getLong(1), rs.getLong(2), rs.getLong(3)));
+        NumberExpression<Long> total = OPERATOR.count();
+        NumberExpression<Long> locked = countIf(OPERATOR.locked.isTrue());
+        NumberExpression<Long> unenrolled = countIf(OPERATOR.approved.isTrue().and(OPERATOR.enabled.isTrue()).and(OPERATOR.expired.isFalse())
+                .and(JPAExpressions.selectOne().from(MFA).where(MFA.operatorId.eq(OPERATOR.id), MFA.enrolledAt.isNotNull()).notExists()));
+        Tuple t = query.select(total, locked, unenrolled).from(OPERATOR).fetchOne();
+        return new DashboardOperatorSecurityView(nz(t == null ? null : t.get(total)), nz(t == null ? null : t.get(locked)),
+                nz(t == null ? null : t.get(unenrolled)));
     }
 
     // ── 도우미 ──────────────────────────────────────────────────────────────

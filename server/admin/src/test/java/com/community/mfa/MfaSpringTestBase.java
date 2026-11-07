@@ -2,6 +2,7 @@ package com.community.mfa;
 
 import com.community.admin.AdminApplication;
 import com.community.adminauth.service.AdminActorService;
+import com.community.mfa.dto.MfaSettings;
 import com.community.mfa.dto.response.MfaEnrollmentView;
 import com.community.mfa.service.MfaEnrollmentService;
 import com.community.mfa.service.MfaSecrets;
@@ -14,10 +15,7 @@ import com.community.testsupport.OperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,10 +90,11 @@ public abstract class MfaSpringTestBase {
     private ApplicationContext context;
 
     protected JdbcTemplate jdbc;
-    /** 엔티티 픽스처 — 운영자, 감사 기록 확인 */
+    /** 엔티티 픽스처 — 운영자, 감사 기록 확인, 2차 인증 표(설정·OTP·복구 코드·신뢰 기기) */
     protected OperatorFixture operatorFixture;
     protected AuditLogQuery auditLogs;
-    private Map<String, Object> savedSettings;
+    protected MfaFixture mfa;
+    private MfaSettings savedSettings;
     private String passwordHash;
 
     @BeforeEach
@@ -103,9 +102,9 @@ public abstract class MfaSpringTestBase {
         jdbc = new JdbcTemplate(dataSource);
         operatorFixture = new OperatorFixture(context);
         auditLogs = new AuditLogQuery(context);
+        mfa = new MfaFixture(context);
         clock.set(Instant.now());
-        // SQL 로 남김: admin_security_settings·operator_mfa*·operator_trusted_devices 는 엔티티가 없는 표다
-        savedSettings = jdbc.queryForMap("SELECT mfa_enabled, grace_days, trust_months, max_failures, mfa_enabled_at, mfa_enabled_by FROM admin_security_settings WHERE id = 1");
+        savedSettings = mfa.settings();
         if (passwordHash == null) {
             passwordHash = encoder.encode(PASSWORD);
         }
@@ -114,9 +113,7 @@ public abstract class MfaSpringTestBase {
 
     @AfterEach
     void baseTearDown() {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ?, grace_days = ?, trust_months = ?, max_failures = ?, mfa_enabled_at = ?, mfa_enabled_by = ? WHERE id = 1",
-                savedSettings.get("mfa_enabled"), savedSettings.get("grace_days"), savedSettings.get("trust_months"), savedSettings.get("max_failures"),
-                savedSettings.get("mfa_enabled_at"), savedSettings.get("mfa_enabled_by"));
+        mfa.restore(savedSettings);
         SecurityContextHolder.clearContext();
     }
 
@@ -150,8 +147,7 @@ public abstract class MfaSpringTestBase {
     // ── 설정 ─────────────────────────────────────────────────────────────
 
     protected void settings(boolean enabled, int graceDays, int trustMonths, int maxFailures, Instant enabledAt) {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ?, grace_days = ?, trust_months = ?, max_failures = ?, mfa_enabled_at = ? WHERE id = 1",
-                enabled, graceDays, trustMonths, maxFailures, ts(enabledAt));
+        mfa.settings(enabled, graceDays, trustMonths, maxFailures, enabledAt);
     }
 
     /** 켜짐 · 유예 14일 · 1개월 · 실패 5회, 켠 시각 = 하루 전 */
@@ -168,16 +164,12 @@ public abstract class MfaSpringTestBase {
     /** DB 에 바로 등록한다(비밀키 암호문). 돌려주는 값은 base32 비밀키 */
     protected String enrollDirect(long operatorId) {
         String secret = MfaSecrets.newSecret();
-        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
-        jdbc.update("INSERT INTO operator_mfa (operator_id, secret_enc, enrolled_at, updated_at) VALUES (?, ?, now(), now()) ON CONFLICT (operator_id) DO UPDATE SET "
-                + "secret_enc = EXCLUDED.secret_enc, enrolled_at = EXCLUDED.enrolled_at, last_step = NULL, pending_secret_enc = NULL, pending_started_at = NULL", operatorId,
-                secrets.encrypt(secret));
+        mfa.enroll(operatorId, secrets.encrypt(secret));
         return secret;
     }
 
     protected void unenroll(long operatorId) {
-        jdbc.update("DELETE FROM operator_mfa WHERE operator_id = ?", operatorId);
-        jdbc.update("DELETE FROM operator_mfa_recovery_codes WHERE operator_id = ?", operatorId);
+        mfa.unenroll(operatorId);
     }
 
     /** 자발 등록을 서비스로 끝까지 — 비밀키와 복구 코드 */
@@ -227,11 +219,7 @@ public abstract class MfaSpringTestBase {
     }
 
     protected int deviceCount(long operatorId) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM operator_trusted_devices WHERE operator_id = ?", Integer.class, operatorId);
-        return count == null ? 0 : count;
+        return mfa.deviceCount(operatorId);
     }
 
-    protected static OffsetDateTime ts(Instant at) {
-        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
-    }
 }

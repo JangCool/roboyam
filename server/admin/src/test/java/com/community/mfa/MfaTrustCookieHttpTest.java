@@ -40,8 +40,7 @@ class MfaTrustCookieHttpTest extends MfaMvcTestBase {
     }
 
     private String deviceId(long operator, String token) {
-        return jdbc.queryForObject("SELECT id::text FROM operator_trusted_devices WHERE operator_id = ? AND token_hash = ?", String.class, operator,
-                TrustedDeviceService.hash(token));
+        return Long.toString(mfa.deviceId(operator, TrustedDeviceService.hash(token)).orElseThrow());
     }
 
     @Test

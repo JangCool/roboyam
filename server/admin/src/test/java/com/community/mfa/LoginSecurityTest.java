@@ -12,7 +12,6 @@ import com.community.permission.exception.PermissionDeniedException;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
@@ -92,7 +91,7 @@ class LoginSecurityTest extends MfaSpringTestBase {
                 assertThat(e.getErrorCode()).isEqualTo("MFA_ROOT_NOT_ENROLLED");
                 assertThat(e.getStatus().value()).isEqualTo(409);
             });
-            assertThat(jdbc.queryForObject("SELECT mfa_enabled FROM admin_security_settings WHERE id = 1", Boolean.class)).isFalse();
+            assertThat(mfa.settings().enabled()).isFalse();
             assertThat(service.view(actor(root)).rootEnrolled()).isFalse();
         }
 
@@ -105,9 +104,9 @@ class LoginSecurityTest extends MfaSpringTestBase {
 
             LoginSecurityView view = save(root, true, 14, 1, 5);
 
-            OffsetDateTime enabledAt = jdbc.queryForObject("SELECT mfa_enabled_at FROM admin_security_settings WHERE id = 1", OffsetDateTime.class);
-            Long enabledBy = jdbc.queryForObject("SELECT mfa_enabled_by FROM admin_security_settings WHERE id = 1", Long.class);
-            assertThat(enabledAt.toInstant().truncatedTo(ChronoUnit.MILLIS)).isEqualTo(now.truncatedTo(ChronoUnit.MILLIS));
+            Instant enabledAt = mfa.settings().enabledAt();
+            Long enabledBy = mfa.settings().enabledBy();
+            assertThat(enabledAt.truncatedTo(ChronoUnit.MILLIS)).isEqualTo(now.truncatedTo(ChronoUnit.MILLIS));
             assertThat(enabledBy).isEqualTo(root);
             assertThat(view.enabled()).isTrue();
             assertThat(view.rootEnrolled()).isTrue();

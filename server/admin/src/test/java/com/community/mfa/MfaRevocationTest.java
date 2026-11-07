@@ -83,9 +83,8 @@ class MfaRevocationTest extends MfaSpringTestBase {
             devices.trust(operator, 30, IP, null);
             long other = newOperator();
             devices.trust(other, 30, IP, null);
-            String otherId = jdbc.queryForObject("SELECT id::text FROM operator_trusted_devices WHERE operator_id = ?", String.class, other);
-            String currentId = jdbc.queryForObject("SELECT id::text FROM operator_trusted_devices WHERE operator_id = ? AND token_hash = ?", String.class, operator,
-                    TrustedDeviceService.hash(current));
+            String otherId = Long.toString(mfa.devices(other).get(0).id());
+            String currentId = Long.toString(mfa.deviceId(operator, TrustedDeviceService.hash(current)).orElseThrow());
 
             assertThat(accounts.devices(actor(operator), current)).hasSize(2).filteredOn(d -> d.current()).hasSize(1);
             assertThatThrownBy(() -> accounts.revokeDevice(actor(operator), otherId, current)).isInstanceOfSatisfying(
@@ -112,8 +111,8 @@ class MfaRevocationTest extends MfaSpringTestBase {
 
             operatorMfa.reset(actor(root), Long.toString(operator));
 
-            assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa WHERE operator_id = ?", Integer.class, operator)).isZero();
-            assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa_recovery_codes WHERE operator_id = ?", Integer.class, operator)).isZero();
+            assertThat(mfa.mfa(operator)).isEmpty();
+            assertThat(mfa.recoveryCodes(operator)).isZero();
             assertThat(deviceCount(operator)).isZero();
             assertThat(jdbc.queryForObject("SELECT fail_count FROM login_attempts WHERE email_key = ?", Integer.class, MfaAttemptService.key(operator))).isZero();
             assertThat(lastAudit(operator, "MFA_RESET")).contains("\"via\":\"ADMIN\"", "\"wasEnrolled\":true", "\"recoveryCodes\":10", "\"trustedDevices\":1");
@@ -135,7 +134,7 @@ class MfaRevocationTest extends MfaSpringTestBase {
             enrollDirect(target);
 
             assertThatThrownBy(() -> operatorMfa.reset(actor(operator), Long.toString(target))).isInstanceOf(PermissionDeniedException.class);
-            assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa WHERE operator_id = ?", Integer.class, target)).isOne();
+            assertThat(mfa.mfa(target)).isPresent();
             assertThat(auditLogs.where().actor(operator).action("PERMISSION_DENIED").lastById().orElseThrow().detail()).contains("SUPER_ONLY");
         }
 

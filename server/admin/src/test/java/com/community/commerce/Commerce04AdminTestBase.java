@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.community.admin.AdminApplication;
 import com.community.installation.service.InstallationState;
 import com.community.permission.entity.Permission;
+import com.community.mfa.MfaFixture;
 import com.community.testsupport.AuditLogQuery;
 import com.community.testsupport.BoardFixture;
 import com.community.testsupport.BusinessFixture;
@@ -97,7 +98,9 @@ public abstract class Commerce04AdminTestBase {
     protected BoardFixture boardFixture;
     protected BusinessFixture businessFixture;
     protected AuditLogQuery auditLogs;
-    private Boolean savedMfa;
+    /** 관리자 2차 인증 설정(admin 스트림 표 — admin 모듈 엔티티) */
+    private MfaFixture mfaFixture;
+    private boolean savedMfa;
     private static String passwordHash;
 
     @BeforeEach
@@ -110,9 +113,9 @@ public abstract class Commerce04AdminTestBase {
         auditLogs = new AuditLogQuery(context);
         installation.markCompleted();
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(sessionFilter, securityFilterChain).build();
-        // SQL 로 남김: admin_security_settings 는 엔티티가 없는 표다
-        savedMfa = jdbc.queryForObject("SELECT mfa_enabled FROM admin_security_settings WHERE id = 1", Boolean.class);
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = false WHERE id = 1");
+        mfaFixture = new MfaFixture(context);
+        savedMfa = mfaFixture.settings().enabled();
+        mfaFixture.mfaEnabled(false);
         if (passwordHash == null) {
             passwordHash = encoder.encode(PASSWORD);
         }
@@ -123,7 +126,7 @@ public abstract class Commerce04AdminTestBase {
 
     @AfterEach
     void commerceBaseTearDown() {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ? WHERE id = 1", savedMfa);
+        mfaFixture.mfaEnabled(savedMfa);
         if (sellingOperator()) {
             SiteOperatorFixture.clear(jdbc); // 1행 표 — 처음 값(개인)으로 되돌린다
         }

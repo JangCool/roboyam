@@ -27,6 +27,7 @@ import com.community.zconfiguration.response.ApiResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -382,9 +383,8 @@ class MfaLoginFlowTest extends MfaSpringTestBase {
         mfaOn();
         long operator = newOperator();
         String secret = enrollDirect(operator);
-        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
-        jdbc.update("INSERT INTO operator_trusted_devices (id, operator_id, token_hash, trusted_at, expires_at) VALUES (?, ?, ?, now(), now() + interval '30 days')",
-                ids.nextId(), operator, Digests.sha256Hex("reset-device-" + operator));
+        Instant trustedAt = Instant.now();
+        mfa.trustDevice(ids.nextId(), operator, Digests.sha256Hex("reset-device-" + operator), trustedAt, trustedAt.plus(Duration.ofDays(30)));
         String salt = "s".repeat(32);
         // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO operator_cert_codes (id, email_key, operator_id, code_salt, code_hash, expires_at) VALUES (?, ?, ?, ?, ?, now() + interval '10 minutes')",
