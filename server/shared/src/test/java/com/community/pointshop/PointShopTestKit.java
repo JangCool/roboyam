@@ -76,7 +76,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 포인트 상점 시험의 바탕 — 실제 PostgreSQL({@link CommerceTestDatabase}) 위에서 포인트({@link PointService})와 포인트 상점 서비스를 <b>손으로</b> 조립한다(1-1 {@code PointTestKit} 과 같은 방식 —
- * 스프링 문맥 없음, Mockito 없음). 트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 서비스·저장소의 JDBC 도 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
+ * 스프링 문맥 없음, Mockito 없음). 저장소는 JPA·QueryDSL({@link JpaTestContext#create}), 트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 포인트 원장의 JDBC 도
+ * 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
  * 감사는 기록을 모으는 대역({@link #audits}). DB 는 다른 시험과 같이 쓴다 — 회원·품목을 시험마다 새로 만들고, 공용 행(설정·시드 아바타)을 바꾸면 되돌린다.
  */
 final class PointShopTestKit {
@@ -128,10 +129,10 @@ final class PointShopTestKit {
                 audits.add(event);
             }
         };
-        itemStore = new PointShopItemStore(dataSource);
-        PointShopPurchaseStore purchaseStore = new PointShopPurchaseStore(dataSource);
-        UserItemStore userItemStore = new UserItemStore(dataSource);
-        PointShopMemberStore members = new PointShopMemberStore(dataSource);
+        itemStore = JpaTestContext.create(PointShopItemStore.class);
+        PointShopPurchaseStore purchaseStore = JpaTestContext.create(PointShopPurchaseStore.class);
+        UserItemStore userItemStore = JpaTestContext.create(UserItemStore.class);
+        PointShopMemberStore members = JpaTestContext.create(PointShopMemberStore.class);
         avatars = new AvatarCatalog();
         catalog = new PointShopCatalogService(itemStore, userItemStore, members, avatars, audit, ids, clocks);
         purchases = new PointShopPurchaseService(itemStore, purchaseStore, userItemStore, members, catalog, points, restrictions, ids, clocks);

@@ -75,7 +75,7 @@ public abstract class CommerceApiTestBase {
     protected PlatformTransactionManager transactions;
 
     @Autowired
-    private ApplicationContext context;
+    protected ApplicationContext context;
 
     protected JdbcTemplate jdbc;
     protected TransactionTemplate tx;

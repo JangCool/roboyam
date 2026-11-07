@@ -1,15 +1,14 @@
 package com.community.withdrawal;
 
 import static com.community.withdrawal.WithdrawalTestSupport.plain;
+import com.community.testsupport.BatchTestParts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditActions;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.commerce.CommerceApiTestBase;
@@ -39,8 +38,8 @@ class WithdrawalBatchTest extends CommerceApiTestBase {
     private PasswordEncoder encoder;
 
     private BatchRunner.RunReport run(BatchJob job) {
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 957),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 957), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(job)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()), null, null,
                 null));
         assertThat(report.runId()).as(String.valueOf(report)).isNotNull();

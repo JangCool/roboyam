@@ -1,13 +1,12 @@
 package com.community.hotdeal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.testsupport.BatchTestParts;
 
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.hotdeal.dto.response.PostDealView;
@@ -122,8 +121,8 @@ abstract class HotdealStage2TestBase extends HotdealApiTestBase {
 
     /** 배치를 「지금 실행」으로 한 번 돌린다(운영과 같은 실행기 — 결과가 OK·SKIP 이어야 한다) */
     protected BatchRunner.RunReport run(BatchJob job) {
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 954),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 954), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(job)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()), null,
                 null, null));
         assertThat(report.runId()).as(String.valueOf(report)).isNotNull();

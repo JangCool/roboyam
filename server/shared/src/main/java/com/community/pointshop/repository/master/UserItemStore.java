@@ -1,36 +1,49 @@
 package com.community.pointshop.repository.master;
 
-import static com.community.pointshop.repository.master.PointShopItemStore.instant;
-import static com.community.pointshop.repository.master.PointShopItemStore.marks;
 import static com.community.pointshop.repository.master.PointShopItemStore.ts;
 
 import com.community.pointshop.entity.EquipSlot;
 import com.community.pointshop.entity.PointShopItemKind;
 import com.community.pointshop.entity.PointShopPurchaseStatus;
+import com.community.pointshop.entity.PointShopRefundRequestStatus;
 import com.community.pointshop.entity.PointShopUsageType;
+import com.community.pointshop.entity.QPointShopItemEntity;
+import com.community.pointshop.entity.QPointShopPurchaseEntity;
+import com.community.pointshop.entity.QPointShopRefundRequestEntity;
+import com.community.pointshop.entity.QUserEquippedEntity;
+import com.community.pointshop.entity.QUserItemEntity;
 import com.community.pointshop.entity.UploadTicketUse;
+import com.community.pointshop.entity.UserItemEntity;
 import com.community.pointshop.entity.UserItemStatus;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.UniqueViolations;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Repository;
 
 /**
- * 보유 아이템({@code user_items})·장착({@code user_equipped}) 읽기·쓰기 — {@code com.community.pointshop.service} 만 부른다.
+ * 보유 아이템({@code user_items})·장착({@code user_equipped}) 읽기·쓰기 — {@code com.community.pointshop.service} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>JDBC 인 이유: {@link PointShopItemStore} 와 같고, 더해서 <b>변경권 한 장 쓰기</b>는 {@code FOR UPDATE SKIP LOCKED} 로 고른 한 줄을 조건부 UPDATE 하는 한 문장이다 —
- * 같은 회원의 동시 요청 둘이 같은 한 장을 쓰지 못한다(다른 장이 있으면 그 장을, 없으면 0 줄). 장착은 {@code INSERT … ON CONFLICT (user_id, slot) DO UPDATE}.
+ * <p>QueryDSL 이 기본이다 — 회수·처음 사용·예약 반환·사용·대체는 조건부 UPDATE, 잠금은 보유 줄 표만 고르는 한 문장({@code FOR NO KEY UPDATE}), 읽기는 한 줄 모양(프로젝션), 넣기는 넣고
+ * 바로 내보낸다. Native SQL 로 남긴 것과 이유: <b>변경권 한 장 쓰기·올리기 변경권 예약</b>은 {@code FOR UPDATE OF ui SKIP LOCKED} 로 고른 한 줄을 조건부 UPDATE 하고 고친 줄을
+ * {@code RETURNING} 으로 받는 한 문장이다 — 같은 회원의 동시 요청 둘이 같은 한 장을 쓰지 못하고(다른 장이 있으면 그 장을, 없으면 0 줄), 고른 줄과 고친 줄이 같은 문장의 결과여야 한다.
+ * 장착은 {@code INSERT … ON CONFLICT (user_id, slot) DO UPDATE}(upsert).
  */
 @Repository
-public class UserItemStore {
+public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 보유 줄 하나 */
     public record UserItemRow(long id, long userId, long itemId, long purchaseId, PointShopUsageType usageType, UserItemStatus status, Instant startsAt,
@@ -61,169 +74,194 @@ public class UserItemStore {
                              PointShopPurchaseStatus purchaseStatus, long userItemId, boolean reserved) {
     }
 
-    private static final String COLUMNS = "ui.id, ui.user_id, ui.item_id, ui.purchase_id, ui.usage_type, ui.status, ui.starts_at, ui.expires_at, ui.first_used_at, "
-            + "ui.used_at, ui.revoked_at, ui.created_at, ui.reserved_at, ui.ref_type, ui.ref_id";
+    private static final QUserItemEntity UI = QUserItemEntity.userItemEntity;
+    private static final QPointShopItemEntity I = QPointShopItemEntity.pointShopItemEntity;
+    private static final QPointShopPurchaseEntity P = QPointShopPurchaseEntity.pointShopPurchaseEntity;
+    private static final QUserEquippedEntity E = QUserEquippedEntity.userEquippedEntity;
+    private static final QPointShopRefundRequestEntity R = QPointShopRefundRequestEntity.pointShopRefundRequestEntity;
 
-    private final JdbcTemplate jdbc;
+    private static final Expression<?>[] ROW = {UI.id, UI.userId, UI.itemId, UI.purchaseId, UI.usageType, UI.status, UI.startsAt, UI.expiresAt, UI.firstUsedAt,
+            UI.usedAt, UI.revokedAt, UI.createdAt, UI.reservedAt, UI.refType, UI.refId};
 
-    public UserItemStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    private final UserItemRepository userItems;
+    private final EntityManager entityManager;
+
+    public UserItemStore(JPAQueryFactory query, UserItemRepository userItems, EntityManager entityManager) {
+        super(query);
+        this.userItems = userItems;
+        this.entityManager = entityManager;
     }
 
     // ── 보유 ────────────────────────────────────────────────────────────────
 
     public void insert(UserItemRow row) {
-        jdbc.update("INSERT INTO user_items (id, user_id, item_id, purchase_id, usage_type, status, starts_at, expires_at, created_at) VALUES (?, ?, ?, ?, ?, 'OWNED', ?, ?, ?)",
-                row.id(), row.userId(), row.itemId(), row.purchaseId(), row.usageType().name(), ts(row.startsAt()), ts(row.expiresAt()), ts(row.createdAt()));
+        UniqueViolations.inserting(() -> { // 영구 품목 부분 유일 색인 위반은 DuplicateKeyException(구매 서비스가 「이미 가짐」으로 바꾼다)
+            userItems.persist(UserItemEntity.own(row.id(), row.userId(), row.itemId(), row.purchaseId(), row.usageType(), row.startsAt(), row.expiresAt(),
+                    row.createdAt()));
+            userItems.flush();
+        });
     }
 
     public Optional<UserItemRow> find(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.id = ?", UserItemStore::rowOf, id).stream().findFirst();
+        return one(rows().where(UI.id.eq(id)));
     }
 
     /** 장착·환불·고르기 전에 — 줄을 잠그고 읽는다 */
     public Optional<UserItemRow> findForUpdate(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.id = ? FOR UPDATE", UserItemStore::rowOf, id).stream().findFirst();
+        return one(rows().where(UI.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
     }
 
     public Optional<UserItemRow> byPurchaseForUpdate(long purchaseId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.purchase_id = ? FOR UPDATE", UserItemStore::rowOf, purchaseId).stream().findFirst();
+        return one(rows().where(UI.purchaseId.eq(purchaseId)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
     }
 
     /** 그 회원이 그 영구 품목을 (회수되지 않게) 가졌나 */
     public boolean ownsPermanent(long userId, long itemId) {
-        return !jdbc.queryForList("SELECT 1 FROM user_items WHERE user_id = ? AND item_id = ? AND usage_type = 'PERMANENT' AND status <> 'REVOKED'", Integer.class, userId,
-                itemId).isEmpty();
+        return query.selectOne().from(UI).where(UI.userId.eq(userId), UI.itemId.eq(itemId), UI.usageType.eq(PointShopUsageType.PERMANENT),
+                UI.status.ne(UserItemStatus.REVOKED)).fetchFirst() != null;
     }
 
     /** 그 회원이 가진(회수되지 않은) 그 영구 품목 줄 — 잠근다(아바타 고르기) */
     public Optional<UserItemRow> ownedPermanentForUpdate(long userId, long itemId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.user_id = ? AND ui.item_id = ? AND ui.usage_type = 'PERMANENT' AND ui.status = 'OWNED' FOR UPDATE",
-                UserItemStore::rowOf, userId, itemId).stream().findFirst();
+        return one(rows().where(ownedPermanentLine(userId, itemId)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
     }
 
     /** 그 회원이 가진(회수되지 않은) 그 영구 품목 줄 — 잠그지 않는다(마지막 정지 아바타 되돌리기의 보유 확인 — 프로필 행을 먼저 잠근 쪽이 부른다) */
     public Optional<UserItemRow> ownedPermanent(long userId, long itemId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.user_id = ? AND ui.item_id = ? AND ui.usage_type = 'PERMANENT' AND ui.status = 'OWNED'",
-                UserItemStore::rowOf, userId, itemId).stream().findFirst();
+        return one(rows().where(ownedPermanentLine(userId, itemId)));
+    }
+
+    private static BooleanExpression ownedPermanentLine(long userId, long itemId) {
+        return UI.userId.eq(userId).and(UI.itemId.eq(itemId)).and(UI.usageType.eq(PointShopUsageType.PERMANENT)).and(UI.status.eq(UserItemStatus.OWNED));
     }
 
     /** 기간제 — 그 회원이 가진 그 품목의 기간 중 가장 늦은 끝(지금 이후만). 또 사면 여기서 이어 붙는다 */
     public Optional<Instant> periodEnd(long userId, long itemId, Instant now) {
-        Instant end = jdbc.queryForObject("SELECT max(expires_at) FROM user_items WHERE user_id = ? AND item_id = ? AND usage_type = 'PERIOD' AND status <> 'REVOKED' "
-                + "AND expires_at > ?", (rs, i) -> instant(rs, 1), userId, itemId, ts(now));
-        return Optional.ofNullable(end);
+        return Optional.ofNullable(query.select(UI.expiresAt.max()).from(UI).where(UI.userId.eq(userId), UI.itemId.eq(itemId),
+                UI.usageType.eq(PointShopUsageType.PERIOD), UI.status.ne(UserItemStatus.REVOKED), UI.expiresAt.gt(now)).fetchOne());
     }
 
     /** 그 회원의 보유 요약 재료(회수되지 않은 줄) — 품목 목록의 {@code mine}·아바타 목록의 보유·환불 판정 */
     public List<HoldingRow> holdings(long userId) {
-        return jdbc.query("SELECT ui.item_id, ui.usage_type, ui.status, ui.expires_at, ui.first_used_at, p.created_at, p.status, ui.id, ui.reserved_at IS NOT NULL "
-                + "FROM user_items ui JOIN point_shop_purchases p ON p.id = ui.purchase_id WHERE ui.user_id = ? AND ui.status <> 'REVOKED'",
-                (rs, i) -> new HoldingRow(rs.getLong(1), PointShopUsageType.valueOf(rs.getString(2)), UserItemStatus.valueOf(rs.getString(3)), instant(rs, 4),
-                        instant(rs, 5), instant(rs, 6), PointShopPurchaseStatus.valueOf(rs.getString(7)), rs.getLong(8), rs.getBoolean(9)), userId);
+        return query.select(UI.itemId, UI.usageType, UI.status, UI.expiresAt, UI.firstUsedAt, P.createdAt, P.status, UI.id, UI.reservedAt)
+                .from(UI).join(P).on(P.id.eq(UI.purchaseId)).where(UI.userId.eq(userId), UI.status.ne(UserItemStatus.REVOKED)).fetch().stream()
+                .map(t -> new HoldingRow(t.get(UI.itemId), t.get(UI.usageType), t.get(UI.status), t.get(UI.expiresAt), t.get(UI.firstUsedAt), t.get(P.createdAt),
+                        t.get(P.status), t.get(UI.id), t.get(UI.reservedAt) != null))
+                .toList();
     }
 
     /** 내 아이템 목록 — 최근에 산 줄이 위 */
     public List<MyItemRow> myItems(long userId) {
-        return jdbc.query("SELECT " + COLUMNS + ", i.kind, i.name, i.name_en, i.color, i.border_style, i.avatar_id, p.price_point, p.status, p.created_at, e.slot "
-                + "FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id JOIN point_shop_purchases p ON p.id = ui.purchase_id "
-                + "LEFT JOIN user_equipped e ON e.user_item_id = ui.id WHERE ui.user_id = ? ORDER BY ui.id DESC",
-                (rs, i) -> new MyItemRow(rowOf(rs, i), PointShopItemKind.valueOf(rs.getString(16)), rs.getString(17), rs.getString(18), rs.getString(19), rs.getString(20),
-                        rs.getString(21), rs.getInt(22), PointShopPurchaseStatus.valueOf(rs.getString(23)), instant(rs, 24),
-                        rs.getString(25) == null ? null : EquipSlot.valueOf(rs.getString(25))), userId);
+        Expression<?>[] columns = Stream.concat(Stream.of(ROW), Stream.of(I.kind, I.name, I.nameEn, I.color, I.borderStyle, I.avatarId, P.pricePoint, P.status,
+                P.createdAt, E.slot)).toArray(Expression<?>[]::new);
+        return query.select(columns).from(UI).join(I).on(I.id.eq(UI.itemId)).join(P).on(P.id.eq(UI.purchaseId)).leftJoin(E).on(E.userItemId.eq(UI.id))
+                .where(UI.userId.eq(userId)).orderBy(UI.id.desc()).fetch().stream()
+                .map(t -> new MyItemRow(rowOf(t), t.get(I.kind), t.get(I.name), t.get(I.nameEn), t.get(I.color), t.get(I.borderStyle), t.get(I.avatarId),
+                        t.get(P.pricePoint), t.get(P.status), t.get(P.createdAt), t.get(E.slot)))
+                .toList();
     }
 
     /** 그 보유 줄에 대기 중인 환불 신청이 있나(V87 — 있으면 장착·고르기·셀프 환불·변경권 사용을 막는다) */
     public boolean refundPending(long userItemId) {
-        return !jdbc.queryForList("SELECT 1 FROM point_shop_refund_requests WHERE user_item_id = ? AND status = 'PENDING'", Integer.class, userItemId).isEmpty();
+        return query.selectOne().from(R).where(R.userItemId.eq(userItemId), R.status.eq(PointShopRefundRequestStatus.PENDING)).fetchFirst() != null;
     }
 
     /** 처음 장착·사용·고른 시각을 남긴다(이미 있으면 그대로 — 지우지 않는다) */
     public void markFirstUsed(long id, Instant now) {
-        jdbc.update("UPDATE user_items SET first_used_at = ? WHERE id = ? AND first_used_at IS NULL", ts(now), id);
+        query.update(UI).set(UI.firstUsedAt, now).where(UI.id.eq(id), UI.firstUsedAt.isNull()).execute();
     }
 
     /** 회수(환불) — 아직 회수되지 않았을 때만 */
     public boolean revoke(long id, Instant now) {
-        return jdbc.update("UPDATE user_items SET status = 'REVOKED', revoked_at = ? WHERE id = ? AND status <> 'REVOKED'", ts(now), id) == 1;
+        return query.update(UI).set(UI.status, UserItemStatus.REVOKED).set(UI.revokedAt, now).where(UI.id.eq(id), UI.status.ne(UserItemStatus.REVOKED)).execute() == 1;
     }
 
     // ── 변경권 ──────────────────────────────────────────────────────────────
 
+    /** 환불 신청 대기 중인 장이 아니다 */
+    private static BooleanExpression noPendingRefund() {
+        return JPAExpressions.selectOne().from(R).where(R.userItemId.eq(UI.id), R.status.eq(PointShopRefundRequestStatus.PENDING)).notExists();
+    }
+
     /** 안 쓴 변경권 수(환불 신청 대기 중인 장은 빼고) */
     public int countTickets(long userId) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE ui.user_id = ? AND ui.status = 'OWNED' "
-                + "AND i.kind = 'NICKNAME_CHANGE_TICKET' AND NOT EXISTS (SELECT 1 FROM point_shop_refund_requests r WHERE r.user_item_id = ui.id AND r.status = 'PENDING')", Integer.class, userId);
-        return count == null ? 0 : count;
+        Long count = query.select(UI.count()).from(UI).join(I).on(I.id.eq(UI.itemId))
+                .where(UI.userId.eq(userId), UI.status.eq(UserItemStatus.OWNED), I.kind.eq(PointShopItemKind.NICKNAME_CHANGE_TICKET), noPendingRefund()).fetchOne();
+        return count == null ? 0 : count.intValue();
     }
 
     /**
      * 변경권 한 장을 쓴다 — 안 쓴 장 중 <b>먼저 산 것</b>(환불 기한이 먼저 끝나는 것)부터. 환불 신청 대기 중인 장은 쓰지 않는다. 다른 트랜잭션이 잡고 있는 장(동시 사용·환불 중)은 건너뛴다({@code SKIP LOCKED}) —
      * 같은 한 장이 두 번 쓰이지 않는다.
      *
+     * <p>Native SQL 인 이유: {@code UPDATE … WHERE id = (SELECT … FOR UPDATE OF ui SKIP LOCKED) … RETURNING id} — 고르기·잠그기·고치기·고친 줄 받기가 한 문장이어야 한다(클래스 설명).
+     *
      * @return 쓴 보유 줄 ID(쓸 장이 없으면 빈 값)
      */
     public Optional<Long> useTicket(long userId, Instant now) {
-        return jdbc.queryForList("UPDATE user_items SET status = 'USED', used_at = ?, first_used_at = coalesce(first_used_at, ?) WHERE id = ("
-                + "SELECT ui.id FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE ui.user_id = ? AND ui.status = 'OWNED' "
-                + "AND i.kind = 'NICKNAME_CHANGE_TICKET' AND NOT EXISTS (SELECT 1 FROM point_shop_refund_requests r WHERE r.user_item_id = ui.id AND r.status = 'PENDING') ORDER BY ui.id LIMIT 1 FOR UPDATE OF ui SKIP LOCKED) AND status = 'OWNED' RETURNING id", Long.class, ts(now), ts(now),
-                userId).stream().findFirst();
+        return firstLong(entityManager.createNativeQuery("UPDATE user_items SET status = 'USED', used_at = ?1, first_used_at = coalesce(first_used_at, ?1) WHERE id = ("
+                        + "SELECT ui.id FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE ui.user_id = ?2 AND ui.status = 'OWNED' "
+                        + "AND i.kind = 'NICKNAME_CHANGE_TICKET' AND NOT EXISTS (SELECT 1 FROM point_shop_refund_requests r WHERE r.user_item_id = ui.id AND r.status = 'PENDING') "
+                        + "ORDER BY ui.id LIMIT 1 FOR UPDATE OF ui SKIP LOCKED) AND status = 'OWNED' RETURNING id")
+                .setParameter(1, ts(now)).setParameter(2, userId).getResultList());
     }
 
     // ── 올리기 변경권(V157 — commerce-motion-avatar-contract 규칙 0) ─────────────
     // 예약 = OWNED 그대로 reserved_at·ref_type·ref_id 를 채운다 · 반환 = 셋을 지운다 · 사용 = USED + reserved_at 만 지운다(ref 는 남는다 — 어느 신청이 썼나) · 대체 = ref_id 만 옮긴다.
 
-    private static final String FREE_UPLOAD_TICKET = "ui.user_id = ? AND ui.status = 'OWNED' AND ui.reserved_at IS NULL AND i.kind = ? "
-            + "AND NOT EXISTS (SELECT 1 FROM point_shop_refund_requests r WHERE r.user_item_id = ui.id AND r.status = 'PENDING')";
-
     /** 쓸 수 있는 올리기 변경권 수 — 예약된 장·환불 신청 대기 중인 장은 빼고 */
     public int countUploadTickets(long userId, UploadTicketUse use) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE " + FREE_UPLOAD_TICKET, Integer.class,
-                userId, use.kind().name());
-        return count == null ? 0 : count;
+        Long count = query.select(UI.count()).from(UI).join(I).on(I.id.eq(UI.itemId))
+                .where(UI.userId.eq(userId), UI.status.eq(UserItemStatus.OWNED), UI.reservedAt.isNull(), I.kind.eq(use.kind()), noPendingRefund()).fetchOne();
+        return count == null ? 0 : count.intValue();
     }
 
     /**
      * 변경권 한 장을 그 신청에 예약한다 — 쓸 수 있는 장 중 <b>먼저 산 것</b>부터. 다른 트랜잭션이 잡은 장(동시 신청·환불 중)은 건너뛴다({@code SKIP LOCKED}) —
      * 같은 한 장이 두 신청에 예약되지 않는다(신청 하나에 장 하나는 {@code ux_user_items_ref} 가 끝까지 막는다).
      *
+     * <p>Native SQL 인 이유: {@link #useTicket} 과 같다({@code FOR UPDATE OF ui SKIP LOCKED} 로 고른 한 줄의 조건부 UPDATE + {@code RETURNING}).
+     *
      * @return 예약한 보유 줄 ID(쓸 장이 없으면 빈 값)
      */
     public Optional<Long> reserveUploadTicket(long userId, UploadTicketUse use, long requestId, Instant now) {
-        return jdbc.queryForList("UPDATE user_items SET reserved_at = ?, ref_type = ?, ref_id = ? WHERE id = ("
-                + "SELECT ui.id FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE " + FREE_UPLOAD_TICKET
-                + " ORDER BY ui.id LIMIT 1 FOR UPDATE OF ui SKIP LOCKED) AND status = 'OWNED' AND reserved_at IS NULL RETURNING id", Long.class, ts(now), use.name(), requestId,
-                userId, use.kind().name()).stream().findFirst();
+        return firstLong(entityManager.createNativeQuery("UPDATE user_items SET reserved_at = ?1, ref_type = ?2, ref_id = ?3 WHERE id = ("
+                        + "SELECT ui.id FROM user_items ui JOIN point_shop_items i ON i.id = ui.item_id WHERE ui.user_id = ?4 AND ui.status = 'OWNED' AND ui.reserved_at IS NULL "
+                        + "AND i.kind = ?5 AND NOT EXISTS (SELECT 1 FROM point_shop_refund_requests r WHERE r.user_item_id = ui.id AND r.status = 'PENDING') "
+                        + "ORDER BY ui.id LIMIT 1 FOR UPDATE OF ui SKIP LOCKED) AND status = 'OWNED' AND reserved_at IS NULL RETURNING id")
+                .setParameter(1, ts(now)).setParameter(2, use.name()).setParameter(3, requestId).setParameter(4, userId).setParameter(5, use.kind().name())
+                .getResultList());
     }
 
     /** 그 신청에 예약된(아직 쓰지 않은) 장 — 없으면 빈 값 */
     public Optional<UserItemRow> reservedFor(UploadTicketUse use, long requestId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.ref_type = ? AND ui.ref_id = ? AND ui.reserved_at IS NOT NULL", UserItemStore::rowOf, use.name(),
-                requestId).stream().findFirst();
+        return one(rows().where(UI.refType.eq(use), UI.refId.eq(requestId), UI.reservedAt.isNotNull()));
     }
 
     /** 그 신청에 이어진 장(예약 중이거나 그 신청이 쓴 장) — 없으면 빈 값 */
     public Optional<UserItemRow> ticketOf(UploadTicketUse use, long requestId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.ref_type = ? AND ui.ref_id = ?", UserItemStore::rowOf, use.name(), requestId).stream()
-                .findFirst();
+        return one(rows().where(UI.refType.eq(use), UI.refId.eq(requestId)));
+    }
+
+    /** 예약 중인 그 신청의 장(OWNED) */
+    private static BooleanExpression reservedOwned(UploadTicketUse use, long requestId) {
+        return UI.refType.eq(use).and(UI.refId.eq(requestId)).and(UI.reservedAt.isNotNull()).and(UI.status.eq(UserItemStatus.OWNED));
     }
 
     /** 대기 신청을 새 신청이 대체한다 — 예약된 장을 그대로 새 신청으로 옮긴다(한 장 더 들지 않는다). 옮겼으면 true */
     public boolean transferUploadTicket(UploadTicketUse use, long fromRequestId, long toRequestId) {
-        return jdbc.update("UPDATE user_items SET ref_id = ? WHERE ref_type = ? AND ref_id = ? AND reserved_at IS NOT NULL AND status = 'OWNED'", toRequestId, use.name(),
-                fromRequestId) == 1;
+        return query.update(UI).set(UI.refId, toRequestId).where(reservedOwned(use, fromRequestId)).execute() == 1;
     }
 
     /** 반환(반려·본인 취소) — 예약을 푼다. 풀었으면 true(예약한 장이 없던 신청이면 false) */
     public boolean releaseUploadTicket(UploadTicketUse use, long requestId) {
-        return jdbc.update("UPDATE user_items SET reserved_at = NULL, ref_type = NULL, ref_id = NULL WHERE ref_type = ? AND ref_id = ? AND reserved_at IS NOT NULL "
-                + "AND status = 'OWNED'", use.name(), requestId) == 1;
+        return query.update(UI).setNull(UI.reservedAt).setNull(UI.refType).setNull(UI.refId).where(reservedOwned(use, requestId)).execute() == 1;
     }
 
     /** 사용(승인) — 예약된 장을 USED 로. 썼으면 true(예약한 장이 없던 신청이면 false) */
     public boolean consumeUploadTicket(UploadTicketUse use, long requestId, Instant now) {
-        return jdbc.update("UPDATE user_items SET status = 'USED', used_at = ?, first_used_at = coalesce(first_used_at, ?), reserved_at = NULL "
-                + "WHERE ref_type = ? AND ref_id = ? AND reserved_at IS NOT NULL AND status = 'OWNED'", ts(now), ts(now), use.name(), requestId) == 1;
+        return query.update(UI).set(UI.status, UserItemStatus.USED).set(UI.usedAt, now).set(UI.firstUsedAt, UI.firstUsedAt.coalesce(now)).setNull(UI.reservedAt)
+                .where(reservedOwned(use, requestId)).execute() == 1;
     }
 
     /** 여러 신청에 이어진 장 — 신청 ID → 보유 줄(관리자 목록의 변경권 칸) */
@@ -232,13 +270,7 @@ public class UserItemStore {
         if (requestIds.isEmpty()) {
             return out;
         }
-        List<Object> args = new ArrayList<>();
-        args.add(use.name());
-        args.addAll(requestIds);
-        for (UserItemRow row : jdbc.query("SELECT " + COLUMNS + " FROM user_items ui WHERE ui.ref_type = ? AND ui.ref_id IN (" + marks(requestIds.size()) + ")",
-                UserItemStore::rowOf, args.toArray())) {
-            out.put(row.refId(), row);
-        }
+        rows().where(UI.refType.eq(use), UI.refId.in(requestIds)).fetch().stream().map(UserItemStore::rowOf).forEach(row -> out.put(row.refId(), row));
         return out;
     }
 
@@ -254,34 +286,53 @@ public class UserItemStore {
         if (userIds.isEmpty()) {
             return List.of();
         }
-        return jdbc.query("SELECT e.user_id, e.slot, e.user_item_id, e.item_id, e.expires_at, i.color, i.border_style FROM user_equipped e "
-                + "JOIN point_shop_items i ON i.id = e.item_id WHERE e.user_id IN (" + marks(userIds.size()) + ")",
-                (rs, i) -> new EquippedRow(rs.getLong(1), EquipSlot.valueOf(rs.getString(2)), rs.getLong(3), rs.getLong(4), instant(rs, 5), rs.getString(6),
-                        rs.getString(7)), new ArrayList<>(userIds).toArray());
+        return query.select(E.userId, E.slot, E.userItemId, E.itemId, E.expiresAt, I.color, I.borderStyle).from(E).join(I).on(I.id.eq(E.itemId))
+                .where(E.userId.in(userIds)).fetch().stream()
+                .map(t -> new EquippedRow(t.get(E.userId), t.get(E.slot), t.get(E.userItemId), t.get(E.itemId), t.get(E.expiresAt), t.get(I.color), t.get(I.borderStyle)))
+                .toList();
     }
 
-    /** 그 자리에 장착한다(있으면 바꾼다) — 품목 번호·기간 끝은 보유 줄의 사본 */
+    /**
+     * 그 자리에 장착한다(있으면 바꾼다) — 품목 번호·기간 끝은 보유 줄의 사본.
+     *
+     * <p>Native SQL 인 이유: {@code INSERT … ON CONFLICT (user_id, slot) DO UPDATE}(upsert) — 「찾아보고 없으면 넣는다」로 나누면 동시 장착이 유일 위반으로 깨진다.
+     */
     public void equip(long userId, EquipSlot slot, long userItemId, long itemId, Instant expiresAt, Instant now) {
-        jdbc.update("INSERT INTO user_equipped (user_id, slot, user_item_id, item_id, expires_at, equipped_at) VALUES (?, ?, ?, ?, ?, ?) "
-                + "ON CONFLICT (user_id, slot) DO UPDATE SET user_item_id = EXCLUDED.user_item_id, item_id = EXCLUDED.item_id, expires_at = EXCLUDED.expires_at, "
-                + "equipped_at = EXCLUDED.equipped_at", userId, slot.name(), userItemId, itemId, ts(expiresAt), ts(now));
+        entityManager.createNativeQuery("INSERT INTO user_equipped (user_id, slot, user_item_id, item_id, expires_at, equipped_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) "
+                        + "ON CONFLICT (user_id, slot) DO UPDATE SET user_item_id = EXCLUDED.user_item_id, item_id = EXCLUDED.item_id, expires_at = EXCLUDED.expires_at, "
+                        + "equipped_at = EXCLUDED.equipped_at")
+                .setParameter(1, userId).setParameter(2, slot.name()).setParameter(3, userItemId).setParameter(4, itemId).setParameter(5, ts(expiresAt))
+                .setParameter(6, ts(now)).executeUpdate();
     }
 
     public void unequip(long userId, EquipSlot slot) {
-        jdbc.update("DELETE FROM user_equipped WHERE user_id = ? AND slot = ?", userId, slot.name());
+        query.delete(E).where(E.userId.eq(userId), E.slot.eq(slot)).execute();
     }
 
     /** 그 보유 줄의 장착을 푼다(환불) — 풀었으면 true */
     public boolean unequipItem(long userItemId) {
-        return jdbc.update("DELETE FROM user_equipped WHERE user_item_id = ?", userItemId) > 0;
+        return query.delete(E).where(E.userItemId.eq(userItemId)).execute() > 0;
     }
 
-    private static UserItemRow rowOf(ResultSet rs, int i) throws SQLException {
-        String refType = rs.getString(14);
-        long refId = rs.getLong(15);
-        Long ref = rs.wasNull() ? null : refId;
-        return new UserItemRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), PointShopUsageType.valueOf(rs.getString(5)),
-                UserItemStatus.valueOf(rs.getString(6)), instant(rs, 7), instant(rs, 8), instant(rs, 9), instant(rs, 10), instant(rs, 11), instant(rs, 12),
-                instant(rs, 13), refType == null ? null : UploadTicketUse.valueOf(refType), ref);
+    // ── 안쪽 ────────────────────────────────────────────────────────────────
+
+    private JPAQuery<Tuple> rows() {
+        return query.select(ROW).from(UI);
+    }
+
+    /** 맞는 줄의 첫 줄 — LIMIT 을 붙이지 않는다(잠그는 질의는 맞는 줄을 모두 잠근다 — JDBC 때와 같다) */
+    private static Optional<UserItemRow> one(JPAQuery<Tuple> select) {
+        return select.fetch().stream().findFirst().map(UserItemStore::rowOf);
+    }
+
+    private static UserItemRow rowOf(Tuple t) {
+        return new UserItemRow(t.get(UI.id), t.get(UI.userId), t.get(UI.itemId), t.get(UI.purchaseId), t.get(UI.usageType), t.get(UI.status), t.get(UI.startsAt),
+                t.get(UI.expiresAt), t.get(UI.firstUsedAt), t.get(UI.usedAt), t.get(UI.revokedAt), t.get(UI.createdAt), t.get(UI.reservedAt), t.get(UI.refType),
+                t.get(UI.refId));
+    }
+
+    /** native {@code RETURNING} 한 칸 결과의 첫 값 */
+    private static Optional<Long> firstLong(List<?> rows) {
+        return rows.stream().findFirst().map(v -> ((Number) v).longValue());
     }
 }

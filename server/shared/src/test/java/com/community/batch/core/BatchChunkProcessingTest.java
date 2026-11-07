@@ -1,6 +1,9 @@
 package com.community.batch.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.batch.repository.master.BatchRunStepRepository;
+import com.community.batch.repository.master.BatchRunRepository;
+import com.community.testsupport.JpaTestContext;
 
 import com.community.batch.core.BatchRunner.Outcome;
 import com.community.batch.core.BatchRunner.RunReport;
@@ -89,7 +92,8 @@ class BatchChunkProcessingTest {
         ItemJob job = kit.singleStepJob(key);
         List<Long> items = kit.items(job.groupOf("main"), 10); // 3 + 3 + 3 + 1 = 덩어리 넷
         List<String> progress = new CopyOnWriteArrayList<>();
-        BatchRunRecorder counting = new BatchRunRecorder(kit.dataSource, kit.transactions, kit.ids, BatchTestKit.NODE_ID) {
+        BatchRunRecorder counting = new BatchRunRecorder(JpaTestContext.query(), JpaTestContext.context().getBean(BatchRunRepository.class),
+                JpaTestContext.context().getBean(BatchRunStepRepository.class), JpaTestContext.entityManager(), kit.transactions, kit.ids, BatchTestKit.NODE_ID) {
             @Override
             public void addStepProgress(long runId, String step, long read, long processed, long failed, long skipped, String checkpoint) {
                 progress.add(runId + ":" + step + ":" + read + ":" + checkpoint);

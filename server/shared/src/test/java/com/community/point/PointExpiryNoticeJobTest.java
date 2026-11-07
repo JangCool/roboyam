@@ -184,8 +184,9 @@ class PointExpiryNoticeJobTest extends PointTestBase {
         Instant now = kit.clock.instant();
         lotExpiringIn(m, now, Duration.ofDays(10), 10);
         Instant restSince = now.minus(Duration.ofDays(6));
-        assertThat(batch.queries.claimNotice(m, now, restSince)).isTrue();
-        assertThat(batch.queries.claimNotice(m, now.plusSeconds(1), restSince)).as("이미 적은 뒤의 두 번째 실행").isFalse();
+        // 저장소(JPA)는 트랜잭션 안에서 — 운영도 배치 덩어리 트랜잭션 안에서 부른다
+        assertThat(kit.inTx(() -> batch.queries.claimNotice(m, now, restSince))).isTrue();
+        assertThat(kit.inTx(() -> batch.queries.claimNotice(m, now.plusSeconds(1), restSince))).as("이미 적은 뒤의 두 번째 실행").isFalse();
     }
 
     @Test

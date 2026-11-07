@@ -1,13 +1,12 @@
 package com.community.bizapplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.testsupport.BatchTestParts;
 
 import com.community.ad.service.AdOperatorService;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.bizapplication.batch.BizHotdealPublishJob;
@@ -181,8 +180,8 @@ abstract class BizHotdealTestBase extends BizApplicationApiTestBase {
 
     /** 게시 배치를 「지금 실행」으로 한 번(운영과 같은 실행기 — OK·SKIP) */
     protected void runPublishJob() {
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, 954),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(publishJob)), transactions);
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(context, ids, 954), BatchTestParts.failures(context, ids),
+                BatchRegistry.forJobs(List.of(publishJob)), transactions);
         BatchRunner.RunReport report = runner.runRequested(new BatchRunner.RunRequest(publishJob.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()),
                 null, null, null));
         assertThat(report.runId()).as(String.valueOf(report)).isNotNull();

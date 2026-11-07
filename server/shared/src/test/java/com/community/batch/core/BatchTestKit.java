@@ -1,7 +1,9 @@
 package com.community.batch.core;
 
 import com.community.batch.entity.BatchSource;
+import com.community.testsupport.BatchTestParts;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.sql.Array;
@@ -18,11 +20,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * 배치 core 시험의 바탕 — 실제 PostgreSQL 시험 DB({@link CommerceTestDatabase}, 커머스 0-2 의 시험이라 Testcontainers 를 쓴다)에 core 객체를 앱과 같은 모양(데이터소스 +
- * 트랜잭션 관리자)으로 만든다. DB 를 다른 시험과 같이 쓰므로 배치 키·행 ID 는 겹치지 않게 새로 만들고 표를 비우지 않는다.
+ * JPA 트랜잭션 관리자 — {@link JpaTestContext})으로 만든다. 기록기는 JPA·QueryDSL 이고 작업의 JDBC 일도 같은 트랜잭션·연결을 쓴다. DB 를 다른 시험과 같이 쓰므로 배치 키·행 ID 는 겹치지 않게 새로 만들고 표를 비우지 않는다.
  *
  * <p>시험용 작업({@link ItemJob})은 시험 전용 표 {@code zz_batch_items}(여기서 만든다)의 행을 덩어리로 훑으며 {@code touched} 를 1 올린다 — 같은 트랜잭션에서 단계 건수가
  * 고쳐지는지, 실패한 덩어리가 되돌려지는지(되돌려지면 touched 가 0 으로 남는다) 행으로 확인할 수 있다.
@@ -36,7 +38,7 @@ final class BatchTestKit {
     private static final String RUN_SUFFIX = Long.toString(System.nanoTime() % 1_000_000L, 36);
 
     final DataSource dataSource;
-    final DataSourceTransactionManager transactions;
+    final PlatformTransactionManager transactions;
     final JdbcTemplate jdbc;
     final SnowflakeIdGenerator ids;
     final BatchLockService locks;
@@ -46,13 +48,13 @@ final class BatchTestKit {
 
     BatchTestKit() {
         this.dataSource = CommerceTestDatabase.migrated();
-        this.transactions = new DataSourceTransactionManager(dataSource);
+        this.transactions = JpaTestContext.transactions();
         this.jdbc = new JdbcTemplate(dataSource);
         this.ids = new SnowflakeIdGenerator(NODE_ID);
         this.locks = new BatchLockService(dataSource);
-        this.recorder = new BatchRunRecorder(dataSource, transactions, ids, NODE_ID);
-        this.failures = new BatchFailureRecorder(dataSource, transactions, ids);
-        this.queue = new BatchRequestQueue(dataSource, transactions, ids, NODE_ID);
+        this.recorder = BatchTestParts.recorder(ids, NODE_ID);
+        this.failures = BatchTestParts.failures(ids);
+        this.queue = BatchTestParts.queue(ids, NODE_ID);
         jdbc.execute("CREATE TABLE IF NOT EXISTS zz_batch_items (id bigint PRIMARY KEY, grp varchar(80) NOT NULL, touched int NOT NULL DEFAULT 0)");
     }
 
