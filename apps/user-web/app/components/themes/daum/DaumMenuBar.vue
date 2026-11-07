@@ -220,7 +220,8 @@ const showEntries = computed(() => state.value !== 'loading' && state.value !== 
 
 /** 구역 안에 지금 있는 곳이 있나 — 항목이면 그 줄, 하위 그룹이면 드롭다운 안 */
 function sectionActive(section: MenuBarSection): boolean {
-    return section.entries.some((entry) => (entry.kind === 'item' ? entry.row.active : entry.active));
+    // 바로가기 줄(밝기만 함께)이 아니라 진짜 지금 있는 곳(`here`)으로 — 게시판은 진짜 자리 묶음이 활성 그룹이다
+    return section.entries.some((entry) => (entry.kind === 'item' ? entry.row.here : entry.active));
 }
 
 /** 제목 있는 구역(최상위 그룹)인가 */
@@ -276,7 +277,7 @@ const activeTabKey = computed<string | null>(() => {
     for (const section of bar.value) {
         if (!sectionActive(section)) continue;
         if (isGroup(section)) return section.key;
-        return section.entries.find((entry) => entry.kind === 'item' && entry.row.active)?.key ?? null;
+        return section.entries.find((entry) => entry.kind === 'item' && entry.row.here)?.key ?? null;
     }
     return null;
 });

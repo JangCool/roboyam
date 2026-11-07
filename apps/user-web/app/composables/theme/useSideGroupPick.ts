@@ -20,12 +20,12 @@ export function useSideGroupPick() {
     const groups = computed<MenuSection[]>(() => sections.value.filter((section) => section.group !== null));
 
     /**
-     * 지금 있는 곳이 든 그룹 — 접힌 그룹 안이면 `useMenuItems` 가 먼저 펼쳐 둔다.
+     * 지금 있는 곳이 든 그룹 — 접힌 그룹 안이면 `useMenuItems` 가 먼저 펼쳐 둔다. 게시판은 진짜 자리 묶음이다(바로가기 줄은 `here` 가 아니다).
      * 그룹의 「누르면 가는 곳」 화면(예: 커뮤니티 가젯 페이지)도 그 그룹이다 — 어디서 들어와도(상단 탭·주소 직접·링크) 같은 사이드 메뉴가 보이게
      */
     const activeKey = computed<string | null>(
         () =>
-            groups.value.find((section) => section.blocks.some((block) => block.items.some((row) => row.active)))?.key ??
+            groups.value.find((section) => section.blocks.some((block) => block.items.some((row) => row.here)))?.key ??
             groups.value.find((section) => UtilMenu.isGroupHome(section.group?.path, route.path))?.key ??
             null,
     );

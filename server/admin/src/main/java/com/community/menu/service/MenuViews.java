@@ -47,7 +47,7 @@ public class MenuViews {
             MenuTargetStatus status = resolver == null ? MenuTargetStatus.UNKNOWN_TYPE : resolver.status(node, context);
             out.add(new MenuItemView(id, MenuNode.ITEM, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(), node.targetType(),
                     node.targetId(), node.targetKey(), node.settings(), node.mobileTab(), node.divider(), node.description(),
-                    new MenuItemView.Resolved(status.name())));
+                    new MenuItemView.Resolved(status.name()), node.shortcut()));
         }
         return out;
     }
@@ -67,7 +67,8 @@ public class MenuViews {
             out.add(new MenuNode(MenuResolveContext.parseId(node.id()), node.kind(), node.label(), node.nameEn(), !Boolean.FALSE.equals(node.visible()),
                     node.audience(), node.minGrade(), Boolean.TRUE.equals(node.collapsible()), Boolean.TRUE.equals(node.collapsed()),
                     Boolean.TRUE.equals(node.autoAdd()), node.targetType(), node.targetId(), node.targetKey(), node.settings(),
-                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description(), node.linkClick()));
+                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description(), node.linkClick(),
+                    Boolean.TRUE.equals(node.shortcut())));
         }
         return out;
     }
@@ -98,6 +99,9 @@ public class MenuViews {
                     line.append(node.label()).append(" → ");
                 }
                 line.append(node.targetType()).append(':').append(target(node));
+                if (node.shortcut()) {
+                    line.append(" [shortcut]");
+                }
                 if (node.mobileTab()) {
                     line.append(" [tab]");
                 }

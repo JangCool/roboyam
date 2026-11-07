@@ -43,6 +43,9 @@ import type {
  *   입력 오류 경로는 BUILTIN `.targetKey` · PATH `.settings.path` · URL `.settings.href` · 깊이 초과는 그 줄의 `.kind` · 트리 전체 문제는 `fields.nodes`(첫 문제 하나) ·
  *   게시판 만들기·삭제도 해당 그룹(`main` 등)의 `version` 을 올린다(화면을 열어 둔 채 저장하면 409 — 화면은 서버 문구를 보이고 [최신 다시 받기]를 낸다) · 관리자 메뉴를 저장한 적이 없으면 기본 구성을 `id: null` 로 준다.
  *
+ * 트리 항목의 바로가기(`shortcut`, 다른 묶음에도 보이기 — `docs/features/menu-shortcut-contract.md`)는 2026-11-08 서버 연결. 응답은 모든 항목에 `shortcut` 을 싣고, 요청은 바로가기에만 `shortcut: true`(빠지면 false).
+ *   바로가기 오류는 `fields["nodes[i]….targetId"]`(원래 자리 없음·최상위·같은 폴더) · `….targetType`(게시판 아님) · `….mobileTab` — 다른 칸 오류와 같이 그 줄 아래에 선다.
+ *
  * 서버 연결됨(2026-10-22).
  *   트리 노드의 구분선(`divider` — 빠지면 `NONE`, 목록 밖 `fields.<경로>.divider`)·항목 설명(`description` — 80자·`<` `>` 줄바꿈 금지 `fields.<경로>.description`, 폴더는 서버가 버린다)은 2026-10-29 서버 연결.
  */

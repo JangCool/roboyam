@@ -22,7 +22,8 @@ function trim(path: string): string {
 
 /** 그룹 아래(하위 그룹까지) 항목들의 사이트 안 주소 */
 function itemPaths(list: readonly MenuNode[]): string[] {
-    return list.flatMap((node) => (node.kind === 'GROUP' ? itemPaths(node.children) : node.path.startsWith('/') ? [trim(node.path)] : []));
+    // 바로가기(`shortcut` — 진짜 자리가 다른 묶음인 게시판)는 세지 않는다: 그 게시판에 있을 때 밝은 묶음은 진짜 자리 쪽이다
+    return list.flatMap((node) => (node.kind === 'GROUP' ? itemPaths(node.children) : node.shortcut !== true && node.path.startsWith('/') ? [trim(node.path)] : []));
 }
 
 /** 메뉴 트리에서 조건에 맞는 그룹 — 어느 단계든 처음 맞는 것 */

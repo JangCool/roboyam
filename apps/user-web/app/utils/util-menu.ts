@@ -24,8 +24,10 @@ export type MenuPhase = 'idle' | 'loading' | 'ready' | 'error';
 
 /** 줄을 만들 때 필요한 바깥 사정 — 지금 있는 곳·접힘 기억 */
 export interface MenuContext {
-    /** 지금 있는 곳으로 밝힐 항목의 ID. 없으면 null */
+    /** 지금 있는 곳으로 밝힐 항목의 ID(게시판이면 진짜 자리 — 바로가기가 아닌 항목). 없으면 null */
     activeId: string | null;
+    /** 지금 있는 곳 항목이 게시판이면 그 slug — 다른 묶음에 놓인 그 게시판의 **바로가기** 줄도 밝힌다(`MenuItemRow.active`). 아니면 null */
+    activeSlug: string | null;
     /** 사용자가 접거나 편 기억(노드 ID → 접힘). 기억이 없는 그룹은 노드의 `collapsed` 기본값을 쓴다 */
     memory: Readonly<Record<string, boolean>>;
 }
@@ -36,8 +38,16 @@ export interface MenuItemRow {
     node: MenuItemNode;
     /** 들여쓰기 단계 — 최상위 그룹의 직속 항목은 0, 하위 그룹 안은 그 그룹의 단계 */
     level: number;
-    /** 지금 보고 있는 곳인가(`aria-current="page"`) */
+    /**
+     * 밝게 그리는가(`aria-current="page"`) — 지금 있는 곳 항목(`here`), 또는 지금 보는 게시판의 **바로가기**(다른 묶음에도 보이게 둔 같은 게시판 줄).
+     * 예: 핫 로토픽 묶음을 열어 둔 채 커뮤니티 소속 게시판을 보면 핫 로토픽 안의 그 바로가기 줄도 밝다.
+     */
     active: boolean;
+    /**
+     * 진짜 지금 있는 곳(`activeId`)인가 — 「지금 있는 곳이 든 묶음」(사이드 그룹 고르기·막대의 활성 그룹·밑줄)은 이것으로 정한다.
+     * 바로가기 줄은 밝아도(`active`) 여기는 false 라, 게시판의 진짜 자리 묶음(예: 커뮤니티)이 지금 있는 곳 묶음이 된다.
+     */
+    here: boolean;
     /** 투자 고지가 붙는 게시판인가 */
     notice: boolean;
     /** 운영자가 고른 표시색(12색 프리셋 이름) 또는 null(색 없음) — 있을 때만 이 색의 점을 그린다(자동 색 점은 없다) */
@@ -225,6 +235,7 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
             matchPrefix: raw.matchPrefix === true,
             newTab: raw.newTab === true,
             mobileTab: raw.mobileTab === true,
+            shortcut: raw.shortcut === true,
             board: readBoardRef(raw.board),
             extra: isRecord(raw.extra) ? raw.extra : null,
             divider: readDivider(raw),
@@ -260,10 +271,13 @@ function isBoardItem(node: MenuItemNode): boolean {
     return node.type === 'BOARD' && !!node.board;
 }
 
-function toRow(node: MenuItemNode, level: number, activeId: string | null): MenuItemRow {
+function toRow(node: MenuItemNode, level: number, ctx: MenuContext): MenuItemRow {
     // 색 점은 운영자가 고른 표시색이 있을 때만 단다 — 서버 `color` 가 12색 이름이 아니면(비었거나 모르는 값) 점이 없다
     const color = UtilBoard.presetColor(node.board?.color);
-    return { key: node.id, node, level, active: node.id === activeId, notice: node.board?.investmentNotice === true, color };
+    const here = node.id === ctx.activeId;
+    // 바로가기 줄 — 지금 보는 게시판이면 함께 밝게(진짜 자리는 아니다)
+    const echo = !here && node.shortcut === true && ctx.activeSlug !== null && isBoardItem(node) && node.board!.slug === ctx.activeSlug;
+    return { key: node.id, node, level, active: here || echo, here, notice: node.board?.investmentNotice === true, color };
 }
 
 /** 한 부모 아래 자식들을 소제목 덩어리로 이어 놓는다 — 접힌 그룹 아래는 항목을 내려 주지 않는다 */
@@ -275,7 +289,7 @@ function collect(children: readonly MenuNode[], level: number, start: MenuBlock 
                 current = { key: `items-${node.id}`, level, group: null, collapsible: false, collapsed: false, count: 0, items: [] };
                 out.push(current);
             }
-            current.items.push(toRow(node, level, ctx.activeId));
+            current.items.push(toRow(node, level, ctx));
             continue;
         }
         const collapsible = honorCollapse && node.collapsible;
@@ -308,7 +322,8 @@ function pruneToBoards(nodes: readonly MenuNode[]): MenuNode[] {
     const out: MenuNode[] = [];
     for (const node of nodes) {
         if (node.kind === 'ITEM') {
-            if (isBoardItem(node)) out.push(node);
+            // 바로가기는 뺀다 — 게시판 모음은 게시판의 진짜 자리(소속 묶음)에만 한 번 보인다
+            if (isBoardItem(node) && node.shortcut !== true) out.push(node);
             continue;
         }
         const children = pruneToBoards(node.children);
@@ -520,6 +535,7 @@ export default class UtilMenu {
      * 지금 있는 곳으로 밝힐 항목 **하나** — 모든 항목 중 주소가 가장 길게 맞는 것이다(그래서 `/groups/me` 는 내 소모임만, `/groups/12` 는 전체 소모임만 밝다).
      * - `matchPrefix` 가 false 면 주소가 정확히 같을 때만, true 면 `path === p || path.startsWith(p + '/')` 일 때 맞는다(홈은 `/` 에서만).
      * - 게시판 항목은 지금 보는 게시판(`currentSlug`)이 그 게시판이면 주소와 상관없이 밝다 — 글 상세·글쓰기 화면에서도 그 게시판 줄이 켜지게 하려는 것이다.
+     * - 같은 게시판이 진짜 자리와 바로가기(`shortcut`, 다른 묶음에도 보이기)로 두 번 있으면 진짜 자리다(바로가기 줄은 `MenuItemRow.active` 로만 함께 밝다).
      * - 맞는 항목이 없으면(메뉴에 없는 게시판·`/me/orders` 같은 메뉴 밖 화면) null.
      * @param {readonly MenuNode[]} nodes - 메뉴 트리.
      * @param {string} path - 지금 주소의 경로(`route.path`).
@@ -532,12 +548,14 @@ export default class UtilMenu {
         let bestScore = -1;
         for (const item of UtilMenu.items(nodes)) {
             let score = -1;
+            // 바로가기(`shortcut`)는 같은 게시판의 진짜 자리보다 한 점 낮다 — 진짜 자리가 보이면 그쪽이 지금 있는 곳이고, 진짜 자리가 이 사람에게 안 보일 때만 바로가기가 맡는다
+            const penalty = item.shortcut === true ? 1 : 0;
             if (currentSlug && isBoardItem(item) && item.board!.slug === currentSlug) {
-                score = Number.MAX_SAFE_INTEGER;
+                score = Number.MAX_SAFE_INTEGER - penalty;
             } else if (item.path.startsWith('/')) {
                 const p = normalizePath(item.path);
                 const hit = item.matchPrefix ? here === p || here.startsWith(p + '/') : here === p;
-                if (hit) score = p.length;
+                if (hit) score = p.length * 2 - penalty;
             }
             // 같은 점수면 트리에서 먼저 나온 항목을 둔다(같은 주소를 두 항목이 가리키지 못하게 서버가 막지만 안전하게)
             if (score > bestScore) {
@@ -664,7 +682,7 @@ export default class UtilMenu {
             const entries: MenuBarEntry[] = [];
             for (const node of children) {
                 if (node.kind === 'ITEM') {
-                    entries.push({ kind: 'item', key: node.id, row: toRow(node, 0, ctx.activeId) });
+                    entries.push({ kind: 'item', key: node.id, row: toRow(node, 0, ctx) });
                     continue;
                 }
                 const blocks: MenuBlock[] = [];
@@ -685,7 +703,7 @@ export default class UtilMenu {
      * @returns {MenuSection[]} 구역들.
      */
     static boardSections(nodes: readonly MenuNode[]): MenuSection[] {
-        return UtilMenu.sections(pruneToBoards(nodes), { activeId: null, memory: {} }, false);
+        return UtilMenu.sections(pruneToBoards(nodes), { activeId: null, activeSlug: null, memory: {} }, false);
     }
 
     /**
@@ -711,7 +729,8 @@ export default class UtilMenu {
                     walk(node.children, node, depth + 1);
                     continue;
                 }
-                const slug = node.type === 'BOARD' ? node.board?.slug : undefined;
+                // 바로가기는 소속 묶음이 아니다 — 게시판은 진짜 자리 묶음 이름 아래에 둔다
+                const slug = node.type === 'BOARD' && node.shortcut !== true ? node.board?.slug : undefined;
                 const board = slug ? bySlug.get(slug) : undefined;
                 // 부모 그룹이 없는 최상위 항목은 이름을 줄 그룹이 없다 — 메뉴에 없는 게시판과 같이 기본 이름으로 간다
                 if (!board || !parent || placed.has(board.slug)) continue;

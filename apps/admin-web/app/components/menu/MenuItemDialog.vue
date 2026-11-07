@@ -7,6 +7,7 @@
         칸: 이름(게시판·목록의 사이트 화면은 비우면 대상 이름을 따라간다) · 영문명 · 넣을 곳(추가만) · 표시 여부 · 보이는 대상 · 모바일 탭(SIDE 그룹만) · 구분선 · 설명.
         로그인이 필요한 앱 화면을 고르면 보이는 대상을 「로그인」으로 바꿔 준다(모두·비로그인으로는 저장할 수 없다).
         목록에서 고른 화면을 「주소 직접 입력」으로 바꾸면 이름이 필수가 되므로, 이름이 비었으면 그 화면 이름을 채운다. [적용]은 트리(저장 전)에만 반영한다.
+        바로가기(`shortcut`)는 연결 게시판을 바꿀 수 없다 — 종류 바꾸기·대상 고르기 대신 게시판과 원래 자리만 보이고, 모바일 탭 칸이 없다(이름·영문명·보이기·보이는 대상·구분선·설명은 고친다).
     -->
     <Dialog :visible="visible" modal :draggable="false" :header="header" :style="{ width: 'min(36rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <!-- ① 연결 종류 -->
@@ -42,13 +43,25 @@
 
         <!-- ② 대상 + 칸 -->
         <form v-else-if="form" :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="apply">
-            <div class="flex items-center gap-2">
+            <!-- 바로가기 — 연결 게시판은 고정 -->
+            <div v-if="form.shortcut" class="flex flex-col gap-1.5 rounded-lg border border-(--line) bg-surface-50 px-3 py-2.5 dark:bg-surface-900">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <MenuTag :value="t('menuConfig.shortcutTag')" severity="info" icon="pi pi-clone" />
+                    <span class="min-w-0 truncate text-sm font-medium">{{ targetName }}</span>
+                    <code class="text-[11px] text-muted-color">{{ UtilMenu.targetText(form, ctx) }}</code>
+                </div>
+                <p v-if="shortcutOrigin" class="m-0 text-xs text-muted-color">{{ shortcutOrigin }}</p>
+                <p class="m-0 text-xs text-muted-color">{{ t('menuConfig.shortcutBoardLocked') }}</p>
+            </div>
+
+            <div v-if="!form.shortcut" class="flex items-center gap-2">
                 <i :class="typeDef?.icon" class="text-sm text-primary" aria-hidden="true" />
                 <span class="text-sm font-medium">{{ typeDef ? t(typeDef.labelKey) : form.targetType }}</span>
                 <Button type="button" :label="t('menuConfig.changeType')" size="small" severity="secondary" variant="text" class="ml-auto" @click="step = 'TYPE'" />
             </div>
 
             <MenuTargetPicker
+                v-if="!form.shortcut"
                 v-model:target-type="form.targetType"
                 v-model:target-id="form.targetId"
                 v-model:target-key="form.targetKey"
@@ -85,7 +98,7 @@
 
             <MenuAudienceField v-model:audience="form.audience" v-model:min-grade="form.minGrade" :grades="ctx.grades" :audience-error="errorOf('audience')" :grade-error="errorOf('minGrade')" :help="audienceNote" />
 
-            <div v-if="side" class="flex flex-col gap-1">
+            <div v-if="side && !form.shortcut" class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
                     <ToggleSwitch v-model="form.mobileTab" :input-id="`${formId}-tab`" :disabled="tabsFull && !form.mobileTab" />
                     <label :for="`${formId}-tab`" class="cursor-pointer text-sm">{{ t('menuConfig.field.mobileTab') }}</label>
@@ -131,9 +144,11 @@ interface Props {
     tabCount?: number;
     /** 고칠 항목이 최상위인가(구분선은 최상위만) — 추가할 때는 넣을 곳으로 정한다 */
     editTopLevel?: boolean;
+    /** 바로가기를 고칠 때 원래 자리 안내(「원래 자리: 커뮤니티」) — 그 밖에는 빈 글자 */
+    shortcutOrigin?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0, editTopLevel: true });
+const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0, editTopLevel: true, shortcutOrigin: '' });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'save', item: MenuEditItem, parentKey: string | null): void }>();
 
 const { t } = useI18n();
@@ -171,7 +186,7 @@ watch(
     },
 );
 
-const header = computed(() => (props.item ? t('menuConfig.itemEditTitle') : t('menuConfig.itemAddTitle')));
+const header = computed(() => (props.item?.shortcut ? t('menuConfig.shortcutEditTitle') : props.item ? t('menuConfig.itemEditTitle') : t('menuConfig.itemAddTitle')));
 const side = computed(() => UtilMenu.isSide(props.ctx.placement));
 const topLevel = computed(() => (props.item ? props.editTopLevel : parentValue.value === ''));
 const typeDef = computed(() => (form.value ? UtilMenu.typeOf(form.value.targetType) : undefined));
@@ -212,7 +227,8 @@ const problems = computed<Partial<Record<MenuProblemField, string>>>(() => {
     if (!form.value) return {};
     const out: Partial<Record<MenuProblemField, string>> = {};
     for (const [field, code] of Object.entries(UtilMenu.itemProblems(form.value, props.ctx.placement))) out[field as MenuProblemField] = UtilMenuMessages.problem(t, code);
-    const id = UtilMenu.linkId(form.value);
+    // 바로가기는 같은 게시판의 진짜 자리가 따로 있는 것이 정상이다 — 한 번 규칙은 진짜 자리끼리만
+    const id = form.value.shortcut ? null : UtilMenu.linkId(form.value);
     if (id && linkedNote(id)) out.target = UtilMenuMessages.problem(t, 'TARGET_DUPLICATE');
     return out;
 });
@@ -237,7 +253,7 @@ function apply() {
             href: value.href.trim(),
             description: value.description.trim(),
             minGrade: value.audience === 'GRADE_MIN' ? value.minGrade : null,
-            mobileTab: side.value && value.mobileTab,
+            mobileTab: side.value && value.mobileTab && !value.shortcut,
             newTab: value.targetType === 'PATH' || value.targetType === 'URL' ? value.newTab : false,
         },
         parentValue.value || null,

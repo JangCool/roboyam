@@ -120,6 +120,12 @@ export interface MenuItemDto extends MenuNodeBase {
      * 저장 요청에는 싣지 않는다(`UtilMenu.toDto` 가 다시 만든다). 값은 `UtilMenu` 의 `MenuItemStatus` 와 같다.
      */
     resolved?: { status: 'OK' | 'BOARD_INACTIVE' | 'SALES_OFF' | 'TARGET_MISSING' | 'UNKNOWN_TYPE' } | null;
+    /**
+     * 바로가기 — 다른 묶음(폴더)에 진짜 자리가 있는 게시판을 이 묶음에도 보이게 둔 항목(`BOARD` 만, 「다른 묶음에도 보이기」). 빠지면 false.
+     * 서버 계획: 유일 색인 `ux_menu_nodes_board` 를 바로가기 아닌 항목(진짜 자리)에만 건다 — 진짜 자리는 하나, 바로가기는 여러 묶음. 게시판의 소속 묶음은 진짜 자리 기준.
+     * 규칙(서버 `MenuTreeValidator`): 폴더 안에만 · 같은 그룹에 진짜 자리가 있어야 · 진짜 자리와 같은 폴더·같은 폴더 두 번 불가 · 모바일 탭 false. 서버 연결됨(2026-11-08, shared V167) — 응답은 늘 싣는다.
+     */
+    shortcut?: boolean;
 }
 
 export type MenuNodeDto = MenuFolderDto | MenuItemDto;

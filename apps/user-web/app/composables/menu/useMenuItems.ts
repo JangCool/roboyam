@@ -61,8 +61,17 @@ export function useMenuItems(scope: MenuScope = 'all') {
         return scope === 'side' ? hasSide : !hasSide;
     });
 
+    /** 지금 있는 곳 항목이 게시판이면 그 slug — 다른 묶음의 바로가기 줄도 함께 밝힌다 */
+    const activeSlug = computed(() => {
+        const id = activeId.value;
+        if (id === null) return null;
+        const item = UtilMenu.items(nodes.value).find((node) => node.id === id);
+        return item?.type === 'BOARD' ? (item.board?.slug ?? null) : null;
+    });
+
     const context = computed<MenuContext>(() => ({
         activeId: activeId.value,
+        activeSlug: activeSlug.value,
         memory: memory.value,
     }));
 
