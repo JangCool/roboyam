@@ -65,6 +65,11 @@ export interface PostAuthor {
     avatarUrl?: string | null;
     /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
     business?: boolean;
+    /**
+     * 작성자의 한 줄 소개 — **서버 후보**(글 상세에만, `profile-privacy-contract.md`). 회원이고 프로필이 공개이고 소개가 있을 때만 값, 그 밖은 null.
+     * 지금 서버 응답에는 없어 글 보기는 목업 `usePostAuthorBio` 가 공개 프로필에서 채운다.
+     */
+    bio?: string | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */

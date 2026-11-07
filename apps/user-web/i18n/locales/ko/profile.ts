@@ -30,8 +30,28 @@ export default {
     // 한 줄 소개
     bioLabel: '한 줄 소개',
     bioHint: '{max}자까지',
-    bioHelp: '내 정보와 프로필에 보여요.',
+    bioHelp: '프로필을 공개하면 내 프로필과 내가 쓴 글 아래에 보여요.',
     bioTooLong: '한 줄 소개는 {max}자까지 쓸 수 있어요.',
+
+    // 프로필 공개 범위 — 공개(기본) / 비공개. 닉네임·아바타·등급과 게시판의 글·댓글은 늘 보인다
+    visibilityTitle: '프로필 공개',
+    visibilityPublic: '공개',
+    visibilityPublicHint: '누구나 한 줄 소개·가입일·활동 수치와 작성글·댓글·소모임 목록을 볼 수 있어요. 내가 쓴 글 아래에 한 줄 소개가 나와요.',
+    visibilityPrivate: '비공개',
+    visibilityPrivateHint: '다른 사람에게는 닉네임·아바타·등급만 보여요. 한 줄 소개·가입일·활동 수치와 작성글·댓글·소모임 목록은 숨겨요.',
+    visibilityNote: '비공개로 해도 게시판에 쓴 글과 댓글은 그대로 보여요. 운영진은 운영을 위해 회원 정보를 볼 수 있어요.',
+
+    // 비공개 프로필(`/users/{id}`)
+    privateTitle: '비공개 프로필이에요',
+    privateText: '{nickname}님이 프로필을 공개하지 않았어요. 쓴 글과 댓글은 게시판에서 볼 수 있어요.',
+    privateMineTitle: '비공개 프로필이에요',
+    privateMineText: '다른 사람에게는 닉네임·아바타·등급만 보여요. 아래 내용은 나에게만 보여요.',
+    privateMineLink: '공개 설정 바꾸기',
+    privateBadge: '비공개',
+
+    // 글 보기의 작성자 한 줄 소개(공개 프로필만)
+    authorCardLabel: '글쓴이',
+    authorCardProfile: '프로필 보기',
 
     // 공개 프로필(`/users/{id}`)
     publicTitle: '프로필',

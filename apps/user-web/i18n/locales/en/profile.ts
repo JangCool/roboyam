@@ -29,8 +29,28 @@ export default {
     // Bio
     bioLabel: 'Bio',
     bioHint: 'Up to {max} characters',
-    bioHelp: 'Shown on your page and profile.',
+    bioHelp: 'When your profile is public, it’s shown on your profile and below your posts.',
     bioTooLong: 'Your bio can be up to {max} characters.',
+
+    // Profile visibility — public (default) / private. Nickname, avatar, grade and posts/comments on boards are always visible
+    visibilityTitle: 'Profile visibility',
+    visibilityPublic: 'Public',
+    visibilityPublicHint: 'Anyone can see your bio, join date, activity counts, and your posts, comments and groups. Your bio appears below your posts.',
+    visibilityPrivate: 'Private',
+    visibilityPrivateHint: 'Others see only your nickname, avatar and grade. Your bio, join date, activity counts, and your posts, comments and groups lists are hidden.',
+    visibilityNote: 'Even when private, your posts and comments on boards stay visible. Staff can see member information to run the site.',
+
+    // Private profile (`/users/{id}`)
+    privateTitle: 'This profile is private',
+    privateText: '{nickname} hasn’t made their profile public. You can still see their posts and comments on boards.',
+    privateMineTitle: 'Your profile is private',
+    privateMineText: 'Others see only your nickname, avatar and grade. What’s below is visible only to you.',
+    privateMineLink: 'Change visibility',
+    privateBadge: 'Private',
+
+    // Author bio on the post page (public profiles only)
+    authorCardLabel: 'Author',
+    authorCardProfile: 'View profile',
 
     // Public profile (`/users/{id}`)
     publicTitle: 'Profile',
