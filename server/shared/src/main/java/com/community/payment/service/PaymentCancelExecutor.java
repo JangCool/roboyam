@@ -91,6 +91,16 @@ public class PaymentCancelExecutor {
     }
 
     /**
+     * SENDING 으로 {@code staleBefore} 전부터 머문 줄을 PENDING 으로 되돌린다(워커 한 바퀴의 첫 일) — 한 문장짜리 새 트랜잭션(예전 자동 커밋과 같은 경계).
+     *
+     * @return 되돌린 줄 수
+     */
+    public int recoverStale(Instant staleBefore, Instant now) {
+        Integer recovered = separate.execute(status -> cancels.recoverStale(staleBefore, now));
+        return recovered == null ? 0 : recovered;
+    }
+
+    /**
      * 커밋 뒤 즉시 시도 — 그 줄이 아직 PENDING 이고 차례가 됐으면 집어 한 번 실행한다.
      *
      * @return 집어서 실행했으면 true(다른 쪽이 먼저 집었으면 false)

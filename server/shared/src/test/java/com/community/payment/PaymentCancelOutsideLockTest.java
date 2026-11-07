@@ -88,7 +88,7 @@ class PaymentCancelOutsideLockTest {
     /** 즉시 시도 없이 취소 줄만 넣는다(차례 = 지금) */
     private static long pending(long orderId, long amount) {
         long id = kit.ids.nextId();
-        assertThat(kit.cancelStore.insert(id, orderId, amount, "시험", CancelKind.REFUND, "R:" + id, null, kit.now())).isTrue();
+        assertThat(kit.tx.<Boolean>execute(status -> kit.cancelStore.insert(id, orderId, amount, "시험", CancelKind.REFUND, "R:" + id, null, kit.now()))).isTrue();
         return id;
     }
 

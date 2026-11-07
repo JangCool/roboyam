@@ -44,6 +44,7 @@ import com.community.payment.service.PaymentWebhookService;
 import com.community.payment.service.ReconciliationService;
 import com.community.payment.testorder.PaymentTestOrderHandler;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Clock;
@@ -61,7 +62,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -129,9 +129,10 @@ final class PaymentTestKit {
             return current.dataSourceForWiring;
         }
 
+        /** JPA 트랜잭션 관리자({@link JpaTestContext}) — 결제 저장소가 JPA·QueryDSL 이라 쓰기가 업무 트랜잭션에 실려야 한다. 남긴 JDBC 문장(집기·가짜 PG)도 같은 연결을 쓴다 */
         @Bean
-        PlatformTransactionManager transactionManager(DataSource dataSource) {
-            return new DataSourceTransactionManager(dataSource);
+        PlatformTransactionManager transactionManager() {
+            return JpaTestContext.transactions();
         }
 
         @Bean
@@ -150,28 +151,28 @@ final class PaymentTestKit {
         }
 
         @Bean
-        PaymentOrderStore paymentOrderStore(DataSource dataSource) {
-            return new PaymentOrderStore(dataSource);
+        PaymentOrderStore paymentOrderStore() {
+            return JpaTestContext.create(PaymentOrderStore.class);
         }
 
         @Bean
-        PaymentCancelStore paymentCancelStore(DataSource dataSource) {
-            return new PaymentCancelStore(dataSource);
+        PaymentCancelStore paymentCancelStore() {
+            return JpaTestContext.create(PaymentCancelStore.class);
         }
 
         @Bean
-        PaymentEventStore paymentEventStore(DataSource dataSource) {
-            return new PaymentEventStore(dataSource);
+        PaymentEventStore paymentEventStore() {
+            return JpaTestContext.create(PaymentEventStore.class);
         }
 
         @Bean
-        PaymentWebhookLogStore paymentWebhookLogStore(DataSource dataSource) {
-            return new PaymentWebhookLogStore(dataSource);
+        PaymentWebhookLogStore paymentWebhookLogStore() {
+            return JpaTestContext.create(PaymentWebhookLogStore.class);
         }
 
         @Bean
-        ReconciliationIssueStore reconciliationIssueStore(DataSource dataSource) {
-            return new ReconciliationIssueStore(dataSource);
+        ReconciliationIssueStore reconciliationIssueStore() {
+            return JpaTestContext.create(ReconciliationIssueStore.class);
         }
 
         @Bean
@@ -258,13 +259,13 @@ final class PaymentTestKit {
         }
 
         @Bean
-        PaymentReconcileQueries paymentReconcileQueries(DataSource dataSource) {
-            return new PaymentReconcileQueries(dataSource);
+        PaymentReconcileQueries paymentReconcileQueries() {
+            return JpaTestContext.create(PaymentReconcileQueries.class);
         }
 
         @Bean
-        PaymentReconcileDayStore paymentReconcileDayStore(DataSource dataSource) {
-            return new PaymentReconcileDayStore(dataSource);
+        PaymentReconcileDayStore paymentReconcileDayStore() {
+            return JpaTestContext.create(PaymentReconcileDayStore.class);
         }
 
         @Bean
@@ -391,7 +392,8 @@ final class PaymentTestKit {
     }
 
     BatchRunner.RunReport runJob(BatchJob job, Map<String, String> params) {
-        DataSourceTransactionManager transactions = new DataSourceTransactionManager(dataSource);
+        // 운영과 같이 JPA 트랜잭션 관리자 하나 — 배치 덩어리 트랜잭션 안에서 결제 저장소(JPA)가 새 트랜잭션을 연다
+        PlatformTransactionManager transactions = spring.getBean(PlatformTransactionManager.class);
         BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, NODE_ID),
                 new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
         return runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(params), null, null, null));
