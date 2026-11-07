@@ -104,12 +104,14 @@ class HotdealBatchTest extends HotdealStage2TestBase {
 
     private long og(Instant createdAt) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO deal_og_images (id, storage_key, public_url, content_type, size_bytes, width, height, created_at) VALUES (?, ?, ?, 'image/jpeg', 10, 600, 400, ?)",
                 id, "deal-og/test/" + id + ".jpg", "/media/deal-og/test/" + id + ".jpg", Timestamp.from(createdAt));
         return id;
     }
 
     private void attach(long postId, long ogId) {
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET image_source = 'OG', og_image_id = ?, image_id = NULL, image_url = ? WHERE post_id = ?", ogId, "/media/deal-og/test/" + ogId + ".jpg",
                 postId);
         jdbc.update("UPDATE deal_og_images SET post_id = coalesce(post_id, ?), attached_at = coalesce(attached_at, now()) WHERE id = ?", postId, ogId);
@@ -118,6 +120,7 @@ class HotdealBatchTest extends HotdealStage2TestBase {
     private long endedDaysAgo(long days) {
         long post = newDeal(member());
         ends.endByManager(post, hotdealOperator(), null);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ended_at = ? WHERE post_id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(days))), post);
         return post;
     }
@@ -159,10 +162,12 @@ class HotdealBatchTest extends HotdealStage2TestBase {
         long deletedOld = newDeal(member());
         long ogDeletedOld = og(old);
         attach(deletedOld, ogDeletedOld);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE posts SET deleted_at = ? WHERE id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(91))), deletedOld);
         long deletedRecent = newDeal(member());
         long ogDeletedRecent = og(old);
         attach(deletedRecent, ogDeletedRecent);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE posts SET deleted_at = ? WHERE id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(10))), deletedRecent);
         long orphanOld = og(clock.instant().minus(Duration.ofDays(8)));
         long orphanNew = og(clock.instant().minus(Duration.ofDays(6)));
@@ -180,6 +185,7 @@ class HotdealBatchTest extends HotdealStage2TestBase {
         long oldRow = ids.nextId();
         long newRow = ids.nextId();
         String changes = "[{\"field\":\"dealPrice\",\"before\":\"1\",\"after\":\"2\"}]";
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO post_deal_revisions (id, post_id, actor_kind, changes, created_at) VALUES (?, ?, 'AUTHOR', ?::jsonb, ?)", oldRow, post, changes,
                 Timestamp.from(clock.instant().atZone(ZoneOffset.UTC).minusMonths(7).toInstant()));
         jdbc.update("INSERT INTO post_deal_revisions (id, post_id, actor_kind, changes, created_at) VALUES (?, ?, 'AUTHOR', ?::jsonb, ?)", newRow, post, changes,

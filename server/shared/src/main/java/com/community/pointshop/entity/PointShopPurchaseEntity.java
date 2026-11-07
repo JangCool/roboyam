@@ -8,8 +8,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 포인트 상점 구매 — {@code point_shop_purchases}(V86). <b>읽기 전용 매핑</b>(구매·환불은 {@code PointShopPurchaseService}·{@code PointShopRefundService} 가 JDBC 로 —
- * 포인트 사용·사용 취소와 한 트랜잭션). 품목 칸은 산 때의 사본이고 고쳐지지 않는다(트리거). 예외 환불이면 {@code refundedByOperatorId}·{@code refundReason} 이 있다.
+ * 포인트 상점 구매 — {@code point_shop_purchases}(V86). 만들기는 {@link #complete}(포인트 사용 줄을 쓴 뒤 같은 트랜잭션에서 넣고 바로 내보낸다), 환불 표시는
+ * 저장소 {@code PointShopPurchaseStore} 의 조건부 UPDATE({@code status = 'COMPLETED'} 일 때만 — 한 번만 이긴다). 품목 칸은 산 때의 사본이고 고쳐지지 않는다(트리거). 예외 환불이면 {@code refundedByOperatorId}·{@code refundReason} 이 있다.
  */
 @Entity
 @Table(name = "point_shop_purchases")
@@ -41,6 +41,27 @@ public class PointShopPurchaseEntity {
     private Instant createdAt;
 
     protected PointShopPurchaseEntity() {
+    }
+
+    /** 새 구매(완료) — 품목 칸은 지금 품목의 사본, 사용 원장 줄은 먼저 쓴 것 */
+    public static PointShopPurchaseEntity complete(long id, long userId, long itemId, String itemCode, String itemName, PointShopItemKind itemKind,
+                                                   PointShopUsageType usageType, int pricePoint, Integer durationDays, Instant refundNoticeAgreedAt, long useLedgerId,
+                                                   Instant createdAt) {
+        PointShopPurchaseEntity p = new PointShopPurchaseEntity();
+        p.id = id;
+        p.userId = userId;
+        p.itemId = itemId;
+        p.itemCode = itemCode;
+        p.itemName = itemName;
+        p.itemKind = itemKind;
+        p.usageType = usageType;
+        p.pricePoint = pricePoint;
+        p.durationDays = durationDays;
+        p.status = PointShopPurchaseStatus.COMPLETED;
+        p.refundNoticeAgreedAt = refundNoticeAgreedAt;
+        p.useLedgerId = useLedgerId;
+        p.createdAt = createdAt;
+        return p;
     }
 
     public Long getId() {

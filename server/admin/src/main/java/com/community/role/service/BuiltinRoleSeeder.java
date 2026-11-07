@@ -2,7 +2,7 @@ package com.community.role.service;
 
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.permission.entity.MemberPermission;
-import com.community.permission.service.BootstrapLock;
+import com.community.permission.repository.master.BootstrapLockQueries;
 import com.community.role.entity.RoleEntity;
 import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.RoleGrantMode;
@@ -12,7 +12,6 @@ import com.community.role.entity.RoleTypes;
 import com.community.role.repository.master.RolePermissionRepository;
 import com.community.role.repository.master.RoleRepository;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -39,8 +38,8 @@ public class BuiltinRoleSeeder {
     static final String PROMO_NAME = "홍보 전용 계정";
     static final String PROMO_DESCRIPTION = "따로 가입한 홍보용 계정 — 일반 활동이 제한됩니다(1차에는 가입 길이 없어 붙는 회원 없음)";
 
-    private static final List<MemberPermission> USE_REGULAR = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE, MemberPermission.GROUP_CREATE);
+    /** 일반 회원의 기본 권한 — 정본은 shared {@link MemberRoleIds#GENERAL_DEFAULT_PERMISSIONS}(시험 픽스처와 같은 목록) */
+    private static final List<MemberPermission> USE_REGULAR = MemberRoleIds.GENERAL_DEFAULT_PERMISSIONS;
 
     private static final List<Seed> SEEDS = List.of(
             new Seed("ROLE_MEMBER_GENERAL", RoleTypes.KIND, "일반 회원", "가입하면 기본으로 갖는 회원 유형입니다.", RoleScope.SITE, RoleGrantMode.AUTO, USE_REGULAR),
@@ -57,23 +56,23 @@ public class BuiltinRoleSeeder {
     private final RoleRepository roles;
     private final RolePermissionRepository rolePermissions;
     private final SnowflakeIdGenerator ids;
-    private final EntityManager entityManager;
+    private final BootstrapLockQueries bootstrapLock;
     private final GradeRepositoryQDSL gradeQueries;
     private final GradeRoleSynchronizer gradeRoles;
 
-    public BuiltinRoleSeeder(RoleRepository roles, RolePermissionRepository rolePermissions, SnowflakeIdGenerator ids, EntityManager entityManager,
+    public BuiltinRoleSeeder(RoleRepository roles, RolePermissionRepository rolePermissions, SnowflakeIdGenerator ids, BootstrapLockQueries bootstrapLock,
                              GradeRepositoryQDSL gradeQueries, GradeRoleSynchronizer gradeRoles) {
         this.roles = roles;
         this.rolePermissions = rolePermissions;
         this.ids = ids;
-        this.entityManager = entityManager;
+        this.bootstrapLock = bootstrapLock;
         this.gradeQueries = gradeQueries;
         this.gradeRoles = gradeRoles;
     }
 
     @Transactional
     public void seed() {
-        BootstrapLock.acquire(entityManager);
+        bootstrapLock.acquire();
 
         Instant base = Instant.now();
         int created = 0;

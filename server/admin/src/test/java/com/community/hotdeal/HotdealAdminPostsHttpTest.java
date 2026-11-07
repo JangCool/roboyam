@@ -51,6 +51,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         long board = dealBoard();
         long author = newMember();
         String blockedHost = domain("blk");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_domains (id, domain, rule, created_at, updated_at) VALUES (?, ?, 'BLOCK', now(), now())", ids.nextId(), blockedHost);
         rules.invalidate();
         long active = deal(board, author, "a" + uniq() + ".shop.example");
@@ -118,6 +119,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         long author = newMember();
         long a = deal(board, author, "q" + uniq() + ".shop.example");
         String mall = "몰" + uniq();
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET store_name = ? WHERE post_id = ?", mall, a);
         deal(board, newMember(), "q" + uniq() + ".shop.example");
         Cookie reader = reader();
@@ -125,7 +127,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
                 .andReturn());
         assertThat(found.path("total").asLong()).isEqualTo(1);
         assertThat(found.path("items").get(0).path("deal").path("storeName").asString()).isEqualTo(mall);
-        String nickname = jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, author);
+        String nickname = memberFixture.nickname(author);
         assertThat(data(mvc.perform(get("/api/admin/hotdeals").param("view", "ALL").param("board", Long.toString(board)).param("q", nickname).cookie(reader))
                 .andReturn()).path("total").asLong()).isEqualTo(1);
 
@@ -145,6 +147,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         String host = "d" + uniq() + ".shop.example";
         long first = deal(board, author, host);
         long same = deal(board, newMember(), host);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET product_url_key = (SELECT product_url_key FROM post_deals WHERE post_id = ?) WHERE post_id = ?", first, same);
         jdbc.update("UPDATE post_deals SET kept_at = now(), keep_count = 1, click_count = 7 WHERE post_id = ?", first);
         jdbc.update("INSERT INTO post_deal_revisions (id, post_id, actor_kind, actor_id, changes, host_changed, price_edit, created_at) VALUES (?, ?, 'AUTHOR', ?, "
@@ -169,7 +172,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         assertThat(revisions.path("retentionMonths").asInt()).isEqualTo(6);
         JsonNode r = revisions.path("items").get(0);
         assertThat(r.path("actor").path("kind").asString()).isEqualTo("AUTHOR");
-        assertThat(r.path("actor").path("name").asString()).isEqualTo(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, author));
+        assertThat(r.path("actor").path("name").asString()).isEqualTo(memberFixture.nickname(author));
         assertThat(r.path("hostChanged").asBoolean()).isTrue();
         assertThat(r.path("changes").get(0).path("field").asString()).isEqualTo("dealPrice");
         assertThat(r.path("changes").get(0).path("before").isNumber()).isTrue();
@@ -234,6 +237,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/hotdeals/" + postId + "/reopen"), cookie).content("{}")).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("HOTDEAL_STATE_CHANGED")); // 종료가 아니면 재개 없음
         mvc.perform(withCsrf(post("/api/admin/hotdeals/" + postId + "/end"), cookie)).andExpect(status().isNoContent()); // 기간 지남도 종료(본문 없이도)
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET flagged_at = now(), keep_count = 2 WHERE post_id = ?", postId);
         flaggedRequest(postId);
 
@@ -256,6 +260,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         long staff = newMember();
         long manager = newMember();
         long otherManager = newMember();
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'STAFF')", board, staff);
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'MANAGER')", board, manager);
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'MANAGER')", other, otherManager);
@@ -286,6 +291,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         assertThat(managerEnded.path("endedByName").asString()).isEqualTo(nickname(manager));
         assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.CHANGED);
         // 정지된 매니저는 안 된다
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", manager);
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.FORBIDDEN);
         // 작성자 종료 — 종류 AUTHOR, 이름은 작성자 닉네임
@@ -297,7 +303,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
     }
 
     private String nickname(long userId) {
-        return jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, userId);
+        return memberFixture.nickname(userId);
     }
 
     private static JsonNode row(JsonNode page, long postId) {

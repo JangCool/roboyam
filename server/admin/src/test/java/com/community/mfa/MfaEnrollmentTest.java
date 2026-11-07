@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.community.adminauth.service.AdminPasswordMatcher;
 import com.community.audit.service.AuditLogService;
 import com.community.mfa.dto.MfaStage;
+import com.community.mfa.dto.OperatorMfaRow;
 import com.community.mfa.dto.PendingMfa;
 import com.community.mfa.dto.request.MfaPasswordRequest;
 import com.community.mfa.dto.request.MfaVerifyRequest;
@@ -35,7 +36,6 @@ import com.community.zconfiguration.exception.CommonException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,7 +81,7 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
             assertThat(view.secret()).matches("[A-Z2-7]{32}");
             assertThat(view.otpauthUri()).startsWith("otpauth://totp/").contains("secret=" + view.secret(), "algorithm=SHA1", "digits=6", "period=30");
             assertThat(view.accountName()).isEqualTo(email(operator));
-            String pending = jdbc.queryForObject("SELECT pending_secret_enc FROM operator_mfa WHERE operator_id = ?", String.class, operator);
+            String pending = mfa.mfa(operator).orElseThrow().pendingSecretEnc();
             assertThat(pending).startsWith("v1:").doesNotContain(view.secret());
             assertThat(Base32.encode(secrets.decrypt(pending))).isEqualTo(view.secret());
         }
@@ -92,11 +92,11 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
 
             Enrolled enrolled = enrollViaService(operator);
 
-            Map<String, Object> row = jdbc.queryForMap("SELECT secret_enc, enrolled_at, pending_secret_enc, last_step FROM operator_mfa WHERE operator_id = ?", operator);
-            assertThat((String) row.get("secret_enc")).startsWith("v1:").doesNotContain(enrolled.secret());
-            assertThat(row.get("enrolled_at")).isNotNull();
-            assertThat(row.get("pending_secret_enc")).isNull();
-            assertThat(row.get("last_step")).isNotNull(); // 확인에 쓴 칸 — 같은 코드로 곧바로 로그인하지 못한다
+            OperatorMfaRow row = mfa.mfa(operator).orElseThrow();
+            assertThat(row.secretEnc()).startsWith("v1:").doesNotContain(enrolled.secret());
+            assertThat(row.enrolledAt()).isNotNull();
+            assertThat(row.pendingSecretEnc()).isNull();
+            assertThat(row.lastStep()).isNotNull(); // 확인에 쓴 칸 — 같은 코드로 곧바로 로그인하지 못한다
             assertThat(enrolled.recoveryCodes()).hasSize(10).allMatch(code -> code.matches("[A-Z2-9]{5}-[A-Z2-9]{5}"));
             assertThat(lastAudit(operator, "MFA_ENROLL")).contains("\"recoveryCodes\":10");
         }
@@ -121,7 +121,7 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
             MfaEnrollmentView view = enrollments.startVoluntary(actor);
 
             assertThatThrownBy(() -> enrollments.confirmVoluntary(actor, wrongCode(view.secret()))).isInstanceOf(MfaCodeInvalidException.class);
-            assertThat(jdbc.queryForObject("SELECT secret_enc IS NULL FROM operator_mfa WHERE operator_id = ?", Boolean.class, operator)).isTrue();
+            assertThat(mfa.mfa(operator).orElseThrow().secretEnc()).isNull();
             assertThat(lastAudit(operator, "MFA_FAILURE")).contains("\"stage\":\"ENROLL\"");
         }
 
@@ -173,7 +173,7 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
                 assertThat(e.getErrorCode()).isEqualTo("CRYPTO_KEY_MISSING");
                 assertThat(e.getStatus().value()).isEqualTo(503);
             });
-            assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa WHERE operator_id = ?", Integer.class, operator)).isZero();
+            assertThat(mfa.mfa(operator)).isEmpty();
         }
     }
 
@@ -288,10 +288,10 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
         secretsSeen.add(good);
         String token = verifier.verify(new PendingMfa(operator, MfaStage.VERIFY, clock.millis()), new MfaVerifyRequest(good, null, true), IP, null).trustToken();
         secretsSeen.add(token);
-        secretsSeen.add(jdbc.queryForObject("SELECT secret_enc FROM operator_mfa WHERE operator_id = ?", String.class, operator));
+        secretsSeen.add(mfa.mfa(operator).orElseThrow().secretEnc());
 
-        String details = String.join("\n", jdbc.queryForList("SELECT coalesce(detail, '') FROM audit_logs WHERE actor_id = ? OR target_id = ?", String.class, operator,
-                Long.toString(operator)));
+        String details = String.join("\n", auditLogs.where().actorOrTarget(operator, Long.toString(operator)).list().stream()
+                .map(row -> row.detail() == null ? "" : row.detail()).toList());
         assertThat(details).isNotBlank();
         for (String secret : secretsSeen) {
             assertThat(details).as("감사 detail 에 비밀값이 없다").doesNotContain(secret);

@@ -33,7 +33,7 @@ class PortOneSettingsServiceTest {
         int writes;
 
         MemoryStore() {
-            super(new DriverManagerDataSource());
+            super(null, new DriverManagerDataSource());
         }
 
         @Override

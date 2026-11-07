@@ -20,6 +20,9 @@ import com.community.groupbuy.entity.ParticipationStatus;
 import com.community.groupbuy.entity.WatchKind;
 import com.community.groupbuy.exception.GroupBuyBlockedException;
 import com.community.groupbuy.exception.GroupBuyException;
+import com.community.groupbuy.repository.master.GroupBuyMemberQueries;
+import com.community.user.entity.UserEntity;
+import com.community.user.repository.master.UserRepository;
 import com.community.groupbuy.repository.master.GroupBuyNoticeStore;
 import com.community.groupbuy.repository.master.GroupBuyProductStore;
 import com.community.groupbuy.repository.master.GroupBuyStore;
@@ -49,9 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,13 +72,8 @@ public class GroupBuyMemberService {
 
     public static final int PAGE_SIZE = 20;
     private static final Duration CLOSING_SOON = GroupBuyDeadlineWatch.CLOSING_SOON;
-    /** 회원에게 보이는 공구(공개됨 · 숨긴 카테고리와 그 아래 제외) — 뒤에 탭 조건을 잇는다 */
-    private static final String VISIBLE_FROM = " FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id JOIN group_buy_categories c ON c.id = p.category_id "
-            + "LEFT JOIN group_buy_categories pc ON pc.id = c.parent_id WHERE g.published_at IS NOT NULL AND NOT c.hidden AND NOT COALESCE(pc.hidden, false) AND ";
-    /** 진행 탭·홈 가젯 차례 — 마감(연장 중이면 연장 끝) 이른 순 */
-    private static final String DEADLINE_ORDER = "COALESCE(g.extended_until, g.end_at), g.id";
-
-    private final JdbcTemplate jdbc;
+    private final GroupBuyMemberQueries queries;
+    private final UserRepository users;
     private final GroupBuyStore groups;
     private final GroupBuyProductStore products;
     private final GroupBuyNoticeStore noticeStore;
@@ -96,14 +92,15 @@ public class GroupBuyMemberService {
     private final AddressBookService addressBook;
     private final CommerceSalesStore commerce;
 
-    public GroupBuyMemberService(DataSource dataSource, GroupBuyStore groups, GroupBuyProductStore products, GroupBuyNoticeStore noticeStore, GroupBuyNoticeCatalog catalog,
+    public GroupBuyMemberService(GroupBuyMemberQueries queries, UserRepository users, GroupBuyStore groups, GroupBuyProductStore products, GroupBuyNoticeStore noticeStore, GroupBuyNoticeCatalog catalog,
                                  ParticipationStore participations, GroupBuyQuoteService quotes, GroupBuyJoinService joins, HoldExpiryService holds, GroupBuyEligibility eligibility,
                                  GroupBuyWatchService watches, BoardActorResolver actors, BoardCatalog boards, ImageStorage storage, ObjectProvider<Clock> clocks,
                                  GroupBuyReviewService reviews, AddressBookService addressBook, CommerceSalesStore commerce) {
         this.commerce = commerce;
         this.reviews = reviews;
         this.addressBook = addressBook;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
+        this.users = users;
         this.groups = groups;
         this.products = products;
         this.noticeStore = noticeStore;
@@ -125,47 +122,32 @@ public class GroupBuyMemberService {
     @Transactional(readOnly = true)
     public GroupBuyMemberView.ListPage list(String phase, String category, int page) {
         String tab = phase == null ? "ONGOING" : phase;
-        String where = switch (tab) {
-            case "UPCOMING" -> "g.status = 'DRAFT'";
-            case "ONGOING" -> "g.status IN ('RECRUITING', 'CLOSING')";
-            case "ENDED" -> "g.status NOT IN ('DRAFT', 'RECRUITING', 'CLOSING')";
+        GroupBuyMemberQueries.Phase ph = switch (tab) {
+            case "UPCOMING" -> GroupBuyMemberQueries.Phase.UPCOMING;
+            case "ONGOING" -> GroupBuyMemberQueries.Phase.ONGOING;
+            case "ENDED" -> GroupBuyMemberQueries.Phase.ENDED;
             default -> throw ValidationException.of("phase", new MessageRef("groupbuy.member.phase.invalid"));
         };
-        String order = switch (tab) {
-            case "UPCOMING" -> "g.start_at, g.id";
-            case "ONGOING" -> DEADLINE_ORDER;
-            default -> "g.closing_at DESC NULLS LAST, g.updated_at DESC, g.id DESC";
-        };
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder(VISIBLE_FROM).append(where);
-        if (category != null && !category.isBlank()) {
-            long categoryId = id(category, "category");
-            sql.append(" AND (c.id = ? OR c.parent_id = ?)");
-            args.add(categoryId);
-            args.add(categoryId);
-        }
+        Long categoryId = category != null && !category.isBlank() ? id(category, "category") : null;
         int p = Math.max(0, page);
         if (!commerce.operatorCanSell()) {
             return new GroupBuyMemberView.ListPage(List.of(), p, PAGE_SIZE, 0);
         }
-        Long total = jdbc.queryForObject("SELECT count(*)" + sql, Long.class, args.toArray());
-        List<Object> pageArgs = new ArrayList<>(args);
-        pageArgs.add(PAGE_SIZE);
-        pageArgs.add(p * PAGE_SIZE);
-        List<Long> ids = jdbc.queryForList("SELECT g.id" + sql + " ORDER BY " + order + " LIMIT ? OFFSET ?", Long.class, pageArgs.toArray());
-        return new GroupBuyMemberView.ListPage(listItems(ids), p, PAGE_SIZE, total == null ? 0 : total);
+        long total = queries.count(ph, categoryId);
+        List<Long> ids = queries.pageIds(ph, categoryId, (long) p * PAGE_SIZE, PAGE_SIZE);
+        return new GroupBuyMemberView.ListPage(listItems(ids), p, PAGE_SIZE, total);
     }
 
     /** 홈 공구 가젯의 차례(사용자 결정 2026-10-29) — 마감 이른 순(목록 진행 탭과 같다) · 새로 시작한 순 · 참여 많은 순(참여 수량, 같으면 마감 이른 순) */
     public enum RecruitingOrder {
-        DEADLINE(DEADLINE_ORDER),
-        NEWEST("g.start_at DESC, g.id DESC"),
-        POPULAR("g.current_qty DESC, " + DEADLINE_ORDER);
+        DEADLINE(GroupBuyMemberQueries.RecruitingSort.DEADLINE),
+        NEWEST(GroupBuyMemberQueries.RecruitingSort.NEWEST),
+        POPULAR(GroupBuyMemberQueries.RecruitingSort.POPULAR);
 
-        private final String sql;
+        private final GroupBuyMemberQueries.RecruitingSort sort;
 
-        RecruitingOrder(String sql) {
-            this.sql = sql;
+        RecruitingOrder(GroupBuyMemberQueries.RecruitingSort sort) {
+            this.sort = sort;
         }
     }
 
@@ -178,8 +160,7 @@ public class GroupBuyMemberService {
         if (!commerce.operatorCanSell()) {
             return List.of();
         }
-        List<Long> ids = jdbc.queryForList("SELECT g.id" + VISIBLE_FROM + "g.status = 'RECRUITING' ORDER BY " + order.sql + " LIMIT ?", Long.class, count);
-        return listItems(ids);
+        return listItems(queries.recruitingIds(order.sort, count));
     }
 
     /** 목록 줄 — 차례는 {@code ids} 그대로, 리뷰 평균·수(2b-6)는 상품마다 한 번에 */
@@ -306,7 +287,7 @@ public class GroupBuyMemberService {
     public GroupBuyMemberView.PaymentStart paymentStart(String orderType, long refId, String orderNo, PaymentCheckout checkout, long userId, String name, String phone) {
         GroupBuyMemberView.Customer customer = null;
         if (checkout.provider() == PaymentGatewayKind.PORTONE) {
-            String email = jdbc.query("SELECT email FROM users WHERE id = ?", (rs, i) -> rs.getString(1), userId).stream().filter(java.util.Objects::nonNull).findFirst().orElse("");
+            String email = users.findById(userId).map(UserEntity::getEmail).orElse("");
             customer = new GroupBuyMemberView.Customer(nz(name), nz(phone), nz(email));
         }
         return new GroupBuyMemberView.PaymentStart(orderType, Long.toString(refId), checkout.expiresAt(), PaymentCheckoutView.of(checkout), orderNo, customer);
@@ -382,9 +363,8 @@ public class GroupBuyMemberService {
     }
 
     private GroupBuyMemberView.DelayNotice delayNotice(long groupBuyId) {
-        return jdbc.query("SELECT previous_planned_at, new_planned_at, reason, created_at FROM group_buy_delay_notices WHERE group_buy_id = ? ORDER BY created_at DESC LIMIT 1",
-                (rs, i) -> new GroupBuyMemberView.DelayNotice(rs.getDate(1) == null ? null : rs.getDate(1).toLocalDate(), rs.getDate(2).toLocalDate(), rs.getString(3),
-                        rs.getTimestamp(4).toInstant()), groupBuyId).stream().findFirst().orElse(null);
+        return queries.latestDelayNotice(groupBuyId).map(d -> new GroupBuyMemberView.DelayNotice(d.previousPlannedAt(), d.newPlannedAt(), d.reason(), d.createdAt()))
+                .orElse(null);
     }
 
     /** 고시 양식 — 공구 상품 + 추가 구성상품의 상품. 양식의 상품 단품 ID 를 이 공구의 단품 ID 로 바꾼다(없는 단품은 뺀다) */

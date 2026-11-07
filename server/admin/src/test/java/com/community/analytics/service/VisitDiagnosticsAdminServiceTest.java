@@ -13,6 +13,7 @@ import com.community.batch.entity.BatchRunEntity;
 import com.community.batch.entity.BatchRunStatus;
 import com.community.batch.repository.master.BatchRunRepositoryQDSL;
 import com.community.batch.service.BatchCronPolicy;
+import com.community.batch.repository.master.PgCronQueries;
 import com.community.batch.service.DbBatchGateway;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.zconfiguration.exception.ValidationException;
@@ -126,7 +127,7 @@ class VisitDiagnosticsAdminServiceTest {
         PgCronState state = new PgCronState("READY", "Asia/Seoul");
 
         FakeGateway(DataSource ds) {
-            super(ds);
+            super(new PgCronQueries(ds));
         }
 
         @Override

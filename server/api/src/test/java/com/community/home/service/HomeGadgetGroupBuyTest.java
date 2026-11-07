@@ -159,6 +159,7 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
         // 다른 시험의 공구보다 앞에 오게 시작을 하루 뒤로 미룬다(모집 중 상태는 그대로)
         Instant base = clock.instant().plus(Duration.ofDays(1));
         for (Object[] row : List.of(new Object[]{oldest, 1}, new Object[]{newest, 3}, new Object[]{middle, 2})) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE group_buys SET start_at = ?, end_at = ? WHERE id = ?", java.sql.Timestamp.from(base.plus(Duration.ofHours((int) row[1]))),
                     java.sql.Timestamp.from(base.plus(Duration.ofDays(2))), row[0]);
         }

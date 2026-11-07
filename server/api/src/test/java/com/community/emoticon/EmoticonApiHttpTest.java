@@ -39,8 +39,8 @@ import org.springframework.web.context.WebApplicationContext;
  */
 class EmoticonApiHttpTest extends CommerceApiTestBase {
 
-    private static final List<MemberPermission> GENERAL = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE);
+    /** 일반 회원 기본 권한 — 운영 시드({@code BuiltinRoleSeeder})와 같은 정본(먼저 도는 시험이 역할을 만들면 뒤의 공구 주문 시험도 그 권한을 쓴다) */
+    private static final List<MemberPermission> GENERAL = MemberRoleIds.GENERAL_DEFAULT_PERMISSIONS;
 
     @Autowired
     private WebApplicationContext context;
@@ -55,18 +55,21 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
     void setUp() {
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
         for (MemberPermission p : MemberPermission.values()) {
+            // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
         }
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         if (jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name, scope, grant_mode, builtin) VALUES (?, 'memberKind', 'MEMBER', ?, 'SITE', 'AUTO', true) "
                 + "ON CONFLICT (role_id) DO NOTHING", MemberRoleIds.GENERAL, MemberRoleIds.GENERAL) == 1) {
             for (MemberPermission p : GENERAL) {
+                // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
                 jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", ids.nextId(), MemberRoleIds.GENERAL, p.code());
             }
         }
         board = ids.nextId();
         slug = "emo" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 950)", board, slug, "로보티콘 " + slug.substring(slug.length() - 5));
+        boardFixture.board(board, slug, "로보티콘 " + slug.substring(slug.length() - 5), 950);
         boards.invalidate();
     }
 
@@ -74,9 +77,9 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "r" + base36.substring(Math.max(0, base36.length() - 11)));
+        memberFixture.profile(id, "r" + base36.substring(Math.max(0, base36.length() - 11)), "REGULAR");
         return id;
     }
 
@@ -119,13 +122,14 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
 
     private long postOf(long member) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, title, content) VALUES (?, ?, ?, '로보티콘 시험', '본문이에요')", id, board, member);
+        boardFixture.post(id, board, member, "로보티콘 시험", "본문이에요");
         return id;
     }
 
     private long commentOf(long postId, long member) {
         long id = ids.nextId();
         // 한 시간 전 댓글 — 댓글 작성 간격(10초)에 걸리지 않게
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, content, created_at) VALUES (?, ?, ?, ?, '댓글이에요', now() - interval '1 hour')", id, postId, board,
                 member);
         jdbc.update("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?", postId);

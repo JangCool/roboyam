@@ -36,6 +36,7 @@ class PointShopRefundRequestAdminHttpTest extends PointShopAdminHttpTestBase {
     private long requested(long member, int price) {
         long item = colorItem(price, null);
         long userItem = Long.parseLong(buy(member, item).userItemId());
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", member);
         SelfRefundOutcome outcome = refunds.refundSelf(member, userItem);
         assertThat(outcome.isRequest()).isTrue();

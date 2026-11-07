@@ -1,91 +1,92 @@
 package com.community.sanction.repository.master;
 
-import static com.community.sanction.repository.master.MemberSanctionStore.ts;
+import static com.community.sanction.repository.master.BoardStaffActionStore.ACTION;
+import static com.community.sanction.repository.master.BoardStaffActionStore.ACTOR;
 
+import com.community.board.entity.QBoardEntity;
 import com.community.sanction.repository.master.AdminBoardSanctionStore.BoardRef;
 import com.community.sanction.repository.master.BoardStaffActionStore.ActionRow;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 관리자 「스텝 처리 감독」 목록(읽기만, board-staff-action-contract 「API > 관리자」) — 한 줄 모양은 shared {@link BoardStaffActionStore}({@code SELECT}·{@code row}).
+ * 관리자 「스텝 처리 감독」 목록(읽기만, board-staff-action-contract 「API > 관리자」) — 한 줄 모양은 shared {@link BoardStaffActionStore}({@code actionRows}·{@code row}).
  * 제재 줄(kind SANCTION)은 넣지 않는다. 색인: V138 의 {@code ix_board_staff_actions_content}(전체) · {@code ix_board_staff_actions_board_content}(게시판).
  */
 @Repository
-public class AdminBoardStaffActionStore {
+public class AdminBoardStaffActionStore extends RoboyamRepositoryQDSL {
+
+    private static final QBoardEntity B = QBoardEntity.boardEntity;
 
     /**
      * 목록 거르기.
      *
      * @param kind         POST_HIDE · POST_DELETE · COMMENT_DELETE(null 이면 전체)
      * @param restored     OPEN(되돌리지 않음) · RESTORED(되돌림) · null 전체
-     * @param nicknameLike 처리자 닉네임 부분 일치(소문자, LIKE 특수 글자 처리 끝) — null 이면 거르지 않음
+     * @param nicknameLike 처리자 닉네임 부분 일치(소문자, LIKE 특수 글자 처리 끝 — 탈출 글자 {@code \}) — null 이면 거르지 않음
      */
     public record Filter(Long boardId, String kind, String restored, String nicknameLike, Instant from, Instant to) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final BoardStaffActionStore store;
 
-    public AdminBoardStaffActionStore(BoardStaffActionStore store) {
-        this.jdbc = store.jdbc();
+    public AdminBoardStaffActionStore(JPAQueryFactory query, BoardStaffActionStore store) {
+        super(query);
+        this.store = store;
     }
 
     public long total(Filter filter) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, args);
-        Long n = jdbc.queryForObject("SELECT count(*) FROM board_staff_actions a" + (filter.nicknameLike() != null ? " LEFT JOIN profiles ap ON ap.user_id = a.actor_id" : "")
-                + where, Long.class, args.toArray());
+        JPAQuery<Long> count = query.select(ACTION.count()).from(ACTION);
+        if (filter.nicknameLike() != null) {
+            count = count.leftJoin(ACTOR).on(ACTOR.userId.eq(ACTION.actorId));
+        }
+        Long n = count.where(where(filter)).fetchOne();
         return n == null ? 0 : n;
     }
 
     /** 최신 것이 위, {@code page} 0부터 */
     public List<ActionRow> page(Filter filter, int page, int size) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, args);
-        args.add(size);
-        args.add((long) page * size);
-        return jdbc.query(BoardStaffActionStore.SELECT + where + " ORDER BY a.created_at DESC, a.id DESC LIMIT ? OFFSET ?", BoardStaffActionStore::row, args.toArray());
+        return store.actionRows().where(where(filter)).orderBy(ACTION.createdAt.desc(), ACTION.id.desc()).offset((long) page * size).limit(size).fetch().stream()
+                .map(BoardStaffActionStore::row).toList();
     }
 
     /** 스텝 처리가 한 건이라도 있는 게시판(이름 차례) — 게시판 거르기 고르개 */
     public List<BoardRef> boards() {
-        return jdbc.query("SELECT b.id, b.slug, b.name, b.name_en FROM boards b WHERE EXISTS (SELECT 1 FROM board_staff_actions a WHERE a.board_id = b.id AND "
-                + BoardStaffActionStore.CONTENT + ") ORDER BY b.name, b.id", (rs, i) -> new BoardRef(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4)));
+        return query.select(B.id, B.slug, B.name, B.nameEn).from(B)
+                .where(JPAExpressions.selectOne().from(ACTION).where(ACTION.boardId.eq(B.id), BoardStaffActionStore.content(ACTION)).exists())
+                .orderBy(B.name.asc(), B.id.asc()).fetch().stream()
+                .map(t -> new BoardRef(t.get(B.id), t.get(B.slug), t.get(B.name), t.get(B.nameEn))).toList();
     }
 
-    private static String where(Filter f, List<Object> args) {
-        List<String> parts = new ArrayList<>();
-        parts.add(BoardStaffActionStore.CONTENT);
+    private static BooleanExpression where(Filter f) {
+        BooleanExpression where = BoardStaffActionStore.content(ACTION);
         if (f.boardId() != null) {
-            parts.add("a.board_id = ?");
-            args.add(f.boardId());
+            where = where.and(ACTION.boardId.eq(f.boardId()));
         }
         if (f.kind() != null) {
             int cut = f.kind().indexOf('_');
-            parts.add("a.kind = ? AND a.action = ?");
-            args.add(f.kind().substring(0, cut));
-            args.add(f.kind().substring(cut + 1));
+            where = where.and(ACTION.kind.eq(f.kind().substring(0, cut))).and(ACTION.action.eq(f.kind().substring(cut + 1)));
         }
         if ("OPEN".equals(f.restored())) {
-            parts.add("a.restored_at IS NULL");
+            where = where.and(ACTION.restoredAt.isNull());
         } else if ("RESTORED".equals(f.restored())) {
-            parts.add("a.restored_at IS NOT NULL");
+            where = where.and(ACTION.restoredAt.isNotNull());
         }
         if (f.nicknameLike() != null) {
-            parts.add("lower(ap.nickname) LIKE ? ESCAPE '\'");
-            args.add(f.nicknameLike());
+            where = where.and(ACTOR.nickname.lower().like(f.nicknameLike(), '\\'));
         }
         if (f.from() != null) {
-            parts.add("a.created_at >= ?");
-            args.add(ts(f.from()));
+            where = where.and(ACTION.createdAt.goe(f.from()));
         }
         if (f.to() != null) {
-            parts.add("a.created_at <= ?");
-            args.add(ts(f.to()));
+            where = where.and(ACTION.createdAt.loe(f.to()));
         }
-        return " WHERE " + String.join(" AND ", parts);
+        return where;
     }
 }

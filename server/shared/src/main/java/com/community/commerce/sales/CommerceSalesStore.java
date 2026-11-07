@@ -1,20 +1,45 @@
 package com.community.commerce.sales;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import com.community.commerce.sales.entity.CommerceBusinessInfoEntity;
+import com.community.commerce.sales.entity.CommerceSalesSettingsEntity;
+import com.community.commerce.sales.entity.QCommerceBusinessInfoEntity;
+import com.community.commerce.sales.entity.QCommerceSalesChecklistEntity;
+import com.community.commerce.sales.entity.QCommerceSalesSettingsEntity;
+import com.community.emoticon.entity.EmoticonSettingsEntity;
+import com.community.emoticon.entity.QEmoticonSettingsEntity;
+import com.community.groupbuy.entity.QCommerceCarrierEntity;
+import com.community.operator.entity.QOperatorEntity;
+import com.community.site.entity.QSiteOperatorEntity;
+import com.community.site.entity.SiteOperatorEntity;
+import com.community.site.entity.SiteOperatorStage;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Repository;
 
 /**
  * 판매 스위치·운영 체크리스트·사업자 정보(V104 — {@code commerce_sales_settings}·{@code commerce_sales_checklist}·{@code commerce_business_info}, 모두 1행 또는 고정 줄).
  * 운영자 이름은 {@code operators.operator_name} 을 이어 읽는다(지운 운영자는 null).
+ *
+ * <p>QueryDSL 이다 — {@code commerce_*} 표(엔티티 {@link CommerceSalesSettingsEntity} 등)와 운영 주체({@code site_operator}, 엔티티 {@link SiteOperatorEntity}).
+ * 스위치 행 잠금은 그 행만 고르는 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다), 로보티콘 유료 판매 스위치({@code emoticon_settings} — 엔티티 {@link EmoticonSettingsEntity})는 그 행만 고르는
+ * {@code PESSIMISTIC_READ}({@code FOR SHARE}). Native SQL 로 남긴 것은 없다.
  */
 @Repository
-public class CommerceSalesStore {
+public class CommerceSalesStore extends RoboyamRepositoryQDSL {
+
+    private static final QSiteOperatorEntity SO = QSiteOperatorEntity.siteOperatorEntity;
+    private static final QCommerceSalesSettingsEntity SW = QCommerceSalesSettingsEntity.commerceSalesSettingsEntity;
+    private static final QCommerceSalesChecklistEntity CL = QCommerceSalesChecklistEntity.commerceSalesChecklistEntity;
+    private static final QCommerceBusinessInfoEntity BI = QCommerceBusinessInfoEntity.commerceBusinessInfoEntity;
+    private static final QCommerceCarrierEntity CA = QCommerceCarrierEntity.commerceCarrierEntity;
+    private static final QOperatorEntity O = QOperatorEntity.operatorEntity;
+    private static final QEmoticonSettingsEntity ES = QEmoticonSettingsEntity.emoticonSettingsEntity;
 
     /** 스위치 한 줄 */
     public record SwitchRow(boolean groupBuyOpen, Instant changedAt, String changedBy, String reason) {
@@ -24,42 +49,46 @@ public class CommerceSalesStore {
     public record ChecklistRow(String key, boolean checked, String checkedBy, Instant checkedAt) {
     }
 
-    private final JdbcTemplate jdbc;
-
-    public CommerceSalesStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public CommerceSalesStore(JPAQueryFactory query) {
+        super(query);
     }
 
     public boolean groupBuyOpen() {
-        Boolean open = jdbc.queryForObject("SELECT groupbuy_open FROM commerce_sales_settings WHERE id = 1", Boolean.class);
-        return Boolean.TRUE.equals(open);
+        return Boolean.TRUE.equals(query.select(SW.groupbuyOpen).from(SW).where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).fetchFirst());
     }
 
     public SwitchRow switchRow() {
-        return jdbc.queryForObject("SELECT s.groupbuy_open, s.changed_at, o.operator_name, s.change_reason FROM commerce_sales_settings s "
-                + "LEFT JOIN operators o ON o.id = s.changed_by WHERE s.id = 1", (rs, i) -> new SwitchRow(rs.getBoolean(1), instant(rs, 2), rs.getString(3), rs.getString(4)));
+        SwitchRow row = query.select(Projections.constructor(SwitchRow.class, SW.groupbuyOpen, SW.changedAt, O.operatorName, SW.changeReason)).from(SW).leftJoin(O)
+                .on(O.id.eq(SW.changedBy)).where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).fetchFirst();
+        if (row == null) {
+            throw new EmptyResultDataAccessException(1); // 스위치 행은 마이그레이션이 넣는다
+        }
+        return row;
     }
 
-    /** 스위치 행을 잠근다(켜기·끄기가 줄 선다) */
+    /** 스위치 행을 잠근다(켜기·끄기가 줄 선다) — 그 행만 고르는 쓰기 잠금 */
     public boolean lockSwitch() {
-        Boolean open = jdbc.queryForObject("SELECT groupbuy_open FROM commerce_sales_settings WHERE id = 1 FOR UPDATE", Boolean.class);
-        return Boolean.TRUE.equals(open);
+        Boolean open = query.select(SW.groupbuyOpen).from(SW).where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
+        if (open == null) {
+            throw new EmptyResultDataAccessException(1);
+        }
+        return open;
     }
 
     public void setSwitch(boolean open, String reason, Long operatorId, Instant now) {
-        jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = ?, change_reason = ?, changed_by = ?, changed_at = ? WHERE id = 1", open, reason, operatorId,
-                Timestamp.from(now));
+        query.update(SW).set(SW.groupbuyOpen, open).set(SW.changeReason, reason).set(SW.changedBy, operatorId).set(SW.changedAt, now)
+                .where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).execute();
     }
 
     public List<ChecklistRow> checklist() {
-        return jdbc.query("SELECT c.item_key, c.checked, o.operator_name, c.checked_at FROM commerce_sales_checklist c LEFT JOIN operators o ON o.id = c.checked_by "
-                + "ORDER BY c.sort_order", (rs, i) -> new ChecklistRow(rs.getString(1), rs.getBoolean(2), rs.getString(3), instant(rs, 4)));
+        return query.select(Projections.constructor(ChecklistRow.class, CL.itemKey, CL.checked, O.operatorName, CL.checkedAt)).from(CL).leftJoin(O).on(O.id.eq(CL.checkedBy))
+                .orderBy(CL.sortOrder.asc()).fetch();
     }
 
     /** @return 바뀌었으면 true(같은 값이면 false — 감사를 남기지 않는다) */
     public boolean check(String key, boolean checked, Long operatorId, Instant now) {
-        return jdbc.update("UPDATE commerce_sales_checklist SET checked = ?, checked_by = ?, checked_at = ? WHERE item_key = ? AND checked <> ?", checked,
-                checked ? operatorId : null, checked ? Timestamp.from(now) : null, key, checked) == 1;
+        return query.update(CL).set(CL.checked, checked).set(CL.checkedBy, checked ? operatorId : null).set(CL.checkedAt, checked ? now : null)
+                .where(CL.itemKey.eq(key), CL.checked.ne(checked)).execute() == 1;
     }
 
     /**
@@ -67,19 +96,36 @@ public class CommerceSalesStore {
      * (terms-operator-contract 세션 정리 결정). 상호 = 상호(법인은 회사명), 보호책임자 = 운영 주체의 보호책임자(「운영자와 같음」이면 운영자 이름). 개인 단계는 사업자 칸이 비어 있다(빈 글자).
      */
     public BusinessInfo businessInfo() {
-        return jdbc.queryForObject("SELECT coalesce(s.business_name, ''), coalesce(s.representative, ''), coalesce(s.registration_number, ''), "
-                + "coalesce(s.mail_order_number, ''), coalesce(s.mail_order_authority, ''), coalesce(s.address, ''), coalesce(s.phone, ''), coalesce(s.contact_email, ''), "
-                + "b.business_hours, coalesce(CASE WHEN s.privacy_officer_same THEN s.operator_name ELSE s.privacy_officer_name END, ''), coalesce(s.hosting_provider, ''), "
-                + "b.shipping_refund_policy, b.updated_at, o.operator_name FROM commerce_business_info b CROSS JOIN site_operator s "
-                + "LEFT JOIN operators o ON o.id = b.updated_by WHERE b.id = 1 AND s.id = 1", (rs, i) -> new BusinessInfo(rs.getString(1), rs.getString(2), rs.getString(3),
-                rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9), rs.getString(10), rs.getString(11), rs.getString(12),
-                instant(rs, 13), rs.getString(14)));
+        // 예전과 같이 한 문장 — 커머스 고유 칸(commerce_business_info) × 겹치는 칸(운영 주체 site_operator, 정본) + 마지막 저장한 운영자 이름(operators).
+        // 두 행을 같은 시점에 읽는다(문장을 나누면 그 사이 저장이 섞인 사업자 정보를 낼 수 있다)
+        Tuple s = query.select(BI.businessHours, BI.shippingRefundPolicy, BI.updatedAt, O.operatorName, SO.businessName, SO.representative, SO.registrationNumber,
+                        SO.mailOrderNumber, SO.mailOrderAuthority, SO.address, SO.phone, SO.contactEmail, SO.privacyOfficerSame, SO.operatorName, SO.privacyOfficerName,
+                        SO.hostingProvider)
+                .from(BI).join(SO).on(SO.id.eq(SiteOperatorEntity.ROW_ID)).leftJoin(O).on(O.id.eq(BI.updatedBy))
+                .where(BI.id.eq(CommerceBusinessInfoEntity.ROW_ID)).fetchFirst();
+        if (s == null) {
+            throw new EmptyResultDataAccessException(1); // 예전 queryForObject 와 같이 — 사업자 정보 행·운영 주체 행은 마이그레이션이 넣는다(없으면 읽지 못한다)
+        }
+        CommerceOwn own = new CommerceOwn(s.get(BI.businessHours), s.get(BI.shippingRefundPolicy), s.get(BI.updatedAt), s.get(O.operatorName));
+        String privacyOfficer = Boolean.TRUE.equals(s.get(SO.privacyOfficerSame)) ? s.get(SO.operatorName) : s.get(SO.privacyOfficerName);
+        return new BusinessInfo(nz(s.get(SO.businessName)), nz(s.get(SO.representative)), nz(s.get(SO.registrationNumber)), nz(s.get(SO.mailOrderNumber)),
+                nz(s.get(SO.mailOrderAuthority)), nz(s.get(SO.address)), nz(s.get(SO.phone)), nz(s.get(SO.contactEmail)), own.businessHours(), nz(privacyOfficer),
+                nz(s.get(SO.hostingProvider)), own.shippingRefundPolicy(), own.updatedAt(), own.updatedBy());
+    }
+
+    /** 사업자 정보 중 커머스 고유 칸 */
+    private record CommerceOwn(String businessHours, String shippingRefundPolicy, Instant updatedAt, String updatedBy) {
+    }
+
+    /** {@code coalesce(x, '')} */
+    private static String nz(String value) {
+        return value == null ? "" : value;
     }
 
     /** 커머스 고유 칸만 저장한다(운영시간·배송·환불 안내) — 겹치는 칸은 운영 주체 설정이 저장한다 */
     public void saveBusinessInfo(BusinessInfo v, Long operatorId, Instant now) {
-        jdbc.update("UPDATE commerce_business_info SET business_hours = ?, shipping_refund_policy = ?, updated_by = ?, updated_at = ? WHERE id = 1", v.businessHours(),
-                v.shippingRefundPolicy(), operatorId, Timestamp.from(now));
+        query.update(BI).set(BI.businessHours, v.businessHours()).set(BI.shippingRefundPolicy, v.shippingRefundPolicy()).set(BI.updatedBy, operatorId).set(BI.updatedAt, now)
+                .where(BI.id.eq(CommerceBusinessInfoEntity.ROW_ID)).execute();
     }
 
     /**
@@ -87,27 +133,32 @@ public class CommerceSalesStore {
      * (사용자 결정 2026-11-07 — 공구 판매 켜기 · 로보티콘 유료 판매 켜기·구매 · 광고/핫딜 유료 신청·결제 시작·승인·입금 확정, terms-operator-contract).
      */
     public boolean operatorCanSell() {
-        Boolean ok = jdbc.queryForObject("SELECT stage <> 'INDIVIDUAL' AND coalesce(btrim(mail_order_number), '') <> '' FROM site_operator WHERE id = 1", Boolean.class);
-        return Boolean.TRUE.equals(ok);
+        // 신고번호는 DB 에서 앞뒤 공백을 깎는다(HQL trim = PostgreSQL btrim 과 같은 공백만)
+        Tuple row = query.select(SO.stage, SO.mailOrderNumber.trim()).from(SO).where(SO.id.eq(SiteOperatorEntity.ROW_ID)).fetchFirst();
+        if (row == null) {
+            throw new EmptyResultDataAccessException(1); // 예전 queryForObject 와 같이 — 운영 주체 행은 설치 때 생긴다
+        }
+        SiteOperatorStage stage = row.get(0, SiteOperatorStage.class);
+        String mailOrderNumber = row.get(1, String.class);
+        return stage != null && stage != SiteOperatorStage.INDIVIDUAL && mailOrderNumber != null && !mailOrderNumber.isEmpty();
     }
 
     /**
      * 로보티콘 유료 판매 스위치({@code emoticon_settings.paid_sales_enabled})를 나눔 잠금으로 잡고 읽는다 — 운영 주체를 개인 단계로 바꾸거나 신고번호를 비우기 전에(켜져 있으면 막는다).
-     * 설정 저장(행 {@code FOR UPDATE} 뒤 운영 주체 읽기)과 줄을 서서, 켜기가 읽은 운영 주체 단계가 그 커밋 전에 바뀌지 않는다.
+     * 설정 저장(행 쓰기 잠금 뒤 운영 주체 읽기)과 줄을 서서, 켜기가 읽은 운영 주체 단계가 그 커밋 전에 바뀌지 않는다. 잠금은 설정 표만 고르는 {@code PESSIMISTIC_READ}
+     * ({@code FOR SHARE}) — 설정 행이 없으면 예전처럼 {@link EmptyResultDataAccessException}.
      */
     public boolean lockEmoticonPaidSales() {
-        Boolean on = jdbc.queryForObject("SELECT paid_sales_enabled FROM emoticon_settings WHERE id = 1 FOR SHARE", Boolean.class);
-        return Boolean.TRUE.equals(on);
+        Boolean on = query.select(ES.paidSalesEnabled).from(ES).where(ES.id.eq(EmoticonSettingsEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_READ).fetchFirst();
+        if (on == null) {
+            throw new EmptyResultDataAccessException(1);
+        }
+        return on;
     }
 
     /** 켜진 택배사가 하나라도 있나(판매 켜기 자동 조건 — 공구) */
     public boolean anyActiveCarrier() {
-        Boolean any = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM commerce_carriers WHERE enabled)", Boolean.class);
-        return Boolean.TRUE.equals(any);
+        return query.selectOne().from(CA).where(CA.enabled.isTrue()).fetchFirst() != null;
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        Timestamp t = rs.getTimestamp(column);
-        return t == null ? null : t.toInstant();
-    }
 }

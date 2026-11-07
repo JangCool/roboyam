@@ -70,15 +70,15 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
 
         assertThat(saved.items()).extracting(RequestLimitsView.Item::limitPerMinute).containsExactly(5, 0, 20, 3);
         assertThat(saved.updatedAt()).isNotNull();
-        assertThat(saved.updatedBy()).isEqualTo(jdbc.queryForObject("SELECT operator_name FROM operators WHERE id = ?", String.class, operator));
+        assertThat(saved.updatedBy()).isEqualTo(operatorName(operator));
         assertThat(jdbc.queryForObject("SELECT updated_by FROM request_rate_limits WHERE action = 'GROUPBUY_JOIN'", Long.class)).as("안 바뀐 줄은 그대로").isNull();
 
-        Map<String, Object> audit = lastAudit(operator, AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE);
-        assertThat(audit.get("target_type")).isEqualTo("COMMERCE_SETTINGS");
-        assertThat(audit.get("target_id")).isEqualTo("request-limits");
-        assertThat((String) audit.get("detail")).contains("\"before\":{\"POINT_CHARGE\":3,\"POINT_SHOP_PURCHASE\":10}")
+        var audit = lastAudit(operator, AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE);
+        assertThat(audit.targetType()).isEqualTo("COMMERCE_SETTINGS");
+        assertThat(audit.targetId()).isEqualTo("request-limits");
+        assertThat(audit.detail()).contains("\"before\":{\"POINT_CHARGE\":3,\"POINT_SHOP_PURCHASE\":10}")
                 .contains("\"after\":{\"POINT_CHARGE\":0,\"POINT_SHOP_PURCHASE\":20}").doesNotContain("GROUPBUY_JOIN");
-        assertThat(audit.get("retention_class")).isEqualTo("GENERAL");
+        assertThat(audit.retentionClass()).isEqualTo("GENERAL");
 
         assertThat(copy.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("커밋 뒤 사본을 비웠다").isEqualTo(20);
         assertThat(copy.limitOf(RequestAction.POINT_CHARGE)).isZero();

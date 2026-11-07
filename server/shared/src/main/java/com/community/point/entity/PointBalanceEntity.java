@@ -7,7 +7,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 회원 잔액 — {@code point_balances}(V51, V85 에서 무상·유상·미회수로 나눔). <b>읽기 전용 매핑</b>이다(바꾸는 일은 {@code PointService} 가 행을 잠그고 JDBC 로 한다). 행이 없으면 0P 다.
+ * 회원 잔액 — {@code point_balances}(V51, V85 에서 무상·유상·미회수로 나눔). <b>읽기 전용 매핑</b>이다(잔액을 바꾸는 일은 {@code PointService} 가 행을 잠그고 JDBC 로 한다 —
+ * 세이브포인트 경로, 알림 시각만 알림 배치의 QueryDSL 조건부 UPDATE). 행이 없으면 0P 다.
  * {@code balance} 는 DB 가 계산하는 합계 칸({@code free_balance + paid_balance})이라 쓰지 못한다.
  */
 @Entity
@@ -24,6 +25,8 @@ public class PointBalanceEntity {
     /** 미회수 포인트 — 다음 무상 적립에서 먼저 갚는다(commerce.md 5-4) */
     private long revokeDebt;
     private Instant updatedAt;
+    /** 이 회원에게 마지막으로 소멸 예정 알림을 보낸 시각(V85) — 알림 배치가 {@code PointLotBatchQueries#claimNotice} 의 조건부 UPDATE 로만 고친다 */
+    private Instant expiryNoticeSentAt;
 
     protected PointBalanceEntity() {
     }

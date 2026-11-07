@@ -34,14 +34,14 @@ class BoardAdsHiddenHttpTest extends Commerce04AdminTestBase {
         session = login(operatorWith(Permission.BOARD_READ, Permission.BOARD_MANAGE, Permission.BOARD_SETTINGS));
         board = ids.nextId();
         name = "광고숨김 " + Long.toString(board, 36).substring(6);
-        jdbc.update("INSERT INTO boards (id, slug, name, description, sort_order) VALUES (?, ?, ?, '광고 숨김 시험', 900)", board, "ah" + Long.toString(board, 36), name);
+        boardFixture.board(board, "ah" + Long.toString(board, 36), name, "광고 숨김 시험", 900);
         catalog.invalidate();
     }
 
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM board_prefixes WHERE board_id = ?", board);
-        jdbc.update("DELETE FROM boards WHERE id = ?", board);
+        boardFixture.deleteBoard(board);
         catalog.invalidate();
     }
 
@@ -57,8 +57,7 @@ class BoardAdsHiddenHttpTest extends Commerce04AdminTestBase {
 
         save(session, ",\"adsHidden\":true").andExpect(status().isOk()).andExpect(jsonPath("$.data.adsHidden").value(true));
         assertThat(jdbc.queryForObject("SELECT ads_hidden FROM boards WHERE id = ?", Boolean.class, board)).isTrue();
-        String audit = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'BOARD_UPDATE' AND target_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class, Long.toString(board));
+        String audit = auditLogs.where().action("BOARD_UPDATE").target(Long.toString(board)).latest().orElseThrow().detail();
         assertThat(audit).contains("adsHidden");
         catalog.invalidate();
         assertThat(catalog.snapshot().byId().get(board).adsHidden()).isTrue();

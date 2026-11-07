@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -60,6 +61,9 @@ public class DashboardGadgetService {
         this.statsSettings = statsSettings;
         this.readOnly = new TransactionTemplate(transactions);
         this.readOnly.setReadOnly(true);
+        // 한 스냅숏 — 예전 한 문장이던 숫자 묶음(회원 숫자 넷·제재 건수 셋·대표 신고 사유·가입 방법·커머스 합)이 JPA 전환으로 여러 문장이 되어,
+        // READ COMMITTED 면 문장 사이에 커밋된 변경이 숫자끼리 어긋나게 한다. 읽기 전용 REPEATABLE READ 는 직렬화 실패가 없다.
+        this.readOnly.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
         this.messages = messages;
         for (DashboardGadgetProvider provider : providers) {
             if (this.providers.put(provider.type(), provider) != null) {

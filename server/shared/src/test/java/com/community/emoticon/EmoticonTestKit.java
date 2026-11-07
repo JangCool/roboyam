@@ -30,7 +30,9 @@ import com.community.holiday.repository.master.SiteHolidayStore;
 import com.community.holiday.service.SiteHolidayService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.identity.repository.master.IdentityVerificationAttemptRepository;
 import com.community.identity.service.IdentityVerificationService;
+import com.community.point.repository.master.PointPolicyQueries;
 import com.community.zconfiguration.crypto.DataCipher;
 import java.time.LocalDate;
 import java.util.Base64;
@@ -61,10 +63,14 @@ import com.community.operator.service.OperatorMemberAccountService;
 import com.community.point.repository.master.PointLedgerWriter;
 import com.community.point.service.PointPolicy;
 import com.community.point.service.PointService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
+import com.community.testsupport.MemberFixture;
 import com.community.testsupport.MutableTestClock;
+import com.community.testsupport.OperatorFixture;
 import com.community.testsupport.PointInvariants;
 import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -92,13 +98,20 @@ import java.util.function.Supplier;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.interceptor.MatchAlwaysTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionInterceptor;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 로보티콘 시험의 바탕 — 실제 PostgreSQL({@link CommerceTestDatabase}) 위에서 로보티콘 서비스·포인트({@link PointService})를 <b>손으로</b> 조립한다(포인트 상점 {@code PointShopTestKit} 과
- * 같은 방식 — 스프링 문맥 없음). 트랜잭션은 {@link DataSourceTransactionManager}(서비스·저장소의 JDBC 가 같은 연결), 시계는 {@link MutableTestClock}, 그림 저장소는 임시 폴더.
+ * 같은 방식 — 스프링 문맥 없음). 저장소는 운영과 같은 JPA·QueryDSL({@link JpaTestContext#create} — 호출마다 트랜잭션에 참여하게 감싼다), 서비스는 그 클래스의 {@code @Transactional} 을
+ * 입힌다({@link JpaTestContext#transactional}). 트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 포인트 원장·알림의 JDBC 도 같은 연결), 시계는
+ * {@link MutableTestClock}, 그림 저장소는 임시 폴더. 회원·운영자는 엔티티 픽스처({@link MemberFixture} · {@link OperatorFixture}).
  * 감사·운영자 알림은 모으는 대역, 회원 알림은 실제 발행기(표 {@code member_notifications}). DB 는 다른 시험과 같이 쓴다 — 회원·팩은 시험마다 새로, 설정 행을 바꾸면 되돌린다.
  */
 final class EmoticonTestKit {
@@ -110,9 +123,12 @@ final class EmoticonTestKit {
     final DataSource dataSource;
     final JdbcTemplate jdbc;
     final TransactionTemplate tx;
-    final DataSourceTransactionManager txManager;
+    final PlatformTransactionManager txManager;
     final MutableTestClock clock;
     final SnowflakeIdGenerator ids;
+    /** 시험 회원·운영자(엔티티 픽스처 — 호출마다 커밋, 시험 트랜잭션 안에서는 참여) */
+    final MemberFixture members;
+    final OperatorFixture operators;
     final PointService points;
     final List<AuditEvent> audits = Collections.synchronizedList(new ArrayList<>());
     /** 낸 운영자 알림(이벤트 · 맥락) */
@@ -153,20 +169,22 @@ final class EmoticonTestKit {
     EmoticonTestKit() {
         dataSource = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(dataSource);
-        txManager = new DataSourceTransactionManager(dataSource);
+        txManager = JpaTestContext.transactions();
         tx = new TransactionTemplate(txManager);
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
+        members = new MemberFixture(JpaTestContext.context());
+        operators = new OperatorFixture(withIds(ids));
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
-        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(dataSource), null, null, ids, null, clocks);
-        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
+        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
+        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(new PointPolicyQueries(dataSource)), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
         AuditLogService audit = new AuditLogService(null, null) {
             @Override
             public void record(AuditEvent event) {
                 audits.add(event);
             }
         };
-        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, ids, null, null, dataSource) {
             @Override
             public int publish(AdminNotificationEvent event, NotificationContext context) {
                 operatorNotices.add(Map.entry(event, context));
@@ -182,41 +200,64 @@ final class EmoticonTestKit {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        packStore = new EmoticonPackStore(dataSource);
-        EmoticonReviewStore reviewStore = new EmoticonReviewStore(dataSource);
-        EmoticonImageStore imageStore = new EmoticonImageStore(dataSource);
-        EmoticonAcquisitionStore acquisitions = new EmoticonAcquisitionStore(dataSource);
-        reads = new EmoticonReadStore(dataSource);
-        contracts = new EmoticonContractService(new EmoticonContractStore(dataSource), ids, clocks);
-        settings = new EmoticonSettingsService(new EmoticonSettingsStore(dataSource), contracts, audit, new CommerceSalesStore(dataSource), clocks);
-        EmoticonPayoutStore payoutStore = new EmoticonPayoutStore(dataSource);
-        EmoticonPriceEventStore priceEvents = new EmoticonPriceEventStore(dataSource);
+        packStore = store(EmoticonPackStore.class);
+        EmoticonReviewStore reviewStore = store(EmoticonReviewStore.class);
+        EmoticonImageStore imageStore = store(EmoticonImageStore.class);
+        EmoticonAcquisitionStore acquisitions = store(EmoticonAcquisitionStore.class);
+        reads = store(EmoticonReadStore.class);
+        contracts = JpaTestContext.transactional(new EmoticonContractService(store(EmoticonContractStore.class), ids, clocks));
+        settings = JpaTestContext.transactional(new EmoticonSettingsService(store(EmoticonSettingsStore.class), contracts, audit, new CommerceSalesStore(JpaTestContext.query()),
+                clocks));
+        EmoticonPayoutStore payoutStore = store(EmoticonPayoutStore.class);
+        EmoticonPriceEventStore priceEvents = store(EmoticonPriceEventStore.class);
         cipher = new DataCipher("1:" + Base64.getEncoder().encodeToString(new byte[32]), "");
-        identities = new IdentityStore(dataSource);
+        identities = new IdentityStore(JpaTestContext.query(), JpaTestContext.context().getBean(IdentityVerificationAttemptRepository.class), dataSource);
         EmoticonImageValidator validator = new EmoticonImageValidator(new ImageCodec(new ImageGate(new MediaProperties(2, 10, 24))));
-        images = new EmoticonImageService(validator, imageStore, storage, ids, dataSource, txManager, clocks);
+        images = new EmoticonImageService(validator, imageStore, storage, ids, txManager, clocks);
         content = new EmoticonContent(packStore, imageStore, storage);
         // 운영자 회원 계정 판정(힘이 살아 있나만 — 권한 거울은 읽지 않으므로 역할 저장소 없이)
-        operatorAccounts = new OperatorMemberAccountService(new OperatorMemberAccountStore(dataSource), null, clocks);
-        shop = new EmoticonShopService(packStore, reads, acquisitions, content, operatorAccounts);
-        acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks);
-        purchases = new EmoticonPurchaseStore(dataSource);
-        settlementStore = new EmoticonSettlementStore(dataSource);
-        holidays = new SiteHolidayService(new SiteHolidayStore(dataSource), audit, clocks);
+        operatorAccounts = new OperatorMemberAccountService(JpaTestContext.create(OperatorMemberAccountStore.class), null, clocks);
+        shop = JpaTestContext.transactional(new EmoticonShopService(packStore, reads, acquisitions, content, operatorAccounts));
+        acquire = JpaTestContext.transactional(new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks));
+        purchases = store(EmoticonPurchaseStore.class);
+        settlementStore = store(EmoticonSettlementStore.class);
+        holidays = new SiteHolidayService(JpaTestContext.create(SiteHolidayStore.class), audit, clocks);
         settlementCalculator = new EmoticonSettlementCalculator(settlementStore, payoutStore, settings, holidays);
-        studio = new EmoticonStudioService(packStore, reviewStore, imageStore, reads, settings, content, operatorPublisher, images, contracts, payoutStore, priceEvents,
-                purchases, settlementCalculator, identities, ids, clocks);
-        reviews = new EmoticonReviewService(reviewStore, packStore, reads, settings, content, audit, memberPublisher, contracts, payoutStore, priceEvents, ids, clocks);
-        packs = new EmoticonPackAdminService(packStore, reviewStore, imageStore, reads, settings, content, audit, memberPublisher, images, contracts, payoutStore, priceEvents,
-                purchases, ids, clocks);
-        payouts = new EmoticonPayoutService(payoutStore, identities, studio, cipher, audit, clocks);
-        settlements = new EmoticonSettlementService(settlementStore, settlementCalculator, payoutStore, payouts, reads, packStore, content, audit, ids, clocks);
+        studio = JpaTestContext.transactional(new EmoticonStudioService(packStore, reviewStore, imageStore, reads, settings, content, operatorPublisher, images, contracts,
+                payoutStore, priceEvents, purchases, settlementCalculator, identities, ids, clocks));
+        reviews = JpaTestContext.transactional(new EmoticonReviewService(reviewStore, packStore, reads, settings, content, audit, memberPublisher, contracts, payoutStore,
+                priceEvents, ids, clocks));
+        packs = JpaTestContext.transactional(new EmoticonPackAdminService(packStore, reviewStore, imageStore, reads, settings, content, audit, memberPublisher, images,
+                contracts, payoutStore, priceEvents, purchases, ids, clocks));
+        payouts = JpaTestContext.transactional(new EmoticonPayoutService(payoutStore, identities, studio, cipher, audit, clocks));
+        settlements = JpaTestContext.transactional(new EmoticonSettlementService(settlementStore, settlementCalculator, payoutStore, payouts, reads, packStore, content, audit,
+                ids, clocks));
+        // 결제 사용 기록은 운영에서 글·댓글 저장 트랜잭션 안에서만 부른다(MANDATORY) — 시험은 트랜잭션 없이도 부르므로 감싸지 않는다(저장소가 문장마다 트랜잭션을 연다)
         guard = new EmoticonGuard(reads, acquisitions, purchases, operatorAccounts, clocks);
         acquisitionStore = acquisitions;
         purchaseNotices = new EmoticonPurchaseNotices(memberPublisher);
         handler = new EmoticonPackPaymentHandler(purchases, packStore, acquisitions, settings, purchaseNotices, ids, clocks);
-        creatorWithdrawal = new EmoticonCreatorWithdrawal(packStore, reviewStore, payoutStore, settlements, audit, clocks);
+        creatorWithdrawal = JpaTestContext.transactional(new EmoticonCreatorWithdrawal(packStore, reviewStore, payoutStore, settlements, audit, clocks));
         operator = newOperator();
+    }
+
+    /**
+     * 저장소 — 운영과 같은 JPA·QueryDSL 빈으로 만들고({@link JpaTestContext#create}), 부를 때마다 JPA 트랜잭션에 참여하게(없으면 그 호출만의 트랜잭션을 연다) 감싼다.
+     * 서비스 트랜잭션 안에서는 그대로 참여하고, 시험이 트랜잭션 없이 저장소를 바로 부르면(예전 JDBC 자동 커밋 자리) 호출 하나가 트랜잭션 하나다.
+     */
+    /** 공유 JPA 문맥 + 이 키트의 ID 발급기 — 운영자 픽스처가 발급기 빈을 찾는다(공유 문맥에는 없다) */
+    private static ApplicationContext withIds(SnowflakeIdGenerator ids) {
+        GenericApplicationContext child = new GenericApplicationContext(JpaTestContext.context());
+        child.registerBean(SnowflakeIdGenerator.class, () -> ids);
+        child.refresh();
+        return child;
+    }
+
+    private static <T> T store(Class<T> type) {
+        ProxyFactory proxy = new ProxyFactory(JpaTestContext.create(type));
+        proxy.setProxyTargetClass(true);
+        proxy.addAdvice(new TransactionInterceptor(JpaTestContext.transactions(), new MatchAlwaysTransactionAttributeSource()));
+        return type.cast(proxy.getProxy(type.getClassLoader()));
     }
 
     private static EntityManager noFlush() {
@@ -242,10 +283,9 @@ final class EmoticonTestKit {
     /** 이메일 인증을 마친 정상 회원 — 등급 {@code grade}(새싹 SEEDLING · 일반 REGULAR …) */
     long member(String grade) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO users (id, email, email_verified_at, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, ?, now(), 'v1', now(), now())", id,
-                "emo-" + id + "@test.local");
+        members.user(id, "emo-" + id + "@test.local", true);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, ?)", id, "e" + base36.substring(Math.max(0, base36.length() - 11)), grade);
+        members.profile(id, "e" + base36.substring(Math.max(0, base36.length() - 11)), grade);
         return id;
     }
 
@@ -256,8 +296,7 @@ final class EmoticonTestKit {
 
     long newOperator() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, 'x', true, now(), now())", id,
-                "emoop-" + id + "@test.local", "emoop" + (id % 10_000_000_000L));
+        operators.operator(id, "emoop-" + id + "@test.local", "emoop" + (id % 10_000_000_000L), "x");
         return id;
     }
 
@@ -276,8 +315,13 @@ final class EmoticonTestKit {
         identities.insertVerification(userId, String.format("%064x", userId), null, LocalDate.of(1990, 1, 1), IdentityProviderKind.FAKE, "emo-fake:" + userId,
                 clock.instant());
         if (name != null) {
-            identities.saveNameCipher(userId, cipher.encrypt(IdentityVerificationService.NAME, name));
+            saveName(userId, name);
         }
+    }
+
+    /** 본인인증 줄에 이름 암호문을 넣는다 — 이름 칸은 JPA(QueryDSL) 쓰기라 JPA 트랜잭션에서 한다(이 키트의 JDBC 트랜잭션 관리자에는 실리지 않는다) */
+    void saveName(long userId, String name) {
+        new TransactionTemplate(JpaTestContext.transactions()).executeWithoutResult(s -> identities.saveNameCipher(userId, cipher.encrypt(IdentityVerificationService.NAME, name)));
     }
 
     /** 본인인증(이름 홍길동) + 정산 정보(개인 · 국민) — 유료 희망 신청 준비 */
@@ -326,7 +370,7 @@ final class EmoticonTestKit {
      * (1행 표를 다른 시험과 같이 쓴다).
      */
     void withSeller(Runnable work) {
-        if (new CommerceSalesStore(dataSource).operatorCanSell()) {
+        if (new CommerceSalesStore(JpaTestContext.query()).operatorCanSell()) {
             work.run();
             return;
         }

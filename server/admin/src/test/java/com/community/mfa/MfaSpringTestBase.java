@@ -2,26 +2,27 @@ package com.community.mfa;
 
 import com.community.admin.AdminApplication;
 import com.community.adminauth.service.AdminActorService;
+import com.community.mfa.dto.MfaSettings;
 import com.community.mfa.dto.response.MfaEnrollmentView;
 import com.community.mfa.service.MfaEnrollmentService;
 import com.community.mfa.service.MfaSecrets;
 import com.community.mfa.totp.Base32;
 import com.community.mfa.totp.Totp;
 import com.community.permission.dto.AdminActor;
+import com.community.testsupport.AuditLogQuery;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.OperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -43,7 +44,9 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @SpringBootTest(classes = AdminApplication.class, properties = {
         "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "roboyam.batch.scheduler-enabled=false",
+        // 배치를 끈다 — 예전 "roboyam.batch.scheduler-enabled" 는 없는 설정이라 배치가 켜진 채였고, 그 문맥이 뜰 때 local 공구 시드가 같이 쓰는 시험 DB 에
+        // 예시 분류·상품을 넣어 뒤에 도는 공구 시험(GroupBuyLocalSeederTest · GroupBuyAdminHttpTest)이 실행 순서에 따라 깨졌다
+        "roboyam.batch.enabled=false",
         "roboyam.notification.watcher-enabled=false"
 })
 @Import(MfaSpringTestBase.TestClockConfig.class)
@@ -85,15 +88,25 @@ public abstract class MfaSpringTestBase {
     @Autowired
     protected MfaEnrollmentService enrollments;
 
+    @Autowired
+    private ApplicationContext context;
+
     protected JdbcTemplate jdbc;
-    private Map<String, Object> savedSettings;
+    /** 엔티티 픽스처 — 운영자, 감사 기록 확인, 2차 인증 표(설정·OTP·복구 코드·신뢰 기기) */
+    protected OperatorFixture operatorFixture;
+    protected AuditLogQuery auditLogs;
+    protected MfaFixture mfa;
+    private MfaSettings savedSettings;
     private String passwordHash;
 
     @BeforeEach
     void baseSetUp() {
         jdbc = new JdbcTemplate(dataSource);
+        operatorFixture = new OperatorFixture(context);
+        auditLogs = new AuditLogQuery(context);
+        mfa = new MfaFixture(context);
         clock.set(Instant.now());
-        savedSettings = jdbc.queryForMap("SELECT mfa_enabled, grace_days, trust_months, max_failures, mfa_enabled_at, mfa_enabled_by FROM admin_security_settings WHERE id = 1");
+        savedSettings = mfa.settings();
         if (passwordHash == null) {
             passwordHash = encoder.encode(PASSWORD);
         }
@@ -102,9 +115,7 @@ public abstract class MfaSpringTestBase {
 
     @AfterEach
     void baseTearDown() {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ?, grace_days = ?, trust_months = ?, max_failures = ?, mfa_enabled_at = ?, mfa_enabled_by = ? WHERE id = 1",
-                savedSettings.get("mfa_enabled"), savedSettings.get("grace_days"), savedSettings.get("trust_months"), savedSettings.get("max_failures"),
-                savedSettings.get("mfa_enabled_at"), savedSettings.get("mfa_enabled_by"));
+        mfa.restore(savedSettings);
         SecurityContextHolder.clearContext();
     }
 
@@ -118,8 +129,7 @@ public abstract class MfaSpringTestBase {
     /** @param createdAt 계정을 만든 시각(null 이면 지금) */
     protected long newOperator(Instant createdAt) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, ?, true, ?, now())",
-                id, email(id), "m" + (id % 10_000_000_000_000L), passwordHash, ts(createdAt == null ? clock.instant() : createdAt));
+        operatorFixture.operator(id, email(id), "m" + (id % 10_000_000_000_000L), passwordHash, createdAt == null ? clock.instant() : createdAt);
         return id;
     }
 
@@ -129,14 +139,7 @@ public abstract class MfaSpringTestBase {
 
     /** 루트(하나뿐) — 없으면 만든다 */
     protected long rootId() {
-        List<Long> found = jdbc.queryForList("SELECT id FROM operators WHERE is_root", Long.class);
-        if (!found.isEmpty()) {
-            return found.get(0);
-        }
-        long id = ids.nextId();
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, is_root, approved, created_at, updated_at) VALUES (?, ?, ?, ?, true, true, now(), now())",
-                id, email(id), "root" + (id % 1_000_000_000L), passwordHash);
-        return id;
+        return operatorFixture.rootOrCreate(MfaSpringTestBase::email, id -> "root" + (id % 1_000_000_000L), passwordHash);
     }
 
     protected AdminActor actor(long operatorId) {
@@ -146,8 +149,7 @@ public abstract class MfaSpringTestBase {
     // ── 설정 ─────────────────────────────────────────────────────────────
 
     protected void settings(boolean enabled, int graceDays, int trustMonths, int maxFailures, Instant enabledAt) {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ?, grace_days = ?, trust_months = ?, max_failures = ?, mfa_enabled_at = ? WHERE id = 1",
-                enabled, graceDays, trustMonths, maxFailures, ts(enabledAt));
+        mfa.settings(enabled, graceDays, trustMonths, maxFailures, enabledAt);
     }
 
     /** 켜짐 · 유예 14일 · 1개월 · 실패 5회, 켠 시각 = 하루 전 */
@@ -164,15 +166,12 @@ public abstract class MfaSpringTestBase {
     /** DB 에 바로 등록한다(비밀키 암호문). 돌려주는 값은 base32 비밀키 */
     protected String enrollDirect(long operatorId) {
         String secret = MfaSecrets.newSecret();
-        jdbc.update("INSERT INTO operator_mfa (operator_id, secret_enc, enrolled_at, updated_at) VALUES (?, ?, now(), now()) ON CONFLICT (operator_id) DO UPDATE SET "
-                + "secret_enc = EXCLUDED.secret_enc, enrolled_at = EXCLUDED.enrolled_at, last_step = NULL, pending_secret_enc = NULL, pending_started_at = NULL", operatorId,
-                secrets.encrypt(secret));
+        mfa.enroll(operatorId, secrets.encrypt(secret));
         return secret;
     }
 
     protected void unenroll(long operatorId) {
-        jdbc.update("DELETE FROM operator_mfa WHERE operator_id = ?", operatorId);
-        jdbc.update("DELETE FROM operator_mfa_recovery_codes WHERE operator_id = ?", operatorId);
+        mfa.unenroll(operatorId);
     }
 
     /** 자발 등록을 서비스로 끝까지 — 비밀키와 복구 코드 */
@@ -214,22 +213,15 @@ public abstract class MfaSpringTestBase {
 
     /** 그 운영자가 대상인 마지막 감사 기록의 detail(없으면 null) */
     protected String lastAudit(long targetOperatorId, String action) {
-        List<String> rows = jdbc.queryForList("SELECT coalesce(detail, '') FROM audit_logs WHERE target_id = ? AND action = ? ORDER BY id DESC LIMIT 1", String.class,
-                Long.toString(targetOperatorId), action);
-        return rows.isEmpty() ? null : rows.get(0);
+        return auditLogs.where().target(targetOperatorId).action(action).lastById().map(row -> row.detail() == null ? "" : row.detail()).orElse(null);
     }
 
     protected int auditCount(long targetOperatorId, String action) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_id = ? AND action = ?", Integer.class, Long.toString(targetOperatorId), action);
-        return count == null ? 0 : count;
+        return auditLogs.where().target(targetOperatorId).action(action).count();
     }
 
     protected int deviceCount(long operatorId) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM operator_trusted_devices WHERE operator_id = ?", Integer.class, operatorId);
-        return count == null ? 0 : count;
+        return mfa.deviceCount(operatorId);
     }
 
-    protected static OffsetDateTime ts(Instant at) {
-        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
-    }
 }

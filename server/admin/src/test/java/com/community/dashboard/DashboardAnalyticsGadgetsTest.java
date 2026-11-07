@@ -50,7 +50,7 @@ class DashboardAnalyticsGadgetsTest {
         connection.setAutoCommit(false);
         SingleConnectionDataSource single = new SingleConnectionDataSource(connection, true);
         jdbc = new JdbcTemplate(single);
-        store = new DashboardAnalyticsStore(new AnalyticsDatabase(single, false), single);
+        store = new DashboardAnalyticsStore(new AnalyticsDatabase(single, false), single, null); // 이름 붙이기(JPA)는 이 시험이 쓰지 않는다
     }
 
     @AfterEach

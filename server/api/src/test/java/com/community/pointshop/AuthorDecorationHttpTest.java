@@ -32,21 +32,20 @@ class AuthorDecorationHttpTest extends PointShopApiTestBase {
     void board() {
         board = ids.nextId();
         slug = "d" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 900)", board, slug, "장식 " + slug.substring(slug.length() - 6));
+        boardFixture.board(board, slug, "장식 " + slug.substring(slug.length() - 6), 900);
         boards.invalidate();
     }
 
     private long post(Long authorId, String guestName) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, guest_name, guest_password_hash, title, content) VALUES (?, ?, ?, ?, ?, '장식 시험', '본문')", id, board,
-                authorId, guestName, guestName == null ? null : "x");
+        boardFixture.post(id, board, authorId, guestName, guestName == null ? null : "x", "장식 시험", "본문");
         return id;
     }
 
     private long comment(long postId, Long authorId, String guestName) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, guest_name, guest_password_hash, content) VALUES (?, ?, ?, ?, ?, ?, '댓글')", id, postId, board,
-                authorId, guestName, guestName == null ? null : "x");
+        boardFixture.comment(id, postId, board, authorId, guestName, guestName == null ? null : "x", "댓글");
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?", postId);
         return id;
     }

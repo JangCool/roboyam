@@ -1,11 +1,13 @@
 package com.community.batch.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.transaction.PlatformTransactionManager;
+import com.community.testsupport.JpaTestContext;
+import com.community.testsupport.BatchTestParts;
 
 import com.community.batch.config.BatchProperties;
 import com.community.batch.core.BatchContext;
 import com.community.batch.core.BatchDefinition;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchRegistry;
@@ -36,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 /**
  * 배치 설정은 {@code roboyam.batch.enabled} 하나다(결정 6 — 예약 실행·실행 요청 집기·워커가 함께 켜지고 꺼진다). 끈 서버는 요청을 집지 않고(대기로 남아 다른 서버가 집는다)
@@ -50,7 +51,7 @@ class BatchEnabledSwitchTest {
 
     private static DataSource dataSource;
     private static JdbcTemplate jdbc;
-    private static DataSourceTransactionManager transactions;
+    private static PlatformTransactionManager transactions;
     private static SnowflakeIdGenerator ids;
     private static BatchLockService locks;
     private static BatchRunRecorder recorder;
@@ -60,11 +61,11 @@ class BatchEnabledSwitchTest {
     static void setUp() {
         dataSource = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(dataSource);
-        transactions = new DataSourceTransactionManager(dataSource);
+        transactions = JpaTestContext.transactions(); // 배치 기록기는 JPA
         ids = new SnowflakeIdGenerator(NODE_ID);
         locks = new BatchLockService(dataSource);
-        recorder = new BatchRunRecorder(dataSource, transactions, ids, NODE_ID);
-        queue = new BatchRequestQueue(dataSource, transactions, ids, NODE_ID);
+        recorder = BatchTestParts.recorder(ids, NODE_ID);
+        queue = BatchTestParts.queue(ids, NODE_ID);
     }
 
     private static BatchProperties properties(boolean enabled) {
@@ -101,7 +102,7 @@ class BatchEnabledSwitchTest {
 
     private static BatchRequestPoller poller(boolean enabled, CountingJob job, WorkerHeartbeats heartbeats) {
         BatchRegistry registry = BatchRegistry.forJobs(List.of(job));
-        BatchRunner runner = new BatchRunner(locks, recorder, new BatchFailureRecorder(dataSource, transactions, ids), registry, transactions);
+        BatchRunner runner = new BatchRunner(locks, recorder, BatchTestParts.failures(ids), registry, transactions);
         BatchRequestExecutor executor = new BatchRequestExecutor(queue, runner, registry, new DbBatchCaller(dataSource), recorder);
         return new BatchRequestPoller(properties(enabled), executor, heartbeats);
     }
@@ -159,7 +160,7 @@ class BatchEnabledSwitchTest {
                     calls.add(method.getName());
                     return method.getName().equals("findAll") ? List.of() : null;
                 });
-        BatchRunner runner = new BatchRunner(locks, recorder, new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of()), transactions);
+        BatchRunner runner = new BatchRunner(locks, recorder, BatchTestParts.failures(ids), BatchRegistry.forJobs(List.of()), transactions);
 
         BatchScheduler off = new BatchScheduler(properties(false), jobs, runner, queue, locks);
         off.start();

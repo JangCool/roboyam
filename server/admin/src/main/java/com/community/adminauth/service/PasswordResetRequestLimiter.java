@@ -3,9 +3,9 @@ package com.community.adminauth.service;
 import com.community.adminauth.config.AdminPasswordResetProperties;
 import com.community.adminauth.exception.TooManyRequestsException;
 import com.community.operator.entity.OperatorCertRequestEntity;
+import com.community.operator.repository.master.OperatorCertRequestQueries;
 import com.community.operator.repository.master.OperatorCertRequestRepository;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import jakarta.persistence.EntityManager;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li><b>가입 여부와 무관하게 똑같이 센다</b> — 없는 이메일이어도 같은 한도에 걸린다(존재 노출 금지). 키는 접두어를 붙인 SHA-256 해시라 이메일·IP 원문이 남지 않는다.</li>
- *   <li>받아들인 요청만 기록한다(거절된 요청은 기록하지 않아 거절이 한도를 늘리지 않는다). 확인과 기록 사이의 경합은 두 키에 거는 트랜잭션 어드바이저리 잠금으로 줄 세운다
+ *   <li>받아들인 요청만 기록한다(거절된 요청은 기록하지 않아 거절이 한도를 늘리지 않는다). 확인과 기록 사이의 경합은 두 키에 거는 트랜잭션 어드바이저리 잠금({@link OperatorCertRequestQueries#lockKey})으로 줄 세운다
  *       (잠금 순서는 키 정렬 순서라 교착이 없다).</li>
  *   <li>IP 에는 쿨다운이 없다 — 한 사무실(NAT) 안의 서로 다른 운영자가 막히지 않게 한다. 이메일 쿨다운이 같은 IP+이메일의 반복을 막는다.</li>
  * </ul>
@@ -27,20 +27,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class PasswordResetRequestLimiter {
 
-    /** 어드바이저리 잠금 종류 번호 — 이 앱의 다른 잠금 키(7_340_001 기동 맞춤, 7_340_002 배치, 7_340_003 닉네임)와 겹치지 않게 정한 값 */
-    private static final int LOCK_CLASS = 7_340_004;
-
     private final OperatorCertRequestRepository requests;
     private final AdminPasswordResetProperties props;
     private final SnowflakeIdGenerator ids;
-    private final EntityManager entityManager;
+    private final OperatorCertRequestQueries requestLocks;
 
     public PasswordResetRequestLimiter(OperatorCertRequestRepository requests, AdminPasswordResetProperties props, SnowflakeIdGenerator ids,
-                                       EntityManager entityManager) {
+                                       OperatorCertRequestQueries requestLocks) {
         this.requests = requests;
         this.props = props;
         this.ids = ids;
-        this.entityManager = entityManager;
+        this.requestLocks = requestLocks;
     }
 
     /**
@@ -50,7 +47,7 @@ public class PasswordResetRequestLimiter {
      * @param ipKey    IP 해시 키
      */
     public void consume(String emailKey, String ipKey, Instant now) {
-        Stream.of(emailKey, ipKey).sorted().forEach(this::lock);
+        Stream.of(emailKey, ipKey).sorted().forEach(requestLocks::lockKey);
 
         Duration window = Duration.ofMinutes(props.windowMinutes());
         Instant since = now.minus(window);
@@ -76,12 +73,6 @@ public class PasswordResetRequestLimiter {
 
         requests.persist(OperatorCertRequestEntity.create(ids.nextId(), emailKey, now));
         requests.persist(OperatorCertRequestEntity.create(ids.nextId(), ipKey, now));
-    }
-
-    private void lock(String key) {
-        // Native SQL 인 이유: pg_advisory_xact_lock 은 JPQL·QueryDSL 에 대응 문법이 없다(void 반환이라 바깥 select 로 감싸 값 하나로 읽는다)
-        entityManager.createNativeQuery("select count(*) from (select pg_advisory_xact_lock(?1, hashtext(?2))) as acquired")
-                .setParameter(1, LOCK_CLASS).setParameter(2, key).getSingleResult();
     }
 
     /** 남은 초(올림, 최소 1) */

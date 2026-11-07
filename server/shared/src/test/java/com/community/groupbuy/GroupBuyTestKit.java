@@ -36,6 +36,7 @@ import com.community.groupbuy.service.ParticipationCancelService;
 import com.community.groupbuy.service.ShippingPolicyService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.identity.repository.master.IdentityVerificationAttemptRepository;
 import com.community.identity.service.IdentityVerificationService;
 import com.community.membernotification.repository.master.MemberNotificationWriter;
 import com.community.membernotification.service.MemberNotificationPublisher;
@@ -60,17 +61,18 @@ import com.community.payment.service.PaymentCancelService;
 import com.community.payment.service.PaymentCancelWorker;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.payment.service.PaymentOrderService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
+import com.community.testsupport.JpaTestContext;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.crypto.DataCipher;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
-import jakarta.persistence.EntityManager;
-import java.lang.reflect.Proxy;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -99,7 +101,6 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -199,9 +200,13 @@ final class GroupBuyTestKit {
             return current.dataSourceForWiring;
         }
 
+        /**
+         * JPA 트랜잭션 관리자({@link JpaTestContext}) — 기능 제한 자동 부여(선점 만료 → 공구 참여 제한)가 엔티티로 넣으므로 그 쓰기가 업무 트랜잭션에 실려야 한다.
+         * 같은 트랜잭션 안의 JDBC 저장소는 같은 연결을 쓴다(데이터소스가 같은 것 — {@link CommerceTestDatabase#migrated}).
+         */
         @Bean
-        PlatformTransactionManager transactionManager(DataSource dataSource) {
-            return new DataSourceTransactionManager(dataSource);
+        PlatformTransactionManager transactionManager() {
+            return JpaTestContext.transactions();
         }
 
         @Bean
@@ -268,13 +273,13 @@ final class GroupBuyTestKit {
         @Bean
         IdentityVerificationService identityVerificationService(DataSource dataSource, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
                                                                 ObjectProvider<Clock> clocks) {
-            return new IdentityVerificationService(new IdentityStore(dataSource), null, null, null, null, null, ids, transactions, null, clocks);
+            return new IdentityVerificationService(identityStore(dataSource), null, null, null, null, null, ids, transactions, null, clocks);
         }
 
         @Bean
         MemberRestrictionService memberRestrictionService(DataSource dataSource, AuditLogService audit, SnowflakeIdGenerator ids, ApplicationEventPublisher events,
                                                           ObjectProvider<Clock> clocks) {
-            MemberNotificationPublisher notices = new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, noFlush()),
+            MemberNotificationPublisher notices = new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, JpaTestContext.entityManager()),
                     ids, events);
             Messages messages = new Messages(null, new StandardEnvironment(), "messages/messages") {
                 @Override
@@ -282,13 +287,13 @@ final class GroupBuyTestKit {
                     return ref.key();
                 }
             };
-            return new MemberRestrictionService(new MemberRestrictionStore(dataSource), audit, notices, ids, messages, clocks);
+            return new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), audit, notices, ids, messages, clocks);
         }
 
         /** 2b-4 공구 알림 — 회원 알림 발행기·커머스 메일 대기열·사업자 정보·문구(실제 번들) */
         @Bean
         MemberNotificationPublisher memberNotificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids, ApplicationEventPublisher events) {
-            return new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, events);
+            return new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, JpaTestContext.entityManager()), ids, events);
         }
 
         @Bean
@@ -298,7 +303,7 @@ final class GroupBuyTestKit {
 
         @Bean
         com.community.commerce.sales.CommerceSalesStore commerceSalesStore(DataSource dataSource) {
-            return new com.community.commerce.sales.CommerceSalesStore(dataSource);
+            return new com.community.commerce.sales.CommerceSalesStore(com.community.testsupport.JpaTestContext.query());
         }
 
         @Bean
@@ -316,18 +321,18 @@ final class GroupBuyTestKit {
         }
 
         @Bean
-        PaymentOrderStore paymentOrderStore(DataSource dataSource) {
-            return new PaymentOrderStore(dataSource);
+        PaymentOrderStore paymentOrderStore() {
+            return JpaTestContext.create(PaymentOrderStore.class);
         }
 
         @Bean
-        PaymentCancelStore paymentCancelStore(DataSource dataSource) {
-            return new PaymentCancelStore(dataSource);
+        PaymentCancelStore paymentCancelStore() {
+            return JpaTestContext.create(PaymentCancelStore.class);
         }
 
         @Bean
-        PaymentEventStore paymentEventStore(DataSource dataSource) {
-            return new PaymentEventStore(dataSource);
+        PaymentEventStore paymentEventStore() {
+            return JpaTestContext.create(PaymentEventStore.class);
         }
 
         @Bean
@@ -363,7 +368,7 @@ final class GroupBuyTestKit {
         NotificationPublisher notificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids) {
             List<AdminNotificationEvent> sink = current.operatorNotices;
             List<NotificationContext> contexts = current.operatorContexts;
-            return new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+            return new NotificationPublisher(null, null, ids, null, null, dataSource) {
                 @Override
                 public int publish(AdminNotificationEvent event, NotificationContext context) {
                     sink.add(event);
@@ -453,7 +458,11 @@ final class GroupBuyTestKit {
         clockForWiring = clock;
         idsForWiring = ids;
         current = this;
-        spring = new AnnotationConfigApplicationContext(Wiring.class);
+        // 공구 저장소(JPA·QueryDSL)가 쓰는 질의 팩토리·엔티티 관리자는 공유 JPA 문맥의 것 — 부모 문맥으로 둔다(같은 이름의 데이터소스·트랜잭션 관리자는 이 문맥 것이 가린다)
+        spring = new AnnotationConfigApplicationContext();
+        spring.setParent(JpaTestContext.context());
+        spring.register(Wiring.class);
+        spring.refresh();
         tx = new TransactionTemplate(spring.getBean(PlatformTransactionManager.class));
         fakePg = new FakePgStore(dataSource);
         admin = spring.getBean(GroupBuyAdminService.class);
@@ -497,16 +506,6 @@ final class GroupBuyTestKit {
         category = products.createCategory("시험 " + ids.nextId(), null, 0, operator, "127.0.0.1");
     }
 
-    private static EntityManager noFlush() {
-        return (EntityManager) Proxy.newProxyInstance(EntityManager.class.getClassLoader(), new Class<?>[] {EntityManager.class}, (proxy, method, args) -> switch (method.getName()) {
-            case "flush" -> null;
-            case "toString" -> "noFlushEntityManager";
-            case "hashCode" -> System.identityHashCode(proxy);
-            case "equals" -> proxy == args[0];
-            default -> throw new UnsupportedOperationException(method.getName());
-        });
-    }
-
     /** 시험 하나의 시작 — 판매 스위치 켜기, 모은 이벤트·감사 비우기, 시계를 조금 앞으로(앞 시험과 같은 시각을 쓰지 않게) */
     void reset() {
         salesOpen = true;
@@ -545,8 +544,13 @@ final class GroupBuyTestKit {
         return id;
     }
 
+    /** 본인인증 저장소 — 운영과 같은 JPA·QueryDSL({@link JpaTestContext}). 공구는 읽기(만 19세 판정)만 하고 넣기({@link #verify})는 JDBC 한 문장(자동 커밋)이라 이 키트의 JDBC 트랜잭션과 엇갈리지 않는다 */
+    static IdentityStore identityStore(DataSource dataSource) {
+        return new IdentityStore(JpaTestContext.query(), JpaTestContext.context().getBean(IdentityVerificationAttemptRepository.class), dataSource);
+    }
+
     void verify(long userId, LocalDate birthDate) {
-        new IdentityStore(dataSource).insertVerification(userId, String.format("%064x", userId), "f" + String.format("%063x", userId), birthDate, IdentityProviderKind.FAKE, "fake:" + userId, now());
+        identityStore(dataSource).insertVerification(userId, String.format("%064x", userId), "f" + String.format("%063x", userId), birthDate, IdentityProviderKind.FAKE, "fake:" + userId, now());
     }
 
     long newOperator() {

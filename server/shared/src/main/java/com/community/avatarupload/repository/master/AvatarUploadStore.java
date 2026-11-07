@@ -1,30 +1,42 @@
 package com.community.avatarupload.repository.master;
 
+import com.community.avatarupload.entity.AvatarUploadRequestEntity;
 import com.community.avatarupload.entity.AvatarUploadStatus;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import com.community.avatarupload.entity.QAvatarUploadRequestEntity;
+import com.community.grade.entity.QGradeEntity;
+import com.community.nicknameimage.entity.NicknameImageStatus;
+import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
+import com.community.operator.entity.QOperatorEntity;
+import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.types.ConstructorExpression;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 아바타 올리기 신청({@code avatar_upload_requests}, V157) 읽기·쓰기 — 회원 화면(api)·운영자 심사(admin)·작성자 표시가 같이 쓴다.
+ * 아바타 올리기 신청({@code avatar_upload_requests}, V157) 읽기·쓰기 — 회원 화면(api)·운영자 심사(admin)·작성자 표시가 같이 쓴다. <b>부르는 쪽 트랜잭션에 참여한다</b>
+ * (변경권 예약·사용·반환 {@code UserItemStore}(JDBC)·프로필 아바타 바꾸기와 한 트랜잭션 — JPA 트랜잭션 관리자가 JDBC 에도 같은 연결을 준다).
  *
- * <p>JDBC 인 이유: 변경권 예약·사용·반환({@code UserItemStore})·프로필 아바타 바꾸기와 <b>한 트랜잭션</b>이고(포인트 상점 저장소와 같은 판단), 커머스 규칙 시험이 스프링 문맥 없이 조립한다.
- * 상태는 정해진 상태에서만 바꾼다(조건부 UPDATE — 바꾼 줄 수로 판정한다).
+ * <p>상태는 정해진 상태에서만 바꾼다(조건부 대량 UPDATE — 바꾼 줄 수로 판정한다). 그래서 읽기는 모두 프로젝션이다(엔티티를 1차 캐시에 올려 두면 대량 UPDATE 뒤 낡은 값이 보인다).
+ * 새 신청은 넣자마자 내보낸다(flush) — 같은 트랜잭션의 JDBC 저장소가 그 줄을 보고, 문장 차례(대기 하나 — 앞 대기 취소 → 새 대기)가 예전과 같게.
  */
 @Repository
-public class AvatarUploadStore {
+public class AvatarUploadStore extends RoboyamRepositoryQDSL {
 
     /** 신청 한 줄 */
     public record Row(long id, long userId, AvatarUploadStatus status, String imageKey, String stillKey, String contentType, int bytes, int width, int height,
@@ -46,50 +58,67 @@ public class AvatarUploadStore {
     public record AdminRow(Row request, String nickname, String gradeKey, String gradeLabel, String profileImage, String reviewerName, boolean nicknameMotion) {
     }
 
-    private static final String COLUMNS = "r.id, r.user_id, r.status, r.image_key, r.still_key, r.content_type, r.bytes, r.width, r.height, r.frames, r.reject_reason, "
-            + "r.revoke_reason, r.reviewed_by, r.reviewed_at, r.revoked_by, r.revoked_at, r.ended_at, r.created_at";
-    private static final String ADMIN_COLUMNS = COLUMNS + ", p.nickname, p.grade_key, g.label, p.profile_image, o.operator_name, EXISTS (SELECT 1 FROM nickname_image_requests n "
-            + "WHERE n.user_id = r.user_id AND n.status = 'APPROVED' AND n.still_key IS NOT NULL)";
-    private static final String ADMIN_FROM = " FROM avatar_upload_requests r LEFT JOIN profiles p ON p.user_id = r.user_id LEFT JOIN grades g ON g.grade_key = p.grade_key "
-            + "LEFT JOIN operators o ON o.id = r.reviewed_by";
+    private static final QAvatarUploadRequestEntity R = QAvatarUploadRequestEntity.avatarUploadRequestEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QGradeEntity GRADE = QGradeEntity.gradeEntity;
+    private static final QOperatorEntity REVIEWER = QOperatorEntity.operatorEntity;
+    private static final QNicknameImageRequestEntity NICKNAME = QNicknameImageRequestEntity.nicknameImageRequestEntity;
 
-    private final JdbcTemplate jdbc;
+    private static final ConstructorExpression<Row> ROW = Projections.constructor(Row.class, R.id, R.userId, R.status, R.imageKey, R.stillKey, R.contentType, R.bytes,
+            R.width, R.height, R.frames, R.rejectReason, R.revokeReason, R.reviewedBy, R.reviewedAt, R.revokedBy, R.revokedAt, R.endedAt, R.createdAt);
 
-    public AvatarUploadStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    /** 관리자 목록 한 줄 — 움직이는 닉네임 이미지(승인 + 정지 그림 있음)를 지금 쓰는가는 부분 질의 */
+    private static ConstructorExpression<AdminRow> adminRowExpression() {
+        BooleanExpression nicknameMotion = JPAExpressions.selectOne().from(NICKNAME)
+                .where(NICKNAME.userId.eq(R.userId), NICKNAME.status.eq(NicknameImageStatus.APPROVED), NICKNAME.stillKey.isNotNull()).exists();
+        return Projections.constructor(AdminRow.class, ROW, PROFILE.nickname, PROFILE.gradeKey, GRADE.label, PROFILE.profileImage, REVIEWER.operatorName,
+                new CaseBuilder().when(nicknameMotion).then(true).otherwise(false));
+    }
+
+    private final AvatarUploadRequestRepository requests;
+    private final EntityManager entityManager;
+
+    public AvatarUploadStore(JPAQueryFactory query, AvatarUploadRequestRepository requests, EntityManager entityManager) {
+        super(query);
+        this.requests = requests;
+        this.entityManager = entityManager;
     }
 
     // ── 읽기 ────────────────────────────────────────────────────────────────
 
     public Optional<Row> find(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.id = ?", AvatarUploadStore::rowOf, id).stream().findFirst();
+        return Optional.ofNullable(query.select(ROW).from(R).where(R.id.eq(id)).fetchOne());
     }
 
-    /** 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다) */
+    /**
+     * 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다). 잠금은 신청 표만 고르는 id 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} —
+     * 이 표를 FK 로 가리키는 표가 없다), 값은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값).
+     */
     public Optional<Row> findForUpdate(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.id = ? FOR UPDATE", AvatarUploadStore::rowOf, id).stream().findFirst();
+        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
+            return Optional.empty();
+        }
+        return find(id);
     }
 
     /** 신청한 회원(없는 신청이면 빈 값) */
     public Optional<Long> userIdOf(long id) {
-        return jdbc.queryForList("SELECT user_id FROM avatar_upload_requests WHERE id = ?", Long.class, id).stream().findFirst();
+        return Optional.ofNullable(query.select(R.userId).from(R).where(R.id.eq(id)).fetchOne());
     }
 
     /** 회원의 그 상태 신청(대기·승인은 회원당 하나 — 부분 유일 색인) */
     public Optional<Row> byStatus(long userId, AvatarUploadStatus status) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.user_id = ? AND r.status = ? ORDER BY r.id DESC LIMIT 1", AvatarUploadStore::rowOf,
-                userId, status.name()).stream().findFirst();
+        return Optional.ofNullable(query.select(ROW).from(R).where(R.userId.eq(userId), R.status.eq(status)).orderBy(R.id.desc()).limit(1).fetchFirst());
     }
 
     /** 회원의 그 상태 신청 전부(반려 파일 정리) */
     public List<Row> allByStatus(long userId, AvatarUploadStatus status) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.user_id = ? AND r.status = ?", AvatarUploadStore::rowOf, userId, status.name());
+        return query.select(ROW).from(R).where(R.userId.eq(userId), R.status.eq(status)).fetch();
     }
 
     /** 회원의 가장 최근 신청 */
     public Optional<Row> latest(long userId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.user_id = ? ORDER BY r.id DESC LIMIT 1", AvatarUploadStore::rowOf, userId).stream()
-                .findFirst();
+        return Optional.ofNullable(query.select(ROW).from(R).where(R.userId.eq(userId)).orderBy(R.id.desc()).limit(1).fetchFirst());
     }
 
     /** 여러 회원의 승인된 그림(「내가 올린 아바타」) — 작성자 표시가 목록마다 한 번 */
@@ -98,8 +127,7 @@ public class AvatarUploadStore {
         if (userIds.isEmpty()) {
             return out;
         }
-        for (Row row : jdbc.query("SELECT " + COLUMNS + " FROM avatar_upload_requests r WHERE r.status = 'APPROVED' AND r.user_id IN (" + marks(userIds.size()) + ")",
-                AvatarUploadStore::rowOf, new ArrayList<>(userIds).toArray())) {
+        for (Row row : query.select(ROW).from(R).where(R.status.eq(AvatarUploadStatus.APPROVED), R.userId.in(userIds)).fetch()) {
             out.put(row.userId(), row);
         }
         return out;
@@ -107,48 +135,50 @@ public class AvatarUploadStore {
 
     /** 오늘(한국 시간 0시 뒤) 올린 수 — 하루 한도 */
     public long countSince(long userId, Instant since) {
-        Long count = jdbc.queryForObject("SELECT count(*) FROM avatar_upload_requests WHERE user_id = ? AND created_at >= ?", Long.class, userId, ts(since));
+        Long count = query.select(R.count()).from(R).where(R.userId.eq(userId), R.createdAt.goe(since)).fetchOne();
         return count == null ? 0 : count;
     }
 
     // ── 쓰기 ────────────────────────────────────────────────────────────────
 
     public void insertPending(long id, long userId, String imageKey, String stillKey, String contentType, int bytes, int width, int height, int frames, Instant now) {
-        jdbc.update("INSERT INTO avatar_upload_requests (id, user_id, status, image_key, still_key, content_type, bytes, width, height, frames, created_at) "
-                + "VALUES (?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?)", id, userId, imageKey, stillKey, contentType, bytes, width, height, frames, ts(now));
+        AvatarUploadRequestEntity row = AvatarUploadRequestEntity.pending(id, userId, imageKey, stillKey, contentType, bytes, width, height, frames, now);
+        requests.persist(row);
+        entityManager.flush();
+        entityManager.detach(row); // 이후 값은 프로젝션으로 읽는다
     }
 
     /** 대기 → CANCELED(회원 취소·새 신청이 대체) */
     public boolean cancel(long id, Instant now) {
-        return jdbc.update("UPDATE avatar_upload_requests SET status = 'CANCELED', ended_at = ? WHERE id = ? AND status = 'PENDING'", ts(now), id) == 1;
+        return query.update(R).set(R.status, AvatarUploadStatus.CANCELED).set(R.endedAt, now).where(R.id.eq(id), R.status.eq(AvatarUploadStatus.PENDING)).execute() == 1;
     }
 
     /** 대기 → APPROVED */
     public boolean approve(long id, long operatorId, Instant now) {
-        return jdbc.update("UPDATE avatar_upload_requests SET status = 'APPROVED', reviewed_by = ?, reviewed_at = ? WHERE id = ? AND status = 'PENDING'", operatorId, ts(now),
-                id) == 1;
+        return query.update(R).set(R.status, AvatarUploadStatus.APPROVED).set(R.reviewedBy, operatorId).set(R.reviewedAt, now)
+                .where(R.id.eq(id), R.status.eq(AvatarUploadStatus.PENDING)).execute() == 1;
     }
 
     /** 대기 → REJECTED(사유) */
     public boolean reject(long id, long operatorId, String reason, Instant now) {
-        return jdbc.update("UPDATE avatar_upload_requests SET status = 'REJECTED', reject_reason = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ? AND status = 'PENDING'",
-                reason, operatorId, ts(now), id) == 1;
+        return query.update(R).set(R.status, AvatarUploadStatus.REJECTED).set(R.rejectReason, reason).set(R.reviewedBy, operatorId).set(R.reviewedAt, now)
+                .where(R.id.eq(id), R.status.eq(AvatarUploadStatus.PENDING)).execute() == 1;
     }
 
     /** 승인 → REVOKED(운영자 해제, 사유) */
     public boolean revoke(long id, long operatorId, String reason, Instant now) {
-        return jdbc.update("UPDATE avatar_upload_requests SET status = 'REVOKED', revoke_reason = ?, revoked_by = ?, revoked_at = ? WHERE id = ? AND status = 'APPROVED'",
-                reason, operatorId, ts(now), id) == 1;
+        return query.update(R).set(R.status, AvatarUploadStatus.REVOKED).set(R.revokeReason, reason).set(R.revokedBy, operatorId).set(R.revokedAt, now)
+                .where(R.id.eq(id), R.status.eq(AvatarUploadStatus.APPROVED)).execute() == 1;
     }
 
     /** 승인 → REMOVED(회원이 지움·다른 그림이 승인돼 바뀜) */
     public boolean remove(long id, Instant now) {
-        return jdbc.update("UPDATE avatar_upload_requests SET status = 'REMOVED', ended_at = ? WHERE id = ? AND status = 'APPROVED'", ts(now), id) == 1;
+        return query.update(R).set(R.status, AvatarUploadStatus.REMOVED).set(R.endedAt, now).where(R.id.eq(id), R.status.eq(AvatarUploadStatus.APPROVED)).execute() == 1;
     }
 
     /** 파일을 지웠다(지우는 일은 커밋 뒤 부르는 쪽이 한다) — 키를 비운다 */
     public void dropFiles(long id) {
-        jdbc.update("UPDATE avatar_upload_requests SET image_key = NULL, still_key = NULL WHERE id = ?", id);
+        query.update(R).setNull(R.imageKey).setNull(R.stillKey).where(R.id.eq(id)).execute();
     }
 
     // ── 관리자 목록 ─────────────────────────────────────────────────────────
@@ -159,68 +189,41 @@ public class AvatarUploadStore {
      * @param keyword 닉네임 부분 일치(대소문자 무시) — null 이면 조건 없음
      */
     public List<AdminRow> adminPage(AvatarUploadStatus status, String keyword, int offset, int size) {
-        List<Object> args = new ArrayList<>();
-        String where = adminWhere(status, keyword, args);
-        String order = switch (status) {
-            case PENDING -> " ORDER BY r.id";
-            case REVOKED -> " ORDER BY r.revoked_at DESC, r.id DESC";
-            default -> " ORDER BY r.reviewed_at DESC, r.id DESC";
+        OrderSpecifier<?>[] order = switch (status) {
+            case PENDING -> new OrderSpecifier<?>[] {R.id.asc()};
+            case REVOKED -> new OrderSpecifier<?>[] {R.revokedAt.desc(), R.id.desc()};
+            default -> new OrderSpecifier<?>[] {R.reviewedAt.desc(), R.id.desc()};
         };
-        args.add(size);
-        args.add(offset);
-        return jdbc.query("SELECT " + ADMIN_COLUMNS + ADMIN_FROM + where + order + " LIMIT ? OFFSET ?", AvatarUploadStore::adminRowOf, args.toArray());
+        return adminFrom(query.select(adminRowExpression())).where(adminWhere(status), keyword(keyword)).orderBy(order).offset(offset).limit(size).fetch();
     }
 
     public long adminCount(AvatarUploadStatus status, String keyword) {
-        List<Object> args = new ArrayList<>();
-        Long count = jdbc.queryForObject("SELECT count(*)" + ADMIN_FROM + adminWhere(status, keyword, args), Long.class, args.toArray());
+        Long count = adminFrom(query.select(R.count())).where(adminWhere(status), keyword(keyword)).fetchOne();
         return count == null ? 0 : count;
     }
 
     /** 한 줄(승인·반려·해제 뒤 응답) */
     public Optional<AdminRow> adminRow(long id) {
-        return jdbc.query("SELECT " + ADMIN_COLUMNS + ADMIN_FROM + " WHERE r.id = ?", AvatarUploadStore::adminRowOf, id).stream().findFirst();
+        return Optional.ofNullable(adminFrom(query.select(adminRowExpression())).where(R.id.eq(id)).fetchOne());
     }
 
-    private static String adminWhere(AvatarUploadStatus status, String keyword, List<Object> args) {
-        StringBuilder where = new StringBuilder(status == AvatarUploadStatus.APPROVED ? " WHERE (r.status = 'APPROVED' OR (r.status = 'REMOVED' AND r.reviewed_at IS NOT NULL))"
-                : " WHERE r.status = ?");
-        if (status != AvatarUploadStatus.APPROVED) {
-            args.add(status.name());
+    private static <T> JPAQuery<T> adminFrom(JPAQuery<T> select) {
+        return select.from(R).leftJoin(PROFILE).on(PROFILE.userId.eq(R.userId)).leftJoin(GRADE).on(GRADE.gradeKey.eq(PROFILE.gradeKey))
+                .leftJoin(REVIEWER).on(REVIEWER.id.eq(R.reviewedBy));
+    }
+
+    private static BooleanExpression adminWhere(AvatarUploadStatus status) {
+        if (status == AvatarUploadStatus.APPROVED) {
+            return R.status.eq(AvatarUploadStatus.APPROVED).or(R.status.eq(AvatarUploadStatus.REMOVED).and(R.reviewedAt.isNotNull()));
         }
-        if (keyword != null && !keyword.isBlank()) {
-            String escaped = keyword.strip().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-            where.append(" AND lower(p.nickname) LIKE ? ESCAPE '\\'");
-            args.add("%" + escaped + "%");
+        return R.status.eq(status);
+    }
+
+    private static BooleanExpression keyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
         }
-        return where.toString();
-    }
-
-    private static AdminRow adminRowOf(ResultSet rs, int i) throws SQLException {
-        return new AdminRow(rowOf(rs, i), rs.getString(19), rs.getString(20), rs.getString(21), rs.getString(22), rs.getString(23), rs.getBoolean(24));
-    }
-
-    private static Row rowOf(ResultSet rs, int i) throws SQLException {
-        return new Row(rs.getLong(1), rs.getLong(2), AvatarUploadStatus.valueOf(rs.getString(3)), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7),
-                rs.getInt(8), rs.getInt(9), rs.getInt(10), rs.getString(11), rs.getString(12), nullableLong(rs, 13), instant(rs, 14), nullableLong(rs, 15), instant(rs, 16),
-                instant(rs, 17), instant(rs, 18));
-    }
-
-    private static Long nullableLong(ResultSet rs, int column) throws SQLException {
-        long value = rs.getLong(column);
-        return rs.wasNull() ? null : value;
-    }
-
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
-    }
-
-    private static Timestamp ts(Instant at) {
-        return at == null ? null : Timestamp.from(at);
-    }
-
-    private static String marks(int n) {
-        return String.join(", ", java.util.Collections.nCopies(n, "?"));
+        String escaped = keyword.strip().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return PROFILE.nickname.lower().like("%" + escaped + "%", '\\');
     }
 }

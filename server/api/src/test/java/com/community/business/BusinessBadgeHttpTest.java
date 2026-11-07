@@ -99,7 +99,7 @@ class BusinessBadgeHttpTest extends BizApplicationApiTestBase {
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
         board = ids.nextId();
         slug = "bb" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 900)", board, slug, "뱃지 " + slug.substring(slug.length() - 6));
+        boardFixture.board(board, slug, "뱃지 " + slug.substring(slug.length() - 6), 900);
         boards.invalidate();
     }
 
@@ -111,24 +111,24 @@ class BusinessBadgeHttpTest extends BizApplicationApiTestBase {
     /** 사업자 신원이 없는 일반 회원(프로필 있음) */
     private long plainMember() {
         long user = newMember();
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "p" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
+        memberFixture.profile(user, "p" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
         return user;
     }
 
     private long post(Long authorId, String guestName) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, guest_name, guest_password_hash, title, content) VALUES (?, ?, ?, ?, ?, '뱃지 시험', '본문')", id, board,
-                authorId, guestName, guestName == null ? null : "x");
+        boardFixture.post(id, board, authorId, guestName, guestName == null ? null : "x", "뱃지 시험", "본문");
         return id;
     }
 
     private void comment(long postId, long authorId) {
-        jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, content) VALUES (?, ?, ?, ?, '댓글')", ids.nextId(), postId, board, authorId);
+        boardFixture.comment(ids.nextId(), postId, board, authorId, "댓글");
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?", postId);
     }
 
     private String nickname(long userId) {
-        return jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, userId);
+        return memberFixture.nickname(userId);
     }
 
     @Test
@@ -138,6 +138,7 @@ class BusinessBadgeHttpTest extends BizApplicationApiTestBase {
         long pending = business("PENDING", false);
         long suspended = business("SUSPENDED", false);
         long rejected = business("PENDING", false);
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'REJECTED', reject_code = 'OTHER', reject_text = '시험' WHERE user_id = ?", rejected);
         long plain = plainMember();
 

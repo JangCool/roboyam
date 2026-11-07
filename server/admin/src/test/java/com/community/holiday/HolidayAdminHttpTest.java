@@ -86,7 +86,7 @@ class HolidayAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.name").isNotEmpty());
         mvc.perform(withCsrf(post("/api/admin/holidays"), session).content("{\"name\":\"이름\"}")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.date").isNotEmpty());
-        assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'SITE_HOLIDAY_CREATE' ORDER BY id DESC LIMIT 1", String.class, operator))
+        assertThat(auditLogs.where().actor(operator).action("SITE_HOLIDAY_CREATE").lastById().orElseThrow().detail())
                 .contains("2043-05-05").contains("창립기념일");
 
         MvcResult year = mvc.perform(get("/api/admin/holidays").param("year", "2043").cookie(session)).andExpect(status().isOk())
@@ -102,7 +102,7 @@ class HolidayAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(delete("/api/admin/holidays/" + seed), session)).andExpect(status().isConflict());
         mvc.perform(withCsrf(delete("/api/admin/holidays/" + company), session)).andExpect(status().isNoContent());
         mvc.perform(withCsrf(delete("/api/admin/holidays/" + company), session)).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("HOLIDAY_NOT_FOUND"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'SITE_HOLIDAY_DELETE'", Integer.class, operator)).isEqualTo(1);
+        assertThat(auditLogs.where().actor(operator).action("SITE_HOLIDAY_DELETE").count()).isEqualTo(1);
     }
 
     @Test
@@ -137,6 +137,6 @@ class HolidayAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM site_holidays", Integer.class)).isEqualTo(before);
         mvc.perform(get("/api/admin/holidays").param("year", "2043").cookie(session)).andExpect(jsonPath("$.data.sync.outcome").value("FAILED"))
                 .andExpect(jsonPath("$.data.keyConfigured").value(true));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'SITE_HOLIDAY_SYNC'", Integer.class, operator)).isEqualTo(1);
+        assertThat(auditLogs.where().actor(operator).action("SITE_HOLIDAY_SYNC").count()).isEqualTo(1);
     }
 }

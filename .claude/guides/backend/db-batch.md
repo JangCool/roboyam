@@ -35,7 +35,7 @@
 
 ### 2-4. 앱 쪽 (건드릴 일이 거의 없다)
 * 목록·켜기/끄기·cron 수정·지금 실행·로그는 `source` 로 갈라 이미 구현돼 있다(`BatchQueryService` · `BatchAdminService` · `DbBatchGateway`). DB 배치를 더할 때 Java 코드는 카탈로그 한 줄뿐이다.
-* DB 읽기/쓰기는 `DbBatchGateway` 한 곳에 모은다(native SQL — `cron.*`·`CALL` 은 JPQL/QueryDSL 에 없다). 읽기는 트랜잭션 밖(NOT_SUPPORTED) — PostgreSQL 은 실패한 문장이 트랜잭션을 망가뜨려 화면 전체가 500 이 되기 때문이다. 「지금 실행」은 요청 표에 넣고, 배치를 켠 서버가 집어 core 의 `DbBatchCaller` 로 트랜잭션 밖의 새 연결에서 `CALL` 한다(프로시저가 COMMIT 하므로). DB 배치는 단계·건별 실패를 기록하지 않고 재실행(실패 지점부터·실패 건만)이 없다.
+* DB 문장은 저장소 `PgCronQueries`(admin `batch/repository/master`) 한 곳에 모으고(native SQL — `cron.*`·DB 함수는 JPQL/QueryDSL 에 없다), 트랜잭션 경계·실패 처리(로그·「사용 불가」)는 서비스 `DbBatchGateway` 가 정한다. 읽기·`cron.alter_job` 은 트랜잭션 밖(NOT_SUPPORTED) — PostgreSQL 은 실패한 문장이 트랜잭션을 망가뜨려 화면 전체가 500 이 되기 때문이다. 「지금 실행」은 요청 표에 넣고, 배치를 켠 서버가 집어 core 의 `DbBatchCaller` 로 트랜잭션 밖의 새 연결에서 `CALL` 한다(프로시저가 COMMIT 하므로). DB 배치는 단계·건별 실패를 기록하지 않고 재실행(실패 지점부터·실패 건만)이 없다.
 * 켜기/끄기·cron 수정은 `cron.alter_job` 이고 감사 기록(`BATCH_TOGGLE`·`BATCH_SCHEDULE_CHANGE`·`BATCH_RUN`)은 Java 배치와 같다.
 
 ---

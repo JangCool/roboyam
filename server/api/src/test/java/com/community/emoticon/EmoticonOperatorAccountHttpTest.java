@@ -43,8 +43,8 @@ import org.springframework.web.context.WebApplicationContext;
 class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
 
     private static final int PRICE = 2500;
-    private static final List<MemberPermission> GENERAL = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE);
+    /** 일반 회원 기본 권한 — 운영 시드({@code BuiltinRoleSeeder})와 같은 정본(먼저 도는 시험이 역할을 만들면 뒤의 공구 주문 시험도 그 권한을 쓴다) */
+    private static final List<MemberPermission> GENERAL = MemberRoleIds.GENERAL_DEFAULT_PERMISSIONS;
 
     @Autowired
     private WebApplicationContext context;
@@ -73,18 +73,21 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = true WHERE id = 1");
         SiteOperatorFixture.fillBusiness(jdbc); // 유료 판매·구매는 운영 주체가 개인사업자 이상 + 통신판매업 신고번호(사용자 결정 2026-11-07)
         for (MemberPermission p : MemberPermission.values()) {
+            // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
         }
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         if (jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name, scope, grant_mode, builtin) VALUES (?, 'memberKind', 'MEMBER', ?, 'SITE', 'AUTO', true) "
                 + "ON CONFLICT (role_id) DO NOTHING", MemberRoleIds.GENERAL, MemberRoleIds.GENERAL) == 1) {
             for (MemberPermission p : GENERAL) {
+                // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
                 jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", ids.nextId(), MemberRoleIds.GENERAL, p.code());
             }
         }
         board = ids.nextId();
         slug = "eoa" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 953)", board, slug, "운영자 팩 " + slug.substring(slug.length() - 5));
+        boardFixture.board(board, slug, "운영자 팩 " + slug.substring(slug.length() - 5), 953);
         boards.invalidate();
     }
 
@@ -99,9 +102,9 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "a" + base36.substring(Math.max(0, base36.length() - 11)));
+        memberFixture.profile(id, "a" + base36.substring(Math.max(0, base36.length() - 11)), "REGULAR");
         return id;
     }
 
@@ -187,12 +190,13 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
 
     private long postOf(long member) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, title, content) VALUES (?, ?, ?, '운영자 팩 시험', '본문이에요')", id, board, member);
+        boardFixture.post(id, board, member, "운영자 팩 시험", "본문이에요");
         return id;
     }
 
     private long commentOf(long postId, long member) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, content, created_at) VALUES (?, ?, ?, ?, '댓글이에요', now() - interval '1 hour')", id, postId, board,
                 member);
         jdbc.update("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?", postId);
@@ -277,7 +281,7 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
         writePost(unlinked, body).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"));
         editPost(unlinked, postId, body).andExpect(status().isConflict());
         long disabled = operatorAccount();
-        jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(disabled));
+        operatorFixture.changeStatus(operatorOf(disabled), null, null, null, false);
         writePost(disabled, body).andExpect(status().isConflict());
         writeComment(disabled, postOf(member()), body).andExpect(status().isConflict());
         writeGroupPost(disabled, group(disabled), body).andExpect(status().isConflict());
@@ -288,6 +292,7 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
         long pack = paidPack();
         String body = "운영진 " + token(emoticons(pack).get(0));
         long manager = member();
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'MANAGER')", board, manager);
         long staff = member();
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'STAFF')", board, staff);
@@ -335,7 +340,7 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
                 .andExpect(jsonPath("$.data.acquireCount").value(0));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM emoticon_acquisitions WHERE user_id = ?", Integer.class, user)).isZero();
         // 운영자 사용 중지 — 바로 일반 규칙
-        jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(user));
+        operatorFixture.changeStatus(operatorOf(user), null, null, null, false);
         mvc.perform(as(user, get("/api/me/emoticons"))).andExpect(jsonPath("$.data.allPacks").value(false));
         mvc.perform(as(user, get("/api/emoticons/packs/" + pack))).andExpect(jsonPath("$.data.operatorUsable").value(false));
     }

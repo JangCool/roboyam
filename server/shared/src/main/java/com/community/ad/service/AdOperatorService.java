@@ -276,7 +276,8 @@ public class AdOperatorService {
             return a;
         });
         if (notifyMail) {
-            store.setTakedownMail(id, mailer.send(app, reason));
+            String result = mailer.send(app, reason);
+            tx.executeWithoutResult(status -> store.setTakedownMail(id, result)); // 조건부 UPDATE 한 문장(JPA DML 은 트랜잭션 안에서만 돈다)
         }
     }
 

@@ -4,6 +4,8 @@ import com.community.board.service.BoardCatalog;
 import com.community.commerce.Commerce04AdminTestBase;
 import com.community.hotdeal.service.DealRuleBook;
 import com.community.hotdeal.service.DealSettingsReader;
+import com.community.testsupport.AuditLogQuery;
+import com.community.testsupport.BoardFixture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ abstract class HotdealAdminTestBase extends Commerce04AdminTestBase {
     @AfterEach
     void hotdealAdminTearDown() {
         for (String domain : domains) {
+            // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
             jdbc.update("DELETE FROM deal_domains WHERE domain = ?", domain);
             jdbc.update("DELETE FROM deal_site_affiliates WHERE domain = ?", domain);
         }
@@ -68,7 +71,7 @@ abstract class HotdealAdminTestBase extends Commerce04AdminTestBase {
     protected long dealBoard() {
         long id = ids.nextId();
         String slug = "hd" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", id, slug, "핫딜 " + slug.substring(slug.length() - 6));
+        boardFixture.board(id, slug, "핫딜 " + slug.substring(slug.length() - 6), 950, BoardFixture.DEAL, "REGULAR");
         catalog.invalidate();
         return id;
     }
@@ -77,7 +80,7 @@ abstract class HotdealAdminTestBase extends Commerce04AdminTestBase {
     protected long generalBoard() {
         long id = ids.nextId();
         String slug = "gn" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 951)", id, slug, "일반 " + slug.substring(slug.length() - 6));
+        boardFixture.board(id, slug, "일반 " + slug.substring(slug.length() - 6), 951);
         catalog.invalidate();
         return id;
     }
@@ -85,28 +88,32 @@ abstract class HotdealAdminTestBase extends Commerce04AdminTestBase {
     /** 회원 글 한 줄 */
     protected long boardPost(long boardId, long authorId, String title) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, title, content) VALUES (?, ?, ?, ?, '본문')", id, boardId, authorId, title);
+        boardFixture.post(id, boardId, authorId, title, "본문");
         return id;
     }
 
     /** 핫딜 글 + 진행 중 딜(판매처 {@code host}, 같은 딜 키는 글마다 다르다) */
     protected long deal(long boardId, long authorId, String host) {
         long postId = boardPost(boardId, authorId, "로봇 청소기 " + uniq());
+        // SQL 로 남김(다음 단계): post_deals 는 팩터리(PostDealEntity.create)가 딜 칸 전부(DealValues 16칸)를 받아 표 기본값과 맞추는 일이 따로 필요하다
         jdbc.update("INSERT INTO post_deals (post_id, board_id, author_id, store_name, product_url, product_host, product_url_key, normal_price, deal_price, "
                         + "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 30000, 19900, now(), now())",
                 postId, boardId, authorId, "시험몰", "https://" + host + "/p/" + uniq(), host, String.format("%064x", postId));
         return postId;
     }
 
+    // SQL 로 남김: 과거 시각(now() - interval)·작성자 종료 상태를 바로 세운다 — 시각은 DB 가 찍는다
     protected void flag(long postId) {
         jdbc.update("UPDATE post_deals SET flagged_at = now() - interval '1 hour' WHERE post_id = ?", postId);
     }
 
     protected void endByAuthor(long postId) {
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET status = 'ENDED', ended_by = 'AUTHOR', ended_by_id = author_id, ended_at = now() WHERE post_id = ?", postId);
     }
 
     protected void expire(long postId) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ends_at = now() - interval '1 hour' WHERE post_id = ?", postId);
     }
 
@@ -135,14 +142,11 @@ abstract class HotdealAdminTestBase extends Commerce04AdminTestBase {
 
     /** 이 운영자가 남긴 가장 최근 감사 한 줄(없으면 null) */
     protected Map<String, Object> lastAudit(long operatorId, String action) {
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM audit_logs WHERE actor_id = ? AND action = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                operatorId, action);
-        return rows.isEmpty() ? null : rows.get(0);
+        return auditLogs.where().actor(operatorId).action(action).latest().map(AuditLogQuery.AuditRow::asMap).orElse(null);
     }
 
     protected int audits(long operatorId, String action) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = ?", Integer.class, operatorId, action);
-        return n == null ? 0 : n;
+        return auditLogs.where().actor(operatorId).action(action).count();
     }
 
     protected static JsonNode data(MvcResult result) throws Exception {

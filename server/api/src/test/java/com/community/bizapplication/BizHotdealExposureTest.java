@@ -91,18 +91,18 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     void 규칙7_게시_실패_숨김_끝난_딜은_노출에_나가지_않는다() {
         // 실패
         Booked failed = booked("HOME_TOP");
-        jdbc.update("UPDATE boards SET active = false WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), false);
         boardCatalog.invalidate();
         into(failed, 1);
         publisher.publishDue(failed.id());
         assertThat(ads("HOTDEAL_TOP", null, null)).extracting(PublicAdView.Ad::id).doesNotContain(Long.toString(failed.id()));
         assertThat(view.detail(failed.user(), failed.id()).post().placement().status()).isEqualTo("WAITING");
-        jdbc.update("UPDATE boards SET active = true WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), true);
         boardCatalog.invalidate();
 
         // 숨김(운영자가 글을 숨김)
         Booked hidden = postedBooking("HOME_TOP");
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", postOf(hidden.id()));
+        boardFixture.staffHide(postOf(hidden.id()));
         assertThat(ads("HOTDEAL_TOP", null, null)).extracting(PublicAdView.Ad::id).doesNotContain(Long.toString(hidden.id()));
         assertThat(view.detail(hidden.user(), hidden.id()).post().placement().stopReason()).isEqualTo("POST_HIDDEN");
 
@@ -116,6 +116,7 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     @Test
     void 규칙7_의심_FLAGGED_는_진행_중이라_노출이_계속된다() {
         Booked b = postedBooking("HOME_TOP");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET flagged_at = now() WHERE post_id = ?", postOf(b.id()));
         assertThat(ads("HOTDEAL_TOP", null, null)).extracting(PublicAdView.Ad::id).contains(Long.toString(b.id()));
     }
@@ -141,11 +142,11 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
         BizDealInfo d = deal("NONE");
         assertThat(submitFields(user, with(d, "IN_STOCK", null, null), "NONE")).contains("deal.boardId");
         long closed = newDealBoard(false);
-        jdbc.update("UPDATE boards SET active = false WHERE id = ?", closed);
+        boardFixture.active(closed, false);
         boardCatalog.invalidate();
         assertThat(submitFields(user, with(d, "IN_STOCK", Long.toString(closed), null), "NONE")).contains("deal.boardId");
         long general = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, '일반', 951)", general, "gz" + Long.toString(general, 36));
+        boardFixture.board(general, "gz" + Long.toString(general, 36), "일반", 951);
         boardCatalog.invalidate();
         assertThat(submitFields(user, with(d, "IN_STOCK", Long.toString(general), null), "NONE")).contains("deal.boardId");
     }
@@ -232,11 +233,11 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
         assertThat(submitDeal(user, "CATEGORY_TOP", start, start.plusDays(1), "ONLINE")).isPositive();
         assertThat(priceRules.find(BizProduct.HOTDEAL_CATEGORY).orElseThrow().accepting()).isFalse();
         // 운영자가 요금표에서 글 게시를 끄면 409 BIZ_PRODUCT_CLOSED(규칙 그대로)
-        priceRules.setAccepting(BizProduct.HOTDEAL_POST, false);
+        tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_POST, false));
         try {
             assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
         } finally {
-            priceRules.setAccepting(BizProduct.HOTDEAL_POST, true);
+            tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_POST, true));
         }
     }
 
@@ -246,6 +247,7 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     void 규칙5_공개_글의_딜은_source_BUSINESS_상호_인기_표시_없음_되돌리기_기한_없음() {
         Booked b = postedBooking("NONE");
         long postId = postOf(b.id());
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET like_count = 999 WHERE id = ?", postId);
         PostDealView d = postQueries.detail(Long.toString(postId), null, "127.0.0.1").deal();
         assertThat(d.source()).isEqualTo("BUSINESS");

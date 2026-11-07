@@ -8,7 +8,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 실행 요청 한 줄 — V61 의 {@code batch_run_requests}. <b>읽기 전용 매핑</b>이다(넣고 집고 닫는 것은 {@code com.community.batch.core.BatchRequestQueue}, JDBC).
+ * 실행 요청 한 줄 — V61 의 {@code batch_run_requests}. 넣기는 {@link #pending}({@code com.community.batch.core.BatchRequestQueue} 가 넣고 바로 내보낸다 —
+ * 끝나지 않은 요청 유일 색인 위반이 그 자리에서 난다), 집기·닫기는 조건부 UPDATE(QueryDSL). 「없을 때만 넣기」는 {@code ON CONFLICT DO NOTHING}(native).
  */
 @Entity
 @Table(name = "batch_run_requests")
@@ -50,6 +51,22 @@ public class BatchRunRequestEntity {
     private Integer nodeId;
 
     protected BatchRunRequestEntity() {
+    }
+
+    /** 대기 요청 한 줄 */
+    public static BatchRunRequestEntity pending(long id, String jobKey, BatchRequestKind kind, String params, String steps, Long sourceRunId, Long operatorId,
+                                                Instant requestedAt) {
+        BatchRunRequestEntity r = new BatchRunRequestEntity();
+        r.id = id;
+        r.jobKey = jobKey;
+        r.kind = kind;
+        r.status = BatchRequestStatus.PENDING;
+        r.params = params;
+        r.steps = steps;
+        r.sourceRunId = sourceRunId;
+        r.operatorId = operatorId;
+        r.requestedAt = requestedAt;
+        return r;
     }
 
     public Long getId() {

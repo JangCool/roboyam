@@ -1,21 +1,20 @@
 package com.community.groupbuy.service;
 
 import com.community.holiday.service.BusinessDayCalendar;
+import com.community.groupbuy.repository.master.GroupBuyRequestStore;
+import com.community.groupbuy.repository.master.GroupBuyRequestStore.DeadlineRow;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationSeverity;
 import com.community.notification.service.NotificationPublisher;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,6 +36,8 @@ public class GroupBuyDeadlineWatch {
     public static final String WORKER_KEY = "groupbuy-deadline";
     /** 마감 임박 알림 창 — 회원 화면 「마감 임박」과 같다 */
     public static final Duration CLOSING_SOON = Duration.ofHours(24);
+    /** 한 바퀴에 보는 열린 요청 수(오래된 요청 차례) */
+    private static final int DEADLINE_BATCH = 500;
 
     /** 한 바퀴 결과 */
     public record Result(int requestWarnings, int overdueOrders, int closingSoon) {
@@ -46,7 +47,7 @@ public class GroupBuyDeadlineWatch {
         }
     }
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyRequestStore requests;
     private final GroupBuyStore groups;
     private final GroupBuyShipDeadlines shipDeadlines;
     private final GroupBuyNotifications notifications;
@@ -54,9 +55,9 @@ public class GroupBuyDeadlineWatch {
     private final TransactionTemplate tx;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyDeadlineWatch(DataSource dataSource, GroupBuyStore groups, GroupBuyShipDeadlines shipDeadlines, GroupBuyNotifications notifications,
+    public GroupBuyDeadlineWatch(GroupBuyRequestStore requests, GroupBuyStore groups, GroupBuyShipDeadlines shipDeadlines, GroupBuyNotifications notifications,
                                  NotificationPublisher operators, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.requests = requests;
         this.groups = groups;
         this.shipDeadlines = shipDeadlines;
         this.notifications = notifications;
@@ -76,26 +77,22 @@ public class GroupBuyDeadlineWatch {
     private int requestDeadlines(Instant now) {
         BusinessDayCalendar holidays = groups.settings().calendar();
         int sent = 0;
-        List<Object[]> rows = jdbc.query("SELECT id, type, created_at, received_at, deadline_alert_level FROM group_buy_requests "
-                + "WHERE status IN ('REQUESTED', 'APPROVED', 'RECEIVED') AND (deadline_alert_level IS NULL OR deadline_alert_level <> 'CRITICAL') ORDER BY created_at LIMIT 500",
-                (rs, i) -> new Object[] {rs.getLong(1), rs.getString(2), rs.getTimestamp(3), rs.getTimestamp(4), rs.getString(5)});
-        for (Object[] r : rows) {
-            Timestamp start = "CANCEL".equals(r[1]) ? (Timestamp) r[2] : (Timestamp) r[3];
+        for (DeadlineRow r : requests.deadlineCandidates(DEADLINE_BATCH)) {
+            Instant start = r.type() == com.community.groupbuy.entity.RequestType.CANCEL ? r.createdAt() : r.receivedAt();
             if (start == null) {
                 continue; // 아직 돌려받지 않은 반품
             }
-            GroupBuyBusinessDays.Level level = GroupBuyBusinessDays.deadlineLevel(start.toInstant(), now, holidays);
+            GroupBuyBusinessDays.Level level = GroupBuyBusinessDays.deadlineLevel(start, now, holidays);
             if (level == GroupBuyBusinessDays.Level.NONE) {
                 continue;
             }
-            String previous = (String) r[4];
+            String previous = r.alertLevel();
             if (level.name().equals(previous)) {
                 continue;
             }
-            int moved = jdbc.update("UPDATE group_buy_requests SET deadline_alert_level = ? WHERE id = ? AND deadline_alert_level IS NOT DISTINCT FROM ?", level.name(), r[0],
-                    previous);
-            if (moved == 1) {
-                operators.publish(AdminNotificationEvent.COMMERCE_REFUND_REQUESTED, NotificationContext.empty().dedupe("deadline:" + r[0] + ":" + level.name())
+            boolean moved = requests.moveDeadlineAlert(r.id(), level.name(), previous);
+            if (moved) {
+                operators.publish(AdminNotificationEvent.COMMERCE_REFUND_REQUESTED, NotificationContext.empty().dedupe("deadline:" + r.id() + ":" + level.name())
                         .severity(level == GroupBuyBusinessDays.Level.CRITICAL ? NotificationSeverity.CRITICAL : NotificationSeverity.WARNING));
                 sent++;
             }

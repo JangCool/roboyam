@@ -9,7 +9,9 @@ import com.community.groupbuy.entity.ParticipationStatus;
 import com.community.groupbuy.entity.RequestStatus;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.FulfillmentStore;
+import com.community.groupbuy.repository.master.GroupBuyOrderAdminQueries;
 import com.community.groupbuy.repository.master.GroupBuyRefundStore;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyRequestStore;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
@@ -26,7 +28,6 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.time.ServiceTime;
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,9 +40,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,7 +53,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class GroupBuyOrderAdminFacade {
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyOrderAdminQueries queries;
+    private final TransactionTemplate tx;
     private final ParticipationStore participations;
     private final GroupBuyStore groups;
     private final GroupBuyRequestStore requests;
@@ -66,11 +68,12 @@ public class GroupBuyOrderAdminFacade {
     private final PaymentDetailText paymentText;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyOrderAdminFacade(DataSource dataSource, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requests, GroupBuyRefundStore refunds,
+    public GroupBuyOrderAdminFacade(GroupBuyOrderAdminQueries queries, PlatformTransactionManager transactions, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requests, GroupBuyRefundStore refunds,
                                     FulfillmentStore fulfillmentStore, FulfillmentService fulfillment, AddressRevealService addresses,
                                     GroupBuyAdminRefundService adminRefunds, GroupBuyShipDeadlines shipDeadlines, GroupBuyAudit audit, PaymentDetailText paymentText,
                                     ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
+        this.tx = new TransactionTemplate(transactions);
         this.participations = participations;
         this.groups = groups;
         this.requests = requests;
@@ -91,56 +94,29 @@ public class GroupBuyOrderAdminFacade {
     public GroupBuyOrderAdminView.ListResponse list(String status, String groupBuyId, String alert, String q, LocalDate from, LocalDate to, int page, int size) {
         int s = Math.min(200, Math.max(1, size));
         int p = Math.max(0, page);
-        StringBuilder where = new StringBuilder(" FROM group_buy_participations pa LEFT JOIN profiles pr ON pr.user_id = pa.user_id WHERE pa.status <> 'EXPIRED'");
-        List<Object> args = new ArrayList<>();
-        if (groupBuyId != null && !groupBuyId.isBlank()) {
-            where.append(" AND pa.group_buy_id = ?");
-            args.add(AdminIds.field(groupBuyId, "groupBuyId"));
-        }
-        if (q != null && !q.isBlank()) {
-            String v = q.strip();
-            where.append(" AND (pa.order_no = ? OR pr.nickname ILIKE ? OR pa.user_id::text = ?)");
-            args.add(v);
-            args.add("%" + v.replace("%", "\\%").replace("_", "\\_") + "%");
-            args.add(v);
-        }
-        if (from != null) {
-            where.append(" AND pa.created_at >= ?");
-            args.add(Timestamp.from(from.atStartOfDay(ServiceTime.ZONE).toInstant()));
-        }
-        if (to != null) {
-            where.append(" AND pa.created_at < ?");
-            args.add(Timestamp.from(to.plusDays(1).atStartOfDay(ServiceTime.ZONE).toInstant()));
-        }
+        Long group = groupBuyId != null && !groupBuyId.isBlank() ? AdminIds.field(groupBuyId, "groupBuyId") : null;
+        String v = q != null && !q.isBlank() ? q.strip() : null;
         Instant now = now();
-        if ("SHIP_OVERDUE".equals(alert)) {
-            List<Long> ids = shipDeadlines.overdue(now, 10_000).stream().map(GroupBuyShipDeadlines.Due::participationId).toList();
-            where.append(" AND pa.id = ANY (?::bigint[])");
-            args.add(ids.toArray(new Long[0]));
-        } else if ("DELIVERY_STALE".equals(alert)) {
-            where.append(" AND pa.status = 'SHIPPED' AND pa.shipped_at < ?");
-            args.add(Timestamp.from(now.minus(Duration.ofDays(CommerceGroupBuySettingsFacade.DELIVERY_STALE_DAYS))));
-        }
+        List<Long> onlyIds = "SHIP_OVERDUE".equals(alert) ? shipDeadlines.overdue(now, 10_000).stream().map(GroupBuyShipDeadlines.Due::participationId).toList() : null;
+        Instant shippedBefore = "DELIVERY_STALE".equals(alert) ? now.minus(Duration.ofDays(CommerceGroupBuySettingsFacade.DELIVERY_STALE_DAYS)) : null;
+        GroupBuyOrderAdminQueries.ListFilter filter = new GroupBuyOrderAdminQueries.ListFilter(group, v, v == null ? null : GroupBuyRowNames.like(v),
+                from == null ? null : from.atStartOfDay(ServiceTime.ZONE).toInstant(), to == null ? null : to.plusDays(1).atStartOfDay(ServiceTime.ZONE).toInstant(), onlyIds,
+                shippedBefore, null);
         Map<String, Long> counts = new LinkedHashMap<>();
         for (ParticipationStatus st : ParticipationStatus.values()) {
             counts.put(st.name(), 0L);
         }
-        jdbc.query("SELECT pa.status, count(*)" + where + " GROUP BY pa.status", rs -> {
-            counts.put(rs.getString(1), rs.getLong(2));
-        }, args.toArray());
+        queries.statusCounts(filter).forEach((st, n) -> counts.put(st.name(), n));
         if (status != null && !status.isBlank()) {
-            where.append(" AND pa.status = ?");
-            args.add(AdminIds.value(ParticipationStatus.class, status, "status").name());
+            filter = filter.withStatus(AdminIds.value(ParticipationStatus.class, status, "status"));
         }
-        Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
-        args.add(s);
-        args.add(p * s);
-        List<Long> ids = jdbc.queryForList("SELECT pa.id" + where + " ORDER BY pa.created_at DESC, pa.id DESC LIMIT ? OFFSET ?", Long.class, args.toArray());
+        long total = queries.count(filter);
+        List<Long> ids = queries.pageIds(filter, (long) p * s, s);
         List<GroupBuyOrderAdminView.Row> rows = new ArrayList<>();
         for (long id : ids) {
             rows.add(row(participations.find(id).orElseThrow()));
         }
-        return new GroupBuyOrderAdminView.ListResponse(rows, total == null ? 0 : total, counts);
+        return new GroupBuyOrderAdminView.ListResponse(rows, total, counts);
     }
 
     public GroupBuyOrderAdminView.Detail detail(AdminActor actor, String idText) {
@@ -161,10 +137,9 @@ public class GroupBuyOrderAdminFacade {
                 i.returnedQty(), i.restockedQty())).toList();
         GroupBuyOrderAdminView.Amounts amounts = new GroupBuyOrderAdminView.Amounts(o.itemsAmount(), o.shippingFee(), o.amount(), o.cashAmount(), o.pointAmount(),
                 o.refundedAmount(), o.compensationAmount(), o.reshippingFeeCharged(), o.remainingCash());
-        GroupBuyOrderAdminView.Payment payment = o.paymentOrderId() == null ? null : jdbc.query("SELECT po.id, po.payment_id, po.status, po.pay_method, po.paid_at, "
-                + "EXISTS (SELECT 1 FROM group_buy_shipments s WHERE s.participation_id = ? AND s.escrow_applicable) FROM payment_orders po WHERE po.id = ?",
-                (rs, i) -> new GroupBuyOrderAdminView.Payment(Long.toString(rs.getLong(1)), rs.getString(2), rs.getString(3), paymentText.payMethod(rs.getString(4)), rs.getBoolean(6),
-                        rs.getTimestamp(5) == null ? null : rs.getTimestamp(5).toInstant()), o.id(), o.paymentOrderId()).stream().findFirst().orElse(null);
+        GroupBuyOrderAdminView.Payment payment = o.paymentOrderId() == null ? null : queries.payment(o.id(), o.paymentOrderId())
+                .map(po -> new GroupBuyOrderAdminView.Payment(Long.toString(po.id()), po.paymentId(), po.status() == null ? null : po.status().name(),
+                        paymentText.payMethod(po.payMethod()), po.escrow(), po.paidAt())).orElse(null);
         GroupBuyOrderAdminView.MaskedAddress address;
         if (o.addressMaskedAt() != null) {
             address = new GroupBuyOrderAdminView.MaskedAddress("", "", "", "", "", o.addressMaskedAt());
@@ -173,29 +148,25 @@ public class GroupBuyOrderAdminFacade {
             address = new GroupBuyOrderAdminView.MaskedAddress(nz(m.recipient()), nz(m.phone()), nz(m.postcode()), (nz(m.address1()) + " " + nz(m.address2())).strip(),
                     nz(m.memo()), null);
         }
-        List<GroupBuyOrderAdminView.AddressView> views = jdbc.query("SELECT o.operator_name, v.reason, v.created_at FROM commerce_address_views v "
-                + "LEFT JOIN operators o ON o.id = v.operator_id WHERE v.participation_id = ? AND v.kind = 'REVEAL' ORDER BY v.created_at DESC",
-                (rs, i) -> new GroupBuyOrderAdminView.AddressView(nz(rs.getString(1)), rs.getString(2), rs.getTimestamp(3).toInstant()), o.id());
-        String memo = jdbc.query("SELECT admin_memo FROM group_buy_participations WHERE id = ?", (rs, i) -> rs.getString(1), o.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
-        List<GroupBuyOrderAdminView.StatusChange> history = jdbc.query("SELECT h.from_status, h.to_status, o.operator_name, h.cause, h.created_at, h.actor_id "
-                + "FROM participation_status_history h LEFT JOIN operators o ON o.id = h.actor_id WHERE h.participation_id = ? ORDER BY h.created_at, h.id",
-                (rs, i) -> new GroupBuyOrderAdminView.StatusChange(rs.getString(1), rs.getString(2), rs.getString(3) != null ? rs.getString(3)
-                        : rs.getObject(6) == null ? "SYSTEM" : "MEMBER", rs.getString(4), rs.getTimestamp(5).toInstant()), o.id());
+        List<GroupBuyOrderAdminView.AddressView> views = queries.addressViews(o.id()).stream()
+                .map(v -> new GroupBuyOrderAdminView.AddressView(nz(v.operatorName()), v.reason(), v.viewedAt())).toList();
+        String memo = queries.adminMemo(o.id());
+        List<GroupBuyOrderAdminView.StatusChange> history = queries.history(o.id()).stream().map(h -> new GroupBuyOrderAdminView.StatusChange(
+                h.from() == null ? null : h.from().name(), h.to() == null ? null : h.to().name(), h.operatorName() != null ? h.operatorName()
+                : h.actorId() == null ? "SYSTEM" : "MEMBER", h.cause(), h.createdAt())).toList();
         List<GroupBuyOrderAdminView.RefundRecord> refundRows = new ArrayList<>();
         for (GroupBuyRefundStore.RefundRow rf : refunds.ofParticipation(o.id())) {
-            Map<String, Object> extra = jdbc.queryForList("SELECT r.reason, op.operator_name FROM group_buy_refunds r LEFT JOIN operators op ON op.id = r.actor_id WHERE r.id = ?",
-                    rf.id()).stream().findFirst().orElse(Map.of());
+            Optional<GroupBuyOrderAdminQueries.RefundExtra> extra = queries.refundExtra(rf.id());
             refundRows.add(new GroupBuyOrderAdminView.RefundRecord(Long.toString(rf.id()), rf.cause().name(), rf.method(), refundState(rf), rf.itemRefund(),
                     rf.shippingRefund(), rf.returnFee(), rf.reshippingFee(), rf.reshippingRefund(), rf.compensationPg() + rf.compensationBank(), rf.amount(),
                     rf.cause() == com.community.groupbuy.entity.RefundCause.SUPPLY_FAILURE || rf.cause() == com.community.groupbuy.entity.RefundCause.DELAY,
-                    (String) extra.get("reason"), (String) extra.get("operator_name"), rf.requestId() == null ? null : Long.toString(rf.requestId()), rf.createdAt(),
-                    rf.completedAt()));
+                    extra.map(GroupBuyOrderAdminQueries.RefundExtra::reason).orElse(null), extra.map(GroupBuyOrderAdminQueries.RefundExtra::operatorName).orElse(null),
+                    rf.requestId() == null ? null : Long.toString(rf.requestId()), rf.createdAt(), rf.completedAt()));
         }
-        jdbc.query("SELECT p.id, p.amount, p.reason, p.created_at, o.operator_name, p.seller_fault FROM group_buy_admin_refunds p LEFT JOIN operators o "
-                + "ON o.id = p.requested_by WHERE p.participation_id = ? AND p.status = 'AWAITING_APPROVAL'", rs -> {
-            refundRows.add(new GroupBuyOrderAdminView.RefundRecord("pending-" + rs.getLong(1), "ADMIN", "PG_CANCEL", "AWAITING_APPROVAL", rs.getLong(2), 0, 0, 0, 0, 0,
-                    rs.getLong(2), rs.getBoolean(6), rs.getString(3), rs.getString(5), null, rs.getTimestamp(4).toInstant(), null));
-        }, o.id());
+        for (GroupBuyOrderAdminQueries.PendingRefundRow pr : queries.pendingRefunds(o.id())) {
+            refundRows.add(new GroupBuyOrderAdminView.RefundRecord("pending-" + pr.id(), "ADMIN", "PG_CANCEL", "AWAITING_APPROVAL", pr.amount(), 0, 0, 0, 0, 0,
+                    pr.amount(), pr.sellerFault(), pr.reason(), pr.operatorName(), null, pr.createdAt(), null));
+        }
         List<GroupBuyOrderAdminView.Shipment> shipments = fulfillmentStore.shipmentsOf(o.id()).stream().map(this::shipment).toList();
         List<GroupBuyRequestStore.RequestRow> reqs = requests.ofParticipation(o.id());
         List<GroupBuyOrderAdminView.RequestRef> requestRefs = reqs.stream().map(q -> new GroupBuyOrderAdminView.RequestRef(Long.toString(q.id()), q.type().name(),
@@ -235,7 +206,9 @@ public class GroupBuyOrderAdminFacade {
         if (memo.length() > 2000) {
             throw ValidationException.of("memo", new MessageRef("groupbuy.order.memo.tooLong", 2000));
         }
-        if (jdbc.update("UPDATE group_buy_participations SET admin_memo = ?, updated_at = ? WHERE id = ?", memo.isEmpty() ? null : memo, Timestamp.from(now()), id) == 0) {
+        Instant now = now();
+        // 예전 JDBC 자동 커밋과 같이 이 문장 하나만의 트랜잭션(감사·다시 읽기는 그 뒤 — 경계 그대로)
+        if (!Boolean.TRUE.equals(tx.execute(st -> queries.saveMemo(id, memo.isEmpty() ? null : memo, now)))) {
             throw GroupBuyException.orderNotFound();
         }
         audit.record(actor.operatorId(), AuditActions.GROUPBUY_ORDER_MEMO, GroupBuyAudit.TARGET_ORDER, id, actor.ip(), Map.of("length", memo.length()));
@@ -293,7 +266,7 @@ public class GroupBuyOrderAdminFacade {
     public GroupBuyOrderAdminView.RefundResult decidePending(AdminActor actor, String idText, String pendingText, String decision) {
         long id = AdminIds.parse(idText, GroupBuyException::orderNotFound);
         long pendingId = AdminIds.parse(pendingText.startsWith("pending-") ? pendingText.substring(8) : pendingText, GroupBuyException::requestNotFound);
-        Long owner = jdbc.query("SELECT participation_id FROM group_buy_admin_refunds WHERE id = ?", (rs, i) -> rs.getLong(1), pendingId).stream().findFirst().orElse(null);
+        Long owner = queries.pendingRefundOwner(pendingId);
         if (owner == null || owner != id) {
             throw GroupBuyException.requestNotFound();
         }
@@ -326,13 +299,11 @@ public class GroupBuyOrderAdminFacade {
 
     GroupBuyOrderAdminView.Row row(ParticipationRow o) {
         GroupBuyRow g = groups.find(o.groupBuyId()).orElseThrow();
-        Map<String, Object> m = jdbc.queryForList("SELECT pr.nickname, (u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL) AS gone FROM "
-                + "(SELECT ?::bigint AS id) x LEFT JOIN users u ON u.id = x.id LEFT JOIN profiles pr ON pr.user_id = x.id", o.userId()).get(0);
-        PaymentMemberView member = GroupBuyAdminFacade.member(o.userId(), (String) m.get("nickname"), Boolean.TRUE.equals(m.get("gone")));
-        List<Map<String, Object>> lines = jdbc.queryForList("SELECT s.name, i.qty FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id "
-                + "WHERE i.participation_id = ? ORDER BY s.kind DESC, s.sort_order, i.id", o.id());
-        String summary = lines.isEmpty() ? "" : lines.get(0).get("name") + " × " + lines.get(0).get("qty") + (lines.size() > 1 ? " 외 " + (lines.size() - 1) : "");
-        int totalQty = lines.stream().mapToInt(l -> ((Number) l.get("qty")).intValue()).sum();
+        GroupBuyOrderAdminQueries.MemberRow m = queries.member(o.userId());
+        PaymentMemberView member = GroupBuyAdminFacade.member(o.userId(), m.nickname(), m.gone());
+        List<GroupBuyOrderAdminQueries.LineRow> lines = queries.lines(o.id());
+        String summary = lines.isEmpty() ? "" : lines.get(0).name() + " × " + lines.get(0).qty() + (lines.size() > 1 ? " 외 " + (lines.size() - 1) : "");
+        int totalQty = lines.stream().mapToInt(GroupBuyOrderAdminQueries.LineRow::qty).sum();
         Optional<GroupBuyRequestStore.RequestRow> open = requests.openOf(o.id()).stream().findFirst();
         Optional<java.time.Instant> delay = groups.firstDelayNoticeAt(g.id());
         boolean delayCancelable = delay.isPresent() && ParticipationStatus.PAID_BEFORE_SHIPPING.contains(o.status()) && o.joinedAt() != null

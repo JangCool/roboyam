@@ -1,26 +1,42 @@
 package com.community.member.repository.master;
 
-import jakarta.persistence.EntityManager;
+import com.community.block.entity.QBlockedWordEntity;
+import com.community.block.entity.QUserBlockEntity;
+import com.community.block.entity.QUserMemoEntity;
+import com.community.dm.entity.QDmUserStateEntity;
+import com.community.membernotification.entity.QMemberNotificationEntity;
+import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Repository;
 
 /**
  * 관리자 회원 상세의 개인 설정 건수·쪽지 수신·알림 선택 읽기(읽기 전용). <b>트랜잭션은 부르는 서비스가 연다.</b>
  *
- * <p>Native SQL 인 이유: 쪽지 상태({@code dm_user_states}) · 차단·메모(V71) · 알림함(V50)은 회원 화면(api)의 표라 관리자 쪽에 엔티티·저장소가 없고,
- * 건수 여섯 개를 왕복 한 번에 읽는다. 모두 회원 ID 로 시작하는 색인({@code ix_user_blocks_user}·{@code ix_blocked_words_user}·{@code ix_user_memos_user}·
- * {@code ix_member_notifications_user}·{@code ix_member_notifications_unread})을 탄다.
- * 차단·메모 수는 회원 화면({@code BlockRepositoryQDSL})과 같게 탈퇴한 상대를 뺀다.
+ * <p>차단·금칙어·메모·알림함 건수는 shared 엔티티({@code user_blocks}·{@code blocked_words}·{@code user_memos}·{@code member_notifications})로 센다 — 모두 회원 ID 로
+ * 시작하는 색인({@code ix_user_blocks_user}·{@code ix_blocked_words_user}·{@code ix_user_memos_user}·{@code ix_member_notifications_user}·
+ * {@code ix_member_notifications_unread})을 탄다. 차단·메모 수는 회원 화면({@code BlockRepositoryQDSL})과 같게 탈퇴한 상대를 뺀다.
+ *
+ * <p>쪽지 상태({@code dm_user_states})와 알림 선택({@code member_notification_preferences})도 shared 엔티티(QueryDSL)로 읽는다 — 둘 다 회원 ID 가 키(의 앞)다.
  */
 @Repository
-public class MemberSettingsQueries {
+public class MemberSettingsQueries extends RoboyamRepositoryQDSL {
 
-    private final EntityManager entityManager;
+    private static final QUserBlockEntity BLOCK = QUserBlockEntity.userBlockEntity;
+    private static final QBlockedWordEntity WORD = QBlockedWordEntity.blockedWordEntity;
+    private static final QUserMemoEntity MEMO = QUserMemoEntity.userMemoEntity;
+    private static final QMemberNotificationEntity NOTIFICATION = QMemberNotificationEntity.memberNotificationEntity;
+    private static final QUserEntity TARGET = new QUserEntity("target");
+    private static final QDmUserStateEntity DM_STATE = QDmUserStateEntity.dmUserStateEntity;
+    private static final QMemberNotificationPreferenceEntity PREFERENCE = QMemberNotificationPreferenceEntity.memberNotificationPreferenceEntity;
 
-    public MemberSettingsQueries(EntityManager entityManager) {
-        this.entityManager = entityManager;
+    public MemberSettingsQueries(JPAQueryFactory query) {
+        super(query);
     }
 
     /**
@@ -36,35 +52,32 @@ public class MemberSettingsQueries {
     }
 
     public Counts countsOf(long userId) {
-        Object[] row = (Object[]) entityManager.createNativeQuery("""
-                        SELECT coalesce((SELECT accept_dm FROM dm_user_states WHERE user_id = :userId), true),
-                               (SELECT count(*) FROM user_blocks b JOIN users u ON u.id = b.target_id
-                                 WHERE b.user_id = :userId AND u.status <> 'WITHDRAWN' AND u.deleted_at IS NULL),
-                               (SELECT count(*) FROM blocked_words WHERE user_id = :userId),
-                               (SELECT count(*) FROM user_memos m JOIN users u ON u.id = m.target_id
-                                 WHERE m.user_id = :userId AND u.status <> 'WITHDRAWN' AND u.deleted_at IS NULL),
-                               (SELECT count(*) FROM member_notifications WHERE user_id = :userId),
-                               (SELECT count(*) FROM member_notifications WHERE user_id = :userId AND read_at IS NULL)
-                        """)
-                .setParameter("userId", userId)
-                .getSingleResult();
-        return new Counts(!Boolean.FALSE.equals(row[0]), num(row[1]), num(row[2]), num(row[3]), num(row[4]), num(row[5]));
+        long blockedUsers = nz(query.select(BLOCK.count()).from(BLOCK).join(TARGET).on(TARGET.id.eq(BLOCK.targetId))
+                .where(BLOCK.userId.eq(userId), TARGET.status.ne(UserStatus.WITHDRAWN), TARGET.deletedAt.isNull()).fetchOne());
+        long blockedWords = nz(query.select(WORD.count()).from(WORD).where(WORD.userId.eq(userId)).fetchOne());
+        long memos = nz(query.select(MEMO.count()).from(MEMO).join(TARGET).on(TARGET.id.eq(MEMO.targetId))
+                .where(MEMO.userId.eq(userId), TARGET.status.ne(UserStatus.WITHDRAWN), TARGET.deletedAt.isNull()).fetchOne());
+        long notifications = nz(query.select(NOTIFICATION.count()).from(NOTIFICATION).where(NOTIFICATION.userId.eq(userId)).fetchOne());
+        long unread = nz(query.select(NOTIFICATION.count()).from(NOTIFICATION).where(NOTIFICATION.userId.eq(userId), NOTIFICATION.readAt.isNull()).fetchOne());
+        return new Counts(acceptDm(userId), blockedUsers, blockedWords, memos, notifications, unread);
+    }
+
+    /** 쪽지 받기 — 상태 행이 없으면 true */
+    private boolean acceptDm(long userId) {
+        Boolean accept = query.select(DM_STATE.acceptDm).from(DM_STATE).where(DM_STATE.userId.eq(userId)).fetchFirst();
+        return !Boolean.FALSE.equals(accept);
     }
 
     /** 회원이 고른 알림 받기 — 이벤트 코드 → 선택. 줄이 없는 이벤트는 빠진다(둘 다 켬) */
     public Map<String, Choice> choicesOf(long userId) {
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = entityManager.createNativeQuery("SELECT event_code, in_app, email FROM member_notification_preferences WHERE user_id = :userId")
-                .setParameter("userId", userId)
-                .getResultList();
         Map<String, Choice> out = new HashMap<>();
-        for (Object[] row : rows) {
-            out.put((String) row[0], new Choice(Boolean.TRUE.equals(row[1]), Boolean.TRUE.equals(row[2])));
+        for (Tuple row : query.select(PREFERENCE.eventCode, PREFERENCE.inApp, PREFERENCE.email).from(PREFERENCE).where(PREFERENCE.userId.eq(userId)).fetch()) {
+            out.put(row.get(PREFERENCE.eventCode), new Choice(Boolean.TRUE.equals(row.get(PREFERENCE.inApp)), Boolean.TRUE.equals(row.get(PREFERENCE.email))));
         }
         return out;
     }
 
-    private static long num(Object value) {
-        return value == null ? 0 : ((Number) value).longValue();
+    private static long nz(Long value) {
+        return value == null ? 0 : value;
     }
 }

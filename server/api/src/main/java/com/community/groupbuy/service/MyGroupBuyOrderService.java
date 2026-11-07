@@ -17,6 +17,7 @@ import com.community.groupbuy.entity.Resolution;
 import com.community.groupbuy.entity.SupplyChoice;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.FulfillmentStore;
+import com.community.groupbuy.repository.master.GroupBuyMemberQueries;
 import com.community.groupbuy.repository.master.GroupBuyRefundStore;
 import com.community.groupbuy.repository.master.GroupBuyRequestStore;
 import com.community.groupbuy.repository.master.GroupBuyStore;
@@ -40,9 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -55,7 +54,7 @@ public class MyGroupBuyOrderService {
 
     public static final int PAGE_SIZE = 20;
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyMemberQueries queries;
     private final ParticipationStore participations;
     private final GroupBuyStore groups;
     private final GroupBuyRequestStore requestStore;
@@ -71,11 +70,11 @@ public class MyGroupBuyOrderService {
     private final GroupBuyMemberService members;
     private final ObjectProvider<Clock> clocks;
 
-    public MyGroupBuyOrderService(DataSource dataSource, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requestStore,
+    public MyGroupBuyOrderService(GroupBuyMemberQueries queries, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requestStore,
                                   GroupBuyRefundStore refundStore, FulfillmentStore fulfillment, CommerceSalesStore sales, GroupBuyJoinService joins,
                                   ParticipationCancelService cancels, GroupBuyRequestService requests, GroupBuySupplyService supply, AddressRevealService addresses,
                                   GroupBuyImageUploader images, GroupBuyMemberService members, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
         this.participations = participations;
         this.groups = groups;
         this.requestStore = requestStore;
@@ -96,9 +95,8 @@ public class MyGroupBuyOrderService {
 
     public MyGroupBuyOrderView.Page list(long userId, int page) {
         int p = Math.max(0, page);
-        Long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_participations WHERE user_id = ?", Long.class, userId);
-        List<Long> ids = jdbc.queryForList("SELECT id FROM group_buy_participations WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", Long.class,
-                userId, PAGE_SIZE, p * PAGE_SIZE);
+        long total = queries.myOrderCount(userId);
+        List<Long> ids = queries.myOrderIds(userId, (long) p * PAGE_SIZE, PAGE_SIZE);
         Instant now = now();
         List<MyGroupBuyOrderView.Summary> items = new ArrayList<>();
         for (long id : ids) {
@@ -111,7 +109,7 @@ public class MyGroupBuyOrderService {
             items.add(new MyGroupBuyOrderView.Summary(o.orderNo(), Long.toString(g.id()), GroupBuyMemberService.title(g), members.thumbnail(g), o.status().name(), firstName,
                     lines.size(), o.amount(), o.refundedAmount(), o.createdAt(), attention(o, g, now)));
         }
-        return new MyGroupBuyOrderView.Page(items, p, PAGE_SIZE, total == null ? 0 : total);
+        return new MyGroupBuyOrderView.Page(items, p, PAGE_SIZE, total);
     }
 
     public MyGroupBuyOrderView.Detail detail(long userId, String orderNo) {
@@ -147,14 +145,12 @@ public class MyGroupBuyOrderService {
         MyGroupBuyOrderView.Actions actions = new MyGroupBuyOrderView.Actions(
                 o.status() == ParticipationStatus.PENDING_PAYMENT && o.reservedUntil() != null && Duration.between(now, o.reservedUntil()).compareTo(Duration.ofMinutes(1)) >= 0,
                 !address.purged(), !address.purged() && AddressRevealService.editable(o, g), cancelNow, requestCancel, requestReturn, delayCancel, choicePending);
-        MyGroupBuyOrderView.DelayNotice delay = delayAt.isEmpty() ? null : jdbc.query("SELECT previous_planned_at, new_planned_at, reason, created_at "
-                        + "FROM group_buy_delay_notices WHERE group_buy_id = ? ORDER BY created_at DESC LIMIT 1", (rs, i) -> new MyGroupBuyOrderView.DelayNotice(
-                        rs.getDate(1) == null ? null : rs.getDate(1).toLocalDate(), rs.getDate(2).toLocalDate(), rs.getString(3), rs.getTimestamp(4).toInstant(),
-                        o.remainingCash()), g.id()).stream().findFirst().orElse(null);
+        MyGroupBuyOrderView.DelayNotice delay = delayAt.isEmpty() ? null : queries.latestDelayNotice(g.id()).map(d -> new MyGroupBuyOrderView.DelayNotice(
+                d.previousPlannedAt(), d.newPlannedAt(), d.reason(), d.createdAt(), o.remainingCash())).orElse(null);
         MyGroupBuyOrderView.SupplyChoice supplyChoice = choice.map(c -> {
-            Map<String, Object> f = jdbc.queryForMap("SELECT sku_id, reason FROM group_buy_supply_failures WHERE id = ?", c.supplyFailureId());
-            SkuRow sku = skus.get(((Number) f.get("sku_id")).longValue());
-            return new MyGroupBuyOrderView.SupplyChoice(sku == null ? "" : sku.name(), (String) f.get("reason"), c.deadline(), c.choice() == null ? null : c.choice().name(),
+            GroupBuyMemberQueries.SupplyFailureRow f = queries.supplyFailure(c.supplyFailureId()).orElseThrow();
+            SkuRow sku = skus.get(f.skuId());
+            return new MyGroupBuyOrderView.SupplyChoice(sku == null ? "" : sku.name(), f.reason(), c.deadline(), c.choice() == null ? null : c.choice().name(),
                     c.defaulted(), o.remainingCash());
         }).orElse(null);
         MyGroupBuyOrderView.Shipment shipment = fulfillment.shipmentsOf(o.id()).stream().reduce((a, b) -> b).map(this::shipment).orElse(null);
@@ -287,8 +283,7 @@ public class MyGroupBuyOrderService {
     }
 
     private ParticipationRow own(long userId, String orderNo) {
-        Long id = jdbc.query("SELECT id FROM group_buy_participations WHERE order_no = ? AND user_id = ?", (rs, i) -> rs.getLong(1), orderNo, userId).stream().findFirst()
-                .orElseThrow(GroupBuyException::orderNotFound);
+        Long id = queries.myOrderId(orderNo, userId).orElseThrow(GroupBuyException::orderNotFound);
         return participations.find(id).orElseThrow(GroupBuyException::orderNotFound);
     }
 
@@ -369,9 +364,8 @@ public class MyGroupBuyOrderService {
         }).toList();
         Long refund = r.status() == RequestStatus.COMPLETED ? refundStore.ofRequest(r.id()).stream().mapToLong(GroupBuyRefundStore.RefundRow::amount).sum() : null;
         Long feeDue = r.status() == RequestStatus.AWAITING_FEE ? r.feeAmount() - r.feePaidAmount() : null;
-        Instant handled = jdbc.query("SELECT COALESCE(completed_at, decided_at) FROM group_buy_requests WHERE id = ?", (rs, i) -> GroupBuyMemberService.ts(rs.getTimestamp(1)),
-                r.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
-        String tracking = jdbc.query("SELECT pickup_tracking_no FROM group_buy_requests WHERE id = ?", (rs, i) -> rs.getString(1), r.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
+        Instant handled = queries.requestHandledAt(r.id());
+        String tracking = queries.pickupTrackingNo(r.id());
         boolean withdraw = EnumSetHolder.WITHDRAWABLE.contains(r.status());
         return new MyGroupBuyOrderView.Request(Long.toString(r.id()), r.type().name(), status(r.status()), items, r.method() == null ? null : r.method().name(),
                 r.resolution() == null ? null : r.resolution().name(), r.previewAmount(), refund, feeDue, r.rejectReasonCode(), tracking, r.createdAt(), handled,

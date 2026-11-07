@@ -15,6 +15,7 @@ import com.community.groupbuy.entity.Fulfillment;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyStore;
+import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.repository.master.GroupBuyProductStore;
 import com.community.groupbuy.repository.master.GroupBuyProductStore.ProductRow;
@@ -34,11 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -75,13 +74,13 @@ public class GroupBuyAdminService {
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
     private final ApplicationEventPublisher events;
-    private final JdbcTemplate jdbc;
+    private final ParticipationStore participations;
     private final TransactionTemplate tx;
     private final TransactionTemplate separate;
     private final Clock clock;
 
     public GroupBuyAdminService(GroupBuyStore groups, GroupBuyProductStore products, ShippingPolicyStore policies, GroupBuyQtyService qty, GroupBuyNoticeService notices,
-                                AuditLogService audit, SnowflakeIdGenerator ids, ApplicationEventPublisher events, DataSource dataSource,
+                                AuditLogService audit, SnowflakeIdGenerator ids, ApplicationEventPublisher events, ParticipationStore participations,
                                 PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
         this.groups = groups;
         this.products = products;
@@ -91,7 +90,7 @@ public class GroupBuyAdminService {
         this.audit = audit;
         this.ids = ids;
         this.events = events;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.participations = participations;
         this.tx = new TransactionTemplate(transactions);
         this.separate = new TransactionTemplate(transactions);
         this.separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -339,10 +338,8 @@ public class GroupBuyAdminService {
     }
 
     private CancelSummary summary(long id) {
-        return jdbc.queryForObject("SELECT count(*) FILTER (WHERE status IN ('JOINED', 'CONFIRMED', 'PREPARING')), "
-                + "coalesce(sum(cash_amount - refunded_amount - compensation_amount) FILTER (WHERE status IN ('JOINED', 'CONFIRMED', 'PREPARING')), 0), "
-                + "count(*) FILTER (WHERE status IN ('SHIPPED', 'DELIVERED')), count(*) FILTER (WHERE status = 'PENDING_PAYMENT') "
-                + "FROM group_buy_participations WHERE group_buy_id = ?", (rs, i) -> new CancelSummary(rs.getInt(1), rs.getLong(2), rs.getInt(3), rs.getInt(4)), id);
+        ParticipationStore.CancelCounts c = participations.cancelCounts(id);
+        return new CancelSummary(c.refundOrders(), c.refundAmount(), c.shippedOrders(), c.pendingOrders());
     }
 
     // ── 수량 ────────────────────────────────────────────────────────────────

@@ -302,6 +302,7 @@ class IdentityVerificationFlowTest extends CommerceApiTestBase {
         @Test
         void DI_나_CI_어느_한쪽_해시만_남아_있어도_막는다() {
             String byCi = newPerson();
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO identity_withdrawals (id, kind, hash, withdrawn_at, expires_at) VALUES (?, 'IDENTITY_CI', ?, now(), now() + interval '5 days')",
                     ids.nextId(), index.hash(IdentityVerificationService.CI, "fake-ci:" + byCi));
 
@@ -312,6 +313,7 @@ class IdentityVerificationFlowTest extends CommerceApiTestBase {
         void 다른_종류의_해시는_막지_않는다() {
             String person = newPerson();
             // 같은 해시 값이라도 EMAIL 종류면 본인인증과 상관없다
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO identity_withdrawals (id, kind, hash, withdrawn_at, expires_at) VALUES (?, 'EMAIL', ?, now(), now() + interval '5 days')",
                     ids.nextId(), index.hash(IdentityVerificationService.DI, "fake-di:" + person));
 

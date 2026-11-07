@@ -123,8 +123,7 @@ class PaymentAdminHttpTest extends PaymentAdminTestBase {
                 .andExpect(jsonPath("$.data.openIssueCount").value(1))
                 .andReturn();
         assertThat(result.getResponse().getContentAsString()).doesNotContain("@test.local");
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, target_id, retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PAYMENT_ORDER_VIEW' "
-                + "ORDER BY id DESC LIMIT 1", operator);
+        Map<String, Object> audit = auditLogs.where().actor(operator).action("PAYMENT_ORDER_VIEW").lastById().orElseThrow().asMap();
         assertThat(audit.get("target_type")).isEqualTo("PAYMENT_ORDER");
         assertThat(audit.get("target_id")).isEqualTo(Long.toString(order.id()));
         assertThat(audit.get("retention_class")).isEqualTo("PERSONAL_DATA");
@@ -230,8 +229,7 @@ class PaymentAdminHttpTest extends PaymentAdminTestBase {
         assertThat(((Number) row.get("resolved_by")).longValue()).isEqualTo(operator);
         assertThat(events(order.id(), "CANCEL_REQUESTED")).isEqualTo(1);
         assertThat(((Number) orderRow(order.id()).get("canceled_amount")).longValue()).isZero();
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, target_id, detail, retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PAYMENT_CANCEL_RETRY'",
-                operator);
+        Map<String, Object> audit = auditLogs.where().actor(operator).action("PAYMENT_CANCEL_RETRY").single().asMap();
         assertThat(audit.get("target_type")).isEqualTo("PAYMENT_CANCEL");
         assertThat(audit.get("target_id")).isEqualTo(Long.toString(cancel));
         assertThat((String) audit.get("detail")).contains(REASON).contains(order.paymentId());
@@ -261,7 +259,7 @@ class PaymentAdminHttpTest extends PaymentAdminTestBase {
         assertThat(((Number) o.get("canceled_amount")).longValue()).as("취소 누계 불변").isZero();
         assertThat(o.get("status")).isEqualTo("PAID");
         assertThat(events(order.id(), "CANCEL_MANUAL")).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PAYMENT_CANCEL_MANUAL'", String.class, operator))
+        assertThat(auditLogs.where().actor(operator).action("PAYMENT_CANCEL_MANUAL").single().retentionClass())
                 .isEqualTo("MONEY");
     }
 
@@ -284,8 +282,7 @@ class PaymentAdminHttpTest extends PaymentAdminTestBase {
                 .andExpect(jsonPath("$.data.detail.confirmedVia").value("ADMIN_RECHECK"))
                 .andExpect(jsonPath("$.data.detail.anomaly").isEmpty());
         assertThat(events(paidAtPg.id(), "RECHECKED")).isEqualTo(1);
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, target_id, detail, retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PAYMENT_RECHECK'",
-                operator);
+        Map<String, Object> audit = auditLogs.where().actor(operator).action("PAYMENT_RECHECK").single().asMap();
         assertThat(audit.get("target_type")).isEqualTo("PAYMENT_ORDER");
         assertThat((String) audit.get("detail")).contains("CONFIRMED").contains(REASON);
         assertThat(audit.get("retention_class")).isEqualTo("MONEY");

@@ -76,6 +76,7 @@ class HotdealSuspicionTest extends HotdealStage2TestBase {
         long first = post(m, host);
         post(m, host);
         post(m, host);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(8))), first);
         suspicions.detectMembers(clock.instant());
         assertThat(open("MEMBER", host)).isEmpty();
@@ -109,6 +110,7 @@ class HotdealSuspicionTest extends HotdealStage2TestBase {
         long a = post(m, host);
         post(m, host);
         post(m, host);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '시험상사' WHERE post_id = ?", ids.nextId(), a);
         suspicions.detectMembers(clock.instant());
         assertThat(open("MEMBER", host)).isEmpty();
@@ -123,6 +125,7 @@ class HotdealSuspicionTest extends HotdealStage2TestBase {
         post(m, host);
         suspicions.detectMembers(clock.instant());
         clock.set(clock.instant().plusSeconds(10));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE deal_suspicions SET status = 'DISMISSED', dismissed_at = ? WHERE kind = 'MEMBER' AND host = ?", Timestamp.from(clock.instant()), host);
         suspicions.detectMembers(clock.instant());
         assertThat(open("MEMBER", host)).isEmpty();

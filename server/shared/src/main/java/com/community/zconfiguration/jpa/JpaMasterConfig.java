@@ -4,10 +4,13 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import io.hypersistence.utils.spring.repository.BaseJpaRepositoryImpl;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.support.SQLExceptionSubclassTranslator;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
 /**
  * 마스터 데이터소스의 JPA 구성.
@@ -40,6 +43,28 @@ public class JpaMasterConfig {
 
     /** 마스터 질의 팩토리. slave 가 생기면 slave 용이 옆에 선다. */
     public static final String QUERY_FACTORY = "roboyam-master-query-factory";
+
+    /**
+     * JPA(Hibernate) 의 SQL 예외를 {@code JdbcTemplate} 과 같은 규칙({@link SQLExceptionSubclassTranslator} — PostgreSQL 은 SQLState 로 가른다)으로 바꾼다.
+     *
+     * <p>그대로 두면 Hibernate 의 변환은 유일 위반(23505)도 {@code DataIntegrityViolationException} 으로만 준다 — 네이티브 SQL(JDBC)에서 JPA 로 옮긴 넣기를
+     * {@code catch (DuplicateKeyException)} 로 받던 서비스가 409 대신 500 을 낸다. 저장소({@code @Repository} 예외 변환)·Spring Data 리포지토리·트랜잭션 커밋(변경 감지가
+     * 커밋 때 내보낸 넣기) 모두 이 방언을 거치므로 한 곳에서 맞춘다. 이 변환이 모르는 SQLState 는 null 을 돌려 Hibernate 의 변환으로 넘어간다.
+     *
+     * <p>{@code static} — 빈 후처리기라 설정 클래스보다 먼저 만들어진다.
+     */
+    @Bean
+    public static BeanPostProcessor roboyamJpaExceptionTranslation() {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessBeforeInitialization(Object bean, String beanName) {
+                if (bean instanceof HibernateJpaVendorAdapter adapter) {
+                    adapter.getJpaDialect().setJdbcExceptionTranslator(new SQLExceptionSubclassTranslator());
+                }
+                return bean;
+            }
+        };
+    }
 
     /**
      * QueryDSL 질의 팩토리. 자동 구성이 만들어 주지 않으므로 여기서 만든다.

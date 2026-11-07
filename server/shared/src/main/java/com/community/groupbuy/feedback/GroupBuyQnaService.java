@@ -5,6 +5,11 @@ import com.community.audit.dto.AuditActions;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyMemberStore;
+import com.community.groupbuy.repository.master.GroupBuyQnaStore;
+import com.community.groupbuy.repository.master.GroupBuyQnaStore.AdminFilter;
+import com.community.groupbuy.repository.master.GroupBuyQnaStore.AdminQuestionRow;
+import com.community.groupbuy.repository.master.GroupBuyQnaStore.QuestionRow;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.service.GroupBuyAudit;
@@ -15,27 +20,19 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.Date;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 공구 Q&A(2b-6 — 계약 「Q&A 규칙」, 사용자 결정 21·26). 회원(user-web)과 운영자(admin-web)가 같이 쓴다.
+ * 공구 Q&A(2b-6 — 계약 「Q&A 규칙」, 사용자 결정 21·26). 회원(user-web)과 운영자(admin-web)가 같이 쓴다. 읽기·쓰기는 {@link GroupBuyQnaStore}.
  *
  * <ul>
  *   <li><b>쓰기</b>: 로그인한 정상 회원(정지·탈퇴는 403 {@code ACCOUNT_RESTRICTED} — 공구 참여 제한은 막지 않는다). 공개된 공구 어디서나, 중단(CANCELED)은 409 {@code GROUP_BUY_QNA_CLOSED}.
@@ -46,6 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>운영자</b>: 답변·답변 수정(이전 내용은 이력 + 감사 {@code GROUPBUY_QNA_ANSWER_EDIT}) · 숨김·숨김 풀기(사유 5~200자, 감사 {@code GROUPBUY_QNA_HIDE}, 숨기면 열린 신고 처리) ·
  *       목록·상세 열람은 개인정보 열람 감사 {@code GROUPBUY_QNA_VIEW}. 첫 답변이면 작성자에게 앱 알림.</li>
  *   <li><b>보관</b>: 마지막 답변일(없으면 작성일) + 3년 — {@code retain_until}, 파기는 배치(R__batch_32 ④).</li>
+ *   <li><b>관리자 목록의 「기한 지남」</b>: 지난 영업일 수는 작성일이 뒤로 갈수록 줄기만 하므로 「{@value #ANSWER_DUE_BUSINESS_DAYS}영업일 지남」 = 「작성 시각 &lt; 경계 날 0시(KST)」
+ *       ({@link GroupBuyBusinessDays#elapsedCutoff}) — 거르기·쪽 나누기·수를 DB 에서 한다. 줄마다 보이는 경과 영업일은 그 쪽의 줄만 자바로 센다.</li>
  * </ul>
  */
 @Service
@@ -59,13 +58,7 @@ public class GroupBuyQnaService {
     /** 답변 기한(결정 60 — 2영업일) */
     public static final int ANSWER_DUE_BUSINESS_DAYS = 2;
 
-    private static final String ADMIN_SELECT = "SELECT q.id, q.group_buy_id, COALESCE(NULLIF(g.title, ''), p.name), g.round_no, q.user_id, pr.nickname, "
-            + "(u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL), q.body, q.secret, q.forced_secret, q.status, q.hidden_at IS NOT NULL, "
-            + "q.deleted_at IS NOT NULL, (SELECT count(*) FROM group_buy_ugc_reports r WHERE r.target_type = 'GROUP_BUY_QUESTION' AND r.target_id = q.id AND r.status = 'OPEN'), "
-            + "q.created_at, a.answered_at FROM group_buy_questions q JOIN group_buys g ON g.id = q.group_buy_id JOIN group_buy_products p ON p.id = g.product_id "
-            + "LEFT JOIN users u ON u.id = q.user_id LEFT JOIN profiles pr ON pr.user_id = q.user_id LEFT JOIN group_buy_answers a ON a.question_id = q.id ";
-
-    private final JdbcTemplate jdbc;
+    private final GroupBuyQnaStore store;
     private final GroupBuyStore groups;
     private final GroupBuyMemberStore members;
     private final GroupBuyUgcReportService reports;
@@ -74,9 +67,9 @@ public class GroupBuyQnaService {
     private final SnowflakeIdGenerator ids;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyQnaService(DataSource dataSource, GroupBuyStore groups, GroupBuyMemberStore members, GroupBuyUgcReportService reports, GroupBuyNotifications notifications,
+    public GroupBuyQnaService(GroupBuyQnaStore store, GroupBuyStore groups, GroupBuyMemberStore members, GroupBuyUgcReportService reports, GroupBuyNotifications notifications,
                               GroupBuyAudit audit, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.store = store;
         this.groups = groups;
         this.members = members;
         this.reports = reports;
@@ -88,40 +81,17 @@ public class GroupBuyQnaService {
 
     // ── 회원 ────────────────────────────────────────────────────────────────
 
-    /** 한 줄 — 회원 목록·쓰기 응답이 같이 쓴다 */
-    private record Row(long id, long userId, String nickname, String body, boolean secret, boolean forcedSecret, String status, boolean hidden, Instant createdAt,
-                       Instant updatedAt, String answer, Instant answeredAt, boolean answerEdited) {
-    }
-
-    private static final String MEMBER_SELECT = "SELECT q.id, q.user_id, pr.nickname, q.body, q.secret, q.forced_secret, q.status, q.hidden_at IS NOT NULL, q.created_at, "
-            + "q.updated_at, a.body, a.answered_at, a.updated_at IS NOT NULL, (u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL) "
-            + "FROM group_buy_questions q LEFT JOIN group_buy_answers a ON a.question_id = q.id LEFT JOIN users u ON u.id = q.user_id "
-            + "LEFT JOIN profiles pr ON pr.user_id = q.user_id ";
-
-    private static Row row(ResultSet rs) throws SQLException {
-        boolean gone = rs.getBoolean(14);
-        return new Row(rs.getLong(1), rs.getLong(2), gone ? null : rs.getString(3), rs.getString(4), rs.getBoolean(5), rs.getBoolean(6), rs.getString(7), rs.getBoolean(8),
-                instant(rs, 9), instant(rs, 10), rs.getString(11), instant(rs, 12), rs.getBoolean(13));
-    }
-
     /** 회원 목록 — 새 글이 위, {@value #PAGE_SIZE}개씩. {@code mine} 은 로그인했을 때만 */
     @Transactional(readOnly = true)
     public FeedbackView.QnaPage list(String groupBuyId, Long viewerId, boolean mine, int page) {
         GroupBuyRow g = visible(groupBuyId);
         int p = Math.max(0, page);
-        boolean onlyMine = mine && viewerId != null;
-        String where = "WHERE q.group_buy_id = ? AND q.deleted_at IS NULL" + (onlyMine ? " AND q.user_id = ?" : "");
-        Object[] args = onlyMine ? new Object[] {g.id(), viewerId} : new Object[] {g.id()};
-        long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_questions q " + where, Long.class, args);
-        List<Object> pageArgs = new ArrayList<>(List.of(args));
-        pageArgs.add(PAGE_SIZE);
-        pageArgs.add((long) p * PAGE_SIZE);
-        List<FeedbackView.Question> items = jdbc.query(MEMBER_SELECT + where + " ORDER BY q.created_at DESC, q.id DESC LIMIT ? OFFSET ?", (rs, i) -> row(rs), pageArgs.toArray())
-                .stream().map(r -> view(r, viewerId)).toList();
+        Long onlyUser = mine && viewerId != null ? viewerId : null;
+        long total = store.memberCount(g.id(), onlyUser);
+        List<FeedbackView.Question> items = store.memberPage(g.id(), onlyUser, (long) p * PAGE_SIZE, PAGE_SIZE).stream().map(r -> view(r, viewerId)).toList();
         String block = askBlock(g, viewerId);
         FeedbackView.Round previous = g.roundNo() <= 1 ? null
-                : jdbc.query("SELECT id, round_no FROM group_buys WHERE round_root_id = ? AND round_no = ? AND published_at IS NOT NULL",
-                        (rs, i) -> new FeedbackView.Round(Long.toString(rs.getLong(1)), rs.getInt(2)), g.roundRootId(), g.roundNo() - 1).stream().findFirst().orElse(null);
+                : store.previousRound(g.roundRootId(), g.roundNo() - 1).map(r -> new FeedbackView.Round(Long.toString(r[0]), (int) r[1])).orElse(null);
         return new FeedbackView.QnaPage(items, total, p, (long) (p + 1) * PAGE_SIZE < total, block == null, block, previous);
     }
 
@@ -145,9 +115,8 @@ public class GroupBuyQnaService {
             throw FeedbackException.qnaClosed();
         }
         Instant now = now();
-        jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext(?))", "gbq:" + userId); // 같은 회원의 질문 쓰기를 줄 세운다(간격 검사)
-        Timestamp lastAt = jdbc.queryForObject("SELECT max(created_at) FROM group_buy_questions WHERE user_id = ?", Timestamp.class, userId);
-        Instant last = lastAt == null ? null : lastAt.toInstant();
+        store.lockWriter(userId); // 같은 회원의 질문 쓰기를 줄 세운다(간격 검사)
+        Instant last = store.lastAskedAt(userId);
         if (last != null) {
             long elapsedMs = Duration.between(last, now).toMillis();
             if (elapsedMs < WRITE_GAP_SECONDS * 1000L) {
@@ -156,8 +125,7 @@ public class GroupBuyQnaService {
         }
         boolean forced = !Boolean.TRUE.equals(secret) && PersonalInfo.looksPersonal(text);
         long id = ids.nextId();
-        jdbc.update("INSERT INTO group_buy_questions (id, group_buy_id, user_id, body, secret, forced_secret, status, created_at, retain_until) VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)",
-                id, g.id(), userId, text, Boolean.TRUE.equals(secret) || forced, forced, Timestamp.from(now), Date.valueOf(retainFrom(now)));
+        store.insertQuestion(id, g.id(), userId, text, Boolean.TRUE.equals(secret) || forced, forced, now, retainFrom(now));
         notifications.questionAsked(id);
         return memberView(id, userId);
     }
@@ -166,7 +134,7 @@ public class GroupBuyQnaService {
     @Transactional
     public FeedbackView.Question update(long userId, String questionId, String body, Boolean secret) {
         String text = body(body);
-        Row r = own(userId, questionId);
+        QuestionRow r = own(userId, questionId);
         requireWriter(userId);
         if ("ANSWERED".equals(r.status())) {
             throw FeedbackException.questionAnswered();
@@ -175,32 +143,31 @@ public class GroupBuyQnaService {
             throw GroupBuyException.invalidState();
         }
         boolean forced = !Boolean.TRUE.equals(secret) && PersonalInfo.looksPersonal(text);
-        jdbc.update("UPDATE group_buy_questions SET body = ?, secret = ?, forced_secret = ?, updated_at = ? WHERE id = ?", text, Boolean.TRUE.equals(secret) || forced, forced,
-                Timestamp.from(now()), r.id());
+        store.updateBody(r.id(), text, Boolean.TRUE.equals(secret) || forced, forced, now());
         return memberView(r.id(), userId);
     }
 
     /** 공개 → 비밀글(되돌리지 않는다) — 답변 전후 모두 */
     @Transactional
     public FeedbackView.Question makeSecret(long userId, String questionId) {
-        Row r = own(userId, questionId);
-        jdbc.update("UPDATE group_buy_questions SET secret = true WHERE id = ?", r.id());
+        QuestionRow r = own(userId, questionId);
+        store.makeSecret(r.id());
         return memberView(r.id(), userId);
     }
 
     /** 지우기 — 목록에서 빠지고, 보관 기간 동안 감춘 채 남는다 */
     @Transactional
     public void remove(long userId, String questionId) {
-        Row r = own(userId, questionId);
-        jdbc.update("UPDATE group_buy_questions SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL", Timestamp.from(now()), r.id());
+        QuestionRow r = own(userId, questionId);
+        store.softDelete(r.id(), now());
     }
 
     private FeedbackView.Question memberView(long id, long viewerId) {
-        return jdbc.query(MEMBER_SELECT + "WHERE q.id = ?", (rs, i) -> row(rs), id).stream().findFirst().map(r -> view(r, viewerId)).orElseThrow(FeedbackException::questionNotFound);
+        return store.memberRow(id).map(r -> view(r, viewerId)).orElseThrow(FeedbackException::questionNotFound);
     }
 
     /** 회원이 보는 모양 — 볼 수 없는 것은 비우고 할 수 있는 일을 정한다 */
-    static FeedbackView.Question view(Row r, Long viewerId) {
+    static FeedbackView.Question view(QuestionRow r, Long viewerId) {
         boolean own = viewerId != null && viewerId == r.userId();
         boolean visible = own || (!r.secret() && !r.hidden());
         boolean answered = "ANSWERED".equals(r.status());
@@ -211,10 +178,9 @@ public class GroupBuyQnaService {
                 r.status(), r.hidden(), r.createdAt(), r.updatedAt(), answer, actions);
     }
 
-    private Row own(long userId, String questionId) {
+    private QuestionRow own(long userId, String questionId) {
         long id = parse(questionId, FeedbackException::questionNotFound);
-        return jdbc.query(MEMBER_SELECT + "WHERE q.id = ? AND q.user_id = ? AND q.deleted_at IS NULL", (rs, i) -> row(rs), id, userId).stream().findFirst()
-                .orElseThrow(FeedbackException::questionNotFound);
+        return store.ownRow(id, userId).orElseThrow(FeedbackException::questionNotFound);
     }
 
     private void requireWriter(long userId) {
@@ -225,23 +191,17 @@ public class GroupBuyQnaService {
 
     // ── 운영자 ──────────────────────────────────────────────────────────────
 
-    private record AdminRow(FeedbackView.QnaRow row, String body) {
+    private static FeedbackView.QnaRow adminRow(AdminQuestionRow q, BusinessDayCalendar holidays, LocalDate today) {
+        int elapsed = "OPEN".equals(q.status()) ? GroupBuyBusinessDays.elapsed(ServiceTime.dateOf(q.createdAt()), today, holidays) : 0;
+        boolean overdue = "OPEN".equals(q.status()) && !q.hidden() && !q.deleted() && elapsed >= ANSWER_DUE_BUSINESS_DAYS;
+        return new FeedbackView.QnaRow(Long.toString(q.id()), new FeedbackView.GroupBuyRef(Long.toString(q.groupBuyId()), q.title(), q.roundNo()),
+                new PaymentMemberView(q.gone() ? null : Long.toString(q.userId()), q.gone() ? "" : nz(q.nickname()), q.gone()), preview(q.body()), q.secret(), q.forcedSecret(),
+                q.status(), q.hidden(), q.deleted(), q.reportCount(), q.createdAt(), q.answeredAt(), elapsed, overdue);
     }
 
-    private AdminRow adminRow(ResultSet rs, BusinessDayCalendar holidays, LocalDate today) throws SQLException {
-        long userId = rs.getLong(5);
-        boolean gone = rs.getBoolean(7);
-        String body = rs.getString(8);
-        String status = rs.getString(11);
-        boolean hidden = rs.getBoolean(12);
-        boolean deleted = rs.getBoolean(13);
-        Instant created = instant(rs, 15);
-        int elapsed = "OPEN".equals(status) ? GroupBuyBusinessDays.elapsed(ServiceTime.dateOf(created), today, holidays) : 0;
-        boolean overdue = "OPEN".equals(status) && !hidden && !deleted && elapsed >= ANSWER_DUE_BUSINESS_DAYS;
-        FeedbackView.QnaRow row = new FeedbackView.QnaRow(Long.toString(rs.getLong(1)), new FeedbackView.GroupBuyRef(Long.toString(rs.getLong(2)), rs.getString(3), rs.getInt(4)),
-                new PaymentMemberView(gone ? null : Long.toString(userId), gone ? "" : nz(rs.getString(6)), gone), preview(body), rs.getBoolean(9), rs.getBoolean(10), status,
-                hidden, deleted, rs.getInt(14), created, instant(rs, 16), elapsed, overdue);
-        return new AdminRow(row, body);
+    /** 답변 기한이 지난 질문을 고르는 시각 경계 — 이 시각 전에 쓴 답변 대기 질문이 「기한 지남」 */
+    private static Instant overdueBefore(LocalDate today, BusinessDayCalendar holidays) {
+        return GroupBuyBusinessDays.elapsedCutoff(today, ANSWER_DUE_BUSINESS_DAYS, holidays).atStartOfDay(ServiceTime.ZONE).toInstant();
     }
 
     /**
@@ -251,51 +211,23 @@ public class GroupBuyQnaService {
     @Transactional
     public FeedbackView.QnaList adminList(String tab, boolean overdueOnly, String q, int page, int size, long operatorId, String ip) {
         String t = tab == null || tab.isBlank() ? "OPEN" : tab;
-        StringBuilder where = new StringBuilder("WHERE TRUE");
-        List<Object> args = new ArrayList<>();
-        switch (t) {
-            case "OPEN", "ANSWERED" -> {
-                where.append(" AND q.status = ? AND q.hidden_at IS NULL AND q.deleted_at IS NULL");
-                args.add(t);
-            }
-            case "HIDDEN" -> where.append(" AND q.hidden_at IS NOT NULL AND q.deleted_at IS NULL");
-            case "ALL" -> {
-            }
-            default -> throw ValidationException.of("tab", new MessageRef("groupbuy.qna.tab.invalid"));
+        if (!List.of("OPEN", "ANSWERED", "HIDDEN", "ALL").contains(t)) {
+            throw ValidationException.of("tab", new MessageRef("groupbuy.qna.tab.invalid"));
         }
         String needle = q == null ? "" : q.trim();
-        if (!needle.isEmpty()) {
-            Long n = parseOrNull(needle);
-            where.append(" AND (g.title ILIKE ? OR p.name ILIKE ? OR pr.nickname ILIKE ?").append(n != null ? " OR q.user_id = ? OR q.group_buy_id = ?" : "").append(")");
-            String like = "%" + needle.replace("%", "\\%").replace("_", "\\_") + "%";
-            args.add(like);
-            args.add(like);
-            args.add(like);
-            if (n != null) {
-                args.add(n);
-                args.add(n);
-            }
-        }
-        String order = "OPEN".equals(t) ? " ORDER BY q.created_at, q.id" : " ORDER BY q.created_at DESC, q.id DESC";
         BusinessDayCalendar holidays = groups.settings().calendar();
         LocalDate today = ServiceTime.today(clock());
+        Instant cutoff = overdueBefore(today, holidays);
+        AdminFilter filter = new AdminFilter(t, needle.isEmpty() ? null : GroupBuyRowNames.like(needle), needle.isEmpty() ? null : parseOrNull(needle),
+                overdueOnly ? cutoff : null);
         int s = Math.min(Math.max(size, 1), 100);
         int p = Math.max(0, page);
-        List<FeedbackView.QnaRow> all = jdbc.query(ADMIN_SELECT + where + order, (rs, i) -> adminRow(rs, holidays, today).row(), args.toArray());
-        List<FeedbackView.QnaRow> matched = overdueOnly ? all.stream().filter(FeedbackView.QnaRow::overdue).toList() : all;
-        List<FeedbackView.QnaRow> items = matched.stream().skip((long) p * s).limit(s).toList();
-        Map<String, Long> counts = new LinkedHashMap<>();
-        jdbc.query("SELECT CASE WHEN hidden_at IS NOT NULL THEN 'HIDDEN' ELSE status END, count(*) FROM group_buy_questions WHERE deleted_at IS NULL GROUP BY 1",
-                rs -> {
-                    counts.put(rs.getString(1), rs.getLong(2));
-                });
-        for (String k : List.of("OPEN", "ANSWERED", "HIDDEN")) {
-            counts.putIfAbsent(k, 0L);
-        }
-        long overdueCount = jdbc.queryForList("SELECT created_at FROM group_buy_questions WHERE status = 'OPEN' AND hidden_at IS NULL AND deleted_at IS NULL", Timestamp.class)
-                .stream().filter(c -> GroupBuyBusinessDays.elapsed(ServiceTime.dateOf(c.toInstant()), today, holidays) >= ANSWER_DUE_BUSINESS_DAYS).count();
+        long total = store.adminCount(filter);
+        List<FeedbackView.QnaRow> items = store.adminPage(filter, "OPEN".equals(t), (long) p * s, s).stream().map(r -> adminRow(r, holidays, today)).toList();
+        Map<String, Long> counts = store.stateCounts();
+        long overdueCount = store.overdueCount(cutoff);
         audit.record(operatorId, AuditActions.GROUPBUY_QNA_VIEW, GroupBuyAudit.TARGET_QUESTION, "LIST", ip, Map.of("tab", t, "count", items.size()));
-        return new FeedbackView.QnaList(items, matched.size(), counts, overdueCount);
+        return new FeedbackView.QnaList(items, total, counts, overdueCount);
     }
 
     /** 관리자 상세 — 비밀글 본문 · 답변 · 수정 이력 · 숨김 · 열린 신고. 열람 감사 */
@@ -309,23 +241,14 @@ public class GroupBuyQnaService {
     private FeedbackView.QnaDetail detail(long id) {
         BusinessDayCalendar holidays = groups.settings().calendar();
         LocalDate today = ServiceTime.today(clock());
-        AdminRow a = jdbc.query(ADMIN_SELECT + "WHERE q.id = ?", (rs, i) -> adminRow(rs, holidays, today), id).stream().findFirst()
-                .orElseThrow(FeedbackException::questionNotFound);
-        record Extra(Instant updatedAt, Instant deletedAt, LocalDate retainUntil, String hiddenReason, Instant hiddenAt, Long hiddenBy, String hiddenByName) {
-        }
-        Extra x = jdbc.queryForObject("SELECT q.updated_at, q.deleted_at, q.retain_until, q.hidden_reason, q.hidden_at, q.hidden_by, o.operator_name FROM group_buy_questions q "
-                + "LEFT JOIN operators o ON o.id = q.hidden_by WHERE q.id = ?", (rs, i) -> new Extra(instant(rs, 1), instant(rs, 2), rs.getDate(3).toLocalDate(), rs.getString(4),
-                        instant(rs, 5), (Long) rs.getObject(6), rs.getString(7)), id);
-        FeedbackView.AdminAnswer answer = jdbc.query("SELECT a.body, a.answered_at, a.answered_by, o1.operator_name, a.updated_at, a.updated_by, o2.operator_name "
-                + "FROM group_buy_answers a LEFT JOIN operators o1 ON o1.id = a.answered_by LEFT JOIN operators o2 ON o2.id = a.updated_by WHERE a.question_id = ?",
-                (rs, i) -> new FeedbackView.AdminAnswer(rs.getString(1), instant(rs, 2), operator(rs.getLong(3), rs.getString(4)), instant(rs, 5),
-                        rs.getObject(6) == null ? null : operator(rs.getLong(6), rs.getString(7))), id).stream().findFirst().orElse(null);
-        List<FeedbackView.AnswerRevision> revisions = jdbc.query("SELECT r.id, r.body, r.written_at, r.written_by, o1.operator_name, r.replaced_at, r.replaced_by, o2.operator_name "
-                + "FROM group_buy_answer_revisions r LEFT JOIN operators o1 ON o1.id = r.written_by LEFT JOIN operators o2 ON o2.id = r.replaced_by WHERE r.question_id = ? "
-                + "ORDER BY r.replaced_at DESC, r.id DESC", (rs, i) -> new FeedbackView.AnswerRevision(Long.toString(rs.getLong(1)), rs.getString(2), instant(rs, 3),
-                        operator(rs.getLong(4), rs.getString(5)), instant(rs, 6), operator(rs.getLong(7), rs.getString(8))), id);
+        AdminQuestionRow a = store.adminRow(id).orElseThrow(FeedbackException::questionNotFound);
+        GroupBuyQnaStore.QuestionExtra x = store.extra(id).orElseThrow(FeedbackException::questionNotFound);
+        FeedbackView.AdminAnswer answer = store.answer(id).map(v -> new FeedbackView.AdminAnswer(v.body(), v.answeredAt(), operator(v.answeredBy(), v.answeredByName()),
+                v.updatedAt(), v.updatedBy() == null ? null : operator(v.updatedBy(), v.updatedByName()))).orElse(null);
+        List<FeedbackView.AnswerRevision> revisions = store.revisions(id).stream().map(v -> new FeedbackView.AnswerRevision(Long.toString(v.id()), v.body(), v.writtenAt(),
+                operator(v.writtenBy(), v.writtenByName()), v.replacedAt(), operator(v.replacedBy(), v.replacedByName()))).toList();
         FeedbackView.HiddenInfo hidden = x.hiddenAt() == null ? null : new FeedbackView.HiddenInfo(x.hiddenReason(), x.hiddenAt(), operator(x.hiddenBy(), x.hiddenByName()));
-        FeedbackView.QnaRow r = a.row();
+        FeedbackView.QnaRow r = adminRow(a, holidays, today);
         return new FeedbackView.QnaDetail(r.id(), r.groupBuy(), r.member(), r.preview(), r.secret(), r.forcedSecret(), r.status(), r.hidden(), r.deleted(), r.reportCount(),
                 r.createdAt(), r.answeredAt(), r.elapsedBusinessDays(), r.overdue(), a.body(), x.updatedAt(), x.deletedAt(), x.retainUntil(), answer, revisions, hidden,
                 reports.openReasons(GroupBuyUgcReportService.QUESTION, id));
@@ -339,28 +262,21 @@ public class GroupBuyQnaService {
         if (text.isEmpty() || text.codePointCount(0, text.length()) > ANSWER_MAX) {
             throw ValidationException.of("body", new MessageRef("groupbuy.qna.answer.length", ANSWER_MAX));
         }
-        record Q(long userId, long groupBuyId, boolean deleted) {
-        }
-        Q q = jdbc.query("SELECT user_id, group_buy_id, deleted_at IS NOT NULL FROM group_buy_questions WHERE id = ? FOR UPDATE", (rs, i) -> new Q(rs.getLong(1), rs.getLong(2),
-                rs.getBoolean(3)), id).stream().findFirst().orElseThrow(FeedbackException::questionNotFound);
+        GroupBuyQnaStore.LockedQuestion q = store.lock(id).orElseThrow(FeedbackException::questionNotFound);
         if (q.deleted()) {
             throw FeedbackException.questionDeleted();
         }
         Instant now = now();
-        record Old(String body, Instant at, long by) {
-        }
-        Optional<Old> old = jdbc.query("SELECT body, COALESCE(updated_at, answered_at), COALESCE(updated_by, answered_by) FROM group_buy_answers WHERE question_id = ?",
-                (rs, i) -> new Old(rs.getString(1), instant(rs, 2), rs.getLong(3)), id).stream().findFirst();
+        Optional<GroupBuyQnaStore.CurrentAnswer> old = store.currentAnswer(id);
         if (old.isEmpty()) {
-            jdbc.update("INSERT INTO group_buy_answers (question_id, body, answered_by, answered_at) VALUES (?, ?, ?, ?)", id, text, operatorId, Timestamp.from(now));
-            jdbc.update("UPDATE group_buy_questions SET status = 'ANSWERED', retain_until = ? WHERE id = ?", Date.valueOf(retainFrom(now)), id);
+            store.insertAnswer(id, text, operatorId, now);
+            store.markAnswered(id, retainFrom(now));
             notifications.questionAnswered(q.userId(), q.groupBuyId());
         } else if (!old.get().body().equals(text)) {
-            Old o = old.get();
-            jdbc.update("INSERT INTO group_buy_answer_revisions (id, question_id, body, written_by, written_at, replaced_by, replaced_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    ids.nextId(), id, o.body(), o.by(), Timestamp.from(o.at()), operatorId, Timestamp.from(now));
-            jdbc.update("UPDATE group_buy_answers SET body = ?, updated_by = ?, updated_at = ? WHERE question_id = ?", text, operatorId, Timestamp.from(now), id);
-            jdbc.update("UPDATE group_buy_questions SET retain_until = ? WHERE id = ?", Date.valueOf(retainFrom(now)), id);
+            GroupBuyQnaStore.CurrentAnswer o = old.get();
+            store.insertAnswerRevision(ids.nextId(), id, o.body(), o.by(), o.at(), operatorId, now);
+            store.updateAnswer(id, text, operatorId, now);
+            store.setRetainUntil(id, retainFrom(now));
             audit.record(operatorId, AuditActions.GROUPBUY_QNA_ANSWER_EDIT, GroupBuyAudit.TARGET_QUESTION, id, ip, Map.of("length", text.length()));
         }
         return detail(id);
@@ -372,7 +288,7 @@ public class GroupBuyQnaService {
         long id = parse(questionId, FeedbackException::questionNotFound);
         String why = reason(reason);
         lockLive(id);
-        jdbc.update("UPDATE group_buy_questions SET hidden_at = ?, hidden_by = ?, hidden_reason = ? WHERE id = ?", Timestamp.from(now()), operatorId, why, id);
+        store.hide(id, why, operatorId, now());
         int resolved = reports.resolve(GroupBuyUgcReportService.QUESTION, id, operatorId);
         audit.record(operatorId, AuditActions.GROUPBUY_QNA_HIDE, GroupBuyAudit.TARGET_QUESTION, id, ip, Map.of("action", "HIDE", "reason", why, "resolvedReports", resolved));
         return detail(id);
@@ -384,15 +300,13 @@ public class GroupBuyQnaService {
         long id = parse(questionId, FeedbackException::questionNotFound);
         String why = reason(reason);
         lockLive(id);
-        jdbc.update("UPDATE group_buy_questions SET hidden_at = NULL, hidden_by = NULL, hidden_reason = NULL WHERE id = ?", id);
+        store.unhide(id);
         audit.record(operatorId, AuditActions.GROUPBUY_QNA_HIDE, GroupBuyAudit.TARGET_QUESTION, id, ip, Map.of("action", "UNHIDE", "reason", why));
         return detail(id);
     }
 
     private void lockLive(long id) {
-        Boolean deleted = jdbc.query("SELECT deleted_at IS NOT NULL FROM group_buy_questions WHERE id = ? FOR UPDATE", (rs, i) -> rs.getBoolean(1), id).stream().findFirst()
-                .orElseThrow(FeedbackException::questionNotFound);
-        if (deleted) {
+        if (store.lock(id).orElseThrow(FeedbackException::questionNotFound).deleted()) {
             throw FeedbackException.questionDeleted();
         }
     }
@@ -458,11 +372,6 @@ public class GroupBuyQnaService {
 
     static String nz(String s) {
         return s == null ? "" : s;
-    }
-
-    static Instant instant(ResultSet rs, int col) throws SQLException {
-        Timestamp t = rs.getTimestamp(col);
-        return t == null ? null : t.toInstant();
     }
 
     private Clock clock() {

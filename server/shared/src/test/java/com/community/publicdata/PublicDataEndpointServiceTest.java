@@ -18,6 +18,7 @@ import com.community.publicdata.dto.response.PublicDataEndpointsView;
 import com.community.publicdata.repository.master.PublicDataEndpointStore;
 import com.community.publicdata.service.PublicDataEndpointService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -56,8 +57,8 @@ class PublicDataEndpointServiceTest {
                 audits.add(event);
             }
         };
-        service = new PublicDataEndpointService(new PublicDataEndpointStore(ds), new NtsProperties(NtsProviderKind.FAKE, "", "https://api.odcloud.kr/", 5), audit,
-                new StaticListableBeanFactory(Map.of("clock", Clock.systemUTC())).getBeanProvider(Clock.class));
+        service = JpaTestContext.transactional(new PublicDataEndpointService(JpaTestContext.create(PublicDataEndpointStore.class), new NtsProperties(NtsProviderKind.FAKE, "", "https://api.odcloud.kr/", 5), audit,
+                new StaticListableBeanFactory(Map.of("clock", Clock.systemUTC())).getBeanProvider(Clock.class)));
         operator = 9_600_000_000L + System.nanoTime() % 1_000_000;
         jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, 'x', true, now(), now())", operator,
                 "pde-" + operator + "@test.local", "pde" + (operator % 1_000_000_000L));

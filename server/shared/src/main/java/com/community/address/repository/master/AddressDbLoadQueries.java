@@ -1,6 +1,7 @@
 package com.community.address.repository.master;
 
 import com.community.address.entity.AddressDbLoadEntity;
+import com.community.address.entity.AddressImportPhase;
 import com.community.address.entity.AddressLoadStatus;
 import com.community.address.entity.QAddressDbLoadEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
@@ -26,5 +27,10 @@ public class AddressDbLoadQueries extends RoboyamRepositoryQDSL {
     public long doneCount() {
         Long count = query.select(LOAD.count()).from(LOAD).where(LOAD.status.eq(AddressLoadStatus.DONE)).fetchOne();
         return count == null ? 0 : count;
+    }
+
+    /** 진행 중({@code RUNNING})인 적재 줄의 단계를 바꾼다(조건부 — 이미 끝났으면 0). 부르는 쪽이 따로 트랜잭션을 연다(본 트랜잭션이 끝나기 전에도 보이게) */
+    public long markPhase(long loadId, AddressImportPhase phase) {
+        return query.update(LOAD).set(LOAD.phase, phase).where(LOAD.id.eq(loadId), LOAD.status.eq(AddressLoadStatus.RUNNING)).execute();
     }
 }

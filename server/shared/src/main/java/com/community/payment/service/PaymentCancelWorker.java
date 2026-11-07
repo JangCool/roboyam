@@ -66,7 +66,7 @@ public class PaymentCancelWorker {
      */
     public int runOnce() {
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        int recovered = cancels.recoverStale(now.minus(properties.cancelStale()), now);
+        int recovered = executor.recoverStale(now.minus(properties.cancelStale()), now);
         if (recovered > 0) {
             log.warn("보내던 중 멈춘 취소 대기열 줄을 되돌렸다 count={}", recovered);
         }

@@ -1,5 +1,21 @@
 package com.community.hotdeal.repository.master;
 
+import com.community.hotdeal.entity.PostDealEntity;
+import com.community.hotdeal.entity.QDealOgImageEntity;
+import com.community.hotdeal.entity.QPostDealEntity;
+import com.community.post.entity.QPostEntity;
+import com.community.post.repository.master.PostRepositoryQDSL;
+import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.Ilike;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.StringExpression;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -7,10 +23,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,24 +34,27 @@ import org.springframework.stereotype.Repository;
 /**
  * 관리자 핫딜 글·의심 후보·영향 미리 보기 질의(hotdeal-contract 「API 후보」 관리자). <b>부르는 쪽 트랜잭션에 참여한다.</b>
  *
- * <p>Native SQL 인 이유: 읽을 때 계산하는 딜 상태(종료 · 기간 종료 = 마감 또는 등록 + 설정 일수 · 의심)를 상태별 건수와 함께 한 번에 세고, 글 표({@code posts} — 파티션 표라 연관이 없다)·
- * 딜 표·프로필을 함께 거른다. 상태 판정은 shared {@code DealViews#view} 와 같다(ENDED &gt; EXPIRED &gt; FLAGGED &gt; ACTIVE) — 한쪽을 고치면 같이 고친다.
- * 「살아 있는 글」 = 지우지 않음 · 공개 · 예약 삭제 전(숨긴 글은 든다 — 관리자 목록), 「공개 글」은 숨김도 아니고 일반 글(shared {@code DealQueries.PUBLIC_POST}).
+ * <p>읽을 때 계산하는 딜 상태(종료 · 기간 종료 = 마감 또는 등록 + 설정 일수 · 의심)를 상태별 건수와 함께 한 번에 세고, 글 표({@code posts} — 파티션 표라 연관이 없어
+ * {@code join(..).on(..)} 으로 잇는다)·딜 표·프로필을 함께 거른다. 상태 판정은 shared {@code DealViews#view} 와 같다(ENDED &gt; EXPIRED &gt; FLAGGED &gt; ACTIVE) — 한쪽을 고치면 같이 고친다.
+ * 「살아 있는 글」 = 지우지 않음 · 공개 · 예약 삭제 전(숨긴 글은 든다 — 관리자 목록, {@link #alivePost}), 「공개 글」은 숨김도 아니고 일반 글({@link #publicPost} — shared {@code DealQueries.PUBLIC_POST}).
+ *
+ * <p>위장 홍보 의심 후보({@code deal_suspicions})만 네이티브 SQL 이다 — 엔티티가 없고 글 ID 배열({@code post_ids bigint[]})을 {@code = ANY(..)} 로 풀어 마지막 글 시각을 센다
+ * (JPQL 에 배열 연산이 없다).
  */
 @Repository
-public class AdminDealQueries {
+public class AdminDealQueries extends RoboyamRepositoryQDSL {
 
-    /** 살아 있는 글(관리자 목록 — 숨김 포함) — 인자 1개(now) */
-    static final String ALIVE_POST = "p.deleted_at IS NULL AND p.status = 'PUBLISHED' AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > ?)";
-    /** 공개 글 — 인자 2개(now, now) */
-    static final String PUBLIC_POST = "p.deleted_at IS NULL AND p.status = 'PUBLISHED' AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > ?) "
-            + "AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= ?)) AND p.group_id IS NULL";
+    private static final QPostDealEntity DEAL = QPostDealEntity.postDealEntity;
+    private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QDealOgImageEntity OG = QDealOgImageEntity.dealOgImageEntity;
 
     public static final String ALL = "ALL";
 
     private final JdbcTemplate jdbc;
 
-    public AdminDealQueries(DataSource dataSource) {
+    public AdminDealQueries(JPAQueryFactory query, DataSource dataSource) {
+        super(query);
         this.jdbc = new JdbcTemplate(dataSource);
     }
 
@@ -57,6 +76,32 @@ public class AdminDealQueries {
     public record Page(long total, List<Row> rows) {
     }
 
+    // ── 글 조건(대시보드 가젯도 쓴다) ────────────────────────────────────────
+
+    /** 살아 있는 글(관리자 목록 — 숨김 포함): 지우지 않음 · 공개 · 예약 삭제 전 */
+    public static BooleanExpression alivePost(QPostEntity p, Instant now) {
+        return PostRepositoryQDSL.alive(p, now);
+    }
+
+    /** 공개 글: 살아 있고 숨김 중이 아니며 일반 글(소모임 글 아님) */
+    public static BooleanExpression publicPost(QPostEntity p, Instant now) {
+        return alivePost(p, now).and(PostRepositoryQDSL.notHidden(p, now)).and(p.groupId.isNull());
+    }
+
+    /**
+     * 진행 중(ACTIVE·FLAGGED — 종료도 기간 종료도 아님). shared {@code DealQueries.LIVE_DEAL} 과 같다.
+     *
+     * @param expireFrom 등록이 이 시각 뒤여야 기간 종료가 아니다(마감 없는 딜, {@code autoExpireDays} 가 0 이면 보지 않는다)
+     */
+    public static BooleanExpression liveDeal(QPostDealEntity d, Instant now, int autoExpireDays, Instant expireFrom) {
+        BooleanExpression live = d.status.eq(PostDealEntity.ACTIVE).and(d.endsAt.isNull().or(d.endsAt.gt(now)));
+        return autoExpireDays == 0 ? live : live.and(d.endsAt.isNotNull().or(d.createdAt.gt(expireFrom)));
+    }
+
+    private static BooleanExpression liveDeal(int autoExpireDays, Instant now) {
+        return liveDeal(DEAL, now, autoExpireDays, now.minus(Duration.ofDays(autoExpireDays)));
+    }
+
     // ── 핫딜 글 목록 ────────────────────────────────────────────────────────
 
     /** 진행 중(저장 상태 ACTIVE)인 딜이 가는 호스트들(상품·최종 — 차단 판정용, 중복 없음) */
@@ -64,11 +109,12 @@ public class AdminDealQueries {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        String in = marks(boardIds.size());
-        List<Object> args = new ArrayList<>(boardIds);
-        args.addAll(boardIds);
-        return jdbc.queryForList("SELECT product_host FROM post_deals WHERE status = 'ACTIVE' AND board_id IN (" + in + ") UNION "
-                + "SELECT final_host FROM post_deals WHERE status = 'ACTIVE' AND final_host IS NOT NULL AND board_id IN (" + in + ")", String.class, args.toArray());
+        // JPQL 에 UNION 이 없어 두 번 읽어 합친다(중복 없음은 같다)
+        Set<String> hosts = new LinkedHashSet<>(query.select(DEAL.productHost).distinct().from(DEAL)
+                .where(DEAL.status.eq(PostDealEntity.ACTIVE), DEAL.boardId.in(boardIds)).fetch());
+        hosts.addAll(query.select(DEAL.finalHost).distinct().from(DEAL)
+                .where(DEAL.status.eq(PostDealEntity.ACTIVE), DEAL.finalHost.isNotNull(), DEAL.boardId.in(boardIds)).fetch());
+        return new ArrayList<>(hosts);
     }
 
     /**
@@ -78,48 +124,48 @@ public class AdminDealQueries {
      * @param blockedHosts 차단 도메인 진행 중만 볼 때 그 호스트들(null 이면 거르지 않는다)
      */
     public Page search(Filter f, String view, Collection<String> blockedHosts, int autoExpireDays, Instant now, long offset, int limit) {
-        Where w = where(f, now);
-        w.view(view, autoExpireDays, now);
-        if (blockedHosts != null) {
-            w.blocked(blockedHosts, autoExpireDays, now);
+        BooleanBuilder w = where(f, now);
+        if (w != null) {
+            w.and(view(view, autoExpireDays, now));
         }
-        Long total = jdbc.queryForObject("SELECT count(*) " + w.from() + w.sql(), Long.class, w.args.stream().map(AdminDealQueries::bind).toArray());
-        List<Object> args = new ArrayList<>(List.of(now, now));
-        args.addAll(w.args);
-        args.add(limit);
-        args.add(offset);
-        List<Object> bound = args.stream().map(AdminDealQueries::bind).toList();
-        List<Row> rows = jdbc.query("SELECT p.id, p.title, p.board_id, p.prefix_id, p.author_id, p.created_at, p.like_count, "
-                        + "(p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= ?)) AND p.group_id IS NULL AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > ?) "
-                        + w.from() + w.sql() + " ORDER BY d.post_id DESC LIMIT ? OFFSET ?",
-                (rs, i) -> new Row(rs.getLong(1), rs.getString(2), rs.getLong(3), (Long) rs.getObject(4), (Long) rs.getObject(5), rs.getTimestamp(6).toInstant(),
-                        rs.getInt(7), rs.getBoolean(8)), bound.toArray());
+        if (w != null && blockedHosts != null) {
+            w = blocked(w, blockedHosts, autoExpireDays, now);
+        }
+        if (w == null) {
+            return new Page(0, List.of());
+        }
+        Long total = from(query.select(DEAL.postId.count())).where(w).fetchOne();
+        List<Row> rows = from(query.select(rowColumns(now))).where(w).orderBy(DEAL.postId.desc()).offset(offset).limit(limit).fetch()
+                .stream().map(AdminDealQueries::toRow).toList();
         return new Page(total == null ? 0 : total, rows);
     }
 
     /** 상태별 건수(상태 조건만 뺀 같은 조건 — 차단 거르기를 켰으면 그것까지) — ACTIVE·FLAGGED·ENDED·EXPIRED·ALL */
     public Map<String, Long> counts(Filter f, Collection<String> blockedHosts, int autoExpireDays, Instant now) {
-        Where w = where(f, now);
-        if (blockedHosts != null) {
-            w.blocked(blockedHosts, autoExpireDays, now);
+        BooleanBuilder w = where(f, now);
+        if (w != null && blockedHosts != null) {
+            w = blocked(w, blockedHosts, autoExpireDays, now);
         }
-        String expired = expired(autoExpireDays);
-        List<Object> args = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            args.add(now);
-        }
-        args.addAll(w.args);
         Map<String, Long> out = new LinkedHashMap<>();
-        jdbc.query("SELECT count(*) FILTER (WHERE d.status = 'ACTIVE' AND NOT " + expired + " AND d.flagged_at IS NULL), "
-                + "count(*) FILTER (WHERE d.status = 'ACTIVE' AND NOT " + expired + " AND d.flagged_at IS NOT NULL), "
-                + "count(*) FILTER (WHERE d.status = 'ENDED'), "
-                + "count(*) FILTER (WHERE d.status = 'ACTIVE' AND " + expired + "), count(*) " + w.from() + w.sql(), rs -> {
-                    out.put("ACTIVE", rs.getLong(1));
-                    out.put("FLAGGED", rs.getLong(2));
-                    out.put("ENDED", rs.getLong(3));
-                    out.put("EXPIRED", rs.getLong(4));
-                    out.put(ALL, rs.getLong(5));
-                }, args.stream().map(AdminDealQueries::bind).toArray());
+        if (w == null) {
+            for (String key : List.of("ACTIVE", "FLAGGED", "ENDED", "EXPIRED", ALL)) {
+                out.put(key, 0L);
+            }
+            return out;
+        }
+        BooleanExpression expired = expired(autoExpireDays, now);
+        BooleanExpression active = DEAL.status.eq(PostDealEntity.ACTIVE);
+        NumberExpression<Long> activeCount = countIf(active.and(expired.not()).and(DEAL.flaggedAt.isNull()));
+        NumberExpression<Long> flaggedCount = countIf(active.and(expired.not()).and(DEAL.flaggedAt.isNotNull()));
+        NumberExpression<Long> endedCount = countIf(DEAL.status.eq(PostDealEntity.ENDED));
+        NumberExpression<Long> expiredCount = countIf(active.and(expired));
+        NumberExpression<Long> all = DEAL.postId.count();
+        Tuple t = from(query.select(activeCount, flaggedCount, endedCount, expiredCount, all)).where(w).fetchOne();
+        out.put("ACTIVE", nz(t == null ? null : t.get(activeCount)));
+        out.put("FLAGGED", nz(t == null ? null : t.get(flaggedCount)));
+        out.put("ENDED", nz(t == null ? null : t.get(endedCount)));
+        out.put("EXPIRED", nz(t == null ? null : t.get(expiredCount)));
+        out.put(ALL, nz(t == null ? null : t.get(all)));
         return out;
     }
 
@@ -128,10 +174,12 @@ public class AdminDealQueries {
         if (blockedHosts.isEmpty()) {
             return 0;
         }
-        Where w = where(f, now);
-        w.blocked(blockedHosts, autoExpireDays, now);
-        Long n = jdbc.queryForObject("SELECT count(*) " + w.from() + w.sql(), Long.class, w.args.stream().map(AdminDealQueries::bind).toArray());
-        return n == null ? 0 : n;
+        BooleanBuilder w = where(f, now);
+        if (w == null) {
+            return 0;
+        }
+        w = blocked(w, blockedHosts, autoExpireDays, now);
+        return nz(from(query.select(DEAL.postId.count())).where(w).fetchOne());
     }
 
     /** 살아 있는 핫딜 게시판 글 한 줄(상세 — 딜 줄이 있어야) */
@@ -139,18 +187,10 @@ public class AdminDealQueries {
         if (boardIds.isEmpty()) {
             return null;
         }
-        Filter f = new Filter(List.copyOf(boardIds), null, null, null, null);
-        Where w = where(f, now);
-        w.sql.append(" AND p.id = ?");
-        w.args.add(postId);
-        List<Object> args = new ArrayList<>(List.of(now, now));
-        args.addAll(w.args);
-        List<Row> rows = jdbc.query("SELECT p.id, p.title, p.board_id, p.prefix_id, p.author_id, p.created_at, p.like_count, "
-                        + "(p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= ?)) AND p.group_id IS NULL AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > ?) "
-                        + w.from() + w.sql(),
-                (rs, i) -> new Row(rs.getLong(1), rs.getString(2), rs.getLong(3), (Long) rs.getObject(4), (Long) rs.getObject(5), rs.getTimestamp(6).toInstant(),
-                        rs.getInt(7), rs.getBoolean(8)), args.stream().map(AdminDealQueries::bind).toArray());
-        return rows.isEmpty() ? null : rows.get(0);
+        BooleanBuilder w = where(new Filter(List.copyOf(boardIds), null, null, null, null), now);
+        w.and(POST.id.eq(postId));
+        Tuple t = from(query.select(rowColumns(now))).where(w).fetchFirst();
+        return t == null ? null : toRow(t);
     }
 
     /** 글 ID → 지금 게시판 ID(지운 글 포함) */
@@ -159,9 +199,9 @@ public class AdminDealQueries {
         if (postIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT id, board_id FROM posts WHERE id IN (" + marks(postIds.size()) + ")", rs -> {
-            out.put(rs.getLong(1), rs.getLong(2));
-        }, postIds.toArray());
+        for (Tuple t : query.select(POST.id, POST.boardId).from(POST).where(POST.id.in(postIds)).fetch()) {
+            out.put(t.get(POST.id), t.get(POST.boardId));
+        }
         return out;
     }
 
@@ -171,9 +211,9 @@ public class AdminDealQueries {
         if (ogImageIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT id, origin_url FROM deal_og_images WHERE id IN (" + marks(ogImageIds.size()) + ")", rs -> {
-            out.put(rs.getLong(1), rs.getString(2));
-        }, ogImageIds.toArray());
+        for (Tuple t : query.select(OG.id, OG.originUrl).from(OG).where(OG.id.in(ogImageIds)).fetch()) {
+            out.put(t.get(OG.id), t.get(OG.originUrl));
+        }
         return out;
     }
 
@@ -182,10 +222,10 @@ public class AdminDealQueries {
     }
 
     public List<SameRow> sameDeals(String key, long excludePostId, int autoExpireDays, Instant now, int limit) {
-        return jdbc.query("SELECT d.post_id, p.title, d.deal_price, d.created_at FROM post_deals d JOIN posts p ON p.id = d.post_id WHERE d.product_url_key = ? "
-                        + "AND d.post_id <> ? AND " + live() + " AND " + PUBLIC_POST + " ORDER BY d.post_id DESC LIMIT ?",
-                (rs, i) -> new SameRow(rs.getLong(1), rs.getString(2), rs.getLong(3), rs.getTimestamp(4).toInstant()),
-                key, excludePostId, ts(now), autoExpireDays, ts(now.minus(Duration.ofDays(autoExpireDays))), ts(now), ts(now), limit);
+        return query.select(DEAL.postId, POST.title, DEAL.dealPrice, DEAL.createdAt).from(DEAL).join(POST).on(POST.id.eq(DEAL.postId))
+                .where(DEAL.productUrlKey.eq(key), DEAL.postId.ne(excludePostId), liveDeal(autoExpireDays, now), publicPost(POST, now))
+                .orderBy(DEAL.postId.desc()).limit(limit).fetch().stream()
+                .map(t -> new SameRow(t.get(DEAL.postId), t.get(POST.title), nz(t.get(DEAL.dealPrice)), t.get(DEAL.createdAt))).toList();
     }
 
     // ── 영향 미리 보기 ──────────────────────────────────────────────────────
@@ -199,24 +239,23 @@ public class AdminDealQueries {
     }
 
     public DomainImpact domainImpact(String domain, int autoExpireDays, Instant now, int sampleMax) {
-        String match = "(d.product_host = ? OR d.product_host LIKE ? OR d.final_host = ? OR d.final_host LIKE ?)";
         String suffix = "%." + domain;
-        List<Object> args = new ArrayList<>(List.of(domain, suffix, domain, suffix, ts(now), autoExpireDays, ts(now.minus(Duration.ofDays(autoExpireDays))), ts(now),
-                ts(now)));
-        String from = " FROM post_deals d JOIN posts p ON p.id = d.post_id WHERE " + match + " AND " + live() + " AND " + PUBLIC_POST;
-        Long n = jdbc.queryForObject("SELECT count(*)" + from, Long.class, args.toArray());
-        args.add(sampleMax);
-        List<LiveDeal> samples = jdbc.query("SELECT d.post_id, p.title, d.store_name, d.product_host, d.final_host, d.affiliate" + from + " ORDER BY d.post_id DESC LIMIT ?",
-                (rs, i) -> new LiveDeal(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getBoolean(6)), args.toArray());
-        return new DomainImpact(n == null ? 0 : n, samples);
+        BooleanExpression where = DEAL.productHost.eq(domain).or(DEAL.productHost.like(suffix)).or(DEAL.finalHost.eq(domain)).or(DEAL.finalHost.like(suffix))
+                .and(liveDeal(autoExpireDays, now)).and(publicPost(POST, now));
+        Long n = query.select(DEAL.postId.count()).from(DEAL).join(POST).on(POST.id.eq(DEAL.postId)).where(where).fetchOne();
+        List<LiveDeal> samples = query.select(DEAL.postId, POST.title, DEAL.storeName, DEAL.productHost, DEAL.finalHost, DEAL.affiliate)
+                .from(DEAL).join(POST).on(POST.id.eq(DEAL.postId)).where(where).orderBy(DEAL.postId.desc()).limit(sampleMax).fetch().stream()
+                .map(t -> new LiveDeal(t.get(DEAL.postId), t.get(POST.title), t.get(DEAL.storeName), t.get(DEAL.productHost), t.get(DEAL.finalHost),
+                        Boolean.TRUE.equals(t.get(DEAL.affiliate)))).toList();
+        return new DomainImpact(nz(n), samples);
     }
 
     /** 진행 중 공개 글의 딜 전부(제휴 방식 전환 셈 — 호스트·개인 제휴 표시만) */
     public List<LiveDeal> liveDeals(int autoExpireDays, Instant now) {
-        return jdbc.query("SELECT d.post_id, NULL, d.store_name, d.product_host, d.final_host, d.affiliate FROM post_deals d JOIN posts p ON p.id = d.post_id WHERE "
-                        + live() + " AND " + PUBLIC_POST,
-                (rs, i) -> new LiveDeal(rs.getLong(1), null, rs.getString(3), rs.getString(4), rs.getString(5), rs.getBoolean(6)),
-                ts(now), autoExpireDays, ts(now.minus(Duration.ofDays(autoExpireDays))), ts(now), ts(now));
+        return query.select(DEAL.postId, DEAL.storeName, DEAL.productHost, DEAL.finalHost, DEAL.affiliate).from(DEAL).join(POST).on(POST.id.eq(DEAL.postId))
+                .where(liveDeal(autoExpireDays, now), publicPost(POST, now)).fetch().stream()
+                .map(t -> new LiveDeal(t.get(DEAL.postId), null, t.get(DEAL.storeName), t.get(DEAL.productHost), t.get(DEAL.finalHost),
+                        Boolean.TRUE.equals(t.get(DEAL.affiliate)))).toList();
     }
 
     // ── 위장 홍보 의심 후보 ──────────────────────────────────────────────────
@@ -227,11 +266,12 @@ public class AdminDealQueries {
                                String note, List<Long> postIds) {
     }
 
+    /** Native SQL — {@code deal_suspicions} 는 엔티티가 없고 {@code post_ids}(bigint[]) 를 {@code = ANY(..)} 로 푼다(JPQL 에 배열 연산이 없다) */
     private static final String SUSPICION_COLUMNS = "s.id, s.kind, s.status, s.member_id, s.host, s.store_name, s.post_count, s.member_count, s.other_ratio_percent, "
             + "s.window_days, s.detected_at, (SELECT max(d.created_at) FROM post_deals d WHERE d.post_id = ANY (s.post_ids)) AS last_post_at, s.dismissed_by, "
             + "s.dismissed_at, s.dismiss_note, s.post_ids";
 
-    /** 상태(OPEN·DISMISSED)·종류(null = 둘 다)의 한 쪽 — 마지막 글이 최근인 것부터 */
+    /** 상태(OPEN·DISMISSED)·종류(null = 둘 다)의 한 쪽 — 마지막 글이 최근인 것부터. Native SQL(위 사유) */
     public List<SuspicionRow> suspicions(String status, String kind, long offset, int limit) {
         List<Object> args = new ArrayList<>(List.of(status));
         String where = " WHERE s.status = ?";
@@ -245,12 +285,13 @@ public class AdminDealQueries {
                 (rs, i) -> suspicion(rs), args.toArray());
     }
 
+    /** Native SQL(위 사유) */
     public SuspicionRow suspicion(long id) {
         List<SuspicionRow> rows = jdbc.query("SELECT " + SUSPICION_COLUMNS + " FROM deal_suspicions s WHERE s.id = ?", (rs, i) -> suspicion(rs), id);
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    /** (상태 → 종류 → 수) */
+    /** (상태 → 종류 → 수). Native SQL — {@code deal_suspicions} 는 엔티티가 없다 */
     public Map<String, Map<String, Long>> suspicionCounts() {
         Map<String, Map<String, Long>> out = new HashMap<>();
         jdbc.query("SELECT status, kind, count(*) FROM deal_suspicions GROUP BY status, kind", rs -> {
@@ -261,9 +302,11 @@ public class AdminDealQueries {
 
     /** 같은 판매처에 기간 안 글을 올린 다른 회원 수(회원 후보 — 사업자 글 제외) */
     public int otherMembers(String host, long memberId, int windowDays, Instant now) {
-        Integer n = jdbc.queryForObject("SELECT count(DISTINCT d.author_id) FROM post_deals d WHERE coalesce(d.final_host, d.product_host) = ? AND d.source = 'MEMBER' "
-                + "AND d.author_id IS NOT NULL AND d.author_id <> ? AND d.created_at >= ?", Integer.class, host, memberId, ts(now.minus(Duration.ofDays(windowDays))));
-        return n == null ? 0 : n;
+        Long n = query.select(DEAL.authorId.countDistinct()).from(DEAL)
+                .where(storeHost().eq(host), DEAL.source.eq(PostDealEntity.SOURCE_MEMBER), DEAL.authorId.isNotNull(), DEAL.authorId.ne(memberId),
+                        DEAL.createdAt.goe(now.minus(Duration.ofDays(windowDays))))
+                .fetchOne();
+        return n == null ? 0 : n.intValue();
     }
 
     /** 후보 글 한 줄 */
@@ -276,12 +319,10 @@ public class AdminDealQueries {
         if (postIds.isEmpty()) {
             return List.of();
         }
-        List<Object> args = new ArrayList<>(postIds);
-        args.add(limit);
-        return jdbc.query("SELECT d.post_id, p.title, p.board_id, d.author_id, d.deal_price, d.status, d.flagged_at, d.ends_at, d.created_at FROM post_deals d "
-                        + "LEFT JOIN posts p ON p.id = d.post_id WHERE d.post_id IN (" + marks(postIds.size()) + ") ORDER BY d.post_id DESC LIMIT ?",
-                (rs, i) -> new SuspicionPost(rs.getLong(1), rs.getString(2), (Long) rs.getObject(3), (Long) rs.getObject(4), rs.getLong(5), rs.getString(6),
-                        instant(rs.getTimestamp(7)), instant(rs.getTimestamp(8)), rs.getTimestamp(9).toInstant()), args.toArray());
+        return query.select(DEAL.postId, POST.title, POST.boardId, DEAL.authorId, DEAL.dealPrice, DEAL.status, DEAL.flaggedAt, DEAL.endsAt, DEAL.createdAt)
+                .from(DEAL).leftJoin(POST).on(POST.id.eq(DEAL.postId)).where(DEAL.postId.in(postIds)).orderBy(DEAL.postId.desc()).limit(limit).fetch().stream()
+                .map(t -> new SuspicionPost(t.get(DEAL.postId), t.get(POST.title), t.get(POST.boardId), t.get(DEAL.authorId), nz(t.get(DEAL.dealPrice)),
+                        t.get(DEAL.status), t.get(DEAL.flaggedAt), t.get(DEAL.endsAt), t.get(DEAL.createdAt))).toList();
     }
 
     /** 판매처 후보의 회원별 셈 — (회원 → [이 판매처 글 수, 다른 판매처 핫딜 수]) 기간 안, 사업자 글 제외 */
@@ -290,18 +331,17 @@ public class AdminDealQueries {
         if (memberIds.isEmpty()) {
             return out;
         }
-        List<Object> args = new ArrayList<>(List.of(host, host));
-        args.addAll(memberIds);
-        args.add(ts(now.minus(Duration.ofDays(windowDays))));
-        jdbc.query("SELECT d.author_id, count(*) FILTER (WHERE coalesce(d.final_host, d.product_host) = ?), count(*) FILTER (WHERE coalesce(d.final_host, d.product_host) <> ?) "
-                + "FROM post_deals d WHERE d.source = 'MEMBER' AND d.author_id IN (" + marks(memberIds.size()) + ") AND d.created_at >= ? GROUP BY d.author_id "
-                + "ORDER BY 2 DESC, d.author_id", rs -> {
-                    out.put(rs.getLong(1), new long[] {rs.getLong(2), rs.getLong(3)});
-                }, args.toArray());
+        NumberExpression<Long> here = countIf(storeHost().eq(host));
+        NumberExpression<Long> elsewhere = countIf(storeHost().ne(host));
+        for (Tuple t : query.select(DEAL.authorId, here, elsewhere).from(DEAL)
+                .where(DEAL.source.eq(PostDealEntity.SOURCE_MEMBER), DEAL.authorId.in(memberIds), DEAL.createdAt.goe(now.minus(Duration.ofDays(windowDays))))
+                .groupBy(DEAL.authorId).orderBy(here.desc(), DEAL.authorId.asc()).fetch()) {
+            out.put(t.get(DEAL.authorId), new long[] {nz(t.get(here)), nz(t.get(elsewhere))});
+        }
         return out;
     }
 
-    /** 열린 후보 무시(조건부 — 이미 무시됐으면 0) */
+    /** 열린 후보 무시(조건부 — 이미 무시됐으면 0). Native SQL — {@code deal_suspicions} 는 엔티티가 없다 */
     public int dismissSuspicion(long id, long operatorId, String note, Instant now) {
         return jdbc.update("UPDATE deal_suspicions SET status = 'DISMISSED', dismissed_at = ?, dismissed_by = ?, dismiss_note = ?, updated_at = ? WHERE id = ? AND status = 'OPEN'",
                 ts(now), operatorId, note, ts(now), id);
@@ -322,107 +362,90 @@ public class AdminDealQueries {
                 instant(rs.getTimestamp(14)), rs.getString(15), ids);
     }
 
-    /** 기간 종료 조건(인자 1개 now) — 마감 지남, 또는 마감 없고 등록 + 설정 일수 지남(0 = 끔) */
-    private static String expired(int autoExpireDays) {
-        return "coalesce(CASE WHEN d.ends_at IS NOT NULL THEN d.ends_at WHEN " + autoExpireDays + " > 0 THEN d.created_at + make_interval(days => " + autoExpireDays
-                + ") END <= ?, false)";
+    /** 딜 · 글 · 작성자 프로필(닉네임 검색) */
+    private static <T> JPAQuery<T> from(JPAQuery<T> select) {
+        return select.from(DEAL).join(POST).on(POST.id.eq(DEAL.postId)).leftJoin(PROFILE).on(PROFILE.userId.eq(POST.authorId));
     }
 
-    /** 진행 중(ACTIVE·FLAGGED) — 인자 3개(now, autoExpireDays, now - autoExpireDays). shared {@code DealQueries.LIVE_DEAL} 과 같다 */
-    private static String live() {
-        return "d.status = 'ACTIVE' AND (d.ends_at IS NULL OR d.ends_at > ?) AND (d.ends_at IS NOT NULL OR ? = 0 OR d.created_at > ?)";
+    /** 목록 한 줄 칸 — 마지막 칸은 공개 여부(숨김 아님 · 일반 글 · 예약 삭제 전) */
+    private static com.querydsl.core.types.Expression<?>[] rowColumns(Instant now) {
+        return new com.querydsl.core.types.Expression<?>[] {POST.id, POST.title, POST.boardId, POST.prefixId, POST.authorId, POST.createdAt, POST.likeCount,
+                publicFlag(now)};
     }
 
-    private Where where(Filter f, Instant now) {
-        Where w = new Where();
-        if (f.boardIds().isEmpty()) {
-            w.sql.append(" AND false");
-            return w;
+    private static NumberExpression<Integer> publicFlag(Instant now) {
+        return new CaseBuilder().when(PostRepositoryQDSL.notHidden(POST, now).and(POST.groupId.isNull())
+                .and(POST.deleteScheduledAt.isNull().or(POST.deleteScheduledAt.gt(now)))).then(1).otherwise(0);
+    }
+
+    private static Row toRow(Tuple t) {
+        Integer pub = t.get(7, Integer.class);
+        return new Row(t.get(POST.id), t.get(POST.title), t.get(POST.boardId), t.get(POST.prefixId), t.get(POST.authorId), t.get(POST.createdAt),
+                t.get(POST.likeCount), pub != null && pub == 1);
+    }
+
+    /** 판매처 = 최종 호스트, 없으면 상품 호스트 */
+    private static StringExpression storeHost() {
+        return DEAL.finalHost.coalesce(DEAL.productHost);
+    }
+
+    /** 조건을 만족하는 줄 수({@code count(*) FILTER (WHERE ..)} 와 같다 — 빈 결과면 null) */
+    private static NumberExpression<Long> countIf(BooleanExpression condition) {
+        return new CaseBuilder().when(condition).then(1L).otherwise(0L).sum();
+    }
+
+    /** 기간 종료 — 마감 지남, 또는 마감 없고 등록 + 설정 일수 지남(0 = 끔). 마감도 설정도 없으면 거짓 */
+    private static BooleanExpression expired(int autoExpireDays, Instant now) {
+        BooleanExpression expired = DEAL.endsAt.isNotNull().and(DEAL.endsAt.loe(now));
+        if (autoExpireDays > 0) {
+            expired = expired.or(DEAL.endsAt.isNull().and(DEAL.createdAt.loe(now.minus(Duration.ofDays(autoExpireDays)))));
         }
-        w.sql.append(" AND ").append(ALIVE_POST);
-        w.args.add(now);
-        w.sql.append(" AND p.board_id IN (").append(marks(f.boardIds().size())).append(")");
-        w.args.addAll(f.boardIds());
+        return expired;
+    }
+
+    /** 공통 조건 — 아무 글도 맞지 않으면(볼 게시판이 없음) null */
+    private static BooleanBuilder where(Filter f, Instant now) {
+        if (f.boardIds().isEmpty()) {
+            return null;
+        }
+        BooleanBuilder w = new BooleanBuilder(alivePost(POST, now)).and(POST.boardId.in(f.boardIds()));
         if (f.from() != null) {
-            w.sql.append(" AND p.created_at >= ?");
-            w.args.add(f.from());
+            w.and(POST.createdAt.goe(f.from()));
         }
         if (f.to() != null) {
-            w.sql.append(" AND p.created_at <= ?");
-            w.args.add(f.to());
+            w.and(POST.createdAt.loe(f.to()));
         }
         if (f.source() != null) {
-            w.sql.append(" AND d.source = ?");
-            w.args.add(f.source());
+            w.and(DEAL.source.eq(f.source()));
         }
         if (f.q() != null) {
-            String like = "%" + f.q().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            w.sql.append(" AND (p.title ILIKE ? ESCAPE '\\' OR d.store_name ILIKE ? ESCAPE '\\' OR pr.nickname ILIKE ? ESCAPE '\\')");
-            w.args.add(like);
-            w.args.add(like);
-            w.args.add(like);
+            w.and(Ilike.contains(POST.title, f.q()).or(Ilike.contains(DEAL.storeName, f.q())).or(Ilike.contains(PROFILE.nickname, f.q()))); // 예전 ILIKE … ESCAPE '\' 그대로
         }
         return w;
     }
 
-    /** WHERE 조각과 인자(차례대로) */
-    private static final class Where {
-
-        private final StringBuilder sql = new StringBuilder();
-        private final List<Object> args = new ArrayList<>();
-
-        String from() {
-            return " FROM post_deals d JOIN posts p ON p.id = d.post_id LEFT JOIN profiles pr ON pr.user_id = p.author_id";
-        }
-
-        String sql() {
-            return " WHERE true" + sql;
-        }
-
-        void view(String view, int autoExpireDays, Instant now) {
-            String expired = expired(autoExpireDays);
-            switch (view) {
-                case "ACTIVE" -> {
-                    sql.append(" AND d.status = 'ACTIVE' AND NOT ").append(expired).append(" AND d.flagged_at IS NULL");
-                    args.add(now);
-                }
-                case "FLAGGED" -> {
-                    sql.append(" AND d.status = 'ACTIVE' AND NOT ").append(expired).append(" AND d.flagged_at IS NOT NULL");
-                    args.add(now);
-                }
-                case "ENDED" -> sql.append(" AND d.status = 'ENDED'");
-                case "EXPIRED" -> {
-                    sql.append(" AND d.status = 'ACTIVE' AND ").append(expired);
-                    args.add(now);
-                }
-                default -> {
-                }
-            }
-        }
-
-        /** 진행 중이고 상품·최종 호스트가 차단 호스트 */
-        void blocked(Collection<String> hosts, int autoExpireDays, Instant now) {
-            if (hosts.isEmpty()) {
-                sql.append(" AND false");
-                return;
-            }
-            sql.append(" AND ").append(live());
-            args.add(now);
-            args.add(autoExpireDays);
-            args.add(now.minus(Duration.ofDays(autoExpireDays)));
-            String in = marks(hosts.size());
-            sql.append(" AND (d.product_host IN (").append(in).append(") OR d.final_host IN (").append(in).append("))");
-            args.addAll(hosts);
-            args.addAll(hosts);
-        }
+    /** 상태 보기 조건(ALL 등 모르는 값이면 null — 거르지 않는다) */
+    private static BooleanExpression view(String view, int autoExpireDays, Instant now) {
+        BooleanExpression active = DEAL.status.eq(PostDealEntity.ACTIVE);
+        return switch (view) {
+            case "ACTIVE" -> active.and(expired(autoExpireDays, now).not()).and(DEAL.flaggedAt.isNull());
+            case "FLAGGED" -> active.and(expired(autoExpireDays, now).not()).and(DEAL.flaggedAt.isNotNull());
+            case "ENDED" -> DEAL.status.eq(PostDealEntity.ENDED);
+            case "EXPIRED" -> active.and(expired(autoExpireDays, now));
+            default -> null;
+        };
     }
 
-    private static Object bind(Object value) {
-        return value instanceof Instant at ? ts(at) : value;
+    /** 진행 중이고 상품·최종 호스트가 차단 호스트 — 차단 호스트가 없으면 아무 글도 맞지 않는다(null) */
+    private static BooleanBuilder blocked(BooleanBuilder w, Collection<String> hosts, int autoExpireDays, Instant now) {
+        if (hosts.isEmpty()) {
+            return null;
+        }
+        return w.and(liveDeal(autoExpireDays, now)).and(DEAL.productHost.in(hosts).or(DEAL.finalHost.in(hosts)));
     }
 
-    private static String marks(int n) {
-        return IntStream.range(0, n).mapToObj(i -> "?").collect(Collectors.joining(", "));
+    private static long nz(Long value) {
+        return value == null ? 0 : value;
     }
 
     private static Timestamp ts(Instant at) {

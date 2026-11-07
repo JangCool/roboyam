@@ -44,7 +44,7 @@ class EmoticonSalesAdminHttpTest extends Commerce04AdminTestBase {
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         return id;
     }
 
@@ -75,13 +75,16 @@ class EmoticonSalesAdminHttpTest extends Commerce04AdminTestBase {
         long purchase = ids.nextId();
         long order = ids.nextId();
         String paymentId = "pay_" + String.format("%032d", order).substring(0, 32);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_orders (id, payment_id, user_id, order_type, order_ref_id, order_name, amount, status, paid_amount, paid_at, expires_at, confirmed_via, "
                 + "created_at, updated_at) VALUES (?, ?, ?, 'ROBOTIKON_PACK', ?, '로보티콘', ?, 'PAID', ?, ?, ?, 'WEBHOOK', ?, ?)", order, paymentId, buyer, purchase, PRICE, PRICE,
                 Timestamp.from(paidAt), Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), Timestamp.from(paidAt));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO emoticon_purchases (id, user_id, pack_id, creator_id, pack_name, amount, status, refund_notice_agreed_at, expires_at, created_at, "
                 + "payment_order_id, paid_at, refund_until, used_at) VALUES (?, ?, ?, ?, '산 때 이름', ?, 'PAID', ?, ?, ?, ?, ?, ?, ?)", purchase, buyer, pack, creator, PRICE,
                 Timestamp.from(paidAt), Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), order, Timestamp.from(paidAt),
                 Timestamp.from(paidAt.plus(Duration.ofDays(7))), usedAt == null ? null : Timestamp.from(usedAt));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO emoticon_acquisitions (id, user_id, pack_id, kind, purchase_id, first_acquired_at, acquired_at) VALUES (?, ?, ?, 'PURCHASE', ?, ?, ?)",
                 ids.nextId(), buyer, pack, purchase, Timestamp.from(paidAt), Timestamp.from(paidAt));
         new FakePgStore(dataSource).pay(paymentId, PRICE, "KRW", paidAt);
@@ -154,8 +157,7 @@ class EmoticonSalesAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM payment_cancels WHERE request_key = ? AND kind = 'REFUND' AND requested_by = ?", Integer.class,
                 "EMOTICON_REFUND:" + used, salesOperator)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM emoticon_acquisitions WHERE purchase_id = ? AND removed_at IS NULL", Integer.class, used)).isZero();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'EMOTICON_SALE_REFUND' AND target_type = 'EMOTICON_PURCHASE' AND target_id = ?",
-                Integer.class, Long.toString(used))).isEqualTo(1);
+        assertThat(auditLogs.where().action("EMOTICON_SALE_REFUND").targetType("EMOTICON_PURCHASE").target(Long.toString(used)).count()).isEqualTo(1);
         // 회원 알림 — 운영자 예외 환불 한 번(두 번째 요청은 409 라 없다), 운영자 사유는 싣지 않는다(후속 결정 2)
         List<Map<String, Object>> notices = jdbc.queryForList("SELECT payload->>'kind' AS kind, payload->>'path' AS path, payload::text AS raw FROM member_notifications "
                 + "WHERE user_id = ? AND type = 'EMOTICON_PURCHASE'", buyer);

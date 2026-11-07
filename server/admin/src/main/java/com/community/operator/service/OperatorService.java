@@ -24,6 +24,7 @@ import com.community.operator.exception.OperatorNotFoundException;
 import com.community.operator.exception.OperatorNotPendingException;
 import com.community.operator.exception.OperatorPeriodReversedException;
 import com.community.operator.exception.OperatorRootProtectedException;
+import com.community.operator.repository.master.OperatorIdentityLockQueries;
 import com.community.operator.repository.master.OperatorInvitationRepository;
 import com.community.operator.repository.master.OperatorMemberAccountStore;
 import com.community.operator.repository.master.OperatorRepository;
@@ -79,6 +80,7 @@ public class OperatorService {
     private final OperatorRepositoryQDSL operatorQueries;
     private final OperatorInvitationRepository invitations;
     private final EntityManager entityManager;
+    private final OperatorIdentityLockQueries identityLock;
     private final RoleRepositoryQDSL roleQueries;
     private final OperatorRoleRepository operatorRoles;
     private final OperatorRoleAssignmentPolicy rolePolicy;
@@ -91,7 +93,7 @@ public class OperatorService {
     private final TrustedDeviceService trustedDevices;
     private final OperatorMemberAccountService memberAccounts;
 
-    public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager,
+    public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager, OperatorIdentityLockQueries identityLock,
                            RoleRepositoryQDSL roleQueries, OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder,
                            SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events, AdminNotices notices,
                            TrustedDeviceService trustedDevices, OperatorMemberAccountService memberAccounts) {
@@ -100,6 +102,7 @@ public class OperatorService {
         this.operatorQueries = operatorQueries;
         this.invitations = invitations;
         this.entityManager = entityManager;
+        this.identityLock = identityLock;
         this.roleQueries = roleQueries;
         this.operatorRoles = operatorRoles;
         this.rolePolicy = rolePolicy;
@@ -139,7 +142,7 @@ public class OperatorService {
         UserPolicy.emailViolation(email).ifPresent(message -> {
             throw ValidationException.of("email", message);
         });
-        OperatorIdentityLock.acquire(entityManager);
+        identityLock.acquire();
         if (operators.existsByEmail(email)) {
             throw new OperatorEmailDuplicatedException();
         }
@@ -176,7 +179,7 @@ public class OperatorService {
      */
     @Transactional
     public OperatorView update(AdminActor actor, String operatorId, OperatorUpdateRequest request) {
-        OperatorIdentityLock.acquire(entityManager);
+        identityLock.acquire();
         OperatorEntity operator = lock(operatorId);
         requireNotRoot(operator);
         String name = request.operatorName().strip();

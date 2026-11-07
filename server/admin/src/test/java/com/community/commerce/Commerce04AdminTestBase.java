@@ -6,7 +6,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.community.admin.AdminApplication;
 import com.community.installation.service.InstallationState;
 import com.community.permission.entity.Permission;
+import com.community.mfa.MfaFixture;
+import com.community.testsupport.AuditLogQuery;
+import com.community.testsupport.BoardFixture;
+import com.community.testsupport.BusinessFixture;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.MemberFixture;
+import com.community.testsupport.OperatorFixture;
 import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import jakarta.servlet.Filter;
@@ -86,16 +92,30 @@ public abstract class Commerce04AdminTestBase {
 
     protected MockMvc mvc;
     protected JdbcTemplate jdbc;
-    private Boolean savedMfa;
+    /** 엔티티 픽스처 — 회원·운영자(역할)·게시판·글·사업자 서비스 줄, 감사 기록 확인 */
+    protected MemberFixture memberFixture;
+    protected OperatorFixture operatorFixture;
+    protected BoardFixture boardFixture;
+    protected BusinessFixture businessFixture;
+    protected AuditLogQuery auditLogs;
+    /** 관리자 2차 인증 설정(admin 스트림 표 — admin 모듈 엔티티) */
+    private MfaFixture mfaFixture;
+    private boolean savedMfa;
     private static String passwordHash;
 
     @BeforeEach
     void commerceBaseSetUp() {
         jdbc = new JdbcTemplate(dataSource);
+        memberFixture = new MemberFixture(context);
+        operatorFixture = new OperatorFixture(context);
+        boardFixture = new BoardFixture(context);
+        businessFixture = new BusinessFixture(context);
+        auditLogs = new AuditLogQuery(context);
         installation.markCompleted();
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(sessionFilter, securityFilterChain).build();
-        savedMfa = jdbc.queryForObject("SELECT mfa_enabled FROM admin_security_settings WHERE id = 1", Boolean.class);
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = false WHERE id = 1");
+        mfaFixture = new MfaFixture(context);
+        savedMfa = mfaFixture.settings().enabled();
+        mfaFixture.mfaEnabled(false);
         if (passwordHash == null) {
             passwordHash = encoder.encode(PASSWORD);
         }
@@ -106,7 +126,7 @@ public abstract class Commerce04AdminTestBase {
 
     @AfterEach
     void commerceBaseTearDown() {
-        jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ? WHERE id = 1", savedMfa);
+        mfaFixture.mfaEnabled(savedMfa);
         if (sellingOperator()) {
             SiteOperatorFixture.clear(jdbc); // 1행 표 — 처음 값(개인)으로 되돌린다
         }
@@ -125,15 +145,9 @@ public abstract class Commerce04AdminTestBase {
     /** 고른 권한만 가진 역할 하나를 받은 활성 운영자(권한이 없으면 역할도 없다) */
     protected long operatorWith(Permission... permissions) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, ?, true, now(), now())",
-                id, email(id), "c" + (id % 10_000_000_000_000L), passwordHash);
+        operatorFixture.operator(id, email(id), "c" + (id % 10_000_000_000_000L), passwordHash);
         if (permissions.length > 0) {
-            String roleId = "ROLE_ZZ_C04_" + id;
-            jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name) VALUES (?, 'op_general', 'OPERATOR', ?)", roleId, "c04-" + (id % 1_000_000_000L));
-            for (Permission permission : permissions) {
-                jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?)", ids.nextId(), roleId, permission.code());
-            }
-            jdbc.update("INSERT INTO operator_roles (id, operator_id, role_id) VALUES (?, ?, ?)", ids.nextId(), id, roleId);
+            operatorFixture.grantRole(id, "ROLE_ZZ_C04_" + id, "c04-" + (id % 1_000_000_000L), Arrays.stream(permissions).map(Permission::code).toList());
         }
         return id;
     }
@@ -143,7 +157,7 @@ public abstract class Commerce04AdminTestBase {
     }
 
     protected String operatorName(long operatorId) {
-        return jdbc.queryForObject("SELECT operator_name FROM operators WHERE id = ?", String.class, operatorId);
+        return operatorFixture.operatorName(operatorId);
     }
 
     /** 이메일 로그인 → 세션 쿠키 */
@@ -167,22 +181,23 @@ public abstract class Commerce04AdminTestBase {
     /** 활성 회원(프로필 포함) */
     protected long newMember() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO users (id, email, status, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, ?, 'ACTIVE', 'v1', now(), now())", id,
-                "m" + id + "@test.local");
+        memberFixture.user(id, "m" + id + "@test.local");
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, "n" + base36.substring(Math.max(0, base36.length() - 11))); // 닉네임 12자 — 뒤쪽이 겹치지 않는다
+        memberFixture.profile(id, "n" + base36.substring(Math.max(0, base36.length() - 11))); // 닉네임 12자 — 뒤쪽이 겹치지 않는다
         return id;
     }
 
     /** 탈퇴(익명화)한 회원 — 이메일 없음, 상태 WITHDRAWN, 탈퇴 시각 */
     protected long withdrawnMember(Instant withdrawnAt) {
         long id = newMember();
+        // SQL 로 남김: 회원 엔티티에 탈퇴(익명화) 도메인 메서드가 없다 — 상태·탈퇴 시각을 바로 둔다
         jdbc.update("UPDATE users SET email = NULL, status = 'WITHDRAWN', deleted_at = ? WHERE id = ?", ts(withdrawnAt), id);
         return id;
     }
 
     /** 본인인증 기록(해시는 시험용 64자) */
     protected void verified(long userId, LocalDate birthDate, String provider, Instant verifiedAt) {
+        // SQL 로 남김: identity_verifications 는 엔티티가 없는 표다
         String hash = String.format("%064x", userId);
         jdbc.update("INSERT INTO identity_verifications (user_id, di_hash, ci_hash, birth_date, provider, provider_tx_id, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 userId, hash, hash.replace('0', 'c'), birthDate, provider, "tx-" + userId, ts(verifiedAt));

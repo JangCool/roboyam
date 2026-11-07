@@ -39,7 +39,7 @@ class WithdrawnContactStoreTest {
     private final List<AuditEvent> audited = new ArrayList<>();
     private boolean auditFails;
 
-    private final WithdrawnContactRows rows = new WithdrawnContactRows(new DriverManagerDataSource()) {
+    private final WithdrawnContactRows rows = new WithdrawnContactRows(null, new DriverManagerDataSource()) {
         @Override
         public Optional<Row> find(long userId) {
             return Optional.of(new Row(userId, "d1:cipher", Instant.now(), Instant.now()));
@@ -95,7 +95,17 @@ class WithdrawnContactStoreTest {
             users = files.filter(path -> path.toString().endsWith(".java") && path.toString().contains("src" + java.io.File.separator + "main"))
                     .filter(path -> SQL_USE.matcher(read(path)).find()).toList();
         }
-        assertThat(users).extracting(path -> path.getFileName().toString()).containsExactlyInAnyOrder("WithdrawnContactRows.java", "DataKeyColumns.java"); // 저장소 · 데이터 키 교체 배치(칸 목록 — DataKeyRotationJob 이 SQL 을 만든다)
+        // 저장소 · 표 매핑(엔티티) · 데이터 키 교체 배치(칸 목록 — DataKeyRotationJob 이 SQL 을 만든다)
+        assertThat(users).extracting(path -> path.getFileName().toString())
+                .containsExactlyInAnyOrder("WithdrawnContactRows.java", "WithdrawnMemberContactEntity.java", "DataKeyColumns.java");
+        // 엔티티로 읽는 길(QueryDSL·JPA)도 저장소 하나뿐이다
+        List<Path> entityUsers;
+        try (Stream<Path> files = Files.walk(server)) {
+            entityUsers = files.filter(path -> path.toString().endsWith(".java") && path.toString().contains("src" + java.io.File.separator + "main"))
+                    .filter(path -> read(path).contains("WithdrawnMemberContactEntity")).toList();
+        }
+        assertThat(entityUsers).extracting(path -> path.getFileName().toString())
+                .containsExactlyInAnyOrder("WithdrawnContactRows.java", "WithdrawnMemberContactEntity.java");
     }
 
     private static String read(Path path) {

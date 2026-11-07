@@ -45,6 +45,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -129,12 +130,14 @@ public class HotdealAdminQueryService {
 
     // ── 목록 ──────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 진행 중 딜 호스트(예전 UNION 한 문장 → 두 문장)·쪽·건수
     public HotdealAdminView.Page list(String viewRaw, String board, String q, String createdFrom, String createdTo, String blockedActiveRaw, String pageRaw,
                                       String sizeRaw) {
         return list(viewRaw, board, q, createdFrom, createdTo, blockedActiveRaw, null, pageRaw, sizeRaw);
     }
 
     /** @param sourceRaw 출처 거르기 MEMBER · BUSINESS(V123 — 비었거나 모르는 값이면 전체) */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public HotdealAdminView.Page list(String viewRaw, String board, String q, String createdFrom, String createdTo, String blockedActiveRaw, String sourceRaw,
                                       String pageRaw, String sizeRaw) {
         Instant now = now();
@@ -158,6 +161,7 @@ public class HotdealAdminQueryService {
     // ── 상세 ──────────────────────────────────────────────────────────────
 
     /** 상세 — 핫딜 글이 아니면 404 POST_NOT_FOUND */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 진행 중 딜 호스트(예전 UNION 한 문장 → 두 문장)
     public HotdealAdminView.Detail detail(String idText) {
         Instant now = now();
         DealSettings s = settings.current();

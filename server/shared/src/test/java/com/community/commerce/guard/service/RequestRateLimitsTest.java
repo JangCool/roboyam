@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.community.commerce.guard.dto.RequestAction;
+import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -34,7 +36,7 @@ class RequestRateLimitsTest {
 
     @Test
     void 사본은_15초_동안_다시_읽지_않고_비우면_바로_다시_읽는다() {
-        RequestRateLimits limits = new RequestRateLimits(dataSource);
+        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
         assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).isEqualTo(10);
         assertThat(RequestRateLimits.TTL_SECONDS).isEqualTo(15);
 
@@ -48,7 +50,7 @@ class RequestRateLimitsTest {
     @Test
     void 행이_없는_종류는_기본값() {
         jdbc.update("DELETE FROM request_rate_limits WHERE action = 'REFUND_REQUEST'");
-        RequestRateLimits limits = new RequestRateLimits(dataSource);
+        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
         assertThat(limits.limitOf(RequestAction.REFUND_REQUEST)).isEqualTo(3);
     }
 

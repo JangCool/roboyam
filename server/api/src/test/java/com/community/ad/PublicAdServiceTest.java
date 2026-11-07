@@ -69,7 +69,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
 
     @AfterEach
     void cleanUp() {
-        createdBoards.forEach(id -> jdbc.update("DELETE FROM boards WHERE id = ?", id));
+        createdBoards.forEach(boardFixture::deleteBoard);
         createdBoards.clear();
         jdbc.update("DELETE FROM ad_placement_settings");
         catalog.invalidate();
@@ -107,8 +107,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
     private long board(String kind, boolean allowAdult, boolean adsHidden, boolean active) {
         long id = ids.nextId();
         String slug = "ad" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, allow_adult, ads_hidden, active) VALUES (?, ?, ?, 900, ?, ?, ?, ?)", id, slug,
-                "광고판 " + slug.substring(slug.length() - 6), kind, allowAdult, adsHidden, active);
+        boardFixture.board(id, slug, "광고판 " + slug.substring(slug.length() - 6), 900, kind, allowAdult, adsHidden, active);
         createdBoards.add(id);
         return id;
     }
@@ -229,7 +228,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
     /** 자리 설정 「19금 게시판에도 광고 보이기」 — 나머지 칸은 기본값 */
     private void adultOption(boolean enabled) {
         AdPlacements d = AdPlacements.DEFAULTS;
-        placementStore.save(new AdPlacements(d.postInline(), d.wings(), d.boardList(), new AdPlacements.Adult(enabled)), operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(new AdPlacements(d.postInline(), d.wings(), d.boardList(), new AdPlacements.Adult(enabled)), operator.operatorId(), clock.instant()));
     }
 
     @Test

@@ -122,6 +122,7 @@ class AvatarUploadAdminHttpTest extends PointShopAdminHttpTestBase {
         act(session, r[1], "revoke", "반려된 것").andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("AVATAR_UPLOAD_NOT_ACTIVE"));
 
         long[] a = pending(true);
+        // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE profiles SET last_still_avatar = 'hobby-gamer' WHERE user_id = ?", a[0]);
         act(session, a[1], "approve", null).andExpect(status().isOk());
         act(session, a[1], "revoke", "깜빡임이 너무 빨라요.").andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("REVOKED"))

@@ -184,7 +184,7 @@ class PaymentReconciliationJobTest {
         assertThat(dayRow(day).get("issue_count")).as("그 날의 불일치 수는 그대로 센다").isEqualTo(1);
 
         long issueId = kit.jdbc.queryForObject("SELECT id FROM reconciliation_issues WHERE payment_id = ?", Long.class, unpaid.paymentId());
-        kit.issueStore.resolve(issueId, 1L, "운영자가 확인함", kit.now());
+        kit.tx.executeWithoutResult(status -> kit.issueStore.resolve(issueId, 1L, "운영자가 확인함", kit.now()));
         kit.runReconciliation(day);
         assertThat(issuesOf(unpaid.paymentId())).extracting(issue -> issue.get("status")).containsExactly("RESOLVED", "OPEN");
         assertThat(kit.notices).containsExactly(AdminNotificationEvent.COMMERCE_RECONCILE_MISMATCH);

@@ -53,7 +53,7 @@ class PointSettingsHttpTest extends PointAdminHttpTestBase {
     }
 
     private int audits() {
-        return count("SELECT count(*) FROM audit_logs WHERE action = 'POINT_SETTINGS_UPDATE'");
+        return auditLogs.where().action("POINT_SETTINGS_UPDATE").count();
     }
 
     @Test
@@ -88,8 +88,7 @@ class PointSettingsHttpTest extends PointAdminHttpTestBase {
         assertThat(row).containsEntry("post_min_length", 30).containsEntry("comment_once_per_post", false).containsEntry("daily_total_cap", 0)
                 .containsEntry("adjust_large_threshold", 5000).containsEntry("comment_min_length", saved.get("comment_min_length"));
         assertThat(audits()).isEqualTo(before + 1);
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'POINT_SETTINGS_UPDATE' ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class);
+        String detail = auditLogs.where().action("POINT_SETTINGS_UPDATE").latest().orElseThrow().detail();
         Map<String, Object> beforeMap = JsonPath.read(detail, "$.before");
         Map<String, Object> afterMap = JsonPath.read(detail, "$.after");
         assertThat(afterMap).containsOnlyKeys("postMinLength", "commentOncePerPost", "dailyTotalCap", "adjustLargeThreshold").containsEntry("postMinLength", 30)

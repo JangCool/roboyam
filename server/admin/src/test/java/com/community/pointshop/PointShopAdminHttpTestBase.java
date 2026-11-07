@@ -91,7 +91,7 @@ abstract class PointShopAdminHttpTestBase extends Commerce04AdminTestBase {
     /** {@code at} 에 포인트를 받은 회원(지난 구매를 만들 때 — 묶음이 구매보다 먼저 생기게) */
     protected long buyerAt(int grant, Instant at) {
         long member = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", member);
+        memberFixture.verifyEmail(member);
         if (grant > 0) {
             clock.set(at);
             try {
@@ -166,7 +166,6 @@ abstract class PointShopAdminHttpTestBase extends Commerce04AdminTestBase {
 
     /** 이 행위·대상의 가장 최근 감사 한 줄 */
     protected Map<String, Object> lastAudit(String action, String targetId) {
-        return jdbc.queryForMap("SELECT actor_id, result, target_type, target_id, ip, retention_class, detail FROM audit_logs WHERE action = ? AND target_id = ? "
-                + "ORDER BY occurred_at DESC, id DESC LIMIT 1", action, targetId);
+        return auditLogs.where().action(action).target(targetId).latest().orElseThrow().asMap();
     }
 }

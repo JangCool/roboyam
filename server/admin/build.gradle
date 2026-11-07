@@ -1,5 +1,7 @@
 plugins {
     id 'roboyam.spring-app-conventions'
+    // 관리자 스트림 표(운영자 2차 인증·관리자 메뉴·대시보드 배치 — db/migration/admin)의 엔티티 Q 타입을 이 모듈에서 만든다(shared 는 이 표를 모른다)
+    id 'roboyam.querydsl-conventions'
 }
 
 // 관리자 앱 서버. 공개 사이트 서버(server/api)와 서로 의존하지 않는다 — 둘이 같이 쓰는 것은 server/shared 에 둔다.

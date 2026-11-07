@@ -131,8 +131,7 @@ class BizApplicationManualPaymentTest extends BizApplicationApiTestBase {
         assertThat(file.url()).startsWith("data:application/pdf;base64,");
         assertThat(Base64.getDecoder().decode(file.url().substring(file.url().indexOf(',') + 1))).isEqualTo(pdf());
         assertThat(store.countEvents(id, com.community.bizapplication.entity.BizEventAction.CONTRACT_VIEWED)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_CONTRACT_VIEW'", String.class,
-                Long.toString(id))).isEqualTo("PERSONAL_DATA");
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_CONTRACT_VIEW").single().retentionClass()).isEqualTo("PERSONAL_DATA");
         assertThat(codeOf(() -> review.viewContract(operator, awaitingDeposit(), fileId))).isEqualTo("BIZ_CONTRACT_NOT_FOUND"); // 다른 건의 파일
     }
 
@@ -150,8 +149,7 @@ class BizApplicationManualPaymentTest extends BizApplicationApiTestBase {
         review.saveDeposit(operator, id, total, today, "시험상사", "필요 없는 사유");
         assertThat(store.deposit(id).orElseThrow().amount()).isEqualTo(total);
         assertThat(store.deposit(id).orElseThrow().mismatchReason()).isNull();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_id = ? AND action = 'BIZ_DEPOSIT_CONFIRM' AND retention_class = 'MONEY'",
-                Integer.class, Long.toString(id))).isEqualTo(2);
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_DEPOSIT_CONFIRM").retentionClass("MONEY").count()).isEqualTo(2);
     }
 
     @Test

@@ -95,16 +95,18 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
     /** 비밀번호·인증 메일·프로필이 있는 정상 회원(방금 로그인) */
     private long memberWithPassword() {
         long id = newMember();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET password_hash = ?, email_verified_at = now(), last_login_at = ? WHERE id = ?", encoder.encode(PASSWORD), ts(clock.instant()), id);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, nick(id));
+        memberFixture.profile(id, nick(id));
         return id;
     }
 
     /** 소셜 전용 회원(비밀번호 없음) — 마지막 로그인 {@code lastLogin} */
     private long socialOnlyMember(Instant lastLogin) {
         long id = newMember();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET email_verified_at = now(), last_login_at = ? WHERE id = ?", ts(lastLogin), id);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, nick(id));
+        memberFixture.profile(id, nick(id));
         jdbc.update("INSERT INTO user_identities (id, user_id, provider, provider_user_id, email, created_at) VALUES (?, ?, 'KAKAO', ?, NULL, now())", ids.nextId(), id,
                 "sub-" + id);
         return id;
@@ -115,7 +117,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
     }
 
     private String emailOf(long userId) {
-        return jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.email(userId);
     }
 
     private WithdrawalRequest request(String paidChoice, String deliveredChoice, String bizChoice, List<WithdrawalRequest.GroupChoice> groups,
@@ -167,7 +169,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
     }
 
     private String status(long userId) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.status(userId);
     }
 
     private Map<String, Object> withdrawalRow(long userId) {
@@ -204,7 +206,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             assertThat(user.get("password_hash")).isNull();
             assertThat(user.get("deleted_at")).isNotNull();
             assertThat(user.get("last_login_at")).isNull();
-            assertThat(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member)).isNull();
+            assertThat(memberFixture.nickname(member)).isNull();
             // 무상 원장은 남고(적립 + 포기), 잔액은 0, 불변식 성립(D4)
             assertThat(count("SELECT count(*) FROM point_ledger WHERE user_id = ?", member)).isEqualTo(2);
             assertThat(count("SELECT count(*) FROM point_ledger WHERE user_id = ? AND reason = 'WITHDRAW_FORFEIT' AND free_delta = -300", member)).isEqualTo(1);
@@ -342,7 +344,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             assertThat(actors.resolve(member, catalog.snapshot()).restricted()).isTrue(); // 글·댓글·쪽지·소모임·핫딜 쓰기 차단
             assertThat(groupBuyMembers.state(member)).get().extracting(s -> s.suspended()).isEqualTo(true); // 공구 참여·포인트샵 구매 차단
             assertThatThrownBy(() -> profiles.profile(Long.toString(member), null)).isInstanceOf(ProfileNotFoundException.class); // 공개 프로필에서 빠짐
-            assertThat(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member)).isEqualTo(nick(member)); // 완료 전 닉네임 그대로
+            assertThat(memberFixture.nickname(member)).isEqualTo(nick(member)); // 완료 전 닉네임 그대로
             assertThatThrownBy(() -> service.request(member, plain(), IP)).isInstanceOf(WithdrawalAlreadyScheduledException.class);
             WithdrawalView view = service.view(member);
             assertThat(view.state()).isEqualTo("SCHEDULED");
@@ -356,7 +358,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             finishBankTransfer(transfer);
             assertThat(process(withdrawalId)).isEqualTo(WithdrawalAutoCompleteJob.Outcome.COMPLETED);
             assertThat(status(member)).isEqualTo("WITHDRAWN");
-            assertThat(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member)).isNull();
+            assertThat(memberFixture.nickname(member)).isNull();
             assertThat(withdrawalRow(member).get("status")).isEqualTo("COMPLETED");
             Map<String, Object> audit = lastAudit("MEMBER", Long.toString(member), AuditActions.MEMBER_WITHDRAW);
             assertThat(audit.get("actor_type")).isEqualTo("SYSTEM");
@@ -374,7 +376,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
 
             assertThat(status(member)).isEqualTo("ACTIVE");
             assertThat(withdrawalRow(member).get("status")).isEqualTo("CANCELED");
-            assertThat(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member)).isEqualTo(nick(member));
+            assertThat(memberFixture.nickname(member)).isEqualTo(nick(member));
             assertThat(jdbc.queryForObject("SELECT balance FROM point_balances WHERE user_id = ?", Long.class, member)).isEqualTo(50);
             assertThat(actors.resolve(member, catalog.snapshot()).restricted()).isFalse();
             assertThat(auditCount("MEMBER", Long.toString(member), AuditActions.MEMBER_WITHDRAW_CANCEL)).isEqualTo(1);
@@ -388,6 +390,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             pendingBankTransfer(member);
             assertThat(service.request(member, plain(), IP).state()).isEqualTo("SCHEDULED");
             long withdrawalId = ((Number) withdrawalRow(member).get("id")).longValue();
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE member_withdrawals SET requested_at = ? WHERE id = ?", ts(clock.instant().minus(Duration.ofDays(11))), withdrawalId);
 
             assertThat(process(withdrawalId)).isEqualTo(WithdrawalAutoCompleteJob.Outcome.NOTIFIED);
@@ -430,7 +433,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
 
         private long board() {
             long id = ids.nextId();
-            jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 990)", id, "wd" + Long.toString(id, 36), "탈퇴 시험 " + (id % 1000));
+            boardFixture.board(id, "wd" + Long.toString(id, 36), "탈퇴 시험 " + (id % 1000), 990);
             return id;
         }
 
