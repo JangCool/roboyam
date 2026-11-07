@@ -24,9 +24,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * 광고·핫딜 유료 신청 × 운영 주체 단계(사용자 결정 2026-11-07 — 돈을 받는 기능은 모두 {@code CommerceSalesStore.operatorCanSell()} = 개인사업자 이상 + 통신판매업 신고번호,
- * commerce.md 18절 「규칙은 테스트로」). 사이트 스위치가 없어 그때그때 판정한다: 새 신청 409 {@code BIZ_PRODUCT_CLOSED}(상품의 {@code accepting} false) · 온라인 결제 시작 409
- * {@code BIZ_PAYMENT_UNAVAILABLE}(이미 결제창에 들어간 결제의 완료는 받는다) · 유료 승인(ONLINE·MANUAL)·입금 확정 409 {@code BIZ_OPERATOR_STAGE}. 개인사업자 + 신고번호면 모두 통과.
+ * 광고·핫딜 유료 신청 × 운영 주체 단계(commerce.md 18절 「규칙은 테스트로」). 판정은 {@code CommerceSalesStore.operatorCanSell()}(개인사업자 이상 + 통신판매업 신고번호)이고,
+ * 개인 단계에서 막는 것은 <b>온라인 결제</b>뿐이다(사용자 결정 2026-11-07 오후 — 개인도 계약서 + 입금으로 광고를 받는다): 온라인 결제 신청 {@code 400 fields.paymentMethod}
+ * (상품 {@code onlinePayment} false, {@code accepting} 은 요금표 그대로) · 온라인 승인 409 {@code BIZ_OPERATOR_STAGE} · 온라인 결제 시작 409 {@code BIZ_PAYMENT_UNAVAILABLE}
+ * (이미 결제창에 들어간 결제의 완료는 받는다). 수동 결제 신청·승인·입금 확정은 단계와 상관없다.
  */
 class BizApplicationOperatorStageTest extends BizApplicationApiTestBase {
 
@@ -56,37 +57,35 @@ class BizApplicationOperatorStageTest extends BizApplicationApiTestBase {
     }
 
     @Test
-    void 개인_단계면_새_신청은_409_BIZ_PRODUCT_CLOSED_상품_accepting은_false_신고번호_없는_개인사업자도_같다() throws Exception {
+    void 개인_단계면_온라인_결제_신청만_400_fields_paymentMethod_수동_결제_신청은_받고_상품은_onlinePayment_false() throws Exception {
         long user = approvedBusiness();
         dealBoard();
         individual();
-        assertThat(codeOf(() -> submitTextLine(user, 0, 3, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
-        assertThat(codeOf(() -> submitBanner(user, "WIDE", 0, 3, "MANUAL"))).isEqualTo("BIZ_PRODUCT_CLOSED");
         LocalDate start = today().plusDays(2);
-        assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
-        assertThat(codeOf(() -> submitDeal(user, "HOME_TOP", start, start.plusDays(2), "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
+        assertThat(fieldsOf(() -> submitTextLine(user, 0, 3, "ONLINE"))).containsExactly("paymentMethod");
+        assertThat(fieldsOf(() -> submitDeal(user, "HOME_TOP", start, start.plusDays(2), "ONLINE"))).containsExactly("paymentMethod");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM biz_applications WHERE user_id = ?", Integer.class, user)).isZero();
-        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data[0].accepting").value(false))
-                .andExpect(jsonPath("$.data[?(@.accepting == true)]").isEmpty());
-        mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepting").value(false))
-                .andExpect(jsonPath("$.data.placements[0].accepting").value(false));
+        assertThat(app(submitBanner(user, "WIDE", 0, 3, "MANUAL")).status()).as("수동 결제는 받는다").isEqualTo(BizApplicationStatus.SUBMITTED);
+        assertThat(app(submitDeal(user, "NONE", null, null, "MANUAL")).status()).isEqualTo(BizApplicationStatus.SUBMITTED);
+        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data[0].onlinePayment").value(false))
+                .andExpect(jsonPath("$.data[?(@.accepting == true)]").isNotEmpty());
+        mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.onlinePayment").value(false))
+                .andExpect(jsonPath("$.data.accepting").value(true)).andExpect(jsonPath("$.data.placements[0].accepting").value(true));
 
         seller();
         jdbc.update("UPDATE site_operator SET mail_order_number = NULL WHERE id = 1");
-        assertThat(codeOf(() -> submitTextLine(user, 0, 3, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
-        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(false));
+        assertThat(fieldsOf(() -> submitTextLine(user, 0, 3, "ONLINE"))).as("신고번호 없는 개인사업자도 같다").containsExactly("paymentMethod");
 
-        // 개인사업자 + 신고번호면 받는다
+        // 개인사업자 + 신고번호면 온라인 결제도 받는다
         seller();
-        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
-        mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(jsonPath("$.data.accepting").value(true))
-                .andExpect(jsonPath("$.data.placements[0].accepting").value(true));
+        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].onlinePayment").value(true));
+        mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(jsonPath("$.data.onlinePayment").value(true));
         assertThat(app(submitTextLine(user, 0, 3, "ONLINE")).status()).isEqualTo(BizApplicationStatus.SUBMITTED);
         assertThat(app(submitDeal(user, "NONE", null, null, "ONLINE")).status()).isEqualTo(BizApplicationStatus.SUBMITTED);
     }
 
     @Test
-    void 개인_단계면_유료_승인은_ONLINE_MANUAL_모두_409_BIZ_OPERATOR_STAGE_심사_대기_그대로() {
+    void 개인_단계면_온라인_승인만_409_BIZ_OPERATOR_STAGE_수동_승인은_된다() {
         long user = approvedBusiness();
         long online = submitTextLine(user, 0, 3, "ONLINE");
         long manual = submitTextLine(user, 0, 3, "MANUAL");
@@ -94,16 +93,12 @@ class BizApplicationOperatorStageTest extends BizApplicationApiTestBase {
         BizPeriods.Period q = freshPeriod(3);
         individual();
         assertThat(codeOf(() -> approve(online, "ONLINE", p))).isEqualTo("BIZ_OPERATOR_STAGE");
-        assertThat(codeOf(() -> approve(manual, "MANUAL", q))).isEqualTo("BIZ_OPERATOR_STAGE");
         assertThat(app(online).status()).isEqualTo(BizApplicationStatus.SUBMITTED);
-        assertThat(app(manual).status()).isEqualTo(BizApplicationStatus.SUBMITTED);
         assertThat(app(online).approved()).as("금액 스냅샷도 남기지 않는다").isNull();
-
-        seller();
-        approve(online, "ONLINE", p);
         approve(manual, "MANUAL", q);
-        assertThat(app(online).status()).isEqualTo(BizApplicationStatus.AWAITING_PAYMENT);
-        assertThat(app(manual).status()).isEqualTo(BizApplicationStatus.AWAITING_DEPOSIT);
+        assertThat(app(manual).status()).as("수동 승인은 개인 단계도 된다").isEqualTo(BizApplicationStatus.AWAITING_DEPOSIT);
+        approve(online, "MANUAL", p);
+        assertThat(app(online).status()).as("온라인 희망 건도 수동으로 바꿔 승인").isEqualTo(BizApplicationStatus.AWAITING_DEPOSIT);
     }
 
     @Test
@@ -130,18 +125,14 @@ class BizApplicationOperatorStageTest extends BizApplicationApiTestBase {
     }
 
     @Test
-    void 개인_단계면_수동_입금_확정은_409_BIZ_OPERATOR_STAGE_입금_대기_그대로() {
+    void 개인_단계도_수동_입금_확정은_된다() {
         long user = approvedBusiness();
+        individual();
         long id = submitTextLine(user, 0, 3, "MANUAL");
         approve(id, "MANUAL", freshPeriod(3));
         review.uploadContracts(operator, id, java.util.List.of(new com.community.bizapplication.dto.BizUpload("계약서.pdf", pdf())), null);
         review.saveDeposit(operator, id, app(id).approved().total(), today().toString(), "시험상사", null);
 
-        individual();
-        assertThat(codeOf(() -> review.confirm(operator, id))).isEqualTo("BIZ_OPERATOR_STAGE");
-        assertThat(app(id).status()).isEqualTo(BizApplicationStatus.AWAITING_DEPOSIT);
-
-        seller();
         review.confirm(operator, id);
         assertThat(app(id).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
     }

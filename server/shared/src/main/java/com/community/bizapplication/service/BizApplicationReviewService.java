@@ -152,8 +152,8 @@ public class BizApplicationReviewService {
             if (app.source() == BizSource.OPERATOR && method != BizPaymentMethod.MANUAL) {
                 throw com.community.zconfiguration.exception.ValidationException.of("method", new com.community.zconfiguration.message.MessageRef("bizapp.method.operatorManual"));
             }
-            // 승인은 ONLINE·MANUAL 모두 돈을 받는 길 — 결제 금액(공급가 ≥ 1 이라 늘 0 초과)이 있으면 운영 주체 단계를 본다(사용자 결정 2026-11-07)
-            if (BizPricing.amountOf(supply).total() > 0 && !commerce.operatorCanSell()) {
+            // 온라인 결제 승인은 운영 주체가 팔 수 있는 단계일 때만 — 개인 단계는 수동(계약서 + 입금)으로 승인한다(사용자 결정 2026-11-07 오후)
+            if (method == BizPaymentMethod.ONLINE && !commerce.operatorCanSell()) {
                 throw BizApplicationException.operatorStage();
             }
             boolean self = selfApproval(app, actor);
@@ -435,9 +435,6 @@ public class BizApplicationReviewService {
             DepositRow deposit = store.deposit(id).orElse(null);
             if (active + paper < 1 || deposit == null) {
                 throw BizApplicationException.depositIncomplete();
-            }
-            if (app.approved().total() > 0 && !commerce.operatorCanSell()) {
-                throw BizApplicationException.operatorStage(); // 입금 확정(수동 송금 받기)도 돈을 받는 길(사용자 결정 2026-11-07)
             }
             store.setContractCount(id, active, now);
             store.setPaperContractCount(id, paper, now);

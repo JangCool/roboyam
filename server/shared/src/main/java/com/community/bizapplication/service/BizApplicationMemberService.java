@@ -126,11 +126,19 @@ public class BizApplicationMemberService {
     }
 
     /**
-     * 운영 주체가 유료 신청을 받을 수 있는 단계인가 — 판정은 {@link CommerceSalesStore#operatorCanSell} 한 곳(개인사업자 이상 + 통신판매업 신고번호, 사용자 결정 2026-11-07).
+     * 운영 주체가 <b>온라인 결제</b>를 받을 수 있는 단계인가 — 판정은 {@link CommerceSalesStore#operatorCanSell} 한 곳(개인사업자 이상 + 통신판매업 신고번호).
+     * 개인 단계도 광고·핫딜 신청은 받되 수동 결제(계약서 사본 + 입금 확인)만 받는다(사용자 결정 2026-11-07 오후 — 처음의 「신청 자체를 막기」를 풀었다).
      * false 면 새 신청은 상품 닫힘과 같은 409 {@code BIZ_PRODUCT_CLOSED}, 회원이 읽는 상품의 {@code accepting} 도 false 로 내보낸다.
      */
     public boolean operatorCanSell() {
         return commerce.operatorCanSell();
+    }
+
+    /** 온라인 결제는 운영 주체가 팔 수 있는 단계일 때만 — 아니면 {@code 400 fields.paymentMethod}(수동 결제를 고르게 한다) */
+    private void onlineOnlyWhenSelling(BizFields f, BizPaymentMethod method) {
+        if (method == BizPaymentMethod.ONLINE && !commerce.operatorCanSell()) {
+            f.add("paymentMethod", "bizapp.method.onlineUnavailable");
+        }
     }
 
     /** 날짜별 남은 칸 — 92일까지 */
@@ -185,10 +193,11 @@ public class BizApplicationMemberService {
                 content.put("linkUrl", link);
             }
             BizPaymentMethod method = f.oneOf("paymentMethod", b.paymentMethod(), BizPaymentMethod::valueOf);
+            onlineOnlyWhenSelling(f, method);
             agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
             PriceRule rule = all.get(product);
-            if (!rule.accepting() || !commerce.operatorCanSell()) {
+            if (!rule.accepting()) {
                 throw BizApplicationException.productClosed();
             }
             slots.require(product, period.start(), period.end(), null);
@@ -220,11 +229,9 @@ public class BizApplicationMemberService {
                 period = defaultDealPeriod(content.get("endsOn") instanceof String e ? LocalDate.parse(e) : null, all.get(BizProduct.HOTDEAL_POST));
             }
             BizPaymentMethod method = f.oneOf("paymentMethod", b.paymentMethod(), BizPaymentMethod::valueOf);
+            onlineOnlyWhenSelling(f, method);
             agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
-            if (!commerce.operatorCanSell()) {
-                throw BizApplicationException.productClosed(); // 운영 주체가 돈을 받을 수 없는 단계(사용자 결정 2026-11-07)
-            }
             for (BizProduct p : products) {
                 if (!all.get(p).accepting()) {
                     throw BizApplicationException.productClosed();

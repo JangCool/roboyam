@@ -112,7 +112,7 @@
 
                 <!-- ④ 결제 방식 -->
                 <section v-else-if="step === 4" class="flex flex-col gap-4">
-                    <BusinessPaymentMethodPicker v-model="paymentMethod" />
+                    <BusinessPaymentMethodPicker v-model="paymentMethod" :online-available="onlinePayment" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
                 </section>
 
@@ -242,6 +242,8 @@ onMounted(async () => {
 });
 
 const product = computed(() => products.value.find((p) => p.type === adType.value) ?? null);
+/** 온라인 결제를 받는가 — 운영 주체가 개인 단계면 false(수동 결제만). 상품마다 같은 값이다 */
+const onlinePayment = computed(() => products.value.every((p) => p.onlinePayment !== false));
 const minDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), 1));
 const maxDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), product.value?.maxLeadDays ?? 60));
 

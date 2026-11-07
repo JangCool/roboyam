@@ -85,7 +85,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     void bizSetUp() {
         fakePg = new FakePgStore(dataSource);
         operator = new BizOperator(newOperator(), "127.0.0.1");
-        // 유료 신청·결제·승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) — 시험은 판매할 수 있는 단계에서 시작한다
+        // 온라인 결제(신청·승인·결제 시작)는 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) — 시험은 판매할 수 있는 단계에서 시작한다
         SiteOperatorFixture.fillBusiness(jdbc);
     }
 

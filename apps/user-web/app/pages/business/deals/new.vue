@@ -248,7 +248,7 @@
 
                 <!-- ⑤ 결제·동의 -->
                 <section v-else class="flex flex-col gap-4">
-                    <BusinessPaymentMethodPicker v-model="paymentMethod" />
+                    <BusinessPaymentMethodPicker v-model="paymentMethod" :online-available="dealProduct.onlinePayment !== false" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
                     <!-- 게시 정책 — 동의 바로 위(사용자 확정 2026-11-02) -->
                     <section class="flex flex-col gap-2 rounded-lg border border-hairline p-3.5" :aria-labelledby="`${uid}-policy`" data-testid="business-deal-policy">

@@ -244,6 +244,7 @@ export default {
         MANUAL: 'Bank transfer · contract',
     },
 
+    paymentOnlineOff: "Online payment isn't available right now. Please apply with bank transfer / contract.",
     paymentMethodHelp: {
         ONLINE: 'We send a payment request after approval. Pay by card within 72 hours to confirm.',
         MANUAL: 'We send bank details after approval. The team confirms once both the contract and deposit are checked (within 7 days).',
