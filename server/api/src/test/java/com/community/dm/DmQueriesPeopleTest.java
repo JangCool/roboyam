@@ -35,7 +35,7 @@ class DmQueriesPeopleTest {
     static void setUp() {
         jdbc = new JdbcTemplate(JpaTestContext.dataSource());
         dm = new DmQueries(JpaTestContext.query(), JpaTestContext.context().getBean(DmBoxRepository.class), JpaTestContext.context().getBean(DmMessageRepository.class),
-                JpaTestContext.dataSource(), JpaTestContext.entityManager());
+                JpaTestContext.dataSource());
     }
 
     @AfterEach

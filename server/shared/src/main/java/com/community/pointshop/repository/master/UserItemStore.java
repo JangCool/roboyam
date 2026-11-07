@@ -16,7 +16,6 @@ import com.community.pointshop.entity.UploadTicketUse;
 import com.community.pointshop.entity.UserItemEntity;
 import com.community.pointshop.entity.UserItemStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -25,6 +24,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,7 +37,8 @@ import org.springframework.stereotype.Repository;
 /**
  * 보유 아이템({@code user_items})·장착({@code user_equipped}) 읽기·쓰기 — {@code com.community.pointshop.service} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>QueryDSL 이 기본이다 — 회수·처음 사용·예약 반환·사용·대체는 조건부 UPDATE, 잠금은 보유 줄 표만 고르는 한 문장({@code FOR NO KEY UPDATE}), 읽기는 한 줄 모양(프로젝션), 넣기는 넣고
+ * <p>QueryDSL 이 기본이다 — 회수·처음 사용·예약 반환·사용·대체는 조건부 UPDATE, 잠금은 보유 줄 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}
+ * — 보유 줄을 FK 로 가리키는 장착·환불 신청은 그 줄을 먼저 잠근 흐름이 넣는다), 읽기는 한 줄 모양(프로젝션), 넣기는 넣고
  * 바로 내보낸다. Native SQL 로 남긴 것과 이유: <b>변경권 한 장 쓰기·올리기 변경권 예약</b>은 {@code FOR UPDATE OF ui SKIP LOCKED} 로 고른 한 줄을 조건부 UPDATE 하고 고친 줄을
  * {@code RETURNING} 으로 받는 한 문장이다 — 같은 회원의 동시 요청 둘이 같은 한 장을 쓰지 못하고(다른 장이 있으면 그 장을, 없으면 0 줄), 고른 줄과 고친 줄이 같은 문장의 결과여야 한다.
  * 장착은 {@code INSERT … ON CONFLICT (user_id, slot) DO UPDATE}(upsert).
@@ -108,11 +109,11 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 장착·환불·고르기 전에 — 줄을 잠그고 읽는다 */
     public Optional<UserItemRow> findForUpdate(long id) {
-        return RowLocks.forUpdate(entityManager, UserItemEntity.class, id) ? one(rows().where(UI.id.eq(id))) : Optional.empty();
+        return query.select(UI.id).from(UI).where(UI.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? one(rows().where(UI.id.eq(id))) : Optional.empty();
     }
 
     public Optional<UserItemRow> byPurchaseForUpdate(long purchaseId) {
-        List<Long> locked = RowLocks.forUpdate(entityManager, UserItemEntity.class, query.select(UI.id).from(UI).where(UI.purchaseId.eq(purchaseId)).orderBy(UI.id.asc()).fetch());
+        List<Long> locked = query.select(UI.id).from(UI).where(UI.purchaseId.eq(purchaseId)).orderBy(UI.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         return locked.isEmpty() ? Optional.empty() : one(rows().where(UI.id.in(locked), UI.purchaseId.eq(purchaseId)).orderBy(UI.id.asc()));
     }
 
@@ -124,9 +125,8 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 그 회원이 가진(회수되지 않은) 그 영구 품목 줄 — 잠근다(아바타 고르기) */
     public Optional<UserItemRow> ownedPermanentForUpdate(long userId, long itemId) {
-        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 읽는다(전환 전 「WHERE … FOR UPDATE」와 같은 결과)
-        List<Long> locked = RowLocks.forUpdate(entityManager, UserItemEntity.class,
-                query.select(UI.id).from(UI).where(ownedPermanentLine(userId, itemId)).orderBy(UI.id.asc()).fetch());
+        // 조건 잠금(id 차례) — PostgreSQL 이 잠근 뒤 조건을 다시 본다. 칸은 조건을 넣어 다시 읽는다
+        List<Long> locked = query.select(UI.id).from(UI).where(ownedPermanentLine(userId, itemId)).orderBy(UI.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         return locked.isEmpty() ? Optional.empty() : one(rows().where(UI.id.in(locked), ownedPermanentLine(userId, itemId)).orderBy(UI.id.asc()));
     }
 

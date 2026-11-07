@@ -8,14 +8,12 @@ import com.community.ad.entity.QAdAdvertiserEventEntity;
 import com.community.ad.entity.QAdAdvertiserViewEntity;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.QBizApplicationEntity;
-import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.entity.QBusinessProfileEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -38,7 +36,8 @@ import org.springframework.stereotype.Repository;
 
 /**
  * 계정 없는 광고주(V115 {@code ad_advertisers}, 보관·파기 V131) + 연락처 평문 열람 기록 + 처리 기록(V131 {@code ad_advertiser_events}).
- * 목록·검색은 가린 값만 읽고 암호문은 열람 때만 꺼낸다. 사업자 검색은 승인된 사업자 신원(상호·등록번호 끝 4자리)을 같이 본다. QueryDSL 만 쓴다.
+ * 목록·검색은 가린 값만 읽고 암호문은 열람 때만 꺼낸다. 사업자 검색은 승인된 사업자 신원(상호·등록번호 끝 4자리)을 같이 본다. Native SQL 로 남긴 것:
+ * {@link #lock}·{@link #lockProfile} 의 {@code FOR UPDATE}(사유는 메서드 주석).
  */
 @Repository
 public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
@@ -217,14 +216,26 @@ public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
 
     // ── 광고주 관리(V131 — 고치기 · 보관 · 삭제 · 처리 기록) ──
 
-    /** 광고주 줄 잠그기(고치기·보관·삭제를 한 줄씩) — 없으면 false */
+    /**
+     * 광고주 줄 잠그기(고치기·보관·삭제를 한 줄씩) — 없으면 false.
+     *
+     * <p>Native SQL({@code FOR UPDATE})인 이유: 삭제는 「그 광고주를 가리키는 신청 건이 없다」를 보고 광고주 줄·열람 기록·처리 기록을 지운다. 그 줄들을 넣는 흐름(운영자 광고 등록의
+     * 신청 건, 연락처 열람 기록)은 광고주 줄을 잠그지 않으므로, JPA {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE})면 넣는 중인 줄을 기다리지 않아 판정 뒤 지우기가 FK 위반으로
+     * 깨진다. {@code FOR UPDATE} 는 그 INSERT 의 FK 확인({@code FOR KEY SHARE})과 서로 기다리게 해 넣는 쪽이 먼저면 커밋 뒤 판정에 보이고, 나중이면 지운 뒤 실패한다.
+     */
     public boolean lock(long id) {
-        return RowLocks.forUpdate(entityManager, AdAdvertiserEntity.class, id);
+        return !entityManager.createNativeQuery("SELECT id FROM ad_advertisers WHERE id = ?1 FOR UPDATE").setParameter(1, id).getResultList().isEmpty();
     }
 
-    /** 사업자 신원 줄 잠그기(사업자 광고주의 광고주 줄을 처음 만들 때 둘이 겹치지 않게) — 없으면 false */
+    /**
+     * 사업자 신원 줄 잠그기(사업자 광고주의 광고주 줄을 처음 만들 때 둘이 겹치지 않게) — 없으면 false.
+     *
+     * <p>Native SQL({@code FOR UPDATE})인 이유: 직접 등록({@code AdAdvertiserService#createRow} — 사업자 연결)은 신원 줄을 잠그지 않고 그 신원을 가리키는 광고주 줄을 넣는다.
+     * {@code FOR UPDATE} 라야 그 INSERT 의 FK 확인({@code FOR KEY SHARE})이 끝날(커밋될) 때까지 기다린 뒤 {@link #byProfile} 이 그 줄을 본다 —
+     * {@code FOR NO KEY UPDATE} 면 보지 못하고 두 번째 줄을 넣다 유일 색인({@code ux_ad_advertisers_profile}) 위반이 된다.
+     */
     public boolean lockProfile(long profileId) {
-        return RowLocks.forUpdate(entityManager, BusinessProfileEntity.class, profileId);
+        return !entityManager.createNativeQuery("SELECT id FROM business_profiles WHERE id = ?1 FOR UPDATE").setParameter(1, profileId).getResultList().isEmpty();
     }
 
     public void update(long id, Change c, Instant now) {

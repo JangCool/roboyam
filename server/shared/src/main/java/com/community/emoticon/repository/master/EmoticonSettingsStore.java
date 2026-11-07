@@ -4,7 +4,6 @@ import com.community.emoticon.entity.EmoticonSettingsEntity;
 import com.community.emoticon.entity.QEmoticonPackEntity;
 import com.community.emoticon.entity.QEmoticonSettingsEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Repository;
 /**
  * 로보티콘 설정 행({@code emoticon_settings}, V142 — 한 행 · 유료 칸 V143) 읽기·쓰기. 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 행 잠금은 설정 표만 고르는 문장: 저장 전 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기),
+ * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 행 잠금은 설정 표만 고르는 문장: 저장 전 {@code PESSIMISTIC_WRITE}(PostgreSQL {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다),
  * 가격을 정하기 전 {@code PESSIMISTIC_READ}({@code FOR SHARE}) — 둘은 서로 막는다. 가격 단계 배열({@code integer[]})은 엔티티의 배열 칸으로 쓴다. Native SQL 로 남긴 것은 없다.
  */
 @Repository
@@ -59,7 +58,7 @@ public class EmoticonSettingsStore extends EmoticonStoreSupport {
 
     /** 저장하기 전에 — 행을 잠근다(같은 설정의 동시 저장이 전→후 감사를 어긋나게 하지 않게, 가격을 정하는 처리와 줄을 서게) */
     public SettingsRow readForUpdate() {
-        RowLocks.forUpdate(entityManager, EmoticonSettingsEntity.class, EmoticonSettingsEntity.ROW_ID);
+        query.select(S.id).from(S).where(S.id.eq(EmoticonSettingsEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
         return read();
     }
 

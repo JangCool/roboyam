@@ -116,10 +116,10 @@ class SanctionStoresJpaTest {
         return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
     }
 
-    /** 다른 연결에서 그 행을 기다리지 않고 키 나눔 잠금(FK 확인과 같은 세기) 해 본다 — 전환 전 세기 {@code FOR UPDATE} 로 잠겨 있으면 55P03 */
+    /** 다른 연결에서 그 행을 기다리지 않고 쓰기 잠금({@code FOR NO KEY UPDATE}) 해 본다 — 잠겨 있으면 55P03 */
     private static void assertRowLocked(String table, long id) {
         try (Connection other = dataSource.getConnection(); Statement st = other.createStatement()) {
-            assertThatThrownBy(() -> st.executeQuery("SELECT 1 FROM " + table + " WHERE id = " + id + " FOR KEY SHARE NOWAIT"))
+            assertThatThrownBy(() -> st.executeQuery("SELECT 1 FROM " + table + " WHERE id = " + id + " FOR NO KEY UPDATE NOWAIT"))
                     .isInstanceOf(SQLException.class).satisfies(e -> assertThat(((SQLException) e).getSQLState()).isEqualTo("55P03"));
         } catch (SQLException e) {
             throw new IllegalStateException(e);

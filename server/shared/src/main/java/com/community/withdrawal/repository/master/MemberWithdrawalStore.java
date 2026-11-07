@@ -6,13 +6,12 @@ import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalSource;
 import com.community.withdrawal.entity.WithdrawalStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.DateTimePath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
-import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -71,12 +70,10 @@ public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
     }
 
     private final MemberWithdrawalRepository repository;
-    private final EntityManager entityManager;
 
-    public MemberWithdrawalStore(JPAQueryFactory query, MemberWithdrawalRepository repository, EntityManager entityManager) {
+    public MemberWithdrawalStore(JPAQueryFactory query, MemberWithdrawalRepository repository) {
         super(query);
         this.repository = repository;
-        this.entityManager = entityManager;
     }
 
     public void insert(NewRow r) {
@@ -104,13 +101,13 @@ public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
     }
 
     /**
-     * 진행 중 신청을 잠가 읽는다(배치·완료가 같은 줄을 두 번 처리하지 않게 — {@code FOR NO KEY UPDATE}: 이 표를 FK 로 가리키는 표가 없어 {@code FOR UPDATE} 와 막는 범위가 같다).
-     * 잠근 뒤 값은 프로젝션으로 다시 읽는다 — 같은 트랜잭션에서 넣은 엔티티가 컨텍스트에 있으면 잠금 질의가 그 (낡을 수 있는) 인스턴스를 돌려주기 때문이다.
+     * 진행 중 신청을 잠가 읽는다(배치·완료가 같은 줄을 두 번 처리하지 않게 — 신청 표만 고르는 조건 문장의 {@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}: 이 표를
+     * FK 로 가리키는 표가 없어 {@code FOR UPDATE} 와 막는 범위가 같다. PostgreSQL 이 잠근 뒤 조건을 다시 본다).
+     * 잠근 뒤 값은 프로젝션으로 다시 읽는다 — 같은 트랜잭션에서 넣은 엔티티가 컨텍스트에 있으면 엔티티 질의가 그 (낡을 수 있는) 인스턴스를 돌려주기 때문이다.
      */
     public Optional<Row> lockScheduled(long userId) {
-        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 고른다(전환 전 「WHERE … FOR UPDATE」와 같은 결과)
-        List<Long> locked = RowLocks.forUpdate(entityManager, MemberWithdrawalEntity.class,
-                query.select(W.id).from(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc()).fetch());
+        List<Long> locked = query.select(W.id).from(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc())
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         Long id = locked.isEmpty() ? null
                 : query.select(W.id).from(W).where(W.id.in(locked), W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc()).fetchFirst();
         return id == null ? Optional.empty() : find(id);

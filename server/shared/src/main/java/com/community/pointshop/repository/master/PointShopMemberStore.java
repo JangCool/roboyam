@@ -1,15 +1,13 @@
 package com.community.pointshop.repository.master;
 
 import com.community.point.entity.QPointBalanceEntity;
-import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -38,11 +36,8 @@ public class PointShopMemberStore extends RoboyamRepositoryQDSL {
     private static final QProfileEntity PR = QProfileEntity.profileEntity;
     private static final QPointBalanceEntity B = QPointBalanceEntity.pointBalanceEntity;
 
-    private final EntityManager entityManager;
-
-    public PointShopMemberStore(JPAQueryFactory query, EntityManager entityManager) {
+    public PointShopMemberStore(JPAQueryFactory query) {
         super(query);
-        this.entityManager = entityManager;
     }
 
     public Optional<MemberState> state(long userId) {
@@ -87,13 +82,10 @@ public class PointShopMemberStore extends RoboyamRepositoryQDSL {
 
     /**
      * 프로필 행을 잠그고 아바타 칸을 읽는다(올리기 신청·심사·하나만 규칙이 프로필 행 → 신청 행 차례로 잠근다). 프로필 행이 없으면 빈 값. 프로필 표만 고르는 한 문장
-     * ({@code FOR NO KEY UPDATE}).
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
      */
     public Optional<AvatarState> lockAvatar(long userId) {
-        if (!RowLocks.forUpdate(entityManager, ProfileEntity.class, userId)) {
-            return Optional.empty();
-        }
-        Tuple t = query.select(PR.profileImage, PR.lastStillAvatar).from(PR).where(PR.userId.eq(userId)).fetchOne();
+        Tuple t = query.select(PR.profileImage, PR.lastStillAvatar).from(PR).where(PR.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return t == null ? Optional.empty() : Optional.of(new AvatarState(t.get(PR.profileImage), t.get(PR.lastStillAvatar)));
     }
 

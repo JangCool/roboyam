@@ -9,7 +9,6 @@ import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -19,6 +18,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -90,9 +90,12 @@ public class AvatarUploadStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(query.select(ROW).from(R).where(R.id.eq(id)).fetchOne());
     }
 
-    /** 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다 — {@code FOR UPDATE}, {@link RowLocks}). 값은 프로젝션으로 다시 읽는다 */
+    /**
+     * 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다). 잠금은 신청 표만 고르는 id 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} —
+     * 이 표를 FK 로 가리키는 표가 없다), 값은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값).
+     */
     public Optional<Row> findForUpdate(long id) {
-        if (!RowLocks.forUpdate(entityManager, AvatarUploadRequestEntity.class, id)) {
+        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
             return Optional.empty();
         }
         return find(id);

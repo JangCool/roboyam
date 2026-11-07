@@ -13,11 +13,9 @@ import com.community.site.entity.QSiteOperatorEntity;
 import com.community.site.entity.SiteOperatorEntity;
 import com.community.site.entity.SiteOperatorStage;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * 운영자 이름은 {@code operators.operator_name} 을 이어 읽는다(지운 운영자는 null).
  *
  * <p>QueryDSL 이다 — {@code commerce_*} 표(엔티티 {@link CommerceSalesSettingsEntity} 등)와 운영 주체({@code site_operator}, 엔티티 {@link SiteOperatorEntity}).
- * 스위치 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기), 로보티콘 유료 판매 스위치({@code emoticon_settings} — 엔티티 {@link EmoticonSettingsEntity})는 그 행만 고르는
+ * 스위치 행 잠금은 그 행만 고르는 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다), 로보티콘 유료 판매 스위치({@code emoticon_settings} — 엔티티 {@link EmoticonSettingsEntity})는 그 행만 고르는
  * {@code PESSIMISTIC_READ}({@code FOR SHARE}). Native SQL 로 남긴 것은 없다.
  */
 @Repository
@@ -51,11 +49,8 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
     public record ChecklistRow(String key, boolean checked, String checkedBy, Instant checkedAt) {
     }
 
-    private final EntityManager entityManager;
-
-    public CommerceSalesStore(JPAQueryFactory query, EntityManager entityManager) {
+    public CommerceSalesStore(JPAQueryFactory query) {
         super(query);
-        this.entityManager = entityManager;
     }
 
     public boolean groupBuyOpen() {
@@ -73,8 +68,7 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
 
     /** 스위치 행을 잠근다(켜기·끄기가 줄 선다) — 그 행만 고르는 쓰기 잠금 */
     public boolean lockSwitch() {
-        RowLocks.forUpdate(entityManager, CommerceSalesSettingsEntity.class, CommerceSalesSettingsEntity.ROW_ID); // 전환 전 세기(FOR UPDATE)
-        Boolean open = query.select(SW.groupbuyOpen).from(SW).where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).fetchFirst();
+        Boolean open = query.select(SW.groupbuyOpen).from(SW).where(SW.id.eq(CommerceSalesSettingsEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
         if (open == null) {
             throw new EmptyResultDataAccessException(1);
         }
