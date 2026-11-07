@@ -27,6 +27,8 @@ export interface MyEmoticonPack {
      * 목록에서 뺄 수 없다(서버 `409 EMOTICON_PACK_OWNED` + `reason: "CREATOR"`) — 화면은 「내가 만든 팩」 딱지를 붙이고 빼기 단추를 숨긴다
      */
     mine: boolean;
+    /** 보상 이벤트로 받은 팩(서버 `MyPack.reward`, V163 — event-admin-contract). `price` 0 · `purchaseId` null · `acquiredAt` = 받은 시각. 무료 팩처럼 목록에서 뺄 수 있다 */
+    reward: boolean;
 }
 
 /** `GET /api/me/emoticons` — 지금 쓸 수 있는 팩(최근 가진 것 먼저). 없으면 `packs: []` */

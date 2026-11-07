@@ -367,6 +367,7 @@ export default {
     boughtAt: '{date} 삼',
     publishedAt: '{date} 상점에 나옴',
     boughtTag: '구매',
+    rewardTag: '이벤트 보상',
     mineTag: '내가 만든 팩',
     removeFromList: '목록에서 빼기',
     removeConfirmTitle: '「{name}」을 목록에서 뺄까요?',

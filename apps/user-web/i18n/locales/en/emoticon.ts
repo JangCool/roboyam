@@ -365,6 +365,7 @@ export default {
     boughtAt: 'Bought {date}',
     publishedAt: 'In the shop since {date}',
     boughtTag: 'Purchased',
+    rewardTag: 'Event reward',
     mineTag: 'Your pack',
     removeFromList: 'Remove from list',
     removeConfirmTitle: 'Remove "{name}" from your list?',

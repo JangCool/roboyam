@@ -148,6 +148,7 @@ export default {
     reservedNoRefund: '신청에 예약됨 · 환불 불가(반려·취소되면 풀려요)',
     refundExpired: '환불 기한 지남',
     revokedTitle: '환불됨 {count}개',
+    reclaimedTitle: '회수됨 {count}개',
     equipConfirmTitle: '장착할까요?',
     equipConfirmText: '장착하면 이 아이템은 환불할 수 없어요. 해제해도 마찬가지예요.',
     equipped: '{name}을(를) 장착했어요',

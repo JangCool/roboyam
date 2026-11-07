@@ -94,8 +94,10 @@
 - 권한 카탈로그 `util-permission-catalog.ts` 에 `reward-event.read|manage|grant` · 포인트 사유 코드에 `EVENT_REWARD`·`EVENT_REWARD_REVOKE`.
 - user-web: 내 아이템 `source`(`PURCHASE`|`REWARD_EVENT`) — 받은 줄은 「이벤트 보상 · ○일 받음」, 환불 단추 없음. 셀프 환불 409 `blockedBy GRANTED` 는 서버 번들 `error.POINT_SHOP_REFUND_NOT_ALLOWED.GRANTED`. 알림 두 종류(아이콘 `pi pi-gift`·`pi pi-undo`, 문구는 서버). 포인트 내역 `note` = 이벤트 이름(원장 그대로).
 
+## 남은 일 처리 (2026-11-08)
+- 내 로보티콘: `GET /api/me/emoticons` 의 팩에 `reward`(보상 이벤트로 받은 팩 — 받기 종류 EVENT) — 화면은 「이벤트 보상」 딱지(무료 팩처럼 목록에서 뺄 수 있다). 시험 `RewardItemPackGrantTest`(가진 팩 조회의 출처).
+- 내 아이템: 보상 이벤트로 받았다가 회수된 줄은 「환불됨」이 아니라 「회수됨 N개」 묶음.
+- 이메일 인증·소셜 가입 지점의 자동 지급: api 시험 `RewardFirstComeEmailApiTest` 4개 — 이메일 첫 인증이면 받음(다시 눌러도 한 번) · 본인인증 기준 이벤트는 안 받음 · 이메일 변경 링크는 기준 사건 아님 · 소셜 가입은 공급자가 확인한 이메일만.
+
 ## 남은 일
-- 내 로보티콘(`/me/robotikon`)은 이벤트로 받은 팩을 「무료」로 보인다(서버 `EmoticonPublicView.MyPack` 에 출처 칸 없음).
-- 회수된 이벤트 아이템이 내 아이템의 「환불됨」 묶음에 함께 보인다(표시는 「이벤트 보상」).
-- 이메일 인증·소셜 가입 지점의 자동 지급 호출은 api HTTP 시험이 없다(같은 서비스는 shared 시험으로 막음).
-- 합치기 전: origin/develop shared 마지막 번호 다시 확인. 사이트 팝업 V162(develop b57939c0)는 `ck_files_purpose` 만 다시 만들어 이 기능의 CHECK 와 겹치지 않는다(2026-11-08 확인). 메뉴·권한·감사 상수·i18n 파일은 사이트 팝업·공지 관리와 같은 파일을 고쳐 병합 충돌이 날 수 있다.
+- 없음.

@@ -63,9 +63,10 @@ public final class EmoticonPublicView {
     /**
      * 가진 팩 한 개 — 고르기 창의 탭 하나. 산 팩이면 {@code price} = 결제 금액 · {@code purchaseId} = 구매 번호(S3), 무료로 받은 팩은 0 · null.
      * {@code mine} = 내가 만든 팩(사지 않아도 가진다 — 후속 결정 1: {@code price} 0 · {@code purchaseId} null · {@code acquiredAt} = 상점에 처음 나온 시각, 목록에서 뺄 수 없다).
+     * {@code reward} = 보상 이벤트로 받은 팩(V163 — event-admin-contract, {@code price} 0 · {@code purchaseId} null · {@code acquiredAt} = 받은 시각).
      */
     public record MyPack(String id, String name, String source, String creatorNickname, String coverUrl, Instant acquiredAt, int price, String purchaseId,
-                         boolean suspended, List<Item> emoticons, boolean mine) {
+                         boolean suspended, List<Item> emoticons, boolean mine, boolean reward) {
     }
 
     /**

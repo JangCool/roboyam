@@ -53,8 +53,8 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
         }
     }
 
-    /** 지금 가진 팩 한 개 — 산 팩이면 구매 ID·결제 금액, 내가 만든 팩이면 {@code creator}(가진 시각 = 상점에 처음 나온 시각) */
-    public record OwnedPack(long packId, Instant acquiredAt, Long purchaseId, int purchaseAmount, boolean creator) {
+    /** 지금 가진 팩 한 개 — 산 팩이면 구매 ID·결제 금액, 내가 만든 팩이면 {@code creator}(가진 시각 = 상점에 처음 나온 시각), 보상 이벤트로 받은 팩이면 {@code reward}(V163 종류 EVENT) */
+    public record OwnedPack(long packId, Instant acquiredAt, Long purchaseId, int purchaseAmount, boolean creator, boolean reward) {
     }
 
     private static final QEmoticonAcquisitionEntity A = QEmoticonAcquisitionEntity.emoticonAcquisitionEntity;
@@ -179,16 +179,16 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
         record Owned(OwnedPack pack, long tie) {
         }
         List<Owned> rows = new ArrayList<>();
-        for (Tuple t : query.select(A.packId, A.acquiredAt, A.purchaseId, PU.amount, A.id).from(A).leftJoin(PU).on(PU.id.eq(A.purchaseId))
+        for (Tuple t : query.select(A.packId, A.acquiredAt, A.purchaseId, PU.amount, A.id, A.kind).from(A).leftJoin(PU).on(PU.id.eq(A.purchaseId))
                 .where(A.userId.eq(userId), A.removedAt.isNull(),
                         JPAExpressions.selectOne().from(K).where(K.id.eq(A.packId), K.creatorId.eq(A.userId), creatorOwned(K)).notExists())
                 .fetch()) {
             Integer amount = t.get(PU.amount);
-            rows.add(new Owned(new OwnedPack(t.get(A.packId), t.get(A.acquiredAt), t.get(A.purchaseId), amount == null ? 0 : amount, false), t.get(A.id)));
+            rows.add(new Owned(new OwnedPack(t.get(A.packId), t.get(A.acquiredAt), t.get(A.purchaseId), amount == null ? 0 : amount, false, EVENT.equals(t.get(A.kind))), t.get(A.id)));
         }
         for (Tuple t : query.select(K.id, K.publishedAt, K.createdAt).from(K).where(K.creatorId.eq(userId), creatorOwned(K)).fetch()) {
             Instant at = t.get(K.publishedAt) != null ? t.get(K.publishedAt) : t.get(K.createdAt);
-            rows.add(new Owned(new OwnedPack(t.get(K.id), at, null, 0, true), t.get(K.id)));
+            rows.add(new Owned(new OwnedPack(t.get(K.id), at, null, 0, true, false), t.get(K.id)));
         }
         rows.sort(Comparator.comparing((Owned o) -> o.pack().acquiredAt()).reversed().thenComparing(Comparator.comparingLong(Owned::tie).reversed()));
         Map<Long, OwnedPack> out = new LinkedHashMap<>();

@@ -147,13 +147,24 @@
                 </div>
             </section>
 
-            <!-- 환불됨 — 접힌 구획 -->
-            <details v-if="grouped.revoked.length > 0" class="panel-card" data-testid="myitems-revoked">
-                <summary class="cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">{{ t('pointShop.revokedTitle', { count: grouped.revoked.length }) }}</summary>
+            <!-- 환불됨 — 접힌 구획(산 아이템을 환불한 줄) -->
+            <details v-if="refundedRows.length > 0" class="panel-card" data-testid="myitems-revoked">
+                <summary class="cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">{{ t('pointShop.revokedTitle', { count: refundedRows.length }) }}</summary>
                 <ul class="m-0 list-none p-0">
-                    <li v-for="row in grouped.revoked" :key="row.id" class="flex items-center gap-3 border-t border-surface px-4 py-3 text-sm text-muted-color">
+                    <li v-for="row in refundedRows" :key="row.id" class="flex items-center gap-3 border-t border-surface px-4 py-3 text-sm text-muted-color">
                         <span class="min-w-0 flex-1 break-words">{{ localizedName(row.name, row.nameEn) }}</span>
-                        <span class="shrink-0 text-xs">{{ acquiredOn(row) }} · {{ UtilPointShop.isGranted(row) ? t('pointShop.eventReward') : UtilPoint.points(row.pricePaid) }}</span>
+                        <span class="shrink-0 text-xs">{{ acquiredOn(row) }} · {{ UtilPoint.points(row.pricePaid) }}</span>
+                    </li>
+                </ul>
+            </details>
+
+            <!-- 회수됨 — 접힌 구획(보상 이벤트로 받았다가 운영자가 회수한 줄 — event-admin-contract) -->
+            <details v-if="reclaimedRows.length > 0" class="panel-card" data-testid="myitems-reclaimed">
+                <summary class="cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">{{ t('pointShop.reclaimedTitle', { count: reclaimedRows.length }) }}</summary>
+                <ul class="m-0 list-none p-0">
+                    <li v-for="row in reclaimedRows" :key="row.id" class="flex items-center gap-3 border-t border-surface px-4 py-3 text-sm text-muted-color">
+                        <span class="min-w-0 flex-1 break-words">{{ localizedName(row.name, row.nameEn) }}</span>
+                        <span class="shrink-0 text-xs">{{ acquiredOn(row) }} · {{ t('pointShop.eventReward') }}</span>
                     </li>
                 </ul>
             </details>
@@ -275,6 +286,9 @@ watch(
 onBeforeUnmount(() => seq++);
 
 const grouped = computed(() => UtilPointShop.group(items.value));
+/** 빠진 줄을 둘로 — 산 아이템을 환불한 줄(환불됨)과 보상 이벤트로 받았다가 회수된 줄(회수됨) */
+const refundedRows = computed(() => grouped.value.revoked.filter((row) => !UtilPointShop.isGranted(row)));
+const reclaimedRows = computed(() => grouped.value.revoked.filter((row) => UtilPointShop.isGranted(row)));
 const wearGroups = computed(() =>
     [
         { key: 'color', title: t('pointShop.kindNicknameColor'), rows: grouped.value.colors },

@@ -6,6 +6,7 @@ import static com.community.rewardevent.service.RewardEventTestKit.tier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.emoticon.repository.master.EmoticonAcquisitionStore;
 import com.community.pointshop.dto.response.MyItemView;
 import com.community.pointshop.exception.PointShopRefundNotAllowedException;
 import com.community.pointshop.service.PointShopRules;
@@ -145,6 +146,12 @@ class RewardItemPackGrantTest extends RewardEventTestBase {
         assertThat(kit.ledger(creator, "EMOTICON_CREATOR_REWARD")).isEmpty();
         assertThat(kit.jdbc.queryForObject("SELECT acquire_count FROM emoticon_packs WHERE id = ?", Integer.class, pack)).isEqualTo(1);
         assertThat(kit.inTx(() -> kit.acquisitionStore.ownedAmong(m, List.of(pack)))).containsExactly(pack);
+        // 내 로보티콘(`GET /api/me/emoticons` 의 `reward`)이 「이벤트 보상」으로 보이게 — 가진 팩 조회가 출처를 넘긴다(작가 자기 팩·무료 받기는 false)
+        EmoticonAcquisitionStore.OwnedPack owned = kit.inTx(() -> kit.acquisitionStore.owned(m)).get(pack);
+        assertThat(owned.reward()).isTrue();
+        assertThat(owned.purchaseId()).isNull();
+        EmoticonAcquisitionStore.OwnedPack creatorOwn = kit.inTx(() -> kit.acquisitionStore.owned(creator)).get(pack);
+        assertThat(creatorOwn == null || !creatorOwn.reward()).isTrue();
     }
 
     @Test
