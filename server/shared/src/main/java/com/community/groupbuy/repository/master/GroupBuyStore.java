@@ -5,7 +5,6 @@ import com.community.groupbuy.entity.GroupBuyEntity;
 import com.community.groupbuy.entity.GroupBuySettingsEntity;
 import com.community.groupbuy.entity.GroupBuySkuEntity;
 import com.community.groupbuy.entity.GroupBuyStatus;
-import com.community.groupbuy.entity.GroupBuyStatusHistoryEntity;
 import com.community.groupbuy.entity.ParticipationStatus;
 import com.community.groupbuy.entity.QGroupBuyCategoryEntity;
 import com.community.groupbuy.entity.QGroupBuyDelayNoticeEntity;
@@ -49,7 +48,7 @@ import org.springframework.stereotype.Repository;
  * 상태 전이는 한 문장 조건부 UPDATE(이긴 쪽만, commerce.md 3절 — QueryDSL {@code update().where(id, status).execute() == 1}).
  *
  * <p>QueryDSL 이 기본이다(읽기는 한 줄 모양, 쓰기는 즉시 실행 — {@link GroupBuyStoreSupport}). 판정 ①의 공구 행 잠금({@link #lock})은 공구 행만 고르는 잠금 문장 뒤에 읽는다.
- * Native SQL 로 남긴 것과 이유: 수정 이력 사본({@link #snapshotRevision} — jsonb_agg 로 상품·옵션·단품·고시를 한 문장 INSERT … SELECT), 진행 중 주문이 없는 공구의 완료 sweep
+ * Native SQL 로 남긴 것과 이유: 공구 상태 이력 넣기({@link #insertStatusHistory} — 결제 확정 세이브포인트 안에서도 넣는다), 수정 이력 사본({@link #snapshotRevision} — jsonb_agg 로 상품·옵션·단품·고시를 한 문장 INSERT … SELECT), 진행 중 주문이 없는 공구의 완료 sweep
  * ({@link #completeFinished} — 일괄 {@code UPDATE … RETURNING}, 바꾼 공구를 같은 문장에서 받는다).
  */
 @Repository
@@ -269,6 +268,10 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
      * 다 팔림 조건 — 공구 최대(MAIN 수량)에 닿았거나, 판매 중인 MAIN 단품이 모두 한도가 있고 모두 확정 = 한도(결정 27·48·78·88).
      * 추가 구성상품은 공구 마감을 정하지 않는다.
      */
+    /** {@link #soldOut} 과 같은 조건의 SQL(공구 별칭 {@code g}) — 세이브포인트 안의 다 팔림 마감({@code GroupBuyQtyStore#closeIfSoldOut}, JDBC)이 쓴다 */
+    static final String SOLD_OUT_CONDITION = "(g.current_qty = g.max_qty OR NOT EXISTS (SELECT 1 FROM group_buy_skus s WHERE s.group_buy_id = g.id AND s.kind = 'MAIN' "
+            + "AND s.on_sale AND (s.max_qty IS NULL OR s.current_qty < s.max_qty)))";
+
     static BooleanExpression soldOut(QGroupBuyEntity g) {
         QGroupBuySkuEntity s = new QGroupBuySkuEntity("soldOutSku");
         return g.currentQty.eq(g.maxQty).or(JPAExpressions.selectOne().from(s)
@@ -334,8 +337,10 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
         return query.update(G).set(G.status, GroupBuyStatus.SHIPPING).set(G.updatedAt, now).where(G.id.eq(id), G.status.eq(GroupBuyStatus.ORDERED)).execute() == 1;
     }
 
+    /** 공구 상태 이력 한 줄. JDBC 인 이유: 결제 확정 세이브포인트 안(다 팔림 마감)에서도 넣는다 — 그 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용 */
     public void insertStatusHistory(long id, long groupBuyId, GroupBuyStatus from, GroupBuyStatus to, String reason, Long actorId, Instant now) {
-        insert(GroupBuyStatusHistoryEntity.create(id, groupBuyId, from, to, reason, actorId, now));
+        jdbc.update("INSERT INTO group_buy_status_history (id, group_buy_id, from_status, to_status, reason, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id,
+                groupBuyId, from == null ? null : from.name(), to.name(), reason, actorId, Timestamp.from(now));
     }
 
     // ── 공구 단품·옵션 축(결정 88·89) ───────────────────────────────────────

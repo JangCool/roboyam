@@ -42,6 +42,8 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
     private GroupBuyAdminService admin;
     @Autowired
     private ObjectProvider<Clock> clocks;
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactions;
 
     @AfterEach
     void restore() {
@@ -55,7 +57,7 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
         SiteOperatorFixture.clear(jdbc);
         jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
         GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
-                products, notices, catalog, admin, clocks);
+                products, notices, catalog, admin, clocks, transactions);
         seeder.seedSales();
         assertThat(jdbc.queryForObject("SELECT stage FROM site_operator WHERE id = 1", String.class)).as("기본값 개인 그대로").isEqualTo("INDIVIDUAL");
         assertThat(salesStore.businessInfo().businessHours()).as("커머스 고유 칸은 채운다").isNotBlank();
@@ -68,7 +70,7 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
         SiteOperatorFixture.fillBusiness(jdbc);
         jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
         GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
-                products, notices, catalog, admin, clocks);
+                products, notices, catalog, admin, clocks, transactions);
         seeder.seedSales();
         assertThat(salesStore.businessInfo().ready()).isTrue();
         assertThat(jdbc.queryForObject("SELECT stage FROM site_operator WHERE id = 1", String.class)).as("운영 주체는 시험이 채운 개인사업자 그대로").isEqualTo("SOLE_PROPRIETOR");

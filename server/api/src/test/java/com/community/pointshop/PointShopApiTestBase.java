@@ -41,8 +41,8 @@ import org.springframework.web.context.WebApplicationContext;
  */
 abstract class PointShopApiTestBase extends CommerceApiTestBase {
 
-    private static final List<MemberPermission> GENERAL = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE);
+    /** 일반 회원 기본 권한 — 운영 시드({@code BuiltinRoleSeeder})와 같은 정본(먼저 도는 시험이 역할을 만들면 뒤의 공구 주문 시험도 그 권한을 쓴다) */
+    private static final List<MemberPermission> GENERAL = MemberRoleIds.GENERAL_DEFAULT_PERMISSIONS;
     private static final List<MemberPermission> BUSINESS = List.of(MemberPermission.REPORT_CREATE);
 
     @Autowired

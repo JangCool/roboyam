@@ -5,7 +5,6 @@ import com.community.groupbuy.entity.GroupBuyParticipationEntity;
 import com.community.groupbuy.entity.GroupBuyParticipationItemEntity;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.ParticipationStatus;
-import com.community.groupbuy.entity.ParticipationStatusHistoryEntity;
 import com.community.groupbuy.entity.QGroupBuyDelayNoticeEntity;
 import com.community.groupbuy.entity.QGroupBuyEntity;
 import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
@@ -42,7 +41,8 @@ import org.springframework.stereotype.Repository;
  *
  * <p>QueryDSL 이 기본이다(읽기는 한 줄 모양, 쓰기는 즉시 실행 — {@link GroupBuyStoreSupport}). 주문 행 잠금은 주문 행만 고르는 잠금 문장 뒤에 읽는다.
  * Native SQL 로 남긴 것과 이유: 주문 번호 하루 일련({@code INSERT … ON CONFLICT … DO UPDATE … RETURNING} — 서버 여러 대가 같은 날 번호를 겹치지 않게 한 문장에서 올리고 받는다),
- * 성사 공구 JOINED → CONFIRMED 일괄({@code UPDATE … WHERE id IN (… LIMIT) RETURNING} — 바꾼 주문을 같은 문장에서 받는다), 운영 환불 줄 내역 합({@code jsonb_array_elements}).
+ * 성사 공구 JOINED → CONFIRMED 일괄({@code UPDATE … WHERE id IN (… LIMIT) RETURNING} — 바꾼 주문을 같은 문장에서 받는다), 운영 환불 줄 내역 합({@code jsonb_array_elements}),
+ * 결제 확정 세이브포인트 안의 쓰기({@link #markPaid} · {@link #expire} · {@link #insertHistory} — JDBC: 그 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용).
  */
 @Repository
 public class ParticipationStore extends GroupBuyStoreSupport {
@@ -93,6 +93,10 @@ public class ParticipationStore extends GroupBuyStoreSupport {
 
     public ParticipationStore(JPAQueryFactory query, EntityManager entityManager, DataSource dataSource) {
         super(query, entityManager, dataSource);
+    }
+
+    private static Timestamp ts(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 
     // ── 주문 번호 ───────────────────────────────────────────────────────────
@@ -193,21 +197,24 @@ public class ParticipationStore extends GroupBuyStoreSupport {
                 .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT)).execute() == 1;
     }
 
-    /** 결제 중 → 만료(원인). {@code dueBefore} 가 있으면 선점 시간이 그 전에 끝났을 때만(이긴 쪽만 true) */
+    /**
+     * 결제 중 → 만료(원인). {@code dueBefore} 가 있으면 선점 시간이 그 전에 끝났을 때만(이긴 쪽만 true).
+     * JDBC 인 이유: 결제 확정({@code onPaid})의 JDBC 세이브포인트 안에서 도는 쓰기 — 세이브포인트 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용이 되어 거절로 되돌릴 수 없다(G25 ③).
+     */
     public boolean expire(long id, ExpireCause cause, Instant dueBefore, Instant now) {
-        JPAUpdateClause update = query.update(PA).set(PA.status, ParticipationStatus.EXPIRED).set(PA.expireCause, cause).set(PA.expiredAt, now).set(PA.updatedAt, now)
-                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT));
-        if (dueBefore != null) {
-            update.where(PA.reservedUntil.lt(dueBefore));
+        if (dueBefore == null) {
+            return jdbc.update("UPDATE group_buy_participations SET status = 'EXPIRED', expire_cause = ?, expired_at = ?, updated_at = ? WHERE id = ? "
+                    + "AND status = 'PENDING_PAYMENT'", cause.name(), ts(now), ts(now), id) == 1;
         }
-        return update.execute() == 1;
+        return jdbc.update("UPDATE group_buy_participations SET status = 'EXPIRED', expire_cause = ?, expired_at = ?, updated_at = ? WHERE id = ? "
+                + "AND status = 'PENDING_PAYMENT' AND reserved_until < ?", cause.name(), ts(now), ts(now), id, ts(dueBefore)) == 1;
     }
 
-    /** 결제 중 → JOINED(마감 후 발주) 또는 CONFIRMED(즉시 발송 — 한 번에) */
+    /** 결제 중 → JOINED(마감 후 발주) 또는 CONFIRMED(즉시 발송 — 한 번에). JDBC 인 이유: 결제 확정({@code onPaid})의 JDBC 세이브포인트 안에서 도는 쓰기 — 세이브포인트 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용이 되어 거절로 되돌릴 수 없다(G25 ③) */
     public boolean markPaid(long id, ParticipationStatus to, long paymentOrderId, Instant paidAt, int revision, Instant now) {
-        return query.update(PA).set(PA.status, to).set(PA.paymentOrderId, paymentOrderId).set(PA.joinedAt, paidAt)
-                .set(PA.confirmedAt, to == ParticipationStatus.CONFIRMED ? paidAt : null).set(PA.groupBuyRevision, revision).set(PA.updatedAt, now)
-                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT)).execute() == 1;
+        return jdbc.update("UPDATE group_buy_participations SET status = ?, payment_order_id = ?, joined_at = ?, confirmed_at = ?, group_buy_revision = ?, updated_at = ? "
+                        + "WHERE id = ? AND status = 'PENDING_PAYMENT'", to.name(), paymentOrderId, ts(paidAt), to == ParticipationStatus.CONFIRMED ? ts(paidAt) : null,
+                revision, ts(now), id) == 1;
     }
 
     /** 결제된 주문의 상태를 바꾼다(지금 상태가 {@code from} 중 하나일 때만) — CANCELED·REFUNDED 면 그 시각도 */
@@ -253,12 +260,19 @@ public class ParticipationStore extends GroupBuyStoreSupport {
         query.update(PA).set(PA.reshippingFeeCharged, PA.reshippingFeeCharged.add(fee)).set(PA.updatedAt, now).where(PA.id.eq(id)).execute();
     }
 
+    /** 주문 상태 이력 한 줄. JDBC 인 이유: 결제 확정({@code onPaid})의 JDBC 세이브포인트 안에서 도는 쓰기 — 세이브포인트 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용이 되어 거절로 되돌릴 수 없다(G25 ③)(주문 상태 이력은 그 안에서 넣는다) */
     public void insertHistory(long id, ParticipationRow p, ParticipationStatus from, ParticipationStatus to, String cause, Long actorId, Instant now) {
-        insert(ParticipationStatusHistoryEntity.create(id, p.id(), p.groupBuyId(), p.userId(), from, to, cause, actorId, now));
+        insertHistory(id, p.id(), p.groupBuyId(), p.userId(), from, to, cause, actorId, now);
     }
 
     public void insertHistory(long id, long participationId, long groupBuyId, long userId, ParticipationStatus from, ParticipationStatus to, String cause, Instant now) {
-        insert(ParticipationStatusHistoryEntity.create(id, participationId, groupBuyId, userId, from, to, cause, null, now));
+        insertHistory(id, participationId, groupBuyId, userId, from, to, cause, null, now);
+    }
+
+    private void insertHistory(long id, long participationId, long groupBuyId, long userId, ParticipationStatus from, ParticipationStatus to, String cause, Long actorId,
+                               Instant now) {
+        jdbc.update("INSERT INTO participation_status_history (id, participation_id, group_buy_id, user_id, from_status, to_status, cause, actor_id, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, participationId, groupBuyId, userId, from == null ? null : from.name(), to.name(), cause, actorId, ts(now));
     }
 
     // ── 발송·반품(2b-3) ──────────────────────────────────────────────────────

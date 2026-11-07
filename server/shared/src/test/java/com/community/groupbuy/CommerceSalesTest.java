@@ -51,8 +51,10 @@ class CommerceSalesTest {
         beans.registerSingleton("gateway", kit.spring.getBean(PaymentGateway.class));
         beans.registerSingleton("identity", new FakeIdentityVerifier(Clock.systemUTC()));
         beans.registerSingleton("clock", kit.clock);
-        sales = new CommerceSalesService(store, kit.spring.getBean(com.community.audit.service.AuditLogService.class), kit.spring.getBean(NotificationPublisher.class),
-                beans.getBeanProvider(PaymentGateway.class), beans.getBeanProvider(IdentityVerifier.class), beans.getBeanProvider(Clock.class));
+        // 운영과 같은 트랜잭션 경계(@Transactional) — 저장소의 QueryDSL 쓰기·잠금은 트랜잭션이 있어야 한다
+        sales = JpaTestContext.transactional(new CommerceSalesService(store, kit.spring.getBean(com.community.audit.service.AuditLogService.class),
+                kit.spring.getBean(NotificationPublisher.class), beans.getBeanProvider(PaymentGateway.class), beans.getBeanProvider(IdentityVerifier.class),
+                beans.getBeanProvider(Clock.class)));
     }
 
     @BeforeEach
@@ -82,6 +84,11 @@ class CommerceSalesTest {
     private static BusinessInfo filled() {
         return new BusinessInfo("다른상회", "김다른", "123-45-67890", "2099-다른-9999", "다른 기관", "다른 주소", "010-9999-9999", "other@test.local",
                 "평일 10~17시", "김다른", "다른 호스팅", "7일 안 청약철회", null, null);
+    }
+
+    /** 운영 주체 저장 트랜잭션처럼(판매 스위치 잠금은 트랜잭션 안에서만 — MANDATORY) */
+    private static void inTx(Runnable work) {
+        new org.springframework.transaction.support.TransactionTemplate(JpaTestContext.transactions()).executeWithoutResult(status -> work.run());
     }
 
     private void checkAll() {
@@ -116,7 +123,7 @@ class CommerceSalesTest {
         assertThat(kit.operatorNotices).contains(AdminNotificationEvent.COMMERCE_SALES_TOGGLE);
 
         // 끄기는 최고 관리자가 아니어도(설정 권한 — 컨트롤러가 본다), 조건과 상관없이 바로
-        store.check("TERMS", false, kit.operator, java.time.Instant.now());
+        inTx(() -> store.check("TERMS", false, kit.operator, java.time.Instant.now()));
         CommerceSalesService.SalesState off = sales.toggle(false, "문제가 생겨 멈춥니다", kit.operator, false, "ip");
         assertThat(off.enabled()).isFalse();
         assertThatThrownBy(() -> sales.toggle(false, "짧음", kit.operator, false, "ip")).as("사유 5~200자").isInstanceOf(ValidationException.class);
@@ -242,13 +249,13 @@ class CommerceSalesTest {
     void 정본_판매가_켜져_있는_동안_개인_단계로_바꾸거나_통신판매업_신고번호를_비우는_저장은_409() {
         fillOperator();
         // 꺼져 있으면 무엇이든 된다
-        sales.assertOperatorChangeAllowed(SiteOperatorStage.INDIVIDUAL, null);
-        sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, null);
+        inTx(() -> sales.assertOperatorChangeAllowed(SiteOperatorStage.INDIVIDUAL, null));
+        inTx(() -> sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, null));
 
         kit.jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = true WHERE id = 1");
         for (Object[] blocked : new Object[][] {{SiteOperatorStage.INDIVIDUAL, null}, {SiteOperatorStage.INDIVIDUAL, "2026-서울-0001"},
                 {SiteOperatorStage.SOLE_PROPRIETOR, null}, {SiteOperatorStage.CORPORATION, " "}}) {
-            assertThatThrownBy(() -> sales.assertOperatorChangeAllowed((SiteOperatorStage) blocked[0], (String) blocked[1]))
+            assertThatThrownBy(() -> inTx(() -> sales.assertOperatorChangeAllowed((SiteOperatorStage) blocked[0], (String) blocked[1])))
                     .as("%s / %s", blocked[0], blocked[1])
                     .isInstanceOfSatisfying(CommerceSalesException.class, e -> {
                         assertThat(e.getErrorCode()).isEqualTo(CommerceSalesException.SALES_OPEN);
@@ -256,8 +263,8 @@ class CommerceSalesTest {
                     });
         }
         // 사업자 단계 + 신고번호면 바꿔도 된다(번호를 고치거나 법인으로 올리기)
-        sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, "2026-서울-0002");
-        sales.assertOperatorChangeAllowed(SiteOperatorStage.CORPORATION, "2026-서울-0001");
+        inTx(() -> sales.assertOperatorChangeAllowed(SiteOperatorStage.SOLE_PROPRIETOR, "2026-서울-0002"));
+        inTx(() -> sales.assertOperatorChangeAllowed(SiteOperatorStage.CORPORATION, "2026-서울-0001"));
     }
 
     @Test

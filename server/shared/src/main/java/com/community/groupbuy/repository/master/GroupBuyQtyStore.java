@@ -1,8 +1,5 @@
 package com.community.groupbuy.repository.master;
 
-import com.community.groupbuy.entity.GroupBuyQtyMovementEntity;
-import com.community.groupbuy.entity.GroupBuyStatus;
-import com.community.groupbuy.entity.QGroupBuyEntity;
 import com.community.groupbuy.entity.QGroupBuyQtyMovementEntity;
 import com.community.groupbuy.entity.QtyMovementKind;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -20,12 +17,12 @@ import org.springframework.stereotype.Repository;
  *
  * <p>Native SQL 로 남긴 것과 이유: 수량 열의 조건부 {@code UPDATE … RETURNING current, reserved, max} 전부(설계 결정 82 — 이긴 쪽만 바꾸고 <b>바꾼 뒤의 값을 같은 문장에서</b>
  * 받아 이동 줄에 적는다. 따로 SELECT 하면 다른 트랜잭션의 변경이 섞인다). 이 문장들은 결제 확정({@code onPaid})의 JDBC 세이브포인트 안에서도 돈다 — JDBC 라 실패해도
- * 세이브포인트만 되돌아가고 업무 트랜잭션은 계속 쓸 수 있다. 다 팔림 마감·이동 줄·창 안의 이동 묻기는 QueryDSL(즉시 실행 · {@code persist} 직후 {@code flush}).
+ * 세이브포인트만 되돌아가고 업무 트랜잭션은 계속 쓸 수 있다. 같은 까닭으로 그 안에서 도는 다 팔림 마감·이동 줄 넣기도 JDBC 다(세이브포인트 안에서 JPA 문장이 실패하면
+ * 업무 트랜잭션 전체가 롤백 전용 — G25 ③). 창 안의 이동 묻기는 QueryDSL.
  */
 @Repository
 public class GroupBuyQtyStore extends GroupBuyStoreSupport {
 
-    private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
     private static final QGroupBuyQtyMovementEntity M = QGroupBuyQtyMovementEntity.groupBuyQtyMovementEntity;
 
     /** 바꾼 뒤의 값 — 단품의 {@code max} 는 한도가 없으면 null */
@@ -95,8 +92,9 @@ public class GroupBuyQtyStore extends GroupBuyStoreSupport {
 
     /** 다 팔리면 그 자리에서 CLOSING(결정 27·48·78·88) — 모집 중일 때만(이긴 쪽만 true) */
     public boolean closeIfSoldOut(long groupBuyId, Instant now) {
-        return query.update(G).set(G.status, GroupBuyStatus.CLOSING).set(G.closeReason, "SOLD_OUT").set(G.closingAt, now).set(G.updatedAt, now)
-                .where(G.id.eq(groupBuyId), G.status.eq(GroupBuyStatus.RECRUITING), GroupBuyStore.soldOut(G)).execute() == 1;
+        // JDBC 인 이유: 결제 확정 세이브포인트 안에서도 부른다(다 팔림 조건은 GroupBuyStore.soldOut 과 같은 식 — 한쪽을 고치면 다른 쪽도)
+        return jdbc.update("UPDATE group_buys g SET status = 'CLOSING', close_reason = 'SOLD_OUT', closing_at = ?, updated_at = ? WHERE g.id = ? AND g.status = 'RECRUITING' "
+                + "AND " + GroupBuyStore.SOLD_OUT_CONDITION, ts(now), ts(now), groupBuyId) == 1;
     }
 
     // ── 단품 행 ─────────────────────────────────────────────────────────────
@@ -154,9 +152,12 @@ public class GroupBuyQtyStore extends GroupBuyStoreSupport {
     /** 수량 이동 한 줄 — 공구 이후 값은 공구 행을 바꾼 이동만({@code group} null 이면 비움), 단품 이후 값은 단품 이동만 */
     public void insertMovement(long id, long groupBuyId, Long skuId, Long participationId, Long itemId, QtyMovementKind kind, int qty, After group, After sku,
                                String reason, Long actorId, Instant now) {
-        insert(GroupBuyQtyMovementEntity.create(id, groupBuyId, skuId, participationId, itemId, kind, qty, group == null ? null : group.current(),
-                group == null ? null : group.reserved(), group == null ? null : group.max(), sku == null ? null : sku.current(), sku == null ? null : sku.reserved(),
-                sku == null ? null : sku.max(), reason, actorId, now));
+        // JDBC 인 이유: 결제 확정 세이브포인트 안에서도 넣는다(확정·해제 이동)
+        jdbc.update("INSERT INTO group_buy_qty_movements (id, group_buy_id, sku_id, participation_id, participation_item_id, kind, qty, current_after, reserved_after, "
+                        + "max_after, sku_current_after, sku_reserved_after, sku_max_after, reason, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id, groupBuyId, skuId, participationId, itemId, kind.name(), qty, group == null ? null : group.current(), group == null ? null : group.reserved(),
+                group == null ? null : group.max(), sku == null ? null : sku.current(), sku == null ? null : sku.reserved(), sku == null ? null : sku.max(), reason, actorId,
+                ts(now));
     }
 
     /** 마감 판단 창 안에 MAIN 남은 수량을 늘린 이동이 있었는가(DEMAND 연장 — 결정 25·81) — 공구 행을 바꾼 이동만 */

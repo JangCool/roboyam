@@ -28,6 +28,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * local 공구 시드(계약 결정 11·87, commerce.md 20절 「local 은 시드가 조건을 실제로 채운다」) — 관리자 서버(배치를 켠 서버)가 뜰 때 한 번.
@@ -60,10 +62,11 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     private final GroupBuyNoticeCatalog catalog;
     private final GroupBuyAdminService admin;
     private final Clock clock;
+    private final TransactionTemplate tx;
 
     public GroupBuyLocalSeeder(BatchProperties batch, DataSource dataSource, CommerceSalesStore salesStore, CommerceSalesService sales, ShippingPolicyService policies,
                                GroupBuyProductService products, GroupBuyNoticeService notices, GroupBuyNoticeCatalog catalog, GroupBuyAdminService admin,
-                               ObjectProvider<Clock> clocks) {
+                               ObjectProvider<Clock> clocks, PlatformTransactionManager transactions) {
         this.batch = batch;
         this.jdbc = new JdbcTemplate(dataSource);
         this.salesStore = salesStore;
@@ -74,6 +77,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
         this.catalog = catalog;
         this.admin = admin;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
+        this.tx = new TransactionTemplate(transactions);
     }
 
     @Override
@@ -92,7 +96,12 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
         }
     }
 
+    /** 판매 쪽 시드 — 한 트랜잭션(커머스 저장소의 쓰기는 JPA·QueryDSL 이라 트랜잭션이 있어야 한다) */
     void seedSales() {
+        tx.executeWithoutResult(status -> seedSalesInTx());
+    }
+
+    private void seedSalesInTx() {
         String hours = salesStore.businessInfo().businessHours();
         if (hours != null && !hours.isBlank()) {
             return;
