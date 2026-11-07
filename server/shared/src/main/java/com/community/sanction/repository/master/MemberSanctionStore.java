@@ -180,10 +180,11 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
 
     /** 읽기 전 마감이 할 일이 있나 — 끝이 지난 진행 중 정지가 있거나, 막힌 상태인데 진행 중 정지·영구 정지가 없다(제재 기록이 있는 회원). 회원 범위 색인만 읽는다 */
     public boolean needsSettle(long userId, Instant now) {
-        boolean due = query.selectOne().from(S).where(S.userId.eq(userId), S.status.eq(SanctionStatus.ACTIVE), S.endsAt.isNotNull(), S.endsAt.loe(now))
-                .fetchFirst() != null;
-        return due || query.selectOne().from(U).where(U.id.eq(userId), U.status.in(UserStatus.SUSPENDED, UserStatus.BANNED), hasAny(userId), hasRunning(userId).not())
-                .fetchFirst() != null;
+        // 예전과 같이 한 문장(두 판정이 같은 시점) — 제재 줄은 회원 줄을 외래키로 가리켜, 회원 줄에서 시작해도 「끝이 지난 정지가 있다」는 같은 결과다
+        BooleanExpression due = JPAExpressions.selectOne().from(S)
+                .where(S.userId.eq(userId), S.status.eq(SanctionStatus.ACTIVE), S.endsAt.isNotNull(), S.endsAt.loe(now)).exists();
+        BooleanExpression stuck = U.status.in(UserStatus.SUSPENDED, UserStatus.BANNED).and(hasAny(userId)).and(hasRunning(userId).not());
+        return query.selectOne().from(U).where(U.id.eq(userId), due.or(stuck)).fetchFirst() != null;
     }
 
     /** 끝이 지난 진행 중 기간 정지를 끝낸다(ended_at = 끝 시각) — R__batch_39 규칙 1 과 같은 판정. 끝낸 수 */

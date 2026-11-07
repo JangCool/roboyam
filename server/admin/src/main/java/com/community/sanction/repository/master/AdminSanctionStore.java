@@ -20,6 +20,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -77,10 +78,16 @@ public class AdminSanctionStore extends RoboyamRepositoryQDSL {
 
     // ── 제재 목록 ─────────────────────────────────────────────────────────
 
-    /** 전체 건수(거르기와 무관) — all · active · closed */
+    /** 전체 건수(거르기와 무관) — all · active · closed. 예전과 같이 한 문장(세 칸이 같은 시점 — 문장 사이 커밋이 숫자를 어긋나게 하지 않는다) */
     public long[] counts(Instant now) {
-        return new long[]{count(query.select(S.count()).from(S)), count(query.select(S.count()).from(S).where(runningAt(now))),
-                count(query.select(S.count()).from(S).where(closed()))};
+        NumberExpression<Long> running = BoardSanctionStore.countWhen(runningAt(now));
+        NumberExpression<Long> ended = BoardSanctionStore.countWhen(closed());
+        Tuple t = query.select(S.count(), running, ended).from(S).fetchOne();
+        return t == null ? new long[3] : new long[]{nz(t.get(S.count())), nz(t.get(running)), nz(t.get(ended))};
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0 : value;
     }
 
     public long total(Filter filter, Instant now) {

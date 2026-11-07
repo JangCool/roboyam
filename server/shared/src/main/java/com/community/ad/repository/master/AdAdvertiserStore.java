@@ -12,6 +12,7 @@ import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.entity.QBusinessProfileEntity;
 import com.community.operator.entity.QOperatorEntity;
+import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.community.zconfiguration.jpa.RowLocks;
@@ -145,7 +146,7 @@ public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
         JPAQuery<AdvertiserRow> select = advertisers(query).where(A.archivedAt.isNull());
         if (q != null && !q.isBlank()) {
             String term = q.strip();
-            select.where(A.name.containsIgnoreCase(term).or(P.companyName.containsIgnoreCase(term)).or(P.bizNoLast4.eq(term)));
+            select.where(Ilike.contains(A.name, term).or(Ilike.contains(P.companyName, term)).or(P.bizNoLast4.eq(term))); // 예전 ILIKE 그대로
         }
         return select.orderBy(A.name.asc(), A.id.asc()).limit(limit).fetch();
     }
@@ -157,7 +158,7 @@ public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
                 .where(P.status.eq(BusinessStatus.APPROVED), JPAExpressions.selectOne().from(linked).where(linked.businessProfileId.eq(P.id)).notExists());
         if (q != null && !q.isBlank()) {
             String term = q.strip();
-            select.where(P.companyName.containsIgnoreCase(term).or(P.bizNoLast4.eq(term)));
+            select.where(Ilike.contains(P.companyName, term).or(P.bizNoLast4.eq(term))); // 예전 ILIKE 그대로
         }
         return select.orderBy(P.companyName.asc(), P.id.asc()).limit(limit).fetch();
     }

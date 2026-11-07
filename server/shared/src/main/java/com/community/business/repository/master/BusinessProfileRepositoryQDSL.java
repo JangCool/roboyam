@@ -7,6 +7,7 @@ import com.community.business.entity.QBusinessProfileEntity;
 import com.community.business.entity.QBusinessServiceEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -109,7 +110,7 @@ public class BusinessProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
                     .where(SERVICE.profileId.eq(BUSINESS.id), SERVICE.service.eq(c.service()), SERVICE.status.ne(BusinessServiceStatus.OFF)).exists());
         }
         if (c.term() != null) {
-            BooleanExpression match = BUSINESS.companyName.containsIgnoreCase(c.term()).or(PROFILE.nickname.containsIgnoreCase(c.term()));
+            BooleanExpression match = Ilike.contains(BUSINESS.companyName, c.term()).or(Ilike.contains(PROFILE.nickname, c.term())); // 예전 ILIKE 그대로
             if (c.bizNoHash() != null) {
                 match = match.or(BUSINESS.bizNoHash.eq(c.bizNoHash()));
             } else if (c.last4() != null) {

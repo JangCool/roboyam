@@ -147,6 +147,7 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
         if (s == null) {
             throw new EmptyResultDataAccessException(1); // 설정 행은 마이그레이션이 넣는다
         }
+        // 쉬는 날은 따로 읽는다(예전 한 문장의 하위 질의) — 설정 행과 쉬는 날 표는 서로 다른 화면이 따로 저장하는 값이라 둘 사이에 지켜야 할 짝이 없다(나눠 읽어도 섞인 상태가 생기지 않는다)
         List<LocalDate> holidays = query.select(H.holidayDate).distinct().from(H).orderBy(H.holidayDate.asc()).fetch();
         return new Settings(n(s.get(SET.holdMinutes)), n(s.get(SET.demandMaxDays)), n(s.get(SET.firstComeMaxDays)), n(s.get(SET.extensionMinutes)),
                 n(s.get(SET.extensionWindowMinutes)), n(s.get(SET.judgeGraceMinutes)), n(s.get(SET.shipWithinBusinessDays)), BusinessDayCalendar.of(holidays),

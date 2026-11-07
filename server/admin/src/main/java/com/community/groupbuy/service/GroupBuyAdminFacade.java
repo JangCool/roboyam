@@ -46,6 +46,8 @@ import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -311,6 +313,8 @@ public class GroupBuyAdminFacade {
 
     // ── 수량 ────────────────────────────────────────────────────────────────
 
+    /** 수량 화면 — 한 스냅숏(읽기 전용 REPEATABLE READ): 공구·단품 수량·선점 줄과 선점 줄 요약(예전 한 문장의 string_agg 가 JPA 전환으로 따로 읽힌다)이 같은 시점 */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public GroupBuyAdminView.Stock stock(AdminActor actor, String idText) {
         long id = AdminIds.parse(idText, GroupBuyException::notFound);
         GroupBuyRow g = groups.find(id).orElseThrow(GroupBuyException::notFound);

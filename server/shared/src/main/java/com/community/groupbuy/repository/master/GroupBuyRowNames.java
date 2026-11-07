@@ -3,7 +3,7 @@ package com.community.groupbuy.repository.master;
 import com.community.user.entity.UserStatus;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.Expressions;
+import com.community.zconfiguration.jpa.Ilike;
 import java.time.Instant;
 
 /**
@@ -35,6 +35,6 @@ public final class GroupBuyRowNames {
 
     /** 예전 {@code 칸 ILIKE ?} 그대로(HQL {@code ilike} → PostgreSQL {@code ILIKE}, 이스케이프 글자 {@code \}) — {@code lower() like} 로 바꾸지 않는다 */
     public static BooleanExpression ilike(Expression<String> column, String pattern) {
-        return Expressions.booleanTemplate("{0} ilike {1} escape '\\'", column, pattern);
+        return Ilike.of(column, pattern);
     }
 }

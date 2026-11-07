@@ -1,19 +1,18 @@
 package com.community.emoticon.repository.master;
 
+import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import javax.sql.DataSource;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -61,15 +60,7 @@ abstract class EmoticonStoreSupport extends RoboyamRepositoryQDSL {
 
     /** 제약 위반을 JDBC 때와 같은 스프링 예외로(SQLState 23505 = 유일 위반 → {@link DuplicateKeyException}, 다른 23xxx → {@link DataIntegrityViolationException}) */
     private static RuntimeException translate(RuntimeException e) {
-        if (e instanceof DataAccessException) {
-            return e;
-        }
-        for (Throwable c = e; c != null; c = c.getCause() == c ? null : c.getCause()) {
-            if (c instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("23")) {
-                return "23505".equals(sql.getSQLState()) ? new DuplicateKeyException(sql.getMessage(), e) : new DataIntegrityViolationException(sql.getMessage(), e);
-            }
-        }
-        return e;
+        return JpaStoreWrites.translate(e); // 공구·사업자·광고 저장소와 같은 한 규칙
     }
 
     /** {@code sum(식)} — Hibernate 는 정수 합을 {@code Long} 으로 돌려준다. 없으면 null */

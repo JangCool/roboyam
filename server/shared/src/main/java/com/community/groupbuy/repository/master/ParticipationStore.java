@@ -383,6 +383,8 @@ public class ParticipationStore extends GroupBuyStoreSupport {
         if (rows.isEmpty()) {
             return List.of();
         }
+        // 지연 안내는 따로 읽는다(예전 한 문장의 LIMIT 1 하위 질의 — JPQL 하위 질의에 LIMIT 이 없다). 안내 표는 넣기만 하는 기록이라 사이에 커밋된 안내는 「더 늦은 기한」을 보탤 뿐이다
+        // (쓰는 곳은 발송 기한 경고 수·주문 목록 거르기·주문 상세 표시뿐 — 상태를 바꾸는 판정에는 쓰지 않는다)
         Map<Long, List<com.querydsl.core.Tuple>> notices = new HashMap<>();
         query.select(DN.groupBuyId, DN.createdAt, DN.newPlannedAt).from(DN).where(DN.groupBuyId.in(rows.stream().map(t -> t.get(PA.groupBuyId)).distinct().toList()))
                 .orderBy(DN.createdAt.desc()).fetch().forEach(t -> notices.computeIfAbsent(t.get(DN.groupBuyId), k -> new java.util.ArrayList<>()).add(t));

@@ -26,6 +26,7 @@ import com.community.media.entity.FileStatus;
 import com.community.media.entity.QFileEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.community.zconfiguration.jpa.RowLocks;
@@ -240,11 +241,10 @@ public class BizApplicationStore extends RoboyamRepositoryQDSL {
         return rows(query.select(APP).from(A).where(where.toArray(BooleanExpression[]::new)).orderBy(A.createdAt.desc(), A.id.desc()).limit(2000).fetch());
     }
 
-    /** 번호·상호·광고주·제목 부분 일치(대소문자 무시 — 예전 {@code ILIKE}, 와일드카드 글자는 글자 그대로). 광고 일정표 장부도 쓴다(기본 별칭 신청 건) */
+    /** 번호·상호·광고주·제목 부분 일치(예전과 같은 {@code ILIKE … ESCAPE '\'} — {@link Ilike}, 와일드카드 글자는 글자 그대로). 광고 일정표 장부도 쓴다(기본 별칭 신청 건) */
     public static BooleanExpression search(String q) {
         String term = q.strip();
-        return A.applicationNo.containsIgnoreCase(term).or(A.companyName.containsIgnoreCase(term)).or(A.advertiserName.containsIgnoreCase(term))
-                .or(A.title.containsIgnoreCase(term));
+        return Ilike.contains(A.applicationNo, term).or(Ilike.contains(A.companyName, term)).or(Ilike.contains(A.advertiserName, term)).or(Ilike.contains(A.title, term));
     }
 
     /** 승인 — 심사 대기에서만. 기간·요금표 계산·확정 금액·결제 방식·기한 */

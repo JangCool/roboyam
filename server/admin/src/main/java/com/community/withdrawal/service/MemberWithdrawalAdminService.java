@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -144,7 +145,7 @@ public class MemberWithdrawalAdminService {
     }
 
     /** 요약 4칸 — 오늘·이번 달은 서비스 시간대(한국) 하루 기준, 10일은 {@code progress-notice-days} */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 네 칸(예전 한 문장)이 JPA 전환으로 네 문장이 됐다
     public MemberWithdrawalAdminView.Summary summary() {
         Instant now = clock.instant();
         LocalDate today = ServiceTime.dateOf(now);
@@ -299,7 +300,7 @@ public class MemberWithdrawalAdminService {
      * @throws MemberAlreadyWithdrawnException                        이미 탈퇴(409)
      * @throws WithdrawalAlreadyScheduledException                    이미 진행 중(409)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 남은 일·잃는 것(여러 표)을 같은 시점으로
     public MemberWithdrawalAdminView.Preview preview(String memberId) {
         WithdrawalQueries.Member member = activeMember(memberId);
         Instant now = clock.instant();

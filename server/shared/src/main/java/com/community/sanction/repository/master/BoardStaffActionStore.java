@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -186,19 +187,26 @@ public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
 
     /** 그 게시판에서 이 회원의 자리 · 계정 · 역할 권한. 회원이 없으면 자리 없음 */
     public StaffAccess access(long boardId, long userId) {
-        Tuple t = query.select(STAFF.role, U.status, U.deletedAt, U.emailVerifiedAt).from(U).leftJoin(STAFF).on(STAFF.userId.eq(U.id), STAFF.boardId.eq(boardId))
-                .where(U.id.eq(userId)).fetchOne();
-        if (t == null) {
+        // 예전과 같이 한 문장 — 자리·계정·역할 시드 여부·역할 권한을 같은 시점에 읽는다(두 매니저·스텝 역할과 그 권한을 함께 이어 읽고 자바가 자기 역할 것만 고른다.
+        // 역할 권한 줄은 역할 줄을 외래키로 가리킨다 — 역할 줄을 거쳐 이어도 예전 「그 역할 ID 의 권한 줄」과 같다)
+        List<Tuple> rows = query.select(STAFF.role, U.status, U.deletedAt, U.emailVerifiedAt, ROLE.roleId, ROLE_PERMISSION.permissionCode).from(U)
+                .leftJoin(STAFF).on(STAFF.userId.eq(U.id), STAFF.boardId.eq(boardId))
+                .leftJoin(ROLE).on(STAFF.role.isNotNull(), ROLE.roleId.in(MemberRoleIds.BOARD_MANAGER, MemberRoleIds.BOARD_STAFF))
+                .leftJoin(ROLE_PERMISSION).on(ROLE_PERMISSION.roleId.eq(ROLE.roleId))
+                .where(U.id.eq(userId)).fetch();
+        if (rows.isEmpty()) {
             return new StaffAccess(null, false, false, Set.of());
         }
+        Tuple t = rows.get(0);
         String role = t.get(STAFF.role);
         boolean accountOk = t.get(U.status) == UserStatus.ACTIVE && t.get(U.deletedAt) == null && t.get(U.emailVerifiedAt) != null;
         String roleId = "MANAGER".equals(role) ? MemberRoleIds.BOARD_MANAGER : "STAFF".equals(role) ? MemberRoleIds.BOARD_STAFF : null;
         if (roleId == null) {
             return new StaffAccess(role, accountOk, false, Set.of());
         }
-        boolean seeded = query.selectOne().from(ROLE).where(ROLE.roleId.eq(roleId)).fetchFirst() != null;
-        Set<String> codes = Set.copyOf(query.select(ROLE_PERMISSION.permissionCode).from(ROLE_PERMISSION).where(ROLE_PERMISSION.roleId.eq(roleId)).fetch());
+        boolean seeded = rows.stream().anyMatch(r -> roleId.equals(r.get(ROLE.roleId)));
+        Set<String> codes = rows.stream().filter(r -> roleId.equals(r.get(ROLE.roleId)) && r.get(ROLE_PERMISSION.permissionCode) != null)
+                .map(r -> r.get(ROLE_PERMISSION.permissionCode)).collect(Collectors.toUnmodifiableSet());
         return new StaffAccess(role, accountOk, seeded, codes);
     }
 
