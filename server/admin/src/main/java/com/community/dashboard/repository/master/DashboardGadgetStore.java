@@ -1,5 +1,11 @@
 package com.community.dashboard.repository.master;
 
+import com.community.ad.entity.QAdDailyStatEntity;
+import com.community.bizapplication.entity.BizApplicationKind;
+import com.community.bizapplication.entity.BizApplicationStatus;
+import com.community.bizapplication.entity.BizProduct;
+import com.community.bizapplication.entity.QBizApplicationEntity;
+import com.community.bizapplication.entity.QBizApplicationItemEntity;
 import com.community.audit.entity.QAuditLogEntity;
 import com.community.batch.entity.BatchRunStatus;
 import com.community.batch.entity.QBatchRunEntity;
@@ -40,17 +46,14 @@ import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import java.sql.Date;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -59,8 +62,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -70,7 +71,7 @@ import org.springframework.stereotype.Repository;
  * 「오늘」은 서비스 날짜(한국 시간) 0시부터이고, 만든 시각 인덱스가 없는 표는 Snowflake ID 의 시각 하한({@link SnowflakeIdGenerator#floorIdAt})으로 PK 범위를 센다.
  * 상태별 건수는 {@code CaseBuilder} 합({@code count(*) FILTER} 와 같다)으로 한 번에 센다. 질의마다 쓰는 인덱스를 주석으로 적는다 — 표·인덱스를 바꾸면 여기도 본다.
  *
- * <p>네이티브 SQL 로 남긴 것(엔티티가 없는 표): 광고 일별 집계({@code ad_daily_stats}) · 광고 신청({@code biz_applications} + {@code LEFT JOIN LATERAL}).
+ * <p>네이티브 SQL 은 없다 — 광고 일별 집계({@code ad_daily_stats})·광고 신청({@code biz_applications}, 대표 상품은 상관 서브쿼리)도 엔티티 질의다.
  * 운영자 2차 인증({@code operator_mfa})은 admin 모듈의 엔티티({@code com.community.mfa.entity})로 QueryDSL 이다.
  */
 @Repository
@@ -95,6 +96,9 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QOperatorMfaEntity MFA = QOperatorMfaEntity.operatorMfaEntity;
     private static final QMemberWithdrawalEntity WITHDRAWAL = QMemberWithdrawalEntity.memberWithdrawalEntity;
+    private static final QAdDailyStatEntity AD_STAT = QAdDailyStatEntity.adDailyStatEntity;
+    private static final QBizApplicationEntity AD_APP = QBizApplicationEntity.bizApplicationEntity;
+    private static final QBizApplicationItemEntity AD_ITEM = QBizApplicationItemEntity.bizApplicationItemEntity;
 
     private static final List<String> OPEN_CASE = List.of("PENDING", "IN_REVIEW");
 
@@ -122,11 +126,8 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
     public record AdDay(LocalDate day, long impressions, long clicks) {
     }
 
-    private final JdbcTemplate jdbc;
-
-    public DashboardGadgetStore(JPAQueryFactory query, DataSource dataSource) {
+    public DashboardGadgetStore(JPAQueryFactory query) {
         super(query);
-        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     // ── 신고 ────────────────────────────────────────────────────────────────
@@ -302,25 +303,28 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
 
     /**
      * 일별 광고 합 — 일별 집계 표(ad_daily_stats, ix_ads_day)만 읽는다. 범위 {@code [from, to]} 끝 포함, 값이 없는 날은 빠진다.
-     * Native SQL — {@code ad_daily_stats} 는 엔티티가 없다.
      */
     public List<AdDay> adDays(LocalDate from, LocalDate to) {
-        return jdbc.query("SELECT day, sum(impressions), sum(clicks) FROM ad_daily_stats WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day",
-                (rs, i) -> new AdDay(rs.getDate(1).toLocalDate(), rs.getLong(2), rs.getLong(3)), Date.valueOf(from), Date.valueOf(to));
+        NumberExpression<Long> impressions = Expressions.numberTemplate(Long.class, "sum({0})", AD_STAT.impressions);
+        NumberExpression<Long> clicks = Expressions.numberTemplate(Long.class, "sum({0})", AD_STAT.clicks);
+        return query.select(AD_STAT.day, impressions, clicks).from(AD_STAT).where(AD_STAT.day.between(from, to)).groupBy(AD_STAT.day).orderBy(AD_STAT.day.asc())
+                .fetch().stream().map(t -> new AdDay(t.get(AD_STAT.day), num(t.get(impressions)), num(t.get(clicks)))).toList();
     }
 
     /**
      * 범위 {@code [from, to)} 안에 시작하거나 끝나는 예약된 광고 건(SCHEDULED — ix_ba_scheduled(start_at, end_at) 부분 인덱스). 핫딜 글 게시 건은 광고가 아니라 뺀다.
-     * Native SQL — {@code biz_applications}·{@code biz_application_items} 는 엔티티가 없고, 건마다 대표 상품 한 줄을 {@code LEFT JOIN LATERAL … LIMIT 1} 로 고른다.
+     * 건마다 대표 상품 = 핫딜 게시가 아닌 상품 줄 중 이름이 가장 앞선 것(상관 서브쿼리 {@code min(product)} — 예전 {@code LEFT JOIN LATERAL … ORDER BY product LIMIT 1} 과 같은 값, 없으면 null).
      */
     public List<AdBooking> adBookings(Instant from, Instant to) {
-        Timestamp f = ts(from);
-        Timestamp t = ts(to);
-        return jdbc.query("SELECT a.id, a.title, x.product, a.start_at, a.end_at FROM biz_applications a "
-                        + "LEFT JOIN LATERAL (SELECT i.product FROM biz_application_items i WHERE i.application_id = a.id AND i.product <> 'HOTDEAL_POST' "
-                        + "ORDER BY i.product LIMIT 1) x ON true "
-                        + "WHERE a.status = 'SCHEDULED' AND a.kind <> 'HOTDEAL_POST' AND ((a.start_at >= ? AND a.start_at < ?) OR (a.end_at >= ? AND a.end_at < ?))",
-                (rs, i) -> new AdBooking(rs.getLong(1), rs.getString(2), rs.getString(3), instant(rs, 4), instant(rs, 5)), f, t, f, t);
+        JPQLQuery<BizProduct> product = JPAExpressions.select(AD_ITEM.product.min()).from(AD_ITEM)
+                .where(AD_ITEM.applicationId.eq(AD_APP.id), AD_ITEM.product.ne(BizProduct.HOTDEAL_POST));
+        return query.select(AD_APP.id, AD_APP.title, product, AD_APP.startAt, AD_APP.endAt).from(AD_APP)
+                .where(AD_APP.status.eq(BizApplicationStatus.SCHEDULED), AD_APP.kind.ne(BizApplicationKind.HOTDEAL_POST),
+                        AD_APP.startAt.goe(from).and(AD_APP.startAt.lt(to)).or(AD_APP.endAt.goe(from).and(AD_APP.endAt.lt(to))))
+                .fetch().stream().map(t -> {
+                    BizProduct p = t.get(product);
+                    return new AdBooking(t.get(AD_APP.id), t.get(AD_APP.title), p == null ? null : p.name(), t.get(AD_APP.startAt), t.get(AD_APP.endAt));
+                }).toList();
     }
 
     // ── 포인트 ──────────────────────────────────────────────────────────────
@@ -424,12 +428,4 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
         return value == null ? "" : value;
     }
 
-    private static Timestamp ts(Instant at) {
-        return Timestamp.from(at);
-    }
-
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
-    }
 }

@@ -228,7 +228,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
     /** 자리 설정 「19금 게시판에도 광고 보이기」 — 나머지 칸은 기본값 */
     private void adultOption(boolean enabled) {
         AdPlacements d = AdPlacements.DEFAULTS;
-        placementStore.save(new AdPlacements(d.postInline(), d.wings(), d.boardList(), new AdPlacements.Adult(enabled)), operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(new AdPlacements(d.postInline(), d.wings(), d.boardList(), new AdPlacements.Adult(enabled)), operator.operatorId(), clock.instant()));
     }
 
     @Test

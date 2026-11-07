@@ -103,7 +103,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
     }
 
     private RefundRow openRefund(long id) {
-        return refunds.lockOpen(id).orElseThrow();
+        return tx.execute(s -> refunds.lockOpen(id)).orElseThrow();
     }
 
     private static long fee(long prorated, int rate) {
@@ -322,12 +322,12 @@ class BizPauseStopTest extends BizHotdealTestBase {
 
     @Test
     void 규칙7_수수료율은_신청_때_고정되고_뒤에_설정을_바꿔도_그_건은_그대로() {
-        placementStore.save(AdPlacements.DEFAULTS, 20, operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(AdPlacements.DEFAULTS, 20, operator.operatorId(), clock.instant()));
         assertThat(members.refundPolicy().stopFeeRate()).isEqualTo(20);
         assertThat(view.refundPolicy().version()).isEqualTo("2026-11-02");
         Running r = paidText(4);
         assertThat(app(r.id()).stopFeeRate()).isEqualTo(20);
-        placementStore.save(AdPlacements.DEFAULTS, 5, operator.operatorId(), clock.instant());
+        tx.executeWithoutResult(s -> placementStore.save(AdPlacements.DEFAULTS, 5, operator.operatorId(), clock.instant()));
         assertThat(view.refundPolicy().stopFeeRate()).isEqualTo(5);
         assertThat(app(r.id()).stopFeeRate()).isEqualTo(20);
         at(r, Duration.ofHours(3));

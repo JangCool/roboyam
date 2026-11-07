@@ -219,11 +219,11 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
         if (!"CATEGORY_TOP".equals(placement)) {
             return call.get();
         }
-        priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, true);
+        tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, true));
         try {
             return call.get();
         } finally {
-            priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, false);
+            tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, false));
         }
     }
 

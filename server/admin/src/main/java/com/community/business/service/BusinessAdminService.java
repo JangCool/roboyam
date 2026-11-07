@@ -411,7 +411,7 @@ public class BusinessAdminService {
                 detail.put("status", p.getStatus().name());
                 detail.put("reReview", p.isReReview());
                 detail.put("reason", reason);
-                entityManager.detach(p); // 아래 JDBC 가 줄을 지운다 — 영속 문맥이 지운 줄을 다시 쓰지 않게
+                entityManager.detach(p); // 아래 일괄 삭제(QueryDSL DML)가 줄을 지운다 — 영속 문맥이 지운 줄을 다시 쓰지 않게
                 if (store.deleteProfile(id) == 0) {
                     throw BusinessException.notFound();
                 }

@@ -1,26 +1,37 @@
 package com.community.ad.repository.master;
 
 import com.community.ad.dto.AdPlacements;
-import java.sql.Array;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import com.community.ad.entity.AdPlacementSettingEntity;
+import com.community.ad.entity.QAdPlacementSettingEntity;
+import com.community.operator.entity.QOperatorEntity;
+import com.community.zconfiguration.jpa.JpaStoreWrites;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Expression;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 광고 노출 자리 설정(V118 {@code ad_placement_settings} — 한 행, id = 1 · V119 {@code adult_enabled} 기본 끔). 행이 없으면 {@link AdPlacements#DEFAULTS} */
+/**
+ * 광고 노출 자리 설정(V118 {@code ad_placement_settings} — 한 행, id = 1 · V119 {@code adult_enabled} 기본 끔). 행이 없으면 {@link AdPlacements#DEFAULTS}.
+ * QueryDSL 만 쓴다 — 저장은 「있으면 고치기, 없으면 넣기」(부르는 쪽이 같은 트랜잭션에서 {@link #lock} 으로 행을 잠근 뒤 부른다).
+ */
 @Repository
-public class AdPlacementStore {
+public class AdPlacementStore extends RoboyamRepositoryQDSL {
 
     /** 중도 해지 수수료율 기본값(%, V127 — 행이 없을 때) */
     public static final int DEFAULT_STOP_FEE_RATE = 10;
     public static final int STOP_FEE_RATE_MIN = 0;
     public static final int STOP_FEE_RATE_MAX = 30;
+
+    private static final QAdPlacementSettingEntity S = QAdPlacementSettingEntity.adPlacementSettingEntity;
+    private static final QOperatorEntity O = QOperatorEntity.operatorEntity;
+    private static final int ID = AdPlacementSettingEntity.SINGLE_ID;
 
     /**
      * 저장한 설정 + 마지막으로 고친 때·사람(운영자 이름은 지워졌으면 null) + 중도 해지 수수료율(V127 {@code stop_fee_rate} — 광고·사업자 핫딜 공통, 신청 건을 낼 때 그 건에 고정한다).
@@ -29,21 +40,29 @@ public class AdPlacementStore {
     public record Stored(AdPlacements value, Instant updatedAt, long updatedBy, String updatedByName, int stopFeeRate) {
     }
 
-    private static final String SELECT = "SELECT s.*, o.operator_name FROM ad_placement_settings s LEFT JOIN operators o ON o.id = s.updated_by WHERE s.id = 1";
+    private static final Expression<?>[] COLUMNS = {S.postInlineEnabled, S.postInlineType, S.postInlinePosition, S.wingLeft, S.wingRight, S.wingScreens,
+            S.boardListEnabled, S.boardListAfter, S.boardListCount, S.boardListGap, S.adultEnabled, S.updatedAt, S.updatedBy, S.stopFeeRate};
 
-    private final JdbcTemplate jdbc;
+    private final EntityManager entityManager;
 
-    public AdPlacementStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public AdPlacementStore(JPAQueryFactory query, EntityManager entityManager) {
+        super(query);
+        this.entityManager = entityManager;
     }
 
     public Optional<Stored> find() {
-        return jdbc.query(SELECT, (rs, i) -> stored(rs)).stream().findFirst();
+        Expression<?>[] withName = Arrays.copyOf(COLUMNS, COLUMNS.length + 1);
+        withName[COLUMNS.length] = O.operatorName;
+        Tuple t = query.select(withName).from(S).leftJoin(O).on(O.id.eq(S.updatedBy)).where(S.id.eq(ID)).fetchFirst();
+        return Optional.ofNullable(t).map(r -> stored(r, r.get(O.operatorName)));
     }
 
-    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다(없으면 비어 있다) */
+    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다(없으면 비어 있다) — 운영자 이름은 읽지 않는다(null) */
     public Optional<Stored> lock() {
-        return jdbc.query("SELECT s.*, NULL AS operator_name FROM ad_placement_settings s WHERE s.id = 1 FOR UPDATE", (rs, i) -> stored(rs)).stream().findFirst();
+        if (query.select(S.id).from(S).where(S.id.eq(ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(query.select(COLUMNS).from(S).where(S.id.eq(ID)).fetchFirst()).map(r -> stored(r, null));
     }
 
     /** 지금 설정 — 저장한 적 없으면 기본값 */
@@ -53,35 +72,49 @@ public class AdPlacementStore {
 
     /** 지금 중도 해지 수수료율(%) — 저장한 적 없으면 기본 10 */
     public int stopFeeRate() {
-        return jdbc.query("SELECT stop_fee_rate FROM ad_placement_settings WHERE id = 1", (rs, i) -> rs.getInt(1)).stream().findFirst().orElse(DEFAULT_STOP_FEE_RATE);
+        Integer rate = query.select(S.stopFeeRate).from(S).where(S.id.eq(ID)).fetchFirst();
+        return rate == null ? DEFAULT_STOP_FEE_RATE : rate;
     }
 
     /** 설정 + 중도 해지 수수료율을 함께 저장한다(관리자 「광고 기본 설정」) */
     public void save(AdPlacements p, int stopFeeRate, long operatorId, Instant now) {
-        save(p, operatorId, now);
-        jdbc.update("UPDATE ad_placement_settings SET stop_fee_rate = ? WHERE id = 1", stopFeeRate);
+        save(p, stopFeeRate, true, operatorId, now);
     }
 
     /** 자리 설정만 저장한다 — 수수료율은 그대로(처음 저장이면 기본 10) */
     public void save(AdPlacements p, long operatorId, Instant now) {
-        jdbc.update("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, wing_right, wing_screens, "
-                        + "board_list_enabled, board_list_after, board_list_count, board_list_gap, adult_enabled, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?, ?, ?, ?) "
-                        + "ON CONFLICT (id) DO UPDATE SET post_inline_enabled = EXCLUDED.post_inline_enabled, post_inline_type = EXCLUDED.post_inline_type, "
-                        + "post_inline_position = EXCLUDED.post_inline_position, wing_left = EXCLUDED.wing_left, wing_right = EXCLUDED.wing_right, "
-                        + "wing_screens = EXCLUDED.wing_screens, board_list_enabled = EXCLUDED.board_list_enabled, board_list_after = EXCLUDED.board_list_after, "
-                        + "board_list_count = EXCLUDED.board_list_count, board_list_gap = EXCLUDED.board_list_gap, "
-                        + "adult_enabled = EXCLUDED.adult_enabled, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
-                p.postInline().enabled(), p.postInline().adType(), p.postInline().position(), p.wings().left(), p.wings().right(),
-                String.join(",", p.wings().screens()), p.boardList().enabled(), p.boardList().after(), p.boardList().count(), p.boardList().gap(), p.adult().enabled(), Timestamp.from(now), operatorId);
+        save(p, DEFAULT_STOP_FEE_RATE, false, operatorId, now);
     }
 
-    private static Stored stored(ResultSet rs) throws SQLException {
-        Array screens = rs.getArray("wing_screens");
-        List<String> list = screens == null ? List.of() : Arrays.stream((Object[]) screens.getArray()).map(String::valueOf).filter(s -> !s.isEmpty()).toList();
-        AdPlacements value = new AdPlacements(new AdPlacements.PostInline(rs.getBoolean("post_inline_enabled"), rs.getString("post_inline_type"),
-                rs.getString("post_inline_position")), new AdPlacements.Wings(rs.getBoolean("wing_left"), rs.getBoolean("wing_right"), list),
-                new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after"), rs.getInt("board_list_count"),
-                        rs.getInt("board_list_gap")), new AdPlacements.Adult(rs.getBoolean("adult_enabled")));
-        return new Stored(value, rs.getTimestamp("updated_at").toInstant(), rs.getLong("updated_by"), rs.getString("operator_name"), rs.getInt("stop_fee_rate"));
+    private void save(AdPlacements p, int stopFeeRate, boolean withRate, long operatorId, Instant now) {
+        String[] screens = p.wings().screens().toArray(String[]::new);
+        var update = query.update(S).set(S.postInlineEnabled, p.postInline().enabled()).set(S.postInlineType, p.postInline().adType())
+                .set(S.postInlinePosition, p.postInline().position()).set(S.wingLeft, p.wings().left()).set(S.wingRight, p.wings().right())
+                .set(S.wingScreens, screens).set(S.boardListEnabled, p.boardList().enabled()).set(S.boardListAfter, p.boardList().after())
+                .set(S.boardListCount, p.boardList().count()).set(S.boardListGap, p.boardList().gap()).set(S.adultEnabled, p.adult().enabled())
+                .set(S.updatedAt, now).set(S.updatedBy, operatorId);
+        if (withRate) {
+            update.set(S.stopFeeRate, stopFeeRate);
+        }
+        if (update.where(S.id.eq(ID)).execute() == 0) {
+            JpaStoreWrites.insert(entityManager, AdPlacementSettingEntity.first(p.postInline().enabled(), p.postInline().adType(), p.postInline().position(),
+                    p.wings().left(), p.wings().right(), screens, p.boardList().enabled(), p.boardList().after(), p.boardList().count(), p.boardList().gap(),
+                    p.adult().enabled(), stopFeeRate, operatorId, now));
+        }
+    }
+
+    private static Stored stored(Tuple t, String updatedByName) {
+        String[] screens = t.get(S.wingScreens);
+        List<String> list = screens == null ? List.of() : Arrays.stream(screens).filter(s -> s != null && !s.isEmpty()).toList();
+        AdPlacements value = new AdPlacements(new AdPlacements.PostInline(Boolean.TRUE.equals(t.get(S.postInlineEnabled)), t.get(S.postInlineType),
+                t.get(S.postInlinePosition)), new AdPlacements.Wings(Boolean.TRUE.equals(t.get(S.wingLeft)), Boolean.TRUE.equals(t.get(S.wingRight)), list),
+                new AdPlacements.BoardList(Boolean.TRUE.equals(t.get(S.boardListEnabled)), n(t.get(S.boardListAfter)), n(t.get(S.boardListCount)),
+                        n(t.get(S.boardListGap))), new AdPlacements.Adult(Boolean.TRUE.equals(t.get(S.adultEnabled))));
+        Long by = t.get(S.updatedBy);
+        return new Stored(value, t.get(S.updatedAt), by == null ? 0 : by, updatedByName, n(t.get(S.stopFeeRate)));
+    }
+
+    private static int n(Integer value) {
+        return value == null ? 0 : value;
     }
 }
