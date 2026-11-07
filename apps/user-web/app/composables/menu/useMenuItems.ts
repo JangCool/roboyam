@@ -35,7 +35,7 @@ function writeStored(memory: MenuCollapseMemory): void {
 export function useMenuItems(scope: MenuScope = 'all') {
     const route = useRoute();
     const { slug: currentSlug } = useCurrentBoard();
-    const { nodes, mobileTabIds, state, source, loading, reload } = useMenu();
+    const { nodes, mobileTabIds, state, loading, reload } = useMenu();
 
     /** 접힘 기억(노드 ID → 접힘). 세로 메뉴가 두 군데(사이드·햄버거)에 떠 있어도 같은 상태를 본다 */
     const memory = useState<MenuCollapseMemory>('menu-collapse', () => readStored());
@@ -94,5 +94,5 @@ export function useMenuItems(scope: MenuScope = 'all') {
         { immediate: true },
     );
 
-    return { sections, bar, tabs, activeId, state, ownsState, source, loading, reload, toggle };
+    return { sections, bar, tabs, activeId, state, ownsState, loading, reload, toggle };
 }

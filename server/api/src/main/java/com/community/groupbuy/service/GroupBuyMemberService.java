@@ -5,6 +5,7 @@ import com.community.addressbook.service.AddressBookService;
 import com.community.board.dto.BoardActor;
 import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
+import com.community.commerce.sales.CommerceSalesStore;
 import com.community.groupbuy.dto.Availability;
 import com.community.groupbuy.dto.GroupBuyBuyer;
 import com.community.groupbuy.dto.JoinRequest;
@@ -61,6 +62,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>보이는 공구: 공개된({@code published_at}) 공구. 탭 — 예정(공개된 DRAFT) · 진행(모집 중·집계 중) · 종료(그 밖, 중단 포함). 숨긴 카테고리의 상품은 빠진다.</li>
  *   <li>단추 상태 {@code purchase.reason}: 모집 상태 → 품절 → 로그인 → 진행 중 주문 → 자격(정지·이메일·권한·본인인증·만 19세·참여 제한·판매 스위치) → 1인 한도 차례로 첫 사유.</li>
  *   <li>「마감 임박」 = 모집 중이고 마감까지 24시간 안(1시간 점검 워커의 마감 임박 알림과 같은 창).</li>
+ *   <li><b>운영 주체가 팔 수 없는 단계</b>({@link CommerceSalesStore#operatorCanSell} = false — 개인 단계이거나 통신판매업 신고번호 없음)면 목록·홈 가젯은 비고 상세는 404 다
+ *       (사용자 결정 2026-11-07 — 통신판매업 신고 전에는 상품을 걸어 두지 않는다). 개인사업자 이상에서 판매 스위치만 꺼졌을 때는 그대로 보이고 주문만 막는다(결정 19).</li>
  * </ul>
  */
 @Service
@@ -91,11 +94,13 @@ public class GroupBuyMemberService {
     private final ImageStorage storage;
     private final ObjectProvider<Clock> clocks;
     private final AddressBookService addressBook;
+    private final CommerceSalesStore commerce;
 
     public GroupBuyMemberService(DataSource dataSource, GroupBuyStore groups, GroupBuyProductStore products, GroupBuyNoticeStore noticeStore, GroupBuyNoticeCatalog catalog,
                                  ParticipationStore participations, GroupBuyQuoteService quotes, GroupBuyJoinService joins, HoldExpiryService holds, GroupBuyEligibility eligibility,
                                  GroupBuyWatchService watches, BoardActorResolver actors, BoardCatalog boards, ImageStorage storage, ObjectProvider<Clock> clocks,
-                                 GroupBuyReviewService reviews, AddressBookService addressBook) {
+                                 GroupBuyReviewService reviews, AddressBookService addressBook, CommerceSalesStore commerce) {
+        this.commerce = commerce;
         this.reviews = reviews;
         this.addressBook = addressBook;
         this.jdbc = new JdbcTemplate(dataSource);
@@ -140,6 +145,9 @@ public class GroupBuyMemberService {
             args.add(categoryId);
         }
         int p = Math.max(0, page);
+        if (!commerce.operatorCanSell()) {
+            return new GroupBuyMemberView.ListPage(List.of(), p, PAGE_SIZE, 0);
+        }
         Long total = jdbc.queryForObject("SELECT count(*)" + sql, Long.class, args.toArray());
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(PAGE_SIZE);
@@ -163,10 +171,13 @@ public class GroupBuyMemberService {
 
     /**
      * 홈 공구 가젯({@code GROUP_BUY}) — 모집 중({@code RECRUITING})인 공개 공구 {@code count} 개를 {@code order} 차례로. 거름(공개 · 숨긴 카테고리 제외)·줄 모양은 목록 진행 탭과 같고,
-     * 집계 중({@code CLOSING})은 살 수 없어 뺀다. 판매 스위치로 거르지 않는다(목록과 같다).
+     * 집계 중({@code CLOSING})은 살 수 없어 뺀다. 판매 스위치로 거르지 않는다(목록과 같다). 운영 주체가 팔 수 없는 단계면 빈 목록(목록과 같다).
      */
     @Transactional(readOnly = true)
     public List<GroupBuyMemberView.ListItem> recruiting(int count, RecruitingOrder order) {
+        if (!commerce.operatorCanSell()) {
+            return List.of();
+        }
         List<Long> ids = jdbc.queryForList("SELECT g.id" + VISIBLE_FROM + "g.status = 'RECRUITING' ORDER BY " + order.sql + " LIMIT ?", Long.class, count);
         return listItems(ids);
     }
@@ -208,6 +219,9 @@ public class GroupBuyMemberService {
     /** @param userId 로그인했으면 회원 번호(없으면 null — 단추는 「로그인하고 주문하기」). 본인의 지난 선점 정리는 자기 트랜잭션(결제 행 먼저 — 결정 37) */
     public GroupBuyMemberView.Detail detail(String idText, Long userId) {
         long id = idOrNotFound(idText);
+        if (!commerce.operatorCanSell()) {
+            throw GroupBuyException.notFound();
+        }
         GroupBuyRow g = visible(id);
         Instant now = now();
         if (userId != null && g.status() == GroupBuyStatus.RECRUITING) {

@@ -13,7 +13,6 @@ export default {
 
     // 상태·단추
     errorTitle: "Couldn't load the menu",
-    fallbackNotice: "Couldn't load the menu, so the default menu is shown",
     emptyTitle: 'No menu to show',
     emptyHome: 'Go home',
     tabsRetry: 'Reload menu',
@@ -22,8 +21,6 @@ export default {
 
     // 기본 메뉴(서버 메뉴를 못 받았을 때)의 고정 항목
     home: 'Home',
-    myGroups: 'My {groups}',
-    allGroups: 'All {groups}',
     descLabel: 'About this menu',
     descPopular: 'The most-loved posts — live, yesterday and this week',
     descLatest: 'New posts from every board, newest first',

@@ -11,7 +11,7 @@
 | `/search?q&scope&board&order&page` | 검색 막대(Enter·단추로만) · 범위(전체·제목·본문·작성자)·게시판·정렬 · 최근 검색어(이 기기) · 결과(일치 강조, 데스크톱 쪽 번호 최대 10쪽 / 모바일 더보기) · 결과 없음 제안 · 시간 초과·잘못된 게시판 | 아래 「검색」 |
 | `/latest` | 켜진 모든 게시판의 최신글, 「더 보기」(커서), 투자 고지 | 실제 `GET /api/home/latest` |
 | `/popular?period=REALTIME\|YESTERDAY\|WEEK&page` | 기간 탭(키보드 이동)·순위 번호·채운 줄 표시(어제·지난주)·이번 주 범위·쪽 번호 | 실제 `GET /api/home/popular` |
-| `/boards` | 최근 방문(이 기기 5개, `/boards/{slug}` 가 기록) · 메뉴 그룹별 게시판(말머리 요약·투자 고지) · 메뉴 못 받으면 기본 메뉴 안내 | 실제 `GET /api/menu`·`GET /api/boards` |
+| `/boards` | 최근 방문(이 기기 5개, `/boards/{slug}` 가 기록) · 메뉴 그룹별 게시판(말머리 요약·투자 고지) · 메뉴 못 받으면 오류 + 다시 시도(기본 메뉴는 2026-11-07 지움) | 실제 `GET /api/menu`·`GET /api/boards` |
 | `/sanction?next=` | 로그인 필요. 갈래: 확인하지 않은 경고(누적 N/2 막대·「안내를 확인했어요」→「확인하고 계속」) · 기간 정지 · 영구 정지(로그아웃) · 제한 없음 · 아래 늘 내 제재 이력 | 목업 `GET /api/me/sanctions`·`POST /api/me/sanctions/{id}/acknowledge` |
 | `/sanction/appeal?sanctionId=` | 접수 폼(10~500자·글자 수) → 접수 완료 / 검토 중 / 인용·기각(운영자 답변) / 무효·없는 제재 | 목업 `GET /api/me/sanctions`·`POST /api/me/appeals` |
 - **들어가는 길**: 글 보기 머리·댓글·데스크톱 목록 표의 회원 작성자 이름 → `/users/{id}`(`PostAuthorLabel link` — 모바일 목록 줄은 줄 전체가 링크라 켜지 않음) · `/me` 바로가기 「내 프로필 보기」「등급 안내」 · 헤더 돋보기 → `/search`(기존) · 로그인 직후 정지·확인 안 한 경고 → `/sanction?next=`(기존 `UtilSanction.afterLoginPath`) · 전역 정지 배너 「자세히 보기」(기존).
