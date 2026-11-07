@@ -23,7 +23,7 @@
   - `URL` — `settings {href, newTab}`, 이름 필수, 주소 규칙 = `UtilMenu.hrefProblem`. 중복 허용. 공개 응답에서 `https://` 면 `extra.external = true`.
   - 준비 중(서버 유형 없음, 화면 표시만): `PAGE`(고정 페이지).
   - 모르는 유형 행은 공개에서 빠지고 관리자 상태 `UNKNOWN_TYPE`, 저장 때는 받은 그대로 보존.
-- **상태**(관리자 `resolved.status`): `OK`·`BOARD_INACTIVE`·`SALES_OFF`·`TARGET_MISSING`·`UNKNOWN_TYPE`. 공동구매 판매 스위치는 roboyam 에 아직 없다 → `salesEnabled = true` 고정(스위치가 생기면 거기서 읽는다).
+- **상태**(관리자 `resolved.status`): `OK`·`BOARD_INACTIVE`·`SALES_OFF`·`TARGET_MISSING`·`UNKNOWN_TYPE`. 공동구매 판매 스위치 = `commerce_sales_settings.groupbuy_open`(DB 의 지금 값, `MenuSales`) — 꺼지면 `GROUP_BUYS`·`GROUP_BUY_ORDERS` 가 `SALES_OFF` 로 공개 메뉴에서 빠진다(2026-11-07). 운영 주체가 개인 단계면 판매를 켤 수 없어 늘 빠진다.
 - **게시판과의 연결**: 게시판을 만들면 `main` 그룹의 `autoAdd` 폴더 끝에 같은 트랜잭션으로 넣는다(폴더 없거나 한도 초과면 넣지 않음). 설치 프리셋으로 만든 게시판도 같다. 게시판을 지우면 그 게시판을 가리키는 항목을 모든 그룹에서 지운다. 게시판 목록 순서(`boards`)와 메뉴 순서는 별개다.
 - **공개 API** `GET /api/menu?set=main`(기본 `main`) — 보는 사람 기준 걸러진 트리(visible → audience → 리졸버 → 빈 폴더 제거). 꺼진 그룹은 `nodes: []`, 없는 그룹 404 `MENU_SET_NOT_FOUND`. 폴더는 `kind: 'GROUP'`. `mobileTabs` 는 SIDE 그룹에서만.
 
@@ -79,14 +79,14 @@
 
 ## 미확정 사항
 1. ~~저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지~~ → 2026-11-07 셸이 읽는다(위 「관리자 사이트 메뉴」).
-2. 공동구매 판매 스위치(공동구매 기능 생길 때).
+2. ~~공동구매 판매 스위치~~ → 2026-11-07 `MenuSales` 가 실제 스위치를 읽는다(위 「상태」).
 3. `PAGE`(고정 페이지) 유형은 CMS 기능이 생길 때.
 
 ## 화면 실제 연결 결과 (2026-10-22)
 - **admin-web** `composables/menu/api/useMenuApi.ts` 의 모든 호출이 서버(`MenuSetController`·`MenuTargetController`·`AdminMenuController`)를 부른다. 목업 `composables/menu/api/mock/menu-mock.ts` 와 그 시드 전용 `UtilAdminMenuConfig.seed()` 는 지웠다. 포인트 목업이 쓰는 `common/mock/mock-util.ts` 는 남겼다.
 - 타입: `MenuItemDto.resolved?: { status }` 를 더했다 — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 상태를 스스로 계산하고 저장 요청에 싣지 않는다. `version` 은 뜻을 읽지 않고 그대로 돌려보낸다.
 - 409 `MENU_VERSION_CONFLICT`: 저장 줄에 서버 문구를 그대로 보이고 [다시 불러오기]로 최신 트리를 받는다(공개·관리자 메뉴 같음). 서버 `fields` 경로(`.settings.path`·`.settings.href`·`.targetKey`·`.kind`)는 기존 `UtilMenuTree.splitFieldErrors` 가 줄에 붙이고, `fields.nodes` 는 저장 줄 문구로 모은다.
-- **user-web** `composables/menu/api/useMenuApi.ts` 가 `GET /api/menu`(기본 `main`)를 부른다. 목업 폴더는 지웠다. 못 받으면 기존대로 `useMenu` 가 기본 메뉴(폴백)로 그린다.
+- **user-web** `composables/menu/api/useMenuApi.ts` 가 `GET /api/menu`(기본 `main`)를 부른다. 목업 폴더는 지웠다. 못 받으면 메뉴 줄 대신 「메뉴를 불러오지 못했어요」 + 다시 시도만 둔다 — **화면 코드가 따로 만드는 기본 메뉴(폴백)는 2026-11-07 지웠다**(사용자 결정: 보이는 규칙이 서버와 두 곳으로 갈려 판매 꺼짐 같은 규칙을 놓쳤다).
 - 게시판 순서: 공개 내비게이션 순서의 주인은 메뉴(`main` 그룹). `/boards` 표 아래 안내를 「게시판 목록·글쓰기 게시판 고르기 순서」로 고치고 `layout.read` 가 있으면 `/menus/public` 링크를 둔다.
 - 일회용 환경 확인(develop jar + 새 DB, 설치 API 로 설치): 공개 메뉴 트리 조회·폴더 추가 저장·새로고침 뒤 유지, 다른 탭에서 게시판을 만든 뒤 열어 둔 트리 저장 → 409 문구 + 다시 불러오기로 새 게시판 포함 트리, 공개 사이트 내비에 새 게시판 표시, `GET /api/menu` `Cache-Control: no-store`, 관리자 메뉴 화면 조회. 관리자 메뉴 **저장**은 화면에서 눌러 보지 않았다.
 

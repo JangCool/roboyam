@@ -194,7 +194,8 @@ export interface EmoticonRules {
     withholdingRate: number;
     /**
      * 유료 판매가 켜져 있나(운영자 설정, 기본 꺼짐 — S2). 꺼져 있으면 새 유료 판매 희망 신청을 받지 않는다(`400 fields.saleWish` — 임시 저장은 된다).
-     * 이미 유료로 나온 팩의 새 판은 그대로 낼 수 있다
+     * 이미 유료로 나온 팩의 새 판은 그대로 낼 수 있다. 운영 주체가 팔 수 없는 단계(개인·통신판매업 신고번호 없음)면 스위치와 상관없이 false —
+     * 팩 상세의 구매 단추도 이 값으로 막는다(서버 `409 EMOTICON_PAID_SALES_CLOSED`)
      */
     paidSalesEnabled: boolean;
 }

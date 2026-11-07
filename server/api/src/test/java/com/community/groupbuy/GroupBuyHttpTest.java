@@ -78,6 +78,7 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     @BeforeEach
     void setUpMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        SiteOperatorFixture.fillBusiness(jdbc); // 판매가 켜진 상태는 개인사업자 이상에서만 있다(terms-operator-contract)
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = true WHERE id = 1");
     }
 
@@ -202,8 +203,26 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     }
 
     @Test
+    void 운영_주체가_팔_수_없는_단계면_목록은_비고_상세는_404_개인사업자로_올리면_다시_보인다() throws Exception {
+        long[] g = recruiting();
+        jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
+        SiteOperatorFixture.clear(jdbc); // 개인 단계(기본값)
+        mvc.perform(get("/api/group-buys").param("phase", "ONGOING")).andExpect(status().isOk()).andExpect(jsonPath("$.data.items").isEmpty())
+                .andExpect(jsonPath("$.data.total").value(0));
+        mvc.perform(get("/api/group-buys/" + g[0])).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("GROUP_BUY_NOT_FOUND"));
+
+        SiteOperatorFixture.fillBusiness(jdbc);
+        jdbc.update("UPDATE site_operator SET mail_order_number = NULL WHERE id = 1"); // 개인사업자여도 통신판매업 신고번호가 없으면 같다
+        mvc.perform(get("/api/group-buys/" + g[0])).andExpect(status().isNotFound());
+
+        SiteOperatorFixture.fillBusiness(jdbc); // 판매 스위치는 꺼진 그대로 — 목록·상세는 보이고 주문 단추만 막힌다(결정 19)
+        String list = mvc.perform(get("/api/group-buys").param("phase", "ONGOING")).andReturn().getResponse().getContentAsString();
+        assertThat(MAPPER.readTree(list).path("data").path("items").toString()).contains("\"id\":\"" + g[0] + "\"");
+        mvc.perform(get("/api/group-buys/" + g[0])).andExpect(status().isOk()).andExpect(jsonPath("$.data.purchase.reason").value("LOGIN_REQUIRED"));
+    }
+
+    @Test
     void G41_공개_정보는_판매가_켜져_있고_필수_칸이_찼을_때만_사업자_정보() throws Exception {
-        SiteOperatorFixture.fillBusiness(jdbc); // 사업자 정보의 정본 = 운영 주체(terms-operator-contract)
         mvc.perform(get("/api/commerce/info")).andExpect(status().isOk()).andExpect(jsonPath("$.data.salesOpen").value(true))
                 .andExpect(jsonPath("$.data.business.companyName").value("시험상회")).andExpect(jsonPath("$.data.business.ceoName").value("홍길동"));
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");

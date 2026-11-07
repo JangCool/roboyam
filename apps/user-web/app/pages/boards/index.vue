@@ -16,16 +16,10 @@
             </div>
         </div>
 
-        <!-- 오류 — 메뉴도 게시판 목록도 못 받았다 -->
+        <!-- 오류 — 메뉴를 못 받았다(게시판 묶음·순서의 주인이 메뉴다) -->
         <ErrorState v-else-if="state === 'error'" :title="t('feed.hubError')" :description="t('feed.hubErrorText')" retry @retry="reload" />
 
         <template v-else>
-            <!-- 메뉴 설정을 못 받아 기본 구성으로 그렸다 — 메뉴와 같은 안내 한 줄 -->
-            <p v-if="state === 'fallback'" class="mt-3 text-xs text-muted-color" role="status" data-testid="hub-fallback-notice">
-                {{ t('menu.fallbackNotice') }}
-                <button type="button" class="ml-1 underline focus-visible:outline-2 focus-visible:outline-primary" @click="reload">{{ t('common.retry') }}</button>
-            </p>
-
             <!-- 최근 방문(이 기기에 5개까지) -->
             <section class="mt-3" :aria-labelledby="recentId">
                 <h2 :id="recentId" class="text-xs font-normal text-muted-color">{{ t('feed.recentTitle') }}</h2>
@@ -85,7 +79,7 @@ import UtilMenu from '~/utils/util-menu';
 /**
  * 게시판 모음 — `/boards`(community `pages/boards/index.vue`). 메뉴 BUILTIN `BOARDS_HUB` 가 이곳이다.
  * 그룹·순서·이름은 메뉴 구성(`GET /api/menu` — 실제)이 정한다(`UtilMenu.boardSections` — 게시판 항목이 있는 그룹만). 줄 아래 작은 글씨(말머리 이름·투자 고지)와 최근 방문은 게시판 목록(`GET /api/boards` — 실제)에서 읽는다.
- * 최근 방문은 이 기기에만(`useRecentBoards` — 게시판 목록 화면이 기록한다). 메뉴를 못 받으면 기본 메뉴(게시판 한 묶음)로 그리고 안내 한 줄.
+ * 최근 방문은 이 기기에만(`useRecentBoards` — 게시판 목록 화면이 기록한다). 메뉴를 못 받으면 오류(다시 시도).
  */
 const { t } = useI18n();
 const { nodes, state, reload, ensureLoaded } = useMenu();

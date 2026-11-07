@@ -17,14 +17,9 @@
         </div>
 
         <template v-else>
-            <!-- 서버 메뉴를 못 받았다 — 기본 메뉴를 그렸다는 안내(게시판 목록도 못 받았으면 고정 항목·소모임만 남아 오류 문구) + 다시 시도 -->
-            <div
-                v-if="ownsState && (state === 'fallback' || state === 'error')"
-                class="px-4 py-3 text-xs text-muted-color"
-                :role="state === 'error' ? 'alert' : 'status'"
-                data-testid="menu-fallback-notice"
-            >
-                <p>{{ state === 'error' ? t('menu.errorTitle') : t('menu.fallbackNotice') }}</p>
+            <!-- 서버 메뉴를 못 받았다 — 안내 + 다시 시도(따로 만든 기본 메뉴는 없다) -->
+            <div v-if="ownsState && state === 'error'" class="px-4 py-3 text-xs text-muted-color" role="alert" data-testid="menu-error-notice">
+                <p>{{ t('menu.errorTitle') }}</p>
                 <Button type="button" :label="t('common.retry')" size="small" variant="outlined" severity="secondary" class="mt-2" :loading="loading" @click="reload" />
             </div>
 

@@ -55,6 +55,7 @@ export default {
     /** Pack stopped because its creator withdrew (`suspendKind: CREATOR_WITHDRAWN`) */
     suspendedCreatorWithdrawn: 'The creator has left, so this pack is no longer sold — if you already have it, you can keep using it',
     buyFor: 'Buy {price}',
+    paidSalesClosedNote: "Paid Robotikon packs aren't on sale right now.",
     refundRule: "Once you use it, it can't be refunded · unused packs can be refunded within {days} days.",
     buyTitle: 'Buy Robotikon pack',
     buyRuleUsed: "Once you use any Robotikon from this pack in a post or comment, it can't be refunded.",

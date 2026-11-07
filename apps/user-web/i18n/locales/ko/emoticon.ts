@@ -57,6 +57,7 @@ export default {
     /** 작가 탈퇴로 멈춘 팩(`suspendKind: CREATOR_WITHDRAWN`) */
     suspendedCreatorWithdrawn: '작가가 탈퇴해 더 이상 판매하지 않아요 — 이미 가진 팩은 계속 쓸 수 있어요',
     buyFor: '구매 {price}',
+    paidSalesClosedNote: '지금은 유료 로보티콘을 판매하지 않아요.',
     refundRule: '한 번이라도 쓰면 환불할 수 없어요 · {days}일 안에 쓰지 않으면 환불할 수 있어요.',
     buyTitle: '로보티콘 팩 구매',
     buyRuleUsed: '이 팩의 로보티콘을 한 번이라도 글·댓글에 쓰면 환불할 수 없어요.',

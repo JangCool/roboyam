@@ -24,14 +24,14 @@
                 </div>
 
                 <template v-else-if="state !== 'loading' && state !== 'empty'">
-                    <!-- 서버 메뉴를 못 받았다 — 기본 메뉴 앞에 안내 한 줄(게시판 목록도 못 받았으면 오류 문구) + 다시 시도 -->
+                    <!-- 서버 메뉴를 못 받았다 — 안내 한 줄 + 다시 시도(따로 만든 기본 메뉴는 없다) -->
                     <div
-                        v-if="ownsState && (state === 'fallback' || state === 'error')"
+                        v-if="ownsState && state === 'error'"
                         class="mr-2 flex shrink-0 items-center gap-2 border-r border-surface pr-3 text-xs text-muted-color"
-                        :role="state === 'error' ? 'alert' : 'status'"
-                        data-testid="menu-fallback-notice"
+                        role="alert"
+                        data-testid="menu-error-notice"
                     >
-                        <span>{{ state === 'error' ? t('menu.errorTitle') : t('menu.fallbackNotice') }}</span>
+                        <span>{{ t('menu.errorTitle') }}</span>
                         <Button type="button" :label="t('common.retry')" size="small" variant="outlined" severity="secondary" :loading="loading" @click="reload" />
                     </div>
 
