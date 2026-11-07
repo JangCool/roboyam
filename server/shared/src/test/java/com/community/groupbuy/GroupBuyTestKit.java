@@ -323,18 +323,18 @@ final class GroupBuyTestKit {
         }
 
         @Bean
-        PaymentOrderStore paymentOrderStore(DataSource dataSource) {
-            return new PaymentOrderStore(dataSource);
+        PaymentOrderStore paymentOrderStore() {
+            return JpaTestContext.create(PaymentOrderStore.class);
         }
 
         @Bean
-        PaymentCancelStore paymentCancelStore(DataSource dataSource) {
-            return new PaymentCancelStore(dataSource);
+        PaymentCancelStore paymentCancelStore() {
+            return JpaTestContext.create(PaymentCancelStore.class);
         }
 
         @Bean
-        PaymentEventStore paymentEventStore(DataSource dataSource) {
-            return new PaymentEventStore(dataSource);
+        PaymentEventStore paymentEventStore() {
+            return JpaTestContext.create(PaymentEventStore.class);
         }
 
         @Bean

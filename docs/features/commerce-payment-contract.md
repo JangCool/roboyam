@@ -40,7 +40,8 @@
   - `handler` — **`PaymentOrderHandler`**(`orderType()`·`onPaid(PaidPayment) → PaymentDecision`·`onCanceled(CanceledPayment)`·`onCancelResolvedManually`(기본 빈 메서드)) · `PaymentOrderHandlers`(종류마다 정확히 하나 — 둘 이상이면 기동 실패, 없으면 그 종류 결제를 만들 수 없다)
   - `gateway` — `PaymentGateway`(단건 조회·취소·다건 조회·웹훅 서명 검증·결제창 정보·준비 여부 `ready()`·에스크로 `registerEscrowLogistics`·`completeEscrow`) · `gateway.portone`(`PortOnePaymentGateway`·`StandardWebhookVerifier`·`PortOnePaymentParser`) · `gateway.fake`(`FakePaymentGateway`·`FakePgStore`)
   - `config` — `PaymentConfig`(가짜면 dev·prod 기동 막기)·`PaymentProperties`
-  - `repository.master` — JDBC 저장소(조건부 UPDATE·`SKIP LOCKED`): `PaymentOrderStore`·`PaymentCancelStore`·`PaymentEventStore`·`PaymentWebhookLogStore`·`ReconciliationIssueStore`·`PaymentReconcileDayStore`, 관리자 읽기 `PaymentAdminQueries`·`PaymentReconcileQueries`
+  - `entity` — `PaymentOrderEntity`·`PaymentCancelEntity`·`PaymentEventEntity`·`PaymentWebhookLogEntity`·`ReconciliationIssueEntity`·`PaymentReconcileDayEntity`(3단계 1차 2026-11-07 — 표는 V97~V144 그대로)
+  - `repository.master` — JPA·QueryDSL 저장소(조건부 UPDATE·잠금·프로젝션, 넣기는 바로 내보냄 — 사유를 적은 네이티브만 남김: `ON CONFLICT` 멱등 넣기·취소 집기 `UPDATE … RETURNING`(+`SKIP LOCKED`)·`generate_series`·`UNION`): `PaymentOrderStore`·`PaymentCancelStore`·`PaymentEventStore`·`PaymentWebhookLogStore`·`ReconciliationIssueStore`·`PaymentReconcileDayStore`, 관리자 읽기 `PaymentAdminQueries`·`PaymentReconcileQueries`
   - `service` — `PaymentOrderService.create`(MANDATORY — 도메인 트랜잭션 안, 같은 주문의 이전 READY 는 EXPIRED)·`expireOpen`·`openCheckout` · **`PaymentConfirmService.confirm`**(확정 코드 하나 — 완료 API·웹훅·READY 정리·관리자 다시 확인이 함께 쓴다) · `PaymentCompletionService` · `PaymentWebhookService` · `PaymentCancelService`(넣기, MANDATORY) · `PaymentCancelExecutor`·`PaymentCancelWorker`·`PaymentCancelImmediateAttempt` · `PaymentAnomalyService` · `ReconciliationService` · `PaymentAdminReadService`·`PaymentAdminActionService`·`PaymentCancelManualService`·`PaymentDetailText`
   - `batch` — `PaymentReadyCleanupJob`·`PaymentReconciliationJob` · `testorder` — `PaymentTestOrderHandler`·`PaymentTestOrderService`(`PAYMENT_TEST`, `roboyam.payment.test-orders` 를 켠 환경만)
 - api `payment.controller`: `PaymentController`(완료 API)·`PaymentWebhookController`·`PaymentTestController`(`/api/dev/payments`). admin `payment.controller.PaymentAdminController`·`PortOneSettingsController`, `batch.service.PaymentCancelScheduler`(1분, `roboyam.batch.enabled` 서버만).
@@ -154,7 +155,7 @@
 8. **이력 종류·detail**: 확정한 목업 가정 6.
 9. **감사** 「이 날 다시 대사」 = `PAYMENT_RECONCILE_RERUN`(대상 `PAYMENT_RECONCILE_DAY` + 날짜, 일반).
 10. **포트원 설정**: 결정 14.
-- **세션 정리 결정**: 관리자 조회는 JPA + QueryDSL 대신 **JDBC 읽기 저장소**(`PaymentAdminQueries`) — 결제 저장소가 모두 JDBC 이고 결제 이상 목록이 두 출처의 `UNION ALL`·`jsonb` 라서(정렬·쪽 나누기는 DB).
+- **세션 정리 결정**(2026-11-07 개정 — JPA 전환 3단계 1차): 관리자 조회(`PaymentAdminQueries`)는 QueryDSL(동적 거르기·`leftJoin`·프로젝션·offset/limit)이고, 결제 이상 목록만 두 출처의 `UNION ALL`·`jsonb`·정규식이라 네이티브로 남긴다(정렬·쪽 나누기는 DB). 예전 결정(「결제 저장소가 모두 JDBC 라서 JDBC 읽기 저장소」)은 이것으로 바꾼다.
 
 **2a-4**
 - 회원 API 는 2a-1 화면 계약에 맞췄다(화면 계약이 정본): 시험 주문 `POST /api/dev/payments`(`validMinutes` 로 유효 시각 — 고정 10분 상수 없음), 가짜 결제창 `…/fake-checkout`, 결과 `PaymentResult`(완료 API·`GET` 공용). `checkout` 은 공용 `PaymentCheckoutView`(내부 `paymentOrderId` 는 내리지 않음).
