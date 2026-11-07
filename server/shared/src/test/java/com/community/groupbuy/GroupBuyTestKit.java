@@ -298,7 +298,7 @@ final class GroupBuyTestKit {
 
         @Bean
         com.community.commerce.sales.CommerceSalesStore commerceSalesStore(DataSource dataSource) {
-            return new com.community.commerce.sales.CommerceSalesStore(dataSource);
+            return new com.community.commerce.sales.CommerceSalesStore(com.community.testsupport.JpaTestContext.query(), dataSource);
         }
 
         @Bean
@@ -363,7 +363,7 @@ final class GroupBuyTestKit {
         NotificationPublisher notificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids) {
             List<AdminNotificationEvent> sink = current.operatorNotices;
             List<NotificationContext> contexts = current.operatorContexts;
-            return new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+            return new NotificationPublisher(null, null, ids, null, null, dataSource) {
                 @Override
                 public int publish(AdminNotificationEvent event, NotificationContext context) {
                     sink.add(event);

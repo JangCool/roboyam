@@ -8,8 +8,7 @@ import com.community.notification.entity.NotificationBuiltinChannelEntity;
 import com.community.notification.entity.NotificationRecipientRule;
 import com.community.notification.entity.NotificationSeverity;
 import com.community.notification.repository.master.NotificationDeliveryRepository;
-import com.community.notification.repository.master.NotificationRecipientRepositoryQDSL;
-import com.community.notification.repository.master.OperatorNotificationMuteRepository;
+import com.community.notification.repository.master.NotificationPublishReads;
 import com.community.notification.service.NotificationEventSettings.State;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import jakarta.persistence.EntityManager;
@@ -18,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,9 +31,6 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,29 +68,25 @@ public class NotificationPublisher {
     private static final int DEDUPE_MAX = 120;
     private static final int LINK_MAX = 300;
 
-    private final NotificationEventSettings settings;
-    private final NotificationRecipientRepositoryQDSL recipients;
-    private final OperatorNotificationMuteRepository mutes;
+    /**
+     * 세이브포인트 안의 읽기·쓰기는 모두 같은 연결의 JDBC 다({@link NotificationPublishReads} — 이벤트 설정·받는 사람·개인 끄기·이메일 끔·묶음·행 넣기,
+     * {@link NotificationDeliveryRepository} — 도구·팀). JPA 질의(QueryDSL·Spring Data·{@code @Transactional} 서비스)를 여기서 부르지 않는다: 실패하면 업무 트랜잭션이
+     * 롤백 전용이 되어 세이브포인트로 되돌려도 업무 커밋이 실패한다(2026-11-07 실측).
+     */
+    private final NotificationPublishReads reads;
     private final NotificationDeliveryRepository delivery;
     private final SnowflakeIdGenerator ids;
     private final ApplicationEventPublisher events;
     private final EntityManager entityManager;
-    private final JdbcTemplate jdbc;
-    private final NamedParameterJdbcTemplate namedJdbc;
     private final DataSource dataSource;
 
-    public NotificationPublisher(NotificationEventSettings settings, NotificationRecipientRepositoryQDSL recipients, OperatorNotificationMuteRepository mutes,
-                                 NotificationDeliveryRepository delivery, SnowflakeIdGenerator ids, ApplicationEventPublisher events, EntityManager entityManager,
-                                 DataSource dataSource) {
-        this.settings = settings;
-        this.recipients = recipients;
-        this.mutes = mutes;
+    public NotificationPublisher(NotificationPublishReads reads, NotificationDeliveryRepository delivery, SnowflakeIdGenerator ids, ApplicationEventPublisher events,
+                                 EntityManager entityManager, DataSource dataSource) {
+        this.reads = reads;
         this.delivery = delivery;
         this.ids = ids;
         this.events = events;
         this.entityManager = entityManager;
-        this.jdbc = new JdbcTemplate(dataSource);
-        this.namedJdbc = new NamedParameterJdbcTemplate(jdbc);
         this.dataSource = dataSource;
     }
 
@@ -153,7 +144,7 @@ public class NotificationPublisher {
 
     private int create(AdminNotificationEvent event, NotificationContext context) {
         Instant now = Instant.now();
-        State state = settings.of(event);
+        State state = NotificationEventSettings.effective(event, reads.eventRow(event.code()).orElse(null));
         if (!state.enabled()) {
             log.debug("꺼진 알림 이벤트라 발행하지 않는다 event={}", event.code());
             return 0;
@@ -165,13 +156,13 @@ public class NotificationPublisher {
             targets.remove(context.actorId());
         }
         if (!event.mandatory() && !targets.isEmpty()) {
-            mutes.findByEventCodeAndOperatorIdIn(event.code(), targets).forEach(mute -> targets.remove(mute.getOperatorId()));
+            targets.removeAll(reads.muted(event.code(), targets));
         }
         String dedupeKey = dedupeKeyOf(context.dedupeKey());
         // 묶음 때문에 받을 사람이 모두 사라졌으면(= 같은 알림이 방금 나갔으면) 공유 채널에도 다시 올리지 않는다
         boolean collapsed = false;
         if (event.collapseSeconds() > 0 && !targets.isEmpty()) {
-            targets.removeAll(recentlyNotified(event, dedupeKey, targets, now));
+            targets.removeAll(reads.recentlyNotified(event.code(), dedupeKey, targets, now, event.collapseSeconds()));
             collapsed = targets.isEmpty();
         }
 
@@ -184,14 +175,12 @@ public class NotificationPublisher {
             for (Long operatorId : targets) {
                 rows.add(new Object[] {ids.nextId(), operatorId, event.code(), severity.name(), event.titleKey(), event.bodyKey(), argsJson, link, dedupeKey, createdAt});
             }
-            // Native SQL(JDBC)인 이유: 알림 실패가 업무 트랜잭션을 망가뜨리지 않게 세이브포인트 안에서 영속성 컨텍스트를 거치지 않고 넣는다(클래스 설명)
-            jdbc.batchUpdate("insert into admin_notifications (id, operator_id, event_code, severity, title_key, body_key, args, link_path, dedupe_key, created_at) "
-                    + "values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)", rows);
+            reads.insertNotifications(rows); // 영속성 컨텍스트를 거치지 않는다(클래스 설명)
 
             // 이메일 도구(기본 제공)가 꺼져 있으면 이벤트에 이메일이 켜져 있어도 보내지 않는다
             if (state.emailEnabled() && delivery.builtinEnabled(NotificationBuiltinChannelEntity.EMAIL)) {
                 Set<Long> mailTargets = new LinkedHashSet<>(targets);
-                mailTargets.removeAll(recipients.emailOptedOut(targets));
+                mailTargets.removeAll(reads.emailOptedOut(targets));
                 if (!mailTargets.isEmpty()) {
                     Set<Long> viaTeam = new LinkedHashSet<>(team.members());
                     viaTeam.retainAll(mailTargets);
@@ -260,9 +249,9 @@ public class NotificationPublisher {
         if (members.isEmpty()) {
             return Set.of();
         }
-        Set<Long> allowed = new LinkedHashSet<>(recipients.active(members, now));
+        Set<Long> allowed = new LinkedHashSet<>(reads.active(members, now));
         if (event.requiredPermission() != null && !allowed.isEmpty()) {
-            allowed.retainAll(recipients.activeHolders(List.of(event.requiredPermission().code()), now));
+            allowed.retainAll(reads.activeHolders(List.of(event.requiredPermission().code()), now));
         }
         return allowed;
     }
@@ -280,26 +269,14 @@ public class NotificationPublisher {
                 if (context.targetOperatorId() == null) {
                     throw new IllegalArgumentException("대상 운영자가 없다");
                 }
-                targets.addAll(recipients.existing(Set.of(context.targetOperatorId())));
+                targets.addAll(reads.existing(Set.of(context.targetOperatorId())));
             }
-            case PERMISSION_HOLDERS -> targets.addAll(recipients.activeHolders(event.recipientPermissions().stream().map(permission -> permission.code()).toList(), now));
-            case ROOT -> targets.addAll(recipients.activeRoots(now));
-            case ALL_OPERATORS -> targets.addAll(recipients.allActive(now));
+            case PERMISSION_HOLDERS -> targets.addAll(reads.activeHolders(event.recipientPermissions().stream().map(permission -> permission.code()).toList(), now));
+            case ROOT -> targets.addAll(reads.activeRoots(now));
+            case ALL_OPERATORS -> targets.addAll(reads.allActive(now));
         }
-        targets.addAll(recipients.active(context.extraRecipientIds(), now));
+        targets.addAll(reads.active(context.extraRecipientIds(), now));
         return targets;
-    }
-
-    /** 묶음 시간 안에 같은 이벤트·같은 묶음 키의 알림을 이미 받은 사람 */
-    private Set<Long> recentlyNotified(AdminNotificationEvent event, String dedupeKey, Set<Long> targets, Instant now) {
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("code", event.code())
-                .addValue("key", dedupeKey)
-                .addValue("since", OffsetDateTime.ofInstant(now.minus(Duration.ofSeconds(event.collapseSeconds())), ZoneOffset.UTC))
-                .addValue("ids", targets);
-        List<Long> found = namedJdbc.queryForList("select distinct operator_id from admin_notifications where event_code = :code "
-                + "and dedupe_key is not distinct from :key and created_at > :since and operator_id in (:ids)", params, Long.class);
-        return new LinkedHashSet<>(found);
     }
 
     private static String dedupeKeyOf(String key) {

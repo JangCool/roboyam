@@ -133,7 +133,7 @@ final class PointShopTestKit {
         avatars = new AvatarCatalog();
         catalog = new PointShopCatalogService(itemStore, userItemStore, members, avatars, audit, ids, clocks);
         purchases = new PointShopPurchaseService(itemStore, purchaseStore, userItemStore, members, catalog, points, restrictions, ids, clocks);
-        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, ids, null, null, dataSource) {
             @Override
             public int publish(AdminNotificationEvent event, NotificationContext context) {
                 operatorNotices.add(event);

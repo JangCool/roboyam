@@ -5,10 +5,12 @@ import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupPublishRequestEntity;
 import com.community.group.entity.GroupPublishRequestStatus;
 import com.community.group.entity.GroupRole;
+import com.community.group.entity.GroupSettingsEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.entity.QGroupEntity;
 import com.community.group.entity.QGroupMemberEntity;
 import com.community.group.entity.QGroupPublishRequestEntity;
+import com.community.group.entity.QGroupSettingsEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
@@ -19,8 +21,6 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -35,12 +35,10 @@ public class GroupPublishRequestQueries extends RoboyamRepositoryQDSL {
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QGroupEntity GROUP = QGroupEntity.groupEntity;
     private static final QGroupMemberEntity MEMBER = QGroupMemberEntity.groupMemberEntity;
+    private static final QGroupSettingsEntity SETTINGS = QGroupSettingsEntity.groupSettingsEntity;
 
-    private final JdbcTemplate jdbc;
-
-    public GroupPublishRequestQueries(JPAQueryFactory query, DataSource dataSource) {
+    public GroupPublishRequestQueries(JPAQueryFactory query) {
         super(query);
-        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     /** 처리 대기 목록의 한 줄 — 요청과 글의 필요한 칸 */
@@ -93,13 +91,14 @@ public class GroupPublishRequestQueries extends RoboyamRepositoryQDSL {
 
     /** 소모임이 공개 소모임이 되면 대기 요청을 모두 닫는다(글이 이미 공개로 바뀌었다). 닫은 수 */
     public int cancelPendingOfGroup(long groupId, String reason) {
-        return jdbc.update("UPDATE group_post_publish_requests SET status = 'CANCELED', cancel_reason = ? WHERE group_id = ? AND status = 'PENDING'", reason, groupId);
+        return Math.toIntExact(query.update(R).set(R.status, GroupPublishRequestStatus.CANCELED).set(R.cancelReason, reason)
+                .where(R.groupId.eq(groupId), R.status.eq(GroupPublishRequestStatus.PENDING)).execute());
     }
 
     /** 작성자가 소모임을 스스로 나가면 그 사람의 대기 요청을 닫는다(다시 가입해도 되살리지 않는다). 닫은 수 */
     public int cancelPendingOfRequester(long groupId, long requesterId, String reason) {
-        return jdbc.update("UPDATE group_post_publish_requests SET status = 'CANCELED', cancel_reason = ? WHERE group_id = ? AND requester_id = ? AND status = 'PENDING'",
-                reason, groupId, requesterId);
+        return Math.toIntExact(query.update(R).set(R.status, GroupPublishRequestStatus.CANCELED).set(R.cancelReason, reason)
+                .where(R.groupId.eq(groupId), R.requesterId.eq(requesterId), R.status.eq(GroupPublishRequestStatus.PENDING)).execute());
     }
 
     /** 이 소모임에서 그 일을 맡은 지금 매니저의 회원 ID(임명이 이른 순) — 공개 요청 알림을 받는 사람(모임장은 부르는 쪽이 더한다) */
@@ -137,7 +136,7 @@ public class GroupPublishRequestQueries extends RoboyamRepositoryQDSL {
 
     /** 안내 알림을 보낼 차례를 선점한다 — 아직 보내지 않았을 때만 지금 시각을 적고 true(서버가 몇 대든 하나만 보낸다, 껐다 켜도 다시 보내지 않는다) */
     public boolean claimManagerNotice(Instant now) {
-        return jdbc.update("UPDATE group_settings SET visibility_notice_sent_at = ? WHERE id = 1 AND visibility_notice_sent_at IS NULL",
-                java.sql.Timestamp.from(now)) > 0;
+        return query.update(SETTINGS).set(SETTINGS.visibilityNoticeSentAt, now)
+                .where(SETTINGS.id.eq(GroupSettingsEntity.ROW_ID), SETTINGS.visibilityNoticeSentAt.isNull()).execute() > 0;
     }
 }

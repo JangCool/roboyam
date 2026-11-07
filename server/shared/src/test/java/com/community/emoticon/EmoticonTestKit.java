@@ -64,6 +64,7 @@ import com.community.point.service.PointService;
 import com.community.restriction.repository.master.MemberRestrictionStore;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.testsupport.PointInvariants;
 import com.community.testsupport.SiteOperatorFixture;
@@ -166,7 +167,7 @@ final class EmoticonTestKit {
                 audits.add(event);
             }
         };
-        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, ids, null, null, dataSource) {
             @Override
             public int publish(AdminNotificationEvent event, NotificationContext context) {
                 operatorNotices.add(Map.entry(event, context));
@@ -188,7 +189,7 @@ final class EmoticonTestKit {
         EmoticonAcquisitionStore acquisitions = new EmoticonAcquisitionStore(dataSource);
         reads = new EmoticonReadStore(dataSource);
         contracts = new EmoticonContractService(new EmoticonContractStore(dataSource), ids, clocks);
-        settings = new EmoticonSettingsService(new EmoticonSettingsStore(dataSource), contracts, audit, new CommerceSalesStore(dataSource), clocks);
+        settings = new EmoticonSettingsService(new EmoticonSettingsStore(dataSource), contracts, audit, new CommerceSalesStore(JpaTestContext.query(), dataSource), clocks);
         EmoticonPayoutStore payoutStore = new EmoticonPayoutStore(dataSource);
         EmoticonPriceEventStore priceEvents = new EmoticonPriceEventStore(dataSource);
         cipher = new DataCipher("1:" + Base64.getEncoder().encodeToString(new byte[32]), "");
@@ -326,7 +327,7 @@ final class EmoticonTestKit {
      * (1행 표를 다른 시험과 같이 쓴다).
      */
     void withSeller(Runnable work) {
-        if (new CommerceSalesStore(dataSource).operatorCanSell()) {
+        if (new CommerceSalesStore(JpaTestContext.query(), dataSource).operatorCanSell()) {
             work.run();
             return;
         }

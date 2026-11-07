@@ -1,46 +1,62 @@
 package com.community.membernotification.repository.master;
 
-import java.util.List;
+import com.community.board.entity.QBoardNotificationSettingEntity;
+import com.community.user.entity.QMemberDisplayPreferenceEntity;
+import com.community.user.entity.QProfileEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 회원 알림 메일 발송({@code MemberNotificationEmailSender})이 읽는 값 — 받는 회원(주소·인증·상태·닉네임·표시 언어)과 게시판 기본 설정 「알림」의 조용한 시간.
+ * 회원 알림 메일 발송({@code MemberNotificationEmailSender}·{@code RequiredMailOutboxSender})이 읽는 값 — 받는 회원(주소·인증·상태·닉네임·표시 언어)과 게시판 기본 설정 「알림」의 조용한 시간.
  *
- * <p>Native SQL(JDBC)인 이유: 커밋 뒤 메일 스레드풀에서 트랜잭션 없이 한 번씩 읽는 짧은 조회다(회원·프로필·표시 설정 세 표를 한 번에 — 엔티티를 셋 올릴 까닭이 없다).
+ * <p>커밋 뒤 메일 스레드풀에서 트랜잭션 없이 한 번씩 읽는 짧은 조회라 엔티티를 올리지 않고 프로젝션으로 읽는다(질의 하나가 자기 연결로 끝난다).
  * 이메일 주소는 돌려주기만 하고 로그에 남기지 않는다({@link Recipient#toString()} 도 감춘다).
  */
 @Repository
-public class MemberNotificationMailQueries {
+public class MemberNotificationMailQueries extends RoboyamRepositoryQDSL {
 
-    private final JdbcTemplate jdbc;
+    private static final QUserEntity USER = QUserEntity.userEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QMemberDisplayPreferenceEntity DISPLAY = QMemberDisplayPreferenceEntity.memberDisplayPreferenceEntity;
+    private static final QBoardNotificationSettingEntity SETTING = QBoardNotificationSettingEntity.boardNotificationSettingEntity;
+    /** 게시판 기본 설정 「알림」 행(한 줄) */
+    private static final int SETTING_ROW = 1;
 
-    public MemberNotificationMailQueries(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public MemberNotificationMailQueries(JPAQueryFactory query) {
+        super(query);
     }
 
     /** 받는 회원 — 없거나 지워진 회원이면 비어 있다 */
     public Optional<Recipient> recipient(long userId) {
-        List<Recipient> rows = jdbc.query("select u.email, u.status, u.email_verified_at is not null as verified, p.nickname, d.language "
-                + "from users u left join profiles p on p.user_id = u.id left join member_display_preferences d on d.user_id = u.id "
-                + "where u.id = ? and u.deleted_at is null", (rs, i) -> new Recipient(rs.getString("email"), rs.getString("status"), rs.getBoolean("verified"),
-                rs.getString("nickname"), rs.getString("language")), userId);
-        return rows.stream().findFirst();
+        Tuple row = query.select(USER.email, USER.status, USER.emailVerifiedAt, PROFILE.nickname, DISPLAY.language).from(USER)
+                .leftJoin(PROFILE).on(PROFILE.userId.eq(USER.id))
+                .leftJoin(DISPLAY).on(DISPLAY.userId.eq(USER.id))
+                .where(USER.id.eq(userId), USER.deletedAt.isNull())
+                .fetchFirst();
+        if (row == null) {
+            return Optional.empty();
+        }
+        UserStatus status = row.get(USER.status);
+        return Optional.of(new Recipient(row.get(USER.email), status == null ? null : status.name(), row.get(USER.emailVerifiedAt) != null,
+                row.get(PROFILE.nickname), row.get(DISPLAY.language)));
     }
 
     /** 회원 닉네임(일으킨 사람) — 없으면 비어 있다 */
     public Optional<String> nickname(long userId) {
-        return jdbc.queryForList("select p.nickname from profiles p join users u on u.id = p.user_id where p.user_id = ? and u.deleted_at is null "
-                + "and u.status <> 'WITHDRAWN'", String.class, userId).stream().findFirst();
+        return Optional.ofNullable(query.select(PROFILE.nickname).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                .where(PROFILE.userId.eq(userId), USER.deletedAt.isNull(), USER.status.ne(UserStatus.WITHDRAWN)).fetchFirst());
     }
 
     /** 게시판 기본 설정 「알림」의 이메일 조용한 시간 — 행이 없으면 비어 있다 */
     public Optional<QuietHours> quietHours() {
-        List<QuietHours> rows = jdbc.query("select email_quiet_hours_enabled, email_quiet_start, email_quiet_end from board_notification_settings where id = 1",
-                (rs, i) -> new QuietHours(rs.getBoolean(1), rs.getString(2), rs.getString(3)));
-        return rows.stream().findFirst();
+        return Optional.ofNullable(query.select(Projections.constructor(QuietHours.class, SETTING.emailQuietHoursEnabled, SETTING.emailQuietStart, SETTING.emailQuietEnd))
+                .from(SETTING).where(SETTING.id.eq(SETTING_ROW)).fetchFirst());
     }
 
     /**

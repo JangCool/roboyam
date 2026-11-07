@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * 링크 규칙·쇼핑몰 이름 표 한 줄 — V122 {@code deal_domains}. 공개 쪽은 {@code DealRuleBook}(JDBC 사본)으로 읽고, 관리자 「링크 규칙」(3단계)이 이 엔티티로 고친다.
+ * 링크 규칙·쇼핑몰 이름 표 한 줄 — V122 {@code deal_domains}. 공개 쪽은 {@code DealRuleBook}(15초 사본 — {@code DealRuleRepositoryQDSL})으로 읽고, 관리자 「링크 규칙」(3단계)이 이 엔티티로 고친다.
  *
  * @see com.community.hotdeal.service.DealLinkJudge 판정 규칙(접미사 일치 · 더 구체적인 규칙 우선 · 체인의 모든 호스트 · 차단 > 제휴)
  */

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
 /**
  * 알림 수신자를 정하는 조회 — 「이 권한을 가진 운영자」 「최고 관리자」 「살아 있는 운영자」. <b>활성</b> 운영자는 승인됐고 잠기지 않았고 만료 표시가 없고 사용 중이며 계정 기간 안인 운영자다
  * (지금 로그인할 수 있는 사람 — {@code OperatorEntity#canLogin} 과 같은 조건을 DB 에서 판정한다). 읽는 도중 아직 내보내지 않은 변경이 있으면 JPA 가 먼저 내보낸다(자동 flush).
- * <b>트랜잭션은 부르는 서비스가 연다.</b>
+ * <b>트랜잭션은 부르는 서비스가 연다.</b> 알림 발행기의 JDBC 세이브포인트 안에서는 부르지 않는다 — 거기서는 같은 조건의 JDBC 판({@link NotificationPublishReads})을 쓴다.
  */
 @Repository
 public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {

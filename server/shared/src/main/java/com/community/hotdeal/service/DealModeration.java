@@ -2,10 +2,8 @@ package com.community.hotdeal.service;
 
 import com.community.board.entity.BoardStaffEntity;
 import com.community.hotdeal.entity.PostDealEntity;
+import com.community.hotdeal.repository.master.DealQueries;
 import com.community.hotdeal.service.DealEndService.Outcome;
-import java.util.List;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class DealModeration {
 
     private final DealEndService ends;
-    private final JdbcTemplate jdbc;
+    private final DealQueries queries;
 
-    public DealModeration(DealEndService ends, DataSource dataSource) {
+    public DealModeration(DealEndService ends, DealQueries queries) {
         this.ends = ends;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
     }
 
     /**
@@ -106,17 +104,13 @@ public class DealModeration {
      * 글 상세 {@code dealModeration}·매니저·스텝 API 의 감사 {@code role} 이 쓴다.
      */
     public String boardRole(long boardId, long memberId) {
-        List<String> roles = jdbc.queryForList("SELECT s.role FROM board_staff s JOIN users u ON u.id = s.user_id WHERE s.board_id = ? AND s.user_id = ? AND u.status = 'ACTIVE'",
-                String.class, boardId, memberId);
-        return roles.isEmpty() ? null : roles.get(0);
+        return queries.boardRole(boardId, memberId);
     }
 
     /** 대상 → 담당 */
     private Gate gate(long postId, Actor actor) {
-        List<Long> boards = jdbc.queryForList("SELECT p.board_id FROM posts p JOIN post_deals d ON d.post_id = p.id JOIN boards b ON b.id = p.board_id "
-                + "WHERE p.id = ? AND b.kind = 'DEAL' AND p.deleted_at IS NULL AND p.status = 'PUBLISHED' AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > now())",
-                Long.class, postId);
-        if (boards.isEmpty()) {
+        Long boardId = queries.moderationBoardId(postId).orElse(null);
+        if (boardId == null) {
             return new Gate(Result.NOT_FOUND, null);
         }
         if (actor.operatorId() != null) {
@@ -125,7 +119,7 @@ public class DealModeration {
         if (actor.memberId() == null) {
             return new Gate(Result.FORBIDDEN, null);
         }
-        String role = boardRole(boards.get(0), actor.memberId());
+        String role = boardRole(boardId, actor.memberId());
         if (role == null) {
             return new Gate(Result.FORBIDDEN, null);
         }

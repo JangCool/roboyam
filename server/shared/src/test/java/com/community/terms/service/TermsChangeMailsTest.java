@@ -3,8 +3,11 @@ package com.community.terms.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.mail.outbox.repository.master.MailOutboxStore;
+import com.community.site.repository.master.SiteSettingRepository;
 import com.community.terms.entity.TermsKind;
+import com.community.terms.repository.master.TermsChangeMailRepositoryQDSL;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.Messages;
 import java.time.LocalDate;
@@ -20,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -47,8 +49,9 @@ class TermsChangeMailsTest {
         source.setDefaultEncoding("UTF-8");
         source.setFallbackToSystemLocale(false);
         source.setDefaultLocale(Locale.KOREAN);
-        mails = new TermsChangeMails(new MailOutboxStore(dataSource), IDS, new Messages(source, new StandardEnvironment(), "messages/messages"), dataSource);
-        tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        mails = new TermsChangeMails(new MailOutboxStore(dataSource), IDS, new Messages(source, new StandardEnvironment(), "messages/messages"),
+                new TermsChangeMailRepositoryQDSL(JpaTestContext.query()), JpaTestContext.context().getBean(SiteSettingRepository.class));
+        tx = new TransactionTemplate(JpaTestContext.transactions());
     }
 
     @AfterEach
