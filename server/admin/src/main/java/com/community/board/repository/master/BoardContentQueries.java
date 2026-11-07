@@ -1,36 +1,40 @@
 package com.community.board.repository.master;
 
+import com.community.comment.entity.QCommentDislikeEntity;
 import com.community.comment.entity.QCommentEntity;
+import com.community.comment.entity.QCommentLikeEntity;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
+import com.community.post.entity.QPostLikeEntity;
+import com.community.post.entity.QPostViewEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 게시판 관리가 읽는 글·댓글 집계(글 수·말머리 사용 수·삭제 가능 판정)와 게시판을 지울 때의 글 정리. 트랜잭션은 부르는 서비스의 것을 따른다.
  *
  * <p>글·댓글({@code posts} 월 파티션 · {@code comments} 해시 파티션)은 엔티티로 집계·일괄 수정·일괄 삭제한다(엔티티를 올리지 않는 대량 문장).
- * 추천·조회 기록 표({@code post_likes}·{@code post_views}·{@code comment_likes}·{@code comment_dislikes})는 엔티티가 없어 그 삭제만 네이티브 SQL 이다
- * (같은 트랜잭션 — JPA 트랜잭션 관리자가 JDBC 에도 같은 연결을 준다).
+ * 추천·조회 기록 표({@code post_likes}·{@code post_views}·{@code comment_likes}·{@code comment_dislikes})도 엔티티로 일괄 삭제한다(글 ID 를 이 게시판의 글에서 고르는 부분 질의).
  */
 @Repository
 public class BoardContentQueries extends RoboyamRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
+    private static final QPostLikeEntity POST_LIKE = QPostLikeEntity.postLikeEntity;
+    private static final QPostViewEntity POST_VIEW = QPostViewEntity.postViewEntity;
+    private static final QCommentLikeEntity COMMENT_LIKE = QCommentLikeEntity.commentLikeEntity;
+    private static final QCommentDislikeEntity COMMENT_DISLIKE = QCommentDislikeEntity.commentDislikeEntity;
 
-    private final JdbcTemplate jdbc;
-
-    public BoardContentQueries(JPAQueryFactory query, DataSource dataSource) {
+    public BoardContentQueries(JPAQueryFactory query) {
         super(query);
-        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     /** 게시판별 글 수 — 삭제되지 않은 게시된 글(숨김 포함, 임시저장 제외). 글이 없는 게시판은 빠진다 */
@@ -89,14 +93,20 @@ public class BoardContentQueries extends RoboyamRepositoryQDSL {
      *   <li><b>신고({@code reports})는 지우지 않는다</b> — 신고자·당시 내용 스냅샷은 증거라 게시판이 지워져도 남기고, 개인정보 보유기간 배치(신고 기록 축 {@code R__batch_18})가
      *       기간이 지나면 지운다.</li>
      * </ul>
-     * 추천·조회 기록 네 표는 Native SQL — 엔티티가 없다.
+     * 부분 질의는 {@code post_id IN (SELECT id FROM posts WHERE board_id = ?)} 로 예전 SQL 과 같다.
      */
     public void deleteContent(long boardId) {
-        jdbc.update("DELETE FROM post_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM comment_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM comment_dislikes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
-        jdbc.update("DELETE FROM post_views WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
+        query.delete(POST_LIKE).where(POST_LIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(COMMENT_LIKE).where(COMMENT_LIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(COMMENT_DISLIKE).where(COMMENT_DISLIKE.postId.in(boardPostIds(boardId))).execute();
+        query.delete(POST_VIEW).where(POST_VIEW.postId.in(boardPostIds(boardId))).execute();
         query.delete(COMMENT).where(COMMENT.boardId.eq(boardId)).execute();
         query.delete(POST).where(POST.boardId.eq(boardId)).execute();
+    }
+
+    /** 이 게시판의 글 ID(부분 질의) */
+    private static JPQLQuery<Long> boardPostIds(long boardId) {
+        QPostEntity p = new QPostEntity("boardPost");
+        return JPAExpressions.select(p.id).from(p).where(p.boardId.eq(boardId));
     }
 }

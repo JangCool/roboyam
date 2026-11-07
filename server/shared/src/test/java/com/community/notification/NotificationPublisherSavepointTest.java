@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.repository.master.NotificationDeliveryRepository;
+import com.community.notification.repository.master.NotificationEventChannelRepository;
+import com.community.notification.repository.master.NotificationEventTeamRepository;
 import com.community.notification.repository.master.NotificationPublishReads;
 import com.community.notification.service.NotificationPublisher;
 import com.community.operator.entity.QOperatorEntity;
@@ -74,9 +76,10 @@ class NotificationPublisherSavepointTest {
         }
 
         @Bean
-        NotificationPublisher notificationPublisher(NotificationPublishReads reads, DataSource dataSource, EntityManager entityManager,
+        NotificationPublisher notificationPublisher(NotificationPublishReads reads, DataSource dataSource, EntityManager entityManager, JPAQueryFactory query,
+                                                    NotificationEventChannelRepository eventChannels, NotificationEventTeamRepository eventTeams,
                                                     org.springframework.context.ApplicationContext context) {
-            return new NotificationPublisher(reads, new NotificationDeliveryRepository(dataSource), IDS, context, entityManager, dataSource);
+            return new NotificationPublisher(reads, new NotificationDeliveryRepository(query, eventChannels, eventTeams, dataSource), IDS, context, entityManager, dataSource);
         }
     }
 

@@ -205,7 +205,7 @@ final class EmoticonTestKit {
         acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks);
         purchases = new EmoticonPurchaseStore(dataSource);
         settlementStore = new EmoticonSettlementStore(dataSource);
-        holidays = new SiteHolidayService(new SiteHolidayStore(dataSource), audit, clocks);
+        holidays = new SiteHolidayService(JpaTestContext.create(SiteHolidayStore.class), audit, clocks);
         settlementCalculator = new EmoticonSettlementCalculator(settlementStore, payoutStore, settings, holidays);
         studio = new EmoticonStudioService(packStore, reviewStore, imageStore, reads, settings, content, operatorPublisher, images, contracts, payoutStore, priceEvents,
                 purchases, settlementCalculator, identities, ids, clocks);

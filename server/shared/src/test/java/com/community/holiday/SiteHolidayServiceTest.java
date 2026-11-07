@@ -16,6 +16,7 @@ import com.community.holiday.exception.HolidayNotFoundException;
 import com.community.holiday.repository.master.SiteHolidayStore;
 import com.community.holiday.service.SiteHolidayService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Clock;
@@ -52,15 +53,15 @@ class SiteHolidayServiceTest {
         ds = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(ds);
         cleanup();
-        store = new SiteHolidayStore(ds);
+        store = JpaTestContext.create(SiteHolidayStore.class);
         AuditLogService audit = new AuditLogService(null, null) {
             @Override
             public void record(AuditEvent event) {
                 audits.add(event);
             }
         };
-        service = new SiteHolidayService(store, audit,
-                new StaticListableBeanFactory(Map.of("clock", new MutableTestClock(Instant.parse("2042-02-01T00:00:00Z")))).getBeanProvider(Clock.class));
+        service = JpaTestContext.transactional(new SiteHolidayService(store, audit,
+                new StaticListableBeanFactory(Map.of("clock", new MutableTestClock(Instant.parse("2042-02-01T00:00:00Z")))).getBeanProvider(Clock.class)));
         operator = 9_500_000_000L + System.nanoTime() % 1_000_000;
         jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, 'x', true, now(), now())", operator,
                 "sh-" + operator + "@test.local", "sh" + (operator % 1_000_000_000L));

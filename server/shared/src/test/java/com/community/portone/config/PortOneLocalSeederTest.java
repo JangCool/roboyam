@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.community.portone.dto.PortOneSettingKey;
 import com.community.portone.repository.master.PortOneSettingStore;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.crypto.SecretEncryptor;
 import java.io.IOException;
 import java.time.Clock;
@@ -20,6 +21,7 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
@@ -37,7 +39,7 @@ class PortOneLocalSeederTest {
         final List<Row> rows = new ArrayList<>();
 
         MemoryStore() {
-            super(new DriverManagerDataSource());
+            super(null, new DriverManagerDataSource());
         }
 
         @Override
@@ -114,11 +116,12 @@ class PortOneLocalSeederTest {
     @Test
     void 저장소는_줄이_없을_때만_넣는다() {
         JdbcTemplate jdbc = new JdbcTemplate(CommerceTestDatabase.migrated());
-        PortOneSettingStore real = new PortOneSettingStore(CommerceTestDatabase.migrated());
+        PortOneSettingStore real = JpaTestContext.create(PortOneSettingStore.class);
         String key = "zzSeed" + System.nanoTime();
         try {
-            assertThat(real.seedIfAbsent(key, "v1:AAAA", Instant.now())).isTrue();
-            assertThat(real.seedIfAbsent(key, "v1:BBBB", Instant.now())).isFalse();
+            TransactionTemplate tx = new TransactionTemplate(JpaTestContext.transactions());
+            assertThat(Boolean.TRUE.equals(tx.execute(s -> real.seedIfAbsent(key, "v1:AAAA", Instant.now())))).isTrue();
+            assertThat(Boolean.TRUE.equals(tx.execute(s -> real.seedIfAbsent(key, "v1:BBBB", Instant.now())))).isFalse();
             assertThat(jdbc.queryForMap("SELECT value_cipher, updated_by FROM portone_settings WHERE key = ?", key)).containsEntry("value_cipher", "v1:AAAA")
                     .containsEntry("updated_by", null);
         } finally {

@@ -3,6 +3,7 @@ package com.community.analytics.settings;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 통계 수집 설정 2단계 세 칸(shared V135 — site-analytics-contract 「2단계」): 기본 꺼짐, 방문 수집 전체가 꺼지면 동작하지 않음, 저장·읽기에 새 칸이 빠지지 않음.
@@ -43,7 +45,7 @@ class StatsCollectionStage2Test {
             assertThat(c.get("is_nullable")).as("%s", c.get("column_name")).isEqualTo("NO");
             assertThat(c.get("column_default")).as("%s", c.get("column_name")).isEqualTo("false");
         }
-        assertThat(new StatsCollectionStore(dataSource).find().orElseThrow().value()).isEqualTo(StatsCollection.OFF);
+        assertThat(JpaTestContext.create(StatsCollectionStore.class).find().orElseThrow().value()).isEqualTo(StatsCollection.OFF);
     }
 
     @Test
@@ -85,10 +87,11 @@ class StatsCollectionStage2Test {
 
     @Test
     void 저장하고_읽으면_새_칸이_그대로_돌아온다() {
-        StatsCollectionStore store = new StatsCollectionStore(dataSource);
+        StatsCollectionStore store = JpaTestContext.create(StatsCollectionStore.class);
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         StatsCollection v = new StatsCollection(true, false, true, 180, false, true, true, false, true, false, true);
-        store.save(v, 9_800_000_001L, now);
+        TransactionTemplate tx = new TransactionTemplate(JpaTestContext.transactions());
+        tx.executeWithoutResult(s -> store.save(v, 9_800_000_001L, now));
         StatsCollectionStore.Stored got = store.find().orElseThrow();
         assertThat(got.value()).isEqualTo(v);
         assertThat(got.updatedAt()).isEqualTo(now);
@@ -97,7 +100,7 @@ class StatsCollectionStage2Test {
                 .isEqualTo("truefalsetrue");
 
         StatsCollection w = new StatsCollection(true, false, true, 180, false, true, false, true, false, false, true);
-        store.save(w, 9_800_000_001L, now.plusSeconds(1));
+        tx.executeWithoutResult(s -> store.save(w, 9_800_000_001L, now.plusSeconds(1)));
         assertThat(store.find().orElseThrow().value()).isEqualTo(w);
     }
 }

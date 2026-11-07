@@ -1,6 +1,7 @@
 package com.community.user.entity;
 
 import com.community.grade.entity.GradeEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -42,6 +43,13 @@ public class ProfileEntity {
 
     /** 마지막으로 닉네임을 바꾼 시각. 바꾼 적이 없으면 null */
     private Instant nicknameChangedAt;
+
+    /**
+     * 고른 프로필 이미지(V2 {@code profile_image} — {@code avatar:<id>} · {@code upload-mine} 등, 없으면 null). 포인트 상점 저장소(JDBC)가 고치므로 이 엔티티는 읽기만 한다
+     * (관리자 아바타 올리기 목록이 함께 읽는다).
+     */
+    @Column(insertable = false, updatable = false)
+    private String profileImage;
 
     private Instant createdAt;
     private Instant updatedAt;
