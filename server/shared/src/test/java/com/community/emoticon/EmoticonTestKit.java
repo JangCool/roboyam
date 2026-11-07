@@ -32,6 +32,7 @@ import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
 import com.community.identity.repository.master.IdentityVerificationAttemptRepository;
 import com.community.identity.service.IdentityVerificationService;
+import com.community.point.repository.master.PointPolicyQueries;
 import com.community.zconfiguration.crypto.DataCipher;
 import java.time.LocalDate;
 import java.util.Base64;
@@ -176,7 +177,7 @@ final class EmoticonTestKit {
         operators = new OperatorFixture(withIds(ids));
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
-        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
+        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(new PointPolicyQueries(dataSource)), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
         AuditLogService audit = new AuditLogService(null, null) {
             @Override
             public void record(AuditEvent event) {

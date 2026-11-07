@@ -5,20 +5,19 @@ import com.community.commerce.guard.dto.StoredResponse;
 import com.community.commerce.guard.exception.IdempotencyInProgressException;
 import com.community.commerce.guard.exception.IdempotencyKeyInvalidException;
 import com.community.commerce.guard.exception.IdempotencyKeyReusedException;
+import com.community.commerce.guard.repository.master.IdempotencyRequestQueries;
+import com.community.commerce.guard.repository.master.IdempotencyRequestQueries.IdempotencyRow;
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -35,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>업무가 실패하면(예외) 처리 중 행을 <b>지운다</b>(새 트랜잭션) — 같은 키로 다시 시도할 수 있다. 예외는 그대로 다시 던진다.</li>
  * </ol>
  * 응답 본문은 {@value StoredResponse#MAX_BODY_BYTES} 바이트까지 저장한다 — 넘으면 프로그램 결함으로 보고 업무를 되돌린다(돈 요청의 응답은 번호·상태 정도로 작다).
- * Native SQL 인 이유: {@code ON CONFLICT}·업무 트랜잭션과 따로 커밋하는 짧은 쓰기라 JPA 영속성 문맥에 엮지 않는다.
+ * 행 문장(native — {@code ON CONFLICT}, 업무 트랜잭션과 따로 커밋하는 짧은 쓰기라 JPA 영속성 문맥에 엮지 않는다)은 저장소 {@link IdempotencyRequestQueries} 다.
  */
 @Component
 public class IdempotencyService {
@@ -49,18 +48,18 @@ public class IdempotencyService {
     /** 키 형식 — 영문·숫자·밑줄·하이픈 8~64자(UUID 가 들어간다). DB CHECK 와 같다 */
     public static final Pattern KEY_FORMAT = Pattern.compile("[A-Za-z0-9_-]{8,64}");
 
-    private final JdbcTemplate jdbc;
+    private final IdempotencyRequestQueries requests;
     private final TransactionTemplate separate;
     private final TransactionTemplate business;
     private final Clock clock;
 
     @Autowired
-    public IdempotencyService(DataSource dataSource, PlatformTransactionManager transactions) {
-        this(dataSource, transactions, Clock.systemUTC());
+    public IdempotencyService(IdempotencyRequestQueries requests, PlatformTransactionManager transactions) {
+        this(requests, transactions, Clock.systemUTC());
     }
 
-    public IdempotencyService(DataSource dataSource, PlatformTransactionManager transactions, Clock clock) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public IdempotencyService(IdempotencyRequestQueries requests, PlatformTransactionManager transactions, Clock clock) {
+        this.requests = requests;
         this.separate = new TransactionTemplate(transactions);
         this.separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.business = new TransactionTemplate(transactions);
@@ -98,19 +97,16 @@ public class IdempotencyService {
     /** 처리 중 행을 만든다 — 만들었으면 null, 이미 끝난 같은 요청이면 저장한 응답 */
     private StoredResponse begin(long userId, String key, RequestAction action, String requestHash) {
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        jdbc.update("DELETE FROM idempotency_requests WHERE user_id = ? AND idem_key = ? AND created_at < ?", userId, key, Timestamp.from(now.minus(TTL)));
-        int inserted = jdbc.update("INSERT INTO idempotency_requests (user_id, idem_key, action, request_hash, status, created_at) VALUES (?, ?, ?, ?, 'IN_PROGRESS', ?) "
-                + "ON CONFLICT (user_id, idem_key) DO NOTHING", userId, key, action.name(), requestHash, Timestamp.from(now));
-        if (inserted == 1) {
+        requests.deleteExpired(userId, key, now.minus(TTL));
+        if (requests.insertInProgress(userId, key, action.name(), requestHash, now)) {
             return null;
         }
-        List<Existing> rows = jdbc.query("SELECT action, request_hash, status, response_code, response_body FROM idempotency_requests WHERE user_id = ? AND idem_key = ?",
-                (rs, i) -> new Existing(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4), rs.getString(5)), userId, key);
-        if (rows.isEmpty()) {
+        Optional<IdempotencyRow> found = requests.find(userId, key);
+        if (found.isEmpty()) {
             // 그 사이 다른 요청이 실패해 행을 지웠다 — 같은 키로 다시 시도하게 처리 중으로 본다(클라이언트가 다시 보낸다)
             throw new IdempotencyInProgressException();
         }
-        Existing row = rows.get(0);
+        IdempotencyRow row = found.get();
         if (!row.action().equals(action.name()) || !row.requestHash().equals(requestHash)) {
             throw new IdempotencyKeyReusedException();
         }
@@ -128,10 +124,7 @@ public class IdempotencyService {
         if (response.body() != null && response.body().getBytes(StandardCharsets.UTF_8).length > StoredResponse.MAX_BODY_BYTES) {
             throw new IllegalStateException("멱등 요청의 응답이 저장 한도(" + StoredResponse.MAX_BODY_BYTES + "바이트)보다 크다");
         }
-        int updated = jdbc.update("UPDATE idempotency_requests SET status = 'COMPLETED', response_code = ?, response_body = ?, completed_at = ? "
-                + "WHERE user_id = ? AND idem_key = ? AND status = 'IN_PROGRESS'", response.status(), response.body(),
-                Timestamp.from(clock.instant().truncatedTo(ChronoUnit.MICROS)), userId, key);
-        if (updated != 1) {
+        if (!requests.complete(userId, key, response.status(), response.body(), clock.instant().truncatedTo(ChronoUnit.MICROS))) {
             throw new IllegalStateException("멱등 요청의 처리 중 행이 없다");
         }
     }
@@ -139,12 +132,9 @@ public class IdempotencyService {
     /** 업무가 실패했다 — 처리 중 행을 지워 같은 키로 다시 할 수 있게 한다. 지우다 실패해도 원래 예외를 덮지 않는다(24시간 뒤 정리) */
     private void abandon(long userId, String key) {
         try {
-            separate.executeWithoutResult(status -> jdbc.update("DELETE FROM idempotency_requests WHERE user_id = ? AND idem_key = ? AND status = 'IN_PROGRESS'", userId, key));
+            separate.executeWithoutResult(status -> requests.deleteInProgress(userId, key));
         } catch (RuntimeException e) {
             log.warn("실패한 멱등 요청의 처리 중 행을 지우지 못했다 userId={} 원인={}", userId, e.getClass().getSimpleName());
         }
-    }
-
-    private record Existing(String action, String requestHash, String status, int responseCode, String responseBody) {
     }
 }

@@ -2,7 +2,7 @@ package com.community.role.service;
 
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.permission.entity.MemberPermission;
-import com.community.permission.service.BootstrapLock;
+import com.community.permission.repository.master.BootstrapLockQueries;
 import com.community.role.entity.RoleEntity;
 import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.RoleGrantMode;
@@ -12,7 +12,6 @@ import com.community.role.entity.RoleTypes;
 import com.community.role.repository.master.RolePermissionRepository;
 import com.community.role.repository.master.RoleRepository;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -57,23 +56,23 @@ public class BuiltinRoleSeeder {
     private final RoleRepository roles;
     private final RolePermissionRepository rolePermissions;
     private final SnowflakeIdGenerator ids;
-    private final EntityManager entityManager;
+    private final BootstrapLockQueries bootstrapLock;
     private final GradeRepositoryQDSL gradeQueries;
     private final GradeRoleSynchronizer gradeRoles;
 
-    public BuiltinRoleSeeder(RoleRepository roles, RolePermissionRepository rolePermissions, SnowflakeIdGenerator ids, EntityManager entityManager,
+    public BuiltinRoleSeeder(RoleRepository roles, RolePermissionRepository rolePermissions, SnowflakeIdGenerator ids, BootstrapLockQueries bootstrapLock,
                              GradeRepositoryQDSL gradeQueries, GradeRoleSynchronizer gradeRoles) {
         this.roles = roles;
         this.rolePermissions = rolePermissions;
         this.ids = ids;
-        this.entityManager = entityManager;
+        this.bootstrapLock = bootstrapLock;
         this.gradeQueries = gradeQueries;
         this.gradeRoles = gradeRoles;
     }
 
     @Transactional
     public void seed() {
-        BootstrapLock.acquire(entityManager);
+        bootstrapLock.acquire();
 
         Instant base = Instant.now();
         int created = 0;
