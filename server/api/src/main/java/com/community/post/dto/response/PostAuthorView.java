@@ -22,12 +22,19 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  *                   비회원·숨긴 글·지운 댓글은 false
  * @param operator   운영자 회원 계정(관리자 앱 운영자에게 연결되고 힘이 살아 있음 — operator-member-account-contract 정책 10)의 글·댓글이면 true —
  *                   이름 옆 「운영자」 공식 뱃지. 비회원·숨긴 글·지운 댓글은 false
+ * @param bio        작성자의 한 줄 소개 — <b>글 상세에만</b>({@code AuthorViews#detailBio}): 회원 글이고 작성자 프로필이 공개이고 소개가 있을 때만 값.
+ *                   그 밖(비공개·비회원·탈퇴·숨긴 글·소개 없음)과 목록·댓글 응답은 늘 null(profile-privacy-contract)
  */
 public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
-                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator) {
+                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio) {
 
     /** 같은 작성자에 메모만 바꾼 것 */
     public PostAuthorView withMemo(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio);
+    }
+
+    /** 같은 작성자에 한 줄 소개만 바꾼 것 — 글 상세만 채운다({@code PostQueryService}) */
+    public PostAuthorView withBio(String value) {
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator, value);
     }
 }

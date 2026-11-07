@@ -270,7 +270,8 @@ public class PostQueryService {
         boolean adultViewer = !post.isGroupPost() && adultGate.adult(userId); // 성인이 아니면 이전·다음 글에서 19금 글을 건너뛴다
         Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), adultViewer, now);
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), adultViewer, now);
-        PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
+        PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
+                .withBio(authors.detailBio(post.getAuthorId(), members)); // 작성자 한 줄 소개는 상세에만(profile-privacy-contract — 숨긴 글은 여기 오지 않는다)
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
         boolean staffAuthor = staffAuthor(b, post, userId);

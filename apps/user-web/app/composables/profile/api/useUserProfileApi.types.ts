@@ -34,7 +34,7 @@ export interface PublicProfile {
      */
     operator?: boolean;
     /**
-     * 프로필 공개 범위 — **서버 후보**(지금은 목업이 채운다, 칸이 없으면 `PUBLIC`). `PRIVATE` 이고 본인이 아니면 서버가
+     * 프로필 공개 범위 — 서버 연결됨(칸이 없는 옛 응답이면 `PUBLIC`). `PRIVATE` 이고 본인이 아니면 서버가
      * `bio`·`joinedAt`·`stats` 를 null 로 주고, 작성글·댓글·소모임 목록은 `403 PROFILE_PRIVATE` 다(`profile-privacy-contract.md`).
      */
     visibility?: ProfileVisibility;

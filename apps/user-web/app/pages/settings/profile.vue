@@ -203,7 +203,7 @@ import UtilValidation from '~/utils/util-validation';
  * 환불 기한 안의 유료 아바타는 「고르면 환불할 수 없어요」를 한 번 묻는다. 「더 많은 아바타는 포인트 상점에서」 링크는 사업자 전용 계정에게 숨긴다(무료는 고른다). 정지 중이면 고르기를 막는다.
  * 정지·영구 정지 중(로그인 정보 `restriction`, 또는 저장 때 서버 `403 ACCOUNT_RESTRICTED`)이면 폼은 읽기 전용이고 저장 줄을 그리지 않으며 제재 안내(`/sanction`) 링크를 보인다.
  * 저장하면 로그인 정보(`me`)를 다시 받아 셸의 닉네임을 맞춘다.
- * 프로필 공개 범위(`profile-privacy-contract.md` — **목업**, 이 기기에 둔다): 공개(기본) / 비공개. 같은 저장 줄로 저장하고, 정지 중에는 다른 칸처럼 바꿀 수 없다.
+ * 프로필 공개 범위(`profile-privacy-contract.md` — 서버 연결됨): 공개(기본) / 비공개. 같은 저장 줄로 저장하고, 정지 중에는 다른 칸처럼 바꿀 수 없다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

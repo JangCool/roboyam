@@ -45,7 +45,7 @@ export interface MyProfile {
     avatarUrl?: string | null;
     /** 움직이는 아바타의 정지 그림 주소 — 서버 연결됨(정지 아바타면 null) */
     avatarStillUrl?: string | null;
-    /** 프로필 공개 범위 — **서버 후보**(지금은 목업 `mock/profile-visibility-mock.ts` 가 채운다). 칸이 없으면 `PUBLIC` */
+    /** 프로필 공개 범위 — 서버 연결됨. 칸이 없는 옛 응답이면 `PUBLIC` 으로 본다 */
     visibility?: ProfileVisibility;
 }
 
@@ -58,7 +58,7 @@ export interface MyProfileRequest {
      * 규칙 위반·중복·정지로 실패하면 쓰지 않는다(같은 트랜잭션). 동시 요청에 한 장이 두 번 쓰이지 않는다.
      */
     useTicket?: boolean;
-    /** 프로필 공개 범위 — **서버 후보**(목업은 실제 서버로 보내지 않고 이 기기에 둔다). 보내지 않으면 그대로 */
+    /** 프로필 공개 범위 — 보내지 않으면 그대로. 틀린 값 `400 fields.visibility` */
     visibility?: ProfileVisibility;
 }
 

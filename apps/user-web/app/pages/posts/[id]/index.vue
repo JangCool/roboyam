@@ -467,8 +467,11 @@ const authorDecoration = computed(() => (post.value ? decorations.decorationOf(p
 const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
 /** 움직이는 아바타의 정지 그림(움직임 줄이기) */
 const authorAvatarStill = computed(() => (post.value ? decorations.avatarStillOf(post.value.author.memberId, post.value.author.avatarStillUrl) : null));
-/** 작성자 한 줄 소개 — 프로필이 공개일 때만(서버 후보 `author.bio`, 지금은 목업이 공개 프로필에서 받는다 — `usePostAuthorBio`) */
-const { bio: authorBio } = usePostAuthorBio(() => post.value?.author);
+/** 작성자 한 줄 소개 — 서버가 회원·프로필 공개·소개 있음일 때만 `author.bio` 를 채운다(비공개·비회원·탈퇴·숨긴 글은 null) */
+const authorBio = computed(() => {
+    const author = post.value?.author;
+    return author?.kind === 'MEMBER' && author.memberId && author.name ? author.bio?.trim() || null : null;
+});
 const pageError = ref('');
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);
