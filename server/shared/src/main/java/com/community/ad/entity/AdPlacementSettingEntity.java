@@ -38,29 +38,7 @@ public class AdPlacementSettingEntity {
     private Instant updatedAt;
     private Long updatedBy;
 
+    /** 행은 {@code AdPlacementStore} 가 처음 저장 때 {@code ON CONFLICT} 로 넣고 QueryDSL 로 고친다 — 이 엔티티는 읽기·질의용이다 */
     protected AdPlacementSettingEntity() {
-    }
-
-    /** 처음 저장하는 행 */
-    public static AdPlacementSettingEntity first(boolean postInlineEnabled, String postInlineType, String postInlinePosition, boolean wingLeft, boolean wingRight,
-                                                 String[] wingScreens, boolean boardListEnabled, int boardListAfter, int boardListCount, int boardListGap,
-                                                 boolean adultEnabled, int stopFeeRate, long operatorId, Instant now) {
-        AdPlacementSettingEntity s = new AdPlacementSettingEntity();
-        s.id = SINGLE_ID;
-        s.postInlineEnabled = postInlineEnabled;
-        s.postInlineType = postInlineType;
-        s.postInlinePosition = postInlinePosition;
-        s.wingLeft = wingLeft;
-        s.wingRight = wingRight;
-        s.wingScreens = wingScreens;
-        s.boardListEnabled = boardListEnabled;
-        s.boardListAfter = boardListAfter;
-        s.boardListCount = boardListCount;
-        s.boardListGap = boardListGap;
-        s.adultEnabled = adultEnabled;
-        s.stopFeeRate = stopFeeRate;
-        s.updatedAt = now;
-        s.updatedBy = operatorId;
-        return s;
     }
 }

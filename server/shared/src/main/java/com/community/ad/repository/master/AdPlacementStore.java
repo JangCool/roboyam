@@ -4,7 +4,6 @@ import com.community.ad.dto.AdPlacements;
 import com.community.ad.entity.AdPlacementSettingEntity;
 import com.community.ad.entity.QAdPlacementSettingEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Repository;
 
 /**
  * 광고 노출 자리 설정(V118 {@code ad_placement_settings} — 한 행, id = 1 · V119 {@code adult_enabled} 기본 끔). 행이 없으면 {@link AdPlacements#DEFAULTS}.
- * QueryDSL 만 쓴다 — 저장은 「있으면 고치기, 없으면 넣기」(부르는 쪽이 같은 트랜잭션에서 {@link #lock} 으로 행을 잠근 뒤 부른다).
+ * 저장은 「있으면 고치기(QueryDSL), 없으면 넣기(네이티브 {@code ON CONFLICT} — 처음 저장의 동시 경합)」(부르는 쪽이 같은 트랜잭션에서 {@link #lock} 으로 행을 잠근 뒤 부른다).
  */
 @Repository
 public class AdPlacementStore extends RoboyamRepositoryQDSL {
@@ -88,6 +87,16 @@ public class AdPlacementStore extends RoboyamRepositoryQDSL {
 
     private void save(AdPlacements p, int stopFeeRate, boolean withRate, long operatorId, Instant now) {
         String[] screens = p.wings().screens().toArray(String[]::new);
+        if (update(p, screens, stopFeeRate, withRate, operatorId, now) > 0) {
+            return;
+        }
+        // 처음 저장 — 행이 없으면 잠글 것도 없어 두 운영자가 동시에 처음 저장할 수 있다. 넣기가 지면(다른 쪽이 먼저 넣음) 그 행을 고친다
+        if (insertIfAbsent(p, screens, stopFeeRate, operatorId, now) == 0) {
+            update(p, screens, stopFeeRate, withRate, operatorId, now);
+        }
+    }
+
+    private long update(AdPlacements p, String[] screens, int stopFeeRate, boolean withRate, long operatorId, Instant now) {
         var update = query.update(S).set(S.postInlineEnabled, p.postInline().enabled()).set(S.postInlineType, p.postInline().adType())
                 .set(S.postInlinePosition, p.postInline().position()).set(S.wingLeft, p.wings().left()).set(S.wingRight, p.wings().right())
                 .set(S.wingScreens, screens).set(S.boardListEnabled, p.boardList().enabled()).set(S.boardListAfter, p.boardList().after())
@@ -96,11 +105,25 @@ public class AdPlacementStore extends RoboyamRepositoryQDSL {
         if (withRate) {
             update.set(S.stopFeeRate, stopFeeRate);
         }
-        if (update.where(S.id.eq(ID)).execute() == 0) {
-            JpaStoreWrites.insert(entityManager, AdPlacementSettingEntity.first(p.postInline().enabled(), p.postInline().adType(), p.postInline().position(),
-                    p.wings().left(), p.wings().right(), screens, p.boardList().enabled(), p.boardList().after(), p.boardList().count(), p.boardList().gap(),
-                    p.adult().enabled(), stopFeeRate, operatorId, now));
-        }
+        return update.where(S.id.eq(ID)).execute();
+    }
+
+    /**
+     * 한 행(id = 1)을 처음 넣는다 — 이미 있으면 아무것도 하지 않는다(넣은 줄 수).
+     *
+     * <p>Native SQL 인 이유: {@code INSERT … ON CONFLICT DO NOTHING} 은 JPQL·QueryDSL 에 없다. JPA 로 넣으면 동시에 처음 저장한 쪽이 유일 위반으로
+     * 트랜잭션째 깨진다(PostgreSQL 은 위반 한 번에 트랜잭션을 못 쓰게 한다). 날개 화면 배열은 {@code string_to_array} 로 넘긴다(화면 코드에 쉼표가 없다).
+     */
+    private int insertIfAbsent(AdPlacements p, String[] screens, int stopFeeRate, long operatorId, Instant now) {
+        return entityManager.createNativeQuery("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, "
+                        + "wing_right, wing_screens, board_list_enabled, board_list_after, board_list_count, board_list_gap, adult_enabled, stop_fee_rate, "
+                        + "updated_at, updated_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6, string_to_array(?7, ','), ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15) "
+                        + "ON CONFLICT (id) DO NOTHING")
+                .setParameter(1, ID).setParameter(2, p.postInline().enabled()).setParameter(3, p.postInline().adType())
+                .setParameter(4, p.postInline().position()).setParameter(5, p.wings().left()).setParameter(6, p.wings().right())
+                .setParameter(7, String.join(",", screens)).setParameter(8, p.boardList().enabled()).setParameter(9, p.boardList().after())
+                .setParameter(10, p.boardList().count()).setParameter(11, p.boardList().gap()).setParameter(12, p.adult().enabled())
+                .setParameter(13, stopFeeRate).setParameter(14, now).setParameter(15, operatorId).executeUpdate();
     }
 
     private static Stored stored(Tuple t, String updatedByName) {
