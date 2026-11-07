@@ -4,6 +4,7 @@ import com.community.address.entity.AddressDbLoadEntity;
 import com.community.address.entity.AddressImportPhase;
 import com.community.address.entity.AddressLoadStatus;
 import com.community.address.exception.AddressImportFailure;
+import com.community.address.repository.master.AddressDbLoadQueries;
 import com.community.address.repository.master.AddressDbLoadRepository;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
@@ -78,16 +79,18 @@ public class AddressImportWorker {
     private final TransactionTemplate main;
     private final TransactionTemplate separate;
     private final AddressDbLoadRepository loads;
+    private final AddressDbLoadQueries loadQueries;
     private final AddressImportJobs jobs;
     private final AuditLogService audit;
 
-    public AddressImportWorker(DataSource dataSource, PlatformTransactionManager transactions, AddressDbLoadRepository loads, AddressImportJobs jobs,
-                               AuditLogService audit) {
+    public AddressImportWorker(DataSource dataSource, PlatformTransactionManager transactions, AddressDbLoadRepository loads, AddressDbLoadQueries loadQueries,
+                               AddressImportJobs jobs, AuditLogService audit) {
         this.jdbc = new JdbcTemplate(dataSource);
         this.main = new TransactionTemplate(transactions);
         this.separate = new TransactionTemplate(transactions);
         this.separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.loads = loads;
+        this.loadQueries = loadQueries;
         this.jobs = jobs;
         this.audit = audit;
     }
@@ -189,7 +192,7 @@ public class AddressImportWorker {
     /** 단계를 화면(메모리)과 적재 줄에 남긴다 — 줄은 따로 트랜잭션(본 트랜잭션이 끝나기 전에도 보이게) */
     private void phase(long loadId, AddressImportJobs.Live live, AddressImportPhase phase) {
         live.phase(phase);
-        separate.executeWithoutResult(status -> jdbc.update("UPDATE address_db_loads SET phase = ? WHERE id = ? AND status = 'RUNNING'", phase.name(), loadId));
+        separate.executeWithoutResult(status -> loadQueries.markPhase(loadId, phase));
     }
 
     /** 스테이징의 색인은 표를 맞바꿀 때 따라다녀 이름이 제각각이다 — 기본 키 말고 모두 지운다 */

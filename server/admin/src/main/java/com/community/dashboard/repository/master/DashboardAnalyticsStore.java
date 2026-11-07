@@ -1,6 +1,12 @@
 package com.community.dashboard.repository.master;
 
 import com.community.analytics.store.AnalyticsDatabase;
+import com.community.group.entity.QGroupEntity;
+import com.community.pointshop.entity.QPointShopItemEntity;
+import com.community.post.entity.QPostEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -18,11 +24,16 @@ import org.springframework.stereotype.Repository;
  *
  * <ul>
  *   <li>방문 표({@code analytics_*}): 분석 전용 연결({@code analyticsJdbc}) — 지금은 메인 DB 라 부르는 쪽 읽기 트랜잭션에 참여한다.</li>
- *   <li>알림 발송·게시판 활동 표와 이름 붙이기(글 제목 등): 메인 DB.</li>
+ *   <li>알림 발송·게시판 활동 표와 이름 붙이기(글 제목 등): 메인 DB. 이름 붙이기는 엔티티가 있는 표(글·소모임·포인트 상점 품목)는 QueryDSL, 공구({@code group_buys})는
+ *       엔티티가 없어 네이티브 SQL 이다(알림 발송·게시판 활동 일별 표도 엔티티가 없다).</li>
  * </ul>
  */
 @Repository
-public class DashboardAnalyticsStore {
+public class DashboardAnalyticsStore extends RoboyamRepositoryQDSL {
+
+    private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QGroupEntity GROUP = QGroupEntity.groupEntity;
+    private static final QPointShopItemEntity ITEM = QPointShopItemEntity.pointShopItemEntity;
 
     public record Hour(Instant hour, long visitors, long newVisitors, long pageViews) {
     }
@@ -52,7 +63,8 @@ public class DashboardAnalyticsStore {
     private final JdbcTemplate analytics;
     private final JdbcTemplate main;
 
-    public DashboardAnalyticsStore(AnalyticsDatabase analyticsDb, DataSource dataSource) {
+    public DashboardAnalyticsStore(AnalyticsDatabase analyticsDb, DataSource dataSource, JPAQueryFactory query) {
+        super(query);
         this.analytics = analyticsDb.jdbc();
         this.main = new JdbcTemplate(dataSource);
     }
@@ -122,22 +134,43 @@ public class DashboardAnalyticsStore {
 
     /** 글 제목 — posts PK(id, 월 범위 파티션). 지워진 글은 빠진다 */
     public Map<Long, Name> postTitles(Collection<Long> ids) {
-        return names("SELECT id, title, NULL FROM posts WHERE id = ANY (?::bigint[]) AND deleted_at IS NULL", ids);
+        Map<Long, Name> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(POST.id, POST.title).from(POST).where(POST.id.in(ids), POST.deletedAt.isNull()).fetch()) {
+            out.put(t.get(POST.id), new Name(t.get(POST.title), null));
+        }
+        return out;
     }
 
-    /** 공구 제목 — group_buys PK */
+    /** 공구 제목 — group_buys PK. Native SQL — {@code group_buys} 는 엔티티가 없다 */
     public Map<Long, Name> groupBuyTitles(Collection<Long> ids) {
         return names("SELECT id, title, NULL FROM group_buys WHERE id = ANY (?::bigint[])", ids);
     }
 
     /** 소모임 이름 — groups PK */
     public Map<Long, Name> groupNames(Collection<Long> ids) {
-        return names("SELECT id, name, NULL FROM groups WHERE id = ANY (?::bigint[])", ids);
+        Map<Long, Name> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(GROUP.id, GROUP.name).from(GROUP).where(GROUP.id.in(ids)).fetch()) {
+            out.put(t.get(GROUP.id), new Name(t.get(GROUP.name), null));
+        }
+        return out;
     }
 
     /** 포인트 상점 품목 이름 — point_shop_items PK */
     public Map<Long, Name> pointShopNames(Collection<Long> ids) {
-        return names("SELECT id, name, name_en FROM point_shop_items WHERE id = ANY (?::bigint[])", ids);
+        Map<Long, Name> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(ITEM.id, ITEM.name, ITEM.nameEn).from(ITEM).where(ITEM.id.in(ids)).fetch()) {
+            out.put(t.get(ITEM.id), new Name(t.get(ITEM.name), t.get(ITEM.nameEn)));
+        }
+        return out;
     }
 
     private Map<Long, Name> names(String sql, Collection<Long> ids) {
