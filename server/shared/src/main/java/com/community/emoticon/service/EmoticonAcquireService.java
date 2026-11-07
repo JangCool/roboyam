@@ -179,7 +179,7 @@ public class EmoticonAcquireService {
             // 산 팩은 결제 금액·구매 번호(목록에서 빼지 않는다 — 환불은 구매 내역), 무료로 받은 팩은 0·null
             out.add(new EmoticonPublicView.MyPack(Long.toString(p.id()), live.revision().name(), p.source().name(), creator == null ? null : creator.nickname(),
                     content.coverUrl(live), o.acquiredAt(), o.purchaseId() == null ? 0 : o.purchaseAmount(), o.purchaseId() == null ? null : Long.toString(o.purchaseId()),
-                    p.status() == EmoticonPackStatus.SUSPENDED, content.publicItems(live), o.creator()));
+                    p.status() == EmoticonPackStatus.SUSPENDED, content.publicItems(live), o.creator(), o.reward()));
         }
         return new EmoticonPublicView.MyPacks(out, allPacks);
     }

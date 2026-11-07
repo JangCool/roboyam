@@ -25,6 +25,7 @@
                             <p class="m-0 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
                                 <NuxtLink :to="UtilEmoticon.packPath(pack.id)" class="min-w-0 break-words rounded hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ pack.name }}</NuxtLink>
                                 <PointShopTag v-if="pack.mine" tone="success" data-testid="my-emoticons-mine">{{ t('emoticon.mineTag') }}</PointShopTag>
+                                <PointShopTag v-else-if="pack.reward" tone="success" data-testid="my-emoticons-reward">{{ t('emoticon.rewardTag') }}</PointShopTag>
                                 <PointShopTag v-else :tone="pack.purchaseId ? 'primary' : 'neutral'">{{ pack.purchaseId ? t('emoticon.boughtTag') : t('emoticon.free') }}</PointShopTag>
                             </p>
                             <p class="m-0 mt-0.5 text-xs text-muted-color">

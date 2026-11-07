@@ -146,6 +146,7 @@ export default {
     reservedNoRefund: 'Reserved for an application · not refundable (freed if rejected or canceled)',
     refundExpired: 'Refund period over',
     revokedTitle: 'Refunded ({count})',
+    reclaimedTitle: 'Reclaimed ({count})',
     equipConfirmTitle: 'Equip this item?',
     equipConfirmText: 'Once equipped, this item can’t be refunded — even if you unequip it.',
     equipped: 'Equipped {name}',
