@@ -7,6 +7,8 @@ import com.community.commerce.sales.CommerceSalesStore;
 import com.community.groupbuy.dto.GroupBuyDraft;
 import com.community.groupbuy.dto.NoticeDraft;
 import com.community.groupbuy.dto.ProductDraft;
+import com.community.groupbuy.repository.master.GroupBuyProductAdminQueries;
+import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.service.GroupBuyAdminService;
 import com.community.groupbuy.service.GroupBuyNoticeCatalog;
 import com.community.groupbuy.service.GroupBuyNoticeService;
@@ -19,14 +21,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -53,7 +53,8 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     private static final String IP = "127.0.0.1";
 
     private final BatchProperties batch;
-    private final JdbcTemplate jdbc;
+    private final GroupBuyStore groups;
+    private final GroupBuyProductAdminQueries productQueries;
     private final CommerceSalesStore salesStore;
     private final CommerceSalesService sales;
     private final ShippingPolicyService policies;
@@ -64,11 +65,12 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     private final Clock clock;
     private final TransactionTemplate tx;
 
-    public GroupBuyLocalSeeder(BatchProperties batch, DataSource dataSource, CommerceSalesStore salesStore, CommerceSalesService sales, ShippingPolicyService policies,
+    public GroupBuyLocalSeeder(BatchProperties batch, GroupBuyStore groups, GroupBuyProductAdminQueries productQueries, CommerceSalesStore salesStore, CommerceSalesService sales, ShippingPolicyService policies,
                                GroupBuyProductService products, GroupBuyNoticeService notices, GroupBuyNoticeCatalog catalog, GroupBuyAdminService admin,
                                ObjectProvider<Clock> clocks, PlatformTransactionManager transactions) {
         this.batch = batch;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.groups = groups;
+        this.productQueries = productQueries;
         this.salesStore = salesStore;
         this.sales = sales;
         this.policies = policies;
@@ -87,8 +89,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
         }
         try {
             seedSales();
-            Integer existing = jdbc.queryForObject("SELECT count(*) FROM group_buy_products", Integer.class);
-            if (existing == null || existing == 0) {
+            if (productQueries.productCount(null, null) == 0) {
                 seedCatalog();
             }
         } catch (RuntimeException e) {
@@ -111,7 +112,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
         // 막아 판매는 꺼진 채다 — 판매를 시험하려면 운영 주체를 개인사업자로 바꾸고(통신판매업 신고번호 포함) 커머스 설정에서 켠다. 여기서는 커머스 고유 칸과 체크 항목만 채운다
         salesStore.saveBusinessInfo(new BusinessInfo("", "", "", "", "", "", "", "", "평일 10:00~17:00(점심 12:00~13:00)", "", "",
                 "배송: 결제 후 발송 예정일에 맞춰 보냅니다. 환불: 배송완료 7일 안 청약철회, 하자·오배송은 3개월 안. 반품 배송비는 상품 상세의 금액을 따릅니다.", null, null), null, now);
-        jdbc.update("UPDATE commerce_sales_checklist SET checked = true, checked_at = ?", java.sql.Timestamp.from(now));
+        salesStore.checklist().forEach(item -> salesStore.check(item.key(), true, null, now)); // 체크 항목을 모두 켠다(이미 켠 것은 그대로)
         CommerceSalesService.SalesState state = sales.state();
         if (state.canEnable()) {
             salesStore.setSwitch(true, "local 시드", null, now);
@@ -177,8 +178,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     }
 
     private int version(long groupBuyId) {
-        Integer v = jdbc.queryForObject("SELECT version FROM group_buys WHERE id = ?", Integer.class, groupBuyId);
-        return v == null ? 0 : v;
+        return groups.find(groupBuyId).map(GroupBuyStore.GroupBuyRow::version).orElse(0);
     }
 
     private static ProductDraft.SkuDraft sku(String name, List<String> values, long supply) {
