@@ -1,6 +1,12 @@
 package com.community.withdrawal.repository.master;
 
+import com.community.group.entity.QGroupEntity;
+import com.community.operator.entity.QOperatorEntity;
+import com.community.user.entity.QProfileEntity;
 import com.community.withdrawal.entity.WithdrawalStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -19,12 +25,17 @@ import org.springframework.stereotype.Repository;
 /**
  * 회원 탈퇴 관리 읽기(admin-web {@code /members/withdrawals}, member-withdrawal-contract 「관리자」) — 목록(거르기·정렬·쪽)·요약 4칸·사유 분포와 이름 찾기(닉네임·운영자·소모임).
  * 쓰기는 shared {@code WithdrawalRequestWriter}·{@code MemberWithdrawalStore}. 줄 모양은 shared {@link MemberWithdrawalStore.Row} 를 그대로 쓴다.
+ * 이름 찾기(운영자·닉네임·소모임)는 엔티티로 읽고, 탈퇴 신청 표({@code member_withdrawals})는 엔티티가 없어 목록·요약·분포가 네이티브 SQL 이다.
  *
  * <p>인덱스(V132·V134): 상태 탭 + 신청일 정렬 {@code ix_member_withdrawals_status_requested}, 전체 신청일 {@code ix_member_withdrawals_requested}, 완료일(요약 오늘·이번 달, 완료 탭)
  * {@code ix_member_withdrawals_completed}, 취소일 {@code ix_member_withdrawals_canceled}, 진행 중·10일 넘긴 진행 중 {@code ix_member_withdrawals_scheduled}, 회원별 {@code ix_member_withdrawals_user}.
  */
 @Repository
-public class MemberWithdrawalAdminStore {
+public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
+
+    private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QGroupEntity GROUP = QGroupEntity.groupEntity;
 
     /** 목록 조건 — 비어 있는(null) 조건은 거르지 않는다. 기간은 [from, to) */
     public record Criteria(WithdrawalStatus status, Long userId, Instant requestedFrom, Instant requestedTo, Instant completedFrom, Instant completedTo, String sortColumn,
@@ -43,7 +54,8 @@ public class MemberWithdrawalAdminStore {
 
     private final NamedParameterJdbcTemplate named;
 
-    public MemberWithdrawalAdminStore(DataSource dataSource) {
+    public MemberWithdrawalAdminStore(JPAQueryFactory query, DataSource dataSource) {
+        super(query);
         this.named = new NamedParameterJdbcTemplate(dataSource);
     }
 
@@ -112,27 +124,37 @@ public class MemberWithdrawalAdminStore {
 
     /** 운영자 이름(지워진 운영자는 빠진다) */
     public Map<Long, String> operatorNames(Collection<Long> ids) {
-        return names("SELECT id, operator_name FROM operators WHERE id IN (:ids)", ids);
-    }
-
-    /** 회원 닉네임(익명화됐으면 null 값 — 키는 있다) */
-    public Map<Long, String> nicknames(Collection<Long> userIds) {
-        return names("SELECT user_id, nickname FROM profiles WHERE user_id IN (:ids)", userIds);
-    }
-
-    /** 소모임 이름(지워진 소모임도 줄은 남아 이름이 있다) */
-    public Map<Long, String> groupNames(Collection<Long> groupIds) {
-        return names("SELECT id, name FROM groups WHERE id IN (:ids)", groupIds);
-    }
-
-    private Map<Long, String> names(String sql, Collection<Long> ids) {
         Map<Long, String> out = new LinkedHashMap<>();
         if (ids == null || ids.isEmpty()) {
             return out;
         }
-        named.query(sql, new MapSqlParameterSource("ids", Set.copyOf(ids)), (ResultSet rs) -> {
-            out.put(rs.getLong(1), rs.getString(2));
-        });
+        for (Tuple t : query.select(OPERATOR.id, OPERATOR.operatorName).from(OPERATOR).where(OPERATOR.id.in(Set.copyOf(ids))).fetch()) {
+            out.put(t.get(OPERATOR.id), t.get(OPERATOR.operatorName));
+        }
+        return out;
+    }
+
+    /** 회원 닉네임(익명화됐으면 null 값 — 키는 있다) */
+    public Map<Long, String> nicknames(Collection<Long> userIds) {
+        Map<Long, String> out = new LinkedHashMap<>();
+        if (userIds == null || userIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(PROFILE.userId, PROFILE.nickname).from(PROFILE).where(PROFILE.userId.in(Set.copyOf(userIds))).fetch()) {
+            out.put(t.get(PROFILE.userId), t.get(PROFILE.nickname));
+        }
+        return out;
+    }
+
+    /** 소모임 이름(지워진 소모임도 줄은 남아 이름이 있다) */
+    public Map<Long, String> groupNames(Collection<Long> groupIds) {
+        Map<Long, String> out = new LinkedHashMap<>();
+        if (groupIds == null || groupIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(GROUP.id, GROUP.name).from(GROUP).where(GROUP.id.in(Set.copyOf(groupIds))).fetch()) {
+            out.put(t.get(GROUP.id), t.get(GROUP.name));
+        }
         return out;
     }
 
