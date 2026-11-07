@@ -22,6 +22,7 @@ import com.community.publicdata.repository.master.PublicDataSettingStore;
 import com.community.publicdata.service.PublicDataEndpointService;
 import com.community.publicdata.service.PublicDataSettingsService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.crypto.SecretEncryptor;
 import java.net.URI;
@@ -82,7 +83,7 @@ class HolidaySyncServiceTest {
         jdbc = new JdbcTemplate(ds);
         cleanup();
         jdbc.update("DELETE FROM public_data_endpoints");
-        store = new SiteHolidayStore(ds);
+        store = JpaTestContext.create(SiteHolidayStore.class);
         clocks = new StaticListableBeanFactory(Map.of("clock", new MutableTestClock(Instant.parse("2040-03-01T03:00:00Z")))).getBeanProvider(Clock.class);
         audit = new AuditLogService(null, null) {
             @Override
@@ -108,7 +109,7 @@ class HolidaySyncServiceTest {
             return response;
         });
         api = new SpecialDayApi(builder.build());
-        endpoints = new PublicDataEndpointService(new PublicDataEndpointStore(ds), nts(KEY), audit, clocks);
+        endpoints = JpaTestContext.transactional(new PublicDataEndpointService(JpaTestContext.create(PublicDataEndpointStore.class), nts(KEY), audit, clocks));
     }
 
     @AfterEach
@@ -139,9 +140,9 @@ class HolidaySyncServiceTest {
     }
 
     private HolidaySyncService service(String key) {
-        PublicDataSettingsService keys = new PublicDataSettingsService(new PublicDataSettingStore(ds), new SecretEncryptor(""), nts(key),
-                new OdcloudNtsApi(RestClient.create()), audit, clocks, endpoints);
-        return new HolidaySyncService(api, store, keys, endpoints, audit, new DataSourceTransactionManager(ds), clocks);
+        PublicDataSettingsService keys = JpaTestContext.transactional(new PublicDataSettingsService(JpaTestContext.create(PublicDataSettingStore.class), new SecretEncryptor(""), nts(key),
+                new OdcloudNtsApi(RestClient.create()), audit, clocks, endpoints));
+        return new HolidaySyncService(api, store, keys, endpoints, audit, JpaTestContext.transactions(), clocks);
     }
 
     /** 그 달 응답 줄들 */
@@ -332,7 +333,7 @@ class HolidaySyncServiceTest {
 
     /** 다른 시험이 쓰는 SiteHolidayService 와 같은 판정 — 이 시험의 저장소로 */
     private SiteHolidayService serviceOfStore() {
-        return new SiteHolidayService(store, audit, clocks);
+        return JpaTestContext.transactional(new SiteHolidayService(store, audit, clocks));
     }
 
     @Test

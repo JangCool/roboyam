@@ -2,6 +2,7 @@ package com.community.hotdeal.repository.master;
 
 import com.community.board.entity.QBoardEntity;
 import com.community.board.entity.QBoardStaffEntity;
+import com.community.hotdeal.entity.QDealEndRequestEntity;
 import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
@@ -30,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -41,7 +41,7 @@ import org.springframework.stereotype.Repository;
  * <p>「공개 글」({@link #publicPost(QPostEntity, Instant)})은 {@link PostRepositoryQDSL#alive}·{@link PostRepositoryQDSL#notHidden} + 일반 글(소모임 글 아님) — 글 쪽 규칙을 그대로 쓴다.
  * 「진행 중」({@link #liveDeal})은 딜 상태 + 기간 종료(마감 또는 등록 + 설정 일수). 관리자 {@code AdminDealQueries}·{@code DashboardGadgetStore} 의 SQL 과 같은 판정이다 — 한쪽을 고치면 같이 고친다.
  *
- * <p>Native SQL 로 남긴 것: 종료 요청({@code deal_end_requests} — 엔티티 없음, {@code FILTER} 집계)과 클릭 기록({@code deal_click_daily} — 엔티티 없음, {@code ON CONFLICT DO NOTHING}).
+ * <p>Native SQL 로 남긴 것: 클릭 기록({@code deal_click_daily} — 엔티티 없음, {@code ON CONFLICT DO NOTHING}).
  */
 @Repository
 public class DealQueries extends RoboyamRepositoryQDSL {
@@ -51,6 +51,7 @@ public class DealQueries extends RoboyamRepositoryQDSL {
     private static final QBoardEntity BOARD = QBoardEntity.boardEntity;
     private static final QBoardStaffEntity STAFF = QBoardStaffEntity.boardStaffEntity;
     private static final QUserEntity USER = QUserEntity.userEntity;
+    private static final QDealEndRequestEntity END = QDealEndRequestEntity.dealEndRequestEntity;
     /** DB 의 현재 시각({@link #DB_NOW} 와 같은 식) — {@code Instant} 칸과 견줄 때 */
     private static final DateTimeExpression<Instant> DB_INSTANT = Expressions.dateTimeTemplate(Instant.class, "offset_datetime");
 
@@ -121,39 +122,39 @@ public class DealQueries extends RoboyamRepositoryQDSL {
         return out;
     }
 
-    /**
-     * 글별 종료 요청 집계(요청이 없는 글은 빠진다).
-     *
-     * <p>Native SQL 인 이유: {@code deal_end_requests} 는 엔티티가 없는 표다(사유별 {@code FILTER} 집계).
-     */
+    /** 글별 종료 요청 집계(요청이 없는 글은 빠진다) — 사유별 수는 {@code sum(case when reason = … then 1 else 0 end)}(예전 {@code count(*) FILTER} 와 같은 값) */
     public Map<Long, EndCounts> endRequestCounts(Collection<Long> postIds) {
         Map<Long, EndCounts> out = new HashMap<>();
         if (postIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT post_id, count(*), count(*) FILTER (WHERE reason = 'SOLD_OUT'), count(*) FILTER (WHERE reason = 'PRICE_CHANGED'), "
-                + "count(*) FILTER (WHERE reason = 'LINK_DEAD') FROM deal_end_requests WHERE post_id IN (" + marks(postIds.size()) + ") GROUP BY post_id", rs -> {
-                    out.put(rs.getLong(1), new EndCounts(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5)));
-                }, postIds.toArray());
+        NumberExpression<Long> soldOut = reasonCount("SOLD_OUT");
+        NumberExpression<Long> priceChanged = reasonCount("PRICE_CHANGED");
+        NumberExpression<Long> linkDead = reasonCount("LINK_DEAD");
+        for (Tuple t : query.select(END.postId, END.count(), soldOut, priceChanged, linkDead).from(END).where(END.postId.in(postIds)).groupBy(END.postId).fetch()) {
+            out.put(t.get(END.postId), new EndCounts(Math.toIntExact(t.get(END.count())), intOf(t.get(soldOut)), intOf(t.get(priceChanged)), intOf(t.get(linkDead))));
+        }
         return out;
     }
 
-    /**
-     * 그 회원이 보낸 사유(글 ID → 사유).
-     *
-     * <p>Native SQL 인 이유: {@code deal_end_requests} 는 엔티티가 없는 표다.
-     */
+    /** 그 회원이 보낸 사유(글 ID → 사유) */
     public Map<Long, String> myEndRequests(Collection<Long> postIds, long memberId) {
         Map<Long, String> out = new HashMap<>();
         if (postIds.isEmpty()) {
             return out;
         }
-        List<Object> args = new ArrayList<>(postIds);
-        args.add(memberId);
-        jdbc.query("SELECT post_id, reason FROM deal_end_requests WHERE post_id IN (" + marks(postIds.size()) + ") AND member_id = ?", rs -> {
-            out.put(rs.getLong(1), rs.getString(2));
-        }, args.toArray());
+        for (Tuple t : query.select(END.postId, END.reason).from(END).where(END.postId.in(postIds), END.memberId.eq(memberId)).fetch()) {
+            out.put(t.get(END.postId), t.get(END.reason));
+        }
         return out;
+    }
+
+    private static NumberExpression<Long> reasonCount(String reason) {
+        return new CaseBuilder().when(END.reason.eq(reason)).then(1L).otherwise(0L).sum();
+    }
+
+    private static int intOf(Number n) {
+        return n == null ? 0 : n.intValue();
     }
 
     /**
@@ -286,9 +287,5 @@ public class DealQueries extends RoboyamRepositoryQDSL {
     /** 그 회원이 쓴 저장 상태 진행 중(ACTIVE) 딜(탈퇴 — 규칙 6) */
     public List<Long> activeByAuthor(long authorId) {
         return query.select(D.postId).from(D).where(D.authorId.eq(authorId), D.status.eq("ACTIVE")).orderBy(D.postId.asc()).fetch();
-    }
-
-    private static String marks(int n) {
-        return java.util.stream.IntStream.range(0, n).mapToObj(i -> "?").collect(Collectors.joining(", "));
     }
 }

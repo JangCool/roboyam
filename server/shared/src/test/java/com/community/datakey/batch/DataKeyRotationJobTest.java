@@ -24,6 +24,7 @@ import com.community.batch.entity.BatchSource;
 import com.community.business.service.BusinessPii;
 import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.withdrawal.config.WithdrawalProperties;
 import com.community.withdrawal.repository.master.WithdrawnContactRows;
 import com.community.emoticon.service.EmoticonPayoutService;
@@ -61,6 +62,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.scheduling.support.CronExpression;
 
 /**
@@ -364,12 +366,13 @@ class DataKeyRotationJobTest {
     @Test
     void 키_교체_절차를_거친_회원_주소록은_예전_키를_비운_서버에서_주소록_화면_길로_그대로_읽힌다() {
         // 0) 옛 키(버전 1)만 있던 때 주소록 저장 길(AddressBookService.create)로 저장 — 상세 주소·메모가 있는 것과 없는 것
-        MemberAddressStore store = new MemberAddressStore(dataSource);
+        MemberAddressStore store = JpaTestContext.create(MemberAddressStore.class);
         long member = ids.nextId();
         jdbc.update("INSERT INTO users (id, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, 'v1', now(), now())", member);
         AddressBookService before = new AddressBookService(store, cipher(K1), ids, new StaticListableBeanFactory().getBeanProvider(Clock.class));
-        SavedAddress full = before.create(member, new AddressInput("집", "홍길동", "010-1234-5678", "06236", "서울 강남구 테헤란로 1", "101동 1001호", "문 앞에 두세요", true));
-        SavedAddress bare = before.create(member, new AddressInput(null, "김철수", "01098765432", "48058", "부산 해운대구 센텀로 2", null, null, false));
+        TransactionTemplate jpa = new TransactionTemplate(JpaTestContext.transactions()); // 서비스의 @Transactional 대신(손으로 만든 서비스) — 주소록 저장소는 JPA
+        SavedAddress full = jpa.execute(s -> before.create(member, new AddressInput("집", "홍길동", "010-1234-5678", "06236", "서울 강남구 테헤란로 1", "101동 1001호", "문 앞에 두세요", true)));
+        SavedAddress bare = jpa.execute(s -> before.create(member, new AddressInput(null, "김철수", "01098765432", "48058", "부산 해운대구 센텀로 2", null, null, false)));
 
         // 1) 새 키를 지금 키로, 옛 키를 예전 키로  2) 실제 칸 목록으로 배치
         setting(BatchCatalog.DATA_KEY_ROTATION.key(), "failure_limit", 100_000); // 같은 DB 의 다른 시험이 남긴(이 키로 풀 수 없는) 행은 건별 실패로 넘긴다

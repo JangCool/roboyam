@@ -44,6 +44,7 @@ import com.community.pointshop.service.UserItemService;
 import com.community.restriction.repository.master.MemberRestrictionStore;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.testsupport.PointInvariants;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -69,12 +70,11 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 포인트 상점 시험의 바탕 — 실제 PostgreSQL({@link CommerceTestDatabase}) 위에서 포인트({@link PointService})와 포인트 상점 서비스를 <b>손으로</b> 조립한다(1-1 {@code PointTestKit} 과 같은 방식 —
- * 스프링 문맥 없음, Mockito 없음). 트랜잭션은 {@link DataSourceTransactionManager}(서비스·저장소의 JDBC 가 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
+ * 스프링 문맥 없음, Mockito 없음). 트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 서비스·저장소의 JDBC 도 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
  * 감사는 기록을 모으는 대역({@link #audits}). DB 는 다른 시험과 같이 쓴다 — 회원·품목을 시험마다 새로 만들고, 공용 행(설정·시드 아바타)을 바꾸면 되돌린다.
  */
 final class PointShopTestKit {
@@ -114,7 +114,7 @@ final class PointShopTestKit {
     PointShopTestKit() {
         dataSource = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(dataSource);
-        tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        tx = new TransactionTemplate(JpaTestContext.transactions()); // JPA 트랜잭션 — 저장소의 JDBC 도 같은 연결을 쓴다(아바타 올리기 신청은 JPA)
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
@@ -145,7 +145,7 @@ final class PointShopTestKit {
         refunds = new PointShopRefundService(itemStore, purchaseStore, userItemStore, members, points, audit, operatorPublisher, memberPublisher, ids, clocks);
         userItems = new UserItemService(userItemStore, itemStore, members, purchaseStore, avatars, clocks);
         tickets = new NicknameTicketService(userItemStore, itemStore, clocks);
-        uploadStore = new AvatarUploadStore(dataSource);
+        uploadStore = JpaTestContext.create(AvatarUploadStore.class);
         looks = new AvatarLooks(avatars, uploadStore, storage);
         profileAvatars = new ProfileAvatarService(avatars, itemStore, userItemStore, members, uploadStore, looks, clocks);
         decorations = new ShopDecorationResolver(userItemStore, members, looks, clocks);

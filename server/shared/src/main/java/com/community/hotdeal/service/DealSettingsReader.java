@@ -1,12 +1,11 @@
 package com.community.hotdeal.service;
 
 import com.community.hotdeal.dto.DealSettings;
+import com.community.hotdeal.entity.DealSettingEntity;
+import com.community.hotdeal.repository.master.DealSettingRepository;
 import java.time.Duration;
-import java.util.List;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,14 +25,14 @@ public class DealSettingsReader {
     private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
     private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
-    private final JdbcTemplate jdbc;
+    private final DealSettingRepository settings;
     private volatile Cached cached;
 
     private record Cached(DealSettings settings, long loadedAt) {
     }
 
-    public DealSettingsReader(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public DealSettingsReader(DealSettingRepository settings) {
+        this.settings = settings;
     }
 
     public DealSettings current() {
@@ -68,13 +67,6 @@ public class DealSettingsReader {
     }
 
     private DealSettings load() {
-        List<DealSettings> rows = jdbc.query("SELECT end_request_threshold, end_grace_hours, end_request_daily_limit, end_request_per_author_limit, "
-                + "end_request_per_author_days, keep_max_count, member_daily_post_limit, same_store_interval_minutes, auto_expire_days, price_max_won, "
-                + "discount_warn_percent, hot_like_threshold, suspicion_min_posts, suspicion_window_days, store_suspicion_members, store_suspicion_window_days, "
-                + "store_suspicion_other_ratio_percent, og_fetch_enabled, affiliate_mode FROM deal_settings WHERE id = 1",
-                (rs, i) -> new DealSettings(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getInt(8),
-                        rs.getInt(9), rs.getLong(10), rs.getInt(11), rs.getInt(12), rs.getInt(13), rs.getInt(14), rs.getInt(15), rs.getInt(16), rs.getInt(17),
-                        rs.getBoolean(18), rs.getString(19)));
-        return rows.isEmpty() ? DealSettings.DEFAULTS : rows.get(0);
+        return settings.findById(DealSettingEntity.ROW_ID).map(DealSettingEntity::settings).orElse(DealSettings.DEFAULTS);
     }
 }
