@@ -46,6 +46,7 @@ class BizApplicationSubmitTest extends BizApplicationApiTestBase {
     @Test
     void 서비스_줄이_승인이_아니면_그_서비스만_막힌다() {
         long user = approvedBusiness();
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_services SET status = 'SUSPENDED' WHERE profile_id = ? AND service = 'HOTDEAL'", profileOf(user));
         assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BUSINESS_SERVICE_SUSPENDED"); // 신원 승인 · 그 서비스만 정지(2026-11-02)
         assertThat(submitTextLine(user, 0, 3, "ONLINE")).isPositive();

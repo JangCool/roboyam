@@ -35,8 +35,7 @@ class BoardPointMinLengthHttpTest extends Commerce04AdminTestBase {
     void setUp() throws Exception {
         session = login(operatorWith(Permission.BOARD_READ, Permission.BOARD_MANAGE, Permission.BOARD_SETTINGS));
         board = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, description, sort_order) VALUES (?, ?, ?, '적립 시험 게시판', 900)", board, "pm" + Long.toString(board, 36),
-                "적립 " + Long.toString(board, 36).substring(6));
+        boardFixture.board(board, "pm" + Long.toString(board, 36), "적립 " + Long.toString(board, 36).substring(6), "적립 시험 게시판", 900);
         catalog.invalidate();
     }
 
@@ -44,7 +43,7 @@ class BoardPointMinLengthHttpTest extends Commerce04AdminTestBase {
     void cleanUp() {
         jdbc.update("UPDATE board_defaults SET point_min_length_applied = true WHERE id = 1");
         jdbc.update("DELETE FROM board_prefixes WHERE board_id = ?", board);
-        jdbc.update("DELETE FROM boards WHERE id = ?", board);
+        boardFixture.deleteBoard(board);
         catalog.invalidate();
     }
 
@@ -75,8 +74,7 @@ class BoardPointMinLengthHttpTest extends Commerce04AdminTestBase {
         catalog.invalidate();
         assertThat(catalog.snapshot().byId().get(board).pointMinLengthApplied()).isFalse();
         assertThat(catalog.snapshot().byId().get(board).pointsEnabled()).as("pointMode OFF 면 적립하지 않는다").isFalse();
-        String audit = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'BOARD_UPDATE' AND target_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class, Long.toString(board));
+        String audit = auditLogs.where().action("BOARD_UPDATE").target(Long.toString(board)).latest().orElseThrow().detail();
         assertThat(audit).contains("policy.pointMinLengthApplied");
 
         savePolicy(null, null).andExpect(status().isOk()).andExpect(jsonPath("$.data.policy.pointMinLengthApplied").isEmpty());
@@ -108,8 +106,7 @@ class BoardPointMinLengthHttpTest extends Commerce04AdminTestBase {
         assertThat(jdbc.queryForObject("SELECT point_min_length_applied FROM board_defaults WHERE id = 1", Boolean.class)).isFalse();
         catalog.invalidate();
         assertThat(catalog.snapshot().byId().get(board).pointMinLengthApplied()).as("칸이 빈 게시판은 기본값을 따른다").isFalse();
-        String audit = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'BOARD_DEFAULTS_UPDATE' ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                String.class);
+        String audit = auditLogs.where().action("BOARD_DEFAULTS_UPDATE").latest().orElseThrow().detail();
         assertThat(audit).contains("pointMinLengthApplied");
     }
 }

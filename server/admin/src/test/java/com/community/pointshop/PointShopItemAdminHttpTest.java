@@ -159,7 +159,7 @@ class PointShopItemAdminHttpTest extends PointShopAdminHttpTestBase {
                 .andExpect(jsonPath("$.error.fields.code").value("코드는 만든 뒤 바꿀 수 없어요."));
         updateItem(session, item, colorBody(code, "바꿈", 500, "#E11D48").replace("NICKNAME_COLOR", "PROFILE_BORDER")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.kind").value("종류는 만든 뒤 바꿀 수 없어요."));
-        assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND target_id = ?", AuditActions.POINT_SHOP_ITEM_UPDATE, Long.toString(item))).isZero();
+        assertThat(auditLogs.where().action(AuditActions.POINT_SHOP_ITEM_UPDATE).target(Long.toString(item)).count()).isZero();
 
         updateItem(session, item, colorBody(code, "새 이름", 700, "#0EA5E9")).andExpect(status().isOk()).andExpect(jsonPath("$.data.name").value("새 이름"))
                 .andExpect(jsonPath("$.data.pricePoint").value(700)).andExpect(jsonPath("$.data.color").value("#0EA5E9"))
@@ -171,7 +171,7 @@ class PointShopItemAdminHttpTest extends PointShopAdminHttpTestBase {
 
         // 같은 값으로 다시 저장하면 감사가 늘지 않는다
         updateItem(session, item, colorBody(code, "새 이름", 700, "#0EA5E9")).andExpect(status().isOk());
-        assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND target_id = ?", AuditActions.POINT_SHOP_ITEM_UPDATE, Long.toString(item))).isEqualTo(1);
+        assertThat(auditLogs.where().action(AuditActions.POINT_SHOP_ITEM_UPDATE).target(Long.toString(item)).count()).isEqualTo(1);
 
         updateItem(session, 999_999_999L, colorBody(code, "없음", 700, "#0EA5E9")).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("POINT_SHOP_ITEM_NOT_FOUND"));

@@ -46,8 +46,7 @@ class PointEarnWiringTest extends CommerceApiTestBase {
     private String board(String pointMode, Boolean minLengthApplied) {
         long id = ids.nextId();
         String slug = "pe" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, point_mode, point_min_length_applied) VALUES (?, ?, ?, 900, ?, ?)", id, slug,
-                "적립 " + slug.substring(slug.length() - 6), pointMode, minLengthApplied);
+        boardFixture.pointBoard(id, slug, "적립 " + slug.substring(slug.length() - 6), 900, pointMode, minLengthApplied);
         catalog.invalidate();
         return slug;
     }
@@ -55,8 +54,8 @@ class PointEarnWiringTest extends CommerceApiTestBase {
     /** 이메일 인증을 마친 정상 회원 + 프로필 */
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, "w" + Long.toString(id, 36).substring(Math.max(0, Long.toString(id, 36).length() - 11)));
+        memberFixture.verifyEmail(id);
+        memberFixture.profile(id, "w" + Long.toString(id, 36).substring(Math.max(0, Long.toString(id, 36).length() - 11)));
         return id;
     }
 

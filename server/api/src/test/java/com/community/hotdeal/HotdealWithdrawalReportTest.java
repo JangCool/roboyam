@@ -61,6 +61,7 @@ class HotdealWithdrawalReportTest extends HotdealStage2TestBase {
     void 정지_회원의_딜은_그대로이고_요청도_받는다() {
         long author = member();
         long post = newDeal(author);
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", author);
         assertThat(dealRow(post)).containsEntry("status", "ACTIVE");
         assertThat(request(post, member(), "SOLD_OUT").endRequests().total()).isEqualTo(1);

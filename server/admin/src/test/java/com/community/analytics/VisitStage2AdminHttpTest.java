@@ -148,8 +148,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
         assertThat(changes.indexOf("\"visits\"")).isLessThan(changes.indexOf("\"environment\""));
         assertThat(changes.indexOf("\"environment\"")).isLessThan(changes.indexOf("\"searchTerms\""));
         assertThat(changes.indexOf("\"searchTerms\"")).isLessThan(changes.indexOf("\"bots\""));
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'STATS_COLLECTION_UPDATE' ORDER BY id DESC LIMIT 1",
-                String.class, me);
+        String detail = auditLogs.where().actor(me).action("STATS_COLLECTION_UPDATE").lastById().orElseThrow().detail();
         assertThat(detail).contains("environment", "searchTerms", "bots");
         mvc.perform(get(SETTINGS + "/history").param("size", "1").cookie(session)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].changes.length()").value(5))

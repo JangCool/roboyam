@@ -28,6 +28,7 @@ class HotdealEndRequestTest extends HotdealStage2TestBase {
         assertThat(error(() -> request(post, member("SEEDLING", true), "SOLD_OUT")).getErrorCode()).isEqualTo("DEAL_END_REQUEST_NOT_ALLOWED");
         assertThat(error(() -> request(post, member("REGULAR", false), "SOLD_OUT")).getErrorCode()).isEqualTo("DEAL_END_REQUEST_NOT_ALLOWED");
         long suspended = member();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", suspended);
         assertThat(error(() -> request(post, suspended, "SOLD_OUT")).getErrorCode()).isEqualTo("DEAL_END_REQUEST_NOT_ALLOWED");
         assertThat(error(() -> states.request(Long.toString(post), null, "SOLD_OUT")).getErrorCode()).isEqualTo("UNAUTHENTICATED");

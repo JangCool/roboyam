@@ -66,7 +66,7 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         return id;
     }
 
@@ -101,9 +101,11 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
         long purchase = ids.nextId();
         long order = ids.nextId();
         long buyer = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_orders (id, payment_id, user_id, order_type, order_ref_id, order_name, amount, status, expires_at, created_at, updated_at) "
                 + "VALUES (?, ?, ?, 'ROBOTIKON_PACK', ?, '시험', ?, 'READY', ?, ?, ?)", order, "pay_" + String.format("%032d", order).substring(0, 32), buyer, purchase, PRICE,
                 Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), Timestamp.from(paidAt));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO emoticon_purchases (id, user_id, pack_id, creator_id, pack_name, amount, status, refund_notice_agreed_at, expires_at, created_at, "
                 + "payment_order_id, paid_at, refund_until) VALUES (?, ?, ?, ?, '산 때 이름', ?, 'PAID', ?, ?, ?, ?, ?, ?)", purchase, buyer, pack, creator, PRICE,
                 Timestamp.from(paidAt), Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), order, Timestamp.from(paidAt),
@@ -124,14 +126,13 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
         Cookie force = login(operatorWith(Permission.MEMBER_WITHDRAW));
         mvc.perform(withCsrf(post("/api/admin/members/" + creator + "/withdrawal"), force).content("{\"reasonKind\":\"POLICY_VIOLATION\",\"memo\":\"" + MEMO + "\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("COMPLETED"));
-        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, creator)).isEqualTo("WITHDRAWN");
+        assertThat(memberFixture.status(creator)).isEqualTo("WITHDRAWN");
         Map<String, Object> row = jdbc.queryForMap("SELECT status, hold_reason, held_by FROM emoticon_settlements WHERE creator_id = ?", creator);
         assertThat(row).containsEntry("status", "HELD").containsEntry("hold_reason", EmoticonSettlementService.WITHDRAWN_HOLD_REASON);
         assertThat(row.get("held_by")).isNull();
         // 운영자가 연락할 곳 — 판매 수익이 있던 작가는 연락용 이메일을 분리 보관한다(직접 결제한 적이 없어도)
         assertThat(jdbc.queryForObject("SELECT count(*) FROM withdrawn_member_contacts WHERE user_id = ?", Integer.class, creator)).isEqualTo(1);
-        String completed = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE action = 'MEMBER_WITHDRAW' AND target_id = ? ORDER BY id DESC LIMIT 1", String.class,
-                Long.toString(creator));
+        String completed = auditLogs.where().action("MEMBER_WITHDRAW").target(Long.toString(creator)).lastById().orElseThrow().detail();
         assertThat(completed).contains("\"emoticonSettlement\":\"HELD\"").contains("\"emoticonSettlementAmount\":" + SHARE).contains("\"forfeitEmoticonEarnings\":0");
 
         Cookie s = login(operatorWith(Permission.EMOTICON_SETTLEMENT));
@@ -155,8 +156,7 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
         mvc.perform(withCsrf(post(base + "/" + id + "/waive"), s).header("Accept-Language", "ko").content("{\"reason\":\"연락이 닿지 않아 포기 처리\"}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_SETTLEMENT_NOT_WAIVABLE"))
                 .andExpect(jsonPath("$.error.message").value("정산 정보 없이 탈퇴한 작가의 보류 정산만 포기로 끝낼 수 있어요."));
-        Map<String, Object> audit = jdbc.queryForMap("SELECT actor_type, retention_class, detail::text AS detail FROM audit_logs WHERE action = 'EMOTICON_SETTLEMENT_WAIVE' "
-                + "AND target_id = ? ORDER BY id DESC LIMIT 1", id);
+        Map<String, Object> audit = auditLogs.where().action("EMOTICON_SETTLEMENT_WAIVE").target(id).lastById().orElseThrow().asMap();
         assertThat(audit).containsEntry("actor_type", "OPERATOR").containsEntry("retention_class", "MONEY");
         assertThat((String) audit.get("detail")).contains("\"basis\":\"OPERATOR\"").contains("연락이 닿지 않아 포기 처리");
         // 목록 — 포기한 금액 합계
@@ -248,8 +248,7 @@ class EmoticonWithdrawalSettlementAdminHttpTest extends Commerce04AdminTestBase 
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.startsWith("Only held settlements")));
         // 계좌는 저장하지 않았다 · 감사(운영자 · 돈 관련 5년)
         assertThat(jdbc.queryForObject("SELECT count(*) FROM emoticon_payout_accounts WHERE user_id = ?", Integer.class, creator)).isZero();
-        Map<String, Object> audit = jdbc.queryForMap("SELECT actor_type, retention_class, detail::text AS detail FROM audit_logs WHERE action = 'EMOTICON_SETTLEMENT_MANUAL_PAID' "
-                + "AND target_id = ? ORDER BY id DESC LIMIT 1", id);
+        Map<String, Object> audit = auditLogs.where().action("EMOTICON_SETTLEMENT_MANUAL_PAID").target(id).lastById().orElseThrow().asMap();
         assertThat(audit).containsEntry("actor_type", "OPERATOR").containsEntry("retention_class", "MONEY");
         assertThat((String) audit.get("detail")).contains("\"to\":\"PAID\"").contains("\"transferDate\":\"" + date + "\"").contains("은행에서 직접 보냈어요");
     }

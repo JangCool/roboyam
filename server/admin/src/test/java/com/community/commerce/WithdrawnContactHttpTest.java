@@ -67,8 +67,7 @@ class WithdrawnContactHttpTest extends Commerce04AdminTestBase {
         MvcResult result = mvc.perform(withCsrf(post(path(member) + "/reveal"), reader).content("{\"reason\":\"분쟁 문의 회신\"}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("PERMISSION_DENIED")).andReturn();
         assertThat(result.getResponse().getContentAsString()).doesNotContain("left.denied");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'WITHDRAWN_CONTACT_REVEAL' AND target_id = ?", Integer.class,
-                Long.toString(member))).isZero();
+        assertThat(auditLogs.where().action("WITHDRAWN_CONTACT_REVEAL").target(Long.toString(member)).count()).isZero();
     }
 
     @Test
@@ -86,8 +85,7 @@ class WithdrawnContactHttpTest extends Commerce04AdminTestBase {
         String maskAt = com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.data.maskAt");
         assertThat(Duration.between(before, Instant.parse(maskAt))).isBetween(Duration.ofMinutes(10), Duration.ofMinutes(11));
 
-        List<String> details = jdbc.queryForList("SELECT detail FROM audit_logs WHERE action = 'WITHDRAWN_CONTACT_REVEAL' AND target_type = 'MEMBER' AND target_id = ? "
-                + "AND actor_id = ?", String.class, Long.toString(member), operator);
+        List<String> details = auditLogs.where().action("WITHDRAWN_CONTACT_REVEAL").targetType("MEMBER").target(Long.toString(member)).actor(operator).list().stream().map(row -> row.detail()).toList();
         assertThat(details).hasSize(1);
         assertThat(details.get(0)).contains("공동구매 하자 반품 문의 회신").doesNotContain("left.revealed").doesNotContain("@example.com");
 
@@ -107,8 +105,7 @@ class WithdrawnContactHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.reason").isNotEmpty());
         mvc.perform(withCsrf(post(path(member) + "/reveal"), session).content("{\"reason\":\"" + "가".repeat(201) + "\"}"))
                 .andExpect(status().isBadRequest());
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'WITHDRAWN_CONTACT_REVEAL' AND target_id = ?", Integer.class,
-                Long.toString(member))).isZero();
+        assertThat(auditLogs.where().action("WITHDRAWN_CONTACT_REVEAL").target(Long.toString(member)).count()).isZero();
     }
 
     @Test
@@ -121,8 +118,7 @@ class WithdrawnContactHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("WITHDRAWN_CONTACT_NOT_FOUND"));
         mvc.perform(withCsrf(post(path(withdrawnOnly) + "/reveal"), session).content("{\"reason\":\"분쟁 문의 회신\"}"))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("WITHDRAWN_CONTACT_NOT_FOUND"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'WITHDRAWN_CONTACT_REVEAL' AND target_id IN (?, ?)", Integer.class,
-                Long.toString(active), Long.toString(withdrawnOnly))).isZero();
+        assertThat(auditLogs.where().action("WITHDRAWN_CONTACT_REVEAL").target(Long.toString(active), Long.toString(withdrawnOnly)).count()).isZero();
 
         // 상태: 결제 이력 없이 탈퇴 = 보관 없음(탈퇴 시각은 회원의 것), 탈퇴하지 않음 = 보관 없음·시각 없음
         mvc.perform(get(path(withdrawnOnly)).cookie(session)).andExpect(status().isOk())

@@ -115,7 +115,7 @@ class MfaLoginFlowTest extends MfaSpringTestBase {
             assertThat(step.body().authenticated()).isTrue();
             assertThat(step.body().mfa()).isNull();
             assertThat(lastAudit(operator, "LOGIN_SUCCESS")).contains("\"mfa\":\"OFF\"", "\"agent\":\"Safari / macOS / Desktop\"");
-            assertThat(jdbc.queryForObject("SELECT last_login_at IS NOT NULL FROM operators WHERE id = ?", Boolean.class, operator)).isTrue();
+            assertThat((operatorFixture.lastLoginAt(operator) != null)).isTrue();
         }
 
         @Test
@@ -155,7 +155,7 @@ class MfaLoginFlowTest extends MfaSpringTestBase {
             assertThat(step.body().mfa().graceEndsAt()).isNull();
             assertThat(adminSession.resolve(next(step.session()))).isEmpty();
             assertThat(auditCount(operator, "LOGIN_SUCCESS")).isZero(); // 세션이 완성될 때 남긴다
-            assertThat(jdbc.queryForObject("SELECT last_login_at IS NULL FROM operators WHERE id = ?", Boolean.class, operator)).isTrue();
+            assertThat((operatorFixture.lastLoginAt(operator) == null)).isTrue();
         }
 
         @Test
@@ -289,7 +289,7 @@ class MfaLoginFlowTest extends MfaSpringTestBase {
             enrollDirect(operator);
             HttpSession session = login(operator).session();
 
-            jdbc.update("UPDATE operators SET locked = true WHERE id = ?", operator);
+            operatorFixture.changeStatus(operator, null, true, null, null);
 
             assertThat(adminSession.mfaPending(next(session))).isEmpty();
         }
@@ -382,9 +382,11 @@ class MfaLoginFlowTest extends MfaSpringTestBase {
         mfaOn();
         long operator = newOperator();
         String secret = enrollDirect(operator);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO operator_trusted_devices (id, operator_id, token_hash, trusted_at, expires_at) VALUES (?, ?, ?, now(), now() + interval '30 days')",
                 ids.nextId(), operator, Digests.sha256Hex("reset-device-" + operator));
         String salt = "s".repeat(32);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO operator_cert_codes (id, email_key, operator_id, code_salt, code_hash, expires_at) VALUES (?, ?, ?, ?, ?, now() + interval '10 minutes')",
                 ids.nextId(), Digests.sha256Hex("admin-cert:" + email(operator)), operator, salt, Digests.sha256Hex(salt + ":123456"));
 

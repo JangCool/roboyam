@@ -87,7 +87,7 @@ class WithdrawalCommerceFlowTest extends CommerceApiTestBase {
     }
 
     private String status(long userId) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.status(userId);
     }
 
     private long withdrawalId(long userId) {
@@ -156,6 +156,7 @@ class WithdrawalCommerceFlowTest extends CommerceApiTestBase {
             long id = withdrawalId(member);
 
             // 배송완료 3일째 — 기본 선택(WAIT)이라 반품 기한을 기다린다
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE group_buy_participations SET status = 'DELIVERED', delivered_at = ? WHERE id = ?", ts(clock.instant().minus(Duration.ofDays(3))), order);
             assertThat(process(id)).isEqualTo(WithdrawalAutoCompleteJob.Outcome.WAITING);
             assertThat(service.view(member).scheduled().pending()).extracting(WithdrawalView.PendingItem::code).containsExactly("DELIVERED_RETURN_WINDOW");
@@ -201,9 +202,10 @@ class WithdrawalCommerceFlowTest extends CommerceApiTestBase {
         @Test
         void P30d_NOW_면_즉시_완료되고_연락용_이메일을_분리_보관하며_배송지_연락처_현금영수증_암호문은_즉시_비운다() {
             long member = member();
-            String email = jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, member);
+            String email = memberFixture.email(member);
             long order = participation(jdbc, ids, cipher, groupBuy(jdbc, ids), member, "DELIVERED", clock.instant().minus(Duration.ofDays(3)));
             long paymentOrder = ids.nextId();
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO payment_orders (id, payment_id, user_id, order_type, order_ref_id, order_name, amount, status, paid_amount, paid_at, confirmed_via, expires_at, "
                     + "created_at, updated_at) VALUES (?, ?, ?, 'GROUP_BUY', ?, '탈퇴 시험 공구', 13000, 'PAID', 13000, ?, 'COMPLETE_API', now(), now(), now())", paymentOrder,
                     "pay_" + String.format("%032d", paymentOrder), member, order, ts(clock.instant().minus(Duration.ofDays(10))));
@@ -288,6 +290,7 @@ class WithdrawalCommerceFlowTest extends CommerceApiTestBase {
             String stillKey = "nickname-images/" + member + "/still.png";
             storage.put(imageKey, "png".getBytes(StandardCharsets.UTF_8));
             storage.put(stillKey, "png".getBytes(StandardCharsets.UTF_8));
+            // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
             jdbc.update("INSERT INTO nickname_image_requests (id, user_id, status, image_key, still_key, content_type, bytes, width, height, created_at) VALUES (?, ?, 'APPROVED', ?, ?, "
                     + "'image/png', 3, 1, 1, now())", ids.nextId(), member, imageKey, stillKey);
             jdbc.update("UPDATE profiles SET nickname_image = ? WHERE user_id = ?", imageKey, member);
@@ -311,6 +314,7 @@ class WithdrawalCommerceFlowTest extends CommerceApiTestBase {
         /** 쪽지를 보낼 수 있는 회원(가입 8일, 인증) */
         private long sender() {
             long id = member();
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE users SET created_at = now() - interval '8 days' WHERE id = ?", id);
             return id;
         }

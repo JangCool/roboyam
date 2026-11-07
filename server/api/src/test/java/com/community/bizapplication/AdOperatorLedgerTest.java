@@ -473,6 +473,7 @@ class AdOperatorLedgerTest extends BizApplicationApiTestBase {
         assertThat(fieldsOf(() -> advertisers.create(operator, new AdAdvertiserService.Create("또연결" + ids.nextId(), null, null, null, null, Long.toString(profile)))))
                 .containsExactly("businessId");
         // 같은 시험 DB 에 「시험상사」 사업자가 검색 한도(30)를 넘게 쌓일 수 있어, 이 사업자의 상호를 연결 광고주 이름으로 바꿔 그 이름으로 찾는다
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET company_name = ? WHERE id = ?", linked.name(), profile);
         assertThat(advertisers.search(linked.name())).extracting(AdAdvertiserService.Option::id).doesNotContain("biz-" + profile).contains(linked.id());
         // 사업자 쪽 ID 로 등록하면 연결된 광고주도 함께 남는다

@@ -171,7 +171,7 @@ class PointShopPurchaseAdminHttpTest extends PointShopAdminHttpTestBase {
         // 두 번째 — 409, 포인트는 그대로
         refund(session, purchaseId, "회원 요청 예외 처리").andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("POINT_SHOP_ALREADY_REFUNDED"));
         assertThat(balance(member)).isEqualTo(3000);
-        assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND target_id = ?", AuditActions.POINT_SHOP_REFUND, Long.toString(purchaseId))).isEqualTo(1);
+        assertThat(auditLogs.where().action(AuditActions.POINT_SHOP_REFUND).target(Long.toString(purchaseId)).count()).isEqualTo(1);
         // 없는 구매
         refund(session, 999_999_999L, "없는 구매 환불").andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("POINT_SHOP_PURCHASE_NOT_FOUND"));
         refund(session, "abc", "없는 구매 환불").andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("POINT_SHOP_PURCHASE_NOT_FOUND"));
@@ -192,18 +192,17 @@ class PointShopPurchaseAdminHttpTest extends PointShopAdminHttpTestBase {
         }
         assertThat(jdbc.queryForObject("SELECT refund_days FROM point_shop_settings WHERE id = 1", Integer.class)).isEqualTo(7);
 
-        int before = count("SELECT count(*) FROM audit_logs WHERE action = ? AND actor_id = ?", AuditActions.POINT_SHOP_SETTINGS_UPDATE, operator);
+        int before = auditLogs.where().action(AuditActions.POINT_SHOP_SETTINGS_UPDATE).actor(operator).count();
         mvc.perform(withCsrf(put(BASE + "/settings"), session).content("{\"refundDays\":30}")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.refundDays").value(30)).andExpect(jsonPath("$.data.updatedBy").value(operatorName(operator)))
                 .andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, retention_class, detail FROM audit_logs WHERE action = ? AND actor_id = ? ORDER BY occurred_at DESC LIMIT 1",
-                AuditActions.POINT_SHOP_SETTINGS_UPDATE, operator);
+        Map<String, Object> audit = auditLogs.where().action(AuditActions.POINT_SHOP_SETTINGS_UPDATE).actor(operator).latest().orElseThrow().asMap();
         assertThat(audit.get("target_type")).isEqualTo("POINT_SHOP_SETTINGS");
         assertThat(audit.get("retention_class")).isEqualTo(AuditRetentionClass.GENERAL.name());
         assertThat(audit.get("detail").toString()).contains("\"refundDays\":7", "\"refundDays\":30");
         // 같은 값은 감사 없이
         mvc.perform(withCsrf(put(BASE + "/settings"), session).content("{\"refundDays\":30}")).andExpect(status().isOk());
-        assertThat(count("SELECT count(*) FROM audit_logs WHERE action = ? AND actor_id = ?", AuditActions.POINT_SHOP_SETTINGS_UPDATE, operator)).isEqualTo(before + 1);
+        assertThat(auditLogs.where().action(AuditActions.POINT_SHOP_SETTINGS_UPDATE).actor(operator).count()).isEqualTo(before + 1);
 
         // 10일 전에 산 구매가 새 기한(30일)으로는 셀프 환불 가능
         Instant at = now().minus(10, ChronoUnit.DAYS);

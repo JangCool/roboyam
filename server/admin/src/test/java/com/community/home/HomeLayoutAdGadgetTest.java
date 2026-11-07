@@ -41,6 +41,7 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
     void setUp() {
         long rootId = rootId();
         root = actor(rootId);
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         jdbc.update("INSERT INTO site_settings (id, site_name, public_url, updated_by) VALUES (1, '시험', 'http://localhost', ?) ON CONFLICT (id) DO NOTHING", rootId);
         var defaults = service.defaults(THEME);
         service.save(root, THEME, request(defaults.gadgets(), defaults.layout(), Map.of()));

@@ -41,11 +41,11 @@ class LoginSecurityTest extends MfaSpringTestBase {
     }
 
     private String lastSettingsAudit() {
-        return jdbc.queryForObject("SELECT detail FROM audit_logs WHERE action = 'MFA_SETTINGS_UPDATE' AND target_type = 'LOGIN_SECURITY' ORDER BY id DESC LIMIT 1", String.class);
+        return auditLogs.where().action("MFA_SETTINGS_UPDATE").targetType("LOGIN_SECURITY").lastById().orElseThrow().detail();
     }
 
     private int settingsAudits() {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'MFA_SETTINGS_UPDATE'", Integer.class);
+        Integer count = auditLogs.where().action("MFA_SETTINGS_UPDATE").count();
         return count == null ? 0 : count;
     }
 
@@ -59,8 +59,7 @@ class LoginSecurityTest extends MfaSpringTestBase {
             assertThatThrownBy(() -> service.view(actor(operator))).isInstanceOf(PermissionDeniedException.class);
             assertThatThrownBy(() -> save(operator, false, 14, 1, 5)).isInstanceOfSatisfying(PermissionDeniedException.class,
                     e -> assertThat(e.getStatus().value()).isEqualTo(403));
-            List<Map<String, Object>> denied = jdbc.queryForList("SELECT result, target_type, detail FROM audit_logs WHERE actor_id = ? AND action = 'PERMISSION_DENIED'",
-                    operator);
+            List<Map<String, Object>> denied = auditLogs.where().actor(operator).action("PERMISSION_DENIED").list().stream().map(row -> row.asMap()).toList();
             assertThat(denied).hasSize(2).allSatisfy(row -> {
                 assertThat(row.get("result")).isEqualTo("DENIED");
                 assertThat(row.get("target_type")).isEqualTo("LOGIN_SECURITY");
@@ -112,7 +111,7 @@ class LoginSecurityTest extends MfaSpringTestBase {
             assertThat(enabledBy).isEqualTo(root);
             assertThat(view.enabled()).isTrue();
             assertThat(view.rootEnrolled()).isTrue();
-            assertThat(view.enabledBy()).isEqualTo(jdbc.queryForObject("SELECT operator_name FROM operators WHERE id = ?", String.class, root));
+            assertThat(view.enabledBy()).isEqualTo(operatorFixture.operatorName(root));
         }
 
         @Test
@@ -153,7 +152,7 @@ class LoginSecurityTest extends MfaSpringTestBase {
             settings(true, 14, 1, 5, clock.instant().minus(Duration.ofDays(1)));
             long operator = newOperator();
             long locked = newOperator();
-            jdbc.update("UPDATE operators SET locked = true WHERE id = ?", locked);
+            operatorFixture.changeStatus(locked, null, true, null, null);
             int rootBefore = notifications(root, "MFA_DISABLED");
 
             save(root, false, 14, 1, 5);
@@ -217,9 +216,10 @@ class LoginSecurityTest extends MfaSpringTestBase {
         LoginSecurityView before = service.view(actor(root));
         enrollDirect(enrolled);
         LoginSecurityView afterEnroll = service.view(actor(root));
-        jdbc.update("UPDATE operators SET locked = true WHERE id = ?", expired);
+        operatorFixture.changeStatus(expired, null, true, null, null);
         LoginSecurityView afterLock = service.view(actor(root));
 
+        // SQL 로 남김: 서비스의 「쓸 수 있는 운영자」 판정을 DB 시각(now()) 기준으로 따로 세어 맞춰 본다
         Integer active = jdbc.queryForObject("SELECT count(*) FROM operators o WHERE o.approved AND NOT o.locked AND NOT o.expired AND o.enabled "
                 + "AND (o.account_start_at IS NULL OR o.account_start_at <= now()) AND (o.account_end_at IS NULL OR o.account_end_at >= now())", Integer.class);
         assertThat(afterLock.summary().operators()).isEqualTo(active);

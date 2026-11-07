@@ -154,6 +154,7 @@ class WithdrawalPreparationTest extends CommerceApiTestBase {
         void 값을_풀지_못하면_열람_감사도_남지_않는다_같은_트랜잭션() {
             long member = newMember();
             // 다른 용도로 잠근 암호문 — 풀리지 않는다(용도가 AAD 로 묶인다)
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO withdrawn_member_contacts (user_id, email_cipher, withdrawn_at, purge_after) VALUES (?, ?, now(), now() + interval '1 day')", member,
                     cipher.encrypt(com.community.zconfiguration.crypto.DataPurpose.of("other.purpose"), "x@test.local"));
 

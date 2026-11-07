@@ -48,6 +48,7 @@ abstract class HotdealStage2TestBase extends HotdealApiTestBase {
 
     /** 같은 작성자가 잇달아 올린다 — 글 작성 간격(게시판 기본 {@code POST_TOO_FAST})은 이 시험의 대상이 아니라 그 회원의 앞 글 시각을 10분 앞으로 민다 */
     protected long dealBy(long author, com.community.hotdeal.dto.request.DealInput input) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE posts SET created_at = created_at - interval '10 minutes' WHERE author_id = ?", author);
         return writeId(author, input);
     }

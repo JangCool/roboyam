@@ -48,9 +48,10 @@ class HotdealGadgetPopularTest extends HotdealStage2TestBase {
         long ended = newDeal(member());
         states.end(Long.toString(ended), jdbc.queryForObject("SELECT author_id FROM post_deals WHERE post_id = ?", Long.class, ended));
         long expired = newDeal(member());
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofDays(31))), expired);
         long hidden = newDeal(member());
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", hidden);
+        boardFixture.staffHide(hidden);
 
         HotDealsDataView d = gadgets.hotDeals(config("LATEST", 10, board), null);
         assertThat(ids(d)).containsExactly(Long.toString(active));
@@ -68,9 +69,11 @@ class HotdealGadgetPopularTest extends HotdealStage2TestBase {
         long a = newDeal(member());
         long b = newDeal(member());
         long c = newDeal(member());
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE posts SET like_count = 5 WHERE id = ?", a);
         jdbc.update("UPDATE posts SET like_count = 9 WHERE id = ?", b);
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().plus(Duration.ofDays(2))), c);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().plus(Duration.ofDays(1))), a);
 
         assertThat(ids(gadgets.hotDeals(config("LATEST", 10, board), null))).containsExactly(Long.toString(c), Long.toString(b), Long.toString(a));
@@ -104,18 +107,20 @@ class HotdealGadgetPopularTest extends HotdealStage2TestBase {
     }
 
     private void popularize(long postId) {
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET like_count = 1000, comment_count = 1000, view_count = 100000 WHERE id = ?", postId);
     }
 
     @Test
     void 인기글은_종료_기간_종료_사업자_글을_빼고_의심은_넣는다() {
-        jdbc.update("UPDATE boards SET gadget_exclusions = '{}' WHERE slug = ?", board);
+        boardFixture.clearGadgetExclusions(board);
         long active = newDeal(member());
         long flagged = newDeal(member());
         requestBy(flagged, 3);
         long ended = newDeal(member());
         ends.endByManager(ended, hotdealOperator(), null);
         long expired = newDeal(member());
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minusSeconds(60)), expired);
         long business = newDeal(member());
         jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '시험상사' WHERE post_id = ?", ids.nextId(), business);

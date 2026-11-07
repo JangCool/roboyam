@@ -79,6 +79,7 @@ class HotdealGoTest extends HotdealApiTestBase {
         assertThat(clicks(ended)).isZero();
 
         long expired = writeId(member(), deal(url("shop.example.com")));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofDays(31))), expired);
         assertThat(go.target(Long.toString(expired), new Visitor(null, "10.0.0.3", UA))).isEqualTo(dealRow(expired).get("product_url"));
         assertThat(clicks(expired)).isZero();
@@ -93,16 +94,17 @@ class HotdealGoTest extends HotdealApiTestBase {
 
         String finalBlocked = "gf" + uniq() + ".example";
         long viaChain = writeId(member(), deal(chain(url("hop" + uniq() + ".example"), "hop.example", "ok-final.example")));
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET final_host = ? WHERE post_id = ?", finalBlocked, viaChain);
         domain(finalBlocked, "BLOCK", false);
         assertThat(go.target(Long.toString(viaChain), new Visitor(null, "10.0.0.4", UA))).as("최종 호스트 차단").isEqualTo("/posts/" + viaChain);
 
         long hidden = writeId(member(), deal(url("shop.example.com")));
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", hidden);
+        boardFixture.staffHide(hidden);
         assertThat(go.target(Long.toString(hidden), new Visitor(null, "10.0.0.4", UA))).isEqualTo("/posts/" + hidden);
 
         long deleted = writeId(member(), deal(url("shop.example.com")));
-        jdbc.update("UPDATE posts SET deleted_at = now() WHERE id = ?", deleted);
+        boardFixture.delete(deleted);
         assertThat(go.target(Long.toString(deleted), new Visitor(null, "10.0.0.4", UA))).isEqualTo("/posts/" + deleted);
         assertThat(go.target("123456789", new Visitor(null, "10.0.0.4", UA))).isEqualTo("/posts/123456789");
         assertThat(go.target("abc", new Visitor(null, "10.0.0.4", UA))).isEqualTo("/");

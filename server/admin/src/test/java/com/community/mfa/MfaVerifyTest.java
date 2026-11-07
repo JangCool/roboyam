@@ -64,7 +64,7 @@ class MfaVerifyTest extends MfaSpringTestBase {
             assertThat(result.method()).isEqualTo(MfaLoginMethod.TOTP);
             assertThat(result.trustToken()).isNull();
             assertThat(lastAudit(operator, "LOGIN_SUCCESS")).contains("\"mfa\":\"TOTP\"", "\"agent\":\"Chrome / Windows / Desktop\"");
-            assertThat(jdbc.queryForObject("SELECT last_login_at IS NOT NULL FROM operators WHERE id = ?", Boolean.class, operator)).isTrue();
+            assertThat((operatorFixture.lastLoginAt(operator) != null)).isTrue();
         }
 
         @Test

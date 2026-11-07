@@ -140,6 +140,7 @@ class BizServiceSuspendTest extends BizApplicationApiTestBase {
         assertThat(codeOf(() -> submitTextLine(user, 0, 3, "ONLINE"))).isEqualTo("BUSINESS_SERVICE_SUSPENDED");
         assertThat(submitDeal(user, "NONE", null, null, "ONLINE")).isPositive();
         // 신원이 정지면 서비스 줄과 상관없이 그대로 BUSINESS_NOT_APPROVED
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                 + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profileOf(user));
         assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BUSINESS_NOT_APPROVED");
@@ -147,6 +148,7 @@ class BizServiceSuspendTest extends BizApplicationApiTestBase {
 
     /** 그 서비스 줄을 「서비스만 정지」로(관리자 API 는 admin 시험이 막는다) */
     private void alone(long profileId, String service) {
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_services SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험 정지', suspended_at = now() WHERE profile_id = ? AND service = ?",
                 profileId, service);
     }

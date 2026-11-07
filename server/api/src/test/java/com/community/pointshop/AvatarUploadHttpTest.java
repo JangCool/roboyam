@@ -74,6 +74,7 @@ class AvatarUploadHttpTest extends PointShopApiTestBase {
 
     /** 다음 올리기가 속도 제한(10초)에 걸리지 않게 앞 신청 시각을 당긴다 */
     private void backdate(long member) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE avatar_upload_requests SET created_at = created_at - interval '1 minute' WHERE user_id = ?", member);
     }
 

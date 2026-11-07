@@ -30,6 +30,7 @@ class PointFreezeEarnTest extends CommerceApiTestBase {
     /** 글쓰기 트랜잭션을 흉내 낸다 — 업무 행(여기서는 회원 갱신) + 적립 */
     private long writePostAndEarn(long member) {
         Long earned = tx.execute(status -> {
+            // SQL 로 남김: 같은 트랜잭션·같은 연결에서 업무 행 갱신(회원 행 잠금)을 흉내 낸다 — 적립 세이브포인트가 그 뒤에 도는 순서를 본다
             jdbc.update("UPDATE users SET updated_at = now() WHERE id = ?", member);
             clock.advance(java.time.Duration.ofMinutes(5)); // 작성 간격(1-3)에 걸리지 않게
             return points.earnPost(new PointService.PostEarn(member, ids.nextId(), "가".repeat(200), true, true));

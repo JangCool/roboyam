@@ -76,12 +76,14 @@ class BizHotdealReviewTest extends BizHotdealTestBase {
     @Test
     void 결정10_신원_정지가_먼저_걸리고_다른_실패_사유는_원인을_풀어도_다시_올리지_않는다() {
         Booked b = booked("NONE");
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                 + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profileOf(b.user()));
         hotdealService(b.user(), "SUSPENDED");
         into(b, 1);
         assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.FAILED);
         assertThat(result(b.id()).get("fail_reason")).isEqualTo("BUSINESS_SUSPENDED");
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'APPROVED' WHERE id = ?", profileOf(b.user()));
         hotdealService(b.user(), "APPROVED");
         runPublishJob();
@@ -176,6 +178,7 @@ class BizHotdealReviewTest extends BizHotdealTestBase {
 
     /** 그 사업자의 핫딜 서비스 줄 상태를 바꾼다(서비스별 정지 API 는 아직 없다 — business-contract 「후속」) */
     private void hotdealService(long user, String status) {
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_services SET status = ? WHERE profile_id = ? AND service = 'HOTDEAL'", status, profileOf(user));
     }
 
@@ -190,9 +193,9 @@ class BizHotdealReviewTest extends BizHotdealTestBase {
     /** 이메일 인증을 마친 일반 등급 회원(종료 요청 자격) */
     private long requester() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String name = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "r" + name.substring(Math.max(0, name.length() - 11)));
+        memberFixture.profile(id, "r" + name.substring(Math.max(0, name.length() - 11)), "REGULAR");
         return id;
     }
 

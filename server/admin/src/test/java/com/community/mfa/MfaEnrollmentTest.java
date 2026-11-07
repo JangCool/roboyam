@@ -290,8 +290,8 @@ class MfaEnrollmentTest extends MfaSpringTestBase {
         secretsSeen.add(token);
         secretsSeen.add(jdbc.queryForObject("SELECT secret_enc FROM operator_mfa WHERE operator_id = ?", String.class, operator));
 
-        String details = String.join("\n", jdbc.queryForList("SELECT coalesce(detail, '') FROM audit_logs WHERE actor_id = ? OR target_id = ?", String.class, operator,
-                Long.toString(operator)));
+        String details = String.join("\n", auditLogs.where().actorOrTarget(operator, Long.toString(operator)).list().stream()
+                .map(row -> row.detail() == null ? "" : row.detail()).toList());
         assertThat(details).isNotBlank();
         for (String secret : secretsSeen) {
             assertThat(details).as("감사 detail 에 비밀값이 없다").doesNotContain(secret);
