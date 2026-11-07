@@ -132,6 +132,20 @@ public class OperatorMemberAccountStore extends RoboyamRepositoryQDSL {
         return out;
     }
 
+    /** 회원 여럿의 연결(회원 ID → 연결) — 관리자 공지 목록 작성자 옆 운영자 이름 */
+    public Map<Long, Link> linksOfUsers(Collection<Long> userIds, Instant now) {
+        List<Long> ids = userIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Link> out = new HashMap<>();
+        linkRows(now).where(M.userId.in(ids)).fetch().forEach(t -> {
+            Link l = link(t, now);
+            out.put(l.userId(), l);
+        });
+        return out;
+    }
+
     /** 이어져 있나(힘과 상관없이 — 탈퇴 막기 · 게시판 담당 자격) */
     public boolean linked(long userId) {
         return query.selectOne().from(M).where(M.userId.eq(userId)).fetchFirst() != null;

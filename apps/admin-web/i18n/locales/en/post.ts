@@ -278,6 +278,7 @@ export default {
         poll: 'Poll “{question}”',
         pollVoters: '{n} voters',
         reportCase: 'View report case',
+        viaNoticeAdmin: 'From Notices',
     },
     actorSystem: 'System',
     actorGone: '(removed operator)',

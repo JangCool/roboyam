@@ -74,6 +74,7 @@ export default {
     staffActions: 'Staff action oversight',
     content: 'Content',
     posts: 'Posts',
+    notices: 'Notices',
     highlights: 'Highlights',
     popups: 'Popups',
     popularPosts: 'Popular posts',

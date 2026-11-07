@@ -139,6 +139,8 @@ public final class AuditRetention {
             AuditActions.DEBATE_OPEN, AuditActions.DEBATE_UPDATE, AuditActions.DEBATE_CLOSE,
             AuditActions.POST_HIDE, AuditActions.POST_UNHIDE, AuditActions.POST_DELETE, AuditActions.POST_RESTORE, AuditActions.POST_MOVE, AuditActions.POST_NOTICE,
             AuditActions.POST_PIN, AuditActions.POST_UNPIN, AuditActions.POST_BULK, AuditActions.POST_POLL_DELETE,
+            // 공지 관리(notice-admin-contract) — 게시글 관리와 같은 콘텐츠 관리(포인트가 오가지 않는다)
+            AuditActions.NOTICE_CREATE, AuditActions.NOTICE_UPDATE, AuditActions.NOTICE_DELETE, AuditActions.NOTICE_PIN, AuditActions.NOTICE_UNPIN,
             AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,

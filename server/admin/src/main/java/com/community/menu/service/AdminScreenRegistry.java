@@ -85,6 +85,8 @@ public final class AdminScreenRegistry {
             // admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.content", "pi pi-star",
                     leaf(s("posts", "/posts", "menu.posts", "pi pi-file-edit", Permission.POST_READ)),
+                    // 공지 관리(docs/features/notice-admin-contract.md) — 공지 게시판 글 쓰기·고치기·고정·삭제, 보기 post.read(화면 안에서 쓰기 post.manage)
+                    leaf(s("notices", "/notices", "menu.notices", "pi pi-megaphone", Permission.POST_READ)),
                     leaf(s("highlights", "/content/highlights", "menu.highlights", "pi pi-bookmark", Permission.HIGHLIGHT_READ)),
                     leaf(s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-chart-line", Permission.POPULAR_READ)),
                     leaf(s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ)),

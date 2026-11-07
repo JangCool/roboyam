@@ -103,6 +103,9 @@ export interface AdminPostItem {
     restricted?: boolean;
 }
 
+/** 상태 알약(`PostStateTag`)·상태 줄(`UtilPostMessages.stateLines`)이 읽는 칸 — 공지 관리의 줄(`NoticeItem`)도 같은 칸을 가져 알약을 같이 쓴다 */
+export type AdminPostStateFields = Pick<AdminPostItem, 'state' | 'hiddenReason' | 'hiddenAt' | 'hiddenUntil' | 'deletedAt' | 'deleteScheduledAt' | 'purged'>;
+
 /** `GET /api/admin/posts` */
 export interface AdminPostListView {
     total: number;

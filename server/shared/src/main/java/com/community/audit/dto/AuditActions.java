@@ -232,6 +232,15 @@ public final class AuditActions {
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */
     public static final String POST_POLL_DELETE = "POST_POLL_DELETE";
+    // ── 공지 관리(docs/features/notice-admin-contract.md) — 공지 게시판 글, 대상 POST + 글 ID ──
+    /** 공지 쓰기(작성자 = 운영자 회원 계정) — {@code boardId}·{@code authorUserId}·{@code prefixId}·{@code title}·{@code pinned} */
+    public static final String NOTICE_CREATE = "NOTICE_CREATE";
+    /** 공지 고치기(작성자는 그대로) — 바뀐 칸 {@code before}/{@code after}(prefixId·title·body·pinned — body 는 바뀌었는지만) */
+    public static final String NOTICE_UPDATE = "NOTICE_UPDATE";
+    /** 공지 지우기(사유·작성자 알림·포인트 회수 없음 — 게시글 관리 삭제와 같은 「지운 글」) — 고정이 풀렸으면 {@code unpinned} */
+    public static final String NOTICE_DELETE = "NOTICE_DELETE";
+    public static final String NOTICE_PIN = "NOTICE_PIN";
+    public static final String NOTICE_UNPIN = "NOTICE_UNPIN";
     // ── 신고 관리(docs/features/report-admin-contract.md) — 대상 REPORT_CASE + 사건 ID ──
     /** 사건 조치(숨김·삭제·자동 숨김 확정) — {@code caseNo}·{@code action}·{@code reasonCode}·{@code note}·{@code targetType}·{@code targetId}·{@code reportCount} */
     public static final String REPORT_RESOLVE = "REPORT_RESOLVE";

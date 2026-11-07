@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { AdminPostItem, PostBulkResult, PostModerationActor, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostItem, AdminPostStateFields, PostBulkResult, PostModerationActor, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import type { PostMoveProblem, PostReasonProblem } from '~/utils/util-post';
 import UtilPost from '~/utils/util-post';
 import UtilReportMessages from '~/utils/util-report-messages';
@@ -49,7 +49,7 @@ export default class UtilPostMessages {
      * 상태 알약 아래의 작은 줄들 — 숨김 까닭·시각(기간 숨김이면 풀리는 시각), 지운 시각, 삭제 예정, 원문 파기.
      * @returns {string[]} 보일 줄(없으면 빈 목록).
      */
-    static stateLines(t: Translate, time: DisplayTime, item: AdminPostItem): string[] {
+    static stateLines(t: Translate, time: DisplayTime, item: AdminPostStateFields): string[] {
         const lines: string[] = [];
         if (item.state === 'DELETED') {
             if (item.deletedAt) lines.push(t('post.deletedAt', { at: time.listLabel(item.deletedAt) }));
@@ -66,13 +66,15 @@ export default class UtilPostMessages {
     /**
      * 조치 기록의 덧붙임(서버 `AdminPostEventView.detail`)을 문구 줄로 — 키 원문은 보이지 않는다. 아는 키만 풀고 **모르는 키는 숨긴다**.
      * 이동(`fromBoardId`·`toBoardId` — 게시판 이름, `fromPrefixId`·`toPrefixId` — 말머리 이름), 포인트 회수·복구, 작성자 알림, 사유 코드(신고 사유 이름), 자동 숨김 확정,
-     * 신고 무시로 복구, 일괄, 고정 해제, 숨김 까닭·기한, 투표(질문·참여 수 — `pollId` 는 숨김), 신고 사건(`reportCaseId` → 링크).
+     * 신고 무시로 복구, 일괄, 고정 해제, 공지 관리에서(`via: NOTICE_ADMIN`), 숨김 까닭·기한, 투표(질문·참여 수 — `pollId` 는 숨김), 신고 사건(`reportCaseId` → 링크).
      */
     static eventDetailLines(t: Translate, time: DisplayTime, detail: Record<string, unknown> | null, names: PostEventDetailNames): PostEventDetailLine[] {
         if (!detail) return [];
         const d = detail;
         const lines: PostEventDetailLine[] = [];
-        const boardName = (id: string | null) => (id ? (names.board(id) ?? `#${id}`) : t('post.eventDetail.noPrefix'));
+        // 공지 관리(`/notices`)에서 한 삭제·고정·해제 — 사유 없이(`reason: null`) 남는다(notice-admin-contract 정책 7)
+        if (d.via === 'NOTICE_ADMIN') lines.push({ key: 'via', text: t('post.eventDetail.viaNoticeAdmin') });
+        const boardName =(id: string | null) => (id ? (names.board(id) ?? `#${id}`) : t('post.eventDetail.noPrefix'));
         const prefixName = (id: string | null) => (id ? (names.prefix(id) ?? `#${id}`) : t('post.eventDetail.noPrefix'));
 
         const fromBoard = text(d.fromBoardId);
