@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.community.ad.dto.AdPlacements;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditRetention;
 import com.community.audit.dto.AuditRetentionClass;
@@ -44,7 +45,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(get("/api/admin/ads/placements").cookie(reader)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.postInline.enabled").value(true)).andExpect(jsonPath("$.data.postInline.adType").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data.postInline.position").value("BETWEEN_CARDS")).andExpect(jsonPath("$.data.wings.left").value(true))
-                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(4))
+                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(AdPlacements.WING_SCREENS.size()))
                 .andExpect(jsonPath("$.data.boardList.enabled").value(true)).andExpect(jsonPath("$.data.boardList.after").value(5))
                 .andExpect(jsonPath("$.data.adult.enabled").value(false)).andExpect(jsonPath("$.data.updatedAt").doesNotExist()).andExpect(jsonPath("$.data.updatedBy").doesNotExist());
     }
@@ -101,7 +102,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
     void 틀린_칸은_칸_경로로_빠진_묶음은_묶음_이름으로_400() throws Exception {
         Cookie settings = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
         String bad = "{\"postInline\":{\"enabled\":true,\"adType\":\"WIDE_BANNER\",\"position\":\"MIDDLE\"},"
-                + "\"wings\":{\"left\":true,\"right\":true,\"screens\":[\"HOME\",\"GROUPS\"]},\"boardList\":{\"enabled\":true,\"after\":0}}";
+                + "\"wings\":{\"left\":true,\"right\":true,\"screens\":[\"HOME\",\"SEARCH\"]},\"boardList\":{\"enabled\":true,\"after\":0}}";
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(bad)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.['postInline.adType']").exists()).andExpect(jsonPath("$.error.fields.['postInline.position']").exists())
                 .andExpect(jsonPath("$.error.fields.['wings.screens']").exists()).andExpect(jsonPath("$.error.fields.['boardList.after']").exists());

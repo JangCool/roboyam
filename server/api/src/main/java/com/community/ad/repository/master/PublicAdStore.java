@@ -1,17 +1,28 @@
 package com.community.ad.repository.master;
 
+import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizProduct;
+import com.community.bizapplication.entity.QBizApplicationEntity;
+import com.community.bizapplication.entity.QBizApplicationItemEntity;
+import com.community.bizapplication.entity.QBizCreativeVersionEntity;
+import com.community.bizapplication.entity.QBizDealPostEntity;
+import com.community.hotdeal.entity.QPostDealEntity;
+import com.community.post.entity.PostEntity;
+import com.community.post.entity.QPostEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.StringExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,27 +32,37 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>지금 나가는 건 = 그 상품 자리 줄이 있고 {@code status = 'SCHEDULED' AND start_at <= now < end_at} + 그 건의 <b>승인된</b> 소재 버전 중 최신
- *       ({@code approved_at IS NOT NULL}). 승인된 버전이 없으면 빠진다. 긴급 내림({@code TAKEN_DOWN})·종료·결제 대기는 상태·시각으로 빠진다.</li>
+ *       ({@code approved_at IS NOT NULL} 인 가장 높은 버전 — 상관 서브쿼리 {@code max(version)}). 승인된 버전이 없으면 빠진다. 긴급 내림({@code TAKEN_DOWN})·종료·결제 대기는
+ *       상태·시각으로 빠진다.</li>
  *   <li>집계는 한 문장 — 하루 1번 판정 표({@code ad_view_marks})에 {@code ON CONFLICT DO NOTHING} 으로 넣고, 들어갔을 때만 일별 집계({@code ad_daily_stats})에 +1.</li>
  * </ul>
+ *
+ * <p>읽기는 QueryDSL 이다. Native SQL 로 남긴 것과 이유: {@link #count} — 판정 넣기와 집계 upsert 를 한 문장({@code WITH … INSERT … ON CONFLICT DO NOTHING RETURNING} +
+ * {@code ON CONFLICT DO UPDATE})으로 해야 동시에 와도 하루 한 번만 센다.
  */
 @Repository
-public class PublicAdStore {
+public class PublicAdStore extends RoboyamRepositoryQDSL {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };
+
+    private static final QBizApplicationEntity A = QBizApplicationEntity.bizApplicationEntity;
+    private static final QBizApplicationItemEntity I = QBizApplicationItemEntity.bizApplicationItemEntity;
+    private static final QBizCreativeVersionEntity C = QBizCreativeVersionEntity.bizCreativeVersionEntity;
+    private static final QBizDealPostEntity B = QBizDealPostEntity.bizDealPostEntity;
+    private static final QPostEntity P = QPostEntity.postEntity;
+    private static final QPostDealEntity D = QPostDealEntity.postDealEntity;
 
     /** 지금 나가는 건 하나 — 소재는 최신 승인 버전의 내용(JSON) */
     public record Running(long applicationId, BizProduct product, int weight, String advertiserName, int version, Map<String, Object> content) {
     }
 
     private final JdbcTemplate jdbc;
-    private final NamedParameterJdbcTemplate named;
 
-    public PublicAdStore(DataSource dataSource) {
+    public PublicAdStore(JPAQueryFactory query, DataSource dataSource) {
+        super(query);
         this.jdbc = new JdbcTemplate(dataSource);
-        this.named = new NamedParameterJdbcTemplate(dataSource);
     }
 
     /** 그 상품들에서 지금 나가는 건(신청 건 차례) */
@@ -49,15 +70,16 @@ public class PublicAdStore {
         if (products.isEmpty()) {
             return List.of();
         }
-        MapSqlParameterSource params = new MapSqlParameterSource("products", products.stream().map(Enum::name).toList()).addValue("now", Timestamp.from(now));
-        return named.query("SELECT a.id, i.product, a.weight, COALESCE(a.company_name, a.advertiser_name) AS advertiser_name, c.version, c.content::text AS content "
-                        + "FROM biz_applications a "
-                        + "JOIN biz_application_items i ON i.application_id = a.id AND i.product IN (:products) "
-                        + "JOIN LATERAL (SELECT v.version, v.content FROM biz_creative_versions v WHERE v.application_id = a.id AND v.approved_at IS NOT NULL "
-                        + "              ORDER BY v.version DESC LIMIT 1) c ON true "
-                        + "WHERE a.status = 'SCHEDULED' AND a.start_at <= :now AND a.end_at > :now ORDER BY a.id",
-                params, (rs, i) -> new Running(rs.getLong("id"), BizProduct.valueOf(rs.getString("product")), rs.getInt("weight"), rs.getString("advertiser_name"),
-                        rs.getInt("version"), JSON.readValue(rs.getString("content"), MAP)));
+        QBizCreativeVersionEntity v = new QBizCreativeVersionEntity("v");
+        StringExpression advertiser = A.companyName.coalesce(A.advertiserName);
+        return query.select(A.id, I.product, A.weight, advertiser, C.version, C.content).from(A)
+                .join(I).on(I.applicationId.eq(A.id), I.product.in(products))
+                .join(C).on(C.applicationId.eq(A.id), C.approvedAt.isNotNull(),
+                        C.version.eq(JPAExpressions.select(v.version.max()).from(v).where(v.applicationId.eq(A.id), v.approvedAt.isNotNull())))
+                .where(A.status.eq(BizApplicationStatus.SCHEDULED), A.startAt.loe(now), A.endAt.gt(now)).orderBy(A.id.asc()).fetch().stream()
+                .map(t -> new Running(t.get(A.id), t.get(I.product), n(t.get(A.weight)), t.get(advertiser), n(t.get(C.version)),
+                        JSON.readValue(t.get(C.content), MAP)))
+                .toList();
     }
 
     /** 핫딜 노출 자리 건의 글 — 진행 중(저장 ACTIVE · 마감 전, 의심 포함)이고 공개(지움·예약 삭제 지남·숨김 아님)인 사업자 글만 */
@@ -67,25 +89,21 @@ public class PublicAdStore {
 
     /** 그 신청 건들의 글(V123 biz_deal_posts POSTED) — 진행 중·공개인 것만(biz-hotdeal-contract 규칙 6·7) */
     public Map<Long, DealPost> dealPosts(Collection<Long> applicationIds, Instant now) {
-        Map<Long, DealPost> out = new java.util.HashMap<>();
+        Map<Long, DealPost> out = new HashMap<>();
         if (applicationIds.isEmpty()) {
             return out;
         }
-        MapSqlParameterSource params = new MapSqlParameterSource("ids", applicationIds).addValue("now", Timestamp.from(now));
-        named.query("SELECT b.application_id, p.id, p.title, p.board_id, p.prefix_id, d.store_name, d.deal_price, d.normal_price, d.image_url "
-                + "FROM biz_deal_posts b JOIN posts p ON p.id = b.post_id JOIN post_deals d ON d.post_id = p.id "
-                + "WHERE b.application_id IN (:ids) AND b.status = 'POSTED' AND d.source = 'BUSINESS' AND d.status = 'ACTIVE' AND (d.ends_at IS NULL OR d.ends_at > :now) "
-                + "AND p.deleted_at IS NULL AND p.status = 'PUBLISHED' AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > :now) "
-                + "AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= :now))", params, (java.sql.ResultSet rs) -> {
-                    DealPost d = new DealPost(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), (Long) rs.getObject(5, Long.class), rs.getString(6),
-                            rs.getLong(7), (Long) rs.getObject(8, Long.class), rs.getString(9));
-                    out.put(d.applicationId(), d);
-                });
+        query.select(Projections.constructor(DealPost.class, B.applicationId, P.id, P.title, P.boardId, P.prefixId, D.storeName, D.dealPrice, D.normalPrice,
+                        D.imageUrl)).from(B).join(P).on(P.id.eq(B.postId)).join(D).on(D.postId.eq(P.id))
+                .where(B.applicationId.in(applicationIds), B.status.eq("POSTED"), D.source.eq("BUSINESS"), D.status.eq("ACTIVE"),
+                        D.endsAt.isNull().or(D.endsAt.gt(now)), P.deletedAt.isNull(), P.status.eq(PostEntity.PUBLISHED),
+                        P.deleteScheduledAt.isNull().or(P.deleteScheduledAt.gt(now)), P.hiddenAt.isNull().or(P.hiddenUntil.isNotNull().and(P.hiddenUntil.loe(now))))
+                .fetch().forEach(d -> out.put(d.applicationId(), d));
         return out;
     }
 
     /**
-     * 하루 1번 집계 — 같은 날·방문자·종류·건·버전·자리가 처음이면 일별 집계에 +1
+     * 하루 1번 집계 — 같은 날·방문자·종류·건·버전·자리가 처음이면 일별 집계에 +1. Native SQL 인 이유는 클래스 설명.
      *
      * @param kind {@code I} 노출 · {@code C} 클릭
      * @return 셌으면 true(이미 센 것이면 false)
@@ -102,5 +120,9 @@ public class PublicAdStore {
                 Date.valueOf(day), visitorHash, String.valueOf(kind), applicationId, version, placement, applicationId, version, Date.valueOf(day), placement,
                 impressions, clicks);
         return n > 0;
+    }
+
+    private static int n(Integer value) {
+        return value == null ? 0 : value;
     }
 }

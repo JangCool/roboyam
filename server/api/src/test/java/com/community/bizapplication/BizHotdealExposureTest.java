@@ -233,11 +233,11 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
         assertThat(submitDeal(user, "CATEGORY_TOP", start, start.plusDays(1), "ONLINE")).isPositive();
         assertThat(priceRules.find(BizProduct.HOTDEAL_CATEGORY).orElseThrow().accepting()).isFalse();
         // 운영자가 요금표에서 글 게시를 끄면 409 BIZ_PRODUCT_CLOSED(규칙 그대로)
-        priceRules.setAccepting(BizProduct.HOTDEAL_POST, false);
+        tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_POST, false));
         try {
             assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
         } finally {
-            priceRules.setAccepting(BizProduct.HOTDEAL_POST, true);
+            tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_POST, true));
         }
     }
 

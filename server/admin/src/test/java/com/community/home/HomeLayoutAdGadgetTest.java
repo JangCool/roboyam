@@ -99,8 +99,9 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
         assertThat(ad.id()).doesNotStartWith("new-");
         assertThat(ad.config().propertyNames()).containsExactly("adType");
         assertThat(ad.config().path("adType").asString()).isEqualTo("WIDE_BANNER");
-        assertThat(text.config().propertyNames()).containsExactly("count");
+        assertThat(text.config().propertyNames()).containsExactly("count", "look"); // 모양 설정 look(44805faf — 기본 BAND)
         assertThat(text.config().path("count").asInt()).isEqualTo(3);
+        assertThat(text.config().path("look").asString()).isEqualTo("BAND");
         // 다음식 테마 기본(막대 머리 · 카드)을 광고 종류의 처음 꾸미기가 덮는다
         assertThat(ad.style().path("headerStyle").asString()).isEqualTo("HIDDEN");
         assertThat(ad.style().path("cardLook").asString()).isEqualTo("FLAT");

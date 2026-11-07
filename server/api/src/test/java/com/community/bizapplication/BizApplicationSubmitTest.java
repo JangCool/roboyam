@@ -138,11 +138,11 @@ class BizApplicationSubmitTest extends BizApplicationApiTestBase {
     @Test
     void 받지_않는_상품은_409_BIZ_PRODUCT_CLOSED() {
         long user = approvedBusiness();
-        rules.setAccepting(BizProduct.SMALL_BANNER, false);
+        tx.executeWithoutResult(s -> rules.setAccepting(BizProduct.SMALL_BANNER, false));
         try {
             assertThat(codeOf(() -> submitBanner(user, "SMALL", 0, 2, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");
         } finally {
-            rules.setAccepting(BizProduct.SMALL_BANNER, true);
+            tx.executeWithoutResult(s -> rules.setAccepting(BizProduct.SMALL_BANNER, true));
         }
     }
 

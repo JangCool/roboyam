@@ -1,5 +1,8 @@
 package com.community.withdrawal.repository.master;
 
+import com.community.bizapplication.entity.BizRefundStatus;
+import com.community.bizapplication.entity.QBizApplicationEntity;
+import com.community.bizapplication.entity.QBizRefundEntity;
 import com.community.comment.entity.QCommentEntity;
 import com.community.grade.entity.QGradeEntity;
 import com.community.point.entity.PointLotKind;
@@ -25,6 +28,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.ResultSet;
@@ -47,7 +51,7 @@ import org.springframework.stereotype.Repository;
  *
  * <p>엔티티가 있는 표(회원·프로필·표시 설정·포인트 잔액·묶음·아이템·포인트샵·등급·글·댓글·소셜 연결)는 QueryDSL 이다. Native SQL 로 남긴 것과 이유: 엔티티가 없는 표
  * ({@code point_attendances}·{@code payment_orders}·{@code payment_cancels}·{@code group_buy_participations}·{@code group_buy_requests}·{@code commerce_bank_transfers}·
- * {@code biz_applications}·{@code emoticon_*}·{@code avatar_upload_requests})를 읽는 문장, 회원 줄의 {@code FOR UPDATE}({@link #lockStatus}).
+ * {@code emoticon_*}·{@code avatar_upload_requests})를 읽는 문장, 회원 줄의 {@code FOR UPDATE}({@link #lockStatus}).
  */
 @Repository
 public class WithdrawalQueries extends RoboyamRepositoryQDSL {
@@ -66,6 +70,8 @@ public class WithdrawalQueries extends RoboyamRepositoryQDSL {
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
     private static final QUserIdentityEntity IDENTITY = QUserIdentityEntity.userIdentityEntity;
+    private static final QBizApplicationEntity BIZ_APP = QBizApplicationEntity.bizApplicationEntity;
+    private static final QBizRefundEntity BIZ_REFUND = QBizRefundEntity.bizRefundEntity;
 
     /** 회원 한 줄 — 익명화 전 값(이메일·닉네임은 완료 메일·연락처 보관에만 쓰고 응답·로그에 싣지 않는다) */
     public record Member(long id, String email, boolean emailVerified, String status, boolean hasPassword, Instant lastLoginAt, String nickname, String gradeKey,
@@ -174,28 +180,43 @@ public class WithdrawalQueries extends RoboyamRepositoryQDSL {
      * 로보티콘 <b>작가 쪽</b> 돈 거래(내 팩이 팔리거나 환불된 시각 · 정산 지급 기록)도 넣는다(V148 — 정산 정보 없이 탈퇴한 작가의 보류 정산을 운영자가 분리 보관 연락 이메일로 연락해 끝내므로,
      * 판매 수익이 있는 작가는 직접 결제한 적이 없어도 연락처를 남긴다).
      *
-     * <p>Native SQL 인 이유: 읽는 표가 모두 엔티티가 없는 커머스 표다.
+     * <p>Native SQL 인 이유: 사업자 신청 건 말고 읽는 표가 모두 엔티티가 없는 커머스 표다. 사업자 신청 건 결제·입금 확인 시각은 엔티티 질의({@link #bizLastPaidAt})로 따로 읽어
+     * 더 늦은 쪽을 고른다({@code greatest} 와 같이 null 은 건너뛴다).
      */
     public Optional<Instant> lastTransactionAt(long userId) {
         OffsetDateTime at = jdbc.queryForObject("SELECT greatest("
                 + "(SELECT max(o.paid_at) FROM payment_orders o WHERE o.user_id = ? AND o.status IN ('PAID', 'PARTIAL_CANCELED', 'CANCELED')), "
                 + "(SELECT max(c.completed_at) FROM payment_cancels c JOIN payment_orders o ON o.id = c.payment_order_id WHERE o.user_id = ? AND c.status = 'SUCCEEDED'), "
                 + "(SELECT max(p.refunded_at) FROM group_buy_participations p WHERE p.user_id = ?), "
-                + "(SELECT max(greatest(b.paid_at, b.deposit_confirmed_at)) FROM biz_applications b WHERE b.user_id = ? AND (b.paid_at IS NOT NULL OR b.deposit_confirmed_at IS NOT NULL)), "
                 + "(SELECT max(greatest(e.paid_at, e.refunded_at)) FROM emoticon_purchases e WHERE e.creator_id = ? AND e.paid_at IS NOT NULL), "
                 + "(SELECT max(s.paid_at) FROM emoticon_settlements s WHERE s.creator_id = ?))",
-                OffsetDateTime.class, userId, userId, userId, userId, userId, userId);
-        return Optional.ofNullable(at).map(OffsetDateTime::toInstant);
+                OffsetDateTime.class, userId, userId, userId, userId, userId);
+        return later(Optional.ofNullable(at).map(OffsetDateTime::toInstant).orElse(null), bizLastPaidAt(userId));
+    }
+
+    /** 사업자 신청 건의 가장 늦은 결제·입금 확인 시각(예전 {@code max(greatest(paid_at, deposit_confirmed_at))} 과 같다) — 없으면 null */
+    private Instant bizLastPaidAt(long userId) {
+        Tuple t = query.select(BIZ_APP.paidAt.max(), BIZ_APP.depositConfirmedAt.max()).from(BIZ_APP).where(BIZ_APP.userId.eq(userId)).fetchOne();
+        return t == null ? null : later(t.get(0, Instant.class), t.get(1, Instant.class)).orElse(null);
+    }
+
+    private static Optional<Instant> later(Instant a, Instant b) {
+        if (a == null || b == null) {
+            return Optional.ofNullable(a != null ? a : b);
+        }
+        return Optional.of(a.isAfter(b) ? a : b);
     }
 
     /**
      * 사업자 신청 건의 환불 대기 금액 합 — 요청됨(REQUESTED)이거나 승인됐지만 아직 끝나지 않은(APPROVED · 완료 시각 없음) 환불의 승인 금액(없으면 제안 금액). 탈퇴 화면의 「포기와 무관하게 환불된다」 금액.
      *
-     * <p>Native SQL 인 이유: {@code biz_refunds}·{@code biz_applications} 는 엔티티가 없는 커머스 표다(3단계에서 엔티티가 생긴다).
      */
     public long bizRefundWaitingTotal(long businessProfileId) {
-        Long waiting = jdbc.queryForObject("SELECT coalesce(sum(coalesce(r.approved_amount, r.proposed_amount)), 0) FROM biz_refunds r JOIN biz_applications a ON a.id = r.application_id "
-                + "WHERE a.business_profile_id = ? AND (r.status = 'REQUESTED' OR (r.status = 'APPROVED' AND r.completed_at IS NULL))", Long.class, businessProfileId);
+        Long waiting = query.select(Expressions.numberTemplate(Long.class, "sum({0})", BIZ_REFUND.approvedAmount.coalesce(BIZ_REFUND.proposedAmount))).from(BIZ_REFUND)
+                .join(BIZ_APP).on(BIZ_APP.id.eq(BIZ_REFUND.applicationId))
+                .where(BIZ_APP.businessProfileId.eq(businessProfileId), BIZ_REFUND.status.eq(BizRefundStatus.REQUESTED)
+                        .or(BIZ_REFUND.status.eq(BizRefundStatus.APPROVED).and(BIZ_REFUND.completedAt.isNull())))
+                .fetchOne();
         return waiting == null ? 0 : waiting;
     }
 

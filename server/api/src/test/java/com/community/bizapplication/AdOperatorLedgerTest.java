@@ -418,7 +418,7 @@ class AdOperatorLedgerTest extends BizApplicationApiTestBase {
         assertThat(refunds.approvedTotal(id)).isEqualTo(downtime);
         clock.set(p.start().plus(Duration.ofDays(1)).plus(Duration.ofHours(1))); // 둘째 날 — 남은 2일
         members.requestRefund(user, id, "중도 해지"); // 보상 환불 줄이 있어도 요청할 수 있다 — 진행 중 요청 = 중단(V127)
-        RefundRow open = refunds.lockOpen(id).orElseThrow();
+        RefundRow open = tx.execute(s -> refunds.lockOpen(id)).orElseThrow();
         assertThat(open.type()).isEqualTo(BizRefundType.STOP_PRORATED);
         long prorated = Math.min(Math.floorDiv(paid * 2, 4), paid - downtime);
         assertThat(open.proratedAmount()).isEqualTo(prorated);
