@@ -12,18 +12,15 @@ import com.community.emoticon.repository.master.EmoticonImageStore.ImageRow;
 import com.community.media.service.ImageStorage;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.security.SecureRandom;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -50,17 +47,15 @@ public class EmoticonImageService {
     private final EmoticonImageStore images;
     private final ImageStorage storage;
     private final SnowflakeIdGenerator ids;
-    private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    public EmoticonImageService(EmoticonImageValidator validator, EmoticonImageStore images, ImageStorage storage, SnowflakeIdGenerator ids, DataSource dataSource,
+    public EmoticonImageService(EmoticonImageValidator validator, EmoticonImageStore images, ImageStorage storage, SnowflakeIdGenerator ids,
                                 PlatformTransactionManager txManager, ObjectProvider<Clock> clocks) {
         this.validator = validator;
         this.images = images;
         this.storage = storage;
         this.ids = ids;
-        this.jdbc = new JdbcTemplate(dataSource);
         this.tx = new TransactionTemplate(txManager);
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
@@ -104,8 +99,7 @@ public class EmoticonImageService {
     /** 작가가 올린다 — GIF 무한 반복이 아니면 막는다(user-web 목업과 같다). 오류 칸은 {@code file}(대표 이미지도) */
     public ImageRow uploadByMember(long userId, byte[] data, EmoticonImageKind kind) {
         Instant since = clock.instant().minus(Duration.ofDays(1));
-        Integer recent = tx.execute(s -> jdbc.queryForObject("SELECT count(*) FROM emoticon_images WHERE uploaded_by_user = ? AND created_at >= ?", Integer.class, userId,
-                Timestamp.from(since)));
+        Integer recent = tx.execute(s -> images.uploadedSince(userId, since));
         if (recent != null && recent >= DAILY_LIMIT) {
             throw new EmoticonUploadLimitException(DAILY_LIMIT);
         }
