@@ -1,26 +1,42 @@
 package com.community.sanction.repository.master;
 
+import static com.community.sanction.repository.master.BoardSanctionStore.B;
+import static com.community.sanction.repository.master.BoardSanctionStore.P;
+import static com.community.sanction.repository.master.BoardSanctionStore.R;
+import static com.community.sanction.repository.master.BoardSanctionStore.S;
+import static com.community.sanction.repository.master.BoardSanctionStore.countWhen;
+import static com.community.sanction.repository.master.BoardSanctionStore.running;
+import static com.community.sanction.repository.master.BoardSanctionStore.zero;
+
 import com.community.sanction.entity.BoardSanctionKind;
+import com.community.sanction.entity.BoardSanctionReviewEntity;
+import com.community.sanction.entity.QBoardSanctionEntity;
+import com.community.sanction.entity.SanctionStatus;
 import com.community.sanction.repository.master.BoardSanctionStore.BoardSanctionRow;
 import com.community.sanction.repository.master.BoardSanctionStore.ReviewRow;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 관리자 게시판 제재·반복 검토 목록·건수·회원 요약(읽기만) — 한 줄 모양은 shared {@link BoardSanctionStore}({@code SELECT}·{@code row}·{@code REVIEW_SELECT}·{@code review}).
+ * 관리자 게시판 제재·반복 검토 목록·건수·회원 요약(읽기만) — 한 줄 모양은 shared {@link BoardSanctionStore}({@code sanctionRows}·{@code row}·{@code reviewRows}·{@code review}).
  * 색인: 목록은 V137 의 {@code ix_board_sanctions_created}·{@code ix_board_sanctions_running_list}·{@code ix_board_sanctions_closed_list}·{@code ix_board_sanctions_board},
  * 반복 검토는 {@code ix_board_sanction_reviews_open_list}·{@code ix_board_sanction_reviews_closed_list}, 회원 범위는 {@code ix_board_sanctions_user}.
  */
 @Repository
-public class AdminBoardSanctionStore {
+public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
 
-    /** 범위 「진행 중」 — 진행 중 쓰기 제한만(결정 11, 끝이 지난 것은 뺀다). 지금 자리 하나 */
-    static final String RUNNING = BoardSanctionStore.RUNNING;
-    /** 범위 「끝남」 — 기간 끝·해제·무효 */
-    static final String CLOSED = "s.status <> 'ACTIVE'";
+    /** 하위 질의용 별칭 */
+    private static final QBoardSanctionEntity X = new QBoardSanctionEntity("x");
 
     /** 목록 거르기 */
     public record Filter(String scope, Long boardId, BoardSanctionKind kind, String nicknameLike, Long sanctionNo, Instant from, Instant to, Long userId, boolean oldest) {
@@ -38,112 +54,112 @@ public class AdminBoardSanctionStore {
     public record MemberBoardRow(BoardRef board, long warnings, long restrictions, Instant activeUntil) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final BoardSanctionStore store;
 
-    public AdminBoardSanctionStore(BoardSanctionStore store) {
-        this.jdbc = store.jdbc();
+    public AdminBoardSanctionStore(JPAQueryFactory query, BoardSanctionStore store) {
+        super(query);
+        this.store = store;
+    }
+
+    /** 범위 「끝남」 — 기간 끝·해제·무효 */
+    private static BooleanExpression closed(QBoardSanctionEntity s) {
+        return s.status.ne(SanctionStatus.ACTIVE);
     }
 
     // ── 제재 목록 ─────────────────────────────────────────────────────────
 
     /** 전체 건수(거르기와 무관) — all · active · closed */
     public long[] counts(Instant now) {
-        return jdbc.queryForObject("SELECT (SELECT count(*) FROM board_sanctions), (SELECT count(*) FROM board_sanctions s WHERE " + RUNNING + "), "
-                + "(SELECT count(*) FROM board_sanctions s WHERE " + CLOSED + ")", (rs, i) -> new long[]{rs.getLong(1), rs.getLong(2), rs.getLong(3)}, ts(now));
+        return new long[]{zero(query.select(S.count()).from(S).fetchOne()), zero(query.select(S.count()).from(S).where(running(S, now)).fetchOne()),
+                zero(query.select(S.count()).from(S).where(closed(S)).fetchOne())};
     }
 
     public long total(Filter filter, Instant now) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, now, args);
-        Long n = jdbc.queryForObject("SELECT count(*) FROM board_sanctions s" + (filter.nicknameLike() != null ? " LEFT JOIN profiles p ON p.user_id = s.user_id" : "")
-                + where, Long.class, args.toArray());
-        return n == null ? 0 : n;
+        JPAQuery<Long> count = query.select(S.count()).from(S);
+        if (filter.nicknameLike() != null) {
+            count = count.leftJoin(P).on(P.userId.eq(S.userId));
+        }
+        return zero(count.where(where(filter, now)).fetchOne());
     }
 
     public List<BoardSanctionRow> page(Filter filter, Instant now, int page, int size) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, now, args);
-        String order = filter.oldest() ? " ORDER BY s.created_at, s.id" : " ORDER BY s.created_at DESC, s.id DESC";
-        args.add(size);
-        args.add((long) page * size);
-        return jdbc.query(BoardSanctionStore.SELECT + where + order + " LIMIT ? OFFSET ?", BoardSanctionStore::row, args.toArray());
+        OrderSpecifier<?>[] order = filter.oldest() ? new OrderSpecifier<?>[]{S.createdAt.asc(), S.id.asc()} : new OrderSpecifier<?>[]{S.createdAt.desc(), S.id.desc()};
+        return store.sanctionRows().where(where(filter, now)).orderBy(order).offset((long) page * size).limit(size).fetch().stream().map(BoardSanctionStore::row)
+                .toList();
     }
 
-    private static String where(Filter f, Instant now, List<Object> args) {
-        List<String> parts = new ArrayList<>();
+    private static BooleanExpression where(Filter f, Instant now) {
+        List<BooleanExpression> parts = new ArrayList<>();
         if ("ACTIVE".equals(f.scope())) {
-            parts.add(RUNNING);
-            args.add(ts(now));
+            parts.add(running(S, now));
         } else if ("CLOSED".equals(f.scope())) {
-            parts.add(CLOSED);
+            parts.add(closed(S));
         }
         if (f.boardId() != null) {
-            parts.add("s.board_id = ?");
-            args.add(f.boardId());
+            parts.add(S.boardId.eq(f.boardId()));
         }
         if (f.kind() != null) {
-            parts.add("s.kind = ?");
-            args.add(f.kind().name());
+            parts.add(S.kind.eq(f.kind()));
         }
         if (f.nicknameLike() != null) {
-            parts.add("lower(p.nickname) LIKE ? ESCAPE '\\'");
-            args.add(f.nicknameLike());
+            parts.add(P.nickname.lower().like(f.nicknameLike(), '\\'));
         }
         if (f.sanctionNo() != null) {
-            parts.add("s.sanction_no = ?");
-            args.add(f.sanctionNo());
+            parts.add(S.sanctionNo.eq(f.sanctionNo()));
         }
         if (f.from() != null) {
-            parts.add("s.created_at >= ?");
-            args.add(ts(f.from()));
+            parts.add(S.createdAt.goe(f.from()));
         }
         if (f.to() != null) {
-            parts.add("s.created_at <= ?");
-            args.add(ts(f.to()));
+            parts.add(S.createdAt.loe(f.to()));
         }
         if (f.userId() != null) {
-            parts.add("s.user_id = ?");
-            args.add(f.userId());
+            parts.add(S.userId.eq(f.userId()));
         }
-        return parts.isEmpty() ? "" : " WHERE " + String.join(" AND ", parts);
+        return parts.stream().reduce(BooleanExpression::and).orElse(null);
     }
 
     /** 게시판 제재가 한 건이라도 있는 게시판(이름 차례) — 게시판 거르기 고르개 */
     public List<BoardRef> boards() {
-        return jdbc.query("SELECT b.id, b.slug, b.name, b.name_en FROM boards b WHERE EXISTS (SELECT 1 FROM board_sanctions s WHERE s.board_id = b.id) ORDER BY b.name, b.id",
-                (rs, i) -> new BoardRef(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4)));
+        return query.select(B.id, B.slug, B.name, B.nameEn).from(B).where(JPAExpressions.selectOne().from(X).where(X.boardId.eq(B.id)).exists())
+                .orderBy(B.name.asc(), B.id.asc()).fetch().stream().map(t -> new BoardRef(t.get(B.id), t.get(B.slug), t.get(B.name), t.get(B.nameEn))).toList();
     }
 
     // ── 회원 상세 ─────────────────────────────────────────────────────────
 
     /** 그 회원의 게시판별 수 — 게시판 이름 차례 */
     public List<MemberBoardRow> memberBoards(long userId, Instant now) {
-        return jdbc.query("SELECT s.board_id, b.slug, b.name, b.name_en, count(*) FILTER (WHERE s.status <> 'VOIDED' AND s.kind = 'WARNING'), "
-                        + "count(*) FILTER (WHERE s.status <> 'VOIDED' AND s.kind <> 'WARNING'), max(s.ends_at) FILTER (WHERE " + RUNNING + ") "
-                        + "FROM board_sanctions s JOIN boards b ON b.id = s.board_id WHERE s.user_id = ? GROUP BY s.board_id, b.slug, b.name, b.name_en ORDER BY b.name, s.board_id",
-                (rs, i) -> new MemberBoardRow(new BoardRef(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4)), rs.getLong(5), rs.getLong(6),
-                        MemberSanctionStore.instant(rs, 7)), ts(now), userId);
+        BooleanExpression valid = S.status.ne(SanctionStatus.VOIDED);
+        NumberExpression<Long> warnings = countWhen(valid.and(S.kind.eq(BoardSanctionKind.WARNING)));
+        NumberExpression<Long> restrictions = countWhen(valid.and(S.kind.ne(BoardSanctionKind.WARNING)));
+        var until = BoardSanctionStore.runningUntilMax(S, now);
+        return query.select(S.boardId, B.slug, B.name, B.nameEn, warnings, restrictions, until).from(S).join(B).on(B.id.eq(S.boardId)).where(S.userId.eq(userId))
+                .groupBy(S.boardId, B.slug, B.name, B.nameEn).orderBy(B.name.asc(), S.boardId.asc()).fetch().stream()
+                .map(t -> new MemberBoardRow(new BoardRef(t.get(S.boardId), t.get(B.slug), t.get(B.name), t.get(B.nameEn)), zero(t.get(warnings)),
+                        zero(t.get(restrictions)), t.get(until))).toList();
     }
 
     // ── 반복 검토 ─────────────────────────────────────────────────────────
 
     /** 열린 건 · 닫힌 건 수 */
     public long[] reviewCounts() {
-        return jdbc.queryForObject("SELECT count(*) FILTER (WHERE status = 'OPEN'), count(*) FILTER (WHERE status = 'CLOSED') FROM board_sanction_reviews",
-                (rs, i) -> new long[]{rs.getLong(1), rs.getLong(2)});
+        NumberExpression<Long> open = countWhen(R.status.eq(BoardSanctionReviewEntity.OPEN));
+        NumberExpression<Long> closed = countWhen(R.status.eq(BoardSanctionReviewEntity.CLOSED));
+        Tuple t = query.select(open, closed).from(R).fetchOne();
+        return new long[]{zero(t == null ? null : t.get(open)), zero(t == null ? null : t.get(closed))};
     }
 
     /** 열린 건 수(탭·메뉴 배지) — 부분 색인 */
     public long openReviews() {
-        Long n = jdbc.queryForObject("SELECT count(*) FROM board_sanction_reviews WHERE status = 'OPEN'", Long.class);
-        return n == null ? 0 : n;
+        return zero(query.select(R.count()).from(R).where(R.status.eq(BoardSanctionReviewEntity.OPEN)).fetchOne());
     }
 
     /** 한 쪽 — 열린 건 오래된 것이 위, 닫힌 건 최근 닫은 것이 위. 건수는 줄마다 회원·게시판 범위 색인 COUNT */
     public List<ReviewLine> reviewPage(boolean open, Instant now, int page, int size) {
         Instant from = now.minus(BoardSanctionStore.REVIEW_WINDOW);
-        List<ReviewRow> rows = jdbc.query(BoardSanctionStore.REVIEW_SELECT + " WHERE r.status = ?" + (open ? " ORDER BY r.opened_at, r.id" : " ORDER BY r.closed_at DESC, r.id DESC")
-                + " LIMIT ? OFFSET ?", BoardSanctionStore::review, open ? "OPEN" : "CLOSED", size, (long) page * size);
+        OrderSpecifier<?>[] order = open ? new OrderSpecifier<?>[]{R.openedAt.asc(), R.id.asc()} : new OrderSpecifier<?>[]{R.closedAt.desc(), R.id.desc()};
+        List<ReviewRow> rows = store.reviewRows().where(R.status.eq(open ? BoardSanctionReviewEntity.OPEN : BoardSanctionReviewEntity.CLOSED)).orderBy(order)
+                .offset((long) page * size).limit(size).fetch().stream().map(BoardSanctionStore::review).toList();
         List<ReviewLine> out = new ArrayList<>(rows.size());
         for (ReviewRow r : rows) {
             out.add(line(r, from));
@@ -157,14 +173,6 @@ public class AdminBoardSanctionStore {
             return new ReviewLine(r, r.closedCount() == null ? r.openedCount() : r.closedCount(), r.closedBoardCount() == null ? 1 : r.closedBoardCount());
         }
         Instant from = r.countedAfter() != null && r.countedAfter().isAfter(windowFrom) ? r.countedAfter() : windowFrom;
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM board_sanctions WHERE user_id = ? AND board_id = ? AND status <> 'VOIDED' AND created_at > ?",
-                Integer.class, r.userId(), r.boardId(), ts(from));
-        Integer boards = jdbc.queryForObject("SELECT count(DISTINCT board_id) FROM board_sanctions WHERE user_id = ? AND status <> 'VOIDED' AND created_at > ?",
-                Integer.class, r.userId(), ts(windowFrom));
-        return new ReviewLine(r, count == null ? 0 : count, boards == null ? 0 : boards);
-    }
-
-    private static Object ts(Instant at) {
-        return MemberSanctionStore.ts(at);
+        return new ReviewLine(r, store.countValidAfter(r.userId(), r.boardId(), from), store.boardsValidAfter(r.userId(), windowFrom));
     }
 }

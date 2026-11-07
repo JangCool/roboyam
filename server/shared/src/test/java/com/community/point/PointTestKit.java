@@ -6,7 +6,9 @@ import com.community.point.entity.PointReason;
 import com.community.point.repository.master.PointLedgerWriter;
 import com.community.point.service.PointPolicy;
 import com.community.point.service.PointService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
+import com.community.testsupport.JpaTestContext;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.MutableTestClock;
@@ -63,7 +65,7 @@ final class PointTestKit {
         writer = new PointLedgerWriter(dataSource);
         policy = new PointPolicy(dataSource);
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
-        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(dataSource), null, null, ids, null, clocks);
+        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         points = new PointService(writer, policy, new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
         attendance = new com.community.point.service.AttendanceService(new com.community.point.repository.master.PointAttendanceStore(dataSource), points, ids, clocks);
         operator = newOperator();

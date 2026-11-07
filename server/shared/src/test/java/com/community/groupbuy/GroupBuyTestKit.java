@@ -61,7 +61,9 @@ import com.community.payment.service.PaymentCancelService;
 import com.community.payment.service.PaymentCancelWorker;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.payment.service.PaymentOrderService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
+import com.community.testsupport.JpaTestContext;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.JpaTestContext;
@@ -101,7 +103,6 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -201,9 +202,13 @@ final class GroupBuyTestKit {
             return current.dataSourceForWiring;
         }
 
+        /**
+         * JPA 트랜잭션 관리자({@link JpaTestContext}) — 기능 제한 자동 부여(선점 만료 → 공구 참여 제한)가 엔티티로 넣으므로 그 쓰기가 업무 트랜잭션에 실려야 한다.
+         * 같은 트랜잭션 안의 JDBC 저장소는 같은 연결을 쓴다(데이터소스가 같은 것 — {@link CommerceTestDatabase#migrated}).
+         */
         @Bean
-        PlatformTransactionManager transactionManager(DataSource dataSource) {
-            return new DataSourceTransactionManager(dataSource);
+        PlatformTransactionManager transactionManager() {
+            return JpaTestContext.transactions();
         }
 
         @Bean
@@ -284,7 +289,7 @@ final class GroupBuyTestKit {
                     return ref.key();
                 }
             };
-            return new MemberRestrictionService(new MemberRestrictionStore(dataSource), audit, notices, ids, messages, clocks);
+            return new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), audit, notices, ids, messages, clocks);
         }
 
         /** 2b-4 공구 알림 — 회원 알림 발행기·커머스 메일 대기열·사업자 정보·문구(실제 번들) */
