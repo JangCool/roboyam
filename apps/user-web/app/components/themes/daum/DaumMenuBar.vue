@@ -130,7 +130,6 @@
                                 >
                                     <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                                     <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
-                                    <small v-if="entry.row.notice" class="shrink-0 text-xs font-normal text-muted-color">{{ t('menu.investmentNotice') }}</small>
                                 </AppMenuLink>
                                 <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" />
                             </li>
@@ -155,7 +154,6 @@
                             >
                                 <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                                 <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
-                                <small v-if="entry.row.notice" class="shrink-0 text-xs font-normal text-muted-color">{{ t('menu.investmentNotice') }}</small>
                             </AppMenuLink>
                             <!-- 활성 표시(`data-active`)는 드롭다운 단추가 스스로 단다 -->
                             <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" />

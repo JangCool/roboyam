@@ -48,7 +48,6 @@
                                 <i :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" :data-testid="row.color ? 'menu-dot-color' : 'menu-dot-slot'" />
                                 <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
                             </span>
-                            <small v-if="row.notice" class="shrink-0 text-xs text-muted-color">{{ t('menu.investmentNotice') }}</small>
                         </AppMenuLink>
                     </li>
                 </ul>
