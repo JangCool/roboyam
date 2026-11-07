@@ -1,5 +1,7 @@
 package com.community.site.controller;
 
+import com.community.popup.dto.response.SitePopupsResponse;
+import com.community.popup.service.PublicSitePopupService;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.response.SiteInfoResponse;
 import com.community.site.dto.response.SiteNoticeBarResponse;
@@ -24,10 +26,12 @@ public class PublicSiteController {
 
     private final PublicSiteService siteService;
     private final PublicSiteNoticeService noticeService;
+    private final PublicSitePopupService popupService;
 
-    public PublicSiteController(PublicSiteService siteService, PublicSiteNoticeService noticeService) {
+    public PublicSiteController(PublicSiteService siteService, PublicSiteNoticeService noticeService, PublicSitePopupService popupService) {
         this.siteService = siteService;
         this.noticeService = noticeService;
+        this.popupService = popupService;
     }
 
     @GetMapping("/info")
@@ -46,6 +50,19 @@ public class PublicSiteController {
     @GetMapping("/notice-bar")
     public ResponseEntity<ApiResponse<SiteNoticeBarResponse>> noticeBar() {
         PublicSiteNoticeService.Snapshot snapshot = noticeService.snapshot();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .eTag(snapshot.etag())
+                .body(ApiResponse.success(snapshot.response()));
+    }
+
+    /**
+     * 팝업(docs/features/site-popup-contract.md) — 노출을 켰고 기간 안인 것만 목록 차례대로 {@code { items }}. 자기 사본({@link PublicSitePopupService}, 20초 — 기간은 요청마다
+     * 지금 시각으로 다시 거른다)을 쓰고 캐시 규칙은 {@code /info} 와 같다({@code ETag} 는 걸러 낸 응답의 지문). 보일 곳·기기·「보지 않기」 기록은 화면이 가린다.
+     */
+    @GetMapping("/popups")
+    public ResponseEntity<ApiResponse<SitePopupsResponse>> popups() {
+        PublicSitePopupService.Snapshot snapshot = popupService.snapshot();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noCache())
                 .eTag(snapshot.etag())

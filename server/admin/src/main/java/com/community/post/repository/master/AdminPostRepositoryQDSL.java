@@ -18,6 +18,7 @@ import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -175,6 +176,18 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     /** 목록 한 쪽 — 정렬은 id(= 작성 시각) 순 */
     public ListPage search(AdminPostSearch c, long offset, int limit, Instant now) {
+        return search(c, offset, limit, now, c.oldest() ? POST.id.asc() : POST.id.desc());
+    }
+
+    /**
+     * 공지 관리 목록 한 쪽(docs/features/notice-admin-contract.md) — 거르기는 {@link #search} 와 같고, 정렬만 고정 글 먼저(공개 목록과 같은 {@code pinnedAt} 내림차순 —
+     * 최근 고정이 위) 그다음 최신순.
+     */
+    public ListPage searchPinnedFirst(AdminPostSearch c, long offset, int limit, Instant now) {
+        return search(c, offset, limit, now, POST.pinnedAt.desc().nullsLast(), POST.id.desc());
+    }
+
+    private ListPage search(AdminPostSearch c, long offset, int limit, Instant now, OrderSpecifier<?>... order) {
         if (c.none()) {
             return new ListPage(List.of(), 0);
         }
@@ -187,10 +200,22 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
             return new ListPage(List.of(), total == null ? 0 : total);
         }
         List<AdminPostListRow> items = query.select(listRow()).from(POST).where(where)
-                .orderBy(c.oldest() ? POST.id.asc() : POST.id.desc())
+                .orderBy(order)
                 .offset(offset).limit(limit)
                 .fetch();
         return new ListPage(items, total);
+    }
+
+    /** 글별 마지막 수정 시각(고친 적 없는 글은 빠진다) — 공지 관리 목록의 {@code editedAt} */
+    public Map<Long, Instant> editedAt(Collection<Long> postIds) {
+        Map<Long, Instant> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(POST.id, POST.editedAt).from(POST).where(POST.id.in(postIds), POST.editedAt.isNotNull()).fetch()) {
+            out.put(t.get(POST.id), t.get(POST.editedAt));
+        }
+        return out;
     }
 
     /** 글 한 줄(상태와 무관) */

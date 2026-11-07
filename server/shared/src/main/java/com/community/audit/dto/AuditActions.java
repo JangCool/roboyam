@@ -45,6 +45,16 @@ public final class AuditActions {
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
     /** 공지 띠 설정 저장(설정 > 일반 「공지 띠」) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
     public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
+    /** 팝업 만들기(콘텐츠 > 팝업 관리, site-popup-contract) — 대상 SITE_POPUP + 팝업 ID, {@code after} 칸 값 */
+    public static final String SITE_POPUP_CREATE = "SITE_POPUP_CREATE";
+    /** 팝업 고치기 — 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
+    public static final String SITE_POPUP_UPDATE = "SITE_POPUP_UPDATE";
+    /** 팝업 지우기 — {@code before} 칸 값 */
+    public static final String SITE_POPUP_DELETE = "SITE_POPUP_DELETE";
+    /** 팝업 차례 바꾸기 — 대상 SITE_POPUP + {@code order}, before/after ID 차례(바뀐 때만) */
+    public static final String SITE_POPUP_ORDER = "SITE_POPUP_ORDER";
+    /** 팝업 노출 켜기·끄기 — {@code from}/{@code to}(바뀐 때만) */
+    public static final String SITE_POPUP_VISIBLE = "SITE_POPUP_VISIBLE";
     /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
     public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
     /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */
@@ -222,6 +232,15 @@ public final class AuditActions {
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */
     public static final String POST_POLL_DELETE = "POST_POLL_DELETE";
+    // ── 공지 관리(docs/features/notice-admin-contract.md) — 공지 게시판 글, 대상 POST + 글 ID ──
+    /** 공지 쓰기(작성자 = 운영자 회원 계정) — {@code boardId}·{@code authorUserId}·{@code prefixId}·{@code title}·{@code pinned} */
+    public static final String NOTICE_CREATE = "NOTICE_CREATE";
+    /** 공지 고치기(작성자는 그대로) — 바뀐 칸 {@code before}/{@code after}(prefixId·title·body·pinned — body 는 바뀌었는지만) */
+    public static final String NOTICE_UPDATE = "NOTICE_UPDATE";
+    /** 공지 지우기(사유·작성자 알림·포인트 회수 없음 — 게시글 관리 삭제와 같은 「지운 글」) — 고정이 풀렸으면 {@code unpinned} */
+    public static final String NOTICE_DELETE = "NOTICE_DELETE";
+    public static final String NOTICE_PIN = "NOTICE_PIN";
+    public static final String NOTICE_UNPIN = "NOTICE_UNPIN";
     // ── 신고 관리(docs/features/report-admin-contract.md) — 대상 REPORT_CASE + 사건 ID ──
     /** 사건 조치(숨김·삭제·자동 숨김 확정) — {@code caseNo}·{@code action}·{@code reasonCode}·{@code note}·{@code targetType}·{@code targetId}·{@code reportCount} */
     public static final String REPORT_RESOLVE = "REPORT_RESOLVE";

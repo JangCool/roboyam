@@ -1,7 +1,7 @@
 <template>
     <!--
         글 상태 알약 — 공개(초록)·숨김(주황)·삭제(빨강). `lines` 면 아래에 숨김 까닭·시각(기간 숨김은 풀리는 시각), 지운 시각, 삭제 예정, 원문 파기를 작은 줄로 붙인다.
-        게시글 관리의 목록 줄과 글 서랍 머리가 같이 쓴다.
+        게시글 관리의 목록 줄과 글 서랍 머리, 공지 관리(`/notices`)의 목록·수정 화면이 같이 쓴다(받는 칸은 `AdminPostStateFields`).
     -->
     <div class="flex min-w-0 flex-col items-start gap-0.5">
         <Tag :value="t(`post.state.${item.state}`)" :icon="UtilPost.stateIcon(item.state)" :severity="UtilPost.stateSeverity(item.state)" class="text-[11px]!" />
@@ -12,12 +12,12 @@
 </template>
 
 <script setup lang="ts">
-import type { AdminPostItem } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostStateFields } from '~/composables/post/api/usePostApi.types';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
 interface Props {
-    item: AdminPostItem;
+    item: AdminPostStateFields;
     /** 알약 아래 작은 줄들을 붙인다 */
     lines?: boolean;
 }

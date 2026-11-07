@@ -65,6 +65,7 @@ import shell from './shell';
 import signup from './signup';
 import site from './site';
 import siteNotice from './siteNotice';
+import popup from './popup';
 import siteTerms from './siteTerms';
 import social from './social';
 import verify from './verify';
@@ -132,6 +133,7 @@ export default {
     signup,
     site,
     siteNotice,
+    popup,
     siteTerms,
     social,
     verify,

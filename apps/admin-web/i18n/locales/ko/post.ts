@@ -279,6 +279,7 @@ export default {
         poll: '투표 「{question}」',
         pollVoters: '참여 {n}명',
         reportCase: '신고 사건 보기',
+        viaNoticeAdmin: '공지 관리에서',
     },
     actorSystem: '시스템',
     actorGone: '(없어진 운영자)',

@@ -285,8 +285,13 @@ public class AdminPostQueryService {
 
     /** 공개 사이트의 글 주소 —사이트 설정 공개 주소(소셜 로그인·메일 링크와 같은 값)가 없으면 null */
     private String publicUrlOf(long postId) {
+        return publicUrl("/posts/" + postId);
+    }
+
+    /** 공개 사이트 주소 + {@code path}(「/」로 시작) — 사이트 설정 공개 주소가 없으면 null. 공지 관리의 글·게시판 주소도 같은 방식으로 만든다 */
+    public String publicUrl(String path) {
         return site.current().map(SiteValues::publicUrl).filter(url -> url != null && !url.isBlank())
-                .map(url -> url.strip().replaceAll("/+$", "") + "/posts/" + postId).orElse(null);
+                .map(url -> url.strip().replaceAll("/+$", "") + path).orElse(null);
     }
 
     private static String operatorName(OperatorEntity operator) {
@@ -405,7 +410,7 @@ public class AdminPostQueryService {
     }
 
     /** 문자열 ID → long. 형식이 틀리면 null */
-    static Long parseId(String raw) {
+    public static Long parseId(String raw) {
         if (raw == null || raw.isBlank() || raw.strip().length() > ID_DIGITS_MAX) {
             return null;
         }

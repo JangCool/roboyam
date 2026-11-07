@@ -56,10 +56,12 @@ import withdrawnContact from './withdrawnContact';
 import terms from './terms';
 import nicknameImage from './nicknameImage';
 import noticeBar from './noticeBar';
+import notice from './notice';
 import operatorStage from './operatorStage';
 import content from './content';
 import debate from './debate';
 import highlight from './highlight';
+import popup from './popup';
 import popular from './popular';
 import post from './post';
 import report from './report';
@@ -130,10 +132,12 @@ export default {
     terms,
     nicknameImage,
     noticeBar,
+    notice,
     operatorStage,
     content,
     debate,
     highlight,
+    popup,
     popular,
     post,
     report,

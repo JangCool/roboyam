@@ -32,6 +32,9 @@ import org.springframework.web.util.HtmlUtils;
 @Component
 public class PostImages {
 
+    /** 공개 글쓰기의 본문 칸 경로 */
+    private static final String CONTENT_FIELD = "content";
+
     private final FileRepositoryQDSL files;
     private final ImageStorage storage;
 
@@ -45,14 +48,19 @@ public class PostImages {
         return new LinkedHashSet<>(files.idsByPost(postId));
     }
 
-    /** 저장 전 확인(잠그지 않음) — 쓸 수 없는 이미지가 하나라도 있으면 칸 오류 */
+    /** 저장 전 확인(잠그지 않음) — 쓸 수 없는 이미지가 하나라도 있으면 칸 오류({@code fields.content}) */
     public void check(Collection<Long> ids, Long authorId, Long postId) {
+        check(ids, authorId, postId, CONTENT_FIELD);
+    }
+
+    /** {@link #check(Collection, Long, Long)} — 칸 경로를 부르는 쪽이 정한다(관리자 공지는 {@code body}) */
+    public void check(Collection<Long> ids, Long authorId, Long postId, String field) {
         Set<Long> distinct = new LinkedHashSet<>(ids);
         if (distinct.isEmpty()) {
             return;
         }
         Map<Long, FileEntity> found = files.postImages(distinct).stream().collect(Collectors.toMap(FileEntity::getId, f -> f));
-        requireUsable(distinct, found, authorId, postId);
+        requireUsable(distinct, found, authorId, postId, field);
     }
 
     /**
@@ -61,11 +69,16 @@ public class PostImages {
      * @param safeHtml 정화한(금지어까지 가린) 본문 — 표식이 아직 채워지지 않은 것
      */
     public String bind(String safeHtml, List<Long> ids, Long authorId, long postId, boolean editing, Instant now) {
+        return bind(safeHtml, ids, authorId, postId, editing, now, CONTENT_FIELD);
+    }
+
+    /** {@link #bind(String, List, Long, long, boolean, Instant)} — 칸 경로를 부르는 쪽이 정한다 */
+    public String bind(String safeHtml, List<Long> ids, Long authorId, long postId, boolean editing, Instant now, String field) {
         Set<Long> distinct = new LinkedHashSet<>(ids);
         List<FileEntity> current = editing ? files.lockByPost(postId) : List.of();
         Map<Long, FileEntity> found = new HashMap<>();
         files.lockPostImages(distinct).forEach(f -> found.put(f.getId(), f));
-        requireUsable(distinct, found, authorId, postId);
+        requireUsable(distinct, found, authorId, postId, field);
         String html = RichText.expandImages(safeHtml, id -> tag(found.get(id)));
         for (FileEntity file : found.values()) {
             file.attachToPost(postId, now);
@@ -83,11 +96,11 @@ public class PostImages {
         files.lockByPost(postId).forEach(FileEntity::release);
     }
 
-    private static void requireUsable(Set<Long> ids, Map<Long, FileEntity> found, Long authorId, Long postId) {
+    private static void requireUsable(Set<Long> ids, Map<Long, FileEntity> found, Long authorId, Long postId, String field) {
         for (Long id : ids) {
             FileEntity file = found.get(id);
             if (file == null || !usable(file, authorId, postId)) {
-                throw ValidationException.of("content", new MessageRef("board.content.image.missing"));
+                throw ValidationException.of(field, new MessageRef("board.content.image.missing"));
             }
         }
     }

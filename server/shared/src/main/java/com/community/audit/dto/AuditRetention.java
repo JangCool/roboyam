@@ -95,6 +95,8 @@ public final class AuditRetention {
             AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
             AuditActions.SITE_OG_CHANGE, AuditActions.SITE_OG_RESET, AuditActions.SITE_DISPLAY_UPDATE, AuditActions.SITE_THEME_UPDATE,
             AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
+            // 팝업 관리(site-popup-contract) — 공지 띠와 같은 사이트 운영 일
+            AuditActions.SITE_POPUP_CREATE, AuditActions.SITE_POPUP_UPDATE, AuditActions.SITE_POPUP_DELETE, AuditActions.SITE_POPUP_ORDER, AuditActions.SITE_POPUP_VISIBLE,
             AuditActions.SITE_OPERATOR_UPDATE, AuditActions.SITE_OPERATOR_STAGE_CHANGE,
             AuditActions.GADGET_PAGE_CREATE, AuditActions.GADGET_PAGE_UPDATE, AuditActions.GADGET_PAGE_DELETE, AuditActions.GADGET_PAGE_LAYOUT_UPDATE,
             AuditActions.BOARD_LAYOUT_UPDATE,
@@ -142,6 +144,8 @@ public final class AuditRetention {
             AuditActions.DEBATE_OPEN, AuditActions.DEBATE_UPDATE, AuditActions.DEBATE_CLOSE,
             AuditActions.POST_HIDE, AuditActions.POST_UNHIDE, AuditActions.POST_DELETE, AuditActions.POST_RESTORE, AuditActions.POST_MOVE, AuditActions.POST_NOTICE,
             AuditActions.POST_PIN, AuditActions.POST_UNPIN, AuditActions.POST_BULK, AuditActions.POST_POLL_DELETE,
+            // 공지 관리(notice-admin-contract) — 게시글 관리와 같은 콘텐츠 관리(포인트가 오가지 않는다)
+            AuditActions.NOTICE_CREATE, AuditActions.NOTICE_UPDATE, AuditActions.NOTICE_DELETE, AuditActions.NOTICE_PIN, AuditActions.NOTICE_UNPIN,
             AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
