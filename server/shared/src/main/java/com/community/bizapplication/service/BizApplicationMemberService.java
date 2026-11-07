@@ -29,6 +29,7 @@ import com.community.bizapplication.service.BizTransitions.Action;
 import com.community.business.entity.BusinessServiceKind;
 import com.community.business.service.BusinessEligibility;
 import com.community.business.service.BusinessEligibility.ApprovedBusiness;
+import com.community.commerce.sales.CommerceSalesStore;
 import com.community.media.service.ImageStorage;
 import com.community.payment.dto.PaymentCheckout;
 import com.community.payment.dto.PaymentOrderRequest;
@@ -79,6 +80,7 @@ public class BizApplicationMemberService {
     private final BizDealContent dealForm;
     private final BizPauseService pauses;
     private final AdPlacementStore placements;
+    private final CommerceSalesStore commerce;
     private final TransactionTemplate tx;
 
     /** 지금 환불 규정 버전(V127 — 진행 중 중단 수수료를 넣어 2026-10-30 에서 올림). 새 신청이 다른 버전에 동의했으면 400 {@code fields.agreedRefundPolicyVersion} */
@@ -86,7 +88,9 @@ public class BizApplicationMemberService {
 
     public BizApplicationMemberService(BizApplicationStore store, BizPriceRuleStore rules, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
                                        BusinessEligibility eligibility, PaymentOrderService payments, ObjectProvider<ImageStorage> images,
-                                       BizDealContent dealForm, BizPauseService pauses, AdPlacementStore placements, PlatformTransactionManager transactions) {
+                                       BizDealContent dealForm, BizPauseService pauses, AdPlacementStore placements, CommerceSalesStore commerce,
+                                       PlatformTransactionManager transactions) {
+        this.commerce = commerce;
         this.pauses = pauses;
         this.placements = placements;
         this.store = store;
@@ -119,6 +123,14 @@ public class BizApplicationMemberService {
 
     public Map<BizProduct, PriceRule> priceRules() {
         return rules.all();
+    }
+
+    /**
+     * 운영 주체가 유료 신청을 받을 수 있는 단계인가 — 판정은 {@link CommerceSalesStore#operatorCanSell} 한 곳(개인사업자 이상 + 통신판매업 신고번호, 사용자 결정 2026-11-07).
+     * false 면 새 신청은 상품 닫힘과 같은 409 {@code BIZ_PRODUCT_CLOSED}, 회원이 읽는 상품의 {@code accepting} 도 false 로 내보낸다.
+     */
+    public boolean operatorCanSell() {
+        return commerce.operatorCanSell();
     }
 
     /** 날짜별 남은 칸 — 92일까지 */
@@ -176,7 +188,7 @@ public class BizApplicationMemberService {
             agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
             PriceRule rule = all.get(product);
-            if (!rule.accepting()) {
+            if (!rule.accepting() || !commerce.operatorCanSell()) {
                 throw BizApplicationException.productClosed();
             }
             slots.require(product, period.start(), period.end(), null);
@@ -210,6 +222,9 @@ public class BizApplicationMemberService {
             BizPaymentMethod method = f.oneOf("paymentMethod", b.paymentMethod(), BizPaymentMethod::valueOf);
             agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
+            if (!commerce.operatorCanSell()) {
+                throw BizApplicationException.productClosed(); // 운영 주체가 돈을 받을 수 없는 단계(사용자 결정 2026-11-07)
+            }
             for (BizProduct p : products) {
                 if (!all.get(p).accepting()) {
                     throw BizApplicationException.productClosed();
@@ -357,6 +372,9 @@ public class BizApplicationMemberService {
             if (seen.status() != BizApplicationStatus.AWAITING_PAYMENT || seen.paymentMethod() != BizPaymentMethod.ONLINE || seen.paymentDeadlineAt() == null
                     || !seen.paymentDeadlineAt().isAfter(now)) {
                 throw BizApplicationException.stateChanged();
+            }
+            if (!commerce.operatorCanSell()) {
+                throw BizApplicationException.paymentUnavailable(); // 운영 주체가 돈을 받을 수 없는 단계(사용자 결정 2026-11-07) — 이미 열린 결제의 완료는 처리기가 받는다
             }
             Optional<PaymentCheckout> open = payments.openCheckout(PaymentOrderType.BIZ_APPLICATION, id, REUSE_CHECKOUT);
             PaymentCheckout checkout;

@@ -28,6 +28,12 @@ import org.springframework.core.io.ClassPathResource;
  */
 class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
 
+    /** 유료 신청 승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) */
+    @Override
+    protected boolean sellingOperator() {
+        return true;
+    }
+
     private static final List<String> NEW_CODES = List.of("AD_REVIEW_PENDING", "HOTDEAL_REVIEW_PENDING", "AD_REFUND_REQUESTED", "HOTDEAL_REFUND_REQUESTED");
 
     @Autowired

@@ -371,6 +371,10 @@ public final class MessageTargetCatalog {
                 MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
         out.add(required(RequiredMail.MEMBER_WITHDRAWAL_PROGRESS, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("pendingSummary", "withdrawalPendingSummary"),
                 MessageVariable.of("expectedDate", "withdrawalExpectedDate"), MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
+        // 약관 변경(terms-operator-contract) — 불리한 변경으로 게시한 문서의 이름·시행일·변경 요지·보기 링크
+        out.add(required(RequiredMail.MEMBER_TERMS_CHANGE, List.of(MessageVariable.of("termsName", "termsChangeName"),
+                MessageVariable.of("effectiveDate", "termsChangeEffectiveDate"), MessageVariable.of("changeNote", "termsChangeNote"),
+                MessageVariable.requiredLink("termsLink", "termsChangeLink")), List.of()));
         return out;
     }
 

@@ -90,6 +90,7 @@ public final class AuditRetention {
             AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
             AuditActions.SITE_OG_CHANGE, AuditActions.SITE_OG_RESET, AuditActions.SITE_DISPLAY_UPDATE, AuditActions.SITE_THEME_UPDATE,
             AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
+            AuditActions.SITE_OPERATOR_UPDATE, AuditActions.SITE_OPERATOR_STAGE_CHANGE,
             AuditActions.GADGET_PAGE_CREATE, AuditActions.GADGET_PAGE_UPDATE, AuditActions.GADGET_PAGE_DELETE, AuditActions.GADGET_PAGE_LAYOUT_UPDATE,
             AuditActions.BOARD_LAYOUT_UPDATE,
             AuditActions.MAIL_SETTINGS_UPDATE, AuditActions.MAIL_SETTINGS_TEST,

@@ -23,6 +23,7 @@ import com.community.payment.gateway.fake.FakePgStore;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.permission.entity.MemberPermission;
 import com.community.role.entity.MemberRoleIds;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.user.entity.Role;
 import com.jayway.jsonpath.JsonPath;
 import java.sql.Timestamp;
@@ -92,6 +93,7 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         operator = newOperator();
         paidWas = jdbc.queryForObject("SELECT paid_sales_enabled FROM emoticon_settings WHERE id = 1", Boolean.class);
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = true WHERE id = 1");
+        SiteOperatorFixture.fillBusiness(jdbc); // 유료 판매·구매는 운영 주체가 개인사업자 이상 + 통신판매업 신고번호(사용자 결정 2026-11-07)
         for (MemberPermission p : MemberPermission.values()) {
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
@@ -112,6 +114,7 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
     void restore() {
         jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE price > 0");
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = ? WHERE id = 1", paidWas);
+        SiteOperatorFixture.clear(jdbc);
     }
 
     // ── 도우미 ──────────────────────────────────────────────────────────────
@@ -456,6 +459,30 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
         fakePg.pay(s[0], PRICE, "KRW", clock.instant());
         complete(buyer, s).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepted").value(true));
+    }
+
+    /** 사용자 결정 2026-11-07 — 돈을 받는 기능은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(방어선: 스위치가 켜져 있어도) */
+    @Test
+    void 운영_주체가_개인_단계거나_신고번호가_없으면_스위치가_켜져_있어도_결제_준비는_409_공개_규칙은_꺼짐_이미_결제창의_주문은_받는다() throws Exception {
+        long pack = paidPack();
+        long buyer = buyer();
+        String[] s = start(buyer, pack);
+        mvc.perform(get("/api/emoticons/rules")).andExpect(status().isOk()).andExpect(jsonPath("$.data.paidSalesEnabled").value(true));
+
+        SiteOperatorFixture.clear(jdbc); // 개인 단계(스위치는 켜진 채 — 옮기기 전 데이터 등)
+        prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
+        mvc.perform(get("/api/emoticons/rules")).andExpect(status().isOk()).andExpect(jsonPath("$.data.paidSalesEnabled").value(false));
+        fakePg.pay(s[0], PRICE, "KRW", clock.instant());
+        complete(buyer, s).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepted").value(true));
+
+        // 개인사업자여도 통신판매업 신고번호가 없으면 같은 409
+        SiteOperatorFixture.fillBusiness(jdbc);
+        jdbc.update("UPDATE site_operator SET mail_order_number = '  ' WHERE id = 1");
+        prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
+
+        // 개인사업자 + 신고번호면 다시 받는다
+        SiteOperatorFixture.fillBusiness(jdbc);
+        prepare(buyer(), pack).andExpect(status().isOk());
     }
 
     @Test

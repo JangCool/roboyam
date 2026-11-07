@@ -1,9 +1,13 @@
+import type { AdminMenuConfigNodeDto } from '~/composables/menu/api/useMenuApi.types';
+
 /**
  * 관리자 메뉴 항목 정의 — 관리자 셸의 메뉴 정의다. 사이드 메뉴(데스크톱)·상단 메뉴 줄·모바일 드로어·메뉴 검색이 모두 여기서 읽는다.
  *
  * **새 화면 = 여기 `ITEMS` 한 줄 + 두 언어의 `i18n/locales/{ko,en}/menu.ts` 항목 이름(`labelKey` 의 키) + 서버 `AdminScreenRegistry`(server/admin `menu/service`) 한 줄.**
  * 서버 레지스트리는 관리자 메뉴 구성(메뉴 관리 › 관리자 메뉴)이 쓰는 화면 키 → 주소·권한 표이자 저장한 적 없을 때의 기본 구성이라, 두 곳의 키·주소·권한·아이콘·차례를 같게 유지한다.
- * 셸은 아직 저장한 구성이 아니라 이 `ITEMS` 를 읽는다(menu-contract 미확정 1).
+ * **셸이 그리는 메뉴는 DB 의 관리자 메뉴 구성이다**(메뉴 관리 › 관리자 메뉴 — `GET /api/admin/admin-menu/shell`, 저장한 적 없으면 서버가 레지스트리 기본 구성을 준다 · 2026-11-07).
+ *   `fromConfig` 가 그 구성을 이 파일의 노드 모양으로 바꾸고 `useAdminMenuTree` 가 들고 있다. 이 `ITEMS` 는 **화면 레지스트리**(키 → 주소·권한·아이콘 — 주소 권한 판정 `canOpen` ·
+ *   더 구체적인 항목 판정 `isActive` · 메뉴 편집의 화면 목록)이자 서버 구성을 못 받았을 때의 대신 메뉴다. 메뉴에 없는 화면(편집 화면의 「메뉴에 없는 화면」)은 셸에도 없다.
  * **아직 화면이 없는 기능의 항목은 넣지 않는다**(규약: 없는 기능의 메뉴·링크는 보여 주지 않는다 — `_frontend-core.md` 2-2).
  * 메뉴별 권한: 화면 항목에 `permission`(권한 코드, `util-permission-catalog.ts`)을 달면 그 권한이 없는 운영자에게는 메뉴·검색에서 감춘다(`visible`). 칸이 없는 항목(대시보드)은 모두에게 보인다.
  * 주소로 직접 들어오면 셸(`layouts/default.vue`)이 `canOpen` 으로 걸러 "권한 없음" 상태를 보인다. 감추는 것은 편의이고 막는 것은 서버다.
@@ -46,6 +50,13 @@ export interface AdminMenuItem {
     superOnly?: true;
     /** 하위 화면 항목 — 있으면 이 항목은 이동하지 않고 하위를 펼치는 부모다(`to` 는 하위 주소들의 공통 앞부분) */
     children?: readonly AdminMenuItem[];
+    /** 운영자가 메뉴 구성에서 덮어쓴 이름(한국어·영문) — 있으면 `labelKey` 대신 그린다(`useAdminMenuName`). 운영자가 만든 부모·외부 링크는 이것만 있고 `labelKey` 는 빈 글자다 */
+    label?: string;
+    labelEn?: string;
+    /** 외부 링크(메뉴 구성의 `URL` 항목) — 있으면 `to` 대신 이 주소로 `<a>` 를 연다. 활성·주소 권한 판정에는 끼지 않는다 */
+    href?: string;
+    /** 외부 링크를 새 탭으로 */
+    newTab?: boolean;
 }
 
 export interface AdminMenuGroup {
@@ -59,6 +70,9 @@ export interface AdminMenuGroup {
     labelKey: string;
     /** 묶음 아래의 화면 항목 */
     items: readonly AdminMenuItem[];
+    /** 운영자가 덮어쓴 이름 — 화면 항목과 같다. 운영자가 만든 묶음은 이것만 있다 */
+    label?: string;
+    labelEn?: string;
 }
 
 export type AdminMenuNode = AdminMenuItem | AdminMenuGroup;
@@ -350,9 +364,20 @@ export default class UtilAdminMenu {
                 { key: 'addressSearch', to: '/settings/address', icon: 'pi pi-map-marker', labelKey: 'menu.addressSearch', permission: 'site.read' },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
-                { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
-                // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(약관 다음)
+                // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(조직 구성 다음)
                 { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'site.read' },
+            ],
+        },
+        // 운영·약관 묶음(terms-operator-contract, 사용자 지시 2026-11-07) — 시스템 묶음 다음. 운영 주체(`/settings/operator` — 개인·개인사업자·법인 단계와 사업자 정보,
+        // 조회 `site.read` · 저장은 화면 안에서 `site.manage`) → 약관(`/settings/terms` — 약관 자리표시가 운영 주체 값을 쓴다). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
+        {
+            key: 'settingsLegal',
+            mode: 'settings',
+            icon: 'pi pi-book',
+            labelKey: 'menu.legal',
+            items: [
+                { key: 'siteOperator', to: '/settings/operator', icon: 'pi pi-id-card', labelKey: 'menu.siteOperator', permission: 'site.read' },
+                { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
             ],
         },
         // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·로보얌)를 고르고,
@@ -489,11 +514,12 @@ export default class UtilAdminMenu {
      * 역할 관리의 "이 역할이 보는 메뉴" 미리보기도 같은 함수에 그 역할의 권한을 넣어 계산한다.
      * @param {(code: string) => boolean} can - 그 권한 코드를 가졌는가.
      * @param {AdminMenuMode} [mode] - 이 모드의 노드만. 안 주면 모든 모드(검색·역할 미리보기).
+     * @param {readonly AdminMenuNode[]} [nodes] - 거를 메뉴 — 셸은 DB 구성(`useAdminMenuTree().nodes`)을 넣는다. 안 주면 메뉴 정의(`ITEMS`).
      * @returns {AdminMenuNode[]} 보이는 메뉴 노드(원본 순서).
      */
-    static visible(can: (code: string) => boolean, mode?: AdminMenuMode): AdminMenuNode[] {
+    static visible(can: (code: string) => boolean, mode?: AdminMenuMode, nodes: readonly AdminMenuNode[] = UtilAdminMenu.ITEMS): AdminMenuNode[] {
         const out: AdminMenuNode[] = [];
-        for (const node of UtilAdminMenu.ITEMS) {
+        for (const node of nodes) {
             if (mode && UtilAdminMenu.modeOf(node) !== mode) continue;
             if (UtilAdminMenu.isGroup(node)) {
                 const items = UtilAdminMenu.visibleItems(node.items, can);
@@ -547,14 +573,15 @@ export default class UtilAdminMenu {
     /**
      * 이 주소가 속한 메뉴 노드의 모드 — 메뉴 항목(하위 주소 포함)이 아닌 주소(내 정보 등)는 null. 권한과 무관하다(주소가 어느 메뉴의 것인지만 본다).
      * @param {string} path - 주소의 경로(`route.path`).
+     * @param {readonly AdminMenuNode[]} [nodes] - 볼 메뉴 — 셸은 DB 구성을 넣는다(운영자가 화면을 다른 모드로 옮겼으면 그 모드). 안 주면 메뉴 정의.
      * @returns {AdminMenuMode | null} 속한 모드. 어느 메뉴에도 없으면 null.
      */
-    static modeOfPath(path: string): AdminMenuMode | null {
-        for (const node of UtilAdminMenu.ITEMS) {
+    static modeOfPath(path: string, nodes: readonly AdminMenuNode[] = UtilAdminMenu.ITEMS): AdminMenuMode | null {
+        for (const node of nodes) {
             const items = UtilAdminMenu.leaves(UtilAdminMenu.isGroup(node) ? node.items : [node]);
             if (items.some((item) => UtilAdminMenu.isActive(item, path))) return UtilAdminMenu.modeOf(node);
         }
-        for (const node of UtilAdminMenu.ITEMS) {
+        for (const node of nodes) {
             const parents = UtilAdminMenu.parents(UtilAdminMenu.isGroup(node) ? node.items : [node]);
             if (parents.some((item) => UtilAdminMenu.isActive(item, path))) return UtilAdminMenu.modeOf(node);
         }
@@ -603,6 +630,84 @@ export default class UtilAdminMenu {
     }
 
     /**
+     * DB 의 관리자 메뉴 구성(두 모드) → 셸이 그리는 노드. 숨긴 노드(`visible: false`)·레지스트리에 없는 화면 키는 뺀다. 권한으로 거르는 일은 여기서 하지 않는다(`visible`).
+     *  · 묶음(`SECTION`) → `AdminMenuGroup` · 부모 항목(`FOLDER`) → 하위를 가진 화면 항목 · 관리자 화면(`SCREEN`·`ADMIN_SCREEN`) → 레지스트리 항목(주소·권한은 레지스트리, 이름·아이콘은 구성)
+     *  · 외부 링크(`SCREEN`·`URL`) → `href` 항목(구성에 고른 권한이 있으면 그 권한).
+     *  · 부모 항목의 `to`: 메뉴 정의에 같은 하위를 가진 부모가 있으면 그 주소(문구 편집처럼 하위에 없는 아래 주소를 부모 것으로 보는 판정이 그대로 산다), 아니면 하위 주소들의 공통 앞부분,
+     *    그것도 없으면 어느 주소와도 겹치지 않는 자리 표시 주소.
+     * @param {Record<AdminMenuMode, AdminMenuConfigNodeDto[]>} modes - 서버 응답의 `modes`.
+     * @returns {AdminMenuNode[]} 일반 메뉴 → 설정 메뉴 차례의 최상위 노드(최상위마다 `mode`).
+     */
+    static fromConfig(modes: Record<AdminMenuMode, AdminMenuConfigNodeDto[]>): AdminMenuNode[] {
+        const registry = new Map(
+            UtilAdminMenu.allItems()
+                .filter((item) => !item.children)
+                .map((item) => [item.key, item]),
+        );
+        const parents = UtilAdminMenu.ITEMS.flatMap((node) => UtilAdminMenu.parents(UtilAdminMenu.isGroup(node) ? node.items : [node]));
+        let seq = 0;
+        const keyOf = (prefix: string, node: AdminMenuConfigNodeDto) => `${prefix}-${node.id ?? node.labelKey ?? ++seq}`;
+        const names = (node: AdminMenuConfigNodeDto) => ({ ...(node.label ? { label: node.label } : {}), ...(node.labelEn ? { labelEn: node.labelEn } : {}) });
+
+        const item = (node: AdminMenuConfigNodeDto): AdminMenuItem | null => {
+            if (!node.visible) return null;
+            if (node.kind === 'FOLDER') {
+                const children = (node.children ?? []).map(item).filter((child): child is AdminMenuItem => child !== null && !child.children);
+                if (!children.length) return null;
+                const keys = new Set(children.map((child) => child.key));
+                const known = parents.find((parent) => (parent.children ?? []).some((child) => keys.has(child.key)));
+                return { key: keyOf('folder', node), to: known?.to ?? UtilAdminMenu.commonPath(children), labelKey: node.labelKey ?? '', ...names(node), ...(node.icon ? { icon: node.icon } : {}), children };
+            }
+            if (node.targetType === 'URL') {
+                const href = node.settings?.href;
+                if (!href) return null;
+                return {
+                    key: keyOf('url', node),
+                    to: href,
+                    href,
+                    newTab: node.settings?.newTab ?? true,
+                    labelKey: '',
+                    ...names(node),
+                    ...(node.icon ? { icon: node.icon } : {}),
+                    ...(node.permission ? { permission: node.permission } : {}),
+                };
+            }
+            const screen = node.targetKey ? registry.get(node.targetKey) : undefined;
+            if (!screen) return null;
+            const { icon: _registryIcon, ...rest } = screen;
+            return { ...rest, ...names(node), ...(node.icon ? { icon: node.icon } : {}) };
+        };
+
+        const out: AdminMenuNode[] = [];
+        for (const mode of ['normal', 'settings'] as const) {
+            for (const node of modes[mode] ?? []) {
+                if (node.kind === 'SECTION') {
+                    if (!node.visible) continue;
+                    const items = (node.children ?? []).map(item).filter((child): child is AdminMenuItem => child !== null);
+                    if (items.length) out.push({ key: keyOf('section', node), mode, icon: node.icon ?? 'pi pi-folder', labelKey: node.labelKey ?? '', ...names(node), items });
+                    continue;
+                }
+                const top = item(node);
+                if (top) out.push({ ...top, mode });
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 하위 주소들의 공통 앞부분(조각 단위) — 운영자가 만든 부모 항목의 `to`. 공통 조각이 없으면 어느 주소에도 걸리지 않는 자리 표시 주소.
+     * @param {readonly AdminMenuItem[]} children - 하위 항목.
+     * @returns {string} 공통 경로.
+     */
+    static commonPath(children: readonly AdminMenuItem[]): string {
+        const lists = children.filter((child) => !child.href).map((child) => child.to.split('/').filter(Boolean));
+        const first = lists[0] ?? [];
+        let n = 0;
+        while (n < first.length && lists.every((list) => list[n] === first[n] && list.length > n + 1)) n++;
+        return n > 0 ? `/${first.slice(0, n).join('/')}` : `/#menu-folder-${children.map((child) => child.key).join('-')}`;
+    }
+
+    /**
      * 노드가 묶음인가.
      * @param {AdminMenuNode} node - 메뉴 노드.
      * @returns {boolean} 묶음이면 true.
@@ -639,6 +744,7 @@ export default class UtilAdminMenu {
      * @returns {boolean} 그 항목이 활성이면 true.
      */
     static isActive(item: AdminMenuItem, path: string): boolean {
+        if (item.href) return false;
         if (item.to === '/') return path === '/';
         if (!UtilAdminMenu.under(path, item.to)) return false;
         return !UtilAdminMenu.allItems().some((other) => other.to.length > item.to.length && UtilAdminMenu.under(other.to, item.to) && UtilAdminMenu.under(path, other.to));

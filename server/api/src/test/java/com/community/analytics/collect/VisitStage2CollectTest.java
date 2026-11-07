@@ -298,7 +298,7 @@ class VisitStage2CollectTest {
     static final class NullSiteService extends PublicSiteService {
 
         NullSiteService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override

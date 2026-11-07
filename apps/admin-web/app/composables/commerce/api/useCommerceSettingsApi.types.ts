@@ -96,7 +96,11 @@ export interface CarrierSaveRequest {
     items: { code: string; name: string; trackingUrlTemplate: string; active: boolean }[];
 }
 
-/** 사업자 정보 칸(결정 18) — 평문 저장 */
+/**
+ * 사업자 정보 칸(결정 18) — 평문 저장. 서버는 빈 칸을 빈 글자로 준다.
+ * 운영시간(`businessHours`)·배송·환불 안내(`shippingRefundPolicy`) 밖의 칸은 운영 주체 설정(`/api/admin/site/operator`)이 정본이라 읽기만 한다
+ * (상호 = 상호·회사명, 보호책임자 = 운영 주체의 보호책임자 이름 — terms-operator-contract 세션 정리 결정).
+ */
 export interface BusinessInfoValues {
     companyName: string;
     representative: string;
@@ -115,6 +119,9 @@ export interface BusinessInfoValues {
     shippingRefundPolicy: string;
 }
 
+/** 커머스가 저장하는 칸 — `PUT /api/admin/commerce/business-info` 의 `values`(겹치는 칸은 서버가 받아도 버리므로 보내지 않는다) */
+export type BusinessInfoOwnValues = Pick<BusinessInfoValues, 'businessHours' | 'shippingRefundPolicy'>;
+
 /** `GET`·`PUT /api/admin/commerce/business-info` */
 export interface BusinessInfoView {
     values: BusinessInfoValues;
@@ -124,8 +131,11 @@ export interface BusinessInfoView {
     updatedBy: string | null;
 }
 
-/** 판매 켜기 자동 조건(commerce.md 20절) */
-export type SalesAutoCheckKey = 'BUSINESS_INFO' | 'PG_KEYS' | 'CARRIER' | 'IDENTITY';
+/**
+ * 판매 켜기 자동 조건(commerce.md 20절) — 서버 `CommerceSalesService.AUTO_CHECKS` 차례.
+ * `OPERATOR_STAGE` = 운영 주체가 개인사업자 이상이고 통신판매업 신고번호가 있다(terms-operator-contract).
+ */
+export type SalesAutoCheckKey = 'BUSINESS_INFO' | 'OPERATOR_STAGE' | 'PG_KEYS' | 'CARRIER' | 'IDENTITY';
 /** 운영 체크 항목(수동) */
 export type SalesChecklistKey = 'BUSINESS_REG' | 'MAIL_ORDER_REPORT' | 'TERMS' | 'PRIVACY_POLICY' | 'PG_CONTRACT' | 'RETURN_ADDRESS';
 

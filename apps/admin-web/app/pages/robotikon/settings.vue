@@ -103,11 +103,15 @@
             <AppGadget :title="t('emoticon.settings.paidSection')" anchor="emoticon-paid" :changes="changedIn(PAID_FIELDS) + (paidDirty ? 1 : 0) + (tiersDirty ? 1 : 0)" :invalid="invalidIn(PAID_FIELDS) + (tiersError ? 1 : 0)">
                 <div class="flex flex-col gap-4">
                     <Message v-if="PAID_LOCKED" severity="info" :closable="false" data-testid="emoticon-settings-paid-locked"><span class="text-[13px]">{{ t('emoticon.settings.paidLocked') }}</span></Message>
+                    <Message v-if="paidStageLocked" severity="warn" :closable="false" data-testid="emoticon-settings-paid-stage">
+                        <span class="text-[13px]">{{ t('emoticon.settings.paidStageLocked') }}</span>
+                        <NuxtLink v-if="can('site.read')" to="/settings/operator" class="ml-1 whitespace-nowrap text-[13px] font-medium text-primary hover:underline">{{ t('emoticon.settings.paidStageLink') }} ›</NuxtLink>
+                    </Message>
                     <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.settings.paidLead') }}</p>
                     <p class="m-0 flex items-start gap-2 text-xs leading-relaxed"><i class="pi pi-building mt-0.5 text-xs text-muted-color" aria-hidden="true" /><span>{{ t('emoticon.settings.sellerNote') }}</span></p>
                     <div class="flex flex-col gap-1">
                         <div class="flex items-center gap-3">
-                            <ToggleSwitch v-model="paidSalesEnabled" :input-id="ids.paid" :disabled="!canSave || saving || PAID_LOCKED" />
+                            <ToggleSwitch v-model="paidSalesEnabled" :input-id="ids.paid" :disabled="!canSave || saving || PAID_LOCKED || (paidStageLocked && !paidSalesEnabled)" />
                             <label :for="ids.paid" class="text-sm font-medium">{{ t('emoticon.settings.field.paidSales') }}</label>
                             <span v-if="paidSalesEnabled !== saved.defaults.paidSalesEnabled" class="text-xs text-muted-color">{{ t('emoticon.settings.defaultValue', { value: saved.defaults.paidSalesEnabled ? t('common.on') : t('common.off') }) }}</span>
                         </div>
@@ -338,6 +342,8 @@ function invalidIn(fields: readonly EmoticonSettingField[]): number {
     return fields.filter((f) => errorOf(f)).length;
 }
 
+/** 운영 주체가 유료 판매를 받을 수 없는 단계(서버 `paidSalesAllowed` — 개인사업자 이상 + 통신판매업 신고번호, terms-operator-contract) — 꺼진 스위치는 켤 수 없다(켜진 것은 끌 수 있다). 막는 것은 서버(400 fields.paidSalesEnabled) */
+const paidStageLocked = computed(() => saved.value !== null && !saved.value.paidSalesAllowed);
 const paidDirty = computed(() => saved.value !== null && paidSalesEnabled.value !== saved.value.paidSalesEnabled);
 const dirtyCount = computed(() => changedIn(FIELDS) + (paidDirty.value ? 1 : 0) + (tiersDirty.value ? 1 : 0));
 const invalidCount = computed(() => invalidIn(FIELDS) + (tiersError.value ? 1 : 0));

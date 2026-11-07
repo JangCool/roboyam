@@ -11,11 +11,27 @@
         서버 API: `useTermsApi`.
         - 종류 「로보티콘 상품화 계약」(`ROBOTIKON_CONTRACT`, emoticon-contract — 2026-11-05 결정): 유료 로보티콘 팩 작가가 동의하는 판 있는 문서. 다른 종류와 같은 서버 API(S2 — 서버 `TermsKind`). 작가 신청 화면의 제목·요약은 서버가 본문의 첫 제목·첫 목록에서 뽑는다.
           가입·로그인 약관 링크(①)의 대상이 아니다. `?kind=robotikon_contract` 로 그 탭을 바로 연다(로보티콘 설정의 링크).
+        - 운영 주체 단계(terms-operator-contract — 서버 연결 2026-11-07):
+          · 맨 위 요약 한 줄 「지금 운영 주체: 개인 · 약관 속 호칭 「운영자」 [운영 주체에서 바꾸기]」(`/settings/operator`, 값은 `useSiteOperatorApi` — `site.read` 가 없으면 「못 읽었어요」 줄).
+          · 종류 「운영정책」(`OPERATION_POLICY`, `?kind=operation_policy`, 공개 `/policy`) — 다른 종류와 같은 서버 API. 가입 동의 대상이 아니다.
+          · 편집기 위 자리표시 칩(`{{운영자}}` 등 7개 — `UtilTermsPlaceholder`): 누르면 커서 자리에 넣는다(`{{운영자정보}}` 는 목록으로 바뀌도록 새 문단으로 넣는다).
+          · [미리보기]: 편집기 본문의 자리표시를 지금 운영 주체 값으로 바꾼 모습(`TermsPreviewDialog`, `{{시행일}}` = 게시 대화상자의 최소 시행일). 모르는 자리표시는 경고.
+          · [기본 문안으로 초안 만들기]: 종류별 기본 문안(`utils/terms-templates`)을 편집기에 넣는다(로보티콘 계약은 없음 — 단추를 숨긴다). [초안 저장]을 눌러야 남는다.
+          · 게시 대화상자: 「회원에게 불리한 변경이에요」, 최소 시행일 첫 게시 내일 · 개정 7일 · 불리한 변경 30일(화면 편의), 자리표시는 게시 때 바뀐다는 안내(판정은 서버 — `fields.effectiveDate`·`fields.draft`). 이력 표·버전 보기에 「불리한 변경」 태그, 버전 보기에 「게시 당시 운영 주체」(옛 판은 없음).
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('terms.title')" :subtitle="t('terms.subtitle')" />
 
         <Message v-if="!canManage" severity="info" :closable="false" size="small">{{ t('terms.readOnly') }}</Message>
+
+        <!-- 운영 주체 요약 — 자리표시가 게시 때 바뀔 값의 단계(`useSiteOperatorApi`) -->
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-(--line) px-3 py-2 text-[13px]" data-testid="terms-operator-summary">
+            <i class="pi pi-id-card text-muted-color" aria-hidden="true" />
+            <span v-if="operator">{{ t('operatorStage.summaryLine', { stage: t(`operatorStage.stage.${operator.stage}`), alias: t(`operatorStage.alias.${operator.stage}`) }) }}</span>
+            <span v-else-if="operatorError" class="text-muted-color">{{ t('operatorStage.summaryLoadFailed') }}</span>
+            <Skeleton v-else width="16rem" height="1rem" />
+            <NuxtLink v-if="can('site.read')" to="/settings/operator" class="font-medium whitespace-nowrap text-primary hover:underline">{{ t('operatorStage.summaryLink') }} ›</NuxtLink>
+        </div>
 
         <div v-if="loading && !overview" class="flex flex-col gap-4" role="status" :aria-label="t('common.loading')">
             <AppGadget v-for="n in 2" :key="n" :title="t('common.loading')">
@@ -61,6 +77,11 @@
                 <span class="mt-1.5 block text-[13px]" data-testid="terms-robotikon-clauses">{{ t('terms.robotikonClauses') }}</span>
             </Message>
 
+            <!-- 운영정책 — 공개 `/policy`, 가입 동의 대상 아님 -->
+            <Message v-if="activeKind === 'OPERATION_POLICY'" severity="info" :closable="false">
+                <span class="text-[13px]">{{ t('terms.operationPolicyNote') }}</span>
+            </Message>
+
             <!-- 상태 -->
             <AppGadget :title="t('terms.statusTitle')">
                 <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
@@ -89,8 +110,9 @@
             <template v-else>
                 <!-- 초안 편집기 -->
                 <AppGadget :title="t('terms.draftTitle')">
-                    <template v-if="canManage" #actions>
-                        <Button type="button" :label="t('terms.publishOpen')" icon="pi pi-send" size="small" :disabled="!canPublish" @click="openPublish" />
+                    <template #actions>
+                        <Button type="button" :label="t('terms.preview')" icon="pi pi-eye" size="small" severity="secondary" variant="outlined" :disabled="!operator" @click="openPreview" />
+                        <Button v-if="canManage" type="button" :label="t('terms.publishOpen')" icon="pi pi-send" size="small" :disabled="!canPublish" @click="openPublish" />
                     </template>
 
                     <div class="flex flex-col gap-1.5">
@@ -98,7 +120,38 @@
                             <span :id="bodyLabelId" class="text-sm font-medium">{{ t('terms.bodyLabel', { name: kindLabel(activeKind) }) }}</span>
                             <span class="text-xs text-muted-color">{{ draftMeta }}</span>
                         </div>
+
+                        <!-- 자리표시 칩 — 누르면 커서 자리에 넣는다. 게시할 때 운영 주체 값으로 바뀐다 -->
+                        <div v-if="canManage" class="flex flex-wrap items-center gap-1.5" role="group" :aria-labelledby="placeholderLabelId" data-testid="terms-placeholders">
+                            <span :id="placeholderLabelId" class="mr-1 text-xs text-muted-color">{{ t('terms.placeholderTitle') }}</span>
+                            <button
+                                v-for="name in TERMS_PLACEHOLDERS"
+                                :key="name"
+                                type="button"
+                                class="rounded-full border border-(--line) px-2 py-0.5 font-mono text-[11px] hover:bg-(--p-content-hover-background) focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+                                :title="t(`terms.placeholderHint.${PLACEHOLDER_HINT[name]}`)"
+                                :aria-label="t('terms.placeholderInsert', { token: UtilTermsPlaceholder.token(name), hint: t(`terms.placeholderHint.${PLACEHOLDER_HINT[name]}`) })"
+                                :disabled="working !== null"
+                                @click="insertPlaceholder(name)"
+                            >
+                                {{ UtilTermsPlaceholder.token(name) }}
+                            </button>
+                            <Button
+                                v-if="UtilTermsTemplates.has(activeKind)"
+                                type="button"
+                                :label="t('terms.templateFill')"
+                                icon="pi pi-file-import"
+                                size="small"
+                                severity="secondary"
+                                variant="text"
+                                class="ml-auto"
+                                :disabled="working !== null"
+                                @click="fillTemplate"
+                            />
+                        </div>
+
                         <RichEditor
+                            ref="editorRef"
                             :key="`terms-editor-${activeKind}-${editorKey}`"
                             v-model="editorHtml"
                             level="DOCUMENT"
@@ -152,9 +205,12 @@
                                 <span class="line-clamp-2 break-words text-xs text-muted-color">{{ data.changeNote || '—' }}</span>
                             </template>
                         </Column>
-                        <Column :header="t('terms.colStatus')" style="width: 6.5rem">
+                        <Column :header="t('terms.colStatus')" style="width: 8rem">
                             <template #body="{ data }">
-                                <Tag class="terms-tag" :value="t(`terms.status.${data.status}`)" :severity="UtilTerms.statusSeverity(data.status)" />
+                                <div class="flex flex-wrap items-center gap-1">
+                                    <Tag class="terms-tag" :value="t(`terms.status.${data.status}`)" :severity="UtilTerms.statusSeverity(data.status)" />
+                                    <Tag v-if="data.unfavorable" class="terms-tag" :value="t('terms.unfavorableTag')" severity="warn" data-testid="terms-unfavorable-tag" />
+                                </div>
                             </template>
                         </Column>
                         <Column style="width: 5rem">
@@ -167,7 +223,17 @@
             </template>
         </template>
 
-        <TermsPublishDialog v-model:visible="publishOpen" :kind-label="kindLabel(activeKind)" :min-date="minDate" :busy="publishing" :error="publishError" :field-errors="publishFieldErrors" @submit="publish" />
+        <TermsPublishDialog
+            v-model:visible="publishOpen"
+            :kind-label="kindLabel(activeKind)"
+            :today="publishToday"
+            :last-effective-date="lastEffectiveDate"
+            :busy="publishing"
+            :error="publishError"
+            :field-errors="publishFieldErrors"
+            @submit="publish"
+        />
+        <TermsPreviewDialog v-model:visible="previewOpen" :kind-label="kindLabel(activeKind)" :html="previewHtml" :unknown="previewUnknown" :caption="previewCaption" />
         <TermsVersionDialog
             v-model:visible="versionOpen"
             :kind-label="kindLabel(activeKind)"
@@ -184,8 +250,11 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { TermsKind, TermsKindDetail, TermsOverview, TermsPublishRequest, TermsVersionDetail } from '~/composables/terms/api/useTermsApi.types';
+import type { SiteOperatorResponse } from '~/composables/site/api/useSiteOperatorApi.types';
 import UtilRichText from '#layers/rich-editor/utils/util-rich-text';
 import UtilTerms from '~/utils/util-terms';
+import UtilTermsPlaceholder, { TERMS_PLACEHOLDERS, type TermsPlaceholderName } from '~/utils/util-terms-placeholder';
+import UtilTermsTemplates from '~/utils/terms-templates';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('terms.title') });
@@ -202,16 +271,35 @@ const { prefs } = useLayoutPrefs();
 /** 초안·게시·옵션에 필요한 권한 — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('terms.manage'));
 
-/** 종류 탭 차례 — 로보티콘 상품화 계약(`ROBOTIKON_CONTRACT`)도 같은 서버 API(emoticon-contract S2) */
-const KINDS: readonly TermsKind[] = ['TERMS', 'PRIVACY', 'ROBOTIKON_CONTRACT'];
+/** 종류 탭 차례 — 로보티콘 상품화 계약(`ROBOTIKON_CONTRACT`)도 같은 서버 API(emoticon-contract S2). 운영정책(`OPERATION_POLICY`)도 같다 */
+const KINDS: readonly TermsKind[] = ['TERMS', 'PRIVACY', 'OPERATION_POLICY', 'ROBOTIKON_CONTRACT'];
 const linksId = useId();
 const bodyLabelId = useId();
 const bodyMessageId = useId();
+const placeholderLabelId = useId();
 const route = useRoute();
 
 function kindLabel(kind: TermsKind): string {
     if (kind === 'ROBOTIKON_CONTRACT') return t('terms.kindRobotikonContract');
+    if (kind === 'OPERATION_POLICY') return t('terms.kindOperationPolicy');
     return kind === 'TERMS' ? t('common.terms') : t('common.privacy');
+}
+
+/* ── 운영 주체(자리표시 값) ── */
+
+const operatorApi = useSiteOperatorApi();
+// 자리표시 `{{서비스이름}}` = 사이트 이름
+const { siteLabel } = useAdminAuth();
+const operator = ref<SiteOperatorResponse | null>(null);
+const operatorError = ref(false);
+
+async function loadOperator(): Promise<void> {
+    operatorError.value = false;
+    try {
+        operator.value = await operatorApi.get();
+    } catch {
+        operatorError.value = true;
+    }
 }
 
 /** 주소의 `?kind=robotikon_contract`(로보티콘 설정의 링크)로 그 종류를 연다 */
@@ -409,7 +497,10 @@ function today(): string {
     return parts ? UtilTerms.ymd(parts.y, parts.mo, parts.d) : new Date().toISOString().slice(0, 10);
 }
 
-const minDate = ref(UtilTerms.minEffectiveDate(today(), null));
+/** 그 종류의 마지막 게시본 시행일 — 없으면 첫 게시본(최소 시행일 내일), 있으면 개정(7일 · 불리한 변경 30일) */
+const lastEffectiveDate = computed(() => detail.value?.versions[0]?.effectiveDate ?? null);
+/** 게시 대화상자를 연 날 — 최소 시행일은 대화상자가 불리한 변경 체크에 따라 셈한다 */
+const publishToday = ref(today());
 const publishOpen = ref(false);
 const publishing = ref(false);
 const publishError = ref('');
@@ -417,7 +508,7 @@ const publishFieldErrors = ref<Record<string, string>>({});
 
 function openPublish(): void {
     if (!canPublish.value) return;
-    minDate.value = UtilTerms.minEffectiveDate(today(), detail.value?.versions[0]?.effectiveDate);
+    publishToday.value = today();
     publishError.value = '';
     publishFieldErrors.value = {};
     publishOpen.value = true;
@@ -488,6 +579,64 @@ async function copyToDraft(source: TermsVersionDetail): Promise<void> {
     toast.success(t('terms.copied', { version: source.version }), 5000);
 }
 
+/* ── 자리표시 칩 · 기본 문안 · 미리보기 ── */
+
+/** 칩의 설명 문구 키(`terms.placeholderHint.*`) */
+const PLACEHOLDER_HINT: Record<TermsPlaceholderName, string> = {
+    운영자: 'operator',
+    서비스이름: 'serviceName',
+    운영자정보: 'operatorInfo',
+    보호책임자: 'officer',
+    보호책임자연락처: 'officerContact',
+    연락이메일: 'contactEmail',
+    시행일: 'effectiveDate',
+};
+
+const editorRef = ref<{ insertText: (text: string) => void; insertParagraph: (text: string) => void } | null>(null);
+
+/** 커서 자리에 자리표시를 넣는다 — `{{운영자정보}}` 는 게시 때 목록으로 바뀌도록 새 문단으로 넣는다(`UtilTermsPlaceholder` 규칙 3) */
+function insertPlaceholder(name: TermsPlaceholderName): void {
+    if (!canManage.value || working.value) return;
+    const token = UtilTermsPlaceholder.token(name);
+    if (name === '운영자정보') editorRef.value?.insertParagraph(token);
+    else editorRef.value?.insertText(token);
+}
+
+/** 종류의 기본 문안을 편집기에 넣는다 — 저장은 [초안 저장](「이 본문으로 초안 만들기」와 같은 방식) */
+async function fillTemplate(): Promise<void> {
+    const template = UtilTermsTemplates.of(activeKind.value);
+    if (!canManage.value || working.value || !template) return;
+    const name = kindLabel(activeKind.value);
+    if (UtilRichText.hasContent(editorHtml.value)) {
+        const ok = await confirm({ title: t('terms.templateTitle'), message: t('terms.templateMessage', { name }), confirmLabel: t('terms.templateConfirm'), tone: 'danger' });
+        if (!ok) return;
+    }
+    clearDraftErrors();
+    editorHtml.value = template;
+    toast.success(t('terms.templateFilled', { name }), 5000);
+}
+
+const previewOpen = ref(false);
+const previewHtml = ref('');
+const previewUnknown = ref<string[]>([]);
+const previewCaption = ref('');
+
+/** 지금 편집기 본문을 운영 주체 값으로 바꿔 본다 — 시행일은 게시 대화상자의 최소 시행일(불리한 변경이 아닐 때) */
+function openPreview(): void {
+    const op = operator.value;
+    if (!op) return;
+    const last = lastEffectiveDate.value;
+    const date = UtilTerms.minEffectiveDate(today(), last, UtilTerms.noticeDays(Boolean(last), false));
+    const result = UtilTermsPlaceholder.apply(editorHtml.value, UtilTermsPlaceholder.valuesOf(op, siteLabel.value, date));
+    previewHtml.value = result.html;
+    previewUnknown.value = result.unknown;
+    previewCaption.value = t('terms.previewCaption', {
+        operator: t('terms.versionOperatorValue', { stage: t(`operatorStage.stage.${op.stage}`), name: op.business?.businessName ?? op.operatorName }),
+        date: time.value.serviceDate(date),
+    });
+    previewOpen.value = true;
+}
+
 /* ── 떠날 때 ── */
 
 function confirmDiscard(): Promise<boolean> {
@@ -502,6 +651,7 @@ onBeforeRouteLeave(async () => {
 onMounted(() => {
     void loadOverview();
     void loadDetail();
+    void loadOperator();
 });
 </script>
 

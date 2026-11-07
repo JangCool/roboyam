@@ -33,8 +33,9 @@ import org.springframework.stereotype.Component;
  * local 공구 시드(계약 결정 11·87, commerce.md 20절 「local 은 시드가 조건을 실제로 채운다」) — 관리자 서버(배치를 켠 서버)가 뜰 때 한 번.
  *
  * <ul>
- *   <li><b>판매</b>: 시험 사업자 정보(등록번호 체크섬이 맞는 시험 번호) → 운영 체크 항목 여섯 체크 → 켜는 조건 검사({@link CommerceSalesService#state}) 를 통과하면 판매 켜짐.
- *       「local 이면 검사 생략」 코드는 없다 — 조건이 덜 차면 켜지 않고 WARN.</li>
+ *   <li><b>판매</b>: 커머스 고유 칸(운영시간·배송·환불 안내) → 운영 체크 항목 여섯 체크 → 켜는 조건 검사({@link CommerceSalesService#state}) 를 통과하면 판매 켜짐.
+ *       운영 주체는 건드리지 않는다(기본값 개인 — 2026-11-07) — 개인 단계면 {@code OPERATOR_STAGE} 가 막아 판매는 꺼진 채다(INFO). 운영시간이 차 있으면 건너뛴다.
+ *       「local 이면 검사 생략」 코드는 없다.</li>
  *   <li><b>배송비 정책</b> {@code STANDARD}(3,000 · 무료 50,000 · 반품 3,000 · 편도), 옵션 종류(색상·사이즈·중량·종류), 카테고리 2단.</li>
  *   <li><b>예시 품목 여덟</b>(결정 87 「예시 품목을 넓힌다」): 햅쌀·사과/감귤·고등어(농수축산물 20) · 김치·소스(가공식품 21) · 티셔츠(의류 1) · 러닝화(구두/신발 2) ·
  *       로봇 키트(소형전자 12) — 상품마다 그 품목의 고시 양식을 다 채우고(신선식품의 날짜 항목은 일반원칙 ④ 대체 표기 예시), 공구를 하나씩 연다:
@@ -92,12 +93,14 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     }
 
     void seedSales() {
-        if (!salesStore.businessInfo().companyName().isBlank()) {
+        String hours = salesStore.businessInfo().businessHours();
+        if (hours != null && !hours.isBlank()) {
             return;
         }
         Instant now = clock.instant();
-        salesStore.saveBusinessInfo(new BusinessInfo("로보얌(시험)", "홍길동", "123-45-67891", "2026-서울강남-0001", "서울특별시 강남구", "서울특별시 강남구 테헤란로 1 시험빌딩 3층",
-                "02-000-0000", "help@roboyam.example.com", "평일 10:00~17:00(점심 12:00~13:00)", "홍길동(privacy@roboyam.example.com)", "시험 호스팅(주)",
+        // 운영 주체(사업자 정보의 정본 — terms-operator-contract)는 건드리지 않는다: 기본값은 개인(사용자 지시 2026-11-07). 개인 단계면 판매 켜기 조건 OPERATOR_STAGE 가
+        // 막아 판매는 꺼진 채다 — 판매를 시험하려면 운영 주체를 개인사업자로 바꾸고(통신판매업 신고번호 포함) 커머스 설정에서 켠다. 여기서는 커머스 고유 칸과 체크 항목만 채운다
+        salesStore.saveBusinessInfo(new BusinessInfo("", "", "", "", "", "", "", "", "평일 10:00~17:00(점심 12:00~13:00)", "", "",
                 "배송: 결제 후 발송 예정일에 맞춰 보냅니다. 환불: 배송완료 7일 안 청약철회, 하자·오배송은 3개월 안. 반품 배송비는 상품 상세의 금액을 따릅니다.", null, null), null, now);
         jdbc.update("UPDATE commerce_sales_checklist SET checked = true, checked_at = ?", java.sql.Timestamp.from(now));
         CommerceSalesService.SalesState state = sales.state();
@@ -105,7 +108,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
             salesStore.setSwitch(true, "local 시드", null, now);
             log.info("공구 판매를 local 시드로 켰다");
         } else {
-            log.warn("공구 판매 켜기 조건이 덜 찼다(local 시드) 빠진 것={}", state.missing());
+            log.info("공구 판매는 꺼 둔다(local 시드 — 켜기 조건이 덜 찼다, 개인 단계면 OPERATOR_STAGE) 빠진 것={}", state.missing());
         }
     }
 

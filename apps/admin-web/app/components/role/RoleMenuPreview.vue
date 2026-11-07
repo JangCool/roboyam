@@ -41,19 +41,21 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { compact: false });
 
 const { t } = useI18n();
+const { nodes: tree } = useAdminMenuTree();
+const { nameOf } = useAdminMenuName();
 const idBase = useId();
 
 /** 보이는 메뉴를 묶음별로 — 낱개 항목(대시보드)은 「공통」 한 덩어리로 모은다 */
 const groups = computed(() => {
     const owned = new Set(props.permissions);
-    const nodes = UtilAdminMenu.visible((code) => owned.has(code));
+    const nodes = UtilAdminMenu.visible((code) => owned.has(code), undefined, tree.value);
     const out: { key: string; icon: string; label: string; items: { key: string; icon?: string; label: string; permission?: string }[] }[] = [];
     const common: { key: string; icon?: string; label: string; permission?: string }[] = [];
     for (const node of nodes) {
         if (UtilAdminMenu.isGroup(node)) {
-            out.push({ key: node.key, icon: node.icon, label: t(node.labelKey), items: UtilAdminMenu.leaves(node.items).map((item) => ({ key: item.key, icon: item.icon, label: t(item.labelKey), permission: item.permission })) });
+            out.push({ key: node.key, icon: node.icon, label: nameOf(node), items: UtilAdminMenu.leaves(node.items).map((item) => ({ key: item.key, icon: item.icon, label: nameOf(item), permission: item.permission })) });
         } else {
-            common.push({ key: node.key, icon: node.icon, label: t(node.labelKey), permission: node.permission });
+            common.push({ key: node.key, icon: node.icon, label: nameOf(node), permission: node.permission });
         }
     }
     const gated = out.length > 0;

@@ -146,6 +146,8 @@ export default {
     batches: '배치 관리',
     batchLogs: '배치 로그',
     audit: '감사 로그',
+    legal: '운영·약관',
+    siteOperator: '운영 주체',
     terms: '약관',
     analyticsSettings: '통계 수집',
     memberSettings: '회원',

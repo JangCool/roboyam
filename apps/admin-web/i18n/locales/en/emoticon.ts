@@ -440,6 +440,8 @@ export default {
         },
         fixedNote: 'These match the display size, the creator guide and upload checks, so they are not changed here. Changing them would put approved packs out of spec.',
         creatorRule: 'Who can submit: signed-in members in good standing with a verified email. Three consents are collected on submission (own work or rights, permission to display and resize, follow guide and policy).',
+        paidStageLocked: "Paid sales can't be turned on while the operator is an individual or has no mail-order registration number. Switch to sole proprietor or corporation and add the number first.",
+        paidStageLink: 'Open operator settings',
         paidLocked: 'Paid sales, price tiers, fees, settlement and refund settings are not open yet, so the server defaults are shown read-only. You can change them here once paid sales open.',
         paidLead: 'Paid packs are sold only by real payment (KRW) — never with points. Creators only choose “free / wants paid sale”; operators pick the price from the tiers below when approving.',
         settlementNote: 'The creator’s share — the payout base (sales minus refunds, divided by 1.1 to remove VAT) minus the fee — is paid separately by bank transfer, not as points. The site, as the seller, pays the VAT.',

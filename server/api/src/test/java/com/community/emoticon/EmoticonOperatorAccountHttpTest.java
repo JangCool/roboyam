@@ -19,6 +19,7 @@ import com.community.identity.dto.request.FakeIdentityInput;
 import com.community.identity.service.IdentityVerificationService;
 import com.community.permission.entity.MemberPermission;
 import com.community.role.entity.MemberRoleIds;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.user.entity.Role;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -70,6 +71,7 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
         operator = newOperator();
         paidWas = jdbc.queryForObject("SELECT paid_sales_enabled FROM emoticon_settings WHERE id = 1", Boolean.class);
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = true WHERE id = 1");
+        SiteOperatorFixture.fillBusiness(jdbc); // 유료 판매·구매는 운영 주체가 개인사업자 이상 + 통신판매업 신고번호(사용자 결정 2026-11-07)
         for (MemberPermission p : MemberPermission.values()) {
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
@@ -90,6 +92,7 @@ class EmoticonOperatorAccountHttpTest extends CommerceApiTestBase {
     void restore() {
         jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE price > 0");
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = ? WHERE id = 1", paidWas);
+        SiteOperatorFixture.clear(jdbc);
     }
 
     // ── 도우미 ──────────────────────────────────────────────────────────────

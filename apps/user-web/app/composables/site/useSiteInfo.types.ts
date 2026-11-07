@@ -1,5 +1,5 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
-import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
+import type { SiteIconResponse, SiteOperatorPublicResponse } from '~/composables/site/api/useSiteInfoApi.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
 
@@ -22,4 +22,6 @@ export interface SiteInfo {
     boardDisplay: BoardDisplaySettings | null;
     /** 방문 수집 스위치 — 칸이 없으면(옛 서버) null, 그러면 방문 신호를 보내지 않는다(`plugins/04.analytics.client.ts`) */
     analytics: VisitCollectSwitch | null;
+    /** 운영 주체(단계·연락 이메일) — 칸이 없으면(옛 서버) null. 연락 이메일이 없거나 쓸 수 없는 모양이면 `contactEmail` null(푸터 문의 줄을 숨긴다) */
+    operator: SiteOperatorPublicResponse | null;
 }

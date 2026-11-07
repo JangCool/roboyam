@@ -29,6 +29,38 @@ public class MailOutboxStore {
                 id, dedupeKey, userId, kind, variablesJson, ts(now), ts(now)) == 1;
     }
 
+    /** 여러 회원에게 같은 메일 한 줄씩 넣을 때의 한 줄 — {@code nextAttemptAt} 으로 보낼 때를 나눈다 */
+    public record BulkRow(long id, String dedupeKey, long userId, Instant nextAttemptAt) {
+    }
+
+    /**
+     * 한꺼번에 넣는다(같은 종류·같은 변수, 받는 회원만 다르다) — 같은 열쇠가 이미 있는 줄은 넣지 않는다. 부르는 쪽의 업무 트랜잭션에 실린다.
+     *
+     * @return 넣은 줄 수
+     */
+    public int insertBulk(List<BulkRow> rows, String kind, String variablesJson, Instant now) {
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        int[][] counts = jdbc.batchUpdate("INSERT INTO mail_outbox (id, dedupe_key, user_id, mail_kind, variables, status, attempts, next_attempt_at, created_at) "
+                + "VALUES (?, ?, ?, ?, CAST(? AS jsonb), 'PENDING', 0, ?, ?) ON CONFLICT (dedupe_key) DO NOTHING", rows, 1000, (ps, row) -> {
+                    ps.setLong(1, row.id());
+                    ps.setString(2, row.dedupeKey());
+                    ps.setLong(3, row.userId());
+                    ps.setString(4, kind);
+                    ps.setString(5, variablesJson);
+                    ps.setTimestamp(6, ts(row.nextAttemptAt()));
+                    ps.setTimestamp(7, ts(now));
+                });
+        int inserted = 0;
+        for (int[] chunk : counts) {
+            for (int n : chunk) {
+                inserted += Math.max(n, 0);
+            }
+        }
+        return inserted;
+    }
+
     /**
      * SENDING 으로 {@code staleBefore} 전부터 머문 줄(보내던 워커가 죽었다)을 되돌린다 — 시도가 한도에 닿았으면 DEAD, 아니면 바로 PENDING.
      *

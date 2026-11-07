@@ -111,10 +111,11 @@ public final class EmoticonAdminView {
     /**
      * {@code GET /api/admin/emoticons/settings} — 받기 보상 · 하루 상한 · 팩당 개수 · 심사 대기 상한 · 유료 판매 켜기 · 수수료율 · 가격 단계 · 정산일 · 최소 지급액 · 환불 기간(모두 저장 — S2),
      * 상점에 나온 팩이 쓰는 가격 단계(뺄 수 없다) · 상품화 계약 요약(지금 판 · 동의 작가 수).
+     * {@code paidSalesAllowed} = 운영 주체가 유료 판매를 받을 수 있는 단계인가(개인사업자 이상 + 통신판매업 신고번호 — false 면 꺼진 스위치를 켤 수 없다, 화면은 잠그고 안내).
      */
     public record SettingsView(int rewardPerAcquire, int rewardDailyCap, int itemMin, int itemMax, int pendingLimit, int feeRatePercent, int settlementDay,
                                int payoutMinimum, int refundDays, boolean paidSalesEnabled, List<Integer> priceTiers, List<Integer> priceTiersInUse,
-                               ContractView contract, SettingDefaults defaults, Instant updatedAt, String updatedBy) {
+                               ContractView contract, SettingDefaults defaults, Instant updatedAt, String updatedBy, boolean paidSalesAllowed) {
     }
 
     /** {@code GET /api/admin/emoticons/creators/{memberNo}} — 작가가 아니면 응답 데이터 null */

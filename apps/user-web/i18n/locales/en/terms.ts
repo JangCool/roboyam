@@ -5,6 +5,8 @@ export default {
     // ── Text screen ──
     /** Title of the Robotikon licensing agreement screen (`/robotikon/contract`) — the other kinds use `common.*` */
     robotikonContract: 'Robotikon licensing agreement',
+    /** Title of the operation policy screen (`/policy`) and its footer link */
+    operationPolicy: 'Operation Policy',
     loadError: "Couldn't load the terms",
     versionLine: 'Version {version} · effective {date}',
     changeNote: 'Summary of changes',
@@ -12,12 +14,14 @@ export default {
         TERMS: 'No Terms of Service in effect yet',
         PRIVACY: 'No Privacy Policy in effect yet',
         ROBOTIKON_CONTRACT: 'No Robotikon licensing agreement in effect yet',
+        OPERATION_POLICY: 'No Operation Policy in effect yet',
     },
     upcomingLabel: 'Upcoming change',
     upcomingBox: {
         TERMS: 'Updated Terms of Service take effect on {date}',
         PRIVACY: 'An updated Privacy Policy takes effect on {date}',
         ROBOTIKON_CONTRACT: 'An updated Robotikon licensing agreement takes effect on {date}',
+        OPERATION_POLICY: 'An updated Operation Policy takes effect on {date}',
     },
     viewUpcoming: 'View the updated version',
     viewingUpcoming: 'This version takes effect on {date}.',

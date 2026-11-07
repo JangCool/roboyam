@@ -7,7 +7,7 @@
         편집: 순서·묶음 이동·하위로 넣기(손잡이 끌기 · Alt+방향키 · 손잡이 메뉴) · 이름 덮어쓰기(ko/en, 비우면 기본 이름) · 아이콘(하위 화면은 없음) · 표시 여부 · 다른 메뉴(모드)로 옮기기(최상위 노드).
         「메뉴에 없는 화면 N개」 경고 + [넣기]. 미리보기: 운영자 역할을 골라 그 역할이 보는 메뉴.
         저장: 두 모드를 한 번에(`PUT /api/admin/admin-menu`, version) — 충돌·검증 오류 처리는 공개 사이트 메뉴와 같다. 권한: 조회 `layout.read` · 저장 `admin-menu.manage`.
-        ⚠ 저장은 서버(`AdminMenuController`)에 되지만, 실제 셸(사이드바)은 아직 `util-admin-menu.ts` 를 읽는다 — 저장한 구성을 셸이 언제부터 읽을지는 미확정(menu-contract 미확정 1).
+        저장한 구성이 곧 셸(사이드바·상단 메뉴·검색)의 메뉴다(`GET /api/admin/admin-menu/shell` · `useAdminMenuTree`, 2026-11-07) — 저장하면 셸이 바로 바꿔 그린다. 메뉴에서 뺀 화면은 셸에도 없다(주소로는 열린다).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('menuConfig.adminTitle')" :subtitle="t('menuConfig.adminSubtitle')">
@@ -293,6 +293,8 @@ async function loadRoles() {
 
 // ── 저장 ─
 
+const menuTree = useAdminMenuTree();
+
 async function save() {
     if (!meta.value || saving.value || errorCount.value > 0) return;
     saving.value = true;
@@ -307,6 +309,8 @@ async function save() {
         draft.value = { normal: UtilAdminMenuConfig.toEdit(res.modes.normal), settings: UtilAdminMenuConfig.toEdit(res.modes.settings) };
         baseline.value = serialize(draft.value);
         meta.value = { version: res.version, editable: res.editable };
+        // 셸(사이드바·상단 메뉴·검색)이 새 구성을 바로 그린다
+        menuTree.apply(res.modes);
         toast.success(t('menuConfig.saved'));
     } catch (e) {
         if (e instanceof ApiError && e.code === 'MENU_VERSION_CONFLICT') conflict.value = true;

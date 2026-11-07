@@ -7,8 +7,11 @@ import com.community.audit.service.AuditLogService;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
+import com.community.site.dto.SiteOperatorValues;
 import com.community.site.entity.SiteSettingEntity;
+import com.community.site.service.SiteOperatorReader;
 import com.community.site.repository.master.SiteSettingRepository;
+import com.community.terms.dto.TermsOperatorSnapshot;
 import com.community.terms.dto.TermsStatus;
 import com.community.terms.dto.TermsVersionMeta;
 import com.community.terms.dto.request.TermsDraftRequest;
@@ -18,6 +21,7 @@ import com.community.terms.dto.response.TermsAdminOverviewResponse;
 import com.community.terms.dto.response.TermsDraftView;
 import com.community.terms.dto.response.TermsKindDetailResponse;
 import com.community.terms.dto.response.TermsKindOverview;
+import com.community.terms.dto.response.TermsOperatorSnapshotView;
 import com.community.terms.dto.response.TermsSettingsResponse;
 import com.community.terms.dto.response.TermsVersionBrief;
 import com.community.terms.dto.response.TermsVersionDetailResponse;
@@ -64,6 +68,10 @@ public class TermsAdminService {
 
     /** 변경 요지 상한(글자) */
     static final int CHANGE_NOTE_MAX = 200;
+    /** 개정의 최소 공지 기간(일) — 시행일은 오늘 + 7일 이후 */
+    static final int REVISION_NOTICE_DAYS = 7;
+    /** 회원에게 불리한 개정의 최소 공지 기간(일) — 시행일은 오늘 + 30일 이후 */
+    static final int UNFAVORABLE_NOTICE_DAYS = 30;
     /** 정화 전 입력 상한 — 터무니없이 큰 입력을 정화기에 넣지 않는다(정화 후 상한의 5배) */
     private static final int RAW_BODY_MAX = TermsHtml.BODY_MAX * 5;
     private static final Pattern DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
@@ -75,9 +83,11 @@ public class TermsAdminService {
     private final OperatorRepository operators;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
+    private final SiteOperatorReader operatorReader;
+    private final TermsChangeMails changeMails;
 
     public TermsAdminService(TermsService terms, TermsVersionRepository versions, TermsDraftRepository drafts, SiteSettingRepository settings,
-            OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids) {
+            OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids, SiteOperatorReader operatorReader, TermsChangeMails changeMails) {
         this.terms = terms;
         this.versions = versions;
         this.drafts = drafts;
@@ -85,6 +95,8 @@ public class TermsAdminService {
         this.operators = operators;
         this.audit = audit;
         this.ids = ids;
+        this.operatorReader = operatorReader;
+        this.changeMails = changeMails;
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +122,7 @@ public class TermsAdminService {
         Map<Long, String> names = operatorNames(operatorIds);
         List<TermsVersionRow> rows = timeline.versions().stream()
                 .map(v -> new TermsVersionRow(v.version(), v.effectiveDate().toString(), v.publishedAt(), nameOf(names, v.publishedBy()), v.changeNote(),
-                        timeline.statusOf(v.version()).name()))
+                        timeline.statusOf(v.version()).name(), v.unfavorable(), snapshotView(v.operatorSnapshot())))
                 .toList();
         return new TermsKindDetailResponse(kind.name(), draft.map(d -> draftView(d, names)).orElse(null), rows);
     }
@@ -150,21 +162,34 @@ public class TermsAdminService {
         });
     }
 
-    /** 초안 본문으로 새 버전을 게시하고 초안을 지운다 */
+    /**
+     * 초안 본문으로 새 버전을 게시하고 초안을 지운다(terms-operator-contract).
+     *
+     * <ol>
+     *   <li><b>최소 시행일</b>(사이트 시간대): 그 종류의 첫 게시본 = 내일 이후, 개정 = 7일 뒤 이후, 회원에게 불리한 변경({@code unfavorable}) = 30일 뒤 이후. 마지막 게시본 시행일 이후(같은 날 허용)는 그대로.</li>
+     *   <li><b>자리표시</b>: 초안(자리표시 그대로)을 지금 운영 주체 값·사이트 이름·시행일로 바꾼 뒤({@link TermsPlaceholders}) {@link TermsHtml} 로 다시 정화해 버전 본문으로 저장한다.
+     *       초안은 자리표시 그대로다(게시하면 지운다). 모르는 자리표시가 있으면 거절({@code fields.draft}).</li>
+     *   <li><b>사본</b>: 게시 당시 운영 주체 값을 버전에 함께 남긴다 — 나중에 단계를 바꿔도 지난 판은 그대로다.</li>
+     *   <li><b>불리한 변경 메일</b>: 이용약관·개인정보처리방침·운영정책을 {@code unfavorable} 로 게시하면 가입 회원 전체에게 메일을 대기열로 넣는다({@link TermsChangeMails} — 나눠 보낸다).</li>
+     * </ol>
+     */
     @Transactional
     public TermsVersionDetailResponse publish(AdminActor actor, String kindPath, TermsPublishRequest request) {
         TermsKind kind = kindOf(kindPath);
         Optional<TermsDraftEntity> draft = drafts.findWithLockByKind(kind.name());
         TermsTimeline timeline = terms.timeline(kind);
         LocalDate today = timeline.today();
+        boolean unfavorable = request != null && Boolean.TRUE.equals(request.unfavorable());
 
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         LocalDate effectiveDate = parseDate(request == null ? null : request.effectiveDate(), errors);
+        Optional<TermsVersionMeta> latest = timeline.latest();
         if (effectiveDate != null) {
-            Optional<TermsVersionMeta> latest = timeline.latest();
-            // 시행일은 내일부터 — 오늘 시행은 받지 않는다(게시와 시행 사이에 변경 안내가 보일 하루 이상을 둔다)
-            if (!effectiveDate.isAfter(today)) {
-                errors.put("effectiveDate", new MessageRef("terms.effectiveDate.past"));
+            LocalDate min = minEffectiveDate(today, latest.isPresent(), unfavorable);
+            if (effectiveDate.isBefore(min)) {
+                // 첫 게시본은 「내일부터」(오늘 시행은 받지 않는다) · 개정은 7일 뒤 · 불리한 변경은 30일 뒤부터
+                errors.put("effectiveDate", unfavorable ? new MessageRef("terms.effectiveDate.unfavorable", min.toString())
+                        : latest.isPresent() ? new MessageRef("terms.effectiveDate.revision", min.toString()) : new MessageRef("terms.effectiveDate.past"));
             } else if (latest.isPresent() && effectiveDate.isBefore(latest.get().effectiveDate())) {
                 errors.put("effectiveDate", new MessageRef("terms.effectiveDate.beforeLast", latest.get().effectiveDate().toString()));
             }
@@ -176,26 +201,48 @@ public class TermsAdminService {
         if (changeNote != null && changeNote.codePointCount(0, changeNote.length()) > CHANGE_NOTE_MAX) {
             errors.put("changeNote", new MessageRef("terms.changeNote.max", CHANGE_NOTE_MAX));
         }
+        // 자리표시 바꾸기 — 모르는 이름은 날짜 칸 오류와 함께 한꺼번에 알린다(이름 판정은 시행일과 무관하다)
+        SiteOperatorValues operator = operatorReader.current();
+        String serviceName = settings.findById(SiteSettingEntity.ROW_ID).map(SiteSettingEntity::getSiteName).orElse("");
+        String body = null;
         if (draft.isEmpty()) {
             errors.put("draft", new MessageRef("terms.draft.missing"));
+        } else {
+            TermsPlaceholders.Result replaced = TermsPlaceholders.apply(TermsPlaceholders.unsplitBraces(draft.get().getBody()),
+                    TermsPlaceholders.valuesOf(operator, serviceName, effectiveDate == null ? today : effectiveDate));
+            if (!replaced.unknown().isEmpty()) {
+                errors.put("draft", new MessageRef("terms.draft.unknownPlaceholder", replaced.unknown().stream().map(n -> "{{" + n + "}}").collect(Collectors.joining(", "))));
+            } else {
+                body = TermsHtml.sanitize(replaced.html());
+                if (!TermsHtml.hasVisibleText(body)) {
+                    errors.put("draft", new MessageRef("terms.body.required"));
+                } else if (body.length() > TermsHtml.BODY_MAX) {
+                    errors.put("draft", new MessageRef("terms.body.max", TermsHtml.BODY_MAX));
+                }
+            }
         }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
 
-        int version = timeline.latest().map(TermsVersionMeta::version).orElse(0) + 1;
+        int version = latest.map(TermsVersionMeta::version).orElse(0) + 1;
         Instant now = Instant.now();
-        TermsVersionEntity entity = TermsVersionEntity.publish(ids.nextId(), kind, version, draft.get().getBody(), effectiveDate, changeNote,
-                actor.operatorId(), now);
+        TermsVersionEntity entity = TermsVersionEntity.publish(ids.nextId(), kind, version, body, effectiveDate, changeNote, unfavorable,
+                TermsOperatorSnapshot.of(operator, serviceName).toJson(), actor.operatorId(), now);
         versions.persist(entity);
         drafts.delete(draft.get());
 
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("version", version);
         after.put("effectiveDate", effectiveDate.toString());
+        after.put("unfavorable", unfavorable);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.TERMS_PUBLISH, AuditResult.SUCCESS).target("TERMS", kind.name())
                 .with("after", after));
-        log.info("약관 게시 kind={} version={} effectiveDate={} operatorId={}", kind, version, effectiveDate, actor.operatorId());
+        if (unfavorable && kind.memberNotice()) {
+            changeMails.enqueue(kind, version, effectiveDate, changeNote);
+        }
+        log.info("약관 게시 kind={} version={} effectiveDate={} unfavorable={} stage={} operatorId={}", kind, version, effectiveDate, unfavorable, operator.stage(),
+                actor.operatorId());
 
         TermsStatus status = effectiveDate.isAfter(today) ? TermsStatus.UPCOMING : TermsStatus.CURRENT;
         return versionView(entity, status, operatorNames(Set.of(actor.operatorId())));
@@ -271,7 +318,22 @@ public class TermsAdminService {
 
     private static TermsVersionDetailResponse versionView(TermsVersionEntity entity, TermsStatus status, Map<Long, String> names) {
         return new TermsVersionDetailResponse(entity.getVersion(), entity.getEffectiveDate().toString(), entity.getPublishedAt(),
-                nameOf(names, entity.getPublishedBy()), entity.getChangeNote(), status.name(), entity.getBody());
+                nameOf(names, entity.getPublishedBy()), entity.getChangeNote(), status.name(), entity.getBody(), entity.isUnfavorable(),
+                snapshotView(entity.getOperatorSnapshot()));
+    }
+
+    /** 게시 당시 운영 주체 — 응답에는 단계·운영자 이름·상호만(사본이 없는 옛 판은 null) */
+    private static TermsOperatorSnapshotView snapshotView(String json) {
+        TermsOperatorSnapshot snapshot = TermsOperatorSnapshot.parse(json);
+        return snapshot == null ? null : new TermsOperatorSnapshotView(snapshot.stage(), snapshot.operatorName(), snapshot.businessName());
+    }
+
+    /** 최소 시행일 — 첫 게시본 내일 · 개정 7일 뒤 · 불리한 변경 30일 뒤(사이트 시간대의 오늘 기준) */
+    static LocalDate minEffectiveDate(LocalDate today, boolean revision, boolean unfavorable) {
+        if (unfavorable) {
+            return today.plusDays(UNFAVORABLE_NOTICE_DAYS);
+        }
+        return today.plusDays(revision ? REVISION_NOTICE_DAYS : 1);
     }
 
     private static String nameOf(Map<Long, String> names, Long operatorId) {

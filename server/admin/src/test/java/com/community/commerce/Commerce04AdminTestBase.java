@@ -7,6 +7,7 @@ import com.community.admin.AdminApplication;
 import com.community.installation.service.InstallationState;
 import com.community.permission.entity.Permission;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -98,11 +99,25 @@ public abstract class Commerce04AdminTestBase {
         if (passwordHash == null) {
             passwordHash = encoder.encode(PASSWORD);
         }
+        if (sellingOperator()) {
+            SiteOperatorFixture.fillBusiness(jdbc);
+        }
     }
 
     @AfterEach
     void commerceBaseTearDown() {
         jdbc.update("UPDATE admin_security_settings SET mfa_enabled = ? WHERE id = 1", savedMfa);
+        if (sellingOperator()) {
+            SiteOperatorFixture.clear(jdbc); // 1행 표 — 처음 값(개인)으로 되돌린다
+        }
+    }
+
+    /**
+     * 시험마다 운영 주체를 판매할 수 있는 단계(개인사업자 + 통신판매업 신고번호)로 두고 끝나면 개인으로 되돌릴까 — 유료 신청 승인·입금 확정처럼 돈을 받는 길을 시험하는 클래스가 켠다
+     * (사용자 결정 2026-11-07). 기본은 건드리지 않는다(개인 — 처음 값).
+     */
+    protected boolean sellingOperator() {
+        return false;
     }
 
     // ── 운영자 ─────────────────────────────────────────────────────────────

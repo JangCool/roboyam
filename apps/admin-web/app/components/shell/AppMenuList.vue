@@ -1,6 +1,6 @@
 <template>
     <!--
-        관리 메뉴(세로) — 데스크톱 사이드바(`AppSidebar`)와 모바일 드로어(`AppDrawer`)가 같은 데이터(`UtilAdminMenu.ITEMS` 에서 지금 모드(`useAppMenu`)의 노드)·같은 모양을 쓴다.
+        관리 메뉴(세로) — 데스크톱 사이드바(`AppSidebar`)와 모바일 드로어(`AppDrawer`)가 같은 데이터(DB 메뉴 구성 `useAdminMenuTree` 에서 지금 모드(`useAppMenu`)의 노드 — 이름은 `useAdminMenuName`, 외부 링크는 `<a>`)·같은 모양을 쓴다.
         모드가 바뀌면(일반 메뉴 ↔ 설정 메뉴) 목록이 짧게 페이드한다 — `key` 가 모드라 목록 전체가 갈린다. 움직임을 줄여 달라는 설정(`prefers-reduced-motion`)에서는 전환을 거의 없앤다.
         PrimeVue 사이드바 메뉴(SidebarMenu · SidebarMenuItem · SidebarMenuButton)를 쓰고, 버튼의 `as` 를 NuxtLink 로 바꿔 이동을 맡긴다.
         레일(접힌 사이드바)에서는 PrimeVue 가 버튼을 아이콘 폭으로 줄이고 이름은 잘린다 — 무엇인지 알 수 있게 `title` 로 이름을 단다.
@@ -13,30 +13,30 @@
     <Transition name="menu-fade" mode="out-in">
         <nav :key="mode" :aria-label="isSettings ? t('shell.settingsNav') : t('shell.mainNav')">
             <SidebarGroup v-for="section in sections" :key="section.key">
-                <SidebarGroupLabel v-if="section.group && !rail" :id="labelIds[section.key]">{{ t(section.group.labelKey) }}</SidebarGroupLabel>
+                <SidebarGroupLabel v-if="section.group && !rail" :id="labelIds[section.key]">{{ nameOf(section.group) }}</SidebarGroupLabel>
                 <SidebarGroupContent>
                     <SidebarMenu :aria-labelledby="section.group && !rail ? labelIds[section.key] : undefined">
                         <template v-for="item in section.items" :key="item.key">
                             <!-- 하위가 있는 항목 — 펼치고 접는다 -->
                             <SidebarMenuItem v-if="item.children && (!rail || item.icon)" collapsible :open="isOpen(item.key)" @update:open="(value: boolean) => (opened[item.key] = value)">
-                                <SidebarMenuButton :is-active="UtilAdminMenu.isItemActive(item, route.path)" :title="rail ? t(item.labelKey) : undefined" :aria-controls="`${idBase}-${item.key}-sub`" @click="onParentClick(item)">
+                                <SidebarMenuButton :is-active="UtilAdminMenu.isItemActive(item, route.path)" :title="rail ? nameOf(item) : undefined" :aria-controls="`${idBase}-${item.key}-sub`" @click="onParentClick(item)">
                                     <i v-if="item.icon" :class="[item.icon, 'w-4 shrink-0 text-center']" aria-hidden="true" />
-                                    <span>{{ t(item.labelKey) }}</span>
+                                    <span>{{ nameOf(item) }}</span>
                                     <i v-if="!rail" class="pi ml-auto text-[11px] opacity-60" :class="isOpen(item.key) ? 'pi-chevron-down' : 'pi-chevron-right'" aria-hidden="true" />
                                 </SidebarMenuButton>
                                 <SidebarMenuSub v-if="!rail" :id="`${idBase}-${item.key}-sub`">
                                     <SidebarMenuSubItem v-for="child in item.children" :key="child.key">
-                                        <SidebarMenuSubButton :as="NuxtLink" :to="child.to" :is-active="isActive(child)" :aria-current="isActive(child) ? 'page' : undefined" @click="emit('navigate')">
+                                        <SidebarMenuSubButton v-bind="linkOf(child)" :is-active="isActive(child)" :aria-current="isActive(child) ? 'page' : undefined" @click="emit('navigate')">
                                             <i v-if="child.icon" :class="[child.icon, 'w-4 shrink-0 text-center']" aria-hidden="true" />
-                                            <span>{{ t(child.labelKey) }}</span>
+                                            <span>{{ nameOf(child) }}</span>
                                         </SidebarMenuSubButton>
                                     </SidebarMenuSubItem>
                                 </SidebarMenuSub>
                             </SidebarMenuItem>
                             <SidebarMenuItem v-else-if="!rail || item.icon">
-                                <SidebarMenuButton :as="NuxtLink" :to="item.to" :is-active="isActive(item)" :aria-current="isActive(item) ? 'page' : undefined" :title="rail ? t(item.labelKey) : undefined" @click="emit('navigate')">
+                                <SidebarMenuButton v-bind="linkOf(item)" :is-active="isActive(item)" :aria-current="isActive(item) ? 'page' : undefined" :title="rail ? nameOf(item) : undefined" @click="emit('navigate')">
                                     <i v-if="item.icon" :class="[item.icon, 'w-4 shrink-0 text-center']" aria-hidden="true" />
-                                    <span>{{ t(item.labelKey) }}</span>
+                                    <span>{{ nameOf(item) }}</span>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </template>
@@ -67,7 +67,15 @@ const { mode, isSettings, nodes } = useAppMenu();
 /** 지금 모드에서 권한이 없는 항목은 빼고 나눈다 — 로그인한 운영자나 모드가 바뀌면 다시 계산된다 */
 const sections = computed(() => UtilAdminMenu.sections(nodes.value));
 /** 구획 제목의 id — 항목 목록이 제목으로 이름을 얻게 한다(`aria-labelledby`). 사이드바와 드로어가 함께 떠도 겹치지 않게 `useId` 로 만든다 */
-const labelIds = Object.fromEntries(UtilAdminMenu.sections().map((section) => [section.key, `${idBase}-${section.key}`]));
+const labelIds = computed<Record<string, string>>(() => Object.fromEntries(sections.value.map((section) => [section.key, `${idBase}-${section.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`])));
+
+const { nameOf } = useAdminMenuName();
+
+/** 항목의 링크 — 화면은 `NuxtLink`, 외부 링크(메뉴 구성의 URL 항목)는 `<a href>`(새 탭이면 `noopener`) */
+function linkOf(item: AdminMenuItem): Record<string, unknown> {
+    if (item.href) return { as: 'a', href: item.href, ...(item.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {}) };
+    return { as: NuxtLink, to: item.to };
+}
 
 const isActive = (item: AdminMenuItem) => UtilAdminMenu.isActive(item, route.path);
 

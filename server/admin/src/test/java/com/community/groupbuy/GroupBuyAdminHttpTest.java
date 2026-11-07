@@ -71,20 +71,26 @@ class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     @Test
-    void 판매_켜기는_최고_관리자만_끄기는_설정_권한자도_사업자등록번호는_체크섬까지_본다() throws Exception {
+    void 판매_켜기는_최고_관리자만_끄기는_설정_권한자도_사업자_정보_저장은_겹치는_칸을_무시한다() throws Exception {
         Cookie settings = login(operatorWith(Permission.COMMERCE_SETTINGS));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales"), settings).content("{\"enabled\":true,\"reason\":\"판매를 시작합니다\"}")).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMERCE_SALES_ROOT_ONLY"));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales"), settings).content("{\"enabled\":false,\"reason\":\"문제가 있어 멈춥니다\"}")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.enabled").value(false)).andExpect(jsonPath("$.data.autoChecks.length()").value(4))
+                .andExpect(jsonPath("$.data.enabled").value(false)).andExpect(jsonPath("$.data.autoChecks.length()").value(5))
+                .andExpect(jsonPath("$.data.autoChecks[1].key").value("OPERATOR_STAGE"))
                 .andExpect(jsonPath("$.data.checklist.length()").value(6));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales/checklist/TERMS"), settings).content("{\"checked\":true}")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.checklist[2].key").value("TERMS")).andExpect(jsonPath("$.data.checklist[2].checked").value(true));
 
-        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"companyName\":\"시험상회\",\"businessNo\":\"123-45-67890\"}}"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields['values.businessNo']").exists());
-        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"companyName\":\"시험상회\",\"businessNo\":\"123-45-67891\"}}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.values.businessNo").value("123-45-67891")).andExpect(jsonPath("$.data.ready").value(false));
+        // 사업자 정보의 정본 = 운영 주체(terms-operator-contract) — 겹치는 칸은 받아도 검사·저장하지 않고, 커머스 고유 칸만 저장한다
+        String before = jdbc.queryForObject("SELECT coalesce(registration_number, '') FROM site_operator WHERE id = 1", String.class);
+        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings)
+                        .content("{\"values\":{\"companyName\":\"무시상회\",\"businessNo\":\"123-45-67890\",\"businessHours\":\"평일 10~17시\"}}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.values.businessNo").value(before))
+                .andExpect(jsonPath("$.data.values.businessHours").value("평일 10~17시"));
+        assertThat(jdbc.queryForObject("SELECT coalesce(business_name, '') FROM site_operator WHERE id = 1", String.class)).isNotEqualTo("무시상회");
+        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"shippingRefundPolicy\":\"" + "가".repeat(3001) + "\"}}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields['values.shippingRefundPolicy']").exists());
 
         mvc.perform(get("/api/admin/commerce/group-buy-settings").cookie(settings)).andExpect(status().isOk()).andExpect(jsonPath("$.data.ranges.holdMinutes.min").value(3))
                 .andExpect(jsonPath("$.data.defaults.largeRefundThreshold").value(100000));

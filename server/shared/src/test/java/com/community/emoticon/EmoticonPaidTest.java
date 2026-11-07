@@ -428,6 +428,10 @@ class EmoticonPaidTest extends EmoticonTestBase {
 
     @Test
     void 설정의_유료_칸은_범위를_모아_400_단계는_정렬해_저장_공개_규칙_반영_감사() {
+        kit.withSeller(() -> paidFieldsSaved()); // 유료 판매 켜기는 운영 주체가 판매할 수 있는 단계여야 한다(사용자 결정 2026-11-07 — 그 규칙은 EmoticonOperatorStageTest)
+    }
+
+    private void paidFieldsSaved() {
         Map<String, Object> was = kit.settingsRow();
         try {
             Map<String, ?> bad = fields(() -> kit.settings.save(kit.operator, null, new EmoticonSettingsSaveRequest(10, 500, 8, 40, 3, 91, 29, 1_000_001, 31, null,
