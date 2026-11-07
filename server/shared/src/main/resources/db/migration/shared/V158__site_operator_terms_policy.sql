@@ -1,5 +1,5 @@
 -- 운영 주체 단계 · 약관 운영정책 · 게시본의 운영 주체 사본 · 불리한 변경 — docs/features/terms-operator-contract.md
--- 번호: V158 은 다른 세션(profile-privacy)이 쓰기로 예약한 가번호라 비워 둔다. ⚠ develop 에 합치기 직전에 ls 로 마지막 번호를 다시 보고, V158 이 아직 없으면 번호를 다시 정한다.
+-- 번호: 가번호 V159 → V158 로 당김(2026-11-07 develop 병합 — V158 을 예약했던 profile-privacy 는 아직 파일이 없어 그 뒤 번호를 쓴다, Flyway 순서 검사 엄격).
 --
 -- ① site_operator(1행): 사이트를 운영하는 사람·사업자 — 단계 INDIVIDUAL(개인, 사업자등록 전) · SOLE_PROPRIETOR(개인사업자) · CORPORATION(법인).
 --    사업자 정보의 정본이다(세션 정리 결정 — 커머스 사업자 정보의 겹치는 칸은 여기서 읽는다). 개인 단계는 사업자 칸이 모두 NULL(CHECK).

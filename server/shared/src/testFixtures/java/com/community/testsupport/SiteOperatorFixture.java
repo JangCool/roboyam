@@ -3,7 +3,7 @@ package com.community.testsupport;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 시험용 운영 주체 행({@code site_operator}, V159 — 사업자 정보의 정본). 커머스 시험이 사업자 정보를 채우거나 비울 때 쓴다(1행 표라 시험이 끝나면 {@link #clear} 로 되돌린다).
+ * 시험용 운영 주체 행({@code site_operator}, V158 — 사업자 정보의 정본). 커머스 시험이 사업자 정보를 채우거나 비울 때 쓴다(1행 표라 시험이 끝나면 {@link #clear} 로 되돌린다).
  */
 public final class SiteOperatorFixture {
 

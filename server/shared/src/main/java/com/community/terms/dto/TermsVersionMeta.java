@@ -9,8 +9,8 @@ import java.time.LocalDate;
  *
  * @param publishedBy      게시한 운영자 ID(없을 수 있다)
  * @param changeNote       변경 요지(없으면 null)
- * @param unfavorable      회원에게 불리한 변경으로 게시했는가(V159)
- * @param operatorSnapshot 게시 당시 운영 주체 JSON({@code TermsOperatorSnapshot}, V159 앞의 판은 null)
+ * @param unfavorable      회원에게 불리한 변경으로 게시했는가(V158)
+ * @param operatorSnapshot 게시 당시 운영 주체 JSON({@code TermsOperatorSnapshot}, V158 앞의 판은 null)
  */
 public record TermsVersionMeta(TermsKind kind, Integer version, LocalDate effectiveDate, Instant publishedAt, Long publishedBy, String changeNote,
                                boolean unfavorable, String operatorSnapshot) {

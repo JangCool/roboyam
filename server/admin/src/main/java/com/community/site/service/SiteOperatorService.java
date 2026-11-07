@@ -38,7 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 운영 주체 설정(설정 > 일반 「운영 주체」, docs/features/terms-operator-contract.md) 조회·저장 — {@code site_operator} 한 행(V159). 사업자 정보의 정본이다(커머스 사업자 정보의 겹치는 칸이
+ * 운영 주체 설정(설정 > 운영·약관 > 운영 주체 `/settings/operator`, docs/features/terms-operator-contract.md) 조회·저장 — {@code site_operator} 한 행(V158). 사업자 정보의 정본이다(커머스 사업자 정보의 겹치는 칸이
  * 여기서 읽힌다).
  *
  * <ul>

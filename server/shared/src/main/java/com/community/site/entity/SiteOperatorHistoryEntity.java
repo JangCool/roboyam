@@ -7,7 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
-/** 운영 주체 단계 전환 이력 한 줄 — V159 의 {@code site_operator_history}. 고치지 않는다 */
+/** 운영 주체 단계 전환 이력 한 줄 — V158 의 {@code site_operator_history}. 고치지 않는다 */
 @Entity
 @Table(name = "site_operator_history")
 public class SiteOperatorHistoryEntity {

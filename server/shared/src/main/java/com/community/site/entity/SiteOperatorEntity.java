@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 운영 주체 한 행 — V159 의 {@code site_operator}(id = 1, 마이그레이션이 늘 만든다). 사업자 정보의 정본이다(커머스 사업자 정보의 겹치는 칸도 여기서 읽는다).
+ * 운영 주체 한 행 — V158 의 {@code site_operator}(id = 1, 마이그레이션이 늘 만든다). 사업자 정보의 정본이다(커머스 사업자 정보의 겹치는 칸도 여기서 읽는다).
  * 값 검사는 부르는 쪽({@code SiteOperatorService})이 끝냈다. 개인 단계로 바꾸면 사업자 칸을 모두 비운다(DB CHECK 와 같다).
  */
 @Entity

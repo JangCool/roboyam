@@ -21,7 +21,7 @@ public enum TermsKind {
      */
     ROBOTIKON_CONTRACT("robotikon_contract", "R", false, false, "/robotikon/contract"),
     /**
-     * 운영정책(docs/features/terms-operator-contract.md, V159) — 공개 화면 {@code /policy} 와 버전 기록만 있다. 가입 동의 버전 문자열·가입·로그인 링크·변경 안내 띠에는 넣지 않는다.
+     * 운영정책(docs/features/terms-operator-contract.md, V158) — 공개 화면 {@code /policy} 와 버전 기록만 있다. 가입 동의 버전 문자열·가입·로그인 링크·변경 안내 띠에는 넣지 않는다.
      */
     OPERATION_POLICY("operation_policy", "O", false, true, "/policy");
 

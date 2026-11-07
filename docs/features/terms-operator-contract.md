@@ -55,12 +55,12 @@
 2. 통신비밀보호법의 접속 기록 3개월 보관이 이 사이트에 적용되는지. 지금은 접속 로그를 따로 남기지 않는다.
 3. 애드센스 행태정보의 국외 이전 고지 수준, 유럽 방문자 동의 창(CMP)이 필요한지.
 4. 19금 글은 본인인증(PortOne)이 있어야 볼 수 있다. 본인인증 계약은 사업자가 필요할 가능성이 높아 개인 단계에서는 쓰지 못할 수 있다. 쓰게 되면 처리방침에 본인인증 항목(생년월일, CI·DI 해시, 이름 암호문)을 더한 개정판을 게시한다.
-5. 게시판 개인정보 보유 배치의 스위치(`retention_enabled`)가 기본으로 꺼져 있다. 처리방침의 「작성 IP 365일」과 맞추려면 오픈 전에 켜야 한다.
+5. ~~게시판 개인정보 보유 배치의 스위치(`retention_enabled`)가 기본으로 꺼져 있다~~ → 2026-11-07 기본 켬(shared V159).
 6. 회원 이메일은 평문으로 저장된다(처리방침에 암호화 저장이라고 적지 않았다).
 7. 위탁처(AWS·Amazon SES)의 계약 주체와 운영(prod) 리전을 확인해야 한다.
 
 ## 서버 구현 결과 (2026-11-07 — 화면 연결 전)
-- **마이그레이션**: shared `V159__site_operator_terms_policy.sql`(V158 은 profile-privacy 가번호라 비움 — 합칠 때 다시 확인). `site_operator`(1행, 사업자 정보의 정본) · `site_operator_history` · 커머스 사업자 정보 → 운영 주체로 옮기고(상호가 있으면 `SOLE_PROPRIETOR`) `commerce_business_info` 의 겹치는 열 삭제 · 약관 종류 CHECK ∪ `OPERATION_POLICY` · `terms_versions.unfavorable`·`operator_snapshot(jsonb)`.
+- **마이그레이션**: shared `V158__site_operator_terms_policy.sql`(가번호 V159 → develop 병합 때 V158 로 당김 — profile-privacy 는 그 뒤 번호). `site_operator`(1행, 사업자 정보의 정본) · `site_operator_history` · 커머스 사업자 정보 → 운영 주체로 옮기고(상호가 있으면 `SOLE_PROPRIETOR`) `commerce_business_info` 의 겹치는 열 삭제 · 약관 종류 CHECK ∪ `OPERATION_POLICY` · `terms_versions.unfavorable`·`operator_snapshot(jsonb)`.
 - **관리자** `GET·PUT /api/admin/site/operator`(`site.read`·`site.manage`): 응답·요청은 화면 타입 그대로. 오류 `400 VALIDATION fields.{stage,operatorName,contactEmail,phone,privacyOfficerName,privacyOfficerEmail,hostingProvider,business.*}`(문구 `siteOperator.*`), 판매 중 개인 단계·신고번호 비우기 `409 COMMERCE_SALES_OPEN`. 전화는 화면과 같이 띄어쓰기도 받는다. 감사 `SITE_OPERATOR_STAGE_CHANGE`(+이력)·`SITE_OPERATOR_UPDATE`(대상 SITE/1, 바뀐 칸 before/after, 이메일은 가림).
 - **공개** `GET /api/site/info` 에 `operator{stage, contactEmail|null}`(사본·ETag 경로 그대로).
 - **약관 게시**: `unfavorable`(없으면 false), 최소 시행일 첫 판 내일 · 개정 7일 뒤(`terms.effectiveDate.revision`) · 불리 30일 뒤(`terms.effectiveDate.unfavorable`). 자리표시는 `TermsPlaceholders`(정화된 초안의 `{<!-- -->{` 를 되돌린 뒤 바꾸고 다시 정화), 모르는 이름 `fields.draft`(`terms.draft.unknownPlaceholder`). 버전 목록·상세에 `unfavorable`·`operatorSnapshot{stage,operatorName,businessName}`(DB 에는 사본 전체). 감사 `TERMS_PUBLISH` after 에 `unfavorable`.
@@ -74,6 +74,7 @@
 
 ## 메뉴 분리 · 기본값 개인 · 단계별 확인 (2026-11-07)
 - 운영 주체는 일반 설정에서 빼 `/settings/operator` 화면이 됐다. 설정 메뉴 「운영·약관」 묶음(시스템 다음) = 운영 주체 → 약관(서버 `AdminScreenRegistry` 키 `siteOperator`). 관리자 셸 메뉴는 DB 의 관리자 메뉴 구성을 읽는다(menu-contract 「관리자 사이트 메뉴」).
-- **기본값은 개인**(사용자 지시): 새 설치는 `INDIVIDUAL`. local 공구 시드(`GroupBuyLocalSeeder`)는 운영 주체를 건드리지 않는다 — 개인 단계면 판매는 꺼진 채(`OPERATOR_STAGE`), 판매 시험은 운영 주체를 개인사업자로 바꾸고 켠다. V159 의 「커머스 상호가 있으면 개인사업자」 옮기기 규칙은 실제 사업자 정보를 지키려고 그대로 둔다.
+- **기본값은 개인**(사용자 지시): 새 설치는 `INDIVIDUAL`. local 공구 시드(`GroupBuyLocalSeeder`)는 운영 주체를 건드리지 않는다 — 개인 단계면 판매는 꺼진 채(`OPERATOR_STAGE`), 판매 시험은 운영 주체를 개인사업자로 바꾸고 켠다. V158 의 「커머스 상호가 있으면 개인사업자」 옮기기 규칙은 실제 사업자 정보를 지키려고 그대로 둔다.
 - 단계별로 실제로 막는 것은 **공구 판매 스위치 하나**(`OPERATOR_STAGE` · 판매 중 개인 전환/신고번호 비우기 409). 판매가 꺼져도 공구 목록·상세는 보이고 주문만 서버가 막는다(커머스 계약 그대로).
 - ~~미확정: 로보티콘 유료 판매 · 광고/핫딜 유료 신청이 운영 주체 단계를 보지 않는다~~ → **정함(사용자 결정 2026-11-07): 같은 조건(`operatorCanSell()` = 개인사업자 이상 + 신고번호)으로 막는다.** 로보티콘 — 켜기 400 `fields.paidSalesEnabled`(이미 켜진 값 그대로 저장은 됨) · 결제 준비 409 `EMOTICON_PAID_SALES_CLOSED` · 관리자 설정 조회에 `paidSalesAllowed` · 공개 규칙 `paidSalesEnabled` = 스위치 && 조건 · 켜져 있으면 개인 전환/신고번호 비우기 409 `EMOTICON_PAID_SALES_OPEN`. 광고·핫딜(스위치 없음) — 새 신청 409 `BIZ_PRODUCT_CLOSED`(상품 `accepting` false) · 결제 시작 409 `BIZ_PAYMENT_UNAVAILABLE` · 유료 승인(ONLINE·MANUAL)·입금 확정 409 `BIZ_OPERATOR_STAGE`. 이미 결제창에 들어간 결제의 완료는 받는다.
+- 게시판 개인정보 보유 배치 전체 스위치(`retention_enabled`)를 기본으로 켰다(shared V159 — 사용자 지시 2026-11-07, 처리방침의 보관 기간과 실제 처리를 맞춘다). 운영자가 저장한 적 있는 행은 건드리지 않는다.

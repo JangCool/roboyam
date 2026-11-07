@@ -40,10 +40,10 @@ public class TermsVersionEntity {
     /** 게시한 운영자({@code operators.id}). FK 없음 — 운영자가 지워져도 남는다 */
     private Long publishedBy;
 
-    /** 회원에게 불리한 변경으로 게시했는가(V159 — 시행일 30일 뒤 이후 + 가입 회원 메일) */
+    /** 회원에게 불리한 변경으로 게시했는가(V158 — 시행일 30일 뒤 이후 + 가입 회원 메일) */
     private boolean unfavorable;
 
-    /** 게시 당시 운영 주체({@code TermsOperatorSnapshot} JSON, V159). 그 앞에 게시한 판은 null */
+    /** 게시 당시 운영 주체({@code TermsOperatorSnapshot} JSON, V158). 그 앞에 게시한 판은 null */
     @JdbcTypeCode(SqlTypes.JSON)
     private String operatorSnapshot;
 
