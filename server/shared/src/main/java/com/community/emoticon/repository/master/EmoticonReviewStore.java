@@ -25,7 +25,8 @@ import javax.sql.DataSource;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 심사 건({@code emoticon_reviews}, V142) 읽기·쓰기. QueryDSL 이다({@link EmoticonStoreSupport}) — 심사 건 행 잠금은 심사 건 표만 고르는 {@code PESSIMISTIC_WRITE}.
+ * 로보티콘 심사 건({@code emoticon_reviews}, V142) 읽기·쓰기. QueryDSL 이다({@link EmoticonStoreSupport}) — 심사 건 행 잠금은 심사 건 표만 고르는
+ * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 심사 건을 FK 로 가리키는 가격 기록은 그 건을 먼저 잠근 승인이 넣는다).
  * Native SQL 로 남긴 것과 이유: 작가 단위 줄 세우기({@code pg_advisory_xact_lock} — 잠글 행이 없는 「작가」 단위), 작가 탈퇴의 대기 건 닫기(하위 질의 {@code FOR UPDATE} 로
  * ID 차례로 잠그고 바꾼 줄을 {@code RETURNING} 으로 — 닫은 건과 알린 건이 같은 문장이어야 한다).
  */

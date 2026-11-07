@@ -6,6 +6,7 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.operator.dto.response.OperatorRoleRef;
 import com.community.operator.entity.OperatorEntity;
+import com.community.operator.repository.master.OperatorIdentityLockQueries;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.operator.repository.master.OperatorRepositoryQDSL;
 import com.community.operator.service.OperatorIdentityLock;
@@ -50,13 +51,15 @@ public class ProfileService {
     private final RoleRepositoryQDSL roles;
     private final AuditLogService audit;
     private final EntityManager entityManager;
+    private final OperatorIdentityLockQueries identityLock;
 
-    public ProfileService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, RoleRepositoryQDSL roles, AuditLogService audit, EntityManager entityManager) {
+    public ProfileService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, RoleRepositoryQDSL roles, AuditLogService audit, EntityManager entityManager, OperatorIdentityLockQueries identityLock) {
         this.operators = operators;
         this.operatorQueries = operatorQueries;
         this.roles = roles;
         this.audit = audit;
         this.entityManager = entityManager;
+        this.identityLock = identityLock;
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +76,7 @@ public class ProfileService {
             throw ValidationException.of("nickname", violation);
         }
 
-        OperatorIdentityLock.acquire(entityManager);
+        identityLock.acquire();
         OperatorEntity operator = operators.findWithLockById(actor.operatorId()).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
         String before = operator.getOperatorName();
         if (!nickname.equals(before)) {

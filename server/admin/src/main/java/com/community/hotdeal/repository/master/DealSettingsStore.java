@@ -52,6 +52,7 @@ public class DealSettingsStore extends RoboyamRepositoryQDSL {
     }
 
     private DealSettingEntity row(boolean forUpdate) {
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE) — deal_settings 를 FK 로 가리키는 표가 없다. 저장의 잠금이 그 트랜잭션의 첫 읽기라 1차 캐시에 낡은 값이 없다
         var select = query.selectFrom(S).where(S.id.eq(DealSettingEntity.ROW_ID));
         DealSettingEntity row = (forUpdate ? select.setLockMode(LockModeType.PESSIMISTIC_WRITE) : select).fetchOne();
         if (row == null) {

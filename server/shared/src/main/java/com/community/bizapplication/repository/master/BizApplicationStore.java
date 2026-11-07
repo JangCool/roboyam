@@ -26,6 +26,7 @@ import com.community.media.entity.FileStatus;
 import com.community.media.entity.QFileEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
@@ -37,6 +38,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -58,7 +60,9 @@ import tools.jackson.databind.json.JsonMapper;
  * (서비스는 행을 잠근 뒤 부르지만, 잠그지 않는 길 — 알림 표시 등 — 도 같은 규칙).
  *
  * <p>QueryDSL 이 기본이다 — 읽기는 한 줄 모양(프로젝션, 영속성 문맥의 낡은 엔티티를 보지 않는다), 상태 전이·카운터는 조건부 DML({@code execute() == 1}), 넣기는
- * {@code persist} + {@code flush}({@link JpaStoreWrites}). 잠금은 루트 표 id 프로젝션의 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}) 뒤 다시 읽는다.
+ * {@code persist} + {@code flush}({@link JpaStoreWrites}). 잠금은 신청 건 표만 고르는 id 문장의
+ * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}) 뒤 다시 읽는다 — 신청 건을 FK 로 가리키는 줄(줄·소재·계약서·입금·환불·처리 기록·핫딜 게시·서류 접수)은 그 건을 먼저
+ * 잠근 흐름이나 그 건을 만드는 트랜잭션이 넣고(노출 통계 {@code ad_daily_stats} 는 판정에 쓰지 않는다), 신청 건은 지우지 않는다.
  * Native SQL 로 남긴 것과 이유: 화면 번호 만들기({@code nextval} 시퀀스 + 한국 날짜 연도 — DB 시퀀스),
  * 입금 확인 upsert({@code ON CONFLICT (application_id) DO UPDATE} — 같은 건을 두 운영자가 동시에 처음 확인해도 한 줄).
  */
@@ -190,15 +194,15 @@ public class BizApplicationStore extends RoboyamRepositoryQDSL {
 
     /** 행을 잠그고 읽는다(처리 — 결제 확정과 겹쳐도 한쪽만) */
     public Optional<AppRow> lock(long id) {
-        return JpaStoreWrites.lockRow(query, A, A.id, id) ? find(id) : Optional.empty();
+        return query.select(A.id).from(A).where(A.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? find(id) : Optional.empty();
     }
 
     /** 그 회원의 신청 건을 잠근다 — 남의 건은 비어 있다(404) */
     public Optional<AppRow> lockOwned(long id, long userId) {
-        if (query.select(A.id).from(A).where(A.id.eq(id), A.userId.eq(userId)).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
+        if (query.select(A.id).from(A).where(A.id.eq(id), A.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
-        return find(id);
+        return findOwned(id, userId);
     }
 
     public Optional<AppRow> findOwned(long id, long userId) {
@@ -238,11 +242,10 @@ public class BizApplicationStore extends RoboyamRepositoryQDSL {
         return rows(query.select(APP).from(A).where(where.toArray(BooleanExpression[]::new)).orderBy(A.createdAt.desc(), A.id.desc()).limit(2000).fetch());
     }
 
-    /** 번호·상호·광고주·제목 부분 일치(대소문자 무시 — 예전 {@code ILIKE}, 와일드카드 글자는 글자 그대로). 광고 일정표 장부도 쓴다(기본 별칭 신청 건) */
+    /** 번호·상호·광고주·제목 부분 일치(예전과 같은 {@code ILIKE … ESCAPE '\'} — {@link Ilike}, 와일드카드 글자는 글자 그대로). 광고 일정표 장부도 쓴다(기본 별칭 신청 건) */
     public static BooleanExpression search(String q) {
         String term = q.strip();
-        return A.applicationNo.containsIgnoreCase(term).or(A.companyName.containsIgnoreCase(term)).or(A.advertiserName.containsIgnoreCase(term))
-                .or(A.title.containsIgnoreCase(term));
+        return Ilike.contains(A.applicationNo, term).or(Ilike.contains(A.companyName, term)).or(Ilike.contains(A.advertiserName, term)).or(Ilike.contains(A.title, term));
     }
 
     /** 승인 — 심사 대기에서만. 기간·요금표 계산·확정 금액·결제 방식·기한 */

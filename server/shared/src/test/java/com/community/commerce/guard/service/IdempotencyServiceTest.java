@@ -8,6 +8,7 @@ import com.community.commerce.guard.dto.StoredResponse;
 import com.community.commerce.guard.exception.IdempotencyInProgressException;
 import com.community.commerce.guard.exception.IdempotencyKeyInvalidException;
 import com.community.commerce.guard.exception.IdempotencyKeyReusedException;
+import com.community.commerce.guard.repository.master.IdempotencyRequestQueries;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.MutableTestClock;
 import java.time.Duration;
@@ -54,7 +55,7 @@ class IdempotencyServiceTest {
     @BeforeEach
     void setUp() {
         clock = new MutableTestClock(Instant.now());
-        service = new IdempotencyService(dataSource, new DataSourceTransactionManager(dataSource), clock);
+        service = new IdempotencyService(new IdempotencyRequestQueries(dataSource), new DataSourceTransactionManager(dataSource), clock);
         userId = USERS.incrementAndGet();
     }
 

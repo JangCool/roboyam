@@ -6,6 +6,7 @@ import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.user.entity.QProfileEntity;
+import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -418,7 +419,7 @@ public class AdminDealQueries extends RoboyamRepositoryQDSL {
             w.and(DEAL.source.eq(f.source()));
         }
         if (f.q() != null) {
-            w.and(POST.title.containsIgnoreCase(f.q()).or(DEAL.storeName.containsIgnoreCase(f.q())).or(PROFILE.nickname.containsIgnoreCase(f.q())));
+            w.and(Ilike.contains(POST.title, f.q()).or(Ilike.contains(DEAL.storeName, f.q())).or(Ilike.contains(PROFILE.nickname, f.q()))); // 예전 ILIKE … ESCAPE '\' 그대로
         }
         return w;
     }

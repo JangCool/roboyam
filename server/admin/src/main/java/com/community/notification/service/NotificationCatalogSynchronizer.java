@@ -4,8 +4,7 @@ import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationEventEntity;
 import com.community.notification.repository.master.NotificationEventRepository;
 import com.community.notification.repository.master.OperatorNotificationMuteRepository;
-import com.community.permission.service.BootstrapLock;
-import jakarta.persistence.EntityManager;
+import com.community.permission.repository.master.BootstrapLockQueries;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -33,17 +32,17 @@ public class NotificationCatalogSynchronizer {
 
     private final NotificationEventRepository events;
     private final OperatorNotificationMuteRepository mutes;
-    private final EntityManager entityManager;
+    private final BootstrapLockQueries bootstrapLock;
 
-    public NotificationCatalogSynchronizer(NotificationEventRepository events, OperatorNotificationMuteRepository mutes, EntityManager entityManager) {
+    public NotificationCatalogSynchronizer(NotificationEventRepository events, OperatorNotificationMuteRepository mutes, BootstrapLockQueries bootstrapLock) {
         this.events = events;
         this.mutes = mutes;
-        this.entityManager = entityManager;
+        this.bootstrapLock = bootstrapLock;
     }
 
     @Transactional
     public void sync() {
-        BootstrapLock.acquire(entityManager);
+        bootstrapLock.acquire();
 
         Instant now = Instant.now();
         Map<String, NotificationEventEntity> existing = new LinkedHashMap<>();

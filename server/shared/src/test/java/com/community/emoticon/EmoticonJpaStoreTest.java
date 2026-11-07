@@ -32,8 +32,9 @@ import org.springframework.dao.DataAccessException;
  * 로보티콘 저장소를 JDBC 에서 JPA·QueryDSL 로 옮기며 바뀐 문장의 동작 — 실제 PostgreSQL 위에서 본다(commerce.md 18절).
  *
  * <ul>
- *   <li>행 잠금의 세기: 쓰기 잠금({@code PESSIMISTIC_WRITE}) = {@code FOR NO KEY UPDATE}(나눔 잠금은 막고 외래 키 확인의 {@code FOR KEY SHARE} 는 막지 않는다),
- *       나눔 잠금({@code PESSIMISTIC_READ}) = {@code FOR SHARE}(쓰기 잠금을 막는다) — 다른 연결에서 {@code NOWAIT} 로 확인한다.</li>
+ *   <li>행 잠금의 세기: 쓰기 잠금({@code PESSIMISTIC_WRITE}) = {@code FOR NO KEY UPDATE}(같은 행의 쓰기 잠금·나눔 잠금은 막고 외래 키 확인의 {@code FOR KEY SHARE} 는
+ *       막지 않는다 — 팩·구매·심사 건을 가리키는 줄은 그 행을 먼저 잠근 흐름이 넣으므로 결과가 같다), 나눔 잠금({@code PESSIMISTIC_READ}) = {@code FOR SHARE}(쓰기 잠금을
+ *       막는다) — 다른 연결에서 {@code NOWAIT} 로 확인한다.</li>
  *   <li>{@code DISTINCT ON} 을 바꾼 「마지막 한 줄」 — 정렬 값이 같은 줄에서는 다음 정렬 값(판 · ID)이 큰 줄.</li>
  *   <li>{@code UNION ALL} 을 두 질의로 나눈 「가진 팩」의 차례, 다음 쪽 기준 값, 탭 숫자, 받은 수 올리기.</li>
  * </ul>
@@ -76,8 +77,9 @@ class EmoticonJpaStoreTest extends EmoticonTestBase {
         kit.jdbc.queryForList("SELECT 1 FROM " + table + " WHERE " + key + " = ? FOR " + mode + " NOWAIT", Integer.class, id);
     }
 
-    /** 쓰기 잠금({@code FOR NO KEY UPDATE}) — 나눔 잠금은 막히고 키 나눔 잠금은 된다 */
+    /** 쓰기 잠금({@code FOR NO KEY UPDATE}) — 같은 행 쓰기 잠금·나눔 잠금은 막히고 키 나눔 잠금(외래 키 확인)은 된다 */
     private static void assertWriteLocked(String table, String key, long id) {
+        assertThatThrownBy(() -> tryLock(table, key, id, "NO KEY UPDATE")).as(table + " 같은 행 쓰기 잠금끼리 막힌다").isInstanceOf(DataAccessException.class);
         assertThatThrownBy(() -> tryLock(table, key, id, "SHARE")).as(table + " 나눔 잠금은 막힌다").isInstanceOf(DataAccessException.class);
         assertThatCode(() -> tryLock(table, key, id, "KEY SHARE")).as(table + " 외래 키 확인(키 나눔 잠금)은 막지 않는다 — FOR UPDATE 가 아니다").doesNotThrowAnyException();
     }

@@ -13,6 +13,7 @@ import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -150,7 +151,8 @@ public class GroupBuyRefundStore extends GroupBuyStoreSupport {
     }
 
     public Optional<PendingAdminRefund> lockPending(long id) {
-        if (!lockRow(AR, AR.id, id)) {
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE) — 운영 환불 대기 줄을 FK 로 가리키는 표가 없다
+        if (query.select(AR.id).from(AR).where(AR.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         return Optional.ofNullable(query.select(Projections.constructor(PendingAdminRefund.class, AR.id, AR.participationId, AR.kind, AR.amount, AR.lines, AR.sellerFault,

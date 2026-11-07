@@ -82,7 +82,7 @@ public class PointShopMemberStore extends RoboyamRepositoryQDSL {
 
     /**
      * 프로필 행을 잠그고 아바타 칸을 읽는다(올리기 신청·심사·하나만 규칙이 프로필 행 → 신청 행 차례로 잠근다). 프로필 행이 없으면 빈 값. 프로필 표만 고르는 한 문장
-     * ({@code FOR NO KEY UPDATE}).
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
      */
     public Optional<AvatarState> lockAvatar(long userId) {
         Tuple t = query.select(PR.profileImage, PR.lastStillAvatar).from(PR).where(PR.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();

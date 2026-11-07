@@ -3,7 +3,6 @@ package com.community.dm.repository.master;
 import com.community.block.entity.QUserBlockEntity;
 import com.community.dm.entity.DmBoxEntity;
 import com.community.dm.entity.DmMessageEntity;
-import com.community.dm.entity.DmUserStateEntity;
 import com.community.dm.entity.QDmBoxEntity;
 import com.community.dm.entity.QDmMessageEntity;
 import com.community.dm.entity.QDmThreadEntity;
@@ -99,18 +98,17 @@ public class DmQueries extends RoboyamRepositoryQDSL {
     }
 
     /**
-     * 보내기 전에 내 줄을 잠근다(없으면 만든 뒤) — 간격·한도 판정과 차감이 겹치지 않는다(서버가 여러 대여도). 잠금은 {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없어
-     * {@code FOR UPDATE} 와 막는 범위가 같다.
+     * 보내기 전에 내 줄을 잠근다(없으면 만든 뒤) — 간격·한도 판정과 차감이 겹치지 않는다(서버가 여러 대여도). 잠금은 상태 표만 고르는 한 문장
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다), 값은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값).
      *
      * <p>줄 만들기가 Native SQL 인 이유: {@code INSERT … ON CONFLICT DO NOTHING} — 같은 회원이 동시에 처음 보내도 줄 하나(위반 예외 없이).
      */
     public State lockState(long userId, Instant now) {
         jdbc.update("insert into dm_user_states (user_id, updated_at) values (?, ?) on conflict (user_id) do nothing", userId, Timestamp.from(now));
-        DmUserStateEntity locked = query.selectFrom(S).where(S.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        if (locked == null) {
+        if (query.select(S.userId).from(S).where(S.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
             throw new IllegalStateException("쪽지 상태 줄을 만들지 못했다");
         }
-        return new State(locked.isAcceptDm(), locked.getQuotaDay(), locked.getSentToday(), locked.getNewPartnersToday(), locked.getLastSentAt());
+        return state(userId);
     }
 
     /** 이 회원들의 수신 설정 — 줄이 없으면 받기 */
@@ -187,9 +185,12 @@ public class DmQueries extends RoboyamRepositoryQDSL {
         return true;
     }
 
-    /** 대화 행을 잠근다(같은 대화의 동시 전송·보관 정리가 줄 선다 — {@code FOR NO KEY UPDATE}, 보관 정리의 대화 삭제와도 막힌다) */
+    /**
+     * 대화 행을 잠근다(같은 대화의 동시 전송·보관 정리가 줄 선다, 보관 배치의 대화 삭제({@code DELETE} 는 {@code FOR UPDATE})와도 막힌다). 잠금은 대화 표만 고르는 id 문장
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}) — 대화를 FK 로 가리키는 쪽지·쪽지함 줄은 늘 이 행을 먼저 잠근 흐름(보내기)이나 대화를 만드는 트랜잭션이 넣는다.
+     */
     public void lockThread(long threadId) {
-        query.selectFrom(T).where(T.id.eq(threadId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        query.select(T.id).from(T).where(T.id.eq(threadId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
     }
 
     /** 쪽지를 넣는다 — 그 자리에서 INSERT 한다 */
@@ -305,7 +306,7 @@ public class DmQueries extends RoboyamRepositoryQDSL {
 
     /**
      * 닉네임에 검색어가 들어 있는 회원 — 앞부분이 같은 것 먼저, 그다음 닉네임 순. 나·탈퇴한 회원·차단 관계(어느 쪽이든)는 뺀다.
-     * 회원 찾기(정렬·개수는 DB) 뒤 찾은 회원과의 대화 번호(쪽지함)를 한 번 더 읽는다.
+     * 찾은 회원과의 대화 번호(쪽지함)는 예전과 같이 같은 문장에서 왼쪽 조인으로 읽는다(한 짝에 쪽지함 줄은 하나다).
      *
      * @param needle 소문자로 바꾼 검색어(LIKE 의 %·_·\ 는 부르는 쪽이 이스케이프하지 않는다 — 여기서 한다)
      */
@@ -314,27 +315,12 @@ public class DmQueries extends RoboyamRepositoryQDSL {
         BooleanExpression blocked = JPAExpressions.selectOne().from(BLOCK)
                 .where(BLOCK.userId.eq(userId).and(BLOCK.targetId.eq(PROFILE.userId)).or(BLOCK.userId.eq(PROFILE.userId).and(BLOCK.targetId.eq(userId)))).exists();
         NumberExpression<Integer> prefixFirst = new CaseBuilder().when(PROFILE.nickname.lower().like(escaped + "%", '\\')).then(1).otherwise(0);
-        List<Tuple> found = query.select(PROFILE.userId, PROFILE.nickname, PROFILE.gradeKey).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+        return query.select(PROFILE.userId, PROFILE.nickname, PROFILE.gradeKey, B.threadId).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                .leftJoin(B).on(B.userId.eq(userId), B.partnerId.eq(PROFILE.userId))
                 .where(USER.status.notIn(UserStatus.WITHDRAWN, UserStatus.WITHDRAWING), USER.deletedAt.isNull(), PROFILE.userId.ne(userId),
                         PROFILE.nickname.lower().like("%" + escaped + "%", '\\'), blocked.not())
-                .orderBy(prefixFirst.desc(), PROFILE.nickname.lower().asc(), PROFILE.userId.asc()).limit(limit).fetch();
-        if (found.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, Long> threads = threadsWith(userId, found.stream().map(row -> row.get(PROFILE.userId)).toList());
-        return found.stream().map(row -> {
-            long id = row.get(PROFILE.userId);
-            return new RecipientRow(id, row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), threads.get(id));
-        }).toList();
-    }
-
-    /** 내 쪽지함에서 그 상대들과의 대화 번호(상대 → 대화) — 한 짝에 대화는 하나다 */
-    private Map<Long, Long> threadsWith(long userId, Collection<Long> partnerIds) {
-        Map<Long, Long> out = new HashMap<>();
-        for (Tuple row : query.select(B.partnerId, B.threadId).from(B).where(B.userId.eq(userId), B.partnerId.in(partnerIds)).fetch()) {
-            out.put(row.get(B.partnerId), row.get(B.threadId));
-        }
-        return out;
+                .orderBy(prefixFirst.desc(), PROFILE.nickname.lower().asc(), PROFILE.userId.asc()).limit(limit).fetch().stream()
+                .map(row -> new RecipientRow(row.get(PROFILE.userId), row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), row.get(B.threadId))).toList();
     }
 
     /**

@@ -79,12 +79,12 @@ public class PointShopItemStore extends RoboyamRepositoryQDSL {
     }
 
     /**
-     * 고치기 전에 — 행을 잠근다(같은 품목의 동시 저장이 전→후 감사를 어긋나게 하지 않게). 잠금은 품목 표만 고르는 한 문장({@code FOR NO KEY UPDATE}), 칸은 그 뒤 운영자 이름을 잇는
-     * 한 줄 모양으로 읽는다(조인한 프로젝션에 잠금을 걸면 잠기지 않는다).
+     * 고치기 전에 — 행을 잠근다(같은 품목의 동시 저장이 전→후 감사를 어긋나게 하지 않게). 잠금은 품목 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}
+     * — 품목을 FK 로 가리키는 구매·보유·장착 줄이 넣어져도 고치기의 판정은 그 줄을 보지 않는다), 칸은 그 뒤 운영자 이름을 잇는 한 줄 모양으로 읽는다(조인한 프로젝션에 잠금을 걸면
+     * 잠기지 않는다).
      */
     public Optional<ItemRow> findForUpdate(long id) {
-        query.select(I.id).from(I).where(I.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        return find(id);
+        return query.select(I.id).from(I).where(I.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() != null ? find(id) : Optional.empty();
     }
 
     public Optional<ItemRow> findByCode(String code) {
@@ -210,7 +210,7 @@ public class PointShopItemStore extends RoboyamRepositoryQDSL {
      * 설정 행을 잠근 뒤 지금 값(같은 화면의 동시 저장이 전→후 감사를 어긋나게 하지 않게).
      *
      * <p>행 만들기가 Native SQL 인 이유: {@code INSERT … ON CONFLICT (id) DO NOTHING} — 「없으면 만든다」를 동시 저장이 겹쳐도 한 문장으로(upsert 는 JPQL·QueryDSL 에 없다).
-     * 잠금은 설정 표만 고르는 한 문장({@code FOR NO KEY UPDATE}).
+     * 잠금은 설정 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
      */
     public int lockRefundDays() {
         entityManager.createNativeQuery("INSERT INTO point_shop_settings (id) VALUES (?1) ON CONFLICT (id) DO NOTHING").setParameter(1, PointShopSettingEntity.ROW_ID)

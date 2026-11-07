@@ -120,11 +120,15 @@ public class BizRefundStore extends RoboyamRepositoryQDSL {
         return query.select(ROW).from(R).where(R.applicationId.eq(applicationId)).orderBy(R.requestedAt.asc(), R.id.asc()).fetch();
     }
 
-    /** 열린(심사 대기) 줄을 잠근다 — 잠그는 문장(루트 표 id) 뒤 다시 읽는다 */
+    /**
+     * 열린(심사 대기) 줄을 잠근다 — 환불 표만 고르는 조건 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}, id 차례 — 이 표를 FK 로 가리키는 표가 없다. PostgreSQL 이
+     * 잠근 뒤 조건을 다시 본다) 뒤 조건을 넣어 다시 읽는다.
+     */
     public Optional<RefundRow> lockOpen(long applicationId) {
-        Long id = query.select(R.id).from(R).where(R.applicationId.eq(applicationId), R.status.eq(BizRefundStatus.REQUESTED))
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
-        return id == null ? Optional.empty() : Optional.ofNullable(query.select(ROW).from(R).where(R.id.eq(id)).fetchFirst());
+        List<Long> locked = query.select(R.id).from(R).where(R.applicationId.eq(applicationId), R.status.eq(BizRefundStatus.REQUESTED)).orderBy(R.id.asc())
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        return locked.isEmpty() ? Optional.empty()
+                : Optional.ofNullable(query.select(ROW).from(R).where(R.id.in(locked), R.status.eq(BizRefundStatus.REQUESTED)).orderBy(R.id.asc()).fetchFirst());
     }
 
     /** 환불 줄이 있었나 — 긴급 내림 되돌리기의 보상(DOWNTIME)은 사업자 환불 요청을 막지 않아 빼고 센다 */

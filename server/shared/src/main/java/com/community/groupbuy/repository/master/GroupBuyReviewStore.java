@@ -29,6 +29,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +43,8 @@ import org.springframework.stereotype.Repository;
 /**
  * 공구 리뷰({@code group_buy_reviews}·{@code group_buy_review_photos}·{@code group_buy_review_revisions}·{@code group_buy_review_replies}, 2b-6) —
  * {@code GroupBuyReviewService} 안에 있던 SQL 을 옮겼다. 모두 QueryDSL 이다({@link GroupBuyStoreSupport}).
- * 행 잠금은 루트 표만 고르는 id 프로젝션에 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}) — 리뷰 쓰기는 주문 줄을, 고치기·답글·숨김은 리뷰 줄을 잠근다.
+ * 행 잠금은 루트 표만 고르는 id 문장의 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}, 조건으로 고른 뒤 잠그고 조건을 넣어 다시 읽는다) — 리뷰 쓰기는 주문 줄을,
+ * 고치기·답글·숨김은 리뷰 줄을 잠근다(리뷰를 FK 로 가리키는 사진·이력·답글은 그 리뷰를 잠근 흐름이 넣는다).
  */
 @Repository
 public class GroupBuyReviewStore extends GroupBuyStoreSupport {
@@ -231,13 +233,13 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
     public Optional<WritableLine> lockWritableLine(long itemId, String orderNo, long userId) {
         Long participationId = query.select(PA.id).from(PA)
                 .where(PA.orderNo.eq(orderNo), PA.userId.eq(userId), JPAExpressions.selectOne().from(I).where(I.id.eq(itemId), I.participationId.eq(PA.id)).exists())
-                .setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst();
-        if (participationId == null) {
+                .fetchFirst();
+        if (participationId == null || query.select(PA.id).from(PA).where(PA.id.eq(participationId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         Tuple t = query.select(PA.id, PA.groupBuyId, G.productId, S.name, live(), PA.status, SH.deliveredAt).from(I).join(PA).on(PA.id.eq(I.participationId))
                 .join(G).on(G.id.eq(PA.groupBuyId)).join(S).on(S.id.eq(I.skuId)).leftJoin(SH).on(SH.participationId.eq(PA.id), SH.kind.eq("ORIGINAL"))
-                .where(I.id.eq(itemId), PA.id.eq(participationId)).fetchFirst();
+                .where(I.id.eq(itemId), PA.id.eq(participationId), PA.orderNo.eq(orderNo), PA.userId.eq(userId)).fetchFirst();
         return t == null ? Optional.empty() : Optional.of(new WritableLine(t.get(PA.id), t.get(PA.groupBuyId), t.get(G.productId), t.get(S.name), n(t.get(live())),
                 t.get(PA.status), t.get(SH.deliveredAt)));
     }
@@ -250,12 +252,11 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
 
     /** 내 지우지 않은 리뷰를 잠그고 읽는다 */
     public Optional<CurrentReview> lockOwn(long id, long userId) {
-        Long locked = query.select(R.id).from(R).where(R.id.eq(id), R.userId.eq(userId), R.deletedAt.isNull())
-                .setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst();
-        if (locked == null) {
+        Long own = query.select(R.id).from(R).where(R.id.eq(id), R.userId.eq(userId), R.deletedAt.isNull()).fetchFirst();
+        if (own == null || query.select(R.id).from(R).where(R.id.eq(own)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
-        Tuple t = query.select(R.rating, R.body, R.createdAt, R.updatedAt).from(R).where(R.id.eq(id)).fetchFirst();
+        Tuple t = query.select(R.rating, R.body, R.createdAt, R.updatedAt).from(R).where(R.id.eq(id), R.userId.eq(userId), R.deletedAt.isNull()).fetchFirst();
         return t == null ? Optional.empty() : Optional.of(new CurrentReview(n(t.get(R.rating)), t.get(R.body), t.get(R.createdAt), t.get(R.updatedAt)));
     }
 
@@ -409,7 +410,7 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
 
     /** 리뷰 줄을 잠그고(답글·숨김끼리 줄 세움) 읽는다 */
     public Optional<LockedReview> lock(long id) {
-        if (!lockRow(R, R.id, id)) {
+        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         Tuple t = query.select(R.userId, R.groupBuyId, R.deletedAt).from(R).where(R.id.eq(id)).fetchFirst();

@@ -22,6 +22,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -120,12 +121,19 @@ public class ParticipationStore extends GroupBuyStoreSupport {
 
     /** 주문 행을 잠그고 읽는다 — 결제가 PAID 인 흐름(취소를 넣는 흐름)만 주문 행을 먼저 잠근다(결정 37) */
     public Optional<ParticipationRow> lock(long id) {
-        return lockRow(PA, PA.id, id) ? find(id) : Optional.empty();
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE). 주문을 FK 로 가리키는 줄(요청·리뷰·환불·발송·송금·공급 선택)은 이 주문 행을 먼저 잠근 흐름이,
+        // 줄·이력은 주문을 만들거나 조건부 UPDATE 한 흐름이 넣는다. 잠그지 않고 넣는 것은 운영자 배송지 열람 기록·수동 환불의 송금 대기 줄뿐 — 잠근 쪽의 판정에 쓰지 않는다
+        return query.select(PA.id).from(PA).where(PA.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? find(id) : Optional.empty();
     }
 
-    /** 잠겨 있으면 건너뛴다(환불 워커 — 서버 여럿이 나눠 잡는다, 결정 61) */
+    /**
+     * 잠겨 있으면 건너뛴다(환불 워커 — 서버 여럿이 나눠 잡는다, 결정 61). {@code PESSIMISTIC_WRITE} + 잠금 시간 {@code -2} = {@code FOR NO KEY UPDATE SKIP LOCKED}.
+     * 쓰기 잠금(취소·요청·확정 등)이나 조건부 UPDATE 중인 주문은 건너뛴다. FK 로 가리키며 넣기만 하는 중(KEY SHARE — 배송지 열람 기록·송금 대기 줄)인 주문은 건너뛰지 않지만
+     * 그 줄은 환불 계산에 쓰지 않으므로 결과가 같다.
+     */
     public Optional<ParticipationRow> lockSkipLocked(long id) {
-        return lockRowSkipLocked(PA, PA.id, id) ? find(id) : Optional.empty();
+        return query.select(PA.id).from(PA).where(PA.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).setHint("jakarta.persistence.lock.timeout", -2).fetchFirst() != null
+                ? find(id) : Optional.empty();
     }
 
     public List<ItemRow> items(long participationId) {
@@ -379,6 +387,8 @@ public class ParticipationStore extends GroupBuyStoreSupport {
         if (rows.isEmpty()) {
             return List.of();
         }
+        // 지연 안내는 따로 읽는다(예전 한 문장의 LIMIT 1 하위 질의 — JPQL 하위 질의에 LIMIT 이 없다). 안내 표는 넣기만 하는 기록이라 사이에 커밋된 안내는 「더 늦은 기한」을 보탤 뿐이다
+        // (쓰는 곳은 발송 기한 경고 수·주문 목록 거르기·주문 상세 표시뿐 — 상태를 바꾸는 판정에는 쓰지 않는다)
         Map<Long, List<com.querydsl.core.Tuple>> notices = new HashMap<>();
         query.select(DN.groupBuyId, DN.createdAt, DN.newPlannedAt).from(DN).where(DN.groupBuyId.in(rows.stream().map(t -> t.get(PA.groupBuyId)).distinct().toList()))
                 .orderBy(DN.createdAt.desc()).fetch().forEach(t -> notices.computeIfAbsent(t.get(DN.groupBuyId), k -> new java.util.ArrayList<>()).add(t));

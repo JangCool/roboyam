@@ -42,7 +42,8 @@ import org.springframework.stereotype.Repository;
  * {@code com.community.emoticon.service} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
  *
  * <p>QueryDSL 이다 — 읽기는 한 줄 모양, 상태 전이·카운터는 조건부 UPDATE, 넣기는 {@code persist} + {@code flush}({@link EmoticonStoreSupport}). 팩 행 잠금은 팩 표만 고르는
- * {@code PESSIMISTIC_WRITE}(받기의 받은 수 · 심사 처리 · 저장 · 작가 탈퇴가 같은 팩에서 줄을 선다) · {@code PESSIMISTIC_READ}(결제 준비가 가격·판매 상태를 읽는 동안).
+ * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 받기의 받은 수 · 심사 처리 · 저장 · 작가 탈퇴가 같은 팩에서 줄을 선다. 팩을 FK 로 가리키는 줄 — 판·로보티콘·심사 건·받기·
+ * 구매·가격 기록·계약 동의 — 은 그 팩을 먼저 잠그거나({@code PESSIMISTIC_WRITE}·{@code PESSIMISTIC_READ}) 팩을 만드는 트랜잭션이 넣는다) · {@code PESSIMISTIC_READ}(결제 준비가 가격·판매 상태를 읽는 동안).
  * 판·팩이 서로 가리키는 외래 키는 커밋 때 확인하고(지연), 낸 판 고치기 금지·유료 가격 단계는 DB 트리거가 그대로 막는다. Native SQL 로 남긴 것은 없다.
  */
 @Repository
@@ -171,14 +172,14 @@ public class EmoticonPackStore extends EmoticonStoreSupport {
      * 잠금은 팩 표만 고르는 ID 문장(차례 = ID), 멈추기 전 값은 잠근 뒤 읽는다.
      */
     public List<StoppedRow> stopForCreatorWithdrawal(long creatorId, String reason, Instant now) {
-        List<Long> ids = query.select(P.id).from(P)
-                .where(P.creatorId.eq(creatorId), P.status.in(EmoticonPackStatus.APPROVED, EmoticonPackStatus.SUSPENDED),
-                        P.suspendKind.isNull().or(P.suspendKind.ne(EmoticonSuspendKind.CREATOR_WITHDRAWN)))
-                .orderBy(P.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        BooleanExpression stoppable = P.creatorId.eq(creatorId).and(P.status.in(EmoticonPackStatus.APPROVED, EmoticonPackStatus.SUSPENDED))
+                .and(P.suspendKind.isNull().or(P.suspendKind.ne(EmoticonSuspendKind.CREATOR_WITHDRAWN)));
+        // 조건 잠금(id 차례, PESSIMISTIC_WRITE) — PostgreSQL 이 잠근 뒤 조건을 다시 본다. 칸은 조건을 넣어 다시 읽는다
+        List<Long> ids = query.select(P.id).from(P).where(stoppable).orderBy(P.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         if (ids.isEmpty()) {
             return List.of();
         }
-        List<StoppedRow> locked = query.select(P.id, P.status, P.suspendKind, P.suspendReason).from(P).where(P.id.in(ids)).orderBy(P.id.asc()).fetch().stream()
+        List<StoppedRow> locked = query.select(P.id, P.status, P.suspendKind, P.suspendReason).from(P).where(P.id.in(ids), stoppable).orderBy(P.id.asc()).fetch().stream()
                 .map(t -> new StoppedRow(t.get(P.id), t.get(P.status), t.get(P.suspendKind), t.get(P.suspendReason))).toList();
         List<StoppedRow> out = new ArrayList<>();
         for (StoppedRow row : locked) {

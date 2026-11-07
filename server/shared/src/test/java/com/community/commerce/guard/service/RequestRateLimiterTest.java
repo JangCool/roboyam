@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.community.commerce.guard.dto.RequestAction;
 import com.community.commerce.guard.exception.RequestRateLimitedException;
+import com.community.commerce.guard.repository.master.RequestRateCounterQueries;
 import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.JpaTestContext;
@@ -59,7 +60,7 @@ class RequestRateLimiterTest {
         // 창 안의 45초 — 다음 창까지 15초
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MINUTES).plusSeconds(45));
         limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
-        limiter = new RequestRateLimiter(dataSource, transactions, limits, clock);
+        limiter = new RequestRateLimiter(new RequestRateCounterQueries(dataSource), transactions, limits, clock);
         userId = USERS.incrementAndGet();
     }
 
@@ -173,7 +174,7 @@ class RequestRateLimiterTest {
             List<Future<Boolean>> results = new ArrayList<>();
             for (int i = 0; i < threads; i++) {
                 // 서버마다 자기 사본·제한기(같은 DB)
-                RequestRateLimiter server = new RequestRateLimiter(dataSource, new DataSourceTransactionManager(dataSource), new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query())), clock);
+                RequestRateLimiter server = new RequestRateLimiter(new RequestRateCounterQueries(dataSource), new DataSourceTransactionManager(dataSource), new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query())), clock);
                 Callable<Boolean> call = () -> {
                     go.await();
                     try {

@@ -1,13 +1,11 @@
 package com.community.debate.service;
 
 import com.community.debate.entity.PostDebateEntity;
+import com.community.debate.repository.master.DebateQueries;
 import com.community.debate.repository.master.PostDebateRepository;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 누가 할 수 있는지는 부르는 쪽이 정한다(여기는 저장만). <b>부르는 쪽 트랜잭션에 참여한다.</b>
  *
  * <ul>
- *   <li>열기: 행이 없으면 만든다 — {@code INSERT … ON CONFLICT DO NOTHING} 이라 같은 글을 동시에 열어도 한 행만 남고 늦은 쪽은 설정 바꾸기로 이어 간다.
+ *   <li>열기: 행이 없으면 만든다 — {@code INSERT … ON CONFLICT DO NOTHING}({@link DebateQueries#openIfAbsent}) 이라 같은 글을 동시에 열어도 한 행만 남고 늦은 쪽은 설정 바꾸기로 이어 간다.
  *       값이 null 이면 기본(켬). 연 사람({@code opened_by_kind})은 처음 연 사람으로 남는다.</li>
  *   <li>바꾸기: 열려 있을 때 null 이 아닌 칸만 바꾼다(같으면 아무것도 바꾸지 않는다).</li>
  *   <li>닫기: 행을 지운다 — 입장·의견·고정·고정 요청은 그대로(다시 열면 돌아온다). 이미 닫혀 있으면 그대로.</li>
@@ -27,11 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostDebateWriter {
 
     private final PostDebateRepository debates;
-    private final JdbcTemplate jdbc;
+    private final DebateQueries queries;
 
-    public PostDebateWriter(PostDebateRepository debates, DataSource dataSource) {
+    public PostDebateWriter(PostDebateRepository debates, DebateQueries queries) {
         this.debates = debates;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
     }
 
     /**
@@ -98,13 +96,9 @@ public class PostDebateWriter {
         }
         boolean neutral = neutralEnabled == null || neutralEnabled;
         boolean change = stanceChangeAllowed == null || stanceChangeAllowed;
-        Timestamp at = Timestamp.from(now);
-        int inserted = jdbc.update("""
-                INSERT INTO post_debates (post_id, neutral_enabled, stance_change_allowed, opened_by_kind, opened_by, created_at, updated_at, updated_by_kind, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
-                """, postId, neutral, change, byKind, by, at, at, byKind, by);
+        boolean inserted = queries.openIfAbsent(postId, neutral, change, byKind, by, now);
         PostDebateEntity row = debates.findWithLockByPostId(postId).orElseThrow();
-        if (inserted > 0) {
+        if (inserted) {
             return new Change(null, State.of(row));
         }
         State before = State.of(row);

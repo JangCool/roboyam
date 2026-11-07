@@ -253,20 +253,25 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
      * 회원이 없으면 자리 없음.
      */
     public StaffGate gate(long boardId, long userId) {
-        Tuple t = query.select(STAFF.role, U.status, U.deletedAt, U.emailVerifiedAt).from(U).leftJoin(STAFF).on(STAFF.userId.eq(U.id), STAFF.boardId.eq(boardId))
-                .where(U.id.eq(userId)).fetchOne();
-        if (t == null) {
+        // 예전과 같이 한 문장 — 자리·계정·역할 시드 여부·역할 권한을 같은 시점에 읽는다(두 매니저·스텝 역할과 그 권한을 함께 이어 읽고 자바가 자기 역할 것만 고른다)
+        List<Tuple> rows = query.select(STAFF.role, U.status, U.deletedAt, U.emailVerifiedAt, ROLE.roleId, ROLE_PERMISSION.permissionCode).from(U)
+                .leftJoin(STAFF).on(STAFF.userId.eq(U.id), STAFF.boardId.eq(boardId))
+                .leftJoin(ROLE).on(STAFF.role.isNotNull(), ROLE.roleId.in(MemberRoleIds.BOARD_MANAGER, MemberRoleIds.BOARD_STAFF))
+                .leftJoin(ROLE_PERMISSION).on(ROLE_PERMISSION.roleId.eq(ROLE.roleId))
+                .where(U.id.eq(userId)).fetch();
+        if (rows.isEmpty()) {
             return new StaffGate(null, false, false, false);
         }
+        Tuple t = rows.get(0);
         String role = t.get(STAFF.role);
         boolean accountOk = t.get(U.status) == UserStatus.ACTIVE && t.get(U.deletedAt) == null && t.get(U.emailVerifiedAt) != null;
         if (role == null) {
             return new StaffGate(null, accountOk, false, false);
         }
         String roleId = "MANAGER".equals(role) ? MemberRoleIds.BOARD_MANAGER : MemberRoleIds.BOARD_STAFF;
-        boolean seeded = query.selectOne().from(ROLE).where(ROLE.roleId.eq(roleId)).fetchFirst() != null;
-        Set<String> codes = seeded ? Set.copyOf(query.select(ROLE_PERMISSION.permissionCode).from(ROLE_PERMISSION).where(ROLE_PERMISSION.roleId.eq(roleId)).fetch())
-                : Set.of();
+        boolean seeded = rows.stream().anyMatch(r -> roleId.equals(r.get(ROLE.roleId)));
+        Set<String> codes = rows.stream().filter(r -> roleId.equals(r.get(ROLE.roleId)) && r.get(ROLE_PERMISSION.permissionCode) != null)
+                .map(r -> r.get(ROLE_PERMISSION.permissionCode)).collect(Collectors.toUnmodifiableSet());
         boolean canIssue = !seeded || codes.contains(MemberPermission.BOARD_SANCTION_ISSUE.code());
         boolean canRestore = "MANAGER".equals(role) && (!seeded || codes.contains(MemberPermission.BOARD_STAFF_ACTION_RESTORE.code()));
         return new StaffGate(role, accountOk, canIssue, canRestore);
@@ -555,7 +560,10 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(reviewRows().where(R.id.eq(id)).fetchOne()).map(BoardSanctionStore::review);
     }
 
-    /** 검토 행을 쓰기 잠금으로 — 두 운영자가 동시에 닫아도 한 번만(차례: 검토 행 → 이의제기 행 → 회원 행 → 제재 행). 회원·게시판 {@code [userId, boardId, open(1/0)]} */
+    /**
+     * 검토 행을 쓰기 잠금으로 — 두 운영자가 동시에 닫아도 한 번만(차례: 검토 행 → 이의제기 행 → 회원 행 → 제재 행). 회원·게시판 {@code [userId, boardId, open(1/0)]}.
+     * 검토 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
+     */
     public Optional<long[]> lockReview(long id) {
         Tuple t = query.select(R.userId, R.boardId, R.status).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return t == null ? Optional.empty()
@@ -604,8 +612,11 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
 
     /** 그 게시판 제재의 대기 이의제기를 쓰기 잠금으로(없으면 빈 값) — 무효 처리가 같은 트랜잭션에서 인용으로 닫는다(결정 10) */
     public Optional<Long> lockPendingAppeal(long boardSanctionId) {
-        return Optional.ofNullable(query.select(A.id).from(A).where(A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING))
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst());
+        // 조건 잠금(id 차례, PESSIMISTIC_WRITE — sanction_appeals 를 FK 로 가리키는 표가 없다) — PostgreSQL 이 잠근 뒤 조건을 다시 본다. 조건을 넣어 다시 읽는다
+        List<Long> locked = query.select(A.id).from(A).where(A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING)).orderBy(A.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        return locked.isEmpty() ? Optional.empty()
+                : Optional.ofNullable(query.select(A.id).from(A).where(A.id.in(locked), A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING))
+                        .orderBy(A.id.asc()).fetchFirst());
     }
 
     /** 회원의 게시판 제재 이의제기(내 제재 화면 — 게시판 제재 ID → 이의제기) */

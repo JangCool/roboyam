@@ -5,7 +5,6 @@ import com.community.mfa.dto.MfaSettings;
 import com.community.mfa.dto.OperatorMfaRow;
 import com.community.mfa.dto.TrustedDeviceRow;
 import com.community.mfa.entity.AdminSecuritySettingEntity;
-import com.community.mfa.entity.OperatorMfaEntity;
 import com.community.mfa.entity.OperatorMfaRecoveryCodeEntity;
 import com.community.mfa.entity.OperatorTrustedDeviceEntity;
 import com.community.mfa.entity.QAdminSecuritySettingEntity;
@@ -69,10 +68,13 @@ public class MfaStore extends RoboyamRepositoryQDSL {
                 nz(row.get(SETTING.maxFailures)), row.get(SETTING.mfaEnabledAt), row.get(SETTING.mfaEnabledBy));
     }
 
-    /** 설정 행을 쓰기 잠금으로 읽는다({@code FOR NO KEY UPDATE}) — 동시 저장을 줄 세운다. 이어서 {@link #saveSettings} 가 이 엔티티를 고친다 */
+    /**
+     * 설정 행을 쓰기 잠금으로 읽는다({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다) — 동시 저장을 줄 세운다. 이어서
+     * {@link #saveSettings} 가 이 엔티티를 고친다. 저장의 첫 읽기라 1차 캐시에 낡은 값이 없다.
+     */
     public MfaSettings lockSettings() {
-        AdminSecuritySettingEntity row = query.selectFrom(SETTING).where(SETTING.id.eq(AdminSecuritySettingEntity.ROW_ID))
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        AdminSecuritySettingEntity row = query.selectFrom(SETTING).where(SETTING.id.eq(AdminSecuritySettingEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .fetchOne();
         if (row == null) {
             insertDefaultSettings();
             return lockSettings();
@@ -107,11 +109,15 @@ public class MfaStore extends RoboyamRepositoryQDSL {
                 Boolean.TRUE.equals(row.get(MFA.pendingReenroll))));
     }
 
-    /** 그 운영자의 OTP 행을 쓰기 잠금으로 읽는다({@code FOR NO KEY UPDATE} — 등록 확정·코드 확인을 줄 세운다. 이 표를 FK 로 가리키는 표는 없다) */
+    /**
+     * 그 운영자의 OTP 행을 쓰기 잠금으로 읽는다(등록 확정·코드 확인을 줄 세운다). 잠금은 OTP 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} —
+     * 이 표를 FK 로 가리키는 표가 없다), 칸은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값 — 엔티티를 1차 캐시에 올리지 않는다).
+     */
     public Optional<OperatorMfaRow> lock(long operatorId) {
-        OperatorMfaEntity row = query.selectFrom(MFA).where(MFA.operatorId.eq(operatorId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        return row == null ? Optional.empty() : Optional.of(new OperatorMfaRow(row.getOperatorId(), row.getSecretEnc(), row.getEnrolledAt(), row.getLastStep(),
-                row.getLastUsedAt(), row.getPendingSecretEnc(), row.getPendingStartedAt(), row.isPendingReenroll()));
+        if (query.select(MFA.operatorId).from(MFA).where(MFA.operatorId.eq(operatorId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
+            return Optional.empty();
+        }
+        return find(operatorId);
     }
 
     /**

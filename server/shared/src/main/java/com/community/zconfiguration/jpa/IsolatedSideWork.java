@@ -37,13 +37,14 @@ public class IsolatedSideWork {
      * @param fallback 실패했을 때 돌려줄 값
      */
     public <T> T run(String label, Supplier<T> work, T fallback) {
-        entityManager.flush(); // 업무 쪽 변경을 먼저 — 그 실패는 원래 자리에서 올라와야 한다
         Connection connection = DataSourceUtils.getConnection(dataSource);
         try {
             if (!DataSourceUtils.isConnectionTransactional(connection, dataSource)) {
                 log.error("업무 트랜잭션 밖이라 덧붙은 일을 하지 않았다 work={}", label);
                 return fallback;
             }
+            // 업무 쪽 변경을 먼저 — 그 실패는 원래 자리에서 올라와야 한다. 트랜잭션 확인 뒤에 한다: 트랜잭션 밖의 flush 는 TransactionRequiredException 이라 위의 「하지 않음」에 닿지 못한다
+            entityManager.flush();
             Savepoint savepoint = connection.setSavepoint();
             try {
                 T result = work.get();

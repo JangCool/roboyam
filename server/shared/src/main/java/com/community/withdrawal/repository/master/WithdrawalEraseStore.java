@@ -17,7 +17,6 @@ import com.community.group.entity.QGroupEntity;
 import com.community.group.entity.QGroupEventResponseEntity;
 import com.community.group.entity.QGroupMemberEntity;
 import com.community.group.entity.QGroupPublishRequestEntity;
-import com.community.group.repository.master.GroupRepository;
 import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
 import com.community.groupbuy.entity.QGroupBuySupplyChoiceEntity;
 import com.community.groupbuy.entity.QGroupBuyWatchEntity;
@@ -38,6 +37,7 @@ import com.querydsl.core.types.dsl.EntityPathBase;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -69,12 +69,10 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
     private static final QGroupBuyParticipationEntity ORDER = QGroupBuyParticipationEntity.groupBuyParticipationEntity;
 
     private final JdbcTemplate jdbc;
-    private final GroupRepository groups;
 
-    public WithdrawalEraseStore(JPAQueryFactory query, DataSource dataSource, GroupRepository groups) {
+    public WithdrawalEraseStore(JPAQueryFactory query, DataSource dataSource) {
         super(query);
         this.jdbc = new JdbcTemplate(dataSource);
-        this.groups = groups;
     }
 
     /** 신청 — 탈퇴 진행 중으로(정상·정지 회원만). 바뀐 줄 수 */
@@ -193,7 +191,9 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
 
     /**
      * 소모임 멤버십 — 지금 멤버인 소모임마다 나가기와 같은 처리(그 소모임 안 내 글 가림, 멤버 수 −1) 뒤 줄 삭제. 신청 중(APPLIED)·나간 줄도 지운다.
-     * 모임장인 소모임은 신청 때 이미 넘기거나 해산했다(남아 있으면 부르는 쪽이 먼저 처리한다). 소모임 행은 다른 소모임 쓰기와 같은 쓰기 잠금({@code PESSIMISTIC_WRITE})으로 줄 선다.
+     * 모임장인 소모임은 신청 때 이미 넘기거나 해산했다(남아 있으면 부르는 쪽이 먼저 처리한다). 소모임 행은 소모임 id 차례로
+     * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE})로 잠가 다른 소모임 쓰기와 줄 선다 — 여기서는 멤버 수를 조건 없이 줄이고 내 멤버십 줄만 지우므로 소모임을 FK 로
+     * 가리키며 넣는 다른 흐름(가입·일정)을 기다리지 않아도 결과가 같다.
      *
      * @return 나간 소모임 수
      */
@@ -201,7 +201,7 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
         List<Long> active = query.select(MEMBER.groupId).from(MEMBER).where(MEMBER.userId.eq(userId), MEMBER.status.eq(GroupMemberStatus.ACTIVE))
                 .orderBy(MEMBER.groupId.asc()).fetch();
         for (Long groupId : active) {
-            groups.findWithLockById(groupId);
+            query.select(GROUP.id).from(GROUP).where(GROUP.id.eq(groupId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
             query.update(POST).set(POST.groupLeftAt, now).set(POST.updatedAt, now)
                     .where(POST.groupId.eq(groupId), POST.authorId.eq(userId), POST.groupLeftAt.isNull()).execute();
             query.update(GROUP).set(GROUP.memberCount, Expressions.numberTemplate(Integer.class, "greatest({0} - 1, 0)", GROUP.memberCount))

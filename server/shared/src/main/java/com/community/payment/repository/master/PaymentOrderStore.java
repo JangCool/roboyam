@@ -30,7 +30,8 @@ import org.springframework.stereotype.Repository;
  *
  * <p>QueryDSL 이 기본이다. 읽기는 한 줄 모양(프로젝션)이라 영속성 문맥의 낡은 엔티티를 보지 않고, 넣기는 넣은 뒤 바로 내보낸다({@code persistAndFlush}) — 결제 확정 트랜잭션은
  * 처리기({@code onPaid})를 JDBC 세이브포인트로 감싸므로 그 전에 미뤄 둔 변경이 남으면 안 된다(세이브포인트를 되돌릴 때 순서가 꼬인다).
- * 잠금은 결제 주문 표만 고르는 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE})으로 잡고 칸은 그 뒤 프로젝션으로 읽는다.
+ * 잠금은 결제 주문 표만 고르는 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE})로 잡고 칸은 그 뒤 프로젝션으로 읽는다 — 결제 주문을 FK 로 가리키는 줄(로보티콘 구매의
+ * 결제 번호)은 이 행을 잠근 결제 확정 안에서 넣는다.
  */
 @Repository
 public class PaymentOrderStore extends RoboyamRepositoryQDSL {

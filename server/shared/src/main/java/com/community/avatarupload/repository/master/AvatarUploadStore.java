@@ -90,13 +90,14 @@ public class AvatarUploadStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(query.select(ROW).from(R).where(R.id.eq(id)).fetchOne());
     }
 
-    /** 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다 — {@code FOR NO KEY UPDATE}, 이 표를 가리키는 외래 키는 없다) */
+    /**
+     * 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다). 잠금은 신청 표만 고르는 id 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} —
+     * 이 표를 FK 로 가리키는 표가 없다), 값은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값).
+     */
     public Optional<Row> findForUpdate(long id) {
-        AvatarUploadRequestEntity locked = query.selectFrom(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        if (locked == null) {
+        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
             return Optional.empty();
         }
-        entityManager.detach(locked); // 잠금만 쓴다 — 값은 프로젝션으로(뒤의 조건부 UPDATE 와 어긋나지 않게)
         return find(id);
     }
 

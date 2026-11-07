@@ -32,7 +32,8 @@ import org.springframework.stereotype.Repository;
  * 로보티콘 유료 팩 구매 기록({@code emoticon_purchases}, V144) — 결제 준비 한 번이 한 줄(결제 주문의 {@code order_ref_id}). 지우기·사본 고치기·되돌리기는 DB 트리거가 막는다.
  * 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 결제 주문({@code payment_orders})·회원({@code users})·운영자는 엔티티로 잇는다. 구매 행 잠금은 구매 표만 고르는 {@code PESSIMISTIC_WRITE}.
+ * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 결제 주문({@code payment_orders})·회원({@code users})·운영자는 엔티티로 잇는다. 구매 행 잠금은 구매 표만 고르는
+ * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 구매를 FK 로 가리키는 받기 줄은 그 구매를 먼저 잠근 결제 확정이 넣는다).
  * Native SQL 로 남긴 것과 이유: 같은 회원·팩의 결제 준비 줄 세우기({@code pg_advisory_xact_lock} — 아직 구매 줄이 없는 「회원 × 팩」 단위라 잠글 행이 없다).
  */
 @Repository

@@ -29,6 +29,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -146,6 +147,7 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
         if (s == null) {
             throw new EmptyResultDataAccessException(1); // 설정 행은 마이그레이션이 넣는다
         }
+        // 쉬는 날은 따로 읽는다(예전 한 문장의 하위 질의) — 설정 행과 쉬는 날 표는 서로 다른 화면이 따로 저장하는 값이라 둘 사이에 지켜야 할 짝이 없다(나눠 읽어도 섞인 상태가 생기지 않는다)
         List<LocalDate> holidays = query.select(H.holidayDate).distinct().from(H).orderBy(H.holidayDate.asc()).fetch();
         return new Settings(n(s.get(SET.holdMinutes)), n(s.get(SET.demandMaxDays)), n(s.get(SET.firstComeMaxDays)), n(s.get(SET.extensionMinutes)),
                 n(s.get(SET.extensionWindowMinutes)), n(s.get(SET.judgeGraceMinutes)), n(s.get(SET.shipWithinBusinessDays)), BusinessDayCalendar.of(holidays),
@@ -164,7 +166,9 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
 
     /** 행을 잠그고 읽는다 — 공구 행을 잠그는 일(판정·중단)은 결제 행을 잠그는 일과 같은 트랜잭션에 넣지 않는다(결정 37). 공구 행만 잠그고(상품 행은 잠그지 않는다) 그다음 읽는다 */
     public Optional<GroupBuyRow> lock(long id) {
-        return lockRow(G, G.id, id) ? find(id) : Optional.empty();
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE). 공구를 FK 로 가리키는 주문은 넣은 뒤 같은 트랜잭션에서 공구 행을 조건부 UPDATE(선점 — 이 잠금과 막힌다)하고,
+        // 이력·단품·수량 기록은 공구를 잠그거나 고친 흐름이 넣는다 — 판정·중단의 결과가 FOR UPDATE 와 같다
+        return query.select(G.id).from(G).where(G.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? find(id) : Optional.empty();
     }
 
     /** 새 공구(DRAFT) — 1차면 {@code roundRootId = id} */

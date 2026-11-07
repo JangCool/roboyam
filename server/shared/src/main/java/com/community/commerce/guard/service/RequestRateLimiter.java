@@ -2,16 +2,14 @@ package com.community.commerce.guard.service;
 
 import com.community.commerce.guard.dto.RequestAction;
 import com.community.commerce.guard.exception.RequestRateLimitedException;
-import java.sql.Timestamp;
+import com.community.commerce.guard.repository.master.RequestRateCounterQueries;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -27,7 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       한도가 <b>0 이면 제한 없음</b> — 세지도 않는다.</li>
  *   <li>1분 고정 창이라 창 경계에서 잠깐 최대 2배까지 몰릴 수 있다(1차 방어 — 진짜 한도는 도메인 규칙). 지난 창은 매시 DB 배치({@code request-rate-counter-cleanup})가 지운다.</li>
  * </ul>
- * Native SQL 인 이유: {@code INSERT … ON CONFLICT … RETURNING} 은 PostgreSQL 전용이고 표는 UNLOGGED 카운터다(엔티티 없음).
+ * 세는 문장(native — {@code INSERT … ON CONFLICT … RETURNING}, 표는 UNLOGGED 카운터)은 저장소 {@link RequestRateCounterQueries} 다.
  */
 @Component
 public class RequestRateLimiter {
@@ -36,18 +34,18 @@ public class RequestRateLimiter {
 
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
-    private final JdbcTemplate jdbc;
+    private final RequestRateCounterQueries counters;
     private final TransactionTemplate separate;
     private final RequestRateLimits limits;
     private final Clock clock;
 
     @Autowired
-    public RequestRateLimiter(DataSource dataSource, PlatformTransactionManager transactions, RequestRateLimits limits) {
-        this(dataSource, transactions, limits, Clock.systemUTC());
+    public RequestRateLimiter(RequestRateCounterQueries counters, PlatformTransactionManager transactions, RequestRateLimits limits) {
+        this(counters, transactions, limits, Clock.systemUTC());
     }
 
-    public RequestRateLimiter(DataSource dataSource, PlatformTransactionManager transactions, RequestRateLimits limits, Clock clock) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public RequestRateLimiter(RequestRateCounterQueries counters, PlatformTransactionManager transactions, RequestRateLimits limits, Clock clock) {
+        this.counters = counters;
         this.separate = new TransactionTemplate(transactions);
         this.separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.limits = limits;
@@ -66,10 +64,7 @@ public class RequestRateLimiter {
         }
         Instant now = clock.instant();
         Instant window = now.truncatedTo(ChronoUnit.MINUTES);
-        Integer count = separate.execute(status -> jdbc.queryForObject(
-                "INSERT INTO request_rate_counters (user_id, action, window_start, count) VALUES (?, ?, ?, 1) "
-                        + "ON CONFLICT (user_id, action, window_start) DO UPDATE SET count = request_rate_counters.count + 1 RETURNING count",
-                Integer.class, userId, action.name(), Timestamp.from(window)));
+        Integer count = separate.execute(status -> counters.increment(userId, action.name(), window));
         int seen = count == null ? 1 : count;
         if (seen > limit) {
             long retryAfter = retryAfterSeconds(now, window);

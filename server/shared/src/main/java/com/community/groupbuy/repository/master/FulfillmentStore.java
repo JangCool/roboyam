@@ -156,6 +156,8 @@ public class FulfillmentStore extends GroupBuyStoreSupport {
      * (차례 조건 포함) 미룬 뒤 읽는다 — 잠근 트랜잭션이 끝날 때까지 다른 서버는 그 줄을 건너뛴다.
      */
     public Optional<EscrowJobRow> claimEscrow(long id, Instant now, Instant leaseUntil) {
+        // 잠금 세기: PESSIMISTIC_WRITE = FOR NO KEY UPDATE SKIP LOCKED(전환 전 FOR UPDATE SKIP LOCKED). group_buy_escrow_jobs 를 FK 로 가리키는 표가 없어(KEY SHARE 를
+        // 잡는 쪽이 없다) 건너뛰는 줄·막히는 쪽이 전환 전과 같다 — 그대로 둔다
         Long locked = query.select(J.id).from(J).where(J.id.eq(id), J.status.eq("PENDING"), J.nextAttemptAt.loe(now)).setLockMode(LockModeType.PESSIMISTIC_WRITE)
                 .setHint("jakarta.persistence.lock.timeout", -2).fetchFirst();
         if (locked == null) {

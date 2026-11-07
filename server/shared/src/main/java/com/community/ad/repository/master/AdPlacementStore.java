@@ -56,7 +56,10 @@ public class AdPlacementStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(t).map(r -> stored(r, r.get(O.operatorName)));
     }
 
-    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다(없으면 비어 있다) — 운영자 이름은 읽지 않는다(null) */
+    /**
+     * 저장 트랜잭션 안에서 행을 잠그고 읽는다(없으면 비어 있다) — 운영자 이름은 읽지 않는다(null). 잠금은 설정 표만 고르는 id 문장({@code PESSIMISTIC_WRITE} =
+     * {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다), 칸은 그 뒤 읽는다.
+     */
     public Optional<Stored> lock() {
         if (query.select(S.id).from(S).where(S.id.eq(ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();

@@ -11,6 +11,7 @@ import com.community.auth.dto.AuthUser;
 import com.community.business.dto.BusinessApplyRequest;
 import com.community.business.dto.MyBusinessView;
 import com.community.business.exception.BusinessException;
+import com.community.business.repository.master.BusinessNtsDailyCountQueries;
 import com.community.business.service.BusinessNtsDailyLimiter;
 import com.community.business.service.MyBusinessService;
 import com.community.commerce.CommerceApiTestBase;
@@ -246,13 +247,13 @@ class BusinessNtsDailyLimitTest extends CommerceApiTestBase {
     @Test
     void 한도_0_이면_제한_없고_세지도_않는다() {
         long user = member();
-        BusinessNtsDailyLimiter unlimited = new BusinessNtsDailyLimiter(dataSource, transactions, 0, clock);
+        BusinessNtsDailyLimiter unlimited = new BusinessNtsDailyLimiter(new BusinessNtsDailyCountQueries(dataSource), transactions, 0, clock);
         for (int i = 0; i < 20; i++) {
             assertThat(unlimited.acquire(user)).isZero();
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_nts_daily_counts WHERE user_id = ?", Integer.class, user)).isZero();
 
-        BusinessNtsDailyLimiter two = new BusinessNtsDailyLimiter(dataSource, transactions, 2, clock);
+        BusinessNtsDailyLimiter two = new BusinessNtsDailyLimiter(new BusinessNtsDailyCountQueries(dataSource), transactions, 2, clock);
         assertThat(two.acquire(user)).isEqualTo(1);
         assertThat(two.acquire(user)).isEqualTo(2);
         assertDailyLimit(() -> two.acquire(user));

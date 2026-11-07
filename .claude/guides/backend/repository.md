@@ -16,12 +16,19 @@
   * 대량 INSERT: 건수를 재 보고 JPA 배치·JDBC 배치·PostgreSQL `COPY` 중 선택
   * DB 전용 기능: 네이티브 SQL — 사유를 주석으로 적는다
 * **새 표에는 엔티티를 만든다.** 표 몇 문장에 네이티브가 필요해도 표 전체를 JDBC 로 짜지 않는다 — 그 문장만 같은 `XxxRepositoryQDSL` 안에 사유 주석과 함께 둔다(`LoginAttemptRepositoryQDSL` 이 본보기). 관리자 스트림 표의 엔티티는 `server/admin` 에 둔다(QueryDSL 처리기 있음).
-* **네이티브 SQL 로 인정하는 사유**(이것 말고는 QueryDSL): `ON CONFLICT` upsert · 결과가 꼭 같은 문장이어야 하는 `RETURNING` · `pg_advisory_xact_lock` · `cron.*`/`CALL`/DB 함수 · DDL·파티션·`COPY`·`TRUNCATE` · 분석 DB(`AnalyticsDatabase`) · jsonb 연산·`generate_series`·윈도 함수·`DISTINCT ON`·`GROUPING SETS` 가 핵심인 집계 · 대량 `batchUpdate` · **JDBC 세이브포인트 안에서 도는 쓰기·읽기**(알림 발행·포인트 원장·회원 알림 — 세이브포인트 안에서 JPA 질의가 실패하면 업무 트랜잭션 전체가 롤백 전용이 된다, 2026-11-07 실측).
-* **사유가 아닌 것**: 조건부 상태 전이(`update().where(status.eq(..)).execute() == 1`) · 카운터(`set(x, x.add(1))`) · `FOR UPDATE`/`FOR SHARE`(`@Lock`·`setLockMode`) · `SKIP LOCKED`(`PESSIMISTIC_WRITE` + 힌트 `jakarta.persistence.lock.timeout = -2`) · `coalesce`/`greatest`/`FILTER`(`CaseBuilder`·`Expressions` 템플릿) · 「다른 모듈과 같은 방식」「같은 연결」「flush 차례」「스프링 없는 시험」. 엔티티 조회가 부담이면 프로젝션을 쓴다.
-* **잠금 세기**: Hibernate 의 `PESSIMISTIC_WRITE` 는 PostgreSQL 에서 `FOR NO KEY UPDATE` 다(조인이 있으면 `OF <루트>` 가 붙는다). 작업자끼리는 서로 막지만 그 행을 FK 로 참조하는 INSERT 는 막지 않는다 — 그것까지 막아야 하는 곳만 네이티브 `FOR UPDATE` 로 둔다.
+* **네이티브 SQL 로 인정하는 사유**(이것 말고는 QueryDSL): `ON CONFLICT` upsert · 결과가 꼭 같은 문장이어야 하는 `RETURNING` · `pg_advisory_xact_lock` · FK 참조 INSERT 까지 막아야 결과가 같은 `FOR UPDATE`(아래 「잠금 세기」) · `cron.*`/`CALL`/DB 함수 · DDL·파티션·`COPY`·`TRUNCATE` · 분석 DB(`AnalyticsDatabase`) · jsonb 연산·`generate_series`·윈도 함수·`DISTINCT ON`·`GROUPING SETS` 가 핵심인 집계 · 대량 `batchUpdate` · **JDBC 세이브포인트 안에서 도는 쓰기·읽기**(알림 발행·포인트 원장·회원 알림 — 세이브포인트 안에서 JPA 질의가 실패하면 업무 트랜잭션 전체가 롤백 전용이 된다, 2026-11-07 실측).
+* **사유가 아닌 것**: 조건부 상태 전이(`update().where(status.eq(..)).execute() == 1`) · 카운터(`set(x, x.add(1))`) · 보통의 행 잠금·`FOR SHARE`(`@Lock`·`setLockMode`) · `SKIP LOCKED`(`PESSIMISTIC_WRITE` + 힌트 `jakarta.persistence.lock.timeout = -2`) · `coalesce`/`greatest`/`FILTER`(`CaseBuilder`·`Expressions` 템플릿) · 「다른 모듈과 같은 방식」「같은 연결」「flush 차례」「스프링 없는 시험」. 엔티티 조회가 부담이면 프로젝션을 쓴다.
+* **잠금 세기**: 기본은 `PESSIMISTIC_WRITE`(`@Lock` 파생 메서드 · 루트 표 id 를 고르는 QueryDSL `setLockMode`, 큐 집기는 + 힌트 `jakarta.persistence.lock.timeout = -2` = `SKIP LOCKED`)다 — PostgreSQL 에서 `FOR NO KEY UPDATE`(조인이 있으면 `OF <루트>`). 작업자끼리는 서로 막지만 그 행을 FK 로 가리키는 INSERT 의 확인(`FOR KEY SHARE`)은 막지 않는다. 판단 기준은 「전환 전과 같은 문장」이 아니라 「결과가 같은가」다.
+  * 결과가 같다: 그 행을 FK 로 가리키는 표가 없다 · 그 표에 줄을 넣는 흐름이 늘 같은 행을 먼저 잠그거나 조건부 UPDATE 한다 · 잠근 쪽의 판정이 그 줄을 보지 않는다. 잠금 자리 주석에 근거 한 줄을 적는다.
+  * 결과가 달라진다(FK 로 가리키는 줄을 잠그지 않고 넣는 흐름이 있고, 잠근 쪽이 그 줄의 있고 없음을 보고 판정하거나 행을 지운다): 그 저장소에 네이티브 `SELECT … FOR UPDATE`(큐면 `FOR UPDATE SKIP LOCKED`) 한 문장 + 사유 주석(`AdAdvertiserStore#lock`·`#lockProfile`, `GroupBuyProductStore#lock` 이 본보기). 범용 잠금 도우미를 만들지 않는다. 전역 방언은 바꾸지 않는다.
+  * 잠근 뒤 값: 같은 트랜잭션에서 먼저 읽힌 엔티티는 잠금 질의가 다시 읽어 주지 않는다 — 잠금을 그 트랜잭션의 첫 읽기로 두거나, 잠근 뒤 프로젝션으로 읽거나, `em.refresh(e, PESSIMISTIC_WRITE)` 를 쓴다.
+  * 시험: 표준 잠금은 다른 연결의 `FOR NO KEY UPDATE NOWAIT` 가 55P03, 네이티브 `FOR UPDATE` 는 `FOR KEY SHARE NOWAIT` 까지 55P03(`RowLockProbe`, testFixtures).
 * **잠금은 엔티티를 고르는 한 표 질의로**: 다른 표를 조인한 **프로젝션**(Tuple·DTO)에 `setLockMode` 를 걸면 행이 잠기지 않는다(2026-11-07 NOWAIT 시험으로 확인). 「잠그는 문장(루트 표만, `selectFrom` 또는 id 프로젝션) → 읽는 문장」 둘로 나눈다.
 * **시각**: 판정·기록 시각을 서비스가 `Clock` 으로 넘기는 업무(커머스·제재·탈퇴 등 — 시험이 시계를 옮긴다)는 `DB_NOW` 로 바꾸지 않고 인자 `now` 를 쓴다.
 * **QueryDSL**: 정렬·페이징은 DB 에서 한다(전체 조회 후 메모리 정렬 금지). 컬렉션 `fetchJoin()` 과 페이징을 함께 쓰지 않는다. 연관은 `LAZY`, N+1 은 필요한 곳에만 `fetchJoin()`.
+* **한 문장이던 읽기**: 숫자 묶음·「A 또는 B」처럼 서로 맞아야 하는 값은 한 문장(하위 질의·`CaseBuilder` 합·조인)으로 읽는다. 나눌 수밖에 없으면 그 읽기만 하는 서비스 메서드를 `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)`(한 스냅숏)로 감싼다 — 바깥 쓰기 트랜잭션에 참여하면 격리 수준이 적용되지 않는다. QueryDSL 은 `FROM` 없는 `select` 를 만들지 못한다.
+* **대소문자 무시 찾기**: 예전 `ILIKE` 는 `Ilike.contains`/`Ilike.of`(HQL `ilike`, 탈출 `\`) — `containsIgnoreCase` 는 `lower() like … escape '!'` 라 뜻·색인이 다르다(`lower(칸)` trgm 색인이 있는 칸은 그쪽이 색인을 탄다).
+* **예외**: 유일 위반은 저장소·커밋 어디서 나도 `DuplicateKeyException`(`JpaMasterConfig` 가 방언 변환을 JDBC 규칙으로 맞춘다). 서비스는 그 넣기가 `flush` 되는 자리(또는 트랜잭션 템플릿 바깥)에서 잡는다.
 
 ---
 

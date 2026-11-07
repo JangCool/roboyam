@@ -56,7 +56,10 @@ public class StatsCollectionStore extends RoboyamRepositoryQDSL {
         return Optional.of(new Stored(row.value(), row.getUpdatedAt(), row.getUpdatedBy(), t.get(OPERATOR.operatorName)));
     }
 
-    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다({@code FOR NO KEY UPDATE} — 동시 저장이 줄을 선다) */
+    /**
+     * 저장 트랜잭션 안에서 행을 잠그고 읽는다(동시 저장이 줄을 선다) — {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}, 이 표를 FK 로 가리키는 표가 없다).
+     * 저장의 첫 읽기라 1차 캐시에 낡은 값이 없다.
+     */
     public Optional<Stored> lock() {
         StatsCollectionSettingEntity row = query.selectFrom(S).where(S.id.eq(StatsCollectionSettingEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return Optional.ofNullable(row).map(r -> new Stored(r.value(), r.getUpdatedAt(), r.getUpdatedBy(), null));

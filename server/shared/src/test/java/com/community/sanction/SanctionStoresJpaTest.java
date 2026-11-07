@@ -116,7 +116,7 @@ class SanctionStoresJpaTest {
         return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
     }
 
-    /** 다른 연결에서 그 행을 기다리지 않고 잠가 본다 — 잠겨 있으면 55P03 */
+    /** 다른 연결에서 그 행을 기다리지 않고 쓰기 잠금({@code FOR NO KEY UPDATE}) 해 본다 — 잠겨 있으면 55P03 */
     private static void assertRowLocked(String table, long id) {
         try (Connection other = dataSource.getConnection(); Statement st = other.createStatement()) {
             assertThatThrownBy(() -> st.executeQuery("SELECT 1 FROM " + table + " WHERE id = " + id + " FOR NO KEY UPDATE NOWAIT"))
