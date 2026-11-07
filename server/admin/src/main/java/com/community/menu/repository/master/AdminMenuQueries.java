@@ -6,10 +6,10 @@ import com.community.menu.entity.AdminMenuStateEntity;
 import com.community.menu.entity.QAdminMenuNodeEntity;
 import com.community.menu.entity.QAdminMenuStateEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -57,8 +57,8 @@ public class AdminMenuQueries extends RoboyamRepositoryQDSL {
      */
     public State lockState() {
         entityManager.createNativeQuery("INSERT INTO admin_menu_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING").executeUpdate();
-        RowLocks.forUpdate(entityManager, AdminMenuStateEntity.class, AdminMenuStateEntity.ROW_ID); // 전환 전 세기(FOR UPDATE)
-        AdminMenuStateEntity row = query.selectFrom(STATE).where(STATE.id.eq(AdminMenuStateEntity.ROW_ID)).fetchOne();
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE) — admin_menu_state 를 FK 로 가리키는 표가 없다. 저장의 첫 읽기라 1차 캐시에 낡은 값이 없다
+        AdminMenuStateEntity row = query.selectFrom(STATE).where(STATE.id.eq(AdminMenuStateEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return row == null ? new State(1, null) : new State(row.getVersion(), row.getUpdatedAt());
     }
 

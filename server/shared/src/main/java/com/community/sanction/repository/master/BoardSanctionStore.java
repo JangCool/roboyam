@@ -24,16 +24,13 @@ import com.community.sanction.entity.QBoardSanctionReviewEntity;
 import com.community.sanction.entity.QBoardStaffUsageEntity;
 import com.community.sanction.entity.QMemberSanctionEntity;
 import com.community.sanction.entity.QSanctionAppealEntity;
-import com.community.sanction.entity.SanctionAppealEntity;
 import com.community.sanction.entity.SanctionKind;
 import com.community.sanction.entity.SanctionStatus;
 import com.community.sanction.repository.master.MemberSanctionStore.AppealRow;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -42,6 +39,7 @@ import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -298,7 +296,7 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
      * 차례: 이의제기 행 → 회원 행 → 제재 행). 잠금은 회원 표만 고르는 한 문장으로 잡는다({@link MemberSanctionStore#lockMember} 와 같은 까닭).
      */
     public Optional<TargetRow> lockTarget(long userId) {
-        if (!RowLocks.forUpdate(entityManager, UserEntity.class, userId)) {
+        if (query.select(U.id).from(U).where(U.id.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
             return Optional.empty();
         }
         return target(userId);
@@ -562,12 +560,12 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(reviewRows().where(R.id.eq(id)).fetchOne()).map(BoardSanctionStore::review);
     }
 
-    /** 검토 행을 쓰기 잠금으로 — 두 운영자가 동시에 닫아도 한 번만(차례: 검토 행 → 이의제기 행 → 회원 행 → 제재 행). 회원·게시판 {@code [userId, boardId, open(1/0)]} */
+    /**
+     * 검토 행을 쓰기 잠금으로 — 두 운영자가 동시에 닫아도 한 번만(차례: 검토 행 → 이의제기 행 → 회원 행 → 제재 행). 회원·게시판 {@code [userId, boardId, open(1/0)]}.
+     * 검토 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
+     */
     public Optional<long[]> lockReview(long id) {
-        if (!RowLocks.forUpdate(entityManager, BoardSanctionReviewEntity.class, id)) {
-            return Optional.empty();
-        }
-        Tuple t = query.select(R.userId, R.boardId, R.status).from(R).where(R.id.eq(id)).fetchOne();
+        Tuple t = query.select(R.userId, R.boardId, R.status).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return t == null ? Optional.empty()
                 : Optional.of(new long[]{t.get(R.userId), t.get(R.boardId), BoardSanctionReviewEntity.OPEN.equals(t.get(R.status)) ? 1 : 0});
     }
@@ -614,9 +612,8 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
 
     /** 그 게시판 제재의 대기 이의제기를 쓰기 잠금으로(없으면 빈 값) — 무효 처리가 같은 트랜잭션에서 인용으로 닫는다(결정 10) */
     public Optional<Long> lockPendingAppeal(long boardSanctionId) {
-        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 읽는다(전환 전 「WHERE … FOR UPDATE」와 같은 결과)
-        List<Long> locked = RowLocks.forUpdate(entityManager, SanctionAppealEntity.class,
-                query.select(A.id).from(A).where(A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING)).orderBy(A.id.asc()).fetch());
+        // 조건 잠금(id 차례, PESSIMISTIC_WRITE — sanction_appeals 를 FK 로 가리키는 표가 없다) — PostgreSQL 이 잠근 뒤 조건을 다시 본다. 조건을 넣어 다시 읽는다
+        List<Long> locked = query.select(A.id).from(A).where(A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING)).orderBy(A.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         return locked.isEmpty() ? Optional.empty()
                 : Optional.ofNullable(query.select(A.id).from(A).where(A.id.in(locked), A.boardSanctionId.eq(boardSanctionId), A.status.eq(AppealStatus.PENDING))
                         .orderBy(A.id.asc()).fetchFirst());

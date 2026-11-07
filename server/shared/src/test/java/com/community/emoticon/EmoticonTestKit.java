@@ -206,7 +206,7 @@ final class EmoticonTestKit {
         EmoticonAcquisitionStore acquisitions = store(EmoticonAcquisitionStore.class);
         reads = store(EmoticonReadStore.class);
         contracts = JpaTestContext.transactional(new EmoticonContractService(store(EmoticonContractStore.class), ids, clocks));
-        settings = JpaTestContext.transactional(new EmoticonSettingsService(store(EmoticonSettingsStore.class), contracts, audit, new CommerceSalesStore(JpaTestContext.query(), JpaTestContext.entityManager()),
+        settings = JpaTestContext.transactional(new EmoticonSettingsService(store(EmoticonSettingsStore.class), contracts, audit, new CommerceSalesStore(JpaTestContext.query()),
                 clocks));
         EmoticonPayoutStore payoutStore = store(EmoticonPayoutStore.class);
         EmoticonPriceEventStore priceEvents = store(EmoticonPriceEventStore.class);
@@ -370,7 +370,7 @@ final class EmoticonTestKit {
      * (1행 표를 다른 시험과 같이 쓴다).
      */
     void withSeller(Runnable work) {
-        if (new CommerceSalesStore(JpaTestContext.query(), JpaTestContext.entityManager()).operatorCanSell()) {
+        if (new CommerceSalesStore(JpaTestContext.query()).operatorCanSell()) {
             work.run();
             return;
         }

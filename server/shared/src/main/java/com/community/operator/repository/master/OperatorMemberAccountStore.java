@@ -10,10 +10,8 @@ import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.QUserRoleEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -24,6 +22,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -186,9 +185,12 @@ public class OperatorMemberAccountStore extends RoboyamRepositoryQDSL {
 
     // ── 쓰기 ──────────────────────────────────────────────────────────────
 
-    /** 회원 행을 쓰기 잠금으로 — 연결 · 탈퇴 신청 · 게시판 담당 지정이 줄을 선다. 없으면 false. 회원 표만 고르는 한 문장({@code FOR NO KEY UPDATE}) */
+    /**
+     * 회원 행을 쓰기 잠금으로 — 연결 · 탈퇴 신청 · 게시판 담당 지정이 줄을 선다. 없으면 false. 회원 표만 고르는 한 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}):
+     * 연결이 보는 줄(연결·탈퇴 신청·게시판 담당)은 모두 회원 행을 먼저 잠근 흐름이 넣는다(탈퇴 신청 {@code lockStatus}, 담당 지정 {@code findWithLockById}).
+     */
     public boolean lockUser(long userId) {
-        return RowLocks.forUpdate(entityManager, UserEntity.class, userId);
+        return query.select(U.id).from(U).where(U.id.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null;
     }
 
     public void insert(long operatorId, long userId, Instant linkedAt, Long linkedBy) {

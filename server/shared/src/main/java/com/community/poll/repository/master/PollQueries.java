@@ -9,7 +9,6 @@ import com.community.poll.entity.QPollEntity;
 import com.community.poll.entity.QPollOptionEntity;
 import com.community.poll.entity.QPollVoteEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -28,7 +27,8 @@ import org.springframework.stereotype.Repository;
 /**
  * 글 투표의 세 표(V81 {@code polls}·{@code poll_options}·{@code poll_votes}) — docs/features/post-poll-contract.md. <b>부르는 쪽 트랜잭션에 참여한다.</b>
  *
- * <p>첫 표 잠금 규칙: 투표를 고치거나 지우는 쪽은 {@code polls} 행을 쓰기 잠금({@code FOR UPDATE} — {@link RowLocks}, 전환 전 세기), 투표하는 쪽은 공유 잠금
+ * <p>첫 표 잠금 규칙: 투표를 고치거나 지우는 쪽은 {@code polls} 행을 쓰기 잠금({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 투표 행을
+ * FK 로 가리키는 표는 투표하는 쪽이 공유 잠금 뒤에, 선택지는 고치는 쪽이 넣는다), 투표하는 쪽은 공유 잠금
  * ({@code PESSIMISTIC_READ} = {@code FOR SHARE}) — 두 잠금은 서로 기다리고 투표끼리는 막지 않는다(고치는 도중에 표가 들어오지 않는다). 투표 행을 지우는 것은
  * {@code DELETE} 라 그 자체로 {@code FOR UPDATE} 세기를 잡는다. 한 사람의 동시 투표는 어드바이저리 잠금으로 줄을 세운다.
  * 읽기는 모두 프로젝션(엔티티를 올리지 않는다 — 대량 UPDATE·DELETE 뒤에 낡은 1차 캐시가 보이지 않게).
@@ -62,12 +62,7 @@ public class PollQueries extends RoboyamRepositoryQDSL {
 
     /** 그 글의 투표 — 쓰기 잠금(고치기·지우기). 투표하는 쪽({@link #findForShare})과 서로 기다린다 */
     public Optional<PollData> findForUpdate(long postId) {
-        // 전환 전 세기(FOR UPDATE — {@link RowLocks}): 글 번호로 고르고(잠금 없이) → 투표 행을 잠근다 → 다시 읽는다
-        Long id = query.select(POLL.id).from(POLL).where(POLL.postId.eq(postId)).fetchFirst();
-        if (id == null || !RowLocks.forUpdate(entityManager, PollEntity.class, id)) {
-            return Optional.empty();
-        }
-        return locked(postId, LockModeType.NONE);
+        return locked(postId, LockModeType.PESSIMISTIC_WRITE);
     }
 
     /** 그 글의 투표 — 공유 잠금(투표하기). 투표끼리는 막지 않는다 */
@@ -160,9 +155,11 @@ public class PollQueries extends RoboyamRepositoryQDSL {
         }
     }
 
+    /** 투표 표만 고르는 id 문장으로 잠그고, 칸은 그 뒤 프로젝션으로 읽는다(잠근 뒤의 값 — 엔티티를 1차 캐시에 올리지 않는다) */
     private Optional<PollData> locked(long postId, LockModeType mode) {
-        PollEntity poll = query.selectFrom(POLL).where(POLL.postId.eq(postId)).setLockMode(mode).fetchOne();
-        return Optional.ofNullable(poll).map(p -> new PollData(p.getId(), p.getPostId(), p.getQuestion(), p.isMultiple(), p.isChangeAllowed(), p.getClosesAt(),
-                p.getCreatedAt()));
+        if (query.select(POLL.id).from(POLL).where(POLL.postId.eq(postId)).setLockMode(mode).fetchOne() == null) {
+            return Optional.empty();
+        }
+        return find(postId);
     }
 }

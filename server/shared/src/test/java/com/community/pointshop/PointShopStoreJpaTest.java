@@ -26,8 +26,8 @@ import org.springframework.dao.DuplicateKeyException;
 
 /**
  * 포인트 상점 저장소를 JPA·QueryDSL 로 옮긴 뒤에도 JDBC 때와 같은지(2026-11-07 3단계) — 구매마다 가장 최근 신청({@code DISTINCT ON} → {@code max(id) … GROUP BY}),
- * 관리자 목록의 신청 상태 거르기·회원번호 찾기, 넣기의 유일 위반은 {@link DuplicateKeyException}, 잠그는 읽기가 전환 전과 같은 {@code FOR UPDATE} 로 행을 잠그는지(다른 연결의
- * {@code FOR KEY SHARE NOWAIT} — FK 확인과 같은 세기 — 까지 막힌다).
+ * 관리자 목록의 신청 상태 거르기·회원번호 찾기, 넣기의 유일 위반은 {@link DuplicateKeyException}, 잠그는 읽기가 정말 행을 잠그는지(다른 연결의 {@code FOR NO KEY UPDATE NOWAIT} 가
+ * 막힌다 — {@code PESSIMISTIC_WRITE}).
  * 실제 PostgreSQL.
  */
 class PointShopStoreJpaTest {
@@ -108,7 +108,7 @@ class PointShopStoreJpaTest {
         assertLocked(() -> accounts.lockUser(member), "users", "id", member);
     }
 
-    /** {@code lock} 을 트랜잭션 안에서 부르고 잡고 있는 동안, 다른 연결에서 그 행을 {@code FOR KEY SHARE NOWAIT} 로 잡으면 막혀야 한다(55P03 — FOR UPDATE 세기) */
+    /** {@code lock} 을 트랜잭션 안에서 부르고 잡고 있는 동안, 다른 연결에서 그 행을 {@code FOR NO KEY UPDATE NOWAIT} 로 잡으면 막혀야 한다(55P03 — 같은 행 쓰기 잠금끼리) */
     private static void assertLocked(Runnable lock, String table, String keyColumn, long key) throws Exception {
         CountDownLatch locked = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -125,7 +125,7 @@ class PointShopStoreJpaTest {
         try {
             assertThat(locked.await(30, TimeUnit.SECONDS)).as(table + " 잠금 트랜잭션이 돌았다").isTrue();
             try (Connection connection = kit.dataSource.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("SELECT 1 FROM " + table + " WHERE " + keyColumn + " = ? FOR KEY SHARE NOWAIT")) {
+                 PreparedStatement statement = connection.prepareStatement("SELECT 1 FROM " + table + " WHERE " + keyColumn + " = ? FOR NO KEY UPDATE NOWAIT")) {
                 connection.setAutoCommit(false);
                 statement.setLong(1, key);
                 assertThatThrownBy(statement::executeQuery).as(table + " 행이 잠겨 있다").isInstanceOf(SQLException.class)

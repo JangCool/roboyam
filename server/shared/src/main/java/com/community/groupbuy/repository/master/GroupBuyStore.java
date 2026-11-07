@@ -21,7 +21,6 @@ import com.community.groupbuy.entity.SkuKind;
 import com.community.groupbuy.entity.WatchKind;
 import com.community.holiday.entity.QSiteHolidayEntity;
 import com.community.holiday.service.BusinessDayCalendar;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -30,6 +29,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -166,7 +166,9 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
 
     /** 행을 잠그고 읽는다 — 공구 행을 잠그는 일(판정·중단)은 결제 행을 잠그는 일과 같은 트랜잭션에 넣지 않는다(결정 37). 공구 행만 잠그고(상품 행은 잠그지 않는다) 그다음 읽는다 */
     public Optional<GroupBuyRow> lock(long id) {
-        return RowLocks.forUpdate(entityManager, GroupBuyEntity.class, id) ? find(id) : Optional.empty();
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE). 공구를 FK 로 가리키는 주문은 넣은 뒤 같은 트랜잭션에서 공구 행을 조건부 UPDATE(선점 — 이 잠금과 막힌다)하고,
+        // 이력·단품·수량 기록은 공구를 잠그거나 고친 흐름이 넣는다 — 판정·중단의 결과가 FOR UPDATE 와 같다
+        return query.select(G.id).from(G).where(G.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? find(id) : Optional.empty();
     }
 
     /** 새 공구(DRAFT) — 1차면 {@code roundRootId = id} */

@@ -4,9 +4,9 @@ import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.entity.DealSettingEntity;
 import com.community.hotdeal.entity.QDealSettingEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
@@ -52,10 +52,9 @@ public class DealSettingsStore extends RoboyamRepositoryQDSL {
     }
 
     private DealSettingEntity row(boolean forUpdate) {
-        if (forUpdate) {
-            RowLocks.forUpdate(entityManager, DealSettingEntity.class, DealSettingEntity.ROW_ID); // 전환 전 세기(FOR UPDATE)
-        }
-        DealSettingEntity row = query.selectFrom(S).where(S.id.eq(DealSettingEntity.ROW_ID)).fetchOne();
+        // 잠금 세기: PESSIMISTIC_WRITE(FOR NO KEY UPDATE) — deal_settings 를 FK 로 가리키는 표가 없다. 저장의 잠금이 그 트랜잭션의 첫 읽기라 1차 캐시에 낡은 값이 없다
+        var select = query.selectFrom(S).where(S.id.eq(DealSettingEntity.ROW_ID));
+        DealSettingEntity row = (forUpdate ? select.setLockMode(LockModeType.PESSIMISTIC_WRITE) : select).fetchOne();
         if (row == null) {
             // V122 가 행을 넣는다 — 지워졌으면 기본값으로 다시 만든다
             entityManager.createNativeQuery("INSERT INTO deal_settings (id, updated_at) VALUES (1, now()) ON CONFLICT (id) DO NOTHING").executeUpdate();

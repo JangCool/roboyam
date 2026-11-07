@@ -7,13 +7,13 @@ import com.community.bizapplication.entity.BizRefundType;
 import com.community.bizapplication.entity.QBizRefundEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -120,10 +120,13 @@ public class BizRefundStore extends RoboyamRepositoryQDSL {
         return query.select(ROW).from(R).where(R.applicationId.eq(applicationId)).orderBy(R.requestedAt.asc(), R.id.asc()).fetch();
     }
 
-    /** 열린(심사 대기) 줄을 잠근다 — 조건으로 고른 줄을 {@link RowLocks}({@code FOR UPDATE}, id 차례) 로 잠근 뒤 조건을 넣어 다시 읽는다 */
+    /**
+     * 열린(심사 대기) 줄을 잠근다 — 환불 표만 고르는 조건 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}, id 차례 — 이 표를 FK 로 가리키는 표가 없다. PostgreSQL 이
+     * 잠근 뒤 조건을 다시 본다) 뒤 조건을 넣어 다시 읽는다.
+     */
     public Optional<RefundRow> lockOpen(long applicationId) {
-        List<Long> open = query.select(R.id).from(R).where(R.applicationId.eq(applicationId), R.status.eq(BizRefundStatus.REQUESTED)).orderBy(R.id.asc()).fetch();
-        List<Long> locked = RowLocks.forUpdate(entityManager, BizRefundEntity.class, open);
+        List<Long> locked = query.select(R.id).from(R).where(R.applicationId.eq(applicationId), R.status.eq(BizRefundStatus.REQUESTED)).orderBy(R.id.asc())
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
         return locked.isEmpty() ? Optional.empty()
                 : Optional.ofNullable(query.select(ROW).from(R).where(R.id.in(locked), R.status.eq(BizRefundStatus.REQUESTED)).orderBy(R.id.asc()).fetchFirst());
     }

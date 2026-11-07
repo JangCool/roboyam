@@ -7,7 +7,6 @@ import com.community.emoticon.entity.QEmoticonPurchaseEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.payment.entity.QPaymentOrderEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -16,6 +15,7 @@ import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,7 +32,8 @@ import org.springframework.stereotype.Repository;
  * 로보티콘 유료 팩 구매 기록({@code emoticon_purchases}, V144) — 결제 준비 한 번이 한 줄(결제 주문의 {@code order_ref_id}). 지우기·사본 고치기·되돌리기는 DB 트리거가 막는다.
  * 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 결제 주문({@code payment_orders})·회원({@code users})·운영자는 엔티티로 잇는다. 구매 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기).
+ * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 결제 주문({@code payment_orders})·회원({@code users})·운영자는 엔티티로 잇는다. 구매 행 잠금은 구매 표만 고르는
+ * {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE} — 구매를 FK 로 가리키는 받기 줄은 그 구매를 먼저 잠근 결제 확정이 넣는다).
  * Native SQL 로 남긴 것과 이유: 같은 회원·팩의 결제 준비 줄 세우기({@code pg_advisory_xact_lock} — 아직 구매 줄이 없는 「회원 × 팩」 단위라 잠글 행이 없다).
  */
 @Repository
@@ -83,7 +84,7 @@ public class EmoticonPurchaseStore extends EmoticonStoreSupport {
 
     /** 바꾸기 전에 — 구매 행을 잠근다(결제 확정 · 환불 · 사용함 기록이 같은 구매에서 줄을 선다). 잠금은 구매 표만 고르는 문장, 칸은 그 뒤에 읽는다 */
     public Optional<PurchaseRow> lock(long id) {
-        if (!RowLocks.forUpdate(entityManager, EmoticonPurchaseEntity.class, id)) {
+        if (query.select(P.id).from(P).where(P.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         return find(id);

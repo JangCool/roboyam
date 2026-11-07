@@ -15,13 +15,13 @@ import com.community.groupbuy.entity.RequestStatus;
 import com.community.groupbuy.entity.RequestType;
 import com.community.groupbuy.entity.Resolution;
 import com.community.groupbuy.entity.SupplyChoice;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -100,9 +100,12 @@ public class GroupBuyRequestStore extends GroupBuyStoreSupport {
         return Optional.ofNullable(rows().where(RQ.id.eq(id)).fetchFirst());
     }
 
-    /** 잠그고 읽는다 — 요청 처리는 주문 행 다음(주문 행 → 요청 행 → 수량 → 결제 행) */
+    /**
+     * 잠그고 읽는다 — 요청 처리는 주문 행 다음(주문 행 → 요청 행 → 수량 → 결제 행). 잠금은 요청 표만 고르는 id 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} —
+     * 요청을 FK 로 가리키는 요청 줄·사진은 요청을 만드는 트랜잭션이 넣는다).
+     */
     public Optional<RequestRow> lock(long id) {
-        return RowLocks.forUpdate(entityManager, GroupBuyRequestEntity.class, id) ? find(id) : Optional.empty();
+        return query.select(RQ.id).from(RQ).where(RQ.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null ? find(id) : Optional.empty();
     }
 
     public List<RequestRow> openOf(long participationId) {

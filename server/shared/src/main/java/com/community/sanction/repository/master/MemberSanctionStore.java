@@ -6,21 +6,19 @@ import com.community.sanction.entity.AppealStatus;
 import com.community.sanction.entity.MemberSanctionEntity;
 import com.community.sanction.entity.QMemberSanctionEntity;
 import com.community.sanction.entity.QSanctionAppealEntity;
-import com.community.sanction.entity.SanctionAppealEntity;
 import com.community.sanction.entity.SanctionKind;
 import com.community.sanction.entity.SanctionStatus;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -34,7 +32,9 @@ import org.springframework.stereotype.Repository;
  * 사이트 제재({@code member_sanctions})·이의제기({@code sanction_appeals}) 읽기·쓰기 — shared V136. 서비스({@code MemberSanctionService})와 관리자 목록 저장소가 부른다.
  * 트랜잭션은 부르는 서비스가 연다. 판정 시각은 DB 의 {@code now()} 가 아니라 서비스가 넘기는 지금이다.
  *
- * <p>QueryDSL 이 기본이다 — 회원 행 쓰기 잠금({@code FOR UPDATE} — {@link RowLocks}, 전환 전 세기) 아래에서 조건부 대량 UPDATE 로 한 번만 이기게 하고(해제 · 인용 · 만료), 진행 중 정지의 판정을
+ * <p>QueryDSL 이 기본이다 — 회원 행 쓰기 잠금({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 잠금 뒤의
+ * 판정이 보는 제재 줄은 모두 회원 행을 먼저 잠근 흐름이 넣고 고친다. 이의제기 접수는 회원 행을 잠그지 않지만 잠근 쪽의 판정은 이의제기 줄을 보지 않는다 — 답변은 이의제기 행을
+ * id 로 먼저 잠근다) 아래에서 조건부 대량 UPDATE 로 한 번만 이기게 하고(해제 · 인용 · 만료), 진행 중 정지의 판정을
  * 부분 색인({@code ux_member_sanctions_running} · {@code ix_member_sanctions_expire})과 같은 조건으로 둔다. 읽기는 한 줄 모양(프로젝션)이라 영속성 문맥의 낡은 엔티티를 보지 않는다.
  * Native SQL 로 남긴 것과 이유: 이의제기 접수({@code ON CONFLICT (sanction_id) DO NOTHING RETURNING}), 경고 번호 다시 매기기(윈도 함수 {@code row_number} + {@code UPDATE … FROM}),
  * 게시판 지정 끝내기({@code DELETE … RETURNING} — 지운 줄과 알린 줄이 같은 문장이어야 한다).
@@ -151,7 +151,7 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
      * 그리고 먼저 읽힌 회원 엔티티가 있어도 잠근 뒤의 값을 본다.
      */
     public Optional<MemberRow> lockMember(long userId) {
-        if (!RowLocks.forUpdate(entityManager, UserEntity.class, userId)) {
+        if (query.select(U.id).from(U).where(U.id.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
             return Optional.empty();
         }
         return member(userId);
@@ -348,13 +348,13 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
         return appealRows().where(A.userId.eq(userId), A.sanctionId.isNotNull()).fetch().stream().map(MemberSanctionStore::appeal).toList();
     }
 
-    /** 이의제기 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 답해도 한 번만(차례: 이의제기 행 → 회원 행 → 제재 행). 답한 운영자 이름은 비운다 */
+    /**
+     * 이의제기 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 답해도 한 번만(차례: 이의제기 행 → 회원 행 → 제재 행). 답한 운영자 이름은 비운다. 이의제기 표만 고르는 한 문장
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
+     */
     public Optional<AppealRow> lockAppeal(long id) {
-        if (!RowLocks.forUpdate(entityManager, SanctionAppealEntity.class, id)) {
-            return Optional.empty();
-        }
         Tuple t = query.select(A.id, A.appealNo, A.sanctionId, A.userId, A.status, A.reason, A.answer, A.answeredBy, A.answeredAt, A.createdAt, A.boardSanctionId)
-                .from(A).where(A.id.eq(id)).fetchOne();
+                .from(A).where(A.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
         return t == null ? Optional.empty()
                 : Optional.of(new AppealRow(t.get(A.id), t.get(A.appealNo), t.get(A.sanctionId), t.get(A.userId), t.get(A.status), t.get(A.reason), t.get(A.answer),
                 t.get(A.answeredBy), null, t.get(A.answeredAt), t.get(A.createdAt), t.get(A.boardSanctionId)));

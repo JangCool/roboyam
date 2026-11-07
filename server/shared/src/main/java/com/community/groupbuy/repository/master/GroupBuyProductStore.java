@@ -19,7 +19,6 @@ import com.community.groupbuy.entity.QGroupBuySkuEntity;
 import com.community.groupbuy.entity.SkuKind;
 import com.community.groupbuy.repository.master.GroupBuyStore.AxisRow;
 import com.community.groupbuy.repository.master.GroupBuyStore.ImageRow;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -42,7 +41,7 @@ import org.springframework.stereotype.Repository;
  * 상품 마스터(결정 89) — 카테고리({@code group_buy_categories})·상품({@code group_buy_products})·상품 이미지·옵션 축/값·상품 단품 읽기·쓰기.
  *
  * <p>QueryDSL 이 기본이다({@link GroupBuyStoreSupport}). 상품 행 잠금은 상품 행만 고르는 잠금 문장 뒤에 읽는다.
- * Native SQL 로 남긴 것과 이유: 옵션 종류 넣기·고치기({@code INSERT … ON CONFLICT (code) DO UPDATE} — 코드가 키인 upsert).
+ * Native SQL 로 남긴 것과 이유: 옵션 종류 넣기·고치기({@code INSERT … ON CONFLICT (code) DO UPDATE} — 코드가 키인 upsert), 상품 행 잠금의 {@code FOR UPDATE}({@link #lock}).
  */
 @Repository
 public class GroupBuyProductStore extends GroupBuyStoreSupport {
@@ -143,9 +142,17 @@ public class GroupBuyProductStore extends GroupBuyStoreSupport {
         return Optional.ofNullable(query.select(PRODUCT).from(P).where(P.id.eq(id)).fetchFirst());
     }
 
-    /** 상품 행을 잠근다(구성 바꾸기 ∥ 그 상품을 쓰는 공구의 모집 시작 — 모집 시작도 이 행을 잠근다) */
+    /**
+     * 상품 행을 잠근다(구성 바꾸기 ∥ 그 상품을 쓰는 공구의 모집 시작 — 모집 시작도 이 행을 잠근다).
+     *
+     * <p>Native SQL({@code FOR UPDATE})인 이유: 공구 등록(DRAFT 넣기 — {@code GroupBuyAdminService#create}·다음 차수)은 상품 행을 잠그지 않고 그 상품을 FK 로 가리키는 공구 줄을
+     * 넣는다. 구성 바꾸기는 이 잠금 뒤 그 상품의 DRAFT 공구를 골라 단품을 맞추고({@code draftGroupBuys}·{@code deleteDraftGroupSkus}) 진행 중 공구를 본다 —
+     * {@code FOR UPDATE} 라야 넣는 중인 공구 줄의 FK 확인({@code FOR KEY SHARE})이 끝날(커밋될) 때까지 기다린 뒤 그 공구까지 맞춘다. JPA {@code PESSIMISTIC_WRITE}
+     * ({@code FOR NO KEY UPDATE})면 기다리지 않아 막 넣은 DRAFT 공구가 새 구성을 놓친다.
+     */
     public Optional<ProductRow> lock(long id) {
-        return RowLocks.forUpdate(entityManager, GroupBuyProductEntity.class, id) ? find(id) : Optional.empty();
+        boolean found = !entityManager.createNativeQuery("SELECT id FROM group_buy_products WHERE id = ?1 FOR UPDATE").setParameter(1, id).getResultList().isEmpty();
+        return found ? find(id) : Optional.empty();
     }
 
     public void insert(long id, NewProduct p, Long operatorId, Instant now) {

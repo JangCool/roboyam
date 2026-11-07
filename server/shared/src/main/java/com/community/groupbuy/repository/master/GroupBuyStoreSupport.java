@@ -23,8 +23,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *   <li><b>쓰기는 즉시 실행</b>이다 — 상태 전이·카운터는 QueryDSL DML({@code execute()} 가 바로 돈다), 넣기는 {@code persist} 뒤 바로 {@code flush}. 변경 감지에 맡기지 않는다
  *       (뒤따르는 JDBC 문장이 그 줄을 FK 로 보거나 읽어도 된다). 단 결제 확정의 JDBC 세이브포인트 안에서 도는 쓰기는 JDBC 로 둔다 — 그 안에서 JPA 문장이 실패하면
  *       업무 트랜잭션 전체가 롤백 전용이 되어 거절로 되돌릴 수 없다(G25 ③ — {@code GroupBuySavepoint}).</li>
- *   <li><b>행 잠금</b>은 {@link com.community.zconfiguration.jpa.RowLocks}({@code FOR UPDATE} — 전환 전 세기, 그 행을 FK 로 참조하는 INSERT 도 기다린다) — 잠그는 문장과 읽는
- *       문장을 나눈다. 잠금 차례는 commerce.md 결정 37(A→G→O→X) 그대로다.</li>
+ *   <li><b>행 잠금</b>은 루트 표만 고르는 id 문장의 {@code PESSIMISTIC_WRITE}(PostgreSQL {@code FOR NO KEY UPDATE}) — 잠그는 문장과 읽는 문장을 나눈다(조인 프로젝션에
+ *       잠금을 걸면 잠기지 않는다). 잠그는 행을 FK 로 가리키는 줄은 그 행을 먼저 잠그거나 고치는(조건부 UPDATE) 흐름이 넣으므로 그 INSERT 까지 막지 않아도 결과가 같다 —
+ *       아닌 곳(상품 행)만 사유를 적은 네이티브 {@code FOR UPDATE}. 잠금 차례는 commerce.md 결정 37(A→G→O→X) 그대로다.</li>
  *   <li>JDBC({@link #jdbc}) 문장은 같은 트랜잭션의 연결을 쓴다(JPA 트랜잭션 관리자가 연결을 묶는다). 사유는 문장마다 주석으로 적는다.</li>
  * </ul>
  */

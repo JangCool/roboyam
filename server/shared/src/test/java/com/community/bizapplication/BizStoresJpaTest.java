@@ -3,6 +3,7 @@ package com.community.bizapplication;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.ad.dto.AdPlacements;
+import com.community.ad.repository.master.AdAdvertiserStore;
 import com.community.ad.repository.master.AdPlacementStore;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizApplicationKind;
@@ -124,7 +125,7 @@ class BizStoresJpaTest {
     }
 
     @Test
-    void 신청_건과_열린_환불_잠금은_전환_전과_같은_FOR_UPDATE_다_FK_로_가리키는_INSERT_도_기다린다() {
+    void 신청_건과_열린_환불_잠금은_FOR_NO_KEY_UPDATE_다_같은_행_쓰기는_막고_FK_확인은_막지_않는다() {
         Instant now = at("2091-03-02T00:00:00Z");
         long app = tx.execute(status -> operatorApp(now));
         long refund = IDS.nextId();
@@ -133,11 +134,13 @@ class BizStoresJpaTest {
         try {
             tx.executeWithoutResult(status -> {
                 assertThat(apps.lock(app)).isPresent();
-                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("신청 건 행 — FOR UPDATE").isTrue();
+                assertThat(RowLockProbe.noKeyUpdateBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("신청 건 행 — 쓰기 잠금끼리 막힌다").isTrue();
+                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app))
+                        .as("신청 건을 가리키는 줄은 그 건을 잠근 흐름이 넣는다 — FK 확인까지 막지 않는다(FOR NO KEY UPDATE)").isFalse();
                 assertThat(refunds.lockOpen(app)).hasValueSatisfying(r -> assertThat(r.id()).isEqualTo(refund));
-                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_refunds", "id = ?", refund)).as("열린 환불 줄 — FOR UPDATE").isTrue();
+                assertThat(RowLockProbe.noKeyUpdateBlocked(JpaTestContext.dataSource(), "biz_refunds", "id = ?", refund)).as("열린 환불 줄").isTrue();
             });
-            assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("끝나면 풀린다").isFalse();
+            assertThat(RowLockProbe.noKeyUpdateBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("끝나면 풀린다").isFalse();
             tx.executeWithoutResult(status -> {
                 jdbc.update("UPDATE biz_refunds SET status = 'DENIED' WHERE id = ?", refund);
                 assertThat(refunds.lockOpen(app)).as("열린 줄이 없으면 비어 있다(잠근 뒤 조건을 다시 본다)").isEmpty();
@@ -149,6 +152,27 @@ class BizStoresJpaTest {
                 jdbc.update("DELETE FROM " + child + " WHERE application_id = ?", app);
             }
             jdbc.update("DELETE FROM biz_applications WHERE id = ?", app);
+        }
+    }
+
+    @Test
+    void 광고주_줄_잠금은_FOR_UPDATE_다_잠그지_않고_가리키며_넣는_열람_기록_신청_건의_FK_확인도_기다린다() {
+        AdAdvertiserStore advertisers = JpaTestContext.create(AdAdvertiserStore.class);
+        long id = IDS.nextId();
+        Instant now = at("2091-03-03T00:00:00Z");
+        tx.executeWithoutResult(status -> advertisers.insert(new AdAdvertiserStore.NewAdvertiser(id, "잠금 광고주 " + id, null, null, null, null, null, null, null, null, 1L,
+                now)));
+        try {
+            tx.executeWithoutResult(status -> {
+                assertThat(advertisers.lock(id)).isTrue();
+                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "ad_advertisers", "id = ?", id))
+                        .as("삭제 판정과 FK 로 가리키며 넣는 줄이 서로 기다린다 — FOR UPDATE").isTrue();
+                assertThat(advertisers.lock(-1L)).as("없는 줄").isFalse();
+                assertThat(advertisers.lockProfile(-1L)).as("없는 신원").isFalse();
+            });
+            assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "ad_advertisers", "id = ?", id)).as("끝나면 풀린다").isFalse();
+        } finally {
+            jdbc.update("DELETE FROM ad_advertisers WHERE id = ?", id);
         }
     }
 

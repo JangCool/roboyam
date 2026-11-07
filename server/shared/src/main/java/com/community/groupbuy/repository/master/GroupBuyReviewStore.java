@@ -1,6 +1,5 @@
 package com.community.groupbuy.repository.master;
 
-import com.community.groupbuy.entity.GroupBuyParticipationEntity;
 import com.community.groupbuy.entity.GroupBuyReviewEntity;
 import com.community.groupbuy.entity.GroupBuyReviewPhotoEntity;
 import com.community.groupbuy.entity.GroupBuyReviewReplyEntity;
@@ -20,7 +19,6 @@ import com.community.groupbuy.entity.QGroupBuyUgcReportEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.OrderSpecifier;
@@ -31,6 +29,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,7 +43,8 @@ import org.springframework.stereotype.Repository;
 /**
  * 공구 리뷰({@code group_buy_reviews}·{@code group_buy_review_photos}·{@code group_buy_review_revisions}·{@code group_buy_review_replies}, 2b-6) —
  * {@code GroupBuyReviewService} 안에 있던 SQL 을 옮겼다. 모두 QueryDSL 이다({@link GroupBuyStoreSupport}).
- * 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기, 조건으로 고른 뒤 잠그고 조건을 넣어 다시 읽는다) — 리뷰 쓰기는 주문 줄을, 고치기·답글·숨김은 리뷰 줄을 잠근다.
+ * 행 잠금은 루트 표만 고르는 id 문장의 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}, 조건으로 고른 뒤 잠그고 조건을 넣어 다시 읽는다) — 리뷰 쓰기는 주문 줄을,
+ * 고치기·답글·숨김은 리뷰 줄을 잠근다(리뷰를 FK 로 가리키는 사진·이력·답글은 그 리뷰를 잠근 흐름이 넣는다).
  */
 @Repository
 public class GroupBuyReviewStore extends GroupBuyStoreSupport {
@@ -234,7 +234,7 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
         Long participationId = query.select(PA.id).from(PA)
                 .where(PA.orderNo.eq(orderNo), PA.userId.eq(userId), JPAExpressions.selectOne().from(I).where(I.id.eq(itemId), I.participationId.eq(PA.id)).exists())
                 .fetchFirst();
-        if (participationId == null || !RowLocks.forUpdate(entityManager, GroupBuyParticipationEntity.class, participationId)) {
+        if (participationId == null || query.select(PA.id).from(PA).where(PA.id.eq(participationId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         Tuple t = query.select(PA.id, PA.groupBuyId, G.productId, S.name, live(), PA.status, SH.deliveredAt).from(I).join(PA).on(PA.id.eq(I.participationId))
@@ -253,7 +253,7 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
     /** 내 지우지 않은 리뷰를 잠그고 읽는다 */
     public Optional<CurrentReview> lockOwn(long id, long userId) {
         Long own = query.select(R.id).from(R).where(R.id.eq(id), R.userId.eq(userId), R.deletedAt.isNull()).fetchFirst();
-        if (own == null || !RowLocks.forUpdate(entityManager, GroupBuyReviewEntity.class, own)) {
+        if (own == null || query.select(R.id).from(R).where(R.id.eq(own)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         Tuple t = query.select(R.rating, R.body, R.createdAt, R.updatedAt).from(R).where(R.id.eq(id), R.userId.eq(userId), R.deletedAt.isNull()).fetchFirst();
@@ -410,7 +410,7 @@ public class GroupBuyReviewStore extends GroupBuyStoreSupport {
 
     /** 리뷰 줄을 잠그고(답글·숨김끼리 줄 세움) 읽는다 */
     public Optional<LockedReview> lock(long id) {
-        if (!RowLocks.forUpdate(entityManager, GroupBuyReviewEntity.class, id)) {
+        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
             return Optional.empty();
         }
         Tuple t = query.select(R.userId, R.groupBuyId, R.deletedAt).from(R).where(R.id.eq(id)).fetchFirst();
