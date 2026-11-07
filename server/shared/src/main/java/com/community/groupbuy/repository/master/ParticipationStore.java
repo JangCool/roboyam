@@ -1,35 +1,61 @@
 package com.community.groupbuy.repository.master;
 
-import static com.community.groupbuy.repository.master.GroupBuyStore.instant;
-import static com.community.groupbuy.repository.master.GroupBuyStore.marks;
-import static com.community.groupbuy.repository.master.GroupBuyStore.nLong;
-import static com.community.groupbuy.repository.master.GroupBuyStore.ts;
-
 import com.community.groupbuy.entity.ExpireCause;
+import com.community.groupbuy.entity.GroupBuyParticipationEntity;
+import com.community.groupbuy.entity.GroupBuyParticipationItemEntity;
+import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.ParticipationStatus;
+import com.community.groupbuy.entity.ParticipationStatusHistoryEntity;
+import com.community.groupbuy.entity.QGroupBuyDelayNoticeEntity;
+import com.community.groupbuy.entity.QGroupBuyEntity;
+import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
+import com.community.groupbuy.entity.QGroupBuyParticipationItemEntity;
+import com.community.groupbuy.entity.QGroupBuyRequestEntity;
+import com.community.groupbuy.entity.QGroupBuyRequestItemEntity;
+import com.community.groupbuy.entity.QGroupBuySkuEntity;
+import com.community.groupbuy.entity.QParticipationStatusHistoryEntity;
+import com.community.groupbuy.entity.RequestStatus;
+import com.community.groupbuy.entity.SkuKind;
+import com.querydsl.core.types.ConstructorExpression;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.impl.JPAUpdateClause;
+import jakarta.persistence.EntityManager;
 import java.sql.Date;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 /**
  * 주문({@code group_buy_participations})·주문 줄·주문 상태 이력·주문 번호. 상태 전이는 한 문장 조건부 UPDATE(이긴 쪽만 — 선점 만료 워커·결제 확정·중단·본인 취소가 겨룬다).
+ *
+ * <p>QueryDSL 이 기본이다(읽기는 한 줄 모양, 쓰기는 즉시 실행 — {@link GroupBuyStoreSupport}). 주문 행 잠금은 주문 행만 고르는 잠금 문장 뒤에 읽는다.
+ * Native SQL 로 남긴 것과 이유: 주문 번호 하루 일련({@code INSERT … ON CONFLICT … DO UPDATE … RETURNING} — 서버 여러 대가 같은 날 번호를 겹치지 않게 한 문장에서 올리고 받는다),
+ * 성사 공구 JOINED → CONFIRMED 일괄({@code UPDATE … WHERE id IN (… LIMIT) RETURNING} — 바꾼 주문을 같은 문장에서 받는다), 운영 환불 줄 내역 합({@code jsonb_array_elements}).
  */
 @Repository
-public class ParticipationStore {
+public class ParticipationStore extends GroupBuyStoreSupport {
 
-    private static final String COLUMNS = "id, order_no, group_buy_id, user_id, status, items_amount, shipping_fee, amount, point_amount, cash_amount, refunded_amount, "
-            + "compensation_amount, reshipping_fee_charged, group_buy_revision, payment_order_id, reserved_until, expire_cause, joined_at, created_at, "
-            + "shipped_shipping_fee, shipped_at, delivered_at, address_masked_at";
+    private static final QGroupBuyParticipationEntity PA = QGroupBuyParticipationEntity.groupBuyParticipationEntity;
+    private static final QGroupBuyParticipationItemEntity I = QGroupBuyParticipationItemEntity.groupBuyParticipationItemEntity;
+    private static final QGroupBuySkuEntity S = QGroupBuySkuEntity.groupBuySkuEntity;
+    private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
+    private static final QParticipationStatusHistoryEntity HIS = QParticipationStatusHistoryEntity.participationStatusHistoryEntity;
+    private static final QGroupBuyRequestEntity RQ = QGroupBuyRequestEntity.groupBuyRequestEntity;
+    private static final QGroupBuyRequestItemEntity RI = QGroupBuyRequestItemEntity.groupBuyRequestItemEntity;
+    private static final QGroupBuyDelayNoticeEntity DN = QGroupBuyDelayNoticeEntity.groupBuyDelayNoticeEntity;
+
     private static final DateTimeFormatter DAY = DateTimeFormatter.BASIC_ISO_DATE;
 
     /** 주문 한 줄 */
@@ -43,6 +69,11 @@ public class ParticipationStore {
             return cashAmount - refundedAmount - compensationAmount;
         }
     }
+
+    private static final ConstructorExpression<ParticipationRow> ROW = Projections.constructor(ParticipationRow.class, PA.id, PA.orderNo, PA.groupBuyId, PA.userId,
+            PA.status, PA.itemsAmount, PA.shippingFee, PA.amount, PA.pointAmount, PA.cashAmount, PA.refundedAmount, PA.compensationAmount, PA.reshippingFeeCharged,
+            PA.groupBuyRevision, PA.paymentOrderId, PA.reservedUntil, PA.expireCause, PA.joinedAt, PA.createdAt, PA.shippedShippingFee, PA.shippedAt, PA.deliveredAt,
+            PA.addressMaskedAt);
 
     /** 주문 줄 한 줄 */
     public record ItemRow(long id, long participationId, long groupBuyId, long skuId, boolean main, int qty, long unitPrice, long itemAmount, int canceledQty, int returnedQty,
@@ -60,15 +91,13 @@ public class ParticipationStore {
                                    Instant now) {
     }
 
-    private final JdbcTemplate jdbc;
-
-    public ParticipationStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public ParticipationStore(JPAQueryFactory query, EntityManager entityManager, DataSource dataSource) {
+        super(query, entityManager, dataSource);
     }
 
     // ── 주문 번호 ───────────────────────────────────────────────────────────
 
-    /** {@code G} + KST 날짜 + 그날 일련 5자리(결정 13 — 넘으면 자리가 는다) */
+    /** {@code G} + KST 날짜 + 그날 일련 5자리(결정 13 — 넘으면 자리가 는다). Native SQL 인 이유: {@code ON CONFLICT … DO UPDATE … RETURNING} 원자적 일련 */
     public String nextOrderNo(LocalDate day) {
         Integer seq = jdbc.queryForObject("INSERT INTO group_buy_order_counters (day, last_seq) VALUES (?, 1) ON CONFLICT (day) DO UPDATE "
                 + "SET last_seq = group_buy_order_counters.last_seq + 1 RETURNING last_seq", Integer.class, Date.valueOf(day));
@@ -77,30 +106,35 @@ public class ParticipationStore {
 
     // ── 읽기 ────────────────────────────────────────────────────────────────
 
+    private JPAQuery<ParticipationRow> rows() {
+        return query.select(ROW).from(PA);
+    }
+
     public Optional<ParticipationRow> find(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE id = ?", ParticipationStore::row, id).stream().findFirst();
+        return Optional.ofNullable(rows().where(PA.id.eq(id)).fetchFirst());
     }
 
     /** 주문 행을 잠그고 읽는다 — 결제가 PAID 인 흐름(취소를 넣는 흐름)만 주문 행을 먼저 잠근다(결정 37) */
     public Optional<ParticipationRow> lock(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE id = ? FOR UPDATE", ParticipationStore::row, id).stream().findFirst();
+        return lockRow(PA, PA.id, id) ? find(id) : Optional.empty();
     }
 
     /** 잠겨 있으면 건너뛴다(환불 워커 — 서버 여럿이 나눠 잡는다, 결정 61) */
     public Optional<ParticipationRow> lockSkipLocked(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE id = ? FOR UPDATE SKIP LOCKED", ParticipationStore::row, id).stream().findFirst();
+        return lockRowSkipLocked(PA, PA.id, id) ? find(id) : Optional.empty();
     }
 
     public List<ItemRow> items(long participationId) {
-        return jdbc.query("SELECT i.id, i.participation_id, i.group_buy_id, i.sku_id, s.kind = 'MAIN', i.qty, i.unit_price, i.item_amount, i.canceled_qty, i.returned_qty, "
-                + "i.restocked_qty FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id WHERE i.participation_id = ? ORDER BY i.sku_id",
-                ParticipationStore::item, participationId);
+        return query.select(I.id, I.participationId, I.groupBuyId, I.skuId, S.kind, I.qty, I.unitPrice, I.itemAmount, I.canceledQty, I.returnedQty, I.restockedQty).from(I)
+                .join(S).on(S.id.eq(I.skuId)).where(I.participationId.eq(participationId)).orderBy(I.skuId.asc()).fetch().stream()
+                .map(t -> new ItemRow(t.get(I.id), t.get(I.participationId), t.get(I.groupBuyId), t.get(I.skuId), t.get(S.kind) == SkuKind.MAIN, n(t.get(I.qty)),
+                        n(t.get(I.unitPrice)), n(t.get(I.itemAmount)), n(t.get(I.canceledQty)), n(t.get(I.returnedQty)), n(t.get(I.restockedQty))))
+                .toList();
     }
 
     /** 그 회원의 그 공구 진행 중 주문(PENDING_PAYMENT~SHIPPED) */
     public Optional<ParticipationRow> inProgress(long groupBuyId, long userId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE group_buy_id = ? AND user_id = ? AND status IN ("
-                + ParticipationStatus.sqlList(ParticipationStatus.IN_PROGRESS) + ")", ParticipationStore::row, groupBuyId, userId).stream().findFirst();
+        return Optional.ofNullable(rows().where(PA.groupBuyId.eq(groupBuyId), PA.userId.eq(userId), PA.status.in(ParticipationStatus.IN_PROGRESS)).fetchFirst());
     }
 
     /**
@@ -110,172 +144,162 @@ public class ParticipationStore {
         if (groupBuyIds.isEmpty()) {
             return 0;
         }
-        List<Object> args = new ArrayList<>();
-        args.add(userId);
-        args.addAll(groupBuyIds);
-        Integer n = jdbc.queryForObject("SELECT coalesce(sum(i.qty - i.canceled_qty - i.returned_qty), 0) FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id AND s.kind = 'MAIN' "
-                + "JOIN group_buy_participations p ON p.id = i.participation_id WHERE p.user_id = ? AND p.status <> 'EXPIRED' AND p.group_buy_id IN (" + marks(groupBuyIds)
-                + ")", Integer.class, args.toArray());
-        return n == null ? 0 : n;
+        Long n = query.select(sumLong(I.qty.subtract(I.canceledQty).subtract(I.returnedQty))).from(I).join(S).on(S.id.eq(I.skuId), S.kind.eq(SkuKind.MAIN))
+                .join(PA).on(PA.id.eq(I.participationId)).where(PA.userId.eq(userId), PA.status.ne(ParticipationStatus.EXPIRED), PA.groupBuyId.in(groupBuyIds)).fetchOne();
+        return n == null ? 0 : Math.toIntExact(n);
     }
 
     /** 선점 시간이 지난 결제 중 주문(선점 만료 워커) */
     public List<Long> overdueHolds(Instant now, int limit) {
-        return jdbc.queryForList("SELECT id FROM group_buy_participations WHERE status = 'PENDING_PAYMENT' AND reserved_until < ? ORDER BY reserved_until, id LIMIT ?",
-                Long.class, ts(now), limit);
+        return query.select(PA.id).from(PA).where(PA.status.eq(ParticipationStatus.PENDING_PAYMENT), PA.reservedUntil.lt(now)).orderBy(PA.reservedUntil.asc(), PA.id.asc())
+                .limit(limit).fetch();
     }
 
     /** 그 회원의 그 공구 주문 중 선점 시간이 지난 결제 중 주문(조회 때 정리는 본인 주문만 — 결정 85) */
     public List<Long> ownOverdueHolds(long userId, long groupBuyId, Instant now) {
-        return jdbc.queryForList("SELECT id FROM group_buy_participations WHERE user_id = ? AND group_buy_id = ? AND status = 'PENDING_PAYMENT' AND reserved_until < ?",
-                Long.class, userId, groupBuyId, ts(now));
+        return query.select(PA.id).from(PA)
+                .where(PA.userId.eq(userId), PA.groupBuyId.eq(groupBuyId), PA.status.eq(ParticipationStatus.PENDING_PAYMENT), PA.reservedUntil.lt(now)).fetch();
     }
 
     /** 불발·중단 공구의 비종결 주문(환불 워커 — 결정 61) */
     public List<Long> unsettledInClosedGroups(int limit) {
-        return jdbc.queryForList("SELECT p.id FROM group_buy_participations p JOIN group_buys g ON g.id = p.group_buy_id WHERE g.status IN ('CLOSED_FAILED', 'CANCELED') "
-                + "AND p.status IN ('PENDING_PAYMENT', 'JOINED', 'CONFIRMED', 'PREPARING') ORDER BY p.id LIMIT ?", Long.class, limit);
+        return query.select(PA.id).from(PA).join(G).on(G.id.eq(PA.groupBuyId))
+                .where(G.status.in(GroupBuyStatus.CLOSED_FAILED, GroupBuyStatus.CANCELED),
+                        PA.status.in(ParticipationStatus.PENDING_PAYMENT, ParticipationStatus.JOINED, ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING))
+                .orderBy(PA.id.asc()).limit(limit).fetch();
     }
 
     /** 최근 HOLD_TIMEOUT 만료 횟수(선점 반복 이탈 — 결정 28) */
     public int holdTimeouts(long userId, Instant since) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM participation_status_history WHERE user_id = ? AND to_status = 'EXPIRED' AND cause = 'HOLD_TIMEOUT' "
-                + "AND created_at > ?", Integer.class, userId, ts(since));
-        return n == null ? 0 : n;
+        Long n = query.select(HIS.count()).from(HIS)
+                .where(HIS.userId.eq(userId), HIS.toStatus.eq(ParticipationStatus.EXPIRED), HIS.cause.eq(ExpireCause.HOLD_TIMEOUT.name()), HIS.createdAt.gt(since)).fetchOne();
+        return n == null ? 0 : Math.toIntExact(n);
     }
 
     // ── 쓰기 ────────────────────────────────────────────────────────────────
 
     public void insert(NewParticipation p) {
-        jdbc.update("INSERT INTO group_buy_participations (id, order_no, group_buy_id, user_id, status, items_amount, shipping_fee, amount, cash_amount, group_buy_revision, "
-                        + "reserved_until, recipient_enc, phone_enc, postcode, address1_enc, address2_enc, memo_enc, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", p.id(), p.orderNo(), p.groupBuyId(), p.userId(), p.itemsAmount(),
-                p.shippingFee(), p.amount(), p.amount(), p.groupBuyRevision(), ts(p.reservedUntil()), p.recipientEnc(), p.phoneEnc(), p.postcode(), p.address1Enc(),
-                p.address2Enc(), p.memoEnc(), ts(p.now()), ts(p.now()));
+        insert(GroupBuyParticipationEntity.pending(p.id(), p.orderNo(), p.groupBuyId(), p.userId(), p.itemsAmount(), p.shippingFee(), p.amount(), p.groupBuyRevision(),
+                p.reservedUntil(), p.recipientEnc(), p.phoneEnc(), p.postcode(), p.address1Enc(), p.address2Enc(), p.memoEnc(), p.now()));
     }
 
     public void insertItem(long id, long participationId, long groupBuyId, long skuId, int qty, long unitPrice) {
-        jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, sku_id, qty, unit_price, item_amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                id, participationId, groupBuyId, skuId, qty, unitPrice, unitPrice * qty);
+        insert(GroupBuyParticipationItemEntity.create(id, participationId, groupBuyId, skuId, qty, unitPrice));
     }
 
     /** 결제 시도와 선점 끝을 붙인다(결제 중일 때만 — 결정 41) */
     public boolean attachPayment(long id, long paymentOrderId, Instant reservedUntil, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET payment_order_id = ?, reserved_until = ?, updated_at = ? WHERE id = ? AND status = 'PENDING_PAYMENT'",
-                paymentOrderId, ts(reservedUntil), ts(now), id) == 1;
+        return query.update(PA).set(PA.paymentOrderId, paymentOrderId).set(PA.reservedUntil, reservedUntil).set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT)).execute() == 1;
     }
 
     /** 결제 중 → 만료(원인). {@code dueBefore} 가 있으면 선점 시간이 그 전에 끝났을 때만(이긴 쪽만 true) */
     public boolean expire(long id, ExpireCause cause, Instant dueBefore, Instant now) {
-        if (dueBefore == null) {
-            return jdbc.update("UPDATE group_buy_participations SET status = 'EXPIRED', expire_cause = ?, expired_at = ?, updated_at = ? WHERE id = ? "
-                    + "AND status = 'PENDING_PAYMENT'", cause.name(), ts(now), ts(now), id) == 1;
+        JPAUpdateClause update = query.update(PA).set(PA.status, ParticipationStatus.EXPIRED).set(PA.expireCause, cause).set(PA.expiredAt, now).set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT));
+        if (dueBefore != null) {
+            update.where(PA.reservedUntil.lt(dueBefore));
         }
-        return jdbc.update("UPDATE group_buy_participations SET status = 'EXPIRED', expire_cause = ?, expired_at = ?, updated_at = ? WHERE id = ? "
-                + "AND status = 'PENDING_PAYMENT' AND reserved_until < ?", cause.name(), ts(now), ts(now), id, ts(dueBefore)) == 1;
+        return update.execute() == 1;
     }
 
     /** 결제 중 → JOINED(마감 후 발주) 또는 CONFIRMED(즉시 발송 — 한 번에) */
     public boolean markPaid(long id, ParticipationStatus to, long paymentOrderId, Instant paidAt, int revision, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET status = ?, payment_order_id = ?, joined_at = ?, confirmed_at = ?, group_buy_revision = ?, updated_at = ? "
-                        + "WHERE id = ? AND status = 'PENDING_PAYMENT'", to.name(), paymentOrderId, ts(paidAt), to == ParticipationStatus.CONFIRMED ? ts(paidAt) : null,
-                revision, ts(now), id) == 1;
+        return query.update(PA).set(PA.status, to).set(PA.paymentOrderId, paymentOrderId).set(PA.joinedAt, paidAt)
+                .set(PA.confirmedAt, to == ParticipationStatus.CONFIRMED ? paidAt : null).set(PA.groupBuyRevision, revision).set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.PENDING_PAYMENT)).execute() == 1;
     }
 
     /** 결제된 주문의 상태를 바꾼다(지금 상태가 {@code from} 중 하나일 때만) — CANCELED·REFUNDED 면 그 시각도 */
     public boolean transition(long id, Set<ParticipationStatus> from, ParticipationStatus to, Instant now) {
-        String at = switch (to) {
-            case CANCELED -> ", canceled_at = ?";
-            case REFUNDED -> ", refunded_at = ?";
-            case CONFIRMED -> ", confirmed_at = ?";
-            default -> "";
-        };
-        List<Object> args = new ArrayList<>();
-        args.add(to.name());
-        args.add(ts(now));
-        if (!at.isEmpty()) {
-            args.add(ts(now));
+        JPAUpdateClause update = query.update(PA).set(PA.status, to).set(PA.updatedAt, now);
+        switch (to) {
+            case CANCELED -> update.set(PA.canceledAt, now);
+            case REFUNDED -> update.set(PA.refundedAt, now);
+            case CONFIRMED -> update.set(PA.confirmedAt, now);
+            default -> {
+            }
         }
-        args.add(id);
-        return jdbc.update("UPDATE group_buy_participations SET status = ?, updated_at = ?" + at + " WHERE id = ? AND status IN (" + ParticipationStatus.sqlList(from) + ")",
-                args.toArray()) == 1;
+        return update.where(PA.id.eq(id), PA.status.in(from)).execute() == 1;
     }
 
-    /** 성사 판정 뒤 JOINED → CONFIRMED 일괄(판정 ①과 따로 — 공구 행을 쥐지 않는다). 바뀐 주문 {id, user} */
+    /**
+     * 성사 판정 뒤 JOINED → CONFIRMED 일괄(판정 ①과 따로 — 공구 행을 쥐지 않는다). 바뀐 주문 {id, 공구, user}.
+     * Native SQL 인 이유: 일괄 {@code UPDATE … RETURNING} — 이긴 줄만 같은 문장에서 받는다(알림 대상).
+     */
     public List<long[]> confirmJoinedOfSucceeded(Instant now, int limit) {
         return jdbc.query("UPDATE group_buy_participations p SET status = 'CONFIRMED', confirmed_at = ?, updated_at = ? WHERE p.id IN (SELECT q.id FROM group_buy_participations q "
                         + "JOIN group_buys g ON g.id = q.group_buy_id WHERE q.status = 'JOINED' AND g.status IN ('CLOSED_SUCCESS', 'ORDERED', 'SHIPPING') ORDER BY q.id LIMIT ?) "
-                        + "AND p.status = 'JOINED' RETURNING p.id, p.group_buy_id, p.user_id", (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3)}, ts(now),
-                ts(now), limit);
+                        + "AND p.status = 'JOINED' RETURNING p.id, p.group_buy_id, p.user_id", (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3)},
+                Timestamp.from(now), Timestamp.from(now), limit);
     }
 
     /** 줄의 취소 수량을 올린다(아직 가진 수량 안에서만) */
     public boolean cancelItemQty(long itemId, int qty) {
-        return jdbc.update("UPDATE group_buy_participation_items SET canceled_qty = canceled_qty + ? WHERE id = ? AND canceled_qty + returned_qty + ? <= qty", qty, itemId,
-                qty) == 1;
+        return query.update(I).set(I.canceledQty, I.canceledQty.add(qty)).where(I.id.eq(itemId), I.canceledQty.add(I.returnedQty).add(qty).loe(I.qty)).execute() == 1;
     }
 
     /** 환불·보상 누계를 올린다 — 합쳐 남은 결제액을 넘지 않을 때만(결정 38·39 — 공구가 상한의 정본) */
     public boolean addRefunded(long id, long refund, long compensation, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET refunded_amount = refunded_amount + ?, compensation_amount = compensation_amount + ?, updated_at = ? WHERE id = ? "
-                + "AND refunded_amount + compensation_amount + ? + ? <= cash_amount AND refunded_amount + ? <= amount", refund, compensation, ts(now), id, refund, compensation,
-                refund) == 1;
+        return query.update(PA).set(PA.refundedAmount, PA.refundedAmount.add(refund)).set(PA.compensationAmount, PA.compensationAmount.add(compensation))
+                .set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.refundedAmount.add(PA.compensationAmount).add(refund).add(compensation).loe(PA.cashAmount),
+                        PA.refundedAmount.add(refund).loe(PA.amount))
+                .execute() == 1;
     }
 
     /** 재부과 배송비 누계(결정 33·42) */
     public void addReshippingCharged(long id, long fee, Instant now) {
-        jdbc.update("UPDATE group_buy_participations SET reshipping_fee_charged = reshipping_fee_charged + ?, updated_at = ? WHERE id = ?", fee, ts(now), id);
+        query.update(PA).set(PA.reshippingFeeCharged, PA.reshippingFeeCharged.add(fee)).set(PA.updatedAt, now).where(PA.id.eq(id)).execute();
     }
 
     public void insertHistory(long id, ParticipationRow p, ParticipationStatus from, ParticipationStatus to, String cause, Long actorId, Instant now) {
-        jdbc.update("INSERT INTO participation_status_history (id, participation_id, group_buy_id, user_id, from_status, to_status, cause, actor_id, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, p.id(), p.groupBuyId(), p.userId(), from == null ? null : from.name(), to.name(), cause, actorId, ts(now));
+        insert(ParticipationStatusHistoryEntity.create(id, p.id(), p.groupBuyId(), p.userId(), from, to, cause, actorId, now));
     }
 
     public void insertHistory(long id, long participationId, long groupBuyId, long userId, ParticipationStatus from, ParticipationStatus to, String cause, Instant now) {
-        jdbc.update("INSERT INTO participation_status_history (id, participation_id, group_buy_id, user_id, from_status, to_status, cause, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", id, participationId, groupBuyId, userId, from == null ? null : from.name(), to.name(), cause, ts(now));
+        insert(ParticipationStatusHistoryEntity.create(id, participationId, groupBuyId, userId, from, to, cause, null, now));
     }
 
     // ── 발송·반품(2b-3) ──────────────────────────────────────────────────────
 
     /** 준비중(CONFIRMED → PREPARING — 운영자가 포장을 시작했다, 10-3) */
     public boolean prepare(long id, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET status = 'PREPARING', updated_at = ? WHERE id = ? AND status = 'CONFIRMED'", ts(now), id) == 1;
+        return query.update(PA).set(PA.status, ParticipationStatus.PREPARING).set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.CONFIRMED)).execute() == 1;
     }
 
     /** 발송(CONFIRMED·PREPARING → SHIPPED) — 처음 배송비를 고정한다: 낸 배송비 + 그때까지의 재부과(결정 43) */
     public boolean ship(long id, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET status = 'SHIPPED', shipped_at = ?, shipped_shipping_fee = shipping_fee + reshipping_fee_charged, updated_at = ? "
-                + "WHERE id = ? AND status IN ('CONFIRMED', 'PREPARING')", ts(now), ts(now), id) == 1;
+        return query.update(PA).set(PA.status, ParticipationStatus.SHIPPED).set(PA.shippedAt, now).set(PA.shippedShippingFee, PA.shippingFee.add(PA.reshippingFeeCharged))
+                .set(PA.updatedAt, now).where(PA.id.eq(id), PA.status.in(ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING)).execute() == 1;
     }
 
     /** 배송완료(SHIPPED → DELIVERED — 청약철회 7일의 시작, 결정 7) */
     public boolean deliver(long id, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET status = 'DELIVERED', delivered_at = ?, updated_at = ? WHERE id = ? AND status = 'SHIPPED'", ts(now), ts(now),
-                id) == 1;
+        return query.update(PA).set(PA.status, ParticipationStatus.DELIVERED).set(PA.deliveredAt, now).set(PA.updatedAt, now)
+                .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.SHIPPED)).execute() == 1;
     }
 
     /** 줄의 반품 수량을 올린다(회수 확인 때 — 결정 83, 아직 가진 수량 안에서만) */
     public boolean returnItemQty(long itemId, int qty) {
-        return jdbc.update("UPDATE group_buy_participation_items SET returned_qty = returned_qty + ? WHERE id = ? AND canceled_qty + returned_qty + ? <= qty", qty, itemId,
-                qty) == 1;
+        return query.update(I).set(I.returnedQty, I.returnedQty.add(qty)).where(I.id.eq(itemId), I.canceledQty.add(I.returnedQty).add(qty).loe(I.qty)).execute() == 1;
     }
 
     /** 다시 판매 수량(반품 수량 안에서만 — 결정 15) */
     public boolean restockItemQty(long itemId, int qty) {
-        return jdbc.update("UPDATE group_buy_participation_items SET restocked_qty = restocked_qty + ? WHERE id = ? AND restocked_qty + ? <= returned_qty", qty, itemId, qty) == 1;
+        return query.update(I).set(I.restockedQty, I.restockedQty.add(qty)).where(I.id.eq(itemId), I.restockedQty.add(qty).loe(I.returnedQty)).execute() == 1;
     }
 
     /** 교환 출고 수량(기록만 — 결정 54) */
     public void exchangeItemQty(long itemId, int qty) {
-        jdbc.update("UPDATE group_buy_participation_items SET exchanged_qty = exchanged_qty + ? WHERE id = ?", qty, itemId);
+        query.update(I).set(I.exchangedQty, I.exchangedQty.add(qty)).where(I.id.eq(itemId)).execute();
     }
 
     /** 재부과 누계를 고친다(반품의 재부과 − 돌려줌, 음수 가능 — 결정 33·43) */
     public void addReshippingDelta(long id, long delta, Instant now) {
         if (delta != 0) {
-            jdbc.update("UPDATE group_buy_participations SET reshipping_fee_charged = reshipping_fee_charged + ?, updated_at = ? WHERE id = ?", delta, ts(now), id);
+            addReshippingCharged(id, delta, now);
         }
     }
 
@@ -284,62 +308,92 @@ public class ParticipationStore {
                              Instant maskedAt) {
     }
 
-    private static final String ADDRESS_COLUMNS = "id, recipient_enc, phone_enc, postcode, address1_enc, address2_enc, memo_enc, address_masked_at";
-
-    private static AddressRow addressRow(ResultSet rs, int i) throws SQLException {
-        return new AddressRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), instant(rs.getTimestamp(8)));
-    }
+    private static final ConstructorExpression<AddressRow> ADDRESS = Projections.constructor(AddressRow.class, PA.id, PA.recipientEnc, PA.phoneEnc, PA.postcode,
+            PA.address1Enc, PA.address2Enc, PA.memoEnc, PA.addressMaskedAt);
 
     public Optional<AddressRow> address(long id) {
-        return jdbc.query("SELECT " + ADDRESS_COLUMNS + " FROM group_buy_participations WHERE id = ?", ParticipationStore::addressRow, id).stream().findFirst();
+        return Optional.ofNullable(query.select(ADDRESS).from(PA).where(PA.id.eq(id)).fetchFirst());
     }
 
     /** 배송지 수정(파기되지 않은 주문만 — 기한은 서비스, 결정 30) */
     public boolean updateAddress(long id, String recipientEnc, String phoneEnc, String postcode, String address1Enc, String address2Enc, String memoEnc, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET recipient_enc = ?, phone_enc = ?, postcode = ?, address1_enc = ?, address2_enc = ?, memo_enc = ?, updated_at = ? "
-                + "WHERE id = ? AND address_masked_at IS NULL", recipientEnc, phoneEnc, postcode, address1Enc, address2Enc, memoEnc, ts(now), id) == 1;
+        return query.update(PA).set(PA.recipientEnc, recipientEnc).set(PA.phoneEnc, phoneEnc).set(PA.postcode, postcode).set(PA.address1Enc, address1Enc)
+                .set(PA.address2Enc, address2Enc).set(PA.memoEnc, memoEnc).set(PA.updatedAt, now).where(PA.id.eq(id), PA.addressMaskedAt.isNull()).execute() == 1;
     }
 
     /** 배송 명단 대상 — 발송 전 결제된 주문(CONFIRMED·PREPARING — 결정 30) */
     public List<AddressRow> exportAddresses(long groupBuyId) {
-        return jdbc.query("SELECT " + ADDRESS_COLUMNS + " FROM group_buy_participations WHERE group_buy_id = ? AND status IN ('CONFIRMED', 'PREPARING') ORDER BY id",
-                ParticipationStore::addressRow, groupBuyId);
+        return query.select(ADDRESS).from(PA).where(PA.groupBuyId.eq(groupBuyId), PA.status.in(ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING))
+                .orderBy(PA.id.asc()).fetch();
     }
 
     /** 그 공구에서 그 상태의 주문 */
     public List<ParticipationRow> ofGroup(long groupBuyId, Set<ParticipationStatus> statuses) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE group_buy_id = ? AND status IN (" + ParticipationStatus.sqlList(statuses) + ") ORDER BY id",
-                ParticipationStore::row, groupBuyId);
+        return rows().where(PA.groupBuyId.eq(groupBuyId), PA.status.in(statuses)).orderBy(PA.id.asc()).fetch();
+    }
+
+    /** 중단 요약 — 환불할 발송 전 주문 수·그 남은 결제액 합, 이미 발송한 주문 수, 결제 중 주문 수 */
+    public record CancelCounts(int refundOrders, long refundAmount, int shippedOrders, int pendingOrders) {
+    }
+
+    /** 중단 확인 창의 숫자(결정 29) — 한 문장, 상태별 합은 CASE 로 */
+    public CancelCounts cancelCounts(long groupBuyId) {
+        com.querydsl.core.types.dsl.BooleanExpression beforeShipping = PA.status.in(ParticipationStatus.JOINED, ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING);
+        com.querydsl.core.types.dsl.NumberExpression<Long> refundOrders = sumLong(new CaseBuilder().when(beforeShipping).then(1L).otherwise(0L));
+        com.querydsl.core.types.dsl.NumberExpression<Long> refundAmount = sumLong(new CaseBuilder().when(beforeShipping)
+                .then(PA.cashAmount.subtract(PA.refundedAmount).subtract(PA.compensationAmount)).otherwise(0L));
+        com.querydsl.core.types.dsl.NumberExpression<Long> shipped = sumLong(new CaseBuilder()
+                .when(PA.status.in(ParticipationStatus.SHIPPED, ParticipationStatus.DELIVERED)).then(1L).otherwise(0L));
+        com.querydsl.core.types.dsl.NumberExpression<Long> pending = sumLong(new CaseBuilder().when(PA.status.eq(ParticipationStatus.PENDING_PAYMENT)).then(1L).otherwise(0L));
+        com.querydsl.core.Tuple t = query.select(refundOrders, refundAmount, shipped, pending).from(PA).where(PA.groupBuyId.eq(groupBuyId)).fetchOne();
+        return t == null ? new CancelCounts(0, 0, 0, 0)
+                : new CancelCounts(Math.toIntExact(n(t.get(refundOrders))), n(t.get(refundAmount)), Math.toIntExact(n(t.get(shipped))), Math.toIntExact(n(t.get(pending))));
+    }
+
+    /**
+     * 발송 기한 재료(결정 51) — 발송 전 주문(CONFIRMED·PREPARING)마다 공구의 발송 방식·예정일·영업일, 결제(확정) 시각, 그 뒤 마지막 발송 지연 공지의 새 예정일.
+     * {@code participationId} 가 있으면 그 주문만. 지연 공지는 공구마다 한 번에 읽어 주문마다 「결제 시각 이후 가장 늦게 낸 공지」를 고른다(예전 {@code ORDER BY created_at DESC LIMIT 1} 서브쿼리와 같은 값).
+     */
+    public List<ShipDueRow> shipDueRows(Long participationId) {
+        com.querydsl.core.types.dsl.DateTimeExpression<Instant> paid = PA.confirmedAt.coalesce(PA.joinedAt);
+        JPAQuery<com.querydsl.core.Tuple> q = query.select(PA.id, PA.groupBuyId, G.fulfillment, G.shipPlannedAt, G.shipWithinBusinessDays, paid).from(PA).join(G)
+                .on(G.id.eq(PA.groupBuyId)).where(PA.status.in(ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING));
+        if (participationId != null) {
+            q.where(PA.id.eq(participationId));
+        }
+        List<com.querydsl.core.Tuple> rows = q.fetch();
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<com.querydsl.core.Tuple>> notices = new HashMap<>();
+        query.select(DN.groupBuyId, DN.createdAt, DN.newPlannedAt).from(DN).where(DN.groupBuyId.in(rows.stream().map(t -> t.get(PA.groupBuyId)).distinct().toList()))
+                .orderBy(DN.createdAt.desc()).fetch().forEach(t -> notices.computeIfAbsent(t.get(DN.groupBuyId), k -> new java.util.ArrayList<>()).add(t));
+        return rows.stream().map(t -> {
+            Instant paidAt = t.get(paid);
+            LocalDate delayed = paidAt == null ? null : notices.getOrDefault(t.get(PA.groupBuyId), List.of()).stream()
+                    .filter(n -> !n.get(DN.createdAt).isBefore(paidAt)).findFirst().map(n -> n.get(DN.newPlannedAt)).orElse(null);
+            return new ShipDueRow(t.get(PA.id), t.get(PA.groupBuyId), t.get(G.fulfillment), t.get(G.shipPlannedAt), t.get(G.shipWithinBusinessDays), paidAt, delayed);
+        }).toList();
+    }
+
+    /** 발송 기한 재료 한 줄 */
+    public record ShipDueRow(long participationId, long groupBuyId, String fulfillment, LocalDate shipPlannedAt, Integer shipWithinBusinessDays, Instant paidAt,
+                             LocalDate delayedPlannedAt) {
     }
 
     /**
      * 줄마다 금액만 돌려준 운영 환불 중 아직 반품 환불에서 빼지 않은 몫(결정 71) — 운영 환불 기록의 줄 내역({@code amountOnly}) 합 − 끝난 반품 요청 줄의 {@code prior_refund_offset} 합.
+     * 앞 합은 Native SQL — 이유: 환불 기록의 줄 내역 jsonb 를 {@code jsonb_array_elements} 로 펼쳐 더한다.
      */
-    public java.util.Map<Long, Long> priorRefundLeft(long participationId) {
-        java.util.Map<Long, Long> out = new java.util.HashMap<>();
+    public Map<Long, Long> priorRefundLeft(long participationId) {
+        Map<Long, Long> out = new HashMap<>();
         jdbc.query("SELECT (l->>'itemId')::bigint, sum((l->>'amount')::bigint) FROM group_buy_refunds r, jsonb_array_elements(r.lines) l WHERE r.participation_id = ? "
-                + "AND r.cause = 'ADMIN' AND coalesce((l->>'amountOnly')::boolean, false) GROUP BY 1", (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                + "AND r.cause = 'ADMIN' AND coalesce((l->>'amountOnly')::boolean, false) GROUP BY 1", (RowCallbackHandler) rs -> {
             out.merge(rs.getLong(1), rs.getLong(2), Long::sum);
         }, participationId);
-        jdbc.query("SELECT ri.participation_item_id, sum(ri.prior_refund_offset) FROM group_buy_request_items ri JOIN group_buy_requests rq ON rq.id = ri.request_id "
-                + "WHERE rq.participation_id = ? AND rq.status = 'COMPLETED' GROUP BY 1", (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
-            out.merge(rs.getLong(1), -rs.getLong(2), Long::sum);
-        }, participationId);
+        query.select(RI.participationItemId, sumLong(RI.priorRefundOffset)).from(RI).join(RQ).on(RQ.id.eq(RI.requestId))
+                .where(RQ.participationId.eq(participationId), RQ.status.eq(RequestStatus.COMPLETED)).groupBy(RI.participationItemId).fetch()
+                .forEach(t -> out.merge(t.get(0, Long.class), -n(t.get(1, Long.class)), Long::sum));
         return out;
-    }
-
-    static ParticipationRow row(ResultSet rs, int i) throws SQLException {
-        String cause = rs.getString("expire_cause");
-        return new ParticipationRow(rs.getLong("id"), rs.getString("order_no"), rs.getLong("group_buy_id"), rs.getLong("user_id"),
-                ParticipationStatus.valueOf(rs.getString("status")), rs.getLong("items_amount"), rs.getLong("shipping_fee"), rs.getLong("amount"), rs.getLong("point_amount"),
-                rs.getLong("cash_amount"), rs.getLong("refunded_amount"), rs.getLong("compensation_amount"), rs.getLong("reshipping_fee_charged"),
-                rs.getInt("group_buy_revision"), nLong(rs, "payment_order_id"), instant(rs.getTimestamp("reserved_until")), cause == null ? null : ExpireCause.valueOf(cause),
-                instant(rs.getTimestamp("joined_at")), instant(rs.getTimestamp("created_at")), nLong(rs, "shipped_shipping_fee"),
-                instant(rs.getTimestamp("shipped_at")), instant(rs.getTimestamp("delivered_at")), instant(rs.getTimestamp("address_masked_at")));
-    }
-
-    static ItemRow item(ResultSet rs, int i) throws SQLException {
-        return new ItemRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getBoolean(5), rs.getInt(6), rs.getLong(7), rs.getLong(8), rs.getInt(9), rs.getInt(10),
-                rs.getInt(11));
     }
 }

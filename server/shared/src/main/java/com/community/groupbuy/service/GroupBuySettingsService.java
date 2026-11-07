@@ -6,8 +6,8 @@ import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.zconfiguration.exception.ValidationException;
+import com.community.groupbuy.repository.master.GroupBuySettingsStore;
 import com.community.zconfiguration.message.MessageRef;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -16,9 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,29 +50,22 @@ public class GroupBuySettingsService {
     public record Values(Map<String, Long> numbers, Instant updatedAt, String updatedBy) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuySettingsStore store;
     private final AuditLogService audit;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuySettingsService(DataSource dataSource, AuditLogService audit, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public GroupBuySettingsService(GroupBuySettingsStore store, AuditLogService audit, ObjectProvider<Clock> clocks) {
+        this.store = store;
         this.audit = audit;
         this.clocks = clocks;
     }
 
     @Transactional(readOnly = true)
     public Values load() {
-        StringBuilder sql = new StringBuilder("SELECT ");
-        FIELDS.forEach(f -> sql.append("s.").append(f.column()).append(", "));
-        sql.append("s.updated_at, o.operator_name FROM group_buy_settings s LEFT JOIN operators o ON o.id = s.updated_by WHERE s.id = 1");
-        return jdbc.queryForObject(sql.toString(), (rs, i) -> {
-            Map<String, Long> numbers = new LinkedHashMap<>();
-            for (int k = 0; k < FIELDS.size(); k++) {
-                numbers.put(FIELDS.get(k).name(), rs.getLong(k + 1));
-            }
-            Timestamp at = rs.getTimestamp(FIELDS.size() + 1);
-            return new Values(numbers, at == null ? null : at.toInstant(), rs.getString(FIELDS.size() + 2));
-        });
+        GroupBuySettingsStore.Stored stored = store.load(FIELDS.stream().map(Field::column).toList());
+        Map<String, Long> numbers = new LinkedHashMap<>();
+        FIELDS.forEach(f -> numbers.put(f.name(), stored.numbers().get(f.column())));
+        return new Values(numbers, stored.updatedAt(), stored.updatedBy());
     }
 
     /**
@@ -89,18 +80,11 @@ public class GroupBuySettingsService {
                 throw ValidationException.of("values." + f.name(), new MessageRef("groupbuy.settings.range", f.min(), f.max()));
             }
         }
-        jdbc.queryForObject("SELECT id FROM group_buy_settings WHERE id = 1 FOR UPDATE", Integer.class);
+        store.lock();
         Values before = load();
-        StringBuilder sql = new StringBuilder("UPDATE group_buy_settings SET ");
-        List<Object> args = new ArrayList<>();
-        for (Field f : FIELDS) {
-            sql.append(f.column()).append(" = ?, ");
-            args.add(in.get(f.name()));
-        }
-        sql.append("updated_by = ?, updated_at = ? WHERE id = 1");
-        args.add(operatorId);
-        args.add(Timestamp.from(clocks.getIfUnique(Clock::systemUTC).instant().truncatedTo(ChronoUnit.MICROS)));
-        jdbc.update(sql.toString(), args.toArray());
+        Map<String, Long> byColumn = new LinkedHashMap<>();
+        FIELDS.forEach(f -> byColumn.put(f.column(), in.get(f.name())));
+        store.save(byColumn, operatorId, clocks.getIfUnique(Clock::systemUTC).instant().truncatedTo(ChronoUnit.MICROS));
 
         Map<String, Object> beforeChanged = new LinkedHashMap<>();
         Map<String, Object> afterChanged = new LinkedHashMap<>();

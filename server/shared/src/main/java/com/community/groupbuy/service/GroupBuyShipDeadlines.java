@@ -2,15 +2,13 @@ package com.community.groupbuy.service;
 
 import com.community.holiday.service.BusinessDayCalendar;
 import com.community.groupbuy.repository.master.GroupBuyStore;
+import com.community.groupbuy.repository.master.ParticipationStore;
+import com.community.groupbuy.repository.master.ParticipationStore.ShipDueRow;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,24 +27,24 @@ public class GroupBuyShipDeadlines {
     public record Due(long participationId, long groupBuyId, Instant dueAt) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final ParticipationStore participations;
     private final GroupBuyStore groups;
 
-    public GroupBuyShipDeadlines(DataSource dataSource, GroupBuyStore groups) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public GroupBuyShipDeadlines(ParticipationStore participations, GroupBuyStore groups) {
+        this.participations = participations;
         this.groups = groups;
     }
 
     /** 주문 하나의 발송 기한(발송 전 주문이 아니면 null) */
     public Instant dueAt(long participationId) {
-        List<Due> rows = query(" AND pa.id = ?", participationId);
+        List<Due> rows = query(participationId);
         return rows.isEmpty() ? null : rows.get(0).dueAt();
     }
 
     /** 기한이 {@code now} 이전인 발송 전 주문(오래된 기한 차례, 최대 {@code limit}) */
     public List<Due> overdue(Instant now, int limit) {
         List<Due> out = new ArrayList<>();
-        for (Due d : query("")) {
+        for (Due d : query(null)) {
             if (d.dueAt() != null && d.dueAt().isBefore(now)) {
                 out.add(d);
             }
@@ -55,26 +53,22 @@ public class GroupBuyShipDeadlines {
         return out.size() > limit ? out.subList(0, limit) : out;
     }
 
-    private List<Due> query(String where, Object... args) {
+    private List<Due> query(Long participationId) {
         BusinessDayCalendar holidays = groups.settings().calendar();
-        return jdbc.query("SELECT pa.id, pa.group_buy_id, g.fulfillment, g.ship_planned_at, g.ship_within_business_days, COALESCE(pa.confirmed_at, pa.joined_at), "
-                + "(SELECT n.new_planned_at FROM group_buy_delay_notices n WHERE n.group_buy_id = g.id AND n.created_at >= COALESCE(pa.confirmed_at, pa.joined_at) "
-                + "ORDER BY n.created_at DESC LIMIT 1) FROM group_buy_participations pa JOIN group_buys g ON g.id = pa.group_buy_id "
-                + "WHERE pa.status IN ('CONFIRMED', 'PREPARING')" + where, (rs, i) -> {
-            Date planned = rs.getDate(4);
-            Timestamp paid = rs.getTimestamp(6);
-            Date delayed = rs.getDate(7);
+        List<Due> out = new ArrayList<>();
+        for (ShipDueRow r : participations.shipDueRows(participationId)) {
             Instant due;
-            if (delayed != null) {
-                due = dayAfter(delayed.toLocalDate());
-            } else if ("AFTER_CLOSE".equals(rs.getString(3))) {
-                due = planned == null ? null : dayAfter(planned.toLocalDate());
+            if (r.delayedPlannedAt() != null) {
+                due = dayAfter(r.delayedPlannedAt());
+            } else if ("AFTER_CLOSE".equals(r.fulfillment())) {
+                due = r.shipPlannedAt() == null ? null : dayAfter(r.shipPlannedAt());
             } else {
-                int days = rs.getObject(5) == null ? 3 : rs.getInt(5);
-                due = paid == null ? null : GroupBuyBusinessDays.endOfBusinessDays(paid.toInstant(), days, holidays);
+                int days = r.shipWithinBusinessDays() == null ? 3 : r.shipWithinBusinessDays();
+                due = r.paidAt() == null ? null : GroupBuyBusinessDays.endOfBusinessDays(r.paidAt(), days, holidays);
             }
-            return new Due(rs.getLong(1), rs.getLong(2), due);
-        }, args);
+            out.add(new Due(r.participationId(), r.groupBuyId(), due));
+        }
+        return out;
     }
 
     private static Instant dayAfter(LocalDate day) {

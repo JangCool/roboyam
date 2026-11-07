@@ -1,30 +1,43 @@
 package com.community.groupbuy.repository.master;
 
-import static com.community.groupbuy.repository.master.GroupBuyStore.ts;
-
+import com.community.groupbuy.entity.GroupBuyQtyMovementEntity;
+import com.community.groupbuy.entity.GroupBuyStatus;
+import com.community.groupbuy.entity.QGroupBuyEntity;
+import com.community.groupbuy.entity.QGroupBuyQtyMovementEntity;
 import com.community.groupbuy.entity.QtyMovementKind;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 공구·단품 <b>수량 열</b>과 수량 이동 줄 — 모두 한 문장 조건부 UPDATE … RETURNING(이후 값을 따로 SELECT 하지 않는다 — 결정 82). 0 행이면 빈 값(조건에 졌다).
  * 부르는 쪽은 {@code GroupBuyQtyService} 하나다(수량을 바꾸는 유일한 길). 잠금 차례는 <b>공구 행 → 단품 행(ID 오름차순, 한 줄씩)</b>.
  * 공구 행의 current·reserved·max 는 MAIN 단품 수량만이다(추가 구성상품은 단품 행만 — 결정 88).
+ *
+ * <p>Native SQL 로 남긴 것과 이유: 수량 열의 조건부 {@code UPDATE … RETURNING current, reserved, max} 전부(설계 결정 82 — 이긴 쪽만 바꾸고 <b>바꾼 뒤의 값을 같은 문장에서</b>
+ * 받아 이동 줄에 적는다. 따로 SELECT 하면 다른 트랜잭션의 변경이 섞인다). 이 문장들은 결제 확정({@code onPaid})의 JDBC 세이브포인트 안에서도 돈다 — JDBC 라 실패해도
+ * 세이브포인트만 되돌아가고 업무 트랜잭션은 계속 쓸 수 있다. 다 팔림 마감·이동 줄·창 안의 이동 묻기는 QueryDSL(즉시 실행 · {@code persist} 직후 {@code flush}).
  */
 @Repository
-public class GroupBuyQtyStore {
+public class GroupBuyQtyStore extends GroupBuyStoreSupport {
+
+    private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
+    private static final QGroupBuyQtyMovementEntity M = QGroupBuyQtyMovementEntity.groupBuyQtyMovementEntity;
 
     /** 바꾼 뒤의 값 — 단품의 {@code max} 는 한도가 없으면 null */
     public record After(int current, int reserved, Integer max) {
     }
 
-    private final JdbcTemplate jdbc;
+    public GroupBuyQtyStore(JPAQueryFactory query, EntityManager entityManager, DataSource dataSource) {
+        super(query, entityManager, dataSource);
+    }
 
-    public GroupBuyQtyStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    private static Timestamp ts(Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 
     private Optional<After> one(String sql, Object... args) {
@@ -82,8 +95,8 @@ public class GroupBuyQtyStore {
 
     /** 다 팔리면 그 자리에서 CLOSING(결정 27·48·78·88) — 모집 중일 때만(이긴 쪽만 true) */
     public boolean closeIfSoldOut(long groupBuyId, Instant now) {
-        return jdbc.update("UPDATE group_buys g SET status = 'CLOSING', close_reason = 'SOLD_OUT', closing_at = ?, updated_at = ? WHERE g.id = ? AND g.status = 'RECRUITING' "
-                + "AND " + GroupBuyStore.SOLD_OUT_CONDITION, ts(now), ts(now), groupBuyId) == 1;
+        return query.update(G).set(G.status, GroupBuyStatus.CLOSING).set(G.closeReason, "SOLD_OUT").set(G.closingAt, now).set(G.updatedAt, now)
+                .where(G.id.eq(groupBuyId), G.status.eq(GroupBuyStatus.RECRUITING), GroupBuyStore.soldOut(G)).execute() == 1;
     }
 
     // ── 단품 행 ─────────────────────────────────────────────────────────────
@@ -141,17 +154,14 @@ public class GroupBuyQtyStore {
     /** 수량 이동 한 줄 — 공구 이후 값은 공구 행을 바꾼 이동만({@code group} null 이면 비움), 단품 이후 값은 단품 이동만 */
     public void insertMovement(long id, long groupBuyId, Long skuId, Long participationId, Long itemId, QtyMovementKind kind, int qty, After group, After sku,
                                String reason, Long actorId, Instant now) {
-        jdbc.update("INSERT INTO group_buy_qty_movements (id, group_buy_id, sku_id, participation_id, participation_item_id, kind, qty, current_after, reserved_after, "
-                        + "max_after, sku_current_after, sku_reserved_after, sku_max_after, reason, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                id, groupBuyId, skuId, participationId, itemId, kind.name(), qty, group == null ? null : group.current(), group == null ? null : group.reserved(),
-                group == null ? null : group.max(), sku == null ? null : sku.current(), sku == null ? null : sku.reserved(), sku == null ? null : sku.max(), reason, actorId,
-                ts(now));
+        insert(GroupBuyQtyMovementEntity.create(id, groupBuyId, skuId, participationId, itemId, kind, qty, group == null ? null : group.current(),
+                group == null ? null : group.reserved(), group == null ? null : group.max(), sku == null ? null : sku.current(), sku == null ? null : sku.reserved(),
+                sku == null ? null : sku.max(), reason, actorId, now));
     }
 
     /** 마감 판단 창 안에 MAIN 남은 수량을 늘린 이동이 있었는가(DEMAND 연장 — 결정 25·81) — 공구 행을 바꾼 이동만 */
     public boolean releasedBetween(long groupBuyId, Instant from, Instant to) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM group_buy_qty_movements WHERE group_buy_id = ? AND kind IN ('RELEASE', 'CANCEL', 'RESTOCK', 'ADD') "
-                + "AND current_after IS NOT NULL AND created_at >= ? AND created_at <= ?", Integer.class, groupBuyId, ts(from), ts(to));
-        return n != null && n > 0;
+        return query.selectOne().from(M).where(M.groupBuyId.eq(groupBuyId), M.kind.in(QtyMovementKind.RELEASE, QtyMovementKind.CANCEL, QtyMovementKind.RESTOCK, QtyMovementKind.ADD),
+                M.currentAfter.isNotNull(), M.createdAt.goe(from), M.createdAt.loe(to)).fetchFirst() != null;
     }
 }
