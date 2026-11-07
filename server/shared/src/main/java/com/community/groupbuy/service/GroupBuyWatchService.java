@@ -5,18 +5,16 @@ import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.WatchKind;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyStore;
+import com.community.groupbuy.repository.master.GroupBuyWatchStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,14 +34,14 @@ public class GroupBuyWatchService {
     private static final Set<GroupBuyStatus> ENDED = Set.of(GroupBuyStatus.CLOSING, GroupBuyStatus.CLOSED_SUCCESS, GroupBuyStatus.ORDERED, GroupBuyStatus.SHIPPING,
             GroupBuyStatus.COMPLETED, GroupBuyStatus.CLOSED_FAILED);
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyWatchStore store;
     private final GroupBuyStore groups;
     private final GroupBuyQuoteService quotes;
     private final SnowflakeIdGenerator ids;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyWatchService(DataSource dataSource, GroupBuyStore groups, GroupBuyQuoteService quotes, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public GroupBuyWatchService(GroupBuyWatchStore store, GroupBuyStore groups, GroupBuyQuoteService quotes, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+        this.store = store;
         this.groups = groups;
         this.quotes = quotes;
         this.ids = ids;
@@ -73,8 +71,7 @@ public class GroupBuyWatchService {
 
     @Transactional(readOnly = true)
     public List<Watch> mine(long userId, long groupBuyId) {
-        return jdbc.query("SELECT kind, sku_id FROM group_buy_watches WHERE group_buy_id = ? AND user_id = ?",
-                (rs, i) -> new Watch(WatchKind.valueOf(rs.getString(1)), rs.getObject(2) == null ? null : rs.getLong(2)), groupBuyId, userId);
+        return store.mine(userId, groupBuyId).stream().map(w -> new Watch(w.kind(), w.skuId())).toList();
     }
 
     @Transactional
@@ -92,8 +89,7 @@ public class GroupBuyWatchService {
         if (!ok) {
             throw GroupBuyException.invalidState();
         }
-        jdbc.update("INSERT INTO group_buy_watches (id, group_buy_id, user_id, kind, sku_id, created_at) VALUES (?, ?, ?, ?, ?, ?) "
-                + "ON CONFLICT (group_buy_id, user_id, kind, sku_id) DO NOTHING", ids.nextId(), groupBuyId, userId, kind.name(), skuId, Timestamp.from(now));
+        store.insert(ids.nextId(), groupBuyId, userId, kind, skuId, now);
     }
 
     @Transactional
@@ -101,7 +97,6 @@ public class GroupBuyWatchService {
         if (kind == null) {
             throw ValidationException.of("kind", new MessageRef("groupbuy.watch.kind.invalid"));
         }
-        jdbc.update("DELETE FROM group_buy_watches WHERE group_buy_id = ? AND user_id = ? AND kind = ? AND sku_id IS NOT DISTINCT FROM ?", groupBuyId, userId, kind.name(),
-                skuId);
+        store.delete(userId, groupBuyId, kind, skuId);
     }
 }

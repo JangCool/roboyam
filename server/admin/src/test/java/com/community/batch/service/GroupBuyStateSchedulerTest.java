@@ -67,7 +67,7 @@ class GroupBuyStateSchedulerTest {
 
     /** 기한 점검(2b-4 — 1시간) — 한 바퀴의 일은 shared GroupBuyNotificationsTest 가 본다 */
     private static com.community.groupbuy.service.GroupBuyDeadlineWatch deadline() {
-        return new com.community.groupbuy.service.GroupBuyDeadlineWatch(dataSource, null, null, null, null, null, null) {
+        return new com.community.groupbuy.service.GroupBuyDeadlineWatch(null, null, null, null, null, null, null) {
             @Override
             public Result runOnce() {
                 DEADLINE_CALLS.incrementAndGet();

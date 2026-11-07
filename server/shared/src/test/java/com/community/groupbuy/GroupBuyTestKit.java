@@ -73,8 +73,6 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
-import jakarta.persistence.EntityManager;
-import java.lang.reflect.Proxy;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -281,7 +279,7 @@ final class GroupBuyTestKit {
         @Bean
         MemberRestrictionService memberRestrictionService(DataSource dataSource, AuditLogService audit, SnowflakeIdGenerator ids, ApplicationEventPublisher events,
                                                           ObjectProvider<Clock> clocks) {
-            MemberNotificationPublisher notices = new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, noFlush()),
+            MemberNotificationPublisher notices = new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, JpaTestContext.entityManager()),
                     ids, events);
             Messages messages = new Messages(null, new StandardEnvironment(), "messages/messages") {
                 @Override
@@ -295,7 +293,7 @@ final class GroupBuyTestKit {
         /** 2b-4 공구 알림 — 회원 알림 발행기·커머스 메일 대기열·사업자 정보·문구(실제 번들) */
         @Bean
         MemberNotificationPublisher memberNotificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids, ApplicationEventPublisher events) {
-            return new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, events);
+            return new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, JpaTestContext.entityManager()), ids, events);
         }
 
         @Bean
@@ -460,7 +458,11 @@ final class GroupBuyTestKit {
         clockForWiring = clock;
         idsForWiring = ids;
         current = this;
-        spring = new AnnotationConfigApplicationContext(Wiring.class);
+        // 공구 저장소(JPA·QueryDSL)가 쓰는 질의 팩토리·엔티티 관리자는 공유 JPA 문맥의 것 — 부모 문맥으로 둔다(같은 이름의 데이터소스·트랜잭션 관리자는 이 문맥 것이 가린다)
+        spring = new AnnotationConfigApplicationContext();
+        spring.setParent(JpaTestContext.context());
+        spring.register(Wiring.class);
+        spring.refresh();
         tx = new TransactionTemplate(spring.getBean(PlatformTransactionManager.class));
         fakePg = new FakePgStore(dataSource);
         admin = spring.getBean(GroupBuyAdminService.class);
@@ -502,16 +504,6 @@ final class GroupBuyTestKit {
         fakeGateway = (FakePaymentGateway) spring.getBean(PaymentGateway.class);
         operator = newOperator();
         category = products.createCategory("시험 " + ids.nextId(), null, 0, operator, "127.0.0.1");
-    }
-
-    private static EntityManager noFlush() {
-        return (EntityManager) Proxy.newProxyInstance(EntityManager.class.getClassLoader(), new Class<?>[] {EntityManager.class}, (proxy, method, args) -> switch (method.getName()) {
-            case "flush" -> null;
-            case "toString" -> "noFlushEntityManager";
-            case "hashCode" -> System.identityHashCode(proxy);
-            case "equals" -> proxy == args[0];
-            default -> throw new UnsupportedOperationException(method.getName());
-        });
     }
 
     /** 시험 하나의 시작 — 판매 스위치 켜기, 모은 이벤트·감사 비우기, 시계를 조금 앞으로(앞 시험과 같은 시각을 쓰지 않게) */

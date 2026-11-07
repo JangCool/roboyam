@@ -163,7 +163,7 @@ class SiteHolidayServiceTest {
 
     @Test
     void 공구_영업일도_같은_표를_본다_회사_휴무일을_더하면_다음_판정부터_쉰다() {
-        GroupBuyStore groups = new GroupBuyStore(ds);
+        GroupBuyStore groups = JpaTestContext.create(GroupBuyStore.class);
         LocalDate monday = LocalDate.of(YEAR, 7, 7);
         assertThat(GroupBuyBusinessDays.plus(LocalDate.of(YEAR, 7, 4), 1, groups.settings().calendar())).isEqualTo(monday);
 

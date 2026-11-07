@@ -28,13 +28,9 @@ import org.springframework.stereotype.Repository;
  * 읽기는 프로젝션(이름 바꾸기·지우기는 대량 문장). 트랜잭션은 부르는 서비스의 것을 따른다.
  *
  * <p>Native SQL 로 남긴 것: 받기 결과 1행 덮어쓰기({@code INSERT … ON CONFLICT (id) DO UPDATE} — 처음 받을 때 행이 없다).
- * {@link #ALL_DATES_SQL} 은 공구 설정 읽기({@code GroupBuyStore#settings}, JDBC)가 {@code ARRAY(...)} 안에 넣어 쓰는 글자라 남겨 둔다({@link #allDates} 와 같은 결과).
  */
 @Repository
 public class SiteHolidayStore extends RoboyamRepositoryQDSL {
-
-    /** 쉬는 날 전부(날짜만, 겹침 없이) — 공구 설정 읽기({@code GroupBuyStore#settings})가 이 글자를 같이 쓴다. {@link #allDates} 와 같은 질의 */
-    public static final String ALL_DATES_SQL = "SELECT DISTINCT holiday_date FROM site_holidays ORDER BY holiday_date";
 
     /**
      * 한 줄.
