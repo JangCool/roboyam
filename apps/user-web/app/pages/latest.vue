@@ -34,9 +34,6 @@
                         <Button type="button" :label="moreError ? t('common.retry') : t('common.more')" severity="secondary" variant="outlined" :loading="loadingMore" data-testid="latest-more" @click="loadMore" />
                         <p v-if="moreError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">{{ t('feed.moreFailed', { message: moreError }) }}</p>
                     </div>
-
-                    <!-- 산업·주식 글이 섞여 있으면 투자 고지를 붙인다 -->
-                    <BoardInvestmentNotice v-if="hasInvestmentBoard" class="mt-2" />
                 </template>
             </template>
         </div>
@@ -58,11 +55,9 @@ import UtilPopular from '~/utils/util-popular';
 const { t } = useI18n();
 const api = useHomeApi();
 const { user } = useAuth();
-const { bySlug, ensureLoaded: ensureBoards } = useBoards();
 const { term } = useSiteTerms();
 const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
 void ensureDisplay();
-void ensureBoards();
 
 const name = computed(() => term('LATEST'));
 
@@ -75,7 +70,6 @@ const loadingMore = ref(false);
 const moreError = ref('');
 
 const hasMore = computed(() => hasNext.value && nextCursor.value !== null);
-const hasInvestmentBoard = computed(() => items.value.some((row) => bySlug(row.board.slug)?.investmentNotice));
 const summary = computed(() => UtilFeedMessages.summary(t, name.value, status.value, items.value.length, hasMore.value));
 
 let requestSeq = 0;

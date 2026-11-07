@@ -68,7 +68,7 @@ export default {
     previewProfile: 'My profile',
     previewPostHead: 'Post author',
     borderName: 'Ring · {name}',
-    borderWhere: 'The border shows on your profile and as the author on a post page. Lists, comments and messages show only the nickname color.',
+    borderWhere: 'The border shows on your profile and as the author on post pages and post lists. Comments and messages show only the nickname color.',
 
     // Ticket — five lines instead of a preview
     ticketAboutTitle: 'About the nickname change ticket',
@@ -88,6 +88,17 @@ export default {
     // Purchase
     buy: 'Buy for {points}',
     useInProfile: 'Use in profile',
+    useNicknameImageTicket: 'Apply for a nickname image',
+    useAvatarTicket: 'Upload an avatar',
+    // Upload tickets (nickname image · avatar) — item detail
+    nicknameImageTicketAboutTitle: 'About the nickname image ticket',
+    avatarTicketAboutTitle: 'About the avatar upload ticket',
+    nicknameImageTicketWhat: 'Apply once for an image (still or animated GIF) shown in place of your nickname. One ticket, one application.',
+    avatarTicketWhat: 'Apply once to use your own image (still or animated GIF) as your avatar. One ticket, one application.',
+    uploadTicketWhen: 'One ticket is reserved when you apply and used when the team approves. If it’s rejected or you cancel, you get it back.',
+    nicknameImageTicketWhere: 'Used when you apply in Settings › Nickname image.',
+    avatarTicketWhere: 'Used when you apply in Settings › Upload avatar.',
+    uploadTicketRefund: 'Refundable from My items within {days} days if it hasn’t been used or reserved. Approved tickets can’t be refunded, and deleting an applied image doesn’t return it.',
     goEquip: 'Go equip',
     confirmTitle: 'Buy this item?',
     confirmPrice: 'Price',
@@ -125,9 +136,11 @@ export default {
     ticketCount: '{count} owned',
     ticketOwned: 'Owned',
     ticketUsed: 'Used',
+    ticketReserved: 'Reserved',
     boughtOn: 'Bought {date}',
     refundUntil: 'Refundable until {date}',
     usedNoRefund: 'Used · not refundable',
+    reservedNoRefund: 'Reserved for an application · not refundable (freed if rejected or canceled)',
     refundExpired: 'Refund period over',
     revokedTitle: 'Refunded ({count})',
     equipConfirmTitle: 'Equip this item?',

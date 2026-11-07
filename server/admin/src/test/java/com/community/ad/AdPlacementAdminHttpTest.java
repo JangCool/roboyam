@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.community.ad.dto.AdPlacements;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditRetention;
 import com.community.audit.dto.AuditRetentionClass;
@@ -44,7 +45,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(get("/api/admin/ads/placements").cookie(reader)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.postInline.enabled").value(true)).andExpect(jsonPath("$.data.postInline.adType").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data.postInline.position").value("BETWEEN_CARDS")).andExpect(jsonPath("$.data.wings.left").value(true))
-                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(4))
+                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(AdPlacements.WING_SCREENS.size()))
                 .andExpect(jsonPath("$.data.boardList.enabled").value(true)).andExpect(jsonPath("$.data.boardList.after").value(5))
                 .andExpect(jsonPath("$.data.adult.enabled").value(false)).andExpect(jsonPath("$.data.updatedAt").doesNotExist()).andExpect(jsonPath("$.data.updatedBy").doesNotExist());
     }
@@ -73,16 +74,15 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(row).containsEntry("post_inline_enabled", false).containsEntry("post_inline_type", "SQUARE_BANNER").containsEntry("screens", "HOME,POST")
                 .containsEntry("adult_enabled", true).containsEntry("updated_by", me);
         assertThat(((Number) row.get("board_list_after")).intValue()).isEqualTo(12);
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' ORDER BY occurred_at DESC, id DESC "
-                + "LIMIT 1", String.class, me);
+        String detail = auditLogs.where().actor(me).action("AD_PLACEMENT_UPDATE").latest().orElseThrow().detail();
         assertThat(detail).contains("\"before\"", "\"after\"", "postInline.adType", "SQUARE_BANNER", "wings.right", "boardList.after", "adult.enabled", "fromDefaults")
                 .doesNotContain("boardList.enabled"); // 바뀌지 않은 칸은 싣지 않는다
-        assertThat(jdbc.queryForObject("SELECT target_type FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' LIMIT 1", String.class, me))
+        assertThat(auditLogs.where().actor(me).action("AD_PLACEMENT_UPDATE").single().targetType())
                 .isEqualTo("AD_PLACEMENTS");
 
         // 같은 값 다시 저장 — 감사 없음
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID)).andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE'", Integer.class, me)).isOne();
+        assertThat(auditLogs.where().actor(me).action("AD_PLACEMENT_UPDATE").count()).isOne();
         // 날개 화면은 비어도 된다
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("[\"POST\",\"HOME\",\"HOME\"]", "[]"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.wings.screens.length()").value(0));
@@ -93,8 +93,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("[\"POST\",\"HOME\",\"HOME\"]", "[]")
                 .replace("\"adult\":{\"enabled\":true}", "\"adult\":{\"enabled\":false}"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.adult.enabled").value(false));
-        String last = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' ORDER BY occurred_at DESC, id DESC "
-                + "LIMIT 1", String.class, me);
+        String last = auditLogs.where().actor(me).action("AD_PLACEMENT_UPDATE").latest().orElseThrow().detail();
         assertThat(last.replace(" ", "")).contains("\"before\":{\"adult.enabled\":true}", "\"after\":{\"adult.enabled\":false}");
         assertThat(jdbc.queryForObject("SELECT adult_enabled FROM ad_placement_settings WHERE id = 1", Boolean.class)).isFalse();
     }
@@ -103,7 +102,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
     void 틀린_칸은_칸_경로로_빠진_묶음은_묶음_이름으로_400() throws Exception {
         Cookie settings = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
         String bad = "{\"postInline\":{\"enabled\":true,\"adType\":\"WIDE_BANNER\",\"position\":\"MIDDLE\"},"
-                + "\"wings\":{\"left\":true,\"right\":true,\"screens\":[\"HOME\",\"GROUPS\"]},\"boardList\":{\"enabled\":true,\"after\":0}}";
+                + "\"wings\":{\"left\":true,\"right\":true,\"screens\":[\"HOME\",\"SEARCH\"]},\"boardList\":{\"enabled\":true,\"after\":0}}";
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(bad)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.['postInline.adType']").exists()).andExpect(jsonPath("$.error.fields.['postInline.position']").exists())
                 .andExpect(jsonPath("$.error.fields.['wings.screens']").exists()).andExpect(jsonPath("$.error.fields.['boardList.after']").exists());

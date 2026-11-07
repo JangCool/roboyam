@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>보는 사람: 로그인하지 않았거나 회원이 없어졌으면 {@code GUEST}. 로그인 회원은 등급 설정의 서열로 {@code GRADE_MIN} 을 판정한다.
  *       {@code STAFF}(운영진) = 게시판 매니저·스텝을 하나라도 맡은 회원이다 — 운영자는 공개 사이트에 로그인하지 않으므로(관리자 앱 계정이 따로다)
  *       공개 사이트의 운영진은 게시판 담당 회원뿐이다(게시판 쓰기 자격 {@code STAFF} 와 같은 뜻).</li>
- *   <li>캐시를 두지 않는다(기존 캐시 수단이 없다) — 요청마다 그룹·트리·게시판·등급을 읽는다.</li>
+ *   <li>캐시를 두지 않는다(기존 캐시 수단이 없다) — 요청마다 그룹·트리·게시판·등급·판매 스위치를 읽는다. 판매가 꺼지면 공동구매 항목이 빠진다({@link MenuSales}).</li>
  * </ul>
  */
 @Service
@@ -38,9 +38,10 @@ public class PublicMenuService {
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final BoardStaffRepository boardStaff;
+    private final MenuSales sales;
 
     public PublicMenuService(MenuSetRepository sets, MenuTreeStore store, MenuSnapshots snapshots, MenuViewComposer composer, UserRepository users,
-                             ProfileRepository profiles, BoardStaffRepository boardStaff) {
+                             ProfileRepository profiles, BoardStaffRepository boardStaff, MenuSales sales) {
         this.sets = sets;
         this.store = store;
         this.snapshots = snapshots;
@@ -48,6 +49,7 @@ public class PublicMenuService {
         this.users = users;
         this.profiles = profiles;
         this.boardStaff = boardStaff;
+        this.sales = sales;
     }
 
     /**
@@ -65,7 +67,7 @@ public class PublicMenuService {
         }
         List<GradeEntity> grades = snapshots.grades();
         Map<String, Integer> levels = MenuSnapshots.levels(grades);
-        MenuResolveContext context = new MenuResolveContext(snapshots.boards(), levels, MenuSales.enabled(), viewerOf(userId, levels), snapshots.pages());
+        MenuResolveContext context = new MenuResolveContext(snapshots.boards(), levels, sales.enabled(), viewerOf(userId, levels), snapshots.pages());
         return composer.compose(store.load(set.getSetKey()), MenuLimits.isSide(set.getPlacement()), context, version);
     }
 

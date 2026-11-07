@@ -18,6 +18,9 @@ import com.community.nicknameimage.exception.NicknameImageNotPendingException;
 import com.community.nicknameimage.repository.master.AdminNicknameImageRepositoryQDSL;
 import com.community.nicknameimage.repository.master.NicknameImageRequestRepository;
 import com.community.permission.dto.AdminActor;
+import com.community.pointshop.entity.UploadTicketUse;
+import com.community.pointshop.service.ProfileAvatarService;
+import com.community.pointshop.service.UploadTicketService;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -43,6 +46,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li><b>승인</b>: 대기 신청만(아니면 409 {@code NICKNAME_IMAGE_NOT_PENDING}) — 회원의 지금 그림이 되고 앞 그림은 교체(REMOVED, 파일은 커밋 뒤 삭제). 승인 때 자격을 다시 보지 않는다(신청할 때 봤다).</li>
  *   <li><b>반려</b>: 사유 1~{@value NicknameImageRules#REASON_MAX}자(400 {@code fields.reason}), 대기 신청만 — 반려 + 72시간 뒤 다시 신청. 파일은 회원의 다음 신청 때까지 둔다.</li>
  *   <li><b>해제</b>: 사유 1~200자, 적용 중인 그림만(아니면 409 {@code NICKNAME_IMAGE_NOT_ACTIVE}) — 해제 + 7일 뒤 다시 신청, 파일은 커밋 뒤 삭제.</li>
+ *   <li><b>변경권</b>(commerce-motion-avatar-contract 규칙 0): 승인하면 신청에 예약된 닉네임 이미지 변경권을 <b>쓴 것</b>으로, 반려하면 <b>돌려준다</b>(이 규칙 전 신청은 예약이 없어 그대로).
+ *       해제는 돌려주지 않는다.</li>
+ *   <li><b>하나만</b>(규칙 3): 움직이는 그림(정지 그림이 있는 GIF)을 승인했는데 회원이 움직이는 아바타를 쓰는 중이면 아바타를 마지막 정지 아바타로 돌린다.</li>
  *   <li>모두 회원 프로필 행 → 신청 행 차례로 잠근다(회원의 올리기·취소·해제와 겹쳐도 한쪽만 이긴다). 감사 {@code NICKNAME_IMAGE_APPROVE|REJECT|REVOKE}(대상 NICKNAME_IMAGE + 신청 ID),
  *       회원 알림 {@code NICKNAME_IMAGE_REVIEWED}(끌 수 없음, 사유와 함께) — 한 트랜잭션. 없는·형식이 틀린 ID 404 {@code NICKNAME_IMAGE_NOT_FOUND}.</li>
  * </ul>
@@ -62,9 +68,13 @@ public class NicknameImageReviewService {
     private final ImageStorage storage;
     private final AuditLogService audit;
     private final MemberNotificationPublisher memberNotices;
+    private final UploadTicketService tickets;
+    private final ProfileAvatarService profileAvatars;
 
     public NicknameImageReviewService(NicknameImageRequestRepository requests, AdminNicknameImageRepositoryQDSL queries, ProfileRepository profiles, ImageStorage storage,
-                                      AuditLogService audit, MemberNotificationPublisher memberNotices) {
+                                      AuditLogService audit, MemberNotificationPublisher memberNotices, UploadTicketService tickets, ProfileAvatarService profileAvatars) {
+        this.tickets = tickets;
+        this.profileAvatars = profileAvatars;
         this.requests = requests;
         this.queries = queries;
         this.profiles = profiles;
@@ -113,8 +123,12 @@ public class NicknameImageReviewService {
         });
         requests.flush(); // 적용 중인 그림은 회원당 하나(부분 유일 색인) — 앞 그림을 먼저 닫는다
         request.approve(actor.operatorId(), now);
+        boolean ticketUsed = tickets.consume(UploadTicketUse.NICKNAME_IMAGE, request.getId());
+        // 움직이는 그림이 승인됐는데 움직이는 아바타를 쓰는 중이면 아바타를 마지막 정지 아바타로(하나만 — 나중에 고른 쪽이 남는다)
+        boolean avatarYielded = request.getStillKey() != null && profileAvatars.yieldToNicknameImage(request.getUserId());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NICKNAME_IMAGE_APPROVE, AuditResult.SUCCESS)
-                .target(TARGET_TYPE, Long.toString(request.getId())).with("memberId", Long.toString(request.getUserId())));
+                .target(TARGET_TYPE, Long.toString(request.getId())).with("memberId", Long.toString(request.getUserId())).with("ticketUsed", ticketUsed)
+                .with("avatarYielded", avatarYielded));
         memberNotices.nicknameImageReviewed(request.getUserId(), request.getId(), "APPROVED", null);
         afterCommit(stale);
         log.info("닉네임 그림을 승인했다 requestId={} memberId={} by operatorId={}", request.getId(), request.getUserId(), actor.operatorId());
@@ -130,8 +144,10 @@ public class NicknameImageReviewService {
         }
         Instant now = Instant.now();
         request.reject(actor.operatorId(), reason, now.plus(Duration.ofHours(NicknameImageRules.REJECTED_REAPPLY_HOURS)), now);
+        boolean ticketReturned = tickets.release(UploadTicketUse.NICKNAME_IMAGE, request.getId());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NICKNAME_IMAGE_REJECT, AuditResult.SUCCESS)
-                .target(TARGET_TYPE, Long.toString(request.getId())).with("memberId", Long.toString(request.getUserId())).with("reason", reason));
+                .target(TARGET_TYPE, Long.toString(request.getId())).with("memberId", Long.toString(request.getUserId())).with("reason", reason)
+                .with("ticketReturned", ticketReturned));
         memberNotices.nicknameImageReviewed(request.getUserId(), request.getId(), "REJECTED", reason);
         log.info("닉네임 그림을 반려했다 requestId={} memberId={} by operatorId={}", request.getId(), request.getUserId(), actor.operatorId());
         return reread(request.getId());

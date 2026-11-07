@@ -8,8 +8,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 포인트 상점 품목 — {@code point_shop_items}(V86). <b>읽기 전용 매핑</b>이다(만들기·고치기·재고 차감은 {@code PointShopCatalogService}·{@code PointShopPurchaseService} 가
- * JDBC 저장소 {@code PointShopItemStore} 로 한다 — 재고는 조건부 UPDATE 한 문장, 포인트 사용과 같은 JDBC 트랜잭션). 관리자·회원 화면의 질의(QueryDSL)가 읽을 때 쓴다.
+ * 포인트 상점 품목 — {@code point_shop_items}(V86). 만들기는 {@link #create}(저장소 {@code PointShopItemStore} 가 넣고 바로 내보낸다). 고치기·재고 차감·묶음 가격은 저장소의
+ * UPDATE(QueryDSL — 재고는 {@code stock = stock - 1 WHERE stock > 0} 한 문장으로 한 명만 이긴다)가 한다 — 칸을 엔티티로 고치지 않는다. 읽기는 저장소가 한 줄 모양으로 꺼낸다.
  * 코드·종류·아바타 ID 는 만든 뒤 바뀌지 않는다(트리거).
  */
 @Entity
@@ -48,6 +48,36 @@ public class PointShopItemEntity {
     private Instant updatedAt;
 
     protected PointShopItemEntity() {
+    }
+
+    /** 새 품목 — 값 검사는 부르는 서비스가 끝냈다. 만든·고친 운영자·시각은 같다 */
+    public static PointShopItemEntity create(long id, String code, PointShopItemKind kind, PointShopUsageType usageType, String name, String nameEn, String description,
+                                             String descriptionEn, String color, String borderStyle, String avatarId, int pricePoint, Integer durationDays, Integer stock,
+                                             Instant saleStartAt, Instant saleEndAt, boolean active, int sortOrder, long operatorId, Instant now) {
+        PointShopItemEntity item = new PointShopItemEntity();
+        item.id = id;
+        item.code = code;
+        item.kind = kind;
+        item.usageType = usageType;
+        item.name = name;
+        item.nameEn = nameEn;
+        item.description = description;
+        item.descriptionEn = descriptionEn;
+        item.color = color;
+        item.borderStyle = borderStyle;
+        item.avatarId = avatarId;
+        item.pricePoint = pricePoint;
+        item.durationDays = durationDays;
+        item.stock = stock;
+        item.saleStartAt = saleStartAt;
+        item.saleEndAt = saleEndAt;
+        item.active = active;
+        item.sortOrder = sortOrder;
+        item.createdBy = operatorId;
+        item.updatedBy = operatorId;
+        item.createdAt = now;
+        item.updatedAt = now;
+        return item;
     }
 
     public Long getId() {

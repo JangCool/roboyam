@@ -1,6 +1,6 @@
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
 import UtilVisitSignal from '#layers/analytics/utils/util-visit-signal';
-import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
+import type { SiteIconResponse, SiteOperatorPublicResponse, SiteOperatorStage } from '~/composables/site/api/useSiteInfoApi.types';
 import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 import UtilSiteName from '~/utils/util-site-name';
@@ -21,6 +21,10 @@ const URL_MAX_LENGTH = 200_000;
 
 /** 로고 data URI 로 받는 그림 형식 — 서버는 SVG 만 이 모양으로 주지만 형식이 늘어도 그림이면 받는다 */
 const IMAGE_DATA_URI = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+
+/** 운영 주체 연락 이메일 — 서버(관리자 저장 검사)와 같은 느슨한 모양 + `mailto:` 에 넣을 수 없는 글자(`<>"`) 제외 */
+const CONTACT_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+const CONTACT_EMAIL_MAX_LENGTH = 254;
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -102,7 +106,21 @@ export default class UtilSiteInfo {
             boardDisplay: UtilSiteInfo.cleanBoardDisplay(raw.boardDisplay),
             // 방문 수집 스위치 — 칸이 없거나 객체가 아니면 null(보내지 않는다). 읽기 규칙은 방문 신호 레이어가 가진다
             analytics: UtilVisitSignal.readSwitch(raw.analytics),
+            operator: UtilSiteInfo.cleanOperator(raw.operator),
         };
+    }
+
+    /**
+     * 운영 주체(`operator`) — 단계가 셋 중 하나가 아니면 개인으로 본다. 연락 이메일은 `mailto:` 에 들어가므로 이메일 모양(공백·`<>"` 없음, 254자 이하)만 받는다.
+     * @param {unknown} raw - 서버가 준 `operator`.
+     * @returns {SiteOperatorPublicResponse | null} 걸러 낸 값. 칸이 없거나 객체가 아니면 null.
+     */
+    static cleanOperator(raw: unknown): SiteOperatorPublicResponse | null {
+        if (!isObject(raw)) return null;
+        const stage: SiteOperatorStage = raw.stage === 'SOLE_PROPRIETOR' || raw.stage === 'CORPORATION' ? raw.stage : 'INDIVIDUAL';
+        const email = typeof raw.contactEmail === 'string' ? raw.contactEmail.trim() : '';
+        const contactEmail = email.length <= CONTACT_EMAIL_MAX_LENGTH && CONTACT_EMAIL.test(email) ? email : null;
+        return { stage, contactEmail };
     }
 
     /**

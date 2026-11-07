@@ -1,8 +1,11 @@
 <template>
     <!-- 상단 바 오른쪽 계정 부분 — 검색 · 알림 종 · 쪽지 아이콘 · 로그인·가입 또는 계정 메뉴. 모든 테마의 셸(기본 `AppHeader`·다음식·네이버식 윗줄)이 같이 쓴다.
-         알림 종·쪽지 아이콘은 데스크톱에만 있다(모바일은 하단 탭의 "알림"·메뉴의 "쪽지함" 줄, design 01-shell 6).
+         알림 종은 모바일·데스크톱 모두(사용자 요청 2026-11-06). 쪽지 아이콘은 데스크톱에만 있다(모바일은 내 정보의 "쪽지함" 줄, design 01-shell 6).
+         모바일(사용자 결정 2026-11-06): 검색 · 야간 모드 · 알림 종(로그인 전엔 「로그인」 단추) — 계정 메뉴는 하단 탭 「내 정보」가 맡아 뺐다. 메뉴 단추(☰)는 이 뒤 오른쪽 끝(`AppHeader`).
+         야간 모드는 잠깐 메뉴 서랍으로 옮겼다가 같은 날 상단 바로 되돌렸다(사용자 결정 — 자주 쓴다).
+         모바일은 단추 사이 간격 없이 붙인다(360px 폭에서 아이콘 포함 로고 자리를 남긴다).
          주 색상 바(`.app-nav`) 안에 두면 글자·hover·단추가 바 색 기준으로 뒤집히고, 흰·회색 바탕(테마의 윗줄)에 두면 일반 색이다(`main.css`) -->
-    <div class="flex items-center gap-1">
+    <div class="flex shrink-0 items-center md:gap-1">
         <NuxtLink
             to="/search"
             class="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
@@ -11,10 +14,10 @@
             <i class="pi pi-search text-lg" aria-hidden="true" />
         </NuxtLink>
 
-        <!-- 다크·라이트 바꾸기 — 모바일에서만(사용자 결정 2026-11-05) -->
+        <!-- 다크·라이트 바꾸기 — 모바일에서만(사용자 결정 2026-11-05 · 11-06 다시 상단 바) -->
         <ColorSchemeToggle class="md:hidden" />
 
-        <!-- 알림 종 + 알림 패널(드롭다운) — 로그인한 사람에게만, 데스크톱에서만 -->
+        <!-- 알림 종 + 알림 패널(드롭다운) — 로그인한 사람에게만(모바일은 야간 모드 단추 바로 오른쪽) -->
         <NotificationBell v-if="loaded && user" />
 
         <!-- 쪽지 아이콘 + 안 읽은 대화 수 — 로그인한 사람에게만, 데스크톱에서만 -->
@@ -22,22 +25,20 @@
 
         <nav v-if="loaded" class="flex items-center gap-2 text-sm" :aria-label="t('shell.accountNav')">
             <template v-if="user">
-                <!-- 넓은 화면은 등급 + 닉네임 + ⌄, 모바일은 계정 아이콘 하나(닉네임·등급은 메뉴 안에서 — 사용자 결정 2026-11-05) -->
+                <!-- 등급 + 닉네임 + ⌄ — 데스크톱만. 모바일은 하단 탭 「내 정보」가 계정 메뉴를 맡는다(사용자 결정 2026-11-06) -->
                 <button
                     type="button"
-                    class="flex items-center justify-center hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary max-md:size-10 max-md:rounded-full md:max-w-48 md:gap-1.5 md:rounded-lg md:px-2 md:py-1.5 dark:hover:bg-surface-800"
+                    class="flex max-w-48 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary max-md:hidden dark:hover:bg-surface-800"
                     aria-haspopup="menu"
                     :aria-expanded="menuOpen"
                     :aria-label="t('shell.accountMenu')"
                     data-testid="account-menu-button"
                     @click="toggleMenu"
                 >
-                    <!-- `.pi` 의 display 가 Tailwind 층보다 세서 아이콘의 숨기기는 `!` 로 건다 -->
-                    <i class="pi pi-user text-lg md:hidden!" aria-hidden="true" />
-                    <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" class="max-md:hidden" />
-                    <StaffBadge v-else :role="user.role" class="max-md:hidden" />
-                    <span class="min-w-0 truncate font-medium max-md:hidden">{{ user.nickname }}</span>
-                    <i class="pi pi-angle-down text-xs text-muted-color max-md:hidden!" aria-hidden="true" />
+                    <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" />
+                    <StaffBadge v-else :role="user.role" />
+                    <span class="min-w-0 truncate font-medium">{{ user.nickname }}</span>
+                    <i class="pi pi-angle-down text-xs text-muted-color" aria-hidden="true" />
                 </button>
                 <Menu ref="menu" :model="menuItems" popup @show="onMenuShow" @hide="menuOpen = false">
                     <!-- 보유 포인트 요약(8단계) — 요약을 받았을 때만. 메뉴가 열릴 때 최신으로 받는다 -->

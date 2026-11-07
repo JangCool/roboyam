@@ -128,7 +128,7 @@ class BusinessNtsValidateTest extends CommerceApiTestBase {
     private long member() {
         long user = newMember();
         String base = Long.toString(user, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "v" + base.substring(Math.max(0, base.length() - 11)));
+        memberFixture.profile(user, "v" + base.substring(Math.max(0, base.length() - 11)));
         return user;
     }
 
@@ -161,6 +161,7 @@ class BusinessNtsValidateTest extends CommerceApiTestBase {
     private long approved(String bizNo, String company, String owner) {
         long user = member();
         service.apply(user, request(user, bizNo, company, owner, OPENED));
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'APPROVED', reviewed_at = now(), first_approved_at = now() WHERE user_id = ?", user);
         return user;
     }
@@ -269,6 +270,7 @@ class BusinessNtsValidateTest extends CommerceApiTestBase {
         String number = bizNo('0');
         long user = member();
         service.apply(user, request(user, number, "(주)재신청상사", "홍길동", OPENED));
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'REJECTED', reject_code = 'OTHER', reject_text = '시험', reviewed_at = now() WHERE user_id = ?", user);
         int validates = nts.validates.get();
         nts.nextValidate.set(NtsLookup.mismatch());
@@ -343,6 +345,7 @@ class BusinessNtsValidateTest extends CommerceApiTestBase {
     @Test
     void 개업일이_없던_옛_승인_사업자는_고칠_때_개업일이_필수이고_넣으면_진위확인을_한다() {
         long user = approved(bizNo('0'), "(주)옛상사", "홍길동");
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET opened_on = NULL WHERE user_id = ?", user);
         assertThat(service.profile(user).openedOn()).isNull();
 

@@ -75,7 +75,7 @@ class BizApplicationRefundTest extends BizApplicationApiTestBase {
         assertThat(done.transferStatus()).isEqualTo(BizRefundStore.TRANSFER_DONE);
         assertThat(done.completedAt()).isNotNull();
         assertThat(codeOf(() -> review.markTransferred(operator, id, null))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_TRANSFER'", String.class, Long.toString(id)))
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_REFUND_TRANSFER").single().retentionClass())
                 .isEqualTo("MONEY");
     }
 

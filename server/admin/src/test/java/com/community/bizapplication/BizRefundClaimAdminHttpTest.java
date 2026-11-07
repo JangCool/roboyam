@@ -26,18 +26,25 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 class BizRefundClaimAdminHttpTest extends Commerce04AdminTestBase {
 
+    /** 유료 신청 승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) */
+    @Override
+    protected boolean sellingOperator() {
+        return true;
+    }
+
     @Autowired
     private BizApplicationMemberService members;
 
     private long approvedBusiness() {
         long user = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, 'APPROVED', false, '클레임상사', 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())", profile, user,
                 String.format("%064x", profile));
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'APPROVED', now())", ids.nextId(), profile, service);
+            businessFixture.service(ids.nextId(), profile, service, "APPROVED");
         }
         return user;
     }
@@ -120,8 +127,7 @@ class BizRefundClaimAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post(base + "/refund/claim"), viewer).content(body(7000, "고객 클레임 나머지 보상"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.refundSummary.refunded").value(11000)).andExpect(jsonPath("$.data.refundSummary.refundable").value(0));
 
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_CLAIM' AND retention_class = 'MONEY'", Integer.class,
-                Long.toString(id))).isEqualTo(2);
+        assertThat(auditLogs.where().target(Long.toString(id)).action("BIZ_APP_REFUND_CLAIM").retentionClass("MONEY").count()).isEqualTo(2);
         assertThat(AuditRetention.classify(AuditActions.BIZ_APP_REFUND_CLAIM)).isEqualTo(AuditRetentionClass.MONEY);
     }
 

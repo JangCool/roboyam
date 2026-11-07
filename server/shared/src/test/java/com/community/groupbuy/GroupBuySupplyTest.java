@@ -143,7 +143,16 @@ class GroupBuySupplyTest {
                 com.community.groupbuy.entity.RequestType.CANCEL, null, null, List.of(new com.community.groupbuy.service.GroupBuyRequestService.LineInput(kit.mainSku(gb), 1,
                 null)), null, null, null));
         assertThat(kit.requests.deadlineLevel(r.requestId())).isEqualTo(GroupBuyBusinessDays.Level.NONE);
-        kit.advance(Duration.ofDays(7)); // 주말이 끼어도 영업일 5
-        assertThat(kit.requests.deadlineLevel(r.requestId())).isEqualTo(GroupBuyBusinessDays.Level.CRITICAL);
+        // 시험 시계는 키트가 함께 쓰며 앞 시험들이 날을 옮긴다 — 그 사이 사이트 쉬는 날(공휴일 기본값 · 연휴)이 낄 수 있어 「7일 = 영업일 5」로 두지 않고 쉬는 날 표로 센다
+        var calendar = kit.groupStore.settings().calendar();
+        java.time.LocalDate requested = com.community.zconfiguration.time.ServiceTime.dateOf(kit.now());
+        while (GroupBuyBusinessDays.elapsed(requested, com.community.zconfiguration.time.ServiceTime.dateOf(kit.now()), calendar) < 2) {
+            kit.advance(Duration.ofDays(1));
+        }
+        assertThat(kit.requests.deadlineLevel(r.requestId())).as("2영업일 — 경고").isEqualTo(GroupBuyBusinessDays.Level.WARNING);
+        while (GroupBuyBusinessDays.elapsed(requested, com.community.zconfiguration.time.ServiceTime.dateOf(kit.now()), calendar) < 3) {
+            kit.advance(Duration.ofDays(1));
+        }
+        assertThat(kit.requests.deadlineLevel(r.requestId())).as("3영업일 — 심각").isEqualTo(GroupBuyBusinessDays.Level.CRITICAL);
     }
 }

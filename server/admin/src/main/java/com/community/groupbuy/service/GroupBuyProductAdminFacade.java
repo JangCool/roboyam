@@ -7,7 +7,10 @@ import com.community.groupbuy.dto.ProductDraft;
 import com.community.groupbuy.dto.request.GroupBuyAdminRequest;
 import com.community.groupbuy.dto.response.GroupBuyAdminView;
 import com.community.groupbuy.exception.GroupBuyException;
+import com.community.groupbuy.repository.master.GroupBuyAdminQueries;
 import com.community.groupbuy.repository.master.GroupBuyNoticeStore;
+import com.community.groupbuy.repository.master.GroupBuyProductAdminQueries;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyProductStore;
 import com.community.groupbuy.repository.master.GroupBuyProductStore.ProductRow;
 import com.community.groupbuy.repository.master.GroupBuyProductStore.ProductSkuRow;
@@ -22,10 +25,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -36,7 +39,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class GroupBuyProductAdminFacade {
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyProductAdminQueries queries;
+    private final GroupBuyAdminQueries adminQueries;
     private final GroupBuyProductService service;
     private final GroupBuyProductStore store;
     private final GroupBuyNoticeService notices;
@@ -44,9 +48,10 @@ public class GroupBuyProductAdminFacade {
     private final ImageStorage storage;
     private final TransactionTemplate tx;
 
-    public GroupBuyProductAdminFacade(DataSource dataSource, GroupBuyProductService service, GroupBuyProductStore store, GroupBuyNoticeService notices,
+    public GroupBuyProductAdminFacade(GroupBuyProductAdminQueries queries, GroupBuyAdminQueries adminQueries, GroupBuyProductService service, GroupBuyProductStore store, GroupBuyNoticeService notices,
                                       GroupBuyNoticeStore noticeStore, ImageStorage storage, PlatformTransactionManager transactions) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
+        this.adminQueries = adminQueries;
         this.service = service;
         this.store = store;
         this.notices = notices;
@@ -58,10 +63,7 @@ public class GroupBuyProductAdminFacade {
     // ── 카테고리 ────────────────────────────────────────────────────────────
 
     public List<GroupBuyAdminView.Category> categories() {
-        Map<Long, Integer> counts = new HashMap<>();
-        jdbc.query("SELECT category_id, count(*) FROM group_buy_products GROUP BY category_id", rs -> {
-            counts.put(rs.getLong(1), rs.getInt(2));
-        });
+        Map<Long, Integer> counts = queries.productCounts();
         return service.categories().stream().map(c -> new GroupBuyAdminView.Category(Long.toString(c.id()), c.parentId() == null ? null : Long.toString(c.parentId()),
                 c.name(), c.sortOrder(), c.hidden(), counts.getOrDefault(c.id(), 0))).toList();
     }
@@ -94,7 +96,7 @@ public class GroupBuyProductAdminFacade {
                         }
                     } else {
                         id = AdminIds.field(c.id(), "id");
-                        jdbc.update("UPDATE group_buy_categories SET parent_id = ? WHERE id = ? AND parent_id IS DISTINCT FROM ?", parentId, id, parentId);
+                        queries.moveCategory(id, parentId);
                         service.updateCategory(id, c.name(), sort, Boolean.TRUE.equals(c.hidden()), actor.operatorId(), actor.ip());
                     }
                     keep.add(id);
@@ -108,12 +110,10 @@ public class GroupBuyProductAdminFacade {
                 if (keep.contains(existing.id())) {
                     continue;
                 }
-                Integer used = jdbc.queryForObject("SELECT (SELECT count(*) FROM group_buy_products WHERE category_id = ?) + (SELECT count(*) FROM group_buy_categories "
-                        + "WHERE parent_id = ? AND id <> ALL (?::bigint[]))", Integer.class, existing.id(), existing.id(), keep.toArray(new Long[0]));
-                if (used != null && used > 0) {
+                if (queries.categoryUses(existing.id(), keep) > 0) {
                     throw GroupBuyException.categoryInUse(existing.name());
                 }
-                jdbc.update("DELETE FROM group_buy_categories WHERE id = ?", existing.id());
+                queries.deleteCategory(existing.id());
             }
         });
         return categories();
@@ -139,32 +139,19 @@ public class GroupBuyProductAdminFacade {
 
     // ── 상품 ────────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 쪽·건수·대표 이미지(예전 한 문장의 하위 질의가 따로 읽힌다)
     public GroupBuyAdminView.Page<GroupBuyAdminView.ProductRow> list(String q, String categoryId, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
         int p = Math.max(0, page);
-        StringBuilder where = new StringBuilder(" FROM group_buy_products p WHERE 1 = 1");
-        List<Object> args = new ArrayList<>();
-        if (q != null && !q.isBlank()) {
-            where.append(" AND p.name ILIKE ?");
-            args.add("%" + q.strip().replace("%", "\\%").replace("_", "\\_") + "%");
-        }
-        if (categoryId != null && !categoryId.isBlank()) {
-            long c = AdminIds.field(categoryId, "categoryId");
-            where.append(" AND (p.category_id = ? OR p.category_id IN (SELECT id FROM group_buy_categories WHERE parent_id = ?))");
-            args.add(c);
-            args.add(c);
-        }
-        Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
-        args.add(s);
-        args.add(p * s);
-        List<GroupBuyAdminView.ProductRow> rows = jdbc.query("SELECT p.id, p.name, p.category_id, p.updated_at, (SELECT count(*) FROM group_buy_product_skus k "
-                + "WHERE k.product_id = p.id), (SELECT count(*) FROM group_buys g WHERE g.product_id = p.id), (SELECT count(*) FROM group_buys g WHERE g.product_id = p.id "
-                + "AND g.status IN ('RECRUITING', 'CLOSING')), (SELECT COALESCE(i.thumb_key, i.image_key) FROM group_buy_product_images i WHERE i.product_id = p.id "
-                + "ORDER BY i.sort_order LIMIT 1)" + where + " ORDER BY p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?", (rs, i) -> new GroupBuyAdminView.ProductRow(
-                Long.toString(rs.getLong(1)), rs.getString(2), Long.toString(rs.getLong(3)), categoryPath(rs.getLong(3)),
-                rs.getString(8) == null ? null : storage.publicUrl(rs.getString(8)), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getTimestamp(4).toInstant()),
-                args.toArray());
-        return new GroupBuyAdminView.Page<>(rows, total == null ? 0 : total);
+        String like = q != null && !q.isBlank() ? GroupBuyRowNames.like(q.strip()) : null;
+        Long category = categoryId != null && !categoryId.isBlank() ? AdminIds.field(categoryId, "categoryId") : null;
+        long total = queries.productCount(like, category);
+        List<GroupBuyProductAdminQueries.ProductListRow> page0 = queries.productPage(like, category, (long) p * s, s);
+        Map<Long, String> thumbs = queries.thumbKeys(page0.stream().map(GroupBuyProductAdminQueries.ProductListRow::id).toList());
+        List<GroupBuyAdminView.ProductRow> rows = page0.stream().map(r -> new GroupBuyAdminView.ProductRow(Long.toString(r.id()), r.name(), Long.toString(r.categoryId()),
+                categoryPath(r.categoryId()), thumbs.get(r.id()) == null ? null : storage.publicUrl(thumbs.get(r.id())), r.skuCount(), r.groupBuyCount(), r.runningCount(),
+                r.updatedAt())).toList();
+        return new GroupBuyAdminView.Page<>(rows, total);
     }
 
     public GroupBuyAdminView.ProductDetail detail(AdminActor actor, String idText) {
@@ -175,13 +162,9 @@ public class GroupBuyProductAdminFacade {
         Map<Long, String> valueNames = new HashMap<>();
         axes.forEach(a -> a.values().forEach(v -> valueNames.put(v.id(), v.value())));
         List<ProductSkuRow> skus = service.skus(id);
-        List<GroupBuyAdminView.ProductUse> uses = jdbc.query("SELECT g.id, COALESCE(NULLIF(g.title, ''), p.name), g.status, g.round_no FROM group_buys g "
-                + "JOIN group_buy_products p ON p.id = g.product_id WHERE g.product_id = ? OR g.id IN (SELECT s.group_buy_id FROM group_buy_skus s "
-                + "JOIN group_buy_product_skus ps ON ps.id = s.product_sku_id WHERE ps.product_id = ? AND s.kind = 'ADDON') ORDER BY g.created_at DESC",
-                (rs, i) -> new GroupBuyAdminView.ProductUse(Long.toString(rs.getLong(1)), rs.getString(2), rs.getString(3), rs.getInt(4)), id, id);
-        Boolean locked = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM group_buys g WHERE g.published_at IS NOT NULL AND g.status IN ('DRAFT', 'RECRUITING', 'CLOSING') "
-                + "AND (g.product_id = ? OR g.id IN (SELECT s.group_buy_id FROM group_buy_skus s JOIN group_buy_product_skus ps ON ps.id = s.product_sku_id "
-                + "WHERE ps.product_id = ?)))", Boolean.class, id, id);
+        List<GroupBuyAdminView.ProductUse> uses = queries.uses(id).stream().map(u -> new GroupBuyAdminView.ProductUse(Long.toString(u.id()), u.title(), u.status().name(),
+                u.roundNo())).toList();
+        boolean locked = queries.lockedByPublished(id);
         return new GroupBuyAdminView.ProductDetail(Long.toString(p.id()), p.name(), Long.toString(p.categoryId()), categoryPath(p.categoryId()), nz(p.summary()),
                 nz(p.spec()), nz(p.description()), store.images(id).stream().map(i -> new GroupBuyAdminView.Image(i.imageKey(), storage.publicUrl(i.imageKey()),
                 storage.publicUrl(GroupBuyAdminFacade.thumb(i)))).toList(), p.normalPrice() == null ? 0 : p.normalPrice(), p.normalPriceBasis(),
@@ -189,7 +172,7 @@ public class GroupBuyProductAdminFacade {
                 axes.stream().map(GroupBuyStore.AxisRow::name).toList(), GroupBuyAdminFacade.axes(axes),
                 skus.stream().map(k -> new GroupBuyAdminView.ProductSku(Long.toString(k.id()), k.valueIds().stream().map(v -> valueNames.getOrDefault(v, "")).toList(),
                         k.valueIds().stream().map(String::valueOf).toList(), k.name(), showSupply ? k.defaultSupplyPrice() : null, k.onSale())).toList(),
-                noticeStore.notices(id).stream().map(n -> GroupBuyAdminFacade.notice(n, Map.of())).toList(), Boolean.TRUE.equals(locked), uses, p.version(),
+                noticeStore.notices(id).stream().map(n -> GroupBuyAdminFacade.notice(n, Map.of())).toList(), locked, uses, p.version(),
                 p.updatedAt());
     }
 
@@ -207,15 +190,15 @@ public class GroupBuyProductAdminFacade {
     }
 
     /** 추가 구성상품으로 고를 수 있는 다른 상품의 단품 */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 단품 줄과 대표 이미지(예전 한 문장)
     public List<GroupBuyAdminView.AddonSource> addonSources(AdminActor actor, String except) {
         Long skip = except == null || except.isBlank() ? null : AdminIds.field(except, "except");
         boolean showSupply = actor.root() || actor.can(Permission.COMMERCE_PRODUCT_PRICE) || actor.can(Permission.COMMERCE_SETTLEMENT_READ);
-        return jdbc.query("SELECT k.id, p.id, p.name, k.name, (SELECT count(*) FROM group_buy_product_skus x WHERE x.product_id = p.id), k.default_supply_price, "
-                + "(SELECT COALESCE(i.thumb_key, i.image_key) FROM group_buy_product_images i WHERE i.product_id = p.id ORDER BY i.sort_order LIMIT 1) "
-                + "FROM group_buy_product_skus k JOIN group_buy_products p ON p.id = k.product_id WHERE (?::bigint IS NULL OR p.id <> ?) ORDER BY p.name, k.sort_order",
-                (rs, i) -> new GroupBuyAdminView.AddonSource(Long.toString(rs.getLong(1)), Long.toString(rs.getLong(2)), rs.getString(3),
-                        rs.getInt(5) <= 1 ? rs.getString(3) : rs.getString(3) + " (" + rs.getString(4) + ")", rs.getString(7) == null ? null : storage.publicUrl(rs.getString(7)),
-                        showSupply ? (Long) rs.getObject(6) : null), skip, skip);
+        List<GroupBuyProductAdminQueries.AddonSourceRow> sources = queries.addonSources(skip);
+        Map<Long, String> thumbs = queries.thumbKeys(sources.stream().map(GroupBuyProductAdminQueries.AddonSourceRow::productId).distinct().toList());
+        return sources.stream().map(r -> new GroupBuyAdminView.AddonSource(Long.toString(r.productSkuId()), Long.toString(r.productId()), r.productName(),
+                r.productSkuCount() <= 1 ? r.productName() : r.productName() + " (" + r.skuName() + ")",
+                thumbs.get(r.productId()) == null ? null : storage.publicUrl(thumbs.get(r.productId())), showSupply ? r.defaultSupplyPrice() : null)).toList();
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
@@ -262,8 +245,7 @@ public class GroupBuyProductAdminFacade {
     }
 
     private String categoryPath(long categoryId) {
-        return jdbc.query("SELECT CASE WHEN pc.name IS NULL THEN c.name ELSE pc.name || ' › ' || c.name END FROM group_buy_categories c "
-                + "LEFT JOIN group_buy_categories pc ON pc.id = c.parent_id WHERE c.id = ?", (rs, i) -> rs.getString(1), categoryId).stream().findFirst().orElse("");
+        return adminQueries.categoryPath(categoryId);
     }
 
     private static String nz(String s) {

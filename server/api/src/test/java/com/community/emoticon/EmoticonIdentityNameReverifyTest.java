@@ -67,9 +67,9 @@ class EmoticonIdentityNameReverifyTest extends CommerceApiTestBase {
 
     private long creator() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "n" + base36.substring(Math.max(0, base36.length() - 11)));
+        memberFixture.profile(id, "n" + base36.substring(Math.max(0, base36.length() - 11)), "REGULAR");
         return id;
     }
 

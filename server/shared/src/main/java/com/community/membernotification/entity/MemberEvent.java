@@ -57,6 +57,8 @@ public enum MemberEvent {
     DM(NotificationArea.MEMBER, MemberNotificationType.DM, null, null),
     /** 닉네임 그림 검토 결과(승인·반려·해제) — 운영자 처리 알림이라 회원이 끌 수 없다 */
     NICKNAME_IMAGE_REVIEWED(NotificationArea.MEMBER, MemberNotificationType.NICKNAME_IMAGE_REVIEWED, MemberEventLockReason.ACTION, null),
+    /** 아바타 올리기 심사 결과(승인·반려·해제 — V157) — 운영자 처리 알림이라 회원이 끌 수 없다 */
+    AVATAR_UPLOAD_REVIEWED(NotificationArea.MEMBER, MemberNotificationType.AVATAR_UPLOAD_REVIEWED, MemberEventLockReason.ACTION, null),
     /** 의견 고정 요청이 옴(확인할 수 있는 글쓴이·게시판 매니저에게) — 회원이 끌 수 있다 */
     OPINION_PIN_REQUESTED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REQUESTED, null, null),
     /** 내 의견 고정 요청의 결과(승인·거절) — 처리 알림이라 회원이 끌 수 없다 */

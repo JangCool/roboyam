@@ -23,6 +23,7 @@ class PromoAccountRoleNameTest extends Commerce04AdminTestBase {
     private static final String OLD_NAME = "사업자 회원";
     private static final String OLD_DESCRIPTION = "사업자 승인을 받은 회원입니다. 읽기·프로필·허용 게시판 위주로 제한됩니다.";
 
+    // SQL 로 남김: 마이그레이션(V113) 시험 — 적용 전 행 상태를 SQL 로 세우고 마이그레이션 SQL 을 그대로 돌려 결과 칸을 본다
     private Map<String, Object> row() {
         return jdbc.queryForMap("SELECT role_name, description FROM roles WHERE role_id = ?", MemberRoleIds.BUSINESS);
     }

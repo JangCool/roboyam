@@ -11,6 +11,7 @@ import com.community.auth.dto.AuthUser;
 import com.community.business.dto.BusinessApplyRequest;
 import com.community.business.dto.MyBusinessView;
 import com.community.business.exception.BusinessException;
+import com.community.business.repository.master.BusinessNtsDailyCountQueries;
 import com.community.business.service.BusinessNtsDailyLimiter;
 import com.community.business.service.MyBusinessService;
 import com.community.commerce.CommerceApiTestBase;
@@ -88,7 +89,7 @@ class BusinessNtsDailyLimitTest extends CommerceApiTestBase {
     private long member() {
         long user = newMember();
         String base = Long.toString(user, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "q" + base.substring(Math.max(0, base.length() - 11)));
+        memberFixture.profile(user, "q" + base.substring(Math.max(0, base.length() - 11)));
         return user;
     }
 
@@ -185,6 +186,7 @@ class BusinessNtsDailyLimitTest extends CommerceApiTestBase {
     void 수정에서_네_칸이_그대로면_세지_않고_한도를_다_써도_고칠_수_있다() {
         long user = member();
         service.apply(user, request(user, bizNo('0'), "(주)그대로상사", "홍길동", OPENED)); // 1회
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'APPROVED', reviewed_at = now(), first_approved_at = now() WHERE user_id = ?", user);
         LocalDate today = ServiceTime.today(clock);
         int validates = nts.validates.get();
@@ -207,6 +209,7 @@ class BusinessNtsDailyLimitTest extends CommerceApiTestBase {
         mismatchApply(user);                                                     // 1 신청(불일치)
         mismatchApply(user);                                                     // 2 신청(불일치)
         service.apply(user, request(user, bizNo('0'), "(주)합산상사", "홍길동", OPENED)); // 3 신청(일치)
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'APPROVED', reviewed_at = now(), first_approved_at = now() WHERE user_id = ?", user);
         service.update(user, edit(user, "(주)합산상사", "김철수", OPENED));             // 4 수정(대표자명)
         service.update(user, edit(user, "(주)합산상사", "김철수", "2021-03-03"));       // 5 수정(개업일)
@@ -244,13 +247,13 @@ class BusinessNtsDailyLimitTest extends CommerceApiTestBase {
     @Test
     void 한도_0_이면_제한_없고_세지도_않는다() {
         long user = member();
-        BusinessNtsDailyLimiter unlimited = new BusinessNtsDailyLimiter(dataSource, transactions, 0, clock);
+        BusinessNtsDailyLimiter unlimited = new BusinessNtsDailyLimiter(new BusinessNtsDailyCountQueries(dataSource), transactions, 0, clock);
         for (int i = 0; i < 20; i++) {
             assertThat(unlimited.acquire(user)).isZero();
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_nts_daily_counts WHERE user_id = ?", Integer.class, user)).isZero();
 
-        BusinessNtsDailyLimiter two = new BusinessNtsDailyLimiter(dataSource, transactions, 2, clock);
+        BusinessNtsDailyLimiter two = new BusinessNtsDailyLimiter(new BusinessNtsDailyCountQueries(dataSource), transactions, 2, clock);
         assertThat(two.acquire(user)).isEqualTo(1);
         assertThat(two.acquire(user)).isEqualTo(2);
         assertDailyLimit(() -> two.acquire(user));

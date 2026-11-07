@@ -4,18 +4,21 @@
         테두리 = 그라데이션 고리(`UtilPointShop.BORDERS` 의 값) 안쪽에 바탕색 틈 하나를 두고 동그라미를 앉힌다 — 두 테마에서 고리가 동그라미와 붙어 보이지 않게.
         테두리가 있어도 없어도 바깥 크기는 같다(줄 높이가 바뀌지 않는다). 모르는 테두리 키는 테두리 없이 그린다.
         아바타는 **`<img>` 로만**(`v-html`·인라인 SVG 금지), 틀 안에서 `object-contain`(284종이 가로로 조금 넓다). 못 불러오면 `basic-default`, 그것도 못 불러오면 이니셜.
+        움직이는 아바타(`stillSrc` 가 있다)는 `<picture>` 로 그려 움직임 줄이기(`prefers-reduced-motion: reduce`)면 브라우저가 정지 그림을 고른다(스크립트 없이 — 설정을 바꾸면 바로 따른다).
     -->
     <span class="relative inline-grid shrink-0 place-items-center rounded-full" :class="SIZE[size].box" :style="ringStyle" :data-border="border ? borderStyle : undefined" :aria-hidden="alt ? undefined : 'true'">
         <span class="grid size-full place-items-center rounded-full" :class="border ? [SIZE[size].gap, GAP_BG[surface]] : ''">
-            <img
-                v-if="shown"
-                :src="shown"
-                :alt="alt"
-                class="size-full rounded-full bg-surface-100 object-contain dark:bg-surface-800"
-                :loading="lazy ? 'lazy' : undefined"
-                decoding="async"
-                @error="onError"
-            />
+            <picture v-if="shown" class="contents">
+                <source v-if="still" media="(prefers-reduced-motion: reduce)" :srcset="still" />
+                <img
+                    :src="shown"
+                    :alt="alt"
+                    class="size-full rounded-full bg-surface-100 object-contain dark:bg-surface-800"
+                    :loading="lazy ? 'lazy' : undefined"
+                    decoding="async"
+                    @error="onError"
+                />
+            </picture>
             <span v-else class="grid size-full place-items-center rounded-full bg-surface-100 font-bold text-muted-color dark:bg-surface-800" :class="SIZE[size].text">{{ initial }}</span>
         </span>
     </span>
@@ -25,8 +28,8 @@
 import UtilAvatar from '~/utils/util-avatar';
 import UtilPointShop from '~/utils/util-point-shop';
 
-/** 크기 — `xs` 글 보기 머리 작성자 · `sm` 상점 카드·격자 · `md` 내 정보·내 아이템 · `lg` 공개 프로필 머리 · `xl` 상점 아바타 미리보기 */
-type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+/** 크기 — `2xs` 게시판 목록 작성자(닉네임 왼쪽 — 목록 줄 높이를 거의 바꾸지 않는 20px) · `xs` 글 보기 머리 작성자 · `sm` 상점 카드·격자 · `md` 내 정보·내 아이템 · `lg` 공개 프로필 머리 · `xl` 상점 아바타 미리보기 */
+type AvatarSize = '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 /** 동그라미가 놓인 바탕 — 틈 색을 그 바탕에 맞춘다(`page` 화면 바탕 · `card` 카드 안) */
 type AvatarSurface = 'page' | 'card';
 
@@ -35,6 +38,8 @@ interface Props {
     initial?: string;
     /** 아바타 그림 주소 — 없으면 이니셜 */
     src?: string | null;
+    /** 움직이는 아바타의 정지 그림 — 움직임 줄이기면 이것을 그린다(정지 아바타는 null) */
+    stillSrc?: string | null;
     /** 대체 글 — 비면 장식(옆에 이름이 있다) */
     alt?: string;
     /** 테두리 팔레트 키 — 없으면 테두리 없음 */
@@ -48,6 +53,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     initial: '',
     src: null,
+    stillSrc: null,
     alt: '',
     borderStyle: null,
     size: 'lg',
@@ -57,6 +63,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 /** 크기별 상자·고리 두께(바깥 여백)·틈·글자 */
 const SIZE: Record<AvatarSize, { box: string; ring: string; gap: string; text: string }> = {
+    '2xs': { box: 'size-5', ring: '1.5px', gap: 'p-px', text: 'text-[0.5625rem]' },
     xs: { box: 'size-6', ring: '2px', gap: 'p-px', text: 'text-[0.625rem]' },
     sm: { box: 'size-10', ring: '2px', gap: 'p-0.5', text: 'text-sm' },
     md: { box: 'size-12', ring: '3px', gap: 'p-0.5', text: 'text-lg' },
@@ -90,6 +97,9 @@ const shown = computed<string | null>(() => {
     if (props.src !== UtilAvatar.FALLBACK_URL && !failed.value) return props.src;
     return fallbackFailed.value ? null : UtilAvatar.FALLBACK_URL;
 });
+
+/** 정지 그림 — 받은 그림을 그릴 때만(대체 이미지로 바뀌었으면 없다) */
+const still = computed<string | null>(() => (props.stillSrc && shown.value === props.src ? props.stillSrc : null));
 
 function onError() {
     if (shown.value === UtilAvatar.FALLBACK_URL) fallbackFailed.value = true;

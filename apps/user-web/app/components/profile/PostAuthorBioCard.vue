@@ -1,7 +1,7 @@
 <template>
     <!-- 글 보기 본문 아래 작성자 한 줄 소개 — 프로필이 공개인 회원이 소개를 썼을 때만 그린다(부모가 `bio` 로 가른다) -->
     <section class="flex items-start gap-3 rounded-lg border border-surface bg-surface-50 px-3 py-3 dark:bg-surface-900/40" :aria-label="t('profile.authorCardLabel')" data-testid="post-author-bio">
-        <ProfileBorderAvatar :initial="UtilPointShop.initial(author.name)" :src="avatarSrc" size="sm" :border-style="borderStyle" />
+        <ProfileBorderAvatar :initial="UtilPointShop.initial(author.name)" :src="avatarSrc" :still-src="avatarStillSrc" size="sm" :border-style="borderStyle" />
         <div class="min-w-0 flex-1">
             <div class="flex min-w-0 items-center justify-between gap-2">
                 <PostAuthorLabel :author="author" strong class="min-w-0 text-sm" />
@@ -32,6 +32,8 @@ defineProps<{
     bio: string;
     /** 아바타 그림(내 것은 방금 고른 것) — 없으면 이니셜 */
     avatarSrc?: string | null;
+    /** 움직이는 아바타의 정지 그림(움직임 줄이기) */
+    avatarStillSrc?: string | null;
     /** 장착한 프로필 테두리 */
     borderStyle?: string | null;
 }>();

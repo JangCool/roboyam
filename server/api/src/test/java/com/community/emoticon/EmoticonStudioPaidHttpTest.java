@@ -50,9 +50,9 @@ class EmoticonStudioPaidHttpTest extends CommerceApiTestBase {
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "p" + base36.substring(Math.max(0, base36.length() - 11)));
+        memberFixture.profile(id, "p" + base36.substring(Math.max(0, base36.length() - 11)), "REGULAR");
         return id;
     }
 

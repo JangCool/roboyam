@@ -120,9 +120,9 @@
                             <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
                         </h1>
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
-                            <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
+                            <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·홈 가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 홈 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
-                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
+                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" :still-src="authorAvatarStill" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
                             <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />
                             <span aria-hidden="true">·</span>
                             <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
@@ -252,7 +252,7 @@
                         </div>
 
                         <!-- 작성자 한 줄 소개 — 프로필을 공개한 회원이 소개를 썼을 때만(사업자 핫딜 글은 상호로 보여 빼고, 비공개·비회원·탈퇴는 값이 없다) -->
-                        <PostAuthorBioCard v-if="authorBio && !bizDeal" :author="post.author" :bio="authorBio" :avatar-src="authorAvatar" :border-style="authorDecoration?.profileBorder ?? null" class="mb-3" />
+                        <PostAuthorBioCard v-if="authorBio && !bizDeal" :author="post.author" :bio="authorBio" :avatar-src="authorAvatar" :avatar-still-src="authorAvatarStill" :border-style="authorDecoration?.profileBorder ?? null" class="mb-3" />
                     </FoldedRow>
 
                     <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
@@ -465,6 +465,8 @@ const pageState = ref<PageState>('loading');
 const authorDecoration = computed(() => (post.value ? decorations.decorationOf(post.value.author.memberId, post.value.author.decoration) : null));
 /** 글쓴이 아바타 — 서버 `author.avatarUrl`(후보)에 내가 방금 고른 것을 겹친다(비회원은 null → 이니셜) */
 const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
+/** 움직이는 아바타의 정지 그림(움직임 줄이기) */
+const authorAvatarStill = computed(() => (post.value ? decorations.avatarStillOf(post.value.author.memberId, post.value.author.avatarStillUrl) : null));
 /** 작성자 한 줄 소개 — 프로필이 공개일 때만(서버 후보 `author.bio`, 지금은 목업이 공개 프로필에서 받는다 — `usePostAuthorBio`) */
 const { bio: authorBio } = usePostAuthorBio(() => post.value?.author);
 const pageError = ref('');

@@ -45,4 +45,16 @@ export interface SiteInfoResponse {
      * 옛 응답에는 없다(없으면 보내지 않는다).
      */
     analytics?: VisitCollectSwitch | null;
+    /** 운영 주체의 단계·연락 이메일(terms-operator-contract — 서버 `SiteOperatorPublicView`). 운영 주체 행이 없으면 개인 단계·이메일 null. 옛 응답에는 없다 */
+    operator?: SiteOperatorPublicResponse | null;
+}
+
+/** 운영 주체 단계 — 개인(사업자등록 전) · 개인사업자 · 법인 */
+export type SiteOperatorStage = 'INDIVIDUAL' | 'SOLE_PROPRIETOR' | 'CORPORATION';
+
+/** 공개 사이트 정보의 운영 주체 — 푸터의 「문의 이메일」 한 줄(사업자 정보가 없을 때)이 쓴다 */
+export interface SiteOperatorPublicResponse {
+    stage: SiteOperatorStage;
+    /** 연락 이메일 — 아직 저장하지 않았으면 null */
+    contactEmail: string | null;
 }

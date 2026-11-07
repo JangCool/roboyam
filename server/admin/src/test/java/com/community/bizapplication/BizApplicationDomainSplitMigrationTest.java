@@ -28,6 +28,12 @@ import org.springframework.core.io.ClassPathResource;
  */
 class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
 
+    /** 유료 신청 승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) */
+    @Override
+    protected boolean sellingOperator() {
+        return true;
+    }
+
     private static final List<String> NEW_CODES = List.of("AD_REVIEW_PENDING", "HOTDEAL_REVIEW_PENDING", "AD_REFUND_REQUESTED", "HOTDEAL_REFUND_REQUESTED");
 
     @Autowired
@@ -42,12 +48,13 @@ class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
     private long approvedBusiness() {
         long user = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, 'APPROVED', false, '이관상사', 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())", profile, user,
                 String.format("%064x", profile));
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'APPROVED', now())", ids.nextId(), profile, service);
+            businessFixture.service(ids.nextId(), profile, service, "APPROVED");
         }
         return user;
     }
@@ -81,8 +88,7 @@ class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
                     "이관 시험 한 줄", "MANUAL", "v1", "2026-11-02"));
             // V123 — 받는 핫딜 게시판 필수(말머리 없는 새 게시판)
             long board = ids.nextId();
-            jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", board, "mg" + Long.toString(board, 36),
-                    "이관 핫딜 " + Long.toString(board, 36));
+            boardFixture.board(board, "mg" + Long.toString(board, 36), "이관 핫딜 " + Long.toString(board, 36), 950, "DEAL", "REGULAR");
             boardCatalog.invalidate();
             long deal = members.submitDeal(user, new BizDealApplyRequest("[이관상사] 텀블러", new BizDealInfo("https://smartstore.naver.com/roboyam/products/7",
                     "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "2026-11-02"));

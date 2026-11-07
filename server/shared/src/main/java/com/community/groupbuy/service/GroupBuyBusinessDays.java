@@ -52,6 +52,21 @@ public final class GroupBuyBusinessDays {
         return n;
     }
 
+    /**
+     * {@link #elapsed}{@code (d, today) >= n} 인 날 {@code d} 의 경계 — 그런 {@code d} 는 모두 돌려준 날보다 앞이고, 앞인 날은 모두 그렇다({@code n >= 1}). {@code today} 부터
+     * 거꾸로 세어 {@code n} 번째 영업일이다(지난 영업일 수는 날이 뒤로 갈수록 줄기만 하므로). 목록이 「기한 지남」을 DB 에서 고르는 시각 경계({@code 작성 시각 < 이 날 0시 KST})로 쓴다.
+     */
+    public static LocalDate elapsedCutoff(LocalDate today, int n, BusinessDayCalendar calendar) {
+        int counted = 0;
+        LocalDate day = today;
+        for (int guard = 0; guard < 3_660; guard++, day = day.minusDays(1)) {
+            if (calendar.businessDay(day) && ++counted >= n) {
+                return day;
+            }
+        }
+        return day; // 10년 내내 쉬는 날인 달력은 없다 — 그래도 끝나게
+    }
+
     /** 시작 시각(한국 날짜)부터 {@code n} 영업일째 날이 끝나는 시각(다음 날 0시 KST) */
     public static Instant endOfBusinessDays(Instant start, int n, BusinessDayCalendar calendar) {
         return plus(ServiceTime.dateOf(start), n, calendar).plusDays(1).atStartOfDay(ServiceTime.ZONE).toInstant();

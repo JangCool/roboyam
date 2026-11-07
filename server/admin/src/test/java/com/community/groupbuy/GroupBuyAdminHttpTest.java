@@ -16,8 +16,6 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 관리자 공구 API(커머스 2b-4) — 실제 관리자 앱 문맥 + PostgreSQL. 결정 35 권한(조회·관리·중단·수량 조정·환불·내보내기)·{@code featureReady}·메뉴 · 판매 켜기는 최고 관리자만(20절) ·
@@ -25,7 +23,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
 
-    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.community.groupbuy.service.GroupBuyProductService products;
 
     @AfterEach
     void restore() {
@@ -71,20 +70,26 @@ class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     @Test
-    void 판매_켜기는_최고_관리자만_끄기는_설정_권한자도_사업자등록번호는_체크섬까지_본다() throws Exception {
+    void 판매_켜기는_최고_관리자만_끄기는_설정_권한자도_사업자_정보_저장은_겹치는_칸을_무시한다() throws Exception {
         Cookie settings = login(operatorWith(Permission.COMMERCE_SETTINGS));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales"), settings).content("{\"enabled\":true,\"reason\":\"판매를 시작합니다\"}")).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMERCE_SALES_ROOT_ONLY"));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales"), settings).content("{\"enabled\":false,\"reason\":\"문제가 있어 멈춥니다\"}")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.enabled").value(false)).andExpect(jsonPath("$.data.autoChecks.length()").value(4))
+                .andExpect(jsonPath("$.data.enabled").value(false)).andExpect(jsonPath("$.data.autoChecks.length()").value(5))
+                .andExpect(jsonPath("$.data.autoChecks[1].key").value("OPERATOR_STAGE"))
                 .andExpect(jsonPath("$.data.checklist.length()").value(6));
         mvc.perform(withCsrf(post("/api/admin/commerce/sales/checklist/TERMS"), settings).content("{\"checked\":true}")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.checklist[2].key").value("TERMS")).andExpect(jsonPath("$.data.checklist[2].checked").value(true));
 
-        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"companyName\":\"시험상회\",\"businessNo\":\"123-45-67890\"}}"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields['values.businessNo']").exists());
-        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"companyName\":\"시험상회\",\"businessNo\":\"123-45-67891\"}}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.values.businessNo").value("123-45-67891")).andExpect(jsonPath("$.data.ready").value(false));
+        // 사업자 정보의 정본 = 운영 주체(terms-operator-contract) — 겹치는 칸은 받아도 검사·저장하지 않고, 커머스 고유 칸만 저장한다
+        String before = jdbc.queryForObject("SELECT coalesce(registration_number, '') FROM site_operator WHERE id = 1", String.class);
+        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings)
+                        .content("{\"values\":{\"companyName\":\"무시상회\",\"businessNo\":\"123-45-67890\",\"businessHours\":\"평일 10~17시\"}}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.values.businessNo").value(before))
+                .andExpect(jsonPath("$.data.values.businessHours").value("평일 10~17시"));
+        assertThat(jdbc.queryForObject("SELECT coalesce(business_name, '') FROM site_operator WHERE id = 1", String.class)).isNotEqualTo("무시상회");
+        mvc.perform(withCsrf(put("/api/admin/commerce/business-info"), settings).content("{\"values\":{\"shippingRefundPolicy\":\"" + "가".repeat(3001) + "\"}}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields['values.shippingRefundPolicy']").exists());
 
         mvc.perform(get("/api/admin/commerce/group-buy-settings").cookie(settings)).andExpect(status().isOk()).andExpect(jsonPath("$.data.ranges.holdMinutes.min").value(3))
                 .andExpect(jsonPath("$.data.defaults.largeRefundThreshold").value(100000));
@@ -105,17 +110,9 @@ class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
     @Test
     void 결정2_상품_설명은_저장할_때_서버가_정화한다() throws Exception {
         Cookie manager = login(operatorWith(Permission.COMMERCE_PRODUCT_READ, Permission.COMMERCE_PRODUCT_MANAGE));
-        String categories = mvc.perform(withCsrf(put("/api/admin/group-buys/categories"), manager)
-                        .content("[{\"id\":null,\"tempKey\":\"t1\",\"parent\":null,\"name\":\"정화" + (ids.nextId() % 100000) + "\",\"hidden\":false}]"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        JsonNode created = null;
-        for (JsonNode c : MAPPER.readTree(categories).path("data")) {
-            if (c.path("name").asString().startsWith("정화")) {
-                created = c;
-            }
-        }
-        assertThat(created).isNotNull();
-        String body = "{\"categoryId\":\"" + created.path("id").asString() + "\",\"name\":\"정화 상품\",\"summary\":\"\",\"spec\":\"\","
+        // 분류는 서비스로 하나만 더한다 — 분류 전체 교체(PUT)는 같이 쓰는 시험 DB 의 남의 분류(쓰는 상품이 있으면 409)까지 지우려 한다(시험은 자기 행만)
+        long createdId = products.createCategory("정화" + (ids.nextId() % 100000), null, 0, null, "127.0.0.1");
+        String body = "{\"categoryId\":\"" + createdId + "\",\"name\":\"정화 상품\",\"summary\":\"\",\"spec\":\"\","
                 + "\"description\":\"<p onclick=\\\"x()\\\">설명<script>alert(1)</script></p><iframe src=\\\"https://evil.example\\\"></iframe>\","
                 + "\"normalPrice\":10000,\"normalPriceBasis\":\"OFFICIAL_STORE\",\"normalPriceSource\":\"시험\",\"withdrawalRestriction\":\"\",\"optionTypeCodes\":[],"
                 + "\"skus\":[{\"skuId\":null,\"name\":\"기본\",\"values\":[],\"defaultSupplyPrice\":5000,\"onSale\":true}],\"images\":[],\"notices\":null,\"version\":null}";

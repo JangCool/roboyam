@@ -29,6 +29,7 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
 
     @Test
     void 새싹_미인증은_핫딜_게시판_응답과_쓸_수_있는_목록에서_미리_막힌다() {
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = NULL WHERE slug = ?", board); // 게시판 기본(첫 등급)이어도 핫딜은 새싹을 막는다
         catalog.invalidate();
         long sprout = member("SEEDLING", true);
@@ -45,6 +46,7 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
 
         // 일반 게시판(같은 최소 자격)은 새싹도 쓴다 — 핫딜 게시판만의 자격이다
         String general = generalBoard();
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = NULL WHERE slug = ?", general);
         catalog.invalidate();
         assertThat(reason(general, sprout)).isNull();
@@ -53,11 +55,13 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
     @Test
     void 비회원은_로그인이_필요하고_매니저_스텝은_등급_면제() {
         // 핫딜 게시판은 비회원 글쓰기(GUEST)를 DB 가 막는다(ck_boards_guest_kind) — 판정도 비회원이면 LOGIN_REQUIRED
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = NULL WHERE slug = ?", board);
         catalog.invalidate();
         assertThat(reason(board, null)).isEqualTo("LOGIN_REQUIRED");
         assertThat(writable(board, null)).isFalse();
         long staffSprout = member("SEEDLING", true);
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'STAFF')", boardId(board), staffSprout);
         assertThat(reason(board, staffSprout)).isNull();
         assertThat(reason(board, member("SEEDLING", true))).isEqualTo("GRADE_TOO_LOW");
@@ -65,6 +69,7 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
 
     @Test
     void 핫딜_GRADE_TOO_LOW_는_필요한_등급을_싣는다() {
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = NULL WHERE slug = ?", board);
         catalog.invalidate();
         CommonException e = error(() -> write(member("SEEDLING", true), board, deal(url("shop.example.com"))));
@@ -74,6 +79,7 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
         assertThat(e.getExtras()).containsEntry("minGradeLabel", label);
 
         // 게시판 최소 자격이 더 높으면 그 등급
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = 'LOYAL' WHERE slug = ?", board);
         catalog.invalidate();
         CommonException higher = error(() -> write(member("REGULAR", true), board, deal(url("shop.example.com"))));

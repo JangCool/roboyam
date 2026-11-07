@@ -23,7 +23,7 @@ public class BatchLockService {
 
     private static final Logger log = LoggerFactory.getLogger(BatchLockService.class);
 
-    /** 이 앱의 다른 어드바이저리 잠금({@code BootstrapLock})과 겹치지 않게 정한 고정 값 — 두 정수 키 형태의 앞 키 */
+    /** 이 앱의 다른 어드바이저리 잠금({@code BootstrapLockQueries})과 겹치지 않게 정한 고정 값 — 두 정수 키 형태의 앞 키 */
     private static final int NAMESPACE = 7_340_002;
 
     private final DataSource dataSource;

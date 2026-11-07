@@ -1,7 +1,7 @@
 <template>
     <!--
         모바일 메뉴 두 줄(운영자 설정 「모바일 상단 메뉴」 `MENU` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28) — 운영자가 고른 「모바일 탭」 대신 데스크톱 메뉴와 같은 구조로 그린다.
-          첫 줄: 최상위 항목(홈·인기글·최신글·공지 …)은 링크, 사이드 몫 그룹(커뮤니티·소모임 …)은 이름 단추 — 데스크톱 첫 줄과 같다. 구분선(`divider`)도 데스크톱처럼 긋는다.
+          첫 줄: 최상위 항목(인기글·공지 … — 하단 탭에 있는 홈·최신글·커뮤니티·소모임 등은 뺀다, `useBottomTabs`)은 링크, 사이드 몫 그룹(커뮤니티·소모임 …)은 이름 단추 — 데스크톱 첫 줄과 같다. 구분선(`divider`)도 데스크톱처럼 긋는다.
           둘째 줄: 기본은 상단 띠 그룹(주제 …)을 「그룹 이름(작은 글자) + 칸」으로 — 데스크톱 둘째 줄과 같다(홈에서도 주제가 보인다).
             커뮤니티·소모임 단추를 누르거나 그 그룹 안에 있으면 둘째 줄이 그 그룹의 칸으로 바뀐다(데스크톱에서는 오른쪽 사이드에 뜨는 것 — 모바일은 사이드가 없어 둘째 줄이 대신한다). 같은 단추를 다시 누르면 주제로 돌아간다.
         고른 그룹 상태는 데스크톱 사이드와 같은 `useSideGroupPick` 이다. 상단 띠·사이드 나누기는 데스크톱과 같은 `useMenuItems('bar' | 'side')`(`UtilMenu.split`).
@@ -125,6 +125,8 @@ const { afterNavigate } = useAfterMenuNavigate();
 const { description: menuDesc } = useMenuDescription();
 const { menuDescription: showDesc } = useMenuStyle();
 const { nodes } = useMenu();
+/** 하단 탭(숏컷)에 이미 있는 메뉴 노드인가 — 모바일 상단 두 줄에서 뺀다 */
+const { covers: inBottomTabs } = useBottomTabs();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
 const rowId = useId();
@@ -137,14 +139,21 @@ function groupDivider(key: string): MenuDivider | null {
     return nodes.value.find((node) => node.id === key)?.divider ?? null;
 }
 
-/** 첫 줄 — 최상위 항목(그룹 밖 항목)을 먼저, 그 뒤에 사이드 몫 그룹 이름. 상단 띠 그룹(주제)은 둘째 줄에만 둔다(데스크톱과 같게) */
+/**
+ * 첫 줄 — 최상위 항목(그룹 밖 항목)을 먼저, 그 뒤에 사이드 몫 그룹 이름. 상단 띠 그룹(주제)은 둘째 줄에만 둔다(데스크톱과 같게).
+ * 하단 탭(숏컷)에 있는 항목·그룹(홈·최신글·커뮤니티·소모임·게시판 …)은 이 줄에서 뺀다 — 기준은 하단 탭 목록 하나(`useBottomTabs().covers`, 사용자 결정 2026-11-06 — 데스크톱 메뉴는 그대로)
+ */
 const tabs = computed<FirstTab[]>(() => {
     const items = allBar.value
         .filter((section) => section.title === null)
         .flatMap<FirstTab>((section) =>
-            section.entries.flatMap<FirstTab>((entry) => (entry.kind === 'item' ? [{ kind: 'item', key: entry.key, row: entry.row, divider: entry.row.node.divider ?? null }] : [])),
+            section.entries.flatMap<FirstTab>((entry) =>
+                entry.kind === 'item' && !inBottomTabs(entry.row.node) ? [{ kind: 'item', key: entry.key, row: entry.row, divider: entry.row.node.divider ?? null }] : [],
+            ),
         );
-    const groups = sidePick.groups.value.map<FirstTab>((section) => ({ kind: 'group', key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
+    const groups = sidePick.groups.value
+        .filter((section) => !(section.group && inBottomTabs(section.group)))
+        .map<FirstTab>((section) => ({ kind: 'group', key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
     return [...items, ...groups];
 });
 
@@ -176,7 +185,7 @@ function fromSide(section: MenuSection): SecondGroup {
 const secondGroups = computed<SecondGroup[]>(() => {
     const picked = sidePick.current.value;
     if (picked) return [fromSide(picked)];
-    return barSections.value.filter((section) => section.title !== null).map(fromBar);
+    return barSections.value.filter((section) => section.title !== null && !(section.group && inBottomTabs(section.group))).map(fromBar);
 });
 
 const visible = computed(() => state.value === 'loading' || state.value === 'error' || tabs.value.length > 0 || secondGroups.value.length > 0);

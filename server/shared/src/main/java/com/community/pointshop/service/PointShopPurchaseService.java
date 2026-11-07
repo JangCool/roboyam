@@ -139,7 +139,7 @@ public class PointShopPurchaseService {
         }
         long userItemId = ids.nextId();
         try {
-            userItems.insert(new UserItemRow(userItemId, userId, itemId, purchaseId, item.usageType(), UserItemStatus.OWNED, startsAt, expiresAt, null, null, null, now));
+            userItems.insert(new UserItemRow(userItemId, userId, itemId, purchaseId, item.usageType(), UserItemStatus.OWNED, startsAt, expiresAt, null, null, null, now, null, null, null));
         } catch (DuplicateKeyException e) {
             throw new PointShopAlreadyOwnedException(); // 같은 영구 품목을 동시에 두 번 — 부분 유일 색인이 막았다(트랜잭션째 되돌린다)
         }
@@ -200,7 +200,7 @@ public class PointShopPurchaseService {
         PointShopSelfRefundView self = null;
         PointShopPurchaseRefundView refund = null;
         if (p.status() == PointShopPurchaseStatus.COMPLETED) {
-            String blocked = PointShopRules.selfRefundBlock(UserItemStatus.OWNED, row.firstUsedAt(), p.createdAt(), refundDays, now);
+            String blocked = PointShopRules.selfRefundBlock(UserItemStatus.OWNED, row.firstUsedAt(), row.reservedAt(), p.createdAt(), refundDays, now);
             self = new PointShopSelfRefundView(blocked == null, PointShopRules.refundUntil(p.createdAt(), refundDays), blocked);
         } else {
             PointShopRefundKind kind = p.refundKind() != null ? p.refundKind() : p.refundedByOperatorId() != null ? PointShopRefundKind.EXCEPTION : PointShopRefundKind.SELF;

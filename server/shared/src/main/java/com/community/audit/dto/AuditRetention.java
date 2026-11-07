@@ -90,6 +90,7 @@ public final class AuditRetention {
             AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
             AuditActions.SITE_OG_CHANGE, AuditActions.SITE_OG_RESET, AuditActions.SITE_DISPLAY_UPDATE, AuditActions.SITE_THEME_UPDATE,
             AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
+            AuditActions.SITE_OPERATOR_UPDATE, AuditActions.SITE_OPERATOR_STAGE_CHANGE,
             AuditActions.GADGET_PAGE_CREATE, AuditActions.GADGET_PAGE_UPDATE, AuditActions.GADGET_PAGE_DELETE, AuditActions.GADGET_PAGE_LAYOUT_UPDATE,
             AuditActions.BOARD_LAYOUT_UPDATE,
             AuditActions.MAIL_SETTINGS_UPDATE, AuditActions.MAIL_SETTINGS_TEST,
@@ -127,6 +128,8 @@ public final class AuditRetention {
             // 포인트 이동의 기록은 포인트 원장이 가진다 — 일반 운영(commerce-foundation-contract 「0-5」 세션 정리 결정)
             AuditActions.TERMS_PUBLISH, AuditActions.TERMS_LINKS_UPDATE,
             AuditActions.NICKNAME_IMAGE_APPROVE, AuditActions.NICKNAME_IMAGE_REJECT, AuditActions.NICKNAME_IMAGE_REVOKE, AuditActions.NICKNAME_IMAGE_SETTINGS_UPDATE,
+            // 아바타 올리기 심사(commerce-motion-avatar-contract) — 닉네임 이미지 심사와 같은 콘텐츠 심사. 변경권 사용·반환은 포인트가 오가지 않는 아이템 상태 변경이라 일반 운영
+            AuditActions.AVATAR_UPLOAD_APPROVE, AuditActions.AVATAR_UPLOAD_REJECT, AuditActions.AVATAR_UPLOAD_REVOKE,
             AuditActions.POPULAR_SETTINGS_UPDATE, AuditActions.POPULAR_EXCLUDE, AuditActions.POPULAR_RESTORE,
             AuditActions.HIGHLIGHT_CREATE, AuditActions.HIGHLIGHT_UPDATE, AuditActions.HIGHLIGHT_DELETE, AuditActions.HIGHLIGHT_ORDER, AuditActions.HIGHLIGHT_VISIBLE,
             AuditActions.HIGHLIGHT_OPINION_PIN, AuditActions.HIGHLIGHT_OPINION_UNPIN, AuditActions.HIGHLIGHT_OPINION_HIDE, AuditActions.HIGHLIGHT_OPINION_UNHIDE,

@@ -32,7 +32,7 @@ class IdentityKeyMissingTest {
     private final List<String> finished = new ArrayList<>();
     private final Instant now = Instant.parse("2026-10-24T03:00:00Z");
 
-    private final IdentityStore store = new IdentityStore(new DriverManagerDataSource()) {
+    private final IdentityStore store = new IdentityStore(null, null, new DriverManagerDataSource()) {
         @Override
         public Optional<Verification> findVerification(long userId) {
             return Optional.empty();

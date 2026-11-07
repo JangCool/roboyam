@@ -27,7 +27,7 @@
                             </p>
                             <div class="mt-auto flex items-center justify-between gap-3 pt-1.5 text-[12.5px] leading-[18px] text-muted-color">
                                 <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-1.5">
-                                    <PostAuthorLabel :author="row.author" />
+                                    <PostAuthorLabel :author="row.author" avatar />
                                     <span aria-hidden="true">·</span>
                                     <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                     <span aria-hidden="true">·</span>

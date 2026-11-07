@@ -23,6 +23,7 @@ import com.community.payment.gateway.fake.FakePgStore;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.permission.entity.MemberPermission;
 import com.community.role.entity.MemberRoleIds;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.user.entity.Role;
 import com.jayway.jsonpath.JsonPath;
 import java.sql.Timestamp;
@@ -56,8 +57,8 @@ import org.springframework.web.context.WebApplicationContext;
 class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
 
     private static final int PRICE = 2500;
-    private static final List<MemberPermission> GENERAL = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE);
+    /** 일반 회원 기본 권한 — 운영 시드({@code BuiltinRoleSeeder})와 같은 정본(먼저 도는 시험이 역할을 만들면 뒤의 공구 주문 시험도 그 권한을 쓴다) */
+    private static final List<MemberPermission> GENERAL = MemberRoleIds.GENERAL_DEFAULT_PERMISSIONS;
 
     @Autowired
     private WebApplicationContext context;
@@ -92,19 +93,23 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         operator = newOperator();
         paidWas = jdbc.queryForObject("SELECT paid_sales_enabled FROM emoticon_settings WHERE id = 1", Boolean.class);
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = true WHERE id = 1");
+        SiteOperatorFixture.fillBusiness(jdbc); // 유료 판매·구매는 운영 주체가 개인사업자 이상 + 통신판매업 신고번호(사용자 결정 2026-11-07)
         for (MemberPermission p : MemberPermission.values()) {
+            // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
         }
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         if (jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name, scope, grant_mode, builtin) VALUES (?, 'memberKind', 'MEMBER', ?, 'SITE', 'AUTO', true) "
                 + "ON CONFLICT (role_id) DO NOTHING", MemberRoleIds.GENERAL, MemberRoleIds.GENERAL) == 1) {
             for (MemberPermission p : GENERAL) {
+                // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
                 jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", ids.nextId(), MemberRoleIds.GENERAL, p.code());
             }
         }
         board = ids.nextId();
         slug = "emp" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 951)", board, slug, "로보티콘 구매 " + slug.substring(slug.length() - 5));
+        boardFixture.board(board, slug, "로보티콘 구매 " + slug.substring(slug.length() - 5), 951);
         boards.invalidate();
     }
 
@@ -112,15 +117,16 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
     void restore() {
         jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE price > 0");
         jdbc.update("UPDATE emoticon_settings SET paid_sales_enabled = ? WHERE id = 1", paidWas);
+        SiteOperatorFixture.clear(jdbc);
     }
 
     // ── 도우미 ──────────────────────────────────────────────────────────────
 
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String base36 = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "b" + base36.substring(Math.max(0, base36.length() - 11)));
+        memberFixture.profile(id, "b" + base36.substring(Math.max(0, base36.length() - 11)), "REGULAR");
         return id;
     }
 
@@ -349,6 +355,7 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         mvc.perform(post("/api/emoticons/packs/" + pack + "/purchase").contentType(MediaType.APPLICATION_JSON).content("{\"agreeRefundNotice\":true}"))
                 .andExpect(status().isUnauthorized());
         long unverifiedEmail = member();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET email_verified_at = NULL WHERE id = ?", unverifiedEmail);
         prepare(unverifiedEmail, pack).andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("EMAIL_NOT_VERIFIED"));
         long noIdentity = member();
@@ -456,6 +463,30 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
         fakePg.pay(s[0], PRICE, "KRW", clock.instant());
         complete(buyer, s).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepted").value(true));
+    }
+
+    /** 사용자 결정 2026-11-07 — 돈을 받는 기능은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(방어선: 스위치가 켜져 있어도) */
+    @Test
+    void 운영_주체가_개인_단계거나_신고번호가_없으면_스위치가_켜져_있어도_결제_준비는_409_공개_규칙은_꺼짐_이미_결제창의_주문은_받는다() throws Exception {
+        long pack = paidPack();
+        long buyer = buyer();
+        String[] s = start(buyer, pack);
+        mvc.perform(get("/api/emoticons/rules")).andExpect(status().isOk()).andExpect(jsonPath("$.data.paidSalesEnabled").value(true));
+
+        SiteOperatorFixture.clear(jdbc); // 개인 단계(스위치는 켜진 채 — 옮기기 전 데이터 등)
+        prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
+        mvc.perform(get("/api/emoticons/rules")).andExpect(status().isOk()).andExpect(jsonPath("$.data.paidSalesEnabled").value(false));
+        fakePg.pay(s[0], PRICE, "KRW", clock.instant());
+        complete(buyer, s).andExpect(status().isOk()).andExpect(jsonPath("$.data.accepted").value(true));
+
+        // 개인사업자여도 통신판매업 신고번호가 없으면 같은 409
+        SiteOperatorFixture.fillBusiness(jdbc);
+        jdbc.update("UPDATE site_operator SET mail_order_number = '  ' WHERE id = 1");
+        prepare(buyer(), pack).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAID_SALES_CLOSED"));
+
+        // 개인사업자 + 신고번호면 다시 받는다
+        SiteOperatorFixture.fillBusiness(jdbc);
+        prepare(buyer(), pack).andExpect(status().isOk());
     }
 
     @Test
@@ -584,7 +615,7 @@ class EmoticonPurchaseHttpTest extends CommerceApiTestBase {
         // 댓글 쓰기(다른 회원 글) — 댓글 저장 트랜잭션에서
         long other = member();
         long otherPost = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, title, content) VALUES (?, ?, ?, '남의 글', '본문이에요')", otherPost, board, other);
+        boardFixture.post(otherPost, board, other, "남의 글", "본문이에요");
         mvc.perform(as(buyer, post("/api/posts/" + otherPost + "/comments").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"contentFormat\":\"TEXT\",\"content\":" + json("댓글 " + token(emoticons(groupPack).get(0))) + "}"))).andExpect(status().isCreated());
         assertThat(usedAt(forGroup)).isNotNull();

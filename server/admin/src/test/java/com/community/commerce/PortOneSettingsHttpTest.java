@@ -133,8 +133,11 @@ class PortOneSettingsHttpTest extends Commerce04AdminTestBase {
         assertThat(ciphers).hasSize(5).allMatch(c -> c.startsWith("v1:"))
                 .noneMatch(c -> c.contains(STORE_ID) || c.contains(API_SECRET) || c.contains(CHANNEL_KEY) || c.contains(PAYMENT_CHANNEL_KEY) || c.contains(WEBHOOK_SECRET));
 
-        List<Map<String, Object>> audits = jdbc.queryForList("SELECT target_type, target_id, coalesce(detail, '') AS detail FROM audit_logs "
-                + "WHERE actor_id = ? AND action = 'PORTONE_SETTINGS_UPDATE' ORDER BY id", operator);
+        List<Map<String, Object>> audits = auditLogs.where().actor(operator).action("PORTONE_SETTINGS_UPDATE").list().stream().map(row -> {
+            Map<String, Object> m = row.asMap();
+            m.put("detail", row.detail() == null ? "" : row.detail()); // 예전 coalesce(detail, '')
+            return m;
+        }).toList();
         assertThat(audits).extracting(row -> row.get("target_id")).containsExactly("common", "identity", "payment", "payment");
         assertThat(audits).allMatch(row -> "PORTONE_SETTINGS".equals(row.get("target_type")));
         assertThat((String) audits.get(0).get("detail")).contains("storeId", "apiSecret").doesNotContain("identityChannelKey");
@@ -143,8 +146,7 @@ class PortOneSettingsHttpTest extends Commerce04AdminTestBase {
         assertThat((String) audits.get(3).get("detail")).contains("webhookSecret").doesNotContain("paymentChannelKey");
         String all = audits.stream().map(row -> (String) row.get("detail")).reduce("", String::concat);
         assertThat(all).doesNotContain(STORE_ID).doesNotContain(API_SECRET).doesNotContain(CHANNEL_KEY).doesNotContain(PAYMENT_CHANNEL_KEY).doesNotContain(WEBHOOK_SECRET);
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PORTONE_SETTINGS_UPDATE' ORDER BY id DESC LIMIT 1",
-                String.class, operator)).as("결제를 받는 경로를 바꾸는 일 — 돈 관련").isEqualTo("MONEY");
+        assertThat(auditLogs.where().actor(operator).action("PORTONE_SETTINGS_UPDATE").lastById().orElseThrow().retentionClass()).as("결제를 받는 경로를 바꾸는 일 — 돈 관련").isEqualTo("MONEY");
     }
 
     @Test
@@ -187,8 +189,7 @@ class PortOneSettingsHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.fields[1].updatedBy").value(operatorName(operator)))
                 .andExpect(jsonPath("$.data.fields[4].configured").value(false));
         assertThat(jdbc.queryForObject("SELECT value_cipher FROM portone_settings WHERE key = 'apiSecret'", String.class)).isNull();
-        List<Map<String, Object>> deletes = jdbc.queryForList("SELECT target_id, detail FROM audit_logs WHERE actor_id = ? AND action = 'PORTONE_SETTINGS_DELETE' ORDER BY id",
-                operator);
+        List<Map<String, Object>> deletes = auditLogs.where().actor(operator).action("PORTONE_SETTINGS_DELETE").list().stream().map(row -> row.asMap()).toList();
         assertThat(deletes).extracting(row -> row.get("target_id")).containsExactly("common", "payment");
         assertThat((String) deletes.get(0).get("detail")).contains("\"field\":\"apiSecret\"").doesNotContain(API_SECRET);
         assertThat((String) deletes.get(1).get("detail")).contains("\"field\":\"webhookSecret\"").doesNotContain("whsec_");

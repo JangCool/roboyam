@@ -94,6 +94,7 @@ abstract class HotdealApiTestBase extends CommerceApiTestBase {
     @AfterEach
     void hotdealTearDown() {
         for (String domain : domains) {
+            // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
             jdbc.update("DELETE FROM deal_domains WHERE domain = ?", domain);
             jdbc.update("DELETE FROM deal_site_affiliates WHERE domain = ?", domain);
         }
@@ -121,7 +122,7 @@ abstract class HotdealApiTestBase extends CommerceApiTestBase {
     protected String dealBoard() {
         long id = ids.nextId();
         String slug = "hd" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", id, slug, "핫딜 " + slug.substring(slug.length() - 6));
+        boardFixture.board(id, slug, "핫딜 " + slug.substring(slug.length() - 6), 950, "DEAL", "REGULAR");
         catalog.invalidate();
         return slug;
     }
@@ -130,7 +131,7 @@ abstract class HotdealApiTestBase extends CommerceApiTestBase {
     protected String generalBoard() {
         long id = ids.nextId();
         String slug = "gn" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 951)", id, slug, "일반 " + slug.substring(slug.length() - 6));
+        boardFixture.board(id, slug, "일반 " + slug.substring(slug.length() - 6), 951);
         catalog.invalidate();
         return slug;
     }
@@ -147,31 +148,29 @@ abstract class HotdealApiTestBase extends CommerceApiTestBase {
     protected long member(String grade, boolean verified) {
         long id = newMember();
         if (verified) {
-            jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+            memberFixture.verifyEmail(id);
         }
         String name = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, ?)", id, "h" + name.substring(Math.max(0, name.length() - 11)), grade);
+        memberFixture.profile(id, "h" + name.substring(Math.max(0, name.length() - 11)), grade);
         return id;
     }
 
     /** 그 권한을 가진 활성 운영자 */
     protected long operatorWith(Permission... permissions) {
         long id = newOperator();
-        String roleId = "ROLE_ZZ_HD_" + id;
-        jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name) VALUES (?, 'op_general', 'OPERATOR', ?)", roleId, "hd-" + (id % 1_000_000_000L));
         for (Permission permission : permissions) {
-            // 권한 표는 관리자 앱이 뜰 때 맞춘다 — 공개 사이트 문맥만 띄운 시험이라 없으면 코드 값으로 넣는다
+            // SQL 로 남김(ON CONFLICT upsert): 권한 표는 관리자 앱이 뜰 때 맞춘다 — 공개 사이트 문맥만 띄운 시험이라 없으면 코드 값으로 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready, synced_at) VALUES (?, 'OPERATOR', ?, ?, ?, now()) ON CONFLICT (code) DO NOTHING",
                     permission.code(), permission.type().id(), permission.unit().name(), permission.featureReady());
-            jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?)", ids.nextId(), roleId, permission.code());
         }
-        jdbc.update("INSERT INTO operator_roles (id, operator_id, role_id) VALUES (?, ?, ?)", ids.nextId(), id, roleId);
+        operatorFixture.grantRole(id, "ROLE_ZZ_HD_" + id, "hd-" + (id % 1_000_000_000L), java.util.Arrays.stream(permissions).map(Permission::code).toList());
         return id;
     }
 
     /** 링크 규칙 한 줄(시험이 끝나면 지운다) */
     protected void domain(String domain, String rule, boolean shortener) {
         domains.add(domain);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_domains (id, domain, rule, shortener, created_at, updated_at) VALUES (?, ?, ?, ?, now(), now())", ids.nextId(), domain, rule,
                 shortener);
         rules.invalidate();
@@ -180,6 +179,7 @@ abstract class HotdealApiTestBase extends CommerceApiTestBase {
     /** 사이트 제휴 몰 한 줄(시험이 끝나면 지운다) */
     protected void siteStore(String domain, String type, String template, String query) {
         domains.add(domain);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_site_affiliates (id, domain, program_name, transform_type, template, query, enabled, created_at, updated_at) "
                 + "VALUES (?, ?, ?, ?, ?, ?, true, now(), now())", ids.nextId(), domain, "시험 제휴", type, template, query);
         rules.invalidate();

@@ -32,6 +32,7 @@ import type {
  *   - `GET    /api/admin/menu/target-options?set=&type=&q=` → 200 `MenuTargetOptions` `{ boards, grades, salesEnabled }` (대상 고르기·상태·미리보기용. `type`·`q` 를 주면 그 유형만 찾는다 — 지금은 한 번에 받는다)
  *   관리자 사이트 메뉴 — **두 모드(일반·설정)를 한 번에** 주고받는다(한 화면은 두 모드 통틀어 한 번이라 한 트랜잭션으로 검사한다)
  *   - `GET    /api/admin/admin-menu` → 200 `AdminMenuConfigResponse` `{ modes: { normal, settings }, version, editable }` (`layout.read`)
+ *   - `GET    /api/admin/admin-menu/shell` → 200 같은 모양 — 관리자 셸(사이드바·상단 메뉴·검색)이 그린다. 로그인한 운영자면 누구나(2026-11-07)
  *   - `PUT    /api/admin/admin-menu` `{ version, modes }` → 200 `AdminMenuConfigResponse` (전체 교체. 409 `MENU_VERSION_CONFLICT` · 400 `VALIDATION` `fields["modes.normal[0].children[1].label"]`.
  *              화면 항목의 권한은 서버의 화면 레지스트리가 정하고 요청으로 바꿀 수 없다. `admin-menu.manage`. 감사 기록 후보 `ADMIN_MENU_UPDATE`)
  *   공개 사이트(user-web, 읽기만)
@@ -51,6 +52,7 @@ const PATH = {
     tree: (key: string) => `${PATH.set(key)}/tree`,
     targetOptions: '/api/admin/menu/target-options',
     adminMenu: '/api/admin/admin-menu',
+    adminMenuShell: '/api/admin/admin-menu/shell',
 };
 
 export function useMenuApi() {
@@ -82,6 +84,9 @@ export function useMenuApi() {
 
         /** 관리자 사이트 메뉴(두 모드) */
         adminMenu: (): Promise<AdminMenuConfigResponse> => client.get<AdminMenuConfigResponse>(PATH.adminMenu),
+
+        /** 관리자 셸이 그릴 메뉴 — 조회와 같은 모양, 로그인한 운영자면 누구나(권한 코드 없음). `useAdminMenuTree` 가 부른다 */
+        adminMenuShell: (): Promise<AdminMenuConfigResponse> => client.get<AdminMenuConfigResponse>(PATH.adminMenuShell),
 
         /** 관리자 사이트 메뉴를 통째로 바꾼다 */
         saveAdminMenu: (body: AdminMenuConfigSaveRequest): Promise<AdminMenuConfigResponse> => client.put<AdminMenuConfigResponse>(PATH.adminMenu, body),

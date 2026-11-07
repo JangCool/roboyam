@@ -45,6 +45,10 @@ public final class AuditActions {
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
     /** 공지 띠 설정 저장(설정 > 일반 「공지 띠」) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
     public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
+    /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
+    public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
+    /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */
+    public static final String SITE_OPERATOR_STAGE_CHANGE = "SITE_OPERATOR_STAGE_CHANGE";
     /** 테마 하나의 홈 구성 저장 — 대상 SITE/1, {@code theme} + 칸 수·가젯 수 전후와 넣은·뺀 가젯 수 */
     public static final String HOME_LAYOUT_UPDATE = "HOME_LAYOUT_UPDATE";
     /** 가젯 페이지 만들기 — 대상 GADGET_PAGE/id, {@code key}·{@code name}·{@code folderId} */
@@ -160,6 +164,13 @@ public final class AuditActions {
     public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
     /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
     public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
+    // ── 아바타 올리기 심사(docs/features/commerce-motion-avatar-contract.md) — 대상 AVATAR_UPLOAD + 신청 ID, detail 에 회원 ID·사유 ──
+    /** 아바타 올리기 승인 — 변경권 사용, 회원의 내가 올린 아바타가 되고 바로 프로필 아바타(앞 그림은 교체) — {@code animated}·{@code ticketUsed} */
+    public static final String AVATAR_UPLOAD_APPROVE = "AVATAR_UPLOAD_APPROVE";
+    /** 아바타 올리기 반려 — 변경권 반환, {@code reason}·{@code ticketReturned} */
+    public static final String AVATAR_UPLOAD_REJECT = "AVATAR_UPLOAD_REJECT";
+    /** 내가 올린 아바타 해제 — 변경권 반환 없음, 쓰는 중이었으면 마지막 정지 아바타로 — {@code reason}·{@code wasInUse} */
+    public static final String AVATAR_UPLOAD_REVOKE = "AVATAR_UPLOAD_REVOKE";
     // ── 인기글·하이라이트·토론(docs/features/popular-highlight-contract.md) ──
     /** 인기글 설정 저장 — 대상 POPULAR_SETTINGS + {@code popular}, 바뀐 칸만 before/after, 다시 계산 요청 여부 {@code recomputeRequested} */
     public static final String POPULAR_SETTINGS_UPDATE = "POPULAR_SETTINGS_UPDATE";

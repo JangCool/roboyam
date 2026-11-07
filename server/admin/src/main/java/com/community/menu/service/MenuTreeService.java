@@ -66,10 +66,11 @@ public class MenuTreeService {
     private final MenuViews views;
     private final Messages messages;
     private final AuditLogService audit;
+    private final MenuSales sales;
 
     public MenuTreeService(MenuSetRepository sets, MenuNodeRepositoryQDSL nodeQueries, MenuTreeStore store, MenuTreeValidator validator,
                            MenuViewComposer composer, MenuSnapshots snapshots, MenuTargetRegistry registry, MenuViews views, Messages messages,
-                           AuditLogService audit) {
+                           AuditLogService audit, MenuSales sales) {
         this.sets = sets;
         this.nodeQueries = nodeQueries;
         this.store = store;
@@ -80,6 +81,7 @@ public class MenuTreeService {
         this.views = views;
         this.messages = messages;
         this.audit = audit;
+        this.sales = sales;
     }
 
     @Transactional(readOnly = true)
@@ -103,7 +105,7 @@ public class MenuTreeService {
         Map<Long, Boolean> stored = nodeQueries.autoAddById(set.getSetKey());
         List<MenuNode> wanted = validator.validate(MenuViews.fromRequest(request.nodes()), validationContext(set, boards, grades, snapshots.pages()), stored);
 
-        MenuResolveContext statusContext = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), null, snapshots.pages());
+        MenuResolveContext statusContext = new MenuResolveContext(boards, MenuSnapshots.levels(grades), sales.enabled(), null, snapshots.pages());
         List<MenuNode> current = store.load(set.getSetKey());
         if (wanted.equals(current)) {
             return response(set, current, statusContext, actor);
@@ -127,7 +129,7 @@ public class MenuTreeService {
         MenuViewer viewer = viewer(request == null ? null : request.viewer(), grades);
         List<MenuNode> tree = validator.validate(MenuViews.fromRequest(request == null ? null : request.nodes()), validationContext(set, boards, grades, snapshots.pages()),
                 nodeQueries.autoAddById(set.getSetKey()));
-        MenuResolveContext context = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), viewer, snapshots.pages());
+        MenuResolveContext context = new MenuResolveContext(boards, MenuSnapshots.levels(grades), sales.enabled(), viewer, snapshots.pages());
         return composer.compose(tree, MenuLimits.isSide(set.getPlacement()), context, null);
     }
 
@@ -140,7 +142,7 @@ public class MenuTreeService {
                 .toList();
         List<MenuGadgetPageOptionView> pages = snapshots.pages().values().stream()
                 .map(page -> new MenuGadgetPageOptionView(Long.toString(page.id()), page.key(), page.name(), page.nameEn())).toList();
-        return new MenuTargetOptionsResponse(boards, grades, MenuSales.enabled(), pages);
+        return new MenuTargetOptionsResponse(boards, grades, sales.enabled(), pages);
     }
 
     /** 연결 유형 표 — 등록된 리졸버(고를 수 있음) + 준비 중 유형 */
@@ -159,7 +161,7 @@ public class MenuTreeService {
     }
 
     private MenuResolveContext statusContext() {
-        return new MenuResolveContext(snapshots.boards(), Map.of(), MenuSales.enabled(), null, snapshots.pages());
+        return new MenuResolveContext(snapshots.boards(), Map.of(), sales.enabled(), null, snapshots.pages());
     }
 
     private static MenuValidationContext validationContext(MenuSetEntity set, Map<Long, MenuBoardRef> boards, List<GradeEntity> grades, Map<Long, MenuPageRef> pages) {

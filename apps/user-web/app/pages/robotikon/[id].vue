@@ -77,7 +77,7 @@
                     :label="t('emoticon.buyFor', { price: UtilEmoticonMessages.won(t, pack.price) })"
                     icon="pi pi-shopping-cart"
                     :loading="starting || pay.busy.value"
-                    :disabled="pay.fakeOpen.value"
+                    :disabled="pay.fakeOpen.value || !paidSalesOpen"
                     class="w-full sm:w-auto sm:self-start"
                     data-testid="emoticon-detail-buy"
                     @click="openBuy"
@@ -99,7 +99,9 @@
                 <Message v-if="rejectedLine" severity="warn" variant="simple" size="small" role="alert">{{ rejectedLine }}</Message>
                 <Message v-if="pay.completeError.value" severity="error" variant="simple" size="small" role="alert">{{ t('emoticon.payCompleteFailed', { message: pay.completeError.value }) }}</Message>
                 <Message v-if="acquireError" severity="error" variant="simple" size="small" role="alert">{{ acquireError }}</Message>
-                <p v-if="paid && !reacquire && !usable && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
+                <!-- 유료 판매가 꺼져 있으면(운영 주체가 팔 수 없는 단계 포함 — 규칙 `paidSalesEnabled`) 구매 단추를 막고 한 줄로 알린다(서버도 `409 EMOTICON_PAID_SALES_CLOSED`) -->
+                <p v-if="paid && !reacquire && !usable && user && pack.saleState === 'ON_SALE' && !paidSalesOpen" class="m-0 text-sm text-muted-color" role="status" data-testid="emoticon-detail-paid-closed">{{ t('emoticon.paidSalesClosedNote') }}</p>
+                <p v-else-if="paid && !reacquire && !usable && pack.saleState === 'ON_SALE'" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('emoticon.refundRule', { days: refundDays }) }}</p>
             </section>
 
             <!-- 판매자 — 유료 팩은 사이트가 판매자(카카오 방식), 작가는 따로 -->
@@ -221,6 +223,8 @@ const pack = ref<EmoticonPackDetail | null>(null);
 const status = ref<'loading' | 'ready' | 'error' | 'notfound'>('loading');
 const loadError = ref('');
 const refundDays = ref(7);
+/** 유료 판매를 받는가 — 규칙(`GET /api/emoticons/rules`)의 `paidSalesEnabled`(스위치 && 운영 주체 단계). 못 받으면 열어 둔다(서버가 막는다) */
+const paidSalesOpen = ref(true);
 let seq = 0;
 
 const paid = computed(() => UtilEmoticon.paid(pack.value?.price ?? 0));
@@ -323,7 +327,10 @@ onMounted(() => {
     // 환불 날 수는 설정 값 — 못 받으면 기본 7일 그대로 둔다
     void api
         .rules()
-        .then((r) => (refundDays.value = r.refundDays))
+        .then((r) => {
+            refundDays.value = r.refundDays;
+            paidSalesOpen.value = r.paidSalesEnabled;
+        })
         .catch(() => undefined);
     // 모바일 결제사 화면에서 돌아왔다면 이어 간다
     void pay.resumeRedirect();

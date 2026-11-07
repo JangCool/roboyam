@@ -2,14 +2,10 @@ package com.community.point.service;
 
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
-import com.community.point.entity.PointSettingEntity;
-import java.sql.Timestamp;
+import com.community.point.repository.master.PointPolicyQueries;
 import java.time.Duration;
-import java.util.List;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -31,11 +27,11 @@ public class PointPolicy {
     private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
     private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
-    private final JdbcTemplate jdbc;
+    private final PointPolicyQueries queries;
     private volatile Cached cached;
 
-    public PointPolicy(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public PointPolicy(PointPolicyQueries queries) {
+        this.queries = queries;
     }
 
     /** 관리자 정책 화면의 지급·조건 칸(1-3 적립 조건 포함) */
@@ -74,26 +70,10 @@ public class PointPolicy {
         }
     }
 
-    /**
-     * 정책 행을 읽는다. Native SQL(JDBC)인 이유: 적립은 글쓰기 트랜잭션의 세이브포인트 안에서 이 값을 읽는데, 저장소(JPA) 호출은 트랜잭션 가로채기가 실패를 업무 트랜잭션 전체의
-     * 「롤백만 가능」으로 표시해 글쓰기까지 깨뜨린다 — JDBC 로 읽으면 실패해도 세이브포인트만 되돌리면 된다.
-     */
+    /** 정책 행을 읽는다(JDBC — 세이브포인트 안에서 읽혀서다, {@link PointPolicyQueries}). 행이 없으면 기본값 */
     private Cached load(long loadedAt) {
-        List<Cached> rows = jdbc.query("select attendance_points, post_points, post_daily_cap, comment_points, comment_daily_cap, popular_reward_points, "
-                + "popular_reward_top_n, like_bonus_threshold, like_bonus_points, like_bonus_daily_limit, deal_end_request_points, deal_end_request_daily_limit, "
-                + "signup_points, free_valid_days, restored_lot_valid_days, expiry_notice_days, lot_tracking_started_at, adjust_large_threshold, "
-                + "expiry_notice_interval_days, post_min_length, comment_min_length, comment_own_post_excluded, comment_once_per_post, write_interval_seconds, "
-                + "daily_total_cap, attendance_streak_days, attendance_streak_bonus "
-                + "from point_settings where id = ?", (rs, i) -> {
-                    PointRules rules = new PointRules(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getInt(8),
-                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13), rs.getInt(20), rs.getInt(21), rs.getBoolean(22),
-                            rs.getBoolean(23), rs.getInt(24), rs.getInt(25), rs.getInt(26), rs.getInt(27));
-                    Timestamp started = rs.getTimestamp(17);
-                    PointLotRules lots = new PointLotRules(rs.getInt(14), rs.getInt(15), rs.getInt(16), rs.getInt(19), started == null ? null : started.toInstant(),
-                            rs.getInt(18));
-                    return new Cached(rules, lots, loadedAt);
-                }, PointSettingEntity.ROW_ID);
-        return rows.isEmpty() ? new Cached(PointRules.DEFAULTS, PointLotRules.DEFAULTS, loadedAt) : rows.get(0);
+        return queries.load().map(row -> new Cached(row.rules(), row.lots(), loadedAt))
+                .orElseGet(() -> new Cached(PointRules.DEFAULTS, PointLotRules.DEFAULTS, loadedAt));
     }
 
     /** 사본을 버린다 — 다음 {@link #current()} 가 다시 읽는다 */

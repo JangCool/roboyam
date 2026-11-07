@@ -42,7 +42,7 @@
             <!-- 머리: 이니셜 · 뱃지+닉네임(+메모 칩) · 한 줄 소개 · 가입일 · (내 프로필이면) 프로필 편집·쪽지함 · (아니면) ⋯ -->
             <header class="flex flex-wrap items-start gap-x-3 gap-y-3">
                 <!-- 프로필 아바타(고르지 않았으면 basic-default) — 장착한 프로필 테두리가 있으면 그 둘레에 고리(포인트 상점) -->
-                <ProfileBorderAvatar :initial="initial" :src="avatarUrl" size="lg" :border-style="decoration?.profileBorder ?? null" />
+                <ProfileBorderAvatar :initial="initial" :src="avatarUrl" :still-src="avatarStillUrl" size="lg" :border-style="decoration?.profileBorder ?? null" />
                 <div class="min-w-0 flex-1">
                     <h1 class="m-0 flex min-w-0 flex-wrap items-center gap-1.5 text-lg font-bold leading-tight">
                         <span class="min-w-0 break-all" :style="nicknameStyle" data-testid="profile-nickname">{{ profile.nickname }}</span>
@@ -366,6 +366,8 @@ const initial = computed(() => Array.from(profile.value?.nickname ?? '')[0] ?? '
 const decorations = useMyDecoration();
 const decoration = computed(() => (profile.value ? decorations.decorationOf(profile.value.id, profile.value.decoration) : null));
 const avatarUrl = computed(() => (profile.value ? decorations.avatarOf(profile.value.id, profile.value.avatarUrl) : null));
+/** 움직이는 아바타의 정지 그림(움직임 줄이기) */
+const avatarStillUrl = computed(() => (profile.value ? decorations.avatarStillOf(profile.value.id, profile.value.avatarStillUrl) : null));
 const nicknameStyle = computed(() => {
     const color = UtilColor.cssPair(decoration.value?.nicknameColor);
     return color ? { color } : undefined;

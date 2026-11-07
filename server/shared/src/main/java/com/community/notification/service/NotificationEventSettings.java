@@ -3,6 +3,7 @@ package com.community.notification.service;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationEventEntity;
 import com.community.notification.repository.master.NotificationEventRepository;
+import com.community.notification.repository.master.NotificationPublishReads.EventRow;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -47,10 +48,17 @@ public class NotificationEventSettings {
     }
 
     private static State effective(AdminNotificationEvent event, NotificationEventEntity row) {
-        boolean enabled = event.mandatory() || (row == null ? event.defaultEnabled() : row.isEnabled());
-        boolean emailEnabled = event.emailable() && (row == null ? event.defaultEmailEnabled() : row.isEmailEnabled());
+        return effective(event, row == null ? null : new EventRow(row.isEnabled(), row.isEmailEnabled(), row.isBrowserEnabled(), row.isDefaultRecipients()));
+    }
+
+    /**
+     * 저장된 값 한 줄({@code null} = 행 없음)에 코드의 불변 규칙을 겹친다 — 발행기가 세이브포인트 안에서 JDBC 로 읽은 줄({@code NotificationPublishReads#eventRow})에도 같은 규칙을 쓴다.
+     */
+    static State effective(AdminNotificationEvent event, EventRow row) {
+        boolean enabled = event.mandatory() || (row == null ? event.defaultEnabled() : row.enabled());
+        boolean emailEnabled = event.emailable() && (row == null ? event.defaultEmailEnabled() : row.emailEnabled());
         // 본인 전용·필수 이벤트와 「팀에만」으로 줄일 수 없는 경보(alwaysEveryone)는 DB 값과 상관없이 늘 기본 수신
-        boolean defaultRecipients = !event.broadcastAllowed() || event.alwaysEveryone() || row == null || row.isDefaultRecipients();
-        return new State(enabled, emailEnabled, row != null && row.isBrowserEnabled(), defaultRecipients);
+        boolean defaultRecipients = !event.broadcastAllowed() || event.alwaysEveryone() || row == null || row.defaultRecipients();
+        return new State(enabled, emailEnabled, row != null && row.browserEnabled(), defaultRecipients);
     }
 }

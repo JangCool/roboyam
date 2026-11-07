@@ -55,6 +55,7 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
         assertThat(resultCount(b.id())).isEqualTo(1);
         assertThat(events(b.id()).stream().filter("POSTED"::equals).count()).isEqualTo(1);
         // DB 유일 제약 — 같은 신청 건의 두 번째 결과 줄은 들어가지 않는다
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         assertThat(jdbc.update("INSERT INTO biz_deal_posts (application_id, post_id, status, created_at, updated_at) VALUES (?, ?, 'POSTED', now(), now()) "
                 + "ON CONFLICT DO NOTHING", b.id(), ids.nextId())).isZero();
     }
@@ -118,14 +119,14 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     void 규칙3_게시판이_꺼졌으면_글_없이_POST_FAILED_BOARD_CLOSED_와_운영자_사업자_알림() {
         long operator = operatorWith(Permission.HOTDEAL_MANAGE);
         Booked b = booked("NONE");
-        jdbc.update("UPDATE boards SET active = false WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), false);
         boardCatalog.invalidate();
         into(b, 1);
         assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.FAILED);
         assertFailed(b, "BOARD_CLOSED");
         assertThat(adminNotices(operator, "HOTDEAL_POST_FAILED")).isEqualTo(1);
         // 다시 돌려도 다시 시도하지 않는다(게시판을 켜도)
-        jdbc.update("UPDATE boards SET active = true WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), true);
         boardCatalog.invalidate();
         runPublishJob();
         assertThat(businessPosts(b.id())).isZero();
@@ -146,6 +147,7 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     @Test
     void 규칙3_사업자가_정지됐으면_BUSINESS_SUSPENDED() {
         Booked b = booked("NONE");
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                 + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profileOf(b.user()));
         into(b, 1);
@@ -236,7 +238,7 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     @Test
     void 규칙10_게시_실패_건은_시작_뒤에도_운영자_취소가_전액_환불이고_실패가_아닌_진행_중_건은_409() {
         Booked failed = booked("NONE");
-        jdbc.update("UPDATE boards SET active = false WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), false);
         boardCatalog.invalidate();
         into(failed, 5);
         publisher.publishDue(failed.id());
@@ -248,7 +250,7 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
         assertThat(refund.status().name()).isEqualTo("APPROVED");
         assertThat(refund.approvedAmount()).isEqualTo(paid);
 
-        jdbc.update("UPDATE boards SET active = true WHERE id = ?", dealBoard());
+        boardFixture.active(dealBoard(), true);
         boardCatalog.invalidate();
         Booked running = postedBooking("NONE");
         assertThat(codeOf(() -> review.cancel(operator, running.id(), "진행 중은 환불 승인으로"))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
@@ -280,7 +282,7 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     void 규칙4_운영자가_따로_숨긴_글은_되돌리기가_풀지_않는다() {
         Booked b = postedBooking("NONE");
         long postId = postOf(b.id());
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", postId); // 운영자가 먼저 숨겼다
+        boardFixture.staffHide(postId); // 운영자가 먼저 숨겼다
         ads.takedown(operator, b.id(), "긴급", false);
         assertThat(events(b.id())).doesNotContain("POST_HIDDEN");
         clock.set(clock.instant().plus(Duration.ofMinutes(30)));

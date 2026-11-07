@@ -43,6 +43,8 @@ export interface MyProfile {
      * 고르기는 `useAvatarApi().select`(`PUT /api/me/profile/avatar`).
      */
     avatarUrl?: string | null;
+    /** 움직이는 아바타의 정지 그림 주소 — 서버 연결됨(정지 아바타면 null) */
+    avatarStillUrl?: string | null;
     /** 프로필 공개 범위 — **서버 후보**(지금은 목업 `mock/profile-visibility-mock.ts` 가 채운다). 칸이 없으면 `PUBLIC` */
     visibility?: ProfileVisibility;
 }

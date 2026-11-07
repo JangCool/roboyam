@@ -1,7 +1,7 @@
 <template>
     <!--
-        상단 메뉴 막대(테마 셸의 가로 메뉴)의 상태 자리 — 받는 중(줄 모양 스켈레톤) · 빈 메뉴(홈으로) · 기본 메뉴/오류 안내(다시 시도). 메뉴가 준비됐으면(`ready`) 아무것도 그리지 않는다.
-        `fallback`·`error` 는 안내 뒤에 기본 메뉴 칸이 이어지므로 막대가 칸을 함께 그린다. 상태 판정은 `useMenuItems().state`(`UtilMenu.viewState`).
+        상단 메뉴 막대(테마 셸의 가로 메뉴)의 상태 자리 — 받는 중(줄 모양 스켈레톤) · 빈 메뉴(홈으로) · 못 받음 안내(다시 시도). 메뉴가 준비됐으면(`ready`) 아무것도 그리지 않는다.
+        상태 판정은 `useMenuItems().state`(`UtilMenu.viewState`).
         흰 면에서도 주 색상 바(`.app-nav`) 위에서도 읽히게 스켈레톤은 글자색(`bg-current`)을 옅게 쓰고, 단추는 `nav-btn-outline`(바 위에서만 뒤집힌다)을 단다.
     -->
     <div v-if="state === 'loading'" class="flex h-10 shrink-0 items-center gap-3" role="status" :aria-label="t('menu.loadingLabel')">
@@ -14,12 +14,12 @@
     </div>
 
     <div
-        v-else-if="state === 'fallback' || state === 'error'"
+        v-else-if="state === 'error'"
         class="mr-2 flex h-10 shrink-0 items-center gap-2 text-xs text-muted-color"
-        :role="state === 'error' ? 'alert' : 'status'"
-        data-testid="menu-fallback-notice"
+        role="alert"
+        data-testid="menu-error-notice"
     >
-        <span>{{ state === 'error' ? t('menu.errorTitle') : t('menu.fallbackNotice') }}</span>
+        <span>{{ t('menu.errorTitle') }}</span>
         <Button type="button" :label="t('common.retry')" size="small" variant="outlined" severity="secondary" class="nav-btn-outline" :loading="loading" @click="emit('reload')" />
     </div>
 </template>

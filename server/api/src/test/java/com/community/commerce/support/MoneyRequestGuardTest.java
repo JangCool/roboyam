@@ -8,10 +8,14 @@ import com.community.commerce.guard.exception.IdempotencyKeyInvalidException;
 import com.community.commerce.guard.exception.IdempotencyKeyRequiredException;
 import com.community.commerce.guard.exception.IdempotencyKeyReusedException;
 import com.community.commerce.guard.exception.RequestRateLimitedException;
+import com.community.commerce.guard.repository.master.IdempotencyRequestQueries;
+import com.community.commerce.guard.repository.master.RequestRateCounterQueries;
+import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import com.community.commerce.guard.service.IdempotencyService;
 import com.community.commerce.guard.service.RequestRateLimiter;
 import com.community.commerce.guard.service.RequestRateLimits;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.response.ApiResponse;
 import java.time.Instant;
@@ -57,8 +61,8 @@ class MoneyRequestGuardTest {
     void setUp() {
         DataSourceTransactionManager transactions = new DataSourceTransactionManager(dataSource);
         MutableTestClock clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MINUTES).plusSeconds(10));
-        guard = new MoneyRequestGuard(new RequestRateLimiter(dataSource, transactions, new RequestRateLimits(dataSource), clock),
-                new IdempotencyService(dataSource, transactions, clock));
+        guard = new MoneyRequestGuard(new RequestRateLimiter(new RequestRateCounterQueries(dataSource), transactions, new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query())), clock),
+                new IdempotencyService(new IdempotencyRequestQueries(dataSource), transactions, clock));
         userId = USERS.incrementAndGet();
     }
 

@@ -1,13 +1,26 @@
 package com.community.dashboard.repository.master;
 
 import com.community.dashboard.dto.SalesPeriods;
+import com.community.groupbuy.entity.GroupBuyStatus;
+import com.community.groupbuy.entity.QGroupBuyEntity;
+import com.community.groupbuy.entity.QGroupBuyProductEntity;
+import com.community.groupbuy.entity.QGroupBuyQuestionEntity;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
+import com.community.payment.entity.QPaymentReconcileDayEntity;
+import com.community.payment.entity.QPaymentWebhookLogEntity;
+import com.community.payment.entity.QReconciliationIssueEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.community.zconfiguration.time.ServiceTime;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.DateTimeExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -21,10 +34,12 @@ import org.springframework.stereotype.Repository;
  * <p>결제·환불 합은 일별 집계 표가 아직 없어 원본 표를 <b>인덱스 시각 범위로만</b> 읽는다 — 결제 {@code ix_payment_orders_paid_at(paid_at)} · 성공한 취소
  * {@code ix_payment_cancels_completed(completed_at) WHERE status = 'SUCCEEDED'}. 범위는 가장 길어야 두 달 남짓(매출 요약)·30일(추이)이다. 양이 커지면 일별 집계 표로 옮긴다.
  *
- * <p>Native SQL 인 이유: 여러 기간의 합을 {@code FILTER} 로 한 번에 세고, 한국 날짜로 묶으며({@code AT TIME ZONE}), 공구·결제 표의 칸 몇 개만 읽는다. 질의마다 쓰는 인덱스를 주석으로 적는다.
+ * <p>공구 목록·답변 대기 질문·대사일·이슈 수·웹훅 실패 수는 엔티티 QueryDSL 이다. Native SQL 로 남긴 것과 이유: 매출·환불 합({@link #paidSums}·{@link #refundSums} —
+ * 부르는 쪽이 정하는 기간 수만큼의 {@code FILTER} 합을 한 번에 세고, 환불은 세 가지 끝난 환불을 {@code UNION ALL} 로 잇는다)과 일별 결제({@link #paidDays} —
+ * {@code AT TIME ZONE} 으로 한국 날짜로 묶는다). 질의마다 쓰는 인덱스를 주석으로 적는다.
  */
 @Repository
-public class DashboardCommerceStore {
+public class DashboardCommerceStore extends RoboyamRepositoryQDSL {
 
     /**
      * 받아들인 현금 결제(별칭 {@code o}) — 결제된 계열 상태 · 이상 없음(금액 불일치·도메인 거절·늦은 결제는 자동 취소되는 결제라 매출이 아니다) · 결제 시험 제외.
@@ -55,9 +70,17 @@ public class DashboardCommerceStore {
     public record ReconcileDay(LocalDate day, String status) {
     }
 
+    private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
+    private static final QGroupBuyProductEntity P = QGroupBuyProductEntity.groupBuyProductEntity;
+    private static final QGroupBuyQuestionEntity Q = QGroupBuyQuestionEntity.groupBuyQuestionEntity;
+    private static final QPaymentReconcileDayEntity RD = QPaymentReconcileDayEntity.paymentReconcileDayEntity;
+    private static final QReconciliationIssueEntity RI = QReconciliationIssueEntity.reconciliationIssueEntity;
+    private static final QPaymentWebhookLogEntity WH = QPaymentWebhookLogEntity.paymentWebhookLogEntity;
+
     private final JdbcTemplate jdbc;
 
-    public DashboardCommerceStore(DataSource dataSource) {
+    public DashboardCommerceStore(JPAQueryFactory query, DataSource dataSource) {
+        super(query);
         this.jdbc = new JdbcTemplate(dataSource);
     }
 
@@ -68,10 +91,20 @@ public class DashboardCommerceStore {
      * (운영자가 연 공구라 수십 줄 — 연장 시각 때문에 정렬은 고른 뒤에 한다).
      */
     public List<Recruiting> recruitingGroupBuys(int limit) {
-        return jdbc.query("SELECT g.id, COALESCE(NULLIF(g.title, ''), p.name), g.current_qty, g.min_qty, g.max_qty, COALESCE(g.extended_until, g.end_at) "
-                        + "FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.status = 'RECRUITING' "
-                        + "ORDER BY COALESCE(g.extended_until, g.end_at), g.id LIMIT ?",
-                (rs, i) -> new Recruiting(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), instant(rs, 6)), limit);
+        return recruiting(null, null, limit);
+    }
+
+    /** 모집 중 공구 — {@code [from, to)} 가 있으면 지금 마감 시각이 그 안인 것만(연장 끝은 늘 마감 시각보다 뒤라 {@code end_at < to} 로 먼저 자른다) */
+    private List<Recruiting> recruiting(Instant from, Instant to, int limit) {
+        DateTimeExpression<Instant> endsAt = Expressions.dateTimeTemplate(Instant.class, "coalesce({0}, {1})", G.extendedUntil, G.endAt); // 지금 마감 시각
+        BooleanExpression where = G.status.eq(GroupBuyStatus.RECRUITING);
+        if (to != null) {
+            where = where.and(G.endAt.lt(to)).and(endsAt.goe(from)).and(endsAt.lt(to));
+        }
+        return query.select(G.id, G.title, P.name, G.currentQty, G.minQty, G.maxQty, endsAt).from(G).join(P).on(P.id.eq(G.productId)).where(where)
+                .orderBy(endsAt.asc(), G.id.asc()).limit(limit).fetch().stream()
+                .map(t -> new Recruiting(t.get(G.id), GroupBuyRowNames.title(t.get(G.title), t.get(P.name)), n(t.get(G.currentQty)), n(t.get(G.minQty)), n(t.get(G.maxQty)),
+                        t.get(6, Instant.class))).toList();
     }
 
     /**
@@ -79,26 +112,24 @@ public class DashboardCommerceStore {
      * {@code end_at < to} 로 부분 인덱스({@code ix_group_buys_recruiting_end}) 범위를 먼저 자른다.
      */
     public List<Recruiting> closingGroupBuys(Instant from, Instant to, int limit) {
-        Timestamp f = ts(from);
-        Timestamp t = ts(to);
-        return jdbc.query("SELECT g.id, COALESCE(NULLIF(g.title, ''), p.name), g.current_qty, g.min_qty, g.max_qty, COALESCE(g.extended_until, g.end_at) "
-                        + "FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.status = 'RECRUITING' AND g.end_at < ? "
-                        + "AND COALESCE(g.extended_until, g.end_at) >= ? AND COALESCE(g.extended_until, g.end_at) < ? ORDER BY COALESCE(g.extended_until, g.end_at), g.id LIMIT ?",
-                (rs, i) -> new Recruiting(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), instant(rs, 6)), t, f, t, limit);
+        return recruiting(from, to, limit);
+    }
+
+    private static BooleanExpression openQuestion() {
+        return Q.status.eq("OPEN").and(Q.hiddenAt.isNull()).and(Q.deletedAt.isNull());
     }
 
     /** 답변 대기 질문 수(OPEN · 숨기지 않음 · 지우지 않음) — {@code ix_gbq_open(created_at)} 부분 인덱스와 같은 조건 */
     public long openQuestionCount() {
-        Long n = jdbc.queryForObject("SELECT count(*) FROM group_buy_questions WHERE status = 'OPEN' AND hidden_at IS NULL AND deleted_at IS NULL", Long.class);
-        return n == null ? 0 : n;
+        return n(query.select(Q.count()).from(Q).where(openQuestion()).fetchOne());
     }
 
     /** 답변 대기 질문 오래된 차례 — 같은 부분 인덱스({@code ix_gbq_open(created_at)}) 차례로 limit 건 */
     public List<OpenQuestion> oldestOpenQuestions(int limit) {
-        return jdbc.query("SELECT q.id, COALESCE(NULLIF(g.title, ''), p.name), q.body, q.secret, q.created_at FROM group_buy_questions q "
-                        + "JOIN group_buys g ON g.id = q.group_buy_id JOIN group_buy_products p ON p.id = g.product_id "
-                        + "WHERE q.status = 'OPEN' AND q.hidden_at IS NULL AND q.deleted_at IS NULL ORDER BY q.created_at, q.id LIMIT ?",
-                (rs, i) -> new OpenQuestion(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getBoolean(4), instant(rs, 5)), limit);
+        return query.select(Q.id, G.title, P.name, Q.body, Q.secret, Q.createdAt).from(Q).join(G).on(G.id.eq(Q.groupBuyId)).join(P).on(P.id.eq(G.productId))
+                .where(openQuestion()).orderBy(Q.createdAt.asc(), Q.id.asc()).limit(limit).fetch().stream()
+                .map(t -> new OpenQuestion(t.get(Q.id), GroupBuyRowNames.title(t.get(G.title), t.get(P.name)), t.get(Q.body), Boolean.TRUE.equals(t.get(Q.secret)),
+                        t.get(Q.createdAt))).toList();
     }
 
     // ── 결제 · 환불 ─────────────────────────────────────────────────────────
@@ -183,20 +214,18 @@ public class DashboardCommerceStore {
 
     /** 기록이 있는 가장 최근 대사일 — {@code payment_reconcile_days} PK(day) 를 거꾸로 한 줄 */
     public Optional<ReconcileDay> latestReconcileDay() {
-        return jdbc.query("SELECT day, status FROM payment_reconcile_days ORDER BY day DESC LIMIT 1", (rs, i) -> new ReconcileDay(rs.getDate(1).toLocalDate(), rs.getString(2)))
-                .stream().findFirst();
+        Tuple t = query.select(RD.reconcileDay, RD.status).from(RD).orderBy(RD.reconcileDay.desc()).fetchFirst();
+        return t == null ? Optional.empty() : Optional.of(new ReconcileDay(t.get(RD.reconcileDay), t.get(RD.status)));
     }
 
     /** 열린 대사 이슈 수 — {@code ix_reconciliation_issues_status(status, created_at)} */
     public long openReconcileIssues() {
-        Long n = jdbc.queryForObject("SELECT count(*) FROM reconciliation_issues WHERE status = 'OPEN'", Long.class);
-        return n == null ? 0 : n;
+        return n(query.select(RI.count()).from(RI).where(RI.status.eq("OPEN")).fetchOne());
     }
 
     /** 그 시각 뒤에 받은 웹훅 중 처리 실패(REJECTED · RETRY) 수 — {@code ix_payment_webhook_logs_result(result, received_at)} 범위 둘 */
     public long webhookFailuresSince(Instant since) {
-        Long n = jdbc.queryForObject("SELECT count(*) FROM payment_webhook_logs WHERE result IN ('REJECTED', 'RETRY') AND received_at >= ?", Long.class, ts(since));
-        return n == null ? 0 : n;
+        return n(query.select(WH.count()).from(WH).where(WH.result.in("REJECTED", "RETRY"), WH.receivedAt.goe(since)).fetchOne());
     }
 
     // ── 도우미 ──────────────────────────────────────────────────────────────
@@ -224,8 +253,11 @@ public class DashboardCommerceStore {
         return Timestamp.from(at);
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
+    private static long n(Long value) {
+        return value == null ? 0 : value;
+    }
+
+    private static int n(Integer value) {
+        return value == null ? 0 : value;
     }
 }

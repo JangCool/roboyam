@@ -21,7 +21,6 @@ import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Duration;
 import java.util.Locale;
-import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,7 +63,7 @@ class MfaVerifyTest extends MfaSpringTestBase {
             assertThat(result.method()).isEqualTo(MfaLoginMethod.TOTP);
             assertThat(result.trustToken()).isNull();
             assertThat(lastAudit(operator, "LOGIN_SUCCESS")).contains("\"mfa\":\"TOTP\"", "\"agent\":\"Chrome / Windows / Desktop\"");
-            assertThat(jdbc.queryForObject("SELECT last_login_at IS NOT NULL FROM operators WHERE id = ?", Boolean.class, operator)).isTrue();
+            assertThat((operatorFixture.lastLoginAt(operator) != null)).isTrue();
         }
 
         @Test
@@ -247,11 +246,11 @@ class MfaVerifyTest extends MfaSpringTestBase {
             long operator = newOperator();
             Enrolled enrolled = enrollViaService(operator);
 
-            String stored = String.join(",", jdbc.queryForList("SELECT code_hash FROM operator_mfa_recovery_codes WHERE operator_id = ?", String.class, operator));
+            String stored = String.join(",", mfa.recoveryCodeHashes(operator));
             for (String code : enrolled.recoveryCodes()) {
                 assertThat(stored).doesNotContain(code).doesNotContain(code.replace("-", ""));
             }
-            assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa_recovery_codes WHERE operator_id = ?", Integer.class, operator)).isEqualTo(10);
+            assertThat(mfa.recoveryCodes(operator)).isEqualTo(10);
         }
     }
 
@@ -268,9 +267,9 @@ class MfaVerifyTest extends MfaSpringTestBase {
 
             assertThat(result.trustToken()).isNotBlank();
             assertThat(result.trustToken().length()).isGreaterThanOrEqualTo(43); // 256비트 base64url
-            Map<String, Object> row = jdbc.queryForMap("SELECT token_hash, agent, ip FROM operator_trusted_devices WHERE operator_id = ?", operator);
-            assertThat(((String) row.get("token_hash")).trim()).isEqualTo(Digests.sha256Hex(result.trustToken())).doesNotContain(result.trustToken());
-            assertThat(row.get("agent")).isEqualTo("Chrome / Windows / Desktop");
+            MfaFixture.Device row = mfa.devices(operator).get(0);
+            assertThat(row.tokenHash()).isEqualTo(Digests.sha256Hex(result.trustToken())).doesNotContain(result.trustToken());
+            assertThat(row.agent()).isEqualTo("Chrome / Windows / Desktop");
             assertThat(devices.isTrusted(operator, result.trustToken())).isTrue();
         }
 
@@ -280,7 +279,7 @@ class MfaVerifyTest extends MfaSpringTestBase {
             long operator = newOperator();
             String token = otp(operator, codeNow(enrollDirect(operator)), true).trustToken();
 
-            assertThat(jdbc.queryForObject("SELECT extract(epoch FROM expires_at - trusted_at)::bigint FROM operator_trusted_devices WHERE operator_id = ?", Long.class, operator))
+            assertThat(periodSeconds(operator))
                     .isEqualTo(Duration.ofDays(30).toSeconds());
             clock.advance(Duration.ofDays(29));
             assertThat(devices.isTrusted(operator, token)).isTrue();
@@ -295,7 +294,7 @@ class MfaVerifyTest extends MfaSpringTestBase {
             MfaVerifyResult result = otp(operator, codeNow(enrollDirect(operator)), true);
 
             assertThat(result.trustDays()).isEqualTo(360);
-            assertThat(jdbc.queryForObject("SELECT extract(epoch FROM expires_at - trusted_at)::bigint FROM operator_trusted_devices WHERE operator_id = ?", Long.class, operator))
+            assertThat(periodSeconds(operator))
                     .isEqualTo(Duration.ofDays(360).toSeconds());
         }
 
@@ -321,6 +320,12 @@ class MfaVerifyTest extends MfaSpringTestBase {
 
         assertThatThrownBy(() -> otp(operator, codeNow(secret), false)).isInstanceOfSatisfying(CommonException.class,
                 e -> assertThat(e.getErrorCode()).isEqualTo("MFA_PENDING_EXPIRED"));
+    }
+
+    /** 그 운영자의 (한 대뿐인) 신뢰 기기 기간(초) */
+    private long periodSeconds(long operatorId) {
+        MfaFixture.Device device = mfa.devices(operatorId).get(0);
+        return Duration.between(device.trustedAt(), device.expiresAt()).toSeconds();
     }
 
     private int failCount(long operatorId) {

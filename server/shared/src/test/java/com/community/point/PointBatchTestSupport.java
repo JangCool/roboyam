@@ -1,11 +1,12 @@
 package com.community.point;
 
-import com.community.batch.core.BatchFailureRecorder;
+import com.community.testsupport.JpaTestContext;
+import org.springframework.transaction.PlatformTransactionManager;
+import com.community.testsupport.BatchTestParts;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.core.BatchRunner.RunReport;
 import com.community.batch.entity.BatchRequestKind;
@@ -21,7 +22,6 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 /**
  * 포인트 배치 시험의 바탕 — {@link PointTestKit} 의 시험 DB·시계·서비스 위에서 배치 core({@link BatchRunner})로 실제 배치를 돌린다(스프링 문맥 없음).
@@ -33,7 +33,7 @@ final class PointBatchTestSupport {
     private static final int NODE_ID = 902;
 
     final PointTestKit kit;
-    final DataSourceTransactionManager transactions;
+    final PlatformTransactionManager transactions;
     final PointLotBatchQueries queries;
     final ObjectProvider<Clock> clocks;
     /** 회원 알림 메일 요청(커밋 뒤 발송 이벤트) — 시험은 모아 두기만 한다 */
@@ -42,16 +42,16 @@ final class PointBatchTestSupport {
 
     PointBatchTestSupport(PointTestKit kit) {
         this.kit = kit;
-        this.transactions = new DataSourceTransactionManager(kit.dataSource);
-        this.queries = new PointLotBatchQueries(kit.dataSource);
+        this.transactions = JpaTestContext.transactions(); // 배치 기록기·질의는 JPA — 작업의 JDBC 일도 같은 트랜잭션·연결
+        this.queries = JpaTestContext.create(PointLotBatchQueries.class);
         this.clocks = new StaticListableBeanFactory(Map.of("clock", kit.clock)).getBeanProvider(Clock.class);
         this.publisher = new MemberNotificationPublisher(new MemberNotificationWriter(kit.dataSource), new IsolatedSideWork(kit.dataSource, noFlush()), kit.ids,
                 publishedEvents::add);
     }
 
     BatchRunner runner(BatchJob job) {
-        return new BatchRunner(new BatchLockService(kit.dataSource), new BatchRunRecorder(kit.dataSource, transactions, kit.ids, NODE_ID),
-                new BatchFailureRecorder(kit.dataSource, transactions, kit.ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        return new BatchRunner(new BatchLockService(kit.dataSource), BatchTestParts.recorder(kit.ids, NODE_ID), BatchTestParts.failures(kit.ids),
+                BatchRegistry.forJobs(List.of(job)), transactions);
     }
 
     /** 지금 실행 — 그 회원만 */

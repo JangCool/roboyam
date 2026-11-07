@@ -77,7 +77,7 @@ import tools.jackson.databind.JsonNode;
  *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
- *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
+ *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다(운영 주체가 팔 수 없는 단계면 빈 목록). {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
  *   <li>대상 게시판 {@code boardScope}(gadget-page-contract 「가젯 설정」): {@code ALL} 전체 · {@code PICK} {@code boardIds} · {@code FOLDER} 가젯 페이지의 기준 폴더 켜진 게시판
  *       (폴더가 없거나 게시판이 없으면 전체) · {@code BOARD} 게시판 레이아웃이 그리는 게시판(그 밖에서는 전체). 칸이 없는 옛 설정은 {@code boardIds} 가 있으면 PICK.</li>
  *   <li>가젯 페이지({@code GET /api/pages/{key}}, {@link #page}): 지금 테마의 그 페이지 배치(저장한 것, 없으면 페이지의 처음 배치) + 머리(이름·설명·글쓰기 단추·글쓰기 게시판). 없는 페이지는 404.</li>

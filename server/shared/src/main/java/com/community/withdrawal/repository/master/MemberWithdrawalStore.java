@@ -1,26 +1,39 @@
 package com.community.withdrawal.repository.master;
 
 import com.community.withdrawal.dto.WithdrawalChoices;
+import com.community.withdrawal.entity.MemberWithdrawalEntity;
+import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalSource;
 import com.community.withdrawal.entity.WithdrawalStatus;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.dsl.DateTimePath;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.impl.JPAUpdateClause;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 탈퇴 신청 기록 표({@code member_withdrawals}, shared V132·V134) — 신청·완료·취소와 자동 완료 배치가 쓴다. 개인정보는 없다(회원 번호·고른 것·금액·시각·운영 메모).
- * JDBC 인 이유: 탈퇴 트랜잭션의 다른 정리(JDBC)와 같은 연결에서 쓰고, 배치가 스프링 데이터 없이 훑는다. 관리자 목록·요약 읽기는 admin 의 {@code MemberWithdrawalAdminStore}
- * 가 {@link #COLUMNS}·{@link #row} 를 같이 쓴다.
+ * 탈퇴 신청 기록 표({@code member_withdrawals}, shared V132·V134·V148 — {@link MemberWithdrawalEntity}) — 신청·완료·취소와 자동 완료 배치가 쓴다. 개인정보는 없다(회원 번호·고른 것·금액·시각·운영 메모).
+ * 관리자 목록·요약 읽기는 admin 의 {@code MemberWithdrawalAdminStore} 가 {@link #columns()}·{@link #row(Tuple)} 를 같이 쓴다. <b>트랜잭션은 부르는 서비스가 연다.</b>
+ *
+ * <p>넣기는 엔티티({@code persistAndFlush} — 예전 JDBC 처럼 그 자리에서 INSERT 가 나가 문장·잠금 차례가 같다), 상태 전이는 조건부 대량 UPDATE(진행 중일 때만 — 바뀐 줄 수로 안다)다.
+ * 읽기는 모두 프로젝션이다 — 대량 UPDATE 는 영속성 컨텍스트의 엔티티를 고치지 않으므로, 같은 트랜잭션에서 넣거나 잠근 엔티티를 다시 읽으면 낡은 값이 나온다.
  */
 @Repository
-public class MemberWithdrawalStore {
+public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
+
+    private static final QMemberWithdrawalEntity W = QMemberWithdrawalEntity.memberWithdrawalEntity;
+
+    /** {@link #row(Tuple)} 가 읽는 칸 차례 */
+    private static final Expression<?>[] COLUMNS = {W.id, W.userId, W.status, W.source, W.priorStatus, W.reason, W.reasonNote, W.paidPointChoice, W.deliveredChoice,
+            W.bizChoice, W.groupChoices, W.forfeitPaidPoints, W.forfeitRefundEstimate, W.forfeitBizAmount, W.forfeitConsentedAt, W.pendingSnapshot, W.pendingCount,
+            W.expectedCompleteAt, W.rejoinUntil, W.hasPaymentHistory, W.progressNotifiedAt, W.requestedAt, W.completedAt, W.canceledAt, W.forceReasonKind, W.forceMemo,
+            W.forceOperatorId, W.cancelChannel, W.cancelMemo, W.cancelOperatorId, W.forfeitEmoticonEarnings};
 
     /**
      * 한 줄 — {@code groupChoicesJson}·{@code pendingJson} 은 저장한 JSON 글 그대로.
@@ -56,106 +69,110 @@ public class MemberWithdrawalStore {
     public record OperatorCancel(String channel, String memo, long operatorId) {
     }
 
-    public static final String COLUMNS = "id, user_id, status, source, prior_status, reason, reason_note, paid_point_choice, delivered_choice, biz_choice, group_choices::text, "
-            + "forfeit_paid_points, forfeit_refund_estimate, forfeit_biz_amount, forfeit_consented_at, pending_snapshot::text, pending_count, expected_complete_at, rejoin_until, "
-            + "has_payment_history, progress_notified_at, requested_at, completed_at, canceled_at, force_reason_kind, force_memo, force_operator_id, cancel_channel, cancel_memo, "
-            + "cancel_operator_id, forfeit_emoticon_earnings";
+    private final MemberWithdrawalRepository repository;
 
-    private final JdbcTemplate jdbc;
-
-    public MemberWithdrawalStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public MemberWithdrawalStore(JPAQueryFactory query, MemberWithdrawalRepository repository) {
+        super(query);
+        this.repository = repository;
     }
 
     public void insert(NewRow r) {
         Force force = r.force();
-        jdbc.update("INSERT INTO member_withdrawals (id, user_id, status, source, prior_status, reason, reason_note, paid_point_choice, delivered_choice, biz_choice, group_choices, "
-                        + "forfeit_paid_points, forfeit_refund_estimate, forfeit_biz_amount, forfeit_consented_at, pending_snapshot, pending_count, expected_complete_at, "
-                        + "rejoin_until, has_payment_history, requested_at, completed_at, force_reason_kind, force_memo, force_operator_id, forfeit_emoticon_earnings) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                r.id(), r.userId(), r.status().name(), r.source().name(), r.priorStatus(), r.reason(), r.reasonNote(), r.choices().paidPointChoice(), r.choices().deliveredChoice(),
-                r.choices().bizChoice(), r.groupChoicesJson(), r.forfeitPaidPoints(), r.forfeitRefundEstimate(), r.forfeitBizAmount(), ts(r.forfeitConsentedAt()), r.pendingJson(),
-                r.pendingCount(), ts(r.expectedCompleteAt()), ts(r.rejoinUntil()), r.hasPaymentHistory(), ts(r.requestedAt()),
-                r.status() == WithdrawalStatus.COMPLETED ? ts(r.requestedAt()) : null, force == null ? null : force.reasonKind(), force == null ? null : force.memo(),
-                force == null ? null : force.operatorId(), r.forfeitEmoticonEarnings());
+        repository.persistAndFlush(MemberWithdrawalEntity.request(r.id(), r.userId(), r.status(), r.source(), r.priorStatus(), r.reason(), r.reasonNote(), r.choices(),
+                r.groupChoicesJson(), r.forfeitPaidPoints(), r.forfeitRefundEstimate(), r.forfeitBizAmount(), r.forfeitConsentedAt(), r.pendingJson(), r.pendingCount(),
+                r.expectedCompleteAt(), r.rejoinUntil(), r.hasPaymentHistory(), r.requestedAt(), force == null ? null : force.reasonKind(), force == null ? null : force.memo(),
+                force == null ? null : force.operatorId(), r.forfeitEmoticonEarnings()));
     }
 
     public Optional<Row> find(long id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM member_withdrawals WHERE id = ?", MemberWithdrawalStore::row, id).stream().findFirst();
+        return Optional.ofNullable(query.select(COLUMNS).from(W).where(W.id.eq(id)).fetchFirst()).map(MemberWithdrawalStore::row);
     }
 
     /** 그 회원의 진행 중 신청(회원당 하나) */
     public Optional<Row> findScheduled(long userId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM member_withdrawals WHERE user_id = ? AND status = 'SCHEDULED'", MemberWithdrawalStore::row, userId).stream().findFirst();
+        return Optional.ofNullable(query.select(COLUMNS).from(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).fetchFirst())
+                .map(MemberWithdrawalStore::row);
     }
 
     /** 그 회원의 가장 최근 신청(진행 중·완료·취소 무관) — 신청한 적 없으면 비어 있다 */
     public Optional<Row> findLatest(long userId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM member_withdrawals WHERE user_id = ? ORDER BY requested_at DESC, id DESC LIMIT 1", MemberWithdrawalStore::row, userId)
-                .stream().findFirst();
+        return Optional.ofNullable(query.select(COLUMNS).from(W).where(W.userId.eq(userId)).orderBy(W.requestedAt.desc(), W.id.desc()).fetchFirst())
+                .map(MemberWithdrawalStore::row);
     }
 
-    /** 진행 중 신청을 잠가 읽는다(배치·완료가 같은 줄을 두 번 처리하지 않게) */
+    /**
+     * 진행 중 신청을 잠가 읽는다(배치·완료가 같은 줄을 두 번 처리하지 않게 — 신청 표만 고르는 조건 문장의 {@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE}: 이 표를
+     * FK 로 가리키는 표가 없어 {@code FOR UPDATE} 와 막는 범위가 같다. PostgreSQL 이 잠근 뒤 조건을 다시 본다).
+     * 잠근 뒤 값은 프로젝션으로 다시 읽는다 — 같은 트랜잭션에서 넣은 엔티티가 컨텍스트에 있으면 엔티티 질의가 그 (낡을 수 있는) 인스턴스를 돌려주기 때문이다.
+     */
     public Optional<Row> lockScheduled(long userId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM member_withdrawals WHERE user_id = ? AND status = 'SCHEDULED' FOR UPDATE", MemberWithdrawalStore::row, userId).stream()
-                .findFirst();
+        List<Long> locked = query.select(W.id).from(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc())
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        Long id = locked.isEmpty() ? null
+                : query.select(W.id).from(W).where(W.id.in(locked), W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc()).fetchFirst();
+        return id == null ? Optional.empty() : find(id);
     }
 
-    /** 진행 중 신청 ID — 신청 시각 차례(배치의 덩어리 읽기, {@code afterId} 다음부터) */
+    /** 진행 중 신청 ID — 신청 ID 차례(배치의 덩어리 읽기, {@code afterId} 다음부터) */
     public List<Long> scheduledIds(long afterId, int limit) {
-        return jdbc.queryForList("SELECT id FROM member_withdrawals WHERE status = 'SCHEDULED' AND id > ? ORDER BY id LIMIT ?", Long.class, afterId, limit);
+        return query.select(W.id).from(W).where(W.status.eq(WithdrawalStatus.SCHEDULED), W.id.gt(afterId)).orderBy(W.id.asc()).limit(limit).fetch();
     }
 
     /** 남은 일 스냅샷을 고친다(진행 중 신청만) */
     public void updatePending(long id, String pendingJson, int pendingCount, Instant expectedCompleteAt) {
-        jdbc.update("UPDATE member_withdrawals SET pending_snapshot = ?::jsonb, pending_count = ?, expected_complete_at = ? WHERE id = ? AND status = 'SCHEDULED'", pendingJson,
-                pendingCount, ts(expectedCompleteAt), id);
+        JPAUpdateClause update = query.update(W).set(W.pendingSnapshot, pendingJson).set(W.pendingCount, pendingCount);
+        setOrNull(update, W.expectedCompleteAt, expectedCompleteAt);
+        update.where(W.id.eq(id), W.status.eq(WithdrawalStatus.SCHEDULED)).execute();
     }
 
-    /** 완료 — 진행 중이었을 때만 바뀐다. 남은 일 스냅샷은 마지막 모습 그대로 둔다(관리자 화면이 「기다렸던 일」을 보인다), 남은 수는 0 */
+    /** 완료 — 진행 중이었을 때만 바뀐다. 남은 일 스냅샷은 마지막 모습 그대로 둔다(관리자 화면이 「기다렸던 일」을 보인다), 남은 수는 0. {@code forfeitBizAmount} 가 null 이면 그 칸은 그대로 */
     public boolean complete(long id, Instant now, Instant rejoinUntil, boolean hasPaymentHistory, Long forfeitBizAmount) {
-        return jdbc.update("UPDATE member_withdrawals SET status = 'COMPLETED', completed_at = ?, rejoin_until = ?, has_payment_history = ?, pending_count = 0, "
-                + "forfeit_biz_amount = COALESCE(?, forfeit_biz_amount) WHERE id = ? AND status = 'SCHEDULED'", ts(now), ts(rejoinUntil), hasPaymentHistory, forfeitBizAmount, id) > 0;
+        JPAUpdateClause update = query.update(W).set(W.status, WithdrawalStatus.COMPLETED).set(W.completedAt, now).set(W.hasPaymentHistory, hasPaymentHistory)
+                .set(W.pendingCount, 0);
+        setOrNull(update, W.rejoinUntil, rejoinUntil);
+        if (forfeitBizAmount != null) {
+            update.set(W.forfeitBizAmount, forfeitBizAmount);
+        }
+        return update.where(W.id.eq(id), W.status.eq(WithdrawalStatus.SCHEDULED)).execute() > 0;
     }
 
     /** 회원 본인 취소 — 진행 중이었을 때만 바뀐다. 스냅샷은 그대로, 남은 수는 0 */
     public boolean cancel(long id, Instant now) {
-        return jdbc.update("UPDATE member_withdrawals SET status = 'CANCELED', canceled_at = ?, pending_count = 0 WHERE id = ? AND status = 'SCHEDULED'", ts(now), id) > 0;
+        return query.update(W).set(W.status, WithdrawalStatus.CANCELED).set(W.canceledAt, now).set(W.pendingCount, 0)
+                .where(W.id.eq(id), W.status.eq(WithdrawalStatus.SCHEDULED)).execute() > 0;
     }
 
     /** 운영자 대리 취소 — 회원 본인 취소와 같되 요청 경로·메모·운영자를 남긴다 */
     public boolean cancelByOperator(long id, Instant now, OperatorCancel by) {
-        return jdbc.update("UPDATE member_withdrawals SET status = 'CANCELED', canceled_at = ?, pending_count = 0, cancel_channel = ?, cancel_memo = ?, cancel_operator_id = ? "
-                + "WHERE id = ? AND status = 'SCHEDULED'", ts(now), by.channel(), by.memo(), by.operatorId(), id) > 0;
+        return query.update(W).set(W.status, WithdrawalStatus.CANCELED).set(W.canceledAt, now).set(W.pendingCount, 0).set(W.cancelChannel, by.channel())
+                .set(W.cancelMemo, by.memo()).set(W.cancelOperatorId, by.operatorId())
+                .where(W.id.eq(id), W.status.eq(WithdrawalStatus.SCHEDULED)).execute() > 0;
     }
 
     public void markProgressNotified(long id, Instant now) {
-        jdbc.update("UPDATE member_withdrawals SET progress_notified_at = ? WHERE id = ?", ts(now), id);
+        query.update(W).set(W.progressNotifiedAt, now).where(W.id.eq(id)).execute();
     }
 
-    /** {@link #COLUMNS} 차례로 읽은 줄 → {@link Row} */
-    public static Row row(ResultSet rs, int i) throws SQLException {
-        return new Row(rs.getLong("id"), rs.getLong("user_id"), WithdrawalStatus.valueOf(rs.getString("status")), WithdrawalSource.valueOf(rs.getString("source")),
-                rs.getString("prior_status"), rs.getString("reason"), rs.getString("reason_note"),
-                new WithdrawalChoices(rs.getString("paid_point_choice"), rs.getString("delivered_choice"), rs.getString("biz_choice")), rs.getString("group_choices"),
-                longOrNull(rs, "forfeit_paid_points"), longOrNull(rs, "forfeit_refund_estimate"), longOrNull(rs, "forfeit_biz_amount"), at(rs, "forfeit_consented_at"),
-                rs.getString("pending_snapshot"), rs.getInt("pending_count"), at(rs, "expected_complete_at"), at(rs, "rejoin_until"), (Boolean) rs.getObject("has_payment_history"),
-                at(rs, "progress_notified_at"), at(rs, "requested_at"), at(rs, "completed_at"), at(rs, "canceled_at"), rs.getString("force_reason_kind"), rs.getString("force_memo"),
-                longOrNull(rs, "force_operator_id"), rs.getString("cancel_channel"), rs.getString("cancel_memo"), longOrNull(rs, "cancel_operator_id"),
-                longOrNull(rs, "forfeit_emoticon_earnings"));
+    /** {@link #row(Tuple)} 가 읽는 칸(관리자 목록이 닉네임 칸을 덧붙여 쓴다) */
+    public static Expression<?>[] columns() {
+        return COLUMNS.clone();
     }
 
-    private static Long longOrNull(ResultSet rs, String column) throws SQLException {
-        long value = rs.getLong(column);
-        return rs.wasNull() ? null : value;
+    /** {@link #columns()} 를 고른 줄 → {@link Row} */
+    public static Row row(Tuple t) {
+        return new Row(t.get(W.id), t.get(W.userId), t.get(W.status), t.get(W.source), t.get(W.priorStatus), t.get(W.reason), t.get(W.reasonNote),
+                new WithdrawalChoices(t.get(W.paidPointChoice), t.get(W.deliveredChoice), t.get(W.bizChoice)), t.get(W.groupChoices), t.get(W.forfeitPaidPoints),
+                t.get(W.forfeitRefundEstimate), t.get(W.forfeitBizAmount), t.get(W.forfeitConsentedAt), t.get(W.pendingSnapshot), t.get(W.pendingCount),
+                t.get(W.expectedCompleteAt), t.get(W.rejoinUntil), t.get(W.hasPaymentHistory), t.get(W.progressNotifiedAt), t.get(W.requestedAt), t.get(W.completedAt),
+                t.get(W.canceledAt), t.get(W.forceReasonKind), t.get(W.forceMemo), t.get(W.forceOperatorId), t.get(W.cancelChannel), t.get(W.cancelMemo),
+                t.get(W.cancelOperatorId), t.get(W.forfeitEmoticonEarnings));
     }
 
-    private static Instant at(ResultSet rs, String column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
-    }
-
-    private static OffsetDateTime ts(Instant at) {
-        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
+    private static <T extends Comparable<?>> void setOrNull(JPAUpdateClause update, DateTimePath<T> path, T value) {
+        if (value == null) {
+            update.setNull(path);
+        } else {
+            update.set(path, value);
+        }
     }
 }

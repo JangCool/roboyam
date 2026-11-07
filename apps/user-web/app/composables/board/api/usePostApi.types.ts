@@ -63,6 +63,11 @@ export interface PostAuthor {
      * 화면은 `useMyDecoration().avatarOf` 로 채운다(내 것은 방금 고른 것).
      */
     avatarUrl?: string | null;
+    /**
+     * 움직이는 아바타의 정지 그림 주소 — 서버 연결됨(움직이는 아바타만). 정지 아바타·비회원은 null(칸이 없는 옛 응답도 정지로 본다).
+     * 움직임 줄이기(`prefers-reduced-motion`)면 이것을 그린다(`ProfileBorderAvatar` 의 `stillSrc`). 내 것은 `useMyDecoration().avatarStillOf`.
+     */
+    avatarStillUrl?: string | null;
     /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
     business?: boolean;
     /**

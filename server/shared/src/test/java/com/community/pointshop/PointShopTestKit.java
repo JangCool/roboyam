@@ -4,6 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.service.AuditLogService;
+import com.community.avatarupload.repository.master.AvatarUploadStore;
+import com.community.avatarupload.service.AvatarUploadReviewService;
+import com.community.avatarupload.service.AvatarUploadService;
+import com.community.media.service.ImageStorage;
+import com.community.point.repository.master.PointPolicyQueries;
+import com.community.pointshop.service.AvatarLooks;
+import com.community.pointshop.service.UploadTicketService;
+import java.util.concurrent.ConcurrentHashMap;
 import com.community.point.entity.PointKind;
 import com.community.point.entity.PointLotKind;
 import com.community.point.entity.PointReason;
@@ -34,9 +42,12 @@ import com.community.pointshop.service.PointShopRefundService;
 import com.community.pointshop.service.ProfileAvatarService;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.pointshop.service.UserItemService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
+import com.community.testsupport.JpaTestContext;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.testsupport.PointInvariants;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -62,12 +73,12 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 포인트 상점 시험의 바탕 — 실제 PostgreSQL({@link CommerceTestDatabase}) 위에서 포인트({@link PointService})와 포인트 상점 서비스를 <b>손으로</b> 조립한다(1-1 {@code PointTestKit} 과 같은 방식 —
- * 스프링 문맥 없음, Mockito 없음). 트랜잭션은 {@link DataSourceTransactionManager}(서비스·저장소의 JDBC 가 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
+ * 스프링 문맥 없음, Mockito 없음). 저장소는 JPA·QueryDSL({@link JpaTestContext#create}), 트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 포인트 원장의 JDBC 도
+ * 같은 연결을 쓴다), 시계는 {@link MutableTestClock}.
  * 감사는 기록을 모으는 대역({@link #audits}). DB 는 다른 시험과 같이 쓴다 — 회원·품목을 시험마다 새로 만들고, 공용 행(설정·시드 아바타)을 바꾸면 되돌린다.
  */
 final class PointShopTestKit {
@@ -95,31 +106,38 @@ final class PointShopTestKit {
     final NicknameTicketService tickets;
     final ProfileAvatarService profileAvatars;
     final ShopDecorationResolver decorations;
+    /** 올리기 변경권·아바타 올리기(commerce-motion-avatar-contract) */
+    final AvatarUploadStore uploadStore;
+    final MemoryImageStorage storage = new MemoryImageStorage();
+    final AvatarLooks looks;
+    final UploadTicketService uploadTickets;
+    final AvatarUploadService avatarUploads;
+    final AvatarUploadReviewService avatarReviews;
     final long operator;
 
     PointShopTestKit() {
         dataSource = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(dataSource);
-        tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        tx = new TransactionTemplate(JpaTestContext.transactions()); // JPA 트랜잭션 — 저장소의 JDBC 도 같은 연결을 쓴다(아바타 올리기 신청은 JPA)
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
-        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(dataSource), null, null, ids, null, clocks);
-        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
+        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
+        points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(new PointPolicyQueries(dataSource)), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
         AuditLogService audit = new AuditLogService(null, null) {
             @Override
             public void record(AuditEvent event) {
                 audits.add(event);
             }
         };
-        itemStore = new PointShopItemStore(dataSource);
-        PointShopPurchaseStore purchaseStore = new PointShopPurchaseStore(dataSource);
-        UserItemStore userItemStore = new UserItemStore(dataSource);
-        PointShopMemberStore members = new PointShopMemberStore(dataSource);
+        itemStore = JpaTestContext.create(PointShopItemStore.class);
+        PointShopPurchaseStore purchaseStore = JpaTestContext.create(PointShopPurchaseStore.class);
+        UserItemStore userItemStore = JpaTestContext.create(UserItemStore.class);
+        PointShopMemberStore members = JpaTestContext.create(PointShopMemberStore.class);
         avatars = new AvatarCatalog();
         catalog = new PointShopCatalogService(itemStore, userItemStore, members, avatars, audit, ids, clocks);
         purchases = new PointShopPurchaseService(itemStore, purchaseStore, userItemStore, members, catalog, points, restrictions, ids, clocks);
-        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+        NotificationPublisher operatorPublisher = new NotificationPublisher(null, null, ids, null, null, dataSource) {
             @Override
             public int publish(AdminNotificationEvent event, NotificationContext context) {
                 operatorNotices.add(event);
@@ -131,8 +149,13 @@ final class PointShopTestKit {
         refunds = new PointShopRefundService(itemStore, purchaseStore, userItemStore, members, points, audit, operatorPublisher, memberPublisher, ids, clocks);
         userItems = new UserItemService(userItemStore, itemStore, members, purchaseStore, avatars, clocks);
         tickets = new NicknameTicketService(userItemStore, itemStore, clocks);
-        profileAvatars = new ProfileAvatarService(avatars, itemStore, userItemStore, members, clocks);
-        decorations = new ShopDecorationResolver(userItemStore, members, avatars, clocks);
+        uploadStore = JpaTestContext.create(AvatarUploadStore.class);
+        looks = new AvatarLooks(avatars, uploadStore, storage);
+        profileAvatars = new ProfileAvatarService(avatars, itemStore, userItemStore, members, uploadStore, looks, clocks);
+        decorations = new ShopDecorationResolver(userItemStore, members, looks, clocks);
+        uploadTickets = new UploadTicketService(userItemStore, itemStore, clocks);
+        avatarUploads = new AvatarUploadService(uploadStore, uploadTickets, members, profileAvatars, storage, operatorPublisher, clocks);
+        avatarReviews = new AvatarUploadReviewService(uploadStore, uploadTickets, members, profileAvatars, looks, storage, audit, memberPublisher, clocks);
         operator = newOperator();
     }
 
@@ -317,6 +340,80 @@ final class PointShopTestKit {
     int count(String sql, Object... args) {
         Integer count = jdbc.queryForObject(sql, Integer.class, args);
         return count == null ? 0 : count;
+    }
+
+    // ── 올리기 변경권·아바타 올리기 ─────────────────────────────────────────
+
+    /** 메모리 저장소(시험용 — 공개 주소는 {@code /media/<키>}) */
+    static final class MemoryImageStorage implements ImageStorage {
+
+        final Map<String, byte[]> files = new ConcurrentHashMap<>();
+
+        @Override
+        public void put(String key, byte[] data) {
+            files.put(key, data);
+        }
+
+        @Override
+        public void delete(String key) {
+            files.remove(key);
+        }
+
+        @Override
+        public String publicUrl(String key) {
+            return "/media/" + key;
+        }
+    }
+
+    /** V157 이 넣은 변경권 품목 ID */
+    long seedItem(String code) {
+        return jdbc.queryForObject("SELECT id FROM point_shop_items WHERE code = ?", Long.class, code);
+    }
+
+    /** 이메일 인증 전 회원 + 프로필 */
+    long newUnverifiedMember() {
+        long id = newMember();
+        jdbc.update("UPDATE users SET email_verified_at = NULL WHERE id = ?", id);
+        return id;
+    }
+
+    /** 아바타 올리기 대기 신청을 만든다(파일은 메모리 저장소에) — 새 신청 ID */
+    long submitUpload(long userId, boolean animated) {
+        long requestId = ids.nextId();
+        String folder = "avatar-upload/t" + requestId;
+        storage.put(folder + "/image." + (animated ? "gif" : "png"), new byte[] {1});
+        if (animated) {
+            storage.put(folder + "/still.png", new byte[] {2});
+        }
+        List<String> stale = inTx(() -> avatarUploads.submit(userId, new AvatarUploadService.NewUpload(requestId, folder + "/image." + (animated ? "gif" : "png"),
+                animated ? folder + "/still.png" : null, animated ? "image/gif" : "image/png", 1000, 200, 200, animated ? 12 : 1)));
+        stale.forEach(storage::delete);
+        return requestId;
+    }
+
+    /** 운영자 심사(관리자 앱과 같은 한 트랜잭션) */
+    com.community.avatarupload.dto.response.AdminAvatarUploadView approveUpload(String id) {
+        return inTx(() -> avatarReviews.approve(operator, "127.0.0.1", id));
+    }
+
+    com.community.avatarupload.dto.response.AdminAvatarUploadView rejectUpload(String id, String reason) {
+        return inTx(() -> avatarReviews.reject(operator, "127.0.0.1", id, reason));
+    }
+
+    com.community.avatarupload.dto.response.AdminAvatarUploadView revokeUpload(String id, String reason) {
+        return inTx(() -> avatarReviews.revoke(operator, "127.0.0.1", id, reason));
+    }
+
+    String profileImage(long userId) {
+        return jdbc.queryForObject("SELECT profile_image FROM profiles WHERE user_id = ?", String.class, userId);
+    }
+
+    String lastStill(long userId) {
+        return jdbc.queryForObject("SELECT last_still_avatar FROM profiles WHERE user_id = ?", String.class, userId);
+    }
+
+    String uploadStatus(long requestId) {
+        return jdbc.queryForObject("SELECT status FROM avatar_upload_requests WHERE id = ?", String.class, requestId);
     }
 
     // ── 동시에 ──────────────────────────────────────────────────────────────

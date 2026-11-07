@@ -1,8 +1,24 @@
 package com.community.sanction.repository.master;
 
+import com.community.operator.entity.QOperatorEntity;
+import com.community.report.entity.QReportCaseEntity;
 import com.community.sanction.entity.AppealStatus;
+import com.community.sanction.entity.MemberSanctionEntity;
+import com.community.sanction.entity.QMemberSanctionEntity;
+import com.community.sanction.entity.QSanctionAppealEntity;
 import com.community.sanction.entity.SanctionKind;
 import com.community.sanction.entity.SanctionStatus;
+import com.community.user.entity.QProfileEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -10,43 +26,40 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 사이트 제재({@code member_sanctions})·이의제기({@code sanction_appeals}) 읽기·쓰기 — shared V136. 서비스({@code MemberSanctionService})와 관리자 목록 저장소가 부른다.
+ * 트랜잭션은 부르는 서비스가 연다. 판정 시각은 DB 의 {@code now()} 가 아니라 서비스가 넘기는 지금이다.
  *
- * <p>JDBC(native SQL)인 이유: 회원 행 잠금({@code FOR UPDATE OF u}) 아래에서 조건부 UPDATE 한 문장으로 한 번만 이기게 하고(해제 · 인용 · 만료), 이의제기 접수는
- * {@code ON CONFLICT (sanction_id) DO NOTHING} 으로 유일 색인이 막으며, 진행 중 정지의 판정을 부분 색인({@code ux_member_sanctions_running} ·
- * {@code ix_member_sanctions_expire})과 같은 조건 글자로 둔다 — 기능 제한({@code MemberRestrictionStore})과 같은 방식. 트랜잭션은 부르는 서비스가 연다.
- * 판정 시각은 DB 의 {@code now()} 가 아니라 서비스가 넘기는 지금이다.
+ * <p>QueryDSL 이 기본이다 — 회원 행 쓰기 잠금({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 잠금 뒤의
+ * 판정이 보는 제재 줄은 모두 회원 행을 먼저 잠근 흐름이 넣고 고친다. 이의제기 접수는 회원 행을 잠그지 않지만 잠근 쪽의 판정은 이의제기 줄을 보지 않는다 — 답변은 이의제기 행을
+ * id 로 먼저 잠근다) 아래에서 조건부 대량 UPDATE 로 한 번만 이기게 하고(해제 · 인용 · 만료), 진행 중 정지의 판정을
+ * 부분 색인({@code ux_member_sanctions_running} · {@code ix_member_sanctions_expire})과 같은 조건으로 둔다. 읽기는 한 줄 모양(프로젝션)이라 영속성 문맥의 낡은 엔티티를 보지 않는다.
+ * Native SQL 로 남긴 것과 이유: 이의제기 접수({@code ON CONFLICT (sanction_id) DO NOTHING RETURNING}), 경고 번호 다시 매기기(윈도 함수 {@code row_number} + {@code UPDATE … FROM}),
+ * 게시판 지정 끝내기({@code DELETE … RETURNING} — 지운 줄과 알린 줄이 같은 문장이어야 한다).
  *
  * <p>⚠ {@link #endDue}·{@link #releaseMember} 는 DB 배치 {@code R__batch_39_sanction_expire.sql} 과 같은 판정이다(이중 구현) — 한쪽을 고치면 다른 쪽도 고친다.
  */
 @Repository
-public class MemberSanctionStore {
+public class MemberSanctionStore extends RoboyamRepositoryQDSL {
 
-    /** 진행 중인 정지·영구 정지(부분 유일 색인 {@code ux_member_sanctions_running} 과 같은 조건) — 별칭 {@code x}, 회원 칸 자리 하나 */
-    static final String RUNNING_OF = "SELECT 1 FROM member_sanctions x WHERE x.user_id = ? AND x.status = 'ACTIVE' AND x.kind <> 'WARNING'";
+    /** 제재 — 한 줄 모양의 별칭(관리자 목록 저장소가 거르기에 쓴다) */
+    public static final QMemberSanctionEntity S = QMemberSanctionEntity.memberSanctionEntity;
+    /** 대상 회원의 프로필(닉네임) */
+    public static final QProfileEntity P = QProfileEntity.profileEntity;
+    /** 이의제기 */
+    public static final QSanctionAppealEntity A = QSanctionAppealEntity.sanctionAppealEntity;
 
-    /** 제재 한 줄 — 회원(닉네임·등급·상태)·운영자 이름·신고 사건 번호·이의제기 요약을 함께 */
-    public static final String SELECT = "SELECT s.id, s.sanction_no, s.user_id, s.kind, s.status, s.warning_no, s.skipped, s.reason, s.starts_at, s.ends_at, "
-            + "s.issued_by, io.operator_name, s.report_case_id, rc.case_no, s.acknowledged_at, s.lifted_by, lo.operator_name, s.lifted_at, s.lift_reason, "
-            + "s.voided_at, s.ended_at, s.created_at, a.id, a.appeal_no, a.status, p.nickname, p.grade_key, u.status "
-            + "FROM member_sanctions s JOIN users u ON u.id = s.user_id LEFT JOIN profiles p ON p.user_id = s.user_id "
-            + "LEFT JOIN operators io ON io.id = s.issued_by LEFT JOIN operators lo ON lo.id = s.lifted_by "
-            + "LEFT JOIN report_cases rc ON rc.id = s.report_case_id LEFT JOIN sanction_appeals a ON a.sanction_id = s.id";
+    private static final QUserEntity U = QUserEntity.userEntity;
+    private static final QOperatorEntity ISSUED = new QOperatorEntity("issuedOperator");
+    private static final QOperatorEntity LIFTED = new QOperatorEntity("liftedOperator");
+    private static final QOperatorEntity ANSWERED = new QOperatorEntity("answeredOperator");
+    private static final QReportCaseEntity CASE = QReportCaseEntity.reportCaseEntity;
+    /** 하위 질의용 별칭 */
+    private static final QMemberSanctionEntity X = new QMemberSanctionEntity("x");
 
-    /** 이의제기 한 줄 — 답변한 운영자 이름을 함께 */
-    public static final String APPEAL_SELECT = "SELECT a.id, a.appeal_no, a.sanction_id, a.user_id, a.status, a.reason, a.answer, a.answered_by, ao.operator_name, "
-            + "a.answered_at, a.created_at, a.board_sanction_id FROM sanction_appeals a LEFT JOIN operators ao ON ao.id = a.answered_by";
-
-    /**
-     * 제재 한 줄.
-     *
-     * @param status 저장된 상태 — 끝이 지났지만 아직 만료되지 않은 정지는 {@link #effectiveStatus} 가 ENDED 로 본다
-     */
+    /** 제재 한 줄 */
     public record SanctionRow(long id, long no, long userId, SanctionKind kind, SanctionStatus status, Integer warningNo, boolean skipped, String reason,
                               Instant startsAt, Instant endsAt, Long issuedBy, String issuedByName, Long reportCaseId, Long reportCaseNo, Instant acknowledgedAt,
                               Long liftedBy, String liftedByName, Instant liftedAt, String liftReason, Instant voidedAt, Instant endedAt, Instant createdAt,
@@ -100,33 +113,58 @@ public class MemberSanctionStore {
     public record StaffRow(long boardId, String role) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final MemberSanctionRepository sanctions;
+    private final EntityManager entityManager;
 
-    public MemberSanctionStore(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public MemberSanctionStore(JPAQueryFactory query, MemberSanctionRepository sanctions, EntityManager entityManager) {
+        super(query);
+        this.sanctions = sanctions;
+        this.entityManager = entityManager;
     }
 
-    public JdbcTemplate jdbc() {
-        return jdbc;
+    // ── 조건 ──────────────────────────────────────────────────────────────
+
+    /** 진행 중인 정지·영구 정지(부분 유일 색인 {@code ux_member_sanctions_running} 과 같은 조건) — 별칭 {@code s} */
+    public static BooleanExpression runningStored(QMemberSanctionEntity s) {
+        return s.status.eq(SanctionStatus.ACTIVE).and(s.kind.ne(SanctionKind.WARNING));
+    }
+
+    /** 그 회원에게 진행 중인 정지·영구 정지가 있다(저장된 상태 기준 — R__batch_39 와 같다) */
+    private static BooleanExpression hasRunning(long userId) {
+        return JPAExpressions.selectOne().from(X).where(X.userId.eq(userId), runningStored(X)).exists();
+    }
+
+    /** 그 회원의 제재 기록이 있다 */
+    private static BooleanExpression hasAny(long userId) {
+        return JPAExpressions.selectOne().from(X).where(X.userId.eq(userId)).exists();
     }
 
     // ── 회원 ──────────────────────────────────────────────────────────────
 
-    private static final String MEMBER = "SELECT u.id, u.status, (u.status IN ('WITHDRAWN', 'WITHDRAWING') OR u.deleted_at IS NOT NULL), p.nickname, p.grade_key "
-            + "FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?";
-
     public Optional<MemberRow> member(long userId) {
-        return jdbc.query(MEMBER, MemberSanctionStore::member, userId).stream().findFirst();
+        return Optional.ofNullable(memberQuery(userId).fetchOne()).map(MemberSanctionStore::member);
     }
 
-    /** 회원 행을 쓰기 잠금으로 읽는다 — 부여·해제·인용·만료가 같은 회원에서 줄을 선다(차례: 회원 행 → 제재 행) */
+    /**
+     * 회원 행을 쓰기 잠금으로 잡고({@code FOR NO KEY UPDATE}) 읽는다 — 부여·해제·인용·만료가 같은 회원에서 줄을 선다(차례: 회원 행 → 제재 행).
+     * 잠금은 회원 표만 고르는 한 문장으로 잡고, 칸은 그 뒤 한 줄 모양(프로젝션)으로 읽는다 — 프로필을 잇는 프로젝션에 잠금을 걸면 회원 행이 잠기지 않는다(2026-11-07 실측),
+     * 그리고 먼저 읽힌 회원 엔티티가 있어도 잠근 뒤의 값을 본다.
+     */
     public Optional<MemberRow> lockMember(long userId) {
-        return jdbc.query(MEMBER + " FOR UPDATE OF u", MemberSanctionStore::member, userId).stream().findFirst();
+        if (query.select(U.id).from(U).where(U.id.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
+            return Optional.empty();
+        }
+        return member(userId);
+    }
+
+    private JPAQuery<Tuple> memberQuery(long userId) {
+        return query.select(U.id, U.status, U.deletedAt, P.nickname, P.gradeKey).from(U).leftJoin(P).on(P.userId.eq(U.id)).where(U.id.eq(userId));
     }
 
     /** 계정을 막는 상태로 바꾼다(SUSPENDED · BANNED) — 회원 행을 잠근 뒤 */
     public void restrictMember(long userId, String status, Instant now) {
-        jdbc.update("UPDATE users SET status = ?, updated_at = ? WHERE id = ? AND status IN ('ACTIVE', 'SUSPENDED', 'BANNED')", status, ts(now), userId);
+        query.update(U).set(U.status, UserStatus.valueOf(status)).set(U.updatedAt, now)
+                .where(U.id.eq(userId), U.status.in(UserStatus.ACTIVE, UserStatus.SUSPENDED, UserStatus.BANNED)).execute();
     }
 
     /**
@@ -136,177 +174,225 @@ public class MemberSanctionStore {
      * @return 되돌렸으면 true
      */
     public boolean releaseMember(long userId, Instant now) {
-        return jdbc.update("UPDATE users SET status = 'ACTIVE', updated_at = ? WHERE id = ? AND status IN ('SUSPENDED', 'BANNED') "
-                + "AND EXISTS (SELECT 1 FROM member_sanctions s WHERE s.user_id = ?) AND NOT EXISTS (" + RUNNING_OF + ")", ts(now), userId, userId, userId) == 1;
+        return query.update(U).set(U.status, UserStatus.ACTIVE).set(U.updatedAt, now)
+                .where(U.id.eq(userId), U.status.in(UserStatus.SUSPENDED, UserStatus.BANNED), hasAny(userId), hasRunning(userId).not()).execute() == 1;
     }
 
     /** 읽기 전 마감이 할 일이 있나 — 끝이 지난 진행 중 정지가 있거나, 막힌 상태인데 진행 중 정지·영구 정지가 없다(제재 기록이 있는 회원). 회원 범위 색인만 읽는다 */
     public boolean needsSettle(long userId, Instant now) {
-        Boolean needed = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM member_sanctions s WHERE s.user_id = ? AND s.status = 'ACTIVE' AND s.ends_at IS NOT NULL "
-                + "AND s.ends_at <= ?) OR EXISTS (SELECT 1 FROM users u WHERE u.id = ? AND u.status IN ('SUSPENDED', 'BANNED') "
-                + "AND EXISTS (SELECT 1 FROM member_sanctions s WHERE s.user_id = u.id) AND NOT EXISTS (" + RUNNING_OF + "))", Boolean.class, userId, ts(now), userId, userId);
-        return Boolean.TRUE.equals(needed);
+        // 예전과 같이 한 문장(두 판정이 같은 시점) — 제재 줄은 회원 줄을 외래키로 가리켜, 회원 줄에서 시작해도 「끝이 지난 정지가 있다」는 같은 결과다
+        BooleanExpression due = JPAExpressions.selectOne().from(S)
+                .where(S.userId.eq(userId), S.status.eq(SanctionStatus.ACTIVE), S.endsAt.isNotNull(), S.endsAt.loe(now)).exists();
+        BooleanExpression stuck = U.status.in(UserStatus.SUSPENDED, UserStatus.BANNED).and(hasAny(userId)).and(hasRunning(userId).not());
+        return query.selectOne().from(U).where(U.id.eq(userId), due.or(stuck)).fetchFirst() != null;
     }
 
     /** 끝이 지난 진행 중 기간 정지를 끝낸다(ended_at = 끝 시각) — R__batch_39 규칙 1 과 같은 판정. 끝낸 수 */
     public int endDue(long userId, Instant now) {
-        return jdbc.update("UPDATE member_sanctions SET status = 'ENDED', ended_at = ends_at, updated_at = ? "
-                + "WHERE user_id = ? AND status = 'ACTIVE' AND ends_at IS NOT NULL AND ends_at <= ?", ts(now), userId, ts(now));
+        return (int) query.update(S).set(S.status, SanctionStatus.ENDED).set(S.endedAt, S.endsAt).set(S.updatedAt, now)
+                .where(S.userId.eq(userId), S.status.eq(SanctionStatus.ACTIVE), S.endsAt.isNotNull(), S.endsAt.loe(now)).execute();
     }
 
-    /** 그 회원의 게시판 매니저·스텝 지정을 모두 끝낸다(정지 시작 — operator-permissions.md 「자동 해제」). 끝낸 지정 */
+    /**
+     * 그 회원의 게시판 매니저·스텝 지정을 모두 끝낸다(정지 시작 — operator-permissions.md 「자동 해제」). 끝낸 지정.
+     *
+     * <p>Native SQL 인 이유: {@code DELETE … RETURNING} — 지운 줄과 감사에 남길 줄이 같은 문장의 결과여야 한다(나누면 그 사이에 바뀐 지정이 어긋난다).
+     */
     public List<StaffRow> endBoardStaff(long userId) {
-        return jdbc.query("DELETE FROM board_staff WHERE user_id = ? RETURNING board_id, role", (rs, i) -> new StaffRow(rs.getLong(1), rs.getString(2)), userId);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = entityManager.createNativeQuery("DELETE FROM board_staff WHERE user_id = ?1 RETURNING board_id, role").setParameter(1, userId)
+                .getResultList();
+        return rows.stream().map(r -> new StaffRow(((Number) r[0]).longValue(), (String) r[1])).toList();
     }
 
     // ── 제재 ──────────────────────────────────────────────────────────────
 
+    /** 제재 한 줄 질의(회원 닉네임·등급·상태 · 운영자 이름 · 신고 사건 번호 · 이의제기 요약을 함께) — 거르기·차례는 부르는 쪽이 붙인다 */
+    public JPAQuery<Tuple> sanctionRows() {
+        return query.select(S.id, S.sanctionNo, S.userId, S.kind, S.status, S.warningNo, S.skipped, S.reason, S.startsAt, S.endsAt, S.issuedBy, ISSUED.operatorName,
+                        S.reportCaseId, CASE.caseNo, S.acknowledgedAt, S.liftedBy, LIFTED.operatorName, S.liftedAt, S.liftReason, S.voidedAt, S.endedAt, S.createdAt,
+                        A.id, A.appealNo, A.status, P.nickname, P.gradeKey, U.status)
+                .from(S).join(U).on(U.id.eq(S.userId)).leftJoin(P).on(P.userId.eq(S.userId))
+                .leftJoin(ISSUED).on(ISSUED.id.eq(S.issuedBy)).leftJoin(LIFTED).on(LIFTED.id.eq(S.liftedBy))
+                .leftJoin(CASE).on(CASE.id.eq(S.reportCaseId)).leftJoin(A).on(A.sanctionId.eq(S.id));
+    }
+
+    public static SanctionRow row(Tuple t) {
+        UserStatus userStatus = t.get(U.status);
+        return new SanctionRow(t.get(S.id), t.get(S.sanctionNo), t.get(S.userId), t.get(S.kind), t.get(S.status), t.get(S.warningNo), t.get(S.skipped),
+                t.get(S.reason), t.get(S.startsAt), t.get(S.endsAt), t.get(S.issuedBy), t.get(ISSUED.operatorName), t.get(S.reportCaseId), t.get(CASE.caseNo),
+                t.get(S.acknowledgedAt), t.get(S.liftedBy), t.get(LIFTED.operatorName), t.get(S.liftedAt), t.get(S.liftReason), t.get(S.voidedAt), t.get(S.endedAt),
+                t.get(S.createdAt), t.get(A.id), t.get(A.appealNo), t.get(A.status), t.get(P.nickname), t.get(P.gradeKey),
+                userStatus == null ? null : userStatus.name());
+    }
+
     public Optional<SanctionRow> find(long id) {
-        return jdbc.query(SELECT + " WHERE s.id = ?", MemberSanctionStore::row, id).stream().findFirst();
+        return Optional.ofNullable(sanctionRows().where(S.id.eq(id)).fetchOne()).map(MemberSanctionStore::row);
     }
 
     /** 그 제재의 회원(없으면 빈 값) */
     public Optional<Long> userOf(long sanctionId) {
-        return jdbc.queryForList("SELECT user_id FROM member_sanctions WHERE id = ?", Long.class, sanctionId).stream().findFirst();
+        return Optional.ofNullable(query.select(S.userId).from(S).where(S.id.eq(sanctionId)).fetchOne());
     }
 
     /** 그 회원의 제재 — 최근 것이 위, 최대 {@code limit}(무효 포함). 색인 {@code ix_member_sanctions_user} */
     public List<SanctionRow> ofUser(long userId, int limit) {
-        return jdbc.query(SELECT + " WHERE s.user_id = ? ORDER BY s.created_at DESC, s.id DESC LIMIT ?", MemberSanctionStore::row, userId, limit);
+        return sanctionRows().where(S.userId.eq(userId)).orderBy(S.createdAt.desc(), S.id.desc()).limit(limit).fetch().stream().map(MemberSanctionStore::row).toList();
     }
 
     /** 그 회원의 모든 제재(단계 계산용 — 회원 하나의 제재 수는 적다) */
     public List<SanctionRow> allOfUser(long userId) {
-        return jdbc.query(SELECT + " WHERE s.user_id = ? ORDER BY s.created_at DESC, s.id DESC", MemberSanctionStore::row, userId);
+        return sanctionRows().where(S.userId.eq(userId)).orderBy(S.createdAt.desc(), S.id.desc()).fetch().stream().map(MemberSanctionStore::row).toList();
     }
 
-    /** 새 제재 — 번호는 DB 시퀀스가 매긴다(돌려준다) */
+    /** 새 제재 — 번호는 DB 시퀀스가 매긴다(넣고 내보낸 뒤 읽어 돌려준다) */
     public long insert(long id, long userId, SanctionKind kind, Integer warningNo, boolean skipped, String reason, Instant startsAt, Instant endsAt, long issuedBy,
                        Long reportCaseId, Instant now) {
-        Long no = jdbc.queryForObject("INSERT INTO member_sanctions (id, user_id, kind, status, warning_no, skipped, reason, starts_at, ends_at, issued_by, report_case_id, "
-                        + "created_at, updated_at) VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING sanction_no", Long.class, id, userId, kind.name(),
-                warningNo, skipped, reason, ts(startsAt), ts(endsAt), issuedBy, reportCaseId, ts(now), ts(now));
-        return no == null ? 0 : no;
+        MemberSanctionEntity sanction = MemberSanctionEntity.issue(id, userId, kind, warningNo, skipped, reason, startsAt, endsAt, issuedBy, reportCaseId, now);
+        sanctions.persist(sanction);
+        sanctions.flush();
+        return sanction.getSanctionNo() == null ? 0 : sanction.getSanctionNo();
     }
 
-    /** 진행 중인 정지를 영구 정지로 대체해 끝낸다(ended_at = 지금). 끝낸 제재 ID(없으면 빈 값) */
+    /** 진행 중인 정지를 영구 정지로 대체해 끝낸다(ended_at = 지금). 끝낸 제재 ID(없으면 빈 값) — 회원 행을 잠근 뒤(진행 중 정지는 회원마다 하나) */
     public Optional<Long> endRunning(long userId, Instant now) {
-        return jdbc.queryForList("UPDATE member_sanctions SET status = 'ENDED', ended_at = ?, updated_at = ? WHERE user_id = ? AND status = 'ACTIVE' AND kind <> 'WARNING' "
-                + "RETURNING id", Long.class, ts(now), ts(now), userId).stream().findFirst();
+        Long running = query.select(S.id).from(S).where(S.userId.eq(userId), runningStored(S)).fetchFirst();
+        if (running == null) {
+            return Optional.empty();
+        }
+        long ended = query.update(S).set(S.status, SanctionStatus.ENDED).set(S.endedAt, now).set(S.updatedAt, now)
+                .where(S.id.eq(running), runningStored(S)).execute();
+        return ended == 1 ? Optional.of(running) : Optional.empty();
     }
 
     /** 진행 중인 정지·영구 정지를 푼다(조건부 — 끝이 지났거나 이미 끝났으면 바꾸지 않는다). 풀었으면 true */
     public boolean lift(long id, long operatorId, String reason, Instant now) {
-        return jdbc.update("UPDATE member_sanctions SET status = 'LIFTED', lifted_by = ?, lifted_at = ?, lift_reason = ?, updated_at = ? "
-                + "WHERE id = ? AND status = 'ACTIVE' AND kind <> 'WARNING' AND (ends_at IS NULL OR ends_at > ?)", operatorId, ts(now), reason, ts(now), id, ts(now)) == 1;
+        return query.update(S).set(S.status, SanctionStatus.LIFTED).set(S.liftedBy, operatorId).set(S.liftedAt, now).set(S.liftReason, reason).set(S.updatedAt, now)
+                .where(S.id.eq(id), runningStored(S), S.endsAt.isNull().or(S.endsAt.gt(now))).execute() == 1;
     }
 
     /** 이의제기 인용 — 무효로(어느 상태에서든). 바꿨으면 true */
     public boolean voidSanction(long id, Instant now) {
-        return jdbc.update("UPDATE member_sanctions SET status = 'VOIDED', voided_at = ?, warning_no = NULL, updated_at = ? WHERE id = ? AND status <> 'VOIDED'",
-                ts(now), ts(now), id) == 1;
+        return query.update(S).set(S.status, SanctionStatus.VOIDED).set(S.voidedAt, now).setNull(S.warningNo).set(S.updatedAt, now)
+                .where(S.id.eq(id), S.status.ne(SanctionStatus.VOIDED)).execute() == 1;
     }
 
-    /** 유효한 경고의 번호를 받은 차례대로 다시 매긴다(1·2 — 2 넘으면 2) — 경고가 무효가 된 뒤 */
+    /**
+     * 유효한 경고의 번호를 받은 차례대로 다시 매긴다(1·2 — 2 넘으면 2) — 경고가 무효가 된 뒤.
+     *
+     * <p>Native SQL 인 이유: 윈도 함수({@code row_number() OVER}) 결과로 고치는 {@code UPDATE … FROM} 한 문장 — JPQL·QueryDSL 에 대응 문법이 없다.
+     */
     public void renumberWarnings(long userId, Instant now) {
-        jdbc.update("UPDATE member_sanctions m SET warning_no = t.n, updated_at = ? FROM (SELECT id, least(row_number() OVER (ORDER BY created_at, id), 2) AS n "
-                + "FROM member_sanctions WHERE user_id = ? AND kind = 'WARNING' AND status <> 'VOIDED') t WHERE m.id = t.id AND m.warning_no IS DISTINCT FROM t.n",
-                ts(now), userId);
+        entityManager.createNativeQuery("UPDATE member_sanctions m SET warning_no = t.n, updated_at = ?1 FROM (SELECT id, least(row_number() OVER (ORDER BY created_at, id), 2) AS n "
+                        + "FROM member_sanctions WHERE user_id = ?2 AND kind = 'WARNING' AND status <> 'VOIDED') t WHERE m.id = t.id AND m.warning_no IS DISTINCT FROM t.n")
+                .setParameter(1, ts(now)).setParameter(2, userId).executeUpdate();
     }
 
     /** 경고 확인(멱등) — 내 제재가 아니면 false */
     public boolean acknowledge(long id, long userId, Instant now) {
-        if (jdbc.queryForList("SELECT 1 FROM member_sanctions WHERE id = ? AND user_id = ?", Integer.class, id, userId).isEmpty()) {
+        if (query.selectOne().from(S).where(S.id.eq(id), S.userId.eq(userId)).fetchFirst() == null) {
             return false;
         }
-        jdbc.update("UPDATE member_sanctions SET acknowledged_at = ?, updated_at = ? WHERE id = ? AND user_id = ? AND kind = 'WARNING' AND acknowledged_at IS NULL",
-                ts(now), ts(now), id, userId);
+        query.update(S).set(S.acknowledgedAt, now).set(S.updatedAt, now)
+                .where(S.id.eq(id), S.userId.eq(userId), S.kind.eq(SanctionKind.WARNING), S.acknowledgedAt.isNull()).execute();
         return true;
     }
 
     /** 확인하지 않은 유효한 경고 수 */
     public int pendingWarnings(long userId) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM member_sanctions WHERE user_id = ? AND kind = 'WARNING' AND status = 'ACTIVE' AND acknowledged_at IS NULL",
-                Integer.class, userId);
-        return n == null ? 0 : n;
+        Long n = query.select(S.count()).from(S)
+                .where(S.userId.eq(userId), S.kind.eq(SanctionKind.WARNING), S.status.eq(SanctionStatus.ACTIVE), S.acknowledgedAt.isNull()).fetchOne();
+        return n == null ? 0 : n.intValue();
     }
 
     /** 진행 중인 기간 정지의 끝(영구 정지·정지 없음이면 빈 값) */
     public Optional<Instant> runningUntil(long userId, Instant now) {
-        return jdbc.query("SELECT ends_at FROM member_sanctions WHERE user_id = ? AND status = 'ACTIVE' AND kind <> 'WARNING' AND ends_at > ? LIMIT 1",
-                (rs, i) -> instant(rs, 1), userId, ts(now)).stream().findFirst();
+        return Optional.ofNullable(query.select(S.endsAt).from(S).where(S.userId.eq(userId), runningStored(S), S.endsAt.gt(now)).fetchFirst());
     }
 
     // ── 이의제기 ──────────────────────────────────────────────────────────
 
-    /** 이의제기 접수 — 그 제재에 이미 있으면 넣지 않는다(유일 색인). 넣은 이의제기 번호(없으면 빈 값) */
+    /**
+     * 이의제기 접수 — 그 제재에 이미 있으면 넣지 않는다(유일 색인). 넣은 이의제기 번호(없으면 빈 값).
+     *
+     * <p>Native SQL 인 이유: {@code INSERT … ON CONFLICT DO NOTHING RETURNING} — 동시 접수를 유일 색인이 한 번만 받게 하고 번호를 같은 문장에서 받는다.
+     */
     public Optional<Long> insertAppeal(long id, long sanctionId, long userId, String reason, Instant now) {
-        return jdbc.queryForList("INSERT INTO sanction_appeals (id, sanction_id, user_id, status, reason, created_at, updated_at) VALUES (?, ?, ?, 'PENDING', ?, ?, ?) "
-                + "ON CONFLICT (sanction_id) DO NOTHING RETURNING appeal_no", Long.class, id, sanctionId, userId, reason, ts(now), ts(now)).stream().findFirst();
+        return firstLong(entityManager.createNativeQuery("INSERT INTO sanction_appeals (id, sanction_id, user_id, status, reason, created_at, updated_at) "
+                        + "VALUES (?1, ?2, ?3, 'PENDING', ?4, ?5, ?5) ON CONFLICT (sanction_id) DO NOTHING RETURNING appeal_no")
+                .setParameter(1, id).setParameter(2, sanctionId).setParameter(3, userId).setParameter(4, reason).setParameter(5, ts(now)).getResultList());
+    }
+
+    /** 이의제기 한 줄 질의(답변한 운영자 이름을 함께) — 거르기·차례는 부르는 쪽이 붙인다 */
+    public JPAQuery<Tuple> appealRows() {
+        return query.select(A.id, A.appealNo, A.sanctionId, A.userId, A.status, A.reason, A.answer, A.answeredBy, ANSWERED.operatorName, A.answeredAt, A.createdAt,
+                A.boardSanctionId).from(A).leftJoin(ANSWERED).on(ANSWERED.id.eq(A.answeredBy));
+    }
+
+    public static AppealRow appeal(Tuple t) {
+        return new AppealRow(t.get(A.id), t.get(A.appealNo), t.get(A.sanctionId), t.get(A.userId), t.get(A.status), t.get(A.reason), t.get(A.answer),
+                t.get(A.answeredBy), t.get(ANSWERED.operatorName), t.get(A.answeredAt), t.get(A.createdAt), t.get(A.boardSanctionId));
     }
 
     public Optional<AppealRow> findAppeal(long id) {
-        return jdbc.query(APPEAL_SELECT + " WHERE a.id = ?", MemberSanctionStore::appeal, id).stream().findFirst();
+        return Optional.ofNullable(appealRows().where(A.id.eq(id)).fetchOne()).map(MemberSanctionStore::appeal);
     }
 
     /** 제재의 이의제기 */
     public Optional<AppealRow> appealOf(long sanctionId) {
-        return jdbc.query(APPEAL_SELECT + " WHERE a.sanction_id = ?", MemberSanctionStore::appeal, sanctionId).stream().findFirst();
+        return Optional.ofNullable(appealRows().where(A.sanctionId.eq(sanctionId)).fetchOne()).map(MemberSanctionStore::appeal);
     }
 
     /** 회원의 이의제기 전부(내 제재 화면 — 제재 ID 로 잇는다) */
     public List<AppealRow> appealsOfUser(long userId) {
-        return jdbc.query(APPEAL_SELECT + " WHERE a.user_id = ? AND a.sanction_id IS NOT NULL", MemberSanctionStore::appeal, userId);
+        return appealRows().where(A.userId.eq(userId), A.sanctionId.isNotNull()).fetch().stream().map(MemberSanctionStore::appeal).toList();
     }
 
-    /** 이의제기 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 답해도 한 번만(차례: 이의제기 행 → 회원 행 → 제재 행) */
+    /**
+     * 이의제기 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 답해도 한 번만(차례: 이의제기 행 → 회원 행 → 제재 행). 답한 운영자 이름은 비운다. 이의제기 표만 고르는 한 문장
+     * ({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE} — 이 표를 FK 로 가리키는 표가 없다).
+     */
     public Optional<AppealRow> lockAppeal(long id) {
-        return jdbc.query("SELECT a.id, a.appeal_no, a.sanction_id, a.user_id, a.status, a.reason, a.answer, a.answered_by, NULL, a.answered_at, a.created_at, a.board_sanction_id "
-                + "FROM sanction_appeals a WHERE a.id = ? FOR UPDATE", MemberSanctionStore::appeal, id).stream().findFirst();
+        Tuple t = query.select(A.id, A.appealNo, A.sanctionId, A.userId, A.status, A.reason, A.answer, A.answeredBy, A.answeredAt, A.createdAt, A.boardSanctionId)
+                .from(A).where(A.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        return t == null ? Optional.empty()
+                : Optional.of(new AppealRow(t.get(A.id), t.get(A.appealNo), t.get(A.sanctionId), t.get(A.userId), t.get(A.status), t.get(A.reason), t.get(A.answer),
+                t.get(A.answeredBy), null, t.get(A.answeredAt), t.get(A.createdAt), t.get(A.boardSanctionId)));
     }
 
     /** 답변(조건부 — 대기일 때만). 바꿨으면 true */
     public boolean answerAppeal(long id, AppealStatus to, String answer, long operatorId, Instant now) {
-        return jdbc.update("UPDATE sanction_appeals SET status = ?, answer = ?, answered_by = ?, answered_at = ?, updated_at = ? WHERE id = ? AND status = 'PENDING'",
-                to.name(), answer, operatorId, ts(now), ts(now), id) == 1;
+        return query.update(A).set(A.status, to).set(A.answer, answer).set(A.answeredBy, operatorId).set(A.answeredAt, now).set(A.updatedAt, now)
+                .where(A.id.eq(id), A.status.eq(AppealStatus.PENDING)).execute() == 1;
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────
 
-    public static SanctionRow row(ResultSet rs, int i) throws SQLException {
-        String appealStatus = rs.getString(25);
-        return new SanctionRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), SanctionKind.valueOf(rs.getString(4)), SanctionStatus.valueOf(rs.getString(5)),
-                nullableInt(rs, 6), rs.getBoolean(7), rs.getString(8), instant(rs, 9), instant(rs, 10), nullableLong(rs, 11), rs.getString(12), nullableLong(rs, 13),
-                nullableLong(rs, 14), instant(rs, 15), nullableLong(rs, 16), rs.getString(17), instant(rs, 18), rs.getString(19), instant(rs, 20), instant(rs, 21),
-                instant(rs, 22), nullableLong(rs, 23), nullableLong(rs, 24), appealStatus == null ? null : AppealStatus.valueOf(appealStatus), rs.getString(26),
-                rs.getString(27), rs.getString(28));
+    private static MemberRow member(Tuple t) {
+        UserStatus status = t.get(U.status);
+        boolean gone = status == UserStatus.WITHDRAWN || status == UserStatus.WITHDRAWING || t.get(U.deletedAt) != null;
+        return new MemberRow(t.get(U.id), status == null ? null : status.name(), gone, t.get(P.nickname), t.get(P.gradeKey));
     }
 
-    public static AppealRow appeal(ResultSet rs, int i) throws SQLException {
-        return new AppealRow(rs.getLong(1), rs.getLong(2), nullableLong(rs, 3), rs.getLong(4), AppealStatus.valueOf(rs.getString(5)), rs.getString(6), rs.getString(7),
-                nullableLong(rs, 8), rs.getString(9), instant(rs, 10), instant(rs, 11), nullableLong(rs, 12));
+    /** native {@code RETURNING} 한 칸 결과의 첫 값 */
+    static Optional<Long> firstLong(List<?> rows) {
+        return rows.stream().findFirst().map(v -> ((Number) v).longValue());
     }
 
-    private static MemberRow member(ResultSet rs, int i) throws SQLException {
-        return new MemberRow(rs.getLong(1), rs.getString(2), rs.getBoolean(3), rs.getString(4), rs.getString(5));
+    /** native 인자 — {@code timestamptz} 로 보낸다 */
+    public static OffsetDateTime ts(Instant at) {
+        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
     }
+
+    // ── JDBC 도우미(다른 업무의 JDBC 저장소가 함께 쓴다 — OperatorMemberAccountStore) ──────────
 
     public static Long nullableLong(ResultSet rs, int column) throws SQLException {
         long value = rs.getLong(column);
         return rs.wasNull() ? null : value;
     }
 
-    private static Integer nullableInt(ResultSet rs, int column) throws SQLException {
-        int value = rs.getInt(column);
-        return rs.wasNull() ? null : value;
-    }
-
     public static Instant instant(ResultSet rs, int column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
-    }
-
-    public static OffsetDateTime ts(Instant at) {
-        return at == null ? null : OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
     }
 }

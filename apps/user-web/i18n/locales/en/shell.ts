@@ -36,7 +36,7 @@ export default {
     tabHome: 'Home',
     tabBoards: 'Boards',
     tabGroups: 'Clubs',
-    tabNotifications: 'Notifications',
+    tabCommunity: 'Community',
 
     // Write button
     write: 'Write',
@@ -51,4 +51,7 @@ export default {
     gradeRegular: 'Regular',
     gradeLoyal: 'Loyal',
     gradeVeteran: 'Veteran',
+
+    // Footer — contact line in the left column when there is no business info (individual stage)
+    footerContact: 'Contact {email}',
 };

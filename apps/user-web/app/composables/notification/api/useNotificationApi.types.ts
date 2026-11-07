@@ -11,6 +11,8 @@
  * 양·날짜를 서버가 `title`·`body` 로 풀고 `link` `/me/points`, `points` 는 null). 화면은 종류별 문구를 만들지 않으므로(서버 `title`/`body`) 모르는 종류가 와도 기본 아이콘으로 그린다.
  */
 export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'DM' | 'NICKNAME_IMAGE_REVIEWED'
+    /** 아바타 올리기 심사 결과(승인·반려·운영자 해제 — 사유는 `body`, 묶음 `system`, 끌 수 없다). `link` `/settings/avatar-upload` — commerce-motion-avatar-contract */
+    | 'AVATAR_UPLOAD_REVIEWED'
     | 'OPINION_PIN_REQUESTED' | 'OPINION_PIN_REVIEWED' | 'POST_REMOVED'
     /** 운영자가 내 댓글을 지움 · 내 신고의 처리 결과(조치됨 / 위반이 확인되지 않음) — `docs/features/report-admin-contract.md` */
     | 'COMMENT_REMOVED' | 'REPORT_RESULT'

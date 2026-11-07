@@ -9,6 +9,7 @@ import account from './account';
 import address from './address';
 import analytics from './analytics';
 import audit from './audit';
+import avatarUpload from './avatarUpload';
 import batch from './batch';
 import board from './board';
 import commerce from './commerce';
@@ -55,6 +56,7 @@ import withdrawnContact from './withdrawnContact';
 import terms from './terms';
 import nicknameImage from './nicknameImage';
 import noticeBar from './noticeBar';
+import operatorStage from './operatorStage';
 import content from './content';
 import debate from './debate';
 import highlight from './highlight';
@@ -80,6 +82,7 @@ export default {
     address,
     analytics,
     audit,
+    avatarUpload,
     batch,
     board,
     commerce,
@@ -126,6 +129,7 @@ export default {
     terms,
     nicknameImage,
     noticeBar,
+    operatorStage,
     content,
     debate,
     highlight,

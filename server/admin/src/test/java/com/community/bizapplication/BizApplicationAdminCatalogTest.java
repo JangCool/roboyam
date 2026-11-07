@@ -189,7 +189,7 @@ class BizApplicationAdminCatalogTest {
         List<String> keys = new ArrayList<>();
         for (String code : List.of("BIZ_APPLICATION_NOT_FOUND", "BIZ_APPLICATION_STATE_CHANGED", "BIZ_SLOT_FULL", "BIZ_DEPOSIT_INCOMPLETE", "BIZ_PRODUCT_CLOSED",
                 "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND", "DEAL_BUSINESS_POST_LOCKED", "AD_ADVERTISER_HAS_BOOKINGS",
-                "AD_ADVERTISER_HAS_OPEN_BOOKINGS", "AD_ADVERTISER_BUSINESS")) {
+                "AD_ADVERTISER_HAS_OPEN_BOOKINGS", "AD_ADVERTISER_BUSINESS", "BIZ_PAYMENT_UNAVAILABLE", "BIZ_OPERATOR_STAGE")) {
             keys.add("error." + code);
         }
         for (String action : AuditActions.all()) {

@@ -70,8 +70,8 @@ class PointShopSchemaTest extends PointShopTestBase {
                 .hasMessageContaining("fixed");
         assertThatThrownBy(() -> kit.jdbc.update("UPDATE point_shop_items SET avatar_id = 'job-chef-f' WHERE id = ?", kit.avatarItem("job-chef-m")))
                 .hasMessageContaining("fixed");
-        assertThat(kit.itemStore.takeStock(item)).isTrue();
-        assertThat(kit.itemStore.takeStock(item)).as("0 이면 0 줄").isFalse();
+        assertThat(kit.inTx(() -> kit.itemStore.takeStock(item))).isTrue(); // 저장소(JPA)는 트랜잭션 안에서 — 운영도 구매 트랜잭션 안에서 부른다
+        assertThat(kit.inTx(() -> kit.itemStore.takeStock(item))).as("0 이면 0 줄").isFalse();
         assertThat(kit.stock(item)).isZero();
     }
 

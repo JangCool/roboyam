@@ -15,6 +15,7 @@ import com.community.operator.exception.InvitationExpiredException;
 import com.community.operator.exception.InvitationLinkNotFoundException;
 import com.community.operator.exception.InvitationUsedException;
 import com.community.operator.exception.OperatorEmailDuplicatedException;
+import com.community.operator.repository.master.OperatorIdentityLockQueries;
 import com.community.operator.repository.master.OperatorInvitationRepository;
 import com.community.operator.repository.master.OperatorInvitationRoleRepository;
 import com.community.operator.repository.master.OperatorRepository;
@@ -29,7 +30,6 @@ import com.community.zconfiguration.crypto.Digests;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,12 +74,12 @@ public class OperatorInvitationAcceptService {
     private final PasswordEncoder encoder;
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
-    private final EntityManager entityManager;
+    private final OperatorIdentityLockQueries identityLock;
     private final AdminNotices notices;
 
     public OperatorInvitationAcceptService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators, OperatorRepositoryQDSL operatorQueries,
                                            OperatorRoleRepository operatorRoles, RoleRepository roles, PasswordEncoder encoder, SnowflakeIdGenerator ids,
-                                           AuditLogService audit, EntityManager entityManager, AdminNotices notices) {
+                                           AuditLogService audit, OperatorIdentityLockQueries identityLock, AdminNotices notices) {
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
         this.operators = operators;
@@ -89,7 +89,7 @@ public class OperatorInvitationAcceptService {
         this.encoder = encoder;
         this.ids = ids;
         this.audit = audit;
-        this.entityManager = entityManager;
+        this.identityLock = identityLock;
         this.notices = notices;
     }
 
@@ -119,7 +119,7 @@ public class OperatorInvitationAcceptService {
             throw new InvitationLinkNotFoundException(); // 모르는 토큰은 전역 잠금을 잡기 전에 거른다(공개 API 라 아무나 부를 수 있다)
         }
         // 잠금 순서: 운영자 식별 잠금 → 초대 행 잠금. 초대 만들기·직접 추가·닉네임 변경이 같은 순서로 잡아 교착이 없다. 초대 행은 잠근 뒤에 상태를 다시 본다
-        OperatorIdentityLock.acquire(entityManager);
+        identityLock.acquire();
         OperatorInvitationEntity invitation = invitations.findWithLockByTokenHash(tokenHash).orElseThrow(InvitationLinkNotFoundException::new);
         requireUsable(invitation, now);
 

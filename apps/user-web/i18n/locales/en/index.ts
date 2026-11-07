@@ -14,6 +14,7 @@ import address from './address';
 import addressBook from './addressBook';
 import auth from './auth';
 import avatar from './avatar';
+import avatarUpload from './avatarUpload';
 import block from './block';
 import board from './board';
 import boardSanction from './boardSanction';
@@ -79,6 +80,7 @@ export default {
     addressBook,
     auth,
     avatar,
+    avatarUpload,
     block,
     board,
     boardSanction,

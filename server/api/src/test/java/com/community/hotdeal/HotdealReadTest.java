@@ -48,13 +48,16 @@ class HotdealReadTest extends HotdealApiTestBase {
     @Test
     void 상태_우선순위_ENDED_EXPIRED_FLAGGED_ACTIVE() {
         long flagged = writeId(member(), deal(url("shop.example.com")));
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET flagged_at = now() WHERE post_id = ?", flagged);
         assertThat(view(flagged).view()).isEqualTo("FLAGGED");
         assertThat(view(flagged).autoEndAt()).as("의심 + 유예 12시간").isNotNull();
 
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofDays(31))), flagged);
         assertThat(view(flagged).view()).as("마감 없는 딜 30일 — 기간 종료가 의심보다 먼저").isEqualTo("EXPIRED");
 
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET status = 'ENDED', ended_by = 'MANAGER', ended_by_role = 'OPERATOR', ended_at = now() WHERE post_id = ?", flagged);
         assertThat(view(flagged).view()).isEqualTo("ENDED");
     }
@@ -62,6 +65,7 @@ class HotdealReadTest extends HotdealApiTestBase {
     @Test
     void 추천이_문턱_이상이면_HOT() {
         long id = writeId(member(), deal(url("shop.example.com")));
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET like_count = 10 WHERE id = ?", id);
         assertThat(view(id).hot()).isTrue();
     }
@@ -73,8 +77,9 @@ class HotdealReadTest extends HotdealApiTestBase {
         long b = writeId(member(), deal(link + "?utm_source=x"));
         long ended = writeId(member(), withStock(deal(link), "SOLD_OUT"));
         long hidden = writeId(member(), deal(link));
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", hidden);
+        boardFixture.staffHide(hidden);
         long expired = writeId(member(), deal(link));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofDays(40))), expired);
 
         assertThat(view(a).sameDealCount()).isEqualTo(1);
@@ -89,6 +94,7 @@ class HotdealReadTest extends HotdealApiTestBase {
         long active = writeId(member(), deal(url("shop.example.com")));
         long flagged = writeId(member(), deal(url("shop.example.com")));
         long ended = writeId(member(), withStock(deal(url("shop.example.com")), "SOLD_OUT"));
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET flagged_at = now() WHERE post_id = ?", flagged);
 
         PostListResponse shown = postQueries.list(slug, null, "latest", null, 1, null, null, null);
@@ -104,6 +110,7 @@ class HotdealReadTest extends HotdealApiTestBase {
         long older = writeId(member(), withEnds(deal(url("shop.example.com")), Instant.now().plus(Duration.ofDays(5)).toString()));
         long soon = writeId(member(), withEnds(deal(url("shop.example.com")), Instant.now().plus(Duration.ofHours(5)).toString()));
         long open = writeId(member(), deal(url("shop.example.com")));
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET like_count = 7 WHERE id = ?", older);
         assertThat(ids(postQueries.list(board, null, "popular", null, 1, null, null, null)).get(0)).isEqualTo(Long.toString(older));
         assertThat(ids(postQueries.list(board, null, "ENDING_SOON", null, 1, null, null, null))).containsExactly(Long.toString(soon), Long.toString(older),
@@ -129,6 +136,7 @@ class HotdealReadTest extends HotdealApiTestBase {
 
     @Test
     void 게시판_응답은_kind_와_핫딜_공개_설정을_싣고_19금은_꺼져_있다() {
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET allow_adult = true WHERE slug = ?", board);
         catalog.invalidate();
         BoardDetailView detail = boards.board(board, null);

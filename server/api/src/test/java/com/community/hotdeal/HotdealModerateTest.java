@@ -50,6 +50,7 @@ class HotdealModerateTest extends HotdealStage2TestBase {
     }
 
     private void appoint(String slug, long member, String role) {
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, ?)", boardId(slug), member, role);
     }
 
@@ -71,9 +72,7 @@ class HotdealModerateTest extends HotdealStage2TestBase {
     }
 
     private Map<String, Object> lastAudit(long actor, String action) {
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT actor_type, actor_id, target_type, target_id, ip, detail FROM audit_logs WHERE actor_id = ? AND action = ? "
-                + "ORDER BY occurred_at DESC, id DESC LIMIT 1", actor, action);
-        return rows.isEmpty() ? null : rows.get(0);
+        return auditLogs.where().actor(actor).action(action).latest().map(row -> row.asMap()).orElse(null);
     }
 
     @Test
@@ -118,6 +117,7 @@ class HotdealModerateTest extends HotdealStage2TestBase {
         String other = dealBoard();
         long otherManager = staffOf(other, "MANAGER");
         long suspended = staffOf(board, "MANAGER");
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", suspended);
         long banned = staffOf(board, "STAFF");
         jdbc.update("UPDATE users SET status = 'BANNED' WHERE id = ?", banned);
@@ -141,6 +141,7 @@ class HotdealModerateTest extends HotdealStage2TestBase {
             assertThat(error(() -> reopen(post, who, null)).getErrorCode()).isEqualTo("DEAL_MODERATE_FORBIDDEN");
         }
         // 지정이 풀리면 바로 막힌다(요청마다 다시 판정)
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("DELETE FROM board_staff WHERE user_id = ?", manager);
         assertThat(error(() -> reopen(post, manager, null)).getErrorCode()).isEqualTo("DEAL_MODERATE_FORBIDDEN");
         assertThat(dealRow(post)).containsEntry("status", "ENDED");
@@ -242,6 +243,7 @@ class HotdealModerateTest extends HotdealStage2TestBase {
         long staff = staffOf(board, "STAFF");
         long otherManager = staffOf(dealBoard(), "MANAGER");
         long suspended = staffOf(board, "MANAGER");
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", suspended);
         long author = member();
         long post = newDeal(author);

@@ -56,7 +56,7 @@ export default {
     salesOn: 'Sales on',
     salesOff: 'Sales off',
     salesAuto: 'Automatic conditions (server)',
-    salesAutoKey: { BUSINESS_INFO: 'Required business details', PG_KEYS: 'Payment (PG) keys', CARRIER: 'At least one active carrier', IDENTITY: 'Identity verification' },
+    salesAutoKey: { BUSINESS_INFO: 'Required business details', OPERATOR_STAGE: 'Operator is a sole proprietor or corporation with a mail-order report no.', PG_KEYS: 'Payment (PG) keys', CARRIER: 'At least one active carrier', IDENTITY: 'Identity verification' },
     salesOk: 'met',
     salesMissing: 'not met',
     salesChecklist: 'Operations checklist',
@@ -85,6 +85,10 @@ export default {
     // ── Business details ─
     businessSection: 'Business details',
     businessLead: 'Shown at the bottom of group buy pages and, while sales are on, in the site footer. The eight required fields are a condition for turning sales on.',
+    businessOperatorNote: 'Change business details in Settings › Operator & terms › Operator.',
+    businessOperatorLink: 'Open operator settings',
+    businessOwnTitle: 'Set here for commerce',
+    businessEmpty: 'Empty',
     businessReady: 'Required filled',
     businessNotReady: 'Required missing',
     business: {
@@ -102,8 +106,6 @@ export default {
         shippingRefundPolicy: 'Shipping and refund policy',
     },
     businessPolicyHelp: 'Shown at the bottom of group buy pages. Return cost amounts per group buy are shown on each detail page.',
-    businessNoProblem: 'The business registration number is invalid (000-00-00000, check digit).',
-    emailProblem: 'Check the email address.',
     businessSaved: 'Business details saved.',
     businessLoadFailed: 'Could not load business details.',
 

@@ -5,7 +5,7 @@
           보정되면 「밝은/어두운 화면에서는 조금 바꿔 보여요」 표시(저장은 막지 않는다 — 저장값은 원색 그대로).
         · 프로필 테두리: 두 바탕에 공개 프로필 머리의 큰 동그라미 + 글 보기 머리의 작은 작성자 줄(계약 — 테두리를 보일 자리).
         · 프로필 아바타: 두 바탕에 공개 프로필 머리의 큰 동그라미 + 글 보기 머리의 작은 작성자 줄(테두리 없이 — 장착한 테두리는 공개 화면에서 이 둘레에 둘러진다).
-        · 닉네임 변경권: 미리보기를 줄 수 없어 회원 화면 상품 상세에 늘 적을 내용 설명 다섯 줄(무엇 · 언제 · 어디서 · 기간 · 환불)과 입력한 설명을 보인다.
+        · 변경권(닉네임 변경권·닉네임 이미지 변경권·아바타 변경권): 미리보기를 줄 수 없어 회원 화면 상품 상세에 늘 적을 내용 설명 다섯 줄(무엇 · 언제 · 어디서 · 기간 · 환불)과 입력한 설명을 보인다.
         상자마다 `color-scheme` 을 걸어 안쪽의 `light-dark()`(등급 뱃지·이니셜 면)가 그 바탕에 맞게 풀린다.
     -->
     <section class="flex min-w-0 flex-col gap-3" :aria-labelledby="titleId">
@@ -130,11 +130,24 @@ const gradient = computed(() => UtilPointShop.borderGradient(props.borderStyle))
 const borderName = computed(() => (props.borderStyle ? t(`pointShop.border.${props.borderStyle}`) : ''));
 
 /** 변경권 내용 설명 다섯 줄(계약 제안 — 미리보기 없는 품목) */
-const ticketLines = computed(() => [
-    { key: 'what', icon: 'pi pi-pencil', text: t('pointShop.ticketInfo.what') },
-    { key: 'when', icon: 'pi pi-clock', text: t('pointShop.ticketInfo.when') },
-    { key: 'where', icon: 'pi pi-user-edit', text: t('pointShop.ticketInfo.where') },
-    { key: 'period', icon: 'pi pi-calendar', text: t('pointShop.ticketInfo.period') },
-    { key: 'refund', icon: 'pi pi-replay', text: props.refundDays === null ? t('pointShop.ticketInfo.refundNoDays') : t('pointShop.ticketInfo.refund', { days: props.refundDays }) },
-]);
+const ticketLines = computed(() => {
+    // 올리기 변경권(닉네임 이미지·아바타 — 신청에 예약 → 승인되면 사용) — user-web 상품 상세의 안내 다섯 줄과 같은 뜻
+    if (props.kind === 'NICKNAME_IMAGE_TICKET' || props.kind === 'AVATAR_UPLOAD_TICKET') {
+        const avatar = props.kind === 'AVATAR_UPLOAD_TICKET';
+        return [
+            { key: 'what', icon: 'pi pi-pencil', text: avatar ? t('pointShop.ticketInfo.avatarWhat') : t('pointShop.ticketInfo.nicknameImageWhat') },
+            { key: 'when', icon: 'pi pi-clock', text: t('pointShop.ticketInfo.uploadWhen') },
+            { key: 'where', icon: 'pi pi-user-edit', text: avatar ? t('pointShop.ticketInfo.avatarWhere') : t('pointShop.ticketInfo.nicknameImageWhere') },
+            { key: 'period', icon: 'pi pi-calendar', text: t('pointShop.ticketInfo.period') },
+            { key: 'refund', icon: 'pi pi-replay', text: props.refundDays === null ? t('pointShop.ticketInfo.uploadRefundNoDays') : t('pointShop.ticketInfo.uploadRefund', { days: props.refundDays }) },
+        ];
+    }
+    return [
+        { key: 'what', icon: 'pi pi-pencil', text: t('pointShop.ticketInfo.what') },
+        { key: 'when', icon: 'pi pi-clock', text: t('pointShop.ticketInfo.when') },
+        { key: 'where', icon: 'pi pi-user-edit', text: t('pointShop.ticketInfo.where') },
+        { key: 'period', icon: 'pi pi-calendar', text: t('pointShop.ticketInfo.period') },
+        { key: 'refund', icon: 'pi pi-replay', text: props.refundDays === null ? t('pointShop.ticketInfo.refundNoDays') : t('pointShop.ticketInfo.refund', { days: props.refundDays }) },
+    ];
+});
 </script>

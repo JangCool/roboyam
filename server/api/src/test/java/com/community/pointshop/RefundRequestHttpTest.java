@@ -65,6 +65,7 @@ class RefundRequestHttpTest extends PointShopApiTestBase {
         long held = buy(member, colorItem(600, "#CC3311"));
         suspend(member);
         String requestId = JsonPath.read(body(refund(member, held, key()).andExpect(status().isAccepted())), "$.data.requestId");
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'ACTIVE' WHERE id = ?", member);
 
         mvc.perform(as(member, org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/me/equipped/NICKNAME_COLOR")

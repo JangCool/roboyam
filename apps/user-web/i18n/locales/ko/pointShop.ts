@@ -70,7 +70,7 @@ export default {
     previewProfile: '내 프로필',
     previewPostHead: '글 보기의 작성자',
     borderName: '고리 · {name}',
-    borderWhere: '테두리는 내 프로필과 글 보기의 작성자 자리에 보여요. 목록·댓글·쪽지에서는 닉네임 색만 보여요.',
+    borderWhere: '테두리는 내 프로필, 글 보기와 글 목록의 작성자 자리에 보여요. 댓글·쪽지에서는 닉네임 색만 보여요.',
 
     // 변경권 — 미리보기 대신 다섯 줄
     ticketAboutTitle: '닉네임 변경권은 이런 아이템이에요',
@@ -90,6 +90,17 @@ export default {
     // 구매
     buy: '{points}에 사기',
     useInProfile: '프로필에서 쓰기',
+    useNicknameImageTicket: '닉네임 이미지 신청하러 가기',
+    useAvatarTicket: '아바타 올리러 가기',
+    // 올리기 변경권(닉네임 이미지·아바타) — 품목 상세의 안내
+    nicknameImageTicketAboutTitle: '닉네임 이미지 변경권은 이런 아이템이에요',
+    avatarTicketAboutTitle: '아바타 변경권은 이런 아이템이에요',
+    nicknameImageTicketWhat: '닉네임 자리에 보일 이미지(정지·움직이는 GIF)를 한 번 신청할 수 있어요. 1장에 1번이에요.',
+    avatarTicketWhat: '직접 만든 그림(정지·움직이는 GIF)을 아바타로 한 번 신청할 수 있어요. 1장에 1번이에요.',
+    uploadTicketWhen: '신청할 때 1장이 예약되고 운영팀이 승인하면 쓰여요. 반려되거나 신청을 취소하면 돌려받아요.',
+    nicknameImageTicketWhere: '설정 › 닉네임 이미지에서 신청할 때 써요.',
+    avatarTicketWhere: '설정 › 아바타 올리기에서 신청할 때 써요.',
+    uploadTicketRefund: '쓰지도 예약되지도 않았고 산 지 {days}일 안이면 내 아이템에서 환불할 수 있어요. 승인돼 쓴 변경권은 환불할 수 없고, 적용한 이미지를 지워도 돌려받지 않아요.',
     goEquip: '장착하러 가기',
     confirmTitle: '구매할까요?',
     confirmPrice: '가격',
@@ -127,9 +138,11 @@ export default {
     ticketCount: '{count}장 보유',
     ticketOwned: '보유',
     ticketUsed: '사용함',
+    ticketReserved: '신청에 예약됨',
     boughtOn: '{date} 구매',
     refundUntil: '{date}까지 환불 가능',
     usedNoRefund: '사용함 · 환불 불가',
+    reservedNoRefund: '신청에 예약됨 · 환불 불가(반려·취소되면 풀려요)',
     refundExpired: '환불 기한 지남',
     revokedTitle: '환불됨 {count}개',
     equipConfirmTitle: '장착할까요?',

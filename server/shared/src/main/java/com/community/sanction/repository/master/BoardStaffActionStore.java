@@ -1,35 +1,50 @@
 package com.community.sanction.repository.master;
 
-import static com.community.sanction.repository.master.MemberSanctionStore.instant;
-import static com.community.sanction.repository.master.MemberSanctionStore.nullableLong;
+import static com.community.sanction.repository.master.BoardSanctionStore.zero;
+import static com.community.sanction.repository.master.MemberSanctionStore.firstLong;
 import static com.community.sanction.repository.master.MemberSanctionStore.ts;
 
+import com.community.board.entity.QBoardDefaultsEntity;
+import com.community.board.entity.QBoardEntity;
+import com.community.board.entity.QBoardStaffEntity;
+import com.community.comment.entity.QCommentEntity;
+import com.community.operator.entity.QOperatorEntity;
 import com.community.permission.entity.MemberPermission;
 import com.community.post.entity.PostEntity;
+import com.community.post.entity.QPostEntity;
 import com.community.role.entity.MemberRoleIds;
-import java.sql.Array;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.community.role.entity.QRoleEntity;
+import com.community.role.entity.QRolePermissionEntity;
+import com.community.sanction.entity.BoardStaffActionEntity;
+import com.community.sanction.entity.QBoardStaffActionEntity;
+import com.community.sanction.entity.QBoardStaffUsageEntity;
+import com.community.user.entity.QProfileEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
  * 게시판 스텝 처리 기록({@code board_staff_actions} 의 kind POST · COMMENT — V138) · 하루 사용량({@code board_staff_usage.posts|comments}) · 처리자 판정 읽기·쓰기.
  * 서비스({@code BoardStaffActionService}) · 운영자 글 조치 몸통({@code PostModerationActions} — 정책 7) · 관리자 목록 저장소가 부른다.
  *
- * <p>JDBC 인 이유는 {@link BoardSanctionStore} 와 같다 — 하루 한도의 원자적 증가({@code INSERT … ON CONFLICT … DO UPDATE … WHERE 칸 < 한도} 한 문장), 되돌림의 조건부 UPDATE
- * ({@code … WHERE restored_at IS NULL}), 부분 색인과 같은 조건 글자. 서버 여러 대가 동시에 불러도 메모리 상태 없이 DB 가 막는다.
+ * <p>QueryDSL 이 기본이다 — 되돌림은 조건부 대량 UPDATE({@code restored_at IS NULL} 일 때만 한 번), 목록은 부분 색인과 같은 조건({@link #content}).
+ * Native SQL 로 남긴 것과 이유: 하루 한도의 원자적 증가({@code INSERT … ON CONFLICT … DO UPDATE … WHERE 칸 < 한도 RETURNING} 한 문장 — 서버 여러 대가 동시에 불러도
+ * 메모리 상태 없이 DB 가 막는다).
  */
 @Repository
-public class BoardStaffActionStore {
+public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
 
     public static final String KIND_POST = "POST";
     public static final String KIND_COMMENT = "COMMENT";
@@ -40,24 +55,30 @@ public class BoardStaffActionStore {
     /** 처리자 자리 — 운영자 회원 계정(V141, operator-member-account-contract 정책 11) */
     public static final String ROLE_OPERATOR = "OPERATOR";
 
-    /** 제재 줄을 뺀 처리 기록(부분 색인 {@code ix_board_staff_actions_*_content} 와 같은 조건) — 별칭 {@code a} */
-    public static final String CONTENT = "a.kind <> 'SANCTION'";
+    /** 처리 기록 — 한 줄 모양의 별칭(관리자 목록 저장소가 거르기에 쓴다) */
+    public static final QBoardStaffActionEntity ACTION = QBoardStaffActionEntity.boardStaffActionEntity;
+    /** 처리자의 프로필(닉네임 거르기) */
+    public static final QProfileEntity ACTOR = new QProfileEntity("actorProfile");
 
-    /**
-     * 처리 기록 한 줄 — 게시판 · 처리자 닉네임 · 대상 작성자 지금 닉네임 · 되돌린 매니저 닉네임/운영자 이름 · 대상 글·댓글의 지금 상태 칸을 함께.
-     * 글은 id 범위 파티션, 댓글은 post_id 해시 파티션이라 키로만 잇는다.
-     */
-    public static final String SELECT = "SELECT a.id, a.board_id, b.slug, b.name, b.name_en, a.actor_id, ap.nickname, a.actor_role, a.kind, a.action, a.target_user_id, "
-            + "tp.nickname, a.post_id, a.comment_id, a.reason_code, a.target_title, a.target_excerpt, a.target_author_name, a.created_at, a.restored_at, "
-            + "a.restored_by_kind, a.restored_by_id, CASE a.restored_by_kind WHEN 'MANAGER' THEN rp.nickname WHEN 'OPERATOR' THEN ro.operator_name END, a.restore_reason, "
-            + "p.id IS NOT NULL, p.status, p.deleted_at, p.delete_scheduled_at, p.hidden_at, p.hidden_until, p.purged_at, "
-            + "c.id IS NOT NULL, c.deleted_at, c.hidden_at, c.hidden_until, c.purged_at, a.actor_operator_id, aop.operator_name "
-            + "FROM board_staff_actions a JOIN boards b ON b.id = a.board_id LEFT JOIN profiles ap ON ap.user_id = a.actor_id "
-            + "LEFT JOIN operators aop ON aop.id = a.actor_operator_id "
-            + "LEFT JOIN profiles tp ON tp.user_id = a.target_user_id "
-            + "LEFT JOIN profiles rp ON a.restored_by_kind = 'MANAGER' AND rp.user_id = a.restored_by_id "
-            + "LEFT JOIN operators ro ON a.restored_by_kind = 'OPERATOR' AND ro.id = a.restored_by_id "
-            + "LEFT JOIN posts p ON p.id = a.post_id LEFT JOIN comments c ON a.comment_id IS NOT NULL AND c.post_id = a.post_id AND c.id = a.comment_id";
+    private static final QBoardEntity B = QBoardEntity.boardEntity;
+    private static final QOperatorEntity ACTOR_OPERATOR = new QOperatorEntity("actorOperator");
+    private static final QProfileEntity TARGET = new QProfileEntity("targetProfile");
+    private static final QProfileEntity RESTORER = new QProfileEntity("restorerProfile");
+    private static final QOperatorEntity RESTORER_OPERATOR = new QOperatorEntity("restorerOperator");
+    private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
+    private static final QUserEntity U = QUserEntity.userEntity;
+    private static final QBoardStaffEntity STAFF = QBoardStaffEntity.boardStaffEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QBoardStaffUsageEntity USAGE = QBoardStaffUsageEntity.boardStaffUsageEntity;
+    private static final QBoardDefaultsEntity DEFAULTS = QBoardDefaultsEntity.boardDefaultsEntity;
+    private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
+    private static final QRolePermissionEntity ROLE_PERMISSION = QRolePermissionEntity.rolePermissionEntity;
+
+    /** 하루 한도의 마지막 기본값(게시판 값 · board_defaults 가 없을 때) — 글 · 댓글 · 제재 */
+    private static final int DEFAULT_POSTS = 10;
+    private static final int DEFAULT_COMMENTS = 20;
+    private static final int DEFAULT_SANCTIONS = 5;
 
     /**
      * 처리 기록 한 줄.
@@ -148,102 +169,133 @@ public class BoardStaffActionStore {
     public record PageFilter(long boardId, Long actorId, String kind) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final BoardStaffActionRepository actions;
+    private final EntityManager entityManager;
 
-    public BoardStaffActionStore(MemberSanctionStore sanctions) {
-        this.jdbc = sanctions.jdbc();
+    public BoardStaffActionStore(JPAQueryFactory query, BoardStaffActionRepository actions, EntityManager entityManager) {
+        super(query);
+        this.actions = actions;
+        this.entityManager = entityManager;
     }
 
-    public JdbcTemplate jdbc() {
-        return jdbc;
+    /** 제재 줄을 뺀 처리 기록(부분 색인 {@code ix_board_staff_actions_*_content} 와 같은 조건) */
+    public static BooleanExpression content(QBoardStaffActionEntity a) {
+        return a.kind.ne(BoardStaffActionEntity.KIND_SANCTION);
     }
 
     // ── 판정 ──────────────────────────────────────────────────────────────
 
-    /** 그 게시판에서 이 회원의 자리 · 계정 · 역할 권한 — 한 문장. 회원이 없으면 자리 없음 */
+    /** 그 게시판에서 이 회원의 자리 · 계정 · 역할 권한. 회원이 없으면 자리 없음 */
     public StaffAccess access(long boardId, long userId) {
-        String roleOf = "CASE s.role WHEN 'MANAGER' THEN '" + MemberRoleIds.BOARD_MANAGER + "' WHEN 'STAFF' THEN '" + MemberRoleIds.BOARD_STAFF + "' END";
-        List<StaffAccess> rows = jdbc.query("SELECT s.role, (u.status = 'ACTIVE' AND u.deleted_at IS NULL AND u.email_verified_at IS NOT NULL), "
-                        + "EXISTS (SELECT 1 FROM roles r WHERE r.role_id = " + roleOf + "), "
-                        + "ARRAY(SELECT rp.permission_code FROM role_permissions rp WHERE rp.role_id = " + roleOf + ") "
-                        + "FROM users u LEFT JOIN board_staff s ON s.user_id = u.id AND s.board_id = ? WHERE u.id = ?",
-                (rs, i) -> new StaffAccess(rs.getString(1), rs.getBoolean(2), rs.getBoolean(3), codes(rs.getArray(4))), boardId, userId);
-        return rows.isEmpty() ? new StaffAccess(null, false, false, Set.of()) : rows.get(0);
+        // 예전과 같이 한 문장 — 자리·계정·역할 시드 여부·역할 권한을 같은 시점에 읽는다(두 매니저·스텝 역할과 그 권한을 함께 이어 읽고 자바가 자기 역할 것만 고른다.
+        // 역할 권한 줄은 역할 줄을 외래키로 가리킨다 — 역할 줄을 거쳐 이어도 예전 「그 역할 ID 의 권한 줄」과 같다)
+        List<Tuple> rows = query.select(STAFF.role, U.status, U.deletedAt, U.emailVerifiedAt, ROLE.roleId, ROLE_PERMISSION.permissionCode).from(U)
+                .leftJoin(STAFF).on(STAFF.userId.eq(U.id), STAFF.boardId.eq(boardId))
+                .leftJoin(ROLE).on(STAFF.role.isNotNull(), ROLE.roleId.in(MemberRoleIds.BOARD_MANAGER, MemberRoleIds.BOARD_STAFF))
+                .leftJoin(ROLE_PERMISSION).on(ROLE_PERMISSION.roleId.eq(ROLE.roleId))
+                .where(U.id.eq(userId)).fetch();
+        if (rows.isEmpty()) {
+            return new StaffAccess(null, false, false, Set.of());
+        }
+        Tuple t = rows.get(0);
+        String role = t.get(STAFF.role);
+        boolean accountOk = t.get(U.status) == UserStatus.ACTIVE && t.get(U.deletedAt) == null && t.get(U.emailVerifiedAt) != null;
+        String roleId = "MANAGER".equals(role) ? MemberRoleIds.BOARD_MANAGER : "STAFF".equals(role) ? MemberRoleIds.BOARD_STAFF : null;
+        if (roleId == null) {
+            return new StaffAccess(role, accountOk, false, Set.of());
+        }
+        boolean seeded = rows.stream().anyMatch(r -> roleId.equals(r.get(ROLE.roleId)));
+        Set<String> codes = rows.stream().filter(r -> roleId.equals(r.get(ROLE.roleId)) && r.get(ROLE_PERMISSION.permissionCode) != null)
+                .map(r -> r.get(ROLE_PERMISSION.permissionCode)).collect(Collectors.toUnmodifiableSet());
+        return new StaffAccess(role, accountOk, seeded, codes);
     }
 
     /** 그 게시판의 매니저·스텝인가(대상 보호) */
     public boolean staffOf(long boardId, long userId) {
-        return !jdbc.queryForList("SELECT 1 FROM board_staff WHERE board_id = ? AND user_id = ?", Integer.class, boardId, userId).isEmpty();
+        return query.selectOne().from(STAFF).where(STAFF.boardId.eq(boardId), STAFF.userId.eq(userId)).fetchFirst() != null;
     }
 
     /** 그 게시판의 매니저·스텝 회원 ID 전부 */
     public Set<Long> staffIds(long boardId) {
-        return Set.copyOf(jdbc.queryForList("SELECT user_id FROM board_staff WHERE board_id = ?", Long.class, boardId));
+        return Set.copyOf(query.select(STAFF.userId).from(STAFF).where(STAFF.boardId.eq(boardId)).fetch());
     }
 
     /**
      * 처리 전 판정용 — 글(임시저장 제외)의 게시판. 없으면 빈 값. 엔티티를 미리 읽지 않는 까닭: 같은 영속성 문맥에서 먼저 읽은 글은 뒤의 잠금 조회가 새 값으로 바꾸지 않는다
-     * (잠근 뒤의 상태 판정이 낡은 값을 보지 않게 — 글 엔티티는 잠금 조회로만 처음 읽는다).
+     * (잠근 뒤의 상태 판정이 낡은 값을 보지 않게 — 글 엔티티는 잠금 조회로만 처음 읽는다). 그래서 칸 하나만 프로젝션으로 읽는다.
      */
     public Optional<Long> publishedPostBoard(long postId) {
-        return jdbc.queryForList("SELECT board_id FROM posts WHERE id = ? AND status = 'PUBLISHED'", Long.class, postId).stream().findFirst();
+        return Optional.ofNullable(query.select(POST.boardId).from(POST).where(POST.id.eq(postId), POST.status.eq(PostEntity.PUBLISHED)).fetchFirst());
     }
 
     /** 그 글의 댓글인가(파티션 키 post_id) */
     public boolean commentExists(long postId, long commentId) {
-        return !jdbc.queryForList("SELECT 1 FROM comments WHERE post_id = ? AND id = ?", Integer.class, postId, commentId).isEmpty();
+        return query.selectOne().from(COMMENT).where(COMMENT.postId.eq(postId), COMMENT.id.eq(commentId)).fetchFirst() != null;
     }
 
     /** 회원 닉네임(스냅숏) — 없으면 null */
     public String nickname(long userId) {
-        return jdbc.queryForList("SELECT nickname FROM profiles WHERE user_id = ?", String.class, userId).stream().findFirst().orElse(null);
+        return query.select(PROFILE.nickname).from(PROFILE).where(PROFILE.userId.eq(userId)).fetchFirst();
     }
 
     // ── 하루 한도 ─────────────────────────────────────────────────────────
 
+    /** 게시판 값 ?? 기본값(board_defaults, 가장 앞 줄) ?? 고정 기본값 — 칸마다 */
     public Limits limits(long boardId) {
-        return jdbc.queryForObject("SELECT coalesce(b.staff_post_daily_limit, d.staff_post_daily_limit, 10), coalesce(b.staff_comment_daily_limit, d.staff_comment_daily_limit, 20), "
-                        + "coalesce(b.staff_sanction_daily_limit, d.staff_sanction_daily_limit, 5) FROM (SELECT 1) one LEFT JOIN boards b ON b.id = ? "
-                        + "LEFT JOIN LATERAL (SELECT staff_post_daily_limit, staff_comment_daily_limit, staff_sanction_daily_limit FROM board_defaults ORDER BY id LIMIT 1) d ON true",
-                (rs, i) -> new Limits(rs.getInt(1), rs.getInt(2), rs.getInt(3)), boardId);
+        Tuple own = query.select(B.staffPostDailyLimit, B.staffCommentDailyLimit, B.staffSanctionDailyLimit).from(B).where(B.id.eq(boardId)).fetchOne();
+        Tuple defaults = query.select(DEFAULTS.staffPostDailyLimit, DEFAULTS.staffCommentDailyLimit, DEFAULTS.staffSanctionDailyLimit).from(DEFAULTS)
+                .orderBy(DEFAULTS.id.asc()).fetchFirst();
+        return new Limits(
+                pick(own == null ? null : own.get(B.staffPostDailyLimit), defaults == null ? null : defaults.get(DEFAULTS.staffPostDailyLimit), DEFAULT_POSTS),
+                pick(own == null ? null : own.get(B.staffCommentDailyLimit), defaults == null ? null : defaults.get(DEFAULTS.staffCommentDailyLimit), DEFAULT_COMMENTS),
+                pick(own == null ? null : own.get(B.staffSanctionDailyLimit), defaults == null ? null : defaults.get(DEFAULTS.staffSanctionDailyLimit),
+                        DEFAULT_SANCTIONS));
+    }
+
+    private static int pick(Integer own, Integer defaults, int fallback) {
+        return own != null ? own : defaults != null ? defaults : fallback;
     }
 
     public Usage usage(long boardId, long userId, LocalDate date) {
-        List<Usage> rows = jdbc.query("SELECT sanctions, posts, comments FROM board_staff_usage WHERE board_id = ? AND user_id = ? AND usage_date = ?",
-                (rs, i) -> new Usage(rs.getInt(1), rs.getInt(2), rs.getInt(3)), boardId, userId, date);
-        return rows.isEmpty() ? new Usage(0, 0, 0) : rows.get(0);
+        Tuple t = query.select(USAGE.sanctions, USAGE.posts, USAGE.comments).from(USAGE)
+                .where(USAGE.boardId.eq(boardId), USAGE.userId.eq(userId), USAGE.usageDate.eq(date)).fetchOne();
+        return t == null ? new Usage(0, 0, 0) : new Usage(t.get(USAGE.sanctions), t.get(USAGE.posts), t.get(USAGE.comments));
     }
 
     /**
      * 한도 안에서 하나 쓴다(원자적 증가 — 서버 여러 대가 동시에 불러도 한도를 넘지 않는다). 쓴 뒤의 사용량, 한도를 다 썼으면 빈 값(행을 바꾸지 않는다). 트랜잭션이 롤백되면 차감도 돌아간다.
      *
+     * <p>Native SQL 인 이유: {@code INSERT … ON CONFLICT … DO UPDATE … WHERE 칸 < 한도 RETURNING} — 없으면 만들기·한도 안 증가·결과를 한 문장에서 한다.
+     *
      * @param kind {@link #KIND_POST}(칸 posts) · {@link #KIND_COMMENT}(칸 comments)
      */
     public Optional<Integer> consume(String kind, long boardId, long userId, LocalDate date, int limit, Instant now) {
         String column = KIND_POST.equals(kind) ? "posts" : "comments"; // 고정 글자 둘 중 하나
-        return jdbc.queryForList("INSERT INTO board_staff_usage (board_id, user_id, usage_date, " + column + ", updated_at) VALUES (?, ?, ?, 1, ?) "
-                + "ON CONFLICT (board_id, user_id, usage_date) DO UPDATE SET " + column + " = board_staff_usage." + column + " + 1, updated_at = EXCLUDED.updated_at "
-                + "WHERE board_staff_usage." + column + " < ? RETURNING " + column, Integer.class, boardId, userId, date, ts(now), limit).stream().findFirst();
+        return firstLong(entityManager.createNativeQuery("INSERT INTO board_staff_usage (board_id, user_id, usage_date, " + column + ", updated_at) VALUES (?1, ?2, ?3, 1, ?4) "
+                        + "ON CONFLICT (board_id, user_id, usage_date) DO UPDATE SET " + column + " = board_staff_usage." + column + " + 1, updated_at = EXCLUDED.updated_at "
+                        + "WHERE board_staff_usage." + column + " < ?5 RETURNING " + column)
+                .setParameter(1, boardId).setParameter(2, userId).setParameter(3, date).setParameter(4, ts(now)).setParameter(5, limit).getResultList())
+                .map(Long::intValue);
     }
 
     // ── 처리 기록 쓰기 ─────────────────────────────────────────────────────
 
     /**
-     * 글·댓글 처리 한 줄 — 스냅숏(제목 · 댓글 앞 40자 · 작성자 이름)과 함께.
+     * 글·댓글 처리 한 줄 — 스냅숏(제목 · 댓글 앞 40자 · 작성자 이름)과 함께. 그 자리에서 내보낸다.
      *
      * @param actorOperatorId 운영자 회원 계정의 처리면 그 운영자({@code actorRole} OPERATOR), 아니면 null
      */
     public void insert(long id, long boardId, long actorId, String actorRole, Long actorOperatorId, String kind, String action, Long targetUserId, long postId,
                        Long commentId, String reasonCode, String title, String excerpt, String authorName, Instant now) {
-        jdbc.update("INSERT INTO board_staff_actions (id, board_id, actor_id, actor_role, actor_operator_id, kind, action, target_user_id, post_id, comment_id, reason_code, "
-                        + "target_title, target_excerpt, target_author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, boardId, actorId, actorRole,
-                actorOperatorId, kind, action, targetUserId, postId, commentId, reasonCode, title, excerpt, authorName, ts(now));
+        actions.persist(BoardStaffActionEntity.content(id, boardId, actorId, actorRole, actorOperatorId, kind, action, targetUserId, postId, commentId, reasonCode, title,
+                excerpt, authorName, now));
+        actions.flush();
     }
 
     /** 이 처리를 되돌림으로(조건부 — 이미 되돌렸으면 바꾸지 않는다). 바꿨으면 true */
     public boolean markRestored(long id, String byKind, long byId, String reason, Instant now) {
-        return jdbc.update("UPDATE board_staff_actions SET restored_at = ?, restored_by_kind = ?, restored_by_id = ?, restore_reason = ? "
-                + "WHERE id = ? AND kind <> 'SANCTION' AND restored_at IS NULL", ts(now), byKind, byId, reason, id) == 1;
+        return query.update(ACTION).set(ACTION.restoredAt, now).set(ACTION.restoredByKind, byKind).set(ACTION.restoredById, byId).set(ACTION.restoreReason, reason)
+                .where(ACTION.id.eq(id), content(ACTION), ACTION.restoredAt.isNull()).execute() == 1;
     }
 
     /**
@@ -252,62 +304,70 @@ public class BoardStaffActionStore {
      * @return 채운 줄 수
      */
     public int restoreOpenForPost(long postId, String action, String byKind, long byId, String reason, Instant now) {
-        return jdbc.update("UPDATE board_staff_actions SET restored_at = ?, restored_by_kind = ?, restored_by_id = ?, restore_reason = ? "
-                + "WHERE post_id = ? AND action = ? AND restored_at IS NULL AND kind = 'POST'", ts(now), byKind, byId, reason, postId, action);
+        return (int) query.update(ACTION).set(ACTION.restoredAt, now).set(ACTION.restoredByKind, byKind).set(ACTION.restoredById, byId).set(ACTION.restoreReason, reason)
+                .where(ACTION.postId.eq(postId), ACTION.action.eq(action), ACTION.restoredAt.isNull(), ACTION.kind.eq(KIND_POST)).execute();
     }
 
     // ── 처리 기록 읽기 ─────────────────────────────────────────────────────
 
+    /**
+     * 처리 기록 한 줄 질의 — 게시판 · 처리자 닉네임 · 대상 작성자 지금 닉네임 · 되돌린 매니저 닉네임/운영자 이름 · 대상 글·댓글의 지금 상태 칸을 함께.
+     * 글은 id 범위 파티션, 댓글은 post_id 해시 파티션이라 키로만 잇는다. 거르기·차례는 부르는 쪽이 붙인다.
+     */
+    public JPAQuery<Tuple> actionRows() {
+        return query.select(ACTION.id, ACTION.boardId, B.slug, B.name, B.nameEn, ACTION.actorId, ACTOR.nickname, ACTION.actorRole, ACTION.kind, ACTION.action,
+                        ACTION.targetUserId, TARGET.nickname, ACTION.postId, ACTION.commentId, ACTION.reasonCode, ACTION.targetTitle, ACTION.targetExcerpt,
+                        ACTION.targetAuthorName, ACTION.createdAt, ACTION.restoredAt, ACTION.restoredByKind, ACTION.restoredById, RESTORER.nickname,
+                        RESTORER_OPERATOR.operatorName, ACTION.restoreReason,
+                        POST.id, POST.status, POST.deletedAt, POST.deleteScheduledAt, POST.hiddenAt, POST.hiddenUntil, POST.purgedAt,
+                        COMMENT.id, COMMENT.deletedAt, COMMENT.hiddenAt, COMMENT.hiddenUntil, COMMENT.purgedAt, ACTION.actorOperatorId, ACTOR_OPERATOR.operatorName)
+                .from(ACTION).join(B).on(B.id.eq(ACTION.boardId)).leftJoin(ACTOR).on(ACTOR.userId.eq(ACTION.actorId))
+                .leftJoin(ACTOR_OPERATOR).on(ACTOR_OPERATOR.id.eq(ACTION.actorOperatorId))
+                .leftJoin(TARGET).on(TARGET.userId.eq(ACTION.targetUserId))
+                .leftJoin(RESTORER).on(ACTION.restoredByKind.eq(BY_MANAGER), RESTORER.userId.eq(ACTION.restoredById))
+                .leftJoin(RESTORER_OPERATOR).on(ACTION.restoredByKind.eq(BY_OPERATOR), RESTORER_OPERATOR.id.eq(ACTION.restoredById))
+                .leftJoin(POST).on(POST.id.eq(ACTION.postId))
+                .leftJoin(COMMENT).on(ACTION.commentId.isNotNull(), COMMENT.postId.eq(ACTION.postId), COMMENT.id.eq(ACTION.commentId));
+    }
+
+    public static ActionRow row(Tuple t) {
+        String restoredByKind = t.get(ACTION.restoredByKind);
+        String restoredByName = BY_MANAGER.equals(restoredByKind) ? t.get(RESTORER.nickname)
+                : BY_OPERATOR.equals(restoredByKind) ? t.get(RESTORER_OPERATOR.operatorName) : null;
+        TargetState post = new TargetState(t.get(POST.id) != null, t.get(POST.status), t.get(POST.deletedAt), t.get(POST.deleteScheduledAt), t.get(POST.hiddenAt),
+                t.get(POST.hiddenUntil), t.get(POST.purgedAt));
+        TargetState comment = new TargetState(t.get(COMMENT.id) != null, PostEntity.PUBLISHED, t.get(COMMENT.deletedAt), null, t.get(COMMENT.hiddenAt),
+                t.get(COMMENT.hiddenUntil), t.get(COMMENT.purgedAt));
+        return new ActionRow(t.get(ACTION.id), t.get(ACTION.boardId), t.get(B.slug), t.get(B.name), t.get(B.nameEn), t.get(ACTION.actorId), t.get(ACTOR.nickname),
+                t.get(ACTION.actorRole), t.get(ACTION.kind), t.get(ACTION.action), t.get(ACTION.targetUserId), t.get(TARGET.nickname), t.get(ACTION.postId),
+                t.get(ACTION.commentId), t.get(ACTION.reasonCode), t.get(ACTION.targetTitle), t.get(ACTION.targetExcerpt), t.get(ACTION.targetAuthorName),
+                t.get(ACTION.createdAt), t.get(ACTION.restoredAt), restoredByKind, t.get(ACTION.restoredById), restoredByName, t.get(ACTION.restoreReason), post,
+                comment, t.get(ACTION.actorOperatorId), t.get(ACTOR_OPERATOR.operatorName));
+    }
+
     /** 처리 기록 하나(제재 줄은 없다고 본다) */
     public Optional<ActionRow> find(long id) {
-        return jdbc.query(SELECT + " WHERE a.id = ? AND " + CONTENT, BoardStaffActionStore::row, id).stream().findFirst();
+        return Optional.ofNullable(actionRows().where(ACTION.id.eq(id), content(ACTION)).fetchOne()).map(BoardStaffActionStore::row);
     }
 
     public long total(PageFilter filter) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, args);
-        Long n = jdbc.queryForObject("SELECT count(*) FROM board_staff_actions a" + where, Long.class, args.toArray());
-        return n == null ? 0 : n;
+        return zero(query.select(ACTION.count()).from(ACTION).where(where(filter)).fetchOne());
     }
 
     /** 최신 것이 위 — 색인 {@code ix_board_staff_actions_board_content}(매니저) · {@code ix_board_staff_actions_actor_content}(스텝) */
     public List<ActionRow> page(PageFilter filter, int offset, int size) {
-        List<Object> args = new ArrayList<>();
-        String where = where(filter, args);
-        args.add(size);
-        args.add((long) offset);
-        return jdbc.query(SELECT + where + " ORDER BY a.created_at DESC, a.id DESC LIMIT ? OFFSET ?", BoardStaffActionStore::row, args.toArray());
+        return actionRows().where(where(filter)).orderBy(ACTION.createdAt.desc(), ACTION.id.desc()).offset(offset).limit(size).fetch().stream()
+                .map(BoardStaffActionStore::row).toList();
     }
 
-    private static String where(PageFilter f, List<Object> args) {
-        StringBuilder where = new StringBuilder(" WHERE a.board_id = ? AND ").append(CONTENT);
-        args.add(f.boardId());
+    private static BooleanExpression where(PageFilter f) {
+        BooleanExpression where = ACTION.boardId.eq(f.boardId()).and(content(ACTION));
         if (f.actorId() != null) {
-            where.append(" AND a.actor_id = ?");
-            args.add(f.actorId());
+            where = where.and(ACTION.actorId.eq(f.actorId()));
         }
         if (KIND_POST.equals(f.kind()) || KIND_COMMENT.equals(f.kind())) {
-            where.append(" AND a.kind = ?");
-            args.add(f.kind());
+            where = where.and(ACTION.kind.eq(f.kind()));
         }
-        return where.toString();
-    }
-
-    // ── 안쪽 ──────────────────────────────────────────────────────────────
-
-    public static ActionRow row(ResultSet rs, int i) throws SQLException {
-        TargetState post = new TargetState(rs.getBoolean(25), rs.getString(26), instant(rs, 27), instant(rs, 28), instant(rs, 29), instant(rs, 30), instant(rs, 31));
-        TargetState comment = new TargetState(rs.getBoolean(32), PostEntity.PUBLISHED, instant(rs, 33), null, instant(rs, 34), instant(rs, 35), instant(rs, 36));
-        return new ActionRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4), rs.getString(5), nullableLong(rs, 6), rs.getString(7), rs.getString(8),
-                rs.getString(9), rs.getString(10), nullableLong(rs, 11), rs.getString(12), rs.getLong(13), nullableLong(rs, 14), rs.getString(15), rs.getString(16),
-                rs.getString(17), rs.getString(18), instant(rs, 19), instant(rs, 20), rs.getString(21), nullableLong(rs, 22), rs.getString(23), rs.getString(24), post,
-                comment, nullableLong(rs, 37), rs.getString(38));
-    }
-
-    private static Set<String> codes(Array array) throws SQLException {
-        if (array == null) {
-            return Set.of();
-        }
-        return Arrays.stream((Object[]) array.getArray()).map(String::valueOf).collect(Collectors.toUnmodifiableSet());
+        return where;
     }
 }

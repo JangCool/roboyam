@@ -33,8 +33,10 @@ export type MeMenuMeta = true | 'self';
 
 /**
  * 내 정보 메뉴 — 데스크톱은 셸이 오른쪽 열에 두고(`MeFrame`), 모바일은 `/me` 화면이 목록으로 그린다. 두 곳이 같은 줄을 쓴다.
- * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 사업자 센터 · 내 로보티콘) · 포인트(사업자 전용 계정 제외) · 알림·쪽지.
- * 설정은 이 메뉴에 두지 않는다(사용자 결정 2026-11-05) — 헤더 계정 메뉴의 「설정」으로 가고, 설정 화면들은 설정 메뉴(`pages/settings.vue`)만 보인다.
+ * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 사업자 센터) · 내 보관함(포인트·출석체크 · 내 아이템 — 사업자 전용 계정 제외 · 내 로보티콘) · 알림·쪽지 · 설정(모바일만).
+ * 상점 둘은 줄이 아니라 메뉴 맨 위 칸(`MeShopLinks`)이다.
+ * 설정(`settings` 묶음)은 모바일 목록에만 보인다(사용자 결정 2026-11-06 — 모바일 상단 바의 계정 아이콘을 빼면서 설정으로 가는 길을 여기로). 데스크톱 오른쪽 열은
+ * 2026-11-05 결정대로 설정을 두지 않는다 — 헤더 계정 메뉴의 「설정」으로 간다(`MeMenu` 가 거른다). 설정 화면들은 설정 메뉴(`pages/settings.vue`)만 보인다.
  */
 export function useMeMenu() {
     const { t } = useI18n();
@@ -43,7 +45,6 @@ export function useMeMenu() {
     const { summary } = usePointSummary();
     const badge = useNotificationBadge();
     const dmBadge = useDmBadge();
-    const { term } = useSiteTerms();
 
     const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value?.role));
 
@@ -70,25 +71,21 @@ export function useMeMenu() {
         if (business) {
             activity.push(entry(UtilBusiness.CENTER_PATH, UtilBusinessMessages.ENTRY_CENTER_ICON, business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), 'me-entry-business'));
         }
-        // 내 로보티콘(받은·산 팩 · 구매 내역 — `docs/features/emoticon-contract.md`). 무료 팩도 있어 사업자 전용 계정도 줄이 있다
-        activity.push(entry(UtilEmoticon.MY_PATH, 'pi pi-face-smile', t('emoticon.myTitle'), 'me-entry-emoticons'));
         list.push({ key: 'activity', title: t('me.menuGroupActivity'), entries: activity });
 
+        // 내 보관함 — 포인트·출석체크 · 내 아이템 · 내 로보티콘(산 것·받은 것). 상점 둘(포인트 상점·로보티콘 상점)은 목록에서 빼고 메뉴 맨 위 칸(`MeShopLinks`)으로 올렸다(사용자 결정 2026-11-06)
+        const storage: MeMenuEntry[] = [];
         if (!businessAccount.value) {
-            // 포인트·출석체크(커머스 1-3) — 출석 기능이 있으면 「포인트·출석체크」, 오른쪽에 보유 포인트(+ 오늘 출석 전이면 「· 출석 +10P」)
+            // 포인트·출석체크(커머스 1-3) — 출석 기능이 있으면 「포인트·출석체크」, 오른쪽에 보유 포인트(+ 오늘 출석 전이면 「· 출석 +10P」). 사업자 전용 계정은 포인트가 없다
             const s = summary.value;
             const hint = s ? UtilPointMessages.entryHint(t, s.balance, UtilPoint.attendable(s, { emailVerified: emailVerified.value, restriction: restriction.value }), s.rules.attendance) : '';
-            list.push({
-                key: 'point',
-                title: t('me.menuGroupPoint'),
-                entries: [
-                    entry('/me/points', 'pi pi-wallet', s?.attendanceAvailable ? t('point.entry') : t('point.history'), 'me-entry-points', { hint }),
-                    // 포인트 상점 · 내 아이템(`commerce-stage1-contract.md` 「1-2 화면 목업」) — 공동구매(주문 내역)와 따로
-                    entry(UtilPointShop.PATH, 'pi pi-shopping-bag', term('POINT_SHOP'), 'me-entry-point-shop'),
-                    entry(UtilPointShop.MY_ITEMS_PATH, 'pi pi-box', t('pointShop.myItems'), 'me-entry-my-items'),
-                ],
-            });
+            storage.push(entry('/me/points', 'pi pi-wallet', s?.attendanceAvailable ? t('point.entry') : t('point.history'), 'me-entry-points', { hint }));
+            // 내 아이템 — 포인트 상점에서 산 것(`commerce-stage1-contract.md` 「1-2 화면 목업」)
+            storage.push(entry(UtilPointShop.MY_ITEMS_PATH, 'pi pi-box', t('pointShop.myItems'), 'me-entry-my-items'));
         }
+        // 내 로보티콘(받은·산 팩 · 구매 내역 — `docs/features/emoticon-contract.md`). 무료 팩도 있어 사업자 전용 계정도 줄이 있다
+        storage.push(entry(UtilEmoticon.MY_PATH, 'pi pi-face-smile', t('emoticon.myTitle'), 'me-entry-emoticons'));
+        list.push({ key: 'storage', title: t('me.menuGroupStorage'), entries: storage });
 
         list.push({
             key: 'inbox',
@@ -99,6 +96,9 @@ export function useMeMenu() {
                 entry('/messages', 'pi pi-envelope', t('notification.dmTitle'), 'me-entry-messages', { badge: dmBadge.text.value, ariaLabel: dmBadge.label.value }),
             ],
         });
+
+        // 설정 — 모바일 목록에만(위 설명). 이름 없는 묶음이라 줄 위에 구분선만 긋는다
+        list.push({ key: 'settings', title: '', entries: [entry('/settings', 'pi pi-cog', t('settings.title'), 'me-entry-settings')] });
 
         return list;
     });

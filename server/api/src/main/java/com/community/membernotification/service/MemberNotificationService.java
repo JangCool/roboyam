@@ -259,6 +259,12 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.nicknameReviewed(result, reason);
                 link = "/settings/nickname-image";
             }
+            case AVATAR_UPLOAD_REVIEWED -> {
+                String result = payload.get("result") instanceof String r ? r : "APPROVED";
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.avatarUploadReviewed(result, reason);
+                link = "/settings/avatar-upload";
+            }
             case POST_REMOVED, COMMENT_REMOVED -> {
                 // 운영자가 지운 글·댓글 — 지운 글은 열 수 없어 링크가 없고, 지운 댓글은 그 글로 간다(제목·앞부분은 지울 때 남긴 것, 본문 둘째 줄은 사유 — 신고 관리면 「사유 코드 이름: 글」)
                 String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;

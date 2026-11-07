@@ -169,6 +169,8 @@ export default class UtilNicknameImageMessages {
         switch (outcome) {
             case 'REQUIREMENTS_NOT_MET':
                 return t('nicknameImage.failRequirements');
+            case 'TICKET_REQUIRED':
+                return t('nicknameImage.ticketNone');
             case 'REAPPLY_TOO_SOON':
                 return t('nicknameImage.failReapply', { wait: UtilNicknameImageMessages.hoursLabel(t, UtilNicknameImage.reapplyHoursOf(detail.reapplyHours)) });
             case 'RESTRICTED':

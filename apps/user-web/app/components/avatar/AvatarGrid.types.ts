@@ -4,6 +4,10 @@ export interface AvatarGridCell {
     /** 카탈로그 한글 이름 */
     name: string;
     url: string;
+    /** 움직이는 아바타의 정지 그림(움직임 줄이기) — 정지 아바타는 없음 */
+    stillUrl?: string | null;
+    /** 움직이는 아바타 — 그림 왼쪽 위에 「움직임」 표시 */
+    animated?: boolean;
     /** 눌린 칸(지금 쓰는 것·지금 보는 것) — 고리와 체크 표시 */
     active: boolean;
     /** 이름 아래 작은 글(가격·「보유」·「사용 중」·「판매 중단」) — 없으면 빈 글자 */

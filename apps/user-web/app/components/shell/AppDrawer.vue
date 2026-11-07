@@ -1,6 +1,7 @@
 <template>
-    <!-- 햄버거 메뉴(모바일) — 맨 위에 로그인 안내(로그인 전만), 아래에 게시판 메뉴, 맨 아래에 약관 링크 -->
-    <Drawer v-model:visible="open" position="left" :style="{ width: '17rem', maxWidth: '85vw' }" :aria-label="t('shell.menu')">
+    <!-- 햄버거 메뉴(모바일) — 맨 위에 로그인 안내(로그인 전만), 아래에 게시판 메뉴, 맨 아래에 약관 링크.
+         메뉴 단추가 상단 바 오른쪽 끝이라 서랍도 오른쪽에서 연다(사용자 결정 2026-11-06) -->
+    <Drawer v-model:visible="open" position="right" :style="{ width: '17rem', maxWidth: '85vw' }" :aria-label="t('shell.menu')">
         <template #header>
             <SiteBrand class="font-bold tracking-wider" />
         </template>

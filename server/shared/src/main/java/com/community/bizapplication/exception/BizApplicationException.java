@@ -20,6 +20,10 @@ public class BizApplicationException extends CommonException {
     public static final String ADVERTISER_NOT_FOUND = "AD_ADVERTISER_NOT_FOUND";
     public static final String PAUSE_LIMIT = "BIZ_PAUSE_LIMIT";
     public static final String CONTACT_MISSING = "BIZ_CONTACT_MISSING";
+    /** 운영 주체가 돈을 받을 수 없는 단계라 온라인 결제를 시작할 수 없다(사업자 화면 — 「운영자에게 문의」) */
+    public static final String PAYMENT_UNAVAILABLE = "BIZ_PAYMENT_UNAVAILABLE";
+    /** 운영 주체가 돈을 받을 수 없는 단계라 유료 신청을 승인·입금 확정할 수 없다(관리자 화면) */
+    public static final String OPERATOR_STAGE = "BIZ_OPERATOR_STAGE";
 
     private BizApplicationException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -48,6 +52,18 @@ public class BizApplicationException extends CommonException {
     /** 이 상품(광고 종류·노출 자리)은 지금 신청을 받지 않는다(요금표 accepting = false) */
     public static BizApplicationException productClosed() {
         return new BizApplicationException(HttpStatus.CONFLICT, PRODUCT_CLOSED);
+    }
+
+    /**
+     * 온라인 결제 시작 — 운영 주체가 개인 단계이거나 통신판매업 신고번호가 없다({@code CommerceSalesStore.operatorCanSell} = false, 사용자 결정 2026-11-07). 이미 열린 결제의 완료는 그대로 받는다
+     */
+    public static BizApplicationException paymentUnavailable() {
+        return new BizApplicationException(HttpStatus.CONFLICT, PAYMENT_UNAVAILABLE);
+    }
+
+    /** 유료 승인·입금 확정(예약 확정) — 운영 주체가 개인 단계이거나 통신판매업 신고번호가 없다(같은 판정) */
+    public static BizApplicationException operatorStage() {
+        return new BizApplicationException(HttpStatus.CONFLICT, OPERATOR_STAGE);
     }
 
     /** 운영자 등록 건을 등록한 운영자가 직접 승인하려 했는데 설정이 자기 승인을 막는다(roboyam.biz.self-approval = deny) */

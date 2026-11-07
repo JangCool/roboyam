@@ -13,6 +13,7 @@ import com.community.groupbuy.service.GroupBuyNoticeService;
 import com.community.groupbuy.service.GroupBuyProductService;
 import com.community.groupbuy.service.ShippingPolicyService;
 import com.community.home.dto.response.gadget.GroupBuyDataView;
+import com.community.testsupport.SiteOperatorFixture;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import tools.jackson.databind.JsonNode;
 /**
  * 홈 {@code GROUP_BUY} 가젯 데이터 — 회원 공구 목록 진행 탭과 같은 거름(공개 · 숨긴 카테고리 제외)에서 모집 중만, 가젯 설정 {@code count}(1~10)·{@code sort}
  * (DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순, 같으면 마감 이른 순 — 사용자 결정 2026-10-29),
- * 판매 스위치는 거르지 않고 {@code salesOpen} 으로. DB 를 다른 시험과 같이 쓰므로 공구 마감을 몇 분 뒤로 잡아 앞줄에 오게 한다.
+ * 판매 스위치는 거르지 않고 {@code salesOpen} 으로, 운영 주체가 팔 수 없는 단계(개인 · 신고번호 없음)면 빈 목록. DB 를 다른 시험과 같이 쓰므로 공구 마감을 몇 분 뒤로 잡아 앞줄에 오게 한다.
  */
 class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
 
@@ -49,6 +50,7 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
 
     @BeforeEach
     void setUp() {
+        SiteOperatorFixture.fillBusiness(jdbc); // 판매가 켜진 상태는 개인사업자 이상에서만 있다
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = true WHERE id = 1");
         op = newOperator();
         policy = "G" + Long.toString(ids.nextId(), 36).toUpperCase();
@@ -59,6 +61,7 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
     @AfterEach
     void restore() {
         jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
+        SiteOperatorFixture.clear(jdbc);
         categories.forEach(id -> jdbc.update("UPDATE group_buy_categories SET hidden = true WHERE id = ?", id));
     }
 
@@ -156,6 +159,7 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
         // 다른 시험의 공구보다 앞에 오게 시작을 하루 뒤로 미룬다(모집 중 상태는 그대로)
         Instant base = clock.instant().plus(Duration.ofDays(1));
         for (Object[] row : List.of(new Object[]{oldest, 1}, new Object[]{newest, 3}, new Object[]{middle, 2})) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE group_buys SET start_at = ?, end_at = ? WHERE id = ?", java.sql.Timestamp.from(base.plus(Duration.ofHours((int) row[1]))),
                     java.sql.Timestamp.from(base.plus(Duration.ofDays(2))), row[0]);
         }
@@ -202,5 +206,19 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
 
         assertThat(ids(d)).contains(Long.toString(gb));
         assertThat(d.salesOpen()).isFalse();
+    }
+
+    @Test
+    void 운영_주체가_개인_단계면_공구가_있어도_빈_목록이라_기본_배치는_가젯을_숨긴다() {
+        long gb = groupBuy(category(), 5, true);
+        jdbc.update("UPDATE commerce_sales_settings SET groupbuy_open = false WHERE id = 1");
+        SiteOperatorFixture.clear(jdbc);
+
+        GroupBuyDataView d = service.groupBuy(count(10));
+
+        assertThat(d.items()).isEmpty();
+        assertThat(d.salesOpen()).isFalse();
+        SiteOperatorFixture.fillBusiness(jdbc);
+        assertThat(ids(service.groupBuy(count(10)))).as("개인사업자 + 신고번호면 다시 보인다").contains(Long.toString(gb));
     }
 }

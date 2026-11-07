@@ -42,6 +42,7 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
         long rootId = rootId();
         root = actor(rootId);
         // 저장은 사이트 설정 행을 잠가 줄 세운다 — 시험 DB 에 없으면 시험용 행을 넣는다(updated_by 는 운영자)
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         jdbc.update("INSERT INTO site_settings (id, site_name, public_url, updated_by) VALUES (1, '시험', 'http://localhost', ?) ON CONFLICT (id) DO NOTHING", rootId);
         // 이 시험은 테마 기본 배치에서 시작한다
         var defaults = service.defaults(THEME);

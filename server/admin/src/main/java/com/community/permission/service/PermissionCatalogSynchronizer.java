@@ -3,9 +3,9 @@ package com.community.permission.service;
 import com.community.permission.entity.MemberPermission;
 import com.community.permission.entity.Permission;
 import com.community.permission.entity.PermissionEntity;
+import com.community.permission.repository.master.BootstrapLockQueries;
 import com.community.permission.repository.master.PermissionRepository;
 import com.community.role.repository.master.RoleRepositoryQDSL;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -33,17 +33,17 @@ public class PermissionCatalogSynchronizer {
 
     private final PermissionRepository permissions;
     private final RoleRepositoryQDSL roleQueries;
-    private final EntityManager entityManager;
+    private final BootstrapLockQueries bootstrapLock;
 
-    public PermissionCatalogSynchronizer(PermissionRepository permissions, RoleRepositoryQDSL roleQueries, EntityManager entityManager) {
+    public PermissionCatalogSynchronizer(PermissionRepository permissions, RoleRepositoryQDSL roleQueries, BootstrapLockQueries bootstrapLock) {
         this.permissions = permissions;
         this.roleQueries = roleQueries;
-        this.entityManager = entityManager;
+        this.bootstrapLock = bootstrapLock;
     }
 
     @Transactional
     public void sync() {
-        BootstrapLock.acquire(entityManager);
+        bootstrapLock.acquire();
 
         Instant now = Instant.now();
         Map<String, PermissionEntity> existing = new LinkedHashMap<>();

@@ -314,7 +314,7 @@ class EmoticonFollowupDecisionsTest extends EmoticonTestBase {
     /** 생년월일 {@code birth} 로 본인인증(이름 홍길동) */
     private void verifyBorn(long user, LocalDate birth) {
         kit.identities.insertVerification(user, String.format("%064x", user), null, birth, IdentityProviderKind.FAKE, "emo-fake:" + user, kit.clock.instant());
-        kit.identities.saveNameCipher(user, kit.cipher.encrypt(IdentityVerificationService.NAME, "홍길동"));
+        kit.saveName(user, "홍길동");
     }
 
     private static EmoticonPayoutAccountRequest account() {

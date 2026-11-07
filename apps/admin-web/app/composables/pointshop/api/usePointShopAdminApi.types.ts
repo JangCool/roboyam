@@ -3,14 +3,14 @@
  * 정책 원천: `docs/domain/commerce.md` 7절, 계약 `docs/features/commerce-stage1-contract.md` B절 · 「1-2 화면 목업」. 시각은 UTC ISO 다 — 화면은 `useDisplayTime()` 으로 그린다.
  */
 
-/** 품목 종류(결정 9·14) — 1단계는 넷. 아바타(`PROFILE_AVATAR`)는 V86 이 카탈로그로 시드하고 관리자가 새로 만들거나 지울 수 없다 */
-export type PointShopItemKind = 'NICKNAME_CHANGE_TICKET' | 'NICKNAME_COLOR' | 'PROFILE_BORDER' | 'PROFILE_AVATAR';
+/** 품목 종류(결정 9·14 + 올리기 변경권 두 종류 — V157, commerce-motion-avatar-contract 규칙 0). 아바타(`PROFILE_AVATAR`)는 V86 이 카탈로그로 시드하고 관리자가 새로 만들거나 지울 수 없다 */
+export type PointShopItemKind = 'NICKNAME_CHANGE_TICKET' | 'NICKNAME_IMAGE_TICKET' | 'AVATAR_UPLOAD_TICKET' | 'NICKNAME_COLOR' | 'PROFILE_BORDER' | 'PROFILE_AVATAR';
 
-/** 고정 차례(변경권 · 닉네임 색 · 프로필 테두리 · 아바타) — 구매 내역 거르기 차례. 타입에 딸린 상수 */
-export const POINT_SHOP_ITEM_KINDS: readonly PointShopItemKind[] = ['NICKNAME_CHANGE_TICKET', 'NICKNAME_COLOR', 'PROFILE_BORDER', 'PROFILE_AVATAR'];
+/** 고정 차례(변경권 셋 · 닉네임 색 · 프로필 테두리 · 아바타) — 구매 내역 거르기 차례. 타입에 딸린 상수 */
+export const POINT_SHOP_ITEM_KINDS: readonly PointShopItemKind[] = ['NICKNAME_CHANGE_TICKET', 'NICKNAME_IMAGE_TICKET', 'AVATAR_UPLOAD_TICKET', 'NICKNAME_COLOR', 'PROFILE_BORDER', 'PROFILE_AVATAR'];
 
 /** 관리자가 [품목 추가]로 만들 수 있는 종류(아바타 제외) — 「품목」 탭 거르기·종류 고르기 차례 */
-export const POINT_SHOP_CREATABLE_KINDS: readonly PointShopItemKind[] = ['NICKNAME_CHANGE_TICKET', 'NICKNAME_COLOR', 'PROFILE_BORDER'];
+export const POINT_SHOP_CREATABLE_KINDS: readonly PointShopItemKind[] = ['NICKNAME_CHANGE_TICKET', 'NICKNAME_IMAGE_TICKET', 'AVATAR_UPLOAD_TICKET', 'NICKNAME_COLOR', 'PROFILE_BORDER'];
 
 /** 사용 방식 — 영구(기본) · 소모형(쓰면 사라짐, 여러 장) · 기간제(산 순간부터 N일) */
 export type PointShopUsageType = 'PERMANENT' | 'CONSUMABLE' | 'PERIOD';
@@ -107,8 +107,8 @@ export type PointShopItemField = keyof PointShopItemSaveRequest;
 
 export type PointShopPurchaseStatus = 'COMPLETED' | 'REFUNDED';
 
-/** 셀프 환불이 안 되는 이유 — 사용함(`first_used_at` 있음) · 기한 지남 */
-export type PointShopSelfRefundBlock = 'USED' | 'EXPIRED';
+/** 셀프 환불이 안 되는 이유 — 사용함(`first_used_at` 있음) · 올리기 변경권이 대기 신청에 예약됨(반려·취소되면 풀린다) · 기한 지남 */
+export type PointShopSelfRefundBlock = 'USED' | 'RESERVED' | 'EXPIRED';
 
 /** 구매한 회원 */
 export interface PointShopPurchaseMember {

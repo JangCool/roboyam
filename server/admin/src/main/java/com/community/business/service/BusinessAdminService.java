@@ -20,6 +20,9 @@ import com.community.business.entity.NtsBizStatus;
 import com.community.business.entity.NtsValidity;
 import com.community.business.exception.BusinessException;
 import com.community.business.repository.master.BusinessProfileRepository;
+import com.community.business.repository.master.BusinessProfileRepositoryQDSL;
+import com.community.business.repository.master.BusinessProfileRepositoryQDSL.AdminCriteria;
+import com.community.business.repository.master.BusinessProfileRepositoryQDSL.AdminRow;
 import com.community.business.repository.master.BusinessServiceRepository;
 import com.community.business.repository.master.BusinessStore;
 import com.community.business.repository.master.BusinessStore.DocumentRow;
@@ -45,11 +48,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -87,7 +87,7 @@ public class BusinessAdminService {
     private final AuditLogService audit;
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
-    private final NamedParameterJdbcTemplate jdbc;
+    private final BusinessProfileRepositoryQDSL profileQueries;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
     private final EntityManager entityManager;
@@ -95,7 +95,7 @@ public class BusinessAdminService {
 
     public BusinessAdminService(BusinessProfileRepository profiles, BusinessServiceRepository services, BusinessStore store, BusinessPii pii, BusinessNtsService nts,
                                 BusinessServiceRows serviceRows, BusinessNotices notices, ObjectProvider<BusinessApplicationHook> hooks, BusinessCertificateReceipt receipt,
-                                AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, DataSource dataSource, PlatformTransactionManager transactions,
+                                AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, BusinessProfileRepositoryQDSL profileQueries, PlatformTransactionManager transactions,
                                 ObjectProvider<Clock> clocks, EntityManager entityManager) {
         this.receipt = receipt;
         this.profiles = profiles;
@@ -109,7 +109,7 @@ public class BusinessAdminService {
         this.audit = audit;
         this.messages = messages;
         this.ids = ids;
-        this.jdbc = new NamedParameterJdbcTemplate(dataSource);
+        this.profileQueries = profileQueries;
         this.tx = new TransactionTemplate(transactions);
         this.readTx = new TransactionTemplate(transactions);
         this.readTx.setReadOnly(true);
@@ -128,55 +128,33 @@ public class BusinessAdminService {
         BusinessServiceKind service = optionalEnum(BusinessServiceKind.class, serviceText, "service");
         int limit = Math.min(Math.max(size, 1), PAGE_SIZE_MAX);
         int offset = Math.max(page, 0) * limit;
-        MapSqlParameterSource args = new MapSqlParameterSource();
-        StringBuilder where = new StringBuilder(" FROM business_profiles bp LEFT JOIN profiles pr ON pr.user_id = bp.user_id WHERE 1 = 1");
-        if (service != null) {
-            where.append(" AND EXISTS (SELECT 1 FROM business_services s WHERE s.profile_id = bp.id AND s.service = :service AND s.status <> 'OFF')");
-            args.addValue("service", service.name());
-        }
         String term = q == null ? "" : q.strip();
+        String hash = null;
+        String last4 = null;
         if (!term.isEmpty()) {
             String digits = BusinessFields.digits(term);
-            where.append(" AND (bp.company_name ILIKE :like OR pr.nickname ILIKE :like");
-            args.addValue("like", "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
             if (digits.length() == 10 && pii.isIndexReady()) {
-                where.append(" OR bp.biz_no_hash = :hash");
-                args.addValue("hash", pii.bizNoHash(digits));
+                hash = pii.bizNoHash(digits);
             } else if (digits.length() == 4 && digits.equals(term)) {
-                where.append(" OR bp.biz_no_last4 = :last4");
-                args.addValue("last4", digits);
+                last4 = digits;
             }
-            where.append(")");
         }
+        AdminCriteria criteria = new AdminCriteria(service, term.isEmpty() ? null : term, hash, last4);
         Map<String, Long> counts = new LinkedHashMap<>();
         for (BusinessStatus s : BusinessStatus.values()) {
             counts.put(s.name(), 0L);
         }
-        jdbc.query("SELECT bp.status, count(*)" + where + " GROUP BY bp.status", args, rs -> {
-            counts.put(rs.getString(1), rs.getLong(2));
-        });
-        String filtered = where + (status == null ? "" : " AND bp.status = :status");
-        if (status != null) {
-            args.addValue("status", status.name());
-        }
-        Long total = jdbc.queryForObject("SELECT count(*)" + filtered, args, Long.class);
-        args.addValue("limit", limit).addValue("offset", offset);
-        List<RowBase> rows = jdbc.query("SELECT bp.id, bp.company_name, bp.biz_no_last4, bp.status, bp.re_review, bp.user_id, pr.nickname, bp.submitted_at" + filtered
-                        + (status == BusinessStatus.PENDING ? " ORDER BY bp.submitted_at ASC, bp.id ASC" : " ORDER BY bp.submitted_at DESC, bp.id DESC")
-                        + " LIMIT :limit OFFSET :offset", args,
-                (rs, i) -> new RowBase(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getBoolean(5), rs.getLong(6), rs.getString(7),
-                        rs.getTimestamp(8).toInstant()));
-        List<Long> idList = rows.stream().map(RowBase::id).toList();
+        profileQueries.adminStatusCounts(criteria).forEach((s, n) -> counts.put(s.name(), n));
+        long total = profileQueries.adminCount(criteria, status);
+        List<AdminRow> rows = profileQueries.adminPage(criteria, status, offset, limit);
+        List<Long> idList = rows.stream().map(AdminRow::id).toList();
         Map<Long, List<BusinessServiceEntity>> serviceMap = idList.isEmpty() ? Map.of()
                 : services.findByProfileIdIn(idList).stream().collect(Collectors.groupingBy(BusinessServiceEntity::getProfileId));
         Map<Long, NtsRow> ntsMap = store.latestNtsChecks(idList);
-        List<BusinessAdminView.Row> items = rows.stream().map(r -> new BusinessAdminView.Row(Long.toString(r.id()), r.name(), BusinessFields.maskBizNo(r.last4()),
-                r.status(), r.reReview(), serviceRows(serviceMap.getOrDefault(r.id(), List.of())), new BusinessAdminView.Applicant(Long.toString(r.userId()), r.nickname()),
+        List<BusinessAdminView.Row> items = rows.stream().map(r -> new BusinessAdminView.Row(Long.toString(r.id()), r.companyName(), BusinessFields.maskBizNo(r.bizNoLast4()),
+                r.status().name(), r.reReview(), serviceRows(serviceMap.getOrDefault(r.id(), List.of())), new BusinessAdminView.Applicant(Long.toString(r.userId()), r.nickname()),
                 r.submittedAt(), ntsView(ntsMap.get(r.id()), r.submittedAt()))).toList();
-        return new BusinessAdminView.Page(items, total == null ? 0 : total, counts);
-    }
-
-    private record RowBase(long id, String name, String last4, String status, boolean reReview, long userId, String nickname, Instant submittedAt) {
+        return new BusinessAdminView.Page(items, total, counts);
     }
 
     // ── 상세 ────────────────────────────────────────────────────────────────
@@ -396,8 +374,7 @@ public class BusinessAdminService {
         if (operatorId == null) {
             return null;
         }
-        return jdbc.query("SELECT operator_name FROM operators WHERE id = :id", new MapSqlParameterSource("id", operatorId), (rs, i) -> rs.getString(1)).stream()
-                .findFirst().orElse(null);
+        return profileQueries.operatorName(operatorId).orElse(null);
     }
 
     /** 경로의 서비스 — 모르는 값이면 404 */
@@ -434,7 +411,7 @@ public class BusinessAdminService {
                 detail.put("status", p.getStatus().name());
                 detail.put("reReview", p.isReReview());
                 detail.put("reason", reason);
-                entityManager.detach(p); // 아래 JDBC 가 줄을 지운다 — 영속 문맥이 지운 줄을 다시 쓰지 않게
+                entityManager.detach(p); // 아래 일괄 삭제(QueryDSL DML)가 줄을 지운다 — 영속 문맥이 지운 줄을 다시 쓰지 않게
                 if (store.deleteProfile(id) == 0) {
                     throw BusinessException.notFound();
                 }
@@ -494,8 +471,7 @@ public class BusinessAdminService {
         long id = p.getId();
         BusinessApplicationHook hook = hook();
         List<BusinessServiceEntity> rows = services.findByProfileId(id);
-        String nickname = jdbc.query("SELECT nickname FROM profiles WHERE user_id = :id", new MapSqlParameterSource("id", p.getUserId()), (rs, i) -> rs.getString(1))
-                .stream().findFirst().orElse(null);
+        String nickname = profileQueries.nickname(p.getUserId()).orElse(null);
         BusinessPii.Plain plain = pii.isReady() ? pii.plain(p) : null;
         BusinessAdminView.Masked masked = plain == null ? new BusinessAdminView.Masked("", "", "", "")
                 : new BusinessAdminView.Masked(BusinessFields.maskName(plain.ownerName()), BusinessFields.maskAddress(plain.address1()),

@@ -1,6 +1,5 @@
 package com.community.groupbuy.feedback;
 
-import static com.community.groupbuy.feedback.GroupBuyQnaService.instant;
 import static com.community.groupbuy.feedback.GroupBuyQnaService.nz;
 import static com.community.groupbuy.feedback.GroupBuyQnaService.operator;
 import static com.community.groupbuy.feedback.GroupBuyQnaService.parse;
@@ -9,8 +8,13 @@ import static com.community.groupbuy.feedback.GroupBuyQnaService.preview;
 
 import com.community.audit.dto.AuditActions;
 import com.community.commerce.image.GroupBuyImageUploader;
+import com.community.groupbuy.entity.ParticipationStatus;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyMemberStore;
+import com.community.groupbuy.repository.master.GroupBuyReviewStore;
+import com.community.groupbuy.repository.master.GroupBuyReviewStore.AdminReviewRow;
+import com.community.groupbuy.repository.master.GroupBuyReviewStore.ReviewRow;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.service.GroupBuyAudit;
@@ -20,9 +24,6 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,15 +36,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 공구 리뷰(2b-6 — 계약 「리뷰 규칙」, 사용자 확정 2026-10-29).
+ * 공구 리뷰(2b-6 — 계약 「리뷰 규칙」, 사용자 확정 2026-10-29). 읽기·쓰기는 {@link GroupBuyReviewStore}.
  *
  * <ul>
  *   <li><b>쓰기</b>: 그 단품을 산 회원. 주문이 배송완료(DELIVERED)이고 배송완료일 + {@value #WRITE_DAYS}일 안, 주문 줄(단품)마다 하나 — 지워도 다시 쓰지 못한다.
@@ -69,7 +68,7 @@ public class GroupBuyReviewService {
     public static final Set<String> SORTS = Set.of("LATEST", "RATING_HIGH", "RATING_LOW", "PHOTO");
     public static final Set<String> HIDE_REASONS = Set.of("ABUSE", "PRIVACY", "AD", "IRRELEVANT", "OTHER");
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyReviewStore store;
     private final GroupBuyStore groups;
     private final GroupBuyMemberStore members;
     private final GroupBuyUgcReportService reports;
@@ -79,10 +78,10 @@ public class GroupBuyReviewService {
     private final SnowflakeIdGenerator ids;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyReviewService(DataSource dataSource, GroupBuyStore groups, GroupBuyMemberStore members, GroupBuyUgcReportService reports,
+    public GroupBuyReviewService(GroupBuyReviewStore store, GroupBuyStore groups, GroupBuyMemberStore members, GroupBuyUgcReportService reports,
                                  GroupBuyNotifications notifications, GroupBuyAudit audit, GroupBuyImageUploader images, SnowflakeIdGenerator ids,
                                  ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.store = store;
         this.groups = groups;
         this.members = members;
         this.reports = reports;
@@ -95,21 +94,6 @@ public class GroupBuyReviewService {
 
     // ── 회원: 보기 ──────────────────────────────────────────────────────────
 
-    private record Row(long id, long userId, String nickname, int rating, String body, String skuName, int roundNo, long groupBuyId, String title, String orderNo,
-                       Instant createdAt, Instant updatedAt, String hiddenCode, String hiddenMemo, String reply, Instant repliedAt, boolean replyEdited) {
-    }
-
-    private static final String MEMBER_SELECT = "SELECT r.id, r.user_id, CASE WHEN u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL THEN NULL ELSE pr.nickname END, "
-            + "r.rating, r.body, r.sku_name, g.round_no, r.group_buy_id, COALESCE(NULLIF(g.title, ''), p.name), pa.order_no, r.created_at, r.updated_at, r.hidden_reason_code, "
-            + "r.hidden_memo, rp.body, rp.replied_at, rp.updated_at IS NOT NULL FROM group_buy_reviews r JOIN group_buys g ON g.id = r.group_buy_id "
-            + "JOIN group_buy_products p ON p.id = r.product_id JOIN group_buy_participations pa ON pa.id = r.participation_id LEFT JOIN users u ON u.id = r.user_id "
-            + "LEFT JOIN profiles pr ON pr.user_id = r.user_id LEFT JOIN group_buy_review_replies rp ON rp.review_id = r.id ";
-
-    private static Row row(ResultSet rs) throws SQLException {
-        return new Row(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getInt(4), rs.getString(5), rs.getString(6), rs.getInt(7), rs.getLong(8), rs.getString(9),
-                rs.getString(10), instant(rs, 11), instant(rs, 12), rs.getString(13), rs.getString(14), rs.getString(15), instant(rs, 16), rs.getBoolean(17));
-    }
-
     /** 공구 상세의 리뷰 — 같은 상품의 모든 차수. 숨긴 리뷰는 작성자에게만 */
     @Transactional(readOnly = true)
     public FeedbackView.ReviewPage list(String groupBuyId, Long viewerId, String sort, boolean photoOnly, int page) {
@@ -119,21 +103,10 @@ public class GroupBuyReviewService {
             throw ValidationException.of("sort", new MessageRef("groupbuy.review.sort.invalid"));
         }
         int p = Math.max(0, page);
-        String photo = "EXISTS (SELECT 1 FROM group_buy_review_photos ph WHERE ph.review_id = r.id)";
-        StringBuilder where = new StringBuilder("WHERE r.product_id = ? AND r.deleted_at IS NULL AND (r.hidden_at IS NULL OR r.user_id = ?)");
-        if (photoOnly) {
-            where.append(" AND ").append(photo);
-        }
         long viewer = viewerId == null ? -1 : viewerId;
-        long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r " + where, Long.class, g.productId(), viewer);
-        String order = switch (s) {
-            case "RATING_HIGH" -> " ORDER BY r.rating DESC, r.created_at DESC, r.id DESC";
-            case "RATING_LOW" -> " ORDER BY r.rating, r.created_at DESC, r.id DESC";
-            case "PHOTO" -> " ORDER BY " + photo + " DESC, r.created_at DESC, r.id DESC";
-            default -> " ORDER BY r.created_at DESC, r.id DESC";
-        };
-        List<Row> rows = jdbc.query(MEMBER_SELECT + where + order + " LIMIT ? OFFSET ?", (rs, i) -> row(rs), g.productId(), viewer, PAGE_SIZE, (long) p * PAGE_SIZE);
-        Map<Long, List<FeedbackView.Photo>> photos = photosOf(rows.stream().map(Row::id).toList());
+        long total = store.productCount(g.productId(), viewer, photoOnly);
+        List<ReviewRow> rows = store.productPage(g.productId(), viewer, photoOnly, GroupBuyReviewStore.Sort.valueOf(s), (long) p * PAGE_SIZE, PAGE_SIZE);
+        Map<Long, List<FeedbackView.Photo>> photos = photosOf(rows.stream().map(ReviewRow::id).toList());
         Instant now = now();
         List<FeedbackView.Review> items = rows.stream().map(r -> view(r, viewerId, photos.getOrDefault(r.id(), List.of()), now, false)).toList();
         return new FeedbackView.ReviewPage(summary(g.productId()), items, total, p, (long) (p + 1) * PAGE_SIZE < total);
@@ -145,18 +118,13 @@ public class GroupBuyReviewService {
         for (int star = 1; star <= 5; star++) {
             dist.put(Integer.toString(star), 0L);
         }
-        jdbc.query("SELECT rating, count(*) FROM group_buy_reviews WHERE product_id = ? AND deleted_at IS NULL AND hidden_at IS NULL GROUP BY rating",
-                rs -> {
-                    dist.put(Integer.toString(rs.getInt(1)), rs.getLong(2));
-                }, productId);
+        store.ratingCounts(productId).forEach((rating, n) -> dist.put(Integer.toString(rating), n));
         long count = dist.values().stream().mapToLong(Long::longValue).sum();
         long sum = dist.entrySet().stream().mapToLong(e -> Integer.parseInt(e.getKey()) * e.getValue()).sum();
         Double average = count == 0 ? null : Math.round(sum * 100.0 / count) / 100.0;
-        long photoCount = jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r WHERE r.product_id = ? AND r.deleted_at IS NULL AND r.hidden_at IS NULL "
-                + "AND EXISTS (SELECT 1 FROM group_buy_review_photos ph WHERE ph.review_id = r.id)", Long.class, productId);
-        List<FeedbackView.SummaryPhoto> strip = jdbc.query("SELECT ph.review_id, ph.image_key FROM group_buy_review_photos ph JOIN group_buy_reviews r ON r.id = ph.review_id "
-                + "WHERE r.product_id = ? AND r.deleted_at IS NULL AND r.hidden_at IS NULL ORDER BY r.created_at DESC, ph.position LIMIT 12",
-                (rs, i) -> new FeedbackView.SummaryPhoto(Long.toString(rs.getLong(1)), images.url(rs.getString(2))), productId);
+        long photoCount = store.photoReviewCount(productId);
+        List<FeedbackView.SummaryPhoto> strip = store.photoStrip(productId, 12).stream()
+                .map(ph -> new FeedbackView.SummaryPhoto(Long.toString(ph.reviewId()), images.url(ph.imageKey()))).toList();
         return new FeedbackView.Summary(average, count, dist, photoCount, strip);
     }
 
@@ -167,35 +135,28 @@ public class GroupBuyReviewService {
         if (productIds.isEmpty()) {
             return out;
         }
-        String in = String.join(",", productIds.stream().distinct().map(id -> "?").toList());
-        jdbc.query("SELECT product_id, avg(rating), count(*) FROM group_buy_reviews WHERE product_id IN (" + in + ") AND deleted_at IS NULL AND hidden_at IS NULL "
-                + "GROUP BY product_id", rs -> {
-                    out.put(rs.getLong(1), new FeedbackView.Stats(Math.round(rs.getDouble(2) * 10) / 10.0, rs.getLong(3)));
-                }, productIds.stream().distinct().toArray());
+        store.stats(productIds.stream().distinct().toList()).forEach((productId, v) -> {
+            double avg = v[0] == null ? 0 : (Double) v[0];
+            out.put(productId, new FeedbackView.Stats(Math.round(avg * 10) / 10.0, (Long) v[1]));
+        });
         return out;
     }
 
     /** 내 주문의 줄마다 리뷰 상태 — 쓸 수 있음 · 썼음 · 기한 지남 · 대상 아님 */
     @Transactional(readOnly = true)
     public List<FeedbackView.ReviewTarget> targets(long userId, String orderNo) {
-        record Item(long itemId, int live, String status, Instant deliveredAt, Long reviewId) {
-        }
-        List<Item> items = jdbc.query("SELECT i.id, i.qty - i.canceled_qty - i.returned_qty, pa.status, s.delivered_at, r.id FROM group_buy_participations pa "
-                + "JOIN group_buy_participation_items i ON i.participation_id = pa.id LEFT JOIN group_buy_shipments s ON s.participation_id = pa.id AND s.kind = 'ORIGINAL' "
-                + "LEFT JOIN group_buy_reviews r ON r.item_id = i.id AND r.deleted_at IS NULL WHERE pa.order_no = ? AND pa.user_id = ? ORDER BY i.id",
-                (rs, i) -> new Item(rs.getLong(1), rs.getInt(2), rs.getString(3), instant(rs, 4), (Long) rs.getObject(5)), orderNo, userId);
+        List<GroupBuyReviewStore.TargetItem> items = store.targetItems(orderNo, userId);
         if (items.isEmpty()) {
             throw GroupBuyException.orderNotFound();
         }
-        Set<Long> deletedOnce = new LinkedHashSet<>(jdbc.queryForList("SELECT r.item_id FROM group_buy_reviews r JOIN group_buy_participations pa ON pa.id = r.participation_id "
-                + "WHERE pa.order_no = ? AND pa.user_id = ? AND r.deleted_at IS NOT NULL", Long.class, orderNo, userId));
+        Set<Long> deletedOnce = new LinkedHashSet<>(store.deletedItems(orderNo, userId));
         LocalDate today = ServiceTime.today(clock());
         return items.stream().map(it -> {
             LocalDate until = it.deliveredAt() == null ? null : ServiceTime.dateOf(it.deliveredAt()).plusDays(WRITE_DAYS);
             if (it.reviewId() != null) {
                 return new FeedbackView.ReviewTarget(Long.toString(it.itemId()), "WRITTEN", until, Long.toString(it.reviewId()));
             }
-            if (!"DELIVERED".equals(it.status()) || until == null || it.live() <= 0 || deletedOnce.contains(it.itemId())) {
+            if (it.status() != ParticipationStatus.DELIVERED || until == null || it.live() <= 0 || deletedOnce.contains(it.itemId())) {
                 return new FeedbackView.ReviewTarget(Long.toString(it.itemId()), "NONE", null, null);
             }
             return new FeedbackView.ReviewTarget(Long.toString(it.itemId()), today.isAfter(until) ? "EXPIRED" : "WRITABLE", until, null);
@@ -206,16 +167,15 @@ public class GroupBuyReviewService {
     @Transactional(readOnly = true)
     public FeedbackView.MyReviewPage mine(long userId, int page) {
         int p = Math.max(0, page);
-        long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews WHERE user_id = ? AND deleted_at IS NULL", Long.class, userId);
-        List<Row> rows = jdbc.query(MEMBER_SELECT + "WHERE r.user_id = ? AND r.deleted_at IS NULL ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?", (rs, i) -> row(rs),
-                userId, PAGE_SIZE, (long) p * PAGE_SIZE);
-        Map<Long, List<FeedbackView.Photo>> photos = photosOf(rows.stream().map(Row::id).toList());
+        long total = store.mineCount(userId);
+        List<ReviewRow> rows = store.minePage(userId, (long) p * PAGE_SIZE, PAGE_SIZE);
+        Map<Long, List<FeedbackView.Photo>> photos = photosOf(rows.stream().map(ReviewRow::id).toList());
         Instant now = now();
         return new FeedbackView.MyReviewPage(rows.stream().map(r -> view(r, userId, photos.getOrDefault(r.id(), List.of()), now, true)).toList(), total, p,
                 (long) (p + 1) * PAGE_SIZE < total);
     }
 
-    static FeedbackView.Review view(Row r, Long viewerId, List<FeedbackView.Photo> photos, Instant now, boolean withOrder) {
+    static FeedbackView.Review view(ReviewRow r, Long viewerId, List<FeedbackView.Photo> photos, Instant now, boolean withOrder) {
         boolean own = viewerId != null && viewerId == r.userId();
         Instant editableUntil = r.createdAt().plus(Duration.ofDays(EDIT_DAYS));
         FeedbackView.Hidden hidden = own && r.hiddenCode() != null ? new FeedbackView.Hidden(r.hiddenCode(), r.hiddenMemo()) : null;
@@ -234,7 +194,7 @@ public class GroupBuyReviewService {
         requireWriter(userId);
         GroupBuyImageUploader.Uploaded up = images.upload("review", data);
         long id = ids.nextId();
-        jdbc.update("INSERT INTO group_buy_review_photos (id, user_id, image_key, created_at) VALUES (?, ?, ?, ?)", id, userId, up.key(), Timestamp.from(now()));
+        store.insertPhoto(id, userId, up.key(), now());
         return new FeedbackView.Photo(Long.toString(id), up.url());
     }
 
@@ -243,24 +203,16 @@ public class GroupBuyReviewService {
         Draft d = draft(rating, body, photoIds);
         requireWriter(userId);
         long item = parse(itemId, GroupBuyException::orderNotFound);
-        record Line(long participationId, long groupBuyId, long productId, String skuName, int live, String status, Instant deliveredAt) {
-        }
-        Line line = jdbc.query("SELECT pa.id, pa.group_buy_id, g.product_id, s.name, i.qty - i.canceled_qty - i.returned_qty, pa.status, sh.delivered_at "
-                + "FROM group_buy_participation_items i JOIN group_buy_participations pa ON pa.id = i.participation_id JOIN group_buys g ON g.id = pa.group_buy_id "
-                + "JOIN group_buy_skus s ON s.id = i.sku_id LEFT JOIN group_buy_shipments sh ON sh.participation_id = pa.id AND sh.kind = 'ORIGINAL' "
-                + "WHERE i.id = ? AND pa.order_no = ? AND pa.user_id = ? FOR UPDATE OF pa", (rs, i) -> new Line(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getString(4),
-                        rs.getInt(5), rs.getString(6), instant(rs, 7)), item, orderNo, userId).stream().findFirst().orElseThrow(GroupBuyException::orderNotFound);
+        GroupBuyReviewStore.WritableLine line = store.lockWritableLine(item, orderNo, userId).orElseThrow(GroupBuyException::orderNotFound);
         LocalDate today = ServiceTime.today(clock());
-        if (!"DELIVERED".equals(line.status()) || line.deliveredAt() == null || line.live() <= 0
+        if (line.status() != ParticipationStatus.DELIVERED || line.deliveredAt() == null || line.live() <= 0
                 || today.isAfter(ServiceTime.dateOf(line.deliveredAt()).plusDays(WRITE_DAYS))) {
             throw FeedbackException.reviewNotWritable();
         }
         long id = ids.nextId();
         Instant now = now();
         try {
-            jdbc.update("INSERT INTO group_buy_reviews (id, product_id, group_buy_id, participation_id, item_id, user_id, sku_name, rating, body, created_at) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, line.productId(), line.groupBuyId(), line.participationId(), item, userId, line.skuName(), d.rating(), d.body(),
-                    Timestamp.from(now));
+            store.insertReview(id, line.productId(), line.groupBuyId(), line.participationId(), item, userId, line.skuName(), d.rating(), d.body(), now);
         } catch (DuplicateKeyException e) {
             throw FeedbackException.reviewExists();
         }
@@ -274,23 +226,17 @@ public class GroupBuyReviewService {
         Draft d = draft(rating, body, photoIds);
         requireWriter(userId);
         long id = parse(reviewId, FeedbackException::reviewNotFound);
-        record Cur(int rating, String body, Instant createdAt, Instant updatedAt) {
-        }
-        Cur c = jdbc.query("SELECT rating, body, created_at, updated_at FROM group_buy_reviews WHERE id = ? AND user_id = ? AND deleted_at IS NULL FOR UPDATE",
-                (rs, i) -> new Cur(rs.getInt(1), rs.getString(2), instant(rs, 3), instant(rs, 4)), id, userId).stream().findFirst()
-                .orElseThrow(FeedbackException::reviewNotFound);
+        GroupBuyReviewStore.CurrentReview c = store.lockOwn(id, userId).orElseThrow(FeedbackException::reviewNotFound);
         Instant now = now();
         if (!now.isBefore(c.createdAt().plus(Duration.ofDays(EDIT_DAYS)))) {
             throw FeedbackException.reviewEditExpired();
         }
-        int photoCount = jdbc.queryForObject("SELECT count(*) FROM group_buy_review_photos WHERE review_id = ?", Integer.class, id);
-        jdbc.update("INSERT INTO group_buy_review_revisions (id, review_id, rating, body, photo_count, written_at, replaced_at) VALUES (?, ?, ?, ?, ?, ?, ?)", ids.nextId(), id,
-                c.rating(), c.body(), photoCount, Timestamp.from(c.updatedAt() == null ? c.createdAt() : c.updatedAt()), Timestamp.from(now));
-        jdbc.update("UPDATE group_buy_reviews SET rating = ?, body = ?, updated_at = ? WHERE id = ?", d.rating(), d.body(), Timestamp.from(now), id);
+        int photoCount = store.photoCount(id);
+        store.insertRevision(ids.nextId(), id, c.rating(), c.body(), photoCount, c.updatedAt() == null ? c.createdAt() : c.updatedAt(), now);
+        store.updateReview(id, d.rating(), d.body(), now);
         // 사진: 빠진 것은 떼어 정리 대상으로, 새로 붙인 것은 붙인다
         List<Long> keep = d.photoIds();
-        jdbc.update("DELETE FROM group_buy_review_photos WHERE review_id = ?" + (keep.isEmpty() ? "" : " AND id NOT IN (" + placeholders(keep.size()) + ")"),
-                concat(id, keep));
+        store.deletePhotosExcept(id, keep);
         attach(userId, id, keep, now);
         return myView(id, userId);
     }
@@ -299,8 +245,7 @@ public class GroupBuyReviewService {
     @Transactional
     public void remove(long userId, String reviewId) {
         long id = parse(reviewId, FeedbackException::reviewNotFound);
-        int n = jdbc.update("UPDATE group_buy_reviews SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL", Timestamp.from(now()), id, userId);
-        if (n == 0) {
+        if (!store.softDelete(id, userId, now())) {
             throw FeedbackException.reviewNotFound();
         }
     }
@@ -341,16 +286,14 @@ public class GroupBuyReviewService {
     /** 내가 올린 사진을 차례대로 붙인다 — 남의 사진·다른 리뷰의 사진은 400 */
     private void attach(long userId, long reviewId, List<Long> photoIds, Instant now) {
         for (int i = 0; i < photoIds.size(); i++) {
-            int n = jdbc.update("UPDATE group_buy_review_photos SET review_id = ?, attached_at = COALESCE(attached_at, ?), position = ? WHERE id = ? AND user_id = ? "
-                    + "AND (review_id IS NULL OR review_id = ?)", reviewId, Timestamp.from(now), i, photoIds.get(i), userId, reviewId);
-            if (n == 0) {
+            if (!store.attachPhoto(photoIds.get(i), userId, reviewId, i, now)) {
                 throw ValidationException.of("photoIds", new MessageRef("groupbuy.review.photo.invalid"));
             }
         }
     }
 
     private FeedbackView.Review myView(long id, long userId) {
-        Row r = jdbc.query(MEMBER_SELECT + "WHERE r.id = ?", (rs, i) -> row(rs), id).stream().findFirst().orElseThrow(FeedbackException::reviewNotFound);
+        ReviewRow r = store.memberRow(id).orElseThrow(FeedbackException::reviewNotFound);
         return view(r, userId, photosOf(List.of(id)).getOrDefault(id, List.of()), now(), true);
     }
 
@@ -359,10 +302,8 @@ public class GroupBuyReviewService {
         if (reviewIds.isEmpty()) {
             return out;
         }
-        jdbc.query("SELECT review_id, id, image_key FROM group_buy_review_photos WHERE review_id IN (" + placeholders(reviewIds.size()) + ") ORDER BY review_id, position, id",
-                rs -> {
-                    out.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new FeedbackView.Photo(Long.toString(rs.getLong(2)), images.url(rs.getString(3))));
-                }, reviewIds.toArray());
+        store.photosOf(reviewIds).forEach(ph -> out.computeIfAbsent(ph.reviewId(), k -> new ArrayList<>())
+                .add(new FeedbackView.Photo(Long.toString(ph.id()), images.url(ph.imageKey()))));
         return out;
     }
 
@@ -374,76 +315,32 @@ public class GroupBuyReviewService {
 
     // ── 운영자 ──────────────────────────────────────────────────────────────
 
-    private static final String ADMIN_SELECT = "SELECT r.id, r.product_id, p.name, r.group_buy_id, COALESCE(NULLIF(g.title, ''), p.name), g.round_no, r.participation_id, pa.order_no, "
-            + "r.sku_name, r.user_id, pr.nickname, (u.id IS NULL OR u.status = 'WITHDRAWN' OR u.deleted_at IS NOT NULL), r.rating, r.body, "
-            + "(SELECT count(*) FROM group_buy_review_photos ph WHERE ph.review_id = r.id), r.hidden_at IS NOT NULL, r.deleted_at IS NOT NULL, "
-            + "(SELECT count(*) FROM group_buy_ugc_reports x WHERE x.target_type = 'GROUP_BUY_REVIEW' AND x.target_id = r.id AND x.status = 'OPEN'), rp.review_id IS NOT NULL, "
-            + "r.created_at, r.updated_at FROM group_buy_reviews r JOIN group_buys g ON g.id = r.group_buy_id JOIN group_buy_products p ON p.id = r.product_id "
-            + "JOIN group_buy_participations pa ON pa.id = r.participation_id LEFT JOIN users u ON u.id = r.user_id LEFT JOIN profiles pr ON pr.user_id = r.user_id "
-            + "LEFT JOIN group_buy_review_replies rp ON rp.review_id = r.id ";
-
-    private record AdminRow(FeedbackView.ReviewRow row, String body) {
-    }
-
-    private static AdminRow adminRow(ResultSet rs) throws SQLException {
-        boolean gone = rs.getBoolean(12);
-        String body = rs.getString(14);
-        FeedbackView.ReviewRow row = new FeedbackView.ReviewRow(Long.toString(rs.getLong(1)), new FeedbackView.ProductRef(Long.toString(rs.getLong(2)), rs.getString(3)),
-                new FeedbackView.GroupBuyRef(Long.toString(rs.getLong(4)), rs.getString(5), rs.getInt(6)), Long.toString(rs.getLong(7)), rs.getString(8), rs.getString(9),
-                new PaymentMemberView(gone ? null : Long.toString(rs.getLong(10)), gone ? "" : nz(rs.getString(11)), gone), rs.getInt(13), preview(body), rs.getInt(15),
-                rs.getBoolean(16), rs.getBoolean(17), rs.getInt(18), rs.getBoolean(19), instant(rs, 20), instant(rs, 21));
-        return new AdminRow(row, body);
+    private static FeedbackView.ReviewRow adminRow(AdminReviewRow a) {
+        return new FeedbackView.ReviewRow(Long.toString(a.id()), new FeedbackView.ProductRef(Long.toString(a.productId()), a.productName()),
+                new FeedbackView.GroupBuyRef(Long.toString(a.groupBuyId()), a.title(), a.roundNo()), Long.toString(a.participationId()), a.orderNo(), a.skuName(),
+                new PaymentMemberView(a.gone() ? null : Long.toString(a.userId()), a.gone() ? "" : nz(a.nickname()), a.gone()), a.rating(), preview(a.body()), a.photoCount(),
+                a.hidden(), a.deleted(), a.reportCount(), a.hasReply(), a.createdAt(), a.updatedAt());
     }
 
     /** 관리자 목록 — 탭 VISIBLE(기본)·REPORTED(공개 중 열린 신고)·HIDDEN·ALL(지운 것 포함) · 별점 · 사진 있음 · 답글 없음 · 찾기. 새 것 먼저 */
     @Transactional(readOnly = true)
     public FeedbackView.ReviewList adminList(String tab, Integer rating, boolean photo, boolean noReply, String q, int page, int size) {
         String t = tab == null || tab.isBlank() ? "VISIBLE" : tab;
-        String reported = "EXISTS (SELECT 1 FROM group_buy_ugc_reports x WHERE x.target_type = 'GROUP_BUY_REVIEW' AND x.target_id = r.id AND x.status = 'OPEN')";
-        StringBuilder where = new StringBuilder("WHERE TRUE");
-        List<Object> args = new ArrayList<>();
-        switch (t) {
-            case "VISIBLE" -> where.append(" AND r.hidden_at IS NULL AND r.deleted_at IS NULL");
-            case "REPORTED" -> where.append(" AND r.hidden_at IS NULL AND r.deleted_at IS NULL AND ").append(reported);
-            case "HIDDEN" -> where.append(" AND r.hidden_at IS NOT NULL AND r.deleted_at IS NULL");
-            case "ALL" -> {
-            }
-            default -> throw ValidationException.of("tab", new MessageRef("groupbuy.review.tab.invalid"));
-        }
-        if (rating != null) {
-            where.append(" AND r.rating = ?");
-            args.add(rating);
-        }
-        if (photo) {
-            where.append(" AND EXISTS (SELECT 1 FROM group_buy_review_photos ph WHERE ph.review_id = r.id)");
-        }
-        if (noReply) {
-            where.append(" AND rp.review_id IS NULL");
+        if (!List.of("VISIBLE", "REPORTED", "HIDDEN", "ALL").contains(t)) {
+            throw ValidationException.of("tab", new MessageRef("groupbuy.review.tab.invalid"));
         }
         String needle = q == null ? "" : q.trim();
-        if (!needle.isEmpty()) {
-            Long n = parseOrNull(needle);
-            String like = "%" + needle.replace("%", "\\%").replace("_", "\\_") + "%";
-            where.append(" AND (p.name ILIKE ? OR g.title ILIKE ? OR pr.nickname ILIKE ? OR pa.order_no ILIKE ?").append(n != null ? " OR r.user_id = ?" : "").append(")");
-            args.addAll(List.of(like, like, like, like));
-            if (n != null) {
-                args.add(n);
-            }
-        }
+        GroupBuyReviewStore.AdminFilter filter = new GroupBuyReviewStore.AdminFilter(t, rating, photo, noReply, needle.isEmpty() ? null : GroupBuyRowNames.like(needle),
+                needle.isEmpty() ? null : parseOrNull(needle));
         int s = Math.min(Math.max(size, 1), 100);
         int p = Math.max(0, page);
-        long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r JOIN group_buys g ON g.id = r.group_buy_id JOIN group_buy_products p ON p.id = r.product_id "
-                + "JOIN group_buy_participations pa ON pa.id = r.participation_id LEFT JOIN profiles pr ON pr.user_id = r.user_id "
-                + "LEFT JOIN group_buy_review_replies rp ON rp.review_id = r.id " + where, Long.class, args.toArray());
-        List<Object> pageArgs = new ArrayList<>(args);
-        pageArgs.add(s);
-        pageArgs.add((long) p * s);
-        List<FeedbackView.ReviewRow> items = jdbc.query(ADMIN_SELECT + where + " ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?", (rs, i) -> adminRow(rs).row(),
-                pageArgs.toArray());
+        long total = store.adminCount(filter);
+        List<FeedbackView.ReviewRow> items = store.adminPage(filter, (long) p * s, s).stream().map(GroupBuyReviewService::adminRow).toList();
+        long[] tabs = store.tabCounts();
         Map<String, Long> counts = new LinkedHashMap<>();
-        counts.put("VISIBLE", jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r WHERE r.hidden_at IS NULL AND r.deleted_at IS NULL", Long.class));
-        counts.put("REPORTED", jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r WHERE r.hidden_at IS NULL AND r.deleted_at IS NULL AND " + reported, Long.class));
-        counts.put("HIDDEN", jdbc.queryForObject("SELECT count(*) FROM group_buy_reviews r WHERE r.hidden_at IS NOT NULL AND r.deleted_at IS NULL", Long.class));
+        counts.put("VISIBLE", tabs[0]);
+        counts.put("REPORTED", tabs[1]);
+        counts.put("HIDDEN", tabs[2]);
         return new FeedbackView.ReviewList(items, total, counts);
     }
 
@@ -453,22 +350,15 @@ public class GroupBuyReviewService {
     }
 
     private FeedbackView.ReviewDetail detail(long id) {
-        AdminRow a = jdbc.query(ADMIN_SELECT + "WHERE r.id = ?", (rs, i) -> adminRow(rs), id).stream().findFirst().orElseThrow(FeedbackException::reviewNotFound);
-        record Extra(Instant deletedAt, String code, String memo, Instant hiddenAt, Long hiddenBy, String hiddenByName) {
-        }
-        Extra x = jdbc.queryForObject("SELECT r.deleted_at, r.hidden_reason_code, r.hidden_memo, r.hidden_at, r.hidden_by, o.operator_name FROM group_buy_reviews r "
-                + "LEFT JOIN operators o ON o.id = r.hidden_by WHERE r.id = ?", (rs, i) -> new Extra(instant(rs, 1), rs.getString(2), rs.getString(3), instant(rs, 4),
-                        (Long) rs.getObject(5), rs.getString(6)), id);
-        List<FeedbackView.ReviewRevision> revisions = jdbc.query("SELECT id, rating, body, photo_count, written_at, replaced_at FROM group_buy_review_revisions "
-                + "WHERE review_id = ? ORDER BY replaced_at DESC, id DESC", (rs, i) -> new FeedbackView.ReviewRevision(Long.toString(rs.getLong(1)), rs.getInt(2), rs.getString(3),
-                        rs.getInt(4), instant(rs, 5), instant(rs, 6)), id);
-        FeedbackView.AdminAnswer reply = jdbc.query("SELECT rp.body, rp.replied_at, rp.replied_by, o1.operator_name, rp.updated_at, rp.updated_by, o2.operator_name "
-                + "FROM group_buy_review_replies rp LEFT JOIN operators o1 ON o1.id = rp.replied_by LEFT JOIN operators o2 ON o2.id = rp.updated_by WHERE rp.review_id = ?",
-                (rs, i) -> new FeedbackView.AdminAnswer(rs.getString(1), instant(rs, 2), operator(rs.getLong(3), rs.getString(4)), instant(rs, 5),
-                        rs.getObject(6) == null ? null : operator(rs.getLong(6), rs.getString(7))), id).stream().findFirst().orElse(null);
+        AdminReviewRow a = store.adminRow(id).orElseThrow(FeedbackException::reviewNotFound);
+        GroupBuyReviewStore.ReviewExtra x = store.extra(id).orElseThrow(FeedbackException::reviewNotFound);
+        List<FeedbackView.ReviewRevision> revisions = store.revisions(id).stream().map(v -> new FeedbackView.ReviewRevision(Long.toString(v.id()), v.rating(), v.body(),
+                v.photoCount(), v.writtenAt(), v.replacedAt())).toList();
+        FeedbackView.AdminAnswer reply = store.reply(id).map(v -> new FeedbackView.AdminAnswer(v.body(), v.repliedAt(), operator(v.repliedBy(), v.repliedByName()),
+                v.updatedAt(), v.updatedBy() == null ? null : operator(v.updatedBy(), v.updatedByName()))).orElse(null);
         FeedbackView.ReviewHiddenInfo hidden = x.hiddenAt() == null ? null : new FeedbackView.ReviewHiddenInfo(x.code(), x.memo(), x.hiddenAt(), operator(x.hiddenBy(),
                 x.hiddenByName()));
-        FeedbackView.ReviewRow r = a.row();
+        FeedbackView.ReviewRow r = adminRow(a);
         return new FeedbackView.ReviewDetail(r.id(), r.product(), r.groupBuy(), r.orderId(), r.orderNo(), r.skuName(), r.member(), r.rating(), r.preview(), r.photoCount(),
                 r.hidden(), r.deleted(), r.reportCount(), r.hasReply(), r.createdAt(), r.updatedAt(), a.body(), photosOf(List.of(id)).getOrDefault(id, List.of()), x.deletedAt(),
                 revisions, reply, hidden, reports.openReasons(GroupBuyUgcReportService.REVIEW, id));
@@ -482,20 +372,17 @@ public class GroupBuyReviewService {
         if (text.isEmpty() || text.codePointCount(0, text.length()) > REPLY_MAX) {
             throw ValidationException.of("body", new MessageRef("groupbuy.review.reply.length", REPLY_MAX));
         }
-        record R(long userId, long groupBuyId, boolean deleted) {
-        }
-        R r = jdbc.query("SELECT user_id, group_buy_id, deleted_at IS NOT NULL FROM group_buy_reviews WHERE id = ? FOR UPDATE", (rs, i) -> new R(rs.getLong(1), rs.getLong(2),
-                rs.getBoolean(3)), id).stream().findFirst().orElseThrow(FeedbackException::reviewNotFound);
+        GroupBuyReviewStore.LockedReview r = store.lock(id).orElseThrow(FeedbackException::reviewNotFound);
         if (r.deleted()) {
             throw FeedbackException.reviewDeleted();
         }
         Instant now = now();
-        Optional<String> old = jdbc.queryForList("SELECT body FROM group_buy_review_replies WHERE review_id = ?", String.class, id).stream().findFirst();
+        Optional<String> old = store.replyBody(id);
         if (old.isEmpty()) {
-            jdbc.update("INSERT INTO group_buy_review_replies (review_id, body, replied_by, replied_at) VALUES (?, ?, ?, ?)", id, text, operatorId, Timestamp.from(now));
+            store.insertReply(id, text, operatorId, now);
             notifications.reviewReplied(r.userId(), r.groupBuyId());
         } else if (!old.get().equals(text)) {
-            jdbc.update("UPDATE group_buy_review_replies SET body = ?, updated_by = ?, updated_at = ? WHERE review_id = ?", text, operatorId, Timestamp.from(now), id);
+            store.updateReply(id, text, operatorId, now);
             audit.record(operatorId, AuditActions.GROUPBUY_REVIEW_REPLY_EDIT, GroupBuyAudit.TARGET_REVIEW, id, ip, Map.of("length", text.length()));
         }
         return detail(id);
@@ -521,8 +408,7 @@ public class GroupBuyReviewService {
             throw new ValidationException(fields);
         }
         lockLive(id);
-        jdbc.update("UPDATE group_buy_reviews SET hidden_reason_code = ?, hidden_memo = ?, hidden_at = ?, hidden_by = ? WHERE id = ?", reasonCode, m, Timestamp.from(now()),
-                operatorId, id);
+        store.hide(id, reasonCode, m, operatorId, now());
         int resolved = reports.resolve(GroupBuyUgcReportService.REVIEW, id, operatorId);
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("action", "HIDE");
@@ -540,15 +426,13 @@ public class GroupBuyReviewService {
         long id = parse(reviewId, FeedbackException::reviewNotFound);
         String why = GroupBuyQnaService.reason(reason);
         lockLive(id);
-        jdbc.update("UPDATE group_buy_reviews SET hidden_reason_code = NULL, hidden_memo = NULL, hidden_at = NULL, hidden_by = NULL WHERE id = ?", id);
+        store.unhide(id);
         audit.record(operatorId, AuditActions.GROUPBUY_REVIEW_HIDE, GroupBuyAudit.TARGET_REVIEW, id, ip, Map.of("action", "UNHIDE", "reason", why));
         return detail(id);
     }
 
     private void lockLive(long id) {
-        Boolean deleted = jdbc.query("SELECT deleted_at IS NOT NULL FROM group_buy_reviews WHERE id = ? FOR UPDATE", (rs, i) -> rs.getBoolean(1), id).stream().findFirst()
-                .orElseThrow(FeedbackException::reviewNotFound);
-        if (deleted) {
+        if (store.lock(id).orElseThrow(FeedbackException::reviewNotFound).deleted()) {
             throw FeedbackException.reviewDeleted();
         }
     }
@@ -558,17 +442,6 @@ public class GroupBuyReviewService {
     private GroupBuyRow visible(String groupBuyId) {
         long id = parse(groupBuyId, GroupBuyException::notFound);
         return groups.find(id).filter(r -> r.publishedAt() != null).orElseThrow(GroupBuyException::notFound);
-    }
-
-    private static String placeholders(int n) {
-        return String.join(",", java.util.Collections.nCopies(n, "?"));
-    }
-
-    private static Object[] concat(long first, List<Long> rest) {
-        List<Object> out = new ArrayList<>();
-        out.add(first);
-        out.addAll(rest);
-        return out.toArray();
     }
 
     private Clock clock() {

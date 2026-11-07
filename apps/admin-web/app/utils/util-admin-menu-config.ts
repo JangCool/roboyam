@@ -10,7 +10,7 @@ import UtilMenu from '~/utils/util-menu';
  * 관리자 사이트 메뉴 구성(메뉴 관리 › 관리자 메뉴)의 규칙 — 화면 레지스트리 · 시드 · 구조 규칙 · 검증 · 미연결 화면 · 미리보기 거르기. 순수 함수만 둔다.
  * 구조는 지금 관리자 메뉴(`util-admin-menu.ts`)와 같다: 묶음(`SECTION`, 최상위만) → 화면 항목(`SCREEN`) 또는 부모 항목(`FOLDER`, 최상위나 묶음 안) → 하위 화면 항목(부모 안, 아이콘 없음).
  * 권한은 편집하지 않는다 — 화면 항목의 권한은 화면 레지스트리(메뉴 정의의 `permission`)가 정하고, 외부 링크만 선택적으로 권한 하나를 고른다.
- * 서버(`AdminMenuService`·`AdminScreenRegistry`)가 같은 구조 규칙으로 판정하고 구성을 저장한다. ⚠ 셸(사이드바)은 아직 저장한 구성이 아니라 `UtilAdminMenu.ITEMS` 를 읽는다(menu-contract 미확정 1).
+ * 서버(`AdminMenuService`·`AdminScreenRegistry`)가 같은 구조 규칙으로 판정하고 구성을 저장한다. 셸(사이드바·상단 메뉴·검색)은 저장한 구성을 그린다(`UtilAdminMenu.fromConfig` · `useAdminMenuTree`, 2026-11-07).
  */
 
 /** 화면 편집 노드 */

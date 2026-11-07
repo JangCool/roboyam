@@ -4,7 +4,8 @@ import UtilIdempotency from '~/utils/util-idempotency';
 /**
  * 포인트 상점 API — 서버 주소 문자열(`/api/point-shop/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401, 화면은 `auth` 미들웨어). **서버 연결됨**(server/api `pointshop.controller`).
  * 계약: `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」(API 후보, 회원·api 서버).
- *  - `GET /api/point-shop/items?kind=` → `PointShopItemList`(`refundDays`·`balance`·품목들 — 아바타 품목은 섞이지 않는다, `GET /api/avatars`)
+ *  - `GET /api/point-shop/items?kind=` → `PointShopItemList`(`refundDays`·`balance`·품목들 — 아바타 품목은 섞이지 않는다, `GET /api/avatars`).
+ *    `kind=NICKNAME_CHANGE_TICKET` 은 「변경권」 탭이라 세 변경권(닉네임 변경권·닉네임 이미지 변경권·아바타 변경권)을 함께 준다
  *  - `GET /api/point-shop/items/{id}` → `PointShopItemView` · 없는 품목·형식이 틀린 ID `404 POINT_SHOP_ITEM_NOT_FOUND`
  *  - `POST /api/point-shop/purchases` `{ itemId, agreeRefundNotice: true }` + 머리글 `Idempotency-Key`(필수) → `PointShopPurchaseResult`. 같은 키로 다시 보내면 처음 결과(머리글 `Idempotent-Replayed: true`).
  *    오류는 `usePointShopApi.types.ts` 의 `PointShopPurchaseResult` 주석.

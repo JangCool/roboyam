@@ -41,6 +41,7 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
     void setUp() {
         long rootId = rootId();
         root = actor(rootId);
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         jdbc.update("INSERT INTO site_settings (id, site_name, public_url, updated_by) VALUES (1, '시험', 'http://localhost', ?) ON CONFLICT (id) DO NOTHING", rootId);
         var defaults = service.defaults(THEME);
         service.save(root, THEME, request(defaults.gadgets(), defaults.layout(), Map.of()));
@@ -98,8 +99,9 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
         assertThat(ad.id()).doesNotStartWith("new-");
         assertThat(ad.config().propertyNames()).containsExactly("adType");
         assertThat(ad.config().path("adType").asString()).isEqualTo("WIDE_BANNER");
-        assertThat(text.config().propertyNames()).containsExactly("count");
+        assertThat(text.config().propertyNames()).containsExactly("count", "look"); // 모양 설정 look(44805faf — 기본 BAND)
         assertThat(text.config().path("count").asInt()).isEqualTo(3);
+        assertThat(text.config().path("look").asString()).isEqualTo("BAND");
         // 다음식 테마 기본(막대 머리 · 카드)을 광고 종류의 처음 꾸미기가 덮는다
         assertThat(ad.style().path("headerStyle").asString()).isEqualTo("HIDDEN");
         assertThat(ad.style().path("cardLook").asString()).isEqualTo("FLAT");

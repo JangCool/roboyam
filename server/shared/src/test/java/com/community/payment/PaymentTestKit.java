@@ -1,11 +1,11 @@
 package com.community.payment;
 
-import com.community.batch.core.BatchFailureRecorder;
+import com.community.testsupport.JpaTestContext;
+import com.community.testsupport.BatchTestParts;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.notification.dto.NotificationContext;
@@ -44,6 +44,7 @@ import com.community.payment.service.PaymentWebhookService;
 import com.community.payment.service.ReconciliationService;
 import com.community.payment.testorder.PaymentTestOrderHandler;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.MutableTestClock;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Clock;
@@ -61,7 +62,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -129,9 +129,10 @@ final class PaymentTestKit {
             return current.dataSourceForWiring;
         }
 
+        /** JPA 트랜잭션 관리자({@link JpaTestContext} 의 것 — 같은 데이터소스) — 운영과 같다. 결제 저장소(JPA·QueryDSL)의 쓰기가 업무 트랜잭션에 실리고, 남긴 JDBC 문장(집기·가짜 PG)도 같은 연결을 쓰며, 배치 기록기(JPA)와 한 트랜잭션에 묶인다 */
         @Bean
-        PlatformTransactionManager transactionManager(DataSource dataSource) {
-            return new DataSourceTransactionManager(dataSource);
+        PlatformTransactionManager transactionManager() {
+            return JpaTestContext.transactions();
         }
 
         @Bean
@@ -150,28 +151,28 @@ final class PaymentTestKit {
         }
 
         @Bean
-        PaymentOrderStore paymentOrderStore(DataSource dataSource) {
-            return new PaymentOrderStore(dataSource);
+        PaymentOrderStore paymentOrderStore() {
+            return JpaTestContext.create(PaymentOrderStore.class);
         }
 
         @Bean
-        PaymentCancelStore paymentCancelStore(DataSource dataSource) {
-            return new PaymentCancelStore(dataSource);
+        PaymentCancelStore paymentCancelStore() {
+            return JpaTestContext.create(PaymentCancelStore.class);
         }
 
         @Bean
-        PaymentEventStore paymentEventStore(DataSource dataSource) {
-            return new PaymentEventStore(dataSource);
+        PaymentEventStore paymentEventStore() {
+            return JpaTestContext.create(PaymentEventStore.class);
         }
 
         @Bean
-        PaymentWebhookLogStore paymentWebhookLogStore(DataSource dataSource) {
-            return new PaymentWebhookLogStore(dataSource);
+        PaymentWebhookLogStore paymentWebhookLogStore() {
+            return JpaTestContext.create(PaymentWebhookLogStore.class);
         }
 
         @Bean
-        ReconciliationIssueStore reconciliationIssueStore(DataSource dataSource) {
-            return new ReconciliationIssueStore(dataSource);
+        ReconciliationIssueStore reconciliationIssueStore() {
+            return JpaTestContext.create(ReconciliationIssueStore.class);
         }
 
         @Bean
@@ -194,7 +195,7 @@ final class PaymentTestKit {
         @Bean
         NotificationPublisher notificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids) {
             List<AdminNotificationEvent> sink = current.notices;
-            return new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+            return new NotificationPublisher(null, null, ids, null, null, dataSource) {
                 @Override
                 public int publish(AdminNotificationEvent event, NotificationContext context) {
                     sink.add(event);
@@ -258,13 +259,13 @@ final class PaymentTestKit {
         }
 
         @Bean
-        PaymentReconcileQueries paymentReconcileQueries(DataSource dataSource) {
-            return new PaymentReconcileQueries(dataSource);
+        PaymentReconcileQueries paymentReconcileQueries() {
+            return JpaTestContext.create(PaymentReconcileQueries.class);
         }
 
         @Bean
-        PaymentReconcileDayStore paymentReconcileDayStore(DataSource dataSource) {
-            return new PaymentReconcileDayStore(dataSource);
+        PaymentReconcileDayStore paymentReconcileDayStore() {
+            return JpaTestContext.create(PaymentReconcileDayStore.class);
         }
 
         @Bean
@@ -391,9 +392,9 @@ final class PaymentTestKit {
     }
 
     BatchRunner.RunReport runJob(BatchJob job, Map<String, String> params) {
-        DataSourceTransactionManager transactions = new DataSourceTransactionManager(dataSource);
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, NODE_ID),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        // 배치 기록기는 JPA — 실행기도 문맥과 같은 JPA 트랜잭션 관리자로(결제 서비스의 @Transactional 이 덩어리 트랜잭션에 참여한다 — 운영과 같다)
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(ids, NODE_ID), BatchTestParts.failures(ids),
+                BatchRegistry.forJobs(List.of(job)), JpaTestContext.transactions());
         return runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(params), null, null, null));
     }
 

@@ -5,11 +5,13 @@ import com.community.board.entity.BoardDefaultsEntity;
 import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
 import com.community.site.dto.response.SiteDisplayDefaultsView;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
+import com.community.site.dto.response.SiteOperatorPublicView;
 import com.community.site.dto.response.SiteThemeResponse;
 import com.community.site.dto.response.WebManifestIcon;
 import com.community.site.dto.response.WebManifestResponse;
@@ -54,10 +56,12 @@ public class PublicSiteService {
     private final BoardDefaultsRepository boardDefaults;
     private final SiteThemeMenuRepository themeMenus;
     private final StatsCollectionSettings statsSettings;
+    private final SiteOperatorReader operators;
     private volatile Cached cached;
 
     public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus,
-                             StatsCollectionSettings statsSettings) {
+                             StatsCollectionSettings statsSettings, SiteOperatorReader operators) {
+        this.operators = operators;
         this.statsSettings = statsSettings;
         this.boardDefaults = boardDefaults;
         this.settings = settings;
@@ -112,11 +116,16 @@ public class PublicSiteService {
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
-                SiteAnalyticsView.of(statsSettings.current()));
+                SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current()));
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, fingerprint(info + "|" + themeView, manifest, ogCustom));
+    }
+
+    /** 운영 주체의 공개 칸 — 단계와 연락 이메일(빈 글자는 null). 이 사본(20초)과 지문(ETag)에 함께 든다 */
+    private static SiteOperatorPublicView operatorView(SiteOperatorValues v) {
+        return new SiteOperatorPublicView(v.stage().name(), v.contactEmail() == null || v.contactEmail().isBlank() ? null : v.contactEmail());
     }
 
     /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME) */

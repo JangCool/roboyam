@@ -50,7 +50,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     private long audits(long operator) {
-        return jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'STATS_COLLECTION_UPDATE'", Long.class, operator);
+        return (long) auditLogs.where().actor(operator).action("STATS_COLLECTION_UPDATE").count();
     }
 
     // ── 8. 설정 API ─────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(changes).contains("\"enabled\"", "\"visits\"", "\"rawRetentionDays\"", "\"notificationSends\"", "\"180\"")
                 .doesNotContain("\"rawEvents\"", "\"referrers\"", "\"flows\"", "\"boardActivity\"");
         assertThat(audits(me)).isEqualTo(1);
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'STATS_COLLECTION_UPDATE'", String.class, me);
+        String detail = auditLogs.where().actor(me).action("STATS_COLLECTION_UPDATE").single().detail();
         assertThat(detail).contains("before", "after", "rawRetentionDays").doesNotContain("boardActivity");
 
         // 같은 값 — 이력·감사 없음

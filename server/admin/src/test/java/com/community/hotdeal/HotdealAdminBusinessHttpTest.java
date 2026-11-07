@@ -26,6 +26,7 @@ class HotdealAdminBusinessHttpTest extends HotdealAdminTestBase {
         long member = deal(board, author, "m" + uniq() + ".shop.example");
         long business = deal(board, author, "b" + uniq() + ".shop.example");
         long applicationId = ids.nextId();
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '출처상사' WHERE post_id = ?", applicationId, business);
         Cookie reader = login(operatorWith(Permission.HOTDEAL_READ));
 
@@ -59,6 +60,7 @@ class HotdealAdminBusinessHttpTest extends HotdealAdminTestBase {
         long author = newMember();
         long applicationId = application();
         long business = deal(board, author, "k" + uniq() + ".shop.example");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '유지상사' WHERE post_id = ?", applicationId, business);
         long member = deal(board, author, "n" + uniq() + ".shop.example");
         long manager = operatorWith(Permission.HOTDEAL_READ, Permission.HOTDEAL_MANAGE);
@@ -68,6 +70,7 @@ class HotdealAdminBusinessHttpTest extends HotdealAdminTestBase {
         // 의심이 아니면 409, 읽기 권한만이면 403
         mvc.perform(withCsrf(post("/api/admin/hotdeals/" + business + "/keep"), cookie).content("{}")).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("HOTDEAL_STATE_CHANGED"));
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET flagged_at = now() WHERE post_id IN (?, ?)", business, member);
         mvc.perform(withCsrf(post("/api/admin/hotdeals/" + business + "/keep"), reader).content("{}")).andExpect(status().isForbidden());
         // 회원 글은 유지가 없다(회원 규칙 그대로)

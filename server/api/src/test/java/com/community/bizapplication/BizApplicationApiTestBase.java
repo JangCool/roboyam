@@ -20,6 +20,7 @@ import com.community.payment.dto.ConfirmedVia;
 import com.community.payment.dto.PaymentCheckout;
 import com.community.payment.gateway.fake.FakePgStore;
 import com.community.payment.service.PaymentConfirmService;
+import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  *   <li>DB 를 다른 시험과 같이 쓴다 — 자리(한도)는 상품·기간 전체가 공유하므로, 승인하는 시험은 {@link #freshPeriod} 로 <b>겹치지 않는 먼 미래 기간</b>으로 옮겨 승인한다
  *       (승인은 미리 신청 일수 제한이 없다). 신청 때의 기간은 가까운 날짜(내일~)지만 신청은 자리를 차지하지 않는다.</li>
  *   <li>시계는 시험마다 지금으로 되돌린다(기반 클래스). 「진행 중」·「종료」는 시계를 기간 안·뒤로 옮겨 만든다.</li>
+ *   <li>운영 주체는 시험마다 개인사업자 + 통신판매업 신고번호로 두고 끝나면 개인으로 되돌린다(돈을 받는 길의 조건 — 개인 단계 규칙은 {@code BizApplicationOperatorStageTest}).</li>
  * </ul>
  */
 public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
@@ -82,6 +85,13 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     void bizSetUp() {
         fakePg = new FakePgStore(dataSource);
         operator = new BizOperator(newOperator(), "127.0.0.1");
+        // 유료 신청·결제·승인·입금 확정은 운영 주체가 개인사업자 이상 + 통신판매업 신고번호일 때만(사용자 결정 2026-11-07) — 시험은 판매할 수 있는 단계에서 시작한다
+        SiteOperatorFixture.fillBusiness(jdbc);
+    }
+
+    @AfterEach
+    void bizTearDown() {
+        SiteOperatorFixture.clear(jdbc); // 1행 표 — 처음 값(개인)으로 되돌린다
     }
 
     // ── 사업자 ─────────────────────────────────────────────────────────────
@@ -98,23 +108,26 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 사업자 신원 한 줄 + 서비스 두 줄 */
     protected long business(String status, boolean reReview) {
         long user = newMember();
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "b" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
+        memberFixture.profile(user, "b" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
         long profile = ids.nextId();
         String hash = String.format("%064x", profile);
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, '시험상사', 'x', ?, '6789', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
                 profile, user, status.equals("SUSPENDED") ? "APPROVED" : status, reReview, hash);
         // 결제창 구매자 칸(온라인 결제 시작)이 푸는 연락처·이메일은 진짜 암호문으로 둔다
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET phone_enc = ?, email_enc = ? WHERE id = ?", pii.encrypt(BusinessPii.PHONE, "010-1234-5678"),
                 pii.encrypt(BusinessPii.EMAIL, "biz" + user + "@test.local"), profile);
         if (status.equals("SUSPENDED")) {
+            // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
             jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                     + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profile);
         }
         String serviceStatus = status.equals("PENDING") && reReview ? "APPROVED" : status.equals("PENDING") ? "PENDING" : status;
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, ?, now())", ids.nextId(), profile, service, serviceStatus);
+            businessFixture.service(ids.nextId(), profile, service, serviceStatus);
         }
         return user;
     }
@@ -181,8 +194,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 새 핫딜 게시판(켬, 쓰기 REGULAR) — {@code withPrefixes} 면 말머리 「로봇」·「AI」 */
     protected long newDealBoard(boolean withPrefixes) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", id, "bz" + Long.toString(id, 36),
-                "사업자 핫딜 " + Long.toString(id, 36).substring(Long.toString(id, 36).length() - 5));
+        boardFixture.board(id, "bz" + Long.toString(id, 36), "사업자 핫딜 " + Long.toString(id, 36).substring(Long.toString(id, 36).length() - 5), 950, "DEAL", "REGULAR");
         if (withPrefixes) {
             jdbc.update("INSERT INTO board_prefixes (id, board_id, name, sort_order) VALUES (?, ?, '로봇', 1), (?, ?, 'AI', 2)", ids.nextId(), id, ids.nextId(), id);
         }
@@ -207,11 +219,11 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
         if (!"CATEGORY_TOP".equals(placement)) {
             return call.get();
         }
-        priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, true);
+        tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, true));
         try {
             return call.get();
         } finally {
-            priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, false);
+            tx.executeWithoutResult(s -> priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, false));
         }
     }
 

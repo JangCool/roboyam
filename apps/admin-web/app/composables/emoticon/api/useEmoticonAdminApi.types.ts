@@ -315,6 +315,8 @@ export interface EmoticonSettingsView extends EmoticonSettingNumbers {
     defaults: EmoticonSettingNumbers & { paidSalesEnabled: boolean; priceTiers: number[] };
     updatedAt: string | null;
     updatedBy: string | null;
+    /** 운영 주체가 유료 판매를 받을 수 있는 단계인가(개인사업자 이상 + 통신판매업 신고번호) — false 면 꺼진 유료 판매를 켤 수 없다(400 `fields.paidSalesEnabled`) */
+    paidSalesAllowed: boolean;
 }
 
 /** `PUT /api/admin/emoticons/settings` 요청 */

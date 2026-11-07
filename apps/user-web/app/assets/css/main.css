@@ -756,6 +756,9 @@ body {
  */
 html {
     --nav-bg: light-dark(var(--p-primary-color), var(--p-primary-900));
+    /* 주 색상 바 위 로고 그림 — 기본(주 색상 채움)은 어두운 바탕용(아래 「로고 그림 고르기」). 바 바탕을 밝게 바꾸는 곳이 이 짝을 함께 바꾼다 */
+    --nav-logo-light: none;
+    --nav-logo-dark: block;
     --nav-fg: light-dark(var(--p-primary-contrast-color), #ffffff);
     /* 주 색상 바 위 탭의 비활성 글자 — 바 글자색의 82%(네이버식 탭 바) */
     --nav-tab-fg: color-mix(in srgb, var(--nav-fg) 82%, transparent);
@@ -805,6 +808,33 @@ html {
     --p-button-primary-active-background: color-mix(in srgb, var(--nav-fg) 78%, var(--nav-bg));
     --p-button-primary-active-border-color: color-mix(in srgb, var(--nav-fg) 78%, var(--nav-bg));
     --p-button-primary-active-color: var(--nav-bg);
+}
+
+/*
+ * 로고 그림 고르기(사이트 로고 4칸 — 밝은 바탕용 · 어두운 바탕용, 사용자 결정 2026-11-06 · 지금은 목업 값) — `SiteBrand` 가 지금 언어의 두 그림을 함께 두고, 놓인 면이 어두운지에 따라 하나만 보인다.
+ *   --brand-logo-light / --brand-logo-dark   두 그림(`.site-logo-light`·`.site-logo-dark`)의 display 값 — 밝은 면(기본 — 페이지 바탕·흰 카드·드로어·로그인) = block / none, 어두운 면 = none / block
+ * 면의 바탕은 테마 이름 하나로 정해지지 않아(야간 모드 · 주 색상 바 · 흰 모바일 바 · 색상 테마의 로고 줄 색) 바탕색을 정하는 자리에서 짝 값을 함께 채운다:
+ *   야간 모드 = 모든 면 어두움 · 주 색상 바 `.app-nav` = `--nav-logo-*`(기본 어두움 — 흰 모바일 바·옅은 색상 테마는 밝음) · PC 로고 줄 `.site-topbar` = `--topbar-logo-*`(기본 페이지 바탕 = 밝음 — 진한 바 색상 테마는 어두움, `palettes.css`).
+ */
+.site-logo-light {
+    display: var(--brand-logo-light, block);
+}
+.site-logo-dark {
+    display: var(--brand-logo-dark, none);
+}
+html[data-color-scheme='dark'] {
+    --brand-logo-light: none;
+    --brand-logo-dark: block;
+    --topbar-logo-light: none;
+    --topbar-logo-dark: block;
+}
+.app-nav {
+    --brand-logo-light: var(--nav-logo-light);
+    --brand-logo-dark: var(--nav-logo-dark);
+}
+.site-topbar {
+    --brand-logo-light: var(--topbar-logo-light, block);
+    --brand-logo-dark: var(--topbar-logo-dark, none);
 }
 
 /*
@@ -869,6 +899,11 @@ html[data-theme='roboyam'] .gadget-more {
         --nav-fg: var(--p-text-color);
         /* 흰 바 아래는 진한 선 대신 머리카락 선(아래 메뉴 줄과 같은 선) */
         border-color: var(--hairline);
+    }
+    /* 흰 바 위 로고는 밝은 바탕용(야간 모드의 카드 바탕은 어두워 기본 짝 그대로) */
+    html[data-mobile-header='plain']:not([data-color-scheme='dark']) .app-nav {
+        --nav-logo-light: block;
+        --nav-logo-dark: none;
     }
 }
 /* 모바일 메뉴 줄(`app-top-tabs`)의 넘침 화살표 그라데이션 바탕 = 줄 바탕(기본 surface-0 · 다크 surface-900, 흰 바는 카드 바탕) */

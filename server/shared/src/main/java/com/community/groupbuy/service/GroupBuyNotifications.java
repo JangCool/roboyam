@@ -3,6 +3,17 @@ package com.community.groupbuy.service;
 import com.community.commerce.sales.BusinessInfo;
 import com.community.commerce.sales.CommerceSalesStore;
 import com.community.groupbuy.dto.GroupBuyEvents;
+import com.community.groupbuy.entity.GroupBuyStatus;
+import com.community.groupbuy.entity.ParticipationStatus;
+import com.community.groupbuy.entity.SkuKind;
+import com.community.groupbuy.entity.WatchKind;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.ClosingSoonRow;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.OrderRow;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.QtyState;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.SkuState;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.Terms;
+import com.community.groupbuy.repository.master.GroupBuyNotificationStore.UserOrder;
 import com.community.mail.outbox.dto.OutboxMail;
 import com.community.mail.outbox.service.MailOutbox;
 import com.community.membernotification.service.MemberNotificationPublisher;
@@ -13,7 +24,6 @@ import com.community.notificationtemplate.catalog.RequiredMail;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,10 +36,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -68,7 +77,7 @@ public class GroupBuyNotifications {
     record Order(long id, String orderNo, long groupBuyId, long userId, long amount, long shippingFee, String title, String status) {
     }
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyNotificationStore store;
     private final MemberNotificationPublisher members;
     private final NotificationPublisher operators;
     private final MailOutbox outbox;
@@ -76,9 +85,9 @@ public class GroupBuyNotifications {
     private final Messages messages;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyNotifications(DataSource dataSource, MemberNotificationPublisher members, NotificationPublisher operators, MailOutbox outbox, CommerceSalesStore sales,
+    public GroupBuyNotifications(GroupBuyNotificationStore store, MemberNotificationPublisher members, NotificationPublisher operators, MailOutbox outbox, CommerceSalesStore sales,
                                  Messages messages, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.store = store;
         this.members = members;
         this.operators = operators;
         this.outbox = outbox;
@@ -121,7 +130,7 @@ public class GroupBuyNotifications {
     @EventListener
     public void on(GroupBuyEvents.AutoCancelCompleted e) {
         order(e.participationId()).ifPresent(o -> {
-            Long amount = jdbc.query("SELECT amount FROM payment_orders WHERE id = ?", (rs, i) -> rs.getLong(1), e.paymentOrderId()).stream().findFirst().orElse(0L);
+            long amount = store.paymentAmount(e.paymentOrderId());
             members.groupBuy(o.userId(), Kind.AUTO_CANCELED.name(), o.groupBuyId(), o.title(), amount, o.orderNo(), orderPath(o), false);
             refundMail(o, "GB_AUTO_CANCEL:" + e.paymentOrderId(), amount, "PG_CANCEL");
         });
@@ -150,36 +159,31 @@ public class GroupBuyNotifications {
     /** 수량 풀림(결정 81) — 공구·단품 둘 다 남을 때만, 같은 신청은 10분에 한 번 */
     @EventListener
     public void on(GroupBuyEvents.QtyReleased e) {
-        Map<String, Object> g = jdbc.queryForList("SELECT g.status, g.max_qty - g.current_qty - g.reserved_qty AS remaining, COALESCE(NULLIF(g.title, ''), p.name) AS title FROM group_buys g "
-                + "JOIN group_buy_products p ON p.id = g.product_id WHERE g.id = ?", e.groupBuyId()).stream().findFirst().orElse(null);
-        if (g == null || !"RECRUITING".equals(g.get("status"))) {
+        QtyState g = store.qtyState(e.groupBuyId()).orElse(null);
+        if (g == null || g.status() != GroupBuyStatus.RECRUITING) {
             return;
         }
-        long groupRemaining = ((Number) g.get("remaining")).longValue();
+        long groupRemaining = g.remaining();
         Long skuRemaining = null;
         boolean skuMain = true;
         if (e.skuId() != null) {
-            Map<String, Object> s = jdbc.queryForList("SELECT kind, max_qty, current_qty, reserved_qty, on_sale FROM group_buy_skus WHERE id = ? AND group_buy_id = ?",
-                    e.skuId(), e.groupBuyId()).stream().findFirst().orElse(null);
-            if (s == null || !Boolean.TRUE.equals(s.get("on_sale"))) {
+            SkuState s = store.skuState(e.skuId(), e.groupBuyId()).orElse(null);
+            if (s == null || !s.onSale()) {
                 return;
             }
-            skuMain = "MAIN".equals(s.get("kind"));
-            skuRemaining = s.get("max_qty") == null ? Long.MAX_VALUE
-                    : ((Number) s.get("max_qty")).longValue() - ((Number) s.get("current_qty")).longValue() - ((Number) s.get("reserved_qty")).longValue();
+            skuMain = s.kind() == SkuKind.MAIN;
+            skuRemaining = s.maxQty() == null ? Long.MAX_VALUE : (long) s.maxQty() - s.currentQty() - s.reservedQty();
         }
-        Timestamp now = Timestamp.from(now());
-        Timestamp before = Timestamp.from(now().minus(RESTOCK_INTERVAL));
+        Instant now = now();
+        Instant before = now.minus(RESTOCK_INTERVAL);
         Set<Long> users = new LinkedHashSet<>();
         if (e.skuId() != null && skuRemaining > 0 && (!skuMain || groupRemaining > 0)) {
-            users.addAll(jdbc.queryForList("UPDATE group_buy_watches SET last_notified_at = ? WHERE group_buy_id = ? AND kind = 'RESTOCK' AND sku_id = ? "
-                    + "AND (last_notified_at IS NULL OR last_notified_at <= ?) RETURNING user_id", Long.class, now, e.groupBuyId(), e.skuId(), before));
+            users.addAll(store.claimRestockWatchers(e.groupBuyId(), e.skuId(), now, before));
         }
         if (groupRemaining > 0 && (skuRemaining == null || skuRemaining > 0 || !skuMain)) {
-            users.addAll(jdbc.queryForList("UPDATE group_buy_watches SET last_notified_at = ? WHERE group_buy_id = ? AND kind = 'RESTOCK' AND sku_id IS NULL "
-                    + "AND (last_notified_at IS NULL OR last_notified_at <= ?) RETURNING user_id", Long.class, now, e.groupBuyId(), before));
+            users.addAll(store.claimRestockWatchers(e.groupBuyId(), null, now, before));
         }
-        String title = (String) g.get("title");
+        String title = g.title();
         for (long user : users) {
             members.groupBuy(user, Kind.RESTOCK.name(), e.groupBuyId(), title, 0, null, groupBuyPath(e.groupBuyId()), true);
         }
@@ -190,8 +194,7 @@ public class GroupBuyNotifications {
     public void on(GroupBuyEvents.Extended e) {
         String title = title(e.groupBuyId());
         String until = MINUTE.format(e.until().atZone(ServiceTime.ZONE));
-        for (long user : jdbc.queryForList("SELECT DISTINCT user_id FROM group_buy_watches WHERE group_buy_id = ? AND kind IN ('CLOSING_SOON', 'RESTOCK')", Long.class,
-                e.groupBuyId())) {
+        for (long user : store.watchers(e.groupBuyId(), List.of(WatchKind.CLOSING_SOON, WatchKind.RESTOCK))) {
             members.groupBuy(user, Kind.EXTENDED.name(), e.groupBuyId(), title, 0, until, groupBuyPath(e.groupBuyId()), true);
         }
     }
@@ -213,15 +216,10 @@ public class GroupBuyNotifications {
     public int closingSoon(Duration within) {
         Instant now = now();
         int sent = 0;
-        List<Map<String, Object>> rows = jdbc.queryForList("UPDATE group_buy_watches w SET last_notified_at = ? FROM group_buys g WHERE g.id = w.group_buy_id "
-                        + "AND w.kind = 'CLOSING_SOON' AND w.last_notified_at IS NULL AND g.status = 'RECRUITING' AND COALESCE(g.extended_until, g.end_at) <= ? "
-                        + "AND COALESCE(g.extended_until, g.end_at) > ? RETURNING w.user_id, g.id AS group_buy_id, COALESCE(g.extended_until, g.end_at) AS deadline",
-                Timestamp.from(now), Timestamp.from(now.plus(within)), Timestamp.from(now));
-        for (Map<String, Object> row : rows) {
-            long groupBuyId = ((Number) row.get("group_buy_id")).longValue();
-            Instant deadline = ((Timestamp) row.get("deadline")).toInstant();
-            members.groupBuy(((Number) row.get("user_id")).longValue(), Kind.CLOSING_SOON.name(), groupBuyId, title(groupBuyId), 0,
-                    MINUTE.format(deadline.atZone(ServiceTime.ZONE)), groupBuyPath(groupBuyId), true);
+        for (ClosingSoonRow row : store.claimClosingSoon(now, now.plus(within))) {
+            long groupBuyId = row.groupBuyId();
+            members.groupBuy(row.userId(), Kind.CLOSING_SOON.name(), groupBuyId, title(groupBuyId), 0, MINUTE.format(row.deadline().atZone(ServiceTime.ZONE)),
+                    groupBuyPath(groupBuyId), true);
             sent++;
         }
         return sent;
@@ -242,10 +240,8 @@ public class GroupBuyNotifications {
             return;
         }
         String title = title(e.groupBuyId());
-        for (Map<String, Object> o : jdbc.queryForList("SELECT DISTINCT ON (user_id) user_id, order_no FROM group_buy_participations WHERE group_buy_id = ? "
-                + "AND status IN ('PENDING_PAYMENT', 'JOINED', 'CONFIRMED', 'PREPARING', 'SHIPPED') ORDER BY user_id, created_at DESC", e.groupBuyId())) {
-            String orderNo = (String) o.get("order_no");
-            members.groupBuy(((Number) o.get("user_id")).longValue(), kind.name(), e.groupBuyId(), title, 0, orderNo, "/me/orders/" + orderNo, false);
+        for (UserOrder o : store.latestInProgressOrderPerUser(e.groupBuyId())) {
+            members.groupBuy(o.userId(), kind.name(), e.groupBuyId(), title, 0, o.orderNo(), "/me/orders/" + o.orderNo(), false);
         }
         if (kind == Kind.GROUP_CANCELED) {
             operators.publish(AdminNotificationEvent.COMMERCE_GROUPBUY_CANCELED, NotificationContext.empty().dedupe(Long.toString(e.groupBuyId()))
@@ -258,7 +254,7 @@ public class GroupBuyNotifications {
     public void on(GroupBuyEvents.DelayAnnounced e) {
         String date = e.newPlannedAt().toString();
         String title = title(e.groupBuyId());
-        for (Order o : orders("SELECT " + ORDER_COLUMNS + ORDER_FROM + " WHERE pa.group_buy_id = ? AND pa.status IN ('JOINED', 'CONFIRMED', 'PREPARING')", e.groupBuyId())) {
+        for (Order o : store.ordersOfGroup(e.groupBuyId(), PAID_BEFORE_SHIPPING).stream().map(GroupBuyNotifications::order).toList()) {
             members.groupBuy(o.userId(), Kind.DELAY.name(), o.groupBuyId(), title, o.amount(), date, orderPath(o), false);
             outbox.enqueue(new OutboxMail("GB_DELAY:" + o.id() + ":" + date, o.userId(), RequiredMail.GROUP_BUY_ORDER_NOTICE,
                     noticeVariables(o, text(new MessageRef("member.notification.GROUP_BUY.kind.DELAY", amount(o.amount()), date)))));
@@ -317,16 +313,16 @@ public class GroupBuyNotifications {
 
     // ── 안 ──────────────────────────────────────────────────────────────────
 
-    private static final String ORDER_COLUMNS = "pa.id, pa.order_no, pa.group_buy_id, pa.user_id, pa.amount, pa.shipping_fee, COALESCE(NULLIF(g.title, ''), p.name), pa.status";
-    private static final String ORDER_FROM = " FROM group_buy_participations pa JOIN group_buys g ON g.id = pa.group_buy_id JOIN group_buy_products p ON p.id = g.product_id";
+    /** 발송 지연 공지 대상 — 공지 전에 결제한 발송 전 주문 */
+    private static final Set<ParticipationStatus> PAID_BEFORE_SHIPPING = java.util.EnumSet.of(ParticipationStatus.JOINED, ParticipationStatus.CONFIRMED,
+            ParticipationStatus.PREPARING);
 
     private Optional<Order> order(long participationId) {
-        return orders("SELECT " + ORDER_COLUMNS + ORDER_FROM + " WHERE pa.id = ?", participationId).stream().findFirst();
+        return store.order(participationId).map(GroupBuyNotifications::order);
     }
 
-    private List<Order> orders(String sql, Object... args) {
-        return jdbc.query(sql, (rs, i) -> new Order(rs.getLong(1), rs.getString(2), rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6),
-                titleOf(rs.getString(7)), rs.getString(8)), args);
+    private static Order order(OrderRow r) {
+        return new Order(r.id(), r.orderNo(), r.groupBuyId(), r.userId(), r.amount(), r.shippingFee(), titleOf(r.title()), r.status().name());
     }
 
     /** 공구 제목 = 공구 이름(없으면 상품 이름) */
@@ -354,8 +350,7 @@ public class GroupBuyNotifications {
     }
 
     private String title(long groupBuyId) {
-        return jdbc.query("SELECT COALESCE(NULLIF(g.title, ''), p.name) FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.id = ?",
-                (rs, i) -> rs.getString(1), groupBuyId).stream().findFirst().orElse("");
+        return store.title(groupBuyId);
     }
 
     private static String titleOf(String name) {
@@ -366,8 +361,7 @@ public class GroupBuyNotifications {
     }
 
     private Optional<RefundRow> refund(long refundId) {
-        return jdbc.query("SELECT participation_id, amount, method FROM group_buy_refunds WHERE id = ?", (rs, i) -> new RefundRow(rs.getLong(1), rs.getLong(2),
-                rs.getString(3)), refundId).stream().findFirst();
+        return store.refund(refundId).map(r -> new RefundRow(r.participationId(), r.amount(), r.method()));
     }
 
     private void anomaly(Order o) {
@@ -400,25 +394,23 @@ public class GroupBuyNotifications {
 
     /** 계약 내용 통지의 변수(결정 57) — 주문 줄·금액·판매 조건·발송·청약철회 제한·판매자 */
     Map<String, Object> contractVariables(Order o) {
-        Map<String, Object> g = jdbc.queryForMap("SELECT g.start_at, g.end_at, g.max_qty, g.max_qty_per_user, g.round_no, g.min_qty, g.fulfillment, g.ship_planned_at, "
-                + "g.ship_within_business_days, p.withdrawal_restriction FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.id = ?", o.groupBuyId());
-        List<String> lines = jdbc.query("SELECT s.name, i.qty FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id WHERE i.participation_id = ? "
-                + "ORDER BY s.kind DESC, s.sort_order, i.id", (rs, i) -> rs.getString(1) + " × " + rs.getInt(2), o.id());
+        Terms g = store.terms(o.groupBuyId()).orElseThrow(() -> new EmptyResultDataAccessException(1));
+        List<String> lines = store.itemLines(o.id());
         Map<String, Object> v = new LinkedHashMap<>();
         v.put("orderNo", o.orderNo());
         v.put("groupBuyTitle", o.title());
         v.put("items", String.join(", ", lines));
         v.put("amount", amount(o.amount()));
         v.put("shippingFee", amount(o.shippingFee()));
-        Object perUser = g.get("max_qty_per_user");
-        int minQty = ((Number) g.get("min_qty")).intValue();
-        v.put("saleTerms", text(new MessageRef("groupbuy.mail.terms", day(g.get("start_at")), day(g.get("end_at")), g.get("max_qty"),
-                perUser == null ? text(new MessageRef("groupbuy.mail.terms.noLimit")) : text(new MessageRef("groupbuy.mail.terms.perUser", perUser)), g.get("round_no"),
+        Integer perUser = g.maxQtyPerUser();
+        int minQty = g.minQty();
+        v.put("saleTerms", text(new MessageRef("groupbuy.mail.terms", day(g.startAt()), day(g.endAt()), g.maxQty(),
+                perUser == null ? text(new MessageRef("groupbuy.mail.terms.noLimit")) : text(new MessageRef("groupbuy.mail.terms.perUser", perUser)), g.roundNo(),
                 minQty > 0 ? text(new MessageRef("groupbuy.mail.terms.threshold", minQty)) : text(new MessageRef("groupbuy.mail.terms.firstCome")))));
-        v.put("shipPlan", g.get("ship_planned_at") != null ? text(new MessageRef("groupbuy.mail.shipPlanned", g.get("ship_planned_at").toString()))
-                : text(new MessageRef("groupbuy.mail.shipWithin", g.get("ship_within_business_days"))));
-        Object restriction = g.get("withdrawal_restriction");
-        v.put("withdrawal", restriction == null || restriction.toString().isBlank() ? text(new MessageRef("groupbuy.mail.none")) : restriction.toString());
+        v.put("shipPlan", g.shipPlannedAt() != null ? text(new MessageRef("groupbuy.mail.shipPlanned", g.shipPlannedAt().toString()))
+                : text(new MessageRef("groupbuy.mail.shipWithin", g.shipWithinBusinessDays())));
+        String restriction = g.withdrawalRestriction();
+        v.put("withdrawal", restriction == null || restriction.isBlank() ? text(new MessageRef("groupbuy.mail.none")) : restriction);
         BusinessInfo b = sales.businessInfo();
         v.put("seller", String.join(" · ", List.of(b.companyName(), b.representative(), b.businessNo(), b.mailOrderNo(), b.address(), b.phone(), b.email()).stream()
                 .filter(s -> s != null && !s.isBlank()).toList()));
@@ -426,8 +418,8 @@ public class GroupBuyNotifications {
         return v;
     }
 
-    private static String day(Object timestamp) {
-        return timestamp instanceof Timestamp t ? LocalDate.ofInstant(t.toInstant(), ServiceTime.ZONE).toString() : "";
+    private static String day(Instant at) {
+        return at != null ? LocalDate.ofInstant(at, ServiceTime.ZONE).toString() : "";
     }
 
     private String text(MessageRef ref) {
@@ -440,7 +432,7 @@ public class GroupBuyNotifications {
 
     /** 메일 링크 — 사이트 안 경로(대기열 발송기가 사이트 공개 주소를 앞에 붙이지 않으므로 경로 그대로 두되, 사이트 주소를 알면 절대 주소) */
     private String siteLink(String path) {
-        String base = jdbc.query("SELECT public_url FROM site_settings WHERE id = 1", (rs, i) -> rs.getString(1)).stream().findFirst().orElse(null);
+        String base = store.sitePublicUrl();
         return base == null || base.isBlank() ? path : base.replaceAll("/+$", "") + path;
     }
 

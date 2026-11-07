@@ -21,7 +21,7 @@
                         <template v-for="(part, i) in metaParts" :key="part">
                             <span v-if="i > 0" aria-hidden="true">·</span>
                             <span v-if="part === 'board'" class="font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
-                            <PostAuthorLabel v-else-if="part === 'author'" :author="row.author" />
+                            <PostAuthorLabel v-else-if="part === 'author'" :author="row.author" avatar />
                             <span v-else-if="part === 'likes'">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                             <span v-else-if="part === 'comments'">{{ t('home.commentCount', { n: row.commentCount }) }}</span>
                             <PostListDate v-else-if="part === 'time'" :iso="row.createdAt" :mode="display.dateDisplay" />
@@ -53,7 +53,7 @@
                             <template v-for="(part, i) in metaParts" :key="part">
                                 <span v-if="i > 0" aria-hidden="true">·</span>
                                 <span v-if="part === 'board'" class="shrink-0 font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
-                                <PostAuthorLabel v-else-if="part === 'author'" :author="row.author" />
+                                <PostAuthorLabel v-else-if="part === 'author'" :author="row.author" :avatar="rowStyle !== 'COMPACT'" />
                                 <span v-else-if="part === 'likes'" class="shrink-0">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                                 <PostListDate v-else-if="part === 'time'" :iso="row.createdAt" :mode="display.dateDisplay" class="shrink-0" />
                             </template>

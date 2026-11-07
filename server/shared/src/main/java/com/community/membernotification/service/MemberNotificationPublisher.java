@@ -382,6 +382,35 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 아바타 올리기 심사 결과(V157 — commerce-motion-avatar-contract) — 신청한 회원에게 {@code AVATAR_UPLOAD_REVIEWED}(끌 수 없는 처리 알림). 본인의 취소·지우기에는 부르지 않는다.
+     *
+     * @param result {@code APPROVED} · {@code REJECTED} · {@code REVOKED}
+     * @param reason 반려·해제 사유(운영자가 적은 문구 그대로), 승인이면 null
+     */
+    public int avatarUploadReviewed(long userId, long requestId, String result, String reason) {
+        return isolated.run("member-notification:avatar-upload", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.AVATAR_UPLOAD_REVIEWED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("result", result);
+                payload.put("reason", reason);
+                payload.put("requestId", Long.toString(requestId));
+                writer.insert(ids.nextId(), userId, MemberNotificationType.AVATAR_UPLOAD_REVIEWED.name(), null, null, null, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.avatarUploadReviewed(result, reason), null, null, "/settings/avatar-upload");
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 의견 고정 요청이 왔다 — 확인할 수 있는 회원(글쓴이·게시판 매니저)에게 {@code OPINION_PIN_REQUESTED}. 요청한 회원 자신에게는 보내지 않는다.
      *
      * @param postTitle 글 제목(메일 문구)

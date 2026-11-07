@@ -26,7 +26,9 @@ public enum RequiredMail {
     GROUP_BUY_ORDER_NOTICE(MessageAudience.MEMBER, false),
     // 회원 탈퇴(docs/features/member-withdrawal-contract.md): 완료 안내(익명화 전 주소로 — 남긴 항목·기간·고객센터·재가입 가능일) · 진행 상태(신청 뒤 10일이 지나도 남은 일이 있을 때)
     MEMBER_WITHDRAWAL_COMPLETED(MessageAudience.MEMBER, false),
-    MEMBER_WITHDRAWAL_PROGRESS(MessageAudience.MEMBER, false);
+    MEMBER_WITHDRAWAL_PROGRESS(MessageAudience.MEMBER, false),
+    // 약관 변경(terms-operator-contract): 회원에게 불리한 변경으로 게시한 이용약관·개인정보처리방침·운영정책 — 시행일·변경 요지·링크. 계정·법적 알림이라 회원이 끌 수 없다(메일 대기열)
+    MEMBER_TERMS_CHANGE(MessageAudience.MEMBER, false);
 
     private final MessageAudience audience;
     private final boolean security;

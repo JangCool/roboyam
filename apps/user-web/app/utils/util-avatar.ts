@@ -15,6 +15,9 @@ export default class UtilAvatar {
     /** 무료 카테고리(서버 `AvatarCatalog` 의 판정과 같다) — 품목 행이 없다 */
     static readonly FREE_CATEGORIES: readonly string[] = ['basic', 'hobby'];
 
+    /** 승인된 「내가 올린 아바타」의 카탈로그 ID(서버 카테고리 `upload` 한 줄 — 고르기 `PUT /api/me/profile/avatar { avatarId }`) */
+    static readonly UPLOAD_ID = 'upload-mine';
+
     /**
      * 카테고리 이름의 문구 키 — 카탈로그 이름에는 「(남/여)」 꼬리표가 있어 화면은 쓰지 않는다
      * @param {string} id - 카테고리 ID(`basic`·`arts-driver` …).
@@ -46,11 +49,11 @@ export default class UtilAvatar {
     }
 
     /**
-     * 상점 아바타 탭에 보일 것 — 유료만(판매 중단이어도 보유 중이면 보인다, 아니면 「판매 중단」으로 흐리게)
+     * 상점 아바타 탭에 보일 것 — 파는 유료만(판매 중단이어도 보유 중이면 보인다, 아니면 「판매 중단」으로 흐리게). 품목이 없는 내가 올린 아바타는 빠진다
      * @param {AvatarItem[]} items - 카탈로그 줄.
      * @returns {AvatarItem[]} 유료 줄.
      */
     static forShop(items: AvatarItem[]): AvatarItem[] {
-        return items.filter((item) => !item.free);
+        return items.filter((item) => !item.free && item.itemId !== null);
     }
 }

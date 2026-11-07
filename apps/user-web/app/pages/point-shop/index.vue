@@ -48,17 +48,18 @@
                             :aria-labelledby="`${uid}-picked`"
                             data-testid="pointshop-avatar-preview"
                         >
-                            <ProfileBorderAvatar :initial="initial" :src="picked.url" :alt="picked.name" size="xl" surface="card" :border-style="mine?.profileBorder ?? null" />
+                            <ProfileBorderAvatar :initial="initial" :src="picked.url" :still-src="picked.stillUrl ?? null" :alt="picked.name" size="xl" surface="card" :border-style="mine?.profileBorder ?? null" />
                             <div class="min-w-0 flex-1">
                                 <h2 :id="`${uid}-picked`" class="m-0 text-base font-bold">{{ picked.name }}</h2>
                                 <p class="m-0 mt-0.5 text-xs text-muted-color">{{ t(UtilAvatar.categoryKey(picked.category)) }}</p>
                                 <div class="mt-2 flex items-center gap-2 text-xs text-muted-color">
-                                    <ProfileBorderAvatar :initial="initial" :src="picked.url" size="xs" surface="card" :border-style="mine?.profileBorder ?? null" />
+                                    <ProfileBorderAvatar :initial="initial" :src="picked.url" :still-src="picked.stillUrl ?? null" size="xs" surface="card" :border-style="mine?.profileBorder ?? null" />
                                     <PostAuthorLabel :author="previewAuthor" preview strong class="text-sm" />
                                 </div>
                                 <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                     <span class="mr-1 text-lg font-bold tabular-nums text-primary">{{ UtilPoint.points(picked.price ?? 0) }}</span>
                                     <PointShopTag>{{ t('pointShop.usagePermanent') }}</PointShopTag>
+                                    <PointShopTag v-if="picked.animated" tone="primary">{{ t('avatar.motionBadge') }}</PointShopTag>
                                     <PointShopTag v-if="picked.selected" tone="primary">{{ t('avatar.inUse') }}</PointShopTag>
                                     <PointShopTag v-else-if="picked.owned" tone="success">{{ t('pointShop.owned') }}</PointShopTag>
                                     <PointShopTag v-else-if="!picked.forSale">{{ t('avatar.notForSale') }}</PointShopTag>
@@ -85,6 +86,10 @@
                                 />
                                 <p v-if="!picked.owned && !picked.forSale" class="m-0 text-xs text-muted-color">{{ t('avatar.notForSaleText') }}</p>
                             </div>
+                            <!-- 움직이는 아바타 — 하나만 규칙(움직이는 닉네임 그림과 함께 쓰지 못한다)을 사기 전에 알린다 -->
+                            <p v-if="picked.animated" class="m-0 w-full rounded-lg bg-surface-100 px-3 py-2 text-xs leading-relaxed text-muted-color dark:bg-surface-800/60" data-testid="pointshop-avatar-motion-note">
+                                <i class="pi pi-info-circle mr-1 text-[0.6875rem]" aria-hidden="true" />{{ t('avatar.motionShopNote') }}
+                            </p>
                         </section>
                         <p v-else class="m-0 text-sm text-muted-color">{{ t('avatar.shopPickHint') }}</p>
 
@@ -138,7 +143,7 @@
             @buy="purchaseAvatar"
         >
             <template #preview>
-                <ProfileBorderAvatar :initial="initial" :src="picked.url" size="md" surface="card" :border-style="mine?.profileBorder ?? null" />
+                <ProfileBorderAvatar :initial="initial" :src="picked.url" :still-src="picked.stillUrl ?? null" size="md" surface="card" :border-style="mine?.profileBorder ?? null" />
             </template>
         </PointShopPurchaseDialog>
     </div>
@@ -176,7 +181,6 @@ const router = useRouter();
 const api = usePointShopApi();
 const avatarApi = useAvatarApi();
 const toast = useAppToast();
-const { confirm } = useConfirmDialog();
 const time = useDisplayTime();
 const { user } = useAuth();
 const { localizedName } = useLocalizedName();
@@ -268,7 +272,8 @@ const shopCells = computed<AvatarGridCell[]>(() =>
         .filter((a) => a.category === avatarCategory.value)
         .map((a) => {
             const caption = a.selected ? t('avatar.inUse') : a.owned ? t('pointShop.owned') : !a.forSale ? t('avatar.notForSale') : UtilPoint.points(a.price ?? 0);
-            return { id: a.id, name: a.name, url: a.url, active: a.id === pickedId.value, caption, dim: !a.owned && !a.forSale, ariaLabel: `${a.name} · ${caption}` };
+            const name = a.animated ? t('avatar.motionAria', { name: a.name }) : a.name;
+            return { id: a.id, name: a.name, url: a.url, stillUrl: a.stillUrl ?? null, animated: a.animated, active: a.id === pickedId.value, caption, dim: !a.owned && !a.forSale, ariaLabel: `${name} · ${caption}` };
         }),
 );
 
@@ -301,16 +306,18 @@ async function purchaseAvatar() {
     toast.show(t('pointShop.bought', { name: avatar.name }), { tone: 'success', life: 6000, action: { label: t('avatar.useNow'), run: () => void useAvatar(avatar) } });
 }
 
-/** 「바로 프로필로 쓰기」 — 환불할 수 있는 것(안 썼고 기한 안)은 고르면 환불할 수 없어 한 번 묻는다 */
+/** 「바로 프로필로 쓰기」 — 환불할 수 있는 것(안 썼고 기한 안: 고르면 환불 불가)·움직이는 닉네임 그림과 겹치는 움직이는 아바타(하나만)는 한 번 묻는다(`useAvatarChoice`) */
 const selecting = ref(false);
+const avatarChoice = useAvatarChoice();
 async function useAvatar(avatar: AvatarItem) {
     if (selecting.value) return;
-    const refundable = catalog.value?.items.find((a) => a.id === avatar.id)?.refundable ?? avatar.refundable;
-    if (refundable && !(await confirm({ title: t('avatar.useConfirmTitle'), message: t('avatar.useConfirmText'), confirmLabel: t('avatar.useNow') }))) return;
+    const latest = catalog.value?.items.find((a) => a.id === avatar.id) ?? avatar;
+    const motionInUse = Boolean(catalog.value?.items.find((a) => a.selected)?.animated);
+    if (!(await avatarChoice.confirmChoose(latest, motionInUse))) return;
     selecting.value = true;
     try {
         const profile = await avatarApi.select({ avatarId: avatar.id });
-        decoration.applyAvatar(profile.avatarUrl);
+        decoration.applyAvatar(profile.avatarUrl, profile.avatarStillUrl ?? null);
         toast.success(t('avatar.saved'));
         await load(true);
     } catch (e) {

@@ -1,5 +1,14 @@
 package com.community.notification.repository.master;
 
+import com.community.notification.entity.NotificationEventChannelEntity;
+import com.community.notification.entity.NotificationEventTeamEntity;
+import com.community.notification.entity.QNotificationEventChannelEntity;
+import com.community.notification.entity.QNotificationEventEntity;
+import com.community.notification.entity.QNotificationEventTeamEntity;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -12,79 +21,113 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 이벤트별 전달 도구(Slack · Mattermost)와 추가 수신 팀 — V41 의 {@code notification_event_channels}·{@code notification_event_teams}.
+ * 이벤트별 전달 도구(Slack · Mattermost)와 추가 수신 팀 — V41 의 {@code notification_event_channels}·{@code notification_event_teams}. <b>부르는 서비스가 트랜잭션을 연다.</b>
+ * 관리 화면의 읽기·통째로 바꾸기·수 세기는 연결 엔티티({@link NotificationEventChannelEntity}·{@link NotificationEventTeamEntity})와 QueryDSL 이다 —
+ * 쓰기 전에 이벤트 행을 먼저 내보낸다(부르는 쪽이 flush, 외래 키).
  *
- * <p>Native SQL(JDBC)인 이유: 이 표들은 (이벤트, 도구/팀) 짝만 든 얇은 연결 표라 엔티티를 두지 않고, 발행기({@code NotificationPublisher})가 업무 트랜잭션의
- * JDBC 세이브포인트 안에서 같은 방식으로 읽는다. 업무 트랜잭션(JPA)의 같은 연결에 참여하므로 <b>부르는 서비스가 트랜잭션을 열고</b>, 쓰기 전에 이벤트 행을 먼저 내보낸다(flush).
+ * <p>Native SQL(JDBC)로 남긴 것:
+ * <ul>
+ *   <li>{@link #builtinEnabled}·{@link #enabledChannelIdsOf}·{@link #enabledTeamMemberIdsOf} — 발행기({@code NotificationPublisher})가 업무 트랜잭션의 <b>JDBC 세이브포인트 안에서</b>
+ *       부른다. 거기서 JPA 질의가 실패하면 업무 트랜잭션 전체가 롤백 전용이 된다(2026-11-07 실측 — {@code NotificationPublishReads} 와 같은 까닭).</li>
+ *   <li>{@link #restoreDefaultRecipientsWithoutTeams} — 되돌린 이벤트 코드가 그 UPDATE 의 결과({@code RETURNING})여야 한다.</li>
+ * </ul>
  */
 @Repository
-public class NotificationDeliveryRepository {
+public class NotificationDeliveryRepository extends RoboyamRepositoryQDSL {
 
+    private static final QNotificationEventChannelEntity EC = QNotificationEventChannelEntity.notificationEventChannelEntity;
+    private static final QNotificationEventTeamEntity ET = QNotificationEventTeamEntity.notificationEventTeamEntity;
+    private static final QNotificationEventEntity EVENT = QNotificationEventEntity.notificationEventEntity;
+
+    private final NotificationEventChannelRepository channels;
+    private final NotificationEventTeamRepository teams;
     private final JdbcTemplate jdbc;
 
-    public NotificationDeliveryRepository(DataSource dataSource) {
+    public NotificationDeliveryRepository(JPAQueryFactory query, NotificationEventChannelRepository channels, NotificationEventTeamRepository teams,
+                                          DataSource dataSource) {
+        super(query);
+        this.channels = channels;
+        this.teams = teams;
         this.jdbc = new JdbcTemplate(dataSource);
     }
 
     /** 이벤트마다 고른 Slack·Mattermost 도구 id (도구 만든 순서) */
     public Map<String, List<Long>> channelIdsByEvent() {
-        return group("select event_code, channel_id from notification_event_channels order by event_code, channel_id");
+        Map<String, List<Long>> out = new LinkedHashMap<>();
+        for (Tuple t : query.select(EC.eventCode, EC.channelId).from(EC).orderBy(EC.eventCode.asc(), EC.channelId.asc()).fetch()) {
+            out.computeIfAbsent(t.get(EC.eventCode), key -> new ArrayList<>()).add(t.get(EC.channelId));
+        }
+        return out;
     }
 
     /** 이벤트마다 고른 추가 수신 팀 id */
     public Map<String, List<Long>> teamIdsByEvent() {
-        return group("select event_code, team_id from notification_event_teams order by event_code, team_id");
+        Map<String, List<Long>> out = new LinkedHashMap<>();
+        for (Tuple t : query.select(ET.eventCode, ET.teamId).from(ET).orderBy(ET.eventCode.asc(), ET.teamId.asc()).fetch()) {
+            out.computeIfAbsent(t.get(ET.eventCode), key -> new ArrayList<>()).add(t.get(ET.teamId));
+        }
+        return out;
     }
 
     public List<Long> channelIdsOf(String eventCode) {
-        return jdbc.queryForList("select channel_id from notification_event_channels where event_code = ? order by channel_id", Long.class, eventCode);
+        return query.select(EC.channelId).from(EC).where(EC.eventCode.eq(eventCode)).orderBy(EC.channelId.asc()).fetch();
     }
 
     public List<Long> teamIdsOf(String eventCode) {
-        return jdbc.queryForList("select team_id from notification_event_teams where event_code = ? order by team_id", Long.class, eventCode);
+        return query.select(ET.teamId).from(ET).where(ET.eventCode.eq(eventCode)).orderBy(ET.teamId.asc()).fetch();
     }
 
-    /** 이벤트의 도구 선택을 통째로 바꾼다 */
+    /** 이벤트의 도구 선택을 통째로 바꾼다(지우기는 바로, 넣기는 다음 질의나 커밋 때) */
     public void replaceChannels(String eventCode, Collection<Long> channelIds) {
-        jdbc.update("delete from notification_event_channels where event_code = ?", eventCode);
-        insertAll("insert into notification_event_channels (event_code, channel_id) values (?, ?)", eventCode, channelIds);
+        query.delete(EC).where(EC.eventCode.eq(eventCode)).execute();
+        for (Long id : new LinkedHashSet<>(channelIds)) {
+            channels.persist(NotificationEventChannelEntity.of(eventCode, id));
+        }
     }
 
-    /** 이벤트의 추가 수신 팀 선택을 통째로 바꾼다 */
+    /** 이벤트의 추가 수신 팀 선택을 통째로 바꾼다(지우기는 바로, 넣기는 다음 질의나 커밋 때) */
     public void replaceTeams(String eventCode, Collection<Long> teamIds) {
-        jdbc.update("delete from notification_event_teams where event_code = ?", eventCode);
-        insertAll("insert into notification_event_teams (event_code, team_id) values (?, ?)", eventCode, teamIds);
+        query.delete(ET).where(ET.eventCode.eq(eventCode)).execute();
+        for (Long id : new LinkedHashSet<>(teamIds)) {
+            teams.persist(NotificationEventTeamEntity.of(eventCode, id));
+        }
     }
 
     /** 도구마다 그 도구를 고른 이벤트 수 */
     public Map<Long, Integer> eventCountByChannel() {
-        return count("select channel_id, count(*) from notification_event_channels group by channel_id");
+        Map<Long, Integer> out = new LinkedHashMap<>();
+        for (Tuple t : query.select(EC.channelId, EC.count()).from(EC).groupBy(EC.channelId).fetch()) {
+            out.put(t.get(EC.channelId), Math.toIntExact(t.get(EC.count())));
+        }
+        return out;
     }
 
     /** 팀마다 그 팀을 고른 이벤트 수 */
     public Map<Long, Integer> eventCountByTeam() {
-        return count("select team_id, count(*) from notification_event_teams group by team_id");
+        Map<Long, Integer> out = new LinkedHashMap<>();
+        for (Tuple t : query.select(ET.teamId, ET.count()).from(ET).groupBy(ET.teamId).fetch()) {
+            out.put(t.get(ET.teamId), Math.toIntExact(t.get(ET.count())));
+        }
+        return out;
     }
 
     /** 이메일 전달을 켜 둔 이벤트 수 */
     public int emailEventCount() {
-        Integer count = jdbc.queryForObject("select count(*) from notification_events where email_enabled", Integer.class);
-        return count == null ? 0 : count;
+        return eventCount(EVENT.emailEnabled.isTrue());
     }
 
     /** 브라우저 알림 전달을 켜 둔 이벤트 수 */
     public int browserEventCount() {
-        Integer count = jdbc.queryForObject("select count(*) from notification_events where browser_enabled", Integer.class);
-        return count == null ? 0 : count;
+        return eventCount(EVENT.browserEnabled.isTrue());
     }
 
-    /** 이 이벤트에 고른 도구 중 지금 <b>켜져 있는</b> 것 — 발행할 때 Slack·Mattermost 로 한 번 게시할 곳 */
+    /** 이 이벤트에 고른 도구 중 지금 <b>켜져 있는</b> 것 — 발행할 때 Slack·Mattermost 로 한 번 게시할 곳(세이브포인트 안 — JDBC) */
     public List<Long> enabledChannelIdsOf(String eventCode) {
         return jdbc.queryForList("select c.id from notification_event_channels ec join notification_channels c on c.id = ec.channel_id "
                 + "where ec.event_code = ? and c.enabled order by c.id", Long.class, eventCode);
     }
 
-    /** 이 이벤트에 고른 팀 중 <b>사용 중인</b> 팀의 팀원 운영자 id (중복 없이). 운영자의 활성 여부·보는 권한은 부르는 쪽이 거른다 */
+    /** 이 이벤트에 고른 팀 중 <b>사용 중인</b> 팀의 팀원 운영자 id (중복 없이). 운영자의 활성 여부·보는 권한은 부르는 쪽이 거른다(세이브포인트 안 — JDBC) */
     public Set<Long> enabledTeamMemberIdsOf(String eventCode) {
         return new LinkedHashSet<>(jdbc.queryForList("select distinct tm.operator_id from notification_event_teams et "
                 + "join teams t on t.id = et.team_id and t.enabled join team_members tm on tm.team_id = t.id where et.event_code = ? order by tm.operator_id",
@@ -102,36 +145,14 @@ public class NotificationDeliveryRepository {
                 + "and not exists (select 1 from notification_event_teams et where et.event_code = e.code) returning e.code", String.class);
     }
 
-    /** 기본 제공 도구(이메일 · 브라우저)가 켜져 있는가. 상태 행이 없으면 켜진 것이다 */
+    /** 기본 제공 도구(이메일 · 브라우저)가 켜져 있는가. 상태 행이 없으면 켜진 것이다(발행기가 세이브포인트 안에서도 부른다 — JDBC) */
     public boolean builtinEnabled(String channelKey) {
         List<Boolean> rows = jdbc.queryForList("select enabled from notification_builtin_channels where channel_key = ?", Boolean.class, channelKey);
         return rows.isEmpty() || Boolean.TRUE.equals(rows.get(0));
     }
 
-    private void insertAll(String sql, String eventCode, Collection<Long> ids) {
-        if (ids.isEmpty()) {
-            return;
-        }
-        List<Object[]> rows = new ArrayList<>();
-        for (Long id : new LinkedHashSet<>(ids)) {
-            rows.add(new Object[] {eventCode, id});
-        }
-        jdbc.batchUpdate(sql, rows);
-    }
-
-    private Map<String, List<Long>> group(String sql) {
-        Map<String, List<Long>> out = new LinkedHashMap<>();
-        jdbc.query(sql, rs -> {
-            out.computeIfAbsent(rs.getString(1), key -> new ArrayList<>()).add(rs.getLong(2));
-        });
-        return out;
-    }
-
-    private Map<Long, Integer> count(String sql) {
-        Map<Long, Integer> out = new LinkedHashMap<>();
-        jdbc.query(sql, rs -> {
-            out.put(rs.getLong(1), rs.getInt(2));
-        });
-        return out;
+    private int eventCount(BooleanExpression where) {
+        Long n = query.select(EVENT.count()).from(EVENT).where(where).fetchOne();
+        return n == null ? 0 : Math.toIntExact(n);
     }
 }

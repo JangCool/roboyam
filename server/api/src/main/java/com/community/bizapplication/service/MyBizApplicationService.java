@@ -73,20 +73,24 @@ public class MyBizApplicationService {
 
     // ── 상품·남은 칸·링크 ──────────────────────────────────────────────────
 
+    /** {@code accepting} = 요금표 받기 그리고 운영 주체가 돈을 받을 수 있는 단계(사용자 결정 2026-11-07 — 아니면 신청 409 {@code BIZ_PRODUCT_CLOSED}) */
     public List<BizMemberView.AdProduct> adProducts() {
+        boolean selling = members.operatorCanSell();
         return members.adProducts().stream().map(p -> new BizMemberView.AdProduct(p.rule().product().publicName(), p.rule().unitPrice(), p.rule().maxDays(),
-                p.rule().maxLeadDays(), p.rule().capacity() == null ? 0 : p.rule().capacity(), p.openDays(), p.rule().accepting())).toList();
+                p.rule().maxLeadDays(), p.rule().capacity() == null ? 0 : p.rule().capacity(), p.openDays(), p.rule().accepting() && selling)).toList();
     }
 
     public BizMemberView.DealProduct dealProduct() {
         Map<BizProduct, PriceRule> all = members.priceRules();
+        boolean selling = members.operatorCanSell();
         List<BizMemberView.DealPlacement> placements = List.of(BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY).stream().map(all::get)
-                .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays(), r.accepting()))
+                .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays(),
+                        r.accepting() && selling))
                 .toList();
         PriceRule post = all.get(BizProduct.HOTDEAL_POST);
         List<BizMemberView.DealBoard> boards = dealForm.boards().stream().map(b -> new BizMemberView.DealBoard(Long.toString(b.id()), b.slug(), b.name(),
                 b.prefixes().stream().map(x -> new BizMemberView.Prefix(Long.toString(x.id()), x.name())).toList())).toList();
-        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), placements, boards);
+        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting() && selling, placements, boards);
     }
 
     public List<BizMemberView.AvailabilityDay> availability(String slot, String from, String to) {

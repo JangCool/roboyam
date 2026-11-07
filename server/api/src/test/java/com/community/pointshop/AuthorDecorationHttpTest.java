@@ -32,21 +32,20 @@ class AuthorDecorationHttpTest extends PointShopApiTestBase {
     void board() {
         board = ids.nextId();
         slug = "d" + Long.toString(board, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 900)", board, slug, "장식 " + slug.substring(slug.length() - 6));
+        boardFixture.board(board, slug, "장식 " + slug.substring(slug.length() - 6), 900);
         boards.invalidate();
     }
 
     private long post(Long authorId, String guestName) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, guest_name, guest_password_hash, title, content) VALUES (?, ?, ?, ?, ?, '장식 시험', '본문')", id, board,
-                authorId, guestName, guestName == null ? null : "x");
+        boardFixture.post(id, board, authorId, guestName, guestName == null ? null : "x", "장식 시험", "본문");
         return id;
     }
 
     private long comment(long postId, Long authorId, String guestName) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, guest_name, guest_password_hash, content) VALUES (?, ?, ?, ?, ?, ?, '댓글')", id, postId, board,
-                authorId, guestName, guestName == null ? null : "x");
+        boardFixture.comment(id, postId, board, authorId, guestName, guestName == null ? null : "x", "댓글");
+        // SQL 로 남김: 글 카운터 칸 — 엔티티 메서드가 없다(운영은 PostCounterQueries)
         jdbc.update("UPDATE posts SET comment_count = comment_count + 1 WHERE id = ?", postId);
         return id;
     }
@@ -130,5 +129,33 @@ class AuthorDecorationHttpTest extends PointShopApiTestBase {
                 .andExpect(jsonPath("$.data.author.avatarUrl").value(url(AvatarCatalog.DEFAULT_ID)));
         mvc.perform(get("/api/posts/" + postId + "/comments")).andExpect(jsonPath("$.data.threads[0].author.decoration").isEmpty());
         mvc.perform(get("/api/users/" + writer + "/profile")).andExpect(jsonPath("$.data.decoration").isEmpty());
+    }
+
+    @Test
+    void 움직이는_아바타는_글_보기_목록_댓글_공개_프로필에_정지_그림이_같이_나가고_정지_아바타_비회원은_null() throws Exception {
+        long writer = member();
+        grant(writer, 5_000);
+        buy(writer, avatarItem("motion-robot-scan"));
+        mvc.perform(as(writer, put("/api/me/profile/avatar").contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"motion-robot-scan\"}")))
+                .andExpect(status().isOk());
+        String moving = "/avatars/motion/motion-robot-scan.svg";
+        String still = "/avatars/motion/motion-robot-scan-still.svg";
+        long postId = post(writer, null);
+        comment(postId, writer, null);
+        long plain = member();
+        long plainPost = post(plain, null);
+        long guestPost = post(null, "손님");
+
+        mvc.perform(get("/api/posts/" + postId)).andExpect(status().isOk()).andExpect(jsonPath("$.data.author.avatarUrl").value(moving))
+                .andExpect(jsonPath("$.data.author.avatarStillUrl").value(still));
+        mvc.perform(get("/api/boards/" + slug + "/posts")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id == '" + postId + "')].author.avatarStillUrl").value(still))
+                .andExpect(jsonPath("$.data.items[?(@.id == '" + plainPost + "')].author.avatarStillUrl").value(org.hamcrest.Matchers.contains((Object) null)));
+        mvc.perform(get("/api/posts/" + postId + "/comments")).andExpect(status().isOk()).andExpect(jsonPath("$.data.threads[0].author.avatarStillUrl").value(still));
+        mvc.perform(get("/api/users/" + writer + "/profile")).andExpect(status().isOk()).andExpect(jsonPath("$.data.avatarStillUrl").value(still));
+        mvc.perform(get("/api/posts/" + plainPost)).andExpect(jsonPath("$.data.author.avatarStillUrl").isEmpty());
+        mvc.perform(get("/api/posts/" + guestPost)).andExpect(jsonPath("$.data.author.avatarStillUrl").isEmpty());
+        mvc.perform(as(writer, get("/api/me/items"))).andExpect(jsonPath("$.data.items[0].animated").value(true))
+                .andExpect(jsonPath("$.data.items[0].avatarStillUrl").value(still)).andExpect(jsonPath("$.data.items[0].inUse").value(true));
     }
 }

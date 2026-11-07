@@ -10,14 +10,11 @@ import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -27,7 +24,7 @@ import org.springframework.stereotype.Repository;
  * <p><b>보이는 소모임 글</b>({@link #visible}): 지우지 않음({@link PostRepositoryQDSL#alive}) · 운영자·신고 숨김 중이 아님({@link PostRepositoryQDSL#notHidden}) ·
  * 작성자가 나가서 가린 글이 아님. 글 탭·글 수·새 글 수가 모두 이 조건이다.
  *
- * <p>일괄 처리는 native SQL — {@code group_left_at} 은 엔티티가 고치지 않는 칸이고, 한 사람·한 소모임의 글을 한 문장으로 바꾼다. 트랜잭션은 부르는 서비스의 것을 따른다
+ * <p>일괄 처리는 QueryDSL 대량 UPDATE — 한 사람·한 소모임의 글을 한 문장으로 바꾼다({@code group_left_at} 은 엔티티가 고치지 않는 칸이지만 대량 UPDATE 로는 바꾼다). 트랜잭션은 부르는 서비스의 것을 따른다
  * (소모임 행을 잠근 뒤 부른다 — 글쓰기·공개 전환과 줄을 선다).
  */
 @Repository
@@ -36,11 +33,8 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QGroupMemberEntity MEMBER = QGroupMemberEntity.groupMemberEntity;
 
-    private final JdbcTemplate jdbc;
-
-    public GroupPostQueries(JPAQueryFactory query, DataSource dataSource) {
+    public GroupPostQueries(JPAQueryFactory query) {
         super(query);
-        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     /** 글 탭의 한 줄 — 목록 칸 + 공개 전환 여부 */
@@ -153,18 +147,18 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
         return out;
     }
 
-    // ── 일괄 처리(native) ────────────────────────────────────────────────────
+    // ── 일괄 처리(QueryDSL 대량 UPDATE — 엔티티가 고치지 않는 group_left_at 도 대량 UPDATE 로는 바꿀 수 있다) ─────────
 
     /** 스스로 나갔다 — 그 소모임 안의 그 사람 글을 모두 가린다(공개 여부는 그대로). 가린 글 수 */
     public int hideForLeaver(long groupId, long authorId, Instant now) {
-        return jdbc.update("UPDATE posts SET group_left_at = ?, updated_at = ? WHERE group_id = ? AND author_id = ? AND group_left_at IS NULL",
-                Timestamp.from(now), Timestamp.from(now), groupId, authorId);
+        return rows(query.update(POST).set(POST.groupLeftAt, now).set(POST.updatedAt, now)
+                .where(POST.groupId.eq(groupId), POST.authorId.eq(authorId), POST.groupLeftAt.isNull()).execute());
     }
 
     /** 다시 가입했다 — 나가서 가린 글만 되살린다(운영자·신고 숨김은 칸이 달라 그대로 숨긴 채다). 되살린 글 수 */
     public int restoreForMember(long groupId, long authorId, Instant now) {
-        return jdbc.update("UPDATE posts SET group_left_at = NULL, updated_at = ? WHERE group_id = ? AND author_id = ? AND group_left_at IS NOT NULL",
-                Timestamp.from(now), groupId, authorId);
+        return rows(query.update(POST).setNull(POST.groupLeftAt).set(POST.updatedAt, now)
+                .where(POST.groupId.eq(groupId), POST.authorId.eq(authorId), POST.groupLeftAt.isNotNull()).execute());
     }
 
     // ── 공개 범위(5단계 — api-groups.md 11-1·11-4) ─────────────────────────────
@@ -174,14 +168,14 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
      * 바뀐 행 수
      */
     public int openAllExceptMembersOnly(long groupId, Instant now) {
-        return jdbc.update("UPDATE posts SET is_public = true, updated_at = ? WHERE group_id = ? AND NOT is_public AND members_only_at IS NULL",
-                Timestamp.from(now), groupId);
+        return rows(query.update(POST).set(POST.publicPost, true).set(POST.updatedAt, now)
+                .where(POST.groupId.eq(groupId), POST.publicPost.isFalse(), POST.membersOnlyAt.isNull()).execute());
     }
 
     /** 공개→비공개 일괄 닫기 — 모든 글을 유효 비공개로 하고 개별 공개 기록을 지운다(멤버 전용 기록은 잠재워 둔다). 바뀐 행 수 */
     public int closeAll(long groupId, Instant now) {
-        return jdbc.update("UPDATE posts SET is_public = false, public_granted_at = NULL, public_granted_by = NULL, updated_at = ? "
-                + "WHERE group_id = ? AND (is_public OR public_granted_at IS NOT NULL)", Timestamp.from(now), groupId);
+        return rows(query.update(POST).set(POST.publicPost, false).setNull(POST.publicGrantedAt).setNull(POST.publicGrantedBy).set(POST.updatedAt, now)
+                .where(POST.groupId.eq(groupId), POST.publicPost.isTrue().or(POST.publicGrantedAt.isNotNull())).execute());
     }
 
     /** 보이는 글 중 멤버 전용 기록이 없는 글 수 — 비공개→공개 뒤 비멤버에게 보이게 될 글(이미 개별 공개된 글도 공개 시각 이전 댓글이 열리므로 센다) */
@@ -244,7 +238,11 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
      * 일반 글 삭제({@code PostEntity#delete})와 같은 뜻이라 원문·투표·공개 요청 행은 그대로 두고(읽는 쪽이 지운 글을 거른다), 포인트는 회수하지 않는다. 지운 글 수
      */
     public int deleteOnDissolve(long groupId, Instant now) {
-        return jdbc.update("UPDATE posts SET deleted_at = ?, pinned_at = NULL, updated_at = ? WHERE group_id = ? AND deleted_at IS NULL",
-                Timestamp.from(now), Timestamp.from(now), groupId);
+        return rows(query.update(POST).set(POST.deletedAt, now).setNull(POST.pinnedAt).set(POST.updatedAt, now)
+                .where(POST.groupId.eq(groupId), POST.deletedAt.isNull()).execute());
+    }
+
+    private static int rows(long changed) {
+        return Math.toIntExact(changed);
     }
 }

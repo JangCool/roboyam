@@ -3,6 +3,7 @@ package com.community.menu.controller;
 import com.community.menu.dto.request.AdminMenuSaveRequest;
 import com.community.menu.dto.response.AdminMenuConfigResponse;
 import com.community.menu.service.AdminMenuService;
+import com.community.permission.annotation.AdminAuthenticated;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -27,6 +28,16 @@ public class AdminMenuController {
     @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping
     public ApiResponse<AdminMenuConfigResponse> get(AdminActor actor) {
+        return ApiResponse.success(service.get(actor));
+    }
+
+    /**
+     * 관리자 셸(사이드바·상단 메뉴·검색)이 그릴 메뉴 — 저장한 구성(없으면 레지스트리 기본 구성). 로그인한 운영자면 누구나 읽는다(권한 코드 없음 —
+     * 셸은 모든 운영자에게 뜨고, 항목마다 권한으로 거르는 일은 화면이 화면 레지스트리의 권한으로 한다. 막는 것은 각 화면의 API 다). 모양은 조회와 같다.
+     */
+    @AdminAuthenticated
+    @GetMapping("/shell")
+    public ApiResponse<AdminMenuConfigResponse> shell(AdminActor actor) {
         return ApiResponse.success(service.get(actor));
     }
 

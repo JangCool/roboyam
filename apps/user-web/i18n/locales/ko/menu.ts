@@ -14,7 +14,6 @@ export default {
 
     // 상태·단추
     errorTitle: '메뉴를 불러오지 못했어요',
-    fallbackNotice: '메뉴를 불러오지 못해 기본 메뉴를 보여 드려요',
     emptyTitle: '보여 드릴 메뉴가 없어요',
     emptyHome: '홈으로',
     tabsRetry: '메뉴 다시 불러오기',
@@ -23,8 +22,6 @@ export default {
 
     // 기본 메뉴(서버 메뉴를 못 받았을 때)의 고정 항목
     home: '홈',
-    myGroups: '내 {groups}',
-    allGroups: '전체 {groups}',
     descLabel: '메뉴 설명',
     descPopular: '실시간 · 어제 · 이번 주, 반응이 가장 좋은 글을 모아 봐요',
     descLatest: '모든 게시판의 새 글을 올라온 순서대로 봐요',

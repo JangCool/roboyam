@@ -1,5 +1,5 @@
 <template>
-    <!-- 메뉴 검색 — 이동할 수 있는 메뉴(`UtilAdminMenu.ITEMS` 의 화면 항목 — 묶음 아래 항목 포함, 묶음 제목 자체는 갈 곳이 없어 제외)만 찾는다. 모드(일반 메뉴·설정 메뉴)와 무관하게 모든 메뉴를 찾고, 고르면 이동하며 메뉴 모드는 주소를 따라 바뀐다(`useAppMenu`). 묶음이 없는 설정 메뉴 항목(일반)은 소속 자리에 "설정"을 보인다. 칸에 붙은 목록에서 고르면 그 화면으로 간다. Ctrl+K(맥은 ⌘K)로 어디서나 칸에 초점을 준다 -->
+    <!-- 메뉴 검색 — 이동할 수 있는 메뉴(DB 메뉴 구성 `useAdminMenuTree` 의 화면 항목 — 외부 링크는 새 탭 — 묶음 아래 항목 포함, 묶음 제목 자체는 갈 곳이 없어 제외)만 찾는다. 모드(일반 메뉴·설정 메뉴)와 무관하게 모든 메뉴를 찾고, 고르면 이동하며 메뉴 모드는 주소를 따라 바뀐다(`useAppMenu`). 묶음이 없는 설정 메뉴 항목(일반)은 소속 자리에 "설정"을 보인다. 칸에 붙은 목록에서 고르면 그 화면으로 간다. Ctrl+K(맥은 ⌘K)로 어디서나 칸에 초점을 준다 -->
     <div class="relative w-full min-w-0 max-w-md">
         <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-1 -translate-y-1/2 text-sm text-muted-color" aria-hidden="true" />
         <AutoComplete
@@ -43,6 +43,8 @@ interface SearchOption {
     label: string;
     icon?: string;
     to: string;
+    /** 외부 링크면 그 주소(새 탭) */
+    href?: string;
     /** 속한 묶음 이름(`배치와 로그`) — 같은 이름이 여러 곳일 때 어느 쪽인지 알리는 맥락. 낱개 항목이면 빈 글자 */
     group: string;
 }
@@ -54,6 +56,8 @@ const { t } = useI18n();
 const router = useRouter();
 const inputId = useId();
 const { can } = useAdminPermission();
+const { nodes: tree } = useAdminMenuTree();
+const { nameOf } = useAdminMenuName();
 
 const picked = ref<SearchOption | null>(null);
 const suggestions = ref<SearchOption[]>([]);
@@ -68,15 +72,15 @@ const shortcutLabel = computed(() => (/Mac|iPhone|iPad/.test(navigator.platform)
  * @returns {SearchOption[]} 이동할 수 있는 잎 항목들.
  */
 function leafOptions(item: AdminMenuItem, trail: string[]): SearchOption[] {
-    if (item.children) return item.children.flatMap((child) => leafOptions(child, [...trail, t(item.labelKey)]));
-    return [{ key: item.key, label: t(item.labelKey), icon: item.icon, to: item.to, group: trail.filter(Boolean).join(' › ') }];
+    if (item.children) return item.children.flatMap((child) => leafOptions(child, [...trail, nameOf(item)]));
+    return [{ key: item.key, label: nameOf(item), icon: item.icon, to: item.to, href: item.href, group: trail.filter(Boolean).join(' › ') }];
 }
 
 /** 지금 언어의 메뉴 이름으로 만든 검색 대상 — 언어가 바뀌면 다시 계산된다 */
 const options = computed<SearchOption[]>(() =>
-    UtilAdminMenu.visible(can).flatMap((node) =>
+    UtilAdminMenu.visible(can, undefined, tree.value).flatMap((node) =>
         UtilAdminMenu.isGroup(node)
-            ? node.items.flatMap((item) => leafOptions(item, [UtilAdminMenu.modeOf(node) === 'settings' ? t('shell.settings') : '', t(node.labelKey)]))
+            ? node.items.flatMap((item) => leafOptions(item, [UtilAdminMenu.modeOf(node) === 'settings' ? t('shell.settings') : '', nameOf(node)]))
             : leafOptions(node, [UtilAdminMenu.modeOf(node) === 'settings' ? t('shell.settings') : '']),
     ),
 );
@@ -87,7 +91,8 @@ function onComplete(event: { query: string }) {
 }
 
 async function onSelect(event: { value: SearchOption }) {
-    await router.push(event.value.to);
+    if (event.value.href) window.open(event.value.href, '_blank', 'noopener,noreferrer');
+    else await router.push(event.value.to);
     picked.value = null; // 칸을 비운다 — 다음에 다시 찾을 수 있게
     emit('done');
 }

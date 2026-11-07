@@ -181,6 +181,8 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.DM.title", null, null, List.of("actorName")), "/messages/123", List.of()));
         out.add(member(MemberEvent.NICKNAME_IMAGE_REVIEWED, List.of(MessageVariable.of("result", "nicknameImageResult"), MessageVariable.of("reason", "nicknameImageReason")),
                 new InAppText("member.notification.NICKNAME_IMAGE_REVIEWED.title", null, "{{reason}}", List.of("result")), "/settings/nickname-image", List.of()));
+        out.add(member(MemberEvent.AVATAR_UPLOAD_REVIEWED, List.of(MessageVariable.of("result", "avatarUploadResult"), MessageVariable.of("reason", "avatarUploadReason")),
+                new InAppText("member.notification.AVATAR_UPLOAD_REVIEWED.title", null, "{{reason}}", List.of("result")), "/settings/avatar-upload", List.of()));
         out.add(member(MemberEvent.OPINION_PIN_REQUESTED, List.of(MessageVariable.of("actorName", "pinRequester"), MessageVariable.of("postTitle", "postTitle"),
                         MessageVariable.of("excerpt", "opinionExcerpt")),
                 new InAppText("member.notification.OPINION_PIN_REQUESTED.title", null, "{{excerpt}}", List.of("actorName")), "/posts/123", List.of()));
@@ -369,6 +371,10 @@ public final class MessageTargetCatalog {
                 MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
         out.add(required(RequiredMail.MEMBER_WITHDRAWAL_PROGRESS, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("pendingSummary", "withdrawalPendingSummary"),
                 MessageVariable.of("expectedDate", "withdrawalExpectedDate"), MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
+        // 약관 변경(terms-operator-contract) — 불리한 변경으로 게시한 문서의 이름·시행일·변경 요지·보기 링크
+        out.add(required(RequiredMail.MEMBER_TERMS_CHANGE, List.of(MessageVariable.of("termsName", "termsChangeName"),
+                MessageVariable.of("effectiveDate", "termsChangeEffectiveDate"), MessageVariable.of("changeNote", "termsChangeNote"),
+                MessageVariable.requiredLink("termsLink", "termsChangeLink")), List.of()));
         return out;
     }
 

@@ -6,6 +6,7 @@ import com.community.commerce.sales.BusinessInfo;
 import com.community.commerce.sales.CommerceSalesService;
 import com.community.groupbuy.dto.request.GroupBuyAdminRequest;
 import com.community.groupbuy.dto.response.CommerceGroupBuySettingsView;
+import com.community.groupbuy.repository.master.CommerceGroupBuySettingsQueries;
 import com.community.groupbuy.repository.master.FulfillmentStore;
 import com.community.groupbuy.repository.master.ShippingPolicyStore;
 import com.community.payment.repository.master.PaymentAdminQueries;
@@ -13,7 +14,7 @@ import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
-import java.sql.Timestamp;
+import com.community.zconfiguration.time.ServiceTime;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,9 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -39,7 +38,7 @@ public class CommerceGroupBuySettingsFacade {
     /** 대시보드 「곧 만료될 선점」 창 */
     public static final Duration HOLD_SOON = Duration.ofMinutes(2);
 
-    private final JdbcTemplate jdbc;
+    private final CommerceGroupBuySettingsQueries queries;
     private final ShippingPolicyService policies;
     private final ShippingPolicyStore policyStore;
     private final FulfillmentService fulfillment;
@@ -51,11 +50,11 @@ public class CommerceGroupBuySettingsFacade {
     private final ObjectProvider<Clock> clocks;
     private final SiteHolidayService siteHolidays;
 
-    public CommerceGroupBuySettingsFacade(DataSource dataSource, ShippingPolicyService policies, ShippingPolicyStore policyStore, FulfillmentService fulfillment,
+    public CommerceGroupBuySettingsFacade(CommerceGroupBuySettingsQueries queries, ShippingPolicyService policies, ShippingPolicyStore policyStore, FulfillmentService fulfillment,
                                           FulfillmentStore fulfillmentStore, CommerceSalesService sales, GroupBuySettingsService settings,
                                           GroupBuyShipDeadlines shipDeadlines, PaymentAdminQueries payments, ObjectProvider<Clock> clocks,
                                           SiteHolidayService siteHolidays) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
         this.policies = policies;
         this.policyStore = policyStore;
         this.fulfillment = fulfillment;
@@ -98,9 +97,8 @@ public class CommerceGroupBuySettingsFacade {
     public CommerceGroupBuySettingsView.Carriers carriers() {
         List<CommerceGroupBuySettingsView.CarrierLine> items = fulfillment.carriers().stream().map(c -> new CommerceGroupBuySettingsView.CarrierLine(c.code(), c.name(),
                 c.trackingUrl(), c.enabled(), fulfillmentStore.carrierInUse(c.code()))).toList();
-        Map<String, Object> last = jdbc.queryForList("SELECT c.updated_at, o.operator_name FROM commerce_carriers c LEFT JOIN operators o ON o.id = c.updated_by "
-                + "WHERE c.updated_at IS NOT NULL ORDER BY c.updated_at DESC LIMIT 1").stream().findFirst().orElse(Map.of());
-        return new CommerceGroupBuySettingsView.Carriers(items, last.get("updated_at") instanceof Timestamp t ? t.toInstant() : null, (String) last.get("operator_name"));
+        CommerceGroupBuySettingsQueries.CarrierEdit last = queries.lastCarrierEdit().orElse(null);
+        return new CommerceGroupBuySettingsView.Carriers(items, last == null ? null : last.updatedAt(), last == null ? null : last.operatorName());
     }
 
     public CommerceGroupBuySettingsView.Carriers saveCarriers(AdminActor actor, GroupBuyAdminRequest.Carriers body) {
@@ -177,46 +175,27 @@ public class CommerceGroupBuySettingsFacade {
         boolean orders = actor.root() || actor.can(Permission.COMMERCE_ORDER_READ);
         boolean stock = actor.root() || actor.can(Permission.COMMERCE_PRODUCT_READ);
         boolean pay = actor.root() || actor.can(Permission.COMMERCE_PAYMENT_READ);
-        Long preparing = orders ? count("SELECT count(*) FROM group_buy_participations WHERE status = 'CONFIRMED'") : null;
+        Long preparing = orders ? queries.confirmedOrders() : null;
         CommerceGroupBuySettingsView.OpenRequests open = null;
         if (orders) {
+            // 기한 단계(GroupBuyBusinessDays.deadlineLevel — 3영업일 심각, 2영업일 경고)를 단계마다 시작 시각 경계로 DB 에서 센다(예전에는 열린 요청을 다 읽어 자바로 셌다)
             BusinessDayCalendar holidays = siteHolidays.calendar();
-            long total = 0;
-            long warn = 0;
-            long critical = 0;
-            for (Map<String, Object> r : jdbc.queryForList("SELECT type, created_at, received_at FROM group_buy_requests WHERE status IN ('REQUESTED', 'APPROVED', 'RECEIVED')")) {
-                total++;
-                Timestamp start = "CANCEL".equals(r.get("type")) ? (Timestamp) r.get("created_at") : (Timestamp) r.get("received_at");
-                if (start == null) {
-                    continue;
-                }
-                GroupBuyBusinessDays.Level level = GroupBuyBusinessDays.deadlineLevel(start.toInstant(), now, holidays);
-                if (level == GroupBuyBusinessDays.Level.CRITICAL) {
-                    critical++;
-                } else if (level == GroupBuyBusinessDays.Level.WARNING) {
-                    warn++;
-                }
-            }
+            LocalDate today = ServiceTime.dateOf(now);
+            long total = queries.openRequests();
+            long critical = queries.openRequestsStartedBefore(GroupBuyBusinessDays.elapsedCutoff(today, 3, holidays).atStartOfDay(ServiceTime.ZONE).toInstant());
+            long warn = queries.openRequestsStartedBefore(GroupBuyBusinessDays.elapsedCutoff(today, 2, holidays).atStartOfDay(ServiceTime.ZONE).toInstant()) - critical;
             open = new CommerceGroupBuySettingsView.OpenRequests(total, warn, critical);
         }
         Long anomalies = pay ? payments.openAnomalyCount() : null;
-        Long holds = orders ? count("SELECT count(*) FROM group_buy_participations WHERE status = 'PENDING_PAYMENT' AND reserved_until > ? AND reserved_until <= ?",
-                Timestamp.from(now), Timestamp.from(now.plus(HOLD_SOON))) : null;
-        Long lowStock = stock ? count("SELECT count(*) FROM group_buys WHERE status = 'RECRUITING' AND (max_qty - current_qty - reserved_qty <= 5 "
-                + "OR (max_qty - current_qty - reserved_qty) * 10 <= max_qty)") : null;
+        Long holds = orders ? queries.holdsEndingBy(now, now.plus(HOLD_SOON)) : null;
+        Long lowStock = stock ? queries.lowStockGroupBuys() : null;
         Long overdue = orders ? (long) shipDeadlines.overdue(now, 100_000).size() : null;
-        CommerceGroupBuySettingsView.DeliveryStale stale = orders ? new CommerceGroupBuySettingsView.DeliveryStale(count(
-                "SELECT count(*) FROM group_buy_participations WHERE status = 'SHIPPED' AND shipped_at < ?", Timestamp.from(now.minus(Duration.ofDays(DELIVERY_STALE_DAYS)))),
-                DELIVERY_STALE_DAYS) : null;
+        CommerceGroupBuySettingsView.DeliveryStale stale = orders ? new CommerceGroupBuySettingsView.DeliveryStale(
+                queries.shippedBefore(now.minus(Duration.ofDays(DELIVERY_STALE_DAYS))), DELIVERY_STALE_DAYS) : null;
         return new CommerceGroupBuySettingsView.Dashboard(preparing, open, anomalies, holds, lowStock, overdue, stale, now);
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
-
-    private long count(String sql, Object... args) {
-        Long n = jdbc.queryForObject(sql, Long.class, args);
-        return n == null ? 0 : n;
-    }
 
     private static CommerceGroupBuySettingsView.BusinessInfo view(BusinessInfo b) {
         return new CommerceGroupBuySettingsView.BusinessInfo(new CommerceGroupBuySettingsView.BusinessValues(b.companyName(), b.representative(), b.businessNo(),

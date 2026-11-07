@@ -1,5 +1,5 @@
 import type {
-    BusinessInfoValues,
+    BusinessInfoOwnValues,
     BusinessInfoView,
     CarrierList,
     CarrierSaveRequest,
@@ -22,7 +22,7 @@ import type {
  *  - `GET`·`PUT /api/admin/commerce/request-limits` → `RequestLimitsView`(실제 서버)
  *  - `GET  /api/admin/commerce/shipping-policies` · `POST`(새 줄) · `DELETE /{id}`(시작 전 줄만) → `ShippingPolicyList` · `409 SHIPPING_POLICY_CONFLICT`·`COMMERCE_SHIPPING_POLICY_STARTED` · 감사 `COMMERCE_SHIPPING_POLICY_*`
  *  - `GET`·`PUT /api/admin/commerce/carriers` → `CarrierList`(통째로 저장) · `409 COMMERCE_CARRIER_IN_USE`
- *  - `GET`·`PUT /api/admin/commerce/business-info` → `BusinessInfoView` · `400 fields.businessNo`(체크섬)
+ *  - `GET`·`PUT /api/admin/commerce/business-info` → `BusinessInfoView` · `PUT` 은 커머스 고유 칸(운영시간·배송/환불 안내)만 저장 — 겹치는 칸은 운영 주체 설정이 정본(받아도 버림) · `400 fields.values.<칸>`(글자 수)
  *  - `GET  /api/admin/commerce/sales` · `POST /sales/checklist/{key} {checked}` · `POST /sales {enabled, reason}` → `SalesSwitchView` · `409 COMMERCE_SALES_NOT_READY` · 감사 `COMMERCE_SALES_TOGGLE`
  *  - `GET`·`PUT /api/admin/commerce/group-buy-settings` → `GroupBuySettingsView` · `400 fields.values.<칸>`
  *
@@ -74,7 +74,8 @@ export function useCommerceSettingsApi() {
         businessInfo: (): Promise<BusinessInfoView> =>
             client.get<BusinessInfoView>(PATH.businessInfo()),
 
-        saveBusinessInfo: (values: BusinessInfoValues): Promise<BusinessInfoView> =>
+        /** 커머스 고유 칸만 보낸다 */
+        saveBusinessInfo: (values: BusinessInfoOwnValues): Promise<BusinessInfoView> =>
             client.put<BusinessInfoView>(PATH.businessInfo(), { values }),
 
         /** 판매 스위치·체크리스트 */

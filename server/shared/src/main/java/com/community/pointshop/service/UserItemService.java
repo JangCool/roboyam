@@ -77,14 +77,14 @@ public class UserItemService {
         boolean suspended = members.state(userId).map(PointShopMemberStore.MemberState::suspended).orElse(false);
         List<MyItemRow> rows = userItems.myItems(userId);
         Map<Long, RequestRow> requests = purchases.latestRequests(rows.stream().map(row -> row.item().purchaseId()).toList());
-        List<MyItemView> list = rows.stream().map(row -> view(row, requests.get(row.item().purchaseId()), suspended, refundDays, selectedAvatar, now)).toList();
+        List<MyItemView> list = rows.stream().map(row -> view(row, requests.get(row.item().purchaseId()), suspended, refundDays, selectedAvatar, now, avatars)).toList();
         return new MyItemListView(refundDays, suspended, list);
     }
 
     /**
      * 한 줄 — {@code refundable} 은 「지금 [환불]·[환불 신청]을 누를 수 있나」: 조건(안 씀 + 기한 안)에 더해 신청이 대기 중이 아니고, 정지 중이면 거절된 적이 없어야 한다.
      */
-    private static MyItemView view(MyItemRow row, RequestRow request, boolean suspended, int refundDays, String selectedAvatar, Instant now) {
+    private static MyItemView view(MyItemRow row, RequestRow request, boolean suspended, int refundDays, String selectedAvatar, Instant now, AvatarCatalog avatars) {
         UserItemRow item = row.item();
         boolean expired = item.expiredAt(now);
         boolean revoked = item.status() == UserItemStatus.REVOKED;
@@ -93,10 +93,12 @@ public class UserItemService {
         boolean pending = request != null && request.status() == PointShopRefundRequestStatus.PENDING;
         boolean rejectedWhileSuspended = suspended && request != null && request.status() == PointShopRefundRequestStatus.REJECTED;
         boolean refundable = !pending && !rejectedWhileSuspended
-                && PointShopRules.selfRefundable(row.purchaseStatus(), item.status(), item.firstUsedAt(), row.purchasedAt(), refundDays, now);
+                && PointShopRules.selfRefundable(row.purchaseStatus(), item.status(), item.firstUsedAt(), item.reservedAt(), row.purchasedAt(), refundDays, now);
+        AvatarCatalog.Avatar avatar = avatars.find(row.avatarId()).orElse(null);
+        String avatarUrl = row.avatarId() == null ? null : avatar != null ? avatar.url() : AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg";
         return new MyItemView(Long.toString(item.id()), Long.toString(item.itemId()), Long.toString(item.purchaseId()), row.kind(), item.usageType(), row.name(),
-                row.nameEn(), row.color(), row.borderStyle(), row.avatarId(), row.avatarId() == null ? null : AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg", inUse,
-                item.status(), expired, row.equippedSlot() != null && !expired && !revoked, item.startsAt(), item.expiresAt(), item.firstUsedAt(), row.purchasedAt(),
+                row.nameEn(), row.color(), row.borderStyle(), row.avatarId(), avatarUrl, avatar == null ? null : avatar.stillUrl(), avatar != null && avatar.animated(), inUse,
+                item.status(), item.reservedAt() != null, expired, row.equippedSlot() != null && !expired && !revoked, item.startsAt(), item.expiresAt(), item.firstUsedAt(), row.purchasedAt(),
                 row.pricePaid(), refundable, revoked ? null : PointShopRules.refundUntil(row.purchasedAt(), refundDays), PointShopPurchaseService.requestView(request));
     }
 

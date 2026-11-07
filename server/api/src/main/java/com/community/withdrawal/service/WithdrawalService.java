@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -108,7 +109,7 @@ public class WithdrawalService {
 
     // ── 화면 ─────────────────────────────────────────────────────────────────
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 잃는 것(예전 한 문장이던 묶음이 여러 문장이 됐다)·남은 일·사업자 정보를 같은 시점으로
     public WithdrawalView view(long userId) {
         WithdrawalQueries.Member member = requireMember(userId);
         Instant now = clock.instant();

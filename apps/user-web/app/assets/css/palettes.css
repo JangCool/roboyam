@@ -27,7 +27,16 @@
     html[data-palette]:not([data-color-scheme='dark']) .app-nav {
         --nav-bg: var(--topbar-bg, var(--card-bg));
         --nav-fg: var(--topbar-fg, var(--p-text-color));
+        /* 로고 그림도 로고 줄과 같은 짝(옅은 바 = 밝은 바탕용 · 진한 바 = 어두운 바탕용 — main.css 「로고 그림 고르기」) */
+        --nav-logo-light: var(--topbar-logo-light, block);
+        --nav-logo-dark: var(--topbar-logo-dark, none);
     }
+}
+
+/* 옅은 바 테마(살구 · 꿀 · 세이지 · 하늘 · 청록)는 데스크톱 주 색상 바(`.app-nav` — 기본 테마 상단 바)도 로고 줄 색이라 밝은 바탕용 로고 */
+html:is([data-palette='peach'], [data-palette='honey'], [data-palette='sage'], [data-palette='sky'], [data-palette='ocean']):not([data-color-scheme='dark']) {
+    --nav-logo-light: block;
+    --nav-logo-dark: none;
 }
 
 /*
@@ -198,6 +207,9 @@ html[data-palette='navy']:not([data-color-scheme='dark']) {
 html:is([data-palette='blue'], [data-palette='navy']):not([data-color-scheme='dark']) {
     --topbar-fg: #ffffff;
     --brand-color: #ffffff;
+    /* 진한 바 위 로고 그림은 어두운 바탕용(main.css 「로고 그림 고르기」) */
+    --topbar-logo-light: none;
+    --topbar-logo-dark: block;
 }
 html:is([data-palette='blue'], [data-palette='navy']):not([data-color-scheme='dark']) .site-topbar {
     --p-text-color: #ffffff;

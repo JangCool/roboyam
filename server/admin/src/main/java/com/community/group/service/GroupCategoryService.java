@@ -19,12 +19,12 @@ import com.community.group.exception.GroupCategoryNotEmptyException;
 import com.community.group.exception.GroupCategoryNotFoundException;
 import com.community.group.exception.GroupCategoryStaleException;
 import com.community.group.repository.master.GroupCategoryBoardRepository;
+import com.community.group.repository.master.GroupCategoryLockQueries;
 import com.community.group.repository.master.GroupCategoryRepository;
 import com.community.permission.dto.AdminActor;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -53,7 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       <b>새로 넣는</b> 게시판만 켜진 소모임 게시판이어야 한다(이미 이 분류에 있는 꺼진 게시판은 그대로 받는다) — 아니면 400 {@code fields.boardIds}.</li>
  *   <li>「다른 관리자가 먼저 고쳤어요」: 요청 {@code updatedAt} 보다 서버 값이 더 최근(밀리초 비교)이면 409 {@code GROUP_CATEGORY_STALE} — 잠금 안에서 비교한다.
  *       순서 바꾸기·삭제는 비교하지 않는다.</li>
- *   <li>동시성: 분류 표를 바꾸는 입구는 모두 {@link GroupCategoryLock} 하나로 줄을 세운다(분류를 고른 게시판 만들기 포함).</li>
+ *   <li>동시성: 분류 표를 바꾸는 입구는 모두 {@link GroupCategoryLockQueries} 하나로 줄을 세운다(분류를 고른 게시판 만들기 포함).</li>
  *   <li>감사 {@code GROUP_CATEGORY_CREATE|UPDATE|ORDER|DELETE}(대상 {@code GROUP_CATEGORY} = 분류 ID, 순서는 {@code order}). 바뀐 것이 없으면 남기지 않는다.</li>
  * </ul>
  */
@@ -70,17 +70,17 @@ public class GroupCategoryService {
     private final GroupCategoryViews views;
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
-    private final EntityManager entityManager;
+    private final GroupCategoryLockQueries categoryLock;
 
     public GroupCategoryService(GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, BoardRepository boards,
-                                GroupCategoryViews views, SnowflakeIdGenerator ids, AuditLogService audit, EntityManager entityManager) {
+                                GroupCategoryViews views, SnowflakeIdGenerator ids, AuditLogService audit, GroupCategoryLockQueries categoryLock) {
         this.categories = categories;
         this.assignments = assignments;
         this.boards = boards;
         this.views = views;
         this.ids = ids;
         this.audit = audit;
-        this.entityManager = entityManager;
+        this.categoryLock = categoryLock;
     }
 
     @Transactional(readOnly = true)
@@ -98,7 +98,7 @@ public class GroupCategoryService {
         });
         String name = GroupCategoryNames.normalize(raw);
         String key = GroupCategoryNames.key(name);
-        GroupCategoryLock.acquire(entityManager);
+        categoryLock.acquire();
         List<GroupCategoryEntity> all = categories.findAllByOrderBySortOrderAscIdAsc();
         if (all.stream().anyMatch(cat -> cat.getNameKey().equals(key))) {
             throw new GroupCategoryNameTakenException();
@@ -120,7 +120,7 @@ public class GroupCategoryService {
         if (id == null) {
             throw new GroupCategoryNotFoundException();
         }
-        GroupCategoryLock.acquire(entityManager);
+        categoryLock.acquire();
         GroupCategoryEntity cat = categories.findById(id).orElseThrow(GroupCategoryNotFoundException::new);
         if (request == null) {
             throw ValidationException.of("name", new MessageRef("group.category.name.required"));
@@ -247,7 +247,7 @@ public class GroupCategoryService {
 
     @Transactional
     public GroupCategoriesResponse order(AdminActor actor, GroupCategoryOrderRequest request) {
-        GroupCategoryLock.acquire(entityManager);
+        categoryLock.acquire();
         List<GroupCategoryEntity> all = categories.findAllByOrderBySortOrderAscIdAsc();
         Map<Long, GroupCategoryEntity> byId = new LinkedHashMap<>();
         all.forEach(cat -> byId.put(cat.getId(), cat));
@@ -287,7 +287,7 @@ public class GroupCategoryService {
         if (id == null) {
             throw new GroupCategoryNotFoundException();
         }
-        GroupCategoryLock.acquire(entityManager);
+        categoryLock.acquire();
         GroupCategoryEntity cat = categories.findById(id).orElseThrow(GroupCategoryNotFoundException::new);
         // 소모임(열림·비활성·대기)이 있는 분류는 못 지운다
         long groupCount = views.groupCount(id);
@@ -316,7 +316,7 @@ public class GroupCategoryService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public GroupCategoryEntity lockForNewBoard(long categoryId) {
-        GroupCategoryLock.acquire(entityManager);
+        categoryLock.acquire();
         return categories.findById(categoryId)
                 .orElseThrow(() -> ValidationException.of("groupCategoryId", new MessageRef("board.groupCategory.missing")));
     }

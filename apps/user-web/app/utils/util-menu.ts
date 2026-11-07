@@ -1,28 +1,23 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
-import type { SiteTerms } from '~/composables/site/useSiteTerms.types';
 import UtilBoard from '~/utils/util-board';
 import type { MenuBarScope, TopItemsPosition } from '~/utils/util-menu-position';
-import UtilSiteTerms from '~/utils/util-site-terms';
 
 /**
  * 메뉴 규칙 — 햄버거(모바일)·왼쪽/오른쪽 사이드 메뉴(세로)·상단 메뉴(가로)·모바일 상단 탭·`/boards` 모음이 **같은 트리·같은 판정**을 쓰도록 한 곳에 둔다.
  *
  * 트리의 출처는 서버(`GET /api/menu`)다. 서버가 보는 사람 기준으로 거르고 정렬까지 끝내 주므로 여기서는 다시 거르거나 정렬하지 않는다(`docs/api-menu.md` 5절).
- * 서버 메뉴를 못 받았을 때만 기본 규칙(홈·공동구매 + "게시판" 한 묶음(서버가 준 순서) + 소모임 고정 항목)으로 **같은 노드 모양**의 기본 메뉴를 만든다(`fallbackNodes`).
+ * 서버 메뉴를 못 받으면 화면 코드가 따로 만든 기본 메뉴를 그리지 않는다 — 안내와 다시 시도만 둔다(2026-11-07 사용자 결정: 보이는 규칙은 서버 한 곳에만).
  * 세로·가로는 이 트리를 어떤 모양으로 그리는지만 다르다(`AppMenuList` · `AppTopMenu`). 상태도 요청도 없다(상태는 `useMenu`·`useMenuItems`).
  */
-
-/** 지금 그릴 트리가 어디서 왔나 — `fallback` 이면 화면이 "기본 메뉴를 보여 드려요" 안내를 단다 */
-export type MenuSource = 'server' | 'fallback';
 
 /**
  * 메뉴 자리가 어떤 모양인가
  * - `loading` 받는 중(줄 모양 스켈레톤) · `ready` 서버 메뉴 · `empty` 서버가 빈 메뉴를 줬다 ·
- * - `fallback` 서버 메뉴는 못 받았고 게시판 목록으로 기본 메뉴를 그린다 · `error` 서버 메뉴도 게시판 목록도 못 받았다(고정 항목·소모임만 그리고 다시 시도를 둔다)
+ * - `error` 서버 메뉴를 못 받았다(메뉴 줄 대신 안내 + 다시 시도)
  */
-export type MenuViewState = 'loading' | 'ready' | 'empty' | 'fallback' | 'error';
+export type MenuViewState = 'loading' | 'ready' | 'empty' | 'error';
 
 /** 메뉴 서버 요청의 진행 — `idle` 아직 안 물어봄 · `loading` 첫 응답 전 · `ready` 받았다 · `error` 못 받았고 가진 메뉴도 없다 */
 export type MenuPhase = 'idle' | 'loading' | 'ready' | 'error';
@@ -114,12 +109,6 @@ export interface MenuSplit {
     bar: MenuNode[];
     /** 사이드 메뉴 */
     side: MenuNode[];
-}
-
-/** 서버 메뉴가 없을 때 만드는 기본 메뉴 */
-export interface FallbackMenu {
-    nodes: MenuNode[];
-    mobileTabs: string[];
 }
 
 /** 글쓰기의 게시판 고르기 목록의 묶음 하나 — 제목(메뉴 그룹 이름)과 그 아래 게시판들 */
@@ -373,26 +362,6 @@ export default class UtilMenu {
      */
     static onAllGroups(path: string): boolean {
         return (path === '/groups' || path.startsWith('/groups/')) && !UtilMenu.onMyGroups(path);
-    }
-
-    /**
-     * 메뉴의 "내 소모임" 이름 — 소모임 이름(`GROUPS`) 앞에 "내"
-     * @param {Translate} t - 번역 함수.
-     * @param {Partial<SiteTerms> | null} [terms] - 운영자가 바꾼 서비스 이름 표. 없으면 기본 이름.
-     * @returns {string} 예: "내 소모임"(영어는 "My Clubs").
-     */
-    static myGroupsLabel(t: Translate, terms: Partial<SiteTerms> | null = null): string {
-        return t('menu.myGroups', { groups: UtilSiteTerms.term(t, 'GROUPS', terms) });
-    }
-
-    /**
-     * 메뉴의 "전체 소모임" 이름 — 소모임 이름(`GROUPS`) 앞에 "전체"
-     * @param {Translate} t - 번역 함수.
-     * @param {Partial<SiteTerms> | null} [terms] - 운영자가 바꾼 서비스 이름 표. 없으면 기본 이름.
-     * @returns {string} 예: "전체 소모임"(영어는 "All Clubs").
-     */
-    static allGroupsLabel(t: Translate, terms: Partial<SiteTerms> | null = null): string {
-        return t('menu.allGroups', { groups: UtilSiteTerms.term(t, 'GROUPS', terms) });
     }
 
     /**
@@ -769,82 +738,15 @@ export default class UtilMenu {
     }
 
     /**
-     * 서버 메뉴를 못 받았을 때의 기본 메뉴 — 같은 노드 모양으로 만든다.
-     * 홈·공동구매(고정) → "게시판" 한 묶음(서버가 준 순서 — 게시판은 성격으로 나누지 않는다) → 소모임 구역.
-     * 소모임은 서버 게시판 설정과 무관한 고정 항목이라 게시판 목록을 못 받아도 있고, "내 소모임"은 로그인했을 때만 있다.
-     * 모바일 탭은 홈뿐이다(어느 게시판을 탭에 올릴지는 운영자가 메뉴 구성에서 정하는 일이라 기본 메뉴는 게시판을 탭으로 올리지 않는다). **"보이는 대상"을 몰라 등급·운영진 전용으로 정한 항목이 보일 수 있다**(게시판 주소의 원래 규칙은 그대로 적용된다 — 메뉴 숨김은 접근 통제가 아니다).
-     * 노드 ID 는 `fb-` 로 시작해 서버 ID 와 섞이지 않는다.
-     * @param {Translate} t - 번역 함수(홈·소모임 묶음·게시판 묶음 이름).
-     * @param {readonly BoardView[]} boards - 게시판 목록(`useBoards`). 못 받았으면 빈 배열.
-     * @param {boolean} loggedIn - 로그인했는가.
-     * @param {Partial<SiteTerms> | null} [terms] - 서비스 이름 표 — 공동구매·소모임 글자. 없으면 기본 이름.
-     * @returns {FallbackMenu} 노드 트리와 모바일 탭 ID.
-     */
-    static fallbackNodes(t: Translate, boards: readonly BoardView[], loggedIn: boolean, terms: Partial<SiteTerms> | null = null): FallbackMenu {
-        const builtin = (id: string, key: string, label: string, path: string, matchPrefix: boolean, mobileTab: boolean): MenuItemNode => ({
-            id,
-            kind: 'ITEM',
-            type: 'BUILTIN',
-            key,
-            label,
-            path,
-            matchPrefix,
-            newTab: false,
-            mobileTab,
-            board: null,
-        });
-        const groupItems: MenuItemNode[] = [];
-        if (loggedIn) groupItems.push(builtin('fb-groups-mine', 'GROUPS_MINE', UtilMenu.myGroupsLabel(t, terms), '/groups/me', false, false));
-        groupItems.push(builtin('fb-groups-all', 'GROUPS_ALL', UtilMenu.allGroupsLabel(t, terms), '/groups', true, false));
-        const groupsNode: MenuGroupNode = { id: 'fb-groups', kind: 'GROUP', label: UtilSiteTerms.term(t, 'GROUPS', terms), collapsible: false, collapsed: false, children: groupItems };
-
-        const nodes: MenuNode[] = [
-            builtin('fb-home', 'HOME', t('menu.home'), '/', false, true),
-            builtin('fb-group-buys', 'GROUP_BUYS', UtilSiteTerms.term(t, 'GROUP_BUY', terms), '/group-buys', true, false),
-        ];
-        const mobileTabs: string[] = ['fb-home'];
-        const bundle = UtilBoard.bundleBoards(t, boards);
-        if (bundle) {
-            nodes.push({
-                id: 'fb-boards',
-                kind: 'GROUP',
-                label: bundle.label,
-                collapsible: false,
-                collapsed: false,
-                children: bundle.boards.map<MenuItemNode>((b) => ({
-                    id: `fb-board-${b.id}`,
-                    kind: 'ITEM',
-                    type: 'BOARD',
-                    key: null,
-                    label: b.name,
-                    nameEn: b.nameEn ?? null,
-                    path: `/boards/${b.slug}`,
-                    matchPrefix: true,
-                    newTab: false,
-                    mobileTab: false,
-                    board: { id: b.id, slug: b.slug, color: UtilBoard.presetColor(b.color), investmentNotice: b.investmentNotice },
-                })),
-            });
-        }
-        nodes.push(groupsNode);
-        return { nodes, mobileTabs };
-    }
-
-    /**
-     * 메뉴 자리의 모양을 정한다 — 서버 메뉴가 있으면 그것(비었으면 `empty`), 없으면 기본 메뉴(`fallback`)나 오류.
-     * 서버 메뉴의 줄·점(`color`)은 메뉴 응답만으로 그려지므로 서버 메뉴가 있으면 게시판 목록을 기다리지 않는다.
-     * 기본 메뉴는 게시판 목록으로 만들므로, 서버 메뉴가 없을 때 게시판 목록이 아직 오는 중이면 메뉴도 받는 중으로 둔다.
+     * 메뉴 자리의 모양을 정한다 — 서버 메뉴가 있으면 그것(비었으면 `empty`), 받는 중이면 `loading`, 못 받았으면 `error`.
      * @param {MenuPhase} phase - 서버 메뉴 요청의 진행.
      * @param {number | null} nodeCount - 서버 메뉴의 최상위 노드 수. 받은 메뉴가 없으면 null.
-     * @param {boolean} boardsPending - 게시판 목록이 아직 오는 중인가(받은 적도 실패한 적도 없다).
-     * @param {boolean} boardsFailed - 게시판 목록도 못 받았나.
      * @returns {MenuViewState} 메뉴 자리의 모양.
      */
-    static viewState(phase: MenuPhase, nodeCount: number | null, boardsPending: boolean, boardsFailed: boolean): MenuViewState {
+    static viewState(phase: MenuPhase, nodeCount: number | null): MenuViewState {
         if (nodeCount !== null) return nodeCount === 0 ? 'empty' : 'ready';
         if (phase === 'idle' || phase === 'loading') return 'loading';
-        if (boardsPending) return 'loading';
-        return boardsFailed ? 'error' : 'fallback';
+        return 'error';
     }
 
     /**

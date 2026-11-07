@@ -10,7 +10,8 @@ import java.time.Instant;
 
 /**
  * 배치 실행 로그 한 줄 — V10__batches.sql 의 {@code batch_runs}(+ V20 {@code source}, V40 {@code notified_at}, V61 실행 방식·파라미터·건수·이어 받기·체크포인트·요청).
- * <b>읽기 전용 매핑</b>이다 — 줄을 넣고 고치는 것은 Java 배치의 실행 기록기({@code com.community.batch.core.BatchRunRecorder}, JDBC)와 DB 배치 프로시저({@code batch_run_begin/close})다.
+ * Java 배치의 줄은 실행 기록기({@code com.community.batch.core.BatchRunRecorder})가 {@link #start} 로 넣고(바로 내보낸다 — 실행 중·예약 시각 유일 색인 위반이 그 자리에서 난다)
+ * 조건부 UPDATE(QueryDSL — {@code status = 'RUNNING'} 일 때만)로 닫는다. DB 배치의 줄은 프로시저({@code batch_run_begin/close})가 쓴다. 칸을 엔티티로 고치지 않는다.
  * 결과 요약은 문구 키 + 인자(JSON 배열)이고, 실패 사유({@code errorMessage})는 기록하는 쪽이 민감값을 가려 넣는다.
  */
 @Entity
@@ -84,6 +85,26 @@ public class BatchRunEntity {
     private Long requestId;
 
     protected BatchRunEntity() {
+    }
+
+    /** Java 배치 실행 시작 줄(RUNNING) — 끝·건수·요약은 끝낼 때 조건부 UPDATE 로 */
+    public static BatchRunEntity start(long id, String jobKey, BatchTriggerType triggerType, Instant scheduledAt, Instant startedAt, Long operatorId, int nodeId,
+                                       BatchRunMode runMode, String params, Long resumedFromRunId, Long requestId) {
+        BatchRunEntity run = new BatchRunEntity();
+        run.id = id;
+        run.jobKey = jobKey;
+        run.status = BatchRunStatus.RUNNING;
+        run.triggerType = triggerType;
+        run.scheduledAt = scheduledAt;
+        run.startedAt = startedAt;
+        run.operatorId = operatorId;
+        run.nodeId = nodeId;
+        run.source = BatchSource.JAVA;
+        run.runMode = runMode;
+        run.params = params;
+        run.resumedFromRunId = resumedFromRunId;
+        run.requestId = requestId;
+        return run;
     }
 
     public Long getId() {

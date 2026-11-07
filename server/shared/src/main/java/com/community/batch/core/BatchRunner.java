@@ -103,8 +103,8 @@ public class BatchRunner {
         this.recorder = recorder;
         this.failures = failures;
         this.registry = registry;
-        this.requiresNew = BatchJdbc.requiresNew(transactions);
-        this.readOnly = BatchJdbc.readOnly(transactions);
+        this.requiresNew = BatchTransactions.requiresNew(transactions);
+        this.readOnly = BatchTransactions.readOnly(transactions);
     }
 
     /** 예약 시각({@code slot})이 된 배치를 돌린다. 꺼져 있거나 다른 서버가 먼저 맡았으면 아무것도 남기지 않는다 */

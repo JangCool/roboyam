@@ -14,24 +14,37 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * 아바타 카탈로그(결정 14, 계약 「1-2 서버 계획」) — 서버 자원 {@code avatars/manifest.json} 328종(무료 22 · 유료 306), 유료 ID 집합 = V86 이 시드한 아바타 품목,
- * 두 앱 {@code public/avatars/roboyam/*.svg} 이름 집합 = 카탈로그.
+ * 아바타 카탈로그(결정 14, 계약 「1-2 서버 계획」 · commerce-motion-avatar-contract) — 서버 자원 {@code avatars/manifest.json} 336종(정지 328 = 무료 22 · 유료 306 +
+ * 움직이는 아바타 8), 유료 ID 집합 = V86·V157 이 시드한 아바타 품목, 두 앱 {@code public/avatars/roboyam/*.svg} 이름 집합 = 정지 카탈로그 328,
+ * 두 앱 {@code public/avatars/motion/} 의 그림·정지 그림 = 움직이는 8종.
  */
 class AvatarCatalogTest extends PointShopTestBase {
 
     private static final AvatarCatalog CATALOG = new AvatarCatalog();
 
     @Test
-    void 카탈로그는_328종_무료_22_basic_hobby_유료_306_카테고리_14() {
-        assertThat(CATALOG.all()).hasSize(328);
-        assertThat(CATALOG.paid()).hasSize(306);
+    void 카탈로그는_336종_정지_328_무료_22_basic_hobby_유료_306_움직이는_8_카테고리_15() {
+        assertThat(CATALOG.all()).hasSize(336);
+        assertThat(CATALOG.all().stream().filter(a -> !a.animated())).hasSize(328);
+        assertThat(CATALOG.paid()).hasSize(314);
         assertThat(CATALOG.all().stream().filter(AvatarCatalog.Avatar::free).map(AvatarCatalog.Avatar::category).collect(Collectors.toSet()))
                 .containsExactlyInAnyOrder("basic", "hobby");
-        assertThat(CATALOG.categories()).hasSize(14);
+        assertThat(CATALOG.categories()).hasSize(15);
         assertThat(CATALOG.categories().get(0).id()).isEqualTo("basic");
-        assertThat(CATALOG.categories().stream().mapToInt(AvatarCatalog.Category::count).sum()).isEqualTo(328);
+        assertThat(CATALOG.categories().get(2).id()).as("움직이는 아바타는 무료 다음 첫 칩").isEqualTo("motion");
+        assertThat(CATALOG.categories().get(2).animated()).isTrue();
+        assertThat(CATALOG.categories().stream().filter(AvatarCatalog.Category::animated)).hasSize(1);
+        assertThat(CATALOG.categories().stream().mapToInt(AvatarCatalog.Category::count).sum()).isEqualTo(336);
         assertThat(CATALOG.find(AvatarCatalog.DEFAULT_ID)).isPresent();
         assertThat(CATALOG.find("job-doctor-m").orElseThrow().url()).isEqualTo("/avatars/roboyam/job-doctor-m.svg");
+        assertThat(CATALOG.find("job-doctor-m").orElseThrow().stillUrl()).as("정지 아바타는 정지 그림이 없다").isNull();
+        AvatarCatalog.Avatar motion = CATALOG.find("motion-robot-blink").orElseThrow();
+        assertThat(motion.animated()).isTrue();
+        assertThat(motion.free()).isFalse();
+        assertThat(motion.url()).isEqualTo("/avatars/motion/motion-robot-blink.svg");
+        assertThat(motion.stillUrl()).isEqualTo("/avatars/motion/motion-robot-blink-still.svg");
+        assertThat(CATALOG.all().stream().filter(AvatarCatalog.Avatar::animated).map(AvatarCatalog.Avatar::category)).containsOnly("motion").hasSize(8);
+        assertThat(CATALOG.find(AvatarCatalog.UPLOAD_ID)).as("내가 올린 아바타 자리는 카탈로그 밖").isEmpty();
     }
 
     @Test
@@ -43,7 +56,7 @@ class AvatarCatalogTest extends PointShopTestBase {
     }
 
     @Test
-    void 유료_ID_집합은_V86_이_시드한_아바타_품목과_같다_코드_종류_사용_방식_순서() {
+    void 유료_ID_집합은_V86_V157_이_시드한_아바타_품목과_같다_코드_종류_사용_방식_순서() {
         List<Map<String, Object>> rows = kit.jdbc.queryForList("SELECT code, avatar_id, usage_type, stock, duration_days, sale_start_at, sale_end_at, sort_order, name "
                 + "FROM point_shop_items WHERE kind = 'PROFILE_AVATAR'");
         assertThat(rows.stream().map(r -> (String) r.get("avatar_id")).collect(Collectors.toSet()))
@@ -58,15 +71,15 @@ class AvatarCatalogTest extends PointShopTestBase {
             assertThat(row.get("sale_start_at")).isNull();
             assertThat(row.get("sale_end_at")).isNull();
             assertThat(row.get("name")).isEqualTo(avatar.name());
-            assertThat(row.get("sort_order")).as("카탈로그 순서 — 유료 안 1..306").isEqualTo(CATALOG.paid().indexOf(avatar) + 1);
+            assertThat(row.get("sort_order")).as("카탈로그 순서 — 유료 안 1..314(움직이는 8종은 307..314)").isEqualTo(CATALOG.paid().indexOf(avatar) + 1);
         }
         assertThat(kit.count("SELECT count(*) FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' AND avatar_id IN ('basic-default', 'hobby-gamer')"))
                 .as("무료 아바타는 품목이 없다").isZero();
     }
 
     @Test
-    void 두_앱의_public_avatars_roboyam_svg_이름_집합은_카탈로그_328_과_같다() throws IOException {
-        Set<String> catalog = CATALOG.all().stream().map(avatar -> avatar.id() + ".svg").collect(Collectors.toSet());
+    void 두_앱의_public_avatars_roboyam_svg_이름_집합은_정지_카탈로그_328_과_같다() throws IOException {
+        Set<String> catalog = CATALOG.all().stream().filter(avatar -> !avatar.animated()).map(avatar -> avatar.id() + ".svg").collect(Collectors.toSet());
         for (String app : List.of("user-web", "admin-web")) {
             Path dir = Path.of("..", "..", "apps", app, "public", "avatars", "roboyam");
             try (Stream<Path> files = Files.list(dir)) {
@@ -74,5 +87,31 @@ class AvatarCatalogTest extends PointShopTestBase {
                 assertThat(names).as(app).isEqualTo(catalog);
             }
         }
+    }
+
+    @Test
+    void 두_앱의_public_avatars_motion_에_움직이는_8종의_그림과_정지_그림이_있고_스크립트가_없다() throws IOException {
+        List<AvatarCatalog.Avatar> motion = CATALOG.all().stream().filter(AvatarCatalog.Avatar::animated).toList();
+        for (String app : List.of("user-web", "admin-web")) {
+            Path dir = Path.of("..", "..", "apps", app, "public", "avatars", "motion");
+            for (AvatarCatalog.Avatar avatar : motion) {
+                for (String name : List.of(avatar.id() + ".svg", avatar.id() + "-still.svg")) {
+                    Path file = dir.resolve(name);
+                    assertThat(file).as(app + " " + name).exists();
+                    String svg = Files.readString(file).toLowerCase(java.util.Locale.ROOT);
+                    assertThat(svg).as(app + " " + name + " — <img> 로만 그리지만 스크립트·외부 참조는 두지 않는다").doesNotContain("<script", "href=\"http", "onload");
+                }
+            }
+        }
+    }
+
+    @Test
+    void 움직이는_아바타_품목은_3000P_영구_V157_시드_변경권_두_품목은_소모형_2000P_3000P() {
+        assertThat(kit.jdbc.queryForList("SELECT DISTINCT price_point FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' AND avatar_id LIKE 'motion-%'", Integer.class))
+                .containsExactly(3000);
+        assertThat(kit.jdbc.queryForMap("SELECT kind, usage_type, price_point FROM point_shop_items WHERE code = 'nickname-image-ticket'"))
+                .containsEntry("kind", "NICKNAME_IMAGE_TICKET").containsEntry("usage_type", "CONSUMABLE").containsEntry("price_point", 2000);
+        assertThat(kit.jdbc.queryForMap("SELECT kind, usage_type, price_point FROM point_shop_items WHERE code = 'avatar-upload-ticket'"))
+                .containsEntry("kind", "AVATAR_UPLOAD_TICKET").containsEntry("usage_type", "CONSUMABLE").containsEntry("price_point", 3000);
     }
 }

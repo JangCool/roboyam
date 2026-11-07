@@ -31,6 +31,9 @@ import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.point.entity.PointBalanceEntity;
 import com.community.point.repository.master.PointBalanceRepository;
+import com.community.pointshop.entity.UploadTicketUse;
+import com.community.pointshop.service.ProfileAvatarService;
+import com.community.pointshop.service.UploadTicketService;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
@@ -73,6 +76,12 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li><b>파일 주소</b>: 저장소 키 {@code nickname-image/{무작위 32자}/image.{확장자}}(+ 움직이는 GIF 의 {@code still.png}). 검토 전 그림도 기존 미디어처럼 {@code /media/**} 공개 주소다 —
  *       주소를 짐작할 수 없고 한 번 쓴 파일은 고치지 않는다(글 이미지와 같은 판단).</li>
  *   <li>취소·해제도 정지 아님과 이메일 인증(설정이 요구할 때만)이 필요하다(community 규칙). 등급 등 나머지 조건은 보지 않는다. 본인 취소·해제에는 재신청 제한·알림이 없다.</li>
+ *   <li><b>변경권</b>(commerce-motion-avatar-contract 규칙 0): 신청 조건·재신청 제한 뒤, <b>파일 처리 전</b>에 쓸 수 있는 닉네임 이미지 변경권(또는 대기 신청에 예약된 장)이 없으면
+ *       {@code 409 NICKNAME_IMAGE_TICKET_REQUIRED}(맨 위 {@code ticketCount}·{@code ticketPrice}). 신청 트랜잭션에서 한 장을 예약하고(동시 신청에도 한 장 — {@code SKIP LOCKED}),
+ *       대기 신청을 대체하면 예약된 장을 넘겨받는다. 본인 취소면 돌려준다. 승인되면 쓴 것, 반려면 반환(관리자 앱). 적용 뒤 해제는 돌려주지 않는다.
+ *       이 규칙 전에 올라온 대기 신청은 예약한 장이 없다(취소해도 돌려줄 것이 없고, 대체하면 새로 한 장을 예약한다).</li>
+ *   <li><b>하나만</b>(규칙 1~3): 적용 중인 그림이 움직이고(정지 그림이 있는 GIF) 움직이는 아바타를 쓰면 그림은 쉰다({@code paused} — 저장하지 않는다).
+ *       {@link #resume} 은 다시 쓰기 — 움직이는 아바타를 쓰는 중이면 아바타를 마지막 정지 아바타로 돌린다(심사하지 않는다).</li>
  * </ul>
  */
 @Service
@@ -94,13 +103,15 @@ public class NicknameImageService {
     private final PointBalanceRepository balances;
     private final NotificationPublisher publisher;
     private final SnowflakeIdGenerator ids;
+    private final UploadTicketService tickets;
+    private final ProfileAvatarService profileAvatars;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public NicknameImageService(NicknameImageRequestRepository requests, NicknameImageSettingRepository settings, NicknameImageProcessor processor,
                                 ImageStorage storage, UserRepository users, ProfileRepository profiles, BoardActorResolver actors, BoardCatalog catalog,
                                 MemberActivityRepository activities, PointBalanceRepository balances, NotificationPublisher publisher, SnowflakeIdGenerator ids,
-                                PlatformTransactionManager txManager) {
+                                UploadTicketService tickets, ProfileAvatarService profileAvatars, PlatformTransactionManager txManager) {
         this.requests = requests;
         this.settings = settings;
         this.processor = processor;
@@ -113,6 +124,8 @@ public class NicknameImageService {
         this.balances = balances;
         this.publisher = publisher;
         this.ids = ids;
+        this.tickets = tickets;
+        this.profileAvatars = profileAvatars;
         this.tx = new TransactionTemplate(txManager);
         this.readTx = new TransactionTemplate(txManager);
         this.readTx.setReadOnly(true);
@@ -174,6 +187,7 @@ public class NicknameImageService {
         if (reapply.isPresent()) {
             throw new NicknameImageReapplyTooSoonException(Duration.between(start, reapply.get()).toSeconds() + 1);
         }
+        readTx.executeWithoutResult(status -> requireTicket(userId)); // 변경권 — 파일을 처리하기 전에(규칙 0)
         byte[] data;
         try {
             data = file == null ? null : file.getBytes();
@@ -198,10 +212,16 @@ public class NicknameImageService {
                 Instant now = Instant.now();
                 profiles.findWithLockByUserId(userId).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
                 List<String> old = new ArrayList<>();
-                requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.PENDING).ifPresent(pending -> {
-                    pending.cancel(now); // 새 신청이 대체한다
-                    collect(old, pending);
-                });
+                boolean carried = false;
+                Optional<NicknameImageRequestEntity> replaced = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.PENDING);
+                if (replaced.isPresent()) {
+                    replaced.get().cancel(now); // 새 신청이 대체한다 — 예약된 변경권은 새 신청으로 넘어간다(한 장 더 들지 않는다)
+                    collect(old, replaced.get());
+                    carried = tickets.transfer(UploadTicketUse.NICKNAME_IMAGE, replaced.get().getId(), requestId);
+                }
+                if (!carried) {
+                    tickets.reserve(userId, UploadTicketUse.NICKNAME_IMAGE, requestId); // 없으면 409 — 트랜잭션째 되돌린다
+                }
                 for (NicknameImageRequestEntity rejected : requests.findByUserIdAndStatus(userId, NicknameImageStatus.REJECTED)) {
                     collect(old, rejected); // 반려된 파일은 다음 신청 때까지 두었다
                 }
@@ -231,6 +251,7 @@ public class NicknameImageService {
             NicknameImageRequestEntity pending = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.PENDING)
                     .orElseThrow(NicknameImageRequestNotFoundException::new);
             pending.cancel(Instant.now());
+            tickets.release(UploadTicketUse.NICKNAME_IMAGE, pending.getId()); // 본인 취소 — 예약한 장을 돌려준다(이 규칙 전 신청이면 돌려줄 것이 없다)
             List<String> keys = new ArrayList<>();
             collect(keys, pending);
             afterCommit(keys);
@@ -251,7 +272,36 @@ public class NicknameImageService {
         });
     }
 
+    /**
+     * 닉네임 이미지 다시 쓰기 — {@code POST /api/me/nickname-image/resume}(규칙 3). 적용 중인 그림이 움직이고 움직이는 아바타를 쓰는 중이면 아바타를 마지막 정지 아바타로 돌린다
+     * (그 밖이면 바꿀 것이 없다). 심사하지 않는다. 적용 중인 그림이 없으면 404 {@code NICKNAME_IMAGE_NOT_FOUND}. 정지·이메일 인증 전은 403(취소·해제와 같다).
+     *
+     * @return 아바타를 바꿨으면 true
+     */
+    public boolean resume(long userId) {
+        guard(readTx.execute(status -> gate(userId)));
+        Boolean changed = tx.execute(status -> {
+            profiles.findWithLockByUserId(userId).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
+            NicknameImageRequestEntity current = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.APPROVED).filter(r -> r.getImageKey() != null)
+                    .orElseThrow(NicknameImageNotFoundException::new);
+            return current.getStillKey() != null && profileAvatars.yieldToNicknameImage(userId);
+        });
+        return Boolean.TRUE.equals(changed);
+    }
+
     // ── 내부 ────────────────────────────────────────────────────────────────
+
+    /** 쓸 수 있는 변경권이 있거나 대기 신청에 예약된 장이 있어야 한다(대체는 그 장을 넘겨받는다) — 없으면 409 */
+    private void requireTicket(long userId) {
+        if (tickets.count(userId, UploadTicketUse.NICKNAME_IMAGE) > 0) {
+            return;
+        }
+        Optional<NicknameImageRequestEntity> pending = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.PENDING);
+        if (pending.isPresent() && tickets.reserved(UploadTicketUse.NICKNAME_IMAGE, pending.get().getId())) {
+            return;
+        }
+        throw tickets.required(userId, UploadTicketUse.NICKNAME_IMAGE);
+    }
 
     private static void guard(Gate g) {
         if (g.emailBlocked()) {
@@ -335,19 +385,23 @@ public class NicknameImageService {
     private MyNicknameImageView view(long userId, Instant now) {
         Eligibility e = eligibility(gate(userId), now);
         String reason = e.ineligibleReason();
-        NicknameImageCurrentView current = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.APPROVED)
-                .filter(r -> r.getImageKey() != null)
+        Optional<NicknameImageRequestEntity> approved = requests.findFirstByUserIdAndStatus(userId, NicknameImageStatus.APPROVED).filter(r -> r.getImageKey() != null);
+        NicknameImageCurrentView current = approved
                 .map(r -> new NicknameImageCurrentView(Long.toString(r.getId()), storage.publicUrl(r.getImageKey()),
                         r.getStillKey() == null ? null : storage.publicUrl(r.getStillKey())))
                 .orElse(null);
         NicknameImageRequestView request = requests.findFirstByUserIdOrderByIdDesc(userId)
                 .filter(r -> r.getStatus() == NicknameImageStatus.PENDING || r.getStatus() == NicknameImageStatus.REJECTED)
                 .map(r -> new NicknameImageRequestView(Long.toString(r.getId()), r.getStatus().name(), r.getImageKey() == null ? null : storage.publicUrl(r.getImageKey()),
-                        r.getCreatedAt(), r.getRejectReason(), r.getStatus() == NicknameImageStatus.REJECTED ? r.getReapplyAt() : null))
+                        r.getCreatedAt(), r.getRejectReason(), r.getStatus() == NicknameImageStatus.REJECTED ? r.getReapplyAt() : null,
+                        r.getStatus() == NicknameImageStatus.PENDING && tickets.reserved(UploadTicketUse.NICKNAME_IMAGE, r.getId())))
                 .orElse(null);
+        UploadTicketService.Info ticket = tickets.info(userId, UploadTicketUse.NICKNAME_IMAGE);
+        boolean paused = approved.isPresent() && approved.get().getStillKey() != null && profileAvatars.look(userId).animated();
         NicknameImageLimitsView limits = new NicknameImageLimitsView(NicknameImageRules.MAX_BYTES, NicknameImageRules.WIDTH, NicknameImageRules.HEIGHT,
                 NicknameImageRules.RATIO, NicknameImageRules.MAX_GIF_FRAMES, NicknameImageRules.FORMATS, NicknameImageRules.REJECTED_REAPPLY_HOURS);
-        return new MyNicknameImageView(reason == null, reason, e.grade(), e.requirements(), current, request, reapplyAt(userId, now).orElse(null), limits);
+        return new MyNicknameImageView(reason == null, reason, e.grade(), e.requirements(), current, request, reapplyAt(userId, now).orElse(null), limits, ticket.count(),
+                ticket.price(), ticket.itemId(), paused);
     }
 
     /** 이 신청의 파일 키를 모으고 신청에서 지운다(파일은 커밋 뒤 지운다) */

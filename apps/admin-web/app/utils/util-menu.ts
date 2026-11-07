@@ -508,6 +508,17 @@ export default class UtilMenu {
     // ── 대상 · 상태 · 이름 ─
 
     /**
+     * 사이트 안 주소가 판매 스위치가 필요한 앱 화면을 가리키나 — 서버 `MenuBuiltin.salesGatedPath` 와 같은 규칙(물음표·샵 뒤는 보지 않는다).
+     * @param {string} path - 주소.
+     * @returns {boolean} 공동구매 목록·주문 내역(과 그 아래)이면 true.
+     */
+    static salesGatedPath(path: string): boolean {
+        let p = path.trim().split(/[?#]/)[0] ?? '';
+        if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+        return UtilMenu.BUILTINS.some((b) => b.salesGated && (p === b.path || (b.matchPrefix && p.startsWith(`${b.path}/`))));
+    }
+
+    /**
      * 항목 상태 — 방문자에게 안 보이는 이유(저장은 된다).
      * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @param {MenuContext} ctx - 게시판 목록·판매 스위치.
@@ -525,6 +536,8 @@ export default class UtilMenu {
             if (!def) return 'TARGET_MISSING';
             if (def.salesGated && !ctx.salesEnabled) return 'SALES_OFF';
         }
+        // 주소 직접 입력이 판매 스위치가 필요한 앱 화면(공동구매·주문 내역과 그 아래)을 가리키면 같은 판정(서버 `MenuBuiltin.salesGatedPath`)
+        if (item.targetType === 'PATH' && !ctx.salesEnabled && UtilMenu.salesGatedPath(item.path)) return 'SALES_OFF';
         if (item.targetType === 'GADGET_PAGE' && !UtilMenu.gadgetPageOf(item.targetId, ctx)) return 'TARGET_MISSING';
         return 'OK';
     }

@@ -68,13 +68,14 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
     /** 그 운영자와 같은 이메일로 가입한 회원(인증 여부를 고른다) */
     private long memberOf(long operatorId, boolean verified) {
         long id = newMember();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET email = ?, email_verified_at = ? WHERE id = ?", email(operatorId), verified ? ts(java.time.Instant.now()) : null, id);
         return id;
     }
 
     private long board() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 993)", id, "oa" + Long.toString(id, 36), "운영자 계정 관리 시험 " + Long.toString(id, 36));
+        boardFixture.board(id, "oa" + Long.toString(id, 36), "운영자 계정 관리 시험 " + Long.toString(id, 36), 993);
         return id;
     }
 
@@ -92,8 +93,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
     }
 
     private Map<String, Object> lastAudit(String action, long operatorId) {
-        return jdbc.queryForMap("SELECT actor_type, actor_id, target_type, target_id, detail FROM audit_logs WHERE action = ? AND target_id = ? ORDER BY id DESC LIMIT 1",
-                action, Long.toString(operatorId));
+        return auditLogs.where().action(action).target(Long.toString(operatorId)).lastById().orElseThrow().asMap();
     }
 
     // ── 연결 화면 API(HTTP) ─────────────────────────────────────────────────
@@ -152,7 +152,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
         long target = operatorWith();
         memberOf(target, true);
         long stranger = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", stranger);
+        memberFixture.verifyEmail(stranger);
         assertThat(code(() -> service.link(manager(), Long.toString(target), link(stranger)))).isEqualTo(OperatorMemberAccountException.NOT_CANDIDATE);
     }
 
@@ -170,6 +170,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
     void 정지_중인_회원은_자격_미달이다() {
         long target = operatorWith();
         long user = memberOf(target, true);
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", user);
         assertThat(service.get(Long.toString(target)).candidate().ineligibleReasons()).containsExactly("MEMBER_RESTRICTED");
         assertThat(code(() -> service.link(manager(), Long.toString(target), link(user)))).isEqualTo(OperatorMemberAccountException.NOT_ELIGIBLE);
@@ -179,6 +180,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
     void 사업자_계정은_자격_미달이다() {
         long target = operatorWith();
         long user = memberOf(target, true);
+        // SQL 로 남김: user_roles 엔티티에 팩터리가 없다
         jdbc.update("INSERT INTO user_roles (id, user_id, role_id) VALUES (?, ?, ?)", ids.nextId(), user, MemberRoleIds.BUSINESS);
         assertThat(service.get(Long.toString(target)).candidate().ineligibleReasons()).containsExactly("BUSINESS_ACCOUNT");
         assertThat(code(() -> service.link(manager(), Long.toString(target), link(user)))).isEqualTo(OperatorMemberAccountException.NOT_ELIGIBLE);
@@ -211,6 +213,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
         long user = memberOf(target, true);
         long b1 = board();
         long b2 = board();
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, 'MANAGER'), (?, ?, 'STAFF')", b1, user, b2, user);
         OperatorMemberAccountView.Candidate candidate = service.get(Long.toString(target)).candidate();
         assertThat(candidate.boardManagerCount()).isEqualTo(1);
@@ -224,12 +227,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
 
     @Test
     void 최고_관리자의_연결은_최고_관리자_본인만_바꾼다() {
-        long root = jdbc.queryForList("SELECT id FROM operators WHERE is_root", Long.class).stream().findFirst().orElseGet(() -> {
-            long id = ids.nextId();
-            jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, is_root, approved, created_at, updated_at) VALUES (?, ?, ?, 'x', true, true, now(), now())",
-                    id, "oa-root-" + id + "@test.local", "root" + (id % 1_000_000_000L));
-            return id;
-        });
+        long root = operatorFixture.rootOrCreate(id -> "oa-root-" + id + "@test.local", id -> "root" + (id % 1_000_000_000L), "x");
         long stranger = newMember();
         assertThat(code(() -> service.link(manager(), Long.toString(root), link(stranger)))).isEqualTo(OperatorMemberAccountException.ROOT_PROTECTED);
         assertThat(code(() -> service.unlink(manager(), Long.toString(root)))).isEqualTo(OperatorMemberAccountException.ROOT_PROTECTED);
@@ -242,7 +240,8 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
         long target = operatorWith();
         long user = memberOf(target, true);
         service.link(manager(), Long.toString(target), link(user));
-        jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", target);
+        operatorFixture.changeStatus(target, null, null, null, false);
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", user);
         OperatorMemberAccountView.Linked linked = service.get(Long.toString(target)).linked();
         assertThat(linked.active()).isFalse();
@@ -286,7 +285,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
         service.link(actor, Long.toString(target), link(user));
         assertThat(code(() -> withdrawals.force(actor, Long.toString(user), new MemberWithdrawalAdminRequest.Force("POLICY_VIOLATION", "운영 정책 위반 시험"))))
                 .isEqualTo(OperatorAccountLinkedException.CODE);
-        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, user)).isEqualTo("ACTIVE");
+        assertThat(memberFixture.status(user)).isEqualTo("ACTIVE");
         List<Long> left = jdbc.queryForList("SELECT id FROM member_withdrawals WHERE user_id = ?", Long.class, user);
         assertThat(left).isEmpty();
     }

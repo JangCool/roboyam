@@ -25,6 +25,7 @@ class BusinessAdminListOrderHttpTest extends Commerce04AdminTestBase {
     private long profile(String company, String status, Instant submittedAt) {
         long user = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, ?, false, ?, 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), ?, now(), now())", profile, user, status, company,

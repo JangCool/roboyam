@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.commerce.sales.CommerceSalesStore;
 import com.community.emoticon.dto.request.EmoticonSettingsSaveRequest;
 import com.community.emoticon.dto.response.EmoticonAdminView;
 import com.community.emoticon.dto.response.EmoticonPublicView;
@@ -62,12 +63,15 @@ public class EmoticonSettingsService {
     private final EmoticonSettingsStore store;
     private final EmoticonContractService contracts;
     private final AuditLogService audit;
+    private final CommerceSalesStore commerce;
     private final Clock clock;
 
-    public EmoticonSettingsService(EmoticonSettingsStore store, EmoticonContractService contracts, AuditLogService audit, ObjectProvider<Clock> clocks) {
+    public EmoticonSettingsService(EmoticonSettingsStore store, EmoticonContractService contracts, AuditLogService audit, CommerceSalesStore commerce,
+                                   ObjectProvider<Clock> clocks) {
         this.store = store;
         this.contracts = contracts;
         this.audit = audit;
+        this.commerce = commerce;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
@@ -81,15 +85,24 @@ public class EmoticonSettingsService {
         return store.readShared();
     }
 
-    /** 공개 규칙 */
+    /**
+     * 유료 판매를 받을 수 있는 운영 주체 단계인가 — 판정은 {@link CommerceSalesStore#operatorCanSell} 한 곳(개인사업자 이상 + 통신판매업 신고번호, 사용자 결정 2026-11-07).
+     * 개인 단계면 유료 판매를 켤 수 없고(400 {@code fields.paidSalesEnabled}) 새 구매도 막힌다(409 {@code EMOTICON_PAID_SALES_CLOSED}).
+     */
+    public boolean paidSalesAllowed() {
+        return commerce.operatorCanSell();
+    }
+
+    /** 공개 규칙 — {@code paidSalesEnabled} = 스위치 켜짐 그리고 운영 주체가 판매할 수 있는 단계({@link #paidSalesAllowed}) */
     @Transactional(readOnly = true)
     public EmoticonPublicView.Rules rules() {
         SettingsRow s = store.read();
+        boolean paidOpen = s.paidSalesEnabled() && paidSalesAllowed();
         return new EmoticonPublicView.Rules(EmoticonSpec.IMAGE_SIZE, EmoticonSpec.IMAGE_PADDING, EmoticonSpec.MAX_BYTES, EmoticonSpec.RECOMMENDED_BYTES,
                 EmoticonSpec.MAX_FRAMES, s.itemMin(), s.itemMax(), EmoticonSpec.COVER_MAX_BYTES, EmoticonSpec.NAME_MIN, EmoticonSpec.NAME_MAX, EmoticonSpec.LABEL_MIN,
                 EmoticonSpec.LABEL_MAX, EmoticonSpec.MAX_TAGS, EmoticonSpec.TAG_MAX, EmoticonSpec.DESCRIPTION_MAX, EmoticonSpec.DISPLAY_SIZE,
                 EmoticonSpec.DISPLAY_SIZE_MOBILE, EmoticonSpec.PICKER_SIZE, s.rewardPerAcquire(), s.rewardDailyCap(), s.pendingLimit(), s.priceTiers(), VAT_RATE,
-                s.feeRatePercent() / 100.0, s.refundDays(), s.settlementDay(), s.payoutMinimum(), WITHHOLDING_RATE, s.paidSalesEnabled());
+                s.feeRatePercent() / 100.0, s.refundDays(), s.settlementDay(), s.payoutMinimum(), WITHHOLDING_RATE, paidOpen);
     }
 
     /** 관리자 설정 화면 */
@@ -143,6 +156,10 @@ public class EmoticonSettingsService {
             throw new ValidationException(fields);
         }
         SettingsRow before = store.readForUpdate();
+        // 켜기(꺼짐 → 켜짐)만 운영 주체 단계를 본다 — 이미 켜진 값을 그대로 저장하는 것은 막지 않는다(다른 칸 저장이 막히지 않게). 설정 행을 잠근 뒤 읽어 운영 주체 저장과 줄 선다
+        if (b.paidSalesEnabled() && !before.paidSalesEnabled() && !paidSalesAllowed()) {
+            throw ValidationException.of("paidSalesEnabled", new MessageRef("emoticon.settings.paidSales.operatorStage"));
+        }
         List<Integer> sorted = tiers.stream().sorted().toList();
         if (tiersOk) {
             List<Integer> missing = store.tiersInUse().stream().filter(v -> !sorted.contains(v)).toList();
@@ -180,7 +197,7 @@ public class EmoticonSettingsService {
                 DEFAULT_PRICE_TIERS);
         return new EmoticonAdminView.SettingsView(s.rewardPerAcquire(), s.rewardDailyCap(), s.itemMin(), s.itemMax(), s.pendingLimit(), s.feeRatePercent(),
                 s.settlementDay(), s.payoutMinimum(), s.refundDays(), s.paidSalesEnabled(), s.priceTiers(), store.tiersInUse(), contracts.summary(), defaults, s.updatedAt(),
-                s.updatedByName());
+                s.updatedByName(), paidSalesAllowed());
     }
 
     /** 정수·범위 — 맞으면 참 */

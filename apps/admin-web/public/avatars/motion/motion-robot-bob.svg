@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -2 200 200"><style>.bob{animation:bob 2s ease-in-out infinite}.shadow{transform-box:fill-box;transform-origin:center;animation:sh 2s ease-in-out infinite}@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}@keyframes sh{0%,100%{transform:scaleX(1);opacity:.25}50%{transform:scaleX(.8);opacity:.15}}@media (prefers-reduced-motion: reduce){*{animation:none!important}}</style><ellipse class="shadow" cx="100" cy="186" rx="52" ry="7" fill="#0B3B2A"/><g class="bob">
+<line x1="100" y1="42" x2="46" y2="164" stroke="#0B3B2A" stroke-width="16" stroke-linecap="round"/>
+<line x1="100" y1="42" x2="154" y2="164" stroke="#0B3B2A" stroke-width="16" stroke-linecap="round"/>
+<circle class="" cx="100" cy="36" r="12" fill="#FFD23D"/>
+<rect x="16" y="92" width="18" height="34" rx="9" fill="#0B3B2A"/>
+<rect x="166" y="92" width="18" height="34" rx="9" fill="#0B3B2A"/>
+<rect class="" x="28" y="62" width="144" height="90" rx="40" fill="#22B07D"/>
+<rect x="46" y="76" width="108" height="62" rx="28" fill="#0B3B2A"/>
+<g class=""><rect x="70" y="92" width="20" height="26" rx="10" fill="#D7FFEA"/><rect x="110" y="92" width="20" height="26" rx="10" fill="#D7FFEA"/><circle cx="78" cy="98" r="3.5" fill="#FFFFFF"/><circle cx="118" cy="98" r="3.5" fill="#FFFFFF"/></g>
+
+</g></svg>

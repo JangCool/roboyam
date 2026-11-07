@@ -97,6 +97,7 @@ class PointShopPurchaseHttpTest extends PointShopApiTestBase {
         // 한도(1분 10번)를 이미 다 쓴 것으로 — 이번 창과(경계에 걸릴 때를 위해) 다음 창 모두
         Instant window = Instant.now().truncatedTo(ChronoUnit.MINUTES);
         for (Instant w : new Instant[] {window, window.plus(Duration.ofMinutes(1))}) {
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("INSERT INTO request_rate_counters (user_id, action, window_start, count) VALUES (?, 'POINT_SHOP_PURCHASE', ?, 10)", member, Timestamp.from(w));
         }
 

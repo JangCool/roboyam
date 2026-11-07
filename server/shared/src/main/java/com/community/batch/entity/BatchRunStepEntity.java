@@ -9,7 +9,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 실행의 단계 한 줄 — V61 의 {@code batch_run_steps}. <b>읽기 전용 매핑</b>이다(쓰는 것은 {@code com.community.batch.core.BatchRunRecorder}, JDBC).
+ * 실행의 단계 한 줄 — V61 의 {@code batch_run_steps}. 넣기는 {@link #plan}(실행 시작과 같은 트랜잭션 — {@code com.community.batch.core.BatchRunRecorder}),
+ * 상태·건수·체크포인트는 조건부 UPDATE(QueryDSL).
  * 건수·체크포인트는 덩어리를 저장 확정할 때마다 한 번 고쳐진다.
  */
 @Entity
@@ -43,6 +44,19 @@ public class BatchRunStepEntity {
     private String checkpoint;
 
     protected BatchRunStepEntity() {
+    }
+
+    /** 시작할 때 넣는 단계 한 줄 — PENDING, 또는 SKIP(시작·끝 시각 = {@code at}) */
+    public static BatchRunStepEntity plan(long runId, String stepName, int stepOrder, BatchStepStatus status, Instant at) {
+        BatchRunStepEntity s = new BatchRunStepEntity();
+        s.runId = runId;
+        s.stepName = stepName;
+        s.stepOrder = (short) stepOrder;
+        s.status = status;
+        boolean skipped = status == BatchStepStatus.SKIP;
+        s.startedAt = skipped ? at : null;
+        s.finishedAt = skipped ? at : null;
+        return s;
     }
 
     public Long getRunId() {
