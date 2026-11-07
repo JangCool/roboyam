@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -137,6 +139,7 @@ public class GroupBuyProductAdminFacade {
 
     // ── 상품 ────────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 쪽·건수·대표 이미지(예전 한 문장의 하위 질의가 따로 읽힌다)
     public GroupBuyAdminView.Page<GroupBuyAdminView.ProductRow> list(String q, String categoryId, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
         int p = Math.max(0, page);
@@ -187,6 +190,7 @@ public class GroupBuyProductAdminFacade {
     }
 
     /** 추가 구성상품으로 고를 수 있는 다른 상품의 단품 */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 단품 줄과 대표 이미지(예전 한 문장)
     public List<GroupBuyAdminView.AddonSource> addonSources(AdminActor actor, String except) {
         Long skip = except == null || except.isBlank() ? null : AdminIds.field(except, "except");
         boolean showSupply = actor.root() || actor.can(Permission.COMMERCE_PRODUCT_PRICE) || actor.can(Permission.COMMERCE_SETTLEMENT_READ);

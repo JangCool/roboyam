@@ -112,14 +112,16 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
         return (int) query.update(A).set(A.removedAt, now).where(A.purchaseId.eq(purchaseId), A.kind.eq(PURCHASE), A.removedAt.isNull()).execute();
     }
 
-    /** 이 팩들 중 회원이 지금 가진 것(받기·구매 줄 + 내가 만든 상점 팩 — 두 질의의 합집합) */
+    /**
+     * 이 팩들 중 회원이 지금 가진 것(받기·구매 줄 + 내가 만든 상점 팩). 예전 {@code UNION} 한 문장과 같이 한 문장 — 팩 줄에서 「받기 줄이 있다 또는 내가 만든 상점 팩」을 고른다
+     * (받기 줄은 팩 줄을 외래키로 가리켜 같은 결과다. 두 질의로 나누면 그 사이 팩 상태가 바뀔 때 가진 팩이 빠질 수 있다 — 글 쓰기의 이모티콘 검사도 이것을 부른다).
+     */
     public Set<Long> ownedAmong(long userId, Collection<Long> packIds) {
         if (packIds.isEmpty()) {
             return Set.of();
         }
-        Set<Long> out = new HashSet<>(query.select(A.packId).from(A).where(A.userId.eq(userId), A.removedAt.isNull(), A.packId.in(packIds)).fetch());
-        out.addAll(query.select(K.id).from(K).where(K.creatorId.eq(userId), creatorOwned(K), K.id.in(packIds)).fetch());
-        return out;
+        BooleanExpression acquired = JPAExpressions.selectOne().from(A).where(A.packId.eq(K.id), A.userId.eq(userId), A.removedAt.isNull()).exists();
+        return new HashSet<>(query.select(K.id).from(K).where(K.id.in(packIds), acquired.or(K.creatorId.eq(userId).and(creatorOwned(K)))).fetch());
     }
 
     /**

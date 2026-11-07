@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -151,7 +152,7 @@ public class EmoticonAcquireService {
     }
 
     /** 내 로보티콘 — 지금 가진 팩 중 상점에 나와 있는 것(판매 중단 포함 — 가졌으면 계속 쓴다), 최근 가진 것 먼저 */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ) // 한 스냅숏 — 가진 팩(받기 줄 + 작가 팩, 예전 UNION ALL 한 문장 → 두 문장)과 팩 정보
     public EmoticonPublicView.MyPacks mine(long userId) {
         boolean allPacks = operatorAccounts.isActiveOperatorAccount(userId); // 운영자 회원 계정 — 판매 중 팩 전부를 쓴다(목록은 가진 팩만 그대로)
         Map<Long, EmoticonAcquisitionStore.OwnedPack> owned = acquisitions.owned(userId);

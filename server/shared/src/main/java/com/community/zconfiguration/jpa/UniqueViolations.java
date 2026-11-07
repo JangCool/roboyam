@@ -6,7 +6,8 @@ import org.springframework.dao.DuplicateKeyException;
 
 /**
  * 유일 색인 위반({@code 23505}) 다루기 — JDBC({@code JdbcTemplate})에서 JPA 로 옮긴 저장소가 「넣기의 유일 위반 = {@link DuplicateKeyException}」 약속을 그대로 지키게 한다.
- * JPA 리포지토리의 예외 변환은 유일 위반도 {@link DataIntegrityViolationException} 으로만 주므로, 넣고 바로 내보낸 자리에서 원인을 보고 바꾼다(다른 무결성 위반은 그대로).
+ * Hibernate 기본 변환은 유일 위반도 {@link DataIntegrityViolationException} 으로만 주므로, 넣고 바로 내보낸 자리에서 원인을 보고 바꾼다(다른 무결성 위반은 그대로).
+ * 운영 문맥은 {@link JpaMasterConfig} 가 방언 변환을 JDBC 규칙으로 맞춰 이미 {@link DuplicateKeyException} 이 오지만, 저장소 프록시 없이 손으로 조립한 시험 문맥에서도 같게 남겨 둔다.
  */
 public final class UniqueViolations {
 

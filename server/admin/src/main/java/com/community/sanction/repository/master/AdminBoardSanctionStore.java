@@ -68,10 +68,12 @@ public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
 
     // ── 제재 목록 ─────────────────────────────────────────────────────────
 
-    /** 전체 건수(거르기와 무관) — all · active · closed */
+    /** 전체 건수(거르기와 무관) — all · active · closed. 예전과 같이 한 문장(세 칸이 같은 시점 — 문장 사이 커밋이 숫자를 어긋나게 하지 않는다) */
     public long[] counts(Instant now) {
-        return new long[]{zero(query.select(S.count()).from(S).fetchOne()), zero(query.select(S.count()).from(S).where(running(S, now)).fetchOne()),
-                zero(query.select(S.count()).from(S).where(closed(S)).fetchOne())};
+        NumberExpression<Long> active = countWhen(running(S, now));
+        NumberExpression<Long> ended = countWhen(closed(S));
+        Tuple t = query.select(S.count(), active, ended).from(S).fetchOne();
+        return t == null ? new long[3] : new long[]{zero(t.get(S.count())), zero(t.get(active)), zero(t.get(ended))};
     }
 
     public long total(Filter filter, Instant now) {

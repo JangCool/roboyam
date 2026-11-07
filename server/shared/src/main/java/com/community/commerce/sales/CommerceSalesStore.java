@@ -96,19 +96,17 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
      * (terms-operator-contract 세션 정리 결정). 상호 = 상호(법인은 회사명), 보호책임자 = 운영 주체의 보호책임자(「운영자와 같음」이면 운영자 이름). 개인 단계는 사업자 칸이 비어 있다(빈 글자).
      */
     public BusinessInfo businessInfo() {
-        // 커머스 고유 칸(마지막 저장한 운영자 이름은 operators 를 이어 읽는다)
-        Tuple b = query.select(BI.businessHours, BI.shippingRefundPolicy, BI.updatedAt, O.operatorName).from(BI).leftJoin(O).on(O.id.eq(BI.updatedBy))
+        // 예전과 같이 한 문장 — 커머스 고유 칸(commerce_business_info) × 겹치는 칸(운영 주체 site_operator, 정본) + 마지막 저장한 운영자 이름(operators).
+        // 두 행을 같은 시점에 읽는다(문장을 나누면 그 사이 저장이 섞인 사업자 정보를 낼 수 있다)
+        Tuple s = query.select(BI.businessHours, BI.shippingRefundPolicy, BI.updatedAt, O.operatorName, SO.businessName, SO.representative, SO.registrationNumber,
+                        SO.mailOrderNumber, SO.mailOrderAuthority, SO.address, SO.phone, SO.contactEmail, SO.privacyOfficerSame, SO.operatorName, SO.privacyOfficerName,
+                        SO.hostingProvider)
+                .from(BI).join(SO).on(SO.id.eq(SiteOperatorEntity.ROW_ID)).leftJoin(O).on(O.id.eq(BI.updatedBy))
                 .where(BI.id.eq(CommerceBusinessInfoEntity.ROW_ID)).fetchFirst();
-        if (b == null) {
-            throw new EmptyResultDataAccessException(1); // 사업자 정보 행은 마이그레이션이 넣는다
-        }
-        CommerceOwn own = new CommerceOwn(b.get(BI.businessHours), b.get(BI.shippingRefundPolicy), b.get(BI.updatedAt), b.get(O.operatorName));
-        // 겹치는 칸 — 운영 주체(정본, 엔티티 있음)
-        Tuple s = query.select(SO.businessName, SO.representative, SO.registrationNumber, SO.mailOrderNumber, SO.mailOrderAuthority, SO.address, SO.phone,
-                SO.contactEmail, SO.privacyOfficerSame, SO.operatorName, SO.privacyOfficerName, SO.hostingProvider).from(SO).where(SO.id.eq(SiteOperatorEntity.ROW_ID)).fetchFirst();
         if (s == null) {
-            throw new EmptyResultDataAccessException(1); // 예전 한 문장(CROSS JOIN site_operator)과 같이 — 운영 주체 행이 없으면 읽지 못한다
+            throw new EmptyResultDataAccessException(1); // 예전 queryForObject 와 같이 — 사업자 정보 행·운영 주체 행은 마이그레이션이 넣는다(없으면 읽지 못한다)
         }
+        CommerceOwn own = new CommerceOwn(s.get(BI.businessHours), s.get(BI.shippingRefundPolicy), s.get(BI.updatedAt), s.get(O.operatorName));
         String privacyOfficer = Boolean.TRUE.equals(s.get(SO.privacyOfficerSame)) ? s.get(SO.operatorName) : s.get(SO.privacyOfficerName);
         return new BusinessInfo(nz(s.get(SO.businessName)), nz(s.get(SO.representative)), nz(s.get(SO.registrationNumber)), nz(s.get(SO.mailOrderNumber)),
                 nz(s.get(SO.mailOrderAuthority)), nz(s.get(SO.address)), nz(s.get(SO.phone)), nz(s.get(SO.contactEmail)), own.businessHours(), nz(privacyOfficer),

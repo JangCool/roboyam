@@ -17,6 +17,9 @@ import com.community.user.entity.QUserEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -132,12 +135,15 @@ public class GroupBuyOrderAdminQueries extends RoboyamRepositoryQDSL {
 
     /** 결제 주문 — 에스크로 = 그 주문의 배송 중 에스크로 대상이 있는가 */
     public Optional<PaymentRow> payment(long participationId, long paymentOrderId) {
-        Tuple t = query.select(PO.id, PO.paymentId, PO.status, PO.payMethod, PO.paidAt).from(PO).where(PO.id.eq(paymentOrderId)).fetchFirst();
+        // 예전과 같이 한 문장 — 결제 주문 줄과 에스크로 여부(EXISTS)를 같은 시점에 읽는다(상세는 열람 감사를 쓰는 쓰기 경로라 격리 수준으로 묶지 않는다)
+        NumberExpression<Integer> escrow = new CaseBuilder()
+                .when(JPAExpressions.selectOne().from(SH).where(SH.participationId.eq(participationId), SH.escrowApplicable.isTrue()).exists()).then(1).otherwise(0);
+        Tuple t = query.select(PO.id, PO.paymentId, PO.status, PO.payMethod, PO.paidAt, escrow).from(PO).where(PO.id.eq(paymentOrderId)).fetchFirst();
         if (t == null) {
             return Optional.empty();
         }
-        boolean escrow = query.selectOne().from(SH).where(SH.participationId.eq(participationId), SH.escrowApplicable.isTrue()).fetchFirst() != null;
-        return Optional.of(new PaymentRow(t.get(PO.id), t.get(PO.paymentId), t.get(PO.status), t.get(PO.payMethod), escrow, t.get(PO.paidAt)));
+        Integer hasEscrow = t.get(escrow);
+        return Optional.of(new PaymentRow(t.get(PO.id), t.get(PO.paymentId), t.get(PO.status), t.get(PO.payMethod), hasEscrow != null && hasEscrow == 1, t.get(PO.paidAt)));
     }
 
     /** 배송지 열람 기록 — 새 것 먼저 */

@@ -305,7 +305,7 @@ public class DmQueries extends RoboyamRepositoryQDSL {
 
     /**
      * 닉네임에 검색어가 들어 있는 회원 — 앞부분이 같은 것 먼저, 그다음 닉네임 순. 나·탈퇴한 회원·차단 관계(어느 쪽이든)는 뺀다.
-     * 회원 찾기(정렬·개수는 DB) 뒤 찾은 회원과의 대화 번호(쪽지함)를 한 번 더 읽는다.
+     * 찾은 회원과의 대화 번호(쪽지함)는 예전과 같이 같은 문장에서 왼쪽 조인으로 읽는다(한 짝에 쪽지함 줄은 하나다).
      *
      * @param needle 소문자로 바꾼 검색어(LIKE 의 %·_·\ 는 부르는 쪽이 이스케이프하지 않는다 — 여기서 한다)
      */
@@ -314,27 +314,12 @@ public class DmQueries extends RoboyamRepositoryQDSL {
         BooleanExpression blocked = JPAExpressions.selectOne().from(BLOCK)
                 .where(BLOCK.userId.eq(userId).and(BLOCK.targetId.eq(PROFILE.userId)).or(BLOCK.userId.eq(PROFILE.userId).and(BLOCK.targetId.eq(userId)))).exists();
         NumberExpression<Integer> prefixFirst = new CaseBuilder().when(PROFILE.nickname.lower().like(escaped + "%", '\\')).then(1).otherwise(0);
-        List<Tuple> found = query.select(PROFILE.userId, PROFILE.nickname, PROFILE.gradeKey).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+        return query.select(PROFILE.userId, PROFILE.nickname, PROFILE.gradeKey, B.threadId).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                .leftJoin(B).on(B.userId.eq(userId), B.partnerId.eq(PROFILE.userId))
                 .where(USER.status.notIn(UserStatus.WITHDRAWN, UserStatus.WITHDRAWING), USER.deletedAt.isNull(), PROFILE.userId.ne(userId),
                         PROFILE.nickname.lower().like("%" + escaped + "%", '\\'), blocked.not())
-                .orderBy(prefixFirst.desc(), PROFILE.nickname.lower().asc(), PROFILE.userId.asc()).limit(limit).fetch();
-        if (found.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, Long> threads = threadsWith(userId, found.stream().map(row -> row.get(PROFILE.userId)).toList());
-        return found.stream().map(row -> {
-            long id = row.get(PROFILE.userId);
-            return new RecipientRow(id, row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), threads.get(id));
-        }).toList();
-    }
-
-    /** 내 쪽지함에서 그 상대들과의 대화 번호(상대 → 대화) — 한 짝에 대화는 하나다 */
-    private Map<Long, Long> threadsWith(long userId, Collection<Long> partnerIds) {
-        Map<Long, Long> out = new HashMap<>();
-        for (Tuple row : query.select(B.partnerId, B.threadId).from(B).where(B.userId.eq(userId), B.partnerId.in(partnerIds)).fetch()) {
-            out.put(row.get(B.partnerId), row.get(B.threadId));
-        }
-        return out;
+                .orderBy(prefixFirst.desc(), PROFILE.nickname.lower().asc(), PROFILE.userId.asc()).limit(limit).fetch().stream()
+                .map(row -> new RecipientRow(row.get(PROFILE.userId), row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), row.get(B.threadId))).toList();
     }
 
     /**

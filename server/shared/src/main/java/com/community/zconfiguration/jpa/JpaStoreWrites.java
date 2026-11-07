@@ -48,7 +48,12 @@ public final class JpaStoreWrites {
         return query.select(id).from(root).where(id.eq(value)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null;
     }
 
-    private static RuntimeException translate(RuntimeException e) {
+    /**
+     * 손으로 부른 {@code persist}·{@code flush} 의 제약 위반을 {@code JdbcTemplate} 때와 같은 스프링 예외로 — SQLState 23505(유일 위반) → {@link DuplicateKeyException},
+     * 다른 23xxx → {@link DataIntegrityViolationException}, 이미 스프링 예외면 그대로. 공구·이모티콘 저장소 바탕({@code GroupBuyStoreSupport}·{@code EmoticonStoreSupport})도
+     * 이 한 규칙을 쓴다 — 저장소 프록시 없이 손으로 조립한 시험 문맥에서도 운영과 같은 예외가 나오게(운영은 {@link JpaMasterConfig} 의 방언 변환도 같은 규칙이다).
+     */
+    public static RuntimeException translate(RuntimeException e) {
         if (e instanceof DataAccessException) {
             return e;
         }

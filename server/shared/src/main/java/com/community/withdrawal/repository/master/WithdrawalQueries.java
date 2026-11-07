@@ -54,6 +54,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -202,23 +203,30 @@ public class WithdrawalQueries extends RoboyamRepositoryQDSL {
      * 로보티콘 <b>작가 쪽</b> 돈 거래(내 팩이 팔리거나 환불된 시각 · 정산 지급 기록)도 넣는다(V148 — 정산 정보 없이 탈퇴한 작가의 보류 정산을 운영자가 분리 보관 연락 이메일로 연락해 끝내므로,
      * 판매 수익이 있는 작가는 직접 결제한 적이 없어도 연락처를 남긴다).
      *
-     * <p>표마다 엔티티 QueryDSL {@code max} 로 읽고, 가장 늦은 것을 고르는 일(예전 한 문장의 {@code greatest} — null 은 빼고)은 자바가 한다.
-     * 예전 {@code max(greatest(a, b))} 는 {@code greatest(max(a), max(b))} 와 같다(null 은 둘 다 건너뛴다).
+     * <p>예전과 같이 <b>한 문장</b>이다 — 표마다의 {@code max} 를 회원 줄의 하위 질의 여덟 개로 읽고(같은 시점), 가장 늦은 것을 고르는 일(예전 {@code greatest} — null 은 빼고)은
+     * 자바가 한다. 예전 {@code max(greatest(a, b))} 는 {@code greatest(max(a), max(b))} 와 같다(null 은 둘 다 건너뛴다). 문장을 나누면 탈퇴 완료(쓰기 트랜잭션 —
+     * 격리 수준을 올릴 수 없다)가 그 사이에 커밋된 정산 지급 취소 같은 변경을 반쯤 본다. 부르는 쪽은 모두 회원 줄이 있는 회원(탈퇴해도 줄은 지우지 않는다)을 넘긴다 — 줄이 없으면 비어 있다.
      */
     public Optional<Instant> lastTransactionAt(long userId) {
-        Instant paid = query.select(PAY.paidAt.max()).from(PAY)
-                .where(PAY.userId.eq(userId), PAY.status.in(PaymentStatus.PAID, PaymentStatus.PARTIAL_CANCELED, PaymentStatus.CANCELED)).fetchOne();
-        Instant canceled = query.select(CANCEL.completedAt.max()).from(CANCEL).join(PAY).on(PAY.id.eq(CANCEL.paymentOrderId))
-                .where(PAY.userId.eq(userId), CANCEL.status.eq(CancelStatus.SUCCEEDED)).fetchOne();
-        Instant refunded = query.select(ORDER.refundedAt.max()).from(ORDER).where(ORDER.userId.eq(userId)).fetchOne();
-        Tuple biz = query.select(BIZ_APP.paidAt.max(), BIZ_APP.depositConfirmedAt.max()).from(BIZ_APP).where(BIZ_APP.userId.eq(userId)).fetchOne();
-        // 로보티콘 작가 쪽: 내 팩이 팔리거나 환불된 시각(결제된 구매만), 정산 지급
-        Tuple sold = query.select(EMO_PURCHASE.paidAt.max(), EMO_PURCHASE.refundedAt.max()).from(EMO_PURCHASE)
-                .where(EMO_PURCHASE.creatorId.eq(userId), EMO_PURCHASE.paidAt.isNotNull()).fetchOne();
-        Instant settled = query.select(EMO_SETTLEMENT.paidAt.max()).from(EMO_SETTLEMENT).where(EMO_SETTLEMENT.creatorId.eq(userId)).fetchOne();
-        return Stream.of(paid, canceled, refunded, biz == null ? null : biz.get(0, Instant.class), biz == null ? null : biz.get(1, Instant.class),
-                sold == null ? null : sold.get(0, Instant.class), sold == null ? null : sold.get(1, Instant.class), settled)
-                .filter(Objects::nonNull).max(Instant::compareTo);
+        QPaymentOrderEntity paidOrder = new QPaymentOrderEntity("lastPaidOrder");
+        QPaymentOrderEntity canceledOrder = new QPaymentOrderEntity("lastCanceledOrder");
+        List<Expression<Instant>> at = List.of(
+                JPAExpressions.select(paidOrder.paidAt.max()).from(paidOrder)
+                        .where(paidOrder.userId.eq(USER.id), paidOrder.status.in(PaymentStatus.PAID, PaymentStatus.PARTIAL_CANCELED, PaymentStatus.CANCELED)),
+                JPAExpressions.select(CANCEL.completedAt.max()).from(CANCEL).join(canceledOrder).on(canceledOrder.id.eq(CANCEL.paymentOrderId))
+                        .where(canceledOrder.userId.eq(USER.id), CANCEL.status.eq(CancelStatus.SUCCEEDED)),
+                JPAExpressions.select(ORDER.refundedAt.max()).from(ORDER).where(ORDER.userId.eq(USER.id)),
+                JPAExpressions.select(BIZ_APP.paidAt.max()).from(BIZ_APP).where(BIZ_APP.userId.eq(USER.id)),
+                JPAExpressions.select(BIZ_APP.depositConfirmedAt.max()).from(BIZ_APP).where(BIZ_APP.userId.eq(USER.id)),
+                // 로보티콘 작가 쪽: 내 팩이 팔리거나 환불된 시각(결제된 구매만), 정산 지급
+                JPAExpressions.select(EMO_PURCHASE.paidAt.max()).from(EMO_PURCHASE).where(EMO_PURCHASE.creatorId.eq(USER.id), EMO_PURCHASE.paidAt.isNotNull()),
+                JPAExpressions.select(EMO_PURCHASE.refundedAt.max()).from(EMO_PURCHASE).where(EMO_PURCHASE.creatorId.eq(USER.id), EMO_PURCHASE.paidAt.isNotNull()),
+                JPAExpressions.select(EMO_SETTLEMENT.paidAt.max()).from(EMO_SETTLEMENT).where(EMO_SETTLEMENT.creatorId.eq(USER.id)));
+        Tuple row = query.select(at.toArray(new Expression<?>[0])).from(USER).where(USER.id.eq(userId)).fetchOne();
+        if (row == null) {
+            return Optional.empty();
+        }
+        return IntStream.range(0, at.size()).mapToObj(i -> row.get(i, Instant.class)).filter(Objects::nonNull).max(Instant::compareTo);
     }
 
     /**
@@ -294,7 +302,7 @@ public class WithdrawalQueries extends RoboyamRepositoryQDSL {
     }
 
     /**
-     * 닉네임 이미지·아바타 올리기(V157) 저장소 키(지우기 전에 읽는다 — 디스크 파일 삭제용). 두 표를 차례로 읽어 잇는다(예전 {@code UNION ALL} 과 같은 차례).
+     * 닉네임 이미지·아바타 올리기(V157) 저장소 키(지우기 전에 읽는다 — 디스크 파일 삭제용). 두 표를 차례로 읽어 잇는다(예전 {@code UNION ALL} 과 같은 차례). 두 표는 서로 묶인 값이 없어(같은 회원이 따로 올린 파일) 나눠 읽어도 한 문장일 때보다 더 빠지는 키가 없다(읽은 뒤 커밋된 올리기를 못 보는 것은 예전 한 문장도 같다).
      */
     public List<String> nicknameImageKeys(long userId) {
         List<Tuple> nickname = query.select(NICK_IMAGE.imageKey, NICK_IMAGE.stillKey).from(NICK_IMAGE).where(NICK_IMAGE.userId.eq(userId)).fetch();

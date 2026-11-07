@@ -1,5 +1,6 @@
 package com.community.groupbuy.repository.master;
 
+import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -9,12 +10,10 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.core.types.EntityPath;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import javax.sql.DataSource;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -68,15 +67,7 @@ abstract class GroupBuyStoreSupport extends RoboyamRepositoryQDSL {
 
     /** 제약 위반을 JDBC 때와 같은 스프링 예외로(SQLState 23505 = 유일 위반 → {@link DuplicateKeyException}, 다른 23xxx → {@link DataIntegrityViolationException}) */
     private static RuntimeException translate(RuntimeException e) {
-        if (e instanceof DataAccessException) {
-            return e;
-        }
-        for (Throwable c = e; c != null; c = c.getCause()) {
-            if (c instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("23")) {
-                return "23505".equals(sql.getSQLState()) ? new DuplicateKeyException(sql.getMessage(), e) : new DataIntegrityViolationException(sql.getMessage(), e);
-            }
-        }
-        return e;
+        return JpaStoreWrites.translate(e); // 사업자·광고·이모티콘 저장소와 같은 한 규칙
     }
 
     /** 루트 표 한 줄을 쓰기 잠금({@code FOR NO KEY UPDATE})한다 — 있으면 true */

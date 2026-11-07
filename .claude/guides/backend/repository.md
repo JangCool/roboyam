@@ -22,6 +22,9 @@
 * **잠금은 엔티티를 고르는 한 표 질의로**: 다른 표를 조인한 **프로젝션**(Tuple·DTO)에 `setLockMode` 를 걸면 행이 잠기지 않는다(2026-11-07 NOWAIT 시험으로 확인). 「잠그는 문장(루트 표만, `selectFrom` 또는 id 프로젝션) → 읽는 문장」 둘로 나눈다.
 * **시각**: 판정·기록 시각을 서비스가 `Clock` 으로 넘기는 업무(커머스·제재·탈퇴 등 — 시험이 시계를 옮긴다)는 `DB_NOW` 로 바꾸지 않고 인자 `now` 를 쓴다.
 * **QueryDSL**: 정렬·페이징은 DB 에서 한다(전체 조회 후 메모리 정렬 금지). 컬렉션 `fetchJoin()` 과 페이징을 함께 쓰지 않는다. 연관은 `LAZY`, N+1 은 필요한 곳에만 `fetchJoin()`.
+* **한 문장이던 읽기**: 숫자 묶음·「A 또는 B」처럼 서로 맞아야 하는 값은 한 문장(하위 질의·`CaseBuilder` 합·조인)으로 읽는다. 나눌 수밖에 없으면 그 읽기만 하는 서비스 메서드를 `@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)`(한 스냅숏)로 감싼다 — 바깥 쓰기 트랜잭션에 참여하면 격리 수준이 적용되지 않는다. QueryDSL 은 `FROM` 없는 `select` 를 만들지 못한다.
+* **대소문자 무시 찾기**: 예전 `ILIKE` 는 `Ilike.contains`/`Ilike.of`(HQL `ilike`, 탈출 `\`) — `containsIgnoreCase` 는 `lower() like … escape '!'` 라 뜻·색인이 다르다(`lower(칸)` trgm 색인이 있는 칸은 그쪽이 색인을 탄다).
+* **예외**: 유일 위반은 저장소·커밋 어디서 나도 `DuplicateKeyException`(`JpaMasterConfig` 가 방언 변환을 JDBC 규칙으로 맞춘다). 서비스는 그 넣기가 `flush` 되는 자리(또는 트랜잭션 템플릿 바깥)에서 잡는다.
 
 ---
 

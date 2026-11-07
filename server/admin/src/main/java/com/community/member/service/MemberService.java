@@ -56,6 +56,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -147,8 +148,11 @@ public class MemberService {
         return new MemberPage(items, total, criteria.page(), criteria.size());
     }
 
-    /** 회원 한 명의 상세. 없는 회원은 404. 열람을 감사 기록으로 남긴다(읽기 전용 트랜잭션에서는 기록이 저장되지 않아 쓰기 트랜잭션이다) */
-    @Transactional
+    /**
+     * 회원 한 명의 상세. 없는 회원은 404. 열람을 감사 기록으로 남긴다(읽기 전용 트랜잭션에서는 기록이 저장되지 않아 쓰기 트랜잭션이다).
+     * REPEATABLE READ — 한 스냅숏으로 읽는다(개인 설정 건수 여섯 개는 예전 한 문장이 JPA 전환으로 여러 문장이 됐다). 쓰기는 감사 한 줄 넣기뿐이라(고치는 줄·잠금 없음) 직렬화 실패가 나지 않는다.
+     */
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public MemberDetailView detail(AdminActor actor, String memberId) {
         long id = parseId(memberId);
         MemberRecord record = members.findRecord(id).orElseThrow(MemberNotFoundException::new);
