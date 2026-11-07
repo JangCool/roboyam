@@ -104,6 +104,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/home/gadgets").permitAll()
                         // 공개 가젯 페이지(gadget-page-contract) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/pages/*").permitAll()
+                        // 팁·강좌·사용기 묶음(tips-contract) — 머리 몫·최신 글은 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/tips", "/api/tips/posts").permitAll()
                         // 프로필 아바타 목록(docs/features/commerce-stage1-contract.md 「1-2 화면 목업」 아바타) — 비회원도 읽는다(보유·잔액 없이). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.GET, "/api/avatars").permitAll()
                         // 로보티콘(docs/features/emoticon-contract.md S1) — 카탈로그·규격·상점 목록·팩 상세는 비회원·정지 회원도 읽는다(로그인했으면 보유 칸). 받기·내 로보티콘·스튜디오는 로그인 필요

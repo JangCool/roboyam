@@ -6,7 +6,8 @@ import java.time.Instant;
 /**
  * 하이라이트 한 줄(목록·만들기·고치기·노출 응답).
  *
- * @param order         1부터 연속(저장된 순서)
+ * @param place         놓일 곳 키(home · tips · 가젯 페이지 키 — V161)
+ * @param order         1부터 연속(그 곳 안에서 저장된 순서)
  * @param title         노출 제목(없으면 null)
  * @param summary       요약 문구(없으면 null)
  * @param imageFileId   대표 이미지 파일 ID(없으면 null)
@@ -21,7 +22,7 @@ import java.time.Instant;
  * @param commentCounts 글의 댓글 수 구분(입장별 의견 수 + 투표 수 {@code votes})
  * @param updatedBy     마지막으로 고친 운영자(없으면 null)
  */
-public record HighlightItemView(String id, int order, String title, String summary, String imageFileId, String imageUrl, boolean visible, Instant showFrom,
+public record HighlightItemView(String id, String place, int order, String title, String summary, String imageFileId, String imageUrl, boolean visible, Instant showFrom,
                                 Instant showUntil, String status, boolean debate, boolean neutralEnabled, boolean stanceChangeAllowed, String debateOpenedBy,
                                 AdminPostRefView post,
                                 HighlightCommentCountsView commentCounts,

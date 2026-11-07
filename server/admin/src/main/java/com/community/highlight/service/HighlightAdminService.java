@@ -19,12 +19,15 @@ import com.community.highlight.dto.response.HighlightCommentCountsView;
 import com.community.highlight.dto.response.HighlightItemView;
 import com.community.highlight.dto.response.HighlightListView;
 import com.community.highlight.dto.response.HighlightOperatorView;
+import com.community.highlight.dto.response.HighlightPlaceView;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.exception.HighlightDuplicateException;
 import com.community.highlight.exception.HighlightNotFoundException;
 import com.community.highlight.exception.HighlightPostInvalidException;
 import com.community.highlight.repository.master.HighlightCommentRepositoryQDSL;
 import com.community.highlight.repository.master.HighlightRepository;
+import com.community.home.entity.GadgetPageEntity;
+import com.community.home.repository.master.GadgetPageRepository;
 import com.community.media.entity.FileEntity;
 import com.community.media.entity.FilePurpose;
 import com.community.media.entity.FileStatus;
@@ -41,6 +44,7 @@ import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
+import com.community.zconfiguration.message.Messages;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,7 +73,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *       ({@code fields.showUntil}) · {@code imageFileId}(올려 둔 HIGHLIGHT_IMAGE 파일이거나 지금 이미지).</li>
  *   <li><b>대표 이미지</b>: {@code POST /api/admin/files}(purpose HIGHLIGHT_IMAGE)로 올린 파일을 지정하면 그 파일이 쓰는 중(IN_USE)이 되고, 바꾸거나 지우면 예전 파일의 장부 행을 지우고
  *       저장소 파일은 커밋 뒤에 지운다(하이라이트를 지울 때도).</li>
- *   <li><b>순서</b>: 새 하이라이트는 맨 끝. 순서 바꾸기는 전체 ID 를 보낸다(집합이 다르면 {@code fields.ids}). 만들기·순서는 하이라이트 전체를 잠가 줄 세운다.</li>
+ *   <li><b>놓일 곳</b>(V161, tips-contract 「결정」): 목록·글 찾기·후보·순서는 {@code place}(비우면 home) 한 곳 단위다. 같은 글은 곳마다 한 번({@code 409 HIGHLIGHT_DUPLICATE} 는
+ *       같은 곳 안에서만), 만들 때 곳은 {@link #places} 의 것이어야 한다({@code fields.place}). 곳은 만든 뒤 바꾸지 않는다. 감사에 {@code place} 를 싣는다.</li>
+ *   <li><b>순서</b>: 새 하이라이트는 그 곳의 맨 끝. 순서 바꾸기는 그 곳의 전체 ID 를 보낸다(집합이 다르면 {@code fields.ids}). 만들기·순서는 그 곳의 하이라이트 전체를 잠가 줄 세운다.</li>
  *   <li><b>토론 칸</b>: 하이라이트는 토론을 갖지 않는다 — {@code debate}·{@code neutralEnabled}·{@code stanceChangeAllowed} 는 그 <b>글의</b> 토론을 연다·바꾼다·닫는다
  *       (관리자 토론 PUT 과 같은 {@link DebateAdminService#apply} — 감사 DEBATE_OPEN · UPDATE · CLOSE, {@code via HIGHLIGHT}). 줄의 같은 칸은 글의 토론에서 읽는다.
  *       하이라이트를 지우거나 내려도 토론은 그대로다(docs/features/post-debate-contract.md).</li>
@@ -114,11 +120,16 @@ public class HighlightAdminService {
     private final OperatorRepository operators;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
+    private final GadgetPageRepository gadgetPages;
+    private final Messages messages;
 
     public HighlightAdminService(HighlightRepository highlights, AdminPostRepositoryQDSL posts, AdminPostSummaries summaries,
                                  HighlightCommentRepositoryQDSL commentCounts, DebateQueries debateQueries, PostDebateRepository debates,
                                  DebateAdminService debateAdmin, BoardCatalog catalog, FileRepository files, ImageStorage storage,
-                                 SiteImageFiles imageFiles, OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids) {
+                                 SiteImageFiles imageFiles, OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids,
+                                 GadgetPageRepository gadgetPages, Messages messages) {
+        this.gadgetPages = gadgetPages;
+        this.messages = messages;
         this.highlights = highlights;
         this.posts = posts;
         this.summaries = summaries;
@@ -137,17 +148,44 @@ public class HighlightAdminService {
 
     // ── 읽기 ──────────────────────────────────────────────────────────────
 
+    /** 한 곳의 목록 — {@code place} 를 비우면 home. 모양이 틀린 키는 {@code 400 fields.place}(고를 수 없는 곳이어도 남은 줄은 보인다 — 지운 가젯 페이지) */
     @Transactional(readOnly = true)
-    public HighlightListView list() {
-        List<HighlightEntity> rows = highlights.findAllByOrderBySortOrderAscIdAsc();
+    public HighlightListView list(String placeRaw) {
+        String place = placeOf(placeRaw);
+        List<HighlightEntity> rows = highlights.findAllByPlaceOrderBySortOrderAscIdAsc(place);
         List<HighlightItemView> items = views(rows);
         int visible = (int) items.stream().filter(i -> SHOWING.equals(i.status())).count();
-        return new HighlightListView(visible, items.size(), items);
+        return new HighlightListView(place, visible, items.size(), items);
     }
 
-    /** 대상 글 찾기 — 글 번호(숫자 {@value #ID_DIGITS_MIN}자리 이상)거나 제목 일부({@value #SEARCH_MIN}자 이상). 지정할 수 있고 아직 하이라이트가 아닌 글 최대 10개 */
+    /**
+     * 하이라이트를 놓을 수 있는 곳 — 홈 · 팁·강좌·사용기 · 가젯 페이지(만든 차례). 가젯 페이지 키가 {@code home}·{@code tips} 와 같으면 그 곳 하나로 친다.
+     * 이름은 요청 언어(영어면 가젯 페이지의 영문 이름, 없으면 이름). 곳마다 하이라이트 수(`total`)를 함께 준다.
+     */
     @Transactional(readOnly = true)
-    public List<AdminPostRefView> search(String q) {
+    public List<HighlightPlaceView> places() {
+        Map<String, Long> totals = new HashMap<>();
+        for (Object[] row : highlights.countByPlace()) {
+            totals.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        List<HighlightPlaceView> out = new ArrayList<>();
+        out.add(new HighlightPlaceView(HighlightPlaces.HOME, messages.get("highlight.place.home"), "HOME", totals.getOrDefault(HighlightPlaces.HOME, 0L)));
+        out.add(new HighlightPlaceView(HighlightPlaces.TIPS, messages.get("highlight.place.tips"), "TIPS", totals.getOrDefault(HighlightPlaces.TIPS, 0L)));
+        boolean english = "en".equals(messages.locale().getLanguage());
+        for (GadgetPageEntity page : gadgetPages.findAllByOrderByIdAsc()) {
+            if (HighlightPlaces.builtIn(page.getPageKey()) || !HighlightPlaces.wellFormed(page.getPageKey())) {
+                continue;
+            }
+            String name = english && page.getNameEn() != null && !page.getNameEn().isBlank() ? page.getNameEn() : page.getName();
+            out.add(new HighlightPlaceView(page.getPageKey(), name, "PAGE", totals.getOrDefault(page.getPageKey(), 0L)));
+        }
+        return out;
+    }
+
+    /** 대상 글 찾기 — 글 번호(숫자 {@value #ID_DIGITS_MIN}자리 이상)거나 제목 일부({@value #SEARCH_MIN}자 이상). 지정할 수 있고 그 곳에 아직 없는 글 최대 10개 */
+    @Transactional(readOnly = true)
+    public List<AdminPostRefView> search(String q, String placeRaw) {
+        String place = placeOf(placeRaw);
         String text = q == null ? "" : q.strip();
         if (text.codePointCount(0, text.length()) < SEARCH_MIN) {
             throw ValidationException.of("q", new MessageRef("highlight.search.tooShort", String.valueOf(SEARCH_MIN)));
@@ -158,7 +196,7 @@ public class HighlightAdminService {
         Instant now = Instant.now();
         BoardCatalogSnapshot s = catalog.snapshot();
         List<Long> boardIds = activeBoardIds(s);
-        Set<Long> taken = takenPostIds();
+        Set<Long> taken = takenPostIds(place);
         List<AdminPostRow> found;
         Long byNumber = text.length() >= ID_DIGITS_MIN && text.chars().allMatch(Character::isDigit) ? parseId(text) : null;
         if (byNumber != null) {
@@ -170,10 +208,14 @@ public class HighlightAdminService {
         return found.stream().map(r -> summaries.view(r, s, members, now)).toList();
     }
 
-    /** 하이라이트 후보 — 추천 많은 글(지정할 수 있고 아직 하이라이트가 아닌 글) */
+    /** 하이라이트 후보 — 추천 많은 글(지정할 수 있고 그 곳에 아직 없는 글) */
     @Transactional(readOnly = true)
-    public HighlightCandidatesView candidates(String daysRaw, String minLikesRaw, String boardIdRaw) {
+    public HighlightCandidatesView candidates(String daysRaw, String minLikesRaw, String boardIdRaw, String placeRaw) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
+        String place = HighlightPlaces.parse(placeRaw).orElse(null);
+        if (place == null) {
+            fields.put("place", new MessageRef("highlight.place.unknown"));
+        }
         Integer days = intParam(daysRaw, DAYS_DEFAULT, 0, DAYS_MAX);
         if (days == null) {
             fields.put("days", new MessageRef("highlight.candidates.days", "0", String.valueOf(DAYS_MAX)));
@@ -196,9 +238,9 @@ public class HighlightAdminService {
         }
         Instant now = Instant.now();
         Instant since = days == 0 ? null : now.minus(Duration.ofDays(days));
-        List<AdminPostRow> found = posts.candidates(since, minLikes, boardId == null ? boardIds : List.of(boardId), takenPostIds(), now, CANDIDATE_LIMIT);
+        List<AdminPostRow> found = posts.candidates(since, minLikes, boardId == null ? boardIds : List.of(boardId), takenPostIds(place), now, CANDIDATE_LIMIT);
         Map<Long, ProfileEntity> members = summaries.authors(found);
-        return new HighlightCandidatesView(days, minLikes, boardId == null ? null : Long.toString(boardId),
+        return new HighlightCandidatesView(days, minLikes, boardId == null ? null : Long.toString(boardId), place,
                 found.stream().map(r -> summaries.view(r, s, members, now)).toList());
     }
 
@@ -206,8 +248,12 @@ public class HighlightAdminService {
 
     @Transactional
     public HighlightItemView create(AdminActor actor, HighlightSaveRequest body) {
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? HighlightSaveRequest.empty() : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
+        String place = HighlightPlaces.parse(b.place()).filter(this::selectable).orElse(null);
+        if (place == null) {
+            fields.put("place", new MessageRef("highlight.place.unknown"));
+        }
         Long postId = null;
         if (b.postId() == null || b.postId().isBlank()) {
             fields.put("postId", new MessageRef("highlight.postId.required"));
@@ -224,7 +270,7 @@ public class HighlightAdminService {
         }
         Instant now = Instant.now();
         requireAssignable(postId, now);
-        List<HighlightEntity> all = highlights.findAllWithLockByOrderBySortOrderAscIdAsc(); // 만들기를 줄 세운다(중복·맨 끝 순서)
+        List<HighlightEntity> all = highlights.findAllWithLockByPlaceOrderBySortOrderAscIdAsc(place); // 그 곳의 만들기를 줄 세운다(중복·맨 끝 순서)
         long target = postId;
         if (all.stream().anyMatch(h -> h.getPostId() == target)) {
             throw new HighlightDuplicateException();
@@ -232,20 +278,20 @@ public class HighlightAdminService {
         FileEntity image = attachImage(imageFileId, null, now);
         int order = all.stream().mapToInt(HighlightEntity::getSortOrder).max().orElse(0) + 1;
         boolean visible = b.visible() == null || b.visible();
-        HighlightEntity row = HighlightEntity.create(ids.nextId(), postId, f.title(), f.summary(), image == null ? null : image.getId(), visible, b.showFrom(),
+        HighlightEntity row = HighlightEntity.create(ids.nextId(), place, postId, f.title(), f.summary(), image == null ? null : image.getId(), visible, b.showFrom(),
                 b.showUntil(), order, actor.operatorId(), now);
         highlights.persist(row);
         applyDebate(actor, postId, b, true);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_CREATE, AuditResult.SUCCESS)
-                .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(postId)).with("after", snapshot(row)));
-        log.info("하이라이트를 만들었다 id={} postId={} by operatorId={}", row.getId(), postId, actor.operatorId());
-        return views(List.of(row), order).get(0);
+                .target("HIGHLIGHT", Long.toString(row.getId())).with("place", place).with("postId", Long.toString(postId)).with("after", snapshot(row)));
+        log.info("하이라이트를 만들었다 id={} place={} postId={} by operatorId={}", row.getId(), place, postId, actor.operatorId());
+        return views(List.of(row), all.size() + 1).get(0);
     }
 
     @Transactional
     public HighlightItemView update(AdminActor actor, String idText, HighlightSaveRequest body) {
         HighlightEntity row = requireLocked(idText);
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? HighlightSaveRequest.empty() : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Fields f = checkFields(b, fields);
         Long imageFileId = imageFileIdOf(b.imageFileId(), fields); // 여기서는 형식만 — 새 파일이면 attachImage 가 용도·상태를 확인한다
@@ -272,16 +318,18 @@ public class HighlightAdminService {
         });
         if (!changedAfter.isEmpty()) {
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_UPDATE, AuditResult.SUCCESS)
-                    .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(row.getPostId())).with("before", changedBefore)
+                    .target("HIGHLIGHT", Long.toString(row.getId())).with("place", row.getPlace()).with("postId", Long.toString(row.getPostId())).with("before", changedBefore)
                     .with("after", changedAfter));
             log.info("하이라이트를 고쳤다 id={} 칸={} by operatorId={}", row.getId(), changedAfter.keySet(), actor.operatorId());
         }
         return viewOf(row);
     }
 
+    /** 한 곳의 순서 바꾸기 — {@code place} 를 비우면 home, ID 집합은 그 곳의 것과 같아야 한다 */
     @Transactional
     public void order(AdminActor actor, HighlightOrderRequest body) {
-        List<HighlightEntity> all = highlights.findAllWithLockByOrderBySortOrderAscIdAsc();
+        String place = placeOf(body == null ? null : body.place());
+        List<HighlightEntity> all = highlights.findAllWithLockByPlaceOrderBySortOrderAscIdAsc(place);
         List<String> wanted = body == null || body.ids() == null ? List.of() : body.ids();
         Map<Long, HighlightEntity> byId = new HashMap<>();
         all.forEach(h -> byId.put(h.getId(), h));
@@ -305,7 +353,7 @@ public class HighlightAdminService {
         List<String> after = order.stream().map(id -> Long.toString(id)).toList();
         if (!before.equals(after)) {
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_ORDER, AuditResult.SUCCESS)
-                    .target("HIGHLIGHT", "order").with("before", before).with("after", after));
+                    .target("HIGHLIGHT", "order").with("place", place).with("before", before).with("after", after));
         }
     }
 
@@ -319,7 +367,7 @@ public class HighlightAdminService {
             boolean from = row.isVisible();
             row.changeVisible(body.visible(), actor.operatorId(), Instant.now());
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_VISIBLE, AuditResult.SUCCESS)
-                    .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(row.getPostId())).with("from", from).with("to", body.visible()));
+                    .target("HIGHLIGHT", Long.toString(row.getId())).with("place", row.getPlace()).with("postId", Long.toString(row.getPostId())).with("from", from).with("to", body.visible()));
         }
         return viewOf(row);
     }
@@ -334,7 +382,7 @@ public class HighlightAdminService {
             retireImage(image);
         }
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_DELETE, AuditResult.SUCCESS)
-                .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(row.getPostId())));
+                .target("HIGHLIGHT", Long.toString(row.getId())).with("place", row.getPlace()).with("postId", Long.toString(row.getPostId())));
         log.info("하이라이트를 지웠다 id={} postId={} by operatorId={}", row.getId(), row.getPostId(), actor.operatorId());
     }
 
@@ -444,10 +492,21 @@ public class HighlightAdminService {
         return highlights.findWithLockById(id).orElseThrow(HighlightNotFoundException::new);
     }
 
-    private Set<Long> takenPostIds() {
+    /** 그 곳에 이미 있는 글(중복은 같은 곳 안에서만 본다) */
+    private Set<Long> takenPostIds(String place) {
         Set<Long> out = new HashSet<>();
-        highlights.findAllByOrderBySortOrderAscIdAsc().forEach(h -> out.add(h.getPostId()));
+        highlights.findAllByPlaceOrderBySortOrderAscIdAsc(place).forEach(h -> out.add(h.getPostId()));
         return out;
+    }
+
+    /** 요청의 곳 키 — 비우면 home, 모양이 틀리면 {@code 400 fields.place} */
+    private static String placeOf(String raw) {
+        return HighlightPlaces.parse(raw).orElseThrow(() -> ValidationException.of("place", new MessageRef("highlight.place.unknown")));
+    }
+
+    /** 새로 놓을 수 있는 곳인가 — 홈 · 팁 · 있는 가젯 페이지 */
+    private boolean selectable(String place) {
+        return HighlightPlaces.builtIn(place) || gadgetPages.existsByPageKey(place);
     }
 
     private static List<Long> activeBoardIds(BoardCatalogSnapshot s) {
@@ -466,9 +525,9 @@ public class HighlightAdminService {
         return map;
     }
 
-    /** 한 줄 — 순서 번호는 전체 차례에서 센다 */
+    /** 한 줄 — 순서 번호는 그 곳의 차례에서 센다 */
     private HighlightItemView viewOf(HighlightEntity row) {
-        List<HighlightEntity> all = highlights.findAllByOrderBySortOrderAscIdAsc();
+        List<HighlightEntity> all = highlights.findAllByPlaceOrderBySortOrderAscIdAsc(row.getPlace());
         int order = 1;
         for (HighlightEntity h : all) {
             if (h.getId().equals(row.getId())) {
@@ -515,7 +574,7 @@ public class HighlightAdminService {
             AdminPostRefView postView = post == null ? null : summaries.view(post, s, members, now);
             String status = status(h, postView, now);
             PostDebateEntity d = debateOf.get(h.getPostId());
-            out.add(new HighlightItemView(Long.toString(h.getId()), order++, h.getTitle(), h.getSummary(),
+            out.add(new HighlightItemView(Long.toString(h.getId()), h.getPlace(), order++, h.getTitle(), h.getSummary(),
                     h.getImageFileId() == null ? null : Long.toString(h.getImageFileId()), h.getImageFileId() == null ? null : imageUrls.get(h.getImageFileId()),
                     h.isVisible(), h.getShowFrom(), h.getShowUntil(), status, d != null, d == null || d.isNeutralEnabled(), d == null || d.isStanceChangeAllowed(),
                     d == null ? null : d.openedByView(), postView, counts.get(h.getPostId()), h.getCreatedAt(),

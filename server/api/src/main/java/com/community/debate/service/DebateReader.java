@@ -118,7 +118,8 @@ public class DebateReader {
     }
 
     public Status status(long postId, Instant now) {
-        boolean highlighted = highlights.findByPostId(postId).map(h -> h.isShowingAt(now)).orElse(false);
+        // 어느 곳(V161 — 홈·팁·가젯 페이지)이든 노출 중인 하이라이트가 있으면 하이라이트 글이다
+        boolean highlighted = highlights.findAllByPostId(postId).stream().anyMatch(h -> h.isShowingAt(now));
         return new Status(highlighted, debates.findById(postId).orElse(null));
     }
 

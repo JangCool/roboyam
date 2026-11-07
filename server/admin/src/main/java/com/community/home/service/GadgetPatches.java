@@ -1,5 +1,6 @@
 package com.community.home.service;
 
+import com.community.highlight.service.HighlightPlaces;
 import com.community.zconfiguration.message.MessageRef;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -224,6 +225,15 @@ final class GadgetPatches {
             case "HIGHLIGHT" -> {
                 option(raw, out, "lead", GadgetConfigs.LEADS, at, opt, fields);
                 option(raw, out, "thumbs", GadgetConfigs.HIGHLIGHT_THUMBS, at, opt, fields);
+                // 놓일 곳 키(tips-contract 「결정」) — 모양만 본다. 없는 곳(지운 가젯 페이지 등)은 공개 읽기가 home 으로 읽는다
+                if (present(raw, "place")) {
+                    JsonNode key = raw.get("place");
+                    if (key.isString() && HighlightPlaces.wellFormed(key.asString())) {
+                        out.put("place", key.asString());
+                    } else {
+                        fields.put(base + "place", new MessageRef(opt));
+                    }
+                }
             }
             case "QUICK_LINKS" -> {
                 option(raw, out, "shape", GadgetConfigs.QUICK_SHAPES, at, opt, fields);

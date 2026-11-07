@@ -87,10 +87,12 @@ const cfg = computed(() => UtilHomeGadget.postList(props.gadget.config));
 const periods = computed(() => UtilHomeGadget.postPeriods(props.gadget.data));
 /** 보이는 기간 탭(받은 기간만, 실시간 · 어제 · 이번 주 순) */
 const periodKeys = computed(() => (['REALTIME', 'YESTERDAY', 'WEEK'] as const).filter((key) => periods.value?.[key] !== undefined));
-/** 고른 기간 — 처음은 실시간(없으면 받은 첫 기간) */
+/** 고른 기간 — 처음은 글이 있는 첫 기간(실시간 → 어제 → 이번 주, 다 비면 받은 첫 기간). 실시간이 비어 큰 빈 카드가 먼저 보이지 않게 */
 const period = ref<PopularPeriod>('REALTIME');
 watch(periodKeys, (keys) => {
-    if (keys.length && !keys.includes(period.value as (typeof keys)[number])) period.value = keys[0]!;
+    if (!keys.length) return;
+    if (keys.includes(period.value as (typeof keys)[number]) && (periods.value?.[period.value]?.length ?? 0) > 0) return;
+    period.value = keys.find((key) => (periods.value?.[key]?.length ?? 0) > 0) ?? keys[0]!;
 }, { immediate: true });
 
 const items = computed(() => (periods.value ? (periods.value[period.value] ?? []) : UtilHomeGadget.postItems(props.gadget.data)));

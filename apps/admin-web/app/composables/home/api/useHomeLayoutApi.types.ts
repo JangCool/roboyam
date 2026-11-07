@@ -86,6 +86,8 @@ export interface HomeGadgetConfig {
     newBadgeHours?: number;
     hotBadgeLikes?: number;
     thumbs?: 'ALL' | 'FIRST' | 'NONE';
+    /** 하이라이트 가젯이 보일 곳의 목록(`home` · `tips` · 가젯 페이지 키 — 서버 `GadgetConfigs`, 없거나 모양이 틀리면 home, tips-contract V161) */
+    place?: string;
     shape?: 'PILL' | 'TAB';
     items?: HomeQuickLink[];
     text?: string;

@@ -8,6 +8,7 @@ import java.util.List;
  *
  * @param days    최근 며칠 안에 쓴 글(0 = 전체 기간)
  * @param boardId 한 게시판만(전체면 null)
+ * @param place   이 곳에 아직 없는 글만 찾았다(보내지 않았으면 home)
  */
-public record HighlightCandidatesView(int days, int minLikes, String boardId, List<AdminPostRefView> items) {
+public record HighlightCandidatesView(int days, int minLikes, String boardId, String place, List<AdminPostRefView> items) {
 }

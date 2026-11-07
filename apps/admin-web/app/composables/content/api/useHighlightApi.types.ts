@@ -2,6 +2,7 @@
  * 하이라이트 API 가 주고받는 모양 — 서버 `server/admin` 의 `highlight.dto.*` 와 같다.
  * 계약: `docs/features/popular-highlight-contract.md` 「서버 구현 결과」. 찬반 토론은 글의 기능이 되어(`post-debate-contract.md`) 토론 칸은 **그 글의 토론**을 뜻하고,
  * 의견·고정 요청 관리는 토론 관리 API(`useDebateApi` — 글 번호)로 옮겼다. ID 는 모두 문자열, 시각은 UTC ISO 글자.
+ * 하이라이트는 **놓일 곳**(`place` — `home` · `tips` · 가젯 페이지 키, V161)마다 따로 목록·순서를 갖는다(같은 글을 여러 곳에 넣을 수 있다, 곳은 만든 뒤 못 바꾼다 — `tips-contract.md` 「서버 구현 결과」).
  */
 import type { DebateOpenedBy } from '~/composables/content/api/useDebateApi.types';
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
@@ -30,6 +31,23 @@ export interface HighlightCommentCounts {
     votes: HighlightVotes;
 }
 
+/** 곳 종류 — 홈 · 팁·강좌·사용기 묶음 · 가젯 페이지 */
+export type HighlightPlaceKind = 'HOME' | 'TIPS' | 'PAGE';
+
+/** 기본 곳(곳을 비우면 서버도 이것) */
+export const HIGHLIGHT_PLACE_HOME = 'home';
+
+/** `GET /api/admin/highlights/places` 의 한 줄 — 하이라이트를 놓을 수 있는 곳(홈 · 팁·강좌·사용기 · 가젯 페이지 만든 차례) */
+export interface HighlightPlace {
+    /** 곳 키(`home` · `tips` · 가젯 페이지 키) */
+    key: string;
+    /** 보이는 이름 — 요청 언어로 서버가 준다 */
+    name: string;
+    kind: HighlightPlaceKind;
+    /** 그 곳의 하이라이트 수(노출 여부와 상관없이) */
+    total: number;
+}
+
 export interface HighlightOperator {
     id: string;
     name: string | null;
@@ -37,7 +55,9 @@ export interface HighlightOperator {
 
 export interface HighlightItem {
     id: string;
-    /** 1부터 */
+    /** 놓일 곳 키 */
+    place: string;
+    /** 1부터 — 그 곳 안의 차례 */
     order: number;
     title: string | null;
     summary: string | null;
@@ -63,8 +83,10 @@ export interface HighlightItem {
     updatedBy: HighlightOperator | null;
 }
 
-/** `GET /api/admin/highlights` */
+/** `GET /api/admin/highlights?place=` — 한 곳의 목록 */
 export interface HighlightListView {
+    /** 곳 키(보내지 않았으면 home) */
+    place: string;
     /** SHOWING 수 */
     visibleCount: number;
     total: number;
@@ -76,6 +98,8 @@ export interface HighlightCandidatesView {
     days: number;
     minLikes: number;
     boardId: string | null;
+    /** 이 곳에 아직 없는 글만 찾았다 */
+    place: string;
     items: AdminPostRef[];
 }
 
@@ -85,6 +109,8 @@ export interface HighlightCandidateQuery {
     /** 1~1000 */
     minLikes: number;
     boardId: string | null;
+    /** 이 곳에 아직 없는 글만 */
+    place: string;
 }
 
 /**
@@ -103,4 +129,6 @@ export interface HighlightSaveRequest {
     debate: boolean | null;
     neutralEnabled: boolean | null;
     stanceChangeAllowed: boolean | null;
+    /** 놓일 곳 키 — 만들 때만 받는다(null = home). 고칠 때는 서버가 무시한다(곳은 바꾸지 않는다) */
+    place: string | null;
 }

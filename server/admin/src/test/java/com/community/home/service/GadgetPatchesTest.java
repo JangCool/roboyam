@@ -154,4 +154,24 @@ class GadgetPatchesTest {
         assertThat(GadgetConfigs.view(HomeGadgetKinds.BOARD_BODY, null)).isNull();
         assertThat(GadgetStyles.view("daum", "GROUPS", o().put("titleColor", "nope")).path("titleColor").isNull()).isTrue();
     }
+
+    @Test
+    void 하이라이트_가젯의_곳은_모양만_보고_저장하며_없거나_틀리면_home_으로_읽는다() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+
+        ObjectNode patch = config("HIGHLIGHT", o().put("place", "tips").put("lead", "NONE"), o(), GadgetConfigs.Place.PAGE, fields);
+        assertThat(fields).isEmpty();
+        assertThat(patch.path("place").asString()).as("모르는 칸으로 버리지 않는다").isEqualTo("tips");
+        assertThat(config("HIGHLIGHT", o().put("place", "my-page-2"), o(), GadgetConfigs.Place.HOME, fields).path("place").asString()).isEqualTo("my-page-2");
+
+        for (JsonNode wrong : new JsonNode[] {o().put("place", "Tips"), o().put("place", "a"), o().put("place", 3), o().put("place", "-x"), o().put("place", "x".repeat(31))}) {
+            fields.clear();
+            assertThat(config("HIGHLIGHT", wrong, o(), GadgetConfigs.Place.HOME, fields)).isNull();
+            assertThat(fields).containsOnlyKeys("gadgets[0].config.place");
+        }
+
+        assertThat(GadgetConfigs.view("HIGHLIGHT", null).path("place").asString()).as("칸이 없으면 home").isEqualTo("home");
+        assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("place", "NOPE!")).path("place").asString()).isEqualTo("home");
+        assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("place", "tips")).path("place").asString()).isEqualTo("tips");
+    }
 }

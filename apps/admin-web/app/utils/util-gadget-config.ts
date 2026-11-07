@@ -13,6 +13,8 @@ import type {
     HomeQuickLinkKind,
 } from '~/composables/home/api/useHomeLayoutApi.types';
 import UtilGadgetStyle from '~/utils/util-gadget-style';
+import UtilHighlight from '~/utils/util-highlight';
+import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 
 /** 가젯이 놓인 자리 — 홈 · 가젯 페이지 · 게시판 레이아웃(고를 수 있는 대상 게시판 범위가 다르다: `FOLDER` 는 페이지에서만, `BOARD` 는 게시판 레이아웃에서만) */
 export type GadgetPlace = 'HOME' | 'PAGE' | 'BOARD';
@@ -229,7 +231,7 @@ export default class UtilGadgetConfig {
                 Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies HomeGadgetConfig);
                 break;
             case 'HIGHLIGHT':
-                Object.assign(out, { lead: 'HERO', thumbs: 'ALL' } satisfies HomeGadgetConfig);
+                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME } satisfies HomeGadgetConfig);
                 break;
             case 'QUICK_LINKS':
                 Object.assign(out, { shape: 'PILL', items: [] } satisfies HomeGadgetConfig);
@@ -298,6 +300,8 @@ export default class UtilGadgetConfig {
             case 'HIGHLIGHT':
                 out.lead = c.lead === 'NONE' ? 'NONE' : 'HERO';
                 out.thumbs = oneOf(c.thumbs, UtilGadgetConfig.HIGHLIGHT_THUMBS, 'ALL');
+                // 곳 — 모양만 본다(없는 곳은 공개 읽기가 home 으로 친다, 서버 `GadgetPatches` 와 같다)
+                out.place = typeof c.place === 'string' && UtilHighlight.PLACE_KEY.test(c.place) ? c.place : HIGHLIGHT_PLACE_HOME;
                 break;
             case 'QUICK_LINKS':
                 out.shape = oneOf(c.shape, UtilGadgetConfig.QUICK_SHAPES, 'PILL');

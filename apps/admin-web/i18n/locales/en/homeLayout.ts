@@ -110,6 +110,8 @@ export default {
     settingsPreviewNoteAd: 'The live view shows ads that are running now. With no ads, the spot folds or shows an “Advertise with us” note, per the Empty setting.',
     highlightNote: 'Which posts appear, and in what order, is set in Highlights.',
     highlightManage: 'Highlights',
+    highlightPlace: 'Highlight place',
+    highlightPlaceHint: 'Choose which place’s highlight list to show. Posts and order for each place are set in Highlights.',
     highlightLead: 'Featured post',
     highlightLead_HERO: 'Top post large',
     highlightLead_NONE: 'All the same size',
