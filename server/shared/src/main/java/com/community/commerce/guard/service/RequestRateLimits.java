@@ -1,14 +1,13 @@
 package com.community.commerce.guard.service;
 
 import com.community.commerce.guard.dto.RequestAction;
+import com.community.commerce.guard.dto.RequestRateLimitRow;
+import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import java.time.Duration;
 import java.util.EnumMap;
 import java.util.Map;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,8 +17,9 @@ import org.springframework.stereotype.Component;
  *   <li>{@value #TTL_SECONDS}초마다 다시 읽는다 — 관리자 앱에서 저장하면 공개 서버에는 <b>최대 그만큼 늦게</b> 닿는다(commerce.md 12-4 「15초 안」). 저장한 서버 안에서는
  *       {@link #invalidate()} 로 바로 비운다.</li>
  *   <li>다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다. 행이 없는 종류는 기본값({@link RequestAction#defaultLimit()}), 범위(0~100) 밖 값도 기본값.</li>
+ *   <li>읽기는 두 칸 프로젝션({@link RequestRateLimitRepositoryQDSL#all}) 한 문장이라 트랜잭션을 따로 열지 않는다 — 업무 트랜잭션 밖이면 질의 하나가 자기 연결로 끝나고,
+ *       안이면 그 트랜잭션에서 읽는다(엔티티를 영속성 컨텍스트에 올리지 않는다).</li>
  * </ul>
- * Native SQL(JDBC)인 이유: 업무 트랜잭션 밖에서 짧게 읽는 설정 사본이다 — 엔티티를 올릴 까닭이 없고 트랜잭션 가로채기에 엮이지 않는다.
  */
 @Component
 public class RequestRateLimits {
@@ -30,14 +30,12 @@ public class RequestRateLimits {
     private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
     private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
-    private final JdbcTemplate jdbc;
+    private final RequestRateLimitRepositoryQDSL rows;
     private volatile Cached cached;
 
-    @Autowired
-    public RequestRateLimits(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public RequestRateLimits(RequestRateLimitRepositoryQDSL rows) {
+        this.rows = rows;
     }
-
     /** 그 요청 종류의 1분 한도(0 = 제한 없음) */
     public int limitOf(RequestAction action) {
         return current().get(action);
@@ -80,18 +78,14 @@ public class RequestRateLimits {
         for (RequestAction action : RequestAction.values()) {
             limits.put(action, action.defaultLimit());
         }
-        jdbc.query("select action, limit_per_minute from request_rate_limits", rs -> {
-            RequestAction.ofCode(rs.getString(1)).ifPresent(action -> {
-                try {
-                    int value = rs.getInt(2);
-                    if (value >= RequestAction.MIN_LIMIT && value <= RequestAction.MAX_LIMIT) {
-                        limits.put(action, value);
-                    }
-                } catch (java.sql.SQLException e) {
-                    throw new IllegalStateException(e);
+        for (RequestRateLimitRow row : rows.all()) {
+            int value = row.limitPerMinute();
+            RequestAction.ofCode(row.action()).ifPresent(action -> {
+                if (value >= RequestAction.MIN_LIMIT && value <= RequestAction.MAX_LIMIT) {
+                    limits.put(action, value);
                 }
             });
-        });
+        }
         return Map.copyOf(limits);
     }
 

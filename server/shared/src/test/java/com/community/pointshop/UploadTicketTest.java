@@ -11,6 +11,7 @@ import com.community.pointshop.entity.PointShopUsageType;
 import com.community.pointshop.entity.UploadTicketUse;
 import com.community.pointshop.exception.PointShopRefundNotAllowedException;
 import com.community.pointshop.exception.UploadTicketRequiredException;
+import com.community.testsupport.JpaTestContext;
 import com.community.withdrawal.repository.master.WithdrawalEraseStore;
 import com.community.zconfiguration.exception.CommonException;
 import java.time.Duration;
@@ -251,7 +252,7 @@ class UploadTicketTest extends PointShopTestBase {
         kit.grant(member, 10_000);
         long ticket = kit.buyItem(member, avatarTicket());
         kit.submitUpload(member, false);
-        int revoked = kit.inTx(() -> new WithdrawalEraseStore(kit.dataSource).revokeItems(member, kit.clock.instant()));
+        int revoked = kit.inTx(() -> new WithdrawalEraseStore(JpaTestContext.query(), kit.dataSource, JpaTestContext.context().getBean(com.community.group.repository.master.GroupRepository.class)).revokeItems(member, kit.clock.instant()));
         assertThat(revoked).isEqualTo(1);
         assertThat(ticketRow(ticket)).containsEntry("status", "REVOKED");
         assertThat(ticketRow(ticket).get("reserved_at")).isNull();

@@ -1,15 +1,14 @@
 package com.community.hotdeal.service;
 
+import com.community.hotdeal.entity.DealOgImageEntity;
+import com.community.hotdeal.repository.master.DealCleanupRepositoryQDSL;
 import com.community.media.service.ImageStorage;
 import com.community.zconfiguration.time.ServiceTime;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -40,12 +39,12 @@ public class DealCleanupService {
     static final int CHUNK = 100;
     static final int REVISION_CHUNK = 5000;
 
-    private final JdbcTemplate jdbc;
+    private final DealCleanupRepositoryQDSL cleanup;
     private final ImageStorage storage;
     private final TransactionTemplate tx;
 
-    public DealCleanupService(DataSource dataSource, ImageStorage storage, PlatformTransactionManager transactions) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public DealCleanupService(DealCleanupRepositoryQDSL cleanup, ImageStorage storage, PlatformTransactionManager transactions) {
+        this.cleanup = cleanup;
         this.storage = storage;
         this.tx = new TransactionTemplate(transactions);
     }
@@ -84,32 +83,31 @@ public class DealCleanupService {
     }
 
     private Batch ogChunk(Instant now) {
-        Timestamp keepFrom = Timestamp.from(now.minus(Duration.ofDays(KEEP_DAYS)));
-        Timestamp orphanBefore = Timestamp.from(now.minus(Duration.ofDays(ORPHAN_DAYS)));
+        Instant keepFrom = now.minus(Duration.ofDays(KEEP_DAYS));
+        Instant orphanBefore = now.minus(Duration.ofDays(ORPHAN_DAYS));
         // 지킬 딜이 없는 사본을 잠가 고른다(다른 실행·글 저장과 겹치면 건너뛴다)
-        List<Long> ids = jdbc.queryForList("SELECT g.id FROM deal_og_images g WHERE g.removed_at IS NULL AND g.created_at < ? AND NOT EXISTS ("
-                + "  SELECT 1 FROM post_deals d JOIN posts p ON p.id = d.post_id WHERE d.og_image_id = g.id AND ("
-                + "    (p.deleted_at IS NULL AND (d.status = 'ACTIVE' OR d.ended_at > ?)) OR p.deleted_at > ?)) "
-                + "ORDER BY g.id LIMIT ? FOR UPDATE SKIP LOCKED", Long.class, orphanBefore, keepFrom, keepFrom, CHUNK);
-        if (ids.isEmpty()) {
+        List<DealOgImageEntity> picked = cleanup.lockRemovableOgImages(orphanBefore, keepFrom, CHUNK);
+        if (picked.isEmpty()) {
             return new Batch(0, List.of());
         }
-        String array = ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",", "{", "}"));
-        List<String> keys = jdbc.queryForList("UPDATE deal_og_images SET removed_at = ? WHERE id = ANY (?::bigint[]) AND removed_at IS NULL RETURNING storage_key", String.class,
-                Timestamp.from(now), array);
-        jdbc.update("UPDATE post_deals SET image_source = NULL, og_image_id = NULL, image_url = NULL, image_id = NULL, updated_at = ? WHERE og_image_id = ANY (?::bigint[])",
-                Timestamp.from(now), array);
+        // 고른 줄은 이 트랜잭션이 잠갔고 「아직 안 지움」으로 골랐다 — 표시하기 전에 읽은 저장 키가 표시한 줄의 키와 같다(예전 UPDATE … RETURNING 과 같은 결과)
+        List<Long> ids = picked.stream().map(DealOgImageEntity::getId).toList();
+        List<String> keys = picked.stream().map(DealOgImageEntity::getStorageKey).toList();
+        cleanup.markOgImagesRemoved(ids, now);
+        cleanup.clearDealImages(ids, now);
         return new Batch(ids.size(), keys);
     }
 
     /** 수정 이력 정리 — 지운 줄 수 */
     public long cleanRevisions(Instant now) {
-        Timestamp before = Timestamp.from(ServiceTime.dateOf(now).atStartOfDay(ServiceTime.ZONE).minusMonths(REVISION_MONTHS).toInstant());
+        Instant before = ServiceTime.dateOf(now).atStartOfDay(ServiceTime.ZONE).minusMonths(REVISION_MONTHS).toInstant();
         long total = 0;
         while (true) {
-            Integer n = tx.execute(status -> jdbc.update("DELETE FROM post_deal_revisions WHERE id IN (SELECT id FROM post_deal_revisions WHERE created_at < ? "
-                    + "ORDER BY created_at LIMIT ?)", before, REVISION_CHUNK));
-            int deleted = n == null ? 0 : n;
+            Long n = tx.execute(status -> {
+                List<Long> ids = cleanup.oldRevisionIds(before, REVISION_CHUNK);
+                return ids.isEmpty() ? 0L : cleanup.deleteRevisions(ids);
+            });
+            long deleted = n == null ? 0 : n;
             total += deleted;
             if (deleted < REVISION_CHUNK) {
                 return total;

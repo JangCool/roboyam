@@ -3,7 +3,10 @@ package com.community.terms.service;
 import com.community.mail.outbox.repository.master.MailOutboxStore;
 import com.community.notificationtemplate.catalog.MessageLocales;
 import com.community.notificationtemplate.catalog.RequiredMail;
+import com.community.site.entity.SiteSettingEntity;
+import com.community.site.repository.master.SiteSettingRepository;
 import com.community.terms.entity.TermsKind;
+import com.community.terms.repository.master.TermsChangeMailRepositoryQDSL;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
@@ -17,11 +20,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import javax.sql.DataSource;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,19 +55,22 @@ public class TermsChangeMails {
     private final MailOutboxStore outbox;
     private final SnowflakeIdGenerator ids;
     private final Messages messages;
-    private final JdbcTemplate jdbc;
+    private final TermsChangeMailRepositoryQDSL recipients;
+    private final SiteSettingRepository sites;
     private final Clock clock;
 
     @Autowired
-    public TermsChangeMails(MailOutboxStore outbox, SnowflakeIdGenerator ids, Messages messages, DataSource dataSource) {
-        this(outbox, ids, messages, dataSource, Clock.systemUTC());
+    public TermsChangeMails(MailOutboxStore outbox, SnowflakeIdGenerator ids, Messages messages, TermsChangeMailRepositoryQDSL recipients, SiteSettingRepository sites) {
+        this(outbox, ids, messages, recipients, sites, Clock.systemUTC());
     }
 
-    public TermsChangeMails(MailOutboxStore outbox, SnowflakeIdGenerator ids, Messages messages, DataSource dataSource, Clock clock) {
+    public TermsChangeMails(MailOutboxStore outbox, SnowflakeIdGenerator ids, Messages messages, TermsChangeMailRepositoryQDSL recipients, SiteSettingRepository sites,
+                            Clock clock) {
         this.outbox = outbox;
         this.ids = ids;
         this.messages = messages;
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.recipients = recipients;
+        this.sites = sites;
         this.clock = clock;
     }
 
@@ -76,14 +81,14 @@ public class TermsChangeMails {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public int enqueue(TermsKind kind, int version, LocalDate effectiveDate, String changeNote) {
-        List<Long> members = jdbc.queryForList("SELECT id FROM users WHERE deleted_at IS NULL AND status <> 'WITHDRAWN' AND email IS NOT NULL "
-                + "AND email_verified_at IS NOT NULL ORDER BY id", Long.class);
-        Locale locale = siteLocale();
+        List<Long> members = recipients.recipientIds();
+        Optional<SiteSettingEntity> site = sites.findById(SiteSettingEntity.ROW_ID);
+        Locale locale = siteLocale(site.map(SiteSettingEntity::getDisplayLanguage).orElse(null));
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("termsName", messages.get(new MessageRef("terms.kindName." + kind.name()), locale));
         variables.put("effectiveDate", effectiveDate.toString());
         variables.put("changeNote", changeNote == null || changeNote.isBlank() ? messages.get(new MessageRef("terms.mail.noChangeNote"), locale) : changeNote);
-        variables.put("termsLink", siteLink(kind.publicPath() + "?version=" + version));
+        variables.put("termsLink", siteLink(site.map(SiteSettingEntity::getPublicUrl).orElse(null), kind.publicPath() + "?version=" + version));
 
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         List<MailOutboxStore.BulkRow> rows = new ArrayList<>(members.size());
@@ -100,15 +105,14 @@ public class TermsChangeMails {
         return "TERMS_CHANGE:" + kind.name() + ":" + version + ":" + userId;
     }
 
-    private Locale siteLocale() {
-        String language = jdbc.query("SELECT display_language FROM site_settings WHERE id = 1", (rs, i) -> rs.getString(1)).stream().findFirst().orElse(null);
+    /** 사이트 표시 언어(설정 행이 없거나 모르는 값이면 한국어) */
+    private static Locale siteLocale(String language) {
         String code = MessageLocales.of(language);
         return MessageLocales.locale(code != null ? code : MessageLocales.KO);
     }
 
     /** 메일 링크 — 사이트 공개 주소를 알면 절대 주소, 모르면 경로(공구 메일과 같다) */
-    private String siteLink(String path) {
-        String base = jdbc.query("SELECT public_url FROM site_settings WHERE id = 1", (rs, i) -> rs.getString(1)).stream().findFirst().orElse(null);
+    private static String siteLink(String base, String path) {
         return base == null || base.isBlank() ? path : base.replaceAll("/+$", "") + path;
     }
 }

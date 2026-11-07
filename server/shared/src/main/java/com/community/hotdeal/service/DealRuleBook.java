@@ -1,18 +1,14 @@
 package com.community.hotdeal.service;
 
+import com.community.hotdeal.repository.master.DealRuleRepositoryQDSL;
 import com.community.hotdeal.service.DealLinkJudge.ChainVerdict;
 import com.community.hotdeal.service.DealLinkJudge.DomainRule;
 import com.community.hotdeal.service.SiteAffiliateLinker.SiteStore;
-import java.sql.Array;
-import java.sql.SQLException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,15 +25,15 @@ public class DealRuleBook {
     private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
     private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
-    private final JdbcTemplate jdbc;
+    private final DealRuleRepositoryQDSL rules;
     private volatile Snapshot cached;
 
     /** 사본 */
     public record Snapshot(List<DomainRule> domains, List<SiteStore> siteStores, long loadedAt) {
     }
 
-    public DealRuleBook(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public DealRuleBook(DealRuleRepositoryQDSL rules) {
+        this.rules = rules;
     }
 
     public Snapshot snapshot() {
@@ -81,20 +77,10 @@ public class DealRuleBook {
     }
 
     private List<DomainRule> loadDomains() {
-        return jdbc.query("SELECT domain, rule, common, shortener, key_params, store_name FROM deal_domains",
-                (rs, i) -> new DomainRule(rs.getString(1), rs.getString(2), rs.getBoolean(3), rs.getBoolean(4), strings(rs.getArray(5)), rs.getString(6)));
+        return rules.domainRules();
     }
 
     private List<SiteStore> loadStores() {
-        return jdbc.query("SELECT id, domain, program_name, transform_type, template, query, enabled FROM deal_site_affiliates",
-                (rs, i) -> new SiteStore(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getBoolean(7)));
-    }
-
-    private static List<String> strings(Array array) throws SQLException {
-        if (array == null) {
-            return List.of();
-        }
-        Object[] values = (Object[]) array.getArray();
-        return Arrays.stream(values).map(String::valueOf).toList();
+        return rules.siteStores();
     }
 }

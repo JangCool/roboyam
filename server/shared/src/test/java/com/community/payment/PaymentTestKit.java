@@ -194,7 +194,7 @@ final class PaymentTestKit {
         @Bean
         NotificationPublisher notificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids) {
             List<AdminNotificationEvent> sink = current.notices;
-            return new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
+            return new NotificationPublisher(null, null, ids, null, null, dataSource) {
                 @Override
                 public int publish(AdminNotificationEvent event, NotificationContext context) {
                     sink.add(event);

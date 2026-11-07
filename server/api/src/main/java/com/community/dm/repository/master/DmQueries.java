@@ -1,5 +1,16 @@
 package com.community.dm.repository.master;
 
+import com.community.block.entity.QUserBlockEntity;
+import com.community.user.entity.QProfileEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -18,16 +29,20 @@ import org.springframework.stereotype.Repository;
 /**
  * 쪽지 표(V70 {@code dm_threads}·{@code dm_boxes}·{@code dm_messages}·{@code dm_user_states}) 읽기·쓰기 — 쪽지 서비스만 부른다. 트랜잭션은 부르는 서비스가 연다(같은 연결에 참여한다).
  *
- * <p>Native SQL(JDBC)인 이유: 대화 짝 만들기의 동시성({@code INSERT … ON CONFLICT DO NOTHING} — 두 사람이 동시에 첫 쪽지를 보내도 대화는 하나), 회원 한도 줄의 잠금·upsert,
- * {@code greatest()} 로 가르는 안 읽음 판정과 쪽지함·안 읽은 수의 묶음 집계를 한 문장씩으로 한다. 쪽지는 JPA 엔티티를 두지 않는다(이 클래스가 모든 읽기·쓰기를 한다 —
- * 영속성 컨텍스트와 섞여 flush 차례가 꼬이지 않게).
+ * <p>Native SQL(JDBC)인 이유: 쪽지 표는 엔티티가 없다(전환은 2단계). 대화 짝 만들기의 동시성({@code INSERT … ON CONFLICT DO NOTHING} — 두 사람이 동시에 첫 쪽지를 보내도
+ * 대화는 하나), 회원 한도 줄의 upsert 도 SQL 전용이다. 회원·프로필·차단(엔티티 있음)만 읽는 사람 찾기({@link #people}·{@link #recipients} 의 회원 부분)는 QueryDSL 이다.
  */
 @Repository
-public class DmQueries {
+public class DmQueries extends RoboyamRepositoryQDSL {
+
+    private static final QUserEntity USER = QUserEntity.userEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QUserBlockEntity BLOCK = QUserBlockEntity.userBlockEntity;
 
     private final NamedParameterJdbcTemplate jdbc;
 
-    public DmQueries(DataSource dataSource) {
+    public DmQueries(JPAQueryFactory query, DataSource dataSource) {
+        super(query);
         this.jdbc = new NamedParameterJdbcTemplate(dataSource);
     }
 
@@ -231,16 +246,19 @@ public class DmQueries {
         }
     }
 
+    /** 회원·프로필만 읽는다(QueryDSL) — 프로필이 없으면 탈퇴·삭제로 본다 */
     public Map<Long, Person> people(Collection<Long> ids) {
         Map<Long, Person> out = new HashMap<>();
         if (ids.isEmpty()) {
             return out;
         }
-        jdbc.query("select u.id, p.nickname, p.grade_key, (u.status = 'WITHDRAWN' or u.deleted_at is not null or p.user_id is null) as gone, "
-                + "u.status = 'WITHDRAWING' as withdrawing from users u left join profiles p on p.user_id = u.id where u.id in (:ids)", new MapSqlParameterSource("ids", ids), rs -> {
-                    long id = rs.getLong("id");
-                    out.put(id, new Person(id, rs.getString("nickname"), rs.getString("grade_key"), rs.getBoolean("gone"), rs.getBoolean("withdrawing")));
-                });
+        for (Tuple row : query.select(USER.id, PROFILE.nickname, PROFILE.gradeKey, USER.status, USER.deletedAt, PROFILE.userId).from(USER)
+                .leftJoin(PROFILE).on(PROFILE.userId.eq(USER.id)).where(USER.id.in(ids)).fetch()) {
+            long id = row.get(USER.id);
+            UserStatus status = row.get(USER.status);
+            boolean gone = status == UserStatus.WITHDRAWN || row.get(USER.deletedAt) != null || row.get(PROFILE.userId) == null;
+            out.put(id, new Person(id, row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), gone, status == UserStatus.WITHDRAWING));
+        }
         return out;
     }
 
@@ -250,21 +268,37 @@ public class DmQueries {
 
     /**
      * 닉네임에 검색어가 들어 있는 회원 — 앞부분이 같은 것 먼저, 그다음 닉네임 순. 나·탈퇴한 회원·차단 관계(어느 쪽이든)는 뺀다.
+     * 회원 찾기(회원·프로필·차단 — 정렬·개수는 DB)는 QueryDSL, 찾은 회원과의 대화 번호({@code dm_boxes} — 엔티티 없음)는 JDBC 로 한 번 더 읽는다.
      *
      * @param needle 소문자로 바꾼 검색어(LIKE 의 %·_·\ 는 부르는 쪽이 이스케이프하지 않는다 — 여기서 한다)
      */
     public List<RecipientRow> recipients(long userId, String needle, int limit) {
         String escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        MapSqlParameterSource p = new MapSqlParameterSource("u", userId).addValue("contains", "%" + escaped + "%").addValue("prefix", escaped + "%")
-                .addValue("lim", limit);
-        return jdbc.query("select p.user_id, p.nickname, p.grade_key, b.thread_id from profiles p join users u on u.id = p.user_id "
-                + "left join dm_boxes b on b.user_id = :u and b.partner_id = p.user_id "
-                + "where u.status not in ('WITHDRAWN', 'WITHDRAWING') and u.deleted_at is null and p.user_id <> :u and lower(p.nickname) like :contains escape '\\' "
-                + "and not exists (select 1 from user_blocks k where (k.user_id = :u and k.target_id = p.user_id) or (k.user_id = p.user_id and k.target_id = :u)) "
-                + "order by (lower(p.nickname) like :prefix escape '\\') desc, lower(p.nickname), p.user_id limit :lim", p, (rs, i) -> {
-                    long thread = rs.getLong("thread_id");
-                    return new RecipientRow(rs.getLong("user_id"), rs.getString("nickname"), rs.getString("grade_key"), rs.wasNull() ? null : thread);
+        BooleanExpression blocked = JPAExpressions.selectOne().from(BLOCK)
+                .where(BLOCK.userId.eq(userId).and(BLOCK.targetId.eq(PROFILE.userId)).or(BLOCK.userId.eq(PROFILE.userId).and(BLOCK.targetId.eq(userId)))).exists();
+        NumberExpression<Integer> prefixFirst = new CaseBuilder().when(PROFILE.nickname.lower().like(escaped + "%", '\\')).then(1).otherwise(0);
+        List<Tuple> found = query.select(PROFILE.userId, PROFILE.nickname, PROFILE.gradeKey).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                .where(USER.status.notIn(UserStatus.WITHDRAWN, UserStatus.WITHDRAWING), USER.deletedAt.isNull(), PROFILE.userId.ne(userId),
+                        PROFILE.nickname.lower().like("%" + escaped + "%", '\\'), blocked.not())
+                .orderBy(prefixFirst.desc(), PROFILE.nickname.lower().asc(), PROFILE.userId.asc()).limit(limit).fetch();
+        if (found.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Long> threads = threadsWith(userId, found.stream().map(row -> row.get(PROFILE.userId)).toList());
+        return found.stream().map(row -> {
+            long id = row.get(PROFILE.userId);
+            return new RecipientRow(id, row.get(PROFILE.nickname), row.get(PROFILE.gradeKey), threads.get(id));
+        }).toList();
+    }
+
+    /** 내 쪽지함에서 그 상대들과의 대화 번호(상대 → 대화) — 한 짝에 대화는 하나다 */
+    private Map<Long, Long> threadsWith(long userId, Collection<Long> partnerIds) {
+        Map<Long, Long> out = new HashMap<>();
+        jdbc.query("select partner_id, thread_id from dm_boxes where user_id = :u and partner_id in (:ps)",
+                new MapSqlParameterSource("u", userId).addValue("ps", partnerIds), rs -> {
+                    out.put(rs.getLong("partner_id"), rs.getLong("thread_id"));
                 });
+        return out;
     }
 
     /** 이 대화의 내 쪽지 알림(회원 알림 {@code DM}, 덧붙임 {@code threadId})을 읽음으로 — 대화를 읽음·지움·답장할 때 */

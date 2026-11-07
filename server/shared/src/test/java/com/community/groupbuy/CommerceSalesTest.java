@@ -19,6 +19,7 @@ import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.payment.gateway.PaymentGateway;
 import com.community.site.entity.SiteOperatorStage;
+import com.community.testsupport.JpaTestContext;
 import com.community.testsupport.SiteOperatorFixture;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Clock;
@@ -45,7 +46,7 @@ class CommerceSalesTest {
     @BeforeAll
     static void setUp() {
         kit = GroupBuyTestKit.get();
-        store = new CommerceSalesStore(kit.dataSource);
+        store = new CommerceSalesStore(JpaTestContext.query(), kit.dataSource);
         DefaultListableBeanFactory beans = new DefaultListableBeanFactory();
         beans.registerSingleton("gateway", kit.spring.getBean(PaymentGateway.class));
         beans.registerSingleton("identity", new FakeIdentityVerifier(Clock.systemUTC()));
