@@ -139,6 +139,7 @@ class HotdealAdminSettingsHttpTest extends HotdealAdminTestBase {
     void 제휴_방식_전환_영향은_진행_중_공개_글의_개인_제휴_수와_켠_몰로_가는_수를_센다() throws Exception {
         Cookie cookie = login(operatorWith(Permission.HOTDEAL_READ));
         String store = domain("af");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_site_affiliates (id, domain, program_name, transform_type, query, enabled, created_at, updated_at) "
                 + "VALUES (?, ?, '시험 제휴', 'QUERY', 'a=1', true, now(), now())", ids.nextId(), store);
         JsonNode before = data(mvc.perform(get("/api/admin/hotdeal-settings/affiliate-impact").param("mode", "SITE").cookie(cookie)).andExpect(status().isOk()).andReturn());
@@ -146,10 +147,12 @@ class HotdealAdminSettingsHttpTest extends HotdealAdminTestBase {
         long board = dealBoard();
         long author = newMember();
         long memberOnStore = deal(board, author, "m." + store);
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET affiliate = true WHERE post_id = ?", memberOnStore);
         long memberElsewhere = deal(board, author, "e" + uniq() + ".shop.example");
         jdbc.update("UPDATE post_deals SET affiliate = true WHERE post_id = ?", memberElsewhere);
         long plainViaFinal = deal(board, author, "p" + uniq() + ".shop.example");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET final_host = ? WHERE post_id = ?", store, plainViaFinal); // 최종 호스트가 몰
         long endedOnStore = deal(board, author, store);
         jdbc.update("UPDATE post_deals SET affiliate = true WHERE post_id = ?", endedOnStore);
@@ -161,6 +164,7 @@ class HotdealAdminSettingsHttpTest extends HotdealAdminTestBase {
         assertThat(after.path("siteStoreMatched").asLong() - before.path("siteStoreMatched").asLong()).isEqualTo(1);
         assertThat(after.path("siteStoreActive").asLong() - before.path("siteStoreActive").asLong()).isEqualTo(2);
 
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE deal_site_affiliates SET enabled = false WHERE domain = ?", store); // 끈 몰은 세지 않는다
         JsonNode off = data(mvc.perform(get("/api/admin/hotdeal-settings/affiliate-impact").param("mode", "MEMBER").cookie(cookie)).andReturn());
         assertThat(off.path("mode").asString()).isEqualTo("MEMBER");

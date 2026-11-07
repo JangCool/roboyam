@@ -91,7 +91,7 @@ class WithdrawalMailTest extends CommerceApiTestBase {
     }
 
     private String emailOf(long userId) {
-        return jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.email(userId);
     }
 
     /** 발송 스레드가 보낼 때까지(최대 5초) 기다린다 */
@@ -121,7 +121,7 @@ class WithdrawalMailTest extends CommerceApiTestBase {
         restrictions.grant(member, new RestrictionGrant(RestrictionType.POINT_FREEZE, now.plus(Duration.ofDays(60)), "결제하지 않은 선점이 반복됨", null), newOperator(), IP);
 
         assertThat(service.request(member, plain(), IP).state()).isEqualTo("COMPLETED");
-        assertThat(jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, member)).isNull(); // 익명화됐지만 메일은 그 전 주소로
+        assertThat(memberFixture.email(member)).isNull(); // 익명화됐지만 메일은 그 전 주소로
 
         Sent mail = awaitMail(email).orElseThrow();
         assertThat(mail.subject()).contains("회원 탈퇴가 완료됐어요");
@@ -148,6 +148,7 @@ class WithdrawalMailTest extends CommerceApiTestBase {
     void 이메일을_인증하지_않은_회원에게는_완료_메일을_보내지_않는다() throws Exception {
         long member = member(null);
         String email = emailOf(member);
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET email_verified_at = NULL WHERE id = ?", member);
 
         assertThat(service.request(member, plain(), IP).state()).isEqualTo("COMPLETED");
@@ -165,6 +166,7 @@ class WithdrawalMailTest extends CommerceApiTestBase {
                 + "'AWAITING_ACCOUNT', 'test', now())", transfer, transfer, member);
         assertThat(service.request(member, WithdrawalTestSupport.request(null, "WAIT", null, null, null), IP).state()).isEqualTo("SCHEDULED");
         long withdrawalId = jdbc.queryForObject("SELECT id FROM member_withdrawals WHERE user_id = ?", Long.class, member);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE member_withdrawals SET requested_at = ? WHERE id = ?", ts(clock.instant().minus(Duration.ofDays(11))), withdrawalId);
 
         WithdrawalAutoCompleteJob.Outcome first = tx.execute(s -> job.process(withdrawalId));

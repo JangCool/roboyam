@@ -226,9 +226,9 @@ class BizRefundClaimTest extends BizHotdealTestBase {
         assertThat(refunds.latest(p.id()).orElseThrow().completedAt()).isNotNull();
         assertThat(eventNote(p.id(), "CLAIM_REFUNDED")).isEqualTo(String.valueOf(fee));
         assertThat(eventNote(p.id(), "REFUNDED")).isEqualTo(String.valueOf(fee));
-        assertThat(jdbc.queryForObject("SELECT retention_class FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_CLAIM'", String.class, Long.toString(p.id())))
+        assertThat(auditLogs.where().target(Long.toString(p.id())).action("BIZ_APP_REFUND_CLAIM").single().retentionClass())
                 .isEqualTo("MONEY");
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE target_id = ? AND action = 'BIZ_APP_REFUND_CLAIM'", String.class, Long.toString(p.id()));
+        String detail = auditLogs.where().target(Long.toString(p.id())).action("BIZ_APP_REFUND_CLAIM").single().detail();
         assertThat(detail.replace(" ", "")).contains("\"amount\":" + fee, "\"method\":\"ONLINE\"", "\"refundId\":\"" + c.id() + "\"",
                 "\"refundableBefore\":" + (paid(p.id()) - stop.approvedAmount()));
         assertThat(detail).contains("고객 클레임 — 수수료 돌려줌");

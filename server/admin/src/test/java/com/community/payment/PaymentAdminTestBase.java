@@ -65,6 +65,7 @@ abstract class PaymentAdminTestBase extends Commerce04AdminTestBase {
     }
 
     protected void event(long orderId, String kind, String detailJson, String providerEventId, Instant at) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_events (id, payment_order_id, kind, provider_event_id, detail, created_at) VALUES (?, ?, ?, ?, CAST(? AS jsonb), ?)", ids.nextId(),
                 orderId, kind, providerEventId, detailJson, Timestamp.from(at));
     }
@@ -72,6 +73,7 @@ abstract class PaymentAdminTestBase extends Commerce04AdminTestBase {
     /** 재시도를 다 쓴(GAVE_UP) 취소 + 그 이력(결제 이상 목록의 출처) */
     protected long gaveUpCancel(Order order, String kind, long amount, Instant at) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_cancels (id, payment_order_id, amount, reason, kind, request_key, status, pg_status, attempts, next_attempt_at, last_error, created_at, "
                         + "completed_at) VALUES (?, ?, ?, '내부 사유', ?, ?, 'GAVE_UP', 'FAILED', 6, ?, 'PG 거절(가림)', ?, ?)",
                 id, order.id(), amount, kind, kind.equals("AUTO_REJECT") ? "AUTO_REJECT:" + order.id() : kind + ":" + id, Timestamp.from(at), Timestamp.from(at),
@@ -81,6 +83,7 @@ abstract class PaymentAdminTestBase extends Commerce04AdminTestBase {
     }
 
     protected void webhookLog(String webhookId, String type, String paymentId, String result, int httpStatus, String errorCode, Instant at) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_webhook_logs (id, webhook_id, event_type, payment_id, result, http_status, error_code, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 ids.nextId(), webhookId, type, paymentId, result, httpStatus, errorCode, Timestamp.from(at));
     }

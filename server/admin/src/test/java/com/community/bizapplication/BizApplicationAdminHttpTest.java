@@ -48,12 +48,13 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
     private long approvedBusiness() {
         long user = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, 'APPROVED', false, '관리상사', 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())", profile, user,
                 String.format("%064x", profile));
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, 'APPROVED', now())", ids.nextId(), profile, service);
+            businessFixture.service(ids.nextId(), profile, service, "APPROVED");
         }
         return user;
     }
@@ -67,8 +68,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
     /** 사업자 핫딜 글(노출 없음) — 말머리 없는 새 핫딜 게시판에(V123 — 받는 게시판 필수) */
     private long submitDeal(long user) {
         long board = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", board, "ad" + Long.toString(board, 36),
-                "관리 핫딜 " + Long.toString(board, 36));
+        boardFixture.board(board, "ad" + Long.toString(board, 36), "관리 핫딜 " + Long.toString(board, 36), 950, "DEAL", "REGULAR");
         boardCatalog.invalidate();
         return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
                 "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "1+1 행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "2026-11-02"));
@@ -164,8 +164,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
         // 거절된 처리는 아무것도 바꾸지 않았다 + 거부 감사(대상 = 그 신청 건)
         assertThat(jdbc.queryForObject("SELECT status FROM biz_applications WHERE id = ?", String.class, deal)).isEqualTo("SUBMITTED");
         assertThat(jdbc.queryForObject("SELECT status FROM biz_applications WHERE id = ?", String.class, ad)).isEqualTo("SUBMITTED");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'PERMISSION_DENIED' AND actor_id = ? AND target_type = 'BIZ_APPLICATION' AND target_id = ?",
-                Integer.class, adOperator, Long.toString(deal))).isGreaterThanOrEqualTo(1);
+        assertThat(auditLogs.where().action("PERMISSION_DENIED").actor(adOperator).targetType("BIZ_APPLICATION").target(Long.toString(deal)).count()).isGreaterThanOrEqualTo(1);
 
         // 자기 도메인은 된다 — 목록에는 자기 도메인 건만, 큐별 건수도 그 안에서
         JsonNode adPage = data(mvc.perform(get("/api/admin/biz-applications").param("domain", "AD").param("queue", "REVIEW").cookie(adOp)).andExpect(status().isOk()));
@@ -248,11 +247,10 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.deposit.amount").value(total));
         mvc.perform(withCsrf(post("/api/admin/biz-applications/" + id + "/confirm"), op)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("SCHEDULED"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_type = 'BIZ_APPLICATION' AND target_id = ?", Integer.class, Long.toString(id)))
+        assertThat(auditLogs.where().targetType("BIZ_APPLICATION").target(Long.toString(id)).count())
                 .isGreaterThanOrEqualTo(5);
         // 감사 detail 에 건의 도메인·출처(S6)
-        JsonNode audit = MAPPER.readTree(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE action = 'BIZ_APP_APPROVE' AND target_id = ? ORDER BY id DESC LIMIT 1",
-                String.class, Long.toString(id)));
+        JsonNode audit = MAPPER.readTree(auditLogs.where().action("BIZ_APP_APPROVE").target(Long.toString(id)).lastById().orElseThrow().detail());
         assertThat(audit.get("domain").asString()).isEqualTo("AD");
         assertThat(audit.get("source").asString()).isEqualTo("BUSINESS");
         assertThat(audit.get("method").asString()).isEqualTo("MANUAL");
@@ -266,6 +264,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
         long plain = newMember();
         long reReview = newMember();
         long profile = ids.nextId();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                 + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                 + "VALUES (?, ?, 'PENDING', true, '재심사', 'x', ?, '1234', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())", profile, reReview,

@@ -43,7 +43,7 @@ class WithdrawalHotdealFlowTest extends HotdealStage2TestBase {
         assertThat(dealRow(plain)).containsEntry("status", "ENDED").containsEntry("ended_by", "AUTHOR");
         assertThat(dealRow(alreadyEnded)).containsEntry("ended_by", "MANAGER");
         requesters.forEach(m -> assertThat(rewards(m)).isEqualTo(1));
-        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, author)).isEqualTo("WITHDRAWN");
+        assertThat(memberFixture.status(author)).isEqualTo("WITHDRAWN");
         assertThat(jdbc.queryForObject("SELECT author_id FROM posts WHERE id = ?", Long.class, plain)).isEqualTo(author); // 글은 「탈퇴한 회원」으로 남는다
         assertInvariants(requesters);
     }

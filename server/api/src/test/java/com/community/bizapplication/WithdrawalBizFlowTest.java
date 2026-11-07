@@ -74,7 +74,7 @@ class WithdrawalBizFlowTest extends BizApplicationApiTestBase {
     }
 
     private String status(long userId) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, userId);
+        return memberFixture.status(userId);
     }
 
     private WithdrawalAutoCompleteJob.Outcome process(long withdrawalId) {

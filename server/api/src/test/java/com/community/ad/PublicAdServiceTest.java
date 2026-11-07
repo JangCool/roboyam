@@ -69,7 +69,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
 
     @AfterEach
     void cleanUp() {
-        createdBoards.forEach(id -> jdbc.update("DELETE FROM boards WHERE id = ?", id));
+        createdBoards.forEach(boardFixture::deleteBoard);
         createdBoards.clear();
         jdbc.update("DELETE FROM ad_placement_settings");
         catalog.invalidate();
@@ -107,8 +107,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
     private long board(String kind, boolean allowAdult, boolean adsHidden, boolean active) {
         long id = ids.nextId();
         String slug = "ad" + Long.toString(id, 36);
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, allow_adult, ads_hidden, active) VALUES (?, ?, ?, 900, ?, ?, ?, ?)", id, slug,
-                "광고판 " + slug.substring(slug.length() - 6), kind, allowAdult, adsHidden, active);
+        boardFixture.board(id, slug, "광고판 " + slug.substring(slug.length() - 6), 900, kind, allowAdult, adsHidden, active);
         createdBoards.add(id);
         return id;
     }

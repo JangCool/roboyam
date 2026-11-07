@@ -64,6 +64,7 @@ abstract class PointShopApiTestBase extends CommerceApiTestBase {
 
     private void seedMemberRoles() {
         for (MemberPermission p : MemberPermission.values()) {
+            // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready) VALUES (?, 'MEMBER', ?, ?, ?) ON CONFLICT (code) DO NOTHING", p.code(),
                     p.typeId(), p.group().name(), p.featureReady());
         }
@@ -72,10 +73,12 @@ abstract class PointShopApiTestBase extends CommerceApiTestBase {
     }
 
     private void role(String roleId, List<MemberPermission> granted) {
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         int created = jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name, scope, grant_mode, builtin) VALUES (?, 'memberKind', 'MEMBER', ?, 'SITE', 'AUTO', true) "
                 + "ON CONFLICT (role_id) DO NOTHING", roleId, roleId);
         if (created == 1) {
             for (MemberPermission p : granted) {
+                // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
                 jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", ids.nextId(), roleId, p.code());
             }
         }
@@ -86,21 +89,22 @@ abstract class PointShopApiTestBase extends CommerceApiTestBase {
     /** 이메일 인증을 마친 정상 회원 + 프로필(닉네임은 ID 로 겹치지 않게) */
     protected long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, nicknameOf(id));
+        memberFixture.verifyEmail(id);
+        memberFixture.profile(id, nicknameOf(id));
         return id;
     }
 
     /** 이메일 인증 전 회원 + 프로필 */
     protected long unverifiedMember() {
         long id = newMember();
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", id, nicknameOf(id));
+        memberFixture.profile(id, nicknameOf(id));
         return id;
     }
 
     /** 사업자 회원(회원 역할 — 포인트 상점 권한 없음) */
     protected long businessMember() {
         long id = member();
+        // SQL 로 남김: user_roles 엔티티에 팩터리가 없다
         jdbc.update("INSERT INTO user_roles (id, user_id, role_id) VALUES (?, ?, ?)", ids.nextId(), id, MemberRoleIds.BUSINESS);
         return id;
     }
@@ -111,11 +115,13 @@ abstract class PointShopApiTestBase extends CommerceApiTestBase {
     }
 
     protected void suspend(long userId) {
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", userId);
     }
 
     /** 포인트 동결(기한 없음) */
     protected void freeze(long userId) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO member_restrictions (id, user_id, type, reason, starts_at, source, auto_rule, created_at) VALUES (?, ?, 'POINT_FREEZE', '시험 동결', ?, 'AUTO', "
                 + "'POINT_TEST', ?)", ids.nextId(), userId, Timestamp.from(clock.instant().minusSeconds(60)), Timestamp.from(clock.instant()));
     }

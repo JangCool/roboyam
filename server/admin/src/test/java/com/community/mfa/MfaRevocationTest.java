@@ -105,6 +105,7 @@ class MfaRevocationTest extends MfaSpringTestBase {
             long operator = newOperator();
             enrollViaService(operator);
             devices.trust(operator, 30, IP, null);
+            // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
             jdbc.update("INSERT INTO login_attempts (email_key, fail_count, updated_at) VALUES (?, 2, now()) ON CONFLICT (email_key) DO UPDATE SET fail_count = 2",
                     MfaAttemptService.key(operator));
             long root = rootId();
@@ -116,8 +117,7 @@ class MfaRevocationTest extends MfaSpringTestBase {
             assertThat(deviceCount(operator)).isZero();
             assertThat(jdbc.queryForObject("SELECT fail_count FROM login_attempts WHERE email_key = ?", Integer.class, MfaAttemptService.key(operator))).isZero();
             assertThat(lastAudit(operator, "MFA_RESET")).contains("\"via\":\"ADMIN\"", "\"wasEnrolled\":true", "\"recoveryCodes\":10", "\"trustedDevices\":1");
-            assertThat(jdbc.queryForObject("SELECT actor_id FROM audit_logs WHERE action = 'MFA_RESET' AND target_id = ? ORDER BY id DESC LIMIT 1", Long.class,
-                    Long.toString(operator))).isEqualTo(root);
+            assertThat(auditLogs.where().action("MFA_RESET").target(Long.toString(operator)).lastById().orElseThrow().actorId()).isEqualTo(root);
         }
 
         @Test
@@ -136,8 +136,7 @@ class MfaRevocationTest extends MfaSpringTestBase {
 
             assertThatThrownBy(() -> operatorMfa.reset(actor(operator), Long.toString(target))).isInstanceOf(PermissionDeniedException.class);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_mfa WHERE operator_id = ?", Integer.class, target)).isOne();
-            assertThat(jdbc.queryForObject("SELECT detail FROM audit_logs WHERE actor_id = ? AND action = 'PERMISSION_DENIED' ORDER BY id DESC LIMIT 1", String.class,
-                    operator)).contains("SUPER_ONLY");
+            assertThat(auditLogs.where().actor(operator).action("PERMISSION_DENIED").lastById().orElseThrow().detail()).contains("SUPER_ONLY");
         }
 
         @Test

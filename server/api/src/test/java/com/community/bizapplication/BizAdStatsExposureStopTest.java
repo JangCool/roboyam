@@ -41,7 +41,7 @@ class BizAdStatsExposureStopTest extends BizHotdealTestBase {
     void 글이_운영_숨김이면_POST_HIDDEN() {
         Booked b = postedBooking("HOME_TOP");
         long postId = postOf(b.id());
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", postId);
+        boardFixture.staffHide(postId);
         assertThat(item(b).exposureStop()).isEqualTo("POST_HIDDEN");
     }
 

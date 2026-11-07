@@ -82,6 +82,7 @@ class NicknameImageTicketAdminHttpTest extends PointShopAdminHttpTestBase {
         Cookie session = login(operatorWith(Permission.NICKNAME_IMAGE_READ, Permission.NICKNAME_IMAGE_MANAGE));
         long member = buyer(10_000);
         buy(member, avatarItem("motion-robot-bob"));
+        // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE profiles SET profile_image = 'avatar:motion-robot-bob', last_still_avatar = 'hobby-gamer' WHERE user_id = ?", member);
         long still = reservedRequest(member, false);
         act(session, still, "approve", null).andExpect(status().isOk());

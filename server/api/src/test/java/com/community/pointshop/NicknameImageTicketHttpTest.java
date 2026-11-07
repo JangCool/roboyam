@@ -50,7 +50,8 @@ class NicknameImageTicketHttpTest extends PointShopApiTestBase {
     /** 기본 신청 조건(등급 기준 · 베테랑 · 이메일 인증)을 채운 회원 */
     private long veteran() {
         long member = member();
-        jdbc.update("UPDATE profiles SET grade_key = 'VETERAN' WHERE user_id = ?", member);
+        // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
+        memberFixture.grade(member, "VETERAN");
         members.add(member);
         return member;
     }
@@ -77,12 +78,14 @@ class NicknameImageTicketHttpTest extends PointShopApiTestBase {
     }
 
     private void backdate(long member) {
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE nickname_image_requests SET created_at = created_at - interval '1 minute' WHERE user_id = ?", member);
     }
 
     /** 이 규칙 전에 올라온 것처럼(예약 없이) 대기·승인 신청을 넣는다 — 파일 키는 가짜 */
     private long insert(long member, String status, boolean animated) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO nickname_image_requests (id, user_id, status, image_key, still_key, content_type, bytes, width, height, frames, reviewed_at, created_at) "
                 + "VALUES (?, ?, ?, ?, ?, ?, 1000, 240, 60, ?, CASE WHEN ? = 'APPROVED' THEN now() END, now() - interval '1 hour')", id, member, status,
                 "nickname-image/t-" + id + "/image." + (animated ? "gif" : "png"), animated ? "nickname-image/t-" + id + "/still.png" : null, animated ? "image/gif" : "image/png",
@@ -93,7 +96,8 @@ class NicknameImageTicketHttpTest extends PointShopApiTestBase {
     @Test
     void 변경권이_없으면_조건_검사_뒤_파일_처리_전에_409_와_장_수_값() throws Exception {
         long unverified = unverifiedMember();
-        jdbc.update("UPDATE profiles SET grade_key = 'VETERAN' WHERE user_id = ?", unverified);
+        // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
+        memberFixture.grade(unverified, "VETERAN");
         apply(unverified, new byte[] {1}).andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("EMAIL_NOT_VERIFIED"));
         long plain = member();
         apply(plain, new byte[] {1}).andExpect(status().isForbidden())

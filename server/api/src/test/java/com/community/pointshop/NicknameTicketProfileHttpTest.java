@@ -36,7 +36,7 @@ class NicknameTicketProfileHttpTest extends PointShopApiTestBase {
     }
 
     private String nickname(long member) {
-        return jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, member);
+        return memberFixture.nickname(member);
     }
 
     private static String fresh(String prefix, long member) {
@@ -46,6 +46,7 @@ class NicknameTicketProfileHttpTest extends PointShopApiTestBase {
     /** 무료 변경 1번을 이미 쓴 회원 */
     private long usedFreeChange() {
         long member = member();
+        // SQL 로 남김: 아바타·이미지 칸을 바로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE profiles SET nickname_change_count = 1 WHERE user_id = ?", member);
         return member;
     }

@@ -65,6 +65,7 @@ class BusinessDeleteHttpTest extends Commerce04AdminTestBase {
         long user = newMember();
         long id = ids.nextId();
         String number = bizNo();
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at, opened_on) "
                         + "VALUES (?, ?, 'PENDING', false, '(주)삭제상사', ?, ?, ?, ?, ?, ?, '06236', ?, 'v1', 'v1', now(), now(), now(), now(), DATE '2021-03-02')",
@@ -72,16 +73,17 @@ class BusinessDeleteHttpTest extends Commerce04AdminTestBase {
                 pii.encrypt(BusinessPii.PHONE, "01012345678"), pii.encrypt(BusinessPii.EMAIL, "b" + user + "@test.local"),
                 pii.encrypt(BusinessPii.ADDRESS1, "서울 강남구 테헤란로 1"));
         if ("APPROVED".equals(status)) {
+            // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
             jdbc.update("UPDATE business_profiles SET status = 'APPROVED', reviewed_at = now(), first_approved_at = now() WHERE id = ?", id);
         } else if (reReview) { // 재심사 = 승인된 적 있는 심사 중
             jdbc.update("UPDATE business_profiles SET re_review = true, reviewed_at = now(), first_approved_at = now() WHERE id = ?", id);
         }
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, ?, now())", ids.nextId(), id, service,
-                    "APPROVED".equals(status) ? "APPROVED" : "PENDING");
+            businessFixture.service(ids.nextId(), id, service, "APPROVED".equals(status) ? "APPROVED" : "PENDING");
         }
         jdbc.update("INSERT INTO business_nts_checks (id, profile_id, status, validity, checked_at) VALUES (?, ?, 'CONTINUING', 'MATCH', now())", ids.nextId(), id);
         long cert = ids.nextId();
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("INSERT INTO business_documents (id, user_id, profile_id, kind, file_name, content_type, size_bytes, content, sha256, created_at, attached_at) "
                 + "VALUES (?, ?, ?, 'CERTIFICATE', 'cert.png', 'image/png', 3, ?, ?, now(), now())", cert, user, id, new byte[] {1, 2, 3}, "a".repeat(64));
         jdbc.update("UPDATE business_profiles SET certificate_id = ? WHERE id = ?", cert, id);
@@ -140,8 +142,7 @@ class BusinessDeleteHttpTest extends Commerce04AdminTestBase {
             assertThat(jdbc.queryForObject("SELECT business_profile_id FROM ad_advertisers WHERE id = ?", Long.class, f.advertiserId())).as("광고주는 연결만 끊긴다").isNull();
 
             assertThat(audits(f.profileId())).isEqualTo(1);
-            String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE target_type = 'BUSINESS' AND action = 'BUSINESS_DELETE' AND target_id = ?",
-                    String.class, Long.toString(f.profileId()));
+            String detail = auditLogs.where().targetType("BUSINESS").action("BUSINESS_DELETE").target(Long.toString(f.profileId())).single().detail();
             assertThat(detail).contains("(주)삭제상사").contains("bizNoLast4").contains(f.bizNo().substring(6)).contains("\"" + c[0] + "\"").contains("reReview")
                     .contains(REASON).doesNotContain(f.bizNo()).doesNotContain("홍길동").doesNotContain("v1:");
 

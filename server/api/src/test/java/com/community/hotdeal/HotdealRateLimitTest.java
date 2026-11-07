@@ -25,6 +25,7 @@ class HotdealRateLimitTest extends HotdealApiTestBase {
 
     private void dealAt(long author, String host, String finalHost, Instant at) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO post_deals (post_id, board_id, author_id, store_name, product_url, product_host, final_host, product_url_key, deal_price, created_at, "
                         + "updated_at) VALUES (?, ?, ?, '시험몰', ?, ?, ?, ?, 1000, ?, ?)", id, boardId(board), author, "https://" + host + "/p/" + id, host, finalHost,
                 String.format("%064x", id), Timestamp.from(at), Timestamp.from(at));

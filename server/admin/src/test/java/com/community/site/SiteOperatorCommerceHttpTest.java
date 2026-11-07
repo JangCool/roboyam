@@ -42,7 +42,7 @@ class SiteOperatorCommerceHttpTest extends Commerce04AdminTestBase {
     }
 
     private int auditCount(long operatorId, String action) {
-        return jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = ?", Integer.class, operatorId, action);
+        return auditLogs.where().actor(operatorId).action(action).count();
     }
 
     @Test
@@ -141,7 +141,7 @@ class SiteOperatorCommerceHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.history[0].changedBy").value(operatorName(manager)));
         assertThat(historyCount()).isEqualTo(history + 1);
         assertThat(auditCount(manager, "SITE_OPERATOR_STAGE_CHANGE")).isEqualTo(1);
-        String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'SITE_OPERATOR_STAGE_CHANGE'", String.class, manager);
+        String detail = auditLogs.where().actor(manager).action("SITE_OPERATOR_STAGE_CHANGE").single().detail();
         assertThat(detail).as("감사에 이메일 원문을 남기지 않는다").doesNotContain("help@test.local").contains("he***@test.local");
 
         // 커머스 관리자 읽기 = 운영 주체 값(겹치는 칸)

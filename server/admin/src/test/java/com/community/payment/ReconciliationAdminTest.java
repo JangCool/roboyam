@@ -43,6 +43,7 @@ class ReconciliationAdminTest extends PaymentAdminTestBase {
 
     private long issue(String type, String paymentId, Long orderId, LocalDate day, String status, String detailJson) {
         long id = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO reconciliation_issues (id, type, payment_id, payment_order_id, detected_day, detail, status, resolved_at, created_at) "
                         + "VALUES (?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, now())", id, type, paymentId, orderId, Date.valueOf(day), detailJson, status,
                 "RESOLVED".equals(status) ? java.sql.Timestamp.from(Instant.now()) : null);
@@ -50,6 +51,7 @@ class ReconciliationAdminTest extends PaymentAdminTestBase {
     }
 
     private void day(LocalDate day, String status, int checked, int issues) {
+        // SQL 로 남김: ON CONFLICT upsert — 권한·내장 역할 사본을 없을 때만 넣는다
         jdbc.update("INSERT INTO payment_reconcile_days (day, status, checked_count, issue_count, finished_at) VALUES (?, ?, ?, ?, now()) "
                 + "ON CONFLICT (day) DO UPDATE SET status = excluded.status, checked_count = excluded.checked_count, issue_count = excluded.issue_count, "
                 + "finished_at = excluded.finished_at", Date.valueOf(day), status, checked, issues);
@@ -146,8 +148,7 @@ class ReconciliationAdminTest extends PaymentAdminTestBase {
                 .andExpect(jsonPath("$.data.resolvedBy").value(operatorName(operator)))
                 .andExpect(jsonPath("$.data.resolvedAt").isNotEmpty());
         assertThat(orderRow(order.id())).as("자동 보정 없음 — 결제 주문은 그대로").isEqualTo(before);
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, target_id, detail, retention_class FROM audit_logs WHERE actor_id = ? AND action = 'RECONCILE_ISSUE_RESOLVE'",
-                operator);
+        Map<String, Object> audit = auditLogs.where().actor(operator).action("RECONCILE_ISSUE_RESOLVE").single().asMap();
         assertThat(audit.get("target_type")).isEqualTo("RECONCILIATION_ISSUE");
         assertThat(audit.get("target_id")).isEqualTo(Long.toString(open));
         assertThat((String) audit.get("detail")).contains("AMOUNT_MISMATCH").contains(order.paymentId()).contains(REASON);
@@ -184,8 +185,7 @@ class ReconciliationAdminTest extends PaymentAdminTestBase {
             assertThat(BatchMessageCodec.decodeParams((String) request.get("params"))).containsExactlyEntriesOf(Map.of("day", target.toString()));
             assertThat(((Number) request.get("operator_id")).longValue()).isEqualTo(operator);
         });
-        Map<String, Object> audit = jdbc.queryForMap("SELECT target_type, target_id, retention_class FROM audit_logs WHERE actor_id = ? AND action = 'PAYMENT_RECONCILE_RERUN'",
-                operator);
+        Map<String, Object> audit = auditLogs.where().actor(operator).action("PAYMENT_RECONCILE_RERUN").single().asMap();
         assertThat(audit.get("target_type")).isEqualTo("PAYMENT_RECONCILE_DAY");
         assertThat(audit.get("target_id")).isEqualTo(target.toString());
         assertThat(audit.get("retention_class")).as("돈을 움직이지 않는다").isEqualTo("GENERAL");

@@ -41,13 +41,12 @@ class PointAdjustHttpTest extends PointAdminHttpTestBase {
     /** 이 회원의 원장 줄·묶음·조정 감사 수 — 「아무것도 바뀌지 않았다」를 보려고 */
     private List<Integer> footprint(long member) {
         return List.of(count("SELECT count(*) FROM point_ledger WHERE user_id = ?", member), count("SELECT count(*) FROM point_lots WHERE user_id = ?", member),
-                count("SELECT count(*) FROM audit_logs WHERE action = 'POINT_ADJUST' AND target_id = ?", Long.toString(member)),
+                auditLogs.where().action("POINT_ADJUST").target(Long.toString(member)).count(),
                 count("SELECT count(*) FROM member_notifications WHERE user_id = ?", member));
     }
 
     private Map<String, Object> lastAdjustAudit(long member) {
-        return jdbc.queryForMap("SELECT actor_id, result, retention_class, detail FROM audit_logs WHERE action = 'POINT_ADJUST' AND target_id = ? "
-                + "ORDER BY occurred_at DESC, id DESC LIMIT 1", Long.toString(member));
+        return auditLogs.where().action("POINT_ADJUST").target(Long.toString(member)).latest().orElseThrow().asMap();
     }
 
     @Test
@@ -87,8 +86,7 @@ class PointAdjustHttpTest extends PointAdminHttpTestBase {
             }
             assertThat(balance(member)).containsExactly(before);
             assertThat(footprint(member)).isEqualTo(footprint);
-            assertThat(count("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = ? AND target_id = ? AND result = 'DENIED'", operator,
-                    AuditActions.PERMISSION_DENIED, Long.toString(member))).isEqualTo(3);
+            assertThat(auditLogs.where().actor(operator).action(AuditActions.PERMISSION_DENIED).target(Long.toString(member)).result("DENIED").count()).isEqualTo(3);
 
             // 문턱과 같은 크기는 고액이 아니다
             adjust(session, member, body(THRESHOLD)).andExpect(status().isOk()).andExpect(jsonPath("$.data.applied").value(THRESHOLD));

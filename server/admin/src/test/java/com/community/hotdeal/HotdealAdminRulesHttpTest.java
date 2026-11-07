@@ -109,11 +109,12 @@ class HotdealAdminRulesHttpTest extends HotdealAdminTestBase {
         long direct = deal(board, author, domain);
         long sub = deal(board, author, "shop." + domain);
         long viaFinal = deal(board, author, "s" + uniq() + ".other.example");
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("UPDATE post_deals SET final_host = ? WHERE post_id = ?", "m." + domain, viaFinal);
         long ended = deal(board, author, domain);
         endByAuthor(ended);
         long hidden = deal(board, author, domain);
-        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", hidden);
+        boardFixture.staffHide(hidden);
         deal(board, author, "not" + domain.replace(".", "")); // 접미사가 점 경계가 아니면 안 걸린다
         Cookie reader = login(operatorWith(Permission.HOTDEAL_READ));
 

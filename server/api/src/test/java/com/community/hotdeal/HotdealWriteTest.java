@@ -90,6 +90,7 @@ class HotdealWriteTest extends HotdealApiTestBase {
     void 새싹_등급과_이메일_미인증은_핫딜을_쓸_수_없다() {
         assertThat(error(() -> write(member("SEEDLING", true), board, deal(url("shop.example.com")))).getErrorCode()).isIn("GRADE_TOO_LOW");
         assertThat(error(() -> write(member("REGULAR", false), board, deal(url("shop.example.com")))).getErrorCode()).isEqualTo("EMAIL_NOT_VERIFIED");
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET write_min = NULL WHERE slug = ?", board); // 기본값이 첫 등급이어도 핫딜은 새싹을 막는다
         catalog.invalidate();
         assertThat(error(() -> write(member("SEEDLING", true), board, deal(url("shop.example.com")))).getErrorCode()).isEqualTo("GRADE_TOO_LOW");
@@ -158,6 +159,7 @@ class HotdealWriteTest extends HotdealApiTestBase {
         DealInput outside = withImage(deal(url("shop.example.com")), new com.community.hotdeal.dto.request.DealImageInput("https://evil.example/a.png", "OG", null, null));
         assertThat(fieldKeys(() -> write(member(), board, outside))).containsEntry("deal.image", "hotdeal.image.invalid");
         long og = ids.nextId();
+        // SQL 로 남김: 핫딜 칸을 바로 세운다 — 엔티티는 딜 칸 전체(DealValues)로만 만들고 바꾼다(다음 단계에서 픽스처로)
         jdbc.update("INSERT INTO deal_og_images (id, origin_url, origin_host, storage_key, public_url, content_type, size_bytes, width, height, created_at) "
                 + "VALUES (?, 'https://cdn.example/a.png', 'cdn.example', ?, ?, 'image/jpeg', 10, 600, 300, now())", og, "deal-og/t/" + og + ".jpg", "/media/deal-og/t/" + og + ".jpg");
         long id = writeId(member(), withImage(deal(url("shop.example.com")),
@@ -176,6 +178,7 @@ class HotdealWriteTest extends HotdealApiTestBase {
 
     @Test
     void 핫딜_게시판은_19금을_켤_수_없다() {
+        // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
         jdbc.update("UPDATE boards SET allow_adult = true WHERE slug = ?", board);
         catalog.invalidate();
         CommonException e = error(() -> posts.create(new PostWriteRequest(board, null, "제목", "TEXT", BODY, true, null, null, null, deal(url("shop.example.com"))),

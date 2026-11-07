@@ -1,13 +1,18 @@
 package com.community.commerce;
 
 import com.community.api.ApiApplication;
+import com.community.testsupport.AuditLogQuery;
+import com.community.testsupport.BoardFixture;
+import com.community.testsupport.BusinessFixture;
 import com.community.testsupport.CommerceTestDatabase;
+import com.community.testsupport.MemberFixture;
+import com.community.testsupport.OperatorFixture;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
@@ -15,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -68,34 +74,47 @@ public abstract class CommerceApiTestBase {
     @Autowired
     protected PlatformTransactionManager transactions;
 
+    @Autowired
+    private ApplicationContext context;
+
     protected JdbcTemplate jdbc;
     protected TransactionTemplate tx;
+    /** 엔티티 픽스처 — 회원·운영자(역할)·게시판·글·사업자 서비스 줄, 감사 기록 확인 */
+    protected MemberFixture memberFixture;
+    protected OperatorFixture operatorFixture;
+    protected BoardFixture boardFixture;
+    protected BusinessFixture businessFixture;
+    protected AuditLogQuery auditLogs;
 
     @BeforeEach
     void baseSetUp() {
         jdbc = new JdbcTemplate(dataSource);
         tx = new TransactionTemplate(transactions);
+        memberFixture = new MemberFixture(context);
+        operatorFixture = new OperatorFixture(context);
+        boardFixture = new BoardFixture(context);
+        businessFixture = new BusinessFixture(context);
+        auditLogs = new AuditLogQuery(context);
         clock.set(Instant.now().truncatedTo(ChronoUnit.MICROS)); // DB 가 마이크로초로 반올림하므로 처음부터 맞춘다
     }
 
-    /** 정상 회원을 새로 만든다 */
+    /** 정상 회원을 새로 만든다(프로필 없음) */
     protected long newMember() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO users (id, email, terms_version, terms_agreed_at, age_confirmed_at) VALUES (?, ?, 'v1', now(), now())", id,
-                "c04-" + id + "@test.local");
+        memberFixture.user(id, "c04-" + id + "@test.local");
         return id;
     }
 
     /** 탈퇴 처리(상태만) */
     protected void markWithdrawn(long userId) {
+        // SQL 로 남김: 회원 엔티티에 탈퇴(익명화) 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'WITHDRAWN', email = NULL WHERE id = ?", userId);
     }
 
     /** 활성 운영자를 새로 만든다 */
     protected long newOperator() {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO operators (id, email, operator_name, password_hash, approved, created_at, updated_at) VALUES (?, ?, ?, 'x', true, now(), now())", id,
-                "c04op-" + id + "@test.local", "op" + (id % 10_000_000_000L));
+        operatorFixture.operator(id, "c04op-" + id + "@test.local", "op" + (id % 10_000_000_000L), "x");
         return id;
     }
 
@@ -106,15 +125,17 @@ public abstract class CommerceApiTestBase {
 
     /** 그 대상의 마지막 감사 기록(없으면 null) */
     protected Map<String, Object> lastAudit(String targetType, String targetId, String action) {
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT actor_type, actor_id, detail FROM audit_logs WHERE target_type = ? AND target_id = ? AND action = ? "
-                + "ORDER BY id DESC LIMIT 1", targetType, targetId, action);
-        return rows.isEmpty() ? null : rows.get(0);
+        return auditLogs.where().targetType(targetType).target(targetId).action(action).lastById().map(row -> {
+            Map<String, Object> picked = new LinkedHashMap<>(); // 예전 SELECT actor_type, actor_id, detail 과 같은 칸만
+            picked.put("actor_type", row.actorType());
+            picked.put("actor_id", row.actorId());
+            picked.put("detail", row.detail());
+            return picked;
+        }).orElse(null);
     }
 
     protected int auditCount(String targetType, String targetId, String action) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE target_type = ? AND target_id = ? AND action = ?", Integer.class, targetType, targetId,
-                action);
-        return count == null ? 0 : count;
+        return auditLogs.where().targetType(targetType).target(targetId).action(action).count();
     }
 
     protected static OffsetDateTime ts(Instant at) {

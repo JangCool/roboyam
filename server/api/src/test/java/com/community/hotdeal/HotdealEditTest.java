@@ -70,6 +70,7 @@ class HotdealEditTest extends HotdealApiTestBase {
         long author2 = member();
         DealInput open = withEnds(deal(url("shop.example.com")), Instant.now().plus(Duration.ofDays(2)).toString());
         long expired = writeId(author2, open);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofHours(1))), expired);
         assertThat(postQueries.detail(Long.toString(expired), null, "127.0.0.1").deal().view()).isEqualTo("EXPIRED");
         update(author2, expired, withEnds(open, Instant.now().plus(Duration.ofDays(5)).toString()));
@@ -82,6 +83,7 @@ class HotdealEditTest extends HotdealApiTestBase {
         DealInput open = withEnds(deal(url("shop.example.com")), Instant.now().plus(Duration.ofDays(2)).toString());
         long id = writeId(author, open);
         Instant past = Instant.now().minus(Duration.ofHours(3)).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(past), id);
         update(author, id, withPrices(withEnds(open, past.toString()), 30_000L, 15_000L, 0L));
         assertThat(dealRow(id).get("deal_price")).isEqualTo(15_000L);

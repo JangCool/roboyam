@@ -180,6 +180,7 @@ class HotdealStateTest extends HotdealStage2TestBase {
 
         long expired = newDeal(author);
         ends.endByManager(expired, hotdealOperator(), null);
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(31))), expired);
         ends.reopenByManager(expired, 0L, "OPERATOR", null);
         assertThat(notices(author, "DEAL_REOPENED_FIX_ENDS", expired)).isEqualTo(1);

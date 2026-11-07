@@ -114,9 +114,11 @@ class WithdrawalEmoticonEarningsHttpTest extends CommerceApiTestBase {
         long purchase = ids.nextId();
         long order = ids.nextId();
         long buyer = ids.nextId();
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO payment_orders (id, payment_id, user_id, order_type, order_ref_id, order_name, amount, status, expires_at, created_at, updated_at) "
                 + "VALUES (?, ?, ?, 'ROBOTIKON_PACK', ?, '시험', ?, 'READY', ?, ?, ?)", order, "pay_" + String.format("%032d", order).substring(0, 32), buyer, purchase, PRICE,
                 Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), Timestamp.from(paidAt));
+        // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
         jdbc.update("INSERT INTO emoticon_purchases (id, user_id, pack_id, creator_id, pack_name, amount, status, refund_notice_agreed_at, expires_at, created_at, "
                 + "payment_order_id, paid_at, refund_until) VALUES (?, ?, ?, ?, '산 때 이름', ?, 'PAID', ?, ?, ?, ?, ?, ?)", purchase, buyer, pack, creator, PRICE,
                 Timestamp.from(paidAt), Timestamp.from(paidAt.plus(Duration.ofMinutes(30))), Timestamp.from(paidAt), order, Timestamp.from(paidAt),
@@ -141,7 +143,7 @@ class WithdrawalEmoticonEarningsHttpTest extends CommerceApiTestBase {
     }
 
     private String userStatus(long id) {
-        return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, id);
+        return memberFixture.status(id);
     }
 
     private List<String> settlementStatuses(long creator) {

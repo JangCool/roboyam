@@ -108,23 +108,26 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 사업자 신원 한 줄 + 서비스 두 줄 */
     protected long business(String status, boolean reReview) {
         long user = newMember();
-        jdbc.update("INSERT INTO profiles (user_id, nickname) VALUES (?, ?)", user, "b" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
+        memberFixture.profile(user, "b" + Long.toString(user, 36).substring(Math.max(0, Long.toString(user, 36).length() - 11)));
         long profile = ids.nextId();
         String hash = String.format("%064x", profile);
+        // SQL 로 남김: 사업자 신원 줄의 심사 상태·암호문 칸을 심사 기록 없이 바로 세운다 — 팩터리(apply)는 신청(PENDING)만 만든다
         jdbc.update("INSERT INTO business_profiles (id, user_id, status, re_review, company_name, biz_no_enc, biz_no_hash, biz_no_last4, owner_name_enc, phone_enc, email_enc, "
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, '시험상사', 'x', ?, '6789', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
                 profile, user, status.equals("SUSPENDED") ? "APPROVED" : status, reReview, hash);
         // 결제창 구매자 칸(온라인 결제 시작)이 푸는 연락처·이메일은 진짜 암호문으로 둔다
+        // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
         jdbc.update("UPDATE business_profiles SET phone_enc = ?, email_enc = ? WHERE id = ?", pii.encrypt(BusinessPii.PHONE, "010-1234-5678"),
                 pii.encrypt(BusinessPii.EMAIL, "biz" + user + "@test.local"), profile);
         if (status.equals("SUSPENDED")) {
+            // SQL 로 남김: 사업자 상태 칸을 바로 바꾼다 — 전이 메서드는 심사·정지 운영자·사유를 함께 남긴다
             jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                     + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profile);
         }
         String serviceStatus = status.equals("PENDING") && reReview ? "APPROVED" : status.equals("PENDING") ? "PENDING" : status;
         for (String service : new String[] {"AD", "HOTDEAL"}) {
-            jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, ?, ?, now())", ids.nextId(), profile, service, serviceStatus);
+            businessFixture.service(ids.nextId(), profile, service, serviceStatus);
         }
         return user;
     }
@@ -191,8 +194,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 새 핫딜 게시판(켬, 쓰기 REGULAR) — {@code withPrefixes} 면 말머리 「로봇」·「AI」 */
     protected long newDealBoard(boolean withPrefixes) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", id, "bz" + Long.toString(id, 36),
-                "사업자 핫딜 " + Long.toString(id, 36).substring(Long.toString(id, 36).length() - 5));
+        boardFixture.board(id, "bz" + Long.toString(id, 36), "사업자 핫딜 " + Long.toString(id, 36).substring(Long.toString(id, 36).length() - 5), 950, "DEAL", "REGULAR");
         if (withPrefixes) {
             jdbc.update("INSERT INTO board_prefixes (id, board_id, name, sort_order) VALUES (?, ?, '로봇', 1), (?, ?, 'AI', 2)", ids.nextId(), id, ids.nextId(), id);
         }

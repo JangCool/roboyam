@@ -30,6 +30,6 @@ class PortOneCryptoKeyMissingHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("CRYPTO_KEY_MISSING"));
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM portone_settings WHERE key = 'identityChannelKey'", Integer.class)).isEqualTo(before);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_id = ? AND action = 'PORTONE_SETTINGS_UPDATE'", Integer.class, operator)).isZero();
+        assertThat(auditLogs.where().actor(operator).action("PORTONE_SETTINGS_UPDATE").count()).isZero();
     }
 }

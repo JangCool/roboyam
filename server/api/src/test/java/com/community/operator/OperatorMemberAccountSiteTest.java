@@ -65,7 +65,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
     @BeforeEach
     void setUp() {
         board = ids.nextId();
-        jdbc.update("INSERT INTO boards (id, slug, name, sort_order) VALUES (?, ?, ?, 961)", board, "om" + Long.toString(board, 36), "운영자 계정 시험 " + Long.toString(board, 36));
+        boardFixture.board(board, "om" + Long.toString(board, 36), "운영자 계정 시험 " + Long.toString(board, 36), 961);
         catalog.invalidate();
     }
 
@@ -74,9 +74,9 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
     /** 이메일 인증을 마친 일반 등급 회원(프로필 포함) */
     private long member() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         String name = Long.toString(id, 36);
-        jdbc.update("INSERT INTO profiles (user_id, nickname, grade_key) VALUES (?, ?, 'REGULAR')", id, "o" + name.substring(Math.max(0, name.length() - 11)));
+        memberFixture.profile(id, "o" + name.substring(Math.max(0, name.length() - 11)), "REGULAR");
         return id;
     }
 
@@ -86,14 +86,12 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         if (permissions.length == 0) {
             return id;
         }
-        String roleId = "ROLE_ZZ_OM_" + id;
-        jdbc.update("INSERT INTO roles (role_id, role_type_id, axis, role_name) VALUES (?, 'op_general', 'OPERATOR', ?)", roleId, "om-" + (id % 1_000_000_000L));
         for (Permission permission : permissions) {
+            // SQL 로 남김(ON CONFLICT upsert): 권한 표는 관리자 앱이 뜰 때 맞춘다 — 공개 사이트 문맥만 띄운 시험이라 없으면 코드 값으로 넣는다
             jdbc.update("INSERT INTO permissions (code, axis, type_id, category, feature_ready, synced_at) VALUES (?, 'OPERATOR', ?, ?, ?, now()) ON CONFLICT (code) DO NOTHING",
                     permission.code(), permission.type().id(), permission.unit().name(), permission.featureReady());
-            jdbc.update("INSERT INTO role_permissions (id, role_id, permission_code) VALUES (?, ?, ?)", ids.nextId(), roleId, permission.code());
         }
-        jdbc.update("INSERT INTO operator_roles (id, operator_id, role_id) VALUES (?, ?, ?)", ids.nextId(), id, roleId);
+        operatorFixture.grantRole(id, "ROLE_ZZ_OM_" + id, "om-" + (id % 1_000_000_000L), java.util.Arrays.stream(permissions).map(Permission::code).toList());
         return id;
     }
 
@@ -113,18 +111,19 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
     }
 
     private void staff(long userId, String role) {
+        // SQL 로 남김: board_staff 팩터리(byOperator)는 지정한 운영자를 요구한다 — 시험은 지정자 없는 행
         jdbc.update("INSERT INTO board_staff (board_id, user_id, role) VALUES (?, ?, ?)", board, userId, role);
     }
 
     private long post(long authorId) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO posts (id, board_id, author_id, title, content) VALUES (?, ?, ?, ?, '본문')", id, board, authorId, "시험 글 " + (id % 1000));
+        boardFixture.post(id, board, authorId, "시험 글 " + (id % 1000), "본문");
         return id;
     }
 
     private long comment(long postId, long authorId) {
         long id = ids.nextId();
-        jdbc.update("INSERT INTO comments (id, post_id, board_id, author_id, content) VALUES (?, ?, ?, ?, '시험 댓글입니다')", id, postId, board, authorId);
+        boardFixture.comment(id, postId, board, authorId, "시험 댓글입니다");
         return id;
     }
 
@@ -160,7 +159,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         @Test
         void 운영자_사용_중지면_꺼진다() {
             long user = operatorAccount(Permission.POST_MANAGE);
-            jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(user));
+            operatorFixture.changeStatus(operatorOf(user), null, null, null, false);
             assertThat(accounts.activeOperator(user)).isEmpty();
             assertThat(accounts.isActiveOperatorAccount(user)).isFalse();
         }
@@ -168,13 +167,14 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         @Test
         void 운영자_잠금이면_꺼진다() {
             long user = operatorAccount(Permission.POST_MANAGE);
-            jdbc.update("UPDATE operators SET locked = true WHERE id = ?", operatorOf(user));
+            operatorFixture.changeStatus(operatorOf(user), null, true, null, null);
             assertThat(accounts.isActiveOperatorAccount(user)).isFalse();
         }
 
         @Test
         void 운영자_기간_밖이면_꺼진다() {
             long user = operatorAccount(Permission.POST_MANAGE);
+            // SQL 로 남김: 과거·미래 시각을 바로 세운다 — 엔티티 팩터리·메서드는 지금 시각으로만 쓴다
             jdbc.update("UPDATE operators SET account_end_at = now() - interval '1 day' WHERE id = ?", operatorOf(user));
             assertThat(accounts.isActiveOperatorAccount(user)).isFalse();
             jdbc.update("UPDATE operators SET account_end_at = NULL, account_start_at = now() + interval '1 day' WHERE id = ?", operatorOf(user));
@@ -184,6 +184,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         @Test
         void 회원이_사이트_정지_중이면_꺼진다() {
             long user = operatorAccount(Permission.POST_MANAGE);
+            // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
             jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", user);
             assertThat(accounts.isActiveOperatorAccount(user)).isFalse();
         }
@@ -192,7 +193,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         void 목록_표시는_살아_있는_연결만_고른다() {
             long active = operatorAccount();
             long paused = operatorAccount();
-            jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(paused));
+            operatorFixture.changeStatus(operatorOf(paused), null, null, null, false);
             long plain = member();
             assertThat(accounts.activeOperatorUserIds(List.of(active, paused, plain))).containsExactly(active);
         }
@@ -214,7 +215,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         @Test
         void 힘이_멈추면_처리할_수_없다() {
             long user = operatorAccount(Permission.POST_MANAGE);
-            jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(user));
+            operatorFixture.changeStatus(operatorOf(user), null, null, null, false);
             long target = post(member());
             assertThat(code(() -> staffActions.hidePost(user, target, "SPAM", IP))).isEqualTo(BoardSanctionException.STAFF_FORBIDDEN);
         }
@@ -244,6 +245,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
 
         @Test
         void 하루_한도를_넘겨도_계속_처리된다() {
+            // SQL 로 남김: 정책·기본 칸 하나만 바꾸는 도메인 메서드가 없다 — changePolicy·changeBasic 은 묶음 전체를 바꾼다
             jdbc.update("UPDATE boards SET staff_comment_daily_limit = 1 WHERE id = ?", board);
             catalog.invalidate();
             long user = operatorAccount(Permission.POST_MANAGE);
@@ -465,6 +467,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
             assertThat(author.operator()).isTrue();
             assertThat(AuthorViews.blank(author).operator()).isFalse();
             assertThat(authors.of(plain, null, null, members, catalog.snapshot()).operator()).isFalse();
+            // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
             jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", user);
             assertThat(authors.of(user, null, null, authors.members(List.of(user)), catalog.snapshot()).operator()).isFalse();
         }
@@ -474,7 +477,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
             long user = operatorAccount();
             BoardActor actor = actors.resolve(user, catalog.snapshot());
             assertThat(actor.staffOf(board)).isTrue();
-            jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(user));
+            operatorFixture.changeStatus(operatorOf(user), null, null, null, false);
             assertThat(actors.resolve(user, catalog.snapshot()).staffOf(board)).isFalse();
         }
 
@@ -488,7 +491,7 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
         @Test
         void 로그인_정보에_운영자_이름이_실린다() {
             long user = operatorAccount();
-            String name = jdbc.queryForObject("SELECT operator_name FROM operators WHERE id = ?", String.class, operatorOf(user));
+            String name = operatorFixture.operatorName(operatorOf(user));
             assertThat(me.of(user).orElseThrow().operatorAccount()).isNotNull().extracting(a -> a.operatorName()).isEqualTo(name);
             assertThat(me.of(member()).orElseThrow().operatorAccount()).isNull();
         }
@@ -498,9 +501,9 @@ class OperatorMemberAccountSiteTest extends CommerceApiTestBase {
             long user = operatorAccount();
             WithdrawalTestSupport.withPassword(jdbc, encoder, user, clock.instant());
             assertThat(code(() -> withdrawals.request(user, WithdrawalTestSupport.plain(), IP))).isEqualTo(OperatorAccountLinkedException.CODE);
-            assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, user)).isEqualTo("ACTIVE");
+            assertThat(memberFixture.status(user)).isEqualTo("ACTIVE");
             // 힘이 멈춰도(운영자 사용 중지) 이어져 있으면 막는다
-            jdbc.update("UPDATE operators SET enabled = false WHERE id = ?", operatorOf(user));
+            operatorFixture.changeStatus(operatorOf(user), null, null, null, false);
             assertThat(code(() -> withdrawals.request(user, WithdrawalTestSupport.plain(), IP))).isEqualTo(OperatorAccountLinkedException.CODE);
         }
     }

@@ -60,7 +60,7 @@ class EmoticonAdminHttpTest extends Commerce04AdminTestBase {
 
     private long creator() {
         long id = newMember();
-        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", id);
+        memberFixture.verifyEmail(id);
         return id;
     }
 
@@ -117,6 +117,7 @@ class EmoticonAdminHttpTest extends Commerce04AdminTestBase {
             mvc.perform(withCsrf(post("/api/admin/emoticons/reviews/" + reviewId + "/approve"), reviewer).content("{\"price\":0}")).andExpect(status().isNoContent());
         }
         new TransactionTemplate(transactions).executeWithoutResult(s -> creatorWithdrawal.withdraw(creator));
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
         jdbc.update("UPDATE users SET status = 'WITHDRAWN' WHERE id = ?", creator);
 
         mvc.perform(get("/api/admin/emoticons/packs/" + packId).cookie(reviewer)).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("SUSPENDED"))
@@ -179,8 +180,7 @@ class EmoticonAdminHttpTest extends Commerce04AdminTestBase {
                     .andExpect(jsonPath("$.data.expiresAt").isNotEmpty());
             mvc.perform(withCsrf(post("/api/admin/emoticons/creators/" + newMember() + "/payout-account/reveal"), pii).content("{\"reason\":\"정산 이체 확인\"}"))
                     .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("EMOTICON_PAYOUT_ACCOUNT_NOT_FOUND"));
-            Integer audited = jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'EMOTICON_PAYOUT_REVEAL' AND target_id = ?", Integer.class,
-                    Long.toString(creator));
+            Integer audited = auditLogs.where().action("EMOTICON_PAYOUT_REVEAL").target(Long.toString(creator)).count();
             org.assertj.core.api.Assertions.assertThat(audited).isEqualTo(1);
         } finally {
             jdbc.update("UPDATE emoticon_packs SET price = 0 WHERE id = ?", packId);

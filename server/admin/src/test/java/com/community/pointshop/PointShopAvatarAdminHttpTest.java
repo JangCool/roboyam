@@ -131,7 +131,7 @@ class PointShopAvatarAdminHttpTest extends PointShopAdminHttpTestBase {
         long avatar = jdbc.queryForObject("SELECT id FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' ORDER BY sort_order LIMIT 1", Long.class);
         int before = avatarPrice(avatar);
         List<Map<String, Object>> snapshot = jdbc.queryForList("SELECT id, price_point, active FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' ORDER BY id");
-        int audits = count("SELECT count(*) FROM audit_logs WHERE action IN (?, ?)", AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE);
+        int audits = auditLogs.where().action(AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE).count();
 
         price(session, "{\"scope\":\"CATEGORIES\",\"categories\":[\"basic\"],\"price\":1200}").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.categories").value("무료 카테고리는 품목이 없어 바꿀 수 없어요."));
@@ -158,7 +158,7 @@ class PointShopAvatarAdminHttpTest extends PointShopAdminHttpTestBase {
 
         assertThat(avatarPrice(avatar)).isEqualTo(before);
         assertThat(jdbc.queryForList("SELECT id, price_point, active FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' ORDER BY id")).isEqualTo(snapshot);
-        assertThat(count("SELECT count(*) FROM audit_logs WHERE action IN (?, ?)", AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE))
+        assertThat(auditLogs.where().action(AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE).count())
                 .isEqualTo(audits);
     }
 }
