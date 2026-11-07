@@ -18,6 +18,7 @@ import com.community.identity.exception.IdentityVerificationNotFoundException;
 import com.community.identity.provider.IdentityVerifier;
 import com.community.identity.repository.master.IdentityStore;
 import com.community.point.service.PointService;
+import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.withdrawal.entity.WithdrawalKind;
 import com.community.withdrawal.repository.master.IdentityWithdrawalStore;
 import com.community.zconfiguration.crypto.BlindIndex;
@@ -81,13 +82,16 @@ public class IdentityVerificationService {
     private final TransactionTemplate writes;
     private final TransactionTemplate separate;
     private final PointService points;
+    /** 선착순 보상 이벤트(본인인증 기준) — 확정 트랜잭션 안, 이벤트마다 세이브포인트(실패해도 인증은 성공). 시험 조립에서는 없을 수 있다 */
+    private final RewardFirstComeService firstCome;
     private final Clock clock;
 
     public IdentityVerificationService(IdentityStore store, IdentityWithdrawalStore withdrawals, IdentityVerifier verifier, IdentityProperties properties,
                                        BlindIndex index, DataCipher cipher, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
-                                       PointService points, ObjectProvider<Clock> clocks) {
+                                       PointService points, RewardFirstComeService firstCome, ObjectProvider<Clock> clocks) {
         this.cipher = cipher;
         this.points = points;
+        this.firstCome = firstCome;
         this.store = store;
         this.withdrawals = withdrawals;
         this.verifier = verifier;
@@ -180,7 +184,9 @@ public class IdentityVerificationService {
         }
         // 가입 포인트(커머스 1-3) — 계정마다 평생 한 번, 세이브포인트라 실패해도 인증은 성공한다. 동결·정상 회원 아님이면 주지 않고 나중에도 주지 않는다
         long signup = points.signup(userId);
-        log.info("본인인증 확정 userId={} provider={} signupPoints={}", userId, verifier.kind(), signup);
+        // 선착순 보상 이벤트(본인인증 기준 — event-admin-contract) — 가입 포인트와 같이 세이브포인트라 실패해도 인증은 성공한다
+        int rewarded = firstCome == null ? 0 : firstCome.onIdentityVerified(userId);
+        log.info("본인인증 확정 userId={} provider={} signupPoints={} rewardEvents={}", userId, verifier.kind(), signup, rewarded);
         return statusOf(store.findVerification(userId).orElseThrow());
     }
 

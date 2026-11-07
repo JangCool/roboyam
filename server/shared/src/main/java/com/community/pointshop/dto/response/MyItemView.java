@@ -17,10 +17,14 @@ import java.time.Instant;
  * @param refundable  지금 셀프 환불할 수 있다(안 썼고 지금 설정의 기한 안)
  * @param refundUntil 환불 기한(산 시각 + 지금 설정 일수). 회수된 줄은 null
  * @param refundRequest 이 구매의 가장 최근 환불 신청(정지 중 셀프 환불 — 없으면 null). 대기({@code PENDING})면 장착·고르기·환불이 막히고 {@code refundable} 은 false
+ * @param source      출처 — {@code PURCHASE}(산 줄) · {@code REWARD_EVENT}(보상 이벤트로 받은 줄 — V163: purchaseId·refundUntil null, pricePaid 0, purchasedAt = 받은 시각, 환불 불가)
  */
 public record MyItemView(String id, String itemId, String purchaseId, PointShopItemKind kind, PointShopUsageType usageType, String name, String nameEn, String color,
                          String borderStyle, String avatarId, String avatarUrl, String avatarStillUrl, boolean animated, boolean inUse, UserItemStatus status,
                          boolean reserved, boolean expired, boolean equipped,
                          Instant startsAt, Instant expiresAt, Instant firstUsedAt, Instant purchasedAt, int pricePaid, boolean refundable, Instant refundUntil,
-                         PointShopRefundRequestView refundRequest) {
+                         PointShopRefundRequestView refundRequest, String source) {
+
+    public static final String SOURCE_PURCHASE = "PURCHASE";
+    public static final String SOURCE_REWARD_EVENT = "REWARD_EVENT";
 }

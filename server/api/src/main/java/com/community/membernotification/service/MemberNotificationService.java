@@ -284,6 +284,18 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.refundApproved(payload.get("itemName") instanceof String n ? n : null, number(payload.get("points")));
                 link = "/me/items";
             }
+            case REWARD_EVENT_GRANTED -> {
+                // 보상 이벤트 지급(V163) — 이벤트 이름(알릴 때) · 포인트 · 아이템 수 · 직접 전달 수. 누르면 내 포인트
+                facts = MemberNotificationMessages.Facts.rewardEventGranted(payload.get("eventName") instanceof String n ? n : null, number(payload.get("points")),
+                        (int) number(payload.get("items")), (int) number(payload.get("manual")));
+                link = "/me/points";
+            }
+            case REWARD_EVENT_REVOKED -> {
+                // 보상 이벤트 회수 — 이벤트 이름 · 사유. 누르면 내 포인트
+                facts = MemberNotificationMessages.Facts.rewardEventRevoked(payload.get("eventName") instanceof String n ? n : null,
+                        payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
+                link = "/me/points";
+            }
             case GROUP_BUY -> {
                 // 공동구매(2b-4) — 종류 · 공구 제목(알릴 때) · 금액 · 주문 번호·날짜. 누르면 발행 때 정한 곳(내 주문 상세 또는 공구 상세)
                 facts = MemberNotificationMessages.Facts.groupBuy(payload.get("kind") instanceof String k ? k : "", payload.get("title") instanceof String t ? t : null,

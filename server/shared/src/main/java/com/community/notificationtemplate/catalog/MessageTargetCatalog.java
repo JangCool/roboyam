@@ -255,6 +255,12 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("detail", "emoticonPurchaseDetail")),
                 new InAppText("member.notification.EMOTICON_PURCHASE.title", "member.notification.EMOTICON_PURCHASE.body", null, List.of("packName", "detail")),
                 "/me/robotikon", List.of()));
+        // 보상 이벤트(V163 — event-admin-contract 「알림·감사」) — 지급: 이벤트 이름 · 보상 요약 / 회수: 이벤트 이름 · 사유
+        out.add(member(MemberEvent.REWARD_EVENT_GRANTED, List.of(MessageVariable.of("eventName", "rewardEventName"), MessageVariable.of("rewards", "rewardEventRewards")),
+                new InAppText("member.notification.REWARD_EVENT_GRANTED.title", "member.notification.REWARD_EVENT_GRANTED.body", null, List.of("eventName", "rewards")),
+                "/me/points", List.of()));
+        out.add(member(MemberEvent.REWARD_EVENT_REVOKED, List.of(MessageVariable.of("eventName", "rewardEventName"), MessageVariable.of("reason", "rewardEventRevokeReason")),
+                new InAppText("member.notification.REWARD_EVENT_REVOKED.title", null, "{{reason}}", List.of("eventName")), "/me/points", List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));

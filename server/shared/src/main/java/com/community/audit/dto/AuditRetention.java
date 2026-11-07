@@ -60,7 +60,9 @@ public final class AuditRetention {
             AuditActions.EMOTICON_SALE_REFUND,
             // 로보티콘 S4 — 작가 정산 확정(금액 굳힘)·보류·보류 풀기·지급 완료 기록 · 포기(탈퇴 작가 — 회원 동의·운영자 포기 처리, V148) · 수동 지급 기록(탈퇴 작가, V149)
             AuditActions.EMOTICON_SETTLEMENT_CONFIRM, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditActions.EMOTICON_SETTLEMENT_UNHOLD, AuditActions.EMOTICON_SETTLEMENT_PAID,
-            AuditActions.EMOTICON_SETTLEMENT_WAIVE, AuditActions.EMOTICON_SETTLEMENT_MANUAL_PAID);
+            AuditActions.EMOTICON_SETTLEMENT_WAIVE, AuditActions.EMOTICON_SETTLEMENT_MANUAL_PAID,
+            // 보상 이벤트 지급·재시도·회수 — 포인트·아이템이 움직이는 일(event-admin-contract 「알림·감사」)
+            AuditActions.REWARD_EVENT_GRANT, AuditActions.REWARD_EVENT_RETRY, AuditActions.REWARD_EVENT_REVOKE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -83,6 +85,9 @@ public final class AuditRetention {
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
             AuditActions.LOGIN_SUCCESS, AuditActions.LOGIN_FAILURE, AuditActions.LOGOUT, AuditActions.PERMISSION_DENIED,
+            AuditActions.REWARD_EVENT_CREATE, AuditActions.REWARD_EVENT_UPDATE, AuditActions.REWARD_EVENT_START, AuditActions.REWARD_EVENT_CLOSE,
+            AuditActions.REWARD_EVENT_AUTO_CLOSE, AuditActions.REWARD_EVENT_DRAW, AuditActions.REWARD_EVENT_RECIPIENT_ADD, AuditActions.REWARD_EVENT_RECIPIENT_REMOVE,
+            AuditActions.REWARD_EVENT_DELIVERED, AuditActions.REWARD_EVENT_CANCEL,
             AuditActions.ROLE_CREATE, AuditActions.ROLE_UPDATE, AuditActions.ROLE_DELETE, AuditActions.ROLE_PERMISSIONS_CHANGE,
             AuditActions.OPERATOR_CREATE, AuditActions.OPERATOR_UPDATE, AuditActions.OPERATOR_STATUS_CHANGE, AuditActions.OPERATOR_REJECT,
             AuditActions.INVITATION_CREATE, AuditActions.INVITATION_CANCEL, AuditActions.GRADE_UPDATE,

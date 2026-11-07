@@ -76,7 +76,7 @@ public class UserItemService {
         String selectedAvatar = avatars.selected(members.profileImage(userId)).map(AvatarCatalog.Avatar::id).orElse(null);
         boolean suspended = members.state(userId).map(PointShopMemberStore.MemberState::suspended).orElse(false);
         List<MyItemRow> rows = userItems.myItems(userId);
-        Map<Long, RequestRow> requests = purchases.latestRequests(rows.stream().map(row -> row.item().purchaseId()).toList());
+        Map<Long, RequestRow> requests = purchases.latestRequests(rows.stream().map(row -> row.item().purchaseId()).filter(java.util.Objects::nonNull).toList());
         List<MyItemView> list = rows.stream().map(row -> view(row, requests.get(row.item().purchaseId()), suspended, refundDays, selectedAvatar, now, avatars)).toList();
         return new MyItemListView(refundDays, suspended, list);
     }
@@ -96,10 +96,11 @@ public class UserItemService {
                 && PointShopRules.selfRefundable(row.purchaseStatus(), item.status(), item.firstUsedAt(), item.reservedAt(), row.purchasedAt(), refundDays, now);
         AvatarCatalog.Avatar avatar = avatars.find(row.avatarId()).orElse(null);
         String avatarUrl = row.avatarId() == null ? null : avatar != null ? avatar.url() : AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg";
-        return new MyItemView(Long.toString(item.id()), Long.toString(item.itemId()), Long.toString(item.purchaseId()), row.kind(), item.usageType(), row.name(),
+        return new MyItemView(Long.toString(item.id()), Long.toString(item.itemId()), item.purchaseId() == null ? null : Long.toString(item.purchaseId()), row.kind(), item.usageType(), row.name(),
                 row.nameEn(), row.color(), row.borderStyle(), row.avatarId(), avatarUrl, avatar == null ? null : avatar.stillUrl(), avatar != null && avatar.animated(), inUse,
                 item.status(), item.reservedAt() != null, expired, row.equippedSlot() != null && !expired && !revoked, item.startsAt(), item.expiresAt(), item.firstUsedAt(), row.purchasedAt(),
-                row.pricePaid(), refundable, revoked ? null : PointShopRules.refundUntil(row.purchasedAt(), refundDays), PointShopPurchaseService.requestView(request));
+                row.pricePaid(), refundable, revoked || row.granted() ? null : PointShopRules.refundUntil(row.purchasedAt(), refundDays), PointShopPurchaseService.requestView(request),
+                row.granted() ? MyItemView.SOURCE_REWARD_EVENT : MyItemView.SOURCE_PURCHASE);
     }
 
     /** 지금 장착 — 기간이 끝난 자리는 null */

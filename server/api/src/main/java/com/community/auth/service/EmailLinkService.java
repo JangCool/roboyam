@@ -7,6 +7,7 @@ import com.community.auth.exception.AuthTokenExpiredException;
 import com.community.auth.exception.AuthTokenInvalidException;
 import com.community.auth.repository.master.AuthTokenRepository;
 import com.community.auth.repository.master.AuthTokenRepositoryQDSL;
+import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.user.entity.UserEntity;
 import com.community.user.exception.UserEmailTakenException;
 import com.community.user.repository.master.UserRepository;
@@ -44,10 +45,13 @@ public class EmailLinkService {
     private final AuthTokenRepository tokens;
     private final AuthTokenRepositoryQDSL tokenQueries;
 
-    public EmailLinkService(UserRepository users, AuthTokenRepository tokens, AuthTokenRepositoryQDSL tokenQueries) {
+    private final RewardFirstComeService firstCome;
+
+    public EmailLinkService(UserRepository users, AuthTokenRepository tokens, AuthTokenRepositoryQDSL tokenQueries, RewardFirstComeService firstCome) {
         this.users = users;
         this.tokens = tokens;
         this.tokenQueries = tokenQueries;
+        this.firstCome = firstCome;
     }
 
     @Transactional
@@ -71,9 +75,15 @@ public class EmailLinkService {
             if (user.getEmail() == null) {
                 throw new AuthTokenInvalidException();
             }
+            boolean first = !user.isEmailVerified();
             user.markEmailVerified(now);
             token.consume(now);
             tokenQueries.consumeAll(userId, AuthTokenPurpose.VERIFY_EMAIL, now);
+            if (first) {
+                users.flush(); // 인증 시각을 먼저 내보낸다 — 아래 세이브포인트가 그 앞에서 내보내므로 순서만 분명히
+                // 선착순 보상 이벤트(이메일 인증 = 가입 완료 기준 — event-admin-contract) — 이벤트마다 세이브포인트라 실패해도 인증은 성공한다
+                firstCome.onEmailVerified(userId);
+            }
             log.info("이메일 인증 완료 userId={}", userId);
             return new EmailVerifyResponse(true, false);
         }

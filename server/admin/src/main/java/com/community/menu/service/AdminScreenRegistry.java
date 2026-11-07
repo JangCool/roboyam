@@ -106,6 +106,10 @@ public final class AdminScreenRegistry {
                     leaf(s("emoticonSales", "/robotikon/sales", "menu.emoticonSales", "pi pi-receipt", Permission.EMOTICON_SALES)),
                     leaf(s("emoticonSettlements", "/robotikon/settlements", "menu.emoticonSettlements", "pi pi-wallet", Permission.EMOTICON_SETTLEMENT)),
                     leaf(s("emoticonSettings", "/robotikon/settings", "menu.emoticonSettings", "pi pi-sliders-h", Permission.EMOTICON_READ))),
+            // 보상 이벤트 묶음(docs/features/event-admin-contract.md 「화면」) — 로보티콘 묶음 바로 다음. 조회 reward-event.read(화면 안 처리는 reward-event.manage·reward-event.grant·
+            // point.adjust.large). admin-web util-admin-menu 의 rewardEvent 묶음과 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.rewardEvent", "pi pi-gift",
+                    leaf(s("rewardEvents", "/reward-events", "menu.rewardEvents", "pi pi-gift", Permission.REWARD_EVENT_READ))),
             // 공구 묶음(커머스 2b — commerce-groupbuy-contract 「화면 목록」·결정 89) — 결제 묶음 앞. 상품·옵션 종류·카테고리·공구·수량은 조회 commerce.product.read,
             // 주문·요청은 commerce.order.read(화면 안의 처리는 각 권한). admin-web util-admin-menu 의 groupBuy 묶음과 같은 키·주소·권한·아이콘·차례
             section(NORMAL, "menu.groupBuy", "pi pi-truck",

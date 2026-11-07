@@ -188,6 +188,19 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.DM, actorName, null, null, 1, 0, null, null, false, null, null);
         }
 
+        /**
+         * 보상 이벤트 지급(V163 — event-admin-contract 「알림·감사」) — 이벤트 이름({@code snapshot}) · 받은 포인트({@code amount}) · 아이템 수와 직접 전달 수
+         * ({@code result} = {@code "<아이템 수>:<직접 전달 수>"} — 읽는 사람 언어로 「1,000P · 아이템 2개 · 운영자가 따로 보내는 보상 1건」을 그린다)
+         */
+        public static Facts rewardEventGranted(String eventName, long points, int items, int manual) {
+            return new Facts(MemberNotificationType.REWARD_EVENT_GRANTED, null, null, null, 1, points, null, null, false, eventName, items + ":" + manual);
+        }
+
+        /** 보상 이벤트 회수 — 이벤트 이름({@code snapshot}) · 운영자가 적은 사유({@code note}) */
+        public static Facts rewardEventRevoked(String eventName, String reason) {
+            return new Facts(MemberNotificationType.REWARD_EVENT_REVOKED, null, null, null, 1, 0, null, reason, false, eventName, null);
+        }
+
         /** 포인트 상점 환불 신청 수락 — 품목 이름({@code snapshot})·돌려준 포인트({@code amount}) */
         public static Facts refundApproved(String itemName, long points) {
             return new Facts(MemberNotificationType.POINT_SHOP_REFUND_APPROVED, null, null, null, 1, points, null, null, false, itemName, null);
@@ -409,6 +422,8 @@ public class MemberNotificationMessages {
                     .variable("reason", restrictionReason(facts, locale));
             case POINT_SHOP_REFUND_APPROVED -> builder.variable("itemName", nz(facts.snapshot())).variable("amount", String.format("%,d", facts.amount()));
             case POINT_SHOP_REFUND_REJECTED -> builder.variable("itemName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            case REWARD_EVENT_GRANTED -> builder.variable("eventName", nz(facts.snapshot())).variable("rewards", rewardSummary(facts, locale));
+            case REWARD_EVENT_REVOKED -> builder.variable("eventName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
             case GROUP_APPROVED, GROUP_JOIN_APPROVED, GROUP_KICKED, GROUP_DISSOLVED, GROUP_LEADER_TRANSFERRED, GROUP_REACTIVATED ->
                     builder.variable("groupName", nz(facts.snapshot()));
             case GROUP_REJECTED, GROUP_JOIN_REJECTED, GROUP_DEACTIVATED -> builder.variable("groupName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
@@ -569,6 +584,28 @@ public class MemberNotificationMessages {
     }
 
     /** 포인트 회수 까닭 한 줄(번들 — 사유가 있으면 「운영 조정: 사유」) */
+    /** 보상 이벤트 지급 요약 한 줄 — 포인트 · 아이템 N개 · 직접 전달 N건(있는 것만, 「 · 」로 잇는다). 아무것도 없으면 직접 전달 안내 하나 */
+    private String rewardSummary(Facts facts, Locale locale) {
+        int items = 0;
+        int manual = 0;
+        String counts = facts.result();
+        if (counts != null && counts.matches("^[0-9]{1,6}:[0-9]{1,6}$")) {
+            items = Integer.parseInt(counts.substring(0, counts.indexOf(':')));
+            manual = Integer.parseInt(counts.substring(counts.indexOf(':') + 1));
+        }
+        List<String> parts = new ArrayList<>();
+        if (facts.amount() > 0) {
+            parts.add(messages.get(new MessageRef("member.notification.REWARD_EVENT_GRANTED.points", String.format("%,d", facts.amount())), locale));
+        }
+        if (items > 0) {
+            parts.add(messages.get(new MessageRef("member.notification.REWARD_EVENT_GRANTED.items", String.valueOf(items)), locale));
+        }
+        if (manual > 0 || parts.isEmpty()) {
+            parts.add(messages.get(new MessageRef("member.notification.REWARD_EVENT_GRANTED.manual", String.valueOf(Math.max(manual, 1))), locale));
+        }
+        return String.join(" · ", parts);
+    }
+
     private String pointsReason(Facts facts, Locale locale) {
         String kind = facts.pointsKind() == null ? "ADMIN_ADJUST" : facts.pointsKind();
         return facts.note() == null || facts.note().isBlank()

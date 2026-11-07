@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import java.sql.Timestamp;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -47,7 +50,7 @@ import org.springframework.stereotype.Repository;
 public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 보유 줄 하나 */
-    public record UserItemRow(long id, long userId, long itemId, long purchaseId, PointShopUsageType usageType, UserItemStatus status, Instant startsAt,
+    public record UserItemRow(long id, long userId, long itemId, Long purchaseId, PointShopUsageType usageType, UserItemStatus status, Instant startsAt,
                               Instant expiresAt, Instant firstUsedAt, Instant usedAt, Instant revokedAt, Instant createdAt, Instant reservedAt, UploadTicketUse refType,
                               Long refId) {
 
@@ -57,9 +60,12 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
         }
     }
 
-    /** 내 아이템 목록 한 줄 — 보유 줄 + 품목의 지금 표시값 + 구매 사본(낸 값·상태·시각) + 장착 자리 */
+    /**
+     * 내 아이템 목록 한 줄 — 보유 줄 + 품목의 지금 표시값 + 구매 사본(낸 값·상태·시각) + 장착 자리. 보상 이벤트로 받은 줄(V163 — 구매 없음)은 낸 값 0 · 구매 상태 null ·
+     * 「산 시각」 자리에 받은 시각, {@code granted} 참
+     */
     public record MyItemRow(UserItemRow item, PointShopItemKind kind, String name, String nameEn, String color, String borderStyle, String avatarId, int pricePaid,
-                            PointShopPurchaseStatus purchaseStatus, Instant purchasedAt, EquipSlot equippedSlot) {
+                            PointShopPurchaseStatus purchaseStatus, Instant purchasedAt, EquipSlot equippedSlot, boolean granted) {
     }
 
     /** 장착 한 자리 — 품목의 지금 색·테두리(색을 고치면 산 사람의 표시도 바뀐다) */
@@ -70,7 +76,7 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
         }
     }
 
-    /** 품목별 내 보유 요약 재료 — 회수되지 않은 줄만 */
+    /** 품목별 내 보유 요약 재료 — 회수되지 않은 줄만. 보상 이벤트로 받은 줄은 구매 칸(시각·상태)이 null — 환불 판정에서 늘 「환불 불가」다 */
     public record HoldingRow(long itemId, PointShopUsageType usageType, UserItemStatus status, Instant expiresAt, Instant firstUsedAt, Instant purchasedAt,
                              PointShopPurchaseStatus purchaseStatus, long userItemId, boolean reserved) {
     }
@@ -86,11 +92,13 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
 
     private final UserItemRepository userItems;
     private final EntityManager entityManager;
+    private final JdbcTemplate jdbc;
 
-    public UserItemStore(JPAQueryFactory query, UserItemRepository userItems, EntityManager entityManager) {
+    public UserItemStore(JPAQueryFactory query, UserItemRepository userItems, EntityManager entityManager, DataSource dataSource) {
         super(query);
         this.userItems = userItems;
         this.entityManager = entityManager;
+        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     // ── 보유 ────────────────────────────────────────────────────────────────
@@ -148,7 +156,7 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
     /** 그 회원의 보유 요약 재료(회수되지 않은 줄) — 품목 목록의 {@code mine}·아바타 목록의 보유·환불 판정 */
     public List<HoldingRow> holdings(long userId) {
         return query.select(UI.itemId, UI.usageType, UI.status, UI.expiresAt, UI.firstUsedAt, P.createdAt, P.status, UI.id, UI.reservedAt)
-                .from(UI).join(P).on(P.id.eq(UI.purchaseId)).where(UI.userId.eq(userId), UI.status.ne(UserItemStatus.REVOKED)).fetch().stream()
+                .from(UI).leftJoin(P).on(P.id.eq(UI.purchaseId)).where(UI.userId.eq(userId), UI.status.ne(UserItemStatus.REVOKED)).fetch().stream() // 지급 줄(구매 없음)도 보유다 — 구매 칸은 null
                 .map(t -> new HoldingRow(t.get(UI.itemId), t.get(UI.usageType), t.get(UI.status), t.get(UI.expiresAt), t.get(UI.firstUsedAt), t.get(P.createdAt),
                         t.get(P.status), t.get(UI.id), t.get(UI.reservedAt) != null))
                 .toList();
@@ -158,10 +166,11 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
     public List<MyItemRow> myItems(long userId) {
         Expression<?>[] columns = Stream.concat(Stream.of(ROW), Stream.of(I.kind, I.name, I.nameEn, I.color, I.borderStyle, I.avatarId, P.pricePoint, P.status,
                 P.createdAt, E.slot)).toArray(Expression<?>[]::new);
-        return query.select(columns).from(UI).join(I).on(I.id.eq(UI.itemId)).join(P).on(P.id.eq(UI.purchaseId)).leftJoin(E).on(E.userItemId.eq(UI.id))
+        return query.select(columns).from(UI).join(I).on(I.id.eq(UI.itemId)).leftJoin(P).on(P.id.eq(UI.purchaseId)).leftJoin(E).on(E.userItemId.eq(UI.id))
                 .where(UI.userId.eq(userId)).orderBy(UI.id.desc()).fetch().stream()
                 .map(t -> new MyItemRow(rowOf(t), t.get(I.kind), t.get(I.name), t.get(I.nameEn), t.get(I.color), t.get(I.borderStyle), t.get(I.avatarId),
-                        t.get(P.pricePoint), t.get(P.status), t.get(P.createdAt), t.get(E.slot)))
+                        t.get(P.pricePoint) == null ? 0 : t.get(P.pricePoint), t.get(P.status), t.get(P.createdAt) != null ? t.get(P.createdAt) : t.get(UI.createdAt),
+                        t.get(E.slot), t.get(UI.purchaseId) == null))
                 .toList();
     }
 
@@ -178,6 +187,31 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
     /** 회수(환불) — 아직 회수되지 않았을 때만 */
     public boolean revoke(long id, Instant now) {
         return query.update(UI).set(UI.status, UserItemStatus.REVOKED).set(UI.revokedAt, now).where(UI.id.eq(id), UI.status.ne(UserItemStatus.REVOKED)).execute() == 1;
+    }
+
+    // ── 보상 이벤트 지급(V163 — event-admin-contract 「보상 줄」 SHOP_ITEM) ─────────
+    // 지급 줄은 구매가 없고(purchase_id NULL) 그 줄 결과(grant_result_id + 순번)를 가리킨다 — 셀프·예외 환불은 구매 기준이라 이 줄에 닿지 않는다.
+    // Native SQL(JDBC)인 이유: 보상 줄 처리는 줄마다 JDBC 세이브포인트(IsolatedSideWork) 안에서 돈다 — 그 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용이 된다
+    // (repository.md 「인정하는 사유」). 넣기는 INSERT … ON CONFLICT DO NOTHING — 이미 가진 영구 아이템(ux_user_items_permanent)·같은 줄의 같은 순번(ux_user_items_grant)은
+    // 실패 대신 0 줄이다.
+
+    /** 지급 한 줄을 넣는다(가진 상태) — 넣었으면 1, 유일 색인에 걸려 넣지 않았으면 0 */
+    public int grantFromEvent(long id, long userId, long itemId, long resultId, int seq, PointShopUsageType usageType, Instant startsAt, Instant expiresAt, Instant now) {
+        return jdbc.update("INSERT INTO user_items (id, user_id, item_id, purchase_id, grant_result_id, grant_seq, usage_type, status, starts_at, expires_at, created_at) "
+                        + "VALUES (?, ?, ?, NULL, ?, ?, ?, 'OWNED', ?, ?, ?) ON CONFLICT DO NOTHING", id, userId, itemId, resultId, seq, usageType.name(), Timestamp.from(startsAt),
+                expiresAt == null ? null : Timestamp.from(expiresAt), Timestamp.from(now));
+    }
+
+    /** 그 줄 결과로 지급한 줄 중 쓴 것(처음 사용 시각이 있거나·쓴 상태·대기 신청에 예약된 것)이 있나 — 회수 전 판정 */
+    public boolean grantedUsed(long resultId) {
+        return !jdbc.queryForList("SELECT 1 FROM user_items WHERE grant_result_id = ? AND status <> 'REVOKED' AND (first_used_at IS NOT NULL OR status = 'USED' "
+                + "OR reserved_at IS NOT NULL) LIMIT 1", Integer.class, resultId).isEmpty();
+    }
+
+    /** 그 줄 결과로 지급한 줄 중 안 쓴 것(가진 상태 · 처음 사용 시각 없음 · 예약 없음)을 회수한다 — 회수한 줄 수 */
+    public int revokeGrantedUnused(long resultId, Instant now) {
+        return jdbc.update("UPDATE user_items SET status = 'REVOKED', revoked_at = ? WHERE grant_result_id = ? AND status = 'OWNED' AND first_used_at IS NULL "
+                + "AND reserved_at IS NULL", Timestamp.from(now), resultId);
     }
 
     // ── 변경권 ──────────────────────────────────────────────────────────────

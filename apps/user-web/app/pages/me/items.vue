@@ -64,7 +64,7 @@
                             </p>
                         </div>
                         <div class="flex shrink-0 gap-2 max-sm:w-full max-sm:justify-end">
-                            <Button v-if="row.refundable" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
+                            <Button v-if="UtilPointShop.canRefund(row)" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
                             <Button
                                 v-if="row.equipped"
                                 type="button"
@@ -102,7 +102,7 @@
                             </p>
                         </div>
                         <div class="flex shrink-0 gap-2 max-sm:w-full max-sm:justify-end">
-                            <Button v-if="row.refundable" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
+                            <Button v-if="UtilPointShop.canRefund(row)" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
                             <Button v-if="!row.inUse" type="button" :label="t('avatar.useInProfileShort')" size="small" :loading="busyId === `avatar:${row.id}`" :disabled="busy || restricted || UtilPointShop.refundPending(row)" @click="useAvatar(row)" />
                         </div>
                     </li>
@@ -129,7 +129,7 @@
                     <li v-for="row in group.rows" :key="row.id" class="flex flex-wrap items-center gap-3 border-t border-surface px-4 py-3" :class="row.status === 'USED' ? 'opacity-60' : ''" data-testid="myitems-ticket-row">
                         <div class="min-w-0 flex-1 text-sm">
                             <p class="m-0 flex items-center gap-1.5">
-                                {{ t('pointShop.boughtOn', { date: time.date(row.purchasedAt) }) }}
+                                {{ acquiredOn(row) }}
                                 <PointShopTag v-if="row.reserved" tone="warn">{{ t('pointShop.ticketReserved') }}</PointShopTag>
                                 <PointShopTag v-else-if="!UtilPointShop.refundPending(row)" :tone="row.status === 'USED' ? 'neutral' : 'success'">{{ row.status === 'USED' ? t('pointShop.ticketUsed') : t('pointShop.ticketOwned') }}</PointShopTag>
                             </p>
@@ -139,7 +139,7 @@
                                 <span v-if="requestLine(row)!.text" class="min-w-0 break-words text-muted-color">{{ requestLine(row)!.text }}</span>
                             </p>
                         </div>
-                        <Button v-if="row.refundable" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
+                        <Button v-if="UtilPointShop.canRefund(row)" type="button" :label="refundLabel" size="small" severity="secondary" variant="text" :loading="busyId === `refund:${row.id}`" :disabled="busy" @click="refund(row)" />
                     </li>
                 </ul>
                 <div class="border-t border-surface px-4 py-2.5">
@@ -153,7 +153,7 @@
                 <ul class="m-0 list-none p-0">
                     <li v-for="row in grouped.revoked" :key="row.id" class="flex items-center gap-3 border-t border-surface px-4 py-3 text-sm text-muted-color">
                         <span class="min-w-0 flex-1 break-words">{{ localizedName(row.name, row.nameEn) }}</span>
-                        <span class="shrink-0 text-xs">{{ t('pointShop.boughtOn', { date: time.date(row.purchasedAt) }) }} · {{ UtilPoint.points(row.pricePaid) }}</span>
+                        <span class="shrink-0 text-xs">{{ acquiredOn(row) }} · {{ UtilPointShop.isGranted(row) ? t('pointShop.eventReward') : UtilPoint.points(row.pricePaid) }}</span>
                     </li>
                 </ul>
             </details>
@@ -288,8 +288,14 @@ const slots = computed<{ key: EquipSlot; label: string; row: MyItemView | null }
 
 const slotKey = (row: MyItemView): EquipSlot | null => UtilPointShop.slotOf(row.kind);
 
-/** 줄 아래 한 줄 — 구매일 · 환불 기한(환불 가능하면) 또는 「사용함 · 환불 불가」 */
+/** 산 날 또는 (보상 이벤트로) 받은 날 */
+function acquiredOn(row: MyItemView): string {
+    return t(UtilPointShop.isGranted(row) ? 'pointShop.receivedOn' : 'pointShop.boughtOn', { date: time.value.date(row.purchasedAt) });
+}
+
+/** 줄 아래 한 줄 — 구매일 · 환불 기한(환불 가능하면) 또는 「사용함 · 환불 불가」. 보상 이벤트로 받은 줄은 「이벤트 보상 · 받은 날」(가격·환불 기한 대신) */
 function rowMeta(row: MyItemView): string {
+    if (UtilPointShop.isGranted(row)) return [t('pointShop.eventReward'), acquiredOn(row)].join(' · ');
     const parts = [t('pointShop.boughtOn', { date: time.value.date(row.purchasedAt) }), UtilPoint.points(row.pricePaid)];
     if (row.refundable && row.refundUntil) parts.push(t('pointShop.refundUntil', { date: time.value.shortDateTime(row.refundUntil) }));
     else if (row.firstUsedAt) parts.push(t('pointShop.usedNoRefund'));
@@ -323,7 +329,7 @@ async function equip(row: MyItemView) {
     const slot = slotKey(row);
     if (!slot || busy.value) return;
     // 환불할 수 있는 것만 묻는다 — 장착하면 「사용함」이 남아 환불할 수 없다
-    if (row.refundable) {
+    if (UtilPointShop.canRefund(row)) {
         const ok = await confirm({ title: t('pointShop.equipConfirmTitle'), message: t('pointShop.equipConfirmText'), confirmLabel: t('pointShop.equip') });
         if (!ok) return;
     }
@@ -381,7 +387,7 @@ function ticketUseLabel(kind: string): string {
 }
 
 async function refund(row: MyItemView) {
-    if (busy.value || !row.refundable) return;
+    if (busy.value || !UtilPointShop.canRefund(row)) return;
     const approval = refundNeedsApproval.value;
     const ok = await confirm({
         title: approval ? t('pointShop.refundRequestConfirmTitle') : t('pointShop.refundConfirmTitle'),

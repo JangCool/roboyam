@@ -38,6 +38,8 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
 
     public static final String FREE = "FREE";
     public static final String PURCHASE = "PURCHASE";
+    /** 보상 이벤트로 받은 줄(V163 — reward_result_id = 그 줄 결과). 작가 받기 보상·받은 수 규칙은 무료 받기와 같다(받은 수는 줄마다 처음 한 번, 보상 포인트는 없다) */
+    public static final String EVENT = "EVENT";
 
     /** 보유 한 줄 — {@code removedAt} 이 있으면 지금은 가지지 않았다(목록에서 뺐다 · 환불했다) */
     public record AcquisitionRow(long id, long userId, long packId, String kind, Long purchaseId, Instant firstAcquiredAt, Instant acquiredAt, Instant removedAt) {
@@ -91,9 +93,10 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
                 .where(A.id.eq(id), A.kind.eq(PURCHASE), A.removedAt.isNotNull()).execute() == 1;
     }
 
-    /** 뺀 무료 팩을 다시 받는다(받은 시각만 새로) */
+    /** 뺀 무료 팩을 다시 받는다(받은 시각만 새로). 이벤트로 받았다가 빼거나 회수된 줄(V163)은 무료 받기 줄로 돌아간다(그 줄 결과와의 이음은 지운다) */
     public void restore(long id, Instant now) {
-        query.update(A).set(A.acquiredAt, now).setNull(A.removedAt).where(A.id.eq(id), A.kind.eq(FREE), A.removedAt.isNotNull()).execute();
+        query.update(A).set(A.kind, FREE).setNull(A.rewardResultId).set(A.acquiredAt, now).setNull(A.removedAt)
+                .where(A.id.eq(id), A.kind.in(FREE, EVENT), A.removedAt.isNotNull()).execute();
     }
 
     /** 환불했던 산 줄 — 그 팩이 무료가 된 뒤 받으면 무료 받기로 다시 가진다(받은 수·보상은 줄마다 처음 한 번이라 새로 생기지 않는다) */
@@ -102,9 +105,36 @@ public class EmoticonAcquisitionStore extends EmoticonStoreSupport {
                 .where(A.id.eq(id), A.kind.eq(PURCHASE), A.removedAt.isNotNull()).execute();
     }
 
-    /** 무료로 받은 팩을 목록에서 뺀다 — 가지고 있을 때만(바뀐 줄 수). 산 팩은 빼지 않는다(환불은 구매 내역) */
+    /** 무료로(또는 보상 이벤트로) 받은 팩을 목록에서 뺀다 — 가지고 있을 때만(바뀐 줄 수). 산 팩은 빼지 않는다(환불은 구매 내역) */
     public int remove(long userId, long packId, Instant now) {
-        return (int) query.update(A).set(A.removedAt, now).where(A.userId.eq(userId), A.packId.eq(packId), A.kind.eq(FREE), A.removedAt.isNull()).execute();
+        return (int) query.update(A).set(A.removedAt, now).where(A.userId.eq(userId), A.packId.eq(packId), A.kind.in(FREE, EVENT), A.removedAt.isNull()).execute();
+    }
+
+    /** 보상 이벤트 지급 결과 — 새 줄 · 빼거나 환불한 줄을 이벤트 줄로 다시 가짐 · 이미 가짐(아무것도 바꾸지 않았다) */
+    public enum EventGrant { NEW, REACQUIRED, ALREADY_OWNED }
+
+    /**
+     * 보상 이벤트로 팩을 준다(V163 — event-admin-contract 「보상 줄」 EMOTICON_PACK). 없으면 새 줄(종류 EVENT, 받은 수 + 1), 빼거나 환불해 지금 가지지 않은 줄이면 그 줄을 이벤트 줄로
+     * 다시 가진다(받은 수는 줄마다 처음 한 번이라 그대로), 이미 가졌으면 그대로. 작가 받기 보상 포인트는 주지 않는다(부르는 쪽이 부르지 않는다). 작가 자기 팩은 부르는 쪽이 먼저 본다.
+     *
+     * <p>Native SQL(JDBC)인 이유: 보상 줄 처리는 줄마다 JDBC 세이브포인트 안에서 돈다 — 그 안에서 JPA 문장이 실패하면 업무 트랜잭션 전체가 롤백 전용이 된다(repository.md).
+     * 넣기는 {@code INSERT … ON CONFLICT (user_id, pack_id) DO NOTHING} — 같은 회원의 동시 받기와 겹쳐도 실패 대신 0 줄이다.
+     */
+    public EventGrant grantFromEvent(long id, long userId, long packId, long resultId, Instant now) {
+        int inserted = jdbc.update("INSERT INTO emoticon_acquisitions (id, user_id, pack_id, kind, purchase_id, reward_result_id, first_acquired_at, acquired_at) "
+                + "VALUES (?, ?, ?, 'EVENT', NULL, ?, ?, ?) ON CONFLICT (user_id, pack_id) DO NOTHING", id, userId, packId, resultId, ts(now), ts(now));
+        if (inserted == 1) {
+            jdbc.update("UPDATE emoticon_packs SET acquire_count = acquire_count + 1 WHERE id = ?", packId);
+            return EventGrant.NEW;
+        }
+        int again = jdbc.update("UPDATE emoticon_acquisitions SET kind = 'EVENT', purchase_id = NULL, reward_result_id = ?, acquired_at = ?, removed_at = NULL "
+                + "WHERE user_id = ? AND pack_id = ? AND removed_at IS NOT NULL", resultId, ts(now), userId, packId);
+        return again == 1 ? EventGrant.REACQUIRED : EventGrant.ALREADY_OWNED;
+    }
+
+    /** 보상 이벤트 회수 — 그 줄 결과로 가진 이벤트 줄의 보유를 뺀다(바뀐 줄 수 — 회원이 이미 뺐거나 다른 길로 바뀐 줄이면 0). JDBC 인 이유는 {@link #grantFromEvent} 와 같다 */
+    public int revokeEventGrant(long resultId, Instant now) {
+        return jdbc.update("UPDATE emoticon_acquisitions SET removed_at = ? WHERE reward_result_id = ? AND kind = 'EVENT' AND removed_at IS NULL", ts(now), resultId);
     }
 
     /** 환불 — 그 구매로 가진 줄의 보유를 뺀다(바뀐 줄 수) */

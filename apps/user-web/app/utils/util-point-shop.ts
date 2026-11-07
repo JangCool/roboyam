@@ -144,6 +144,24 @@ export default class UtilPointShop {
     }
 
     /**
+     * 보상 이벤트로 받은 줄인가 — 산 적이 없어 가격·환불이 없다(서버 셀프 환불 `409 blockedBy GRANTED`)
+     * @param {MyItemView} row - 보유 줄.
+     * @returns {boolean} 받은 줄이면 true.
+     */
+    static isGranted(row: Pick<MyItemView, 'source'>): boolean {
+        return row.source === 'REWARD_EVENT';
+    }
+
+    /**
+     * 지금 [환불] 단추를 보이는가 — 서버 판정(`refundable`)에 받은 줄은 늘 뺀다
+     * @param {MyItemView} row - 보유 줄.
+     * @returns {boolean} 환불할 수 있으면 true.
+     */
+    static canRefund(row: Pick<MyItemView, 'refundable' | 'source'>): boolean {
+        return row.refundable && !UtilPointShop.isGranted(row);
+    }
+
+    /**
      * 이름의 첫 글자 — 프로필 그림 기능이 없어 이니셜 동그라미에 쓴다
      * @param {string | null | undefined} name - 닉네임.
      * @returns {string} 첫 글자(없으면 빈 글자).

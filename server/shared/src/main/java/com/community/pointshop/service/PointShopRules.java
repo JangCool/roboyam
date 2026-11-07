@@ -17,6 +17,8 @@ public final class PointShopRules {
     public static final String BLOCKED_EXPIRED = "EXPIRED";
     /** 셀프 환불이 안 되는 이유 — 올리기 변경권이 대기 신청에 예약됐다(commerce-motion-avatar-contract 규칙 0 — 반려·취소되면 풀린다) */
     public static final String BLOCKED_RESERVED = "RESERVED";
+    /** 셀프 환불이 안 되는 이유 — 보상 이벤트로 받은 아이템(구매가 없다 — V163, event-admin-contract 「지급 아이템은 환불 대상이 아니다」) */
+    public static final String BLOCKED_GRANTED = "GRANTED";
 
     private PointShopRules() {
     }

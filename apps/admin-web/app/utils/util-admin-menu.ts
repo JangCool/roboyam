@@ -249,6 +249,15 @@ export default class UtilAdminMenu {
                 { key: 'emoticonSettings', to: '/robotikon/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.emoticonSettings', permission: 'emoticon.read' },
             ],
         },
+        // 보상 이벤트 묶음(로보티콘 묶음 다음) — 가입 선착순 지급·추첨 당첨·전체 일괄 지급처럼 회원에게 보상을 주는 이벤트와 지급 내역. 「사이트 팝업」(알림 창)과 다른 업무라 늘 「보상 이벤트」라고 부른다.
+        // ⚠ 목업(`useRewardEventAdminApi`, 2026-11-07 화면 확정 전) — 서버 AdminScreenRegistry·Permission 에 같은 줄 필요(키 `rewardEvents` · 주소 `/reward-events` · 권한 `reward-event.read`).
+        //   화면 안 처리는 `reward-event.manage`(만들기·고치기·후보·당첨자·추첨·시작·마감·취소)·`reward-event.grant`(지급·재시도·회수·전달 완료)·`point.adjust.large`(1인 고액 포인트)를 따로 본다.
+        {
+            key: 'rewardEvent',
+            icon: 'pi pi-gift',
+            labelKey: 'menu.rewardEvent',
+            items: [{ key: 'rewardEvents', to: '/reward-events', icon: 'pi pi-gift', labelKey: 'menu.rewardEvents', permission: 'reward-event.read' }],
+        },
         // 공구 묶음(결제 묶음 앞) — 운영자가 파는 실물 공동구매(현금 결제): 공구(목록·등록·운영 동작) · 수량(총량·선점·변동·추가 입고/줄이기) · 주문(발주·발송·운영 환불·명단) · 취소·반품 요청 대기열.
         // 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 3·35. ⚠ 화면은 아직 목업(`useGroupBuy*Api`)이다. 서버 `AdminScreenRegistry` 에도 같은 네 줄이 필요하고, 쓰는 권한의 `featureReady` 를 켜야 한다(2b-2~2b-4).
         // 조회는 공구·수량 `commerce.product.read`, 주문·요청 `commerce.order.read`. 화면 안 처리는 `commerce.product.manage`·`commerce.stock.adjust`·`commerce.groupbuy.cancel`·`commerce.order.manage`·`commerce.refund.approve`·`commerce.refund.large`·`commerce.address.reveal`·`commerce.export` 를 따로 본다.

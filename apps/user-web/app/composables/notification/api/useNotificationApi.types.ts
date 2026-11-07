@@ -87,7 +87,13 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * kind 네 가지(구매 완료 `PAID` · 결제 자동 취소 `AUTO_CANCELED` · 셀프 환불 접수 `REFUNDED_SELF` · 운영자 예외 환불 `REFUNDED_EXCEPTION`)는 서버가 `title`·`body` 로 풀어 준다(kind 는 응답에 따로 오지 않는다).
      * `link` 는 서버 값 그대로 — 구매 완료·환불 `/me/robotikon`, 자동 취소 `/robotikon/{packId}`
      */
-    | 'EMOTICON_PURCHASE';
+    | 'EMOTICON_PURCHASE'
+    /**
+     * 보상 이벤트(`docs/features/event-admin-contract.md` 「알림·감사」 — 묶음 `system`, 끌 수 없는 처리 알림): 보상을 받음(이벤트 이름 + 보상 요약 — 직접 전달만 있어도 온다) ·
+     * 보상이 회수됨(사유). 문구는 서버 `title`·`body`(읽을 때 언어), `link` `/me/points`
+     */
+    | 'REWARD_EVENT_GRANTED'
+    | 'REWARD_EVENT_REVOKED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

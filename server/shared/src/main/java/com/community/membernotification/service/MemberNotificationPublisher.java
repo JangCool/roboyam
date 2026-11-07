@@ -639,6 +639,59 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 보상 이벤트 보상을 받았다({@code REWARD_EVENT_GRANTED} — V163, event-admin-contract 「알림·감사」). 덧붙임 {@code eventId}·{@code eventName}(알릴 때 이름)·{@code points}·
+     * {@code items}·{@code manual}(직접 전달 — 「운영자가 따로 보내요」). 끌 수 없는 처리 알림, 누르면 내 포인트. 지급 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 지급을 깨지 않는다).
+     */
+    public int rewardEventGranted(long userId, long eventId, String eventName, long points, int items, int manual) {
+        return isolated.run("member-notification:reward-event-granted", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.REWARD_EVENT_GRANTED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(eventName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("eventId", Long.toString(eventId));
+                payload.put("eventName", name);
+                payload.put("points", points);
+                payload.put("items", items);
+                payload.put("manual", manual);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.REWARD_EVENT_GRANTED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.rewardEventGranted(name, points, items, manual), null, null, "/me/points");
+            }
+            return made;
+        }, 0);
+    }
+
+    /** 보상 이벤트 보상이 회수됐다({@code REWARD_EVENT_REVOKED}) — 덧붙임 {@code eventId}·{@code eventName}·{@code reason}. 끌 수 없는 처리 알림, 누르면 내 포인트 */
+    public int rewardEventRevoked(long userId, long eventId, String eventName, String reason) {
+        return isolated.run("member-notification:reward-event-revoked", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.REWARD_EVENT_REVOKED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(eventName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("eventId", Long.toString(eventId));
+                payload.put("eventName", name);
+                payload.put("reason", reason);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.REWARD_EVENT_REVOKED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.rewardEventRevoked(name, reason), null, null, "/me/points");
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 정지 중에 낸 포인트 상점 환불 신청이 결정됐다(V87, commerce-stage1-contract 「1-2 정지 중 환불 신청」) — 수락 {@code POINT_SHOP_REFUND_APPROVED}(돌려준 포인트) ·
      * 거절 {@code POINT_SHOP_REFUND_REJECTED}(사유). 끌 수 없는 처리 알림, 덧붙임 {@code requestId}·{@code purchaseId}·{@code itemName}·{@code points}|{@code reason}. 누르면 내 아이템.
      * 결정 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 결정을 깨지 않는다).

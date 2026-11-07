@@ -190,6 +190,8 @@ export default {
         REVOKE_DEBT_OFFSET: 'Unrecovered points deducted',
         EXPIRE: 'Expired',
         EMOTICON_CREATOR_REWARD: 'Robotikon pack reward',
+        EVENT_REWARD: 'Event reward',
+        EVENT_REWARD_REVOKE: 'Event reward revoked',
     },
     col: {
         createdAt: 'Date',

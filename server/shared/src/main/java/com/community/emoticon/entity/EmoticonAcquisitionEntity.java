@@ -20,6 +20,8 @@ public class EmoticonAcquisitionEntity {
     private Long packId;
     private String kind;
     private Long purchaseId;
+    /** 보상 이벤트로 받은 줄의 그 줄 결과(V163 — 종류 EVENT 일 때만). 넣기·회수는 저장소의 JDBC 문장(세이브포인트 안) */
+    private Long rewardResultId;
     private Instant firstAcquiredAt;
     private Instant acquiredAt;
     private Instant removedAt;

@@ -7,6 +7,9 @@ import type { PointShopItemKind, PointShopUsageType, ProfileBorderStyle } from '
 /** 보유 상태 — 가짐 · 씀(소모형) · 회수(환불·예외 환불). 만료는 저장하지 않고 `expired`(서버가 `expiresAt` 으로 계산 — 결정 6) */
 export type UserItemStatus = 'OWNED' | 'USED' | 'REVOKED';
 
+/** 보유 줄의 출처 — 포인트로 산 줄 · 보상 이벤트로 받은 줄(서버 `MyItemView.source`, event-admin-contract — 받은 줄은 환불 대상이 아니다) */
+export type MyItemSource = 'PURCHASE' | 'REWARD_EVENT';
+
 /** 정지 중 환불 신청의 상태 — 운영자 확인 기다림 · 수락(환불됨) · 거절(아이템은 다시 쓸 수 있다) */
 export type RefundRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -28,7 +31,8 @@ export type EquipSlot = 'NICKNAME_COLOR' | 'PROFILE_BORDER';
 export interface MyItemView {
     id: string;
     itemId: string;
-    purchaseId: string;
+    /** 산 줄의 구매 번호 — 보상 이벤트로 받은 줄은 null */
+    purchaseId: string | null;
     kind: PointShopItemKind | string;
     usageType: PointShopUsageType;
     /** 품목의 지금 이름(가격·이름 사본은 구매 기록에 있다 — 화면은 지금 이름을 보인다) */
@@ -59,15 +63,18 @@ export interface MyItemView {
     expiresAt: string | null;
     /** 처음 장착·사용한 시각 — 있으면 환불할 수 없다(지우지 않는다) */
     firstUsedAt: string | null;
+    /** 산 시각 — 보상 이벤트로 받은 줄은 받은 시각 */
     purchasedAt: string;
-    /** 산 때 낸 포인트(구매 사본) */
+    /** 산 때 낸 포인트(구매 사본) — 보상 이벤트로 받은 줄은 0 */
     pricePaid: number;
     /** 지금 셀프 환불(정지 중이면 환불 신청)할 수 있다(서버 판정 — 안 썼고 `refundDays` 안, 대기 중이거나 정지 중 거절된 적 있으면 false) */
     refundable: boolean;
-    /** 환불 기한(구매 + `refundDays`). 회수된 줄은 null */
+    /** 환불 기한(구매 + `refundDays`). 회수된 줄·보상 이벤트로 받은 줄은 null */
     refundUntil: string | null;
     /** 그 구매의 최근 환불 신청 — 신청한 적 없으면 null. `PENDING` 이면 장착·아바타 고르기·환불이 막힌다(`409 POINT_SHOP_REFUND_PENDING`) */
     refundRequest: MyItemRefundRequest | null;
+    /** 출처 — 보상 이벤트로 받은 줄(`REWARD_EVENT`)은 가격·환불 단추·환불 기한 대신 「이벤트 보상」을 보인다 */
+    source: MyItemSource;
 }
 
 /** `GET /api/me/items` */
@@ -110,7 +117,7 @@ export interface EquipRequest {
 
 /**
  * `POST /api/me/items/{id}/refund` 응답(헤더 `Idempotency-Key`) — 원래 묶음으로 사용 취소(`POINT_SHOP_REFUND`)·재고 복원·구매 REFUNDED.
- * 정지 중이면 `202` `MyItemRefundRequested`(환불 신청). 오류: `409 POINT_SHOP_REFUND_PENDING`(대기 중)·`POINT_SHOP_REFUND_REJECTED`(정지 중 거절된 구매 재신청) · `409 POINT_SHOP_REFUND_NOT_ALLOWED`(썼거나 기한 지남 — 화면은 목록을 다시 읽는다) · `POINT_SHOP_ALREADY_REFUNDED` · `429 REQUEST_RATE_LIMITED`(`REFUND_REQUEST`). 머리글 `Idempotency-Key` 필수(멱등 키 오류는 구매와 같다).
+ * 정지 중이면 `202` `MyItemRefundRequested`(환불 신청). 오류: `409 POINT_SHOP_REFUND_PENDING`(대기 중)·`POINT_SHOP_REFUND_REJECTED`(정지 중 거절된 구매 재신청) · `409 POINT_SHOP_REFUND_NOT_ALLOWED`(최상위 `blockedBy` — 썼거나 기한 지남 · 예약됨 · `GRANTED` 보상 이벤트로 받은 줄 — 화면은 목록을 다시 읽는다) · `POINT_SHOP_ALREADY_REFUNDED` · `429 REQUEST_RATE_LIMITED`(`REFUND_REQUEST`). 머리글 `Idempotency-Key` 필수(멱등 키 오류는 구매와 같다).
  */
 export interface MyItemRefundResult {
     refundedPoints: number;

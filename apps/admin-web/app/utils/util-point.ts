@@ -157,6 +157,9 @@ const REASON_CODES: readonly PointReasonCode[] = [
     'EXPIRE',
     // 로보티콘 S1 — 무료 팩 받기 보상(작가)
     'EMOTICON_CREATOR_REWARD',
+    // 보상 이벤트 — 지급·회수
+    'EVENT_REWARD',
+    'EVENT_REWARD_REVOKE',
 ];
 
 const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE', 'EXPIRE', 'REFUND'];

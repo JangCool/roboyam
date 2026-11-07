@@ -273,7 +273,7 @@ final class GroupBuyTestKit {
         @Bean
         IdentityVerificationService identityVerificationService(DataSource dataSource, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
                                                                 ObjectProvider<Clock> clocks) {
-            return new IdentityVerificationService(identityStore(dataSource), null, null, null, null, null, ids, transactions, null, clocks);
+            return new IdentityVerificationService(identityStore(dataSource), null, null, null, null, null, ids, transactions, null, null, clocks);
         }
 
         @Bean

@@ -92,6 +92,9 @@ export default {
     emoticonSales: '판매 내역',
     emoticonSettlements: '작가 정산',
     emoticonSettings: '로보티콘 설정',
+    // 보상 이벤트 묶음(일반 모드, 로보티콘 묶음 다음 — 「사이트 팝업」과 다른 업무)
+    rewardEvent: '보상 이벤트',
+    rewardEvents: '보상 이벤트',
     // 공구 묶음(일반 모드, 결제 묶음 앞) — 운영자가 파는 실물 공동구매
     groupBuy: '공구',
     groupBuyProducts: '상품',

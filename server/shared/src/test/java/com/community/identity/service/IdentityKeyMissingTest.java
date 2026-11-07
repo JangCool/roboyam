@@ -55,7 +55,7 @@ class IdentityKeyMissingTest {
         beans.addBean("clock", Clock.fixed(now, ZoneOffset.UTC));
         return new IdentityVerificationService(store, null, new FakeIdentityVerifier(Clock.fixed(now, ZoneOffset.UTC)),
                 new IdentityProperties(IdentityProviderKind.FAKE, Duration.ofMinutes(30)), new BlindIndex(""), null, new SnowflakeIdGenerator(5),
-                new DataSourceTransactionManager(new DriverManagerDataSource()), null, beans.getBeanProvider(Clock.class));
+                new DataSourceTransactionManager(new DriverManagerDataSource()), null, null, beans.getBeanProvider(Clock.class));
     }
 
     @Test

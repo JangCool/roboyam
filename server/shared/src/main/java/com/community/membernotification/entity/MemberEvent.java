@@ -121,7 +121,10 @@ public enum MemberEvent {
     /** 로보티콘 팩 처리(V142 — 승인·반려·새 판 승인·반려·판매 중단·다시 판매) — 작가가 낸 신청의 처리 알림이라 회원이 끌 수 없다 */
     EMOTICON_PACK(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PACK, MemberEventLockReason.ACTION, null),
     /** 로보티콘 유료 팩 구매(V146 — 구매 완료·자동 취소·셀프 환불 접수·예외 환불) — 회원 돈이 오가는 거래 알림이라 회원이 끌 수 없다(공구·사업자 신청 건과 같다) */
-    EMOTICON_PURCHASE(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PURCHASE, MemberEventLockReason.ACTION, null);
+    EMOTICON_PURCHASE(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PURCHASE, MemberEventLockReason.ACTION, null),
+    /** 보상 이벤트 지급·회수(V163 — event-admin-contract 「알림·감사」) — 포인트·아이템이 오가는 처리 알림이라 회원이 끌 수 없다 */
+    REWARD_EVENT_GRANTED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_GRANTED, MemberEventLockReason.ACTION, null),
+    REWARD_EVENT_REVOKED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_REVOKED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 
