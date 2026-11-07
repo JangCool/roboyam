@@ -7,11 +7,11 @@
         (슬라이드에 나온 모임도 목록에서 빼지 않는다 — 소모임이 적을 때 목록이 거의 비어 보여서, 사용자 결정 2026-11-06). 두 오류는 따로 보인다.
         community 대비: 사이드의 광고 자리는 로보얌에 광고가 없어 뺐다.
     -->
-    <!-- 제목·검색·목록을 한 카드에(내 소모임 화면과 같은 모양) — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <!-- 제목·검색·목록을 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·커뮤니티·핫 로토픽)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
     <!-- 최소 높이 = 슬라이드 + 목록 6줄이 보일 때의 높이(md 이상) — 소모임이 없거나 적어도 화면 높이가 크게 줄지 않게(2026-11-06 사용자) -->
-    <div class="content-card md:min-h-[62.5rem]">
-        <header class="flex items-center gap-2">
-            <h1 class="min-w-0 flex-1 text-lg font-bold leading-tight">{{ t('group.title') }}</h1>
+    <div class="gadget-card md:min-h-[62.5rem]" data-headless>
+        <PageTitleHead :title="t('group.title')" :description="t('group.subtitle')" divider>
+            <template #actions>
             <Button
                 type="button"
                 icon="pi pi-search"
@@ -25,10 +25,11 @@
                 @click="toggleSearch"
             />
             <Button type="button" :label="t('group.create')" size="small" class="shrink-0 whitespace-nowrap" data-testid="group-create" @click="onCreate" />
-        </header>
+            </template>
+        </PageTitleHead>
 
         <!-- 검색 — 이름·소개에서 찾는다(`?q=`). 엔터·검색 단추로 주소가 바뀐다 -->
-        <form v-if="searchVisible" :id="searchId" role="search" class="mt-3" data-testid="group-search" @submit.prevent="submitSearch">
+        <form v-if="searchVisible" :id="searchId" role="search" class="mt-4" data-testid="group-search" @submit.prevent="submitSearch">
             <div class="flex gap-2">
                 <InputText
                     ref="searchInput"
@@ -48,7 +49,7 @@
             <p class="mt-1 text-xs text-muted-color">{{ t('group.searchHelp') }}</p>
         </form>
 
-        <div class="mt-3">
+        <div class="mt-4">
             <div class="min-w-0" data-testid="group-list-card">
                 <!-- 지금 뜨는 소모임 — 가로로 밀어 넘기는 카드 줄(scroll-snap, 자동으로 넘어가지 않는다). 검색 중에는 숨기고, 후보가 없으면(빈 응답) 자리를 통째로 생략한다.
                      카드 전체가 상세로 가는 링크이고 오른쪽 아래 「가입하기」는 모양만이다(링크 안에 단추를 넣지 않는다 — 상세에서 가입한다) -->
