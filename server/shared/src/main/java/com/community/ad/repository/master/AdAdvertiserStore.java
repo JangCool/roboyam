@@ -282,8 +282,8 @@ public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
                 .toList();
     }
 
-    /** 이름 비교 — {@code lower(btrim(name))}(유일 인덱스 ux_ad_advertisers_name 과 같은 식) */
+    /** 이름 비교 — {@code lower(btrim(name))}(유일 인덱스 ux_ad_advertisers_name 과 같은 식 — HQL {@code trim(both from …)} 은 공백만 깎는 {@code btrim} 이다. {@code trim(?)} 꼴은 HQL 이 매개변수를 깎을 글자로 읽는다) */
     private static BooleanExpression sameName(String name) {
-        return Expressions.stringTemplate("lower(trim({0}))", A.name).eq(Expressions.stringTemplate("lower(trim({0}))", name));
+        return Expressions.stringTemplate("lower(trim(both from {0}))", A.name).eq(Expressions.stringTemplate("lower(trim(both from {0}))", name));
     }
 }

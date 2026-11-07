@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.community.ad.dto.AdPlacements;
 import com.community.ad.service.PublicAdService;
 import com.community.bizapplication.BizApplicationApiTestBase;
 import com.community.bizapplication.service.BizPeriods;
@@ -110,7 +111,7 @@ class PublicAdHttpTest extends BizApplicationApiTestBase {
         secured.perform(get("/api/ads/placements")).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.postInline.enabled").value(true)).andExpect(jsonPath("$.data.postInline.adType").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data.postInline.position").value("BETWEEN_CARDS")).andExpect(jsonPath("$.data.wings.left").value(true))
-                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(4))
+                .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(AdPlacements.WING_SCREENS.size()))
                 .andExpect(jsonPath("$.data.wings.screens[0]").value("HOME")).andExpect(jsonPath("$.data.boardList.enabled").value(true))
                 .andExpect(jsonPath("$.data.boardList.after").value(5)).andExpect(jsonPath("$.data.adult.enabled").value(false));
     }
