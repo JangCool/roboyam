@@ -471,6 +471,8 @@ export interface AdProduct {
     openDays: number;
     /** 신청 받기 꺼짐 — 흐리게 「지금은 받지 않아요」 */
     accepting: boolean;
+    /** 온라인 결제를 받는가 — 운영 주체가 개인 단계면 false(수동 결제만, 서버 `400 fields.paymentMethod`) */
+    onlinePayment: boolean;
 }
 
 /** 남은 칸을 셀 자리 — 광고 종류 또는 핫딜 노출 자리(광고 건 한도 엔진 하나 — X8) */
@@ -516,6 +518,8 @@ export interface DealProduct {
     postPrice: number;
     /** 글 게시 신청 받기 — 꺼지면 신청 화면 대신 「준비 중」 안내(사업자 핫딜 닫음 V121 — 게시 기능이 생기면 다시 연다) */
     accepting: boolean;
+    /** 온라인 결제를 받는가 — 운영 주체가 개인 단계면 false(수동 결제만) */
+    onlinePayment: boolean;
     /** 노출 자리별 — `accepting` 꺼짐이면 흐리게 「지금은 받지 않아요」 */
     placements: { placement: Exclude<DealPlacement, 'NONE'>; dailyPrice: number; capacity: number; maxDays: number; accepting: boolean }[];
     /** 받는 핫딜 게시판(2차) — 하나면 화면이 자동으로 고르고 칸을 감춘다. 옛 응답에는 없다(없거나 비면 칸을 감추고 `boardId` 는 빈 글자) */

@@ -91,7 +91,7 @@ public final class BizMemberView {
     public record Created(String id) {
     }
 
-    public record AdProduct(String type, long dailyPrice, int maxDays, int maxLeadDays, int capacity, int openDays, boolean accepting) {
+    public record AdProduct(String type, long dailyPrice, int maxDays, int maxLeadDays, int capacity, int openDays, boolean accepting, boolean onlinePayment) {
     }
 
     /** 핫딜 노출 자리 — {@code accepting} 은 요금표 받기(끄면 신청 409 {@code BIZ_PRODUCT_CLOSED}) */
@@ -99,7 +99,7 @@ public final class BizMemberView {
     }
 
     /** 사업자 핫딜 요금 — {@code accepting} 은 글 게시({@code HOTDEAL_POST}) 받기. 꺼져 있으면 화면은 신청 대신 「준비 중」 안내 */
-    public record DealProduct(long postPrice, boolean accepting, List<DealPlacement> placements, List<DealBoard> boards) {
+    public record DealProduct(long postPrice, boolean accepting, boolean onlinePayment, List<DealPlacement> placements, List<DealBoard> boards) {
     }
 
     /** 받는 핫딜 게시판(2차 — 켜진 DEAL 게시판, 말머리는 켜짐·운영진 전용 아님) — user-web {@code BizDealBoard} */

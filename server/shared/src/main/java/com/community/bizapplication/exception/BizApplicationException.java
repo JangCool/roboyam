@@ -61,7 +61,7 @@ public class BizApplicationException extends CommonException {
         return new BizApplicationException(HttpStatus.CONFLICT, PAYMENT_UNAVAILABLE);
     }
 
-    /** 유료 승인·입금 확정(예약 확정) — 운영 주체가 개인 단계이거나 통신판매업 신고번호가 없다(같은 판정) */
+    /** 온라인 결제 승인 — 운영 주체가 개인 단계이거나 통신판매업 신고번호가 없다(같은 판정). 수동 결제 승인·입금 확정은 단계와 상관없다 */
     public static BizApplicationException operatorStage() {
         return new BizApplicationException(HttpStatus.CONFLICT, OPERATOR_STAGE);
     }
