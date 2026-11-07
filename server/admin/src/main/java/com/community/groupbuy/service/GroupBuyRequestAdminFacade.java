@@ -14,7 +14,9 @@ import com.community.groupbuy.entity.Resolution;
 import com.community.groupbuy.entity.ReturnDisposition;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyRefundStore;
+import com.community.groupbuy.repository.master.GroupBuyRequestAdminQueries;
 import com.community.groupbuy.repository.master.GroupBuyRequestStore;
+import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyRequestStore.RequestRow;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
@@ -25,7 +27,6 @@ import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.zconfiguration.time.ServiceTime;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,9 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -49,7 +48,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class GroupBuyRequestAdminFacade {
 
-    private final JdbcTemplate jdbc;
+    private final GroupBuyRequestAdminQueries queries;
     private final GroupBuyRequestStore requests;
     private final GroupBuyRefundStore refunds;
     private final ParticipationStore participations;
@@ -60,10 +59,10 @@ public class GroupBuyRequestAdminFacade {
     private final ImageStorage storage;
     private final ObjectProvider<Clock> clocks;
 
-    public GroupBuyRequestAdminFacade(DataSource dataSource, GroupBuyRequestStore requests, GroupBuyRefundStore refunds, ParticipationStore participations,
+    public GroupBuyRequestAdminFacade(GroupBuyRequestAdminQueries queries, GroupBuyRequestStore requests, GroupBuyRefundStore refunds, ParticipationStore participations,
                                       GroupBuyStore groups, GroupBuyRequestService service, GroupBuyOrderAdminFacade orders, GroupBuyImageUploader uploader,
                                       ImageStorage storage, ObjectProvider<Clock> clocks) {
-        this.jdbc = new JdbcTemplate(dataSource);
+        this.queries = queries;
         this.requests = requests;
         this.refunds = refunds;
         this.participations = participations;
@@ -78,44 +77,25 @@ public class GroupBuyRequestAdminFacade {
     public GroupBuyOrderAdminView.RequestList list(String status, String type, String level, String q, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
         int p = Math.max(0, page);
-        StringBuilder where = new StringBuilder(" FROM group_buy_requests r JOIN group_buy_participations pa ON pa.id = r.participation_id "
-                + "LEFT JOIN profiles pr ON pr.user_id = r.user_id WHERE r.status <> 'AWAITING_FEE'");
-        List<Object> args = new ArrayList<>();
-        if (type != null && !type.isBlank()) {
-            where.append(" AND r.type = ?");
-            args.add(AdminIds.value(RequestType.class, type, "type").name());
-        }
-        if (q != null && !q.isBlank()) {
-            where.append(" AND (pa.order_no = ? OR pr.nickname ILIKE ? OR r.user_id::text = ?)");
-            args.add(q.strip());
-            args.add("%" + q.strip().replace("%", "\\%").replace("_", "\\_") + "%");
-            args.add(q.strip());
-        }
+        RequestType t = type != null && !type.isBlank() ? AdminIds.value(RequestType.class, type, "type") : null;
+        String v = q != null && !q.isBlank() ? q.strip() : null;
+        GroupBuyRequestAdminQueries.ListFilter base = new GroupBuyRequestAdminQueries.ListFilter(t, v, v == null ? null : GroupBuyRowNames.like(v), null, null);
         Map<String, Long> counts = new LinkedHashMap<>();
         for (String st : List.of("REQUESTED", "APPROVED", "COMPLETED", "REJECTED", "WITHDRAWN", "SUPERSEDED")) {
             counts.put(st, 0L);
         }
-        jdbc.query("SELECT CASE WHEN r.status = 'RECEIVED' THEN 'APPROVED' ELSE r.status END, count(*)" + where + " GROUP BY 1", rs -> {
-            counts.merge(rs.getString(1), rs.getLong(2), Long::sum);
-        }, args.toArray());
-        if (status != null && !status.isBlank()) {
-            if ("APPROVED".equals(status)) {
-                where.append(" AND r.status IN ('APPROVED', 'RECEIVED')");
-            } else {
-                where.append(" AND r.status = ?");
-                args.add(AdminIds.value(RequestStatus.class, status, "status").name());
-            }
+        queries.statusCounts(base).forEach((st, n) -> counts.merge(st == RequestStatus.RECEIVED ? "APPROVED" : st.name(), n, Long::sum));
+        List<RequestStatus> statuses = status == null || status.isBlank() ? null
+                : "APPROVED".equals(status) ? List.of(RequestStatus.APPROVED, RequestStatus.RECEIVED) : List.of(AdminIds.value(RequestStatus.class, status, "status"));
+        // 기한 경고(2영업일 지남 — row() 의 deadlineLevel 이 OK 가 아닌 것)는 시작 시각 경계로 DB 에서 거른다
+        Instant warnBefore = "WARN".equals(level) ? GroupBuyBusinessDays.elapsedCutoff(ServiceTime.dateOf(now()), 2, groups.settings().calendar())
+                .atStartOfDay(ServiceTime.ZONE).toInstant() : null;
+        GroupBuyRequestAdminQueries.ListFilter filter = new GroupBuyRequestAdminQueries.ListFilter(t, base.exact(), base.like(), statuses, warnBefore);
+        long total = queries.count(filter);
+        List<GroupBuyOrderAdminView.RequestRow> pageRows = new ArrayList<>();
+        for (long id : queries.pageIds(filter, (long) p * s, s)) {
+            pageRows.add(row(requests.find(id).orElseThrow()));
         }
-        List<Long> ids = jdbc.queryForList("SELECT r.id" + where + " ORDER BY r.created_at, r.id", Long.class, args.toArray());
-        List<GroupBuyOrderAdminView.RequestRow> rows = new ArrayList<>();
-        for (long id : ids) {
-            rows.add(row(requests.find(id).orElseThrow()));
-        }
-        if ("WARN".equals(level)) {
-            rows = rows.stream().filter(r -> !"OK".equals(r.deadlineLevel())).toList();
-        }
-        long total = rows.size();
-        List<GroupBuyOrderAdminView.RequestRow> pageRows = rows.stream().skip((long) p * s).limit(s).toList();
         return new GroupBuyOrderAdminView.RequestList(pageRows, total, counts);
     }
 
@@ -128,10 +108,8 @@ public class GroupBuyRequestAdminFacade {
         groups.skus(g.id()).forEach(s -> skus.put(s.id(), s));
         List<GroupBuyRequestStore.ItemRow> lines = requests.items(r.id());
         Map<Long, List<GroupBuyOrderAdminView.DispositionQty>> dispositions = new HashMap<>();
-        jdbc.query("SELECT d.request_item_id, d.disposition, d.qty FROM group_buy_return_dispositions d JOIN group_buy_request_items i ON i.id = d.request_item_id "
-                + "WHERE i.request_id = ?", rs -> {
-            dispositions.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new GroupBuyOrderAdminView.DispositionQty(rs.getString(2), rs.getInt(3)));
-        }, r.id());
+        queries.dispositions(r.id()).forEach(d -> dispositions.computeIfAbsent(d.requestItemId(), k -> new ArrayList<>())
+                .add(new GroupBuyOrderAdminView.DispositionQty(d.disposition(), d.qty())));
         String memo = r.memo() == null ? "" : r.memo();
         List<GroupBuyOrderAdminView.RequestItem> items = lines.stream().map(i -> {
             GroupBuyStore.SkuRow sku = skus.get(i.skuId());
@@ -141,25 +119,23 @@ public class GroupBuyRequestAdminFacade {
         }).toList();
         List<GroupBuyOrderAdminView.Photo> memberPhotos = photos(r.id(), "MEMBER");
         List<GroupBuyOrderAdminView.Photo> operatorPhotos = photos(r.id(), "OPERATOR");
-        Map<String, Object> extra = jdbc.queryForMap("SELECT r.pickup_carrier_code, r.pickup_tracking_no, r.reject_note, o.operator_name, "
-                + "r.decided_at, r.completed_at FROM group_buy_requests r LEFT JOIN operators o ON o.id = r.decided_by WHERE r.id = ?", r.id());
+        GroupBuyRequestAdminQueries.RequestExtra extra = queries.extra(r.id()).orElseThrow(GroupBuyException::requestNotFound);
         GroupBuyOrderAdminView.Breakdown current = breakdown(r, lines);
         GroupBuyOrderAdminView.Recalculated recalculated = current.total() != r.previewAmount() && RequestStatus.OPEN.contains(r.status())
                 ? new GroupBuyOrderAdminView.Recalculated(current, List.of("RECALCULATED")) : null;
-        GroupBuyOrderAdminView.ExchangeShipment exchange = jdbc.query("SELECT carrier_code, tracking_no, shipped_at FROM group_buy_shipments WHERE request_id = ? AND kind = 'EXCHANGE'",
-                (rs, i) -> new GroupBuyOrderAdminView.ExchangeShipment(rs.getString(1), rs.getString(2), rs.getTimestamp(3).toInstant()), r.id()).stream().findFirst()
-                .orElse(null);
+        GroupBuyOrderAdminView.ExchangeShipment exchange = queries.exchangeShipment(r.id())
+                .map(x -> new GroupBuyOrderAdminView.ExchangeShipment(x.carrierCode(), x.trackingNo(), x.shippedAt())).orElse(null);
         List<GroupBuyOrderAdminView.HistoryLine> history = new ArrayList<>();
         history.add(new GroupBuyOrderAdminView.HistoryLine("REQUESTED", "MEMBER", null, r.createdAt()));
-        if (extra.get("decided_at") instanceof Timestamp t) {
-            history.add(new GroupBuyOrderAdminView.HistoryLine(r.status() == RequestStatus.REJECTED ? "REJECTED" : "APPROVED", nz((String) extra.get("operator_name")),
-                    (String) extra.get("reject_note"), t.toInstant()));
+        if (extra.decidedAt() != null) {
+            history.add(new GroupBuyOrderAdminView.HistoryLine(r.status() == RequestStatus.REJECTED ? "REJECTED" : "APPROVED", nz(extra.operatorName()), extra.rejectNote(),
+                    extra.decidedAt()));
         }
         if (r.receivedAt() != null) {
-            history.add(new GroupBuyOrderAdminView.HistoryLine("APPROVED", nz((String) extra.get("operator_name")), "RECEIVED", r.receivedAt()));
+            history.add(new GroupBuyOrderAdminView.HistoryLine("APPROVED", nz(extra.operatorName()), "RECEIVED", r.receivedAt()));
         }
-        if (extra.get("completed_at") instanceof Timestamp t) {
-            history.add(new GroupBuyOrderAdminView.HistoryLine(screenStatus(r.status()), nz((String) extra.get("operator_name")), null, t.toInstant()));
+        if (extra.completedAt() != null) {
+            history.add(new GroupBuyOrderAdminView.HistoryLine(screenStatus(r.status()), nz(extra.operatorName()), null, extra.completedAt()));
         }
         boolean open = RequestStatus.OPEN.contains(r.status());
         boolean manage = actor.root() || actor.can(Permission.COMMERCE_ORDER_MANAGE);
@@ -173,16 +149,14 @@ public class GroupBuyRequestAdminFacade {
                 manage && r.type() == RequestType.RETURN && r.status() == RequestStatus.APPROVED,
                 manage && approve && r.type() == RequestType.RETURN && r.status() == RequestStatus.RECEIVED && !exchangeMode,
                 manage && exchangeMode && EnumSet.of(RequestStatus.APPROVED, RequestStatus.RECEIVED).contains(r.status()), manage && exchangeMode && open, resell);
-        String productRestriction = jdbc.queryForObject("SELECT p.withdrawal_restriction FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.id = ?",
-                String.class, g.id());
+        String productRestriction = queries.withdrawalRestriction(g.id());
         return new GroupBuyOrderAdminView.RequestDetail(row.id(), row.type(), row.status(), row.resolution(), row.order(), row.groupBuy(), row.member(), row.lineCount(),
                 row.totalQty(), row.mainReason(), row.collectionMethod(), row.previewAmount(), row.createdAt(), row.receivedAt(), row.elapsedBusinessDays(),
-                row.deadlineLevel(), row.extraPayment(), items, memberPhotos, extra.get("pickup_tracking_no") == null ? null
-                : new GroupBuyOrderAdminView.Pickup((String) extra.get("pickup_carrier_code"), (String) extra.get("pickup_tracking_no")), current, recalculated,
+                row.deadlineLevel(), row.extraPayment(), items, memberPhotos, extra.pickupTrackingNo() == null ? null
+                : new GroupBuyOrderAdminView.Pickup(extra.pickupCarrierCode(), extra.pickupTrackingNo()), current, recalculated,
                 r.compensationAmount(), groups.settings().compensationCap(), productRestriction != null && !productRestriction.isBlank(), r.rejectReasonCode(),
-                (String) extra.get("reject_note"), operatorPhotos, exchange, refunds.operatorAmountTotal(o.id()), groups.settings().largeRefundThreshold(),
-                (String) extra.get("operator_name"), extra.get("completed_at") instanceof Timestamp t ? t.toInstant() : extra.get("decided_at") instanceof Timestamp d
-                ? d.toInstant() : null, history, actions);
+                extra.rejectNote(), operatorPhotos, exchange, refunds.operatorAmountTotal(o.id()), groups.settings().largeRefundThreshold(),
+                extra.operatorName(), extra.completedAt() != null ? extra.completedAt() : extra.decidedAt(), history, actions);
     }
 
     // ── 처리 ────────────────────────────────────────────────────────────────
@@ -262,9 +236,9 @@ public class GroupBuyRequestAdminFacade {
         int elapsed = start == null ? 0 : GroupBuyBusinessDays.elapsed(ServiceTime.dateOf(start), ServiceTime.dateOf(now), holidays);
         GroupBuyBusinessDays.Level level = start == null || !RequestStatus.OPEN.contains(r.status()) ? GroupBuyBusinessDays.Level.NONE
                 : GroupBuyBusinessDays.deadlineLevel(start, now, holidays);
-        GroupBuyOrderAdminView.ExtraPayment extra = r.feePaymentOrderId() == null ? null : jdbc.query("SELECT status, amount, payment_id, paid_at FROM payment_orders WHERE id = ?",
-                (rs, i) -> new GroupBuyOrderAdminView.ExtraPayment(feeStatus(rs.getString(1), r), rs.getLong(2), rs.getString(3),
-                        rs.getTimestamp(4) == null ? null : rs.getTimestamp(4).toInstant(), r.feeRefundedAmount()), r.feePaymentOrderId()).stream().findFirst().orElse(null);
+        GroupBuyOrderAdminView.ExtraPayment extra = r.feePaymentOrderId() == null ? null : queries.feePayment(r.feePaymentOrderId())
+                .map(po -> new GroupBuyOrderAdminView.ExtraPayment(feeStatus(po.status() == null ? null : po.status().name(), r), po.amount(), po.paymentId(), po.paidAt(),
+                        r.feeRefundedAmount())).orElse(null);
         return new GroupBuyOrderAdminView.RequestRow(Long.toString(r.id()), r.type().name(), screenStatus(r.status()), r.resolution() == null ? "REFUND" : r.resolution().name(),
                 new GroupBuyOrderAdminView.OrderRef(Long.toString(o.id()), o.orderNo()), order.groupBuy(), order.member(), lines.size(),
                 lines.stream().mapToInt(GroupBuyRequestStore.ItemRow::qty).sum(), lines.isEmpty() || lines.get(0).reason() == null ? "CHANGE_OF_MIND"
@@ -327,8 +301,7 @@ public class GroupBuyRequestAdminFacade {
     }
 
     private List<GroupBuyOrderAdminView.Photo> photos(long requestId, String owner) {
-        return jdbc.query("SELECT id, image_key FROM group_buy_request_photos WHERE request_id = ? AND owner_kind = ? ORDER BY id",
-                (rs, i) -> new GroupBuyOrderAdminView.Photo(Long.toString(rs.getLong(1)), storage.publicUrl(rs.getString(2))), requestId, owner);
+        return queries.photos(requestId, owner).stream().map(ph -> new GroupBuyOrderAdminView.Photo(Long.toString(ph.id()), storage.publicUrl(ph.imageKey()))).toList();
     }
 
     /** 화면의 처리 방법 줄은 요청 줄 ID — 서비스는 단품 ID 로 받는다 */
@@ -348,6 +321,10 @@ public class GroupBuyRequestAdminFacade {
             }
         }
         return out;
+    }
+
+    private Instant now() {
+        return clocks.getIfUnique(Clock::systemUTC).instant();
     }
 
     private static long id(String text) {

@@ -18,6 +18,9 @@ import com.community.group.entity.QGroupEventResponseEntity;
 import com.community.group.entity.QGroupMemberEntity;
 import com.community.group.entity.QGroupPublishRequestEntity;
 import com.community.group.repository.master.GroupRepository;
+import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
+import com.community.groupbuy.entity.QGroupBuySupplyChoiceEntity;
+import com.community.groupbuy.entity.QGroupBuyWatchEntity;
 import com.community.membernotification.entity.QMemberNotificationEntity;
 import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
@@ -48,8 +51,7 @@ import org.springframework.stereotype.Repository;
  * 상대 쪽지함의 대화)은 건드리지 않는다. <b>문장 차례가 정리 차례다</b> — 바꾸지 않는다.
  *
  * <p>엔티티가 있는 표는 QueryDSL 대량 UPDATE·DELETE 다(부르는 트랜잭션 안 — 아직 내보내지 않은 엔티티 변경은 문장 전에 내보내진다). Native SQL 로 남긴 것과 이유:
- * 엔티티가 없는 표({@code group_buy_watches}·{@code group_buy_supply_choices}·
- * {@code avatar_upload_requests}·{@code member_addresses}·{@code mail_outbox}·{@code group_buy_participations}·{@code spring_session}),
+ * 엔티티가 없는 표({@code avatar_upload_requests}·{@code member_addresses}·{@code mail_outbox}·{@code spring_session}),
  * 엔티티가 매핑하지 않는 칸을 고치는 문장({@code profiles.profile_image}·{@code nickname_image}, {@code user_items.reserved_at}).
  */
 @Repository
@@ -64,6 +66,7 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
     private static final QGroupPublishRequestEntity PUBLISH_REQUEST = QGroupPublishRequestEntity.groupPublishRequestEntity;
     private static final QUserBlockEntity BLOCK = QUserBlockEntity.userBlockEntity;
     private static final QUserMemoEntity MEMO = QUserMemoEntity.userMemoEntity;
+    private static final QGroupBuyParticipationEntity ORDER = QGroupBuyParticipationEntity.groupBuyParticipationEntity;
 
     private final JdbcTemplate jdbc;
     private final GroupRepository groups;
@@ -116,8 +119,8 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
         deleteByUser(QUserRoleEntity.userRoleEntity, QUserRoleEntity.userRoleEntity.userId, userId);
         deleteByUser(QBoardStaffEntity.boardStaffEntity, QBoardStaffEntity.boardStaffEntity.userId, userId);
         deleteByUser(QMemberNotificationEntity.memberNotificationEntity, QMemberNotificationEntity.memberNotificationEntity.userId, userId);
-        deleteByUserNative("group_buy_watches", userId);
-        deleteByUserNative("group_buy_supply_choices", userId);
+        deleteByUser(QGroupBuyWatchEntity.groupBuyWatchEntity, QGroupBuyWatchEntity.groupBuyWatchEntity.userId, userId);
+        deleteByUser(QGroupBuySupplyChoiceEntity.groupBuySupplyChoiceEntity, QGroupBuySupplyChoiceEntity.groupBuySupplyChoiceEntity.userId, userId);
         deleteByUser(QUserEquippedEntity.userEquippedEntity, QUserEquippedEntity.userEquippedEntity.userId, userId);
         deleteByUser(QNicknameImageRequestEntity.nicknameImageRequestEntity, QNicknameImageRequestEntity.nicknameImageRequestEntity.userId, userId);
         deleteByUserNative("avatar_upload_requests", userId);
@@ -168,13 +171,14 @@ public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
     /**
      * 공구 주문의 배송지·연락처·현금영수증 암호문 — 기간과 무관하게 즉시 마스킹(17-3). 주문·금액·상태는 남는다.
      *
-     * <p>Native SQL 인 이유: {@code group_buy_participations} 는 엔티티가 없는 표다.
+     * 지운 시각({@code address_masked_at})은 이미 있으면 그대로 둔다(예전 {@code coalesce}).
      */
     public int maskParticipations(long userId, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET recipient_enc = NULL, phone_enc = NULL, postcode = NULL, address1_enc = NULL, address2_enc = NULL, memo_enc = NULL, "
-                + "cash_receipt_no_enc = NULL, address_masked_at = coalesce(address_masked_at, ?), updated_at = ? WHERE user_id = ? AND (recipient_enc IS NOT NULL OR phone_enc IS NOT NULL "
-                + "OR address1_enc IS NOT NULL OR address2_enc IS NOT NULL OR memo_enc IS NOT NULL OR cash_receipt_no_enc IS NOT NULL OR postcode IS NOT NULL)",
-                Timestamp.from(now), Timestamp.from(now), userId);
+        return rows(query.update(ORDER).setNull(ORDER.recipientEnc).setNull(ORDER.phoneEnc).setNull(ORDER.postcode).setNull(ORDER.address1Enc).setNull(ORDER.address2Enc)
+                .setNull(ORDER.memoEnc).setNull(ORDER.cashReceiptNoEnc).set(ORDER.addressMaskedAt, ORDER.addressMaskedAt.coalesce(now)).set(ORDER.updatedAt, now)
+                .where(ORDER.userId.eq(userId), ORDER.recipientEnc.isNotNull().or(ORDER.phoneEnc.isNotNull()).or(ORDER.address1Enc.isNotNull())
+                        .or(ORDER.address2Enc.isNotNull()).or(ORDER.memoEnc.isNotNull()).or(ORDER.cashReceiptNoEnc.isNotNull()).or(ORDER.postcode.isNotNull()))
+                .execute());
     }
 
     /**

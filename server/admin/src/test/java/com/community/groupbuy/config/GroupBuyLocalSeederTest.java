@@ -27,6 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
 
     @Autowired
+    private com.community.groupbuy.repository.master.GroupBuyStore groups;
+    @Autowired
+    private com.community.groupbuy.repository.master.GroupBuyProductAdminQueries productQueries;
+    @Autowired
     private CommerceSalesStore salesStore;
     @Autowired
     private CommerceSalesService sales;
@@ -56,7 +60,7 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
     void 운영_주체가_개인이면_운영_주체를_건드리지_않고_판매도_켜지_않는다() {
         SiteOperatorFixture.clear(jdbc);
         jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
-        GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
+        GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), groups, productQueries, salesStore, sales, policies,
                 products, notices, catalog, admin, clocks, transactions);
         seeder.seedSales();
         assertThat(jdbc.queryForObject("SELECT stage FROM site_operator WHERE id = 1", String.class)).as("기본값 개인 그대로").isEqualTo("INDIVIDUAL");
@@ -69,7 +73,7 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
     void 판매_조건을_실제로_채워_켜고_예시_품목_여덟과_공구_여덟을_넣는다() {
         SiteOperatorFixture.fillBusiness(jdbc);
         jdbc.update("UPDATE commerce_business_info SET business_hours = '', shipping_refund_policy = '' WHERE id = 1");
-        GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), dataSource, salesStore, sales, policies,
+        GroupBuyLocalSeeder seeder = new GroupBuyLocalSeeder(new BatchProperties(true, "Asia/Seoul", 30, 60, 4, 2000, 120, 30), groups, productQueries, salesStore, sales, policies,
                 products, notices, catalog, admin, clocks, transactions);
         seeder.seedSales();
         assertThat(salesStore.businessInfo().ready()).isTrue();
