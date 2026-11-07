@@ -41,7 +41,9 @@ import com.community.pointshop.service.PointShopRefundService;
 import com.community.pointshop.service.ProfileAvatarService;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.pointshop.service.UserItemService;
+import com.community.restriction.repository.master.MemberRestrictionRepository;
 import com.community.restriction.repository.master.MemberRestrictionStore;
+import com.community.testsupport.JpaTestContext;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.MutableTestClock;
@@ -118,7 +120,7 @@ final class PointShopTestKit {
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
-        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(dataSource), null, null, ids, null, clocks);
+        MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         points = new PointService(new PointLedgerWriter(dataSource), new PointPolicy(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
         AuditLogService audit = new AuditLogService(null, null) {
             @Override
