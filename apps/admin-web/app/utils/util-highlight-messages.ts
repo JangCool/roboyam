@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { HighlightItem } from '~/composables/content/api/useHighlightApi.types';
+import type { HighlightItem, HighlightPlace } from '~/composables/content/api/useHighlightApi.types';
 import UtilHighlight, { type HighlightCandidateProblem, type HighlightFormProblem, type HighlightImageProblem } from '~/utils/util-highlight';
 
 /**
@@ -36,5 +36,16 @@ export default class UtilHighlightMessages {
     /** 후보 기간 고르개 이름 — 0 은 전체 */
     static days(t: Translate, days: number): string {
         return days === 0 ? t('highlight.daysAll') : t('highlight.daysRecent', { n: days });
+    }
+
+    /** 곳 고르개 이름 — 가젯 페이지는 「가젯 페이지 · 이름」(홈·팁 묶음은 서버 이름 그대로) */
+    static placeLabel(t: Translate, place: HighlightPlace): string {
+        return place.kind === 'PAGE' ? t('highlight.placePage', { name: place.name }) : place.name;
+    }
+
+    /** 곳 고르개 선택지 — 목록을 아직 못 받았으면 지금 곳 하나(키 그대로) */
+    static placeOptions(t: Translate, places: readonly HighlightPlace[], current: string): { value: string; label: string }[] {
+        if (!places.length) return [{ value: current, label: current }];
+        return places.map((p) => ({ value: p.key, label: UtilHighlightMessages.placeLabel(t, p) }));
     }
 }

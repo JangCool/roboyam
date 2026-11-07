@@ -7,7 +7,11 @@ export default {
     subtitle: '운영자가 고른 글을 하이라이트로 지정해 순서·노출을 정해요. 그 글의 찬반 토론도 여기서 열고 다룰 수 있어요.',
     add: '하이라이트 추가',
     refresh: '새로고침',
-    homeNotice: '공개 홈의 하이라이트 자리는 홈 구성과 함께 준비 중이에요. 지금은 지정한 글에 「하이라이트」 표시가 붙어요. 찬반 토론은 글의 기능이라 하이라이트를 내리거나 지워도 그대로예요.',
+    placeLabel: '하이라이트 곳',
+    placeHint: '곳마다 목록·순서가 따로예요. 같은 글을 여러 곳에 넣을 수 있고, 만든 뒤에는 곳을 바꿀 수 없어요.',
+    placePage: '가젯 페이지 · {name}',
+    placeGroupPages: '가젯 페이지',
+    placesFailed: '곳 목록을 불러오지 못했어요. {message}',
     readOnlyHint: '하이라이트를 바꿀 권한이 없어 볼 수만 있어요.',
     listTitle: '하이라이트 목록',
     countLine: '노출 중 {showing}개 · 전체 {total}개',
@@ -27,6 +31,7 @@ export default {
     debateTag: '찬반 토론 중',
     debateSettings: '토론 설정',
     postGone: '글이 지워졌어요',
+    openPost: '글 내용 보기',
     /** 토론이 있는 줄 — `{stances}` 자리에는 화면이 입장 색을 입힌 `stanceTab` 글자(투표 수)를 ` · ` 로 이어 넣는다. 참여 = 입장을 고른 사람 수, 의견 = 입장 있는 원댓글 수 */
     debateCounts: '참여 {total}명({stances}) · 의견 {opinions} · 일반 댓글 {general}',
     /** 토론이 없는 줄 */

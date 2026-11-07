@@ -7,8 +7,10 @@
         오른쪽 사이드(광고·공동구매 등)는 홈 가젯이 본문 옆에 그린다.
     -->
     <!-- 바탕은 역할 변수 `--page-bg`(테마가 채운다, 기본 = surface-50 · 다크 surface-950) -->
-    <!-- `relative` — 날개 배너 층(`AdWings`)이 이 세로 줄을 기준으로 본문 바깥에 뜬다 -->
-    <div class="relative flex min-h-dvh flex-col bg-page">
+    <!-- `relative` — 날개 배너 층(`AdWings`)이 이 세로 줄을 기준으로 본문 바깥에 뜬다.
+         `overflow-x-clip` — 어느 화면이든 화면 폭보다 넓은 것(가로 넘김 상자를 빠져나온 절대 위치 `sr-only` 글자 등)이 문서를 넓히지 못하게 자른다.
+         문서가 넓어지면 모바일에서 페이지가 옆으로 밀려 상단 바·하단 탭이 어긋난다. `hidden` 과 달리 `clip` 은 스크롤 상자를 만들지 않아 sticky 막대가 그대로 붙는다 -->
+    <div class="relative flex min-h-dvh flex-col overflow-x-clip bg-page">
         <a
             href="#main-content"
             class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[3000] focus:rounded focus:bg-surface-0 focus:px-3 focus:py-2 focus:text-sm focus:shadow-lg dark:focus:bg-surface-900"

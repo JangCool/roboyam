@@ -70,6 +70,7 @@ import social from './social';
 import verify from './verify';
 import view from './view';
 import terms from './terms';
+import tips from './tips';
 import withdrawal from './withdrawal';
 import visitPrivacy from './visitPrivacy';
 
@@ -136,6 +137,7 @@ export default {
     verify,
     view,
     terms,
+    tips,
     withdrawal,
     visitPrivacy,
 };

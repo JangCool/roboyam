@@ -1,6 +1,8 @@
+import type { LocationQuery } from 'vue-router';
 import type { DebateStance } from '~/composables/content/api/useDebateApi.types';
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
-import type { HighlightCommentCounts, HighlightItem, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
+import type { HighlightCommentCounts, HighlightItem, HighlightPlace, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
+import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 import UtilDebate from '~/utils/util-debate';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
@@ -151,6 +153,8 @@ export default class UtilHighlight {
             debate: keepDebate ? null : form.debate,
             neutralEnabled: keepDebate ? null : form.neutralEnabled,
             stanceChangeAllowed: keepDebate ? null : form.stanceChangeAllowed,
+            // 곳은 화면(목록)이 고른 것을 만들 때 덮어 보낸다 — 대화상자는 곳을 모른다
+            place: null,
         };
     }
 
@@ -183,5 +187,38 @@ export default class UtilHighlight {
         if (!/^\d{1,6}$/.test(cleaned)) return 'NOT_INTEGER';
         const value = Number(cleaned);
         return value < UtilHighlight.MIN_LIKES_MIN || value > UtilHighlight.MIN_LIKES_MAX ? 'OUT_OF_RANGE' : null;
+    }
+
+    /** 곳 키 모양(서버 `highlights.place` CHECK — V161) */
+    static readonly PLACE_KEY = /^[a-z][a-z0-9-]{1,29}$/;
+
+    /**
+     * 주소의 `?place=` → 곳 키(없거나 모양이 틀리면 home)
+     * @param {LocationQuery} query - 라우트의 쿼리.
+     * @returns {string} 곳 키.
+     */
+    static placeOf(query: LocationQuery): string {
+        const raw = Array.isArray(query.place) ? query.place[0] : query.place;
+        const key = typeof raw === 'string' ? raw.trim() : '';
+        return UtilHighlight.PLACE_KEY.test(key) ? key : HIGHLIGHT_PLACE_HOME;
+    }
+
+    /**
+     * 곳 키 → 주소 쿼리 값(home 은 뺀다)
+     * @param {string} place - 곳 키.
+     * @returns {string | undefined} 쿼리 값.
+     */
+    static placeQuery(place: string): string | undefined {
+        return place === HIGHLIGHT_PLACE_HOME ? undefined : place;
+    }
+
+    /**
+     * 받은 곳 목록에 없는 곳인가 — 지운 가젯 페이지 키 등(목록을 아직 못 받았으면 false)
+     * @param {string} place - 곳 키.
+     * @param {readonly HighlightPlace[]} places - 곳 목록.
+     * @returns {boolean} 없는 곳이면 true.
+     */
+    static unknownPlace(place: string, places: readonly HighlightPlace[]): boolean {
+        return places.length > 0 && !places.some((p) => p.key === place);
     }
 }

@@ -83,7 +83,7 @@
                     <template v-else>
                         <ul
                             ref="trendingScroller"
-                            class="-mx-4 m-0 mt-2 flex list-none snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:scroll-pl-0 md:px-0"
+                            class="relative -mx-4 m-0 mt-2 flex list-none snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:scroll-pl-0 md:px-0"
                             data-testid="group-trending-list"
                             @scroll.passive="onTrendingScroll"
                         >

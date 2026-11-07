@@ -19,6 +19,7 @@ import com.community.highlight.dto.response.HighlightCommentCountsView;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.repository.master.HighlightCommentRepositoryQDSL;
 import com.community.highlight.repository.master.HighlightRepository;
+import com.community.highlight.service.HighlightPlaces;
 import com.community.permission.dto.AdminActor;
 import com.community.post.dto.AdminPostRow;
 import com.community.post.dto.response.AdminPostRefView;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -163,7 +165,9 @@ public class DebateAdminService {
         Map<Long, HighlightCommentCountsView> counts = commentCounts.counts(postIds, Map.of(), votes, now);
         Map<Long, Integer> pending = debateCounts.pendingPinRequests(postIds, now);
         Map<Long, Long> highlightIds = new HashMap<>();
-        highlights.findByPostIdIn(postIds).forEach(h -> highlightIds.put(h.getPostId(), h.getId()));
+        // 한 글이 여러 곳의 하이라이트일 수 있다(V161) — 홈 것, 없으면 먼저 만든 것
+        highlights.findByPostIdIn(postIds).stream().collect(Collectors.groupingBy(HighlightEntity::getPostId))
+                .forEach((postId, list) -> HighlightPlaces.primary(list).ifPresent(h -> highlightIds.put(postId, h.getId())));
         List<DebateItemView> out = new ArrayList<>();
         for (PostDebateEntity d : rows) {
             AdminPostRow post = postRows.get(d.getPostId());
@@ -177,9 +181,9 @@ public class DebateAdminService {
         return out;
     }
 
-    /** 이 글의 하이라이트 ID(없으면 null) */
+    /** 이 글의 하이라이트 ID(없으면 null) — 여러 곳이면 홈 것, 없으면 먼저 만든 것 */
     Long highlightIdOf(long postId) {
-        return highlights.findByPostId(postId).map(HighlightEntity::getId).orElse(null);
+        return HighlightPlaces.primary(highlights.findAllByPostId(postId)).map(HighlightEntity::getId).orElse(null);
     }
 
     /** 문자열 ID → long. 형식이 틀리면 null */

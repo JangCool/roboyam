@@ -8,8 +8,7 @@ import com.community.board.service.BoardFields;
 import com.community.group.service.GroupQueryService;
 import com.community.groupbuy.service.GroupBuyMemberService;
 import com.community.groupbuy.service.GroupBuySalesSwitch;
-import com.community.highlight.entity.HighlightEntity;
-import com.community.highlight.repository.master.HighlightRepository;
+import com.community.highlight.service.HighlightPicks;
 import com.community.home.dto.HomeGadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.board.service.PublicBoardService;
@@ -41,8 +40,6 @@ import com.community.home.repository.master.GadgetPageLayoutRepository;
 import com.community.home.repository.master.GadgetPageRepository;
 import com.community.home.repository.master.HomeGadgetRepository;
 import com.community.home.repository.master.HomeLayoutRepository;
-import com.community.media.repository.master.FileRepository;
-import com.community.media.service.ImageStorage;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
@@ -53,7 +50,6 @@ import com.community.site.service.SiteThemes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +70,7 @@ import tools.jackson.databind.JsonNode;
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.</li>
- *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
+ *   <li>{@code HIGHLIGHT}: 설정 {@code place}(기본 home — 없는 곳도 home, V161)의 노출 중인 하이라이트(관리자 순서, {@link HighlightPicks}), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
  *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다(운영 주체가 팔 수 없는 단계면 빈 목록). {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
@@ -103,9 +99,7 @@ public class HomeGadgetService {
     private final PostFeedRepositoryQDSL feeds;
     private final PostFeedRows rows;
     private final PopularService popular;
-    private final HighlightRepository highlights;
-    private final FileRepository files;
-    private final ImageStorage storage;
+    private final HighlightPicks highlightPicks;
     private final GroupQueryService groups;
     private final GroupBuyMemberService groupBuys;
     private final GroupBuySalesSwitch sales;
@@ -118,8 +112,8 @@ public class HomeGadgetService {
     private final AdultContentGate adultGate;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
-                             PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
-                             ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
+                             PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightPicks highlightPicks,
+                             GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
                              BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate) {
         this.adultGate = adultGate;
@@ -138,9 +132,7 @@ public class HomeGadgetService {
         this.feeds = feeds;
         this.rows = rows;
         this.popular = popular;
-        this.highlights = highlights;
-        this.files = files;
-        this.storage = storage;
+        this.highlightPicks = highlightPicks;
         this.groups = groups;
     }
 
@@ -348,32 +340,11 @@ public class HomeGadgetService {
     private HighlightDataView highlight(JsonNode config, Ctx ctx) {
         GadgetConfigs.Count limit = GadgetConfigs.count("HIGHLIGHT");
         int count = HomeLayoutJson.number(config, "count", limit.initial(), limit.min(), limit.max());
-        List<HighlightEntity> showing = highlights.findAllByOrderBySortOrderAscIdAsc().stream().filter(h -> h.isShowingAt(ctx.now())).toList();
-        if (showing.isEmpty()) {
-            return new HighlightDataView(List.of());
-        }
-        // 보이는 글 중 켜진 게시판의 것만(하이라이트를 고른 뒤 게시판을 끈 경우)
-        List<PostRowData> visible = feeds.visibleRows(showing.stream().map(HighlightEntity::getPostId).toList(), ctx.adult(), ctx.now()).stream()
-                .filter(r -> r.boardId() != null && ctx.s().board(r.boardId()).map(EffectiveBoard::active).orElse(false)).toList();
-        Map<Long, PostFeedRowView> posts = rows.of(visible, ctx.s(), ctx.now(), ctx.viewerId()).stream()
-                .collect(Collectors.toMap(r -> Long.parseLong(r.id()), Function.identity()));
-        List<Long> imageIds = showing.stream().map(HighlightEntity::getImageFileId).filter(Objects::nonNull).toList();
-        Map<Long, String> imageUrls = new HashMap<>();
-        if (!imageIds.isEmpty()) {
-            files.findAllById(imageIds).forEach(f -> imageUrls.put(f.getId(), storage.publicUrl(f.getStorageKey())));
-        }
-        List<HighlightPickView> picks = new ArrayList<>();
-        for (HighlightEntity h : showing) {
-            PostFeedRowView post = posts.get(h.getPostId());
-            if (post == null || post.adult()) {
-                continue;
-            }
-            picks.add(new HighlightPickView(Long.toString(h.getId()), post, h.getTitle(), h.getSummary(),
-                    h.getImageFileId() == null ? null : imageUrls.get(h.getImageFileId())));
-            if (picks.size() >= count) {
-                break;
-            }
-        }
+        // 설정의 곳(V161 — 없거나 모르는 곳이면 home)의 노출 중인 하이라이트(tips-contract 「결정」)
+        String place = highlightPicks.resolve(GadgetConfigs.highlightPlace(config));
+        List<HighlightPickView> picks = highlightPicks.showing(place, ctx.s(), ctx.now(), ctx.viewerId(), null, count).stream()
+                .map(p -> new HighlightPickView(Long.toString(p.highlight().getId()), p.post(), p.highlight().getTitle(), p.highlight().getSummary(), p.imageUrl()))
+                .toList();
         return new HighlightDataView(picks);
     }
 

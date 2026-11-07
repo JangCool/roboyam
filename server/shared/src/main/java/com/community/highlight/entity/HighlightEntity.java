@@ -6,7 +6,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 하이라이트 — V75__highlights.sql 의 {@code highlights}(글마다 하나). 관리자 앱이 만들고 고치며, 공개 서버는 글 상세의 {@code highlighted}(노출 중인 하이라이트 글)를 판단할 때 읽는다.
+ * 하이라이트 — V75__highlights.sql 의 {@code highlights}. 관리자 앱이 만들고 고치며, 공개 서버는 글 상세의 {@code highlighted}(어느 곳이든 노출 중인 하이라이트 글)·
+ * 하이라이트 가젯·팁 묶음 「이번 주 추천」을 그릴 때 읽는다.
+ * 놓일 곳 {@link #getPlace() place}(V161 — {@code home}·{@code tips}·가젯 페이지 키, {@link com.community.highlight.service.HighlightPlaces})마다 목록·순서를 따로 갖고, 같은 글은 곳마다 한 번.
  * 「노출 중」 = {@link #isShowingAt}(노출 켬 + 기간 안) 이고 글이 지금 볼 수 있을 때다(글 상태는 부르는 쪽이 본다).
  * 하이라이트는 토론을 갖지 않는다 — 찬반 토론은 글의 것이다({@code post_debates}, V79 — docs/features/post-debate-contract.md).
  */
@@ -17,6 +19,7 @@ public class HighlightEntity {
     @Id
     private Long id;
 
+    private String place;
     private Long postId;
     private String title;
     private String summary;
@@ -33,10 +36,11 @@ public class HighlightEntity {
     protected HighlightEntity() {
     }
 
-    public static HighlightEntity create(long id, long postId, String title, String summary, Long imageFileId, boolean visible, Instant showFrom,
+    public static HighlightEntity create(long id, String place, long postId, String title, String summary, Long imageFileId, boolean visible, Instant showFrom,
                                          Instant showUntil, int sortOrder, long operatorId, Instant now) {
         HighlightEntity row = new HighlightEntity();
         row.id = id;
+        row.place = place;
         row.postId = postId;
         row.title = title;
         row.summary = summary;
@@ -81,6 +85,11 @@ public class HighlightEntity {
 
     public Long getId() {
         return id;
+    }
+
+    /** 놓일 곳 키({@code home}·{@code tips}·가젯 페이지 키) */
+    public String getPlace() {
+        return place;
     }
 
     public Long getPostId() {

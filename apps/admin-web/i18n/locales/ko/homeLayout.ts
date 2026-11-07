@@ -111,6 +111,8 @@ export default {
     settingsPreviewNoteAd: '실제 화면에는 지금 진행 중인 광고가 보여요. 광고가 없을 때는 「비었을 때」 설정대로 접히거나 「광고 문의」 안내가 보여요.',
     highlightNote: '노출할 글과 차례는 하이라이트 관리에서 정해요.',
     highlightManage: '하이라이트 관리',
+    highlightPlace: '하이라이트 곳',
+    highlightPlaceHint: '어느 곳의 하이라이트 목록을 보일지 골라요. 곳마다 글과 차례는 하이라이트 관리에서 정해요.',
     highlightLead: '큰 글',
     highlightLead_HERO: '맨 위 글을 크게',
     highlightLead_NONE: '모두 같은 크기',

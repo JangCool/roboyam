@@ -7,7 +7,11 @@ export default {
     subtitle: 'Feature posts picked by staff and set their order and exposure. You can also open and manage the post’s pro & con debate here.',
     add: 'Add highlight',
     refresh: 'Refresh',
-    homeNotice: 'The highlight slot on the public home is coming with the home layout. For now a picked post gets a "Highlight" mark. The pro & con debate belongs to the post, so it stays when the highlight is hidden or removed.',
+    placeLabel: 'Highlight place',
+    placeHint: 'Each place has its own list and order. A post can be in several places, and a highlight’s place can’t be changed once created.',
+    placePage: 'Gadget page · {name}',
+    placeGroupPages: 'Gadget pages',
+    placesFailed: "Couldn't load the places. {message}",
     readOnlyHint: 'You can view highlights but not change them.',
     listTitle: 'Highlight list',
     countLine: '{showing} showing · {total} total',
@@ -27,6 +31,7 @@ export default {
     debateTag: 'Debate on',
     debateSettings: 'Debate settings',
     postGone: 'The post was deleted',
+    openPost: 'View the post',
     /** Rows with a debate — `{stances}` is filled with stance-colored `stanceTab` text (votes) joined by ` · `. Voted = people who picked a side, opinions = top-level comments with a side */
     debateCounts: '{total} voted ({stances}) · {opinions} opinions · {general} general comments',
     /** Rows without a debate */

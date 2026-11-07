@@ -40,7 +40,7 @@
                             <!-- 하이라이트 — 노출할 글은 하이라이트 관리 몫 -->
                             <p v-if="gadget.type === 'HIGHLIGHT'" class="m-0 text-xs leading-relaxed text-muted-color" data-testid="gadget-highlight-note">
                                 {{ t('homeLayout.highlightNote') }}
-                                <NuxtLink v-if="can('highlight.read')" to="/content/highlights" target="_blank" class="text-primary hover:underline">{{ t('homeLayout.highlightManage') }} ↗</NuxtLink>
+                                <NuxtLink v-if="can('highlight.read')" :to="{ path: '/content/highlights', query: { place: UtilHighlight.placeQuery(draft?.place ?? HIGHLIGHT_PLACE_HOME) } }" target="_blank" class="text-primary hover:underline">{{ t('homeLayout.highlightManage') }} ↗</NuxtLink>
                             </p>
 
                             <!-- 대상 게시판 -->
@@ -236,6 +236,12 @@
 
                             <!-- 하이라이트 — 큰 글 · 사진 -->
                             <template v-if="gadget.type === 'HIGHLIGHT'">
+                                <!-- 곳 — 어느 곳의 하이라이트 목록을 보일지(기본 home). 목록은 `GET /api/admin/highlights/places`(못 받으면 지금 값 하나) -->
+                                <div class="flex flex-col gap-1">
+                                    <label :for="`${uid}-hplace`" class="text-sm font-medium">{{ t('homeLayout.highlightPlace') }}</label>
+                                    <Select v-model="draft.place" :input-id="`${uid}-hplace`" :options="highlightPlaceOptions" option-label="label" option-value="value" :loading="highlightPlacesLoading" class="w-full sm:w-64" data-testid="gadget-highlight-place" />
+                                    <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.highlightPlaceHint') }}</small>
+                                </div>
                                 <div class="flex flex-col gap-1">
                                     <span :id="`${uid}-hlead`" class="text-sm font-medium">{{ t('homeLayout.highlightLead') }}</span>
                                     <SelectButton v-model="draft.lead" :options="optionsOf(UtilGadgetConfig.HIGHLIGHT_LEADS, 'highlightLead')" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${uid}-hlead`" />
@@ -482,6 +488,9 @@ import type { GadgetPageBoard } from '~/composables/page/api/useGadgetPageApi.ty
 import type { GadgetPlace } from '~/utils/util-gadget-config';
 import UtilGadgetConfig from '~/utils/util-gadget-config';
 import UtilGadgetStyle from '~/utils/util-gadget-style';
+import UtilHighlight from '~/utils/util-highlight';
+import UtilHighlightMessages from '~/utils/util-highlight-messages';
+import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 
 /** [적용]으로 넘기는 값 — 꾸미기·내용은 바뀌었을 때만(null 이면 편집 중인 값 그대로) */
 export interface GadgetSettingsPatch {
@@ -513,6 +522,9 @@ const { can } = useAdminPermission();
 const { boards, loading: boardsLoading, error: boardsError, load: loadBoards } = useGadgetPageFolders();
 /** 핫딜 가젯이 고를 핫딜 게시판(DEAL) — 핫딜 글 화면과 같은 선택지(`useHotdealBoards` → `GET /api/admin/hotdeals/boards`) */
 const { boards: hotDealBoards, loading: hotDealBoardsLoading, error: hotDealBoardsError, load: loadHotDealBoards } = useHotdealBoards();
+/** 하이라이트 가젯의 곳 선택지 — 하이라이트 화면의 곳 고르개와 같은 목록(`useHighlightPlaces`) */
+const { places: highlightPlaces, loading: highlightPlacesLoading, load: loadHighlightPlaces } = useHighlightPlaces();
+const highlightPlaceOptions = computed(() => UtilHighlightMessages.placeOptions(t, highlightPlaces.value, draft.value?.place ?? HIGHLIGHT_PLACE_HOME));
 
 type TabKey = 'content' | 'look' | 'show';
 const TABS: readonly TabKey[] = ['content', 'look', 'show'];
@@ -567,6 +579,7 @@ watch(
         submitted.value = false;
         if (spec.value?.boards || g.type === 'QUICK_LINKS') void loadBoards();
         if (g.type === 'HOT_DEALS') void loadHotDealBoards();
+        if (g.type === 'HIGHLIGHT') void loadHighlightPlaces();
     },
     { immediate: true },
 );
