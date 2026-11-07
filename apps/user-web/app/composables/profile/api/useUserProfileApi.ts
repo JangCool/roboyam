@@ -9,6 +9,7 @@ import type { AuthorCommentPage, ProfileGroupsResponse, PublicProfile, UserFeedQ
  *  - `GET /api/users/{id}/comments?size&cursor` → `AuthorCommentPage`
  *  - `GET /api/users/{id}/groups` → `ProfileGroupsResponse`(소모임 탭 — 6단계, community `docs/api-profile.md` 와 같은 경로·칸이라고 **가정**. 서버 6단계 코드가 생기면 대조한다)
  * 목록 오류: `size` 가 1~50 밖이면 `400 VALIDATION fields.size`(서버가 잘라 맞추지 않는다) · 틀린 커서 `400 VALIDATION fields.cursor`.
+ * 공개 범위(`profile-privacy-contract.md` — 서버 연결됨): 비공개 프로필을 본인이 아닌 사람이 보면 머리의 `bio`·`joinedAt`·`stats` 가 null 이고 목록 셋은 `403 PROFILE_PRIVATE`.
  */
 const PATH = {
     profile: (id: string) => `/api/users/${encodeURIComponent(id)}/profile`,
@@ -23,7 +24,7 @@ export function useUserProfileApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        /** 프로필 머리 — 닉네임·등급·소개·가입일·수치 */
+        /** 프로필 머리 — 닉네임·등급·소개·가입일·수치(비공개 프로필이면 본인이 아닐 때 소개·가입일·수치가 null) */
         profile: (id: string, signal?: AbortSignal): Promise<PublicProfile> => client.get<PublicProfile>(PATH.profile(id), { signal }),
 
         /** 작성글 한 쪽 */

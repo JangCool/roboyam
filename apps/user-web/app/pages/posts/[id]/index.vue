@@ -250,6 +250,9 @@
                             <Button type="button" icon="pi pi-link" :label="t('post.copyLink')" severity="secondary" variant="outlined" rounded @click="copyLink" />
                             <Button v-if="board.reportEnabled && !post.mine" type="button" icon="pi pi-flag" :label="t('post.report')" severity="secondary" variant="text" rounded @click="openReport('POST', post.id)" />
                         </div>
+
+                        <!-- 작성자 한 줄 소개 — 프로필을 공개한 회원이 소개를 썼을 때만(사업자 핫딜 글은 상호로 보여 빼고, 비공개·비회원·탈퇴는 값이 없다) -->
+                        <PostAuthorBioCard v-if="authorBio && !bizDeal" :author="post.author" :bio="authorBio" :avatar-src="authorAvatar" :avatar-still-src="authorAvatarStill" :border-style="authorDecoration?.profileBorder ?? null" class="mb-3" />
                     </FoldedRow>
 
                     <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
@@ -464,6 +467,11 @@ const authorDecoration = computed(() => (post.value ? decorations.decorationOf(p
 const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
 /** 움직이는 아바타의 정지 그림(움직임 줄이기) */
 const authorAvatarStill = computed(() => (post.value ? decorations.avatarStillOf(post.value.author.memberId, post.value.author.avatarStillUrl) : null));
+/** 작성자 한 줄 소개 — 서버가 회원·프로필 공개·소개 있음일 때만 `author.bio` 를 채운다(비공개·비회원·탈퇴·숨긴 글은 null) */
+const authorBio = computed(() => {
+    const author = post.value?.author;
+    return author?.kind === 'MEMBER' && author.memberId && author.name ? author.bio?.trim() || null : null;
+});
 const pageError = ref('');
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);

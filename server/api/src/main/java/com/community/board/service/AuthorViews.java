@@ -7,7 +7,9 @@ import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.user.entity.ProfileEntity;
+import com.community.user.entity.UserStatus;
 import com.community.user.repository.master.ProfileRepository;
+import com.community.user.repository.master.UserRepository;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.Collection;
@@ -34,8 +36,11 @@ public class AuthorViews {
     private final ShopDecorationResolver decorations;
     private final BusinessEligibility businesses;
     private final OperatorMemberAccountService operatorAccounts;
+    private final UserRepository users;
 
-    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts) {
+    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
+                       UserRepository users) {
+        this.users = users;
         this.operatorAccounts = operatorAccounts;
         this.profiles = profiles;
         this.decorations = decorations;
@@ -64,7 +69,7 @@ public class AuthorViews {
      */
     public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false);
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false, null);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
@@ -72,12 +77,25 @@ public class AuthorViews {
         AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
                 ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), look == null ? null : look.avatarStillUrl(), members.business(authorId),
-                members.operator(authorId));
+                members.operator(authorId), null);
     }
 
-    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타·사업자 뱃지·운영자 뱃지를 비운다(종류·회원 ID 는 그대로) */
+    /**
+     * 글 상세의 작성자 한 줄 소개(profile-privacy-contract) — 회원 글이고, 작성자가 탈퇴(진행 중 포함)·삭제되지 않았고, 프로필이 공개이고, 소개가 비어 있지 않을 때만 값.
+     * 프로필은 {@link #members} 가 이미 읽어 둔 것을 쓰고 회원 상태만 기본 키로 한 번 읽는다 — 목록·댓글은 부르지 않는다(칸 null).
+     */
+    public String detailBio(Long authorId, AuthorMembers members) {
+        ProfileEntity profile = members.get(authorId);
+        if (profile == null || profile.isPrivate() || profile.getBio() == null || profile.getBio().isBlank()) {
+            return null;
+        }
+        boolean present = users.findById(authorId).filter(u -> !u.isGone() && u.getStatus() != UserStatus.WITHDRAWING).isPresent();
+        return present ? profile.getBio() : null;
+    }
+
+    /** 숨긴 글·지운 댓글의 작성자 —이름·IP·장식·아바타·사업자 뱃지·운영자 뱃지를 비운다(종류·회원 ID 는 그대로) */
     public static PostAuthorView blank(PostAuthorView author) {
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false);
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false, null);
     }
 
     /** IP 앞 두 자리 — IPv4 {@code 123.45.*.*}, IPv6 앞 두 묶음 {@code 2001:db8:*:*}. IP 가 없으면(보유기간이 지나 지움) null, 읽지 못하면 {@code *} */

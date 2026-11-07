@@ -30,6 +30,7 @@ import com.community.profile.dto.response.CommentBoardRefView;
 import com.community.profile.dto.response.ProfileStatsView;
 import com.community.profile.dto.response.PublicProfileView;
 import com.community.profile.exception.ProfileNotFoundException;
+import com.community.profile.exception.ProfilePrivateException;
 import com.community.profile.repository.master.UserActivityQueries;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
@@ -57,6 +58,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       — 게시판 목록·댓글과 같은 판정(단어는 글 제목·댓글 본문), 쪽마다 한 번 모아 읽는다. 줄은 빼지 않는다(화면이 접는다). 본인·비회원은 비어 있다.</li>
  *   <li>쪽: {@code size} 1~{@value #MAX_SIZE}(기본 {@value #DEFAULT_SIZE}), {@code cursor} = 앞 응답의 {@code nextCursor}(마지막 줄 id). 틀리면 {@code 400 VALIDATION fields.size|cursor}
  *       — 회원 확인보다 먼저 본다.</li>
+ *   <li><b>공개 범위</b>(profile-privacy-contract): 비공개이고 보는 사람이 본인이 아니면(비회원 포함, 운영자 회원 계정·게시판 매니저도 남과 같다) 프로필의
+ *       {@code bio}·{@code joinedAt}·{@code stats} 가 null 이고, 작성글·댓글·소모임 목록은 {@code 403 PROFILE_PRIVATE} — 400(형식·size·cursor) → 404(회원) 뒤에 본다.</li>
  * </ul>
  */
 @Service
@@ -107,16 +110,22 @@ public class UserProfileService {
     public PublicProfileView profile(String idText, Long viewerId) {
         Member m = requireMember(idText);
         BoardCatalogSnapshot s = catalog.snapshot();
-        UserActivityQueries.Stats stats = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), Instant.now());
+        boolean me = viewerId != null && viewerId == m.id();
+        boolean hidden = m.profile().isPrivate() && !me; // 비공개는 본인 외 모두(비회원·회원·게시판 매니저)에게 소개·가입일·수치를 숨긴다 — 수치는 세지도 않는다
+        ProfileStatsView stats = null;
+        if (!hidden) {
+            UserActivityQueries.Stats counted = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), Instant.now());
+            stats = new ProfileStatsView(counted.posts(), counted.comments(), counted.likesReceived());
+        }
         String gradeKey = m.profile().getGradeKey();
         String label = s.gradeLabel(gradeKey);
         String bio = m.profile().getBio();
         ViewerBlocks.Toward toward = viewerBlocks.toward(viewerId, m.id());
         AuthorLook look = decorations.look(m.id());
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
-                bio == null || bio.isBlank() ? null : bio, m.user().getCreatedAt(), viewerId != null && viewerId == m.id(),
-                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(), look.avatarStillUrl(),
-                !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()));
+                hidden || bio == null || bio.isBlank() ? null : bio, hidden ? null : m.user().getCreatedAt(), me,
+                stats, toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(), look.avatarStillUrl(),
+                !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()), m.profile().getVisibility());
     }
 
     /**
@@ -125,7 +134,7 @@ public class UserProfileService {
      * @param viewerId 보는 회원(비회원 null) — 줄의 {@code myState} 는 보는 사람의 상태
      */
     public ProfileGroupsView groups(String idText, Long viewerId) {
-        Member m = requireMember(idText);
+        Member m = requireOpenMember(idText, viewerId);
         return groups.profileGroups(m.id(), viewerId);
     }
 
@@ -133,7 +142,7 @@ public class UserProfileService {
     public PostFeedPageView posts(String idText, String sizeText, String cursor, Long viewerId) {
         int size = sizeOf(sizeText);
         Long before = cursorOf(cursor);
-        Member m = requireMember(idText);
+        Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
         List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), now);
@@ -153,7 +162,7 @@ public class UserProfileService {
     public AuthorCommentPageView comments(String idText, String sizeText, String cursor, Long viewerId) {
         int size = sizeOf(sizeText);
         Long before = cursorOf(cursor);
-        Member m = requireMember(idText);
+        Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
         List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), Instant.now());
         boolean more = rows.size() > size;
@@ -198,6 +207,15 @@ public class UserProfileService {
                 .orElseThrow(ProfileNotFoundException::new);
         ProfileEntity profile = profiles.findById(id).orElseThrow(ProfileNotFoundException::new);
         return new Member(id, user, profile);
+    }
+
+    /** 활동 목록(작성글·댓글·소모임)을 보일 수 있는 주인 — 회원 확인(404) 뒤, 비공개이고 본인이 아니면(비회원 포함) {@code 403 PROFILE_PRIVATE} */
+    private Member requireOpenMember(String idText, Long viewerId) {
+        Member m = requireMember(idText);
+        if (m.profile().isPrivate() && (viewerId == null || viewerId != m.id())) {
+            throw new ProfilePrivateException();
+        }
+        return m;
     }
 
     private static Set<Long> activeBoardIds(BoardCatalogSnapshot s) {

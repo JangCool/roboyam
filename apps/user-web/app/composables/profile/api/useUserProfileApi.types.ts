@@ -8,6 +8,7 @@ import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { PostFeedPage } from '~/composables/board/api/usePostApi.types';
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
+import type { ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
 
 /** 활동 수치 — 보이는 글 수 · 지우지 않은 댓글 수 · 글·댓글이 받은 추천 합(서버가 최대 60초 늦을 수 있다) */
 export interface ProfileStats {
@@ -32,12 +33,19 @@ export interface PublicProfile {
      * 칸이 없는 옛 응답이면 뱃지 없음
      */
     operator?: boolean;
-    /** 한 줄 소개 — 없으면 null */
+    /**
+     * 프로필 공개 범위 — 서버 연결됨(칸이 없는 옛 응답이면 `PUBLIC`). `PRIVATE` 이고 본인이 아니면 서버가
+     * `bio`·`joinedAt`·`stats` 를 null 로 주고, 작성글·댓글·소모임 목록은 `403 PROFILE_PRIVATE` 다(`profile-privacy-contract.md`).
+     */
+    visibility?: ProfileVisibility;
+    /** 한 줄 소개 — 없거나 비공개 프로필(본인이 아닐 때)이면 null */
     bio: string | null;
-    joinedAt: string;
+    /** 가입 시각 — 비공개 프로필(본인이 아닐 때)이면 null */
+    joinedAt: string | null;
     /** 보는 사람이 이 회원 본인인가(비회원은 false) */
     isMe: boolean;
-    stats: ProfileStats;
+    /** 활동 수치 — 비공개 프로필(본인이 아닐 때)이면 null */
+    stats: ProfileStats | null;
     /** 내가 이 회원을 차단했는가(비회원·본인은 false) — 소통 계약(`member-social-contract.md`)이 더하는 칸. 서버는 아직 내려 주지 않는다(없으면 false 로 본다) */
     blockedByMe?: boolean;
     /** 내가 이 회원에게 남긴 이용자 메모(없으면 null) — 나에게만 온다. 소통 계약이 더하는 칸이라 서버는 아직 내려 주지 않는다 */

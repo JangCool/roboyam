@@ -138,6 +138,39 @@
                 </LabeledField>
             </section>
 
+            <!-- 프로필 공개 범위 — 공개(기본) / 비공개. 닉네임·소개와 같은 저장 줄로 저장한다 -->
+            <section class="flex flex-col gap-3 panel-card p-4" :aria-labelledby="`${uid}-visibility`" data-testid="profile-visibility">
+                <h2 :id="`${uid}-visibility`" class="m-0 text-sm font-semibold">{{ t('profile.visibilityTitle') }}</h2>
+                <div role="radiogroup" :aria-labelledby="`${uid}-visibility`" class="overflow-hidden rounded-lg border border-surface">
+                    <label
+                        v-for="option in visibilityOptions"
+                        :key="option.value"
+                        :for="`${uid}-visibility-${option.value}`"
+                        class="flex min-h-14 cursor-pointer items-start gap-3 border-b border-surface px-3 py-3 last:border-b-0 hover:bg-surface-100 dark:hover:bg-surface-800"
+                        :class="[form.visibility === option.value ? 'bg-primary-50 dark:bg-primary-950/40' : '', restricted || saving ? 'pointer-events-none opacity-70' : '']"
+                        :data-testid="`profile-visibility-${option.value.toLowerCase()}`"
+                    >
+                        <RadioButton
+                            v-model="form.visibility"
+                            :value="option.value"
+                            :input-id="`${uid}-visibility-${option.value}`"
+                            name="visibility"
+                            class="mt-0.5 shrink-0"
+                            :disabled="restricted || saving"
+                            :aria-labelledby="`${uid}-visibility-${option.value}-title`"
+                            :pt="{ input: { 'aria-describedby': `${uid}-visibility-${option.value}-hint` } }"
+                        />
+                        <span class="min-w-0 flex-1">
+                            <span :id="`${uid}-visibility-${option.value}-title`" class="flex items-center gap-1.5 text-sm font-medium">
+                                <i :class="[option.icon, 'text-xs text-muted-color']" aria-hidden="true" />{{ option.title }}
+                            </span>
+                            <small :id="`${uid}-visibility-${option.value}-hint`" class="mt-0.5 block text-xs leading-relaxed text-muted-color">{{ option.hint }}</small>
+                        </span>
+                    </label>
+                </div>
+                <p class="m-0 text-xs leading-relaxed text-muted-color" data-testid="profile-visibility-note">{{ t('profile.visibilityNote') }}</p>
+            </section>
+
             <StickySaveBar v-if="!restricted" :dirty="dirty" :saving="saving" :count="changedCount" :error-count="errorCount" :error="formError" :disabled="errorCount > 0" revertable submit @revert="revert" />
             </form>
         </template>
@@ -147,7 +180,7 @@
 <script setup lang="ts">
 import type { AvatarGridCell } from '~/components/avatar/AvatarGrid.types';
 import type { AvatarCatalog } from '~/composables/avatar/api/useAvatarApi.types';
-import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
+import type { MyProfile, ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
 import UtilAvatar from '~/utils/util-avatar';
 import UtilBusiness from '~/utils/util-business';
 import { PROFILE_BIO_MAX } from '~/composables/profile/api/useProfileApi.types';
@@ -170,6 +203,7 @@ import UtilValidation from '~/utils/util-validation';
  * 환불 기한 안의 유료 아바타는 「고르면 환불할 수 없어요」를 한 번 묻는다. 「더 많은 아바타는 포인트 상점에서」 링크는 사업자 전용 계정에게 숨긴다(무료는 고른다). 정지 중이면 고르기를 막는다.
  * 정지·영구 정지 중(로그인 정보 `restriction`, 또는 저장 때 서버 `403 ACCOUNT_RESTRICTED`)이면 폼은 읽기 전용이고 저장 줄을 그리지 않으며 제재 안내(`/sanction`) 링크를 보인다.
  * 저장하면 로그인 정보(`me`)를 다시 받아 셸의 닉네임을 맞춘다.
+ * 프로필 공개 범위(`profile-privacy-contract.md` — 서버 연결됨): 공개(기본) / 비공개. 같은 저장 줄로 저장하고, 정지 중에는 다른 칸처럼 바꿀 수 없다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -185,7 +219,12 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 /** 서버에 저장된 값 */
 const saved = ref<MyProfile | null>(null);
-const form = reactive({ nickname: '', bio: '' });
+const form = reactive<{ nickname: string; bio: string; visibility: ProfileVisibility }>({ nickname: '', bio: '', visibility: 'PUBLIC' });
+/** 프로필 공개 범위 고르기 — 공개(기본) · 비공개 */
+const visibilityOptions = computed<{ value: ProfileVisibility; title: string; hint: string; icon: string }[]>(() => [
+    { value: 'PUBLIC', title: t('profile.visibilityPublic'), hint: t('profile.visibilityPublicHint'), icon: 'pi pi-globe' },
+    { value: 'PRIVATE', title: t('profile.visibilityPrivate'), hint: t('profile.visibilityPrivateHint'), icon: 'pi pi-lock' },
+]);
 /** 저장한 뒤 폼을 다시 만든다(`forms.md` 2-1) */
 const formKey = ref(0);
 const saving = ref(false);
@@ -206,6 +245,7 @@ function fill(value: MyProfile) {
     saved.value = value;
     form.nickname = value.nickname;
     form.bio = value.bio;
+    form.visibility = value.visibility ?? 'PUBLIC';
     serverErrors.nickname = '';
     serverErrors.bio = '';
     formError.value = '';
@@ -257,7 +297,8 @@ const errorCount = computed(() => Object.values(errors.value).filter(Boolean).le
 
 const nicknameChanged = computed(() => Boolean(saved.value) && form.nickname !== saved.value?.nickname);
 const bioChanged = computed(() => Boolean(saved.value) && form.bio.trim() !== (saved.value?.bio ?? ''));
-const changedCount = computed(() => Number(nicknameChanged.value) + Number(bioChanged.value));
+const visibilityChanged = computed(() => Boolean(saved.value) && form.visibility !== (saved.value?.visibility ?? 'PUBLIC'));
+const changedCount = computed(() => Number(nicknameChanged.value) + Number(bioChanged.value) + Number(visibilityChanged.value));
 const dirty = computed(() => changedCount.value > 0);
 
 function revert() {
@@ -307,7 +348,7 @@ async function save() {
     try {
         // 무료를 썼고 변경권이 있으면 닉네임을 바꿀 때 1장을 쓴다(소개만이면 보내지 않는다 — 서버도 쓰지 않는다)
         const useTicket = nicknameStage.value === 'TICKET' && nicknameChanged.value;
-        const value = await api.save({ nickname: form.nickname, bio: form.bio.trim(), ...(useTicket ? { useTicket: true } : {}) });
+        const value = await api.save({ nickname: form.nickname, bio: form.bio.trim(), visibility: form.visibility, ...(useTicket ? { useTicket: true } : {}) });
         const nicknameDone = nicknameChanged.value;
         fill(value);
         toast.success(t('common.saved'));

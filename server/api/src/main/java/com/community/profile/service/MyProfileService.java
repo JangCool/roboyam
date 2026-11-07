@@ -12,6 +12,7 @@ import com.community.profile.dto.response.MyProfileView;
 import com.community.profile.dto.response.NicknameChangeView;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.ProfileNicknameHistoryEntity;
+import com.community.user.entity.ProfileVisibility;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.user.exception.UserNicknameTakenException;
@@ -46,8 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>닉네임이 그대로면</b>(소개만 저장) 형식·횟수·변경권·중복 검사를 하지 않고 아무것도 쓰지 않는다. 무료 변경이 남았으면 {@code useTicket} 을 보내도 변경권을 쓰지 않는다.
  *       대소문자만 바꾸는 것은 변경이다.</li>
  *   <li><b>한 줄 소개</b>: 앞뒤 공백을 자른 뒤 0~{@value #BIO_MAX}자, 빈 값은 null 로 저장한다.</li>
+ *   <li><b>공개 범위</b>({@code visibility}, 선택): {@code PUBLIC}·{@code PRIVATE} 만(대소문자 그대로), 없으면 그대로. 공개 범위만 바꾸는 저장은 소개만 바꿀 때처럼 닉네임
+ *       변경 횟수·변경권을 쓰지 않는다. 정지 중이면 공개 범위만 바꾸는 저장도 막힌다(같은 요청). profile-privacy-contract 「API」.</li>
  *   <li><b>검사 순서</b>: 로그인(401) → 정지·영구 정지 {@code 403 ACCOUNT_RESTRICTED}(글쓰기와 같은 예외 — 읽기는 정지 중에도 된다) → 프로필 행 쓰기 잠금 →
- *       칸 검사 {@code 400 VALIDATION fields.nickname|bio} → 변경권 {@code 409 NICKNAME_TICKET_REQUIRED}(쓰면 이 트랜잭션 안에서) → 중복 {@code 409 NICKNAME_TAKEN}.
+ *       칸 검사 {@code 400 VALIDATION fields.nickname|bio|visibility} → 변경권 {@code 409 NICKNAME_TICKET_REQUIRED}(쓰면 이 트랜잭션 안에서) → 중복 {@code 409 NICKNAME_TAKEN}.
  *       실패하면 트랜잭션째 되돌아가 변경권도 그대로다. 같은 회원의 동시 요청은 프로필 행 잠금에서 줄을 서고, 변경권 쓰기는 조건부 UPDATE({@code SKIP LOCKED})라
  *       <b>한 장이 두 번 쓰이지 않는다</b>.</li>
  *   <li><b>아바타 고르기</b>({@link #selectAvatar}): 무료는 누구나(사업자 전용 계정 포함), 유료는 가진 것만 — 판정은 shared {@link ProfileAvatarService#select}. 응답은 저장 뒤 내 프로필.</li>
@@ -114,6 +117,11 @@ public class MyProfileService {
         if (bio.codePointCount(0, bio.length()) > BIO_MAX) {
             invalid.put("bio", new MessageRef("profile.bio.length", BIO_MAX));
         }
+        String visibilityText = body == null ? null : body.visibility();
+        ProfileVisibility visibility = visibilityOf(visibilityText);
+        if (visibilityText != null && visibility == null) {
+            invalid.put("visibility", new MessageRef("profile.visibility.invalid"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -134,6 +142,7 @@ public class MyProfileService {
             history.persist(ProfileNicknameHistoryEntity.create(ids.nextId(), userId, previous, nickname, now));
         }
         profile.changeBio(bio, now);
+        profile.changeVisibility(visibility, now); // 없으면 그대로 — 닉네임 변경 횟수·변경권과 무관하다
         if (changing) {
             try {
                 profiles.flush();
@@ -162,6 +171,19 @@ public class MyProfileService {
         return view(user, profile);
     }
 
+    /** 요청의 공개 범위 글자 → 값. 없거나 틀리면 null(틀린 값은 부르는 쪽이 칸 오류로 모은다) — 대소문자·공백을 봐주지 않는다 */
+    static ProfileVisibility visibilityOf(String text) {
+        if (text == null) {
+            return null;
+        }
+        for (ProfileVisibility v : ProfileVisibility.values()) {
+            if (v.name().equals(text)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
     private UserEntity requireUser(long userId) {
         return users.findById(userId).filter(u -> !u.isGone()).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
     }
@@ -171,6 +193,7 @@ public class MyProfileService {
         NicknameTicketInfo ticket = tickets.info(user.getId());
         AvatarLooks.Look look = avatars.look(user.getId());
         return new MyProfileView(profile.getNickname(), profile.getBio() == null ? "" : profile.getBio(), user.getCreatedAt(),
-                new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), look.url(), look.stillUrl());
+                new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), look.url(), look.stillUrl(),
+                profile.getVisibility());
     }
 }

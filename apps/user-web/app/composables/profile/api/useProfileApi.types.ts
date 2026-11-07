@@ -22,6 +22,13 @@ export interface NicknameChange {
     ticketPrice: number;
 }
 
+/**
+ * 프로필 공개 범위 — `PUBLIC`(기본) · `PRIVATE`. 계약 `docs/features/profile-privacy-contract.md`.
+ * 비공개면 다른 사람에게 한 줄 소개·가입일·활동 수치·작성글·댓글·소모임 목록을 보이지 않고, 글 보기의 작성자 한 줄 소개도 나가지 않는다.
+ * 닉네임·아바타·등급·공식 뱃지와 게시판의 글·댓글 자체는 늘 보인다. 본인은 늘 다 본다.
+ */
+export type ProfileVisibility = 'PUBLIC' | 'PRIVATE';
+
 /** `GET`·`PUT /api/me/profile` 응답 */
 export interface MyProfile {
     nickname: string;
@@ -38,6 +45,8 @@ export interface MyProfile {
     avatarUrl?: string | null;
     /** 움직이는 아바타의 정지 그림 주소 — 서버 연결됨(정지 아바타면 null) */
     avatarStillUrl?: string | null;
+    /** 프로필 공개 범위 — 서버 연결됨. 칸이 없는 옛 응답이면 `PUBLIC` 으로 본다 */
+    visibility?: ProfileVisibility;
 }
 
 /** `PUT /api/me/profile` 요청 — 두 칸 모두 보낸다(닉네임이 그대로면 변경 횟수·변경권을 쓰지 않는다 — 소개만 고치는 저장) */
@@ -49,6 +58,8 @@ export interface MyProfileRequest {
      * 규칙 위반·중복·정지로 실패하면 쓰지 않는다(같은 트랜잭션). 동시 요청에 한 장이 두 번 쓰이지 않는다.
      */
     useTicket?: boolean;
+    /** 프로필 공개 범위 — 보내지 않으면 그대로. 틀린 값 `400 fields.visibility` */
+    visibility?: ProfileVisibility;
 }
 
 /** 한 줄 소개 최대 글자 수 — 서버 `MyProfileService.BIO_MAX`(앞뒤 공백을 자른 뒤 0~100자, 서버는 코드 포인트로 센다) */

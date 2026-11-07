@@ -3,6 +3,8 @@ package com.community.user.entity;
 import com.community.grade.entity.GradeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -55,6 +57,11 @@ public class ProfileEntity {
     @Column(insertable = false, updatable = false)
     private String lastStillAvatar;
 
+    /** 프로필 공개 범위(V160) — 기본 공개. 비공개면 본인이 아닌 사람에게 소개·가입일·수치·활동 목록을 숨긴다(profile-privacy-contract) */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "profile_visibility")
+    private ProfileVisibility visibility;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -68,6 +75,7 @@ public class ProfileEntity {
         profile.nickname = nickname;
         profile.gradeKey = GradeEntity.BASE_KEY;
         profile.gradeManual = false;
+        profile.visibility = ProfileVisibility.PUBLIC;
         profile.createdAt = now;
         profile.updatedAt = now;
         return profile;
@@ -110,6 +118,15 @@ public class ProfileEntity {
         this.updatedAt = now;
     }
 
+    /** 프로필 공개 범위를 바꾼다 — 같은 값이면 고치지 않는다(null 은 그대로) */
+    public void changeVisibility(ProfileVisibility visibility, Instant now) {
+        if (visibility == null || this.visibility == visibility) {
+            return;
+        }
+        this.visibility = visibility;
+        this.updatedAt = now;
+    }
+
     public Long getUserId() {
         return userId;
     }
@@ -129,6 +146,16 @@ public class ProfileEntity {
 
     public boolean isGradeManual() {
         return gradeManual;
+    }
+
+    /** 프로필 공개 범위 — 칸은 NOT NULL 이지만 비어 읽히면 공개로 본다 */
+    public ProfileVisibility getVisibility() {
+        return visibility == null ? ProfileVisibility.PUBLIC : visibility;
+    }
+
+    /** 본인이 아닌 사람에게 소개·가입일·수치·활동 목록을 숨기는가 */
+    public boolean isPrivate() {
+        return getVisibility() == ProfileVisibility.PRIVATE;
     }
 
     /** 가입 뒤 닉네임을 바꾼 횟수 */

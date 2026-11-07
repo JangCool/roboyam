@@ -62,7 +62,11 @@
                         >
                     </h1>
                     <p v-if="profile.bio" class="mt-1 break-words text-sm leading-snug" data-testid="profile-bio">{{ profile.bio }}</p>
-                    <p class="mt-1 text-xs text-muted-color">{{ t('profile.joined', { date: time.date(profile.joinedAt) }) }}</p>
+                    <p v-if="profile.joinedAt" class="mt-1 text-xs text-muted-color">{{ t('profile.joined', { date: time.date(profile.joinedAt) }) }}</p>
+                    <!-- 비공개 프로필 — 남에게는 소개·가입일 자리에 자물쇠 한 줄(아래 본문도 안내로 바뀐다) -->
+                    <p v-else-if="privateView" class="mt-1 flex items-center gap-1 text-xs text-muted-color" data-testid="profile-private-chip">
+                        <i class="pi pi-lock text-[0.625rem]" aria-hidden="true" />{{ t('profile.privateBadge') }}
+                    </p>
                 </div>
                 <div v-if="profile.isMe" class="flex gap-2 max-md:w-full md:ml-auto">
                     <Button as="router-link" to="/settings/profile" :label="t('me.editProfile')" icon="pi pi-pencil" size="small" class="max-md:flex-1" data-testid="profile-edit" />
@@ -145,8 +149,33 @@
                 </div>
             </section>
 
+            <!-- 내 프로필이 비공개 — 남에게 어떻게 보이는지 알리고 설정으로 가는 길 -->
+            <div
+                v-if="privateMine"
+                class="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800/60"
+                role="note"
+                data-testid="profile-private-mine"
+            >
+                <p class="m-0 min-w-0 flex-1 leading-snug">
+                    <b class="inline-flex items-center gap-1.5"><i class="pi pi-lock text-xs" aria-hidden="true" />{{ t('profile.privateMineTitle') }}</b>
+                    <span class="block text-xs text-muted-color">{{ t('profile.privateMineText') }}</span>
+                </p>
+                <Button as="router-link" to="/settings/profile" :label="t('profile.privateMineLink')" size="small" severity="secondary" variant="outlined" data-testid="profile-private-settings" />
+            </div>
+
+            <!-- 남이 보는 비공개 프로필 — 수치·탭·목록 대신 안내 하나(닉네임·등급·차단·메모·쪽지는 위에 그대로) -->
+            <EmptyState
+                v-if="privateView"
+                :title="t('profile.privateTitle')"
+                :description="t('profile.privateText', { nickname: profile.nickname })"
+                icon="pi pi-lock"
+                class="mt-4 panel-card"
+                data-testid="profile-private"
+            />
+
+            <template v-else>
             <!-- 활동 수치 — 글·댓글·받은 추천(서버가 최대 60초 늦을 수 있다) -->
-            <dl class="m-0 mt-4 grid grid-cols-3 divide-x divide-surface-200 panel-card py-3 text-center dark:divide-surface-700" data-testid="profile-stats">
+            <dl v-if="profile.stats" class="m-0 mt-4 grid grid-cols-3 divide-x divide-surface-200 panel-card py-3 text-center dark:divide-surface-700" data-testid="profile-stats">
                 <div v-for="cell in statCells" :key="cell.key" class="flex min-w-0 flex-col px-1">
                     <dt class="order-2 text-xs text-muted-color">{{ cell.label }}</dt>
                     <dd class="order-1 m-0 text-base font-bold tabular-nums">{{ UtilProfile.count(profile.stats[cell.key]) }}</dd>
@@ -253,6 +282,7 @@
             </div>
 
             <p v-if="tab === 'posts'" class="mt-4 text-center text-xs text-muted-color">{{ t('profile.hiddenPostsNote') }}</p>
+            </template>
 
             <!-- 회원 ⋯ 시트 — 이 사용자 차단·차단 해제·메모(메모 작성은 셸의 메모 시트) -->
             <AppSheet v-model:visible="menuOpen" :title="t('block.memberMenuTitle', { nickname: profile.nickname })">
@@ -326,6 +356,10 @@ const statCells = computed<{ key: keyof ProfileStats; label: string }[]>(() => [
     { key: 'comments', label: t('profile.statComments') },
     { key: 'likesReceived', label: t('profile.statLikes') },
 ]);
+/** 남이 보는 비공개 프로필 — 수치·탭·목록 대신 안내(서버도 소개·가입일·수치를 비우고 목록을 `403 PROFILE_PRIVATE` 로 막는다) */
+const privateView = computed(() => profile.value?.visibility === 'PRIVATE' && !profile.value.isMe);
+/** 내 프로필이 비공개 — 나에게는 다 보이고 위에 안내 띠 */
+const privateMine = computed(() => profile.value?.visibility === 'PRIVATE' && profile.value.isMe);
 /** 프로필 자리표시 — 닉네임 첫 글자(프로필 그림 기능이 없다) */
 const initial = computed(() => Array.from(profile.value?.nickname ?? '')[0] ?? '');
 /** 장착한 장식(닉네임 색·테두리) — 서버 `decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`) */
