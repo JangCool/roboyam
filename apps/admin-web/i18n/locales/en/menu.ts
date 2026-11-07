@@ -94,6 +94,9 @@ export default {
     emoticonSales: 'Sales',
     emoticonSettlements: 'Creator payouts',
     emoticonSettings: 'Robotikon settings',
+    // Reward events section (normal mode, after Robotikon — not the site popup)
+    rewardEvent: 'Reward events',
+    rewardEvents: 'Reward events',
     // Group buy section (normal mode, before Payments) — physical group buys sold by the operator
     groupBuy: 'Group buys',
     groupBuyProducts: 'Products',

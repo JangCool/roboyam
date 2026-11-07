@@ -222,6 +222,11 @@ export default class UtilPermissionCatalog {
         { code: 'emoticon.sales', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonSales', descKey: 'permission.item.emoticonSalesDesc', featureReady: true },
         { code: 'emoticon.settlement', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonSettlement', descKey: 'permission.item.emoticonSettlementDesc', featureReady: true },
         { code: 'emoticon.payout.pii', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.emoticonPayoutPii', descKey: 'permission.item.emoticonPayoutPiiDesc', featureReady: true },
+        // 보상 이벤트(`/reward-events`, event-admin-contract 「권한」) — 서버 `Permission.REWARD_EVENT_READ`·`REWARD_EVENT_MANAGE`·`REWARD_EVENT_GRANT`(GRADE_POINT · READ / MANAGE / SENSITIVE).
+        //   1인 고액·일괄 포인트 지급은 서버가 `point.adjust.large` 도 본다.
+        { code: 'reward-event.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.rewardEventRead', descKey: 'permission.item.rewardEventReadDesc', featureReady: true },
+        { code: 'reward-event.manage', unit: 'MANAGE', type: 'gradePoint', nameKey: 'permission.item.rewardEventManage', descKey: 'permission.item.rewardEventManageDesc', featureReady: true },
+        { code: 'reward-event.grant', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.rewardEventGrant', descKey: 'permission.item.rewardEventGrantDesc', featureReady: true },
         { code: 'dormancy.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.dormancyRead', descKey: 'permission.item.dormancyReadDesc', featureReady: false },
         { code: 'dormancy.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.dormancySettings', descKey: 'permission.item.dormancySettingsDesc', featureReady: false },
         { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: true },

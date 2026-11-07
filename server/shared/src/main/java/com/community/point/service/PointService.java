@@ -83,6 +83,10 @@ public class PointService {
     public static final String REF_DEAL_END_REQUEST = "DEAL_END_REQUEST";
     /** 무료 로보티콘 팩 받기 보상의 대상 — 그 받기 줄({@code emoticon_acquisitions.id}, V142 — 원장 유일로 줄마다 한 번) */
     public static final String REF_EMOTICON_ACQUIRE = "EMOTICON_ACQUIRE";
+    /** 보상 이벤트 지급·회수의 대상 — 그 줄 결과({@code reward_event_line_results.id}, V163 — 원장 유일로 줄마다 한 번) */
+    public static final String REF_REWARD_EVENT_RESULT = "REWARD_EVENT_RESULT";
+    /** 보상 이벤트 한 줄의 최대 포인트(event-admin-contract 「보상 줄」) */
+    public static final int EVENT_REWARD_MAX = 100_000;
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
     public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
@@ -416,6 +420,63 @@ public class PointService {
         debit(a, PointKind.REVOKE, PointReason.ADMIN_ADJUST, PointDeductionPolicy.allocate(ledger.usableLots(userId, FREE_ONLY, a.now), take, null), note, null, null,
                 operatorId);
         return new Adjusted(-take, a.total());
+    }
+
+    // ── 보상 이벤트 ─────────────────────────────────────────────────────────
+
+    /**
+     * 보상 이벤트 지급(event-admin-contract 「보상 줄」 POINT, commerce.md 5-4) — 보상 이벤트의 줄 처리(줄마다 세이브포인트)가 부른다. <b>무상만</b>: 무상 묶음 하나({@code free_valid_days}
+     * — 기본 1년), 사유 {@code EVENT_REWARD}, 대상 = 그 줄 결과({@code REWARD_EVENT_RESULT} — 원장 유일로 같은 줄은 한 번만). 하루 활동 한도에 들지 않는다. 미회수가 있으면 같은 트랜잭션에서
+     * 적립 줄 다음에 상계한다(5-4 「운영 지급」). 정상 회원 판정·탈퇴·정지는 부르는 쪽(줄 결과 사유)이 본다. 유상은 만들 길이 없다.
+     *
+     * @param note 회원에게 보이는 사유(이벤트 이름)
+     * @return 지급한 포인트(이미 지급한 줄이면 0)
+     * @throws PointFrozenException 포인트 동결 중 — 잔액 행을 잡기 전에 던진다(아무것도 쓰지 않았다)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public long eventReward(long userId, long resultId, int points, String note, Long operatorId) {
+        if (points <= 0 || points > EVENT_REWARD_MAX) {
+            throw new IllegalArgumentException("이벤트 보상 포인트가 범위 밖이다: " + points);
+        }
+        if (restrictions.hasActive(userId, RestrictionType.POINT_FREEZE)) {
+            throw new PointFrozenException();
+        }
+        Account a = open(userId);
+        if (ledger.exists(PointReason.EVENT_REWARD.name(), REF_REWARD_EVENT_RESULT, resultId)) {
+            return 0L;
+        }
+        if (a.debt > 0) {
+            expireDue(a); // 상계는 차감이다 — 지난 묶음을 먼저 소멸
+        }
+        Credit credit = creditNewLot(a, PointReason.EVENT_REWARD, points, note, REF_REWARD_EVENT_RESULT, resultId, operatorId);
+        offsetDebt(a, credit);
+        return points;
+    }
+
+    /**
+     * 보상 이벤트 회수 — 그 줄 결과로 지급했던 양을 <b>무상에서만 0P 까지</b> 뺀다(그 적립 줄이 만든 묶음 먼저 → 다른 무상, 차감 순서). <b>빚을 만들지 않는다</b>(운영 차감과 같다 —
+     * 미회수 기록·{@code revoke_debt} 없음). 유상은 그대로. 반영 0 이면 원장 줄은 없다. 같은 줄 결과에 한 번만(원장 유일 + 부르는 쪽의 줄 결과 상태).
+     *
+     * @return 실제로 회수한 양(0 ~ 지급한 양)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public long eventRewardRevoke(long userId, long resultId, String note, Long operatorId) {
+        Optional<Entry> earned = ledger.entry(userId, PointReason.EVENT_REWARD.name(), REF_REWARD_EVENT_RESULT, resultId);
+        if (earned.isEmpty() || earned.get().delta() <= 0) {
+            return 0L;
+        }
+        Account a = open(userId);
+        if (ledger.exists(PointReason.EVENT_REWARD_REVOKE.name(), REF_REWARD_EVENT_RESULT, resultId)) {
+            return 0L;
+        }
+        expireDue(a);
+        long take = Math.min(earned.get().delta(), a.free);
+        if (take > 0) {
+            Long first = ledger.lotMadeBy(earned.get().id()).orElse(null);
+            debit(a, PointKind.REVOKE, PointReason.EVENT_REWARD_REVOKE, PointDeductionPolicy.allocate(ledger.usableLots(userId, FREE_ONLY, a.now), take, first), note,
+                    REF_REWARD_EVENT_RESULT, resultId, operatorId);
+        }
+        return take;
     }
 
     // ── 사용·사용 취소 ──────────────────────────────────────────────────────

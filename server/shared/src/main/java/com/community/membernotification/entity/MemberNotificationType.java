@@ -171,7 +171,11 @@ public enum MemberNotificationType {
      * AUTO_CANCELED 결제를 받아들이지 않아 자동 취소 · REFUNDED_SELF 셀프 환불 접수 · REFUNDED_EXCEPTION 운영자 예외 환불) · {@code purchaseId} · {@code packId} ·
      * {@code packName}(산 때 이름) · {@code amount}(원) · {@code path}(누르면 갈 곳 — 내 로보티콘 또는 그 팩)
      */
-    EMOTICON_PURCHASE("system");
+    EMOTICON_PURCHASE("system"),
+    /** 보상 이벤트 보상을 받았다(V163 — event-admin-contract) — 덧붙임 {@code eventId}·{@code eventName}(알릴 때 이름)·{@code points}·{@code items}·{@code manual}(직접 전달 수). 누르면 내 포인트 */
+    REWARD_EVENT_GRANTED("system"),
+    /** 보상 이벤트 보상이 회수됐다 — 덧붙임 {@code eventId}·{@code eventName}·{@code reason}(운영자가 적은 사유). 누르면 내 포인트 */
+    REWARD_EVENT_REVOKED("system");
 
     private final String category;
 

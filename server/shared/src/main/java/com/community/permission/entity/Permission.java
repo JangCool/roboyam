@@ -107,6 +107,13 @@ public enum Permission {
     EMOTICON_SETTLEMENT("emoticon.settlement", GRADE_POINT, SENSITIVE, true),
     /** 로보티콘 작가 정산 계좌 원문 보기(사유 · 감사 EMOTICON_PAYOUT_REVEAL · 10분 뒤 화면이 다시 가린다 — S2 작가 단위 · S4 정산 줄 주소. 정산 화면 API 가 생겨 켰다) */
     EMOTICON_PAYOUT_PII("emoticon.payout.pii", GRADE_POINT, SENSITIVE, true),
+    // 보상 이벤트(docs/features/event-admin-contract.md 「권한」) — 로보티콘 다음, 관리자 /reward-events. 1인 고액·일괄 포인트 지급은 point.adjust.large 도 본다(서비스)
+    /** 보상 이벤트 목록·상세·대상·추첨 기록·지급 내역·기록 조회 */
+    REWARD_EVENT_READ("reward-event.read", GRADE_POINT, READ, true),
+    /** 보상 이벤트 만들기·고치기·시작·마감·취소 · 후보 미리 보기 · 당첨자 추가·빼기 · 댓글 추첨 */
+    REWARD_EVENT_MANAGE("reward-event.manage", GRADE_POINT, MANAGE, true),
+    /** 보상 지급 실행·실패만 다시 지급·회수·직접 전달 완료 — 포인트·아이템이 움직인다(감사 돈 관련 5년) */
+    REWARD_EVENT_GRANT("reward-event.grant", GRADE_POINT, SENSITIVE, true),
     DORMANCY_READ("dormancy.read", GRADE_POINT, READ, false),
     DORMANCY_SETTINGS("dormancy.settings", GRADE_POINT, CONFIG, false),
     GROUP_READ("group.read", CLUB, READ, true),

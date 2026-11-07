@@ -190,6 +190,8 @@ export default {
         REVOKE_DEBT_OFFSET: '미회수 포인트 차감',
         EXPIRE: '유효기간 만료',
         EMOTICON_CREATOR_REWARD: '로보티콘 받기 보상',
+        EVENT_REWARD: '이벤트 보상',
+        EVENT_REWARD_REVOKE: '이벤트 보상 회수',
     },
     col: {
         createdAt: '일시',

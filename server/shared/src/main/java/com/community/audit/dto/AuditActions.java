@@ -634,6 +634,34 @@ public final class AuditActions {
     /** 사이트 제휴 몰 지우기 — {@code before}. 일반 */
     public static final String HOTDEAL_SITE_AFFILIATE_DELETE = "HOTDEAL_SITE_AFFILIATE_DELETE";
 
+    // ── 보상 이벤트(V163 — event-admin-contract 「알림·감사」) — 대상 REWARD_EVENT + 이벤트 ID. 지급·재시도·회수는 돈 관련(5년), 나머지는 일반 ──
+    /** 만듦 — {@code name}·{@code mode}·{@code tiers}(등수 수)·{@code lines}(보상 줄 수) */
+    public static final String REWARD_EVENT_CREATE = "REWARD_EVENT_CREATE";
+    /** 고침 — 바뀐 칸 {@code before}/{@code after}(이름·메모·안내 글·기간·인원·등수 구성) */
+    public static final String REWARD_EVENT_UPDATE = "REWARD_EVENT_UPDATE";
+    /** 시작(준비 → 진행 중) — {@code startAt}·{@code endAt} */
+    public static final String REWARD_EVENT_START = "REWARD_EVENT_START";
+    /** 운영자 마감 */
+    public static final String REWARD_EVENT_CLOSE = "REWARD_EVENT_CLOSE";
+    /** 자동 마감(시스템) — {@code cause} PERIOD(끝 시각 지남 — 다음 쓰기 때 고정) · FULL(선착순 인원 참) */
+    public static final String REWARD_EVENT_AUTO_CLOSE = "REWARD_EVENT_AUTO_CLOSE";
+    /** 댓글 추첨 — {@code drawId}·{@code tierId}·{@code postId}·{@code candidateCount}·{@code picked}·{@code seed} */
+    public static final String REWARD_EVENT_DRAW = "REWARD_EVENT_DRAW";
+    /** 당첨자 추가 — {@code tierId}·{@code count}·{@code userIds} */
+    public static final String REWARD_EVENT_RECIPIENT_ADD = "REWARD_EVENT_RECIPIENT_ADD";
+    /** 당첨자 빼기(지급 전) — {@code recipientId}·{@code userId}·{@code tierId} */
+    public static final String REWARD_EVENT_RECIPIENT_REMOVE = "REWARD_EVENT_RECIPIENT_REMOVE";
+    /** 지급 실행(시작 · 끝) — {@code runId}·{@code phase}(START·DONE)·{@code targetCount}·{@code success}·{@code failed}·{@code skipped}·{@code points}·{@code items}·{@code large}. 돈 관련(5년) */
+    public static final String REWARD_EVENT_GRANT = "REWARD_EVENT_GRANT";
+    /** 실패만 다시 지급(시작 · 끝) — 지급과 같은 칸. 돈 관련(5년) */
+    public static final String REWARD_EVENT_RETRY = "REWARD_EVENT_RETRY";
+    /** 회수 — {@code runId}·{@code count}·{@code points}(회수한 양)·{@code items}·{@code reason}. 돈 관련(5년) */
+    public static final String REWARD_EVENT_REVOKE = "REWARD_EVENT_REVOKE";
+    /** 직접 전달 완료 — {@code recipientId}·{@code userId}·{@code lineId}·{@code memo} */
+    public static final String REWARD_EVENT_DELIVERED = "REWARD_EVENT_DELIVERED";
+    /** 취소(지급 전) — {@code reason} */
+    public static final String REWARD_EVENT_CANCEL = "REWARD_EVENT_CANCEL";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 

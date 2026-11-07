@@ -39,12 +39,16 @@ public class UserItemEntity {
     private UploadTicketUse refType;
     /** 예약·사용한 신청 ID(V157) */
     private Long refId;
+    /** 보상 이벤트로 받은 줄 — 그 줄 결과(V163, 구매 {@code purchaseId} 와 정확히 하나). 넣기는 저장소의 JDBC 문장(세이브포인트 안 — {@code UserItemStore#grantFromEvent}) */
+    private Long grantResultId;
+    /** 지급 순번(소모형 수량 N 이면 1..N) */
+    private Short grantSeq;
 
     protected UserItemEntity() {
     }
 
     /** 새 보유 줄(OWNED) — 구매 하나에 하나 */
-    public static UserItemEntity own(long id, long userId, long itemId, long purchaseId, PointShopUsageType usageType, Instant startsAt, Instant expiresAt,
+    public static UserItemEntity own(long id, long userId, long itemId, Long purchaseId, PointShopUsageType usageType, Instant startsAt, Instant expiresAt,
                                      Instant createdAt) {
         UserItemEntity ui = new UserItemEntity();
         ui.id = id;
@@ -122,5 +126,13 @@ public class UserItemEntity {
 
     public Long getRefId() {
         return refId;
+    }
+
+    public Long getGrantResultId() {
+        return grantResultId;
+    }
+
+    public Short getGrantSeq() {
+        return grantSeq;
     }
 }

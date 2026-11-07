@@ -120,6 +120,9 @@ public class PointShopRefundService {
     @Transactional
     public SelfRefundOutcome refundSelf(long userId, long userItemId) {
         UserItemRow found = userItems.find(userItemId).filter(row -> row.userId() == userId).orElseThrow(UserItemNotFoundException::new);
+        if (found.purchaseId() == null) {
+            throw new PointShopRefundNotAllowedException(PointShopRules.BLOCKED_GRANTED); // 보상 이벤트로 받은 줄 — 산 적이 없어 돌려줄 포인트가 없다(셀프·예외 환불 모두 구매 기준)
+        }
         PurchaseRow purchase = purchases.findForUpdate(found.purchaseId()).orElseThrow(UserItemNotFoundException::new);
         UserItemRow item = userItems.findForUpdate(userItemId).orElseThrow(UserItemNotFoundException::new);
         if (purchase.status() == PointShopPurchaseStatus.REFUNDED || item.status() == UserItemStatus.REVOKED) {

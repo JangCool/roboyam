@@ -78,6 +78,7 @@ import docIntake from './docIntake';
 import hotdeal from './hotdeal';
 import visitAnalytics from './visitAnalytics';
 import holiday from './holiday';
+import rewardEvent from './rewardEvent';
 
 export default {
     account,
@@ -153,4 +154,5 @@ export default {
     hotdeal,
     visitAnalytics,
     holiday,
+    rewardEvent,
 };

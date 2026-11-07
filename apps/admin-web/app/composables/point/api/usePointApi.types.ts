@@ -35,7 +35,10 @@ export type PointReasonCode =
     | 'REVOKE_DEBT_OFFSET'
     | 'EXPIRE'
     // 로보티콘(emoticon-contract S1) — 다른 회원이 무료 팩을 받을 때 작가에게 주는 적립(인정된 받기만 · 작가 하루 상한)
-    | 'EMOTICON_CREATOR_REWARD';
+    | 'EMOTICON_CREATOR_REWARD'
+    // 보상 이벤트(event-admin-contract) — 지급(무상 묶음 1년, EARN) · 회수(무상에서만 0P 까지, REVOKE). 원장 `note` = 이벤트 이름
+    | 'EVENT_REWARD'
+    | 'EVENT_REWARD_REVOKE';
 
 /** 원장 한 줄 — 최신이 위 */
 export interface PointLedgerItem {
@@ -49,7 +52,7 @@ export interface PointLedgerItem {
     reasonCode: PointReasonCode | string;
     /** 서버가 요청 언어로 주는 사유 이름(출석체크·글 작성 …) — 회원 상세 `MemberPointEntry.reason` 과 같은 뜻 */
     reason: string;
-    /** 운영자 조정의 사유(회원에게 공개되는 문구). 그 밖의 줄은 null */
+    /** 운영자 조정의 사유(회원에게 공개되는 문구) · 보상 이벤트 지급·회수는 이벤트 이름. 그 밖의 줄은 null */
     note: string | null;
     /** 실제 반영된 증감(−는 차감·회수). 잔액이 모자라 덜 회수된 줄은 덜 회수된 값이다. `freeDelta + paidDelta` 와 같다 */
     delta: number;

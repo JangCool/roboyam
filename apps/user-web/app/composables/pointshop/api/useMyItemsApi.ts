@@ -7,7 +7,7 @@ import UtilIdempotency from '~/utils/util-idempotency';
  *  - `GET /api/me/items` → `MyItemList`(회수된 줄도 온다 — 화면이 「환불됨」 구획에 접는다)
  *  - `PUT /api/me/equipped/{slot}` `{ userItemId }` → `MyEquipped` · 장착하면 `firstUsedAt` 이 채워진다(환불 불가). `409 USER_ITEM_EXPIRED`·`USER_ITEM_NOT_EQUIPPABLE` · `404 USER_ITEM_NOT_FOUND`
  *  - `DELETE /api/me/equipped/{slot}` → `MyEquipped`
- *  - `POST /api/me/items/{id}/refund` + 머리글 `Idempotency-Key`(필수) → `MyItemRefundResult` · `409 POINT_SHOP_REFUND_NOT_ALLOWED`(최상위 `blockedBy` `USED|RESERVED|EXPIRED` — `RESERVED` 는 올리기 변경권이 대기 신청에 예약됨)·`POINT_SHOP_ALREADY_REFUNDED`·`POINT_SHOP_REFUND_PENDING`·`POINT_SHOP_REFUND_REJECTED` · `429 REQUEST_RATE_LIMITED` · 정지 중이면 `202` 환불 신청 `{ requestId, status, requestedAt }`
+ *  - `POST /api/me/items/{id}/refund` + 머리글 `Idempotency-Key`(필수) → `MyItemRefundResult` · `409 POINT_SHOP_REFUND_NOT_ALLOWED`(최상위 `blockedBy` `USED|RESERVED|EXPIRED|GRANTED` — `RESERVED` 는 올리기 변경권이 대기 신청에 예약됨, `GRANTED` 는 보상 이벤트로 받은 줄)·`POINT_SHOP_ALREADY_REFUNDED`·`POINT_SHOP_REFUND_PENDING`·`POINT_SHOP_REFUND_REJECTED` · `429 REQUEST_RATE_LIMITED` · 정지 중이면 `202` 환불 신청 `{ requestId, status, requestedAt }`
  */
 const PATH = {
     items: '/api/me/items',

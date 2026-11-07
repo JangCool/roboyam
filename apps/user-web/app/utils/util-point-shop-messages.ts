@@ -110,6 +110,8 @@ export default class UtilPointShopMessages {
     static error(t: Translate, time: DisplayTime, e: unknown): string {
         if (!(e instanceof ApiError)) return UtilAuthMessages.fallback(t, 0, 'NETWORK');
         if (e.status === 429 && e.retryAfterSeconds) return t('pointShop.retryAfter', { message: e.message, wait: time.duration(e.retryAfterSeconds) });
+        // 보상 이벤트로 받은 줄 — 서버 공통 문구(「썼거나 기한이 지났어요」)보다 정확한 까닭을 보인다
+        if (e.code === 'POINT_SHOP_REFUND_NOT_ALLOWED' && e.extraText('blockedBy') === 'GRANTED') return t('pointShop.refundBlockedGranted');
         return e.message;
     }
 }

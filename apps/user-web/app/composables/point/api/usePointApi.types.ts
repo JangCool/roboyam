@@ -147,7 +147,10 @@ export type MyPointReasonCode =
     | 'ATTENDANCE_STREAK'
     | 'SIGNUP'
     // 회원 핫딜 1차(`hotdeal-contract.md`) — 품절·가격 변경을 알린 딜이 자동 종료되면 알린 회원에게(서버가 「핫딜 종료 알림 보상」으로 `reason` 을 준다)
-    | 'DEAL_END_REQUEST';
+    | 'DEAL_END_REQUEST'
+    // 보상 이벤트(`event-admin-contract.md`) — 지급 · 회수(서버가 「이벤트 보상」·「이벤트 보상 회수」로 `reason` 을, 이벤트 이름을 `note` 로 준다)
+    | 'EVENT_REWARD'
+    | 'EVENT_REWARD_REVOKE';
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {
@@ -163,7 +166,7 @@ export interface MyPointLedgerItem {
     reasonCode: MyPointReasonCode | string;
     /** 서버가 요청 언어로 푼 사유 이름(글 작성 · 댓글 작성 · 추천 보너스 · 운영 조정 …) — 화면은 그대로 보인다 */
     reason: string;
-    /** 운영 조정 사유(회원에게 공개되는 문구). 그 밖의 줄은 null */
+    /** 운영 조정 사유(회원에게 공개되는 문구) · 보상 이벤트 지급·회수는 이벤트 이름. 그 밖의 줄은 null */
     note: string | null;
     /** 실제 반영된 증감(−는 차감·회수) */
     delta: number;
