@@ -5,6 +5,8 @@ import com.community.commerce.sales.entity.CommerceSalesSettingsEntity;
 import com.community.commerce.sales.entity.QCommerceBusinessInfoEntity;
 import com.community.commerce.sales.entity.QCommerceSalesChecklistEntity;
 import com.community.commerce.sales.entity.QCommerceSalesSettingsEntity;
+import com.community.emoticon.entity.EmoticonSettingsEntity;
+import com.community.emoticon.entity.QEmoticonSettingsEntity;
 import com.community.groupbuy.entity.QCommerceCarrierEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.site.entity.QSiteOperatorEntity;
@@ -17,9 +19,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
-import javax.sql.DataSource;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -27,7 +27,8 @@ import org.springframework.stereotype.Repository;
  * 운영자 이름은 {@code operators.operator_name} 을 이어 읽는다(지운 운영자는 null).
  *
  * <p>QueryDSL 이다 — {@code commerce_*} 표(엔티티 {@link CommerceSalesSettingsEntity} 등)와 운영 주체({@code site_operator}, 엔티티 {@link SiteOperatorEntity}).
- * 스위치 행 잠금은 그 행만 고르는 {@code PESSIMISTIC_WRITE}. Native SQL 로 남긴 것: {@code emoticon_settings}(엔티티가 없는 로보티콘 표 — 나눔 잠금 {@code FOR SHARE}).
+ * 스위치 행 잠금은 그 행만 고르는 {@code PESSIMISTIC_WRITE}, 로보티콘 유료 판매 스위치({@code emoticon_settings} — 엔티티 {@link EmoticonSettingsEntity})는 그 행만 고르는
+ * {@code PESSIMISTIC_READ}({@code FOR SHARE}). Native SQL 로 남긴 것은 없다.
  */
 @Repository
 public class CommerceSalesStore extends RoboyamRepositoryQDSL {
@@ -38,6 +39,7 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
     private static final QCommerceBusinessInfoEntity BI = QCommerceBusinessInfoEntity.commerceBusinessInfoEntity;
     private static final QCommerceCarrierEntity CA = QCommerceCarrierEntity.commerceCarrierEntity;
     private static final QOperatorEntity O = QOperatorEntity.operatorEntity;
+    private static final QEmoticonSettingsEntity ES = QEmoticonSettingsEntity.emoticonSettingsEntity;
 
     /** 스위치 한 줄 */
     public record SwitchRow(boolean groupBuyOpen, Instant changedAt, String changedBy, String reason) {
@@ -47,11 +49,8 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
     public record ChecklistRow(String key, boolean checked, String checkedBy, Instant checkedAt) {
     }
 
-    private final JdbcTemplate jdbc;
-
-    public CommerceSalesStore(JPAQueryFactory query, DataSource dataSource) {
+    public CommerceSalesStore(JPAQueryFactory query) {
         super(query);
-        this.jdbc = new JdbcTemplate(dataSource);
     }
 
     public boolean groupBuyOpen() {
@@ -148,13 +147,15 @@ public class CommerceSalesStore extends RoboyamRepositoryQDSL {
 
     /**
      * 로보티콘 유료 판매 스위치({@code emoticon_settings.paid_sales_enabled})를 나눔 잠금으로 잡고 읽는다 — 운영 주체를 개인 단계로 바꾸거나 신고번호를 비우기 전에(켜져 있으면 막는다).
-     * 설정 저장(행 {@code FOR UPDATE} 뒤 운영 주체 읽기)과 줄을 서서, 켜기가 읽은 운영 주체 단계가 그 커밋 전에 바뀌지 않는다.
-     *
-     * <p>Native SQL 인 이유: {@code emoticon_settings} 는 엔티티가 없는 표다(나눔 잠금 {@code FOR SHARE} 로 읽는다).
+     * 설정 저장(행 쓰기 잠금 뒤 운영 주체 읽기)과 줄을 서서, 켜기가 읽은 운영 주체 단계가 그 커밋 전에 바뀌지 않는다. 잠금은 설정 표만 고르는 {@code PESSIMISTIC_READ}
+     * ({@code FOR SHARE}) — 설정 행이 없으면 예전처럼 {@link EmptyResultDataAccessException}.
      */
     public boolean lockEmoticonPaidSales() {
-        Boolean on = jdbc.queryForObject("SELECT paid_sales_enabled FROM emoticon_settings WHERE id = 1 FOR SHARE", Boolean.class);
-        return Boolean.TRUE.equals(on);
+        Boolean on = query.select(ES.paidSalesEnabled).from(ES).where(ES.id.eq(EmoticonSettingsEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_READ).fetchFirst();
+        if (on == null) {
+            throw new EmptyResultDataAccessException(1);
+        }
+        return on;
     }
 
     /** 켜진 택배사가 하나라도 있나(판매 켜기 자동 조건 — 공구) */

@@ -46,7 +46,7 @@ class CommerceSalesTest {
     @BeforeAll
     static void setUp() {
         kit = GroupBuyTestKit.get();
-        store = new CommerceSalesStore(JpaTestContext.query(), kit.dataSource);
+        store = new CommerceSalesStore(JpaTestContext.query());
         DefaultListableBeanFactory beans = new DefaultListableBeanFactory();
         beans.registerSingleton("gateway", kit.spring.getBean(PaymentGateway.class));
         beans.registerSingleton("identity", new FakeIdentityVerifier(Clock.systemUTC()));
