@@ -474,6 +474,11 @@ public class BoardSanctionService {
         String reason = requireReason(reasonText);
         Long appealId = store.lockPendingAppeal(sanctionId).orElse(null); // 차례: 이의제기 행 → 회원 행
         store.lockTarget(owner[0]);
+        if (appealId == null) {
+            // 이의제기 접수도 회원 행을 먼저 잠근다 — 위에서 못 본 접수가 회원 행 잠금을 쥐고 있었다면 그 접수는 이제 커밋됐다. 한 번 더 보고 함께 인용으로 닫는다
+            // (안 보면 무효가 된 제재에 PENDING 이의제기가 남는다)
+            appealId = store.lockPendingAppeal(sanctionId).orElse(null);
+        }
         Instant now = now();
         BoardSanctionRow row = store.find(sanctionId).orElseThrow(BoardSanctionException::notFound);
         boolean wasRunning = row.runningAt(now);
@@ -521,6 +526,8 @@ public class BoardSanctionService {
      */
     @Transactional
     public AppealRow fileAppeal(long userId, long sanctionId, String reasonText) {
+        // 운영자 무효({@link #voidByOperator})와 줄을 선다 — 무효가 회원 행을 쥐고 있으면 끝난 뒤 VOIDED 를 보고 거절하고, 이쪽이 먼저면 무효가 이 접수를 보고 인용으로 닫는다
+        store.lockTarget(userId);
         BoardSanctionRow row = store.find(sanctionId).filter(r -> r.userId() == userId).orElseThrow(BoardSanctionException::notFound);
         if (row.status() == SanctionStatus.VOIDED) {
             throw new SanctionNotAppealableException();
