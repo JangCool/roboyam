@@ -75,6 +75,7 @@ export default {
     content: 'Content',
     posts: 'Posts',
     highlights: 'Highlights',
+    popups: 'Popups',
     popularPosts: 'Popular posts',
     popularSettings: 'Popular post settings',
     point: 'Points',

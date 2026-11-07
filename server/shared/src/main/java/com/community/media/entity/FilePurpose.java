@@ -16,5 +16,8 @@ public enum FilePurpose {
     BIZ_AD_IMAGE,
 
     /** 소모임 대표 이미지(JPEG·PNG·WebP·GIF) — 저장소 키 {@code group/{년월}/{버전}.{확장자}}. 회원이 공개 사이트에서 올리고({@code POST /api/groups/images}, V154) 개설 신청·정보 수정에 붙인다 */
-    GROUP_IMAGE
+    GROUP_IMAGE,
+
+    /** 팝업 그림(PNG·JPG·GIF·WEBP — GIF 는 첫 장면 PNG, 하이라이트 대표 이미지와 같은 검사) — 저장소 키 {@code site-popup/{버전}/image.{확장자}}. 운영자가 올린다(권한 site.manage, V162) */
+    SITE_POPUP_IMAGE
 }

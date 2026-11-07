@@ -45,6 +45,16 @@ public final class AuditActions {
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
     /** 공지 띠 설정 저장(설정 > 일반 「공지 띠」) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
     public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
+    /** 팝업 만들기(콘텐츠 > 팝업 관리, site-popup-contract) — 대상 SITE_POPUP + 팝업 ID, {@code after} 칸 값 */
+    public static final String SITE_POPUP_CREATE = "SITE_POPUP_CREATE";
+    /** 팝업 고치기 — 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
+    public static final String SITE_POPUP_UPDATE = "SITE_POPUP_UPDATE";
+    /** 팝업 지우기 — {@code before} 칸 값 */
+    public static final String SITE_POPUP_DELETE = "SITE_POPUP_DELETE";
+    /** 팝업 차례 바꾸기 — 대상 SITE_POPUP + {@code order}, before/after ID 차례(바뀐 때만) */
+    public static final String SITE_POPUP_ORDER = "SITE_POPUP_ORDER";
+    /** 팝업 노출 켜기·끄기 — {@code from}/{@code to}(바뀐 때만) */
+    public static final String SITE_POPUP_VISIBLE = "SITE_POPUP_VISIBLE";
     /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
     public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
     /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */

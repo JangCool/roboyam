@@ -208,6 +208,8 @@ export default class UtilAdminMenu {
                 { key: 'highlights', to: '/content/highlights', icon: 'pi pi-bookmark', labelKey: 'menu.highlights', permission: 'highlight.read' },
                 { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-chart-line', labelKey: 'menu.popularPosts', permission: 'popular.read' },
                 { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },
+                // 팝업 관리 — 공개 사이트에 들어오면 가운데 뜨는 이벤트·프로모션 창(docs/features/site-popup-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘
+                { key: 'sitePopups', to: '/content/popups', icon: 'pi pi-window-maximize', labelKey: 'menu.popups', permission: 'site.read' },
             ],
         },
         // 포인트 묶음 — 전체 포인트 내역(수동 지급·차감 포함)과 지급 규칙(포인트 정책). community 의 「포인트 설정」, 그누보드7 의 포인트 관리에 대응한다

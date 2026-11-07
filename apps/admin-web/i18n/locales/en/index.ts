@@ -60,6 +60,7 @@ import operatorStage from './operatorStage';
 import content from './content';
 import debate from './debate';
 import highlight from './highlight';
+import popup from './popup';
 import popular from './popular';
 import post from './post';
 import report from './report';
@@ -133,6 +134,7 @@ export default {
     content,
     debate,
     highlight,
+    popup,
     popular,
     post,
     report,
