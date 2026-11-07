@@ -83,6 +83,30 @@ public enum MenuBuiltin {
         return salesGated;
     }
 
+    /**
+     * 사이트 안 주소가 판매 스위치가 필요한 앱 화면(공동구매 목록·주문 내역)을 가리키나 — 주소 직접 입력({@code PATH}) 항목도 같은 판정을 받게 한다(2026-11-07).
+     * 물음표·샵 뒤는 보지 않고, 그 화면의 주소와 같거나(아래 주소를 밝히는 화면이면) 그 아래 주소면 참.
+     */
+    public static boolean salesGatedPath(String path) {
+        if (path == null) {
+            return false;
+        }
+        String p = path.strip();
+        int cut = p.indexOf('?') >= 0 ? p.indexOf('?') : p.indexOf('#');
+        if (cut >= 0) {
+            p = p.substring(0, cut);
+        }
+        if (p.length() > 1 && p.endsWith("/")) {
+            p = p.substring(0, p.length() - 1);
+        }
+        for (MenuBuiltin b : values()) {
+            if (b.salesGated && (p.equals(b.path) || (b.matchPrefix && p.startsWith(b.path + "/")))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 기본 이름의 메시지 키 */
     public String labelKey() {
         return "menu.builtin." + name();

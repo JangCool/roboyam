@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * {@code PATH} — 사이트 안 주소. {@code settings {path, newTab}}, 이름 필수, 주소 규칙 = {@link MenuRules#pathProblem}. 같은 주소를 여러 번 넣을 수 있다.
+ * 주소가 판매 스위치가 필요한 앱 화면(공동구매 {@code /group-buys}·주문 내역 {@code /me/orders} 와 그 아래)이면 앱 화면 항목과 같이 판매가 꺼질 때 {@code SALES_OFF} 로 빠진다.
  */
 @Component
 public class PathMenuTargetResolver implements MenuTargetResolver {
@@ -54,13 +55,13 @@ public class PathMenuTargetResolver implements MenuTargetResolver {
 
     @Override
     public MenuTargetStatus status(MenuNode item, MenuResolveContext context) {
-        return MenuTargetStatus.OK;
+        return MenuBuiltin.salesGatedPath(MenuSettingsJson.text(item.settings(), "path")) && !context.salesEnabled() ? MenuTargetStatus.SALES_OFF : MenuTargetStatus.OK;
     }
 
     @Override
     public ResolvedTarget resolve(MenuNode item, MenuResolveContext context) {
         String path = MenuSettingsJson.text(item.settings(), "path");
-        if (path == null || path.isBlank()) {
+        if (path == null || path.isBlank() || status(item, context) != MenuTargetStatus.OK) {
             return null;
         }
         return new ResolvedTarget(path, false, null, null, MenuSettingsJson.flag(item.settings(), "newTab"), null, null);

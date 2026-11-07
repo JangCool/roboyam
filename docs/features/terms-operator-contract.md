@@ -84,7 +84,7 @@
 
 | 자리 | 개인(팔 수 없는 단계) | 개인사업자·법인 + 판매 꺼짐 | 판매 켜짐 |
 |---|---|---|---|
-| 공개 메뉴 공동구매·주문 내역(`MenuSales`) | 빠짐 | 빠짐 | 보임 |
+| 공개 메뉴 공동구매·주문 내역(`MenuSales` — 앱 화면 항목과, 그 주소를 가리키는 주소 직접 입력 항목 모두) | 빠짐 | 빠짐 | 보임 |
 | 공구 목록 `GET /api/group-buys` | 빈 목록 | 보임(주문 단추 `SALES_CLOSED`) | 보임 |
 | 공구 상세 `GET /api/group-buys/{id}` | 404 `GROUP_BUY_NOT_FOUND` | 보임 | 보임 |
 | 홈 공구 가젯 | 빈 목록(기본 배치는 가젯 숨김) | 보임 + 「지금은 주문을 받지 않아요」 | 보임 |
@@ -93,4 +93,5 @@
 | 광고·핫딜 유료 신청 | `accepting` false(「지금은 받지 않아요」) | 받음 | — |
 
 - 개인 단계에서도 지난 주문(`/me/orders`)은 주소로 들어가 볼 수 있다(메뉴 항목만 빠진다).
-- 시험: api `PublicMenuSalesTest`(2) · `GroupBuyHttpTest.운영_주체가_팔_수_없는_단계면_…` · `HomeGadgetGroupBuyTest.운영_주체가_개인_단계면_…`.
+- 로컬 DB 의 메인 메뉴 「공동구매」는 주소 직접 입력(`PATH /group-buys`) 항목이었다 — 그래서 주소 항목도 같은 판정을 받게 했다(`MenuBuiltin.salesGatedPath`, admin-web `UtilMenu.salesGatedPath`).
+- 시험: api `PublicMenuSalesTest`(2, 주소 항목 포함) · `GroupBuyHttpTest.운영_주체가_팔_수_없는_단계면_…` · `HomeGadgetGroupBuyTest.운영_주체가_개인_단계면_…`.
