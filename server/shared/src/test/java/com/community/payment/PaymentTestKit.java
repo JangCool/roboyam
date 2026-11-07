@@ -1,11 +1,11 @@
 package com.community.payment;
 
-import com.community.batch.core.BatchFailureRecorder;
+import com.community.testsupport.JpaTestContext;
+import com.community.testsupport.BatchTestParts;
 import com.community.batch.core.BatchJob;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchRequestKind;
 import com.community.notification.dto.NotificationContext;
@@ -129,7 +129,7 @@ final class PaymentTestKit {
             return current.dataSourceForWiring;
         }
 
-        /** JPA 트랜잭션 관리자({@link JpaTestContext}) — 결제 저장소가 JPA·QueryDSL 이라 쓰기가 업무 트랜잭션에 실려야 한다. 남긴 JDBC 문장(집기·가짜 PG)도 같은 연결을 쓴다 */
+        /** JPA 트랜잭션 관리자({@link JpaTestContext} 의 것 — 같은 데이터소스) — 운영과 같다. 결제 저장소(JPA·QueryDSL)의 쓰기가 업무 트랜잭션에 실리고, 남긴 JDBC 문장(집기·가짜 PG)도 같은 연결을 쓰며, 배치 기록기(JPA)와 한 트랜잭션에 묶인다 */
         @Bean
         PlatformTransactionManager transactionManager() {
             return JpaTestContext.transactions();
@@ -392,10 +392,9 @@ final class PaymentTestKit {
     }
 
     BatchRunner.RunReport runJob(BatchJob job, Map<String, String> params) {
-        // 운영과 같이 JPA 트랜잭션 관리자 하나 — 배치 덩어리 트랜잭션 안에서 결제 저장소(JPA)가 새 트랜잭션을 연다
-        PlatformTransactionManager transactions = spring.getBean(PlatformTransactionManager.class);
-        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, NODE_ID),
-                new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
+        // 배치 기록기는 JPA — 실행기도 문맥과 같은 JPA 트랜잭션 관리자로(결제 서비스의 @Transactional 이 덩어리 트랜잭션에 참여한다 — 운영과 같다)
+        BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(ids, NODE_ID), BatchTestParts.failures(ids),
+                BatchRegistry.forJobs(List.of(job)), JpaTestContext.transactions());
         return runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(params), null, null, null));
     }
 

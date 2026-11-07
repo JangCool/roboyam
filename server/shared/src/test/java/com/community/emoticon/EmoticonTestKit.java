@@ -200,7 +200,7 @@ final class EmoticonTestKit {
         images = new EmoticonImageService(validator, imageStore, storage, ids, dataSource, txManager, clocks);
         content = new EmoticonContent(packStore, imageStore, storage);
         // 운영자 회원 계정 판정(힘이 살아 있나만 — 권한 거울은 읽지 않으므로 역할 저장소 없이)
-        operatorAccounts = new OperatorMemberAccountService(new OperatorMemberAccountStore(dataSource), null, clocks);
+        operatorAccounts = new OperatorMemberAccountService(JpaTestContext.create(OperatorMemberAccountStore.class), null, clocks);
         shop = new EmoticonShopService(packStore, reads, acquisitions, content, operatorAccounts);
         acquire = new EmoticonAcquireService(packStore, acquisitions, reads, settings, content, points, ids, operatorAccounts, clocks);
         purchases = new EmoticonPurchaseStore(dataSource);

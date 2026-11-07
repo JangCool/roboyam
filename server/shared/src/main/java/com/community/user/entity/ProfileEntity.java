@@ -45,11 +45,15 @@ public class ProfileEntity {
     private Instant nicknameChangedAt;
 
     /**
-     * 고른 프로필 이미지(V2 {@code profile_image} — {@code avatar:<id>} · {@code upload-mine} 등, 없으면 null). 포인트 상점 저장소(JDBC)가 고치므로 이 엔티티는 읽기만 한다
-     * (관리자 아바타 올리기 목록이 함께 읽는다).
+     * 고른 프로필 이미지(V2 {@code profile_image} — {@code avatar:<id>} · {@code upload-mine} 등, 없으면 null). 포인트 상점 저장소({@code PointShopMemberStore})의 QueryDSL
+     * UPDATE 가 고치므로 이 엔티티는 쓰지 않는다(넣기·변경 감지에서 빠진다 — 관리자 아바타 올리기 목록이 함께 읽는다).
      */
     @Column(insertable = false, updatable = false)
     private String profileImage;
+
+    /** 마지막으로 고른 정지 아바타(V157 {@code last_still_avatar}) — {@link #profileImage} 와 같이 포인트 상점 저장소가 고치고 이 엔티티는 쓰지 않는다 */
+    @Column(insertable = false, updatable = false)
+    private String lastStillAvatar;
 
     private Instant createdAt;
     private Instant updatedAt;

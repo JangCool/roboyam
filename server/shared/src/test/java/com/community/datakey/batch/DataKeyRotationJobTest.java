@@ -1,6 +1,7 @@
 package com.community.datakey.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.community.testsupport.BatchTestParts;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.community.addressbook.dto.AddressInput;
@@ -11,11 +12,9 @@ import com.community.audit.dto.AuditEvent;
 import com.community.audit.service.AuditLogService;
 import com.community.batch.core.BatchCatalog;
 import com.community.batch.core.BatchDefinition;
-import com.community.batch.core.BatchFailureRecorder;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.BatchParameters;
 import com.community.batch.core.BatchRegistry;
-import com.community.batch.core.BatchRunRecorder;
 import com.community.batch.core.BatchRunner;
 import com.community.batch.core.BatchRunner.RunReport;
 import com.community.batch.entity.BatchRequestKind;
@@ -152,8 +151,9 @@ class DataKeyRotationJobTest {
     }
 
     private static BatchRunner runner(DataKeyRotationJob job) {
-        return new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, NODE), new BatchFailureRecorder(dataSource, transactions, ids),
-                BatchRegistry.forJobs(List.of(job)), transactions);
+        // 배치 기록기는 JPA — 실행기·작업도 JPA 트랜잭션 관리자로(작업의 JDBC 일도 같은 트랜잭션·연결)
+        return new BatchRunner(new BatchLockService(dataSource), BatchTestParts.recorder(ids, NODE), BatchTestParts.failures(ids), BatchRegistry.forJobs(List.of(job)),
+                JpaTestContext.transactions());
     }
 
     private static RunReport run(DataKeyRotationJob job, BatchRequestKind kind, Long sourceRunId) {

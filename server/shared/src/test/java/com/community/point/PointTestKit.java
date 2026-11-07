@@ -27,15 +27,14 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 포인트 시험의 바탕 — 실제 PostgreSQL({@link CommerceTestDatabase}) 위에서 {@link PointService} 를 <b>손으로</b> 조립한다(스프링 문맥 없음 — 이 PC 는 Mockito 를 쓰지 않는다).
  *
  * <ul>
- *   <li>트랜잭션은 {@link DataSourceTransactionManager} — 서비스·저장소의 JDBC 와 {@link IsolatedSideWork} 의 세이브포인트가 같은 연결을 쓴다. 영속성 컨텍스트가 없어 {@code flush} 는
- *       아무 일도 하지 않는 대역이다. 기능 제한은 실제 저장소({@code member_restrictions})를 읽는다(감사·알림·문구는 쓰지 않으므로 비운다).</li>
+ *   <li>트랜잭션은 JPA 트랜잭션 관리자({@link JpaTestContext#transactions} — 운영과 같다) — 원장(JDBC)·출석 저장소(JPA·QueryDSL)와 {@link IsolatedSideWork} 의 세이브포인트가
+ *       같은 연결을 쓴다. 저장소가 넣은 엔티티는 넣고 바로 내보내므로 세이브포인트의 {@code flush} 는 아무 일도 하지 않는 대역이다. 기능 제한은 실제 저장소({@code member_restrictions})를 읽는다(감사·알림·문구는 쓰지 않으므로 비운다).</li>
  *   <li>시계는 {@link MutableTestClock} — 소멸일·만료 묶음을 기다리지 않고 본다. Snowflake ID 와 「오늘」(하루 상한)은 실제 시계다.</li>
  *   <li>DB 를 다른 시험과 같이 쓴다 — 회원·운영자를 시험마다 새로 만들고(Snowflake ID) 자기 행만 본다.</li>
  * </ul>
@@ -59,7 +58,7 @@ final class PointTestKit {
     PointTestKit() {
         dataSource = CommerceTestDatabase.migrated();
         jdbc = new JdbcTemplate(dataSource);
-        tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        tx = new TransactionTemplate(JpaTestContext.transactions());
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         writer = new PointLedgerWriter(dataSource);
@@ -67,7 +66,8 @@ final class PointTestKit {
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         points = new PointService(writer, policy, new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
-        attendance = new com.community.point.service.AttendanceService(new com.community.point.repository.master.PointAttendanceStore(dataSource), points, ids, clocks);
+        attendance = new com.community.point.service.AttendanceService(JpaTestContext.create(com.community.point.repository.master.PointAttendanceStore.class), points, ids,
+                clocks);
         operator = newOperator();
     }
 

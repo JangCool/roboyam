@@ -1,6 +1,6 @@
 package com.community.batch.core;
 
-import static com.community.batch.core.BatchJdbc.ts;
+import static com.community.batch.core.BatchTransactions.ts;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -27,7 +27,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@link #failure}: 마지막 오류(가린 한 줄 — {@link BatchErrorText})와 시각. 늘 쓴다.</li>
  *   <li>기록이 실패해도 워커를 멈추지 않는다(경고 로그만) — 덧붙은 기록이다.</li>
  * </ul>
- * Native SQL 인 이유: {@code INSERT … ON CONFLICT} 는 PostgreSQL 전용이다({@link BatchJdbc}).
+ * Native SQL(JDBC)인 이유: 두 문장 모두 {@code INSERT … ON CONFLICT (worker_key) DO UPDATE}(upsert — 워커마다 한 줄)이고, 업무 트랜잭션 밖에서 문장마다 자동 확정한다
+ * (기록이 실패해도 워커의 일과 섞이지 않게 — {@link BatchTransactions}).
  */
 @Component
 public class WorkerHeartbeats {
