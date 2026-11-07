@@ -76,7 +76,8 @@ class PaymentStoreJpaTest {
 
     @Test
     void 결제_쓰기는_바로_DB_에_닿아_세이브포인트_되돌리기에_휩쓸리지_않는다() {
-        GroupBuySavepoint savepoint = new GroupBuySavepoint(kit.dataSource);
+        // 세이브포인트를 잡기 전에 미뤄 둔 JPA 쓰기를 내보낸다(공구 3단계에서 GroupBuySavepoint 가 EntityManager 를 받게 됐다)
+        GroupBuySavepoint savepoint = new GroupBuySavepoint(kit.dataSource, com.community.testsupport.JpaTestContext.entityManager());
         long[] orderId = new long[1];
         kit.tx.executeWithoutResult(status -> {
             orderId[0] = insertReady(kit.ids.nextId());
