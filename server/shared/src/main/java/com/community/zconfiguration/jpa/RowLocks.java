@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.metamodel.mapping.CompositeIdentifierMapping;
 import org.hibernate.metamodel.mapping.EntityIdentifierMapping;
 import org.hibernate.persister.entity.EntityPersister;
@@ -31,7 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li>문장: {@code SELECT <id칸> FROM <표> WHERE <id칸> IN (…) ORDER BY <id칸> FOR UPDATE} — 여러 행은 id 차례로 잠근다(같은 행들을 잡는 작업자끼리 교착하지 않는다).
  *       복합 키는 {@code (<칸1>, <칸2>) IN ((…), …)} 이고 id 값은 키 클래스({@code @IdClass}) 객체다.</li>
  *   <li>같은 트랜잭션의 연결에서 JDBC 로 낸다(영속성 문맥을 flush 하지 않는다 — 전환 전 JDBC 잠금과 같다). 트랜잭션 밖이면 {@link IllegalStateException}(잠금이 바로 풀린다).</li>
- *   <li>잠금만 건다. 행 내용은 잠근 뒤 따로 읽는다. 조건으로 고르던 잠금({@code WHERE status = … FOR UPDATE})은 「조건으로 id 고르기(잠금 없이) → 잠그기 → 조건을 넣어 다시
+ *   <li>잠금만 건다. 행 내용은 잠근 뒤 따로 읽는다 — 잠근 행이 이미 영속성 문맥에 있으면 잠근 직후 DB 에서 다시 읽어 낡은 1차 캐시 값을 보지 않게 한다. 조건으로 고르던 잠금({@code WHERE status = … FOR UPDATE})은 「조건으로 id 고르기(잠금 없이) → 잠그기 → 조건을 넣어 다시
  *       읽기」 — PostgreSQL 이 잠근 뒤 조건을 다시 보는 것과 같은 결과다.</li>
  *   <li>{@code SKIP LOCKED} 판({@link #forUpdateSkipLocked})은 다른 트랜잭션이 잡고 있는 행(그 행을 FK 로 참조하며 넣는 중인 트랜잭션 포함)을 기다리지 않고 건너뛴다.</li>
  *   <li>처음부터 JPA 잠금이던 곳(파생 메서드의 {@code @Lock(PESSIMISTIC_WRITE)} 등)은 이것으로 바꾸지 않는다 — 전환 전 네이티브 {@code FOR UPDATE} 자리만 쓴다.</li>
@@ -74,7 +75,36 @@ public final class RowLocks {
         Target target = TARGETS.computeIfAbsent(entity, type -> Target.of(entityManager, type));
         List<T> keys = List.copyOf(ids);
         String sql = target.sql(keys.size(), clause);
-        return entityManager.unwrap(Session.class).doReturningWork(connection -> run(connection, sql, target, keys));
+        List<T> locked = entityManager.unwrap(Session.class).doReturningWork(connection -> run(connection, sql, target, keys));
+        refreshManaged(entityManager, entity, locked);
+        return locked;
+    }
+
+    /**
+     * 잠근 행이 이미 영속성 문맥에 올라와 있으면 DB 에서 다시 읽는다 — 잠금을 기다리는 사이 다른 트랜잭션이 커밋한 값을 보게 한다(전환 전 JDBC 는 잠근 뒤 늘 새로 읽었다).
+     * 올라와 있지 않은 행은 건드리지 않는다(뒤의 질의가 DB 에서 읽는다). 다시 읽기 전에 영속성 문맥에 내보내지 않은 변경이 있으면 먼저 내보낸다(잠금은 이미 쥐고 있다) —
+     * 그래야 잠그기 전에 고쳐 둔 값이 다시 읽기로 버려지지 않는다.
+     */
+    private static void refreshManaged(EntityManager entityManager, Class<?> entity, List<?> locked) {
+        if (locked.isEmpty()) {
+            return;
+        }
+        SessionImplementor session = entityManager.unwrap(SessionImplementor.class);
+        EntityPersister persister = session.getFactory().getMappingMetamodel().getEntityDescriptor(entity);
+        List<Object> managed = new ArrayList<>();
+        for (Object id : locked) {
+            Object instance = session.getPersistenceContextInternal().getEntity(session.generateEntityKey(id, persister));
+            if (instance != null) {
+                managed.add(instance);
+            }
+        }
+        if (managed.isEmpty()) {
+            return;
+        }
+        if (session.isDirty()) {
+            session.flush();
+        }
+        managed.forEach(entityManager::refresh);
     }
 
     private static <T> List<T> run(Connection connection, String sql, Target target, List<T> keys) throws SQLException {
