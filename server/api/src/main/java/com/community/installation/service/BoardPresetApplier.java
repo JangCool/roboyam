@@ -43,7 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>게시판 순서: 일반 게시판을 프리셋의 순서({@code sortOrder})대로 먼저, 이어서 소모임 게시판을 매긴다(지금 있는 마지막 순서 다음부터 1씩).
  *       이미 있는 주소·이름의 게시판은 건너뛴다.</li>
  *   <li>소모임 분류: 소모임 게시판의 {@code groupCategoryName} 마다 프리셋 차례대로 분류를 만들고(이름 키 = {@link GroupCategoryNames#key}, 같은 키의 분류가 있으면 그것을 쓴다,
- *       순서는 지금 마지막 다음부터 10 단위) 게시판을 분류 끝에 잇는다. 설치 전이라 관리자 분류 화면과 겨룰 일이 없어 분류 잠금(admin {@code GroupCategoryLock})은 잡지 않는다
+ *       순서는 지금 마지막 다음부터 10 단위) 게시판을 분류 끝에 잇는다. 설치 전이라 관리자 분류 화면과 겨룰 일이 없어 분류 잠금(admin {@code GroupCategoryLockQueries})은 잡지 않는다
  *       — 설치는 {@code installation} 행 잠금으로 한 번만 돈다.</li>
  *   <li>말머리: {@code common} 말머리는 같은 이름의 공통 말머리(질문·후기·잡담·공지)를 켜고, 프리셋에 없는 공통 말머리는 꺼 둔다. 고유 말머리의 이름이 공통 말머리 이름과 같으면
  *       (예: 자유게시판의 「잡담」, 공지 게시판의 「공지」) 고유 말머리를 따로 만들지 않고 그 공통 말머리를 켠다 — 관리자 화면의 「이름 중복 없음」 규칙과 맞춘다.

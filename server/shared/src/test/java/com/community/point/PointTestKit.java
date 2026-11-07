@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.point.entity.PointReason;
 import com.community.point.repository.master.PointLedgerWriter;
+import com.community.point.repository.master.PointPolicyQueries;
 import com.community.point.service.PointPolicy;
 import com.community.point.service.PointService;
 import com.community.restriction.repository.master.MemberRestrictionRepository;
@@ -62,7 +63,7 @@ final class PointTestKit {
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         writer = new PointLedgerWriter(dataSource);
-        policy = new PointPolicy(dataSource);
+        policy = new PointPolicy(new PointPolicyQueries(dataSource));
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         points = new PointService(writer, policy, new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);

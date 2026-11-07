@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * 읽기는 프로젝션(바꾸기는 조건부 대량 UPDATE 라 엔티티를 올려 두지 않는다).
  *
  * <p>Native SQL 로 남긴 것: 처음 입장을 고르는(투표) 요청이 동시에 둘 들어와도 한 행만 남아야 해서 {@code INSERT … ON CONFLICT DO NOTHING}
- * (실패한 문장이 트랜잭션을 망가뜨리지 않게), 고정도 같은 방식(멱등). 입장 바꾸기의 의견 소급({@code WITH moved AS (UPDATE … RETURNING)} — 바꾼 줄 중 지우지 않은 것의 수를 한 문장으로).
+ * (실패한 문장이 트랜잭션을 망가뜨리지 않게), 고정도 같은 방식(멱등), 토론 열기({@code post_debates} — 엔티티 {@code PostDebateEntity} 의 나머지 문장은 {@code PostDebateRepository})도 같은 방식. 입장 바꾸기의 의견 소급({@code WITH moved AS (UPDATE … RETURNING)} — 바꾼 줄 중 지우지 않은 것의 수를 한 문장으로).
  */
 @Repository
 public class DebateQueries extends RoboyamRepositoryQDSL {
@@ -66,6 +66,19 @@ public class DebateQueries extends RoboyamRepositoryQDSL {
     public boolean insertIfAbsent(long postId, long userId, DebateStance stance, Instant now) {
         return entityManager.createNativeQuery("INSERT INTO post_stances (post_id, user_id, stance, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4) ON CONFLICT DO NOTHING")
                 .setParameter(1, postId).setParameter(2, userId).setParameter(3, stance.name()).setParameter(4, now).executeUpdate() > 0;
+    }
+
+    /**
+     * 토론을 연다({@code post_debates} 행 만들기) — 이미 열려 있으면(동시에 먼저 열었으면) 아무것도 하지 않고 false. 만든 쪽이 처음 연 사람으로 남는다.
+     *
+     * <p>Native SQL 인 이유: {@code INSERT … ON CONFLICT DO NOTHING} — 같은 글을 동시에 열어도 한 행만 남고 늦은 쪽은 {@code duplicate key} 로 트랜잭션이 깨지지 않고 설정 바꾸기로 이어 간다
+     * ({@code PostDebateWriter}).
+     */
+    public boolean openIfAbsent(long postId, boolean neutralEnabled, boolean stanceChangeAllowed, String byKind, Long by, Instant now) {
+        return entityManager.createNativeQuery("INSERT INTO post_debates (post_id, neutral_enabled, stance_change_allowed, opened_by_kind, opened_by, created_at, updated_at, "
+                        + "updated_by_kind, updated_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?4, ?5) ON CONFLICT DO NOTHING")
+                .unwrap(NativeQuery.class).setParameter(1, postId).setParameter(2, neutralEnabled).setParameter(3, stanceChangeAllowed).setParameter(4, byKind)
+                .setParameter(5, by, Long.class).setParameter(6, now).executeUpdate() > 0;
     }
 
     /** 글 하나의 투표 수(입장을 고른 사람 수) */

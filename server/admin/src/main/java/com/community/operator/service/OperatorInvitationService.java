@@ -14,6 +14,7 @@ import com.community.operator.entity.OperatorInvitationRoleEntity;
 import com.community.operator.exception.InvitationDuplicatedException;
 import com.community.operator.exception.InvitationNotFoundException;
 import com.community.operator.exception.OperatorEmailDuplicatedException;
+import com.community.operator.repository.master.OperatorIdentityLockQueries;
 import com.community.operator.repository.master.OperatorInvitationRepository;
 import com.community.operator.repository.master.OperatorInvitationRoleRepository;
 import com.community.operator.repository.master.OperatorRepository;
@@ -24,7 +25,6 @@ import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.crypto.Digests;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import jakarta.persistence.EntityManager;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,12 +69,12 @@ public class OperatorInvitationService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final ApplicationEventPublisher events;
-    private final EntityManager entityManager;
+    private final OperatorIdentityLockQueries identityLock;
 
     public OperatorInvitationService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators,
                                      RoleRepository roles, OperatorRoleAssignmentPolicy rolePolicy, AdminAuthProperties props, SnowflakeIdGenerator ids,
-                                     AuditLogService audit, ApplicationEventPublisher events, EntityManager entityManager) {
-        this.entityManager = entityManager;
+                                     AuditLogService audit, ApplicationEventPublisher events, OperatorIdentityLockQueries identityLock) {
+        this.identityLock = identityLock;
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
         this.operators = operators;
@@ -114,7 +114,7 @@ public class OperatorInvitationService {
         UserPolicy.emailViolation(email).ifPresent(message -> {
             throw ValidationException.of("email", message);
         });
-        OperatorIdentityLock.acquire(entityManager);
+        identityLock.acquire();
         if (operators.existsByEmail(email)) {
             throw new OperatorEmailDuplicatedException();
         }

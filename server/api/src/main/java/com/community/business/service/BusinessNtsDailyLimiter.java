@@ -2,18 +2,17 @@ package com.community.business.service;
 
 import com.community.business.exception.BusinessException;
 import com.community.business.nts.NtsProperties;
+import com.community.business.repository.master.BusinessNtsDailyCountQueries;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
-import javax.sql.DataSource;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -30,29 +29,25 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>한도({@code roboyam.business.nts.daily-validate-limit}, 기본 5)가 <b>0 이하면 제한 없음</b> — 세지도 않는다. 운영자 [다시 조회](admin)는 이 길을 거치지 않는다.</li>
  *   <li>지난 날짜 줄은 DB 배치 {@code business-nts-count-cleanup}(R__batch_34)이 지운다.</li>
  * </ul>
- * Native SQL 인 이유: {@code INSERT … ON CONFLICT … RETURNING} 은 PostgreSQL 전용이고 표는 엔티티가 없는 카운터다({@code RequestRateLimiter} 와 같다).
+ * 세는 문장(native — {@code INSERT … ON CONFLICT … RETURNING})은 저장소 {@link BusinessNtsDailyCountQueries} 다.
  */
 @Component
 public class BusinessNtsDailyLimiter {
 
     private static final Logger log = LoggerFactory.getLogger(BusinessNtsDailyLimiter.class);
 
-    private static final String COUNT = "INSERT INTO business_nts_daily_counts (user_id, day, count) VALUES (?, ?, 1) "
-            + "ON CONFLICT (user_id, day) DO UPDATE SET count = business_nts_daily_counts.count + 1 WHERE business_nts_daily_counts.count < ? "
-            + "RETURNING count";
-
-    private final JdbcTemplate jdbc;
+    private final BusinessNtsDailyCountQueries counts;
     private final TransactionTemplate separate;
     private final int limit;
     private final Clock clock;
 
     @Autowired
-    public BusinessNtsDailyLimiter(DataSource dataSource, PlatformTransactionManager transactions, NtsProperties properties, ObjectProvider<Clock> clocks) {
-        this(dataSource, transactions, properties.dailyValidateLimit(), clocks.getIfUnique(Clock::systemUTC));
+    public BusinessNtsDailyLimiter(BusinessNtsDailyCountQueries counts, PlatformTransactionManager transactions, NtsProperties properties, ObjectProvider<Clock> clocks) {
+        this(counts, transactions, properties.dailyValidateLimit(), clocks.getIfUnique(Clock::systemUTC));
     }
 
-    public BusinessNtsDailyLimiter(DataSource dataSource, PlatformTransactionManager transactions, int limit, Clock clock) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public BusinessNtsDailyLimiter(BusinessNtsDailyCountQueries counts, PlatformTransactionManager transactions, int limit, Clock clock) {
+        this.counts = counts;
         this.separate = new TransactionTemplate(transactions);
         this.separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.limit = limit;
@@ -70,13 +65,13 @@ public class BusinessNtsDailyLimiter {
         }
         Instant now = clock.instant();
         LocalDate day = ServiceTime.today(clock);
-        List<Integer> counted = separate.execute(status -> jdbc.queryForList(COUNT, Integer.class, userId, day, limit));
+        Optional<Integer> counted = separate.execute(status -> counts.incrementBelow(userId, day, limit));
         if (counted == null || counted.isEmpty()) {
             long retryAfter = retryAfterSeconds(now, day);
             log.info("사업자 국세청 진위확인 하루 한도에 걸렸다 userId={} day={} limit={} retryAfter={}s", userId, day, limit, retryAfter);
             throw BusinessException.ntsDailyLimit(retryAfter);
         }
-        return counted.getFirst();
+        return counted.get();
     }
 
     /** 다음 한국 0시까지의 초(올림, 최소 1) */

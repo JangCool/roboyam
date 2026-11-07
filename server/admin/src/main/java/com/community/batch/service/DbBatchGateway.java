@@ -1,13 +1,12 @@
 package com.community.batch.service;
 
 import com.community.batch.core.BatchCatalog;
+import com.community.batch.repository.master.PgCronQueries;
 import java.util.HashMap;
 import java.util.Map;
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
  * DB 배치(저장 프로시저 + pg_cron)의 화면 쪽 — pg_cron 의 상태·등록된 job 읽기, 켜기/끄기와 cron 수정({@code cron.alter_job}). 「지금 실행」의 {@code CALL} 은
  * 배치를 켠 서버가 요청을 집어 core 의 {@code DbBatchCaller} 로 한다.
  *
- * <p>Native SQL 인 이유: {@code cron.job}·{@code cron.alter_job}·{@code CALL} 은 PostgreSQL/pg_cron 전용이라 JPQL·QueryDSL 에 대응 문법이 없고, 확장이 없는 DB 에서는
- * 엔티티로 매핑할 수 없는 표다(그래서 읽기도 이 클래스 한 곳에 모은다). 식별자(프로시저 이름)는 카탈로그 상수에서 만들고 값은 모두 바인딩한다.
+ * <p>DB 문장(native — {@code cron.job}·{@code cron.alter_job}·DB 함수)은 저장소 {@link PgCronQueries} 한 곳에 있고, 이 클래스는 트랜잭션 경계와 실패 처리(로그·「사용 불가」)를 정한다.
  *
  * <p><b>권한</b>: 앱 DB 계정이 cron job 의 소유자다(마이그레이션이 그 계정으로 {@code cron.schedule} 한다). 그래서 별도 GRANT 나 SECURITY DEFINER 래퍼 없이
  * 자기 job 을 읽고({@code cron.job} 은 소유자만 보이는 RLS) {@code cron.alter_job} 으로 고친다 — 권한 상승이 없다. 슈퍼유저가 아닌 계정은 {@code cron} 스키마의 USAGE 만 받으면 된다.
  *
- * <p>트랜잭션: 읽기와 {@code alter_job} 은 부르는 서비스의 트랜잭션에 참여한다. {@code CALL} 은 core 의 {@code DbBatchCaller} 가 트랜잭션 밖의 새 연결에서 한다 — 프로시저가 덩어리마다
- * COMMIT 하므로 이미 열린 트랜잭션 안에서는 실행할 수 없다.
+ * <p>트랜잭션: 읽기와 {@code alter_job} 은 트랜잭션 밖({@code NOT_SUPPORTED} — 각 메서드 설명)이다. {@code CALL} 은 core 의 {@code DbBatchCaller} 가 트랜잭션 밖의 새 연결에서 한다 —
+ * 프로시저가 덩어리마다 COMMIT 하므로 이미 열린 트랜잭션 안에서는 실행할 수 없다.
  */
 @Component
 public class DbBatchGateway {
@@ -49,18 +47,18 @@ public class DbBatchGateway {
         }
     }
 
-    private final JdbcTemplate jdbc;
+    private final PgCronQueries cron;
 
-    public DbBatchGateway(DataSource dataSource) {
-        this.jdbc = new JdbcTemplate(dataSource);
+    public DbBatchGateway(PgCronQueries cron) {
+        this.cron = cron;
     }
 
     /** pg_cron 의 상태. DB 의 배치 도구를 읽지 못하면 {@link #UNREADABLE}. 트랜잭션 밖에서 읽는다 — 읽기가 실패해도 호출한 쪽의 트랜잭션(PostgreSQL 은 실패하면 그 트랜잭션을 못 쓴다)을 망치지 않게 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PgCronState state() {
         try {
-            String status = jdbc.queryForObject("select batch_pg_cron_status()", String.class);
-            String zone = jdbc.queryForObject("select coalesce(nullif(current_setting('cron.timezone', true), ''), 'GMT')", String.class);
+            String status = cron.status();
+            String zone = cron.timezone();
             return new PgCronState(status, zone);
         } catch (DataAccessException e) {
             log.warn("pg_cron 상태를 읽지 못했다: {}", e.getMostSpecificCause().getMessage());
@@ -73,18 +71,8 @@ public class DbBatchGateway {
     public Map<String, DbJob> jobs(boolean cronReady) {
         Map<String, DbJob> jobs = new HashMap<>();
         try {
-            if (cronReady) {
-                // pg_cron 은 이 DB 의 job 만 본다(database = current_database())
-                jdbc.query("select d.job_key, d.default_cron, j.jobid, j.schedule, j.active from batch_db_jobs d "
-                        + "left join cron.job j on j.jobname = d.job_key and j.database = current_database()", rs -> {
-                    long jobId = rs.getLong(3);
-                    boolean scheduled = !rs.wasNull();
-                    jobs.put(rs.getString(1), new DbJob(rs.getString(1), rs.getString(2), scheduled ? jobId : null, rs.getString(4), rs.getBoolean(5)));
-                });
-            } else {
-                jdbc.query("select job_key, default_cron from batch_db_jobs", rs -> {
-                    jobs.put(rs.getString(1), new DbJob(rs.getString(1), rs.getString(2), null, null, false));
-                });
+            for (PgCronQueries.DbJobRow row : cronReady ? cron.jobsWithCron() : cron.jobDefinitions()) {
+                jobs.put(row.jobKey(), new DbJob(row.jobKey(), row.defaultCron(), row.cronJobId(), row.schedule(), row.active()));
             }
         } catch (DataAccessException e) {
             log.warn("DB 배치 정의를 읽지 못했다: {}", e.getMostSpecificCause().getMessage());
@@ -98,13 +86,13 @@ public class DbBatchGateway {
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void setActive(long cronJobId, boolean active) {
-        jdbc.queryForList("select cron.alter_job(?, active => ?)", cronJobId, active);
+        cron.setActive(cronJobId, active);
     }
 
     /** cron 을 바꾼다({@code cron.alter_job}). pg_cron 이 식을 거절하면 {@link DataAccessException} 이 난다. 트랜잭션 밖에서 바로 반영한다({@link #setActive}와 같은 이유) */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void setSchedule(long cronJobId, String schedule) {
-        jdbc.queryForList("select cron.alter_job(?, schedule => ?)", cronJobId, schedule);
+        cron.setSchedule(cronJobId, schedule);
     }
 
     /**
@@ -113,8 +101,8 @@ public class DbBatchGateway {
      */
     public void prepare() {
         try {
-            String status = jdbc.queryForObject("select batch_enable_pg_cron()", String.class);
-            Integer registered = jdbc.queryForObject("select batch_register_missing()", Integer.class);
+            String status = cron.enablePgCron();
+            Integer registered = cron.registerMissing();
             if ("READY".equals(status)) {
                 log.info("DB 배치(pg_cron)를 쓸 수 있다 — 새로 등록한 배치 {}개", registered);
                 Map<String, DbJob> registeredJobs = jobs(true);
