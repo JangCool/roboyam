@@ -112,6 +112,11 @@ public class OperatorMemberAccountService {
         return store.linksOfOperators(operatorIds, now());
     }
 
+    /** 회원 여럿의 연결(관리자 공지 목록 — 작성자 옆 운영자 이름) */
+    public Map<Long, Link> linksOfUsers(Collection<Long> userIds) {
+        return store.linksOfUsers(userIds == null ? Set.of() : userIds, now());
+    }
+
     /** 멈춘 까닭(살아 있으면 빈 목록) — 운영자 쪽이 먼저 */
     public static java.util.List<String> pausedReasons(Link link) {
         java.util.List<String> out = new java.util.ArrayList<>();

@@ -74,6 +74,7 @@ export default {
     staffActions: '스텝 처리 감독',
     content: '콘텐츠',
     posts: '게시글 관리',
+    notices: '공지 관리',
     highlights: '하이라이트',
     popularPosts: '인기글 관리',
     popularSettings: '인기글 설정',

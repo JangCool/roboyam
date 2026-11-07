@@ -205,6 +205,9 @@ export default class UtilAdminMenu {
             items: [
                 // 게시글 관리 — 모든 게시판의 글을 찾아 숨기기·삭제·복구·이동·공지·고정(docs/features/post-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
                 { key: 'posts', to: '/posts', icon: 'pi pi-file-edit', labelKey: 'menu.posts', permission: 'post.read' },
+                // 공지 관리 — 공지 게시판(slug `notice`) 글 쓰기·고치기·지우기·고정(docs/features/notice-admin-contract.md). 쓰기는 화면 안에서 `post.manage`.
+                // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한. 관리자 메뉴를 이미 저장한 사이트는 메뉴 관리 › 「메뉴에 없는 화면」에서 넣는다.
+                { key: 'notices', to: '/notices', icon: 'pi pi-megaphone', labelKey: 'menu.notices', permission: 'post.read' },
                 { key: 'highlights', to: '/content/highlights', icon: 'pi pi-bookmark', labelKey: 'menu.highlights', permission: 'highlight.read' },
                 { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-chart-line', labelKey: 'menu.popularPosts', permission: 'popular.read' },
                 { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },
