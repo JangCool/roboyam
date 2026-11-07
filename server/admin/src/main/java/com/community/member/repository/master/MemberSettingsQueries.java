@@ -3,14 +3,15 @@ package com.community.member.repository.master;
 import com.community.block.entity.QBlockedWordEntity;
 import com.community.block.entity.QUserBlockEntity;
 import com.community.block.entity.QUserMemoEntity;
+import com.community.dm.entity.QDmUserStateEntity;
 import com.community.membernotification.entity.QMemberNotificationEntity;
+import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Repository;
 
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Repository;
  * 시작하는 색인({@code ix_user_blocks_user}·{@code ix_blocked_words_user}·{@code ix_user_memos_user}·{@code ix_member_notifications_user}·
  * {@code ix_member_notifications_unread})을 탄다. 차단·메모 수는 회원 화면({@code BlockRepositoryQDSL})과 같게 탈퇴한 상대를 뺀다.
  *
- * <p>쪽지 상태({@code dm_user_states})와 알림 선택({@code member_notification_preferences})만 네이티브 SQL 이다 — 회원 화면(api)의 표라 엔티티가 없다.
+ * <p>쪽지 상태({@code dm_user_states})와 알림 선택({@code member_notification_preferences})도 shared 엔티티(QueryDSL)로 읽는다 — 둘 다 회원 ID 가 키(의 앞)다.
  */
 @Repository
 public class MemberSettingsQueries extends RoboyamRepositoryQDSL {
@@ -31,12 +32,11 @@ public class MemberSettingsQueries extends RoboyamRepositoryQDSL {
     private static final QUserMemoEntity MEMO = QUserMemoEntity.userMemoEntity;
     private static final QMemberNotificationEntity NOTIFICATION = QMemberNotificationEntity.memberNotificationEntity;
     private static final QUserEntity TARGET = new QUserEntity("target");
+    private static final QDmUserStateEntity DM_STATE = QDmUserStateEntity.dmUserStateEntity;
+    private static final QMemberNotificationPreferenceEntity PREFERENCE = QMemberNotificationPreferenceEntity.memberNotificationPreferenceEntity;
 
-    private final EntityManager entityManager;
-
-    public MemberSettingsQueries(JPAQueryFactory query, EntityManager entityManager) {
+    public MemberSettingsQueries(JPAQueryFactory query) {
         super(query);
-        this.entityManager = entityManager;
     }
 
     /**
@@ -62,23 +62,17 @@ public class MemberSettingsQueries extends RoboyamRepositoryQDSL {
         return new Counts(acceptDm(userId), blockedUsers, blockedWords, memos, notifications, unread);
     }
 
-    /** 쪽지 받기 — 상태 행이 없거나 값이 비면 true. Native SQL — {@code dm_user_states} 는 엔티티가 없다 */
+    /** 쪽지 받기 — 상태 행이 없으면 true */
     private boolean acceptDm(long userId) {
-        List<?> rows = entityManager.createNativeQuery("SELECT accept_dm FROM dm_user_states WHERE user_id = :userId")
-                .setParameter("userId", userId)
-                .getResultList();
-        return rows.isEmpty() || !Boolean.FALSE.equals(rows.get(0));
+        Boolean accept = query.select(DM_STATE.acceptDm).from(DM_STATE).where(DM_STATE.userId.eq(userId)).fetchFirst();
+        return !Boolean.FALSE.equals(accept);
     }
 
-    /** 회원이 고른 알림 받기 — 이벤트 코드 → 선택. 줄이 없는 이벤트는 빠진다(둘 다 켬). Native SQL — {@code member_notification_preferences} 는 엔티티가 없다 */
+    /** 회원이 고른 알림 받기 — 이벤트 코드 → 선택. 줄이 없는 이벤트는 빠진다(둘 다 켬) */
     public Map<String, Choice> choicesOf(long userId) {
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = entityManager.createNativeQuery("SELECT event_code, in_app, email FROM member_notification_preferences WHERE user_id = :userId")
-                .setParameter("userId", userId)
-                .getResultList();
         Map<String, Choice> out = new HashMap<>();
-        for (Object[] row : rows) {
-            out.put((String) row[0], new Choice(Boolean.TRUE.equals(row[1]), Boolean.TRUE.equals(row[2])));
+        for (Tuple row : query.select(PREFERENCE.eventCode, PREFERENCE.inApp, PREFERENCE.email).from(PREFERENCE).where(PREFERENCE.userId.eq(userId)).fetch()) {
+            out.put(row.get(PREFERENCE.eventCode), new Choice(Boolean.TRUE.equals(row.get(PREFERENCE.inApp)), Boolean.TRUE.equals(row.get(PREFERENCE.email))));
         }
         return out;
     }

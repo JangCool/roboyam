@@ -2,6 +2,8 @@ package com.community.dm;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.community.dm.repository.master.DmBoxRepository;
+import com.community.dm.repository.master.DmMessageRepository;
 import com.community.dm.repository.master.DmQueries;
 import com.community.dm.repository.master.DmQueries.Person;
 import com.community.dm.repository.master.DmQueries.RecipientRow;
@@ -32,7 +34,8 @@ class DmQueriesPeopleTest {
     @BeforeAll
     static void setUp() {
         jdbc = new JdbcTemplate(JpaTestContext.dataSource());
-        dm = new DmQueries(JpaTestContext.query(), JpaTestContext.dataSource());
+        dm = new DmQueries(JpaTestContext.query(), JpaTestContext.context().getBean(DmBoxRepository.class), JpaTestContext.context().getBean(DmMessageRepository.class),
+                JpaTestContext.dataSource());
     }
 
     @AfterEach

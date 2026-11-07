@@ -188,6 +188,17 @@ public class WithdrawalQueries extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(at).map(OffsetDateTime::toInstant);
     }
 
+    /**
+     * 사업자 신청 건의 환불 대기 금액 합 — 요청됨(REQUESTED)이거나 승인됐지만 아직 끝나지 않은(APPROVED · 완료 시각 없음) 환불의 승인 금액(없으면 제안 금액). 탈퇴 화면의 「포기와 무관하게 환불된다」 금액.
+     *
+     * <p>Native SQL 인 이유: {@code biz_refunds}·{@code biz_applications} 는 엔티티가 없는 커머스 표다(3단계에서 엔티티가 생긴다).
+     */
+    public long bizRefundWaitingTotal(long businessProfileId) {
+        Long waiting = jdbc.queryForObject("SELECT coalesce(sum(coalesce(r.approved_amount, r.proposed_amount)), 0) FROM biz_refunds r JOIN biz_applications a ON a.id = r.application_id "
+                + "WHERE a.business_profile_id = ? AND (r.status = 'REQUESTED' OR (r.status = 'APPROVED' AND r.completed_at IS NULL))", Long.class, businessProfileId);
+        return waiting == null ? 0 : waiting;
+    }
+
     /** 진행 중 공구 주문(PENDING_PAYMENT·JOINED·CONFIRMED·PREPARING·SHIPPED) — Native SQL 인 이유: 공구 주문 표는 엔티티가 없다 */
     public List<Order> ordersInProgress(long userId) {
         return jdbc.query("SELECT id, order_no, status, delivered_at FROM group_buy_participations WHERE user_id = ? AND status IN ('PENDING_PAYMENT', 'JOINED', 'CONFIRMED', "

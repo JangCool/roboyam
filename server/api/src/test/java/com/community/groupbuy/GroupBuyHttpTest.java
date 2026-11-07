@@ -70,6 +70,8 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     @Autowired
     @Qualifier("springSecurityFilterChain")
     private Filter securityFilterChain;
+    @Autowired
+    private IdentityStore identityStore;
 
     private MockMvc mvc;
 
@@ -95,7 +97,7 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
         long id = newMember();
         memberFixture.verifyEmail(id);
         memberFixture.profileIfAbsent(id, "h" + Long.toString(id, 36));
-        new IdentityStore(dataSource).insertVerification(id, String.format("%064x", id), "f" + String.format("%063x", id), LocalDate.of(1990, 1, 1),
+        identityStore.insertVerification(id, String.format("%064x", id), "f" + String.format("%063x", id), LocalDate.of(1990, 1, 1),
                 IdentityProviderKind.FAKE, "fake:" + id, Instant.now());
         return id;
     }
