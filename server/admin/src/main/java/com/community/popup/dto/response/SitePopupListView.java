@@ -7,6 +7,7 @@ import java.util.List;
  *
  * @param total        전체 수
  * @param showingCount 지금 노출 중(SHOWING) 수
+ * @param layout       여러 창 배치 {@code HORIZONTAL} · {@code VERTICAL}(사이트 전체 하나)
  */
-public record SitePopupListView(List<SitePopupItemView> items, int total, int showingCount) {
+public record SitePopupListView(List<SitePopupItemView> items, int total, int showingCount, String layout) {
 }

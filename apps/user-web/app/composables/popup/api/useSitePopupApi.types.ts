@@ -25,8 +25,14 @@ export interface PublicSitePopup {
     target: SitePopupTarget;
     devices: SitePopupDevice[];
     hideOption: SitePopupHideOption;
+    /** 띄울 창 1~3 — 같은 번호끼리 한 창에서 슬라이드, 번호가 다르면 PC 는 나란히·모바일은 차례로 */
+    windowNo: number;
 }
 
+/** 여러 창 배치 — PC 에서 창을 가로로 나란히 · 위아래로 쌓기(모바일은 어느 쪽이든 하나씩 차례로) */
+export type SitePopupLayout = 'HORIZONTAL' | 'VERTICAL';
+
 export interface SitePopupsResponse {
+    layout: SitePopupLayout;
     items: PublicSitePopup[];
 }

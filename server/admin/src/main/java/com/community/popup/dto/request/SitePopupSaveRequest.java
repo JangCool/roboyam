@@ -15,14 +15,15 @@ import java.util.List;
  * @param target      {@code HOME} · {@code ALL}
  * @param devices     {@code PC}·{@code MOBILE} 하나 이상
  * @param hideOption  {@code TODAY} · {@code WEEK} · {@code NEVER} · {@code NONE}
+ * @param windowNo    띄울 창 1~3 — 비우면 1(같은 번호끼리 한 창에서 슬라이드)
  * @param visible     노출 켬 — 만들 때 비우면 true, 고칠 때 비우면 그대로
  * @param showFrom    노출 시작(포함, 비우면 바로) · {@code showUntil} 노출 끝(미포함, 비우면 상시 — 시작보다 늦어야)
  */
 public record SitePopupSaveRequest(String name, String kind, String imageFileId, String imageAlt, String link, String heading, String body, String buttonLabel,
-                                   String target, List<String> devices, String hideOption, Boolean visible, Instant showFrom, Instant showUntil) {
+                                   String target, List<String> devices, String hideOption, Integer windowNo, Boolean visible, Instant showFrom, Instant showUntil) {
 
     /** 칸을 하나도 보내지 않은 본문 */
     public static SitePopupSaveRequest empty() {
-        return new SitePopupSaveRequest(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        return new SitePopupSaveRequest(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 }

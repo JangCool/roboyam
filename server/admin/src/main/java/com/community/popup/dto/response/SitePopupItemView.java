@@ -9,10 +9,11 @@ import java.util.List;
  * @param order       1부터 연속(저장한 차례 — 공개 사이트에서 넘기는 차례)
  * @param imageFileId 그림 파일 ID · {@code imageUrl} 그 공개 주소(없으면 null)
  * @param devices     {@code PC}·{@code MOBILE}(이 차례)
+ * @param windowNo    띄울 창 1~3
  * @param status      SHOWING(지금 노출 중) · SCHEDULED(기간 전) · EXPIRED(기간 지남) · OFF(노출 끔) — 앞의 것이 이긴다: OFF → SCHEDULED → EXPIRED → SHOWING
  * @param updatedBy   마지막으로 고친 운영자(없으면 null)
  */
 public record SitePopupItemView(String id, int order, String name, String kind, String imageFileId, String imageUrl, String imageAlt, String link, String heading,
-                                String body, String buttonLabel, String target, List<String> devices, String hideOption, boolean visible, Instant showFrom,
+                                String body, String buttonLabel, String target, List<String> devices, String hideOption, int windowNo, boolean visible, Instant showFrom,
                                 Instant showUntil, String status, Instant updatedAt, SitePopupEditorView updatedBy) {
 }
