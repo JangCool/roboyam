@@ -15,6 +15,7 @@ import com.community.groupbuy.entity.RequestStatus;
 import com.community.groupbuy.entity.RequestType;
 import com.community.groupbuy.entity.Resolution;
 import com.community.groupbuy.entity.SupplyChoice;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -101,7 +102,7 @@ public class GroupBuyRequestStore extends GroupBuyStoreSupport {
 
     /** 잠그고 읽는다 — 요청 처리는 주문 행 다음(주문 행 → 요청 행 → 수량 → 결제 행) */
     public Optional<RequestRow> lock(long id) {
-        return lockRow(RQ, RQ.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdate(entityManager, GroupBuyRequestEntity.class, id) ? find(id) : Optional.empty();
     }
 
     public List<RequestRow> openOf(long participationId) {

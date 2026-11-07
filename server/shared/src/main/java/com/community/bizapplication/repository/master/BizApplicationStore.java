@@ -28,6 +28,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -58,7 +59,7 @@ import tools.jackson.databind.json.JsonMapper;
  * (서비스는 행을 잠근 뒤 부르지만, 잠그지 않는 길 — 알림 표시 등 — 도 같은 규칙).
  *
  * <p>QueryDSL 이 기본이다 — 읽기는 한 줄 모양(프로젝션, 영속성 문맥의 낡은 엔티티를 보지 않는다), 상태 전이·카운터는 조건부 DML({@code execute() == 1}), 넣기는
- * {@code persist} + {@code flush}({@link JpaStoreWrites}). 잠금은 루트 표 id 프로젝션의 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}) 뒤 다시 읽는다.
+ * {@code persist} + {@code flush}({@link JpaStoreWrites}). 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기) 뒤 다시 읽는다.
  * Native SQL 로 남긴 것과 이유: 화면 번호 만들기({@code nextval} 시퀀스 + 한국 날짜 연도 — DB 시퀀스),
  * 입금 확인 upsert({@code ON CONFLICT (application_id) DO UPDATE} — 같은 건을 두 운영자가 동시에 처음 확인해도 한 줄).
  */
@@ -190,15 +191,16 @@ public class BizApplicationStore extends RoboyamRepositoryQDSL {
 
     /** 행을 잠그고 읽는다(처리 — 결제 확정과 겹쳐도 한쪽만) */
     public Optional<AppRow> lock(long id) {
-        return JpaStoreWrites.lockRow(query, A, A.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdate(entityManager, BizApplicationEntity.class, id) ? find(id) : Optional.empty();
     }
 
     /** 그 회원의 신청 건을 잠근다 — 남의 건은 비어 있다(404) */
     public Optional<AppRow> lockOwned(long id, long userId) {
-        if (query.select(A.id).from(A).where(A.id.eq(id), A.userId.eq(userId)).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
+        Long owned = query.select(A.id).from(A).where(A.id.eq(id), A.userId.eq(userId)).fetchFirst();
+        if (owned == null || !RowLocks.forUpdate(entityManager, BizApplicationEntity.class, owned)) {
             return Optional.empty();
         }
-        return find(id);
+        return findOwned(id, userId);
     }
 
     public Optional<AppRow> findOwned(long id, long userId) {

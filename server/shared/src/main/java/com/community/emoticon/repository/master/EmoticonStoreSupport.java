@@ -26,9 +26,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *   <li><b>읽기는 한 줄 모양(프로젝션)</b>이다 — 엔티티를 영속성 문맥에 올리지 않으므로 같은 트랜잭션의 조건부 UPDATE(QueryDSL DML · JDBC)가 바꾼 값을 늘 DB 에서 다시 읽는다.</li>
  *   <li><b>쓰기는 즉시 실행</b>이다 — 상태 전이·카운터는 QueryDSL DML({@code execute()} 가 바로 돈다), 넣기는 {@code persist} 뒤 바로 {@code flush} 하고 문맥에서 뗀다
  *       ({@code detach} — 판의 차례처럼 지우고 같은 키로 다시 넣는 줄이 문맥의 옛 엔티티와 부딪히지 않게). 변경 감지에 맡기지 않는다.</li>
- *   <li><b>행 잠금</b>은 루트 표만 고르는 질의에 {@code PESSIMISTIC_WRITE}(PostgreSQL {@code FOR NO KEY UPDATE}) · {@code PESSIMISTIC_READ}({@code FOR SHARE}) — 잠그는 문장과 읽는
- *       문장을 나눈다(조인 프로젝션에 잠금을 걸면 잠기지 않는다). 로보티콘 저장소의 잠금은 모두 같은 행을 잠그거나 조건부 UPDATE 하는 작업자끼리 줄 세우는 것이라
- *       그 행을 외래 키로 가리키는 INSERT 를 막을 필요가 없다(예전 {@code FOR UPDATE} 와 막는 작업자가 같다).</li>
+ *   <li><b>행 잠금</b>은 쓰기 잠금이 {@link com.community.zconfiguration.jpa.RowLocks}({@code FOR UPDATE} — 전환 전 세기, 그 행을 외래 키로 가리키는 INSERT 도 기다린다),
+ *       나눔 잠금이 루트 표만 고르는 질의의 {@code PESSIMISTIC_READ}({@code FOR SHARE}) — 잠그는 문장과 읽는 문장을 나눈다(조인 프로젝션에 잠금을 걸면 잠기지 않는다).</li>
  *   <li>JDBC({@link #jdbc}) 문장은 같은 트랜잭션의 연결을 쓴다(JPA 트랜잭션 관리자가 연결을 묶는다). 사유는 문장마다 주석으로 적는다.</li>
  *   <li>시각은 서비스가 넘기는 {@code now} 다(시험이 시계를 옮긴다 — {@code DB_NOW} 로 바꾸지 않는다).</li>
  * </ul>

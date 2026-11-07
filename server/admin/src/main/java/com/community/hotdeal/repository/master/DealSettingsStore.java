@@ -4,9 +4,9 @@ import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.entity.DealSettingEntity;
 import com.community.hotdeal.entity.QDealSettingEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
@@ -52,8 +52,10 @@ public class DealSettingsStore extends RoboyamRepositoryQDSL {
     }
 
     private DealSettingEntity row(boolean forUpdate) {
-        var select = query.selectFrom(S).where(S.id.eq(DealSettingEntity.ROW_ID));
-        DealSettingEntity row = (forUpdate ? select.setLockMode(LockModeType.PESSIMISTIC_WRITE) : select).fetchOne();
+        if (forUpdate) {
+            RowLocks.forUpdate(entityManager, DealSettingEntity.class, DealSettingEntity.ROW_ID); // 전환 전 세기(FOR UPDATE)
+        }
+        DealSettingEntity row = query.selectFrom(S).where(S.id.eq(DealSettingEntity.ROW_ID)).fetchOne();
         if (row == null) {
             // V122 가 행을 넣는다 — 지워졌으면 기본값으로 다시 만든다
             entityManager.createNativeQuery("INSERT INTO deal_settings (id, updated_at) VALUES (1, now()) ON CONFLICT (id) DO NOTHING").executeUpdate();

@@ -19,6 +19,7 @@ import com.community.groupbuy.entity.QGroupBuySkuEntity;
 import com.community.groupbuy.entity.SkuKind;
 import com.community.groupbuy.repository.master.GroupBuyStore.AxisRow;
 import com.community.groupbuy.repository.master.GroupBuyStore.ImageRow;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -144,7 +145,7 @@ public class GroupBuyProductStore extends GroupBuyStoreSupport {
 
     /** 상품 행을 잠근다(구성 바꾸기 ∥ 그 상품을 쓰는 공구의 모집 시작 — 모집 시작도 이 행을 잠근다) */
     public Optional<ProductRow> lock(long id) {
-        return lockRow(P, P.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdate(entityManager, GroupBuyProductEntity.class, id) ? find(id) : Optional.empty();
     }
 
     public void insert(long id, NewProduct p, Long operatorId, Instant now) {

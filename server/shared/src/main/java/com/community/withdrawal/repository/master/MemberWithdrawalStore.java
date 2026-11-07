@@ -6,12 +6,13 @@ import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalSource;
 import com.community.withdrawal.entity.WithdrawalStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.DateTimePath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -70,10 +71,12 @@ public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
     }
 
     private final MemberWithdrawalRepository repository;
+    private final EntityManager entityManager;
 
-    public MemberWithdrawalStore(JPAQueryFactory query, MemberWithdrawalRepository repository) {
+    public MemberWithdrawalStore(JPAQueryFactory query, MemberWithdrawalRepository repository, EntityManager entityManager) {
         super(query);
         this.repository = repository;
+        this.entityManager = entityManager;
     }
 
     public void insert(NewRow r) {
@@ -105,9 +108,12 @@ public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
      * 잠근 뒤 값은 프로젝션으로 다시 읽는다 — 같은 트랜잭션에서 넣은 엔티티가 컨텍스트에 있으면 잠금 질의가 그 (낡을 수 있는) 인스턴스를 돌려주기 때문이다.
      */
     public Optional<Row> lockScheduled(long userId) {
-        MemberWithdrawalEntity locked = query.selectFrom(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED))
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst();
-        return locked == null ? Optional.empty() : find(locked.getId());
+        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 고른다(전환 전 「WHERE … FOR UPDATE」와 같은 결과)
+        List<Long> locked = RowLocks.forUpdate(entityManager, MemberWithdrawalEntity.class,
+                query.select(W.id).from(W).where(W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc()).fetch());
+        Long id = locked.isEmpty() ? null
+                : query.select(W.id).from(W).where(W.id.in(locked), W.userId.eq(userId), W.status.eq(WithdrawalStatus.SCHEDULED)).orderBy(W.id.asc()).fetchFirst();
+        return id == null ? Optional.empty() : find(id);
     }
 
     /** 진행 중 신청 ID — 신청 ID 차례(배치의 덩어리 읽기, {@code afterId} 다음부터) */

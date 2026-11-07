@@ -8,11 +8,13 @@ import com.community.ad.entity.QAdAdvertiserEventEntity;
 import com.community.ad.entity.QAdAdvertiserViewEntity;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.QBizApplicationEntity;
+import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.entity.QBusinessProfileEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -25,7 +27,6 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -217,12 +218,12 @@ public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
 
     /** 광고주 줄 잠그기(고치기·보관·삭제를 한 줄씩) — 없으면 false */
     public boolean lock(long id) {
-        return JpaStoreWrites.lockRow(query, A, A.id, id);
+        return RowLocks.forUpdate(entityManager, AdAdvertiserEntity.class, id);
     }
 
     /** 사업자 신원 줄 잠그기(사업자 광고주의 광고주 줄을 처음 만들 때 둘이 겹치지 않게) — 없으면 false */
     public boolean lockProfile(long profileId) {
-        return query.select(P.id).from(P).where(P.id.eq(profileId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() != null;
+        return RowLocks.forUpdate(entityManager, BusinessProfileEntity.class, profileId);
     }
 
     public void update(long id, Change c, Instant now) {

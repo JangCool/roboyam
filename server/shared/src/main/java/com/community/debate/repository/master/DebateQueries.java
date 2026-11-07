@@ -3,13 +3,14 @@ package com.community.debate.repository.master;
 import com.community.debate.dto.DebateVotesView;
 import com.community.debate.entity.DebateStance;
 import com.community.debate.entity.PostStanceEntity;
+import com.community.debate.entity.PostStanceId;
 import com.community.debate.entity.QDebatePinEntity;
 import com.community.debate.entity.QPostStanceEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,14 +49,10 @@ public class DebateQueries extends RoboyamRepositoryQDSL {
 
     /** 그 회원의 그 글 현재 입장 — 행을 쓰기 잠금으로 읽는다(입장 바꾸기가 줄을 선다). 없으면 빈 값(잠글 행이 없다 — {@link #insertIfAbsent} 가 경합을 막는다) */
     public Optional<DebateStance> lockStance(long postId, long userId) {
-        PostStanceEntity row = query.selectFrom(STANCE).where(STANCE.postId.eq(postId), STANCE.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE)
-                .fetchOne();
-        if (row == null) {
+        if (!RowLocks.forUpdate(entityManager, PostStanceEntity.class, new PostStanceId(postId, userId))) { // 전환 전 세기(FOR UPDATE)
             return Optional.empty();
         }
-        DebateStance stance = row.getStance();
-        entityManager.detach(row); // 잠금만 쓴다 — 뒤의 대량 UPDATE({@link #change}) 뒤에 낡은 값이 1차 캐시에 남지 않게
-        return Optional.of(stance);
+        return stanceOf(postId, userId); // 값은 프로젝션으로 — 엔티티를 1차 캐시에 올리지 않는다(뒤의 대량 UPDATE {@link #change})
     }
 
     /**

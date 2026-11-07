@@ -21,6 +21,7 @@ import com.community.groupbuy.entity.SkuKind;
 import com.community.groupbuy.entity.WatchKind;
 import com.community.holiday.entity.QSiteHolidayEntity;
 import com.community.holiday.service.BusinessDayCalendar;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -164,7 +165,7 @@ public class GroupBuyStore extends GroupBuyStoreSupport {
 
     /** 행을 잠그고 읽는다 — 공구 행을 잠그는 일(판정·중단)은 결제 행을 잠그는 일과 같은 트랜잭션에 넣지 않는다(결정 37). 공구 행만 잠그고(상품 행은 잠그지 않는다) 그다음 읽는다 */
     public Optional<GroupBuyRow> lock(long id) {
-        return lockRow(G, G.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdate(entityManager, GroupBuyEntity.class, id) ? find(id) : Optional.empty();
     }
 
     /** 새 공구(DRAFT) — 1차면 {@code roundRootId = id} */

@@ -3,6 +3,7 @@ package com.community.groupbuy.repository.master;
 import com.community.groupbuy.entity.GroupBuySettingsEntity;
 import com.community.groupbuy.entity.QGroupBuySettingsEntity;
 import com.community.operator.entity.QOperatorEntity;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.NumberPath;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Repository;
 
 /**
  * 공구 설정 화면({@code GroupBuySettingsService})의 읽기·저장 — {@code group_buy_settings} 1행. 숫자 칸은 열 이름으로 고른다(서비스의 칸 목록이 정본). 서비스 안에 있던 SQL 을 옮겼다.
- * 모두 QueryDSL({@link GroupBuyStoreSupport}) — 저장 전 행 잠금은 그 행만 고르는 {@code PESSIMISTIC_WRITE}.
+ * 모두 QueryDSL({@link GroupBuyStoreSupport}) — 저장 전 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기).
  */
 @Repository
 public class GroupBuySettingsStore extends GroupBuyStoreSupport {
@@ -75,7 +76,7 @@ public class GroupBuySettingsStore extends GroupBuyStoreSupport {
 
     /** 설정 행을 잠근다(저장끼리 줄 선다) */
     public void lock() {
-        if (query.select(S.id).from(S).where(S.id.eq(GroupBuySettingsEntity.ROW_ID)).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
+        if (!RowLocks.forUpdate(entityManager, GroupBuySettingsEntity.class, GroupBuySettingsEntity.ROW_ID)) {
             throw new EmptyResultDataAccessException(1);
         }
     }

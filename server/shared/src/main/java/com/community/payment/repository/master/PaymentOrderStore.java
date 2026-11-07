@@ -7,6 +7,7 @@ import com.community.payment.dto.PaymentStatus;
 import com.community.payment.entity.PaymentOrderEntity;
 import com.community.payment.entity.QPaymentOrderEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -16,6 +17,7 @@ import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -30,7 +32,7 @@ import org.springframework.stereotype.Repository;
  *
  * <p>QueryDSL 이 기본이다. 읽기는 한 줄 모양(프로젝션)이라 영속성 문맥의 낡은 엔티티를 보지 않고, 넣기는 넣은 뒤 바로 내보낸다({@code persistAndFlush}) — 결제 확정 트랜잭션은
  * 처리기({@code onPaid})를 JDBC 세이브포인트로 감싸므로 그 전에 미뤄 둔 변경이 남으면 안 된다(세이브포인트를 되돌릴 때 순서가 꼬인다).
- * 잠금은 결제 주문 표만 고르는 문장({@code PESSIMISTIC_WRITE} = {@code FOR NO KEY UPDATE})으로 잡고 칸은 그 뒤 프로젝션으로 읽는다.
+ * 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기)로 잡고 칸은 그 뒤 프로젝션으로 읽는다.
  */
 @Repository
 public class PaymentOrderStore extends RoboyamRepositoryQDSL {
@@ -68,10 +70,12 @@ public class PaymentOrderStore extends RoboyamRepositoryQDSL {
     }
 
     private final PaymentOrderRepository repository;
+    private final EntityManager entityManager;
 
-    public PaymentOrderStore(JPAQueryFactory query, PaymentOrderRepository repository) {
+    public PaymentOrderStore(JPAQueryFactory query, PaymentOrderRepository repository, EntityManager entityManager) {
         super(query);
         this.repository = repository;
+        this.entityManager = entityManager;
     }
 
     /** 넣고 바로 내보낸다(확정·세이브포인트 경로에 미뤄 둔 쓰기를 남기지 않는다) */
@@ -93,7 +97,7 @@ public class PaymentOrderStore extends RoboyamRepositoryQDSL {
      * 같은 결제의 확정·취소·관리자 처리가 이 행에서 줄을 선다(잠그는 차례: 결제 주문 행 → 취소 줄 → 도메인 주문).
      */
     public Optional<OrderRow> lockById(long id) {
-        if (query.select(O.id).from(O).where(O.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
+        if (!RowLocks.forUpdate(entityManager, PaymentOrderEntity.class, id)) {
             return Optional.empty();
         }
         return findById(id);

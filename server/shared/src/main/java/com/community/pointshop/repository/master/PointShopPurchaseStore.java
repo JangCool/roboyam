@@ -16,6 +16,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -23,7 +24,7 @@ import com.querydsl.core.types.Expression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -82,11 +83,13 @@ public class PointShopPurchaseStore extends RoboyamRepositoryQDSL {
 
     private final PointShopPurchaseRepository purchases;
     private final PointShopRefundRequestRepository requests;
+    private final EntityManager entityManager;
 
-    public PointShopPurchaseStore(JPAQueryFactory query, PointShopPurchaseRepository purchases, PointShopRefundRequestRepository requests) {
+    public PointShopPurchaseStore(JPAQueryFactory query, PointShopPurchaseRepository purchases, PointShopRefundRequestRepository requests, EntityManager entityManager) {
         super(query);
         this.purchases = purchases;
         this.requests = requests;
+        this.entityManager = entityManager;
     }
 
     public void insert(PurchaseRow p) {
@@ -103,8 +106,10 @@ public class PointShopPurchaseStore extends RoboyamRepositoryQDSL {
 
     /** 환불 전에 — 구매 행을 잠그고 읽는다(셀프 환불·예외 환불이 겹쳐도 한 번만). 구매 표만 고르는 한 문장 */
     public Optional<PurchaseRow> findForUpdate(long id) {
-        return Optional.ofNullable(query.select(PURCHASE).from(P).where(P.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne())
-                .map(PointShopPurchaseStore::rowOf);
+        if (!RowLocks.forUpdate(entityManager, PointShopPurchaseEntity.class, id)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(query.select(PURCHASE).from(P).where(P.id.eq(id)).fetchOne()).map(PointShopPurchaseStore::rowOf);
     }
 
     /**
@@ -136,8 +141,10 @@ public class PointShopPurchaseStore extends RoboyamRepositoryQDSL {
 
     /** 결정 전에 — 신청 행을 잠그고 읽는다(구매 행을 잠근 뒤에). 신청 표만 고르는 한 문장 */
     public Optional<RequestRow> findRequestForUpdate(long id) {
-        return Optional.ofNullable(query.select(REQUEST).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne())
-                .map(PointShopPurchaseStore::requestOf);
+        if (!RowLocks.forUpdate(entityManager, PointShopRefundRequestEntity.class, id)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(query.select(REQUEST).from(R).where(R.id.eq(id)).fetchOne()).map(PointShopPurchaseStore::requestOf);
     }
 
     /** 그 구매의 가장 최근 신청(없으면 빈 값) */

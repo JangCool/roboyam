@@ -6,15 +6,16 @@ import com.community.payment.dto.CancelKind;
 import com.community.payment.dto.CancelStatus;
 import com.community.payment.dto.ManualCancelMethod;
 import com.community.payment.dto.PgCancelStatus;
+import com.community.payment.entity.PaymentCancelEntity;
 import com.community.payment.entity.QPaymentCancelEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -237,7 +238,7 @@ public class PaymentCancelStore extends RoboyamRepositoryQDSL {
      * 잠근다(운영자 처리 — 결제 주문 행 다음 차례, 구현 때 정한 것 4). 잠금은 취소 표만 고르는 id 문장({@code FOR NO KEY UPDATE}), 칸은 그 뒤 읽는다(잠근 뒤의 값).
      */
     public Optional<CancelRow> lockById(long id) {
-        if (query.select(C.id).from(C).where(C.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne() == null) {
+        if (!RowLocks.forUpdate(entityManager, PaymentCancelEntity.class, id)) {
             return Optional.empty();
         }
         return findById(id);

@@ -26,6 +26,7 @@ import com.community.docintake.repository.master.DocIntakeStore;
 import com.community.docintake.repository.master.DocIntakeStore.IntakeRow;
 import com.community.docintake.repository.master.DocIntakeStore.NewIntake;
 import com.community.testsupport.JpaTestContext;
+import com.community.testsupport.RowLockProbe;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -120,6 +121,35 @@ class BizStoresJpaTest {
             assertThat(apps.markNotified(id, "start_notified_at", later)).isTrue();
             assertThat(apps.markNotified(id, "start_notified_at", later)).as("이미 알렸다").isFalse();
         });
+    }
+
+    @Test
+    void 신청_건과_열린_환불_잠금은_전환_전과_같은_FOR_UPDATE_다_FK_로_가리키는_INSERT_도_기다린다() {
+        Instant now = at("2091-03-02T00:00:00Z");
+        long app = tx.execute(status -> operatorApp(now));
+        long refund = IDS.nextId();
+        tx.executeWithoutResult(status -> refunds.insert(new NewRefund(refund, app, BizRefundType.PRORATED, BizRefundStatus.REQUESTED, BizPaymentMethod.MANUAL, 11_000,
+                5_000, 1, 7, null, "사유", null, now, null, null, null)));
+        try {
+            tx.executeWithoutResult(status -> {
+                assertThat(apps.lock(app)).isPresent();
+                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("신청 건 행 — FOR UPDATE").isTrue();
+                assertThat(refunds.lockOpen(app)).hasValueSatisfying(r -> assertThat(r.id()).isEqualTo(refund));
+                assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_refunds", "id = ?", refund)).as("열린 환불 줄 — FOR UPDATE").isTrue();
+            });
+            assertThat(RowLockProbe.keyShareBlocked(JpaTestContext.dataSource(), "biz_applications", "id = ?", app)).as("끝나면 풀린다").isFalse();
+            tx.executeWithoutResult(status -> {
+                jdbc.update("UPDATE biz_refunds SET status = 'DENIED' WHERE id = ?", refund);
+                assertThat(refunds.lockOpen(app)).as("열린 줄이 없으면 비어 있다(잠근 뒤 조건을 다시 본다)").isEmpty();
+                status.setRollbackOnly();
+            });
+        } finally {
+            jdbc.update("DELETE FROM biz_refunds WHERE application_id = ?", app);
+            for (String child : List.of("biz_application_events", "biz_application_items", "biz_creative_versions")) {
+                jdbc.update("DELETE FROM " + child + " WHERE application_id = ?", app);
+            }
+            jdbc.update("DELETE FROM biz_applications WHERE id = ?", app);
+        }
     }
 
     @Test
