@@ -40,6 +40,8 @@ public class DealCleanupRepositoryQDSL extends RoboyamRepositoryQDSL {
     public List<DealOgImageEntity> lockRemovableOgImages(Instant orphanBefore, Instant keepFrom, int limit) {
         var guarded = JPAExpressions.selectOne().from(D).join(P).on(P.id.eq(D.postId))
                 .where(D.ogImageId.eq(OG.id), P.deletedAt.isNull().and(D.status.eq("ACTIVE").or(D.endedAt.gt(keepFrom))).or(P.deletedAt.gt(keepFrom)));
+        // 잠금 세기: PESSIMISTIC_WRITE = FOR NO KEY UPDATE SKIP LOCKED(전환 전 FOR UPDATE SKIP LOCKED). deal_og_images 를 FK 로 가리키는 표가 없어(post_deals.og_image_id 는
+        // FK 가 아니다 — V122, KEY SHARE 를 잡는 쪽이 없다) 건너뛰는 줄·막히는 쪽이 전환 전과 같다 — 그대로 둔다
         return query.selectFrom(OG).where(OG.removedAt.isNull(), OG.createdAt.lt(orphanBefore), guarded.notExists())
                 .orderBy(OG.id.asc()).limit(limit)
                 .setLockMode(LockModeType.PESSIMISTIC_WRITE).setHint(LOCK_TIMEOUT, SKIP_LOCKED)

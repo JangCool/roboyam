@@ -9,6 +9,7 @@ import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -18,7 +19,6 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -90,13 +90,11 @@ public class AvatarUploadStore extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(query.select(ROW).from(R).where(R.id.eq(id)).fetchOne());
     }
 
-    /** 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다 — {@code FOR NO KEY UPDATE}, 이 표를 가리키는 외래 키는 없다) */
+    /** 처리하려는 신청을 잠근다(승인·반려·해제·회원 취소가 겹쳐도 한쪽만 이긴다 — {@code FOR UPDATE}, {@link RowLocks}). 값은 프로젝션으로 다시 읽는다 */
     public Optional<Row> findForUpdate(long id) {
-        AvatarUploadRequestEntity locked = query.selectFrom(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        if (locked == null) {
+        if (!RowLocks.forUpdate(entityManager, AvatarUploadRequestEntity.class, id)) {
             return Optional.empty();
         }
-        entityManager.detach(locked); // 잠금만 쓴다 — 값은 프로젝션으로(뒤의 조건부 UPDATE 와 어긋나지 않게)
         return find(id);
     }
 

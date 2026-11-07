@@ -132,6 +132,8 @@ public class BatchRequestQueue {
             return Optional.empty();
         }
         return requiresNew.execute(status -> {
+            // 잠금 세기: PESSIMISTIC_WRITE = FOR NO KEY UPDATE SKIP LOCKED(전환 전 FOR UPDATE SKIP LOCKED). batch_requests 를 FK 로 가리키는 표가 없고(KEY SHARE 를 잡는
+            // 쪽이 없다) 요청 줄을 지우거나 키를 바꾸는 쪽도 FOR UPDATE 와 똑같이 막히므로 건너뛰는 줄·막히는 쪽이 전환 전과 같다 — 그대로 둔다
             Long claimed = query.select(Q.id).from(Q).where(Q.status.eq(BatchRequestStatus.PENDING), Q.jobKey.in(jobKeys)).orderBy(Q.requestedAt.asc(), Q.id.asc())
                     .limit(1).setLockMode(LockModeType.PESSIMISTIC_WRITE).setHint(BatchTransactions.LOCK_TIMEOUT, BatchTransactions.SKIP_LOCKED).fetchFirst();
             if (claimed == null) {

@@ -45,7 +45,7 @@ class DmQueriesWriteTest {
     static void setUp() {
         jdbc = new JdbcTemplate(JpaTestContext.dataSource());
         dm = new DmQueries(JpaTestContext.query(), JpaTestContext.context().getBean(DmBoxRepository.class), JpaTestContext.context().getBean(DmMessageRepository.class),
-                JpaTestContext.dataSource());
+                JpaTestContext.dataSource(), JpaTestContext.entityManager());
         preferences = new MemberNotificationPreferenceQueries(JpaTestContext.query(), JpaTestContext.dataSource());
         tx = new TransactionTemplate(JpaTestContext.transactions());
     }

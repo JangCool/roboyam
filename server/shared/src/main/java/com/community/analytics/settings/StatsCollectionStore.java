@@ -8,10 +8,11 @@ import com.community.analytics.repository.master.StatsCollectionSettingHistoryRe
 import com.community.analytics.repository.master.StatsCollectionSettingRepository;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,9 +40,12 @@ public class StatsCollectionStore extends RoboyamRepositoryQDSL {
 
     private final StatsCollectionSettingRepository settings;
     private final StatsCollectionSettingHistoryRepository history;
+    private final EntityManager entityManager;
 
-    public StatsCollectionStore(JPAQueryFactory query, StatsCollectionSettingRepository settings, StatsCollectionSettingHistoryRepository history) {
+    public StatsCollectionStore(JPAQueryFactory query, StatsCollectionSettingRepository settings, StatsCollectionSettingHistoryRepository history,
+                                EntityManager entityManager) {
         super(query);
+        this.entityManager = entityManager;
         this.settings = settings;
         this.history = history;
     }
@@ -56,9 +60,10 @@ public class StatsCollectionStore extends RoboyamRepositoryQDSL {
         return Optional.of(new Stored(row.value(), row.getUpdatedAt(), row.getUpdatedBy(), t.get(OPERATOR.operatorName)));
     }
 
-    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다({@code FOR NO KEY UPDATE} — 동시 저장이 줄을 선다) */
+    /** 저장 트랜잭션 안에서 행을 잠그고 읽는다({@code FOR UPDATE} — {@link RowLocks}, 동시 저장이 줄을 선다) */
     public Optional<Stored> lock() {
-        StatsCollectionSettingEntity row = query.selectFrom(S).where(S.id.eq(StatsCollectionSettingEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        RowLocks.forUpdate(entityManager, StatsCollectionSettingEntity.class, StatsCollectionSettingEntity.ROW_ID);
+        StatsCollectionSettingEntity row = query.selectFrom(S).where(S.id.eq(StatsCollectionSettingEntity.ROW_ID)).fetchOne();
         return Optional.ofNullable(row).map(r -> new Stored(r.value(), r.getUpdatedAt(), r.getUpdatedBy(), null));
     }
 

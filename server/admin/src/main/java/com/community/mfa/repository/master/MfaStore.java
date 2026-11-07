@@ -14,13 +14,13 @@ import com.community.mfa.entity.QOperatorMfaRecoveryCodeEntity;
 import com.community.mfa.entity.QOperatorTrustedDeviceEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -69,10 +69,10 @@ public class MfaStore extends RoboyamRepositoryQDSL {
                 nz(row.get(SETTING.maxFailures)), row.get(SETTING.mfaEnabledAt), row.get(SETTING.mfaEnabledBy));
     }
 
-    /** 설정 행을 쓰기 잠금으로 읽는다({@code FOR NO KEY UPDATE}) — 동시 저장을 줄 세운다. 이어서 {@link #saveSettings} 가 이 엔티티를 고친다 */
+    /** 설정 행을 쓰기 잠금으로 읽는다({@code FOR UPDATE} — {@link RowLocks}) — 동시 저장을 줄 세운다. 이어서 {@link #saveSettings} 가 이 엔티티를 고친다 */
     public MfaSettings lockSettings() {
-        AdminSecuritySettingEntity row = query.selectFrom(SETTING).where(SETTING.id.eq(AdminSecuritySettingEntity.ROW_ID))
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        RowLocks.forUpdate(entityManager, AdminSecuritySettingEntity.class, AdminSecuritySettingEntity.ROW_ID);
+        AdminSecuritySettingEntity row = query.selectFrom(SETTING).where(SETTING.id.eq(AdminSecuritySettingEntity.ROW_ID)).fetchOne();
         if (row == null) {
             insertDefaultSettings();
             return lockSettings();
@@ -107,9 +107,10 @@ public class MfaStore extends RoboyamRepositoryQDSL {
                 Boolean.TRUE.equals(row.get(MFA.pendingReenroll))));
     }
 
-    /** 그 운영자의 OTP 행을 쓰기 잠금으로 읽는다({@code FOR NO KEY UPDATE} — 등록 확정·코드 확인을 줄 세운다. 이 표를 FK 로 가리키는 표는 없다) */
+    /** 그 운영자의 OTP 행을 쓰기 잠금으로 읽는다({@code FOR UPDATE} — {@link RowLocks}, 등록 확정·코드 확인을 줄 세운다) */
     public Optional<OperatorMfaRow> lock(long operatorId) {
-        OperatorMfaEntity row = query.selectFrom(MFA).where(MFA.operatorId.eq(operatorId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        RowLocks.forUpdate(entityManager, OperatorMfaEntity.class, operatorId);
+        OperatorMfaEntity row = query.selectFrom(MFA).where(MFA.operatorId.eq(operatorId)).fetchOne();
         return row == null ? Optional.empty() : Optional.of(new OperatorMfaRow(row.getOperatorId(), row.getSecretEnc(), row.getEnrolledAt(), row.getLastStep(),
                 row.getLastUsedAt(), row.getPendingSecretEnc(), row.getPendingStartedAt(), row.isPendingReenroll()));
     }

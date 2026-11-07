@@ -16,6 +16,7 @@ import com.community.pointshop.entity.UploadTicketUse;
 import com.community.pointshop.entity.UserItemEntity;
 import com.community.pointshop.entity.UserItemStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -24,7 +25,6 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -108,11 +108,12 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 장착·환불·고르기 전에 — 줄을 잠그고 읽는다 */
     public Optional<UserItemRow> findForUpdate(long id) {
-        return one(rows().where(UI.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
+        return RowLocks.forUpdate(entityManager, UserItemEntity.class, id) ? one(rows().where(UI.id.eq(id))) : Optional.empty();
     }
 
     public Optional<UserItemRow> byPurchaseForUpdate(long purchaseId) {
-        return one(rows().where(UI.purchaseId.eq(purchaseId)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
+        List<Long> locked = RowLocks.forUpdate(entityManager, UserItemEntity.class, query.select(UI.id).from(UI).where(UI.purchaseId.eq(purchaseId)).orderBy(UI.id.asc()).fetch());
+        return locked.isEmpty() ? Optional.empty() : one(rows().where(UI.id.in(locked), UI.purchaseId.eq(purchaseId)).orderBy(UI.id.asc()));
     }
 
     /** 그 회원이 그 영구 품목을 (회수되지 않게) 가졌나 */
@@ -123,7 +124,10 @@ public class UserItemStore extends RoboyamRepositoryQDSL {
 
     /** 그 회원이 가진(회수되지 않은) 그 영구 품목 줄 — 잠근다(아바타 고르기) */
     public Optional<UserItemRow> ownedPermanentForUpdate(long userId, long itemId) {
-        return one(rows().where(ownedPermanentLine(userId, itemId)).setLockMode(LockModeType.PESSIMISTIC_WRITE));
+        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 읽는다(전환 전 「WHERE … FOR UPDATE」와 같은 결과)
+        List<Long> locked = RowLocks.forUpdate(entityManager, UserItemEntity.class,
+                query.select(UI.id).from(UI).where(ownedPermanentLine(userId, itemId)).orderBy(UI.id.asc()).fetch());
+        return locked.isEmpty() ? Optional.empty() : one(rows().where(UI.id.in(locked), ownedPermanentLine(userId, itemId)).orderBy(UI.id.asc()));
     }
 
     /** 그 회원이 가진(회수되지 않은) 그 영구 품목 줄 — 잠그지 않는다(마지막 정지 아바타 되돌리기의 보유 확인 — 프로필 행을 먼저 잠근 쪽이 부른다) */

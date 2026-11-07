@@ -3,6 +3,7 @@ package com.community.dm.repository.master;
 import com.community.block.entity.QUserBlockEntity;
 import com.community.dm.entity.DmBoxEntity;
 import com.community.dm.entity.DmMessageEntity;
+import com.community.dm.entity.DmThreadEntity;
 import com.community.dm.entity.DmUserStateEntity;
 import com.community.dm.entity.QDmBoxEntity;
 import com.community.dm.entity.QDmMessageEntity;
@@ -13,6 +14,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Predicate;
@@ -24,7 +26,7 @@ import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -63,12 +65,14 @@ public class DmQueries extends RoboyamRepositoryQDSL {
     private final DmBoxRepository boxes;
     private final DmMessageRepository messages;
     private final JdbcTemplate jdbc;
+    private final EntityManager entityManager;
 
-    public DmQueries(JPAQueryFactory query, DmBoxRepository boxes, DmMessageRepository messages, DataSource dataSource) {
+    public DmQueries(JPAQueryFactory query, DmBoxRepository boxes, DmMessageRepository messages, DataSource dataSource, EntityManager entityManager) {
         super(query);
         this.boxes = boxes;
         this.messages = messages;
         this.jdbc = new JdbcTemplate(dataSource);
+        this.entityManager = entityManager;
     }
 
     // ── 회원 한 줄(수신 설정·오늘 한도) ──────────────────────────────────────
@@ -106,7 +110,8 @@ public class DmQueries extends RoboyamRepositoryQDSL {
      */
     public State lockState(long userId, Instant now) {
         jdbc.update("insert into dm_user_states (user_id, updated_at) values (?, ?) on conflict (user_id) do nothing", userId, Timestamp.from(now));
-        DmUserStateEntity locked = query.selectFrom(S).where(S.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        RowLocks.forUpdate(entityManager, DmUserStateEntity.class, userId); // 전환 전 세기(FOR UPDATE)
+        DmUserStateEntity locked = query.selectFrom(S).where(S.userId.eq(userId)).fetchOne();
         if (locked == null) {
             throw new IllegalStateException("쪽지 상태 줄을 만들지 못했다");
         }
@@ -187,9 +192,9 @@ public class DmQueries extends RoboyamRepositoryQDSL {
         return true;
     }
 
-    /** 대화 행을 잠근다(같은 대화의 동시 전송·보관 정리가 줄 선다 — {@code FOR NO KEY UPDATE}, 보관 정리의 대화 삭제와도 막힌다) */
+    /** 대화 행을 잠근다(같은 대화의 동시 전송·보관 정리가 줄 선다 — {@code FOR UPDATE}({@link RowLocks}), 보관 정리의 대화 삭제와도 막힌다) */
     public void lockThread(long threadId) {
-        query.selectFrom(T).where(T.id.eq(threadId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetch();
+        RowLocks.forUpdate(entityManager, DmThreadEntity.class, threadId);
     }
 
     /** 쪽지를 넣는다 — 그 자리에서 INSERT 한다 */

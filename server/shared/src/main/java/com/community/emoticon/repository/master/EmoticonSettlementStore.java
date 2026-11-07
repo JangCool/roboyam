@@ -1,5 +1,6 @@
 package com.community.emoticon.repository.master;
 
+import com.community.emoticon.entity.EmoticonPurchaseEntity;
 import com.community.emoticon.entity.EmoticonSettlementEventEntity;
 import com.community.emoticon.entity.EmoticonSettlementStatus;
 import com.community.emoticon.entity.QEmoticonPurchaseEntity;
@@ -8,6 +9,7 @@ import com.community.emoticon.entity.QEmoticonSettlementEventEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -15,7 +17,6 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.jpa.impl.JPAUpdateClause;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -35,8 +36,8 @@ import org.springframework.stereotype.Repository;
  * 로보티콘 작가 월 정산({@code emoticon_settlements} · {@code emoticon_settlement_events} · 구매 기록의 정산 달 칸, V145). 예정 줄의 금액은 저장하지 않는다 — 계산은
  * {@code EmoticonSettlementCalculator}. 확정 뒤 금액·지급 기록 고치기·지우기는 DB 트리거가 막는다. 트랜잭션은 부르는 서비스가 연다.
  *
- * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 상태 전이는 조건부 UPDATE({@code execute() == 1}), 처리 기록은 {@code persist}, 확정의 구매 행 잠금은 구매 표만 고르는
- * {@code PESSIMISTIC_WRITE}(ID 차례). Native SQL 로 남긴 것과 이유: 작가 단위 줄 세우기({@code pg_advisory_xact_lock} — 정산 줄이 아직 없을 수 있는 「작가」 단위),
+ * <p>QueryDSL 이다({@link EmoticonStoreSupport}) — 상태 전이는 조건부 UPDATE({@code execute() == 1}), 처리 기록은 {@code persist}, 확정의 구매 행 잠금은
+ * {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기, ID 차례). Native SQL 로 남긴 것과 이유: 작가 단위 줄 세우기({@code pg_advisory_xact_lock} — 정산 줄이 아직 없을 수 있는 「작가」 단위),
  * 예정 줄 만들기({@code ON CONFLICT (creator_id, sales_month) DO NOTHING} — 있으면 그대로), 가장 이른 정산 달({@code date_trunc('month', … AT TIME ZONE 'Asia/Seoul')} — 판매 달 묶기).
  */
 @Repository
@@ -311,12 +312,14 @@ public class EmoticonSettlementStore extends EmoticonStoreSupport {
         if (!lock) {
             return activity().where(P.creatorId.eq(creatorId), unsettledWhere()).fetch().stream().map(EmoticonSettlementStore::activityOf).collect(Collectors.toList());
         }
-        List<Long> ids = query.select(P.id).from(P).where(P.creatorId.eq(creatorId), unsettledWhere()).orderBy(P.id.asc()).setLockMode(LockModeType.PESSIMISTIC_WRITE)
-                .fetch();
+        // 조건으로 고르고(잠금 없이) → id 차례로 FOR UPDATE({@link RowLocks}) → 조건을 넣어 다시 읽는다(전환 전 「WHERE … ORDER BY p.id FOR UPDATE」와 같은 결과)
+        List<Long> ids = RowLocks.forUpdate(entityManager, EmoticonPurchaseEntity.class,
+                query.select(P.id).from(P).where(P.creatorId.eq(creatorId), unsettledWhere()).orderBy(P.id.asc()).fetch());
         if (ids.isEmpty()) {
             return new java.util.ArrayList<>();
         }
-        return activity().where(P.id.in(ids)).orderBy(P.id.asc()).fetch().stream().map(EmoticonSettlementStore::activityOf).collect(Collectors.toList());
+        return activity().where(P.id.in(ids), P.creatorId.eq(creatorId), unsettledWhere()).orderBy(P.id.asc()).fetch().stream().map(EmoticonSettlementStore::activityOf)
+                .collect(Collectors.toList());
     }
 
     /** 굳힌 줄에 들어간 판매·환불(팩별 내역) */

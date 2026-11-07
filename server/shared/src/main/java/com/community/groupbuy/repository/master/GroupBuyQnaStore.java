@@ -12,6 +12,7 @@ import com.community.groupbuy.entity.QGroupBuyUgcReportEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -31,7 +32,7 @@ import org.springframework.stereotype.Repository;
  * 공구 Q&A({@code group_buy_questions}·{@code group_buy_answers}·{@code group_buy_answer_revisions}, 2b-6) — {@code GroupBuyQnaService} 안에 있던 SQL 을 옮겼다.
  *
  * <p>QueryDSL 이 기본이다({@link GroupBuyStoreSupport}). Native SQL 로 남긴 것과 이유: 같은 회원의 질문 쓰기를 줄 세우는 {@link #lockWriter}
- * ({@code pg_advisory_xact_lock} — DB 함수). 행 잠금은 질문 표만 고르는 id 프로젝션에 {@code PESSIMISTIC_WRITE}({@code FOR NO KEY UPDATE}) — 답변·숨김끼리 줄 세운다.
+ * ({@code pg_advisory_xact_lock} — DB 함수). 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기) — 답변·숨김끼리 줄 세운다.
  */
 @Repository
 public class GroupBuyQnaStore extends GroupBuyStoreSupport {
@@ -263,7 +264,7 @@ public class GroupBuyQnaStore extends GroupBuyStoreSupport {
 
     /** 질문 줄을 잠그고(답변·숨김끼리 줄 세움) 읽는다 */
     public Optional<LockedQuestion> lock(long id) {
-        if (!lockRow(Q, Q.id, id)) {
+        if (!RowLocks.forUpdate(entityManager, GroupBuyQuestionEntity.class, id)) {
             return Optional.empty();
         }
         Tuple t = query.select(Q.userId, Q.groupBuyId, Q.deletedAt).from(Q).where(Q.id.eq(id)).fetchFirst();

@@ -15,6 +15,7 @@ import com.community.groupbuy.entity.QGroupBuySkuEntity;
 import com.community.groupbuy.entity.QParticipationStatusHistoryEntity;
 import com.community.groupbuy.entity.RequestStatus;
 import com.community.groupbuy.entity.SkuKind;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -120,12 +121,15 @@ public class ParticipationStore extends GroupBuyStoreSupport {
 
     /** 주문 행을 잠그고 읽는다 — 결제가 PAID 인 흐름(취소를 넣는 흐름)만 주문 행을 먼저 잠근다(결정 37) */
     public Optional<ParticipationRow> lock(long id) {
-        return lockRow(PA, PA.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdate(entityManager, GroupBuyParticipationEntity.class, id) ? find(id) : Optional.empty();
     }
 
-    /** 잠겨 있으면 건너뛴다(환불 워커 — 서버 여럿이 나눠 잡는다, 결정 61) */
+    /**
+     * 잠겨 있으면 건너뛴다(환불 워커 — 서버 여럿이 나눠 잡는다, 결정 61). 전환 전과 같은 {@code FOR UPDATE SKIP LOCKED}({@link RowLocks}) — 주문 행은 줄·이력·배송·요청·환불이
+     * FK 로 가리키므로, 다른 트랜잭션이 그 줄을 넣는 중(KEY SHARE)인 주문도 건너뛴다({@code FOR NO KEY UPDATE} 면 건너뛰지 않는다).
+     */
     public Optional<ParticipationRow> lockSkipLocked(long id) {
-        return lockRowSkipLocked(PA, PA.id, id) ? find(id) : Optional.empty();
+        return RowLocks.forUpdateSkipLocked(entityManager, GroupBuyParticipationEntity.class, id) ? find(id) : Optional.empty();
     }
 
     public List<ItemRow> items(long participationId) {

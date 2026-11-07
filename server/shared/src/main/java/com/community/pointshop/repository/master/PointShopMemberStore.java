@@ -1,13 +1,15 @@
 package com.community.pointshop.repository.master;
 
 import com.community.point.entity.QPointBalanceEntity;
+import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -36,8 +38,11 @@ public class PointShopMemberStore extends RoboyamRepositoryQDSL {
     private static final QProfileEntity PR = QProfileEntity.profileEntity;
     private static final QPointBalanceEntity B = QPointBalanceEntity.pointBalanceEntity;
 
-    public PointShopMemberStore(JPAQueryFactory query) {
+    private final EntityManager entityManager;
+
+    public PointShopMemberStore(JPAQueryFactory query, EntityManager entityManager) {
         super(query);
+        this.entityManager = entityManager;
     }
 
     public Optional<MemberState> state(long userId) {
@@ -85,7 +90,10 @@ public class PointShopMemberStore extends RoboyamRepositoryQDSL {
      * ({@code FOR NO KEY UPDATE}).
      */
     public Optional<AvatarState> lockAvatar(long userId) {
-        Tuple t = query.select(PR.profileImage, PR.lastStillAvatar).from(PR).where(PR.userId.eq(userId)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        if (!RowLocks.forUpdate(entityManager, ProfileEntity.class, userId)) {
+            return Optional.empty();
+        }
+        Tuple t = query.select(PR.profileImage, PR.lastStillAvatar).from(PR).where(PR.userId.eq(userId)).fetchOne();
         return t == null ? Optional.empty() : Optional.of(new AvatarState(t.get(PR.profileImage), t.get(PR.lastStillAvatar)));
     }
 

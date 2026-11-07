@@ -252,7 +252,7 @@ class UploadTicketTest extends PointShopTestBase {
         kit.grant(member, 10_000);
         long ticket = kit.buyItem(member, avatarTicket());
         kit.submitUpload(member, false);
-        int revoked = kit.inTx(() -> new WithdrawalEraseStore(JpaTestContext.query(), kit.dataSource, JpaTestContext.context().getBean(com.community.group.repository.master.GroupRepository.class)).revokeItems(member, kit.clock.instant()));
+        int revoked = kit.inTx(() -> new WithdrawalEraseStore(JpaTestContext.query(), kit.dataSource, JpaTestContext.entityManager()).revokeItems(member, kit.clock.instant()));
         assertThat(revoked).isEqualTo(1);
         assertThat(ticketRow(ticket)).containsEntry("status", "REVOKED");
         assertThat(ticketRow(ticket).get("reserved_at")).isNull();

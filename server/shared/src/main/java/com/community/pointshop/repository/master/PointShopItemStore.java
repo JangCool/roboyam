@@ -10,13 +10,13 @@ import com.community.pointshop.entity.QPointShopItemEntity;
 import com.community.pointshop.entity.QPointShopPurchaseEntity;
 import com.community.pointshop.entity.QPointShopSettingEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -83,8 +83,7 @@ public class PointShopItemStore extends RoboyamRepositoryQDSL {
      * 한 줄 모양으로 읽는다(조인한 프로젝션에 잠금을 걸면 잠기지 않는다).
      */
     public Optional<ItemRow> findForUpdate(long id) {
-        query.select(I.id).from(I).where(I.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
-        return find(id);
+        return RowLocks.forUpdate(entityManager, PointShopItemEntity.class, id) ? find(id) : Optional.empty();
     }
 
     public Optional<ItemRow> findByCode(String code) {
@@ -215,7 +214,8 @@ public class PointShopItemStore extends RoboyamRepositoryQDSL {
     public int lockRefundDays() {
         entityManager.createNativeQuery("INSERT INTO point_shop_settings (id) VALUES (?1) ON CONFLICT (id) DO NOTHING").setParameter(1, PointShopSettingEntity.ROW_ID)
                 .executeUpdate();
-        return query.select(S.refundDays).from(S).where(S.id.eq(PointShopSettingEntity.ROW_ID)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne();
+        RowLocks.forUpdate(entityManager, PointShopSettingEntity.class, PointShopSettingEntity.ROW_ID);
+        return query.select(S.refundDays).from(S).where(S.id.eq(PointShopSettingEntity.ROW_ID)).fetchOne();
     }
 
     public void updateRefundDays(int days, long operatorId, Instant now) {

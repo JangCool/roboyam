@@ -303,7 +303,7 @@ final class GroupBuyTestKit {
 
         @Bean
         com.community.commerce.sales.CommerceSalesStore commerceSalesStore(DataSource dataSource) {
-            return new com.community.commerce.sales.CommerceSalesStore(com.community.testsupport.JpaTestContext.query());
+            return new com.community.commerce.sales.CommerceSalesStore(com.community.testsupport.JpaTestContext.query(), com.community.testsupport.JpaTestContext.entityManager());
         }
 
         @Bean

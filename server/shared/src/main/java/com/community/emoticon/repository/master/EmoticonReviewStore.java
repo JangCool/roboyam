@@ -5,13 +5,13 @@ import com.community.emoticon.entity.EmoticonReviewKind;
 import com.community.emoticon.entity.EmoticonReviewStatus;
 import com.community.emoticon.entity.QEmoticonReviewEntity;
 import com.community.operator.entity.QOperatorEntity;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -25,7 +25,7 @@ import javax.sql.DataSource;
 import org.springframework.stereotype.Repository;
 
 /**
- * 로보티콘 심사 건({@code emoticon_reviews}, V142) 읽기·쓰기. QueryDSL 이다({@link EmoticonStoreSupport}) — 심사 건 행 잠금은 심사 건 표만 고르는 {@code PESSIMISTIC_WRITE}.
+ * 로보티콘 심사 건({@code emoticon_reviews}, V142) 읽기·쓰기. QueryDSL 이다({@link EmoticonStoreSupport}) — 심사 건 행 잠금은 {@link RowLocks}({@code FOR UPDATE} — 전환 전 세기).
  * Native SQL 로 남긴 것과 이유: 작가 단위 줄 세우기({@code pg_advisory_xact_lock} — 잠글 행이 없는 「작가」 단위), 작가 탈퇴의 대기 건 닫기(하위 질의 {@code FOR UPDATE} 로
  * ID 차례로 잠그고 바꾼 줄을 {@code RETURNING} 으로 — 닫은 건과 알린 건이 같은 문장이어야 한다).
  */
@@ -69,7 +69,7 @@ public class EmoticonReviewStore extends EmoticonStoreSupport {
 
     /** 처리하기 전에 — 심사 건 행을 잠근다(같은 건을 둘이 동시에 처리하지 못하게). 잠금은 심사 건 표만 고르는 문장, 칸은 그 뒤에 읽는다 */
     public Optional<ReviewRow> lock(long id) {
-        if (query.select(R.id).from(R).where(R.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchFirst() == null) {
+        if (!RowLocks.forUpdate(entityManager, EmoticonReviewEntity.class, id)) {
             return Optional.empty();
         }
         return find(id);

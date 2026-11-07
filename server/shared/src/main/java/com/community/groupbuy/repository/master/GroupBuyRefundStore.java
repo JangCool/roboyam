@@ -9,6 +9,7 @@ import com.community.groupbuy.entity.RefundCause;
 import com.community.groupbuy.entity.RefundStatus;
 import com.community.groupbuy.service.GroupBuyRefundService.Parts;
 import com.community.payment.entity.QReconciliationIssueEntity;
+import com.community.zconfiguration.jpa.RowLocks;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -150,7 +151,7 @@ public class GroupBuyRefundStore extends GroupBuyStoreSupport {
     }
 
     public Optional<PendingAdminRefund> lockPending(long id) {
-        if (!lockRow(AR, AR.id, id)) {
+        if (!RowLocks.forUpdate(entityManager, GroupBuyAdminRefundEntity.class, id)) {
             return Optional.empty();
         }
         return Optional.ofNullable(query.select(Projections.constructor(PendingAdminRefund.class, AR.id, AR.participationId, AR.kind, AR.amount, AR.lines, AR.sellerFault,

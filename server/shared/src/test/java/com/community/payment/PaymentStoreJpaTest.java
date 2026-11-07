@@ -30,7 +30,8 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>넣기는 미뤄 두지 않는다: 결제 확정 트랜잭션은 처리기({@code onPaid})를 JDBC 세이브포인트({@link GroupBuySavepoint})로 감싸므로 그 전의 결제 쓰기가 영속성 문맥에 남아 있으면
  *       세이브포인트 안의 JPA 질의가 그것을 내보냈다가 되돌리기에 휩쓸린다.</li>
- *   <li>잠금({@code lockById})은 결제 주문·취소 행을 실제로 잡는다(다른 연결의 {@code FOR UPDATE NOWAIT} 가 막힌다) — 프로젝션 잠금이 아니라 그 표만 고르는 문장으로 잡는다.</li>
+ *   <li>잠금({@code lockById})은 결제 주문·취소 행을 전환 전과 같은 {@code FOR UPDATE} 로 잡는다(다른 연결의 {@code FOR KEY SHARE NOWAIT} — 그 행을 FK 로 가리키는 INSERT 의
+ *       확인 — 까지 막힌다).</li>
  *   <li>열린 READY 닫기({@code expireOpenReady})는 예전 {@code UPDATE … RETURNING id} 처럼 닫은 줄만 돌려준다.</li>
  * </ul>
  */
@@ -102,11 +103,11 @@ class PaymentStoreJpaTest {
         assertThat(count("SELECT count(*) FROM payment_events WHERE payment_order_id = ?", orderId[0])).isEqualTo(2);
     }
 
-    /** 다른 연결에서 그 표의 행을 기다리지 않고(NOWAIT) 잠가 본다 — 잠겨 있으면 false */
+    /** 다른 연결에서 그 표의 행을 기다리지 않고(NOWAIT) 키 나눔 잠금(FK 확인과 같은 세기) 해 본다 — {@code FOR UPDATE} 로 잠겨 있으면 false */
     private static boolean lockableNow(String table, long id) {
         try (Connection connection = kit.dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            try (PreparedStatement statement = connection.prepareStatement("SELECT id FROM " + table + " WHERE id = ? FOR UPDATE NOWAIT")) {
+            try (PreparedStatement statement = connection.prepareStatement("SELECT id FROM " + table + " WHERE id = ? FOR KEY SHARE NOWAIT")) {
                 statement.setLong(1, id);
                 statement.executeQuery().close();
                 return true;
