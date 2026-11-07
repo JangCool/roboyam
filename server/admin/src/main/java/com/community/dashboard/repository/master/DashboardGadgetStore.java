@@ -33,6 +33,8 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.QUserIdentityEntity;
 import com.community.user.entity.UserStatus;
+import com.community.withdrawal.entity.QMemberWithdrawalEntity;
+import com.community.withdrawal.entity.WithdrawalStatus;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
@@ -68,8 +70,8 @@ import org.springframework.stereotype.Repository;
  * 「오늘」은 서비스 날짜(한국 시간) 0시부터이고, 만든 시각 인덱스가 없는 표는 Snowflake ID 의 시각 하한({@link SnowflakeIdGenerator#floorIdAt})으로 PK 범위를 센다.
  * 상태별 건수는 {@code CaseBuilder} 합({@code count(*) FILTER} 와 같다)으로 한 번에 센다. 질의마다 쓰는 인덱스를 주석으로 적는다 — 표·인덱스를 바꾸면 여기도 본다.
  *
- * <p>네이티브 SQL 로 남긴 것(엔티티가 없는 표): 광고 일별 집계({@code ad_daily_stats}) · 광고 신청({@code biz_applications} + {@code LEFT JOIN LATERAL}) ·
- * 탈퇴 대기({@code member_withdrawals}). 운영자 2차 인증({@code operator_mfa})은 admin 모듈의 엔티티({@code com.community.mfa.entity})로 QueryDSL 이다.
+ * <p>네이티브 SQL 로 남긴 것(엔티티가 없는 표): 광고 일별 집계({@code ad_daily_stats}) · 광고 신청({@code biz_applications} + {@code LEFT JOIN LATERAL}).
+ * 운영자 2차 인증({@code operator_mfa})은 admin 모듈의 엔티티({@code com.community.mfa.entity})로 QueryDSL 이다.
  */
 @Repository
 public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
@@ -92,6 +94,7 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
     private static final QAuditLogEntity AUDIT = QAuditLogEntity.auditLogEntity;
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QOperatorMfaEntity MFA = QOperatorMfaEntity.operatorMfaEntity;
+    private static final QMemberWithdrawalEntity WITHDRAWAL = QMemberWithdrawalEntity.memberWithdrawalEntity;
 
     private static final List<String> OPEN_CASE = List.of("PENDING", "IN_REVIEW");
 
@@ -234,7 +237,7 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
      *   <li>정지 중: 기간 정지·영구 정지({@code SUSPENDED · BANNED} — 관리자 회원 목록의 「정지」 거르기와 같은 뜻) — 부분 인덱스
      *       {@code ix_users_suspended(id) WHERE status IN ('SUSPENDED', 'BANNED')}(admin V6).</li>
      *   <li>탈퇴 대기: 탈퇴를 신청해 남은 일이 끝나기를 기다리는 예약({@code member_withdrawals.status = 'SCHEDULED'}) — 부분 인덱스
-     *       {@code ux_member_withdrawals_scheduled(user_id) WHERE status = 'SCHEDULED'}(shared V132). Native SQL — {@code member_withdrawals} 는 엔티티가 없다.</li>
+     *       {@code ux_member_withdrawals_scheduled(user_id) WHERE status = 'SCHEDULED'}(shared V132).</li>
      * </ul>
      */
     public long[] memberStats(Instant from, Instant to) {
@@ -242,8 +245,8 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
         long withdrawn = nz(query.select(USER.count()).from(USER)
                 .where(USER.status.eq(UserStatus.WITHDRAWN), USER.deletedAt.goe(from), USER.deletedAt.lt(to)).fetchOne());
         long suspended = nz(query.select(USER.count()).from(USER).where(USER.status.in(UserStatus.SUSPENDED, UserStatus.BANNED)).fetchOne());
-        Long scheduled = jdbc.queryForObject("SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED'", Long.class);
-        return new long[] {joined, withdrawn, suspended, nz(scheduled)};
+        long scheduled = nz(query.select(WITHDRAWAL.count()).from(WITHDRAWAL).where(WITHDRAWAL.status.eq(WithdrawalStatus.SCHEDULED)).fetchOne());
+        return new long[] {joined, withdrawn, suspended, scheduled};
     }
 
     /** 닉네임 이미지 심사 대기 건수 — ix_nickname_image_requests_status(status, id) */
