@@ -29,33 +29,32 @@
             </ErrorState>
             <ErrorState v-else-if="boardState === 'error' && !view" :title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
 
-            <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
-            <div v-else class="content-card" data-testid="board-card">
+            <!-- 게시판 머리·목록·쪽 번호를 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·소모임)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
+            <div v-else class="gadget-card" data-headless data-testid="board-card">
                 <!-- 머리 — 화면에 보이는 동안은 떠 있는 글쓰기 단추를 숨긴다(`boardHead` 를 지켜본다) -->
-                <header ref="boardHead" class="flex items-start gap-3">
-                    <div class="min-w-0 flex-1">
-                        <h1 class="break-words text-lg font-bold leading-tight" :style="UtilBoard.textStyle(view?.color)" data-testid="board-title">
-                            <template v-if="view">{{ localizedName(view.name, view.nameEn) }}</template>
-                            <span v-else class="inline-block h-5 w-28 animate-pulse rounded bg-surface-200 align-middle dark:bg-surface-800" :aria-label="t('board.loadingName')" />
-                        </h1>
-                        <p v-if="view?.description" class="mt-0.5 text-xs text-muted-color">{{ view.description }}</p>
-                    </div>
-                    <!-- 핫딜 게시판에서 막힌 글쓰기는 까닭을 툴팁으로(단추는 눌리고 누르면 안내·로그인) -->
-                    <Button
-                        v-if="writeButton !== 'hidden'"
-                        v-tooltip.bottom="writeButton === 'disabled' && isDeal ? writeBlockedText : undefined"
-                        type="button"
-                        :label="t('shell.write')"
-                        icon="pi pi-pencil"
-                        size="small"
-                        :severity="writeButton === 'disabled' ? 'secondary' : undefined"
-                        :aria-disabled="writeButton === 'disabled' ? 'true' : undefined"
-                        :class="writeButton === 'disabled' ? 'opacity-60' : ''"
-                        :disabled="writeButton === 'loading'"
-                        data-testid="board-write"
-                        @click="onWrite"
-                    />
-                </header>
+                <div ref="boardHead">
+                    <PageTitleHead :title="view ? localizedName(view.name, view.nameEn) : ''" :description="view?.description" :title-style="UtilBoard.textStyle(view?.color)" title-testid="board-title" divider>
+                        <template v-if="!view" #title>
+                            <span class="inline-block h-5 w-28 animate-pulse rounded bg-surface-200 align-middle dark:bg-surface-800" :aria-label="t('board.loadingName')" />
+                        </template>
+                        <template v-if="writeButton !== 'hidden'" #actions>
+                            <!-- 핫딜 게시판에서 막힌 글쓰기는 까닭을 툴팁으로(단추는 눌리고 누르면 안내·로그인) -->
+                            <Button
+                                v-tooltip.bottom="writeButton === 'disabled' && isDeal ? writeBlockedText : undefined"
+                                type="button"
+                                :label="t('shell.write')"
+                                icon="pi pi-pencil"
+                                size="small"
+                                :severity="writeButton === 'disabled' ? 'secondary' : undefined"
+                                :aria-disabled="writeButton === 'disabled' ? 'true' : undefined"
+                                :class="writeButton === 'disabled' ? 'opacity-60' : ''"
+                                :disabled="writeButton === 'loading'"
+                                data-testid="board-write"
+                                @click="onWrite"
+                            />
+                        </template>
+                    </PageTitleHead>
+                </div>
 
                 <!-- 게시판 운영 줄 — 그 게시판 매니저·스텝 본인에게만(운영자 회원 계정은 모든 게시판). 오늘 남은 처리(글 · 댓글 · 제재 — 할 수 있는 것만, 운영자는 「하루 한도 없음」) · [처리 내역] -->
                 <p v-if="staffTools" class="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-100 px-3 py-2 text-xs dark:bg-surface-800/60" data-testid="board-staff-bar">

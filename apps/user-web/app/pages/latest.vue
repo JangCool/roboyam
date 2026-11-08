@@ -1,11 +1,8 @@
 <template>
-    <!-- 머리·목록을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-    <div class="content-card" data-testid="latest-card">
+    <!-- 머리·목록을 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·소모임)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
+    <div class="gadget-card" data-headless data-testid="latest-card">
         <!-- 머리: 이름 · 한 줄 설명 — 정렬은 늘 최신순이라 토글이 없다 -->
-        <header>
-            <h1 class="break-words text-lg font-bold leading-tight">{{ name }}</h1>
-            <p class="mt-0.5 text-xs text-muted-color">{{ t('feed.latestSubtitle') }}</p>
-        </header>
+        <PageTitleHead :title="name" :description="t('feed.latestSubtitle')" divider />
 
         <!-- 결과 개수·더 있는지를 스크린리더가 읽는다. 안내 영역은 처음부터 있어야 바뀐 글을 읽어 준다 -->
         <p role="status" aria-live="polite" class="sr-only">{{ summary }}</p>

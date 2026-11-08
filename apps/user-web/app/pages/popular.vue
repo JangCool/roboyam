@@ -1,11 +1,8 @@
 <template>
-    <!-- 머리·탭·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-    <div class="content-card" data-testid="popular-card">
+    <!-- 머리·탭·목록·쪽 번호를 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·소모임)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
+    <div class="gadget-card" data-headless data-testid="popular-card">
         <!-- 머리: 이름 · 고른 기간이 무엇을 보여 주는지 한 줄 설명 -->
-        <header>
-            <h1 class="break-words text-lg font-bold leading-tight">{{ name }}</h1>
-            <p class="mt-0.5 text-xs text-muted-color" data-testid="popular-subtitle">{{ UtilFeedMessages.subtitle(t, period) }}</p>
-        </header>
+        <PageTitleHead :title="name" :description="UtilFeedMessages.subtitle(t, period)" divider />
 
         <!-- 기간 탭 — 주소의 `?period=` 와 같이 움직인다(누르면 주소가 바뀌고 1쪽으로). 고른 탭만 Tab 키로 닿고, 화살표·Home·End 로 초점을 옮긴 뒤 Enter·Space 로 고른다 -->
         <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
