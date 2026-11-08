@@ -6,7 +6,7 @@
         community 시안 `design/_shared/botbi-news.css` `.nw-art` · `.nw-cmt`(시안의 2열은 쓰지 않고 한 열이다).
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 list-none p-0" data-testid="post-list-article">
             <template v-for="(row, i) in rows" :key="row.id">
             <li class="border-b border-hairline last:border-b-0">

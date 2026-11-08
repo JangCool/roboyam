@@ -4,7 +4,7 @@
         카드: 모바일 1열 · 데스크톱 2열(썸네일 왼쪽). 갤러리: 모바일 2열 · 데스크톱 4열(정사각 썸네일). 한 줄 광고는 카드형만(두 열을 가로지르는 한 줄), 갤러리형은 그리지 않는다.
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 mt-3 grid list-none p-0" :class="variant === 'CARD' ? 'grid-cols-1 gap-3 md:grid-cols-2' : 'grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4'" data-testid="hotdeal-grid">
             <template v-for="(row, i) in rows" :key="row.id">
                 <li class="min-w-0" :class="variant === 'CARD' ? 'overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900' : ''">

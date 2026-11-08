@@ -20,6 +20,7 @@ import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.membernotification.service.MemberNotificationPublisher;
+import com.community.notice.service.GlobalNoticeReader;
 import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
@@ -71,11 +72,13 @@ public class GroupPostService {
     private final MemberNotificationPublisher notices;
     private final SecretPostGate secretGate;
     private final TransactionTemplate tx;
+    private final GlobalNoticeReader globalNotices;
 
     public GroupPostService(GroupAccess access, GroupPostQueries postQueries, GroupMemberRepository members, GroupRepository groups, PostRepository posts,
                             PostFeedRows rows,
                             PostWriteService writes, BoardCatalog catalog, MemberNotificationPublisher notices, SecretPostGate secretGate,
-                            PlatformTransactionManager txManager) {
+                            PlatformTransactionManager txManager, GlobalNoticeReader globalNotices) {
+        this.globalNotices = globalNotices;
         this.secretGate = secretGate;
         this.access = access;
         this.postQueries = postQueries;
@@ -174,8 +177,10 @@ public class GroupPostService {
                 listSize, now);
         int totalPages = (int) ((found.total() + listSize - 1) / listSize);
         boolean locked = !member && !group.isPublicGroup();
+        // 전체 공지(V174) — 게시판 목록과 같은 조건(첫 쪽 · 말머리/검색어/상태 거르기 없음)
+        boolean plain = !impossible && prefixId == null && query.isEmpty() && filter.status() == null && !filter.impossible();
         return new GroupPostPageView(items(group, found.rows(), b, s, now, userId), current < totalPages, null, locked, locked ? postQueries.privateCount(group.getId(), now) : 0,
-                current, totalPages, found.total());
+                current, totalPages, found.total(), plain && current == 1 ? globalNotices.forBoard(b, now) : List.of());
     }
 
     /** 처리 상태 거르기 — 게시판이 상태를 쓰지 않거나 값이 비면 거르지 않는다, 모르는 값이면 빈 목록 */

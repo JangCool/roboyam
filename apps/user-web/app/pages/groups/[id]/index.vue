@@ -240,6 +240,8 @@
                         </div>
                         <ErrorState v-else-if="posts.status === 'error'" :title="t('group.postsError')" :description="posts.errorMessage" retry @retry="loadPosts" />
                         <template v-else-if="posts.items.length === 0">
+                            <!-- 빈 소모임 게시판에도 전체 공지는 맨 위에 -->
+                            <BoardGlobalNoticeList :rows="posts.globalPinned" :date-display="display.dateDisplay" class="mt-2" />
                             <EmptyState v-if="postsQuery.q" :title="t('board.searchEmptyTitle')" :description="t('board.searchEmptyText')" icon="pi pi-search">
                                 <Button as="router-link" :to="postsLink({ q: '', page: 1 })" :label="t('board.searchClear')" severity="secondary" variant="outlined" />
                             </EmptyState>
@@ -263,7 +265,7 @@
                             </EmptyState>
                         </template>
                         <template v-else>
-                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="postChipPosition" data-testid="group-posts-list" />
+                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :global-pinned="posts.globalPinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="postChipPosition" data-testid="group-posts-list" />
                             <BoardPager :page="posts.page" :total-pages="posts.totalPages" :to="postsPageLink" />
                         </template>
                         <!-- 스크린리더가 불러온 개수를 읽는다 -->

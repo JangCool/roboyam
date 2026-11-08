@@ -41,6 +41,9 @@
                         <span class="inline-flex items-center gap-1 tabular-nums" :aria-label="t('notice.pinnedLabel', { n: context.board.pinnedCount, max: context.board.pinnedMax })">
                             <i class="pi pi-thumbtack text-[11px] text-muted-color" aria-hidden="true" />{{ t('notice.pinnedCount', { n: context.board.pinnedCount, max: context.board.pinnedMax }) }}
                         </span>
+                        <span class="inline-flex items-center gap-1 tabular-nums" :aria-label="t('notice.globalCountLabel', { n: context.global.count, max: context.global.max })">
+                            <i class="pi pi-megaphone text-[11px] text-muted-color" aria-hidden="true" />{{ t('notice.globalCount', { n: context.global.count, max: context.global.max }) }}
+                        </span>
                     </p>
                     <p class="m-0 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                         <NuxtLink :to="boardSettingsPath" class="font-medium text-primary hover:underline">{{ t('notice.boardSettings') }}</NuxtLink>
@@ -156,6 +159,14 @@
                                 >
                                     {{ data.title }}
                                 </button>
+                                <!-- 전체 공지 — 칩 · 뺀 게시판 수 · 끝나는 날 -->
+                                <span v-if="data.pinned && data.global" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-color" data-testid="notice-global-line">
+                                    <Tag :value="t('notice.globalChip')" icon="pi pi-megaphone" :severity="data.global.expired ? 'secondary' : 'info'" class="!px-1.5 !py-0 !text-[11px]" />
+                                    <span v-if="UtilNotice.excludedCount(data.global, context.global.groupBoards) > 0">{{ t('notice.excludeCount', { n: UtilNotice.excludedCount(data.global, context.global.groupBoards) }) }}</span>
+                                    <span v-if="data.global.expired" class="text-amber-700 dark:text-amber-400">{{ t('notice.globalExpired') }}</span>
+                                    <span v-else-if="data.global.expiresAt">{{ t('notice.globalUntil', { date: time.full(data.global.expiresAt) }) }}</span>
+                                    <span v-else>{{ t('notice.globalNoEnd') }}</span>
+                                </span>
                             </template>
                         </Column>
 

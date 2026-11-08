@@ -1,5 +1,5 @@
 import type { LocationQuery } from 'vue-router';
-import type { NoticeQuery, NoticeWriter } from '~/composables/notice/api/useNoticeApi.types';
+import type { NoticeBoardRef, NoticeGlobal, NoticeQuery, NoticeWriter } from '~/composables/notice/api/useNoticeApi.types';
 import type { PostStateFilter } from '~/composables/post/api/usePostApi.types';
 
 /** 공지 목록 필터(주소 쿼리 `?q=&state=&prefix=&page=`) — `page` 는 1부터 */
@@ -11,6 +11,14 @@ export interface NoticeFilters {
 }
 
 const STATE_FILTERS: readonly PostStateFilter[] = ['ALL', 'PUBLIC', 'HIDDEN', 'DELETED'];
+
+/** 전체 공지 「걸어 둘 기간」 — 끝 없음(풀 때까지) · 7일 · 30일 · 날짜 고르기 */
+export type NoticePeriod = 'NONE' | 'D7' | 'D30' | 'DATE';
+
+const PERIODS: readonly NoticePeriod[] = ['NONE', 'D7', 'D30', 'DATE'];
+const DAY_MS = 86_400_000;
+/** 날짜 고르기는 한국 시각 기준(관리자 앱의 다른 날짜 칸과 같다) */
+const KST_OFFSET_MS = 9 * 3_600_000;
 
 function first(value: LocationQuery[string] | undefined): string {
     const v = Array.isArray(value) ? value[0] : value;
@@ -82,6 +90,54 @@ export default class UtilNotice {
     /** 제목 글자 수(앞뒤 공백 뺀, 낱글자 기준) */
     static titleLength(title: string): number {
         return Array.from(title.trim()).length;
+    }
+
+    // ── 전체 공지 기간(서버 규칙: 지금보다 뒤, 366일 안) ──
+
+    static readonly PERIODS = PERIODS;
+    /** 고를 수 있는 가장 먼 날 — 오늘부터 이 날 수 안 */
+    static readonly PERIOD_MAX_DAYS = 365;
+
+    /** 한국 시각의 오늘(`YYYY-MM-DD`) */
+    static kstToday(now = Date.now()): string {
+        return new Date(now + KST_OFFSET_MS).toISOString().slice(0, 10);
+    }
+
+    /** 한국 시각 날짜에 날 수를 더한다 */
+    static kstAddDays(ymd: string, days: number): string {
+        const [y, m, d] = ymd.split('-').map(Number);
+        return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10);
+    }
+
+    /** 그 날(한국 시각)의 마지막 초 23:59:59(UTC ISO) */
+    static kstEndOfDay(ymd: string): string {
+        const [y, m, d] = ymd.split('-').map(Number);
+        return new Date(Date.UTC(y!, m! - 1, d! + 1) - KST_OFFSET_MS - 1000).toISOString();
+    }
+
+    /** 저장된 끝 시각을 날짜 칸 값으로 — 그 순간의 한국 시각 날짜 */
+    static kstDateOf(iso: string): string {
+        return new Date(Date.parse(iso) + KST_OFFSET_MS).toISOString().slice(0, 10);
+    }
+
+    /**
+     * 기간 고르기 → 보낼 끝 시각(UTC ISO, 끝 없음 null). 7일·30일은 지금부터, 날짜는 그날 끝까지.
+     * 저장된 값을 그대로 둔 날짜면(`original` 의 날짜와 같음) 저장된 값을 그대로 보낸다 — 서버는 지난 값도 그대로면 받는다.
+     */
+    static expiresAt(period: NoticePeriod, date: string, original: string | null, now = Date.now()): string | null {
+        if (period === 'NONE') return null;
+        if (period === 'D7') return new Date(now + 7 * DAY_MS).toISOString();
+        if (period === 'D30') return new Date(now + 30 * DAY_MS).toISOString();
+        if (!date) return null;
+        if (original && UtilNotice.kstDateOf(original) === date) return original;
+        return UtilNotice.kstEndOfDay(date);
+    }
+
+    /** 「뺄 게시판 N개」 — 하나씩 뺀 게시판 + (소모임 전체를 뺐으면 지금 소모임 게시판 수) */
+    static excludedCount(g: NoticeGlobal, groupBoards: readonly NoticeBoardRef[]): number {
+        if (!g.excludeAllGroupBoards) return g.excludedBoardIds.length;
+        const groupIds = new Set(groupBoards.map((b) => b.id));
+        return g.excludedBoardIds.filter((id) => !groupIds.has(id)).length + groupBoards.length;
     }
 
     /** 내 운영자 회원 계정으로 공지를 쓸 수 있다 — 연결됐고 멈추지 않았다 */

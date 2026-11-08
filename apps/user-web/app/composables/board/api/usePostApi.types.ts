@@ -239,7 +239,19 @@ export interface DealPostListQuery {
     page: number;
 }
 
+/**
+ * 전체 공지 한 줄 — 공지 게시판 고정글 중 모든 게시판 맨 위에도 건 것(서버 `GlobalNoticeView`, notice-admin-contract 「전체 공지」). 누르면 `/posts/{id}`.
+ */
+export interface GlobalNoticeRow {
+    id: string;
+    title: string;
+    /** 공지 글 등록 시각 */
+    createdAt: string;
+}
+
 export interface PostListResponse {
+    /** 전체 공지 — `pinned` 와 같은 조건(첫 쪽·거르기 없음)일 때만, 최대 3개, 공지 게시판 자신에는 없다. 옛 응답에는 없다 */
+    globalPinned?: GlobalNoticeRow[];
     /** 고정 공지 — 첫 쪽·말머리/검색 없음일 때만, 최대 `pinnedMax` */
     pinned: PostRow[];
     items: PostRow[];

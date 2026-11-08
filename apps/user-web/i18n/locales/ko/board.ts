@@ -12,6 +12,9 @@ export default {
     /** 탈퇴가 완료된 회원의 글·댓글 — 서버가 닉네임을 비워(null) 준다 */
     authorWithdrawn: '탈퇴한 회원',
     pinned: '고정 공지',
+    /** 전체 공지(공지 게시판 고정글을 모든 게시판 맨 위에도 — 2026-11-08) */
+    globalNoticeChip: '공지',
+    globalNoticeList: '전체 공지',
     adultMark: '19금 글',
     hasImage: '이미지 있음',
     commentCountLabel: '댓글',

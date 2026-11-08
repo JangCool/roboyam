@@ -9,6 +9,8 @@ export default {
     guestIp: 'IP {ip}',
     authorWithdrawn: 'Withdrawn member',
     pinned: 'Pinned',
+    globalNoticeChip: 'Notice',
+    globalNoticeList: 'Site notices',
     adultMark: '18+ post',
     hasImage: 'Has images',
     commentCountLabel: 'Comments',

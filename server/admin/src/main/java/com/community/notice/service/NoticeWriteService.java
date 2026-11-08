@@ -6,14 +6,19 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.board.dto.ContentBody;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.repository.master.BoardRepository;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.media.service.PostImageUploads;
 import com.community.notice.dto.request.NoticeSaveRequest;
 import com.community.notice.dto.response.NoticeCreatedView;
 import com.community.notice.dto.response.NoticeImageView;
+import com.community.notice.entity.NoticeGlobalPinEntity;
 import com.community.notice.exception.NoticeBoardInactiveException;
+import com.community.notice.exception.NoticeGlobalLimitException;
 import com.community.notice.exception.NoticeWriterNotLinkedException;
+import com.community.notice.repository.master.NoticeGlobalPinQueries;
+import com.community.notice.repository.master.NoticeGlobalPinRepository;
 import com.community.operator.repository.master.OperatorMemberAccountStore.Link;
 import com.community.operator.service.OperatorMemberAccountService;
 import com.community.permission.dto.AdminActor;
@@ -34,9 +39,14 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,8 +69,12 @@ import org.springframework.web.multipart.MultipartFile;
  *       {@link PostImages}(내가 올린 아직 안 쓴 이미지 또는 이 글이 쓰던 이미지 — 아니면 {@code fields.body}), 이미지 금지 게시판의 새 이미지 422 IMAGE_UPLOAD_NOT_ALLOWED.
  *       금지어 · 작성 간격 · 하루 한도 · 같은 글 반복 · 자동입력 방지는 보지 않는다(운영자 공지). 포인트는 주지 않는다.</li>
  *   <li><b>고정</b>: 게시글 관리와 같은 한도(그 게시판의 지우지 않은 고정 글 수, 정책 {@code pinnedMax} — 넘으면 409 PIN_LIMIT), 공개 글만(409 POST_STATE_INVALID).</li>
+ *   <li><b>전체 공지</b>(V174): 고정할 때 범위 {@code scope} NOTICE_ONLY(기본) · ALL. ALL 이면 뺄 게시판 · 소모임 게시판 전체 빼기 · 기간을 함께 저장한다. 사이트 전체에서
+ *       동시에 살아 있는 전체 공지는 {@value NoticeGlobalPinEntity#MAX}개까지(이 글 말고, 공지 게시판 행을 잠그고 센다 — 넘으면 409 NOTICE_GLOBAL_LIMIT, 이미 지난 기간이면 세지 않는다).
+ *       고정을 끄거나 범위를 NOTICE_ONLY 로 바꾸거나 고정 해제 · 삭제하면 줄을 지운다. 목록 ⋯ 「고정」({@link #pin})은 공지 게시판에만이다.</li>
  *   <li><b>삭제</b>: 지우지 않은 글 → 게시글 관리 삭제와 같은 「지운 글」(고정 해제) — 사유 · 작성자 알림 · 포인트 회수 없음. 복구 · 조치 기록은 게시글 관리에서.</li>
- *   <li><b>기록</b>: 감사 {@code NOTICE_*}(대상 POST), 삭제 · 고정 · 해제는 조치 기록에도 기존 종류(DELETED · PINNED · UNPINNED, 덧붙임 {@code via NOTICE_ADMIN}, 사유 없음).</li>
+ *   <li><b>기록</b>: 감사 {@code NOTICE_*}(대상 POST), 삭제 · 고정 · 해제는 조치 기록에도 기존 종류(DELETED · PINNED · UNPINNED, 덧붙임 {@code via NOTICE_ADMIN}, 사유 없음).
+ *       전체 공지는 감사 {@code global} 칸(범위 · 뺀 게시판 · 소모임 전체 빼기 · 기간), 고정 해제 · 삭제로 내려가면 {@code globalRemoved}.</li>
  * </ul>
  */
 @Service
@@ -72,6 +86,12 @@ public class NoticeWriteService {
     static final String VIA = "NOTICE_ADMIN";
     /** 공지 몸의 본문 칸 경로 */
     static final String BODY = "body";
+    static final String SCOPE_NOTICE_ONLY = "NOTICE_ONLY";
+    static final String SCOPE_ALL = "ALL";
+    /** 뺄 게시판 ID 최대 수 */
+    static final int EXCLUDED_MAX = 1000;
+    /** 기간 끝 최대 — 지금부터 */
+    static final int EXPIRES_MAX_DAYS = 366;
 
     private final NoticeQueryService notices;
     private final BoardCatalog catalog;
@@ -83,10 +103,14 @@ public class NoticeWriteService {
     private final PostModerationLog moderation;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
+    private final NoticeGlobalPinRepository globalPins;
+    private final NoticeGlobalPinQueries globalQueries;
+    private final BoardRepository boards;
 
     public NoticeWriteService(NoticeQueryService notices, BoardCatalog catalog, PostRepository posts, AdminPostRepositoryQDSL queries,
                               OperatorMemberAccountService accounts, PostImages postImages, PostImageUploads uploads, PostModerationLog moderation,
-                              AuditLogService audit, SnowflakeIdGenerator ids) {
+                              AuditLogService audit, SnowflakeIdGenerator ids, NoticeGlobalPinRepository globalPins, NoticeGlobalPinQueries globalQueries,
+                              BoardRepository boards) {
         this.notices = notices;
         this.catalog = catalog;
         this.posts = posts;
@@ -97,16 +121,22 @@ public class NoticeWriteService {
         this.moderation = moderation;
         this.audit = audit;
         this.ids = ids;
+        this.globalPins = globalPins;
+        this.globalQueries = globalQueries;
+        this.boards = boards;
     }
 
     // ── 쓰기 · 고치기 ───────────────────────────────────────────────────────
 
-    /** 새 공지 — 검사 차례: 게시판(404 · 409) → 작성 계정(409) → 칸(400) → 이미지(400 · 422) → 고정 한도(409) */
+    /** 새 공지 — 검사 차례: 게시판(404 · 409) → 작성 계정(409) → 칸(400) → 이미지(400 · 422) → 고정 한도(409) → 전체 공지 한도(409) */
     @Transactional
     public NoticeCreatedView create(AdminActor actor, NoticeSaveRequest body) {
         EffectiveBoard board = writableBoard();
         long writer = writerOf(actor);
-        PostContentFields.Cleaned c = fields(board, null, body);
+        Instant now = Instant.now();
+        Map<String, MessageRef> invalid = new LinkedHashMap<>();
+        GlobalInput global = globalInput(board, body, null, now, invalid);
+        PostContentFields.Cleaned c = fields(board, null, body, invalid);
         ContentBody content = c.body();
         if (!content.imageIds().isEmpty()) {
             postImages.check(content.imageIds(), writer, null, BODY); // 없거나 남의 이미지 — 400 fields.body
@@ -115,10 +145,10 @@ public class NoticeWriteService {
             }
         }
         long id = ids.nextId();
-        Instant now = Instant.now();
         boolean pin = Boolean.TRUE.equals(body == null ? null : body.pinned());
         if (pin) {
             requirePinRoom(board, id, now);
+            requireGlobalRoom(board, id, global, now);
         }
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), writer, id, false, now, BODY) : content.content();
         PostEntity post = PostEntity.create(id, board.id(), c.prefixId(), writer, null, null, actor.ip(), c.title(), content.format(), stored, content.plain(),
@@ -129,17 +159,21 @@ public class NoticeWriteService {
         posts.persist(post);
         if (pin) {
             moderation.operator(id, PostModerationEventEntity.PINNED, actor.operatorId(), null, via(), now);
+            saveGlobal(actor, post, null, global, now);
         }
         AuditEvent event = event(actor, AuditActions.NOTICE_CREATE, id).with("boardId", Long.toString(board.id())).with("authorUserId", Long.toString(writer))
                 .with("title", c.title()).with("pinned", pin);
+        if (pin && global.all()) {
+            event = event.with("global", global.summary());
+        }
         audit.record(c.prefixId() == null ? event : event.with("prefixId", Long.toString(c.prefixId())));
-        log.info("공지 쓰기 postId={} by operatorId={} authorUserId={} pinned={}", id, actor.operatorId(), writer, pin);
+        log.info("공지 쓰기 postId={} by operatorId={} authorUserId={} pinned={} global={}", id, actor.operatorId(), writer, pin, pin && global.all());
         return new NoticeCreatedView(Long.toString(id));
     }
 
     /**
      * 공지 고치기 — 작성자는 그대로. 검사 차례: 게시판(404 · 409) → 작성 계정(409) → 글(공지 게시판 글이 아니면 404 POST_NOT_FOUND) → 지운 글 409 POST_STATE_INVALID
-     * → 칸(400) → 이미지(400 · 422) → 고정(새로 고정이면 공개 글만 409 · 한도 409). {@code pinned false} 면 고정을 푼다.
+     * → 칸(400) → 이미지(400 · 422) → 고정(새로 고정이면 공개 글만 409 · 한도 409) → 전체 공지 한도(409). {@code pinned false} 면 고정을 풀고 전체 공지에서도 내린다.
      */
     @Transactional
     public void update(AdminActor actor, String idText, NoticeSaveRequest body) {
@@ -150,7 +184,11 @@ public class NoticeWriteService {
         if (post.isGoneAt(now)) {
             throw new PostStateInvalidException();
         }
-        PostContentFields.Cleaned c = fields(board, post.getPrefixId(), body);
+        NoticeGlobalPinEntity row = globalPins.findById(post.getId()).orElse(null);
+        NoticeGlobalPinEntity current = live(row, post);
+        Map<String, MessageRef> invalid = new LinkedHashMap<>();
+        GlobalInput global = globalInput(board, body, current, now, invalid);
+        PostContentFields.Cleaned c = fields(board, post.getPrefixId(), body, invalid);
         ContentBody content = c.body();
         List<Long> imageIds = content.imageIds();
         if (!imageIds.isEmpty()) {
@@ -166,6 +204,9 @@ public class NoticeWriteService {
             PostModerationActions.requirePublic(post, now);
             requirePinRoom(board, post.getId(), now);
         }
+        if (wantPin) {
+            requireGlobalRoom(board, post.getId(), global, now);
+        }
 
         Map<String, Object> before = new LinkedHashMap<>();
         Map<String, Object> after = new LinkedHashMap<>();
@@ -180,6 +221,12 @@ public class NoticeWriteService {
         if (wantPin != wasPinned) {
             before.put("pinned", wasPinned);
             after.put("pinned", wantPin);
+        }
+        Map<String, Object> globalBefore = current == null ? null : summary(current.getExcludedBoardIds(), current.isExcludeGroupBoards(), current.getExpiresAt());
+        Map<String, Object> globalAfter = wantPin && global.all() ? global.summary() : null;
+        if (!Objects.equals(globalBefore, globalAfter)) {
+            before.put("global", globalBefore);
+            after.put("global", globalAfter);
         }
         String oldContent = post.getContent();
 
@@ -198,6 +245,11 @@ public class NoticeWriteService {
             post.unpin(now);
             moderation.operator(post.getId(), PostModerationEventEntity.UNPINNED, actor.operatorId(), null, via(), now);
         }
+        if (wantPin) {
+            saveGlobal(actor, post, row, global, now);
+        } else {
+            dropGlobal(row);
+        }
         AuditEvent event = event(actor, AuditActions.NOTICE_UPDATE, post.getId()).with("bodyChanged", !Objects.equals(oldContent, stored));
         if (!before.isEmpty()) {
             event = event.with("before", before).with("after", after);
@@ -208,7 +260,7 @@ public class NoticeWriteService {
 
     // ── 고정 · 해제 · 삭제 ──────────────────────────────────────────────────
 
-    /** 고정 — 게시판이 꺼져 있으면 409 NOTICE_BOARD_INACTIVE, 공개 글 · 고정 아님(409 POST_STATE_INVALID), 한도(409 PIN_LIMIT) */
+    /** 고정(공지 게시판에만) — 게시판이 꺼져 있으면 409 NOTICE_BOARD_INACTIVE, 공개 글 · 고정 아님(409 POST_STATE_INVALID), 한도(409 PIN_LIMIT) */
     @Transactional
     public void pin(AdminActor actor, String idText) {
         EffectiveBoard board = writableBoard();
@@ -225,7 +277,7 @@ public class NoticeWriteService {
         log.info("공지 고정 postId={} by operatorId={}", post.getId(), actor.operatorId());
     }
 
-    /** 고정 해제 — 고정 글만(아니면 409 POST_STATE_INVALID), 상태와 무관 */
+    /** 고정 해제 — 고정 글만(아니면 409 POST_STATE_INVALID), 상태와 무관. 전체 공지에서도 내린다 */
     @Transactional
     public void unpin(AdminActor actor, String idText) {
         PostEntity post = lock(notices.requireBoard(), idText);
@@ -233,13 +285,17 @@ public class NoticeWriteService {
         if (post.getPinnedAt() == null) {
             throw new PostStateInvalidException();
         }
+        NoticeGlobalPinEntity row = globalPins.findById(post.getId()).orElse(null);
+        boolean wasGlobal = live(row, post) != null;
         post.unpin(now);
+        dropGlobal(row);
         moderation.operator(post.getId(), PostModerationEventEntity.UNPINNED, actor.operatorId(), null, via(), now);
-        audit.record(event(actor, AuditActions.NOTICE_UNPIN, post.getId()));
+        AuditEvent event = event(actor, AuditActions.NOTICE_UNPIN, post.getId());
+        audit.record(wasGlobal ? event.with("globalRemoved", true) : event);
         log.info("공지 고정 해제 postId={} by operatorId={}", post.getId(), actor.operatorId());
     }
 
-    /** 삭제 — 지우지 않은 글만(아니면 409 POST_STATE_INVALID). 고정을 푼다. 사유 · 작성자 알림 · 포인트 회수 없음 */
+    /** 삭제 — 지우지 않은 글만(아니면 409 POST_STATE_INVALID). 고정을 풀고 전체 공지에서도 내린다. 사유 · 작성자 알림 · 포인트 회수 없음 */
     @Transactional
     public void delete(AdminActor actor, String idText) {
         PostEntity post = lock(notices.requireBoard(), idText);
@@ -248,14 +304,20 @@ public class NoticeWriteService {
             throw new PostStateInvalidException();
         }
         boolean wasPinned = post.getPinnedAt() != null;
+        NoticeGlobalPinEntity row = globalPins.findById(post.getId()).orElse(null);
+        boolean wasGlobal = live(row, post) != null;
         post.staffDelete(now);
+        dropGlobal(row);
         Map<String, Object> detail = new LinkedHashMap<>(via());
         if (wasPinned) {
             detail.put("unpinned", true);
         }
         moderation.operator(post.getId(), PostModerationEventEntity.DELETED, actor.operatorId(), null, detail, now);
         AuditEvent event = event(actor, AuditActions.NOTICE_DELETE, post.getId());
-        audit.record(wasPinned ? event.with("unpinned", true) : event);
+        if (wasPinned) {
+            event = event.with("unpinned", true);
+        }
+        audit.record(wasGlobal ? event.with("globalRemoved", true) : event);
         log.info("공지 삭제 postId={} by operatorId={}", post.getId(), actor.operatorId());
     }
 
@@ -278,6 +340,130 @@ public class NoticeWriteService {
         }
         PostImageUploads.Stored stored = uploads.store(writer, data);
         return new NoticeImageView(Long.toString(stored.id()), stored.url(), stored.width(), stored.height());
+    }
+
+    // ── 전체 공지 ─────────────────────────────────────────────────────────
+
+    /**
+     * 검사한 전체 공지 칸.
+     *
+     * @param all       범위가 ALL 이고 고정한다
+     * @param excluded  뺄 게시판(차례 그대로, 같은 ID 는 한 번 — 공지 게시판 자신 · 형식이 맞지만 지금 없는 게시판 ID 는 뺀다)
+     * @param expiresAt 기간 끝(null = 풀 때까지)
+     */
+    private record GlobalInput(boolean all, List<Long> excluded, boolean excludeGroups, Instant expiresAt) {
+
+        static final GlobalInput NONE = new GlobalInput(false, List.of(), false, null);
+
+        boolean expiredAt(Instant now) {
+            return expiresAt != null && !expiresAt.isAfter(now);
+        }
+
+        Map<String, Object> summary() {
+            return NoticeWriteService.summary(excluded, excludeGroups, expiresAt);
+        }
+    }
+
+    /**
+     * 전체 공지 칸 검사 — 고정하지 않으면 모두 무시한다. 칸 경로: {@code scope}(NOTICE_ONLY · ALL 밖) · {@code excludedBoardIds}(형식이 틀린 ID · {@value #EXCLUDED_MAX}개 넘음)
+     * · {@code expiresAt}(형식 · 지난 시각 — 이미 저장된 값 그대로면 둔다 · {@value #EXPIRES_MAX_DAYS}일 넘음). 틀린 칸은 {@code invalid} 에 모은다.
+     */
+    private GlobalInput globalInput(EffectiveBoard board, NoticeSaveRequest body, NoticeGlobalPinEntity current, Instant now, Map<String, MessageRef> invalid) {
+        if (body == null || !Boolean.TRUE.equals(body.pinned())) {
+            return GlobalInput.NONE;
+        }
+        String scope = body.scope() == null || body.scope().isBlank() ? SCOPE_NOTICE_ONLY : body.scope().strip().toUpperCase(Locale.ROOT);
+        if (!SCOPE_NOTICE_ONLY.equals(scope) && !SCOPE_ALL.equals(scope)) {
+            invalid.put("scope", new MessageRef("notice.global.scope.invalid"));
+            return GlobalInput.NONE;
+        }
+        if (SCOPE_NOTICE_ONLY.equals(scope)) {
+            return GlobalInput.NONE;
+        }
+        List<String> raw = body.excludedBoardIds() == null ? List.of() : body.excludedBoardIds();
+        Set<Long> excluded = new LinkedHashSet<>();
+        if (raw.size() > EXCLUDED_MAX) {
+            invalid.put("excludedBoardIds", new MessageRef("notice.global.excluded.tooMany", String.valueOf(EXCLUDED_MAX)));
+        } else {
+            var snapshot = catalog.snapshot();
+            for (String text : raw) {
+                Long id = AdminPostQueryService.parseId(text);
+                if (id == null) {
+                    invalid.put("excludedBoardIds", new MessageRef("notice.global.excluded.invalid"));
+                    break;
+                }
+                if (id != board.id() && snapshot.board(id).isPresent()) {
+                    excluded.add(id); // 그사이 지운 게시판은 조용히 뺀다
+                }
+            }
+        }
+        Instant expiresAt = null;
+        if (body.expiresAt() != null && !body.expiresAt().isBlank()) {
+            try {
+                expiresAt = OffsetDateTime.parse(body.expiresAt().strip()).toInstant();
+            } catch (DateTimeParseException e) {
+                invalid.put("expiresAt", new MessageRef("notice.global.expiresAt.invalid"));
+            }
+            if (expiresAt != null) {
+                boolean unchanged = current != null && expiresAt.equals(current.getExpiresAt());
+                if (!unchanged && !expiresAt.isAfter(now)) {
+                    invalid.put("expiresAt", new MessageRef("notice.global.expiresAt.past"));
+                } else if (expiresAt.isAfter(now.plus(Duration.ofDays(EXPIRES_MAX_DAYS)))) {
+                    invalid.put("expiresAt", new MessageRef("notice.global.expiresAt.tooFar", String.valueOf(EXPIRES_MAX_DAYS)));
+                }
+            }
+        }
+        boolean excludeGroups = Boolean.TRUE.equals(body.excludeAllGroupBoards());
+        return new GlobalInput(true, List.copyOf(excluded), excludeGroups, expiresAt);
+    }
+
+    /**
+     * 전체 공지 한도 — 범위 ALL 이고 기간이 남았으면, 공지 게시판 행을 잠근 뒤(동시에 거는 요청을 줄 세운다) 이 글 말고 살아 있는 전체 공지가
+     * {@value NoticeGlobalPinEntity#MAX}개면 409 NOTICE_GLOBAL_LIMIT.
+     */
+    private void requireGlobalRoom(EffectiveBoard board, long postId, GlobalInput global, Instant now) {
+        if (!global.all() || global.expiredAt(now)) {
+            return;
+        }
+        boards.findWithLockById(board.id());
+        if (globalQueries.liveCount(board.id(), postId, now) >= NoticeGlobalPinEntity.MAX) {
+            throw new NoticeGlobalLimitException(NoticeGlobalPinEntity.MAX);
+        }
+    }
+
+    /** 고정한 글의 전체 공지 줄을 맞춘다 — ALL 이면 만들거나 고치고(글의 지금 고정 시각으로), 아니면 지운다 */
+    private void saveGlobal(AdminActor actor, PostEntity post, NoticeGlobalPinEntity row, GlobalInput global, Instant now) {
+        if (!global.all()) {
+            dropGlobal(row);
+            return;
+        }
+        if (row == null) {
+            globalPins.persist(NoticeGlobalPinEntity.create(post.getId(), post.getPinnedAt(), global.excluded(), global.excludeGroups(), global.expiresAt(),
+                    actor.operatorId(), now));
+        } else {
+            row.change(post.getPinnedAt(), global.excluded(), global.excludeGroups(), global.expiresAt(), actor.operatorId(), now);
+        }
+    }
+
+    private void dropGlobal(NoticeGlobalPinEntity row) {
+        if (row != null) {
+            globalPins.delete(row);
+        }
+    }
+
+    /** 힘이 있는 줄 — 글의 고정 시각이 줄의 사본과 같을 때만(공지 관리 밖에서 고정이 풀렸거나 다시 고정됐으면 null) */
+    private static NoticeGlobalPinEntity live(NoticeGlobalPinEntity row, PostEntity post) {
+        return row != null && post.getPinnedAt() != null && post.getPinnedAt().equals(row.getPinnedAt()) ? row : null;
+    }
+
+    /** 감사용 전체 공지 요약 */
+    static Map<String, Object> summary(List<Long> excluded, boolean excludeGroups, Instant expiresAt) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("scope", SCOPE_ALL);
+        out.put("excludedBoardIds", excluded.stream().map(String::valueOf).toList());
+        out.put("excludeAllGroupBoards", excludeGroups);
+        out.put("expiresAt", expiresAt == null ? null : expiresAt.toString());
+        return out;
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────
@@ -306,14 +492,14 @@ public class NoticeWriteService {
     }
 
     /**
-     * 칸 검사(공개 글쓰기와 같은 규칙) → 칸 경로를 공지 몸으로 옮겨 400. 글쓴이는 회원(새 회원 규칙 없음) · 운영진(운영진 전용 말머리 허용), 본문 형식은 늘 HTML,
-     * 19금은 고르지 않는다(성인 전용 말머리면 그 규칙대로).
+     * 칸 검사(공개 글쓰기와 같은 규칙) → 칸 경로를 공지 몸으로 옮겨 400(전체 공지 칸 {@code extra} 와 함께). 글쓴이는 회원(새 회원 규칙 없음) · 운영진(운영진 전용 말머리 허용),
+     * 본문 형식은 늘 HTML, 19금은 고르지 않는다(성인 전용 말머리면 그 규칙대로).
      */
-    private PostContentFields.Cleaned fields(EffectiveBoard board, Long currentPrefixId, NoticeSaveRequest body) {
+    private PostContentFields.Cleaned fields(EffectiveBoard board, Long currentPrefixId, NoticeSaveRequest body, Map<String, MessageRef> extra) {
         Map<String, MessageRef> raw = new LinkedHashMap<>();
         PostContentFields.Cleaned c = PostContentFields.check(board, true, ContentRules.Writer.MEMBER, currentPrefixId, body == null ? null : body.prefixId(),
                 body == null ? null : body.title(), "HTML", body == null ? null : body.body(), null, catalog.snapshot().security(), raw);
-        if (raw.isEmpty()) {
+        if (raw.isEmpty() && extra.isEmpty()) {
             return c;
         }
         Map<String, MessageRef> out = new LinkedHashMap<>();
@@ -322,6 +508,7 @@ public class NoticeWriteService {
             case "adult" -> "prefixId";
             default -> key;
         }, message));
+        extra.forEach(out::putIfAbsent);
         throw new ValidationException(out);
     }
 
