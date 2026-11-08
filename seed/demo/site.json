@@ -1,0 +1,71 @@
+{
+  "_readme": "사이트 전체 데모 데이터 — 로더 seed-demo.mjs 의 site 단계(공지 띠·팝업·보상 이벤트)와 extras 단계(소모임 일정·공동구매 문의). 공지 글은 제목(content/notice.json 의 title)으로 찾는다. 시각은 실행한 때 기준(days = 지금부터 며칠 뒤, 음수면 전).",
+  "noticeBar": {
+    "_comment": "공지 띠가 꺼져 있을 때만 켠다(이미 켜져 있으면 그대로) — 공지 게시판 최근 글 5개",
+    "source": "BOARD",
+    "boardCount": 5
+  },
+  "popups": [
+    {
+      "name": "데모 — 환영 팝업",
+      "kind": "TEXT",
+      "heading": "ROBOYAM에 오신 걸 환영해요",
+      "body": "AI·로봇·테크부터 게임·스포츠·생활 이야기까지,\n관심사가 같은 사람들과 편하게 나눠 보세요.\n\n처음이라면 이용 안내를 먼저 읽어 보시면 좋아요.",
+      "buttonLabel": "이용 안내 보기",
+      "linkNotice": "ROBOYAM(로보얌)에 오신 걸 환영해요 — 처음 오신 분을 위한 이용 안내",
+      "target": "HOME",
+      "devices": ["PC", "MOBILE"],
+      "hideOption": "WEEK",
+      "windowNo": 1,
+      "visible": true
+    }
+  ],
+  "rewardEvents": [
+    {
+      "_comment": "당첨자 선정(댓글 추첨) — 만들고 시작(진행 중)까지만. 추첨·지급은 하지 않는다(실제 포인트가 나간다)",
+      "name": "11월 「로보얌에 바라는 점」 댓글 이벤트",
+      "memo": "데모 데이터 — 공지 댓글 작성자 중 추첨. 마감 뒤 추첨·지급은 운영자가 직접",
+      "notice": "[이벤트] 「로보얌에 바라는 점」 댓글 남기고 포인트 받아 가세요",
+      "startFromNotice": true,
+      "endDays": 10,
+      "mode": "SELECTION",
+      "commentDraw": true,
+      "start": true,
+      "tiers": [
+        { "name": "1등", "quota": 3, "points": 5000 },
+        { "name": "2등", "quota": 10, "points": 1000 }
+      ]
+    },
+    {
+      "_comment": "일괄 지급(조건) — 준비 상태로만 둔다(시작·지급하지 않음)",
+      "name": "연말 감사 포인트 (단골 이상)",
+      "memo": "데모 데이터 — 준비 중. 12월 말 단골 등급 이상·최근 30일 로그인 회원에게 일괄 지급 예정",
+      "startDays": 40,
+      "endDays": 47,
+      "mode": "BULK",
+      "bulk": { "scope": "CONDITION", "minGradeLevel": 3, "activeWithinDays": 30 },
+      "start": false,
+      "tiers": [
+        { "name": "감사 포인트", "quota": 0, "points": 500 }
+      ]
+    }
+  ],
+  "groupEvents": [
+    { "group": "LLM 스터디", "title": "4주차 — RAG 파이프라인 같이 만들어 보기", "days": 3, "hour": 21, "hours": 2, "mode": "ONLINE", "description": "디스코드 음성 채널에서 진행해요. 지난주 정리한 문서 묶음으로 검색 + 답변 흐름을 직접 붙여 봅니다. 노트북만 준비해 오세요." },
+    { "group": "LLM 스터디", "title": "논문 읽기 — 긴 문맥 처리 기법 정리", "days": 10, "hour": 21, "hours": 2, "mode": "ONLINE", "description": "발표자 두 분이 15분씩 정리해 오고 나머지는 질문 위주로 이야기 나눠요." },
+    { "group": "휴머노이드 제작 모임", "title": "11월 정기 모임 — 다리 관절 서보 배선 점검", "days": 6, "hour": 14, "hours": 4, "mode": "OFFLINE", "place": "서울 성수동 메이커 스페이스(자세한 위치는 모임 글 참고)", "description": "각자 만든 다리 모듈을 가져와서 배선이랑 전원 분배를 같이 봐요. 멀티미터 있으신 분은 챙겨 주세요." },
+    { "group": "아두이노 입문반", "title": "온라인 실습 — 초음파 센서로 거리 재기", "days": 2, "hour": 20, "hours": 1, "mode": "ONLINE", "description": "센서 키트의 초음파 센서(HC-SR04)를 씁니다. 실습 코드는 시작 전에 모임 글로 올려 둘게요." },
+    { "group": "배당주 스터디", "title": "12월 배당 일정 같이 정리하기", "days": 5, "hour": 22, "hours": 1, "mode": "ONLINE", "description": "각자 보유 종목의 배당 기준일·지급일을 표로 모아 봐요. 종목 추천이 아니라 일정 정리 모임입니다." },
+    { "group": "주말 롤 파티", "title": "주말 밤 5인 칼바람 파티", "days": 6, "hour": 22, "hours": 3, "mode": "ONLINE", "description": "티어 상관없이 즐겜 위주로 해요. 디스코드 들어와서 인원 차면 바로 시작합니다." },
+    { "group": "야구 직관 모임", "title": "가을야구 끝! 시즌 마무리 번개 모임", "days": 8, "hour": 19, "hours": 3, "mode": "OFFLINE", "place": "잠실새내역 근처 호프집(참석 인원 확정 후 공지)", "description": "올 시즌 직관 다녔던 분들 모여서 한잔해요. 각자 계산, 참석 여부 꼭 눌러 주세요." }
+  ],
+  "groupBuyQna": [
+    { "groupBuy": "교육용 6축 로봇팔 키트 2차", "question": "1차 때 받은 키트랑 부품이 같은가요? 서보 사양이 바뀌었는지 궁금해요.", "answer": "안녕하세요, 로보얌 공동구매 담당입니다. 2차 키트는 1차와 프레임은 같고, 서보는 토크가 조금 높은 같은 계열 모델로 바뀌었어요. 1차 키트 부품과도 호환됩니다.", "days": -4 },
+    { "groupBuy": "교육용 6축 로봇팔 키트 2차", "question": "조립 설명서가 한글로 들어 있나요? 중학생 아이랑 같이 만들려고 해요.", "answer": "네, 한글 설명서(사진 포함)와 영상 링크가 함께 들어 있어요. 조립은 처음 하시는 분 기준 3~4시간 정도 걸립니다.", "days": -2 },
+    { "groupBuy": "라즈베리파이 5 스타터 킷 선착순", "question": "케이스에 쿨링 팬이 포함인가요? 따로 사야 하나요?", "answer": "공식 액티브 쿨러가 포함되어 있어요. 케이스와 함께 쓰실 수 있습니다.", "days": -3 },
+    { "groupBuy": "라즈베리파이 5 스타터 킷 선착순", "question": "주문하고 배송지 바꿀 수 있나요? 이사 날짜가 애매해서요.", "secret": true, "answer": "출고 전이면 바꿔 드릴 수 있어요. 주소 같은 개인정보는 문의에 적지 마시고, 사이트 아래 고객 지원 이메일로 주문 번호와 함께 보내 주세요.", "days": -1 },
+    { "groupBuy": "제주 노지 감귤 첫물 공구", "question": "10kg이면 몇 과 정도 들어 있나요? 크기는 어느 정도예요?", "answer": "중과 기준으로 보통 90~110과 정도 들어가요. 수확 상황에 따라 조금씩 다를 수 있습니다.", "days": -2 },
+    { "groupBuy": "로보얌 후드 집업 겨울 공구", "question": "키 178에 75kg이면 L이랑 XL 중에 뭐가 나을까요?", "answer": "조금 넉넉한 핏이라 평소 L 입으시면 L을 권해요. 상세 설명의 실측 표도 함께 확인해 주세요.", "days": -1 },
+    { "groupBuy": "MG996R 서보모터 10개 공구", "question": "정품인가요? 저가 호환품이랑 기어 재질이 궁금합니다.", "days": 0 }
+  ]
+}

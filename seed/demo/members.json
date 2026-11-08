@@ -1,7 +1,7 @@
 {
   "_readme": "데모 회원 40명과 데모 운영자 — 로더 scripts/seed-demo.mjs (docs/seed-demo.md). 모두 시험용 값이고 실제 계정·비밀번호가 아니다. 이메일 demoNN@example.com, 비밀번호는 아래 password(전원 같음).",
   "password": "Demo7f3c9a21b6",
-  "operator": { "email": "demo.operator@example.com", "name": "데모운영자", "password": "DemoOp5e81c47d2a" },
+  "operator": { "email": "demo.operator@example.com", "name": "데모운영자", "memberNickname": "로보얌운영팀", "password": "DemoOp5e81c47d2a" },
   "members": [
     { "nickname": "로봇덕후진", "grade": "VETERAN", "ageDays": 380 },
     { "nickname": "새벽코딩", "grade": "VETERAN", "ageDays": 352 },

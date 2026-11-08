@@ -1,0 +1,18 @@
+{
+  "_readme": "사업자 핫딜·사업자 광고를 내는 데모 사업자 — 로더가 회원(이 이메일)을 만들고 사업자 신청(등록증 PDF) → 데모 운영자 승인까지 한다. 등록번호는 체크섬이 맞는 가짜 번호(끝에서 둘째 자리 4 = local 가짜 국세청 「계속사업자·진위 일치」)",
+  "email": "demo.pionnet@example.com",
+  "nickname": "파이언넷",
+  "grade": "LOYAL",
+  "ageDays": 200,
+  "companyName": "파이언넷",
+  "bizNo": "2208112341",
+  "ownerName": "김파이",
+  "phone": "02-555-0142",
+  "contactEmail": "shop@pionnet.example.com",
+  "address": {
+    "postcode": "06236",
+    "address1": "서울특별시 강남구 테헤란로 123",
+    "address2": "4층 파이언넷"
+  },
+  "openedOn": "2015-03-02"
+}
