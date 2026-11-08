@@ -182,7 +182,10 @@ public class AdminPostQueryService {
             throw new AdminPostNotFoundException();
         }
         Instant now = Instant.now();
-        AdminPostItemView item = items(List.of(row), now).get(0);
+        AdminPostItemView listItem = items(List.of(row), now).get(0);
+        // 처리 상태를 쓰는 게시판이면 마지막 상태 변경의 메모(공개 글 상세의 processStatusNote 와 같다)
+        AdminPostItemView item = listItem.processStatus() == null ? listItem
+                : listItem.withProcessStatusNote(statusHistory.findFirstByPostIdOrderByIdDesc(id).map(PostProcessStatusHistoryEntity::getNote).orElse(null));
         // 비공개 소모임 글은 본문을 싣지 않는다(contentBlocked GROUP_PRIVATE — 내용은 신고 처리의 신고 당시 내용으로만, 소모임 2단계)
         boolean blocked = row.restricted();
         AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() || blocked ? null : post.getContent(),
@@ -290,7 +293,7 @@ public class AdminPostQueryService {
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
                 pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()),
-                Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()));
+                Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()), null);
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {
