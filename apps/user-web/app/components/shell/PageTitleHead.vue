@@ -6,7 +6,7 @@
     -->
     <header class="flex min-w-0 flex-col gap-2 md:flex-row md:items-end md:gap-4" :class="divider ? 'border-b-2 border-[var(--p-text-color)] pb-3' : ''">
         <div class="min-w-0 flex-1">
-            <h1 class="m-0 break-words text-xl font-bold leading-tight tracking-tight" :data-testid="titleTestid">{{ title }}</h1>
+            <h1 class="m-0 break-words text-xl font-bold leading-tight tracking-tight" :style="titleStyle" :data-testid="titleTestid"><slot name="title">{{ title }}</slot></h1>
             <p v-if="description" class="m-0 mt-1 text-sm text-muted-color">{{ description }}</p>
         </div>
         <div v-if="$slots.actions" class="flex min-w-0 shrink-0 items-center gap-1.5">
@@ -16,13 +16,17 @@
 </template>
 
 <script setup lang="ts">
+import type { StyleValue } from 'vue';
+
 interface Props {
     title: string;
     description?: string | null;
     /** 아래 굵은 밑줄(같은 카드 안에 내용이 이어질 때) */
     divider?: boolean;
     titleTestid?: string;
+    /** 제목 글자 꾸미기(게시판 색 등). 글자 대신 그릴 것은 `title` 슬롯 */
+    titleStyle?: StyleValue;
 }
 
-withDefaults(defineProps<Props>(), { description: null, divider: false, titleTestid: undefined });
+withDefaults(defineProps<Props>(), { description: null, divider: false, titleTestid: undefined, titleStyle: undefined });
 </script>
