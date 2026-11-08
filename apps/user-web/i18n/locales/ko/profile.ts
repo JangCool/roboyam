@@ -1,10 +1,10 @@
 /**
- * 프로필 설정 화면(`/settings/profile`)의 문구 — 닉네임·한 줄 소개. 닉네임 칸 이름·글자 수 안내는 가입 화면과 같은 `signup.nickname*`, 닉네임 규칙 오류는 `auth.nickname*`.
+ * 프로필 설정 화면(`/settings/profile`)의 문구 — 닉네임·자기소개. 닉네임 칸 이름·글자 수 안내는 가입 화면과 같은 `signup.nickname*`, 닉네임 규칙 오류는 `auth.nickname*`.
  * 키는 `profile.무엇` 두 마디. `en/profile.ts` 와 같은 키, 같은 차례.
  */
 export default {
     title: '프로필',
-    seoDescription: '{site} 프로필의 닉네임과 한 줄 소개를 고쳐요.',
+    seoDescription: '{site} 프로필의 닉네임과 자기소개를 고쳐요.',
     loading: '프로필을 불러오는 중',
     loadFailed: '프로필을 불러오지 못했어요',
 
@@ -24,21 +24,21 @@ export default {
 
     // 정지 중 — 프로필은 읽기 전용
     restrictedTitle: '정지 중이라 프로필을 바꿀 수 없어요',
-    restrictedText: '정지 중에는 닉네임과 한 줄 소개를 바꿀 수 없고, 보기는 계속 할 수 있어요.',
+    restrictedText: '정지 중에는 닉네임과 자기소개를 바꿀 수 없고, 보기는 계속 할 수 있어요.',
     restrictedLink: '제재 안내 보기',
 
-    // 한 줄 소개
-    bioLabel: '한 줄 소개',
+    // 자기소개
+    bioLabel: '자기소개',
     bioHint: '{max}자까지',
     bioHelp: '프로필을 공개하면 내 프로필과 내가 쓴 글 아래에 보여요.',
-    bioTooLong: '한 줄 소개는 {max}자까지 쓸 수 있어요.',
+    bioTooLong: '자기소개는 {max}자까지 쓸 수 있어요.',
 
     // 프로필 공개 범위 — 공개(기본) / 비공개. 닉네임·아바타·등급과 게시판의 글·댓글은 늘 보인다
     visibilityTitle: '프로필 공개',
     visibilityPublic: '공개',
-    visibilityPublicHint: '누구나 한 줄 소개·가입일·활동 수치와 작성글·댓글·소모임 목록을 볼 수 있어요. 내가 쓴 글 아래에 한 줄 소개가 나와요.',
+    visibilityPublicHint: '누구나 자기소개·가입일·활동 수치와 작성글·댓글·소모임 목록을 볼 수 있어요. 내가 쓴 글 아래에 자기소개가 나와요.',
     visibilityPrivate: '비공개',
-    visibilityPrivateHint: '다른 사람에게는 닉네임·아바타·등급만 보여요. 한 줄 소개·가입일·활동 수치와 작성글·댓글·소모임 목록은 숨겨요.',
+    visibilityPrivateHint: '다른 사람에게는 닉네임·아바타·등급만 보여요. 자기소개·가입일·활동 수치와 작성글·댓글·소모임 목록은 숨겨요.',
     visibilityNote: '비공개로 해도 게시판에 쓴 글과 댓글은 그대로 보여요. 운영진은 운영을 위해 회원 정보를 볼 수 있어요.',
 
     // 비공개 프로필(`/users/{id}`)
@@ -49,9 +49,13 @@ export default {
     privateMineLink: '공개 설정 바꾸기',
     privateBadge: '비공개',
 
-    // 글 보기의 작성자 한 줄 소개(공개 프로필만)
+    // 글 보기의 작성자 자기소개(공개 프로필만)
     authorCardLabel: '글쓴이',
     authorCardProfile: '프로필 보기',
+    authorCardBioEmpty: '자기소개가 없습니다.',
+    authorCardPrivate: '비공개 프로필입니다.',
+    authorCardMore: '더보기',
+    authorCardLess: '접기',
 
     // 공개 프로필(`/users/{id}`)
     publicTitle: '프로필',

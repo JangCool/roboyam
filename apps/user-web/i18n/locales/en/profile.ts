@@ -51,6 +51,10 @@ export default {
     // Author bio on the post page (public profiles only)
     authorCardLabel: 'Author',
     authorCardProfile: 'View profile',
+    authorCardBioEmpty: 'No bio yet.',
+    authorCardPrivate: 'This profile is private.',
+    authorCardMore: 'More',
+    authorCardLess: 'Less',
 
     // Public profile (`/users/{id}`)
     publicTitle: 'Profile',

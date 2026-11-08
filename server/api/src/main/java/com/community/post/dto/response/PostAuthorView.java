@@ -23,18 +23,25 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  * @param operator   운영자 회원 계정(관리자 앱 운영자에게 연결되고 힘이 살아 있음 — operator-member-account-contract 정책 10)의 글·댓글이면 true —
  *                   이름 옆 「운영자」 공식 뱃지. 비회원·숨긴 글·지운 댓글은 false
  * @param bio        작성자의 한 줄 소개 — <b>글 상세에만</b>({@code AuthorViews#detailBio}): 회원 글이고 작성자 프로필이 공개이고 소개가 있을 때만 값.
- *                   그 밖(비공개·비회원·탈퇴·숨긴 글·소개 없음)과 목록·댓글 응답은 늘 null(profile-privacy-contract)
+ *                   그 밖(비공개·비회원·탈퇴·숨긴 글·소개 없음)과 목록·댓글 응답은 늘 null(profile-privacy-contract). 줄바꿈이 들어 있을 수 있다(최대 300자)
+ * @param profile    작성자 프로필 공개 범위 — <b>글 상세에만</b>: 회원 글이고 작성자가 있으면 {@code PUBLIC}·{@code PRIVATE}(글 보기 작성자 카드가 「자기소개가 없습니다」·
+ *                   「비공개 프로필」을 고른다, 사용자 2026-11-08). 비회원·탈퇴·숨긴 글과 목록·댓글 응답은 null
  */
 public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
-                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio) {
+                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio, String profile) {
 
     /** 같은 작성자에 메모만 바꾼 것 */
     public PostAuthorView withMemo(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile);
     }
 
-    /** 같은 작성자에 한 줄 소개만 바꾼 것 — 글 상세만 채운다({@code PostQueryService}) */
-    public PostAuthorView withBio(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator, value);
+    /** 같은 작성자에 자기소개·프로필 공개 범위만 바꾼 것 — 글 상세만 채운다({@code PostQueryService}). {@code detail} 이 null 이면 둘 다 null */
+    public PostAuthorView withProfile(AuthorProfileView detail) {
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator,
+                detail == null ? null : detail.bio(), detail == null ? null : detail.visibility());
+    }
+
+    /** 글 상세 작성자 카드의 프로필 — 공개 범위({@code PUBLIC}·{@code PRIVATE})와 공개일 때의 자기소개(없으면 null) */
+    public record AuthorProfileView(String visibility, String bio) {
     }
 }

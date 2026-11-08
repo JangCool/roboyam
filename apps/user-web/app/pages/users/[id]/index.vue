@@ -61,7 +61,7 @@
                             ><span class="relative top-[-0.09em] truncate">{{ t('block.memoChip', { memo: menuTarget.memo }) }}</span></span
                         >
                     </h1>
-                    <p v-if="profile.bio" class="mt-1 break-words text-sm leading-snug" data-testid="profile-bio">{{ profile.bio }}</p>
+                    <p v-if="profile.bio" class="mt-1 whitespace-pre-line break-words text-sm leading-snug" data-testid="profile-bio">{{ profile.bio }}</p>
                     <p v-if="profile.joinedAt" class="mt-1 text-xs text-muted-color">{{ t('profile.joined', { date: time.date(profile.joinedAt) }) }}</p>
                     <!-- 비공개 프로필 — 남에게는 소개·가입일 자리에 자물쇠 한 줄(아래 본문도 안내로 바뀐다) -->
                     <p v-else-if="privateView" class="mt-1 flex items-center gap-1 text-xs text-muted-color" data-testid="profile-private-chip">
