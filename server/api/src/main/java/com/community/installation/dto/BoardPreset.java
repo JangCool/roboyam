@@ -23,10 +23,19 @@ import java.util.Locale;
  * @param order         설치 화면의 순서(작을수록 앞)
  * @param siteTagline   이 구성을 고르고 설치 입력의 슬로건이 비어 있을 때 사이트 설정에 넣을 슬로건 — 없으면(null) 넣지 않는다. 입력한 값이 있으면 그것이 이긴다
  * @param menu          설치 때 공개 메뉴 {@code main} 그룹의 트리를 바꿀 정의(최상위 노드 차례대로). 없으면(null) 메뉴를 바꾸지 않는다(V43 시드 + 게시판 자동 추가 그대로)
+ * @param structure     구조 스냅숏 파일 이름({@code install-presets/} 안, 예: {@code roboyam.structure.json} — {@code scripts/export-install-preset.mjs} 가 만든다). 있으면 설치는
+ *                      {@code boards}·{@code menu} 대신 이 스냅숏(게시판·메뉴·가젯·홈 배치·게시판 설정 …)을 넣고, 넣지 못하면 {@code boards} 로 물러선다. {@code boards} 는 설치 화면 목록과
+ *                      이미 설치된 곳의 한 번 적용에 쓴다. 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」
+ * @param demo          이 구성으로 설치할 때 데모 데이터(데모 팩)를 고를 수 있는가 — 팩이 그 구성의 구조를 가리키므로 구조 스냅숏이 있는 구성만. 비우면 false
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoardPreset(String id, String name, String nameEn, String description, String descriptionEn, boolean defaultPreset, int order,
-                          String siteTagline, List<Board> boards, List<MenuEntry> menu) {
+                          String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo) {
+
+    /** 데모 데이터를 고를 수 있는 구성인가 */
+    public boolean demoOn() {
+        return Boolean.TRUE.equals(demo);
+    }
 
     /** 요청 언어가 {@code en} 이고 영문이 비어 있지 않으면 영문, 아니면 기본값 */
     public static String localized(String name, String nameEn, Locale locale) {

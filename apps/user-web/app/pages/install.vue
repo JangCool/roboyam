@@ -12,7 +12,7 @@
         />
 
         <!-- 설치 완료 -->
-        <InstallDone v-else-if="done" :email="doneEmail" @login="goLogin" />
+        <InstallDone v-else-if="done" :email="doneEmail" :demo="doneDemo" @login="goLogin" />
 
         <!-- 마법사 — 단계 막대의 버튼 하나(`submit`)가 단계마다 확인·다음·설치를 맡는다. Enter 로도 같다 -->
         <form v-else-if="phase === 'pending'" ref="formEl" novalidate data-testid="install-form" @submit.prevent="submitStep">
@@ -54,6 +54,8 @@
                 <InstallBoardsStep
                     v-else-if="step === 'boards'"
                     v-model="boardPreset"
+                    v-model:demo="demoData"
+                    :demo-error="errors.demoData"
                     :presets="boardPresets"
                     :default-id="boardPresetDefault"
                     :busy="presetsBusy"
@@ -78,7 +80,7 @@
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
 import type { SocialProviderCode } from '~/composables/install/api/useInstallApi.types';
-import type { InstallBoardPreset, InstallChecksView } from '~/composables/install/api/useInstallApi.types';
+import type { InstallBoardPreset, InstallChecksView, InstallDemoResult } from '~/composables/install/api/useInstallApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilInstall, { type InstallFieldErrors, type InstallMode, type InstallStepKey, type RootForm, type SocialForms } from '~/utils/util-install';
 import UtilInstallMessages from '~/utils/util-install-messages';
@@ -110,6 +112,7 @@ const step = ref<InstallStepKey>('token');
 const copy = computed(() => UtilInstallMessages.step(t, step.value));
 const done = ref(false);
 const doneEmail = ref('');
+const doneDemo = ref<InstallDemoResult>('NONE');
 
 const formEl = ref<HTMLElement | null>(null);
 const heading = ref<HTMLElement | null>(null);
@@ -124,6 +127,8 @@ const socialMode = ref<InstallMode>('set');
 const social = reactive<SocialForms>(UtilInstall.initialSocial());
 /** 고른 기본 게시판 구성의 아이디 — 목록을 받으면 서버 기본값이 들어온다. 못 받았으면 빈 글자(요청에 담지 않아 서버가 기본 구성을 쓴다) */
 const boardPreset = ref('');
+/** 「데모 데이터 포함」 — 기본은 구조만(빈 데이터). 고른 구성이 데모를 지원할 때만 요청에 담는다(UtilInstall.demoOn) */
+const demoData = ref(false);
 
 /** 칸 경로(`root.email` …) → 문구. 화면이 미리 검사한 것과 서버가 거절한 것이 같은 곳에 든다 */
 const errors = ref<InstallFieldErrors>({});
@@ -167,6 +172,7 @@ const sections = computed(() =>
         social,
         boardPreset: boardPreset.value,
         boardPresets: boardPresets.value,
+        demoData: demoData.value,
     }),
 );
 
@@ -465,7 +471,7 @@ async function installNow() {
     // 서버 오류의 `social.providers[N]` 이 가리키는 N 번째가 이 순서다
     const sent = socialMode.value === 'set' ? UtilInstall.usedProviders(social) : [];
     try {
-        await api.complete(
+        const result = await api.complete(
             UtilInstall.buildRequest({
                 root,
                 site,
@@ -475,9 +481,11 @@ async function installNow() {
                 social,
                 boardPreset: boardPreset.value,
                 boardPresets: boardPresets.value,
+                demoData: demoData.value,
             }),
         );
         doneEmail.value = root.email.trim();
+        doneDemo.value = result.demo ?? 'NONE';
         wipe();
         done.value = true;
         markInstalled();

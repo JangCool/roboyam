@@ -42,6 +42,14 @@ public class InstallationEntity {
     /** 고른 게시판 구성으로 기본 게시판을 만든(또는 게시판이 이미 있어 건너뛴) 시각 — V42__boards.sql. null 이면 아직 */
     private Instant boardPresetAppliedAt;
 
+    /** 설치 때 「데모 데이터 포함」을 골랐는가(V171) */
+    private boolean demoData;
+
+    /** 데모를 넣은 결과 — {@code APPLIED} · {@code FAILED}, 고르지 않았으면 null(V171) */
+    private String demoStatus;
+
+    private Instant demoDoneAt;
+
     protected InstallationEntity() {
     }
 
@@ -67,5 +75,17 @@ public class InstallationEntity {
 
     public Instant getBoardPresetAppliedAt() {
         return boardPresetAppliedAt;
+    }
+
+    public boolean isDemoData() {
+        return demoData;
+    }
+
+    public String getDemoStatus() {
+        return demoStatus;
+    }
+
+    public Instant getDemoDoneAt() {
+        return demoDoneAt;
     }
 }

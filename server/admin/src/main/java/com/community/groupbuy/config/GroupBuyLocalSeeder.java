@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -42,6 +43,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>예시 품목 여덟</b>(결정 87 「예시 품목을 넓힌다」): 햅쌀·사과/감귤·고등어(농수축산물 20) · 김치·소스(가공식품 21) · 티셔츠(의류 1) · 러닝화(구두/신발 2) ·
  *       로봇 키트(소형전자 12) — 상품마다 그 품목의 고시 양식을 다 채우고(신선식품의 날짜 항목은 일반원칙 ④ 대체 표기 예시), 공구를 하나씩 연다:
  *       성사형 모집 중 · 선착순 즉시 발송(옵션 넷) · 마감 임박 · 조기 마감으로 끝난 1차(다음 차수 알림 받기) · 공개된 예정 등.</li>
+ *   <li>설정 {@code roboyam.groupbuy.local-seed=false} 면 하지 않는다 — 데모 팩을 만드는 빌드 서버(scripts/build-demo-pack.mjs)는 시험 공구 없이 데모 원고만 넣으려고 끈다(기본 켬).</li>
  *   <li>상품이 하나라도 있으면 상품·공구는 넣지 않는다(재기동 때 다시 넣지 않게). 사업자 정보가 차 있으면 판매 칸도 건너뛴다. dev·prod 에는 없다({@code local} 프로필만).</li>
  * </ul>
  */
@@ -64,6 +66,9 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
     private final GroupBuyAdminService admin;
     private final Clock clock;
     private final TransactionTemplate tx;
+    /** 끄는 설정(기본 켬) — 생성자 인자로 두지 않는 것은 시험이 생성자로 바로 만들기 때문(그때는 켬) */
+    @Value("${roboyam.groupbuy.local-seed:true}")
+    private boolean enabled = true;
 
     public GroupBuyLocalSeeder(BatchProperties batch, GroupBuyStore groups, GroupBuyProductAdminQueries productQueries, CommerceSalesStore salesStore, CommerceSalesService sales, ShippingPolicyService policies,
                                GroupBuyProductService products, GroupBuyNoticeService notices, GroupBuyNoticeCatalog catalog, GroupBuyAdminService admin,
@@ -84,7 +89,7 @@ public class GroupBuyLocalSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!batch.enabled()) {
+        if (!batch.enabled() || !enabled) {
             return;
         }
         try {

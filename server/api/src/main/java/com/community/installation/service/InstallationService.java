@@ -54,6 +54,8 @@ import org.springframework.stereotype.Service;
  *       경로 키와 검사 순서가 계약이라 Bean Validation({@code @Valid})이 아니라 여기서 직접 검사한다.</li>
  *   <li>실행은 한 트랜잭션이다({@link InstallationInstaller}). 실패하면 아무것도 남지 않고 <b>토큰 인증 세션은 그대로</b>라 같은 화면에서 다시 시도할 수 있다.
  *       응답·로그 어디에도 비밀번호·시크릿·토큰을 싣지 않는다.</li>
+ *   <li>「데모 데이터 포함」({@code demoData})이면 설치가 커밋된 <b>뒤</b> 데모 팩을 따로 넣는다({@link DemoDataInstaller}). 넣지 못하면 데모만 건너뛰고(설치는 끝났다) 응답의
+ *       {@code demo} 가 {@code FAILED} 다. 데모는 데모를 지원하는 구성(구조 스냅숏이 있는 ROBOYAM)이고 이 서버에 데모 팩이 있을 때만 고를 수 있다(아니면 {@code demoData} 400).</li>
  * </ul>
  * 이 클래스에는 {@code @Transactional} 이 없다 — 메일 서버 연결 시험처럼 응답 없는 서버를 기다리는 일이 DB 연결을 붙잡지 않게 하려는 것이다.
  * DB 를 쓰는 일은 각 서비스가 자기 트랜잭션을 연다.
@@ -83,11 +85,16 @@ public class InstallationService {
     private final SocialSettingsService socialSettings;
     private final SecretEncryptor encryptor;
     private final Messages messages;
+    private final DemoPackCatalog demoPack;
+    private final DemoDataInstaller demoInstaller;
 
     public InstallationService(InstallationState state, InstallTokenService tokens, InstallTokenGuard tokenGuard,
                                InstallationChecks checks, InstallationInstaller installer, BoardPresetCatalog boardPresets,
                                SiteSettingsService siteSettings, MailSettingsService mailSettings, MailConnectionChecker mailChecker,
-                               SocialSettingsService socialSettings, SecretEncryptor encryptor, Messages messages) {
+                               SocialSettingsService socialSettings, SecretEncryptor encryptor, Messages messages, DemoPackCatalog demoPack,
+                               DemoDataInstaller demoInstaller) {
+        this.demoPack = demoPack;
+        this.demoInstaller = demoInstaller;
         this.state = state;
         this.tokens = tokens;
         this.tokenGuard = tokenGuard;
@@ -138,7 +145,7 @@ public class InstallationService {
     /** 고를 수 있는 기본 게시판 구성(프리셋)과 기본값 — 이름·설명·게시판 이름·말머리 이름만 */
     public BoardPresetsResponse boardPresets(boolean sessionAuthorized) {
         requireOpen(sessionAuthorized);
-        return boardPresets.toResponse(messages.locale());
+        return boardPresets.toResponse(messages.locale(), demoPack.manifest().map(DemoPackCatalog.Manifest::preset).orElse(null));
     }
 
     /** 메일 서버에 접속·인증까지만 해 본다(메일은 보내지 않는다). 입력이 틀리면 400 */
@@ -164,8 +171,25 @@ public class InstallationService {
             throw new ValidationException(errors);
         }
 
-        installer.install(command); // 한 트랜잭션. 던지면 아무것도 남지 않는다
-        return new InstallCompletedResponse(true);
+        long rootOperatorId = installer.install(command); // 한 트랜잭션. 던지면 아무것도 남지 않는다
+        if (!command.demoData()) {
+            return new InstallCompletedResponse(true, InstallCompletedResponse.DEMO_NONE);
+        }
+        // 데모 — 설치는 이미 커밋됐다. 실패해도 설치를 깨지 않고 데모만 건너뛴다(롤백되어 데모 행은 하나도 남지 않는다)
+        java.time.Instant now = java.time.Instant.now();
+        try {
+            DemoDataInstaller.Outcome outcome = demoInstaller.install(rootOperatorId, now);
+            log.info("설치 직후 데모 데이터를 넣었다 rows={} files={}", outcome.rows(), outcome.files());
+            return new InstallCompletedResponse(true, DemoDataInstaller.APPLIED);
+        } catch (RuntimeException e) {
+            log.warn("데모 데이터를 넣지 못해 건너뛰었다 — 설치(구조)는 끝났다. 원인={}", e.getMessage(), e);
+            try {
+                demoInstaller.markFailed(now);
+            } catch (RuntimeException markFailure) {
+                log.warn("데모 실패를 적지 못했다 원인={}", markFailure.getClass().getSimpleName());
+            }
+            return new InstallCompletedResponse(true, DemoDataInstaller.FAILED);
+        }
     }
 
     // ── 검사 ──
@@ -205,7 +229,12 @@ public class InstallationService {
         if (site.tagline() == null && preset.siteTagline() != null) {
             site = new SiteValues(site.name(), site.publicUrl(), preset.siteTagline());
         }
-        return new InstallCommand(email, nickname, password, site, mail, social, preset.id());
+        // 데모 — 고른 구성이 데모를 지원하고 이 서버에 그 구성의 데모 팩이 있을 때만(아니면 「구조만」을 고르게 한다)
+        boolean demoData = body != null && Boolean.TRUE.equals(body.demoData());
+        if (demoData && !(preset.demoOn() && demoPack.availableFor(preset.id()))) {
+            errors.put("demoData", new MessageRef("install.demoData.unavailable"));
+        }
+        return new InstallCommand(email, nickname, password, site, mail, social, preset.id(), demoData);
     }
 
     /** 요청이 고른 기본 게시판 구성. 생략하면(null·빈 글자) 기본 프리셋, 모르는 아이디면 {@code boardPreset} 오류 */

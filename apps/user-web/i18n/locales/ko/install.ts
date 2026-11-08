@@ -88,6 +88,12 @@ export default {
     boardsNote: '핫딜·직접홍보 게시판은 기능 게시판이라 어느 구성에서나 함께 만들어져요. 이 선택은 설치할 때 한 번만 적용돼요.',
     boardsServerDefault: '서버 기본 구성',
     boardsSummary: '게시판 {count}개 보기',
+    demoTitle: '데이터',
+    demoStructure: '구조만 (빈 데이터)',
+    demoStructureHint: '게시판·메뉴·홈 배치 같은 구성만 만들고 회원·글은 비워 둬요. 실제로 운영할 사이트라면 이쪽이에요.',
+    demoInclude: '데모 데이터 포함',
+    demoIncludeHint: '데모 회원과 글·댓글·소모임·공동구매·광고·하이라이트를 함께 넣어요. 글 시각은 설치한 때에 맞춰 옮겨져요. 데모 회원으로는 로그인할 수 없어요.',
+    demoUnavailable: '이 구성은 구조만 만들어요(데모 데이터 없음).',
 
     // 7단계: 확인
     filled: '입력함',
@@ -97,6 +103,7 @@ export default {
     reviewNoAuth: '없음(인증 안 함)',
     reviewTagline: '한 줄 소개',
     reviewPreset: '구성',
+    reviewDemo: '데이터',
     reviewSocialClientId: '{provider} 클라이언트 ID',
     reviewSocialSecret: '{provider} 시크릿',
     reviewFill: '입력하기',
@@ -107,6 +114,8 @@ export default {
     // 완료
     doneTitle: '설치가 끝났어요',
     doneText: '{email} 계정으로 로그인해 시작해 주세요. 사이트·메일·소셜 로그인 설정은 로그인한 뒤 내 정보의 최고 관리자 도구에서 고칠 수 있어요.',
+    doneDemoApplied: '데모 데이터도 함께 넣었어요.',
+    doneDemoFailed: '데모 데이터는 넣지 못해 건너뛰었어요. 사이트는 구조만으로 설치됐고 그대로 쓸 수 있어요.',
     goLogin: '로그인하러 가기',
 
     // 설치 상태를 못 받았다

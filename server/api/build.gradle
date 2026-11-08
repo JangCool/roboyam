@@ -29,3 +29,12 @@ dependencies {
     // 0-4 본인인증·기능 제한·탈퇴 대비의 규칙 시험과 0-5 돈 요청 입구 도우미(MoneyRequestGuard — 멱등 키·속도 제한)의 시험이 쓴다. 시험 PC 에 Docker 가 있어야 한다
     testImplementation testFixtures(project(':server:shared'))
 }
+
+// 데모 팩(seed/demo-pack — scripts/build-demo-pack.mjs 가 만든다)을 jar 의 demo-pack/ 에 싣는다. 폴더가 없으면 싣는 것이 없고, 설치 화면에서 「데모 데이터 포함」을 고를 수 없다
+// (DemoPackCatalog). 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」
+tasks.named('processResources') {
+    from(rootProject.file('seed/demo-pack')) {
+        into 'demo-pack'
+        exclude 'README.md'
+    }
+}

@@ -92,3 +92,42 @@
 - **소모임 분류**: 소모임 게시판 프리셋 순서대로 `groupCategoryName` 의 분류를 만든다(이름 키가 같은 분류가 있으면 그것에 잇는다, `sort_order` = 지금 마지막 + 10 단위, `updated_by` = 루트 운영자). 할당 순서는 분류 끝 다음. 게시판을 만들지 못했으면(같은 주소·이름이 이미 있으면) 분류도 만들지 않는다. 설치 중에는 관리자와 겨룰 일이 없어 admin 의 분류 잠금(`GroupCategoryLockQueries`)은 잡지 않는다.
 - **마이그레이션**: shared `V99__mypage_menu_unhide.sql` — mypage 의 10개 항목 숨김 풀기(MY_SCHEDULED·group-buy 는 그대로) · `MY_SHOP`(MEMBER)을 `MY_POINTS` 바로 다음(같은 부모의 뒤 형제 순서 +1, `MY_POINTS` 가 없으면 최상위 끝; 이미 있거나 노드 80개면 넣지 않음) · 바뀌었으면 mypage `version` +1. 노드 ID 는 V43 과 같은 Snowflake 모양(서버 번호 1023, 겹치면 +1).
 - **계약과 다른 점**: ① 소모임 게시판 말머리의 표시 차례 — 게시판 만들기(`BoardCreator`)가 공통 말머리(질문·후기·잡담·공지[꺼짐])를 앞에, 고유 말머리를 뒤에 두므로 실제 차례는 질문·후기·잡담 → 가입인사·자료·주제별이다(표의 「가입인사 · 질문 · …」 차례가 아님). ② 「소모임 둘러보기」는 `GROUPS_ALL` 의 기본 이름(「전체 소모임」) 대신 항목 이름 `소모임 둘러보기`/`Browse clubs` 로 넣었다. ③ 폴더 영문명: 주제 `Topics` · 커뮤니티 `Community` · 소모임 `Clubs` · 게시판 `Boards`. 폴더는 모두 접기 없음.
+
+## 데모 데이터 선택 (2026-11-08 사용자 확정)
+**의도**: 설치할 때 「데모 데이터 포함」과 「구조만(빈 데이터)」을 고른다. 구조는 둘 다 **지금 로보얌의 운영 설정 그대로**(게시판·말머리·소모임 분류·메뉴·가젯 페이지·테마별 홈 배치·게시판/사이트 설정)이고, 데모를 고르면 회원·글·댓글·소모임·공구·광고·하이라이트가 함께 들어간다. 운영 서버에는 Node 가 없으므로 데모는 서버가 표본 덤프(데모 팩)를 복원해 넣는다.
+
+### 1. 구조 — ROBOYAM 프리셋 = 구조 스냅숏
+- 프리셋 JSON 에 `structure`(파일 이름)·`demo`(데모 지원)를 더했다. ROBOYAM: `"structure": "roboyam.structure.json"`, `"demo": true`, `menu` 없음. `boards` 는 설치 화면 목록(켜진 일반·핫딜·소모임 게시판 25개, 운영 게시판 bugs·requests 제외)과 이미 설치된 곳의 한 번 적용(`applyOnceIfMissing`)에만 쓴다.
+- 스냅숏 = 표 단위 행 묶음(`TablePack` 형식 1 — `{format, preset, exportedAt, source, tables:[{table, mode, key, columns{칸:형식}, rows[{칸:값}]}]}`). 만드는 것: `node scripts/export-install-preset.mjs`(로컬 DB `roboyam` 을 읽기만 함 — 구조를 관리자 화면에서 고친 뒤 다시 돌린다, `--check` 는 쓰지 않고 목록만). bigint·numeric 은 글자로 담는다.
+- 담는 표(차례 = 넣는 차례): `grades`(UPSERT) · `boards`·`board_prefixes`·`group_categories`·`group_category_boards`(REPLACE) · `menu_sets`(UPSERT) · `menu_nodes`(REPLACE — 모든 메뉴 그룹, 바로가기 포함) · `gadget_pages`·`gadget_page_layouts`·`home_gadgets`·`home_layouts`·`board_layouts`·`site_theme_menus`(REPLACE) · `site_settings`(UPDATE — 테마·표시 언어/시간대/형식·약관 링크·공지 띠·팝업 배치 칸만) · 한 줄 설정 표 UPSERT: `board_defaults`·`board_report/security/notification/privacy_settings`(privacy 의 `last_run_at` 제외)·`popular/point/point_shop/deal/ad_placement/group/grade/nickname_image/emoticon/group_buy_settings`·`member_event_settings`. 허용 목록은 서버 `BoardPresetCatalog.STRUCTURE_TABLES` 와 스크립트 `TABLES` 두 곳(같아야 함).
+- **빼는 것**: 사이트 이름·주소·슬로건·로고 파일(설치 입력) · 사이트 팝업 행(로컬 것은 시험 팝업 2개, 그림 팝업은 올린 파일에 매임) · 메일·소셜·포트원·공공데이터·주소 검색 키(비밀값) · 운영 주체(site_operator) · 관리자 보안(MFA 켜짐이 새 설치의 루트를 막을 수 있음) · 통계 수집(기본 꺼짐 유지) · 공구 판매 스위치(약관 단계) · 회원별 표 · 하이라이트 항목(데이터 — 자리는 HIGHLIGHT 가젯 설정 `place` 로 담김). 운영자를 가리키는 칸(FK → operators, 또는 `*_by` bigint)은 `"$ROOT"`, 데이터 FK 칸(`site_settings.logo_file_id`)은 내보내지 않는다. 가젯 설정·배치 안에 구조 밖 ID 가 있으면 스크립트가 알린다(지금 없음).
+- **적용**(`PresetStructureApplier`, 설치 트랜잭션 안): ID 를 그대로 쓰고(데모 팩이 게시판·말머리 ID 를 가리킨다), `"$ROOT"` → 루트 운영자, 시각 칸 → 설치 시각. REPLACE 표는 뒤 차례부터 비우고(V43 메뉴 시드 등) 앞 차례부터 넣는다(1,000행씩 `json_populate_recordset`). 스냅숏의 칸이 DB 에 없으면 그 칸만 빼고 경고, DB 에만 있는 칸은 기본값. 실패하면 JDBC 세이브포인트로 그 부분만 되돌리고 예전 방식(`boards` 로 게시판 + 운영 게시판, 메뉴는 V43 + 자동 추가)으로 물러선다 — 설치는 깨지 않는다. 구조 스냅숏이 운영 게시판·footer 메뉴까지 정하므로 `OpsBoardSeeder` 는 돌지 않는다.
+- 기동 검사(`BoardPresetCatalog`): 형식 1·같은 프리셋, 허용 표·방식만, 열쇠 칸·값, 행 칸 ⊆ `columns`, 게시판 주소 형식·유일, `boards` 주소 ⊆ 스냅숏, `"$…"` 는 `$ROOT` 만, `demo` 는 `structure` 있는 구성만. 틀리면 앱이 뜨지 않는다.
+
+### 2. 화면·API
+- 기본 게시판 구성 단계 아래 「데이터」: 구조만(빈 데이터, 기본) / 데모 데이터 포함. 고른 구성의 `demoAvailable` 이 거짓이면 「이 구성은 구조만 만들어요」만 보인다. 확인 단계에 「데이터」 줄, 완료 화면에 데모 결과(넣음 / 건너뜀 안내). i18n `install.demo*`·`install.reviewDemo`·`install.doneDemo*`.
+- `GET board-presets` 의 각 구성에 `demoAvailable: boolean`(= `demo` 구성 + 이 서버에 그 구성의 데모 팩이 있음).
+- `POST complete` 요청에 `demoData?: boolean`(생략 = 구조만). 데모를 못 고르는 구성에서 true 면 `400 VALIDATION` `fields.demoData`(`install.demoData.unavailable`). 응답 `{installed, demo: "NONE"|"APPLIED"|"FAILED"}`.
+- shared **V171**: `installation.demo_data`(boolean, 기본 false) · `demo_status`(`APPLIED`·`FAILED`, 고르지 않았으면 NULL) · `demo_done_at`.
+
+### 3. 데모 팩 — 형식·복원 규칙
+- 위치: 저장소 `seed/demo-pack/` → api jar 의 `demo-pack/`(`server/api/build.gradle` 의 processResources). 없으면 데모를 고를 수 없을 뿐 서버는 뜬다(`DemoPackCatalog`).
+- `manifest.json`(형식 1·preset `ROBOYAM`·`builtAt`·`source.sharedVersion`·`operatorIds`(만든 DB 의 루트·데모 운영자)·`dataKey`(개인정보 칸을 잠근 빌드 키)·`data`·`dataSha256`·표별 `counts`·`files[{key,size}]`) + `data.json.gz`(TablePack, 표마다 UPSERT 또는 REPLACE) + `files/<저장 키>`.
+- 만드는 법(`scripts/build-demo-pack.mjs`, docs/seed-demo.md 「데모 팩」): 빈 빌드 DB 에 「구조만」 설치(`install` — 기준 트랜잭션 번호를 적음) → `seed-demo.mjs` 만(시험 계정 로더 `seed-local.mjs` 는 돌리지 않는다, 빌드 관리자 서버는 배치 켬 + `--roboyam.groupbuy.local-seed=false`) → `export`(기준 뒤에 생기거나 바뀐 행 = `xmin` 기준, FK 차례(미룰 수 있는 FK 는 차례에서 뺌)·기본 키 차례). 빼는 표: 설치·사이트·메일·소셜 등 설치 때 정한 값, 운영자·역할·권한, 감사·세션·배치·분석·로그인 시도, 구조 표(바뀌었으면 경고). 마이그레이션이 설치 시각으로 ID 를 매기는 시드 표(로보티콘 `emoticon_*`, `point_shop_items`)는 표 전체를 REPLACE 로 담는다(팩 행이 가리키는 시드 ID 를 맞추려고). 회원 비밀번호는 아무도 모르는 값의 해시로 바꾼다(`--keep-passwords` 면 그대로). 데모 회원(`demo…@example.com`)이 아닌 회원이나 local 공구 시더 상품이 있으면 `export` 가 멈춘다. 서로 가리키는 표(사업자 신원 ↔ 등록증)는 뒤 표를 가리키는 칸을 `late` 로 적는다(설치 서버가 비운 채 넣고 끝에 채운다). 개인정보 칸(DataCipher 암호문 — `DataKeyColumns.ALL`)은 그대로 담고 빌드 서버의 키(local 개발 키 — 저장소에 공개된 값)를 `manifest.dataKey` 에 적는다.
+- **복원**(`DemoDataInstaller`, 설치 커밋 **뒤** 별도 한 트랜잭션): 시각 칸 전부를 `지금 − 1분 − builtAt`(분 단위로 내림 — 분에 맞춰야 하는 칸 `ck_ba_period`)만큼 옮김(이름에 `birth` 가 든 날짜 제외) · 팩 행 ID(한 칸 bigint 기본 키, Snowflake 모양 15자리 이상만 — serial 번호는 그대로)를 같은 시간만큼 옮김(`+ Δms << 22` — 글 월 조각·ID 범위 질의가 시각과 맞게, bigint 칸·bigint 배열·글자/JSON 안의 15~19자리 숫자 모두) · `operatorIds` → 루트 운영자 · 개인정보 칸은 `dataKey` 로 풀어 설치한 곳의 키로 다시 잠그고 사업자등록번호 찾기 해시(`biz_no_hash`)도 그곳의 찾기 키로 다시 만듦(그곳에 `ROBOYAM_DATA_KEY`·`ROBOYAM_INDEX_KEY` 가 없으면 데모만 실패) · 사용자 트리거를 끈 채 넣고(다시 켜기 전에 미룬 FK 확인 `SET CONSTRAINTS ALL IMMEDIATE`) 시퀀스를 맞춤 · 넣기 전 글 월 조각 확인 · 올린 파일을 같은 키로 저장소에 씀(실패하면 쓴 파일 삭제).
+- **어긋날 때**: 팩의 표·칸이 DB 에 없으면(칸 삭제·이름 변경) 데모만 넣지 않는다(`PackMismatchException` → 롤백 → `demo_status = FAILED`, 응답 `demo: FAILED`, 완료 화면 안내). DB 에만 있는 칸(칸 추가)은 기본값. 그 밖의 실패(제약 위반 등)도 같다 — 설치는 구조만으로 끝나 있다. 스키마가 바뀌면 팩을 다시 만든다(팩의 `source.sharedVersion` 이 만든 때의 번호).
+
+### 시험 결과 (2026-11-08, 별도 DB — 사용자 로컬 DB 는 읽기만)
+- 팩(다시 만듦 — 기본안 결정 뒤): 원고 전체(기본 + notices·ops·site·extras), 시험 계정·local 공구 시더 없이 — 표 66개 · 행 16,390 · data.json.gz 560KB · 파일 272개 7.9MB(폴더 9.2MB). 원고 실패 6건(비활성 robot 게시판 1 · 금칙어 댓글 2 · 핫딜 같은 판매처 10분 간격 3 — 원고 쪽 문제로 남김).
+- 「구조만」 설치: 게시판 28 · 말머리 268 · 메뉴 노드 55 · 홈 배치 3(roboyam·naver·daum) · 가젯 96 · 가젯 페이지 3 · 소모임 분류 5 · 글 0 · 회원 0 — 로컬 DB 와 같은 구조 수.
+- 「데모 포함」 설치(빌드와 다른 `ROBOYAM_DATA_KEY`·`ROBOYAM_INDEX_KEY` 로): 응답 `demo: APPLIED`(약 3초) — 글 567(공지 11 · 핫딜 33 중 사업자 핫딜 6 · 버그 신고 10 · 기능 요청 11) · 댓글 2,658 · 회원 42(데모 40 + 데모 사업자 파이언넷 + 운영팀 회원 — 시험 계정 0) · 소모임 6 · 공구 23(카테고리 10) · 광고 10 · 하이라이트 10 · 팝업 1 · 보상 이벤트 2 · 파일 226행(저장소 272개). 사업자 신원·등록증 암호문이 그곳의 키로 다시 잠김(값이 바뀜), 공개 `GET /api/boards`·핫딜·공지 목록·`/api/group-buys`·`/api/groups`·`/media/…` 200.
+- 실패 경로: 시험 중 팩이 어긋난 네 번(고리 FK·미룬 확인·분 정렬 CHECK·사업자 신원 ↔ 등록증 고리) 모두 `demo: FAILED` 로 설치는 끝나고 데모만 롤백됐다. 데모 미지원 구성(NEUTRAL)에 `demoData: true` → `400 fields.demoData`.
+
+### 결정 (사용자 2026-11-08 「기본안대로」)
+- 데모 회원 로그인은 막는다(비밀번호 해시 교체 유지).
+- 시험 계정(seed-local `e2e.*`)과 그 글·댓글, local 공구 시더의 공구·카테고리는 팩에 넣지 않는다. 사업자 핫딜·사업자 광고는 데모 사업자 「파이언넷」(`seed/demo/business.json` — 데모 로더가 회원·신청·승인까지 만든다)이 낸다. 데모 공구는 남기고, 공구 카테고리·옵션 종류·배송비 정책은 데모 로더가 만든다(`groupbuys.json` 의 `categoryParents`·`optionTypes`).
+- 팩(`seed/demo-pack/`, 약 9MB)은 저장소에 둔다.
+
+### 미확정
+- 구조 스냅숏의 말머리 영문 이름: DB 에 영문 칸이 없어 설치 화면 목록(`boards`)의 말머리 `nameEn` 은 예전 프리셋에 있던 것만 영문이고 나머지는 한국어 그대로(게시판 `name_en` 이 빈 게시판도 한국어).
+- 팩의 `dataKey` 는 local 개발 키(공개 값)라 팩의 개인정보 칸(가짜 사업자·광고주 연락처)은 사실상 공개다 — 데모 데이터라 괜찮다고 보았다.

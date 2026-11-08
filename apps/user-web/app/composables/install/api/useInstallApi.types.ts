@@ -95,6 +95,8 @@ export interface InstallCompleteRequest {
     mail: MailInput | null;
     social: InstallSocialInput | null;
     boardPreset?: string;
+    /** true = 데모 데이터 포함, 생략 = 구조만(빈 데이터). 고른 구성의 `demoAvailable` 이 true 일 때만 보낸다(아니면 `400` `fields.demoData`) */
+    demoData?: boolean;
 }
 
 /** 기본 게시판 구성(프리셋)의 게시판 한 칸 — 설정 값은 담기지 않는다 */
@@ -111,6 +113,8 @@ export interface InstallBoardPreset {
     name: string;
     description: string;
     boards: InstallBoardPresetBoard[];
+    /** 이 구성으로 설치할 때 「데모 데이터 포함」을 고를 수 있는가(데모를 지원하는 구성 + 서버에 데모 팩이 있음) */
+    demoAvailable: boolean;
 }
 
 /** `GET /api/system/installation/board-presets` — 토큰 인증 뒤 */
@@ -123,7 +127,11 @@ export interface InstallBoardPresetsView {
 /** `201` — 설치가 끝났다 */
 export interface InstallCompleteResponse {
     installed: boolean;
+    /** 데모 데이터 — `NONE`(구조만) · `APPLIED`(넣음) · `FAILED`(넣지 못해 건너뜀 — 설치는 끝났고 구조만 있다) */
+    demo: InstallDemoResult;
 }
+
+export type InstallDemoResult = 'NONE' | 'APPLIED' | 'FAILED';
 
 /** `POST …/verify-token` 응답 */
 export interface InstallTokenResponse {
