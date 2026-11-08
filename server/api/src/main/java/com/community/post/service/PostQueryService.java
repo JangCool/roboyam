@@ -19,6 +19,8 @@ import com.community.hotdeal.repository.master.DealQueries;
 import com.community.hotdeal.service.DealReader;
 import com.community.hotdeal.service.DealSettingsReader;
 import com.community.hotdeal.service.DealWriter;
+import com.community.notice.dto.response.GlobalNoticeView;
+import com.community.notice.service.GlobalNoticeReader;
 import java.util.Map;
 import com.community.post.dto.response.PostGroupView;
 import com.community.poll.repository.master.PollQueries;
@@ -85,12 +87,14 @@ public class PostQueryService {
     private final PostThumbnails thumbnails;
     private final SecretPostGate secretGate;
     private final PostProcessStatusChanger statusChanger;
+    private final GlobalNoticeReader globalNotices;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
-                            PostProcessStatusChanger statusChanger) {
+                            PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices) {
+        this.globalNotices = globalNotices;
         this.statusChanger = statusChanger;
         this.secretGate = secretGate;
         this.thumbnails = thumbnails;
@@ -215,7 +219,9 @@ public class PostQueryService {
                 : dealQueries.storeChips(b.id(), prefixId, hide, autoExpireDays, now, STORE_CHIPS).stream().map(c -> new DealStoreChipView(c.name(), c.count()))
                 .toList();
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, sealed.contains(r.id()))).toList(),
+        // 전체 공지(V174) — 고정 공지와 같은 조건(첫 쪽 · 거르기 없음)일 때만 맨 위에
+        List<GlobalNoticeView> global = plain && current == 1 ? globalNotices.forBoard(b, now) : List.of();
+        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, sealed.contains(r.id()))).toList(),
                 result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, sealed.contains(r.id()))).toList(), current, totalPages,
                 result.total(), stores);
     }

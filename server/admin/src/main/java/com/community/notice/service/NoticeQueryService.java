@@ -7,14 +7,20 @@ import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
 import com.community.notice.dto.response.NoticeAuthorView;
 import com.community.notice.dto.response.NoticeBarSummaryView;
+import com.community.notice.dto.response.NoticeBoardRefView;
 import com.community.notice.dto.response.NoticeBoardView;
 import com.community.notice.dto.response.NoticeContentView;
 import com.community.notice.dto.response.NoticeContextView;
 import com.community.notice.dto.response.NoticeDetailView;
+import com.community.notice.dto.response.NoticeGlobalContextView;
+import com.community.notice.dto.response.NoticeGlobalView;
 import com.community.notice.dto.response.NoticeItemView;
 import com.community.notice.dto.response.NoticeListView;
 import com.community.notice.dto.response.NoticeWriterView;
+import com.community.notice.entity.NoticeGlobalPinEntity;
 import com.community.notice.exception.NoticeBoardMissingException;
+import com.community.notice.repository.master.NoticeGlobalPinQueries;
+import com.community.notice.repository.master.NoticeGlobalPinRepository;
 import com.community.operator.repository.master.OperatorMemberAccountStore.Link;
 import com.community.operator.service.OperatorMemberAccountService;
 import com.community.permission.dto.AdminActor;
@@ -56,6 +62,8 @@ import org.springframework.web.util.HtmlUtils;
  *       {@code state} ALL(기본) · PUBLIC · HIDDEN · DELETED(모르는 값은 ALL) · {@code prefix} 말머리 ID(깨진 ID 는 빈 결과) · {@code page} 0부터 · {@code size} 기본 20, 최대 50.
  *       정렬은 고정 글 먼저({@code pinnedAt} 내림차순), 그다음 최신.</li>
  *   <li><b>상세</b>: 공지 게시판 글이 아니면 404 POST_NOT_FOUND. 지운 글 본문도 보인다(파기 전까지).</li>
+ *   <li><b>전체 공지</b>(V174): 줄이 있고 글의 고정 시각이 줄의 사본과 같을 때만 공지 한 줄에 {@code global} 이 실린다(공지 관리 밖에서 고정이 풀렸거나 다시 고정됐으면 없다).
+ *       컨텍스트에 살아 있는 전체 공지 수 · 한도 · 뺄 게시판 고르기 목록(켜진 일반 게시판 · 소모임 게시판, 공지 게시판 자신 빼고).</li>
  * </ul>
  */
 @Service
@@ -79,9 +87,14 @@ public class NoticeQueryService {
     private final OperatorMemberAccountService accounts;
     private final AdminPostQueryService postQueries;
     private final SiteSettingRepository settings;
+    private final NoticeGlobalPinRepository globalPins;
+    private final NoticeGlobalPinQueries globalQueries;
 
     public NoticeQueryService(BoardCatalog catalog, AdminPostRepositoryQDSL posts, PostRepository postEntities, ProfileRepository profiles, UserRepository users,
-                              OperatorMemberAccountService accounts, AdminPostQueryService postQueries, SiteSettingRepository settings) {
+                              OperatorMemberAccountService accounts, AdminPostQueryService postQueries, SiteSettingRepository settings,
+                              NoticeGlobalPinRepository globalPins, NoticeGlobalPinQueries globalQueries) {
+        this.globalPins = globalPins;
+        this.globalQueries = globalQueries;
         this.catalog = catalog;
         this.posts = posts;
         this.postEntities = postEntities;
@@ -111,7 +124,32 @@ public class NoticeQueryService {
         NoticeBoardView board = noticeBoard().map(b -> new NoticeBoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.active(), b.pinnedMax(),
                 posts.pinnedCount(b.id(), 0L, now), b.activePrefixes().stream().map(p -> new AdminPostPrefixRefView(Long.toString(p.id()), p.name())).toList(),
                 postQueries.publicUrl("/boards/" + b.slug()))).orElse(null);
-        return new NoticeContextView(board, writer(actor.operatorId()), noticeBar());
+        return new NoticeContextView(board, writer(actor.operatorId()), noticeBar(), global(now));
+    }
+
+    /** 전체 공지 요약 — 살아 있는 수 · 한도 · 뺄 게시판 고르기(켜진 게시판, 공지 게시판 자신 빼고, 정렬 순서대로) */
+    private NoticeGlobalContextView global(Instant now) {
+        Optional<EffectiveBoard> notice = noticeBoard();
+        long count = notice.map(b -> globalQueries.liveCount(b.id(), 0L, now)).orElse(0L);
+        Long noticeId = notice.map(EffectiveBoard::id).orElse(null);
+        List<NoticeBoardRefView> general = new ArrayList<>();
+        List<NoticeBoardRefView> group = new ArrayList<>();
+        for (EffectiveBoard b : catalog.snapshot().boards()) {
+            if (!b.active() || Objects.equals(b.id(), noticeId)) {
+                continue;
+            }
+            NoticeBoardRefView ref = new NoticeBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn());
+            (BoardFields.KIND_GROUP.equals(b.kind()) ? group : general).add(ref);
+        }
+        return new NoticeGlobalContextView(count, NoticeGlobalPinEntity.MAX, general, group);
+    }
+
+    /** 이 글의 전체 공지 설정 — 줄이 있고 글의 고정 시각이 사본과 같을 때만 */
+    static NoticeGlobalView globalOf(NoticeGlobalPinEntity g, Instant postPinnedAt, Instant now) {
+        if (g == null || postPinnedAt == null || !postPinnedAt.equals(g.getPinnedAt())) {
+            return null;
+        }
+        return new NoticeGlobalView(g.getExcludedBoardIds().stream().map(String::valueOf).toList(), g.isExcludeGroupBoards(), g.getExpiresAt(), g.expiredAt(now));
     }
 
     /** 로그인한 운영자의 운영자 회원 계정 상태(요청마다 DB 에서 판정) */
@@ -199,6 +237,8 @@ public class NoticeQueryService {
             links = accounts.linksOfUsers(authorIds);
         }
         Map<Long, Instant> edited = posts.editedAt(ids);
+        Map<Long, NoticeGlobalPinEntity> globals = new HashMap<>();
+        globalPins.findAllById(ids).forEach(g -> globals.put(g.getPostId(), g));
         String base = postQueries.publicUrl("");
         List<NoticeItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
@@ -221,7 +261,8 @@ public class NoticeQueryService {
                     : AdminPostListRow.DELETED.equals(state) && r.deleteScheduledAt() != null ? r.deleteScheduledAt() : null;
             out.add(new NoticeItemView(Long.toString(r.id()), prefix, r.title(), author, state, hidden ? r.hiddenReason() : null, hidden ? r.hiddenAt() : null,
                     hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null, r.pinnedAt(), n(r.viewCount()),
-                    n(r.commentCount()), r.createdAt(), edited.get(r.id()), base == null ? null : base + "/posts/" + r.id()));
+                    n(r.commentCount()), r.createdAt(), edited.get(r.id()), base == null ? null : base + "/posts/" + r.id(),
+                    globalOf(globals.get(r.id()), r.pinnedAt(), now)));
         }
         return out;
     }

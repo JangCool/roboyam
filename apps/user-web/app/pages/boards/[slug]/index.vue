@@ -206,6 +206,8 @@
                     <ErrorState v-else-if="listState === 'error'" :title="t('board.listFailed')" :description="listError" retry @retry="loadList" />
 
                     <template v-else-if="isEmpty">
+                        <!-- 빈 게시판에도 전체 공지는 맨 위에(서버가 첫 쪽·거르기 없음일 때만 준다) -->
+                        <BoardGlobalNoticeList v-if="list" :rows="list.globalPinned ?? []" :date-display="display.dateDisplay" />
                         <EmptyState v-if="query.q" :title="t('board.searchEmptyTitle')" :description="t('board.searchEmptyText')" icon="pi pi-search">
                             <Button as="router-link" :to="listLink({ q: '', page: 1 })" :label="t('board.searchClear')" severity="secondary" variant="outlined" />
                         </EmptyState>
@@ -234,7 +236,7 @@
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :chip-position="chipPosition" />
+                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :global-pinned="list.globalPinned ?? []" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :chip-position="chipPosition" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>

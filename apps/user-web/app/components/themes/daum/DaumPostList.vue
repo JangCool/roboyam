@@ -6,7 +6,7 @@
         community 시안 `design/_shared/botbi-news.css` `.nw-li` · `.nw-meta`.
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 list-none p-0" data-testid="post-list-headline">
             <template v-for="(row, i) in rows" :key="row.id">
             <li class="border-t border-hairline first:border-t-0">

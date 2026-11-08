@@ -46,3 +46,38 @@
 
 ## 고정 한도 늘림 (사용자 2026-11-08)
 - 게시판 고정 한도 범위 0~5 → 0~10, 사이트 기본 2 → 5, 공지 게시판은 10(shared V173 — 운영자가 바꾼 값은 그대로). 설치 프리셋도 다시 뽑음.
+
+## 전체 공지 (2026-11-08 — 사용자 확정 시안, shared V174)
+**의도**: 공지 게시판 고정글을 다른 게시판(일반 · 소모임) 글 목록 맨 위에도 건다. 고정할 때 범위를 고른다 — 기본은 지금처럼 공지 게시판에만.
+
+### 화면
+- admin-web `/notices/new`·`/notices/{id}`: 「상단 고정」 아래 **고정 범위** 라디오 — 「공지 게시판에만」(기본) · 「모든 게시판 맨 위에도」 + 칩 「전체 공지」(설명: 일반 · 소모임 게시판 모두 · 최대 3개(지금 n) · 새로 만든 게시판에도 자동). 한도가 찼고 이 글이 살아 있는 전체 공지가 아니면 둘째 칸 꺼짐 + 안내.
+  - **뺄 게시판 고르기**: 켜진 일반 게시판 칩(누르면 빠짐 = 빨간 칩 + − 아이콘, 다시 누르면 넣음, 12개 넘으면 접어 「… N개 더」 — 접어도 뺀 칩은 보임) · 「뺄 게시판 N개」 · 소모임 게시판 줄(「소모임 게시판 전체 (N)」 칩 하나 또는 「하나씩 고르기」). 공지 게시판 자신은 목록에 없다.
+  - **걸어 둘 기간**: 끝 없음(기본) · 7일 · 30일(저장하는 순간부터) · 날짜 고르기(그날 23:59:59 한국 시각까지, 오늘~365일). 수정 화면은 저장된 끝을 「날짜 고르기」로 보이고, 날짜를 그대로 두면 저장된 시각을 그대로 보낸다.
+  - 고정을 끄면 범위 · 제외 · 기간 칸이 사라지고 보낼 때 NOTICE_ONLY(전체 공지에서 내려감). 코드: `components/notice/NoticeGlobalOptions.vue` · `UtilNotice.expiresAt`·`kst*`·`excludedCount`.
+- admin-web `/notices` 목록: 요약 상자에 「전체 공지 n / 3」, 제목 아래 「전체 공지」 칩 · 뺀 게시판 수 · 「…까지」/「풀 때까지」/「기간 끝남」. 목록 ⋯ 「고정」은 공지 게시판에만(범위를 고르려면 수정 화면).
+- user-web 게시판 글 목록 첫 쪽(고정 공지와 같은 조건 — 첫 쪽 · 말머리/검색어/상태 거르기 없음) 맨 위: 전체 공지 줄 → 그 게시판 고정글 → 일반 글. 줄 = 옅은 주 색상 바탕 + 「공지」 칩(`pi pi-megaphone`) + 제목(한 줄 말줄임) + 날짜, 누르면 `/posts/{id}`. 목록형(모바일 줄 · 데스크톱 표 위) · 카드형 · 갤러리형 · 핫딜 목록 · 핫딜 격자 · daum/naver 테마 목록 · 소모임 상세 글 탭 모두. 빈 게시판(첫 쪽)에도 빈 안내 위에 보인다. 공지 게시판 자신에는 없다. 코드: `components/board/BoardGlobalNoticeList.vue`(`BoardPinnedList` 의 `global`, 목록형 · 핫딜 목록형은 직접), 계약 칸 `BoardPostListProps.globalPinned`.
+
+### 정책
+1. 사이트 전체에서 **동시에 살아 있는** 전체 공지 최대 3개(넘으면 `409 NOTICE_GLOBAL_LIMIT`, 문구 ko·en) — 게시판 고정 한도(`pinnedMax`, `PIN_LIMIT`)와 따로 센다. 셈은 이 글 말고, 공지 게시판 행을 잠그고 한다. 이미 지난 기간 값으로 저장하면 세지 않는다.
+2. **살아 있음** = 줄이 있고 · 글이 공지 게시판의 일반 글이며 · 보이는 글(지우지 않음 · 공개 · 예약 삭제 전) · 숨김 중 아님 · 비밀글 · 19금 아님 · 글의 고정 시각 = 줄의 사본(`pinned_at`) · 기간 안(끝 없음 포함). 공지 게시판이 없거나 꺼져 있으면 공개 쪽에 나오지 않는다.
+3. 공지 관리 밖(게시글 관리 고정 해제 · 이동 · 삭제, 소모임 해산 등)에서 고정이 풀리거나 다시 고정되면 줄은 저절로 힘을 잃는다(고정 시각이 달라짐) — 다시 걸려면 공지 관리에서 저장. 공지 관리의 고정 해제 · 삭제 · 고정 끄기 · 범위 NOTICE_ONLY 는 줄을 지운다.
+4. 기간이 지나면 다른 게시판에서만 내려간다(읽을 때 거른다, 배치 없음) — 공지 게시판 고정은 그대로.
+5. 순서는 고정 시각 최근 것이 위. 뺀 게시판 · 「소모임 게시판 전체」(앞으로 만들 소모임 게시판 포함)에는 나오지 않는다. 형식이 맞지만 그사이 지운 게시판 ID 와 공지 게시판 자신은 조용히 뺀다.
+6. 권한 그대로(`post.manage`). 감사: `NOTICE_CREATE` 에 `global`(scope · excludedBoardIds · excludeAllGroupBoards · expiresAt), `NOTICE_UPDATE` before/after 에 `global`(바뀌었을 때, 없으면 null), 고정 해제 · 삭제로 내려가면 `globalRemoved: true`.
+
+### 저장 (shared V174 `notice_global_pins`)
+`post_id` PK(외래 키 없음 — 글 표 파티션) · `pinned_at`(걸 때의 글 고정 시각 사본) · `excluded_board_ids bigint[]` · `exclude_group_boards` · `expires_at` null · `created_at/by` · `updated_at/by`(운영자 ID). 엔티티 shared `com.community.notice.entity.NoticeGlobalPinEntity`(`MAX = 3`), 질의 `NoticeGlobalPinQueries`(`live` · `liveCount`).
+
+### API
+- 관리자 `POST /api/admin/notices` · `PUT /{id}` 몸에 칸 추가: `scope: NOTICE_ONLY|ALL`(null = NOTICE_ONLY) · `excludedBoardIds: string[]` · `excludeAllGroupBoards: boolean` · `expiresAt: ISO|null`. `pinned false` 면 모두 무시. 400 `fields.scope`(모르는 값) · `fields.excludedBoardIds`(깨진 ID · 1000개 넘음) · `fields.expiresAt`(형식 · 지난 시각 — 저장된 값 그대로면 통과 · 366일 넘음). 409 `NOTICE_GLOBAL_LIMIT`. 검사 차례는 기존 뒤에 전체 공지 한도(칸 400 은 기존 칸 오류와 한 번에).
+- `NoticeItem.global: { excludedBoardIds: string[], excludeAllGroupBoards, expiresAt|null, expired } | null` — 범위 ALL 인 고정 글만(줄이 힘을 잃었으면 null).
+- `GET /context` 에 `global: { count, max: 3, boards: [{id, slug, name, nameEn}], groupBoards: [...] }` — 켜진 게시판만, 공지 게시판 자신 빼고, 정렬 순서대로.
+- 공개 `GET /api/boards/{slug}/posts` 응답에 `globalPinned: [{id, title, createdAt}]`(고정 공지와 같은 조건일 때만, 최대 3, 아니면 빈 목록). `GET /api/groups/{id}/posts?page=` 도 같은 칸(쪽 번호 첫 쪽 · 거르기 없음일 때만, 커서 목록은 늘 빈 목록).
+- 공개 쪽은 살아 있는 전체 공지를 api 서버 메모리 사본(`GlobalNoticeReader`, 15초 — 게시판 사본과 같은 주기)으로 읽고 기간은 쓸 때마다 다시 거른다. 관리자 앱에서 바꾸면 공개 쪽에는 최대 15초 늦게 닿는다.
+
+### 미확정
+- 전체 공지 줄을 말머리 · 검색 · 상태 거르기 · 2쪽 이후에도 보일지(지금은 고정 공지와 같이 첫 쪽 · 거르기 없음만).
+- 최신글 · 인기글 · 홈 가젯 같은 섞인 목록에는 걸지 않는다(게시판 · 소모임 글 목록만).
+- 「날짜 고르기」는 한국 시각 기준(관리자 앱의 다른 날짜 칸과 같다). 사이트 시간대 설정을 따를지는 나중.
+- 화면 확인 · 실제 API 호출은 아직(메인 세션 몫). 테스트 없음.

@@ -1,5 +1,5 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
-import type { PostGroupPublicBy, PostGroupVisibility, PostProcessStatus, PostRow, PostSort, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
+import type { GlobalNoticeRow, PostGroupPublicBy, PostGroupVisibility, PostProcessStatus, PostRow, PostSort, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -573,6 +573,8 @@ export interface GroupPostPage {
     page?: number | null;
     totalPages?: number | null;
     totalCount?: number | null;
+    /** 전체 공지 — 쪽 번호로 받은 첫 쪽이고 말머리·검색·상태 거르기가 없을 때만(게시판 목록과 같다, notice-admin-contract 「전체 공지」). 옛 응답에는 없다 */
+    globalPinned?: GlobalNoticeRow[];
 }
 
 /**

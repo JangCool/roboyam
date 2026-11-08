@@ -50,11 +50,46 @@ export interface NoticeBarSummary {
     boardCount: number;
 }
 
+/** 고정 범위 — 공지 게시판에만(기본) · 모든 게시판 맨 위에도(전체 공지, V174) */
+export type NoticePinScope = 'NOTICE_ONLY' | 'ALL';
+
+/** 뺄 게시판 고르기 칩 하나 */
+export interface NoticeBoardRef {
+    id: string;
+    slug: string;
+    name: string;
+    nameEn: string | null;
+}
+
+/** 컨텍스트의 전체 공지 요약 · 게시판 고르기 목록 */
+export interface NoticeGlobalContext {
+    /** 지금 살아 있는 전체 공지 수(지운 · 숨긴 · 기간 지난 것 빼고) */
+    count: number;
+    /** 동시에 걸 수 있는 수(3) */
+    max: number;
+    /** 켜진 일반 게시판(공지 게시판 자신 · 소모임 게시판 빼고), 정렬 순서대로 */
+    boards: NoticeBoardRef[];
+    /** 켜진 소모임 게시판 */
+    groupBoards: NoticeBoardRef[];
+}
+
 /** `GET /api/admin/notices/context` */
 export interface NoticeContext {
     board: NoticeBoard | null;
     writer: NoticeWriter;
     noticeBar: NoticeBarSummary;
+    global: NoticeGlobalContext;
+}
+
+/** 공지의 전체 공지 설정 — 고정 범위가 모든 게시판(ALL)인 고정 글만 실린다 */
+export interface NoticeGlobal {
+    excludedBoardIds: string[];
+    /** 소모임 게시판 전체를 뺐다(새로 만들 소모임 게시판 포함) */
+    excludeAllGroupBoards: boolean;
+    /** 다른 게시판에서 내려갈 시각(null = 풀 때까지) */
+    expiresAt: string | null;
+    /** 기간이 지나 다른 게시판에서는 내려갔다(공지 게시판 고정은 그대로) */
+    expired: boolean;
 }
 
 /** 작성자 — 운영자 회원 계정(회원). `operatorName` 은 그 계정에 이어진 운영자 이름(연결이 끊겼으면 null) */
@@ -88,6 +123,8 @@ export interface NoticeItem {
     editedAt: string | null;
     /** 공개 사이트의 글 주소(사이트 공개 주소 + `/posts/{id}`). 공개 주소가 없으면 null */
     publicUrl: string | null;
+    /** 전체 공지 설정 — 범위가 모든 게시판이 아니면 null */
+    global: NoticeGlobal | null;
 }
 
 /** `GET /api/admin/notices` — 고정 글이 먼저 */
@@ -124,6 +161,14 @@ export interface NoticeSaveRequest {
     /** 서식 HTML(서버가 정화한다) */
     body: string;
     pinned: boolean;
+    /** 고정 범위(고정하지 않으면 무시) */
+    scope: NoticePinScope;
+    /** 전체 공지 — 뺄 게시판 ID */
+    excludedBoardIds: string[];
+    /** 전체 공지 — 소모임 게시판 전체 빼기 */
+    excludeAllGroupBoards: boolean;
+    /** 전체 공지 — 다른 게시판에서 내려갈 시각(UTC ISO, null = 풀 때까지) */
+    expiresAt: string | null;
 }
 
 /** `POST /api/admin/notices` → 201 */

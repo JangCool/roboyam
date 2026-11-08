@@ -9,6 +9,7 @@
         - 저장: 바닥 줄 [취소] [저장](새 글은 「올리기」). 저장 중·이미지를 올리는 중·실패한 이미지가 있으면 막는다. 400 `fields.*` 는 그 칸 아래, 나머지는 줄 안 한 줄(서버 문구 그대로).
           성공하면 토스트 + 새 글은 목록으로, 수정은 그대로 머문다. 저장하지 않은 변경이 있으면 떠날 때 묻는다.
         - 권한: 보기 `post.read` · 쓰기·고치기 `post.manage`(없으면 읽기 전용 안내, 저장 줄 없음).
+        - 전체 공지(2026-11-08): 「상단 고정」을 켜면 아래에 고정 범위 · 뺄 게시판 · 걸어 둘 기간(`NoticeGlobalOptions`). 고정을 끄면 범위·제외·기간도 사라진다(보낼 때 NOTICE_ONLY).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="pageTitle" :subtitle="isNew ? t('notice.newSubtitle') : t('notice.editSubtitle')">
@@ -135,6 +136,19 @@
                             {{ fe('pinned') || pinBlockedReason || t('notice.pinnedHelp', { n: context.board?.pinnedCount ?? 0, max: context.board?.pinnedMax ?? 0 }) }}
                         </p>
                     </div>
+                    <NoticeGlobalOptions
+                        v-if="form.pinned"
+                        v-model:scope="form.scope"
+                        v-model:excluded="form.excluded"
+                        v-model:exclude-all-groups="form.excludeAllGroups"
+                        v-model:period="form.period"
+                        v-model:period-date="form.periodDate"
+                        :global="context.global"
+                        :live-global="liveGlobal"
+                        :expired="globalExpiredKept"
+                        :disabled="ro"
+                        :errors="serverErrors"
+                    />
                 </div>
             </AppGadget>
 
@@ -158,7 +172,8 @@
 <script setup lang="ts">
 import type { RichEditorMediaState, RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { NoticeContext, NoticeItem, NoticeSaveRequest } from '~/composables/notice/api/useNoticeApi.types';
+import type { NoticeContext, NoticeItem, NoticePinScope, NoticeSaveRequest } from '~/composables/notice/api/useNoticeApi.types';
+import type { NoticePeriod } from '~/utils/util-notice';
 import UtilNotice from '~/utils/util-notice';
 import UtilPost from '~/utils/util-post';
 
@@ -167,6 +182,13 @@ interface NoticeForm {
     title: string;
     body: string;
     pinned: boolean;
+    /** 전체 공지 — 고정했을 때만 뜻이 있다 */
+    scope: NoticePinScope;
+    excluded: string[];
+    excludeAllGroups: boolean;
+    period: NoticePeriod;
+    /** 날짜 고르기의 날(`YYYY-MM-DD`, 한국 시각) */
+    periodDate: string;
 }
 
 const { t, locale } = useI18n();
@@ -217,13 +239,15 @@ const prefixChoices = computed(() => {
 /* ── 폼 ── */
 
 function emptyForm(): NoticeForm {
-    return { prefixId: null, title: '', body: '', pinned: false };
+    return { prefixId: null, title: '', body: '', pinned: false, scope: 'NOTICE_ONLY', excluded: [], excludeAllGroups: false, period: 'NONE', periodDate: '' };
 }
 
 const form = ref<NoticeForm>(emptyForm());
 const initial = ref('');
 function snapshot(f: NoticeForm): string {
-    return JSON.stringify([f.prefixId, f.title, f.body, f.pinned]);
+    // 고정을 끈 동안의 범위 칸은 보내지 않으므로 비교하지 않는다
+    const global = f.pinned && f.scope === 'ALL' ? [[...f.excluded].sort(), f.excludeAllGroups, f.period, f.period === 'DATE' ? f.periodDate : ''] : null;
+    return JSON.stringify([f.prefixId, f.title, f.body, f.pinned, f.pinned ? f.scope : null, global]);
 }
 const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== initial.value);
 const titleLength = computed(() => UtilNotice.titleLength(form.value.title));
@@ -255,6 +279,18 @@ const pinBlockedReason = computed(() => {
 });
 const pinAllowed = computed(() => !pinBlockedReason.value);
 
+/* ── 전체 공지 ── */
+
+/** 저장된 끝 시각(수정 화면) — 날짜를 그대로 두면 이 값을 다시 보낸다 */
+const originalExpiresAt = computed(() => detail.value?.global?.expiresAt ?? null);
+/** 이 글이 지금 살아 있는 전체 공지 — 한도가 차도 범위를 그대로 고를 수 있다 */
+const liveGlobal = computed(() => !!detail.value?.global && !detail.value.global.expired);
+/** 저장된 기간이 이미 지났고 그 날짜를 그대로 두었다 */
+const globalExpiredKept = computed(() => {
+    const g = detail.value?.global;
+    return !!g?.expired && !!g.expiresAt && form.value.period === 'DATE' && form.value.periodDate === UtilNotice.kstDateOf(g.expiresAt);
+});
+
 /* ── 저장 막기 ── */
 
 const mediaBlocked = computed(() => media.value.uploading > 0 || media.value.failed > 0);
@@ -277,7 +313,18 @@ const saveStatus = computed(() => {
 
 function apply(item: NoticeItem, body: string): void {
     detail.value = item;
-    form.value = { prefixId: item.prefix?.id ?? null, title: item.title, body, pinned: item.pinned };
+    const g = item.global;
+    form.value = {
+        prefixId: item.prefix?.id ?? null,
+        title: item.title,
+        body,
+        pinned: item.pinned,
+        scope: g ? 'ALL' : 'NOTICE_ONLY',
+        excluded: g ? [...g.excludedBoardIds] : [],
+        excludeAllGroups: g?.excludeAllGroupBoards ?? false,
+        period: g?.expiresAt ? 'DATE' : 'NONE',
+        periodDate: g?.expiresAt ? UtilNotice.kstDateOf(g.expiresAt) : '',
+    };
     initial.value = snapshot(form.value);
     serverErrors.value = {};
     formError.value = '';
@@ -325,15 +372,27 @@ function precheck(f: NoticeForm): Record<string, string> {
     const problems: Record<string, string> = {};
     if (UtilNotice.titleLength(f.title) === 0) problems.title = t('notice.titleRequired');
     if (UtilPost.isHtmlEmpty(f.body)) problems.body = t('notice.bodyRequired');
+    if (f.pinned && f.scope === 'ALL' && f.period === 'DATE' && !f.periodDate) problems.expiresAt = t('notice.periodDateRequired');
     return problems;
 }
 
 function toRequest(f: NoticeForm): NoticeSaveRequest {
-    return { prefixId: f.prefixId, title: f.title.trim(), body: f.body, pinned: f.pinned };
+    const all = f.pinned && f.scope === 'ALL';
+    return {
+        prefixId: f.prefixId,
+        title: f.title.trim(),
+        body: f.body,
+        pinned: f.pinned,
+        // 고정을 끄면 범위·제외·기간도 사라진다
+        scope: all ? 'ALL' : 'NOTICE_ONLY',
+        excludedBoardIds: all ? [...f.excluded] : [],
+        excludeAllGroupBoards: all && f.excludeAllGroups,
+        expiresAt: all ? UtilNotice.expiresAt(f.period, f.periodDate, originalExpiresAt.value) : null,
+    };
 }
 
 /** 칸에 붙는 서버 오류 키 */
-const FIELD_KEYS = ['prefixId', 'title', 'body', 'pinned'];
+const FIELD_KEYS = ['prefixId', 'title', 'body', 'pinned', 'scope', 'excludedBoardIds', 'expiresAt'];
 /** 떠나기 확인을 건너뛴다(저장 뒤 목록으로 갈 때) */
 let leaving = false;
 
@@ -373,7 +432,7 @@ async function save(): Promise<void> {
         } else {
             formError.value = failure.message;
             // 그 사이 연결이 끊겼거나 고정 수가 바뀌었다 — 경고 띠·고정 한도를 새로
-            if (failure.code === 'NOTICE_WRITER_NOT_LINKED' || failure.code === 'PIN_LIMIT') {
+            if (failure.code === 'NOTICE_WRITER_NOT_LINKED' || failure.code === 'PIN_LIMIT' || failure.code === 'NOTICE_GLOBAL_LIMIT') {
                 try {
                     context.value = await api.context();
                 } catch {

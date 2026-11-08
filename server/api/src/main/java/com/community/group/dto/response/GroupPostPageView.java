@@ -1,5 +1,6 @@
 package com.community.group.dto.response;
 
+import com.community.notice.dto.response.GlobalNoticeView;
 import java.util.List;
 
 /**
@@ -11,12 +12,13 @@ import java.util.List;
  * @param page         지금 쪽(1부터) — 커서로 받으면 null
  * @param totalPages   전체 쪽 수 — 커서로 받으면 null
  * @param totalCount   조건(말머리·검색)에 맞는 글 수 — 커서로 받으면 null
+ * @param globalPinned 전체 공지(V174) — 쪽 번호로 받은 첫 쪽이고 말머리·검색어·상태 거르기가 없을 때만(게시판 목록과 같다), 그 밖에는 빈 목록
  */
 public record GroupPostPageView(List<GroupPostRowView> items, boolean hasNext, String nextCursor, boolean locked, long privateCount, Integer page, Integer totalPages,
-                                Long totalCount) {
+                                Long totalCount, List<GlobalNoticeView> globalPinned) {
 
-    /** 커서로 받은 쪽 */
+    /** 커서로 받은 쪽(전체 공지 없음) */
     public GroupPostPageView(List<GroupPostRowView> items, boolean hasNext, String nextCursor, boolean locked, long privateCount) {
-        this(items, hasNext, nextCursor, locked, privateCount, null, null, null);
+        this(items, hasNext, nextCursor, locked, privateCount, null, null, null, List.of());
     }
 }

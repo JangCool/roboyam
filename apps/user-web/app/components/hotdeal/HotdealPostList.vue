@@ -2,8 +2,10 @@
     <!--
         핫딜 게시판 목록형(LIST) — 가격 줄 목록(`HotdealRowItem`). 모바일·데스크톱이 같은 줄 모양이다(가격 비교가 목적이라 표 대신 줄). 칩 위치 설정과 상관없이 늘 같은 모양.
         고정 공지는 맨 위에 배경, 신고로 숨겨진 글은 자리만, 차단한 회원·단어의 글은 접힌 한 줄. 한 줄 광고(`feedAd`)는 그 차례 뒤에.
-        속성 계약은 일반 목록과 같다(`BoardPostListProps`).
+        속성 계약은 일반 목록과 같다(`BoardPostListProps`). 전체 공지(`globalPinned`)는 맨 위에 「공지」 줄.
     -->
+    <div>
+    <BoardGlobalNoticeList :rows="globalPinned" :date-display="dateDisplay" />
     <ul class="-mx-4 m-0 list-none p-0 md:mx-0" :aria-label="t('hotdeal.listCaption')" data-testid="hotdeal-list">
         <template v-for="(row, i) in all" :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
             <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
@@ -17,6 +19,7 @@
             <li v-if="UtilAd.feedAdAt(feedAd, i - pinned.length)" class="border-b border-surface"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i - pinned.length)!" variant="compact" /></li>
         </template>
     </ul>
+    </div>
 </template>
 
 <script setup lang="ts">

@@ -1,6 +1,6 @@
 import type { PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
 import type { BoardDateDisplay, PostChipPosition } from '~/composables/board/api/useBoardApi.types';
-import type { PostRow } from '~/composables/board/api/usePostApi.types';
+import type { GlobalNoticeRow, PostRow } from '~/composables/board/api/usePostApi.types';
 
 /** 일반 글 `afterIndex`(0부터) 줄 뒤에 한 줄 — 공지·고정 글은 세지 않는다. 목록 한 쪽에 최대 2개(자리 설정 `boardList.count`·`gap`, V155) */
 export interface BoardFeedAd {
@@ -17,6 +17,8 @@ export interface BoardPostListProps {
     rows: PostRow[];
     /** 고정 공지 — 맨 위에 따로 */
     pinned: PostRow[];
+    /** 전체 공지 — 고정 공지보다 위에 「공지」 줄(`BoardGlobalNoticeList`). 기본 빈 목록 */
+    globalPinned?: GlobalNoticeRow[];
     /** 날짜 표시 방식 */
     dateDisplay: BoardDateDisplay;
     /** 「새 글」 기준(시간) */

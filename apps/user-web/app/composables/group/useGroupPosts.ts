@@ -1,5 +1,5 @@
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { PostListQuery, PostRow } from '~/composables/board/api/usePostApi.types';
+import type { GlobalNoticeRow, PostListQuery, PostRow } from '~/composables/board/api/usePostApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroup from '~/utils/util-group';
 
@@ -31,6 +31,8 @@ export function useGroupPosts(options: GroupPostsOptions) {
     const t = useTranslate();
 
     const items = ref<PostRow[]>([]);
+    /** 전체 공지(첫 쪽·거르기 없음일 때만 서버가 준다) — 목록 맨 위 「공지」 줄 */
+    const globalPinned = ref<GlobalNoticeRow[]>([]);
     const status = ref<GroupPostsStatus>('idle');
     const errorMessage = ref('');
     const locked = ref(false);
@@ -85,6 +87,7 @@ export function useGroupPosts(options: GroupPostsOptions) {
             const res = await api.posts(groupId, { page: query.page, sort: query.sort, q: query.q || undefined, prefix: query.prefix || undefined, status: query.status || undefined }, controller.signal);
             if (mine !== request) return;
             items.value = res.items;
+            globalPinned.value = res.globalPinned ?? [];
             locked.value = res.locked;
             privateCount.value = Math.max(0, Math.floor(res.privateCount || 0));
             page.value = res.page ?? query.page;
@@ -110,5 +113,5 @@ export function useGroupPosts(options: GroupPostsOptions) {
 
     onBeforeUnmount(stop);
 
-    return { items, status, errorMessage, locked, privateCount, page, totalPages, totalCount, board, load, stop };
+    return { items, globalPinned, status, errorMessage, locked, privateCount, page, totalPages, totalCount, board, load, stop };
 }

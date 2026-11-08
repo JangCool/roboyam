@@ -1,7 +1,7 @@
 <template>
     <!-- 카드형(CARD) — 썸네일 + 제목 + 작성자·날짜·추천·댓글. 모바일 1열 · 데스크톱 2열. 고정 공지는 위에 한 줄씩 -->
     <div>
-        <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 mt-3 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
             <template v-for="(row, i) in rows" :key="row.id">
             <li class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900">

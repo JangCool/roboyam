@@ -1,7 +1,7 @@
 <template>
     <!-- 갤러리형(GALLERY) — 정사각 썸네일 격자(모바일 2열 · 데스크톱 4열) + 제목·작성자·날짜. 고정 공지는 위에 한 줄씩. 한 줄 광고(`feedAd`)는 그리지 않는다(이미지 격자에서 튄다) -->
     <div>
-        <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 mt-3 grid list-none grid-cols-2 gap-x-3 gap-y-4 p-0 md:grid-cols-4">
             <li v-for="row in rows" :key="row.id" class="min-w-0">
                 <div v-if="row.hiddenReason" class="grid aspect-square place-items-center rounded-lg bg-surface-100 px-2 text-center text-xs text-muted-color dark:bg-surface-800">

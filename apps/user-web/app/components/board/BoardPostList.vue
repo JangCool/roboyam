@@ -3,9 +3,10 @@
         목록형(LIST) — 칩 위치(`chipPosition`, post-chip-position-contract)에 따라:
         · 제목 위(`ABOVE`)·닉네임 아래(`BELOW`): 모바일·데스크톱 모두 여러 줄 글 줄(`PostRowFrame` — 데스크톱은 여백·제목 글자·썸네일만 조금 크게). 표는 그리지 않는다.
         · 제목 앞(`BEFORE`): 모바일은 같은 글 줄(칩이 제목 앞), 데스크톱은 표(제목·작성자·날짜·조회·추천).
-        고정 공지는 맨 위에 배경을 깔고, 신고로 숨겨진 글은 자리만
+        고정 공지는 맨 위에 배경을 깔고, 신고로 숨겨진 글은 자리만. 전체 공지(`globalPinned`)는 줄·표보다 위에 「공지」 줄(`BoardGlobalNoticeList`)
     -->
     <div>
+        <BoardGlobalNoticeList :rows="globalPinned" :date-display="dateDisplay" />
         <ul class="-mx-4 m-0 list-none p-0" :class="rowsEverywhere ? 'md:mx-0' : 'md:hidden'" data-testid="post-list-rows">
             <template v-for="(row, i) in all" :key="`${row.pinned && pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
             <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
