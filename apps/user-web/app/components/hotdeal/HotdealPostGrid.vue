@@ -5,7 +5,7 @@
     -->
     <div>
         <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
-        <ul class="m-0 mt-3 grid list-none p-0" :class="variant === 'CARD' ? 'grid-cols-1 gap-3 md:grid-cols-2' : 'grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4'" data-testid="hotdeal-grid">
+        <ul class="m-0 mt-3 grid list-none p-0" :class="variant === 'CARD' ? 'grid-cols-1 gap-3 md:grid-cols-2' : 'grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4'" data-testid="hotdeal-grid" data-cache-area="hotdeal.settings">
             <template v-for="(row, i) in rows" :key="row.id">
                 <li class="min-w-0" :class="variant === 'CARD' ? 'overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900' : ''">
                     <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">

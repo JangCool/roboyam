@@ -354,5 +354,9 @@ export default {
         adContactRevealDesc: '가려 둔 광고주 담당자·연락처·이메일을 사유를 적고 잠시 봅니다.',
         siteSecret: '키·비밀 변경',
         siteSecretDesc: '소셜 로그인 키·메일 서버 비밀번호 같은 비밀 값을 바꿉니다.',
+        cacheRead: '캐시 조회',
+        cacheReadDesc: '공개 사이트 응답 캐시의 목록·서버별 상태·갱신 기록·TTL 변경 이력을 봅니다.',
+        cacheManage: '캐시 TTL 변경·갱신',
+        cacheManageDesc: '캐시마다 TTL 을 바꾸고, 캐시 하나 또는 전체를 모든 서버에서 비웁니다.',
     },
 };

@@ -6,7 +6,7 @@
     -->
     <div>
     <BoardGlobalNoticeList :rows="globalPinned" :date-display="dateDisplay" />
-    <ul class="-mx-4 m-0 list-none p-0 md:mx-0" :aria-label="t('hotdeal.listCaption')" data-testid="hotdeal-list">
+    <ul class="-mx-4 m-0 list-none p-0 md:mx-0" :aria-label="t('hotdeal.listCaption')" data-testid="hotdeal-list" data-cache-area="hotdeal.settings">
         <template v-for="(row, i) in all" :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
             <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color md:px-1">

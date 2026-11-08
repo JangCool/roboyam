@@ -9,7 +9,7 @@
           닫음 기록은 이 브라우저에 공지 묶음 표식(`version`)별로 남는다(`UtilSiteNotice`) — 공지가 바뀌면 기간이 남았어도 다시 보인다. 저장소를 못 쓰면 이번 화면에서만 닫힌다.
         모바일 안쪽 화면(글 상세·글쓰기 — 셸 막대를 숨기는 곳)에서는 레이아웃이 숨긴다.
     -->
-    <div v-if="items.length" class="site-notice-bar mx-auto w-full max-w-[var(--content-max)] px-4 pt-2" data-testid="site-notice-bar">
+    <div v-if="items.length" class="site-notice-bar mx-auto w-full max-w-[var(--content-max)] px-4 pt-2" data-testid="site-notice-bar" data-cache-area="site.noticeBar">
         <aside
             class="flex items-center gap-2 rounded-lg border border-hairline-strong bg-card py-1 pl-3 pr-1 text-xs"
             :aria-label="t('siteNotice.label')"

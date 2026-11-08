@@ -43,6 +43,9 @@
         <!-- 팝업(운영자 관리자 「팝업 관리」) — 들어오면 화면 가운데 뜨는 이벤트·프로모션 창. 보일 곳(홈만/모든 화면)·기기는 부품이 가린다 -->
         <SitePopupLayer />
 
+        <!-- 캐시 영역 겹침 층 — 관리자 캐시 관리 「미리보기」 iframe 안(`cachePreview=1`)에서만 그린다. 공개 화면에는 없다 -->
+        <CacheAreaOverlay />
+
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 
         <WriteFab />

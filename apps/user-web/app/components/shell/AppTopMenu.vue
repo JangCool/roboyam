@@ -9,6 +9,7 @@
         :aria-label="t('menu.navLabel')"
         class="sticky top-12 z-20 border-b border-surface bg-surface-0 [--scroll-fade-bg:var(--p-surface-0)] max-md:hidden dark:bg-surface-900 dark:[--scroll-fade-bg:var(--p-surface-900)]"
         data-testid="top-menu"
+        data-cache-area="menu.public"
     >
         <div class="mx-auto flex w-full max-w-[var(--content-max)] items-center px-4">
             <AppScrollRow ref="row" :mode="overflow" reserve class="flex-1" scroller-class="flex h-10 items-center whitespace-nowrap text-sm">

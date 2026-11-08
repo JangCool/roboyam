@@ -29,7 +29,7 @@
 
         <p role="status" aria-live="polite" class="sr-only">{{ summary }}</p>
 
-        <div id="popular-list" class="mt-3" role="tabpanel" :aria-labelledby="UtilPopular.tabId(uid, period)" :aria-busy="status === 'loading'">
+        <div id="popular-list" class="mt-3" role="tabpanel" data-cache-area="home.popular" :aria-labelledby="UtilPopular.tabId(uid, period)" :aria-busy="status === 'loading'">
             <div v-if="status === 'loading'" role="status" :aria-label="t('feed.loading', { name: periodName })"><FeedSkeleton /></div>
 
             <ErrorState v-else-if="status === 'error'" :title="t('feed.periodLoadFailed', { period: UtilFeedMessages.periodLabel(t, period), name })" :description="errorMessage" retry @retry="load" />

@@ -39,7 +39,7 @@
         </div>
         <template #footer>
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="buying" @click="visible = false" />
-            <Button type="button" :label="t('pointShop.confirmBuy')" :loading="buying" :disabled="!agreed || insufficient || Boolean(restriction)" data-testid="pointshop-confirm-buy" @click="$emit('buy')" />
+            <Button type="button" :label="t('pointShop.confirmBuy')" :loading="buying" :disabled="!agreed || insufficient || Boolean(restriction)" data-testid="pointshop-confirm-buy" data-cache-area="commerce.rateLimits" @click="$emit('buy')" />
         </template>
     </Dialog>
 </template>

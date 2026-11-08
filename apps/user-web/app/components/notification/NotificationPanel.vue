@@ -3,7 +3,7 @@
          한 줄을 누르면 읽음으로 바꾼 뒤(`POST …/{id}/read`) 서버가 준 경로(`link`)로 간다 — 갈 곳이 없는 알림(포인트 회수·글 숨김)은 읽음만 하고 패널에 남는다.
          문장(`title`)·둘째 줄(`body`)은 서버가 요청 언어로 푼 그대로다(묶인 댓글·탈퇴한 회원·임시 숨김 문구 포함).
          머리 줄의 톱니는 알림 설정(`/settings/notifications`), 바닥 줄의 「알림 모두 보기」는 알림 화면(`/notifications`)으로 간다(이동하면 종이 패널을 닫는다) -->
-    <section class="flex max-h-[min(34rem,calc(100dvh-5rem))] w-full flex-col" aria-labelledby="notification-panel-title" data-testid="notification-panel">
+    <section class="flex max-h-[min(34rem,calc(100dvh-5rem))] w-full flex-col" aria-labelledby="notification-panel-title" data-testid="notification-panel" data-cache-area="notification.templates">
         <header class="flex items-center gap-1 border-b border-surface py-1.5 pl-4 pr-2">
             <!-- 팝오버가 열리면 이 제목에 초점이 간다(autofocus) — 키보드 사용자가 바로 패널 안에서 탭을 시작한다 -->
             <h2 id="notification-panel-title" tabindex="-1" autofocus class="flex-1 text-sm font-semibold">{{ t('notification.title') }}</h2>

@@ -25,6 +25,7 @@
                         :invalid="invalid"
                         :aria-describedby="describedBy"
                         fluid
+                        data-cache-area="board.catalog"
                         @update:model-value="$emit('update:boardSlug', String($event ?? ''))"
                     />
                 </template>

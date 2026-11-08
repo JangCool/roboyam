@@ -12,7 +12,7 @@
         얇은 스크롤은 그 여백 안 바닥 7px(`--scroll-reserve`)에 그려 줄 높이(70·55)가 그대로다. 화살표 단추는 카드 바탕(`--card-bg`)에서 사라진다.
         `full`(상단 메뉴 폭 「화면 전체」): 카드가 창 폭 흰 띠가 되고(반경 0 — `main.css` 의 `.shell-card[data-menu-width='FULL']`) GNB/LNB 사이 선도 창 폭이다. 칸은 줄마다 본문 폭 상자 안에 두어 본문 폭일 때와 같은 자리에서 시작한다.
     -->
-    <nav :aria-label="t('menu.navLabel')" class="shell-card max-md:hidden" :data-menu-width="full ? 'FULL' : undefined" data-testid="daum-menu">
+    <nav :aria-label="t('menu.navLabel')" class="shell-card max-md:hidden" :data-menu-width="full ? 'FULL' : undefined" data-testid="daum-menu" data-cache-area="menu.public">
         <div v-if="showGnb" :class="rowClass">
             <AppScrollRow ref="gnbRow" :mode="overflow" :scroller-class="`flex ${compact ? 'h-[56px]' : 'h-[70px]'} items-center whitespace-nowrap px-1.5`">
                 <AppMenuBarState v-if="ownsState" :state="state" :loading="loading" class="px-3" @reload="reload" />

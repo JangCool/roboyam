@@ -8,7 +8,7 @@
         줄은 높이 40(`h-10`)으로 두고 링크(줄 높이 12)를 가운데에 놓아, 얇은 스크롤은 그 아래 여백 안 바닥 7px 에 그린다(윗줄 높이 48·56·60 안이라 윗줄은 그대로다).
         화살표 단추 그라데이션은 놓인 면의 바탕(`--scroll-fade-bg` — 주 색상 바 · 흰 윗줄 · 페이지 바탕)에서 사라진다.
     -->
-    <nav v-if="rows.length" :aria-label="t('shell.quickLinks')" class="logo-links min-w-0" data-testid="logo-links">
+    <nav v-if="rows.length" :aria-label="t('shell.quickLinks')" class="logo-links min-w-0" data-testid="logo-links" data-cache-area="menu.public">
         <AppScrollRow ref="row" :mode="overflow" scroller-class="flex h-10 items-center">
             <ul class="m-0 flex list-none items-center p-0">
                 <li v-for="(item, index) in rows" :key="item.key" class="flex shrink-0 items-center">

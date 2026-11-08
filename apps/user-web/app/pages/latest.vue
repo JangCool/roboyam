@@ -7,7 +7,7 @@
         <!-- 결과 개수·더 있는지를 스크린리더가 읽는다. 안내 영역은 처음부터 있어야 바뀐 글을 읽어 준다 -->
         <p role="status" aria-live="polite" class="sr-only">{{ summary }}</p>
 
-        <div class="mt-3" :aria-busy="status === 'loading'">
+        <div class="mt-3" :aria-busy="status === 'loading'" data-cache-area="home.latest">
             <!-- 로딩 -->
             <div v-if="status === 'loading'" role="status" :aria-label="t('feed.loading', { name })"><FeedSkeleton /></div>
 

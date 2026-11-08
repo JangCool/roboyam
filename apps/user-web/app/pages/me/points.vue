@@ -7,7 +7,7 @@
 
         <template v-else-if="user">
             <!-- 보유 포인트 · 오늘 적립 — 실제 `GET /api/me/points` -->
-            <section class="panel-card p-4" :aria-labelledby="`${uid}-balance`" data-testid="points-summary">
+            <section class="panel-card p-4" :aria-labelledby="`${uid}-balance`" data-testid="points-summary" data-cache-area="point.policy">
                 <h2 :id="`${uid}-balance`" class="text-sm font-semibold text-muted-color">{{ t('point.balance') }}</h2>
 
                 <div v-if="!summary && (summaryStatus === 'loading' || summaryStatus === 'idle')" class="mt-2 flex flex-col gap-3" role="status" :aria-label="t('point.loading')" data-testid="points-loading">
@@ -209,7 +209,7 @@
             </section>
 
             <!-- 적립 규칙 요약 — 운영자가 정한 값(최대 15초 뒤 반영). 지급 지점이 없는 규칙(출석·인기글·교환권)은 보이지 않는다 -->
-            <section v-if="summary" class="panel-card p-4" :aria-labelledby="`${uid}-rules`" data-testid="points-rules">
+            <section v-if="summary" class="panel-card p-4" :aria-labelledby="`${uid}-rules`" data-testid="points-rules" data-cache-area="point.policy">
                 <h2 :id="`${uid}-rules`" class="text-sm font-semibold">{{ t('point.rulesTitle') }}</h2>
                 <ul class="m-0 mt-2 flex list-none flex-col gap-1.5 p-0 text-sm">
                     <li v-for="rule in ruleLines" :key="rule.key" class="flex items-baseline justify-between gap-3">
@@ -241,7 +241,7 @@
             </section>
 
             <!-- 내역 — `GET /api/me/points/ledger`. 거르기는 전체·적립·차감·소멸(사용·사용 취소 거르기는 포인트 상점(1-2)이 더한다 — 그 줄은 「전체」에서만 보인다) -->
-            <section class="panel-card" :aria-labelledby="`${uid}-ledger`" data-testid="points-ledger">
+            <section class="panel-card" :aria-labelledby="`${uid}-ledger`" data-testid="points-ledger" data-cache-area="point.policy">
                 <div class="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
                     <h2 :id="`${uid}-ledger`" class="text-sm font-semibold">{{ t('point.history') }}</h2>
                     <SelectButton
