@@ -74,6 +74,8 @@ html[data-color-scheme='dark'] {
 html[data-topbar-gradient] .site-topbar,
 html[data-topbar-gradient] .app-nav {
     background-image: linear-gradient(to bottom, color-mix(in srgb, var(--topbar-shade) 38%, transparent) 0, color-mix(in srgb, var(--topbar-shade) 12%, transparent) 4px, transparent 9px);
+    /* 바 위 가로 메뉴 줄의 화살표 단추(`AppScrollRow` 의 `ARROWS` — 네이버식 탭 바 등)는 바탕색 그라데이션이 이 띠를 덮으므로 같은 띠를 단추 위에 한 겹 더 그린다(사용자 2026-11-08) */
+    --scroll-arrow-overlay: linear-gradient(to bottom, color-mix(in srgb, var(--topbar-shade) 38%, transparent) 0, color-mix(in srgb, var(--topbar-shade) 12%, transparent) 4px, transparent 9px);
 }
 
 /* ── 살구 · 코랄 ── */
