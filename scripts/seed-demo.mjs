@@ -1268,6 +1268,49 @@ async function seedNotices(admin, members, emoticons, psql) {
     await psql.flush();
     await likesAndViews(plans, members, psql);
     console.log(`  공지 ${plans.length}개(고정 ${pinned}) · 댓글 ${plans.flatMap((p) => p.comments).filter((c) => c.id).length}개`);
+    await seedGlobalNotices(admin, doc, board, ctx.data?.global?.boards ?? []);
+}
+
+/**
+ * 전체 공지(notice-admin-contract 「전체 공지」, V174) — 원고에 `global` 이 있는 고정 공지를 모든 게시판 맨 위에도 건다(관리자 공지 고치기 API, 범위 ALL · 기간 없음 ·
+ * `global.exclude` 의 게시판 주소는 뺌). 이미 전체 공지면 건너뛴다(멱등). 고정 시각은 고정 단계가 옮긴 글 시각 그대로 — 고치기는 이미 고정된 글의 고정 시각을 바꾸지 않고
+ * 줄(notice_global_pins.pinned_at)에 그 값을 베낀다. 고치기가 남긴 「수정됨」 표시는 지운다(본문은 그대로다).
+ */
+async function seedGlobalNotices(admin, doc, board, boards) {
+    const bySlug = new Map(boards.map((b) => [b.slug, b.id]));
+    for (const post of doc.posts.filter((p) => p.global && p.pinned)) {
+        const found = rows(sql(`SELECT id FROM posts WHERE board_id = ${board.id} AND deleted_at IS NULL AND title = ${q(post.title.slice(0, 100))} ORDER BY id LIMIT 1`))[0]?.[0];
+        if (!found) {
+            failed(`전체 공지 ${post.key}`, '공지 글이 없다');
+            continue;
+        }
+        const d = await admin.request('GET', `/api/admin/notices/${found}`);
+        if (!ok(d)) {
+            failed(`전체 공지 ${post.key}`, d);
+            continue;
+        }
+        const notice = d.data.notice;
+        if (notice.global) {
+            console.log(`  전체 공지 「${post.title.slice(0, 30)}…」 이미 걸려 있음`);
+            continue;
+        }
+        if (!notice.pinned) {
+            failed(`전체 공지 ${post.key}`, '고정되지 않은 공지다');
+            continue;
+        }
+        const exclude = (post.global.exclude ?? []).map((slug) => bySlug.get(slug)).filter(Boolean);
+        const r = await admin.request('PUT', `/api/admin/notices/${found}`, {
+            prefixId: notice.prefix?.id ?? null, title: notice.title, body: d.data.content.body, pinned: true,
+            scope: 'ALL', excludedBoardIds: exclude, excludeAllGroupBoards: post.global.excludeAllGroupBoards === true, expiresAt: null,
+        });
+        if (!ok(r)) {
+            failed(`전체 공지 ${post.key}`, r);
+            continue;
+        }
+        sql(`UPDATE posts SET edited_at = NULL, updated_at = created_at WHERE id = ${found}`);
+        const [[same]] = rows(sql(`SELECT (g.pinned_at = p.pinned_at)::text FROM notice_global_pins g JOIN posts p ON p.id = g.post_id WHERE g.post_id = ${found}`));
+        console.log(`  전체 공지 「${post.title.slice(0, 30)}…」 걸음 — 뺀 게시판 ${exclude.length}개 · 고정 시각 맞음 ${same === 'true' ? '○' : '✕'}`);
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

@@ -8,6 +8,7 @@
       "prefix": "공지",
       "daysAgo": 30,
       "pinned": true,
+      "global": { "exclude": ["hotdeal"] },
       "popularity": "hot",
       "paragraphs": [
         "안녕하세요, ROBOYAM(로보얌) 운영팀입니다. 로보얌은 AI·로봇·테크 이야기를 중심으로 게임, 스포츠, 주식, 생활 이야기까지 편하게 나누는 커뮤니티예요. 처음 오신 분들이 헤매지 않도록 자주 쓰는 기능을 한곳에 정리했습니다.",
