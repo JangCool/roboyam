@@ -15,32 +15,41 @@
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="py-3.5 text-sm" hide-class="pb-2">
-                    <NuxtLink
-                        :to="`/posts/${row.id}`"
-                        class="group flex gap-3.5 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5"
-                    >
-                        <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
-                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
-                        <div class="flex min-w-0 flex-1 flex-col">
-                            <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
-                                <PostRowTitle :row="row" :new-post-hours="newPostHours" :comment-count="false" />
-                            </p>
-                            <div class="mt-auto flex items-center justify-between gap-3 pt-1.5 text-[12.5px] leading-[18px] text-muted-color">
-                                <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-1.5">
-                                    <PostAuthorLabel :author="row.author" avatar />
-                                    <span aria-hidden="true">·</span>
-                                    <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-                                    <span aria-hidden="true">·</span>
-                                    <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
-                                    <span aria-hidden="true">·</span>
-                                    <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                    <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — 「제목 위」 윗줄은 썸네일보다 위(줄 폭 전체), 썸네일은 이 테마대로 아래 칸 왼쪽. 말풍선 댓글 수는 메타 줄 오른쪽 그대로 -->
+                    <NuxtLink :to="`/posts/${row.id}`" class="group block py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5">
+                        <PostRowFrame :row="row" :position="chipPosition" row-class="gap-3.5" body-class="flex flex-col">
+                            <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
+                            <template #start>
+                                <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
+                            </template>
+                            <template #default="{ chips, stats, dateInline }">
+                                <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
+                                    <PostRowTitle :row="row" :new-post-hours="newPostHours" :comment-count="false" :chips="chips" />
                                 </p>
-                                <span v-if="row.commentCount > 0" class="inline-flex shrink-0 items-center gap-1 tabular-nums" data-testid="post-row-comments">
-                                    <i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" />
-                                    <span class="sr-only">{{ t('board.commentCountLabel') }}</span>{{ row.commentCount.toLocaleString() }}
-                                </span>
-                            </div>
-                        </div>
+                                <div class="mt-auto flex items-center justify-between gap-3 pt-1.5 text-[12.5px] leading-[18px] text-muted-color">
+                                    <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-1.5">
+                                        <PostAuthorLabel :author="row.author" avatar />
+                                        <template v-if="stats">
+                                            <span aria-hidden="true">·</span>
+                                            <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                            <span aria-hidden="true">·</span>
+                                            <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
+                                            <span aria-hidden="true">·</span>
+                                            <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                        </template>
+                                        <!-- 「제목 위」 — 날짜만 닉네임(등급) 바로 뒤에(조회·추천은 윗줄 오른쪽 끝) -->
+                                        <template v-if="dateInline">
+                                            <span aria-hidden="true">·</span>
+                                            <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                        </template>
+                                    </p>
+                                    <span v-if="row.commentCount > 0" class="inline-flex shrink-0 items-center gap-1 tabular-nums" data-testid="post-row-comments">
+                                        <i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" />
+                                        <span class="sr-only">{{ t('board.commentCountLabel') }}</span>{{ row.commentCount.toLocaleString() }}
+                                    </span>
+                                </div>
+                            </template>
+                        </PostRowFrame>
                     </NuxtLink>
                 </FoldedRow>
             </li>
@@ -57,7 +66,7 @@ import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), { feedAd: null });
+withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

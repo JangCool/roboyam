@@ -8,44 +8,43 @@
         <!-- 차단한 회원·단어의 글은 접힌 한 줄(게시판 글 목록과 같은 `FoldedRow` — 「보기」로 그 자리에서 펼친다). 순위 칸은 남겨 순서가 밀리지 않는다 -->
         <div class="min-w-0 flex-1">
             <FoldedRow :reason="foldReason" kind="post" class="py-3 text-sm" :class="padClass" :hide-class="`${padClass} pb-2`">
+                <!-- 칩·추천·날짜 자리는 칩 위치(`chipPosition` — 공개 표시 기본값 `listChipPosition`)를 따른다. 앞쪽 칩([어제/지난주]·게시판 이름)도 칩과 함께 움직이고,
+                     게시판 이름이 늘 있어 「제목 위」 윗줄에 「일반」 자리 칩은 두지 않는다. 섞인 목록은 원래 조회 수를 보이지 않는다 -->
                 <NuxtLink
                     :to="`/posts/${row.id}`"
-                    class="flex min-w-0 flex-1 items-start gap-3 py-3 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
+                    class="block min-w-0 flex-1 py-3 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
                     :class="padClass"
                 >
-                    <div class="min-w-0 flex-1">
-                        <p class="line-clamp-2 break-words text-sm leading-snug">
-                            <!-- 인기글에서 어제·지난주 글로 채운 줄 -->
-                            <span v-if="fillTag" class="mr-1 inline-flex items-center justify-center rounded border border-surface px-1.5 py-1 align-[1px] text-[0.6875rem] font-medium leading-none text-muted-color" :title="fillTag.aria">
-                                <span class="relative top-[-0.09em]" aria-hidden="true">{{ fillTag.label }}</span><span class="sr-only">{{ fillTag.aria }}</span>
-                            </span>
-                            <!-- 공개로 전환된 소모임 글 — 게시판 이름 대신 「소모임」 표시(소모임 게시판은 공개 게시판 목록에 없다) -->
-                            <GroupTag v-if="row.group" tone="blue" class="mr-1 align-[1px]" data-testid="post-group-badge">{{ t('group.postBadge') }}</GroupTag>
-                            <!-- 게시판 이름 — 운영자가 고른 표시색이 있으면 그 색, 없으면 중립색 -->
-                            <span
-                                v-else
-                                class="mr-1 inline-flex items-center justify-center rounded px-1.5 py-1 align-[1px] text-[0.6875rem] font-semibold leading-none"
-                                :class="boardStyle ? '' : UtilBoard.tagClass('neutral')"
-                                :style="boardStyle"
-                                data-testid="post-board"
-                            >
-                                <span class="relative top-[-0.09em]"><span class="sr-only">{{ t('feed.boardTag', { name: boardName }) }}</span><span aria-hidden="true">{{ boardName }}</span></span>
-                            </span>
-                            <PostRowTitle :row="row" :new-post-hours="newPostHours" :pinned-mark="false" :tokens="tokens" />
-                        </p>
-                        <!-- 본문이 걸린 검색 결과만 — 일치한 자리 앞뒤 글자(잘린 쪽의 「…」는 서버가 붙여 준다) -->
-                        <p v-if="snippet" class="mt-1 line-clamp-2 break-words text-sm leading-snug text-muted-color">
-                            <template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
-                        </p>
-                        <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                            <PostAuthorLabel :author="row.author" avatar />
-                            <span aria-hidden="true">·</span>
-                            <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                            <span aria-hidden="true">·</span>
-                            <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-                        </p>
-                    </div>
-                    <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-12 shrink-0 rounded-md object-cover" loading="lazy" />
+                    <PostRowFrame :row="row" :position="chipPosition" :views="false" :general="false">
+                        <template #lead><FeedPostLeadTags :row="row" :fill="fill" /></template>
+                        <template #default="{ chips, stats, dateInline }">
+                            <p class="line-clamp-2 break-words text-sm leading-snug">
+                                <FeedPostLeadTags v-if="chips" :row="row" :fill="fill" inline />
+                                <PostRowTitle :row="row" :new-post-hours="newPostHours" :pinned-mark="false" :tokens="tokens" :chips="chips" />
+                            </p>
+                            <!-- 본문이 걸린 검색 결과만 — 일치한 자리 앞뒤 글자(잘린 쪽의 「…」는 서버가 붙여 준다) -->
+                            <p v-if="snippet" class="mt-1 line-clamp-2 break-words text-sm leading-snug text-muted-color">
+                                <template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
+                            </p>
+                            <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                                <PostAuthorLabel :author="row.author" avatar />
+                                <template v-if="stats">
+                                    <span aria-hidden="true">·</span>
+                                    <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                </template>
+                                <!-- 「제목 위」 — 날짜만 닉네임(등급) 바로 뒤에(조회·추천은 윗줄 오른쪽 끝) -->
+                                <template v-if="dateInline">
+                                    <span aria-hidden="true">·</span>
+                                    <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                </template>
+                            </p>
+                        </template>
+                        <template #end>
+                            <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-12 shrink-0 rounded-md object-cover" loading="lazy" />
+                        </template>
+                    </PostRowFrame>
                 </NuxtLink>
             </FoldedRow>
         </div>
@@ -53,11 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import type { BoardDateDisplay } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDateDisplay, PostChipPosition } from '~/composables/board/api/useBoardApi.types';
 import type { PostFeedRow } from '~/composables/board/api/usePostApi.types';
 import type { PopularFill } from '~/composables/home/api/useHomeApi.types';
-import UtilBoard from '~/utils/util-board';
-import UtilFeedMessages from '~/utils/util-feed-messages';
 import UtilSearchRules from '~/utils/util-search-rules';
 
 interface Props {
@@ -74,6 +71,8 @@ interface Props {
     tokens?: string[];
     /** 검색 결과의 본문 일치 조각 */
     snippet?: string | null;
+    /** 말머리·상태 칩 위치 — 페이지가 공개 표시 기본값의 `listChipPosition` 을 준다(기본 `ABOVE`) */
+    chipPosition?: PostChipPosition;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -81,18 +80,15 @@ const props = withDefaults(defineProps<Props>(), {
     fill: null,
     tokens: () => [],
     snippet: null,
+    chipPosition: 'ABOVE',
 });
 
 const { t } = useI18n();
-const { localizedName } = useLocalizedName();
 const overrides = useBlockOverrides();
 const ranked = computed(() => props.rank > 0);
 /** 줄 좌우 여백 — 순위 칸이 있으면 왼쪽을 줄인다(접힌 줄·「다시 숨기기」도 같은 여백) */
 const padClass = computed(() => (ranked.value ? 'pl-1 pr-4 md:pr-2' : 'px-4 md:px-2'));
 /** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다(게시판 글 목록과 같다) */
 const foldReason = computed(() => overrides.blockedOf(props.row.author.memberId, props.row.blocked));
-const boardName = computed(() => localizedName(props.row.board.name, props.row.board.nameEn));
-const boardStyle = computed(() => UtilBoard.tagStyle(props.row.board.color));
-const fillTag = computed(() => (props.fill ? UtilFeedMessages.fillTag(t, props.fill) : null));
 const snippetParts = computed(() => UtilSearchRules.highlightParts(props.snippet ?? '', props.tokens));
 </script>

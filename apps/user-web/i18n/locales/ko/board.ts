@@ -20,6 +20,8 @@ export default {
     hiddenPostStaff: '운영자가 숨긴 글이에요',
     viewsShort: '조회 {n}',
     likesShort: '추천 {n}',
+    /** 칩 위치 「제목 위」 윗줄 — 말머리가 없는 글의 흐린 자리 칩(post-chip-position-contract) */
+    prefixNone: '일반',
 
     // 목록 표
     listCaption: '글 목록',

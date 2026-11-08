@@ -69,8 +69,9 @@
                 class="flex shrink-0 items-center"
                 :class="index > 0 ? 'ml-1 border-l border-hairline pl-1' : ''"
             >
-                <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크(첫 줄 그룹 단추는 둘째 줄을 바꾸는 일만 한다) -->
-                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color">
+                <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크(첫 줄 그룹 단추는 둘째 줄을 바꾸는 일만 한다).
+                     첫 줄에서 고른 그룹(커뮤니티·팁·강좌·사용기 …)을 펼친 때는 첫 줄에 이미 그 이름이 밝게 있으니 화면에서 숨기고 화면 읽기용으로만 둔다(사용자 2026-11-08). 기본 둘째 줄(상단 띠 그룹 — 핫 로토픽 …)은 첫 줄에 없는 이름이라 그대로 -->
+                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color" :class="sidePick.current.value ? 'sr-only' : ''">
                     <AppMenuGroupLabel v-if="group.group" :group="group.group" />
                     <template v-else>{{ localizedName(group.title, group.titleEn) }}</template>
                 </h2>

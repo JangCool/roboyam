@@ -1,17 +1,11 @@
 <template>
-    <!-- 글 줄의 제목 부분 — (소모임 상세면 공개 라벨) · 말머리 · 처리 상태 · 19 · 비밀글 자물쇠 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다.
+    <!-- 글 줄의 제목 부분 — [칩: (소모임 상세면 공개 라벨) · 말머리 · 처리 상태 · 19 — `chips` 일 때만] · 비밀글 자물쇠 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다.
          처리 상태·비밀글은 줄에 그 칸이 있을 때만(운영 게시판 — 섞인 목록에서는 서버가 비밀글을 빼고, 상태가 꺼진 게시판은 칸이 없다) -->
     <span>
         <i v-if="row.pinned && pinnedMark" class="pi pi-thumbtack mr-1 text-xs text-muted-color" aria-hidden="true" />
         <span v-if="row.pinned && pinnedMark" class="sr-only">{{ t('board.pinned') }}</span>
-        <!-- 소모임 상세 목록의 공개 라벨(`provideGroupRowTag` 를 건 목록에서만) — 글자가 늘 있다(색만으로 가르지 않는다) -->
-        <GroupTag v-if="groupTag" :tone="groupTag === 'PUBLIC' ? 'blue' : 'gray'" class="mr-1 align-[1px]" data-testid="group-post-visibility">{{ UtilGroupMessages.postRowVisibility(t, groupTag) }}</GroupTag>
-        <PostPrefixTag v-if="row.prefix && showPrefix" :prefix="row.prefix" class="mr-1 align-[1px]" />
-        <PostStatusTag v-if="row.processStatus" :status="row.processStatus" class="mr-1 align-[1px]" />
-        <span v-if="row.adult" class="mr-1 inline-flex size-4 items-center justify-center rounded-full bg-red-600 align-[1px] text-[0.5625rem] font-bold leading-none text-white" :title="t('board.adultMark')">
-            <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
-            <span class="sr-only">{{ t('board.adultMark') }}</span>
-        </span>
+        <!-- 칩(소모임 공개 라벨·말머리·처리 상태·19) — 「제목 앞」(`BEFORE`)일 때만 여기, 제목 위·닉네임 아래면 목록이 칩 줄(`PostRowFrame`)로 따로 그리고 `chips` 를 끈다 -->
+        <PostRowChips v-if="chips" :row="row" :show-prefix="showPrefix" inline />
         <!-- 비밀글 — 제목은 그대로 보이고 앞에 자물쇠(본문은 글쓴이·운영진만) -->
         <i v-if="row.secret" class="pi pi-lock mr-1 text-xs text-muted-color" :title="t('post.secretMark')" aria-hidden="true" data-testid="post-row-secret" />
         <span v-if="row.secret" class="sr-only">{{ t('post.secretMark') }}</span>
@@ -41,7 +35,6 @@
 
 <script setup lang="ts">
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
-import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilPost from '~/utils/util-post';
 import UtilSearchRules from '~/utils/util-search-rules';
 
@@ -56,6 +49,8 @@ interface Props {
     commentCount?: boolean;
     /** 검색 결과의 일치 강조 단어(검색 응답의 `tokens`) — 비면 강조하지 않는다 */
     tokens?: string[];
+    /** 칩을 제목 앞에 붙인다(칩 위치 `BEFORE`·한 줄짜리 자리) — 제목 위·닉네임 아래 칩 줄로 따로 그리는 목록은 끈다 */
+    chips?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -63,11 +58,10 @@ const props = withDefaults(defineProps<Props>(), {
     pinnedMark: true,
     commentCount: true,
     tokens: () => [],
+    chips: true,
 });
 
 const { t } = useI18n();
 const titleParts = computed(() => UtilSearchRules.highlightParts(props.row.title, props.tokens));
 const isNew = computed(() => UtilPost.isNew(props.row.createdAt, props.newPostHours, Date.now()));
-/** 소모임 상세 목록의 공개 라벨 — 그 밖의 목록은 null */
-const groupTag = useGroupRowTag(() => props.row);
 </script>

@@ -27,8 +27,13 @@ public final class BoardFields {
         /** 짧은 이름(댓글 추천·비추천 단추 이름) — 1~{@code max}자, 제어 문자 없음. 기본 설정에서도 null(= 화면 기본 이름)을 받는다 */
         LABEL,
         /** 여러 개 고르기(값 목록 안, 겹치지 않게 — 빈 목록 허용) — 고정 요청 확인자 */
-        MULTI
+        MULTI,
+        /** 색 {@code #rrggbb}(V170 목록 숫자 강조 색) — 저장 전에 소문자로 맞춘다 */
+        COLOR
     }
+
+    /** 색 칸 모양 — {@code #} + 16진수 6자리(대소문자 무관, 저장은 소문자) */
+    public static final Pattern HEX_COLOR = Pattern.compile("^#[0-9A-Fa-f]{6}$");
 
     /**
      * 칸 하나.
@@ -44,6 +49,7 @@ public final class BoardFields {
                 case NUMBER -> value instanceof Integer number && number >= min && number <= max;
                 case BOOL -> value instanceof Boolean;
                 case CHOICE -> value != null && choices.contains(value);
+                case COLOR -> value instanceof String text && HEX_COLOR.matcher(text).matches();
                 case MULTI -> value instanceof List<?> list && list.stream().allMatch(choices::contains) && list.stream().distinct().count() == list.size();
                 case LABEL -> value instanceof String text && text.codePointCount(0, text.length()) >= min && text.codePointCount(0, text.length()) <= max
                         && text.chars().noneMatch(Character::isISOControl);
@@ -84,6 +90,17 @@ public final class BoardFields {
     public static final String SECRET_OPTIONAL = "OPTIONAL";
     public static final String SECRET_ALWAYS = "ALWAYS";
     public static final List<String> SECRET_MODES = List.of(SECRET_OFF, SECRET_OPTIONAL, SECRET_ALWAYS);
+    /** 글 목록 말머리·상태 칩 위치(V169 — post-chip-position-contract) — 제목 위(기본) · 제목 앞 · 닉네임 아래 */
+    public static final String CHIP_ABOVE = "ABOVE";
+    public static final String CHIP_BEFORE = "BEFORE";
+    public static final String CHIP_BELOW = "BELOW";
+    public static final List<String> CHIP_POSITIONS = List.of(CHIP_ABOVE, CHIP_BEFORE, CHIP_BELOW);
+    /** 목록 숫자 강조 기준 상한(V170 CHECK 와 같다) · 처음 값 */
+    public static final int LIKE_HIGHLIGHT_MAX = 100_000;
+    public static final int VIEW_HIGHLIGHT_MAX = 10_000_000;
+    public static final int LIKE_HIGHLIGHT_DEFAULT = 10;
+    public static final int VIEW_HIGHLIGHT_DEFAULT = 1000;
+    public static final String HIGHLIGHT_COLOR_DEFAULT = "#e5484d";
 
     /**
      * 운영 게시판 설정(비밀글 · 처리 상태)을 켤 수 있는 게시판 종류인가 — 일반·소모임(V168). 핫딜·직접홍보는 공개 홍보가 목적이라 비밀글이 맞지 않고,
@@ -152,6 +169,12 @@ public final class BoardFields {
     static {
         Map<String, Spec> d = new LinkedHashMap<>();
         choice(d, "dateDisplay", false, false, "STANDARD", "RELATIVE");
+        // 목록 칩 위치의 사이트 기본(V169) — 게시판별 값은 정책 칸이 아니라 게시판 칸 chipPosition(null = 이 값)이다
+        choice(d, "listChipPosition", false, false, CHIP_ABOVE, CHIP_BEFORE, CHIP_BELOW);
+        // 목록 윗줄 추천·조회 숫자 강조(V170) — 사이트 기본만(게시판별 덮어쓰기 없음), 0 = 강조 안 함
+        number(d, "listLikeHighlight", 0, LIKE_HIGHLIGHT_MAX, false, false);
+        number(d, "listViewHighlight", 0, VIEW_HIGHLIGHT_MAX, false, false);
+        put(d, new Spec("listHighlightColor", Kind.COLOR, 0, 0, List.of(), false, false));
         put(d, new Spec("writeMin", Kind.WRITE_MIN, 0, 0, List.of(), true, false));
         put(d, new Spec("commentMin", Kind.COMMENT_MIN, 0, 0, List.of(), true, false));
         choice(d, "postEditor", true, false, EDITOR_NONE, EDITOR_SIMPLE, EDITOR_ADVANCED);

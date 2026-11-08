@@ -56,7 +56,8 @@ interface Props extends BoardPostListProps {
     variant?: 'CARD' | 'GALLERY';
 }
 
-withDefaults(defineProps<Props>(), { feedAd: null, variant: 'CARD' });
+/** 칩 위치(`chipPosition`)는 계약이라 받기만 한다 — 이 목록 모양은 칩을 늘 제목 앞에 둔다(post-chip-position-contract 적용 범위 밖) */
+withDefaults(defineProps<Props>(), { feedAd: null, variant: 'CARD', chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

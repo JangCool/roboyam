@@ -1,6 +1,6 @@
 <template>
     <!--
-        핫딜 게시판 목록형(LIST) — 가격 줄 목록(`HotdealRowItem`). 모바일·데스크톱이 같은 줄 모양이다(가격 비교가 목적이라 표 대신 줄).
+        핫딜 게시판 목록형(LIST) — 가격 줄 목록(`HotdealRowItem`). 모바일·데스크톱이 같은 줄 모양이다(가격 비교가 목적이라 표 대신 줄). 칩 위치 설정과 상관없이 늘 같은 모양.
         고정 공지는 맨 위에 배경, 신고로 숨겨진 글은 자리만, 차단한 회원·단어의 글은 접힌 한 줄. 한 줄 광고(`feedAd`)는 그 차례 뒤에.
         속성 계약은 일반 목록과 같다(`BoardPostListProps`).
     -->
@@ -25,7 +25,8 @@ import type { BoardPostListProps } from '~/components/board/BoardPostList.types'
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), { feedAd: null });
+/** 칩 위치(`chipPosition`)는 계약이라 받기만 한다 — 핫딜 목록은 사용자 시안(2026-11-08)의 한 모양 고정(윗줄 칩·몰 이름·추천·조회 → 사진·제목·가격 → 작성자·시각·댓글, `HotdealRowItem`) */
+const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

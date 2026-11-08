@@ -67,6 +67,11 @@ final class BoardRules {
                         out.put(path, new MessageRef("board.field.label", String.valueOf(spec.max())));
                     }
                 }
+                case COLOR -> {
+                    if (!spec.accepts(value)) {
+                        out.put(path, new MessageRef("board.field.color"));
+                    }
+                }
             }
         }
     }

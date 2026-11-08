@@ -110,7 +110,8 @@ const THEMES = {
         menuPosition: 'TOP',
         topItems: 'LOGO',
         menuWidth: 'CONTENT',
-        menuOverflow: 'SCROLLBAR',
+        // 탭 바가 넘치면 아래 스크롤바 대신 양끝 ‹ › 단추(사용자 2026-11-08) — 운영자 설정 「메뉴 넘침 표시」를 고르면 그 값이 이긴다
+        menuOverflow: 'ARROWS',
         slots: {
             shell: () => import('~/components/themes/naver/NaverShell.vue'),
             // 목록형만 기사형 줄로 — 카드형·갤러리형은 기본 것

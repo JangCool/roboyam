@@ -13,11 +13,13 @@ import java.util.List;
  * @param secretMode       비밀글 방식 OFF · OPTIONAL · ALWAYS(V166) — null 이면 바꾸지 않는다(정책 묶음 — {@code board.settings}), 모르는 값 400 {@code fields.secretMode}.
  *                         일반 게시판만 켤 수 있다(그 밖 400). 바꿔도 이미 쓴 글의 비밀 여부는 그대로
  * @param statusEnabled    처리 상태를 쓰는가(V166) — null 이면 바꾸지 않는다(정책 묶음), 일반 게시판만 켤 수 있다(그 밖 400 {@code fields.statusEnabled})
+ * @param chipPosition     글 목록 말머리·상태 칩 위치 ABOVE · BEFORE · BELOW(V169, 목록 모양 — 기본 정보 묶음 {@code board.manage}). null 이면 바꾸지 않는다,
+ *                         빈 글자({@code ""})면 「사이트 기본 따르기」(저장 값 null — {@code writeTemplate} 과 같은 규칙), 모르는 값 400 {@code fields.chipPosition}
  */
 public record BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
                                Boolean investmentNotice, String writeLock, String introText, String writeGuideText, String writeTemplate, BoardPolicyValues policy,
                                List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
-                               List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled) {
+                               List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled, String chipPosition) {
 
     /** 운영 게시판 칸 없이(그대로) */
     public BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
@@ -25,6 +27,6 @@ public record BoardSaveRequest(String name, String nameEn, String description, S
                             List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
                             List<String> gadgetExclusions, Boolean adsHidden) {
         this(name, nameEn, description, layout, viewToggle, color, allowAdult, investmentNotice, writeLock, introText, writeGuideText, writeTemplate, policy,
-                commonPrefixes, prefixes, gadgetExclusions, adsHidden, null, null);
+                commonPrefixes, prefixes, gadgetExclusions, adsHidden, null, null, null);
     }
 }

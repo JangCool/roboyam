@@ -116,6 +116,8 @@ export default class UtilBoardMessages {
                 return UtilBoardMessages.choice(t, field, value as string | number);
             case 'number':
                 return UtilBoardMessages.withUnit(t, field, Number(value));
+            case 'color':
+                return String(value);
         }
     }
 

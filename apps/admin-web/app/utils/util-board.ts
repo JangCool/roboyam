@@ -1,5 +1,6 @@
 import { ApiError } from '~/composables/common/useApiClient';
 import type {
+    BoardChipPosition,
     BoardColor,
     BoardDefaults,
     BoardDefaultsField,
@@ -22,8 +23,9 @@ import { BOARD_MIN_GUEST, BOARD_POLICY_FIELDS } from '~/composables/board/api/us
  * 칸 하나를 그리는 방식 — 숫자 글자 입력 · 켜고 끄기 · 고르기 · 등급 고르기(글쓰기·댓글)
  *  · 짧은 이름(`label` — 글자 `min`~`max`, 앞뒤 공백을 떼고 비면 null. 서버 `BoardFields.Kind.LABEL`)
  *  · 여러 개 고르기(`multi` — `choices` 안에서 겹치지 않게, 빈 목록 허용, 늘 `choices` 차례로. 서버 `BoardFields.Kind.MULTI`)
+ *  · 색(`color` — `#rrggbb`. 기본 설정 화면이 따로 그린다 — `BoardHighlightColorField`)
  */
-export type BoardFieldKind = 'number' | 'bool' | 'choice' | 'writeMin' | 'commentMin' | 'grade' | 'label' | 'multi';
+export type BoardFieldKind = 'number' | 'bool' | 'choice' | 'writeMin' | 'commentMin' | 'grade' | 'label' | 'multi' | 'color';
 /** 숫자 칸의 단위 문구 키(`board.unit.*`) */
 export type BoardUnit = 'seconds' | 'count' | 'days' | 'minutes' | 'hours' | 'people' | 'times' | 'likes' | 'chars';
 /** 칸을 고치는 데 필요한 권한 */
@@ -71,6 +73,8 @@ export const BOARD_NUM_FIELDS = [
     'staffPostDailyLimit',
     'staffCommentDailyLimit',
     'staffSanctionDailyLimit',
+    'listLikeHighlight',
+    'listViewHighlight',
 ] as const satisfies readonly BoardDefaultsField[];
 export type BoardNumField = (typeof BOARD_NUM_FIELDS)[number];
 
@@ -109,6 +113,8 @@ export interface BoardDetailForm {
     description: string;
     layout: BoardLayout;
     viewToggle: boolean;
+    /** 말머리·상태 칩 위치 — `null` = 사이트 기본 따르기(기본 설정 `listChipPosition`) */
+    chipPosition: BoardChipPosition | null;
     color: BoardColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;
@@ -144,6 +150,12 @@ export type BoardActiveFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     dateDisplay: { field: 'dateDisplay', kind: 'dateDisplay', choices: ['STANDARD', 'RELATIVE'], overridable: false, permission: 'board.settings' },
+    // 게시판별 값(`BoardDetail.chipPosition`)은 정책 칸이 아니라 게시판 기본 정보 칸이라 「게시판별 덮어쓰기」로 세지 않는다(서버 `BoardFields.DEFAULTS` — post-chip-position-contract)
+    listChipPosition: { field: 'listChipPosition', kind: 'choice', choices: ['ABOVE', 'BEFORE', 'BELOW'], overridable: false, permission: 'board.settings' },
+    // 글 줄 숫자 강조(사용자 2026-11-08 — 사이트 전체, 게시판별 덮어쓰기 없음). 0 = 강조 안 함. 범위는 서버 `BoardFields.LIKE_HIGHLIGHT_MAX`·`VIEW_HIGHLIGHT_MAX`(V170 CHECK)와 같다
+    listLikeHighlight: { field: 'listLikeHighlight', kind: 'number', min: 0, max: 100000, unit: 'likes', overridable: false, permission: 'board.settings' },
+    listViewHighlight: { field: 'listViewHighlight', kind: 'number', min: 0, max: 10000000, unit: 'times', overridable: false, permission: 'board.settings' },
+    listHighlightColor: { field: 'listHighlightColor', kind: 'color', overridable: false, permission: 'board.settings' },
     writeMin: { field: 'writeMin', kind: 'writeMin', overridable: true, permission: 'board.settings' },
     commentMin: { field: 'commentMin', kind: 'commentMin', overridable: true, permission: 'board.settings' },
     postEditor: { field: 'postEditor', kind: 'choice', choices: ['NONE', 'SIMPLE', 'ADVANCED'], overridable: true, permission: 'board.settings' },
@@ -248,7 +260,7 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
-    'defaults-display': ['dateDisplay'],
+    'defaults-display': ['dateDisplay', 'listChipPosition', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
     'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
@@ -315,6 +327,28 @@ export default class UtilBoard {
     static readonly WRITE_LOCKS: readonly (BoardWriteLock | null)[] = [null, 'POST', 'POST_COMMENT'];
     /** 비밀글 방식 선택지 — 끔 · 글쓴이가 고름 · 모든 글 비밀 */
     static readonly SECRET_MODES: readonly BoardSecretMode[] = ['OFF', 'OPTIONAL', 'ALWAYS'];
+    /** 글 목록 줄의 말머리·상태 칩 위치 선택지 — 제목 위(기본) · 제목 앞 · 닉네임 아래(서버 `BoardFields.CHIP_POSITIONS` 차례) */
+    static readonly CHIP_POSITIONS: readonly BoardChipPosition[] = ['ABOVE', 'BEFORE', 'BELOW'];
+    /** 글 줄 숫자 강조 색의 기본값 — 빨강(서버 기본값과 같다) */
+    static readonly HIGHLIGHT_COLOR = '#e5484d';
+    /** 강조 색 추천 칩 — 빨강(기본) · 주황 · 분홍 · 보라 · 파랑 · 초록. 공개 화면이 바탕에 맞게 명도만 보정한다 */
+    static readonly HIGHLIGHT_COLORS: readonly { key: string; hex: string }[] = [
+        { key: 'red', hex: '#e5484d' },
+        { key: 'orange', hex: '#f76b15' },
+        { key: 'pink', hex: '#d6409f' },
+        { key: 'purple', hex: '#8e4ec6' },
+        { key: 'blue', hex: '#0090ff' },
+        { key: 'green', hex: '#30a46c' },
+    ];
+
+    /**
+     * 강조 색 값 — `#rrggbb` 면 소문자로, 아니면 기본 빨강.
+     * @param {unknown} value - 입력·서버 값.
+     * @returns {string} 저장할 `#rrggbb`.
+     */
+    static highlightColor(value: unknown): string {
+        return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : UtilBoard.HIGHLIGHT_COLOR;
+    }
     static readonly SPECS: Readonly<Record<BoardDefaultsField, BoardFieldSpec>> = SPECS;
     static readonly DEFAULT_SECTIONS: Readonly<Record<BoardDefaultsSection, readonly BoardDefaultsField[]>> = DEFAULT_SECTIONS;
     static readonly POLICY_FIELDS: readonly BoardPolicyField[] = BOARD_POLICY_FIELDS;
@@ -487,6 +521,10 @@ export default class UtilBoard {
         const form = { ...defaults } as unknown as BoardDefaultsForm;
         for (const field of BOARD_NUM_FIELDS) form[field] = String(defaults[field]);
         form.pinRequestReviewers = [...(defaults.pinRequestReviewers ?? [])];
+        // 숫자 강조 칸을 아직 주지 않는 서버(새 칸을 서버보다 먼저 배포한 경우)면 기본값(추천 10 · 조회 1000 · 빨강)으로 채운다
+        form.listLikeHighlight = String(defaults.listLikeHighlight ?? 10);
+        form.listViewHighlight = String(defaults.listViewHighlight ?? 1000);
+        form.listHighlightColor = UtilBoard.highlightColor(defaults.listHighlightColor);
         return form;
     }
 
@@ -517,6 +555,7 @@ export default class UtilBoard {
         out.commentLikeLabel = UtilBoard.labelValue(form.commentLikeLabel);
         out.commentDislikeLabel = UtilBoard.labelValue(form.commentDislikeLabel);
         out.pinRequestReviewers = (UtilBoard.multiValue('pinRequestReviewers', form.pinRequestReviewers) ?? []) as BoardDefaults['pinRequestReviewers'];
+        out.listHighlightColor = UtilBoard.highlightColor(form.listHighlightColor);
         return out;
     }
 
@@ -610,6 +649,8 @@ export default class UtilBoard {
             description: detail.description,
             layout: detail.layout,
             viewToggle: detail.viewToggle,
+            // 옛 서버 응답에 칸이 없으면 사이트 기본 따르기
+            chipPosition: detail.chipPosition ?? null,
             color: detail.color,
             allowAdult: detail.allowAdult,
             investmentNotice: detail.investmentNotice,
@@ -646,6 +687,8 @@ export default class UtilBoard {
             description: form.description.trim(),
             layout: form.layout,
             viewToggle: form.viewToggle,
+            // 「사이트 기본 따르기」는 빈 글자로 보낸다(null 은 서버가 「그대로」로 읽는다 — writeTemplate 과 같은 규칙)
+            chipPosition: form.chipPosition ?? '',
             color: form.color,
             allowAdult: form.allowAdult,
             investmentNotice: form.investmentNotice,
@@ -688,7 +731,7 @@ export default class UtilBoard {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
-        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'color', 'allowAdult', 'investmentNotice'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
+        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'color', 'allowAdult', 'investmentNotice'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,

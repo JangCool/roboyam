@@ -139,21 +139,33 @@
                             <ul class="-mt-3 m-0 list-none p-0" data-testid="tips-latest-list">
                                 <li v-for="row in list.items" :key="row.id" class="border-b border-surface last:border-b-0">
                                     <FoldedRow :reason="foldOf(row)" kind="post" class="py-3 text-sm" hide-class="pb-2">
-                                        <NuxtLink :to="`/posts/${row.id}`" class="group flex items-start gap-3.5 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-latest-row">
-                                            <HomeThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
-                                            <div class="min-w-0 flex-1">
-                                                <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
-                                                    <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" />
-                                                </p>
-                                                <p v-if="row.excerpt" class="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-color" data-testid="tips-latest-excerpt">{{ row.excerpt }}</p>
-                                                <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                                                    <span class="font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
-                                                    <span aria-hidden="true">·</span>
-                                                    <PostAuthorLabel :author="row.author" />
-                                                    <span aria-hidden="true">·</span>
-                                                    <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
-                                                </p>
-                                            </div>
+                                        <!-- 칩·날짜 자리는 섞인 목록의 칩 위치(`listChipPosition`)를 따른다 — 이 목록은 원래 조회·추천 수를 보이지 않는다. 게시판 이름은 메타 줄 글자 그대로 -->
+                                        <NuxtLink :to="`/posts/${row.id}`" class="group block py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-latest-row">
+                                            <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5">
+                                                <template #start>
+                                                    <HomeThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
+                                                </template>
+                                                <template #default="{ chips, stats, dateInline }">
+                                                    <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
+                                                        <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" :chips="chips" />
+                                                    </p>
+                                                    <p v-if="row.excerpt" class="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-color" data-testid="tips-latest-excerpt">{{ row.excerpt }}</p>
+                                                    <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                                                        <span class="font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
+                                                        <span aria-hidden="true">·</span>
+                                                        <PostAuthorLabel :author="row.author" />
+                                                        <template v-if="stats">
+                                                            <span aria-hidden="true">·</span>
+                                                            <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
+                                                        </template>
+                                                        <!-- 「제목 위」 — 날짜만 닉네임(등급) 바로 뒤에(조회·추천은 윗줄 오른쪽 끝) -->
+                                                        <template v-if="dateInline">
+                                                            <span aria-hidden="true">·</span>
+                                                            <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
+                                                        </template>
+                                                    </p>
+                                                </template>
+                                            </PostRowFrame>
                                         </NuxtLink>
                                     </FoldedRow>
                                 </li>

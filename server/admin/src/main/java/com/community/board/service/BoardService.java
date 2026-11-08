@@ -75,6 +75,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>운영 게시판 설정(V166 — 비밀글 방식 {@code secretMode} OFF·OPTIONAL·ALWAYS, 처리 상태 {@code statusEnabled}): null 이면 그대로, 정책 묶음({@code board.settings}),
  *       감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다. 일반·소모임 게시판만 켤 수 있다(핫딜·직접홍보 400 {@code board.ops.generalOnly}).
  *       바꿔도 이미 쓴 글의 비밀 여부·상태 값은 그대로다.</li>
+ *   <li>글 목록 칩 위치({@code chipPosition}, V169 — ABOVE·BEFORE·BELOW): 목록 모양이라 기본 정보 묶음({@code board.manage}). null 이면 그대로, 빈 글자면 사이트 기본 따름(null 저장),
+ *       모르는 값 400 {@code chipPosition}. 감사 {@code BOARD_UPDATE} before/after(사이트 기본은 빈 글자로 남는다), {@code diffCount} 에 세지 않는다.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
  *       핫딜 게시판은 설치 프리셋과 같은 길({@link BoardCreator} — 19금 끔, 가젯 노출 금지 인기글, 비회원 글쓰기 없음)에 글쓰기 최소 자격을 첫 등급 바로 위 등급으로 정해 만든다
@@ -264,7 +266,8 @@ public class BoardService {
                 | diff(before, after, "viewToggle", board.isViewToggle(), in.viewToggleEffective())
                 | diff(before, after, "color", board.getColor(), in.color)
                 | diff(before, after, "allowAdult", board.isAllowAdult(), in.allowAdult)
-                | diff(before, after, "investmentNotice", board.isInvestmentNotice(), in.investmentNotice);
+                | diff(before, after, "investmentNotice", board.isInvestmentNotice(), in.investmentNotice)
+                | diff(before, after, "chipPosition", board.getChipPosition(), in.chipPosition);
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
@@ -356,6 +359,10 @@ public class BoardService {
         if (!BoardFields.opsAllowed(board.getKind()) && in.statusEnabled) {
             invalid.put("statusEnabled", new MessageRef("board.ops.generalOnly"));
         }
+        // 글 목록 칩 위치(V169) — null(사이트 기본 따름) 또는 값 목록
+        if (in.chipPosition != null && !BoardFields.CHIP_POSITIONS.contains(in.chipPosition)) {
+            invalid.put("chipPosition", new MessageRef("board.field.choice"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -400,6 +407,7 @@ public class BoardService {
         board.changeGadgetExclusions(in.gadgetExclusions);
         board.changeAdsHidden(in.adsHidden);
         board.changeOps(in.secretMode, in.statusEnabled);
+        board.changeChipPosition(in.chipPosition);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -539,6 +547,8 @@ public class BoardService {
         /** 비밀글 방식(V166) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(모르는 값은 검사에서 400) */
         String secretMode;
         boolean statusEnabled;
+        /** 글 목록 칩 위치(V169) — 요청에 없으면 지금 값, 빈 글자면 null(사이트 기본 따름). 앞뒤 공백을 떼고 대문자로 맞춘 값 */
+        String chipPosition;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -559,6 +569,8 @@ public class BoardService {
         in.adsHidden = request.adsHidden() == null ? board.isAdsHidden() : request.adsHidden();
         in.secretMode = request.secretMode() == null ? board.getSecretMode() : request.secretMode().strip().toUpperCase(Locale.ROOT);
         in.statusEnabled = request.statusEnabled() == null ? board.isStatusEnabled() : request.statusEnabled();
+        in.chipPosition = request.chipPosition() == null ? board.getChipPosition()
+                : request.chipPosition().isBlank() ? null : request.chipPosition().strip().toUpperCase(Locale.ROOT);
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());

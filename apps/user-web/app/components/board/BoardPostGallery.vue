@@ -19,12 +19,16 @@
                             <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-full object-cover transition-transform group-hover:scale-[1.03]" loading="lazy" />
                             <div v-else class="grid size-full place-items-center text-muted-color" aria-hidden="true"><i class="pi pi-image text-xl" /></div>
                         </div>
-                        <p class="mt-1.5 line-clamp-2 text-sm leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" :show-prefix="false" /></p>
+                        <!-- 칩(처리 상태·소모임 공개 라벨·19 — 갤러리는 말머리를 보이지 않는다)은 칩 위치를 따른다: 제목 위 칩 줄 · 제목 앞 · 글쓴이 줄 아래 칩 줄. 칩이 없으면 칩 줄이 없다.
+                             갤러리는 원래 조회·추천을 보이지 않아 「제목 위」 윗줄의 숫자·「일반」 자리 칩도 두지 않는다 -->
+                        <PostRowChips v-if="chipPosition === 'ABOVE'" :row="row" :show-prefix="false" class="mt-1.5" />
+                        <p class="line-clamp-2 text-sm leading-snug" :class="chipPosition === 'ABOVE' ? 'mt-1' : 'mt-1.5'"><PostRowTitle :row="row" :new-post-hours="newPostHours" :show-prefix="false" :chips="chipPosition === 'BEFORE'" /></p>
                         <p class="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-muted-color">
                             <PostAuthorLabel :author="row.author" avatar />
                             <span aria-hidden="true">·</span>
                             <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                         </p>
+                        <PostRowChips v-if="chipPosition === 'BELOW'" :row="row" :show-prefix="false" class="mt-1" />
                     </NuxtLink>
                 </FoldedRow>
             </li>
@@ -37,7 +41,7 @@ import type { BoardPostListProps } from '~/components/board/BoardPostList.types'
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), { feedAd: null });
+const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 /** 차단한 회원·단어의 글은 접힌 칸 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 것을 겹친다 */

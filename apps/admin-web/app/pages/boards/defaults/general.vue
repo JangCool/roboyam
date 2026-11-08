@@ -33,8 +33,8 @@
                 <span v-if="saved.updatedAt" class="mt-1 block text-xs opacity-80">{{ t('board.lastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy ?? '—' }) }}</span>
             </Message>
 
-            <!-- 1. 표시 — 날짜 표시 방식(라디오 카드 + 예시 줄) -->
-            <AppGadget :title="t('board.section.display')" anchor="defaults-display" :changes="sectionChanges['defaults-display']">
+            <!-- 1. 표시 — 날짜 표시 방식(라디오 카드 + 예시 줄) · 목록 칩 위치(라디오 카드 + 미리보기) · 숫자 강조(기준 2칸 + 색 + 미리보기) -->
+            <AppGadget :title="t('board.section.display')" anchor="defaults-display" :changes="sectionChanges['defaults-display']" :invalid="sectionInvalid['defaults-display']">
                 <p class="mb-3 text-xs leading-relaxed text-muted-color">{{ t('board.sectionLead.display') }}</p>
                 <div role="radiogroup" :aria-label="t('board.field.dateDisplay')" class="grid gap-3 sm:grid-cols-2">
                     <label
@@ -58,6 +58,66 @@
                         <NuxtLink to="/settings/general" class="underline">{{ t('board.dateDisplayFormatLink') }}</NuxtLink>
                     </span>
                 </p>
+
+                <!-- 목록 칩 위치(사이트 기본 — post-chip-position-contract) — 게시판이 따로 고르지 않으면, 그리고 섞인 목록(최신글·인기글·검색·팁)은 이 값. 카드마다 작은 미리보기 -->
+                <div class="mt-5 flex flex-col gap-2 border-t border-(--line) pt-4" data-field="listChipPosition">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3 class="m-0 text-sm font-medium">{{ t('board.field.listChipPosition') }}</h3>
+                        <span
+                            v-if="chipOverrides.length"
+                            class="inline-flex items-center gap-1 rounded-full border border-(--line) px-2 py-0.5 text-[11px] leading-none text-muted-color"
+                            :title="chipOverrides.map((b) => localizedName(b.name, b.nameEn)).join(', ')"
+                        >
+                            <i class="pi pi-sliders-h text-[10px]" aria-hidden="true" />
+                            {{ t('board.overrideCount', { n: chipOverrides.length }) }}
+                        </span>
+                    </div>
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('board.fieldHelp.listChipPosition') }}</p>
+                    <BoardChipPositionPicker
+                        :model-value="form.listChipPosition"
+                        :label="t('board.field.listChipPosition')"
+                        :disabled="!canSettings || saving"
+                        @update:model-value="(value) => onInput('listChipPosition', value ?? 'ABOVE')"
+                    />
+                    <p class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color">
+                        <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                        <span>{{ t('board.chipPositionScope') }}</span>
+                    </p>
+                    <p v-if="errorOf('listChipPosition')" class="m-0 text-xs text-red-600 dark:text-red-400" role="alert">{{ errorOf('listChipPosition') }}</p>
+                </div>
+
+                <!-- 숫자 강조(사이트 전체 — 게시판별 덮어쓰기 없음) — 추천·조회 기준(0 = 끔) · 강조 색(빨강 기본 + 추천 색 + 직접 고르기) · 미리보기. 공개 목록 「제목 위」 윗줄의 추천·조회 숫자에 쓰인다 -->
+                <div class="mt-5 flex flex-col gap-3 border-t border-(--line) pt-4" data-field="listHighlight">
+                    <div class="flex flex-col gap-1">
+                        <h3 class="m-0 text-sm font-medium">{{ t('board.highlightTitle') }}</h3>
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('board.highlightLead') }}</p>
+                    </div>
+                    <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
+                        <BoardSettingField
+                            v-for="field in HIGHLIGHT_FIELDS"
+                            :key="field"
+                            :field="field"
+                            :model-value="form[field]"
+                            :editable="canEdit(field) && !saving"
+                            :error="errorOf(field)"
+                            @update:model-value="(value: BoardFieldValue) => onInput(field, value)"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1.5" data-field="listHighlightColor">
+                        <span :id="`${idBase}-hl-color`" class="text-sm font-medium">{{ t('board.field.listHighlightColor') }}</span>
+                        <BoardHighlightColorField
+                            :model-value="form.listHighlightColor"
+                            :aria-labelledby="`${idBase}-hl-color`"
+                            :disabled="!canSettings || saving"
+                            :like-sample="Math.max(1, UtilBoard.parse(form.listLikeHighlight) ?? 10)"
+                            :view-sample="Math.max(1, UtilBoard.parse(form.listViewHighlight) ?? 1000)"
+                            @update:model-value="(value: string) => onInput('listHighlightColor', value)"
+                        />
+                        <p class="m-0 text-xs leading-relaxed" :class="errorOf('listHighlightColor') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('listHighlightColor') ? 'alert' : undefined">
+                            {{ errorOf('listHighlightColor') || t('board.fieldHelp.listHighlightColor') }}
+                        </p>
+                    </div>
+                </div>
             </AppGadget>
 
             <!-- 2~9. 칸 구획 — 같은 칸 부품(`BoardSettingField`)으로 그린다 -->
@@ -130,6 +190,8 @@ const canSettings = computed(() => can('board.settings'));
 const canStaffLimit = computed(() => can('board.staff.limit'));
 
 const DATE_MODES = ['STANDARD', 'RELATIVE'] as const;
+/** 표시 구획 「숫자 강조」의 기준 칸(색은 따로 그린다) */
+const HIGHLIGHT_FIELDS = ['listLikeHighlight', 'listViewHighlight'] as const;
 /** 칸 구획(표시·고정 규칙은 따로 그린다) */
 const FIELD_SECTIONS = ['write', 'rate', 'list', 'attachment', 'protect', 'guest', 'reaction', 'best', 'staff'] as const;
 /** 구획 아래 덧붙임 안내 문구 키 */
@@ -155,6 +217,9 @@ const formError = ref('');
 const serverFields = ref<Record<string, string>>({});
 
 const grades = computed(() => appearance.grades.value);
+const { localizedName } = useLocalizedName();
+/** 칩 위치를 따로 고른 게시판(서버 `overrides.listChipPosition`) */
+const chipOverrides = computed(() => saved.value?.overrides.listChipPosition ?? []);
 const problems = computed(() => (form.value ? UtilBoard.defaultsProblems(form.value) : {}));
 const changed = computed<BoardDefaultsField[]>(() => (form.value && saved.value ? UtilBoard.defaultsChanged(form.value, saved.value.defaults) : []));
 const dirty = computed(() => changed.value.length > 0);

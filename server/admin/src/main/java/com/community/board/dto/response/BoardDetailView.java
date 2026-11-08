@@ -14,10 +14,11 @@ import java.util.List;
  * @param adsHidden        「이 게시판에 광고 숨김」(기본 false) — 19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 이 칸과 상관없이 광고가 없다
  * @param secretMode       비밀글 방식 OFF(기본) · OPTIONAL · ALWAYS(V166 — 게시판마다의 값, {@code diffCount} 에 세지 않는다)
  * @param statusEnabled    처리 상태를 쓰는가(기본 false, V166 — 게시판마다의 값)
+ * @param chipPosition     글 목록 말머리·상태 칩 위치 ABOVE · BEFORE · BELOW, null = 사이트 기본 따름(그 값은 {@code defaults.listChipPosition} — V169, {@code diffCount} 에 세지 않는다)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                               String color, boolean allowAdult, boolean investmentNotice, boolean active, long postCount, String writeLock, String introText,
                               String writeGuideText, String writeTemplate, List<String> gadgetExclusions, BoardPolicyValues policy, List<BoardPrefixView> prefixes,
                               BoardDefaultsValues defaults, int diffCount, List<BoardGadgetView> gadgets, String groupCategoryId,
-                              String groupCategoryName, boolean adsHidden, String secretMode, boolean statusEnabled) {
+                              String groupCategoryName, boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition) {
 }

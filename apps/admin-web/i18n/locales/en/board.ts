@@ -146,6 +146,38 @@ export default {
     },
     dateDisplayFormatNote: 'The standard date shape (month-day, year-month-day) follows the date format in Settings › General › Display defaults.',
     dateDisplayFormatLink: 'Open display defaults',
+    chipPositionHelp: {
+        ABOVE: 'Chips with views, likes and date on the top line, then the title and author.',
+        BEFORE: 'Chips sit right before the title on one line.',
+        BELOW: 'A chip line comes under the title and author lines.',
+    },
+    highlightTitle: 'Number highlight',
+    highlightLead: 'Posts with many likes or views show those numbers in the highlight color and bold on the top line ("Above title"). Set a threshold to 0 to turn that highlight off.',
+    highlightSwatch: {
+        red: 'Red (default)',
+        orange: 'Orange',
+        pink: 'Pink',
+        purple: 'Purple',
+        blue: 'Blue',
+        green: 'Green',
+    },
+    highlightCustomPick: 'Pick a highlight color',
+    highlightCustomInput: 'Highlight color code (#rrggbb)',
+    highlightDefault: 'Default color',
+    highlightPreview: {
+        light: 'Light',
+        dark: 'Dark',
+    },
+    chipPositionInherit: 'Use the site default',
+    chipPositionInheritHelp: 'Site default now: {name}',
+    chipPositionScope: 'Applies to multi-line lists (mobile rows, card layout). The desktop table and gallery always put chips before the title.',
+    chipPreview: {
+        prefix: 'Question',
+        status: 'In progress',
+        title: 'Any keyboard recommendations?',
+        author: 'Roboyam',
+        date: '3 min ago',
+    },
 
     // ── Sections ──
     section: {
@@ -186,7 +218,7 @@ export default {
         securityGuest: 'Guest posting',
     },
     sectionLead: {
-        display: 'How post times are shown in board lists and posts.',
+        display: 'How post times are shown in board lists and posts, and where the prefix and status chips go on each row.',
         write: 'Who can write posts and comments, and with which editor. Members always need sign-in, a verified email and not being suspended.',
         rate: 'Intervals and daily limits against flooding. Not set per board.',
         list: 'Posts per page, pinned notices, and whether to include in search engines and site search.',
@@ -202,6 +234,10 @@ export default {
     // ── Field names ──
     field: {
         dateDisplay: 'Date display',
+        listChipPosition: 'List chip position',
+        listLikeHighlight: 'Like highlight threshold',
+        listViewHighlight: 'View highlight threshold',
+        listHighlightColor: 'Highlight color',
         writeMin: 'Who can post',
         commentMin: 'Who can comment',
         postEditor: 'Post editor',
@@ -244,6 +280,7 @@ export default {
         description: 'Description',
         layout: 'Layout',
         viewToggle: "Reader's view toggle",
+        chipPosition: 'Prefix and status chip position',
         color: 'Color',
         allowAdult: 'Allow 18+ posts',
         investmentNotice: 'Investment notice',
@@ -300,6 +337,10 @@ export default {
     },
     fieldHelp: {
         dateDisplay: 'How post times are shown.',
+        listChipPosition: 'Where prefix and status chips go on a row — above the title (chips, counts and date on the top line), before the title (one line), or below the author (chip line). Used when a board does not choose its own, and by mixed lists such as latest, popular and search.',
+        listLikeHighlight: 'Posts with at least this many likes get their like count highlighted. 0 turns it off.',
+        listViewHighlight: 'Posts with at least this many views get their view count highlighted. 0 turns it off.',
+        listHighlightColor: 'The color is used as is; the public site only adjusts brightness so it stays readable on light and dark backgrounds.',
         writeMin: 'The first grade means every member with a verified email. "Everyone incl. guests" is chosen per board only.',
         commentMin: 'Replies too. "Off" stops new comments (existing ones stay visible).',
         postEditor: 'Plain text is a box without formatting. Simple adds bold, italic, underline, strikethrough, links, lists and quotes; Advanced adds headings, dividers, code, colors, images and YouTube. Existing posts switch when they are next edited.',
@@ -390,6 +431,11 @@ export default {
         commentDislikeLabel: 'Leave empty to use the default settings. If the defaults set a name, you cannot go back to "Dislike" here; type "Dislike" yourself.',
     },
     choice: {
+        listChipPosition: {
+            ABOVE: 'Above title',
+            BEFORE: 'Before title',
+            BELOW: 'Below author',
+        },
         dateDisplay: {
             STANDARD: 'Standard',
             RELATIVE: 'Relative',

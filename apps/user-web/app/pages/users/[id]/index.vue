@@ -201,7 +201,7 @@
             <!-- 작성글 — 게시판이 섞인 목록과 같은 한 줄 -->
             <ProfileFeed v-if="tab === 'posts'" :key="`posts:${userId}`" :load="loadPosts" :label="t('profile.tabPosts')" :error-title="t('profile.postsErrorTitle')" class="mt-1">
                 <template #item="{ item }">
-                    <FeedPostItem :row="item" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" />
+                    <FeedPostItem :row="item" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="display.listChipPosition" />
                 </template>
                 <template #empty>
                     <EmptyState

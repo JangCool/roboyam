@@ -147,6 +147,40 @@ export default {
     },
     dateDisplayFormatNote: '표준형의 날짜 모양(월-일·연-월-일)은 설정 › 일반 › 표시 기본값의 날짜 형식을 따라요.',
     dateDisplayFormatLink: '표시 기본값 보기',
+    // 글 목록 줄의 말머리·상태 칩 위치(post-chip-position-contract) — 고르개(`BoardChipPositionPicker`)와 미리보기
+    chipPositionHelp: {
+        ABOVE: '칩과 조회·추천·날짜가 윗줄, 그 아래 제목과 글쓴이예요.',
+        BEFORE: '칩이 제목 바로 앞에 한 줄로 붙어요.',
+        BELOW: '제목·글쓴이 줄 아래에 칩 줄이 와요.',
+    },
+    // 글 줄 숫자 강조(사이트 전체 — 기본 설정 › 일반 › 표시)
+    highlightTitle: '숫자 강조',
+    highlightLead: '추천·조회가 많은 글은 목록 윗줄(「제목 위」)의 숫자를 강조 색·굵게 보여요. 기준을 0 으로 두면 그 숫자는 강조하지 않아요.',
+    highlightSwatch: {
+        red: '빨강(기본)',
+        orange: '주황',
+        pink: '분홍',
+        purple: '보라',
+        blue: '파랑',
+        green: '초록',
+    },
+    highlightCustomPick: '강조 색 직접 고르기',
+    highlightCustomInput: '강조 색 코드(#rrggbb)',
+    highlightDefault: '기본 색',
+    highlightPreview: {
+        light: '밝은 화면',
+        dark: '어두운 화면',
+    },
+    chipPositionInherit: '사이트 기본 따르기',
+    chipPositionInheritHelp: '지금 사이트 기본: {name}',
+    chipPositionScope: '여러 줄 목록(모바일 목록 줄·카드형)에만 적용돼요. PC 표형·갤러리형은 늘 제목 앞이에요.',
+    chipPreview: {
+        prefix: '질문',
+        status: '진행 중',
+        title: '키보드 추천 부탁드려요',
+        author: '로보얌',
+        date: '3분 전',
+    },
 
     // ── 구획 ──
     section: {
@@ -187,7 +221,7 @@ export default {
         securityGuest: '비회원 글쓰기',
     },
     sectionLead: {
-        display: '게시판 목록과 글에서 작성 시각을 어떻게 보일지 정해요.',
+        display: '게시판 목록과 글에서 작성 시각을 어떻게 보일지, 글 줄의 말머리·상태 칩을 어디에 둘지 정해요.',
         write: '누가 글과 댓글을 쓸 수 있는지, 어떤 에디터로 쓰는지 정해요. 회원은 로그인·이메일 인증·정지 아님이 늘 필요해요.',
         rate: '도배를 막는 간격과 하루 한도예요. 게시판마다 따로 정하지 않아요.',
         list: '한 쪽의 글 수와 고정 공지 수, 검색엔진·통합검색에 넣을지 정해요.',
@@ -203,6 +237,10 @@ export default {
     // ── 칸 이름 ──
     field: {
         dateDisplay: '날짜 표시 방식',
+        listChipPosition: '목록 칩 위치',
+        listLikeHighlight: '추천 강조 기준',
+        listViewHighlight: '조회 강조 기준',
+        listHighlightColor: '강조 색',
         writeMin: '글쓰기 최소 자격',
         commentMin: '댓글 최소 자격',
         postEditor: '글 에디터',
@@ -245,6 +283,7 @@ export default {
         description: '설명',
         layout: '목록 모양',
         viewToggle: '읽는 사람의 보기 전환 단추',
+        chipPosition: '말머리·상태 칩 위치',
         color: '표시색',
         allowAdult: '19금 글 허용',
         investmentNotice: '투자 고지',
@@ -301,6 +340,10 @@ export default {
     },
     fieldHelp: {
         dateDisplay: '작성 시각을 보이는 방식이에요.',
+        listChipPosition: '글 줄의 말머리·처리 상태 칩 자리 — 제목 위(윗줄에 칩·숫자·날짜) · 제목 앞(한 줄) · 닉네임 아래(칩 줄). 게시판이 따로 고르지 않으면, 그리고 최신글·인기글·검색 같은 섞인 목록은 이 값이에요.',
+        listLikeHighlight: '추천이 이 수 이상인 글의 추천 숫자를 강조해요. 0 이면 강조하지 않아요.',
+        listViewHighlight: '조회가 이 수 이상인 글의 조회 숫자를 강조해요. 0 이면 강조하지 않아요.',
+        listHighlightColor: '고른 색을 그대로 쓰되, 공개 화면이 밝은·어두운 바탕에서 읽히도록 밝기만 맞춰요.',
         writeMin: '첫 등급이면 이메일 인증을 마친 모든 회원이에요. 「비회원 포함 모두」는 게시판 설정에서만 골라요.',
         commentMin: '답글도 같아요. 「끔」이면 새 댓글을 받지 않아요(기존 댓글은 보여요).',
         postEditor: '평문은 서식 없는 입력칸이에요. 간단은 굵게·기울임·밑줄·취소선·링크·목록·인용, 고급은 여기에 제목·구분선·코드·글자색·이미지·유튜브를 더해요. 이미 쓴 글은 바꾼 설정으로 고칠 때 바뀌어요.',
@@ -391,6 +434,11 @@ export default {
         commentDislikeLabel: '비우면 기본 설정의 이름을 따라요. 기본 설정에 이름이 있으면 여기서 「비추천」으로 되돌릴 수 없어 「비추천」을 직접 적어야 해요.',
     },
     choice: {
+        listChipPosition: {
+            ABOVE: '제목 위',
+            BEFORE: '제목 앞',
+            BELOW: '닉네임 아래',
+        },
         dateDisplay: {
             STANDARD: '표준형',
             RELATIVE: '유동형',

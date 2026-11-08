@@ -1,7 +1,9 @@
 package com.community.site.service;
 
 import com.community.analytics.settings.StatsCollectionSettings;
+import com.community.board.dto.BoardDefaultsValues;
 import com.community.board.entity.BoardDefaultsEntity;
+import com.community.board.service.BoardFields;
 import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
@@ -111,8 +113,16 @@ public class PublicSiteService {
                 .orElseGet(() -> new SiteDisplayDefaultsView(SiteSettingEntity.DEFAULT_LANGUAGE, SiteSettingEntity.DEFAULT_ZONE_ID,
                         SiteSettingEntity.DEFAULT_TIME_FORMAT, SiteSettingEntity.DEFAULT_DATE_FORMAT));
 
-        String dateDisplay = boardDefaults.findById(BoardDefaultsEntity.ROW_ID).map(row -> row.values().dateDisplay()).orElse("STANDARD");
-        BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS);
+        Optional<BoardDefaultsValues> boardValues = boardDefaults.findById(BoardDefaultsEntity.ROW_ID).map(BoardDefaultsEntity::values);
+        String dateDisplay = boardValues.map(BoardDefaultsValues::dateDisplay).orElse("STANDARD");
+        // 글 목록 칩 위치의 사이트 기본(V169) — 섞인 목록이 쓴다. 이 사본(20초)과 지문(ETag)에 함께 든다
+        String listChipPosition = boardValues.map(BoardDefaultsValues::listChipPosition).orElse(BoardFields.CHIP_ABOVE);
+        // 목록 윗줄 추천·조회 숫자 강조(V170) — 기준(0 = 안 함)과 색
+        int likeHighlight = boardValues.map(BoardDefaultsValues::listLikeHighlight).orElse(BoardFields.LIKE_HIGHLIGHT_DEFAULT);
+        int viewHighlight = boardValues.map(BoardDefaultsValues::listViewHighlight).orElse(BoardFields.VIEW_HIGHLIGHT_DEFAULT);
+        String highlightColor = boardValues.map(BoardDefaultsValues::listHighlightColor).orElse(BoardFields.HIGHLIGHT_COLOR_DEFAULT);
+        BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS, listChipPosition, likeHighlight, viewHighlight,
+                highlightColor);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,

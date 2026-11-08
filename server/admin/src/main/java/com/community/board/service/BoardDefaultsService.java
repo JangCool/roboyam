@@ -113,6 +113,8 @@ public class BoardDefaultsService {
         if (request == null) {
             throw ValidationException.of("dateDisplay", new MessageRef("board.field.required"));
         }
+        // 목록 칩 위치(V169)·숫자 강조(V170)는 요청에 없으면 지금 값 그대로 — 이 칸을 모르는 예전 화면이 저장해도 지우거나 400 이 되지 않게
+        request = request.filledFrom(row.values());
         Map<String, Object> current = row.values().toMap();
         Map<String, Object> wanted = request.toMap();
         Map<String, Object> before = new LinkedHashMap<>();
@@ -332,6 +334,11 @@ public class BoardDefaultsService {
                     overrides.computeIfAbsent(field, key -> new ArrayList<>()).add(BoardViews.ref(board));
                     any = true;
                 }
+            }
+            // 목록 칩 위치(V169) — 게시판 칸 chipPosition 을 고른 게시판은 기본값 listChipPosition 을 덮어쓴 것으로 센다
+            if (board.getChipPosition() != null) {
+                overrides.computeIfAbsent("listChipPosition", key -> new ArrayList<>()).add(BoardViews.ref(board));
+                any = true;
             }
             if (!any) {
                 following++;
