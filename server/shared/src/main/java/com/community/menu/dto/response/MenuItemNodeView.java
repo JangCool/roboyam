@@ -14,8 +14,10 @@ import java.util.Map;
  * @param extra     유형이 더 실어 보낸 칸({@code URL} 의 {@code external}). 없으면 null
  * @param divider   상단 가로 메뉴 첫 줄에서 이 항목 옆의 구분선 {@code NONE} · {@code BEFORE} · {@code AFTER}
  * @param description 운영자가 적은 한 줄 설명(메뉴 설명 줄) — 없으면 null(화면 기본 설명)
+ * @param shortcut  바로가기 — 다른 묶음에 진짜 자리가 있는 게시판 줄(menu-shortcut-contract). 나머지 칸은 일반 게시판 항목과 같다. 그 밖에는 false
  */
 public record MenuItemNodeView(String id, String kind, String type, String key, String label, String nameEn, String path, boolean matchPrefix,
-                               boolean newTab, boolean mobileTab, MenuBoardView board, Map<String, Object> extra, String divider, String description)
+                               boolean newTab, boolean mobileTab, MenuBoardView board, Map<String, Object> extra, String divider, String description,
+                               boolean shortcut)
         implements MenuNodeView {
 }

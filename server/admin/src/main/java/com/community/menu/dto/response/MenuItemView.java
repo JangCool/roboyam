@@ -8,9 +8,11 @@ import tools.jackson.databind.JsonNode;
  * @param divider     상단 가로 메뉴 첫 줄 구분선 {@code NONE} · {@code BEFORE} · {@code AFTER}
  * @param description 한 줄 설명(메뉴 설명 줄, 80자까지) — 없으면 null
  * @param resolved 서버가 본 상태({@code OK}·{@code BOARD_INACTIVE}·{@code SALES_OFF}·{@code TARGET_MISSING}·{@code UNKNOWN_TYPE}) — 화면 타입에는 없는 덧붙임 칸이다(화면은 스스로 계산한다)
+ * @param shortcut 바로가기 — 다른 묶음에 진짜 자리가 있는 게시판 항목(menu-shortcut-contract). 그 밖에는 false
  */
 public record MenuItemView(String id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, String targetType,
-                           String targetId, String targetKey, JsonNode settings, boolean mobileTab, String divider, String description, Resolved resolved)
+                           String targetId, String targetKey, JsonNode settings, boolean mobileTab, String divider, String description, Resolved resolved,
+                           boolean shortcut)
         implements MenuTreeNodeView {
 
     /** 서버가 본 항목 상태 */

@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 /**
  * 가젯 페이지의 기준 폴더 — 공개 메뉴 main 의 폴더 노드와 그 아래(하위 폴더까지) {@code BOARD} 항목의 게시판(메뉴 차례, 겹치면 한 번, 소모임 게시판 제외).
  * 꺼진 게시판도 담고({@link Board#active}) 쓰는 쪽이 거른다. 부르는 쪽의 트랜잭션 안에서 쓴다(gadget-page-contract 「필드·검증」).
+ * <p>바로가기 항목({@code shortcut})의 게시판도 그 폴더의 게시판으로 담는다 — 진짜 자리 기준이 아니다(menu-shortcut-contract 결정: 바로가기만 있는 묶음의
+ * 가젯 페이지 「묶음 범위(FOLDER)」 인기글·최신글이 비지 않게). 공개 가젯 페이지(FOLDER 범위·글쓰기 게시판)와 관리자 「기준 폴더의 게시판」 목록이 이것을 같이 쓴다.
  */
 @Component
 public class GadgetPageFolders {

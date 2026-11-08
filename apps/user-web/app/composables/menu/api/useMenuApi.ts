@@ -9,6 +9,7 @@ import type { MenuResponse } from '~/composables/menu/api/useMenuApi.types';
  * 받은 모양은 한 번 더 `UtilMenu.parse` 로 읽는다.
  *
  * 서버 연결됨(2026-10-22).
+ * 바로가기 항목(`shortcut`, 다른 묶음에도 보이기 — `docs/features/menu-shortcut-contract.md`)도 서버 연결됨(2026-11-08) — 서버가 모든 항목에 `shortcut` 을 싣는다.
  */
 const PATH = {
     menu: '/api/menu',

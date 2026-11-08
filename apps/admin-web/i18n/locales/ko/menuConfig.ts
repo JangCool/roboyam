@@ -97,6 +97,7 @@ export default {
         ITEM_DEPTH: '항목은 {item}단계까지만 둘 수 있어요.',
         SECTION_TOP: '묶음은 맨 위에만 둘 수 있어요.',
         FOLDER_PLACE: '하위 메뉴는 맨 위나 묶음 안에만 둘 수 있어요.',
+        SHORTCUT_TOP: '바로가기는 폴더 안에만 둘 수 있어요.',
     },
     treeProblem: {
         NODES_LIMIT: '한 메뉴 그룹에는 노드를 {nodes}개까지 둘 수 있어요.',
@@ -109,6 +110,30 @@ export default {
     removeFolderMessage: '안에 있는 {n}개도 함께 지워져요. 저장하기 전에는 되돌리기로 되살릴 수 있어요.',
     removeFolderEmpty: '빈 폴더예요. 저장하기 전에는 되돌리기로 되살릴 수 있어요.',
     removeAdminMessage: '안에 있는 {n}개도 함께 메뉴에서 빠져요. 저장하기 전에는 되돌리기로 되살릴 수 있어요.',
+    removeFolderShortcuts: '안의 게시판을 가리키는 다른 묶음의 바로가기 {n}개도 함께 지워져요.',
+
+    // ── 바로가기(다른 묶음에도 보이기) ──
+    shortcutTag: '바로가기',
+    shortcutOrigin: '원래 자리: {name}',
+    shortcutOriginTop: '원래 자리: 맨 위',
+    shortcutAlsoIn: '다른 묶음에도 있음 ({names})',
+    shortcutAdd: '다른 묶음에도 보이기',
+    shortcutAddTitle: '「{name}」 다른 묶음에도 보이기',
+    shortcutAddHelp: '고른 묶음 끝에 바로가기 항목이 생겨요. 게시판의 소속(글쓰기 기본 게시판·지금 있는 곳)은 원래 자리 「{origin}」 그대로예요.',
+    shortcutAddHelpTop: '고른 묶음 끝에 바로가기 항목이 생겨요. 게시판의 소속(글쓰기 기본 게시판·지금 있는 곳)은 원래 자리(맨 위) 그대로예요.',
+    shortcutPickFolder: '보일 묶음',
+    shortcutBlocked: {
+        ORIGIN: '원래 자리',
+        EXISTS: '이미 있음',
+        DEPTH: '단계 한도',
+    },
+    shortcutNoFolder: '바로가기를 둘 묶음(폴더)이 없어요. 폴더를 먼저 만들어 주세요.',
+    shortcutAddConfirm: '넣기',
+    shortcutAdded: '「{folder}」 끝에 바로가기를 넣었어요',
+    shortcutEditTitle: '바로가기 수정',
+    shortcutBoardLocked: '바로가기의 연결 게시판은 바꿀 수 없어요. 다른 게시판이 필요하면 바로가기를 지우고 그 게시판 항목에서 다시 만들어 주세요.',
+    shortcutRemoveTitle: '「{name}」을(를) 지울까요?',
+    shortcutRemoveMessage: '다른 묶음의 바로가기 {n}개({names})도 함께 지워져요. 저장하기 전에는 되돌리기로 되살릴 수 있어요.',
 
     // ── 줄 딱지 · 상태 ──
     tag: {
@@ -324,6 +349,9 @@ export default {
         HREF_CHARS: '링크 주소에 공백·따옴표·꺾쇠 괄호는 쓸 수 없어요.',
         HREF_USERINFO: '링크 주소에 계정 정보를 넣을 수 없어요.',
         MOBILE_TAB_SIDE: '모바일 탭은 좌측 사이드 메뉴 그룹에서만 쓸 수 있어요.',
+        SHORTCUT_ORIGIN_MISSING: '원래 자리 항목이 없는 바로가기예요. 그 게시판 항목을 다시 넣거나 이 바로가기를 지워 주세요.',
+        SHORTCUT_TOP_LEVEL: '바로가기는 폴더 안에만 둘 수 있어요. 폴더 안으로 옮겨 주세요.',
+        SHORTCUT_SAME_FOLDER: '원래 자리 묶음이거나 같은 게시판 바로가기가 이미 있는 묶음이에요. 다른 묶음으로 옮겨 주세요.',
         ICON_FORMAT: '아이콘은 pi pi-이름 꼴로 적어 주세요.',
     },
 

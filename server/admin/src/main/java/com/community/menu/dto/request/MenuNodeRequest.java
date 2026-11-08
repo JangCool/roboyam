@@ -13,8 +13,9 @@ import tools.jackson.databind.JsonNode;
  * @param description 항목의 한 줄 설명(80자까지, 비우면 없음). 폴더는 무시한다
  * @param targetType  항목의 연결 유형. 폴더는 선택 연결(null·빈 값 = 연결 없음 — 나머지 연결 칸과 {@code linkClick} 은 버린다)
  * @param linkClick   연결이 있는 폴더의 상단 탭 동작 {@code NAVIGATE_OPEN}(빠지면 이것) · {@code NAVIGATE}. 항목·연결 없는 폴더는 무시한다
+ * @param shortcut    바로가기({@code BOARD} 항목만, 빠지면 false — menu-shortcut-contract). 폴더는 무시한다
  */
 public record MenuNodeRequest(String id, String kind, String label, String nameEn, Boolean visible, String audience, String minGrade, Boolean collapsible,
                               Boolean collapsed, Boolean autoAdd, List<MenuNodeRequest> children, String targetType, String targetId, String targetKey,
-                              JsonNode settings, Boolean mobileTab, String divider, String description, String linkClick) {
+                              JsonNode settings, Boolean mobileTab, String divider, String description, String linkClick, Boolean shortcut) {
 }

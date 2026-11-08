@@ -50,6 +50,9 @@ public class MenuNodeEntity {
     /** 연결이 있는 폴더의 상단 탭 동작 NAVIGATE_OPEN · NAVIGATE — 항목·연결 없는 폴더는 null(V107) */
     private String linkClick;
 
+    /** 바로가기 — 다른 묶음에 진짜 자리가 있는 게시판(BOARD 항목만, V167) */
+    private boolean shortcut;
+
     protected MenuNodeEntity() {
     }
 
@@ -77,13 +80,14 @@ public class MenuNodeEntity {
         entity.divider = node.divider();
         entity.description = node.isItem() ? node.description() : null;
         entity.linkClick = node.hasFolderLink() ? node.linkClick() : null;
+        entity.shortcut = node.isItem() && node.shortcut();
         return entity;
     }
 
     /** 저장 형태 → 노드(하위 없음) */
     public MenuNode toNode() {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey,
-                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick);
+                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick, shortcut);
     }
 
     public Long getId() {

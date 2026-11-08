@@ -20,7 +20,7 @@ export function useMenuDescription() {
         for (const section of bar.value) {
             if (section.title !== null) continue;
             for (const entry of section.entries) {
-                if (entry.kind === 'item' && entry.row.active) return entry.row;
+                if (entry.kind === 'item' && entry.row.here) return entry.row;
             }
         }
         return null;
