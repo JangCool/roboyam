@@ -12,6 +12,7 @@ import com.community.group.repository.master.GroupCategoryBoardRepository;
 import com.community.group.repository.master.GroupCategoryRepository;
 import com.community.group.service.GroupCategoryNames;
 import com.community.installation.dto.BoardPreset;
+import com.community.installation.dto.TablePack;
 import com.community.installation.entity.InstallationEntity;
 import com.community.installation.repository.master.InstallationRepositoryQDSL;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -36,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 설치 때 고른 기본 게시판 구성(프리셋)을 적용한다 — 정본은 docs/features/install-contract.md 「프리셋 구조 (2026-10-27)」.
  *
  * <ul>
+ *   <li>구조 스냅숏이 있는 구성(ROBOYAM — {@link BoardPresetCatalog#structureOf})은 설치 때 아래 대신 그 스냅숏을 넣는다({@link PresetStructureApplier} — 게시판·말머리·소모임 분류·
+ *       모든 메뉴 그룹·가젯 페이지·홈 배치·게시판 설정, 운영 게시판 포함). 넣지 못하면 그 부분을 되돌리고 아래 방식(프리셋 {@code boards})으로 물러선다.</li>
  *   <li>설치({@link InstallationInstaller} → {@link #applyAtInstall}): 설치 트랜잭션 안에서 ① 일반 게시판 → ② 소모임 게시판({@code kind = GROUP}) + 소모임 분류 만들기·잇기
  *       → ③ 공개 메뉴 {@code main} 트리를 프리셋 {@code menu} 로 바꾸기({@link PresetMenuApplier}). 설치가 롤백되면 모두 없다.</li>
  *   <li>이미 설치된 곳({@link #applyOnceIfMissing}, 서버가 뜰 때): 설치 행을 잠그고, 적용 표시가 없고 {@code board_preset} 이 있을 때만 — 게시판이 하나도 없으면 <b>일반 게시판만</b>
@@ -69,10 +72,12 @@ public class BoardPresetApplier {
     private final SnowflakeIdGenerator ids;
     private final PresetMenuApplier menu;
     private final OpsBoardSeeder opsBoards;
+    private final PresetStructureApplier structure;
 
     public BoardPresetApplier(BoardPresetCatalog catalog, BoardCreator creator, BoardRepository boards, InstallationRepositoryQDSL installation,
                               GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, SnowflakeIdGenerator ids, PresetMenuApplier menu,
-                              OpsBoardSeeder opsBoards) {
+                              OpsBoardSeeder opsBoards, PresetStructureApplier structure) {
+        this.structure = structure;
         this.opsBoards = opsBoards;
         this.catalog = catalog;
         this.creator = creator;
@@ -97,6 +102,10 @@ public class BoardPresetApplier {
             return 0;
         }
         BoardPreset preset = found.get();
+        Optional<TablePack> snapshot = catalog.structureOf(presetId);
+        if (snapshot.isPresent() && structure.apply(presetId, snapshot.get(), operatorId, now)) {
+            return (int) boards.count(); // 구조 스냅숏이 게시판·메뉴·운영 게시판까지 정했다
+        }
         Existing existing = existing();
         int general = createBoards(preset, false, existing, operatorId, now).size();
         boards.flush();

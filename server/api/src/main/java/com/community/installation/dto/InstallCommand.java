@@ -13,9 +13,10 @@ import java.util.List;
  * @param site          슬로건이 비어 있었고 프리셋이 슬로건을 정하면 그 값이 이미 들어 있다
  * @param mail          건너뛰었으면 null
  * @param boardPresetId 고른 기본 게시판 구성의 아이디 — 요청이 고르지 않았으면 기본 프리셋(항상 값이 있다)
+ * @param demoData      「데모 데이터 포함」 — 그 구성이 데모를 지원하고 데모 팩이 있을 때만 true(검사를 마쳤다)
  */
 public record InstallCommand(String email, String nickname, String password, SiteValues site, MailValues mail, List<Social> social,
-                             String boardPresetId) {
+                             String boardPresetId, boolean demoData) {
 
     /** 검사를 마친 소셜 키 한 건 */
     public record Social(SocialProvider provider, SocialKeyValues key) {
@@ -24,6 +25,6 @@ public record InstallCommand(String email, String nickname, String password, Sit
     @Override
     public String toString() {
         return "InstallCommand[nickname=" + nickname + ", site=" + site + ", mail=" + mail + ", social=" + social.size() + "건, boardPreset="
-                + boardPresetId + "]";
+                + boardPresetId + ", demoData=" + demoData + "]";
     }
 }

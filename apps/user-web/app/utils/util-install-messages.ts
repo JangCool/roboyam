@@ -197,7 +197,10 @@ export default class UtilInstallMessages {
                 step: 'boards',
                 title: t(STEP_KEYS.boards.title),
                 skipped: false,
-                rows: [{ label: t('install.reviewPreset'), value: preset?.name ?? t('install.boardsServerDefault') }],
+                rows: [
+                    { label: t('install.reviewPreset'), value: preset?.name ?? t('install.boardsServerDefault') },
+                    { label: t('install.reviewDemo'), value: UtilInstall.demoOn(state) ? t('install.demoInclude') : t('install.demoStructure') },
+                ],
             },
         ];
     }

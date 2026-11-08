@@ -60,6 +60,8 @@ export interface InstallFormState {
     boardPreset: string;
     /** 서버가 준 프리셋 목록(확인 화면이 이름을 보이려는 것) */
     boardPresets: readonly InstallBoardPreset[];
+    /** 「데모 데이터 포함」을 골랐는가 — 고른 구성이 데모를 지원할 때만 요청에 담긴다({@link UtilInstall.demoOn}) */
+    demoData: boolean;
 }
 
 /** 점검 항목의 갈래 — 통과 · 경고(설치는 계속할 수 있음) · 실패(설치를 막음) */
@@ -255,7 +257,17 @@ export default class UtilInstall {
             mail: state.mailMode === 'set' ? UtilMail.toInput(state.mail) : null,
             social: state.socialMode === 'set' ? UtilInstall.socialInput(state.social) : null,
             ...(state.boardPreset ? { boardPreset: state.boardPreset } : {}),
+            ...(UtilInstall.demoOn(state) ? { demoData: true } : {}),
         };
+    }
+
+    /**
+     * 데모 데이터를 넣는가 — 「데모 데이터 포함」을 골랐고 고른 구성이 데모를 지원할 때만(구성을 바꿔 데모가 없는 구성이 되면 구조만).
+     * @param {Pick<InstallFormState, 'boardPreset' | 'boardPresets' | 'demoData'>} state - 고른 구성과 데모 선택.
+     * @returns {boolean} 요청에 `demoData: true` 를 담는가.
+     */
+    static demoOn(state: Pick<InstallFormState, 'boardPreset' | 'boardPresets' | 'demoData'>): boolean {
+        return state.demoData && state.boardPresets.some((p) => p.id === state.boardPreset && p.demoAvailable);
     }
 
     /* ── 점검 결과 ── */
@@ -379,7 +391,7 @@ export default class UtilInstall {
      */
     static stepOfKey(key: string): InstallStepKey | null {
         const head = key.split(/[.[]/, 1)[0];
-        if (head === 'boardPreset') return 'boards';
+        if (head === 'boardPreset' || head === 'demoData') return 'boards';
         return head === 'token' || head === 'root' || head === 'site' || head === 'mail' || head === 'social' ? head : null;
     }
 

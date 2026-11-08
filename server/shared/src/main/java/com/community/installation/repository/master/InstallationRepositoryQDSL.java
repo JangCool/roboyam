@@ -74,16 +74,31 @@ public class InstallationRepositoryQDSL extends RoboyamRepositoryQDSL {
      * 설치 완료를 표시한다(토큰 해시를 지운다). 설치 전일 때만 먹는 조건부 UPDATE 다.
      *
      * @param boardPreset 설치 때 고른 기본 게시판 구성의 아이디
+     * @param demoData    「데모 데이터 포함」을 골랐는가(결과는 {@link #markDemoResult} 가 따로 적는다)
      * @return 바뀐 행 수 — 이미 완료였으면 0
      */
-    public long markCompleted(long rootOperatorId, Instant installedAt, String boardPreset) {
+    public long markCompleted(long rootOperatorId, Instant installedAt, String boardPreset, boolean demoData) {
         return query.update(INSTALLATION)
                 .set(INSTALLATION.status, InstallationStatus.COMPLETED)
                 .set(INSTALLATION.installedAt, installedAt)
                 .set(INSTALLATION.rootOperatorId, rootOperatorId)
                 .set(INSTALLATION.boardPreset, boardPreset)
+                .set(INSTALLATION.demoData, demoData)
                 .setNull(INSTALLATION.tokenHash)
                 .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.PENDING))
+                .execute();
+    }
+
+    /**
+     * 데모를 넣은 결과를 적는다 — 설치가 끝나고 데모를 고른 곳에서 결과가 아직 없을 때만(한 번만).
+     *
+     * @param status {@code APPLIED} · {@code FAILED}
+     * @return 바뀐 행 수
+     */
+    public long markDemoResult(String status, Instant doneAt) {
+        return query.update(INSTALLATION).set(INSTALLATION.demoStatus, status).set(INSTALLATION.demoDoneAt, doneAt)
+                .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.COMPLETED), INSTALLATION.demoData.isTrue(),
+                        INSTALLATION.demoStatus.isNull())
                 .execute();
     }
 }

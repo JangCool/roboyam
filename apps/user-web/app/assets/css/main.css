@@ -584,6 +584,7 @@ body {
  *   --scroll-arrow-w   화살표 단추(그라데이션) 폭(px — 키보드 초점 칸을 이만큼 안쪽에 보이게 한다)
  *   --scroll-fade-bg   그라데이션이 시작하는 바탕 = 줄이 놓인 면의 바탕(기본 페이지 바탕, `shell-card` = 카드 바탕, `.app-nav` = 주 색상 바, 그 밖의 면은 그 면이 채운다)
  *   --scroll-arrow-fg / --scroll-arrow-fg-hover  화살표 글자색
+ *   --scroll-arrow-overlay  화살표 단추 위에 한 겹 더 그릴 그림(없으면 없음 — 상단 그라데이션을 켠 바는 그 그림자 띠, `palettes.css`)
  * 이름에 테마 이름을 넣지 않는다. 다크는 글자색(`--p-text-color`)·면 바탕 변수를 따라간다.
  */
 :root {
@@ -672,12 +673,12 @@ body {
     .scroll-row-arrow[data-edge='start'] {
         left: 0;
         justify-content: flex-start;
-        background: linear-gradient(to right, var(--scroll-fade-bg) 45%, transparent);
+        background: var(--scroll-arrow-overlay, linear-gradient(transparent, transparent)), linear-gradient(to right, var(--scroll-fade-bg) 45%, transparent);
     }
     .scroll-row-arrow[data-edge='end'] {
         right: 0;
         justify-content: flex-end;
-        background: linear-gradient(to left, var(--scroll-fade-bg) 45%, transparent);
+        background: var(--scroll-arrow-overlay, linear-gradient(transparent, transparent)), linear-gradient(to left, var(--scroll-fade-bg) 45%, transparent);
     }
 }
 

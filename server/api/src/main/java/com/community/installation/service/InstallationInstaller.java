@@ -69,13 +69,15 @@ public class InstallationInstaller {
     }
 
     /**
-     * 설치를 실행한다. 던지면 아무것도 남지 않는다.
+     * 설치를 실행한다. 던지면 아무것도 남지 않는다. 데모 데이터는 여기서 넣지 않는다(커밋 뒤 {@link DemoDataInstaller}).
+     *
+     * @return 루트 운영자 ID
      *
      * @throws InstallationAlreadyInstalledException 이미 설치가 끝났을 때(동시에 호출한 쪽이 먼저 끝낸 경우 포함)
      * @throws UserEmailTakenException               이미 그 이메일의 운영자가 있을 때(설치 전 DB 에는 있을 수 없는 비정상 상황)
      */
     @Transactional
-    public void install(InstallCommand command) {
+    public long install(InstallCommand command) {
         InstallationEntity row = installation.lockRow()
                 .orElseThrow(() -> new IllegalStateException("installation 행이 없다 — V4__installation.sql 이 적용됐는지 확인하세요"));
         if (row.isCompleted()) {
@@ -103,7 +105,7 @@ public class InstallationInstaller {
             socialSettings.create(entry.provider(), entry.key(), rootId, now);
         }
 
-        if (installation.markCompleted(rootId, now, command.boardPresetId()) == 0) {
+        if (installation.markCompleted(rootId, now, command.boardPresetId(), command.demoData()) == 0) {
             throw new InstallationAlreadyInstalledException(); // 완료를 표시하지 못했다(이미 완료)
         }
         // 고른 게시판 구성으로 기본 게시판(+말머리) · 소모임 게시판과 분류 · 메뉴 트리를 만든다 — 같은 트랜잭션이라 설치가 롤백되면 모두 없다
@@ -112,6 +114,7 @@ public class InstallationInstaller {
         events.publishEvent(new InstallationCompleted(rootId));
         log.info("설치를 실행했다 rootOperatorId={} 메일={} 소셜={}건 게시판구성={}", rootId, command.mail() != null ? "설정" : "건너뜀",
                 command.social().size(), command.boardPresetId());
+        return rootId;
     }
 
     /** 동시에 같은 이메일로 들어가 유니크 인덱스에 걸린 경우 — 이메일이 겹쳤음을 알려 준다. 그 밖의 무결성 오류는 그대로 던진다 */

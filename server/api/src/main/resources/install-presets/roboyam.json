@@ -1,201 +1,1521 @@
 {
   "id": "ROBOYAM",
-  "name": "ROBOYAM 예시 (AI·로봇)",
-  "nameEn": "ROBOYAM example (AI & robots)",
-  "description": "AI·테크, 로봇, 산업·주식, 게임, 스포츠 주제 게시판과 영상·짤, 자유게시판, 공지를 만들어요. 산업·주식 게시판에는 투자 고지가 붙어요.",
-  "descriptionEn": "Creates topic boards for AI & tech, robots, industry & stocks, games, and sports, plus Videos & Memes, Free, and Notice boards. Industry & Stocks gets an investment notice.",
+  "name": "로보얌 구성 그대로",
+  "nameEn": "The Roboyam setup",
+  "description": "로보얌이 쓰는 구성을 그대로 만들어요 — 주제·커뮤니티·핫딜·팁과강좌·사용기·회원장터 게시판과 소모임 분류, 메뉴, 홈·커뮤니티·핫 로토픽 배치, 게시판 기본 설정까지. 데모 데이터를 함께 넣을 수 있어요.",
+  "descriptionEn": "Builds the setup Roboyam runs on: topic, community, hot deal, tips, reviews and market boards, club categories, menus, home and gadget page layouts, and board defaults. Demo data can be added too.",
   "defaultPreset": false,
   "order": 20,
   "siteTagline": "로봇과 AI, 쉽게 풀어 함께 이야기해요",
   "boards": [
     {
-      "slug": "ai", "name": "AI·테크", "nameEn": "AI & Tech", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 10, "color": "BLUE",
+      "slug": "ai",
+      "name": "AI·로봇·테크",
+      "nameEn": "AI · Robots · Tech",
+      "kind": "GENERAL",
+      "sortOrder": 10,
+      "description": "인공지능과 최신 기술 소식, 활용법을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "BLUE",
       "prefixes": [
-        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "툴", "nameEn": "Tools", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "팁", "nameEn": "Tips", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "AI 뉴스·이슈",
+          "nameEn": "AI 뉴스·이슈",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "생성형AI·LLM",
+          "nameEn": "생성형AI·LLM",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "AI 서비스·툴",
+          "nameEn": "AI 서비스·툴",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "개발·코딩",
+          "nameEn": "개발·코딩",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "IT기기·하드웨어",
+          "nameEn": "IT기기·하드웨어",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "로봇 뉴스·이슈",
+          "nameEn": "로봇 뉴스·이슈",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        },
+        {
+          "name": "휴머노이드",
+          "nameEn": "휴머노이드",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 70
+        },
+        {
+          "name": "산업·물류 로봇",
+          "nameEn": "산업·물류 로봇",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 80
+        },
+        {
+          "name": "가정·서비스 로봇",
+          "nameEn": "가정·서비스 로봇",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 90
+        },
+        {
+          "name": "로봇 제작·DIY",
+          "nameEn": "로봇 제작·DIY",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 100
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 110
+        }
       ]
     },
     {
-      "slug": "robot", "name": "로봇", "nameEn": "Robots", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 20, "color": "PURPLE",
+      "slug": "stock",
+      "name": "산업·주식",
+      "nameEn": "Industry & Stocks",
+      "kind": "GENERAL",
+      "sortOrder": 30,
+      "description": "산업 동향과 주식·투자 정보를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": true,
+      "staffOnlyWrite": false,
+      "color": "GREEN",
       "prefixes": [
-        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "영상", "nameEn": "Video", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "제품", "nameEn": "Products", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "국내주식",
+          "nameEn": "국내주식",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "해외주식",
+          "nameEn": "해외주식",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "ETF·펀드",
+          "nameEn": "ETF·펀드",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "산업·기업 분석",
+          "nameEn": "산업·기업 분석",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "실적·공시",
+          "nameEn": "실적·공시",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "stock", "name": "산업·주식", "nameEn": "Industry & Stocks", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": true, "staffOnlyWrite": false, "sortOrder": 30, "color": "GREEN",
+      "slug": "game",
+      "name": "게임",
+      "nameEn": "Games",
+      "kind": "GENERAL",
+      "sortOrder": 40,
+      "description": "게임 소식과 플레이 경험을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "AMBER",
       "prefixes": [
-        { "name": "산업해설", "nameEn": "Industry analysis", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "실적", "nameEn": "Earnings", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "공급망", "nameEn": "Supply chain", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "이슈", "nameEn": "Issues", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "게임 뉴스",
+          "nameEn": "게임 뉴스",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "PC·온라인",
+          "nameEn": "PC·온라인",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "모바일",
+          "nameEn": "모바일",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "콘솔",
+          "nameEn": "콘솔",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "공략·팁",
+          "nameEn": "공략·팁",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "game", "name": "게임", "nameEn": "Games", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 40, "color": "AMBER",
+      "slug": "sports",
+      "name": "스포츠",
+      "nameEn": "Sports",
+      "kind": "GENERAL",
+      "sortOrder": 50,
+      "description": "스포츠 경기와 선수 이야기를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "TEAL",
       "prefixes": [
-        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "공략", "nameEn": "Guides", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "파티모집", "nameEn": "Party recruiting", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "축구",
+          "nameEn": "축구",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "야구",
+          "nameEn": "야구",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "농구·배구",
+          "nameEn": "농구·배구",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "e스포츠",
+          "nameEn": "e스포츠",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "운동·피트니스",
+          "nameEn": "운동·피트니스",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "sports", "name": "스포츠", "nameEn": "Sports", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 50, "color": "TEAL",
+      "slug": "video",
+      "name": "영상·짤",
+      "nameEn": "Videos & Memes",
+      "kind": "GENERAL",
+      "sortOrder": 60,
+      "description": "재미있고 유익한 영상과 짤을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
       "prefixes": [
-        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "경기", "nameEn": "Matches", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "직관", "nameEn": "Live games", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "유머·움짤",
+          "nameEn": "유머·움짤",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "감동·훈훈",
+          "nameEn": "감동·훈훈",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "동물·자연·힐링",
+          "nameEn": "동물·자연·힐링",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "정보·교양",
+          "nameEn": "정보·교양",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "AI·로봇",
+          "nameEn": "AI·로봇",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "스포츠·게임",
+          "nameEn": "스포츠·게임",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        },
+        {
+          "name": "음악·공연·직캠",
+          "nameEn": "음악·공연·직캠",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 70
+        },
+        {
+          "name": "블랙박스·사건사고",
+          "nameEn": "블랙박스·사건사고",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 80
+        },
+        {
+          "name": "코스프레",
+          "nameEn": "코스프레",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 90
+        },
+        {
+          "name": "전방·후방",
+          "nameEn": "전방·후방",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 100
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 110
+        }
       ]
     },
     {
-      "slug": "ai-groups", "name": "AI·테크 소모임", "nameEn": "AI & Tech clubs", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1010, "color": "BLUE",
-      "kind": "GROUP", "groupCategoryName": "AI·테크",
+      "slug": "free",
+      "name": "자유게시판",
+      "nameEn": "Free board",
+      "kind": "GENERAL",
+      "sortOrder": 70,
+      "description": "주제 없이 자유롭게 이야기를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
       "prefixes": [
-        { "name": "가입인사", "nameEn": "Introductions", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 20 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 30 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 40 },
-        { "name": "자료", "nameEn": "Resources", "common": false, "staffOnly": false, "sortOrder": 50 },
-        { "name": "프로젝트", "nameEn": "Projects", "common": false, "staffOnly": false, "sortOrder": 60 }
+        {
+          "name": "일상 이야기",
+          "nameEn": "일상 이야기",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "질문·궁금증",
+          "nameEn": "질문·궁금증",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "고민·상담",
+          "nameEn": "고민·상담",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "정보 공유",
+          "nameEn": "정보 공유",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "후기·추천",
+          "nameEn": "후기·추천",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "robot-groups", "name": "로봇 소모임", "nameEn": "Robot clubs", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1020, "color": "PURPLE",
-      "kind": "GROUP", "groupCategoryName": "로봇",
+      "slug": "notice",
+      "name": "공지",
+      "nameEn": "Notice",
+      "kind": "GENERAL",
+      "sortOrder": 80,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": true,
+      "color": null,
       "prefixes": [
-        { "name": "가입인사", "nameEn": "Introductions", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 20 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 30 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 40 },
-        { "name": "자료", "nameEn": "Resources", "common": false, "staffOnly": false, "sortOrder": 50 },
-        { "name": "제작기", "nameEn": "Build logs", "common": false, "staffOnly": false, "sortOrder": 60 }
+        {
+          "name": "공지",
+          "nameEn": "Notice",
+          "common": true,
+          "staffOnly": true,
+          "sortOrder": 10
+        },
+        {
+          "name": "업데이트",
+          "nameEn": "Update",
+          "common": false,
+          "staffOnly": true,
+          "sortOrder": 20
+        },
+        {
+          "name": "점검",
+          "nameEn": "Maintenance",
+          "common": false,
+          "staffOnly": true,
+          "sortOrder": 30
+        }
       ]
     },
     {
-      "slug": "stock-groups", "name": "산업·주식 소모임", "nameEn": "Industry & Stocks clubs", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": true, "staffOnlyWrite": false, "sortOrder": 1030, "color": "GREEN",
-      "kind": "GROUP", "groupCategoryName": "산업·주식",
+      "slug": "ai-groups",
+      "name": "AI·테크 소모임",
+      "nameEn": "AI & Tech clubs",
+      "kind": "GROUP",
+      "sortOrder": 90,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "BLUE",
+      "groupCategoryName": "AI·테크",
       "prefixes": [
-        { "name": "가입인사", "nameEn": "Introductions", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 20 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 30 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 40 },
-        { "name": "자료", "nameEn": "Resources", "common": false, "staffOnly": false, "sortOrder": 50 },
-        { "name": "스터디", "nameEn": "Study", "common": false, "staffOnly": false, "sortOrder": 60 }
+        {
+          "name": "질문",
+          "nameEn": "Question",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "후기",
+          "nameEn": "Review",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "가입인사",
+          "nameEn": "Introductions",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "자료",
+          "nameEn": "Resources",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "프로젝트",
+          "nameEn": "Projects",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "game-groups", "name": "게임 소모임", "nameEn": "Game clubs", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1040, "color": "AMBER",
-      "kind": "GROUP", "groupCategoryName": "게임",
+      "slug": "robot-groups",
+      "name": "로봇 소모임",
+      "nameEn": "Robot clubs",
+      "kind": "GROUP",
+      "sortOrder": 100,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "PURPLE",
+      "groupCategoryName": "로봇",
       "prefixes": [
-        { "name": "가입인사", "nameEn": "Introductions", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 20 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 30 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 40 },
-        { "name": "자료", "nameEn": "Resources", "common": false, "staffOnly": false, "sortOrder": 50 },
-        { "name": "파티모집", "nameEn": "Party recruiting", "common": false, "staffOnly": false, "sortOrder": 60 }
+        {
+          "name": "질문",
+          "nameEn": "Question",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "후기",
+          "nameEn": "Review",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "가입인사",
+          "nameEn": "Introductions",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "자료",
+          "nameEn": "Resources",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "제작기",
+          "nameEn": "Build logs",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "sports-groups", "name": "스포츠 소모임", "nameEn": "Sports clubs", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1050, "color": "TEAL",
-      "kind": "GROUP", "groupCategoryName": "스포츠",
+      "slug": "stock-groups",
+      "name": "산업·주식 소모임",
+      "nameEn": "Industry & Stocks clubs",
+      "kind": "GROUP",
+      "sortOrder": 110,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": true,
+      "staffOnlyWrite": false,
+      "color": "GREEN",
+      "groupCategoryName": "산업·주식",
       "prefixes": [
-        { "name": "가입인사", "nameEn": "Introductions", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 20 },
-        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 30 },
-        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 40 },
-        { "name": "자료", "nameEn": "Resources", "common": false, "staffOnly": false, "sortOrder": 50 },
-        { "name": "직관모임", "nameEn": "Game meetups", "common": false, "staffOnly": false, "sortOrder": 60 }
+        {
+          "name": "질문",
+          "nameEn": "Question",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "후기",
+          "nameEn": "Review",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "가입인사",
+          "nameEn": "Introductions",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "자료",
+          "nameEn": "Resources",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "스터디",
+          "nameEn": "Study",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "video", "name": "영상·짤", "nameEn": "Videos & Memes", "description": null, "layout": "LIST", "viewToggle": true,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 60, "color": null,
+      "slug": "game-groups",
+      "name": "게임 소모임",
+      "nameEn": "Game clubs",
+      "kind": "GROUP",
+      "sortOrder": 120,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "AMBER",
+      "groupCategoryName": "게임",
       "prefixes": [
-        { "name": "영상", "nameEn": "Video", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "짤", "nameEn": "Memes", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "질문",
+          "nameEn": "Question",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "후기",
+          "nameEn": "Review",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "가입인사",
+          "nameEn": "Introductions",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "자료",
+          "nameEn": "Resources",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "파티모집",
+          "nameEn": "Party recruiting",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "free", "name": "자유게시판", "nameEn": "Free board", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 70, "color": null,
+      "slug": "sports-groups",
+      "name": "스포츠 소모임",
+      "nameEn": "Sports clubs",
+      "kind": "GROUP",
+      "sortOrder": 130,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": false,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": "TEAL",
+      "groupCategoryName": "스포츠",
       "prefixes": [
-        { "name": "잡담", "nameEn": "Chat", "common": false, "staffOnly": false, "sortOrder": 10 },
-        { "name": "유머", "nameEn": "Humor", "common": false, "staffOnly": false, "sortOrder": 20 },
-        { "name": "정보", "nameEn": "Info", "common": false, "staffOnly": false, "sortOrder": 30 },
-        { "name": "일상", "nameEn": "Daily life", "common": false, "staffOnly": false, "sortOrder": 40 },
-        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
-        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+        {
+          "name": "질문",
+          "nameEn": "Question",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "후기",
+          "nameEn": "Review",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
+          "common": true,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "가입인사",
+          "nameEn": "Introductions",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "자료",
+          "nameEn": "Resources",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "직관모임",
+          "nameEn": "Game meetups",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
       ]
     },
     {
-      "slug": "notice", "name": "공지", "nameEn": "Notice", "description": null, "layout": "LIST", "viewToggle": false,
-      "investmentNotice": false, "staffOnlyWrite": true, "sortOrder": 80, "color": null,
+      "slug": "humor",
+      "name": "유머게시판",
+      "nameEn": "유머게시판",
+      "kind": "GENERAL",
+      "sortOrder": 140,
+      "description": "웃긴 글과 짤로 함께 웃는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
       "prefixes": [
-        { "name": "공지", "nameEn": "Notice", "common": false, "staffOnly": true, "sortOrder": 10 },
-        { "name": "업데이트", "nameEn": "Update", "common": false, "staffOnly": true, "sortOrder": 20 },
-        { "name": "점검", "nameEn": "Maintenance", "common": false, "staffOnly": true, "sortOrder": 30 }
+        {
+          "name": "웃긴 글",
+          "nameEn": "웃긴 글",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "웃긴 짤",
+          "nameEn": "웃긴 짤",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "공감·썰",
+          "nameEn": "공감·썰",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "동물 유머",
+          "nameEn": "동물 유머",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "실화·사연",
+          "nameEn": "실화·사연",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "hotdeal",
+      "name": "핫딜",
+      "nameEn": "Hot deals",
+      "kind": "DEAL",
+      "sortOrder": 150,
+      "description": null,
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "로봇",
+          "nameEn": "로봇",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "AI",
+          "nameEn": "AI",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "메이킹",
+          "nameEn": "메이킹",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        }
+      ]
+    },
+    {
+      "slug": "issue",
+      "name": "시사",
+      "nameEn": "시사",
+      "kind": "GENERAL",
+      "sortOrder": 160,
+      "description": "세상의 주요 이슈와 사회적 관심사를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "정치·정부·국회",
+          "nameEn": "정치·정부·국회",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "경제·금융·증시",
+          "nameEn": "경제·금융·증시",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "사회·사건·사고",
+          "nameEn": "사회·사건·사고",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "국제·외교",
+          "nameEn": "국제·외교",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "정책·제도",
+          "nameEn": "정책·제도",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "life",
+      "name": "생활",
+      "nameEn": "생활",
+      "kind": "GENERAL",
+      "sortOrder": 170,
+      "description": "일상 속 경험과 유용한 정보를 공유하는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "일상·자유 이야기",
+          "nameEn": "일상·자유 이야기",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "생활정보·꿀팁",
+          "nameEn": "생활정보·꿀팁",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "소비·쇼핑",
+          "nameEn": "소비·쇼핑",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "건강·교육·육아",
+          "nameEn": "건강·교육·육아",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "주거·자동차",
+          "nameEn": "주거·자동차",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "entertainment",
+      "name": "연예·방송·OTT",
+      "nameEn": "연예·방송·OTT",
+      "kind": "GENERAL",
+      "sortOrder": 180,
+      "description": "드라마·예능부터 영화·OTT까지 즐겁게 이야기하는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "드라마",
+          "nameEn": "드라마",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "예능",
+          "nameEn": "예능",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "아이돌·K팝",
+          "nameEn": "아이돌·K팝",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "영화",
+          "nameEn": "영화",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "OTT·신작",
+          "nameEn": "OTT·신작",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "car",
+      "name": "자동차",
+      "nameEn": "자동차",
+      "kind": "GENERAL",
+      "sortOrder": 190,
+      "description": "차를 좋아하는 사람들이 정보와 경험을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "신차 소식",
+          "nameEn": "신차 소식",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "시승·리뷰",
+          "nameEn": "시승·리뷰",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "전기차·자율주행",
+          "nameEn": "전기차·자율주행",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "정비·관리",
+          "nameEn": "정비·관리",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "구매 상담",
+          "nameEn": "구매 상담",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "pet",
+      "name": "반려동물",
+      "nameEn": "반려동물",
+      "kind": "GENERAL",
+      "sortOrder": 200,
+      "description": "반려동물과 함께하는 일상을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "강아지",
+          "nameEn": "강아지",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "고양이",
+          "nameEn": "고양이",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "다른 동물",
+          "nameEn": "다른 동물",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "건강·병원",
+          "nameEn": "건강·병원",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "용품 추천",
+          "nameEn": "용품 추천",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "love",
+      "name": "연애·결혼",
+      "nameEn": "연애·결혼",
+      "kind": "GENERAL",
+      "sortOrder": 210,
+      "description": "설레는 이야기부터 진지한 고민까지 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "연애 고민",
+          "nameEn": "연애 고민",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "썸·소개팅",
+          "nameEn": "썸·소개팅",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "결혼 준비",
+          "nameEn": "결혼 준비",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "부부·가족",
+          "nameEn": "부부·가족",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "이별·재회",
+          "nameEn": "이별·재회",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "job",
+      "name": "직장·취업",
+      "nameEn": "직장·취업",
+      "kind": "GENERAL",
+      "sortOrder": 220,
+      "description": "일과 커리어에 대한 경험과 고민을 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "직장생활",
+          "nameEn": "직장생활",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "취업·이직",
+          "nameEn": "취업·이직",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "연봉·복지",
+          "nameEn": "연봉·복지",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "자격증·공부",
+          "nameEn": "자격증·공부",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "창업·부업",
+          "nameEn": "창업·부업",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "toon",
+      "name": "애니·웹툰",
+      "nameEn": "애니·웹툰",
+      "kind": "GENERAL",
+      "sortOrder": 230,
+      "description": "애니메이션과 웹툰·만화를 함께 즐기는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "애니",
+          "nameEn": "애니",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "웹툰",
+          "nameEn": "웹툰",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "만화책",
+          "nameEn": "만화책",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "신작·연재 소식",
+          "nameEn": "신작·연재 소식",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "추천·리뷰",
+          "nameEn": "추천·리뷰",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "굿즈·팬아트",
+          "nameEn": "굿즈·팬아트",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 70
+        }
+      ]
+    },
+    {
+      "slug": "tip",
+      "name": "팁과강좌",
+      "nameEn": "팁과강좌",
+      "kind": "GENERAL",
+      "sortOrder": 240,
+      "description": "알아 두면 쓸모 있는 사용법과 노하우를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "PC·모바일",
+          "nameEn": "PC·모바일",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "AI·툴 활용",
+          "nameEn": "AI·툴 활용",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "로봇·메이킹",
+          "nameEn": "로봇·메이킹",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "전자기기",
+          "nameEn": "전자기기",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "카메라·영상",
+          "nameEn": "카메라·영상",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "생활상식",
+          "nameEn": "생활상식",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        },
+        {
+          "name": "취미·요리",
+          "nameEn": "취미·요리",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 70
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 80
+        }
+      ]
+    },
+    {
+      "slug": "review",
+      "name": "사용기",
+      "nameEn": "사용기",
+      "kind": "GENERAL",
+      "sortOrder": 250,
+      "description": "직접 써 보고 느낀 솔직한 후기를 나누는 공간",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "전자기기",
+          "nameEn": "전자기기",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "AI 서비스·SW",
+          "nameEn": "AI 서비스·SW",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "로봇·키트",
+          "nameEn": "로봇·키트",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "자동차",
+          "nameEn": "자동차",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "게임",
+          "nameEn": "게임",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "영화·드라마·애니",
+          "nameEn": "영화·드라마·애니",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        },
+        {
+          "name": "도서",
+          "nameEn": "도서",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 70
+        },
+        {
+          "name": "음식·맛집",
+          "nameEn": "음식·맛집",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 80
+        },
+        {
+          "name": "생활용품",
+          "nameEn": "생활용품",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 90
+        },
+        {
+          "name": "기타",
+          "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 100
+        }
+      ]
+    },
+    {
+      "slug": "market",
+      "name": "회원장터",
+      "nameEn": "회원장터",
+      "kind": "GENERAL",
+      "sortOrder": 260,
+      "description": "회원끼리 사고팔고 나누는 공간 — 가격을 꼭 적고, 거래가 끝나면 말머리를 거래완료로 바꿔 주세요",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "판매",
+          "nameEn": "판매",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "구입",
+          "nameEn": "구입",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "교환",
+          "nameEn": "교환",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "그냥드림",
+          "nameEn": "그냥드림",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "거래완료",
+          "nameEn": "거래완료",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        }
       ]
     }
   ],
-  "menu": [
-    { "type": "BUILTIN", "key": "HOME", "mobileTab": true },
-    { "type": "BUILTIN", "key": "POPULAR", "mobileTab": true },
-    { "type": "BUILTIN", "key": "LATEST" },
-    {
-      "type": "FOLDER", "label": "주제", "nameEn": "Topics",
-      "children": [
-        { "type": "BOARD", "slug": "ai" },
-        { "type": "BOARD", "slug": "robot" },
-        { "type": "BOARD", "slug": "stock" },
-        { "type": "BOARD", "slug": "game" },
-        { "type": "BOARD", "slug": "sports" }
-      ]
-    },
-    {
-      "type": "FOLDER", "label": "커뮤니티", "nameEn": "Community", "autoAdd": true,
-      "children": [
-        { "type": "BOARD", "slug": "video" },
-        { "type": "BOARD", "slug": "free" }
-      ]
-    },
-    {
-      "type": "FOLDER", "label": "소모임", "nameEn": "Clubs",
-      "children": [
-        { "type": "BUILTIN", "key": "GROUPS_ALL", "label": "소모임 둘러보기", "nameEn": "Browse clubs", "mobileTab": true },
-        { "type": "BUILTIN", "key": "GROUPS_MINE", "audience": "MEMBER" }
-      ]
-    },
-    { "type": "BOARD", "slug": "notice" }
-  ]
+  "structure": "roboyam.structure.json",
+  "demo": true
 }

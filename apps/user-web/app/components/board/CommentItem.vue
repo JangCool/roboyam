@@ -29,7 +29,8 @@
                 </span>
                 <!-- 찬반 토론의 입장 배지(지금 입장 — 입장을 바꾸면 따라 바뀐다) -->
                 <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
-                <PostAuthorLabel :author="comment.author" show-ip link class="text-color" />
+                <!-- 닉네임 왼쪽 프로필 동그라미(사용자 2026-11-08 — 글 줄과 같은 크기, 댓글에서는 움직이는 아바타 그대로) -->
+                <PostAuthorLabel :author="comment.author" show-ip link avatar animated class="text-color" />
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>
                 <span v-if="comment.updatedAt">{{ t('comment.edited') }}</span>

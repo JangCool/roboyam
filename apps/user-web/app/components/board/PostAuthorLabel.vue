@@ -65,6 +65,8 @@ interface Props {
     preview?: boolean;
     /** 이름 앞에 프로필 동그라미(글 보기 머리와 같은 `xs`) — 글 목록·피드·홈 가젯 글 줄 */
     avatar?: boolean;
+    /** 프로필 동그라미를 움직이는 그림 그대로(댓글 — 글 보기·프로필처럼 움직인다). 끄면 정지 그림이 있으면 그것(글 줄) */
+    animated?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -73,6 +75,7 @@ const props = withDefaults(defineProps<Props>(), {
     link: false,
     preview: false,
     avatar: false,
+    animated: false,
 });
 
 const { t } = useI18n();
@@ -99,6 +102,7 @@ const avatarSrc = computed(() => {
     const { memberId, avatarUrl, avatarStillUrl } = props.author;
     if (props.preview) return avatarStillUrl ?? avatarUrl ?? null;
     const url = decorations.avatarOf(memberId, avatarUrl);
+    if (props.animated) return url;
     return (url ? decorations.avatarStillOf(memberId, avatarStillUrl) : null) ?? url;
 });
 const guest = computed(() => props.author.kind === 'GUEST');

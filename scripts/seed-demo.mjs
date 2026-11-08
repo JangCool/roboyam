@@ -9,7 +9,9 @@
  *
  * 순서: 회원 40명(SQL) → 데모 운영자(SQL, 이 실행 동안만 켬) → 게시판 기본 글 에디터 고급·소모임 공개 범위 켬(관리자 API) → 로보티콘 무료 팩 받기
  *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → 사업자 핫딜(신청→승인→계약서→입금→확인)
- *      → 공동구매(관리자 API) → 하이라이트 5개 → 광고(운영자 등록→승인→계약서·입금→확정, 홈 광고 가젯 셋). 끝나면 데모 운영자를 끈다.
+ *      → 공동구매(관리자 API) → 하이라이트(홈 5개 · 팁·강좌·사용기 5개) → 광고(운영자 등록→승인→계약서·입금→확정, 홈 광고 가젯 셋)
+ *      → 공지(관리자 공지 API — 데모 운영자의 운영자 회원 계정이 작성자) → 버그 신고·기능 요청(회원 글 + 처리 상태·운영자 답변)
+ *      → 사이트(공지 띠·환영 팝업·보상 이벤트) → 그 밖(소모임 일정·공동구매 문의). 끝나면 데모 운영자를 끈다.
  * 글·댓글은 공개 API 로 쓰고(서버 규칙·카운터·포인트·알림이 그대로), 바로 뒤에 SQL 로 작성 시각을 지난 21일 안의 계획 시각으로 옮긴다
  * (작성 간격·하루 한도 판정이 created_at 을 보므로 이렇게 해야 막히지 않고, 목록 차례(id)와 시각 차례도 같게 계획 차례대로 쓴다). 조회수는 SQL 로 넣는다.
  *
@@ -28,7 +30,7 @@ const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'roboyam-local-postgres';
 const DB_NAME = process.env.SEED_DB_NAME ?? 'roboyam';
 const DB_USER = process.env.SEED_DB_USER ?? 'roboyam';
 const FORCE = process.argv.includes('--force');
-/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,biz,groupbuys,highlights,ads: 그 단계만(회원·운영자·설정은 늘 한다) */
+/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
 const LIMIT = Number(process.argv.find((a) => a.startsWith('--limit='))?.slice(8)) || Infinity;
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',') ?? null;
 const step = (name) => !ONLY || ONLY.includes(name);
@@ -242,8 +244,18 @@ async function main() {
         if (step('groups')) await seedGroups(members, admin, emoticons, psql);
         if (step('biz')) await seedBusinessDeals(admin, boards);
         if (step('groupbuys')) await seedGroupBuys(admin);
-        if (step('highlights')) await seedHighlights(admin);
-        if (step('ads')) await seedAds(admin);
+        if (step('highlights')) {
+            await seedHighlights(admin);
+            await seedHighlights(admin, 'tips', ['tip', 'review']); // 팁·강좌·사용기(/tips) 「이번 주 추천」 자리(V161 place)
+        }
+        if (step('ads')) {
+            await ensureBusiness(admin); // 사업자 광고(파이언넷)는 승인된 사업자가 있어야 광고주로 잡힌다
+            await seedAds(admin);
+        }
+        if (step('notices')) await seedNotices(admin, members, emoticons, psql);
+        if (step('ops')) await seedOpsBoards(admin, members, boards, emoticons, psql);
+        if (step('site')) await seedSite(admin);
+        if (step('extras')) await seedExtras(admin, members);
     } finally {
         await psql.close();
         sql(`UPDATE operators SET enabled = false, updated_at = now() WHERE email = ${q(membersDoc.operator.email)}`);
@@ -386,6 +398,8 @@ async function acquireEmoticons(members) {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // 5) 게시판 글·댓글 — 계획(시각·글쓴이)을 먼저 다 세우고 시각 차례대로 쓴다
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+/** 따로 단계가 있는 게시판 원고 — 게시판 글 단계(seedBoards)는 읽지 않는다 */
+const OWN_STEP_FILES = ['notice.json', 'bugs.json', 'requests.json'];
 const FILLERS = ['ㅋㅋㅋㅋ 이거 보고 한참 웃었네요', '그냥 공유하고 싶어서 올려 봐요', '다들 어떻게 생각하세요?', '사진으로 대신합니다 ㅎㅎ'];
 const LIKES = { hot: [16, 34], normal: [3, 12], quiet: [0, 2] };
 const VIEWS = { hot: [1200, 4800], normal: [150, 900], quiet: [30, 220] };
@@ -412,22 +426,32 @@ function commentHtml(text, youtube, emoticons) {
     return html;
 }
 
-/** 글 하나의 댓글 계획 — 시각은 글 뒤(대부분 몇 시간 안), 답글은 그 댓글 뒤. 지금을 넘지 않는다 */
-function planComments(post, postAt, pool, now, author) {
+/**
+ * 글 하나의 댓글 계획 — 시각은 글 뒤(대부분 몇 시간 안), 답글은 그 댓글 뒤. 지금을 넘지 않는다.
+ * 댓글·답글의 `by`: `operator` = 운영자 회원 계정(opts.op) · `author` = 글쓴이. 답글은 글자 또는 { text, by }.
+ * opts.authorShare = by 가 없는 답글 중 글쓴이가 다는 비율(기본 0.35).
+ */
+function planComments(post, postAt, pool, now, author, opts = {}) {
+    const { op = null, authorShare = 0.35 } = opts;
     const out = [];
     for (const c of post.comments ?? []) {
+        if (c.by === 'operator' && !op) continue;
         const r = rand();
         const delay = r < 0.6 ? between(2, 180) * 60_000 : r < 0.9 ? between(3, 24) * 3_600_000 : between(1, 3) * DAY;
         const at = Math.min(postAt + delay, now - between(2, 30) * 60_000);
-        const plan = { kind: 'comment', at, text: c.text, youtube: c.youtube ?? null, author: pick(pool.filter((m) => m !== author)), replies: [] };
+        const who = c.by === 'operator' ? op : c.by === 'author' ? author : pick(pool.filter((m) => m !== author));
+        const plan = { kind: 'comment', at, text: c.text, youtube: c.youtube ?? null, author: who, replies: [] };
         out.push(plan);
         let last = at;
         for (const reply of c.replies ?? []) {
+            const text = typeof reply === 'string' ? reply : reply.text;
+            const by = typeof reply === 'string' ? null : reply.by ?? null;
+            if (by === 'operator' && !op) continue;
             const rat = Math.min(last + between(3, 240) * 60_000, now - between(1, 10) * 60_000);
             last = Math.max(rat, last + 1000);
             // 답글의 3분의 1쯤은 글쓴이가 단다
-            const ra = rand() < 0.35 ? author : pick(pool.filter((m) => m !== plan.author));
-            out.push({ kind: 'comment', at: last, text: reply, youtube: null, author: ra, parent: plan });
+            const ra = by === 'operator' ? op : by === 'author' ? author : rand() < authorShare ? author : pick(pool.filter((m) => m !== plan.author));
+            out.push({ kind: 'comment', at: last, text, youtube: null, author: ra, parent: plan });
         }
     }
     return out;
@@ -446,7 +470,7 @@ async function seedBoards(members, boards, emoticons, psql) {
     let skipped = 0;
     const now = Date.now();
     const plans = [];
-    const files = readdirSync(join(DEMO, 'content')).filter((f) => f.endsWith('.json') && !['groups.json', 'biz-hotdeal.json'].includes(f));
+    const files = readdirSync(join(DEMO, 'content')).filter((f) => f.endsWith('.json') && !['groups.json', 'biz-hotdeal.json', ...OWN_STEP_FILES].includes(f));
     for (const f of files) {
         const doc = json(join(DEMO, 'content', f));
         const board = boards.get(doc.board);
@@ -533,6 +557,7 @@ async function writePost(plan, psql, { path, boardSlug }) {
     }
     const prefix = post.prefix ? plan.board.prefixes?.find((p) => p.name === post.prefix) : null;
     const body = { boardSlug, prefixId: prefix?.id ?? null, title: post.title.slice(0, 100), contentFormat: 'HTML', content: postHtml(post, imageIds), adult: post.adult === true };
+    if (post.secret === true) body.secret = true; // 비밀글(게시판 비밀글 OPTIONAL·ALWAYS — 버그 신고)
     if (post.deal) {
         body.deal = {
             storeName: post.deal.storeName, productUrl: post.deal.productUrl, normalPrice: post.deal.normalPrice ?? null, dealPrice: post.deal.dealPrice,
@@ -690,24 +715,70 @@ async function seedGroups(members, admin, emoticons, psql) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// 7) 사업자 핫딜 — 사업자(e2e.veteran1 = 파이언넷)가 신청 → 관리자 승인(수동 결제) → 계약서 → 입금 → 확정 → 게시 배치(1분마다)가 글을 올린다
+// 7) 사업자 핫딜 — 데모 사업자(원고 seed/demo/business.json = 파이언넷 — ensureBusiness 가 회원·사업자 승인까지 만든다)가 신청 → 관리자 승인(수동 결제) → 계약서 → 입금 → 확정 → 게시 배치(1분마다)가 글을 올린다
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+
+/**
+ * 데모 사업자 — 회원(SQL, 데모 회원과 같은 비밀번호) → 로그인 → 등록증(PDF) 올리고 사업자 신청 → 데모 운영자 승인(국세청 조회 생략 사유). 이미 승인됐으면 로그인만.
+ * 시험 계정(seed-local 의 e2e.veteran1)에 기대지 않는다 — 데모 팩에는 시험 계정이 들어가지 않는다.
+ */
+let businessSession = null;
+async function ensureBusiness(admin) {
+    if (businessSession) return businessSession;
+    const b = json(join(DEMO, 'business.json'));
+    const exists = rows(sql(`SELECT id FROM users WHERE email = ${q(b.email)}`)).length > 0;
+    if (!exists) {
+        const id = snowflake();
+        sql([
+            'BEGIN;', 'CREATE EXTENSION IF NOT EXISTS pgcrypto;', `SELECT crypt(${q(membersDoc.password)}, gen_salt('bf', 10)) AS h \\gset`, 'ROLLBACK;', 'BEGIN;',
+            `WITH t AS (SELECT now() - make_interval(days => ${Number(b.ageDays)}) AS at),
+                  ins AS (INSERT INTO users (id, email, password_hash, role, status, email_verified_at, terms_version, terms_agreed_at, age_confirmed_at, created_at, updated_at)
+                          SELECT ${id}, ${q(b.email)}, :'h', 'USER', 'ACTIVE', t.at, ${q(TERMS_VERSION)}, t.at, t.at, t.at, t.at FROM t
+                          ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING RETURNING id, created_at)
+             INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, created_at, updated_at) SELECT id, ${q(b.nickname)}, ${q(b.grade)}, true, created_at, created_at FROM ins;`,
+            'COMMIT;',
+        ].join('\n'), { sensitive: true });
+    }
+    const s = new Session('business');
+    const login = await s.request('POST', '/api/auth/login', { email: b.email, password: membersDoc.password });
+    if (!ok(login)) return failed('데모 사업자 로그인', login), null;
+    const me = await s.request('GET', '/api/business/me');
+    let status = me.data?.status ?? 'NONE';
+    if (status === 'NONE' || status === 'REJECTED') {
+        const fd = new FormData();
+        fd.append('file', new Blob([PDF], { type: 'application/pdf' }), 'pionnet-certificate.pdf');
+        const up = await s.request('POST', '/api/business/files', fd);
+        if (!ok(up)) return failed('데모 사업자 등록증', up), null;
+        const applied = await s.request('POST', '/api/business/me', {
+            companyName: b.companyName, bizNo: b.bizNo, ownerName: b.ownerName, phone: b.phone, email: b.contactEmail, address: b.address,
+            certificateFileId: up.data.fileId ?? up.data.id, agreedTermsVersion: '2026-11-02', agreedPrivacyVersion: '2026-11-02', openedOn: b.openedOn, certificateDelivery: 'UPLOAD',
+        });
+        if (!ok(applied)) return failed('데모 사업자 신청', applied), null;
+        status = applied.data?.status ?? 'PENDING';
+    }
+    if (status === 'PENDING') {
+        const [[profileId]] = rows(sql(`SELECT p.id FROM business_profiles p JOIN users u ON u.id = p.user_id WHERE u.email = ${q(b.email)}`));
+        const r = await admin.request('POST', `/api/admin/businesses/${profileId}/approve`, { ntsOverrideReason: '데모 사업자 — 국세청 조회를 생략한다(데모 데이터)' });
+        if (!ok(r)) return failed('데모 사업자 승인', r), null;
+        status = 'APPROVED';
+    }
+    console.log(`  데모 사업자 ${b.companyName} — ${status}`);
+    businessSession = status === 'APPROVED' ? s : null;
+    return businessSession;
+}
 
 async function seedBusinessDeals(admin, boards) {
     console.log('\n사업자 핫딜');
     const doc = json(join(DEMO, 'content', 'biz-hotdeal.json'));
-    const seedUsers = json(join(ROOT, 'seed', 'seed.json'));
-    const bizUser = seedUsers.users.find((u) => u.key === 'e2e.veteran1');
     const have = new Set(rows(sql(`SELECT title FROM biz_applications WHERE title IN (${doc.deals.map((d) => q(d.title)).join(',')})`)).map(([t]) => t));
     const todo = doc.deals.filter((d) => !have.has(d.title)).slice(0, LIMIT);
     if (!todo.length) {
         console.log('  데모 사업자 핫딜이 이미 있어 건너뛴다.');
         return;
     }
-    const biz = new Session('biz');
-    const login = await biz.request('POST', '/api/auth/login', { email: bizUser.email, password: seedUsers.password });
-    if (!ok(login)) return failed('사업자 로그인(e2e.veteran1 — seed-local.mjs 를 먼저 돌린다)', login);
+    const biz = await ensureBusiness(admin);
+    if (!biz) return;
     const hotdeal = boards.get('hotdeal');
     const adPolicy = rows(sql(`SELECT ad_policy_version FROM biz_applications WHERE ad_policy_version IS NOT NULL ORDER BY created_at DESC LIMIT 1`))[0]?.[0] ?? '2026-11-02';
     let published = 0;
@@ -768,6 +839,43 @@ async function seedBusinessDeals(admin, boards) {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // 8) 공동구매 — 상품(고시 전부 채움) → 공구 → 공개(모집 시작). 원고 state: open · upcoming · endedEarly
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+/** 공구 원고가 쓰는 카테고리(2단 — 원고의 categoryParents)·옵션 종류(원고의 optionTypes)·배송비 정책 STANDARD 를 없으면 만든다 */
+async function ensureGroupBuyBasics(admin, doc) {
+    const policies = await admin.request('GET', '/api/admin/commerce/shipping-policies');
+    const hasStandard = JSON.stringify(policies.data ?? {}).includes('"STANDARD"');
+    if (!hasStandard) {
+        const r = await admin.request('POST', '/api/admin/commerce/shipping-policies', {
+            code: 'STANDARD', name: '기본 배송', baseFee: 3000, freeShippingOver: 50000, returnFee: 3000, returnFeeMode: 'ONE_WAY', effectiveFrom: null,
+        });
+        if (!ok(r)) failed('공구 배송비 정책 STANDARD', r);
+    }
+    const types = (await admin.request('GET', '/api/admin/group-buys/option-types')).data ?? [];
+    const missingTypes = doc.optionTypes.filter((t) => !types.some((x) => x.code === t.code));
+    if (missingTypes.length) {
+        const r = await admin.request('PUT', '/api/admin/group-buys/option-types', [
+            ...types.map((t) => ({ code: t.code, name: t.name, hidden: t.hidden })), ...missingTypes.map((t) => ({ code: t.code, name: t.name, hidden: false })),
+        ]);
+        if (!ok(r)) failed('공구 옵션 종류', r);
+    }
+    const cats = (await admin.request('GET', '/api/admin/group-buys/categories')).data ?? [];
+    const byName = new Map(cats.map((c) => [c.name, c]));
+    const wanted = [];
+    for (const [parent, children] of Object.entries(doc.categoryParents)) {
+        if (!byName.has(parent)) wanted.push({ tempKey: `p:${parent}`, parent: null, name: parent, hidden: false });
+        for (const child of children) {
+            if (!byName.has(child)) wanted.push({ tempKey: `c:${child}`, parent: byName.get(parent)?.id ?? `p:${parent}`, name: child, hidden: false });
+        }
+    }
+    if (wanted.length) {
+        // 통째로 저장 — 있는 것을 같은 차례로 앞에 두고(빠진 것은 지워지므로) 새 것을 뒤에
+        const r = await admin.request('PUT', '/api/admin/group-buys/categories', [
+            ...cats.map((c) => ({ id: c.id, parent: c.parent ?? c.parentId ?? null, name: c.name, hidden: c.hidden })), ...wanted,
+        ]);
+        console.log(`  공구 카테고리 ${wanted.length}개 만듦 ${ok(r) ? '○' : `✕ ${why(r)}`}`);
+        if (!ok(r)) failed('공구 카테고리', r);
+    }
+}
+
 async function seedGroupBuys(admin) {
     console.log('\n공동구매');
     const doc = json(join(DEMO, 'groupbuys.json'));
@@ -777,6 +885,7 @@ async function seedGroupBuys(admin) {
         console.log('  데모 공구가 이미 있어 건너뛴다.');
         return;
     }
+    await ensureGroupBuyBasics(admin, doc);
     const cats = new Map(((await admin.request('GET', '/api/admin/group-buys/categories')).data ?? []).map((c) => [c.name, c.id]));
     const catalog = json(join(ROOT, 'server', 'shared', 'src', 'main', 'resources', 'groupbuy', 'notice-catalog-2023-01-01.json'));
     const now = Date.now();
@@ -838,23 +947,26 @@ async function seedGroupBuys(admin) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// 9) 하이라이트 — 이미지가 있는 인기 글 다섯(19금 아님)
+// 9) 하이라이트 — 이미지가 있는 인기 글 다섯(19금 아님). 놓일 곳(place, V161)마다 따로: 홈 `home` · 팁·강좌·사용기 `tips`(그 두 게시판 글만)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-async function seedHighlights(admin) {
-    console.log('\n하이라이트');
+async function seedHighlights(admin, place = 'home', slugs = null) {
+    console.log(`\n하이라이트(${place})`);
+    const existing = Number(sql(`SELECT count(*) FROM highlights h JOIN posts p ON p.id = h.post_id JOIN users u ON u.id = p.author_id
+         WHERE u.email LIKE 'demo__@example.com' AND h.place = ${q(place)}`));
+    if (existing >= 5 && !FORCE) {
+        console.log(`  데모 하이라이트가 이미 ${existing}개 있어 건너뛴다.`);
+        return;
+    }
+    // 다른 곳에 이미 쓴 글도 빼서 곳마다 다른 글이 보이게 한다. 운영 게시판(공지·버그 신고·기능 요청)·비밀글은 넣지 않는다
+    const boardFilter = slugs ? `AND b.slug IN (${slugs.map(q).join(',')})` : `AND b.slug NOT IN ('hotdeal', 'notice', 'bugs', 'requests')`;
     const picks = rows(sql(`
         SELECT p.id, replace(p.title, '|', '/'), regexp_replace(left(coalesce(p.content_text, ''), 300), '[
 |]+', ' ', 'g'), f.storage_key -- psql 출력의 줄·칸 구분자가 섞이지 않게
           FROM posts p JOIN users u ON u.id = p.author_id JOIN boards b ON b.id = p.board_id
           JOIN LATERAL (SELECT storage_key FROM files WHERE post_id = p.id AND status = 'IN_USE' ORDER BY id LIMIT 1) f ON true
-         WHERE u.email LIKE 'demo__@example.com' AND p.group_id IS NULL AND NOT p.adult AND p.deleted_at IS NULL AND b.slug <> 'hotdeal'
+         WHERE u.email LIKE 'demo__@example.com' AND p.group_id IS NULL AND NOT p.adult AND NOT p.secret AND p.deleted_at IS NULL ${boardFilter}
            AND NOT EXISTS (SELECT 1 FROM highlights h WHERE h.post_id = p.id)
-         ORDER BY p.like_count * 3 + p.comment_count * 2 DESC LIMIT 5`));
-    const existing = Number(sql(`SELECT count(*) FROM highlights h JOIN posts p ON p.id = h.post_id JOIN users u ON u.id = p.author_id WHERE u.email LIKE 'demo__@example.com'`));
-    if (existing >= 5 && !FORCE) {
-        console.log(`  데모 하이라이트가 이미 ${existing}개 있어 건너뛴다.`);
-        return;
-    }
+         ORDER BY p.like_count * 3 + p.comment_count * 2 DESC LIMIT ${FORCE ? 5 : 5 - existing}`));
     let made = 0;
     for (const [postId, title, text] of picks) {
         const local = findLocalImage(title);
@@ -865,7 +977,7 @@ async function seedHighlights(admin) {
             else failed('하이라이트 이미지', u);
         }
         const r = await admin.request('POST', '/api/admin/highlights', {
-            postId, title: title.slice(0, 40), summary: text.replace(/\s+/g, ' ').slice(0, 90), imageFileId, visible: true,
+            postId, title: title.slice(0, 40), summary: text.replace(/\s+/g, ' ').slice(0, 90), imageFileId, visible: true, place,
         });
         ok(r) ? made++ : failed(`하이라이트 ${postId}`, r);
     }
@@ -1036,6 +1148,356 @@ async function placePageAdGadgets(admin, specs) {
         }
         await placeAdGadgets(admin, `가젯 페이지 ${key}`, `/api/admin/gadget-pages/${page.id}/layouts/roboyam`, specs.filter((s) => s.page === key));
     }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 11) 운영자 회원 계정 — 데모 운영자(demo.operator@example.com)와 같은 이메일의 회원을 만들고(SQL) 관리자 API 로 잇는다(operator-member-account-contract).
+//     공지 작성자 · 버그 신고·기능 요청 답변자. 힘(운영자 뱃지·비밀글 읽기)은 데모 운영자가 켜진 동안(이 로더가 도는 동안)만 살아 있다.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+let operatorMemberSession;
+async function operatorMember(admin) {
+    if (operatorMemberSession !== undefined) return operatorMemberSession;
+    operatorMemberSession = null;
+    const op = membersDoc.operator;
+    sql([
+        'BEGIN;',
+        'CREATE EXTENSION IF NOT EXISTS pgcrypto;',
+        `SELECT crypt(${q(op.password)}, gen_salt('bf', 10)) AS h \\gset`,
+        'ROLLBACK;',
+        'BEGIN;',
+        `WITH ins AS (
+             INSERT INTO users (id, email, password_hash, role, status, email_verified_at, terms_version, terms_agreed_at, age_confirmed_at, created_at, updated_at)
+             SELECT ${snowflake()}, ${q(op.email)}, :'h', 'USER', 'ACTIVE', t.at, ${q(TERMS_VERSION)}, t.at, t.at, t.at, t.at FROM (SELECT now() - interval '35 days' AS at) t
+             ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING
+             RETURNING id, created_at)
+         INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, created_at, updated_at)
+         SELECT id, ${q(op.memberNickname ?? '로보얌운영팀')}, 'VETERAN', true, created_at, created_at FROM ins;`,
+        'COMMIT;',
+    ].join('\n'), { sensitive: true });
+    const [[operatorId] = []] = rows(sql(`SELECT id FROM operators WHERE email = ${q(op.email)}`));
+    const [[userId] = []] = rows(sql(`SELECT id FROM users WHERE email = ${q(op.email)}`));
+    const view = await admin.request('GET', `/api/admin/operators/${operatorId}/member-account`);
+    if (!ok(view)) return failed('운영자 회원 계정 읽기', view), null;
+    if (!view.data?.linked) {
+        const r = await admin.request('PUT', `/api/admin/operators/${operatorId}/member-account`, { userId });
+        if (!ok(r)) return failed('운영자 회원 계정 잇기', r), null;
+        console.log(`  운영자 회원 계정을 이었다(${op.memberNickname ?? '로보얌운영팀'})`);
+    } else if (String(view.data.linked.userId) !== String(userId)) {
+        return failed('운영자 회원 계정', `데모 운영자가 다른 회원(${view.data.linked.userId})에 이어져 있다`), null;
+    }
+    const s = new Session('operator-member');
+    const login = await s.request('POST', '/api/auth/login', { email: op.email, password: op.password });
+    if (!ok(login) || login.data?.authenticated !== true) return failed('운영자 회원 계정 로그인', login), null;
+    Object.assign(s, { userId: login.data.user.id, nickname: op.memberNickname ?? '로보얌운영팀', grade: 'VETERAN', level: 4, adult: false, operator: true });
+    operatorMemberSession = s;
+    return s;
+}
+
+/** 원고 글자의 {date:N} → 「실행한 날 + N일」의 한국 날짜(예: 11월 18일(수)) */
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+function fillDates(text) {
+    return String(text).replace(/\{date:(-?\d+)\}/g, (_, n) => {
+        const d = new Date(Date.now() + Number(n) * DAY + 9 * 3_600_000);
+        return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일(${WEEKDAYS[d.getUTCDay()]})`;
+    });
+}
+
+/** 한국 시각 그날 hh:mm → ms */
+const kstAt = (ms, hh, mm = 0) => Date.parse(`${kstDate(ms)}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+09:00`);
+
+/** 공지 게시판 글 id(제목으로, 지우지 않은 최신) */
+function noticeId(title) {
+    return rows(sql(`SELECT p.id FROM posts p JOIN boards b ON b.id = p.board_id
+         WHERE b.slug = 'notice' AND b.kind = 'GENERAL' AND p.title = ${q(title)} AND p.deleted_at IS NULL ORDER BY p.id DESC LIMIT 1`))[0]?.[0] ?? null;
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 12) 공지 — 관리자 공지 API(notice-admin-contract: 작성자 = 내 운영자 회원 계정, 포인트 없음) → 작성 시각을 daysAgo 로 옮김 → 고정 → 회원 댓글·운영자 답글
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+async function seedNotices(admin, members, emoticons, psql) {
+    console.log('\n공지');
+    const doc = json(join(DEMO, 'content', 'notice.json'));
+    const ctx = await admin.request('GET', '/api/admin/notices/context');
+    const board = ctx.data?.board;
+    if (!board) return failed('공지 게시판', ctx.data ? '공지 게시판(slug notice)이 없다' : ctx);
+    const opm = await operatorMember(admin);
+    if (!opm) return;
+    const done = FORCE ? new Set() : new Set(rows(sql(`SELECT replace(p.title, '|', '/') FROM posts p WHERE p.board_id = ${board.id} AND p.deleted_at IS NULL`)).map(([t]) => t));
+    const now = Date.now();
+    const plans = [];
+    let skipped = 0;
+    for (const [i, raw] of doc.posts.entries()) {
+        if (i >= LIMIT) break;
+        if (done.has(raw.title.slice(0, 100).replace(/\|/g, '/'))) {
+            skipped++;
+            continue;
+        }
+        const post = { ...raw, paragraphs: raw.paragraphs.map(fillDates), comments: (raw.comments ?? []).map((c) => ({ ...c, text: fillDates(c.text) })) };
+        const at = Math.min(kstAt(now - (post.daysAgo ?? 0) * DAY, between(9, 17), between(0, 59)), now - between(40, 90) * 60_000);
+        const imageIds = [];
+        for (const f of imageFiles(post)) {
+            const u = await admin.request('POST', '/api/admin/notices/images', fileForm(f));
+            ok(u) ? imageIds.push(u.data.id) : failed(`공지 이미지 ${post.key}`, u);
+        }
+        const prefixId = post.prefix ? board.prefixes.find((p) => p.name === post.prefix)?.id ?? null : null;
+        const r = await admin.request('POST', '/api/admin/notices', { prefixId, title: post.title.slice(0, 100), body: postHtml(post, imageIds), pinned: false });
+        if (!ok(r)) {
+            failed(`공지 ${post.key}`, r);
+            continue;
+        }
+        stats.posts++;
+        const plan = { kind: 'post', id: r.data.id, at, post, author: opm };
+        plan.comments = planComments(post, at, members, now, opm, { op: opm, authorShare: 0 }).map((c) => Object.assign(c, { postPlan: plan }));
+        plans.push(plan);
+        sql(`UPDATE posts SET created_at = ${ts(at)}, updated_at = ${ts(at)} WHERE id = ${plan.id};
+             UPDATE files SET created_at = ${ts(at)}, used_at = ${ts(at)} WHERE post_id = ${plan.id}`);
+    }
+    if (skipped) console.log(`  이미 있는 공지 ${skipped}개는 건너뜀`);
+    // 고정 — 게시판 한도(pinnedMax) 안에서, 고정 시각 = 글 시각(최근 고정이 위)
+    let pinned = 0;
+    for (const p of plans.filter((x) => x.post.pinned)) {
+        const r = await admin.request('POST', `/api/admin/notices/${p.id}/pin`);
+        if (!ok(r)) {
+            failed(`공지 고정 ${p.post.key}`, r);
+            continue;
+        }
+        pinned++;
+        sql(`UPDATE posts SET pinned_at = ${ts(p.at)} WHERE id = ${p.id}`);
+    }
+    for (const c of plans.flatMap((p) => p.comments).sort((a, b) => a.at - b.at)) await writeComment(c, emoticons, psql);
+    await psql.flush();
+    await likesAndViews(plans, members, psql);
+    console.log(`  공지 ${plans.length}개(고정 ${pinned}) · 댓글 ${plans.flatMap((p) => p.comments).filter((c) => c.id).length}개`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 13) 버그 신고·기능 요청(ops-boards-contract) — 데모 회원이 공개 API 로 쓰고(비밀글 포함) → 운영자 회원 계정 답변 → 처리 상태(관리자 API, 메모)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+async function seedOpsBoards(admin, members, boards, emoticons, psql) {
+    console.log('\n버그 신고·기능 요청');
+    const opm = await operatorMember(admin);
+    if (!opm) return;
+    const now = Date.now();
+    const plans = [];
+    for (const file of ['bugs.json', 'requests.json']) {
+        const doc = json(join(DEMO, 'content', file));
+        const board = boards.get(doc.board);
+        if (!board) {
+            failed(`게시판 ${doc.board}`, '공개 게시판 목록에 없음');
+            continue;
+        }
+        const done = FORCE ? new Set() : new Set(rows(sql(`SELECT replace(p.title, '|', '/') FROM posts p WHERE p.board_id = ${board.id} AND p.deleted_at IS NULL`)).map(([t]) => t));
+        const n = doc.posts.length;
+        const times = doc.posts.map((_, i) => now - SPAN_DAYS * DAY + ((i + 0.3 + rand() * 0.5) / n) * (SPAN_DAYS * DAY - 60 * 60_000)).sort((a, b) => a - b);
+        let skipped = 0;
+        doc.posts.forEach((post, i) => {
+            if (i >= LIMIT) return;
+            if (done.has(post.title.slice(0, 100).replace(/\|/g, '/'))) {
+                skipped++;
+                return;
+            }
+            const author = pick(members);
+            const plan = { kind: 'post', at: times[i], board, post, author, comments: [] };
+            plan.comments = planComments(post, times[i], members, now, author, { op: opm, authorShare: 0 }).map((c) => {
+                // 비밀글은 글쓴이·운영진만 읽고 댓글을 단다
+                if (post.secret && c.author !== opm && c.author !== author) c.author = author;
+                return Object.assign(c, { postPlan: plan });
+            });
+            plans.push(plan);
+        });
+        if (skipped) console.log(`  ${doc.board}: 이미 있는 글 ${skipped}개는 건너뜀`);
+    }
+    await runTimeline(plans, emoticons, psql, (plan) => ({ path: '/api/posts', boardSlug: plan.board.slug }));
+    const written = plans.filter((p) => p.id);
+    await likesAndViews(written.filter((p) => !p.post.secret), members, psql);
+    for (const p of written.filter((x) => x.post.secret)) psql.send(`UPDATE posts SET view_count = greatest(view_count, ${between(3, 12)}) WHERE id = ${p.id}`);
+    await psql.flush();
+    // 처리 상태 — 원고 차례대로 바꾸고(글쓴이 알림·이력이 서버 규칙대로 남는다), 시각을 글 뒤 ~ 운영자 마지막 답변 뒤로 옮긴다
+    let changes = 0;
+    for (const p of written) {
+        const steps = p.post.status ?? [];
+        if (!steps.length) continue;
+        let good = 0;
+        for (const st of steps) {
+            const r = await admin.request('PUT', `/api/admin/posts/${p.id}/process-status`, { status: st.to, note: st.note ?? null });
+            if (!ok(r)) {
+                failed(`처리 상태 ${p.post.key} → ${st.to}`, r);
+                break;
+            }
+            good++;
+        }
+        changes += good;
+        if (!good) continue;
+        const opTimes = p.comments.filter((c) => c.id && c.author === opm).map((c) => c.at);
+        const last = Math.min(opTimes.length ? Math.max(...opTimes) + between(1, 5) * 60_000 : p.at + between(2, 20) * 3_600_000, now - between(5, 30) * 60_000);
+        const at = (k) => Math.round(p.at + ((last - p.at) * (k + 1)) / good);
+        const hist = rows(sql(`SELECT id FROM post_process_status_history WHERE post_id = ${p.id} ORDER BY changed_at, id`)).map(([id]) => id).slice(-good);
+        const notes = rows(sql(`SELECT id FROM member_notifications WHERE post_id = ${p.id} AND type = 'POST_STATUS_CHANGED' ORDER BY created_at, id`)).map(([id]) => id).slice(-good);
+        hist.forEach((id, k) => psql.send(`UPDATE post_process_status_history SET changed_at = ${ts(at(k))} WHERE id = ${id}`));
+        notes.forEach((id, k) => psql.send(`UPDATE member_notifications SET created_at = ${ts(at(k))} WHERE id = ${id}`));
+        psql.send(`UPDATE posts SET process_status_at = ${ts(last)} WHERE id = ${p.id}`);
+    }
+    await psql.flush();
+    console.log(`  글 ${written.length}개(비밀글 ${written.filter((p) => p.post.secret).length}) · 처리 상태 바꿈 ${changes}번`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 14) 사이트 — 공지 띠(꺼져 있을 때만 켬) · 환영 팝업(같은 이름이 없을 때) · 보상 이벤트(같은 이름이 없을 때, 만들기·시작까지 — 추첨·지급은 하지 않는다)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+async function seedSite(admin) {
+    console.log('\n사이트(공지 띠·팝업·보상 이벤트)');
+    const doc = json(join(DEMO, 'site.json'));
+    const now = Date.now();
+    // 공지 띠
+    const bar = await admin.request('GET', '/api/admin/site/notice-bar');
+    if (!ok(bar)) {
+        failed('공지 띠 읽기', bar);
+    } else if (bar.data.enabled) {
+        console.log(`  공지 띠: 이미 켜져 있어 그대로(${bar.data.source})`);
+    } else {
+        const nb = doc.noticeBar;
+        const r = await admin.request('PUT', '/api/admin/site/notice-bar', {
+            enabled: true, source: nb.source, boardCount: nb.boardCount ?? bar.data.boardCount, customText: nb.customText ?? bar.data.customText, customLink: nb.customLink ?? bar.data.customLink,
+        });
+        ok(r) ? console.log(`  공지 띠: 켬(${nb.source})`) : failed('공지 띠', r);
+    }
+    // 팝업 — 있던 팝업은 지우거나 차례를 바꾸지 않고 뒤에 더한다
+    const popups = await admin.request('GET', '/api/admin/site-popups');
+    const names = new Set((popups.data?.items ?? []).map((p) => p.name));
+    for (const p of doc.popups ?? []) {
+        if (!ok(popups)) {
+            failed('팝업 목록', popups);
+            break;
+        }
+        if (names.has(p.name)) {
+            console.log(`  팝업 「${p.name}」: 이미 있어 건너뜀`);
+            continue;
+        }
+        const target = p.linkNotice ? noticeId(p.linkNotice) : null;
+        const { linkNotice, ...body } = p;
+        const r = await admin.request('POST', '/api/admin/site-popups', { ...body, link: target ? `/posts/${target}` : p.link ?? null });
+        ok(r) ? console.log(`  팝업 「${p.name}」 만듦${target ? '' : ' (링크할 공지가 없어 링크 없음)'}`) : failed(`팝업 ${p.name}`, r);
+    }
+    // 보상 이벤트
+    const haveEvents = new Set(rows(sql(`SELECT name FROM reward_events WHERE status <> 'CANCELED'`)).map(([n]) => n));
+    for (const e of doc.rewardEvents ?? []) {
+        if (haveEvents.has(e.name) && !FORCE) {
+            console.log(`  보상 이벤트 「${e.name}」: 이미 있어 건너뜀`);
+            continue;
+        }
+        const post = e.notice ? noticeId(e.notice) : null;
+        if (e.notice && !post) {
+            failed(`보상 이벤트 ${e.name}`, '안내 공지가 없다(notices 단계를 먼저)');
+            continue;
+        }
+        const postAt = post ? Date.parse(rows(sql(`SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') FROM posts WHERE id = ${post}`))[0][0]) : now;
+        const startAt = new Date(e.startFromNotice ? postAt : kstAt(now + (e.startDays ?? 0) * DAY, 0));
+        const endAt = new Date(Date.parse(`${kstDate(now + e.endDays * DAY)}T23:59:59+09:00`));
+        let lineNo = 0;
+        const line = (points) => ({
+            id: `new-line-${++lineNo}`, kind: 'POINT', points, itemId: null, itemName: null, itemKind: null, itemUsage: null, itemDurationDays: null, quantity: null,
+            packId: null, packName: null, manualName: null, manualMethod: null,
+        });
+        const body = {
+            name: e.name, memo: e.memo ?? '', startAt: startAt.toISOString(), endAt: endAt.toISOString(), noticeUrl: post ? `/posts/${post}` : '', mode: e.mode,
+            firstCome: null,
+            selection: e.mode === 'SELECTION' ? {
+                sources: [e.commentDraw ? 'COMMENT_DRAW' : 'MANUAL'],
+                commentDraw: e.commentDraw ? { postRef: String(post), postId: null, postTitle: null, from: startAt.toISOString(), to: endAt.toISOString(), excludeAuthor: true } : null,
+            } : null,
+            bulk: e.mode === 'BULK' ? { scope: e.bulk.scope, minGradeLevel: e.bulk.minGradeLevel ?? null, joinedFrom: null, joinedTo: null, identityVerifiedOnly: false, activeWithinDays: e.bulk.activeWithinDays ?? null } : null,
+            excludeOperators: true,
+            tiers: e.tiers.map((t, i) => ({ id: `new-tier-${i + 1}`, name: t.name, quota: t.quota, rewards: [line(t.points)] })),
+        };
+        const r = await admin.request('POST', '/api/admin/reward-events', body);
+        if (!ok(r)) {
+            failed(`보상 이벤트 ${e.name}`, r);
+            continue;
+        }
+        let state = r.data.status;
+        if (e.start) {
+            const st = await admin.request('POST', `/api/admin/reward-events/${r.data.id}/start`);
+            ok(st) ? (state = st.data?.status ?? 'ACTIVE') : failed(`보상 이벤트 시작 ${e.name}`, st);
+        }
+        console.log(`  보상 이벤트 「${e.name}」 만듦 — ${state}`);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 15) 그 밖 — 소모임 일정(모임장이 만들고 멤버가 참석 응답) · 공동구매 문의(회원 질문 → 운영자 답변)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+async function seedExtras(admin, members) {
+    console.log('\n소모임 일정·공동구매 문의');
+    const doc = json(join(DEMO, 'site.json'));
+    const now = Date.now();
+    const byUser = new Map(members.map((m) => [String(m.userId), m]));
+    let events = 0;
+    let responses = 0;
+    for (const e of doc.groupEvents ?? []) {
+        const [g] = rows(sql(`SELECT id, leader_id FROM groups WHERE name = ${q(e.group)} AND deleted_at IS NULL ORDER BY id DESC LIMIT 1`));
+        if (!g) {
+            failed(`소모임 일정 ${e.title}`, `소모임 「${e.group}」 없음(groups 단계를 먼저)`);
+            continue;
+        }
+        const [groupId, leaderId] = g;
+        if (!FORCE && rows(sql(`SELECT 1 FROM group_events WHERE group_id = ${groupId} AND title = ${q(e.title)} AND status <> 'CANCELED'`)).length) continue;
+        const leader = byUser.get(leaderId);
+        if (!leader) {
+            failed(`소모임 일정 ${e.title}`, '모임장이 데모 회원이 아님');
+            continue;
+        }
+        const startsAt = kstAt(now + e.days * DAY, e.hour);
+        const r = await leader.request('POST', `/api/groups/${groupId}/events`, {
+            title: e.title, startsAt: new Date(startsAt).toISOString(), endsAt: e.hours ? new Date(startsAt + e.hours * 3_600_000).toISOString() : null,
+            mode: e.mode, place: e.place ?? null, description: e.description ?? null, offlineAck: e.mode === 'OFFLINE',
+        });
+        if (!ok(r)) {
+            failed(`소모임 일정 ${e.title}`, r);
+            continue;
+        }
+        events++;
+        const created = now - between(6, 60) * 3_600_000;
+        sql(`UPDATE group_events SET created_at = ${ts(created)}, updated_at = ${ts(created)} WHERE id = ${r.data.id}`);
+        const joined = rows(sql(`SELECT user_id FROM group_members WHERE group_id = ${groupId} AND status = 'ACTIVE' AND user_id <> ${leaderId}`)).map(([u]) => byUser.get(u)).filter(Boolean);
+        for (const m of sample(joined, Math.min(joined.length, between(3, 9)))) {
+            const x = rand();
+            const res = await m.request('PUT', `/api/groups/${groupId}/events/${r.data.id}/response`, { response: x < 0.6 ? 'GOING' : x < 0.85 ? 'MAYBE' : 'NOT_GOING' });
+            if (ok(res)) responses++;
+            else failed(`일정 응답 ${e.title}(${m.nickname})`, res);
+        }
+        sql(`UPDATE group_event_responses SET responded_at = ${ts(created)} + random() * (now() - ${ts(created)}) WHERE event_id = ${r.data.id}`);
+    }
+    console.log(`  소모임 일정 ${events}개 · 참석 응답 ${responses}개`);
+    let asked = 0;
+    let answered = 0;
+    for (const qa of doc.groupBuyQna ?? []) {
+        const [gb] = rows(sql(`SELECT id FROM group_buys WHERE title = ${q(qa.groupBuy)} ORDER BY id DESC LIMIT 1`));
+        if (!gb) {
+            failed(`공구 문의 ${qa.groupBuy}`, '공구 없음(groupbuys 단계를 먼저)');
+            continue;
+        }
+        if (!FORCE && rows(sql(`SELECT 1 FROM group_buy_questions WHERE group_buy_id = ${gb[0]} AND body = ${q(qa.question)} AND deleted_at IS NULL`)).length) continue;
+        const asker = pick(members);
+        const r = await asker.request('POST', `/api/group-buys/${gb[0]}/questions`, { body: qa.question, secret: qa.secret === true });
+        if (!ok(r)) {
+            failed(`공구 문의 ${qa.groupBuy}(${asker.nickname})`, r);
+            continue;
+        }
+        asked++;
+        const at = Math.min(now + (qa.days ?? 0) * DAY - between(30, 300) * 60_000, now - between(20, 60) * 60_000);
+        sql(`UPDATE group_buy_questions SET created_at = ${ts(at)} WHERE id = ${r.data.id}`);
+        if (qa.answer) {
+            const a = await admin.request('PUT', `/api/admin/group-buy-qna/${r.data.id}/answer`, { body: qa.answer });
+            if (!ok(a)) {
+                failed(`공구 답변 ${qa.groupBuy}`, a);
+                continue;
+            }
+            answered++;
+            const aat = Math.min(at + between(40, 360) * 60_000, now - between(2, 15) * 60_000);
+            sql(`UPDATE group_buy_answers SET answered_at = ${ts(aat)} WHERE question_id = ${r.data.id}`); // updated_* 는 고친 답변에만(ck_gba_updated)
+        }
+    }
+    console.log(`  공구 문의 ${asked}개 · 답변 ${answered}개`);
 }
 
 /** 글 제목 → 그 원고의 첫 데모 그림(하이라이트 대표 이미지는 저장소 파일 대신 원본 그림을 다시 올린다) */

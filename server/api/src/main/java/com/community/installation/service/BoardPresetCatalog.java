@@ -3,6 +3,7 @@ package com.community.installation.service;
 import com.community.board.service.BoardFields;
 import com.community.group.service.GroupCategoryNames;
 import com.community.installation.dto.BoardPreset;
+import com.community.installation.dto.TablePack;
 import com.community.installation.dto.response.BoardPresetBoardItem;
 import com.community.installation.dto.response.BoardPresetItem;
 import com.community.installation.dto.response.BoardPresetsResponse;
@@ -40,12 +41,35 @@ import tools.jackson.databind.json.JsonMapper;
  * 소모임 게시판은 소모임 분류 이름({@code groupCategoryName} — {@link GroupCategoryNames} 규칙)이 있고 일반 게시판은 없음,
  * 메뉴({@code menu})는 메뉴 계약의 한도·규칙(노드 유형·폴더 깊이 ≤ 3·항목 깊이 ≤ 4·노드 ≤ 80·모바일 탭 ≤ 10·자동 추가 폴더 하나·앱 화면 키와 로그인 필요 화면의 보이는 대상·
  * 게시판은 이 프리셋의 일반 게시판·같은 대상 한 번·이름 길이)을 지킴. 설치 때 메뉴 검사기({@code MenuTreeValidator})가 한 번 더 본다.
+ *
+ * <p>구조 스냅숏({@code structure} — {@code <프리셋>.structure.json}, 프리셋 목록으로는 읽지 않는다)도 이때 읽어 검사한다: 형식 1·같은 프리셋 아이디, 표는 허용 목록({@link #STRUCTURE_TABLES})의
+ * 표와 방식만, 열쇠 칸이 있고 행마다 값이 있음, 행의 칸은 {@code columns} 안, 게시판 주소 형식·유일, 프리셋 {@code boards} 의 주소가 모두 스냅숏에 있음. 데모({@code demo})는 구조 스냅숏이
+ * 있는 구성만. 칸이 이 DB 에 있는지는 설치 때 본다({@link TablePackRestorer} — 없는 칸은 빼고 경고).
  */
 @Component
 public class BoardPresetCatalog {
 
     /** 프리셋 파일 위치 */
     static final String LOCATION = "classpath*:install-presets/*.json";
+    /** 구조 스냅숏 파일의 끝 — 프리셋 목록으로 읽지 않는다 */
+    static final String STRUCTURE_SUFFIX = ".structure.json";
+
+    /**
+     * 구조 스냅숏에 담을 수 있는 표와 방식 — {@code scripts/export-install-preset.mjs} 의 TABLES 와 같아야 한다(표를 더하면 둘 다 고친다).
+     * 회원·글·운영자·비밀값 표는 여기 없으므로 스냅숏이 건드릴 수 없다.
+     */
+    static final Map<String, TablePack.Mode> STRUCTURE_TABLES = Map.ofEntries(
+            Map.entry("grades", TablePack.Mode.UPSERT), Map.entry("boards", TablePack.Mode.REPLACE), Map.entry("board_prefixes", TablePack.Mode.REPLACE),
+            Map.entry("group_categories", TablePack.Mode.REPLACE), Map.entry("group_category_boards", TablePack.Mode.REPLACE),
+            Map.entry("menu_sets", TablePack.Mode.UPSERT), Map.entry("menu_nodes", TablePack.Mode.REPLACE), Map.entry("gadget_pages", TablePack.Mode.REPLACE),
+            Map.entry("gadget_page_layouts", TablePack.Mode.REPLACE), Map.entry("home_gadgets", TablePack.Mode.REPLACE), Map.entry("home_layouts", TablePack.Mode.REPLACE),
+            Map.entry("board_layouts", TablePack.Mode.REPLACE), Map.entry("site_theme_menus", TablePack.Mode.REPLACE), Map.entry("site_settings", TablePack.Mode.UPDATE),
+            Map.entry("board_defaults", TablePack.Mode.UPSERT), Map.entry("board_report_settings", TablePack.Mode.UPSERT),
+            Map.entry("board_security_settings", TablePack.Mode.UPSERT), Map.entry("board_notification_settings", TablePack.Mode.UPSERT),
+            Map.entry("board_privacy_settings", TablePack.Mode.UPSERT), Map.entry("popular_settings", TablePack.Mode.UPSERT), Map.entry("point_settings", TablePack.Mode.UPSERT),
+            Map.entry("point_shop_settings", TablePack.Mode.UPSERT), Map.entry("deal_settings", TablePack.Mode.UPSERT), Map.entry("ad_placement_settings", TablePack.Mode.UPSERT),
+            Map.entry("group_settings", TablePack.Mode.UPSERT), Map.entry("grade_settings", TablePack.Mode.UPSERT), Map.entry("member_event_settings", TablePack.Mode.UPSERT),
+            Map.entry("nickname_image_settings", TablePack.Mode.UPSERT), Map.entry("emoticon_settings", TablePack.Mode.UPSERT), Map.entry("group_buy_settings", TablePack.Mode.UPSERT));
 
     private static final Pattern PRESET_ID = Pattern.compile("[A-Z][A-Z0-9_]{1,19}");
     private static final Pattern SLUG = Pattern.compile("[a-z][a-z0-9-]{1,39}");
@@ -58,6 +82,8 @@ public class BoardPresetCatalog {
     /** 설치 화면의 순서(order, 아이디) 대로 */
     private final Map<String, BoardPreset> presets = new LinkedHashMap<>();
     private final BoardPreset defaultPreset;
+    /** 프리셋 아이디 → 구조 스냅숏(있는 것만) */
+    private final Map<String, TablePack> structures = new LinkedHashMap<>();
 
     /** 클래스패스의 {@code install-presets/*.json} 을 읽는다 */
     public BoardPresetCatalog() {
@@ -70,6 +96,9 @@ public class BoardPresetCatalog {
         BoardPreset defaultFound = null;
         for (BoardPreset preset : sorted) {
             validate(preset);
+            if (preset.structure() != null) {
+                structures.put(preset.id(), loadStructure(preset));
+            }
             if (presets.put(preset.id(), preset) != null) {
                 throw invalid(preset.id(), "아이디가 겹친다");
             }
@@ -91,16 +120,21 @@ public class BoardPresetCatalog {
         return defaultPreset;
     }
 
+    /** 그 구성의 구조 스냅숏 — 없으면 비어 있다 */
+    public Optional<TablePack> structureOf(String presetId) {
+        return presetId == null ? Optional.empty() : Optional.ofNullable(structures.get(presetId));
+    }
+
     /** 아이디로 찾는다 — 모르는 아이디면 비어 있다 */
     public Optional<BoardPreset> find(String id) {
         return id == null ? Optional.empty() : Optional.ofNullable(presets.get(id));
     }
 
     /**
-     * 설치 화면에 내보내는 목록 — 이름·설명·게시판 이름·말머리 이름만. 이름·설명은 요청 언어({@code locale}, ko|en)의 값이고 응답 모양은 언어와 무관하다. <b>소모임 게시판은 싣지 않는다</b>: 메뉴·게시판 페이지가 없는 소모임의 그릇이라
+     * 설치 화면에 내보내는 목록 — 이름·설명·게시판 이름·말머리 이름, 데모를 고를 수 있는가({@code demoPackPreset} = 이 서버의 데모 팩이 쓰는 구성, 없으면 null). 이름·설명은 요청 언어({@code locale}, ko|en)의 값이고 응답 모양은 언어와 무관하다. <b>소모임 게시판은 싣지 않는다</b>: 메뉴·게시판 페이지가 없는 소모임의 그릇이라
      * "이 구성이 만드는 게시판" 목록에 나오면 이름만 보고 메뉴에 생기는 게시판으로 오해한다.
      */
-    public BoardPresetsResponse toResponse(Locale locale) {
+    public BoardPresetsResponse toResponse(Locale locale, String demoPackPreset) {
         List<BoardPresetItem> items = new ArrayList<>();
         for (BoardPreset preset : presets.values()) {
             List<BoardPresetBoardItem> boards = preset.boards().stream()
@@ -110,7 +144,7 @@ public class BoardPresetCatalog {
                             board.prefixes().stream().sorted(Comparator.comparingInt(BoardPreset.Prefix::sortOrder)).map(prefix -> BoardPreset.localized(prefix.name(), prefix.nameEn(), locale)).toList()))
                     .toList();
             items.add(new BoardPresetItem(preset.id(), BoardPreset.localized(preset.name(), preset.nameEn(), locale),
-                    BoardPreset.localized(preset.description(), preset.descriptionEn(), locale), boards));
+                    BoardPreset.localized(preset.description(), preset.descriptionEn(), locale), boards, preset.demoOn() && preset.id().equals(demoPackPreset)));
         }
         return new BoardPresetsResponse(defaultPreset.id(), items);
     }
@@ -121,6 +155,9 @@ public class BoardPresetCatalog {
         List<BoardPreset> loaded = new ArrayList<>();
         try {
             for (Resource resource : new PathMatchingResourcePatternResolver(BoardPresetCatalog.class.getClassLoader()).getResources(LOCATION)) {
+                if (resource.getFilename() != null && resource.getFilename().endsWith(STRUCTURE_SUFFIX)) {
+                    continue; // 구조 스냅숏 — 프리셋이 structure 로 가리킨다
+                }
                 try (InputStream in = resource.getInputStream()) {
                     loaded.add(MAPPER.readValue(in, BoardPreset.class));
                 } catch (RuntimeException e) {
@@ -159,8 +196,82 @@ public class BoardPresetCatalog {
             }
         }
         validateSiteTagline(id, preset.siteTagline());
+        if (preset.demoOn() && preset.structure() == null) {
+            throw invalid(id, "데모(demo)는 구조 스냅숏(structure)이 있는 구성만 고를 수 있다");
+        }
+        if (preset.structure() != null && !(preset.structure().endsWith(STRUCTURE_SUFFIX) && preset.structure().matches("[a-z0-9][a-z0-9.-]*"))) {
+            throw invalid(id, "structure 는 install-presets 안의 *" + STRUCTURE_SUFFIX + " 파일 이름이다: " + preset.structure());
+        }
         if (preset.menu() != null) {
             validateMenu(preset);
+        }
+    }
+
+    // ── 구조 스냅숏 ──
+
+    private static TablePack loadStructure(BoardPreset preset) {
+        String where = preset.id() + "/" + preset.structure();
+        Resource resource = new PathMatchingResourcePatternResolver(BoardPresetCatalog.class.getClassLoader()).getResource("classpath:install-presets/" + preset.structure());
+        TablePack snapshot;
+        try (InputStream in = resource.getInputStream()) {
+            snapshot = MAPPER.readValue(in, TablePack.class);
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("설치 프리셋의 구조 스냅숏을 읽지 못했다: " + where, e);
+        }
+        validateStructure(preset, snapshot, where);
+        return snapshot;
+    }
+
+    /** 구조 스냅숏 — 허용한 표·방식만, 열쇠·칸 모양, 게시판 주소, 프리셋 boards 와 맞음 */
+    static void validateStructure(BoardPreset preset, TablePack snapshot, String where) {
+        if (snapshot.format() != 1) {
+            throw invalid(where, "형식(format)은 1 이어야 한다: " + snapshot.format());
+        }
+        if (!preset.id().equals(snapshot.preset())) {
+            throw invalid(where, "다른 구성의 스냅숏이다: " + snapshot.preset());
+        }
+        Set<String> seen = new HashSet<>();
+        Set<String> boardSlugs = new HashSet<>();
+        for (TablePack.Table table : snapshot.tables()) {
+            TablePack.Mode allowed = STRUCTURE_TABLES.get(table.table());
+            if (allowed == null || allowed != table.modeOrNull()) {
+                throw invalid(where, "담을 수 없는 표·방식이다: " + table.table() + " " + table.mode());
+            }
+            if (!seen.add(table.table())) {
+                throw invalid(where, "표가 두 번 있다: " + table.table());
+            }
+            if (table.key().isEmpty() || !table.columns().keySet().containsAll(table.key())) {
+                throw invalid(where, "열쇠 칸이 칸 목록에 없다: " + table.table());
+            }
+            for (Map<String, Object> row : table.rows()) {
+                if (row == null || !table.columns().keySet().containsAll(row.keySet())) {
+                    throw invalid(where, "칸 목록 밖의 칸이 있는 행이다: " + table.table());
+                }
+                for (String key : table.key()) {
+                    if (row.get(key) == null) {
+                        throw invalid(where, "열쇠 값이 빈 행이 있다: " + table.table());
+                    }
+                }
+                for (Object value : row.values()) {
+                    if (value instanceof String text && text.startsWith("$") && !PresetStructureApplier.ROOT_MARK.equals(text)) {
+                        throw invalid(where, "모르는 자리 표시다: " + table.table() + " " + text);
+                    }
+                }
+                if ("boards".equals(table.table())) {
+                    Object slug = row.get("slug");
+                    if (!(slug instanceof String text) || !SLUG.matcher(text).matches() || !boardSlugs.add(text)) {
+                        throw invalid(where, "게시판 주소가 비었거나 형식이 틀리거나 겹친다: " + slug);
+                    }
+                }
+            }
+        }
+        if (boardSlugs.isEmpty()) {
+            throw invalid(where, "게시판(boards)이 하나도 없다");
+        }
+        for (BoardPreset.Board board : preset.boards()) {
+            if (!boardSlugs.contains(board.slug())) {
+                throw invalid(where, "프리셋 boards 의 게시판이 스냅숏에 없다: " + board.slug());
+            }
         }
     }
 

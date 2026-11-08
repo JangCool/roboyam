@@ -85,6 +85,12 @@ export default {
     boardsNote: 'The Hot deals and Self-promotion boards are feature boards, so they are created with every setup. This choice applies only once, at setup.',
     boardsServerDefault: 'Server default',
     boardsSummary: 'Show boards ({count})',
+    demoTitle: 'Data',
+    demoStructure: 'Structure only (empty)',
+    demoStructureHint: 'Creates the setup only, such as boards, menus and home layouts, with no members or posts. Choose this for a site you will run.',
+    demoInclude: 'Include demo data',
+    demoIncludeHint: 'Also adds demo members, posts, comments, clubs, group buys, ads and highlights. Post times are moved to match when you install. Demo members cannot log in.',
+    demoUnavailable: 'This setup creates the structure only (no demo data).',
 
     // Step 7: review
     filled: 'Entered',
@@ -94,6 +100,7 @@ export default {
     reviewNoAuth: 'None (no authentication)',
     reviewTagline: 'Tagline',
     reviewPreset: 'Preset',
+    reviewDemo: 'Data',
     reviewSocialClientId: '{provider} client ID',
     reviewSocialSecret: '{provider} secret',
     reviewFill: 'Enter',
@@ -104,6 +111,8 @@ export default {
     // Done
     doneTitle: 'Setup is complete',
     doneText: 'Log in with {email} to get started. After you log in, you can change the site, mail and social login settings in the Administrator tools under My profile.',
+    doneDemoApplied: 'Demo data was added as well.',
+    doneDemoFailed: 'Demo data could not be added, so it was skipped. The site was installed with the structure only and is ready to use.',
     goLogin: 'Log in now',
 
     // Could not get the setup status
