@@ -110,12 +110,14 @@ public class PostWriteService {
     private final DealWriter deals;
     private final EmoticonGuard emoticons;
     private final AdultContentGate adultGate;
+    private final SecretPostUnlocks unlocks;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
-                            DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, PlatformTransactionManager txManager) {
+                            DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PlatformTransactionManager txManager) {
+        this.unlocks = unlocks;
         this.adultGate = adultGate;
         this.emoticons = emoticons;
         this.groupGate = groupGate;
@@ -195,7 +197,7 @@ public class PostWriteService {
 
         long id = ids.nextId();
         String hash = passwordHash;
-        boolean secret = secretOnCreate(b, actor.guest(), body.secret());
+        boolean secret = secretOnCreate(b, body.secret());
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, title, content.plain(), now);
@@ -275,8 +277,10 @@ public class PostWriteService {
         Instant now = Instant.now();
         checkRate(s, authorId, ip, title, content.plain(), now);
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
-        posts.persist(PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
-                publicGroup, now));
+        PostEntity created = PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
+                publicGroup, now);
+        created.initOps(secretOnCreate(b, body.secret()), b.statusEnabled()); // 소모임 게시판의 비밀글 · 처음 처리 상태(V168 — 일반 게시판과 같은 규칙)
+        posts.persist(created);
         emoticons.recordUse(authorId, c.body().content()); // 일반 글과 같다(부르는 쪽 트랜잭션 — 소모임 행을 잠근 그 트랜잭션)
         if (poll != null) {
             polls.create(id, poll, now);
@@ -313,12 +317,9 @@ public class PostWriteService {
     }
 
     /**
-     * 새 글의 비밀글 여부(V166) — 비회원 글은 늘 false, 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(없으면 false), OFF 면 false(요청 값은 무시한다).
+     * 새 글의 비밀글 여부(V166 · V168) — 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(없으면 false), OFF 면 false(요청 값은 무시한다). 비회원 글도 같다(V168 — 비밀번호로 연다).
      */
-    static boolean secretOnCreate(EffectiveBoard b, boolean guest, Boolean requested) {
-        if (guest) {
-            return false;
-        }
+    static boolean secretOnCreate(EffectiveBoard b, Boolean requested) {
         if (b.secretAlways()) {
             return true;
         }
@@ -326,13 +327,10 @@ public class PostWriteService {
     }
 
     /**
-     * 고친 글의 비밀글 여부(V166) — 비회원 글은 늘 false, 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(빠지거나 null 이면 지금 값), OFF 면 지금 값 그대로
-     * (게시판 설정을 나중에 꺼도 이미 쓴 비밀글은 비밀로 남는다).
+     * 고친 글의 비밀글 여부(V166 · V168) — 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(빠지거나 null 이면 지금 값), OFF 면 지금 값 그대로
+     * (게시판 설정을 나중에 꺼도 이미 쓴 비밀글은 비밀로 남는다). 비회원 글도 같다.
      */
     static boolean secretOnUpdate(EffectiveBoard b, PostEntity post, Boolean requested) {
-        if (post.isGuest()) {
-            return false;
-        }
         if (b.secretAlways()) {
             return true;
         }
@@ -362,7 +360,8 @@ public class PostWriteService {
         Instant start = Instant.now();
         PostEntity post = queries.requireVisible(idText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
-        GroupPostGate.Resolved gate = groupGate.resolve(s, post, userId); // 소모임 글: 비공개 글은 지금 멤버인 작성자만 열 수 있다
+        // 소모임 글: 비공개 글은 지금 멤버인 작성자만 열 수 있다. 비회원 비밀글은 비밀번호가 글쓴이임을 보이므로 비밀글 판정 대신 바로 아래 비밀번호 확인(V168)
+        GroupPostGate.Resolved gate = groupGate.resolve(s, post, userId, !post.isGuest());
         EffectiveBoard b = gate.board();
         if (post.isHiddenAt(start)) {
             throw new PostHiddenException();
@@ -462,6 +461,21 @@ public class PostWriteService {
             }
             return result;
         });
+    }
+
+    /**
+     * 비회원 비밀글 열람(V168 — {@code POST /api/posts/{id}/secret-unlock}) — 비밀번호가 맞으면 이 방문자에게 그 글을 1시간 열람하게 한다({@link SecretPostUnlocks}, 서버 세션).
+     * 없거나 지운 글 404 · 비회원 비밀글이 아니면 400 {@code SECRET_UNLOCK_NOT_GUEST} · 비밀번호 확인은 {@link #verifyPassword} 와 같은 검사·같은 시도 제한
+     * (403 {@code PASSWORD_MISMATCH} · 429 {@code PASSWORD_ATTEMPTS_EXCEEDED} — 대상 열쇠 {@code post:<id>} 를 함께 센다). 트랜잭션 밖(bcrypt).
+     */
+    public void unlockSecret(String idText, String password, String ip) {
+        Instant now = Instant.now();
+        PostEntity post = queries.requireVisible(idText, now);
+        if (!post.isGuest() || !post.isSecret()) {
+            throw new com.community.post.exception.SecretUnlockNotGuestException();
+        }
+        passwords.require(post.getGuestPasswordHash(), password, ip, "post:" + post.getId());
+        unlocks.grant(post.getId(), now);
     }
 
     /** 비회원 글 비밀번호 확인 — 회원 글이면 늘 {@code 403 PASSWORD_MISMATCH} */

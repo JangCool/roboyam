@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/boards", "/api/boards/**", "/api/posts/**").permitAll()
                         // 핫딜 구매하기(302 — 서버 경유, hotdeal-contract D5). 판정·미리 채움(/api/deals/link-check·prefill)은 로그인 필요(아래 /api/** )
                         .requestMatchers(HttpMethod.GET, "/api/deals/*/go").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/delete", "/api/posts/*/verify-password", "/api/posts/*/comments",
+                        .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/delete", "/api/posts/*/verify-password", "/api/posts/*/secret-unlock", "/api/posts/*/comments",
                                 "/api/comments/*/delete").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/posts/*", "/api/comments/*").permitAll()
                         // 공개 약관(docs/features/terms-contract.md) — 요약·본문·지난 버전은 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)

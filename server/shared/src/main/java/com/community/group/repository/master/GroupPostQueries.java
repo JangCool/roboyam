@@ -3,6 +3,7 @@ package com.community.group.repository.master;
 import com.community.group.entity.QGroupMemberEntity;
 import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
+import com.community.post.entity.PostProcessStatus;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
@@ -49,7 +50,7 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
                 POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason,
-                POST.createdAt, POST.groupId);
+                POST.createdAt, POST.groupId, POST.secret, POST.processStatus);
     }
 
     /**
@@ -60,7 +61,16 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
      * @param limit          읽을 줄 수(다음 쪽이 있는지 보려면 쪽 크기 + 1)
      */
     public List<Row> rows(long groupId, boolean includePrivate, Long beforeId, int limit, Instant now) {
-        BooleanExpression where = visible(POST, groupId, now);
+        return rows(groupId, includePrivate, null, beforeId, limit, now);
+    }
+
+    /**
+     * {@link #rows(long, boolean, Long, int, Instant)} + 처리 상태 거르기(V168 — 소모임 게시판이 상태를 쓸 때, {@code RECEIVED} 는 값 없는 글도 — 게시판 목록과 같다)
+     *
+     * @param status 거를 상태(null 이면 전체)
+     */
+    public List<Row> rows(long groupId, boolean includePrivate, PostProcessStatus status, Long beforeId, int limit, Instant now) {
+        BooleanExpression where = visible(POST, groupId, now).and(PostRepositoryQDSL.processStatusIs(POST, status));
         if (!includePrivate) {
             where = where.and(POST.publicPost.isTrue());
         }
@@ -85,7 +95,12 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
      * @param oldest         오래된순(아니면 최신순)
      */
     public Paged page(long groupId, boolean includePrivate, Long prefixId, String q, boolean oldest, long offset, int limit, Instant now) {
-        BooleanExpression where = visible(POST, groupId, now);
+        return page(groupId, includePrivate, prefixId, null, q, oldest, offset, limit, now);
+    }
+
+    /** {@link #page(long, boolean, Long, String, boolean, long, int, Instant)} + 처리 상태 거르기(V168 — null 이면 전체) */
+    public Paged page(long groupId, boolean includePrivate, Long prefixId, PostProcessStatus status, String q, boolean oldest, long offset, int limit, Instant now) {
+        BooleanExpression where = visible(POST, groupId, now).and(PostRepositoryQDSL.processStatusIs(POST, status));
         if (!includePrivate) {
             where = where.and(POST.publicPost.isTrue());
         }

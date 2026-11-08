@@ -156,9 +156,9 @@ public class BoardCatalog {
                 or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), or(p.pollEnabled(), d.pollEnabled()),
                 "ON".equals(or(p.pointMode(), d.pointMode())), or(p.pointMinLengthApplied(), d.pointMinLengthApplied()), prefixes,
                 Set.copyOf(b.getGadgetExclusions()), b.isAdsHidden(),
-                // 운영 게시판 설정(V166) — 일반 게시판만 받는다(관리자 저장이 막지만, 다른 종류는 늘 꺼진 값으로 본다)
-                BoardFields.KIND_GENERAL.equals(b.getKind()) ? b.getSecretMode() : BoardFields.SECRET_OFF,
-                BoardFields.KIND_GENERAL.equals(b.getKind()) && b.isStatusEnabled());
+                // 운영 게시판 설정(V166·V168) — 일반·소모임 게시판만 받는다(관리자 저장이 막지만, 핫딜·직접홍보는 늘 꺼진 값으로 본다)
+                BoardFields.opsAllowed(b.getKind()) ? b.getSecretMode() : BoardFields.SECRET_OFF,
+                BoardFields.opsAllowed(b.getKind()) && b.isStatusEnabled());
     }
 
     private static <T> T or(T value, T fallback) {

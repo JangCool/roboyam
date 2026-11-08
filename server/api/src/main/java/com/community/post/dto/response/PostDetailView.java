@@ -36,11 +36,14 @@ import java.util.List;
  * @param secret               비밀글인가(V166 — 읽을 수 없는 사람은 이 응답 대신 403 SECRET_POST)
  * @param processStatus        처리 상태(V166) — 게시판이 상태를 쓰지 않으면 null, 쓰면 글 값(없으면 RECEIVED)
  * @param processStatusAt      처리 상태를 마지막으로 바꾼 시각(처음 접수·상태를 쓰지 않는 게시판은 null)
+ * @param processStatusNote    마지막 상태 변경의 메모(V168 — 없거나 상태를 쓰지 않는 게시판은 null)
+ * @param viewer               보는 사람이 할 수 있는 일({@code canChangeStatus} — V168)
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
                              PostProtectionView protection, Instant deleteScheduledAt, PostNeighborView prev, PostNeighborView next,
                              boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate, PollView poll,
                              PostGroupView group, PostDealView deal, PostDealModerationView dealModeration, List<DealWarningView> warnings,
-                             boolean staffProtected, boolean sanctionProtected, boolean secret, String processStatus, Instant processStatusAt) {
+                             boolean staffProtected, boolean sanctionProtected, boolean secret, String processStatus, Instant processStatusAt,
+                             String processStatusNote, PostViewerView viewer) {
 }

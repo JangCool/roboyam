@@ -19,6 +19,7 @@ import com.community.group.exception.GroupForbiddenException;
 import com.community.group.exception.GroupManagerPermissionDeniedException;
 import com.community.group.exception.GroupNotMemberException;
 import com.community.group.exception.GroupPostAlreadyPublicException;
+import com.community.group.exception.GroupPostSecretException;
 import com.community.group.exception.GroupPostMembersOnlyException;
 import com.community.group.exception.GroupPostPublicByGroupException;
 import com.community.group.exception.GroupPublishRateLimitedException;
@@ -150,6 +151,9 @@ public class GroupPostVisibilityService {
             makePublic = false;
         } else {
             throw ValidationException.of("visibility", new MessageRef("group.post.visibility.invalid"));
+        }
+        if (makePublic && post.isSecret()) {
+            throw new GroupPostSecretException(); // 비밀글은 소모임 밖으로 공개하지 않는다(V168)
         }
         boolean acknowledged = request != null && Boolean.TRUE.equals(request.acknowledged());
         boolean author = post.getAuthorId() != null && post.getAuthorId() == me;
@@ -303,6 +307,9 @@ public class GroupPostVisibilityService {
         if (actorOf(group, me).handler()) {
             throw new GroupPublishRequestNotNeededException();
         }
+        if (post.isSecret()) {
+            throw new GroupPostSecretException(); // 비밀글은 공개 요청을 받지 않는다(V168)
+        }
         if (group.isPublicGroup()) {
             if (post.isPublicPost()) {
                 throw new GroupPostAlreadyPublicException();
@@ -439,6 +446,9 @@ public class GroupPostVisibilityService {
         GroupPublishRequestEntity request = pendingRequest(group, rawPostId);
         Instant now = Instant.now();
         PostEntity post = lockGroupPost(group, rawPostId, now);
+        if (post.isSecret()) {
+            throw new GroupPostSecretException(); // 요청 뒤 비밀글로 고친 글 — 승인하지 않는다(V168)
+        }
         requireAcknowledged(body != null && Boolean.TRUE.equals(body.acknowledged()), "group.publish.approve.acknowledged.required");
         post.grantPublic(now, me);
         request.approve(me, now);

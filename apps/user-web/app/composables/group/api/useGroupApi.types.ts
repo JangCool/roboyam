@@ -1,5 +1,5 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
-import type { PostGroupPublicBy, PostGroupVisibility, PostRow, PostSort, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
+import type { PostGroupPublicBy, PostGroupVisibility, PostProcessStatus, PostRow, PostSort, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -553,6 +553,8 @@ export interface GroupPostListQuery {
     q?: string;
     /** 말머리 ID */
     prefix?: string;
+    /** 처리 상태 거르기(소모임 게시판 `statusEnabled` 일 때만 — 일반 게시판 목록 `status` 와 같다) */
+    status?: PostProcessStatus;
 }
 
 /**

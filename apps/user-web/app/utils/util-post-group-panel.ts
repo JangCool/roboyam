@@ -47,7 +47,20 @@ export type PanelAction = 'requested' | 'canceled' | 'published' | 'approved' | 
 export type PostGroupPatch = Partial<Omit<PostGroupInfo, 'id' | 'name'>>;
 
 export default class UtilPostGroupPanel {
-    static stateOf(group: PostGroupInfo, isAuthor: boolean, now: number): PanelState {
+    /**
+     * 패널 모습과 켜지는 단추.
+     * @param {PostGroupInfo} group - 글 상세의 `group`.
+     * @param {boolean} isAuthor - 내가 작성자인가.
+     * @param {number} now - 지금 시각(ms).
+     * @param {boolean} secret - 비밀글(운영 게시판 설정) — 모두에게 보이게 하는 단추(공개 요청·직접 공개·승인·다시 공개)를 거둔다(서버도 400). 요청 취소·되돌리기는 남는다.
+     * @returns {PanelState} 패널 상태.
+     */
+    static stateOf(group: PostGroupInfo, isAuthor: boolean, now: number, secret = false): PanelState {
+        const state = UtilPostGroupPanel.baseStateOf(group, isAuthor, now);
+        return secret ? { ...state, canRequest: false, canPublishDirect: false, canDecide: false, canRelease: false } : state;
+    }
+
+    private static baseStateOf(group: PostGroupInfo, isAuthor: boolean, now: number): PanelState {
         const base: PanelState = {
             kind: 'LEGACY',
             canRequest: false,

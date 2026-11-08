@@ -261,10 +261,11 @@ public final class MessageTargetCatalog {
                 "/me/points", List.of()));
         out.add(member(MemberEvent.REWARD_EVENT_REVOKED, List.of(MessageVariable.of("eventName", "rewardEventName"), MessageVariable.of("reason", "rewardEventRevokeReason")),
                 new InAppText("member.notification.REWARD_EVENT_REVOKED.title", null, "{{reason}}", List.of("eventName")), "/me/points", List.of()));
-        // 내 글의 처리 상태가 바뀜(V166 — 운영 게시판) — 제목은 게시판 이름 · 새 상태, 본문은 글 제목. 누르면 그 글
+        // 내 글의 처리 상태가 바뀜(V166 — 운영 게시판) — 제목은 게시판 이름 · 새 상태, 본문은 글 제목 + 메모 한 줄(V168 — 메모가 없으면 빈 글자). 누르면 그 글
         out.add(member(MemberEvent.POST_STATUS_CHANGED, List.of(MessageVariable.of("boardName", "statusBoardName"), MessageVariable.of("status", "postProcessStatus"),
-                        MessageVariable.of("postTitle", "postTitle")),
-                new InAppText("member.notification.POST_STATUS_CHANGED.title", null, "{{postTitle}}", List.of("boardName", "status")), "/posts/123", List.of()));
+                        MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("statusNote", "postProcessStatusNote")),
+                new InAppText("member.notification.POST_STATUS_CHANGED.title", null, "{{postTitle}} {{statusNote}}", List.of("boardName", "status")), "/posts/123",
+                List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));

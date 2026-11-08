@@ -36,14 +36,18 @@ public class GroupPostController {
         this.ipResolver = ipResolver;
     }
 
-    /** 글 탭 — {@code page} 를 보내면 게시판 목록처럼 쪽 번호(정렬·말머리·검색), 아니면 커서로 더보기 */
+    /**
+     * 글 탭 — {@code page} 를 보내면 게시판 목록처럼 쪽 번호(정렬·말머리·검색), 아니면 커서로 더보기. 소모임 게시판이 처리 상태를 쓰면 {@code status}(V168 — RECEIVED 는 값 없는 글도,
+     * 모르는 값은 빈 목록). 읽을 수 없는 비밀글은 줄·제목만(내용 칸을 비운다)
+     */
     @GetMapping("/{id}/posts")
     public ResponseEntity<ApiResponse<GroupPostPageView>> list(@PathVariable String id, @RequestParam(required = false) String cursor,
                                                                @RequestParam(required = false) String size, @RequestParam(required = false) Integer page,
                                                                @RequestParam(required = false) String sort, @RequestParam(required = false) String q,
-                                                               @RequestParam(required = false) String prefix, Authentication authentication) {
+                                                               @RequestParam(required = false) String prefix, @RequestParam(required = false) String status,
+                                                               Authentication authentication) {
         Long userId = GroupController.userId(authentication);
-        return noStore(page != null ? posts.page(id, userId, page, sort, q, prefix) : posts.list(id, userId, cursor, size));
+        return noStore(page != null ? posts.page(id, userId, page, sort, q, prefix, status) : posts.list(id, userId, cursor, size, status));
     }
 
     /** 글쓰기(201) — 비공개 글로 만들어진다 */

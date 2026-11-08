@@ -394,8 +394,8 @@ async function submit(): Promise<void> {
             guest: b.viewer.guest ? { name: form.value.guestName.trim(), password: form.value.guestPassword, captchaToken: form.value.captcha ? UtilPost.PLACEHOLDER_CAPTCHA_TOKEN : '' } : null,
             debate: debateShown.value ? UtilDebate.openBody(debate.value) : null,
             poll: pollShown.value ? UtilPoll.inputOf(poll.value) : null,
-            // 비밀글(운영 게시판 `secretMode`) — 글쓴이가 고름 · 모든 글 비밀 · 없음/비회원이면 칸을 뺀다
-            ...UtilPostOps.secretField(UtilPostOps.writeSecret(UtilPostOps.secretMode(b), form.value.secret, b.viewer.guest)),
+            // 비밀글(운영 게시판 `secretMode`) — 글쓴이가 고름 · 모든 글 비밀 · 없음이면 칸을 뺀다(비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다)
+            ...UtilPostOps.secretField(UtilPostOps.writeSecret(UtilPostOps.secretMode(b), form.value.secret)),
             ...(isDeal.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
         });
         saved = true;

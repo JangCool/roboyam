@@ -696,6 +696,11 @@ public class MemberNotificationPublisher {
      * 바꾼 사람이 글쓴이 본인이면 보내지 않는다({@code changedByUserId} — 관리자 앱 운영자면 null).
      */
     public int postStatusChanged(long authorId, Long changedByUserId, long postId, String boardName, String status, String postTitle) {
+        return postStatusChanged(authorId, changedByUserId, postId, boardName, status, postTitle, null);
+    }
+
+    /** {@link #postStatusChanged(long, Long, long, String, String, String)} + 바꾼 사람이 적은 메모({@code note}, V168 — 없으면 null, 덧붙임 {@code note}) */
+    public int postStatusChanged(long authorId, Long changedByUserId, long postId, String boardName, String status, String postTitle, String note) {
         if (changedByUserId != null && changedByUserId == authorId) {
             return 0;
         }
@@ -712,12 +717,15 @@ public class MemberNotificationPublisher {
                 payload.put("boardName", board);
                 payload.put("status", status);
                 payload.put("title", title);
+                if (note != null) {
+                    payload.put("note", note);
+                }
                 writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_STATUS_CHANGED.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
                         Instant.now());
                 made = 1;
             }
             if (on.email()) {
-                requestEmail(authorId, MemberNotificationMessages.Facts.postStatusChanged(board, status, title), null, postId);
+                requestEmail(authorId, MemberNotificationMessages.Facts.postStatusChanged(board, status, title, note), null, postId);
             }
             return made;
         }, 0);

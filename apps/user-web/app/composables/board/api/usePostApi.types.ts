@@ -362,6 +362,16 @@ export interface PostDetail {
     processStatus?: PostProcessStatus | null;
     /** 처리 상태를 마지막으로 바꾼 시각(UTC ISO) — 바꾼 적이 없으면 null */
     processStatusAt?: string | null;
+    /** 마지막으로 상태를 바꿀 때 운영진이 남긴 메모 — 없으면 null·없음(상태 딱지 아래 「운영진 메모: …」 한 줄) */
+    processStatusNote?: string | null;
+    /** 보는 사람이 이 글에서 할 수 있는 일(서버 판정) — 옛 응답에는 없다 */
+    viewer?: PostViewer | null;
+}
+
+/** 글 상세의 보는 사람 판정 — 칸이 없으면 화면은 게시판 `viewer.staff` 로 판단한다 */
+export interface PostViewer {
+    /** 처리 상태를 바꿀 수 있다(그 게시판 매니저·스텝 · 소모임 운영진 · 운영자 회원 계정) */
+    canChangeStatus?: boolean;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -393,7 +403,7 @@ export interface PostWriteRequest {
     /** 핫딜 게시판이면 필수 — 딜 정보(오류는 `400 VALIDATION fields."deal.*"` 로 다른 칸 오류와 함께). 그 밖 게시판은 보내지 않는다 */
     deal?: DealInput | null;
     /**
-     * 비밀글로 쓴다 — 게시판 `secretMode` 가 `OPTIONAL` 이면 글쓴이가 고른 값, `ALWAYS` 면 true(서버도 늘 비밀로 저장), `OFF`·비회원이면 싣지 않는다
+     * 비밀글로 쓴다 — 게시판 `secretMode` 가 `OPTIONAL` 이면 글쓴이가 고른 값, `ALWAYS` 면 true(서버도 늘 비밀로 저장), `OFF` 면 싣지 않는다(비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다)
      * (null·없음 = 서버가 게시판 방식대로)
      */
     secret?: boolean | null;
@@ -433,12 +443,39 @@ export interface PostUpdateRequest {
  */
 export interface PostProcessStatusRequest {
     status: PostProcessStatus;
+    /** 운영진 메모(선택, 0~200자) — 비면 칸을 뺀다. 길이 초과는 `400 VALIDATION fields.note` */
+    note?: string;
 }
 
 /** 처리 상태 바꾸기 응답 — 바뀐 상태와 시각(글쓴이에게 「처리 상태가 '완료'로 바뀌었어요」 알림은 서버 몫) */
 export interface PostProcessStatusResult {
     processStatus: PostProcessStatus;
     processStatusAt: string;
+    /** 이번에 남긴 메모 — 응답에 칸이 없으면 화면이 보낸 메모를 쓴다 */
+    processStatusNote?: string | null;
+}
+
+/** 처리 상태를 바꾼 쪽 — 운영자(관리자 앱·운영자 회원 계정) · 게시판 운영진(매니저·스텝) · 소모임 운영진 */
+export type PostProcessStatusActor = 'OPERATOR' | 'BOARD_STAFF' | 'GROUP_STAFF';
+
+/** 처리 상태 이력 한 줄 — `fromStatus` 가 null 이면 처음 정해진 상태(켜기 전 글) */
+export interface PostProcessStatusHistoryItem {
+    fromStatus: PostProcessStatus | null;
+    toStatus: PostProcessStatus;
+    note: string | null;
+    /** 바꾼 시각(UTC ISO) */
+    changedAt: string;
+    actor: PostProcessStatusActor;
+}
+
+/** `GET /api/posts/{id}/process-status/history` — 서버 차례 그대로 그린다 */
+export interface PostProcessStatusHistory {
+    items: PostProcessStatusHistoryItem[];
+}
+
+/** `POST /api/posts/{id}/secret-unlock` — 비회원 비밀글을 글 비밀번호로 연다(204 — 열람 기억은 서버 몫) */
+export interface PostSecretUnlockRequest {
+    password: string;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

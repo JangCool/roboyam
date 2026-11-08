@@ -16,6 +16,11 @@
                 {{ notice.text }}
             </span>
         </p>
+        <!-- 비밀글(소모임 게시판의 비밀글 설정) — 모두에게 보이게 하는 단추(공개 요청·직접 공개·승인·다시 공개)를 거두고 까닭을 말한다(서버도 거절) -->
+        <p v-if="secret" class="m-0 mt-2 flex items-start gap-2 text-xs leading-relaxed text-muted-color" data-testid="post-group-secret">
+            <i class="pi pi-lock mt-0.5 shrink-0 text-[0.625rem]" aria-hidden="true" />
+            <span class="min-w-0">{{ t('group.secretNoPublish') }}</span>
+        </p>
 
         <!-- ── 옛 패널(기능이 꺼진 서버의 비공개 소모임) — 작성자의 「전체 공개로 전환」 · 「비공개로 되돌리기」 ── -->
         <div v-if="state.kind === 'LEGACY' && (state.canPublishDirect || state.canUnpublish)" class="mt-3">
@@ -176,11 +181,14 @@ interface Props {
     /** 글쓴이 닉네임 — 처리 배너·직접 공개 시트의 알림 안내(탈퇴한 회원이면 null) */
     authorName?: string | null;
     actions: GroupPostPanelActions;
+    /** 비밀글 — 모두에게 보이게 하는 단추를 거둔다(`UtilPostGroupPanel.stateOf`) */
+    secret?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     mine: false,
     authorName: null,
+    secret: false,
 });
 
 const emit = defineEmits<{
@@ -199,7 +207,7 @@ const time = useDisplayTime();
 const busy = ref(false);
 const now = ref(Date.now());
 
-const state = computed(() => UtilPostGroupPanel.stateOf(props.group, props.mine, now.value));
+const state = computed(() => UtilPostGroupPanel.stateOf(props.group, props.mine, now.value, props.secret));
 const textMax = computed(() => UtilGroupVisibility.textMaxOf(props.group.publishTextMax));
 
 /** 열어 둔 채 서버가 막은 쓰기 자격 — 다음에 글을 받을 때까지 단추를 끈다 */

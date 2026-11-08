@@ -561,12 +561,14 @@ export default {
     },
     lockedNote: 'Not applied right now because of the read-only lock.',
     secretModeHelp: 'Only the author, this board’s managers and staff, and operators can read the body. Changing this keeps existing posts as they are. This field has no default.',
+    secretModeHelpGroup: 'Only the author, the group moderators, and operators can read the body. Private posts can’t be made public. Changing this keeps existing posts as they are.',
     secretMode: {
         OFF: 'Off',
         OPTIONAL: 'Author chooses',
         ALWAYS: 'All posts private',
     },
     statusEnabledHelp: 'Shows a process status (Received → Done …) on the list and posts; moderators change it and the author is notified. This field has no default.',
+    statusEnabledHelpGroup: 'Shows a process status (Received → Done …) on the group’s posts; group moderators change it and the author is notified.',
     reportFixed: 'No automatic hiding by report count — operators decide in Reports.',
 
     // ── Prefixes ──

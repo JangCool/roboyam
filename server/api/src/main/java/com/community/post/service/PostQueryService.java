@@ -33,6 +33,7 @@ import com.community.post.dto.response.PostNeighborView;
 import com.community.post.dto.response.PostPrefixRefView;
 import com.community.post.dto.response.PostProtectionView;
 import com.community.post.dto.response.PostRowView;
+import com.community.post.dto.response.PostViewerView;
 import com.community.board.dto.BoardActor;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.PostProcessStatus;
@@ -83,11 +84,14 @@ public class PostQueryService {
     private final AdultContentGate adultGate;
     private final PostThumbnails thumbnails;
     private final SecretPostGate secretGate;
+    private final PostProcessStatusChanger statusChanger;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
-                            BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate) {
+                            BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
+                            PostProcessStatusChanger statusChanger) {
+        this.statusChanger = statusChanger;
         this.secretGate = secretGate;
         this.thumbnails = thumbnails;
         this.adultGate = adultGate;
@@ -195,7 +199,9 @@ public class PostQueryService {
         BoardActor viewer = anySecret && viewerId != null ? actors.resolve(viewerId, s) : null;
         Set<Long> sealed = new java.util.HashSet<>();
         Stream.concat(pinned.stream(), result.items().stream())
-                .filter(r -> !SecretPostGate.canRead(r.secretPost(), r.authorId(), b.id(), viewer)).forEach(r -> sealed.add(r.id()));
+                .filter(r -> !SecretPostGate.canRead(r.secretPost(), r.authorId(), b.id(), viewer))
+                .filter(r -> r.authorId() != null || !secretGate.unlocked(r.id())) // 비밀번호로 연 비회원 비밀글은 이 방문자에게 열린다(V168)
+                .forEach(r -> sealed.add(r.id()));
 
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
         AuthorMembers members = authors.members(authorIds);
@@ -318,7 +324,13 @@ public class PostQueryService {
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
                 pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings,
                 staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor, post.isSecret(),
-                PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()));
+                PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()),
+                statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)));
+    }
+
+    /** 보는 사람이 처리 상태를 바꿀 수 있는가(V168 {@code viewer.canChangeStatus}) — 상태를 쓰지 않는 게시판·비회원이면 질의하지 않는다 */
+    private boolean canChangeStatus(EffectiveBoard b, BoardCatalogSnapshot s, PostEntity post, Long userId) {
+        return b.statusEnabled() && userId != null && secretGate.statusChanger(s, post, userId) != null;
     }
 
     /** 보는 사람이 그 게시판 매니저·스텝이고 글쓴이가 같은 게시판 매니저·스텝인가(처리·제재 대상 보호 — 그 밖의 보는 사람은 늘 false) */

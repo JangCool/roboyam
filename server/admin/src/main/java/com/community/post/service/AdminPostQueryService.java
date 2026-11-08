@@ -10,6 +10,10 @@ import com.community.group.repository.master.GroupRepository;
 import com.community.board.service.BoardFields;
 import com.community.hotdeal.repository.master.PostDealRepository;
 import com.community.operator.entity.OperatorEntity;
+import com.community.post.dto.response.PostProcessStatusHistoryItemView;
+import com.community.post.dto.response.PostProcessStatusHistoryView;
+import com.community.post.entity.PostProcessStatusHistoryEntity;
+import com.community.post.repository.master.PostProcessStatusHistoryRepository;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.poll.dto.PollData;
 import com.community.poll.repository.master.PollQueries;
@@ -115,10 +119,12 @@ public class AdminPostQueryService {
     private final PollQueries polls;
     private final GroupRepository groupRepository;
     private final PostDealRepository deals;
+    private final PostProcessStatusHistoryRepository statusHistory;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
-                                 GroupRepository groupRepository, PostDealRepository deals) {
+                                 GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory) {
+        this.statusHistory = statusHistory;
         this.deals = deals;
         this.groupRepository = groupRepository;
         this.polls = polls;
@@ -183,6 +189,37 @@ public class AdminPostQueryService {
                 post.getEditedAt());
         return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), blocked ? null : pollOf(id, now),
                 blocked ? BLOCKED_GROUP_PRIVATE : null);
+    }
+
+    /**
+     * 처리 상태 이력(V168 — {@code GET /api/admin/posts/{id}/process-status/history}) — 공개 이력과 같은 모양 + {@code actorName}(운영자 이름 또는 회원 닉네임 — 없어졌거나
+     * 탈퇴했으면 칸 없음). 최신순 50줄. 없는 글 404 {@code POST_NOT_FOUND}, 상태를 쓰지 않는 게시판의 글이면 빈 목록. 지운 글도 이력은 읽는다.
+     */
+    @Transactional(readOnly = true)
+    public PostProcessStatusHistoryView statusHistory(String idText) {
+        Long id = parseId(idText);
+        PostEntity post = id == null ? null : postEntities.findById(id).orElse(null);
+        if (post == null) {
+            throw new AdminPostNotFoundException();
+        }
+        EffectiveBoard board = post.getBoardId() == null ? null : catalog.snapshot().board(post.getBoardId()).orElse(null);
+        if (board == null || !board.statusEnabled()) {
+            return new PostProcessStatusHistoryView(List.of());
+        }
+        List<PostProcessStatusHistoryEntity> rows = statusHistory.findTop50ByPostIdOrderByIdDesc(id);
+        Map<Long, String> operatorNames = new HashMap<>();
+        List<Long> operatorIds = rows.stream().map(PostProcessStatusHistoryEntity::getChangedByOperatorId).filter(Objects::nonNull).distinct().toList();
+        if (!operatorIds.isEmpty()) {
+            operators.findAllById(operatorIds).forEach(o -> operatorNames.put(o.getId(), operatorName(o)));
+        }
+        Map<Long, String> nicknames = new HashMap<>();
+        List<Long> memberIds = rows.stream().map(PostProcessStatusHistoryEntity::getChangedByUserId).filter(Objects::nonNull).distinct().toList();
+        if (!memberIds.isEmpty()) {
+            profiles.findAllById(memberIds).forEach(pr -> nicknames.put(pr.getUserId(), pr.getNickname()));
+        }
+        return new PostProcessStatusHistoryView(rows.stream().map(row -> new PostProcessStatusHistoryItemView(row.getFromStatus(), row.getToStatus(), row.getNote(),
+                row.getChangedAt(), row.getActorKind(), row.getChangedByOperatorId() != null ? operatorNames.get(row.getChangedByOperatorId())
+                : row.getChangedByUserId() != null ? nicknames.get(row.getChangedByUserId()) : null)).toList());
     }
 
     /** 글 한 줄(조치 서비스가 결과를 돌려줄 때도 쓴다) */

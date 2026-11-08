@@ -1,11 +1,19 @@
 import type { BoardDetail, BoardSecretMode } from '~/composables/board/api/useBoardApi.types';
 import { POST_PROCESS_STATUSES } from '~/composables/board/api/usePostApi.types';
-import type { PostProcessStatus } from '~/composables/board/api/usePostApi.types';
+import type { PostDetail, PostProcessStatus, PostProcessStatusActor } from '~/composables/board/api/usePostApi.types';
 
 /**
  * 운영 게시판(버그 신고·기능 요청)의 비밀글·처리 상태를 그리고 읽는 순수 규칙. 판정(읽을 수 있는가 · 바꿀 수 있는가)은 서버가 한다.
- * 서버 규칙 이름(후보): 게시판 `secretMode`·`statusEnabled`, 글 `secret`·`status`(`PostProcessStatus` 7개 고정).
+ * 서버 규칙 이름: 게시판 `secretMode`·`statusEnabled`, 글 `secret`·`processStatus`(`PostProcessStatus` 7개 고정)·`processStatusNote`.
+ * 일반 게시판과 소모임 게시판이 같이 쓴다(핫딜·직접홍보 게시판은 서버가 켜지 못하게 한다). 비회원 글도 비밀글이 될 수 있다(글 비밀번호로 연다).
  */
+
+/** 바꾼 쪽 → 이름 i18n 키(`post.statusActor*`) */
+const ACTOR_KEY: Record<PostProcessStatusActor, string> = {
+    OPERATOR: 'post.statusActorOperator',
+    BOARD_STAFF: 'post.statusActorBoardStaff',
+    GROUP_STAFF: 'post.statusActorGroupStaff',
+};
 
 /** 처리 상태 → 이름 i18n 키(`post.status*`) */
 const LABEL_KEY: Record<PostProcessStatus, string> = {
@@ -84,26 +92,58 @@ export default class UtilPostOps {
     }
 
     /**
-     * 글쓰기 본문의 `secret` — 글쓴이가 고르면 그 값, 모든 글 비밀이면 true, 없음·비회원이면 싣지 않는다(undefined).
+     * 글쓰기 본문의 `secret` — 글쓴이가 고르면 그 값, 모든 글 비밀이면 true, 없음이면 싣지 않는다(undefined). 회원·비회원이 같다.
      * @param {BoardSecretMode} mode - 게시판 비밀글 방식.
      * @param {boolean} checked - 폼의 「비밀글」 체크.
-     * @param {boolean} guest - 비회원 글쓰기.
      * @returns {boolean | undefined} 보낼 값(undefined = 칸을 뺀다).
      */
-    static writeSecret(mode: BoardSecretMode, checked: boolean, guest: boolean): boolean | undefined {
-        if (guest || mode === 'OFF') return undefined;
+    static writeSecret(mode: BoardSecretMode, checked: boolean): boolean | undefined {
+        if (mode === 'OFF') return undefined;
         return mode === 'ALWAYS' ? true : checked;
     }
 
     /**
      * 글 고치기 본문의 `secret` — 글쓴이가 고르는 게시판(`OPTIONAL`)일 때만 싣는다. 그 밖(모든 글 비밀·없음 — 설정을 바꿨어도 이미 쓴 글은 그대로)은 칸을 뺀다.
+     * 회원 글·비회원 글이 같다.
      * @param {BoardSecretMode} mode - 게시판 비밀글 방식.
      * @param {boolean} checked - 폼의 「비밀글」 체크.
-     * @param {boolean} guest - 비회원 글.
      * @returns {boolean | undefined} 보낼 값(undefined = 칸을 뺀다).
      */
-    static updateSecret(mode: BoardSecretMode, checked: boolean, guest: boolean): boolean | undefined {
-        return !guest && mode === 'OPTIONAL' ? checked : undefined;
+    static updateSecret(mode: BoardSecretMode, checked: boolean): boolean | undefined {
+        return mode === 'OPTIONAL' ? checked : undefined;
+    }
+
+    /** 운영진 메모 최대 글자 수(서버 `fields.note` 와 같다) */
+    static readonly NOTE_MAX = 200;
+
+    /**
+     * 보낼 메모 — 앞뒤 공백을 떼고, 비면 undefined(칸을 뺀다).
+     * @param {string} text - 입력한 메모.
+     * @returns {string | undefined} 보낼 메모.
+     */
+    static noteOf(text: string): string | undefined {
+        const trimmed = text.trim();
+        return trimmed ? trimmed : undefined;
+    }
+
+    /**
+     * 바꾼 쪽 이름의 i18n 키 — 모르는 값은 운영자로 본다.
+     * @param {PostProcessStatusActor} actor - 바꾼 쪽.
+     * @returns {string} i18n 키.
+     */
+    static actorKey(actor: PostProcessStatusActor): string {
+        return ACTOR_KEY[actor] ?? ACTOR_KEY.OPERATOR;
+    }
+
+    /**
+     * 처리 상태를 바꿀 수 있는가 — 글 상세의 서버 판정(`viewer.canChangeStatus`)이 먼저, 칸이 없는 옛 응답은 게시판 운영진(`viewer.staff`).
+     * @param {Pick<PostDetail, 'viewer'>} post - 글 상세.
+     * @param {boolean} boardStaff - 게시판 정보의 `viewer.staff`.
+     * @returns {boolean} 바꿀 수 있으면 true.
+     */
+    static canChangeStatus(post: Pick<PostDetail, 'viewer'>, boardStaff: boolean): boolean {
+        const fromPost = post.viewer?.canChangeStatus;
+        return typeof fromPost === 'boolean' ? fromPost : boardStaff;
     }
 
     /**

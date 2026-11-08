@@ -38,6 +38,14 @@ public class BoardCreator {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public BoardEntity create(NewBoard input, int sortOrder, Long operatorId, Instant now) {
+        return create(input, sortOrder, operatorId, now, true);
+    }
+
+    /**
+     * @param linkMainMenu 공개 메뉴 {@code main} 의 자동 추가 폴더에 넣는가 — 운영 게시판 시드({@link OpsBoardSeeder})는 넣지 않는다(소모임 게시판은 늘 넣지 않는다)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public BoardEntity create(NewBoard input, int sortOrder, Long operatorId, Instant now, boolean linkMainMenu) {
         BoardEntity board = BoardEntity.create(ids.nextId(), input.slug(), input.name(), input.nameEn(), input.description(), input.kind(), input.layout(),
                 input.viewToggle(), input.color(), input.investmentNotice(), sortOrder, operatorId, now);
         if (input.writeMin() != null) {
@@ -56,7 +64,7 @@ public class BoardCreator {
             prefixes.persist(BoardPrefixEntity.own(ids.nextId(), board.getId(), prefix.name(), prefix.staffOnly(), prefix.color(), true, own++, now));
         }
         // 소모임 게시판은 공개 메뉴에 두지 않는 그릇이라 자동 추가 폴더에 넣지 않는다(docs/features/group-contract.md)
-        if (!BoardFields.KIND_GROUP.equals(input.kind())) {
+        if (linkMainMenu && !BoardFields.KIND_GROUP.equals(input.kind())) {
             menu.boardCreated(board.getId(), now);
         }
         return board;

@@ -85,6 +85,14 @@ public final class BoardFields {
     public static final String SECRET_ALWAYS = "ALWAYS";
     public static final List<String> SECRET_MODES = List.of(SECRET_OFF, SECRET_OPTIONAL, SECRET_ALWAYS);
 
+    /**
+     * 운영 게시판 설정(비밀글 · 처리 상태)을 켤 수 있는 게시판 종류인가 — 일반·소모임(V168). 핫딜·직접홍보는 공개 홍보가 목적이라 비밀글이 맞지 않고,
+     * 진행 상태는 딜 마감 상태가 이미 있어 받지 않는다(정리 결정 — ops-boards-contract).
+     */
+    public static boolean opsAllowed(String kind) {
+        return KIND_GENERAL.equals(kind) || KIND_GROUP.equals(kind);
+    }
+
     public static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]*$");
     public static final int SLUG_MIN = 2;
     public static final int SLUG_MAX = 40;

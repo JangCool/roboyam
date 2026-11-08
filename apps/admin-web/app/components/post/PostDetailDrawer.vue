@@ -7,7 +7,8 @@
           **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
           조치 기록(최근 것부터, 처리자·사유·덧붙임).
-        운영 게시판: 요약 칩에 비밀글 자물쇠, 「처리 상태」 줄(딱지 · 마지막 변경 · `post.manage` 면 Select → `process-status` 를 올린다 — 바꾸기는 부른 화면).
+        운영 게시판: 요약 칩에 비밀글 자물쇠, 「처리 상태」 줄(딱지 · 마지막 변경 · 운영진 메모 · `post.manage` 면 「상태 고르기 + 메모(선택 0~200자, 글자 수) + [바꾸기]」 →
+          `process-status(status, note)` 를 올린다 — 바꾸기는 부른 화면, 서버 `fields.note` 는 메모 칸 아래) · 그 아래 처리 이력(시각 · 전 → 후 · 바꾼 쪽(이름) · 메모 — 부른 화면이 받는다).
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
         서버 호출은 하지 않는다(`components.md`) — 글은 `usePostDetail`, 토론 요약은 `useDebateSettingsActions().get` 으로 부른 화면이 받는다.
         [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 요약 영역에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
@@ -94,25 +95,62 @@
                         <Tag v-for="chip in UtilPostMessages.groupChips(t, post)" :key="chip.key" :value="chip.label" :icon="chip.key === 'group' ? 'pi pi-users' : undefined" :severity="chip.severity" class="text-[11px]!" />
                     </dd>
                 </template>
-                <!-- 처리 상태(운영 게시판 — 상태가 켜진 게시판의 글만) — 딱지 · 마지막 변경 · `post.manage` 면 바꾸기 -->
+                <!-- 처리 상태(운영 게시판 — 상태가 켜진 게시판의 글만) — 딱지 · 마지막 변경 · 메모 · `post.manage` 면 「상태 고르기 + 메모(선택 0~200자) + [바꾸기]」 · 처리 이력(바꾼 쪽·이름·메모) -->
                 <template v-if="post.processStatus">
                     <dt class="text-muted-color">{{ t('post.col.processStatus') }}</dt>
-                    <dd class="m-0 flex flex-wrap items-center gap-1.5" data-testid="post-drawer-process-status">
-                        <Tag :value="t(`post.processStatus.${post.processStatus}`)" :severity="UtilPost.processSeverity(post.processStatus)" class="text-[11px]!" />
-                        <span v-if="post.processStatusAt" class="text-xs text-muted-color tabular-nums">{{ t('post.processStatusAt', { at: time.full(post.processStatusAt) }) }}</span>
-                        <Select
-                            v-if="canManage"
-                            :model-value="post.processStatus"
-                            :options="processStatusOptions"
-                            option-label="label"
-                            option-value="value"
-                            size="small"
-                            :loading="processStatusBusy"
-                            :disabled="processStatusBusy"
-                            :aria-label="t('post.processStatusChange')"
-                            class="ml-auto"
-                            @update:model-value="(v: PostProcessStatus) => v && v !== post.processStatus && emit('process-status', v)"
-                        />
+                    <dd class="m-0 flex min-w-0 flex-col gap-2" data-testid="post-drawer-process-status">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <Tag :value="t(`post.processStatus.${post.processStatus}`)" :severity="UtilPost.processSeverity(post.processStatus)" class="text-[11px]!" />
+                            <span v-if="post.processStatusAt" class="text-xs text-muted-color tabular-nums">{{ t('post.processStatusAt', { at: time.full(post.processStatusAt) }) }}</span>
+                        </div>
+                        <p v-if="post.processStatusNote" class="m-0 whitespace-pre-line break-words text-xs [overflow-wrap:anywhere]" data-testid="post-drawer-process-note">
+                            <span class="text-muted-color">{{ t('post.processStatusNoteShown') }}</span> {{ post.processStatusNote }}
+                        </p>
+                        <form v-if="canManage" class="flex flex-col gap-2 rounded-md border border-(--line) p-2.5" data-testid="post-drawer-process-form" @submit.prevent="submitProcessStatus">
+                            <Select
+                                v-model="statusPick"
+                                :options="processStatusOptions"
+                                option-label="label"
+                                option-value="value"
+                                size="small"
+                                :disabled="processStatusBusy"
+                                :aria-label="t('post.processStatusChange')"
+                                class="self-start"
+                            />
+                            <LabeledField :label="t('post.processStatusNote')" :hint="t('post.processStatusNoteHint')" :error="processStatusNoteError">
+                                <template #aside>
+                                    <span class="text-xs tabular-nums text-muted-color" aria-hidden="true">{{ statusNote.length }}/{{ PROCESS_NOTE_MAX }}</span>
+                                </template>
+                                <template #default="{ id, describedBy, invalid }">
+                                    <Textarea :id="id" v-model="statusNote" rows="2" :maxlength="PROCESS_NOTE_MAX" :invalid="invalid" :aria-describedby="describedBy" :disabled="processStatusBusy" fluid auto-resize />
+                                </template>
+                            </LabeledField>
+                            <Button type="submit" :label="t('post.processStatusSubmit')" size="small" class="self-end" :loading="processStatusBusy" :disabled="processStatusBusy || statusPick === post.processStatus" />
+                        </form>
+                        <!-- 처리 이력 — 서랍이 열린 글마다 부른 화면이 받는다(바꾼 뒤 다시) -->
+                        <div data-testid="post-drawer-process-history">
+                            <p class="m-0 text-xs font-medium text-muted-color">{{ t('post.processStatusHistory') }}</p>
+                            <div v-if="processHistoryState === 'loading'" class="mt-1 flex flex-col gap-1" role="status" :aria-label="t('common.loading')">
+                                <Skeleton v-for="n in 2" :key="n" height="0.875rem" :width="n === 1 ? '80%' : '55%'" />
+                            </div>
+                            <p v-else-if="processHistoryState === 'error'" class="m-0 mt-1 flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                                {{ processHistoryError }}
+                                <Button type="button" :label="t('common.retry')" size="small" severity="secondary" variant="text" @click="emit('process-history-retry')" />
+                            </p>
+                            <p v-else-if="processHistory.length === 0" class="m-0 mt-1 text-xs text-muted-color">{{ t('post.processStatusHistoryEmpty') }}</p>
+                            <ol v-else class="m-0 mt-1 flex list-none flex-col divide-y divide-(--line) p-0">
+                                <li v-for="(h, i) in processHistory" :key="`${h.changedAt}-${i}`" class="py-1 text-xs leading-relaxed">
+                                    <div class="flex flex-wrap items-center gap-x-1.5">
+                                        <span class="tabular-nums text-muted-color">{{ time.full(h.changedAt) }}</span>
+                                        <span class="font-medium">
+                                            <template v-if="h.fromStatus">{{ t(`post.processStatus.${h.fromStatus}`) }} → </template>{{ t(`post.processStatus.${h.toStatus}`) }}
+                                        </span>
+                                        <span class="text-muted-color">· {{ t(`post.processStatusActor.${h.actor}`) }}<template v-if="h.actorName"> ({{ h.actorName }})</template></span>
+                                    </div>
+                                    <p v-if="h.note" class="m-0 whitespace-pre-line break-words [overflow-wrap:anywhere]">{{ h.note }}</p>
+                                </li>
+                            </ol>
+                        </div>
                     </dd>
                 </template>
                 <dt class="text-muted-color">{{ t('post.col.author') }}</dt>
@@ -301,7 +339,7 @@
 import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
-import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem, PostProcessStatus } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem, PostProcessStatus, PostProcessStatusHistoryItem } from '~/composables/post/api/usePostApi.types';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost, { type PostActionKind, type PostActions } from '~/utils/util-post';
 import UtilPostMessages, { type PostEventDetailLine } from '~/utils/util-post-messages';
@@ -332,6 +370,12 @@ interface Props {
     boards?: AdminPostBoardOption[];
     /** 처리 상태를 바꾸는 중 */
     processStatusBusy?: boolean;
+    /** 처리 상태 메모의 서버 오류(`400 fields.note`) */
+    processStatusNoteError?: string;
+    /** 처리 상태 이력 — 부른 화면이 받는다 */
+    processHistory?: PostProcessStatusHistoryItem[];
+    processHistoryState?: 'idle' | 'loading' | 'ready' | 'error';
+    processHistoryError?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -350,6 +394,10 @@ const props = withDefaults(defineProps<Props>(), {
     canReadReports: false,
     boards: () => [],
     processStatusBusy: false,
+    processStatusNoteError: '',
+    processHistory: () => [],
+    processHistoryState: 'idle',
+    processHistoryError: '',
 });
 const emit = defineEmits<{
     retry: [];
@@ -361,8 +409,10 @@ const emit = defineEmits<{
     'debate-retry': [];
     /** [투표 지우기] — 사유 대화창은 부른 화면이 연다 */
     'poll-delete': [];
-    /** 처리 상태를 골랐다(운영 게시판 — `post.manage`) — 바꾸기는 부른 화면이 한다(`PUT …/process-status`) */
-    'process-status': [status: PostProcessStatus];
+    /** [바꾸기](운영 게시판 — `post.manage`) — 고른 상태와 다듬은 메모(비면 undefined). 바꾸기는 부른 화면이 한다(`PUT …/process-status`) */
+    'process-status': [status: PostProcessStatus, note: string | undefined];
+    /** 처리 이력 다시 받기 */
+    'process-history-retry': [];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
 }>();
@@ -385,6 +435,25 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => [
 const post = computed(() => props.detail?.post as AdminPostItem);
 /** 처리 상태 바꾸기 선택지 — 7개(고정 차례) */
 const processStatusOptions = computed(() => UtilPost.PROCESS_STATUSES.map((value) => ({ value, label: t(`post.processStatus.${value}`) })));
+/** 처리 상태 메모 최대 글자 수(서버 `fields.note` 와 같다) */
+const PROCESS_NOTE_MAX = 200;
+/** 바꿀 상태·메모 — 글이 바뀌거나 상태가 바뀌면(바꾸기 성공 포함) 지금 상태·빈 메모로 돌린다 */
+const statusPick = ref<PostProcessStatus | null>(null);
+const statusNote = ref('');
+watch(
+    () => [props.detail?.post.id ?? null, props.detail?.post.processStatus ?? null] as const,
+    ([, status]) => {
+        statusPick.value = status;
+        statusNote.value = '';
+    },
+    { immediate: true },
+);
+function submitProcessStatus(): void {
+    const status = statusPick.value;
+    if (!status || status === post.value.processStatus || props.processStatusBusy) return;
+    const note = statusNote.value.trim();
+    emit('process-status', status, note || undefined);
+}
 const stateLines = computed(() => (props.detail ? UtilPostMessages.stateLines(t, time.value, props.detail.post) : []));
 /** 비공개 소모임 글이라 본문·투표를 싣지 않았다(`contentBlocked: GROUP_PRIVATE` 또는 줄의 `restricted`) */
 const blocked = computed(() => props.detail?.contentBlocked === 'GROUP_PRIVATE' || props.detail?.post.restricted === true);

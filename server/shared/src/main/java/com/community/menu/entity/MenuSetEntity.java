@@ -34,7 +34,7 @@ public class MenuSetEntity {
     }
 
     /** 운영자가 만든 그룹(기본 그룹이 아니다) — 빈 트리, 버전 1 */
-    public static MenuSetEntity create(String setKey, String name, String nameEn, String placement, boolean enabled, String description, long operatorId,
+    public static MenuSetEntity create(String setKey, String name, String nameEn, String placement, boolean enabled, String description, Long operatorId,
                                        Instant now) {
         MenuSetEntity set = new MenuSetEntity();
         set.setKey = setKey;
