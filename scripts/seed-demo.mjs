@@ -1170,8 +1170,8 @@ async function operatorMember(admin) {
              SELECT ${snowflake()}, ${q(op.email)}, :'h', 'USER', 'ACTIVE', t.at, ${q(TERMS_VERSION)}, t.at, t.at, t.at, t.at FROM (SELECT now() - interval '35 days' AS at) t
              ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING
              RETURNING id, created_at)
-         INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, created_at, updated_at)
-         SELECT id, ${q(op.memberNickname ?? '로보얌운영팀')}, 'VETERAN', true, created_at, created_at FROM ins;`,
+         INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, profile_visibility, created_at, updated_at)
+         SELECT id, ${q(op.memberNickname ?? '로보얌운영팀')}, 'VETERAN', true, 'PRIVATE', created_at, created_at FROM ins;`, // 운영팀 계정은 기본 비공개 프로필(사용자 2026-11-08 — 서버 연결도 비공개로 바꾼다)
         'COMMIT;',
     ].join('\n'), { sensitive: true });
     const [[operatorId] = []] = rows(sql(`SELECT id FROM operators WHERE email = ${q(op.email)}`));

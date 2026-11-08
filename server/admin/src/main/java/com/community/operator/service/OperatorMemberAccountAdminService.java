@@ -15,6 +15,8 @@ import com.community.operator.repository.master.OperatorMemberAccountStore.Link;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
+import com.community.user.entity.ProfileVisibility;
+import com.community.user.repository.master.ProfileRepository;
 import com.community.user.service.UserPolicy;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,7 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>후보</b>(정책 2): 운영자 이메일과 같은 이메일(정규화한 소문자)로 가입한 회원 하나 — 서버가 찾아 준다(관리자가 아무 회원이나 고르지 못한다).</li>
  *   <li><b>자격</b>(정책 3, 연결할 때만): 이메일 인증 · 회원 상태 정상(정지·탈퇴 진행 아님) · 사업자 계정 아님 · 다른 운영자에 이어져 있지 않음.</li>
  *   <li><b>연결</b>: 운영자 행 잠금 → 루트 보호 → 이미 이어짐 409 → 후보 409 → <b>회원 행 잠금</b>(탈퇴 신청 · 게시판 담당 지정과 같은 잠금) → 자격 다시 판정 409 →
- *       그 회원의 게시판 매니저·스텝 지정을 모두 끝냄(정책 4 — 행 삭제, 감사 {@code releasedBoards}) → 연결 + 감사 {@code OPERATOR_MEMBER_LINK}, 한 트랜잭션.</li>
+ *       그 회원의 게시판 매니저·스텝 지정을 모두 끝냄(정책 4 — 행 삭제, 감사 {@code releasedBoards}) → <b>프로필을 비공개로</b>(운영팀 계정은 기본 비공개 — 사용자 2026-11-08,
+ *       회원 본인이 나중에 공개로 돌릴 수 있다, 감사 {@code profileMadePrivate}) → 연결 + 감사 {@code OPERATOR_MEMBER_LINK}, 한 트랜잭션.</li>
  *   <li><b>해제</b>: 언제든(정책 5) — 감사 {@code OPERATOR_MEMBER_UNLINK}. 끝난 게시판 담당은 되살리지 않는다.</li>
  *   <li><b>루트 보호</b>(정책 5): 대상이 최고 관리자면 최고 관리자 본인만 잇고 끊는다(409 {@code OPERATOR_ROOT_PROTECTED}).</li>
  * </ul>
@@ -61,12 +64,15 @@ public class OperatorMemberAccountAdminService {
     private final OperatorMemberAccountStore store;
     private final OperatorMemberAccountService accounts;
     private final AuditLogService audit;
+    private final ProfileRepository profiles;
 
-    public OperatorMemberAccountAdminService(OperatorRepository operators, OperatorMemberAccountStore store, OperatorMemberAccountService accounts, AuditLogService audit) {
+    public OperatorMemberAccountAdminService(OperatorRepository operators, OperatorMemberAccountStore store, OperatorMemberAccountService accounts, AuditLogService audit,
+                                             ProfileRepository profiles) {
         this.operators = operators;
         this.store = store;
         this.accounts = accounts;
         this.audit = audit;
+        this.profiles = profiles;
     }
 
     @Transactional(readOnly = true)
@@ -95,10 +101,15 @@ public class OperatorMemberAccountAdminService {
         }
         List<Long> released = store.releaseBoardStaff(userId); // 정책 4 — 그 회원의 게시판 매니저·스텝 지정이 모두 끝난다
         Instant now = accounts.now();
+        // 운영팀 계정은 기본 비공개 프로필(사용자 2026-11-08) — 이을 때 한 번만 바꾼다(회원 본인이 나중에 공개로 돌리면 그대로 둔다)
+        boolean madePrivate = profiles.findWithLockByUserId(userId).filter(p -> !p.isPrivate()).map(p -> {
+            p.changeVisibility(ProfileVisibility.PRIVATE, now);
+            return true;
+        }).orElse(false);
         store.insert(operator.getId(), userId, now, actor.operatorId());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.OPERATOR_MEMBER_LINK, AuditResult.SUCCESS)
                 .target(AUDIT_TARGET, Long.toString(operator.getId())).with("userId", Long.toString(userId))
-                .with("releasedBoards", released.stream().map(String::valueOf).toList()));
+                .with("releasedBoards", released.stream().map(String::valueOf).toList()).with("profileMadePrivate", madePrivate));
         log.info("운영자 회원 계정을 이었다 operatorId={} userId={} releasedBoards={} by operatorId={}", operator.getId(), userId, released.size(), actor.operatorId());
         return view(operator);
     }

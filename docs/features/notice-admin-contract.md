@@ -43,3 +43,6 @@
 - **기록**: 조치 기록 `reason` null, detail `via: NOTICE_ADMIN`(+ 고정이 풀렸으면 `unpinned`). 감사 `NOTICE_UPDATE` 는 바뀐 칸만 before/after + `bodyChanged`. 감사 분류 GENERAL.
 - **화면 연결**: 목업 걷어 냄. 이미지 올리기는 admin `useApiClient` 에 진행률 올리기가 없어 끝에 한 번만 진행률(공동구매와 같은 방식). 게시글 관리 조치 기록에 `via: NOTICE_ADMIN` 이면 「공지 관리에서」.
 - **검증**: shared·api·admin `compileJava`·`compileTestJava`, admin-web `typecheck` 통과. 새 jar(8930)+admin-web(3300)로 실제 호출 확인(2026-11-08 — 로컬 DB 에 루트 이메일 `admin@admin.local` 회원 「운영공지」를 만들어 최고관리자에 연결): 화면에서 새 공지(말머리·고정) 올리기 → 이미지 올리기 201 + 수정 PUT 204(본문 `src`·크기 채워짐) → 해제·재고정·빈 칸 400 `fields.title|body` → 목록 ⋯ 삭제. 공개 api(8910) 글 보기·공지 띠·이미지 200, 게시글 관리 조치 기록 「공지 관리에서」. 테스트 실행 안 함.
+
+## 고정 한도 늘림 (사용자 2026-11-08)
+- 게시판 고정 한도 범위 0~5 → 0~10, 사이트 기본 2 → 5, 공지 게시판은 10(shared V173 — 운영자가 바꾼 값은 그대로). 설치 프리셋도 다시 뽑음.
