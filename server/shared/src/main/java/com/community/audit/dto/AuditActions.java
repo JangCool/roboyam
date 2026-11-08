@@ -55,6 +55,8 @@ public final class AuditActions {
     public static final String SITE_POPUP_ORDER = "SITE_POPUP_ORDER";
     /** 팝업 노출 켜기·끄기 — {@code from}/{@code to}(바뀐 때만) */
     public static final String SITE_POPUP_VISIBLE = "SITE_POPUP_VISIBLE";
+    /** 팝업 여러 창 배치 바꾸기(사이트 전체 하나) — 대상 SITE_POPUP + {@code layout}, {@code from}/{@code to}(바뀐 때만) */
+    public static final String SITE_POPUP_LAYOUT = "SITE_POPUP_LAYOUT";
     /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
     public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
     /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */

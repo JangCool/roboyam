@@ -9,7 +9,8 @@ import java.time.Instant;
  * @param imageFileId 그림 파일 ID(형식만 본 값 — 올려 둔 파일인지는 저장하는 쪽이 확인한다)
  * @param showPc      PC(폭 768px 이상)에 보인다
  * @param showMobile  모바일에 보인다 — 둘 중 하나는 참
+ * @param windowNo    띄울 창 1~3
  */
 public record SitePopupFields(String name, String kind, Long imageFileId, String imageAlt, String link, String heading, String body, String buttonLabel,
-                              String target, boolean showPc, boolean showMobile, String hideOption, boolean visible, Instant showFrom, Instant showUntil) {
+                              String target, boolean showPc, boolean showMobile, String hideOption, int windowNo, boolean visible, Instant showFrom, Instant showUntil) {
 }

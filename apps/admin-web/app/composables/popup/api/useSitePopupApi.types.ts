@@ -24,6 +24,9 @@ export type SitePopupHideOption = 'NONE' | 'TODAY' | 'WEEK' | 'NEVER';
 /** 목록 상태 — 서버가 지금 시각으로 판정한다 */
 export type SitePopupStatus = 'SHOWING' | 'SCHEDULED' | 'EXPIRED' | 'OFF';
 
+/** 여러 창 배치(사이트 전체 하나) — PC 에서 창을 가로로 나란히 · 위아래로 쌓기. 모바일은 어느 쪽이든 창을 하나씩 차례로 */
+export type SitePopupLayout = 'HORIZONTAL' | 'VERTICAL';
+
 export interface SitePopupEditor {
     id: string;
     name: string | null;
@@ -51,6 +54,8 @@ export interface SitePopupItem {
     target: SitePopupTarget;
     devices: SitePopupDevice[];
     hideOption: SitePopupHideOption;
+    /** 띄울 창 1~3 — 같은 번호끼리 한 창에서 슬라이드(목록 차례), 번호가 다르면 PC 는 나란히·모바일은 차례로 */
+    windowNo: number;
     visible: boolean;
     /** 노출 기간(순간 ISO) — 비면 제한 없음 */
     showFrom: string | null;
@@ -66,6 +71,8 @@ export interface SitePopupListView {
     total: number;
     /** 지금 노출 중(SHOWING) 수 */
     showingCount: number;
+    /** 여러 창 배치 */
+    layout: SitePopupLayout;
 }
 
 /** 만들기·고치기 본문 — 고칠 때도 모든 칸을 보낸다(`imageFileId` null = 그림 없음) */
@@ -81,6 +88,7 @@ export interface SitePopupSaveRequest {
     target: SitePopupTarget;
     devices: SitePopupDevice[];
     hideOption: SitePopupHideOption;
+    windowNo: number;
     visible: boolean;
     showFrom: string | null;
     showUntil: string | null;

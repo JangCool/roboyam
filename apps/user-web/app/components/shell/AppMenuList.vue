@@ -39,7 +39,6 @@
                                     <i v-if="row.color" :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                                     <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
                                 </span>
-                                <small v-if="row.notice" class="shrink-0 text-xs text-muted-color">{{ t('menu.investmentNotice') }}</small>
                             </AppMenuLink>
                         </li>
                     </ul>
@@ -122,7 +121,6 @@
                                             <i v-if="row.color" :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                                             <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
                                         </span>
-                                        <small v-if="row.notice" class="shrink-0 text-xs text-muted-color">{{ t('menu.investmentNotice') }}</small>
                                     </AppMenuLink>
                                 </li>
                             </ul>

@@ -12,7 +12,10 @@ import com.community.media.service.ImageStorage;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
 import com.community.popup.dto.SitePopupFields;
+import com.community.popup.dto.request.SitePopupLayoutRequest;
 import com.community.popup.dto.request.SitePopupOrderRequest;
+import com.community.site.entity.SiteSettingEntity;
+import com.community.site.repository.master.SiteSettingRepository;
 import com.community.popup.dto.request.SitePopupSaveRequest;
 import com.community.popup.dto.request.SitePopupVisibleRequest;
 import com.community.popup.dto.response.SitePopupEditorView;
@@ -45,7 +48,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * 팝업 관리(docs/features/site-popup-contract.md) — 목록은 {@code site.read}, 만들기·고치기·차례·노출·지우기는 {@code site.manage}(컨트롤러가 선언). 규칙은 {@link SitePopups}.
  *
  * <ul>
- *   <li><b>칸 검사</b>(모아서 {@code 400 VALIDATION}): {@code fields.name|kind|imageFileId|imageAlt|link|heading|body|buttonLabel|target|devices|hideOption|showUntil}.
+ *   <li><b>칸 검사</b>(모아서 {@code 400 VALIDATION}): {@code fields.name|kind|imageFileId|imageAlt|link|heading|body|buttonLabel|target|devices|hideOption|windowNo|showUntil}.
  *       종류별 칸(IMAGE 의 그림·대체 글, TEXT 의 제목·내용·단추)은 지금 종류일 때만 검사한다. 지금 종류가 아닌 칸은 그대로 저장하되, 칸 길이를 넘으면 저장하지 않는다(null —
  *       보이지 않는 칸이라 오류로 막지 않는다. DB 제약을 넘지 않게).</li>
  *   <li><b>그림</b>: 하이라이트 대표 이미지와 같다 — {@code POST /api/admin/files}(purpose SITE_POPUP_IMAGE)로 올린 PENDING 파일을 지정하면 그 파일이 쓰는 중(IN_USE)이 되고
@@ -68,9 +71,10 @@ public class SitePopupAdminService {
     private final OperatorRepository operators;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
+    private final SiteSettingRepository settings;
 
     public SitePopupAdminService(SitePopupRepository popups, FileRepository files, ImageStorage storage, SiteImageFiles imageFiles, OperatorRepository operators,
-                                 AuditLogService audit, SnowflakeIdGenerator ids) {
+                                 AuditLogService audit, SnowflakeIdGenerator ids, SiteSettingRepository settings) {
         this.popups = popups;
         this.files = files;
         this.storage = storage;
@@ -78,6 +82,7 @@ public class SitePopupAdminService {
         this.operators = operators;
         this.audit = audit;
         this.ids = ids;
+        this.settings = settings;
     }
 
     // ── 읽기 ──────────────────────────────────────────────────────────────
@@ -88,6 +93,25 @@ public class SitePopupAdminService {
     }
 
     // ── 쓰기 ──────────────────────────────────────────────────────────────
+
+    /** 여러 창 배치(사이트 전체 하나)를 바꾼다 — 새 목록. 바뀐 때만 감사 {@code SITE_POPUP_LAYOUT} */
+    @Transactional
+    public SitePopupListView layout(AdminActor actor, SitePopupLayoutRequest body) {
+        String layout = body == null || body.layout() == null ? null : body.layout().strip();
+        if (!SitePopups.LAYOUTS.contains(layout)) {
+            throw ValidationException.of("layout", new MessageRef("sitePopup.layout"));
+        }
+        SiteSettingEntity row = settings.findWithLockById(SiteSettingEntity.ROW_ID)
+                .orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
+        String before = SitePopups.layoutOrDefault(row.getPopupLayout());
+        if (!before.equals(layout)) {
+            row.changePopupLayout(layout, actor.operatorId(), Instant.now());
+            audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_POPUP_LAYOUT, AuditResult.SUCCESS)
+                    .target(TARGET_TYPE, "layout").with("from", before).with("to", layout));
+            log.info("팝업 배치를 바꿨다 {} -> {} by operatorId={}", before, layout, actor.operatorId());
+        }
+        return listOf(popups.findAllByOrderBySortOrderAscIdAsc(), layout);
+    }
 
     @Transactional
     public SitePopupItemView create(AdminActor actor, SitePopupSaveRequest body) {
@@ -252,6 +276,10 @@ public class SitePopupAdminService {
         if (hideOption == null) {
             fields.put("hideOption", new MessageRef("sitePopup.hideOption"));
         }
+        int windowNo = b.windowNo() == null ? 1 : b.windowNo();
+        if (windowNo < 1 || windowNo > SitePopups.WINDOW_MAX) {
+            fields.put("windowNo", new MessageRef("sitePopup.windowNo"));
+        }
         if (b.showFrom() != null && b.showUntil() != null && !b.showUntil().isAfter(b.showFrom())) {
             fields.put("showUntil", new MessageRef("sitePopup.showUntil.beforeFrom"));
         }
@@ -259,7 +287,7 @@ public class SitePopupAdminService {
             throw new ValidationException(fields);
         }
         boolean visible = b.visible() == null ? creating : b.visible();
-        return new SitePopupFields(name, kind, imageFileId, imageAlt, link, heading, body, buttonLabel, target, devices[0], devices[1], hideOption, visible,
+        return new SitePopupFields(name, kind, imageFileId, imageAlt, link, heading, body, buttonLabel, target, devices[0], devices[1], hideOption, windowNo, visible,
                 b.showFrom(), b.showUntil());
     }
 
@@ -278,7 +306,7 @@ public class SitePopupAdminService {
 
     private static SitePopupFields withVisible(SitePopupFields f, boolean visible) {
         return new SitePopupFields(f.name(), f.kind(), f.imageFileId(), f.imageAlt(), f.link(), f.heading(), f.body(), f.buttonLabel(), f.target(), f.showPc(),
-                f.showMobile(), f.hideOption(), visible, f.showFrom(), f.showUntil());
+                f.showMobile(), f.hideOption(), f.windowNo(), visible, f.showFrom(), f.showUntil());
     }
 
     /**
@@ -337,6 +365,7 @@ public class SitePopupAdminService {
         map.put("target", row.getTarget());
         map.put("devices", String.join(",", SitePopups.devicesOf(row)));
         map.put("hideOption", row.getHideOption());
+        map.put("windowNo", row.getWindowNo());
         map.put("visible", row.isVisible());
         map.put("showFrom", row.getShowFrom() == null ? null : row.getShowFrom().toString());
         map.put("showUntil", row.getShowUntil() == null ? null : row.getShowUntil().toString());
@@ -344,9 +373,13 @@ public class SitePopupAdminService {
     }
 
     private SitePopupListView listOf(List<SitePopupEntity> rows) {
+        return listOf(rows, SitePopups.layoutOrDefault(settings.findById(SiteSettingEntity.ROW_ID).map(SiteSettingEntity::getPopupLayout).orElse(null)));
+    }
+
+    private SitePopupListView listOf(List<SitePopupEntity> rows, String layout) {
         List<SitePopupItemView> items = views(rows, 1, Instant.now());
         int showing = (int) items.stream().filter(i -> SitePopups.SHOWING.equals(i.status())).count();
-        return new SitePopupListView(items, items.size(), showing);
+        return new SitePopupListView(items, items.size(), showing, layout);
     }
 
     /** 한 줄 — 차례 번호는 전체 차례에서 센다 */
@@ -382,7 +415,7 @@ public class SitePopupAdminService {
             Long image = p.getImageFileId();
             out.add(new SitePopupItemView(Long.toString(p.getId()), order++, p.getName(), p.getKind(), image == null ? null : Long.toString(image),
                     image == null ? null : imageUrls.get(image), p.getImageAlt(), p.getLink(), p.getHeading(), p.getBody(), p.getButtonLabel(), p.getTarget(),
-                    SitePopups.devicesOf(p), p.getHideOption(), p.isVisible(), p.getShowFrom(), p.getShowUntil(), SitePopups.status(p, now), p.getUpdatedAt(),
+                    SitePopups.devicesOf(p), p.getHideOption(), p.getWindowNo(), p.isVisible(), p.getShowFrom(), p.getShowUntil(), SitePopups.status(p, now), p.getUpdatedAt(),
                     p.getUpdatedBy() == null ? null : new SitePopupEditorView(Long.toString(p.getUpdatedBy()), operatorNames.get(p.getUpdatedBy()))));
         }
         return out;

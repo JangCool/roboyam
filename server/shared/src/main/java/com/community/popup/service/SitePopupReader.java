@@ -5,6 +5,8 @@ import com.community.media.service.ImageStorage;
 import com.community.popup.dto.SitePopupPublicLine;
 import com.community.popup.entity.SitePopupEntity;
 import com.community.popup.repository.master.SitePopupRepository;
+import com.community.site.entity.SiteSettingEntity;
+import com.community.site.repository.master.SiteSettingRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,11 +32,19 @@ public class SitePopupReader {
     private final SitePopupRepository popups;
     private final FileRepository files;
     private final ImageStorage storage;
+    private final SiteSettingRepository settings;
 
-    public SitePopupReader(SitePopupRepository popups, FileRepository files, ImageStorage storage) {
+    public SitePopupReader(SitePopupRepository popups, FileRepository files, ImageStorage storage, SiteSettingRepository settings) {
         this.popups = popups;
         this.files = files;
         this.storage = storage;
+        this.settings = settings;
+    }
+
+    /** 여러 창 배치(사이트 설정, 없으면 가로) */
+    @Transactional(readOnly = true)
+    public String layout() {
+        return SitePopups.layoutOrDefault(settings.findById(SiteSettingEntity.ROW_ID).map(SiteSettingEntity::getPopupLayout).orElse(null));
     }
 
     @Transactional(readOnly = true)
@@ -59,7 +69,7 @@ public class SitePopupReader {
             }
             out.add(new SitePopupPublicLine(p.getId(), SitePopups.version(p), p.getKind(), imageUrl, image ? p.getImageAlt() : null, p.getLink(),
                     image ? null : p.getHeading(), image ? null : p.getBody(), image ? null : p.getButtonLabel(), p.getTarget(), SitePopups.devicesOf(p),
-                    p.getHideOption(), p.getShowFrom(), p.getShowUntil()));
+                    p.getHideOption(), p.getWindowNo(), p.getShowFrom(), p.getShowUntil()));
         }
         return out;
     }

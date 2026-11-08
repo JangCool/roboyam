@@ -3,6 +3,7 @@ package com.community.popup.controller;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
+import com.community.popup.dto.request.SitePopupLayoutRequest;
 import com.community.popup.dto.request.SitePopupOrderRequest;
 import com.community.popup.dto.request.SitePopupSaveRequest;
 import com.community.popup.dto.request.SitePopupVisibleRequest;
@@ -53,6 +54,13 @@ public class SitePopupController {
     @PutMapping("/order")
     public ResponseEntity<ApiResponse<SitePopupListView>> order(@RequestBody(required = false) SitePopupOrderRequest body, AdminActor actor) {
         return noStore(service.order(actor, body));
+    }
+
+    /** 여러 창 배치(사이트 전체 하나) — 새 목록. 경로가 {@code /{id}} 보다 먼저 맞는다 */
+    @RequirePermission(Permission.SITE_MANAGE)
+    @PutMapping("/layout")
+    public ResponseEntity<ApiResponse<SitePopupListView>> layout(@RequestBody(required = false) SitePopupLayoutRequest body, AdminActor actor) {
+        return noStore(service.layout(actor, body));
     }
 
     @RequirePermission(Permission.SITE_MANAGE)

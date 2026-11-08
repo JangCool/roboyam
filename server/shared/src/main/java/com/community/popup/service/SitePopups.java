@@ -39,6 +39,17 @@ public final class SitePopups {
     public static final String DEVICE_MOBILE = "MOBILE";
     public static final List<String> DEVICES = List.of(DEVICE_PC, DEVICE_MOBILE);
     public static final List<String> HIDE_OPTIONS = List.of("TODAY", "WEEK", "NEVER", "NONE");
+    /** 띄울 창 번호의 끝(1부터) — V164 CHECK 와 같다 */
+    public static final int WINDOW_MAX = 3;
+    /** 여러 창 배치(사이트 설정 popup_layout, V165) — PC 가로로 나란히 · 위아래로 쌓기 */
+    public static final String LAYOUT_HORIZONTAL = "HORIZONTAL";
+    public static final String LAYOUT_VERTICAL = "VERTICAL";
+    public static final List<String> LAYOUTS = List.of(LAYOUT_HORIZONTAL, LAYOUT_VERTICAL);
+
+    /** 저장값이 비었거나 모르는 값이면 기본(가로) */
+    public static String layoutOrDefault(String value) {
+        return LAYOUTS.contains(value) ? value : LAYOUT_HORIZONTAL;
+    }
 
     public static final int NAME_MAX = 40;
     public static final int IMAGE_ALT_MAX = 100;

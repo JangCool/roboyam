@@ -15,11 +15,9 @@
 
         <!-- 카드 1 — 매거진 머리: 페이지 제목·설명 + 오른쪽 게시판 칩(굵은 밑줄로 지면 머리처럼), 그 아래 「이번 주 추천」 헤드라인 -->
         <section class="gadget-card flex flex-col" data-headless :aria-labelledby="headlineId" :aria-busy="overviewStatus === 'loading'" data-testid="tips-headline">
-            <header class="flex min-w-0 flex-col gap-2 border-b-2 border-[var(--p-text-color)] pb-3 @min-[36rem]:flex-row @min-[36rem]:items-end @min-[36rem]:gap-4">
-                <div class="min-w-0 flex-1">
-                    <h1 class="m-0 break-words text-xl font-bold leading-tight tracking-tight">{{ t('tips.title') }}</h1>
-                    <p class="m-0 mt-1 text-sm text-muted-color">{{ t('tips.subtitle') }}</p>
-                </div>
+            <!-- 제목 머리 — 묶음 메뉴 화면 공용(`PageTitleHead` — 커뮤니티·핫 로토픽·소모임과 같은 글자 크기·여백) -->
+            <PageTitleHead :title="t('tips.title')" :description="t('tips.subtitle')" divider>
+                <template #actions>
                 <nav :aria-label="t('tips.boardTabs')" class="relative flex min-w-0 shrink-0 gap-1.5 overflow-x-auto py-1 [scrollbar-width:none]" data-testid="tips-board-tabs">
                     <template v-if="boards">
                         <NuxtLink
@@ -37,7 +35,8 @@
                         <i v-for="n in 3" :key="n" class="h-7 w-14 shrink-0 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" aria-hidden="true" />
                     </template>
                 </nav>
-            </header>
+                </template>
+            </PageTitleHead>
 
             <h2 :id="headlineId" class="m-0 mb-3 mt-4 flex items-center gap-1.5 text-[0.9375rem] font-bold">
                 <i class="pi pi-star text-xs text-primary" aria-hidden="true" />{{ t('tips.headlineTitle') }}

@@ -59,7 +59,6 @@
                                 >
                                     <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                                     <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
-                                    <small v-if="entry.row.notice" class="shrink-0 text-xs font-normal text-muted-color">{{ t('menu.investmentNotice') }}</small>
                                 </AppMenuLink>
                                 <AppTopMenuDropdown v-else :entry="entry" />
                             </li>

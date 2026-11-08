@@ -29,6 +29,8 @@ public class SitePopupEntity {
     private boolean showPc;
     private boolean showMobile;
     private String hideOption;
+    /** 띄울 창 1~3(V164) — 같은 번호끼리 한 창에서 슬라이드 */
+    private int windowNo = 1;
     private boolean visible;
     private Instant showFrom;
     private Instant showUntil;
@@ -84,6 +86,7 @@ public class SitePopupEntity {
         this.showPc = f.showPc();
         this.showMobile = f.showMobile();
         this.hideOption = f.hideOption();
+        this.windowNo = f.windowNo();
         this.visible = f.visible();
         this.showFrom = f.showFrom();
         this.showUntil = f.showUntil();
@@ -147,6 +150,11 @@ public class SitePopupEntity {
     /** {@code TODAY} · {@code WEEK} · {@code NEVER} · {@code NONE} */
     public String getHideOption() {
         return hideOption;
+    }
+
+    /** 띄울 창 1~3 */
+    public int getWindowNo() {
+        return windowNo;
     }
 
     public boolean isVisible() {

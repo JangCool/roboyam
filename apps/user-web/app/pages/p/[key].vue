@@ -2,7 +2,7 @@
     <!--
         가젯 페이지 `/p/{key}`(사용자 결정 2026-10-29 — 홈처럼 가젯 격자로 꾸미는 페이지. 첫 페이지 「커뮤니티」 `/p/community`, 다음 「주제」).
         `GET /api/pages/{key}`가 준 머리(이름·설명·글쓰기 단추) + 지금 테마의 그 페이지 배치·가젯을 그린다:
-          · 머리: 이름은 화면 읽기용 제목(`sr-only`)으로만 두고, 운영자가 글쓰기 단추를 켰으면 오른쪽 아래 떠 있는 글쓰기 단추(`WriteFloatButton` — 누르면 바로 `/write?board=` 기준 폴더의 첫 게시판, 게시판이 없으면 `/write`)를 띄운다(설명은 그리지 않는다 — 2026-11-05).
+          · 머리: 흰 카드에 이름 + 설명(묶음 메뉴 화면 공용 `PageTitleHead`, 2026-11-08), 운영자가 글쓰기 단추를 켰으면 오른쪽 아래 떠 있는 글쓰기 단추(`WriteFloatButton` — 누르면 바로 `/write?board=` 기준 폴더의 첫 게시판, 게시판이 없으면 `/write`)를 띄운다.
           · 아래: 지금 테마의 홈 템플릿(`UtilTheme.resolve(theme, 'home')` — 겉모양만)이 공통 격자 `HomeGadgetGrid` 로 그린다. 가젯 부품·읽기(`UtilHomeGadget.sanitize`)는 홈과 같다.
         메뉴 폴더의 「누르면 가는 곳」이 이 페이지를 가리킬 수 있다(관리자 메뉴 관리, 연결 유형 `GADGET_PAGE`) — 메뉴의 「지금 있는 곳」은 공개 메뉴 응답의 `path` 로 맞춘다.
         없는 페이지는 「찾을 수 없어요」. 응답에 보는 사람 몫이 섞여 캐시하지 않고, 로그인·로그아웃하면 다시 받는다. 맨 아래 투자 고지 띠는 붙이지 않는다(2026-11-06 사용자 — 산업·주식 카드의 고지 한 줄은 가젯에 그대로).
@@ -15,9 +15,11 @@
 
         <ErrorState v-else-if="status === 'error'" :title="t('gadgetPage.loadFailed')" :description="errorMessage" retry @retry="load" />
 
-        <div v-else class="flex flex-col gap-4" :aria-busy="status === 'loading'">
-            <!-- 제목은 화면에 그리지 않는다(사용자 결정 2026-11-05 — 메뉴가 이미 이 페이지 이름을 짚는다). 화면 읽기용 제목만 남긴다 -->
-            <h1 v-if="head" class="sr-only" data-testid="gadget-page-title">{{ head.name }}</h1>
+        <div v-else class="flex flex-col gap-(--gadget-gap)" :aria-busy="status === 'loading'">
+            <!-- 제목 머리 — 흰 카드에 이름 + 운영자가 적은 설명(묶음 메뉴 화면 공용 `PageTitleHead` — 팁·강좌·사용기와 같은 글자 크기·여백, 사용자 2026-11-08. 2026-11-05 의 「제목 숨김」을 바꿈) -->
+            <section v-if="head" class="gadget-card" data-headless>
+                <PageTitleHead :title="head.name" :description="head.description" title-testid="gadget-page-title" />
+            </section>
 
             <HomeGadgetSkeleton v-if="!shown" />
             <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />

@@ -7,7 +7,8 @@ import java.util.List;
  *
  * @param version 내용 표식 — 보이는 칸이 바뀌면 바뀐다(「보지 않기」 기록이 있어도 다시 보인다)
  * @param devices {@code PC}·{@code MOBILE}
+ * @param windowNo 띄울 창 1~3 — 같은 번호끼리 한 창에서 슬라이드, 번호가 다르면 PC 는 나란히·모바일은 차례로
  */
 public record PublicSitePopupView(String id, String version, String kind, String imageUrl, String imageAlt, String link, String heading, String body,
-                                  String buttonLabel, String target, List<String> devices, String hideOption) {
+                                  String buttonLabel, String target, List<String> devices, String hideOption, int windowNo) {
 }

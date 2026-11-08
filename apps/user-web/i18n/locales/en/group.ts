@@ -6,6 +6,7 @@
 export default {
     // ── Common ────────────────────────────────────────────
     title: 'Clubs',
+    subtitle: 'Meet people who share your interests and do things together',
     create: '+ Create',
     createTitle: 'Create a club',
     browse: 'Browse clubs',
