@@ -15,6 +15,8 @@
           운영자 회원 계정(`staffTools.operator` — 모든 게시판)이면 「운영자 계정으로 관리 중 · 하루 한도 없음 · [처리 내역]」,
           이 게시판에서 쓰기 제한 중이면 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」(`viewer.writeRestriction`)이고 글쓰기 단추는 흐리게(누르면 같은 한 줄).
           이 게시판에서 받고 확인하지 않은 경고가 있으면 「이 게시판에서 경고를 받았어요 · 사유 · [자세히] · [확인했어요]」(`viewer.pendingWarnings`, 쓰기는 막지 않는다).
+        운영 게시판(버그 신고·기능 요청): 처리 상태가 켜진 게시판(`statusEnabled`)은 말머리 아래 상태 거르기 칩(전체 + 7개, `?status=`)과 줄마다 상태 딱지,
+          비밀글(`secret`)은 줄 제목 앞 자물쇠(제목은 그대로). 줄 모양은 `PostRowTitle` 이 그린다.
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
@@ -108,6 +110,25 @@
                     </AppScrollRow>
                 </nav>
 
+                <!-- 처리 상태 거르기(상태가 켜진 운영 게시판 — `statusEnabled`) — 전체 + 7개, 주소 `?status=`(말머리 거르기와 함께 쓴다). 서버에 `status` 로 보낸다 -->
+                <nav v-if="statusOn" class="-mx-4 mt-1" :aria-label="t('board.statusNav')" data-testid="board-status-chips">
+                    <AppScrollRow mode="ARROWS" touch scroller-class="px-4 py-0.5">
+                        <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                            <li v-for="chip in statusChips" :key="chip.value || '-'">
+                                <NuxtLink
+                                    :to="listLink({ status: chip.value, page: 1 })"
+                                    class="inline-flex h-7 items-center whitespace-nowrap rounded-md border px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                                    :class="(query.status ?? '') === chip.value ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-surface text-muted-color hover:text-color'"
+                                    :aria-current="(query.status ?? '') === chip.value ? 'page' : undefined"
+                                    :data-status="chip.value || undefined"
+                                >
+                                    {{ chip.label }}
+                                </NuxtLink>
+                            </li>
+                        </ul>
+                    </AppScrollRow>
+                </nav>
+
                 <!-- 핫딜 쇼핑몰 칩 — 말머리 아래, 전체 + 상위 8몰(서버 `stores`, 글 수 차례). 고른 몰이 상위 8에 없으면 끝에 붙인다. 주소 `?store=` -->
                 <nav v-if="isDeal && storeChips.length > 1" class="no-scrollbar -mx-4 mt-1 overflow-x-auto px-4 py-0.5" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
                     <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
@@ -192,6 +213,9 @@
                         <EmptyState v-else-if="query.page > 1" :title="t('board.pageEmptyTitle')" icon="pi pi-file">
                             <Button as="router-link" :to="listLink({ page: 1 })" :label="t('board.firstPage')" />
                         </EmptyState>
+                        <EmptyState v-else-if="statusOn && query.status" :title="t('board.statusEmptyTitle', { name: t(UtilPostOps.labelKey(query.status)) })" icon="pi pi-filter" data-testid="board-status-empty">
+                            <Button as="router-link" :to="listLink({ status: '', page: 1 })" :label="t('board.statusAll')" severity="secondary" variant="outlined" />
+                        </EmptyState>
                         <EmptyState v-else-if="query.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
                             <Button as="router-link" :to="listLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
                         </EmptyState>
@@ -235,6 +259,7 @@ import UtilBoardStaffActionMessages from '~/utils/util-board-staff-action-messag
 import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
+import UtilPostOps from '~/utils/util-post-ops';
 import UtilTheme from '~/utils/util-theme';
 
 const SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
@@ -370,6 +395,12 @@ const writeBlockedText = computed(() => {
 /* ── 말머리·보기 ── */
 const prefixChips = computed(() => [{ id: '', name: t('common.all') }, ...(view.value?.prefixes ?? []).map((p) => ({ id: p.id, name: p.name }))]);
 const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id === query.value.prefix)?.name ?? '');
+
+/* ── 처리 상태(운영 게시판) ── */
+/** 처리 상태를 쓰는 게시판인가 — 게시판 정보(`statusEnabled`)를 받은 뒤에만 */
+const statusOn = computed(() => detail.value?.slug === slug.value && UtilPostOps.statusOn(detail.value));
+/** 상태 거르기 칩 — 전체 + 7개(고정 차례) */
+const statusChips = computed(() => [{ value: '' as const, label: t('common.all') }, ...UtilPostOps.STATUSES.map((value) => ({ value, label: t(UtilPostOps.labelKey(value)) }))]);
 
 const hotdeal = useHotdealAds(
     computed(() =>
@@ -509,7 +540,7 @@ watch(
     { immediate: true },
 );
 watch(
-    () => [slug.value, query.value.prefix, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
+    () => [slug.value, query.value.prefix, query.value.status, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
     (now, before) => {
         void loadList();
         if (before && now[0] === before[0]) window.scrollTo({ top: 0 });

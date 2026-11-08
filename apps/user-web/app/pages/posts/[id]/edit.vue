@@ -136,6 +136,7 @@ import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
+import UtilPostOps from '~/utils/util-post-ops';
 
 definePageMeta({ shell: 'inner' });
 
@@ -181,7 +182,7 @@ async function load(): Promise<void> {
         // 지금 게시판 에디터 설정의 형식으로 연다 — 글의 형식과 다르면 바꾼다
         const format = UtilBoard.postFormat(board.value);
         const content = UtilPost.convertContent(loaded.content, loaded.contentFormat ?? 'TEXT', format);
-        const values: PostFormValues = { ...EMPTY_POST_FORM, prefixId: loaded.prefix?.id ?? null, title: loaded.title, content, contentFormat: format, adult: loaded.adult };
+        const values: PostFormValues = { ...EMPTY_POST_FORM, prefixId: loaded.prefix?.id ?? null, title: loaded.title, content, contentFormat: format, adult: loaded.adult, secret: loaded.secret === true };
         form.value = { ...values };
         initial.value = { ...values };
         debateInitial.value = UtilDebate.settingsOf(loaded.debate);
@@ -344,7 +345,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || debateChanged.value || pollChanged.value || dealChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -379,6 +380,8 @@ async function submit(): Promise<void> {
             ...(pollChanged.value ? { poll: UtilPoll.inputOf(poll.value) } : {}),
             // 딜 칸은 바꿨을 때만(종료된 딜은 늘 뺀다)
             ...(dealChanged.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
+            // 비밀글 — 글쓴이가 고르는 게시판(`OPTIONAL`)일 때만 싣는다(그 밖은 그대로 — 설정을 바꿔도 이미 쓴 글은 그대로).
+            ...UtilPostOps.secretField(UtilPostOps.updateSecret(UtilPostOps.secretMode(board.value), form.value.secret, p.author.kind === 'GUEST')),
         });
         saved = true;
         password.value = '';

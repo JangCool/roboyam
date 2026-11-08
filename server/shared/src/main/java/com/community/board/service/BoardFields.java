@@ -79,6 +79,11 @@ public final class BoardFields {
     public static final String EDITOR_NONE = "NONE";
     public static final String EDITOR_SIMPLE = "SIMPLE";
     public static final String EDITOR_ADVANCED = "ADVANCED";
+    /** 비밀글 방식(V166 — 게시판마다의 값, 일반 게시판만) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
+    public static final String SECRET_OFF = "OFF";
+    public static final String SECRET_OPTIONAL = "OPTIONAL";
+    public static final String SECRET_ALWAYS = "ALWAYS";
+    public static final List<String> SECRET_MODES = List.of(SECRET_OFF, SECRET_OPTIONAL, SECRET_ALWAYS);
 
     public static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]*$");
     public static final int SLUG_MIN = 2;

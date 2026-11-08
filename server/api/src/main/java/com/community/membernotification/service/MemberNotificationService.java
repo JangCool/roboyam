@@ -247,6 +247,13 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.pinRequested(actorName(actor), post == null ? null : post.title(), commentPreview);
                 link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
+            case POST_STATUS_CHANGED -> {
+                // 내 글의 처리 상태가 바뀜(V166) — 게시판 이름 · 새 상태 · 글 제목(볼 수 있으면 지금 제목, 아니면 알릴 때 제목). 누르면 그 글(볼 수 없으면 링크 없음)
+                String title = post != null && post.title() != null ? post.title() : payload.get("title") instanceof String t ? t : null;
+                facts = MemberNotificationMessages.Facts.postStatusChanged(payload.get("boardName") instanceof String n ? n : null,
+                        payload.get("status") instanceof String st ? st : null, title);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
             case OPINION_PIN_REVIEWED -> {
                 String result = payload.get("result") instanceof String r ? r : "APPROVED";
                 String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;

@@ -7,6 +7,8 @@ import com.community.post.dto.request.AdminPostBulkRequest;
 import com.community.post.dto.request.AdminPostHideRequest;
 import com.community.post.dto.request.AdminPostMoveRequest;
 import com.community.post.dto.request.AdminPostReasonRequest;
+import com.community.post.dto.request.PostProcessStatusRequest;
+import com.community.post.dto.response.PostProcessStatusView;
 import com.community.post.dto.response.AdminPostBoardOptionsView;
 import com.community.post.dto.response.AdminPostBulkResultView;
 import com.community.post.dto.response.AdminPostDetailView;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -44,7 +47,8 @@ public class AdminPostController {
 
     /**
      * 목록 — {@code searchField}(TITLE·AUTHOR·ID)·{@code q}·{@code createdFrom}·{@code createdTo}(UTC ISO 순간, 양 끝 포함)·{@code board}(게시판 ID)·
-     * {@code prefix}(말머리 ID)·{@code state}(ALL·PUBLIC·HIDDEN·DELETED)·{@code sort}(newest·oldest)·{@code page}(0부터)·{@code size}(기본 20, 최대 50)
+     * {@code prefix}(말머리 ID)·{@code state}(ALL·PUBLIC·HIDDEN·DELETED)·{@code sort}(newest·oldest)·{@code page}(0부터)·{@code size}(기본 20, 최대 50)·
+     * {@code processStatus}(V166 처리 상태 — 처리 상태를 쓰는 게시판의 글만, RECEIVED 는 값 없는 글도. 모르는 값은 거르지 않는다)
      */
     @RequirePermission(Permission.POST_READ)
     @GetMapping
@@ -52,8 +56,9 @@ public class AdminPostController {
                                                                @RequestParam(required = false) String createdFrom, @RequestParam(required = false) String createdTo,
                                                                @RequestParam(required = false) String board, @RequestParam(required = false) String prefix,
                                                                @RequestParam(required = false) String state, @RequestParam(required = false) String sort,
-                                                               @RequestParam(required = false) String page, @RequestParam(required = false) String size) {
-        return noStore(queries.list(searchField, q, createdFrom, createdTo, board, prefix, state, sort, page, size));
+                                                               @RequestParam(required = false) String page, @RequestParam(required = false) String size,
+                                                               @RequestParam(required = false) String processStatus) {
+        return noStore(queries.list(searchField, q, createdFrom, createdTo, board, prefix, state, sort, page, size, processStatus));
     }
 
     /** 게시판 고르기(거르기·이동) — 켜진 게시판·말머리 */
@@ -125,6 +130,17 @@ public class AdminPostController {
     public ResponseEntity<Void> unpin(@PathVariable String id, @RequestBody(required = false) AdminPostReasonRequest body, AdminActor actor) {
         moderation.unpin(actor, id, body);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 처리 상태 바꾸기(V166 운영 게시판) — 본문 {@code { status }} → {@code { processStatus, processStatusAt }}. 모르는 값 400 {@code fields.status},
+     * 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED, 지운 글 409 POST_STATE_INVALID. 감사 {@code POST_PROCESS_STATUS}
+     */
+    @RequirePermission(Permission.POST_MANAGE)
+    @PutMapping("/{id}/process-status")
+    public ResponseEntity<ApiResponse<PostProcessStatusView>> processStatus(@PathVariable String id, @RequestBody(required = false) PostProcessStatusRequest body,
+                                                                          AdminActor actor) {
+        return noStore(moderation.processStatus(actor, id, body));
     }
 
     /** 글의 투표 지우기(표가 있어도) — 본문 {@code { reason }}. 투표가 없으면 404 POLL_NOT_FOUND */

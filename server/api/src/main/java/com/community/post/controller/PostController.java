@@ -4,10 +4,13 @@ import com.community.auth.dto.AuthUser;
 import com.community.board.dto.request.PasswordRequest;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
+import com.community.post.dto.request.PostProcessStatusRequest;
+import com.community.post.dto.response.PostProcessStatusView;
 import com.community.post.dto.response.PostDeleteResult;
 import com.community.post.dto.response.PostDetailView;
 import com.community.post.dto.response.PostLikeResult;
 import com.community.post.dto.response.PostWriteResult;
+import com.community.post.service.PostProcessStatusService;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
 import com.community.zconfiguration.response.ApiResponse;
@@ -37,8 +40,10 @@ public class PostController {
     private final PostQueryService queries;
     private final PostWriteService writes;
     private final ClientIpResolver ipResolver;
+    private final PostProcessStatusService statuses;
 
-    public PostController(PostQueryService queries, PostWriteService writes, ClientIpResolver ipResolver) {
+    public PostController(PostQueryService queries, PostWriteService writes, ClientIpResolver ipResolver, PostProcessStatusService statuses) {
+        this.statuses = statuses;
         this.queries = queries;
         this.writes = writes;
         this.ipResolver = ipResolver;
@@ -82,6 +87,16 @@ public class PostController {
     @PostMapping("/{id}/like")
     public ApiResponse<PostLikeResult> like(@PathVariable String id, Authentication authentication) {
         return ApiResponse.success(writes.like(id, userId(authentication)));
+    }
+
+    /**
+     * 처리 상태 바꾸기(V166 운영 게시판) — 그 게시판 매니저·스텝·운영자 회원 계정만(아니면 403 BOARD_STAFF_FORBIDDEN, 비로그인 401).
+     * 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED, 모르는 값 400 {@code fields.status}
+     */
+    @PutMapping("/{id}/process-status")
+    public ResponseEntity<ApiResponse<PostProcessStatusView>> processStatus(@PathVariable String id, @RequestBody(required = false) PostProcessStatusRequest body,
+                                                                          Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(statuses.change(id, body, userId(authentication))));
     }
 
     static Long userId(Authentication authentication) {

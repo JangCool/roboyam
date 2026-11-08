@@ -13,6 +13,8 @@ import type {
     PostState,
     PostStateFilter,
 } from '~/composables/post/api/usePostApi.types';
+import { POST_PROCESS_STATUSES } from '~/composables/post/api/usePostApi.types';
+import type { PostProcessStatus } from '~/composables/post/api/usePostApi.types';
 import UtilMember from '~/utils/util-member';
 
 /**
@@ -30,6 +32,8 @@ export interface PostFilters {
     board: string;
     /** 말머리 ID(게시판을 골랐을 때만) */
     prefix: string;
+    /** 처리 상태(운영 게시판 — 상태가 켜진 게시판의 글만, 없으면 빈 글자). 주소 `?processStatus=` */
+    processStatus: PostProcessStatus | '';
     /** 작성일 시작(`YYYY-MM-DD`, 사이트 시간대의 날짜 — 없으면 빈 글자) */
     from: string;
     /** 작성일 끝(`YYYY-MM-DD`, 없으면 빈 글자) */
@@ -139,11 +143,30 @@ export default class UtilPost {
     /** ⋯ 메뉴·바닥 단추의 차례 */
     static readonly ACTION_ORDER: readonly PostActionKind[] = ['HIDE', 'UNHIDE', 'MOVE', 'NOTICE', 'PIN', 'UNPIN', 'DELETE', 'RESTORE'];
 
+    /* ── 처리 상태(운영 게시판) ── */
+
+    /** 처리 상태 7개 — 보이는 차례(거르기·바꾸기 목록) */
+    static readonly PROCESS_STATUSES: readonly PostProcessStatus[] = POST_PROCESS_STATUSES;
+
+    /**
+     * 처리 상태 딱지(`Tag`)의 색 — 완료 초록 · 반려 빨강 · 보류 노랑 · 확인 중·진행 중 파랑 · 접수·중복 회색(글자가 늘 있다).
+     * @param {PostProcessStatus} status - 처리 상태.
+     * @returns {'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast'} PrimeVue 색.
+     */
+    static processSeverity(status: PostProcessStatus): 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast' {
+        if (status === 'DONE') return 'success';
+        if (status === 'REJECTED') return 'danger';
+        if (status === 'ON_HOLD') return 'warn';
+        if (status === 'CHECKING' || status === 'IN_PROGRESS') return 'info';
+        if (status === 'DUPLICATE') return 'contrast';
+        return 'secondary';
+    }
+
     /* ── 주소 ↔ 필터 ── */
 
     /** 기본 필터 */
     static emptyFilters(): PostFilters {
-        return { field: 'TITLE', q: '', board: '', prefix: '', from: '', to: '', state: 'ALL', sort: 'newest', page: 1, size: UtilPost.PAGE_SIZE };
+        return { field: 'TITLE', q: '', board: '', prefix: '', processStatus: '', from: '', to: '', state: 'ALL', sort: 'newest', page: 1, size: UtilPost.PAGE_SIZE };
     }
 
     /**
@@ -163,6 +186,7 @@ export default class UtilPost {
             q: Array.from(first(query.q).trim()).slice(0, UtilPost.SEARCH_MAX).join(''),
             board,
             prefix: board ? first(query.prefix).trim() : '',
+            processStatus: (POST_PROCESS_STATUSES as readonly string[]).includes(first(query.processStatus)) ? (first(query.processStatus) as PostProcessStatus) : '',
             from: ymd(first(query.from).trim()),
             to: ymd(first(query.to).trim()),
             state: STATE_FILTERS.includes(state) ? state : 'ALL',
@@ -183,6 +207,7 @@ export default class UtilPost {
         if (f.q) query.q = f.q;
         if (f.board) query.board = f.board;
         if (f.board && f.prefix) query.prefix = f.prefix;
+        if (f.processStatus) query.processStatus = f.processStatus;
         if (f.from) query.from = f.from;
         if (f.to) query.to = f.to;
         if (f.state !== 'ALL') query.state = f.state;
@@ -204,6 +229,7 @@ export default class UtilPost {
             searchField: f.q ? f.field : undefined,
             board: f.board,
             prefix: f.prefix,
+            processStatus: f.processStatus,
             createdFrom: f.from ? UtilMember.dayStart(f.from, zoneId) : undefined,
             createdTo: f.to ? UtilMember.dayEnd(f.to, zoneId) : undefined,
             state: f.state,

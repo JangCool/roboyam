@@ -5,11 +5,15 @@ import java.time.Instant;
 
 /**
  * 게시글 관리 목록·상세의 글 한 줄 — 본문·작성 IP 는 읽지 않는다({@code AdminPostRepositoryQDSL} 의 투영). 상태는 {@link #stateAt}.
+ *
+ * @param secret          비밀글인가(V166 — 관리자는 늘 본다)
+ * @param processStatus   처리 상태(저장된 값 그대로, 없으면 null — 응답 값은 {@code PostProcessStatus#effective})
+ * @param processStatusAt 처리 상태를 마지막으로 바꾼 시각
  */
 public record AdminPostListRow(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String title, String status, Boolean adult,
                                Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, String hiddenReason,
                                Instant hiddenUntil, Instant deleteScheduledAt, Instant deletedAt, Instant purgedAt, Instant createdAt, Long groupId,
-                               Boolean publicPost, Instant groupLeftAt) {
+                               Boolean publicPost, Instant groupLeftAt, Boolean secret, String processStatus, Instant processStatusAt) {
 
     /** 비공개 소모임 글인가(제목·본문을 관리자 목록·상세에 싣지 않는다 — 신고 처리의 스냅샷으로만 본다, 소모임 2단계) */
     public boolean restricted() {

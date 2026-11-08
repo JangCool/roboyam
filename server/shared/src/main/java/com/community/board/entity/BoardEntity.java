@@ -36,6 +36,10 @@ public class BoardEntity {
     private boolean allowAdult;
     /** 「이 게시판에 광고 숨김」(V117) — 목록 한 줄·글 보기·핫딜 노출 광고 없음. 게시판마다의 값 */
     private boolean adsHidden;
+    /** 비밀글 방식(V166) OFF · OPTIONAL · ALWAYS — 게시판마다의 값(기본 설정에서 물려받지 않는다). 일반 게시판만 켤 수 있다 */
+    private String secretMode = BoardFields.SECRET_OFF;
+    /** 처리 상태를 쓰는가(V166) — 게시판마다의 값. 일반 게시판만 켤 수 있다 */
+    private boolean statusEnabled;
     private boolean investmentNotice;
     private boolean active;
     private int sortOrder;
@@ -126,6 +130,12 @@ public class BoardEntity {
     /** 「광고 숨김」을 바꾼다 */
     public void changeAdsHidden(boolean adsHidden) {
         this.adsHidden = adsHidden;
+    }
+
+    /** 운영 게시판 설정(비밀글 방식 · 처리 상태)을 바꾼다 — 이미 쓴 글의 비밀 여부·상태 값은 그대로 둔다 */
+    public void changeOps(String secretMode, boolean statusEnabled) {
+        this.secretMode = secretMode;
+        this.statusEnabled = statusEnabled;
     }
 
     /** 잠금·안내문을 바꾼다 */
@@ -240,6 +250,14 @@ public class BoardEntity {
 
     public boolean isAdsHidden() {
         return adsHidden;
+    }
+
+    public String getSecretMode() {
+        return secretMode;
+    }
+
+    public boolean isStatusEnabled() {
+        return statusEnabled;
     }
 
     public boolean isInvestmentNotice() {

@@ -86,6 +86,14 @@ export type PostPrefixRef = Pick<PrefixView, 'id' | 'name' | 'staffOnly' | 'colo
 export type PostHiddenReason = 'REPORTED' | 'STAFF';
 
 /**
+ * 처리 상태(운영 게시판 — 버그 신고·기능 요청, 게시판 설정 `statusEnabled`) — 고정 7개, 이 차례로 보인다. 새 글은 `RECEIVED`.
+ * 운영진(그 게시판 매니저·스텝·운영자 회원 계정 — `viewer.staff`)만 바꾼다. 응답 칸 이름은 `processStatus`(목록 줄·글 상세)·`processStatusAt`(글 상세).
+ */
+export type PostProcessStatus = 'RECEIVED' | 'CHECKING' | 'IN_PROGRESS' | 'DONE' | 'ON_HOLD' | 'REJECTED' | 'DUPLICATE';
+/** 처리 상태 7개 — 보이는 차례(거르기 칩·바꾸기 목록) */
+export const POST_PROCESS_STATUSES: readonly PostProcessStatus[] = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'DONE', 'ON_HOLD', 'REJECTED', 'DUPLICATE'];
+
+/**
  * 소모임 글의 공개 상태(비멤버에게 보이는가) — 비공개(그 소모임 멤버만 읽는다) · 공개(누구나).
  * community `docs/api-groups.md` 8절·11절 — 공개 소모임의 글은 쓰자마자 `PUBLIC`, 비공개 소모임의 글은 승인·직접 공개해야 `PUBLIC` 이다.
  */
@@ -188,12 +196,19 @@ export interface PostRow {
      * 핫딜 게시판 목록·글 보기·가젯 `HOT_DEALS`(`HotdealRowItem`)뿐이고, 최신글·인기글·검색 등은 계약 화면 경로에 딜 표시가 없어 일반 줄로 그린다(칸은 무시)
      */
     deal?: PostDeal | null;
+    /**
+     * 비밀글(게시판 설정 `secretMode` — 글쓴이·그 게시판 매니저·스텝·운영자만 본문을 읽는다) — 목록은 제목을 그대로 싣고 화면은 제목 앞에 자물쇠만 그린다.
+     * 섞인 목록(최신글·검색·인기·가젯·남의 프로필)에서는 서버가 뺀다. 옛 응답(칸 없음)은 비밀 아님 —
+     */
+    secret?: boolean;
+    /** 처리 상태 — 상태가 켜진 게시판(`statusEnabled`)의 글만, 그 밖·공지는 null */
+    processStatus?: PostProcessStatus | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
 export type PostSort = 'LATEST' | 'OLDEST';
 
-/** `GET /api/boards/{slug}/posts?prefix&sort&q&page` */
+/** `GET /api/boards/{slug}/posts?prefix&status&sort&q&page` */
 export interface PostListQuery {
     /** 말머리 ID — 없으면 전체 */
     prefix: string;
@@ -202,6 +217,8 @@ export interface PostListQuery {
     q: string;
     /** 1부터 */
     page: number;
+    /** 처리 상태 거르기(`status` — 상태가 켜진 게시판만, 말머리 거르기와 함께 쓴다) — 없거나 빈 글자면 전체(보내지 않는다) */
+    status?: PostProcessStatus | '';
 }
 
 /**
@@ -339,6 +356,12 @@ export interface PostDetail {
     staffProtected?: boolean;
     /** 보는 사람이 그 게시판 매니저·스텝이고 작성자가 같은 게시판 매니저·스텝 — 「작성자 제재」가 막힌다. 그 밖의 보는 사람은 늘 false */
     sanctionProtected?: boolean;
+    /** 비밀글 — 제목 옆 자물쇠 딱지. 읽을 수 없는 사람은 이 응답 대신 `403 SECRET_POST` 를 받는다 */
+    secret?: boolean;
+    /** 처리 상태 — 상태가 켜진 게시판의 글만(그 밖은 null) */
+    processStatus?: PostProcessStatus | null;
+    /** 처리 상태를 마지막으로 바꾼 시각(UTC ISO) — 바꾼 적이 없으면 null */
+    processStatusAt?: string | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -369,6 +392,11 @@ export interface PostWriteRequest {
     poll?: PollInput | null;
     /** 핫딜 게시판이면 필수 — 딜 정보(오류는 `400 VALIDATION fields."deal.*"` 로 다른 칸 오류와 함께). 그 밖 게시판은 보내지 않는다 */
     deal?: DealInput | null;
+    /**
+     * 비밀글로 쓴다 — 게시판 `secretMode` 가 `OPTIONAL` 이면 글쓴이가 고른 값, `ALWAYS` 면 true(서버도 늘 비밀로 저장), `OFF`·비회원이면 싣지 않는다
+     * (null·없음 = 서버가 게시판 방식대로)
+     */
+    secret?: boolean | null;
 }
 
 export interface PostWriteResult {
@@ -395,6 +423,22 @@ export interface PostUpdateRequest {
      * 종료된 딜은 고칠 수 없어(`409 DEAL_ENDED`) 늘 뺀다
      */
     deal?: DealInput;
+    /** 비밀글 여부 — 게시판 `secretMode` 가 `OPTIONAL` 일 때만 싣는다(칸을 빼거나 null 이면 그대로) */
+    secret?: boolean | null;
+}
+
+/**
+ * `PUT /api/posts/{id}/process-status` — 처리 상태 바꾸기(그 게시판 매니저·스텝·운영자 회원 계정만).
+ * 오류: 상태가 꺼진 게시판 `409 POST_STATUS_DISABLED` · 모르는 값 `400 VALIDATION fields.status` · 권한 없음 `403`
+ */
+export interface PostProcessStatusRequest {
+    status: PostProcessStatus;
+}
+
+/** 처리 상태 바꾸기 응답 — 바뀐 상태와 시각(글쓴이에게 「처리 상태가 '완료'로 바뀌었어요」 알림은 서버 몫) */
+export interface PostProcessStatusResult {
+    processStatus: PostProcessStatus;
+    processStatusAt: string;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

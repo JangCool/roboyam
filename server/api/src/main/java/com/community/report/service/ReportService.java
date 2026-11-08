@@ -226,6 +226,7 @@ public class ReportService {
         }
         Target target = ReportEntity.POST.equals(type) ? postTarget(targetId, s, now) : commentTarget(targetId, s, now);
         requireGroupReadable(target, s, userId); // 소모임 비공개 글·그 댓글은 멤버만 신고한다(읽을 수 없는 대상은 없는 대상과 같다)
+        postQueries.requireSecretReadable(s, target.post(), userId); // 비밀글·그 댓글은 읽을 수 있는 사람만 신고한다(403 SECRET_POST — V166)
         boolean dealPost = target.comment() == null && DealWriter.dealBoard(target.board());
         if (ReportReasons.DEAL_ONLY.contains(reason) && !dealPost) {
             throw ValidationException.of("reason", new MessageRef("board.report.reason.dealOnly")); // 핫딜 사유는 핫딜 글에서만(일반 글·댓글 400)

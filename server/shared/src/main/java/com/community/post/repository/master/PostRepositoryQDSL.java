@@ -11,6 +11,7 @@ import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.WriteRateData;
 import com.community.post.entity.PostEntity;
+import com.community.post.entity.PostProcessStatus;
 import com.community.post.entity.QPostEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -72,11 +73,44 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
      * 게시판이 섞인 목록(최신글·통합 검색·회원 작성글·인기글)에 나올 수 있는 글 — 일반 글이거나, <b>비멤버에게 보이는 소모임 글</b>
      * ({@code is_public} = 유효 노출 — 공개 소모임의 글·개별 공개된 글, community api-groups.md 8절·11-1)이고 작성자가 나가서 가리지 않았으며 소모임이 비활성이 아니다
      * (비활성 소모임의 글은 글 상세가 403 {@code GROUP_INACTIVE} 라 줄을 보이지 않는다 — 해산한 소모임에 공개로 남은 글은 읽히므로 나온다).
+     * <b>비밀글</b>(V166)은 섞인 목록에 나오지 않는다(보는 사람이 글쓴이·운영진이어도 — 그 게시판 목록에서만 본다).
      * 인기글 배치(R__batch_24 {@code popular_rank_candidates})와 통합 검색의 원시 SQL({@code PostSearchQueries})이 같은 판정을 SQL 로 쓴다 — 한쪽을 고치면 같이 고친다.
      */
     public static BooleanExpression feedVisible(QPostEntity p) {
-        return p.groupId.isNull().or(p.publicPost.isTrue().and(p.groupLeftAt.isNull())
+        return feedVisible(p, false);
+    }
+
+    /**
+     * {@link #feedVisible(QPostEntity)} 에서 비밀글 제외만 고를 수 있는 것 — 회원 작성글(프로필)을 <b>본인</b>이 볼 때만 {@code includeSecret = true}.
+     */
+    public static BooleanExpression feedVisible(QPostEntity p, boolean includeSecret) {
+        BooleanExpression visible = p.groupId.isNull().or(p.publicPost.isTrue().and(p.groupLeftAt.isNull())
                 .and(p.groupId.notIn(JPAExpressions.select(INACTIVE_GROUP.id).from(INACTIVE_GROUP).where(INACTIVE_GROUP.status.eq(GroupStatus.INACTIVE)))));
+        return includeSecret ? visible : visible.and(p.secret.isFalse());
+    }
+
+    /**
+     * 비밀글 거름(같은 게시판의 이전·다음 글) — 그 게시판 운영진이면 null(거르지 않음), 회원이면 비밀글이 아니거나 내 글, 비회원이면 비밀글이 아닌 글만.
+     *
+     * @param viewerId 보는 회원(비회원 null)
+     * @param staff    보는 사람이 그 게시판 매니저·스텝·운영자 회원 계정인가
+     */
+    public static BooleanExpression secretVisible(QPostEntity p, Long viewerId, boolean staff) {
+        if (staff) {
+            return null;
+        }
+        return viewerId == null ? p.secret.isFalse() : p.secret.isFalse().or(p.authorId.eq(viewerId));
+    }
+
+    /**
+     * 처리 상태 거르기(게시판 목록 {@code ?status=}) — {@code RECEIVED} 는 값 없는 글(상태를 켜기 전에 쓴 글)도 포함한다. null 이면 거르지 않는다.
+     */
+    public static BooleanExpression processStatusIs(QPostEntity p, PostProcessStatus status) {
+        if (status == null) {
+            return null;
+        }
+        BooleanExpression same = p.processStatus.eq(status.name());
+        return status == PostProcessStatus.RECEIVED ? same.or(p.processStatus.isNull()) : same;
     }
 
     /**
@@ -89,7 +123,8 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
-                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId);
+                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId,
+                POST.secret, POST.processStatus);
     }
 
     /** 고정 공지 — 고정한 차례 최신순, 최대 {@code max} 개 */
@@ -129,9 +164,20 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
      * @param adultViewer   보는 사람이 성인인가 — 아니면 19금 글을 뺀다({@link #adultVisible})
      */
     public Page page(long boardId, Long prefixId, String q, boolean oldest, boolean excludePinned, boolean adultViewer, long offset, int limit, Instant now) {
+        return page(boardId, prefixId, null, q, oldest, excludePinned, adultViewer, offset, limit, now);
+    }
+
+    /**
+     * 글 목록 한 쪽 — 처리 상태 거르기까지({@link #processStatusIs}, null = 전체). 비밀글은 목록에 줄로 남는다(내용 칸을 비우는 것은 부르는 쪽).
+     */
+    public Page page(long boardId, Long prefixId, PostProcessStatus status, String q, boolean oldest, boolean excludePinned, boolean adultViewer, long offset,
+                     int limit, Instant now) {
         BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now)).and(adultVisible(POST, adultViewer));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
+        }
+        if (status != null) {
+            where = where.and(processStatusIs(POST, status));
         }
         if (excludePinned) {
             where = where.and(POST.pinnedAt.isNull());
@@ -222,15 +268,32 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     /** 바로 앞(더 오래된) 글 — 같은 게시판, 보이고 숨기지 않은 글(성인이 아니면 19금 글을 건너뛴다) */
     public Optional<PostNeighborData> older(long boardId, long id, boolean adultViewer, Instant now) {
+        return older(boardId, id, adultViewer, null, true, now);
+    }
+
+    /**
+     * 바로 앞(더 오래된) 글 — 읽을 수 없는 비밀글도 건너뛴다({@link #secretVisible}).
+     *
+     * @param viewerId 보는 회원(비회원 null)
+     * @param staff    보는 사람이 그 게시판 운영진인가(비밀글을 모두 읽는다)
+     */
+    public Optional<PostNeighborData> older(long boardId, long id, boolean adultViewer, Long viewerId, boolean staff, Instant now) {
         return Optional.ofNullable(query.select(Projections.constructor(PostNeighborData.class, POST.id, POST.title)).from(POST)
-                .where(POST.boardId.eq(boardId), POST.id.lt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer))
+                .where(POST.boardId.eq(boardId), POST.id.lt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer),
+                        secretVisible(POST, viewerId, staff))
                 .orderBy(POST.id.desc()).fetchFirst());
     }
 
     /** 바로 뒤(더 새) 글 */
     public Optional<PostNeighborData> newer(long boardId, long id, boolean adultViewer, Instant now) {
+        return newer(boardId, id, adultViewer, null, true, now);
+    }
+
+    /** 바로 뒤(더 새) 글 — 읽을 수 없는 비밀글도 건너뛴다 */
+    public Optional<PostNeighborData> newer(long boardId, long id, boolean adultViewer, Long viewerId, boolean staff, Instant now) {
         return Optional.ofNullable(query.select(Projections.constructor(PostNeighborData.class, POST.id, POST.title)).from(POST)
-                .where(POST.boardId.eq(boardId), POST.id.gt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer))
+                .where(POST.boardId.eq(boardId), POST.id.gt(id), alive(POST, now), notHidden(POST, now), adultVisible(POST, adultViewer),
+                        secretVisible(POST, viewerId, staff))
                 .orderBy(POST.id.asc()).fetchFirst());
     }
 

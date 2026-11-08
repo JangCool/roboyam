@@ -20,6 +20,23 @@ export type PostSort = 'newest' | 'oldest';
 /** 숨김 까닭 — 신고 숨김(REPORTED·ILLEGAL·RIGHTS) · 운영자 숨김(STAFF) */
 export type PostHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
 
+/** 처리 상태(운영 게시판 — 버그 신고·기능 요청) — 고정 7개, 이 차례로 보인다(공개 사이트 `PostProcessStatus` 와 같은 값). 새 글은 `RECEIVED` */
+export type PostProcessStatus = 'RECEIVED' | 'CHECKING' | 'IN_PROGRESS' | 'DONE' | 'ON_HOLD' | 'REJECTED' | 'DUPLICATE';
+/** 처리 상태 7개 — 보이는 차례 */
+export const POST_PROCESS_STATUSES: readonly PostProcessStatus[] = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'DONE', 'ON_HOLD', 'REJECTED', 'DUPLICATE'];
+
+/**
+ * `PUT /api/admin/posts/{id}/process-status { status }` → `{ processStatus, processStatusAt }` — 공개 쪽과 같은 모양.
+ * 오류: 상태가 꺼진 게시판 `409 POST_STATUS_DISABLED` · 모르는 값 `400 VALIDATION fields.status` · 권한 없음 `403`
+ */
+export interface PostProcessStatusRequest {
+    status: PostProcessStatus;
+}
+export interface PostProcessStatusResult {
+    processStatus: PostProcessStatus;
+    processStatusAt: string;
+}
+
 export interface AdminPostBoardRef {
     id: string;
     name: string;
@@ -101,6 +118,12 @@ export interface AdminPostItem {
     group?: AdminPostGroupRef | null;
     /** 비공개 소모임 글 — `title` 이 null 이고 상세 본문·투표도 없다(옛 응답에는 없을 수 있다 — 없으면 false) */
     restricted?: boolean;
+    /** 비밀글(게시판 `secretMode`) — 제목 옆 자물쇠 딱지. 관리자 앱 운영자는 늘 읽는다 */
+    secret?: boolean;
+    /** 처리 상태 — 상태가 켜진 게시판(`statusEnabled`)의 글만, 그 밖은 null */
+    processStatus?: PostProcessStatus | null;
+    /** 처리 상태를 마지막으로 바꾼 시각(UTC ISO) — 바꾼 적이 없으면 null(서버가 주지 않을 수 있다) */
+    processStatusAt?: string | null;
 }
 
 /** 상태 알약(`PostStateTag`)·상태 줄(`UtilPostMessages.stateLines`)이 읽는 칸 — 공지 관리의 줄(`NoticeItem`)도 같은 칸을 가져 알약을 같이 쓴다 */
@@ -129,6 +152,8 @@ export interface AdminPostQuery {
     board?: string;
     /** 말머리 ID(게시판을 고른 뒤) */
     prefix?: string;
+    /** 처리 상태(상태가 켜진 게시판의 글만) — 비면 보내지 않는다 */
+    processStatus?: PostProcessStatus | '';
     state?: PostStateFilter;
     sort?: PostSort;
     /** 0부터 */

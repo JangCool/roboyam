@@ -42,6 +42,8 @@ export type BoardPointMode = 'ON' | 'OFF';
 export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 /** 읽기 전용 잠금 — 새 글만 막기 · 새 글·댓글 막기. `null` = 잠금 없음(기본값이 없는 게시판 전용 칸) */
 export type BoardWriteLock = 'POST' | 'POST_COMMENT';
+/** 비밀글 방식(게시판마다의 값 — 기본 설정에서 물려받지 않는다) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
+export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
 /** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
@@ -287,6 +289,10 @@ export interface BoardDetail extends BoardRef {
     writeTemplate?: string | null;
     /** 「가젯 노출 금지」로 고른 가젯 키(`gadgets[].key`, 목록 순서) — 게시판마다의 값(기본 설정에서 물려받지 않고 `diffCount` 에 세지 않는다) */
     gadgetExclusions: string[];
+    /** 비밀글(게시판마다의 값 — `diffCount` 에 세지 않는다). 설정을 바꿔도 이미 쓴 글의 비밀 여부는 그대로다 */
+    secretMode?: BoardSecretMode;
+    /** 처리 상태 쓰기(게시판마다의 값, 기본 꺼짐 — `diffCount` 에 세지 않는다) */
+    statusEnabled?: boolean;
     policy: BoardPolicy;
     /** 공통 4개 + 고유, 표시 순서대로 */
     prefixes: BoardPrefix[];
@@ -348,6 +354,10 @@ export interface BoardSaveRequest {
     gadgetExclusions: string[] | null;
     /** 「이 게시판에 광고 숨김」 — `null` 이면 바꾸지 않는다. 노출 설정이라 바꾸려면 `board.settings` */
     adsHidden: boolean | null;
+    /** 비밀글 방식 — `null` 이면 바꾸지 않는다(바꾸려면 `board.settings`). 바꿔도 이미 쓴 글의 비밀 여부는 그대로 */
+    secretMode: BoardSecretMode | null;
+    /** 처리 상태 쓰기 — `null` 이면 바꾸지 않는다(바꾸려면 `board.settings`) */
+    statusEnabled: boolean | null;
 }
 
 /** 게시판 매니저·스텝 한 명 — `GET /api/admin/boards/{id}/staff` */

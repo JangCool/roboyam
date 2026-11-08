@@ -3,6 +3,7 @@ package com.community.membernotification.service;
 import com.community.group.entity.GroupManagerPermission;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
+import com.community.post.entity.PostProcessStatus;
 import com.community.notificationtemplate.catalog.MessageChannel;
 import com.community.notificationtemplate.catalog.MessageCondition;
 import com.community.notificationtemplate.catalog.MessageLocales;
@@ -270,6 +271,11 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.OPINION_PIN_REQUESTED, actorName, postTitle, excerpt, 1, 0, null, null, false, null, null);
         }
 
+        /** 내 글의 처리 상태가 바뀜(V166) — 게시판 이름({@code snapshot})·새 상태({@code result} — {@code PostProcessStatus} 이름)·글 제목 */
+        public static Facts postStatusChanged(String boardName, String status, String postTitle) {
+            return new Facts(MemberNotificationType.POST_STATUS_CHANGED, null, postTitle, null, 1, 0, null, null, false, boardName, status);
+        }
+
         /** 의견 고정 요청 결과({@code APPROVED}·{@code REJECTED}) — 거절이면 사유(없으면 null) */
         public static Facts pinReviewed(String result, String reason, String postTitle) {
             return new Facts(MemberNotificationType.OPINION_PIN_REVIEWED, null, postTitle, null, 1, 0, null, reason, false, null, result);
@@ -424,6 +430,10 @@ public class MemberNotificationMessages {
             case POINT_SHOP_REFUND_REJECTED -> builder.variable("itemName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
             case REWARD_EVENT_GRANTED -> builder.variable("eventName", nz(facts.snapshot())).variable("rewards", rewardSummary(facts, locale));
             case REWARD_EVENT_REVOKED -> builder.variable("eventName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            case POST_STATUS_CHANGED -> builder.variable("boardName", nz(facts.snapshot()))
+                    .variable("status", messages.get(new MessageRef("post.processStatus." + PostProcessStatus.parse(facts.result()).orElse(PostProcessStatus.RECEIVED).name()),
+                            locale))
+                    .variable("postTitle", nz(facts.postTitle()));
             case GROUP_APPROVED, GROUP_JOIN_APPROVED, GROUP_KICKED, GROUP_DISSOLVED, GROUP_LEADER_TRANSFERRED, GROUP_REACTIVATED ->
                     builder.variable("groupName", nz(facts.snapshot()));
             case GROUP_REJECTED, GROUP_JOIN_REJECTED, GROUP_DEACTIVATED -> builder.variable("groupName", nz(facts.snapshot())).variable("reason", nz(facts.note()));

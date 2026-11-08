@@ -175,7 +175,12 @@ public enum MemberNotificationType {
     /** 보상 이벤트 보상을 받았다(V163 — event-admin-contract) — 덧붙임 {@code eventId}·{@code eventName}(알릴 때 이름)·{@code points}·{@code items}·{@code manual}(직접 전달 수). 누르면 내 포인트 */
     REWARD_EVENT_GRANTED("system"),
     /** 보상 이벤트 보상이 회수됐다 — 덧붙임 {@code eventId}·{@code eventName}·{@code reason}(운영자가 적은 사유). 누르면 내 포인트 */
-    REWARD_EVENT_REVOKED("system");
+    REWARD_EVENT_REVOKED("system"),
+    /**
+     * 내 글의 처리 상태가 바뀌었다(V166 — 운영 게시판 「처리 상태」, 바꾼 사람 = 그 게시판 매니저·스텝·운영자 회원 계정·관리자 앱 운영자, 본인이 바꾸면 보내지 않는다).
+     * 덧붙임 {@code boardName}(알릴 때 게시판 이름)·{@code status}({@code PostProcessStatus} 이름)·{@code title}(알릴 때 글 제목). 누르면 그 글
+     */
+    POST_STATUS_CHANGED("system");
 
     private final String category;
 

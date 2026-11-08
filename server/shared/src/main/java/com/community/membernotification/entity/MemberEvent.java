@@ -124,7 +124,9 @@ public enum MemberEvent {
     EMOTICON_PURCHASE(NotificationArea.MEMBER, MemberNotificationType.EMOTICON_PURCHASE, MemberEventLockReason.ACTION, null),
     /** 보상 이벤트 지급·회수(V163 — event-admin-contract 「알림·감사」) — 포인트·아이템이 오가는 처리 알림이라 회원이 끌 수 없다 */
     REWARD_EVENT_GRANTED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_GRANTED, MemberEventLockReason.ACTION, null),
-    REWARD_EVENT_REVOKED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_REVOKED, MemberEventLockReason.ACTION, null);
+    REWARD_EVENT_REVOKED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_REVOKED, MemberEventLockReason.ACTION, null),
+    /** 내 글의 처리 상태가 바뀜(V166 — 버그 신고·기능 요청 같은 운영 게시판) — 진행 안내라 회원이 끌 수 있다(잠금 없음, 가정) */
+    POST_STATUS_CHANGED(NotificationArea.CONTENT, MemberNotificationType.POST_STATUS_CHANGED, null, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 
