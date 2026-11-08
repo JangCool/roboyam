@@ -32,7 +32,7 @@
             <!-- 게시판 머리·목록·쪽 번호를 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·소모임)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
             <div v-else class="gadget-card" data-headless data-testid="board-card">
                 <!-- 머리 — 화면에 보이는 동안은 떠 있는 글쓰기 단추를 숨긴다(`boardHead` 를 지켜본다) -->
-                <div ref="boardHead">
+                <div ref="boardHead" data-cache-area="board.catalog">
                     <PageTitleHead :title="view ? localizedName(view.name, view.nameEn) : ''" :description="view?.description" :title-style="UtilBoard.textStyle(view?.color)" title-testid="board-title" divider>
                         <template v-if="!view" #title>
                             <span class="inline-block h-5 w-28 animate-pulse rounded bg-surface-200 align-middle dark:bg-surface-800" :aria-label="t('board.loadingName')" />
@@ -50,6 +50,7 @@
                                 :class="writeButton === 'disabled' ? 'opacity-60' : ''"
                                 :disabled="writeButton === 'loading'"
                                 data-testid="board-write"
+                                data-cache-area="board.catalog"
                                 @click="onWrite"
                             />
                         </template>

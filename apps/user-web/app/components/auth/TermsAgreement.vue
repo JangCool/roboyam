@@ -1,5 +1,5 @@
 <template>
-    <fieldset class="m-0 min-w-0 border-0 p-0">
+    <fieldset class="m-0 min-w-0 border-0 p-0" data-cache-area="terms.public">
         <legend class="sr-only">{{ t('signup.termsLegend') }}</legend>
 
         <!-- 전체 동의 -->

@@ -126,6 +126,7 @@
                     :aria-describedby="blockLine ? `${titleId}-block` : undefined"
                     class="w-full sm:w-auto sm:self-start"
                     data-testid="pointshop-buy-button"
+                    data-cache-area="commerce.rateLimits"
                     @click="openDialog"
                 />
                 <p v-if="blockLine" :id="`${titleId}-block`" class="m-0 text-xs text-muted-color" data-testid="pointshop-block-reason">{{ blockLine }}</p>

@@ -150,6 +150,7 @@ export default {
     batchAndLogs: '배치와 로그',
     batches: '배치 관리',
     batchLogs: '배치 로그',
+    caches: '캐시 관리 (준비 중)',
     audit: '감사 로그',
     legal: '운영·약관',
     siteOperator: '운영 주체',

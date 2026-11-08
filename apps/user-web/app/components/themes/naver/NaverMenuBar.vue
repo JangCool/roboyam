@@ -8,7 +8,7 @@
         넘칠 때의 표시(`overflow`)는 공통 `AppScrollRow` 가 그린다. 탭이 바 바닥에 붙어(활성 3px 밑줄이 바닥) 줄 안에 빈 아래 여백이 없으므로,
         얇은 스크롤(`SCROLLBAR`)이면 탭 줄(50) 아래에 예약 자리(`--scroll-reserve` 7px)를 처음부터 덧붙인다(`reserve` — 바 57px, 넘쳐도 그대로). 화살표 단추는 바 색(`--nav-bg`)에서 사라진다.
     -->
-    <nav :aria-label="t('menu.navLabel')" class="app-nav sticky top-0 z-30 max-md:hidden" data-testid="naver-menu">
+    <nav :aria-label="t('menu.navLabel')" class="app-nav sticky top-0 z-30 max-md:hidden" data-testid="naver-menu" data-cache-area="menu.public">
         <div class="mx-auto flex w-full max-w-[var(--content-max)] px-4">
             <AppScrollRow ref="row" :mode="overflow" reserve class="flex-1" scroller-class="flex h-[50px] items-end whitespace-nowrap">
                 <AppMenuBarState v-if="ownsState" :state="state" :loading="loading" class="self-center" @reload="reload" />

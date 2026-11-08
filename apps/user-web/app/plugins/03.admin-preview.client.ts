@@ -11,6 +11,9 @@
  * - 편집 중(`editing`)이면 홈 격자가 가젯 위에 손잡이를 얹고, 옮기기·크기·빼기를 관리자에게 알린다(`…-layout`, 계산·저장은 관리자 — `HomeGadgetGrid`).
  * - 미리보기 안에서는 다른 화면으로 가지 않는다 — 링크 누르기는 막고(단추가 부르는 화면 이동도 라우터에서 막는다), 윗줄·메뉴·사이드 메뉴(본문 `#main-content` 밖의 `header`·`nav`, `.side-menu`)를 누르면 메뉴 설정을 열라고 알린다.
  * - 회원 보기 설정의 메뉴 위치는 쓰지 않는다(`useMenuPosition`) — 운영자가 보는 값이 공개 기본 화면이어야 한다.
+ * - **캐시 영역 미리보기**(관리자 캐시 관리 `/settings/caches` 의 「미리보기」, 주소에 `cachePreview=1` 도 있을 때, 2026-11-08): 같은 허용 주소·같은 준비됨 메시지를 쓰되
+ *   캐시 영역 메시지(`roboyam:cache-preview` — `util-cache-area.ts`)만 받고 테마·메뉴·홈 구성 값은 받지 않는다(저장된 공개 화면 그대로). 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않고 링크만 막는다.
+ *   상자 그리기·누르기 알림은 `CacheAreaOverlay`(기본 셸 `layouts/default.vue`)가 한다.
  */
 import UtilAdminPreview, { ADMIN_PREVIEW_EDIT_MENU, ADMIN_PREVIEW_READY } from '~/utils/util-admin-preview';
 import UtilMenuPosition, {
@@ -21,6 +24,7 @@ import UtilMenuPosition, {
     type SiteTopItemsSetting,
 } from '~/utils/util-menu-position';
 import UtilTheme, { type ThemeId } from '~/utils/util-theme';
+import UtilCacheArea from '~/utils/util-cache-area';
 
 export default defineNuxtPlugin(() => {
     if (!UtilAdminPreview.isPreviewWindow(window.parent !== window, window.location.search)) return;
@@ -32,8 +36,10 @@ export default defineNuxtPlugin(() => {
         .filter(Boolean);
     if (!allowed.length) return;
 
-    const { active, editing, home, page, board } = useAdminPreview();
+    const { active, editing, home, page, board, cacheMode, cache } = useAdminPreview();
     active.value = true;
+    // 캐시 관리의 「미리보기」(`cachePreview=1`) — 화면 값은 덮지 않고 캐시 영역만 겹쳐 그린다(`CacheAreaOverlay`)
+    cacheMode.value = UtilCacheArea.isCachePreview(window.location.search);
     openAdminPreviewChannel(allowed);
 
     // `useTheme` 와 같은 상태 — 운영자 설정 모양 그대로 덮는다(해석은 `useMenuPosition`·`useMenuStyle` 이 테마 기본과 함께 한다)
@@ -47,6 +53,14 @@ export default defineNuxtPlugin(() => {
 
     window.addEventListener('message', (event: MessageEvent) => {
         if (!allowed.includes(event.origin)) return;
+        // 캐시 영역 미리보기 창은 캐시 영역 메시지만 받는다 — 테마 미리보기 값이 섞여 화면을 바꾸지 않게
+        if (cacheMode.value) {
+            const cacheMsg = UtilCacheArea.read(event.data);
+            if (!cacheMsg) return;
+            pinAdminPreviewOrigin(event.origin);
+            cache.value = cacheMsg;
+            return;
+        }
         const msg = UtilAdminPreview.read(event.data);
         if (!msg) return;
         pinAdminPreviewOrigin(event.origin);
@@ -73,9 +87,12 @@ export default defineNuxtPlugin(() => {
             if (!target) return;
             // 편집 중의 홈 격자 손잡이는 격자가 맡는다
             if (target.closest('[data-home-edit]')) return;
+            // 캐시 영역 상자는 겹친 층(`CacheAreaOverlay`)이 맡는다
+            if (target.closest('[data-cache-overlay]')) return;
             // 셸의 윗줄·메뉴만 — 본문(`#main-content`) 안의 머리·탭(게시판 머리·말머리 탭, 가젯 머리)은 메뉴 자리가 아니다(링크만 막는다)
             const shellZone = target.closest('header, nav');
-            if (target.closest('.side-menu') || (shellZone && !shellZone.closest('#main-content'))) {
+            // 캐시 영역 미리보기에서는 메뉴 설정 열기를 알리지 않는다(링크만 막는다)
+            if (!cacheMode.value && (target.closest('.side-menu') || (shellZone && !shellZone.closest('#main-content')))) {
                 event.preventDefault();
                 event.stopPropagation();
                 postToAdminPreview({ type: ADMIN_PREVIEW_EDIT_MENU });

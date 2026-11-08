@@ -24,6 +24,7 @@
             :key="cell.gadget.id"
             :ref="(el) => bind(cell.gadget.id, el)"
             :data-gadget-id="cell.gadget.id"
+            :data-cache-area="UtilCacheArea.gadgetArea(cell.gadget.type)"
             :data-grid-stretched="stretchedOf(cell)"
             :data-grid-height="mode === 'stack' ? undefined : Math.round(cell.height)"
             class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
@@ -84,6 +85,7 @@ import type { HomeGridCell, HomeGridSizeHint } from '~/utils/util-home-grid';
 import UtilHomeGadget from '~/utils/util-home-gadget';
 import UtilHomeGrid from '~/utils/util-home-grid';
 import UtilAdminPreview, { ADMIN_PREVIEW_LAYOUT, BOARD_BODY } from '~/utils/util-admin-preview';
+import UtilCacheArea from '~/utils/util-cache-area';
 
 interface Props {
     /** 운영자 배치(읽은 값 — `UtilHomeGadget.sanitize`) */

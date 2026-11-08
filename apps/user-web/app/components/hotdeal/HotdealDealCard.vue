@@ -18,7 +18,7 @@
         서버 호출은 페이지가 내려 준 `actions` 로 한다. 성공하면 새 딜을 `update:deal` 로 올린다.
         게시판 관리 실패: 맡은 자리가 빠졌으면(`403 DEAL_MODERATE_FORBIDDEN`) `update:moderation` null 로 영역을 거두고, 그새 상태가 바뀌었으면(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`·`404 DEAL_NOT_FOUND`) `stale` 로 페이지가 글을 다시 읽게 한다.
     -->
-    <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" :data-deal-view="deal.view" :data-deal-source="deal.source">
+    <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" data-cache-area="hotdeal.settings" :data-deal-view="deal.view" :data-deal-source="deal.source">
         <!-- 광고 고지(사업자 글 — 2차) — 카드 첫 줄 고정 -->
         <p v-if="business" class="m-0 flex items-start gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-sm font-medium dark:bg-surface-800" data-testid="hotdeal-card-business">
             <i class="pi pi-megaphone mt-0.5 text-xs" aria-hidden="true" />{{ t('hotdeal.bizNote', { name: deal.business?.name ?? '' }) }}
@@ -115,6 +115,7 @@
                 :severity="over ? 'secondary' : undefined"
                 :aria-describedby="buyNoteId"
                 data-testid="hotdeal-buy"
+                data-cache-area="hotdeal.rules"
             />
             <span :id="buyNoteId" class="text-xs text-muted-color">{{ t('hotdeal.buyNote') }}</span>
             <Button

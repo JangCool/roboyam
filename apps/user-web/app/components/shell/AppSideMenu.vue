@@ -13,6 +13,7 @@
         :data-with-bar="withBar ? 'true' : undefined"
         :data-bar-overflow="withBar ? barOverflow : undefined"
         data-testid="side-menu"
+        data-cache-area="menu.public"
     >
         <!-- 길면 메뉴 카드 안에서 스크롤한다(칸이 스크롤하면 카드 테두리·그림자가 잘린다) -->
         <div v-if="menuShown" class="min-h-0 overflow-y-auto" :class="cardClass">

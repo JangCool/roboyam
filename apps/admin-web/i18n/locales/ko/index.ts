@@ -11,6 +11,7 @@ import analytics from './analytics';
 import audit from './audit';
 import avatarUpload from './avatarUpload';
 import batch from './batch';
+import cache from './cache';
 import board from './board';
 import commerce from './commerce';
 import dashboard from './dashboard';
@@ -87,6 +88,7 @@ export default {
     audit,
     avatarUpload,
     batch,
+    cache,
     board,
     commerce,
     dashboard,

@@ -8,7 +8,7 @@
         **관리자 미리보기**(관리자 테마 화면 「레이아웃 › 게시판」의 iframe, `useAdminPreview`): 관리자가 `home` 자리로 보낸 저장 전 게시판 레이아웃(본문 칸 포함)·적용 화면(`board`)을 덮어 그린다.
           새로 넣은 가젯은 홈 가젯 응답의 같은 종류 데이터를 빌린다(`UtilAdminPreview.applyHome` — 「지금 보는 게시판」 범위도 저장 전에는 받은 글 그대로). 편집 중이면 본문만이어도 격자로 그려 손잡이가 얹힌다.
     -->
-    <BoardLayoutGrid v-if="resolved && board" :layout="resolved.layout" :gadgets="resolved.gadgets" :board="board"><slot /></BoardLayoutGrid>
+    <BoardLayoutGrid v-if="resolved && board" :layout="resolved.layout" :gadgets="resolved.gadgets" :board="board" data-cache-area="boards.layout"><slot /></BoardLayoutGrid>
     <slot v-else />
 </template>
 

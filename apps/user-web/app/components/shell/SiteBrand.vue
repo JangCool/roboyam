@@ -11,7 +11,7 @@
         ⚠ 그림은 `<img src>` 로만 그린다 — SVG 로 올린 것도 서버가 data URI 로 바꿔 주므로 `v-html` 을 쓰지 않는다.
         크기: 가로로 긴 그림 로고(약 200×36)가 잘리지 않게 높이 28px(데스크톱 32px), 가로는 비율대로 최대 220px(모바일은 화면 폭의 45% 까지) — 헤더(48·56·60px)·드로어·로그인·설치 레이아웃에서 넘치지 않는다.
     -->
-    <span class="inline-flex min-w-0 items-center gap-2">
+    <span class="inline-flex min-w-0 items-center gap-2" data-cache-area="site.info">
         <img v-if="lightSrc && lightSrc === darkSrc" :src="lightSrc" :alt="imgAlt" :class="imgClass" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
         <template v-else>
             <img v-if="lightSrc" :src="lightSrc" :alt="imgAlt" :class="[imgClass, 'site-logo-light']" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />

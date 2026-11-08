@@ -209,6 +209,7 @@
                     :loading="submitBusy"
                     :disabled="quoteBusy"
                     data-testid="group-buy-pay"
+                    data-cache-area="commerce.rateLimits"
                 />
             </div>
         </form>

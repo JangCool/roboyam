@@ -15,7 +15,7 @@
 
         <ErrorState v-else-if="status === 'error'" :title="t('gadgetPage.loadFailed')" :description="errorMessage" retry @retry="load" />
 
-        <div v-else class="flex flex-col gap-(--gadget-gap)" :aria-busy="status === 'loading'">
+        <div v-else class="flex flex-col gap-(--gadget-gap)" :aria-busy="status === 'loading'" data-cache-area="pages.layout">
             <!-- 제목 머리 — 흰 카드에 이름 + 운영자가 적은 설명(묶음 메뉴 화면 공용 `PageTitleHead` — 팁·강좌·사용기와 같은 글자 크기·여백, 사용자 2026-11-08. 2026-11-05 의 「제목 숨김」을 바꿈) -->
             <section v-if="head" class="gadget-card" data-headless>
                 <PageTitleHead :title="head.name" :description="head.description" title-testid="gadget-page-title" />

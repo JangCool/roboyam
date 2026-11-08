@@ -211,10 +211,10 @@
 
                         <!-- 구매 단추 — 서버의 `actions.order`·`purchase.reason` 만 보고 정한다(본 상품 줄이 있어야 누른다) -->
                         <div class="flex flex-col gap-2" data-testid="group-buy-purchase">
-                            <Button v-if="gb.actions.order" type="button" :label="t('groupBuy.orderNow')" icon="pi pi-shopping-cart" size="large" :disabled="!hasMain" data-testid="group-buy-order" @click="goOrder" />
+                            <Button v-if="gb.actions.order" type="button" :label="t('groupBuy.orderNow')" icon="pi pi-shopping-cart" size="large" :disabled="!hasMain" data-testid="group-buy-order" data-cache-area="commerce.rateLimits" @click="goOrder" />
                             <Button v-else-if="reason === 'LOGIN_REQUIRED'" type="button" :label="t('groupBuy.loginToOrder')" icon="pi pi-sign-in" size="large" data-testid="group-buy-login" @click="goLogin" />
                             <Button v-else-if="reason === 'IDENTITY_REQUIRED'" type="button" :label="t('groupBuy.verifyToOrder')" icon="pi pi-id-card" size="large" :loading="gateBusy" data-testid="group-buy-verify" @click="verifyThenOrder" />
-                            <Button v-else type="button" :label="t('groupBuy.orderNow')" icon="pi pi-shopping-cart" size="large" disabled data-testid="group-buy-order-disabled" />
+                            <Button v-else type="button" :label="t('groupBuy.orderNow')" icon="pi pi-shopping-cart" size="large" disabled data-testid="group-buy-order-disabled" data-cache-area="commerce.rateLimits" />
                             <p v-if="gb.actions.order && !hasMain" class="m-0 text-sm text-muted-color" data-testid="group-buy-pick-first">{{ t('groupBuy.pickFirst') }}</p>
                             <p v-if="reason && reason !== 'LOGIN_REQUIRED'" class="m-0 text-sm text-muted-color" role="status" data-testid="group-buy-reason">
                                 {{ t(`groupBuy.reason.${reason}`) }}

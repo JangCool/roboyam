@@ -8,9 +8,12 @@
         <div class="mx-auto grid max-w-[var(--content-max)] grid-cols-1 gap-y-3 px-4 py-5 text-xs text-muted-color md:grid-cols-[10rem_minmax(0,1fr)] md:gap-x-8 md:py-6">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:items-start md:gap-1">
                 <b class="text-sm font-semibold text-surface-700 md:mb-1 dark:text-surface-200">{{ siteLabel }}</b>
-                <a href="/terms" target="_blank" rel="noopener" class="hover:underline">{{ t('common.terms') }}</a>
-                <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-surface-700 hover:underline dark:text-surface-200">{{ t('common.privacy') }}</a>
-                <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
+                <!-- 약관 링크 — 캐시 관리 미리보기의 영역 표시(`data-cache-area`, `contents` 라 줄 배치는 그대로) -->
+                <span class="contents" data-cache-area="terms.public">
+                    <a href="/terms" target="_blank" rel="noopener" class="hover:underline">{{ t('common.terms') }}</a>
+                    <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-surface-700 hover:underline dark:text-surface-200">{{ t('common.privacy') }}</a>
+                    <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
+                </span>
                 <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 못 받았거나 비면 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
                 <nav v-if="supportLinks.length" class="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:basis-full md:mt-2 md:flex-col md:items-start md:gap-1" :aria-label="t('shell.footerSupport')" data-testid="footer-support">
                     <span class="font-semibold text-surface-700 dark:text-surface-200">{{ t('shell.footerSupport') }}</span>

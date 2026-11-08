@@ -1,6 +1,6 @@
 <template>
     <!-- 게시판 모음을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
-    <div class="content-card" data-testid="boards-hub-card">
+    <div class="content-card" data-testid="boards-hub-card" data-cache-area="board.catalog menu.public">
         <header>
             <h1 class="text-lg font-bold">{{ t('feed.hubTitle') }}</h1>
         </header>

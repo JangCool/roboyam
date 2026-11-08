@@ -150,6 +150,7 @@ export default {
     batchAndLogs: 'Batch and logs',
     batches: 'Batch jobs',
     batchLogs: 'Batch logs',
+    caches: 'Caches (coming soon)',
     audit: 'Audit log',
     legal: 'Operator & terms',
     siteOperator: 'Operator',

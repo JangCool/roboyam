@@ -226,6 +226,8 @@ public final class AdminScreenRegistry {
             section(SETTINGS, "menu.batchAndLogs", "pi pi-history",
                     leaf(s("batches", "/settings/batches", "menu.batches", "pi pi-clock", Permission.BATCH_READ)),
                     leaf(s("batchLogs", "/settings/batch-logs", "menu.batchLogs", "pi pi-book", Permission.BATCH_READ)),
+                    // 캐시 관리 — 준비 중(화면 목업만, docs/features/cache-admin-contract.md). 구현 때 cache.read 권한으로 바꾼다
+                    leaf(superOnly("caches", "/settings/caches", "menu.caches", "pi pi-database")),
                     leaf(s("audit", "/settings/audit", "menu.audit", "pi pi-history", Permission.AUDIT_READ))));
 
     private static final Map<String, Screen> SCREENS = collectScreens();

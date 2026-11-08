@@ -1,4 +1,5 @@
 import type { AdminPreviewBoard, AdminPreviewHome, AdminPreviewPage } from '~/utils/util-admin-preview';
+import type { CachePreviewMessage } from '~/utils/util-cache-area';
 
 /** 관리자 쪽 창 — 허용한 주소들과, 메시지를 받은 뒤 정해진 그 주소(`plugins/03.admin-preview.client.ts` 가 채운다) */
 const channel: { origins: string[]; parent: string | null } = { origins: [], parent: null };
@@ -37,7 +38,10 @@ export function postToAdminPreview(message: Record<string, unknown>): void {
  * 게시판 목록·글 보기(`BoardLayoutFrame`)는 `home` 자리로 받은 게시판 레이아웃(본문 칸 `BOARD_BODY` 포함)을 덮고, 적용 화면은 `board` 로 받는다(2026-10-30).
  * 컴포저블은 setup 에서 부른다.
  *
- * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지·게시판 레이아웃) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값) · `board` 게시판 레이아웃 적용 화면.
+ * 관리자 캐시 관리의 「미리보기」(주소 `cachePreview=1`)는 같은 창 규칙으로 켜지되 `cacheMode` 이고, 받은 강조 값은 `cache` 다(`CacheAreaOverlay` 가 그린다 — 화면 값은 덮지 않는다).
+ *
+ * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지·게시판 레이아웃) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값) · `board` 게시판 레이아웃 적용 화면 ·
+ *   `cacheMode` 캐시 영역 미리보기인가 · `cache` 캐시 영역 강조 값 · `cacheDataCounts` 데이터로 센 영역 수(숨긴 팝업 등).
  */
 export function useAdminPreview() {
     const active = useState<boolean>('admin-preview-active', () => false);
@@ -45,5 +49,14 @@ export function useAdminPreview() {
     const home = useState<AdminPreviewHome | null>('admin-preview-home', () => null);
     const page = useState<AdminPreviewPage | null>('admin-preview-page', () => null);
     const board = useState<AdminPreviewBoard | null>('admin-preview-board', () => null);
-    return { active, editing, home, page, board };
+    /** 캐시 영역 미리보기 창인가(관리자 캐시 관리의 iframe, 주소 `cachePreview=1`) — 겹쳐 그리는 층(`CacheAreaOverlay`)을 켜고, 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않는다 */
+    const cacheMode = useState<boolean>('admin-preview-cache-mode', () => false);
+    /** 캐시 영역 미리보기 값(관리자가 보낸 강조할 키·모든 영역 보기·이름표) — 받기 전에는 null */
+    const cache = useState<CachePreviewMessage | null>('admin-preview-cache', () => null);
+    /**
+     * 화면에 상자가 없어도 데이터로 센 영역 수(키 → 수) — 캐시 영역 미리보기에서 숨겨 둔 사이트 팝업처럼 「띄울 것이 있는지」를 부품이 직접 알린다.
+     * 겹침 층(`CacheAreaOverlay`)은 이 키의 수를 화면에서 센 수 대신 쓴다.
+     */
+    const cacheDataCounts = useState<Record<string, number>>('admin-preview-cache-data-counts', () => ({}));
+    return { active, editing, home, page, board, cacheMode, cache, cacheDataCounts };
 }

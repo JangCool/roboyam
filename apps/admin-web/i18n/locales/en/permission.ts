@@ -354,5 +354,9 @@ export default {
         adContactRevealDesc: 'Briefly reveal an advertiser’s masked contact name, phone and email, with a reason.',
         siteSecret: 'Change keys and secrets',
         siteSecretDesc: 'Change secret values such as social login keys and mail server passwords.',
+        cacheRead: 'View caches',
+        cacheReadDesc: 'See the public site response caches, per-server state, refresh log and TTL changes.',
+        cacheManage: 'Change cache TTLs and refresh',
+        cacheManageDesc: 'Change the TTL of each cache and clear one cache or all caches on every server.',
     },
 };

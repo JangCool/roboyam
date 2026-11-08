@@ -31,6 +31,7 @@
                 :aria-describedby="`${uid}-url-msg`"
                 fluid
                 data-testid="hotdeal-url"
+                data-cache-area="hotdeal.rules"
                 @update:model-value="patch({ productUrl: String($event ?? '') })"
                 @keydown.enter.prevent
             />

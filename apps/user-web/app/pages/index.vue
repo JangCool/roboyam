@@ -13,7 +13,7 @@
 
         <div v-else :aria-busy="status === 'loading'">
             <HomeGadgetSkeleton v-if="!shown" />
-            <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
+            <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" data-cache-area="home.layout" />
         </div>
     </div>
 </template>
