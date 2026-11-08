@@ -52,7 +52,7 @@
 
 ## 2차 (2026-11-08 — 사용자 지시 「미확정 다 처리해. 마이그레이션으로 넣고」, shared V168)
 - **처리 상태 메모·이력**: 바꾸기 요청 `{ status, note? }`(앞뒤 공백 정리, 빈 글자 null, 1~200자, 줄 바꿈·제어 문자 불가 → 400 `fields.note`), 응답 `{ processStatus, processStatusAt, processStatusNote }`. 같은 값이면 메모가 달라도 아무것도 하지 않는다.
-  표 `post_process_status_history`(바뀔 때마다 한 줄, 처음 접수는 줄 없음). 글 상세 `processStatusNote`(마지막 메모)·`viewer.canChangeStatus`.
+  표 `post_process_status_history`(바뀔 때마다 한 줄, 처음 접수는 줄 없음). 글 상세 `processStatusNote`(마지막 메모 — 관리자 글 상세의 `post.processStatusNote` 도)·`viewer.canChangeStatus`.
   공개 `GET /api/posts/{id}/process-status/history` → `{ items:[{ fromStatus, toStatus, note, changedAt, actor: OPERATOR|BOARD_STAFF|GROUP_STAFF }] }`(최신 50, 이름 없음, 글을 읽을 수 있는 사람만), 관리자 같은 주소 + `actorName`(`post.read`).
   알림 본문에 「· 메모: …」, 감사 `POST_PROCESS_STATUS` 에 note. 글 원문 파기(R__batch_18) 때 메모만 비우고, 게시판 삭제 때 이력 줄을 지운다.
   화면: 글 보기 [상태 바꾸기] 대화창(상태 + 메모) · 「운영진 메모」 한 줄 · 「처리 이력」 접기, 관리자 글 서랍 폼 + 이력 목록.
@@ -64,5 +64,3 @@
 - **세션 정리 결정 — 핫딜·직접홍보(DEAL·PROMO)는 계속 막는다**: 공개 홍보가 목적이라 비밀글이 맞지 않고, 진행 상태는 딜 마감 상태가 이미 있다(400 `board.ops.generalOnly` — 「일반·소모임 게시판에서만」).
 - **시드**: shared `V168` 이 **이미 설치된 DB**(설치 COMPLETED + `board_preset_applied_at`)에만, 같은 주소·이름의 게시판이나 `footer` 그룹이 없을 때 넣는다(로컬 DB 는 이미 있어 그대로). 새 설치는 설치 프리셋(`OpsBoardSeeder`, 값의 정본 `OpsBoardPreset`)이 만든다 — 위 「운영 서버에서 다시 만들기」 손 절차는 더 필요 없다. 쓰기·댓글 등급은 서열이 가장 낮은 등급.
 
-## 미확정
-- 관리자 글 상세에 `processStatusNote` 칸은 없다(이력 API 로 대신).

@@ -164,6 +164,10 @@ class BoardOpsSettingsHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(put("/api/admin/posts/" + post + "/process-status"), session).content("{\"status\":\"CHECKING\",\"note\":\"  다음 배포에서 고쳐요  \"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.processStatus").value("CHECKING"))
                 .andExpect(jsonPath("$.data.processStatusNote").value("다음 배포에서 고쳐요"));
+        // 글 상세(서랍)에도 마지막 메모가 실린다
+        Cookie noteReader = login(operatorWith(Permission.POST_READ));
+        mvc.perform(get("/api/admin/posts/" + post).cookie(noteReader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.post.processStatusNote").value("다음 배포에서 고쳐요"));
         String audit = auditLogs.where().action("POST_PROCESS_STATUS").target(Long.toString(post)).latest().orElseThrow().detail();
         assertThat(audit).contains("다음 배포에서 고쳐요");
         String payload = jdbc.queryForObject("SELECT payload::text FROM member_notifications WHERE user_id = ? AND type = 'POST_STATUS_CHANGED'", String.class, author);
