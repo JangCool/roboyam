@@ -3,6 +3,8 @@ import UtilVisitSignal from '#layers/analytics/utils/util-visit-signal';
 import type { SiteIconResponse, SiteOperatorPublicResponse, SiteOperatorStage } from '~/composables/site/api/useSiteInfoApi.types';
 import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+import UtilBoard from '~/utils/util-board';
+import UtilColor from '~/utils/util-color';
 import UtilSiteName from '~/utils/util-site-name';
 
 /**
@@ -124,7 +126,8 @@ export default class UtilSiteInfo {
     }
 
     /**
-     * 공개 게시판 표시 기본값(`boardDisplay`) — 날짜 표시 방식이 `STANDARD`·`RELATIVE` 가 아니면 `STANDARD`, 새 글 기준이 1~720시간 정수가 아니면 24.
+     * 공개 게시판 표시 기본값(`boardDisplay`) — 날짜 표시 방식이 `STANDARD`·`RELATIVE` 가 아니면 `STANDARD`, 새 글 기준이 1~720시간 정수가 아니면 24, 목록 칩 위치가 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) `ABOVE`,
+     * 숫자 강조 기준이 0 이상 정수가 아니면 추천 10·조회 1000, 강조 색이 `#rrggbb` 가 아니면 `#e5484d`.
      * @param {unknown} raw - 서버가 준 `boardDisplay`.
      * @returns {BoardDisplaySettings | null} 걸러 낸 값. 칸이 없거나 객체가 아니면 null.
      */
@@ -134,6 +137,10 @@ export default class UtilSiteInfo {
         return {
             dateDisplay: raw.dateDisplay === 'RELATIVE' ? 'RELATIVE' : 'STANDARD',
             newPostHours: typeof hours === 'number' && Number.isInteger(hours) && hours >= 1 && hours <= 720 ? hours : 24,
+            listChipPosition: UtilBoard.chipPosition(raw.listChipPosition),
+            likeHighlight: UtilBoard.highlightThreshold(raw.likeHighlight, UtilBoard.LIKES_HIGHLIGHT),
+            viewHighlight: UtilBoard.highlightThreshold(raw.viewHighlight, UtilBoard.VIEWS_HIGHLIGHT),
+            highlightColor: UtilColor.isHex(raw.highlightColor) ? (raw.highlightColor as string).toLowerCase() : UtilBoard.HIGHLIGHT_COLOR,
         };
     }
 

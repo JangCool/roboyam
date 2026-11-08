@@ -171,6 +171,7 @@
                             :snippet="row.snippet"
                             :date-display="display.dateDisplay"
                             :new-post-hours="display.newPostHours"
+                            :chip-position="display.listChipPosition"
                         />
                     </ul>
 

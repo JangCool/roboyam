@@ -17,6 +17,7 @@ export default {
     hiddenPostStaff: 'Hidden by the moderators',
     viewsShort: '{n} views',
     likesShort: '{n} likes',
+    prefixNone: 'General',
 
     listCaption: 'Posts',
     colTitle: 'Title',

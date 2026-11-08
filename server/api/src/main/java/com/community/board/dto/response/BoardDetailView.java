@@ -21,6 +21,7 @@ import java.util.List;
  * @param adsHidden            관리자 「이 게시판에 광고 숨김」 — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다(19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다 — 화면은 {@code adsHidden || (allowAdult && !adult.enabled)})
  * @param secretMode           비밀글 방식 OFF · OPTIONAL · ALWAYS({@link BoardView#secretMode()} 와 같다 — V166)
  * @param statusEnabled        처리 상태를 쓰는가({@link BoardView#statusEnabled()} 와 같다 — V166). 상태를 바꾸는 사람 = {@code viewer.staff}
+ * @param chipPosition         글 목록 칩 위치({@link BoardView#chipPosition()} 와 같다 — V169, 푼 실제 값)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -29,5 +30,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               String commentMinGradeLabel, String introText, String writeGuideText, String writeTemplate, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
-                              String secretMode, boolean statusEnabled) {
+                              String secretMode, boolean statusEnabled, String chipPosition) {
 }

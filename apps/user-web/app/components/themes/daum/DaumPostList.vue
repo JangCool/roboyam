@@ -15,23 +15,35 @@
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
-                    <NuxtLink :to="`/posts/${row.id}`" class="group flex items-start gap-3 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
-                        <div class="min-w-0 flex-1">
-                            <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
-                                <PostRowTitle :row="row" :new-post-hours="newPostHours" />
-                            </p>
-                            <p class="m-0 mt-[3px] flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color">
-                                <PostAuthorLabel :author="row.author" avatar />
-                                <span aria-hidden="true">·</span>
-                                <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-                                <span aria-hidden="true">·</span>
-                                <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
-                                <span aria-hidden="true">·</span>
-                                <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                            </p>
-                        </div>
-                        <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
-                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
+                    <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
+                    <NuxtLink :to="`/posts/${row.id}`" class="group block py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                        <PostRowFrame :row="row" :position="chipPosition">
+                            <template #default="{ chips, stats, dateInline }">
+                                <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
+                                    <PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" />
+                                </p>
+                                <p class="m-0 mt-[3px] flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color">
+                                    <PostAuthorLabel :author="row.author" avatar />
+                                    <template v-if="stats">
+                                        <span aria-hidden="true">·</span>
+                                        <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                        <span aria-hidden="true">·</span>
+                                        <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
+                                        <span aria-hidden="true">·</span>
+                                        <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                    </template>
+                                    <!-- 「제목 위」 — 날짜만 닉네임(등급) 바로 뒤에(조회·추천은 윗줄 오른쪽 끝) -->
+                                    <template v-if="dateInline">
+                                        <span aria-hidden="true">·</span>
+                                        <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                    </template>
+                                </p>
+                            </template>
+                            <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
+                            <template #end>
+                                <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
+                            </template>
+                        </PostRowFrame>
                     </NuxtLink>
                 </FoldedRow>
             </li>
@@ -48,7 +60,7 @@ import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), { feedAd: null });
+withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

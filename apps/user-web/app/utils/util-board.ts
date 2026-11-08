@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BoardView, CommentEditorLevel, PostEditorLevel, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardView, CommentEditorLevel, PostChipPosition, PostEditorLevel, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
 
@@ -156,6 +156,42 @@ export default class UtilBoard {
     static iconText(name: string): string {
         const ascii = /^[A-Za-z]{1,2}/.exec(name);
         return ascii ? ascii[0].toUpperCase() : (Array.from(name)[0] ?? '?');
+    }
+
+    /**
+     * 글 목록 줄의 말머리·상태 칩 위치 — 서버 값이 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) 제목 위(`ABOVE`, 계약의 기본).
+     * @param {unknown} raw - 게시판 정보의 `chipPosition` 또는 공개 표시 기본값의 `listChipPosition`.
+     * @returns {PostChipPosition} 그릴 위치.
+     */
+    static chipPosition(raw: unknown): PostChipPosition {
+        return raw === 'BEFORE' || raw === 'BELOW' ? raw : 'ABOVE';
+    }
+
+    /** 글 줄 추천 수 강조 기준의 기본값 — 운영자 설정(`boardDisplay.likeHighlight`)을 못 받았을 때만 쓴다(사용자 2026-11-08) */
+    static readonly LIKES_HIGHLIGHT = 10;
+    /** 글 줄 조회 수 강조 기준의 기본값(`boardDisplay.viewHighlight`) */
+    static readonly VIEWS_HIGHLIGHT = 1000;
+    /** 글 줄 숫자 강조 색의 기본값 — 빨강(`boardDisplay.highlightColor`) */
+    static readonly HIGHLIGHT_COLOR = '#e5484d';
+
+    /**
+     * 서버가 준 강조 기준 — 0 이상 정수가 아니면(칸이 없는 옛 응답 포함) 기본값.
+     * @param {unknown} raw - `boardDisplay.likeHighlight`·`viewHighlight`.
+     * @param {number} fallback - 기본값.
+     * @returns {number} 기준(0 = 강조 안 함).
+     */
+    static highlightThreshold(raw: unknown, fallback: number): number {
+        return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : fallback;
+    }
+
+    /**
+     * 글 줄 숫자를 강조하는가 — 기준이 0 이면 끈 것이다.
+     * @param {number} count - 추천·조회 수.
+     * @param {number} threshold - 강조 기준.
+     * @returns {boolean} 기준이 1 이상이고 수가 기준 이상이면 true.
+     */
+    static isHighlighted(count: number, threshold: number): boolean {
+        return threshold > 0 && count >= threshold;
     }
 
     /**

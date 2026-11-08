@@ -1,0 +1,61 @@
+<template>
+    <!--
+        여러 줄 글 줄의 뼈대 — 칩 위치(post-chip-position-contract)에 따라 칩·숫자·날짜 자리를 정한다. 목록마다 다른 제목·메타 줄 글꼴과 썸네일은 슬롯으로 받는다.
+        · `ABOVE`(기본): 윗줄(줄 폭 전체, 썸네일보다 위) = 왼쪽 칩(말머리가 없으면 흐린 「일반」) + 오른쪽 끝 조회·추천 → 아래 칸 = 제목 → 아바타 · 닉네임 · 등급 · 날짜(닉네임 줄에 이어서, 가운데점 구분 — 썸네일은 이 칸 옆).
+          윗줄은 늘 있다(칩이 없어도 「일반」 + 숫자).
+        · `BEFORE`: 칩은 제목 앞 한 줄 안(기본 슬롯의 `chips` = true — 목록이 `PostRowTitle :chips` 로 넘긴다), 날짜·조회·추천은 메타 줄(`stats` = true).
+        · `BELOW`: 제목 → 메타 줄(날짜·조회·추천 포함) → 칩 줄. 칩이 없으면 칩 줄을 그리지 않는다.
+        슬롯: 기본(`{ chips, stats, dateInline }` — 제목 줄·메타 줄. `dateInline` 이면 메타 줄의 글쓴이 바로 뒤에 「· 날짜」만) · `start`/`end`(아래 칸 왼쪽·오른쪽 — 썸네일) ·
+        `lead`(이 부품이 모르는 앞쪽 칩 — 섞인 목록의 게시판 이름 등. `BEFORE` 면 목록이 제목 앞에 직접 그린다)
+    -->
+    <div class="min-w-0" :data-chip-position="position">
+        <!-- 윗줄과 아래 칸(제목·썸네일) 사이는 6px — 썸네일 윗변이 윗줄 숫자에 붙어 보이지 않게(사용자 2026-11-08 「아주 살짝」) -->
+        <div v-if="position === 'ABOVE'" class="mb-1.5 flex items-center justify-between gap-2" data-testid="post-row-top">
+            <PostRowChips :row="row" :show-prefix="showPrefix" :general="general">
+                <template v-if="$slots.lead" #default><slot name="lead" /></template>
+            </PostRowChips>
+            <PostRowStats :row="row" :views="views" :likes="likes" class="ml-auto" />
+        </div>
+        <div class="flex" :class="rowClass">
+            <slot name="start" />
+            <div class="min-w-0 flex-1" :class="bodyClass">
+                <slot :chips="position === 'BEFORE'" :stats="position !== 'ABOVE'" :date-inline="position === 'ABOVE'" />
+                <PostRowChips v-if="position === 'BELOW'" :row="row" :show-prefix="showPrefix" class="mt-1">
+                    <template v-if="$slots.lead" #default><slot name="lead" /></template>
+                </PostRowChips>
+            </div>
+            <slot name="end" />
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import type { PostChipPosition } from '~/composables/board/api/useBoardApi.types';
+import type { PostRow } from '~/composables/board/api/usePostApi.types';
+
+interface Props {
+    row: PostRow;
+    /** 칩 위치 — 게시판 목록은 게시판 정보의 `chipPosition`, 섞인 목록은 공개 표시 기본값의 `listChipPosition` */
+    position: PostChipPosition;
+    showPrefix?: boolean;
+    /** 「제목 위」 윗줄의 조회 칸 — 원래 메타 줄에 조회 수가 없던 목록은 끈다 */
+    views?: boolean;
+    /** 「제목 위」 윗줄의 추천 칸 — 원래 메타 줄에 추천 수가 없던 목록은 끈다 */
+    likes?: boolean;
+    /** 「제목 위」 윗줄에서 말머리가 없을 때 흐린 「일반」 칩 — 앞쪽 칩(게시판 이름)이 늘 있는 섞인 목록은 끈다 */
+    general?: boolean;
+    /** 아래 칸(제목·메타 + 썸네일)의 정렬·간격 */
+    rowClass?: string;
+    /** 제목·메타 칸의 추가 클래스(카드형의 세로 배치 등) */
+    bodyClass?: string;
+}
+
+withDefaults(defineProps<Props>(), {
+    showPrefix: true,
+    views: true,
+    likes: true,
+    general: true,
+    rowClass: 'items-start gap-3',
+    bodyClass: '',
+});
+</script>

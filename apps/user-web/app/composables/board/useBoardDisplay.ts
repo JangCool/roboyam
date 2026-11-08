@@ -1,11 +1,19 @@
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+import UtilBoard from '~/utils/util-board';
 
 /**
- * 게시판 공개 표시 기본값(날짜 표시 방식·새 글 기준) — 게시판 목록·글 보기가 같이 쓴다.
+ * 게시판 공개 표시 기본값(날짜 표시 방식·새 글 기준·섞인 목록의 칩 위치·글 줄 숫자 강조) — 게시판 목록·글 보기·섞인 목록이 같이 쓴다.
  * 따로 받지 않고 공개 사이트 정보(`GET /api/site/info` 의 `boardDisplay`, 앱 시작 때 한 번 받는다 — `useSiteInfo`)를 읽는다.
- * 받기 전·못 받았을 때는 표준형·24시간으로 그린다(화면이 비지 않게).
+ * 받기 전·못 받았을 때는 표준형·24시간·칩 제목 위·추천 10·조회 1000·빨강으로 그린다(화면이 비지 않게).
  */
-const FALLBACK: BoardDisplaySettings = { dateDisplay: 'STANDARD', newPostHours: 24 };
+const FALLBACK: BoardDisplaySettings = {
+    dateDisplay: 'STANDARD',
+    newPostHours: 24,
+    listChipPosition: 'ABOVE',
+    likeHighlight: UtilBoard.LIKES_HIGHLIGHT,
+    viewHighlight: UtilBoard.VIEWS_HIGHLIGHT,
+    highlightColor: UtilBoard.HIGHLIGHT_COLOR,
+};
 
 export function useBoardDisplay() {
     const state = useSiteInfoState();

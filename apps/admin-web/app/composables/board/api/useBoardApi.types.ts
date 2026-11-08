@@ -36,6 +36,8 @@ export type BoardPostEditor = 'NONE' | 'SIMPLE' | 'ADVANCED';
 export type BoardCommentEditor = 'NONE' | 'SIMPLE';
 /** 날짜 표시 방식 — 표준형(최근은 상대 시간, 올해는 월-일, 오래된 글은 연-월-일) · 유동형(모두 상대 시간) */
 export type BoardDateDisplay = 'STANDARD' | 'RELATIVE';
+/** 글 목록 줄의 말머리·상태 칩 위치 — 제목 위(기본) · 제목 앞 · 닉네임 아래. 값 목록 원천은 서버 `BoardFields.CHIP_POSITIONS` */
+export type BoardChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
 /** 포인트 지급 — 포인트 규칙을 따름 · 지급 안 함 */
 export type BoardPointMode = 'ON' | 'OFF';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
@@ -60,6 +62,17 @@ export type BoardStaffIneligible = 'GRADE_TOO_LOW' | 'EMAIL_UNVERIFIED' | 'SUSPE
 export interface BoardDefaults {
     /** 날짜 표시 방식 */
     dateDisplay: BoardDateDisplay;
+    /**
+     * 글 목록 줄의 말머리·상태 칩 위치 사이트 기본(post-chip-position-contract, V169 `board_defaults.list_chip_position`) — 게시판이 따로 고르지 않으면(`BoardDetail.chipPosition` null) 이 값,
+     * 섞인 목록(최신글·인기글·검색·팁 등)도 이 값. 전체 기본값 `ABOVE`. 저장 때 칸이 없거나 null 이면 서버가 그대로 둔다(옛 화면 호환)
+     */
+    listChipPosition: BoardChipPosition;
+    /** 글 줄 추천 수 강조 기준(사이트 전체 — 게시판별 덮어쓰기 없음) — 이 수 이상이면 공개 목록 윗줄의 추천 숫자를 강조 색·굵게. 0 = 강조 안 함. 전체 기본값 10 */
+    listLikeHighlight: number;
+    /** 글 줄 조회 수 강조 기준 — 0 = 강조 안 함. 전체 기본값 1000 */
+    listViewHighlight: number;
+    /** 강조 색 `#rrggbb` — 전체 기본값 `#e5484d`(빨강). 공개 화면이 라이트·다크 바탕에서 읽히게 명도만 보정해 그린다 */
+    listHighlightColor: string;
     writeMin: BoardWriteMin;
     commentMin: BoardCommentMin;
     /** 글 에디터 — 평문(Textarea) · 간단 · 고급. 전체 기본값 `SIMPLE` */
@@ -188,7 +201,7 @@ export interface BoardDefaultsResponse {
     /** 정책을 하나도 따로 정하지 않은(모두 기본값을 따르는) 게시판 수 */
     followingCount: number;
     /** 칸마다 그 칸을 따로 정한 게시판들 — 없으면 칸이 빠진다 */
-    overrides: Partial<Record<BoardPolicyField, BoardRef[]>>;
+    overrides: Partial<Record<BoardPolicyField | 'listChipPosition', BoardRef[]>>;
     /** 마지막 저장 시각(UTC ISO) · 저장한 운영자 이름 — 저장한 적 없으면 null */
     updatedAt: string | null;
     updatedBy: string | null;
@@ -271,6 +284,11 @@ export interface BoardDetail extends BoardRef {
     layout: BoardLayout;
     /** 읽는 사람의 보기 전환 단추(목록·카드) — 카드형은 끌 수만 있다 */
     viewToggle: boolean;
+    /**
+     * 말머리·상태 칩 위치(게시판마다의 값 — `diffCount` 에 세지 않는다, post-chip-position-contract). `null` = 사이트 기본(같은 응답 `defaults.listChipPosition`).
+     * 옛 서버 응답에는 칸이 없을 수 있다
+     */
+    chipPosition?: BoardChipPosition | null;
     color: BoardColor | null;
     allowAdult: boolean;
     /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
@@ -339,6 +357,8 @@ export interface BoardSaveRequest {
     description: string;
     layout: BoardLayout;
     viewToggle: boolean;
+    /** 말머리·상태 칩 위치 — 빈 글자 `""` = 사이트 기본 따르기(null 저장), `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.chipPosition` */
+    chipPosition: BoardChipPosition | '' | null;
     color: BoardColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;

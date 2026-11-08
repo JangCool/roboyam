@@ -58,6 +58,14 @@ public class BoardDefaultsEntity {
     private int staffPostDailyLimit;
     private int staffCommentDailyLimit;
     private int staffSanctionDailyLimit;
+    /** 글 목록 말머리·상태 칩 위치의 사이트 기본(V169) ABOVE · BEFORE · BELOW — 게시판 {@code chip_position} 이 NULL 이면 이 값 */
+    private String listChipPosition;
+    /** 글 목록 윗줄 추천 수 강조 기준(V170, 0 = 안 함) */
+    private int listLikeHighlight;
+    /** 글 목록 윗줄 조회 수 강조 기준(V170, 0 = 안 함) */
+    private int listViewHighlight;
+    /** 강조 색 #rrggbb(V170, 소문자) */
+    private String listHighlightColor;
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -69,7 +77,8 @@ public class BoardDefaultsEntity {
                 commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode, pointMinLengthApplied,
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
-                managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
+                managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
+                listLikeHighlight, listViewHighlight, listHighlightColor);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -111,6 +120,10 @@ public class BoardDefaultsEntity {
         this.staffPostDailyLimit = v.staffPostDailyLimit();
         this.staffCommentDailyLimit = v.staffCommentDailyLimit();
         this.staffSanctionDailyLimit = v.staffSanctionDailyLimit();
+        this.listChipPosition = v.listChipPosition();
+        this.listLikeHighlight = v.listLikeHighlight();
+        this.listViewHighlight = v.listViewHighlight();
+        this.listHighlightColor = v.listHighlightColor();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

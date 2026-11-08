@@ -60,7 +60,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout'])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition'])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -121,6 +121,21 @@
                                     </span>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- 말머리·상태 칩 위치(목록 모양 묶음 — post-chip-position-contract) — 사이트 기본 따르기(null)·제목 위·제목 앞·닉네임 아래, 카드마다 작은 미리보기. 저장은 `board.manage` -->
+                        <div class="flex flex-col gap-1.5 md:col-span-2" data-field="chipPosition">
+                            <span class="text-sm font-medium">{{ t('board.field.chipPosition') }}</span>
+                            <BoardChipPositionPicker
+                                v-model="form.chipPosition"
+                                :label="t('board.field.chipPosition')"
+                                inherit
+                                :inherit-value="saved.defaults.listChipPosition ?? 'ABOVE'"
+                                :disabled="!canManage || saving"
+                            />
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.chipPosition ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.chipPosition ? 'alert' : undefined">
+                                {{ serverFields.chipPosition || t('board.chipPositionScope') }}
+                            </p>
                         </div>
 
                         <!-- 표시색 — 프리셋 12색 또는 자동(같은 이름의 네이티브 라디오, grades.vue 와 같은 방식) -->

@@ -235,7 +235,7 @@
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" />
+                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :chip-position="chipPosition" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>
@@ -426,6 +426,8 @@ const { theme } = useTheme();
 /** 핫딜 게시판은 가격 줄을 붙인 핫딜 목록(테마 슬롯 없이 하나 — 모양은 역할 변수를 따른다) */
 const listComponent = computed(() => (isDeal.value ? (listKind.value === 'LIST' ? HotdealPostList : HotdealPostGrid) : UtilTheme.resolve(theme.value, 'postList', listKind.value)));
 const listExtra = computed(() => (isDeal.value && listKind.value !== 'LIST' ? { variant: listKind.value } : {}));
+/** 글 줄의 말머리·상태 칩 위치 — 게시판 정보의 `chipPosition`(서버가 사이트 기본까지 푼 값), 칸이 없으면 제목 위(post-chip-position-contract) */
+const chipPosition = computed(() => UtilBoard.chipPosition(view.value?.chipPosition));
 
 function onView(mode: BoardViewMode): void {
     viewMode.choose(slug.value, mode);

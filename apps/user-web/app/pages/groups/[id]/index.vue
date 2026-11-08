@@ -263,7 +263,7 @@
                             </EmptyState>
                         </template>
                         <template v-else>
-                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" data-testid="group-posts-list" />
+                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="postChipPosition" data-testid="group-posts-list" />
                             <BoardPager :page="posts.page" :total-pages="posts.totalPages" :to="postsPageLink" />
                         </template>
                         <!-- 스크린리더가 불러온 개수를 읽는다 -->
@@ -481,6 +481,7 @@
 import type { GroupChatLink, GroupDetail, GroupMember, GroupJoinRequest } from '~/composables/group/api/useGroupApi.types';
 import type { PostListQuery, PostSort } from '~/composables/board/api/usePostApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
+import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
 import UtilPostOps from '~/utils/util-post-ops';
@@ -751,6 +752,8 @@ const postListComponent = computed(() => {
     const kind = posts.board?.layout === 'CARD' ? 'CARD' : activeView.value === 'GALLERY' ? 'GALLERY' : 'LIST';
     return UtilTheme.resolve(theme.value, 'postList', kind);
 });
+/** 글 줄의 말머리·상태 칩 위치 — 소모임 게시판 정보의 `chipPosition`(서버가 사이트 기본까지 푼 값), 칸이 없으면 제목 위(post-chip-position-contract) */
+const postChipPosition = computed(() => UtilBoard.chipPosition(posts.board?.chipPosition));
 function onView(mode: BoardViewMode): void {
     if (posts.board) viewMode.choose(posts.board.slug, mode);
 }

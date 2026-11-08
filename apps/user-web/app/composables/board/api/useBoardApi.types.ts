@@ -84,7 +84,18 @@ export interface BoardView {
     secretMode?: BoardSecretMode;
     /** 처리 상태 쓰기(게시판마다의 값, 기본 꺼짐) — 켜면 목록 줄·글 보기에 처리 상태 딱지, 목록 위 상태 거르기, 운영진의 상태 바꾸기 */
     statusEnabled?: boolean;
+    /**
+     * 글 목록 줄의 말머리·상태 칩 위치(post-chip-position-contract) — 서버가 게시판 값 ?? 사이트 기본을 푼 **실제 값**.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 제목 위(`ABOVE`)로 본다(`UtilBoard.chipPosition`)
+     */
+    chipPosition?: PostChipPosition;
 }
+
+/**
+ * 글 목록 줄의 말머리·상태 칩 위치 — `ABOVE` 제목 위 칩 줄(기본) · `BEFORE` 제목 앞(한 줄 안) · `BELOW` 닉네임(메타) 줄 아래 칩 줄.
+ * 여러 줄로 그리는 목록만 따른다 — PC 표형 한 줄·갤러리 카드 이름 줄·고정 공지 한 줄은 늘 `BEFORE`
+ */
+export type PostChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
 
 /** 비밀글 방식(게시판 설정 `secretMode`) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
 export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
@@ -159,6 +170,14 @@ export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 export interface BoardDisplaySettings {
     dateDisplay: BoardDateDisplay;
     newPostHours: number;
+    /** 섞인 목록(최신글·인기글·검색·팁 등)의 말머리·상태 칩 위치 — 관리자 게시판 기본 설정 `listChipPosition`. 옛 응답에 없으면 걸러 낼 때 `ABOVE`(`UtilSiteInfo.cleanBoardDisplay`) */
+    listChipPosition: PostChipPosition;
+    /** 글 줄 추천 수 강조 기준(관리자 기본 설정 `listLikeHighlight`) — 이 수 이상이면 숫자를 강조 색·굵게. 0 = 강조 안 함. 옛 응답에 없으면 10 */
+    likeHighlight: number;
+    /** 글 줄 조회 수 강조 기준(`listViewHighlight`) — 0 = 강조 안 함. 옛 응답에 없으면 1000 */
+    viewHighlight: number;
+    /** 강조 색 원색 `#rrggbb`(`listHighlightColor`) — 그릴 때 라이트·다크 바탕에서 읽히게 명도만 보정한다(`UtilColor.cssPair`). 옛 응답·틀린 값이면 `#e5484d` */
+    highlightColor: string;
 }
 
 /** 공개 화면이 쓰는 정책 유효값(게시판 값 ?? 기본값) — 관리자 `BoardDefaults` 의 같은 이름 칸 */

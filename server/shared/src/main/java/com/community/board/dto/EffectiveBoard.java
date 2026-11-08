@@ -31,6 +31,7 @@ import java.util.Set;
  * @param adsHidden          「이 게시판에 광고 숨김」(게시판 값 그대로) — 켜면 게시판 맥락 광고(목록 한 줄·글 보기·핫딜 노출 · 날개)가 없다. 소모임 게시판은 이 값과 상관없이 없고, 19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다
  * @param secretMode         비밀글 방식 OFF · OPTIONAL · ALWAYS(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 OFF(V168)
  * @param statusEnabled      처리 상태를 쓰는가(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 false(V168)
+ * @param chipPosition       글 목록 말머리·상태 칩 위치 ABOVE · BEFORE · BELOW(게시판 값 ?? 기본값 {@code listChipPosition} — V169, 푼 실제 값)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -41,10 +42,11 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              int commentGuestDelayMinutes, boolean staffHiddenNotice, boolean commentDislikeEnabled, String commentLikeLabel,
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
-                             boolean adsHidden, String secretMode, boolean statusEnabled) {
+                             boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
+        chipPosition = chipPosition == null ? BoardFields.CHIP_ABOVE : chipPosition;
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
     }

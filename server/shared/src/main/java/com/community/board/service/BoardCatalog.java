@@ -158,7 +158,9 @@ public class BoardCatalog {
                 Set.copyOf(b.getGadgetExclusions()), b.isAdsHidden(),
                 // 운영 게시판 설정(V166·V168) — 일반·소모임 게시판만 받는다(관리자 저장이 막지만, 핫딜·직접홍보는 늘 꺼진 값으로 본다)
                 BoardFields.opsAllowed(b.getKind()) ? b.getSecretMode() : BoardFields.SECRET_OFF,
-                BoardFields.opsAllowed(b.getKind()) && b.isStatusEnabled());
+                BoardFields.opsAllowed(b.getKind()) && b.isStatusEnabled(),
+                // 글 목록 칩 위치(V169) — 게시판 값 ?? 사이트 기본
+                or(b.getChipPosition(), d.listChipPosition()));
     }
 
     private static <T> T or(T value, T fallback) {
