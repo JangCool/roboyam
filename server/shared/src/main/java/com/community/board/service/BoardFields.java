@@ -185,7 +185,7 @@ public final class BoardFields {
         number(d, "commentGapSeconds", 0, 3600, false, false);
         number(d, "commentDailyLimit", 1, 1000, false, false);
         number(d, "listSize", 10, 100, true, false);
-        number(d, "pinnedMax", 0, 5, true, false);
+        number(d, "pinnedMax", 0, 10, true, false); // 0~10(사용자 2026-11-08 — 5에서 늘림, V173)
         bool(d, "indexable", true);
         bool(d, "searchable", true);
         bool(d, "inHome", true);

@@ -166,7 +166,7 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentGapSeconds: { field: 'commentGapSeconds', kind: 'number', min: 0, max: 3600, unit: 'seconds', overridable: false, permission: 'board.settings' },
     commentDailyLimit: { field: 'commentDailyLimit', kind: 'number', min: 1, max: 1000, unit: 'count', overridable: false, permission: 'board.settings' },
     listSize: { field: 'listSize', kind: 'number', min: 10, max: 100, unit: 'count', overridable: true, permission: 'board.settings' },
-    pinnedMax: { field: 'pinnedMax', kind: 'number', min: 0, max: 5, unit: 'count', overridable: true, permission: 'board.settings' },
+    pinnedMax: { field: 'pinnedMax', kind: 'number', min: 0, max: 10, unit: 'count', overridable: true, permission: 'board.settings' },
     indexable: { field: 'indexable', kind: 'bool', overridable: true, permission: 'board.settings' },
     searchable: { field: 'searchable', kind: 'bool', overridable: true, permission: 'board.settings' },
     inHome: { field: 'inHome', kind: 'bool', overridable: true, permission: 'board.settings' },

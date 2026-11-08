@@ -88,3 +88,6 @@
 - 목업 걷어 냄: admin-web `operator/api/mock/operator-member-account-mock.ts`·`member/api/mock/member-operator-account-mock.ts`·`common/mock/mock-util.ts`(다른 사용처 없음), user-web `operator-account/api/mock/operator-account-mock.ts` 와 `// MOCK:` 줄 전부 — 이제 실제 API 를 부른다. 운영자 표 딱지는 연결·해제 뒤 목록을 다시 받는다.
 - 서버 차이 반영: user-web 처리·제재 내역 처리자 `role` ∪ `OPERATOR` → 「… · 운영자」(`UtilBoardSanctionMessages.issuerLine`). admin-web 처리자 `role` ∪ `OPERATOR` + `operatorName` → 딱지 「운영자 · {운영자 이름}」, 한 줄 「{닉네임} (운영자 · {운영자 이름})」(스텝 처리 감독·게시판 제재·이의제기), 게시판 담당 후보 `OPERATOR_ACCOUNT` 문구. `OPERATOR_ACCOUNT_LINKED` 는 두 앱 모두 서버 문구를 그대로 보인다. 그 밖 칸은 서버 DTO 와 같음(`OperatorView.memberAccount`·`MemberDetail.operatorAccount` 는 필수 칸 `| null` 로 맞춤).
 - 검증: 두 앱 `pnpm typecheck` 통과. dev 서버·브라우저 확인은 안 함.
+
+## 운영팀 계정 기본 비공개 프로필 (사용자 2026-11-08)
+- 운영자에 회원 계정을 이을 때(`PUT /api/admin/operators/{id}/member-account`) 그 회원 프로필을 비공개(`PRIVATE`)로 바꾼다 — 같은 트랜잭션, 감사 `OPERATOR_MEMBER_LINK` 의 `profileMadePrivate`. 이을 때 한 번만이고, 회원 본인이 나중에 공개로 돌리면 그대로 둔다. 데모 로더·데모 팩의 「로보얌운영팀」도 비공개.
