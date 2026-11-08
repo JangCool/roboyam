@@ -162,7 +162,7 @@ const tabs = computed<FirstTab[]>(() => {
  * 예: 홈에서 「소모임」을 누르면 밑줄이 홈에서 소모임으로 옮겨 간다.
  */
 const underlineKey = computed<string | null>(
-    () => sidePick.picked.value ?? sidePick.activeKey.value ?? tabs.value.find((tab) => tab.kind === 'item' && tab.row.active)?.key ?? null,
+    () => sidePick.picked.value ?? sidePick.activeKey.value ?? tabs.value.find((tab) => tab.kind === 'item' && tab.row.here)?.key ?? null,
 );
 
 /** 막대 구역(상단 띠 그룹) → 둘째 줄 그룹 — 직속 항목과 하위 그룹(드롭다운)의 항목을 차례대로 편다 */

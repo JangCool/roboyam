@@ -71,6 +71,11 @@ export interface MenuEditItem extends MenuEditCommon, MenuEditLink {
     description: string;
     /** 화면이 모르는 유형의 설정 — 받은 그대로 돌려보낸다 */
     rawSettings: Record<string, unknown> | null;
+    /**
+     * 바로가기 — 다른 묶음(폴더)에 진짜 자리가 있는 게시판을 이 묶음에도 보이게 둔 항목(「다른 묶음에도 보이기」, `BOARD` 만). 연결 게시판은 바꿀 수 없고 지우면 바로가기만 지워진다.
+     * 한 그룹 안 한 번 규칙은 진짜 자리(바로가기 아닌 항목)에만 걸린다. 폴더 안에만 둔다(최상위 불가). 모바일 탭은 쓰지 않는다. 서버 칸 `menu_nodes.shortcut`(shared V167).
+     */
+    shortcut: boolean;
 }
 
 export type MenuEditNode = MenuEditFolder | MenuEditItem;
@@ -154,6 +159,20 @@ export interface MenuUnlinkedBoard {
     reason: 'NO_ITEM' | 'HIDDEN';
 }
 
+/** 게시판 하나의 메뉴 자리 — 진짜 자리(바로가기 아닌 항목)와 바로가기들. 자리는 들어 있는 폴더의 열쇠(최상위면 null) */
+export interface MenuBoardPlaces {
+    origin: { itemKey: string; folderKey: string | null } | null;
+    shortcuts: { itemKey: string; folderKey: string | null }[];
+}
+
+/** 바로가기를 둘 수 있는 묶음(폴더) 하나 — 막혔으면 이유 */
+export interface MenuShortcutSpot {
+    folder: MenuEditFolder;
+    depth: number;
+    /** `ORIGIN` 원래 자리 묶음 · `EXISTS` 이미 바로가기가 있음 · `DEPTH` 단계 한도 · null 둘 수 있음 */
+    blocked: 'ORIGIN' | 'EXISTS' | 'DEPTH' | null;
+}
+
 /** 이미 연결된 대상 — 대상 고르기에서 비활성 + 「○○ 폴더에 있음」 */
 export interface MenuLinkedTarget {
     itemKey: string;
@@ -189,7 +208,10 @@ export type MenuProblemCode =
     | 'HREF_PROTOCOL_RELATIVE'
     | 'HREF_CHARS'
     | 'HREF_USERINFO'
-    | 'MOBILE_TAB_SIDE';
+    | 'MOBILE_TAB_SIDE'
+    | 'SHORTCUT_ORIGIN_MISSING'
+    | 'SHORTCUT_TOP_LEVEL'
+    | 'SHORTCUT_SAME_FOLDER';
 
 /** 트리 전체의 문제 */
 export type MenuTreeProblem = 'NODES_LIMIT' | 'TABS_LIMIT' | 'AUTO_ADD_MULTI' | 'FOLDER_DEPTH' | 'ITEM_DEPTH';
@@ -370,6 +392,7 @@ export default class UtilMenu {
                 mobileTab: node.mobileTab,
                 description: node.description ?? '',
                 rawSettings: known ? null : node.settings,
+                shortcut: node.targetType === 'BOARD' && node.shortcut === true,
             };
         });
     }
@@ -447,8 +470,10 @@ export default class UtilMenu {
                 ...common,
                 kind: 'ITEM',
                 ...target,
-                mobileTab: side && node.mobileTab,
+                mobileTab: side && node.mobileTab && !node.shortcut,
                 description: (side && top && node.description.trim()) || null,
+                // 바로가기 표시는 바로가기에만 싣는다(일반 항목의 요청 모양은 그대로)
+                ...(node.shortcut ? { shortcut: true } : {}),
             };
             return item;
         });
@@ -482,6 +507,7 @@ export default class UtilMenu {
             mobileTab: false,
             description: '',
             rawSettings: null,
+            shortcut: false,
         };
     }
 
@@ -639,6 +665,8 @@ export default class UtilMenu {
                     walk(node.children, node);
                     continue;
                 }
+                // 바로가기는 진짜 자리가 아니다 — 대상 고르기의 「○○ 폴더에 있음」은 진짜 자리만 알린다
+                if (node.shortcut) continue;
                 const id = UtilMenu.linkId(node);
                 if (id && !out.has(id)) out.set(id, { itemKey: node.key, folderLabel: folder ? folder.label || null : null });
             }
@@ -803,6 +831,8 @@ export default class UtilMenu {
 
     /**
      * 트리 전체 검증 — 줄별 문제 + 한도(노드 수·모바일 탭 수·자동 추가 폴더 하나·단계). 서버 `MenuTreeValidator` 와 같은 규칙.
+     * 한 그룹 안 한 번(`TARGET_DUPLICATE`)은 진짜 자리끼리만 센다. 바로가기는 진짜 자리가 있어야 하고(`SHORTCUT_ORIGIN_MISSING` — 서버 `menu.shortcut.originMissing`), 폴더 안에만 두고(`SHORTCUT_TOP_LEVEL` — `menu.shortcut.topLevel`),
+     * 원래 자리 묶음·같은 게시판 바로가기가 이미 있는 묶음에 둘 수 없다(`SHORTCUT_SAME_FOLDER` — `menu.shortcut.sameFolder`). 서버 `MenuTreeValidator` 와 같은 차례.
      * @param {MenuEditNode[]} nodes - 트리.
      * @param {MenuPlacement} placement - 그룹의 위치.
      * @returns {MenuProblems} 문제(없으면 빈 것).
@@ -813,9 +843,15 @@ export default class UtilMenu {
         const seen = new Set<string>();
         let tabs = 0;
         let autoAdd = 0;
-        for (const { node } of UtilMenuTree.flatten(nodes)) {
+        const places = UtilMenu.boardPlaces(nodes);
+        for (const { node, parentKey } of UtilMenuTree.flatten(nodes)) {
             const problems = node.kind === 'FOLDER' ? UtilMenu.folderProblems(node) : UtilMenu.itemProblems(node, placement);
-            if (node.kind === 'ITEM') {
+            if (node.kind === 'ITEM' && node.shortcut) {
+                const place = node.targetId ? places.get(node.targetId) : undefined;
+                if (!place?.origin) problems.target = 'SHORTCUT_ORIGIN_MISSING';
+                else if (parentKey === null) problems.target = 'SHORTCUT_TOP_LEVEL';
+                else if (place.origin.folderKey === parentKey || UtilMenu.firstShortcutIn(place, parentKey) !== node.key) problems.target = 'SHORTCUT_SAME_FOLDER';
+            } else if (node.kind === 'ITEM') {
                 const id = UtilMenu.linkId(node);
                 if (id && seen.has(id)) problems.target = 'TARGET_DUPLICATE';
                 if (id) seen.add(id);
@@ -851,11 +887,14 @@ export default class UtilMenu {
      * @param {MenuEditNode[]} nodes - 트리.
      * @param {string} key - 옮길 노드.
      * @param {MenuMoveAction} action - 옮기기.
-     * @returns {{ tree: MenuEditNode[] | null; problem: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | null }} 결과.
+     * 바로가기는 최상위(폴더 밖)로 옮길 수 없다(`SHORTCUT_TOP` — 서버 `menu.shortcut.topLevel` 을 미리 막는다).
+     * @returns {{ tree: MenuEditNode[] | null; problem: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | 'SHORTCUT_TOP' | null }} 결과.
      */
-    static tryMove(nodes: MenuEditNode[], key: string, action: MenuMoveAction): { tree: MenuEditNode[] | null; problem: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | null } {
+    static tryMove(nodes: MenuEditNode[], key: string, action: MenuMoveAction): { tree: MenuEditNode[] | null; problem: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | 'SHORTCUT_TOP' | null } {
         const tree = UtilMenuTree.move(nodes, key, action);
         if (!tree) return { tree: null, problem: 'NOWHERE' };
+        const moved = tree.find((node) => node.key === key);
+        if (moved?.kind === 'ITEM' && moved.shortcut) return { tree: null, problem: 'SHORTCUT_TOP' };
         const depth = UtilMenu.depthProblem(tree);
         return depth ? { tree: null, problem: depth } : { tree, problem: null };
     }
@@ -908,6 +947,96 @@ export default class UtilMenu {
             else if (on) node.autoAdd = false;
         }
         return copy;
+    }
+
+    // ── 바로가기(다른 묶음에도 보이기) ─
+
+    /**
+     * 게시판마다 메뉴 자리 — 진짜 자리(바로가기 아닌 첫 항목)와 바로가기들(트리 차례).
+     * @param {MenuEditNode[]} nodes - 트리.
+     * @returns {Map<string, MenuBoardPlaces>} 게시판 ID → 자리.
+     */
+    static boardPlaces(nodes: MenuEditNode[]): Map<string, MenuBoardPlaces> {
+        const out = new Map<string, MenuBoardPlaces>();
+        for (const { node, parentKey } of UtilMenuTree.flatten(nodes)) {
+            if (node.kind !== 'ITEM' || node.targetType !== 'BOARD' || !node.targetId) continue;
+            const place = out.get(node.targetId) ?? { origin: null, shortcuts: [] };
+            if (node.shortcut) place.shortcuts.push({ itemKey: node.key, folderKey: parentKey });
+            else if (!place.origin) place.origin = { itemKey: node.key, folderKey: parentKey };
+            out.set(node.targetId, place);
+        }
+        return out;
+    }
+
+    /**
+     * 이 묶음에 든 이 게시판의 첫 바로가기 — 같은 묶음에 둘 이상이면 뒤의 것만 문제로 표시한다.
+     * @param {MenuBoardPlaces} place - 게시판의 자리.
+     * @param {string | null} folderKey - 묶음.
+     * @returns {string | null} 첫 바로가기의 열쇠.
+     */
+    static firstShortcutIn(place: MenuBoardPlaces, folderKey: string | null): string | null {
+        return place.shortcuts.find((s) => s.folderKey === folderKey)?.itemKey ?? null;
+    }
+
+    /**
+     * 이 게시판 항목의 바로가기를 둘 묶음 후보 — 모든 폴더(위에서 아래 차례), 원래 자리 묶음·이미 바로가기가 있는 묶음·단계 한도인 묶음은 막힌 이유와 함께.
+     * @param {MenuEditNode[]} nodes - 트리.
+     * @param {MenuEditItem} origin - 진짜 자리 게시판 항목.
+     * @returns {MenuShortcutSpot[]} 후보.
+     */
+    static shortcutSpots(nodes: MenuEditNode[], origin: MenuEditItem): MenuShortcutSpot[] {
+        const rows = UtilMenuTree.flatten(nodes);
+        const place = origin.targetId ? UtilMenu.boardPlaces(nodes).get(origin.targetId) : undefined;
+        const originFolder = rows.find((row) => row.node.key === origin.key)?.parentKey ?? null;
+        return rows
+            .filter((row) => row.node.kind === 'FOLDER')
+            .map((row) => {
+                const key = row.node.key;
+                let blocked: MenuShortcutSpot['blocked'] = null;
+                if (key === originFolder) blocked = 'ORIGIN';
+                else if (place?.shortcuts.some((s) => s.folderKey === key)) blocked = 'EXISTS';
+                else if (!UtilMenu.canAddInside(nodes, key, 'ITEM')) blocked = 'DEPTH';
+                return { folder: row.node as MenuEditFolder, depth: row.depth, blocked };
+            });
+    }
+
+    /**
+     * 진짜 자리 항목의 바로가기를 묶음 끝에 넣는다 — 같은 게시판·이름·영문명·보이는 대상을 따르고, 보임 · 모바일 탭 끔 · 구분선 없음 · 설명 없음.
+     * @param {MenuEditNode[]} nodes - 트리.
+     * @param {MenuEditItem} origin - 진짜 자리 게시판 항목.
+     * @param {string} folderKey - 넣을 묶음(폴더).
+     * @returns {MenuEditNode[]} 새 트리.
+     */
+    static addShortcut(nodes: MenuEditNode[], origin: MenuEditItem, folderKey: string): MenuEditNode[] {
+        const item: MenuEditItem = {
+            ...UtilMenu.newItem('BOARD'),
+            targetId: origin.targetId,
+            label: origin.label,
+            nameEn: origin.nameEn,
+            audience: origin.audience,
+            minGrade: origin.minGrade,
+            shortcut: true,
+        };
+        return UtilMenuTree.append(nodes, folderKey, item);
+    }
+
+    /**
+     * 이 노드(항목, 또는 폴더와 그 안)에 진짜 자리가 있는 게시판의 바로가기 중 이 노드 밖의 것 — 진짜 자리를 지울 때 함께 지운다.
+     * @param {MenuEditNode[]} nodes - 트리.
+     * @param {MenuEditNode} node - 지울 노드.
+     * @returns {string[]} 함께 지울 바로가기 열쇠.
+     */
+    static orphanedShortcuts(nodes: MenuEditNode[], node: MenuEditNode): string[] {
+        const inside = UtilMenuTree.all([node]);
+        const insideKeys = new Set(inside.map((n) => n.key));
+        const boards = new Set(inside.flatMap((n) => (n.kind === 'ITEM' && !n.shortcut && n.targetType === 'BOARD' && n.targetId ? [n.targetId] : [])));
+        if (!boards.size) return [];
+        const places = UtilMenu.boardPlaces(nodes);
+        return [...boards].flatMap((id) => {
+            const place = places.get(id);
+            if (!place?.origin || !insideKeys.has(place.origin.itemKey)) return [];
+            return place.shortcuts.map((s) => s.itemKey).filter((key) => !insideKeys.has(key));
+        });
     }
 
     // ── 미연결 게시판 ─

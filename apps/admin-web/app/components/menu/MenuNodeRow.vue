@@ -1,7 +1,8 @@
 <template>
     <!--
         공개 사이트 메뉴 트리의 한 줄 내용(손잡이는 `MenuTreeEditor`) — 폴더/항목 아이콘 · 이름(항목 이름이 비면 대상 이름을 흐리게) · 연결 유형 + 대상(폴더는 연결이 있으면 고리 아이콘 + 대상) ·
-        보이는 대상 · 숨김 · 모바일 탭 · 자동 추가 · 접기 · 상태 경고 · [항목 넣기](폴더) [수정] [삭제]. 숨김 폴더 안의 줄은 흐리게 그린다(방문자에게 안 보인다).
+        보이는 대상 · 숨김 · 모바일 탭 · 자동 추가 · 접기 · 상태 경고 · [항목 넣기](폴더) [다른 묶음에도 보이기](게시판 항목) [수정] [삭제]. 숨김 폴더 안의 줄은 흐리게 그린다(방문자에게 안 보인다).
+        바로가기 줄(`shortcut`)은 「바로가기」 딱지 + 「원래 자리: ○○」, 진짜 자리 줄은 바로가기가 있으면 「다른 묶음에도 있음 (○○)」.
         줄의 문제(화면 검사·서버 입력 오류)는 줄 아래에 빨간 글자로 선다.
     -->
     <div class="flex min-w-0 flex-col gap-1" :class="dimmed ? 'opacity-55' : ''">
@@ -16,6 +17,13 @@
                     <i v-if="external" class="pi pi-external-link text-[10px]" :aria-label="t('menuConfig.externalLink')" />
                 </span>
                 <MenuTag v-if="node.newTab && (node.targetType === 'URL' || node.targetType === 'PATH')" :value="t('menuConfig.tag.newTab')" />
+                <template v-if="node.shortcut">
+                    <MenuTag :value="t('menuConfig.shortcutTag')" severity="info" icon="pi pi-clone" />
+                    <span class="text-[11px] text-muted-color">{{ shortcutOrigin }}</span>
+                </template>
+                <span v-else-if="alsoIn.length" class="inline-flex items-center gap-1 text-[11px] text-sky-700 dark:text-sky-400">
+                    <i class="pi pi-clone text-[10px]" aria-hidden="true" />{{ t('menuConfig.shortcutAlsoIn', { names: alsoIn.join(', ') }) }}
+                </span>
             </template>
 
             <MenuTag v-if="side && top && node.divider !== 'NONE'" :value="t(`menuConfig.dividerTag.${node.divider}`)" icon="pi pi-grip-lines-vertical" />
@@ -39,6 +47,7 @@
 
             <div v-if="!readonly" class="ml-auto flex shrink-0 items-center gap-0.5">
                 <Button v-if="node.kind === 'FOLDER'" type="button" icon="pi pi-plus" size="small" severity="secondary" variant="text" rounded :disabled="!canAddInside" :aria-label="t('menuConfig.addInside', { name: name.text })" v-tooltip.top="t('menuConfig.addInside', { name: name.text })" @click="emit('addInside')" />
+                <Button v-if="canShortcut" type="button" icon="pi pi-clone" size="small" severity="secondary" variant="text" rounded :aria-label="t('menuConfig.shortcutAddTitle', { name: name.text })" v-tooltip.top="t('menuConfig.shortcutAdd')" @click="emit('shortcut')" />
                 <Button type="button" icon="pi pi-pencil" size="small" severity="secondary" variant="text" rounded :disabled="status === 'UNKNOWN_TYPE'" :aria-label="t('menuConfig.editNode', { name: name.text })" v-tooltip.top="status === 'UNKNOWN_TYPE' ? t('menuConfig.unknownTypeLocked') : t('common.edit')" @click="emit('edit')" />
                 <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :aria-label="t('menuConfig.removeNode', { name: name.text })" v-tooltip.top="t('common.delete')" @click="emit('remove')" />
             </div>
@@ -68,10 +77,16 @@ interface Props {
     canAddInside?: boolean;
     /** 최상위 줄(구분선 딱지는 최상위만) */
     top?: boolean;
+    /** 바로가기 줄의 원래 자리 안내(「원래 자리: 커뮤니티」) — 바로가기가 아니면 빈 글자 */
+    shortcutOrigin?: string;
+    /** 진짜 자리 줄의 바로가기가 있는 묶음 이름들 — 없으면 빈 목록 */
+    alsoIn?: string[];
+    /** [다른 묶음에도 보이기] 단추를 보이는가(진짜 자리 게시판 항목) */
+    canShortcut?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { dimmed: false, errors: () => [], readonly: false, canAddInside: true, top: false });
-const emit = defineEmits<{ (e: 'edit'): void; (e: 'remove'): void; (e: 'addInside'): void }>();
+const props = withDefaults(defineProps<Props>(), { dimmed: false, errors: () => [], readonly: false, canAddInside: true, top: false, shortcutOrigin: '', alsoIn: () => [], canShortcut: false });
+const emit = defineEmits<{ (e: 'edit'): void; (e: 'remove'): void; (e: 'addInside'): void; (e: 'shortcut'): void }>();
 
 const { t } = useI18n();
 const { localizedName } = useLocalizedName();

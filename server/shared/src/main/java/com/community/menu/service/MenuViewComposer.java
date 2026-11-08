@@ -101,7 +101,7 @@ public class MenuViewComposer {
             MenuBoardView boardView = board == null ? null : new MenuBoardView(Long.toString(board.id()), board.slug(), board.color(), board.investmentNotice());
             String key = "BUILTIN".equals(node.targetType()) ? node.targetKey() : null;
             out.add(new MenuItemNodeView(id, MenuNode.ITEM, node.targetType(), key, label, nameEn, target.path(), target.matchPrefix(), target.newTab(), mobileTab,
-                    boardView, target.extra(), node.divider(), node.description()));
+                    boardView, target.extra(), node.divider(), node.description(), node.shortcut()));
         }
         return out;
     }

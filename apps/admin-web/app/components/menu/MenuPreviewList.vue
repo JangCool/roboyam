@@ -12,6 +12,7 @@
             </template>
             <div v-else class="flex items-center gap-1.5 rounded px-2 py-1 text-[13px] hover:bg-surface-100 dark:hover:bg-surface-800">
                 <span class="min-w-0 truncate">{{ nameOf(entry.node) }}</span>
+                <i v-if="entry.node.shortcut" class="pi pi-clone text-[10px] text-muted-color" :aria-label="t('menuConfig.shortcutTag')" v-tooltip.top="t('menuConfig.shortcutTag')" />
                 <i v-if="UtilMenu.isExternal(entry.node)" class="pi pi-external-link ml-auto text-[10px] text-muted-color" :aria-label="t('menuConfig.externalLink')" />
             </div>
         </li>

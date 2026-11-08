@@ -37,7 +37,7 @@ export default class UtilMenuMessages {
     }
 
     /** 옮기기가 막힌 이유 → 문구 */
-    static moveProblem(t: Translate, code: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | AdminMenuMoveProblem): string {
+    static moveProblem(t: Translate, code: 'NOWHERE' | 'FOLDER_DEPTH' | 'ITEM_DEPTH' | 'SHORTCUT_TOP' | AdminMenuMoveProblem): string {
         const L = UtilMenu.LIMITS;
         return t(`menuConfig.moveProblem.${code}`, { folder: L.folderDepth, item: L.itemDepth });
     }

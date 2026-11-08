@@ -8,6 +8,9 @@
         메뉴 그룹 정보(추가·수정·삭제)는 트리 저장과 별개로 바로 저장한다.
         권한: 조회 `layout.read`(메뉴 정의가 건다) · 저장 `layout.settings` — 없으면(또는 서버가 `editable: false`) 읽기 전용(편집 단추·손잡이·저장 줄이 없다).
         서버 연결됨(`useMenuApi` → `MenuSetController`·`MenuTargetController`). 게시판을 만들거나 지워도 그룹 `version` 이 올라가므로, 열어 둔 채 저장하면 409(서버 문구 + [다시 불러오기]).
+        바로가기(다른 묶음에도 보이기, 2026-11-08 목업): 게시판 항목 줄의 [다른 묶음에도 보이기] → 묶음(폴더) 고르기 → 그 묶음 끝에 바로가기 항목. 원래 자리 묶음·이미 있는 묶음은 고를 수 없다.
+          바로가기는 「바로가기 · 원래 자리: ○○」, 진짜 자리는 「다른 묶음에도 있음 (○○)」. 바로가기를 지우면 바로가기만, 진짜 자리를 지우면 그 바로가기도 함께(묻고) 지운다.
+          바로가기는 폴더 안에만 — 최상위로 끌어 옮기기는 막는다. 서버 연결됨(2026-11-08, 계약 `docs/features/menu-shortcut-contract.md`) — 바로가기 오류(`nodes[i]….targetId` 등)도 그 줄 아래에 선다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('menuConfig.publicTitle')" :subtitle="t('menuConfig.publicSubtitle')">
@@ -98,6 +101,10 @@
                                                 :errors="errorsOf(row.node.key)"
                                                 :readonly="readonly || saving"
                                                 :can-add-inside="!nodesFull && UtilMenu.canAddInside(draft, row.node.key, 'ITEM')"
+                                                :shortcut-origin="shortcutOriginOf(row.node)"
+                                                :also-in="alsoInOf(row.node)"
+                                                :can-shortcut="canShortcut(row.node)"
+                                                @shortcut="openShortcut(row.node)"
                                                 @edit="editNode(row.node)"
                                                 @remove="removeNode(row.node)"
                                                 @add-inside="openItem(null, row.node.key)"
@@ -126,7 +133,43 @@
 
         <MenuSetDialog v-model:visible="setDialogOpen" :set="setDialogTarget" :taken-keys="(sets ?? []).map((s) => s.key)" :saving="setSaving" :field-errors="setFieldErrors" :error="setError" @submit="submitSet" />
         <MenuFolderDialog v-if="options" v-model:visible="folderOpen" :folder="folderTarget" :parents="folderParents" :parent-key="dialogParent" :ctx="ctx" :edit-top-level="isTopLevel(folderTarget)" @save="onFolderSave" />
-        <MenuItemDialog v-if="options" v-model:visible="itemOpen" :item="itemTarget" :parents="itemParents" :parent-key="dialogParent" :ctx="ctx" :linked="linked" :tab-count="itemTabCount" :edit-top-level="isTopLevel(itemTarget)" @save="onItemSave" />
+        <MenuItemDialog
+            v-if="options"
+            v-model:visible="itemOpen"
+            :item="itemTarget"
+            :parents="itemParents"
+            :parent-key="dialogParent"
+            :ctx="ctx"
+            :linked="linked"
+            :tab-count="itemTabCount"
+            :edit-top-level="isTopLevel(itemTarget)"
+            :shortcut-origin="itemTarget ? shortcutOriginOf(itemTarget) : ''"
+            @save="onItemSave"
+        />
+
+        <!-- 다른 묶음에도 보이기 — 바로가기를 둘 묶음 고르기 -->
+        <Dialog v-model:visible="shortcutOpen" modal :draggable="false" :header="shortcutHeader" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }">
+            <div class="flex flex-col gap-3">
+                <p class="m-0 text-sm text-muted-color">{{ shortcutHelp }}</p>
+                <p v-if="!shortcutOptions.length" class="m-0 text-sm">{{ t('menuConfig.shortcutNoFolder') }}</p>
+                <div v-else class="flex flex-col gap-1.5">
+                    <span :id="`${shortcutId}-folder`" class="text-sm font-medium">{{ t('menuConfig.shortcutPickFolder') }}</span>
+                    <Listbox v-model="shortcutFolder" :options="shortcutOptions" option-label="label" option-value="value" option-disabled="disabled" scroll-height="15rem" :aria-labelledby="`${shortcutId}-folder`">
+                        <template #option="{ option }">
+                            <span class="flex w-full min-w-0 items-center gap-2">
+                                <i class="pi pi-folder text-[12px] text-muted-color" aria-hidden="true" />
+                                <span class="min-w-0 flex-1 truncate text-[13px]">{{ option.label }}</span>
+                                <span v-if="option.note" class="shrink-0 text-[11px] text-muted-color">{{ option.note }}</span>
+                            </span>
+                        </template>
+                    </Listbox>
+                </div>
+            </div>
+            <template #footer>
+                <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" @click="shortcutOpen = false" />
+                <Button type="button" :label="t('menuConfig.shortcutAddConfirm')" icon="pi pi-clone" :disabled="!shortcutFolder" @click="addShortcut" />
+            </template>
+        </Dialog>
     </div>
 </template>
 
@@ -366,20 +409,112 @@ function onItemSave(item: MenuEditItem, parentKey: string | null) {
     place(item, parentKey);
 }
 
-/** 지우기 — 폴더는 하위 개수를 알리고 묻는다 */
+// ── 바로가기(다른 묶음에도 보이기) ─
+
+/** 게시판마다 진짜 자리·바로가기 */
+const places = computed(() => UtilMenu.boardPlaces(draft.value));
+
+/** 폴더 열쇠 → 보일 이름 */
+function folderName(key: string): string {
+    const hit = UtilMenuTree.find(draft.value, key);
+    return hit ? UtilMenuMessages.nodeName(t, hit.node, ctx.value, localizedName).text : '';
+}
+
+/** 바로가기 줄의 「원래 자리: ○○」 — 바로가기가 아니거나 진짜 자리가 없으면 빈 글자(진짜 자리가 없으면 줄 아래 문제 문구가 선다) */
+function shortcutOriginOf(node: MenuEditNode): string {
+    if (node.kind !== 'ITEM' || !node.shortcut || !node.targetId) return '';
+    const origin = places.value.get(node.targetId)?.origin;
+    if (!origin) return '';
+    return origin.folderKey ? t('menuConfig.shortcutOrigin', { name: folderName(origin.folderKey) }) : t('menuConfig.shortcutOriginTop');
+}
+
+/** 진짜 자리 줄의 바로가기가 있는 묶음 이름들 */
+function alsoInOf(node: MenuEditNode): string[] {
+    if (node.kind !== 'ITEM' || node.shortcut || node.targetType !== 'BOARD' || !node.targetId) return [];
+    const place = places.value.get(node.targetId);
+    if (place?.origin?.itemKey !== node.key) return [];
+    return place.shortcuts.map((s) => (s.folderKey ? folderName(s.folderKey) : t('menuConfig.parentTop')));
+}
+
+/** [다른 묶음에도 보이기] — 진짜 자리 게시판 항목, 노드 한도 안 */
+function canShortcut(node: MenuEditNode): boolean {
+    return node.kind === 'ITEM' && !node.shortcut && node.targetType === 'BOARD' && Boolean(node.targetId) && places.value.get(node.targetId!)?.origin?.itemKey === node.key && !nodesFull.value;
+}
+
+const shortcutId = useId();
+const shortcutOpen = ref(false);
+const shortcutOrigin = ref<MenuEditItem | null>(null);
+const shortcutFolder = ref<string | null>(null);
+
+const shortcutHeader = computed(() => (shortcutOrigin.value ? t('menuConfig.shortcutAddTitle', { name: UtilMenuMessages.nodeName(t, shortcutOrigin.value, ctx.value, localizedName).text }) : ''));
+const shortcutHelp = computed(() => {
+    const origin = shortcutOrigin.value?.targetId ? places.value.get(shortcutOrigin.value.targetId)?.origin : null;
+    return origin?.folderKey ? t('menuConfig.shortcutAddHelp', { origin: folderName(origin.folderKey) }) : t('menuConfig.shortcutAddHelpTop');
+});
+/** 묶음 후보 — 원래 자리·이미 있음·단계 한도는 고를 수 없고 이유를 옆에 */
+const shortcutOptions = computed(() =>
+    shortcutOrigin.value
+        ? UtilMenu.shortcutSpots(draft.value, shortcutOrigin.value).map((spot) => ({
+              value: spot.folder.key,
+              label: `${'· '.repeat(spot.depth - 1)}${UtilMenuMessages.nodeName(t, spot.folder, ctx.value, localizedName).text}`,
+              disabled: spot.blocked !== null,
+              note: spot.blocked ? t(`menuConfig.shortcutBlocked.${spot.blocked}`) : '',
+          }))
+        : [],
+);
+
+function openShortcut(node: MenuEditNode) {
+    if (node.kind !== 'ITEM') return;
+    shortcutOrigin.value = node;
+    shortcutFolder.value = null;
+    shortcutOpen.value = true;
+}
+
+function addShortcut() {
+    const origin = shortcutOrigin.value;
+    const folderKey = shortcutFolder.value;
+    // 막힌 묶음은 고를 수 없지만, 대화상자를 연 뒤 트리가 바뀌었을 수 있어 한 번 더 본다
+    const spot = origin && folderKey ? UtilMenu.shortcutSpots(draft.value, origin).find((s) => s.folder.key === folderKey) : undefined;
+    if (!origin || !folderKey || !spot || spot.blocked) return;
+    if (nodesFull.value) {
+        toast.error(UtilMenuMessages.treeProblem(t, 'NODES_LIMIT'), 8000);
+        return;
+    }
+    draft.value = UtilMenu.addShortcut(draft.value, origin, folderKey);
+    shortcutOpen.value = false;
+    toast.success(t('menuConfig.shortcutAdded', { folder: folderName(folderKey) }));
+}
+
+/** 지우기 — 폴더는 하위 개수를 알리고 묻는다. 진짜 자리를 지우면 다른 묶음의 그 바로가기도 함께(알리고) 지운다. 바로가기는 바로가기만 */
 async function removeNode(node: MenuEditNode) {
     const name = UtilMenuMessages.nodeName(t, node, ctx.value, localizedName).text;
+    const orphans = UtilMenu.orphanedShortcuts(draft.value, node);
     if (node.kind === 'FOLDER') {
         const count = UtilMenuTree.descendantCount(node);
+        const base = count ? t('menuConfig.removeFolderMessage', { n: count }) : t('menuConfig.removeFolderEmpty');
         const ok = await confirm({
             title: t('menuConfig.removeFolderTitle', { name }),
-            message: count ? t('menuConfig.removeFolderMessage', { n: count }) : t('menuConfig.removeFolderEmpty'),
+            message: orphans.length ? `${t('menuConfig.removeFolderShortcuts', { n: orphans.length })} ${base}` : base,
+            confirmLabel: t('common.delete'),
+            tone: 'danger',
+        });
+        if (!ok) return;
+    } else if (orphans.length) {
+        const names = orphans.map((key) => {
+            const folder = UtilMenuTree.flatten(draft.value).find((row) => row.node.key === key)?.parentKey;
+            return folder ? folderName(folder) : t('menuConfig.parentTop');
+        });
+        const ok = await confirm({
+            title: t('menuConfig.shortcutRemoveTitle', { name }),
+            message: t('menuConfig.shortcutRemoveMessage', { n: orphans.length, names: names.join(', ') }),
             confirmLabel: t('common.delete'),
             tone: 'danger',
         });
         if (!ok) return;
     }
-    draft.value = UtilMenuTree.remove(draft.value, node.key);
+    let next = UtilMenuTree.remove(draft.value, node.key);
+    for (const key of orphans) next = UtilMenuTree.remove(next, key);
+    draft.value = next;
 }
 
 // ── 저장 ─

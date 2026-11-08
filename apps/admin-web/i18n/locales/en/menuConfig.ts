@@ -97,6 +97,7 @@ export default {
         ITEM_DEPTH: 'Items can go only {item} levels deep.',
         SECTION_TOP: 'Sections stay at the top level.',
         FOLDER_PLACE: 'Submenus go at the top level or inside a section.',
+        SHORTCUT_TOP: 'Shortcuts can only be inside a folder.',
     },
     treeProblem: {
         NODES_LIMIT: 'A menu group can have up to {nodes} nodes.',
@@ -109,6 +110,30 @@ export default {
     removeFolderMessage: 'The {n} entries inside are deleted too. Until you save, Reset brings them back.',
     removeFolderEmpty: 'The folder is empty. Until you save, Reset brings it back.',
     removeAdminMessage: 'The {n} entries inside leave the menu too. Until you save, Reset brings them back.',
+    removeFolderShortcuts: '{n} shortcuts in other folders that point to boards inside are removed too.',
+
+    // ── Shortcuts (show in another folder too) ──
+    shortcutTag: 'Shortcut',
+    shortcutOrigin: 'Home: {name}',
+    shortcutOriginTop: 'Home: top level',
+    shortcutAlsoIn: 'Also in other folders ({names})',
+    shortcutAdd: 'Show in another folder too',
+    shortcutAddTitle: 'Show “{name}” in another folder too',
+    shortcutAddHelp: 'A shortcut item is added at the end of the folder you pick. The board still belongs to its home “{origin}” (default write board, current location).',
+    shortcutAddHelpTop: 'A shortcut item is added at the end of the folder you pick. The board still belongs to its home at the top level (default write board, current location).',
+    shortcutPickFolder: 'Folder',
+    shortcutBlocked: {
+        ORIGIN: 'Home',
+        EXISTS: 'Already there',
+        DEPTH: 'Too deep',
+    },
+    shortcutNoFolder: 'There is no folder to put a shortcut in. Create a folder first.',
+    shortcutAddConfirm: 'Add',
+    shortcutAdded: 'Added a shortcut at the end of “{folder}”',
+    shortcutEditTitle: 'Edit shortcut',
+    shortcutBoardLocked: 'A shortcut’s board can’t be changed. To link another board, remove this shortcut and create one from that board’s item.',
+    shortcutRemoveTitle: 'Remove “{name}”?',
+    shortcutRemoveMessage: 'The {n} shortcuts in other folders ({names}) are removed too. Until you save, Reset brings them back.',
 
     // ── Row tags · status ──
     tag: {
@@ -324,6 +349,9 @@ export default {
         HREF_CHARS: 'Links can’t contain spaces, quotes or angle brackets.',
         HREF_USERINFO: 'Links can’t contain account details.',
         MOBILE_TAB_SIDE: 'Mobile tabs are only for side menu groups.',
+        SHORTCUT_ORIGIN_MISSING: 'This shortcut has no home item. Add the board item back or remove this shortcut.',
+        SHORTCUT_TOP_LEVEL: 'Shortcuts can only be inside a folder. Move it into a folder.',
+        SHORTCUT_SAME_FOLDER: 'This is the board’s home folder or already has a shortcut to it. Move it to another folder.',
         ICON_FORMAT: 'Write the icon as pi pi-name.',
     },
 

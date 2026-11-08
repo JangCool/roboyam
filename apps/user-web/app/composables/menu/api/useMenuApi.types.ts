@@ -41,6 +41,12 @@ export interface MenuItemNode {
     newTab: boolean;
     /** 모바일 상단 탭에 올릴 항목인가(탭 순서는 `MenuResponse.mobileTabs` 가 정한다) */
     mobileTab: boolean;
+    /**
+     * 바로가기 — 다른 묶음에 진짜 자리가 있는 게시판을 이 묶음에도 보이게 둔 줄(`BOARD` 만, 운영자 「다른 묶음에도 보이기」). 모양·링크는 일반 게시판 항목과 같다.
+     * 게시판의 소속 묶음(지금 있는 곳 묶음·글쓰기 게시판 고르기 묶음·게시판 모음·하단 커뮤니티 탭)은 바로가기가 아닌 항목(진짜 자리) 기준이다. 없으면 false.
+     * 서버가 모든 항목에 늘 싣는다(일반 항목 false, 2026-11-08 — 서버 `MenuItemNodeView.shortcut`). 화면은 `UtilMenu.parse` 에서 `true` 일 때만 바로가기로 읽는다.
+     */
+    shortcut?: boolean;
     /** `BOARD` 항목에만 있다 */
     board?: MenuBoardRef | null;
     /** 유형이 더 실어 보낸 칸 — 있는 키만 그린다(모르는 키는 무시). `external: true` 면 작은 외부 링크 아이콘(`URL` 의 `https://` 주소). 없으면 null */

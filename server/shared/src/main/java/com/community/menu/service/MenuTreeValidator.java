@@ -1,12 +1,14 @@
 package com.community.menu.service;
 
 import com.community.menu.dto.MenuNode;
+import com.community.menu.target.BoardMenuTargetResolver;
 import com.community.menu.target.MenuTargetRegistry;
 import com.community.menu.target.MenuTargetResolver;
 import com.community.menu.target.MenuValidationContext;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,10 +30,20 @@ import org.springframework.stereotype.Component;
  *       모르는 유형은 유형 코드 모양·이름 길이만 보고 나머지 칸은 받은 그대로 보존한다.</li>
  *   <li>공통: 영문명 · 보이는 대상 값 · {@code GRADE_MIN} 의 등급(등급 목록에 있는 키).</li>
  *   <li>트리: 노드 ≤ 80 · 모바일 탭 ≤ 10 · 자동 추가 폴더 하나 — 새로 켠 폴더가 하나면 이미 켜져 있던 것을 끄고, 새로 켠 것이 둘 이상이면 400.</li>
+ *   <li>바로가기({@code shortcut}, menu-shortcut-contract): {@code BOARD} 항목만({@code targetType}) · 모바일 탭 없음({@code mobileTab}) ·
+ *       「그룹 안에서 한 번」에 세지 않는다(진짜 자리끼리만). 칸 {@code targetId} 에 — 같은 그룹에 같은 게시판의 진짜 자리가 없음({@code SHORTCUT_ORIGIN_MISSING}) ·
+ *       최상위(폴더 밖) · 진짜 자리와 같은 폴더이거나 같은 폴더에 같은 게시판 바로가기가 앞에 이미 있음({@code SHORTCUT_SAME_FOLDER}, 뒤의 것에만).
+ *       폴더의 {@code shortcut} 은 버린다.</li>
  * </ul>
  */
 @Component
 public class MenuTreeValidator {
+
+    /** 최상위 목록의 경로 */
+    private static final String ROOT = "nodes";
+
+    /** 바로가기 자리 오류를 거는 칸 — {@code BOARD} 의 대상 칸 */
+    private static final String TARGET_FIELD = "targetId";
 
     private final MenuTargetRegistry registry;
 
@@ -46,7 +58,8 @@ public class MenuTreeValidator {
      */
     public List<MenuNode> validate(List<MenuNode> nodes, MenuValidationContext context, Map<Long, Boolean> storedAutoAdd) {
         Walk walk = new Walk(context);
-        List<MenuNode> out = walk.nodes(nodes == null ? List.of() : nodes, "nodes", 1);
+        List<MenuNode> out = walk.nodes(nodes == null ? List.of() : nodes, ROOT, 1);
+        walk.shortcuts();
 
         if (MenuNode.count(out) > MenuLimits.NODES) {
             walk.errors.putIfAbsent("nodes", new MessageRef("menu.tree.nodesLimit", String.valueOf(MenuLimits.NODES)));
@@ -87,6 +100,8 @@ public class MenuTreeValidator {
         final Map<String, MessageRef> errors = new LinkedHashMap<>();
         final Set<String> linked = new HashSet<>();
         final List<MenuNode> autoAddFolders = new ArrayList<>();
+        /** 게시판 항목의 자리(트리 차례) — 바로가기 규칙({@link #shortcuts}) */
+        final List<BoardPlace> boardPlaces = new ArrayList<>();
         final MenuValidationContext context;
         final boolean side;
         int tabs;
@@ -130,7 +145,8 @@ public class MenuTreeValidator {
                     out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade, divider));
                 } else {
                     fieldErrors.add("description", MenuRules.descriptionProblem(node.description()));
-                    out.add(item(node, depth, fieldErrors, label, nameEn, audience, minGrade).withExtras(divider, MenuRules.stripToNull(node.description())));
+                    out.add(item(node, path, prefix, depth, fieldErrors, label, nameEn, audience, minGrade)
+                            .withExtras(divider, MenuRules.stripToNull(node.description())));
                 }
             }
             return out;
@@ -193,7 +209,17 @@ public class MenuTreeValidator {
             return link;
         }
 
-        private MenuNode item(MenuNode node, int depth, MenuFieldErrors fieldErrors, String label, String nameEn, String audience, String minGrade) {
+        private MenuNode item(MenuNode node, String path, String prefix, int depth, MenuFieldErrors fieldErrors, String label, String nameEn, String audience,
+                              String minGrade) {
+            boolean shortcut = node.shortcut();
+            if (shortcut) {
+                if (!BoardMenuTargetResolver.TYPE.equals(MenuRules.stripToNull(node.targetType()))) {
+                    fieldErrors.add("targetType", new MessageRef("menu.shortcut.board"));
+                }
+                if (node.mobileTab()) {
+                    fieldErrors.add("mobileTab", new MessageRef("menu.shortcut.mobileTab"));
+                }
+            }
             if (!node.children().isEmpty()) {
                 fieldErrors.add("children", new MessageRef("menu.node.children"));
             }
@@ -213,7 +239,8 @@ public class MenuTreeValidator {
                 fieldErrors.add("label", MenuRules.labelProblem(node.label(), resolver.labelRequired(), MenuLimits.LABEL_MAX));
                 resolver.validate(item, context, fieldErrors);
                 String linkId = resolver.linkId(item);
-                if (linkId != null && !linked.add(linkId)) {
+                // 「그룹 안에서 한 번」은 진짜 자리끼리만 — 바로가기는 세지 않는다
+                if (linkId != null && !shortcut && !linked.add(linkId)) {
                     fieldErrors.add(resolver.targetField(), new MessageRef("menu.target.duplicate"));
                 }
             } else {
@@ -233,7 +260,51 @@ public class MenuTreeValidator {
             if (item.mobileTab()) {
                 tabs++;
             }
+            if (shortcut) {
+                item = item.withShortcut(BoardMenuTargetResolver.TYPE.equals(type));
+            }
+            if (BoardMenuTargetResolver.TYPE.equals(type) && item.targetId() != null) {
+                boardPlaces.add(new BoardPlace(path, prefix, item.targetId(), item.shortcut()));
+            }
             return item;
         }
+
+        /**
+         * 바로가기의 자리 규칙(트리 전체를 본 뒤) — admin-web {@code UtilMenu.validate} 와 같은 차례: 진짜 자리 없음 → 최상위 → 같은 폴더.
+         * 게시판의 진짜 자리는 트리 차례로 첫 번째 진짜 항목이고, 같은 폴더의 같은 게시판 바로가기는 첫 번째 것만 통과한다.
+         */
+        void shortcuts() {
+            Map<String, String> originParent = new HashMap<>();
+            for (BoardPlace place : boardPlaces) {
+                if (!place.shortcut()) {
+                    originParent.putIfAbsent(place.boardId(), place.parent());
+                }
+            }
+            Set<String> firstInFolder = new HashSet<>();
+            for (BoardPlace place : boardPlaces) {
+                if (!place.shortcut()) {
+                    continue;
+                }
+                MenuFieldErrors fieldErrors = new MenuFieldErrors(place.path(), errors);
+                String origin = originParent.get(place.boardId());
+                boolean first = firstInFolder.add(place.parent() + "|" + place.boardId());
+                if (origin == null) {
+                    fieldErrors.add(TARGET_FIELD, new MessageRef("menu.shortcut.originMissing"));
+                } else if (ROOT.equals(place.parent())) {
+                    fieldErrors.add(TARGET_FIELD, new MessageRef("menu.shortcut.topLevel"));
+                } else if (origin.equals(place.parent()) || !first) {
+                    fieldErrors.add(TARGET_FIELD, new MessageRef("menu.shortcut.sameFolder"));
+                }
+            }
+        }
+    }
+
+    /**
+     * 게시판 항목 하나의 자리
+     *
+     * @param path   노드 경로({@code nodes[1].children[2]})
+     * @param parent 들어 있는 목록의 경로 — 폴더마다 다르고 최상위는 {@link #ROOT}
+     */
+    private record BoardPlace(String path, String parent, String boardId, boolean shortcut) {
     }
 }
