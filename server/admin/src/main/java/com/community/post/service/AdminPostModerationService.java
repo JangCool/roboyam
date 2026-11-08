@@ -405,26 +405,28 @@ public class AdminPostModerationService {
     // ── 처리 상태(V166 운영 게시판) ────────────────────────────────────────────
 
     /**
-     * 글의 처리 상태 바꾸기 — 사유 없음, 값 400 {@code fields.status} → 글 잠금(없는 글 404) → 지운 글 409 POST_STATE_INVALID → 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED.
+     * 글의 처리 상태 바꾸기 — 값 400 {@code fields.status} → 메모(선택, V168) 400 {@code fields.note} → 글 잠금(없는 글 404) → 지운 글 409 POST_STATE_INVALID → 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED.
      * 지금 값과 같으면 아무것도 남기지 않는다. 바뀌면 감사 {@code POST_PROCESS_STATUS}(from·to) + 글쓴이(회원)에게 회원 알림 {@code POST_STATUS_CHANGED}(운영자는 회원이 아니라 늘 보낸다).
      * 조치 기록({@code post_moderation_events})에는 남기지 않는다(숨김·삭제 같은 제재가 아니다 — 가정).
      */
     @Transactional
     public PostProcessStatusView processStatus(AdminActor actor, String idText, PostProcessStatusRequest body) {
         PostProcessStatus status = PostProcessStatusChanger.parse(body == null ? null : body.status());
+        String note = PostProcessStatusChanger.note(body == null ? null : body.note());
         PostEntity post = lock(idText);
         Instant now = Instant.now();
         if (post.isGoneAt(now)) {
             throw new PostStateInvalidException();
         }
         EffectiveBoard board = post.getBoardId() == null ? null : catalog.snapshot().board(post.getBoardId()).orElse(null);
-        PostProcessStatusChanger.Result result = statusChanger.change(post, board, status, null, now);
+        PostProcessStatusChanger.Result result = statusChanger.change(post, board, status, note, PostProcessStatusChanger.Changer.operator(actor.operatorId()), now);
         if (result.changed()) {
-            audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.POST_PROCESS_STATUS, AuditResult.SUCCESS)
-                    .target(TARGET, Long.toString(post.getId())).with("from", result.before().name()).with("to", result.after().name()));
+            AuditEvent event = AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.POST_PROCESS_STATUS, AuditResult.SUCCESS)
+                    .target(TARGET, Long.toString(post.getId())).with("from", result.before().name()).with("to", result.after().name());
+            audit.record(note == null ? event : event.with("note", note)); // 메모(V168 — 운영자가 적은 글 그대로)
             log.info("글 처리 상태 {} → {} postId={} by operatorId={}", result.before(), result.after(), post.getId(), actor.operatorId());
         }
-        return new PostProcessStatusView(result.after().name(), result.at());
+        return new PostProcessStatusView(result.after().name(), result.at(), statusChanger.lastNote(board, post.getId()));
     }
 
     // ── 신고 관리(docs/features/report-admin-contract.md)가 부르는 조치 — 부르는 쪽의 트랜잭션 안, 글 행 잠금 뒤. 감사·작성자 알림은 부르는 쪽이 ──

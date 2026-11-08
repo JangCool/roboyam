@@ -273,7 +273,12 @@ public class MemberNotificationMessages {
 
         /** 내 글의 처리 상태가 바뀜(V166) — 게시판 이름({@code snapshot})·새 상태({@code result} — {@code PostProcessStatus} 이름)·글 제목 */
         public static Facts postStatusChanged(String boardName, String status, String postTitle) {
-            return new Facts(MemberNotificationType.POST_STATUS_CHANGED, null, postTitle, null, 1, 0, null, null, false, boardName, status);
+            return postStatusChanged(boardName, status, postTitle, null);
+        }
+
+        /** 내 글의 처리 상태가 바뀜 — 바꾼 사람이 적은 메모({@code note}, V168 — 없으면 null)까지 */
+        public static Facts postStatusChanged(String boardName, String status, String postTitle, String note) {
+            return new Facts(MemberNotificationType.POST_STATUS_CHANGED, null, postTitle, null, 1, 0, null, note, false, boardName, status);
         }
 
         /** 의견 고정 요청 결과({@code APPROVED}·{@code REJECTED}) — 거절이면 사유(없으면 null) */
@@ -433,7 +438,10 @@ public class MemberNotificationMessages {
             case POST_STATUS_CHANGED -> builder.variable("boardName", nz(facts.snapshot()))
                     .variable("status", messages.get(new MessageRef("post.processStatus." + PostProcessStatus.parse(facts.result()).orElse(PostProcessStatus.RECEIVED).name()),
                             locale))
-                    .variable("postTitle", nz(facts.postTitle()));
+                    .variable("postTitle", nz(facts.postTitle()))
+                    // 메모 한 줄(V168) — 메모가 있으면 「· 메모: …」, 없으면 빈 글자(기본 본문 끝의 공백은 렌더러가 자른다). 메모는 번들 인자가 아니라 뒤에 붙인다
+                    .variable("statusNote", facts.note() == null || facts.note().isBlank() ? ""
+                            : messages.get(new MessageRef("member.notification.POST_STATUS_CHANGED.notePrefix"), locale) + " " + facts.note());
             case GROUP_APPROVED, GROUP_JOIN_APPROVED, GROUP_KICKED, GROUP_DISSOLVED, GROUP_LEADER_TRANSFERRED, GROUP_REACTIVATED ->
                     builder.variable("groupName", nz(facts.snapshot()));
             case GROUP_REJECTED, GROUP_JOIN_REJECTED, GROUP_DEACTIVATED -> builder.variable("groupName", nz(facts.snapshot())).variable("reason", nz(facts.note()));

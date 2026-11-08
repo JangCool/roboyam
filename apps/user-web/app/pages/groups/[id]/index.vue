@@ -10,6 +10,8 @@
         멤버 탭·채팅 링크는 멤버에게만 열린다(비멤버는 잠금 + 가입 단추). 채팅 링크는 확인 대화상자를 거쳐 새 탭으로 연다(허용 주소만 — `UtilGroup.safeChatUrl`).
         공개 범위(5단계): 머리 알약 줄 맨 앞에 「공개」/「비공개」 칩(누르면 한 줄 설명 시트, 기능이 꺼진 서버의 비공개 소모임은 없음). 공개 소모임이면 비멤버도 모든 글을 보고(서버가 `locked:false`)
           글 줄의 「공개 전환됨」을 붙이지 않는다(멤버 전용으로 돌린 글만 「비공개」).
+        운영 설정(소모임 게시판 `secretMode`·`statusEnabled`, 2026-11-08): 글 줄에 비밀글 자물쇠·처리 상태 딱지(줄 칸 `secret`·`processStatus` — 목록 부품이 그린다),
+          상태가 켜졌으면 말머리 아래 상태 거르기 칩(전체 + 7개, `?status=`).
         ⋯ 메뉴: 링크 복사 · 신고(모임장 본인 제외 — 매니저·멤버·비멤버·비회원, 비회원은 로그인 안내) · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리).
           신고는 글·댓글과 같은 신고 시트(`BoardReportDialog` target `GROUP`, 소모임 사유 — 투자 고지 소모임이면 「종목 추천·유료 모집」이 더해진다)와 `useGroupReport` — 닫힌·없는 소모임이라는 답이면 상세를 다시 받는다.
     -->
@@ -163,6 +165,25 @@
                             </AppScrollRow>
                         </nav>
 
+                        <!-- 처리 상태 거르기(소모임 게시판 `statusEnabled` — 일반 게시판 목록과 같다) — 전체 + 7개, 주소 `?status=`(말머리 거르기와 함께). 줄의 상태 딱지·비밀글 자물쇠는 목록 부품(`PostRowTitle`)이 그린다 -->
+                        <nav v-if="postsStatusOn" class="-mx-4 mt-1" :aria-label="t('board.statusNav')" data-testid="group-status-chips">
+                            <AppScrollRow mode="ARROWS" touch scroller-class="px-4 py-0.5">
+                                <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                                    <li v-for="chip in statusChips" :key="chip.value || '-'">
+                                        <NuxtLink
+                                            :to="postsLink({ status: chip.value, page: 1 })"
+                                            class="inline-flex h-7 items-center whitespace-nowrap rounded-md border px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                                            :class="(postsQuery.status ?? '') === chip.value ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-surface text-muted-color hover:text-color'"
+                                            :aria-current="(postsQuery.status ?? '') === chip.value ? 'page' : undefined"
+                                            :data-status="chip.value || undefined"
+                                        >
+                                            {{ chip.label }}
+                                        </NuxtLink>
+                                    </li>
+                                </ul>
+                            </AppScrollRow>
+                        </nav>
+
                         <!-- 정렬 · 보기 전환 · 검색 · 글쓰기(멤버 — 정지 중이면 꺼 두고 까닭을 아래에 적는다) -->
                         <div class="mt-2 flex flex-wrap items-center gap-2 border-b border-surface pb-2" data-testid="group-posts-toolbar">
                             <div class="flex gap-1 text-xs" role="group" :aria-label="t('board.sortLabel')">
@@ -224,6 +245,9 @@
                             </EmptyState>
                             <EmptyState v-else-if="postsQuery.page > 1" :title="t('board.pageEmptyTitle')" icon="pi pi-file">
                                 <Button as="router-link" :to="postsLink({ page: 1 })" :label="t('board.firstPage')" />
+                            </EmptyState>
+                            <EmptyState v-else-if="postsStatusOn && postsQuery.status" :title="t('board.statusEmptyTitle', { name: t(UtilPostOps.labelKey(postsQuery.status)) })" icon="pi pi-filter" data-testid="group-status-empty">
+                                <Button as="router-link" :to="postsLink({ status: '', page: 1 })" :label="t('board.statusAll')" severity="secondary" variant="outlined" />
                             </EmptyState>
                             <EmptyState v-else-if="postsQuery.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
                                 <Button as="router-link" :to="postsLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
@@ -459,6 +483,7 @@ import type { PostListQuery, PostSort } from '~/composables/board/api/usePostApi
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
+import UtilPostOps from '~/utils/util-post-ops';
 import UtilTheme from '~/utils/util-theme';
 import UtilGroup, { type GroupTab } from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
@@ -708,6 +733,10 @@ const POST_SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
 const VIEW_MODES: readonly BoardViewMode[] = ['LIST', 'GALLERY'];
 const prefixChips = computed(() => [{ id: '', name: t('common.all') }, ...(posts.board?.prefixes ?? []).map((p) => ({ id: p.id, name: p.name }))]);
 const activePrefixName = computed(() => posts.board?.prefixes.find((p) => p.id === postsQuery.value.prefix)?.name ?? '');
+/** 소모임 게시판이 처리 상태를 쓰는가(운영 설정 `statusEnabled`) — 게시판 정보를 받은 뒤에만 */
+const postsStatusOn = computed(() => UtilPostOps.statusOn(posts.board));
+/** 상태 거르기 칩 — 전체 + 7개(고정 차례) */
+const statusChips = computed(() => [{ value: '' as const, label: t('common.all') }, ...UtilPostOps.STATUSES.map((value) => ({ value, label: t(UtilPostOps.labelKey(value)) }))]);
 
 /* 보기 전환 — 게시판과 같다(소모임 게시판 설정 `viewToggle`·`layout`, 고른 모양은 게시판 slug 로 기억) */
 const viewMode = useBoardViewMode();

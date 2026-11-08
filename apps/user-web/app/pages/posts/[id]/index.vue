@@ -36,6 +36,9 @@
     <!--
         운영 게시판(버그 신고·기능 요청): 비밀글(`secret`)은 제목 옆 「비밀글」 딱지. 읽을 수 없는 사람은 `403 SECRET_POST` → 본문·댓글 대신 「비밀글이에요…」 + [목록으로]
           (비밀글의 댓글은 글을 볼 수 있는 사람만 보고 쓴다 — 별도 화면 없음). 처리 상태가 켜진 게시판(`status`)은 제목 아래 상태 딱지 + 「마지막 변경 시각」, 운영진(`viewer.staff`)이면 상태 바꾸기 Select.
+        2차(2026-11-08): 비회원 비밀글(extras `guestPost: true`)은 잠금 화면에 글 비밀번호 칸 + [열기](`POST …/secret-unlock` → 글을 다시 받는다).
+          상태 바꾸기는 Select 대신 [상태 바꾸기] 대화창(상태 + 운영진 메모 0~200자, 보일지는 `viewer.canChangeStatus` — 옛 응답은 `viewer.staff`), 메모가 있으면 「운영진 메모: …」 한 줄,
+          그 아래 「처리 이력」 접기(`GET …/process-status/history`). 소모임 글도 같다(소모임 비밀글은 공개 요청·직접 공개 단추를 숨긴다 — `GroupPostPanel secret`).
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -86,8 +89,13 @@
                     <i class="pi pi-lock text-lg" />
                 </span>
                 <h1 class="m-0 text-lg font-semibold">{{ t('post.secretLockedTitle') }}</h1>
-                <p class="m-0 max-w-md text-sm leading-relaxed text-muted-color">{{ t('post.secretLockedText') }}</p>
-                <Button type="button" :label="t('post.backToBoard')" icon="pi pi-list" severity="secondary" variant="outlined" class="mt-1" @click="secretBoardSlug ? navigateTo(`/boards/${secretBoardSlug}`) : router.back()" />
+                <p class="m-0 max-w-md text-sm leading-relaxed text-muted-color">{{ secretGuest ? t('post.secretLockedGuestText') : t('post.secretLockedText') }}</p>
+                <!-- 비회원 비밀글(extras `guestPost: true`) — 글 비밀번호로 연다(`POST …/secret-unlock`, 204 → 글을 다시 받는다). 비밀번호는 이 화면 메모리에만 있고 열면 지운다 -->
+                <form v-if="secretGuest" class="mt-1 flex w-full max-w-xs flex-col gap-2 text-left" data-testid="post-secret-unlock" @submit.prevent="unlockSecret">
+                    <PasswordField v-model="unlockPassword" :label="t('post.guestPassword')" autocomplete="off" name="guest-password-unlock" :error="unlockError" :disabled="unlocking" />
+                    <Button type="submit" :label="t('post.secretUnlock')" icon="pi pi-unlock" :loading="unlocking" :disabled="unlockPassword.length === 0 || unlocking" fluid data-testid="post-secret-unlock-submit" />
+                </form>
+                <Button type="button" :label="t('post.backToBoard')" icon="pi pi-list" severity="secondary" :variant="secretGuest ? 'text' : 'outlined'" class="mt-1" @click="leaveSecret" />
             </div>
             <!-- 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(403 GROUP_POST_PRIVATE) — 오류에 소모임 ID 가 없어 소모임 목록으로 보낸다 -->
             <ErrorState v-else-if="pageState === 'groupPrivate'" :title="t('group.privatePostTitle')" :description="user ? t('group.privatePostText') : t('group.privatePostLoginText')" data-testid="post-group-private">
@@ -140,26 +148,31 @@
                                 <i class="pi pi-lock text-[0.625rem]" aria-hidden="true" /><span>{{ t('post.secretMark') }}</span>
                             </span>
                         </h1>
-                        <!-- 처리 상태(상태가 켜진 운영 게시판) — 딱지 · 마지막 변경 시각 · 운영진(`viewer.staff`)이면 바꾸기(`PUT /api/posts/{id}/process-status`) -->
-                        <div v-if="post.processStatus && !post.group" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5" data-testid="post-status">
-                            <PostStatusTag :status="post.processStatus" />
-                            <span v-if="post.processStatusAt" class="text-xs text-muted-color" :title="time.full(post.processStatusAt)" data-testid="post-status-changed-at">
-                                {{ t('post.statusChangedAt', { at: time.detail(post.processStatusAt) }) }}
-                            </span>
-                            <Select
-                                v-if="board.viewer.staff"
-                                :model-value="post.processStatus"
-                                :options="statusOptions"
-                                option-label="label"
-                                option-value="value"
-                                size="small"
-                                :loading="statusSaving"
-                                :disabled="statusSaving"
-                                :aria-label="t('post.statusChange')"
-                                class="ml-auto"
-                                data-testid="post-status-select"
-                                @update:model-value="changeStatus"
-                            />
+                        <!-- 처리 상태(상태가 켜진 운영 게시판 — 일반·소모임 게시판) — 딱지 · 마지막 변경 시각 · 바꿀 수 있으면(`viewer.canChangeStatus`, 옛 응답은 게시판 `viewer.staff`) [상태 바꾸기] 대화창
+                             · 운영진 메모(`processStatusNote`) 한 줄 · 처리 이력 접기(펼칠 때 한 번 부르고, 바꾼 뒤 다시) -->
+                        <div v-if="post.processStatus" class="mt-2" data-testid="post-status">
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                                <PostStatusTag :status="post.processStatus" />
+                                <span v-if="post.processStatusAt" class="text-xs text-muted-color" :title="time.full(post.processStatusAt)" data-testid="post-status-changed-at">
+                                    {{ t('post.statusChangedAt', { at: time.detail(post.processStatusAt) }) }}
+                                </span>
+                                <Button
+                                    v-if="canChangeStatus"
+                                    type="button"
+                                    :label="t('post.statusChange')"
+                                    icon="pi pi-sync"
+                                    size="small"
+                                    severity="secondary"
+                                    variant="outlined"
+                                    class="ml-auto"
+                                    data-testid="post-status-change"
+                                    @click="openStatusDialog"
+                                />
+                            </div>
+                            <p v-if="post.processStatusNote" class="m-0 mt-1.5 whitespace-pre-line break-words text-xs leading-relaxed [overflow-wrap:anywhere]" data-testid="post-status-note">
+                                <span class="font-semibold text-muted-color">{{ t('post.statusNotePrefix') }}</span> {{ post.processStatusNote }}
+                            </p>
+                            <PostStatusHistory v-model:open="historyOpen" :state="history.state" :items="history.items" :error-message="history.errorMessage" @retry="loadHistory" />
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·홈 가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 홈 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
@@ -327,6 +340,7 @@
                         v-if="post.group"
                         :group="post.group"
                         :mine="post.mine"
+                        :secret="post.secret === true"
                         :author-name="post.author.memberId ? post.author.name : null"
                         :actions="groupPanelActions"
                         @change="onGroupChange"
@@ -405,6 +419,15 @@
             :error="passwordError"
             @submit="deleteWithPassword"
         />
+        <PostStatusChangeDialog
+            v-if="post?.processStatus"
+            v-model:visible="statusDialogOpen"
+            :current="post.processStatus"
+            :loading="statusSaving"
+            :error="statusError"
+            :note-error="statusNoteError"
+            @submit="changeStatus"
+        />
         <DebateSettingsDialog v-model:visible="debateDialogOpen" :initial="debateInitial" :close-locked="debateCloseLocked" :loading="debateSaving" :error="debateError" @save="saveDebate" />
         <BoardSanctionDialog
             :visible="sanctionForm.visible.value"
@@ -437,7 +460,7 @@
 
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { PostDetail, PostProcessStatus } from '~/composables/board/api/usePostApi.types';
+import type { PostDetail, PostProcessStatus, PostProcessStatusHistoryItem } from '~/composables/board/api/usePostApi.types';
 import type { CommentView } from '~/composables/board/api/useCommentApi.types';
 import type { PollView } from '~/composables/board/api/usePollApi.types';
 import type { DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
@@ -498,6 +521,37 @@ type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 
 const post = ref<PostDetail | null>(null);
 /** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
 const secretBoardSlug = ref<string | null>(null);
+/** 소모임 비밀글이면 extras `groupId`(서버 후보) — [목록으로]가 소모임으로 간다 */
+const secretGroupId = ref<string | null>(null);
+/** 비회원 비밀글(extras `guestPost: true`) — 잠금 화면에 글 비밀번호 칸 */
+const secretGuest = ref(false);
+const unlockPassword = ref('');
+const unlockError = ref('');
+const unlocking = ref(false);
+
+/** 비회원 비밀글을 글 비밀번호로 연다 — 성공(204)하면 글을 다시 받는다. 틀린 비밀번호(`403 PASSWORD_MISMATCH`)·여러 번 틀림(`429 PASSWORD_ATTEMPTS_EXCEEDED`)은 칸 아래 서버 문구 */
+async function unlockSecret(): Promise<void> {
+    const password = unlockPassword.value;
+    if (!password || unlocking.value) return;
+    unlocking.value = true;
+    unlockError.value = '';
+    try {
+        await postApi.secretUnlock(id.value, password);
+        unlockPassword.value = '';
+        await load();
+    } catch (e) {
+        unlockError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        unlocking.value = false;
+    }
+}
+
+/** 잠금 화면의 [목록으로] — 소모임 비밀글은 소모임, 일반 비밀글은 게시판, 모르면 뒤로 */
+function leaveSecret(): void {
+    if (secretGroupId.value) void navigateTo(UtilGroup.detailPath(secretGroupId.value));
+    else if (secretBoardSlug.value) void navigateTo(`/boards/${secretBoardSlug.value}`);
+    else router.back();
+}
 /** 19금 글을 성인이 아닌 사람이 열었다(`403 POST_ADULT_ONLY` 의 extras — `reason` LOGIN·IDENTITY·UNDERAGE, `adultFrom` 은 미성년일 때) */
 const adultBlock = ref<{ reason: 'LOGIN' | 'IDENTITY' | 'UNDERAGE'; adultFrom: string | null } | null>(null);
 const identityGate = useIdentityGate();
@@ -597,6 +651,8 @@ async function load(): Promise<void> {
         sellerHidden.value = e instanceof ApiError && code === 'DEAL_SELLER_HIDDEN' ? sellerHiddenOf(e) : null;
         adultBlock.value = e instanceof ApiError && code === 'POST_ADULT_ONLY' ? adultBlockOf(e) : null;
         secretBoardSlug.value = e instanceof ApiError && code === 'SECRET_POST' ? (e.extraText('boardSlug') ?? null) : null;
+        secretGroupId.value = e instanceof ApiError && code === 'SECRET_POST' ? (e.extraText('groupId') ?? null) : null;
+        secretGuest.value = e instanceof ApiError && code === 'SECRET_POST' && e.extras?.guestPost === true;
         pageState.value = sellerHidden.value
             ? 'sellerHidden'
             : adultBlock.value
@@ -871,25 +927,78 @@ const bizDeal = computed(() => UtilHotdeal.isBusiness(post.value?.deal));
 const manageable = computed(() => Boolean(post.value && !bizDeal.value && (post.value.mine || post.value.author.kind === 'GUEST')));
 const protectionNotice = computed(() => (post.value ? UtilPostMessages.protection(t, post.value.protection) : null));
 
-/* ── 처리 상태(운영 게시판 — 서버가 글쓴이에게 「처리 상태가 '완료'로 바뀌었어요」 알림. 실패하면 서버 문구 토스트: 409 POST_STATUS_DISABLED·400·403) ── */
-const statusOptions = computed(() => UtilPostOps.STATUSES.map((value) => ({ value, label: t(UtilPostOps.labelKey(value)) })));
+/*
+ * ── 처리 상태(운영 게시판 — 일반·소모임 게시판. 서버가 글쓴이에게 「처리 상태가 '완료'로 바뀌었어요」 알림) ──
+ * [상태 바꾸기] → 대화창(상태 + 메모 0~200자). 실패: `400 fields.note` 는 메모 칸 아래, 그 밖(409 POST_STATUS_DISABLED·400 fields.status·403)은 대화창 안 서버 문구.
+ */
+const canChangeStatus = computed(() => Boolean(post.value && board.value && UtilPostOps.canChangeStatus(post.value, board.value.viewer.staff)));
+const statusDialogOpen = ref(false);
 const statusSaving = ref(false);
-/** 운영진(`viewer.staff`)이 고른 상태로 바꾼다 — 같은 값이면 아무것도 하지 않는다 */
-async function changeStatus(value: PostProcessStatus | null): Promise<void> {
+const statusError = ref('');
+const statusNoteError = ref('');
+function openStatusDialog(): void {
+    statusError.value = '';
+    statusNoteError.value = '';
+    statusDialogOpen.value = true;
+}
+/** 고른 상태(+ 메모)로 바꾼다 — 같은 값이면 아무것도 하지 않는다. 바꾼 뒤 펼친 이력은 다시 받는다 */
+async function changeStatus(value: PostProcessStatus, note: string | undefined): Promise<void> {
     const p = post.value;
-    if (!p || !value || value === p.processStatus || statusSaving.value) return;
+    if (!p || value === p.processStatus || statusSaving.value) return;
     statusSaving.value = true;
+    statusError.value = '';
+    statusNoteError.value = '';
     try {
-        const result = await postApi.changeProcessStatus(p.id, value);
+        const result = await postApi.changeProcessStatus(p.id, value, note);
         if (post.value?.id !== p.id) return;
-        post.value = { ...post.value, processStatus: result.processStatus, processStatusAt: result.processStatusAt };
+        const savedNote = result.processStatusNote !== undefined ? result.processStatusNote : (note ?? null);
+        post.value = { ...post.value, processStatus: result.processStatus, processStatusAt: result.processStatusAt, processStatusNote: savedNote };
+        statusDialogOpen.value = false;
         toast.success(t('post.statusChanged', { name: t(UtilPostOps.labelKey(result.processStatus)) }));
+        if (historyOpen.value) void loadHistory();
+        else history.state = 'idle'; // 다음에 펼칠 때 새로 받는다
     } catch (e) {
-        toast.error(UtilBoardMessages.of(t, e));
+        const noteField = e instanceof ApiError ? e.field('note') : undefined;
+        if (noteField) statusNoteError.value = noteField;
+        else statusError.value = e instanceof ApiError && e.field('status') ? (e.field('status') ?? '') : UtilBoardMessages.of(t, e);
     } finally {
         statusSaving.value = false;
     }
 }
+
+/* 처리 이력 — 기본 접힘, 펼칠 때 한 번 받는다(바꾼 뒤엔 다시). 글이 바뀌면 접고 비운다 */
+const historyOpen = ref(false);
+const history = reactive({ state: 'idle' as 'idle' | 'loading' | 'ready' | 'error', items: [] as PostProcessStatusHistoryItem[], errorMessage: '' });
+let historyRequest = 0;
+async function loadHistory(): Promise<void> {
+    const p = post.value;
+    if (!p) return;
+    const mine = ++historyRequest;
+    history.state = 'loading';
+    history.errorMessage = '';
+    try {
+        const result = await postApi.processStatusHistory(p.id);
+        if (mine !== historyRequest) return;
+        history.items = result.items ?? [];
+        history.state = 'ready';
+    } catch (e) {
+        if (mine !== historyRequest) return;
+        history.errorMessage = UtilBoardMessages.of(t, e);
+        history.state = 'error';
+    }
+}
+watch(historyOpen, (open) => {
+    if (open && history.state === 'idle') void loadHistory();
+});
+watch(
+    () => post.value?.id ?? null,
+    () => {
+        historyRequest++;
+        historyOpen.value = false;
+        history.state = 'idle';
+        history.items = [];
+    },
+);
 
 function goBoard(): void {
     // 소모임 글은 소모임 글 탭으로(해산한 소모임은 소모임 목록으로)

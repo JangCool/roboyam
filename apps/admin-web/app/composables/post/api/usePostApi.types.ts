@@ -26,15 +26,39 @@ export type PostProcessStatus = 'RECEIVED' | 'CHECKING' | 'IN_PROGRESS' | 'DONE'
 export const POST_PROCESS_STATUSES: readonly PostProcessStatus[] = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'DONE', 'ON_HOLD', 'REJECTED', 'DUPLICATE'];
 
 /**
- * `PUT /api/admin/posts/{id}/process-status { status }` → `{ processStatus, processStatusAt }` — 공개 쪽과 같은 모양.
- * 오류: 상태가 꺼진 게시판 `409 POST_STATUS_DISABLED` · 모르는 값 `400 VALIDATION fields.status` · 권한 없음 `403`
+ * `PUT /api/admin/posts/{id}/process-status { status, note? }` → `{ processStatus, processStatusAt, processStatusNote? }` — 공개 쪽과 같은 모양.
+ * 오류: 상태가 꺼진 게시판 `409 POST_STATUS_DISABLED` · 모르는 값 `400 VALIDATION fields.status` · 메모 200자 초과 `400 fields.note` · 권한 없음 `403`
  */
 export interface PostProcessStatusRequest {
     status: PostProcessStatus;
+    /** 메모(선택, 0~200자) — 비면 칸을 뺀다 */
+    note?: string;
 }
 export interface PostProcessStatusResult {
     processStatus: PostProcessStatus;
     processStatusAt: string;
+    /** 이번에 남긴 메모 — 응답에 칸이 없으면 화면이 보낸 메모를 쓴다 */
+    processStatusNote?: string | null;
+}
+
+/** 처리 상태를 바꾼 쪽 — 운영자(관리자 앱·운영자 회원 계정) · 게시판 운영진(매니저·스텝) · 소모임 운영진 */
+export type PostProcessStatusActor = 'OPERATOR' | 'BOARD_STAFF' | 'GROUP_STAFF';
+
+/** 처리 상태 이력 한 줄 — `fromStatus` 가 null 이면 처음 정해진 상태 */
+export interface PostProcessStatusHistoryItem {
+    fromStatus: PostProcessStatus | null;
+    toStatus: PostProcessStatus;
+    note: string | null;
+    /** 바꾼 시각(UTC ISO) */
+    changedAt: string;
+    actor: PostProcessStatusActor;
+    /** 바꾼 사람 이름(관리자 이름 · 회원 닉네임) — 모르면 null */
+    actorName?: string | null;
+}
+
+/** `GET /api/admin/posts/{id}/process-status/history` — 서버 차례 그대로 그린다 */
+export interface PostProcessStatusHistory {
+    items: PostProcessStatusHistoryItem[];
 }
 
 export interface AdminPostBoardRef {
@@ -124,6 +148,8 @@ export interface AdminPostItem {
     processStatus?: PostProcessStatus | null;
     /** 처리 상태를 마지막으로 바꾼 시각(UTC ISO) — 바꾼 적이 없으면 null(서버가 주지 않을 수 있다) */
     processStatusAt?: string | null;
+    /** 마지막으로 상태를 바꿀 때 남긴 메모(공개 글 보기에 「운영진 메모」로 보인다) — 없으면 null·없음 */
+    processStatusNote?: string | null;
 }
 
 /** 상태 알약(`PostStateTag`)·상태 줄(`UtilPostMessages.stateLines`)이 읽는 칸 — 공지 관리의 줄(`NoticeItem`)도 같은 칸을 가져 알약을 같이 쓴다 */

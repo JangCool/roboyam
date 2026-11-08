@@ -5,6 +5,7 @@ import com.community.board.entity.BoardEntity;
 import com.community.board.repository.master.BoardRepository;
 import com.community.board.service.BoardCreator;
 import com.community.board.service.BoardFields;
+import com.community.board.service.OpsBoardSeeder;
 import com.community.group.entity.GroupCategoryBoardEntity;
 import com.community.group.entity.GroupCategoryEntity;
 import com.community.group.repository.master.GroupCategoryBoardRepository;
@@ -49,6 +50,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       (예: 자유게시판의 「잡담」, 공지 게시판의 「공지」) 고유 말머리를 따로 만들지 않고 그 공통 말머리를 켠다 — 관리자 화면의 「이름 중복 없음」 규칙과 맞춘다.
  *       고유 말머리는 활성 한도({@link BoardFields#PREFIX_ACTIVE_MAX})까지만.</li>
  *   <li>{@code staffOnlyWrite} 는 글쓰기 최소 자격 STAFF 로 만든다. 만든 이(created_by)는 루트 운영자.</li>
+ *   <li>운영 게시판(V168 — 버그 신고 · 기능 요청 + 공개 메뉴 그룹 {@code footer}): 프리셋과 무관하게 일반 게시판 다음에 {@link OpsBoardSeeder} 가 만든다(메인 메뉴에는 넣지 않는다).
+ *       이미 설치된 DB 는 마이그레이션 V168 이 같은 값으로 넣는다. 한 번 적용({@link #applyOnceIfMissing})도 게시판을 만들 때 함께 만든다.</li>
  * </ul>
  */
 @Service
@@ -65,9 +68,12 @@ public class BoardPresetApplier {
     private final GroupCategoryBoardRepository assignments;
     private final SnowflakeIdGenerator ids;
     private final PresetMenuApplier menu;
+    private final OpsBoardSeeder opsBoards;
 
     public BoardPresetApplier(BoardPresetCatalog catalog, BoardCreator creator, BoardRepository boards, InstallationRepositoryQDSL installation,
-                              GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, SnowflakeIdGenerator ids, PresetMenuApplier menu) {
+                              GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, SnowflakeIdGenerator ids, PresetMenuApplier menu,
+                              OpsBoardSeeder opsBoards) {
+        this.opsBoards = opsBoards;
         this.catalog = catalog;
         this.creator = creator;
         this.boards = boards;
@@ -93,14 +99,17 @@ public class BoardPresetApplier {
         BoardPreset preset = found.get();
         Existing existing = existing();
         int general = createBoards(preset, false, existing, operatorId, now).size();
+        boards.flush();
+        int ops = opsBoards.seed(operatorId, now); // 운영 게시판 두 개 + 메뉴 그룹 footer(V168 과 같은 값 — OpsBoardPreset)
+        existing = existing();
         List<CreatedBoard> groupBoards = createBoards(preset, true, existing, operatorId, now);
         boards.flush(); // 분류 할당 행(외래 키 boards)보다 게시판 행이 먼저 들어가게
         int linked = linkGroupCategories(groupBoards, operatorId, now);
         boards.flush();
         boolean menuReplaced = preset.menu() != null && menu.replaceMain(presetId, preset.menu(), operatorId, now);
-        log.info("게시판 구성 {} 적용 — 일반 게시판 {}개 · 소모임 게시판 {}개(분류 연결 {}개) · 메뉴 {}", presetId, general, groupBoards.size(), linked,
+        log.info("게시판 구성 {} 적용 — 일반 게시판 {}개 · 운영 게시판 {}개 · 소모임 게시판 {}개(분류 연결 {}개) · 메뉴 {}", presetId, general, ops, groupBoards.size(), linked,
                 menuReplaced ? "교체" : "그대로");
-        return general + groupBoards.size();
+        return general + ops + groupBoards.size();
     }
 
     /** 이미 설치된 곳에서 한 번 — 적용 표시가 없고 게시판이 하나도 없을 때만 일반 게시판을 만든다(멱등). 메뉴·소모임은 적용하지 않는다 */
@@ -118,6 +127,7 @@ public class BoardPresetApplier {
             } else {
                 int created = createBoards(found.get(), false, existing(), row.getRootOperatorId(), now).size();
                 boards.flush();
+                created += opsBoards.seed(row.getRootOperatorId(), now); // 운영 게시판(V168 — 이 DB 는 적용 표시가 없어 마이그레이션이 넣지 않았다)
                 log.info("게시판 구성 {} 으로 기본 게시판 {}개를 만들었다(메뉴·소모임은 적용하지 않음)", row.getBoardPreset(), created);
             }
         } else {

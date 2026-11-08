@@ -15,7 +15,7 @@ import com.community.poll.dto.request.PollInput;
  * @param poll     있으면 글에 투표를 붙인다 — 회원이고 게시판 정책 {@code pollEnabled} 일 때만(아니면 400 {@code fields.poll}), 칸 오류는 {@code fields."poll.*"}.
  *                 null 이면 붙이지 않는다(docs/features/post-poll-contract.md)
  * @param deal     핫딜 게시판({@code kind DEAL})이면 필수 — 딜 정보(칸 오류는 {@code fields."deal.*"}), 그 밖 게시판은 보내면 400 {@code fields.deal}(docs/features/hotdeal-contract.md)
- * @param secret   비밀글로 쓴다(V166) — 게시판 {@code secretMode} 가 OPTIONAL 일 때만 이 값(null = false), ALWAYS 면 늘 true, OFF·비회원 글이면 늘 false(보내도 무시한다)
+ * @param secret   비밀글로 쓴다(V166) — 게시판 {@code secretMode} 가 OPTIONAL 일 때만 이 값(null = false), ALWAYS 면 늘 true, OFF 면 늘 false(보내도 무시한다). 비회원 글도 같다(V168 — 비밀번호로 연다)
  */
 public record PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                                DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret) {

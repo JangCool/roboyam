@@ -5,6 +5,7 @@
           · 기본 정보 + 정책 + 말머리(+ 안내문·한도 칸)는 **화면 하나로 한 번 저장**(`PUT /api/admin/boards/{id}`, 한 트랜잭션) → 하단 떠 있는 줄(`StickySaveBar`). 투자 고지를 새로 켜면 저장 전에 「다시 끌 수 없어요」를 묻는다.
           · 매니저·스텝 지정/해제, 게시판 켜고 끄기, 삭제는 **누르면 바로**(확인창 + 토스트) — 저장 줄과 무관하다.
         「글쓰기·댓글」의 비밀글(secretMode — 끔·글쓴이가 고름·모든 글 비밀)과 처리 상태 쓰기(statusEnabled)도 기본값이 없는 게시판 전용 칸이다(`diffCount` 에 세지 않는다, 권한 `board.settings`, 저장 요청에 싣는다).
+          일반·소모임 게시판에서만 보인다(핫딜·직접홍보는 숨기고 저장 요청에 null — 그대로).
         정책 칸은 모두 「기본값 따름」(null)을 고를 수 있고 그때 지금 기본값을 흐리게 보인다(`BoardSettingField`, 칸 정의는 `UtilBoard.SPECS` — 기본 설정 화면과 같은 부품). 읽기 전용 잠금(writeLock)은 기본값이 없는 게시판 전용 칸이다.
         「노출」의 가젯 노출 금지(gadgetExclusions)도 기본값이 없는 게시판 전용 칸이다(서버가 준 `gadgets` 순서의 체크 목록, 권한 `board.settings`). 이 칸이 「홈·인기·최신 포함」(inHome)을 대신해 inHome 은 화면에서 다루지 않는다(받은 값 그대로 저장 요청에 돌아간다).
         「노출」의 광고 숨김(adsHidden, 기본 끔)도 게시판 전용 칸이다(권한 `board.settings` — 서버가 정책 묶음으로 본다). 켜면 목록 한 줄·글 보기·핫딜 노출·날개 배너 광고가 없다. 19금 게시판은 광고 자리 설정의 19금 옵션(`adult.enabled`)을 따르고, 소모임 게시판은 이 칸과 상관없이 늘 없다(안내 문구).
@@ -148,21 +149,21 @@
                             <p class="m-0 text-xs leading-relaxed" :class="serverFields.writeLock ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ serverFields.writeLock || t('board.writeLockHelp') }}</p>
                         </div>
 
-                        <!-- 비밀글 — 게시판마다의 값(기본 설정에서 물려받지 않는다). 바꿔도 이미 쓴 글의 비밀 여부는 그대로 -->
-                        <div class="flex flex-col gap-1.5" data-testid="board-secret-mode">
+                        <!-- 비밀글 — 게시판마다의 값(기본 설정에서 물려받지 않는다). 바꿔도 이미 쓴 글의 비밀 여부는 그대로. 일반·소모임 게시판만(핫딜·직접홍보는 숨김 — 서버도 400) -->
+                        <div v-if="opsAllowed" class="flex flex-col gap-1.5" data-testid="board-secret-mode">
                             <span :id="`${idBase}-secret`" class="text-sm font-medium">{{ t('board.field.secretMode') }}</span>
                             <SelectButton v-model="secretModeModel" :options="secretModeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :disabled="!canSettings || saving" :aria-labelledby="`${idBase}-secret`" class="self-start" />
-                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.secretMode ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.secretMode ? 'alert' : undefined">{{ serverFields.secretMode || t('board.secretModeHelp') }}</p>
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.secretMode ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.secretMode ? 'alert' : undefined">{{ serverFields.secretMode || t(saved.kind === 'GROUP' ? 'board.secretModeHelpGroup' : 'board.secretModeHelp') }}</p>
                         </div>
 
-                        <!-- 처리 상태 쓰기 — 게시판마다의 값(기본 꺼짐) -->
-                        <div class="flex flex-col gap-1.5" data-testid="board-status-enabled">
+                        <!-- 처리 상태 쓰기 — 게시판마다의 값(기본 꺼짐). 일반·소모임 게시판만 -->
+                        <div v-if="opsAllowed" class="flex flex-col gap-1.5" data-testid="board-status-enabled">
                             <label class="flex items-center gap-3">
                                 <ToggleSwitch v-model="statusEnabledModel" :input-id="`${idBase}-status`" :disabled="!canSettings || saving" class="shrink-0" :aria-describedby="`${idBase}-status-help`" />
                                 <span class="text-sm font-medium">{{ t('board.field.statusEnabled') }}</span>
                             </label>
                             <p :id="`${idBase}-status-help`" class="m-0 text-xs leading-relaxed" :class="serverFields.statusEnabled ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.statusEnabled ? 'alert' : undefined">
-                                {{ serverFields.statusEnabled || t('board.statusEnabledHelp') }}
+                                {{ serverFields.statusEnabled || t(saved.kind === 'GROUP' ? 'board.statusEnabledHelpGroup' : 'board.statusEnabledHelp') }}
                             </p>
                         </div>
                     </div>
@@ -532,6 +533,8 @@ const writeLockModel = computed<string>({
         if (form.value) form.value.writeLock = value === 'NONE' ? null : (value as BoardWriteLock);
     },
 });
+/** 운영 설정(비밀글·처리 상태) 칸을 보이는가 — 일반·소모임 게시판만(핫딜·직접홍보는 숨기고 저장 때 null 로 보낸다) */
+const opsAllowed = computed(() => Boolean(saved.value && UtilBoard.opsAllowed(saved.value.kind)));
 /** 비밀글 방식 — 끔 · 글쓴이가 고름 · 모든 글 비밀. 고치면 그 칸의 서버 오류를 지운다 */
 const secretModeOptions = computed(() => UtilBoard.SECRET_MODES.map((value) => ({ value, label: t(`board.secretMode.${value}`) })));
 const secretModeModel = computed<BoardSecretMode>({
@@ -751,7 +754,7 @@ function revert() {
 
 async function save() {
     if (saving.value || !canSave.value || !form.value || !saved.value) return;
-    const body = UtilBoard.toSaveRequest(form.value);
+    const body = UtilBoard.toSaveRequest(form.value, saved.value.kind);
     if (!body) return;
     // 투자 고지는 켜기만 된다 — 새로 켜면 먼저 묻는다
     if (body.investmentNotice && !saved.value.investmentNotice) {

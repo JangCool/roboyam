@@ -17,6 +17,7 @@
           글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력. 제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`).
           저장 응답의 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 서버가 지금 규칙으로 링크를 다시 판정해 차단이면 저장은 하고 경고)는 토스트로 알리고 글로 간다.
         소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
+        비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
     <div class="content-card">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
@@ -195,6 +196,11 @@ async function load(): Promise<void> {
         dealForm.value = UtilHotdeal.formOf(loaded.deal);
         pageState.value = 'ready';
     } catch (e) {
+        // 아직 열지 않은 비밀글(비회원 비밀글은 글 보기에서 비밀번호로 연다) — 글 보기의 잠금 화면으로 보낸다
+        if (e instanceof ApiError && e.code === 'SECRET_POST') {
+            await navigateTo(`/posts/${encodeURIComponent(id.value)}`, { replace: true });
+            return;
+        }
         pageError.value = UtilBoardMessages.of(t, e);
         // 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(`403 GROUP_POST_PRIVATE`)도 열 수 없는 글로 본다
         pageState.value = e instanceof ApiError && (e.code === 'POST_NOT_FOUND' || e.code === 'POST_HIDDEN' || e.code === 'GROUP_POST_PRIVATE' || e.code === 'GROUP_NOT_FOUND') ? 'notfound' : 'error';
@@ -380,8 +386,8 @@ async function submit(): Promise<void> {
             ...(pollChanged.value ? { poll: UtilPoll.inputOf(poll.value) } : {}),
             // 딜 칸은 바꿨을 때만(종료된 딜은 늘 뺀다)
             ...(dealChanged.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
-            // 비밀글 — 글쓴이가 고르는 게시판(`OPTIONAL`)일 때만 싣는다(그 밖은 그대로 — 설정을 바꿔도 이미 쓴 글은 그대로).
-            ...UtilPostOps.secretField(UtilPostOps.updateSecret(UtilPostOps.secretMode(board.value), form.value.secret, p.author.kind === 'GUEST')),
+            // 비밀글 — 글쓴이가 고르는 게시판(`OPTIONAL`)일 때만 싣는다(그 밖은 그대로 — 설정을 바꿔도 이미 쓴 글은 그대로). 비회원 글도 같다.
+            ...UtilPostOps.secretField(UtilPostOps.updateSecret(UtilPostOps.secretMode(board.value), form.value.secret)),
         });
         saved = true;
         password.value = '';

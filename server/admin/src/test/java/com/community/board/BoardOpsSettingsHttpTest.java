@@ -44,6 +44,7 @@ class BoardOpsSettingsHttpTest extends Commerce04AdminTestBase {
     @AfterEach
     void cleanUp() {
         jdbc.update("DELETE FROM member_notifications WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", board);
+        jdbc.update("DELETE FROM post_process_status_history WHERE board_id = ?", board);
         jdbc.update("DELETE FROM posts WHERE board_id = ?", board);
         jdbc.update("DELETE FROM board_prefixes WHERE board_id = ?", board);
         boardFixture.deleteBoard(board);
@@ -134,5 +135,55 @@ class BoardOpsSettingsHttpTest extends Commerce04AdminTestBase {
 
         Cookie reader = login(operatorWith(Permission.POST_READ));
         changeStatus(reader, secret, "DONE").andExpect(status().isForbidden());
+    }
+
+    // ── V168 — 소모임 게시판 허용 · 메모 · 이력 ─────────────────────────────
+
+    @Test
+    void 소모임_게시판도_운영_설정을_켜고_핫딜은_계속_막는다() throws Exception {
+        long group = ids.nextId();
+        extraBoards.add(group);
+        String groupName = "운영소모임 " + Long.toString(group, 36).substring(6);
+        boardFixture.board(group, "og" + Long.toString(group, 36), groupName, 903, "GROUP", null);
+        catalog.invalidate();
+        save(session, group, groupName, ",\"secretMode\":\"ALWAYS\",\"statusEnabled\":true").andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.secretMode").value("ALWAYS")).andExpect(jsonPath("$.data.statusEnabled").value(true));
+        catalog.invalidate();
+        assertThat(catalog.snapshot().byId().get(group).secretAlways()).as("카탈로그도 소모임 게시판 값을 받는다").isTrue();
+        assertThat(catalog.snapshot().byId().get(group).statusEnabled()).isTrue();
+    }
+
+    @Test
+    void 메모와_함께_바꾸면_이력_감사_알림에_남고_이력은_조회_권한으로_이름까지_읽는다() throws Exception {
+        boardFixture.ops(board, "OFF", true);
+        catalog.invalidate();
+        long author = newMember();
+        long post = ids.nextId();
+        boardFixture.post(post, board, author, "메모 운영 글", "운영 게시판 시험 본문입니다.", false, true);
+
+        mvc.perform(withCsrf(put("/api/admin/posts/" + post + "/process-status"), session).content("{\"status\":\"CHECKING\",\"note\":\"  다음 배포에서 고쳐요  \"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.processStatus").value("CHECKING"))
+                .andExpect(jsonPath("$.data.processStatusNote").value("다음 배포에서 고쳐요"));
+        String audit = auditLogs.where().action("POST_PROCESS_STATUS").target(Long.toString(post)).latest().orElseThrow().detail();
+        assertThat(audit).contains("다음 배포에서 고쳐요");
+        String payload = jdbc.queryForObject("SELECT payload::text FROM member_notifications WHERE user_id = ? AND type = 'POST_STATUS_CHANGED'", String.class, author);
+        assertThat(payload).contains("다음 배포에서 고쳐요");
+
+        mvc.perform(withCsrf(put("/api/admin/posts/" + post + "/process-status"), session).content("{\"status\":\"DONE\",\"note\":\"" + "가".repeat(201) + "\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.note").exists());
+        changeStatus(session, post, "DONE").andExpect(status().isOk()).andExpect(jsonPath("$.data.processStatusNote").doesNotExist());
+
+        Cookie reader = login(operatorWith(Permission.POST_READ));
+        String history = mvc.perform(get("/api/admin/posts/" + post + "/process-status/history").cookie(reader)).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString();
+        assertThat((List<String>) JsonPath.read(history, "$.data.items[*].toStatus")).containsExactly("DONE", "CHECKING");
+        assertThat((List<String>) JsonPath.read(history, "$.data.items[*].fromStatus")).containsExactly("CHECKING", "RECEIVED");
+        assertThat((List<String>) JsonPath.read(history, "$.data.items[*].actor")).containsOnly("OPERATOR");
+        assertThat((String) JsonPath.read(history, "$.data.items[1].note")).isEqualTo("다음 배포에서 고쳐요");
+        assertThat((String) JsonPath.read(history, "$.data.items[0].actorName")).isNotBlank();
+
+        Cookie nobody = login(operatorWith(Permission.BOARD_READ));
+        mvc.perform(get("/api/admin/posts/" + post + "/process-status/history").cookie(nobody)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/posts/1/process-status/history").cookie(reader)).andExpect(status().isNotFound());
     }
 }

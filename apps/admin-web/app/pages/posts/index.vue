@@ -12,7 +12,8 @@
         - 일괄: 줄을 고르면 아래에 일괄 줄 — 숨기기·숨김 해제·삭제(삭제는 `post.bulk-delete`)를 사유 하나로 → 결과 대화창(글마다 처리됨/못 함 + 까닭).
         - 글의 찬반 토론: 서랍의 토론 구획(상태 요약) + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 하이라이트 화면과 같은 재사용 부품(`useDebateActions`).
           토론이 닫혀도 의견·대기 고정 요청이 남았으면(`opinionCount`·`pendingPinRequests`) 요약과 [의견 관리]가 남는다. 목록 줄에는 대기 고정 요청 수 칩. 주소 `?post={id}&opinions=pins` 는 의견 서랍을 「고정 요청」 탭으로 연다.
-        - 운영 게시판(버그 신고·기능 요청): 목록 줄에 처리 상태 딱지·비밀글 자물쇠, 처리 상태 거르기(`?processStatus=`), 서랍의 「처리 상태」 줄에서 바꾸기(`PUT …/process-status`).
+        - 운영 게시판(버그 신고·기능 요청): 목록 줄에 처리 상태 딱지·비밀글 자물쇠, 처리 상태 거르기(`?processStatus=`), 서랍의 「처리 상태」 줄에서 바꾸기(`PUT …/process-status { status, note? }`)
+          와 처리 이력(`GET …/process-status/history` — 처리 상태가 있는 글이 열리면 받고, 바꾼 뒤 다시).
         - 글의 투표(post-poll-contract): 목록 줄 「투표」 칩(`poll`) · 서랍의 투표 구획(결과 표) + [투표 지우기](`post.manage`, 표가 있어도) → 사유 대화창(`PostReasonDialog` kind `POLL_DELETE`) → `DELETE /api/admin/posts/{id}/poll { reason }`.
           `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
         - 소모임 글(소모임 2단계 — 줄의 `group`·`restricted`): 제목 앞에 「소모임 · 이름」·공개 상태(멤버만·공개 전환)·해산·나간 멤버 칩. **비공개 소모임 글은 서버가 제목을 싣지 않아(`title: null`)**
@@ -361,7 +362,12 @@
             @debate-retry="loadDebate()"
             @poll-delete="openPollDelete"
             :process-status-busy="processStatusBusy"
+            :process-status-note-error="processStatusNoteError"
+            :process-history="processHistory"
+            :process-history-state="processHistoryState"
+            :process-history-error="processHistoryError"
             @process-status="changeProcessStatus"
+            @process-history-retry="loadProcessHistory()"
             @closed="onDrawerClosed"
         />
 
@@ -375,7 +381,7 @@ import type { MenuItem } from 'primevue/menuitem';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
-import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostProcessStatus, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostProcessStatus, PostProcessStatusHistoryItem, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -910,25 +916,71 @@ function onDrawerAct(kind: PostActionKind): void {
     if (item) openAct(item, kind);
 }
 
-/* ── 처리 상태(운영 게시판) — 서랍의 Select. 바꾸면 그 줄·서랍을 새 값으로(서버가 글쓴이에게 알림). 실패는 서버 문구 토스트(409 POST_STATUS_DISABLED·400·403) ── */
+/*
+ * ── 처리 상태(운영 게시판) — 서랍의 「상태 + 메모 + [바꾸기]」. 바꾸면 그 줄·서랍을 새 값으로(서버가 글쓴이에게 알림)·이력을 다시 받는다.
+ * 실패: `400 fields.note` 는 메모 칸 아래, 그 밖(409 POST_STATUS_DISABLED·400 fields.status·403)은 서버 문구 토스트 ──
+ */
 const processStatusBusy = ref(false);
-async function changeProcessStatus(status: PostProcessStatus): Promise<void> {
+const processStatusNoteError = ref('');
+async function changeProcessStatus(status: PostProcessStatus, note: string | undefined): Promise<void> {
     const id = detail.openId.value;
     if (!id || processStatusBusy.value) return;
     processStatusBusy.value = true;
+    processStatusNoteError.value = '';
     try {
-        const result = await api.changeProcessStatus(id, status);
+        const result = await api.changeProcessStatus(id, status, note);
+        const changed = { processStatus: result.processStatus, processStatusAt: result.processStatusAt, processStatusNote: result.processStatusNote !== undefined ? result.processStatusNote : (note ?? null) };
         const row = view.value?.items.find((item) => item.id === id);
-        if (row) Object.assign(row, { processStatus: result.processStatus, processStatusAt: result.processStatusAt });
+        if (row) Object.assign(row, changed);
         const opened = detail.detail.value;
-        if (opened && opened.post.id === id) detail.detail.value = { ...opened, post: { ...opened.post, processStatus: result.processStatus, processStatusAt: result.processStatusAt } };
+        if (opened && opened.post.id === id) detail.detail.value = { ...opened, post: { ...opened.post, ...changed } };
         toast.success(t('post.processStatusChanged', { name: t(`post.processStatus.${result.processStatus}`) }));
+        void loadProcessHistory();
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        const error = errorOf(e);
+        const noteField = error.fields?.note;
+        if (noteField) processStatusNoteError.value = noteField;
+        else toast.error(error.fields?.status ?? error.message, 8000);
     } finally {
         processStatusBusy.value = false;
     }
 }
+
+/* 처리 이력 — 서랍에 처리 상태가 있는 글이 열리면 받는다(바꾼 뒤 다시). 실패는 서랍 안 문구 + [다시 시도] */
+const processHistory = ref<PostProcessStatusHistoryItem[]>([]);
+const processHistoryState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+const processHistoryError = ref('');
+let processHistoryTicket = 0;
+async function loadProcessHistory(): Promise<void> {
+    const post = detail.detail.value?.post;
+    const mine = ++processHistoryTicket;
+    if (!post?.processStatus) {
+        processHistory.value = [];
+        processHistoryState.value = 'idle';
+        return;
+    }
+    processHistoryState.value = 'loading';
+    processHistoryError.value = '';
+    try {
+        const result = await api.processStatusHistory(post.id);
+        if (mine !== processHistoryTicket) return;
+        processHistory.value = result.items ?? [];
+        processHistoryState.value = 'ready';
+    } catch (e) {
+        if (mine !== processHistoryTicket) return;
+        processHistoryError.value = errorOf(e).message;
+        processHistoryState.value = 'error';
+    }
+}
+// 다른 글을 열면(처리 상태가 있는 글만) 이력을 받는다 — 메모 오류도 지운다
+watch(
+    () => [detail.detail.value?.post.id ?? null, Boolean(detail.detail.value?.post.processStatus)] as const,
+    ([id, on], [prevId, prevOn]) => {
+        if (id === prevId && on === prevOn) return;
+        processStatusNoteError.value = '';
+        void loadProcessHistory();
+    },
+);
 
 function onDrawerClosed(): void {
     if (drawerOpen.value) return;

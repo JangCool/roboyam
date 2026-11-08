@@ -4,7 +4,7 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroup from '~/utils/util-group';
 
 /**
- * 소모임 상세의 글 탭 — 게시판 목록처럼 쪽 번호(`GET /api/groups/{id}/posts?page=&sort=&q=&prefix=`, 2026-11-06 사용자)와 `POST /api/groups/{id}/seen`.
+ * 소모임 상세의 글 탭 — 게시판 목록처럼 쪽 번호(`GET /api/groups/{id}/posts?page=&sort=&q=&prefix=&status=`, 2026-11-06 사용자 · `status` 는 운영 설정 2026-11-08)와 `POST /api/groups/{id}/seen`.
  * 말머리·목록 모양(목록형·갤러리형·보기 전환)은 소모임 게시판 정보(`GET /api/groups/{id}/board` — 게시판 상세와 같은 모양)로 정하고, 소모임마다 한 번 받는다.
  * 한 화면(소모임 상세)이 쓰는 상태라 `useState` 가 아니라 부를 때마다 새 `ref` 다. 서버 호출이 있어 페이지가 아니라 이 컴포저블에 둔다.
  *
@@ -81,7 +81,8 @@ export function useGroupPosts(options: GroupPostsOptions) {
         status.value = 'loading';
         errorMessage.value = '';
         try {
-            const res = await api.posts(groupId, { page: query.page, sort: query.sort, q: query.q || undefined, prefix: query.prefix || undefined }, controller.signal);
+            // 처리 상태 거르기(`status`) — 주소의 값을 그대로 보낸다(칩은 소모임 게시판이 상태를 쓸 때만 보인다, 판정은 서버)
+            const res = await api.posts(groupId, { page: query.page, sort: query.sort, q: query.q || undefined, prefix: query.prefix || undefined, status: query.status || undefined }, controller.signal);
             if (mine !== request) return;
             items.value = res.items;
             locked.value = res.locked;

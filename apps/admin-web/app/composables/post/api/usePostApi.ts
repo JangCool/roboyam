@@ -10,6 +10,7 @@ import type {
     PostPollDeleteRequest,
     PostReasonRequest,
     PostProcessStatus,
+    PostProcessStatusHistory,
     PostProcessStatusRequest,
     PostProcessStatusResult,
 } from '~/composables/post/api/usePostApi.types';
@@ -27,6 +28,8 @@ import type {
  *   - `DELETE /{id}/poll { reason }` (`post.manage`, 표가 있어도) → 204 — 글의 투표 지우기(post-poll-contract). 감사 `POST_POLL_DELETE`, 조치 기록 `POLL_DELETED`
  *   - `PUT /{id}/process-status { status }` → `{ processStatus, processStatusAt }` — 운영 게시판 처리 상태 바꾸기 · 꺼진 게시판 409 `POST_STATUS_DISABLED` · 400 `fields.status` · 403
  *   운영 게시판: 목록·상세 줄 `secret`·`processStatus`, 목록 쿼리 `processStatus`. 서버 연결됨(2026-11-08, shared V166 — 감사 `POST_PROCESS_STATUS`)
+ *   2차(2026-11-08 — 서버와 동시 구현): 바꾸기 본문 `note?`(0~200자, 400 `fields.note`) · 상세 줄 `processStatusNote` ·
+ *   `GET /{id}/process-status/history` (`post.read`) → `{ items: [{ fromStatus, toStatus, note, changedAt, actor, actorName }] }`
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
  */
 const ROOT = '/api/admin/posts';
@@ -38,6 +41,7 @@ const PATH = {
     act: (id: string, action: 'hide' | 'unhide' | 'delete' | 'restore' | 'move' | 'notice' | 'pin' | 'unpin') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
     poll: (id: string) => `${ROOT}/${encodeURIComponent(id)}/poll`,
     processStatus: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status`,
+    processStatusHistory: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status/history`,
 };
 
 export function usePostApi() {
@@ -70,8 +74,11 @@ export function usePostApi() {
         get: (id: string): Promise<AdminPostDetail> => client.get<AdminPostDetail>(PATH.one(id)),
 
         /** 처리 상태 바꾸기(운영 게시판 — 상태가 켜진 게시판의 글만, `post.manage`) — 서버가 글쓴이에게 알림을 보낸다 */
-        changeProcessStatus: (id: string, status: PostProcessStatus): Promise<PostProcessStatusResult> =>
-            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status } satisfies PostProcessStatusRequest),
+        changeProcessStatus: (id: string, status: PostProcessStatus, note?: string): Promise<PostProcessStatusResult> =>
+            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status, ...(note ? { note } : {}) } satisfies PostProcessStatusRequest),
+
+        /** 처리 상태 이력(바꾼 사람 이름 포함) */
+        processStatusHistory: (id: string, signal?: AbortSignal): Promise<PostProcessStatusHistory> => client.get<PostProcessStatusHistory>(PATH.processStatusHistory(id), { signal }),
 
         hide: (id: string, body: PostHideRequest): Promise<void> => client.post<void>(PATH.act(id, 'hide'), body),
         unhide: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'unhide'), body),

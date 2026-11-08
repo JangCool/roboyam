@@ -5,6 +5,7 @@ import com.community.board.dto.request.PasswordRequest;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.request.PostProcessStatusRequest;
+import com.community.post.dto.response.PostProcessStatusHistoryView;
 import com.community.post.dto.response.PostProcessStatusView;
 import com.community.post.dto.response.PostDeleteResult;
 import com.community.post.dto.response.PostDetailView;
@@ -90,13 +91,33 @@ public class PostController {
     }
 
     /**
-     * 처리 상태 바꾸기(V166 운영 게시판) — 그 게시판 매니저·스텝·운영자 회원 계정만(아니면 403 BOARD_STAFF_FORBIDDEN, 비로그인 401).
-     * 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED, 모르는 값 400 {@code fields.status}
+     * 처리 상태 바꾸기(V166 운영 게시판 · V168 메모) — 본문 {@code { status, note? }} → {@code { processStatus, processStatusAt, processStatusNote }}.
+     * 그 게시판 매니저·스텝·운영자 회원 계정, 소모임 글이면 소모임장·글 관리 매니저만(아니면 403 BOARD_STAFF_FORBIDDEN, 비로그인 401).
+     * 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED, 모르는 값 400 {@code fields.status}, 메모 400 {@code fields.note}
      */
     @PutMapping("/{id}/process-status")
     public ResponseEntity<ApiResponse<PostProcessStatusView>> processStatus(@PathVariable String id, @RequestBody(required = false) PostProcessStatusRequest body,
                                                                           Authentication authentication) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(statuses.change(id, body, userId(authentication))));
+    }
+
+    /**
+     * 처리 상태 이력(V168) — 최신순 50줄 {@code { items: [{ fromStatus, toStatus, note, changedAt, actor }] }}(이름 없음). 그 글을 읽을 수 있는 사람만(비밀글 403 SECRET_POST),
+     * 상태를 쓰지 않는 게시판이면 빈 목록
+     */
+    @GetMapping("/{id}/process-status/history")
+    public ResponseEntity<ApiResponse<PostProcessStatusHistoryView>> processStatusHistory(@PathVariable String id, Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(statuses.history(id, userId(authentication))));
+    }
+
+    /**
+     * 비회원 비밀글 열람(V168, 204) — 본문 {@code { password }}(주소에 싣지 않는다). 맞으면 이 방문자(서버 세션)에게 그 글을 1시간 열람하게 한다.
+     * 비회원 비밀글이 아니면 400 SECRET_UNLOCK_NOT_GUEST, 틀리면 403 PASSWORD_MISMATCH, 여러 번 틀리면 429 PASSWORD_ATTEMPTS_EXCEEDED
+     */
+    @PostMapping("/{id}/secret-unlock")
+    public ResponseEntity<Void> secretUnlock(@PathVariable String id, @RequestBody(required = false) PasswordRequest body, HttpServletRequest request) {
+        writes.unlockSecret(id, body == null ? null : body.password(), ipResolver.resolve(request));
+        return ResponseEntity.noContent().build();
     }
 
     static Long userId(Authentication authentication) {

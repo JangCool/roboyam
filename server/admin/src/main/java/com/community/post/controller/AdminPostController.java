@@ -8,6 +8,7 @@ import com.community.post.dto.request.AdminPostHideRequest;
 import com.community.post.dto.request.AdminPostMoveRequest;
 import com.community.post.dto.request.AdminPostReasonRequest;
 import com.community.post.dto.request.PostProcessStatusRequest;
+import com.community.post.dto.response.PostProcessStatusHistoryView;
 import com.community.post.dto.response.PostProcessStatusView;
 import com.community.post.dto.response.AdminPostBoardOptionsView;
 import com.community.post.dto.response.AdminPostBulkResultView;
@@ -133,7 +134,8 @@ public class AdminPostController {
     }
 
     /**
-     * 처리 상태 바꾸기(V166 운영 게시판) — 본문 {@code { status }} → {@code { processStatus, processStatusAt }}. 모르는 값 400 {@code fields.status},
+     * 처리 상태 바꾸기(V166 운영 게시판 · V168 메모) — 본문 {@code { status, note? }} → {@code { processStatus, processStatusAt, processStatusNote }}. 모르는 값 400 {@code fields.status},
+     * 메모 400 {@code fields.note},
      * 상태를 쓰지 않는 게시판 409 POST_STATUS_DISABLED, 지운 글 409 POST_STATE_INVALID. 감사 {@code POST_PROCESS_STATUS}
      */
     @RequirePermission(Permission.POST_MANAGE)
@@ -141,6 +143,16 @@ public class AdminPostController {
     public ResponseEntity<ApiResponse<PostProcessStatusView>> processStatus(@PathVariable String id, @RequestBody(required = false) PostProcessStatusRequest body,
                                                                           AdminActor actor) {
         return noStore(moderation.processStatus(actor, id, body));
+    }
+
+    /**
+     * 처리 상태 이력(V168) — {@code { items: [{ fromStatus, toStatus, note, changedAt, actor, actorName }] }} 최신순 50줄. 글 조회와 같은 권한({@code post.read}).
+     * 없는 글 404 POST_NOT_FOUND, 상태를 쓰지 않는 게시판이면 빈 목록
+     */
+    @RequirePermission(Permission.POST_READ)
+    @GetMapping("/{id}/process-status/history")
+    public ResponseEntity<ApiResponse<PostProcessStatusHistoryView>> processStatusHistory(@PathVariable String id) {
+        return noStore(queries.statusHistory(id));
     }
 
     /** 글의 투표 지우기(표가 있어도) — 본문 {@code { reason }}. 투표가 없으면 404 POLL_NOT_FOUND */

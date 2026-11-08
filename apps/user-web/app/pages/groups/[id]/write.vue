@@ -5,6 +5,7 @@
         에디터 수준·이미지·투표·말머리·글쓰기 안내문은 소모임 게시판 정보(`GET /api/groups/{id}/board` — `BoardDetail` 모양, 로보얌 추가)를 따른다. 19금 칸은 없다(소모임 글은 19금이 될 수 없다 — 서버 `400 fields.adult`).
         글은 **비공개**로 만들어진다(멤버에게만 보인다) — 전체 공개는 글을 쓴 뒤 글 상세에서 고른다. 임시저장·자동 저장·예약 발행·찬반 토론·비회원 글쓰기는 없다. 투표는 게시판이 받으면 붙일 수 있다.
         입구가 막힌 사람(비회원·멤버 아님·이메일 인증 전·정지 등 `canWritePost` false, 또는 게시판 정보의 `viewer.writeBlockedReason`)에게는 폼 대신 까닭을 보인다 — 서버가 최종 판단한다(`403 GROUP_NOT_MEMBER` 등).
+        비밀글(운영 설정 — 소모임 게시판 `secretMode`): 폼이 일반 글쓰기처럼 「비밀글」 체크(`OPTIONAL`)·고정 안내(`ALWAYS`)를 그리고 본문에 `secret` 을 싣는다. 비밀글은 공개 요청·직접 공개를 할 수 없다(글 상세 패널).
         등록하면(`201 { id, pointsEarned }` — 일반 글쓰기처럼 포인트 토스트는 띄우지 않는다) 토스트를 띄우고 글 상세(`/posts/{id}`)로 간다(`replace` — 뒤로 가기가 글쓰기로 돌아오지 않게). 저장하지 않고 나가면 확인을 묻는다.
     -->
     <div class="content-card">
@@ -81,6 +82,7 @@ import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
+import UtilPostOps from '~/utils/util-post-ops';
 
 definePageMeta({ shell: 'inner' });
 
@@ -245,6 +247,8 @@ async function submit(): Promise<void> {
             // 소모임 글은 19금이 될 수 없다(서버 `400 fields.adult`)
             adult: false,
             poll: pollShown.value ? UtilPoll.inputOf(poll.value) : null,
+            // 비밀글(소모임 게시판 `secretMode`) — 글쓴이가 고름 · 모든 글 비밀 · 없음이면 칸을 뺀다
+            ...UtilPostOps.secretField(UtilPostOps.writeSecret(UtilPostOps.secretMode(b), form.value.secret)),
         });
         saved = true;
         toast.success(t('group.postedToast'));

@@ -94,9 +94,20 @@ public class GroupPostGate {
      * @param viewerId 보는 회원(비회원 null)
      */
     public Resolved resolve(BoardCatalogSnapshot s, PostEntity post, Long viewerId) {
+        return resolve(s, post, viewerId, true);
+    }
+
+    /**
+     * {@link #resolve(BoardCatalogSnapshot, PostEntity, Long)} — {@code checkSecret} 이 false 면 비밀글 판정을 건너뛴다. 비회원 글을 비밀번호로 고칠 때만
+     * (비밀번호 확인이 바로 뒤따르고, 맞힌 사람은 글쓴이다 — {@code PostWriteService#update}).
+     */
+    public Resolved resolve(BoardCatalogSnapshot s, PostEntity post, Long viewerId, boolean checkSecret) {
         Resolved resolved = resolveIgnoringAdult(s, post, viewerId);
         adultGate.requireViewable(post, viewerId); // 19금 글은 성인만(403 POST_ADULT_ONLY — adult-content-contract)
-        secretGate.requireReadable(s, post, viewerId); // 비밀글은 글쓴이·그 게시판 운영진만(403 SECRET_POST — V166)
+        if (checkSecret) {
+            // 비밀글은 글쓴이·그 게시판 운영진(소모임 글은 소모임장·글 관리 매니저)·운영자 회원 계정·비밀번호로 연 방문자만(403 SECRET_POST — V166·V168)
+            secretGate.requireReadable(s, post, viewerId, resolved.group(), resolved.membership());
+        }
         return resolved;
     }
 
@@ -174,8 +185,14 @@ public class GroupPostGate {
         }
         // 되돌리기 — 작성자는 강퇴됐어도·정지 중이어도 자기 글을 되돌린다(2단계 그대로), 모임장·매니저는 지금 멤버이고 쓸 수 있을 때
         boolean canUnpublish = open && visible && !publicGroup && (author || (member && handler));
+        if (post.isSecret()) {
+            // 비밀글은 소모임 밖으로 공개할 수 없다(V168 — 요청·승인·직접 공개·다시 공개 모두 400 GROUP_POST_SECRET)
+            canPublish = false;
+            canRequest = false;
+            canDecide = false;
+        }
         boolean canMakeMembersOnly = member && handler && publicGroup && visible;
-        boolean canReleaseMembersOnly = member && handler && membersOnly;
+        boolean canReleaseMembersOnly = member && handler && membersOnly && !post.isSecret();
 
         PostGroupView.PublishRequest info = null;
         if (enabled && request != null && !visible && (author || handler)

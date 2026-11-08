@@ -73,7 +73,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>
  *   <li>운영 게시판 설정(V166 — 비밀글 방식 {@code secretMode} OFF·OPTIONAL·ALWAYS, 처리 상태 {@code statusEnabled}): null 이면 그대로, 정책 묶음({@code board.settings}),
- *       감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다. 일반 게시판만 켤 수 있다(그 밖 400 {@code board.ops.generalOnly}).
+ *       감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다. 일반·소모임 게시판만 켤 수 있다(핫딜·직접홍보 400 {@code board.ops.generalOnly}).
  *       바꿔도 이미 쓴 글의 비밀 여부·상태 값은 그대로다.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
@@ -347,13 +347,13 @@ public class BoardService {
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
         }
-        // 운영 게시판 설정(V166) — 값 목록, 일반 게시판만 켤 수 있다(소모임·핫딜·직접홍보 글은 따로 열리는 길이 있어 비밀글·상태를 받지 않는다)
+        // 운영 게시판 설정(V166·V168) — 값 목록, 일반·소모임 게시판만 켤 수 있다(핫딜·직접홍보는 공개 홍보가 목적이라 비밀글이 맞지 않고 진행 상태는 딜 마감 상태가 있다)
         if (!BoardFields.SECRET_MODES.contains(in.secretMode)) {
             invalid.put("secretMode", new MessageRef("board.field.choice"));
-        } else if (!BoardFields.KIND_GENERAL.equals(board.getKind()) && !BoardFields.SECRET_OFF.equals(in.secretMode)) {
+        } else if (!BoardFields.opsAllowed(board.getKind()) && !BoardFields.SECRET_OFF.equals(in.secretMode)) {
             invalid.put("secretMode", new MessageRef("board.ops.generalOnly"));
         }
-        if (!BoardFields.KIND_GENERAL.equals(board.getKind()) && in.statusEnabled) {
+        if (!BoardFields.opsAllowed(board.getKind()) && in.statusEnabled) {
             invalid.put("statusEnabled", new MessageRef("board.ops.generalOnly"));
         }
         if (!invalid.isEmpty()) {

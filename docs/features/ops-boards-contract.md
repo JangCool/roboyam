@@ -45,12 +45,24 @@
 ## DB
 - shared `V166__post_secret_and_status.sql`: `boards.secret_mode`·`status_enabled`, `posts.secret`·`process_status`·`process_status_at`·`process_status_by`, 부분 색인 `ix_posts_board_process_status`, `ck_member_notifications_type` 에 `POST_STATUS_CHANGED` 더함(⚠ 다른 세션이 이 CHECK 를 다시 만들면 합집합 확인). `R__batch_24` 후보에 `NOT p.secret`.
 
-## 운영 서버에서 다시 만들기 (시드 없음 — 관리자 화면으로)
+## 운영 서버에서 다시 만들기 (1차 당시 손 절차 — 2차부터 V168·설치 프리셋이 대신한다)
 1. 게시판 관리 › 만들기: 「버그 신고」 `bugs`, 「기능 요청」 `requests`(일반·목록형).
 2. 각 게시판 설정: 위 표의 말머리·공통 말머리(공지만)·글쓰기·댓글 자격(새싹)·비밀글·처리 상태·포인트 적립 끔·가젯 노출 금지(인기·최신)·검색엔진 색인 끔·광고 숨김·안내문·글 양식.
 3. 메뉴 관리 › 메뉴 그룹 만들기: key `footer`, 위치 「사용자 정의」, 항목 = 두 게시판. 메인 메뉴 「커뮤니티」 폴더에 자동으로 들어간 두 항목은 뺀다.
 
+## 2차 (2026-11-08 — 사용자 지시 「미확정 다 처리해. 마이그레이션으로 넣고」, shared V168)
+- **처리 상태 메모·이력**: 바꾸기 요청 `{ status, note? }`(앞뒤 공백 정리, 빈 글자 null, 1~200자, 줄 바꿈·제어 문자 불가 → 400 `fields.note`), 응답 `{ processStatus, processStatusAt, processStatusNote }`. 같은 값이면 메모가 달라도 아무것도 하지 않는다.
+  표 `post_process_status_history`(바뀔 때마다 한 줄, 처음 접수는 줄 없음). 글 상세 `processStatusNote`(마지막 메모)·`viewer.canChangeStatus`.
+  공개 `GET /api/posts/{id}/process-status/history` → `{ items:[{ fromStatus, toStatus, note, changedAt, actor: OPERATOR|BOARD_STAFF|GROUP_STAFF }] }`(최신 50, 이름 없음, 글을 읽을 수 있는 사람만), 관리자 같은 주소 + `actorName`(`post.read`).
+  알림 본문에 「· 메모: …」, 감사 `POST_PROCESS_STATUS` 에 note. 글 원문 파기(R__batch_18) 때 메모만 비우고, 게시판 삭제 때 이력 줄을 지운다.
+  화면: 글 보기 [상태 바꾸기] 대화창(상태 + 메모) · 「운영진 메모」 한 줄 · 「처리 이력」 접기, 관리자 글 서랍 폼 + 이력 목록.
+- **비회원 비밀글**: OPTIONAL 게시판에서 비회원도 고르고, ALWAYS 게시판의 비회원 글은 비밀. 볼 수 없으면 403 `SECRET_POST` extras `guestPost`(·소모임 글이면 `groupId`).
+  `POST /api/posts/{id}/secret-unlock { password }` → 204(비회원 비밀글이 아니면 400 `SECRET_UNLOCK_NOT_GUEST`, 틀리면 403 `PASSWORD_MISMATCH`, `verify-password` 와 시도 횟수를 함께 세어 429 `PASSWORD_ATTEMPTS_EXCEEDED`).
+  열람 권한은 서버 세션(Spring Session JDBC)에 글 id → 1시간, 세션당 20개. 잠금 화면에 비밀번호 칸.
+- **소모임 게시판 허용**: 비밀글·처리 상태를 GROUP 게시판에서도 켤 수 있다. 소모임 비밀글을 읽는 사람 = 글쓴이 · 소모임장 · 글 관리(`UNPUBLISH`) 매니저 · 운영자 회원 계정(비공개 소모임의 비공개 글은 멤버 전용 판정이 먼저) · 관리자 앱.
+  소모임 글 목록 `GET /api/groups/{id}/posts?status=`(줄 가림 같음), `GET /api/groups/{id}/board` 에 `secretMode`·`statusEnabled`. 비밀글은 공개 전환·공개 요청·승인·다시 공개 불가 400 `GROUP_POST_SECRET`. 상태 바꾸기 = 소모임장·글 관리 매니저·운영자 회원 계정.
+- **세션 정리 결정 — 핫딜·직접홍보(DEAL·PROMO)는 계속 막는다**: 공개 홍보가 목적이라 비밀글이 맞지 않고, 진행 상태는 딜 마감 상태가 이미 있다(400 `board.ops.generalOnly` — 「일반·소모임 게시판에서만」).
+- **시드**: shared `V168` 이 **이미 설치된 DB**(설치 COMPLETED + `board_preset_applied_at`)에만, 같은 주소·이름의 게시판이나 `footer` 그룹이 없을 때 넣는다(로컬 DB 는 이미 있어 그대로). 새 설치는 설치 프리셋(`OpsBoardSeeder`, 값의 정본 `OpsBoardPreset`)이 만든다 — 위 「운영 서버에서 다시 만들기」 손 절차는 더 필요 없다. 쓰기·댓글 등급은 서열이 가장 낮은 등급.
+
 ## 미확정
-- 처리 상태를 바꿀 때 사유·메모 칸, 상태 변경 이력 표시(지금은 마지막 변경 시각만).
-- 비회원 비밀글(비밀번호로 열람)은 범위 밖 — 비회원 글은 늘 공개.
-- 운영 설정을 소모임·핫딜 게시판에서도 켤지(지금은 일반 게시판만).
+- 관리자 글 상세에 `processStatusNote` 칸은 없다(이력 API 로 대신).

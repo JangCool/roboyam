@@ -28,6 +28,8 @@ import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
+import com.community.post.service.SecretPostGate;
+import com.community.post.entity.PostProcessStatus;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
@@ -67,11 +69,14 @@ public class GroupPostService {
     private final PostWriteService writes;
     private final BoardCatalog catalog;
     private final MemberNotificationPublisher notices;
+    private final SecretPostGate secretGate;
     private final TransactionTemplate tx;
 
     public GroupPostService(GroupAccess access, GroupPostQueries postQueries, GroupMemberRepository members, GroupRepository groups, PostRepository posts,
                             PostFeedRows rows,
-                            PostWriteService writes, BoardCatalog catalog, MemberNotificationPublisher notices, PlatformTransactionManager txManager) {
+                            PostWriteService writes, BoardCatalog catalog, MemberNotificationPublisher notices, SecretPostGate secretGate,
+                            PlatformTransactionManager txManager) {
+        this.secretGate = secretGate;
         this.access = access;
         this.postQueries = postQueries;
         this.members = members;
@@ -92,6 +97,14 @@ public class GroupPostService {
      */
     @Transactional(readOnly = true)
     public GroupPostPageView list(String rawId, Long userId, String cursorRaw, String sizeRaw) {
+        return list(rawId, userId, cursorRaw, sizeRaw, null);
+    }
+
+    /**
+     * {@link #list(String, Long, String, String)} + 처리 상태 거르기(V168 {@code ?status=} — 소모임 게시판이 상태를 쓸 때만, 모르는 값이면 빈 목록, RECEIVED 는 값 없는 글도).
+     */
+    @Transactional(readOnly = true)
+    public GroupPostPageView list(String rawId, Long userId, String cursorRaw, String sizeRaw, String status) {
         GroupEntity group = access.active(GroupAccess.parseId(rawId));
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         Long cursor = null;
@@ -112,7 +125,9 @@ public class GroupPostService {
         Instant now = Instant.now();
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = s.board(group.getBoardId()).orElseThrow(GroupNotFoundException::new);
-        List<GroupPostQueries.Row> found = new ArrayList<>(postQueries.rows(group.getId(), member, cursor, size + 1, now));
+        StatusFilter filter = statusFilter(b, status);
+        List<GroupPostQueries.Row> found = filter.impossible() ? new ArrayList<>()
+                : new ArrayList<>(postQueries.rows(group.getId(), member, filter.status(), cursor, size + 1, now));
         boolean hasNext = found.size() > size;
         List<GroupPostQueries.Row> page = hasNext ? found.subList(0, size) : found;
         List<GroupPostRowView> items = items(group, page, b, s, now, userId);
@@ -130,6 +145,12 @@ public class GroupPostService {
      */
     @Transactional(readOnly = true)
     public GroupPostPageView page(String rawId, Long userId, int pageNo, String sort, String q, String prefix) {
+        return page(rawId, userId, pageNo, sort, q, prefix, null);
+    }
+
+    /** {@link #page(String, Long, int, String, String, String)} + 처리 상태 거르기(V168 — {@link #list(String, Long, String, String, String)} 와 같은 규칙) */
+    @Transactional(readOnly = true)
+    public GroupPostPageView page(String rawId, Long userId, int pageNo, String sort, String q, String prefix, String status) {
         GroupEntity group = access.active(GroupAccess.parseId(rawId));
         boolean member = isMember(group, userId);
         Instant now = Instant.now();
@@ -147,17 +168,39 @@ public class GroupPostService {
         if (query.length() > PostRepositoryQDSL.QUERY_MAX) {
             query = query.substring(0, PostRepositoryQDSL.QUERY_MAX);
         }
-        GroupPostQueries.Paged found = impossible ? new GroupPostQueries.Paged(List.of(), 0)
-                : postQueries.page(group.getId(), member, prefixId, query.isEmpty() ? null : query, "OLDEST".equals(sort), (long) (current - 1) * listSize, listSize, now);
+        StatusFilter filter = statusFilter(b, status);
+        GroupPostQueries.Paged found = impossible || filter.impossible() ? new GroupPostQueries.Paged(List.of(), 0)
+                : postQueries.page(group.getId(), member, prefixId, filter.status(), query.isEmpty() ? null : query, "OLDEST".equals(sort), (long) (current - 1) * listSize,
+                listSize, now);
         int totalPages = (int) ((found.total() + listSize - 1) / listSize);
         boolean locked = !member && !group.isPublicGroup();
         return new GroupPostPageView(items(group, found.rows(), b, s, now, userId), current < totalPages, null, locked, locked ? postQueries.privateCount(group.getId(), now) : 0,
                 current, totalPages, found.total());
     }
 
-    /** 글 줄 — 게시판 글 줄에 소모임 공개 여부를 붙인다 */
+    /** 처리 상태 거르기 — 게시판이 상태를 쓰지 않거나 값이 비면 거르지 않는다, 모르는 값이면 빈 목록 */
+    private record StatusFilter(PostProcessStatus status, boolean impossible) {
+    }
+
+    private static StatusFilter statusFilter(EffectiveBoard b, String status) {
+        if (!b.statusEnabled() || status == null || status.isBlank()) {
+            return new StatusFilter(null, false);
+        }
+        PostProcessStatus parsed = PostProcessStatus.parse(status).orElse(null);
+        return new StatusFilter(parsed, parsed == null);
+    }
+
+    /**
+     * 글 줄 — 게시판 글 줄에 소모임 공개 여부를 붙인다. 읽을 수 없는 비밀글(V168 — 글쓴이·소모임장·글 관리 매니저·운영자 회원 계정이 아닌 사람)은 줄·제목만 남기고 내용 칸을 비운다.
+     */
     private List<GroupPostRowView> items(GroupEntity group, List<GroupPostQueries.Row> page, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long userId) {
-        List<PostRowView> views = rows.boardRows(page.stream().map(GroupPostQueries.Row::data).toList(), b, s, now, userId);
+        java.util.Set<Long> sealed = new java.util.HashSet<>();
+        boolean anySecret = page.stream().anyMatch(row -> row.data().secretPost());
+        boolean staffReader = anySecret && secretGate.groupStaffReader(s, group, userId);
+        if (anySecret && !staffReader) {
+            page.stream().map(GroupPostQueries.Row::data).filter(d -> d.secretPost() && (userId == null || !userId.equals(d.authorId()))).forEach(d -> sealed.add(d.id()));
+        }
+        List<PostRowView> views = rows.boardRows(page.stream().map(GroupPostQueries.Row::data).toList(), b, s, now, userId, sealed);
         List<GroupPostRowView> items = new ArrayList<>(views.size());
         String groupId = Long.toString(group.getId());
         for (int i = 0; i < views.size(); i++) {

@@ -5,6 +5,7 @@
 --   guest          작성한 지 guest_retention_days 일이 지난 비회원 글·댓글(0 이면 하지 않는다).
 --                  ANONYMIZE: 이름 ***·비밀번호 해시·IP 를 지우고 글은 남긴다. DELETE: 위에 더해 삭제 표시 + 제목·본문 파기, 비회원 글이면 그 글의 댓글·답글도 삭제·파기.
 --   deletedContent 삭제한 지 deleted_content_retention_days 일이 지난 글·댓글의 원문(제목·본문 — HTML 글의 평문 칸 content_text 포함, V56)을 파기한다(purged_at).
+--                  파기한 글의 처리 상태 이력 메모(post_process_status_history.note, V168)도 비운다(이력 줄·상태 값은 남는다). 비회원 글 DELETE 도 같다.
 --                  글 이미지 파일은 이 배치가 아니라 「올리다 만 파일 정리」(file-orphan-cleanup, Java)가 지운 글의 이미지로 보고 지운다.
 --   reportRecord   신고한 지 report_record_retention_days 일이 지난 신고 기록(reports — 신고자·사유·설명·당시 내용 스냅샷)을 행째 지운다(V46).
 --                  열린(처리 대기·검토 중) 신고 사건(report_cases, V82)에 묶인 신고는 지우지 않는다 — 사건이 닫힌 뒤 다음 실행이 지운다.
@@ -142,6 +143,8 @@ BEGIN
                 -- 그 글의 댓글·답글도 삭제·파기한다(대상 수에는 세지 않는다)
                 UPDATE comments SET deleted_at = coalesce(deleted_at, now()), content = '', purged_at = now(), updated_at = now()
                  WHERE post_id = ANY (v_ids) AND purged_at IS NULL;
+                -- 처리 상태 이력 메모도 파기(V168 — 대상 수에는 세지 않는다)
+                UPDATE post_process_status_history SET note = NULL WHERE post_id = ANY (v_ids) AND note IS NOT NULL;
             ELSE
                 UPDATE posts SET guest_name = '***', guest_password_hash = NULL, author_ip = NULL, guest_processed_at = now(), updated_at = now()
                  WHERE id = ANY (v_ids);
@@ -165,10 +168,15 @@ BEGIN
         END IF;
 
     ELSIF p_axis = 'deletedContent' THEN
-        UPDATE posts SET title = '', content = '', content_text = NULL, purged_at = now(), updated_at = now()
-         WHERE id IN (SELECT id FROM posts WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff ORDER BY deleted_at LIMIT p_limit);
-        GET DIAGNOSTICS v_n = ROW_COUNT;
-        v_total := v_n;
+        SELECT array_agg(id) INTO v_ids
+          FROM (SELECT id FROM posts WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff ORDER BY deleted_at LIMIT p_limit) x;
+        IF v_ids IS NOT NULL THEN
+            UPDATE posts SET title = '', content = '', content_text = NULL, purged_at = now(), updated_at = now() WHERE id = ANY (v_ids);
+            GET DIAGNOSTICS v_n = ROW_COUNT;
+            v_total := v_n;
+            -- 처리 상태 이력 메모도 파기(V168 — 대상 수에는 세지 않는다, 색인 ix_post_process_status_history_post)
+            UPDATE post_process_status_history SET note = NULL WHERE post_id = ANY (v_ids) AND note IS NOT NULL;
+        END IF;
         IF v_total < p_limit THEN
             UPDATE comments SET content = '', purged_at = now(), updated_at = now()
              WHERE (post_id, id) IN (SELECT post_id, id FROM comments WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff

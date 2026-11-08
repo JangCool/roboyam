@@ -630,8 +630,14 @@ export default class UtilBoard {
         };
     }
 
-    /** 입력 → 저장 요청(숫자 칸이 틀렸으면 null) */
-    static toSaveRequest(form: BoardDetailForm): BoardSaveRequest | null {
+    /**
+     * 입력 → 저장 요청(숫자 칸이 틀렸으면 null).
+     * @param {BoardDetailForm} form - 입력.
+     * @param {BoardKind} [kind] - 게시판 종류 — 운영 설정(비밀글·처리 상태)을 받지 않는 종류(핫딜·직접홍보)면 두 칸을 null(그대로)로 보낸다(서버 `400 board.ops.generalOnly` 를 피한다).
+     * @returns {BoardSaveRequest | null} 저장 요청.
+     */
+    static toSaveRequest(form: BoardDetailForm, kind?: BoardKind): BoardSaveRequest | null {
+        const opsOn = kind === undefined || UtilBoard.opsAllowed(kind);
         const policy = UtilBoard.toPolicy(form.policy);
         if (!policy) return null;
         return {
@@ -653,9 +659,14 @@ export default class UtilBoard {
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: p.color, active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
             adsHidden: form.adsHidden,
-            secretMode: form.secretMode,
-            statusEnabled: form.statusEnabled,
+            secretMode: opsOn ? form.secretMode : null,
+            statusEnabled: opsOn ? form.statusEnabled : null,
         };
+    }
+
+    /** 이 종류의 게시판이 운영 설정(비밀글·처리 상태)을 받는가 — 일반·소모임 게시판만(핫딜·직접홍보는 서버도 400) */
+    static opsAllowed(kind: BoardKind): boolean {
+        return kind === 'GENERAL' || kind === 'GROUP';
     }
 
     /** 안내문 — 보이는 글자가 없으면 null, 줄바꿈은 `\n` 하나로 */

@@ -486,4 +486,5 @@ export default {
     transferredToast: '모임장을 넘겼어요',
     transferFailed: '모임장을 넘기지 못했어요',
     memberGone: '이미 이 소모임을 나간 멤버예요.',
+    secretNoPublish: '비밀글은 모두에게 공개할 수 없어요. 글쓴이와 운영진만 볼 수 있어요.',
 };

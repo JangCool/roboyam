@@ -486,4 +486,5 @@ export default {
     transferredToast: 'Leadership handed over',
     transferFailed: 'Couldn’t hand over leadership',
     memberGone: 'This member already left the club.',
+    secretNoPublish: 'Private posts can’t be made public. Only the author and the moderators can see them.',
 };

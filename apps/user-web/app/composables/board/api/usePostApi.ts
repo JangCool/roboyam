@@ -4,8 +4,10 @@ import type {
     PostDetail,
     PostLikeResult,
     PostProcessStatus,
+    PostProcessStatusHistory,
     PostProcessStatusRequest,
     PostProcessStatusResult,
+    PostSecretUnlockRequest,
     PostUpdateRequest,
     PostWriteRequest,
     PostWriteResult,
@@ -38,6 +40,9 @@ import type {
  *   처리 상태 `processStatus`·`processStatusAt`(글 보기 응답) · `PUT /api/posts/{id}/process-status { status }` → `{ processStatus, processStatusAt }`
  *   (오류 `409 POST_STATUS_DISABLED`·`400 fields.status`·`403 BOARD_STAFF_FORBIDDEN`, 글쓴이에게 알림 `POST_STATUS_CHANGED` 은 서버가 보낸다).
  *   서버 연결됨(2026-11-08, shared V166).
+ *   2차(2026-11-08 — 서버와 동시 구현): 상태 바꾸기 본문 `note?`(0~200자, `400 fields.note`) · 글 상세 `processStatusNote`·`viewer.canChangeStatus` ·
+ *   `GET /api/posts/{id}/process-status/history` → `{ items }` · 비회원 비밀글 `POST /api/posts/{id}/secret-unlock { password }`(204 — 틀리면 `403 PASSWORD_MISMATCH`,
+ *   여러 번 틀리면 `429 PASSWORD_ATTEMPTS_EXCEEDED`). 잠긴 비회원 비밀글은 `403 SECRET_POST` extras `guestPost: true`.
  */
 const PATH = {
     posts: '/api/posts',
@@ -46,6 +51,8 @@ const PATH = {
     verify: (id: string) => `/api/posts/${encodeURIComponent(id)}/verify-password`,
     like: (id: string) => `/api/posts/${encodeURIComponent(id)}/like`,
     processStatus: (id: string) => `/api/posts/${encodeURIComponent(id)}/process-status`,
+    processStatusHistory: (id: string) => `/api/posts/${encodeURIComponent(id)}/process-status/history`,
+    secretUnlock: (id: string) => `/api/posts/${encodeURIComponent(id)}/secret-unlock`,
 };
 
 export function usePostApi() {
@@ -61,8 +68,14 @@ export function usePostApi() {
         update: (id: string, body: PostUpdateRequest): Promise<PostDetail> => client.put<PostDetail>(PATH.post(id), body),
 
         /** 처리 상태 바꾸기(그 게시판 매니저·스텝·운영자 회원 계정만) — 서버가 글쓴이에게 알림을 보낸다 */
-        changeProcessStatus: (id: string, status: PostProcessStatus): Promise<PostProcessStatusResult> =>
-            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status } satisfies PostProcessStatusRequest),
+        changeProcessStatus: (id: string, status: PostProcessStatus, note?: string): Promise<PostProcessStatusResult> =>
+            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status, ...(note ? { note } : {}) } satisfies PostProcessStatusRequest),
+
+        /** 처리 상태 이력(글을 읽을 수 있는 사람) */
+        processStatusHistory: (id: string, signal?: AbortSignal): Promise<PostProcessStatusHistory> => client.get<PostProcessStatusHistory>(PATH.processStatusHistory(id), { signal }),
+
+        /** 비회원 비밀글을 글 비밀번호로 연다(204) — 뒤이어 글을 다시 받는다 */
+        secretUnlock: (id: string, password: string): Promise<void> => client.post<void>(PATH.secretUnlock(id), { password } satisfies PostSecretUnlockRequest),
 
         remove: (id: string, body: PostDeleteRequest): Promise<PostDeleteResult> => client.post<PostDeleteResult>(PATH.remove(id), body),
 

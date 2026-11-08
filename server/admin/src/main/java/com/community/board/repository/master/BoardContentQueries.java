@@ -6,6 +6,7 @@ import com.community.comment.entity.QCommentLikeEntity;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.entity.QPostLikeEntity;
+import com.community.post.entity.QPostProcessStatusHistoryEntity;
 import com.community.post.entity.QPostViewEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
@@ -32,6 +33,7 @@ public class BoardContentQueries extends RoboyamRepositoryQDSL {
     private static final QPostViewEntity POST_VIEW = QPostViewEntity.postViewEntity;
     private static final QCommentLikeEntity COMMENT_LIKE = QCommentLikeEntity.commentLikeEntity;
     private static final QCommentDislikeEntity COMMENT_DISLIKE = QCommentDislikeEntity.commentDislikeEntity;
+    private static final QPostProcessStatusHistoryEntity STATUS_HISTORY = QPostProcessStatusHistoryEntity.postProcessStatusHistoryEntity;
 
     public BoardContentQueries(JPAQueryFactory query) {
         super(query);
@@ -100,6 +102,7 @@ public class BoardContentQueries extends RoboyamRepositoryQDSL {
         query.delete(COMMENT_LIKE).where(COMMENT_LIKE.postId.in(boardPostIds(boardId))).execute();
         query.delete(COMMENT_DISLIKE).where(COMMENT_DISLIKE.postId.in(boardPostIds(boardId))).execute();
         query.delete(POST_VIEW).where(POST_VIEW.postId.in(boardPostIds(boardId))).execute();
+        query.delete(STATUS_HISTORY).where(STATUS_HISTORY.postId.in(boardPostIds(boardId))).execute(); // 처리 상태 이력(V168 — 글과 함께 없어진다)
         query.delete(COMMENT).where(COMMENT.boardId.eq(boardId)).execute();
         query.delete(POST).where(POST.boardId.eq(boardId)).execute();
     }

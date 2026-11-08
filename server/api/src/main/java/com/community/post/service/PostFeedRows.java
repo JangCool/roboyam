@@ -73,7 +73,7 @@ public class PostFeedRows {
             if (b == null) {
                 continue;
             }
-            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs),
+            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs, false),
                     new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId())));
         }
         return out;
@@ -118,12 +118,20 @@ public class PostFeedRows {
      * @param viewerId 로그인한 회원(비로그인 null)
      */
     public List<PostRowView> boardRows(List<PostRowData> rows, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long viewerId) {
+        return boardRows(rows, b, s, now, viewerId, Set.of());
+    }
+
+    /**
+     * {@link #boardRows(List, EffectiveBoard, BoardCatalogSnapshot, Instant, Long)} — {@code sealed} 는 보는 사람이 읽을 수 없는 비밀글(V168 소모임 게시판):
+     * 줄·제목은 남기고 썸네일·이미지·투표 표시를 비운다(게시판 글 목록과 같다).
+     */
+    public List<PostRowView> boardRows(List<PostRowData> rows, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long viewerId, Set<Long> sealed) {
         List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
-        Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
-        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll, null, thumbs)).toList();
+        Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id())).map(PostRowData::id).toList());
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, sealed.contains(r.id()) ? Set.of() : withPoll, null, thumbs, sealed.contains(r.id()))).toList();
     }
 
     /**
@@ -131,13 +139,14 @@ public class PostFeedRows {
      * ({@code PostRepositoryQDSL#feedVisible}) — 비밀글 줄은 회원 작성글을 본인이 볼 때만 오므로 내용 칸을 그대로 싣는다.
      */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs) {
+                            Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
+        boolean bare = hidden || sealed;
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
-                hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), hidden ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
+                hidden ? 0 : r.commentCount(), !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), hidden ? null : deal, r.secretPost(),
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && withPoll.contains(r.id()), bare ? null : deal, r.secretPost(),
                 hidden ? null : PostProcessStatus.effective(b, r.processStatus()));
     }
 }
