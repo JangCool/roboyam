@@ -62,5 +62,5 @@ export interface MyProfileRequest {
     visibility?: ProfileVisibility;
 }
 
-/** 한 줄 소개 최대 글자 수 — 서버 `MyProfileService.BIO_MAX`(앞뒤 공백을 자른 뒤 0~100자, 서버는 코드 포인트로 센다) */
-export const PROFILE_BIO_MAX = 100;
+/** 자기소개 최대 글자 수 — 서버 `MyProfileService.BIO_MAX`(줄바꿈 포함, 정리·앞뒤 공백을 자른 뒤 0~300자, 서버는 코드 포인트로 센다 — 사용자 2026-11-08 100자에서 늘림) */
+export const PROFILE_BIO_MAX = 300;

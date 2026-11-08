@@ -311,7 +311,7 @@ public class PostQueryService {
         Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
-                .withBio(authors.detailBio(post.getAuthorId(), members)); // 작성자 한 줄 소개는 상세에만(profile-privacy-contract — 숨긴 글은 여기 오지 않는다)
+                .withProfile(authors.detailProfile(post.getAuthorId(), members)); // 작성자 자기소개·공개 범위는 상세에만(profile-privacy-contract — 숨긴 글은 여기 오지 않는다)
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
         boolean staffAuthor = staffAuthor(b, post, userId);

@@ -44,3 +44,9 @@
 - **글 상세 `author.bio`**: `PostAuthorView` 끝에 `bio` 칸 — 글 상세(`GET /api/posts/{id}`, 고친 뒤 응답 포함)만 채운다(`AuthorViews#detailBio`, 이미 읽은 프로필 + 회원 상태 기본 키 한 번). 회원 글·작성자 정상(탈퇴·탈퇴 진행 중 아님)·공개·소개 있음일 때만 값, 그 밖 null. 목록·댓글·프로필 작성글 줄 등은 늘 `bio: null`.
 - 화면 타입(`useProfileApi.types.ts`·`useUserProfileApi.types.ts`·`usePostApi.types.ts`)과 같은 모양 — 다른 점 없음.
 - 시험: `server/api/.../profile/ProfileVisibilityHttpTest`(10개).
+
+## 자기소개 300자 · 글 보기 작성자 카드 늘 보이기 (사용자 2026-11-08)
+- 「한 줄 소개」를 「자기소개」로 바꾸고 줄바꿈 포함 최대 300자(서버 `MyProfileService.BIO_MAX`, DB `profiles.bio varchar(300)` — shared V172). 저장할 때 줄바꿈을 LF 로 맞추고 빈 줄은 연달아 하나까지만 둔다.
+- 글 상세 작성자에 `author.profile`(`PUBLIC`·`PRIVATE`, 회원 글이고 작성자가 있을 때만 — 목록·댓글·비회원·탈퇴·숨긴 글은 null)을 더했다. `author.bio` 규칙은 그대로(공개이고 소개가 있을 때만).
+- 글 보기 작성자 카드는 회원 글이면 늘 그린다: 소개가 있으면 줄바꿈 그대로 3줄까지(넘치면 「더보기」/「접기」), 공개인데 소개가 없으면 「자기소개가 없습니다.」, 비공개면 「비공개 프로필입니다.」(프로필 보기 링크 숨김). 사업자 핫딜 글은 그리지 않는다(그대로).
+- 공개 프로필 화면(`/users/{id}`)의 소개도 줄바꿈 그대로 보인다.

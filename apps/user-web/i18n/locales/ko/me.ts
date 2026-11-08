@@ -13,7 +13,7 @@ export default {
     editProfile: '프로필 편집',
     profileLoading: '소개를 불러오는 중',
     profileLoadFailed: '소개를 불러오지 못했어요.',
-    bioEmpty: '아직 한 줄 소개가 없어요.',
+    bioEmpty: '아직 자기소개가 없어요.',
 
     // 바로가기
     shortcuts: '바로가기',

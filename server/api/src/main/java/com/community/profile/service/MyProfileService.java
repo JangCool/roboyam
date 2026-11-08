@@ -46,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       ({@link UserPolicy#memberNicknameViolation}), 중복은 대소문자 무시({@code ux_profiles_nickname}) {@code 409 NICKNAME_TAKEN}. 바꾸면 이력 한 줄(비공개)을 남긴다.</li>
  *   <li><b>닉네임이 그대로면</b>(소개만 저장) 형식·횟수·변경권·중복 검사를 하지 않고 아무것도 쓰지 않는다. 무료 변경이 남았으면 {@code useTicket} 을 보내도 변경권을 쓰지 않는다.
  *       대소문자만 바꾸는 것은 변경이다.</li>
- *   <li><b>한 줄 소개</b>: 앞뒤 공백을 자른 뒤 0~{@value #BIO_MAX}자, 빈 값은 null 로 저장한다.</li>
+ *   <li><b>자기소개</b>: 줄바꿈 허용({@link #normalizeBio} 로 정리) 뒤 0~{@value #BIO_MAX}자(사용자 2026-11-08 — 100자 한 줄에서 늘림), 빈 값은 null 로 저장한다.</li>
  *   <li><b>공개 범위</b>({@code visibility}, 선택): {@code PUBLIC}·{@code PRIVATE} 만(대소문자 그대로), 없으면 그대로. 공개 범위만 바꾸는 저장은 소개만 바꿀 때처럼 닉네임
  *       변경 횟수·변경권을 쓰지 않는다. 정지 중이면 공개 범위만 바꾸는 저장도 막힌다(같은 요청). profile-privacy-contract 「API」.</li>
  *   <li><b>검사 순서</b>: 로그인(401) → 정지·영구 정지 {@code 403 ACCOUNT_RESTRICTED}(글쓰기와 같은 예외 — 읽기는 정지 중에도 된다) → 프로필 행 쓰기 잠금 →
@@ -64,8 +64,8 @@ public class MyProfileService {
 
     /** 가입 뒤 무료로 닉네임을 바꿀 수 있는 횟수(서버 상수) */
     public static final int NICKNAME_FREE_LIMIT = ProfileEntity.NICKNAME_FREE_LIMIT;
-    /** 한 줄 소개 최대 글자 수 */
-    public static final int BIO_MAX = 100;
+    /** 자기소개 최대 글자 수(코드 포인트, 줄바꿈 포함) — DB {@code profiles.bio varchar(300)}(shared V172) */
+    public static final int BIO_MAX = 300;
 
     private final UserRepository users;
     private final ProfileRepository profiles;
@@ -102,7 +102,7 @@ public class MyProfileService {
         ProfileEntity profile = profiles.findWithLockByUserId(userId).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
 
         String nickname = body == null ? null : body.nickname();
-        String bio = body == null || body.bio() == null ? "" : body.bio().strip();
+        String bio = body == null || body.bio() == null ? "" : normalizeBio(body.bio());
         boolean useTicket = body != null && Boolean.TRUE.equals(body.useTicket());
         boolean changing = nickname == null || !nickname.equals(profile.getNickname());
 
@@ -195,5 +195,11 @@ public class MyProfileService {
         return new MyProfileView(profile.getNickname(), profile.getBio() == null ? "" : profile.getBio(), user.getCreatedAt(),
                 new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), look.url(), look.stillUrl(),
                 profile.getVisibility());
+    }
+
+    /** 자기소개 정리 — 줄바꿈을 LF 로 맞추고, 줄 끝 공백을 떼고, 빈 줄은 연달아 하나까지만 두고, 앞뒤 공백을 자른다 */
+    static String normalizeBio(String raw) {
+        String text = raw.replace("\r\n", "\n").replace('\r', '\n').replaceAll("[ \\t]+\n", "\n").replaceAll("\n{3,}", "\n\n");
+        return text.strip();
     }
 }
