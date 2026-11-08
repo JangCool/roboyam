@@ -77,7 +77,17 @@ export interface BoardView {
     prefixes: PrefixView[];
     /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동 — 화면이 순서로 정한다). 서버가 아직 안 주면(옛 응답) `undefined` */
     color?: string | null;
+    /**
+     * 비밀글(게시판마다의 값 — 기본 설정에서 물려받지 않는다) — `OFF` 없음 · `OPTIONAL` 글쓴이가 고른다 · `ALWAYS` 모든 글 비밀. 설정을 바꿔도 이미 쓴 글의 비밀 여부는 그대로다.
+     * `GET /api/boards`·`/api/boards/{slug}` 둘 다 준다
+     */
+    secretMode?: BoardSecretMode;
+    /** 처리 상태 쓰기(게시판마다의 값, 기본 꺼짐) — 켜면 목록 줄·글 보기에 처리 상태 딱지, 목록 위 상태 거르기, 운영진의 상태 바꾸기 */
+    statusEnabled?: boolean;
 }
+
+/** 비밀글 방식(게시판 설정 `secretMode`) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
+export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
 
 /** 게시판 종류 — 일반 · 핫딜 · 직접홍보 · 소모임(관리자 `apps/admin-web/.../useBoardApi.types.ts` 의 `BoardKind` 와 같다) */
 export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';

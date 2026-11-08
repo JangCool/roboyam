@@ -9,6 +9,8 @@ export interface PostFormValues {
     /** 본문 형식 — 게시판 글 에디터 설정을 따른다(`UtilBoard.postFormat`). 게시판이 바뀌면 화면이 본문을 바꿔 맞춘다(`UtilPost.convertContent`) */
     contentFormat: ContentFormat;
     adult: boolean;
+    /** 「비밀글」 체크 — 게시판 `secretMode` 가 `OPTIONAL` 일 때만 보이고 뜻이 있다(`ALWAYS` 는 고정 안내, 보낼 값은 `UtilPostOps.writeSecret`·`updateSecret`) */
+    secret: boolean;
     /** 비회원 글쓰기에서만 쓴다 */
     guestName: string;
     guestPassword: string;
@@ -29,4 +31,4 @@ export interface PostBoardOption {
 }
 
 /** 빈 폼 — 쓰는 곳은 `{ ...EMPTY_POST_FORM }` 로 복사해 쓴다 */
-export const EMPTY_POST_FORM: Readonly<PostFormValues> = { prefixId: null, title: '', content: '', contentFormat: 'TEXT', adult: false, guestName: '', guestPassword: '', captcha: false };
+export const EMPTY_POST_FORM: Readonly<PostFormValues> = { prefixId: null, title: '', content: '', contentFormat: 'TEXT', adult: false, secret: false, guestName: '', guestPassword: '', captcha: false };

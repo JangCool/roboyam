@@ -250,6 +250,8 @@ export default {
         investmentNotice: '투자 고지',
         kind: '종류',
         writeLock: '읽기 전용 잠금',
+        secretMode: '비밀글',
+        statusEnabled: '처리 상태 쓰기',
         introText: '게시판 안내문',
         writeGuideText: '글쓰기 안내문',
         writeTemplate: '글 양식',
@@ -559,6 +561,13 @@ export default {
         POST_COMMENT: '새 글·댓글 막기',
     },
     lockedNote: '읽기 전용 잠금 때문에 지금은 적용되지 않아요.',
+    secretModeHelp: '글쓴이·이 게시판 매니저·스텝·운영자만 본문을 읽어요. 설정을 바꿔도 이미 쓴 글의 비밀 여부는 그대로예요. 기본값이 없는 칸이에요.',
+    secretMode: {
+        OFF: '끔',
+        OPTIONAL: '글쓴이가 고름',
+        ALWAYS: '모든 글 비밀',
+    },
+    statusEnabledHelp: '목록·글에 처리 상태(접수 → 완료 등)를 보이고 운영진이 바꿔요. 바뀌면 글쓴이에게 알림이 가요. 기본값이 없는 칸이에요.',
     reportFixed: '신고 누적 자동 숨김 없음 — 신고 관리에서 운영자가 판단해요.',
 
     // ── 말머리 ──

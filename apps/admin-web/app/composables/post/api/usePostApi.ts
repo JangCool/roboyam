@@ -9,6 +9,9 @@ import type {
     PostMoveRequest,
     PostPollDeleteRequest,
     PostReasonRequest,
+    PostProcessStatus,
+    PostProcessStatusRequest,
+    PostProcessStatusResult,
 } from '~/composables/post/api/usePostApi.types';
 
 /**
@@ -22,6 +25,8 @@ import type {
  *       · 이동: 같은 자리·켜진 말머리가 아님 400 `fields.prefixId` · 꺼진 게시판 400 `fields.boardId`
  *   - `POST /bulk { action, ids(1~50), reason, notifyAuthor }` (`post.manage`, DELETE 는 `post.bulk-delete` 도) → 200 `{ done, failed: [{id, code}] }` — 글마다 따로
  *   - `DELETE /{id}/poll { reason }` (`post.manage`, 표가 있어도) → 204 — 글의 투표 지우기(post-poll-contract). 감사 `POST_POLL_DELETE`, 조치 기록 `POLL_DELETED`
+ *   - `PUT /{id}/process-status { status }` → `{ processStatus, processStatusAt }` — 운영 게시판 처리 상태 바꾸기 · 꺼진 게시판 409 `POST_STATUS_DISABLED` · 400 `fields.status` · 403
+ *   운영 게시판: 목록·상세 줄 `secret`·`processStatus`, 목록 쿼리 `processStatus`. 서버 연결됨(2026-11-08, shared V166 — 감사 `POST_PROCESS_STATUS`)
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
  */
 const ROOT = '/api/admin/posts';
@@ -32,6 +37,7 @@ const PATH = {
     one: (id: string) => `${ROOT}/${encodeURIComponent(id)}`,
     act: (id: string, action: 'hide' | 'unhide' | 'delete' | 'restore' | 'move' | 'notice' | 'pin' | 'unpin') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
     poll: (id: string) => `${ROOT}/${encodeURIComponent(id)}/poll`,
+    processStatus: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status`,
 };
 
 export function usePostApi() {
@@ -39,7 +45,6 @@ export function usePostApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        /** 글 목록 — 빈 조건은 보내지 않는다 */
         list: (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> =>
             client.get<AdminPostListView>(PATH.list, {
                 query: {
@@ -47,6 +52,7 @@ export function usePostApi() {
                     searchField: query.q ? query.searchField : undefined,
                     board: query.board || undefined,
                     prefix: query.prefix || undefined,
+                    processStatus: query.processStatus || undefined,
                     createdFrom: query.createdFrom || undefined,
                     createdTo: query.createdTo || undefined,
                     state: query.state && query.state !== 'ALL' ? query.state : undefined,
@@ -62,6 +68,10 @@ export function usePostApi() {
 
         /** 글 하나 — 본문(지운 글도 파기 전까지)·조치 기록 */
         get: (id: string): Promise<AdminPostDetail> => client.get<AdminPostDetail>(PATH.one(id)),
+
+        /** 처리 상태 바꾸기(운영 게시판 — 상태가 켜진 게시판의 글만, `post.manage`) — 서버가 글쓴이에게 알림을 보낸다 */
+        changeProcessStatus: (id: string, status: PostProcessStatus): Promise<PostProcessStatusResult> =>
+            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status } satisfies PostProcessStatusRequest),
 
         hide: (id: string, body: PostHideRequest): Promise<void> => client.post<void>(PATH.act(id, 'hide'), body),
         unhide: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'unhide'), body),

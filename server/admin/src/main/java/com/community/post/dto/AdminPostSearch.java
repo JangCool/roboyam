@@ -1,6 +1,9 @@
 package com.community.post.dto;
 
+import com.community.post.entity.PostProcessStatus;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 게시글 관리 목록의 거르기(서비스가 요청 값을 풀어 만든다). 검색은 {@code searchField} 로 고른 한 칸만 본다(본문 검색 없음).
@@ -15,7 +18,19 @@ import java.time.Instant;
  * @param state       PUBLIC · HIDDEN · DELETED — null 이면 전체(ALL)
  * @param oldest      오래된순(아니면 최신순)
  * @param none        아무 글도 맞지 않는 거르기(깨진 게시판·말머리 ID, 있을 수 없는 글 번호)
+ * @param processStatus      처리 상태(V166) — null 이면 전체. 처리 상태를 쓰는 게시판({@code statusBoardIds})의 글만 맞고, RECEIVED 는 값 없는 글도 포함한다
+ * @param statusBoardIds     지금 처리 상태를 쓰는 게시판(처리 상태 거르기에만 쓴다)
  */
 public record AdminPostSearch(Long postId, String title, String author, Instant createdFrom, Instant createdTo, Long boardId, Long prefixId, String state,
-                              boolean oldest, boolean none) {
+                              boolean oldest, boolean none, PostProcessStatus processStatus, Collection<Long> statusBoardIds) {
+
+    public AdminPostSearch {
+        statusBoardIds = statusBoardIds == null ? List.of() : List.copyOf(statusBoardIds);
+    }
+
+    /** 처리 상태 거르기 없이 */
+    public AdminPostSearch(Long postId, String title, String author, Instant createdFrom, Instant createdTo, Long boardId, Long prefixId, String state,
+                           boolean oldest, boolean none) {
+        this(postId, title, author, createdFrom, createdTo, boardId, prefixId, state, oldest, none, null, List.of());
+    }
 }

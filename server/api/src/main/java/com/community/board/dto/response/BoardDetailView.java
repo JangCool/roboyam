@@ -19,6 +19,8 @@ import java.util.List;
  * @param dealAffiliateMode    핫딜 게시판이면 지금 제휴 링크 방식(MEMBER · SITE — D5), 아니면 null
  * @param dealRules            핫딜 게시판이면 핫딜 설정 공개 칸(금액 상한·할인율 경고·기간 종료 일수·HOT 문턱 — 메모 1-1), 아니면 null
  * @param adsHidden            관리자 「이 게시판에 광고 숨김」 — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다(19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다 — 화면은 {@code adsHidden || (allowAdult && !adult.enabled)})
+ * @param secretMode           비밀글 방식 OFF · OPTIONAL · ALWAYS({@link BoardView#secretMode()} 와 같다 — V166)
+ * @param statusEnabled        처리 상태를 쓰는가({@link BoardView#statusEnabled()} 와 같다 — V166). 상태를 바꾸는 사람 = {@code viewer.staff}
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -26,5 +28,6 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               boolean promo, boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, String writeMinGradeLabel,
                               String commentMinGradeLabel, String introText, String writeGuideText, String writeTemplate, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
-                              boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules) {
+                              boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
+                              String secretMode, boolean statusEnabled) {
 }

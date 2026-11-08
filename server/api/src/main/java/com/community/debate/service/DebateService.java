@@ -117,6 +117,7 @@ public class DebateService {
         PostEntity post = postQueries.requireVisible(postIdText, now);
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        postQueries.requireSecretReadable(s, post, userId); // 비밀글은 글쓴이·그 게시판 운영진만(403 SECRET_POST — V166)
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }
@@ -148,6 +149,7 @@ public class DebateService {
         PostEntity post = postQueries.requireVisible(postIdText, now);
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        postQueries.requireSecretReadable(s, post, userId); // 비밀글은 글쓴이·그 게시판 운영진만(403 SECRET_POST — V166)
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }
@@ -186,6 +188,7 @@ public class DebateService {
         PostEntity post = postQueries.requireVisible(postIdText, now);
         BoardCatalogSnapshot s = catalog.snapshot();
         PublicBoardService.requireActive(s, post.getBoardId());
+        postQueries.requireSecretReadable(s, post, userId); // 비밀글은 글쓴이·그 게시판 운영진만(403 SECRET_POST — V166)
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }

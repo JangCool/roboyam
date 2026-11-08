@@ -1,7 +1,7 @@
 <template>
     <!--
         글쓰기·고치기 폼 — 글쓰기(`/write`)와 고치기(`/posts/[id]/edit`)가 같이 쓴다. 그리기·화면 검사만 하고 저장(서버 호출)은 페이지가 한다.
-        칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만 — 성인 전용 말머리를 고르면 켜고 잠근다, 19금 글은 본인인증한 만 19세 이상만 쓴다: 판정은 서버) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
+        칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만 — 성인 전용 말머리를 고르면 켜고 잠근다, 19금 글은 본인인증한 만 19세 이상만 쓴다: 판정은 서버) · 비밀글(게시판 `secretMode` — `OPTIONAL` 체크 · `ALWAYS` 고정 안내 · 비회원은 없음) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
         이미지는 고급 에디터 안에서 올린다(게시판이 허용하고 회원일 때만 — 비회원 글쓰기·비회원 글 고치기는 감춘다). 올리기 함수(`upload`)는 페이지가 API 컴포저블로 만들어 넘긴다.
         화면 검사는 미리 알려 주는 용도이고 판정은 서버다(서버 `fields` 가 있으면 그것을 칸 아래에 먼저 보인다).
         `lead` 자리(제목 위 — 핫딜 딜 칸)와 단계 입력(`step` — 모바일 핫딜: 1 = 게시판·말머리·`lead` + [다음], 2 = 나머지 + [이전]·[등록], 0 = 한 번에)을 둔다.
@@ -139,6 +139,19 @@
         </div>
         <p v-if="fieldErrors.adult" role="alert" class="-mt-2 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.adult }}</p>
 
+        <!-- 비밀글(게시판 `secretMode` — 운영 게시판) — 글쓴이가 고르면 체크, 모든 글 비밀이면 고정 안내, 끔·비회원이면 없음. -->
+        <div v-if="secretMode === 'OPTIONAL'" class="flex flex-col gap-1" data-testid="post-secret">
+            <label class="inline-flex cursor-pointer items-center gap-2 self-start text-sm">
+                <Checkbox :model-value="modelValue.secret" binary :input-id="secretId" :aria-describedby="secretHintId" @update:model-value="patch({ secret: Boolean($event) })" />
+                <span><i class="pi pi-lock mr-1 text-xs text-muted-color" aria-hidden="true" />{{ t('post.secretLabel') }}</span>
+            </label>
+            <p :id="secretHintId" class="m-0 text-xs text-muted-color">{{ t('post.secretHint') }}</p>
+        </div>
+        <p v-else-if="secretMode === 'ALWAYS'" class="m-0 flex items-center gap-1.5 text-sm text-muted-color" data-testid="post-secret-always">
+            <i class="pi pi-lock text-xs" aria-hidden="true" />{{ t('post.secretAlways') }}
+        </p>
+        <p v-if="fieldErrors.secret" role="alert" class="-mt-2 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.secret }}</p>
+
         <!-- 화면이 덧붙이는 칸(찬반 토론 설정 등) — 값·저장은 그 화면이 갖는다 -->
         <slot name="extra" />
 
@@ -176,6 +189,7 @@ import type { PostBoardOption, PostFixedTarget, PostFormValues } from '~/compone
 import UtilBoard from '~/utils/util-board';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
+import UtilPostOps from '~/utils/util-post-ops';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 
@@ -250,6 +264,10 @@ const prefixOptions = computed(() => [
 ]);
 
 const adultHintId = useId();
+const secretId = useId();
+const secretHintId = useId();
+/** 비밀글 칸의 모습 — 비회원 글쓰기·비회원 글 고치기·비로그인은 없음(`OFF`로 본다) */
+const secretMode = computed(() => (props.guestMode || props.guestRules || props.board.viewer.guest ? 'OFF' : UtilPostOps.secretMode(props.board)));
 /** 성인 전용 말머리인가(19금 허용 게시판에서만 뜻이 있다 — 서버도 같다) */
 function adultOnlyPrefix(prefixId: string | null): boolean {
     return props.board.allowAdult && prefixId !== null && props.board.prefixes.some((p) => p.id === prefixId && p.adultOnly === true);

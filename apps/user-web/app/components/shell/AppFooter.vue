@@ -1,6 +1,7 @@
 <template>
     <!-- 사이트 푸터 — 약관·개인정보처리방침·운영정책 링크 + 판매 스위치가 켜져 있으면 통신판매업자 정보(전자상거래법 제10조 ① — commerce-groupbuy 결정 56). 약관 본문 페이지는 새 탭 링크다.
-         데스크톱(md 이상): 두 단 — 왼쪽 = 사이트 이름 · 링크 · ©, 오른쪽 = 사업자 정보 표(`CommerceBusinessInfo` footer). 사업자 정보가 없으면 왼쪽 단만.
+         「고객 지원」 링크 묶음(버그 신고·기능 요청 …) — 메뉴 그룹 `footer`(`useFooterMenu`, 메인 메뉴와 따로). 같은 탭 이동, 항목이 `newTab` 이면 새 탭. 못 받았거나 비면 묶음을 숨긴다.
+         데스크톱(md 이상): 두 단 — 왼쪽 = 사이트 이름 · 링크 · 고객 지원 · ©, 오른쪽 = 사업자 정보 표(`CommerceBusinessInfo` footer). 사업자 정보가 없으면 왼쪽 단만.
          사업자 정보가 없을 때(운영 주체 개인 단계 — 2026-11-06) 왼쪽 단에 「문의 help@…」 한 줄(운영 주체 연락 이메일 — `GET /api/site/info` 의 `operator.contactEmail`, null 이면 그 줄을 숨긴다).
          모바일(사용자 요청 2026-11-06 — 모바일에도 보인다): 한 단으로 쌓는다 — 사이트 이름 · 링크 한 줄, 그 아래 사업자 정보 표(이름표 | 값), 맨 아래 ©. 하단 탭 바로 위에 놓인다 -->
     <footer class="border-t border-surface bg-surface-100 dark:bg-surface-900">
@@ -10,6 +11,13 @@
                 <a href="/terms" target="_blank" rel="noopener" class="hover:underline">{{ t('common.terms') }}</a>
                 <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-surface-700 hover:underline dark:text-surface-200">{{ t('common.privacy') }}</a>
                 <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
+                <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 못 받았거나 비면 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
+                <nav v-if="supportLinks.length" class="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:basis-full md:mt-2 md:flex-col md:items-start md:gap-1" :aria-label="t('shell.footerSupport')" data-testid="footer-support">
+                    <span class="font-semibold text-surface-700 dark:text-surface-200">{{ t('shell.footerSupport') }}</span>
+                    <NuxtLink v-for="link in supportLinks" :key="link.id" :to="link.path" v-bind="UtilMenu.linkAttrs(link)" class="hover:underline">
+                        {{ localizedName(link.label, link.nameEn) }}<i v-if="link.newTab" class="pi pi-external-link ml-1 text-[0.5625rem]" aria-hidden="true" />
+                    </NuxtLink>
+                </nav>
                 <a v-if="contactEmail && commerceInfo !== undefined && !shownBusiness" :href="`mailto:${contactEmail}`" class="break-all hover:underline max-md:basis-full md:mt-2" data-testid="footer-contact">{{ t('shell.footerContact', { email: contactEmail }) }}</a>
                 <span class="max-md:hidden md:mt-2">{{ copyright }}</span>
             </div>
@@ -20,6 +28,8 @@
 </template>
 
 <script setup lang="ts">
+import UtilMenu from '~/utils/util-menu';
+
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 const commerce = useCommerceInfo();
@@ -31,4 +41,14 @@ const copyright = computed(() => `© ${new Date().getFullYear()} ${siteLabel.val
 const siteInfo = useSiteInfoState();
 const contactEmail = computed(() => siteInfo.value?.operator?.contactEmail ?? null);
 onMounted(() => void commerce.ensureLoaded());
+// 고객 지원 링크(메뉴 그룹 `footer`) — 보는 사람마다 다를 수 있어 로그인·로그아웃으로 사람이 바뀌면 다시 받는다
+const { localizedName } = useLocalizedName();
+const footerMenu = useFooterMenu();
+const supportLinks = footerMenu.items;
+const { user } = useAuth();
+watch(
+    () => user.value?.id ?? '',
+    () => void footerMenu.ensureLoaded(),
+);
+onMounted(() => void footerMenu.ensureLoaded());
 </script>

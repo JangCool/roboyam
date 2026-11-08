@@ -12,6 +12,7 @@
         - 일괄: 줄을 고르면 아래에 일괄 줄 — 숨기기·숨김 해제·삭제(삭제는 `post.bulk-delete`)를 사유 하나로 → 결과 대화창(글마다 처리됨/못 함 + 까닭).
         - 글의 찬반 토론: 서랍의 토론 구획(상태 요약) + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 하이라이트 화면과 같은 재사용 부품(`useDebateActions`).
           토론이 닫혀도 의견·대기 고정 요청이 남았으면(`opinionCount`·`pendingPinRequests`) 요약과 [의견 관리]가 남는다. 목록 줄에는 대기 고정 요청 수 칩. 주소 `?post={id}&opinions=pins` 는 의견 서랍을 「고정 요청」 탭으로 연다.
+        - 운영 게시판(버그 신고·기능 요청): 목록 줄에 처리 상태 딱지·비밀글 자물쇠, 처리 상태 거르기(`?processStatus=`), 서랍의 「처리 상태」 줄에서 바꾸기(`PUT …/process-status`).
         - 글의 투표(post-poll-contract): 목록 줄 「투표」 칩(`poll`) · 서랍의 투표 구획(결과 표) + [투표 지우기](`post.manage`, 표가 있어도) → 사유 대화창(`PostReasonDialog` kind `POLL_DELETE`) → `DELETE /api/admin/posts/{id}/poll { reason }`.
           `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
         - 소모임 글(소모임 2단계 — 줄의 `group`·`restricted`): 제목 앞에 「소모임 · 이름」·공개 상태(멤버만·공개 전환)·해산·나간 멤버 칩. **비공개 소모임 글은 서버가 제목을 싣지 않아(`title: null`)**
@@ -65,6 +66,18 @@
                     :title="filters.board ? undefined : t('post.filterPrefixNeedBoard')"
                     class="w-56"
                     @update:model-value="setPrefix"
+                />
+            </FilterRow>
+            <!-- 처리 상태(운영 게시판 — 상태가 켜진 게시판의 글만), 주소 `?processStatus=` -->
+            <FilterRow :label="t('post.filterProcessStatus')" :label-for="`${uid}-process-status`">
+                <Select
+                    :model-value="filters.processStatus || ALL"
+                    :input-id="`${uid}-process-status`"
+                    :options="processStatusFilterOptions"
+                    option-label="label"
+                    option-value="value"
+                    class="w-56"
+                    @update:model-value="setProcessStatus"
                 />
             </FilterRow>
 
@@ -174,6 +187,9 @@
                                 <Tag v-if="data.notice" :value="t('post.chip.notice')" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
+                                <!-- 운영 게시판 — 처리 상태 · 비밀글 -->
+                                <Tag v-if="data.processStatus" :value="t(`post.processStatus.${data.processStatus}`)" :severity="UtilPost.processSeverity(data.processStatus)" class="text-[11px]!" data-testid="post-row-process-status" />
+                                <Tag v-if="data.secret" :value="t('post.chip.secret')" icon="pi pi-lock" severity="secondary" class="text-[11px]!" data-testid="post-row-secret" />
                                 <Tag v-if="data.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
                                 <Tag
                                     v-if="(data.pendingPinRequests ?? 0) > 0"
@@ -344,6 +360,8 @@
             @debate-opinions="openOpinions('OPINIONS')"
             @debate-retry="loadDebate()"
             @poll-delete="openPollDelete"
+            :process-status-busy="processStatusBusy"
+            @process-status="changeProcessStatus"
             @closed="onDrawerClosed"
         />
 
@@ -357,7 +375,7 @@ import type { MenuItem } from 'primevue/menuitem';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
-import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostProcessStatus, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -414,6 +432,9 @@ function setBoard(value: string): void {
 }
 function setPrefix(value: string): void {
     apply(UtilPost.change(filters.value, { prefix: value === ALL ? '' : value }));
+}
+function setProcessStatus(value: string): void {
+    apply(UtilPost.change(filters.value, { processStatus: value === ALL ? '' : (value as PostProcessStatus) }));
 }
 /** 쪽 넘김 — 쪽만 바꾸면 push, 쪽 크기를 바꾸면 1쪽으로(replace) */
 function onPage(e: { page: number; rows: number }): void {
@@ -517,6 +538,8 @@ const boardFilterOptions = computed(() => {
     return list;
 });
 
+/** 처리 상태 거르기 — 전체 + 7개(운영 게시판) */
+const processStatusFilterOptions = computed(() => [{ value: ALL, label: t('post.filterAll') }, ...UtilPost.PROCESS_STATUSES.map((value) => ({ value, label: t(`post.processStatus.${value}`) }))]);
 const prefixFilterOptions = computed(() => {
     const board = boards.value.find((b) => b.id === filters.value.board);
     const list = [{ value: ALL, label: t('post.filterAll') }, ...(board?.prefixes ?? []).map((p) => ({ value: p.id, label: p.name }))];
@@ -885,6 +908,26 @@ function onRowClick(e: { originalEvent: Event; data: AdminPostItem }): void {
 function onDrawerAct(kind: PostActionKind): void {
     const item = detail.detail.value?.post;
     if (item) openAct(item, kind);
+}
+
+/* ── 처리 상태(운영 게시판) — 서랍의 Select. 바꾸면 그 줄·서랍을 새 값으로(서버가 글쓴이에게 알림). 실패는 서버 문구 토스트(409 POST_STATUS_DISABLED·400·403) ── */
+const processStatusBusy = ref(false);
+async function changeProcessStatus(status: PostProcessStatus): Promise<void> {
+    const id = detail.openId.value;
+    if (!id || processStatusBusy.value) return;
+    processStatusBusy.value = true;
+    try {
+        const result = await api.changeProcessStatus(id, status);
+        const row = view.value?.items.find((item) => item.id === id);
+        if (row) Object.assign(row, { processStatus: result.processStatus, processStatusAt: result.processStatusAt });
+        const opened = detail.detail.value;
+        if (opened && opened.post.id === id) detail.detail.value = { ...opened, post: { ...opened.post, processStatus: result.processStatus, processStatusAt: result.processStatusAt } };
+        toast.success(t('post.processStatusChanged', { name: t(`post.processStatus.${result.processStatus}`) }));
+    } catch (e) {
+        toast.error(errorOf(e).message, 8000);
+    } finally {
+        processStatusBusy.value = false;
+    }
 }
 
 function onDrawerClosed(): void {

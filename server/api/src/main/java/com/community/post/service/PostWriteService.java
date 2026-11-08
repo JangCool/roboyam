@@ -195,12 +195,15 @@ public class PostWriteService {
 
         long id = ids.nextId();
         String hash = passwordHash;
+        boolean secret = secretOnCreate(b, actor.guest(), body.secret());
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, title, content.plain(), now);
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
-            posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
-                    c.hasImage(), now));
+            PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
+                    c.hasImage(), now);
+            created.initOps(secret, b.statusEnabled()); // 비밀글 · 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED) — V166
+            posts.persist(created);
             emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
             if (body.debate() != null) {
                 debates.apply(id, true, body.debate().neutralEnabled(), body.debate().stanceChangeAllowed(), PostDebateEntity.BY_MEMBER, authorId, now);
@@ -309,6 +312,36 @@ public class PostWriteService {
         }
     }
 
+    /**
+     * 새 글의 비밀글 여부(V166) — 비회원 글은 늘 false, 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(없으면 false), OFF 면 false(요청 값은 무시한다).
+     */
+    static boolean secretOnCreate(EffectiveBoard b, boolean guest, Boolean requested) {
+        if (guest) {
+            return false;
+        }
+        if (b.secretAlways()) {
+            return true;
+        }
+        return b.secretOptional() && Boolean.TRUE.equals(requested);
+    }
+
+    /**
+     * 고친 글의 비밀글 여부(V166) — 비회원 글은 늘 false, 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(빠지거나 null 이면 지금 값), OFF 면 지금 값 그대로
+     * (게시판 설정을 나중에 꺼도 이미 쓴 비밀글은 비밀로 남는다).
+     */
+    static boolean secretOnUpdate(EffectiveBoard b, PostEntity post, Boolean requested) {
+        if (post.isGuest()) {
+            return false;
+        }
+        if (b.secretAlways()) {
+            return true;
+        }
+        if (b.secretOptional() && requested != null) {
+            return requested;
+        }
+        return post.isSecret();
+    }
+
     /** 글 칸 검사 — 규칙은 shared {@link PostContentFields#check}(관리자 공지 쓰기와 같은 규칙) */
     private static Cleaned checkFields(EffectiveBoard b, boolean staff, ContentRules.Writer writer, Long currentPrefixId, String prefixText, String titleText,
                                        String formatText, String contentText, Boolean adultFlag, BoardSecurityValues sec, Map<String, MessageRef> fields) {
@@ -392,6 +425,7 @@ public class PostWriteService {
             // 글 이미지 맞추기 다음 — 올린 딜 이미지를 다시 붙이고, 딜 칸이 바뀌면 이력·셈·알림(D3). 차단 링크를 그대로 두면 경고(규칙 7)
             List<DealWarningView> warnings = deals.apply(locked, dealChange, deals.now());
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
+            locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
             posts.flush();
             emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)
             return queries.viewAfterEdit(locked, gate, s, userId, now, warnings);

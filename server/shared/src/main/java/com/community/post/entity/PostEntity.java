@@ -87,7 +87,35 @@ public class PostEntity {
     @Column(updatable = false, insertable = false)
     private Instant groupLeftAt;
 
+    /** 비밀글(V166) — 글쓴이(회원)·그 게시판 매니저·스텝·운영자만 읽는다. 쓸 때 정하고, 게시판 설정이 바뀌어도 그대로다 */
+    private boolean secret;
+    /** 처리 상태(V166, {@link PostProcessStatus} 이름) — 상태를 쓰는 게시판의 글만, 없으면 null */
+    private String processStatus;
+    /** 처리 상태를 마지막으로 바꾼 시각(처음 접수는 null) */
+    private Instant processStatusAt;
+    /** 처리 상태를 바꾼 회원(공개 사이트) — 관리자 앱 운영자가 바꿨으면 null(감사 기록에 남는다) */
+    private Long processStatusBy;
+
     protected PostEntity() {
+    }
+
+    /** 새 글의 운영 게시판 값 — 비밀글 여부와 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED). {@code persist} 전에 부른다 */
+    public void initOps(boolean secret, boolean statusEnabled) {
+        this.secret = secret;
+        this.processStatus = statusEnabled ? PostProcessStatus.RECEIVED.name() : null;
+    }
+
+    /** 글쓴이가 비밀글 여부를 바꾼다(글 고치기) */
+    public void changeSecret(boolean secret) {
+        this.secret = secret;
+    }
+
+    /** 처리 상태를 바꾼다 — {@code byUserId} 는 바꾼 회원(운영자는 null) */
+    public void changeProcessStatus(PostProcessStatus status, Long byUserId, Instant now) {
+        this.processStatus = status.name();
+        this.processStatusAt = now;
+        this.processStatusBy = byUserId;
+        this.updatedAt = now;
     }
 
     /**
@@ -466,5 +494,21 @@ public class PostEntity {
     /** 작성자가 소모임을 나가 가려졌나 */
     public boolean isGroupLeft() {
         return groupLeftAt != null;
+    }
+
+    public boolean isSecret() {
+        return secret;
+    }
+
+    public String getProcessStatus() {
+        return processStatus;
+    }
+
+    public Instant getProcessStatusAt() {
+        return processStatusAt;
+    }
+
+    public Long getProcessStatusBy() {
+        return processStatusBy;
     }
 }

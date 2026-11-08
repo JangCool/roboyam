@@ -1,6 +1,7 @@
 package com.community.board.dto;
 
 import com.community.board.entity.BoardGadget;
+import com.community.board.service.BoardFields;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -28,6 +29,8 @@ import java.util.Set;
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
  * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
  * @param adsHidden          「이 게시판에 광고 숨김」(게시판 값 그대로) — 켜면 게시판 맥락 광고(목록 한 줄·글 보기·핫딜 노출 · 날개)가 없다. 소모임 게시판은 이 값과 상관없이 없고, 19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다
+ * @param secretMode         비밀글 방식 OFF · OPTIONAL · ALWAYS(게시판 값 그대로 — V166). 일반 게시판이 아니면 늘 OFF
+ * @param statusEnabled      처리 상태를 쓰는가(게시판 값 그대로 — V166). 일반 게시판이 아니면 늘 false
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -38,9 +41,10 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              int commentGuestDelayMinutes, boolean staffHiddenNotice, boolean commentDislikeEnabled, String commentLikeLabel,
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
-                             boolean adsHidden) {
+                             boolean adsHidden, String secretMode, boolean statusEnabled) {
 
     public EffectiveBoard {
+        secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
     }
@@ -48,6 +52,16 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
     /** 이 가젯에 이 게시판 글을 내지 않는가(게시판 설정 「가젯 노출 금지」) */
     public boolean excludedFrom(BoardGadget gadget) {
         return gadgetExclusions.contains(gadget);
+    }
+
+    /** 모든 회원 글이 비밀글인가(ALWAYS) */
+    public boolean secretAlways() {
+        return BoardFields.SECRET_ALWAYS.equals(secretMode);
+    }
+
+    /** 글쓴이가 비밀글 여부를 고르는가(OPTIONAL) */
+    public boolean secretOptional() {
+        return BoardFields.SECRET_OPTIONAL.equals(secretMode);
     }
 
     /** 글 본문으로 HTML 을 받는가(간단·고급 에디터) */

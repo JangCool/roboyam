@@ -66,8 +66,9 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     private static BooleanExpression assignable(Collection<Long> boardIds, Collection<Long> exceptIds, Instant now) {
+        // 비밀글(V166)은 섞인 목록·하이라이트에 나오지 않으므로 지정 대상에서도 뺀다
         BooleanExpression where = PostRepositoryQDSL.alive(POST, now).and(PostRepositoryQDSL.notHidden(POST, now)).and(POST.adult.isFalse())
-                .and(POST.boardId.in(boardIds));
+                .and(POST.secret.isFalse()).and(POST.boardId.in(boardIds));
         return exceptIds.isEmpty() ? where : where.and(POST.id.notIn(exceptIds));
     }
 
@@ -116,7 +117,8 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static ConstructorExpression<AdminPostListRow> listRow() {
         return Projections.constructor(AdminPostListRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
                 POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenReason, POST.hiddenUntil,
-                POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt, POST.groupId, POST.publicPost, POST.groupLeftAt);
+                POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt, POST.groupId, POST.publicPost, POST.groupLeftAt, POST.secret, POST.processStatus,
+                POST.processStatusAt);
     }
 
     /** 지운 글 — 지움 · 공개 아님(임시저장) · 예약 삭제 시각 지남 */
@@ -170,6 +172,11 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         if (c.prefixId() != null) {
             where = where.and(POST.prefixId.eq(c.prefixId()));
+        }
+        if (c.processStatus() != null) {
+            // 처리 상태를 지금 쓰는 게시판의 글만(꺼진 게시판의 글은 상태가 보이지 않는다) — RECEIVED 는 값 없는 글도(공개 목록과 같은 판정)
+            where = where.and(c.statusBoardIds().isEmpty() ? POST.id.isNull() : POST.boardId.in(c.statusBoardIds()))
+                    .and(PostRepositoryQDSL.processStatusIs(POST, c.processStatus()));
         }
         return where;
     }

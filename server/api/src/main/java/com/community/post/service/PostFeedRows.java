@@ -18,6 +18,7 @@ import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
+import com.community.post.entity.PostProcessStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -125,7 +126,10 @@ public class PostFeedRows {
         return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll, null, thumbs)).toList();
     }
 
-    /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */
+    /**
+     * {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다). 섞인 목록 질의는 비밀글을 읽지 않는다
+     * ({@code PostRepositoryQDSL#feedVisible}) — 비밀글 줄은 회원 작성글을 본인이 볼 때만 오므로 내용 칸을 그대로 싣는다.
+     */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                             Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs) {
         boolean hidden = r.hiddenAt(now);
@@ -133,6 +137,7 @@ public class PostFeedRows {
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
                 hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), hidden ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), hidden ? null : deal);
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), hidden ? null : deal, r.secretPost(),
+                hidden ? null : PostProcessStatus.effective(b, r.processStatus()));
     }
 }

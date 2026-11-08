@@ -1,15 +1,20 @@
 <template>
-    <!-- 글 줄의 제목 부분 — (소모임 상세면 공개 라벨) · 말머리 · 19 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다 -->
+    <!-- 글 줄의 제목 부분 — (소모임 상세면 공개 라벨) · 말머리 · 처리 상태 · 19 · 비밀글 자물쇠 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다.
+         처리 상태·비밀글은 줄에 그 칸이 있을 때만(운영 게시판 — 섞인 목록에서는 서버가 비밀글을 빼고, 상태가 꺼진 게시판은 칸이 없다) -->
     <span>
         <i v-if="row.pinned && pinnedMark" class="pi pi-thumbtack mr-1 text-xs text-muted-color" aria-hidden="true" />
         <span v-if="row.pinned && pinnedMark" class="sr-only">{{ t('board.pinned') }}</span>
         <!-- 소모임 상세 목록의 공개 라벨(`provideGroupRowTag` 를 건 목록에서만) — 글자가 늘 있다(색만으로 가르지 않는다) -->
         <GroupTag v-if="groupTag" :tone="groupTag === 'PUBLIC' ? 'blue' : 'gray'" class="mr-1 align-[1px]" data-testid="group-post-visibility">{{ UtilGroupMessages.postRowVisibility(t, groupTag) }}</GroupTag>
         <PostPrefixTag v-if="row.prefix && showPrefix" :prefix="row.prefix" class="mr-1 align-[1px]" />
+        <PostStatusTag v-if="row.processStatus" :status="row.processStatus" class="mr-1 align-[1px]" />
         <span v-if="row.adult" class="mr-1 inline-flex size-4 items-center justify-center rounded-full bg-red-600 align-[1px] text-[0.5625rem] font-bold leading-none text-white" :title="t('board.adultMark')">
             <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
         </span>
+        <!-- 비밀글 — 제목은 그대로 보이고 앞에 자물쇠(본문은 글쓴이·운영진만) -->
+        <i v-if="row.secret" class="pi pi-lock mr-1 text-xs text-muted-color" :title="t('post.secretMark')" aria-hidden="true" data-testid="post-row-secret" />
+        <span v-if="row.secret" class="sr-only">{{ t('post.secretMark') }}</span>
         <span v-if="tokens.length" class="break-words"><template v-for="(part, i) in titleParts" :key="i"><mark v-if="part.match" class="rounded-sm bg-transparent font-bold text-primary">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
         <span v-else class="break-words">{{ row.title }}</span>
         <!-- 투표가 붙은 글(post-poll-contract `hasPoll`) — 제목 옆 투표 칩 -->

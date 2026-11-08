@@ -13,6 +13,7 @@ import type {
     BoardPrefix,
     BoardPrefixSaveItem,
     BoardSaveRequest,
+    BoardSecretMode,
     BoardWriteLock,
 } from '~/composables/board/api/useBoardApi.types';
 import { BOARD_MIN_GUEST, BOARD_POLICY_FIELDS } from '~/composables/board/api/useBoardApi.types';
@@ -120,6 +121,10 @@ export interface BoardDetailForm {
     gadgetExclusions: string[];
     /** 「이 게시판에 광고 숨김」 — 게시판마다의 값(기본값 따름 없음) */
     adsHidden: boolean;
+    /** 비밀글 방식 — 게시판마다의 값(기본값 따름 없음 · `diffCount` 에 세지 않는다) */
+    secretMode: BoardSecretMode;
+    /** 처리 상태 쓰기 — 게시판마다의 값(기본값 따름 없음 · `diffCount` 에 세지 않는다) */
+    statusEnabled: boolean;
     policy: BoardPolicyForm;
     commonPrefixes: BoardCommonPrefixForm[];
     prefixes: BoardPrefixForm[];
@@ -308,6 +313,8 @@ export default class UtilBoard {
     static readonly KINDS: readonly BoardKind[] = ['GENERAL', 'DEAL', 'PROMO', 'GROUP'];
     static readonly COLORS: readonly BoardColor[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN'];
     static readonly WRITE_LOCKS: readonly (BoardWriteLock | null)[] = [null, 'POST', 'POST_COMMENT'];
+    /** 비밀글 방식 선택지 — 끔 · 글쓴이가 고름 · 모든 글 비밀 */
+    static readonly SECRET_MODES: readonly BoardSecretMode[] = ['OFF', 'OPTIONAL', 'ALWAYS'];
     static readonly SPECS: Readonly<Record<BoardDefaultsField, BoardFieldSpec>> = SPECS;
     static readonly DEFAULT_SECTIONS: Readonly<Record<BoardDefaultsSection, readonly BoardDefaultsField[]>> = DEFAULT_SECTIONS;
     static readonly POLICY_FIELDS: readonly BoardPolicyField[] = BOARD_POLICY_FIELDS;
@@ -614,6 +621,9 @@ export default class UtilBoard {
             gadgetExclusions: [...(detail.gadgetExclusions ?? [])],
             // 옛 서버 응답에 칸이 없으면 끔
             adsHidden: detail.adsHidden === true,
+            // 옛 서버 응답에 칸이 없으면 끔(목업이 채운다 — `useBoardApi` MOCK)
+            secretMode: detail.secretMode ?? 'OFF',
+            statusEnabled: detail.statusEnabled === true,
             policy: UtilBoard.policyFormOf(detail.policy),
             commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
             prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, adultOnly: p.adultOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
@@ -643,6 +653,8 @@ export default class UtilBoard {
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: p.color, active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
             adsHidden: form.adsHidden,
+            secretMode: form.secretMode,
+            statusEnabled: form.statusEnabled,
         };
     }
 
@@ -669,7 +681,7 @@ export default class UtilBoard {
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
-            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock),
+            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText) + diff(form.writeTemplate, base.writeTemplate),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸

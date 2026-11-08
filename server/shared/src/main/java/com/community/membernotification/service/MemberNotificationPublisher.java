@@ -692,6 +692,38 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 내 글의 처리 상태가 바뀌었다({@code POST_STATUS_CHANGED} — V166 운영 게시판). 덧붙임 {@code boardName}·{@code status}·{@code title}(알릴 때 값), 누르면 그 글.
+     * 바꾼 사람이 글쓴이 본인이면 보내지 않는다({@code changedByUserId} — 관리자 앱 운영자면 null).
+     */
+    public int postStatusChanged(long authorId, Long changedByUserId, long postId, String boardName, String status, String postTitle) {
+        if (changedByUserId != null && changedByUserId == authorId) {
+            return 0;
+        }
+        return isolated.run("member-notification:post-status", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.POST_STATUS_CHANGED, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            int made = 0;
+            String board = cut(boardName, SNAPSHOT_MAX);
+            String title = cut(postTitle, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("boardName", board);
+                payload.put("status", status);
+                payload.put("title", title);
+                writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_STATUS_CHANGED.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.postStatusChanged(board, status, title), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 정지 중에 낸 포인트 상점 환불 신청이 결정됐다(V87, commerce-stage1-contract 「1-2 정지 중 환불 신청」) — 수락 {@code POINT_SHOP_REFUND_APPROVED}(돌려준 포인트) ·
      * 거절 {@code POINT_SHOP_REFUND_REJECTED}(사유). 끌 수 없는 처리 알림, 덧붙임 {@code requestId}·{@code purchaseId}·{@code itemName}·{@code points}|{@code reason}. 누르면 내 아이템.
      * 결정 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 결정을 깨지 않는다).

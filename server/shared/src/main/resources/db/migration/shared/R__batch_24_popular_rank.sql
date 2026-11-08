@@ -14,7 +14,7 @@
 -- 서버 상수(설정에 없음): 탭마다 상위 50개 보관 · 채우기 기준 5개:
 --   실시간 자기 글이 5개 미만이면 어제 글을 감쇠 없는 점수 순으로 모자란 만큼(fill = YESTERDAY), 이번 주가 5개 미만이면 지난주 글(fill = LAST_WEEK), 어제 탭은 채우지 않는다.
 --   점수가 같으면 ID 가 큰(나중에 쓴) 글이 먼저.
--- 제외: 19금 글 · 임시저장 · 삭제 · 예약 삭제 시각이 지난 글 · 지금 숨김 중인 글(임시조치가 끝난 글은 다시 후보) · 꺼진 게시판 · 「가젯 노출 금지」에 인기글(POPULAR)을 고른 게시판
+-- 제외: 19금 글 · 비밀글(V166) · 임시저장 · 삭제 · 예약 삭제 시각이 지난 글 · 지금 숨김 중인 글(임시조치가 끝난 글은 다시 후보) · 꺼진 게시판 · 「가젯 노출 금지」에 인기글(POPULAR)을 고른 게시판
 --   (boards.gadget_exclusions, V69 — 핫딜·직접홍보 게시판은 이 값으로 시작한다) · exclude_staff_boards 가 켜져 있으면 운영진 전용 게시판
 --   (유효 글쓰기 자격 = 게시판 값 ?? 기본값 이 STAFF 인 게시판 — 공개 게시판의 「운영진만 글쓰기」, BoardFields.STAFF) · 운영자가 인기글에서 뺀 글(popular_exclusions, V74).
 --   공개 API 는 읽을 때 지금 상태로 다시 거른다.
@@ -83,6 +83,8 @@ LANGUAGE sql STABLE AS $fn$
        AND (p.group_id IS NULL
             OR (p.is_public AND p.group_left_at IS NULL
                 AND NOT EXISTS (SELECT 1 FROM groups g WHERE g.id = p.group_id AND g.status = 'INACTIVE')))
+       -- 비밀글(V166 — 운영 게시판)은 섞인 목록에 나오지 않는다(PostRepositoryQDSL#feedVisible 과 같은 판정 — 한쪽을 고치면 같이 고친다)
+       AND NOT p.secret
        AND b.active
        AND NOT ('POPULAR' = ANY (b.gadget_exclusions))
        AND (NOT s.exclude_staff_boards OR coalesce(b.write_min, d.write_min) <> 'STAFF')

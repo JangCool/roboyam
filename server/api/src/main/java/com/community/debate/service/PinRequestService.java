@@ -109,7 +109,7 @@ public class PinRequestService {
         Instant now = Instant.now();
         CommentEntity found = requireComment(commentIdText);
         PostEntity post = postQueries.requireVisible(Long.toString(found.getPostId()), now);
-        EffectiveBoard b = readable(post, now);
+        EffectiveBoard b = readable(post, now, userId);
         CommentEntity c = comments.findWithLockByPostIdAndId(post.getId(), found.getId()).filter(x -> !x.isDeleted()).orElseThrow(CommentNotFoundException::new);
         if (!userId.equals(c.getAuthorId())) {
             throw new NotAuthorException();
@@ -166,7 +166,7 @@ public class PinRequestService {
         requireMember(userId);
         Instant now = Instant.now();
         PostEntity post = postQueries.requireVisible(postIdText, now);
-        EffectiveBoard b = readable(post, now);
+        EffectiveBoard b = readable(post, now, userId);
         if (!reviewers.canReview(b, post, userId)) {
             throw PinRequestException.forbidden();
         }
@@ -201,7 +201,7 @@ public class PinRequestService {
         }
         Instant now = Instant.now();
         PostEntity post = posts.findById(row.getPostId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PinRequestException::notFound);
-        EffectiveBoard b = readable(post, now);
+        EffectiveBoard b = readable(post, now, userId);
         if (Objects.equals(row.getRequesterId(), userId) || !reviewers.canReview(b, post, userId)) {
             throw PinRequestException.forbidden();
         }
@@ -218,9 +218,11 @@ public class PinRequestService {
         }
     }
 
-    /** 글 읽기 규칙 — 게시판 꺼짐 403 BOARD_INACTIVE, 숨긴 글 403 POST_HIDDEN */
-    private EffectiveBoard readable(PostEntity post, Instant now) {
-        EffectiveBoard b = PublicBoardService.requireActive(catalog.snapshot(), post.getBoardId());
+    /** 글 읽기 규칙 — 게시판 꺼짐 403 BOARD_INACTIVE, 읽을 수 없는 비밀글 403 SECRET_POST(V166), 숨긴 글 403 POST_HIDDEN */
+    private EffectiveBoard readable(PostEntity post, Instant now, Long userId) {
+        BoardCatalogSnapshot s = catalog.snapshot();
+        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        postQueries.requireSecretReadable(s, post, userId);
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }

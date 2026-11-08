@@ -7,6 +7,7 @@
           **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
           조치 기록(최근 것부터, 처리자·사유·덧붙임).
+        운영 게시판: 요약 칩에 비밀글 자물쇠, 「처리 상태」 줄(딱지 · 마지막 변경 · `post.manage` 면 Select → `process-status` 를 올린다 — 바꾸기는 부른 화면).
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
         서버 호출은 하지 않는다(`components.md`) — 글은 `usePostDetail`, 토론 요약은 `useDebateSettingsActions().get` 으로 부른 화면이 받는다.
         [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 요약 영역에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
@@ -78,6 +79,7 @@
                     <Tag v-if="post.notice" :value="t('post.chip.notice')" severity="info" class="text-[11px]!" />
                     <Tag v-if="post.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                     <Tag v-if="post.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
+                    <Tag v-if="post.secret" :value="t('post.chip.secret')" icon="pi pi-lock" severity="secondary" class="text-[11px]!" />
                     <Tag v-if="post.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
                     <Tag v-if="post.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
                     <!-- 핫딜 글 — 핫딜 글 화면의 서랍으로(`hotdeal.read`) -->
@@ -90,6 +92,27 @@
                     <dt class="text-muted-color">{{ t('post.groupLabel') }}</dt>
                     <dd class="m-0 flex flex-wrap items-center gap-1.5">
                         <Tag v-for="chip in UtilPostMessages.groupChips(t, post)" :key="chip.key" :value="chip.label" :icon="chip.key === 'group' ? 'pi pi-users' : undefined" :severity="chip.severity" class="text-[11px]!" />
+                    </dd>
+                </template>
+                <!-- 처리 상태(운영 게시판 — 상태가 켜진 게시판의 글만) — 딱지 · 마지막 변경 · `post.manage` 면 바꾸기 -->
+                <template v-if="post.processStatus">
+                    <dt class="text-muted-color">{{ t('post.col.processStatus') }}</dt>
+                    <dd class="m-0 flex flex-wrap items-center gap-1.5" data-testid="post-drawer-process-status">
+                        <Tag :value="t(`post.processStatus.${post.processStatus}`)" :severity="UtilPost.processSeverity(post.processStatus)" class="text-[11px]!" />
+                        <span v-if="post.processStatusAt" class="text-xs text-muted-color tabular-nums">{{ t('post.processStatusAt', { at: time.full(post.processStatusAt) }) }}</span>
+                        <Select
+                            v-if="canManage"
+                            :model-value="post.processStatus"
+                            :options="processStatusOptions"
+                            option-label="label"
+                            option-value="value"
+                            size="small"
+                            :loading="processStatusBusy"
+                            :disabled="processStatusBusy"
+                            :aria-label="t('post.processStatusChange')"
+                            class="ml-auto"
+                            @update:model-value="(v: PostProcessStatus) => v && v !== post.processStatus && emit('process-status', v)"
+                        />
                     </dd>
                 </template>
                 <dt class="text-muted-color">{{ t('post.col.author') }}</dt>
@@ -278,7 +301,7 @@
 import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
-import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem, PostProcessStatus } from '~/composables/post/api/usePostApi.types';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost, { type PostActionKind, type PostActions } from '~/utils/util-post';
 import UtilPostMessages, { type PostEventDetailLine } from '~/utils/util-post-messages';
@@ -307,6 +330,8 @@ interface Props {
     canReadReports?: boolean;
     /** 게시판 선택지(`board-options`) — 조치 기록의 게시판·말머리 ID 를 이름으로 푼다 */
     boards?: AdminPostBoardOption[];
+    /** 처리 상태를 바꾸는 중 */
+    processStatusBusy?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -324,6 +349,7 @@ const props = withDefaults(defineProps<Props>(), {
     canRestore: false,
     canReadReports: false,
     boards: () => [],
+    processStatusBusy: false,
 });
 const emit = defineEmits<{
     retry: [];
@@ -335,6 +361,8 @@ const emit = defineEmits<{
     'debate-retry': [];
     /** [투표 지우기] — 사유 대화창은 부른 화면이 연다 */
     'poll-delete': [];
+    /** 처리 상태를 골랐다(운영 게시판 — `post.manage`) — 바꾸기는 부른 화면이 한다(`PUT …/process-status`) */
+    'process-status': [status: PostProcessStatus];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
 }>();
@@ -355,6 +383,8 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => [
 
 /** 본문 영역이 그리는 글 — 받은 상세가 있을 때만 쓴다(템플릿은 `detail` 이 있을 때만 이 값을 읽는다) */
 const post = computed(() => props.detail?.post as AdminPostItem);
+/** 처리 상태 바꾸기 선택지 — 7개(고정 차례) */
+const processStatusOptions = computed(() => UtilPost.PROCESS_STATUSES.map((value) => ({ value, label: t(`post.processStatus.${value}`) })));
 const stateLines = computed(() => (props.detail ? UtilPostMessages.stateLines(t, time.value, props.detail.post) : []));
 /** 비공개 소모임 글이라 본문·투표를 싣지 않았다(`contentBlocked: GROUP_PRIVATE` 또는 줄의 `restricted`) */
 const blocked = computed(() => props.detail?.contentBlocked === 'GROUP_PRIVATE' || props.detail?.post.restricted === true);

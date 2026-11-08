@@ -101,6 +101,20 @@ public final class BoardFixture {
         tx.run(() -> boards.findBySlug(slug).orElseThrow().changeGadgetExclusions(java.util.List.of()));
     }
 
+    /** 운영 게시판 설정(V166) — 비밀글 방식(OFF · OPTIONAL · ALWAYS)·처리 상태 */
+    public void ops(long boardId, String secretMode, boolean statusEnabled) {
+        tx.run(() -> boards.findById(boardId).orElseThrow().changeOps(secretMode, statusEnabled));
+    }
+
+    /** 회원이 쓴 평문 글 — 비밀글 여부와 처음 처리 상태(상태를 쓰면 RECEIVED)를 고른다(V166) */
+    public void post(long id, long boardId, long authorId, String title, String content, boolean secret, boolean statusEnabled) {
+        tx.run(() -> {
+            PostEntity post = PostEntity.create(id, boardId, null, authorId, null, null, null, title, ContentFormat.TEXT, content, null, false, false, FixtureTx.now());
+            post.initOps(secret, statusEnabled);
+            posts.persist(post);
+        });
+    }
+
     /** 게시판을 켜거나 끈다 */
     public void active(long boardId, boolean active) {
         tx.run(() -> boards.findById(boardId).orElseThrow().changeActive(active));

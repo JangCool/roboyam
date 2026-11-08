@@ -4,6 +4,7 @@
         **저장 단위 둘**:
           · 기본 정보 + 정책 + 말머리(+ 안내문·한도 칸)는 **화면 하나로 한 번 저장**(`PUT /api/admin/boards/{id}`, 한 트랜잭션) → 하단 떠 있는 줄(`StickySaveBar`). 투자 고지를 새로 켜면 저장 전에 「다시 끌 수 없어요」를 묻는다.
           · 매니저·스텝 지정/해제, 게시판 켜고 끄기, 삭제는 **누르면 바로**(확인창 + 토스트) — 저장 줄과 무관하다.
+        「글쓰기·댓글」의 비밀글(secretMode — 끔·글쓴이가 고름·모든 글 비밀)과 처리 상태 쓰기(statusEnabled)도 기본값이 없는 게시판 전용 칸이다(`diffCount` 에 세지 않는다, 권한 `board.settings`, 저장 요청에 싣는다).
         정책 칸은 모두 「기본값 따름」(null)을 고를 수 있고 그때 지금 기본값을 흐리게 보인다(`BoardSettingField`, 칸 정의는 `UtilBoard.SPECS` — 기본 설정 화면과 같은 부품). 읽기 전용 잠금(writeLock)은 기본값이 없는 게시판 전용 칸이다.
         「노출」의 가젯 노출 금지(gadgetExclusions)도 기본값이 없는 게시판 전용 칸이다(서버가 준 `gadgets` 순서의 체크 목록, 권한 `board.settings`). 이 칸이 「홈·인기·최신 포함」(inHome)을 대신해 inHome 은 화면에서 다루지 않는다(받은 값 그대로 저장 요청에 돌아간다).
         「노출」의 광고 숨김(adsHidden, 기본 끔)도 게시판 전용 칸이다(권한 `board.settings` — 서버가 정책 묶음으로 본다). 켜면 목록 한 줄·글 보기·핫딜 노출·날개 배너 광고가 없다. 19금 게시판은 광고 자리 설정의 19금 옵션(`adult.enabled`)을 따르고, 소모임 게시판은 이 칸과 상관없이 늘 없다(안내 문구).
@@ -137,7 +138,7 @@
                 </AppGadget>
 
                 <!-- 2. 글쓰기·댓글 -->
-                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'writeLock'])">
+                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'writeLock', 'secretMode', 'statusEnabled'])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
                         <BoardSettingField v-for="field in WRITE_FIELDS" :key="field" v-bind="policyBind(field)" :allow-guest="UtilBoard.guestAllowed(saved.kind)" :exclude-grades="field === 'writeMin' && saved.kind === 'DEAL' && firstGradeKey ? [firstGradeKey] : []" :inactive="writeInactive(field)" :note="writeNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
 
@@ -145,6 +146,24 @@
                             <span :id="`${idBase}-lock`" class="text-sm font-medium">{{ t('board.field.writeLock') }}</span>
                             <SelectButton v-model="writeLockModel" :options="writeLockOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :disabled="!canSettings || saving" :aria-labelledby="`${idBase}-lock`" class="self-start" />
                             <p class="m-0 text-xs leading-relaxed" :class="serverFields.writeLock ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ serverFields.writeLock || t('board.writeLockHelp') }}</p>
+                        </div>
+
+                        <!-- 비밀글 — 게시판마다의 값(기본 설정에서 물려받지 않는다). 바꿔도 이미 쓴 글의 비밀 여부는 그대로 -->
+                        <div class="flex flex-col gap-1.5" data-testid="board-secret-mode">
+                            <span :id="`${idBase}-secret`" class="text-sm font-medium">{{ t('board.field.secretMode') }}</span>
+                            <SelectButton v-model="secretModeModel" :options="secretModeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :disabled="!canSettings || saving" :aria-labelledby="`${idBase}-secret`" class="self-start" />
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.secretMode ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.secretMode ? 'alert' : undefined">{{ serverFields.secretMode || t('board.secretModeHelp') }}</p>
+                        </div>
+
+                        <!-- 처리 상태 쓰기 — 게시판마다의 값(기본 꺼짐) -->
+                        <div class="flex flex-col gap-1.5" data-testid="board-status-enabled">
+                            <label class="flex items-center gap-3">
+                                <ToggleSwitch v-model="statusEnabledModel" :input-id="`${idBase}-status`" :disabled="!canSettings || saving" class="shrink-0" :aria-describedby="`${idBase}-status-help`" />
+                                <span class="text-sm font-medium">{{ t('board.field.statusEnabled') }}</span>
+                            </label>
+                            <p :id="`${idBase}-status-help`" class="m-0 text-xs leading-relaxed" :class="serverFields.statusEnabled ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.statusEnabled ? 'alert' : undefined">
+                                {{ serverFields.statusEnabled || t('board.statusEnabledHelp') }}
+                            </p>
                         </div>
                     </div>
                     <p class="mt-4 flex items-start gap-2 border-t border-(--line) pt-3 text-xs leading-relaxed text-muted-color">
@@ -445,7 +464,7 @@
 
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
-import type { BoardColor, BoardDetail, BoardPolicyField, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
+import type { BoardColor, BoardDetail, BoardPolicyField, BoardSecretMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
 import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -511,6 +530,25 @@ const writeLockModel = computed<string>({
     get: () => form.value?.writeLock ?? 'NONE',
     set: (value) => {
         if (form.value) form.value.writeLock = value === 'NONE' ? null : (value as BoardWriteLock);
+    },
+});
+/** 비밀글 방식 — 끔 · 글쓴이가 고름 · 모든 글 비밀. 고치면 그 칸의 서버 오류를 지운다 */
+const secretModeOptions = computed(() => UtilBoard.SECRET_MODES.map((value) => ({ value, label: t(`board.secretMode.${value}`) })));
+const secretModeModel = computed<BoardSecretMode>({
+    get: () => form.value?.secretMode ?? 'OFF',
+    set: (value) => {
+        if (!form.value) return;
+        form.value.secretMode = value;
+        clearServer('secretMode');
+    },
+});
+/** 처리 상태 쓰기 — 고치면 그 칸의 서버 오류를 지운다 */
+const statusEnabledModel = computed<boolean>({
+    get: () => form.value?.statusEnabled ?? false,
+    set: (value) => {
+        if (!form.value) return;
+        form.value.statusEnabled = value;
+        clearServer('statusEnabled');
     },
 });
 /** 표시색 — 색 없음은 `AUTO` */

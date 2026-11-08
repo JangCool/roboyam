@@ -114,7 +114,7 @@ public class UserProfileService {
         boolean hidden = m.profile().isPrivate() && !me; // 비공개는 본인 외 모두(비회원·회원·게시판 매니저)에게 소개·가입일·수치를 숨긴다 — 수치는 세지도 않는다
         ProfileStatsView stats = null;
         if (!hidden) {
-            UserActivityQueries.Stats counted = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), Instant.now());
+            UserActivityQueries.Stats counted = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), me, Instant.now()); // 비밀글은 본인에게만 센다(V166)
             stats = new ProfileStatsView(counted.posts(), counted.comments(), counted.likesReceived());
         }
         String gradeKey = m.profile().getGradeKey();
@@ -145,7 +145,7 @@ public class UserProfileService {
         Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
-        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), now);
+        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), mine(viewerId, m), now); // 비밀글은 본인에게만(V166)
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
         AuthorMembers members = authors.members(page.stream().map(PostRowData::authorId).toList());
@@ -164,7 +164,8 @@ public class UserProfileService {
         Long before = cursorOf(cursor);
         Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
-        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), Instant.now());
+        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), mine(viewerId, m),
+                Instant.now()); // 비밀글의 댓글은 본인에게만(V166)
         boolean more = rows.size() > size;
         List<UserActivityQueries.CommentRow> page = more ? rows.subList(0, size) : rows;
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
@@ -193,7 +194,13 @@ public class UserProfileService {
                 null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(), r.pinnedAt() != null,
                 !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()), hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 !hidden && withPoll.contains(r.id()),
-                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group, null);
+                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group, null, r.secretPost(),
+                hidden ? null : com.community.post.entity.PostProcessStatus.effective(b, r.processStatus()));
+    }
+
+    /** 보는 사람이 프로필 주인 본인인가(비밀글을 넣을지 — V166) */
+    private static boolean mine(Long viewerId, Member m) {
+        return viewerId != null && viewerId == m.id();
     }
 
     /** 공개 프로필의 주인 — 회원·프로필이 있고 탈퇴·삭제되지 않았다 */

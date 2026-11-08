@@ -12,13 +12,16 @@ import java.time.Instant;
  * @param group   소모임 글이면 {@code { id, name, visibility, dissolved }}(소모임 글 탭 줄의 {@code group} 과 같은 모양 — 이 목록에 나오는 소모임 글은 늘 {@code PUBLIC}),
  *                일반 글이면 null(소모임 6단계 — 화면이 「소모임」 배지를 붙이고 {@code board} 대신 소모임으로 잇는다. 해산한 소모임이면 링크 없이)
  * @param deal    핫딜 게시판 글이면 딜(핫딜 목록 줄과 같은 모양 — hotdeal-contract, 서버 2단계), 그 밖·숨긴 글·회원 작성글 목록은 null
+ * @param secret  비밀글인가(V166) — 섞인 목록에는 비밀글이 나오지 않으므로 회원 작성글을 본인이 볼 때만 true 가 될 수 있다
+ * @param processStatus 처리 상태(V166 — 게시판이 상태를 쓰지 않으면 null)
  */
 public record PostFeedRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                               Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked,
-                              boolean hasPoll, PostBoardRefView board, PostGroupView group, PostDealView deal) {
+                              boolean hasPoll, PostBoardRefView board, PostGroupView group, PostDealView deal, boolean secret, String processStatus) {
 
     public static PostFeedRowView of(PostRowView row, PostBoardRefView board, PostGroupView group) {
         return new PostFeedRowView(row.id(), row.prefix(), row.title(), row.commentCount(), row.hasImage(), row.thumbnailUrl(), row.author(), row.createdAt(),
-                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.hasPoll(), board, group, row.deal());
+                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.hasPoll(), board, group, row.deal(), row.secret(),
+                row.processStatus());
     }
 }

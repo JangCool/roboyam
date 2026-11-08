@@ -3,6 +3,9 @@ import type {
     PostDeleteResult,
     PostDetail,
     PostLikeResult,
+    PostProcessStatus,
+    PostProcessStatusRequest,
+    PostProcessStatusResult,
     PostUpdateRequest,
     PostWriteRequest,
     PostWriteResult,
@@ -30,6 +33,11 @@ import type {
  * 판매자가 내린 사업자 핫딜 글(광고주 일시 정지·중단 — 서버 연결 2026-11-02, `biz-pause-contract.md`): 글 단건 조회만 404 가 아니라 `403 DEAL_SELLER_HIDDEN` + extras
  *   `{ state: PAUSED|STOPPED, boardSlug, boardName, boardNameEn, applicationId(작성자에게만 — 아니면 칸 없음) }` — 본문·딜·댓글은 싣지 않고 조회수도 올리지 않는다.
  *   댓글·추천 등 다른 글 API 는 기존 `403 POST_HIDDEN`. 화면은 안내만(`POST_HIDDEN` 과 같은 오류 길).
+ *
+ * 운영 게시판(버그 신고·기능 요청): 비밀글 `secret`(쓰기·고치기 본문 `secret?: boolean|null` · 글 보기 응답, 읽을 수 없으면 `403 SECRET_POST` + extras `boardSlug`)과
+ *   처리 상태 `processStatus`·`processStatusAt`(글 보기 응답) · `PUT /api/posts/{id}/process-status { status }` → `{ processStatus, processStatusAt }`
+ *   (오류 `409 POST_STATUS_DISABLED`·`400 fields.status`·`403 BOARD_STAFF_FORBIDDEN`, 글쓴이에게 알림 `POST_STATUS_CHANGED` 은 서버가 보낸다).
+ *   서버 연결됨(2026-11-08, shared V166).
  */
 const PATH = {
     posts: '/api/posts',
@@ -37,6 +45,7 @@ const PATH = {
     remove: (id: string) => `/api/posts/${encodeURIComponent(id)}/delete`,
     verify: (id: string) => `/api/posts/${encodeURIComponent(id)}/verify-password`,
     like: (id: string) => `/api/posts/${encodeURIComponent(id)}/like`,
+    processStatus: (id: string) => `/api/posts/${encodeURIComponent(id)}/process-status`,
 };
 
 export function usePostApi() {
@@ -50,6 +59,10 @@ export function usePostApi() {
         create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 
         update: (id: string, body: PostUpdateRequest): Promise<PostDetail> => client.put<PostDetail>(PATH.post(id), body),
+
+        /** 처리 상태 바꾸기(그 게시판 매니저·스텝·운영자 회원 계정만) — 서버가 글쓴이에게 알림을 보낸다 */
+        changeProcessStatus: (id: string, status: PostProcessStatus): Promise<PostProcessStatusResult> =>
+            client.put<PostProcessStatusResult>(PATH.processStatus(id), { status } satisfies PostProcessStatusRequest),
 
         remove: (id: string, body: PostDeleteRequest): Promise<PostDeleteResult> => client.post<PostDeleteResult>(PATH.remove(id), body),
 

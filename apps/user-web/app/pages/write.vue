@@ -126,6 +126,7 @@ import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
+import UtilPostOps from '~/utils/util-post-ops';
 
 definePageMeta({ shell: 'inner' });
 
@@ -393,6 +394,8 @@ async function submit(): Promise<void> {
             guest: b.viewer.guest ? { name: form.value.guestName.trim(), password: form.value.guestPassword, captchaToken: form.value.captcha ? UtilPost.PLACEHOLDER_CAPTCHA_TOKEN : '' } : null,
             debate: debateShown.value ? UtilDebate.openBody(debate.value) : null,
             poll: pollShown.value ? UtilPoll.inputOf(poll.value) : null,
+            // 비밀글(운영 게시판 `secretMode`) — 글쓴이가 고름 · 모든 글 비밀 · 없음/비회원이면 칸을 뺀다
+            ...UtilPostOps.secretField(UtilPostOps.writeSecret(UtilPostOps.secretMode(b), form.value.secret, b.viewer.guest)),
             ...(isDeal.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
         });
         saved = true;

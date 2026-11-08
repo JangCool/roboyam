@@ -18,6 +18,9 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
  * 게시판 제재(board-sanction-contract)의 `viewer.staffTools`·`viewer.writeRestriction` 도 서버가 준다(2026-11-04 연결).
+ *
+ * 운영 게시판(버그 신고·기능 요청)의 비밀글·처리 상태 — 게시판 `secretMode`·`statusEnabled`(목록·하나 모두), 글 줄 `secret`·`processStatus`, 목록 쿼리 `status`.
+ * 서버 연결됨(2026-11-08, shared V166). 상태 거르기 중에는 고정 공지를 위에 따로 두지 않는다(서버).
  */
 const PATH = {
     boards: '/api/boards',
@@ -41,10 +44,10 @@ export function useBoardApi() {
         /** 게시판 하나 — 유효 정책과 지금 사용자의 글쓰기·댓글 판정 */
         board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
 
-        /** 글 목록 — 빈 말머리·검색어는 보내지 않는다 */
+        /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
             client.get<PostListResponse>(PATH.posts(slug), {
-                query: { prefix: query.prefix || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
+                query: { prefix: query.prefix || undefined, status: query.status || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
                 signal,
             }),
 

@@ -249,6 +249,8 @@ export default {
         investmentNotice: 'Investment notice',
         kind: 'Type',
         writeLock: 'Read-only lock',
+        secretMode: 'Private posts',
+        statusEnabled: 'Use process status',
         introText: 'Board guide',
         writeGuideText: 'Writing guide',
         writeTemplate: 'Post template',
@@ -558,6 +560,13 @@ export default {
         POST_COMMENT: 'Block posts & comments',
     },
     lockedNote: 'Not applied right now because of the read-only lock.',
+    secretModeHelp: 'Only the author, this board’s managers and staff, and operators can read the body. Changing this keeps existing posts as they are. This field has no default.',
+    secretMode: {
+        OFF: 'Off',
+        OPTIONAL: 'Author chooses',
+        ALWAYS: 'All posts private',
+    },
+    statusEnabledHelp: 'Shows a process status (Received → Done …) on the list and posts; moderators change it and the author is notified. This field has no default.',
     reportFixed: 'No automatic hiding by report count — operators decide in Reports.',
 
     // ── Prefixes ──

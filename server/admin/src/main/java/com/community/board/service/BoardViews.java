@@ -96,7 +96,8 @@ public class BoardViews {
                 board.getLayout(), board.isViewToggle(), board.getColor(), board.isAllowAdult(), board.isInvestmentNotice(), board.isActive(),
                 content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(), board.getWriteTemplate(),
                 board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets(),
-                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName(), board.isAdsHidden());
+                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName(), board.isAdsHidden(),
+                board.getSecretMode(), board.isStatusEnabled());
     }
 
     /** 「가젯 노출 금지」에 고를 수 있는 가젯(enum 순서, 이름은 요청 언어) */

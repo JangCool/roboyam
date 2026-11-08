@@ -72,6 +72,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>
+ *   <li>운영 게시판 설정(V166 — 비밀글 방식 {@code secretMode} OFF·OPTIONAL·ALWAYS, 처리 상태 {@code statusEnabled}): null 이면 그대로, 정책 묶음({@code board.settings}),
+ *       감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다. 일반 게시판만 켤 수 있다(그 밖 400 {@code board.ops.generalOnly}).
+ *       바꿔도 이미 쓴 글의 비밀 여부·상태 값은 그대로다.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
  *       핫딜 게시판은 설치 프리셋과 같은 길({@link BoardCreator} — 19금 끔, 가젯 노출 금지 인기글, 비회원 글쓰기 없음)에 글쓰기 최소 자격을 첫 등급 바로 위 등급으로 정해 만든다
@@ -267,7 +270,9 @@ public class BoardService {
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
                 | (in.writeTemplateGiven && diff(before, after, "writeTemplate", board.getWriteTemplate(), in.writeTemplate))
                 | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions))
-                | diff(before, after, "adsHidden", board.isAdsHidden(), in.adsHidden);
+                | diff(before, after, "adsHidden", board.isAdsHidden(), in.adsHidden)
+                | diff(before, after, "secretMode", board.getSecretMode(), in.secretMode)
+                | diff(before, after, "statusEnabled", board.isStatusEnabled(), in.statusEnabled);
         boolean limitChanged = false;
         Map<String, Object> oldPolicy = board.policy().toMap();
         Map<String, Object> newPolicy = in.policy.toMap();
@@ -342,6 +347,15 @@ public class BoardService {
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
         }
+        // 운영 게시판 설정(V166) — 값 목록, 일반 게시판만 켤 수 있다(소모임·핫딜·직접홍보 글은 따로 열리는 길이 있어 비밀글·상태를 받지 않는다)
+        if (!BoardFields.SECRET_MODES.contains(in.secretMode)) {
+            invalid.put("secretMode", new MessageRef("board.field.choice"));
+        } else if (!BoardFields.KIND_GENERAL.equals(board.getKind()) && !BoardFields.SECRET_OFF.equals(in.secretMode)) {
+            invalid.put("secretMode", new MessageRef("board.ops.generalOnly"));
+        }
+        if (!BoardFields.KIND_GENERAL.equals(board.getKind()) && in.statusEnabled) {
+            invalid.put("statusEnabled", new MessageRef("board.ops.generalOnly"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -385,6 +399,7 @@ public class BoardService {
         }
         board.changeGadgetExclusions(in.gadgetExclusions);
         board.changeAdsHidden(in.adsHidden);
+        board.changeOps(in.secretMode, in.statusEnabled);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -521,6 +536,9 @@ public class BoardService {
         List<BoardGadget> gadgetExclusions;
         boolean gadgetUnknown;
         boolean adsHidden;
+        /** 비밀글 방식(V166) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(모르는 값은 검사에서 400) */
+        String secretMode;
+        boolean statusEnabled;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -539,6 +557,8 @@ public class BoardService {
         in.allowAdult = request.allowAdult() == null ? board.isAllowAdult() : request.allowAdult();
         in.investmentNotice = request.investmentNotice() == null ? board.isInvestmentNotice() : request.investmentNotice();
         in.adsHidden = request.adsHidden() == null ? board.isAdsHidden() : request.adsHidden();
+        in.secretMode = request.secretMode() == null ? board.getSecretMode() : request.secretMode().strip().toUpperCase(Locale.ROOT);
+        in.statusEnabled = request.statusEnabled() == null ? board.isStatusEnabled() : request.statusEnabled();
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());

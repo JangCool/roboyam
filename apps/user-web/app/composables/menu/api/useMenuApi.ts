@@ -22,5 +22,8 @@ export function useMenuApi() {
     return {
         /** 지금 보는 사람 기준으로 걸러지고 정렬된 메뉴 트리(`main` 그룹) */
         menu: (signal?: AbortSignal): Promise<MenuResponse> => client.get<MenuResponse>(PATH.menu, { signal }),
+
+        /** 다른 메뉴 그룹(`GET /api/menu?set=` — 예 `footer` 사이트 푸터 「고객 지원」) — 모양은 `main` 과 같다. 상태는 그 그룹을 쓰는 상태 컴포저블(`useFooterMenu`)이 든다 */
+        menuSet: (set: string, signal?: AbortSignal): Promise<MenuResponse> => client.get<MenuResponse>(PATH.menu, { query: { set }, signal }),
     };
 }

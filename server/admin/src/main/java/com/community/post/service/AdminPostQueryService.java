@@ -32,6 +32,7 @@ import com.community.post.dto.response.AdminPollOptionView;
 import com.community.post.dto.response.AdminPollView;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.PostModerationEventEntity;
+import com.community.post.entity.PostProcessStatus;
 import com.community.post.exception.AdminPostNotFoundException;
 import com.community.post.repository.master.AdminPostRepositoryQDSL;
 import com.community.post.repository.master.PostModerationEventRepository;
@@ -134,10 +135,23 @@ public class AdminPostQueryService {
     /** 목록 한 쪽(상태별 건수는 세지 않는다 — 사용자 결정 2026-10-24) */
     public AdminPostListView list(String searchField, String q, String createdFrom, String createdTo, String board, String prefix, String state, String sort,
                                   String pageRaw, String sizeRaw) {
+        return list(searchField, q, createdFrom, createdTo, board, prefix, state, sort, pageRaw, sizeRaw, null);
+    }
+
+    /**
+     * @param processStatus 처리 상태 거르기(V166 — {@code PostProcessStatus} 이름, 대소문자 무시). 모르는 값·빈 값은 거르지 않는다({@code state} 와 같다).
+     *                      처리 상태를 지금 쓰는 게시판의 글만 맞고, RECEIVED 는 값 없는 글도 포함한다
+     */
+    public AdminPostListView list(String searchField, String q, String createdFrom, String createdTo, String board, String prefix, String state, String sort,
+                                  String pageRaw, String sizeRaw, String processStatus) {
         Instant now = Instant.now();
         int page = Math.max(0, intOr(pageRaw, 0));
         int size = Math.min(SIZE_MAX, Math.max(1, intOr(sizeRaw, SIZE_DEFAULT)));
-        AdminPostSearch search = criteria(searchField, q, createdFrom, createdTo, board, prefix, state, sort);
+        AdminPostSearch base = criteria(searchField, q, createdFrom, createdTo, board, prefix, state, sort);
+        PostProcessStatus status = PostProcessStatus.parse(processStatus).orElse(null);
+        AdminPostSearch search = status == null ? base
+                : new AdminPostSearch(base.postId(), base.title(), base.author(), base.createdFrom(), base.createdTo(), base.boardId(), base.prefixId(), base.state(),
+                base.oldest(), base.none(), status, catalog.snapshot().boards().stream().filter(EffectiveBoard::statusEnabled).map(EffectiveBoard::id).toList());
         AdminPostRepositoryQDSL.ListPage result = posts.search(search, (long) page * size, size, now);
         return new AdminPostListView(result.total(), page, size,
                 items(result.items(), now));
@@ -238,7 +252,8 @@ public class AdminPostQueryService {
                 hidden ? r.hiddenAt() : null, hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null,
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
-                pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()));
+                pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()),
+                Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()));
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

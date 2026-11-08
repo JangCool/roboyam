@@ -33,6 +33,10 @@
           비멤버가 보는 비공개 소모임의 개별 공개 글이면 본문 위에 「이 글은 {이름} 멤버가 모두에게 공개한 글이에요」, 댓글 위에 「멤버에게만 보이는 댓글 N개」(`membersOnlyCount`) 안내.
           이전·다음 글 대신 [소모임 글 목록으로]. 비멤버가 비공개 글을 열면(`403 GROUP_POST_PRIVATE`) 「멤버에게만 보이는 글이에요」(로그인 전이면 로그인, 아니면 소모임 둘러보기 — 오류에 소모임 ID 가 없다).
     -->
+    <!--
+        운영 게시판(버그 신고·기능 요청): 비밀글(`secret`)은 제목 옆 「비밀글」 딱지. 읽을 수 없는 사람은 `403 SECRET_POST` → 본문·댓글 대신 「비밀글이에요…」 + [목록으로]
+          (비밀글의 댓글은 글을 볼 수 있는 사람만 보고 쓴다 — 별도 화면 없음). 처리 상태가 켜진 게시판(`status`)은 제목 아래 상태 딱지 + 「마지막 변경 시각」, 운영진(`viewer.staff`)이면 상태 바꾸기 Select.
+    -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
@@ -76,6 +80,15 @@
                     {{ t('hotdeal.sellerResumeLink') }}
                 </NuxtLink>
             </div>
+            <!-- 비밀글을 읽을 수 없는 사람이 열었다(403 SECRET_POST — 글쓴이·그 게시판 운영진·운영자만 읽는다) — 본문·댓글 대신 안내 + [목록으로] -->
+            <div v-else-if="pageState === 'secretLocked'" class="content-card flex flex-col items-center gap-3 px-5 py-10 text-center" data-testid="post-secret-locked">
+                <span class="inline-flex size-12 items-center justify-center rounded-full bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                    <i class="pi pi-lock text-lg" />
+                </span>
+                <h1 class="m-0 text-lg font-semibold">{{ t('post.secretLockedTitle') }}</h1>
+                <p class="m-0 max-w-md text-sm leading-relaxed text-muted-color">{{ t('post.secretLockedText') }}</p>
+                <Button type="button" :label="t('post.backToBoard')" icon="pi pi-list" severity="secondary" variant="outlined" class="mt-1" @click="secretBoardSlug ? navigateTo(`/boards/${secretBoardSlug}`) : router.back()" />
+            </div>
             <!-- 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(403 GROUP_POST_PRIVATE) — 오류에 소모임 ID 가 없어 소모임 목록으로 보낸다 -->
             <ErrorState v-else-if="pageState === 'groupPrivate'" :title="t('group.privatePostTitle')" :description="user ? t('group.privatePostText') : t('group.privatePostLoginText')" data-testid="post-group-private">
                 <Button v-if="!user" type="button" :label="t('common.login')" @click="prompt('view')" />
@@ -118,7 +131,36 @@
                         <h1 v-if="folded && foldReason" :id="titleId" class="sr-only">{{ UtilBlockMessages.folded(t, foldReason, 'post') }}</h1>
                         <h1 v-else :id="titleId" class="post-title mt-1 break-words text-lg font-bold leading-snug md:text-xl">
                             <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
+                            <!-- 비밀글 딱지(운영 게시판) — 제목 옆, 글자가 늘 있다 -->
+                            <span
+                                v-if="post.secret"
+                                class="ml-1.5 inline-flex items-baseline gap-1 rounded bg-surface-100 px-1.5 pb-[5px] pt-[3px] align-[3px] text-[0.6875rem] font-semibold leading-none text-surface-600 dark:bg-surface-800 dark:text-surface-300"
+                                data-testid="post-secret-tag"
+                            >
+                                <i class="pi pi-lock text-[0.625rem]" aria-hidden="true" /><span>{{ t('post.secretMark') }}</span>
+                            </span>
                         </h1>
+                        <!-- 처리 상태(상태가 켜진 운영 게시판) — 딱지 · 마지막 변경 시각 · 운영진(`viewer.staff`)이면 바꾸기(`PUT /api/posts/{id}/process-status`) -->
+                        <div v-if="post.processStatus && !post.group" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5" data-testid="post-status">
+                            <PostStatusTag :status="post.processStatus" />
+                            <span v-if="post.processStatusAt" class="text-xs text-muted-color" :title="time.full(post.processStatusAt)" data-testid="post-status-changed-at">
+                                {{ t('post.statusChangedAt', { at: time.detail(post.processStatusAt) }) }}
+                            </span>
+                            <Select
+                                v-if="board.viewer.staff"
+                                :model-value="post.processStatus"
+                                :options="statusOptions"
+                                option-label="label"
+                                option-value="value"
+                                size="small"
+                                :loading="statusSaving"
+                                :disabled="statusSaving"
+                                :aria-label="t('post.statusChange')"
+                                class="ml-auto"
+                                data-testid="post-status-select"
+                                @update:model-value="changeStatus"
+                            />
+                        </div>
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·홈 가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 홈 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
@@ -395,7 +437,7 @@
 
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { PostDetail } from '~/composables/board/api/usePostApi.types';
+import type { PostDetail, PostProcessStatus } from '~/composables/board/api/usePostApi.types';
 import type { CommentView } from '~/composables/board/api/useCommentApi.types';
 import type { PollView } from '~/composables/board/api/usePollApi.types';
 import type { DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
@@ -417,6 +459,7 @@ import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
+import UtilPostOps from '~/utils/util-post-ops';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
@@ -451,8 +494,10 @@ const id = computed(() => String(route.params.id ?? ''));
 const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
 /* ── 불러오기 ── */
-type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'error';
+type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'secretLocked' | 'error';
 const post = ref<PostDetail | null>(null);
+/** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
+const secretBoardSlug = ref<string | null>(null);
 /** 19금 글을 성인이 아닌 사람이 열었다(`403 POST_ADULT_ONLY` 의 extras — `reason` LOGIN·IDENTITY·UNDERAGE, `adultFrom` 은 미성년일 때) */
 const adultBlock = ref<{ reason: 'LOGIN' | 'IDENTITY' | 'UNDERAGE'; adultFrom: string | null } | null>(null);
 const identityGate = useIdentityGate();
@@ -551,11 +596,14 @@ async function load(): Promise<void> {
         const code = e instanceof ApiError ? e.code : '';
         sellerHidden.value = e instanceof ApiError && code === 'DEAL_SELLER_HIDDEN' ? sellerHiddenOf(e) : null;
         adultBlock.value = e instanceof ApiError && code === 'POST_ADULT_ONLY' ? adultBlockOf(e) : null;
+        secretBoardSlug.value = e instanceof ApiError && code === 'SECRET_POST' ? (e.extraText('boardSlug') ?? null) : null;
         pageState.value = sellerHidden.value
             ? 'sellerHidden'
             : adultBlock.value
               ? 'adultOnly'
-              : code === 'DEAL_SELLER_HIDDEN'
+              : code === 'SECRET_POST'
+                ? 'secretLocked'
+                : code === 'DEAL_SELLER_HIDDEN'
                 ? 'hidden'
                 : code === 'GROUP_POST_PRIVATE'
                   ? 'groupPrivate'
@@ -822,6 +870,26 @@ const bizDeal = computed(() => UtilHotdeal.isBusiness(post.value?.deal));
 /** 수정·삭제 단추 — 내 회원 글이거나 비회원 글(비밀번호로 확인). 사업자 핫딜 글은 작성자에게도 없다(가정: 삭제도 종료로 대신) */
 const manageable = computed(() => Boolean(post.value && !bizDeal.value && (post.value.mine || post.value.author.kind === 'GUEST')));
 const protectionNotice = computed(() => (post.value ? UtilPostMessages.protection(t, post.value.protection) : null));
+
+/* ── 처리 상태(운영 게시판 — 서버가 글쓴이에게 「처리 상태가 '완료'로 바뀌었어요」 알림. 실패하면 서버 문구 토스트: 409 POST_STATUS_DISABLED·400·403) ── */
+const statusOptions = computed(() => UtilPostOps.STATUSES.map((value) => ({ value, label: t(UtilPostOps.labelKey(value)) })));
+const statusSaving = ref(false);
+/** 운영진(`viewer.staff`)이 고른 상태로 바꾼다 — 같은 값이면 아무것도 하지 않는다 */
+async function changeStatus(value: PostProcessStatus | null): Promise<void> {
+    const p = post.value;
+    if (!p || !value || value === p.processStatus || statusSaving.value) return;
+    statusSaving.value = true;
+    try {
+        const result = await postApi.changeProcessStatus(p.id, value);
+        if (post.value?.id !== p.id) return;
+        post.value = { ...post.value, processStatus: result.processStatus, processStatusAt: result.processStatusAt };
+        toast.success(t('post.statusChanged', { name: t(UtilPostOps.labelKey(result.processStatus)) }));
+    } catch (e) {
+        toast.error(UtilBoardMessages.of(t, e));
+    } finally {
+        statusSaving.value = false;
+    }
+}
 
 function goBoard(): void {
     // 소모임 글은 소모임 글 탭으로(해산한 소모임은 소모임 목록으로)

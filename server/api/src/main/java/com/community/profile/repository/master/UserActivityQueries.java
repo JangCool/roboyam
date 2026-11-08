@@ -44,9 +44,13 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
                              Instant createdAt) {
     }
 
-    /** 볼 수 있는 글 조건 — 소모임 글은 비멤버에게 보이는 것만({@link PostRepositoryQDSL#feedVisible}, 소모임 6단계), 성인이 아니면 19금 글을 뺀다({@link PostRepositoryQDSL#adultVisible}) */
-    private static BooleanExpression visiblePost(Collection<Long> boardIds, boolean adultViewer, Instant now) {
-        return PostRepositoryQDSL.alive(POST, now).and(PostRepositoryQDSL.notHidden(POST, now)).and(POST.boardId.in(boardIds)).and(PostRepositoryQDSL.feedVisible(POST))
+    /**
+     * 볼 수 있는 글 조건 — 소모임 글은 비멤버에게 보이는 것만({@link PostRepositoryQDSL#feedVisible}, 소모임 6단계), 성인이 아니면 19금 글을 뺀다({@link PostRepositoryQDSL#adultVisible}).
+     * 비밀글(V166)은 프로필 주인 본인이 볼 때만({@code includeSecret}) 넣는다 — 다른 사람에게는 글 수·추천 합·작성 댓글에서도 빠진다.
+     */
+
+    private static BooleanExpression visiblePost(Collection<Long> boardIds, boolean adultViewer, boolean includeSecret, Instant now) {
+        return PostRepositoryQDSL.alive(POST, now).and(PostRepositoryQDSL.notHidden(POST, now)).and(POST.boardId.in(boardIds)).and(PostRepositoryQDSL.feedVisible(POST, includeSecret))
                 .and(PostRepositoryQDSL.adultVisible(POST, adultViewer));
     }
 
@@ -54,8 +58,8 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
      * 작성 댓글이 달린 글 조건 — 볼 수 있는 일반 글만. 소모임 글의 댓글은 넣지 않는다: 공개 글이어도 공개 전의 댓글은 비멤버에게 가려지고(MEMBERS_ONLY)
      * 나간 멤버의 댓글은 「탈퇴한 회원」으로 가려지므로(GROUP_LEFT) 프로필에 모으면 가린 것이 드러난다(소모임 6단계 — 로보얌 판단).
      */
-    private static BooleanExpression commentablePost(Collection<Long> boardIds, boolean adultViewer, Instant now) {
-        return visiblePost(boardIds, adultViewer, now).and(POST.groupId.isNull());
+    private static BooleanExpression commentablePost(Collection<Long> boardIds, boolean adultViewer, boolean includeSecret, Instant now) {
+        return visiblePost(boardIds, adultViewer, includeSecret, now).and(POST.groupId.isNull());
     }
 
     /** 볼 수 있는 댓글 조건(글 조건은 따로) */
@@ -64,16 +68,16 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
     }
 
     /** @param boardIds 켜진 게시판 — 비면 모두 0 · {@code adultViewer} 가 아니면 19금 글과 그 댓글은 세지 않는다 */
-    public Stats stats(long userId, Collection<Long> boardIds, boolean adultViewer, Instant now) {
+    public Stats stats(long userId, Collection<Long> boardIds, boolean adultViewer, boolean includeSecret, Instant now) {
         if (boardIds.isEmpty()) {
             return new Stats(0, 0, 0);
         }
         Tuple p = query.select(POST.id.count(), likeSum(POST.likeCount)).from(POST)
-                .where(POST.authorId.eq(userId), visiblePost(boardIds, adultViewer, now))
+                .where(POST.authorId.eq(userId), visiblePost(boardIds, adultViewer, includeSecret, now))
                 .fetchOne();
         Tuple c = query.select(COMMENT.id.count(), likeSum(COMMENT.likeCount)).from(COMMENT)
                 .join(POST).on(POST.id.eq(COMMENT.postId))
-                .where(COMMENT.authorId.eq(userId), visibleComment(now), commentablePost(boardIds, adultViewer, now))
+                .where(COMMENT.authorId.eq(userId), visibleComment(now), commentablePost(boardIds, adultViewer, includeSecret, now))
                 .fetchOne();
         long posts = num(p, 0);
         long comments = num(c, 0);
@@ -85,17 +89,17 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
      *
      * @param beforeId 이 id 보다 오래된 글만(커서) — null 이면 처음부터
      */
-    public List<PostRowData> posts(long userId, Collection<Long> boardIds, Long beforeId, int limit, boolean adultViewer, Instant now) {
+    public List<PostRowData> posts(long userId, Collection<Long> boardIds, Long beforeId, int limit, boolean adultViewer, boolean includeSecret, Instant now) {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = POST.authorId.eq(userId).and(visiblePost(boardIds, adultViewer, now));
+        BooleanExpression where = POST.authorId.eq(userId).and(visiblePost(boardIds, adultViewer, includeSecret, now));
         if (beforeId != null) {
             where = where.and(POST.id.lt(beforeId));
         }
         return query.select(Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp,
                         POST.title, POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil,
-                        POST.hiddenReason, POST.createdAt, POST.groupId))
+                        POST.hiddenReason, POST.createdAt, POST.groupId, POST.secret, POST.processStatus))
                 .from(POST).where(where)
                 .orderBy(POST.id.desc())
                 .limit(limit + 1L)
@@ -103,11 +107,11 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
     }
 
     /** 작성 댓글 한 쪽 — 최신이 위(댓글 id 내림차순), {@code limit + 1} 줄까지 */
-    public List<CommentRow> comments(long userId, Collection<Long> boardIds, Long beforeId, int limit, boolean adultViewer, Instant now) {
+    public List<CommentRow> comments(long userId, Collection<Long> boardIds, Long beforeId, int limit, boolean adultViewer, boolean includeSecret, Instant now) {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = COMMENT.authorId.eq(userId).and(visibleComment(now)).and(commentablePost(boardIds, adultViewer, now));
+        BooleanExpression where = COMMENT.authorId.eq(userId).and(visibleComment(now)).and(commentablePost(boardIds, adultViewer, includeSecret, now));
         if (beforeId != null) {
             where = where.and(COMMENT.id.lt(beforeId));
         }
