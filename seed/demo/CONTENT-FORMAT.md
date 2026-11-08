@@ -36,7 +36,8 @@
 
 - 위 형식에 칸을 더한다(다른 원고에는 쓰지 않는다):
   - `daysAgo`(공지만): 며칠 전에 쓴 글로 둘지 — 그날 한국 시각 9~17시. 없으면 오늘. 버그·요청은 다른 게시판처럼 지난 21일에 흩는다.
-  - `pinned`(공지만): 상단 고정 — 게시판 고정 한도(`pinnedMax`, 기본 2) 안에서.
+  - `pinned`(공지만): 상단 고정 — 게시판 고정 한도(`pinnedMax`) 안에서.
+  - `global`(공지만, `pinned` 인 글): **전체 공지**로 건다 — 모든 게시판(소모임 포함) 글 목록 맨 위에도 보인다(notice-admin-contract 「전체 공지」, 사이트 전체 최대 3개). `{ "exclude": ["hotdeal"], "excludeAllGroupBoards": false }` — `exclude` 는 뺄 게시판 주소(slug), `excludeAllGroupBoards` 는 소모임 게시판 전체를 뺀다(생략 = false). 기간은 늘 「풀 때까지」.
   - `secret`: 비밀글(버그 신고 — 게시판 비밀글 `OPTIONAL`). 그 글의 댓글은 글쓴이·운영자만 단다(다른 사람은 읽지도 못한다).
   - `status`: 처리 상태를 차례로 바꾼다 — `[{ "to": "CHECKING" }, { "to": "DONE", "note": "운영진 메모(1~200자, 한 줄)" }]`. 값은 `RECEIVED`·`CHECKING`·`IN_PROGRESS`·`DONE`·`ON_HOLD`·`REJECTED`·`DUPLICATE`(새 글은 `RECEIVED`).
   - 댓글·답글 `by`: `"operator"` = 데모 운영자의 운영자 회원 계정(「로보얌운영팀」) · `"author"` = 글쓴이. 답글은 글자 또는 `{ "text": "…", "by": "operator" }`. `by` 가 없는 댓글·답글은 다른 데모 회원이 단다(이 세 원고에서는 글쓴이 몫 35% 규칙을 쓰지 않는다).
