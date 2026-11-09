@@ -518,10 +518,9 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'batches', to: '/settings/batches', icon: 'pi pi-clock', labelKey: 'menu.batches', permission: 'batch.read' },
                 { key: 'batchLogs', to: '/settings/batch-logs', icon: 'pi pi-book', labelKey: 'menu.batchLogs', permission: 'batch.read' },
-                // 캐시 관리 — 공개 사이트 응답 캐시의 TTL·갱신(Spring Cache + Caffeine 도입 예정). 화면 안 TTL 변경·갱신은 `cache.manage` 를 따로 본다.
-                // 준비 중 — 화면 목업만 확정(2026-11-08, 실제 구현은 나중 · docs/features/cache-admin-contract.md). 서버 `AdminScreenRegistry` 와 같이 최고 관리자 전용 — 구현 때 둘 다 권한 `cache.read` 로 바꾼다
-                //   레지스트리 기본 구성에 들어 있다 — 관리자 메뉴 구성을 이미 저장한 DB 에서는 「메뉴에 없는 화면」에 나오므로 메뉴 관리 › 관리자 메뉴에서 넣는다.
-                { key: 'caches', to: '/settings/caches', icon: 'pi pi-database', labelKey: 'menu.caches', superOnly: true },
+                // 캐시 관리 — 공개 사이트 응답 캐시(Spring Cache + Caffeine)의 켜기/끄기·TTL·갱신(docs/features/cache-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 권한 `cache.read`, 화면 안 바꾸기는 `cache.manage` 를 따로 본다.
+                //   관리자 메뉴 구성을 이미 저장한 DB 에서는 「메뉴에 없는 화면」에 나오므로 메뉴 관리 › 관리자 메뉴에서 넣는다.
+                { key: 'caches', to: '/settings/caches', icon: 'pi pi-database', labelKey: 'menu.caches', permission: 'cache.read' },
                 { key: 'audit', to: '/settings/audit', icon: 'pi pi-history', labelKey: 'menu.audit', permission: 'audit.read' },
             ],
         },

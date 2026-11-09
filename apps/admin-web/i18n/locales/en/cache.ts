@@ -4,7 +4,7 @@
  */
 export default {
     title: 'Caches',
-    subtitle: '[Coming soon — mockup only; values do not affect real caches] See the public site response caches, change each TTL, and clear caches on every server when needed.',
+    subtitle: 'See the public site response caches, change each TTL, and clear caches on every server when needed.',
     reload: 'Reload',
     all: 'All',
 
@@ -65,6 +65,7 @@ export default {
     noManageReason: 'You do not have permission to change cache TTLs or refresh caches.',
     pendingLockReason: 'The refresh is reaching the servers. It will be OK in a few seconds.',
     loadFailed: 'Could not load the cache list',
+    listDenied: 'You do not have permission to view caches (cache.read).',
     empty: 'No caches to manage',
     emptyFiltered: 'No caches match the filters',
     refreshRequested: '{name} — refresh requested. Each server clears within {s}s.',

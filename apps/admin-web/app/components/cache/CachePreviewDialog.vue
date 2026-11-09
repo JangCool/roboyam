@@ -3,7 +3,7 @@
         캐시 적용 영역 미리보기 — 캐시 관리 머리의 「미리보기」와 상세 서랍 「쓰이는 곳」의 「미리보기에서 보기」가 연다. 실제 공개 화면(`CacheLiveFrame` — iframe) 위에 캐시 영역 상자를 겹쳐 보인다.
         오른쪽 칸: 쪽 고르기(서버가 준 쪽 + 캐시들의 쓰이는 곳 경로 + 직접 경로) · 「모든 영역 보기」 · 캐시 고르기(목록과 같은 캐시들 — 상태가 같이 바뀐다) · 고른 캐시 요약 · 이 쪽에서 찾은 영역.
         캐시를 고르면(오른쪽 칸에서) 지금 쪽이 그 캐시의 쓰이는 곳이 아니면 대표 쪽(첫 화면 영역·동작 줄의 경로)으로 옮긴다. iframe 의 상자를 누르면 그 캐시를 고른다(쪽은 그대로).
-        고른 캐시의 「이 캐시가 보이는 쪽」 단추로 다른 쓰이는 곳을 연다. 글·상품 하나를 열어야 보이는 곳(예시 경로)은 예시 번호를 기존 관리자 API 로 골라 열고(`useCacheSamples`), 「예시」 칸에서 「다른 예시」·번호 직접 넣기로 바꾼다.
+        고른 캐시의 「이 캐시가 보이는 쪽」 단추로 다른 쓰이는 곳을 연다. 글·상품 하나를 열어야 보이는 곳(예시 경로)은 서버가 고른 예시 번호(`sample.sampleId`)로 열고(없으면 기존 관리자 API 로 고른다 — `useCacheSamples`), 「예시」 칸에서 「다른 예시」·번호 직접 넣기로 바꾼다.
         사이트 팝업은 고른 캐시가 `site.popups` 일 때만 공개 사이트가 띄운다(모든 영역 보기에서는 숨기고, 띄울 팝업 수만 「이 쪽에서 찾은 영역」에 남는다). 서버 내부만인 캐시는 「공개 화면에 보이는 곳이 없습니다 — 서버에서 이렇게 쓰입니다」와 관련 관리 화면.
         로그인해야 보이는 쪽(내 정보 등)은 iframe 의 로그인 상태(공개 사이트가 알려 준다)가 로그인 안 함이면 안내한다. 서버 호출(갱신·TTL)은 화면이 하고 여기는 이벤트로 올린다(`components.md`).
     -->
@@ -128,7 +128,7 @@
                             <div class="flex flex-wrap items-center justify-between gap-1.5 text-[12px]">
                                 <span class="font-medium">{{ t(`cache.sampleKind.${kind}`) }}</span>
                                 <span v-if="samples.state[kind].status === 'loading'" class="inline-flex items-center gap-1 text-muted-color"><i class="pi pi-spin pi-spinner text-[10px]" aria-hidden="true" />{{ t('cache.sampleLoading') }}</span>
-                                <code v-else-if="samples.idOf(kind)" class="text-[11px]">#{{ samples.idOf(kind) }}</code>
+                                <code v-else-if="sampleIdOf(kind)" class="text-[11px]">#{{ sampleIdOf(kind) }}</code>
                             </div>
                             <p v-if="samples.state[kind].status === 'empty' || samples.state[kind].status === 'error'" class="m-0 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400" role="status">
                                 {{ t(`cache.sampleMissing.${kind}`) }}
@@ -140,7 +140,7 @@
                                     size="small"
                                     severity="secondary"
                                     variant="text"
-                                    :disabled="samples.state[kind].ids.length < 2 && !samples.state[kind].manual"
+                                    :disabled="samples.state[kind].status === 'loading' || (samples.state[kind].status !== 'idle' && samples.state[kind].ids.length < 2 && !samples.state[kind].manual)"
                                     @click="nextSample(kind)"
                                 />
                                 <form class="flex min-w-0 flex-1 items-center gap-1" @submit.prevent="openSampleId(kind)">
@@ -274,7 +274,8 @@ const sampleInput = reactive<Record<CacheSampleKind, string>>({ HOTDEAL_POST: ''
 
 // 예시가 필요한 캐시를 고르면 그 종류의 예시를 고른다(처음 한 번 — 기존 관리자 API 호출)
 watch(sampleKinds, (kinds) => {
-    for (const kind of kinds) void props.samples.ensure(kind);
+    // 서버가 예시 번호(`sampleId`)를 준 종류는 묻지 않는다 — 없는 종류만 기존 관리자 API 로 고른다
+    for (const kind of kinds) if (!selectedScreens.value.some((u) => u.sample?.kind === kind && u.sample.sampleId)) void props.samples.ensure(kind);
 }, { immediate: true });
 /** 로그인해야 보이는 쪽인데 미리보기 창이 로그인하지 않았다 */
 const loginNotice = computed(() => loggedIn.value === false && UtilCache.loginRequiredAt(props.caches, props.path));
@@ -366,8 +367,14 @@ function sampleUsageOf(kind: CacheSampleKind): CacheUsageView | undefined {
 }
 
 /** 「다른 예시」 — 다음 예시로 바꾸고 그 쪽을 다시 연다 */
-function nextSample(kind: CacheSampleKind): void {
-    props.samples.next(kind);
+/** 지금 쓰는 예시 번호(그 종류의 줄 기준) */
+function sampleIdOf(kind: CacheSampleKind): string | null {
+    const usage = sampleUsageOf(kind);
+    return usage ? props.samples.idFor(usage) : null;
+}
+
+async function nextSample(kind: CacheSampleKind): Promise<void> {
+    await props.samples.next(kind);
     const usage = sampleUsageOf(kind);
     const path = usage ? props.samples.pathFor(usage) : null;
     if (path) setPath(path);
