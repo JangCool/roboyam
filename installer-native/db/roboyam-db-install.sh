@@ -501,6 +501,8 @@ create_extensions() {
     psql_su "$DB_NAME" <<SQL
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 GRANT USAGE ON SCHEMA cron TO ${DB_USER};
+-- DB 배치 등록(R__batch_00_helpers 의 batch_daily_cron)이 current_setting('cron.timezone') 을 읽는다 — superuser 전용 설정이라 읽기 권한을 준다
+GRANT pg_read_all_settings TO ${DB_USER};
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
@@ -561,6 +563,7 @@ verify() {
     check_eq "cron 백그라운드 워커" "on"               "$(psql_val "$db" "SHOW cron.use_background_workers")"
     check_eq "확장 pg_cron"        "1"                 "$(psql_val "$db" "SELECT count(*) FROM pg_extension WHERE extname = 'pg_cron'")"
     check_eq "cron 스키마 권한"    "t"                 "$(psql_val "$db" "SELECT has_schema_privilege('${DB_USER}', 'cron', 'USAGE')")"
+    check_eq "설정 읽기 권한"      "t"                 "$(psql_val "$db" "SELECT pg_has_role('${DB_USER}', 'pg_read_all_settings', 'MEMBER')")"
     check_eq "앱 계정 superuser"   "f"                 "$(psql_val "$db" "SELECT rolsuper FROM pg_roles WHERE rolname = '${DB_USER}'")"
     check_eq "DB 소유자"           "$DB_USER"          "$(psql_val "$db" "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()")"
     check_eq "listen_addresses"    "localhost,${LISTEN_IP}" "$(psql_val "$db" "SHOW listen_addresses")"
