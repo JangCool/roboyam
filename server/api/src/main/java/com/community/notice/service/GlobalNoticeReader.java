@@ -1,6 +1,7 @@
 package com.community.notice.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
@@ -27,11 +28,11 @@ import org.springframework.stereotype.Component;
  *       읽는다 — 게시판 목록마다 DB 를 읽지 않는다. 관리자 저장은 세대 번호로 몇 초 안에 닿는다.</li>
  *   <li>기간({@code expiresAt})은 사본을 쓸 때마다 지금 시각으로 다시 거른다(배치 없음).</li>
  *   <li>게시판마다: 공지 게시판 자신 · 뺀 게시판 · (소모임 게시판이면) 소모임 게시판 전체 빼기면 없다. 순서는 고정 시각 최근 것이 위, 최대 {@value NoticeGlobalPinEntity#MAX}개.</li>
- *   <li>읽다 실패하면 빈 목록(담지 않는다 — 글 목록 자체는 깨지 않는다, 다음 요청이 다시 읽는다).</li>
+ *   <li>처음 읽다 실패하면 빈 목록(담지 않는다 — 글 목록 자체는 깨지 않는다, 다음 요청이 다시 읽는다). TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}).</li>
  * </ul>
  */
 @Component
-public class GlobalNoticeReader {
+public class GlobalNoticeReader implements CacheReloader {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalNoticeReader.class);
 
@@ -72,10 +73,25 @@ public class GlobalNoticeReader {
     /** 살아 있는 전체 공지 — 캐시 {@code notice.global}(항목 키 = 공지 게시판 ID). 읽지 못하면 빈 목록(담지 않는다 — 글 목록 자체는 깨지 않는다) */
     private List<NoticeGlobalPinRow> rows(long noticeBoardId) {
         try {
-            return caches.getCache(CacheNames.NOTICE_GLOBAL).get(noticeBoardId, () -> List.copyOf(queries.live(noticeBoardId, Instant.now(), LOAD_LIMIT)));
+            return caches.getCache(CacheNames.NOTICE_GLOBAL).get(noticeBoardId, () -> load(noticeBoardId));
         } catch (RuntimeException e) {
             log.warn("전체 공지를 읽지 못해 비운다: {}", e.toString());
             return List.of();
         }
+    }
+
+    private List<NoticeGlobalPinRow> load(long noticeBoardId) {
+        return List.copyOf(queries.live(noticeBoardId, Instant.now(), LOAD_LIMIT));
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.NOTICE_GLOBAL;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load((Long) key);
     }
 }

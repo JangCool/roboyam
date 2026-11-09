@@ -2,6 +2,7 @@ package com.community.site.service;
 
 import com.community.analytics.settings.StatsCollectionSettings;
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import com.community.board.dto.BoardDefaultsValues;
 import com.community.board.entity.BoardDefaultsEntity;
 import com.community.board.service.BoardFields;
@@ -35,12 +36,12 @@ import org.springframework.stereotype.Service;
  * 공개 사이트가 읽는 사이트 설정의 <b>짧은 캐시 사본</b>({@link PublicSiteSnapshot}) — {@code /api/site/info}·{@code /api/site/theme}·{@code /manifest.webmanifest}·{@code index.html} 머리,
  * 회원 표시 설정의 사이트 기본값({@code /api/display/effective}·{@code /api/me/display})이 같은 사본을 쓴다.
  * 요청마다 DB 를 읽지 않고 캐시 {@code site.info}(기본 TTL 20초 — 관리자 캐시 관리에서 바꾼다)에 둔다. 관리자 저장은 세대 번호로 몇 초 안에, 그 밖의 변화는 TTL 안에 닿는다
- * (docs/features/cache-admin-contract.md). 읽다 실패하면 담지 않고 그 요청이 실패한다 — 다음 요청이 다시 읽는다.
+ * (docs/features/cache-admin-contract.md). 처음 읽다 실패하면 담지 않고 그 요청이 실패한다 — 다음 요청이 다시 읽는다. TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}).
  *
  * <p>주소는 관리자 {@code me} 와 같은 소스({@link SiteAssets})로 만든다. 설정 행이 없으면(설치 전) 이름·소개·로고·아이콘이 비어 있고 표시 기본값은 설치 직후의 처음 값이다.
  */
 @Service
-public class PublicSiteService {
+public class PublicSiteService implements CacheReloader {
 
     /** 이름을 모를 때(설정 행 없음)의 매니페스트 이름 */
     private static final String FALLBACK_NAME = "Roboyam";
@@ -69,6 +70,17 @@ public class PublicSiteService {
     /** 지금 쓸 수 있는 사본 — 캐시 {@code site.info} 에 있으면 그것, 아니면 읽어 담는다(같은 서버에서 동시에 비면 한 번만 읽는다) */
     public PublicSiteSnapshot snapshot() {
         return caches.getCache(CacheNames.SITE_INFO).get(CacheNames.SINGLE, this::load);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.SITE_INFO;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     private PublicSiteSnapshot load() {

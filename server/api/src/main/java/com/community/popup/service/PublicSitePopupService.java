@@ -1,6 +1,7 @@
 package com.community.popup.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.popup.dto.SitePopupPublicLine;
 import com.community.popup.dto.response.PublicSitePopupView;
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
-public class PublicSitePopupService {
+public class PublicSitePopupService implements CacheReloader {
 
 
     private final SitePopupReader reader;
@@ -46,7 +47,22 @@ public class PublicSitePopupService {
 
     /** 사본 — 캐시 {@code site.popups}(노출을 켰고 읽은 때 끝나지 않은 팝업 + 배치) */
     private Loaded load(Instant now) {
-        return caches.getCache(CacheNames.SITE_POPUPS).get(CacheNames.SINGLE, () -> new Loaded(reader.publicLines(now), reader.layout()));
+        return caches.getCache(CacheNames.SITE_POPUPS).get(CacheNames.SINGLE, () -> read(now));
+    }
+
+    private Loaded read(Instant now) {
+        return new Loaded(reader.publicLines(now), reader.layout());
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.SITE_POPUPS;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return read(Instant.now());
     }
 
     private static PublicSitePopupView view(SitePopupPublicLine line) {

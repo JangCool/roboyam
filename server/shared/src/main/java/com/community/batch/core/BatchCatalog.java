@@ -136,6 +136,12 @@ public enum BatchCatalog implements BatchDefinition {
     EMOTICON_PAYOUT_ACCOUNT_CLEANUP("emoticon-payout-account-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 캐시 관리 기록 정리 — 갱신 기록 90일 · 설정 변경 이력 365일(설정값)이 지난 줄과 7일 넘게 보고가 없는 서버의 상태 줄 삭제(캐시 설정은 그대로). DB 배치, 기본 매일 03:25 KST
+     * ({@code R__batch_42_cache_log_cleanup.sql}, docs/features/cache-admin-contract.md).
+     */
+    CACHE_LOG_CLEANUP("cache-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 알림 발송 실패 기록({@code notification_send_failures}, V133) 정리 — 30일 지난 줄 삭제(일별 합은 그대로). DB 배치, 기본 매일 04:20 KST
      * ({@code R__batch_37_notification_send_failure_cleanup.sql}, site-analytics-contract 「주기 작업」)
      */
