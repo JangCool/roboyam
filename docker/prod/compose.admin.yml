@@ -44,8 +44,9 @@ services:
       ADMIN_URL: ${ADMIN_URL:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--XX:MaxRAMPercentage=60}
-      # 올린 이미지 저장소(docs/features/media-storage-contract.md) — prod 기본 s3(R2 등 S3 호환 버킷). 아래 volumes 의 폴더는 local 일 때만 쓴다
-      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-s3}
+      # 올린 이미지 저장소(docs/features/media-storage-contract.md) — r2(prod 기본) | s3(AWS·MinIO) | local. 아래 volumes 의 폴더는 local 일 때만 쓴다
+      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-r2}
+      ROBOYAM_STORAGE_R2_ACCOUNT_ID: ${ROBOYAM_STORAGE_R2_ACCOUNT_ID:-}
       ROBOYAM_STORAGE_S3_ENDPOINT: ${ROBOYAM_STORAGE_S3_ENDPOINT:-}
       ROBOYAM_STORAGE_S3_REGION: ${ROBOYAM_STORAGE_S3_REGION:-}
       ROBOYAM_STORAGE_S3_BUCKET: ${ROBOYAM_STORAGE_S3_BUCKET:-}

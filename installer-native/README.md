@@ -73,19 +73,25 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
 | `app/roboyam-deploy.sh` | 앱 서버에서 jar 교체 → 재시작 → readiness → 실패 시 되돌리기 |
 | `lib/common.sh` | 공통 함수 |
 
-## 올린 이미지 — Cloudflare R2 (S3 호환)
+## 올린 이미지 — Cloudflare R2
 
-운영(prod) 기본 저장소는 **S3 호환 버킷**이다(`ROBOYAM_STORAGE_TYPE=s3`). 앱 서버 두 대와 관리자 앱이 같은 버킷을 읽고 쓰므로 WAS1 에서 올린 이미지를 WAS2 도 보인다.
-같은 설정으로 AWS S3·MinIO 로 바꿀 수 있다(endpoint·region 만 다르다). 설정·내보내기 방식은 `docs/features/media-storage-contract.md`.
+저장소는 `ROBOYAM_STORAGE_TYPE`(install.conf 의 `STORAGE`) 세 이름 중 하나다. 설정·내보내기 방식은 `docs/features/media-storage-contract.md`.
 
-1. **버킷** — Cloudflare › R2 › 버킷 만들기(예 `roboyam-media`, 위치 자동 또는 APAC).
+| 이름 | 무엇 | 꼭 줄 값 |
+|---|---|---|
+| `r2` (**운영 기본**) | Cloudflare R2 | 계정 ID(`R2_ACCOUNT_ID` — API 주소·지역 `auto` 는 앱이 채운다), 버킷, R2 API 토큰 키 |
+| `s3` | AWS S3, 또는 MinIO 등 다른 S3 호환(`S3_ENDPOINT`·`S3_PATH_STYLE`) | 버킷, 지역(`ap-northeast-2` 등). 키를 비우면 EC2 IAM 역할 |
+| `local` | 앱 서버 디스크 `/var/lib/roboyam/media` | — (서버 한 대 구성에서만) |
+
+`r2`·`s3` 는 같은 S3 호환 구현이고 기본값만 다르다. 앱 서버 두 대와 관리자 앱이 같은 버킷을 읽고 쓰므로 WAS1 에서 올린 이미지를 WAS2 도 보인다.
+
+1. **버킷** — Cloudflare › R2 › 버킷 만들기(예 `roboyam-media`, 위치 자동 또는 APAC). 개요 화면의 **계정 ID** 를 적어 둔다.
 2. **공개 주소** — 버킷 › 설정 › 사용자 도메인에 `media.roboyam.com` 연결(Cloudflare CDN 이 캐시한다 — 객체에 1년 immutable 캐시 머리글이 붙는다). `r2.dev` 주소는 속도 제한이 있어 운영에 쓰지 않는다.
 3. **API 토큰** — R2 › API 토큰 관리 › 「객체 읽기 및 쓰기」, **이 버킷만**. Access Key ID 는 `install.conf` 의 `S3_ACCESS_KEY`, Secret Access Key 는 설치할 때 입력한다(WAS1 에서 `ENC(...)` 로 암호화).
-4. `install.conf`: `S3_ENDPOINT=https://<계정 ID>.r2.cloudflarestorage.com`, `S3_REGION=auto`, `S3_BUCKET`, `S3_PUBLIC_URL=https://media.roboyam.com`.
+4. `install.conf`: `STORAGE=r2`, `R2_ACCOUNT_ID`, `S3_BUCKET`, `S3_PUBLIC_URL=https://media.roboyam.com`, `S3_ACCESS_KEY`.
 
-앱은 설정이 틀리면(버킷·지역 없음, 키 한쪽만) **뜨지 않는다**(로그에 칸 이름). 버킷에 닿지 못하는 것은 경고만 남기고 뜬 뒤 올리기·읽기가 503 이다.
+앱은 설정이 틀리면(버킷·지역·계정 ID 없음, 키 한쪽만, r2 인데 키 없음) **뜨지 않는다**(로그에 칸 이름). 버킷에 닿지 못하는 것은 경고만 남기고 뜬 뒤 올리기·읽기가 503 이다.
 앱은 `/media/**` 도 계속 연다 — 공개 주소 없이 쓰거나, 예전에 글 본문에 저장된 `/media/…` 주소를 버킷에서 읽어 준다.
-서버 한 대 구성이면 `STORAGE=local`(앱 서버의 `/var/lib/roboyam/media`).
 
 **나중에 값 바꾸기**: WAS1 의 `/etc/roboyam/roboyam.env` 의 `ROBOYAM_STORAGE_*` 를 고쳐 WAS2 에도 같게 복사하고 두 서버의 앱을 재기동한다. 비밀 키 암호문 만들기:
 ```bash
@@ -99,7 +105,7 @@ sudo env ROBOYAM_CRYPTO_KEY="$key" java -cp /opt/roboyam/api/current.jar -Dloade
 ```bash
 rclone copy /var/lib/roboyam/media r2:roboyam-media --exclude '.upload-*' --header-upload 'Cache-Control: public, max-age=31536000, immutable' --progress
 ```
-그 뒤 `ROBOYAM_STORAGE_TYPE=s3` 로 바꾸고 재기동. 옮긴 뒤 새 이미지 주소는 공개 주소(`https://media…`)이고, 예전 글 본문의 `/media/…` 는 앱이 버킷에서 읽어 준다.
+그 뒤 `ROBOYAM_STORAGE_TYPE=r2`(AWS 면 `s3`)로 바꾸고 재기동. 옮긴 뒤 새 이미지 주소는 공개 주소(`https://media…`)이고, 예전 글 본문의 `/media/…` 는 앱이 버킷에서 읽어 준다.
 
 메모리(자동): DB 2GB → shared_buffers 512MB·effective_cache_size 1536MB·work_mem 4MB, 4GB → 1GB·3GB·5MB.
 앱 2GB 서버 → api+admin 768m/384m, api 만 1024m.
@@ -114,7 +120,7 @@ rclone copy /var/lib/roboyam/media r2:roboyam-media --exclude '.upload-*' --head
 | DB | 22 | **내 IP 만** |
 
 R2 는 보안 그룹이 아니라 API 토큰으로 막는다 — 토큰은 **이 버킷의 객체 읽기·쓰기만**(계정 전체·관리자 권한 금지), 비밀 키는 `roboyam.env` 에 `ENC(...)` 로만 둔다.
-AWS S3 로 옮기면 키 대신 **EC2 IAM 역할**(그 버킷의 `s3:GetObject`·`PutObject`·`DeleteObject`·`ListBucket`)을 붙이고 `ROBOYAM_STORAGE_S3_ACCESS_KEY`·`SECRET_KEY` 를 비운다.
+AWS S3 로 옮기면(`ROBOYAM_STORAGE_TYPE=s3`, `ROBOYAM_STORAGE_S3_REGION=ap-northeast-2`) 키 대신 **EC2 IAM 역할**(그 버킷의 `s3:GetObject`·`PutObject`·`DeleteObject`·`ListBucket`)을 붙이고 `ROBOYAM_STORAGE_S3_ACCESS_KEY`·`SECRET_KEY` 를 비운다.
 
 80 은 열지 않는다. Caddy 도 Cloudflare 가 아닌 접속은 끊고, `/actuator` 는 readiness·liveness 만 내보낸다.
 Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/roboyam-app-install.sh --refresh-cloudflare-ips` + 보안 그룹 갱신.
@@ -126,6 +132,6 @@ Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/roboyam-app-install.
 - 접속 수: 2 × 20 + 5 + 여유 < 200.
 - 백업: `sudo /opt/roboyam/db/bin/roboyam-db-backup.sh` 로 R2 업로드 확인, **복원 연습** 한 번, EBS 스냅샷(DLM)도 따로.
 - 방문자 IP: 로그·로그인 잠금에 실제 IP 가 찍히는지(Caddy 가 `X-Forwarded-For` 를 방문자 IP 하나로 넘긴다 — `roboyam.proxy.trusted-hops: 1`).
-- **올린 이미지**: 기동 로그에 `이미지 저장소: S3 호환 버킷 bucket=…` 이 찍히고 「버킷에 닿지 못했다」 경고가 없는지. 관리자 화면에서 로고를 바꾸고 WAS1·WAS2 양쪽(로드밸런싱으로 번갈아)에서 보이는지, 이미지 주소가 `https://media…` 인지, 그 주소의 응답에 `cf-cache-status: HIT`(두 번째부터)가 붙는지. `STORAGE=local` 로 두 대를 돌리면 이미지가 깨진다.
+- **올린 이미지**: 기동 로그에 `이미지 저장소: r2 버킷(S3 호환) bucket=… endpoint=https://<계정 ID>.r2.cloudflarestorage.com` 이 찍히고 「버킷에 닿지 못했다」 경고가 없는지. 관리자 화면에서 로고를 바꾸고 WAS1·WAS2 양쪽(로드밸런싱으로 번갈아)에서 보이는지, 이미지 주소가 `https://media…` 인지, 그 주소의 응답에 `cf-cache-status: HIT`(두 번째부터)가 붙는지. `STORAGE=local` 로 두 대를 돌리면 이미지가 깨진다.
 - aarch64 지원: PostgreSQL 18·pg_cron·TimescaleDB 는 PGDG, Java 25 는 Adoptium, Caddy 는 COPR `@caddy/caddy` 로 설치한다.
 - TimescaleDB 는 기본 미설치(지금 앱이 쓰지 않는다). 켤 때는 `install.conf` 에 `DB_EXTRA_ARGS="--timescale"` — PGDG `timescaledb_18` 을 설치하고, 검증에서 판(`timescaledb.license` = timescale 이면 압축·연속 집계 정책까지)을 알려 준다. Timescale 자체 저장소는 el9 aarch64 가 비어 있어 쓰지 않는다.

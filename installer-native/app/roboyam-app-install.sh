@@ -48,14 +48,16 @@
 #       --cf-ips-file FILE     Cloudflare IP 대역을 인터넷 대신 이 파일(줄마다 CIDR)에서 읽는다
 #       --refresh-cloudflare-ips  Cloudflare IP 대역만 다시 받아 Caddy 를 다시 읽힌다
 #       --no-start             설치만 하고 앱을 띄우지 않는다
-#       --storage local|s3     올린 이미지 저장소 (기본 s3 — 앱 서버 여러 대가 같은 파일을 본다. local 은 서버 한 대 구성에서만)
-#       --s3-endpoint URL      S3 호환 API 주소 (R2 https://<계정 ID>.r2.cloudflarestorage.com — 비우면 AWS S3)
-#       --s3-region R          지역 (기본 auto = R2. AWS 는 ap-northeast-2 등)
-#       --s3-bucket NAME       버킷 이름 (--storage s3 이면 필수)
+#       --storage local|r2|s3  올린 이미지 저장소 (기본 r2 = Cloudflare R2 — 앱 서버 여러 대가 같은 파일을 본다.
+#                              s3 = AWS S3·MinIO 등, local = 이 서버 디스크 — 서버 한 대 구성에서만). r2·s3 는 같은 구현, 기본값만 다르다
+#       --r2-account-id ID     R2 계정 ID (r2 — endpoint https://<ID>.r2.cloudflarestorage.com · 지역 auto 를 앱이 채운다)
+#       --s3-endpoint URL      API 주소를 직접 준다(계정 ID 보다 이긴다). s3 에서 비우면 AWS S3, MinIO 는 http://…:9000
+#       --s3-region R          지역 (r2 는 비우면 auto, s3 는 필수 — AWS ap-northeast-2 등)
+#       --s3-bucket NAME       버킷 이름 (r2·s3 필수)
 #       --s3-public-url URL    이미지 공개 주소 (R2 사용자 도메인 https://media.example.com — 비우면 앱이 /media/** 로 대신 내보낸다)
 #       --s3-path-style        경로 방식 주소로 부른다(MinIO)
 #       --s3-access-key ID     접근 키 ID — 비밀 키는 프롬프트(무인: 환경 변수 ROBOYAM_S3_SECRET_KEY, --password-stdin 이면 둘째 줄)로 받아 ENC(...)
-#                              비우면 키 없이 EC2 IAM 역할(AWS S3) 등 기본 자격 증명을 쓴다
+#                              r2 는 필수(R2 API 토큰). s3 에서 비우면 키 없이 EC2 IAM 역할 등 기본 자격 증명을 쓴다
 #       --password-stdin       DB 비밀번호를 표준 입력 첫 줄로 받는다(원스톱 roboyam-install.sh 가 SSH 로 넘길 때). --s3-access-key 가 있으면 둘째 줄은 S3 비밀 키
 #       --dry-run              계획만 보여 주고 끝낸다
 #   -h, --help                 도움말
@@ -102,9 +104,10 @@ START_APPS=1
 PASSWORD_STDIN=0
 DRY_RUN=0
 # 올린 이미지 저장소 — 공통 환경 파일을 새로 만들 때만 쓴다 (docs/features/media-storage-contract.md)
-STORAGE_TYPE=s3
+STORAGE_TYPE=r2
+R2_ACCOUNT_ID=""
 S3_ENDPOINT=""
-S3_REGION=auto
+S3_REGION=""
 S3_BUCKET=""
 S3_PUBLIC_URL=""
 S3_PATH_STYLE=false
@@ -160,6 +163,7 @@ parse_args() {
             --refresh-cloudflare-ips) REFRESH_CF_ONLY=1; shift ;;
             --no-start)       START_APPS=0; shift ;;
             --storage)        STORAGE_TYPE="${2:?--storage 값이 필요합니다}"; shift 2 ;;
+            --r2-account-id)  R2_ACCOUNT_ID="${2:?--r2-account-id 값이 필요합니다}"; shift 2 ;;
             --s3-endpoint)    S3_ENDPOINT="${2:?--s3-endpoint 값이 필요합니다}"; shift 2 ;;
             --s3-region)      S3_REGION="${2:?--s3-region 값이 필요합니다}"; shift 2 ;;
             --s3-bucket)      S3_BUCKET="${2:?--s3-bucket 값이 필요합니다}"; shift 2 ;;
@@ -203,15 +207,23 @@ parse_args() {
     [ "$WITH_ADMIN" -eq 1 ] || [ -z "$ADMIN_JAR" ] || usage_error "--admin-jar 는 --with-admin 과 같이 줍니다."
 
     # 저장소 — 앱이 기동 때 다시 검사하지만(틀리면 뜨지 않는다) 설치 전에 먼저 막는다
-    case "$STORAGE_TYPE" in local|s3) ;; *) usage_error "--storage 는 local 또는 s3 입니다: ${STORAGE_TYPE}" ;; esac
+    case "$STORAGE_TYPE" in local|r2|s3) ;; *) usage_error "--storage 는 local · r2 · s3 중 하나입니다: ${STORAGE_TYPE}" ;; esac
+    [ -z "$R2_ACCOUNT_ID" ] || [[ "$R2_ACCOUNT_ID" =~ ^[A-Za-z0-9]{1,64}$ ]] || usage_error "--r2-account-id 는 영숫자입니다."
     [ -z "$S3_ENDPOINT" ] || [[ "$S3_ENDPOINT" =~ ^https?://[^[:space:]/]+ ]] || usage_error "--s3-endpoint 는 http(s):// 주소입니다."
     [ -z "$S3_PUBLIC_URL" ] || [[ "$S3_PUBLIC_URL" =~ ^https?://[^[:space:]/]+ ]] || usage_error "--s3-public-url 은 http(s):// 주소입니다."
     S3_PUBLIC_URL="${S3_PUBLIC_URL%/}"
-    [[ "$S3_REGION" =~ ^[a-z0-9-]+$ ]] || usage_error "--s3-region 이 올바르지 않습니다: ${S3_REGION}"
+    [ -z "$S3_REGION" ] || [[ "$S3_REGION" =~ ^[a-z0-9-]+$ ]] || usage_error "--s3-region 이 올바르지 않습니다: ${S3_REGION}"
     [ -z "$S3_BUCKET" ] || [[ "$S3_BUCKET" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] || usage_error "--s3-bucket 이 올바르지 않습니다: ${S3_BUCKET}"
     [ -z "$S3_ACCESS_KEY" ] || [[ "$S3_ACCESS_KEY" =~ ^[A-Za-z0-9._-]+$ ]] || usage_error "--s3-access-key 가 올바르지 않습니다."
-    if [ "$STORAGE_TYPE" = s3 ] && [ ! -f "$SHARED_ENV" ] && [ -z "$SHARED_ENV_SRC" ]; then
-        [ -n "$S3_BUCKET" ] || usage_error "공통 환경 파일을 새로 만들 때 --storage s3(기본)이면 --s3-bucket 이 필요합니다(서버 한 대 구성은 --storage local)."
+    if [ "$STORAGE_TYPE" != local ] && [ ! -f "$SHARED_ENV" ] && [ -z "$SHARED_ENV_SRC" ]; then
+        local hint="(서버 한 대 구성은 --storage local)"
+        [ -n "$S3_BUCKET" ] || usage_error "공통 환경 파일을 새로 만들 때 --storage ${STORAGE_TYPE} 이면 --s3-bucket 이 필요합니다${hint}."
+        if [ "$STORAGE_TYPE" = r2 ]; then
+            [ -n "$R2_ACCOUNT_ID" ] || [ -n "$S3_ENDPOINT" ] || usage_error "--storage r2 이면 --r2-account-id 가 필요합니다(R2 › 개요의 계정 ID)."
+            [ -n "$S3_ACCESS_KEY" ] || usage_error "--storage r2 이면 --s3-access-key 가 필요합니다(R2 API 토큰의 Access Key ID)."
+        else
+            [ -n "$S3_REGION" ] || usage_error "--storage s3 이면 --s3-region 이 필요합니다(예 ap-northeast-2)."
+        fi
     fi
 
     if [ "$WITH_CADDY" -eq 1 ]; then
@@ -283,8 +295,10 @@ print_plan() {
         printf '   %-22s %s\n' "공통 환경 파일" "${SHARED_ENV_SRC} 를 복사"
     else
         printf '   %-22s %s\n' "공통 환경 파일" "새로 만든다 (DB ${DB_HOST:-<--db-host 필요>}:5432/${DB_NAME}, 키 생성, DB 비밀번호 ENC)"
-        if [ "$STORAGE_TYPE" = s3 ]; then
-            printf '   %-22s %s\n' "이미지 저장소" "S3 호환 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-AWS S3}, ${S3_REGION}) — 키 ${S3_ACCESS_KEY:+접근 키 + 비밀 키 ENC}${S3_ACCESS_KEY:-없음(IAM 역할 등)}, 공개 주소 ${S3_PUBLIC_URL:-없음(앱이 /media/** 로 내보냄)}"
+        if [ "$STORAGE_TYPE" = r2 ]; then
+            printf '   %-22s %s\n' "이미지 저장소" "R2 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-계정 ${R2_ACCOUNT_ID}}, ${S3_REGION:-auto}) — 키 API 토큰 + 비밀 키 ENC, 공개 주소 ${S3_PUBLIC_URL:-없음(앱이 /media/** 로 내보냄)}"
+        elif [ "$STORAGE_TYPE" = s3 ]; then
+            printf '   %-22s %s\n' "이미지 저장소" "S3 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-AWS S3}, ${S3_REGION}) — 키 ${S3_ACCESS_KEY:+접근 키 + 비밀 키 ENC}${S3_ACCESS_KEY:-없음(IAM 역할 등)}, 공개 주소 ${S3_PUBLIC_URL:-없음(앱이 /media/** 로 내보냄)}"
         else
             printf '   %-22s %s\n' "이미지 저장소" "로컬 디스크 ${MEDIA_DIR} (서버 한 대 구성에서만)"
         fi
@@ -392,7 +406,7 @@ write_shared_env() {
         log "공통 환경 파일 : 이미 있음 — 그대로 둔다 (${SHARED_ENV})"
         # 저장소 변수가 생기기 전에 만든 파일 — prod 기본이 s3 라 버킷 설정 없이는 앱이 뜨지 않는다
         grep -q '^ROBOYAM_STORAGE_TYPE=' "$SHARED_ENV" ||
-            warn "${SHARED_ENV} 에 ROBOYAM_STORAGE_TYPE 이 없습니다 — prod 기본은 s3 라 ROBOYAM_STORAGE_S3_* 를 채우거나 ROBOYAM_STORAGE_TYPE=local 을 넣어야 앱이 뜹니다(installer-native/README.md 「올린 이미지」)."
+            warn "${SHARED_ENV} 에 ROBOYAM_STORAGE_TYPE 이 없습니다 — prod 기본은 r2 라 ROBOYAM_STORAGE_R2_ACCOUNT_ID·ROBOYAM_STORAGE_S3_* 를 채우거나 ROBOYAM_STORAGE_TYPE=local 을 넣어야 앱이 뜹니다(installer-native/README.md 「올린 이미지」)."
         return 0
     fi
     if [ -n "$SHARED_ENV_SRC" ]; then
@@ -425,7 +439,7 @@ write_shared_env() {
 
     # S3 비밀 키 — 접근 키를 줄 때만. DB 비밀번호와 같이 ENC(...) 로만 둔다
     local s3_secret="" s3_enc=""
-    if [ "$STORAGE_TYPE" = s3 ] && [ -n "$S3_ACCESS_KEY" ]; then
+    if [ "$STORAGE_TYPE" != local ] && [ -n "$S3_ACCESS_KEY" ]; then
         s3_secret="${ROBOYAM_S3_SECRET_KEY:-}"
         if [ -z "$s3_secret" ]; then
             echo "   S3 비밀 접근 키(R2 › API 토큰의 Secret Access Key)를 입력합니다."
@@ -465,17 +479,20 @@ ROBOYAM_INSTALL_TOKEN=${token}
 PUBLIC_URL=${public_url}
 ADMIN_URL=${admin_url}
 
-# 올린 이미지 저장소 — s3(S3 호환 버킷: Cloudflare R2·AWS S3·MinIO — 서버 여러 대가 같은 파일을 본다) | local(이 서버 디스크 — 서버 한 대 구성에서만)
-# s3 설정이 틀리면(버킷·지역 없음, 키 한쪽만) 앱이 뜨지 않는다. 바꾼 뒤 두 서버 모두 재기동한다(docs/features/media-storage-contract.md)
+# 올린 이미지 저장소 — r2(Cloudflare R2) | s3(AWS S3·MinIO 등) | local(이 서버 디스크 — 서버 한 대 구성에서만). r2·s3 는 서버 여러 대가 같은 파일을 본다
+# 설정이 틀리면(버킷·지역·계정 ID 없음, 키 한쪽만) 앱이 뜨지 않는다. 바꾼 뒤 두 서버 모두 재기동한다(docs/features/media-storage-contract.md)
 ROBOYAM_STORAGE_TYPE=${STORAGE_TYPE}
 ROBOYAM_STORAGE_PATH=${MEDIA_DIR}
+# r2: 계정 ID 로 endpoint(https://<ID>.r2.cloudflarestorage.com)·지역 auto 를 앱이 채운다. 아래 ENDPOINT·REGION 을 주면 그것이 이긴다
+ROBOYAM_STORAGE_R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+# 버킷 공통(r2·s3). s3 에서 ENDPOINT 를 비우면 AWS S3, REGION 은 s3 필수(ap-northeast-2 등)
 ROBOYAM_STORAGE_S3_ENDPOINT=${S3_ENDPOINT}
 ROBOYAM_STORAGE_S3_REGION=${S3_REGION}
 ROBOYAM_STORAGE_S3_BUCKET=${S3_BUCKET}
 ROBOYAM_STORAGE_S3_PATH_STYLE=${S3_PATH_STYLE}
 # 새 이미지 주소의 머리(R2 사용자 도메인 — Cloudflare CDN 이 캐시). 비우면 /media/… 를 앱이 버킷에서 읽어 내보낸다
 ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL=${S3_PUBLIC_URL}
-# 둘 다 비우면 기본 자격 증명(EC2 IAM 역할 — AWS S3). 비밀 키는 ENC(...) — 위 ROBOYAM_CRYPTO_KEY 로 푼다
+# r2 는 R2 API 토큰(필수). s3 는 둘 다 비우면 기본 자격 증명(EC2 IAM 역할). 비밀 키는 ENC(...) — 위 ROBOYAM_CRYPTO_KEY 로 푼다
 ROBOYAM_STORAGE_S3_ACCESS_KEY=${S3_ACCESS_KEY}
 ROBOYAM_STORAGE_S3_SECRET_KEY=${s3_enc}
 
@@ -769,7 +786,7 @@ main() {
     if [ "$PASSWORD_STDIN" -eq 1 ]; then
         IFS= read -r ROBOYAM_DB_PASSWORD || true
         [ -n "${ROBOYAM_DB_PASSWORD:-}" ] || fail "--password-stdin 인데 표준 입력이 비었습니다."
-        if [ "$STORAGE_TYPE" = s3 ] && [ -n "$S3_ACCESS_KEY" ]; then
+        if [ "$STORAGE_TYPE" != local ] && [ -n "$S3_ACCESS_KEY" ]; then
             IFS= read -r ROBOYAM_S3_SECRET_KEY || true
         fi
     fi

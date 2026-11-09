@@ -34,7 +34,7 @@
 #   - SSH 키: install.conf 의 SSH_KEY(이 서버에 둔 .pem, 600) 또는 ssh -A 로 들어와 에이전트를 넘긴다
 #   - SSH 계정은 비밀번호 없는 sudo 가 된다(EC2 기본 계정 rocky)
 #   - DB 비밀번호는 시작할 때 한 번 묻는다(무인: 환경 변수 ROBOYAM_DB_PASSWORD). DB 계정에 쓰고, WAS1 에서 ENC(...) 로 암호화된다
-#   - 이미지 저장소는 install.conf 의 STORAGE(기본 s3)·S3_*. S3_ACCESS_KEY 를 주면 비밀 키를 시작할 때 묻는다(무인: ROBOYAM_S3_SECRET_KEY) — WAS1 에서 ENC(...)
+#   - 이미지 저장소는 install.conf 의 STORAGE(기본 r2 | s3 | local)·R2_ACCOUNT_ID·S3_*. S3_ACCESS_KEY 를 주면 비밀 키를 시작할 때 묻는다(무인: ROBOYAM_S3_SECRET_KEY) — WAS1 에서 ENC(...)
 # ============================================================================
 set -Eeuo pipefail
 
@@ -107,9 +107,10 @@ load_config() {
     WAS2_EXTRA_ARGS="${WAS2_EXTRA_ARGS:-}"
     DB_EXTRA_ARGS="${DB_EXTRA_ARGS:-}"
     DB_BACKUP_HOOK="${DB_BACKUP_HOOK:-}"
-    STORAGE="${STORAGE:-s3}"
+    STORAGE="${STORAGE:-r2}"
+    R2_ACCOUNT_ID="${R2_ACCOUNT_ID:-}"
     S3_ENDPOINT="${S3_ENDPOINT:-}"
-    S3_REGION="${S3_REGION:-auto}"
+    S3_REGION="${S3_REGION:-}"
     S3_BUCKET="${S3_BUCKET:-}"
     S3_PUBLIC_URL="${S3_PUBLIC_URL:-}"
     S3_PATH_STYLE="${S3_PATH_STYLE:-false}"
@@ -119,11 +120,17 @@ load_config() {
     [ -z "$WAS2" ] || is_ipv4 "$WAS2" || valid_hostname "$WAS2" || fail "install.conf 의 WAS2 가 올바르지 않습니다: ${WAS2}"
     [ -n "$DOMAINS" ] || fail "install.conf 의 DOMAINS(공개 사이트 호스트)가 비었습니다."
     [ -n "$ADMIN_DOMAIN" ] || fail "install.conf 의 ADMIN_DOMAIN(관리자 앱 호스트)이 비었습니다."
-    case "$STORAGE" in local|s3) ;; *) fail "install.conf 의 STORAGE 는 s3 또는 local 입니다: ${STORAGE}" ;; esac
-    if [ "$STORAGE" = s3 ] && [ "$MODE" = install ]; then
-        [ -n "$S3_BUCKET" ] || fail "install.conf 의 S3_BUCKET 이 비었습니다(STORAGE=s3 — 앱 서버 두 대가 같은 이미지를 보려면 버킷이 필요하다. 서버 한 대면 STORAGE=local)."
+    case "$STORAGE" in local|r2|s3) ;; *) fail "install.conf 의 STORAGE 는 r2 · s3 · local 중 하나입니다: ${STORAGE}" ;; esac
+    if [ "$STORAGE" != local ] && [ "$MODE" = install ]; then
+        [ -n "$S3_BUCKET" ] || fail "install.conf 의 S3_BUCKET 이 비었습니다(STORAGE=${STORAGE} — 앱 서버 두 대가 같은 이미지를 보려면 버킷이 필요하다. 서버 한 대면 STORAGE=local)."
+        if [ "$STORAGE" = r2 ]; then
+            [ -n "$R2_ACCOUNT_ID" ] || [ -n "$S3_ENDPOINT" ] || fail "install.conf 의 R2_ACCOUNT_ID 가 비었습니다(Cloudflare › R2 › 개요의 계정 ID)."
+            [ -n "$S3_ACCESS_KEY" ] || fail "install.conf 의 S3_ACCESS_KEY 가 비었습니다(STORAGE=r2 — R2 API 토큰의 Access Key ID)."
+        else
+            [ -n "$S3_REGION" ] || fail "install.conf 의 S3_REGION 이 비었습니다(STORAGE=s3 — 예 ap-northeast-2)."
+        fi
     fi
-    [ "$STORAGE" = s3 ] || [ -z "$WAS2" ] || warn "STORAGE=local 인데 WAS2 가 있습니다 — 한 서버에 올린 이미지를 다른 서버가 못 읽습니다."
+    [ "$STORAGE" != local ] || [ -z "$WAS2" ] || warn "STORAGE=local 인데 WAS2 가 있습니다 — 한 서버에 올린 이미지를 다른 서버가 못 읽습니다."
     if [ -n "$SSH_KEY" ]; then
         case "$SSH_KEY" in /*) ;; *) SSH_KEY="${SCRIPT_DIR}/${SSH_KEY}" ;; esac
         [ -f "$SSH_KEY" ] || fail "SSH 키 파일이 없습니다: ${SSH_KEY}"
@@ -240,7 +247,7 @@ input_db_password() {
 input_s3_secret() {
     S3_SECRET="${ROBOYAM_S3_SECRET_KEY:-}"
     unset ROBOYAM_S3_SECRET_KEY
-    [ "$STORAGE" = s3 ] && [ -n "$S3_ACCESS_KEY" ] || return 0
+    [ "$STORAGE" != local ] && [ -n "$S3_ACCESS_KEY" ] || return 0
     [ -n "$S3_SECRET" ] && { log "S3 비밀 키 : 환경 변수로 받음"; return 0; }
     step "S3 비밀 키"
     echo "   접근 키 ${S3_ACCESS_KEY} 의 비밀 키(R2 › API 토큰의 Secret Access Key) — WAS1 에서 ENC(...) 로 암호화해 앱 환경 파일에 둔다(평문 저장 없음)."
@@ -281,8 +288,9 @@ was_install_args() {   # <was1|was2>
         local c; for c in $ADMIN_ALLOW; do args+=(--admin-allow "$c"); done
         # 이미지 저장소 — WAS1 이 공통 환경 파일을 만들 때 쓴다(WAS2 는 그 파일을 복사해 간다)
         args+=(--storage "$STORAGE")
-        if [ "$STORAGE" = s3 ]; then
-            args+=(--s3-region "$S3_REGION")
+        if [ "$STORAGE" != local ]; then
+            [ -n "$R2_ACCOUNT_ID" ] && [ "$STORAGE" = r2 ] && args+=(--r2-account-id "$R2_ACCOUNT_ID")
+            [ -n "$S3_REGION" ] && args+=(--s3-region "$S3_REGION")
             [ -n "$S3_BUCKET" ] && args+=(--s3-bucket "$S3_BUCKET")
             [ -n "$S3_ENDPOINT" ] && args+=(--s3-endpoint "$S3_ENDPOINT")
             [ -n "$S3_PUBLIC_URL" ] && args+=(--s3-public-url "$S3_PUBLIC_URL")
@@ -311,7 +319,7 @@ run_remote_install() {   # <was1|was2> <호스트>
         rssh "$host" "${cmd} --dry-run" < /dev/null
     else
         # 비밀번호는 명령줄이 아니라 표준 입력으로 넘긴다(프로세스 목록·셸 기록에 남지 않게). WAS1 에 S3 접근 키를 주면 둘째 줄이 S3 비밀 키
-        if [ "$which" = was1 ] && [ "$STORAGE" = s3 ] && [ -n "$S3_ACCESS_KEY" ]; then
+        if [ "$which" = was1 ] && [ "$STORAGE" != local ] && [ -n "$S3_ACCESS_KEY" ]; then
             printf '%s\n%s\n' "$DB_PASSWORD" "$S3_SECRET" | rssh "$host" "${cmd} --password-stdin"
         else
             printf '%s\n' "$DB_PASSWORD" | rssh "$host" "${cmd} --password-stdin"
@@ -390,8 +398,10 @@ print_plan() {
     printf '   %-14s %s\n' "WAS2"    "${WAS2:-없음}${WAS2:+ — api(NODE_ID ${WAS2_NODE_ID})}"
     printf '   %-14s %s\n' "공개 사이트" "${DOMAINS}"
     printf '   %-14s %s\n' "관리자 앱"   "${ADMIN_DOMAIN}${ADMIN_ALLOW:+ (방문자 ${ADMIN_ALLOW} 만)}"
-    if [ "$STORAGE" = s3 ]; then
-        printf '   %-14s %s\n' "이미지"  "S3 호환 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-AWS S3}, ${S3_REGION})${S3_PUBLIC_URL:+ — 공개 주소 ${S3_PUBLIC_URL}}"
+    if [ "$STORAGE" = r2 ]; then
+        printf '   %-14s %s\n' "이미지"  "R2 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-계정 ${R2_ACCOUNT_ID}})${S3_PUBLIC_URL:+ — 공개 주소 ${S3_PUBLIC_URL}}"
+    elif [ "$STORAGE" = s3 ]; then
+        printf '   %-14s %s\n' "이미지"  "S3 버킷 ${S3_BUCKET} (${S3_ENDPOINT:-AWS S3}, ${S3_REGION})${S3_PUBLIC_URL:+ — 공개 주소 ${S3_PUBLIC_URL}}"
     else
         printf '   %-14s %s\n' "이미지"  "앱 서버 로컬 디스크(서버 한 대 구성에서만)"
     fi
