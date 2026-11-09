@@ -19,6 +19,16 @@ ADMIN_ALLOW=""                          # 관리자 앱을 이 방문자 IP 대�
 ORIGIN_CERT=certs/origin.pem
 ORIGIN_KEY=certs/origin.key
 
+# ── 올린 이미지 저장소 (docs/features/media-storage-contract.md) ──────────
+# s3 = S3 호환 버킷(Cloudflare R2 — 앱 서버 두 대가 같은 이미지를 본다) | local = 앱 서버 디스크(서버 한 대 구성에서만)
+STORAGE=s3
+S3_ENDPOINT="https://<계정 ID>.r2.cloudflarestorage.com"   # R2 › 개요의 S3 API 주소(<계정 ID> 를 바꾼다). 비우면 AWS S3
+S3_REGION=auto                                          # R2 는 auto, AWS 는 ap-northeast-2
+S3_BUCKET=roboyam-media
+S3_PUBLIC_URL=https://media.roboyam.com                 # 버킷에 연결한 R2 사용자 도메인(Cloudflare CDN). 비우면 앱이 /media/** 로 내보낸다
+S3_ACCESS_KEY=                                          # R2 › API 토큰(이 버킷 객체 읽기·쓰기)의 Access Key ID — 비밀 키는 실행할 때 묻는다
+# S3_PATH_STYLE=false                                   # MinIO 면 true
+
 # ── 선택 ──────────────────────────────────────────────────────────────────
 # DB_PRIVATE_IP=10.0.1.20               # 비우면 이 서버의 사설 IP 를 자동으로 찾는다
 # DB_NAME=roboyam

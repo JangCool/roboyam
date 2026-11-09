@@ -1,0 +1,6 @@
+# 운영(prod 프로필) 전용 값 — roboyam-shared.yml 위에 덮인다. 환경 변수를 주면 그것이 먼저다.
+
+roboyam:
+  # 올린 이미지 저장소 — 운영은 앱 서버가 여러 대라 S3 호환 버킷(Cloudflare R2)이 기본이다. 서버 한 대 구성에서 로컬 디스크를 쓰려면 ROBOYAM_STORAGE_TYPE=local
+  storage:
+    type: ${ROBOYAM_STORAGE_TYPE:s3}

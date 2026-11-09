@@ -80,11 +80,21 @@ management:
       show-details: never
 
 roboyam:
-  # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지)의 저장소. 로컬 디스크 폴더를 공개 사이트(api)와 관리자 앱(admin)이 같이 본다 — admin 이 쓰고 둘 다 /media/** 로 읽는다.
-  # 도커·설치형은 같은 볼륨을 두 앱의 이 경로에 마운트한다(docker/*, installer/). 서버가 여러 대이면 공유 디스크(NFS·EFS)나 S3(후속)가 필요하다
+  # 올린 이미지(로고·글 이미지·아바타 등)의 저장소(docs/features/media-storage-contract.md). local(서버 디스크) | s3(S3 호환 버킷 — Cloudflare R2·AWS S3·MinIO).
+  # 기본은 local·dev = local, prod = s3(roboyam-shared-prod.yml). ROBOYAM_STORAGE_TYPE 로 어느 프로필이든 바꾼다(local 에서 R2 를 붙여 시험하는 등).
+  # local: 폴더를 공개 사이트(api)와 관리자 앱(admin)이 같이 본다 — 앱 서버가 여러 대이면 같은 폴더를 볼 수 없어 s3 를 쓴다.
+  # s3: 설정이 틀리면(버킷·지역 없음, 키 한쪽만) 기동을 멈춘다. 비밀 키는 ENC(...) 가능(ROBOYAM_CRYPTO_KEY 로 복호화)
   storage:
-    type: local
+    type: ${ROBOYAM_STORAGE_TYPE:local}
     local-path: ${ROBOYAM_STORAGE_PATH:/var/lib/roboyam/media}
+    s3:
+      endpoint: ${ROBOYAM_STORAGE_S3_ENDPOINT:}               # 비우면 AWS S3. R2 = https://<계정 ID>.r2.cloudflarestorage.com, MinIO = http://localhost:9000
+      region: ${ROBOYAM_STORAGE_S3_REGION:}                   # R2 = auto, AWS = ap-northeast-2 등, MinIO = us-east-1
+      bucket: ${ROBOYAM_STORAGE_S3_BUCKET:}
+      access-key: ${ROBOYAM_STORAGE_S3_ACCESS_KEY:}           # 키 둘 다 비우면 AWS 기본 자격 증명 체인(EC2 IAM 역할 등)
+      secret-key: ${ROBOYAM_STORAGE_S3_SECRET_KEY:}           # ENC(...) 권장
+      path-style: ${ROBOYAM_STORAGE_S3_PATH_STYLE:false}      # MinIO 는 true
+      public-base-url: ${ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL:} # 새 이미지 주소의 머리(R2 사용자 도메인 https://media.example.com). 비우면 /media/… 를 앱이 버킷에서 읽어 내보낸다
   # Snowflake ID 의 서버 번호(0~1023). 앱 서버마다 달라야 한다(공개 사이트·관리자 앱·서버 여러 대 모두 서로 다른 값). dev · prod 는 기본값이 없다 — 빠지면 기동이 실패한다
   node-id: ${NODE_ID}
   # 개인정보 칸 암호화(DataCipher)·중복 확인 해시(BlindIndex) — 설정 비밀값용 ROBOYAM_CRYPTO_KEY 와 따로다(docs/domain/commerce.md 10-9).
