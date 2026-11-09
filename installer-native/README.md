@@ -95,4 +95,5 @@ Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/roboyam-app-install.
 - 백업: `sudo /opt/roboyam/db/bin/roboyam-db-backup.sh` 로 R2 업로드 확인, **복원 연습** 한 번, EBS 스냅샷(DLM)도 따로.
 - 방문자 IP: 로그·로그인 잠금에 실제 IP 가 찍히는지(Caddy 가 `X-Forwarded-For` 를 방문자 IP 하나로 넘긴다 — `roboyam.proxy.trusted-hops: 1`).
 - **올린 이미지**: 지금은 서버 로컬 폴더(`/var/lib/roboyam/media`)라 WAS1 에서 올린 이미지를 WAS2 가 못 읽는다. R2 전환(서버 코드, 범위 밖) 전에는 두 대 운영 시 이미지가 깨질 수 있다.
-- TimescaleDB 는 기본 미설치. `DB_EXTRA_ARGS="--timescale"` 은 PGDG `timescaledb_18`(aarch64 있음) — Apache 판이면 압축·연속 집계 정책이 없다.
+- aarch64 지원: PostgreSQL 18·pg_cron·TimescaleDB 는 PGDG, Java 25 는 Adoptium, Caddy 는 COPR `@caddy/caddy` 로 설치한다.
+- TimescaleDB 는 기본 미설치(지금 앱이 쓰지 않는다). 켤 때는 `install.conf` 에 `DB_EXTRA_ARGS="--timescale"` — PGDG `timescaledb_18` 을 설치하고, 검증에서 판(`timescaledb.license` = timescale 이면 압축·연속 집계 정책까지)을 알려 준다. Timescale 자체 저장소는 el9 aarch64 가 비어 있어 쓰지 않는다.

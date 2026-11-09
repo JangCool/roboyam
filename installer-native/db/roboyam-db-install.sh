@@ -28,7 +28,7 @@
 #       --data-dir DIR      데이터 폴더 (기본 /var/lib/pgsql/<N>/data). 별도 EBS 를 쓸 때 그 마운트 아래로
 #       --max-connections N 최대 접속 수 (기본 200 = 앱 2대 × 20 + 관리자 5 + 여유)
 #       --memory-mb MB      메모리 계산 기준을 직접 준다 (기본: 장비 메모리)
-#       --timescale         timescaledb_18(PGDG aarch64 패키지)도 설치·preload 한다 — 아래 「TimescaleDB」 참고
+#       --timescale         TimescaleDB(PGDG timescaledb_18)도 설치·preload 한다 — 아래 「TimescaleDB」 참고
 #       --timezone TZ       DB·pg_cron 시간대 (기본 Asia/Seoul — 바꾸면 등록된 cron 식이 어긋난다)
 #       --set-os-timezone   OS 시간대도 --timezone 으로 바꾼다 (기본: 건드리지 않음)
 #       --backup-dir DIR    백업 폴더 (기본 /var/backups/roboyam)
@@ -45,9 +45,10 @@
 #   예) 2GB: 512MB / 1536MB / 128MB / 4MB    4GB: 1024MB / 3072MB / 256MB / 5MB
 #
 # TimescaleDB
-#   PGDG 저장소의 timescaledb_18 은 aarch64 패키지가 있다(Timescale 자체 저장소의 el9 aarch64 는 확인 못 함).
-#   PGDG 패키지는 Apache 판일 수 있다(압축·연속 집계 정책 같은 TSL 기능 없음) — 쓰기 전에 확인한다.
-#   지금 앱은 TimescaleDB 를 쓰지 않는다(방문 분석을 옮길 때를 위한 선택).
+#   aarch64 는 PGDG 저장소의 timescaledb_18 로 설치한다(같은 PGDG 저장소라 PostgreSQL 과 버전이 맞는다).
+#   Timescale 자체 저장소(packagecloud)는 el9 aarch64 가 빈 저장소다(2026-11-09 확인 — x86_64 만 있다).
+#   설치 뒤 검증에서 판을 알려 준다: timescaledb.license = timescale(압축·연속 집계 정책 등 TSL 포함) / apache(기본 기능만).
+#   지금 앱은 TimescaleDB 를 쓰지 않는다(방문 분석을 옮길 때를 위한 선택 — 기본은 설치하지 않는다).
 #
 # 비밀번호
 #   앱 계정 비밀번호는 프롬프트로 두 번 받는다(무인 설치는 환경 변수 ROBOYAM_DB_PASSWORD). 어디에도 저장하지 않는다.
@@ -265,6 +266,7 @@ install_packages() {
         log "TimescaleDB 설치 (PGDG timescaledb_${PG_MAJOR})"
         dnf install -y "timescaledb_${PG_MAJOR}" ||
             fail "timescaledb_${PG_MAJOR} 를 설치하지 못했습니다. --timescale 없이 다시 실행하세요."
+        log "TimescaleDB $(rpm -q --qf '%{VERSION}' "timescaledb_${PG_MAJOR}")$(compgen -G "/usr/pgsql-${PG_MAJOR}/lib/timescaledb-tsl-*.so" > /dev/null && echo ' — TSL 모듈 있음' || echo ' — TSL 모듈 없음(Apache 판)')"
     fi
 
     systemctl enable --now crond
@@ -564,6 +566,14 @@ verify() {
     check_eq "listen_addresses"    "localhost,${LISTEN_IP}" "$(psql_val "$db" "SHOW listen_addresses")"
     if [ "$WITH_TIMESCALE" -eq 1 ]; then
         check_eq "확장 timescaledb" "1" "$(psql_val "$db" "SELECT count(*) FROM pg_extension WHERE extname = 'timescaledb'")"
+        # 판은 실패로 세지 않고 알리기만 한다 — apache 판이면 압축·연속 집계 정책 같은 TSL 기능을 쓸 수 없다
+        local ts_license
+        ts_license="$(psql_val "$db" "SELECT current_setting('timescaledb.license', true)")"
+        if [ "$ts_license" = "timescale" ]; then
+            ok "TimescaleDB 판" "timescale (TSL 포함 — 압축·연속 집계 정책 사용 가능)"
+        else
+            warn "TimescaleDB 판이 ${ts_license:-알 수 없음} 입니다 — 압축·연속 집계 정책 같은 TSL 기능은 쓸 수 없습니다."
+        fi
     fi
 }
 
