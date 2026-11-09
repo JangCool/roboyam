@@ -329,10 +329,13 @@ run_remote_install() {   # <was1|was2> <호스트>
         rssh "$host" "${cmd} --dry-run" < /dev/null
     else
         # 비밀번호는 명령줄이 아니라 표준 입력으로 넘긴다(프로세스 목록·셸 기록에 남지 않게). WAS1 에 S3 접근 키를 주면 둘째 줄이 S3 비밀 키
+        # WAS2 는 WAS1 의 공통 환경 파일을 복사해 쓰므로 비밀번호가 필요 없다 — --only was2 면 묻지 않아 비어 있다
         if [ "$which" = was1 ] && [ "$STORAGE" != local ] && [ -n "$S3_ACCESS_KEY" ]; then
-            printf '%s\n%s\n' "$DB_PASSWORD" "$S3_SECRET" | rssh "$host" "${cmd} --password-stdin"
+            printf '%s\n%s\n' "${DB_PASSWORD:-}" "${S3_SECRET:-}" | rssh "$host" "${cmd} --password-stdin"
+        elif [ "$which" = was2 ]; then
+            rssh "$host" "$cmd" < /dev/null
         else
-            printf '%s\n' "$DB_PASSWORD" | rssh "$host" "${cmd} --password-stdin"
+            printf '%s\n' "${DB_PASSWORD:-}" | rssh "$host" "${cmd} --password-stdin"
         fi
     fi
 }
