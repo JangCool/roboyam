@@ -1,69 +1,44 @@
 package com.community.hotdeal.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.hotdeal.repository.master.DealRuleRepositoryQDSL;
 import com.community.hotdeal.service.DealLinkJudge.ChainVerdict;
 import com.community.hotdeal.service.DealLinkJudge.DomainRule;
 import com.community.hotdeal.service.SiteAffiliateLinker.SiteStore;
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
  * 링크 규칙({@code deal_domains})·사이트 제휴 몰({@code deal_site_affiliates})의 <b>짧은 메모리 사본</b> — 판정({@link DealLinkJudge})·변환({@link SiteAffiliateLinker})이
- * 글 줄마다 표를 읽지 않게 한다. {@value #TTL_SECONDS}초마다 다시 읽고(관리자 저장이 공개 서버에 닿기까지 최대 그만큼), 실패하면 이전 사본을 쓴다.
- * 같은 서버 안에서 바꾸면 {@link #invalidate()}.
+ * 글 줄마다 표를 읽지 않게 한다. 캐시 {@code hotdeal.rules}(기본 15초)에 두고, 관리자 저장은 세대 번호로 몇 초 안에
+ * 모든 서버에 닿는다. 읽다 실패하면 담지 않고 그 요청이 실패한다. 같은 서버 안에서는 {@link #invalidate()}.
  */
 @Component
 public class DealRuleBook {
 
-    private static final Logger log = LoggerFactory.getLogger(DealRuleBook.class);
-
-    static final int TTL_SECONDS = 15;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final DealRuleRepositoryQDSL rules;
-    private volatile Snapshot cached;
+    private final CacheManager caches;
 
     /** 사본 */
-    public record Snapshot(List<DomainRule> domains, List<SiteStore> siteStores, long loadedAt) {
+    public record Snapshot(List<DomainRule> domains, List<SiteStore> siteStores) {
     }
 
-    public DealRuleBook(DealRuleRepositoryQDSL rules) {
+    public DealRuleBook(DealRuleRepositoryQDSL rules, CacheManager caches) {
+        this.caches = caches;
         this.rules = rules;
     }
 
+    /** 지금 사본 — 캐시 {@code hotdeal.rules} */
     public Snapshot snapshot() {
-        Snapshot current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current;
-            }
-            try {
-                Snapshot loaded = new Snapshot(loadDomains(), loadStores(), now);
-                cached = loaded;
-                return loaded;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("핫딜 링크 규칙을 다시 읽지 못해 이전 값을 쓴다 원인={}", e.getClass().getSimpleName());
-                cached = new Snapshot(current.domains, current.siteStores, now - TTL_NANOS + RETRY_NANOS);
-                return cached;
-            }
-        }
+        return caches.getCache(CacheNames.HOTDEAL_RULES).get(CacheNames.SINGLE, () -> new Snapshot(List.copyOf(loadDomains()), List.copyOf(loadStores())));
     }
 
+    /** 이 서버의 사본을 버린다(다른 서버는 관리자 저장의 세대 번호로 따라온다) */
     public void invalidate() {
-        cached = null;
+        caches.getCache(CacheNames.HOTDEAL_RULES).clear();
     }
 
     /** 지금 규칙으로 체인 판정 */

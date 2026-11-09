@@ -66,7 +66,7 @@ class BoardChipPositionPublicTest extends CommerceApiTestBase {
 
     /** 사이트 설정 사본은 20초 캐시라 시험마다 새로 만든다 */
     private BoardDisplayView siteBoardDisplay() {
-        return new PublicSiteService(siteSettings, assets, boardDefaults, themeMenus, statsSettings, operators).snapshot().info().boardDisplay();
+        return new PublicSiteService(siteSettings, assets, boardDefaults, themeMenus, statsSettings, operators, new org.springframework.cache.support.NoOpCacheManager()).snapshot().info().boardDisplay();
     }
 
     private String siteListChipPosition() {

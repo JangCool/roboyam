@@ -98,6 +98,13 @@ roboyam:
       secret-key: ${ROBOYAM_STORAGE_S3_SECRET_KEY:}           # ENC(...) 권장
       path-style: ${ROBOYAM_STORAGE_S3_PATH_STYLE:false}      # MinIO 는 true
       public-base-url: ${ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL:} # 새 이미지 주소의 머리(R2 사용자 도메인 https://media.example.com). 비우면 /media/… 를 앱이 버킷에서 읽어 내보낸다
+  # 공개 사이트 캐시(docs/features/cache-admin-contract.md) — 서버 메모리(Caffeine). TTL·켜기/끄기·비우기는 관리자 화면(DB)이 정하고 각 서버가 poll-seconds 마다 따라간다.
+  # node-name 을 비우면 「<api|admin>-<NODE_ID>」(관리자 화면의 서버 이름). report-seconds 마다 상태를 DB 에 보고하고, node-timeout-seconds 넘게 보고가 없으면 목록에서 뺀다
+  cache:
+    node-name: ${ROBOYAM_CACHE_NODE_NAME:}
+    poll-seconds: 3
+    report-seconds: 10
+    node-timeout-seconds: 60
   # Snowflake ID 의 서버 번호(0~1023). 앱 서버마다 달라야 한다(공개 사이트·관리자 앱·서버 여러 대 모두 서로 다른 값). dev · prod 는 기본값이 없다 — 빠지면 기동이 실패한다
   node-id: ${NODE_ID}
   # 개인정보 칸 암호화(DataCipher)·중복 확인 해시(BlindIndex) — 설정 비밀값용 ROBOYAM_CRYPTO_KEY 와 따로다(docs/domain/commerce.md 10-9).

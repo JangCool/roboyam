@@ -1,5 +1,7 @@
 package com.community.hotdeal.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -54,15 +56,15 @@ public class HotdealSiteAffiliateAdminService {
     static final Pattern QUERY_PAIR = Pattern.compile("^[A-Za-z0-9_.\\[\\]-]{1,40}=[^\\s&=#]+$");
 
     private final DealSiteAffiliateRepository stores;
-    private final DealRuleBook rules;
+    private final CacheRefresher refresher;
     private final OperatorRepository operators;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
 
-    public HotdealSiteAffiliateAdminService(DealSiteAffiliateRepository stores, DealRuleBook rules, OperatorRepository operators, AuditLogService audit,
+    public HotdealSiteAffiliateAdminService(DealSiteAffiliateRepository stores, CacheRefresher refresher, OperatorRepository operators, AuditLogService audit,
                                             SnowflakeIdGenerator ids) {
         this.stores = stores;
-        this.rules = rules;
+        this.refresher = refresher;
         this.operators = operators;
         this.audit = audit;
         this.ids = ids;
@@ -86,7 +88,7 @@ public class HotdealSiteAffiliateAdminService {
         stores.persist(s);
         stores.flush();
         record(actor, AuditActions.HOTDEAL_SITE_AFFILIATE_CREATE, s.getId(), null, snapshot(s));
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("사이트 제휴 몰 추가 domain={} by operatorId={}", s.getDomain(), actor.operatorId());
         return view(s, names(List.of(actor.operatorId())));
     }
@@ -113,7 +115,7 @@ public class HotdealSiteAffiliateAdminService {
         if (!changedAfter.isEmpty()) {
             record(actor, AuditActions.HOTDEAL_SITE_AFFILIATE_UPDATE, s.getId(), changedBefore, changedAfter);
         }
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("사이트 제휴 몰 고침 domain={} 칸={} by operatorId={}", s.getDomain(), changedAfter.keySet(), actor.operatorId());
         return view(s, names(List.of(actor.operatorId())));
     }
@@ -125,7 +127,7 @@ public class HotdealSiteAffiliateAdminService {
         stores.delete(s);
         stores.flush();
         record(actor, AuditActions.HOTDEAL_SITE_AFFILIATE_DELETE, s.getId(), before, null);
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("사이트 제휴 몰 지움 domain={} by operatorId={}", s.getDomain(), actor.operatorId());
     }
 

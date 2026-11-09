@@ -1,5 +1,7 @@
 package com.community.notificationtemplate.engine;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.media.service.ImageStorage;
 import com.community.notificationtemplate.catalog.MailTemplateAudience;
 import com.community.notificationtemplate.catalog.MessageChannel;
@@ -11,7 +13,6 @@ import com.community.site.service.SiteAssets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -19,8 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -28,9 +27,9 @@ import org.springframework.stereotype.Component;
  * 렌더링 엔진이 읽는 사용자 문구 · 템플릿 · 대상별 선택 · 사이트 정보의 <b>짧은 메모리 사본</b> — 알림마다 표를 읽지 않게 한다(포인트 정책 사본 {@code PointPolicy} 와 같은 방식).
  *
  * <ul>
- *   <li>{@value #TTL_SECONDS}초마다 다시 읽는다 — 관리자 앱에서 저장하면 다른 서버(공개 서버 · 관리자 서버 여러 대)에는 <b>최대 그만큼 늦게</b> 닿는다.
- *       저장한 서버 안에서는 관리 API 가 {@link #invalidate()} 로 바로 비운다.</li>
- *   <li>다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다.</li>
+ *   <li>캐시 {@code notification.templates}(기본 15초)에 둔다 — 관리자 앱에서 저장하면 세대 번호로 다른 서버(공개 서버 · 관리자 서버 여러 대)에도 몇 초 안에 닿고,
+ *       저장한 서버는 커밋 뒤 바로 비운다.</li>
+ *   <li>읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다).</li>
  *   <li>JDBC 로 읽는다 — 발송 쪽이 업무 트랜잭션의 세이브포인트 안에서 부를 수 있는데, 저장소(JPA) 호출이 실패하면 업무 트랜잭션 전체를 「롤백만 가능」으로 표시해 업무까지 깨뜨린다
  *       ({@code PointPolicy} 와 같은 이유).</li>
  * </ul>
@@ -38,11 +37,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class MessageTemplateStore {
 
-    private static final Logger log = LoggerFactory.getLogger(MessageTemplateStore.class);
-
-    static final int TTL_SECONDS = 15;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
     /** 대상 · 채널의 선택 — 행이 없으면 {@link #EMPTY} */
     public record Selection(String selectedKo, String selectedEn, List<MessageRule> rules) {
@@ -70,42 +64,22 @@ public class MessageTemplateStore {
 
     private final JdbcTemplate jdbc;
     private final ImageStorage storage;
-    private volatile Cached cached;
+    private final CacheManager caches;
 
-    public MessageTemplateStore(DataSource dataSource, ImageStorage storage) {
+    public MessageTemplateStore(DataSource dataSource, ImageStorage storage, CacheManager caches) {
+        this.caches = caches;
         this.jdbc = new JdbcTemplate(dataSource);
         this.storage = storage;
     }
 
+    /** 지금 사본 — 캐시 {@code notification.templates} */
     public Snapshot current() {
-        Cached current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.snapshot;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current.snapshot;
-            }
-            try {
-                Snapshot loaded = load();
-                cached = new Cached(loaded, now);
-                return loaded;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("알림 문구·템플릿을 다시 읽지 못해 이전 값을 쓴다 원인={}", e.getClass().getSimpleName());
-                cached = new Cached(current.snapshot, now - TTL_NANOS + RETRY_NANOS);
-                return current.snapshot;
-            }
-        }
+        return caches.getCache(CacheNames.NOTIFICATION_TEMPLATES).get(CacheNames.SINGLE, this::load);
     }
 
-    /** 사본을 버린다 — 다음 {@link #current()} 가 다시 읽는다(관리 API 가 저장한 뒤 부른다) */
+    /** 이 서버의 사본을 버린다 — 다음 {@link #current()} 가 다시 읽는다(다른 서버는 관리자 저장의 세대 번호로 따라온다) */
     public void invalidate() {
-        cached = null;
+        caches.getCache(CacheNames.NOTIFICATION_TEMPLATES).clear();
     }
 
     private Snapshot load() {
@@ -212,6 +186,4 @@ public class MessageTemplateStore {
         return rs.wasNull() ? null : value;
     }
 
-    private record Cached(Snapshot snapshot, long loadedAt) {
-    }
 }

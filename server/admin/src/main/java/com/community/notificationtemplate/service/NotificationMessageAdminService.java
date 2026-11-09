@@ -217,7 +217,7 @@ public class NotificationMessageAdminService {
         if (!changed.isEmpty()) {
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_MESSAGE_TARGET_UPDATE, AuditResult.SUCCESS)
                     .target("NOTIFICATION_MESSAGE_TARGET", target.type().name() + ":" + target.code()).with("channels", changed));
-            support.invalidate();
+            support.invalidate(actor.operatorId());
             log.info("알림 문구 대상의 선택·규칙을 저장했다 target={} channels={} by operatorId={}", target.code(), changed, actor.operatorId());
         }
         return detail(target, state());
@@ -278,7 +278,7 @@ public class NotificationMessageAdminService {
         history.recordMessage(row.getId(), TemplateHistoryBase.ACTION_CREATE, actor.operatorId(), now, changes);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_MESSAGE_CREATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_MESSAGE", String.valueOf(row.getId())).with("target", target.code()).with("channel", channel.name()).with("locale", clean.locale));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("알림 문구를 만들었다 id={} target={} channel={} by operatorId={}", row.getId(), target.code(), channel, actor.operatorId());
         return support.messageView(TemplateSupport.values(row), target, support.operatorNames(List.of(actor.operatorId())));
     }
@@ -330,7 +330,7 @@ public class NotificationMessageAdminService {
         history.recordMessage(row.getId(), TemplateHistoryBase.ACTION_UPDATE, actor.operatorId(), now, changes);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_MESSAGE_UPDATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_MESSAGE", String.valueOf(row.getId())).with("fields", changes.stream().map(TemplateChange::field).toList()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("알림 문구를 고쳤다 id={} 칸={} by operatorId={}", row.getId(), changes.stream().map(TemplateChange::field).toList(), actor.operatorId());
         return support.messageView(TemplateSupport.values(row), target, support.operatorNames(List.of(actor.operatorId())));
     }
@@ -361,7 +361,7 @@ public class NotificationMessageAdminService {
         messageRepo.delete(row);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_MESSAGE_DELETE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_MESSAGE", messageId).with("target", row.getTargetCode()).with("channel", row.getChannel().name()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("알림 문구를 지웠다 id={} by operatorId={}", messageId, actor.operatorId());
     }
 

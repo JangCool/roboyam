@@ -1,5 +1,7 @@
 package com.community.hotdeal.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -76,6 +78,7 @@ public class HotdealSettingsAdminService {
 
     private final DealSettingsStore store;
     private final DealSettingsReader reader;
+    private final CacheRefresher refresher;
     private final PointPolicy points;
     private final AdminDealQueries queries;
     private final DealSiteAffiliateRepository siteStores;
@@ -83,7 +86,8 @@ public class HotdealSettingsAdminService {
     private final AuditLogService audit;
 
     public HotdealSettingsAdminService(DealSettingsStore store, DealSettingsReader reader, PointPolicy points, AdminDealQueries queries,
-                                       DealSiteAffiliateRepository siteStores, OperatorRepository operators, AuditLogService audit) {
+                                       DealSiteAffiliateRepository siteStores, OperatorRepository operators, AuditLogService audit, CacheRefresher refresher) {
+        this.refresher = refresher;
         this.store = store;
         this.reader = reader;
         this.points = points;
@@ -119,7 +123,7 @@ public class HotdealSettingsAdminService {
         store.update(wanted, actor.operatorId(), at);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HOTDEAL_SETTINGS_UPDATE, AuditResult.SUCCESS).target(TARGET, "1")
                 .with("before", before).with("after", after));
-        AfterCommit.run(reader::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_SETTINGS_SAVE, null, actor.operatorId());
         log.info("핫딜 설정 저장 칸={} by operatorId={}", after.keySet(), actor.operatorId());
         return view(store.read());
     }

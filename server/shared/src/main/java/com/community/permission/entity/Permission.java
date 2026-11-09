@@ -185,6 +185,10 @@ public enum Permission {
     BATCH_READ("batch.read", AUDIT_BATCH, READ, true),
     BATCH_MANAGE("batch.manage", AUDIT_BATCH, MANAGE, true),
     BATCH_RUN("batch.run", AUDIT_BATCH, SENSITIVE, true),
+    /** 캐시 관리(`/settings/caches`, docs/features/cache-admin-contract.md) 보기 — 캐시 목록·서버별 상태·갱신 기록 */
+    CACHE_READ("cache.read", AUDIT_BATCH, READ, true),
+    /** 캐시 TTL 변경 · 켜기/끄기 · 지금 갱신 · 전체 갱신(세션 정리 결정 5 — MANAGE 단계) */
+    CACHE_MANAGE("cache.manage", AUDIT_BATCH, MANAGE, true),
     SITE_READ("site.read", SITE_INTEGRATION, READ, true),
     SITE_MANAGE("site.manage", SITE_INTEGRATION, CONFIG, true),
     SITE_SECRET("site.secret", SITE_INTEGRATION, SENSITIVE, true),

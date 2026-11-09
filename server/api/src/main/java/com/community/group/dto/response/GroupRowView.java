@@ -15,4 +15,10 @@ package com.community.group.dto.response;
  */
 public record GroupRowView(String id, String name, String imageUrl, String summary, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity,
                            int memberCount, boolean recruiting, String recruitState, boolean offline, boolean stockNotice, String visibility, String myState) {
+
+    /** 같은 줄에 내 상태만 바꾼 것 — 공용 캐시 줄(보는 사람 없이 만든 것)에 회원 기준으로 덧입힐 때 */
+    public GroupRowView withMyState(String value) {
+        return new GroupRowView(id, name, imageUrl, summary, category, board, joinType, capacity, memberCount, recruiting, recruitState, offline, stockNotice, visibility,
+                value);
+    }
 }

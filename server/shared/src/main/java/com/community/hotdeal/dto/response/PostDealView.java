@@ -26,6 +26,15 @@ public record PostDealView(String source, String storeName, String productUrl, S
                            int keepCount, int keepMax, DealRevisionView revision, boolean hot, int sameDealCount, String buyUrl, String affiliateKind,
                            String siteProgramName, DealBusinessView business) {
 
+    /** 보는 회원이 보낸 종료 요청 사유를 싣는다(공용 캐시 줄에 회원 기준으로 덧입힐 때 — 그 밖의 칸은 그대로) */
+    public PostDealView withMine(String mine) {
+        DealEndRequestsView requests = endRequests == null ? new DealEndRequestsView(0, 0, 0, 0, mine)
+                : new DealEndRequestsView(endRequests.total(), endRequests.bySoldOut(), endRequests.byPriceChanged(), endRequests.byLinkDead(), mine);
+        return new PostDealView(source, storeName, productUrl, productHost, finalHost, normalPrice, dealPrice, discountRate, shippingFee, couponNote, priceBasisKind,
+                dutyIncluded, priceBasis, endsAt, autoExpireAt, stockState, affiliate, image, status, view, endedBy, endedAt, reopenUntil, requests, flaggedAt,
+                autoEndAt, keepCount, keepMax, revision, hot, sameDealCount, buyUrl, affiliateKind, siteProgramName, business);
+    }
+
     /** 사업자 글의 신청 건 ID 를 싣는다(작성자에게만 — V127). 회원 글이면 그대로 */
     public PostDealView withApplicationId(String applicationId) {
         if (business == null) {

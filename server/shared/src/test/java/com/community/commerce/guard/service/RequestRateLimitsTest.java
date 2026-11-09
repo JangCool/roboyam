@@ -3,10 +3,15 @@ package com.community.commerce.guard.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.cache.definition.CacheCatalog;
+import com.community.cache.definition.CacheNames;
+import com.community.cache.definition.CacheServerRole;
 import com.community.commerce.guard.dto.RequestAction;
 import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.JpaTestContext;
+import com.community.zconfiguration.cache.CaffeineCacheControl;
+import org.springframework.cache.support.NoOpCacheManager;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,10 +40,11 @@ class RequestRateLimitsTest {
     }
 
     @Test
-    void 사본은_15초_동안_다시_읽지_않고_비우면_바로_다시_읽는다() {
-        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
+    void 사본은_TTL_15초_동안_다시_읽지_않고_비우면_바로_다시_읽는다() {
+        // 운영과 같은 캐시 구현(Caffeine — 캐시 commerce.rateLimits, 기본 TTL 15초)
+        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()), new CaffeineCacheControl(CacheServerRole.API));
         assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).isEqualTo(10);
-        assertThat(RequestRateLimits.TTL_SECONDS).isEqualTo(15);
+        assertThat(CacheCatalog.find(CacheNames.COMMERCE_RATE_LIMITS).orElseThrow().defaultTtlSeconds()).isEqualTo(15);
 
         jdbc.update("UPDATE request_rate_limits SET limit_per_minute = 42 WHERE action = 'POINT_SHOP_PURCHASE'");
         assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("다른 서버가 바꾼 값은 사본 주기 안에는 아직 옛 값").isEqualTo(10);
@@ -50,7 +56,7 @@ class RequestRateLimitsTest {
     @Test
     void 행이_없는_종류는_기본값() {
         jdbc.update("DELETE FROM request_rate_limits WHERE action = 'REFUND_REQUEST'");
-        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
+        RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()), new NoOpCacheManager());
         assertThat(limits.limitOf(RequestAction.REFUND_REQUEST)).isEqualTo(3);
     }
 

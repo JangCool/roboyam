@@ -83,7 +83,7 @@ class VisitAnalyticsAdminServiceTest {
         store = new VisitAnalyticsStore(new AnalyticsDatabase(single, false));
         titles = new FakeTitles();
         messages = new FakeMessages();
-        settings = new StatsCollectionSettings(null) {
+        settings = new StatsCollectionSettings(null, null) {
             @Override
             public StatsCollection current() {
                 return current;

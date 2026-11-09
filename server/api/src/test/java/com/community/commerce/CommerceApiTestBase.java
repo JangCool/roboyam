@@ -86,8 +86,13 @@ public abstract class CommerceApiTestBase {
     protected BusinessFixture businessFixture;
     protected AuditLogQuery auditLogs;
 
+    @Autowired
+    private org.springframework.cache.CacheManager cacheManager;
+
     @BeforeEach
     void baseSetUp() {
+        // 공개 캐시(docs/features/cache-admin-contract.md)는 시험마다 비우고 시작한다 — 문맥을 같이 쓰는 앞 시험이 담은 값이 남지 않게
+        cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
         jdbc = new JdbcTemplate(dataSource);
         tx = new TransactionTemplate(transactions);
         memberFixture = new MemberFixture(context);

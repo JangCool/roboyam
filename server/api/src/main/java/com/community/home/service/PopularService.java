@@ -1,5 +1,7 @@
 package com.community.home.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.service.BoardCatalog;
 import com.community.home.dto.response.PopularListResponse;
@@ -57,9 +59,11 @@ public class PopularService {
     private final PostFeedRows rows;
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
+    private final CacheManager caches;
 
     public PopularService(BoardCatalog catalog, PopularRankQueries ranks, PopularSettingRepository settings, PopularExclusionRepository exclusions,
-                          PostFeedRepositoryQDSL feeds, PostFeedRows rows, DealQueries dealQueries, DealSettingsReader dealSettings) {
+                          PostFeedRepositoryQDSL feeds, PostFeedRows rows, DealQueries dealQueries, DealSettingsReader dealSettings, CacheManager caches) {
+        this.caches = caches;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
         this.catalog = catalog;
@@ -85,7 +89,18 @@ public class PopularService {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
+        // 캐시 home.popular(항목 키 = 기간 · 쪽 · 쪽 크기) — 공용 줄로 만들고 꺼낸 뒤 보는 사람 몫(차단·메모·딜의 내 종료 요청)을 덧입힌다
+        PopularListResponse shared = caches.getCache(CacheNames.HOME_POPULAR).get(period + "|" + page + "|" + size, () -> sharedPage(period, page, size));
+        if (viewerId == null) {
+            return shared;
+        }
+        PostFeedRows.Overlay overlay = rows.overlay(shared.items(), viewerId);
+        return new PopularListResponse(shared.pinned(), overlay.apply(shared.items()), shared.page(), shared.totalPages(), shared.totalCount(), shared.hasNext(),
+                shared.nextCursor(), shared.period(), shared.fills(), shared.from(), shared.to(), shared.weekStart());
+    }
 
+    /** 한 쪽의 공용 응답(보는 사람 없이) */
+    private PopularListResponse sharedPage(String period, int page, int size) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
         PopularSettingEntity setting = settings.findById(PopularSettingEntity.ROW_ID).orElse(null);
@@ -115,7 +130,7 @@ public class PopularService {
         int totalPages = Math.max(1, (total + size - 1) / size);
         int fromIndex = (int) Math.min((long) (page - 1) * size, total);
         List<PostRowData> slice = eligible.subList(fromIndex, Math.min(fromIndex + size, total));
-        List<PostFeedRowView> items = rows.of(slice, s, now, viewerId);
+        List<PostFeedRowView> items = rows.of(slice, s, now, null);
         Map<String, String> fills = new LinkedHashMap<>();
         for (PostFeedRowView item : items) {
             String fill = fillOf.get(Long.parseLong(item.id()));

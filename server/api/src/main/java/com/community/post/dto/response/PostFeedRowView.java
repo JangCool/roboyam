@@ -19,6 +19,12 @@ public record PostFeedRowView(String id, PostPrefixRefView prefix, String title,
                               Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked,
                               boolean hasPoll, PostBoardRefView board, PostGroupView group, PostDealView deal, boolean secret, String processStatus) {
 
+    /** 같은 줄에 보는 사람 몫(작성자 메모 · 차단 · 딜의 내 종료 요청)만 바꾼 것 — 공용 캐시 줄에 회원 기준으로 덧입힐 때 */
+    public PostFeedRowView forViewer(String memo, String blockedValue, PostDealView dealValue) {
+        return new PostFeedRowView(id, prefix, title, commentCount, hasImage, thumbnailUrl, author == null ? null : author.withMemo(memo), createdAt, viewCount, likeCount,
+                pinned, adult, hiddenReason, blockedValue, hasPoll, board, group, dealValue, secret, processStatus);
+    }
+
     public static PostFeedRowView of(PostRowView row, PostBoardRefView board, PostGroupView group) {
         return new PostFeedRowView(row.id(), row.prefix(), row.title(), row.commentCount(), row.hasImage(), row.thumbnailUrl(), row.author(), row.createdAt(),
                 row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.hasPoll(), board, group, row.deal(), row.secret(),

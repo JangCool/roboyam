@@ -4,7 +4,7 @@
  */
 export default {
     title: '캐시 관리',
-    subtitle: '[준비 중 — 화면 목업이며 값은 실제 캐시에 반영되지 않습니다] 공개 사이트 응답 캐시를 보고, 캐시마다 TTL 을 바꾸고, 필요하면 모든 서버의 캐시를 비웁니다.',
+    subtitle: '공개 사이트 응답 캐시를 보고, 캐시마다 TTL 을 바꾸고, 필요하면 모든 서버의 캐시를 비웁니다.',
     reload: '다시 조회',
     all: '전체',
 
@@ -65,6 +65,7 @@ export default {
     noManageReason: '캐시 TTL 을 바꾸거나 갱신할 권한이 없어요.',
     pendingLockReason: '갱신이 서버들에 퍼지는 중이에요. 몇 초 뒤 정상이 됩니다.',
     loadFailed: '캐시 목록을 불러오지 못했습니다',
+    listDenied: '캐시 관리를 볼 권한이 없어요(cache.read).',
     empty: '관리할 캐시가 없습니다',
     emptyFiltered: '조건에 맞는 캐시가 없습니다',
     refreshRequested: '{name} — 갱신을 요청했습니다. 각 서버가 {s}초 안에 비웁니다.',

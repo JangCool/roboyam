@@ -1,8 +1,9 @@
 package com.community.analytics.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.analytics.dto.AnalyticsSettingsAdmin;
 import com.community.analytics.settings.StatsCollection;
-import com.community.analytics.settings.StatsCollectionSettings;
 import com.community.analytics.settings.StatsCollectionStore;
 import com.community.analytics.store.AnalyticsDatabase;
 import com.community.audit.dto.AuditActions;
@@ -58,16 +59,16 @@ public class AnalyticsSettingsAdminService {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final StatsCollectionStore store;
-    private final StatsCollectionSettings settings;
+    private final CacheRefresher refresher;
     private final AnalyticsDatabase analytics;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
     private final Messages messages;
 
-    public AnalyticsSettingsAdminService(StatsCollectionStore store, StatsCollectionSettings settings, AnalyticsDatabase analytics, AuditLogService audit,
+    public AnalyticsSettingsAdminService(StatsCollectionStore store, CacheRefresher refresher, AnalyticsDatabase analytics, AuditLogService audit,
                                          SnowflakeIdGenerator ids, Messages messages) {
         this.store = store;
-        this.settings = settings;
+        this.refresher = refresher;
         this.analytics = analytics;
         this.audit = audit;
         this.ids = ids;
@@ -108,11 +109,12 @@ public class AnalyticsSettingsAdminService {
         detail.put("after", to);
         audit.record(new AuditEvent(AuditActorType.OPERATOR, actor.operatorId(), AuditActions.STATS_COLLECTION_UPDATE, AuditResult.SUCCESS, AUDIT_TARGET, "1",
                 actor.ip(), detail));
+        // 모든 서버의 통계 수집 설정 사본을 비운다(세대 번호 — 같은 트랜잭션, 이 서버는 커밋 뒤 바로)
+        refresher.onSave(CacheSaveSource.STATS_SAVE, null, actor.operatorId());
         boolean rawTurnedOn = next.rawEventsOn() && !before.rawEventsOn();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                settings.invalidate();
                 if (rawTurnedOn) {
                     ensurePartitions();
                 }

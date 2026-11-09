@@ -1,5 +1,10 @@
 package com.community.home.service;
 
+import com.community.cache.definition.CacheCatalog;
+import com.community.cache.definition.CacheNames;
+import com.community.group.dto.response.GroupRowView;
+import com.community.zconfiguration.crypto.Digests;
+import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.entity.BoardGadget;
@@ -65,7 +70,9 @@ import tools.jackson.databind.JsonNode;
  * 공개 홈 가젯({@code GET /api/home/gadgets}) — 지금 사이트 테마의 홈 구성(저장한 것, 없으면 테마 기본 배치 {@link HomeLayoutDefaults})에 가젯마다 종류별 데이터를 붙인다. 비회원도 본다.
  *
  * <ul>
- *   <li>테마는 공개 사이트 사본({@code PublicSiteService}, 20초)의 값이다. 배치·가젯은 요청마다 읽는다(관리자 저장이 바로 보인다).</li>
+ *   <li>테마는 공개 사이트 사본({@code PublicSiteService}, 20초)의 값이다. 배치는 캐시 {@code home.layout}·{@code pages.layout}·{@code boards.layout}(기본 300초), 가젯 데이터는
+ *       종류별 캐시 {@code gadget.<종류>}(항목 키 = 설정 지문)에 둔다 — 관리자 저장은 세대 번호로 몇 초 안에, 새 글은 TTL 안에 보인다(docs/features/cache-admin-contract.md).
+ *       캐시에는 공용 값만 담고 보는 사람 몫은 꺼낸 뒤 덧입힌다. 관리자 테마 미리보기({@code theme})는 캐시를 거치지 않는다. 광고·본문 칸은 캐시하지 않는다.</li>
  *   <li>글 줄은 최신글·인기글 목록과 같은 거름·모양이다({@link PostFeedRows}, 로그인하면 차단·메모 표시). 가젯 설정 {@code boardIds} 는 게시판 slug 목록이고
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
@@ -110,12 +117,15 @@ public class HomeGadgetService {
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
     private final AdultContentGate adultGate;
+    private final CacheManager caches;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightPicks highlightPicks,
                              GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
-                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate) {
+                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate,
+                             CacheManager caches) {
+        this.caches = caches;
         this.adultGate = adultGate;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
@@ -141,20 +151,22 @@ public class HomeGadgetService {
      * @param viewerId 로그인한 회원(비로그인 null) — 글 줄의 차단·메모, 소모임 줄의 내 상태
      */
     public HomeGadgetsResponse gadgets(String requestedTheme, Long viewerId) {
-        String theme = SiteThemes.isKnown(requestedTheme) ? requestedTheme : site.snapshot().info().theme();
+        // 관리자 미리보기(theme)는 캐시를 거치지 않는다 — 저장한 배치를 바로 보여야 하고, 사이트 테마가 아닌 테마의 항목을 캐시에 남기지 않는다
+        boolean preview = SiteThemes.isKnown(requestedTheme);
+        String theme = preview ? requestedTheme : site.snapshot().info().theme();
+        Layout home = preview ? homeLayout(theme) : caches.getCache(CacheNames.HOME_LAYOUT).get(theme, () -> homeLayout(theme));
+        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null, !preview);
+        return new HomeGadgetsResponse(theme, home.layout(), home.specs().stream().map(spec -> view(spec, ctx)).toList());
+    }
+
+    /** 홈 배치(가젯 구성·위치·설정) — 저장한 것, 없으면 테마 기본 배치. 캐시 {@code home.layout}(항목 키 = 테마) */
+    private Layout homeLayout(String theme) {
         HomeLayoutEntity row = layouts.findById(theme).orElse(null);
-        HomeGridLayout layout;
-        List<HomeGadgetSpec> specs;
         if (row == null) {
             HomeLayoutDefaults.Home home = HomeLayoutDefaults.of(theme);
-            layout = home.layout();
-            specs = home.gadgets();
-        } else {
-            layout = row.toLayout();
-            specs = gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
+            return new Layout(home.layout(), List.copyOf(home.gadgets()));
         }
-        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null);
-        return new HomeGadgetsResponse(theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
+        return new Layout(row.toLayout(), gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList());
     }
 
     /**
@@ -163,33 +175,46 @@ public class HomeGadgetService {
      * @param viewerId 로그인한 회원(비로그인 null)
      */
     public GadgetPageResponse page(String key, Long viewerId) {
-        GadgetPageEntity page = key == null ? null : pages.findByPageKey(key.strip()).orElse(null);
-        if (page == null) {
+        if (key == null) {
             throw new GadgetPageNotFoundException();
         }
         String theme = site.snapshot().info().theme();
+        String pageKey = key.strip();
+        // 캐시 pages.layout(항목 키 = 페이지 주소 · 테마) — 없는 페이지도 「없음」으로 담는다(같은 주소를 거듭 물어도 TTL 안에서는 DB 를 읽지 않는다)
+        PageLayout page = caches.getCache(CacheNames.PAGES_LAYOUT).get(pageKey + "|" + theme, () -> pageLayout(pageKey, theme));
+        if (page == null) {
+            throw new GadgetPageNotFoundException();
+        }
+        BoardCatalogSnapshot snapshot = catalog.snapshot();
+        Set<String> activeFolder = new java.util.LinkedHashSet<>();
+        for (String slug : page.folderSlugs()) {
+            snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
+        }
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), activeFolder.isEmpty() ? null : activeFolder, null, true);
+        String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
+        GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.pageKey(), page.name(), page.nameEn(), page.description(), page.writeButton(), writeBoard);
+        return new GadgetPageResponse(head, theme, page.layout(), page.specs().stream().map(spec -> view(spec, ctx)).toList());
+    }
+
+    /** 가젯 페이지 하나의 배치·머리·기준 폴더 게시판(켜짐 판정 전) — 없는 페이지는 null */
+    private PageLayout pageLayout(String pageKey, String theme) {
+        GadgetPageEntity page = pages.findByPageKey(pageKey).orElse(null);
+        if (page == null) {
+            return null;
+        }
         GadgetPageLayoutEntity row = pageLayouts.findByPageIdAndTheme(page.getId(), theme).orElse(null);
         HomeGridLayout layout;
         List<HomeGadgetSpec> specs;
         if (row == null) {
             HomeLayoutDefaults.Home initial = GadgetPageInitial.read(page.getInitialLayout(), theme);
             layout = initial.layout();
-            specs = initial.gadgets();
+            specs = List.copyOf(initial.gadgets());
         } else {
             layout = row.toLayout();
             specs = gadgets.findByPageIdAndThemeOrderByIdAsc(page.getId(), theme).stream().map(HomeGadgetEntity::toSpec).toList();
         }
-        List<String> folderSlugs = folders.of(page.getFolderId()).map(GadgetPageFolders.Folder::activeSlugs).orElse(List.of());
-        BoardCatalogSnapshot snapshot = catalog.snapshot();
-        Set<String> activeFolder = new java.util.LinkedHashSet<>();
-        for (String slug : folderSlugs) {
-            snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
-        }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), activeFolder.isEmpty() ? null : activeFolder, null);
-        String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
-        GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(), page.isWriteButton(),
-                writeBoard);
-        return new GadgetPageResponse(head, theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
+        List<String> folderSlugs = List.copyOf(folders.of(page.getFolderId()).map(GadgetPageFolders.Folder::activeSlugs).orElse(List.of()));
+        return new PageLayout(page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(), page.isWriteButton(), layout, specs, folderSlugs);
     }
 
     /**
@@ -203,29 +228,105 @@ public class HomeGadgetService {
     public BoardLayoutResponse boardLayout(String slug, String requestedTheme, Long viewerId) {
         BoardCatalogSnapshot snapshot = catalog.snapshot();
         EffectiveBoard board = PublicBoardService.requireActive(snapshot, slug == null ? "" : slug.strip());
-        String theme = SiteThemes.isKnown(requestedTheme) ? requestedTheme : site.snapshot().info().theme();
-        BoardLayoutEntity row = boardLayouts.findById(theme).orElse(null);
-        BoardLayoutResponse.Screens screens;
-        HomeGridLayout layout;
-        List<HomeGadgetSpec> specs;
-        if (row == null) {
-            BoardLayoutDefaults.Board defaults = BoardLayoutDefaults.of(theme);
-            screens = new BoardLayoutResponse.Screens(defaults.screens().list(), defaults.screens().post());
-            layout = defaults.home().layout();
-            specs = defaults.home().gadgets();
-        } else {
-            screens = new BoardLayoutResponse.Screens(row.isListEnabled(), row.isPostEnabled());
-            layout = row.toLayout();
-            specs = gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
-        }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), null, board.slug());
-        return new BoardLayoutResponse(theme, screens, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
+        // 관리자 미리보기(theme)는 캐시를 거치지 않는다(홈 가젯과 같은 규칙)
+        boolean preview = SiteThemes.isKnown(requestedTheme);
+        String theme = preview ? requestedTheme : site.snapshot().info().theme();
+        BoardLayout cached = preview ? boardLayout(theme) : caches.getCache(CacheNames.BOARDS_LAYOUT).get(theme, () -> boardLayout(theme));
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), null, board.slug(), !preview);
+        return new BoardLayoutResponse(theme, cached.screens(), cached.layout(), cached.specs().stream().map(spec -> view(spec, ctx)).toList());
     }
 
+    /** 그 테마의 게시판 레이아웃(저장한 것, 없으면 기본 배치 — 본문만) + 적용 화면. 캐시 {@code boards.layout}(항목 키 = 테마 — 모든 게시판이 함께 쓴다) */
+    private BoardLayout boardLayout(String theme) {
+        BoardLayoutEntity row = boardLayouts.findById(theme).orElse(null);
+        if (row == null) {
+            BoardLayoutDefaults.Board defaults = BoardLayoutDefaults.of(theme);
+            return new BoardLayout(new BoardLayoutResponse.Screens(defaults.screens().list(), defaults.screens().post()), defaults.home().layout(),
+                    List.copyOf(defaults.home().gadgets()));
+        }
+        return new BoardLayout(new BoardLayoutResponse.Screens(row.isListEnabled(), row.isPostEnabled()), row.toLayout(),
+                gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList());
+    }
+
+    /**
+     * 가젯 하나 — 가젯 데이터 캐시를 두는 종류({@code gadget.<종류>}, 항목 키 = 가젯 설정 지문)면 공용 데이터(보는 사람 없이 만든 것)를 캐시에서 꺼내고, 아니면(미리보기 · 캐시하지 않는 종류)
+     * 그 자리에서 만든다. 어느 쪽이든 보는 사람 몫(글 줄의 차단·메모·딜의 내 종료 요청, 소모임의 내 상태)은 꺼낸 뒤 덧입히고, 공동구매 판매 스위치는 요청마다 지금 값이다.
+     */
     private HomeGadgetView view(HomeGadgetSpec g, Ctx ctx) {
+        Ctx shared = ctx.shared();
+        GadgetData built = ctx.cached() && CacheCatalog.cachedGadget(g.type())
+                ? caches.getCache(CacheNames.gadget(g.type())).get(gadgetKey(g, ctx), () -> compute(g, shared))
+                : compute(g, shared);
+        Object data = overlay(built, ctx.viewerId());
+        return new HomeGadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), built.empty(), false, g.style(), g.config(), g.more(), data);
+    }
+
+    /**
+     * 가젯 데이터 캐시의 항목 키 — 설정 지문(같은 설정이면 홈·가젯 페이지·게시판 레이아웃 어디에 있든 한 항목을 함께 쓴다) + 데이터를 바꾸는 요청 값:
+     * 성인 여부(19금 글을 넣는가)와 대상 게시판이 쪽에 따라 정해지는 설정의 그 게시판(가젯 페이지 기준 폴더 {@code FOLDER} · 게시판 레이아웃 {@code BOARD}).
+     */
+    private static String gadgetKey(HomeGadgetSpec g, Ctx ctx) {
+        String scope = GadgetConfigs.scope(g.config());
+        String place = GadgetConfigs.FOLDER.equals(scope) ? String.valueOf(ctx.folder()) : GadgetConfigs.BOARD.equals(scope) ? String.valueOf(ctx.board()) : "";
+        return Digests.sha256Hex((ctx.adult() ? "A" : "N") + "|" + place + "|" + Objects.toString(g.config()));
+    }
+
+    /** 보는 사람 몫을 덧입힌다 — 비로그인이면 그대로(공동구매 판매 스위치만 지금 값으로) */
+    private Object overlay(GadgetData built, Long viewerId) {
+        Object data = built.data();
+        if (data instanceof GroupBuyDataView d) {
+            return new GroupBuyDataView(d.items(), sales.groupBuyOpen());
+        }
+        if (viewerId == null) {
+            return data;
+        }
+        return switch (data) {
+            case PostListDataView d -> {
+                List<PostFeedRowView> all = new ArrayList<>(d.items());
+                if (d.periods() != null) {
+                    d.periods().values().forEach(all::addAll);
+                }
+                PostFeedRows.Overlay o = rows.overlay(all, viewerId);
+                Map<String, List<PostFeedRowView>> periods = null;
+                if (d.periods() != null) {
+                    periods = new LinkedHashMap<>();
+                    for (Map.Entry<String, List<PostFeedRowView>> e : d.periods().entrySet()) {
+                        periods.put(e.getKey(), o.apply(e.getValue()));
+                    }
+                }
+                yield new PostListDataView(o.apply(d.items()), periods);
+            }
+            case HighlightDataView d -> {
+                PostFeedRows.Overlay o = rows.overlay(d.picks().stream().map(HighlightPickView::post).toList(), viewerId);
+                yield new HighlightDataView(d.picks().stream().map(p -> new HighlightPickView(p.id(), o.apply(p.post()), p.title(), p.summary(), p.imageUrl())).toList());
+            }
+            case BoardCardsDataView d -> {
+                List<PostFeedRowView> all = new ArrayList<>();
+                for (BoardCardView c : d.cards()) {
+                    if (c.lead() != null) {
+                        all.add(c.lead());
+                    }
+                    all.addAll(c.items());
+                }
+                PostFeedRows.Overlay o = rows.overlay(all, viewerId);
+                yield new BoardCardsDataView(d.cards().stream().map(c -> new BoardCardView(c.board(), o.apply(c.lead()), o.apply(c.items()))).toList());
+            }
+            case HotDealsDataView d -> new HotDealsDataView(rows.forViewer(d.items(), viewerId), d.more());
+            case ItemsDataView d when built.leaders() != null -> {
+                @SuppressWarnings("unchecked")
+                List<GroupRowView> items = (List<GroupRowView>) d.items();
+                yield new ItemsDataView(groups.withMine(items, built.leaders(), viewerId));
+            }
+            case null, default -> data;
+        };
+    }
+
+    /** 가젯 하나의 데이터(보는 사람 없이 — {@code ctx.viewerId()} 는 null) */
+    private GadgetData compute(HomeGadgetSpec g, Ctx ctx) {
         JsonNode config = g.config();
         Object data;
         boolean empty;
+        List<Long> leaders = null;
         switch (g.type()) {
             case HomeGadgetKinds.BOARD_BODY, HomeGadgetKinds.AD, HomeGadgetKinds.AD_TEXT_LINE -> {
                 // 본문: 화면이 그 자리에 게시판 목록·글 보기를 그린다 · 광고: 화면이 GET /api/ads 로 채우고 비었는지도 화면이 정한다
@@ -256,7 +357,10 @@ public class HomeGadgetService {
             case "GROUPS" -> {
                 GadgetConfigs.Count limit = GadgetConfigs.count("GROUPS");
                 int count = HomeLayoutJson.number(config, "count", limit.initial(), limit.min(), limit.max());
-                List<?> items = groups.trending(ctx.viewerId()).items().stream().limit(count).toList();
+                // 공용 줄(내 상태 null) + 줄마다 모임장 — 내 상태는 꺼낸 뒤 덧입힌다(overlay)
+                GroupQueryService.TrendingShared trending = groups.trendingShared();
+                List<GroupRowView> items = trending.rows().stream().limit(count).toList();
+                leaders = trending.leaderIds().stream().limit(count).toList();
                 data = new ItemsDataView(items);
                 empty = items.isEmpty();
             }
@@ -289,7 +393,7 @@ public class HomeGadgetService {
                 empty = true;
             }
         }
-        return new HomeGadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), empty, false, g.style(), config, g.more(), data);
+        return new GadgetData(data, empty, leaders);
     }
 
     // ── POST_LIST ───────────────────────────────────────────────────────────
@@ -393,7 +497,7 @@ public class HomeGadgetService {
      * 「더 보기」 = 고른 첫 핫딜 게시판, 고르지 않았으면 켜진 핫딜 게시판의 첫째(게시판 차례), 없으면 null.
      */
     public HotDealsDataView hotDeals(JsonNode config, Long viewerId) {
-        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null));
+        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null, false));
     }
 
     HotDealsDataView hotDeals(JsonNode config, Ctx ctx) {
@@ -453,6 +557,28 @@ public class HomeGadgetService {
      * @param adult  보는 사람이 성인인가({@link AdultContentGate#adult}) — 아니면 글 목록 가젯에서 19금 글을 뺀다
      * @param board  게시판 레이아웃이 그리는 게시판 slug(켜진 게시판) — 게시판 레이아웃이 아니면 null(대상 {@code BOARD} 는 전체)
      */
-    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, boolean adult, Set<String> folder, String board) {
+    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, boolean adult, Set<String> folder, String board, boolean cached) {
+
+        /** 같은 값에서 보는 사람만 뺀 것 — 가젯 데이터는 이것으로 만든다(성인 여부·대상 게시판은 남는다) */
+        Ctx shared() {
+            return new Ctx(s, now, null, adult, folder, board, cached);
+        }
+    }
+
+    /** 캐시에 담는 가젯 데이터 — {@code leaders} 는 소모임 가젯의 줄마다 모임장(내 상태 덧입힘용, 그 밖에는 null) */
+    private record GadgetData(Object data, boolean empty, List<Long> leaders) {
+    }
+
+    /** 캐시에 담는 홈 배치 */
+    private record Layout(HomeGridLayout layout, List<HomeGadgetSpec> specs) {
+    }
+
+    /** 캐시에 담는 가젯 페이지 — 머리 · 배치 · 기준 폴더 게시판(켜짐 판정은 요청마다 게시판 사본으로) */
+    private record PageLayout(String pageKey, String name, String nameEn, String description, boolean writeButton, HomeGridLayout layout,
+                              List<HomeGadgetSpec> specs, List<String> folderSlugs) {
+    }
+
+    /** 캐시에 담는 게시판 레이아웃 */
+    private record BoardLayout(BoardLayoutResponse.Screens screens, HomeGridLayout layout, List<HomeGadgetSpec> specs) {
     }
 }

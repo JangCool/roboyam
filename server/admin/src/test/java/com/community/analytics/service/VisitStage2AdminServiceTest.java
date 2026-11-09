@@ -66,7 +66,7 @@ class VisitStage2AdminServiceTest {
         SingleConnectionDataSource single = new SingleConnectionDataSource(connection, true);
         jdbc = new JdbcTemplate(single);
         store = new VisitAnalyticsStore(new AnalyticsDatabase(single, false));
-        settings = new StatsCollectionSettings(null) {
+        settings = new StatsCollectionSettings(null, null) {
             @Override
             public StatsCollection current() {
                 return current;

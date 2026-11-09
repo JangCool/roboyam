@@ -108,7 +108,7 @@ public class MailTemplateAdminService {
                 List.of(new TemplateChange("name", null, clean.name), new TemplateChange("audience", null, clean.audience.name())));
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_CREATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", "MAIL"));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("메일 템플릿을 만들었다 id={} by operatorId={}", row.getId(), actor.operatorId());
         return view(TemplateSupport.values(row));
     }
@@ -140,7 +140,7 @@ public class MailTemplateAdminService {
         history.recordMail(row.getId(), TemplateHistoryBase.ACTION_UPDATE, actor.operatorId(), now, changes);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_UPDATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", "MAIL").with("fields", changes.stream().map(TemplateChange::field).toList()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         return view(TemplateSupport.values(row));
     }
 
@@ -154,7 +154,7 @@ public class MailTemplateAdminService {
         repo.delete(row);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_DELETE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", "MAIL"));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("메일 템플릿을 지웠다 id={} by operatorId={}", row.getId(), actor.operatorId());
     }
 

@@ -1,5 +1,5 @@
 /**
- * 캐시 관리 API(`useCacheAdminApi`)가 주고받는 모양 — 서버 DTO 이름 후보 그대로 둔다(⚠ 화면 확정 전 목업, 서버 API 없음 · 2026-11-08).
+ * 캐시 관리 API(`useCacheAdminApi`)가 주고받는 모양 — 서버 dto(server/admin `com.community.cache.dto`) 이름 그대로.
  * 캐시 이름·대상 설명·갱신 기록의 「무엇을 저장해서」·운영자 이름은 서버가 요청 언어로 풀어 준 글이다(배치 이름과 같은 관례) — 화면 번역 파일에 두지 않는다.
  */
 

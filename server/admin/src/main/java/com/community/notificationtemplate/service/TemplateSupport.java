@@ -1,5 +1,8 @@
 package com.community.notificationtemplate.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
+import com.community.notificationtemplate.engine.MessageTemplateStore;
 import com.community.batch.core.BatchCatalog;
 import com.community.notificationtemplate.builtin.BuiltinMessages;
 import com.community.notificationtemplate.builtin.BuiltinTemplates;
@@ -20,7 +23,6 @@ import com.community.notificationtemplate.engine.ChatColor;
 import com.community.notificationtemplate.engine.ChatTemplateValues;
 import com.community.notificationtemplate.engine.MailColor;
 import com.community.notificationtemplate.engine.MailTemplateValues;
-import com.community.notificationtemplate.engine.MessageTemplateStore;
 import com.community.notificationtemplate.engine.MessageValues;
 import com.community.notificationtemplate.engine.NotificationMessageRenderer;
 import com.community.notificationtemplate.engine.TemplateText;
@@ -52,8 +54,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 알림 템플릿·문구 관리 API 가 같이 쓰는 도우미 — 대상 찾기, 문구·템플릿 찾기(기본 것 + 사용자 것), 변수·조건 보기(요청 언어), 견본 값, 운영자 이름.
@@ -74,11 +74,11 @@ public class TemplateSupport {
     private final OperatorRepository operators;
     private final RoleRepository roles;
     private final NotificationMessageRenderer renderer;
-    private final MessageTemplateStore store;
+    private final CacheRefresher refresher;
 
     public TemplateSupport(Messages messages, BuiltinMessages builtins, BuiltinTemplates builtinTemplates, NotificationMessageRepository messageRepo,
                            NotificationMailTemplateRepository mailRepo, NotificationChatTemplateRepository chatRepo, OperatorRepository operators, RoleRepository roles,
-                           NotificationMessageRenderer renderer, MessageTemplateStore store) {
+                           NotificationMessageRenderer renderer, CacheRefresher refresher) {
         this.messages = messages;
         this.builtins = builtins;
         this.builtinTemplates = builtinTemplates;
@@ -88,7 +88,7 @@ public class TemplateSupport {
         this.operators = operators;
         this.roles = roles;
         this.renderer = renderer;
-        this.store = store;
+        this.refresher = refresher;
     }
 
     // ── 대상 ────────────────────────────────────────────────────────────────
@@ -354,18 +354,12 @@ public class TemplateSupport {
         return out;
     }
 
-    /** 렌더링 엔진의 사본을 비운다 — 트랜잭션 안이면 커밋된 뒤에(커밋 전에 비우면 다른 요청이 옛 값을 다시 15초 붙잡을 수 있다) */
-    public void invalidate() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    store.invalidate();
-                }
-            });
-        } else {
-            store.invalidate();
-        }
+    /**
+     * 렌더링 엔진의 사본(캐시 {@code notification.templates})을 모든 서버에서 비운다 — 세대 번호를 같은 트랜잭션에서 올리고(갱신 기록 「자동(저장)」), 이 서버는 커밋된 뒤 바로 비운다
+     * (커밋 전에 비우면 다른 요청이 옛 값을 다시 담을 수 있다).
+     */
+    public void invalidate(long operatorId) {
+        refresher.onSave(CacheSaveSource.NOTIFICATION_TEMPLATE_SAVE, null, operatorId);
     }
 
     public Messages messages() {

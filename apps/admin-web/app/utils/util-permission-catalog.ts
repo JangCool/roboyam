@@ -280,9 +280,9 @@ export default class UtilPermissionCatalog {
         { code: 'batch.manage', unit: 'MANAGE', type: 'auditBatch', nameKey: 'permission.batchManage', descKey: 'permission.batchManageDesc', featureReady: true },
         { code: 'batch.run', unit: 'SENSITIVE', type: 'auditBatch', nameKey: 'permission.batchRun', descKey: 'permission.batchRunDesc', featureReady: true },
         // 캐시 관리(`/settings/caches`) — 보기 `cache.read` / TTL 변경·지금 갱신·전체 갱신 `cache.manage`.
-        // ⚠ 목업(`useCacheAdminApi`, 2026-11-08 화면 확정 전) — 서버 `Permission` 에 `CACHE_READ`·`CACHE_MANAGE`(AUDIT_BATCH · READ / MANAGE)를 더하는 서버 단계에서 `featureReady` 를 켠다
-        { code: 'cache.read', unit: 'READ', type: 'auditBatch', nameKey: 'permission.item.cacheRead', descKey: 'permission.item.cacheReadDesc', featureReady: false },
-        { code: 'cache.manage', unit: 'MANAGE', type: 'auditBatch', nameKey: 'permission.item.cacheManage', descKey: 'permission.item.cacheManageDesc', featureReady: false },
+        //   서버 `Permission.CACHE_READ`·`CACHE_MANAGE`(AUDIT_BATCH · READ / MANAGE · 준비됨)와 같은 값
+        { code: 'cache.read', unit: 'READ', type: 'auditBatch', nameKey: 'permission.item.cacheRead', descKey: 'permission.item.cacheReadDesc', featureReady: true },
+        { code: 'cache.manage', unit: 'MANAGE', type: 'auditBatch', nameKey: 'permission.item.cacheManage', descKey: 'permission.item.cacheManageDesc', featureReady: true },
         { code: 'site.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.siteRead', descKey: 'permission.siteReadDesc', featureReady: true },
         { code: 'site.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.siteManage', descKey: 'permission.siteManageDesc', featureReady: true },
         { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: true },

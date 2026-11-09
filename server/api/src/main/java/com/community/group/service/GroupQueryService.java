@@ -207,6 +207,37 @@ public class GroupQueryService {
         return new GroupTrendingView(rows(picked, userId, views.context()));
     }
 
+    /**
+     * 지금 뜨는 소모임의 공용 줄(보는 사람 없이 — 내 상태 null)과 줄마다의 모임장 — 홈 가젯 캐시({@code gadget.GROUPS})에 담는다. 고르는 규칙은 {@link #trending} 과 같다
+     * (무작위로 고른 결과가 TTL 동안 그대로다). 내 상태는 {@link #withMine} 으로 덧입힌다.
+     */
+    public TrendingShared trendingShared() {
+        GroupRuleValues.Policy policy = settings.policy();
+        Instant now = Instant.now();
+        List<GroupEntity> candidates = queries.trendingCandidates(now.minus(java.time.Duration.ofDays(policy.trendingActiveDays())), TRENDING_CANDIDATES);
+        List<GroupEntity> picked = trendingPicker.pick(candidates, policy.trendingSize(), policy.trendingActiveDays(), now);
+        return new TrendingShared(List.copyOf(rows(picked, null, views.context())), picked.stream().map(GroupEntity::getLeaderId).toList());
+    }
+
+    /** 공용 줄에 내 상태를 덧입힌다 — {@link #rows} 와 같은 판정(내 멤버 줄 질의 한 번). 비로그인이면 그대로 */
+    public List<GroupRowView> withMine(List<GroupRowView> rows, List<Long> leaderIds, Long userId) {
+        if (userId == null || rows.isEmpty()) {
+            return rows;
+        }
+        Map<Long, GroupMemberEntity> mine = new HashMap<>();
+        members.findByUserIdAndGroupIdIn(userId, rows.stream().map(r -> Long.parseLong(r.id())).toList()).forEach(m -> mine.put(m.getGroupId(), m));
+        List<GroupRowView> out = new ArrayList<>(rows.size());
+        for (int i = 0; i < rows.size(); i++) {
+            GroupRowView r = rows.get(i);
+            out.add(r.withMyState(GroupViews.myState(leaderIds.get(i), mine.get(Long.parseLong(r.id())), userId)));
+        }
+        return out;
+    }
+
+    /** 지금 뜨는 소모임의 공용 줄과 줄마다의 모임장 ID(같은 차례) */
+    public record TrendingShared(List<GroupRowView> rows, List<Long> leaderIds) {
+    }
+
     // ── 회원 프로필의 소모임 탭 ──────────────────────────────────────────────
 
     /**

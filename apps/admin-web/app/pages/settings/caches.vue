@@ -1,7 +1,7 @@
 <template>
     <!--
         캐시 관리(`/settings/caches`, 설정 › 배치와 로그) — 공개 사이트 API 응답 캐시(Spring Cache + Caffeine 도입 예정)를 한 화면에서 보고, 캐시마다 TTL 을 바꾸고, 갱신이 안 됐을 때 모든 서버의 캐시를 비운다.
-        ⚠ 화면 확정 전 목업(`useCacheAdminApi` → `mock/cache-admin-mock.ts`, 2026-11-08). 구조·문구 톤은 배치 관리(`settings/batches.vue`)를 따른다.
+        서버 `CacheAdminController`(`useCacheAdminApi`) — 구조·문구 톤은 배치 관리(`settings/batches.vue`)를 따른다.
         서버 동작(문구의 근거): api 서버는 2~3대이고 캐시는 서버마다 메모리에 따로 있다. 「지금 갱신」은 DB 의 세대 번호를 올리고, 각 서버가 확인 주기(3초)마다 보고 비운다 —
           그래서 갱신은 「몇 초 안에」 닿고, 아직 확인하지 않은 서버가 있으면 그 캐시는 「갱신 대기」다. 관리자 화면에서 게시판·가젯·메뉴 등을 저장하면 관련 캐시는 자동으로 비워진다(기록에 「자동(저장)」).
           회원마다 결과가 다른 응답은 공용 부분만 캐시하고 회원 기준 처리는 꺼낸 뒤 덧입힌다(「회원별 처리」 칸).
@@ -90,48 +90,37 @@
             @row-click="(e: { data: CacheView }) => openDetail(e.data.cacheKey)"
         >
             <template #empty>
-                <ErrorState v-if="loadError" :title="t('cache.loadFailed')" :description="loadError.message" retry :retrying="busy" @retry="reload()" />
+                <!-- 권한이 없는 것(403)은 오류가 아니다 — 안내만(forms.md 2-2) -->
+                <Message v-if="loadError?.status === 403" severity="info" :closable="false" size="small">{{ t('cache.listDenied') }}</Message>
+                <ErrorState v-else-if="loadError" :title="t('cache.loadFailed')" :description="loadError.message" retry :retrying="busy" @retry="reload()" />
                 <div v-else-if="busy" class="h-32" aria-hidden="true" />
                 <EmptyState v-else-if="caches.length" icon="pi pi-filter-slash" :title="t('cache.emptyFiltered')" />
                 <EmptyState v-else :title="t('cache.empty')" />
             </template>
 
-            <Column :header="t('cache.name')" style="min-width: 11rem">
+            <!-- 표가 화면 폭을 넘지 않게 칸을 합쳤다 — 이름 칸 = 이름 · 캐시 키 · 대상(마우스를 올리면 전체) · 쓰이는 곳 한 줄, 분류 칸 = 분류 · 적용 서버, 동작 = 스위치 · 아이콘 단추 -->
+            <Column :header="t('cache.name')" style="min-width: 15rem">
                 <template #body="{ data }">
                     <button type="button" class="block max-w-[14rem] truncate text-left text-[13px] hover:text-primary hover:underline" :aria-label="t('cache.openDetailLabel', { name: data.displayName })" @click.stop="openDetail(data.cacheKey)">
                         {{ data.displayName }}
                     </button>
+                    <div class="flex min-w-0 max-w-[18rem] items-baseline gap-1.5 text-[11px]" :title="data.target">
+                        <code class="shrink-0">{{ data.cacheKey }}</code>
+                        <span class="min-w-0 truncate text-muted-color">{{ data.target }}</span>
+                    </div>
                     <!-- 쓰이는 곳 한 줄(화면 영역·동작 이름 둘 + 외 N, 화면이 없으면 서버 내부) — 칸을 늘리지 않고 이름 아래에 -->
-                    <span v-if="data.usages.length" class="block max-w-[16rem] truncate text-[11px] text-muted-color" :title="data.usages.map((u: CacheUsageView) => u.label).join(' · ')">
+                    <span v-if="data.usages.length" class="block max-w-[18rem] truncate text-[11px] text-muted-color" :title="data.usages.map((u: CacheUsageView) => u.label).join(' · ')">
                         {{ UtilCacheMessages.usageSummary(t, data.usages) }}
                     </span>
                 </template>
             </Column>
 
-            <Column :header="t('cache.cacheKey')" style="min-width: 10rem">
-                <template #body="{ data }">
-                    <code class="whitespace-nowrap text-[12px]">{{ data.cacheKey }}</code>
-                </template>
-            </Column>
-
-            <Column :header="t('cache.target')" style="min-width: 14rem">
-                <template #body="{ data }">
-                    <div class="max-w-[18rem] truncate text-[12px]" :title="data.target">
-                        <code v-if="data.targetIsPath" class="text-[11px]">{{ data.target }}</code>
-                        <span v-else class="text-muted-color">{{ data.target }}</span>
-                    </div>
-                </template>
-            </Column>
-
             <Column :header="t('cache.kind')" style="width: 8.5rem">
                 <template #body="{ data }">
-                    <CacheKindTag :kind="data.kind" />
-                </template>
-            </Column>
-
-            <Column :header="t('cache.servers')" style="width: 7rem">
-                <template #body="{ data }">
-                    <span class="whitespace-nowrap text-[12px]">{{ serversText(data) }}</span>
+                    <div class="flex flex-col items-start gap-0.5">
+                        <CacheKindTag :kind="data.kind" />
+                        <span class="whitespace-nowrap text-[11px] text-muted-color" :title="t('cache.servers')">{{ serversText(data) }}</span>
+                    </div>
                 </template>
             </Column>
 
@@ -190,22 +179,21 @@
                 </template>
             </Column>
 
-            <Column header="" style="width: 13rem">
+            <Column header="" style="width: 8rem">
                 <template #body="{ data }">
-                    <!-- 단추 자리는 행마다 같다 — 「지금 갱신」은 글자가 바뀌어도(갱신 대기) 폭이 같아 위아래 줄이 맞는다 -->
+                    <!-- 단추 자리는 행마다 같다 — 「지금 갱신」은 아이콘 단추(대기면 모래시계), 이름은 툴팁·aria -->
                     <div class="flex items-center justify-end gap-1">
                         <!-- 이 캐시 켜기/끄기 — 전체가 켜져 있을 때만(꺼져 있으면 값은 남고 잠긴다) -->
                         <span v-tooltip.top="enabledLock() ?? (data.enabled ? t('cache.turnOff') : t('cache.turnOn'))" class="inline-flex" @click.stop>
                             <ToggleSwitch :model-value="data.enabled" :disabled="!!enabledLock() || togglingKey === data.cacheKey" :aria-label="t('cache.enabledLabel', { name: data.displayName })" @update:model-value="(v: boolean) => onToggle(data, v)" />
                         </span>
-                        <span v-tooltip.top="refreshLock(data)" class="inline-flex">
+                        <span v-tooltip.top="refreshLock(data) ?? (UtilCache.isPending(data) ? t('cache.pending') : t('cache.refreshNow'))" class="inline-flex">
                             <Button
-                                :label="UtilCache.isPending(data) ? t('cache.pending') : t('cache.refreshNow')"
                                 :icon="UtilCache.isPending(data) ? 'pi pi-hourglass' : 'pi pi-sync'"
                                 size="small"
                                 severity="secondary"
-                                outlined
-                                class="min-w-26 justify-center whitespace-nowrap"
+                                variant="outlined"
+                                rounded
                                 :aria-label="t('cache.refreshNowLabel', { name: data.displayName })"
                                 :disabled="!!refreshLock(data)"
                                 :loading="refreshing === data.cacheKey"
@@ -533,7 +521,8 @@ async function onRefresh(cache: CacheView): Promise<void> {
     } catch (e) {
         const error = errorOf(e);
         toast.error(error.message, 8000);
-        if (error.code === 'CACHE_NOT_FOUND') await reload();
+        // 낡은 표시(꺼졌거나 없어진 캐시)면 다시 읽는다
+        if (error.code === 'CACHE_NOT_FOUND' || error.code === 'CACHE_DISABLED' || error.code === 'CACHE_GLOBAL_DISABLED') await reload();
     } finally {
         refreshing.value = null;
     }

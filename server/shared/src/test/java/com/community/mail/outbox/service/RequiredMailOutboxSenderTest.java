@@ -87,7 +87,7 @@ class RequiredMailOutboxSenderTest {
                 return "/media/" + key;
             }
         };
-        renderer = new NotificationMessageRenderer(new MessageTemplateStore(dataSource, storage), new BuiltinMessages(messages), new BuiltinTemplates(messages), messages, "");
+        renderer = new NotificationMessageRenderer(new MessageTemplateStore(dataSource, storage, new org.springframework.cache.support.NoOpCacheManager()), new BuiltinMessages(messages), new BuiltinTemplates(messages), messages, "");
     }
 
     @BeforeEach
