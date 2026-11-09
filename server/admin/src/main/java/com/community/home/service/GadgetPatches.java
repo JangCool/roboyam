@@ -225,6 +225,7 @@ final class GadgetPatches {
             case "HIGHLIGHT" -> {
                 option(raw, out, "lead", GadgetConfigs.LEADS, at, opt, fields);
                 option(raw, out, "thumbs", GadgetConfigs.HIGHLIGHT_THUMBS, at, opt, fields);
+                bool(raw, out, "showAuthor", base, fields); // 작성자(아바타·닉네임) 보이기 — 끄면 날짜만 남는다(feed-debate-counts-contract)
                 // 놓일 곳 키(tips-contract 「결정」) — 모양만 본다. 없는 곳(지운 가젯 페이지 등)은 공개 읽기가 home 으로 읽는다
                 if (present(raw, "place")) {
                     JsonNode key = raw.get("place");

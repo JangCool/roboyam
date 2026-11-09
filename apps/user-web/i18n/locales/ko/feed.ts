@@ -15,6 +15,14 @@ export default {
     firstPage: '첫 쪽으로',
     rank: '{n}위',
     boardTag: '게시판 {name}',
+    // 찬반 토론 글의 입장 수(글 줄·하이라이트 — `FeedDebateCounts`). 짧은 이름표는 눈으로 보는 글자, 긴 문장은 화면 읽기·툴팁
+    debatePro: '찬',
+    debateCon: '반',
+    debateNeutral: '중',
+    debateSummary: '찬성 {pro}, 반대 {con}, 중립 {neutral}',
+    debateSummaryNoNeutral: '찬성 {pro}, 반대 {con}',
+    debateTip: '찬성 {pro} · 반대 {con} · 중립 {neutral}',
+    debateTipNoNeutral: '찬성 {pro} · 반대 {con}',
 
     // 최신글
     latestSubtitle: '전체 게시판의 새 글을 최신순으로 보여 줘요',

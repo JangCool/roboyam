@@ -56,7 +56,7 @@ export interface HomeQuickLink {
  *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
  *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3 · `outline`·`dividers`(카드 외곽선·줄 구분선, 기본 끔) · `leadPlaceholder`(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬)
- *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE / `GROUPS` `count` 1~6 /
+ *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE · `showAuthor`(작성자 보이기, 기본 켬) / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
  *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
  * 관리자 응답은 그 종류의 표 칸 전부(저장 값, 없으면 처음 값 — 서버 `GadgetConfigs.view`)를 준다. 게시판 본문(`BOARD_BODY`)은 null.
@@ -88,6 +88,8 @@ export interface HomeGadgetConfig {
     thumbs?: 'ALL' | 'FIRST' | 'NONE';
     /** 하이라이트 가젯이 보일 곳의 목록(`home` · `tips` · 가젯 페이지 키 — 서버 `GadgetConfigs`, 없거나 모양이 틀리면 home, tips-contract V161) */
     place?: string;
+    /** 하이라이트 — 작성자(아바타·닉네임) 보이기(기본 켬, 끄면 날짜만 — feed-debate-counts-contract) */
+    showAuthor?: boolean;
     shape?: 'PILL' | 'TAB';
     items?: HomeQuickLink[];
     text?: string;

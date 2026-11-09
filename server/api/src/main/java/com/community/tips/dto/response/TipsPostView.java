@@ -3,6 +3,7 @@ package com.community.tips.dto.response;
 import com.community.hotdeal.dto.response.PostDealView;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
+import com.community.post.dto.response.PostFeedDebateView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostPrefixRefView;
@@ -16,11 +17,11 @@ import java.time.Instant;
  */
 public record TipsPostView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                            Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked,
-                           boolean hasPoll, PostBoardRefView board, PostGroupView group, PostDealView deal, String excerpt) {
+                           boolean hasPoll, PostBoardRefView board, PostGroupView group, PostDealView deal, String excerpt, PostFeedDebateView debate) {
 
     public static TipsPostView of(PostFeedRowView r, String excerpt) {
         return new TipsPostView(r.id(), r.prefix(), r.title(), r.commentCount(), r.hasImage(), r.thumbnailUrl(), r.author(), r.createdAt(), r.viewCount(),
-                r.likeCount(), r.pinned(), r.adult(), r.hiddenReason(), r.blocked(), r.hasPoll(), r.board(), r.group(), r.deal(), excerpt);
+                r.likeCount(), r.pinned(), r.adult(), r.hiddenReason(), r.blocked(), r.hasPoll(), r.board(), r.group(), r.deal(), excerpt, r.debate());
     }
 
     /**
@@ -29,6 +30,6 @@ public record TipsPostView(String id, PostPrefixRefView prefix, String title, in
     public static TipsPostView highlighted(PostFeedRowView r, String excerpt, String title, String summary, String imageUrl) {
         return new TipsPostView(r.id(), r.prefix(), title != null ? title : r.title(), r.commentCount(), r.hasImage() || imageUrl != null,
                 imageUrl != null ? imageUrl : r.thumbnailUrl(), r.author(), r.createdAt(), r.viewCount(), r.likeCount(), r.pinned(), r.adult(), r.hiddenReason(),
-                r.blocked(), r.hasPoll(), r.board(), r.group(), r.deal(), summary != null ? summary : excerpt);
+                r.blocked(), r.hasPoll(), r.board(), r.group(), r.deal(), summary != null ? summary : excerpt, r.debate());
     }
 }

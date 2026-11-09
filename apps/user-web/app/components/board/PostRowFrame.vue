@@ -6,7 +6,7 @@
         · `BEFORE`: 칩은 제목 앞 한 줄 안(기본 슬롯의 `chips` = true — 목록이 `PostRowTitle :chips` 로 넘긴다), 날짜·조회·추천은 메타 줄(`stats` = true).
         · `BELOW`: 제목 → 메타 줄(날짜·조회·추천 포함) → 칩 줄. 칩이 없으면 칩 줄을 그리지 않는다.
         슬롯: 기본(`{ chips, stats, dateInline }` — 제목 줄·메타 줄. `dateInline` 이면 메타 줄의 글쓴이 바로 뒤에 「· 날짜」만) · `start`/`end`(아래 칸 왼쪽·오른쪽 — 썸네일) ·
-        `lead`(이 부품이 모르는 앞쪽 칩 — 섞인 목록의 게시판 이름 등. `BEFORE` 면 목록이 제목 앞에 직접 그린다)
+        `lead`(이 부품이 모르는 앞쪽 칩 — 섞인 목록의 게시판 이름 등. `BEFORE` 면 목록이 제목 앞에 직접 그린다) · `stats-lead`(「제목 위」 윗줄 숫자 앞 — 섞인 목록의 찬반 토론 수)
     -->
     <div class="min-w-0" :data-chip-position="position">
         <!-- 윗줄과 아래 칸(제목·썸네일) 사이는 6px — 썸네일 윗변이 윗줄 숫자에 붙어 보이지 않게(사용자 2026-11-08 「아주 살짝」) -->
@@ -14,7 +14,12 @@
             <PostRowChips :row="row" :show-prefix="showPrefix" :general="general">
                 <template v-if="$slots.lead" #default><slot name="lead" /></template>
             </PostRowChips>
-            <PostRowStats :row="row" :views="views" :likes="likes" class="ml-auto" />
+            <!-- 숫자 앞 슬롯(`stats-lead`) — 섞인 목록의 찬반 토론 수(찬·반·중 → 세로 구분선 → 추천·조회, feed-debate-counts-contract) -->
+            <span v-if="$slots['stats-lead']" class="ml-auto inline-flex shrink-0 items-center gap-2">
+                <slot name="stats-lead" />
+                <PostRowStats :row="row" :views="views" :likes="likes" />
+            </span>
+            <PostRowStats v-else :row="row" :views="views" :likes="likes" class="ml-auto" />
         </div>
         <div class="flex" :class="rowClass">
             <slot name="start" />

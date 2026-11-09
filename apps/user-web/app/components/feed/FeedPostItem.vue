@@ -9,14 +9,20 @@
         <div class="min-w-0 flex-1">
             <FoldedRow :reason="foldReason" kind="post" class="py-3 text-sm" :class="padClass" :hide-class="`${padClass} pb-2`">
                 <!-- 칩·추천·날짜 자리는 칩 위치(`chipPosition` — 공개 표시 기본값 `listChipPosition`)를 따른다. 앞쪽 칩([어제/지난주]·게시판 이름)도 칩과 함께 움직이고,
-                     게시판 이름이 늘 있어 「제목 위」 윗줄에 「일반」 자리 칩은 두지 않는다. 섞인 목록은 원래 조회 수를 보이지 않는다 -->
+                     게시판 이름이 늘 있어 「제목 위」 윗줄에 「일반」 자리 칩은 두지 않는다.
+                     조회 수도 보인다(기준 이상 강조는 게시판 목록과 같다 — feed-debate-counts-contract). 찬반 토론 글은 찬·반·중 수를 글자 색으로:
+                     「제목 위」 윗줄 오른쪽 = 찬·반·중 → 세로 구분선 → 추천 → 조회, 그 밖의 칩 위치는 메타 줄(글쓴이 다음)에 -->
                 <NuxtLink
                     :to="`/posts/${row.id}`"
                     class="block min-w-0 flex-1 py-3 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
                     :class="padClass"
                 >
-                    <PostRowFrame :row="row" :position="chipPosition" :views="false" :general="false">
+                    <PostRowFrame :row="row" :position="chipPosition" :general="false">
                         <template #lead><FeedPostLeadTags :row="row" :fill="fill" /></template>
+                        <template v-if="row.debate" #stats-lead>
+                            <FeedDebateCounts :debate="row.debate" class="text-xs leading-none" />
+                            <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
+                        </template>
                         <template #default="{ chips, stats, dateInline }">
                             <p class="line-clamp-2 break-words text-sm leading-snug">
                                 <FeedPostLeadTags v-if="chips" :row="row" :fill="fill" inline />
@@ -29,8 +35,14 @@
                             <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
                                 <PostAuthorLabel :author="row.author" avatar />
                                 <template v-if="stats">
+                                    <template v-if="row.debate">
+                                        <span aria-hidden="true">·</span>
+                                        <FeedDebateCounts :debate="row.debate" />
+                                    </template>
                                     <span aria-hidden="true">·</span>
                                     <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
                                     <span aria-hidden="true">·</span>
                                     <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                 </template>

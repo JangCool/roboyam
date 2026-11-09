@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
  *   <li>{@code GROUP_BUY} {@code count} 1~10(5) · {@code sort} · {@code POST_LIST} 대상 게시판 · {@code count} 1~30(10) · {@code sort} · {@code periodTabs} · 보기 모양
  *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
- *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
+ *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
  *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
@@ -198,6 +198,7 @@ public final class GadgetConfigs {
                 out.put("lead", "NONE".equals(HomeLayoutJson.text(config, "lead", null)) ? "NONE" : "HERO");
                 out.put("thumbs", oneOf(config, "thumbs", HIGHLIGHT_THUMBS, "ALL"));
                 out.put("place", highlightPlace(config));
+                out.put("showAuthor", bool(config, "showAuthor", true)); // 작성자(아바타·닉네임) 보이기 — 칸이 없는 옛 가젯도 켬(feed-debate-counts-contract)
             }
             case "QUICK_LINKS" -> {
                 out.put("shape", oneOf(config, "shape", QUICK_SHAPES, "PILL"));

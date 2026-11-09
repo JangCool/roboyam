@@ -149,6 +149,8 @@ export interface HighlightConfig {
     lead: 'NONE' | 'HERO';
     /** 사진을 보일 글 — 모두 · 맨 위 글만 · 없음 */
     thumbs: 'ALL' | 'FIRST' | 'NONE';
+    /** 작성자(아바타·닉네임) 보이기 — 칸이 없으면 켬(끄면 날짜만, feed-debate-counts-contract) */
+    showAuthor: boolean;
 }
 
 export interface QuickLinksConfig {
