@@ -90,6 +90,8 @@ services:
       SERVER_SERVLET_SESSION_COOKIE_SECURE: ${SERVER_SERVLET_SESSION_COOKIE_SECURE:-true}
       # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 저장 폴더 — 아래 media 볼륨. 앱이 /media/** 로 내보낸다(이미지를 올리는 관리자 앱이 같은 볼륨을 쓰려면 함께 마운트한다)
       ROBOYAM_STORAGE_PATH: /var/lib/roboyam/media
+      # 서버 한 대 설치형은 로컬 볼륨을 쓴다 — prod 프로필 기본(r2)을 덮는다(docs/features/media-storage-contract.md)
+      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-local}
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
     volumes:
       - media:/var/lib/roboyam/media

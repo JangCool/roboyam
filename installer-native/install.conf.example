@@ -1,0 +1,44 @@
+# 로보얌 원스톱 설치 설정 — install.conf 로 복사해 값을 채운다 (DB 서버에서 roboyam-install.sh 가 읽는다)
+# 셸 변수 형식이다. 비밀번호·키는 여기에 적지 않는다(DB 비밀번호는 실행할 때 묻는다).
+
+# ── 앱 서버 (DB 서버에서 SSH 로 붙는다 — VPC 사설 IP) ──────────────────────
+WAS1=10.0.1.10          # api + admin
+WAS2=10.0.1.11          # api (비우면 앱 서버 1대 구성)
+
+# SSH 계정(Rocky Linux 공식 AMI 기본 계정은 rocky)과 키
+SSH_USER=rocky
+# 이 서버에 둔 .pem 경로(600). 비우면 ssh-agent — 내 PC 에서 `ssh -A` 로 들어와 `sudo --preserve-env=SSH_AUTH_SOCK ./roboyam-install.sh`
+SSH_KEY=/root/.ssh/roboyam-was.pem
+
+# ── 도메인 (Cloudflare 에 등록된 호스트) ──────────────────────────────────
+DOMAINS="roboyam.com www.roboyam.com"   # 첫 값이 PUBLIC_URL
+ADMIN_DOMAIN=admin.roboyam.com
+ADMIN_ALLOW=""                          # 관리자 앱을 이 방문자 IP 대역에서만(예 "1.2.3.4/32") — 비우면 제한 없음
+
+# Cloudflare Origin CA 인증서(SSL/TLS › Origin Server 에서 발급) — 이 폴더 기준 상대 경로 가능
+ORIGIN_CERT=certs/origin.pem
+ORIGIN_KEY=certs/origin.key
+
+# ── 올린 이미지 저장소 (docs/features/media-storage-contract.md) ──────────
+# r2 = Cloudflare R2(운영 기본 — 앱 서버 두 대가 같은 이미지를 본다) | s3 = AWS S3·MinIO 등 | local = 앱 서버 디스크(서버 한 대 구성에서만)
+STORAGE=r2
+R2_ACCOUNT_ID=                                          # r2: Cloudflare › R2 › 개요의 계정 ID — API 주소·지역(auto)은 앱이 채운다
+S3_BUCKET=roboyam-media
+S3_PUBLIC_URL=https://media.roboyam.com                 # 버킷에 연결한 R2 사용자 도메인(Cloudflare CDN). 비우면 앱이 /media/** 로 내보낸다
+S3_ACCESS_KEY=                                          # R2 › API 토큰(이 버킷 객체 읽기·쓰기)의 Access Key ID(r2 필수) — 비밀 키는 실행할 때 묻는다
+# S3_REGION=                                            # s3 필수(예 ap-northeast-2). r2 는 비우면 auto
+# S3_ENDPOINT=                                          # 직접 줄 때만(R2 계정 ID 보다 이긴다). s3 에서 비우면 AWS S3, MinIO 는 http://<호스트>:9000
+# S3_PATH_STYLE=false                                   # MinIO 면 true
+# s3(AWS) 에서 S3_ACCESS_KEY 를 비우면 키 대신 EC2 IAM 역할을 쓴다
+
+# ── 선택 ──────────────────────────────────────────────────────────────────
+# DB_PRIVATE_IP=10.0.1.20               # 비우면 이 서버의 사설 IP 를 자동으로 찾는다
+# DB_NAME=roboyam
+# DB_USER=roboyam
+# WAS1_NODE_ID=1  WAS2_NODE_ID=2  ADMIN_NODE_ID=3   # Snowflake 번호 — 모두 달라야 한다
+WAS1_SWAP=2G                            # api+admin 을 2GB 서버에 올리면 권한다
+WAS2_SWAP=
+# DB_BACKUP_HOOK=db/backup-hook.sh      # R2 업로드 훅(db/backup-hook.example.sh 를 복사해 채운 것)
+# DB_EXTRA_ARGS="--timescale"           # db/roboyam-db-install.sh 에 더 줄 옵션
+# WAS1_EXTRA_ARGS="--api-xmx 768m --admin-xmx 384m"
+# WAS2_EXTRA_ARGS=""

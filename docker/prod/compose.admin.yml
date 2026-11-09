@@ -44,6 +44,16 @@ services:
       ADMIN_URL: ${ADMIN_URL:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--XX:MaxRAMPercentage=60}
+      # 올린 이미지 저장소(docs/features/media-storage-contract.md) — r2(prod 기본) | s3(AWS·MinIO) | local. 아래 volumes 의 폴더는 local 일 때만 쓴다
+      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-r2}
+      ROBOYAM_STORAGE_R2_ACCOUNT_ID: ${ROBOYAM_STORAGE_R2_ACCOUNT_ID:-}
+      ROBOYAM_STORAGE_S3_ENDPOINT: ${ROBOYAM_STORAGE_S3_ENDPOINT:-}
+      ROBOYAM_STORAGE_S3_REGION: ${ROBOYAM_STORAGE_S3_REGION:-}
+      ROBOYAM_STORAGE_S3_BUCKET: ${ROBOYAM_STORAGE_S3_BUCKET:-}
+      ROBOYAM_STORAGE_S3_PATH_STYLE: ${ROBOYAM_STORAGE_S3_PATH_STYLE:-false}
+      ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL: ${ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL:-}
+      ROBOYAM_STORAGE_S3_ACCESS_KEY: ${ROBOYAM_STORAGE_S3_ACCESS_KEY:-}
+      ROBOYAM_STORAGE_S3_SECRET_KEY: ${ROBOYAM_STORAGE_S3_SECRET_KEY:-}
       # 주소 DB 를 서버 폴더에서 적재(address-search-contract) — ADDRESS_IMPORT_DIR 에 행정안전부 zip 을 두면 설정 › 주소 검색에서 고른다(읽기만)
       ROBOYAM_ADDRESS_IMPORT_DIR: /var/lib/roboyam/address-import
     # 올린 이미지 저장 폴더 — 관리자 앱이 쓰므로 공개 사이트 앱 서버(compose.yml)와 같은 공유 디스크 경로를 MEDIA_DIR 에 준다(자세한 설명은 compose.yml)
