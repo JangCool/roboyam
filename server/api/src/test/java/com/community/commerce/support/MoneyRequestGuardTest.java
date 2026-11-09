@@ -61,7 +61,7 @@ class MoneyRequestGuardTest {
     void setUp() {
         DataSourceTransactionManager transactions = new DataSourceTransactionManager(dataSource);
         MutableTestClock clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MINUTES).plusSeconds(10));
-        guard = new MoneyRequestGuard(new RequestRateLimiter(new RequestRateCounterQueries(dataSource), transactions, new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query())), clock),
+        guard = new MoneyRequestGuard(new RequestRateLimiter(new RequestRateCounterQueries(dataSource), transactions, new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()), new org.springframework.cache.support.NoOpCacheManager()), clock),
                 new IdempotencyService(new IdempotencyRequestQueries(dataSource), transactions, clock));
         userId = USERS.incrementAndGet();
     }

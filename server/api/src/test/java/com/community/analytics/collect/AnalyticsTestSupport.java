@@ -23,7 +23,7 @@ final class AnalyticsTestSupport {
 
     /** 고정 설정 사본(시험 중 바꿀 수 있다) */
     static StatsCollectionSettings settings(AtomicReference<StatsCollection> ref) {
-        return new StatsCollectionSettings(null) {
+        return new StatsCollectionSettings(null, null) {
             @Override
             public StatsCollection current() {
                 return ref.get();

@@ -107,7 +107,7 @@ public class ChatTemplateAdminService {
         history.recordChat(row.getId(), TemplateHistoryBase.ACTION_CREATE, actor.operatorId(), now, List.of(new TemplateChange("name", null, fields.name())));
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_CREATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", tool.name()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("{} 템플릿을 만들었다 id={} by operatorId={}", tool, row.getId(), actor.operatorId());
         return view(TemplateSupport.values(row));
     }
@@ -143,7 +143,7 @@ public class ChatTemplateAdminService {
         history.recordChat(row.getId(), TemplateHistoryBase.ACTION_UPDATE, actor.operatorId(), now, changes);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_UPDATE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", tool.name()).with("fields", changes.stream().map(TemplateChange::field).toList()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         return view(TemplateSupport.values(row));
     }
 
@@ -157,7 +157,7 @@ public class ChatTemplateAdminService {
         repo.delete(row);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_TEMPLATE_DELETE, AuditResult.SUCCESS)
                 .target("NOTIFICATION_TEMPLATE", String.valueOf(row.getId())).with("type", tool.name()));
-        support.invalidate();
+        support.invalidate(actor.operatorId());
         log.info("{} 템플릿을 지웠다 id={} by operatorId={}", tool, row.getId(), actor.operatorId());
     }
 

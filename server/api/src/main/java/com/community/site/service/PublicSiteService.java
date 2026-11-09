@@ -1,6 +1,7 @@
 package com.community.site.service;
 
 import com.community.analytics.settings.StatsCollectionSettings;
+import com.community.cache.definition.CacheNames;
 import com.community.board.dto.BoardDefaultsValues;
 import com.community.board.entity.BoardDefaultsEntity;
 import com.community.board.service.BoardFields;
@@ -24,29 +25,22 @@ import com.community.site.repository.master.SiteThemeMenuRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 /**
  * 공개 사이트가 읽는 사이트 설정의 <b>짧은 캐시 사본</b>({@link PublicSiteSnapshot}) — {@code /api/site/info}·{@code /api/site/theme}·{@code /manifest.webmanifest}·{@code index.html} 머리,
  * 회원 표시 설정의 사이트 기본값({@code /api/display/effective}·{@code /api/me/display})이 같은 사본을 쓴다.
- * 요청마다 DB 를 읽지 않고 {@value #TTL_SECONDS}초마다 다시 읽는다(관리자 앱은 다른 서버라 설정을 바꿔도 이 서버에는 최대 그만큼 늦게 닿는다). 다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다.
+ * 요청마다 DB 를 읽지 않고 캐시 {@code site.info}(기본 TTL 20초 — 관리자 캐시 관리에서 바꾼다)에 둔다. 관리자 저장은 세대 번호로 몇 초 안에, 그 밖의 변화는 TTL 안에 닿는다
+ * (docs/features/cache-admin-contract.md). 읽다 실패하면 담지 않고 그 요청이 실패한다 — 다음 요청이 다시 읽는다.
  *
  * <p>주소는 관리자 {@code me} 와 같은 소스({@link SiteAssets})로 만든다. 설정 행이 없으면(설치 전) 이름·소개·로고·아이콘이 비어 있고 표시 기본값은 설치 직후의 처음 값이다.
  */
 @Service
 public class PublicSiteService {
-
-    private static final Logger log = LoggerFactory.getLogger(PublicSiteService.class);
-
-    static final int TTL_SECONDS = 20;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
     /** 이름을 모를 때(설정 행 없음)의 매니페스트 이름 */
     private static final String FALLBACK_NAME = "Roboyam";
@@ -59,10 +53,11 @@ public class PublicSiteService {
     private final SiteThemeMenuRepository themeMenus;
     private final StatsCollectionSettings statsSettings;
     private final SiteOperatorReader operators;
-    private volatile Cached cached;
+    private final CacheManager caches;
 
     public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus,
-                             StatsCollectionSettings statsSettings, SiteOperatorReader operators) {
+                             StatsCollectionSettings statsSettings, SiteOperatorReader operators, CacheManager caches) {
+        this.caches = caches;
         this.operators = operators;
         this.statsSettings = statsSettings;
         this.boardDefaults = boardDefaults;
@@ -71,31 +66,9 @@ public class PublicSiteService {
         this.themeMenus = themeMenus;
     }
 
-    /** 지금 쓸 수 있는 사본 — 메모리에 있고 {@value #TTL_SECONDS}초 안이면 그것, 아니면 다시 읽는다 */
+    /** 지금 쓸 수 있는 사본 — 캐시 {@code site.info} 에 있으면 그것, 아니면 읽어 담는다(같은 서버에서 동시에 비면 한 번만 읽는다) */
     public PublicSiteSnapshot snapshot() {
-        Cached current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.snapshot;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current.snapshot;
-            }
-            try {
-                PublicSiteSnapshot loaded = load();
-                cached = new Cached(loaded, now);
-                return loaded;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("공개 사이트 설정을 다시 읽지 못해 이전 값을 쓴다: {}", e.toString());
-                cached = new Cached(current.snapshot, now - TTL_NANOS + RETRY_NANOS);
-                return current.snapshot;
-            }
-        }
+        return caches.getCache(CacheNames.SITE_INFO).get(CacheNames.SINGLE, this::load);
     }
 
     private PublicSiteSnapshot load() {
@@ -164,8 +137,5 @@ public class PublicSiteService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    private record Cached(PublicSiteSnapshot snapshot, long loadedAt) {
     }
 }

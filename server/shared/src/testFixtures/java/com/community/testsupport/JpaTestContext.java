@@ -19,7 +19,7 @@ import org.springframework.transaction.interceptor.TransactionInterceptor;
  * {@link JpaTestWiring} + 커머스 시험 DB({@link CommerceTestDatabase#migrated}, shared 스트림). 처음 부를 때 만들고 JVM 이 끝날 때 닫힌다.
  *
  * <pre>{@code
- * RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()));
+ * RequestRateLimits limits = new RequestRateLimits(new RequestRateLimitRepositoryQDSL(JpaTestContext.query()), cacheManager);
  * new TransactionTemplate(JpaTestContext.transactions()).execute(...);   // JPA 쓰기·잠금이 필요하면 이 트랜잭션 관리자로
  * }</pre>
  */

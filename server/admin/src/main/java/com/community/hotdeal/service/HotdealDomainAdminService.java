@@ -1,5 +1,7 @@
 package com.community.hotdeal.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -62,17 +64,17 @@ public class HotdealDomainAdminService {
 
     private final DealDomainRepository domains;
     private final AdminDealQueries queries;
-    private final DealRuleBook rules;
+    private final CacheRefresher refresher;
     private final DealSettingsReader settings;
     private final OperatorRepository operators;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
 
-    public HotdealDomainAdminService(DealDomainRepository domains, AdminDealQueries queries, DealRuleBook rules, DealSettingsReader settings,
+    public HotdealDomainAdminService(DealDomainRepository domains, AdminDealQueries queries, CacheRefresher refresher, DealSettingsReader settings,
                                      OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids) {
         this.domains = domains;
         this.queries = queries;
-        this.rules = rules;
+        this.refresher = refresher;
         this.settings = settings;
         this.operators = operators;
         this.audit = audit;
@@ -122,7 +124,7 @@ public class HotdealDomainAdminService {
         domains.persist(d);
         domains.flush();
         record(actor, AuditActions.HOTDEAL_DOMAIN_CREATE, d.getId(), null, snapshot(d));
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("링크 규칙 추가 domain={} rule={} by operatorId={}", d.getDomain(), d.getRule(), actor.operatorId());
         return view(d, operatorNames(List.of(actor.operatorId())));
     }
@@ -152,7 +154,7 @@ public class HotdealDomainAdminService {
         if (!changedAfter.isEmpty()) {
             record(actor, AuditActions.HOTDEAL_DOMAIN_UPDATE, d.getId(), changedBefore, changedAfter);
         }
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("링크 규칙 고침 domain={} 칸={} by operatorId={}", d.getDomain(), changedAfter.keySet(), actor.operatorId());
         return view(d, operatorNames(List.of(actor.operatorId())));
     }
@@ -164,7 +166,7 @@ public class HotdealDomainAdminService {
         domains.delete(d);
         domains.flush();
         record(actor, AuditActions.HOTDEAL_DOMAIN_DELETE, d.getId(), before, null);
-        AfterCommit.run(rules::invalidate);
+        refresher.onSave(CacheSaveSource.HOTDEAL_RULES_SAVE, null, actor.operatorId());
         log.info("링크 규칙 지움 domain={} by operatorId={}", d.getDomain(), actor.operatorId());
     }
 

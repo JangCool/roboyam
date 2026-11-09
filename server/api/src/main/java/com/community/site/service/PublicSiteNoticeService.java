@@ -1,5 +1,7 @@
 package com.community.site.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.site.dto.SiteNoticeLine;
 import com.community.site.dto.response.SiteNoticeBarResponse;
 import com.community.site.dto.response.SiteNoticeItemView;
@@ -8,17 +10,14 @@ import com.community.site.repository.master.SiteSettingRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * 공개 공지 띠({@code GET /api/site/notice-bar})의 <b>짧은 캐시 사본</b> — 모든 화면이 앱을 열 때 한 번 부르므로 요청마다 DB 를 읽지 않고 {@value #TTL_SECONDS}초마다 다시 읽는다
- * ({@link PublicSiteService} 와 같은 방식: 다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도). 관리자 저장·새 공지 글은 최대 그만큼(+ 게시판 사본 15초) 늦게 보인다.
+ * 공개 공지 띠({@code GET /api/site/notice-bar})의 <b>짧은 캐시 사본</b> — 모든 화면이 앱을 열 때 한 번 부르므로 요청마다 DB 를 읽지 않고 캐시 {@code site.noticeBar}(기본 20초)에 둔다
+ * ({@link PublicSiteService} 와 같은 틀 — docs/features/cache-admin-contract.md). 관리자 저장은 몇 초 안에, 새 공지 글은 TTL(+ 게시판 사본) 안에 보인다.
  *
  * <ul>
  *   <li>설정 행이 없거나(설치 전) 꺼져 있으면 {@code { version: "off", items: [] }}.</li>
@@ -29,48 +28,24 @@ import org.springframework.stereotype.Service;
 @Service
 public class PublicSiteNoticeService {
 
-    private static final Logger log = LoggerFactory.getLogger(PublicSiteNoticeService.class);
-
-    static final int TTL_SECONDS = 20;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
     private static final SiteNoticeBarResponse OFF = new SiteNoticeBarResponse(SiteNoticeBars.VERSION_OFF, List.of());
 
     private final SiteSettingRepository settings;
     private final SiteNoticeBarReader reader;
-    private volatile Cached cached;
+    private final CacheManager caches;
 
-    public PublicSiteNoticeService(SiteSettingRepository settings, SiteNoticeBarReader reader) {
+    public PublicSiteNoticeService(SiteSettingRepository settings, SiteNoticeBarReader reader, CacheManager caches) {
+        this.caches = caches;
         this.settings = settings;
         this.reader = reader;
     }
 
-    /** 지금 쓸 수 있는 사본 */
+    /** 지금 쓸 수 있는 사본 — 캐시 {@code site.noticeBar} */
     public Snapshot snapshot() {
-        Cached current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.snapshot;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current.snapshot;
-            }
-            try {
-                SiteNoticeBarResponse loaded = load();
-                Snapshot snapshot = new Snapshot(loaded, fingerprint(loaded));
-                cached = new Cached(snapshot, now);
-                return snapshot;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("공지 띠를 다시 읽지 못해 이전 값을 쓴다: {}", e.toString());
-                cached = new Cached(current.snapshot, now - TTL_NANOS + RETRY_NANOS);
-                return current.snapshot;
-            }
-        }
+        return caches.getCache(CacheNames.SITE_NOTICE_BAR).get(CacheNames.SINGLE, () -> {
+            SiteNoticeBarResponse loaded = load();
+            return new Snapshot(loaded, fingerprint(loaded));
+        });
     }
 
     private SiteNoticeBarResponse load() {
@@ -100,6 +75,4 @@ public class PublicSiteNoticeService {
     public record Snapshot(SiteNoticeBarResponse response, String etag) {
     }
 
-    private record Cached(Snapshot snapshot, long loadedAt) {
-    }
 }

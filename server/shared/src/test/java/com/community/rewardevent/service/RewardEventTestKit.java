@@ -120,7 +120,7 @@ final class RewardEventTestKit {
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(),
                 JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         isolated = new IsolatedSideWork(dataSource, JpaTestContext.entityManager());
-        policy = new PointPolicy(new PointPolicyQueries(dataSource));
+        policy = new PointPolicy(new PointPolicyQueries(dataSource), new org.springframework.cache.support.NoOpCacheManager());
         points = new PointService(new PointLedgerWriter(dataSource), policy, isolated, ids, restrictions, clocks);
         AuditLogService audit = new AuditLogService(JpaTestContext.context().getBean(AuditLogRepository.class), ids);
         MemberNotificationPublisher memberPublisher = new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), isolated, ids, memberEmails::add);

@@ -1,5 +1,7 @@
 package com.community.board.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardCatalogSnapshot.GradeInfo;
 import com.community.board.dto.BoardDefaultsValues;
@@ -20,7 +22,6 @@ import com.community.board.repository.master.BoardRepository;
 import com.community.board.repository.master.BoardSecuritySettingRepository;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -29,28 +30,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
  * 게시판·유효 정책·기본 설정 하위 화면(보안·신고)·등급 목록의 <b>짧은 메모리 사본</b>({@link BoardCatalogSnapshot}) — 공개 게시판 API 가 요청마다 DB 를 읽지 않게 한다.
  *
  * <ul>
- *   <li>{@value #TTL_SECONDS}초마다 다시 읽는다. 관리자 앱은 다른 서버라 게시판·기본 설정을 저장해도 <b>이 서버에는 최대 그만큼 늦게</b> 닿는다(계약에 적은 반영 지연).
- *       같은 서버 안에서 바꾼 경우는 {@link #invalidate()} 로 바로 비운다.</li>
- *   <li>다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다(사이트 설정 사본 {@code PublicSiteService} 와 같은 방식).</li>
+ *   <li>캐시 {@code board.catalog}(기본 15초 — docs/features/cache-admin-contract.md)에 둔다. 관리자 저장은 세대 번호로 모든 서버에 몇 초 안에 닿는다.
+ *       같은 서버 안에서는 {@link #invalidate()} 로 바로 비울 수 있다.</li>
+ *   <li>읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다).</li>
  *   <li>유효값 = 게시판 값 ?? 기본값. 게시판별로 덮어쓸 수 없는 칸은 {@link BoardCatalogSnapshot#defaults()} 에서 읽는다.</li>
  * </ul>
  */
 @Component
 public class BoardCatalog {
 
-    private static final Logger log = LoggerFactory.getLogger(BoardCatalog.class);
-
-    static final int TTL_SECONDS = 15;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final BoardRepository boards;
     private final BoardPrefixRepository prefixes;
@@ -58,10 +52,11 @@ public class BoardCatalog {
     private final BoardSecuritySettingRepository security;
     private final BoardReportSettingRepository report;
     private final GradeRepositoryQDSL grades;
-    private volatile Cached cached;
+    private final CacheManager caches;
 
     public BoardCatalog(BoardRepository boards, BoardPrefixRepository prefixes, BoardDefaultsRepository defaults, BoardSecuritySettingRepository security,
-                        BoardReportSettingRepository report, GradeRepositoryQDSL grades) {
+                        BoardReportSettingRepository report, GradeRepositoryQDSL grades, CacheManager caches) {
+        this.caches = caches;
         this.boards = boards;
         this.prefixes = prefixes;
         this.defaults = defaults;
@@ -70,36 +65,14 @@ public class BoardCatalog {
         this.grades = grades;
     }
 
-    /** 지금 쓸 수 있는 사본 */
+    /** 지금 쓸 수 있는 사본 — 캐시 {@code board.catalog} */
     public BoardCatalogSnapshot snapshot() {
-        Cached current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.snapshot;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current.snapshot;
-            }
-            try {
-                BoardCatalogSnapshot loaded = load();
-                cached = new Cached(loaded, now);
-                return loaded;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("게시판 사본을 다시 읽지 못해 이전 값을 쓴다: {}", e.toString());
-                cached = new Cached(current.snapshot, now - TTL_NANOS + RETRY_NANOS);
-                return current.snapshot;
-            }
-        }
+        return caches.getCache(CacheNames.BOARD_CATALOG).get(CacheNames.SINGLE, this::load);
     }
 
-    /** 사본을 버린다 — 다음 {@link #snapshot()} 이 다시 읽는다 */
+    /** 이 서버의 사본을 버린다 — 다음 {@link #snapshot()} 이 다시 읽는다(다른 서버까지 비우려면 관리자 저장이 {@code CacheRefresher} 로 세대 번호를 올린다) */
     public void invalidate() {
-        cached = null;
+        caches.getCache(CacheNames.BOARD_CATALOG).clear();
     }
 
     private BoardCatalogSnapshot load() {
@@ -167,6 +140,4 @@ public class BoardCatalog {
         return value != null ? value : fallback;
     }
 
-    private record Cached(BoardCatalogSnapshot snapshot, long loadedAt) {
-    }
 }

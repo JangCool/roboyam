@@ -1,5 +1,7 @@
 package com.community.point.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -23,8 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 포인트 정책 — 조회 {@code point.read}, 저장 {@code point.settings}(컨트롤러가 선언).
@@ -45,13 +45,13 @@ public class PointSettingsService {
     private final PointSettingRepository settings;
     private final OperatorRepository operators;
     private final AuditLogService audit;
-    private final PointPolicy policy;
+    private final CacheRefresher refresher;
 
-    public PointSettingsService(PointSettingRepository settings, OperatorRepository operators, AuditLogService audit, PointPolicy policy) {
+    public PointSettingsService(PointSettingRepository settings, OperatorRepository operators, AuditLogService audit, CacheRefresher refresher) {
         this.settings = settings;
         this.operators = operators;
         this.audit = audit;
-        this.policy = policy;
+        this.refresher = refresher;
     }
 
     @Transactional(readOnly = true)
@@ -99,7 +99,8 @@ public class PointSettingsService {
         }
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.POINT_SETTINGS_UPDATE, AuditResult.SUCCESS).target("POINT_SETTINGS", "points")
                 .with("before", before).with("after", after));
-        invalidateAfterCommit();
+        // 모든 서버의 포인트 정책 사본을 비운다(세대 번호 — 같은 트랜잭션, 이 서버는 커밋 뒤 바로)
+        refresher.onSave(CacheSaveSource.POINT_POLICY_SAVE, null, actor.operatorId());
         log.info("포인트 정책을 저장했다 칸={} by operatorId={}", after.keySet(), actor.operatorId());
         return response(row);
     }
@@ -161,19 +162,5 @@ public class PointSettingsService {
     private PointSettingsResponse response(PointSettingEntity row) {
         String by = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(o -> o.getOperatorName()).orElse(null);
         return PointSettingsResponse.of(row.values(), row.lotRules(), row.getUpdatedAt(), by);
-    }
-
-    /** 커밋된 뒤에만 사본을 버린다(롤백되면 그대로) */
-    private void invalidateAfterCommit() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    policy.invalidate();
-                }
-            });
-        } else {
-            policy.invalidate();
-        }
     }
 }

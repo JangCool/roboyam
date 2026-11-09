@@ -1,5 +1,7 @@
 package com.community.commerce.service;
 
+import com.community.cache.service.CacheRefresher;
+import com.community.cache.service.CacheSaveSource;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -9,7 +11,6 @@ import com.community.commerce.dto.response.RequestLimitsView;
 import com.community.commerce.guard.dto.RequestAction;
 import com.community.commerce.guard.entity.RequestRateLimitEntity;
 import com.community.commerce.guard.repository.master.RequestRateLimitRepository;
-import com.community.commerce.guard.service.RequestRateLimits;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
@@ -30,8 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 커머스 설정 › 요청 제한(docs/domain/commerce.md 12-4) — 조회·저장 모두 {@code commerce.settings}(컨트롤러가 선언).
@@ -54,13 +53,13 @@ public class CommerceRequestLimitService {
     private final RequestRateLimitRepository limits;
     private final OperatorRepository operators;
     private final AuditLogService audit;
-    private final RequestRateLimits copy;
+    private final CacheRefresher refresher;
 
-    public CommerceRequestLimitService(RequestRateLimitRepository limits, OperatorRepository operators, AuditLogService audit, RequestRateLimits copy) {
+    public CommerceRequestLimitService(RequestRateLimitRepository limits, OperatorRepository operators, AuditLogService audit, CacheRefresher refresher) {
         this.limits = limits;
         this.operators = operators;
         this.audit = audit;
-        this.copy = copy;
+        this.refresher = refresher;
     }
 
     @Transactional(readOnly = true)
@@ -90,7 +89,8 @@ public class CommerceRequestLimitService {
         if (!after.isEmpty()) {
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE, AuditResult.SUCCESS)
                     .target(TARGET_TYPE, TARGET_ID).with("before", before).with("after", after));
-            invalidateAfterCommit();
+            // 모든 서버의 요청 한도 사본을 비운다(세대 번호 — 같은 트랜잭션, 이 서버는 커밋 뒤 바로)
+            refresher.onSave(CacheSaveSource.RATE_LIMITS_SAVE, null, actor.operatorId());
             log.info("요청 제한을 저장했다 종류={} by operatorId={}", after.keySet(), actor.operatorId());
         }
         return view(new ArrayList<>(rows.values()));
@@ -146,19 +146,5 @@ public class CommerceRequestLimitService {
         Optional<RequestRateLimitEntity> last = rows.stream().filter(row -> row.getUpdatedAt() != null).max(Comparator.comparing(RequestRateLimitEntity::getUpdatedAt));
         String by = last.map(RequestRateLimitEntity::getUpdatedBy).flatMap(operators::findById).map(OperatorEntity::getOperatorName).orElse(null);
         return new RequestLimitsView(items, last.map(RequestRateLimitEntity::getUpdatedAt).orElse(null), by);
-    }
-
-    /** 커밋된 뒤에만 사본을 버린다(롤백되면 그대로) */
-    private void invalidateAfterCommit() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    copy.invalidate();
-                }
-            });
-        } else {
-            copy.invalidate();
-        }
     }
 }

@@ -63,7 +63,7 @@ final class PointTestKit {
         clock = new MutableTestClock(Instant.now().truncatedTo(ChronoUnit.MICROS));
         ids = new SnowflakeIdGenerator(NODE_ID);
         writer = new PointLedgerWriter(dataSource);
-        policy = new PointPolicy(new PointPolicyQueries(dataSource));
+        policy = new PointPolicy(new PointPolicyQueries(dataSource), new org.springframework.cache.support.NoOpCacheManager());
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(JpaTestContext.query(), JpaTestContext.context().getBean(MemberRestrictionRepository.class), dataSource), null, null, ids, null, clocks);
         points = new PointService(writer, policy, new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);

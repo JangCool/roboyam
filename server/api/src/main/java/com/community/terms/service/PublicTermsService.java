@@ -1,5 +1,7 @@
 package com.community.terms.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.terms.dto.PublicTermsSnapshot;
 import com.community.terms.dto.TermsVersionMeta;
 import com.community.terms.dto.response.PublicTermsCurrent;
@@ -16,35 +18,27 @@ import com.community.terms.entity.TermsVersionEntity;
 import com.community.terms.repository.master.TermsVersionRepository;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
  * 공개 사이트가 읽는 약관 — 요약({@code /api/terms/summary})과 종류별 화면({@code /api/terms/{kind}})은 <b>짧은 캐시 사본</b>({@link PublicTermsSnapshot})에서 낸다.
- * 요청마다 DB 를 읽지 않고 {@value #TTL_SECONDS}초마다 다시 읽는다(관리자 앱은 다른 서버라 게시·옵션 저장이 이 서버에는 최대 그만큼 늦게 닿는다).
- * 다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다({@code PublicSiteService} 와 같은 방식).
+ * 요청마다 DB 를 읽지 않고 캐시 {@code terms.public}(기본 20초)에 둔다 — 관리자 게시·옵션 저장은 세대 번호로 몇 초 안에 닿는다({@code PublicSiteService} 와 같은 틀).
  * 지난·예정 버전 본문({@code …/versions/{version}})은 드물게 읽혀 사본에 두지 않고 그때 읽는다.
  */
 @Service
 public class PublicTermsService {
 
-    private static final Logger log = LoggerFactory.getLogger(PublicTermsService.class);
-
-    static final int TTL_SECONDS = 20;
-    private static final long TTL_NANOS = Duration.ofSeconds(TTL_SECONDS).toNanos();
-    private static final long RETRY_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final TermsService terms;
     private final TermsVersionRepository versions;
-    private volatile Cached cached;
+    private final CacheManager caches;
 
-    public PublicTermsService(TermsService terms, TermsVersionRepository versions) {
+    public PublicTermsService(TermsService terms, TermsVersionRepository versions, CacheManager caches) {
+        this.caches = caches;
         this.terms = terms;
         this.versions = versions;
     }
@@ -67,31 +61,9 @@ public class PublicTermsService {
                 entity.getBody());
     }
 
-    /** 지금 쓸 수 있는 사본 — 메모리에 있고 {@value #TTL_SECONDS}초 안이면 그것, 아니면 다시 읽는다 */
+    /** 지금 쓸 수 있는 사본 — 캐시 {@code terms.public} */
     private PublicTermsSnapshot snapshot() {
-        Cached current = cached;
-        if (current != null && System.nanoTime() - current.loadedAt < TTL_NANOS) {
-            return current.snapshot;
-        }
-        synchronized (this) {
-            current = cached;
-            long now = System.nanoTime();
-            if (current != null && now - current.loadedAt < TTL_NANOS) {
-                return current.snapshot;
-            }
-            try {
-                PublicTermsSnapshot loaded = load();
-                cached = new Cached(loaded, now);
-                return loaded;
-            } catch (RuntimeException e) {
-                if (current == null) {
-                    throw e;
-                }
-                log.warn("공개 약관을 다시 읽지 못해 이전 값을 쓴다: {}", e.toString());
-                cached = new Cached(current.snapshot, now - TTL_NANOS + RETRY_NANOS);
-                return current.snapshot;
-            }
-        }
+        return caches.getCache(CacheNames.TERMS_PUBLIC).get(CacheNames.SINGLE, this::load);
     }
 
     private PublicTermsSnapshot load() {
@@ -132,6 +104,4 @@ public class PublicTermsService {
         return TermsKind.ofPath(path).orElseThrow(() -> new CommonException(ErrorCode.NOT_FOUND));
     }
 
-    private record Cached(PublicTermsSnapshot snapshot, long loadedAt) {
-    }
 }

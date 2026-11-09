@@ -188,7 +188,7 @@ class VisitDiagnosticsAdminServiceTest {
     private VisitDiagnosticsAdminService service() {
         StaticListableBeanFactory beans = new StaticListableBeanFactory();
         beans.addBean("clock", clock);
-        StatsCollectionSettings settings = new StatsCollectionSettings(null) {
+        StatsCollectionSettings settings = new StatsCollectionSettings(null, null) {
             @Override
             public StatsCollection current() {
                 return current;
