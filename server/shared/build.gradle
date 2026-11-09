@@ -21,6 +21,11 @@ dependencies {
     api "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
 
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // 공개 사이트 캐시(docs/features/cache-admin-contract.md) — 업무 코드는 Spring Cache 추상(CacheManager·Cache)만 쓰고, Caffeine 은 캐시 운영 구현
+    // (com.community.zconfiguration.cache.CaffeineCacheControl) 한 곳에서만 부른다(원격 캐시로 바꿀 때 그 구현만 바꾼다). 버전은 Spring Boot BOM 이 정한다.
+    // api(내보냄) — 사본 클래스들의 생성자 시그니처에 CacheManager 가 나온다
+    api 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
     // GlobalExceptionHandler · SpaResourceConfig (zconfiguration)
     implementation 'org.springframework.boot:spring-boot-starter-web'
     // SecurityConfig (보안 필터 체인·CSRF·설치 가드) · PasswordEncoderConfig (bcrypt). starter 가 spring-security-crypto 를 함께 싣는다

@@ -32,6 +32,12 @@ public final class AuditActions {
     public static final String BATCH_TOGGLE = "BATCH_TOGGLE";
     public static final String BATCH_SCHEDULE_CHANGE = "BATCH_SCHEDULE_CHANGE";
     public static final String BATCH_RUN = "BATCH_RUN";
+    /** 캐시 관리(cache-admin-contract) — 지금 갱신 · 전체 갱신 · TTL 변경 · 캐시 켜기/끄기 · 전체 캐시 켜기/끄기 */
+    public static final String CACHE_REFRESH = "CACHE_REFRESH";
+    public static final String CACHE_REFRESH_ALL = "CACHE_REFRESH_ALL";
+    public static final String CACHE_TTL_CHANGE = "CACHE_TTL_CHANGE";
+    public static final String CACHE_ENABLED_CHANGE = "CACHE_ENABLED_CHANGE";
+    public static final String CACHE_GLOBAL_ENABLED_CHANGE = "CACHE_GLOBAL_ENABLED_CHANGE";
     public static final String SITE_BASIC_UPDATE = "SITE_BASIC_UPDATE";
     public static final String SITE_LOGO_CHANGE = "SITE_LOGO_CHANGE";
     public static final String SITE_LOGO_REMOVE = "SITE_LOGO_REMOVE";
