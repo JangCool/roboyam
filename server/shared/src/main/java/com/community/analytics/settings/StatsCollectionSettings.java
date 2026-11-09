@@ -1,6 +1,7 @@
 package com.community.analytics.settings;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +12,12 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>관리자가 설정을 바꾸면 그 관리자 서버는 바로({@link #invalidate}), 다른 서버(공개 사이트 api 여러 대 포함)는 세대 번호로 몇 초 안에 따른다.</li>
- *   <li>읽지 못하면 모두 꺼짐({@link StatsCollection#OFF}) — 수집은 기본 꺼짐이라 안전한 쪽이다.</li>
+ *   <li>처음 읽지 못하면 모두 꺼짐({@link StatsCollection#OFF}) — 수집은 기본 꺼짐이라 안전한 쪽이다. TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}).</li>
  *   <li>크론(pg_cron)은 이 사본이 아니라 DB 행을 직접 읽는다.</li>
  * </ul>
  */
 @Component
-public class StatsCollectionSettings {
+public class StatsCollectionSettings implements CacheReloader {
 
     private static final Logger log = LoggerFactory.getLogger(StatsCollectionSettings.class);
 
@@ -30,15 +31,29 @@ public class StatsCollectionSettings {
         this.store = store;
     }
 
-    /** 지금 설정 — 캐시 {@code stats.collection}. 읽지 못하면 모두 꺼짐(담지 않는다 — 다음 요청이 다시 읽는다) */
+    /** 지금 설정 — 캐시 {@code stats.collection}. 처음 읽지 못하면(비운 뒤 포함) 모두 꺼짐(담지 않는다 — 다음 요청이 다시 읽는다) */
     public StatsCollection current() {
         try {
-            return caches.getCache(CacheNames.STATS_COLLECTION).get(CacheNames.SINGLE,
-                    () -> store.find().map(StatsCollectionStore.Stored::value).orElse(StatsCollection.OFF));
+            return caches.getCache(CacheNames.STATS_COLLECTION).get(CacheNames.SINGLE, this::load);
         } catch (RuntimeException e) {
             log.warn("통계 수집 설정을 읽지 못해 꺼짐을 쓴다: {}", e.getClass().getSimpleName());
             return StatsCollection.OFF;
         }
+    }
+
+    private StatsCollection load() {
+        return store.find().map(StatsCollectionStore.Stored::value).orElse(StatsCollection.OFF);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.STATS_COLLECTION;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     /** 이 서버의 사본을 버린다(다른 서버는 관리자 저장의 세대 번호로 따라온다) */

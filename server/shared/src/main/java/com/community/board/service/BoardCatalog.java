@@ -1,6 +1,7 @@
 package com.community.board.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardCatalogSnapshot.GradeInfo;
@@ -38,12 +39,12 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>캐시 {@code board.catalog}(기본 15초 — docs/features/cache-admin-contract.md)에 둔다. 관리자 저장은 세대 번호로 모든 서버에 몇 초 안에 닿는다.
  *       같은 서버 안에서는 {@link #invalidate()} 로 바로 비울 수 있다.</li>
- *   <li>읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다).</li>
+ *   <li>처음 읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다). TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}).</li>
  *   <li>유효값 = 게시판 값 ?? 기본값. 게시판별로 덮어쓸 수 없는 칸은 {@link BoardCatalogSnapshot#defaults()} 에서 읽는다.</li>
  * </ul>
  */
 @Component
-public class BoardCatalog {
+public class BoardCatalog implements CacheReloader {
 
 
     private final BoardRepository boards;
@@ -68,6 +69,17 @@ public class BoardCatalog {
     /** 지금 쓸 수 있는 사본 — 캐시 {@code board.catalog} */
     public BoardCatalogSnapshot snapshot() {
         return caches.getCache(CacheNames.BOARD_CATALOG).get(CacheNames.SINGLE, this::load);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.BOARD_CATALOG;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     /** 이 서버의 사본을 버린다 — 다음 {@link #snapshot()} 이 다시 읽는다(다른 서버까지 비우려면 관리자 저장이 {@code CacheRefresher} 로 세대 번호를 올린다) */

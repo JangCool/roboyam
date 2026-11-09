@@ -65,12 +65,13 @@
 - **갱신**(`CacheRefresher`): 행 쓰기 잠금(키 차례)으로 세대 +1 + 기록, 부르는 쪽 트랜잭션에 참여, 커밋 뒤 이 서버는 바로 비운다. 자동(저장)은 커밋 직전에 한꺼번에(캐시 행 잠금이 늘 업무 잠금 뒤·키 차례), 한 트랜잭션에서 같은 캐시는 한 번만.
 - **자동(저장)**: 관리자 저장의 감사 기록(`AuditLogService#record` → `AuditRecorded` 이벤트, 같은 트랜잭션)을 `CacheAutoRefresh`(admin)가 작업 이름 → 계기(`CacheSaveSource`)로 바꿔 올린다(홈·가젯 페이지·게시판 레이아웃·테마·메뉴·사이트 기본·운영 주체·공지 띠·팝업·약관·공지·게시판·게시판 기본·등급·하이라이트·인기글·글 숨김/삭제 등). 설정 사본·내부 규칙(포인트 정책·요청 한도·통계 수집·핫딜 규칙/설정·알림 문구)은 예전 `invalidate()` 자리에서 서비스가 직접 올린다. 회원 새 글은 TTL.
 - **사본 12개 이전**: `TTL_SECONDS`·직접 만든 메모리 사본을 지우고 `Cache.get(key, loader)` 로(기본 TTL 은 예전 값). `invalidate()` 는 「이 서버만 비우기」로 남겼다(시험용, 운영 저장은 세대 올리기).
-  - 달라진 점: 예전의 「다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시」는 표준 Spring Cache 로는 같은 결과를 낼 수 없어 없앴다 — 이제 읽기에 실패하면 담지 않고 그 요청이 실패하며 다음 요청이 바로 다시 읽는다. 「처음부터 못 읽으면 안전한 값」이던 통계 수집(꺼짐)·전체 공지(빈 목록)는 실패할 때마다 그 값을 돌려준다(담지 않음). 로더 예외는 `Cache.ValueRetrievalException` 에 싸여 나온다.
+  - ~~달라진 점: 다시 읽다 실패하면 그 요청이 실패~~ → **이전 값 유지 복원(2026-11-09, 후속)**: 이 12개(`CacheDefinition#keepsLastValue` = 설정 사본·내부 규칙)는 Caffeine `refreshAfterWrite`(TTL) + 캐시별 로더 등록(서비스가 `zconfiguration.cache.CacheReloader` 구현 → `CacheConfig` 가 띄운 뒤 `CacheControl#registerReloader`, 빠지면 경고)으로 둔다. 만료가 없고, TTL 이 지난 항목은 **다음 읽기가 그 스레드에서 바로 다시 읽어 새 값을 받는다**(`executor(Runnable::run)` — 비동기가 아니라 예전처럼 동기, 같은 항목을 동시에 읽는 다른 요청은 기다리지 않고 이전 값). 다시 읽다 실패하면 이전 값을 쓰고(Caffeine 경고 기록) **그다음 읽기에서 다시 시도**한다(예전 「5초 뒤」 대신 — 한 번에 하나만 다시 읽는다). 런타임 TTL 은 `policy().refreshAfterWrite()`. 비우기(세대 올리기·지금 갱신·자동(저장))·끄기는 이전 값까지 지우고, 그 뒤 첫 읽기 실패는 「처음부터 못 읽은 경우」(통계 수집 = 꺼짐, 전체 공지 = 빈 목록, 그 밖은 `Cache.ValueRetrievalException` — 담지 않아 다음 요청이 다시 읽는다). 관리자 저장 직후 반영 시점은 그대로(세대 올리기). 공개 화면·가젯 13개는 항목 키가 설정 지문이라 키만으로 다시 읽을 수 없어 `expireAfterWrite` 그대로(만료 뒤 실패 = 그 요청 실패).
 - **공개 캐시**: 공용 값만 담고 꺼낸 뒤 보는 사람 몫을 덧입힌다 — 글 줄은 작성자 메모·차단·딜의 내 종료 요청(`PostFeedRows#overlay`, 질의 수는 예전과 같거나 적다), 소모임 가젯은 내 상태, 메뉴는 보는 사람 판정. 항목 키: `home.layout`·`boards.layout`=테마, `pages.layout`=주소|테마(없는 페이지도 담음), `home.latest`=쪽 크기|성인 여부(**첫 쪽만**, 커서 쪽은 캐시 안 함), `home.popular`=기간|쪽|크기, `menu.public`=그룹 코드, `gadget.*`=SHA-256(성인 여부|쪽에 따른 대상 게시판|가젯 설정 JSON).
   - 캐시하지 않는 것: 관리자 테마 미리보기(`theme` 파라미터 — 배치·가젯 모두 우회), 광고 2종·본문 칸, 메뉴의 공동구매 판매 스위치와 공동구매 가젯의 `salesOpen`(돈 기능 — 요청마다 지금 값), 성인 여부 판정·메뉴 보는 사람 판정(회원별).
   - 달라진 점: 소모임 가젯(「지금 뜨는 소모임」 무작위 고르기)이 TTL(300초) 동안 같은 고르기를 보인다 → 회원별 처리를 `SHARED_WITH_MEMBER_OVERLAY` 로 둠(내 상태). 갤러리 가젯은 줄에 회원별 칸이 없어 `SHARED`.
 - **관리자 API**(server/admin `CacheAdminController`, `Cache-Control: no-store`): 위 「API 후보」 그대로. 오류 `CACHE_NOT_FOUND`(404) · `CACHE_DISABLED`·`CACHE_GLOBAL_DISABLED`(409) · `VALIDATION fields.ttlSeconds`(400). 감사 `CACHE_REFRESH`·`CACHE_REFRESH_ALL`·`CACHE_TTL_CHANGE`·`CACHE_ENABLED_CHANGE`·`CACHE_GLOBAL_ENABLED_CHANGE`(대상 `CACHE`). 권한 `Permission.CACHE_READ`·`CACHE_MANAGE`(AUDIT_BATCH, READ·MANAGE, featureReady true), 레지스트리 `caches` = `cache.read`.
-- **남은 것**: 갱신 기록·설정 변경 이력 정리 배치 없음(쌓이기만 한다) · 소모임·공동구매 관리자 저장은 자동 비우기에 안 넣음(TTL) · 회원 공개 사이트의 스텝 숨김(api)은 TTL.
+- **기록 정리 배치(2026-11-09, 후속)**: DB 배치 `cache-log-cleanup`(shared `R__batch_42`, 분류 SYSTEM, 매일 03:25 KST) — 갱신 기록 `refresh_log_days` 90일 · 설정 변경 이력 `setting_change_days` 365일(TTL·켜기/끄기는 감사 기록에도 남음) · 보고 끊긴 서버 줄 `node_days` 7일(살아 있는 서버의 1시간 정리를 못 탄 줄), `chunk_size` 5000 · `max_per_run` 100000. 기간은 가정(사용자 확인 전).
+- **남은 것**: 소모임·공동구매 관리자 저장은 자동 비우기에 안 넣음(TTL) · 회원 공개 사이트의 스텝 숨김(api)은 TTL.
 
 ## 원격 캐시 전환 시 고려할 점 (Hazelcast · MongoDB · Redis)
 지금은 사이트 규모가 작아 로컬(Caffeine) + DB 세대 번호 폴링으로 간다. 사이트가 커지면 원격 캐시로 바꿀 예정이고, 그때 아래를 확인한다.
@@ -84,7 +85,8 @@
 7. **통계 칸이 바뀐다** — 항목 수·적중률은 지금 서버별 Caffeine `recordStats` 값이다. 원격은 저장소 전체 값이고 캐시(접두어)별 항목 수를 세는 것은 비싸다(Redis는 `SCAN` 필요). 적중/누락은 앱에서 계측(Micrometer)으로 세고, 항목 수 칸은 빼거나 근사값으로 바꾼다.
 8. **회원별 값은 계속 캐시하지 않는다** — 공용 + 덧입힘 구조는 원격에서도 그대로. 원격에 회원별 값을 넣으면 키 수·메모리가 폭증하고 개인정보가 저장소에 남는다.
 9. **운영** — 메모리 상한과 축출 정책(Redis `allkeys-lru` 등), 인증·TLS, 백업 불필요(캐시는 지워져도 되는 데이터) 명시, 모니터링(메모리·지연·연결 수). 세션·요청 한도 카운터 같은 다른 용도와 같은 저장소를 쓰면 키 접두어·DB 번호로 나누고 축출 정책이 서로 해치지 않게 한다.
-10. **시험** — 캐시 구현을 바꿔도 같은 동작(만료, 비우기, TTL 변경, 장애 시 DB로 떨어짐)인지 같은 시험을 Testcontainers(Redis/Hazelcast)로 돌린다.
+10. **시험** — 캐시 구현을 바꿔도 같은 동작(만료, 비우기, TTL 변경, 장애 시 DB로 떨어짐)인지 같은 시험을 Testcontainers(Redis/Hazelcast)로 돌린다. 「이전 값 유지」는 `CaffeineCacheControlTest` 의 경우를 그대로 옮긴다.
+11. **이전 값 유지(설정 사본·내부 규칙 12개)** — 원격은 키 TTL 로 지우면 이전 값이 사라진다. 원격에는 만료 없이(또는 넉넉히) 값 + 넣은 시각을 두고, 읽을 때 TTL 이 지났으면 등록한 `CacheReloader` 로 다시 읽어 성공할 때만 덮어쓴다(실패하면 남은 값). 더 단순하게는 이 12개를 L1(Caffeine, 지금 구현 그대로 `refreshAfterWrite`)에만 두고 원격에 올리지 않는다 — 작은 값이라 L1 로 충분하다. 어느 쪽이든 `CacheControl#registerReloader` 뒤에 가둔다.
 
 선택 메모(비용을 걱정하는 1인 운영 기준, 앱 서버 2대 이상 전제):
 | 후보 | 장점 | 단점 |

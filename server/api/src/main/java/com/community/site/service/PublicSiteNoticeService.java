@@ -1,6 +1,7 @@
 package com.community.site.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.site.dto.SiteNoticeLine;
 import com.community.site.dto.response.SiteNoticeBarResponse;
@@ -26,7 +27,7 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
-public class PublicSiteNoticeService {
+public class PublicSiteNoticeService implements CacheReloader {
 
     private static final SiteNoticeBarResponse OFF = new SiteNoticeBarResponse(SiteNoticeBars.VERSION_OFF, List.of());
 
@@ -42,10 +43,23 @@ public class PublicSiteNoticeService {
 
     /** 지금 쓸 수 있는 사본 — 캐시 {@code site.noticeBar} */
     public Snapshot snapshot() {
-        return caches.getCache(CacheNames.SITE_NOTICE_BAR).get(CacheNames.SINGLE, () -> {
-            SiteNoticeBarResponse loaded = load();
-            return new Snapshot(loaded, fingerprint(loaded));
-        });
+        return caches.getCache(CacheNames.SITE_NOTICE_BAR).get(CacheNames.SINGLE, this::loadSnapshot);
+    }
+
+    private Snapshot loadSnapshot() {
+        SiteNoticeBarResponse loaded = load();
+        return new Snapshot(loaded, fingerprint(loaded));
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.SITE_NOTICE_BAR;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return loadSnapshot();
     }
 
     private SiteNoticeBarResponse load() {

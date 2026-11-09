@@ -1,6 +1,7 @@
 package com.community.terms.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.terms.dto.PublicTermsSnapshot;
 import com.community.terms.dto.TermsVersionMeta;
@@ -30,7 +31,7 @@ import org.springframework.stereotype.Service;
  * 지난·예정 버전 본문({@code …/versions/{version}})은 드물게 읽혀 사본에 두지 않고 그때 읽는다.
  */
 @Service
-public class PublicTermsService {
+public class PublicTermsService implements CacheReloader {
 
 
     private final TermsService terms;
@@ -64,6 +65,17 @@ public class PublicTermsService {
     /** 지금 쓸 수 있는 사본 — 캐시 {@code terms.public} */
     private PublicTermsSnapshot snapshot() {
         return caches.getCache(CacheNames.TERMS_PUBLIC).get(CacheNames.SINGLE, this::load);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.TERMS_PUBLIC;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     private PublicTermsSnapshot load() {

@@ -1,6 +1,7 @@
 package com.community.point.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
@@ -13,12 +14,12 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>캐시 {@code point.policy}(기본 15초, 관리자 허용 5초~5분 — docs/features/cache-admin-contract.md)에 둔다. 관리자 앱에서 저장하면 세대 번호로 모든 서버에
  *       몇 초 안에 닿는다(계약의 「15초 안에 모든 서버」). 저장한 서버는 커밋 뒤 바로 비운다.</li>
- *   <li>읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다). 행이 없으면 기본값({@link PointRules#DEFAULTS}·{@link PointLotRules#DEFAULTS}).</li>
+ *   <li>처음 읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다). TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}). 행이 없으면 기본값({@link PointRules#DEFAULTS}·{@link PointLotRules#DEFAULTS}).</li>
  *   <li>규칙은 앞으로의 지급에만 적용된다(이미 지급한 포인트는 그대로, 소급 없음). 묶음 유효기간도 새로 만드는 묶음에만 적용된다.</li>
  * </ul>
  */
 @Component
-public class PointPolicy {
+public class PointPolicy implements CacheReloader {
 
 
     private final PointPolicyQueries queries;
@@ -42,6 +43,17 @@ public class PointPolicy {
     /** 지금 사본 — 캐시 {@code point.policy} */
     private Loaded snapshot() {
         return caches.getCache(CacheNames.POINT_POLICY).get(CacheNames.SINGLE, this::load);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.POINT_POLICY;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     /** 정책 행을 읽는다(JDBC — 세이브포인트 안에서 읽혀서다, {@link PointPolicyQueries}). 행이 없으면 기본값 */

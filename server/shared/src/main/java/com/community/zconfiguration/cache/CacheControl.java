@@ -16,7 +16,7 @@ public interface CacheControl {
     /** 이 서버가 그 캐시를 두는가 */
     boolean holds(String name);
 
-    /** 새 TTL — 이미 담긴 항목에도 넣은 시각 기준으로 적용한다(비우지 않는다) */
+    /** 새 TTL — 이미 담긴 항목에도 넣은(다시 읽은) 시각 기준으로 적용한다(비우지 않는다). 이전 값 유지 캐시는 다시 읽는 주기다 */
     void applyTtl(String name, Duration ttl);
 
     /** 켜고 끈다 — 끄면 담긴 항목을 비우고, 그 뒤로는 저장하지 않고 요청마다 원본을 읽는다 */
@@ -26,6 +26,16 @@ public interface CacheControl {
 
     /** 담긴 항목을 모두 비운다(이 서버만) */
     void clear(String name);
+
+    /**
+     * 「이전 값 유지」 캐시의 다시 읽기를 등록한다({@link CacheReloader}) — 이 서버가 두지 않거나 이전 값 유지가 아닌 캐시면 무시한다.
+     * 이전 값 유지 캐시는 TTL 이 지난 항목을 다음 읽기에서 다시 읽고(그 읽기는 새 값을 받는다), 다시 읽다 실패하면 이전 값을 쓰고 그다음 읽기에서 다시 시도한다.
+     * 비우기·끄기는 이전 값까지 지운다. 등록이 없으면 TTL 이 지난 항목은 한 번 이전 값을 준 뒤 버린다(그다음 읽기가 새로 읽는다).
+     */
+    void registerReloader(CacheReloader reloader);
+
+    /** 이전 값 유지 캐시인데 이 서버에 다시 읽기가 등록되지 않은 것(띄운 뒤 확인용) */
+    List<String> missingReloaders();
 
     /** 이 서버의 통계 — 항목 수 · 적중 · 누락(띄운 뒤 센 값) */
     Stats stats(String name);

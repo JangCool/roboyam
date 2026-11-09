@@ -31,6 +31,14 @@ public record CacheDefinition(String key, CacheKind kind, List<CacheServerRole> 
         return Duration.ofSeconds(defaultTtlSeconds);
     }
 
+    /**
+     * 「이전 값 유지」 캐시인가 — 설정 사본·내부 규칙(옛 메모리 사본 12개). TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@code zconfiguration.cache.CacheReloader}).
+     * 공개 화면·가젯은 아니다(항목 키가 설정 지문이라 키만으로 다시 읽을 수 없다 — 만료되면 다음 읽기가 새로 읽고, 실패하면 그 요청이 실패한다).
+     */
+    public boolean keepsLastValue() {
+        return kind == CacheKind.SETTINGS_COPY || kind == CacheKind.INTERNAL_RULE;
+    }
+
     public boolean on(CacheServerRole role) {
         return servers.contains(role);
     }

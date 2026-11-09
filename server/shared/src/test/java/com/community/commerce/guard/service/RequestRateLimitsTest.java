@@ -7,10 +7,16 @@ import com.community.cache.definition.CacheCatalog;
 import com.community.cache.definition.CacheNames;
 import com.community.cache.definition.CacheServerRole;
 import com.community.commerce.guard.dto.RequestAction;
+import com.community.commerce.guard.dto.RequestRateLimitRow;
 import com.community.commerce.guard.repository.master.RequestRateLimitRepositoryQDSL;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.JpaTestContext;
 import com.community.zconfiguration.cache.CaffeineCacheControl;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.cache.Cache;
 import org.springframework.cache.support.NoOpCacheManager;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -51,6 +57,38 @@ class RequestRateLimitsTest {
 
         limits.invalidate();
         assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("저장한 서버는 커밋 뒤 비워 바로 새 값").isEqualTo(42);
+    }
+
+    @Test
+    void TTL_이_지나_다시_읽다_실패하면_이전_한도를_쓰고_비운_뒤_첫_읽기_실패는_그_요청이_실패한다() {
+        AtomicBoolean down = new AtomicBoolean();
+        RequestRateLimitRepositoryQDSL rows = new RequestRateLimitRepositoryQDSL(JpaTestContext.query()) {
+            @Override
+            public List<RequestRateLimitRow> all() {
+                if (down.get()) {
+                    throw new IllegalStateException("DB 읽기 실패(시험)");
+                }
+                return super.all();
+            }
+        };
+        AtomicLong nanos = new AtomicLong(1_000_000_000L);
+        CaffeineCacheControl caches = new CaffeineCacheControl(CacheServerRole.API, nanos::get);
+        RequestRateLimits limits = new RequestRateLimits(rows, caches);
+        caches.registerReloader(limits);
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).isEqualTo(10);
+
+        jdbc.update("UPDATE request_rate_limits SET limit_per_minute = 42 WHERE action = 'POINT_SHOP_PURCHASE'");
+        nanos.addAndGet(Duration.ofSeconds(16).toNanos());
+        down.set(true);
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("TTL 뒤 다시 읽기 실패 — 이전 한도로 계속 막는다(요청은 깨지지 않는다)").isEqualTo(10);
+
+        down.set(false);
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("다음 읽기에서 다시 시도 — 새 한도").isEqualTo(42);
+
+        limits.invalidate();
+        down.set(true);
+        assertThatThrownBy(() -> limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("비운 뒤 첫 읽기 실패 — 이전 값은 지워졌다")
+                .isInstanceOf(Cache.ValueRetrievalException.class);
     }
 
     @Test

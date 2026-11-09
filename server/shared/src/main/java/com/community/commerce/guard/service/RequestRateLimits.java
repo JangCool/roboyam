@@ -1,6 +1,7 @@
 package com.community.commerce.guard.service;
 
 import com.community.cache.definition.CacheNames;
+import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.commerce.guard.dto.RequestAction;
 import com.community.commerce.guard.dto.RequestRateLimitRow;
@@ -15,13 +16,13 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>캐시 {@code commerce.rateLimits}(기본 15초, 관리자 허용 5초~5분 — docs/features/cache-admin-contract.md)에 둔다. 관리자 앱에서 저장하면 세대 번호로 모든 서버에
  *       몇 초 안에 닿는다(commerce.md 12-4 「15초 안」). 저장한 서버 안에서는 커밋 뒤 바로 비운다.</li>
- *   <li>읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다). 행이 없는 종류는 기본값({@link RequestAction#defaultLimit()}), 범위(0~100) 밖 값도 기본값.</li>
+ *   <li>처음 읽다 실패하면 담지 않고 그 요청이 실패한다(다음 요청이 다시 읽는다). TTL 이 지나 다시 읽다 실패하면 이전 값을 쓴다({@link CacheReloader}). 행이 없는 종류는 기본값({@link RequestAction#defaultLimit()}), 범위(0~100) 밖 값도 기본값.</li>
  *   <li>읽기는 두 칸 프로젝션({@link RequestRateLimitRepositoryQDSL#all}) 한 문장이라 트랜잭션을 따로 열지 않는다 — 업무 트랜잭션 밖이면 질의 하나가 자기 연결로 끝나고,
  *       안이면 그 트랜잭션에서 읽는다(엔티티를 영속성 컨텍스트에 올리지 않는다).</li>
  * </ul>
  */
 @Component
-public class RequestRateLimits {
+public class RequestRateLimits implements CacheReloader {
 
 
     private final RequestRateLimitRepositoryQDSL rows;
@@ -39,6 +40,17 @@ public class RequestRateLimits {
     /** 모든 종류의 한도(지금 사본 — 캐시 {@code commerce.rateLimits}) */
     public Map<RequestAction, Integer> current() {
         return caches.getCache(CacheNames.COMMERCE_RATE_LIMITS).get(CacheNames.SINGLE, this::load);
+    }
+
+    @Override
+    public String cacheName() {
+        return CacheNames.COMMERCE_RATE_LIMITS;
+    }
+
+    /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
+    @Override
+    public Object reload(Object key) {
+        return load();
     }
 
     /** 이 서버의 사본을 버린다 — 다음 조회가 다시 읽는다(다른 서버는 관리자 저장의 세대 번호로 따라온다) */
