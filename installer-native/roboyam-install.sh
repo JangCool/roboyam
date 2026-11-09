@@ -277,6 +277,20 @@ step_db() {
     fi
 }
 
+storage_args() {   # <배열 이름> — 이미지 저장소 옵션을 그 배열에 붙인다
+    local -n _a="$1"
+    _a+=(--storage "$STORAGE")
+    [ "$STORAGE" != local ] || return 0
+    [ -n "$R2_ACCOUNT_ID" ] && [ "$STORAGE" = r2 ] && _a+=(--r2-account-id "$R2_ACCOUNT_ID")
+    [ -n "$S3_REGION" ] && _a+=(--s3-region "$S3_REGION")
+    [ -n "$S3_BUCKET" ] && _a+=(--s3-bucket "$S3_BUCKET")
+    [ -n "$S3_ENDPOINT" ] && _a+=(--s3-endpoint "$S3_ENDPOINT")
+    [ -n "$S3_PUBLIC_URL" ] && _a+=(--s3-public-url "$S3_PUBLIC_URL")
+    [ "$S3_PATH_STYLE" = true ] && _a+=(--s3-path-style)
+    [ -n "$S3_ACCESS_KEY" ] && _a+=(--s3-access-key "$S3_ACCESS_KEY")
+    return 0
+}
+
 was_install_args() {   # <was1|was2>
     local which="$1" args=()
     local d
@@ -287,23 +301,19 @@ was_install_args() {   # <was1|was2>
                --api-jar application/roboyam-api.jar --admin-jar application/roboyam-admin.jar --db-host "$DB_LISTEN_IP")
         local c; for c in $ADMIN_ALLOW; do args+=(--admin-allow "$c"); done
         # 이미지 저장소 — WAS1 이 공통 환경 파일을 만들 때 쓴다(WAS2 는 그 파일을 복사해 간다)
-        args+=(--storage "$STORAGE")
-        if [ "$STORAGE" != local ]; then
-            [ -n "$R2_ACCOUNT_ID" ] && [ "$STORAGE" = r2 ] && args+=(--r2-account-id "$R2_ACCOUNT_ID")
-            [ -n "$S3_REGION" ] && args+=(--s3-region "$S3_REGION")
-            [ -n "$S3_BUCKET" ] && args+=(--s3-bucket "$S3_BUCKET")
-            [ -n "$S3_ENDPOINT" ] && args+=(--s3-endpoint "$S3_ENDPOINT")
-            [ -n "$S3_PUBLIC_URL" ] && args+=(--s3-public-url "$S3_PUBLIC_URL")
-            [ "$S3_PATH_STYLE" = true ] && args+=(--s3-path-style)
-            [ -n "$S3_ACCESS_KEY" ] && args+=(--s3-access-key "$S3_ACCESS_KEY")
-        fi
+        storage_args args
         [ -n "$WAS1_SWAP" ] && args+=(--swap "$WAS1_SWAP")
         # shellcheck disable=SC2206
         [ -n "$WAS1_EXTRA_ARGS" ] && args+=($WAS1_EXTRA_ARGS)
     else
         args+=(--node-id "$WAS2_NODE_ID" --api-jar application/roboyam-api.jar)
-        # dry-run 은 공통 환경 파일을 보내지 않는다(키가 담겨 있다)
-        if [ "$DRY_RUN" -eq 0 ]; then args+=(--shared-env roboyam.env); fi
+        # dry-run 은 공통 환경 파일을 보내지 않는다(키가 담겨 있다) — 대신 WAS1 과 같은 값으로 계획만 보게 DB·저장소 값을 준다
+        if [ "$DRY_RUN" -eq 0 ]; then
+            args+=(--shared-env roboyam.env)
+        else
+            args+=(--db-host "$DB_LISTEN_IP")
+            storage_args args
+        fi
         [ -n "$WAS2_SWAP" ] && args+=(--swap "$WAS2_SWAP")
         # shellcheck disable=SC2206
         [ -n "$WAS2_EXTRA_ARGS" ] && args+=($WAS2_EXTRA_ARGS)
