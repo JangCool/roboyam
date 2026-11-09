@@ -1,12 +1,12 @@
 import type { MailCheckResult, MailInput } from '~/composables/install/api/useInstallApi.types';
-import type { InstallBoardPresetsView, InstallChecksView, InstallCompleteRequest, InstallCompleteResponse, InstallationStatus, InstallTokenResponse } from '~/composables/install/api/useInstallApi.types';
+import type { InstallBoardPresetsView, InstallChecksView, InstallCompleteRequest, InstallCompleteResponse, InstallDemoStatus, InstallationStatus, InstallTokenResponse } from '~/composables/install/api/useInstallApi.types';
 
 /**
  * 설치 마법사 API — 서버 주소 문자열(`/api/system/installation/…`)이 있는 **유일한 곳**이다 (frontend-guide 2장).
  * 화면(.vue)과 다른 컴포저블은 여기 함수만 부른다. 상태는 없다(앱이 아는 설치 상태는 `useInstallState`).
  *
  * 규약: `docs/features/install-contract.md` · community `docs/api-install.md`. 오류는 모두 `ApiError`(useApiClient)로 던져진다.
- *  - 모든 호출은 **설치 전에도** 열려 있다(그 밖의 `/api/**` 는 `503 NOT_INSTALLED`). `status` 외에는 설치가 끝나면 `409 ALREADY_INSTALLED`.
+ *  - 모든 호출은 **설치 전에도** 열려 있다(그 밖의 `/api/**` 는 `503 NOT_INSTALLED`). `status`·`demo` 외에는 설치가 끝나면 `409 ALREADY_INSTALLED`.
  *  - `verify-token` 이후의 호출(`checks`·`mail-check`·`complete`)은 토큰을 맞힌 세션만 쓴다(`401 INSTALL_AUTH_REQUIRED`).
  *  - ⚠ **CSRF 쿠키는 `status` 가 내려 준다** — 설치 전에는 `/api/auth/me` 가 막혀 있어 `useAuthApi` 의 쿠키 갱신을 쓸 수 없다.
  *    CSRF 거절(`403 CSRF_INVALID`)이면 `useApiClient` 가 `status` 를 다시 불러 쿠키를 받고 한 번만 다시 보낸다.
@@ -18,6 +18,7 @@ const PATH = {
     boardPresets: '/api/system/installation/board-presets',
     mailCheck: '/api/system/installation/mail-check',
     complete: '/api/system/installation/complete',
+    demo: '/api/system/installation/demo',
 };
 
 export function useInstallApi() {
@@ -42,5 +43,8 @@ export function useInstallApi() {
 
         /** 설치 실행 — 한 번의 호출로 원자적으로 끝난다(`201`). 토큰 인증이 이 순간 무효가 된다 */
         complete: (body: InstallCompleteRequest) => client.post<InstallCompleteResponse>(PATH.complete, body),
+
+        /** 데모 데이터 진행 상태 — 설치 뒤에도 열려 있다(설치 응답이 `RUNNING` 이면 이것으로 결과를 기다린다) */
+        demo: (signal?: AbortSignal) => client.get<InstallDemoStatus>(PATH.demo, { signal }),
     };
 }

@@ -2,6 +2,7 @@ package com.community.installation.service;
 
 import com.community.installation.entity.InstallationStatus;
 import com.community.installation.repository.master.InstallationRepositoryQDSL;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -25,6 +26,18 @@ public class InstallationStore {
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public Optional<InstallationStatus> status() {
         return installation.findStatus();
+    }
+
+    /** 설치가 끝났을 때의 데모 상태. 설치 전이면 비어 있다 */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public Optional<InstallationRepositoryQDSL.DemoState> demoState() {
+        return installation.findDemoState();
+    }
+
+    /** 결과 없이 오래된 데모(넣던 서버가 도중에 멈춤)를 실패로 적는다 — @return 적었는가 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markDemoFailedIfStale(Instant installedBefore, Instant now) {
+        return installation.markDemoFailedIfStale(installedBefore, now) > 0;
     }
 
     /** 저장된 설치 토큰 해시 */

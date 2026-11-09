@@ -127,11 +127,20 @@ export interface InstallBoardPresetsView {
 /** `201` — 설치가 끝났다 */
 export interface InstallCompleteResponse {
     installed: boolean;
-    /** 데모 데이터 — `NONE`(구조만) · `APPLIED`(넣음) · `FAILED`(넣지 못해 건너뜀 — 설치는 끝났고 구조만 있다) */
+    /** 데모 데이터 — `NONE`(구조만) · `RUNNING`(요청과 따로 넣는 중 — 결과는 `GET …/demo` 로 따라온다) */
     demo: InstallDemoResult;
 }
 
-export type InstallDemoResult = 'NONE' | 'APPLIED' | 'FAILED';
+/** 데모 데이터 — `NONE`(구조만 · 설치 전) · `RUNNING`(넣는 중) · `APPLIED`(넣음) · `FAILED`(넣지 못해 건너뜀 — 설치는 끝났고 구조만 있다) */
+export type InstallDemoResult = 'NONE' | 'RUNNING' | 'APPLIED' | 'FAILED';
+
+/** `GET /api/system/installation/demo` — 설치 뒤에도 열려 있다 */
+export interface InstallDemoStatus {
+    demo: InstallDemoResult;
+}
+
+/** 완료 화면에 보이는 데모 상태 — 서버 값에 「끝까지 기다렸는데 결과를 못 받음」(`UNKNOWN`)을 더한 것 */
+export type InstallDemoView = InstallDemoResult | 'UNKNOWN';
 
 /** `POST …/verify-token` 응답 */
 export interface InstallTokenResponse {

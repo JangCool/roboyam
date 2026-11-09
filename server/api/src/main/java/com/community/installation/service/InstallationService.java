@@ -10,6 +10,7 @@ import com.community.installation.dto.response.BoardPresetsResponse;
 import com.community.installation.dto.response.InstallAuthorizedResponse;
 import com.community.installation.dto.response.InstallChecksResponse;
 import com.community.installation.dto.response.InstallCompletedResponse;
+import com.community.installation.dto.response.InstallDemoStatusResponse;
 import com.community.installation.dto.response.InstallStatusResponse;
 import com.community.installation.exception.InstallationAlreadyInstalledException;
 import com.community.installation.exception.InstallationAuthRequiredException;
@@ -45,7 +46,7 @@ import org.springframework.stereotype.Service;
  * 설치 마법사 API 의 업무 규칙. <b>로그인 없이 쓰는 구간</b>이라 보안이 핵심이다.
  *
  * <ul>
- *   <li>{@code status} 만 설치가 끝난 뒤에도 열려 있다. 나머지는 <b>설치가 끝나면 {@code 409 ALREADY_INSTALLED}</b> 로 닫힌다.</li>
+ *   <li>{@code status}·{@code demo} 만 설치가 끝난 뒤에도 열려 있다. 나머지는 <b>설치가 끝나면 {@code 409 ALREADY_INSTALLED}</b> 로 닫힌다.</li>
  *   <li>{@code verify-token} 말고는 <b>토큰 인증을 마친 세션</b>이어야 한다({@code 401 INSTALL_AUTH_REQUIRED}). 세션은 웹 계층(컨트롤러의
  *       {@code InstallSession})이 다루고, 이 서비스는 "인증됐는가"와 "요청한 IP"만 받는다.</li>
  *   <li>검사 순서: 설치 끝남(409) → 토큰 인증(401) → (complete) 암호화 키(503) → 입력(400) → 실행. 암호화할 값이 있는데 키가 없으면 입력이 틀려도 먼저
@@ -54,8 +55,8 @@ import org.springframework.stereotype.Service;
  *       경로 키와 검사 순서가 계약이라 Bean Validation({@code @Valid})이 아니라 여기서 직접 검사한다.</li>
  *   <li>실행은 한 트랜잭션이다({@link InstallationInstaller}). 실패하면 아무것도 남지 않고 <b>토큰 인증 세션은 그대로</b>라 같은 화면에서 다시 시도할 수 있다.
  *       응답·로그 어디에도 비밀번호·시크릿·토큰을 싣지 않는다.</li>
- *   <li>「데모 데이터 포함」({@code demoData})이면 설치가 커밋된 <b>뒤</b> 데모 팩을 따로 넣는다({@link DemoDataInstaller}). 넣지 못하면 데모만 건너뛰고(설치는 끝났다) 응답의
- *       {@code demo} 가 {@code FAILED} 다. 데모는 데모를 지원하는 구성(구조 스냅숏이 있는 ROBOYAM)이고 이 서버에 데모 팩이 있을 때만 고를 수 있다(아니면 {@code demoData} 400).</li>
+ *   <li>「데모 데이터 포함」({@code demoData})이면 설치가 커밋된 <b>뒤</b> 데모 팩을 요청과 따로 넣는다({@link DemoInstallLauncher} → {@link DemoDataInstaller}) — 응답의 {@code demo} 는
+ *       {@code RUNNING} 이고 화면은 {@link #demoStatus} 로 결과({@code APPLIED} · {@code FAILED})를 따라온다. 넣지 못하면 데모만 건너뛴다(설치는 끝났다). 데모는 데모를 지원하는 구성(구조 스냅숏이 있는 ROBOYAM)이고 이 서버에 데모 팩이 있을 때만 고를 수 있다(아니면 {@code demoData} 400).</li>
  * </ul>
  * 이 클래스에는 {@code @Transactional} 이 없다 — 메일 서버 연결 시험처럼 응답 없는 서버를 기다리는 일이 DB 연결을 붙잡지 않게 하려는 것이다.
  * DB 를 쓰는 일은 각 서비스가 자기 트랜잭션을 연다.
@@ -86,15 +87,17 @@ public class InstallationService {
     private final SecretEncryptor encryptor;
     private final Messages messages;
     private final DemoPackCatalog demoPack;
-    private final DemoDataInstaller demoInstaller;
+    private final DemoInstallLauncher demoLauncher;
+    private final InstallationStore store;
 
     public InstallationService(InstallationState state, InstallTokenService tokens, InstallTokenGuard tokenGuard,
                                InstallationChecks checks, InstallationInstaller installer, BoardPresetCatalog boardPresets,
                                SiteSettingsService siteSettings, MailSettingsService mailSettings, MailConnectionChecker mailChecker,
                                SocialSettingsService socialSettings, SecretEncryptor encryptor, Messages messages, DemoPackCatalog demoPack,
-                               DemoDataInstaller demoInstaller) {
+                               DemoInstallLauncher demoLauncher, InstallationStore store) {
         this.demoPack = demoPack;
-        this.demoInstaller = demoInstaller;
+        this.demoLauncher = demoLauncher;
+        this.store = store;
         this.state = state;
         this.tokens = tokens;
         this.tokenGuard = tokenGuard;
@@ -175,22 +178,36 @@ public class InstallationService {
         if (!command.demoData()) {
             return new InstallCompletedResponse(true, InstallCompletedResponse.DEMO_NONE);
         }
-        // 데모 — 설치는 이미 커밋됐다. 실패해도 설치를 깨지 않고 데모만 건너뛴다(롤백되어 데모 행은 하나도 남지 않는다)
-        java.time.Instant now = java.time.Instant.now();
-        try {
-            DemoDataInstaller.Outcome outcome = demoInstaller.install(rootOperatorId, now);
-            log.info("설치 직후 데모 데이터를 넣었다 rows={} files={}", outcome.rows(), outcome.files());
-            return new InstallCompletedResponse(true, DemoDataInstaller.APPLIED);
-        } catch (RuntimeException e) {
-            log.warn("데모 데이터를 넣지 못해 건너뛰었다 — 설치(구조)는 끝났다. 원인={}", e.getMessage(), e);
-            try {
-                demoInstaller.markFailed(now);
-            } catch (RuntimeException markFailure) {
-                log.warn("데모 실패를 적지 못했다 원인={}", markFailure.getClass().getSimpleName());
-            }
-            return new InstallCompletedResponse(true, DemoDataInstaller.FAILED);
-        }
+        // 데모 — 설치는 이미 커밋됐다. 몇 분 걸리므로 요청과 따로 넣고 곧바로 돌려준다(화면은 demoStatus 로 결과를 따라온다).
+        // 실패해도 설치를 깨지 않고 데모만 건너뛴다(롤백되어 데모 행은 하나도 남지 않는다)
+        demoLauncher.launch(rootOperatorId);
+        return new InstallCompletedResponse(true, InstallCompletedResponse.DEMO_RUNNING);
     }
+
+    /**
+     * 데모 데이터 진행 상태 — 설치 뒤에도 열려 있다(설치 화면이 데모 결과를 기다린다). 데모 말고 다른 정보는 담지 않는다.
+     * 결과 없이 {@link #DEMO_STALE_AFTER} 가 지났으면(넣던 서버가 도중에 멈춤) 실패로 적고 {@code FAILED} 다.
+     *
+     * @return {@code NONE}(설치 전 · 구조만) · {@code RUNNING} · {@code APPLIED} · {@code FAILED}
+     */
+    public InstallDemoStatusResponse demoStatus() {
+        var state = store.demoState().orElse(null);
+        if (state == null || !state.demoData()) {
+            return new InstallDemoStatusResponse(InstallCompletedResponse.DEMO_NONE);
+        }
+        if (state.demoStatus() != null) {
+            return new InstallDemoStatusResponse(state.demoStatus());
+        }
+        java.time.Instant now = java.time.Instant.now();
+        if (store.markDemoFailedIfStale(now.minus(DEMO_STALE_AFTER), now)) {
+            log.warn("데모 데이터 결과 없이 {}분이 지나 실패로 적었다 — 넣던 서버가 도중에 멈춘 것으로 본다", DEMO_STALE_AFTER.toMinutes());
+            return new InstallDemoStatusResponse(DemoDataInstaller.FAILED);
+        }
+        return new InstallDemoStatusResponse(InstallCompletedResponse.DEMO_RUNNING);
+    }
+
+    /** 데모는 보통 몇 분이면 끝난다 — 이만큼 지나도 결과가 없으면 넣던 서버가 멈춘 것으로 본다 */
+    static final java.time.Duration DEMO_STALE_AFTER = java.time.Duration.ofMinutes(30);
 
     // ── 검사 ──
 

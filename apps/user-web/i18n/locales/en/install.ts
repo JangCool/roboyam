@@ -111,8 +111,10 @@ export default {
     // Done
     doneTitle: 'Setup is complete',
     doneText: 'Log in with {email} to get started. After you log in, you can change the site, mail and social login settings in the Administrator tools under My profile.',
+    doneDemoRunning: 'Adding demo data. This can take a few minutes — this screen will tell you when it is done. You can sign in meanwhile.',
     doneDemoApplied: 'Demo data was added as well.',
     doneDemoFailed: 'Demo data could not be added, so it was skipped. The site was installed with the structure only and is ready to use.',
+    doneDemoUnknown: 'We could not confirm that the demo data finished. Refresh the site in a little while to check that posts appear.',
     goLogin: 'Log in now',
 
     // Could not get the setup status

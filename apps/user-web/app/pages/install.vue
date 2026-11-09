@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
 import type { SocialProviderCode } from '~/composables/install/api/useInstallApi.types';
-import type { InstallBoardPreset, InstallChecksView, InstallDemoResult } from '~/composables/install/api/useInstallApi.types';
+import type { InstallBoardPreset, InstallChecksView, InstallDemoView } from '~/composables/install/api/useInstallApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilInstall, { type InstallFieldErrors, type InstallMode, type InstallStepKey, type RootForm, type SocialForms } from '~/utils/util-install';
 import UtilInstallMessages from '~/utils/util-install-messages';
@@ -99,6 +99,7 @@ import UtilSite, { type SiteForm } from '~/utils/util-site';
  * - **입력은 이 화면의 메모리에만 있다.** `localStorage`·`sessionStorage`·URL·`useState` 에 두지 않는다 — 새로고침하면 사라지고, 설치가 끝나면 비운다. 비밀번호·시크릿·토큰은 로그·토스트에도 남기지 않는다.
  * - 서버가 `400 VALIDATION` 으로 거절하면 `fields` 의 경로(`root.email` · `site.publicUrl` · `mail.port` · `social.providers[0].clientId` …)를 그 입력 아래에 보이고 가장 앞 단계로 돌아간다.
  * - 진행 중에는 버튼을 잠가 중복 클릭을 막는다(설치는 서버도 한 번만 실행한다).
+ * - 데모 데이터를 고르면 서버는 설치만 끝내고 바로 답한다(`demo: RUNNING`) — 데모는 따로 몇 분 걸려 넣는다(앞단이 긴 응답을 끊는다). 완료 화면에서 `GET …/demo` 를 3초마다 물어 결과를 보인다(20분까지).
  */
 definePageMeta({ layout: 'install' });
 const { t } = useI18n();
@@ -112,7 +113,44 @@ const step = ref<InstallStepKey>('token');
 const copy = computed(() => UtilInstallMessages.step(t, step.value));
 const done = ref(false);
 const doneEmail = ref('');
-const doneDemo = ref<InstallDemoResult>('NONE');
+const doneDemo = ref<InstallDemoView>('NONE');
+
+/* ── 데모 결과 기다리기 — 데모는 설치 응답 뒤 서버가 따로 넣는다(몇 분). 앞단이 긴 응답을 끊으므로 짧은 조회를 되풀이한다 ── */
+const DEMO_POLL_MS = 3000;
+/** 이만큼 지나도 결과가 없으면 기다리기를 멈춘다(서버는 30분이 지나면 실패로 적는다) */
+const DEMO_WAIT_MS = 20 * 60 * 1000;
+let demoTimer: ReturnType<typeof setTimeout> | null = null;
+let demoAbort: AbortController | null = null;
+
+function stopDemoWait() {
+    if (demoTimer) clearTimeout(demoTimer);
+    demoTimer = null;
+    demoAbort?.abort();
+    demoAbort = null;
+}
+
+/** 결과(`APPLIED` · `FAILED`)가 올 때까지 조회한다 — 조회가 실패해도(잠깐 끊김) 시간 안에서는 다시 묻는다 */
+function waitDemo(startedAt = Date.now()) {
+    demoTimer = setTimeout(async () => {
+        demoAbort = new AbortController();
+        try {
+            const { demo } = await api.demo(demoAbort.signal);
+            if (demo !== 'RUNNING') {
+                doneDemo.value = demo;
+                return;
+            }
+        } catch {
+            // 다음 차례에 다시 묻는다
+        }
+        if (Date.now() - startedAt >= DEMO_WAIT_MS) {
+            doneDemo.value = 'UNKNOWN';
+            return;
+        }
+        waitDemo(startedAt);
+    }, DEMO_POLL_MS);
+}
+
+onBeforeUnmount(stopDemoWait);
 
 const formEl = ref<HTMLElement | null>(null);
 const heading = ref<HTMLElement | null>(null);
@@ -489,6 +527,7 @@ async function installNow() {
         wipe();
         done.value = true;
         markInstalled();
+        if (doneDemo.value === 'RUNNING') waitDemo();
     } catch (e) {
         if (handledCommonly(e)) return;
         rejected(e, sent);

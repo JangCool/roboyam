@@ -6,6 +6,7 @@ import com.community.installation.dto.response.BoardPresetsResponse;
 import com.community.installation.dto.response.InstallAuthorizedResponse;
 import com.community.installation.dto.response.InstallChecksResponse;
 import com.community.installation.dto.response.InstallCompletedResponse;
+import com.community.installation.dto.response.InstallDemoStatusResponse;
 import com.community.installation.dto.response.InstallStatusResponse;
 import com.community.installation.service.InstallationService;
 import com.community.mail.dto.MailCheckResult;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 설치 마법사 API. <b>로그인 없이 쓰는 구간</b>이다 — 설치 토큰을 맞힌 세션만 {@code status}·{@code verify-token} 밖의 호출을 할 수 있고,
- * 설치가 끝나면 {@code status} 말고는 모두 {@code 409 ALREADY_INSTALLED} 로 닫힌다(판단은 서비스가 한다). 응답은 모두 {@code Cache-Control: no-store} 이고
+ * 설치가 끝나면 {@code status}·{@code demo}(데모 진행 상태) 말고는 모두 {@code 409 ALREADY_INSTALLED} 로 닫힌다(판단은 서비스가 한다). 응답은 모두 {@code Cache-Control: no-store} 이고
  * 비밀번호·시크릿·토큰은 어떤 응답에도 없다. 쓰기는 CSRF 헤더가 필요하다 — 쿠키는 {@code status} 응답이 내려 준다.
  *
  * <p>이 컨트롤러는 HTTP 와 세션만 다룬다 — 요청의 IP 와 "세션이 인증됐는가"를 뽑아 서비스에 넘기고, 서비스가 성공하면 세션을 인증 상태로 바꾸거나 끝낸다.
@@ -47,6 +48,12 @@ public class InstallationController {
     @GetMapping("/status")
     public ResponseEntity<ApiResponse<InstallStatusResponse>> status(HttpServletRequest request) {
         return noStore(HttpStatus.OK, service.status(session.isAuthorized(request)));
+    }
+
+    /** 데모 데이터 진행 상태 — 설치 뒤에도 열려 있다(설치 화면이 데모 결과를 기다린다) */
+    @GetMapping("/demo")
+    public ResponseEntity<ApiResponse<InstallDemoStatusResponse>> demo() {
+        return noStore(HttpStatus.OK, service.demoStatus());
     }
 
     @PostMapping("/verify-token")

@@ -7,6 +7,7 @@ import com.community.business.service.BusinessPii;
 import com.community.datakey.batch.DataKeyColumns;
 import com.community.datakey.batch.EncryptedColumn;
 import com.community.media.service.ImageStorage;
+import com.community.popular.service.PopularRecompute;
 import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.crypto.DataCipher;
 import java.io.IOException;
@@ -71,9 +72,11 @@ public class DemoDataInstaller {
     private final InstallationRepositoryQDSL installation;
     private final DataCipher cipher;
     private final BlindIndex index;
+    private final PopularRecompute popular;
 
     public DemoDataInstaller(DemoPackCatalog catalog, TablePackRestorer restorer, TablePackRepository tables, ImageStorage storage,
-                             InstallationRepositoryQDSL installation, DataCipher cipher, BlindIndex index) {
+                             InstallationRepositoryQDSL installation, DataCipher cipher, BlindIndex index, PopularRecompute popular) {
+        this.popular = popular;
         this.cipher = cipher;
         this.index = index;
         this.catalog = catalog;
@@ -117,6 +120,8 @@ public class DemoDataInstaller {
             throw e instanceof IOException io ? new UncheckedIOException("데모 팩 파일을 쓰지 못했다", io) : (RuntimeException) e;
         }
         installation.markDemoResult(APPLIED, now);
+        // 인기글 순위는 DB 배치(popular-rank, 기본 5분)가 글 표에서 계산한다 — 팩에는 순위 스냅숏이 없어 다음 정기 실행까지 인기글이 비므로 같은 트랜잭션에서 「지금 실행」을 요청한다
+        popular.request(rootOperatorId);
         log.info("데모 데이터를 넣었다 — 표 {}개 · 행 {}개 · 파일 {}개 · 시각 {}시간 옮김", result.written().size(), result.total(), written.size(), deltaMs / 3_600_000L);
         return new Outcome(result.total(), written.size());
     }

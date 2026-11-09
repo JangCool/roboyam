@@ -4,9 +4,10 @@ package com.community.installation.dto.response;
  * 설치 완료 응답.
  *
  * @param installed 늘 true
- * @param demo      데모 데이터 — {@code NONE}(구조만으로 설치) · {@code APPLIED}(넣음) · {@code FAILED}(넣지 못해 건너뜀 — 설치는 끝났고 구조만 있다)
+ * @param demo      데모 데이터 — {@code NONE}(구조만으로 설치) · {@code RUNNING}(요청과 따로 넣는 중 — 결과는 {@code GET …/demo})
  */
 public record InstallCompletedResponse(boolean installed, String demo) {
 
     public static final String DEMO_NONE = "NONE";
+    public static final String DEMO_RUNNING = "RUNNING";
 }

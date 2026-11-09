@@ -108,6 +108,8 @@
 - 기본 게시판 구성 단계 아래 「데이터」: 구조만(빈 데이터, 기본) / 데모 데이터 포함. 고른 구성의 `demoAvailable` 이 거짓이면 「이 구성은 구조만 만들어요」만 보인다. 확인 단계에 「데이터」 줄, 완료 화면에 데모 결과(넣음 / 건너뜀 안내). i18n `install.demo*`·`install.reviewDemo`·`install.doneDemo*`.
 - `GET board-presets` 의 각 구성에 `demoAvailable: boolean`(= `demo` 구성 + 이 서버에 그 구성의 데모 팩이 있음).
 - `POST complete` 요청에 `demoData?: boolean`(생략 = 구조만). 데모를 못 고르는 구성에서 true 면 `400 VALIDATION` `fields.demoData`(`install.demoData.unavailable`). 응답 `{installed, demo: "NONE"|"APPLIED"|"FAILED"}`.
+- **바뀜(2026-11-09, 운영 시험)**: 데모는 행 1만 6천여 개 + 파일 272개를 저장소(R2)에 올리느라 약 2분 40초 걸려, 앞단(Cloudflare 무료 플랜 100초)이 설치 응답을 끊고 화면이 「서버에 연결하지 못했어요」로 멈췄다(서버는 끝까지 넣음). 그래서 `complete` 는 설치만 커밋하고 곧바로 `{installed: true, demo: "RUNNING"}` 으로 답하며, 데모는 api 서버의 전용 스레드 하나(`DemoInstallLauncher`)가 넣는다. 화면은 새 `GET /api/system/installation/demo` → `{demo: "NONE"|"RUNNING"|"APPLIED"|"FAILED"}`(설치 뒤에도 열림, 데모 말고 다른 정보 없음)를 3초마다 물어 완료 화면에 보인다(20분까지, 그 뒤 「확인하지 못했어요」). 결과 없이 설치 30분이 지나면(넣던 서버가 멈춤 — 트랜잭션 롤백) 조회가 `FAILED` 로 적는다. 칸은 그대로(`demo_status` NULL = 넣는 중) — 마이그레이션 없음.
+- 데모를 넣은 트랜잭션에서 인기글 순위 「지금 실행」(`PopularRecompute` → `batch_run_requests`)을 요청한다 — 팩에 순위 스냅숏이 없어 다음 정기 실행(5분)까지 인기글이 비던 문제. 배치를 켠 서버(admin)가 집어 계산한다.
 - shared **V171**: `installation.demo_data`(boolean, 기본 false) · `demo_status`(`APPLIED`·`FAILED`, 고르지 않았으면 NULL) · `demo_done_at`.
 
 ### 3. 데모 팩 — 형식·복원 규칙

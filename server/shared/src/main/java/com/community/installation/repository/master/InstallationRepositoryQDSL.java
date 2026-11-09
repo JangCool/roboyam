@@ -89,6 +89,29 @@ public class InstallationRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .execute();
     }
 
+    /** 데모 진행 상태를 읽는 값 — 고름 · 결과(아직 없으면 null) · 설치 시각 */
+    public record DemoState(boolean demoData, String demoStatus, Instant installedAt) {
+    }
+
+    /** 설치가 끝났을 때의 데모 상태. 설치 전이거나 행이 없으면 비어 있다 */
+    public Optional<DemoState> findDemoState() {
+        return Optional.ofNullable(query.select(INSTALLATION.demoData, INSTALLATION.demoStatus, INSTALLATION.installedAt).from(INSTALLATION)
+                        .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.COMPLETED)).fetchOne())
+                .map(t -> new DemoState(Boolean.TRUE.equals(t.get(INSTALLATION.demoData)), t.get(INSTALLATION.demoStatus), t.get(INSTALLATION.installedAt)));
+    }
+
+    /**
+     * 데모를 고르고 결과가 아직 없는 채로 {@code installedBefore} 보다 먼저 설치됐으면 실패로 적는다 — 넣던 서버가 도중에 멈춘 경우(트랜잭션은 롤백돼 데모 행이 없다).
+     *
+     * @return 바뀐 행 수
+     */
+    public long markDemoFailedIfStale(Instant installedBefore, Instant doneAt) {
+        return query.update(INSTALLATION).set(INSTALLATION.demoStatus, "FAILED").set(INSTALLATION.demoDoneAt, doneAt)
+                .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.COMPLETED), INSTALLATION.demoData.isTrue(),
+                        INSTALLATION.demoStatus.isNull(), INSTALLATION.installedAt.lt(installedBefore))
+                .execute();
+    }
+
     /**
      * 데모를 넣은 결과를 적는다 — 설치가 끝나고 데모를 고른 곳에서 결과가 아직 없을 때만(한 번만).
      *
