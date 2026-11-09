@@ -59,7 +59,7 @@
 ## 미확정 · 남은 일
 - 이미지 저장소는 develop `173fe386` 에서 `local | r2 | s3` 로 바뀌었다(prod 기본 `r2`, `docs/features/media-storage-contract.md`). 실제 R2 연결 시험은 아직이다.
 - 실서버 설치(dry-run 포함)·shellcheck 를 아직 하지 않았다.
-- Caddy COPR 의 aarch64 패키지, PGDG `timescaledb_18` 이 Apache 판인지(압축·연속 집계 유무) 확인 못 했다. TimescaleDB 는 기본 설치하지 않는다.
+- aarch64: Caddy(COPR `@caddy/caddy`)·TimescaleDB(PGDG `timescaledb_18`) 모두 aarch64 를 지원한다(사용자 확인 2026-11-09). TimescaleDB 는 기본 설치하지 않고, 켜면(`--timescale`) 설치 검증이 판(`timescaledb.license` — timescale 이면 압축·연속 집계 정책 사용 가능)을 알려 준다.
 - `docker/prod/*` compose 는 여전히 ALB·RDS 전제다 — 이 구성에서는 쓰지 않는다(정리 여부 미정).
 
 ## 세션 정리 결정
