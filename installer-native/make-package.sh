@@ -77,7 +77,7 @@ cp "$API_JAR" "$ADMIN_JAR" "$PKG/application/"
 printf 'Origin CA 인증서(origin.pem)와 개인 키(origin.key)를 이 폴더에 둔다 — Cloudflare › SSL/TLS › Origin Server\n' > "$PKG/certs/README.txt"
 {
     echo "묶음   : ${SHA} (${BRANCH}) · $(date '+%F %T')"
-    (cd "$PKG/application" && sha256sum ./*.jar | sed 's|\./||; s/^/jar    : /')
+    (cd "$PKG/application" && sha256sum ./*.jar | sed 's|[ *]*\./| |; s/^/jar    : /')
 } > "$PKG/PACKAGE_INFO"
 
 # Windows 에서 만들어도 서버에서 돌아가게 — CRLF 가 섞이면 멈춘다, 실행 권한을 붙인다
