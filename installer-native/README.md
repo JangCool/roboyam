@@ -1,83 +1,101 @@
-# installer-native — 운영 서버 직접 설치 (Docker 없이)
+# installer-native — 운영 서버 원스톱 설치 (Docker 없이)
 
-AWS 서울 EC2 3대(Rocky Linux 9, aarch64)에 로보얌을 **yum/dnf + systemd** 로 올리는 스크립트다.
-Docker 설치형(`installer/`)·compose(`docker/`)와 별개이며, 그쪽은 고치지 않았다.
+AWS 서울 EC2 3대(Rocky Linux 9, aarch64)에 로보얌을 **yum/dnf + systemd** 로 올린다.
+**DB 서버에서 한 번 실행하면** DB 를 먼저 설치하고, 앱 서버 두 대에 SSH 로 묶음(jar·스크립트·인증서)을 보내 풀고 설치·기동까지 한다.
+Docker 설치형(`installer/`)·compose(`docker/`)와 별개다.
 
-> ⚠ 실서버에서 아직 시험하지 않았다(`bash -n` 문법 검사만). 처음 설치는 `--dry-run` 으로 계획부터 본다.
+> ⚠ 실서버에서 아직 시험하지 않았다(`bash -n` 문법 검사만). 처음은 `--dry-run` 으로 점검부터 한다.
 
 ## 구성
 
 ```
-방문자 ─HTTPS→ Cloudflare (DNS·CDN·로드밸런싱·방문자 인증서)
-                 │  Full (strict), Origin CA 인증서
-                 ├─ roboyam.com ──→ 로드밸런싱 풀 [WAS1, WAS2]  /actuator/health/readiness 로 상태 확인
+방문자 ─HTTPS→ Cloudflare (DNS·CDN·로드밸런싱·방문자 인증서, SSL Full (strict))
+                 ├─ roboyam.com ──→ 로드밸런싱 풀 [WAS1, WAS2]   상태 확인 /actuator/health/readiness
                  └─ admin.roboyam.com ──→ WAS1
-WAS1 (t4g.small)  Caddy:443 → api 127.0.0.1:8080 (NODE_ID 1) + admin 127.0.0.1:8081 (NODE_ID 3)
-WAS2 (t4g.small)  Caddy:443 → api 127.0.0.1:8080 (NODE_ID 2)
-DB   (t4g.medium, 시험 기간 2GB)  PostgreSQL 18 + pg_cron :5432 (사설 IP)
+WAS1 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 1) + admin :8081 (NODE_ID 3)
+WAS2 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 2)
+DB   (t4g.medium)          PostgreSQL 18 + pg_cron :5432 — 원스톱 스크립트를 여기서 돌린다
+                           └─ SSH(사설 IP) → WAS1, WAS2
 ```
 
-| 폴더 | 파일 | 하는 일 |
+## 접속 경로 (bastion)
+
+원스톱 스크립트는 **DB 서버 안에서 VPC 사설 IP 로** 앱 서버에 붙는다. 그래서 스크립트에는 bastion 이 필요 없고, **내 PC → DB 서버**로 들어가는 길만 정하면 된다.
+
+| 방법 | 비용 | 쓰는 법 |
 |---|---|---|
-| `db/` | `roboyam-db-install.sh` | PGDG 저장소로 PostgreSQL 18·pg_cron 설치, C.UTF-8 initdb, 메모리 자동 계산, pg_hba(앱 서버 대역만), 앱 계정(superuser 아님)·확장·`cron` 권한, 백업 cron |
-| | `roboyam-db-backup.sh` | `pg_dump -Fc` + 역할 덤프, 최근 N개 보관, 훅 호출 |
-| | `backup-hook.example.sh` | R2 업로드 훅 예시(rclone / aws cli) |
-| `app/` | `roboyam-app-install.sh` | Temurin 25, 계정 `roboyam`, 환경 파일, systemd(api·admin), Caddy(Origin CA·호스트 분기·Cloudflare IP 만), 스왑 |
-| | `roboyam-deploy.sh` | jar 교체 → 재시작 → readiness → 실패 시 이전 jar 로 되돌림, 이전 jar 보관 |
-| `lib/` | `common.sh` | 공통 함수 |
+| **WAS1 을 점프 호스트로**(권장 — 서버를 늘리지 않는다) | 0 | WAS1 22 를 내 IP 에만 연다. `ssh -J rocky@<WAS1 공인 IP> rocky@<DB 사설 IP>`, 파일은 `scp -J …` |
+| 따로 bastion EC2(t4g.nano) | 월 약 $3~4 | 위와 같고 점프만 bastion 으로. 앱 서버 22 는 bastion·DB 에서만 |
+| SSM Session Manager | 0 | 22 를 아무 데도 안 연다. 인스턴스에 SSM 역할 + `aws ssm start-session`. SSH 를 SSM 위로 태우려면 ProxyCommand 설정 |
+
+SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), 키를 서버에 두기 싫으면 `ssh -A -J …` 로 들어와 `sudo --preserve-env=SSH_AUTH_SOCK ./roboyam-install.sh` 로 에이전트를 넘긴다(`install.conf` 의 `SSH_KEY` 를 비운다).
+
+⚠ DB 를 공인 IP 없는 사설 서브넷에 두면 `dnf`(PGDG 저장소)로 나가는 길이 필요하다 — NAT 게이트웨이는 월 $40 이상이다. 싸게 가려면 DB 도 공인 IP 를 주되 보안 그룹으로 모든 인바운드를 막거나(아래 표), NAT 인스턴스를 쓴다. 정해서 알려 주면 맞춘다.
 
 ## 실행 순서
 
-서버마다 이 폴더를 통째로 올린다(`scp -r installer-native ec2-user@<서버>:`). 모두 root(`sudo`)로 실행한다.
+1. **묶음 만들기** — 로컬 PC(저장소 루트, Git Bash):
+   ```bash
+   installer-native/make-package.sh --build
+   ```
+   → `installer-native/dist/roboyam-native-<커밋>-<날짜>.tar.gz` (스크립트 + `application/` jar 2개)
+2. **DB 서버로 올리고 풀기**
+   ```bash
+   scp -J rocky@<WAS1 공인 IP> installer-native/dist/roboyam-native-*.tar.gz rocky@<DB 사설 IP>:
+   ssh -J rocky@<WAS1 공인 IP> rocky@<DB 사설 IP>
+   tar xzf roboyam-native-*.tar.gz && cd roboyam-native
+   cp install.conf.example install.conf && vi install.conf      # 앱 서버 사설 IP·도메인·SSH 키
+   # certs/ 에 Cloudflare Origin CA 인증서 origin.pem · origin.key 를 넣는다
+   ```
+3. **점검 → 설치**
+   ```bash
+   sudo ./roboyam-install.sh --dry-run
+   sudo ./roboyam-install.sh
+   ```
+   DB 비밀번호를 한 번 묻는다. 그다음은 자동이다:
+   `[1/3]` DB 설치 → `[2/3]` WAS1 묶음 전송·설치·admin→api 기동(readiness 확인) → DB 배치 등록 확인 → `[3/3]` WAS1 의 `roboyam.env` 를 WAS2 로 넘겨 설치·기동 → 앱 서버의 임시 폴더 삭제.
+   끝에 설치 마법사 주소·토큰이 나온다. **WAS1 의 `/etc/roboyam/roboyam.env` 를 서버 밖에 백업**한다.
+4. **Cloudflare** — SSL 「Full (strict)」, 로드밸런싱 풀(WAS1·WAS2 공인 IP, 상태 확인 `GET /actuator/health/readiness` 200, Host `roboyam.com`), `admin` 은 WAS1.
+5. **배포(이후)** — 새 묶음을 DB 서버에 풀고:
+   ```bash
+   sudo ./roboyam-install.sh --deploy
+   ```
+   DB 백업 → WAS1 admin → WAS1 api → WAS2 api 를 한 대씩 바꾸고 재기동한다. readiness 가 안 오면 그 서버는 이전 jar 로 되돌리고 거기서 멈춘다(DB 이관은 되돌리지 않는다).
 
-1. **jar 만들기**(로컬) — 화면을 static 에 넣고 bootJar:
-   `pnpm --filter user-web generate && ./gradlew :server:api:bootJar`,
-   `pnpm --filter admin-web generate && ./gradlew :server:admin:bootJar`
-2. **DB 서버**
-   ```bash
-   sudo ./db/roboyam-db-install.sh --allow 10.0.1.10/32 --allow 10.0.1.11/32 --dry-run
-   sudo ./db/roboyam-db-install.sh --allow 10.0.1.10/32 --allow 10.0.1.11/32 --backup-hook /root/backup-hook.sh
-   ```
-   앱 계정 비밀번호를 정한다(어디에도 저장하지 않는다). 끝에 앱용 `DB_URL` 이 나온다.
-3. **WAS1** (api + admin, 공통 환경 파일을 새로 만든다 — 같은 DB 비밀번호를 입력하면 `ENC(...)` 로 암호화된다)
-   ```bash
-   sudo ./app/roboyam-app-install.sh --with-admin --node-id 1 --admin-node-id 3 \
-     --api-jar roboyam-api.jar --admin-jar roboyam-admin.jar --db-host 10.0.1.20 \
-     --domain roboyam.com --domain www.roboyam.com --admin-domain admin.roboyam.com \
-     --origin-cert origin.pem --origin-key origin.key --swap 2G
-   ```
-   관리자 앱을 먼저 띄운다(Flyway 이관·DB 배치 등록). `/etc/roboyam/roboyam.env` 를 **서버 밖에 백업**한다.
-4. **WAS2** — WAS1 의 `/etc/roboyam/roboyam.env` 를 복사해 와서(설치 뒤 복사본은 지운다)
-   ```bash
-   sudo ./app/roboyam-app-install.sh --node-id 2 --shared-env roboyam.env --api-jar roboyam-api.jar \
-     --domain roboyam.com --domain www.roboyam.com --origin-cert origin.pem --origin-key origin.key
-   ```
-5. **Cloudflare** — SSL 「Full (strict)」, Origin CA 인증서 발급(위 `origin.pem/key`), 로드밸런싱 풀(WAS1·WAS2 공인 IP, 상태 확인 `GET /actuator/health/readiness` 200, Host 헤더 `roboyam.com`), `admin` 은 WAS1 로.
-6. **배포**(이후) — 서버마다 한 대씩: `sudo roboyam-deploy admin roboyam-admin.jar` → `sudo roboyam-deploy api roboyam-api.jar`.
-   되돌리기 `roboyam-deploy api --rollback`, 목록 `roboyam-deploy api --list`.
+한 단계만 다시: `--only db | was1 | was2`. 서버 한 대에서 손으로 하려면 각 스크립트를 직접 쓴다(아래 표, `--help`).
+
+| 파일 | 하는 일 |
+|---|---|
+| `roboyam-install.sh` | **원스톱** — DB 서버에서 설치·배포 전체 |
+| `make-package.sh` | 로컬에서 묶음 만들기(`--build` 로 빌드까지) |
+| `install.conf.example` | 설정 예시 |
+| `db/roboyam-db-install.sh` | DB: PGDG PostgreSQL 18·pg_cron, C.UTF-8, 메모리 자동 계산, pg_hba(앱 서버만), 앱 계정(superuser 아님)·확장·`cron` 권한, 백업 cron |
+| `db/roboyam-db-backup.sh` · `backup-hook.example.sh` | 백업(`pg_dump -Fc`, 최근 N개) · R2 업로드 훅 예시 |
+| `app/roboyam-app-install.sh` | 앱: Temurin 25, systemd(api·admin), 환경 파일(`DB_PASSWORD=ENC(...)`), Caddy(Origin CA·Cloudflare IP 만), 스왑 |
+| `app/roboyam-deploy.sh` | 앱 서버에서 jar 교체 → 재시작 → readiness → 실패 시 되돌리기 |
+| `lib/common.sh` | 공통 함수 |
 
 메모리(자동): DB 2GB → shared_buffers 512MB·effective_cache_size 1536MB·work_mem 4MB, 4GB → 1GB·3GB·5MB.
-앱 2GB 서버 → api+admin 768m/384m, api 만 1024m (`--api-xmx`·`--admin-xmx` 로 바꾼다).
+앱 2GB 서버 → api+admin 768m/384m, api 만 1024m.
 
 ## 보안 그룹
 
-| 서버 | 인바운드 | 출처 |
+| 서버 | 포트 | 출처 |
 |---|---|---|
-| WAS1·WAS2 | 443 | **Cloudflare IP 대역만**(https://www.cloudflare.com/ips/ — 접두사 목록으로 만들어 두면 편하다) |
-| WAS1·WAS2 | 22 | 내 IP 만(또는 SSM Session Manager 를 쓰고 닫는다) |
-| DB | 5432 | **WAS1·WAS2 의 보안 그룹만** |
-| DB | 22 | 내 IP 만 |
+| WAS1·WAS2 | 443 | **Cloudflare IP 대역만**(https://www.cloudflare.com/ips/) |
+| WAS1·WAS2 | 22 | **DB 서버 보안 그룹**(원스톱 스크립트) + 점프용으로 WAS1 은 내 IP |
+| DB | 5432 | **WAS1·WAS2 보안 그룹만** |
+| DB | 22 | WAS1(점프) 또는 bastion 보안 그룹만 |
 
-80 은 열지 않는다(Caddy 가 듣지 않는다). Caddy 도 Cloudflare 가 아닌 접속은 끊고(이중 방어), `/actuator` 는 readiness·liveness 만 내보낸다.
-Cloudflare IP 대역이 바뀌면 `sudo ./app/roboyam-app-install.sh --refresh-cloudflare-ips` 와 보안 그룹을 같이 고친다.
+80 은 열지 않는다. Caddy 도 Cloudflare 가 아닌 접속은 끊고, `/actuator` 는 readiness·liveness 만 내보낸다.
+Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/roboyam-app-install.sh --refresh-cloudflare-ips` + 보안 그룹 갱신.
 
 ## 운영 전 확인
 
-- DB: `sudo -u postgres psql -d roboyam -c "select cardinality(show_trgm('한글')) > 0"` → `t`, `select jobname, schedule, active from cron.job` 에 DB 배치가 보이는지(관리자 앱이 뜬 뒤), 관리자 › 배치에서 DB 배치가 「사용 불가」가 아닌지.
-- 앱: 두 서버의 `NODE_ID` 가 서로·관리자 앱(3)과 다른지, `roboyam.env` 가 두 서버에서 같은지(`sha256sum`).
-- 접속 수: 2 × `DB_POOL_SIZE`(20) + 관리자 5 + 여유 < `max_connections`(200).
-- 백업: `sudo /opt/roboyam/db/bin/roboyam-db-backup.sh` 를 한 번 손으로 돌려 R2 에 올라가는지, **복원 연습**을 한 번 한다. EBS 스냅샷(DLM)도 따로 건다.
-- 키 백업: `roboyam.env` 의 `ROBOYAM_CRYPTO_KEY`·`ROBOYAM_DATA_KEY`·`ROBOYAM_INDEX_KEY` 를 서버 밖에 보관.
-- Cloudflare 로 들어온 방문자 IP 가 앱 로그·로그인 잠금에 실제 IP 로 찍히는지(Caddy 가 `X-Forwarded-For` 를 방문자 IP 하나로 넘긴다 — `roboyam.proxy.trusted-hops: 1`).
-- **올린 이미지**: 지금은 서버 로컬 폴더(`/var/lib/roboyam/media`)라 WAS1 에서 관리자가 올린 이미지를 WAS2 가 못 읽는다. R2 저장소 전환(서버 코드, 이 작업 범위 밖) 전에는 두 대 운영 시 이미지가 깨질 수 있다.
-- TimescaleDB 는 기본으로 설치하지 않는다. `--timescale` 은 PGDG 의 `timescaledb_18`(aarch64 있음)을 쓰며, Apache 판이면 압축·연속 집계 정책 같은 기능이 없다 — 쓰기 전에 확인한다.
+- DB: `sudo -u postgres psql -d roboyam -c "select cardinality(show_trgm('한글')) > 0"` → `t`, `select jobname, schedule, active from cron.job`, 관리자 › 배치에서 DB 배치가 「사용 불가」가 아닌지.
+- 앱: `NODE_ID` 가 1·2·3 으로 서로 다른지, 두 서버 `roboyam.env` 가 같은지(`sudo sha256sum /etc/roboyam/roboyam.env`).
+- 접속 수: 2 × 20 + 5 + 여유 < 200.
+- 백업: `sudo /opt/roboyam/db/bin/roboyam-db-backup.sh` 로 R2 업로드 확인, **복원 연습** 한 번, EBS 스냅샷(DLM)도 따로.
+- 방문자 IP: 로그·로그인 잠금에 실제 IP 가 찍히는지(Caddy 가 `X-Forwarded-For` 를 방문자 IP 하나로 넘긴다 — `roboyam.proxy.trusted-hops: 1`).
+- **올린 이미지**: 지금은 서버 로컬 폴더(`/var/lib/roboyam/media`)라 WAS1 에서 올린 이미지를 WAS2 가 못 읽는다. R2 전환(서버 코드, 범위 밖) 전에는 두 대 운영 시 이미지가 깨질 수 있다.
+- TimescaleDB 는 기본 미설치. `DB_EXTRA_ARGS="--timescale"` 은 PGDG `timescaledb_18`(aarch64 있음) — Apache 판이면 압축·연속 집계 정책이 없다.

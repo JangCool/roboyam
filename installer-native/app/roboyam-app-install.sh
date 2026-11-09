@@ -48,6 +48,7 @@
 #       --cf-ips-file FILE     Cloudflare IP 대역을 인터넷 대신 이 파일(줄마다 CIDR)에서 읽는다
 #       --refresh-cloudflare-ips  Cloudflare IP 대역만 다시 받아 Caddy 를 다시 읽힌다
 #       --no-start             설치만 하고 앱을 띄우지 않는다
+#       --password-stdin       DB 비밀번호를 표준 입력 첫 줄로 받는다(원스톱 roboyam-install.sh 가 SSH 로 넘길 때)
 #       --dry-run              계획만 보여 주고 끝낸다
 #   -h, --help                 도움말
 #
@@ -89,6 +90,7 @@ WITH_CADDY=1
 CF_IPS_FILE=""
 REFRESH_CF_ONLY=0
 START_APPS=1
+PASSWORD_STDIN=0
 DRY_RUN=0
 
 JAVA_PKG_CANDIDATES=(temurin-25-jre-headless temurin-25-jre)
@@ -140,6 +142,7 @@ parse_args() {
             --cf-ips-file)    CF_IPS_FILE="${2:?--cf-ips-file 값이 필요합니다}"; shift 2 ;;
             --refresh-cloudflare-ips) REFRESH_CF_ONLY=1; shift ;;
             --no-start)       START_APPS=0; shift ;;
+            --password-stdin) PASSWORD_STDIN=1; shift ;;
             --dry-run)        DRY_RUN=1; shift ;;
             -h|--help)        usage; exit 0 ;;
             *)                usage_error "알 수 없는 옵션: $1" ;;
@@ -695,6 +698,10 @@ print_result() {
 
 main() {
     parse_args "$@"
+    if [ "$PASSWORD_STDIN" -eq 1 ]; then
+        IFS= read -r ROBOYAM_DB_PASSWORD || true
+        [ -n "${ROBOYAM_DB_PASSWORD:-}" ] || fail "--password-stdin 인데 표준 입력이 비었습니다."
+    fi
 
     if [ "$REFRESH_CF_ONLY" -eq 1 ]; then
         refresh_cloudflare_only
@@ -732,12 +739,13 @@ main() {
     step "환경 파일"
     write_shared_env
     write_app_env api
-    [ "$WITH_ADMIN" -eq 1 ] && write_app_env admin
+    # 「조건 && 함수」는 그 함수 안의 오류를 무시하게 된다 — if 로 부른다
+    if [ "$WITH_ADMIN" -eq 1 ]; then write_app_env admin; fi
 
     step "systemd"
     install_deploy_tool
     write_unit api
-    [ "$WITH_ADMIN" -eq 1 ] && write_unit admin
+    if [ "$WITH_ADMIN" -eq 1 ]; then write_unit admin; fi
     systemctl daemon-reload
 
     if [ "$WITH_CADDY" -eq 1 ]; then
@@ -753,7 +761,7 @@ main() {
 
     step "앱 기동"
     # 관리자 앱이 DB 배치를 pg_cron 에 등록하므로 먼저 띄운다
-    [ "$WITH_ADMIN" -eq 1 ] && deploy_app admin "$ADMIN_JAR"
+    if [ "$WITH_ADMIN" -eq 1 ]; then deploy_app admin "$ADMIN_JAR"; fi
     deploy_app api "$API_JAR"
 
     print_result

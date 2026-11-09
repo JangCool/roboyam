@@ -1,0 +1,6 @@
+# 묶음·실제 설정·인증서는 저장소에 넣지 않는다
+dist/
+application/
+certs/
+install.conf
+db/backup-hook.sh
