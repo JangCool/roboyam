@@ -1,6 +1,7 @@
 package com.community.audit.service;
 
 import com.community.audit.dto.AuditEvent;
+import com.community.audit.dto.AuditRecorded;
 import com.community.audit.entity.AuditLogEntity;
 import com.community.audit.repository.master.AuditLogRepository;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -8,6 +9,8 @@ import com.community.zconfiguration.response.RequestIdHolder;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,16 +37,27 @@ public class AuditLogService {
 
     private final AuditLogRepository logs;
     private final SnowflakeIdGenerator ids;
+    /** 남긴 기록을 같은 트랜잭션에서 알린다({@link AuditRecorded}) — 없으면(시험의 직접 생성) 알리지 않는다 */
+    private final ApplicationEventPublisher events;
 
     public AuditLogService(AuditLogRepository logs, SnowflakeIdGenerator ids) {
+        this(logs, ids, null);
+    }
+
+    @Autowired
+    public AuditLogService(AuditLogRepository logs, SnowflakeIdGenerator ids, ApplicationEventPublisher events) {
         this.logs = logs;
         this.ids = ids;
+        this.events = events;
     }
 
     /** 부르는 쪽의 트랜잭션이 있으면 거기에 실린다(없으면 자기 트랜잭션) */
     @Transactional
     public void record(AuditEvent event) {
         write(event);
+        if (events != null) {
+            events.publishEvent(new AuditRecorded(event));
+        }
     }
 
     /**

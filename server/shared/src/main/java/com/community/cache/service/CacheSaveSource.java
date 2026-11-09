@@ -21,8 +21,8 @@ public enum CacheSaveSource {
     BOARD_LAYOUT_SAVE(CacheNames.BOARDS_LAYOUT),
     /** 사이트 테마 저장 — 사이트 정보의 테마(배치 캐시는 테마가 키다) */
     THEME_SAVE(CacheNames.SITE_INFO),
-    /** 공개 메뉴 저장 */
-    MENU_SAVE(CacheNames.MENU_PUBLIC),
+    /** 공개 메뉴 저장 — 가젯 페이지의 기준 폴더(메뉴 폴더) 게시판도 메뉴에서 온다 */
+    MENU_SAVE(CacheNames.MENU_PUBLIC, CacheNames.PAGES_LAYOUT),
     /** 사이트 기본 정보(이름·소개·로고·아이콘·표시 기본값·공개 주소) 저장 — 알림 메일의 사이트 이름·로고도 같은 설정이다 */
     SITE_SETTINGS_SAVE(CacheNames.SITE_INFO, CacheNames.NOTIFICATION_TEMPLATES),
     /** 운영 주체 단계·연락처 저장 */

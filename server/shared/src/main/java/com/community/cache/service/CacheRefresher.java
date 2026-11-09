@@ -51,7 +51,32 @@ public class CacheRefresher {
      */
     @Transactional
     public void onSave(CacheSaveSource source, String detail, Long operatorId) {
+        if (!firstInTransaction(source)) {
+            return; // 한 저장(트랜잭션)에서 같은 계기는 한 번만 — 여러 줄을 한꺼번에 고치는 저장이 기록을 줄 수만큼 남기지 않게
+        }
         bump(source.keys(), CacheRefreshLogEntity.AUTO_SAVE, false, source.name(), detail, operatorId, Instant.now());
+    }
+
+    /** 지금 트랜잭션에서 이 계기를 처음 올리는가 — 트랜잭션마다 따로 센다(안쪽 새 트랜잭션은 따로) */
+    private static boolean firstInTransaction(CacheSaveSource source) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return true;
+        }
+        for (TransactionSynchronization s : TransactionSynchronizationManager.getSynchronizations()) {
+            if (s instanceof Bumped bumped) {
+                return bumped.sources.add(source);
+            }
+        }
+        Bumped bumped = new Bumped();
+        bumped.sources.add(source);
+        TransactionSynchronizationManager.registerSynchronization(bumped);
+        return true;
+    }
+
+    /** 한 트랜잭션에서 이미 올린 계기 */
+    private static final class Bumped implements TransactionSynchronization {
+
+        private final java.util.EnumSet<CacheSaveSource> sources = java.util.EnumSet.noneOf(CacheSaveSource.class);
     }
 
     /**
