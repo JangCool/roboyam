@@ -14,23 +14,20 @@ Docker 설치형(`installer/`)·compose(`docker/`)와 별개다.
                  └─ admin.roboyam.com ──→ WAS1
 WAS1 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 1) + admin :8081 (NODE_ID 3)
 WAS2 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 2)
-DB   (t4g.medium)          PostgreSQL 18 + pg_cron :5432 — 원스톱 스크립트를 여기서 돌린다
+DB   (t4g.medium, 공인 IP) PostgreSQL 18 + pg_cron :5432 — 원스톱 스크립트를 여기서 돌린다
                            └─ SSH(사설 IP) → WAS1, WAS2
 ```
 
-## 접속 경로 (bastion)
+## 접속 경로 — bastion 없음 (사용자 결정 2026-11-09)
 
-원스톱 스크립트는 **DB 서버 안에서 VPC 사설 IP 로** 앱 서버에 붙는다. 그래서 스크립트에는 bastion 이 필요 없고, **내 PC → DB 서버**로 들어가는 길만 정하면 된다.
+- **세 대 모두 탄력적 IP(고정 공인 IP)** 를 붙인다. WAS 는 Cloudflare 가 들어오는 주소라 꼭 필요하고, DB 는 내 PC 에서 바로 SSH 로 들어가고 `dnf`(설치·보안 업데이트)·R2 백업 업로드로 밖에 나가려고 붙인다.
+- 공인 IP 가 있어도 아래 보안 그룹이 내 IP·앱 서버 말고는 다 막는다. bastion 서버·NAT 게이트웨이(월 $40 이상)는 쓰지 않는다.
+- 원스톱 스크립트는 DB 서버 안에서 **VPC 사설 IP** 로 앱 서버에 붙는다(`install.conf` 에는 WAS 의 사설 IP).
+- 비용: 공인 IPv4 개당 시간당 $0.005 ≈ **월 $3.6**, 3개 ≈ 월 $11. 2025-07-15 이후 만든 계정은 크레딧(6개월) 방식이라 크레딧이 남은 동안은 크레딧에서 빠진다(콘솔 › 결제 및 비용 관리 › 프리 티어에서 확인).
+- EC2 의 퍼블릭 DNS 이름(`ec2-…compute.amazonaws.com`)은 공인 IP 의 별명이라 공인 IP 없이는 생기지 않는다.
+- 나중에 22 를 닫고 싶으면: EC2 Instance Connect Endpoint(무료, 들어가는 길만)나 SSM Session Manager.
 
-| 방법 | 비용 | 쓰는 법 |
-|---|---|---|
-| **WAS1 을 점프 호스트로**(권장 — 서버를 늘리지 않는다) | 0 | WAS1 22 를 내 IP 에만 연다. `ssh -J rocky@<WAS1 공인 IP> rocky@<DB 사설 IP>`, 파일은 `scp -J …` |
-| 따로 bastion EC2(t4g.nano) | 월 약 $3~4 | 위와 같고 점프만 bastion 으로. 앱 서버 22 는 bastion·DB 에서만 |
-| SSM Session Manager | 0 | 22 를 아무 데도 안 연다. 인스턴스에 SSM 역할 + `aws ssm start-session`. SSH 를 SSM 위로 태우려면 ProxyCommand 설정 |
-
-SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), 키를 서버에 두기 싫으면 `ssh -A -J …` 로 들어와 `sudo --preserve-env=SSH_AUTH_SOCK ./roboyam-install.sh` 로 에이전트를 넘긴다(`install.conf` 의 `SSH_KEY` 를 비운다).
-
-⚠ DB 를 공인 IP 없는 사설 서브넷에 두면 `dnf`(PGDG 저장소)로 나가는 길이 필요하다 — NAT 게이트웨이는 월 $40 이상이다. 싸게 가려면 DB 도 공인 IP 를 주되 보안 그룹으로 모든 인바운드를 막거나(아래 표), NAT 인스턴스를 쓴다. 정해서 알려 주면 맞춘다.
+SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), 키를 서버에 두기 싫으면 `ssh -A` 로 들어와 `sudo --preserve-env=SSH_AUTH_SOCK ./roboyam-install.sh` 로 에이전트를 넘긴다(`install.conf` 의 `SSH_KEY` 를 비운다).
 
 ## 실행 순서
 
@@ -41,8 +38,8 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
    → `installer-native/dist/roboyam-native-<커밋>-<날짜>.tar.gz` (스크립트 + `application/` jar 2개)
 2. **DB 서버로 올리고 풀기**
    ```bash
-   scp -J rocky@<WAS1 공인 IP> installer-native/dist/roboyam-native-*.tar.gz rocky@<DB 사설 IP>:
-   ssh -J rocky@<WAS1 공인 IP> rocky@<DB 사설 IP>
+   scp installer-native/dist/roboyam-native-*.tar.gz rocky@<DB 공인 IP>:
+   ssh rocky@<DB 공인 IP>
    tar xzf roboyam-native-*.tar.gz && cd roboyam-native
    cp install.conf.example install.conf && vi install.conf      # 앱 서버 사설 IP·도메인·SSH 키
    # certs/ 에 Cloudflare Origin CA 인증서 origin.pem · origin.key 를 넣는다
@@ -83,9 +80,9 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
 | 서버 | 포트 | 출처 |
 |---|---|---|
 | WAS1·WAS2 | 443 | **Cloudflare IP 대역만**(https://www.cloudflare.com/ips/) |
-| WAS1·WAS2 | 22 | **DB 서버 보안 그룹**(원스톱 스크립트) + 점프용으로 WAS1 은 내 IP |
+| WAS1·WAS2 | 22 | **DB 서버 보안 그룹**(원스톱 스크립트) + 내 IP(문제 볼 때) |
 | DB | 5432 | **WAS1·WAS2 보안 그룹만** |
-| DB | 22 | WAS1(점프) 또는 bastion 보안 그룹만 |
+| DB | 22 | **내 IP 만** |
 
 80 은 열지 않는다. Caddy 도 Cloudflare 가 아닌 접속은 끊고, `/actuator` 는 readiness·liveness 만 내보낸다.
 Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/roboyam-app-install.sh --refresh-cloudflare-ips` + 보안 그룹 갱신.

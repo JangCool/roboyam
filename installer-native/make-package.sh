@@ -93,4 +93,4 @@ rm -rf "$STAGE"
 
 echo
 log "묶음: ${OUT} ($(du -h "$OUT" | cut -f1))"
-echo "   DB 서버로: scp -J rocky@<WAS1 공인 IP> \"${OUT}\" rocky@<DB 사설 IP>:   (README 「접속 경로」)"
+echo "   DB 서버로: scp \"${OUT}\" rocky@<DB 공인 IP>:   (README 「접속 경로」)"
