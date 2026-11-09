@@ -43,18 +43,22 @@
                 <li v-for="h in rest" :key="h.id" class="border-b border-surface last:border-b-0 @min-[40rem]:first:-mt-3 @min-[40rem]:last:-mb-3">
                     <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                         <NuxtLink :to="`/posts/${h.post.id}`" class="flex items-center gap-3.5 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                            <!-- 사진 안 모서리 작은 라벨(사용자 2026-11-10 최종 — 사진을 덜 가리게): 오른쪽 위 = 찬반 색 숫자(`HomeDebateBand` sm), 왼쪽 아래 = 게시판 이름 -->
                             <HomeThumb v-if="cfg.thumbs === 'ALL'" :src="imageOf(h)" ratio="16 / 10" class="w-[5.5rem] shrink-0">
                                 <HomeDebateBand v-if="h.post.debate" :debate="h.post.debate" />
+                                <!-- 게시판 이름 라벨 — 게시판 표시색 그대로(말머리·게시판 칩과 같은 `tagStyle`: 같은 색 옅은 바탕 + 읽히게 보정한 글자색, 사용자 2026-11-10). 색이 없으면 흰 바탕 기본 글자 -->
+                                <span
+                                    class="absolute bottom-[3px] left-[3px] max-w-[calc(100%-6px)] truncate rounded-[3px] px-1 text-[0.625rem] font-semibold leading-[14px]"
+                                    :class="UtilBoard.tagStyle(h.post.board.color) ? '' : 'bg-surface-0 text-color dark:bg-surface-900'"
+                                    :style="UtilBoard.tagStyle(h.post.board.color)"
+                                    data-testid="home-highlight-board-label"
+                                    >{{ localizedName(h.post.board.name, h.post.board.nameEn) }}</span
+                                >
                             </HomeThumb>
                             <div class="min-w-0 flex-1">
-                                <!-- 제목 + 추천(오른쪽 끝, 제목 첫 줄 높이) — 제목은 추천 칸 앞에서 두 줄 말줄임(사용자 2026-11-10 추가 결정) -->
-                                <div class="flex items-start gap-2">
-                                    <p class="m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug">{{ titleOf(h) }}</p>
-                                    <span class="inline-flex h-[calc(0.9375rem*1.375)] shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-color" data-testid="home-highlight-likes">
-                                        <i class="pi pi-thumbs-up text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('board.likesShort', { n: h.post.likeCount }) }}</span><span aria-hidden="true">{{ h.post.likeCount.toLocaleString() }}</span>
-                                    </span>
-                                </div>
-                                <HomeGadgetHighlightMeta :post="h.post" :likes="false" :debate="cfg.thumbs !== 'ALL'" :author="cfg.showAuthor" class="mt-1.5" />
+                                <!-- 제목(폭 전체, 두 줄 말줄임) → 아바타·닉네임 → 추천 → 댓글 · 오른쪽 끝 날짜(사용자 2026-11-10 최종 — 등급 뱃지는 뺀다) -->
+                                <p class="m-0 line-clamp-2 break-words text-sm font-semibold leading-snug">{{ titleOf(h) }}</p>
+                                <HomeGadgetHighlightMeta :post="h.post" order="author" :board="cfg.thumbs !== 'ALL'" :debate="cfg.thumbs !== 'ALL'" :author="cfg.showAuthor" class="mt-1.5" />
                             </div>
                         </NuxtLink>
                     </FoldedRow>
@@ -120,6 +124,7 @@
 <script setup lang="ts">
 import type { HomeGadget, HomeHighlight } from '~/composables/home/api/useHomeGadgetApi.types';
 import UtilHomeGadget from '~/utils/util-home-gadget';
+import UtilBoard from '~/utils/util-board';
 
 interface Props {
     gadget: HomeGadget;
@@ -128,6 +133,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const { t } = useI18n();
+const { localizedName } = useLocalizedName();
 
 const overrides = useBlockOverrides();
 const options = useHomeGadgetLookOptions();
