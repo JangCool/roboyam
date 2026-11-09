@@ -33,8 +33,8 @@ export default class UtilSite {
     static readonly NAME_MAX = 50;
     /** 한 줄 소개(슬로건) 최대 글자 수(앞뒤 공백을 자른 뒤, 코드포인트) — 서버와 같다 */
     static readonly TAGLINE_MAX = 100;
-    /** 소셜 로그인 콜백 주소의 경로(공급자 이름이 뒤에 붙는다) — 서버가 만드는 주소와 같다 */
-    static readonly CALLBACK_PATH = '/login/oauth2/code/';
+    /** 소셜 로그인 콜백 주소의 앞 경로 — 뒤에 `{공급자 소문자}/callback` 이 붙는다(서버 `SocialProvider.callbackPath()` 와 같다) */
+    static readonly CALLBACK_PATH = '/api/auth/social/';
 
     /**
      * 지금 접속한 주소(`location.origin`) — 마법사가 공개 주소를 미리 채울 때 쓴다. 브라우저가 아니면 빈 문자열.
@@ -121,11 +121,11 @@ export default class UtilSite {
      * 소셜 로그인 콜백 주소 — 각 사 개발자 콘솔에 등록할 값이다. 공개 주소가 올바르지 않으면 빈 문자열.
      * @param {string} publicUrl - 공개 주소(입력 그대로).
      * @param {string} provider - 공급자 코드(`NAVER` · `KAKAO` · `GOOGLE`, 대소문자 무시).
-     * @returns {string} `{공개 주소}/login/oauth2/code/{naver|kakao|google}`. 공개 주소가 올바르지 않으면 빈 문자열.
+     * @returns {string} `{공개 주소}/api/auth/social/{naver|kakao|google}/callback` — 서버가 받는 주소(api `SocialLoginService.CALLBACK_PATH`)이자 설치 뒤 관리자 「소셜 로그인」 화면이 보이는 주소와 같다. 공개 주소가 올바르지 않으면 빈 문자열.
      */
     static callbackUrl(publicUrl: string, provider: string): string {
         if (UtilSite.publicUrl(publicUrl)) return '';
-        return `${publicUrl.trim()}${UtilSite.CALLBACK_PATH}${provider.toLowerCase()}`;
+        return `${publicUrl.trim()}${UtilSite.CALLBACK_PATH}${provider.toLowerCase()}/callback`;
     }
 
     /**
