@@ -27,7 +27,7 @@
         <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
         <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
         <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
-        <GradeBadge v-else-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
+        <GradeBadge v-else-if="grade && author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
         <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
@@ -67,6 +67,8 @@ interface Props {
     avatar?: boolean;
     /** 프로필 동그라미를 움직이는 그림 그대로(댓글 — 글 보기·프로필처럼 움직인다). 끄면 정지 그림이 있으면 그것(글 줄) */
     animated?: boolean;
+    /** 등급 뱃지 — 좁은 줄(홈 하이라이트 오른쪽 목록)은 끈다. 「운영자」·「사업자」 뱃지는 그대로 */
+    grade?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -76,6 +78,7 @@ const props = withDefaults(defineProps<Props>(), {
     preview: false,
     avatar: false,
     animated: false,
+    grade: true,
 });
 
 const { t } = useI18n();
