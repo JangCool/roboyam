@@ -445,7 +445,7 @@ export default class UtilHomeGadget {
      */
     static highlightConfig(config: Record<string, unknown>): HighlightConfig {
         const c = obj(config);
-        return { lead: oneOf(c.lead, ['NONE', 'HERO'] as const, 'HERO'), thumbs: oneOf(c.thumbs, ['ALL', 'FIRST', 'NONE'] as const, 'ALL') };
+        return { lead: oneOf(c.lead, ['NONE', 'HERO'] as const, 'HERO'), thumbs: oneOf(c.thumbs, ['ALL', 'FIRST', 'NONE'] as const, 'ALL'), showAuthor: c.showAuthor !== false };
     }
 
     /**

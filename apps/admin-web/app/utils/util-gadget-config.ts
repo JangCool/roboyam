@@ -231,7 +231,7 @@ export default class UtilGadgetConfig {
                 Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies HomeGadgetConfig);
                 break;
             case 'HIGHLIGHT':
-                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME } satisfies HomeGadgetConfig);
+                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME, showAuthor: true } satisfies HomeGadgetConfig);
                 break;
             case 'QUICK_LINKS':
                 Object.assign(out, { shape: 'PILL', items: [] } satisfies HomeGadgetConfig);
@@ -300,6 +300,7 @@ export default class UtilGadgetConfig {
             case 'HIGHLIGHT':
                 out.lead = c.lead === 'NONE' ? 'NONE' : 'HERO';
                 out.thumbs = oneOf(c.thumbs, UtilGadgetConfig.HIGHLIGHT_THUMBS, 'ALL');
+                out.showAuthor = c.showAuthor !== false; // 작성자 보이기 — 칸이 없는 옛 가젯도 켬
                 // 곳 — 모양만 본다(없는 곳은 공개 읽기가 home 으로 친다, 서버 `GadgetPatches` 와 같다)
                 out.place = typeof c.place === 'string' && UtilHighlight.PLACE_KEY.test(c.place) ? c.place : HIGHLIGHT_PLACE_HOME;
                 break;

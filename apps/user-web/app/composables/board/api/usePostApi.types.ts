@@ -276,9 +276,21 @@ export interface PostBoardRef {
     color: string | null;
 }
 
+/**
+ * 섞인 목록 줄의 찬반 토론 요약(서버 `PostFeedDebateView`, feed-debate-counts-contract) — 입장을 고른 사람 수(글 상세 `debate.votes` 와 같은 기준).
+ * 토론이 열렸거나 이미 표가 있는 글만 온다. `neutral` 이 null 이면 그 토론이 중립을 받지 않는다(찬·반만 그린다).
+ */
+export interface PostFeedDebate {
+    pro: number;
+    con: number;
+    neutral: number | null;
+}
+
 /** 게시판이 섞인 목록의 한 줄 — 목록 한 줄 + 그 글의 게시판 */
 export interface PostFeedRow extends PostRow {
     board: PostBoardRef;
+    /** 찬반 토론 요약 — 토론 글이 아니거나 숨긴 글·옛 응답은 null·없음(아무것도 그리지 않는다) */
+    debate?: PostFeedDebate | null;
 }
 
 /** 커서로 이어 받는 목록 한 쪽(최신글 전체·회원 작성글) — `nextCursor` 를 다음 요청의 `cursor` 로 보낸다 */

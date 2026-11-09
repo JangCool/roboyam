@@ -119,6 +119,8 @@ export default {
     highlightThumbs_ALL: 'All posts',
     highlightThumbs_FIRST: 'Top post only',
     highlightThumbs_NONE: 'None',
+    highlightShowAuthor: 'Show author (avatar · nickname)',
+    highlightShowAuthorHint: 'On by default — the big post and list rows show the author avatar and nickname. Off keeps only the date.',
     postViewTitle: 'Display',
     rowStyle: 'Row style',
     rowStyle_HEADLINE: 'Headline (title + photo on the right)',

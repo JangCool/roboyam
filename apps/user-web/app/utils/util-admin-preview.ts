@@ -8,7 +8,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
  * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`) ·
- * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs` · 소모임 `count` ·
+ * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs`·`showAuthor` · 소모임 `count` ·
  * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
 export interface AdminPreviewGadgetConfig {
@@ -32,6 +32,8 @@ export interface AdminPreviewGadgetConfig {
     newBadgeHours?: number;
     hotBadgeLikes?: number;
     thumbs?: string;
+    /** 하이라이트 — 작성자(아바타·닉네임) 보이기 */
+    showAuthor?: boolean;
     shape?: string;
     items?: { label: string; kind: string; value: string | null }[];
     text?: string;
@@ -262,7 +264,7 @@ export default class UtilAdminPreview {
                     columns: value.columns === 'AUTO' || value.columns === 2 || value.columns === 3 ? value.columns : undefined,
                 });
             case 'HIGHLIGHT':
-                return defined({ count: int(value.count, 1, 6), lead: oneOf(value.lead, ['NONE', 'HERO']), thumbs: oneOf(value.thumbs, ['ALL', 'FIRST', 'NONE']) });
+                return defined({ count: int(value.count, 1, 6), lead: oneOf(value.lead, ['NONE', 'HERO']), thumbs: oneOf(value.thumbs, ['ALL', 'FIRST', 'NONE']), showAuthor: bool(value.showAuthor) });
             case 'GROUPS':
                 return defined({ count: int(value.count, 1, 6) });
             case 'AD':
@@ -351,7 +353,7 @@ export default class UtilAdminPreview {
         } else if (gadget.type === 'BOARD_CARDS' && config.columns !== undefined) {
             gadget.config = { ...gadget.config, columns: config.columns };
         } else if (gadget.type === 'HIGHLIGHT') {
-            gadget.config = { ...gadget.config, ...defined({ lead: config.lead, thumbs: config.thumbs }) };
+            gadget.config = { ...gadget.config, ...defined({ lead: config.lead, thumbs: config.thumbs, showAuthor: config.showAuthor }) };
             if (config.count && data && Array.isArray(data.picks)) data.picks = data.picks.slice(0, config.count);
             return;
         } else if (gadget.type === 'GROUPS') {

@@ -5,6 +5,10 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
+import com.community.debate.dto.DebateVotesView;
+import com.community.debate.entity.PostDebateEntity;
+import com.community.debate.repository.master.DebateQueries;
+import com.community.debate.repository.master.PostDebateRepository;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupRepository;
@@ -15,6 +19,7 @@ import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
+import com.community.post.dto.response.PostFeedDebateView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
@@ -33,7 +38,7 @@ import org.springframework.stereotype.Component;
  * 게시판이 섞인 목록의 줄({@link PostFeedRowView}) 만들기 — 줄 모양은 게시판 글 목록({@code PostQueryService#row})과 같고 그 글의 게시판을 더한다.
  * 작성자 프로필은 목록마다 한 번에 읽는다. 게시판이 사본에 없거나 꺼진 글은 뺀다(사본은 15초 — 게시판을 막 끈 경우).
  * 보는 사람의 차단·메모({@code blocked}·작성자 {@code memo})도 게시판 목록과 같게 싣는다 — 쪽마다 {@link ViewerBlocks} 질의 세 번(줄 수와 무관). 차단된 줄도 빼지 않는다(화면이 접는다).
- * 투표가 붙은 글({@code hasPoll})도 쪽마다 한 번에 읽는다. 소모임 글(비멤버에게 보이는 것만 이 목록들에 온다)의 소모임 표시({@code group})는 쪽마다 소모임 질의 한 번(소모임 6단계).
+ * 투표가 붙은 글({@code hasPoll})과 찬반 토론 요약({@code debate} — {@link #debates}, 질의 두 번)도 쪽마다 한 번에 읽는다. 소모임 글(비멤버에게 보이는 것만 이 목록들에 온다)의 소모임 표시({@code group})는 쪽마다 소모임 질의 한 번(소모임 6단계).
  */
 @Component
 public class PostFeedRows {
@@ -45,7 +50,13 @@ public class PostFeedRows {
     private final DealReader deals;
     private final PostThumbnails thumbnails;
 
-    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals, PostThumbnails thumbnails) {
+    private final PostDebateRepository debateRows;
+    private final DebateQueries debateQueries;
+
+    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals, PostThumbnails thumbnails,
+                        PostDebateRepository debateRows, DebateQueries debateQueries) {
+        this.debateRows = debateRows;
+        this.debateQueries = debateQueries;
         this.thumbnails = thumbnails;
         this.deals = deals;
         this.groups = groups;
@@ -67,6 +78,7 @@ public class PostFeedRows {
         Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         Map<Long, PostGroupView> groupRefs = groupRefs(rows);
         Map<Long, PostDealView> dealRows = dealRows(rows, s, now, viewerId);
+        Map<Long, PostFeedDebateView> debates = debates(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
         for (PostRowData r : rows) {
             EffectiveBoard b = s.board(r.boardId()).filter(EffectiveBoard::active).orElse(null);
@@ -74,7 +86,34 @@ public class PostFeedRows {
                 continue;
             }
             out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs, false),
-                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId())));
+                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId()),
+                    debates.get(r.id())));
+        }
+        return out;
+    }
+
+    /**
+     * 글들의 찬반 토론 요약(feed-debate-counts-contract) — 토론이 열린 글({@code post_debates} 질의 한 번)과 입장 수({@code post_stances} 묶어 세기 한 번 —
+     * 글 상세 {@code debate.votes} 와 같은 {@link DebateQueries#votesOf}). 토론이 열렸거나 표가 있는 글만 담는다(그 밖은 없음 = 줄의 칸 null). 숨긴 글은 부르는 쪽이 뺀다.
+     * 열린 토론이 중립을 받지 않으면 중립 null, 닫힌 토론(표만 남음)은 글 상세처럼 중립을 받는 것으로 본다.
+     */
+    public Map<Long, PostFeedDebateView> debates(Collection<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = postIds.stream().distinct().toList();
+        Map<Long, Boolean> neutralById = new HashMap<>();
+        for (PostDebateEntity d : debateRows.findAllById(ids)) {
+            neutralById.put(d.getPostId(), d.isNeutralEnabled());
+        }
+        Map<Long, DebateVotesView> votes = debateQueries.votesOf(ids);
+        Map<Long, PostFeedDebateView> out = new HashMap<>();
+        for (Long id : ids) {
+            DebateVotesView v = votes.getOrDefault(id, DebateVotesView.EMPTY);
+            Boolean neutral = neutralById.get(id);
+            if (neutral != null || v.total() > 0) {
+                out.put(id, PostFeedDebateView.of(v, neutral == null || neutral));
+            }
         }
         return out;
     }

@@ -120,6 +120,8 @@ export default {
     highlightThumbs_ALL: '모든 글',
     highlightThumbs_FIRST: '맨 위 글만',
     highlightThumbs_NONE: '없음',
+    highlightShowAuthor: '작성자 보이기(아바타·닉네임)',
+    highlightShowAuthorHint: '켜면(기본) 큰 글·목록 줄에 작성자 아바타와 닉네임을 보여요. 끄면 날짜만 남아요.',
     postViewTitle: '보기 모양',
     rowStyle: '줄 모양',
     rowStyle_HEADLINE: '헤드라인(제목 + 오른쪽 사진)',

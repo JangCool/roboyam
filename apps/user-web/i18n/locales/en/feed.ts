@@ -14,6 +14,13 @@ export default {
     firstPage: 'Go to the first page',
     rank: 'Rank {n}',
     boardTag: 'Board {name}',
+    debatePro: 'Pro',
+    debateCon: 'Con',
+    debateNeutral: 'Neu',
+    debateSummary: 'For {pro}, against {con}, neutral {neutral}',
+    debateSummaryNoNeutral: 'For {pro}, against {con}',
+    debateTip: 'For {pro} · Against {con} · Neutral {neutral}',
+    debateTipNoNeutral: 'For {pro} · Against {con}',
 
     // Latest
     latestSubtitle: 'New posts from every board, newest first',

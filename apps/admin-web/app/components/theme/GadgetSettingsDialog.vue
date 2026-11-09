@@ -250,6 +250,14 @@
                                     <span :id="`${uid}-hthumbs`" class="text-sm font-medium">{{ t('homeLayout.highlightThumbs') }}</span>
                                     <SelectButton v-model="draft.thumbs" :options="optionsOf(UtilGadgetConfig.HIGHLIGHT_THUMBS, 'highlightThumbs')" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${uid}-hthumbs`" />
                                 </div>
+                                <!-- 작성자 보이기 — 기본 켬(끄면 아바타·닉네임을 숨기고 날짜만, feed-debate-counts-contract) -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-2">
+                                        <ToggleSwitch v-model="highlightAuthorModel" :input-id="`${uid}-hauthor`" data-testid="gadget-highlight-show-author" />
+                                        <label :for="`${uid}-hauthor`" class="cursor-pointer text-sm">{{ t('homeLayout.highlightShowAuthor') }}</label>
+                                    </div>
+                                    <small class="text-xs text-muted-color">{{ t('homeLayout.highlightShowAuthorHint') }}</small>
+                                </div>
                             </template>
 
                             <!-- 바로가기 — 모양 · 항목 -->
@@ -662,6 +670,14 @@ const cardHeadModel = computed<boolean>({
     get: () => draft.value?.cardHead !== false,
     set: (value) => {
         if (draft.value) draft.value.cardHead = value;
+    },
+});
+
+/** 하이라이트의 작성자(아바타·닉네임) 보이기 — 기본 켬 */
+const highlightAuthorModel = computed<boolean>({
+    get: () => draft.value?.showAuthor !== false,
+    set: (value) => {
+        if (draft.value) draft.value.showAuthor = value;
     },
 });
 

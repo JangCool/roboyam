@@ -17,6 +17,7 @@ import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
+import com.community.post.dto.response.PostFeedDebateView;
 import com.community.post.dto.response.PostFeedPageView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
@@ -152,8 +153,10 @@ public class UserProfileService {
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
         Set<Long> withPoll = polls.postIdsWithPoll(page.stream().map(PostRowData::id).toList());
         Map<Long, PostGroupView> groupRefs = feedRows.groupRefs(page);
+        Map<Long, PostFeedDebateView> debates = feedRows.debates(page.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         List<PostFeedRowView> items = page.stream()
-                .map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens, withPoll, r.groupId() == null ? null : groupRefs.get(r.groupId())))
+                .map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens, withPoll, r.groupId() == null ? null : groupRefs.get(r.groupId()),
+                        debates.get(r.id())))
                 .toList();
         return new PostFeedPageView(items, more, more ? items.get(items.size() - 1).id() : null);
     }
@@ -185,7 +188,7 @@ public class UserProfileService {
 
     /** 게시판 목록 한 줄({@code PostQueryService} 와 같은 규칙 — 숨긴 글은 여기 오지 않지만 같은 가림을 둔다) + 게시판 */
     private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                                    Set<Long> withPoll, PostGroupView group) {
+                                    Set<Long> withPoll, PostGroupView group, PostFeedDebateView debate) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         PostPrefixRefView prefix = hidden ? null : b.prefix(r.prefixId()).map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color()))
@@ -195,7 +198,7 @@ public class UserProfileService {
                 !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()), hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 !hidden && withPoll.contains(r.id()),
                 new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group, null, r.secretPost(),
-                hidden ? null : com.community.post.entity.PostProcessStatus.effective(b, r.processStatus()));
+                hidden ? null : com.community.post.entity.PostProcessStatus.effective(b, r.processStatus()), hidden ? null : debate);
     }
 
     /** 보는 사람이 프로필 주인 본인인가(비밀글을 넣을지 — V166) */
