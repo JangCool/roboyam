@@ -59,6 +59,12 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
    sudo ./roboyam-install.sh --deploy
    ```
    DB 백업 → WAS1 admin → WAS1 api → WAS2 api 를 한 대씩 바꾸고 재기동한다. readiness 가 안 오면 그 서버는 이전 jar 로 되돌리고 거기서 멈춘다(DB 이관은 되돌리지 않는다).
+6. **데이터 초기화(시험 서버용)** — 설치 마법사부터 다시 하고 싶을 때(데모 데이터를 다시 넣을 때 등):
+   ```bash
+   sudo ./roboyam-install.sh --reset-data
+   ```
+   DB 이름을 입력해야 진행한다. 앱 멈춤 → DB 백업 → DB 를 지우고 같은 로캘·소유자·확장·권한으로 다시 만듦 → PostgreSQL 재시작 → WAS1 api → admin → WAS2 api 기동(readiness 확인) → 설치 마법사 주소·토큰 출력.
+   `/etc/roboyam` 의 키·설치 토큰과 버킷의 이미지는 그대로 둔다.
 
 한 단계만 다시: `--only db | was1 | was2`. 서버 한 대에서 손으로 하려면 각 스크립트를 직접 쓴다(아래 표, `--help`).
 

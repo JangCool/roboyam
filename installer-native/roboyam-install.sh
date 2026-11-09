@@ -8,6 +8,9 @@
 #   [3/3] WAS2 에 같은 묶음 + WAS1 의 공통 환경 파일(roboyam.env)을 보내 설치 — api, 기동·readiness 확인
 # 배포(--deploy, 새 jar):
 #   DB 백업 → WAS1 admin → WAS1 api → WAS2 api 순서로 jar 를 보내 바꾸고 재기동(readiness 실패 시 그 서버는 이전 jar 로 되돌리고 멈춘다)
+# 데이터 초기화(--reset-data, 시험 서버용):
+#   앱 멈춤 → DB 백업 → DB 를 지우고 빈 DB 로 다시 만듦(확장·권한 포함) → PostgreSQL 재시작 → WAS1 api·admin → WAS2 api 기동(readiness 확인)
+#   → 설치 마법사(/install)부터 다시 한다(데모 데이터를 다시 넣을 때 등). 앱 설정 파일(키·토큰)·R2 의 이미지는 그대로 둔다
 #
 # 묶음(make-package.sh 가 만든다 — 이 스크립트와 같은 폴더):
 #   roboyam-install.sh · install.conf · lib/ · db/ · app/ · application/roboyam-{api,admin}.jar · certs/(Origin CA 인증서)
@@ -18,12 +21,14 @@
 #   sudo ./roboyam-install.sh --dry-run                            점검만 (DB·앱 서버 계획 출력)
 #   sudo ./roboyam-install.sh                                      설치
 #   sudo ./roboyam-install.sh --deploy                             새 묶음의 jar 로 배포·재기동
+#   sudo ./roboyam-install.sh --reset-data                         DB 를 비우고 설치 마법사 전 상태로(시험 서버용)
 #
 # 옵션
 #   -c, --config FILE   설정 파일 (기본: 이 폴더의 install.conf)
 #       --deploy        설치 대신 배포(jar 교체·재기동)만 한다
+#       --reset-data    DB 를 지우고 빈 DB 로 다시 만든 뒤 앱을 다시 띄운다 — DB 이름을 입력해야 진행한다(-y 로도 건너뛰지 않는다)
 #       --only STEP     설치 단계 하나만 다시 한다: db | was1 | was2
-#       --no-backup     --deploy 때 배포 전 DB 백업을 건너뛴다
+#       --no-backup     --deploy·--reset-data 때 먼저 하는 DB 백업을 건너뛴다
 #       --keep-remote   앱 서버에 보낸 임시 폴더를 지우지 않는다(문제 확인용 — 인증서 키가 남는다)
 #       --dry-run       점검·계획만 (DB 는 --dry-run, 앱 서버는 묶음을 보내 --dry-run 한 뒤 지운다)
 #   -y, --yes           확인 질문 없이 진행
@@ -63,6 +68,7 @@ parse_args() {
         case "$1" in
             -c|--config)   CONFIG="${2:?--config 값이 필요합니다}"; shift 2 ;;
             --deploy)      MODE=deploy; shift ;;
+            --reset-data)  MODE=reset; shift ;;
             --only)        ONLY="${2:?--only 값이 필요합니다}"; shift 2 ;;
             --no-backup)   DEPLOY_BACKUP=0; shift ;;
             --keep-remote) KEEP_REMOTE=1; shift ;;
@@ -403,9 +409,119 @@ run_deploy() {
     check_db_batches
 }
 
+# --reset-data — 시험 서버용: DB 를 비워 설치 마법사 전 상태로 되돌린다(앱 설정 파일·키·설치 토큰은 그대로)
+PG_MAJOR=18
+PG_PSQL="/usr/pgsql-${PG_MAJOR}/bin/psql"
+RESET_TIMEOUT=600   # 빈 DB 라 Flyway 가 표를 처음부터 만든다 — 처음 설치만큼 걸린다
+
+pg() { runuser -u postgres -- "$PG_PSQL" -X -q -v ON_ERROR_STOP=1 "$@"; }
+
+confirm_reset() {
+    [ "$DRY_RUN" -eq 1 ] && return 0
+    echo
+    echo "   ⚠ DB ${DB_NAME} 의 데이터(회원·글·설정·DB 배치)를 모두 지우고 빈 DB 로 다시 만듭니다. 되돌리려면 백업에서 복원해야 합니다."
+    echo "     앱 설정 파일(/etc/roboyam — 키·설치 토큰)과 버킷에 올라간 이미지는 그대로 둡니다."
+    local ans=""
+    read -r -p "   계속하려면 DB 이름(${DB_NAME})을 입력하세요: " ans
+    [ "$ans" = "$DB_NAME" ] || fail "취소했습니다."
+}
+
+remote_systemctl() {   # <호스트> <stop|start> <서비스...>
+    local host="$1" action="$2"; shift 2
+    log "${host} : systemctl ${action} $*"
+    rssh "$host" "sudo -n systemctl ${action} $*" < /dev/null || fail "${host} 에서 systemctl ${action} $* 이 실패했습니다."
+}
+
+# 앱 서버에서 /etc/roboyam/<앱>.env 의 SERVER_PORT 로 readiness 가 200 이 될 때까지 기다린다
+wait_remote_ready() {   # <호스트> <api|admin>
+    local host="$1" app="$2"
+    log "${host} ${app} readiness 기다림 (최대 ${RESET_TIMEOUT}초)"
+    rssh "$host" "sudo -n bash -s -- ${app} ${RESET_TIMEOUT}" <<'REMOTE' || fail "${host} 의 ${app} 이 ${RESET_TIMEOUT}초 안에 뜨지 않았습니다. 그 서버에서: sudo journalctl -u roboyam-${app} -n 200 --no-pager"
+app="$1"; timeout="$2"
+port="$(sed -n 's/^SERVER_PORT=//p' "/etc/roboyam/${app}.env")"
+[ -n "$port" ] || { echo "/etc/roboyam/${app}.env 에 SERVER_PORT 가 없습니다" >&2; exit 2; }
+end=$(( $(date +%s) + timeout ))
+while [ "$(date +%s)" -lt "$end" ]; do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:${port}/actuator/health/readiness" || true)" = 200 ] && exit 0
+    systemctl is-failed --quiet "roboyam-${app}" && { echo "roboyam-${app} 이 멈췄습니다(failed)" >&2; exit 1; }
+    sleep 5
+done
+exit 1
+REMOTE
+    log "${host} ${app} 준비됨"
+}
+
+# DB 를 지우고 같은 로캘·소유자로 다시 만든다 — 확장·권한은 db/roboyam-db-install.sh 의 create_database·create_extensions 와 같게 맞춘다
+recreate_database() {
+    step "DB ${DB_NAME} 다시 만들기"
+    [ -x "$PG_PSQL" ] || fail "${PG_PSQL} 이 없습니다 — 이 스크립트는 DB 서버에서 실행합니다."
+    [ "$(pg -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'")" = 1 ] ||
+        fail "DB 계정 ${DB_USER} 이 없습니다 — 처음 설치(sudo ./roboyam-install.sh)를 먼저 하세요."
+    local loc preload
+    loc="$(pg -d postgres -tAc "SELECT datcollate FROM pg_database WHERE datname = '${DB_NAME}'")"
+    [ -n "$loc" ] || loc="$(pg -d postgres -tAc "SELECT datcollate FROM pg_database WHERE datname = 'template0'")"
+    preload="$(pg -d postgres -tAc "SHOW shared_preload_libraries")"
+    log "지우기: ${DB_NAME}"
+    pg -d postgres -c "DROP DATABASE IF EXISTS ${DB_NAME} WITH (FORCE);"
+    log "만들기: ${DB_NAME} (UTF8 · ${loc} · 소유자 ${DB_USER})"
+    pg -d postgres -c "CREATE DATABASE ${DB_NAME} WITH OWNER = ${DB_USER} ENCODING = 'UTF8' LOCALE_PROVIDER = libc LC_COLLATE = '${loc}' LC_CTYPE = '${loc}' TEMPLATE = template0;"
+    pg -d postgres -c "REVOKE ALL ON DATABASE ${DB_NAME} FROM PUBLIC; GRANT CONNECT, TEMPORARY ON DATABASE ${DB_NAME} TO ${DB_USER};"
+    local ts_sql=""
+    [[ ",${preload// /}," == *",timescaledb,"* ]] && ts_sql="CREATE EXTENSION IF NOT EXISTS timescaledb;"
+    pg -d "$DB_NAME" <<SQL
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+GRANT USAGE ON SCHEMA cron TO ${DB_USER};
+GRANT pg_read_all_settings TO ${DB_USER};
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+${ts_sql}
+SQL
+    # pg_cron 의 배치 실행기는 cron.database_name 의 DB 에 붙어 있다 — DB 를 새로 만들었으니 다시 띄운다
+    log "PostgreSQL 재시작 (pg_cron 실행기를 새 DB 에 다시 붙인다)"
+    systemctl restart "postgresql-${PG_MAJOR}"
+    local i
+    for i in $(seq 1 30); do
+        runuser -u postgres -- "/usr/pgsql-${PG_MAJOR}/bin/pg_isready" -q && break
+        sleep 1
+    done
+    runuser -u postgres -- "/usr/pgsql-${PG_MAJOR}/bin/pg_isready" -q || fail "PostgreSQL 이 다시 뜨지 않았습니다: journalctl -u postgresql-${PG_MAJOR}"
+    log "DB ${DB_NAME} 준비됨 (빈 DB — 앱이 뜨면서 Flyway 가 표를 만든다)"
+}
+
+run_reset() {
+    step "앱 멈추기"
+    if [ -n "$WAS2" ]; then remote_systemctl "$WAS2" stop roboyam-api; fi
+    remote_systemctl "$WAS1" stop roboyam-api roboyam-admin
+    if [ "$DEPLOY_BACKUP" -eq 1 ] && [ -x /opt/roboyam/db/bin/roboyam-db-backup.sh ]; then
+        step "지우기 전 DB 백업"
+        /opt/roboyam/db/bin/roboyam-db-backup.sh || fail "DB 백업 실패 — 지우지 않았습니다(앱은 멈춘 상태다. --no-backup 으로 건너뛸 수 있다)."
+    fi
+    recreate_database
+    step "앱 띄우기 — WAS1 api → admin$([ -n "$WAS2" ] && echo ' → WAS2 api')"
+    remote_systemctl "$WAS1" start roboyam-api
+    wait_remote_ready "$WAS1" api
+    remote_systemctl "$WAS1" start roboyam-admin
+    wait_remote_ready "$WAS1" admin
+    if [ -n "$WAS2" ]; then
+        remote_systemctl "$WAS2" start roboyam-api
+        wait_remote_ready "$WAS2" api
+    fi
+    check_db_batches
+    SHARED_ENV_CONTENT="$(rssh "$WAS1" 'sudo -n cat /etc/roboyam/roboyam.env' < /dev/null 2>/dev/null || true)"
+}
+
+mode_label() {   # [long]
+    case "$MODE" in
+        deploy) [ "${1:-}" = long ] && echo '배포(jar 교체·재기동)' || echo 배포 ;;
+        reset)  [ "${1:-}" = long ] && echo '데이터 초기화(DB 를 비우고 설치 마법사 전 상태로)' || echo 데이터 초기화 ;;
+        *)      [ "${1:-}" = long ] && echo "설치${ONLY:+ — ${ONLY} 만}" || echo 설치 ;;
+    esac
+}
+
 print_plan() {
     step "계획"
-    printf '   %-14s %s\n' "모드"    "$([ "$MODE" = deploy ] && echo '배포(jar 교체·재기동)' || echo "설치${ONLY:+ — ${ONLY} 만}")$([ "$DRY_RUN" -eq 1 ] && echo ' · dry-run')"
+    printf '   %-14s %s\n' "모드"    "$(mode_label long)$([ "$DRY_RUN" -eq 1 ] && echo ' · dry-run')"
     printf '   %-14s %s\n' "DB(이 서버)" "${DB_LISTEN_IP}:5432/${DB_NAME} (계정 ${DB_USER})"
     printf '   %-14s %s\n' "WAS1"    "${WAS1} — api(NODE_ID ${WAS1_NODE_ID}) + admin(NODE_ID ${ADMIN_NODE_ID})"
     printf '   %-14s %s\n' "WAS2"    "${WAS2:-없음}${WAS2:+ — api(NODE_ID ${WAS2_NODE_ID})}"
@@ -432,11 +548,11 @@ confirm() {
 print_result() {
     echo
     echo "============================================================"
-    echo " 완료 — $([ "$MODE" = deploy ] && echo 배포 || echo 설치)"
+    echo " 완료 — $(mode_label)"
     echo "============================================================"
     echo "   로그          : ${LOG_FILE}"
     echo "   배포(다음부터): 새 묶음을 이 서버에 풀고  sudo ./roboyam-install.sh --deploy"
-    if [ "$MODE" = install ] && [ -n "${SHARED_ENV_CONTENT:-}" ]; then
+    if [ "$MODE" != deploy ] && [ -n "${SHARED_ENV_CONTENT:-}" ]; then
         echo "   설치 마법사   : https://$(awk '{print $1}' <<<"$DOMAINS")/install  토큰 $(sed -n 's/^ROBOYAM_INSTALL_TOKEN=//p' <<<"$SHARED_ENV_CONTENT")"
     fi
     if [ "$MODE" = install ]; then
@@ -459,7 +575,7 @@ main() {
     install -m 600 /dev/null "$LOG_FILE"   # 설치 토큰이 찍히므로 root 만 읽게
     exec > >(tee -a "$LOG_FILE") 2>&1
     echo "============================================================"
-    echo " 로보얌 원스톱 $([ "$MODE" = deploy ] && echo 배포 || echo 설치) — DB 서버에서 앱 서버로"
+    echo " 로보얌 원스톱 $(mode_label) — DB 서버에서 앱 서버로"
     echo "============================================================"
 
     step "앱 서버 접속 확인"
@@ -471,6 +587,13 @@ main() {
     if [ "$MODE" = deploy ]; then
         [ "$DRY_RUN" -eq 0 ] || { log "dry-run — 배포는 접속 확인까지만 합니다."; exit 0; }
         run_deploy
+        print_result
+        exit 0
+    fi
+    if [ "$MODE" = reset ]; then
+        [ "$DRY_RUN" -eq 0 ] || { log "dry-run — 데이터 초기화는 접속 확인까지만 합니다."; exit 0; }
+        confirm_reset
+        run_reset
         print_result
         exit 0
     fi
