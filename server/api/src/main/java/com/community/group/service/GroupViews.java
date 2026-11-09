@@ -139,10 +139,15 @@ public class GroupViews {
 
     /** 내 상태 — 비로그인 null */
     public static String myState(GroupEntity g, GroupMemberEntity row, Long userId) {
+        return myState(g.getLeaderId(), row, userId);
+    }
+
+    /** {@link #myState(GroupEntity, GroupMemberEntity, Long)} — 소모임 대신 모임장 ID 로(공용 캐시 줄에 덧입힐 때) */
+    public static String myState(Long leaderId, GroupMemberEntity row, Long userId) {
         if (userId == null) {
             return null;
         }
-        if (g.getLeaderId().equals(userId)) {
+        if (userId.equals(leaderId)) {
             return STATE_LEADER;
         }
         if (row == null) {

@@ -80,6 +80,51 @@ public class PostFeedRows {
     }
 
     /**
+     * 공용 줄(보는 사람 없이 만든 줄 — 캐시에 담긴 값)에 덧입힐 보는 사람 몫을 한 번에 읽는다 — 작성자 메모·차단({@link ViewerBlocks} 질의 세 번, 게시판 목록과 같은 판정)과
+     * 딜의 내 종료 요청(딜 줄이 있을 때만 한 번). 비로그인이면 아무것도 읽지 않는다.
+     * 섞인 목록·가젯의 줄은 읽는 질의가 신고로 숨긴 글을 미리 거르므로({@code notHidden} — {@link #of} 의 숨긴 줄 판정과 같은 시각 조건) 덧입힘 결과가 {@link #of} 에 보는 사람을 넘긴 것과 같다.
+     */
+    public Overlay overlay(Collection<PostFeedRowView> rows, Long viewerId) {
+        if (viewerId == null || rows.isEmpty()) {
+            return Overlay.NONE;
+        }
+        List<Long> authorIds = rows.stream().map(PostFeedRows::authorIdOf).filter(Objects::nonNull).distinct().toList();
+        ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
+        List<Long> dealIds = rows.stream().filter(r -> r.deal() != null).map(r -> Long.parseLong(r.id())).distinct().toList();
+        Map<Long, String> mine = dealIds.isEmpty() ? Map.of() : deals.myEndRequests(dealIds, viewerId);
+        return new Overlay(lens, mine);
+    }
+
+    /** 공용 줄 목록에 보는 사람 몫을 덧입힌다({@link #overlay}) */
+    public List<PostFeedRowView> forViewer(List<PostFeedRowView> rows, Long viewerId) {
+        return overlay(rows, viewerId).apply(rows);
+    }
+
+    /** 줄의 작성 회원 — 회원 글이면 {@code author.memberId}(= 작성자 ID, {@code AuthorViews#of}), 손님 글이면 null */
+    static Long authorIdOf(PostFeedRowView r) {
+        return r.author() == null || r.author().memberId() == null ? null : Long.parseLong(r.author().memberId());
+    }
+
+    /** 보는 사람 몫 — 비로그인이면 {@link #NONE}(그대로 돌려준다) */
+    public record Overlay(ViewerBlocks.Lens lens, Map<Long, String> mine) {
+
+        public static final Overlay NONE = new Overlay(null, Map.of());
+
+        public PostFeedRowView apply(PostFeedRowView r) {
+            if (lens == null || r == null) {
+                return r;
+            }
+            Long authorId = authorIdOf(r);
+            PostDealView deal = r.deal() == null ? null : r.deal().withMine(mine.get(Long.parseLong(r.id())));
+            return r.forViewer(lens.memoOf(authorId), lens.blockedOf(authorId, r.title()), deal);
+        }
+
+        public List<PostFeedRowView> apply(List<PostFeedRowView> rows) {
+            return lens == null ? rows : rows.stream().map(this::apply).toList();
+        }
+    }
+
+    /**
      * 핫딜 게시판 글의 딜(hotdeal-contract — 섞인 목록·가젯도 핫딜 목록 줄과 같은 모양, 서버 2단계) — 게시판마다 한 번에 읽는다({@link DealReader#forRows}, 숨긴 줄은 뺀다).
      * 핫딜 게시판 글이 없으면 읽지 않는다.
      */

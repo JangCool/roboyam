@@ -1,5 +1,7 @@
 package com.community.home.service;
 
+import com.community.cache.definition.CacheNames;
+import org.springframework.cache.CacheManager;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.entity.BoardGadget;
@@ -40,8 +42,10 @@ public class LatestFeedService {
     private final PostFeedRepositoryQDSL feeds;
     private final PostFeedRows rows;
     private final AdultContentGate adultGate;
+    private final CacheManager caches;
 
-    public LatestFeedService(BoardCatalog catalog, PostFeedRepositoryQDSL feeds, PostFeedRows rows, AdultContentGate adultGate) {
+    public LatestFeedService(BoardCatalog catalog, PostFeedRepositoryQDSL feeds, PostFeedRows rows, AdultContentGate adultGate, CacheManager caches) {
+        this.caches = caches;
         this.adultGate = adultGate;
         this.catalog = catalog;
         this.feeds = feeds;
@@ -56,14 +60,25 @@ public class LatestFeedService {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
+        boolean adult = adultGate.adult(viewerId);
+        // 첫 쪽(커서 없음)만 캐시 home.latest 에 둔다(항목 키 = 쪽 크기 · 성인 여부) — 공용 줄로 만들고 꺼낸 뒤 보는 사람 몫(차단·메모·딜의 내 종료 요청)을 덧입힌다.
+        // 다음 쪽(커서)은 커서마다 키가 달라 캐시하지 않는다 — 커서는 글 ID 라 첫 쪽이 TTL 만큼 늦어도 겹치거나 빠지는 줄이 없다(새 글은 위에만 생긴다)
+        PostFeedPageView shared = cursor == null
+                ? caches.getCache(CacheNames.HOME_LATEST).get(size + "|" + adult, () -> page(size, null, adult))
+                : page(size, cursor, adult);
+        return new PostFeedPageView(rows.forViewer(shared.items(), viewerId), shared.hasNext(), shared.nextCursor());
+    }
+
+    /** 한 쪽의 공용 줄(보는 사람 없이) */
+    private PostFeedPageView page(int size, Long cursor, boolean adult) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
         // 소모임 게시판도 넣는다 — 비멤버에게 보이는 소모임 글만 줄에 소모임 표시(group)를 달고 섞인다(소모임 6단계, 거름은 PostRepositoryQDSL#feedVisible)
         List<Long> boardIds = s.boards().stream().filter(b -> b.active() && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id).toList();
-        List<PostRowData> found = feeds.latest(boardIds, cursor, size + 1, adultGate.adult(viewerId), now);
+        List<PostRowData> found = feeds.latest(boardIds, cursor, size + 1, adult, now);
         boolean hasNext = found.size() > size;
         List<PostRowData> page = hasNext ? found.subList(0, size) : found;
-        List<PostFeedRowView> items = rows.of(page, s, now, viewerId);
+        List<PostFeedRowView> items = rows.of(page, s, now, null);
         String next = hasNext ? Long.toString(page.getLast().id()) : null;
         return new PostFeedPageView(items, hasNext, next);
     }

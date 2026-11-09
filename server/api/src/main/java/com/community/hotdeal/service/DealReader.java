@@ -112,6 +112,11 @@ public class DealReader {
         return out;
     }
 
+    /** 그 회원이 이 글들에 보낸 종료 요청 사유(글 ID → 사유) — 공용 캐시 줄에 덧입힐 때({@code PostFeedRows#overlay}) */
+    public Map<Long, String> myEndRequests(java.util.Collection<Long> postIds, long viewerId) {
+        return queries.myEndRequests(postIds, viewerId);
+    }
+
     /** 공개·진행 중인 같은 딜(이 글 제외, 최신 차례) */
     public List<DealSameRefView> same(PostDealEntity d, Instant now) {
         return same(d.getProductUrlKey(), d.getPostId(), now, SAME_DEALS_MAX);
