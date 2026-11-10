@@ -1,0 +1,18 @@
+{
+  "name": "robotikon",
+  "private": true,
+  "type": "module",
+  "description": "로보얌 이모티콘(디시콘) 빌드 파이프라인 — SVG 원본을 프레임별로 계산해 GIF/PNG 로 내보낸다",
+  "scripts": {
+    "build": "node build.mjs",
+    "verify": "node verify.mjs",
+    "preview": "node preview.mjs",
+    "gallery": "node gallery.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "gifenc": "^1.0.3",
+    "omggif": "^1.0.10",
+    "pngjs": "^7.0.0"
+  }
+}
