@@ -40,6 +40,8 @@ export interface AdminPreviewGadgetConfig {
     format?: string;
     /** 마우스 올림 효과(항목이 있는 종류 공통 — `HOVER_KINDS`) */
     hover?: boolean;
+    /** 가젯 페이지 제목 카드에 넣기(관리자 ⚙ 「노출」) */
+    pageHead?: boolean;
     /** `AD` 배너 유형 */
     adType?: string;
 }
@@ -230,6 +232,7 @@ export default class UtilAdminPreview {
         if (!isRecord(value)) return null;
         const out = SETTABLE_KINDS.includes(type) ? UtilAdminPreview.readKindConfig(type, value) : HOVER_KINDS.includes(type) ? {} : null;
         if (out && HOVER_KINDS.includes(type) && typeof value.hover === 'boolean') out.hover = value.hover;
+        if (out && HOVER_KINDS.includes(type) && typeof value.pageHead === 'boolean') out.pageHead = value.pageHead;
         return out;
     }
 

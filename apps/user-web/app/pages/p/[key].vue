@@ -16,13 +16,25 @@
         <ErrorState v-else-if="status === 'error'" :title="t('gadgetPage.loadFailed')" :description="errorMessage" retry @retry="load" />
 
         <div v-else class="flex flex-col gap-(--gadget-gap)" :aria-busy="status === 'loading'" data-cache-area="pages.layout">
-            <!-- 제목 머리 — 흰 카드에 이름 + 운영자가 적은 설명(묶음 메뉴 화면 공용 `PageTitleHead` — 팁·강좌·사용기와 같은 글자 크기·여백, 사용자 2026-11-08. 2026-11-05 의 「제목 숨김」을 바꿈) -->
-            <section v-if="head" class="gadget-card" data-headless>
-                <PageTitleHead :title="head.name" :description="head.description" title-testid="gadget-page-title" />
-            </section>
-
-            <GadgetSkeleton v-if="!shown" />
-            <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
+            <!-- 제목 머리 — 흰 카드에 이름 + 운영자가 적은 설명(묶음 메뉴 화면 공용 `PageTitleHead` — 팁·강좌·사용기와 같은 글자 크기·여백, 사용자 2026-11-08. 2026-11-05 의 「제목 숨김」을 바꿈).
+                 가젯 ⚙ 「페이지 제목 카드에 넣기」를 켠 가젯이 있으면 그 가젯을 격자에서 빼 이 카드 안 굵은 밑줄 아래에 붙인다(팁·강좌·사용기처럼 제목과 첫 내용이 한 카드 — 사용자 2026-11-10).
+                 가젯 모양(카드형·기본형)은 템플릿이 정하므로 머리는 템플릿의 `lead` 슬롯으로 넘겨 템플릿 안에서 그린다(불러오는 동안만 밖에서). -->
+            <template v-if="!grid">
+                <section v-if="head" class="gadget-card" data-headless>
+                    <PageTitleHead :title="head.name" :description="head.description" title-testid="gadget-page-title" />
+                </section>
+                <GadgetSkeleton />
+            </template>
+            <component :is="template" v-else :layout="grid.layout" :gadgets="grid.gadgets">
+                <template v-if="head" #lead>
+                    <section class="gadget-card" data-headless data-testid="gadget-page-head">
+                        <PageTitleHead :title="head.name" :description="head.description" :divider="Boolean(headGadget)" title-testid="gadget-page-title" />
+                        <div v-if="headGadget" class="page-head-gadget mt-[1.125rem]" data-testid="gadget-page-head-gadget">
+                            <GadgetRenderer :gadget="headGadget" />
+                        </div>
+                    </section>
+                </template>
+            </component>
 
             <!-- 글쓰기 — 운영자가 켰을 때 오른쪽 아래에 떠 있는 단추(누르면 바로 글쓰기) -->
             <WriteFloatButton v-if="head?.writeButton" :to="writeTarget" data-testid="gadget-page-write" />
@@ -49,7 +61,7 @@ const { ensureLoaded: ensureDisplay } = useBoardDisplay();
 void ensureDisplay();
 
 // 이 방문에서 가젯들이 나눠 쓰는 것 — 폭(lg)·지금 시각
-provideGadgetShared();
+const { wide } = provideGadgetShared();
 
 const key = computed(() => String(route.params.key ?? ''));
 /** 지금 테마의 홈 템플릿(없으면 기본 테마 것) — 가젯 페이지도 홈과 같은 겉모양 */
@@ -79,6 +91,29 @@ const data = computed(() => {
     return UtilGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
 });
 const shown = useAdGadgets(data, 'PAGE');
+
+/**
+ * 제목 카드에 넣을 가젯 — ⚙ 「페이지 제목 카드에 넣기」를 켠 가젯 중 이 폭에서 보이는 첫 가젯(읽는 순서 y·x). 한 페이지에 하나(관리자 편집기가 하나만 켜게 한다 — 여럿이면 첫 것).
+ * 관리자 미리보기 **편집 중**에는 넣지 않는다(격자 손잡이로 옮기고 ⚙ 를 열 수 있게 격자에 그대로 둔다).
+ */
+const headGadget = computed(() => {
+    const s = shown.value;
+    if (!s || preview.editing.value) return null;
+    const byId = new Map(s.gadgets.map((g) => [g.id, g]));
+    const order = [...s.layout.items].sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const item of order) {
+        const g = byId.get(item.gadgetId);
+        if (g && UtilGadget.pageHeadOn(g.type, g.config) && UtilGadget.isVisible(g, wide.value)) return g;
+    }
+    return null;
+});
+/** 격자에 그릴 배치·가젯 — 제목 카드에 넣은 가젯은 뺀다(자리는 아래 가젯이 당겨 메운다) */
+const grid = computed(() => {
+    const s = shown.value;
+    const h = headGadget.value;
+    if (!s || !h) return s;
+    return { ...s, layout: { ...s.layout, items: s.layout.items.filter((i) => i.gadgetId !== h.id) }, gadgets: s.gadgets.filter((g) => g.id !== h.id) };
+});
 
 useSeoMeta({ title: () => head.value?.name ?? t('gadgetPage.loading') });
 

@@ -422,6 +422,15 @@
                     <!-- ── 노출 ── -->
                     <TabPanel value="show">
                         <div class="flex flex-col gap-4">
+                            <!-- 페이지 제목 카드에 넣기 — 가젯 페이지만·항목이 있는 종류만, 기본 끔(값은 내용 설정 `config.pageHead`, 한 페이지에 하나 — 켜면 편집기가 다른 가젯을 끈다, 사용자 2026-11-10) -->
+                            <div v-if="place === 'PAGE' && UtilGadgetConfig.hasHover(gadget.type)" class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <ToggleSwitch v-model="pageHeadModel" :input-id="`${uid}-pagehead`" data-testid="gadget-page-head" />
+                                    <label :for="`${uid}-pagehead`" class="cursor-pointer text-sm">{{ t('homeLayout.pageHead') }}</label>
+                                </div>
+                                <small class="text-xs text-muted-color">{{ t('homeLayout.pageHeadHint') }}</small>
+                            </div>
+
                             <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
                                 <legend class="mb-1.5 p-0 text-sm font-medium">{{ t('homeLayout.showWhere') }}</legend>
                                 <div class="flex flex-wrap gap-x-6 gap-y-2">
@@ -671,6 +680,14 @@ const cardHeadModel = computed<boolean>({
     get: () => draft.value?.cardHead !== false,
     set: (value) => {
         if (draft.value) draft.value.cardHead = value;
+    },
+});
+
+/** 페이지 제목 카드에 넣기 — 기본 끔(가젯 페이지만 보인다) */
+const pageHeadModel = computed<boolean>({
+    get: () => draft.value?.pageHead === true,
+    set: (value) => {
+        if (draft.value) draft.value.pageHead = value;
     },
 });
 

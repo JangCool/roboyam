@@ -208,6 +208,9 @@ final class GadgetPatches {
         String at = base.substring(0, base.length() - 1);
         if (GadgetConfigs.hover(type)) {
             bool(raw, out, "hover", base, fields); // 마우스 올림 효과(항목이 있는 종류 공통 — 표에 없는 종류는 버린다)
+            if (place == GadgetConfigs.Place.PAGE) {
+                bool(raw, out, "pageHead", base, fields); // 제목 카드에 넣기 — 가젯 페이지만(홈·게시판 레이아웃에서 온 값은 버린다)
+            }
         }
         switch (type) {
             case "POST_LIST" -> {
