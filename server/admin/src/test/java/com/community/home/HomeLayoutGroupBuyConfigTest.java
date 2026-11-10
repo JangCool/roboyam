@@ -9,7 +9,7 @@ import com.community.home.dto.HomeLayoutItem;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
 import com.community.home.dto.response.HomeLayoutGadgetView;
 import com.community.home.dto.response.HomeLayoutView;
-import com.community.home.service.HomeGadgetKinds;
+import com.community.home.service.GadgetKinds;
 import com.community.home.service.HomeLayoutAdminService;
 import com.community.home.service.HomeLayoutJson;
 import com.community.permission.dto.AdminActor;
@@ -82,10 +82,10 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
         return c;
     }
 
-    /** 응답 설정이 공구 칸 {count, sort} 만 그 값인가 */
+    /** 응답 설정이 공구 칸 {count, sort} 그 값 + 공통 마우스 올림 효과 hover 인가 */
     private static void assertGroupBuy(JsonNode config, int count, String sort) {
         assertThat(config).isNotNull();
-        assertThat(config.propertyNames()).containsExactlyInAnyOrder("count", "sort");
+        assertThat(config.propertyNames()).containsExactlyInAnyOrder("count", "sort", "hover");
         assertThat(config.path("count").asInt()).isEqualTo(count);
         assertThat(config.path("sort").asString()).isEqualTo(sort);
     }
@@ -100,7 +100,7 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
             assertThat(g.style().propertyNames()).contains("icon", "headerStyle", "titleSize", "titleColor", "subtitle", "cardLook", "cardColor", "mobileFold", "empty");
         });
         // 하이라이트 · 소모임도 ⚙ 칸을 싣는다(시드 값)
-        assertThat(first(view, "HIGHLIGHT").config().propertyNames()).containsExactlyInAnyOrder("count", "lead", "thumbs", "place", "showAuthor");
+        assertThat(first(view, "HIGHLIGHT").config().propertyNames()).containsExactlyInAnyOrder("count", "lead", "thumbs", "place", "showAuthor", "hover");
         assertThat(first(view, "GROUPS").config().path("count").asInt()).isEqualTo(3);
     }
 
@@ -132,7 +132,7 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
         int bottom = before.layout().items().stream().mapToInt(it -> it.y() + it.h()).max().orElse(0);
         List<HomeLayoutItem> items = new ArrayList<>(before.layout().items());
         int columns = before.layout().columns();
-        items.add(new HomeLayoutItem("new-1", 0, bottom, HomeGadgetKinds.minW("GROUP_BUY", columns), HomeGadgetKinds.minH("GROUP_BUY")));
+        items.add(new HomeLayoutItem("new-1", 0, bottom, GadgetKinds.minW("GROUP_BUY", columns), GadgetKinds.minH("GROUP_BUY")));
         HomeLayoutView saved = service.save(root, THEME, request(gadgets, new HomeGridLayout(columns, items),
                 g -> "new-1".equals(g.id()) ? new Edit("새 공구", null, null, null, gb(10, "NEWEST")) : null));
 

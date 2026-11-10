@@ -8,8 +8,8 @@
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
-/** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `HomeGadgetKinds.HOT_DEALS`) */
-export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
+/** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `GadgetKinds.HOT_DEALS`) */
+export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
 /** 광고 일정표 유형(`AdType`) 중 배너 넷 */
 export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER';
@@ -20,7 +20,7 @@ export type HomeGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 /** 핫딜 가젯 정렬 — 최신(기본) · 인기 · 마감 임박(hotdeal-contract 「가젯 `HOT_DEALS` 설정」) */
 export type HomeHotDealSort = 'LATEST' | 'POPULAR' | 'ENDING_SOON';
 
-/** 글 목록 가젯 정렬 — 서버 `HomeGadgetService` 가 읽는 값: 최신 · 인기(순위 스냅샷) · 조회 · 추천 · 댓글(셋은 이번 주 인기글 후보를 그 수로 다시 정렬) */
+/** 글 목록 가젯 정렬 — 서버 `GadgetService` 가 읽는 값: 최신 · 인기(순위 스냅샷) · 조회 · 추천 · 댓글(셋은 이번 주 인기글 후보를 그 수로 다시 정렬) */
 export type HomePostListSort = 'LATEST' | 'POPULAR' | 'VIEWS' | 'LIKES' | 'COMMENTS';
 
 /**
@@ -36,7 +36,7 @@ export type HomePostRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT';
 export type HomePostThumbnail = 'AUTO' | 'NONE' | 'RIGHT' | 'LEFT';
 /** 글 줄에 보일 정보 — 게시판 · 말머리 · 댓글 수 · 시각 · 글쓴이 */
 export type HomePostMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR';
-/** 바로가기 한 항목의 종류 — user-web `UtilHomeGadget.linkOf` 가 주소를 만든다(`BOARD` 값 = 게시판 slug, `PATH` 값 = `/` 로 시작하는 사이트 안 경로) */
+/** 바로가기 한 항목의 종류 — user-web `UtilGadget.linkOf` 가 주소를 만든다(`BOARD` 값 = 게시판 slug, `PATH` 값 = `/` 로 시작하는 사이트 안 경로) */
 export type HomeQuickLinkKind = 'ALL' | 'POPULAR' | 'LATEST' | 'GROUPS' | 'GROUP_BUY' | 'BOARD' | 'PATH';
 
 /** 바로가기 한 항목 */
@@ -59,9 +59,10 @@ export interface HomeQuickLink {
  *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE · `showAuthor`(작성자 보이기, 기본 켬) / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
  *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
+ *   · 공통 `hover`(마우스 올림 효과, 기본 켬 — 항목이 있는 종류만: 안내 글·광고 2종 제외, ⚙ 「모양」 탭)
  * 관리자 응답은 그 종류의 표 칸 전부(저장 값, 없으면 처음 값 — 서버 `GadgetConfigs.view`)를 준다. 게시판 본문(`BOARD_BODY`)은 null.
  */
-export interface HomeGadgetConfig {
+export interface GadgetConfig {
     count?: number;
     sort?: HomeGroupBuySort | HomePostListSort | HomeHotDealSort;
     /** 핫딜 가젯의 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판 — hotdeal-contract) */
@@ -90,6 +91,8 @@ export interface HomeGadgetConfig {
     place?: string;
     /** 하이라이트 — 작성자(아바타·닉네임) 보이기(기본 켬, 끄면 날짜만 — feed-debate-counts-contract) */
     showAuthor?: boolean;
+    /** 항목 마우스 올림 효과(기본 켬 — 글 줄·카드·바로가기에 옅은 바탕, 사진 카드는 제목 밑줄) */
+    hover?: boolean;
     shape?: 'PILL' | 'TAB';
     items?: HomeQuickLink[];
     text?: string;
@@ -100,31 +103,67 @@ export interface HomeGadgetConfig {
 }
 
 /** 머리 모양 — 막대 · 밑줄 · 색 채움 · 장식 없음 · 머리 숨김 */
-export type HomeGadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';
+export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';
 /** 카드 모양 — 테마 카드 · 평평 · 테두리 강조 · 옅은 색 바탕 */
-export type HomeGadgetCardLook = 'DEFAULT' | 'FLAT' | 'OUTLINE' | 'TINT';
+export type GadgetCardLook = 'DEFAULT' | 'FLAT' | 'OUTLINE' | 'TINT';
 /** 모바일 접기 — 없음 · 펼친 채 · 접은 채 */
-export type HomeGadgetMobileFold = 'NONE' | 'OPEN' | 'CLOSED';
+export type GadgetMobileFold = 'NONE' | 'OPEN' | 'CLOSED';
 
 /**
  * 가젯 공통 꾸미기(⚙ 설정 창 「모양」·「노출」) — user-web `GadgetStyle`(공개 응답 `style`)과 같은 칸·값. 처음 값·범위·읽기는 `UtilGadgetStyle`.
  * 관리자 응답은 칸 전부(저장 값, 없으면 테마 기본 꾸미기 — 서버 `GadgetStyles.view`). 저장 때는 보낸 칸만 덮는다(`icon`·`titleColor`·`cardColor` 의 null 은 「없음·자동」으로 저장된다).
  */
-export interface HomeGadgetStyle {
+export interface GadgetStyle {
     /** `pi-…` PrimeIcons 이름 또는 null(없음) */
     icon: string | null;
-    headerStyle: HomeGadgetHeaderStyle;
+    headerStyle: GadgetHeaderStyle;
     titleSize: 'S' | 'M' | 'L';
     /** 프리셋 12색 이름 또는 `#rrggbb`. null 이면 자동(주 색상) */
     titleColor: string | null;
     /** 부제 0~40자 */
     subtitle: string;
-    cardLook: HomeGadgetCardLook;
+    cardLook: GadgetCardLook;
     /** null 이면 제목 색을 따른다 */
     cardColor: string | null;
-    mobileFold: HomeGadgetMobileFold;
+    mobileFold: GadgetMobileFold;
     /** 비었을 때 — 자리 남기기 · 안내 보이기 · 안내 문구(0~40자, 비우면 종류별 기본 문구) */
     empty: { keep: boolean; message: boolean; text: string };
+    /** 제목 아이콘 보이기(테마 기본 — 로보얌 끔, 그 밖 켬 — gadget-page-contract 「가젯 제목 아이콘」) */
+    iconShow: boolean;
+    /** 아이콘 출처 — PrimeIcons(`icon`) · Tabler Icons(`iconTabler`) · 직접 올리기(`iconUpload`) */
+    iconSource: GadgetIconSource;
+    /** Tabler 아이콘 한 개 — 이름 + 그림 조각(path). 공개 화면은 이 조각만 그린다 */
+    iconTabler: GadgetTablerIcon | null;
+    /** 올린 아이콘(`POST /api/admin/home-layouts/icons` 의 결과 — 저장 때 서버가 주소·SVG 여부를 다시 채운다) */
+    iconUpload: GadgetIconUpload | null;
+    /** 아이콘 색 — null 이면 글자색 그대로, 프리셋 12색 이름 또는 `#rrggbb`(PNG·WEBP 올린 아이콘은 칠하지 않는다) */
+    iconColor: string | null;
+    /** 아이콘 바탕 — 없음 · 옅은 네모(테마 기본 — 로보얌 옅은 네모, 그 밖 없음) */
+    iconBg: 'NONE' | 'SOFT';
+}
+
+export type GadgetIconSource = 'PRIME' | 'TABLER' | 'UPLOAD';
+
+/** Tabler 아이콘 path 하나 */
+export interface GadgetTablerPath {
+    d: string;
+    fill?: 'currentColor' | 'none';
+    stroke?: 'currentColor' | 'none';
+    opacity?: string;
+}
+
+export interface GadgetTablerIcon {
+    name: string;
+    paths: GadgetTablerPath[];
+}
+
+/** 올린 아이콘 — `POST /api/admin/home-layouts/icons` 201 과 같은 모양 */
+export interface GadgetIconUpload {
+    fileId: string;
+    /** 공개 주소(`/media/…`) */
+    url: string;
+    /** SVG 인가 — 그러면 색을 칠할 수 있다 */
+    svg: boolean;
 }
 
 /** 배치 편집기가 보는 가젯 한 개 */
@@ -142,9 +181,9 @@ export interface HomeLayoutGadget {
      * 꾸미기 — 관리자 응답은 칸 전부(게시판 본문은 null). 화면에서 새로 넣은 가젯은 저장 전까지 없다(서버가 테마 기본 꾸미기로 만든다).
      * 저장 때 null 이면 그대로 둔다.
      */
-    style?: HomeGadgetStyle | null;
+    style?: GadgetStyle | null;
     /** 내용 설정 — 관리자 응답은 그 종류의 표 칸 전부(게시판 본문은 null). 저장 때 보낸 칸만 덮고 null 이면 그대로 */
-    config?: HomeGadgetConfig | null;
+    config?: GadgetConfig | null;
 }
 
 /** 배치 + 가젯 목록 */

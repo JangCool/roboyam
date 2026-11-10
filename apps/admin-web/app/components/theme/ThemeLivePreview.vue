@@ -32,8 +32,8 @@
 <script setup lang="ts">
 import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
-import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';
-import UtilHomeLayoutEditor from '~/utils/util-home-layout-editor';
+import type { GadgetLayoutOp } from '~/components/theme/GadgetLayoutEditor.vue';
+import UtilGadgetLayoutEditor from '~/utils/util-gadget-layout-editor';
 
 interface Props {
     /** 고른 테마 id */
@@ -52,7 +52,7 @@ interface Props {
     board?: { screens: { list: boolean; post: boolean } } | null;
 }
 const props = withDefaults(defineProps<Props>(), { editing: false, path: '/', page: null, board: null });
-const emit = defineEmits<{ (e: 'edit-menu'): void; (e: 'layout-op', value: HomeLayoutOp): void }>();
+const emit = defineEmits<{ (e: 'edit-menu'): void; (e: 'layout-op', value: GadgetLayoutOp): void }>();
 
 const { t } = useI18n();
 
@@ -72,7 +72,7 @@ const ready = ref(false);
 function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;
-    const home = props.home ? { ...props.home, gadgets: props.home.gadgets.map((g) => ({ ...g, minH: UtilHomeLayoutEditor.spec(g.type).minH })) } : null;
+    const home = props.home ? { ...props.home, gadgets: props.home.gadgets.map((g) => ({ ...g, minH: UtilGadgetLayoutEditor.spec(g.type).minH })) } : null;
     const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home, editing: props.editing, page: props.page, board: props.board }));
     target.postMessage(message, origin.value);
 }
@@ -92,7 +92,7 @@ function onMessage(event: MessageEvent): void {
 }
 
 /** 홈 격자 편집 알림 읽기 — 모양이 아니면 null */
-function readOp(data: unknown): HomeLayoutOp | null {
+function readOp(data: unknown): GadgetLayoutOp | null {
     const d = data as Record<string, unknown>;
     if (typeof d.id !== 'string') return null;
     if (d.op === 'remove') return { op: 'remove', id: d.id };

@@ -9,7 +9,7 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * 가젯 페이지 한 개({@code gadget_pages}, V108) — 홈처럼 가젯 격자로 꾸미는 공개 페이지({@code /p/{key}}, docs/features/gadget-page-contract.md).
- * 페이지 정보는 테마와 상관없이 하나이고, 배치는 테마마다 {@link GadgetPageLayoutEntity}·가젯은 {@link HomeGadgetEntity}({@code page_id}) 다.
+ * 페이지 정보는 테마와 상관없이 하나이고, 배치는 테마마다 {@link GadgetPageLayoutEntity}·가젯은 {@link GadgetEntity}({@code page_id}) 다.
  * 기준 폴더({@code folderId})는 공개 메뉴 main 의 폴더 노드 ID 이고 FK 가 없다 — 없어졌으면 「기준 폴더 없음」으로 읽는다.
  * 처음 배치({@code initialLayout})는 만들 때 기준 폴더의 게시판으로 만든 JSON 이다({@code GadgetPageInitial}).
  */

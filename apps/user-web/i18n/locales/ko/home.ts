@@ -1,5 +1,5 @@
 /**
- * 공개 홈(`/`)과 홈 가젯 문구 — 템플릿(테마별 겉모양 — 배치는 운영자 격자)·가젯 껍데기·가젯 종류별 조각(`components/home/`·`components/themes/*Home.vue`).
+ * 공개 홈(`/`)과 가젯 문구 — 템플릿(테마별 겉모양 — 배치는 운영자 격자)·가젯 껍데기·가젯 종류별 조각(`components/gadget/`·`components/themes/*Home.vue`).
  * 가젯 제목·「더보기」 글자·안내 글은 운영자가 정하는 값이라 서버가 준다(여기 없다). 키는 `home.무엇` 두 마디. `en/home.ts` 와 같은 키, 같은 차례.
  */
 export default {

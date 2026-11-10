@@ -28,6 +28,10 @@ const IMAGE_DATA_URI = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za
 const CONTACT_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 const CONTACT_EMAIL_MAX_LENGTH = 254;
 
+/** 푸터 안내 문구 — 서버 상한(3줄 · 줄마다 120자)과 같다. 넘는 줄은 버리지 않고 자른다(화면이 망가지지 않게만) */
+const FOOTER_NOTICE_LINES_MAX = 3;
+const FOOTER_NOTICE_LINE_MAX = 120;
+
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -114,6 +118,7 @@ export default class UtilSiteInfo {
 
     /**
      * 운영 주체(`operator`) — 단계가 셋 중 하나가 아니면 개인으로 본다. 연락 이메일은 `mailto:` 에 들어가므로 이메일 모양(공백·`<>"` 없음, 254자 이하)만 받는다.
+     * 푸터 안내 줄은 글자 줄만(앞뒤 공백 뗌, 빈 줄 버림, 3줄 · 줄마다 120자까지) — 남는 줄이 없거나 칸이 없으면(옛 서버) null(안내 숨김). 보이기가 `ALWAYS` 가 아니면 개인 단계에서만.
      * @param {unknown} raw - 서버가 준 `operator`.
      * @returns {SiteOperatorPublicResponse | null} 걸러 낸 값. 칸이 없거나 객체가 아니면 null.
      */
@@ -122,7 +127,14 @@ export default class UtilSiteInfo {
         const stage: SiteOperatorStage = raw.stage === 'SOLE_PROPRIETOR' || raw.stage === 'CORPORATION' ? raw.stage : 'INDIVIDUAL';
         const email = typeof raw.contactEmail === 'string' ? raw.contactEmail.trim() : '';
         const contactEmail = email.length <= CONTACT_EMAIL_MAX_LENGTH && CONTACT_EMAIL.test(email) ? email : null;
-        return { stage, contactEmail };
+        const lines = Array.isArray(raw.footerNotice)
+            ? raw.footerNotice
+                  .filter((line): line is string => typeof line === 'string')
+                  .map((line) => Array.from(line.trim()).slice(0, FOOTER_NOTICE_LINE_MAX).join(''))
+                  .filter((line) => line.length > 0)
+                  .slice(0, FOOTER_NOTICE_LINES_MAX)
+            : [];
+        return { stage, contactEmail, footerNotice: lines.length ? lines : null, footerNoticeScope: raw.footerNoticeScope === 'ALWAYS' ? 'ALWAYS' : 'INDIVIDUAL_ONLY' };
     }
 
     /**

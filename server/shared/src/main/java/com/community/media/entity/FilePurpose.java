@@ -19,5 +19,8 @@ public enum FilePurpose {
     GROUP_IMAGE,
 
     /** 팝업 그림(PNG·JPG·GIF·WEBP — GIF 는 첫 장면 PNG, 하이라이트 대표 이미지와 같은 검사) — 저장소 키 {@code site-popup/{버전}/image.{확장자}}. 운영자가 올린다(권한 site.manage, V162) */
-    SITE_POPUP_IMAGE
+    SITE_POPUP_IMAGE,
+
+    /** 가젯 제목 아이콘(SVG — 위험 요소 거절 · PNG·WEBP, 200KB) — 저장소 키 {@code gadget-icon/{버전}/icon.{확장자}}. 운영자가 올린다({@code POST /api/admin/home-layouts/icons}, 권한 site.manage, V178) */
+    GADGET_ICON
 }

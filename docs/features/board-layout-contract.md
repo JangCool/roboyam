@@ -6,10 +6,10 @@
 ## 화면 (기준 코드)
 - 관리자 `설정 › 테마 › 레이아웃` 페이지 종류 「게시판」 = `/settings/theme?kind=board&board=<slug>&screen=post`(`pages/settings/theme/[[tab]].vue`).
   - 미리 볼 게시판·「게시판 목록 | 글 보기」 `components/theme/BoardLayoutPicker.vue`(글 보기 = 그 게시판 최신 공개 글, `post.read` 없거나 글 없으면 목록만).
-  - 편집 `HomeLayoutEditor`(prop `board`) — 적용 화면 스위치 · [추천 배치](묻고 바꿈) · 「테마 기본 배치로」(본문만). 순수 계산 `utils/util-board-layout.ts`.
+  - 편집 `GadgetLayoutEditor`(prop `board`) — 적용 화면 스위치 · [추천 배치](묻고 바꿈) · 「테마 기본 배치로」(본문만). 순수 계산 `utils/util-board-layout.ts`.
 - 공개: `components/board/BoardLayoutFrame.vue`(쓸지 판단, 아니면 슬롯만) · `BoardLayoutGrid.vue`(테마 홈 템플릿으로 격자, 본문 슬롯). 목록·글 보기 페이지는 내용을 프레임으로 감쌌을 뿐 동작은 같다. 소모임 글은 레이아웃을 쓰지 않는다.
   - 격자로 그리는 때: 그 화면이 켜져 있고, 본문 말고 가젯이 있거나 본문이 전체 폭이 아닐 때(미리보기 편집 중은 늘). 아니면 지금 화면 그대로.
-  - 한 열(모바일): 템플릿의 한 열 순서를 정한 뒤 본문을 맨 앞으로(`UtilHomeGrid.bodyFirst`) — 본문 위에 통째로 놓인 가젯만 위에 남는다.
+  - 한 열(모바일): 템플릿의 한 열 순서를 정한 뒤 본문을 맨 앞으로(`UtilGadgetGrid.bodyFirst`) — 본문 위에 통째로 놓인 가젯만 위에 남는다.
 
 ## 필드·검증
 - 테마마다 하나, 모든 게시판에 같이. 저장 모양 `{ screens{list,post}, layout{columns, items}, gadgets[{id,type,title,desktop,mobile,style,config}] }`.
@@ -33,7 +33,7 @@
 ## 화면 연결 (2026-10-30)
 - 관리자·공개 `useBoardLayoutApi` 를 실제 API 로 바꾸고 목업(`?mock=board-layout*`)·「서버 미연결」 안내를 없앴다.
 - 본문은 **종류가 `BOARD_BODY` 인 가젯**으로 찾는다(`UtilBoardLayout.bodyOf`) — ID 는 서버가 정한다(기본 배치 `seed-1`). 본문이 없는 배치에 화면이 넣는 본문은 `new-body`(서버가 새 본문으로 받는다).
-- 저장 400 은 홈과 같이 저장 줄에(칸 문구를 덧붙임), `gadgets[i].*` 는 그 가젯 ⚙ 창의 탭 점·칸 아래에도(`UtilHomeLayoutEditor.saveErrors`). ⚙ 창은 관리자 응답의 `style`·`config` 만 쓴다(실제 화면이 공개 값을 알려 주던 우회는 없앴다).
+- 저장 400 은 홈과 같이 저장 줄에(칸 문구를 덧붙임), `gadgets[i].*` 는 그 가젯 ⚙ 창의 탭 점·칸 아래에도(`UtilGadgetLayoutEditor.saveErrors`). ⚙ 창은 관리자 응답의 `style`·`config` 만 쓴다(실제 화면이 공개 값을 알려 주던 우회는 없앴다).
 
 ## 미확정 사항
 - 게시판별 덮어쓰기(특정 게시판만 다른 배치)는 없다.

@@ -75,7 +75,7 @@ const RoboyamPreset = definePreset(Aura, {
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
-    // 홈 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
+    // 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
     // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이가 쓴다
     // 방문 신호(`@roboyam/analytics` — 방문자 ID·세션·`POST /api/visits`)는 이 앱만 쓴다. 켜기·미리보기 빼기·화면 종류는 `plugins/04.analytics.client.ts`
     extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout', '@roboyam/chart', '@roboyam/analytics'],

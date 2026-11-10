@@ -4,7 +4,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
 
 /**
  * 인기글 전체 화면(`/popular?period=&page=`)의 규칙 — 기간·쪽 쿼리, 채운 줄, 이번 주 범위, 기간 탭의 키보드 이동. 상태도 요청도 없다.
- * 원본(community) `UtilHomePopular`·`UtilHomeQuery` 에서 홈 가젯 몫을 뺐다. 순위 계산은 서버(community `docs/api-popular.md`)다 — 화면은 받은 순서대로 그린다.
+ * 원본(community) `UtilHomePopular`·`UtilHomeQuery` 에서 가젯 몫을 뺐다. 순위 계산은 서버(community `docs/api-popular.md`)다 — 화면은 받은 순서대로 그린다.
  */
 
 /** 서비스 달력의 월·일 */

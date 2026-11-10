@@ -1,12 +1,12 @@
 <template>
     <!--
-        가젯 설정 창(⚙) — 홈·가젯 페이지 편집기(`HomeLayoutEditor`)가 연다. 8종 전부(2026-10-30). 구획 셋(탭):
+        가젯 설정 창(⚙) — 홈·가젯 페이지 편집기(`GadgetLayoutEditor`)가 연다. 8종 전부(2026-10-30). 구획 셋(탭):
           · 「내용」 종류별 설정(`config` — 칸·범위·처음 값은 `UtilGadgetConfig`):
               공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·큰 글·줄 정보·구분선·NEW·HOT) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
               하이라이트 — 개수(1~6) · 큰 글 · 사진(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
               광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
-          · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색(`style` — `UtilGadgetStyle`)
+          · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색(`style` — `UtilGadgetStyle`) · 마우스 올림 효과(항목이 있는 종류만 — 값은 `config.hover`, 기본 켬)
           · 「노출」 PC/모바일(둘 다 끌 수 없다) · 모바일 접기(머리 숨김이면 못 고름) · 비었을 때(자리 남기기 · 안내 · 안내 문구)
         대상 게시판: 전체 게시판(홈) · 「이 페이지가 연결된 폴더의 게시판 전체」(가젯 페이지) · 「지금 보는 게시판」(게시판 레이아웃) · 직접 고르기(여러 개, 고른 차례 — 20개까지). 게시판 카드의 「전체」는 서버가 켜진 일반 게시판 앞 6개.
         값은 관리자 응답의 꾸미기·설정(칸 전부 — 서버가 저장 값, 없으면 테마 기본·처음 값을 준다)으로 채우고, 없으면(저장 전 새 가젯) 처음 값으로 채운다.
@@ -385,17 +385,6 @@
                                     <InputText v-model="look.subtitle" :id="`${uid}-sub`" :maxlength="UtilGadgetStyle.SUBTITLE_MAX" :placeholder="t('homeLayout.optional')" fluid />
                                 </div>
                                 <div class="flex flex-col gap-1">
-                                    <label :for="`${uid}-icon`" class="text-sm font-medium">{{ t('homeLayout.icon') }}</label>
-                                    <Select v-model="iconModel" :input-id="`${uid}-icon`" :options="iconOptions" option-label="label" option-value="value" fluid>
-                                        <template #value="{ value }">
-                                            <span class="inline-flex items-center gap-2 text-sm"><i v-if="value !== 'NONE'" :class="['pi', value]" aria-hidden="true" />{{ iconLabel(value) }}</span>
-                                        </template>
-                                        <template #option="{ option }">
-                                            <span class="inline-flex items-center gap-2 text-sm"><i v-if="option.value !== 'NONE'" :class="['pi', option.value]" aria-hidden="true" />{{ option.label }}</span>
-                                        </template>
-                                    </Select>
-                                </div>
-                                <div class="flex flex-col gap-1">
                                     <label :for="`${uid}-header`" class="text-sm font-medium">{{ t('homeLayout.headerStyle') }}</label>
                                     <Select v-model="look.headerStyle" :input-id="`${uid}-header`" :options="optionsOf(UtilGadgetStyle.HEADER_STYLES, 'headerStyle')" option-label="label" option-value="value" fluid />
                                 </div>
@@ -415,6 +404,16 @@
                                     <span :id="`${uid}-ccolor`" class="text-sm font-medium">{{ t('homeLayout.cardColor') }}</span>
                                     <GadgetColorField v-model="look.cardColor" :auto-label="t('homeLayout.colorFollowTitle')" :aria-labelledby="`${uid}-ccolor`" />
                                 </div>
+                            </div>
+                            <!-- 제목 아이콘 — 보이기 · 고르는 곳(PrimeIcons · Tabler · 직접 올리기) · 색 · 바탕(사용자 시안 확정 2026-11-10) -->
+                            <GadgetTitleIconFields :look="look" :title="title" />
+                            <!-- 마우스 올림 효과 — 항목이 있는 종류만, 기본 켬(값은 내용 설정 `config.hover`, 사용자 2026-11-10) -->
+                            <div v-if="UtilGadgetConfig.hasHover(gadget.type)" class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <ToggleSwitch v-model="hoverModel" :input-id="`${uid}-hover`" data-testid="gadget-item-hover" />
+                                    <label :for="`${uid}-hover`" class="cursor-pointer text-sm">{{ t('homeLayout.itemHover') }}</label>
+                                </div>
+                                <small class="text-xs text-muted-color">{{ t('homeLayout.itemHoverHint') }}</small>
                             </div>
                             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('homeLayout.settingsPreviewNoteStyle') }}</p>
                         </div>
@@ -491,7 +490,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HomeGadgetConfig, HomeGadgetStyle, HomeLayoutGadget, HomePostMeta, HomeQuickLink, HomeQuickLinkKind } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { GadgetConfig, GadgetStyle, HomeLayoutGadget, HomePostMeta, HomeQuickLink, HomeQuickLinkKind } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { GadgetPageBoard } from '~/composables/page/api/useGadgetPageApi.types';
 import type { GadgetPlace } from '~/utils/util-gadget-config';
 import UtilGadgetConfig from '~/utils/util-gadget-config';
@@ -505,8 +504,8 @@ export interface GadgetSettingsPatch {
     title: string;
     desktop: boolean;
     mobile: boolean;
-    style: HomeGadgetStyle | null;
-    config: HomeGadgetConfig | null;
+    style: GadgetStyle | null;
+    config: GadgetConfig | null;
 }
 
 interface Props {
@@ -519,8 +518,10 @@ interface Props {
     place?: GadgetPlace;
     /** 페이지의 기준 폴더(이름·게시판) — 안내 줄 */
     folder?: { name: string | null; boards: readonly GadgetPageBoard[] } | null;
+    /** 편집 중인 테마 — 저장 전 새 가젯의 제목 아이콘 기본(로보얌은 숨김)을 정한다 */
+    theme?: string | null;
 }
-const props = withDefaults(defineProps<Props>(), { serverErrors: null, place: 'HOME', folder: null });
+const props = withDefaults(defineProps<Props>(), { serverErrors: null, place: 'HOME', folder: null, theme: null });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'apply', patch: GadgetSettingsPatch): void }>();
 
 const { t } = useI18n();
@@ -543,7 +544,7 @@ const tab = ref<TabKey>('content');
 /** 서버 칸 경로가 어느 탭의 것인가 — 제목·꾸미기는 「모양」, 노출·모바일 접기·비었을 때는 「노출」, 나머지(내용 설정·종류)는 「내용」 */
 function serverTabOf(key: string): TabKey {
     if (key === 'desktop' || key === 'mobile' || key === 'style.mobileFold' || key.startsWith('style.empty')) return 'show';
-    if (key === 'title' || key.startsWith('style')) return 'look';
+    if (key === 'title' || key.startsWith('style') || key === 'config.hover') return 'look';
     return 'content';
 }
 /** 칸 아래에 붙이는 서버 오류(제목 · 노출 · 바로가기 항목 이름·값) — 나머지는 탭 위 한 줄 */
@@ -556,13 +557,13 @@ function serverError(key: string): string {
 const submitted = ref(false);
 
 /* 편집 중인 값 — 창을 열 때 채운다. `seed*` 는 연 때의 값(바뀜 판정) */
-const draft = ref<HomeGadgetConfig | null>(null);
-const look = ref<HomeGadgetStyle | null>(null);
+const draft = ref<GadgetConfig | null>(null);
+const look = ref<GadgetStyle | null>(null);
 const title = ref('');
 const desktop = ref(true);
 const mobile = ref(true);
-let seedConfig: HomeGadgetConfig | null = null;
-let seedStyle: HomeGadgetStyle | null = null;
+let seedConfig: GadgetConfig | null = null;
+let seedStyle: GadgetStyle | null = null;
 
 /** 바로가기 줄의 그리기 키(줄을 옮겨도 입력 칸이 따라가게) */
 const linkKeys = ref<number[]>([]);
@@ -576,9 +577,9 @@ watch(
         const g = props.gadget;
         if (!open || !g) return;
         seedConfig = UtilGadgetConfig.normalize(g.type, g.config ?? null, props.place);
-        seedStyle = UtilGadgetStyle.normalize(g.style ?? null, g.type);
-        draft.value = seedConfig ? (JSON.parse(JSON.stringify(seedConfig)) as HomeGadgetConfig) : null;
-        look.value = JSON.parse(JSON.stringify(seedStyle)) as HomeGadgetStyle;
+        seedStyle = UtilGadgetStyle.normalize(g.style ?? null, g.type, props.theme);
+        draft.value = seedConfig ? (JSON.parse(JSON.stringify(seedConfig)) as GadgetConfig) : null;
+        look.value = JSON.parse(JSON.stringify(seedStyle)) as GadgetStyle;
         title.value = g.title;
         desktop.value = g.desktop;
         mobile.value = g.mobile;
@@ -670,6 +671,14 @@ const cardHeadModel = computed<boolean>({
     get: () => draft.value?.cardHead !== false,
     set: (value) => {
         if (draft.value) draft.value.cardHead = value;
+    },
+});
+
+/** 항목 마우스 올림 효과 — 기본 켬(「모양」 탭에 두지만 값은 내용 설정 `config.hover`) */
+const hoverModel = computed<boolean>({
+    get: () => draft.value?.hover !== false,
+    set: (value) => {
+        if (draft.value) draft.value.hover = value;
     },
 });
 
@@ -779,25 +788,6 @@ function linkProblem(i: number, field: 'label' | 'value'): string {
 }
 
 /* ── 아이콘 ── */
-
-const iconOptions = computed(() => {
-    const list = [...UtilGadgetStyle.ICONS];
-    const current = look.value?.icon;
-    if (current && !list.includes(current)) list.unshift(current);
-    return [{ value: 'NONE', label: t('homeLayout.iconNone') }, ...list.map((value) => ({ value, label: value.slice(3) }))];
-});
-
-function iconLabel(value: unknown): string {
-    return iconOptions.value.find((o) => o.value === value)?.label ?? '';
-}
-
-/** 아이콘 — 고르기는 null 을 「안 고름」으로 보므로 `NONE` 으로 주고받는다 */
-const iconModel = computed<string>({
-    get: () => look.value?.icon ?? 'NONE',
-    set: (value) => {
-        if (look.value) look.value.icon = value === 'NONE' ? null : value;
-    },
-});
 
 /* ── 검사 ── */
 

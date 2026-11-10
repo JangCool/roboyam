@@ -26,6 +26,10 @@ export default class UtilSiteOperatorMessages {
                 return t('operatorStage.problemPhone');
             case 'BIZ_NUMBER':
                 return t('operatorStage.problemBizNumber');
+            case 'NOTICE_LINES':
+                return t('operatorStage.footerNoticeProblemLines', { max: UtilSiteOperator.NOTICE_LINES_MAX });
+            case 'NOTICE_LINE_LENGTH':
+                return t('operatorStage.footerNoticeProblemLineLength', { max: UtilSiteOperator.NOTICE_LINE_MAX });
         }
     }
 

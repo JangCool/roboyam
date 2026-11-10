@@ -1,4 +1,4 @@
-import type { HomeLayoutBody, HomeLayoutSaveRequest, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { GadgetIconUpload, HomeLayoutBody, HomeLayoutSaveRequest, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
 
 /**
  * 관리자 홈 배치 API — 서버 주소 문자열(`/api/admin/home-layouts`)이 있는 **유일한 곳**이다. 상태는 없다. 모양·가정은 `useHomeLayoutApi.types.ts`.
@@ -15,6 +15,7 @@ import type { HomeLayoutBody, HomeLayoutSaveRequest, HomeLayoutView } from '~/co
 const PATH = {
     layout: (theme: string) => `/api/admin/home-layouts/${encodeURIComponent(theme)}`,
     defaults: (theme: string) => `/api/admin/home-layouts/${encodeURIComponent(theme)}/defaults`,
+    icons: '/api/admin/home-layouts/icons',
 };
 
 export function useHomeLayoutApi() {
@@ -30,5 +31,15 @@ export function useHomeLayoutApi() {
 
         /** 배치 저장 */
         save: (theme: string, body: HomeLayoutSaveRequest): Promise<HomeLayoutView> => client.put<HomeLayoutView>(PATH.layout(theme), body),
+
+        /**
+         * 가젯 제목 아이콘 올리기(`site.manage`) — multipart `file`(SVG·PNG·WEBP, 200KB) → 201 `{ fileId, url, svg }`. 가젯 꾸미기 `iconUpload` 에 넣고 배치를 저장해야 쓰인다.
+         * 400 `fields.file`(형식 `gadgetIcon.type` · 용량 `gadgetIcon.size` · SVG 위험 요소 `site.svg.*`)
+         */
+        uploadIcon: (file: File): Promise<GadgetIconUpload> => {
+            const form = new FormData();
+            form.append('file', file);
+            return client.post<GadgetIconUpload>(PATH.icons, form);
+        },
     };
 }

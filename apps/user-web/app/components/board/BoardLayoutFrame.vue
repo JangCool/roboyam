@@ -14,10 +14,10 @@
 
 <script setup lang="ts">
 import type { BoardLayoutResponse, BoardLayoutScreen, BoardLayoutScreens } from '~/composables/board/api/useBoardLayoutApi.types';
-import type { HomeGadget, HomeGadgetsResponse } from '~/composables/home/api/useHomeGadgetApi.types';
+import type { Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilAdminPreview, { BOARD_BODY } from '~/utils/util-admin-preview';
-import UtilHomeGadget from '~/utils/util-home-gadget';
+import UtilGadget from '~/utils/util-gadget';
 
 interface Props {
     /** 이 화면 — 게시판 목록 · 글 보기 */
@@ -32,14 +32,14 @@ const preview = useAdminPreview();
 const { theme } = useTheme();
 const { user } = useAuth();
 
-const raw = ref<{ slug: string; res: BoardLayoutResponse; extra: HomeGadget[] } | null>(null);
+const raw = ref<{ slug: string; res: BoardLayoutResponse; extra: Gadget[] } | null>(null);
 
 function applies(screens: BoardLayoutScreens): boolean {
     return props.screen === 'LIST' ? screens.list !== false : screens.post !== false;
 }
 
 /** 이 화면에 켜진 레이아웃(읽은 값) — null 이면 슬롯만 */
-const base = computed<HomeGadgetsResponse | null>(() => {
+const base = computed<GadgetsResponse | null>(() => {
     const r = raw.value;
     if (!r || r.slug !== props.board) return null;
     if (preview.active.value) {
@@ -47,15 +47,15 @@ const base = computed<HomeGadgetsResponse | null>(() => {
         const home = preview.home.value;
         const screens = preview.board.value?.screens;
         if (!home || !screens || !home.gadgets.some((g) => g.type === BOARD_BODY) || !applies(screens)) return null;
-        return UtilHomeGadget.sanitize(UtilAdminPreview.applyHome(r.res, home, r.extra));
+        return UtilGadget.sanitize(UtilAdminPreview.applyHome(r.res, home, r.extra));
     }
     if (!applies(r.res.screens)) return null;
-    return UtilHomeGadget.sanitize(r.res);
+    return UtilGadget.sanitize(r.res);
 });
 const withAds = useAdGadgets(base, 'BOARD');
 
 /** 그릴 레이아웃 — null 이면 슬롯만(지금 화면 그대로) */
-const resolved = computed<HomeGadgetsResponse | null>(() => {
+const resolved = computed<GadgetsResponse | null>(() => {
     const data = withAds.value;
     if (!data) return null;
     const body = data.gadgets.find((g) => g.type === BOARD_BODY);

@@ -114,7 +114,8 @@ public class FileUploadService {
         }
         try {
             FilePurpose purpose = FilePurpose.valueOf(text.strip());
-            return purpose == FilePurpose.POST_IMAGE || purpose == FilePurpose.BIZ_AD_IMAGE || purpose == FilePurpose.GROUP_IMAGE ? null : purpose; // 글 이미지·사업자 광고 이미지·소모임 대표 이미지는 공개 사이트에서만 올린다
+            // 글 이미지·사업자 광고 이미지·소모임 대표 이미지는 공개 사이트에서만, 가젯 제목 아이콘은 그 전용 주소(POST /api/admin/home-layouts/icons)에서만 올린다
+            return purpose == FilePurpose.POST_IMAGE || purpose == FilePurpose.BIZ_AD_IMAGE || purpose == FilePurpose.GROUP_IMAGE || purpose == FilePurpose.GADGET_ICON ? null : purpose;
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -126,6 +127,7 @@ public class FileUploadService {
             case SITE_LOGO, SITE_POPUP_IMAGE -> Permission.SITE_MANAGE;
             case HIGHLIGHT_IMAGE -> Permission.HIGHLIGHT_MANAGE;
             case POST_IMAGE, BIZ_AD_IMAGE, GROUP_IMAGE -> throw new IllegalStateException("글 이미지·사업자 광고 이미지·소모임 대표 이미지는 관리자 앱에서 올리지 않는다");
+            case GADGET_ICON -> throw new IllegalStateException("가젯 제목 아이콘은 GadgetIconUploadService 가 올린다");
         };
     }
 }

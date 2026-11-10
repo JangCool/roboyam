@@ -9,6 +9,7 @@ import com.community.board.service.BoardFields;
 import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.SiteFooterNotice;
 import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
@@ -111,16 +112,17 @@ public class PublicSiteService implements CacheReloader {
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
-                SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current()));
+                SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current(), operators.footerNotice()));
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, fingerprint(info + "|" + themeView, manifest, ogCustom));
     }
 
-    /** 운영 주체의 공개 칸 — 단계와 연락 이메일(빈 글자는 null). 이 사본(20초)과 지문(ETag)에 함께 든다 */
-    private static SiteOperatorPublicView operatorView(SiteOperatorValues v) {
-        return new SiteOperatorPublicView(v.stage().name(), v.contactEmail() == null || v.contactEmail().isBlank() ? null : v.contactEmail());
+    /** 운영 주체의 공개 칸 — 단계 · 연락 이메일(빈 글자는 null) · 푸터 안내 줄(없으면 null)과 보이기. 이 사본(20초)과 지문(ETag)에 함께 든다 */
+    private static SiteOperatorPublicView operatorView(SiteOperatorValues v, SiteFooterNotice notice) {
+        return new SiteOperatorPublicView(v.stage().name(), v.contactEmail() == null || v.contactEmail().isBlank() ? null : v.contactEmail(), notice.linesOrNull(),
+                notice.scope().name());
     }
 
     /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME) */

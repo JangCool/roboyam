@@ -1,6 +1,6 @@
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
-import type { BoardCardsData, GadgetStyle, GroupBuyData, HomeGadget, HomeGadgetsResponse } from '~/composables/home/api/useHomeGadgetApi.types';
+import type { BoardCardsData, GadgetStyle, GroupBuyData, Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
 export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
@@ -38,6 +38,8 @@ export interface AdminPreviewGadgetConfig {
     items?: { label: string; kind: string; value: string | null }[];
     text?: string;
     format?: string;
+    /** 마우스 올림 효과(항목이 있는 종류 공통 — `HOVER_KINDS`) */
+    hover?: boolean;
     /** `AD` 배너 유형 */
     adType?: string;
 }
@@ -56,7 +58,7 @@ export interface AdminPreviewBoard {
 
 /**
  * 관리자 미리보기의 홈 구성 — 관리자 홈 구성 편집기의 저장 전 값(가젯은 id·종류·제목·보이는 폭 + 꾸미기 `style`(관리자가 고친 것만 — 없으면 공개 응답 그대로) + 내용 설정 `config`).
- * `style` 은 받은 모양 그대로 두고, 그릴 때 `UtilHomeGadget.sanitize` 가 공개 응답과 같은 규칙으로 읽는다.
+ * `style` 은 받은 모양 그대로 두고, 그릴 때 `UtilGadget.sanitize` 가 공개 응답과 같은 규칙으로 읽는다.
  */
 export interface AdminPreviewHome {
     layout: HomeLayout;
@@ -102,6 +104,8 @@ export type AdminPreviewLayoutOp =
 
 /** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30) + 광고 2종. admin-web `UtilGadgetConfig` 의 종류와 같다 */
 const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+/** 마우스 올림 효과 칸(`hover`)이 있는 종류 — 서버 `GadgetConfigs.HOVER_KINDS`·`UtilGadget.hoverOn` 과 같다(핫딜은 ⚙ 미리보기 종류에 없어도 이 칸은 따른다) */
+const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
 /** 광고 가젯 — 후보는 페이지가 채우므로 설정이 없어도 새 가젯을 그린다 */
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
@@ -215,14 +219,27 @@ export default class UtilAdminPreview {
     }
 
     /**
-     * 가젯 내용 설정 읽기 — 종류마다 아는 칸만, 범위 안으로(값 범위는 `UtilHomeGadget` 이 읽는 것과 같다). 받지 않은 칸은 빼서 공개 응답 값이 남게 한다:
+     * 가젯 내용 설정 읽기 — 종류마다 아는 칸만, 범위 안으로(값 범위는 `UtilGadget` 이 읽는 것과 같다). 받지 않은 칸은 빼서 공개 응답 값이 남게 한다:
      * 공구 개수 1~10·정렬 3종 · 글 목록 개수 1~30·정렬 5종·보기 모양 · 갤러리 1~24 · 게시판 카드 글 수 1~10·열 · 하이라이트 1~6·큰 글·사진 · 소모임 1~6 · 바로가기 모양·항목 12개 · 안내 글 300자·모양.
+     * 항목이 있는 종류(`HOVER_KINDS` — 핫딜 포함)는 공통 마우스 올림 효과 `hover` 도 읽는다.
      * @param {string} type - 가젯 종류.
      * @param {unknown} value - 가젯의 `config`.
      * @returns {AdminPreviewGadgetConfig | null} 설정(모르는 종류·모양이 아니면 null).
      */
     static readConfig(type: string, value: unknown): AdminPreviewGadgetConfig | null {
-        if (!isRecord(value) || !SETTABLE_KINDS.includes(type)) return null;
+        if (!isRecord(value)) return null;
+        const out = SETTABLE_KINDS.includes(type) ? UtilAdminPreview.readKindConfig(type, value) : HOVER_KINDS.includes(type) ? {} : null;
+        if (out && HOVER_KINDS.includes(type) && typeof value.hover === 'boolean') out.hover = value.hover;
+        return out;
+    }
+
+    /**
+     * 종류만의 내용 설정 읽기(`readConfig` 가 부른다)
+     * @param {string} type - 가젯 종류(`SETTABLE_KINDS` 중 하나).
+     * @param {Record<string, unknown>} value - 가젯의 `config`.
+     * @returns {AdminPreviewGadgetConfig | null} 설정.
+     */
+    private static readKindConfig(type: string, value: Record<string, unknown>): AdminPreviewGadgetConfig | null {
         const int = (v: unknown, min: number, max: number): number | undefined => (Number.isInteger(v) ? Math.min(max, Math.max(min, Number(v))) : undefined);
         const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined);
         const boardIds = Array.isArray(value.boardIds) ? value.boardIds.filter((s): s is string => typeof s === 'string') : undefined;
@@ -319,12 +336,14 @@ export default class UtilAdminPreview {
      *   · 갤러리 — 개수만큼 자른다
      *   · 게시판 카드 — 직접 고른 게시판이면 그 게시판 카드만(고른 차례), 카드마다 글 수만큼 자른다, 카드 머리 보이기·열 수는 설정 값으로
      *   · 하이라이트 — 개수만큼 자른다, 큰 글·사진은 설정 값으로 / 소모임 — 개수는 설정 값으로(받은 줄 안에서)
-     *   · 바로가기·안내 글 — 데이터를 받지 않고 설정으로 바로 만든다(항목·글을 화면이 다시 읽는다 — `UtilHomeGadget.quickLinkItems`·`noticeText`)
-     *   · 글 목록 보기 모양 — 받은 칸을 설정에 덮는다(그리기는 `UtilHomeGadget.postList` 가 읽는다)
-     * @param {HomeGadget} gadget - 가젯(사본 — 고친다).
+     *   · 바로가기·안내 글 — 데이터를 받지 않고 설정으로 바로 만든다(항목·글을 화면이 다시 읽는다 — `UtilGadget.quickLinkItems`·`noticeText`)
+     *   · 글 목록 보기 모양 — 받은 칸을 설정에 덮는다(그리기는 `UtilGadget.postList` 가 읽는다)
+     * @param {Gadget} gadget - 가젯(사본 — 고친다).
      * @param {AdminPreviewGadgetConfig} config - 설정.
      */
-    static applyConfig(gadget: HomeGadget, config: AdminPreviewGadgetConfig): void {
+    static applyConfig(gadget: Gadget, config: AdminPreviewGadgetConfig): void {
+        // 마우스 올림 효과 — 종류에 상관없이 받은 값을 덮는다(그리기는 껍데기 `GadgetFrame` 이 `UtilGadget.hoverOn` 으로 읽는다)
+        if (config.hover !== undefined) gadget.config = { ...gadget.config, hover: config.hover };
         if (AD_KINDS.includes(gadget.type)) {
             gadget.config = { ...gadget.config, ...defined({ adType: config.adType, count: config.count }) };
             return;
@@ -381,11 +400,11 @@ export default class UtilAdminPreview {
 
     /**
      * 새로 넣은 가젯(받은 응답에 같은 ID 가 없다)의 그릴 내용 — 같은 종류 중 설정이 가장 비슷한 것(글 목록은 같은 정렬, 게시판 카드는 고른 게시판이 든 것), 없으면 같은 종류의 첫 가젯.
-     * @param {HomeGadget[]} pool - 받은 가젯들.
+     * @param {Gadget[]} pool - 받은 가젯들.
      * @param {AdminPreviewHome['gadgets'][number]} p - 관리자의 가젯.
-     * @returns {HomeGadget | undefined} 바탕 가젯.
+     * @returns {Gadget | undefined} 바탕 가젯.
      */
-    static baseOf(pool: readonly HomeGadget[], p: AdminPreviewHome['gadgets'][number]): HomeGadget | undefined {
+    static baseOf(pool: readonly Gadget[], p: AdminPreviewHome['gadgets'][number]): Gadget | undefined {
         const same = pool.filter((g) => g.type === p.type);
         const c = p.config;
         if (c && p.type === 'POST_LIST' && c.sort) {
@@ -402,41 +421,41 @@ export default class UtilAdminPreview {
     /**
      * 빈 가젯 — 설정으로 바로 그리는 종류(바로가기·안내 글)를 응답에 같은 종류가 없을 때 새로 그리는 바탕. 꾸미기는 빈 값(읽을 때 처음 값)
      * @param {string} type - 가젯 종류.
-     * @returns {HomeGadget} 가젯.
+     * @returns {Gadget} 가젯.
      */
-    static blank(type: string): HomeGadget {
+    static blank(type: string): Gadget {
         return { id: '', type, title: '', desktop: true, mobile: true, empty: false, locked: false, style: {} as GadgetStyle, config: {}, more: null, data: null };
     }
 
     /**
      * 받은 홈(·가젯 페이지) 가젯 응답에 관리자의 구성을 덮는다 — 배치는 관리자 것, 가젯은 같은 id 의 가젯(새로 넣은 가젯은 같은 종류 중 설정이 비슷한 것 — `baseOf`, 꾸미기는 빼고)을 관리자 제목·보이는 폭으로.
-     * 저장 전 내용 설정(`config`)은 받은 데이터 안에서 따른다(`applyConfig`). 꾸미기(`style`)는 관리자가 고친 것이 있으면 통째로 바꾼다(읽기는 그 뒤 `UtilHomeGadget.sanitize`).
+     * 저장 전 내용 설정(`config`)은 받은 데이터 안에서 따른다(`applyConfig`). 꾸미기(`style`)는 관리자가 고친 것이 있으면 통째로 바꾼다(읽기는 그 뒤 `UtilGadget.sanitize`).
      * `extra` 는 바탕으로만 쓰는 가젯(가젯 페이지 미리보기에서 홈 가젯 — 페이지에 없는 종류를 넣었을 때).
      * 응답에 같은 종류가 없는 새 가젯은 그릴 내용이 없어 뺀다 — 바로가기·안내 글은 설정으로 바로 그리므로 빈 가젯에서 만든다. 게시판 본문(`BOARD_BODY`)·광고 가젯(`AD`·`AD_TEXT_LINE`)도 빈 가젯에서 만든다(내용은 화면이 채운다).
-     * @param {HomeGadgetsResponse} res - 가젯 응답.
+     * @param {GadgetsResponse} res - 가젯 응답.
      * @param {AdminPreviewHome} home - 관리자 구성.
-     * @param {readonly HomeGadget[]} [extra] - 바탕으로 더 쓸 가젯.
-     * @returns {HomeGadgetsResponse} 덮은 응답.
+     * @param {readonly Gadget[]} [extra] - 바탕으로 더 쓸 가젯.
+     * @returns {GadgetsResponse} 덮은 응답.
      */
-    static applyHome(res: HomeGadgetsResponse, home: AdminPreviewHome, extra: readonly HomeGadget[] = []): HomeGadgetsResponse {
+    static applyHome(res: GadgetsResponse, home: AdminPreviewHome, extra: readonly Gadget[] = []): GadgetsResponse {
         const byId = new Map(res.gadgets.map((g) => [g.id, g]));
         const pool = [...res.gadgets, ...extra];
         const gadgets = home.gadgets
-            .map((p): HomeGadget | null => {
+            .map((p): Gadget | null => {
                 const base =
                     byId.get(p.id) ??
                     (p.type === BOARD_BODY ? UtilAdminPreview.blank(p.type) : undefined) ??
                     UtilAdminPreview.baseOf(pool, p) ??
                     ((DIRECT_KINDS.includes(p.type) && p.config) || AD_KINDS.includes(p.type) ? UtilAdminPreview.blank(p.type) : undefined);
                 if (!base) return null;
-                const gadget: HomeGadget = { ...(JSON.parse(JSON.stringify(base)) as HomeGadget), id: p.id, title: p.title, desktop: p.desktop, mobile: p.mobile };
+                const gadget: Gadget = { ...(JSON.parse(JSON.stringify(base)) as Gadget), id: p.id, title: p.title, desktop: p.desktop, mobile: p.mobile };
                 // 새 가젯은 바탕 가젯의 꾸미기(예: 비었을 때 숨김)를 물려받지 않고 그 종류의 처음 꾸미기로 그린다 — 저장하면 처음 꾸미기가 되므로
                 if (p.style) gadget.style = JSON.parse(JSON.stringify(p.style)) as GadgetStyle;
                 else if (!byId.has(p.id)) gadget.style = {} as GadgetStyle;
                 if (p.config) UtilAdminPreview.applyConfig(gadget, p.config);
                 return gadget;
             })
-            .filter((g): g is HomeGadget => g !== null);
+            .filter((g): g is Gadget => g !== null);
         return { ...res, layout: home.layout, gadgets };
     }
 }

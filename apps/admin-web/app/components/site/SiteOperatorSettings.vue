@@ -5,6 +5,7 @@
           개인 단계는 애드센스 안내를 보인다. 단계를 바꾸고 저장하면 확인 창(새 약관 게시 필요, 법인은 회원 알림 의무 덧붙임). 아래 전환 이력 표(날짜 · 이전 → 이후 · 처리자).
           사업자 칸은 개인 단계로 바꿔도 입력칸에는 남는다(되돌려 볼 때 지운 듯 보이지 않게) — 보내는 값에서만 빠진다(`UtilSiteOperator.request`).
           개인사업자로 바꿀 때 대표자가 비어 있으면 운영자 이름으로 미리 채운다.
+          사업자 칸 아래(저장 줄 위) 「푸터 안내 문구」 구획(2026-11-10) — 공개 푸터 안내 줄(여러 줄 입력, 최대 3줄 · 줄마다 120자, 비우면 숨김)과 보이기(개인 단계에서만 · 늘). 같은 저장 줄로 함께 저장한다.
         서버 API: `useSiteOperatorApi`(`GET·PUT /api/admin/site/operator`). 사업자 정보의 정본이다 — 커머스 설정의 사업자 정보 구획은 겹치는 칸을 여기서 읽어 읽기 전용으로 보인다.
         서버 거절: `fields.*`·`fields["business.*"]` 는 그 칸 아래, 칸 밖(`fields.stage`, 판매 중 개인 단계 전환·신고번호 비우기 `409 COMMERCE_SALES_OPEN`)은 저장 줄 위 한 줄 — 모두 서버 문구 그대로.
         다른 구획과 따로 읽고 저장한다(구획 안 저장 줄 — forms.md 2-4). 권한: 조회 `site.read`, 변경 `site.manage` — 없으면 저장 줄이 사라지고 입력칸은 `readonly`.
@@ -162,6 +163,32 @@
                 </div>
             </div>
 
+            <!-- 푸터 안내 문구(2026-11-10) — 공개 푸터의 안내 줄. 한 줄에 한 문장(최대 3줄 · 줄마다 120자), 비우면 숨김. `{사이트}` 는 공개 푸터가 사이트 이름 + 맞춘 조사로 바꾼다. 보이기: 개인 단계에서만 · 늘 -->
+            <div class="flex flex-col gap-4">
+                <h3 class="m-0 text-xs font-semibold text-muted-color">{{ t('operatorStage.footerNoticeTitle') }}</h3>
+
+                <LabeledField
+                    :label="t('operatorStage.footerNotice')"
+                    :hint="t('operatorStage.footerNoticeHint', { lines: UtilSiteOperator.NOTICE_LINES_MAX, max: UtilSiteOperator.NOTICE_LINE_MAX })"
+                    :help="t('operatorStage.footerNoticeHelp')"
+                    :error="errorOf('footerNotice')"
+                >
+                    <template #default="{ id, describedBy, invalid }">
+                        <Textarea v-model="form.footerNotice" :id="id" name="footerNotice" rows="3" auto-resize :readonly="readonly" :invalid="invalid" :aria-describedby="describedBy" class="w-full max-w-xl" @update:model-value="clearServer('footerNotice')" />
+                    </template>
+                </LabeledField>
+
+                <div class="flex flex-col gap-1.5">
+                    <span :id="`${uid}-notice-scope`" class="text-sm font-medium">{{ t('operatorStage.footerNoticeScopeLabel') }}</span>
+                    <div role="radiogroup" :aria-labelledby="`${uid}-notice-scope`" class="flex flex-wrap gap-x-5 gap-y-2">
+                        <label v-for="scope in SITE_FOOTER_NOTICE_SCOPES" :key="scope" class="flex items-center gap-2 text-sm" :class="readonly ? 'cursor-default' : 'cursor-pointer'">
+                            <RadioButton v-model="form.footerNoticeScope" :value="scope" :name="`${uid}-notice-scope`" :disabled="readonly" />
+                            {{ t(`operatorStage.footerNoticeScope.${scope}`) }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <Message v-if="formError" severity="error" variant="simple" size="small">{{ formError }}</Message>
 
             <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">
@@ -196,7 +223,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import { SITE_OPERATOR_STAGES, type SiteOperatorProfile, type SiteOperatorResponse, type SiteOperatorStage } from '~/composables/site/api/useSiteOperatorApi.types';
+import { SITE_FOOTER_NOTICE_SCOPES, SITE_OPERATOR_STAGES, type SiteOperatorProfile, type SiteOperatorResponse, type SiteOperatorStage } from '~/composables/site/api/useSiteOperatorApi.types';
 import UtilSiteOperator, { type SiteOperatorField, type SiteOperatorForm } from '~/utils/util-site-operator';
 import UtilSiteOperatorMessages from '~/utils/util-site-operator-messages';
 
@@ -236,7 +263,7 @@ const changeCount = computed(() => (saved.value ? UtilSiteOperator.changes(saved
 const invalidCount = computed(() => UtilSiteOperator.FIELDS.filter((field) => errorOf(field)).length);
 
 function emptyProfile(): SiteOperatorProfile {
-    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, business: null };
+    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, business: null, footerNotice: null, footerNoticeScope: 'INDIVIDUAL_ONLY' };
 }
 
 /** 칸 아래 한 줄 — 화면이 본 문제(「비었음」은 저장을 눌러 본 뒤부터) → 없으면 서버 문구 그대로 */

@@ -5,7 +5,9 @@ import com.community.zconfiguration.message.MessageRef;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -31,8 +33,8 @@ final class GadgetPatches {
      */
     static String title(String raw, String path, Map<String, MessageRef> fields) {
         String title = raw == null ? "" : raw.strip();
-        if (title.isEmpty() || length(title) > HomeGadgetKinds.TITLE_MAX || title.chars().anyMatch(Character::isISOControl)) {
-            fields.put(path + ".title", new MessageRef("homeLayout.gadget.title", String.valueOf(HomeGadgetKinds.TITLE_MAX)));
+        if (title.isEmpty() || length(title) > GadgetKinds.TITLE_MAX || title.chars().anyMatch(Character::isISOControl)) {
+            fields.put(path + ".title", new MessageRef("homeLayout.gadget.title", String.valueOf(GadgetKinds.TITLE_MAX)));
             return null;
         }
         return title;
@@ -45,6 +47,13 @@ final class GadgetPatches {
      * @return 덮을 칸(보낸 것이 없거나 틀렸으면 null)
      */
     static ObjectNode style(JsonNode raw, JsonNode current, String path, Map<String, MessageRef> fields) {
+        return style(raw, current, id -> Optional.empty(), path, fields);
+    }
+
+    /**
+     * @param iconFile 올린 제목 아이콘 파일 번호 → {@code {fileId, url, svg}}(용도 GADGET_ICON 인 파일이 있을 때) — 보낸 {@code iconUpload} 의 주소·SVG 여부는 믿지 않고 이것으로 채운다
+     */
+    static ObjectNode style(JsonNode raw, JsonNode current, Function<String, Optional<ObjectNode>> iconFile, String path, Map<String, MessageRef> fields) {
         if (raw == null || raw.isNull()) {
             return null;
         }
@@ -71,6 +80,42 @@ final class GadgetPatches {
         option(raw, out, "mobileFold", GadgetStyles.MOBILE_FOLDS, base, "homeLayout.gadget.style.option", fields);
         color(raw, out, "titleColor", base, fields);
         color(raw, out, "cardColor", base, fields);
+        // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」) — 보이기 · 출처 · 바탕 · 색 · Tabler 한 개 · 올린 파일
+        if (present(raw, "iconShow")) {
+            if (raw.get("iconShow").isBoolean()) {
+                out.put("iconShow", raw.get("iconShow").asBoolean());
+            } else {
+                fields.put(base + ".iconShow", new MessageRef("homeLayout.gadget.style.option"));
+            }
+        }
+        option(raw, out, "iconSource", GadgetStyles.ICON_SOURCES, base, "homeLayout.gadget.style.option", fields);
+        option(raw, out, "iconBg", GadgetStyles.ICON_BGS, base, "homeLayout.gadget.style.option", fields);
+        color(raw, out, "iconColor", base, fields);
+        if (raw.has("iconTabler")) {
+            JsonNode tabler = raw.get("iconTabler");
+            ObjectNode read = tabler.isNull() ? null : GadgetStyles.tabler(tabler);
+            if (tabler.isNull()) {
+                out.putNull("iconTabler");
+            } else if (read == null) {
+                fields.put(base + ".iconTabler", new MessageRef("homeLayout.gadget.style.icon"));
+            } else {
+                out.set("iconTabler", read);
+            }
+        }
+        if (raw.has("iconUpload")) {
+            JsonNode upload = raw.get("iconUpload");
+            if (upload.isNull()) {
+                out.putNull("iconUpload");
+            } else {
+                String fileId = upload.isObject() ? HomeLayoutJson.text(upload, "fileId", null) : null;
+                Optional<ObjectNode> found = fileId != null && GadgetStyles.FILE_ID.matcher(fileId).matches() ? iconFile.apply(fileId) : Optional.empty();
+                if (found.isPresent()) {
+                    out.set("iconUpload", found.get());
+                } else {
+                    fields.put(base + ".iconUpload", new MessageRef("homeLayout.gadget.style.iconFile"));
+                }
+            }
+        }
         if (present(raw, "subtitle")) {
             String subtitle = line(raw.get("subtitle"), GadgetStyles.SUBTITLE_MAX);
             if (subtitle == null) {
@@ -151,7 +196,7 @@ final class GadgetPatches {
         if (!sorts.isEmpty()) {
             String sortMessage = switch (type) {
                 case "GROUP_BUY" -> "homeLayout.gadget.config.sort";
-                case HomeGadgetKinds.HOT_DEALS -> "homeLayout.gadget.config.hotDealSort";
+                case GadgetKinds.HOT_DEALS -> "homeLayout.gadget.config.hotDealSort";
                 default -> "homeLayout.gadget.config.postSort";
             };
             option(raw, out, "sort", sorts, base.substring(0, base.length() - 1), sortMessage, fields);
@@ -161,6 +206,9 @@ final class GadgetPatches {
         }
         String opt = "homeLayout.gadget.config.option";
         String at = base.substring(0, base.length() - 1);
+        if (GadgetConfigs.hover(type)) {
+            bool(raw, out, "hover", base, fields); // 마우스 올림 효과(항목이 있는 종류 공통 — 표에 없는 종류는 버린다)
+        }
         switch (type) {
             case "POST_LIST" -> {
                 String sort = out.has("sort") ? out.get("sort").asString() : HomeLayoutJson.text(current, "sort", "LATEST");
@@ -254,8 +302,8 @@ final class GadgetPatches {
                 }
                 option(raw, out, "format", GadgetConfigs.NOTICE_FORMATS, at, opt, fields);
             }
-            case HomeGadgetKinds.AD -> option(raw, out, "adType", GadgetConfigs.AD_TYPES, at, opt, fields);
-            case HomeGadgetKinds.HOT_DEALS -> {
+            case GadgetKinds.AD -> option(raw, out, "adType", GadgetConfigs.AD_TYPES, at, opt, fields);
+            case GadgetKinds.HOT_DEALS -> {
                 if (present(raw, "boards")) {
                     hotDealBoards(raw.get("boards"), dealBoard, base, out, fields);
                 }

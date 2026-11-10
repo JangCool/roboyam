@@ -147,7 +147,7 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
   - 오류: `409 HOTDEAL_STATE_CHANGED`·`HOTDEAL_DOMAIN_DUPLICATE`(+`fields.domain`) · `404 HOTDEAL_DOMAIN_NOT_FOUND`·`HOTDEAL_SUSPICION_NOT_FOUND`.
 - DB(shared 스트림 — 번호는 서버 세션이 develop 최신 확인 뒤): `post_deals` · `post_deal_revisions` · `deal_domains`(+`key_params`) · `deal_end_requests` · `deal_suspicions`(+`kind`) · `deal_settings` · OG 이미지 사본(저장 위치·정리 배치).
 - 배치(api): 의심 유예 지남 → 자동 종료 + 보상 · 마감 없는 딜 기간 종료 알림 1회 · OG 사본 90일 정리.
-- 서버에서 같이 고칠 것: `AdminScreenRegistry` 핫딜 묶음 4줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`, `hotdealReviews` 다음) · `Permission.HOTDEAL_DOMAIN_MANAGE` featureReady · `HomeGadgetKinds.HOT_DEALS` · `ReportReasons` 2개(핫딜 글에서만, 일반 글이면 400) · 공개 게시판 응답 `kind` · 관리자 글 목록 줄 `deal: boolean` · `AdminNotificationEvent.HOTDEAL_SUSPECTED_PROMO` 켬 + keep 한도·호스트 바뀜.
+- 서버에서 같이 고칠 것: `AdminScreenRegistry` 핫딜 묶음 4줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`, `hotdealReviews` 다음) · `Permission.HOTDEAL_DOMAIN_MANAGE` featureReady · `GadgetKinds.HOT_DEALS` · `ReportReasons` 2개(핫딜 글에서만, 일반 글이면 400) · 공개 게시판 응답 `kind` · 관리자 글 목록 줄 `deal: boolean` · `AdminNotificationEvent.HOTDEAL_SUSPECTED_PROMO` 켬 + keep 한도·호스트 바뀜.
 
 ## 목업 구현 결과 (2026-11-01)
 - 1차 커밋: user-web `eb08a133` · admin-web `730da368`. 타입 검사 두 앱 통과, 브라우저 확인은 개발자 몫.

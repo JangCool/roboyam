@@ -1,6 +1,6 @@
 package com.community.home.service;
 
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
 import com.community.site.service.SiteThemes;
@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
  * 「{폴더} 최신글」(대상 폴더, 24칸) / 맨 아래 「{게시판}」 갤러리(사진·영상 게시판 — 목록 모양 GALLERY 또는 갤러리 보기 전환이 켜진 첫 폴더 게시판, 24칸 — 없으면 이 줄이 없다).
  * 나란한 가젯은 같은 높이(h — 최소 높이)라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다).
  * 기준 폴더가 없으면 이름 자리는 「전체」. 가젯 ID 는 {@code seed-<n>} — 저장 요청에 이 ID 가 오면 그 설정 그대로 만든다.
- * 꾸미기는 저장하지 않고 읽을 때 그 테마의 기본 꾸미기({@link HomeGadgetKinds#baseStyle}) + 아이콘을 입힌다(로보얌은 홈 로보얌 시드처럼 카드 + 아이콘 머리). 제목은 운영자가 고칠 처음 데이터(한국어 시드)다.
+ * 꾸미기는 저장하지 않고 읽을 때 그 테마의 기본 꾸미기({@link GadgetKinds#baseStyle}) + 아이콘을 입힌다(로보얌은 홈 로보얌 시드처럼 카드 + 아이콘 머리). 제목은 운영자가 고칠 처음 데이터(한국어 시드)다.
  */
 public final class GadgetPageInitial {
 
@@ -76,11 +76,11 @@ public final class GadgetPageInitial {
         JsonNode root = HomeLayoutJson.read(json);
         int columns = root != null && root.path("columns").asInt() == 12 ? 12 : 24;
         List<HomeLayoutItem> items = root == null ? List.of() : HomeLayoutJson.readItems(HomeLayoutJson.write(root.get("items")));
-        List<HomeGadgetSpec> gadgets = new ArrayList<>();
+        List<GadgetSpec> gadgets = new ArrayList<>();
         JsonNode raw = root == null ? null : root.get("gadgets");
         if (raw != null && raw.isArray()) {
             for (JsonNode g : raw) {
-                ObjectNode style = HomeGadgetKinds.baseStyle(theme);
+                ObjectNode style = GadgetKinds.baseStyle(theme);
                 if ("roboyam".equals(SiteThemes.normalize(theme))) {
                     // 홈 로보얌 시드와 같은 모양 — 흰 카드 + 아이콘 머리
                     style.put("headerStyle", "PLAIN").put("cardLook", "DEFAULT");
@@ -91,7 +91,7 @@ public final class GadgetPageInitial {
                 }
                 JsonNode config = g.get("config");
                 JsonNode more = g.get("more");
-                gadgets.add(new HomeGadgetSpec(g.path("id").asString(), g.path("type").asString(), g.path("title").asString(), true, true, style,
+                gadgets.add(new GadgetSpec(g.path("id").asString(), g.path("type").asString(), g.path("title").asString(), true, true, style,
                         config != null && config.isObject() ? config.deepCopy() : HomeLayoutJson.object(), more != null && more.isObject() ? more.deepCopy() : null));
             }
         }
@@ -121,7 +121,7 @@ public final class GadgetPageInitial {
 
         void add(String type, String title, String icon, JsonNode config, String moreTo, int x, int y, int w, int h) {
             String id = HomeLayoutDefaults.SEED_PREFIX + (gadgets.size() + 1);
-            String safeTitle = title.codePointCount(0, title.length()) > HomeGadgetKinds.TITLE_MAX ? title.substring(0, title.offsetByCodePoints(0, HomeGadgetKinds.TITLE_MAX)) : title;
+            String safeTitle = title.codePointCount(0, title.length()) > GadgetKinds.TITLE_MAX ? title.substring(0, title.offsetByCodePoints(0, GadgetKinds.TITLE_MAX)) : title;
             ObjectNode g = gadgets.addObject().put("id", id).put("type", type).put("title", safeTitle).put("icon", icon);
             g.set("config", config);
             if (moreTo != null) {

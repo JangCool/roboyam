@@ -15,7 +15,7 @@
  * 테마 미리보기(`util-admin-preview.ts`)와 같은 창·같은 허용 주소를 쓰지만 메시지 종류가 따로라 섞이지 않는다.
  */
 
-/** 서버 `HomeGadgetKinds` 중 「가젯 데이터」 캐시를 두는 종류 — admin-web 캐시 관리 목업의 `gadget.<종류>` 와 같은 목록 */
+/** 서버 `GadgetKinds` 중 「가젯 데이터」 캐시를 두는 종류 — admin-web 캐시 관리 목업의 `gadget.<종류>` 와 같은 목록 */
 const CACHED_GADGET_KINDS: readonly string[] = ['POST_LIST', 'HIGHLIGHT', 'GALLERY', 'BOARD_CARDS', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS'];
 /** 게시판 레이아웃의 고정 칸 「게시판 본문」 — 가젯 캐시가 아니다(`util-admin-preview` 의 `BOARD_BODY` 와 같은 값) */
 const BOARD_BODY = 'BOARD_BODY';

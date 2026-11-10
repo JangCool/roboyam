@@ -9,7 +9,7 @@ import type {
     WingScreen,
 } from '~/composables/ad/api/usePublicAdApi.types';
 import type { AdGadgetData, AdPlacement } from '~/composables/ad/usePublicAds.types';
-import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
+import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
 
 export interface AdFrame {
     ratio: string;
@@ -202,13 +202,13 @@ export default class UtilAd {
         return obj(config).look === 'CARD' ? 'CARD' : 'BAND';
     }
 
-    static gadgetSlotType(gadget: Pick<HomeGadget, 'type' | 'config'>): PublicAdType | null {
+    static gadgetSlotType(gadget: Pick<Gadget, 'type' | 'config'>): PublicAdType | null {
         if (gadget.type === 'AD') return UtilAd.gadgetAdType(gadget.config);
         if (gadget.type === 'AD_TEXT_LINE') return 'TEXT_LINE';
         return null;
     }
 
-    static gadgetTypes(gadgets: readonly Pick<HomeGadget, 'type' | 'config'>[]): PublicAdType[] {
+    static gadgetTypes(gadgets: readonly Pick<Gadget, 'type' | 'config'>[]): PublicAdType[] {
         const want = new Set(gadgets.map(UtilAd.gadgetSlotType).filter((t): t is PublicAdType => t !== null));
         return TYPES.filter((t) => want.has(t));
     }

@@ -13,6 +13,12 @@ export type SiteOperatorStage = 'INDIVIDUAL' | 'SOLE_PROPRIETOR' | 'CORPORATION'
 /** 단계 차례(화면의 라디오 카드 차례) */
 export const SITE_OPERATOR_STAGES: readonly SiteOperatorStage[] = ['INDIVIDUAL', 'SOLE_PROPRIETOR', 'CORPORATION'];
 
+/** 푸터 안내 문구를 언제 보일까 — 개인 단계에서만(기본) · 늘(사업자 정보 표가 있어도) */
+export type SiteFooterNoticeScope = 'INDIVIDUAL_ONLY' | 'ALWAYS';
+
+/** 보이기 선택 차례(화면의 라디오 차례) */
+export const SITE_FOOTER_NOTICE_SCOPES: readonly SiteFooterNoticeScope[] = ['INDIVIDUAL_ONLY', 'ALWAYS'];
+
 /** 사업자 정보 — 개인사업자·법인일 때만(개인은 null) */
 export interface SiteOperatorBusiness {
     /** 상호(법인은 회사명) */
@@ -48,6 +54,14 @@ export interface SiteOperatorProfile {
     hostingProvider: string | null;
     /** 개인사업자·법인일 때만 — 개인은 null */
     business: SiteOperatorBusiness | null;
+    /**
+     * 푸터 안내 문구(V177) — 한 줄에 한 문장, 줄바꿈(`\n`)으로 이은 글(최대 3줄 · 줄마다 120자). 응답은 숨김이면 null.
+     * 요청은 빈 글자 = 숨김, null = 지금 값을 둠(옛 화면용 — 이 화면은 늘 글자를 보낸다).
+     * `{사이트}` 는 공개 푸터가 사이트 이름으로 바꾸고 바로 뒤 조사(은/는·이/가·을/를)를 맞춘다.
+     */
+    footerNotice: string | null;
+    /** 푸터 안내를 보일 때 */
+    footerNoticeScope: SiteFooterNoticeScope;
 }
 
 /** 단계 전환 이력 한 줄 */

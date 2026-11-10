@@ -7,9 +7,9 @@
 - 관리자 `설정 › 테마 › 레이아웃` = `/settings/theme`(`pages/settings/theme/[[tab]].vue`, `/settings/theme/menu` 는 메뉴 설정 drawer 를 연 채 시작). 옛 주소 `/settings/home-layout`·`/settings/menu-layout` 은 없앴다. 「일반」에서 테마 구획을 뺐다.
   - 왼쪽 위: 테마 카드(세로 목록) + [테마 적용](사이트 테마 저장) · [되돌리기]. 카드를 고르면 아래가 그 테마의 것으로 바뀐다(`?theme=`). 저장하지 않은 변경이 있으면 묻는다.
   - 가운데: 페이지 종류(홈 · 게시판「준비 중」 · 페이지「준비 중」) · 「보기 | 편집」 · [메뉴 설정] → 실제 화면(`ThemeLivePreview` — 공개 사이트 1280×800 을 칸 폭에 맞춰 줄임, 안에서 스크롤).
-  - 편집: 실제 홈 격자의 가젯 위 손잡이 — 끌기 = 옮기기 · 오른쪽 아래 = 크기 · × = 빼기(좌표 입력 칸 없음). 도구 줄: 격자 칸 수 12/24 · 테마 기본 배치로 · 가젯 넣기(8종). 저장 줄은 늘 있다. 배치 계산·저장의 주인은 `components/theme/HomeLayoutEditor.vue`.
+  - 편집: 실제 홈 격자의 가젯 위 손잡이 — 끌기 = 옮기기 · 오른쪽 아래 = 크기 · × = 빼기(좌표 입력 칸 없음). 도구 줄: 격자 칸 수 12/24 · 테마 기본 배치로 · 가젯 넣기(8종). 저장 줄은 늘 있다. 배치 계산·저장의 주인은 `components/theme/GadgetLayoutEditor.vue`.
   - 메뉴 설정: 오른쪽 drawer(바탕을 막지 않음, `components/theme/ThemeMenuSettings.vue`). 실제 화면의 윗줄·메뉴·사이드를 눌러도 열린다. 입력하면 실제 화면이 바로 따르고, 저장하지 않고 닫으면 버린다. 구획 둘, 저장은 구획마다.
-- 공개 사이트 미리보기 모드: `/?adminPreview=1` + iframe 안일 때만(`plugins/03.admin-preview.client.ts`, `composables/preview/useAdminPreview.ts`, `utils/util-admin-preview.ts`, 편집 손잡이 `components/home/HomeGadgetGrid.vue`). 규칙은 `.claude/guides/frontend/themes.md` 2-5.
+- 공개 사이트 미리보기 모드: `/?adminPreview=1` + iframe 안일 때만(`plugins/03.admin-preview.client.ts`, `composables/preview/useAdminPreview.ts`, `utils/util-admin-preview.ts`, 편집 손잡이 `components/gadget/GadgetGrid.vue`). 규칙은 `.claude/guides/frontend/themes.md` 2-5.
 
 ## 필드·검증
 - 테마 id: 서버 `SiteThemes.IDS` = `default` · `daum` · `naver` · `roboyam`(보일 순서 — user-web `THEMES` 와 같은 id. user-web 객체의 키 차례는 default·daum·roboyam·naver 지만 화면은 id 로만 찾는다).
@@ -17,7 +17,7 @@
   - 배치: `menuPosition` TOP·LEFT·RIGHT·TOP_LEFT·TOP_RIGHT · `topItems` LOGO·MENU · `barGroupIds`(공개 메뉴 main 의 최상위 폴더 ID — 섞인 배치에서만, 비면 첫 그룹) · `menuWidth` CONTENT·FULL · `menuOverflow` SCROLLBAR·ARROWS
   - 모양: `menuGroupStyle` TABS·INLINE · `sideGroupStyle` COLUMN·PICK · `menuSize` NORMAL·COMPACT · `mobileMenu` PICKED·MENU · `menuDescription` ON·OFF · `stickyMenu` ON·OFF · `mobileHeader` BRAND·PLAIN
   - 공개 사이트 메뉴 위치 = 회원 보기 설정(`AUTO` 아니면) > 이 값 > 테마 기본. 나머지 칸은 회원이 고르지 않는다.
-- 홈 구성(테마마다): `{ columns: 12|24, items: [{ gadgetId, x, y, w, h }] }` + 가젯 `{ id, type, title, desktop, mobile }` — 행 높이 15px · 간격 16px · `h` 는 최소 높이(공유 레이어 `@roboyam/home-layout`). 최소 크기·기본 크기는 종류별(admin `UtilHomeLayoutEditor.KINDS`). 새 가젯 id 는 `new-<n>`.
+- 홈 구성(테마마다): `{ columns: 12|24, items: [{ gadgetId, x, y, w, h }] }` + 가젯 `{ id, type, title, desktop, mobile }` — 행 높이 15px · 간격 16px · `h` 는 최소 높이(공유 레이어 `@roboyam/home-layout`). 최소 크기·기본 크기는 종류별(admin `UtilGadgetLayoutEditor.KINDS`). 새 가젯 id 는 `new-<n>`.
 
 ## 권한·정책
 - 조회 `site.read`(메뉴), 테마 적용·메뉴 설정·홈 구성 저장 `site.manage`. 감추는 것은 편의, 막는 것은 서버.
@@ -66,7 +66,7 @@
   - 회원(시드 시험 계정): `/api/me/settings` `menuPosition` 기본 `AUTO` · 저장 · 세 칸만 보낸 PUT 에서 값 유지 · 목록 밖 400 `fields.menuPosition`.
   - 관리자(운영자 세션): 테마 조회(`forTheme` 400 포함) · 같은 테마 PUT · 목록 밖 400 · `daum` 메뉴 설정 저장(상단 띠 그룹 중복 제거)·재조회·칸 오류 400·모르는 테마 404 · 홈 구성(`naver`) 조회·기본값·저장(시드 → 새 ID, 새 가젯 위로 당김, 운영자 이름)·같은 ID 재저장·칸 수·종류·제목·겹침·범위·자리 없음 400·모르는 테마 404 · 메뉴 트리 구분선·설명 저장(설명 공백 정리, 폴더 설명 버림)·80자 초과·모르는 구분선 400. 바꾼 값은 모두 되돌렸다(`naver` 홈은 기본 배치로 다시 저장해 `home_layouts` 행이 남는다).
   - 확인 중 고친 것: 메뉴 설정 PUT 본문이 비면 500(NPE) → 칸마다 400 · 인기글 기간 탭 가젯은 세 기간이 모두 빌 때만 `empty`.
-- 화면 연결: admin `useSiteSettingsApi`(theme·saveTheme·saveThemeMenu)·`useHomeLayoutApi`·`useMenuApi`(트리), user-web `useHomeGadgetApi`·`useViewSettingsApi` 가 실제 API 를 부른다. 목업 `site-theme-mock.ts`·`home-layout-mock.ts`·`menu-extra-mock.ts`·`home-gadget-mock.ts` 와 user-web 홈의 `?mock=home-*` 스위치는 없앴다. `SiteThemeMenuFields` 는 `useSiteSettingsApi.types.ts` 로 옮겼고, admin 메뉴 노드 타입의 `divider`·`description` 은 필수 칸이 됐다. 개발 미리보기 `?divider=`·`?theme=` 등은 남겼다(서버 값이 없는 칸에만 입힌다).
+- 화면 연결: admin `useSiteSettingsApi`(theme·saveTheme·saveThemeMenu)·`useHomeLayoutApi`·`useMenuApi`(트리), user-web `useGadgetApi`·`useViewSettingsApi` 가 실제 API 를 부른다. 목업 `site-theme-mock.ts`·`home-layout-mock.ts`·`menu-extra-mock.ts`·`home-gadget-mock.ts` 와 user-web 홈의 `?mock=home-*` 스위치는 없앴다. `SiteThemeMenuFields` 는 `useSiteSettingsApi.types.ts` 로 옮겼고, admin 메뉴 노드 타입의 `divider`·`description` 은 필수 칸이 됐다. 개발 미리보기 `?divider=`·`?theme=` 등은 남겼다(서버 값이 없는 칸에만 입힌다).
 - 화면을 브라우저로 눌러 보는 확인은 하지 않았다(사용자 확인).
 
 ## 세션 정리 결정 (2026-10-28)

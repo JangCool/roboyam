@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * 회원 공구 목록·홈 가젯 저장소(3단계 2차 — {@code GroupBuyMemberService} 안의 SQL 을 QueryDSL 로 옮긴 것)가 <b>예전 SQL 과 같은 결과</b>(건수·차례·쪽)를 내는지 실제
+ * 회원 공구 목록·가젯 저장소(3단계 2차 — {@code GroupBuyMemberService} 안의 SQL 을 QueryDSL 로 옮긴 것)가 <b>예전 SQL 과 같은 결과</b>(건수·차례·쪽)를 내는지 실제
  * PostgreSQL 에서 견준다. 예전 문장은 옮기기 전 서비스의 것을 그대로 적었다. 다른 시험이 남긴 공구도 함께 읽으므로 표 전체를 견준다(이 시험의 공구는 끝나면 카테고리를 숨긴다).
  */
 class GroupBuyMemberQueriesParityTest extends CommerceApiTestBase {

@@ -56,6 +56,20 @@ export default {
     mailOrderAuthorityPlaceholder: '예: 서울특별시 강남구',
     mailOrderHelp: '비워 두면 공구 판매·로보티콘 유료 판매·광고/핫딜 유료 신청을 받을 수 없어요',
 
+    // ── 푸터 안내 문구 ──
+    footerNoticeTitle: '푸터 안내 문구',
+    footerNotice: '안내 문구',
+    footerNoticeHint: '한 줄에 한 문장 · {lines}줄까지 · 줄마다 {max}자까지',
+    footerNoticeHelp:
+        "공개 사이트 푸터 아래쪽에 줄마다 한 줄씩 보여요. 비워 두면 안내를 숨겨요. {'{'}사이트{'}'}를 쓰면 사이트 이름으로 바뀌고, 바로 뒤의 은/는·이/가·을/를은 사이트 이름에 맞춰 고쳐져요(예: {'{'}사이트{'}'}은 → 로보얌은, ROBOYAM은).",
+    footerNoticeScopeLabel: '보이기',
+    footerNoticeScope: {
+        INDIVIDUAL_ONLY: '개인 단계에서만 보이기',
+        ALWAYS: '늘 보이기',
+    },
+    footerNoticeProblemLines: '{max}줄까지 쓸 수 있어요.',
+    footerNoticeProblemLineLength: '한 줄에 {max}자 이하로 줄여 주세요.',
+
     // ── 칸 문제 ──
     required: {
         operatorName: '운영자 이름을 입력해 주세요.',

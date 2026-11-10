@@ -2,13 +2,17 @@ package com.community.home.service;
 
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
 import com.community.home.dto.response.HomeLayoutGadgetView;
-import com.community.home.entity.HomeGadgetEntity;
-import com.community.home.repository.master.HomeGadgetRepository;
+import com.community.home.entity.GadgetEntity;
+import com.community.home.repository.master.GadgetRepository;
+import com.community.media.entity.FileEntity;
+import com.community.media.entity.FilePurpose;
+import com.community.media.repository.master.FileRepository;
+import com.community.media.service.ImageStorage;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
@@ -45,14 +49,18 @@ import tools.jackson.databind.node.ObjectNode;
 @Component
 public class GadgetLayoutWriter {
 
-    private final HomeGadgetRepository gadgets;
+    private final GadgetRepository gadgets;
     private final SnowflakeIdGenerator ids;
     private final BoardCatalog catalog;
+    private final FileRepository files;
+    private final ImageStorage storage;
 
-    public GadgetLayoutWriter(HomeGadgetRepository gadgets, SnowflakeIdGenerator ids, BoardCatalog catalog) {
+    public GadgetLayoutWriter(GadgetRepository gadgets, SnowflakeIdGenerator ids, BoardCatalog catalog, FileRepository files, ImageStorage storage) {
         this.gadgets = gadgets;
         this.ids = ids;
         this.catalog = catalog;
+        this.files = files;
+        this.storage = storage;
     }
 
     /**
@@ -84,31 +92,46 @@ public class GadgetLayoutWriter {
      * @param configChanged 내용 설정을 바꾼 저장 가젯 수
      * @param changed       무엇이든(제목 · 노출 · 꾸미기 · 내용 설정) 바꾼 저장 가젯 수
      */
-    public record Result(HomeGridLayout layout, List<HomeGadgetEntity> gadgets, int added, int removed, int configChanged, int changed) {
+    public record Result(HomeGridLayout layout, List<GadgetEntity> gadgets, int added, int removed, int configChanged, int changed) {
     }
 
     /** 검사하고 가젯 행을 고친다 — 틀리면 아무것도 쓰지 않고 {@link ValidationException} */
-    public Result write(Target target, List<HomeGadgetEntity> stored, Function<String, Optional<HomeGadgetSpec>> seedOf, HomeLayoutSaveRequest request, Instant now) {
+    public Result write(Target target, List<GadgetEntity> stored, Function<String, Optional<GadgetSpec>> seedOf, HomeLayoutSaveRequest request, Instant now) {
         return write(target, stored, seedOf, request, now, new LinkedHashMap<>());
     }
 
     /**
      * @param fields 부르는 쪽이 먼저 모은 칸 오류(게시판 레이아웃의 {@code screens.*}) — 이것과 함께 모아 던진다
      */
-    public Result write(Target target, List<HomeGadgetEntity> stored, Function<String, Optional<HomeGadgetSpec>> seedOf, HomeLayoutSaveRequest request, Instant now,
+    public Result write(Target target, List<GadgetEntity> stored, Function<String, Optional<GadgetSpec>> seedOf, HomeLayoutSaveRequest request, Instant now,
                         Map<String, MessageRef> fields) {
         GadgetConfigs.Place place = target.place();
         boolean inBoard = place == GadgetConfigs.Place.BOARD;
-        Map<String, HomeGadgetEntity> storedById = new HashMap<>();
+        Map<String, GadgetEntity> storedById = new HashMap<>();
         stored.forEach(g -> storedById.put(Long.toString(g.getId()), g));
         Predicate<String> boardExists = slug -> catalog.snapshot().board(slug).isPresent();
         // 핫딜 가젯의 boards — 있는 핫딜 게시판(kind DEAL)만
         Predicate<String> dealBoard = slug -> catalog.snapshot().board(slug).filter(b -> BoardFields.KIND_DEAL.equals(b.kind())).isPresent();
+        // 꾸미기 iconUpload 의 파일 — 용도 GADGET_ICON 인 것만, 주소·SVG 여부는 파일에서(보낸 값은 믿지 않는다). 쓰인 파일은 저장 때 IN_USE 로
+        Map<Long, FileEntity> iconFiles = new HashMap<>();
+        Function<String, Optional<ObjectNode>> iconFile = text -> {
+            long fileId;
+            try {
+                fileId = Long.parseLong(text);
+            } catch (NumberFormatException e) {
+                return Optional.empty();
+            }
+            return files.findWithLockById(fileId).filter(f -> f.getPurpose() == FilePurpose.GADGET_ICON).map(f -> {
+                iconFiles.put(fileId, f);
+                return HomeLayoutJson.object().put("fileId", text).put("url", storage.publicUrl(f.getStorageKey()))
+                        .put("svg", GadgetIconUploadService.SVG_TYPE.equals(f.getContentType()));
+            });
+        };
 
         // ── 가젯: 남길 것 · 시드에서 만들 것 · 새로 만들 것 ──
         List<HomeLayoutSaveRequest.Gadget> wanted = request == null || request.gadgets() == null ? List.of() : request.gadgets();
-        if (wanted.size() > HomeGadgetKinds.MAX_GADGETS) {
-            fields.put("gadgets", new MessageRef("homeLayout.gadgets.max", String.valueOf(HomeGadgetKinds.MAX_GADGETS)));
+        if (wanted.size() > GadgetKinds.MAX_GADGETS) {
+            fields.put("gadgets", new MessageRef("homeLayout.gadgets.max", String.valueOf(GadgetKinds.MAX_GADGETS)));
         }
         Map<String, String> typeOf = new HashMap<>();
         Set<String> seen = new HashSet<>();
@@ -122,8 +145,8 @@ public class GadgetLayoutWriter {
                 fields.put(path + ".id", new MessageRef("homeLayout.gadget.id"));
                 continue;
             }
-            HomeGadgetEntity keep = storedById.get(id);
-            HomeGadgetSpec base;
+            GadgetEntity keep = storedById.get(id);
+            GadgetSpec base;
             boolean created = false;
             if (keep != null) {
                 base = keep.toSpec();
@@ -137,7 +160,7 @@ public class GadgetLayoutWriter {
                     }
                 }
             }
-            if (HomeGadgetKinds.BOARD_BODY.equals(base.type())) {
+            if (GadgetKinds.BOARD_BODY.equals(base.type())) {
                 if (!inBoard) {
                     fields.put(path + ".type", new MessageRef("homeLayout.gadget.type"));
                     continue;
@@ -149,7 +172,7 @@ public class GadgetLayoutWriter {
                 continue;
             }
             typeOf.put(id, base.type());
-            HomeGadgetSpec next = edited(target, base, g, created, boardExists, dealBoard, path, fields);
+            GadgetSpec next = edited(target, base, g, created, boardExists, dealBoard, iconFile, path, fields);
             if (next != null) {
                 plans.add(new Plan(id, keep, next));
             }
@@ -158,7 +181,7 @@ public class GadgetLayoutWriter {
         // ── 배치: 칸 수 · 자리마다 범위 · 본문 하나 · 자리 없는 가젯 · 겹침 ──
         HomeLayoutSaveRequest.Layout layout = request == null ? null : request.layout();
         Integer columns = layout == null ? null : layout.columns();
-        boolean columnsOk = columns != null && HomeGadgetKinds.COLUMNS.contains(columns);
+        boolean columnsOk = columns != null && GadgetKinds.COLUMNS.contains(columns);
         if (!columnsOk) {
             fields.put("layout.columns", new MessageRef("homeLayout.columns"));
         }
@@ -177,9 +200,9 @@ public class GadgetLayoutWriter {
                 continue;
             }
             String type = typeOf.get(gadgetId);
-            if (it.x() == null || it.y() == null || it.w() == null || it.h() == null || it.x() < 0 || it.w() < HomeGadgetKinds.minW(type, columns)
-                    || it.x() + it.w() > columns || it.y() < 0 || it.y() > HomeGadgetKinds.MAX_Y || it.h() < HomeGadgetKinds.minH(type)
-                    || it.h() > HomeGadgetKinds.MAX_H) {
+            if (it.x() == null || it.y() == null || it.w() == null || it.h() == null || it.x() < 0 || it.w() < GadgetKinds.minW(type, columns)
+                    || it.x() + it.w() > columns || it.y() < 0 || it.y() > GadgetKinds.MAX_Y || it.h() < GadgetKinds.minH(type)
+                    || it.h() > GadgetKinds.MAX_H) {
                 fields.put(path, new MessageRef("homeLayout.item.range"));
                 continue;
             }
@@ -198,20 +221,23 @@ public class GadgetLayoutWriter {
             throw new ValidationException(fields);
         }
 
+        // 올린 제목 아이콘 — 이 저장이 가리킨 파일을 쓰는 중으로(이미 쓰는 중이면 그대로)
+        iconFiles.values().forEach(f -> f.markUsed(now));
+
         // ── 저장: 빠진 가젯 지우기 → 남긴 가젯 고치기 · 새 가젯 넣기 → 배치 ID 바꾸고 위로 당기기 ──
         Set<String> keptIds = new HashSet<>();
         plans.stream().filter(p -> p.kept() != null).forEach(p -> keptIds.add(p.requestId()));
-        List<HomeGadgetEntity> removed = stored.stream().filter(g -> !keptIds.contains(Long.toString(g.getId()))).toList();
+        List<GadgetEntity> removed = stored.stream().filter(g -> !keptIds.contains(Long.toString(g.getId()))).toList();
         gadgets.deleteAll(removed);
         Map<String, String> rename = new HashMap<>();
-        List<HomeGadgetEntity> result = new ArrayList<>();
+        List<GadgetEntity> result = new ArrayList<>();
         int added = 0;
         int configChanged = 0;
         int changed = 0;
         for (Plan p : plans) {
-            HomeGadgetSpec next = p.spec();
+            GadgetSpec next = p.spec();
             if (p.kept() != null) {
-                HomeGadgetSpec was = p.kept().toSpec();
+                GadgetSpec was = p.kept().toSpec();
                 boolean configDiff = !Objects.equals(was.config(), next.config());
                 if (configDiff || !Objects.equals(was.title(), next.title()) || was.desktop() != next.desktop() || was.mobile() != next.mobile()
                         || !Objects.equals(was.style(), next.style())) {
@@ -224,7 +250,7 @@ public class GadgetLayoutWriter {
                 result.add(p.kept());
                 continue;
             }
-            HomeGadgetEntity created = HomeGadgetEntity.create(ids.nextId(), target.theme(), target.pageId(), place == GadgetConfigs.Place.BOARD, next, now);
+            GadgetEntity created = GadgetEntity.create(ids.nextId(), target.theme(), target.pageId(), place == GadgetConfigs.Place.BOARD, next, now);
             gadgets.persist(created);
             rename.put(p.requestId(), Long.toString(created.getId()));
             result.add(created);
@@ -232,23 +258,23 @@ public class GadgetLayoutWriter {
         }
         List<HomeLayoutItem> renamed = items.stream()
                 .map(it -> new HomeLayoutItem(rename.getOrDefault(it.gadgetId(), it.gadgetId()), it.x(), it.y(), it.w(), it.h())).toList();
-        result.sort(Comparator.comparing(HomeGadgetEntity::getId));
+        result.sort(Comparator.comparing(GadgetEntity::getId));
         return new Result(new HomeGridLayout(columns, compact(renamed)), result, added, removed.size(), configChanged, changed);
     }
 
     /** 편집기가 보는 가젯 목록 — 꾸미기는 칸 전부({@link GadgetStyles#view}), 내용 설정은 표 칸 전부({@link GadgetConfigs#view}) */
-    public static List<HomeLayoutGadgetView> views(String theme, List<HomeGadgetSpec> specs) {
+    public static List<HomeLayoutGadgetView> views(String theme, List<GadgetSpec> specs) {
         return specs.stream().map(s -> new HomeLayoutGadgetView(s.id(), s.type(), s.title(), s.desktop(), s.mobile(), GadgetStyles.view(theme, s.type(), s.style()),
                 GadgetConfigs.view(s.type(), s.config()))).toList();
     }
 
     /** 새 가젯의 처음 값 — 종류·제목 검사(틀리면 모으고 null). 게시판 본문은 게시판 레이아웃에서만, 제목은 고정 */
-    private static HomeGadgetSpec fresh(Target target, String id, HomeLayoutSaveRequest.Gadget g, String path, Map<String, MessageRef> fields) {
+    private static GadgetSpec fresh(Target target, String id, HomeLayoutSaveRequest.Gadget g, String path, Map<String, MessageRef> fields) {
         String type = g.type() == null ? null : g.type().strip();
-        if (HomeGadgetKinds.BOARD_BODY.equals(type) && target.place() == GadgetConfigs.Place.BOARD) {
+        if (GadgetKinds.BOARD_BODY.equals(type) && target.place() == GadgetConfigs.Place.BOARD) {
             return BoardLayoutDefaults.body(id);
         }
-        if (!HomeGadgetKinds.isKnown(type)) {
+        if (!GadgetKinds.isKnown(type)) {
             fields.put(path + ".type", new MessageRef("homeLayout.gadget.type"));
             GadgetPatches.title(g.title(), path, fields);
             return null;
@@ -262,15 +288,15 @@ public class GadgetLayoutWriter {
             config.put("boardScope", target.place().initialScope());
             config.putArray("boardIds");
         }
-        if (HomeGadgetKinds.HOT_DEALS.equals(type)) {
+        if (GadgetKinds.HOT_DEALS.equals(type)) {
             config.putArray("boards"); // 비우면 모든 핫딜 게시판
         }
-        return new HomeGadgetSpec(id, type, title, true, true, HomeGadgetKinds.baseStyle(target.theme(), type), config, null);
+        return new GadgetSpec(id, type, title, true, true, GadgetKinds.baseStyle(target.theme(), type), config, null);
     }
 
     /** 보낸 제목 · 노출 · 꾸미기 · 내용 설정을 덮은 값 — 틀리면 모으고 null */
-    private static HomeGadgetSpec edited(Target target, HomeGadgetSpec base, HomeLayoutSaveRequest.Gadget g, boolean fresh, Predicate<String> boardExists,
-                                         Predicate<String> dealBoard, String path,
+    private static GadgetSpec edited(Target target, GadgetSpec base, HomeLayoutSaveRequest.Gadget g, boolean fresh, Predicate<String> boardExists,
+                                         Predicate<String> dealBoard, Function<String, Optional<ObjectNode>> iconFile, String path,
                                          Map<String, MessageRef> fields) {
         int errors = fields.size();
         String title = base.title();
@@ -282,12 +308,12 @@ public class GadgetLayoutWriter {
         if (!desktop && !mobile) {
             fields.put(path + ".desktop", new MessageRef("homeLayout.gadget.visible"));
         }
-        ObjectNode stylePatch = GadgetPatches.style(g.style(), base.style(), path, fields);
+        ObjectNode stylePatch = GadgetPatches.style(g.style(), base.style(), iconFile, path, fields);
         ObjectNode configPatch = GadgetPatches.config(base.type(), g.config(), base.config(), target.place(), boardExists, dealBoard, path, fields);
         if (fields.size() > errors) {
             return null;
         }
-        return new HomeGadgetSpec(base.id(), base.type(), title, desktop, mobile, merged(base.style(), stylePatch), merged(base.config(), configPatch), base.more());
+        return new GadgetSpec(base.id(), base.type(), title, desktop, mobile, merged(base.style(), stylePatch), merged(base.config(), configPatch), base.more());
     }
 
     /** 저장 값에 바꿀 칸만 덮는다(다른 칸은 그대로) — 덮을 것이 없으면 저장 값 그대로 */
@@ -332,6 +358,6 @@ public class GadgetLayoutWriter {
     }
 
     /** 저장할 가젯 하나 — 남길 저장 가젯(없으면 새로 만든다)과 저장할 값 */
-    private record Plan(String requestId, HomeGadgetEntity kept, HomeGadgetSpec spec) {
+    private record Plan(String requestId, GadgetEntity kept, GadgetSpec spec) {
     }
 }

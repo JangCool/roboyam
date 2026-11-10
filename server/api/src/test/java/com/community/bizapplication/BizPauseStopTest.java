@@ -19,7 +19,7 @@ import com.community.bizapplication.service.BizPauseService;
 import com.community.bizapplication.service.BizPeriods;
 import com.community.bizapplication.service.BizPricing;
 import com.community.business.dto.BusinessSuspendPlan;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.hotdeal.dto.response.DealStoreChipView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostListResponse;
@@ -66,7 +66,7 @@ class BizPauseStopTest extends BizHotdealTestBase {
     @Autowired
     private SearchService searches;
     @Autowired
-    private HomeGadgetService gadgets;
+    private GadgetService gadgets;
     @Autowired
     private UserProfileService profiles;
 

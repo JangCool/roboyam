@@ -1,6 +1,6 @@
 package com.community.home.service;
 
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
 import com.community.site.service.SiteThemes;
@@ -26,9 +26,9 @@ public final class HomeLayoutDefaults {
     }
 
     /** 테마의 기본 배치와 가젯(모르는 테마는 기본 테마의 것) */
-    public record Home(HomeGridLayout layout, List<HomeGadgetSpec> gadgets) {
+    public record Home(HomeGridLayout layout, List<GadgetSpec> gadgets) {
 
-        public Optional<HomeGadgetSpec> gadget(String id) {
+        public Optional<GadgetSpec> gadget(String id) {
             return gadgets.stream().filter(g -> g.id().equals(id)).findFirst();
         }
     }
@@ -168,7 +168,7 @@ public final class HomeLayoutDefaults {
 
         private final String theme;
         private final int columns;
-        private final List<HomeGadgetSpec> gadgets = new ArrayList<>();
+        private final List<GadgetSpec> gadgets = new ArrayList<>();
         private final List<HomeLayoutItem> items = new ArrayList<>();
 
         Builder(String theme, int columns) {
@@ -179,7 +179,7 @@ public final class HomeLayoutDefaults {
         void add(String type, String title, boolean desktop, boolean mobile, JsonNode styleOverride, ObjectNode config, String moreLabel, String moreTo,
                  int x, int y, int w, int h) {
             String id = SEED_PREFIX + (gadgets.size() + 1);
-            ObjectNode style = HomeGadgetKinds.baseStyle(theme);
+            ObjectNode style = GadgetKinds.baseStyle(theme);
             if (styleOverride != null) {
                 styleOverride.properties().forEach(e -> style.set(e.getKey(), e.getValue()));
             }
@@ -187,7 +187,7 @@ public final class HomeLayoutDefaults {
             if (moreTo != null) {
                 more = HomeLayoutJson.object().put("label", moreLabel).put("to", moreTo);
             }
-            gadgets.add(new HomeGadgetSpec(id, type, title, desktop, mobile, style, config == null ? HomeLayoutJson.object() : config, more));
+            gadgets.add(new GadgetSpec(id, type, title, desktop, mobile, style, config == null ? HomeLayoutJson.object() : config, more));
             items.add(new HomeLayoutItem(id, x, y, w, h));
         }
 

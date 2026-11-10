@@ -9,7 +9,7 @@ import com.community.home.dto.HomeLayoutItem;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
 import com.community.home.dto.response.HomeLayoutGadgetView;
 import com.community.home.dto.response.HomeLayoutView;
-import com.community.home.service.HomeGadgetKinds;
+import com.community.home.service.GadgetKinds;
 import com.community.home.service.HomeLayoutAdminService;
 import com.community.home.service.HomeLayoutJson;
 import com.community.permission.dto.AdminActor;
@@ -62,8 +62,8 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
         int columns = before.layout().columns();
         int bottom = before.layout().items().stream().mapToInt(it -> it.y() + it.h()).max().orElse(0);
         List<HomeLayoutItem> items = new ArrayList<>(before.layout().items());
-        items.add(new HomeLayoutItem("new-ad", 0, bottom, HomeGadgetKinds.minW("AD", columns), HomeGadgetKinds.minH("AD")));
-        items.add(new HomeLayoutItem("new-text", 0, bottom + 10, HomeGadgetKinds.minW("AD_TEXT_LINE", columns), HomeGadgetKinds.minH("AD_TEXT_LINE")));
+        items.add(new HomeLayoutItem("new-ad", 0, bottom, GadgetKinds.minW("AD", columns), GadgetKinds.minH("AD")));
+        items.add(new HomeLayoutItem("new-text", 0, bottom + 10, GadgetKinds.minW("AD_TEXT_LINE", columns), GadgetKinds.minH("AD_TEXT_LINE")));
         Map<String, JsonNode> configs = new java.util.HashMap<>();
         if (adConfig != null) {
             configs.put("new-ad", adConfig);
@@ -113,8 +113,8 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
         String stored = jdbc.queryForObject("SELECT style::text FROM home_gadgets WHERE id = ?", String.class, Long.parseLong(ad.id()));
         assertThat(stored).contains("\"HIDDEN\"", "\"FLAT\"");
         // 다른 종류의 처음 꾸미기는 그대로 — 다음식 기본은 막대 머리
-        assertThat(HomeGadgetKinds.baseStyle(THEME, "POST_LIST").path("headerStyle").asString()).isEqualTo("BAR");
-        assertThat(HomeGadgetKinds.baseStyle(THEME, "POST_LIST").path("empty").path("keep").asBoolean()).isTrue();
+        assertThat(GadgetKinds.baseStyle(THEME, "POST_LIST").path("headerStyle").asString()).isEqualTo("BAR");
+        assertThat(GadgetKinds.baseStyle(THEME, "POST_LIST").path("empty").path("keep").asBoolean()).isTrue();
     }
 
     @Test

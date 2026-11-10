@@ -208,7 +208,7 @@ public class GroupQueryService {
     }
 
     /**
-     * 지금 뜨는 소모임의 공용 줄(보는 사람 없이 — 내 상태 null)과 줄마다의 모임장 — 홈 가젯 캐시({@code gadget.GROUPS})에 담는다. 고르는 규칙은 {@link #trending} 과 같다
+     * 지금 뜨는 소모임의 공용 줄(보는 사람 없이 — 내 상태 null)과 줄마다의 모임장 — 가젯 캐시({@code gadget.GROUPS})에 담는다. 고르는 규칙은 {@link #trending} 과 같다
      * (무작위로 고른 결과가 TTL 동안 그대로다). 내 상태는 {@link #withMine} 으로 덧입힌다.
      */
     public TrendingShared trendingShared() {

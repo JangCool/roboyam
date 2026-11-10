@@ -1,6 +1,6 @@
 package com.community.home.service;
 
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
 import java.util.List;
@@ -30,13 +30,13 @@ public final class BoardLayoutDefaults {
 
     public static Board of(String theme) {
         int columns = HomeLayoutDefaults.of(theme).layout().columns();
-        HomeGadgetSpec body = body(BODY_ID);
-        HomeGridLayout layout = new HomeGridLayout(columns, List.of(new HomeLayoutItem(BODY_ID, 0, 0, columns, HomeGadgetKinds.BOARD_BODY_MIN_H)));
+        GadgetSpec body = body(BODY_ID);
+        HomeGridLayout layout = new HomeGridLayout(columns, List.of(new HomeLayoutItem(BODY_ID, 0, 0, columns, GadgetKinds.BOARD_BODY_MIN_H)));
         return new Board(new Screens(true, true), new HomeLayoutDefaults.Home(layout, List.of(body)));
     }
 
     /** 본문 가젯 값 — 제목 고정 · PC·모바일 보임 · 꾸미기·설정 없음 */
-    public static HomeGadgetSpec body(String id) {
-        return new HomeGadgetSpec(id, HomeGadgetKinds.BOARD_BODY, BODY_TITLE, true, true, HomeLayoutJson.object(), HomeLayoutJson.object(), null);
+    public static GadgetSpec body(String id) {
+        return new GadgetSpec(id, GadgetKinds.BOARD_BODY, BODY_TITLE, true, true, HomeLayoutJson.object(), HomeLayoutJson.object(), null);
     }
 }

@@ -376,7 +376,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
 }
 
 /*
- * 홈 가젯 카드(`gadget-card`) — 홈 가젯 껍데기(`HomeGadgetFrame`)의 카드 모양이 읽는 역할 변수. 가젯 컴포넌트는 테마 공통이고 값은 테마가 채운다(themes.md 2-1 의 1단계).
+ * 가젯 카드(`gadget-card`) — 가젯 껍데기(`GadgetFrame`)의 카드 모양이 읽는 역할 변수. 가젯 컴포넌트는 테마 공통이고 값은 테마가 채운다(themes.md 2-1 의 1단계).
  *   --gadget-card-bg / -border / -radius / -shadow / -pad  카드 면 · 테두리 색 · 모서리 · 그림자 · 안쪽 여백
  *   --gadget-card-bleed  카드의 좌우 바깥 여백(모바일에서 음수면 화면 끝까지)      --gadget-gap  칸 안 카드 사이 · 칸과 칸 사이
  *   --gadget-thumb-radius  가젯 안 사진 모서리
@@ -384,7 +384,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
  * 안 여백: 아래 = 좌우(`--gadget-card-pad-x`), 위는 카드형 머리 줄의 안쪽 여백(10·md 12px)만큼 덜어 낸 값 — 머리 없는 카드(`[data-headless]`)는 네 쪽 모두 좌우 값.
  *   --gadget-row-card-radius  가로로 미는 줄 안 카드(게시판 카드 묶음 등)의 모서리 — 모바일 카드 반경이 0 이어도 줄 안 카드는 둥글게
  * 기본값이 기본 테마(기본형 템플릿)의 사이드 카드 모양(테두리 + 반경 12)이다. 카드 없는 구역(`FLAT`)은 이 카드를 쓰지 않는다.
- * 고른 색(제목·카드·배지)은 껍데기가 인라인 변수 `--gx-c`·`--gx-on`·`--gx-card-c`·`--gx-bc`·`--gx-rk` 로 건다(`UtilHomeGadget.frameVars` — 색 값은 `UtilColor`).
+ * 고른 색(제목·카드·배지)은 껍데기가 인라인 변수 `--gx-c`·`--gx-on`·`--gx-card-c`·`--gx-bc`·`--gx-rk` 로 건다(`UtilGadget.frameVars` — 색 값은 `UtilColor`).
  */
 :root {
     --gadget-card-bg: var(--card-bg);
@@ -465,6 +465,31 @@ html[data-theme='naver'] {
 }
 .gadget-thumb {
     border-radius: var(--gadget-thumb-radius);
+}
+/*
+ * 가젯 항목 마우스 올림 효과(사용자 2026-11-10 — 게시판 카드 가젯 글 줄의 효과를 모든 가젯 항목으로). 가젯 설정 `hover`(관리자 ⚙ 「마우스 올림 효과」, 기본 켬)일 때
+ * 껍데기(`GadgetFrame`)가 뿌리에 `data-gadget-hover` 를 달고, 그 안에서만 반응한다. 클래스는 테마 공통이다(색은 surface 토큰이라 다음식·네이버형·로보얌·야간 모드가 같이 따라간다).
+ *   gadget-hover        줄 항목(글 줄·목록 칸·작은 사진 줄) — 글자 자리는 그대로 두고 바탕만 좌우로 8px 넓혀 칠한다(음수 여백 + 같은 안쪽 여백 · 모서리 6px). 효과를 꺼도 자리는 같다.
+ *   gadget-hover-box    테두리·안쪽 여백이 있는 상자 항목(소모임 작은 카드 · 바로가기 단추·탭) — 넓히지 않고 상자 바탕만 칠한다(모서리는 상자 것).
+ *   gadget-hover-photo  사진 카드(큰 글 · 슬라이드 · 갤러리 칸 · 공구 카드 · 위아래 여백 없이 사진이 줄을 채우는 대표 글) — 바탕 대신 안의 제목(`gadget-hover-title`)에 밑줄.
+ * 바탕색은 게시판 카드의 원래 효과와 같은 surface-100(다크 surface-800). 마우스가 있는 기기에서만(Tailwind `hover:` 와 같다 — 손가락으로 누른 뒤 색이 남지 않게). 키보드 초점 윤곽은 항목 자기 것 그대로.
+ */
+.gadget-hover {
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+    border-radius: 0.375rem;
+}
+@media (hover: hover) {
+    [data-gadget-hover] :is(.gadget-hover, .gadget-hover-box):hover {
+        background-color: var(--p-surface-100);
+    }
+    html[data-color-scheme='dark'] [data-gadget-hover] :is(.gadget-hover, .gadget-hover-box):hover {
+        background-color: var(--p-surface-800);
+    }
+    [data-gadget-hover] .gadget-hover-photo:hover .gadget-hover-title {
+        text-decoration-line: underline;
+        text-underline-offset: 0.15em;
+    }
 }
 
 /*
@@ -855,11 +880,11 @@ html[data-theme='naver'] .shell-topbar .nav-btn-outline {
 }
 
 /*
- * 로보얌 테마 덮어쓰기(`html[data-theme='roboyam']`) — 셸·목록은 위의 다음식 규칙을 함께 쓰고, 로보얌만 바꿀 값을 여기에 둔다(지금은 홈 가젯만 — 로보얌 홈 템플릿 `RoboyamHome`).
+ * 로보얌 테마 덮어쓰기(`html[data-theme='roboyam']`) — 셸·목록은 위의 다음식 규칙을 함께 쓰고, 로보얌만 바꿀 값을 여기에 둔다(지금은 가젯만 — 로보얌 홈 템플릿 `RoboyamHome`).
  * 역할 변수만 다시 채우거나(예: `html[data-theme='roboyam'] { --page-bg: …; }`, 다크는 `[data-color-scheme='dark']` 를 붙인다), 공통 부품이 열어 둔 고리 클래스(`gadget-icon`·`gadget-more`)에 2단계 모양을 건다.
  * 다음식 규칙과 우선순위가 같아 파일 뒤에 있는 이 자리가 이긴다(모바일 값도 그래서 아래에 다시 둔다). 변수 이름에 테마 이름을 넣지 않는다(themes.md).
  */
-/* 홈 가젯 카드 — 안 여백을 넉넉하게(위 14 + 머리 줄 안쪽 12 = 26 · 좌우 26 · 아래 26), 사진 모서리 10. 테두리 없음 · 그림자(거의 없음)는 다음식 값 그대로. 모바일은 화면 끝까지 닿는 카드(반경 0 · 그림자 없음 — 다음식 모바일 값)에 좌우 16(본문 글자가 셸 좌우 여백 16 과 줄이 맞는다) · 아래 16(좌우와 같게) */
+/* 가젯 카드 — 안 여백을 넉넉하게(위 14 + 머리 줄 안쪽 12 = 26 · 좌우 26 · 아래 26), 사진 모서리 10. 테두리 없음 · 그림자(거의 없음)는 다음식 값 그대로. 모바일은 화면 끝까지 닿는 카드(반경 0 · 그림자 없음 — 다음식 모바일 값)에 좌우 16(본문 글자가 셸 좌우 여백 16 과 줄이 맞는다) · 아래 16(좌우와 같게) */
 html[data-theme='roboyam'] {
     --gadget-card-pad: 14px 26px 26px;
     --gadget-card-pad-x: 26px;
@@ -871,8 +896,13 @@ html[data-theme='roboyam'] {
         --gadget-card-pad-x: 16px;
     }
 }
-/* 2단계 — 가젯 머리 아이콘은 옅은 주 색상 칩(운영자가 제목 색을 고르면 그 색 — `--gx-c`). 막대 대신 이것으로 제목을 정돈한다(시드는 머리 `PLAIN` + 아이콘) */
-html[data-theme='roboyam'] .gadget-icon {
+/*
+ * 옅은 네모 아이콘 — 아이콘 뒤 옅은 바탕 네모(아이콘 색 12%, 다크 18%). 색은 고른 아이콘 색(`--gx-ic`) → 제목 색(`--gx-c`) → 주 색상 차례.
+ *   · 가젯 제목 아이콘(`GadgetTitleIcon`)은 꾸미기 `iconBg` 가 SOFT 일 때만(`data-icon-bg='soft'` — 모든 테마, 로보얌 기본, 2026-11-10). `none` 이면 바탕 없이 글자처럼.
+ *   · 가젯이 아닌 로보얌 화면(매거진 `/tips` 의 카드 머리 등 — `data-icon-bg` 없음)은 예전처럼 로보얌 테마에서 늘 네모.
+ */
+.gadget-icon[data-icon-bg='soft'],
+html[data-theme='roboyam'] .gadget-icon:not([data-icon-bg]) {
     display: grid;
     place-items: center;
     width: 1.75rem;
@@ -880,11 +910,12 @@ html[data-theme='roboyam'] .gadget-icon {
     margin-right: 0.25rem;
     border-radius: 0.5rem;
     font-size: calc(0.8125rem * var(--text-scale, 1));
-    color: var(--gx-c, var(--p-primary-color));
-    background-color: color-mix(in srgb, var(--gx-c, var(--p-primary-color)) 12%, transparent);
+    color: var(--gx-ic, var(--gx-c, var(--p-primary-color)));
+    background-color: color-mix(in srgb, currentColor 12%, transparent);
 }
-html[data-theme='roboyam'][data-color-scheme='dark'] .gadget-icon {
-    background-color: color-mix(in srgb, var(--gx-c, var(--p-primary-color)) 18%, transparent);
+html[data-color-scheme='dark'] .gadget-icon[data-icon-bg='soft'],
+html[data-theme='roboyam'][data-color-scheme='dark'] .gadget-icon:not([data-icon-bg]) {
+    background-color: color-mix(in srgb, currentColor 18%, transparent);
 }
 /* 2단계 — 「더보기 ›」는 작게(12px) */
 html[data-theme='roboyam'] .gadget-more {

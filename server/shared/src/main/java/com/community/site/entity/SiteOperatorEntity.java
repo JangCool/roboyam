@@ -1,5 +1,6 @@
 package com.community.site.entity;
 
+import com.community.site.dto.SiteFooterNotice;
 import com.community.site.dto.SiteOperatorValues;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,14 +43,23 @@ public class SiteOperatorEntity {
     private String mailOrderNumber;
     private String mailOrderAuthority;
     private String corporateNumber;
+
+    /** 푸터 안내 문구(V177) — 줄을 {@code \n} 으로 이은 글, null = 숨김 */
+    private String footerNotice;
+
+    @Enumerated(EnumType.STRING)
+    private SiteFooterNoticeScope footerNoticeScope;
+
     private Instant updatedAt;
     private Long updatedBy;
 
     protected SiteOperatorEntity() {
     }
 
-    /** 값을 통째로 바꾼다 — 개인 단계면 사업자 칸, 「같음」이면 보호책임자 칸, 법인이 아니면 법인등록번호를 비운다 */
-    public void change(SiteOperatorValues v, long operatorId, Instant now) {
+    /** 값을 통째로 바꾼다(푸터 안내 문구 포함) — 개인 단계면 사업자 칸, 「같음」이면 보호책임자 칸, 법인이 아니면 법인등록번호를 비운다 */
+    public void change(SiteOperatorValues v, SiteFooterNotice notice, long operatorId, Instant now) {
+        this.footerNotice = notice.stored();
+        this.footerNoticeScope = notice.scope();
         this.stage = v.stage();
         this.operatorName = v.operatorName();
         this.contactEmail = v.contactEmail();
@@ -78,6 +88,11 @@ public class SiteOperatorEntity {
                 : null;
         return new SiteOperatorValues(stage, nz(operatorName), nz(contactEmail), phone, privacyOfficerSame, privacyOfficerName, privacyOfficerEmail, hostingProvider,
                 business);
+    }
+
+    /** 지금 푸터 안내 문구 — 줄이 없으면 빈 목록(숨김) */
+    public SiteFooterNotice footerNotice() {
+        return new SiteFooterNotice(SiteFooterNotice.split(footerNotice), footerNoticeScope);
     }
 
     public SiteOperatorStage getStage() {
