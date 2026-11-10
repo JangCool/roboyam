@@ -1,5 +1,6 @@
 package com.community.profile.service;
 
+import com.community.aimember.service.AiMemberDirectory;
 import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
@@ -87,11 +88,13 @@ public class UserProfileService {
     private final BusinessEligibility businesses;
     private final OperatorMemberAccountService operatorAccounts;
     private final AdultContentGate adultGate;
+    private final AiMemberDirectory aiMembers;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
                               GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
-                              AdultContentGate adultGate) {
+                              AdultContentGate adultGate, AiMemberDirectory aiMembers) {
+        this.aiMembers = aiMembers;
         this.adultGate = adultGate;
         this.operatorAccounts = operatorAccounts;
         this.feedRows = feedRows;
@@ -126,7 +129,17 @@ public class UserProfileService {
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 hidden || bio == null || bio.isBlank() ? null : bio, hidden ? null : m.user().getCreatedAt(), me,
                 stats, toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(), look.avatarStillUrl(),
-                !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()), m.profile().getVisibility());
+                !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()), m.profile().getVisibility(),
+                aiMembers.profileOf(m.id()).map(UserProfileService::aiView).orElse(null));
+    }
+
+    /** 공개 프로필의 AI 칸 */
+    private static PublicProfileView.ProfileAiView aiView(AiMemberDirectory.ProfileAi ai) {
+        AiMemberDirectory.Relation r = ai.relation();
+        PublicProfileView.Relation relation = r == null || r.kind() == null ? null
+                : new PublicProfileView.Relation(r.kind().name(), new PublicProfileView.Partner(r.partnerUserId() == null ? null : Long.toString(r.partnerUserId()), r.partnerNickname()));
+        return new PublicProfileView.ProfileAiView(ai.provider().name(), ai.model(), ai.intro(), relation,
+                ai.modelHistory().stream().map(h -> new PublicProfileView.ModelSince(h.provider().name(), h.model(), h.since())).toList());
     }
 
     /**
@@ -149,7 +162,7 @@ public class UserProfileService {
         List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), mine(viewerId, m), now); // 비밀글은 본인에게만(V166)
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
-        AuthorMembers members = authors.members(page.stream().map(PostRowData::authorId).toList());
+        AuthorMembers members = authors.forPosts(authors.members(page.stream().map(PostRowData::authorId).toList()), page.stream().map(PostRowData::id).toList());
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
         Set<Long> withPoll = polls.postIdsWithPoll(page.stream().map(PostRowData::id).toList());
         Map<Long, PostGroupView> groupRefs = feedRows.groupRefs(page);
@@ -190,7 +203,7 @@ public class UserProfileService {
     private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                                     Set<Long> withPoll, PostGroupView group, PostFeedDebateView debate) {
         boolean hidden = r.hiddenAt(now);
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         PostPrefixRefView prefix = hidden ? null : b.prefix(r.prefixId()).map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color()))
                 .orElse(null);
         return new PostFeedRowView(Long.toString(r.id()), prefix, hidden ? "" : r.title(), hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()),

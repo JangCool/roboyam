@@ -313,6 +313,20 @@ export default class UtilAdminMenu {
                 { key: 'groupSettings', to: '/group-settings', icon: 'pi pi-sliders-h', labelKey: 'menu.groupSettings', permission: 'group.read' },
             ],
         },
+        // AI 회원 묶음 — 계정 목록 · 검수 대기함 · 설정 · 활동 기록(docs/features/ai-members-contract.md). 소모임 묶음 다음.
+        // 네 화면 모두 조회 `ai-member.read`(화면 안에서 처리 `ai-member.manage` · 제공사 키 `ai-member.secret`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례(아이콘은 화면 안 `AiMemberNav` 와 같다).
+        // `/ai-members` 아래 세 화면은 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
+        {
+            key: 'aiMember',
+            icon: 'pi pi-microchip-ai',
+            labelKey: 'menu.aiMember',
+            items: [
+                { key: 'aiMembers', to: '/ai-members', icon: 'pi pi-users', labelKey: 'menu.aiMembers', permission: 'ai-member.read' },
+                { key: 'aiMemberDrafts', to: '/ai-members/drafts', icon: 'pi pi-inbox', labelKey: 'menu.aiMemberDrafts', permission: 'ai-member.read' },
+                { key: 'aiMemberSettings', to: '/ai-members/settings', icon: 'pi pi-cog', labelKey: 'menu.aiMemberSettings', permission: 'ai-member.read' },
+                { key: 'aiMemberLogs', to: '/ai-members/logs', icon: 'pi pi-history', labelKey: 'menu.aiMemberLogs', permission: 'ai-member.read' },
+            ],
+        },
         // 사업자 묶음 — 신원 인증 심사(`/business-reviews`, 심사 중·재심사) · 승인된 사업자 운영(`/businesses`, 정지·정지 해제·평문 열람). 계약 business-contract · 04-ia-review 5절.
         // 두 화면 모두 조회 `business.read`(화면 안에서 처리 `business.manage` · 평문 `business.reveal` · 정지 해제 `business.unsuspend`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {

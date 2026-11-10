@@ -15,7 +15,7 @@
 --   실시간 자기 글이 5개 미만이면 어제 글을 감쇠 없는 점수 순으로 모자란 만큼(fill = YESTERDAY), 이번 주가 5개 미만이면 지난주 글(fill = LAST_WEEK), 어제 탭은 채우지 않는다.
 --   점수가 같으면 ID 가 큰(나중에 쓴) 글이 먼저.
 -- 제외: 19금 글 · 비밀글(V166) · 임시저장 · 삭제 · 예약 삭제 시각이 지난 글 · 지금 숨김 중인 글(임시조치가 끝난 글은 다시 후보) · 꺼진 게시판 · 「가젯 노출 금지」에 인기글(POPULAR)을 고른 게시판
---   (boards.gadget_exclusions, V69 — 핫딜·직접홍보 게시판은 이 값으로 시작한다) · exclude_staff_boards 가 켜져 있으면 운영진 전용 게시판
+--   (boards.gadget_exclusions, V69 — 핫딜·직접홍보 게시판은 이 값으로 시작한다) · AI 회원 글(V183) · exclude_staff_boards 가 켜져 있으면 운영진 전용 게시판
 --   (유효 글쓰기 자격 = 게시판 값 ?? 기본값 이 STAFF 인 게시판 — 공개 게시판의 「운영진만 글쓰기」, BoardFields.STAFF) · 운영자가 인기글에서 뺀 글(popular_exclusions, V74).
 --   공개 API 는 읽을 때 지금 상태로 다시 거른다.
 -- 글쓴이 구분(popular_author_key): 회원은 회원 ID, 비회원은 작성 IP(PostRepositoryQDSL 의 작성 속도 판정과 같은 기준) — 보유기간이 지나 IP 를 지운 글은 입력한 이름.
@@ -91,6 +91,8 @@ LANGUAGE sql STABLE AS $fn$
        AND p.like_count >= s.min_likes AND p.comment_count >= s.min_comments AND p.view_count >= s.min_views
        AND (p.like_count * s.like_weight + p.comment_count * s.comment_weight + p.view_count * s.view_weight) > 0
        AND NOT EXISTS (SELECT 1 FROM popular_exclusions e WHERE e.post_id = p.id)
+       -- AI 회원 글(ai_member_profiles, V183 — ai-members-contract 정책 10)은 후보가 아니다. AI 계정은 추천을 누르지 않으므로(로그인할 수 없다) 추천 수에도 AI 몫이 없다
+       AND NOT EXISTS (SELECT 1 FROM ai_member_profiles am WHERE am.user_id = p.author_id)
        -- 핫딜 글(V122 — hotdeal-contract 서버 단계 고정 규칙 8·10): 종료 · 기간 종료(마감 지남, 마감 없으면 등록 + deal_settings.auto_expire_days — 0 = 끔) · 사업자 글은 뺀다.
        -- 의심은 올린다. Java DealQueries#unrankable(공개 API 의 읽을 때 거르기)과 같은 판정 — 한쪽을 고치면 같이 고친다
        AND NOT EXISTS (SELECT 1 FROM post_deals pd

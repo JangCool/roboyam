@@ -3,8 +3,10 @@ import type {
     AiDraftEditRequest,
     AiDraftListQuery,
     AiDraftListView,
+    AiGroupAiOnlyResult,
     AiLogPage,
     AiLogQuery,
+    AiMemberCreateRequest,
     AiMemberDetail,
     AiMemberFormOptions,
     AiMemberListView,
@@ -14,28 +16,28 @@ import type {
     AiMemberSettingsRequest,
     AiProvider,
 } from '~/composables/aimember/api/useAiMemberAdminApi.types';
-// MOCK:
-import AiMemberAdminMock from '~/composables/aimember/api/mock/ai-member-admin-mock';
 
 /**
  * AI 회원 관리 API — 서버 주소 문자열(`/api/admin/ai-members…`)이 있는 **유일한 곳**이다. 상태는 없다. 계약 `docs/features/ai-members-contract.md`.
- * ⚠ 화면 확정 전 목업(2026-11-10) — 서버(ai_member_profiles·대기함·admin 서버 스케줄러)가 아직 없다. 메서드마다 `// MOCK:` 줄과 `// REAL:` 줄을 나란히 둔다.
+ * 서버 `server/admin` `aimember.controller.AiMemberAdminController`. 권한: 조회 `ai-member.read` · 쓰기 `ai-member.manage` · 제공사 키 `ai-member.secret`. 응답은 `Cache-Control: no-store`.
  *
- * 계약 후보(서버 단계에서 확정 — 권한 이름도 후보):
- *   - `GET  /api/admin/ai-members` → `AiMemberListView`(`ai-member.read`)
- *   - `GET  /api/admin/ai-members/options` → `AiMemberFormOptions` — 제공사별 모델·게시판(막힌 이유 포함)·AI 전용 소모임·관계 상대 후보
+ *   - `GET  /api/admin/ai-members` → `AiMemberListView`
+ *   - `GET  /api/admin/ai-members/options` → `AiMemberFormOptions` — 제공사별 모델(배포 설정이 원천)·게시판(막힌 이유 포함)·AI 전용 소모임(열린 것만)·관계 상대 후보
+ *   - `POST /api/admin/ai-members` `AiMemberCreateRequest` → 201 `AiMemberDetail` — 서버가 로그인할 수 없는 회원 계정을 만든다(처음엔 꺼짐)
+ *       · 400 `VALIDATION`(`fields.nickname` + 고치기와 같은 칸) · 409 `NICKNAME_TAKEN`(칸 없이 — 화면이 닉네임 칸에 붙인다)
  *   - `GET  /api/admin/ai-members/{id}` → `AiMemberDetail` · 404 `AI_MEMBER_NOT_FOUND`
- *   - `PUT  /api/admin/ai-members/{id}` `AiMemberSaveRequest` → `AiMemberDetail`(`ai-member.manage`) · 400 `VALIDATION`(`fields.model`·`persona.*`·`bio`·`windows.*`·`dailyPosts`·`boards`·`relation`)
- *     관계는 서버가 상대 쪽까지 같이 적고(옛 상대는 풀고) 감사 로그를 남긴다.
+ *   - `PUT  /api/admin/ai-members/{id}` `AiMemberSaveRequest` → `AiMemberDetail` · 400 `VALIDATION`(`fields.provider`·`model`·`persona.*`·`bio`·`windows.*`·`dailyPosts`·`boards`·`groups`·`relation`·`avatarId`)
+ *       관계는 서버가 상대 쪽까지 같이 적고(옛 상대는 풀고) 감사 로그를 남긴다. `avatarId` 가 빠지거나 null 이면 아바타는 그대로.
  *   - `PUT  /api/admin/ai-members/{id}/enabled` `{ enabled }` → `AiMemberRow`
- *   - `GET  /api/admin/ai-members/drafts?kind=&aiMemberId=` → `AiDraftListView` — 오래된 것이 아래(최신이 위)
+ *   - `PUT  /api/admin/ai-members/groups/{groupId}` `{ aiOnly }` → `AiGroupAiOnlyResult` — AI 전용 소모임 지정·해제 · 404 `GROUP_NOT_FOUND` · 409 `GROUP_NOT_PUBLIC`(공개 소모임만 지정 — 서버 추가 예정)
+ *   - `GET  /api/admin/ai-members/drafts?kind=&aiMemberId=` → `AiDraftListView` — 최신이 위
  *   - `POST /api/admin/ai-members/drafts/publish` `{ ids }` · `POST …/drafts/discard` `{ ids }` → `AiDraftBatchResult`(그 사이 처리된 건은 `skipped`)
- *   - `POST /api/admin/ai-members/drafts/{id}/publish` `AiDraftEditRequest` → 수정 후 게시 · 404 `AI_DRAFT_NOT_FOUND`
- *     게시는 기존 글·댓글 서비스를 거친다(금지어·제재·캐시·알림 — 정책 9). 금지어에 걸리면 400 `BLOCKED_WORD`.
- *   - `GET  /api/admin/ai-members/settings` · `PUT …/settings` `AiMemberSettingsRequest` → `AiMemberSettings` · 400 `fields.instantAccountIds`(계정별인데 하나도 없음)·`fields.dailyCallLimit`
+ *       게시는 상태만 승인으로 바꾸고, 실제 등록은 다음 바퀴(최대 1분)에 api 서버 실행기가 기존 글·댓글 서비스로 한다(정책 9·11).
+ *   - `POST /api/admin/ai-members/drafts/{id}/publish` `AiDraftEditRequest` → 수정 후 게시 · 404 `AI_DRAFT_NOT_FOUND` · 400 `VALIDATION`(`fields.title`·`body`) · 400 `BLOCKED_WORD`
+ *   - `GET  /api/admin/ai-members/settings` · `PUT …/settings` `AiMemberSettingsRequest` → `AiMemberSettings` · 400 `VALIDATION`(`fields.instantScope`·`instantAccountIds`·`dailyCallLimit`)
  *   - `PUT  /api/admin/ai-members/settings/stopped` `{ stopped }` → 전체 정지(바로 반영 — 저장 줄을 거치지 않는다)
- *   - `PUT  /api/admin/ai-members/settings/keys/{provider}` `{ key }` → 제공사 API 키(암호화 저장, 값은 다시 내려 주지 않는다 — 정책 12, 권한 `ai-member.secret` 후보)
- *   - `GET  /api/admin/ai-members/logs?aiMemberId=&result=&kind=&page=&size=` → `AiLogPage`
+ *   - `PUT  /api/admin/ai-members/settings/keys/{provider}` `{ key }` → 제공사 API 키(암호화 저장, 값은 다시 내려 주지 않는다 — 정책 12) · 400 `fields.key` · 503 `CRYPTO_KEY_MISSING`
+ *   - `GET  /api/admin/ai-members/logs?aiMemberId=&result=&kind=&page=&size=` → `AiLogPage`(page 1부터)
  * 공통 오류: 403 `PERMISSION_DENIED`.
  */
 const PATH = {
@@ -43,6 +45,7 @@ const PATH = {
     options: '/api/admin/ai-members/options',
     one: (id: string) => `${PATH.root}/${encodeURIComponent(id)}`,
     enabled: (id: string) => `${PATH.one(id)}/enabled`,
+    group: (groupId: string) => `${PATH.root}/groups/${encodeURIComponent(groupId)}`,
     drafts: '/api/admin/ai-members/drafts',
     draftsPublish: '/api/admin/ai-members/drafts/publish',
     draftsDiscard: '/api/admin/ai-members/drafts/discard',
@@ -56,93 +59,40 @@ const PATH = {
 export function useAiMemberAdminApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
-    // MOCK: 검수자·바꾼 사람 — 서버는 세션에서 안다
-    const { user } = useAdminAuth();
-    const me = () => user.value?.nickname ?? '운영자';
 
     return {
-        list(): Promise<AiMemberListView> {
-            // MOCK:
-            return AiMemberAdminMock.list();
-            // REAL: return client.get<AiMemberListView>(PATH.root);
-        },
+        list: (): Promise<AiMemberListView> => client.get<AiMemberListView>(PATH.root),
 
-        options(): Promise<AiMemberFormOptions> {
-            // MOCK:
-            return AiMemberAdminMock.formOptions();
-            // REAL: return client.get<AiMemberFormOptions>(PATH.options);
-        },
+        options: (): Promise<AiMemberFormOptions> => client.get<AiMemberFormOptions>(PATH.options),
 
-        detail(id: string): Promise<AiMemberDetail> {
-            // MOCK:
-            return AiMemberAdminMock.detail(id);
-            // REAL: return client.get<AiMemberDetail>(PATH.one(id));
-        },
+        /** 새 AI 회원(201) — 처음엔 꺼져 있다 */
+        create: (body: AiMemberCreateRequest): Promise<AiMemberDetail> => client.post<AiMemberDetail>(PATH.root, body),
 
-        save(id: string, body: AiMemberSaveRequest): Promise<AiMemberDetail> {
-            // MOCK:
-            return AiMemberAdminMock.save(id, body, me());
-            // REAL: return client.put<AiMemberDetail>(PATH.one(id), body);
-        },
+        detail: (id: string): Promise<AiMemberDetail> => client.get<AiMemberDetail>(PATH.one(id)),
 
-        setEnabled(id: string, enabled: boolean): Promise<AiMemberRow> {
-            // MOCK:
-            return AiMemberAdminMock.setEnabled(id, enabled);
-            // REAL: return client.put<AiMemberRow>(PATH.enabled(id), { enabled });
-        },
+        save: (id: string, body: AiMemberSaveRequest): Promise<AiMemberDetail> => client.put<AiMemberDetail>(PATH.one(id), body),
 
-        drafts(query: AiDraftListQuery = {}): Promise<AiDraftListView> {
-            // MOCK:
-            return AiMemberAdminMock.drafts(query);
-            // REAL: return client.get<AiDraftListView>(PATH.drafts, { query: { ...query } });
-        },
+        setEnabled: (id: string, enabled: boolean): Promise<AiMemberRow> => client.put<AiMemberRow>(PATH.enabled(id), { enabled }),
 
-        publish(ids: string[]): Promise<AiDraftBatchResult> {
-            // MOCK:
-            return AiMemberAdminMock.publish(ids, me());
-            // REAL: return client.post<AiDraftBatchResult>(PATH.draftsPublish, { ids });
-        },
+        /** AI 전용 소모임 지정·해제 */
+        setGroupAiOnly: (groupId: string, aiOnly: boolean): Promise<AiGroupAiOnlyResult> => client.put<AiGroupAiOnlyResult>(PATH.group(groupId), { aiOnly }),
 
-        publishEdited(id: string, body: AiDraftEditRequest): Promise<AiDraftBatchResult> {
-            // MOCK:
-            return AiMemberAdminMock.publishEdited(id, body, me());
-            // REAL: return client.post<AiDraftBatchResult>(PATH.draftPublish(id), body);
-        },
+        drafts: (query: AiDraftListQuery = {}): Promise<AiDraftListView> => client.get<AiDraftListView>(PATH.drafts, { query: { ...query } }),
 
-        discard(ids: string[]): Promise<AiDraftBatchResult> {
-            // MOCK:
-            return AiMemberAdminMock.discard(ids, me());
-            // REAL: return client.post<AiDraftBatchResult>(PATH.draftsDiscard, { ids });
-        },
+        publish: (ids: string[]): Promise<AiDraftBatchResult> => client.post<AiDraftBatchResult>(PATH.draftsPublish, { ids }),
 
-        settings(): Promise<AiMemberSettings> {
-            // MOCK:
-            return AiMemberAdminMock.settings();
-            // REAL: return client.get<AiMemberSettings>(PATH.settings);
-        },
+        publishEdited: (id: string, body: AiDraftEditRequest): Promise<AiDraftBatchResult> => client.post<AiDraftBatchResult>(PATH.draftPublish(id), body),
 
-        saveSettings(body: AiMemberSettingsRequest): Promise<AiMemberSettings> {
-            // MOCK:
-            return AiMemberAdminMock.saveSettings(body);
-            // REAL: return client.put<AiMemberSettings>(PATH.settings, body);
-        },
+        discard: (ids: string[]): Promise<AiDraftBatchResult> => client.post<AiDraftBatchResult>(PATH.draftsDiscard, { ids }),
 
-        setStopped(stopped: boolean): Promise<AiMemberSettings> {
-            // MOCK:
-            return AiMemberAdminMock.setStopped(stopped, me());
-            // REAL: return client.put<AiMemberSettings>(PATH.stopped, { stopped });
-        },
+        settings: (): Promise<AiMemberSettings> => client.get<AiMemberSettings>(PATH.settings),
 
-        setKey(provider: AiProvider, key: string): Promise<AiMemberSettings> {
-            // MOCK:
-            return AiMemberAdminMock.setKey(provider, key, me());
-            // REAL: return client.put<AiMemberSettings>(PATH.key(provider), { key });
-        },
+        saveSettings: (body: AiMemberSettingsRequest): Promise<AiMemberSettings> => client.put<AiMemberSettings>(PATH.settings, body),
 
-        logs(query: AiLogQuery = {}): Promise<AiLogPage> {
-            // MOCK:
-            return AiMemberAdminMock.logs(query);
-            // REAL: return client.get<AiLogPage>(PATH.logs, { query: { ...query } });
-        },
+        setStopped: (stopped: boolean): Promise<AiMemberSettings> => client.put<AiMemberSettings>(PATH.stopped, { stopped }),
+
+        setKey: (provider: AiProvider, key: string): Promise<AiMemberSettings> => client.put<AiMemberSettings>(PATH.key(provider), { key }),
+
+        logs: (query: AiLogQuery = {}): Promise<AiLogPage> => client.get<AiLogPage>(PATH.logs, { query: { ...query } }),
     };
 }

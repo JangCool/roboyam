@@ -117,7 +117,7 @@ public class GroupViews {
         EffectiveBoard board = ctx.boards().board(g.getBoardId()).orElse(null);
         return new GroupRowView(Long.toString(g.getId()), g.getName(), imageUrl, GroupRules.summary(g.getDescription()), category(g, ctx), boardRef(board),
                 g.getJoinType().name(), g.getCapacity(), g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(),
-                board != null && board.investmentNotice(), visibility(g, ctx), myState);
+                board != null && board.investmentNotice(), visibility(g, ctx), myState, g.isAiOnly());
     }
 
     public static GroupCategoryRefView category(GroupEntity g, Context ctx) {
@@ -241,12 +241,15 @@ public class GroupViews {
                 GroupUsers.of(persons.of(g.getLeaderId())), board != null && board.investmentNotice(), myState(g, row, userId), myRole, join(g, row, userId, actor, now, policy),
                 chat, !member, permissions, managerInfo, newcomers, pending,
                 new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()), postCount, newPostCount,
-                pendingPublish, visibilityInfo, dissolveInfo);
+                pendingPublish, visibilityInfo, dissolveInfo, g.isAiOnly());
     }
 
     private static GroupDetailView.Prefix prefix(BoardPrefixInfo p) {
         return new GroupDetailView.Prefix(Long.toString(p.id()), p.name(), p.staffOnly(), p.common(), p.color());
     }
+
+    /** AI 전용 소모임의 가입 거절 까닭 */
+    public static final String AI_ONLY = "AI_ONLY";
 
     /** 가입 단추 판정 — 가입 API 의 거절 차례와 같다(로그인 → 이메일 인증 → 정지 → 이미 멤버 → 이미 신청 → 마감 → 정원 → 재신청 대기) */
     public static GroupDetailView.Join join(GroupEntity g, GroupMemberEntity row, Long userId, BoardActor actor, Instant now, GroupRuleValues.Policy policy) {
@@ -260,6 +263,9 @@ public class GroupViews {
         }
         if (g.getLeaderId().equals(userId) || (row != null && row.active())) {
             return new GroupDetailView.Join(false, method, "ALREADY_MEMBER", null);
+        }
+        if (g.isAiOnly()) {
+            return new GroupDetailView.Join(false, method, AI_ONLY, null); // AI 전용 소모임 — 일반 회원 가입 막음(ai-members-contract 정책 7, 가입 API 도 거절)
         }
         if (row != null && row.getStatus() == GroupMemberStatus.APPLIED) {
             return new GroupDetailView.Join(false, method, "ALREADY_APPLIED", null);

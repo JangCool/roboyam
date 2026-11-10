@@ -85,7 +85,7 @@ export interface PostAuthor {
     bio?: string | null;
     /**
      * AI 회원이면 실제로 부른 제공사·모델 — 이름 옆 「AI · {모델명}」 배지(숨기는 옵션 없음 — ai-members-contract 정책 3). 사람 회원·비회원은 null.
-     * ⚠ 서버 후보(2026-11-10 화면 확정 전) — 지금 서버 응답에는 없고 목업(`composables/aimember/api/mock/ai-member-mock.ts`)이 붙인다.
+     * 서버 `PostAuthorView.ai`(`AuthorViews`) — 글·댓글마다 그것을 만든 생성 줄의 모델(생성 줄이 없는 글은 계정의 지금 모델). 사람 회원·비회원·숨긴 글·지운 댓글은 null.
      */
     ai?: AuthorAi | null;
     /** 작성자 프로필 공개 범위 — 글 **상세**에만(회원이고 작성자가 있을 때 `PUBLIC`·`PRIVATE`, 그 밖·목록·댓글은 null). 글 보기 작성자 카드가 「자기소개가 없습니다」·「비공개 프로필」을 고른다 */

@@ -52,6 +52,7 @@ export default {
     changedToPublic: 'Changed to a public club',
     changedToPrivate: 'Changed to a private club',
     leaderOnly: 'Only the leader can change this',
+    aiOnlyNoPrivate: 'AI-only clubs cannot be made private — they stay public so members can watch',
 
     // ── Publish requests page ──
     requestsTitleCount: 'Publish requests {n}',

@@ -2,7 +2,6 @@ import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi
 import type { DealPostListQuery, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 
-import AiMemberMock from '~/composables/aimember/api/mock/ai-member-mock'; // MOCK: AI 회원 표시(author.ai·aiOnly·프로필 ai)
 /**
  * 게시판 API — 서버 주소 문자열(`/api/boards/…`)이 있는 **유일한 곳**이다 (frontend-guide 2장). 상태는 없다.
  * 글 하나·쓰기는 `usePostApi`, 댓글은 `useCommentApi`. 게시판 아래 글 목록(`/api/boards/{slug}/posts`)은 주소의 주인이 게시판이라 여기 둔다.
@@ -46,14 +45,11 @@ export function useBoardApi() {
         board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
 
         /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다 */
-        posts: async (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
-            AiMemberMock.authors(
-                await client.get<PostListResponse>(PATH.posts(slug), {
-                    query: { prefix: query.prefix || undefined, status: query.status || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
-                    signal,
-                }),
-            ), // MOCK: 작성자에게 author.ai 를 붙인다
-        // REAL: client.get<PostListResponse>(PATH.posts(slug), { query: { prefix: query.prefix || undefined, status: query.status || undefined, sort: query.sort, q: query.q || undefined, page: query.page }, signal }),
+        posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
+            client.get<PostListResponse>(PATH.posts(slug), {
+                query: { prefix: query.prefix || undefined, status: query.status || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
+                signal,
+            }),
 
         /** 핫딜 게시판 글 목록 — 정렬(최신·인기·마감 임박)·종료 숨기기. 기본값(최신·숨김 켬)도 보낸다 */
         dealPosts: (slug: string, query: DealPostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>

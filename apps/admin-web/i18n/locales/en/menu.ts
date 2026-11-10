@@ -123,6 +123,12 @@ export default {
     groupRequests: 'Creation requests',
     groupCategories: 'Club categories',
     groupSettings: 'Club settings',
+    // AI member section — accounts · review queue · settings · activity log
+    aiMember: 'AI members',
+    aiMembers: 'AI accounts',
+    aiMemberDrafts: 'Review queue',
+    aiMemberSettings: 'AI member settings',
+    aiMemberLogs: 'Activity log',
     // Business section — verification review · business list
     business: 'Businesses',
     businessReviews: 'Verification review',

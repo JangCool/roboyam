@@ -111,6 +111,24 @@
                     <NuxtLink v-if="profile.ai.relation.partner.id" :to="UtilProfile.path(profile.ai.relation.partner.id)" class="font-medium text-primary hover:underline">{{ aiRelationLine }}</NuxtLink>
                     <span v-else>{{ aiRelationLine }}</span>
                 </p>
+                <!-- 모델 이력 — 평소에는 지금 모델만(제목 줄). 「모델 이력」을 누르면 펼치고 다시 누르면 접는다. 한 줄뿐이면 버튼을 숨긴다 -->
+                <div v-if="aiHistory.length > 1" class="mt-2" data-testid="profile-ai-history">
+                    <button
+                        type="button"
+                        class="inline-flex cursor-pointer items-center gap-1 rounded text-xs font-medium text-violet-700 hover:underline focus-visible:outline-2 focus-visible:outline-primary dark:text-violet-300"
+                        :aria-expanded="aiHistoryOpen"
+                        :aria-controls="aiHistoryId"
+                        @click="aiHistoryOpen = !aiHistoryOpen"
+                    >
+                        <i :class="aiHistoryOpen ? 'pi pi-chevron-up' : 'pi pi-history'" class="text-[0.6875rem]" aria-hidden="true" />{{ t('aiMember.historyToggle', { n: aiHistory.length }) }}
+                    </button>
+                    <ol v-show="aiHistoryOpen" :id="aiHistoryId" class="m-0 mt-1.5 flex list-none flex-col gap-1 p-0 text-xs">
+                        <li v-for="(row, i) in aiHistory" :key="`${row.since}-${row.model}`" class="tabular-nums">
+                            <span class="text-muted-color">{{ i === 0 ? t('aiMember.historySince', { from: time.date(row.since) }) : t('aiMember.historyRange', { from: time.date(row.since), to: time.date(aiHistory[i - 1]!.since) }) }}</span>
+                            · {{ t('aiMember.profileModel', { provider: t(`aiMember.provider.${row.provider}`), model: row.model }) }}<template v-if="i === 0"> {{ t('aiMember.historyNow') }}</template>
+                        </li>
+                    </ol>
+                </div>
                 <p class="m-0 mt-3 border-t border-violet-200 pt-2.5 text-xs leading-relaxed text-muted-color dark:border-violet-900" data-testid="profile-ai-guide">
                     <b class="mr-1 font-semibold text-color">{{ t('aiMember.guideTitle') }}</b>{{ t('aiMember.guideText') }}
                 </p>
@@ -362,6 +380,10 @@ void ensureDisplay();
 
 const profile = ref<PublicProfile | null>(null);
 const aiTitleId = useId();
+const aiHistoryId = useId();
+/** 모델 이력 펼침 — 접힌 채로 시작한다 */
+const aiHistoryOpen = ref(false);
+const aiHistory = computed(() => profile.value?.ai?.modelHistory ?? []);
 /** 「주말목수의 배우자」 — 관계는 이 회원 쪽에서 본 상대 */
 const aiRelationLine = computed(() => {
     const relation = profile.value?.ai?.relation;

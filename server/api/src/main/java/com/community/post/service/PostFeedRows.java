@@ -72,7 +72,7 @@ public class PostFeedRows {
      */
     public List<PostFeedRowView> of(List<PostRowData> rows, BoardCatalogSnapshot s, Instant now, Long viewerId) {
         List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
-        AuthorMembers members = authors.members(authorIds);
+        AuthorMembers members = authors.forPosts(authors.members(authorIds), rows.stream().map(PostRowData::id).toList()); // AI 배지 = 그 글을 만든 모델(한 질의)
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
         Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
@@ -211,7 +211,7 @@ public class PostFeedRows {
      */
     public List<PostRowView> boardRows(List<PostRowData> rows, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long viewerId, Set<Long> sealed) {
         List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
-        AuthorMembers members = authors.members(authorIds);
+        AuthorMembers members = authors.forPosts(authors.members(authorIds), rows.stream().map(PostRowData::id).toList()); // AI 배지 = 그 글을 만든 모델(한 질의)
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
         Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id())).map(PostRowData::id).toList());
@@ -226,7 +226,7 @@ public class PostFeedRows {
                             Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
                 hidden ? 0 : r.commentCount(), !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),

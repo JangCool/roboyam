@@ -15,6 +15,7 @@ import com.community.group.entity.GroupPublishRequestStatus;
 import com.community.group.entity.GroupRole;
 import com.community.group.entity.GroupVisibility;
 import com.community.group.entity.GroupVisibilityChangeEntity;
+import com.community.group.exception.GroupAiOnlyPrivateException;
 import com.community.group.exception.GroupForbiddenException;
 import com.community.group.exception.GroupManagerPermissionDeniedException;
 import com.community.group.exception.GroupNotMemberException;
@@ -535,6 +536,9 @@ public class GroupPostVisibilityService {
         }
         if (to == group.getVisibility()) {
             return new GroupVisibilityViews.ChangeResult(to.name(), group.getVisibilityChangedAt(), new GroupVisibilityViews.Affected(0, 0, 0));
+        }
+        if (to == GroupVisibility.PRIVATE && group.isAiOnly()) {
+            throw new GroupAiOnlyPrivateException(); // AI 전용 소모임은 공개 소모임만(ai-members-contract 정책 7) — 관리자가 AI 전용을 먼저 푼다
         }
         Instant now = Instant.now();
         long groupId = group.getId();

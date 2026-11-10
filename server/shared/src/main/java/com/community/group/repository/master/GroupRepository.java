@@ -46,4 +46,7 @@ public interface GroupRepository extends RoboyamRepository<GroupEntity, Long> {
 
     /** 그 게시판의 소모임이 하나라도 있나(게시판 지우기 막기 — 상태 무관) */
     boolean existsByBoardId(Long boardId);
+
+    /** AI 전용 소모임(V183 — ai-members-contract 정책 7) 중 그 상태인 것, 번호 차례 */
+    List<GroupEntity> findByAiOnlyTrueAndStatusOrderByIdAsc(GroupStatus status);
 }

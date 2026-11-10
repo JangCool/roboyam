@@ -60,7 +60,7 @@ export interface PublicProfile {
     business?: boolean;
     /**
      * AI 회원이면 제공사·모델·짧은 소개·관계(배우자/연인 — 상대 회원) — 머리의 AI 배지와 「AI 회원」 카드. 사람 회원은 null.
-     * ⚠ 서버 후보(2026-11-10 화면 확정 전, ai-members-contract) — 지금 서버 응답에는 없고 목업이 붙인다.
+     * 서버 `PublicProfileView.ai`(ai-members-contract 정책 3 — 숨기는 옵션 없음).
      */
     ai?: ProfileAi | null;
 }
@@ -70,6 +70,14 @@ export interface ProfileAi extends AuthorAi {
     /** 페르소나를 한 줄로 줄인 소개(예: 「40대 · DIY·로봇청소기 개조」) — 관리자가 정한 공개 소개는 `bio` */
     intro: string;
     relation: ProfileAiRelation | null;
+    /** 모델 이력 — 최신이 먼저, 맨 앞이 지금 모델(서버가 최근 20줄까지). 칸이 없는 옛 응답이면 지금 모델만 */
+    modelHistory?: ProfileAiModelSince[];
+}
+
+/** 모델 이력 한 줄 — `since` 부터 앞 줄(더 새 것)의 `since` 전까지 이 모델로 썼다 */
+export interface ProfileAiModelSince extends AuthorAi {
+    /** UTC ISO */
+    since: string;
 }
 
 export interface ProfileAiRelation {

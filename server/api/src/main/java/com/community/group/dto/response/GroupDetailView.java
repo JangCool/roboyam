@@ -32,12 +32,13 @@ public record GroupDetailView(String id, String name, GroupImageView image, Stri
                               Boolean recruiting, String recruitState, Boolean offline, String visibility, Board board, String status, Instant openedAt,
                               DmPartnerView leader, Boolean stockNotice, String myState, String myRole, Join join, Chat chat, Boolean chatLocked,
                               Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits,
-                              Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo, DissolveInfo dissolveInfo) {
+                              Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo, DissolveInfo dissolveInfo,
+                              Boolean aiOnly) {
 
     /** 비활성 소모임 — 안내 화면에 쓸 칸만 */
     public static GroupDetailView inactive(String id, String name, GroupImageView image) {
         return new GroupDetailView(id, name, image, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 소모임 게시판 — 켜진 말머리만(순서대로) */
@@ -50,7 +51,7 @@ public record GroupDetailView(String id, String name, GroupImageView image, Stri
     /**
      * @param allowed           지금 할 수 있나
      * @param method            JOIN(바로 가입) · APPLY(신청 — 신청제이거나 강퇴됐던 회원)
-     * @param reason            못 할 때 LOGIN_REQUIRED · EMAIL_NOT_VERIFIED · ACCOUNT_RESTRICTED · ALREADY_MEMBER · ALREADY_APPLIED · CLOSED · FULL · REAPPLY_LATER
+     * @param reason            못 할 때 LOGIN_REQUIRED · EMAIL_NOT_VERIFIED · ACCOUNT_RESTRICTED · ALREADY_MEMBER · ALREADY_APPLIED · AI_ONLY(AI 전용 소모임 — V183) · CLOSED · FULL · REAPPLY_LATER
      * @param retryAfterSeconds REAPPLY_LATER 일 때 남은 초
      */
     public record Join(boolean allowed, String method, String reason, Long retryAfterSeconds) {

@@ -240,10 +240,12 @@
                             type="button"
                             :label="UtilGroupVisibilityMessages.changeButton(t, visibilityTarget)"
                             fluid
-                            :disabled="Boolean(group.blockedReason) || visibilityCooldown"
+                            :disabled="Boolean(group.blockedReason) || visibilityCooldown || aiOnlyNoPrivate"
                             data-testid="visibility-change"
                             @click="openVisibilityConfirm"
                         />
+                        <!-- AI 전용 소모임은 구경용이라 비공개로 바꿀 수 없다(서버도 409 GROUP_AI_ONLY_PRIVATE) -->
+                        <p v-if="aiOnlyNoPrivate" class="m-0 mt-2 text-center text-xs text-muted-color" role="status" data-testid="visibility-ai-only">{{ t('groupVisibility.aiOnlyNoPrivate') }}</p>
                         <p v-if="visibilityCooldown && cooldownText" class="m-0 mt-2 text-center text-xs text-muted-color" data-testid="visibility-cooldown">{{ cooldownText }}</p>
                         <p v-if="group.blockedReason" class="m-0 mt-2 text-center text-xs text-muted-color" role="status" data-testid="visibility-blocked">{{ UtilGroupMessages.blockedBand(t, group.blockedReason) }}</p>
                         <Button type="button" :label="t('common.close')" severity="secondary" variant="outlined" fluid class="mt-3" data-testid="visibility-close" @click="visibilityOpen = false" />
@@ -398,6 +400,8 @@ const visibilityCurrent = computed<GroupVisibility>(() => group.value?.visibilit
 const visibilityTarget = computed(() => UtilGroupVisibility.opposite(visibilityCurrent.value));
 const visibilityHead = computed(() => UtilGroupVisibilityMessages.chipSheet(t, visibilityCurrent.value));
 /** 비공개→공개이고 쿨다운이 남았다 — 단추가 꺼진다 */
+/** AI 전용 소모임을 비공개로 바꾸려 한다 — 미리 막는다(ai-members-contract 정책 7) */
+const aiOnlyNoPrivate = computed(() => Boolean(group.value?.aiOnly) && visibilityTarget.value === 'PRIVATE');
 const visibilityCooldown = computed(() => visibilityTarget.value === 'PUBLIC' && UtilGroupVisibility.inCooldown(group.value?.visibilityInfo, visibilityNow.value));
 const cooldownText = computed(() => {
     const at = group.value?.visibilityInfo?.canChangeToPublicAt;
@@ -478,9 +482,10 @@ async function confirmVisibility(): Promise<void> {
             await recheck();
             return;
         }
-        // 쿨다운(`409 GROUP_VISIBILITY_COOLDOWN`)·기능 꺼짐 등은 서버 문구 그대로
+        // 쿨다운(`409 GROUP_VISIBILITY_COOLDOWN`)·기능 꺼짐·AI 전용(`409 GROUP_AI_ONLY_PRIVATE`) 등은 서버 문구 그대로
         visibilityError.value = UtilGroupVisibility.fieldOf(e, 'acknowledged') ?? UtilBoardMessages.of(t, e);
-        if (kind === 'cooldown' || kind === 'disabled') await recheck();
+        // 그 사이 AI 전용으로 지정됐다 — 상세를 다시 받아 바꾸기 단추를 막는다
+        if (kind === 'cooldown' || kind === 'disabled' || UtilGroup.isAiOnlyPrivate(e)) await recheck();
     } finally {
         visibilitySubmitting.value = false;
     }

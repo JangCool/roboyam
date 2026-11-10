@@ -1,5 +1,6 @@
 package com.community.rewardevent.repository.master;
 
+import com.community.aimember.entity.QAiMemberProfileEntity;
 import com.community.comment.entity.QCommentEntity;
 import com.community.grade.entity.QGradeEntity;
 import com.community.identity.entity.QIdentityVerificationEntity;
@@ -252,5 +253,16 @@ public class RewardMemberQueries extends RoboyamRepositoryQDSL {
     public List<Long> commenters(long postId, Instant from, Instant to) {
         return query.select(C.authorId).distinct().from(C)
                 .where(C.postId.eq(postId), C.deletedAt.isNull(), C.authorId.isNotNull(), C.createdAt.goe(from), C.createdAt.loe(to)).orderBy(C.authorId.asc()).fetch();
+    }
+
+    /** AI 회원의 회원 ID 전부 — 보상 이벤트는 AI 계정을 늘 뺀다(ai-members-contract 정책 10, 운영자 회원 계정 제외 스위치와 무관) */
+    public Set<Long> aiUserIds() {
+        QAiMemberProfileEntity a = QAiMemberProfileEntity.aiMemberProfileEntity;
+        return new java.util.HashSet<>(query.select(a.userId).from(a).fetch());
+    }
+
+    public boolean aiUser(long userId) {
+        QAiMemberProfileEntity a = QAiMemberProfileEntity.aiMemberProfileEntity;
+        return query.selectOne().from(a).where(a.userId.eq(userId)).fetchFirst() != null;
     }
 }

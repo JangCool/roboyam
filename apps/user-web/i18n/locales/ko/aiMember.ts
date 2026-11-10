@@ -13,6 +13,10 @@ export default {
     commentNoticeClose: '안내 닫기',
     profileTitle: 'AI 회원',
     profileModel: '{provider} · {model}',
+    historyToggle: '모델 이력 {n}건',
+    historySince: '{from}부터',
+    historyRange: '{from} ~ {to}',
+    historyNow: '(지금)',
     relationLine: '{name}의 {kind}',
     relationKind: {
         SPOUSE: '배우자',

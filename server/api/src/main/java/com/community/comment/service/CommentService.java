@@ -261,7 +261,7 @@ public class CommentService {
                     userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
                     new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId), leftAt(post, all),
                     membersOnlyBefore, all.isEmpty() || post.isGroupPost() ? Set.of() : staffActions.protectedAuthorsFor(b.id(), userId));
-            AuthorMembers members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
+            AuthorMembers members = authors.forComments(authors.members(all.stream().map(CommentEntity::getAuthorId).toList()), all.stream().map(CommentEntity::getId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
 
@@ -433,7 +433,7 @@ public class CommentService {
                     replyTo(c, viewer, byId, members, s), groupLeftAuthor(), null, c.getContentFormat().name(), state, c.getCreatedAt(), c.getEditedAt(), 0, false,
                     false, null, c.getStance(), HIDDEN_BY_GROUP_LEFT, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null, false);
         }
-        PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
+        PostAuthorView author = authors.ofComment(c.getId(), c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
         ReplyToView replyTo = replyTo(c, viewer, byId, members, s);
         return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()), replyTo,
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
@@ -464,7 +464,7 @@ public class CommentService {
 
     /** 나간 멤버의 가린 댓글의 작성자 — 회원이라는 것만(회원 ID·이름·등급·장식 없음). 화면은 「소모임을 나간 멤버의 댓글이에요」 */
     private static PostAuthorView groupLeftAuthor() {
-        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null, null, false, false, null, null);
+        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null, null, false, false, null, null, null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -481,6 +481,18 @@ public class CommentService {
     // ── 쓰기 ──────────────────────────────────────────────────────────────
 
     public CommentView create(String postIdText, CommentWriteRequest body, Long userId, String ip) {
+        return create(postIdText, body, userId, ip, false, false);
+    }
+
+    /**
+     * AI 회원 실행기 전용(ai-members-contract 「쓰기 제한 면제」) — 사이트 댓글 작성 간격·하루 한도를 보지 않고, {@code gradeExempt} 면 게시판 최소 댓글 등급
+     * ({@code GRADE_TOO_LOW})도 보지 않는다(그 AI 계정의 쓸 곳으로 고른 게시판일 때만 부르는 쪽이 켠다). 금칙어 · 정지 · 게시판 제재 · 댓글 꺼짐·잠금 · 칸 검사는 그대로다.
+     */
+    public CommentView createByAiRunner(String postIdText, CommentWriteRequest body, long userId, String ip, boolean gradeExempt) {
+        return create(postIdText, body, userId, ip, true, gradeExempt);
+    }
+
+    private CommentView create(String postIdText, CommentWriteRequest body, Long userId, String ip, boolean rateExempt, boolean gradeExempt) {
         Instant start = Instant.now();
         PostEntity post = postQueries.requireVisible(postIdText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
@@ -490,7 +502,8 @@ public class CommentService {
         }
         BoardActor actor = actors.resolve(userId, s);
         // 소모임 글의 댓글은 게시판 댓글 정책(최소 등급·잠금·끔)을 받지 않는다 — 계정 자격만(비회원 401)
-        PostWriteService.requireWritable(post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s));
+        String blocked = post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s);
+        PostWriteService.requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked); // AI 실행기: 고른 게시판의 최소 등급만 면제
         if (!post.isGroupPost()) {
             PostWriteService.requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한 — 새 댓글·답글(board-sanction-contract 결정 5)
         }
@@ -564,7 +577,11 @@ public class CommentService {
         String hash = passwordHash;
         CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
-            checkRate(s, authorId, ip, now);
+            if (!rateExempt) {
+                checkRate(s, authorId, ip, now);
+            } else {
+                counters.lockWriter("comment:m:" + authorId); // AI 실행기 — 간격·하루 한도는 보지 않고 작성자 잠금만(같은 줄 세우기)
+            }
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
                     stance.stanceName(), now);
             comments.persist(comment);
@@ -579,7 +596,7 @@ public class CommentService {
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
             Viewer self = Viewer.self(userId, ip, Set.of(), b, Set.of(), Set.of());
-            CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
+            CommentView view = view(comment, self, byId, authors.forComments(authors.members(memberIds), List.of(comment.getId())), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
                 points.earnComment(new PointService.CommentEarn(authorId, id, post.getId(), post.getAuthorId(), masked.plain(), b.pointsEnabled()));
@@ -732,7 +749,7 @@ public class CommentService {
             Set<Long> liked = userId == null ? Set.of() : counters.likedComments(locked.getPostId(), userId);
             Set<Long> disliked = userId == null || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(locked.getPostId(), userId);
             Set<Long> pinned = locked.getStance() == null ? Set.of() : new HashSet<>(debateQueries.pinnedInOrder(locked.getPostId()));
-            return view(locked, Viewer.self(userId, ip, liked, b, disliked, pinned), byId, authors.members(memberIds), s, now);
+            return view(locked, Viewer.self(userId, ip, liked, b, disliked, pinned), byId, authors.forComments(authors.members(memberIds), List.of(locked.getId())), s, now);
         });
     }
 

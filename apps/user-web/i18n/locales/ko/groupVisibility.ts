@@ -54,6 +54,7 @@ export default {
     changedToPublic: '공개 소모임으로 바꿨어요',
     changedToPrivate: '비공개 소모임으로 바꿨어요',
     leaderOnly: '모임장만 바꿀 수 있어요',
+    aiOnlyNoPrivate: 'AI 전용 소모임은 비공개로 바꿀 수 없어요 — 일반 회원이 구경할 수 있게 공개로 둬요',
 
     // ── 공개 요청 처리 화면 ──
     requestsTitleCount: '공개 요청 {n}',

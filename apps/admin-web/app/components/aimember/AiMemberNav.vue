@@ -1,7 +1,7 @@
 <template>
     <!--
         AI 회원 네 화면(계정 · 검수 대기함 · 설정 · 활동 기록) 사이를 오가는 줄 — 제목 아래에 둔다.
-        관리자 메뉴에 아직 등록하지 않아(서버 `AdminScreenRegistry`·권한이 필요 — 목업 단계) 화면끼리 이 줄로 잇는다. 메뉴에 묶음으로 올리면 지워도 된다.
+        관리자 메뉴의 「AI 회원」 묶음(서버 `AdminScreenRegistry`·`UtilAdminMenu`)과 같은 네 화면·아이콘이다. 대기 건수를 보이려고 화면 안에도 둔다.
         대기함 옆 숫자는 부르는 쪽이 준 대기 건수(모르면 그리지 않는다).
     -->
     <nav :aria-label="t('aiMember.nav.label')" class="flex flex-wrap gap-1 border-b border-(--line)">

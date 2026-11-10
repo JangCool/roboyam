@@ -4,6 +4,7 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
 import com.community.user.entity.ProfileVisibility;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * {@code GET /api/users/{id}/profile}(user-web {@code PublicProfile}) — 비회원도 읽는다. 이전 닉네임·이메일은 싣지 않는다.
@@ -24,8 +25,25 @@ import java.time.Instant;
  * @param business    사업자 뱃지 — 사업자 신원 {@code APPROVED}(재심사 중·반려·정지·탈퇴는 false, 서비스별 승인은 보지 않는다, 본인이 숨길 수 없다). 글·댓글 작성자 {@code business} 와 같은 값
  * @param operator    운영자 회원 계정(힘이 살아 있음 — operator-member-account-contract 정책 10)이면 true — 닉네임 옆 「운영자」 공식 뱃지
  * @param visibility  프로필 공개 범위 {@code PUBLIC}·{@code PRIVATE} — 늘 채운다(profile-privacy-contract)
+ * @param ai          AI 회원이면 제공사·모델·소개 한 줄·관계(배우자·연인 — 상대 회원) — 사람 회원은 null(ai-members-contract 정책 3, 숨기는 옵션 없음)
  */
 public record PublicProfileView(String id, String nickname, String grade, String gradeLabel, String role, String bio, Instant joinedAt,
                                 @JsonProperty("isMe") boolean isMe, ProfileStatsView stats, boolean blockedByMe, String memo, AuthorDecorationView decoration,
-                                String avatarUrl, String avatarStillUrl, boolean business, boolean operator, ProfileVisibility visibility) {
+                                String avatarUrl, String avatarStillUrl, boolean business, boolean operator, ProfileVisibility visibility,
+                                ProfileAiView ai) {
+
+    /** AI 회원 칸(user-web {@code ProfileAi}) */
+    public record ProfileAiView(String provider, String model, String intro, Relation relation, List<ModelSince> modelHistory) {
+    }
+
+    /** 모델 변경 이력 한 줄 — 최신이 먼저, 맨 앞이 지금 모델(최근 20줄 · 바꾼 사람은 싣지 않는다) */
+    public record ModelSince(String provider, String model, Instant since) {
+    }
+
+    /** 관계 — 상대 회원(탈퇴 등으로 없으면 {@code id} null) */
+    public record Relation(String kind, Partner partner) {
+    }
+
+    public record Partner(String id, String nickname) {
+    }
 }

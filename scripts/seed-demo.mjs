@@ -8,7 +8,7 @@
  * 같은 게시판에 같은 제목의 데모 회원 글이 이미 있으면 그 글(과 댓글)은 건너뛴다 — 중간에 멈췄으면 다시 돌려 이어서 넣는다.
  *
  * 순서: 회원 40명(SQL) → 데모 운영자(SQL, 이 실행 동안만 켬) → 게시판 기본 글 에디터 고급·소모임 공개 범위 켬(관리자 API) → 로보티콘 무료 팩 받기
- *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → 사업자 핫딜(신청→승인→계약서→입금→확인)
+ *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → AI 회원(관리자 API + 승인 생성 줄 → api 실행기) → 사업자 핫딜(신청→승인→계약서→입금→확인)
  *      → 공동구매(관리자 API) → 하이라이트(홈 5개 · 팁·강좌·사용기 5개) → 광고(운영자 등록→승인→계약서·입금→확정, 홈 광고 가젯 셋)
  *      → 공지(관리자 공지 API — 데모 운영자의 운영자 회원 계정이 작성자) → 버그 신고·기능 요청(회원 글 + 처리 상태·운영자 답변)
  *      → 사이트(공지 띠·환영 팝업·보상 이벤트) → 그 밖(소모임 일정·공동구매 문의). 끝나면 데모 운영자를 끈다.
@@ -30,7 +30,7 @@ const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'roboyam-local-postgres';
 const DB_NAME = process.env.SEED_DB_NAME ?? 'roboyam';
 const DB_USER = process.env.SEED_DB_USER ?? 'roboyam';
 const FORCE = process.argv.includes('--force');
-/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
+/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,ai,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
 const LIMIT = Number(process.argv.find((a) => a.startsWith('--limit='))?.slice(8)) || Infinity;
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',') ?? null;
 const step = (name) => !ONLY || ONLY.includes(name);
@@ -242,6 +242,7 @@ async function main() {
         const boards = new Map(((await new Session('anon').request('GET', '/api/boards')).data?.boards ?? []).map((b) => [b.slug, b]));
         if (step('boards')) await seedBoards(members, boards, emoticons, psql);
         if (step('groups')) await seedGroups(members, admin, emoticons, psql);
+        if (step('ai')) await seedAiMembers(members, admin); // AI 회원(boards·groups 뒤 — 데모 사람 회원의 댓글·AI 전용 소모임)
         if (step('biz')) await seedBusinessDeals(admin, boards);
         if (step('groupbuys')) await seedGroupBuys(admin);
         if (step('highlights')) {
@@ -712,6 +713,381 @@ async function seedGroups(members, admin, emoticons, psql) {
     await likesAndViews(plans, members, psql);
     sql(`UPDATE groups g SET last_activity_at = sub.at FROM (SELECT group_id, max(created_at) AS at FROM posts WHERE group_id IS NOT NULL GROUP BY group_id) sub
           WHERE sub.group_id = g.id AND g.name IN (${names.map(q).join(',')})`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// 6-1) AI 회원(ai 단계 — 원고 seed/demo/ai-members.json, docs/features/ai-members-contract.md). 키는 넣지 않고 계정은 꺼진 채로 둔다 — 데모가 제공사를 부르지 않는다.
+//   ① AI 전용 공개 소모임: 데모 사람 회원이 개설(공개) → 운영자 승인 → 관리자 API 로 AI 전용 → ② 계정 8명(관리자 API — 소모임 멤버로 넣고 관계는 뒤에 양쪽으로)
+//   → 모델 이력(두 계정은 만든 뒤 모델을 한 번 바꾼다 — 이력 시각은 SQL 로 며칠 전) → 모임장을 AI 로 넘기고 개설한 사람은 나간다(공개 API)
+//   ③ 글·댓글: 승인(APPROVED) 생성 줄을 SQL 로 넣으면 api 실행기(1분마다)가 실제 쓰기 경로로 등록한다(계정이 꺼져 있어도 승인 줄은 등록된다 — 생성만 멈춘다).
+//      깊이마다 한 차례(글 → 첫 댓글·사람 댓글 → 답글 → 되받기 …), 등록되면 작성 시각을 계획 시각으로 옮긴다. 사람 댓글은 그 회원으로 공개 API.
+//   ④ 검수 대기(PENDING) 줄 몇 개. 같은 계정·종류·본문의 생성 줄이 있으면 그 줄을 쓴다(다시 돌려도 겹치지 않는다).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const AI_WAIT_MS = 240_000; // 한 차례를 기다리는 최대 시간(실행기 한 바퀴 기본 1분)
+
+async function seedAiMembers(members, admin) {
+    console.log('\nAI 회원');
+    const [[hasDrafts, hasHistory]] = rows(sql(`SELECT to_regclass('public.ai_member_drafts') IS NOT NULL, to_regclass('public.ai_member_model_history') IS NOT NULL`));
+    if (hasDrafts !== 't' || hasHistory !== 't') {
+        failed('AI 회원', { status: 0, code: 'NO_V183', error: { message: 'shared V183(ai_member_*) 이 적용되지 않았다 — 새 jar 로 서버를 다시 띄운다' } });
+        return;
+    }
+    const opt = await admin.request('GET', '/api/admin/ai-members/options');
+    if (!ok(opt)) {
+        failed('AI 회원 옵션(관리자 서버가 AI 회원 API 가 있는 새 jar 인가)', opt);
+        return;
+    }
+    const doc = json(join(DEMO, 'ai-members.json'));
+    const models = opt.data.models;
+    const modelOf = (provider, index) => models[provider]?.[index ?? 0] ?? models[provider]?.[0];
+    const boardSlugs = new Set(rows(sql(`SELECT slug FROM boards WHERE kind <> 'GROUP' AND active`)).map(([s]) => s));
+    const byNick = new Map(members.map((m) => [m.nickname, m]));
+
+    const group = await ensureAiGroup(doc.group, members, admin);
+    if (!group) return;
+
+    // ── 계정 ──
+    const listed = async () => new Map(((await admin.request('GET', '/api/admin/ai-members')).data?.items ?? []).map((r) => [r.member.nickname, r]));
+    let have = await listed();
+    const created = [];
+    for (const a of doc.accounts) {
+        if (have.has(a.nickname)) continue;
+        const boards = a.boards.filter((s) => boardSlugs.has(s));
+        if (boards.length !== a.boards.length) console.log(`  ${a.nickname}: 없는 게시판 ${a.boards.filter((s) => !boardSlugs.has(s)).join(',')} 은 뺀다`);
+        const model = modelOf(a.provider, a.previousModelIndex ?? a.modelIndex);
+        const r = await admin.request('POST', '/api/admin/ai-members', {
+            nickname: a.nickname, avatarId: a.avatarId, provider: a.provider, model, persona: a.persona, bio: a.bio, relation: null, windows: a.windows,
+            dailyPosts: a.dailyPosts, boards, groups: [group.id],
+        });
+        if (!ok(r)) {
+            failed(`AI 회원 ${a.nickname}`, r);
+            continue;
+        }
+        created.push(a.nickname);
+    }
+    have = await listed();
+    // 관계(양쪽) · 소모임 멤버 · 모델 바꾸기(이력 2줄) — 지금 값과 다를 때만 고친다
+    for (const a of doc.accounts) {
+        const row = have.get(a.nickname);
+        if (!row) continue;
+        const d = (await admin.request('GET', `/api/admin/ai-members/${row.id}`)).data;
+        if (!d) continue;
+        const partner = a.relation ? have.get(a.relation.partner) : null;
+        const wantRelation = partner ? { kind: a.relation.kind, partnerAiMemberId: partner.id } : null;
+        const relationOk = (d.relation?.partner?.aiMemberId ?? null) === (wantRelation?.partnerAiMemberId ?? null)
+            && (d.relation?.kind ?? null) === (wantRelation?.kind ?? null);
+        const groupOk = d.groups.includes(group.id);
+        const finalModel = modelOf(a.provider, a.modelIndex);
+        const changeModel = a.previousModelIndex !== undefined && (d.modelHistory?.length ?? 0) < 2 && d.model !== finalModel;
+        if (relationOk && groupOk && !changeModel) continue;
+        const r = await admin.request('PUT', `/api/admin/ai-members/${row.id}`, {
+            provider: d.provider, model: changeModel ? finalModel : d.model, persona: d.persona, bio: d.bio, relation: wantRelation,
+            windows: d.windows, dailyPosts: d.dailyPosts, boards: d.boards.filter((s) => boardSlugs.has(s)), groups: groupOk ? d.groups : [...d.groups, group.id],
+        });
+        if (!ok(r)) failed(`AI 회원 맞추기 ${a.nickname}`, r);
+        else if (changeModel) console.log(`  ${a.nickname} 모델 ${d.model} → ${finalModel}(이력 2줄)`);
+    }
+    // 새로 만든 계정은 가입·이력 시각을 며칠 전으로(이력 첫 줄 = 가입, 둘째 줄 = 모델을 바꾼 날)
+    const now = Date.now();
+    for (const nick of created) {
+        const row = have.get(nick);
+        const a = doc.accounts.find((x) => x.nickname === nick);
+        const joinedAt = now - (a.joinedDaysAgo ?? 9) * DAY;
+        const changedAt = now - (a.modelChangedDaysAgo ?? 3) * DAY;
+        sql(`UPDATE users SET created_at = ${ts(joinedAt)}, updated_at = ${ts(joinedAt)}, email_verified_at = ${ts(joinedAt)}, terms_agreed_at = ${ts(joinedAt)},
+                    age_confirmed_at = ${ts(joinedAt)} WHERE id = ${row.member.memberId};
+             UPDATE profiles SET created_at = ${ts(joinedAt)} WHERE user_id = ${row.member.memberId};
+             UPDATE ai_member_profiles SET created_at = ${ts(joinedAt)} WHERE id = ${row.id};
+             UPDATE group_members SET joined_at = ${ts(joinedAt + DAY)} WHERE group_id = ${group.id} AND user_id = ${row.member.memberId};
+             UPDATE ai_member_model_history h SET since = CASE WHEN h.id = f.first_id THEN ${ts(joinedAt)} ELSE ${ts(changedAt)} END
+               FROM (SELECT min(id) AS first_id FROM ai_member_model_history WHERE ai_member_id = ${row.id}) f WHERE h.ai_member_id = ${row.id}`);
+    }
+    console.log(`  계정 ${have.size}명(새로 ${created.length}) — 모두 꺼짐 · 키 없음 그대로`);
+
+    await handOverAiGroup(group, doc.group, have, byNick);
+
+    // ── 글·댓글 ── 전체 정지 중이면 실행기가 승인 줄을 등록하지 않는다
+    if (rows(sql(`SELECT stopped FROM ai_member_settings WHERE id = 1`))[0]?.[0] === 't') {
+        failed('AI 글·댓글', { status: 0, code: 'GLOBAL_STOP', error: { message: 'AI 회원 전체 정지 중이라 넣지 않았다 — 관리자 AI 회원 설정에서 풀고 다시 돌린다' } });
+        return;
+    }
+    const accounts = new Map();
+    for (const a of doc.accounts) {
+        const row = have.get(a.nickname);
+        if (!row) continue;
+        const history = rows(sql(`SELECT provider, model, extract(epoch FROM since) * 1000 FROM ai_member_model_history WHERE ai_member_id = ${row.id} ORDER BY since DESC, id DESC`))
+            .map(([provider, model, since]) => ({ provider, model, since: Number(since) }));
+        accounts.set(a.nickname, { aiMemberId: row.id, userId: row.member.memberId, provider: row.provider, model: row.model, history });
+    }
+    // 그 시각에 쓰던 모델(정책 3 — 글마다 실제로 부른 모델)
+    const modelAt = (acc, at) => acc.history.find((h) => h.since <= at) ?? acc.history[acc.history.length - 1] ?? { provider: acc.provider, model: acc.model };
+    const operatorId = rows(sql(`SELECT id FROM operators WHERE email = ${q(membersDoc.operator.email)}`))[0]?.[0] ?? null;
+    const boardIds = new Map(rows(sql(`SELECT slug, id FROM boards`)));
+    const nodes = planAiContent(doc, accounts, byNick, now);
+    const ctx = { accounts, byNick, modelAt, operatorId, boardIds, group, written: 0, failedCount: 0 };
+    for (let depth = -1; depth <= 4; depth++) {
+        const wave = nodes.filter((n) => n.depth === depth);
+        if (wave.length && !(await aiWave(wave, ctx))) return;
+    }
+    sql(`UPDATE groups SET last_activity_at = (SELECT max(created_at) FROM posts WHERE group_id = ${group.id})
+          WHERE id = ${group.id} AND EXISTS (SELECT 1 FROM posts WHERE group_id = ${group.id})`);
+    const pending = aiPending(doc, ctx, now);
+    console.log(`  AI 글·댓글 등록 ${ctx.written} · 등록 못 함 ${ctx.failedCount} · 검수 대기 ${pending}`);
+}
+
+/** AI 전용 공개 소모임 — 없으면 데모 사람 회원이 개설(공개) → 운영자 승인. 그다음 관리자 API 로 AI 전용 */
+async function ensureAiGroup(g, members, admin) {
+    let found = rows(sql(`SELECT id, leader_id, ai_only, visibility, board_id FROM groups WHERE name = ${q(g.name)} AND status IN ('PENDING', 'ACTIVE') ORDER BY id LIMIT 1`))[0];
+    if (!found) {
+        const categoryId = rows(sql(`SELECT c.category_id FROM group_category_boards c JOIN boards b ON b.id = c.board_id WHERE b.slug = ${q(g.board)}`))[0]?.[0];
+        const busy = new Set(rows(sql(`SELECT leader_id FROM groups WHERE status IN ('PENDING', 'ACTIVE', 'INACTIVE')
+                                       UNION SELECT creator_id FROM groups WHERE requested_at > now() - interval '1 day'`)).map(([u]) => u));
+        const owner = g.creators.map((n) => members.find((m) => m.nickname === n)).find((m) => m && m.level >= 2 && !busy.has(String(m.userId)))
+            ?? members.find((m) => m.level >= 2 && !busy.has(String(m.userId)));
+        if (!owner || !categoryId) {
+            failed(`AI 소모임 ${g.name}`, { status: 0, code: owner ? 'NO_CATEGORY' : 'NO_OWNER', error: { message: `개설할 회원 또는 분류(${g.board})가 없다` } });
+            return null;
+        }
+        const r = await owner.request('POST', '/api/groups', {
+            name: g.name, description: g.description, categoryId, boardSlug: g.board, joinType: 'OPEN', capacity: 50, offline: false, visibility: 'PUBLIC',
+            agreeRules: true, agreeStock: false, agreeOffline: false,
+        });
+        if (!ok(r)) {
+            failed(`AI 소모임 ${g.name}`, r);
+            return null;
+        }
+        if (r.data.status === 'PENDING') {
+            const a = await admin.request('POST', `/api/admin/groups/${r.data.id}/approve`);
+            if (!ok(a)) {
+                failed(`AI 소모임 승인 ${g.name}`, a);
+                return null;
+            }
+        }
+        const opened = Date.now() - 10 * DAY;
+        sql(`UPDATE groups SET requested_at = ${ts(opened - 3_600_000)}, opened_at = ${ts(opened)},
+                    reviewed_at = CASE WHEN reviewed_at IS NULL THEN NULL ELSE ${ts(opened)} END WHERE id = ${r.data.id}`);
+        console.log(`  소모임 ${g.name} 개설(${owner.nickname} — 공개, 모임장은 뒤에 AI 로 넘긴다)`);
+        found = rows(sql(`SELECT id, leader_id, ai_only, visibility, board_id FROM groups WHERE id = ${r.data.id}`))[0];
+    }
+    const [id, leaderId, aiOnly, visibility, boardId] = found;
+    if (visibility !== 'PUBLIC') {
+        failed(`AI 소모임 ${g.name}`, { status: 0, code: 'GROUP_NOT_PUBLIC', error: { message: '같은 이름의 소모임이 비공개다 — AI 전용은 공개 소모임만' } });
+        return null;
+    }
+    if (aiOnly !== 't') {
+        const r = await admin.request('PUT', `/api/admin/ai-members/groups/${id}`, { aiOnly: true });
+        if (!ok(r)) {
+            failed(`AI 전용 지정 ${g.name}`, r);
+            return null;
+        }
+        console.log(`  ${g.name} → AI 전용`);
+    }
+    return { id, leaderId, boardId };
+}
+
+/** 모임장을 AI(원고 leader)로 넘기고 개설한 사람 회원은 나간다 — 공개 API(모임장 넘기기 · 나가기) */
+async function handOverAiGroup(group, g, have, byNick) {
+    const leaderAi = have.get(g.leader);
+    if (!leaderAi) return;
+    const [[leaderId]] = rows(sql(`SELECT leader_id FROM groups WHERE id = ${group.id}`));
+    if (leaderId === String(leaderAi.member.memberId)) return;
+    const human = [...byNick.values()].find((m) => String(m.userId) === leaderId);
+    if (!human) {
+        console.log(`  모임장(${leaderId})이 데모 회원이 아니라 넘기지 않았다`);
+        return;
+    }
+    const t = await human.request('POST', `/api/groups/${group.id}/leader`, { userId: String(leaderAi.member.memberId) });
+    if (!ok(t)) {
+        failed('AI 소모임 모임장 넘기기', t);
+        return;
+    }
+    const l = await human.request('DELETE', `/api/groups/${group.id}/membership`);
+    if (!ok(l)) failed(`AI 소모임 나가기(${human.nickname})`, l);
+    console.log(`  모임장 ${human.nickname} → ${g.leader}, ${human.nickname} 은 나감(멤버는 AI 만)`);
+}
+
+/** 계획 — 글(깊이 -1) · 원댓글(0) · 답글(1~). 시각은 앞 글·댓글 뒤로 흩고 지금 5분 전을 넘기지 않는다 */
+function planAiContent(doc, accounts, byNick, now) {
+    const nodes = [];
+    const latest = now - 5 * 60_000;
+    const clamp = (at, after) => Math.min(Math.max(at, after + 60_000), latest);
+    for (const p of doc.posts) {
+        const acc = accounts.get(p.by);
+        if (!acc) continue;
+        const at = Math.min(now - p.hoursAgo * 3_600_000 + between(-40, 40) * 60_000, latest - 60 * 60_000);
+        const post = { depth: -1, kind: 'POST', source: p, acc, by: p.by, at, title: p.title, body: p.body, board: p.board ?? null, group: !!p.group };
+        nodes.push(post);
+        const walk = (list, depth, parent, top) => {
+            for (const c of list ?? []) {
+                const ai = accounts.get(c.by) ?? null;
+                const human = ai ? null : byNick.get(c.by) ?? null;
+                if (!ai && !human) continue;
+                if (human && depth > 0) continue; // 사람 회원은 원댓글만(원고 형식)
+                const base = parent ? parent.at : post.at;
+                const node = { depth, kind: depth === 0 ? 'COMMENT' : 'REPLY', post, parent, top: top ?? null, acc: ai, human, by: c.by, body: c.text,
+                    at: clamp(base + between(depth === 0 ? 25 : 8, depth === 0 ? 240 : 90) * 60_000, base) };
+                if (!node.top && depth > 0) node.top = parent;
+                nodes.push(node);
+                walk(c.replies, depth + 1, node, top ?? node);
+            }
+        };
+        walk(p.comments, 0, null, null);
+    }
+    // 같은 글에서 같은 AI 가 같은 상대에게 단 답글 차례(round)
+    const rounds = new Map();
+    for (const n of nodes.filter((x) => x.kind === 'REPLY' && x.acc).sort((a, b) => a.at - b.at)) {
+        const key = `${n.post.title}|${n.by}|${n.parent.by}`;
+        rounds.set(key, (rounds.get(key) ?? 0) + 1);
+        n.round = rounds.get(key);
+    }
+    return nodes;
+}
+
+/** 한 차례 — AI 는 승인 생성 줄을 넣고 실행기 등록을 기다린다, 사람은 공개 API 로 바로 쓴다. 등록된 글·댓글은 계획 시각으로 옮긴다 */
+async function aiWave(wave, ctx) {
+    const waiting = [];
+    for (const n of wave) {
+        const postId = n.kind === 'POST' ? null : n.post.postId;
+        if (n.kind !== 'POST' && !postId) continue; // 글이 등록되지 않았다
+        if (n.kind === 'REPLY' && (!n.parent.commentId || !n.top.commentId)) continue;
+        if (n.human) {
+            await humanComment(n);
+            continue;
+        }
+        const target = n.kind === 'REPLY' ? n.parent : null;
+        const counterpart = n.kind === 'POST' ? null : n.kind === 'COMMENT' ? n.post.acc.userId : target.acc ? target.acc.userId : target.human.userId;
+        const draft = aiDraft(ctx, {
+            acc: n.acc, kind: n.kind, status: 'APPROVED', at: n.at, title: n.kind === 'POST' ? n.title : null, body: n.body,
+            boardId: n.kind === 'POST' ? (n.group ? ctx.group.boardId : ctx.boardIds.get(n.board)) : n.post.boardId,
+            groupId: n.kind === 'POST' ? (n.group ? ctx.group.id : null) : n.post.groupId,
+            postId, parentId: n.kind === 'REPLY' ? n.top.commentId : null, replyToId: n.kind === 'REPLY' ? n.parent.commentId : null,
+            counterpartUserId: counterpart, counterpartAi: n.kind === 'COMMENT' || (n.kind === 'REPLY' && !!target.acc), round: n.round ?? null,
+        });
+        if (!draft) continue;
+        n.draftId = draft.id;
+        if (draft.status === 'APPROVED') waiting.push(n);
+        else settle(n, draft, ctx);
+    }
+    if (!waiting.length) return true;
+    console.log(`  등록 기다림 ${waiting.length}건(api 실행기 — 1분마다)`);
+    const ids = waiting.map((n) => n.draftId).join(',');
+    const deadline = Date.now() + AI_WAIT_MS;
+    for (;;) {
+        const left = Number(rows(sql(`SELECT count(*) FROM ai_member_drafts WHERE id IN (${ids}) AND status = 'APPROVED'`))[0][0]);
+        if (!left) break;
+        if (Date.now() > deadline) {
+            failed('AI 글 등록', { status: 0, code: 'RUNNER_IDLE', error: { message: `${left}건이 ${AI_WAIT_MS / 1000}초 동안 승인 상태 그대로 — api 서버의 AI 실행기(roboyam.ai-member.runner-enabled · 새 jar)를 확인하고 다시 돌린다` } });
+            return false;
+        }
+        await sleep(5_000);
+    }
+    for (const n of waiting) settle(n, aiDraftRow(n.draftId), ctx);
+    return true;
+}
+
+/** 등록 결과를 계획에 붙이고 작성 시각을 옮긴다(이미 옮긴 줄은 그대로) */
+function settle(n, d, ctx) {
+    if (d.status !== 'PUBLISHED') {
+        if (d.status === 'FAILED') {
+            ctx.failedCount++;
+            failed(`AI ${n.kind} ${n.by}`, { status: 0, code: d.fail_reason ?? 'FAILED', error: { message: n.title ?? n.body.slice(0, 20) } });
+        }
+        return;
+    }
+    const at = n.at;
+    if (n.kind === 'POST') {
+        n.postId = d.published_post_id;
+        const [[boardId, groupId]] = rows(sql(`SELECT board_id, coalesce(group_id::text, '') FROM posts WHERE id = ${n.postId}`));
+        n.boardId = boardId;
+        n.groupId = groupId || null;
+        sql(`UPDATE posts SET created_at = ${ts(at)}, updated_at = ${ts(at)} WHERE id = ${n.postId} AND created_at > ${ts(at)}`);
+    } else {
+        n.commentId = d.published_comment_id;
+        sql(`UPDATE comments SET created_at = ${ts(at)}, updated_at = ${ts(at)} WHERE id = ${n.commentId} AND created_at > ${ts(at)}`);
+    }
+    sql(`UPDATE ai_member_drafts SET created_at = ${ts(at - 3 * 60_000)}, reviewed_at = CASE WHEN reviewed_at IS NULL THEN NULL ELSE ${ts(at - 60_000)} END,
+                published_at = ${ts(at)} WHERE id = ${d.id} AND published_at > ${ts(at)}`);
+    ctx.written++;
+}
+
+/** 사람 회원 원댓글 — 그 회원으로 공개 API(같은 글·같은 본문이 있으면 그것) */
+async function humanComment(n) {
+    const postId = n.post.postId;
+    const existing = rows(sql(`SELECT id FROM comments WHERE post_id = ${postId} AND author_id = ${n.human.userId} AND content = ${q(n.body)} AND deleted_at IS NULL LIMIT 1`))[0];
+    if (existing) {
+        n.commentId = existing[0];
+        return;
+    }
+    const r = await n.human.request('POST', `/api/posts/${postId}/comments`, { contentFormat: 'TEXT', content: n.body });
+    if (!ok(r)) {
+        failed(`AI 글에 사람 댓글(${n.by})`, r);
+        return;
+    }
+    n.commentId = r.data.id;
+    stats.comments++;
+    sql(`UPDATE comments SET created_at = ${ts(n.at)}, updated_at = ${ts(n.at)} WHERE id = ${n.commentId}`); // 바로 옮겨 다음 댓글이 작성 간격에 걸리지 않게
+}
+
+/** 생성 줄 하나 — 같은 계정·종류·본문의 줄이 있으면 그 줄(다시 돌려도 겹치지 않는다) */
+function aiDraft(ctx, v) {
+    const found = rows(sql(`SELECT id FROM ai_member_drafts WHERE ai_member_id = ${v.acc.aiMemberId} AND kind = ${q(v.kind)} AND md5(body) = md5(${q(v.body)}) ORDER BY id LIMIT 1`))[0];
+    if (found) return aiDraftRow(found[0]);
+    if (!v.boardId) return null;
+    const m = ctx.modelAt(v.acc, v.at);
+    const id = snowflake();
+    const tokensIn = between(380, 920);
+    const tokensOut = v.kind === 'POST' ? between(260, 620) : between(60, 180);
+    const approved = v.status === 'APPROVED';
+    sql(`INSERT INTO ai_member_drafts (id, ai_member_id, kind, status, board_id, group_id, post_id, parent_comment_id, reply_to_comment_id, counterpart_user_id,
+                                       counterpart_ai, round, title, body, provider, model, input_tokens, output_tokens, instant, created_at, reviewed_at, reviewed_by)
+         VALUES (${id}, ${v.acc.aiMemberId}, ${q(v.kind)}, ${q(v.status)}, ${v.boardId}, ${v.groupId ?? 'NULL'}, ${v.postId ?? 'NULL'}, ${v.parentId ?? 'NULL'},
+                 ${v.replyToId ?? 'NULL'}, ${v.counterpartUserId ?? 'NULL'}, ${v.counterpartAi ? 'true' : 'false'}, ${v.round ?? 'NULL'}, ${q(v.title)}, ${q(v.body)},
+                 ${q(m.provider)}, ${q(m.model)}, ${tokensIn}, ${tokensOut}, false, ${ts(v.at - 3 * 60_000)}, ${approved ? ts(v.at - 60_000) : 'NULL'},
+                 ${approved && ctx.operatorId ? ctx.operatorId : 'NULL'})`);
+    return aiDraftRow(String(id));
+}
+
+function aiDraftRow(id) {
+    const [r] = rows(sql(`SELECT id, status, coalesce(published_post_id::text, ''), coalesce(published_comment_id::text, ''), coalesce(fail_reason, '')
+                            FROM ai_member_drafts WHERE id = ${id}`));
+    return { id: r[0], status: r[1], published_post_id: r[2] || null, published_comment_id: r[3] || null, fail_reason: r[4] || null };
+}
+
+/** 검수 대기(PENDING) 몇 줄 — 대상 글은 원고 제목으로 찾는다. 넣은(또는 이미 대기 중인) 수 */
+function aiPending(doc, ctx, now) {
+    let n = 0;
+    for (const p of doc.pending ?? []) {
+        const acc = ctx.accounts.get(p.by);
+        if (!acc) continue;
+        const at = now - p.hoursAgo * 3_600_000 + between(-20, 20) * 60_000;
+        let target = null;
+        if (p.kind !== 'POST') {
+            const [row] = rows(sql(`SELECT p.id, p.board_id, coalesce(p.group_id::text, ''), p.author_id FROM ai_member_drafts d JOIN posts p ON p.id = d.published_post_id
+                                     WHERE d.kind = 'POST' AND d.status = 'PUBLISHED' AND d.title = ${q(p.target)} ORDER BY d.id LIMIT 1`));
+            if (!row) continue;
+            target = { postId: row[0], boardId: row[1], groupId: row[2] || null, authorId: row[3] };
+        }
+        let parentId = null;
+        let replyToId = null;
+        let counterpart = target?.authorId ?? null;
+        if (p.kind === 'REPLY') {
+            const human = ctx.byNick.get(p.to);
+            const [c] = human
+                ? rows(sql(`SELECT id, coalesce(parent_id::text, '') FROM comments WHERE post_id = ${target.postId} AND author_id = ${human.userId} AND deleted_at IS NULL ORDER BY id DESC LIMIT 1`))
+                : [];
+            if (!c) continue;
+            replyToId = c[0];
+            parentId = c[1] || c[0];
+            counterpart = human.userId;
+        }
+        const d = aiDraft(ctx, {
+            acc, kind: p.kind, status: 'PENDING', at, title: p.kind === 'POST' ? p.title : null, body: p.body,
+            boardId: p.kind === 'POST' ? ctx.boardIds.get(p.board) : target.boardId, groupId: p.kind === 'POST' ? null : target.groupId,
+            postId: target?.postId ?? null, parentId, replyToId, counterpartUserId: counterpart, counterpartAi: p.kind === 'COMMENT', round: p.kind === 'REPLY' ? 2 : null,
+        });
+        if (d?.status === 'PENDING') n++;
+    }
+    return n;
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

@@ -537,7 +537,7 @@ const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 /* ── 불러오기 ── */
 type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'secretLocked' | 'error';
 const post = ref<PostDetail | null>(null);
-/** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai`, 서버 후보 — 지금은 목업이 붙인다) */
+/** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai` — 이 글을 만든 모델) */
 const postAi = computed(() => (post.value?.author.kind === 'MEMBER' ? (post.value.author.ai ?? null) : null));
 /** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
 const secretBoardSlug = ref<string | null>(null);

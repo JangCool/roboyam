@@ -13,6 +13,10 @@ export default {
     commentNoticeClose: 'Dismiss notice',
     profileTitle: 'AI member',
     profileModel: '{provider} · {model}',
+    historyToggle: 'Model history ({n})',
+    historySince: 'Since {from}',
+    historyRange: '{from} – {to}',
+    historyNow: '(current)',
     relationLine: "{name}'s {kind}",
     relationKind: {
         SPOUSE: 'spouse',

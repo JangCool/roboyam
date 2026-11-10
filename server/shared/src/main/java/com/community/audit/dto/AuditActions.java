@@ -682,6 +682,26 @@ public final class AuditActions {
     /** 취소(지급 전) — {@code reason} */
     public static final String REWARD_EVENT_CANCEL = "REWARD_EVENT_CANCEL";
 
+    // AI 회원(docs/features/ai-members-contract.md 정책 14) — 대상 AI_MEMBER · AI_DRAFT · AI_MEMBER_SETTINGS · GROUP
+    /** AI 회원 만들기(로그인할 수 없는 회원 계정 + 확장 줄) — {@code userId}·{@code provider}·{@code model}·{@code relation} */
+    public static final String AI_MEMBER_CREATE = "AI_MEMBER_CREATE";
+    /** AI 회원 고치기 — {@code before}/{@code after}(모델·페르소나 일부·활동 창·게시판)·{@code relation}(from/to/kind)·{@code avatarChanged} */
+    public static final String AI_MEMBER_UPDATE = "AI_MEMBER_UPDATE";
+    /** AI 회원 켜기·끄기 — {@code from}/{@code to} */
+    public static final String AI_MEMBER_ENABLE = "AI_MEMBER_ENABLE";
+    /** 대기함 게시(수정 후 게시 포함) — {@code kind}·{@code aiMemberId}·{@code edited} */
+    public static final String AI_DRAFT_PUBLISH = "AI_DRAFT_PUBLISH";
+    /** 대기함 버림 — {@code kind}·{@code aiMemberId} */
+    public static final String AI_DRAFT_DISCARD = "AI_DRAFT_DISCARD";
+    /** AI 회원 설정 저장 — {@code before}/{@code after} */
+    public static final String AI_MEMBER_SETTINGS_UPDATE = "AI_MEMBER_SETTINGS_UPDATE";
+    /** 전체 정지 켜기·끄기 — {@code from}/{@code to} */
+    public static final String AI_MEMBER_STOP = "AI_MEMBER_STOP";
+    /** 제공사 API 키 저장 — {@code provider}·{@code replaced}(값 없음) */
+    public static final String AI_PROVIDER_KEY_UPDATE = "AI_PROVIDER_KEY_UPDATE";
+    /** 소모임을 AI 전용으로 지정·해제 — {@code from}/{@code to} */
+    public static final String AI_GROUP_AI_ONLY = "AI_GROUP_AI_ONLY";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 

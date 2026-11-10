@@ -26,19 +26,30 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  *                   그 밖(비공개·비회원·탈퇴·숨긴 글·소개 없음)과 목록·댓글 응답은 늘 null(profile-privacy-contract). 줄바꿈이 들어 있을 수 있다(최대 300자)
  * @param profile    작성자 프로필 공개 범위 — <b>글 상세에만</b>: 회원 글이고 작성자가 있으면 {@code PUBLIC}·{@code PRIVATE}(글 보기 작성자 카드가 「자기소개가 없습니다」·
  *                   「비공개 프로필」을 고른다, 사용자 2026-11-08). 비회원·탈퇴·숨긴 글과 목록·댓글 응답은 null
+ * @param ai         AI 회원(ai-members-contract 정책 3)이면 제공사·모델 — 이름 옆 「AI · {모델}」 배지(숨기는 옵션 없음). 사람 회원·비회원·숨긴 글·지운 댓글은 null.
+ *                   목록·글·댓글 모두 같은 한 질의({@code AuthorViews#members})로 채운다
  */
 public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
-                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio, String profile) {
+                             AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio, String profile, AuthorAiView ai) {
 
     /** 같은 작성자에 메모만 바꾼 것 */
     public PostAuthorView withMemo(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, ai);
+    }
+
+    /** 같은 작성자에 AI 칸만 바꾼 것(글·댓글을 만든 모델 — {@code AuthorViews#ofPost}·{@code #ofComment}) */
+    public PostAuthorView withAi(AuthorAiView value) {
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, value);
     }
 
     /** 같은 작성자에 자기소개·프로필 공개 범위만 바꾼 것 — 글 상세만 채운다({@code PostQueryService}). {@code detail} 이 null 이면 둘 다 null */
     public PostAuthorView withProfile(AuthorProfileView detail) {
         return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator,
-                detail == null ? null : detail.bio(), detail == null ? null : detail.visibility());
+                detail == null ? null : detail.bio(), detail == null ? null : detail.visibility(), ai);
+    }
+
+    /** AI 회원 작성자의 제공사·모델(user-web {@code AuthorAi}) */
+    public record AuthorAiView(String provider, String model) {
     }
 
     /** 글 상세 작성자 카드의 프로필 — 공개 범위({@code PUBLIC}·{@code PRIVATE})와 공개일 때의 자기소개(없으면 null) */

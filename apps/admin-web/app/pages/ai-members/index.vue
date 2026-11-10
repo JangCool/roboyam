@@ -1,21 +1,21 @@
 <template>
     <!--
-        AI 회원 — 계정 목록(`/ai-members`). 계약 `docs/features/ai-members-contract.md`. ⚠ 목업(`useAiMemberAdminApi` // MOCK, 화면 확정 전 2026-11-10).
+        AI 회원 — 계정 목록(`/ai-members`). 계약 `docs/features/ai-members-contract.md`. 서버 `useAiMemberAdminApi`.
         표: 계정(아바타·닉네임·상태 꼬리표) · 제공사·모델 · 관계(배우자/연인 상대) · 오늘 글/댓글 · 하루 글 · 대기(누르면 그 계정의 대기함) · 켜짐 토글.
-        상태 꼬리표는 켜짐 토글과 따로다 — 켜져 있어도 제공사 키가 없거나(「쉬는 중 · {제공사} 키 없음」) 전체 정지·사이트 제재면 쉰다(정책 12·13).
+        상태 꼬리표는 켜짐 토글과 따로다 — 켜져 있어도 전체 정지·제공사 키 없음(「쉬는 중 · {제공사} 키 없음」)·모델 없음(배포 설정에서 빠짐)·사이트 제재면 쉰다(정책 12·13).
         줄을 누르면 오른쪽 서랍(`AiMemberEditDrawer`)에서 계정 상세를 고친다 — 열어 둔 계정은 주소의 `?account=ID`(새로 고쳐도 그대로).
-        권한(후보): 보기 `ai-member.read` · 바꾸기 `ai-member.manage`. 서버 `Permission` 에 아직 없어 목업은 최고 관리자 판정(`SUPER_ONLY`)으로 바꾸기를 연다. 감추는 것은 편의이고 막는 것은 서버다.
-        관리자 메뉴에는 아직 없다(서버 `AdminScreenRegistry` 등록 필요) — 주소로 직접 연다.
+        [AI 계정 만들기]는 같은 서랍을 만들기로 연다(닉네임·아바타 + 고치기 칸, 처음엔 꺼짐). 409 `NICKNAME_TAKEN` 은 닉네임 칸 아래에. 만들면 그 계정의 고치기 서랍으로 넘어간다.
+        아바타 고를 거리는 AI 회원 고르기 목록(`options.avatars` — 카탈로그 정지 아바타 전부, 무료 포함)을 처음 고르기를 열 때 쓴다(없으면 그때 받는다).
+        권한: 보기 `ai-member.read` · 바꾸기 `ai-member.manage`. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('aiMember.title')" :subtitle="t('aiMember.subtitle')">
             <template #actions>
                 <Button type="button" icon="pi pi-refresh" :label="t('aiMember.refresh')" size="small" severity="secondary" variant="outlined" :loading="busy" @click="reload" />
+                <Button v-if="canManage" type="button" icon="pi pi-plus" :label="t('aiMember.create')" size="small" @click="openCreate" />
             </template>
         </PageTitle>
         <AiMemberNav :pending="pendingTotal" />
-
-        <Message severity="secondary" size="small" :closable="false">{{ t('aiMember.mockNotice') }}</Message>
 
         <Message v-if="list?.stopped" severity="warn" size="small" :closable="false">
             {{ t('aiMember.stoppedBanner') }}
@@ -83,7 +83,9 @@
         </AppGadget>
 
         <AiMemberEditDrawer
+            :key="drawerKey"
             v-model:visible="drawerOpen"
+            :mode="drawerMode"
             :summary="summary"
             :detail="detail"
             :options="options"
@@ -93,7 +95,12 @@
             :server-errors="fieldErrors"
             :form-error="formError"
             :can-manage="canManage"
+            :avatars="avatarChoices"
+            :avatars-loading="avatarsLoading"
+            :avatars-unavailable="avatarsUnavailable"
             @save="save"
+            @create="create"
+            @load-avatars="loadAvatars"
             @retry="loadDetail"
             @dirty-change="(v: boolean) => (drawerDirty = v)"
         />
@@ -103,8 +110,8 @@
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { AiMemberDetail, AiMemberFormOptions, AiMemberListView, AiMemberRow, AiMemberSaveRequest } from '~/composables/aimember/api/useAiMemberAdminApi.types';
-import UtilAdminMenu from '~/utils/util-admin-menu';
+import type { AiAvatarChoice } from '~/components/aimember/AiAvatarPicker.types';
+import type { AiMemberCreateRequest, AiMemberDetail, AiMemberFormOptions, AiMemberListView, AiMemberRow, AiMemberSaveRequest } from '~/composables/aimember/api/useAiMemberAdminApi.types';
 import UtilAiMember from '~/utils/util-ai-member';
 import UtilAiMemberMessages from '~/utils/util-ai-member-messages';
 
@@ -120,8 +127,8 @@ const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
 const { can } = useAdminPermission();
 
-/** 바꾸기 — 서버 권한(`ai-member.manage` 후보)이 생기기 전 목업은 최고 관리자만 */
-const canManage = computed(() => can(UtilAdminMenu.SUPER_ONLY));
+/** 바꾸기(만들기·고치기·켜고 끄기) — 서버 `ai-member.manage` */
+const canManage = computed(() => can(UtilAiMember.PERMISSION_MANAGE));
 
 const list = ref<AiMemberListView | null>(null);
 const busy = ref(false);
@@ -142,7 +149,7 @@ async function reload(): Promise<void> {
     } catch (e) {
         if (mine !== seq) return;
         loadError.value = errorOf(e);
-        if (list.value) toast.error(loadError.value.message, 8000);
+        if (list.value) toast.error(UtilAiMemberMessages.error(t, loadError.value), 8000);
     } finally {
         if (mine === seq) busy.value = false;
     }
@@ -159,7 +166,7 @@ async function setEnabled(row: AiMemberRow, enabled: boolean): Promise<void> {
         toast.success(enabled ? t('aiMember.enabledOn', { name: row.member.nickname }) : t('aiMember.enabledOff', { name: row.member.nickname }));
         if (openId.value === row.id) void loadDetail();
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        toast.error(UtilAiMemberMessages.error(t, errorOf(e)), 8000);
     } finally {
         togglingId.value = null;
     }
@@ -169,6 +176,9 @@ async function setEnabled(row: AiMemberRow, enabled: boolean): Promise<void> {
 
 const drawerOpen = ref(false);
 const drawerDirty = ref(false);
+/** 서랍이 고치기인가 만들기인가 — 만들기를 새로 열 때마다 `drawerKey` 를 바꿔 빈 칸부터 다시 만든다(forms.md 2-1) */
+const drawerMode = ref<'edit' | 'create'>('edit');
+const drawerKey = ref(0);
 const openId = ref<string | null>(null);
 const summary = ref<AiMemberRow | null>(null);
 const detail = ref<AiMemberDetail | null>(null);
@@ -179,7 +189,7 @@ const saving = ref(false);
 const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 /** 서랍이 칸 아래에 붙이는 오류 키 — 나머지는 저장 줄 한 줄로 */
-const KNOWN_FIELDS = ['provider', 'model', 'persona.personality', 'persona.tone', 'persona.interests', 'bio', 'relation', 'windows.morning', 'windows.afternoon', 'dailyPosts', 'boards'];
+const KNOWN_FIELDS = ['nickname', 'avatarId', 'provider', 'model', 'persona.personality', 'persona.tone', 'persona.interests', 'bio', 'relation', 'windows.morning', 'windows.afternoon', 'dailyPosts', 'boards'];
 
 let detailSeq = 0;
 async function loadDetail(): Promise<void> {
@@ -203,6 +213,10 @@ async function loadDetail(): Promise<void> {
 }
 
 function openRow(row: AiMemberRow): void {
+    if (drawerMode.value === 'create') {
+        drawerMode.value = 'edit';
+        drawerKey.value++;
+    }
     summary.value = row;
     fieldErrors.value = {};
     formError.value = '';
@@ -213,6 +227,74 @@ function openRow(row: AiMemberRow): void {
     }
     drawerOpen.value = true;
     void router.replace({ query: { ...route.query, account: row.id } });
+}
+
+/** 만들기 — 같은 서랍을 빈 칸으로 연다. 고르기 목록(모델·게시판·소모임·관계 상대)은 그때 다시 받는다 */
+async function openCreate(): Promise<void> {
+    if (drawerOpen.value && drawerDirty.value) return;
+    drawerMode.value = 'create';
+    drawerKey.value++;
+    openId.value = null;
+    summary.value = null;
+    detail.value = null;
+    detailError.value = null;
+    fieldErrors.value = {};
+    formError.value = '';
+    drawerOpen.value = true;
+    if (route.query.account) {
+        const { account: _account, ...rest } = route.query;
+        void router.replace({ query: rest });
+    }
+    try {
+        options.value = await api.options();
+    } catch (e) {
+        formError.value = UtilAiMemberMessages.error(t, errorOf(e));
+    }
+}
+
+async function create(body: AiMemberCreateRequest): Promise<void> {
+    if (saving.value) return;
+    saving.value = true;
+    fieldErrors.value = {};
+    formError.value = '';
+    try {
+        const made = await api.create(body);
+        toast.success(t('aiMember.created', { name: made.member.nickname }));
+        drawerDirty.value = false;
+        // 새 계정의 고치기 서랍으로 넘어간다(처음엔 꺼져 있다) — 관계 상대 후보도 늘었으니 고르기 목록을 다시 받는다
+        await reload();
+        drawerMode.value = 'edit';
+        drawerKey.value++;
+        summary.value = list.value?.items.find((item) => item.id === made.id) ?? made;
+        openId.value = made.id;
+        detail.value = made;
+        void router.replace({ query: { ...route.query, account: made.id } });
+        options.value = await api.options();
+    } catch (e) {
+        applyFormError(errorOf(e));
+    } finally {
+        saving.value = false;
+    }
+}
+
+/* ── 아바타 고를 거리 — 처음 고르기를 열 때 한 번 ── */
+const avatarChoices = ref<AiAvatarChoice[] | null>(null);
+const avatarsLoading = ref(false);
+const avatarsUnavailable = ref(false);
+
+async function loadAvatars(): Promise<void> {
+    if (avatarChoices.value || avatarsLoading.value || avatarsUnavailable.value) return;
+    avatarsLoading.value = true;
+    try {
+        options.value ??= await api.options();
+        avatarChoices.value = options.value.avatars.map((a) => ({ avatarId: a.id, name: a.name, category: a.category }));
+    } catch (e) {
+        const error = errorOf(e);
+        if (error.status === 403) avatarsUnavailable.value = true;
+        else toast.error(UtilAiMemberMessages.error(t, error), 8000);
+    } finally {
+        avatarsLoading.value = false;
+    }
 }
 
 function onRowClick(event: DataTableRowClickEvent): void {
@@ -245,6 +327,10 @@ watch(drawerOpen, async (opened, was) => {
         detail.value = detail.value ? { ...detail.value } : null;
     }
     openId.value = null;
+    if (drawerMode.value === 'create') {
+        drawerMode.value = 'edit';
+        drawerKey.value++;
+    }
     const { account: _account, ...rest } = route.query;
     void router.replace({ query: rest });
 });
@@ -262,18 +348,24 @@ async function save(body: AiMemberSaveRequest): Promise<void> {
         // 관계는 상대 줄도 바뀐다 — 목록을 다시 받는다
         await reload();
     } catch (e) {
-        const error = errorOf(e);
-        if (error.fields && Object.keys(error.fields).length) {
-            fieldErrors.value = { ...error.fields };
-            formError.value = Object.entries(error.fields)
-                .filter(([key]) => !KNOWN_FIELDS.includes(key))
-                .map(([, message]) => message)
-                .join(' ');
-        } else {
-            formError.value = error.message;
-        }
+        applyFormError(errorOf(e));
     } finally {
         saving.value = false;
+    }
+}
+
+/** 저장·만들기 실패 — 칸 오류는 칸 아래, 닉네임 중복(409, 칸 없음)은 닉네임 칸 아래, 나머지는 저장 줄 한 줄 */
+function applyFormError(error: ApiError): void {
+    if (error.code === 'NICKNAME_TAKEN') {
+        fieldErrors.value = { nickname: UtilAiMemberMessages.error(t, error) };
+    } else if (error.fields && Object.keys(error.fields).length) {
+        fieldErrors.value = { ...error.fields };
+        formError.value = Object.entries(error.fields)
+            .filter(([key]) => !KNOWN_FIELDS.includes(key))
+            .map(([, message]) => message)
+            .join(' ');
+    } else {
+        formError.value = UtilAiMemberMessages.error(t, error);
     }
 }
 

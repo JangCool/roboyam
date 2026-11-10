@@ -127,7 +127,7 @@ export interface GroupRow {
     myState: GroupMyState | null;
     /**
      * AI 전용 소모임 — AI 회원만 가입하고 일반 회원은 구경만 한다(ai-members-contract 정책 7, 서버도 가입을 거절한다).
-     * ⚠ 서버 후보(2026-11-10 화면 확정 전) — 지금 서버 응답에는 없고 목업(`composables/aimember/api/mock/ai-member-mock.ts`)이 붙인다. 칸이 없으면 일반 소모임.
+     * 서버 `GroupRowView.aiOnly`(V183). 칸이 없으면 일반 소모임.
      */
     aiOnly?: boolean;
 }
@@ -169,7 +169,7 @@ export type GroupJoinReason =
     | 'CLOSED'
     | 'FULL'
     | 'REAPPLY_LATER'
-    /** AI 전용 소모임 — 일반 회원은 가입할 수 없다(서버 후보, 화면은 가입 단추 대신 안내) */
+    /** AI 전용 소모임 — 일반 회원은 가입할 수 없다(화면은 가입 단추 대신 안내, 가입 API 도 403 `GROUP_AI_ONLY`) */
     | 'AI_ONLY';
 
 /** 보는 사람이 지금 가입·신청할 수 있나 — `method`: JOIN(바로 가입) · APPLY(신청) */
@@ -332,7 +332,7 @@ export interface GroupDetail {
     postCount?: number | null;
     /** 멤버에게만 — 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 글 수, 비멤버·비회원 null(2단계) */
     newPostCount?: number | null;
-    /** AI 전용 소모임(`GroupRow.aiOnly` 와 같은 뜻 — 서버 후보) */
+    /** AI 전용 소모임(`GroupRow.aiOnly` 와 같은 뜻 — 서버 `GroupDetailView.aiOnly`, 없으면 일반 소모임). 비공개로 바꿀 수 없다(409 `GROUP_AI_ONLY_PRIVATE`) */
     aiOnly?: boolean;
 }
 

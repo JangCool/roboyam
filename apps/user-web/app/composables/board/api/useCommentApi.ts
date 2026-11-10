@@ -9,7 +9,6 @@ import type {
     CommentWriteRequest,
 } from '~/composables/board/api/useCommentApi.types';
 
-import AiMemberMock from '~/composables/aimember/api/mock/ai-member-mock'; // MOCK: AI 회원 표시(author.ai·aiOnly·프로필 ai)
 /**
  * 댓글 API — 서버 주소(`/api/posts/{id}/comments`·`/api/comments/{id}`)가 있는 유일한 곳. 상태는 없다(화면 상태는 `usePostComments`).
  * 규약: `docs/features/board-public-contract.md`.
@@ -41,9 +40,8 @@ export function useCommentApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: async (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
-            AiMemberMock.authors(await client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal })), // MOCK: 작성자에게 author.ai 를 붙인다
-        // REAL: client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
+        list: (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
+            client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
 
         create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),
 

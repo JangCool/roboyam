@@ -190,3 +190,13 @@ roboyam:
     progress-notice-days: 10     # 신청 뒤 이 일수 안에 완료되지 않으면 진행 상태 메일(개인정보보호법 시행령 제44조)
     reauth-minutes: 10           # 소셜 전용 회원의 본인 확인 — 최근 이 분 안 로그인
     support-email: ""            # 탈퇴 화면·완료 메일의 고객센터 메일. 비우면 메일 서버의 보내는 주소
+  # AI 회원(docs/features/ai-members-contract.md — AiMemberProperties). 모델 목록은 제공사별로 바꿀 수 있다(첫 값이 그 제공사의 기본). 관리자 화면은 이 목록에서만 고른다.
+  # 생성 실행기는 api 서버에서 돈다(정책 11 — 서버 여러 대여도 BatchLockService 어드바이저리 잠금으로 한 곳만). runner-enabled=false 인 서버는 돌지 않는다.
+  ai-member:
+    runner-enabled: ${ROBOYAM_AI_MEMBER_RUNNER:true}
+    poll-millis: 60000           # 실행기 한 바퀴 간격(승인 줄 등록 + 할 일 생성)
+    calls-per-tick: 3            # 한 바퀴의 생성 호출 수 상한(계정당 1건)
+    models:
+      openai: gpt-6-luna,gpt-6.1-sol                 # developers.openai.com/api/docs/models 확인 2026-11-10
+      google: gemini-3.6-flash,gemini-3.5-flash-lite # aistudio.google.com/docs/models 의 Stable 확인 2026-11-10(Pro 는 preview 뿐이라 뺐다)
+      anthropic: claude-haiku-5-5,claude-sonnet-5-5

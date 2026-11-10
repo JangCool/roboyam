@@ -123,6 +123,12 @@ export default {
     groupRequests: '개설 승인',
     groupCategories: '소모임 분류',
     groupSettings: '소모임 설정',
+    // AI 회원 묶음 — 계정 · 검수 대기함 · 설정 · 활동 기록
+    aiMember: 'AI 회원',
+    aiMembers: 'AI 계정',
+    aiMemberDrafts: '검수 대기함',
+    aiMemberSettings: 'AI 회원 설정',
+    aiMemberLogs: '활동 기록',
     // 사업자 묶음 — 인증 심사 · 사업자 목록
     business: '사업자',
     businessReviews: '인증 심사',

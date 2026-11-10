@@ -141,11 +141,25 @@ public class PostWriteService {
 
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
+        return create(body, userId, ip, false, false);
+    }
+
+    /**
+     * AI 회원 실행기 전용(ai-members-contract 「쓰기 제한 면제」) — 사이트 작성 간격·하루 글 한도를 보지 않고({@code AiDraftPublisher} 가 양을 정한다),
+     * {@code gradeExempt} 면 게시판 최소 쓰기 등급({@code GRADE_TOO_LOW})도 보지 않는다(관리자가 그 AI 계정의 쓸 곳으로 고른 게시판일 때만 부르는 쪽이 켠다).
+     * 금칙어 · 회원 정지 · 게시판 제재 · 운영진만·쓰기 잠금 · 같은 글 반복 · 칸 검사는 그대로다. HTTP 컨트롤러는 부르지 않는다.
+     */
+    public PostWriteResult createByAiRunner(PostWriteRequest body, long userId, String ip, boolean gradeExempt) {
+        return create(body, userId, ip, true, gradeExempt);
+    }
+
+    private PostWriteResult create(PostWriteRequest body, Long userId, String ip, boolean rateExempt, boolean gradeExempt) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, body.boardSlug());
         BoardActor actor = actors.resolve(userId, s);
         // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
-        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
+        String blocked = BoardAccessPolicy.writeBlocked(b, actor, s);
+        requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked, b, s); // AI 실행기: 고른 게시판의 최소 등급만 면제
         requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
         DealWriter.requireWriter(b, actor, s);
         BoardSecurityValues sec = s.security();
@@ -200,7 +214,7 @@ public class PostWriteService {
         boolean secret = secretOnCreate(b, body.secret());
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
-            checkRate(s, authorId, ip, title, content.plain(), now);
+            checkRate(s, authorId, ip, title, content.plain(), now, rateExempt);
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
             PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now);
@@ -243,6 +257,12 @@ public class PostWriteService {
      * @param publicGroup 공개 소모임인가(잠근 소모임 행의 값)
      */
     public GroupWrite createInGroup(long groupId, boolean publicGroup, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s) {
+        return createInGroup(groupId, publicGroup, b, actor, body, ip, s, false);
+    }
+
+    /** @param rateExempt AI 회원 실행기 — 작성 간격·하루 글 한도를 보지 않는다({@link #createByAiRunner} 와 같은 규칙) */
+    public GroupWrite createInGroup(long groupId, boolean publicGroup, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s,
+                                    boolean rateExempt) {
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         ContentRules.Writer writer = BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
@@ -275,7 +295,7 @@ public class PostWriteService {
         ContentBody content = c.body().masked(sec);
         long id = ids.nextId();
         Instant now = Instant.now();
-        checkRate(s, authorId, ip, title, content.plain(), now);
+        checkRate(s, authorId, ip, title, content.plain(), now, rateExempt);
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
         PostEntity created = PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
                 publicGroup, now);
@@ -295,11 +315,11 @@ public class PostWriteService {
         promotion.afterWrite(authorId);
     }
 
-    /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래 — 같은 글은 제목 + 보이는 글자로 본다) */
-    private void checkRate(BoardCatalogSnapshot s, Long authorId, String ip, String title, String content, Instant now) {
+    /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래 — 같은 글은 제목 + 보이는 글자로 본다). {@code rateExempt}(AI 실행기)면 같은 글 반복만 본다 */
+    private void checkRate(BoardCatalogSnapshot s, Long authorId, String ip, String title, String content, Instant now, boolean rateExempt) {
         counters.lockWriter("post:" + (authorId != null ? "m:" + authorId : "g:" + ip));
-        int gap = s.defaults().postGapSeconds();
-        int daily = s.defaults().postDailyLimit();
+        int gap = rateExempt ? 0 : s.defaults().postGapSeconds();
+        int daily = rateExempt ? Integer.MAX_VALUE : s.defaults().postDailyLimit();
         WriteRateData rate = postQueries.rate(authorId, ip, now.minus(Duration.ofDays(1)));
         if (gap > 0 && rate.lastAt() != null) {
             long elapsedMs = Duration.between(rate.lastAt(), now).toMillis();

@@ -1,12 +1,14 @@
 <template>
     <!--
-        AI 회원 — 검수 대기함(`/ai-members/drafts`). 계약 정책 6(기본은 검수 후 게시). ⚠ 목업(`useAiMemberAdminApi` // MOCK, 화면 확정 전 2026-11-10).
+        AI 회원 — 검수 대기함(`/ai-members/drafts`). 계약 정책 6(기본은 검수 후 게시)·11. 서버 `useAiMemberAdminApi`.
         카드 한 장 = AI가 만든 글·댓글·답글 하나: 종류 · 계정(제공사·모델 — 만든 때 부른 모델) · 게시판(소모임 글이면 소모임 이름) · 만든 시각 · 토큰.
           댓글·답글은 어느 글에 대한 것인지(글 제목 · 글쓴이가 AI 인지 회원인지), 답글은 원 댓글(회원 댓글에 대한 답이면 「회원」 꼬리표)을 위에 보인다.
         처리: 줄마다 [게시] · [수정 후 게시](대화상자 — 글은 제목·본문, 댓글은 본문) · [버림](확인). 여러 건 고르기 → [고른 것 게시] · [고른 것 버림].
           그 사이 다른 운영자가 처리한 건은 서버가 건너뛴다(`skipped`) — 토스트에 덧붙이고 목록을 다시 받는다.
         거르기: 종류(전체·글·댓글·답글) · 계정 — 계정은 주소의 `?account=ID`(계정 목록의 대기 건수 링크가 연다).
         「바로 게시」가 켜져 있으면 위에 한 줄(전체 / 고른 계정 N개가 대기함을 건너뛴다).
+        [게시]는 승인만 한다 — 실제 등록은 api 서버 실행기가 다음 바퀴(최대 1분)에 기존 글·댓글 서비스로 한다(정책 11). 그래서 늘 한 줄 안내를 두고, 게시 토스트에도 덧붙인다.
+        금지어에 걸리면(수정 후 게시 400 `BLOCKED_WORD`) 대화상자 안에 서버 문구. 권한: 처리 `ai-member.manage`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('aiMember.draftsTitle')" :subtitle="t('aiMember.draftsSubtitle')">
@@ -17,6 +19,7 @@
         <AiMemberNav :pending="view?.total ?? null" />
 
         <Message v-if="settings?.instantPublish" severity="info" size="small" :closable="false">{{ instantLine }}</Message>
+        <p class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-clock" aria-hidden="true" />{{ t('aiMember.publishDelay') }}</p>
         <p v-if="!canManage" class="m-0 flex items-center gap-1.5 text-xs text-muted-color">
             <i class="pi pi-lock" aria-hidden="true" />{{ t('aiMember.readOnly') }}
         </p>
@@ -135,7 +138,6 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import { AI_DRAFT_KINDS, type AiDraft, type AiDraftKind, type AiDraftListView, type AiMemberListView, type AiMemberSettings } from '~/composables/aimember/api/useAiMemberAdminApi.types';
-import UtilAdminMenu from '~/utils/util-admin-menu';
 import UtilAiMember from '~/utils/util-ai-member';
 import UtilAiMemberMessages from '~/utils/util-ai-member-messages';
 
@@ -153,8 +155,8 @@ const { can } = useAdminPermission();
 const kindLabelId = useId();
 const accountId = useId();
 
-/** 바꾸기 — 서버 권한(`ai-member.manage` 후보)이 생기기 전 목업은 최고 관리자만 */
-const canManage = computed(() => can(UtilAdminMenu.SUPER_ONLY));
+/** 게시·버림 — 서버 `ai-member.manage` */
+const canManage = computed(() => can(UtilAiMember.PERMISSION_MANAGE));
 
 /** 원 글·원 댓글 글쓴이가 AI 인지 회원인지 — 작은 알약(가운데 맞춤 규칙 components.md 2-4) */
 const MARK = 'inline-flex items-center justify-center rounded px-1.5 py-1 text-[10px] font-semibold leading-none';
@@ -206,7 +208,7 @@ async function reload(): Promise<void> {
     } catch (e) {
         if (mine !== seq) return;
         loadError.value = errorOf(e);
-        if (view.value) toast.error(loadError.value.message, 8000);
+        if (view.value) toast.error(UtilAiMemberMessages.error(t, loadError.value), 8000);
     } finally {
         if (mine === seq) busy.value = false;
     }
@@ -237,10 +239,10 @@ async function publish(ids: string[]): Promise<void> {
     actingIds.value = [...ids];
     try {
         const result = await api.publish([...ids]);
-        toast.success(UtilAiMemberMessages.batchDone(t, 'aiMember.published', result.done, result.skipped));
+        toast.success(`${UtilAiMemberMessages.batchDone(t, 'aiMember.published', result.done, result.skipped)} · ${t('aiMember.publishDelayShort')}`);
         await reload();
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        toast.error(UtilAiMemberMessages.error(t, errorOf(e)), 8000);
     } finally {
         acting.value = false;
         actingIds.value = [];
@@ -258,7 +260,7 @@ async function discard(ids: string[]): Promise<void> {
         toast.success(UtilAiMemberMessages.batchDone(t, 'aiMember.discarded', result.done, result.skipped));
         await reload();
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        toast.error(UtilAiMemberMessages.error(t, errorOf(e)), 8000);
     } finally {
         acting.value = false;
         actingIds.value = [];
@@ -292,12 +294,12 @@ async function submitEdit(): Promise<void> {
     try {
         const result = await api.publishEdited(item.id, item.kind === 'POST' ? { title: editTitle.value.trim(), body: editBody.value.trim() } : { body: editBody.value.trim() });
         editOpen.value = false;
-        toast.success(UtilAiMemberMessages.batchDone(t, 'aiMember.published', result.done, result.skipped));
+        toast.success(`${UtilAiMemberMessages.batchDone(t, 'aiMember.published', result.done, result.skipped)} · ${t('aiMember.publishDelayShort')}`);
         await reload();
     } catch (e) {
         const error = errorOf(e);
         if (error.fields && Object.keys(error.fields).length) editErrors.value = { ...error.fields };
-        else editFormError.value = error.message;
+        else editFormError.value = UtilAiMemberMessages.error(t, error);
         if (error.code === 'AI_DRAFT_NOT_FOUND') void reload();
     } finally {
         acting.value = false;

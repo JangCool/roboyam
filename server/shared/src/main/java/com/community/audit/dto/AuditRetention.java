@@ -100,6 +100,9 @@ public final class AuditRetention {
             // 오픈소스 라이선스 고지(oss-licenses-contract) — 안내 문구·직접 추가 항목, 약관 게시와 같은 사이트 운영 일
             AuditActions.OSS_NOTICE_INTRO_UPDATE, AuditActions.OSS_NOTICE_ENTRY_CREATE, AuditActions.OSS_NOTICE_ENTRY_UPDATE, AuditActions.OSS_NOTICE_ENTRY_HIDDEN,
             AuditActions.OSS_NOTICE_ENTRY_DELETE,
+            // AI 회원(ai-members-contract 정책 14) — 계정·대기함 검수·설정·전체 정지·제공사 키 저장·AI 전용 소모임, 사이트 운영 일
+            AuditActions.AI_MEMBER_CREATE, AuditActions.AI_MEMBER_UPDATE, AuditActions.AI_MEMBER_ENABLE, AuditActions.AI_DRAFT_PUBLISH, AuditActions.AI_DRAFT_DISCARD,
+            AuditActions.AI_MEMBER_SETTINGS_UPDATE, AuditActions.AI_MEMBER_STOP, AuditActions.AI_PROVIDER_KEY_UPDATE, AuditActions.AI_GROUP_AI_ONLY,
             AuditActions.SITE_OPERATOR_UPDATE, AuditActions.SITE_OPERATOR_STAGE_CHANGE,
             // 캐시 관리(cache-admin-contract) — 사본 새로 고침·유지 시간·켜고 끄기, 사이트 운영 일
             AuditActions.CACHE_REFRESH, AuditActions.CACHE_REFRESH_ALL, AuditActions.CACHE_TTL_CHANGE, AuditActions.CACHE_ENABLED_CHANGE, AuditActions.CACHE_GLOBAL_ENABLED_CHANGE,

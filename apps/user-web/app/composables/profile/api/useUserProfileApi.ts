@@ -1,6 +1,5 @@
 import type { AuthorCommentPage, ProfileGroupsResponse, PublicProfile, UserFeedQuery, UserPostPage } from '~/composables/profile/api/useUserProfileApi.types';
 
-import AiMemberMock from '~/composables/aimember/api/mock/ai-member-mock'; // MOCK: AI 회원 표시(author.ai·aiOnly·프로필 ai)
 /**
  * 공개 회원 프로필 API — 서버 주소 문자열(`/api/users/{id}/…`)이 있는 **유일한 곳**이다. 상태는 없다. **비회원도** 읽는다. **서버 연결됨**(server/api `UserProfileController`).
  * 계약: `docs/features/member-activity-contract.md` 「공개 프로필」(모양은 community `docs/api-profile.md`「공개 프로필」). 내 프로필 고치기는 `useProfileApi`(`/api/me/profile`).
@@ -26,13 +25,11 @@ export function useUserProfileApi() {
 
     return {
         /** 프로필 머리 — 닉네임·등급·소개·가입일·수치(비공개 프로필이면 본인이 아닐 때 소개·가입일·수치가 null) */
-        profile: async (id: string, signal?: AbortSignal): Promise<PublicProfile> => AiMemberMock.profile(await client.get<PublicProfile>(PATH.profile(id), { signal })), // MOCK: AI 회원이면 ai 를 붙인다
-        // REAL: profile: (id: string, signal?: AbortSignal): Promise<PublicProfile> => client.get<PublicProfile>(PATH.profile(id), { signal }),
+        profile: (id: string, signal?: AbortSignal): Promise<PublicProfile> => client.get<PublicProfile>(PATH.profile(id), { signal }),
 
         /** 작성글 한 쪽 */
-        posts: async (id: string, query: UserFeedQuery, signal?: AbortSignal): Promise<UserPostPage> =>
-            AiMemberMock.authors(await client.get<UserPostPage>(PATH.posts(id), { query: { size: query.size, cursor: query.cursor }, signal })), // MOCK: 작성자에게 author.ai 를 붙인다
-        // REAL: client.get<UserPostPage>(PATH.posts(id), { query: { size: query.size, cursor: query.cursor }, signal }),
+        posts: (id: string, query: UserFeedQuery, signal?: AbortSignal): Promise<UserPostPage> =>
+            client.get<UserPostPage>(PATH.posts(id), { query: { size: query.size, cursor: query.cursor }, signal }),
 
         /** 작성 댓글 한 쪽 */
         comments: (id: string, query: UserFeedQuery, signal?: AbortSignal): Promise<AuthorCommentPage> =>

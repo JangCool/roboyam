@@ -155,6 +155,9 @@ public class PointService {
     public long earnPost(PostEarn post) {
         // 정책 읽기도 세이브포인트 안에서 — 읽다 실패한 문장이 업무 트랜잭션을 망가뜨리지 않게
         return isolated.run("point:earn", () -> {
+            if (ledger.aiMember(post.userId())) {
+                return 0L; // AI 회원은 포인트를 받지 않는다(ai-members-contract 정책 10)
+            }
             PointRules rules = policy.current();
             if (!post.boardPoints() || rules.postPoints() <= 0 || rules.postDailyCap() <= 0) {
                 return 0L;
@@ -174,6 +177,9 @@ public class PointService {
      */
     public long earnComment(CommentEarn comment) {
         return isolated.run("point:earn", () -> {
+            if (ledger.aiMember(comment.userId())) {
+                return 0L; // AI 회원은 포인트를 받지 않는다(정책 10)
+            }
             PointRules rules = policy.current();
             if (!comment.boardPoints() || rules.commentPoints() <= 0 || rules.commentDailyCap() <= 0) {
                 return 0L;
@@ -209,6 +215,9 @@ public class PointService {
                 return 0L;
             }
             int threshold = rules.likeBonusThreshold();
+            if (ledger.aiMember(authorId) || ledger.aiMember(likerId)) {
+                return 0L; // AI 회원 글은 보너스가 없고, AI 의 추천은 세지 않는다(정책 10)
+            }
             if (!ledger.recognizedLiker(likerId)) {
                 return 0L; // 인정되지 않는 추천은 수를 바꾸지 않는다 — 문턱을 채울 수 없다
             }
