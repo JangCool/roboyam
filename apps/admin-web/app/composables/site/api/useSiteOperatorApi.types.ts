@@ -50,8 +50,10 @@ export interface SiteOperatorProfile {
     privacyOfficerSameAsOperator: boolean;
     privacyOfficerName: string | null;
     privacyOfficerEmail: string | null;
-    /** 호스팅 사업자(선택, 예: Amazon Web Services) */
+    /** 호스팅 사업자(선택, 예: Amazon Web Services) — 약관 자리표시 `{{호스팅사업자}}` */
     hostingProvider: string | null;
+    /** 메일 발송 사업자(선택, 예: Amazon Web Services (Amazon SES)) — 약관 자리표시 `{{메일발송사업자}}` */
+    mailProvider: string | null;
     /** 개인사업자·법인일 때만 — 개인은 null */
     business: SiteOperatorBusiness | null;
     /**

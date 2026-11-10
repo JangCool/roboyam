@@ -38,6 +38,8 @@ export default {
     officerEmail: '보호책임자 이메일',
     hostingProvider: '호스팅 사업자',
     hostingProviderPlaceholder: '예: Amazon Web Services',
+    mailProvider: '메일 발송 사업자',
+    mailProviderPlaceholder: '예: Amazon Web Services (Amazon SES)',
     optional: '선택',
     lengthHint: '{max}자까지',
 
@@ -78,6 +80,7 @@ export default {
         privacyOfficerName: '보호책임자 이름을 입력해 주세요.',
         privacyOfficerEmail: '보호책임자 이메일을 입력해 주세요.',
         hostingProvider: '호스팅 사업자를 입력해 주세요.',
+        mailProvider: '메일 발송 사업자를 입력해 주세요.',
         businessName: '상호를 입력해 주세요.',
         companyName: '회사명을 입력해 주세요.',
         representative: '대표자를 입력해 주세요.',

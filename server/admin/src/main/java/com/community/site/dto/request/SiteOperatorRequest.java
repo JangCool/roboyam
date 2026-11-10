@@ -10,8 +10,8 @@ package com.community.site.dto.request;
  * @param footerNoticeScope {@code INDIVIDUAL_ONLY}(개인 단계에서만) · {@code ALWAYS}(늘) — 칸이 없으면(null) 지금 값을 둔다
  */
 public record SiteOperatorRequest(String stage, String operatorName, String contactEmail, String phone, Boolean privacyOfficerSameAsOperator,
-                                  String privacyOfficerName, String privacyOfficerEmail, String hostingProvider, Business business, String footerNotice,
-                                  String footerNoticeScope) {
+                                  String privacyOfficerName, String privacyOfficerEmail, String hostingProvider, String mailProvider, Business business,
+                                  String footerNotice, String footerNoticeScope) {
 
     /** @param corporateNumber 법인등록번호 — 법인 단계에서만 읽는다 */
     public record Business(String businessName, String representative, String registrationNumber, String address, String mailOrderNumber,

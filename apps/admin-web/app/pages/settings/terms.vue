@@ -14,8 +14,8 @@
         - 운영 주체 단계(terms-operator-contract — 서버 연결 2026-11-07):
           · 맨 위 요약 한 줄 「지금 운영 주체: 개인 · 약관 속 호칭 「운영자」 [운영 주체에서 바꾸기]」(`/settings/operator`, 값은 `useSiteOperatorApi` — `site.read` 가 없으면 「못 읽었어요」 줄).
           · 종류 「운영정책」(`OPERATION_POLICY`, `?kind=operation_policy`, 공개 `/policy`) — 다른 종류와 같은 서버 API. 가입 동의 대상이 아니다.
-          · 편집기 위 자리표시 칩(`{{운영자}}` 등 7개 — `UtilTermsPlaceholder`): 누르면 커서 자리에 넣는다(`{{운영자정보}}` 는 목록으로 바뀌도록 새 문단으로 넣는다).
-          · [미리보기]: 편집기 본문의 자리표시를 지금 운영 주체 값으로 바꾼 모습(`TermsPreviewDialog`, `{{시행일}}` = 게시 대화상자의 최소 시행일). 모르는 자리표시는 경고.
+          · 편집기 위 자리표시 칩(`{{운영자}}` 등 10개 — `UtilTermsPlaceholder`): 누르면 커서 자리에 넣는다(`{{운영자정보}}` 는 목록으로 바뀌도록 새 문단으로 넣는다).
+          · [미리보기]: 편집기 본문의 자리표시를 지금 운영 주체 값으로 바꾼 모습(`TermsPreviewDialog`, `{{시행일}}` = 게시 대화상자의 최소 시행일). 모르는 자리표시·운영 주체 설정에 값이 없는 자리표시는 경고(서버는 둘 다 게시 거절).
           · [기본 문안으로 초안 만들기]: 종류별 기본 문안(`utils/terms-templates`)을 편집기에 넣는다(로보티콘 계약은 없음 — 단추를 숨긴다). [초안 저장]을 눌러야 남는다.
           · 게시 대화상자: 「회원에게 불리한 변경이에요」, 최소 시행일 첫 게시 내일 · 개정 7일 · 불리한 변경 30일(화면 편의), 자리표시는 게시 때 바뀐다는 안내(판정은 서버 — `fields.effectiveDate`·`fields.draft`). 이력 표·버전 보기에 「불리한 변경」 태그, 버전 보기에 「게시 당시 운영 주체」(옛 판은 없음).
     -->
@@ -233,7 +233,7 @@
             :field-errors="publishFieldErrors"
             @submit="publish"
         />
-        <TermsPreviewDialog v-model:visible="previewOpen" :kind-label="kindLabel(activeKind)" :html="previewHtml" :unknown="previewUnknown" :caption="previewCaption" />
+        <TermsPreviewDialog v-model:visible="previewOpen" :kind-label="kindLabel(activeKind)" :html="previewHtml" :unknown="previewUnknown" :empty="previewEmpty" :caption="previewCaption" />
         <TermsVersionDialog
             v-model:visible="versionOpen"
             :kind-label="kindLabel(activeKind)"
@@ -584,11 +584,14 @@ async function copyToDraft(source: TermsVersionDetail): Promise<void> {
 /** 칩의 설명 문구 키(`terms.placeholderHint.*`) */
 const PLACEHOLDER_HINT: Record<TermsPlaceholderName, string> = {
     운영자: 'operator',
+    운영자이름: 'operatorName',
     서비스이름: 'serviceName',
     운영자정보: 'operatorInfo',
     보호책임자: 'officer',
     보호책임자연락처: 'officerContact',
     연락이메일: 'contactEmail',
+    호스팅사업자: 'hostingProvider',
+    메일발송사업자: 'mailProvider',
     시행일: 'effectiveDate',
 };
 
@@ -619,6 +622,7 @@ async function fillTemplate(): Promise<void> {
 const previewOpen = ref(false);
 const previewHtml = ref('');
 const previewUnknown = ref<string[]>([]);
+const previewEmpty = ref<string[]>([]);
 const previewCaption = ref('');
 
 /** 지금 편집기 본문을 운영 주체 값으로 바꿔 본다 — 시행일은 게시 대화상자의 최소 시행일(불리한 변경이 아닐 때) */
@@ -630,6 +634,7 @@ function openPreview(): void {
     const result = UtilTermsPlaceholder.apply(editorHtml.value, UtilTermsPlaceholder.valuesOf(op, siteLabel.value, date));
     previewHtml.value = result.html;
     previewUnknown.value = result.unknown;
+    previewEmpty.value = result.empty;
     previewCaption.value = t('terms.previewCaption', {
         operator: t('terms.versionOperatorValue', { stage: t(`operatorStage.stage.${op.stage}`), name: op.business?.businessName ?? op.operatorName }),
         date: time.value.serviceDate(date),

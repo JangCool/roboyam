@@ -168,7 +168,7 @@ public class TermsAdminService {
      * <ol>
      *   <li><b>최소 시행일</b>(사이트 시간대): 그 종류의 첫 게시본 = 내일 이후, 개정 = 7일 뒤 이후, 회원에게 불리한 변경({@code unfavorable}) = 30일 뒤 이후. 마지막 게시본 시행일 이후(같은 날 허용)는 그대로.</li>
      *   <li><b>자리표시</b>: 초안(자리표시 그대로)을 지금 운영 주체 값·사이트 이름·시행일로 바꾼 뒤({@link TermsPlaceholders}) {@link TermsHtml} 로 다시 정화해 버전 본문으로 저장한다.
-     *       초안은 자리표시 그대로다(게시하면 지운다). 모르는 자리표시가 있으면 거절({@code fields.draft}).</li>
+     *       초안은 자리표시 그대로다(게시하면 지운다). 모르는 자리표시가 있거나, 쓴 자리표시의 값이 운영 주체 설정에 없으면 거절({@code fields.draft}).</li>
      *   <li><b>사본</b>: 게시 당시 운영 주체 값을 버전에 함께 남긴다 — 나중에 단계를 바꿔도 지난 판은 그대로다.</li>
      *   <li><b>불리한 변경 메일</b>: 이용약관·개인정보처리방침·운영정책을 {@code unfavorable} 로 게시하면 가입 회원 전체에게 메일을 대기열로 넣는다({@link TermsChangeMails} — 나눠 보낸다).</li>
      * </ol>
@@ -212,6 +212,9 @@ public class TermsAdminService {
                     TermsPlaceholders.valuesOf(operator, serviceName, effectiveDate == null ? today : effectiveDate));
             if (!replaced.unknown().isEmpty()) {
                 errors.put("draft", new MessageRef("terms.draft.unknownPlaceholder", replaced.unknown().stream().map(n -> "{{" + n + "}}").collect(Collectors.joining(", "))));
+            } else if (!replaced.empty().isEmpty()) {
+                // 운영 주체 설정에 값이 없는 칸 — 그대로 게시하면 게시본에 빈칸이 남는다
+                errors.put("draft", new MessageRef("terms.draft.emptyPlaceholder", replaced.empty().stream().map(n -> "{{" + n + "}}").collect(Collectors.joining(", "))));
             } else {
                 body = TermsHtml.sanitize(replaced.html());
                 if (!TermsHtml.hasVisibleText(body)) {

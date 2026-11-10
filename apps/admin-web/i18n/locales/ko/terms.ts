@@ -97,18 +97,21 @@ export default {
     copyTitle: '초안을 바꿀까요?',
     copyMessage: '지금 편집기의 초안을 버전 {version} 본문으로 바꿔요. [초안 저장]을 눌러야 남아요.',
     copyConfirm: '바꾸기',
-    copied: '버전 {version} 본문을 편집기에 넣었어요. [초안 저장]을 눌러야 남아요.',
+    copied: '버전 {version} 본문을 편집기에 넣었어요. [초안 저장]을 눌러야 남아요. 게시본은 자리표시가 값으로 바뀐 글이라, 운영 주체가 바뀌어도 따라 바뀌지 않아요.',
 
     // ── 자리표시 · 기본 문안 · 미리보기 ──
-    placeholderTitle: '자리표시 넣기',
+    placeholderTitle: '자리표시 — 눌러서 커서 자리에 넣기',
     placeholderInsert: '{token} 넣기 — {hint}',
     placeholderHint: {
         operator: '호칭 — 개인·개인사업자는 「운영자」, 법인은 「회사」',
+        operatorName: '실제 이름 — 개인은 운영자 이름, 개인사업자는 상호, 법인은 회사명',
         serviceName: '사이트 이름',
         operatorInfo: '운영자 정보 목록 — 개인은 이름·이메일, 사업자는 상호·대표자·사업자등록번호·주소 등',
         officer: '개인정보 보호책임자 이름',
         officerContact: '개인정보 보호책임자 연락처(이메일·전화)',
         contactEmail: '연락 이메일',
+        hostingProvider: '호스팅 사업자(운영 주체 설정)',
+        mailProvider: '메일 발송 사업자(운영 주체 설정)',
         effectiveDate: '시행일(YYYY년 M월 D일)',
     },
     templateFill: '기본 문안으로 초안 만들기',
@@ -121,6 +124,7 @@ export default {
     previewCaption: '지금 운영 주체({operator})와 시행일 {date} 기준으로 자리표시를 바꾼 모습이에요. 게시본은 게시할 때의 운영 주체 값으로 바뀌어요.',
     previewUnknown: '모르는 자리표시가 있어요: {names}. 바뀌지 않고 글자 그대로 남아요.',
     previewEmpty: '편집기 본문이 비어 있어요',
+    previewEmptyValue: '운영 주체 설정에 값이 없는 자리표시가 있어요: {names}. 빈칸으로 바뀌어 이대로는 게시할 수 없어요 — 설정 > 운영 주체에서 칸을 채우거나 본문에서 빼 주세요.',
 
     // ── 떠날 때 ──
     leaveTitle: '저장하지 않은 초안이 있어요',

@@ -15,12 +15,12 @@ class TermsPlaceholdersTest {
     private static final LocalDate DAY = LocalDate.of(2026, 12, 7);
 
     private static SiteOperatorValues individual() {
-        return new SiteOperatorValues(SiteOperatorStage.INDIVIDUAL, "홍길동", "help@roboyam.example", null, true, null, null, null, null);
+        return new SiteOperatorValues(SiteOperatorStage.INDIVIDUAL, "홍길동", "help@roboyam.example", null, true, null, null, null, null, null);
     }
 
     private static SiteOperatorValues corporation() {
         return new SiteOperatorValues(SiteOperatorStage.CORPORATION, "홍길동", "help@roboyam.example", "02-000-0000", false, "김보호", "privacy@roboyam.example", "AWS",
-                new SiteOperatorValues.Business("로보얌 주식회사", "홍길동", "123-45-67891", "서울특별시 강남구 1", "2026-서울강남-0001", "서울특별시 강남구", "110111-0000000"));
+                "Amazon SES", new SiteOperatorValues.Business("로보얌 주식회사", "홍길동", "123-45-67891", "서울특별시 강남구 1", "2026-서울강남-0001", "서울특별시 강남구", "110111-0000000"));
     }
 
     @Test
@@ -45,11 +45,29 @@ class TermsPlaceholdersTest {
 
     @Test
     void 개인사업자는_상호이고_법인등록번호를_넣지_않는다_같음이면_운영자_전화를_붙인다() {
-        SiteOperatorValues sole = new SiteOperatorValues(SiteOperatorStage.SOLE_PROPRIETOR, "홍길동", "help@x.example", "010-0000-0000", true, null, null, null,
+        SiteOperatorValues sole = new SiteOperatorValues(SiteOperatorStage.SOLE_PROPRIETOR, "홍길동", "help@x.example", "010-0000-0000", true, null, null, null, null,
                 new SiteOperatorValues.Business("로보얌", "홍길동", "123-45-67891", "서울 1", null, null, "무시"));
         TermsPlaceholders.Values v = TermsPlaceholders.valuesOf(sole, "로보얌", DAY);
         assertThat(v.operatorInfo()).extracting(TermsPlaceholders.Row::label).containsExactly("상호", "대표자", "사업자등록번호", "사업장 주소", "전화", "이메일");
         assertThat(v.privacyOfficerContact()).isEqualTo("help@x.example · 010-0000-0000");
+    }
+
+    @Test
+    void 운영자이름은_개인이면_운영자_이름_사업자면_상호_회사명_호스팅과_메일_발송_사업자도_바꾼다() {
+        TermsPlaceholders.Result r = TermsPlaceholders.apply("<p>{{운영자이름}}(이하 「{{운영자}}」) · {{호스팅사업자}} · {{메일발송사업자}}</p>",
+                TermsPlaceholders.valuesOf(corporation(), "로보얌", DAY));
+        assertThat(r.unknown()).isEmpty();
+        assertThat(r.empty()).isEmpty();
+        assertThat(r.html()).isEqualTo("<p>로보얌 주식회사(이하 「회사」) · AWS · Amazon SES</p>");
+        assertThat(TermsPlaceholders.valuesOf(individual(), "로보얌", DAY).operatorName()).isEqualTo("홍길동");
+    }
+
+    @Test
+    void 값이_빈_자리표시는_처음_나온_차례로_중복_없이_돌려준다() {
+        TermsPlaceholders.Result r = TermsPlaceholders.apply("<p>{{메일발송사업자}} {{운영자}} {{호스팅사업자}} {{ 메일발송사업자 }}</p><p>{{운영자정보}}</p>",
+                TermsPlaceholders.valuesOf(SiteOperatorValues.INITIAL, "로보얌", DAY));
+        assertThat(r.empty()).containsExactly("메일발송사업자", "호스팅사업자", "운영자정보");
+        assertThat(r.html()).isEqualTo("<p> 운영자  </p>");
     }
 
     @Test
@@ -62,7 +80,7 @@ class TermsPlaceholdersTest {
 
     @Test
     void 바꿔_넣는_값은_HTML_이스케이프한다() {
-        SiteOperatorValues tricky = new SiteOperatorValues(SiteOperatorStage.INDIVIDUAL, "<b>\"홍'&\"</b>", "a@b.example", null, true, null, null, null, null);
+        SiteOperatorValues tricky = new SiteOperatorValues(SiteOperatorStage.INDIVIDUAL, "<b>\"홍'&\"</b>", "a@b.example", null, true, null, null, null, null, null);
         TermsPlaceholders.Result r = TermsPlaceholders.apply("<p>{{보호책임자}}</p><p>{{운영자정보}}</p>", TermsPlaceholders.valuesOf(tricky, "A&B", DAY));
         assertThat(r.html()).isEqualTo("<p>&lt;b&gt;&quot;홍&#39;&amp;&quot;&lt;/b&gt;</p>"
                 + "<ul><li>운영자: &lt;b&gt;&quot;홍&#39;&amp;&quot;&lt;/b&gt;</li><li>연락 이메일: a@b.example</li></ul>");

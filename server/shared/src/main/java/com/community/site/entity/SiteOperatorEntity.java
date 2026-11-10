@@ -36,6 +36,7 @@ public class SiteOperatorEntity {
     private String privacyOfficerName;
     private String privacyOfficerEmail;
     private String hostingProvider;
+    private String mailProvider;
     private String businessName;
     private String representative;
     private String registrationNumber;
@@ -68,6 +69,7 @@ public class SiteOperatorEntity {
         this.privacyOfficerName = v.privacyOfficerSameAsOperator() ? null : v.privacyOfficerName();
         this.privacyOfficerEmail = v.privacyOfficerSameAsOperator() ? null : v.privacyOfficerEmail();
         this.hostingProvider = v.hostingProvider();
+        this.mailProvider = v.mailProvider();
         SiteOperatorValues.Business b = v.stage().business() ? v.business() : null;
         this.businessName = b == null ? null : b.businessName();
         this.representative = b == null ? null : b.representative();
@@ -87,7 +89,7 @@ public class SiteOperatorEntity {
                         corporateNumber)
                 : null;
         return new SiteOperatorValues(stage, nz(operatorName), nz(contactEmail), phone, privacyOfficerSame, privacyOfficerName, privacyOfficerEmail, hostingProvider,
-                business);
+                mailProvider, business);
     }
 
     /** 지금 푸터 안내 문구 — 줄이 없으면 빈 목록(숨김) */
