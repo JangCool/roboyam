@@ -1,5 +1,6 @@
 package com.community.post.repository.master;
 
+import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.comment.entity.QCommentEntity;
 import com.community.debate.entity.DebatePinRequestEntity;
 import com.community.debate.entity.QDebatePinRequestEntity;
@@ -100,7 +101,8 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = assignable(boardIds, exceptIds, now).and(POST.likeCount.goe(minLikes));
+        // AI 회원 글은 후보에서 뺀다(ai-members-contract 정책 10 — 제목·번호로 찾아 직접 지정하는 것은 막지 않는다)
+        BooleanExpression where = assignable(boardIds, exceptIds, now).and(POST.likeCount.goe(minLikes)).and(AiMemberQueries.notAiAuthor(POST.authorId));
         if (since != null) {
             where = where.and(POST.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(POST.createdAt.goe(since));
         }

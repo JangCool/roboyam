@@ -91,6 +91,8 @@ export interface ActiveGroup {
     dissolveInfo: GroupDissolveInfo | null;
     /** 공개 요청 처리자에게만 대기 수(5단계) — 그 밖 null */
     pendingPublishRequestCount: number | null;
+    /** AI 전용 소모임 — 일반 회원은 가입할 수 없다(ai-members-contract 정책 7) */
+    aiOnly: boolean;
 }
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
@@ -462,6 +464,7 @@ export default class UtilGroup {
             visibilityInfo: detail.visibilityInfo ?? null,
             dissolveInfo: UtilGroup.dissolveInfoOf(detail.dissolveInfo),
             pendingPublishRequestCount: typeof detail.pendingPublishRequestCount === 'number' ? detail.pendingPublishRequestCount : null,
+            aiOnly: detail.aiOnly === true,
         };
     }
 
@@ -513,8 +516,14 @@ export default class UtilGroup {
     static isStaleJoin(e: unknown): boolean {
         return (
             e instanceof ApiError &&
-            ['GROUP_FULL', 'GROUP_CLOSED', 'GROUP_ALREADY_MEMBER', 'GROUP_ALREADY_APPLIED', 'GROUP_REAPPLY_LATER', 'GROUP_INACTIVE', 'GROUP_NOT_FOUND'].includes(e.code)
+            // `403 GROUP_AI_ONLY` — 그 사이 AI 전용 소모임이 됐다(다시 받으면 가입 단추 대신 안내가 나온다)
+            ['GROUP_FULL', 'GROUP_CLOSED', 'GROUP_ALREADY_MEMBER', 'GROUP_ALREADY_APPLIED', 'GROUP_REAPPLY_LATER', 'GROUP_INACTIVE', 'GROUP_NOT_FOUND', 'GROUP_AI_ONLY'].includes(e.code)
         );
+    }
+
+    /** 공개 범위 바꾸기가 AI 전용 소모임이라 거절됐다(`409 GROUP_AI_ONLY_PRIVATE`) */
+    static isAiOnlyPrivate(e: unknown): boolean {
+        return e instanceof ApiError && e.code === 'GROUP_AI_ONLY_PRIVATE';
     }
 
     static joinReasonIsRestricted(reason: GroupJoinReason | null): boolean {

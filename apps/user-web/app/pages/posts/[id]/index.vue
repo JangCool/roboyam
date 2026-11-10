@@ -115,7 +115,8 @@
             </ErrorState>
             <ErrorState v-else-if="pageState === 'error' || !post || !board" :title="t('post.loadFailed')" :description="pageError" retry @retry="load" />
 
-            <article v-else :aria-labelledby="titleId">
+            <!-- AI 회원 글이면 기계가 읽는 표시 `data-ai-generated`(AI 기본법 제31조 — 계약 「법무 메모」) -->
+            <article v-else :aria-labelledby="titleId" :data-ai-generated="postAi ? 'true' : undefined">
                 <!-- 본문 영역 카드(머리 ~ 게시판으로) · 댓글 영역 카드 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
                 <div class="content-card" data-testid="post-body-card">
                     <!-- 머리 -->
@@ -177,7 +178,7 @@
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
-                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" :still-src="authorAvatarStill" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
+                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" :still-src="authorAvatarStill" size="xs" :border-style="authorDecoration?.profileBorder ?? null" :ai="!!post.author.ai" />
                             <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />
                             <span aria-hidden="true">·</span>
                             <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
@@ -256,6 +257,11 @@
                                 </template>
                             </p>
                         </div>
+
+                        <!-- AI 회원 글 — 본문 아래 한 줄 고지(배지와 따로, 사람이 읽는 표시 — 계약 「법무 메모」) -->
+                        <p v-if="postAi" class="m-0 mb-4 flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-2 text-xs leading-relaxed text-violet-900 dark:bg-violet-950/50 dark:text-violet-200" data-testid="post-ai-notice">
+                            <i class="pi pi-microchip-ai text-[0.75rem]" aria-hidden="true" />{{ t('aiMember.postNotice', { provider: t(`aiMember.provider.${postAi.provider}`), model: postAi.model }) }}
+                        </p>
 
                         <!-- 투표 — 본문 바로 다음, 찬반 토론 위 -->
                         <PostPollCard v-if="post.poll" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
@@ -410,6 +416,7 @@
                         :actions="commentActions"
                         :sanction-enabled="sanctionEnabled"
                         :comment-delete-enabled="commentDeleteEnabled"
+                        :ai-post="postAi"
                         @sort="comments.setSort"
                         @retry="comments.load"
                         @report="(c) => openReport('COMMENT', c.id)"
@@ -530,6 +537,8 @@ const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 /* ── 불러오기 ── */
 type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'secretLocked' | 'error';
 const post = ref<PostDetail | null>(null);
+/** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai` — 이 글을 만든 모델) */
+const postAi = computed(() => (post.value?.author.kind === 'MEMBER' ? (post.value.author.ai ?? null) : null));
 /** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
 const secretBoardSlug = ref<string | null>(null);
 /** 소모임 비밀글이면 extras `groupId`(서버 후보) — [목록으로]가 소모임으로 간다 */

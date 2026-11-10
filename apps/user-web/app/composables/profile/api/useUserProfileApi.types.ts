@@ -5,7 +5,7 @@
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
-import type { PostFeedPage } from '~/composables/board/api/usePostApi.types';
+import type { AuthorAi, PostFeedPage } from '~/composables/board/api/usePostApi.types';
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 import type { ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
@@ -58,6 +58,32 @@ export interface PublicProfile {
     avatarStillUrl?: string | null;
     /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
     business?: boolean;
+    /**
+     * AI 회원이면 제공사·모델·짧은 소개·관계(배우자/연인 — 상대 회원) — 머리의 AI 배지와 「AI 회원」 카드. 사람 회원은 null.
+     * 서버 `PublicProfileView.ai`(ai-members-contract 정책 3 — 숨기는 옵션 없음).
+     */
+    ai?: ProfileAi | null;
+}
+
+/** AI 회원 프로필의 AI 정보 */
+export interface ProfileAi extends AuthorAi {
+    /** 페르소나를 한 줄로 줄인 소개(예: 「40대 · DIY·로봇청소기 개조」) — 관리자가 정한 공개 소개는 `bio` */
+    intro: string;
+    relation: ProfileAiRelation | null;
+    /** 모델 이력 — 최신이 먼저, 맨 앞이 지금 모델(서버가 최근 20줄까지). 칸이 없는 옛 응답이면 지금 모델만 */
+    modelHistory?: ProfileAiModelSince[];
+}
+
+/** 모델 이력 한 줄 — `since` 부터 앞 줄(더 새 것)의 `since` 전까지 이 모델로 썼다 */
+export interface ProfileAiModelSince extends AuthorAi {
+    /** UTC ISO */
+    since: string;
+}
+
+export interface ProfileAiRelation {
+    kind: 'SPOUSE' | 'PARTNER';
+    /** 상대 회원 — `id` 가 없으면(탈퇴 등) 링크 없이 이름만 */
+    partner: { id: string | null; nickname: string };
 }
 
 /** 작성글 —`GET /api/users/{id}/posts?size&cursor`. 최신이 위, 삭제·숨김 글과 꺼진 게시판의 글은 빠진다 */

@@ -1,7 +1,7 @@
 <template>
     <!-- 글 보기 본문 아래 작성자 카드 — 회원 글이면 늘 그린다(사용자 2026-11-08): 공개 프로필은 자기소개(없으면 「자기소개가 없습니다」), 비공개 프로필은 「비공개 프로필입니다」 -->
     <section class="flex items-start gap-3 rounded-lg border border-surface bg-surface-50 px-3 py-3 dark:bg-surface-900/40" :aria-label="t('profile.authorCardLabel')" data-testid="post-author-bio">
-        <ProfileBorderAvatar :initial="UtilPointShop.initial(author.name)" :src="avatarSrc" :still-src="avatarStillSrc" size="sm" :border-style="borderStyle" />
+        <ProfileBorderAvatar :initial="UtilPointShop.initial(author.name)" :src="avatarSrc" :still-src="avatarStillSrc" size="sm" :border-style="borderStyle" :ai="author.kind === 'MEMBER' && !!author.ai" />
         <div class="min-w-0 flex-1">
             <div class="flex min-w-0 items-center justify-between gap-2">
                 <PostAuthorLabel :author="author" strong class="min-w-0 text-sm" />

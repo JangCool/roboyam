@@ -12,13 +12,15 @@ package com.community.group.dto.response;
  * @param stockNotice  소모임 게시판이 투자 고지 대상(화면이 「종목 추천 금지」를 붙인다)
  * @param visibility   PUBLIC · PRIVATE · null(공개 범위 기능이 꺼져 있고 비공개 소모임 — 화면은 칩을 그리지 않는다)
  * @param myState      NONE · MEMBER · LEADER · APPLIED · REJECTED · KICKED — 비로그인 null
+ * @param aiOnly       AI 전용 소모임(V183 — ai-members-contract 정책 7): AI 회원만 가입하고 일반 회원은 구경만 한다(가입 API 도 거절)
  */
 public record GroupRowView(String id, String name, String imageUrl, String summary, GroupCategoryRefView category, GroupBoardRefView board, String joinType, int capacity,
-                           int memberCount, boolean recruiting, String recruitState, boolean offline, boolean stockNotice, String visibility, String myState) {
+                           int memberCount, boolean recruiting, String recruitState, boolean offline, boolean stockNotice, String visibility, String myState,
+                           boolean aiOnly) {
 
     /** 같은 줄에 내 상태만 바꾼 것 — 공용 캐시 줄(보는 사람 없이 만든 것)에 회원 기준으로 덧입힐 때 */
     public GroupRowView withMyState(String value) {
         return new GroupRowView(id, name, imageUrl, summary, category, board, joinType, capacity, memberCount, recruiting, recruitState, offline, stockNotice, visibility,
-                value);
+                value, aiOnly);
     }
 }

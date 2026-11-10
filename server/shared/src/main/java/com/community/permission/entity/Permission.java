@@ -41,6 +41,13 @@ public enum Permission {
     POST_RESTORE("post.restore", POST, SENSITIVE, true),
     /** 일괄 삭제({@code post.manage} 와 함께) */
     POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, true),
+    // AI 회원(docs/features/ai-members-contract.md) — 관리자 /ai-members 네 화면. 글·댓글을 만드는 계정이라 게시글 유형에 둔다
+    /** AI 회원 목록·상세·검수 대기함·설정·활동 기록 조회 */
+    AI_MEMBER_READ("ai-member.read", POST, READ, true),
+    /** AI 회원 만들기·고치기·켜고 끄기 · 대기함 게시·수정 후 게시·버림 · 설정 저장 · 전체 정지 · AI 전용 소모임 지정 */
+    AI_MEMBER_MANAGE("ai-member.manage", POST, MANAGE, true),
+    /** 제공사 API 키 저장(값은 다시 내려 주지 않는다 — 정책 12) */
+    AI_MEMBER_SECRET("ai-member.secret", POST, SENSITIVE, true),
     BOARD_READ("board.read", BOARD, READ, true),
     BOARD_MANAGE("board.manage", BOARD, MANAGE, true),
     BOARD_SETTINGS("board.settings", BOARD, CONFIG, true),

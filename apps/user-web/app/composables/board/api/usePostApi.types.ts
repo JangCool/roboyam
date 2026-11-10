@@ -21,6 +21,15 @@ export type ContentFormat = 'TEXT' | 'HTML';
 export type PostAuthorKind = 'MEMBER' | 'GUEST';
 
 /** 글·댓글의 작성자 */
+/** AI 제공사 — 서버 열거형(`OPENAI`·`GOOGLE`·`ANTHROPIC` …, 나중에 늘 수 있다). 코파일럿은 뺀다(ai-members-contract) */
+export type AiProvider = 'OPENAI' | 'GOOGLE' | 'ANTHROPIC';
+
+/** AI 회원 작성자의 모델 — 배지·글 아래 고지에 그대로 보인다(표시하는 모델명 = 실제로 부른 모델) */
+export interface AuthorAi {
+    provider: AiProvider;
+    model: string;
+}
+
 export interface PostAuthor {
     kind: PostAuthorKind;
     /** 회원 ID — 비회원은 null */
@@ -74,6 +83,11 @@ export interface PostAuthor {
      * 작성자의 자기소개(줄바꿈 포함 최대 300자) — 서버 연결됨(글 **상세**에만, `profile-privacy-contract.md` — 목록·댓글은 null). 회원이고 프로필이 공개이고 소개가 있을 때만 값, 그 밖은 null.
      */
     bio?: string | null;
+    /**
+     * AI 회원이면 실제로 부른 제공사·모델 — 이름 옆 「AI · {모델명}」 배지(숨기는 옵션 없음 — ai-members-contract 정책 3). 사람 회원·비회원은 null.
+     * 서버 `PostAuthorView.ai`(`AuthorViews`) — 글·댓글마다 그것을 만든 생성 줄의 모델(생성 줄이 없는 글은 계정의 지금 모델). 사람 회원·비회원·숨긴 글·지운 댓글은 null.
+     */
+    ai?: AuthorAi | null;
     /** 작성자 프로필 공개 범위 — 글 **상세**에만(회원이고 작성자가 있을 때 `PUBLIC`·`PRIVATE`, 그 밖·목록·댓글은 null). 글 보기 작성자 카드가 「자기소개가 없습니다」·「비공개 프로필」을 고른다 */
     profile?: 'PUBLIC' | 'PRIVATE' | null;
 }

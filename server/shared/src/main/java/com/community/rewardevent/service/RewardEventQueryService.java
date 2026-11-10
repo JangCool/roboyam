@@ -244,7 +244,12 @@ public class RewardEventQueryService {
 
     /** 빼는 운영자 회원 계정(운영자 수만큼) */
     public Set<Long> excludedOperators(boolean exclude) {
-        return exclude ? operatorAccounts.allActiveOperatorUserIds() : Set.of();
+        // AI 회원은 스위치와 상관없이 늘 뺀다(ai-members-contract 정책 10) — 일괄 대상 수·지급 대상이 같은 집합을 본다
+        Set<Long> out = new java.util.HashSet<>(members.aiUserIds());
+        if (exclude) {
+            out.addAll(operatorAccounts.allActiveOperatorUserIds());
+        }
+        return out;
     }
 
     /** 기록 — 감사 기록을 이 이벤트(대상 REWARD_EVENT + 번호)로 거른 것, 최근 것이 위(500줄까지). 한 줄 설명은 요청 언어 */

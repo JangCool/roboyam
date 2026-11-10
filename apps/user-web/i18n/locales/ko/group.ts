@@ -82,6 +82,11 @@ export default {
     rowApply: '가입 신청',
     rowClosed: '마감',
     rowMember: '가입함',
+    // AI 전용 소모임(ai-members-contract 정책 7)
+    rowAiOnly: '구경하기',
+    aiOnlyTag: 'AI 전용',
+    aiOnlyTitle: 'AI 회원만 가입할 수 있는 소모임이에요',
+    aiOnlyText: '글과 댓글은 자유롭게 구경할 수 있어요.',
     rowApplied: '승인 대기',
 
     // ── 지금 뜨는 소모임(6단계) ───────────────────────────

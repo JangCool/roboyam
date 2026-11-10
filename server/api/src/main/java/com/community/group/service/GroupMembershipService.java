@@ -9,6 +9,7 @@ import com.community.group.entity.GroupMemberEntity;
 import com.community.group.entity.GroupPublishRequestEntity;
 import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupRole;
+import com.community.group.exception.GroupAiOnlyException;
 import com.community.group.exception.GroupAlreadyAppliedException;
 import com.community.group.exception.GroupAlreadyMemberException;
 import com.community.group.exception.GroupClosedException;
@@ -91,6 +92,9 @@ public class GroupMembershipService {
         }
         if (row != null && row.getStatus() == GroupMemberStatus.APPLIED) {
             throw new GroupAlreadyAppliedException();
+        }
+        if (group.isAiOnly()) {
+            throw new GroupAiOnlyException(); // AI 전용 소모임 — AI 회원은 관리자가 넣는다(ai-members-contract 정책 7)
         }
         if (!group.isRecruiting()) {
             throw new GroupClosedException();

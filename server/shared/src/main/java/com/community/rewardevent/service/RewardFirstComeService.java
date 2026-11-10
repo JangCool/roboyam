@@ -99,8 +99,8 @@ public class RewardFirstComeService {
     private boolean grantOne(long eventId, long userId) {
         Instant now = now();
         Optional<MemberRow> member = members.member(userId);
-        if (member.isEmpty() || !member.get().active()) {
-            return false;
+        if (member.isEmpty() || !member.get().active() || members.aiUser(userId)) {
+            return false; // AI 회원은 선착순 대상이 아니다(ai-members-contract 정책 10)
         }
         RewardEventEntity e = events.event(eventId).orElse(null);
         if (e == null || e.isExcludeOperators() && operatorAccounts.isActiveOperatorAccount(userId)) {

@@ -21,6 +21,15 @@
             </picture>
             <span v-else class="grid size-full place-items-center rounded-full bg-surface-100 font-bold text-muted-color dark:bg-surface-800" :class="SIZE[size].text">{{ initial }}</span>
         </span>
+        <!-- AI 회원 표시(ai-members-contract) — 동그라미 위쪽 가운데 「AI」 꼬리표. 옆의 AI 배지가 이름을 읽어 주므로 장식(aria-hidden). 바탕색 테두리로 그림·고리와 떨어져 보이게 -->
+        <span
+            v-if="ai"
+            class="pointer-events-none absolute top-0 left-1/2 inline-flex -translate-x-1/2 -translate-y-[45%] items-center justify-center rounded-full bg-violet-600 font-bold leading-none text-white dark:bg-violet-500"
+            :class="[SIZE[size].ai, AI_RING[surface]]"
+            aria-hidden="true"
+            data-ai-avatar-mark
+            >{{ t('aiMember.avatarMark') }}</span
+        >
     </span>
 </template>
 
@@ -48,6 +57,8 @@ interface Props {
     surface?: AvatarSurface;
     /** 화면 밖이면 나중에 받는다(격자) */
     lazy?: boolean;
+    /** AI 회원 — 위쪽 가운데에 「AI」 꼬리표 */
+    ai?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -59,16 +70,25 @@ const props = withDefaults(defineProps<Props>(), {
     size: 'lg',
     surface: 'page',
     lazy: false,
+    ai: false,
 });
 
+const { t } = useI18n();
+
 /** 크기별 상자·고리 두께(바깥 여백)·틈·글자 */
-const SIZE: Record<AvatarSize, { box: string; ring: string; gap: string; text: string }> = {
-    '2xs': { box: 'size-5', ring: '1.5px', gap: 'p-px', text: 'text-[0.5625rem]' },
-    xs: { box: 'size-6', ring: '2px', gap: 'p-px', text: 'text-[0.625rem]' },
-    sm: { box: 'size-10', ring: '2px', gap: 'p-0.5', text: 'text-sm' },
-    md: { box: 'size-12', ring: '3px', gap: 'p-0.5', text: 'text-lg' },
-    lg: { box: 'size-[4.5rem]', ring: '4px', gap: 'p-[3px]', text: 'text-2xl' },
-    xl: { box: 'size-28', ring: '5px', gap: 'p-1', text: 'text-4xl' },
+const SIZE: Record<AvatarSize, { box: string; ring: string; gap: string; text: string; ai: string }> = {
+    '2xs': { box: 'size-5', ring: '1.5px', gap: 'p-px', text: 'text-[0.5625rem]', ai: 'px-[2px] py-px text-[0.375rem] ring-1' },
+    xs: { box: 'size-6', ring: '2px', gap: 'p-px', text: 'text-[0.625rem]', ai: 'px-[3px] py-px text-[0.4375rem] ring-1' },
+    sm: { box: 'size-10', ring: '2px', gap: 'p-0.5', text: 'text-sm', ai: 'px-1 py-0.5 text-[0.5rem] ring-2' },
+    md: { box: 'size-12', ring: '3px', gap: 'p-0.5', text: 'text-lg', ai: 'px-1 py-0.5 text-[0.5625rem] ring-2' },
+    lg: { box: 'size-[4.5rem]', ring: '4px', gap: 'p-[3px]', text: 'text-2xl', ai: 'px-1.5 py-0.5 text-[0.6875rem] ring-2' },
+    xl: { box: 'size-28', ring: '5px', gap: 'p-1', text: 'text-4xl', ai: 'px-2 py-1 text-xs ring-2' },
+};
+
+/** AI 꼬리표 테두리 — 놓인 바탕색(틈 색과 같다) */
+const AI_RING: Record<AvatarSurface, string> = {
+    page: 'ring-surface-50 dark:ring-surface-950',
+    card: 'ring-surface-0 dark:ring-surface-900',
 };
 
 const GAP_BG: Record<AvatarSurface, string> = {

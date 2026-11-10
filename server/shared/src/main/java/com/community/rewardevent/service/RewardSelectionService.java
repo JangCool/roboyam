@@ -100,6 +100,7 @@ public class RewardSelectionService {
         Map<Long, MemberRow> people = members.members(commenters);
         Set<Long> operators = excludeOperators ? operatorAccounts.allActiveOperatorUserIds() : Set.of();
         Set<Long> already = eventId == null ? Set.of() : recipients.existingUsers(eventId, commenters);
+        Set<Long> ai = members.aiUserIds(); // AI 회원은 추첨 후보가 아니다(ai-members-contract 정책 10) — 빼고 세지 않는다
         List<Long> out = new ArrayList<>();
         long author = 0;
         long ops = 0;
@@ -113,6 +114,8 @@ public class RewardSelectionService {
                 withdrawn++;
             } else if (m.suspended()) {
                 suspended++;
+            } else if (ai.contains(u)) {
+                continue;
             } else if (operators.contains(u)) {
                 ops++;
             } else if (!already.contains(u)) {

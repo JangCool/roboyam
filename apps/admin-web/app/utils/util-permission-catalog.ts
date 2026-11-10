@@ -150,6 +150,7 @@ export default class UtilPermissionCatalog {
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감)·`point.adjust.large`(정책 문턱(기본 ±10,000P)을 넘는 조정, 커머스 1-1).
      *  · 게시글(게시글 관리 화면 `/posts`): 조회 `post.read`(글 검색·보기·조치 기록, 글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리)
      *    / 민감 `post.restore`(지운 글 복구 — 회수한 포인트를 되돌림)·`post.bulk-delete`(일괄 삭제).
+     *  · AI 회원(AI 회원 묶음 `/ai-members/**`): 조회 `ai-member.read` / 처리 `ai-member.manage`(만들기·고치기·켜고 끄기·대기함 게시·버림·설정·전체 정지·AI 전용 소모임 지정) / 민감 `ai-member.secret`(제공사 API 키 저장).
      *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
      *  · 신고(신고 관리 화면 `/reports`): 조회 `report.read` / 처리 `report.manage`. 금지어는 따로 권한이 없다 — 게시판 기본 설정 › 보안(`board.settings`)이 다룬다(옛 `bannedword.*` 는 뺐다).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
@@ -174,6 +175,10 @@ export default class UtilPermissionCatalog {
         { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: true },
         { code: 'post.restore', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postRestore', descKey: 'permission.item.postRestoreDesc', featureReady: true },
         { code: 'post.bulk-delete', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postBulkDelete', descKey: 'permission.item.postBulkDeleteDesc', featureReady: true },
+        // AI 회원(`/ai-members` 네 화면) — 글·댓글을 만드는 계정이라 게시글 유형. 조회 · 처리(만들기·고치기·켜고 끄기·검수·설정·전체 정지·AI 전용 소모임) · 민감(제공사 API 키 저장)
+        { code: 'ai-member.read', unit: 'READ', type: 'post', nameKey: 'permission.item.aiMemberRead', descKey: 'permission.item.aiMemberReadDesc', featureReady: true },
+        { code: 'ai-member.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.aiMemberManage', descKey: 'permission.item.aiMemberManageDesc', featureReady: true },
+        { code: 'ai-member.secret', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.aiMemberSecret', descKey: 'permission.item.aiMemberSecretDesc', featureReady: true },
         { code: 'board.read', unit: 'READ', type: 'board', nameKey: 'permission.item.boardRead', descKey: 'permission.item.boardReadDesc', featureReady: true },
         { code: 'board.manage', unit: 'MANAGE', type: 'board', nameKey: 'permission.item.boardManage', descKey: 'permission.item.boardManageDesc', featureReady: true },
         { code: 'board.settings', unit: 'CONFIG', type: 'board', nameKey: 'permission.item.boardSettings', descKey: 'permission.item.boardSettingsDesc', featureReady: true },

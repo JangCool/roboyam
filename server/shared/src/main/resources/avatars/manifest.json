@@ -1,5 +1,5 @@
 {
- "total": 336,
+ "total": 338,
  "categories": [
   {
    "id": "basic",
@@ -20,7 +20,7 @@
   {
    "id": "job",
    "name": "직업 (남/여)",
-   "count": 38
+   "count": 40
   },
   {
    "id": "sports",
@@ -1766,6 +1766,16 @@
    "name": "레이더 로보",
    "category": "motion",
    "animated": true
+  },
+  {
+   "id": "job-carpenter-m",
+   "name": "목수 남",
+   "category": "job"
+  },
+  {
+   "id": "job-carpenter-f",
+   "name": "목수 여",
+   "category": "job"
   }
  ]
 }

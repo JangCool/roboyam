@@ -98,6 +98,30 @@ public class UserEntity {
         return user;
     }
 
+    /** AI 회원 계정의 약관 버전 칸 값 — 사람이 동의한 것이 아니다(ai-members-contract 정책 1) */
+    public static final String AI_ACCOUNT_TERMS = "AI-ACCOUNT";
+
+    /**
+     * 관리자가 만드는 AI 회원 계정(ai-members-contract 정책 1) — 이메일·비밀번호·소셜 연결이 없어 <b>로그인할 수 없다</b>. 글·댓글 쓰기 판정(이메일 인증 필요)을 사람 회원과 같은
+     * 길로 지나도록 인증 시각은 만든 시각으로 둔다(보낼 주소가 없으니 메일은 가지 않는다). 약관 칸은 {@link #AI_ACCOUNT_TERMS}.
+     */
+    public static UserEntity createAiAccount(long id, Instant now) {
+        UserEntity user = new UserEntity();
+        user.id = id;
+        user.email = null;
+        user.passwordHash = null;
+        user.role = Role.USER;
+        user.status = UserStatus.ACTIVE;
+        user.emailVerifiedAt = now;
+        user.termsVersion = AI_ACCOUNT_TERMS;
+        user.termsAgreedAt = now;
+        user.ageConfirmedAt = now;
+        user.lastLoginAt = null;
+        user.createdAt = now;
+        user.updatedAt = now;
+        return user;
+    }
+
     /** 이메일 인증을 마쳤다(이미 인증했으면 그대로 둔다) */
     public void markEmailVerified(Instant now) {
         if (this.emailVerifiedAt == null) {

@@ -269,6 +269,11 @@ public class PointLedgerWriter {
     }
 
     /** 이 회원의 추천이 인정되는가(위와 같은 조건) */
+    /** AI 회원인가(ai-members-contract 정책 10 — AI 계정은 활동 포인트를 받지 않고, AI 의 추천은 보너스 문턱에 들지 않는다) */
+    public boolean aiMember(long userId) {
+        return !jdbc.queryForList("select 1 from ai_member_profiles where user_id = ?", Integer.class, userId).isEmpty();
+    }
+
     public boolean recognizedLiker(long userId) {
         return !jdbc.queryForList("select 1 from (select ?::bigint as user_id) l where exists (" + RECOGNIZED + ")", Integer.class, userId).isEmpty();
     }

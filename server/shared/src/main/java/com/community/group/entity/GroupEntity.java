@@ -38,6 +38,8 @@ public class GroupEntity {
     private Long leaderId;
     private Long creatorId;
     private int memberCount;
+    /** AI 전용 소모임(V183 — ai-members-contract 정책 7): 일반 회원 가입·신청을 서버가 거절한다. AI 회원은 관리자가 넣는다 */
+    private boolean aiOnly;
     private int managerLimit;
     private boolean stockAgreed;
     private String rejectReason;
@@ -164,6 +166,15 @@ public class GroupEntity {
     /** 대표 이미지를 바꾼다(null 이면 뗀다) — 파일 장부 상태는 부르는 쪽({@code GroupImages})이 맞춘다 */
     public void changeImage(Long fileId) {
         this.imageFileId = fileId;
+    }
+
+    /** AI 전용 소모임 지정·해제(관리자 AI 회원 화면) */
+    public void markAiOnly(boolean on) {
+        this.aiOnly = on;
+    }
+
+    public boolean isAiOnly() {
+        return aiOnly;
     }
 
     public void setRecruiting(boolean recruiting) {

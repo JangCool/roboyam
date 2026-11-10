@@ -208,7 +208,7 @@ public class PostQueryService {
                 .forEach(r -> sealed.add(r.id()));
 
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
-        AuthorMembers members = authors.members(authorIds);
+        AuthorMembers members = authors.forPosts(authors.members(authorIds), Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
         ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
         Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
         Map<Long, String> thumbs = thumbnails.of(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id()))
@@ -246,7 +246,7 @@ public class PostQueryService {
                             Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
@@ -309,14 +309,14 @@ public class PostQueryService {
      */
     private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
                                 ViewerBlocks.Lens lens, PostGroupView group, List<DealWarningView> warnings) {
-        AuthorMembers members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
+        AuthorMembers members = authors.forPosts(authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId())), List.of(post.getId()));
         boolean adultViewer = !post.isGroupPost() && adultGate.adult(userId); // 성인이 아니면 이전·다음 글에서 19금 글을 건너뛴다
         // 읽을 수 없는 비밀글도 건너뛴다(글쓴이는 자기 글을 본다). 운영진은 모두 읽는다 — 회원 판정은 비밀글을 쓰는 게시판에서만 읽는다
         // (비밀글을 끈 뒤 남은 비밀글은 운영진에게도 이웃 글로 내지 않는다 — 목록에서는 연다)
         boolean staffViewer = (b.secretAlways() || b.secretOptional()) && userId != null && actors.resolve(userId, s).staffOf(b.id());
         Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
-        PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
+        PostAuthorView author = authors.ofPost(post.getId(), post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
                 .withProfile(authors.detailProfile(post.getAuthorId(), members)); // 작성자 자기소개·공개 범위는 상세에만(profile-privacy-contract — 숨긴 글은 여기 오지 않는다)
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
