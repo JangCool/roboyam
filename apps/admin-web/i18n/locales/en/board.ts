@@ -288,6 +288,7 @@ export default {
         writeLock: 'Read-only lock',
         secretMode: 'Private posts',
         statusEnabled: 'Use process status',
+        authorMode: 'Author display',
         introText: 'Board guide',
         writeGuideText: 'Writing guide',
         writeTemplate: 'Post template',
@@ -613,6 +614,15 @@ export default {
         OPTIONAL: 'Author chooses',
         ALWAYS: 'All posts private',
     },
+    authorMode: {
+        NICKNAME: 'Nickname',
+        ANONYMOUS: 'Anonymous',
+    },
+    authorModeDesc: {
+        NICKNAME: 'Posts and comments show the author’s nickname (default).',
+        ANONYMOUS: 'Posts and comments all show "Anonymous". Within a post, commenters are numbered like "Anonymous 1", "Anonymous 2".',
+    },
+    authorModeHelp: 'Authors are sealed and hidden even on operator screens. You can sanction “the author of this post”, and only operators with the “Reveal anonymous author” permission can reveal the identity, with a reason (it is logged). Turning this off later keeps existing posts anonymous.',
     statusEnabledHelp: 'Shows a process status (Received → Done …) on the list and posts; moderators change it and the author is notified. This field has no default.',
     statusEnabledHelpGroup: 'Shows a process status (Received → Done …) on the group’s posts; group moderators change it and the author is notified.',
     reportFixed: 'No automatic hiding by report count — operators decide in Reports.',

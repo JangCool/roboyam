@@ -182,7 +182,8 @@
 
                     <Column :header="t('report.col.author')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <span class="block truncate text-[13px]" :class="data.author.withdrawn ? 'text-muted-color' : ''">{{ UtilReportMessages.author(t, data.author) }}</span>
+                            <AnonymousSealedAuthor v-if="data.author.sealed" class="text-[13px]" />
+                            <span v-else class="block truncate text-[13px]" :class="data.author.withdrawn ? 'text-muted-color' : ''">{{ UtilReportMessages.author(t, data.author) }}</span>
                         </template>
                     </Column>
 
@@ -279,6 +280,10 @@
             :can-view-group="canViewGroup"
             :author-grade="authorGrade"
             :author-sanction="authorSanction"
+            :can-sanction-sealed="UtilSanction.canIssue(sanctionStepPerm)"
+            :can-reveal-sealed="reveal.canReveal.value"
+            @sealed-sanction="openSealedSanction"
+            @sealed-reveal="openSealedReveal"
             @retry="detail.reload(false)"
             @retry-sanction="detail.reload(false)"
             @act="onDrawerAct"
@@ -287,11 +292,16 @@
             @next="neighbors.next && openCase(neighbors.next)"
             @closed="onDrawerClosed"
         />
+
+        <!-- 익명 게시판 글·댓글의 봉인된 작성자(anonymous-board-contract) — 「이 글(댓글) 작성자」 제재(기존 제재 창, 근거 사건 연결) · 작성자 열람 -->
+        <SanctionIssueDialog v-model:visible="sealedIssue.open.value" :view="sealedIssue.view.value" :perm="sanctionStepPerm" @retry-preview="sealedIssue.loadPreview" @submit="submitSealedSanction" />
+        <AnonymousRevealDialog v-model:visible="reveal.open.value" :view="reveal.view.value" @submit="(p) => reveal.submit(p.reason, p.memo)" />
     </div>
 </template>
 
 <script setup lang="ts">
 import type { MenuItem } from 'primevue/menuitem';
+import type { SanctionCreateRequest } from '~/composables/sanction/api/useSanctionApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AdminPostBoardOption } from '~/composables/post/api/usePostApi.types';
 import type { ReportBulkResult, ReportCaseDetail, ReportCaseItem, ReportCaseListView, ReportReasonCode, ReportStatusFilter, ReportTargetType } from '~/composables/report/api/useReportApi.types';
@@ -642,7 +652,8 @@ const authorSanction = computed<ReportSanctionContext | null>(() => {
     const preview = d.authorCard?.sanction ?? null;
     return {
         eligible: UtilReport.canSanctionAuthor(d.case.author) && preview !== null,
-        authorName: d.case.author.name,
+        authorName: d.case.author.name ?? '',
+        sealed: d.case.author.sealed === true,
         preview,
         loading: detail.loading.value,
         error: null,
@@ -657,13 +668,37 @@ const actSanction = computed<ReportSanctionContext | null>(() => {
     if (!sanctionPerm.canRead.value || !author) return null;
     return {
         eligible: UtilReport.canSanctionAuthor(author),
-        authorName: author.name,
+        authorName: author.name ?? '',
+        sealed: author.sealed === true,
         preview: actPreview.preview.value,
         loading: actPreview.loading.value,
         error: actPreview.error.value,
         perm: sanctionStepPerm.value,
     };
 });
+
+/* ── 익명 게시판 글·댓글의 봉인된 작성자(anonymous-board-contract 정책 9·10) — 처리에 곁들이지 않고 서랍 단추로 따로 준다 ── */
+const sealedIssue = useSanctionIssue();
+/** 작성자 열람 — `anonymous-author.reveal` 이 있을 때만 단추가 보인다 */
+const reveal = useAnonymousReveal();
+function openSealedSanction(): void {
+    const c = detail.detail.value?.case;
+    const target = c ? UtilReport.anonymousTarget(c) : null;
+    if (!c || !target) return;
+    const name = target.commentId ? t('anonymousAuthor.thisCommentAuthor') : t('anonymousAuthor.thisPostAuthor');
+    sealedIssue.start({ id: '', nickname: name, anonymous: target }, { reportCaseId: c.id });
+}
+async function submitSealedSanction(body: Omit<SanctionCreateRequest, 'userId' | 'reportCaseId'>): Promise<void> {
+    const created = await sealedIssue.submit(body);
+    if (!created) return;
+    toast.success(UtilSanctionMessages.issued(t, created));
+    void detail.reload();
+}
+function openSealedReveal(): void {
+    const c = detail.detail.value?.case;
+    const target = c ? UtilReport.anonymousTarget(c) : null;
+    if (target) reveal.start(target);
+}
 
 /** 처리 대화창의 작성자 현황을 다시 받는다 */
 function retryActSanction(): void {

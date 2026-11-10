@@ -73,11 +73,11 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
             return new Stats(0, 0, 0);
         }
         Tuple p = query.select(POST.id.count(), likeSum(POST.likeCount)).from(POST)
-                .where(POST.authorId.eq(userId), visiblePost(boardIds, adultViewer, includeSecret, now))
+                .where(POST.authorId.eq(userId), POST.anonymous.isFalse(), visiblePost(boardIds, adultViewer, includeSecret, now)) // 익명 글은 빼고 센다(V184)
                 .fetchOne();
         Tuple c = query.select(COMMENT.id.count(), likeSum(COMMENT.likeCount)).from(COMMENT)
                 .join(POST).on(POST.id.eq(COMMENT.postId))
-                .where(COMMENT.authorId.eq(userId), visibleComment(now), commentablePost(boardIds, adultViewer, includeSecret, now))
+                .where(COMMENT.authorId.eq(userId), COMMENT.anonymous.isFalse(), visibleComment(now), commentablePost(boardIds, adultViewer, includeSecret, now))
                 .fetchOne();
         long posts = num(p, 0);
         long comments = num(c, 0);
@@ -93,13 +93,14 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = POST.authorId.eq(userId).and(visiblePost(boardIds, adultViewer, includeSecret, now));
+        // 익명 글(V184)은 빠진다 — 본인이 보는 자기 목록도(anonymous-board-contract 정책 4, 본인 화면이 남에게 보일 수 있으므로)
+        BooleanExpression where = POST.authorId.eq(userId).and(POST.anonymous.isFalse()).and(visiblePost(boardIds, adultViewer, includeSecret, now));
         if (beforeId != null) {
             where = where.and(POST.id.lt(beforeId));
         }
         return query.select(Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp,
                         POST.title, POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil,
-                        POST.hiddenReason, POST.createdAt, POST.groupId, POST.secret, POST.processStatus))
+                        POST.hiddenReason, POST.createdAt, POST.groupId, POST.secret, POST.processStatus, POST.anonymous))
                 .from(POST).where(where)
                 .orderBy(POST.id.desc())
                 .limit(limit + 1L)
@@ -111,7 +112,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = COMMENT.authorId.eq(userId).and(visibleComment(now)).and(commentablePost(boardIds, adultViewer, includeSecret, now));
+        BooleanExpression where = COMMENT.authorId.eq(userId).and(COMMENT.anonymous.isFalse()).and(visibleComment(now)).and(commentablePost(boardIds, adultViewer, includeSecret, now)); // 익명 댓글은 빠진다(V184)
         if (beforeId != null) {
             where = where.and(COMMENT.id.lt(beforeId));
         }

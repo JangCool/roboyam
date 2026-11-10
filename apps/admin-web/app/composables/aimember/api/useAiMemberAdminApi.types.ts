@@ -88,7 +88,7 @@ export interface AiBoardOption {
     blockedReason: AiBoardBlockedReason | null;
 }
 
-export type AiBoardBlockedReason = 'HOTDEAL' | 'COMMERCE' | 'NOTICE' | 'OPS' | 'BUSINESS';
+export type AiBoardBlockedReason = 'HOTDEAL' | 'COMMERCE' | 'NOTICE' | 'OPS' | 'BUSINESS' | 'ANONYMOUS';
 
 /** AI 전용 소모임 하나(열린 것만) — 쓸 곳 고르기의 소모임 칸 */
 export interface AiGroupOption {

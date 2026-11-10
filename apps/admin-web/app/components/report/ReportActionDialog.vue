@@ -57,7 +57,9 @@
 
             <!-- 작성자 제재 — 조치에 곁들이기 / 제재만 -->
             <section v-if="sanctionAllowed" class="flex flex-col gap-3 rounded-lg border border-(--line) px-3 py-2.5" :aria-label="t('report.sanctionWith')">
-                <p v-if="!sanction?.eligible" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle text-[11px]" aria-hidden="true" />{{ t('report.sanctionNotMember') }}</p>
+                <p v-if="!sanction?.eligible" class="m-0 flex items-center gap-1.5 text-xs text-muted-color">
+                    <i :class="sanction?.sealed ? 'pi pi-lock' : 'pi pi-info-circle'" class="text-[11px]" aria-hidden="true" />{{ sanction?.sealed ? t('anonymousAuthor.reportSanctionSealed') : t('report.sanctionNotMember') }}
+                </p>
                 <p v-else-if="!UtilSanction.canIssue(sanction.perm)" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock text-[11px]" aria-hidden="true" />{{ t('sanction.noManage') }}</p>
                 <template v-else>
                     <div v-if="!isSanctionOnly" class="flex items-start gap-2">

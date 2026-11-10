@@ -95,7 +95,8 @@ public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
     public record ActionRow(long id, long boardId, String boardSlug, String boardName, String boardNameEn, Long actorId, String actorNickname, String actorRole,
                             String kind, String action, Long targetUserId, String targetNickname, long postId, Long commentId, String reasonCode, String targetTitle,
                             String targetExcerpt, String targetAuthorName, Instant createdAt, Instant restoredAt, String restoredByKind, Long restoredById,
-                            String restoredByName, String restoreReason, TargetState post, TargetState comment, Long actorOperatorId, String actorOperatorName) {
+                            String restoredByName, String restoreReason, TargetState post, TargetState comment, Long actorOperatorId, String actorOperatorName,
+                            boolean anonymousTarget) {
 
         /** 운영자 회원 계정이 한 처리인가 — 매니저는 되돌리지 못한다(operator-member-account-contract 정책 7) */
         public boolean byOperator() {
@@ -320,7 +321,8 @@ public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
                         ACTION.targetAuthorName, ACTION.createdAt, ACTION.restoredAt, ACTION.restoredByKind, ACTION.restoredById, RESTORER.nickname,
                         RESTORER_OPERATOR.operatorName, ACTION.restoreReason,
                         POST.id, POST.status, POST.deletedAt, POST.deleteScheduledAt, POST.hiddenAt, POST.hiddenUntil, POST.purgedAt,
-                        COMMENT.id, COMMENT.deletedAt, COMMENT.hiddenAt, COMMENT.hiddenUntil, COMMENT.purgedAt, ACTION.actorOperatorId, ACTOR_OPERATOR.operatorName)
+                        COMMENT.id, COMMENT.deletedAt, COMMENT.hiddenAt, COMMENT.hiddenUntil, COMMENT.purgedAt, ACTION.actorOperatorId, ACTOR_OPERATOR.operatorName,
+                        POST.anonymous, COMMENT.anonymous)
                 .from(ACTION).join(B).on(B.id.eq(ACTION.boardId)).leftJoin(ACTOR).on(ACTOR.userId.eq(ACTION.actorId))
                 .leftJoin(ACTOR_OPERATOR).on(ACTOR_OPERATOR.id.eq(ACTION.actorOperatorId))
                 .leftJoin(TARGET).on(TARGET.userId.eq(ACTION.targetUserId))
@@ -342,7 +344,9 @@ public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
                 t.get(ACTION.actorRole), t.get(ACTION.kind), t.get(ACTION.action), t.get(ACTION.targetUserId), t.get(TARGET.nickname), t.get(ACTION.postId),
                 t.get(ACTION.commentId), t.get(ACTION.reasonCode), t.get(ACTION.targetTitle), t.get(ACTION.targetExcerpt), t.get(ACTION.targetAuthorName),
                 t.get(ACTION.createdAt), t.get(ACTION.restoredAt), restoredByKind, t.get(ACTION.restoredById), restoredByName, t.get(ACTION.restoreReason), post,
-                comment, t.get(ACTION.actorOperatorId), t.get(ACTOR_OPERATOR.operatorName));
+                comment, t.get(ACTION.actorOperatorId), t.get(ACTOR_OPERATOR.operatorName),
+                // 대상이 익명 글·댓글(V184)인가 — 화면은 대상 작성자를 봉인한다(anonymous-board-contract 정책 4·8)
+                t.get(ACTION.commentId) != null ? Boolean.TRUE.equals(t.get(COMMENT.anonymous)) : Boolean.TRUE.equals(t.get(POST.anonymous)));
     }
 
     /** 처리 기록 하나(제재 줄은 없다고 본다) */

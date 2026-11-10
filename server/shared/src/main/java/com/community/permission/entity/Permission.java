@@ -70,6 +70,11 @@ public enum Permission {
     APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, true),
     /** 민감 조치 — 영구 정지 · 단계 건너뛰기 · 영구 정지 해제 */
     SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, true),
+    /**
+     * 민감 조치 — 익명 글·댓글 작성자 열람(사유 + 메모 + 감사 ANONYMOUS_AUTHOR_REVEAL + 다른 운영자 알림 — docs/features/anonymous-board-contract.md 정책 10).
+     * 역할 기본 묶음에 넣지 않는다(처음에는 최고 관리자만 — 역할에 줄 수 있다). 게시판 매니저(회원 권한 {@code MemberPermission})에는 없다
+     */
+    ANONYMOUS_AUTHOR_REVEAL("anonymous-author.reveal", SANCTION, SENSITIVE, true),
     /** 스텝 처리 감독 조회 — 모든 게시판의 매니저·스텝 글 숨기기·삭제·댓글 삭제(docs/features/board-staff-action-contract.md 정책 9) */
     KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, true),
     /** 민감 조치 — 스텝 처리 되돌리기(숨김 해제 · 글 복구 · 댓글 복구, 감사 BOARD_STAFF_ACTION_RESTORE) */

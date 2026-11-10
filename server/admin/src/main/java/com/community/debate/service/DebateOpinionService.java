@@ -301,10 +301,11 @@ public class DebateOpinionService {
     private static DebateOpinionView view(CommentEntity c, Set<Long> pinned, Map<Long, Integer> replies, Map<Long, ProfileEntity> members,
                                           Map<Long, Long> pending, Instant now) {
         ProfileEntity profile = c.getAuthorId() == null ? null : members.get(c.getAuthorId());
-        String name = c.getAuthorId() == null ? (c.getGuestName() == null ? "" : c.getGuestName()) : (profile == null ? "" : profile.getNickname());
+        boolean sealed = c.isAnonymous(); // 익명 댓글(V184) — 작성자 종류 SEALED · ID·이름 null(봉인, anonymous-board-contract 정책 8)
+        String name = sealed ? null : c.getAuthorId() == null ? (c.getGuestName() == null ? "" : c.getGuestName()) : (profile == null ? "" : profile.getNickname());
         boolean hidden = c.isHiddenAt(now);
-        return new DebateOpinionView(Long.toString(c.getId()), c.getStance(), c.getAuthorId() == null ? "GUEST" : "MEMBER",
-                c.getAuthorId() == null ? null : Long.toString(c.getAuthorId()), name, preview(c.getContentFormat(), c.getContent()), c.getLikeCount(),
+        return new DebateOpinionView(Long.toString(c.getId()), c.getStance(), sealed ? "SEALED" : c.getAuthorId() == null ? "GUEST" : "MEMBER",
+                sealed || c.getAuthorId() == null ? null : Long.toString(c.getAuthorId()), name, preview(c.getContentFormat(), c.getContent()), c.getLikeCount(),
                 replies.getOrDefault(c.getId(), 0), c.getCreatedAt(), pinned.contains(c.getId()), hidden, hidden ? c.getHiddenReason() : null, c.getDislikeCount(),
                 pending.containsKey(c.getId()) ? Long.toString(pending.get(c.getId())) : null);
     }

@@ -237,8 +237,17 @@ public class ReportCaseActionService {
                 throw new SanctionTargetNotFoundException();
             }
             String sanctionReason = sanction.reason() == null ? note : sanction.reason();
+            // 익명 글·댓글(V184) 사건이면 봉인 제재 — 닉네임 확인 없음 · 감사 대상은 그 글·댓글(anonymous-board-contract 정책 9)
+            SanctionIssue.SealedSource sealedSource = null;
+            if (!c.isGroup() && c.getPostId() != null) {
+                PostEntity targetPost = posts.findById(c.getPostId()).orElse(null);
+                CommentEntity targetComment = c.isComment() ? comments.findByPostIdAndId(c.getPostId(), c.getTargetId()).orElse(null) : null;
+                if (AdminReportQueryService.sealed(c, targetPost, targetComment)) {
+                    sealedSource = new SanctionIssue.SealedSource(c.getPostId(), c.isComment() ? c.getTargetId() : null);
+                }
+            }
             issued = sanctions.issue(new SanctionIssue(authorId, sanction.kind(), sanctionReason, Boolean.TRUE.equals(sanction.skipStep()), sanction.confirmNickname(),
-                    c.getId(), "sanction."), sanctionAdmin.operator(actor, TARGET, Long.toString(c.getId())));
+                    c.getId(), "sanction.", sealedSource), sanctionAdmin.operator(actor, TARGET, Long.toString(c.getId())));
         }
         String stored = sanctionOnly ? ReportCaseEntity.ACTION_SANCTION_ONLY : action;
 

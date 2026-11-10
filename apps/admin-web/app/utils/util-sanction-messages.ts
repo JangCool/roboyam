@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { SanctionActorRef, SanctionBlockedReason, SanctionKind, SanctionLine, SanctionPreview } from '~/composables/sanction/api/useSanctionApi.types';
+import type { SanctionActorRef, SanctionBlockedReason, SanctionKind, SanctionLine, SanctionPreview, SanctionUserRef } from '~/composables/sanction/api/useSanctionApi.types';
 import type { SanctionChoice, SanctionSearchKind, SanctionTextProblem } from '~/utils/util-sanction';
 import UtilSanction from '~/utils/util-sanction';
 
@@ -23,6 +23,14 @@ export default class UtilSanctionMessages {
 
     static appealStatusName(t: Translate, status: string): string {
         return ['PENDING', 'ACCEPTED', 'REJECTED'].includes(status) ? t(`appeal.status.${status}`) : status;
+    }
+
+    /**
+     * 제재 대상 이름 — 봉인된 익명 글 작성자(anonymous-board-contract 정책 9)는 「익명 글 작성자(봉인)」, 그 밖은 닉네임(없으면 빈 글자).
+     * 제재·게시판 제재·이의제기의 목록·서랍이 닉네임 자리에 쓴다
+     */
+    static userName(t: Translate, user: Pick<SanctionUserRef, 'nickname' | 'sealed'>): string {
+        return user.sealed ? t('anonymousAuthor.sanctionTarget') : (user.nickname ?? '');
     }
 
     /** 제재 번호 「#12」 */
@@ -91,6 +99,6 @@ export default class UtilSanctionMessages {
 
     /** 부여 성공 토스트 */
     static issued(t: Translate, line: Pick<SanctionLine, 'kind' | 'warningNo' | 'user'>): string {
-        return t('sanction.issued', { name: line.user.nickname, kind: UtilSanctionMessages.kindName(t, line.kind, line.warningNo) });
+        return t('sanction.issued', { name: UtilSanctionMessages.userName(t, line.user), kind: UtilSanctionMessages.kindName(t, line.kind, line.warningNo) });
     }
 }

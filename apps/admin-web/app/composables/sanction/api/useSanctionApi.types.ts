@@ -34,10 +34,16 @@ export type SanctionOptionState = 'NEXT' | 'SKIP' | 'LOWER' | 'BLOCKED';
 /** 제재를 줄 수 없는(또는 영구 정지만 되는) 까닭 — 이미 영구 정지 · 정지 중(영구 정지만 가능) */
 export type SanctionBlockedReason = 'ALREADY_BANNED' | 'SUSPENDED';
 
-/** 제재 대상 회원 — `status` 는 회원 관리의 계정 상태와 같은 값(ACTIVE·SUSPENDED·BANNED …) */
+/**
+ * 제재 대상 회원 — `status` 는 회원 관리의 계정 상태와 같은 값(ACTIVE·SUSPENDED·BANNED …).
+ * **익명 글 작성자에게 준 제재(「이 글 작성자」 — anonymous-board-contract 정책 9)는 `sealed: true`** 이고 `id`·`nickname`(그 밖 칸)은 null 이다 — 화면은 「익명 글 작성자(봉인)」(`UtilSanctionMessages.userName`).
+ * 열람 권한이 있는 운영자도 제재 화면에서는 봉인 그대로다(신원은 열람 창으로만)
+ */
 export interface SanctionUserRef {
-    id: string;
-    nickname: string;
+    id: string | null;
+    nickname: string | null;
+    /** 봉인된 익명 글 작성자 — 옛 응답(칸 없음)은 false */
+    sealed?: boolean;
     /** 등급 키 — 모르면 null */
     grade: string | null;
     status: string;
@@ -164,13 +170,18 @@ export interface SanctionPreview {
  * 403 `PERMISSION_DENIED`(영구 정지·건너뛰기에 `sanction.ban` 없음) · 404 `SANCTION_TARGET_NOT_FOUND` · 409 `SANCTION_ALREADY_BANNED`·`SANCTION_ALREADY_SUSPENDED`·`SANCTION_STEP_TOO_LOW`
  */
 export interface SanctionCreateRequest {
-    userId: string;
+    /** 대상 회원 — 익명 글·댓글 작성자(봉인)에게 줄 때는 비우고 아래 `anonymousPostId`·`anonymousCommentId` 하나를 보낸다(둘 이상이면 400, 익명 글이 아니면 409) */
+    userId?: string;
+    /** 이 익명 글의 작성자에게 준다(anonymous-board-contract 「API 계약」 제재) */
+    anonymousPostId?: string;
+    /** 이 익명 댓글의 작성자에게 준다 */
+    anonymousCommentId?: string;
     kind: SanctionKind;
     /** 1~500자 — 회원에게 그대로 전달된다 */
     reason: string;
     /** 다음 단계보다 높은 제재 */
     skipStep: boolean;
-    /** 영구 정지면 회원 닉네임을 그대로, 그 밖 null */
+    /** 영구 정지면 회원 닉네임을 그대로, 그 밖 null. 봉인된 익명 작성자의 영구 정지는 닉네임을 모르므로 null(가정 — 서버가 봉인 대상이면 확인 칸을 보지 않는다) */
     confirmNickname: string | null;
     /** 근거 신고 사건(연결만 — 사건을 닫지는 않는다) */
     reportCaseId?: string | null;

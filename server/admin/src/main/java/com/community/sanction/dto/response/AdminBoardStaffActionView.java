@@ -27,7 +27,7 @@ public record AdminBoardStaffActionView(String id, BoardSanctionBoardRefView boa
     public record Target(String postId, String commentId, String title, String excerpt, Author author, String state) {
     }
 
-    /** 대상 작성자 — 회원(지금 닉네임, 없으면 스냅숏) 또는 비회원(이름 스냅숏) */
+    /** 대상 작성자 — 회원(지금 닉네임, 없으면 스냅숏) 또는 비회원(이름 스냅숏). 익명 글·댓글(V184)이면 {@code kind} SEALED · ID·이름 null(봉인) */
     public record Author(String kind, String id, String name) {
     }
 

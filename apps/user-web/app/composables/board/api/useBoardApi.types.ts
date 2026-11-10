@@ -89,7 +89,15 @@ export interface BoardView {
      * 서버가 아직 안 주면(옛 응답) `undefined` — 제목 위(`ABOVE`)로 본다(`UtilBoard.chipPosition`)
      */
     chipPosition?: PostChipPosition;
+    /**
+     * 작성자 표시(anonymous-board-contract) — `NICKNAME` 닉네임(기본) · `ANONYMOUS` 글·댓글을 「익명」으로 올린다(글쓰기·댓글 입력 위 안내).
+     * 익명 여부는 쓸 때 서버가 이 값으로 정해 글·댓글에 저장한다 — 보이는 이름은 늘 각 작성자 칸(`author.kind`)을 따른다. 옛 응답(칸 없음)은 `NICKNAME`
+     */
+    authorMode?: BoardAuthorMode;
 }
+
+/** 게시판 작성자 표시 — 닉네임 · 익명 */
+export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';
 
 /**
  * 글 목록 줄의 말머리·상태 칩 위치 — `ABOVE` 제목 위 칩 줄(기본) · `BEFORE` 제목 앞(한 줄 안) · `BELOW` 닉네임(메타) 줄 아래 칩 줄.

@@ -90,6 +90,10 @@ public final class BoardFields {
     public static final String SECRET_OPTIONAL = "OPTIONAL";
     public static final String SECRET_ALWAYS = "ALWAYS";
     public static final List<String> SECRET_MODES = List.of(SECRET_OFF, SECRET_OPTIONAL, SECRET_ALWAYS);
+    /** 작성자 표시(V184 — 게시판마다의 값, 일반 게시판만 익명) — 닉네임(기본) · 익명(anonymous-board-contract) */
+    public static final String AUTHOR_NICKNAME = "NICKNAME";
+    public static final String AUTHOR_ANONYMOUS = "ANONYMOUS";
+    public static final List<String> AUTHOR_MODES = List.of(AUTHOR_NICKNAME, AUTHOR_ANONYMOUS);
     /** 글 목록 말머리·상태 칩 위치(V169 — post-chip-position-contract) — 제목 위(기본) · 제목 앞 · 닉네임 아래 */
     public static final String CHIP_ABOVE = "ABOVE";
     public static final String CHIP_BEFORE = "BEFORE";
@@ -108,6 +112,11 @@ public final class BoardFields {
      */
     public static boolean opsAllowed(String kind) {
         return KIND_GENERAL.equals(kind) || KIND_GROUP.equals(kind);
+    }
+
+    /** 익명 게시판을 고를 수 있는 게시판 종류인가 — 일반 게시판만(핫딜·소모임·운영 게시판 거절 — anonymous-board-contract 정책 1) */
+    public static boolean anonymousAllowed(String kind) {
+        return KIND_GENERAL.equals(kind);
     }
 
     public static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]*$");

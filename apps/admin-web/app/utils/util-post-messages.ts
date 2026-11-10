@@ -133,12 +133,14 @@ export default class UtilPostMessages {
         return chips;
     }
 
-    /** 작성자 이름 — 비회원·탈퇴 표시 */
+    /** 작성자 이름 — 비회원·탈퇴 표시 · 봉인된 익명 작성자(anonymous-board-contract)는 「익명 · 작성자 봉인됨」(목록·서랍은 자물쇠와 함께 `AnonymousSealedAuthor` 로 그린다) */
     static author(t: Translate, item: Pick<AdminPostItem, 'author'>): string {
         const a = item.author;
-        if (a.kind === 'GUEST') return t('post.guestAuthor', { name: a.name });
-        if (a.withdrawn) return t('post.withdrawnAuthor', { name: a.name });
-        return a.name;
+        if (a.sealed) return t('anonymousAuthor.sealed');
+        const name = a.name ?? '';
+        if (a.kind === 'GUEST') return t('post.guestAuthor', { name });
+        if (a.withdrawn) return t('post.withdrawnAuthor', { name });
+        return name;
     }
 
     /** 조치 성공 토스트 */

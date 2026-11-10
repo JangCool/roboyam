@@ -58,8 +58,19 @@ public class BoardSanctionEntity {
     private Instant endedAt;
     private Instant createdAt;
     private Instant updatedAt;
+    /** 익명 글·댓글 작성자로 건 제재(V184) */
+    private boolean sealed;
 
     protected BoardSanctionEntity() {
+    }
+
+    /** 「이 글/댓글 작성자」로 건 제재(V184 — anonymous-board-contract 정책 9) — 목록·결과·감사에서 대상이 봉인으로 보인다. {@code persist} 전에 부른다 */
+    public void seal() {
+        this.sealed = true;
+    }
+
+    public boolean isSealed() {
+        return sealed;
     }
 
     /** 새 제재(진행 중). 자리·한도·대상 검사는 부르는 서비스가 끝냈다 */

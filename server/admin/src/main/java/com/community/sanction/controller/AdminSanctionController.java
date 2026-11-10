@@ -58,8 +58,10 @@ public class AdminSanctionController {
     /** 회원의 제재 현황 — 없음·탈퇴 404 {@code SANCTION_TARGET_NOT_FOUND} */
     @RequirePermission(Permission.SANCTION_READ)
     @GetMapping("/preview")
-    public ResponseEntity<ApiResponse<SanctionPreviewView>> preview(@RequestParam(required = false) String userId) {
-        return noStore(service.preview(userId));
+    public ResponseEntity<ApiResponse<SanctionPreviewView>> preview(@RequestParam(required = false) String userId,
+                                                                    @RequestParam(required = false) String anonymousPostId,
+                                                                    @RequestParam(required = false) String anonymousCommentId) {
+        return noStore(service.preview(userId, anonymousPostId, anonymousCommentId)); // 익명 글·댓글 작성자(V184)면 대상 봉인
     }
 
     /** 제재 하나 — 없으면 404 {@code SANCTION_NOT_FOUND} */

@@ -218,7 +218,8 @@
 
                     <Column :header="t('post.col.author')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <span class="block truncate text-[13px]" :class="data.author.withdrawn ? 'text-muted-color' : ''">{{ UtilPostMessages.author(t, data) }}</span>
+                            <AnonymousSealedAuthor v-if="data.author.sealed" class="text-[13px]" />
+                            <span v-else class="block truncate text-[13px]" :class="data.author.withdrawn ? 'text-muted-color' : ''">{{ UtilPostMessages.author(t, data) }}</span>
                         </template>
                     </Column>
 
@@ -368,8 +369,16 @@
             :process-history-error="processHistoryError"
             @process-status="changeProcessStatus"
             @process-history-retry="loadProcessHistory()"
+            :can-sanction-sealed="sealedSanctionPerm.canManage.value"
+            :can-reveal-sealed="reveal.canReveal.value"
+            @sealed-sanction="openSealedSanction"
+            @sealed-reveal="openSealedReveal"
             @closed="onDrawerClosed"
         />
+
+        <!-- 익명 게시판 글의 봉인된 작성자(anonymous-board-contract) — 「이 글 작성자」 제재(기존 제재 창, 대상 = 이 글 작성자) · 작성자 열람 -->
+        <SanctionIssueDialog v-model:visible="sealedIssue.open.value" :view="sealedIssue.view.value" :perm="sealedSanctionStepPerm" @retry-preview="sealedIssue.loadPreview" @submit="submitSealedSanction" />
+        <AnonymousRevealDialog v-model:visible="reveal.open.value" :view="reveal.view.value" @submit="(p) => reveal.submit(p.reason, p.memo)" />
 
         <DebateSettingsDialog v-model:visible="debateSettingsOpen" :post-id="detail.openId.value" :title="drawerItem ? UtilPostMessages.title(t, drawerItem) : ''" :actions="debateSettingsActions" :can-manage="canManage" @changed="onDebateChanged" />
         <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="opinionsTarget" :actions="opinionActions" :can-read="true" :can-manage="canManage" :initial-tab="opinionsInitialTab" @changed="onOpinionsChanged" />
@@ -385,6 +394,8 @@ import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAc
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
+import UtilSanctionMessages from '~/utils/util-sanction-messages';
+import type { SanctionCreateRequest } from '~/composables/sanction/api/useSanctionApi.types';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('post.title') });
@@ -407,6 +418,28 @@ const canRestore = computed(() => can('post.restore'));
 const canBulkDelete = computed(() => can('post.bulk-delete'));
 /** 「신고」 칸·서랍의 신고 대기 줄을 신고 관리로 잇는다 */
 const canReadReports = computed(() => can('report.read'));
+
+/* ── 익명 게시판 글의 봉인된 작성자(anonymous-board-contract 정책 9·10) ── */
+/** 「이 글 작성자 제재」 — 경고·기간 정지 `sanction.manage`(영구 정지·건너뛰기는 `sanction.ban`). 대상은 서버가 글로 찾는다 */
+const sealedSanctionPerm = useSanctionPermission();
+const sealedSanctionStepPerm = computed(() => ({ canManage: sealedSanctionPerm.canManage.value, canBan: sealedSanctionPerm.canBan.value }));
+const sealedIssue = useSanctionIssue();
+/** 작성자 열람 — `anonymous-author.reveal` 이 있을 때만 단추가 보인다 */
+const reveal = useAnonymousReveal();
+function openSealedSanction(): void {
+    const item = drawerItem.value;
+    if (!item?.author.sealed) return;
+    sealedIssue.start({ id: '', nickname: t('anonymousAuthor.thisPostAuthor'), anonymous: { postId: item.id, commentId: null } });
+}
+async function submitSealedSanction(body: Omit<SanctionCreateRequest, 'userId' | 'reportCaseId'>): Promise<void> {
+    const created = await sealedIssue.submit(body);
+    if (created) toast.success(UtilSanctionMessages.issued(t, created));
+}
+function openSealedReveal(): void {
+    const item = drawerItem.value;
+    if (!item?.author.sealed) return;
+    reveal.start({ postId: item.id, commentId: null });
+}
 
 function actionsOf(item: AdminPostItem) {
     return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value });

@@ -8,7 +8,7 @@
  * 같은 게시판에 같은 제목의 데모 회원 글이 이미 있으면 그 글(과 댓글)은 건너뛴다 — 중간에 멈췄으면 다시 돌려 이어서 넣는다.
  *
  * 순서: 회원 40명(SQL) → 데모 운영자(SQL, 이 실행 동안만 켬) → 게시판 기본 글 에디터 고급·소모임 공개 범위 켬(관리자 API) → 로보티콘 무료 팩 받기
- *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → AI 회원(관리자 API + 승인 생성 줄 → api 실행기) → 사업자 핫딜(신청→승인→계약서→입금→확인)
+ *      → 게시판 글·댓글·답글(공개 API, 그 회원으로) → 추천·조회수 → 핫딜 종료·품절 → 소모임 → AI 회원(관리자 API + 승인 생성 줄 → 관리자 서버의 AI 실행기) → 사업자 핫딜(신청→승인→계약서→입금→확인)
  *      → 공동구매(관리자 API) → 하이라이트(홈 5개 · 팁·강좌·사용기 5개) → 광고(운영자 등록→승인→계약서·입금→확정, 홈 광고 가젯 셋)
  *      → 공지(관리자 공지 API — 데모 운영자의 운영자 회원 계정이 작성자) → 버그 신고·기능 요청(회원 글 + 처리 상태·운영자 답변)
  *      → 사이트(공지 띠·환영 팝업·보상 이벤트) → 그 밖(소모임 일정·공동구매 문의). 끝나면 데모 운영자를 끈다.
@@ -719,7 +719,7 @@ async function seedGroups(members, admin, emoticons, psql) {
 // 6-1) AI 회원(ai 단계 — 원고 seed/demo/ai-members.json, docs/features/ai-members-contract.md). 키는 넣지 않고 계정은 꺼진 채로 둔다 — 데모가 제공사를 부르지 않는다.
 //   ① AI 전용 공개 소모임: 데모 사람 회원이 개설(공개) → 운영자 승인 → 관리자 API 로 AI 전용 → ② 계정 8명(관리자 API — 소모임 멤버로 넣고 관계는 뒤에 양쪽으로)
 //   → 모델 이력(두 계정은 만든 뒤 모델을 한 번 바꾼다 — 이력 시각은 SQL 로 며칠 전) → 모임장을 AI 로 넘기고 개설한 사람은 나간다(공개 API)
-//   ③ 글·댓글: 승인(APPROVED) 생성 줄을 SQL 로 넣으면 api 실행기(1분마다)가 실제 쓰기 경로로 등록한다(계정이 꺼져 있어도 승인 줄은 등록된다 — 생성만 멈춘다).
+//   ③ 글·댓글: 승인(APPROVED) 생성 줄을 SQL 로 넣으면 관리자 서버의 AI 실행기(1분마다)가 AI 쓰기 부품(공개 사이트와 같은 판정)으로 등록한다(계정이 꺼져 있어도 승인 줄은 등록된다 — 생성만 멈춘다).
 //      깊이마다 한 차례(글 → 첫 댓글·사람 댓글 → 답글 → 되받기 …), 등록되면 작성 시각을 계획 시각으로 옮긴다. 사람 댓글은 그 회원으로 공개 API.
 //   ④ 검수 대기(PENDING) 줄 몇 개. 같은 계정·종류·본문의 생성 줄이 있으면 그 줄을 쓴다(다시 돌려도 겹치지 않는다).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -969,14 +969,14 @@ async function aiWave(wave, ctx) {
         else settle(n, draft, ctx);
     }
     if (!waiting.length) return true;
-    console.log(`  등록 기다림 ${waiting.length}건(api 실행기 — 1분마다)`);
+    console.log(`  등록 기다림 ${waiting.length}건(관리자 서버의 AI 실행기 — 1분마다)`);
     const ids = waiting.map((n) => n.draftId).join(',');
     const deadline = Date.now() + AI_WAIT_MS;
     for (;;) {
         const left = Number(rows(sql(`SELECT count(*) FROM ai_member_drafts WHERE id IN (${ids}) AND status = 'APPROVED'`))[0][0]);
         if (!left) break;
         if (Date.now() > deadline) {
-            failed('AI 글 등록', { status: 0, code: 'RUNNER_IDLE', error: { message: `${left}건이 ${AI_WAIT_MS / 1000}초 동안 승인 상태 그대로 — api 서버의 AI 실행기(roboyam.ai-member.runner-enabled · 새 jar)를 확인하고 다시 돌린다` } });
+            failed('AI 글 등록', { status: 0, code: 'RUNNER_IDLE', error: { message: `${left}건이 ${AI_WAIT_MS / 1000}초 동안 승인 상태 그대로 — 관리자 서버의 AI 실행기(roboyam.batch.enabled · roboyam.ai-member.runner-enabled · 새 jar)를 확인하고 다시 돌린다` } });
             return false;
         }
         await sleep(5_000);

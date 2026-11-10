@@ -111,7 +111,8 @@ export type MemberNotificationFilter = 'all' | 'comment' | 'system';
 
 /** 알림을 일으킨 사람 — 댓글·답글만. 읽을 때의 현재 값(탈퇴면 `withdrawn` + 「탈퇴한 회원」) */
 export interface NotificationActor {
-    kind: 'MEMBER' | 'GUEST';
+    /** `ANONYMOUS` — 익명 게시판 글·댓글(서버가 이름을 「익명」으로 준다, memberId null — anonymous-board-contract) */
+    kind: 'MEMBER' | 'GUEST' | 'ANONYMOUS';
     memberId: string | null;
     name: string;
     withdrawn: boolean;

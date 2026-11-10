@@ -60,7 +60,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition'])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'authorMode'])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -121,6 +121,32 @@
                                     </span>
                                 </label>
                             </div>
+                        </div>
+
+                        <!--
+                            작성자 표시(anonymous-board-contract) — 닉네임(기본) · 익명. 일반 게시판만 보인다(핫딜·직접홍보·소모임은 고를 수 없고 저장 때 null 로 보낸다).
+                            익명은 쓸 때 글·댓글에 저장된다 — 나중에 꺼도 이미 쓴 글은 익명으로 남는다(도움말). 저장은 기본 정보 칸과 같은 `board.manage`
+                        -->
+                        <div v-if="anonymousAllowed" class="flex flex-col gap-1.5 md:col-span-2" data-field="authorMode">
+                            <span :id="`${idBase}-author-mode`" class="text-sm font-medium">{{ t('board.field.authorMode') }}</span>
+                            <div role="radiogroup" :aria-labelledby="`${idBase}-author-mode`" class="grid gap-2 sm:grid-cols-2">
+                                <label
+                                    v-for="mode in UtilBoard.AUTHOR_MODES"
+                                    :key="mode"
+                                    :for="`${idBase}-author-mode-${mode}`"
+                                    class="flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5"
+                                    :class="[form.authorMode === mode ? 'border-primary bg-primary-50/40 dark:bg-primary-950/30' : 'border-(--line)', !canManage || saving ? 'cursor-not-allowed opacity-70' : '']"
+                                >
+                                    <RadioButton v-model="authorModeModel" :input-id="`${idBase}-author-mode-${mode}`" :name="`${idBase}-author-mode`" :value="mode" :disabled="!canManage || saving" class="mt-0.5 shrink-0" />
+                                    <span class="flex min-w-0 flex-col gap-0.5">
+                                        <span class="text-sm">{{ t(`board.authorMode.${mode}`) }}</span>
+                                        <span class="text-xs leading-relaxed text-muted-color">{{ t(`board.authorModeDesc.${mode}`) }}</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.authorMode ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.authorMode ? 'alert' : undefined">
+                                {{ serverFields.authorMode || t('board.authorModeHelp') }}
+                            </p>
                         </div>
 
                         <!-- 말머리·상태 칩 위치(목록 모양 묶음 — post-chip-position-contract) — 사이트 기본 따르기(null)·제목 위·제목 앞·닉네임 아래, 카드마다 작은 미리보기. 저장은 `board.manage` -->
@@ -480,7 +506,7 @@
 
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
-import type { BoardColor, BoardDetail, BoardPolicyField, BoardSecretMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
+import type { BoardColor, BoardDetail, BoardPolicyField, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
 import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -558,6 +584,17 @@ const secretModeModel = computed<BoardSecretMode>({
         if (!form.value) return;
         form.value.secretMode = value;
         clearServer('secretMode');
+    },
+});
+/** 작성자 표시를 고를 수 있는 게시판 — 일반 게시판만(anonymous-board-contract 정책 1) */
+const anonymousAllowed = computed(() => Boolean(saved.value && UtilBoard.anonymousAllowed(saved.value.kind)));
+/** 작성자 표시 — 닉네임 · 익명. 고치면 그 칸의 서버 오류를 지운다 */
+const authorModeModel = computed<BoardAuthorMode>({
+    get: () => form.value?.authorMode ?? 'NICKNAME',
+    set: (value) => {
+        if (!form.value) return;
+        form.value.authorMode = value;
+        clearServer('authorMode');
     },
 });
 /** 처리 상태 쓰기 — 고치면 그 칸의 서버 오류를 지운다 */

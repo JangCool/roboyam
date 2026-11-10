@@ -124,7 +124,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
                 POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId,
-                POST.secret, POST.processStatus);
+                POST.secret, POST.processStatus, POST.anonymous);
     }
 
     /** 고정 공지 — 고정한 차례 최신순, 최대 {@code max} 개 */
@@ -202,7 +202,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return notHidden(POST, now).and(POST.title.containsIgnoreCase(q)
                 .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(q))
                 .or(POST.guestName.containsIgnoreCase(q))
-                .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(q)))));
+                .or(POST.anonymous.isFalse().and(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(q)))))); // 익명 글은 닉네임으로 찾지 않는다(V184)
     }
 
     /** 핫딜 목록 정렬 — 최신 · 인기(추천) · 마감 임박 */

@@ -108,8 +108,18 @@ public class BoardSanctionService {
         }
     }
 
-    /** 부여 요청 — ID 는 부르는 쪽이 숫자로 바꿨다(모르면 null) */
-    public record Issue(long actorId, long boardId, long targetId, String kind, String reasonCode, String reasonText, Long postId, Long commentId, String ip) {
+    /**
+     * 부여 요청 — ID 는 부르는 쪽이 숫자로 바꿨다(모르면 null).
+     *
+     * @param sealed 「이 글/댓글 작성자」로 건 제재(V184 — anonymous-board-contract 정책 9) — 대상은 계기 글·댓글의 작성자(부르는 쪽이 찾았다), 목록·감사에서 봉인
+     */
+    public record Issue(long actorId, long boardId, long targetId, String kind, String reasonCode, String reasonText, Long postId, Long commentId, String ip,
+                        boolean sealed) {
+
+        /** 회원을 고른 제재 */
+        public Issue(long actorId, long boardId, long targetId, String kind, String reasonCode, String reasonText, Long postId, Long commentId, String ip) {
+            this(actorId, boardId, targetId, kind, reasonCode, reasonText, postId, commentId, ip, false);
+        }
     }
 
     /** 대화창 현황 — {@code quota} 운영자 회원 계정은 null(하루 한도 없음) */
@@ -326,7 +336,7 @@ public class BoardSanctionService {
         Instant endsAt = kind.restricts() ? now.plus(kind.length()) : null;
         long id = ids.nextId();
         long no = store.insert(id, request.boardId(), target.id(), kind, reason.name(), text, request.actorId(), issuer.role(), issuer.operatorId(), request.postId(),
-                request.commentId(), sourceTitle, now, endsAt, now);
+                request.commentId(), sourceTitle, now, endsAt, now, request.sealed());
         store.insertAction(ids.nextId(), request.boardId(), request.actorId(), issuer.role(), issuer.operatorId(), ACTION_ISSUE, target.id(), id, request.postId(),
                 request.commentId(), text, now);
         Long reviewId = openReviewIfRepeated(target.id(), request.boardId(), now); // 운영자 회원 계정의 제재도 합산한다(정책 7)
@@ -334,8 +344,11 @@ public class BoardSanctionService {
         BoardSanctionRow row = store.find(id).orElseThrow();
         memberNotices.boardSanctionIssued(target.id(), id, request.boardId(), row.boardName(), kind.name(), endsAt, reason.name(), text);
         if (issuer.isOperator()) {
-            AuditEvent event = AuditEvent.byOperator(issuer.operatorId(), request.ip(), AuditActions.SITE_BOARD_SANCTION, AuditResult.SUCCESS)
-                    .target(TARGET, Long.toString(target.id())).with("viaUserId", Long.toString(request.actorId())).with("boardId", Long.toString(request.boardId()));
+            AuditEvent event = AuditEvent.byOperator(issuer.operatorId(), request.ip(), AuditActions.SITE_BOARD_SANCTION, AuditResult.SUCCESS);
+            // 봉인 제재(V184)는 회원 대신 계기 글·댓글을 대상으로(감사 목록에서 신원이 이어지지 않게 — anonymous-board-contract 정책 8·9)
+            event = request.sealed() ? (request.commentId() != null ? event.target("COMMENT", Long.toString(request.commentId())) : event.target("POST", Long.toString(request.postId())))
+                    .with("sealed", true) : event.target(TARGET, Long.toString(target.id()));
+            event = event.with("viaUserId", Long.toString(request.actorId())).with("boardId", Long.toString(request.boardId()));
             if (request.postId() != null) {
                 event = event.with("postId", Long.toString(request.postId()));
             }
@@ -434,7 +447,7 @@ public class BoardSanctionService {
         BoardSanctionRow row = liftLocked(owner, sanctionId, null, operator.operatorId(), reason, now);
         store.insertAction(ids.nextId(), owner[1], userId, BoardSanctionStore.ROLE_OPERATOR, operator.operatorId(), ACTION_LIFT, owner[0], sanctionId, row.postId(),
                 row.commentId(), reason, now);
-        audit.record(AuditEvent.byOperator(operator.operatorId(), ip, AuditActions.SITE_BOARD_SANCTION_LIFT, AuditResult.SUCCESS).target(TARGET, Long.toString(owner[0]))
+        audit.record(subject(AuditEvent.byOperator(operator.operatorId(), ip, AuditActions.SITE_BOARD_SANCTION_LIFT, AuditResult.SUCCESS), owner[0], row)
                 .with("viaUserId", Long.toString(userId)).with("boardId", Long.toString(owner[1])).with("boardSanctionId", Long.toString(sanctionId))
                 .with("boardSanctionNo", row.no()).with("kind", row.kind().name()).with("reason", reason));
         log.info("게시판 제재 해제(운영자 회원 계정) boardSanctionId={} by userId={} operatorId={}", sanctionId, userId, operator.operatorId());
@@ -448,11 +461,24 @@ public class BoardSanctionService {
         String reason = requireReason(reasonText);
         Instant now = now();
         BoardSanctionRow row = liftLocked(owner, sanctionId, null, operatorId, reason, now);
-        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_LIFT, AuditResult.SUCCESS).target(TARGET, Long.toString(owner[0]))
+        audit.record(subject(AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_LIFT, AuditResult.SUCCESS), owner[0], row)
                 .with("boardSanctionId", Long.toString(sanctionId)).with("boardSanctionNo", row.no()).with("boardId", Long.toString(owner[1]))
                 .with("kind", row.kind().name()).with("reason", reason));
         log.info("게시판 제재 해제(운영자) boardSanctionId={} by operatorId={}", sanctionId, operatorId);
         return store.find(sanctionId).orElseThrow();
+    }
+
+    /**
+     * 감사 대상 — 봉인 제재(V184, 「이 글/댓글 작성자」)는 회원 대신 계기 글·댓글(+ {@code sealed: true}) — 감사 목록·검색에서 회원과 이어지지 않는다(anonymous-board-contract 정책 8·9)
+     */
+    private static AuditEvent subject(AuditEvent event, long userId, BoardSanctionRow row) {
+        if (!row.sealed()) {
+            return event.target(TARGET, Long.toString(userId));
+        }
+        if (row.commentId() != null) {
+            return event.target("COMMENT", Long.toString(row.commentId())).with("sealed", true);
+        }
+        return row.postId() != null ? event.target("POST", Long.toString(row.postId())).with("sealed", true) : event.with("sealed", true);
     }
 
     private BoardSanctionRow liftLocked(long[] owner, long sanctionId, Long byUser, Long byOperator, String reason, Instant now) {
@@ -485,7 +511,7 @@ public class BoardSanctionService {
         if (!row.valid() || !store.voidSanction(sanctionId, VOID_OPERATOR, operatorId, reason, now)) {
             throw BoardSanctionException.alreadyVoided();
         }
-        AuditEvent event = AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_VOID, AuditResult.SUCCESS).target(TARGET, Long.toString(owner[0]))
+        AuditEvent event = subject(AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_VOID, AuditResult.SUCCESS), owner[0], row)
                 .with("boardSanctionId", Long.toString(sanctionId)).with("boardSanctionNo", row.no()).with("boardId", Long.toString(owner[1]))
                 .with("kind", row.kind().name()).with("reason", reason).with("released", wasRunning);
         if (appealId != null) {

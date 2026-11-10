@@ -234,15 +234,6 @@ public class GroupPostService {
      * 소모임의 최근 활동 시각이 갱신된다.
      */
     public GroupPostWriteResultView create(String rawId, Long userId, PostWriteRequest body, String ip) {
-        return create(rawId, userId, body, ip, false);
-    }
-
-    /** AI 회원 실행기 전용 — 작성 간격·하루 글 한도를 보지 않는다(소모임 글은 게시판 등급 판정이 원래 없다). 멤버·쓰기 자격·금칙어·같은 글 반복은 그대로 */
-    public GroupPostWriteResultView createByAiRunner(String rawId, long userId, PostWriteRequest body, String ip) {
-        return create(rawId, userId, body, ip, true);
-    }
-
-    private GroupPostWriteResultView create(String rawId, Long userId, PostWriteRequest body, String ip, boolean rateExempt) {
         long me = GroupAccess.requireUser(userId);
         long groupId = GroupAccess.parseId(rawId);
         PostWriteRequest request = body == null ? new PostWriteRequest(null, null, null, null, null, null, null, null, null) : body;
@@ -256,7 +247,7 @@ public class GroupPostService {
             BoardCatalogSnapshot s = catalog.snapshot();
             // 꺼진 게시판도 쓴다 — 관리자가 소모임 게시판을 꺼도 기존 소모임의 글쓰기는 막히지 않는다(소모임은 멈추지 않는다)
             EffectiveBoard b = s.board(group.getBoardId()).orElseThrow(GroupNotFoundException::new);
-            PostWriteService.GroupWrite result = writes.createInGroup(group.getId(), group.isPublicGroup(), b, actor, request, ip, s, rateExempt);
+            PostWriteService.GroupWrite result = writes.createInGroup(group.getId(), group.isPublicGroup(), b, actor, request, ip, s);
             group.touchActivity(Instant.now());
             return result;
         });
@@ -304,6 +295,6 @@ public class GroupPostService {
 
     /** 지금 멤버(모임장 포함)인가 */
     private boolean isMember(GroupEntity group, Long userId) {
-        return userId != null && (group.getLeaderId().equals(userId) || access.membership(group.getId(), userId).isPresent());
+        return access.isMember(group, userId); // 판정은 shared GroupAccess 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드)
     }
 }

@@ -46,6 +46,11 @@ export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 /** 비밀글 방식(게시판마다의 값 — 기본 설정에서 물려받지 않는다) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
 export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
+/**
+ * 작성자 표시(anonymous-board-contract) — 닉네임(기본) · 익명(글·댓글 모두 「익명」, 글 안에서는 「익명1·익명2」 번호). 일반 게시판(`GENERAL`)만 익명을 고를 수 있다(그 밖 종류는 서버도 거절).
+ * 쓸 때의 값이 글·댓글에 저장된다 — 나중에 닉네임으로 돌려도 이미 쓴 글은 익명으로 남는다
+ */
+export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
 /** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
@@ -311,6 +316,8 @@ export interface BoardDetail extends BoardRef {
     secretMode?: BoardSecretMode;
     /** 처리 상태 쓰기(게시판마다의 값, 기본 꺼짐 — `diffCount` 에 세지 않는다) */
     statusEnabled?: boolean;
+    /** 작성자 표시(게시판마다의 값 — `diffCount` 에 세지 않는다). 옛 응답(칸 없음)은 `NICKNAME` */
+    authorMode?: BoardAuthorMode;
     policy: BoardPolicy;
     /** 공통 4개 + 고유, 표시 순서대로 */
     prefixes: BoardPrefix[];
@@ -378,6 +385,8 @@ export interface BoardSaveRequest {
     secretMode: BoardSecretMode | null;
     /** 처리 상태 쓰기 — `null` 이면 바꾸지 않는다(바꾸려면 `board.settings`) */
     statusEnabled: boolean | null;
+    /** 작성자 표시 — `null` 이면 바꾸지 않는다(일반 게시판이 아니면 늘 null). 일반 게시판이 아닌 곳의 `ANONYMOUS` 는 400 `fields.authorMode`(가정) */
+    authorMode: BoardAuthorMode | null;
 }
 
 /** 게시판 매니저·스텝 한 명 — `GET /api/admin/boards/{id}/staff` */

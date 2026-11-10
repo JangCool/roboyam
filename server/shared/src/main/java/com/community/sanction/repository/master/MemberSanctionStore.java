@@ -63,7 +63,7 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
     public record SanctionRow(long id, long no, long userId, SanctionKind kind, SanctionStatus status, Integer warningNo, boolean skipped, String reason,
                               Instant startsAt, Instant endsAt, Long issuedBy, String issuedByName, Long reportCaseId, Long reportCaseNo, Instant acknowledgedAt,
                               Long liftedBy, String liftedByName, Instant liftedAt, String liftReason, Instant voidedAt, Instant endedAt, Instant createdAt,
-                              Long appealId, Long appealNo, AppealStatus appealStatus, String nickname, String gradeKey, String userStatus) {
+                              Long appealId, Long appealNo, AppealStatus appealStatus, String nickname, String gradeKey, String userStatus, boolean sealed) {
 
         /** {@code now} 의 상태 — 진행 중인데 끝이 지난 기간 정지는 ENDED(크론이 1분 안에 그렇게 만든다) */
         public SanctionStatus effectiveStatus(Instant now) {
@@ -211,7 +211,7 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
     public JPAQuery<Tuple> sanctionRows() {
         return query.select(S.id, S.sanctionNo, S.userId, S.kind, S.status, S.warningNo, S.skipped, S.reason, S.startsAt, S.endsAt, S.issuedBy, ISSUED.operatorName,
                         S.reportCaseId, CASE.caseNo, S.acknowledgedAt, S.liftedBy, LIFTED.operatorName, S.liftedAt, S.liftReason, S.voidedAt, S.endedAt, S.createdAt,
-                        A.id, A.appealNo, A.status, P.nickname, P.gradeKey, U.status)
+                        A.id, A.appealNo, A.status, P.nickname, P.gradeKey, U.status, S.sealed)
                 .from(S).join(U).on(U.id.eq(S.userId)).leftJoin(P).on(P.userId.eq(S.userId))
                 .leftJoin(ISSUED).on(ISSUED.id.eq(S.issuedBy)).leftJoin(LIFTED).on(LIFTED.id.eq(S.liftedBy))
                 .leftJoin(CASE).on(CASE.id.eq(S.reportCaseId)).leftJoin(A).on(A.sanctionId.eq(S.id));
@@ -223,7 +223,7 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
                 t.get(S.reason), t.get(S.startsAt), t.get(S.endsAt), t.get(S.issuedBy), t.get(ISSUED.operatorName), t.get(S.reportCaseId), t.get(CASE.caseNo),
                 t.get(S.acknowledgedAt), t.get(S.liftedBy), t.get(LIFTED.operatorName), t.get(S.liftedAt), t.get(S.liftReason), t.get(S.voidedAt), t.get(S.endedAt),
                 t.get(S.createdAt), t.get(A.id), t.get(A.appealNo), t.get(A.status), t.get(P.nickname), t.get(P.gradeKey),
-                userStatus == null ? null : userStatus.name());
+                userStatus == null ? null : userStatus.name(), Boolean.TRUE.equals(t.get(S.sealed)));
     }
 
     public Optional<SanctionRow> find(long id) {
@@ -248,7 +248,16 @@ public class MemberSanctionStore extends RoboyamRepositoryQDSL {
     /** 새 제재 — 번호는 DB 시퀀스가 매긴다(넣고 내보낸 뒤 읽어 돌려준다) */
     public long insert(long id, long userId, SanctionKind kind, Integer warningNo, boolean skipped, String reason, Instant startsAt, Instant endsAt, long issuedBy,
                        Long reportCaseId, Instant now) {
+        return insert(id, userId, kind, warningNo, skipped, reason, startsAt, endsAt, issuedBy, reportCaseId, now, false);
+    }
+
+    /** @param sealed 익명 글·댓글 작성자로 건 제재(V184 — 봉인, anonymous-board-contract 정책 9) */
+    public long insert(long id, long userId, SanctionKind kind, Integer warningNo, boolean skipped, String reason, Instant startsAt, Instant endsAt, long issuedBy,
+                       Long reportCaseId, Instant now, boolean sealed) {
         MemberSanctionEntity sanction = MemberSanctionEntity.issue(id, userId, kind, warningNo, skipped, reason, startsAt, endsAt, issuedBy, reportCaseId, now);
+        if (sealed) {
+            sanction.seal();
+        }
         sanctions.persist(sanction);
         sanctions.flush();
         return sanction.getSanctionNo() == null ? 0 : sanction.getSanctionNo();

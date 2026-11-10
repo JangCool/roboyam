@@ -64,7 +64,7 @@ public class PublicBoardService {
      * <b>없는 게시판과 같다</b>(목록에서 빠지고 404 {@code BOARD_NOT_FOUND}, docs/features/group-contract.md). 소모임 서버 단계가 자기 경로로 연다.
      */
     public static boolean isPublic(EffectiveBoard b) {
-        return !BoardFields.KIND_GROUP.equals(b.kind());
+        return com.community.post.service.PostOpenRules.isPublicBoard(b); // 규칙은 shared 한 곳(AI 회원 쓰기와 같은 코드)
     }
 
     /** 지금 사용자가 새 글을 쓸 수 있는 켜진 게시판(글쓰기 화면의 게시판 고르기) */
@@ -121,7 +121,7 @@ public class PublicBoardService {
                         writeRestriction, pendingWarnings),
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
-                v.secretMode(), v.statusEnabled(), v.chipPosition());
+                v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode());
     }
 
     /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */
@@ -149,6 +149,6 @@ public class PublicBoardService {
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
                 BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color(),
-                b.debateEnabled(), b.pollEnabled(), b.kind(), b.secretMode(), b.statusEnabled(), b.chipPosition());
+                b.debateEnabled(), b.pollEnabled(), b.kind(), b.secretMode(), b.statusEnabled(), b.chipPosition(), b.authorMode());
     }
 }

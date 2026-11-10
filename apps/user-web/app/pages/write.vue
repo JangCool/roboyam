@@ -50,6 +50,8 @@
                 </StepList>
             </Stepper>
 
+            <!-- 익명 게시판 — 글·댓글이 「익명」으로 올라간다는 안내(anonymous-board-contract). 익명 여부는 서버가 게시판 설정으로 정한다(요청 모양은 그대로) -->
+            <AnonymousBoardNotice v-if="boardState === 'ready' && board?.viewer.canWrite && board.authorMode === 'ANONYMOUS'" />
             <div v-if="boardState === 'loading'" role="status" :aria-label="t('common.loading')" class="h-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             <ErrorState v-else-if="boardState === 'error'" :title="t('post.boardFailed')" :description="boardError" retry @retry="loadBoard" />
             <PostEditorForm

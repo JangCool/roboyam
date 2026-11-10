@@ -9,9 +9,6 @@ import com.community.debate.dto.response.DebateCountsView;
 import com.community.debate.dto.response.DebateSummaryView;
 import com.community.debate.entity.DebateStance;
 import com.community.debate.entity.PostDebateEntity;
-import com.community.debate.exception.DebateNotOpenException;
-import com.community.debate.exception.StanceLockedException;
-import com.community.debate.exception.StanceRequiredException;
 import com.community.debate.repository.master.DebateQueries;
 import com.community.debate.repository.master.PostDebateRepository;
 import com.community.highlight.repository.master.HighlightRepository;
@@ -40,14 +37,16 @@ import org.springframework.stereotype.Component;
 public class DebateReader {
 
     /** 입장 의견의 글자 수 한도 — community 는 토론 2,000 · 일반 1,000 이었으나 로보얌 일반 댓글이 이미 2,000 이라 같은 값이다(따로 둔 상수) */
-    public static final int OPINION_MAX = 2000;
+    public static final int OPINION_MAX = DebateWriteStance.OPINION_MAX; // 값은 shared 한 곳(AI 회원 쓰기와 같다)
 
     private final HighlightRepository highlights;
     private final PostDebateRepository debates;
     private final DebateQueries queries;
     private final PinReviewers pinReviewers;
+    private final DebateWriteStance writeStance;
 
-    public DebateReader(HighlightRepository highlights, PostDebateRepository debates, DebateQueries queries, PinReviewers pinReviewers) {
+    public DebateReader(HighlightRepository highlights, PostDebateRepository debates, DebateQueries queries, PinReviewers pinReviewers, DebateWriteStance writeStance) {
+        this.writeStance = writeStance;
         this.highlights = highlights;
         this.debates = debates;
         this.queries = queries;
@@ -200,19 +199,8 @@ public class DebateReader {
      * @param requested 요청의 {@code stance}(선택 — 보냈으면 지금 입장과 같아야 한다)
      */
     public WriteStance resolveForWrite(long postId, long userId, boolean opinion, DebateStance requested, Instant now) {
-        if (!opinion) {
-            return WriteStance.GENERAL;
-        }
-        if (!status(postId, now).open()) {
-            throw new DebateNotOpenException();
-        }
-        DebateStance current = myStance(postId, userId);
-        if (current == null) {
-            throw new StanceRequiredException();
-        }
-        if (requested != null && requested != current) {
-            throw new StanceLockedException();
-        }
-        return new WriteStance(current);
+        // 판정은 shared 한 곳(DebateWriteStance — 관리자 서버의 AI 회원 쓰기와 같은 코드)
+        DebateStance stance = writeStance.resolve(postId, userId, opinion, requested);
+        return stance == null ? WriteStance.GENERAL : new WriteStance(stance);
     }
 }

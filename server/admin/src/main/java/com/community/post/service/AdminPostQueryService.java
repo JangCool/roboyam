@@ -269,7 +269,9 @@ public class AdminPostQueryService {
         AdminPostPrefixRefView prefix = p == null ? null : new AdminPostPrefixRefView(Long.toString(p.id()), p.name());
 
         AdminPostAuthorView author;
-        if (r.authorId() == null) {
+        if (r.anonymousPost()) {
+            author = AdminPostAuthorView.SEALED; // 익명 글(V184) — 봉인
+        } else if (r.authorId() == null) {
             author = new AdminPostAuthorView(GUEST, null, r.guestName() == null ? "" : r.guestName(), false);
         } else {
             ProfileEntity profile = profileById.get(r.authorId());

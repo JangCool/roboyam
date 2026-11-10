@@ -65,7 +65,7 @@
                     </Column>
                     <Column :header="t('appeal.col.member')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ data.user.nickname }}</button>
+                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ UtilSanctionMessages.userName(t, data.user) }}</button>
                         </template>
                     </Column>
                     <Column :header="t('appeal.col.kind')" style="min-width: 6.5rem">

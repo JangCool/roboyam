@@ -84,7 +84,8 @@ public class AdminBoardStaffActionService {
     static AdminBoardStaffActionView view(ActionRow r, Instant now) {
         AdminBoardStaffActionView.Actor actor = new AdminBoardStaffActionView.Actor(r.actorId() == null ? null : Long.toString(r.actorId()), r.actorNickname(),
                 r.actorRole(), r.actorOperatorName());
-        AdminBoardStaffActionView.Author author = r.targetUserId() != null
+        AdminBoardStaffActionView.Author author = r.anonymousTarget() ? new AdminBoardStaffActionView.Author("SEALED", null, null) // 익명 글·댓글(V184) — 봉인
+                : r.targetUserId() != null
                 ? new AdminBoardStaffActionView.Author("MEMBER", Long.toString(r.targetUserId()), r.authorName())
                 : new AdminBoardStaffActionView.Author("GUEST", null, r.targetAuthorName());
         AdminBoardStaffActionView.Target target = new AdminBoardStaffActionView.Target(Long.toString(r.postId()), r.commentId() == null ? null : Long.toString(r.commentId()),

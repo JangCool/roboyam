@@ -5,18 +5,12 @@ import com.community.aimember.entity.AiDraftKind;
 import com.community.aimember.entity.AiDraftStatus;
 import com.community.aimember.entity.AiMemberProfileEntity;
 import com.community.aimember.entity.AiMemberSettingsEntity;
+import com.community.aimember.exception.AiWriteRefusedException;
 import com.community.aimember.repository.master.AiDraftRepository;
 import com.community.aimember.repository.master.AiMemberProfileRepository;
 import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.aimember.repository.master.AiMemberSettingsRepository;
-import com.community.board.dto.EffectiveBoard;
 import com.community.board.exception.BlockedWordException;
-import com.community.board.service.BoardCatalog;
-import com.community.comment.dto.request.CommentWriteRequest;
-import com.community.comment.service.CommentService;
-import com.community.group.service.GroupPostService;
-import com.community.post.dto.request.PostWriteRequest;
-import com.community.post.service.PostWriteService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Instant;
@@ -30,10 +24,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 승인된(관리자 「게시」 · 바로 게시) AI 생성물을 <b>기존 쓰기 경로</b>로 등록한다(ai-members-contract 정책 9) — 글 {@link PostWriteService#create} · 소모임 글
- * {@link GroupPostService#create} · 댓글·답글 {@link CommentService#create}. 그래서 금칙어·제재·게시판 쓰기 판정·작성 간격·캐시·알림(회원에게 단 답글은 보통 댓글 알림)이
- * 사람 회원과 같게 돈다. 단 <b>쓰기 제한 면제</b>(계약 「서버 구현 결과」): 사이트 작성 간격·하루 한도는 보지 않고(실행기가 양을 정한다), 관리자가 그 계정의 쓸 곳으로 고른
- * 게시판이면 게시판 최소 쓰기·댓글 등급도 보지 않는다 — 금칙어·제재·게시판 막힘·잠금은 그대로. 작성자는 AI 회원의 회원 ID, 작성 IP 는 서버 자신({@value #SERVER_IP} — 사람 IP 가 아니다, 보유기간 배치가 지운다).
+ * 승인된(관리자 「게시」 · 바로 게시) AI 생성물을 등록한다(ai-members-contract 정책 9) — 글 · 소모임 글 · 댓글·답글을 {@link AiContentWriter} 로. 쓰기 부품은 공개 사이트 쓰기 경로와
+ * <b>같은 판정 코드</b>를 부르므로 금칙어·제재·게시판 쓰기 판정·같은 글 반복·알림(회원에게 단 답글은 보통 댓글 알림)이 사람 회원과 같게 돈다. 단 <b>쓰기 제한 면제</b>(계약 「서버 구현 결과」):
+ * 사이트 작성 간격·하루 한도는 보지 않고(실행기가 양을 정한다), 관리자가 그 계정의 쓸 곳으로 고른 게시판이면 게시판 최소 쓰기·댓글 등급도 보지 않는다 — 금칙어·제재·게시판 막힘·잠금은 그대로.
+ * 작성자는 AI 회원의 회원 ID, 작성 IP 는 서버 자신({@value #SERVER_IP} — 사람 IP 가 아니다, 보유기간 배치가 지운다). 관리자 서버의 실행기({@code AiMemberScheduler})가 부른다.
  *
  * <p>막히면(금칙어 · 쓰기 막힘 · 글·댓글이 사라짐 · 사이트 한도 · 형식) 그 줄은 {@code FAILED} + 까닭 코드로 남고 다시 시도하지 않는다(정책 11 — 짧게만). 전체 정지 중에는
  * 등록하지 않는다(승인 줄은 기다린다). 등록과 상태 기록은 따로 커밋된다 — 실행기는 잠금으로 한 곳에서만 돌므로 겹치지 않는다.
@@ -49,23 +43,17 @@ public class AiDraftPublisher {
     private final AiDraftRepository drafts;
     private final AiMemberProfileRepository accounts;
     private final AiMemberQueries queries;
-    private final BoardCatalog catalog;
-    private final PostWriteService posts;
-    private final GroupPostService groupPosts;
-    private final CommentService comments;
+    private final AiContentWriter writer;
     private final TransactionTemplate tx;
     private final AiMemberSettingsRepository settings;
 
-    public AiDraftPublisher(AiDraftRepository drafts, AiMemberProfileRepository accounts, AiMemberQueries queries, BoardCatalog catalog, PostWriteService posts,
-                            GroupPostService groupPosts, CommentService comments, PlatformTransactionManager txManager, AiMemberSettingsRepository settings) {
+    public AiDraftPublisher(AiDraftRepository drafts, AiMemberProfileRepository accounts, AiMemberQueries queries, AiContentWriter writer,
+                            PlatformTransactionManager txManager, AiMemberSettingsRepository settings) {
         this.settings = settings;
         this.drafts = drafts;
         this.accounts = accounts;
         this.queries = queries;
-        this.catalog = catalog;
-        this.posts = posts;
-        this.groupPosts = groupPosts;
-        this.comments = comments;
+        this.writer = writer;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -100,29 +88,27 @@ public class AiDraftPublisher {
         try {
             if (d.getKind() == AiDraftKind.POST) {
                 if (d.getGroupId() != null) {
-                    PostWriteRequest body = new PostWriteRequest(null, null, d.getTitle(), "TEXT", d.getBody(), null, null, null, null);
-                    String postId = groupPosts.createByAiRunner(Long.toString(d.getGroupId()), userId, body, SERVER_IP).id();
-                    finish(id, Long.parseLong(postId), null, null);
+                    long postId = writer.groupPost(d.getGroupId(), userId, d.getTitle(), d.getBody(), SERVER_IP);
+                    finish(id, postId, null, null);
                 } else {
-                    EffectiveBoard board = d.getBoardId() == null ? null : catalog.snapshot().board(d.getBoardId()).orElse(null);
-                    if (board == null) {
+                    if (d.getBoardId() == null) {
                         finish(id, null, null, "TARGET_GONE");
                         return false;
                     }
-                    PostWriteRequest body = new PostWriteRequest(board.slug(), null, d.getTitle(), "TEXT", d.getBody(), null, null, null, null);
-                    String postId = posts.createByAiRunner(body, userId, SERVER_IP, account.getBoardIds().contains(board.id())).id();
-                    finish(id, Long.parseLong(postId), null, null);
+                    long postId = writer.post(userId, d.getBoardId(), d.getTitle(), d.getBody(), account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
+                    finish(id, postId, null, null);
                 }
             } else {
-                String parent = d.getKind() == AiDraftKind.REPLY && d.getParentCommentId() != null ? Long.toString(d.getParentCommentId()) : null;
-                String replyTo = d.getKind() == AiDraftKind.REPLY && d.getReplyToCommentId() != null && !d.getReplyToCommentId().equals(d.getParentCommentId())
-                        ? Long.toString(d.getReplyToCommentId()) : null;
-                CommentWriteRequest body = new CommentWriteRequest("TEXT", d.getBody(), parent, replyTo, null, null, null);
+                Long parent = d.getKind() == AiDraftKind.REPLY ? d.getParentCommentId() : null;
+                Long replyTo = d.getKind() == AiDraftKind.REPLY && d.getReplyToCommentId() != null && !d.getReplyToCommentId().equals(d.getParentCommentId())
+                        ? d.getReplyToCommentId() : null;
                 boolean gradeExempt = d.getGroupId() == null && d.getBoardId() != null && account.getBoardIds().contains(d.getBoardId());
-                String commentId = comments.createByAiRunner(Long.toString(d.getPostId()), body, userId, SERVER_IP, gradeExempt).id();
-                finish(id, d.getPostId(), Long.parseLong(commentId), null);
+                long commentId = writer.comment(d.getPostId(), userId, parent, replyTo, d.getBody(), gradeExempt, SERVER_IP);
+                finish(id, d.getPostId(), commentId, null);
             }
             return true;
+        } catch (AiWriteRefusedException e) {
+            finish(id, null, null, e.reason()); // 글 열기 판정(공개 API 라면 404·403) — TARGET_GONE · WRITE_BLOCKED
         } catch (BlockedWordException e) {
             finish(id, null, null, "BLOCKED_WORD");
         } catch (ValidationException e) {

@@ -46,6 +46,28 @@ public class SanctionViews {
         return sanctions.member(userId).filter(m -> !m.gone()).map(m -> preview(m, sanctions.allOf(userId))).orElse(null);
     }
 
+    /**
+     * 「이 글/댓글 작성자」의 현황(익명 — V184, anonymous-board-contract 정책 9) — 모양은 {@link #preview(long)} 와 같고 대상과 이력·진행 중 줄의 대상이 모두 봉인이다
+     * (이력 줄의 닉네임으로 신원이 이어지지 않게).
+     */
+    public SanctionPreviewView previewSealed(long userId) {
+        SanctionPreviewView p = preview(userId);
+        return new SanctionPreviewView(SanctionUserRefView.SEALED, p.warningCount(), p.blockedReason(), p.next(), p.options(), sealed(p.active()),
+                p.history().stream().map(SanctionViews::sealed).toList());
+    }
+
+    /** 봉인된 현황 — 제재할 수 없는 회원(없음·탈퇴)이면 null(신고 상세 작성자 카드) */
+    public SanctionPreviewView previewSealedOrNull(long userId) {
+        return sanctions.member(userId).filter(m -> !m.gone()).isPresent() ? previewSealed(userId) : null;
+    }
+
+    /** 대상을 봉인한 줄 */
+    public static SanctionLineView sealed(SanctionLineView l) {
+        return l == null ? null : new SanctionLineView(l.id(), l.no(), l.kind(), l.status(), l.rank(), l.warningNo(), l.skipped(), SanctionUserRefView.SEALED, l.startsAt(),
+                l.endsAt(), l.reason(), l.issuedBy(), l.createdAt(), l.reportCase(), l.liftedBy(), l.liftedAt(), l.liftReason(), l.voidedAt(), l.endedAt(), l.appeal(),
+                l.appealDeadline());
+    }
+
     private SanctionPreviewView preview(MemberRow member, List<SanctionRow> rows) {
         Instant now = sanctions.now();
         SanctionLadder.Standing standing = SanctionLadder.standing(rows, now);
@@ -77,6 +99,9 @@ public class SanctionViews {
     }
 
     public static SanctionUserRefView user(SanctionRow r) {
+        if (r.sealed()) {
+            return SanctionUserRefView.SEALED; // 익명 글·댓글 작성자로 건 제재(V184)
+        }
         return new SanctionUserRefView(Long.toString(r.userId()), nz(r.nickname()), r.gradeKey(), r.userStatus());
     }
 

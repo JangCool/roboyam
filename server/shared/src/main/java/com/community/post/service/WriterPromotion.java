@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 /**
  * 글·댓글을 쓴 회원의 즉시 승급(활동 수 조건 — docs/domain/operator-permissions.md "글·댓글 수처럼 사건으로 판정 가능한 조건은 즉시").
  *
- * <p>글쓰기({@link PostWriteService#create})·댓글쓰기({@code CommentService#create})가 <b>저장 트랜잭션이 커밋된 뒤</b> 부른다 — 승급은
+ * <p>글쓰기(api {@code PostWriteService#create})·댓글쓰기(api {@code CommentService#create})·AI 회원 쓰기({@code AiContentWriter} — 관리자 서버의 실행기)가
+ * <b>저장 트랜잭션이 커밋된 뒤</b> 부른다(api 에 있던 것을 AI 실행기와 같이 쓰려고 shared 로 옮겼다 — 2026-11-10) — 승급은
  * {@link GradePromotionService#promoteOnActivity} 의 별도 트랜잭션이라 실패해도 이미 저장된 글·댓글은 그대로이고 응답도 성공이다(로그만 남긴다).
  * 놓친 승급은 그 회원의 다음 글·댓글 때 다시 판정된다. 비회원 글은 부르지 않는다.
  */

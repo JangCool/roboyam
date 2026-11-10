@@ -219,6 +219,11 @@ public class MemberNotificationService {
                 || type == MemberNotificationType.GROUP_VISIBILITY_CHANGED || type == MemberNotificationType.GROUP_POST_MEMBERS_ONLY
                 || type == MemberNotificationType.GROUP_POST_RELEASED) {
             actor = actorOf(row, profileById, userById, locale);
+            // 익명 댓글(V184)을 쓴 사람이면 「익명」(번호 없이 — anonymous-board-contract 「알림」). 새 행은 일으킨 회원을 남기지 않는다
+            CommentEntity source = row.getCommentId() == null ? null : commentById.get(row.getCommentId());
+            if (source != null && source.isAnonymous() && (row.getActorUserId() == null || Objects.equals(row.getActorUserId(), source.getAuthorId()))) {
+                actor = new NotificationActorView(NotificationActorView.ANONYMOUS, null, messages.get(new MessageRef("member.notification.actor.anonymous"), locale), false);
+            }
         }
 
         String link = null;

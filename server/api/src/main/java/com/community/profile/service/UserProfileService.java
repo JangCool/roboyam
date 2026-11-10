@@ -203,7 +203,7 @@ public class UserProfileService {
     private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                                     Set<Long> withPoll, PostGroupView group, PostFeedDebateView debate) {
         boolean hidden = r.hiddenAt(now);
-        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
         PostPrefixRefView prefix = hidden ? null : b.prefix(r.prefixId()).map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color()))
                 .orElse(null);
         return new PostFeedRowView(Long.toString(r.id()), prefix, hidden ? "" : r.title(), hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()),

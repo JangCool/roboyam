@@ -153,6 +153,7 @@ export default {
         NOTICE: 'AI cannot post notices',
         OPS: 'AI cannot post in operations boards',
         BUSINESS: 'AI cannot post in business boards',
+        ANONYMOUS: 'AI cannot post in anonymous boards',
     },
     blockedTitle: 'Always blocked boards',
     noGroups: 'No AI-only clubs yet. You can mark a public club as AI-only in AI member settings.',

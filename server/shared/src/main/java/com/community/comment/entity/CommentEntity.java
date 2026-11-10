@@ -58,8 +58,20 @@ public class CommentEntity {
     private Instant editedAt;
     private Instant createdAt;
     private Instant updatedAt;
+    /** 익명 댓글(V184) — 쓸 때 정하고 바꾸지 않는다(anonymous-board-contract 정책 2). 작성자 회원 ID 는 그대로 남는다(봉인) */
+    private boolean anonymous;
 
     protected CommentEntity() {
+    }
+
+    /** 새 댓글을 익명으로 쓴다 — {@code persist} 전에 부른다(회원 댓글만 — 익명 게시판은 비회원 쓰기를 401 로 막는다) */
+    public void markAnonymous() {
+        this.anonymous = true;
+    }
+
+    /** 익명 댓글인가(V184) — 공개·관리자 응답에서 작성자를 감춘다 */
+    public boolean isAnonymous() {
+        return anonymous;
     }
 
     public static CommentEntity create(long id, long postId, long boardId, Long parentId, Long replyToId, Long authorId, String guestName,

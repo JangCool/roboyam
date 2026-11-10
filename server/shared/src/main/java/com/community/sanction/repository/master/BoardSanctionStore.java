@@ -108,6 +108,7 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
      * @param issuedRole    줄 때의 자리(MANAGER · STAFF · OPERATOR — 운영자 회원 계정, {@code issuedBy} = 그 회원 · {@code issuedOperatorId} = 운영자)
      * @param liftedByType  MANAGER(그 게시판 매니저 — {@code liftedByUser}) · OPERATOR(운영자 — {@code liftedByOperator})
      * @param voidSource    APPEAL · OPERATOR · REVIEW
+     * @param sealed        익명 글·댓글 작성자로 건 제재(V184) — 화면에는 대상 닉네임·회원 ID 대신 봉인(anonymous-board-contract 정책 9)
      */
     public record BoardSanctionRow(long id, long no, long boardId, String boardSlug, String boardName, String boardNameEn, long userId, String nickname,
                                    String gradeKey, String userStatus, BoardSanctionKind kind, SanctionStatus status, String reasonCode, String reasonText,
@@ -115,7 +116,7 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
                                    Instant endsAt, Instant acknowledgedAt, Instant liftedAt, String liftedByType, Long liftedByUser, String liftedByUserNickname,
                                    Long liftedByOperator, String liftedByOperatorName, String liftReason, Instant voidedAt, String voidSource, Long voidedBy,
                                    String voidedByName, String voidReason, Instant endedAt, Instant createdAt, Long appealId, Long appealNo, AppealStatus appealStatus,
-                                   Long issuedOperatorId, String issuedOperatorName) {
+                                   Long issuedOperatorId, String issuedOperatorName, boolean sealed) {
 
         /** 운영자 회원 계정이 준 제재인가 — 매니저는 풀지 못한다(operator-member-account-contract 정책 7) */
         public boolean byOperator() {
@@ -360,7 +361,7 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
                         S.kind, S.status, S.reasonCode, S.reasonText, S.issuedBy, ISSUER.nickname, S.issuedRole, S.postId, S.commentId, S.sourceTitle,
                         S.startsAt, S.endsAt, S.acknowledgedAt, S.liftedAt, S.liftedByType, S.liftedByUser, LIFTER.nickname, S.liftedByOperator,
                         LIFTED_OPERATOR.operatorName, S.liftReason, S.voidedAt, S.voidSource, S.voidedBy, VOIDED_OPERATOR.operatorName, S.voidReason, S.endedAt,
-                        S.createdAt, A.id, A.appealNo, A.status, S.issuedOperatorId, ISSUED_OPERATOR.operatorName)
+                        S.createdAt, A.id, A.appealNo, A.status, S.issuedOperatorId, ISSUED_OPERATOR.operatorName, S.sealed)
                 .from(S).join(B).on(B.id.eq(S.boardId)).join(U).on(U.id.eq(S.userId)).leftJoin(P).on(P.userId.eq(S.userId))
                 .leftJoin(ISSUER).on(ISSUER.userId.eq(S.issuedBy)).leftJoin(LIFTER).on(LIFTER.userId.eq(S.liftedByUser))
                 .leftJoin(LIFTED_OPERATOR).on(LIFTED_OPERATOR.id.eq(S.liftedByOperator)).leftJoin(VOIDED_OPERATOR).on(VOIDED_OPERATOR.id.eq(S.voidedBy))
@@ -376,7 +377,7 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
                 t.get(S.startsAt), t.get(S.endsAt), t.get(S.acknowledgedAt), t.get(S.liftedAt), t.get(S.liftedByType), t.get(S.liftedByUser), t.get(LIFTER.nickname),
                 t.get(S.liftedByOperator), t.get(LIFTED_OPERATOR.operatorName), t.get(S.liftReason), t.get(S.voidedAt), t.get(S.voidSource), t.get(S.voidedBy),
                 t.get(VOIDED_OPERATOR.operatorName), t.get(S.voidReason), t.get(S.endedAt), t.get(S.createdAt), t.get(A.id), t.get(A.appealNo), t.get(A.status),
-                t.get(S.issuedOperatorId), t.get(ISSUED_OPERATOR.operatorName));
+                t.get(S.issuedOperatorId), t.get(ISSUED_OPERATOR.operatorName), Boolean.TRUE.equals(t.get(S.sealed)));
     }
 
     private static List<BoardSanctionRow> rows(List<Tuple> tuples) {
@@ -462,8 +463,18 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
      */
     public long insert(long id, long boardId, long userId, BoardSanctionKind kind, String reasonCode, String reasonText, long issuedBy, String issuedRole,
                        Long issuedOperatorId, Long postId, Long commentId, String sourceTitle, Instant startsAt, Instant endsAt, Instant now) {
+        return insert(id, boardId, userId, kind, reasonCode, reasonText, issuedBy, issuedRole, issuedOperatorId, postId, commentId, sourceTitle, startsAt, endsAt, now,
+                false);
+    }
+
+    /** @param sealed 익명 글·댓글 작성자로 건 제재(V184 — 봉인) */
+    public long insert(long id, long boardId, long userId, BoardSanctionKind kind, String reasonCode, String reasonText, long issuedBy, String issuedRole,
+                       Long issuedOperatorId, Long postId, Long commentId, String sourceTitle, Instant startsAt, Instant endsAt, Instant now, boolean sealed) {
         BoardSanctionEntity sanction = BoardSanctionEntity.issue(id, boardId, userId, kind, reasonCode, reasonText, issuedBy, issuedRole, issuedOperatorId, postId,
                 commentId, sourceTitle, startsAt, endsAt, now);
+        if (sealed) {
+            sanction.seal();
+        }
         boardSanctions.persist(sanction);
         boardSanctions.flush();
         return sanction.getSanctionNo() == null ? 0 : sanction.getSanctionNo();

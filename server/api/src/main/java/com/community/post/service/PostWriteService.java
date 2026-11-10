@@ -28,7 +28,6 @@ import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
 import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
-import com.community.post.dto.WriteRateData;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.response.PostDeleteResult;
@@ -37,16 +36,12 @@ import com.community.post.dto.response.PostLikeResult;
 import com.community.post.dto.response.PostProtectionView;
 import com.community.post.dto.response.PostWriteResult;
 import com.community.post.entity.PostEntity;
-import com.community.post.exception.DuplicatePostException;
 import com.community.post.exception.ImageUploadNotAllowedException;
-import com.community.post.exception.PostDailyLimitException;
 import com.community.post.exception.PostHiddenException;
 import com.community.post.exception.PostNotFoundException;
 import com.community.post.exception.PostProtectedException;
-import com.community.post.exception.PostTooFastException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
-import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.post.service.PostContentFields.Cleaned;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -95,7 +90,6 @@ public class PostWriteService {
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
     private final PostRepository posts;
-    private final PostRepositoryQDSL postQueries;
     private final PostCounterQueries counters;
     private final PostQueryService queries;
     private final GuestPasswords passwords;
@@ -111,12 +105,16 @@ public class PostWriteService {
     private final EmoticonGuard emoticons;
     private final AdultContentGate adultGate;
     private final SecretPostUnlocks unlocks;
+    /** 쓰기 막힘·게시판 제재·비밀글·작성 간격·하루 한도·같은 글 반복 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
+    private final PostWriteRules rules;
     private final TransactionTemplate tx;
 
-    public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
+    public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
-                            DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PlatformTransactionManager txManager) {
+                            DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
+                            PlatformTransactionManager txManager) {
+        this.rules = rules;
         this.unlocks = unlocks;
         this.adultGate = adultGate;
         this.emoticons = emoticons;
@@ -130,7 +128,6 @@ public class PostWriteService {
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
-        this.postQueries = postQueries;
         this.counters = counters;
         this.queries = queries;
         this.passwords = passwords;
@@ -141,25 +138,11 @@ public class PostWriteService {
 
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
-        return create(body, userId, ip, false, false);
-    }
-
-    /**
-     * AI 회원 실행기 전용(ai-members-contract 「쓰기 제한 면제」) — 사이트 작성 간격·하루 글 한도를 보지 않고({@code AiDraftPublisher} 가 양을 정한다),
-     * {@code gradeExempt} 면 게시판 최소 쓰기 등급({@code GRADE_TOO_LOW})도 보지 않는다(관리자가 그 AI 계정의 쓸 곳으로 고른 게시판일 때만 부르는 쪽이 켠다).
-     * 금칙어 · 회원 정지 · 게시판 제재 · 운영진만·쓰기 잠금 · 같은 글 반복 · 칸 검사는 그대로다. HTTP 컨트롤러는 부르지 않는다.
-     */
-    public PostWriteResult createByAiRunner(PostWriteRequest body, long userId, String ip, boolean gradeExempt) {
-        return create(body, userId, ip, true, gradeExempt);
-    }
-
-    private PostWriteResult create(PostWriteRequest body, Long userId, String ip, boolean rateExempt, boolean gradeExempt) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, body.boardSlug());
         BoardActor actor = actors.resolve(userId, s);
         // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
-        String blocked = BoardAccessPolicy.writeBlocked(b, actor, s);
-        requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked, b, s); // AI 실행기: 고른 게시판의 최소 등급만 면제
+        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
         requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
         DealWriter.requireWriter(b, actor, s);
         BoardSecurityValues sec = s.security();
@@ -214,11 +197,14 @@ public class PostWriteService {
         boolean secret = secretOnCreate(b, body.secret());
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
-            checkRate(s, authorId, ip, title, content.plain(), now, rateExempt);
+            rules.checkRate(s, authorId, ip, title, content.plain(), now, false);
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
             PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled()); // 비밀글 · 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED) — V166
+            if (b.anonymous() && authorId != null) {
+                created.markAnonymous(); // 익명 게시판 — 쓸 때의 게시판 설정(V184, anonymous-board-contract 정책 2). 비회원은 위 판정이 401 로 막았다
+            }
             posts.persist(created);
             emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
             if (body.debate() != null) {
@@ -257,12 +243,6 @@ public class PostWriteService {
      * @param publicGroup 공개 소모임인가(잠근 소모임 행의 값)
      */
     public GroupWrite createInGroup(long groupId, boolean publicGroup, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s) {
-        return createInGroup(groupId, publicGroup, b, actor, body, ip, s, false);
-    }
-
-    /** @param rateExempt AI 회원 실행기 — 작성 간격·하루 글 한도를 보지 않는다({@link #createByAiRunner} 와 같은 규칙) */
-    public GroupWrite createInGroup(long groupId, boolean publicGroup, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s,
-                                    boolean rateExempt) {
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         ContentRules.Writer writer = BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
@@ -295,7 +275,7 @@ public class PostWriteService {
         ContentBody content = c.body().masked(sec);
         long id = ids.nextId();
         Instant now = Instant.now();
-        checkRate(s, authorId, ip, title, content.plain(), now, rateExempt);
+        rules.checkRate(s, authorId, ip, title, content.plain(), now, false);
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
         PostEntity created = PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
                 publicGroup, now);
@@ -315,35 +295,11 @@ public class PostWriteService {
         promotion.afterWrite(authorId);
     }
 
-    /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래 — 같은 글은 제목 + 보이는 글자로 본다). {@code rateExempt}(AI 실행기)면 같은 글 반복만 본다 */
-    private void checkRate(BoardCatalogSnapshot s, Long authorId, String ip, String title, String content, Instant now, boolean rateExempt) {
-        counters.lockWriter("post:" + (authorId != null ? "m:" + authorId : "g:" + ip));
-        int gap = rateExempt ? 0 : s.defaults().postGapSeconds();
-        int daily = rateExempt ? Integer.MAX_VALUE : s.defaults().postDailyLimit();
-        WriteRateData rate = postQueries.rate(authorId, ip, now.minus(Duration.ofDays(1)));
-        if (gap > 0 && rate.lastAt() != null) {
-            long elapsedMs = Duration.between(rate.lastAt(), now).toMillis();
-            if (elapsedMs < gap * 1000L) {
-                throw new PostTooFastException(gap, Math.max(1, (gap * 1000L - elapsedMs + 999) / 1000));
-            }
-        }
-        if (rate.countInWindow() >= daily) {
-            throw new PostDailyLimitException(daily);
-        }
-        int window = s.security().duplicatePostWindowMinutes();
-        if (window > 0 && postQueries.duplicate(authorId, ip, now.minus(Duration.ofMinutes(window)), title, content)) {
-            throw new DuplicatePostException(window);
-        }
-    }
-
     /**
-     * 새 글의 비밀글 여부(V166 · V168) — 게시판 ALWAYS 면 true, OPTIONAL 이면 요청 값(없으면 false), OFF 면 false(요청 값은 무시한다). 비회원 글도 같다(V168 — 비밀번호로 연다).
+     * 새 글의 비밀글 여부(V166 · V168) — 규칙은 shared {@link PostWriteRules#secretOnCreate}(관리자 서버의 AI 회원 쓰기와 같은 코드).
      */
     static boolean secretOnCreate(EffectiveBoard b, Boolean requested) {
-        if (b.secretAlways()) {
-            return true;
-        }
-        return b.secretOptional() && Boolean.TRUE.equals(requested);
+        return PostWriteRules.secretOnCreate(b, requested);
     }
 
     /**
@@ -547,35 +503,22 @@ public class PostWriteService {
         }
     }
 
-    /** 쓰기 판정 결과를 오류로 — 로그인 필요는 401, 나머지는 403 까닭 코드 */
+    /** 쓰기 판정 결과를 오류로 — 로그인 필요는 401, 나머지는 403 까닭 코드(규칙은 shared {@link PostWriteRules} — 관리자 서버의 AI 회원 쓰기와 같은 코드) */
     public static void requireWritable(String reason) {
-        if (reason == null) {
-            return;
-        }
-        if (BoardAccessPolicy.LOGIN_REQUIRED.equals(reason)) {
-            throw new CommonException(ErrorCode.UNAUTHENTICATED);
-        }
-        throw new BoardWriteBlockedException(reason);
+        PostWriteRules.requireWritable(reason);
     }
 
     /**
      * 게시판 제재로 이 게시판에서 쓰기 제한 중이면 403 {@code BOARD_WRITE_RESTRICTED}(+{@code until}) — 새 글·댓글·답글만 막는다(수정·삭제·추천은 막지 않는다, 결정 5).
-     * 판정은 {@link BoardActor} 를 만들 때 읽은 진행 중 제한(요청당 색인 질의 하나)이다.
+     * 규칙은 shared {@link PostWriteRules#requireNotRestricted}.
      */
     public static void requireNotRestricted(BoardActor actor, long boardId) {
-        com.community.board.dto.BoardWriteRestriction restriction = actor.writeRestriction(boardId);
-        if (restriction != null) {
-            throw BoardWriteBlockedException.boardRestricted(restriction);
-        }
+        PostWriteRules.requireNotRestricted(actor, boardId);
     }
 
     /** 새 글 쓰기 판정 — {@code GRADE_TOO_LOW} 면 오류 본문에 필요한 등급({@code minGrade}·{@code minGradeLabel} — 핫딜 게시판은 첫 등급 바로 위)을 싣는다 */
     public static void requireWritable(String reason, EffectiveBoard b, BoardCatalogSnapshot s) {
-        if (BoardAccessPolicy.GRADE_TOO_LOW.equals(reason)) {
-            String grade = BoardAccessPolicy.requiredWriteGrade(b, s);
-            throw BoardWriteBlockedException.gradeTooLow(reason, grade, s.gradeLabel(grade));
-        }
-        requireWritable(reason);
+        PostWriteRules.requireWritable(reason, b, s);
     }
 
     /** 고치거나 지울 수 있는가 — 비회원 글은 비밀번호(시도 제한), 회원 글은 쓴 회원만(아니면 403 FORBIDDEN) */

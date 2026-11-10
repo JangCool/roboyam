@@ -38,10 +38,12 @@
 
             <template v-else>
                 <div class="flex items-center gap-2 rounded-lg bg-(--p-content-hover-background) px-3 py-2">
-                    <i class="pi pi-user text-muted-color" aria-hidden="true" />
+                    <!-- 봉인된 익명 작성자(「이 글 작성자」 — anonymous-board-contract)는 자물쇠 + 부른 화면이 준 이름 -->
+                    <i :class="view.member.anonymous ? 'pi pi-lock' : 'pi pi-user'" class="text-muted-color" aria-hidden="true" />
                     <b class="min-w-0 flex-1 truncate text-sm">{{ view.member.nickname }}</b>
                     <Button v-if="!view.fixed" type="button" :label="t('sanction.changeMember')" size="small" severity="secondary" variant="text" :disabled="view.busy" @click="emit('unpick')" />
                 </div>
+                <p v-if="view.member.anonymous" class="m-0 text-xs leading-relaxed text-muted-color" data-testid="sanction-issue-sealed-note">{{ t('anonymousAuthor.sanctionNote') }}</p>
 
                 <!-- ② 현황·단계 -->
                 <ErrorState v-if="view.previewError" :title="t('sanction.previewFailed')" :description="view.previewError.message" :code="view.previewError.status === 404 ? '404' : '!'" :retry="view.previewError.status !== 404" :retrying="view.previewLoading" @retry="emit('retry-preview')" />
@@ -108,7 +110,7 @@ watch(open, (isOpen) => {
     queryError.value = '';
     reason.value = '';
     tried.value = false;
-    step.value = { kind: null, skipConfirmed: false, confirmNickname: '' };
+    step.value = { kind: null, skipConfirmed: false, confirmNickname: '', sealedBanConfirmed: false };
 });
 // 현황이 오면(회원을 고름·새로 받음) 누를 수 있는 다음 단계를 골라 둔다 — 고른 단계가 여전히 누를 수 있으면 그대로
 watch(

@@ -226,7 +226,7 @@ public class PostFeedRows {
                             Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
-        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
                 hidden ? 0 : r.commentCount(), !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),

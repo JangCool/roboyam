@@ -65,8 +65,10 @@ public class BoardStaffController {
 
     @GetMapping("/sanctions/preview")
     public ResponseEntity<ApiResponse<BoardSanctionPreviewView>> preview(@RequestParam(required = false) String boardId, @RequestParam(required = false) String userId,
+                                                                         @RequestParam(required = false) String anonymousPostId,
+                                                                         @RequestParam(required = false) String anonymousCommentId,
                                                                          Authentication authentication) {
-        return noStore(service.preview(principal(authentication).id(), boardId, userId));
+        return noStore(service.preview(principal(authentication).id(), boardId, userId, anonymousPostId, anonymousCommentId));
     }
 
     @PostMapping("/sanctions")

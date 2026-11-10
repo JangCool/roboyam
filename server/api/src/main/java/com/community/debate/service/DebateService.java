@@ -205,7 +205,7 @@ public class DebateService {
         Map<Long, CommentEntity> latest = new LinkedHashMap<>();
         for (int i = all.size() - 1; i >= 0; i--) {
             CommentEntity c = all.get(i);
-            if (c.getAuthorId() == null || c.isDeleted() || c.isHiddenAt(now) || c.getAuthorId().equals(userId)
+            if (c.getAuthorId() == null || c.isAnonymous() || c.isDeleted() || c.isHiddenAt(now) || c.getAuthorId().equals(userId)
                     || !opinionTops.contains(c.getParentId() == null ? c.getId() : c.getParentId())) {
                 continue;
             }

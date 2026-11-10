@@ -221,7 +221,9 @@ public class AdminReportQueryService {
         CommentEntity comment = c.isComment() ? targets.comments().get(c.getTargetId()) : null;
         GroupEntity group = c.isGroup() ? targets.groups().get(c.getTargetId()) : null;
         ReportEntity first = reports.firstOfCase(c.getId());
-        ReportSnapshotView snapshot = first == null ? null : new ReportSnapshotView(first.getSnapshotTitle(), first.getSnapshotContent(), first.getSnapshotAuthorName());
+        // 익명 글·댓글(V184)이면 신고 당시 작성자 이름도 싣지 않는다(봉인 — 새 신고는 이름을 남기지 않는다)
+        ReportSnapshotView snapshot = first == null ? null : new ReportSnapshotView(first.getSnapshotTitle(), first.getSnapshotContent(),
+                sealed(c, post, comment) ? null : first.getSnapshotAuthorName());
         ReportContentView content;
         if (c.isGroup()) {
             content = new ReportContentView(ContentFormat.TEXT.name(), group == null ? null : group.getDescription(), snapshot); // 소모임 소개(일반 글자)
@@ -334,7 +336,9 @@ public class AdminReportQueryService {
         ReportBoardRefView board = new ReportBoardRefView(Long.toString(c.getBoardId()), b == null ? null : b.name());
 
         ReportAuthorView author;
-        if (c.getTargetAuthorId() == null) {
+        if (sealed(c, post, c.isComment() ? targets.comments().get(c.getTargetId()) : null)) {
+            author = ReportAuthorView.SEALED; // 익명 글·댓글(V184) — 봉인
+        } else if (c.getTargetAuthorId() == null) {
             author = new ReportAuthorView(GUEST, null, guestName == null ? "" : guestName, false);
         } else {
             ProfileEntity profile = names.profiles().get(c.getTargetAuthorId());
@@ -406,8 +410,22 @@ public class AdminReportQueryService {
         return out;
     }
 
+    /** 사건 대상이 익명 글·댓글(V184)인가 — 익명 글의 댓글은 모두 익명이라 댓글이 없어졌으면 글을 본다 */
+    static boolean sealed(ReportCaseEntity c, PostEntity post, CommentEntity comment) {
+        if (c.isGroup()) {
+            return false;
+        }
+        if (c.isComment() && comment != null) {
+            return comment.isAnonymous();
+        }
+        return post != null && post.isAnonymous();
+    }
+
     private ReportAuthorCardView authorCard(ReportCaseEntity c, PostEntity post, CommentEntity comment, ReportEntity first, Instant now) {
         Long authorId = c.getTargetAuthorId();
+        if (sealed(c, post, comment)) {
+            return ReportAuthorCardView.sealed(authorId == null ? null : sanctionViews.previewSealedOrNull(authorId)); // 봉인(V184)
+        }
         if (authorId == null) {
             String guest = c.isComment() ? (comment == null ? null : comment.getGuestName()) : (post == null ? null : post.getGuestName());
             if (guest == null && first != null) {

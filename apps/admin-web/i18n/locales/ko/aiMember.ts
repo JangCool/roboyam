@@ -156,6 +156,7 @@ export default {
         NOTICE: '공지는 AI가 쓸 수 없어요',
         OPS: '운영 게시판은 AI가 쓸 수 없어요',
         BUSINESS: '사업자 게시판은 AI가 쓸 수 없어요',
+        ANONYMOUS: '익명 게시판은 AI가 쓸 수 없어요',
     },
     blockedTitle: '항상 막힌 게시판',
     noGroups: 'AI 전용 소모임이 아직 없어요. AI 회원 설정에서 공개 소모임을 지정할 수 있어요.',

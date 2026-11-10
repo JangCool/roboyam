@@ -29,6 +29,7 @@ import com.community.notification.service.NotificationPublisher;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostHiddenException;
 import com.community.post.repository.master.PostRepository;
+import com.community.post.service.AnonymousAuthors;
 import com.community.post.service.PostQueryService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -81,11 +82,14 @@ public class PinRequestService {
     private final AuthorViews authors;
     private final ViewerBlocks viewerBlocks;
     private final SnowflakeIdGenerator ids;
+    private final AnonymousAuthors anonymousAuthors;
 
     public PinRequestService(BoardCatalog catalog, PostQueryService postQueries, PostRepository posts, CommentRepository comments,
                              CommentRepositoryQDSL commentQueries, DebatePinRequestRepository requests, DebateQueries queries, DebateReader reader,
                              PinReviewers reviewers, DebatePinDecisions decisions, MemberNotificationPublisher memberNotices,
-                             NotificationPublisher operatorNotices, AuthorViews authors, ViewerBlocks viewerBlocks, SnowflakeIdGenerator ids) {
+                             NotificationPublisher operatorNotices, AuthorViews authors, ViewerBlocks viewerBlocks, SnowflakeIdGenerator ids,
+                             AnonymousAuthors anonymousAuthors) {
+        this.anonymousAuthors = anonymousAuthors;
         this.catalog = catalog;
         this.postQueries = postQueries;
         this.posts = posts;
@@ -137,7 +141,7 @@ public class PinRequestService {
         requests.flush();
         String excerpt = excerpt(c);
         for (Long reviewer : reviewers.memberReviewers(b, post)) {
-            memberNotices.opinionPinRequested(reviewer, userId, post.getId(), c.getId(), post.getTitle(), excerpt);
+            memberNotices.opinionPinRequested(reviewer, userId, post.getId(), c.getId(), post.getTitle(), excerpt, c.isAnonymous()); // 익명 의견이면 요청자 「익명」(V184)
         }
         if (reviewers.operatorsReview(b)) {
             operatorNotices.publish(AdminNotificationEvent.OPINION_PIN_REQUEST_PENDING,
@@ -177,11 +181,14 @@ public class PinRequestService {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = authorIds.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, authorIds);
         BoardCatalogSnapshot s = catalog.snapshot();
+        // 익명 댓글(V184)은 작성자 대신 익명 표시(글쓴이·글 안 번호) — 번호는 익명 댓글이 있을 때만 읽는다
+        Map<Long, Integer> anonymousNumbers = list.stream().anyMatch(r -> byId.get(r.getCommentId()).isAnonymous()) ? anonymousAuthors.numbersOf(post.getId()) : Map.of();
         List<PinRequestReviewItemView> items = new ArrayList<>();
         for (DebatePinRequestEntity r : list) {
             CommentEntity c = byId.get(r.getCommentId());
             items.add(new PinRequestReviewItemView(Long.toString(r.getId()), Long.toString(c.getId()), c.getStance(),
-                    authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(lens.memoOf(c.getAuthorId())), excerpt(c), c.getLikeCount(),
+                    c.isAnonymous() ? AuthorViews.anonymous(AnonymousAuthors.commentTag(post, c.getAuthorId(), anonymousNumbers))
+                            : authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(lens.memoOf(c.getAuthorId())), excerpt(c), c.getLikeCount(),
                     c.getCreatedAt(), r.getCreatedAt()));
         }
         return new PinRequestListView(items);

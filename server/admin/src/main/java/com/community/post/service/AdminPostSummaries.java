@@ -25,6 +25,8 @@ public class AdminPostSummaries {
 
     static final String MEMBER = "MEMBER";
     static final String GUEST = "GUEST";
+    /** 익명 글(V184)의 봉인된 작성자 */
+    static final String SEALED = "SEALED";
 
     private final AdminPostRepositoryQDSL posts;
     private final ProfileRepository profiles;
@@ -56,9 +58,10 @@ public class AdminPostSummaries {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         String prefixName = b == null ? null : b.prefix(r.prefixId()).map(BoardPrefixInfo::name).orElse(null);
         ProfileEntity profile = r.authorId() == null ? null : members.get(r.authorId());
-        String authorName = r.authorId() == null ? (r.guestName() == null ? "" : r.guestName()) : (profile == null ? "" : profile.getNickname());
+        boolean sealed = r.anonymousPost(); // 익명 글(V184) — 작성자 종류 SEALED · ID·이름 null(봉인)
+        String authorName = sealed ? null : r.authorId() == null ? (r.guestName() == null ? "" : r.guestName()) : (profile == null ? "" : profile.getNickname());
         return new AdminPostRefView(Long.toString(r.id()), r.title(), r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
-                b == null ? null : b.nameEn(), prefixName, r.authorId() == null ? GUEST : MEMBER, r.authorId() == null ? null : Long.toString(r.authorId()),
+                b == null ? null : b.nameEn(), prefixName, sealed ? SEALED : r.authorId() == null ? GUEST : MEMBER, sealed || r.authorId() == null ? null : Long.toString(r.authorId()),
                 authorName, n(r.likeCount()), n(r.commentCount()), n(r.viewCount()), r.createdAt(), r.stateAt(now, b != null && b.active()));
     }
 

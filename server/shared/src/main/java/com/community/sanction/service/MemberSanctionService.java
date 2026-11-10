@@ -220,7 +220,7 @@ public class MemberSanctionService {
         if (option.requiresBan() ? !operator.canBan() : !operator.canManage()) {
             deny(operator, option.requiresBan() ? Permission.SANCTION_BAN : Permission.SANCTION_MANAGE);
         }
-        if (kind == SanctionKind.BAN) {
+        if (kind == SanctionKind.BAN && !request.sealed()) { // 봉인 제재는 닉네임을 모르므로 확인하지 않는다(대상은 서버가 글·댓글에서 찾았다)
             String typed = request.confirmNickname() == null ? "" : request.confirmNickname().strip();
             if (member.nickname() == null || !member.nickname().equals(typed)) {
                 throw ValidationException.of(prefix + "confirmNickname", new MessageRef("sanction.confirmNickname.mismatch"));
@@ -234,15 +234,15 @@ public class MemberSanctionService {
         Integer warningNo = kind.isWarning() ? Math.min(SanctionLadder.WARNING_LIMIT, standing.warningCount() + 1) : null;
         Instant endsAt = kind.timed() ? now.plus(kind.length()) : null;
         long id = ids.nextId();
-        long no = store.insert(id, member.id(), kind, warningNo, skip, reason, now, endsAt, operator.operatorId(), request.reportCaseId(), now);
+        long no = store.insert(id, member.id(), kind, warningNo, skip, reason, now, endsAt, operator.operatorId(), request.reportCaseId(), now, request.sealed());
         List<StaffRow> staffEnded = List.of();
         if (kind.restricts()) {
             store.restrictMember(member.id(), kind == SanctionKind.BAN ? "BANNED" : "SUSPENDED", now);
             staffEnded = store.endBoardStaff(member.id()); // 정지 시작 — 게시판 매니저·스텝 지정 끝(되살아나지 않는다, operator-permissions.md 「자동 해제」)
         }
 
-        AuditEvent event = AuditEvent.byOperator(operator.operatorId(), operator.ip(), AuditActions.SANCTION_ISSUE, AuditResult.SUCCESS)
-                .target(TARGET, Long.toString(member.id())).with("sanctionId", Long.toString(id)).with("sanctionNo", no).with("kind", kind.name())
+        AuditEvent event = sealedTarget(AuditEvent.byOperator(operator.operatorId(), operator.ip(), AuditActions.SANCTION_ISSUE, AuditResult.SUCCESS), request,
+                member.id()).with("sanctionId", Long.toString(id)).with("sanctionNo", no).with("kind", kind.name())
                 .with("skipped", skip).with("reason", reason);
         if (warningNo != null) {
             event = event.with("warningNo", warningNo);
@@ -263,6 +263,18 @@ public class MemberSanctionService {
         memberNotices.sanctionIssued(member.id(), id, kind.name(), warningNo, endsAt, reason);
         log.info("제재 부여 sanctionId={} userId={} kind={} skipped={} by operatorId={}", id, member.id(), kind, skip, operator.operatorId());
         return store.find(id).orElseThrow();
+    }
+
+    /**
+     * 감사 대상 — 봉인 제재(V184)는 회원 대신 그 글·댓글(+ {@code sealed: true}) — 감사 목록·검색에서 회원과 이어지지 않는다(anonymous-board-contract 정책 8·9).
+     */
+    private static AuditEvent sealedTarget(AuditEvent event, SanctionIssue request, long userId) {
+        SanctionIssue.SealedSource source = request.sealedSource();
+        if (source == null) {
+            return event.target(TARGET, Long.toString(userId));
+        }
+        return source.commentId() != null ? event.target("COMMENT", Long.toString(source.commentId())).with("postId", Long.toString(source.postId())).with("sealed", true)
+                : event.target("POST", Long.toString(source.postId())).with("sealed", true);
     }
 
     // ── 해제 ──────────────────────────────────────────────────────────────
@@ -295,8 +307,10 @@ public class MemberSanctionService {
             throw new SanctionNotLiftableException();
         }
         store.releaseMember(userId, now);
-        audit.record(AuditEvent.byOperator(operator.operatorId(), operator.ip(), AuditActions.SANCTION_LIFT, AuditResult.SUCCESS).target(TARGET, Long.toString(userId))
-                .with("sanctionId", Long.toString(sanctionId)).with("sanctionNo", row.no()).with("kind", row.kind().name()).with("reason", reason));
+        AuditEvent lifted = AuditEvent.byOperator(operator.operatorId(), operator.ip(), AuditActions.SANCTION_LIFT, AuditResult.SUCCESS);
+        // 봉인 제재(V184)의 해제는 회원이 아니라 그 제재를 대상으로 남긴다(감사 목록에서 신원이 이어지지 않게)
+        lifted = row.sealed() ? lifted.with("sealed", true) : lifted.target(TARGET, Long.toString(userId));
+        audit.record(lifted.with("sanctionId", Long.toString(sanctionId)).with("sanctionNo", row.no()).with("kind", row.kind().name()).with("reason", reason));
         memberNotices.sanctionLifted(userId, sanctionId, row.kind().name());
         log.info("제재 해제 sanctionId={} userId={} kind={} by operatorId={}", sanctionId, userId, row.kind(), operator.operatorId());
         return store.find(sanctionId).orElseThrow();

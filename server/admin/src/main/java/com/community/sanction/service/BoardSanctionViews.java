@@ -94,6 +94,9 @@ public class BoardSanctionViews {
     }
 
     public static SanctionUserRefView user(BoardSanctionRow r) {
+        if (r.sealed()) {
+            return SanctionUserRefView.SEALED; // 익명 글·댓글 작성자로 건 게시판 제재(V184)
+        }
         return new SanctionUserRefView(Long.toString(r.userId()), r.nickname() == null ? "" : r.nickname(), r.gradeKey(), r.userStatus());
     }
 }

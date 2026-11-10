@@ -15,6 +15,7 @@ import type {
     BoardPrefixSaveItem,
     BoardSaveRequest,
     BoardSecretMode,
+    BoardAuthorMode,
     BoardWriteLock,
 } from '~/composables/board/api/useBoardApi.types';
 import { BOARD_MIN_GUEST, BOARD_POLICY_FIELDS } from '~/composables/board/api/useBoardApi.types';
@@ -131,6 +132,8 @@ export interface BoardDetailForm {
     secretMode: BoardSecretMode;
     /** 처리 상태 쓰기 — 게시판마다의 값(기본값 따름 없음 · `diffCount` 에 세지 않는다) */
     statusEnabled: boolean;
+    /** 작성자 표시 — 게시판마다의 값(기본값 따름 없음 · `diffCount` 에 세지 않는다) */
+    authorMode: BoardAuthorMode;
     policy: BoardPolicyForm;
     commonPrefixes: BoardCommonPrefixForm[];
     prefixes: BoardPrefixForm[];
@@ -327,6 +330,8 @@ export default class UtilBoard {
     static readonly WRITE_LOCKS: readonly (BoardWriteLock | null)[] = [null, 'POST', 'POST_COMMENT'];
     /** 비밀글 방식 선택지 — 끔 · 글쓴이가 고름 · 모든 글 비밀 */
     static readonly SECRET_MODES: readonly BoardSecretMode[] = ['OFF', 'OPTIONAL', 'ALWAYS'];
+    /** 작성자 표시 선택지 — 닉네임(기본) · 익명 */
+    static readonly AUTHOR_MODES: readonly BoardAuthorMode[] = ['NICKNAME', 'ANONYMOUS'];
     /** 글 목록 줄의 말머리·상태 칩 위치 선택지 — 제목 위(기본) · 제목 앞 · 닉네임 아래(서버 `BoardFields.CHIP_POSITIONS` 차례) */
     static readonly CHIP_POSITIONS: readonly BoardChipPosition[] = ['ABOVE', 'BEFORE', 'BELOW'];
     /** 글 줄 숫자 강조 색의 기본값 — 빨강(서버 기본값과 같다) */
@@ -665,6 +670,8 @@ export default class UtilBoard {
             // 옛 서버 응답에 칸이 없으면 끔(목업이 채운다 — `useBoardApi` MOCK)
             secretMode: detail.secretMode ?? 'OFF',
             statusEnabled: detail.statusEnabled === true,
+            // 옛 서버 응답에 칸이 없으면 닉네임
+            authorMode: detail.authorMode ?? 'NICKNAME',
             policy: UtilBoard.policyFormOf(detail.policy),
             commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
             prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, adultOnly: p.adultOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
@@ -704,7 +711,14 @@ export default class UtilBoard {
             adsHidden: form.adsHidden,
             secretMode: opsOn ? form.secretMode : null,
             statusEnabled: opsOn ? form.statusEnabled : null,
+            // 작성자 표시는 일반 게시판만 — 그 밖 종류는 null(그대로)로 보낸다
+            authorMode: kind === undefined || UtilBoard.anonymousAllowed(kind) ? form.authorMode : null,
         };
+    }
+
+    /** 이 종류의 게시판이 익명 작성자 표시를 고를 수 있는가 — 일반 게시판만(핫딜·직접홍보·소모임은 서버도 거절 — anonymous-board-contract 정책 1) */
+    static anonymousAllowed(kind: BoardKind): boolean {
+        return kind === 'GENERAL';
     }
 
     /** 이 종류의 게시판이 운영 설정(비밀글·처리 상태)을 받는가 — 일반·소모임 게시판만(핫딜·직접홍보는 서버도 400) */
@@ -731,7 +745,7 @@ export default class UtilBoard {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
-        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'color', 'allowAdult', 'investmentNotice'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
+        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,

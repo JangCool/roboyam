@@ -3,7 +3,15 @@
          공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
          「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`)
          AI 회원(`author.ai` — ai-members-contract): 등급 뱃지 자리에 「AI · {모델명}」(`AiBadge`). 늘 보인다 — 좁은 줄(`grade` 끔)에서도 빼지 않는다. 뱃지 차례: 운영자 → AI → 등급(AI 면 없음) → 사업자 -->
-    <span class="inline-flex min-w-0 items-center gap-1">
+    <!--
+        익명 작성자(`kind === 'ANONYMOUS'` — anonymous-board-contract): 사람 물음표 아이콘 + 「익명」(댓글이면 서버 번호로 「익명3」). 아바타·등급·닉네임·뱃지·메모·프로필 링크 없음 —
+        목록·글 보기·댓글·홈/가젯·최신글·검색이 모두 이 줄을 쓰므로 여기 한 곳에서 가린다. `avatar` 를 켠 자리(글 줄·댓글)는 프로필 동그라미 자리에 회색 원 아이콘
+    -->
+    <span v-if="anonymous" class="inline-flex min-w-0 items-center gap-1" data-testid="author-anonymous">
+        <AnonymousAuthorIcon :circle="avatar" :class="avatar ? 'mr-1' : ''" />
+        <span class="truncate" :class="strong ? 'font-semibold text-color' : ''">{{ anonymousName }}</span>
+    </span>
+    <span v-else class="inline-flex min-w-0 items-center gap-1">
         <!-- 글 목록·피드·가젯 글 줄의 작성자 앞 작은 프로필 동그라미(`avatar`) — 글 보기 머리와 같은 크기(`xs`)·같은 테두리. 회원만(비회원·숨긴 글·사업자 핫딜 글은 그리지 않는다 — `memberId` 가 없다) -->
         <ProfileBorderAvatar
             v-if="showAvatar"
@@ -53,6 +61,7 @@
 <script setup lang="ts">
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
+import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilColor from '~/utils/util-color';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
@@ -113,6 +122,9 @@ const avatarSrc = computed(() => {
     return (url ? decorations.avatarStillOf(memberId, avatarStillUrl) : null) ?? url;
 });
 const guest = computed(() => props.author.kind === 'GUEST');
+/** 익명 작성자 — 봉인된 글·댓글(이름·아바타 칸은 서버가 null 로 준다) */
+const anonymous = computed(() => props.author.kind === 'ANONYMOUS');
+const anonymousName = computed(() => UtilAnonymousMessages.name(t, props.author.anonymous));
 /** AI 회원의 글·댓글(`author.ai`) — 회원만 */
 const ai = computed(() => (props.author.kind === 'MEMBER' ? (props.author.ai ?? null) : null));
 /** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */

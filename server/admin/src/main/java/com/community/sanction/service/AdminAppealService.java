@@ -99,12 +99,13 @@ public class AdminAppealService {
             BoardSanctionRow board = boardSanctions.find(appeal.boardSanctionId()).orElseThrow(AppealNotFoundException::new);
             return new AppealDetailView(Long.toString(appeal.id()), appeal.no(), appeal.status().name(), appeal.reason(), appeal.createdAt(), appeal.answer(),
                     appeal.answeredAt(), SanctionViews.actor(appeal.answeredBy(), appeal.answeredByName()), BoardSanctionViews.user(board), KIND_BOARD, null,
-                    views.history(board.userId()), BoardSanctionViews.line(board, now), boardViews.history(board.userId()));
+                    board.sealed() ? List.of() : views.history(board.userId()), BoardSanctionViews.line(board, now),
+                    board.sealed() ? List.of() : boardViews.history(board.userId())); // 봉인 제재(V184)는 회원 이력을 싣지 않는다(이력 줄로 신원이 이어지지 않게)
         }
         SanctionRow sanction = sanctions.find(appeal.sanctionId()).orElseThrow(AppealNotFoundException::new);
         return new AppealDetailView(Long.toString(appeal.id()), appeal.no(), appeal.status().name(), appeal.reason(), appeal.createdAt(), appeal.answer(),
                 appeal.answeredAt(), SanctionViews.actor(appeal.answeredBy(), appeal.answeredByName()), SanctionViews.user(sanction), KIND_SITE,
-                SanctionViews.line(sanction, now), views.history(sanction.userId()), null, List.of());
+                SanctionViews.line(sanction, now), sanction.sealed() ? List.of() : views.history(sanction.userId()), null, List.of());
     }
 
     @Transactional

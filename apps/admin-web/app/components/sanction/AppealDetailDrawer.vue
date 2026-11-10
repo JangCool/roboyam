@@ -22,7 +22,7 @@
     >
         <template #header>
             <div class="flex min-w-0 flex-1 items-start gap-2">
-                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ head ? t('appeal.drawerTitle', { no: head.no, name: head.user.nickname }) : t('appeal.drawerTitleEmpty') }}</h2>
+                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ head ? t('appeal.drawerTitle', { no: head.no, name: UtilSanctionMessages.userName(t, head.user) }) : t('appeal.drawerTitleEmpty') }}</h2>
                 <div class="flex shrink-0 items-center gap-0.5">
                     <Button v-tooltip.bottom="t('appeal.prev')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('appeal.prev')" :disabled="!hasPrev" @click="emit('prev')" />
                     <Button v-tooltip.bottom="t('appeal.next')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('appeal.next')" :disabled="!hasNext" @click="emit('next')" />
@@ -117,7 +117,7 @@
             </section>
 
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-history`">
-                <h3 :id="`${titleId}-history`" class="text-sm font-semibold">{{ t(b ? 'boardSanction.memberHistoryTitle' : 'sanction.memberHistoryTitle', { name: detail.user.nickname }) }}</h3>
+                <h3 :id="`${titleId}-history`" class="text-sm font-semibold">{{ t(b ? 'boardSanction.memberHistoryTitle' : 'sanction.memberHistoryTitle', { name: UtilSanctionMessages.userName(t, detail.user) }) }}</h3>
                 <BoardSanctionHistoryList v-if="b" :lines="detail.boardHistory" :current-id="b.id" link-sanction />
                 <SanctionHistoryList v-else :lines="detail.history" :current-id="s?.id ?? null" link-sanction />
             </section>
@@ -236,7 +236,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
         { key: 'state', label: t('appeal.col.status') },
         { key: 'kind', label: t('appeal.col.kind') },
         { key: 'no', label: t('appeal.col.no'), value: t('appeal.noValue', { no: h.no }) },
-        { key: 'member', label: t('appeal.col.member'), value: h.user.nickname },
+        { key: 'member', label: t('appeal.col.member'), value: UtilSanctionMessages.userName(t, h.user) },
         { key: 'created', label: t('appeal.col.createdAt'), value: time.value.full(h.createdAt) },
         ...(h.answeredAt ? [{ key: 'answered', label: t('appeal.col.answeredAt'), value: time.value.full(h.answeredAt) }] : [{ key: 'wait', label: t('appeal.col.wait'), value: UtilSanctionMessages.wait(t, UtilSanction.waitMs(h.createdAt, null)) }]),
     ];

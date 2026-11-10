@@ -37,11 +37,13 @@ export default class UtilReportMessages {
         return lines;
     }
 
-    /** 작성자 이름 — 비회원·탈퇴 표시 */
-    static author(t: Translate, author: Pick<ReportAuthorRef, 'kind' | 'name' | 'withdrawn'>): string {
-        if (author.kind === 'GUEST') return t('report.guestAuthor', { name: author.name });
-        if (author.withdrawn) return t('report.withdrawnAuthor', { name: author.name });
-        return author.name;
+    /** 작성자 이름 — 비회원·탈퇴 표시 · 봉인된 익명 작성자(anonymous-board-contract)는 「익명 · 작성자 봉인됨」(목록·서랍은 자물쇠와 함께 `AnonymousSealedAuthor` 로 그린다) */
+    static author(t: Translate, author: Pick<ReportAuthorRef, 'kind' | 'name' | 'withdrawn' | 'sealed'>): string {
+        if (author.sealed) return t('anonymousAuthor.sealed');
+        const name = author.name ?? '';
+        if (author.kind === 'GUEST') return t('report.guestAuthor', { name });
+        if (author.withdrawn) return t('report.withdrawnAuthor', { name });
+        return name;
     }
 
     /** 신고자 이름 — 탈퇴 표시 */

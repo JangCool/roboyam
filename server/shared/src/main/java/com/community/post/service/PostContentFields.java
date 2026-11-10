@@ -109,7 +109,7 @@ public final class PostContentFields {
     }
 
     /** 문자열 ID → long(공개 서버 {@code PostQueryService#parseId} 와 같은 규칙). 형식이 틀리면 null */
-    private static Long parseId(String raw) {
+    public static Long parseId(String raw) {
         if (raw == null || raw.isBlank() || raw.strip().length() > 19) {
             return null;
         }
