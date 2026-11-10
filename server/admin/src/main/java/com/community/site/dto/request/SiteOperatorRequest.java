@@ -8,10 +8,11 @@ package com.community.site.dto.request;
  * @param business          사업자 정보 — 사업자 단계에서만 읽는다(개인 단계면 무시하고 비운다)
  * @param footerNotice      푸터 안내 문구(V177) — 한 줄에 한 문장, 줄바꿈으로 잇는다(최대 3줄 · 줄마다 120자). 빈 글자 = 안내 숨김, <b>칸이 없으면(null) 지금 값을 둔다</b>
  * @param footerNoticeScope {@code INDIVIDUAL_ONLY}(개인 단계에서만) · {@code ALWAYS}(늘) — 칸이 없으면(null) 지금 값을 둔다
+ * @param footerBusinessApply 푸터 「사업자 신청」 링크 보이기(V182) — 칸이 없으면(null) 지금 값을 둔다
  */
 public record SiteOperatorRequest(String stage, String operatorName, String contactEmail, String phone, Boolean privacyOfficerSameAsOperator,
                                   String privacyOfficerName, String privacyOfficerEmail, String hostingProvider, String mailProvider, Business business,
-                                  String footerNotice, String footerNoticeScope) {
+                                  String footerNotice, String footerNoticeScope, Boolean footerBusinessApply) {
 
     /** @param corporateNumber 법인등록번호 — 법인 단계에서만 읽는다 */
     public record Business(String businessName, String representative, String registrationNumber, String address, String mailOrderNumber,

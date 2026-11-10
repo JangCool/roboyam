@@ -66,10 +66,9 @@ export function useMeMenu() {
         const activity: MeMenuEntry[] = [];
         if (user.value) activity.push(entry(UtilProfile.path(user.value.id), 'pi pi-id-card', t('me.entryProfile'), 'me-entry-profile'));
         activity.push(entry('/me/grade', 'pi pi-star', t('me.entryGrade'), 'me-entry-grade', { hint: user.value?.role === 'USER' ? user.value.gradeLabel : '' }));
-        // 사업자 센터 — 신청했거나 사업자 전용 계정이면 「사업자 센터」, 일반 회원이고 신청 전이면 「사업자 신청」(운영진은 줄 없음, 셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`)
-        const business = UtilBusiness.entryOf(user.value);
-        if (business) {
-            activity.push(entry(UtilBusiness.CENTER_PATH, UtilBusinessMessages.ENTRY_CENTER_ICON, business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), 'me-entry-business'));
+        // 사업자 센터 — 신청했거나 사업자 전용 계정이면만(셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`). 신청 전 「사업자 신청」은 푸터 「고객 지원」 끝에 둔다(사용자 2026-11-10)
+        if (UtilBusiness.entryOf(user.value) === 'CENTER') {
+            activity.push(entry(UtilBusiness.CENTER_PATH, UtilBusinessMessages.ENTRY_CENTER_ICON, t('business.centerEntry'), 'me-entry-business'));
         }
         list.push({ key: 'activity', title: t('me.menuGroupActivity'), entries: activity });
 

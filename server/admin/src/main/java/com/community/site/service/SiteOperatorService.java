@@ -109,7 +109,8 @@ public class SiteOperatorService {
         SiteFooterNotice noticeBefore = row.footerNotice();
         // 칸이 없으면(옛 화면) 지금 값을 둔다
         SiteFooterNotice noticeNext = new SiteFooterNotice(parsed.noticeLines() != null ? parsed.noticeLines() : noticeBefore.lines(),
-                parsed.noticeScope() != null ? parsed.noticeScope() : noticeBefore.scope());
+                parsed.noticeScope() != null ? parsed.noticeScope() : noticeBefore.scope(),
+                parsed.businessApply() != null ? parsed.businessApply() : noticeBefore.businessApply());
         Map<String, Object> from = new LinkedHashMap<>();
         Map<String, Object> to = new LinkedHashMap<>();
         Map<String, Object> after = flat(next, noticeNext);
@@ -143,12 +144,12 @@ public class SiteOperatorService {
      * @param noticeLines 푸터 안내 줄(빈 목록 = 숨김) — 요청에 칸이 없으면 null(지금 값을 둔다)
      * @param noticeScope 푸터 안내 보이기 — 요청에 칸이 없으면 null(지금 값을 둔다)
      */
-    private record Parsed(SiteOperatorValues values, List<String> noticeLines, SiteFooterNoticeScope noticeScope) {
+    private record Parsed(SiteOperatorValues values, List<String> noticeLines, SiteFooterNoticeScope noticeScope, Boolean businessApply) {
     }
 
     /** 요청 → 저장할 값(앞뒤 공백 뗌, 빈 선택 칸 null). 위반은 칸마다 모아 400 */
     private static Parsed validate(SiteOperatorRequest in) {
-        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null, null, null, null) : in;
+        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null, null, null, null, null) : in;
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         SiteOperatorStage stage = SiteOperatorStage.of(r.stage() == null ? null : r.stage().strip()).orElse(null);
         if (stage == null) {
@@ -195,7 +196,7 @@ public class SiteOperatorService {
             throw new ValidationException(errors);
         }
         return new Parsed(new SiteOperatorValues(stage, operatorName, contactEmail, phone, same, officerName, officerEmail, hosting, mail, biz), noticeLines,
-                noticeScope);
+                noticeScope, r.footerBusinessApply());
     }
 
     /** 푸터 안내 문구 — 줄마다 앞뒤 공백을 떼고 빈 줄은 버린다. 3줄 넘게 · 120자 넘는 줄이 있으면 {@code errors.footerNotice} */
@@ -255,7 +256,7 @@ public class SiteOperatorService {
                 v.privacyOfficerEmail(), v.hostingProvider(), v.mailProvider(),
                 b == null ? null : new SiteOperatorResponse.Business(b.businessName(), b.representative(), b.registrationNumber(), b.address(), b.mailOrderNumber(),
                         b.mailOrderAuthority(), b.corporateNumber()),
-                notice.stored(), notice.scope().name(), row.getUpdatedAt(),
+                notice.stored(), notice.scope().name(), notice.businessApply(), row.getUpdatedAt(),
                 changes.stream().map(c -> new SiteOperatorResponse.StageChange(c.getChangedAt(), c.getFromStage().name(), c.getToStage().name(),
                         c.getChangedBy() == null ? null : names.get(c.getChangedBy()))).toList());
     }
@@ -282,6 +283,7 @@ public class SiteOperatorService {
         out.put("business.corporateNumber", b == null ? "" : nz(b.corporateNumber()));
         out.put("footerNotice", nz(notice.stored()));
         out.put("footerNoticeScope", notice.scope().name());
+        out.put("footerBusinessApply", notice.businessApply());
         return out;
     }
 

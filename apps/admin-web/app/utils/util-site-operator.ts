@@ -21,10 +21,12 @@ export interface SiteOperatorForm {
     /** 푸터 안내 문구 — 여러 줄 입력 그대로(한 줄에 한 문장, 빈 글자 = 숨김) */
     footerNotice: string;
     footerNoticeScope: SiteFooterNoticeScope;
+    /** 푸터 「사업자 신청」 링크 보이기 */
+    footerBusinessApply: boolean;
 }
 
 /** 칸 이름 — 서버 `fields` 의 열쇠와 같다(사업자 칸은 `business.` 이 붙는다 — `UtilSiteOperator.fieldKey`) */
-export type SiteOperatorField = Exclude<keyof SiteOperatorForm, 'stage' | 'privacyOfficerSameAsOperator' | 'footerNoticeScope'>;
+export type SiteOperatorField = Exclude<keyof SiteOperatorForm, 'stage' | 'privacyOfficerSameAsOperator' | 'footerNoticeScope' | 'footerBusinessApply'>;
 
 /** 칸 문제 — 비었음 · 길이 · 이메일 모양 · 전화 글자 · 사업자등록번호 모양 · 푸터 안내 줄 수 · 푸터 안내 한 줄 길이 */
 export type SiteOperatorProblem = 'REQUIRED' | 'LENGTH' | 'EMAIL' | 'PHONE' | 'BIZ_NUMBER' | 'NOTICE_LINES' | 'NOTICE_LINE_LENGTH';
@@ -119,6 +121,7 @@ export default class UtilSiteOperator {
             corporateNumber: b?.corporateNumber ?? '',
             footerNotice: profile.footerNotice ?? '',
             footerNoticeScope: profile.footerNoticeScope === 'ALWAYS' ? 'ALWAYS' : 'INDIVIDUAL_ONLY',
+            footerBusinessApply: profile.footerBusinessApply !== false,
         };
     }
 
@@ -154,6 +157,7 @@ export default class UtilSiteOperator {
             // 푸터 안내 — 줄마다 앞뒤 공백을 떼고 빈 줄을 버려 `\n` 으로 잇는다. 다 비면 빈 글자(= 숨김, null 은 서버가 「그대로 둠」으로 읽는다)
             footerNotice: UtilSiteOperator.noticeLines(form.footerNotice).join('\n'),
             footerNoticeScope: form.footerNoticeScope,
+            footerBusinessApply: form.footerBusinessApply,
         };
     }
 

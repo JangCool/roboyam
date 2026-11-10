@@ -19,9 +19,9 @@
                     <a href="/privacy" target="_blank" rel="noopener" class="text-primary hover:underline">{{ t('common.privacy') }}</a>
                     <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
                 </span>
-                <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 못 받았거나 비면 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
+                <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 운영자 링크가 비고 「사업자 신청」도 끄면 묶음을 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
                 <nav
-                    v-if="supportLinks.length"
+                    v-if="supportLinks.length || businessApply"
                     class="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:basis-full md:flex-col md:items-start md:gap-1"
                     :class="personal ? 'md:col-start-3 md:row-span-3 md:row-start-1' : 'md:mt-2'"
                     :aria-label="t('shell.footerSupport')"
@@ -31,6 +31,8 @@
                     <NuxtLink v-for="link in supportLinks" :key="link.id" :to="link.path" v-bind="UtilMenu.linkAttrs(link)" class="hover:underline">
                         {{ localizedName(link.label, link.nameEn) }}<i v-if="link.newTab" class="pi pi-external-link ml-1 text-[0.5625rem]" aria-hidden="true" />
                     </NuxtLink>
+                    <!-- 사업자 신청 — 운영자가 정하는 고객 지원 링크 뒤에 붙는 고정 항목(계정 메뉴에서 옮김, 사용자 2026-11-10 시안 A). 관리자 운영 주체 화면에서 켜고 끈다(`operator.footerBusinessApply`, 기본 켬). 비회원은 사업자 센터가 로그인으로 보낸다 -->
+                    <NuxtLink v-if="businessApply" :to="UtilBusiness.CENTER_PATH" class="hover:underline" data-testid="footer-business-apply">{{ t('business.applyEntry') }}</NuxtLink>
                 </nav>
                 <!-- 오픈소스 라이선스 고지(oss-licenses-contract) — 약관 묶음에서 빼 「오픈소스」 묶음으로(사용자 2026-11-10). 같은 탭. 모바일은 한 줄, 데스크톱 개인 모양은 4열 -->
                 <nav
@@ -68,6 +70,7 @@
 
 <script setup lang="ts">
 import UtilFooterNotice from '~/utils/util-footer-notice';
+import UtilBusiness from '~/utils/util-business';
 import UtilMenu from '~/utils/util-menu';
 
 const { t } = useI18n();
@@ -80,6 +83,8 @@ const siteInfo = useSiteInfoState();
 /** 운영 주체 개인 단계(보일 사업자 정보 없음) — 데스크톱 가로 3열 */
 const personal = computed(() => !shownBusiness.value);
 /** 푸터 안내 줄(`{사이트}` 를 바꾼 것) — 문구가 있고 보이기가 ALWAYS 이거나 개인 단계일 때만, 아니면 빈 배열(숨김) */
+/** 「사업자 신청」 링크 보이기 — 사이트 정보를 아직 못 받았으면 켬(기본값과 같게) */
+const businessApply = computed(() => siteInfo.value?.operator?.footerBusinessApply !== false);
 const noticeLines = computed(() => {
     const operator = siteInfo.value?.operator;
     if (!operator?.footerNotice) return [];

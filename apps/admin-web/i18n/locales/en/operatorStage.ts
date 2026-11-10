@@ -59,6 +59,9 @@ export default {
 
     // ── Footer notice ──
     footerNoticeTitle: 'Footer notice',
+    footerTitle: 'Footer',
+    footerBusinessApply: 'Show “Business application” under Support',
+    footerBusinessApplyHint: 'On by default: a business application link is added at the end of the footer Support links. Off removes it; members who already applied use “Business center” in the account menu.',
     footerNotice: 'Notice text',
     footerNoticeHint: 'One sentence per line · up to {lines} lines · {max} characters per line',
     footerNoticeHelp:

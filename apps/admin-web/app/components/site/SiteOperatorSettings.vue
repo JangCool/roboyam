@@ -169,6 +169,16 @@
                 </div>
             </div>
 
+            <!-- 푸터 「사업자 신청」 링크(사용자 2026-11-10) — 계정 메뉴에서 옮긴 고정 링크(공개 푸터 「고객 지원」 끝)를 켜고 끈다. 기본 켬, 이 화면의 [저장]으로 함께 -->
+            <div class="flex flex-col gap-1.5">
+                <h3 class="m-0 text-xs font-semibold text-muted-color">{{ t('operatorStage.footerTitle') }}</h3>
+                <div class="flex items-center gap-2">
+                    <ToggleSwitch v-model="form.footerBusinessApply" :input-id="`${uid}-biz-apply`" :disabled="readonly" data-testid="operator-footer-business-apply" />
+                    <label :for="`${uid}-biz-apply`" class="text-sm" :class="readonly ? 'cursor-default' : 'cursor-pointer'">{{ t('operatorStage.footerBusinessApply') }}</label>
+                </div>
+                <small class="text-xs leading-relaxed text-muted-color">{{ t('operatorStage.footerBusinessApplyHint') }}</small>
+            </div>
+
             <!-- 푸터 안내 문구(2026-11-10) — 공개 푸터의 안내 줄. 한 줄에 한 문장(최대 3줄 · 줄마다 120자), 비우면 숨김. `{사이트}` 는 공개 푸터가 사이트 이름 + 맞춘 조사로 바꾼다. 보이기: 개인 단계에서만 · 늘 -->
             <div class="flex flex-col gap-4">
                 <h3 class="m-0 text-xs font-semibold text-muted-color">{{ t('operatorStage.footerNoticeTitle') }}</h3>
@@ -269,7 +279,7 @@ const changeCount = computed(() => (saved.value ? UtilSiteOperator.changes(saved
 const invalidCount = computed(() => UtilSiteOperator.FIELDS.filter((field) => errorOf(field)).length);
 
 function emptyProfile(): SiteOperatorProfile {
-    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, mailProvider: null, business: null, footerNotice: null, footerNoticeScope: 'INDIVIDUAL_ONLY' };
+    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, mailProvider: null, business: null, footerNotice: null, footerNoticeScope: 'INDIVIDUAL_ONLY', footerBusinessApply: true };
 }
 
 /** 칸 아래 한 줄 — 화면이 본 문제(「비었음」은 저장을 눌러 본 뒤부터) → 없으면 서버 문구 그대로 */
