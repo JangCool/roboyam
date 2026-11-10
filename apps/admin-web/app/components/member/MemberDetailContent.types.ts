@@ -3,7 +3,7 @@ import type { MemberRestriction } from '~/composables/member/api/useMemberRestri
 import type { MemberWithdrawalOfMember } from '~/composables/member/api/useMemberWithdrawalApi.types';
 import type { WithdrawnContact, WithdrawnContactRevealResult } from '~/composables/member/api/useWithdrawnContactApi.types';
 import type { PointMemberLots } from '~/composables/point/api/usePointApi.types';
-import type { SanctionLine, SanctionPreview } from '~/composables/sanction/api/useSanctionApi.types';
+import type { SanctionPreview, SanctionRunningLine } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 회원 상세 서랍이 부모(회원 관리 화면)에게서 받아 구획까지 내려보내는 값 — 서랍(`MemberDetailDrawer`) → 본문(`MemberDetailContent`) → 구획.
@@ -84,7 +84,7 @@ export interface MemberDetailEmits {
     /** 제재 구획의 [제재하기] */
     sanction: [];
     /** 진행 중 정지의 [해제] */
-    'lift-sanction': [line: SanctionLine];
+    'lift-sanction': [line: SanctionRunningLine];
     /** 제재 현황 다시 받기 */
     'retry-sanctions': [];
 }

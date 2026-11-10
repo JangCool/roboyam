@@ -73,6 +73,12 @@ export interface SanctionAppealRef {
 }
 
 /** 제재 한 줄(community `SanctionLine`) — 목록·현황(`preview.history`)·이의제기 상세가 같이 쓴다 */
+/**
+ * 현황의 진행 중 정지 — 회원 단위 현황에서 봉인 제재 정지(`sealed`)면 `id`·번호·사유·부여자·계기 신고·이의제기를 비워 준다(anonymous-board-contract 2026-11-11 —
+ * 그 끈으로 전체 목록의 봉인 줄·계기 익명 글과 이어지지 않게). 풀기는 회원 기준 `liftActive`.
+ */
+export type SanctionRunningLine = Omit<SanctionLine, 'id'> & { id: string | null };
+
 export interface SanctionLine {
     id: string;
     /** 사람이 읽는 제재 번호 */
@@ -167,7 +173,7 @@ export interface SanctionPreview {
     /** 단계 차례(WARNING → BAN) */
     options: SanctionOption[];
     /** 진행 중인 정지·영구 정지 — 없으면 null */
-    active: SanctionLine | null;
+    active: SanctionRunningLine | null;
     /** 이 회원의 제재 전체(최근 것이 위, 최대 30개, 무효 포함) — 회원 단위 현황은 봉인 제재 줄을 빼서 준다 */
     history: SanctionLine[];
     /**

@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 import type { MemberSanctionsView } from '~/components/member/MemberDetailContent.types';
-import type { SanctionLine } from '~/composables/sanction/api/useSanctionApi.types';
+import type { SanctionLine, SanctionRunningLine } from '~/composables/sanction/api/useSanctionApi.types';
 import UtilSanction from '~/utils/util-sanction';
 
 interface Props {
@@ -59,7 +59,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), { view: null });
-const emit = defineEmits<{ sanction: []; 'lift-sanction': [line: SanctionLine]; 'retry-sanctions': [] }>();
+const emit = defineEmits<{ sanction: []; 'lift-sanction': [line: SanctionRunningLine]; 'retry-sanctions': [] }>();
 
 const { t, locale } = useI18n();
 const permission = useSanctionPermission();

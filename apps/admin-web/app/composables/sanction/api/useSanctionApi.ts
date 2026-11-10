@@ -21,6 +21,7 @@ const PATH = {
     preview: `${ROOT}/preview`,
     one: (id: string) => `${ROOT}/${encodeURIComponent(id)}`,
     lift: (id: string) => `${ROOT}/${encodeURIComponent(id)}/lift`,
+    liftActive: (userId: string) => `${ROOT}/members/${encodeURIComponent(userId)}/lift-active`,
 };
 
 export function useSanctionApi() {
@@ -64,5 +65,8 @@ export function useSanctionApi() {
 
         /** 진행 중 정지·영구 정지 해제 */
         lift: (id: string, reason: string): Promise<SanctionLine> => client.post<SanctionLine>(PATH.lift(id), { reason }),
+
+        /** 회원의 진행 중 정지·영구 정지 해제(회원 기준 — 봉인 정지는 ID 가 없다) */
+        liftActive: (userId: string, reason: string): Promise<SanctionLine> => client.post<SanctionLine>(PATH.liftActive(userId), { reason }),
     };
 }

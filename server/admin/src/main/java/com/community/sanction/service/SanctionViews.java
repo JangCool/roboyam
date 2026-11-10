@@ -85,7 +85,7 @@ public class SanctionViews {
         long sealedWarnings = rows.stream().filter(r -> r.valid() && r.kind().isWarning() && r.sealed()).count();
         SanctionLineView active = standing.running() == null ? null : line(standing.running(), now);
         if (active != null && active.sealed()) {
-            active = withoutReportCase(active);
+            active = sealedRunning(active);
         }
         return new SanctionPreviewView(user, standing.warningCount(), standing.blockedReason(), next(standing), options(standing), active, history,
                 (int) Math.min(sealedWarnings, standing.warningCount()));
@@ -99,10 +99,19 @@ public class SanctionViews {
         return standing.options().stream().map(o -> new SanctionOptionView(o.kind().name(), o.rank(), o.state(), o.requiresBan())).toList();
     }
 
-    /** 계기 신고를 비운 줄(회원 화면의 봉인 진행 중 정지 — 신고 사건으로 익명 글과 이어지지 않게) */
-    private static SanctionLineView withoutReportCase(SanctionLineView l) {
-        return new SanctionLineView(l.id(), l.no(), l.kind(), l.status(), l.rank(), l.warningNo(), l.skipped(), l.user(), l.startsAt(), l.endsAt(), l.reason(), l.issuedBy(),
-                l.createdAt(), null, l.liftedBy(), l.liftedAt(), l.liftReason(), l.voidedAt(), l.endedAt(), l.appeal(), l.appealDeadline(), l.sealed());
+    /**
+     * 회원 화면의 봉인 진행 중 정지(anonymous-board-contract 2026-11-11) — 종류·상태·기간만 남기고 제재 ID·번호·사유·부여자·부여 시각·계기 신고·이의제기를 비운다.
+     * 이 끈으로 전체 제재 목록의 봉인 줄(→ 계기 익명 글)과 이어지지 않게. 「정지 풀기」는 ID 대신 {@code POST /api/admin/sanctions/members/{userId}/lift-active}.
+     */
+    public static SanctionLineView sealedRunning(SanctionLineView l) {
+        return new SanctionLineView(null, 0, l.kind(), l.status(), l.rank(), l.warningNo(), l.skipped(), SanctionUserRefView.SEALED, l.startsAt(), l.endsAt(), null, null,
+                null, null, null, null, null, null, l.endedAt(), null, null, true);
+    }
+
+    /** 그 회원의 진행 중 정지·영구 정지 ID(봉인 포함 — 회원 기준 풀기) */
+    public java.util.Optional<Long> runningId(long userId) {
+        SanctionLadder.Standing standing = SanctionLadder.standing(sanctions.allOf(userId), sanctions.now());
+        return java.util.Optional.ofNullable(standing.running()).map(SanctionRow::id);
     }
 
     /**

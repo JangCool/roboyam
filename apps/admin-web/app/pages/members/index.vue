@@ -270,7 +270,7 @@ import type { ForceWithdrawRequest, WithdrawalCancelRequest } from '~/composable
 import UtilMemberWithdrawal from '~/utils/util-member-withdrawal';
 import UtilMember, { type MemberColumnKey, type MemberDetailRow, type MemberFilter } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
-import type { SanctionCreateRequest, SanctionLine } from '~/composables/sanction/api/useSanctionApi.types';
+import type { SanctionCreateRequest, SanctionLine, SanctionRunningLine } from '~/composables/sanction/api/useSanctionApi.types';
 import type { MemberSanctionsView } from '~/components/member/MemberDetailContent.types';
 import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
@@ -381,11 +381,11 @@ async function submitSanctionIssue(body: Omit<SanctionCreateRequest, 'userId' | 
 
 const sanctionLiftOpen = ref(false);
 const sanctionLiftBusy = ref(false);
-const sanctionLiftTarget = ref<SanctionLine | null>(null);
+const sanctionLiftTarget = ref<SanctionRunningLine | null>(null);
 const sanctionLiftError = ref('');
 const sanctionLiftFieldError = ref('');
 
-function openSanctionLift(line: SanctionLine): void {
+function openSanctionLift(line: SanctionRunningLine): void {
     if (!UtilSanction.canLift(line, sanctionLiftPerm.value)) return;
     sanctionLiftTarget.value = line;
     sanctionLiftError.value = '';
@@ -403,7 +403,7 @@ async function submitSanctionLift(reason: string): Promise<void> {
     sanctionLiftBusy.value = false;
     if (!failure) {
         sanctionLiftOpen.value = false;
-        toast.success(t('sanction.lifted', { name: target.user.nickname }));
+        toast.success(t('sanction.lifted', { name: target.sealed ? (sanctionPreview.preview.value?.user.nickname ?? '') : target.user.nickname }));
         return;
     }
     if (failure.code === 'SANCTION_NOT_LIFTABLE' || failure.code === 'SANCTION_NOT_FOUND') {
