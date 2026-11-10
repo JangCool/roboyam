@@ -681,14 +681,14 @@ export default class UtilGadget {
 
     /**
      * 그릴 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 숨김이거나 고른 출처의 값이 없으면 null.
-     * 칸이 없는 가젯(옛 가젯·시드)은 테마 기본: 로보얌 = 「제목만」(숨김, 켜면 옅은 네모), 그 밖 = 보이기·바탕 없음(이전 모양).
+     * 칸이 없는 가젯(옛 가젯·시드)은 테마 기본: 모든 테마 보이기(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」), 바탕은 로보얌 옅은 네모·그 밖 없음.
      * @param {GadgetStyle} style - 꾸미기.
      * @param {string} theme - 지금 사이트 테마 id.
      * @returns {GadgetTitleIcon | null} 그릴 아이콘.
      */
     static titleIcon(style: GadgetStyle, theme: string): GadgetTitleIcon | null {
         const roboyam = theme === 'roboyam';
-        if (!(style.iconShow ?? !roboyam)) return null;
+        if (!(style.iconShow ?? true)) return null;
         const bg = style.iconBg ?? (roboyam ? 'SOFT' : 'NONE');
         if (style.iconSource === 'TABLER') return style.iconTabler ? { kind: 'tabler', name: style.iconTabler.name, paths: style.iconTabler.paths, url: null, bg } : null;
         if (style.iconSource === 'UPLOAD') return style.iconUpload ? { kind: style.iconUpload.svg ? 'svg' : 'image', name: null, paths: [], url: style.iconUpload.url, bg } : null;

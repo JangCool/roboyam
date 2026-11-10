@@ -30,7 +30,7 @@ class PublicDataAdminCatalogTest {
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("publicData").orElseThrow();
         assertThat(screen.path()).isEqualTo("/settings/public-data");
         assertThat(screen.labelKey()).isEqualTo("menu.publicData");
-        assertThat(screen.icon()).isEqualTo("pi pi-database");
+        assertThat(screen.icon()).isEqualTo("pi pi-building-columns");
         assertThat(screen.permission()).isEqualTo(Permission.SITE_READ);
         assertThat(screen.superOnly()).isFalse();
 

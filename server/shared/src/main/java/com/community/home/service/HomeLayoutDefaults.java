@@ -124,18 +124,18 @@ public final class HomeLayoutDefaults {
         Builder b = new Builder("roboyam", 24);
         b.add("HIGHLIGHT", "하이라이트", true, true, plain("pi-sparkles").set("empty", noKeep()), cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 4),
                 null, null, 0, 0, 17, 12);
-        b.add("POST_LIST", "인기글", true, true, plain("pi-chart-line"),
+        b.add("POST_LIST", "인기글", true, true, tabler("pi-chart-line", GadgetTablerIcons.FLAME),
                 cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("count", 6).put("dividers", false).put("periodTabs", true)
                         .set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 null, "/popular", 0, 12, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", false, true, plain("pi-shopping-bag").set("empty", noKeep()), null, null, null, 0, 20, 17, 10);
-        b.add("GALLERY", "영상·짤", true, true, plain("pi-images"), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video", 0, 38, 17, 7);
+        b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video", 0, 38, 17, 7);
         b.add("POST_LIST", "방금 올라온 글", true, true, plain("pi-clock"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .put("dividers", false).set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 null, "/latest", 0, 30, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), null, null, null, 17, 0, 7, 12);
-        b.add("GROUPS", "인기 소모임", true, true, plain("pi-users"), cfg().put("count", 3), null, "/groups", 17, 12, 7, 9);
+        b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 17, 12, 7, 9);
         return b.build();
     }
 
@@ -145,6 +145,11 @@ public final class HomeLayoutDefaults {
 
     private static ObjectNode plain(String icon) {
         return HomeLayoutJson.object().put("headerStyle", "PLAIN").put("cardLook", "DEFAULT").put("icon", icon);
+    }
+
+    /** 머리 = Tabler 아이콘 + 제목(2026-11-10 「가젯마다 어울리는 아이콘」) — PrimeIcons 이름은 출처를 PRIME 으로 되돌릴 때 쓴다 */
+    private static ObjectNode tabler(String primeIcon, String tablerName) {
+        return GadgetTablerIcons.apply(plain(primeIcon), tablerName);
     }
 
     private static ObjectNode cfg() {

@@ -518,7 +518,7 @@ interface Props {
     place?: GadgetPlace;
     /** 페이지의 기준 폴더(이름·게시판) — 안내 줄 */
     folder?: { name: string | null; boards: readonly GadgetPageBoard[] } | null;
-    /** 편집 중인 테마 — 저장 전 새 가젯의 제목 아이콘 기본(로보얌은 숨김)을 정한다 */
+    /** 편집 중인 테마 — 저장 전 새 가젯의 제목 아이콘 기본(로보얌은 옅은 네모 바탕)을 정한다 */
     theme?: string | null;
 }
 const props = withDefaults(defineProps<Props>(), { serverErrors: null, place: 'HOME', folder: null, theme: null });

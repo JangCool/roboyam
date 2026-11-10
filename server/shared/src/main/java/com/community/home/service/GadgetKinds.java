@@ -125,9 +125,9 @@ public final class GadgetKinds {
         style.putNull("cardColor");
         style.put("mobileFold", "NONE");
         style.set("empty", empty);
-        // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 로보얌은 「제목만」(숨김, 켜면 옅은 네모 — 이전 로보얌 모양), 다음·네이버·기본은 지금 모양(보이기 · 바탕 없음)
+        // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 모든 테마 보이기(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」), 바탕은 로보얌 옅은 네모 · 그 밖 없음
         boolean roboyam = "roboyam".equals(theme);
-        style.put("iconShow", !roboyam).put("iconSource", GadgetStyles.ICON_PRIME);
+        style.put("iconShow", true).put("iconSource", GadgetStyles.ICON_PRIME);
         style.putNull("iconTabler");
         style.putNull("iconUpload");
         style.putNull("iconColor");
@@ -137,7 +137,7 @@ public final class GadgetKinds {
 
     /**
      * 새로 넣은 가젯의 처음 꾸미기 — 테마 기본 꾸미기에, 로보얌이면 종류 아이콘을 더한다(홈 로보얌 시드처럼. 아이콘은 admin-web {@code UtilGadgetLayoutEditor.KINDS} 와 같다).
-     * 로보얌은 아이콘을 숨긴 채(「제목만」, 2026-11-10) 골라 둔다 — 관리자가 켜면 그 아이콘이 보인다.
+     * 로보얌은 이 아이콘이 처음부터 보인다(사용자 2026-11-10 「로보얌 기본 보이기」).
      */
     public static ObjectNode baseStyle(String theme, String type) {
         ObjectNode style = baseStyle(theme);
