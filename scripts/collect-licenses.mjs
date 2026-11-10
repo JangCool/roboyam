@@ -7,6 +7,8 @@
  *   node scripts/collect-licenses.mjs --skip-build # 지난 빌드의 번들 목록(node_modules/.cache/roboyam-oss/*.json)을 다시 쓴다
  *   node scripts/collect-licenses.mjs --with-server # 서버 런타임 의존성도 싣는다(서버 프로그램을 남에게 나눠 줄 때만 — 아래 「고지 범위」)
  *
+ * 공개 화면 파일(user-web)에는 버전을 싣지 않는다(아래 OUTPUTS — 사용자 2026-11-11), 관리자 화면 파일(admin-web)은 버전까지 싣는다.
+ *
  * 고지 범위(사용자 2026-11-10 「진짜 필요한 고지만」): 고지 의무는 코드를 남에게 배포할 때 생긴다. 브라우저로 내려가는 화면 번들만 배포에 해당하고,
  * 우리 서버 안에서만 도는 서버 라이브러리는 배포가 아니라 기본으로 싣지 않는다(설치형으로 서버 프로그램을 나눠 줄 때만 --with-server).
  * 같은 패키지의 여러 버전은 한 줄로 합치고(버전은 쉼표로), 고지를 요구하지 않는 라이선스(0BSD·MIT-0·CC0-1.0·Unlicense — 「또는」 식에 하나라도 있으면 그것을 고른다)는 뺀다.
@@ -31,7 +33,14 @@ import { permissive, restrictive, spdxFromPom, stripParens, TEMPLATES } from './
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, 'node_modules', '.cache', 'roboyam-oss');
-const OUTPUTS = [join(ROOT, 'apps', 'user-web', 'public', 'oss-licenses.json'), join(ROOT, 'apps', 'admin-web', 'public', 'oss-licenses.json')];
+/**
+ * 공개 화면 파일에는 버전을 싣지 않는다(사용자 2026-11-11 「버전 빼기」) — 고지 의무는 저작권·라이선스 전문이라 버전이 없어도 되고,
+ * 누구나 받는 파일에 버전이 있으면 패치가 늦은 라이브러리의 알려진 취약점을 찾는 단서가 된다. 관리자 화면 파일은 버전을 그대로 둔다(운영자가 본다).
+ */
+const OUTPUTS = [
+    { path: join(ROOT, 'apps', 'user-web', 'public', 'oss-licenses.json'), versions: false },
+    { path: join(ROOT, 'apps', 'admin-web', 'public', 'oss-licenses.json'), versions: true },
+];
 const WEB_APPS = [
     { app: 'user-web', usedIn: 'user' },
     { app: 'admin-web', usedIn: 'admin' },
@@ -570,6 +579,12 @@ function serialize(doc) {
     return lines.join('\n');
 }
 
+/** 버전을 뺀 사본(공개 화면 파일) — 항목·묶음 패키지의 `version` 칸을 없앤다 */
+function withoutVersions(doc) {
+    const drop = (item) => Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'version'));
+    return { ...doc, items: doc.items.map((item) => ({ ...drop(item), packages: item.packages ? item.packages.map(drop) : null })) };
+}
+
 /** 항목 id(이름까지) 의 사용자 정의 라이선스 여부 — 합친 버전 중 하나라도 */
 function isCustom(id) {
     return [...entries.values()].some((e) => `${e.ecosystem}:${e.name}` === id && e.custom);
@@ -620,11 +635,11 @@ function main() {
     fillMissingTexts();
     const items = finalItems();
     const doc = { schema: 1, collectedAt: new Date().toISOString(), items, texts: Object.fromEntries(texts) };
-    const body = serialize(doc);
     for (const out of OUTPUTS) {
-        mkdirSync(dirname(out), { recursive: true });
-        writeFileSync(out, body);
-        console.log(`· 썼다: ${out.replace(ROOT, '.')} (${Math.round(Buffer.byteLength(body) / 1024)} KB)`);
+        const body = serialize(out.versions ? doc : withoutVersions(doc));
+        mkdirSync(dirname(out.path), { recursive: true });
+        writeFileSync(out.path, body);
+        console.log(`· 썼다: ${out.path.replace(ROOT, '.')} (${Math.round(Buffer.byteLength(body) / 1024)} KB${out.versions ? '' : ' — 버전 뺌'})`);
     }
     report(items);
 }

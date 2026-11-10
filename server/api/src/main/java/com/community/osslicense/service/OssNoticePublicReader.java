@@ -24,7 +24,7 @@ public class OssNoticePublicReader {
     public OssNoticePublicResponse read() {
         String intro = settings.findById(OssNoticeSettingEntity.ROW_ID).map(OssNoticeSettingEntity::getIntro).orElse(null);
         return new OssNoticePublicResponse(intro, entries.findVisibleByName().stream()
-                .map(e -> new OssNoticePublicEntryView(Long.toString(e.getId()), e.getName(), e.getVersion(), e.getLicense(), e.getCopyright(), e.getLicenseText(),
+                .map(e -> new OssNoticePublicEntryView(Long.toString(e.getId()), e.getName(), e.getLicense(), e.getCopyright(), e.getLicenseText(),
                         e.getSourceUrl(), e.getCategory()))
                 .toList());
     }

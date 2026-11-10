@@ -7,19 +7,22 @@
 /** 쓰는 곳 — 공개 화면 · 관리자 화면 · 서버 */
 export type OssUsedIn = 'user' | 'admin' | 'server';
 
-/** 자동 수집 항목 하나 */
+/*
+ * 버전은 싣지 않는다(사용자 2026-11-11 「버전 빼기」) — 고지 의무는 저작권·라이선스 전문이라 버전이 필요 없고, 공개 파일에 버전이 있으면
+ * 패치가 늦은 라이브러리의 알려진 취약점을 찾는 단서가 된다. 공개 파일과 공개 API 모두 버전 칸이 없다(관리자 화면 파일·API 는 그대로 있다).
+ */
+
 /** 묶음 줄에 든 패키지 한 개(같은 프로젝트를 한 줄로 묶었을 때 — 사용자 2026-11-10) */
 export interface OssCollectedPackage {
     name: string;
-    version: string;
     license: string;
 }
 
+/** 자동 수집 항목 하나 */
 export interface OssCollectedItem {
-    /** `npm:<이름>@<버전>` · `maven:<그룹>:<이름>@<버전>` */
+    /** `npm:<이름>` · `maven:<그룹>:<이름>`(묶음 줄은 `npm:<프로젝트 이름>`) */
     id: string;
     name: string;
-    version: string;
     /** SPDX(또는 패키지가 밝힌 이름) — `A OR B` 꼴도 있다 */
     license: string;
     usedIn: OssUsedIn[];
@@ -35,7 +38,7 @@ export interface OssCollectedItem {
     noticeId: string | null;
     /** 원본 저장소 */
     repository: string | null;
-    /** 같은 프로젝트를 한 줄로 묶었으면 든 패키지(이름은 프로젝트 이름, 버전은 빈 글자) — 아니면 null(옛 파일은 칸 없음) */
+    /** 같은 프로젝트를 한 줄로 묶었으면 든 패키지(이름은 프로젝트 이름) — 아니면 null(옛 파일은 칸 없음) */
     packages?: OssCollectedPackage[] | null;
     /** 라이선스 안내 주소(전문이 없을 때 등) */
     licenseUrl: string | null;
@@ -57,7 +60,6 @@ export type OssManualCategory = 'USER' | 'ADMIN' | 'SERVER' | 'FONT_ICON' | 'OTH
 export interface OssManualEntry {
     id: string;
     name: string;
-    version: string | null;
     license: string;
     copyright: string | null;
     licenseText: string | null;

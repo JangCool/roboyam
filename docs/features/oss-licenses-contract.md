@@ -7,7 +7,7 @@ MIT·Apache·BSD 등 무료 오픈소스도 저작권 고지와 라이선스 전
 - **공개** `/licenses`(user-web `pages/licenses.vue`, 비회원도) — 푸터 「약관·정책」 링크 묶음 맨 끝 「오픈소스 라이선스」(같은 탭, 개인 3열·사업자·모바일 모양 모두).
   약관 화면과 같은 흰 카드 + `PageTitleHead`(설명 = 안내 문구, 없으면 기본 문구 「{사이트}은 아래 오픈소스 소프트웨어를 사용합니다. …」 — `{사이트}` 와 뒤 조사는 `UtilFooterNotice.render`).
   거르기 칩(전체 N · 공개 화면 · 관리자 화면 · 서버 · 글꼴·아이콘) + 이름 찾기(이름·라이선스) + 라이선스 종류별 개수 한 줄(많은 차례 8개 + 그 밖).
-  목록: 이름 · 버전 · 쓰는 곳 · 라이선스 칩, 줄을 누르면 펼침(`aria-expanded`) — 쓰는 곳·라이선스 · 저작권 고지 · NOTICE · 라이선스 전문(고정폭, 줄바꿈 그대로, 24줄 넘으면 접힌 높이 + [전문 펼치기]) · 원본 저장소·라이선스 안내(새 탭, `rel=noopener`).
+  목록: 이름 · 쓰는 곳 · 라이선스 칩(버전은 싣지 않는다 — 아래 2026-11-11), 줄을 누르면 펼침(`aria-expanded`) — 쓰는 곳·라이선스 · 저작권 고지 · NOTICE · 라이선스 전문(고정폭, 줄바꿈 그대로, 24줄 넘으면 접힌 높이 + [전문 펼치기]) · 원본 저장소·라이선스 안내(새 탭, `rel=noopener`).
   맨 아래 「마지막으로 모은 날」. 수백 줄 대비: 펼친 줄만 전문을 그리고 줄마다 `content-visibility: auto`.
   정적 파일을 못 받으면 오류 화면(다시 시도), 서버 API 만 못 받으면 기본 문구 + 자동 목록만.
 - **관리자** `/settings/oss-licenses`(설정 > 운영·약관, 약관 다음 — 키 `ossLicenses`, 아이콘 `pi pi-code`) — ① 안내 문구(여러 줄, 비우면 기본 문구, 구획 안 저장 줄) ② 직접 추가 항목 표(추가·고치기 대화상자 · 공개 화면에 보이기 스위치 · 지우기, 이름순) ③ 자동 수집 목록(읽기 전용 — 개수·마지막으로 모은 날·찾기, 20줄씩).
@@ -32,7 +32,7 @@ MIT·Apache·BSD 등 무료 오픈소스도 저작권 고지와 라이선스 전
 - 공개 사본: 캐시 `oss.notice`(설정 사본, 기본 60초, api) — 위 감사 기록을 보고 `CacheAutoRefresh`(계기 `OSS_NOTICE_SAVE`)가 같은 트랜잭션에서 세대를 올린다. 응답 `Cache-Control: no-cache` + `ETag`.
 
 ## API
-- 공개(api): `GET /api/site/oss-licenses` → `{ intro: string|null, entries: [{ id, name, version, license, copyright, licenseText, sourceUrl, category }] }`(숨기지 않은 것, 이름순 — 대소문자 무시).
+- 공개(api): `GET /api/site/oss-licenses` → `{ intro: string|null, entries: [{ id, name, license, copyright, licenseText, sourceUrl, category }] }`(버전 없음 — 2026-11-11, 숨기지 않은 것, 이름순 — 대소문자 무시).
 - 관리자(admin, 모두 `no-store`):
   - `GET /api/admin/oss-licenses` → `{ intro, introUpdatedAt, entries: [{ id, name, version, license, copyright, licenseText, sourceUrl, category, hidden, updatedAt }] }`
   - `PUT /intro { intro }` → 같은 모양 · `POST /entries` → 201 한 줄 · `PUT /entries/{id}` → 200 · `PUT /entries/{id}/hidden { hidden }` → 200 · `DELETE /entries/{id}` → 204
@@ -70,3 +70,9 @@ JAVA_HOME=<JDK 25> node scripts/collect-licenses.mjs --skip-build  # 지난 번�
 - 공개 `/licenses` 거르기 칩은 항목이 없는 묶음을 숨긴다(「서버」는 직접 추가 항목이 있을 때만).
 - 푸터: 오픈소스 라이선스를 약관 묶음에서 빼 「오픈소스」 묶음(데스크톱 개인 모양 4열). 묶음 제목은 진하게, 개인정보처리방침은 굵기 대신 주 색상 글자(시안 B).
 - (같은 날 2차) 수집은 클라이언트 **최종 청크에 실제로 남은 모듈**(renderedLength > 0, CSS·글꼴은 포함)만 센다 — 빌드 중에 읽기만 한 서버용·개발 도구 패키지가 빠진다. 같은 프로젝트(이름 규칙 `PROJECTS`)는 한 줄로 묶고 펼치면 포함 패키지·저작권 줄 전부·전문(다르면 패키지 머리를 달아 이음). 결과 14줄(패키지 89개).
+
+## 공개 화면에서 버전 빼기 (2026-11-11)
+- 공개 `/licenses` 는 버전을 보이지 않는다(목록 줄·묶음 패키지 모두). 고지 의무는 저작권 고지 + 라이선스 전문(+ NOTICE)이라 버전이 필요 없고, 누구나 받는 파일에 버전이 있으면 패치가 늦은 라이브러리의 알려진 취약점을 찾는 단서가 된다.
+- 화면에서만 숨기지 않고 **자료에서 뺀다**: `collect-licenses.mjs` 가 user-web `public/oss-licenses.json` 에는 `version` 칸 없이(항목·`packages` 모두) 쓰고, admin-web 파일은 버전까지 쓴다. 공개 API `GET /api/site/oss-licenses` 의 `entries` 에서도 `version` 을 뺐다(관리자 API·직접 추가 칸의 버전은 그대로 — 운영자만 본다).
+- 남는 것: admin-web 의 `public/oss-licenses.json` 도 정적 파일이라 관리자 주소를 아는 사람은 로그인 없이 받을 수 있다. 관리자 주소를 외부에 막는 운영 구성(접근 제한)이 전제.
+- GPL·LGPL 처럼 소스 제공이 필요한 라이선스를 화면 번들에 싣게 되면 그때는 대상 버전 소스를 따로 제공해야 한다(지금 화면 번들 14줄은 모두 허용형 — 수집 경고 기준).

@@ -6,6 +6,7 @@
             자료: 자동 수집 목록(정적 파일 `/oss-licenses.json` — 빌드 때 모은다) + 안내 문구·직접 추가 항목(`GET /api/site/oss-licenses`)을 이름순 한 목록으로 합친다(`UtilOssLicense.rows`).
               정적 파일을 못 받으면 오류 화면(다시 시도), 서버 쪽만 못 받으면 기본 문구로 자동 목록만 보인다.
             거르기 칩(전체 · 공개 화면 · 관리자 화면 · 서버 · 글꼴·아이콘 — 직접 추가 항목은 운영자가 고른 묶음) + 이름 찾기 + 라이선스 종류별 개수 한 줄.
+            버전은 싣지 않는다(사용자 2026-11-11 — 공개 파일·공개 API 에도 없다, 알려진 취약점을 찾는 단서가 되지 않게).
             줄을 누르면 펼친다(`aria-expanded`) — 쓰는 곳·라이선스 · 저작권 고지 · NOTICE · 라이선스 전문(고정폭, 줄바꿈 그대로, 긴 글은 접힌 높이 + [전문 펼치기]) · 원본 저장소(새 탭).
             수백 줄이라도 가볍게: 펼친 줄만 전문을 그리고(v-if), 줄마다 `content-visibility: auto` 로 화면 밖 줄의 그리기를 미룬다.
         -->
@@ -55,7 +56,6 @@
                                 <i class="pi text-[0.625rem] text-muted-color" :class="open.has(row.key) ? 'pi-chevron-down' : 'pi-chevron-right'" aria-hidden="true" />
                                 <span class="min-w-0 flex-1">
                                     <span class="break-all font-medium [overflow-wrap:anywhere]">{{ row.name }}</span>
-                                    <span v-if="row.version" class="ml-1.5 text-xs tabular-nums text-muted-color">{{ row.version }}</span>
                                     <span v-if="row.packages" class="ml-1.5 text-xs tabular-nums text-muted-color">{{ t('ossLicense.packageCount', { n: row.packages.length }) }}</span>
                                     <span class="ml-2 hidden text-xs text-muted-color sm:inline">{{ usedInLabel(row) }}</span>
                                 </span>
@@ -76,12 +76,12 @@
                                 <dd class="m-0 break-words">{{ row.license }}</dd>
                             </dl>
 
-                            <!-- 같은 프로젝트 묶음 — 든 패키지(이름 · 버전 · 라이선스) -->
+                            <!-- 같은 프로젝트 묶음 — 든 패키지(이름 · 라이선스, 버전은 싣지 않는다) -->
                             <section v-if="row.packages" class="mt-3" data-testid="oss-packages">
                                 <h3 class="m-0 text-xs font-semibold">{{ t('ossLicense.packages') }}</h3>
                                 <ul class="m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-0.5 p-0 text-[0.8125rem] leading-relaxed">
                                     <li v-for="p in row.packages" :key="p.name" class="break-all [overflow-wrap:anywhere]">
-                                        {{ p.name }} <span class="text-xs tabular-nums text-muted-color">{{ p.version }}</span><span v-if="p.license !== row.license" class="text-xs text-muted-color"> · {{ p.license }}</span>
+                                        {{ p.name }}<span v-if="p.license !== row.license" class="text-xs text-muted-color"> · {{ p.license }}</span>
                                     </li>
                                 </ul>
                             </section>

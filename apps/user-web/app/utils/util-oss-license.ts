@@ -7,7 +7,6 @@ export type OssFilter = 'all' | 'user' | 'admin' | 'server' | 'fontIcon';
 export interface OssLicenseRow {
     key: string;
     name: string;
-    version: string | null;
     license: string;
     usedIn: OssUsedIn[];
     fontIcon: boolean;
@@ -46,14 +45,13 @@ export default class UtilOssLicense {
      * 자동 수집 목록 + 직접 추가 항목 → 이름순 한 목록.
      * @param {OssCollectedFile | null} file - 정적 파일(못 받았으면 null).
      * @param {OssManualEntry[]} manual - 숨기지 않은 직접 추가 항목.
-     * @returns {OssLicenseRow[]} 이름순(대소문자 무시, 같으면 버전순).
+     * @returns {OssLicenseRow[]} 이름순(대소문자 무시) — 버전은 공개 화면에 싣지 않는다.
      */
     static rows(file: OssCollectedFile | null, manual: OssManualEntry[]): OssLicenseRow[] {
         const texts = file?.texts ?? {};
         const out: OssLicenseRow[] = (file?.items ?? []).map((item) => ({
             key: item.id,
             name: item.name,
-            version: item.version || null,
             license: item.license,
             usedIn: item.usedIn,
             fontIcon: item.category === 'fontIcon',
@@ -70,7 +68,6 @@ export default class UtilOssLicense {
             out.push({
                 key: `manual:${entry.id}`,
                 name: entry.name,
-                version: entry.version,
                 license: entry.license,
                 usedIn: MANUAL_USED_IN[entry.category] ?? [],
                 fontIcon: entry.category === 'FONT_ICON',
@@ -84,7 +81,7 @@ export default class UtilOssLicense {
                 packages: null,
             });
         }
-        return out.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || (a.version ?? '').localeCompare(b.version ?? '', 'en', { numeric: true }));
+        return out.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
     }
 
     /** 칩에 맞는 줄인가 */
