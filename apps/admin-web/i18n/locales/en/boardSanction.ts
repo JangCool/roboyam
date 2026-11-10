@@ -176,6 +176,8 @@ export default {
             SITE_SANCTIONED: 'Opens the site sanction dialog. Once given, the review closes with that sanction number.',
             VOIDED: 'Voids the board sanctions you pick below and closes (to correct misuse).',
         },
+        siteSealedHelp: 'Opens the site sanction dialog for this post’s author. The author stays sealed.',
+        siteSealedNoSource: 'No post or comment is left to identify the author, so a site sanction can’t be given.',
         voidPick: 'Sanctions to void',
         voidPickCount: 'Pick the sanctions to void in the list above — {n} of {max} picked.',
         voidPickRequired: 'Pick at least one sanction to void.',

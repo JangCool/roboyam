@@ -1,5 +1,5 @@
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { BoardSanctionPreview, BoardStaffQuota } from '~/composables/board/api/useBoardStaffApi.types';
+import type { BoardSanctionPreview, BoardSanctionWho, BoardStaffQuota } from '~/composables/board/api/useBoardStaffApi.types';
 import type { BoardSanctionDialogState, BoardSanctionDialogValue } from '~/components/board/BoardSanctionDialog.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -9,14 +9,29 @@ import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 /** 대화창이 칸 아래에 보이는 서버 `fields` 키 — 그 밖의 키는 폼 아래 한 줄 */
 const FIELD_KEYS: ReadonlySet<string> = new Set(['reasonCode', 'reasonText']);
 
-/** 제재할 작성자 — 누른 글·댓글에서 */
+/**
+ * 제재할 작성자 — 누른 글·댓글에서.
+ * 익명 글·댓글(`author.kind === 'ANONYMOUS'` — anonymous-board-contract 정책 9)이면 `anonymous: true`, `userId` 는 null 이고 `nickname` 은 화면에 보일 이름(「이 글 작성자」·「이 댓글 작성자」 — 닉네임이 아니다).
+ * 그때 요청은 회원 ID 대신 계기 댓글이 있으면 `anonymousCommentId`, 없으면 `anonymousPostId` 로 간다(서버가 작성자를 찾고 계기도 그 글·댓글로 둔다)
+ */
 export interface BoardSanctionTargetRef {
-    userId: string;
+    userId: string | null;
     nickname: string;
+    /** 익명(봉인) 작성자 */
+    anonymous?: boolean;
     /** 계기 글 */
     postId: string | null;
     /** 계기 댓글(댓글 ⋯ 메뉴에서 열었을 때) */
     commentId: string | null;
+}
+
+/** 요청의 대상 칸 — 회원이면 `userId`, 익명이면 그 댓글·글. 가리킬 것이 없으면 null */
+function whoOf(target: BoardSanctionTargetRef): BoardSanctionWho | null {
+    if (target.anonymous) {
+        if (target.commentId) return { anonymousCommentId: target.commentId };
+        return target.postId ? { anonymousPostId: target.postId } : null;
+    }
+    return target.userId ? { userId: target.userId } : null;
 }
 
 /**
@@ -24,7 +39,8 @@ export interface BoardSanctionTargetRef {
  * 한 화면(글 보기)의 값이라 `useState` 에 두지 않는다. 서버와 말하는 것은 `useBoardStaffApi`, 그리기는 `BoardSanctionDialog`.
  * 결과는 오류 **코드**로 가른다(`UtilBoardSanction.outcomeOf`):
  *  - 한도 초과 `409 BOARD_STAFF_DAILY_LIMIT` → 서버 문구 + 남은 0건으로 맞춘다(`limit`·`used`)
- *  - 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED` → 폼 대신 서버 문구(「제재할 수 없는 회원이에요」)
+ *  - 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED` → 폼 대신 서버 문구(「제재할 수 없는 회원이에요」). 익명 작성자가 대상 보호로 막힌 `409 ANONYMOUS_TARGET_UNAVAILABLE`(「지금 이 작성자에게는 제재를 걸 수 없어요.」)도 같다
+ *  - 익명 작성자(`target.anonymous`)는 회원 ID 대신 그 글·댓글로 묻고 주며, 결과 안내에도 닉네임을 쓰지 않는다(「익명 작성자에게 …」)
  *  - 이미 제한 중 `409 BOARD_STAFF_ALREADY_RESTRICTED` → 서버 문구 + 현황을 다시 읽어 제한 단계를 막는다(고른 사유·덧붙임은 그대로)
  *  - 입력 `400 VALIDATION` → `fields.reasonCode|reasonText` 는 칸 아래, `fields.kind|postId|commentId` 는 폼 아래 한 줄 · 권한 없음(403 `BOARD_STAFF_FORBIDDEN`) → 대화창을 닫고 토스트 · 그 밖 → 폼 아래 한 줄
  * 성공·한도 초과 때 게시판의 `viewer.staffTools`(게시판 머리 「오늘 남은 제재 n건」)도 같은 값으로 고친다.
@@ -59,7 +75,8 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
 
     async function loadPreview(options: { silent?: boolean } = {}): Promise<void> {
         const b = board();
-        const who = target.value;
+        const ref = target.value;
+        const who = ref ? whoOf(ref) : null;
         if (!b || !who) return;
         const mine = ++seq;
         abort?.abort();
@@ -71,7 +88,7 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
         }
         loadError.value = '';
         try {
-            const res = await api.preview(b.id, who.userId, controller.signal);
+            const res = await api.preview(b.id, who, controller.signal);
             if (mine !== seq) return;
             preview.value = res;
             state.value = 'ready';
@@ -101,24 +118,29 @@ export function useBoardSanctionForm(board: () => BoardDetail | null) {
 
     async function submit(value: BoardSanctionDialogValue): Promise<void> {
         const b = board();
-        const who = target.value;
-        if (!b || !who || submitting.value) return;
+        const ref = target.value;
+        const who = ref ? whoOf(ref) : null;
+        if (!b || !ref || !who || submitting.value) return;
         submitting.value = true;
         formError.value = '';
         fieldErrors.value = {};
         try {
             const res = await api.issue({
                 boardId: b.id,
-                userId: who.userId,
+                ...who,
                 kind: value.kind,
                 reasonCode: value.reasonCode,
                 reasonText: value.reasonText,
-                postId: who.postId,
-                commentId: who.commentId,
+                // 익명 대상은 계기도 서버가 그 글·댓글로 둔다
+                postId: ref.anonymous ? null : ref.postId,
+                commentId: ref.anonymous ? null : ref.commentId,
             });
             setQuota(res.quota, res.resetsAt);
             visible.value = false;
-            toast.success(UtilBoardSanctionMessages.issuedToast(t, who.nickname, res.kind, res.quota), 5000);
+            toast.success(
+                ref.anonymous ? UtilBoardSanctionMessages.issuedToastSealed(t, res.kind, res.quota) : UtilBoardSanctionMessages.issuedToast(t, ref.nickname, res.kind, res.quota),
+                5000,
+            );
         } catch (e) {
             const outcome = UtilBoardSanction.outcomeOf(e);
             const message = UtilBoardMessages.of(t, e);

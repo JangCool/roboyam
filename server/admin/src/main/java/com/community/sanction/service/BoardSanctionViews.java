@@ -11,7 +11,6 @@ import com.community.sanction.dto.response.MemberBoardSanctionSummaryView;
 import com.community.sanction.dto.response.SanctionAppealRefView;
 import com.community.sanction.dto.response.SanctionUserRefView;
 import com.community.sanction.repository.master.AdminBoardSanctionStore;
-import com.community.sanction.repository.master.BoardSanctionStore;
 import com.community.sanction.repository.master.BoardSanctionStore.BoardSanctionRow;
 import java.time.Instant;
 import java.util.List;
@@ -30,22 +29,26 @@ public class BoardSanctionViews {
     static final int MEMBER_RECENT = 5;
 
     private final BoardSanctionService sanctions;
-    private final BoardSanctionStore store;
     private final AdminBoardSanctionStore adminStore;
 
-    public BoardSanctionViews(BoardSanctionService sanctions, BoardSanctionStore store, AdminBoardSanctionStore adminStore) {
+    public BoardSanctionViews(BoardSanctionService sanctions, AdminBoardSanctionStore adminStore) {
         this.sanctions = sanctions;
-        this.store = store;
         this.adminStore = adminStore;
     }
 
-    /** 그 회원의 게시판 제재 이력(모든 게시판, 최근 것이 위, 최대 30개) */
+    /**
+     * 그 회원의 게시판 제재 이력(모든 게시판, 최근 것이 위, 최대 30개) — 회원 단위 이력(게시판 제재 상세 · 이의제기 상세)이라 봉인 제재(V184) 줄은 뺀다
+     * (anonymous-board-contract 2026-11-11). 셈에는 쓰지 않는다.
+     */
     public List<BoardSanctionLineView> history(long userId) {
         Instant now = sanctions.now();
-        return sanctions.ofUser(userId, MemberSanctionService.HISTORY_MAX).stream().map(r -> line(r, now)).toList();
+        return adminStore.memberLines(userId, MemberSanctionService.HISTORY_MAX).stream().map(r -> line(r, now)).toList();
     }
 
-    /** 회원 상세의 {@code boardSanctions} — 게시판별 수 + 최근 5개 + 열린 반복 검토 수 */
+    /**
+     * 회원 상세의 {@code boardSanctions} — 게시판별 수 + 최근 5개 + 열린 반복 검토 수. 봉인 제재(V184)는 수·최근 줄에서 빼고, 센 제재에 봉인 제재가 하나라도 있는 열린 검토(봉인 검토)는
+     * 세지 않는다(회원 화면에서 익명 글과 이어지지 않게 — anonymous-board-contract 2026-11-11). 규칙의 셈(단계·반복 검토·쓰기 제한)은 그대로 봉인 제재도 센다.
+     */
     public MemberBoardSanctionSummaryView memberSummary(long userId) {
         Instant now = sanctions.now();
         List<MemberBoardSanctionBoardView> boards = adminStore.memberBoards(userId, now).stream()
@@ -54,8 +57,9 @@ public class BoardSanctionViews {
                 .toList();
         long total = boards.stream().mapToLong(b -> b.warningCount() + b.restrictCount()).sum();
         long active = boards.stream().filter(b -> b.activeUntil() != null).count();
-        List<BoardSanctionLineView> recent = sanctions.ofUser(userId, MEMBER_RECENT).stream().map(r -> line(r, now)).toList();
-        return new MemberBoardSanctionSummaryView(total, active, store.openReviewsOf(userId), boards, recent);
+        List<BoardSanctionLineView> recent = adminStore.memberLines(userId, MEMBER_RECENT).stream().map(r -> line(r, now)).toList();
+        int openReviews = (int) adminStore.openReviewsOfUser(userId).stream().filter(r -> sanctions.sealedSource(r).isEmpty()).count();
+        return new MemberBoardSanctionSummaryView(total, active, openReviews, boards, recent);
     }
 
     public static BoardSanctionLineView line(BoardSanctionRow r, Instant now) {

@@ -52,6 +52,11 @@ export default {
     submit: '제재하기',
     issuedToast: '{name} 님에게 {kind} 제재를 줬어요 · 오늘 남은 제재 {n}건',
     issuedToastPlain: '{name} 님에게 {kind} 제재를 줬어요',
+    sealedPostAuthor: '이 글 작성자',
+    sealedCommentAuthor: '이 댓글 작성자',
+    sealedTargetNote: '익명 글이라 닉네임은 보이지 않아요. 제재는 작성자에게 그대로 가요.',
+    issuedToastSealed: '익명 작성자에게 {kind} 제재를 줬어요 · 오늘 남은 제재 {n}건',
+    issuedToastSealedPlain: '익명 작성자에게 {kind} 제재를 줬어요',
 
     /* 게시판 머리 운영 줄 */
     staffBarManager: '게시판 운영 중 · 매니저',
@@ -88,6 +93,9 @@ export default {
     liftNotice: '해제해도 권장 단계 계산에는 그대로 남고, 오늘 한도는 돌려받지 않아요.',
     liftSubmit: '해제하기',
     liftedToast: '{name} 님의 쓰기 제한을 풀었어요.',
+    sealedTarget: '익명 글 작성자',
+    liftTextSealed: '익명 글 작성자의 쓰기 제한({kind})을 지금 풀어요.',
+    liftedToastSealed: '익명 글 작성자의 쓰기 제한을 풀었어요.',
 
     /* 쓰기 제한 안내(받은 회원) */
     restrictedUntil: '이 게시판에서 {date}까지 글·댓글 쓰기가 제한돼요',

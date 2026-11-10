@@ -31,8 +31,11 @@ export type AppealStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
  */
 export type SanctionOptionState = 'NEXT' | 'SKIP' | 'LOWER' | 'BLOCKED';
 
-/** 제재를 줄 수 없는(또는 영구 정지만 되는) 까닭 — 이미 영구 정지 · 정지 중(영구 정지만 가능) */
-export type SanctionBlockedReason = 'ALREADY_BANNED' | 'SUSPENDED';
+/**
+ * 제재를 줄 수 없는(또는 영구 정지만 되는) 까닭 — 이미 영구 정지 · 정지 중(영구 정지만 가능) ·
+ * 봉인된 익명 글 작성자가 대상 보호로 막힘(`UNAVAILABLE` — 신원을 짐작할 수 없게 까닭을 뭉뚱그린다, 모든 단계를 줄 수 없다. 부여는 409 `ANONYMOUS_TARGET_UNAVAILABLE`)
+ */
+export type SanctionBlockedReason = 'ALREADY_BANNED' | 'SUSPENDED' | 'UNAVAILABLE';
 
 /**
  * 제재 대상 회원 — `status` 는 회원 관리의 계정 상태와 같은 값(ACTIVE·SUSPENDED·BANNED …).
@@ -100,6 +103,11 @@ export interface SanctionLine {
     appeal: SanctionAppealRef | null;
     /** 이의제기 마감(시작 + 30일) — 무효면 null */
     appealDeadline: string | null;
+    /**
+     * 봉인 제재(익명 글·댓글로 준 제재 — anonymous-board-contract 정책 9)인가. 회원 단위 현황(`preview?userId=`)의 `active` 에만 온다 —
+     * 회원 단위 화면은 봉인 줄을 이력에서 빼서 받지만, 지금 정지가 봉인 제재 때문이면 `active` 는 그 정지이고 이 칸이 true 다(화면은 「작성자 열람」 안내만, 제재 링크는 그리지 않는다). 옛 응답(칸 없음)은 false
+     */
+    sealed?: boolean;
 }
 
 /** `GET /api/admin/sanctions` 조건 — 빈 값은 보내지 않는다 */
@@ -160,14 +168,20 @@ export interface SanctionPreview {
     options: SanctionOption[];
     /** 진행 중인 정지·영구 정지 — 없으면 null */
     active: SanctionLine | null;
-    /** 이 회원의 제재 전체(최근 것이 위, 최대 30개, 무효 포함) */
+    /** 이 회원의 제재 전체(최근 것이 위, 최대 30개, 무효 포함) — 회원 단위 현황은 봉인 제재 줄을 빼서 준다 */
     history: SanctionLine[];
+    /**
+     * 횟수(`warningCount` 등 서버 값)에 들어간 봉인 제재(익명 글로 받은 제재) 수 — 그 줄은 `history` 에 없다.
+     * 화면은 0 보다 크면 횟수 옆에 「(봉인 n건 포함)」과 「이력에 보이지 않아요」 안내를 붙인다. 옛 응답(칸 없음)은 0
+     */
+    sealedCount?: number;
 }
 
 /**
  * `POST /api/admin/sanctions` → `201 SanctionLine`.
  * 400 `VALIDATION`(`fields.reason` 1~500자 · `fields.confirmNickname` 영구 정지인데 닉네임이 다름 · `fields.skipStep` 다음 단계보다 높은데 건너뛰기가 아님 · `fields.kind`) ·
- * 403 `PERMISSION_DENIED`(영구 정지·건너뛰기에 `sanction.ban` 없음) · 404 `SANCTION_TARGET_NOT_FOUND` · 409 `SANCTION_ALREADY_BANNED`·`SANCTION_ALREADY_SUSPENDED`·`SANCTION_STEP_TOO_LOW`
+ * 403 `PERMISSION_DENIED`(영구 정지·건너뛰기에 `sanction.ban` 없음) · 404 `SANCTION_TARGET_NOT_FOUND` · 409 `SANCTION_ALREADY_BANNED`·`SANCTION_ALREADY_SUSPENDED`·`SANCTION_STEP_TOO_LOW` ·
+ * 409 `ANONYMOUS_TARGET_UNAVAILABLE`(봉인된 익명 글 작성자가 대상 보호로 막힘 — 「지금 이 작성자에게는 제재를 걸 수 없어요.」, 현황은 `blockedReason: 'UNAVAILABLE'`)
  */
 export interface SanctionCreateRequest {
     /** 대상 회원 — 익명 글·댓글 작성자(봉인)에게 줄 때는 비우고 아래 `anonymousPostId`·`anonymousCommentId` 하나를 보낸다(둘 이상이면 400, 익명 글이 아니면 409) */

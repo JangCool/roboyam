@@ -99,9 +99,11 @@ export default {
     none: '없음',
     nextNone: '이미 영구 정지된 회원이에요.',
     nextBanOnly: '정지 중이라 영구 정지만 줄 수 있어요.',
+    nextUnavailable: '지금은 줄 수 없어요.',
     blocked: {
         ALREADY_BANNED: '이미 영구 정지된 회원이에요. 더 줄 수 있는 제재가 없어요.',
         SUSPENDED: '정지 중인 회원이에요. 영구 정지만 줄 수 있어요 — 주면 진행 중인 정지는 끝나고 영구 정지로 바뀌어요.',
+        UNAVAILABLE: '지금 이 작성자에게는 제재를 걸 수 없어요.',
     },
 
     // 이력
@@ -125,6 +127,7 @@ export default {
     choiceDisabled: {
         LOWER: '이미 지난 단계라 줄 수 없어요',
         BLOCKED: '이 회원에게는 줄 수 없어요',
+        UNAVAILABLE: '지금은 줄 수 없어요',
         NO_BAN: '영구 정지·단계 건너뛰기 권한(sanction.ban)이 필요해요',
         NO_MANAGE: '제재 관리 권한(sanction.manage)이 필요해요',
     },

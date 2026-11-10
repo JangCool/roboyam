@@ -3,6 +3,8 @@
         반복 검토 탭의 서랍 — 표 줄을 누르면(또는 `?review=` 로 들어오면) 연다. 게시판 제재 서랍과 같은 구조(표를 가리지 않음 · 바깥 누르면 닫힘 · 이전/다음은 지금 쪽의 줄 순서).
         본문: 요약(상태 · 번호 · 회원 · 게시판 · 7일 건수 · 열린/닫은 시각) + 「여러 게시판」 배지 → 그 게시판에서 받은 최근 제재(처리자 포함, 이 검토가 센 것에 「검토 대상」)
           → 다른 게시판 요약 → 그 회원의 사이트 제재 현황(`SanctionPreviewSummary` — 부른 화면이 `useSanctionPreview` 로 받아 내려 준다) → 닫힌 건이면 닫은 결과.
+          봉인 줄(`user.sealed` — 익명 글 작성자)은 회원 칸이 자물쇠 + 「익명 글 작성자(봉인)」이고, 다른 게시판·사이트 제재 현황·회원 링크 대신 봉인 안내 한 줄.
+          「사이트 제재 부여」는 `sealedSource` 가 있을 때만 고를 수 있다(부른 화면이 「이 글(댓글) 작성자」 대상으로 대화창을 연다).
         바닥(열린 건 + `sanction.manage`): 닫기 셋 중 하나 — 「그대로 둠」 · 「사이트 제재 부여」(부른 화면이 기존 제재 대화창을 열고, 부여되면 그 번호로 닫는다) ·
           「게시판 제재 무효」(본문 목록에서 이 검토가 센 제재를 골라 무효로 하고 닫는다) + 메모 0~200자(선택). `409 BOARD_SANCTION_REVIEW_CLOSED` 는 「이미 닫혔어요 — 다시 불러오기」.
         고른 결과·메모·고른 제재는 다른 검토를 열 때마다 비운다. 서버 호출은 하지 않는다 — `submit` 으로 알린다.
@@ -39,6 +41,7 @@
         <div v-else class="flex flex-col gap-5 pt-1" :aria-busy="loading">
             <DrawerSummary class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
                 <template #item-state><BoardSanctionTag type="review" :status="detail.status" /></template>
+                <template v-if="sealed" #item-member><AnonymousSealedAuthor :label="t('anonymousAuthor.sanctionTarget')" /></template>
             </DrawerSummary>
 
             <p class="m-0 flex flex-wrap items-center gap-2 text-[13px]">
@@ -54,7 +57,12 @@
                 <BoardSanctionHistoryList v-model:selected="voidIds" :lines="detail.sanctions" :show-board="false" link-sanction :marked-ids="detail.reviewSanctionIds" :selectable-ids="picking ? voidableIds : []" :busy="busy" />
             </section>
 
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-others`">
+            <!-- 봉인 줄(익명 글 작성자 — anonymous-board-contract 정책 9) — 회원 이력(다른 게시판 · 사이트 제재 현황)과 회원 링크를 보이지 않는다(신원은 열람 창으로만) -->
+            <p v-if="sealed" class="m-0 flex items-center gap-1.5 rounded-lg border border-dashed border-(--line) px-3 py-2 text-xs text-muted-color" data-testid="board-sanction-review-sealed-note">
+                <i class="pi pi-lock text-[11px]" aria-hidden="true" />{{ t('anonymousAuthor.sanctionSealedNote') }}
+            </p>
+
+            <section v-if="!sealed" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-others`">
                 <h3 :id="`${titleId}-others`" class="text-sm font-semibold">{{ t('boardSanction.review.otherBoardsTitle') }}</h3>
                 <p v-if="!detail.otherBoards.length" class="m-0 text-[13px] text-muted-color">{{ t('boardSanction.review.otherBoardsEmpty') }}</p>
                 <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
@@ -66,7 +74,7 @@
                 </ul>
             </section>
 
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-site`">
+            <section v-if="!sealed" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-site`">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h3 :id="`${titleId}-site`" class="text-sm font-semibold">{{ t('boardSanction.review.siteTitle') }}</h3>
                     <NuxtLink v-if="detail.user.id" :to="{ path: '/sanctions', query: { userId: detail.user.id } }" class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
@@ -108,10 +116,10 @@
                         <legend class="mb-1 text-sm font-semibold">{{ t('boardSanction.review.closeTitle') }}</legend>
                         <p class="m-0 mb-1 text-xs text-muted-color">{{ t('boardSanction.review.closeHelp') }}</p>
                         <div v-for="choice in UtilBoardSanction.REVIEW_RESULTS" :key="choice" class="flex items-start gap-2 rounded-lg border px-3 py-2" :class="result === choice ? 'border-primary' : 'border-(--line)'">
-                            <RadioButton v-model="result" :value="choice" :input-id="`${formId}-${choice}`" :name="`${formId}-result`" :disabled="busy" class="mt-0.5" />
-                            <label :for="`${formId}-${choice}`" class="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5">
+                            <RadioButton v-model="result" :value="choice" :input-id="`${formId}-${choice}`" :name="`${formId}-result`" :disabled="busy || choiceBlocked(choice)" class="mt-0.5" />
+                            <label :for="`${formId}-${choice}`" class="flex min-w-0 flex-1 flex-col gap-0.5" :class="choiceBlocked(choice) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'">
                                 <span class="text-[13px] font-medium">{{ t(`boardSanction.review.choice.${choice}`) }}</span>
-                                <span class="text-xs text-muted-color">{{ t(`boardSanction.review.choiceHelp.${choice}`) }}</span>
+                                <span class="text-xs text-muted-color">{{ choiceHelp(choice) }}</span>
                             </label>
                         </div>
                     </fieldset>
@@ -125,7 +133,7 @@
                     </LabeledField>
                     <Message v-if="formError" severity="error" size="small" variant="simple" :closable="false">{{ formError }}</Message>
                     <div class="flex justify-end">
-                        <Button type="submit" :label="result ? t(`boardSanction.review.submit.${result}`) : t('boardSanction.review.closeTitle')" :icon="submitIcon" :severity="result === 'SITE_SANCTIONED' ? 'danger' : undefined" size="small" :loading="busy" :disabled="busy || !result" />
+                        <Button type="submit" :label="result ? t(`boardSanction.review.submit.${result}`) : t('boardSanction.review.closeTitle')" :icon="submitIcon" :severity="result === 'SITE_SANCTIONED' ? 'danger' : undefined" size="small" :loading="busy" :disabled="busy || !result || choiceBlocked(result)" />
                     </div>
                 </form>
             </div>
@@ -200,6 +208,20 @@ const formId = useId();
 
 const head = computed(() => props.detail ?? props.item);
 const boardName = computed(() => (head.value ? localizedName(head.value.board.name, head.value.board.nameEn) : ''));
+/** 봉인 줄 — 익명 글 작성자(anonymous-board-contract 정책 9) */
+const sealed = computed(() => head.value?.user.sealed === true);
+/** 「사이트 제재 부여」를 줄 대상이 없다 — 봉인 줄인데 가리킬 글·댓글(`sealedSource`)이 없음 등 */
+const siteBlocked = computed(() => Boolean(props.detail && !UtilBoardSanction.reviewIssueTarget(props.detail)));
+
+function choiceBlocked(choice: BoardSanctionReviewResult): boolean {
+    return choice === 'SITE_SANCTIONED' && siteBlocked.value;
+}
+
+function choiceHelp(choice: BoardSanctionReviewResult): string {
+    if (choiceBlocked(choice)) return t('boardSanction.review.siteSealedNoSource');
+    if (choice === 'SITE_SANCTIONED' && sealed.value) return t('boardSanction.review.siteSealedHelp');
+    return t(`boardSanction.review.choiceHelp.${choice}`);
+}
 
 const result = ref<BoardSanctionReviewResult | null>(null);
 const memo = ref('');
@@ -240,7 +262,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
 });
 
 function send(): void {
-    if (props.busy || !result.value) return;
+    if (props.busy || !result.value || choiceBlocked(result.value)) return;
     tried.value = true;
     if (memoError.value) return;
     if (result.value === 'VOIDED' && voidIds.value.length === 0) return;

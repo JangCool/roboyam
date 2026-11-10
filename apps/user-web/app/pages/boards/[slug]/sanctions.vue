@@ -57,7 +57,8 @@
                             <span :class="[TAG, UtilSanction.toneClass(UtilBoardSanction.statusTone(row.kind, row.status))]">
                                 <span class="relative top-[-0.09em]">{{ UtilBoardSanctionMessages.statusLabel(t, row.kind, row.status) }}</span>
                             </span>
-                            <b class="min-w-0 truncate text-sm font-semibold">{{ row.target.nickname }}</b>
+                            <!-- 봉인된 익명 글 작성자(`target.sealed` — anonymous-board-contract 정책 9)는 닉네임 대신 익명 아이콘 + 「익명 글 작성자」 -->
+                            <b class="flex min-w-0 items-center gap-1 text-sm font-semibold"><AnonymousAuthorIcon v-if="row.target.sealed" class="text-muted-color" /><span class="truncate">{{ UtilBoardSanctionMessages.targetName(t, row.target) }}</span></b>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">#{{ row.no }} · {{ time.date(row.createdAt) }}</span>
                         </p>
                         <p class="mb-0 mt-1.5 break-words text-sm leading-snug [overflow-wrap:anywhere]" :class="row.status === 'VOIDED' ? 'text-muted-color line-through decoration-surface-400' : ''">
@@ -86,7 +87,7 @@
         <!-- 해제(매니저) — 사유 필수 -->
         <Dialog v-model:visible="liftOpen" modal :header="t('boardSanction.liftTitle')" :style="{ width: 'min(26rem, calc(100vw - 2rem))' }" :draggable="false">
             <form v-if="liftTarget" class="flex flex-col gap-3" novalidate @submit.prevent="submitLift">
-                <p class="m-0 text-sm">{{ t('boardSanction.liftText', { name: liftTarget.target.nickname, kind: UtilBoardSanctionMessages.kindLabel(t, liftTarget.kind) }) }}</p>
+                <p class="m-0 text-sm">{{ liftTarget.target.sealed ? t('boardSanction.liftTextSealed', { kind: UtilBoardSanctionMessages.kindLabel(t, liftTarget.kind) }) : t('boardSanction.liftText', { name: liftTarget.target.nickname ?? '', kind: UtilBoardSanctionMessages.kindLabel(t, liftTarget.kind) }) }}</p>
                 <LabeledField :label="t('boardSanction.liftReasonLabel')" :error="liftReasonError">
                     <template #aside>
                         <span class="text-xs tabular-nums text-muted-color">{{ t('boardSanction.textCounter', { n: UtilBoardSanction.textLength(liftReason), max: UtilBoardSanction.LIFT_REASON_MAX }) }}</span>
@@ -236,7 +237,7 @@ async function submitLift(): Promise<void> {
         const updated = await staffApi.lift(row.id, { reason: liftReason.value.trim() });
         if (page.value) page.value = { ...page.value, items: page.value.items.map((r) => (r.id === updated.id ? updated : r)) };
         liftOpen.value = false;
-        toast.success(t('boardSanction.liftedToast', { name: updated.target.nickname }));
+        toast.success(updated.target.sealed ? t('boardSanction.liftedToastSealed') : t('boardSanction.liftedToast', { name: updated.target.nickname ?? '' }));
     } catch (e) {
         if (e instanceof ApiError && e.field('reason')) liftFieldError.value = e.field('reason') ?? '';
         else if (e instanceof ApiError && (e.code === 'BOARD_SANCTION_NOT_LIFTABLE' || e.status === 403 || e.status === 404)) {

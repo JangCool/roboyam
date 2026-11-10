@@ -1,6 +1,13 @@
 import type { LocationQuery } from 'vue-router';
 import type { BoardSanctionKind, BoardSanctionLine, BoardSanctionQuery, BoardSanctionReasonCode } from '~/composables/sanction/api/useBoardSanctionApi.types';
-import type { BoardSanctionReviewDetail, BoardSanctionReviewQuery, BoardSanctionReviewResult, BoardSanctionReviewStatus } from '~/composables/sanction/api/useBoardSanctionReviewApi.types';
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
+import type {
+    BoardSanctionReviewDetail,
+    BoardSanctionReviewItem,
+    BoardSanctionReviewQuery,
+    BoardSanctionReviewResult,
+    BoardSanctionReviewStatus,
+} from '~/composables/sanction/api/useBoardSanctionReviewApi.types';
 import type { SanctionScope, SanctionSearchField, SanctionSort } from '~/composables/sanction/api/useSanctionApi.types';
 import UtilMember from '~/utils/util-member';
 import UtilSanction from '~/utils/util-sanction';
@@ -189,6 +196,19 @@ export default class UtilBoardSanction {
     /** 반복 검토에서 「게시판 제재 무효」로 고를 수 있는 제재 — 이 검토가 센 것 중 무효가 아닌 것 */
     static voidable(detail: Pick<BoardSanctionReviewDetail, 'sanctions' | 'reviewSanctionIds'>): BoardSanctionLine[] {
         return detail.sanctions.filter((l) => detail.reviewSanctionIds.includes(l.id) && l.status !== 'VOIDED');
+    }
+
+    /**
+     * 반복 검토 「사이트 제재 부여」의 대상 — 회원 줄은 그 회원, 봉인 줄(`user.sealed`, 익명 글 작성자)은 `sealedSource` 의 글·댓글(「이 글(댓글) 작성자」 — anonymous-board-contract 정책 9).
+     * @returns 대상. 회원 ID 가 없거나 봉인 줄인데 가리킬 글·댓글이 없으면 null(사이트 제재를 줄 수 없다).
+     */
+    static reviewIssueTarget(item: Pick<BoardSanctionReviewItem, 'user' | 'sealedSource'>): { id: string; nickname: string; anonymous: AnonymousTarget | null } | null {
+        if (item.user.sealed) {
+            const source = item.sealedSource;
+            if (!source || !(source.commentId || source.postId)) return null;
+            return { id: '', nickname: '', anonymous: { postId: source.postId, commentId: source.commentId } };
+        }
+        return item.user.id ? { id: item.user.id, nickname: item.user.nickname ?? '', anonymous: null } : null;
     }
 
     /** 「여러 게시판」 배지 — 최근 7일 안 2곳 이상 */

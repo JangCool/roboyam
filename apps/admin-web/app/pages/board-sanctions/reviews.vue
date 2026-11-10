@@ -7,6 +7,8 @@
         - 서랍 `?review=`(`BoardSanctionReviewDrawer`): 그 게시판 최근 제재(처리자 포함) · 다른 게시판 요약 · 사이트 제재 현황(`useSanctionPreview`) · 닫기 셋 + 메모(0~200자).
           「사이트 제재 부여」는 기존 제재 대화창(`SanctionIssueDialog` · `useSanctionIssue`, 회원 고정)을 열고, 부여에 성공하면 그 제재 번호로 `SITE_SANCTIONED` 닫기를 보낸다.
           닫기가 실패해도 준 사이트 제재는 남는다(토스트로 알린다). `409 BOARD_SANCTION_REVIEW_CLOSED` 는 서랍 안 「이미 닫혔어요 — 다시 불러오기」.
+        - 봉인 줄(`user.sealed` — 익명 글 작성자, anonymous-board-contract 정책 9): 회원 칸은 자물쇠 + 「익명 글 작성자(봉인)」, 서랍은 회원 링크·다른 게시판·사이트 제재 현황 대신 봉인 안내.
+          「사이트 제재 부여」는 같은 대화창을 「이 글(댓글) 작성자」 대상(`sealedSource` → `anonymousPostId`·`anonymousCommentId`, 현황도 같은 칸)으로 연다. `sealedSource` 가 없으면 고를 수 없다.
         - 권한: 보기 `sanction.read`(메뉴), 닫기 `sanction.manage`(사이트 제재 단계는 대화창이 `sanction.manage`·`sanction.ban` 으로 가른다).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -65,7 +67,11 @@
                     </Column>
                     <Column :header="t('boardSanction.review.col.member')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ UtilSanctionMessages.userName(t, data.user) }}</button>
+                            <!-- 봉인 줄(익명 글 작성자 — anonymous-board-contract 정책 9)은 자물쇠 + 「익명 글 작성자(봉인)」 -->
+                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">
+                                <AnonymousSealedAuthor v-if="data.user.sealed" :label="t('anonymousAuthor.sanctionTarget')" />
+                                <template v-else>{{ UtilSanctionMessages.userName(t, data.user) }}</template>
+                            </button>
                         </template>
                     </Column>
                     <Column :header="t('boardSanction.review.col.board')" style="min-width: 7rem">
@@ -344,11 +350,16 @@ function submitClose(payload: { result: BoardSanctionReviewResult; memo: string 
     const current = detail.value;
     if (!id || !current || acting.value) return;
     if (payload.result === 'SITE_SANCTIONED') {
-        // 기존 사이트 제재 대화창 — 회원 고정. 부여에 성공하면 `submitIssue` 가 닫는다
+        // 기존 사이트 제재 대화창 — 대상 고정. 부여에 성공하면 `submitIssue` 가 닫는다
+        const target = UtilBoardSanction.reviewIssueTarget(current);
+        if (!target) return;
         pendingSite.value = { reviewId: id, memo: payload.memo };
-        // 봉인된 익명 글 작성자(회원 ID 없음)는 회원 고정 대화창을 열 수 없다 — 그런 검토 줄은 서버가 만들지 않는 것으로 본다(가정)
-        if (!current.user.id) return;
-        issue.start({ id: current.user.id, nickname: current.user.nickname ?? '' });
+        // 봉인 줄(익명 글 작성자)은 「이 글(댓글) 작성자」 대상 — 회원 ID 대신 `sealedSource` 의 글·댓글을 보낸다(anonymous-board-contract 정책 9)
+        issue.start(
+            target.anonymous
+                ? { id: '', nickname: target.anonymous.commentId ? t('anonymousAuthor.thisCommentAuthor') : t('anonymousAuthor.thisPostAuthor'), anonymous: target.anonymous }
+                : { id: target.id, nickname: target.nickname },
+        );
         return;
     }
     void close(id, { result: payload.result, memo: payload.memo, siteSanctionId: null, voidSanctionIds: payload.voidSanctionIds });

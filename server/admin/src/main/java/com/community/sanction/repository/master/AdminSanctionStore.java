@@ -56,7 +56,7 @@ public class AdminSanctionStore extends RoboyamRepositoryQDSL {
 
     /** 대시보드의 오래된 대기 이의제기 한 줄 */
     /** @param kind 사이트 제재 단계, 게시판 제재면 {@code BOARD_} + 단계(번들 {@code member.sanction.kind.BOARD_*}) */
-    public record PendingAppealRow(long id, String nickname, String kind, Integer warningNo, Instant appealedAt) {
+    public record PendingAppealRow(long id, String nickname, String kind, Integer warningNo, Instant appealedAt, boolean sealed) {
     }
 
     private final MemberSanctionStore store;
@@ -129,6 +129,7 @@ public class AdminSanctionStore extends RoboyamRepositoryQDSL {
         }
         if (f.userId() != null) {
             parts.add(S.userId.eq(f.userId()));
+            parts.add(S.sealed.isFalse()); // 회원으로 거른 목록(회원 상세 · 「이 회원 제재 보기」)에는 봉인 제재(V184)를 싣지 않는다 — anonymous-board-contract 2026-11-11
         }
         return parts.stream().reduce(BooleanExpression::and).orElse(null);
     }
@@ -188,7 +189,7 @@ public class AdminSanctionStore extends RoboyamRepositoryQDSL {
 
     /** 대기 이의제기 오래된 차례(대시보드) — 색인 {@code ix_sanction_appeals_pending}. 게시판 제재 이의제기(V137)도 — 사이트 제재 · 게시판 제재 중 하나만 있다 */
     public List<PendingAppealRow> oldestPending(int limit) {
-        return query.select(A.id, APPELLANT.nickname, SITE.kind, BOARD.kind, SITE.warningNo, A.createdAt).from(A)
+        return query.select(A.id, APPELLANT.nickname, SITE.kind, BOARD.kind, SITE.warningNo, A.createdAt, SITE.sealed, BOARD.sealed).from(A)
                 .leftJoin(SITE).on(SITE.id.eq(A.sanctionId)).leftJoin(BOARD).on(BOARD.id.eq(A.boardSanctionId))
                 .leftJoin(APPELLANT).on(APPELLANT.userId.eq(A.userId))
                 .where(A.status.eq(AppealStatus.PENDING)).orderBy(A.createdAt.asc(), A.id.asc()).limit(limit).fetch().stream()
@@ -196,7 +197,9 @@ public class AdminSanctionStore extends RoboyamRepositoryQDSL {
                     SanctionKind site = t.get(SITE.kind);
                     BoardSanctionKind board = t.get(BOARD.kind);
                     String kind = site != null ? site.name() : board != null ? "BOARD_" + board.name() : null;
-                    return new PendingAppealRow(t.get(A.id), t.get(APPELLANT.nickname), kind, t.get(SITE.warningNo), t.get(A.createdAt));
+                    // 익명 글로 받은 봉인 제재의 이의제기는 닉네임을 싣지 않는다(anonymous-board-contract 정책 8·9)
+                    boolean sealed = Boolean.TRUE.equals(t.get(SITE.sealed)) || Boolean.TRUE.equals(t.get(BOARD.sealed));
+                    return new PendingAppealRow(t.get(A.id), sealed ? null : t.get(APPELLANT.nickname), kind, t.get(SITE.warningNo), t.get(A.createdAt), sealed);
                 }).toList();
     }
 

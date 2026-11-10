@@ -192,7 +192,8 @@ export default class UtilBoardSanction {
         if (!(e instanceof ApiError)) return 'OTHER';
         if (e.code === 'UNAUTHENTICATED' || e.status === 401) return 'LOGIN';
         if (e.code === 'BOARD_STAFF_DAILY_LIMIT') return 'DAILY_LIMIT';
-        if (e.code === 'BOARD_STAFF_TARGET_PROTECTED') return 'TARGET_PROTECTED';
+        // 익명 글·댓글 작성자가 대상 보호로 막힘(`ANONYMOUS_TARGET_UNAVAILABLE` — 「지금 이 작성자에게는 제재를 걸 수 없어요.」)도 받을 수 없는 대상과 같이 폼 대신 서버 문구
+        if (e.code === 'BOARD_STAFF_TARGET_PROTECTED' || e.code === 'ANONYMOUS_TARGET_UNAVAILABLE') return 'TARGET_PROTECTED';
         if (e.code === 'BOARD_STAFF_ALREADY_RESTRICTED') return 'ALREADY_RESTRICTED';
         if (e.code === 'VALIDATION') return 'VALIDATION';
         if (e.status === 403) return 'FORBIDDEN';

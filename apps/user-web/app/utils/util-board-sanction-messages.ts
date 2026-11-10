@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { BoardSanctionKind, BoardSanctionPreview, BoardStaffQuota, BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
+import type { BoardSanctionKind, BoardSanctionPreview, BoardSanctionTarget, BoardStaffQuota, BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import type { MyBoardSanction } from '~/composables/sanction/api/useSanctionApi.types';
 import type { BoardSanctionTextProblem } from '~/utils/util-board-sanction';
 import UtilBoardSanction from '~/utils/util-board-sanction';
@@ -161,6 +161,28 @@ export default class UtilBoardSanctionMessages {
     static issuedToast(t: Translate, nickname: string, kind: string, quota: BoardStaffQuota | null): string {
         if (!quota) return t('boardSanction.issuedToastPlain', { name: nickname, kind: UtilBoardSanctionMessages.kindLabel(t, kind) });
         return t('boardSanction.issuedToast', { name: nickname, kind: UtilBoardSanctionMessages.kindLabel(t, kind), n: Math.max(0, quota.remaining) });
+    }
+
+    /**
+     * 익명 글·댓글 작성자(봉인)에게 준 뒤의 토스트 — 닉네임을 쓰지 않는다(anonymous-board-contract 정책 9)
+     * @param {Translate} t - 번역 함수.
+     * @param {string} kind - 준 단계.
+     * @param {BoardStaffQuota | null} quota - 남은 한도(null = 한도 없음).
+     * @returns {string} 글자.
+     */
+    static issuedToastSealed(t: Translate, kind: string, quota: BoardStaffQuota | null): string {
+        if (!quota) return t('boardSanction.issuedToastSealedPlain', { kind: UtilBoardSanctionMessages.kindLabel(t, kind) });
+        return t('boardSanction.issuedToastSealed', { kind: UtilBoardSanctionMessages.kindLabel(t, kind), n: Math.max(0, quota.remaining) });
+    }
+
+    /**
+     * 제재 내역의 대상 이름 — 봉인된 익명 글 작성자면 「익명 글 작성자」(닉네임 없음)
+     * @param {Translate} t - 번역 함수.
+     * @param {BoardSanctionTarget} target - 대상.
+     * @returns {string} 이름.
+     */
+    static targetName(t: Translate, target: BoardSanctionTarget): string {
+        return target.sealed ? t('boardSanction.sealedTarget') : (target.nickname ?? '');
     }
 
     /**

@@ -18,6 +18,7 @@ import com.community.permission.entity.Permission;
 import com.community.point.service.PointService;
 import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
+import com.community.post.exception.AnonymousTargetUnavailableException;
 import com.community.post.exception.PostStateInvalidException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
@@ -241,8 +242,11 @@ public class BoardStaffActionService {
         Who who = requireAble(post.getBoardId(), actorId, permission, Permission.POST_MANAGE); // 그새 옮겨졌을 수 있다 — 잠근 글의 게시판으로 다시
         long boardId = post.getBoardId();
         Instant now = now();
-        if (post.isGroupPost() || groupBoard(boardId) || notice(post) || post.getPinnedAt() != null || protectedAuthor(boardId, post.getAuthorId(), actorId, who)) {
+        if (post.isGroupPost() || groupBoard(boardId) || notice(post) || post.getPinnedAt() != null) {
             throw BoardStaffActionException.targetProtected();
+        }
+        if (protectedAuthor(boardId, post.getAuthorId(), actorId, who)) {
+            throw authorProtected(post.isAnonymous());
         }
         if (hide ? post.isGoneAt(now) || post.isHiddenAt(now) : post.isGoneAt(now)) {
             throw new PostStateInvalidException();
@@ -304,8 +308,11 @@ public class BoardStaffActionService {
         Who who = requireAble(post.getBoardId(), actorId, MemberPermission.BOARD_COMMENT_DELETE, Permission.POST_MANAGE);
         long boardId = post.getBoardId();
         Instant now = now();
-        if (post.isGroupPost() || groupBoard(boardId) || protectedAuthor(boardId, comment.getAuthorId(), actorId, who)) {
+        if (post.isGroupPost() || groupBoard(boardId)) {
             throw BoardStaffActionException.targetProtected();
+        }
+        if (protectedAuthor(boardId, comment.getAuthorId(), actorId, who)) {
+            throw authorProtected(comment.isAnonymous());
         }
         if (comment.isDeleted() || post.isGoneAt(now)) {
             throw BoardStaffActionException.commentStateInvalid();
@@ -538,6 +545,14 @@ public class BoardStaffActionService {
             return true; // 본인 · 운영자 회원 계정의 것(정책 7 — 매니저·스텝도 다른 운영자 회원 계정도 처리하지 못한다)
         }
         return !who.isOperator() && store.staffOf(boardId, authorId); // 운영자 회원 계정은 매니저·스텝의 것을 처리할 수 있다(감독)
+    }
+
+    /**
+     * 작성자 보호 409 — 익명 글·댓글(V184)이면 까닭(본인 · 운영자 회원 계정 · 매니저·스텝)을 가린 {@code ANONYMOUS_TARGET_UNAVAILABLE}(작성자 신분이 드러나지 않게 —
+     * anonymous-board-contract 2026-11-11). 공지·고정·소모임 보호는 신분과 무관해 그대로 {@code BOARD_STAFF_TARGET_PROTECTED}.
+     */
+    private static RuntimeException authorProtected(boolean anonymous) {
+        return anonymous ? new AnonymousTargetUnavailableException() : BoardStaffActionException.targetProtected();
     }
 
     private boolean groupBoard(long boardId) {

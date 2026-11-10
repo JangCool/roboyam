@@ -3,6 +3,7 @@ import type {
     BoardSanctionIssueRequest,
     BoardSanctionLiftRequest,
     BoardSanctionPreview,
+    BoardSanctionWho,
     BoardStaffActionDone,
     BoardStaffActionPage,
     BoardStaffActionQuery,
@@ -22,6 +23,8 @@ import type {
  *
  * 제재(`board.sanction.issue`):
  *  - `GET  /api/board-staff/sanctions/preview?boardId=&userId=` → `BoardSanctionPreview` · `403 BOARD_STAFF_FORBIDDEN` · `409 BOARD_STAFF_TARGET_PROTECTED`
+ *    · 익명 글·댓글 작성자(anonymous-board-contract 정책 9)는 `userId` 대신 `anonymousPostId`·`anonymousCommentId`(POST 도 같다) — 대상은 `target.sealed: true`, 대상 보호로 막히면 `409 ANONYMOUS_TARGET_UNAVAILABLE`
+ *      · 익명 글이 아니면 `409 NOT_ANONYMOUS` · 글·댓글이 없으면 `404 ANONYMOUS_TARGET_NOT_FOUND`
  *  - `POST /api/board-staff/sanctions` `BoardSanctionIssueRequest` → `201 BoardSanctionIssued` · `400 VALIDATION fields.kind|reasonCode|reasonText|postId|commentId` · `403 BOARD_STAFF_FORBIDDEN`
  *    · `409 BOARD_STAFF_TARGET_PROTECTED` · `409 BOARD_STAFF_ALREADY_RESTRICTED` · `409 BOARD_STAFF_DAILY_LIMIT`(본문 최상위 `limit`·`used`·`resetsAt`)
  *  - `GET  /api/board-staff/boards/{boardId}/sanctions?scope=ALL|ACTIVE|ENDED&page=`(1부터, 20개) → `BoardStaffSanctionPage` · 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`
@@ -55,9 +58,9 @@ export function useBoardStaffApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        /** 제재 대화창의 현황 — 그 게시판에서 대상이 받은 제재 수·진행 중 제한·권장 단계·오늘 남은 한도 */
-        preview: (boardId: string, userId: string, signal?: AbortSignal): Promise<BoardSanctionPreview> =>
-            client.get<BoardSanctionPreview>(PATH.preview, { query: { boardId, userId }, signal }),
+        /** 제재 대화창의 현황 — 그 게시판에서 대상이 받은 제재 수·진행 중 제한·권장 단계·오늘 남은 한도. 익명 글·댓글 작성자는 회원 ID 대신 그 글·댓글(`BoardSanctionWho`) */
+        preview: (boardId: string, who: BoardSanctionWho, signal?: AbortSignal): Promise<BoardSanctionPreview> =>
+            client.get<BoardSanctionPreview>(PATH.preview, { query: { boardId, ...who }, signal }),
 
         /** 제재 주기 */
         issue: (body: BoardSanctionIssueRequest): Promise<BoardSanctionIssued> => client.post<BoardSanctionIssued>(PATH.sanctions, body),

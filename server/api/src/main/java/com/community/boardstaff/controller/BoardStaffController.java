@@ -37,7 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <ul>
  *   <li>{@code GET /api/board-staff/sanctions/preview?boardId=&userId=} → {@code BoardSanctionPreview} · 403 {@code BOARD_STAFF_FORBIDDEN} ·
- *       409 {@code BOARD_STAFF_TARGET_PROTECTED}</li>
+ *       409 {@code BOARD_STAFF_TARGET_PROTECTED}(익명 대상 {@code anonymousPostId|anonymousCommentId} 이거나 익명 글·댓글의 스텝 처리면 작성자 보호는 까닭을 가린 409
+ *       {@code ANONYMOUS_TARGET_UNAVAILABLE} — 부여·스텝 처리도 같다)</li>
  *   <li>{@code POST /api/board-staff/sanctions} → 201 {@code BoardSanctionIssued} · 400 {@code fields.kind|reasonCode|reasonText|postId|commentId} · 403 ·
  *       409 {@code BOARD_STAFF_TARGET_PROTECTED}·{@code BOARD_STAFF_ALREADY_RESTRICTED}·{@code BOARD_STAFF_DAILY_LIMIT}(+{@code limit}·{@code used}·{@code resetsAt})</li>
  *   <li>{@code GET /api/board-staff/boards/{boardId}/sanctions?scope=ALL|ACTIVE|ENDED&page=} → {@code BoardStaffSanctionPage} · 404 {@code BOARD_STAFF_NOT_FOUND}</li>

@@ -10,9 +10,11 @@ import java.time.Instant;
  * @param endsAt         기간 정지만
  * @param endedAt        기간 끝·영구 정지로 대체돼 끝난 시각
  * @param appealDeadline 이의제기 마감(시작 + 30일) — 무효면 null
+ * @param sealed         「이 글/댓글 작성자」로 건 봉인 제재(익명 — V184)인가({@code user.sealed} 와 같은 값, 일반 줄은 false). 회원 대상 현황({@code preview?userId=})의
+ *                       {@code active} 가 봉인 제재면 이 값이 true 이고 {@code reportCase} 는 null 이다(계기 신고로 익명 글과 이어지지 않게 — anonymous-board-contract 2026-11-11)
  */
 public record SanctionLineView(String id, long no, String kind, String status, int rank, Integer warningNo, boolean skipped, SanctionUserRefView user,
                                Instant startsAt, Instant endsAt, String reason, SanctionActorRefView issuedBy, Instant createdAt, SanctionReportRefView reportCase,
                                SanctionActorRefView liftedBy, Instant liftedAt, String liftReason, Instant voidedAt, Instant endedAt, SanctionAppealRefView appeal,
-                               Instant appealDeadline) {
+                               Instant appealDeadline, boolean sealed) {
 }

@@ -1,3 +1,4 @@
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
 import type { BoardSanctionBoardRef, BoardSanctionLine } from '~/composables/sanction/api/useBoardSanctionApi.types';
 import type { SanctionActorRef, SanctionKind, SanctionUserRef } from '~/composables/sanction/api/useSanctionApi.types';
 
@@ -18,7 +19,13 @@ export interface BoardSanctionReviewItem {
     /** 사람이 읽는 번호 */
     no: number;
     status: BoardSanctionReviewStatus;
+    /** 익명 게시판 글·댓글로 받은 봉인 제재의 검토면 `sealed: true`(`id`·`nickname` null — anonymous-board-contract 정책 9). 화면은 「익명 글 작성자(봉인)」, 회원 링크·회원 이력을 보이지 않는다 */
     user: SanctionUserRef;
+    /**
+     * 봉인 줄(`user.sealed`)의 작성자를 가리킬 익명 글·댓글 — 「사이트 제재 부여」가 「이 글(댓글) 작성자」 대상(`anonymousPostId`·`anonymousCommentId`)으로 쓴다.
+     * 봉인 줄이 아니면 null. 봉인 줄인데 null 이면(가리킬 글·댓글이 없음) 사이트 제재를 줄 수 없다. 옛 응답(칸 없음)은 null 과 같다
+     */
+    sealedSource?: AnonymousTarget | null;
     board: BoardSanctionBoardRef;
     /** 열린 건은 지금 기준, 닫힌 건은 닫은 때 기준 — 이 게시판에서 최근 7일 안 VOIDED 아닌 제재 수 */
     recentCount: number;
