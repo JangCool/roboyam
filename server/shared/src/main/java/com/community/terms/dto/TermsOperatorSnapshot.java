@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
  * @param privacyOfficer 개인정보 보호책임자 이름(「같음」이면 운영자 이름)
  */
 public record TermsOperatorSnapshot(String stage, String operatorName, String contactEmail, String phone, String privacyOfficer, String privacyOfficerEmail,
-                                    String hostingProvider, String businessName, String representative, String registrationNumber, String corporateNumber,
+                                    String hostingProvider, String mailProvider, String businessName, String representative, String registrationNumber, String corporateNumber,
                                     String address, String mailOrderNumber, String mailOrderAuthority, String serviceName) {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -22,7 +22,7 @@ public record TermsOperatorSnapshot(String stage, String operatorName, String co
         SiteOperatorValues.Business b = v.business();
         String officerEmail = v.privacyOfficerSameAsOperator() ? v.contactEmail() : v.privacyOfficerEmail();
         return new TermsOperatorSnapshot(v.stage().name(), v.operatorName(), blank(v.contactEmail()), v.phone(), blank(v.privacyOfficer()), blank(officerEmail),
-                v.hostingProvider(), b == null ? null : blank(b.businessName()), b == null ? null : blank(b.representative()),
+                v.hostingProvider(), v.mailProvider(), b == null ? null : blank(b.businessName()), b == null ? null : blank(b.representative()),
                 b == null ? null : blank(b.registrationNumber()), b == null ? null : b.corporateNumber(), b == null ? null : blank(b.address()),
                 b == null ? null : b.mailOrderNumber(), b == null ? null : b.mailOrderAuthority(), blank(serviceName));
     }

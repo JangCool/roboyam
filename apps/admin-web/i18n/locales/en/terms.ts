@@ -96,18 +96,21 @@ export default {
     copyTitle: 'Replace the draft?',
     copyMessage: 'This replaces the draft in the editor with the text of version {version}. Click [Save draft] to keep it.',
     copyConfirm: 'Replace',
-    copied: 'Put version {version} text in the editor. Click [Save draft] to keep it.',
+    copied: 'Put version {version} text in the editor. Click [Save draft] to keep it. Published text has its placeholders already replaced, so it will not follow later operator changes.',
 
     // ── Placeholders · default text · preview ──
-    placeholderTitle: 'Insert placeholder',
+    placeholderTitle: 'Placeholders — click to insert at the cursor',
     placeholderInsert: 'Insert {token} — {hint}',
     placeholderHint: {
         operator: 'How the operator is called — "운영자" for individuals and sole proprietors, "회사" for corporations',
+        operatorName: 'Actual name — operator name for individuals, business name for sole proprietors, company name for corporations',
         serviceName: 'Site name',
         operatorInfo: 'Operator details list — name and email for individuals; business name, representative, registration number, address and more for businesses',
         officer: 'Privacy officer name',
         officerContact: 'Privacy officer contact (email, phone)',
         contactEmail: 'Contact email',
+        hostingProvider: 'Hosting provider (operator settings)',
+        mailProvider: 'Email delivery provider (operator settings)',
         effectiveDate: 'Effective date (YYYY년 M월 D일)',
     },
     templateFill: 'Start draft from default text',
@@ -120,6 +123,7 @@ export default {
     previewCaption: 'Placeholders replaced using the current operator ({operator}) and effective date {date}. Published versions use the operator values at the time of publishing.',
     previewUnknown: 'Unknown placeholders: {names}. They stay as plain text.',
     previewEmpty: 'The editor is empty',
+    previewEmptyValue: 'Some placeholders have no value in the operator settings: {names}. They become blank, so the draft cannot be published as is — fill them in under Settings > Operator or remove them from the text.',
 
     // ── Leaving ──
     leaveTitle: 'You have an unsaved draft',

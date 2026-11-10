@@ -3,7 +3,9 @@
  * - 실제 동작과 맞춘 것: 신고 사유 6종(report-admin-contract), 자동 숨김·복구, 사이트 제재 단계·이의제기 30일(member-sanction-contract),
  *   게시판 매니저·스텝 제재(board-sanction-contract), 19금 글(adult-content-contract), 재가입 제한 30일(member-withdrawal-contract · commerce.md 17-2).
  *   이 기능들의 규칙이 바뀌면 이 문안도 고쳐 새 버전으로 게시한다.
- * - 자리표시 규칙은 `utils/util-terms-placeholder.ts`. 법률 검토 전 초안이다(2026-11-06).
+ * - 쓰는 자리표시(게시할 때 운영 주체 값으로 바뀐다 — 규칙: `utils/util-terms-placeholder.ts`):
+ *     `{{서비스이름}}`(1절) · `{{운영자}}`(호칭) · `{{연락이메일}}`(3-3 게시 중단 요청·8절 문의) · `{{시행일}}`(부칙)
+ * - 법률 검토 전 초안이다(2026-11-06).
  */
 export default `<h2>1. 이 정책에 대하여</h2>
 <p>이 운영정책은 {{서비스이름}} 이용약관 제5조에 따라, 이용자가 함께 지켜야 할 규칙과 {{운영자}}가 게시물·회원을 관리하는 기준을 정합니다. 이 정책에서 정하지 않은 것은 이용약관과 관계 법령을 따릅니다.</p>

@@ -12,8 +12,8 @@ import java.util.List;
  * @param updatedAt         마지막 저장 시각(저장한 적 없으면 null)
  */
 public record SiteOperatorResponse(String stage, String operatorName, String contactEmail, String phone, boolean privacyOfficerSameAsOperator,
-                                   String privacyOfficerName, String privacyOfficerEmail, String hostingProvider, Business business, String footerNotice,
-                                   String footerNoticeScope, Instant updatedAt, List<StageChange> history) {
+                                   String privacyOfficerName, String privacyOfficerEmail, String hostingProvider, String mailProvider, Business business,
+                                   String footerNotice, String footerNoticeScope, Instant updatedAt, List<StageChange> history) {
 
     public record Business(String businessName, String representative, String registrationNumber, String address, String mailOrderNumber,
                            String mailOrderAuthority, String corporateNumber) {

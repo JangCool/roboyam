@@ -10,6 +10,7 @@ export interface SiteOperatorForm {
     privacyOfficerName: string;
     privacyOfficerEmail: string;
     hostingProvider: string;
+    mailProvider: string;
     businessName: string;
     representative: string;
     registrationNumber: string;
@@ -46,6 +47,7 @@ export default class UtilSiteOperator {
         'privacyOfficerName',
         'privacyOfficerEmail',
         'hostingProvider',
+        'mailProvider',
         ...BUSINESS_FIELDS,
         'footerNotice',
     ];
@@ -107,6 +109,7 @@ export default class UtilSiteOperator {
             privacyOfficerName: profile.privacyOfficerName ?? '',
             privacyOfficerEmail: profile.privacyOfficerEmail ?? '',
             hostingProvider: profile.hostingProvider ?? '',
+            mailProvider: profile.mailProvider ?? '',
             businessName: b?.businessName ?? '',
             representative: b?.representative ?? '',
             registrationNumber: b?.registrationNumber ?? '',
@@ -136,6 +139,7 @@ export default class UtilSiteOperator {
             privacyOfficerName: same ? null : opt(form.privacyOfficerName),
             privacyOfficerEmail: same ? null : opt(form.privacyOfficerEmail),
             hostingProvider: opt(form.hostingProvider),
+            mailProvider: opt(form.mailProvider),
             business: UtilSiteOperator.isBusiness(form.stage)
                 ? {
                       businessName: form.businessName.trim(),
@@ -205,6 +209,7 @@ export default class UtilSiteOperator {
             need('privacyOfficerEmail', true, email);
         }
         need('hostingProvider', false);
+        need('mailProvider', false);
         if (business) {
             need('businessName', true);
             need('representative', true);

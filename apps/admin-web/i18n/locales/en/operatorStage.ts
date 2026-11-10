@@ -37,6 +37,8 @@ export default {
     officerEmail: 'Privacy officer email',
     hostingProvider: 'Hosting provider',
     hostingProviderPlaceholder: 'e.g. Amazon Web Services',
+    mailProvider: 'Email delivery provider',
+    mailProviderPlaceholder: 'e.g. Amazon Web Services (Amazon SES)',
     optional: 'Optional',
     lengthHint: 'Up to {max} characters',
 
@@ -77,6 +79,7 @@ export default {
         privacyOfficerName: "Enter the privacy officer's name.",
         privacyOfficerEmail: "Enter the privacy officer's email.",
         hostingProvider: 'Enter the hosting provider.',
+        mailProvider: 'Enter the email delivery provider.',
         businessName: 'Enter the business name.',
         companyName: 'Enter the company name.',
         representative: 'Enter the representative.',

@@ -12,7 +12,7 @@
   - 통신판매업 신고까지 마친 뒤: 공구·충전·상점
 
 ## 화면 (목업 — `// MOCK:`)
-- 관리자 `/settings/operator` 「운영 주체」 화면(설정 메뉴 「운영·약관」 묶음 = 운영 주체 → 약관, 시스템 묶음 다음 — 2026-11-07 일반 설정에서 따로 뺐다. `site.read`·`site.manage`): 단계, 운영자 이름·연락 이메일·전화, 개인정보 보호책임자(기본 「운영자와 같음」), 호스팅 사업자, 사업자 칸(상호·대표자·사업자등록번호·주소·통신판매업 신고번호/기관·법인등록번호), 전환 이력.
+- 관리자 `/settings/operator` 「운영 주체」 화면(설정 메뉴 「운영·약관」 묶음 = 운영 주체 → 약관, 시스템 묶음 다음 — 2026-11-07 일반 설정에서 따로 뺐다. `site.read`·`site.manage`): 단계, 운영자 이름·연락 이메일·전화, 개인정보 보호책임자(기본 「운영자와 같음」), 호스팅 사업자, 메일 발송 사업자(2026-11-10 추가, V179), 사업자 칸(상호·대표자·사업자등록번호·주소·통신판매업 신고번호/기관·법인등록번호), 전환 이력.
 - 관리자 `/settings/terms`
   - 운영 주체 요약 줄
   - 종류 「운영정책」(`OPERATION_POLICY`) 추가
@@ -24,9 +24,10 @@
 
 ## 규칙
 - **자리표시**(게시할 때 바꿈, 규칙의 원천은 `apps/admin-web/app/utils/util-terms-placeholder.ts` — 서버가 같은 규칙으로 구현)
-  - `{{운영자}}` · `{{서비스이름}}` · `{{운영자정보}}`(문단 하나를 차지하면 목록, 글 중간이면 한 줄)
-  - `{{보호책임자}}` · `{{보호책임자연락처}}` · `{{연락이메일}}` · `{{시행일}}`(「YYYY년 M월 D일」)
-  - 모르는 자리표시가 있으면 게시를 거절한다(서버).
+  - `{{운영자}}`(호칭) · `{{운영자이름}}`(개인 = 운영자 이름, 개인사업자 = 상호, 법인 = 회사명) · `{{서비스이름}}` · `{{운영자정보}}`(문단 하나를 차지하면 목록, 글 중간이면 한 줄)
+  - `{{보호책임자}}` · `{{보호책임자연락처}}` · `{{연락이메일}}` · `{{호스팅사업자}}` · `{{메일발송사업자}}` · `{{시행일}}`(「YYYY년 M월 D일」)
+  - 모르는 자리표시가 있으면 게시를 거절한다(서버). 쓴 자리표시의 값이 운영 주체 설정에 없으면(선택 칸을 비워 둠 등) 미리보기가 경고하고 서버도 게시를 거절한다(빈칸 게시본 방지, 2026-11-10).
+  - 지난 판을 「이 본문으로 초안 만들기」로 복사하면 자리표시가 이미 값으로 바뀐 글이 들어온다(되돌리지 않는다) — 토스트로 알린다. 자리표시가 든 새 초안은 [기본 문안으로 초안 만들기]로 만든다.
 - **버전 사본**: 게시본에 바꾼 본문과 그때의 운영 주체 값을 함께 저장한다. 나중에 단계를 바꿔도 지난 판은 바뀌지 않는다.
 - **최소 시행일**(`terms-contract.md` 의 「내일 이후」 규칙을 넓힘)
   - 그 종류의 첫 게시본: 내일
@@ -38,7 +39,7 @@
 
 ## API 후보 (화면 확정 뒤 다듬는다)
 - `GET·PUT /api/admin/site/operator`(`site.read`·`site.manage`) — 모양의 원천은 화면 타입 `apps/admin-web/app/composables/site/api/useSiteOperatorApi.types.ts`(`SiteOperator*`, 기존 운영자 계정용 `useOperatorApi` 와 다른 것).
-  - 칸: `stage` · `operatorName` · `contactEmail` · `phone` · `privacyOfficerSameAsOperator` · `privacyOfficerName` · `privacyOfficerEmail` · `hostingProvider` · `business{businessName, representative, registrationNumber, address, mailOrderNumber, mailOrderAuthority, corporateNumber}|null`
+  - 칸: `stage` · `operatorName` · `contactEmail` · `phone` · `privacyOfficerSameAsOperator` · `privacyOfficerName` · `privacyOfficerEmail` · `hostingProvider` · `mailProvider` · `business{businessName, representative, registrationNumber, address, mailOrderNumber, mailOrderAuthority, corporateNumber}|null`
   - 응답에 더함: `updatedAt` · `history[{changedAt, fromStage, toStage, changedBy}]`
   - 오류 칸: 사업자 칸은 `fields["business.xxx"]`
   - 감사: 단계가 바뀌면 `SITE_OPERATOR_STAGE_CHANGE` 와 전환 이력 한 줄, 칸만 바뀌면 `SITE_OPERATOR_UPDATE`
@@ -60,10 +61,10 @@
 7. 위탁처(AWS·Amazon SES)의 계약 주체와 운영(prod) 리전을 확인해야 한다.
 
 ## 서버 구현 결과 (2026-11-07 — 화면 연결 전)
-- **마이그레이션**: shared `V158__site_operator_terms_policy.sql`(가번호 V159 → develop 병합 때 V158 로 당김 — profile-privacy 는 그 뒤 번호). `site_operator`(1행, 사업자 정보의 정본) · `site_operator_history` · 커머스 사업자 정보 → 운영 주체로 옮기고(상호가 있으면 `SOLE_PROPRIETOR`) `commerce_business_info` 의 겹치는 열 삭제 · 약관 종류 CHECK ∪ `OPERATION_POLICY` · `terms_versions.unfavorable`·`operator_snapshot(jsonb)`.
-- **관리자** `GET·PUT /api/admin/site/operator`(`site.read`·`site.manage`): 응답·요청은 화면 타입 그대로. 오류 `400 VALIDATION fields.{stage,operatorName,contactEmail,phone,privacyOfficerName,privacyOfficerEmail,hostingProvider,business.*}`(문구 `siteOperator.*`), 판매 중 개인 단계·신고번호 비우기 `409 COMMERCE_SALES_OPEN`. 전화는 화면과 같이 띄어쓰기도 받는다. 감사 `SITE_OPERATOR_STAGE_CHANGE`(+이력)·`SITE_OPERATOR_UPDATE`(대상 SITE/1, 바뀐 칸 before/after, 이메일은 가림).
+- **마이그레이션**: shared `V158__site_operator_terms_policy.sql`(가번호 V159 → develop 병합 때 V158 로 당김 — profile-privacy 는 그 뒤 번호). `site_operator`(1행, 사업자 정보의 정본) · `site_operator_history` · 커머스 사업자 정보 → 운영 주체로 옮기고(상호가 있으면 `SOLE_PROPRIETOR`) `commerce_business_info` 의 겹치는 열 삭제 · 약관 종류 CHECK ∪ `OPERATION_POLICY` · `terms_versions.unfavorable`·`operator_snapshot(jsonb)`. shared `V179__site_operator_mail_provider.sql` — `site_operator.mail_provider varchar(50)`(선택, 사본 JSON 에도 `mailProvider`).
+- **관리자** `GET·PUT /api/admin/site/operator`(`site.read`·`site.manage`): 응답·요청은 화면 타입 그대로. 오류 `400 VALIDATION fields.{stage,operatorName,contactEmail,phone,privacyOfficerName,privacyOfficerEmail,hostingProvider,mailProvider,business.*}`(문구 `siteOperator.*`), 판매 중 개인 단계·신고번호 비우기 `409 COMMERCE_SALES_OPEN`. 전화는 화면과 같이 띄어쓰기도 받는다. 감사 `SITE_OPERATOR_STAGE_CHANGE`(+이력)·`SITE_OPERATOR_UPDATE`(대상 SITE/1, 바뀐 칸 before/after, 이메일은 가림).
 - **공개** `GET /api/site/info` 에 `operator{stage, contactEmail|null}`(사본·ETag 경로 그대로).
-- **약관 게시**: `unfavorable`(없으면 false), 최소 시행일 첫 판 내일 · 개정 7일 뒤(`terms.effectiveDate.revision`) · 불리 30일 뒤(`terms.effectiveDate.unfavorable`). 자리표시는 `TermsPlaceholders`(정화된 초안의 `{<!-- -->{` 를 되돌린 뒤 바꾸고 다시 정화), 모르는 이름 `fields.draft`(`terms.draft.unknownPlaceholder`). 버전 목록·상세에 `unfavorable`·`operatorSnapshot{stage,operatorName,businessName}`(DB 에는 사본 전체). 감사 `TERMS_PUBLISH` after 에 `unfavorable`.
+- **약관 게시**: `unfavorable`(없으면 false), 최소 시행일 첫 판 내일 · 개정 7일 뒤(`terms.effectiveDate.revision`) · 불리 30일 뒤(`terms.effectiveDate.unfavorable`). 자리표시는 `TermsPlaceholders`(정화된 초안의 `{<!-- -->{` 를 되돌린 뒤 바꾸고 다시 정화), 모르는 이름 `fields.draft`(`terms.draft.unknownPlaceholder`), 값이 빈 이름 `fields.draft`(`terms.draft.emptyPlaceholder`). 버전 목록·상세에 `unfavorable`·`operatorSnapshot{stage,operatorName,businessName}`(DB 에는 사본 전체). 감사 `TERMS_PUBLISH` after 에 `unfavorable`.
 - **불리한 변경 메일**: 필수 안내 메일 `MEMBER_TERMS_CHANGE`(끌 수 없음)를 커머스 메일 대기열에 회원마다 한 줄(탈퇴·삭제·미인증 제외), 1분에 20통씩 `next_attempt_at` 을 미뤄 넣는다(`TermsChangeMails`). 이용약관·개인정보처리방침·운영정책만(`TermsKind.memberNotice`).
 - **커머스**: 사업자 정보 읽기의 겹치는 칸은 운영 주체(법인 = 회사명, 보호책임자 = 운영 주체의 보호책임자). `PUT /api/admin/commerce/business-info` 는 `businessHours`·`shippingRefundPolicy` 만 저장하고 나머지는 받아도 무시. 판매 켜기 자동 조건에 `OPERATOR_STAGE`(개인사업자 이상 + 통신판매업 신고번호) 추가.
 

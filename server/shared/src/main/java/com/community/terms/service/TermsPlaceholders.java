@@ -15,8 +15,9 @@ import java.util.regex.Pattern;
  * <b>규칙의 정본은 admin-web {@code apps/admin-web/app/utils/util-terms-placeholder.ts} 머리 주석(규칙 1~5)</b>이고, 관리자 화면의 [미리보기]와 같은 결과를 낸다.
  *
  * <ol>
- *   <li>자리표시는 {@code {{이름}}}(안쪽 앞뒤 공백 허용). 아는 이름은 {@link #NAMES} 일곱뿐이다.</li>
- *   <li>모르는 이름은 바꾸지 않고 두고 {@link Result#unknown()}(처음 나온 차례, 중복 없음)으로 돌려준다 — 게시는 이것이 있으면 거절한다.</li>
+ *   <li>자리표시는 {@code {{이름}}}(안쪽 앞뒤 공백 허용). 아는 이름은 {@link #NAMES} 열 개뿐이다.</li>
+ *   <li>모르는 이름은 바꾸지 않고 두고 {@link Result#unknown()}(처음 나온 차례, 중복 없음)으로 돌려준다 — 게시는 이것이 있으면 거절한다.
+ *       아는 이름인데 바꿀 값이 비었으면(운영 주체 설정에 그 칸을 적지 않음) {@link Result#empty()}(같은 차례) — 게시는 이것도 거절한다(빈칸 게시본 방지).</li>
  *   <li>{@code {{운영자정보}}} 는 단계에 맞는 목록(빈 값 줄은 뺀다). 문단 하나를 통째로 차지하면 {@code <ul><li>이름표: 값</li>…</ul>}, 글 중간이면 「이름표 값, 이름표 값」 한 줄.</li>
  *   <li>바꿔 넣는 값은 HTML 이스케이프한다({@code & < > " '}). 이름표·호칭은 고정 한국어(약관 본문이 한국어다).</li>
  *   <li>서식 경계로 쪼개진 것({@code {{운영<strong>자</strong>}}})은 자리표시로 보지 않는다.</li>
@@ -29,7 +30,8 @@ import java.util.regex.Pattern;
 public final class TermsPlaceholders {
 
     /** 아는 자리표시 이름 — 화면 칩 차례 */
-    public static final List<String> NAMES = List.of("운영자", "서비스이름", "운영자정보", "보호책임자", "보호책임자연락처", "연락이메일", "시행일");
+    public static final List<String> NAMES = List.of("운영자", "운영자이름", "서비스이름", "운영자정보", "보호책임자", "보호책임자연락처", "연락이메일", "호스팅사업자",
+            "메일발송사업자", "시행일");
 
     /** 자바스크립트 {@code \s} 와 같은 공백 */
     private static final String WS = "[\\t\\n\\x0B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]";
@@ -41,12 +43,15 @@ public final class TermsPlaceholders {
     /**
      * 바꿀 값.
      *
-     * @param operatorAlias 「운영자」·「회사」
-     * @param operatorInfo  {@code {{운영자정보}}} 목록(빈 값 줄은 이미 뺐다)
-     * @param effectiveDate 「YYYY년 M월 D일」로 바꾼 글자
+     * @param operatorAlias   「운영자」·「회사」
+     * @param operatorName    {@code {{운영자이름}}} — 개인은 운영자 이름, 개인사업자는 상호, 법인은 회사명
+     * @param operatorInfo    {@code {{운영자정보}}} 목록(빈 값 줄은 이미 뺐다)
+     * @param hostingProvider {@code {{호스팅사업자}}}(없으면 빈 글자)
+     * @param mailProvider    {@code {{메일발송사업자}}}(없으면 빈 글자)
+     * @param effectiveDate   「YYYY년 M월 D일」로 바꾼 글자
      */
-    public record Values(String operatorAlias, String serviceName, List<Row> operatorInfo, String privacyOfficer, String privacyOfficerContact, String contactEmail,
-                         String effectiveDate) {
+    public record Values(String operatorAlias, String operatorName, String serviceName, List<Row> operatorInfo, String privacyOfficer, String privacyOfficerContact,
+                         String contactEmail, String hostingProvider, String mailProvider, String effectiveDate) {
 
         public Values {
             operatorInfo = List.copyOf(operatorInfo);
@@ -61,11 +66,13 @@ public final class TermsPlaceholders {
      * 바꾼 결과.
      *
      * @param unknown 모르는 자리표시 이름(처음 나온 차례, 중복 없음)
+     * @param empty   아는 이름인데 바꿀 값이 빈 자리표시 이름(처음 나온 차례, 중복 없음) — 빈 글자로 바뀌었다
      */
-    public record Result(String html, List<String> unknown) {
+    public record Result(String html, List<String> unknown, List<String> empty) {
 
         public Result {
             unknown = List.copyOf(unknown);
+            empty = List.copyOf(empty);
         }
     }
 
@@ -108,8 +115,10 @@ public final class TermsPlaceholders {
         boolean same = op.privacyOfficerSameAsOperator();
         String officerEmail = same ? op.contactEmail() : nz(op.privacyOfficerEmail());
         String officerPhone = same ? op.phone() : null;
-        return new Values(corp ? "회사" : "운영자", nz(serviceName), info, same ? op.operatorName() : nz(op.privacyOfficerName()),
-                present(officerPhone) ? officerEmail + " · " + officerPhone : officerEmail, nz(op.contactEmail()), koreanDate(effectiveDate));
+        String name = op.stage() == SiteOperatorStage.INDIVIDUAL || b == null ? nz(op.operatorName()) : nz(b.businessName());
+        return new Values(corp ? "회사" : "운영자", trim(name), nz(serviceName), info, same ? op.operatorName() : nz(op.privacyOfficerName()),
+                present(officerPhone) ? officerEmail + " · " + officerPhone : officerEmail, nz(op.contactEmail()), trim(nz(op.hostingProvider())),
+                trim(nz(op.mailProvider())), koreanDate(effectiveDate));
     }
 
     /** 본문의 자리표시를 바꾼다(규칙은 클래스 주석) */
@@ -119,14 +128,29 @@ public final class TermsPlaceholders {
         String inline = String.join(", ", values.operatorInfo().stream().map(r -> escape(r.label()) + " " + escape(r.value())).toList());
         Map<String, String> known = new LinkedHashMap<>();
         known.put("운영자", escape(values.operatorAlias()));
+        known.put("운영자이름", escape(values.operatorName()));
         known.put("서비스이름", escape(values.serviceName()));
         known.put("운영자정보", inline);
         known.put("보호책임자", escape(values.privacyOfficer()));
         known.put("보호책임자연락처", escape(values.privacyOfficerContact()));
         known.put("연락이메일", escape(values.contactEmail()));
+        known.put("호스팅사업자", escape(values.hostingProvider()));
+        known.put("메일발송사업자", escape(values.mailProvider()));
         known.put("시행일", escape(values.effectiveDate()));
 
-        String withList = INFO_PARAGRAPH.matcher(html == null ? "" : html).replaceAll(Matcher.quoteReplacement(list));
+        // 값이 빈 자리표시 — 목록으로 바꾸기 전 본문에서 찾는다(문단 하나짜리 {{운영자정보}} 도 같은 차례에 든다)
+        String source = html == null ? "" : html;
+        List<String> empty = new ArrayList<>();
+        Matcher scan = TOKEN.matcher(source);
+        while (scan.find()) {
+            String name = trim(scan.group(1));
+            String value = known.get(name);
+            if (value != null && trim(value).isEmpty() && !empty.contains(name)) {
+                empty.add(name);
+            }
+        }
+
+        String withList = INFO_PARAGRAPH.matcher(source).replaceAll(Matcher.quoteReplacement(list));
         List<String> unknown = new ArrayList<>();
         Matcher m = TOKEN.matcher(withList);
         StringBuilder out = new StringBuilder();
@@ -142,7 +166,7 @@ public final class TermsPlaceholders {
             m.appendReplacement(out, Matcher.quoteReplacement(replacement));
         }
         m.appendTail(out);
-        return new Result(out.toString(), unknown);
+        return new Result(out.toString(), unknown, empty);
     }
 
     /** 정화기가 쪼갠 {@code {<!-- -->{} 를 {@code {{} 로 되돌린다(정화된 초안을 바꾸기 전에) */

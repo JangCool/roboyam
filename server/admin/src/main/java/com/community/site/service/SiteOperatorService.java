@@ -148,7 +148,7 @@ public class SiteOperatorService {
 
     /** 요청 → 저장할 값(앞뒤 공백 뗌, 빈 선택 칸 null). 위반은 칸마다 모아 400 */
     private static Parsed validate(SiteOperatorRequest in) {
-        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null, null, null) : in;
+        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null, null, null, null) : in;
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         SiteOperatorStage stage = SiteOperatorStage.of(r.stage() == null ? null : r.stage().strip()).orElse(null);
         if (stage == null) {
@@ -165,6 +165,7 @@ public class SiteOperatorService {
         String officerName = same ? null : text(errors, "privacyOfficerName", r.privacyOfficerName(), NAME_MAX, true);
         String officerEmail = same ? null : email(errors, "privacyOfficerEmail", r.privacyOfficerEmail(), true);
         String hosting = text(errors, "hostingProvider", r.hostingProvider(), SHORT_MAX, false);
+        String mail = text(errors, "mailProvider", r.mailProvider(), SHORT_MAX, false);
 
         SiteOperatorValues.Business biz = null;
         if (business) {
@@ -193,7 +194,7 @@ public class SiteOperatorService {
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Parsed(new SiteOperatorValues(stage, operatorName, contactEmail, phone, same, officerName, officerEmail, hosting, biz), noticeLines,
+        return new Parsed(new SiteOperatorValues(stage, operatorName, contactEmail, phone, same, officerName, officerEmail, hosting, mail, biz), noticeLines,
                 noticeScope);
     }
 
@@ -251,7 +252,7 @@ public class SiteOperatorService {
         }
         SiteOperatorValues.Business b = v.business();
         return new SiteOperatorResponse(v.stage().name(), v.operatorName(), v.contactEmail(), v.phone(), v.privacyOfficerSameAsOperator(), v.privacyOfficerName(),
-                v.privacyOfficerEmail(), v.hostingProvider(),
+                v.privacyOfficerEmail(), v.hostingProvider(), v.mailProvider(),
                 b == null ? null : new SiteOperatorResponse.Business(b.businessName(), b.representative(), b.registrationNumber(), b.address(), b.mailOrderNumber(),
                         b.mailOrderAuthority(), b.corporateNumber()),
                 notice.stored(), notice.scope().name(), row.getUpdatedAt(),
@@ -270,6 +271,7 @@ public class SiteOperatorService {
         out.put("privacyOfficerName", nz(v.privacyOfficerName()));
         out.put("privacyOfficerEmail", nz(v.privacyOfficerEmail()));
         out.put("hostingProvider", nz(v.hostingProvider()));
+        out.put("mailProvider", nz(v.mailProvider()));
         SiteOperatorValues.Business b = v.business();
         out.put("business.businessName", b == null ? "" : nz(b.businessName()));
         out.put("business.representative", b == null ? "" : nz(b.representative()));

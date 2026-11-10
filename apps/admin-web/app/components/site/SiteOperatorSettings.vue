@@ -1,7 +1,7 @@
 <template>
     <!--
         설정 > 운영·약관 > 운영 주체 화면(`/settings/operator`, 구획 주소 `site-operator`) — 사이트를 운영하는 사람·사업자. 약관 본문의 자리표시(`{{운영자}}` 등 — `UtilTermsPlaceholder`)는 **게시할 때** 이 값으로 바뀌어 저장된다(게시본은 고치지 않으므로 지난 판 글자는 그대로).
-          단계 라디오 카드 3개(개인 · 개인사업자 · 법인) → 공통 칸(운영자 이름·연락 이메일·전화·보호책임자·호스팅) → 사업자 단계만 사업자 칸(상호/회사명·대표자·사업자등록번호·법인등록번호(법인)·사업장 주소·통신판매업 신고).
+          단계 라디오 카드 3개(개인 · 개인사업자 · 법인) → 공통 칸(운영자 이름·연락 이메일·전화·보호책임자·호스팅·메일 발송) → 사업자 단계만 사업자 칸(상호/회사명·대표자·사업자등록번호·법인등록번호(법인)·사업장 주소·통신판매업 신고).
           개인 단계는 애드센스 안내를 보인다. 단계를 바꾸고 저장하면 확인 창(새 약관 게시 필요, 법인은 회원 알림 의무 덧붙임). 아래 전환 이력 표(날짜 · 이전 → 이후 · 처리자).
           사업자 칸은 개인 단계로 바꿔도 입력칸에는 남는다(되돌려 볼 때 지운 듯 보이지 않게) — 보내는 값에서만 빠진다(`UtilSiteOperator.request`).
           개인사업자로 바꿀 때 대표자가 비어 있으면 운영자 이름으로 미리 채운다.
@@ -92,6 +92,12 @@
                 <LabeledField :label="t('operatorStage.hostingProvider')" :hint="t('operatorStage.optional')" :error="errorOf('hostingProvider')">
                     <template #default="{ id, describedBy, invalid }">
                         <InputText v-model="form.hostingProvider" :id="id" name="hostingProvider" autocomplete="off" size="small" :placeholder="t('operatorStage.hostingProviderPlaceholder')" :readonly="readonly" :invalid="invalid" :aria-describedby="describedBy" class="w-full max-w-sm" @update:model-value="clearServer('hostingProvider')" />
+                    </template>
+                </LabeledField>
+
+                <LabeledField :label="t('operatorStage.mailProvider')" :hint="t('operatorStage.optional')" :error="errorOf('mailProvider')">
+                    <template #default="{ id, describedBy, invalid }">
+                        <InputText v-model="form.mailProvider" :id="id" name="mailProvider" autocomplete="off" size="small" :placeholder="t('operatorStage.mailProviderPlaceholder')" :readonly="readonly" :invalid="invalid" :aria-describedby="describedBy" class="w-full max-w-sm" @update:model-value="clearServer('mailProvider')" />
                     </template>
                 </LabeledField>
             </div>
@@ -263,7 +269,7 @@ const changeCount = computed(() => (saved.value ? UtilSiteOperator.changes(saved
 const invalidCount = computed(() => UtilSiteOperator.FIELDS.filter((field) => errorOf(field)).length);
 
 function emptyProfile(): SiteOperatorProfile {
-    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, business: null, footerNotice: null, footerNoticeScope: 'INDIVIDUAL_ONLY' };
+    return { stage: 'INDIVIDUAL', operatorName: '', contactEmail: '', phone: null, privacyOfficerSameAsOperator: true, privacyOfficerName: null, privacyOfficerEmail: null, hostingProvider: null, mailProvider: null, business: null, footerNotice: null, footerNoticeScope: 'INDIVIDUAL_ONLY' };
 }
 
 /** 칸 아래 한 줄 — 화면이 본 문제(「비었음」은 저장을 눌러 본 뒤부터) → 없으면 서버 문구 그대로 */
