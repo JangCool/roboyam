@@ -6,7 +6,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 오픈소스 라이선스 고지의 설정 한 줄 — V180__oss_notice.sql 의 {@code oss_notice_settings}(id = 1, docs/features/oss-licenses-contract.md).
+ * 오픈소스 라이선스 고지의 설정 한 줄 — V181__oss_notice.sql 의 {@code oss_notice_settings}(id = 1, docs/features/oss-licenses-contract.md).
  * {@code intro} 는 공개 화면 {@code /licenses} 제목 아래 설명(NULL = 화면 기본 문구). 관리자 앱만 고친다.
  */
 @Entity

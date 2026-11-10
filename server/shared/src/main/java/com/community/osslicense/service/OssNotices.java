@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * 오픈소스 라이선스 고지의 칸 규칙(docs/features/oss-licenses-contract.md 「관리자」) — V180 의 표 제약과 같은 값이다.
+ * 오픈소스 라이선스 고지의 칸 규칙(docs/features/oss-licenses-contract.md 「관리자」) — V181 의 표 제약과 같은 값이다.
  * 한 줄 칸은 앞뒤 공백을 떼고, 여러 줄 칸(안내 문구·저작권 고지·전문)은 줄바꿈을 {@code \n} 으로 맞추고 앞뒤 빈 줄만 뗀다. 비면 null.
  */
 public final class OssNotices {

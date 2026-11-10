@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 오픈소스 라이선스 고지의 직접 추가 항목 — V180__oss_notice.sql 의 {@code oss_notice_entries}(docs/features/oss-licenses-contract.md).
+ * 오픈소스 라이선스 고지의 직접 추가 항목 — V181__oss_notice.sql 의 {@code oss_notice_entries}(docs/features/oss-licenses-contract.md).
  * 관리자 앱이 만들고 고치며, 공개 서버는 숨기지 않은 것만 이름순으로 내보낸다. 칸 규칙은 {@link com.community.osslicense.service.OssNotices}.
  */
 @Entity

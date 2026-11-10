@@ -12,7 +12,7 @@ MIT·Apache·BSD 등 무료 오픈소스도 저작권 고지와 라이선스 전
   정적 파일을 못 받으면 오류 화면(다시 시도), 서버 API 만 못 받으면 기본 문구 + 자동 목록만.
 - **관리자** `/settings/oss-licenses`(설정 > 운영·약관, 약관 다음 — 키 `ossLicenses`, 아이콘 `pi pi-code`) — ① 안내 문구(여러 줄, 비우면 기본 문구, 구획 안 저장 줄) ② 직접 추가 항목 표(추가·고치기 대화상자 · 공개 화면에 보이기 스위치 · 지우기, 이름순) ③ 자동 수집 목록(읽기 전용 — 개수·마지막으로 모은 날·찾기, 20줄씩).
 
-## 필드·검증(서버 `OssNotices` = V180 제약, 모아서 400 `VALIDATION`)
+## 필드·검증(서버 `OssNotices` = V181 제약, 모아서 400 `VALIDATION`)
 | 칸 | 규칙 | 오류 키 |
 |---|---|---|
 | 안내 문구 `intro` | 여러 줄, 1000자, 비우면 null | `fields.intro` |
@@ -38,7 +38,7 @@ MIT·Apache·BSD 등 무료 오픈소스도 저작권 고지와 라이선스 전
   - `PUT /intro { intro }` → 같은 모양 · `POST /entries` → 201 한 줄 · `PUT /entries/{id}` → 200 · `PUT /entries/{id}/hidden { hidden }` → 200 · `DELETE /entries/{id}` → 204
   - 404 `OSS_NOTICE_ENTRY_NOT_FOUND`
 - 자동 수집 목록은 API 가 아니라 각 앱의 정적 파일 `/oss-licenses.json`(두 앱 `public/` 에 같은 내용 — 아바타·이모티콘 그림처럼 두 벌).
-- DB(shared **V180**): `oss_notice_settings`(한 줄 id=1, `intro`) · `oss_notice_entries`.
+- DB(shared **V181**): `oss_notice_settings`(한 줄 id=1, `intro`) · `oss_notice_entries`.
 
 ## 자동 수집 방법
 ```
