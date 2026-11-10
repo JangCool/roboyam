@@ -21,6 +21,7 @@ import java.util.Locale;
  * @param descriptionEn 영문 설명
  * @param defaultPreset 설치 요청이 고르지 않았을 때 쓰는 것 — 프리셋 전체에서 정확히 하나
  * @param order         설치 화면의 순서(작을수록 앞)
+ * @param siteName      이 구성을 고르고 설치 입력의 사이트 이름이 임시 이름(「SAMPLE」 — 설치 화면 처음 값)이거나 비어 있을 때 넣을 사이트 이름 — 없으면(null) 넣지 않는다. 직접 입력한 이름이 이긴다
  * @param siteTagline   이 구성을 고르고 설치 입력의 슬로건이 비어 있을 때 사이트 설정에 넣을 슬로건 — 없으면(null) 넣지 않는다. 입력한 값이 있으면 그것이 이긴다
  * @param menu          설치 때 공개 메뉴 {@code main} 그룹의 트리를 바꿀 정의(최상위 노드 차례대로). 없으면(null) 메뉴를 바꾸지 않는다(V43 시드 + 게시판 자동 추가 그대로)
  * @param structure     구조 스냅숏 파일 이름({@code install-presets/} 안, 예: {@code roboyam.structure.json} — {@code scripts/export-install-preset.mjs} 가 만든다). 있으면 설치는
@@ -30,7 +31,7 @@ import java.util.Locale;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoardPreset(String id, String name, String nameEn, String description, String descriptionEn, boolean defaultPreset, int order,
-                          String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo) {
+                          String siteName, String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo) {
 
     /** 데모 데이터를 고를 수 있는 구성인가 */
     public boolean demoOn() {

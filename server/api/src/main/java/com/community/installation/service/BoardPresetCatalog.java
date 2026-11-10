@@ -144,7 +144,8 @@ public class BoardPresetCatalog {
                             board.prefixes().stream().sorted(Comparator.comparingInt(BoardPreset.Prefix::sortOrder)).map(prefix -> BoardPreset.localized(prefix.name(), prefix.nameEn(), locale)).toList()))
                     .toList();
             items.add(new BoardPresetItem(preset.id(), BoardPreset.localized(preset.name(), preset.nameEn(), locale),
-                    BoardPreset.localized(preset.description(), preset.descriptionEn(), locale), boards, preset.demoOn() && preset.id().equals(demoPackPreset)));
+                    BoardPreset.localized(preset.description(), preset.descriptionEn(), locale), boards,
+                    preset.siteName(), preset.siteTagline(), preset.demoOn() && preset.id().equals(demoPackPreset)));
         }
         return new BoardPresetsResponse(defaultPreset.id(), items);
     }
@@ -195,6 +196,7 @@ public class BoardPresetCatalog {
                 throw invalid(id, "게시판 이름이 겹친다: " + board.name());
             }
         }
+        validateSiteName(id, preset.siteName());
         validateSiteTagline(id, preset.siteTagline());
         if (preset.demoOn() && preset.structure() == null) {
             throw invalid(id, "데모(demo)는 구조 스냅숏(structure)이 있는 구성만 고를 수 있다");
@@ -390,6 +392,19 @@ public class BoardPresetCatalog {
                 throw invalid(where, field + " 이(가) 메뉴 규칙(" + problem.key() + ")에 맞지 않다: " + value);
             }
         }
+    }
+
+    /** 사이트 이름 — 없거나(null), 사이트 설정의 이름 규칙({@link SitePolicy#nameViolation})을 지키는 앞뒤 공백 없는 값이어야 한다 */
+    private static void validateSiteName(String presetId, String name) {
+        if (name == null) {
+            return;
+        }
+        if (!name.equals(SitePolicy.normalizeName(name))) {
+            throw invalid(presetId, "siteName 은 앞뒤 공백 없는 1~" + SitePolicy.NAME_MAX_LENGTH + "자여야 한다");
+        }
+        SitePolicy.nameViolation(name).ifPresent(reason -> {
+            throw invalid(presetId, "siteName: " + reason.key());
+        });
     }
 
     /** 사이트 슬로건 — 없거나(null), 사이트 설정의 슬로건 규칙({@link SitePolicy#taglineViolation})을 지키는 앞뒤 공백 없는 값이어야 한다(설치 트랜잭션의 DB CHECK 에 걸리지 않게) */

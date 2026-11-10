@@ -141,6 +141,20 @@ export default class UtilInstall {
     }
 
     /**
+     * 구성을 바꿨을 때 사이트 이름·한 줄 소개를 그 구성의 기본값으로 미리 채운다 — 직접 고친 값은 건드리지 않는다.
+     * 이름은 처음 값(`SAMPLE`)이거나 앞 구성이 채운 값 그대로일 때만, 소개는 비었거나 앞 구성이 채운 값 그대로일 때만 바꾼다(서버도 같은 규칙으로 넣는다).
+     * @param {SiteForm} site - 사이트 입력값(이 객체를 고친다).
+     * @param {{ siteName: string | null; siteTagline: string | null } | null} prev - 앞에 고른 구성(없으면 null).
+     * @param {{ siteName: string | null; siteTagline: string | null } | null} next - 새로 고른 구성.
+     */
+    static applyPresetSite(site: SiteForm, prev: { siteName: string | null; siteTagline: string | null } | null, next: { siteName: string | null; siteTagline: string | null } | null): void {
+        const nameUntouched = site.name === UtilInstall.DEFAULT_SITE_NAME || (!!prev?.siteName && site.name === prev.siteName);
+        if (nameUntouched) site.name = next?.siteName ?? UtilInstall.DEFAULT_SITE_NAME;
+        const taglineUntouched = site.tagline === '' || (!!prev?.siteTagline && site.tagline === prev.siteTagline);
+        if (taglineUntouched) site.tagline = next?.siteTagline ?? '';
+    }
+
+    /**
      * 소셜 로그인 키 세 곳의 처음 입력값 — 비어 있고 **꺼 둔 채 시작한다**(설정 화면의 `UtilAdminSocial.initialForm` 은 켜 두고 시작하지만 마법사는 쓰려는 곳만 켠다).
      * @returns {SocialForms} 공급자별 빈 입력값.
      */

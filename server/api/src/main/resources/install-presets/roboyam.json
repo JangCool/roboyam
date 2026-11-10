@@ -6,7 +6,8 @@
   "descriptionEn": "Builds the setup Roboyam runs on: topic, community, hot deal, tips, reviews and market boards, club categories, menus, home and gadget page layouts, and board defaults. Demo data can be added too.",
   "defaultPreset": false,
   "order": 20,
-  "siteTagline": "로봇과 AI, 쉽게 풀어 함께 이야기해요",
+  "siteName": "ROBOYAM",
+  "siteTagline": "로봇과 AI, 우리가 함께 만드는 이야기",
   "boards": [
     {
       "slug": "ai",
