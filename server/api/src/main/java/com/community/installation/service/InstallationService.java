@@ -67,6 +67,8 @@ public class InstallationService {
     private static final Logger log = LoggerFactory.getLogger(InstallationService.class);
 
     private static final int MAX_SOCIAL_PROVIDERS = 3;
+    /** 설치 화면 사이트 이름의 처음 값(user-web `UtilSiteName.DEFAULT`) — 이 값 그대로면 고른 구성의 사이트 이름(`siteName`)으로 바꾼다 */
+    private static final String PLACEHOLDER_SITE_NAME = "SAMPLE";
 
     /**
      * 옛 프리셋 아이디 → 지금 아이디. 예시 구성의 이름을 BOTBI 에서 ROBOYAM 으로 바꿨는데, 이미 {@code boardPreset: "BOTBI"} 를 보내는
@@ -242,6 +244,10 @@ public class InstallationService {
         List<InstallCommand.Social> social = validateSocial(body == null ? null : body.social(), errors);
         BoardPreset preset = resolvePreset(body == null ? null : body.boardPreset(), errors);
 
+        // 사이트 이름 — 직접 입력한 이름이 이기고, 설치 화면 처음 값(임시 이름 「SAMPLE」)이거나 비어 있으면 고른 프리셋이 정한 이름(데이터)을 넣는다
+        if (preset.siteName() != null && (site.name() == null || PLACEHOLDER_SITE_NAME.equals(site.name()))) {
+            site = new SiteValues(preset.siteName(), site.publicUrl(), site.tagline());
+        }
         // 슬로건 — 입력한 값이 이기고, 비어 있으면 고른 프리셋이 정한 슬로건(데이터)을 넣는다. 둘 다 없으면 문구 없음
         if (site.tagline() == null && preset.siteTagline() != null) {
             site = new SiteValues(site.name(), site.publicUrl(), preset.siteTagline());

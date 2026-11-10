@@ -183,7 +183,7 @@ const why = (r) => `${r.status} ${r.code ?? ''} ${r.error?.fields ? JSON.stringi
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function fileForm(path, field = 'file', extra = {}) {
     const fd = new FormData();
-    const type = path.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+    const type = path.endsWith('.pdf') ? 'application/pdf' : path.endsWith('.png') ? 'image/png' : 'image/jpeg';
     fd.append(field, new Blob([readFileSync(path)], { type }), path.split(/[\\/]/).pop());
     for (const [k, v] of Object.entries(extra)) fd.append(k, v);
     return fd;
@@ -1761,12 +1761,27 @@ async function seedOpsBoards(admin, members, boards, emoticons, psql) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// 14) 사이트 — 공지 띠(꺼져 있을 때만 켬) · 환영 팝업(같은 이름이 없을 때) · 보상 이벤트(같은 이름이 없을 때, 만들기·시작까지 — 추첨·지급은 하지 않는다)
+// 14) 사이트 — 사이트 아이콘·링크 미리보기(기본일 때만 로보얌 브랜드) · 공지 띠(꺼져 있을 때만 켬) · 환영 팝업(같은 이름이 없을 때) · 보상 이벤트(같은 이름이 없을 때, 만들기·시작까지 — 추첨·지급은 하지 않는다)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 async function seedSite(admin) {
-    console.log('\n사이트(공지 띠·팝업·보상 이벤트)');
+    console.log('\n사이트(아이콘·링크 미리보기·공지 띠·팝업·보상 이벤트)');
     const doc = json(join(DEMO, 'site.json'));
     const now = Date.now();
+    // 사이트 아이콘·링크 미리보기 이미지(로보얌 브랜드 — seed/demo/brand/, 원본 design/brand/) — 기본 그대로일 때만 올린다(이미 올린 것은 두기)
+    const icon = await admin.request('GET', '/api/admin/site/icon');
+    if (!ok(icon)) failed('사이트 아이콘 읽기', icon);
+    else if (icon.data.custom) console.log('  사이트 아이콘: 이미 올려 둔 것이 있어 그대로');
+    else {
+        const r = await admin.request('POST', '/api/admin/site/icon', fileForm(join(DEMO, 'brand', 'site-icon.png')));
+        ok(r) ? console.log('  사이트 아이콘: 로보얌 아이콘을 올림') : failed('사이트 아이콘', r);
+    }
+    const og = await admin.request('GET', '/api/admin/site/og-image');
+    if (!ok(og)) failed('링크 미리보기 이미지 읽기', og);
+    else if (og.data.configured) console.log('  링크 미리보기 이미지: 이미 올려 둔 것이 있어 그대로');
+    else {
+        const r = await admin.request('POST', '/api/admin/site/og-image', fileForm(join(DEMO, 'brand', 'site-og.png')));
+        ok(r) ? console.log('  링크 미리보기 이미지: 로보얌 이미지를 올림(1200×630)') : failed('링크 미리보기 이미지', r);
+    }
     // 공지 띠
     const bar = await admin.request('GET', '/api/admin/site/notice-bar');
     if (!ok(bar)) {

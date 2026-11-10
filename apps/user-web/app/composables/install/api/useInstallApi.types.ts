@@ -113,6 +113,10 @@ export interface InstallBoardPreset {
     name: string;
     description: string;
     boards: InstallBoardPresetBoard[];
+    /** 이 구성을 고르면 넣을 사이트 이름(없으면 null) — 사이트 이름이 처음 값(`SAMPLE`)이면 미리 채운다. 서버도 같은 규칙으로 넣는다 */
+    siteName: string | null;
+    /** 이 구성을 고르면 넣을 한 줄 소개(없으면 null) — 소개가 비었으면 미리 채운다. 서버도 비었으면 넣는다 */
+    siteTagline: string | null;
     /** 이 구성으로 설치할 때 「데모 데이터 포함」을 고를 수 있는가(데모를 지원하는 구성 + 서버에 데모 팩이 있음) */
     demoAvailable: boolean;
 }
