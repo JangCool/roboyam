@@ -20,7 +20,7 @@
             @retry="load"
         />
 
-        <section v-if="visitShown" class="mx-auto mt-8 w-full max-w-3xl rounded-xl border border-surface p-4 sm:p-5" :aria-labelledby="`${uid}-visit-title`" data-testid="privacy-visit-choice">
+        <section v-if="visitShown" class="gadget-card mt-(--gadget-gap)" data-headless :aria-labelledby="`${uid}-visit-title`" data-testid="privacy-visit-choice">
             <h2 :id="`${uid}-visit-title`" class="m-0 text-base font-semibold">{{ t('visitPrivacy.title') }}</h2>
             <p class="mb-0 mt-1 text-sm leading-relaxed text-muted-color">{{ t('visitPrivacy.intro') }}</p>
 
