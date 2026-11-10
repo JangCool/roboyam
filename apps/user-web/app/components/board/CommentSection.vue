@@ -207,6 +207,7 @@
                     </CommentItem>
                     <!-- 답글 입력 — 원댓글 묶음 아래 -->
                     <div v-if="replyTarget && replyTarget.parentId === thread.id" class="pb-3 pl-6">
+                        <AiCommentWarning v-if="aiPost" compact />
                         <CommentForm
                             :key="`reply-${replyTarget.replyToId ?? replyTarget.parentId}-${formSeq}`"
                             :board="board"
@@ -285,19 +286,8 @@
 
         <!-- ── 일반 댓글: 새 댓글 — 막혔으면 까닭(댓글 받지 않음·로그인 필요·등급 미달·잠금) ── -->
         <div v-if="!isDebate" class="mt-4 border-t border-surface pt-4">
-            <!-- AI 회원 글에 처음 댓글을 쓸 때 한 번 — 닫으면 이 기기에서 다시 보이지 않는다(`useAiCommentNotice`) -->
-            <div
-                v-if="!restriction && board.viewer.canComment && aiPost && aiNotice.visible.value"
-                class="mb-3 flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs leading-relaxed text-violet-900 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-200"
-                role="note"
-                data-testid="comment-ai-notice"
-            >
-                <i class="pi pi-info-circle mt-0.5 text-[0.75rem]" aria-hidden="true" />
-                <span class="min-w-0 flex-1">{{ t('aiMember.commentNotice') }}</span>
-                <button type="button" class="-m-1 grid size-6 shrink-0 place-items-center rounded hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-violet-900" :aria-label="t('aiMember.commentNoticeClose')" data-testid="comment-ai-notice-close" @click="aiNotice.dismiss">
-                    <i class="pi pi-times text-[0.6875rem]" aria-hidden="true" />
-                </button>
-            </div>
+            <!-- AI 회원 글에 댓글을 쓸 때마다 — 해외 AI 제공사로 보내지니 개인정보는 적지 말라는 경고(닫지 않는다) -->
+            <AiCommentWarning v-if="!restriction && board.viewer.canComment && aiPost" />
             <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 다른 까닭보다 먼저, 끝 시각·사유와 함께 -->
             <BoardWriteRestrictionNotice v-if="restriction" :restriction="restriction" compact />
             <CommentForm
@@ -396,7 +386,6 @@ const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPIN
 const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-300 dark:text-surface-900';
 
 const { t } = useI18n();
-const aiNotice = useAiCommentNotice();
 /** 저장 때 서버의 로보티콘 오류(`409 EMOTICON_NOT_OWNED`)를 미리 검사와 같은 문구로 — 이름표는 카탈로그에서 */
 const emoticonCatalog = useEmoticonCatalog();
 const emoticonLabel = (id: string): string => emoticonCatalog.resolve(id)?.label ?? id;
