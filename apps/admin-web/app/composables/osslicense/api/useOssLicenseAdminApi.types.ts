@@ -41,6 +41,13 @@ export interface OssNoticeEntrySaveRequest {
 }
 
 /** 자동 수집 항목(정적 파일 — user-web 과 같은 모양) */
+/** 묶음 줄에 든 패키지 한 개(같은 프로젝트를 한 줄로 묶었을 때 — 사용자 2026-11-10) */
+export interface OssCollectedPackage {
+    name: string;
+    version: string;
+    license: string;
+}
+
 export interface OssCollectedItem {
     id: string;
     name: string;
@@ -54,6 +61,8 @@ export interface OssCollectedItem {
     noticeId: string | null;
     repository: string | null;
     licenseUrl: string | null;
+    /** 같은 프로젝트 묶음이면 든 패키지(옛 파일은 칸 없음) */
+    packages?: OssCollectedPackage[] | null;
 }
 
 /** `/oss-licenses.json` */

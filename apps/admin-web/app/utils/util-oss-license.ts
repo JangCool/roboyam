@@ -101,7 +101,7 @@ export default class UtilOssLicense {
     static searchCollected(items: OssCollectedItem[], query: string): OssCollectedItem[] {
         const q = query.trim().toLowerCase();
         if (!q) return items;
-        return items.filter((item) => item.name.toLowerCase().includes(q) || item.license.toLowerCase().includes(q));
+        return items.filter((item) => item.name.toLowerCase().includes(q) || item.license.toLowerCase().includes(q) || (item.packages ?? []).some((p) => p.name.toLowerCase().includes(q)));
     }
 
     /** 바깥 링크로 써도 되는 주소인가(http·https 만) */

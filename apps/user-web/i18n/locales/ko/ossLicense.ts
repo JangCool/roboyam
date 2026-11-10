@@ -20,6 +20,8 @@ export default {
     distributionItem: '{license} {n}',
     distributionRest: '그 밖 {n}',
     resultCount: '{n}개 항목',
+    packageCount: '패키지 {n}개',
+    packages: '포함 패키지',
     usedInLabel: '쓰는 곳',
     usedIn: {
         user: '공개',

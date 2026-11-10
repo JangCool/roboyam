@@ -8,6 +8,13 @@
 export type OssUsedIn = 'user' | 'admin' | 'server';
 
 /** 자동 수집 항목 하나 */
+/** 묶음 줄에 든 패키지 한 개(같은 프로젝트를 한 줄로 묶었을 때 — 사용자 2026-11-10) */
+export interface OssCollectedPackage {
+    name: string;
+    version: string;
+    license: string;
+}
+
 export interface OssCollectedItem {
     /** `npm:<이름>@<버전>` · `maven:<그룹>:<이름>@<버전>` */
     id: string;
@@ -28,6 +35,8 @@ export interface OssCollectedItem {
     noticeId: string | null;
     /** 원본 저장소 */
     repository: string | null;
+    /** 같은 프로젝트를 한 줄로 묶었으면 든 패키지(이름은 프로젝트 이름, 버전은 빈 글자) — 아니면 null(옛 파일은 칸 없음) */
+    packages?: OssCollectedPackage[] | null;
     /** 라이선스 안내 주소(전문이 없을 때 등) */
     licenseUrl: string | null;
 }

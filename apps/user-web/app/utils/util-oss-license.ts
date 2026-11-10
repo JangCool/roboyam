@@ -1,4 +1,4 @@
-import type { OssCollectedFile, OssManualCategory, OssManualEntry, OssUsedIn } from '~/composables/osslicense/api/useOssLicenseApi.types';
+import type { OssCollectedFile, OssCollectedPackage, OssManualCategory, OssManualEntry, OssUsedIn } from '~/composables/osslicense/api/useOssLicenseApi.types';
 
 /** 거르기 칩 — 전체 · 공개 화면 · 관리자 화면 · 서버 · 글꼴·아이콘 */
 export type OssFilter = 'all' | 'user' | 'admin' | 'server' | 'fontIcon';
@@ -20,6 +20,8 @@ export interface OssLicenseRow {
     textSource: 'package' | 'template' | 'none' | 'manual';
     repository: string | null;
     licenseUrl: string | null;
+    /** 같은 프로젝트 묶음이면 든 패키지 — 아니면 null */
+    packages: OssCollectedPackage[] | null;
 }
 
 /** 직접 추가 항목의 묶음 → 쓰는 곳 */
@@ -62,6 +64,7 @@ export default class UtilOssLicense {
             textSource: item.textId ? item.textSource : 'none',
             repository: item.repository,
             licenseUrl: item.licenseUrl,
+            packages: item.packages?.length ? item.packages : null,
         }));
         for (const entry of manual) {
             out.push({
@@ -78,6 +81,7 @@ export default class UtilOssLicense {
                 textSource: entry.licenseText ? 'manual' : 'none',
                 repository: entry.sourceUrl,
                 licenseUrl: null,
+                packages: null,
             });
         }
         return out.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || (a.version ?? '').localeCompare(b.version ?? '', 'en', { numeric: true }));
@@ -105,7 +109,7 @@ export default class UtilOssLicense {
      */
     static filter(rows: OssLicenseRow[], filter: OssFilter, query: string): OssLicenseRow[] {
         const q = query.trim().toLowerCase();
-        return rows.filter((row) => UtilOssLicense.matches(row, filter) && (!q || row.name.toLowerCase().includes(q) || row.license.toLowerCase().includes(q)));
+        return rows.filter((row) => UtilOssLicense.matches(row, filter) && (!q || row.name.toLowerCase().includes(q) || row.license.toLowerCase().includes(q) || (row.packages ?? []).some((p) => p.name.toLowerCase().includes(q))));
     }
 
     /**
@@ -114,7 +118,8 @@ export default class UtilOssLicense {
      */
     static distribution(rows: OssLicenseRow[]): { items: { license: string; count: number }[]; rest: number } {
         const counts = new Map<string, number>();
-        for (const row of rows) counts.set(row.license, (counts.get(row.license) ?? 0) + 1);
+        // 묶음 줄의 「A · B」 는 종류마다 센다
+        for (const row of rows) for (const license of new Set(row.license.split(' · '))) counts.set(license, (counts.get(license) ?? 0) + 1);
         const sorted = [...counts.entries()].map(([license, count]) => ({ license, count })).sort((a, b) => b.count - a.count || a.license.localeCompare(b.license));
         const items = sorted.slice(0, DISTRIBUTION_MAX);
         const rest = sorted.slice(DISTRIBUTION_MAX).reduce((sum, item) => sum + item.count, 0);
