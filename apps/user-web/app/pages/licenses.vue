@@ -165,7 +165,8 @@ const query = ref('');
 const shown = computed(() => UtilOssLicense.filter(rows.value, filter.value, query.value));
 const distribution = computed(() => UtilOssLicense.distribution(shown.value));
 const chipOptions = computed<EmoticonChipOption<OssFilter>[]>(() =>
-    UtilOssLicense.FILTERS.map((value) => ({ value, label: t('ossLicense.chip', { label: t(`ossLicense.filter.${value}`), n: counts.value[value] }) })),
+    // 항목이 없는 묶음 칩은 숨긴다(서버 라이브러리는 기본으로 싣지 않아 「서버」는 직접 추가한 항목이 있을 때만 — 사용자 2026-11-10 「진짜 필요한 고지만」)
+    UtilOssLicense.FILTERS.filter((value) => value === 'all' || counts.value[value] > 0).map((value) => ({ value, label: t('ossLicense.chip', { label: t(`ossLicense.filter.${value}`), n: counts.value[value] }) })),
 );
 
 /** 펼친 줄 · 전문을 끝까지 펼친 줄(NOTICE 는 `n:` 앞머리) */

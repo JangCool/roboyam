@@ -7,18 +7,17 @@
          모바일(사용자 요청 2026-11-06 — 모바일에도 보인다): 한 단으로 쌓는다 — 사이트 이름 · 링크 한 줄, 그 아래 사업자 정보 표(이름표 | 값), 맨 아래 ©. 하단 탭 바로 위에 놓인다 -->
     <footer class="border-t border-surface bg-surface-100 dark:bg-surface-900">
         <div class="mx-auto grid max-w-[var(--content-max)] grid-cols-1 gap-y-3 px-4 py-5 text-xs text-muted-color md:gap-x-8 md:py-6" :class="personal ? '' : 'md:grid-cols-[10rem_minmax(0,1fr)]'">
-            <!-- 사업자 정보가 없을 때(운영 주체 개인 단계) 데스크톱은 가로 3열(사용자 2026-11-10 시안): 1열 = 사이트 이름 · 문의 · © / 2열 = 「약관·정책」 + 약관 링크(세로) /
-                 3열 = 「고객 지원」 + footer 메뉴 링크(세로, 없으면 열 없음). 모바일·사업자 정보가 있을 때는 예전 모양 그대로 -->
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1" :class="personal ? 'md:grid md:grid-cols-3 md:items-start md:gap-x-8 md:gap-y-1' : 'md:flex-col md:items-start md:gap-1'" data-testid="footer-main">
+            <!-- 사업자 정보가 없을 때(운영 주체 개인 단계) 데스크톱은 가로 4열(사용자 2026-11-10 시안): 1열 = 사이트 이름 · 문의 · © / 2열 = 「약관·정책」 + 약관 링크(세로) /
+                 3열 = 「고객 지원」 + footer 메뉴 링크(세로, 없으면 열 없음) / 4열 = 「오픈소스」 + 오픈소스 라이선스. 모바일·사업자 정보가 있을 때는 예전 모양 그대로.
+                 묶음 제목(약관·정책 · 고객 지원 · 오픈소스)은 진하게, 개인정보처리방침은 굵기 대신 주 색상 글자로 구분한다(작성지침: 다른 고지와 구분되게 — 굵게 하면 하위 제목처럼 보여서, 사용자 2026-11-10 시안 B) -->
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1" :class="personal ? 'md:grid md:grid-cols-4 md:items-start md:gap-x-8 md:gap-y-1' : 'md:flex-col md:items-start md:gap-1'" data-testid="footer-main">
                 <b class="text-sm font-semibold text-surface-700 md:col-start-1 md:mb-1 dark:text-surface-200">{{ siteLabel }}</b>
                 <!-- 약관 링크 — 캐시 관리 미리보기의 영역 표시(`data-cache-area`, `contents` 라 줄 배치는 그대로 — 데스크톱 3열에서는 2열 한 칸) -->
                 <span class="contents" :class="personal ? 'md:col-start-2 md:row-span-3 md:row-start-1 md:flex md:flex-col md:items-start md:gap-1' : ''" data-cache-area="terms.public">
                     <span v-if="personal" class="hidden font-semibold text-surface-700 md:block dark:text-surface-200">{{ t('shell.footerTerms') }}</span>
                     <a href="/terms" target="_blank" rel="noopener" class="hover:underline">{{ t('common.terms') }}</a>
-                    <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-surface-700 hover:underline dark:text-surface-200">{{ t('common.privacy') }}</a>
+                    <a href="/privacy" target="_blank" rel="noopener" class="text-primary hover:underline">{{ t('common.privacy') }}</a>
                     <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
-                    <!-- 오픈소스 라이선스 고지(oss-licenses-contract, 2026-11-10) — 약관 링크 묶음 맨 끝, 같은 탭 -->
-                    <NuxtLink to="/licenses" class="hover:underline" data-testid="footer-oss-licenses">{{ t('ossLicense.title') }}</NuxtLink>
                 </span>
                 <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 못 받았거나 비면 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
                 <nav
@@ -32,6 +31,16 @@
                     <NuxtLink v-for="link in supportLinks" :key="link.id" :to="link.path" v-bind="UtilMenu.linkAttrs(link)" class="hover:underline">
                         {{ localizedName(link.label, link.nameEn) }}<i v-if="link.newTab" class="pi pi-external-link ml-1 text-[0.5625rem]" aria-hidden="true" />
                     </NuxtLink>
+                </nav>
+                <!-- 오픈소스 라이선스 고지(oss-licenses-contract) — 약관 묶음에서 빼 「오픈소스」 묶음으로(사용자 2026-11-10). 같은 탭. 모바일은 한 줄, 데스크톱 개인 모양은 4열 -->
+                <nav
+                    class="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:basis-full md:flex-col md:items-start md:gap-1"
+                    :class="personal ? 'md:col-start-4 md:row-span-3 md:row-start-1' : 'md:mt-2'"
+                    :aria-label="t('shell.footerOss')"
+                    data-testid="footer-oss"
+                >
+                    <span class="font-semibold text-surface-700 dark:text-surface-200">{{ t('shell.footerOss') }}</span>
+                    <NuxtLink to="/licenses" class="hover:underline" data-testid="footer-oss-licenses">{{ t('ossLicense.title') }}</NuxtLink>
                 </nav>
                 <a
                     v-if="contactEmail && commerceInfo !== undefined && !shownBusiness"
@@ -47,7 +56,7 @@
             <!-- 푸터 안내 문구(사용자 확정 2026-11-10) — 관리자 운영 주체 화면의 문구(`operator.footerNotice`, `{사이트}` 는 사이트 이름 + 맞춘 조사로). 보일 때 = 문구가 있고 (보이기 ALWAYS 이거나 개인 단계).
                  칸을 주지 않는 옛 서버·비운 문구면 숨긴다. 링크 묶음(또는 사업자 정보 표) 아래 가는 선 다음에 줄을 위아래로 —
                  데스크톱 3열(개인 모양)은 1·2열 두 칸을 합친 너비(3열 아래는 비움), 사업자 정보 표가 있으면 표 아래 폭 전체. 모바일은 한 단(© 위) -->
-            <div v-if="noticeLines.length" class="border-t border-surface pt-3 leading-relaxed" :class="personal ? 'md:grid md:grid-cols-3 md:gap-x-8' : 'md:col-span-2'" data-testid="footer-notice">
+            <div v-if="noticeLines.length" class="border-t border-surface pt-3 leading-relaxed" :class="personal ? 'md:grid md:grid-cols-4 md:gap-x-8' : 'md:col-span-2'" data-testid="footer-notice">
                 <div class="flex flex-col" :class="personal ? 'md:col-span-2' : ''">
                     <p v-for="(line, index) in noticeLines" :key="index" class="m-0">{{ line }}</p>
                 </div>

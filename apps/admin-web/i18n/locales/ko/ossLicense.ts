@@ -73,7 +73,7 @@ export default {
 
     collectedTitle: '자동 수집 목록',
     collectedSummary: '{n}개 · 마지막으로 모은 날 {date}',
-    collectedHelp: '빌드 때 화면 번들·서버 런타임 의존성에서 모은 목록이에요(읽기 전용). 의존성을 바꾸면 저장소에서 node scripts/collect-licenses.mjs 로 다시 모아요.',
+    collectedHelp: '빌드 때 화면 번들(브라우저로 내려가는 코드)에서 모은 목록이에요(읽기 전용). 서버 라이브러리는 이용자에게 배포되지 않아 싣지 않아요. 의존성을 바꾸면 저장소에서 node scripts/collect-licenses.mjs 로 다시 모아요.',
     collectedLoadFailed: '자동 수집 목록(/oss-licenses.json)을 불러오지 못했어요.',
     searchPlaceholder: '이름·라이선스 찾기',
     searchLabel: '자동 수집 목록에서 찾기',
