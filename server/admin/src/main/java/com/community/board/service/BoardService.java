@@ -275,7 +275,8 @@ public class BoardService {
                 | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions))
                 | diff(before, after, "adsHidden", board.isAdsHidden(), in.adsHidden)
                 | diff(before, after, "secretMode", board.getSecretMode(), in.secretMode)
-                | diff(before, after, "statusEnabled", board.isStatusEnabled(), in.statusEnabled);
+                | diff(before, after, "statusEnabled", board.isStatusEnabled(), in.statusEnabled)
+                | diff(before, after, "authorMode", board.getAuthorMode(), in.authorMode);
         boolean limitChanged = false;
         Map<String, Object> oldPolicy = board.policy().toMap();
         Map<String, Object> newPolicy = in.policy.toMap();
@@ -359,6 +360,12 @@ public class BoardService {
         if (!BoardFields.opsAllowed(board.getKind()) && in.statusEnabled) {
             invalid.put("statusEnabled", new MessageRef("board.ops.generalOnly"));
         }
+        // 작성자 표시(V184) — 값 목록, 익명은 일반 게시판만(핫딜·소모임·직접홍보 거절 — anonymous-board-contract 정책 1)
+        if (!BoardFields.AUTHOR_MODES.contains(in.authorMode)) {
+            invalid.put("authorMode", new MessageRef("board.field.choice"));
+        } else if (!BoardFields.anonymousAllowed(board.getKind()) && BoardFields.AUTHOR_ANONYMOUS.equals(in.authorMode)) {
+            invalid.put("authorMode", new MessageRef("board.anonymous.generalOnly"));
+        }
         // 글 목록 칩 위치(V169) — null(사이트 기본 따름) 또는 값 목록
         if (in.chipPosition != null && !BoardFields.CHIP_POSITIONS.contains(in.chipPosition)) {
             invalid.put("chipPosition", new MessageRef("board.field.choice"));
@@ -407,6 +414,7 @@ public class BoardService {
         board.changeGadgetExclusions(in.gadgetExclusions);
         board.changeAdsHidden(in.adsHidden);
         board.changeOps(in.secretMode, in.statusEnabled);
+        board.changeAuthorMode(in.authorMode);
         board.changeChipPosition(in.chipPosition);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
@@ -549,6 +557,8 @@ public class BoardService {
         boolean statusEnabled;
         /** 글 목록 칩 위치(V169) — 요청에 없으면 지금 값, 빈 글자면 null(사이트 기본 따름). 앞뒤 공백을 떼고 대문자로 맞춘 값 */
         String chipPosition;
+        /** 작성자 표시(V184) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(모르는 값은 검사에서 400) */
+        String authorMode;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -569,6 +579,7 @@ public class BoardService {
         in.adsHidden = request.adsHidden() == null ? board.isAdsHidden() : request.adsHidden();
         in.secretMode = request.secretMode() == null ? board.getSecretMode() : request.secretMode().strip().toUpperCase(Locale.ROOT);
         in.statusEnabled = request.statusEnabled() == null ? board.isStatusEnabled() : request.statusEnabled();
+        in.authorMode = request.authorMode() == null ? board.getAuthorMode() : request.authorMode().strip().toUpperCase(Locale.ROOT);
         in.chipPosition = request.chipPosition() == null ? board.getChipPosition()
                 : request.chipPosition().isBlank() ? null : request.chipPosition().strip().toUpperCase(Locale.ROOT);
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();

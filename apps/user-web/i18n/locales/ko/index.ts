@@ -13,6 +13,7 @@ import ad from './ad';
 import aiMember from './aiMember';
 import address from './address';
 import addressBook from './addressBook';
+import anonymous from './anonymous';
 import auth from './auth';
 import avatar from './avatar';
 import avatarUpload from './avatarUpload';
@@ -83,6 +84,7 @@ export default {
     aiMember,
     address,
     addressBook,
+    anonymous,
     auth,
     avatar,
     avatarUpload,

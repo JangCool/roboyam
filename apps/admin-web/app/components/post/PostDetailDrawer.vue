@@ -154,7 +154,15 @@
                     </dd>
                 </template>
                 <dt class="text-muted-color">{{ t('post.col.author') }}</dt>
-                <dd class="m-0">{{ UtilPostMessages.author(t, post) }}</dd>
+                <!-- 익명 게시판 글(`author.sealed` — anonymous-board-contract) — 자물쇠 + 「익명 · 작성자 봉인됨」, [이 글 작성자 제재](`sanction.manage`) · [작성자 열람](`anonymous-author.reveal`) -->
+                <dd v-if="post.author.sealed" class="m-0 flex flex-col items-start gap-1.5">
+                    <AnonymousSealedAuthor />
+                    <div v-if="canSanctionSealed || canRevealSealed" class="flex flex-wrap gap-1.5">
+                        <Button v-if="canSanctionSealed" type="button" :label="t('anonymousAuthor.sanctionPost')" icon="pi pi-ban" size="small" severity="secondary" variant="outlined" :disabled="busy" data-testid="post-drawer-sealed-sanction" @click="emit('sealed-sanction')" />
+                        <Button v-if="canRevealSealed" type="button" :label="t('anonymousAuthor.reveal')" icon="pi pi-eye" size="small" severity="danger" variant="text" :disabled="busy" data-testid="post-drawer-sealed-reveal" @click="emit('sealed-reveal')" />
+                    </div>
+                </dd>
+                <dd v-else class="m-0">{{ UtilPostMessages.author(t, post) }}</dd>
                 <dt class="text-muted-color">{{ t('post.col.createdAt') }}</dt>
                 <dd class="m-0 tabular-nums">
                     {{ time.full(post.createdAt) }}
@@ -376,6 +384,10 @@ interface Props {
     processHistory?: PostProcessStatusHistoryItem[];
     processHistoryState?: 'idle' | 'loading' | 'ready' | 'error';
     processHistoryError?: string;
+    /** 봉인된 익명 작성자에게 「이 글 작성자 제재」를 보인다(`sanction.manage`) */
+    canSanctionSealed?: boolean;
+    /** 봉인된 익명 작성자에게 「작성자 열람」을 보인다(`anonymous-author.reveal`) */
+    canRevealSealed?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -398,6 +410,8 @@ const props = withDefaults(defineProps<Props>(), {
     processHistory: () => [],
     processHistoryState: 'idle',
     processHistoryError: '',
+    canSanctionSealed: false,
+    canRevealSealed: false,
 });
 const emit = defineEmits<{
     retry: [];
@@ -413,6 +427,10 @@ const emit = defineEmits<{
     'process-status': [status: PostProcessStatus, note: string | undefined];
     /** 처리 이력 다시 받기 */
     'process-history-retry': [];
+    /** [이 글 작성자 제재] — 봉인된 익명 작성자, 제재 창은 부른 화면이 연다 */
+    'sealed-sanction': [];
+    /** [작성자 열람] — 열람 창은 부른 화면이 연다 */
+    'sealed-reveal': [];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
 }>();

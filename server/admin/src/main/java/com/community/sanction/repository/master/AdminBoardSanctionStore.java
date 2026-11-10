@@ -105,6 +105,7 @@ public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
         }
         if (f.nicknameLike() != null) {
             parts.add(P.nickname.lower().like(f.nicknameLike(), '\\'));
+            parts.add(S.sealed.isFalse()); // 봉인 제재(V184)는 닉네임으로 찾지 않는다
         }
         if (f.sanctionNo() != null) {
             parts.add(S.sanctionNo.eq(f.sanctionNo()));

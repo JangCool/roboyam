@@ -73,12 +73,17 @@ export interface AdminPostPrefixRef {
     name: string;
 }
 
-/** 작성자 — 비회원 글은 `id` 가 null 이고 `name` 이 비회원 이름. 탈퇴한 회원이면 `withdrawn` */
+/**
+ * 작성자 — 비회원 글은 `id` 가 null 이고 `name` 이 비회원 이름. 탈퇴한 회원이면 `withdrawn`.
+ * **익명 게시판 글은 `sealed: true`** 이고 그 밖 칸(`kind`·`id`·`name`)은 null 이다(작성자 봉인 — anonymous-board-contract 정책 8). 화면은 「익명 · 작성자 봉인됨」(`AnonymousSealedAuthor`)
+ */
 export interface AdminPostAuthor {
-    kind: 'MEMBER' | 'GUEST';
+    kind: 'MEMBER' | 'GUEST' | null;
     id: string | null;
-    name: string;
+    name: string | null;
     withdrawn: boolean;
+    /** 봉인된 익명 작성자 — 옛 응답(칸 없음)은 false */
+    sealed?: boolean;
 }
 
 /** 소모임 글의 공개 상태 — 비공개(그 소모임 멤버만) · 공개로 전환됨 */

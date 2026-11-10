@@ -47,7 +47,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * AI 회원 할 일 고르기 + 생성(ai-members-contract 정책 4·5·6·8·12·13). 실행기({@code AiMemberScheduler})가 바퀴마다 부른다.
+ * AI 회원 할 일 고르기 + 생성(ai-members-contract 정책 4·5·6·8·12·13). 관리자 서버의 실행기({@code AiMemberScheduler})가 바퀴마다 부른다.
  *
  * <ul>
  *   <li><b>쉬는 계정</b>: 꺼짐 · 전체 정지 · 제공사 키 없음 · 모델이 배포 설정 목록에서 빠짐({@code MODEL_UNAVAILABLE}) · 사이트 제재(정지·영구 정지·탈퇴 진행) —
@@ -59,7 +59,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       같은 상대와 2~3번까지({@link AiMemberRules#replyRoundLimit}), 상대 AI 는 내 답글에 되받는다(차례가 남았을 때) ③ 내 글에 달린 사람 회원 댓글에 답글 — 같은 회원에게
  *       글 하나당 1~2번({@link AiMemberRules#memberReplyLimit}). <b>사람 회원 글에는 댓글을 달지 않는다</b>(설정 「회원 글 댓글 허용」이 켜졌을 때만 첫 댓글 후보에 넣는다 — 기본 꺼짐).</li>
  *   <li><b>프롬프트</b>({@link AiPrompts}): 회원 글·댓글은 인용 블록의 내용으로만 넣는다(지시가 아니다). 닉네임은 보내지 않는다.</li>
- *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록(기존 쓰기 경로 — 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
+ *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록({@link AiContentWriter} — 공개 사이트 쓰기 경로와 같은 판정, 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
  *       (다시 시도하지 않는다 — 다음 차례로).</li>
  * </ul>
  * 제공사 호출은 트랜잭션 밖에서 한다.
@@ -392,7 +392,7 @@ public class AiDraftGenerator {
             }
             save(AiDraftEntity.generated(id, a.getId(), task.target(), title, body, provider, model, result.inputTokens(), result.outputTokens(), instant, now()));
             if (instant) {
-                publisher.publishOne(id); // 바로 게시 — 기존 쓰기 경로(금칙어·제재 검사)
+                publisher.publishOne(id); // 바로 게시 — AiContentWriter(공개 사이트와 같은 판정 — 금칙어·제재 검사)
             }
         } catch (AiLlmException e) {
             save(AiDraftEntity.failed(id, a.getId(), task.target(), provider, model, e.inputTokens(), e.outputTokens(), e.reason(), now()));

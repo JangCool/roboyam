@@ -190,7 +190,7 @@
             @submit="submitSanctionLift"
         >
             <p v-if="sanctionLiftTarget" class="m-0 flex flex-wrap items-center gap-1.5 text-sm">
-                <b>{{ sanctionLiftTarget.user.nickname }}</b>
+                <b>{{ UtilSanctionMessages.userName(t, sanctionLiftTarget.user) }}</b>
                 <SanctionTag type="kind" :kind="sanctionLiftTarget.kind" />
             </p>
         </MemberReasonDialog>

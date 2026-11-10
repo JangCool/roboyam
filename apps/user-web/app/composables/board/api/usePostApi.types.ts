@@ -17,8 +17,20 @@ import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopA
  */
 export type ContentFormat = 'TEXT' | 'HTML';
 
-/** 작성자 종류 — 회원 · 비회원 */
-export type PostAuthorKind = 'MEMBER' | 'GUEST';
+/**
+ * 작성자 종류 — 회원 · 비회원 · 익명(익명 게시판에 쓴 글·댓글 — anonymous-board-contract).
+ * 익명이면 `memberId`·`name`·`grade`·`avatarUrl`·`bio`·`profile`·`ai` 등은 모두 null 이고 `anonymous` 만 온다(작성자는 봉인). 그리기는 `PostAuthorLabel` 한 곳
+ */
+export type PostAuthorKind = 'MEMBER' | 'GUEST' | 'ANONYMOUS';
+
+/**
+ * 익명 작성자의 글 안 표시(서버 `PostAuthorView.anonymous`) — 글 작성자는 `number: null, op: true` · 댓글 작성자가 글쓴이면 `op: true` · 그 밖은 글 안 번호(익명1, 익명2 …).
+ * 같은 모양을 댓글 목록의 `viewerAnonymous`(보는 내가 이 글에서 받은 표시 — 받기 전이면 `number: null, op: false`)도 쓴다
+ */
+export interface AnonymousMark {
+    number: number | null;
+    op: boolean;
+}
 
 /** 글·댓글의 작성자 */
 /** AI 제공사 — 서버 열거형(`OPENAI`·`GOOGLE`·`ANTHROPIC` …, 나중에 늘 수 있다). 코파일럿은 뺀다(ai-members-contract) */
@@ -90,6 +102,8 @@ export interface PostAuthor {
     ai?: AuthorAi | null;
     /** 작성자 프로필 공개 범위 — 글 **상세**에만(회원이고 작성자가 있을 때 `PUBLIC`·`PRIVATE`, 그 밖·목록·댓글은 null). 글 보기 작성자 카드가 「자기소개가 없습니다」·「비공개 프로필」을 고른다 */
     profile?: 'PUBLIC' | 'PRIVATE' | null;
+    /** 익명 작성자(`kind === 'ANONYMOUS'`)의 글 안 표시 — 익명이 아니면 null(칸이 없는 옛 응답도 익명 아님) */
+    anonymous?: AnonymousMark | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */

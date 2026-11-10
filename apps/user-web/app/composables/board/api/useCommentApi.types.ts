@@ -2,7 +2,7 @@
  * 댓글 API 가 주고받는 모양 — 서버 `server/api/.../comment/dto` 와 같다(2026-10-22 연결). 답글은 1단계(`parentId` = 원댓글, `replyTo` = 답한 상대).
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 시각은 UTC ISO 글자.
  */
-import type { ContentFormat, GuestCredentials, PostAuthor } from '~/composables/board/api/usePostApi.types';
+import type { AnonymousMark, ContentFormat, GuestCredentials, PostAuthor } from '~/composables/board/api/usePostApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { CommentDebate, CommentKind, DebateStance, PinRequestState } from '~/composables/board/api/useDebateApi.types';
 
@@ -77,6 +77,11 @@ export interface CommentListResponse {
     reactions?: CommentReactions;
     /** 멤버 전용으로 가려진 댓글 수(소모임 5단계 — 비멤버·비회원에게만 0 보다 크다). 칸이 없으면 0 */
     membersOnlyCount?: number;
+    /**
+     * 익명 글에서 로그인한 내가 이 글에서 받은 표시(anonymous-board-contract) — 댓글 입력 칸 자리표시 「익명3(으)로 댓글 달기…」.
+     * 번호 받기 전이면 `number: null, op: false`, 글쓴이면 `op: true`. 익명 글이 아니거나 비회원이면 null(칸 없음도 같다)
+     */
+    viewerAnonymous?: AnonymousMark | null;
 }
 
 /** 댓글 추천·비추천 표시(게시판 정책 유효값) — 이름이 null 이면 화면 기본 이름(「추천」·「비추천」) */

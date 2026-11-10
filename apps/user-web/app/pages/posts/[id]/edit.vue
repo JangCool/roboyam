@@ -33,7 +33,7 @@
         <ErrorState v-else-if="pageState === 'error' || !post || !board" :title="t('post.loadFailed')" :description="pageError" retry @retry="load" />
 
         <!-- 남의 회원 글 -->
-        <ErrorState v-else-if="!post.mine && post.author.kind === 'MEMBER'" :title="t('post.notMineTitle')" :description="t('post.notMineText')">
+        <ErrorState v-else-if="!post.mine && post.author.kind !== 'GUEST'" :title="t('post.notMineTitle')" :description="t('post.notMineText')">
             <Button as="router-link" :to="`/posts/${post.id}`" :label="t('post.backToPost')" severity="secondary" variant="outlined" />
         </ErrorState>
 
@@ -220,7 +220,7 @@ const debateInitial = ref<DebateSettingsValues>({ ...DEFAULT_DEBATE_SETTINGS });
  */
 const debateMode = computed<'hidden' | 'edit' | 'readonly'>(() => {
     const p = post.value;
-    if (!p || !p.mine || p.author.kind !== 'MEMBER' || !p.debate) return 'hidden';
+    if (!p || !p.mine || p.author.kind === 'GUEST' || !p.debate) return 'hidden';
     if (p.debate.canManage) return 'edit';
     return p.debate.enabled && p.debate.openedBy === 'OPERATOR' ? 'readonly' : 'hidden';
 });
@@ -238,7 +238,7 @@ const pollInitial = ref<PollFormValues>(UtilPoll.emptyForm());
  */
 const pollMode = computed<'hidden' | 'edit' | 'locked' | 'removeOnly'>(() => {
     const p = post.value;
-    if (!p || !p.mine || p.author.kind !== 'MEMBER') return 'hidden';
+    if (!p || !p.mine || p.author.kind === 'GUEST') return 'hidden';
     if (p.poll) {
         if (!p.poll.editable) return 'locked';
         return board.value && !board.value.pollEnabled ? 'removeOnly' : 'edit';

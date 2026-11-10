@@ -15,8 +15,8 @@ public record BoardStaffActionRowView(String id, String kind, String reasonCode,
     public record Target(String postId, String commentId, String title, String excerpt) {
     }
 
-    /** 대상 작성자 — 회원 닉네임 또는 비회원 이름 */
-    public record Author(String nickname) {
+    /** 대상 작성자 — 회원 닉네임 또는 비회원 이름. {@code sealed} 익명 글·댓글(V184)이면 true 이고 닉네임은 빈 글자(봉인) */
+    public record Author(String nickname, boolean sealed) {
     }
 
     /** 처리자 닉네임 · 자리(MANAGER · STAFF · OPERATOR — 운영자 회원 계정, 닉네임 = 그 회원 닉네임) */

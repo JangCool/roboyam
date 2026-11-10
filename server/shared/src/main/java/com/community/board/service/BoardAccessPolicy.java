@@ -113,7 +113,8 @@ public final class BoardAccessPolicy {
         }
         boolean guestMin = BoardFields.GUEST.equals(min);
         if (actor.guest()) {
-            return guestMin ? null : LOGIN_REQUIRED;
+            // 익명 게시판은 회원만 쓴다 — 비회원은 이름을 적으므로(anonymous-board-contract 정책 1, 비회원 허용 설정이 있어도 401)
+            return guestMin && !board.anonymous() ? null : LOGIN_REQUIRED;
         }
         if (actor.restricted()) {
             return ACCOUNT_RESTRICTED;

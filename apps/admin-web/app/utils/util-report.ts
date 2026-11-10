@@ -1,4 +1,5 @@
 import type { LocationQuery } from 'vue-router';
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
 import type {
     ReportBulkResult,
     ReportCaseAction,
@@ -392,6 +393,16 @@ export default class UtilReport {
         actions.DELETE = item.target.state !== 'DELETED';
         actions.DEAL_END = UtilReport.isDealCase(item) && item.target.state !== 'DELETED' && item.deal?.view !== 'ENDED';
         return actions;
+    }
+
+    /**
+     * 봉인된 익명 작성자의 글·댓글(anonymous-board-contract) — 「이 글(댓글) 작성자 제재」·「작성자 열람」이 보낸다. 봉인이 아니거나 소모임 사건·대상 ID 가 없으면 null.
+     * 댓글 사건은 `commentId`, 글 사건은 `postId`
+     */
+    static anonymousTarget(item: Pick<ReportCaseItem, 'author' | 'target' | 'targetType'>): AnonymousTarget | null {
+        if (!item.author.sealed || item.targetType === 'GROUP') return null;
+        if (item.targetType === 'COMMENT') return item.target.commentId ? { postId: null, commentId: item.target.commentId } : null;
+        return item.target.postId ? { postId: item.target.postId, commentId: null } : null;
     }
 
     /** 작성자에게 제재를 줄 수 있나 — 회원이고 탈퇴하지 않았다(비회원·탈퇴 회원은 제재 불가 — 서버도 막는다) */

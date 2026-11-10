@@ -91,6 +91,11 @@ public enum AdminNotificationEvent {
      */
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).link("/appeals?appeal={appealId}")),
     /**
+     * 운영자가 익명 글·댓글의 작성자를 열람했다(admin {@code AnonymousAuthorRevealService} — anonymous-board-contract 정책 10). 열람 권한자(+ 최고 관리자) 중 연 사람 말고 받는다.
+     * 알림에는 회원 정보를 싣지 않는다(사유 코드만) — 이동은 감사 기록(작업 거르기)
+     */
+    ANONYMOUS_AUTHOR_REVEALED(spec(SAFETY, WARNING).holders(Permission.ANONYMOUS_AUTHOR_REVEAL).excludeActor().link("/settings/audit?action=ANONYMOUS_AUTHOR_REVEAL")),
+    /**
      * 게시판 제재 반복 검토가 열렸다(shared {@code BoardSanctionService} — 같은 회원 · 같은 게시판 · 7일 · 3건 이상, board-sanction-contract 결정 3). 2026-11-04 예약을 풀었다.
      * 발행은 부여 트랜잭션 안(롤백되면 없다), 이메일은 커밋 뒤. 처리는 반복 검토 서랍({@code reviewId})
      */

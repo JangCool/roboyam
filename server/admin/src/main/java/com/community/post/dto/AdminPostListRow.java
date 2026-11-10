@@ -13,7 +13,12 @@ import java.time.Instant;
 public record AdminPostListRow(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String title, String status, Boolean adult,
                                Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, String hiddenReason,
                                Instant hiddenUntil, Instant deleteScheduledAt, Instant deletedAt, Instant purgedAt, Instant createdAt, Long groupId,
-                               Boolean publicPost, Instant groupLeftAt, Boolean secret, String processStatus, Instant processStatusAt) {
+                               Boolean publicPost, Instant groupLeftAt, Boolean secret, String processStatus, Instant processStatusAt, Boolean anonymous) {
+
+    /** 익명 글(V184) — 작성자를 봉인한다(anonymous-board-contract 정책 8) */
+    public boolean anonymousPost() {
+        return Boolean.TRUE.equals(anonymous);
+    }
 
     /** 비공개 소모임 글인가(제목·본문을 관리자 목록·상세에 싣지 않는다 — 신고 처리의 스냅샷으로만 본다, 소모임 2단계) */
     public boolean restricted() {

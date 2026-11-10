@@ -1,3 +1,4 @@
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
 import type { SanctionCreateRequest, SanctionLine, SanctionListView, SanctionPreview, SanctionQuery, SanctionTarget } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
@@ -7,6 +8,8 @@ import type { SanctionCreateRequest, SanctionLine, SanctionListView, SanctionPre
  *   - `GET  /{id}` (`sanction.read`) → `SanctionLine` · 404 `SANCTION_NOT_FOUND`
  *   - `GET  /targets?q=` (`sanction.read`) → `SanctionTarget[]` — 닉네임 2자 이상(400 `fields.q`), 최대 10명, 탈퇴 회원 제외
  *   - `GET  /preview?userId=` (`sanction.read`) → `SanctionPreview` · 404 `SANCTION_TARGET_NOT_FOUND`(없음·탈퇴)
+ *   - `GET  /preview?anonymousPostId=|anonymousCommentId=` (`sanction.read`) → `SanctionPreview`(`user.sealed: true`, 닉네임·회원 ID 없음) — 익명 글·댓글의 봉인된 작성자 현황.
+ *       ⚠ 가정(anonymous-board-contract 「API 계약」에는 만들기 요청의 칸만 있다) — 「이 글 작성자 제재」 창의 단계 고르기에 쓴다. 익명 글이 아니면 409
  *   - `POST /` `SanctionCreateRequest` (입구 `sanction.manage` 또는 `sanction.ban` — 경고·기간 정지는 `sanction.manage`, 영구 정지·건너뛰기는 `sanction.ban`) → `201 SanctionLine` · 오류는 `SanctionCreateRequest` 주석
  *   - `POST /{id}/lift { reason }` (기간 정지 `sanction.manage` · 영구 정지 `sanction.ban`) → `200 SanctionLine` · 409 `SANCTION_NOT_LIFTABLE` · 404 `SANCTION_NOT_FOUND`
  * 권한이 모자라면 403 `PERMISSION_DENIED`. 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
@@ -51,6 +54,10 @@ export function useSanctionApi() {
 
         /** 회원 하나의 제재 현황(경고 수·다음 단계·선택지·진행 중·이력) */
         preview: (userId: string): Promise<SanctionPreview> => client.get<SanctionPreview>(PATH.preview, { query: { userId } }),
+
+        /** 봉인된 익명 작성자의 제재 현황(가정 — 위 주석) — 댓글이면 `anonymousCommentId`, 글이면 `anonymousPostId` */
+        previewAnonymous: (target: AnonymousTarget): Promise<SanctionPreview> =>
+            client.get<SanctionPreview>(PATH.preview, { query: target.commentId ? { anonymousCommentId: target.commentId } : { anonymousPostId: target.postId ?? undefined } }),
 
         /** 제재 부여 */
         create: (body: SanctionCreateRequest): Promise<SanctionLine> => client.post<SanctionLine>(PATH.list, body),

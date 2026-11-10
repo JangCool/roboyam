@@ -214,6 +214,7 @@
                             :guest-mode="board.viewer.guest"
                             :guest-rules="board.viewer.guest"
                             :reply-to-name="replyTarget.name"
+                            :placeholder="anonymousPlaceholder"
                             :max-length="replyMax"
                             :submit-label="t('comment.replySubmit')"
                             cancelable
@@ -288,12 +289,15 @@
         <div v-if="!isDebate" class="mt-4 border-t border-surface pt-4">
             <!-- AI 회원 글에 댓글을 쓸 때마다 — 해외 AI 제공사로 보내지니 개인정보는 적지 말라는 경고(닫지 않는다) -->
             <AiCommentWarning v-if="!restriction && board.viewer.canComment && aiPost" />
+            <!-- 익명 게시판 — 댓글도 「익명」으로 올라간다는 안내(anonymous-board-contract, 글쓰기 화면과 같은 문구) -->
+            <AnonymousBoardNotice v-if="!restriction && board.viewer.canComment && anonymousBoard" compact />
             <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 다른 까닭보다 먼저, 끝 시각·사유와 함께 -->
             <BoardWriteRestrictionNotice v-if="restriction" :restriction="restriction" compact />
             <CommentForm
                 v-else-if="board.viewer.canComment"
                 :key="`new-${formSeq}`"
                 :board="board"
+                :placeholder="anonymousPlaceholder"
                 :guest-mode="board.viewer.guest"
                 :guest-rules="board.viewer.guest"
                 :submitting="busy === 'new'"
@@ -328,6 +332,7 @@ import type { AuthorAi, ContentFormat, GuestCredentials } from '~/composables/bo
 import type { CommentLoadState } from '~/composables/board/usePostComments';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
+import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
@@ -405,6 +410,15 @@ const formSeq = ref(0);
 
 const replyTarget = ref<{ parentId: string; replyToId: string | null; name: string } | null>(null);
 const editingId = ref<string | null>(null);
+
+/* ── 익명 게시판(anonymous-board-contract) ── */
+/** 이 게시판은 글·댓글을 「익명」으로 올린다 — 새 댓글 입력 위 안내 */
+const anonymousBoard = computed(() => props.board.authorMode === 'ANONYMOUS');
+/** 익명 글의 댓글 입력 자리표시 — 서버가 준 내 표시(`viewerAnonymous`)로 「익명3(으)로 댓글 달기…」. 없으면(익명 글 아님·비회원) 기본 자리표시(빈 글자 → `CommentForm` 기본) */
+const anonymousPlaceholder = computed(() => {
+    const viewer = props.data?.viewerAnonymous;
+    return viewer ? UtilAnonymousMessages.placeholder(t, viewer) : '';
+});
 
 const blockedText = computed(() => UtilBoardMessages.commentBlocked(t, props.board.viewer.commentBlockedReason, props.board.commentMinGradeLabel));
 
@@ -644,7 +658,7 @@ watch(mentionQuery, () => {
 });
 
 function chooseMention(c: Commenter): void {
-    mentionTarget.value = { parentId: c.parentId, replyToId: c.replyToId, name: c.author.name ?? t('board.authorWithdrawn') };
+    mentionTarget.value = { parentId: c.parentId, replyToId: c.replyToId, name: UtilAnonymousMessages.authorName(t, c.author) };
     mentionOpen.value = false;
 }
 
@@ -723,7 +737,7 @@ function openReply(thread: CommentView, target: CommentView): void {
         if (!debate.value?.myStance) return toast.show(t('comment.voteFirst'));
     }
     editingId.value = null;
-    replyTarget.value = { parentId: thread.id, replyToId: target.id === thread.id ? null : target.id, name: target.author.name ?? t('board.authorWithdrawn') };
+    replyTarget.value = { parentId: thread.id, replyToId: target.id === thread.id ? null : target.id, name: UtilAnonymousMessages.authorName(t, target.author) };
     clearErrors('reply');
 }
 

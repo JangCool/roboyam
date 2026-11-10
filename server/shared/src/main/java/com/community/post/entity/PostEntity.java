@@ -95,6 +95,8 @@ public class PostEntity {
     private Instant processStatusAt;
     /** 처리 상태를 바꾼 회원(공개 사이트) — 관리자 앱 운영자가 바꿨으면 null(감사 기록에 남는다) */
     private Long processStatusBy;
+    /** 익명 글(V184) — 쓸 때의 게시판 설정으로 정하고 바꾸지 않는다(글 옮기기도 그대로 — anonymous-board-contract 정책 2). 작성자 회원 ID 는 그대로 남는다(봉인) */
+    private boolean anonymous;
 
     protected PostEntity() {
     }
@@ -103,6 +105,16 @@ public class PostEntity {
     public void initOps(boolean secret, boolean statusEnabled) {
         this.secret = secret;
         this.processStatus = statusEnabled ? PostProcessStatus.RECEIVED.name() : null;
+    }
+
+    /** 새 글을 익명으로 쓴다 — {@code persist} 전에 부른다(회원 글만) */
+    public void markAnonymous() {
+        this.anonymous = true;
+    }
+
+    /** 익명 글인가(V184) — 공개·관리자 응답에서 작성자를 감춘다 */
+    public boolean isAnonymous() {
+        return anonymous;
     }
 
     /** 글쓴이가 비밀글 여부를 바꾼다(글 고치기) */

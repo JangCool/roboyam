@@ -32,6 +32,21 @@
                 <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
                 <!-- 닉네임 왼쪽 프로필 동그라미(사용자 2026-11-08 — 글 줄과 같은 크기, 댓글에서는 움직이는 아바타 그대로) -->
                 <PostAuthorLabel :author="comment.author" show-ip link avatar animated class="text-color" />
+                <!-- 익명 댓글(anonymous-board-contract) — 글쓴이면 「글쓴이」(주 색 옅은 바탕), 내 댓글이면 「나」(회색). 번호(「익명3」)는 이름 자리가 그린다 -->
+                <template v-if="comment.author.kind === 'ANONYMOUS'">
+                    <span
+                        v-if="comment.author.anonymous?.op"
+                        class="inline-flex shrink-0 items-center justify-center rounded bg-primary-50 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-700 dark:bg-primary-950 dark:text-primary-300"
+                        data-testid="comment-anonymous-op"
+                        ><span class="relative top-[-0.09em]">{{ t('anonymous.opChip') }}</span></span
+                    >
+                    <span
+                        v-if="comment.mine"
+                        class="inline-flex shrink-0 items-center justify-center rounded bg-surface-200 px-1.5 py-1 text-[0.6875rem] font-medium leading-none text-muted-color dark:bg-surface-700"
+                        data-testid="comment-anonymous-mine"
+                        ><span class="relative top-[-0.09em]">{{ t('anonymous.mineChip') }}</span></span
+                    >
+                </template>
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>
                 <span v-if="comment.updatedAt">{{ t('comment.edited') }}</span>
@@ -45,7 +60,7 @@
                     v-if="comment.state === 'DELAYED'"
                     type="button"
                     class="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-surface-100 px-3 py-2 text-sm text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-800"
-                    :aria-label="UtilCommentDelayMessages.placeholderLabel(t, comment.author.name)"
+                    :aria-label="UtilCommentDelayMessages.placeholderLabel(t, comment.author.kind === 'ANONYMOUS' ? UtilAnonymousMessages.authorName(t, comment.author) : comment.author.name)"
                     @click="$emit('view-delayed')"
                 >
                     <i class="pi pi-lock text-xs" aria-hidden="true" />{{ t('prompt.delayPlaceholder') }}
@@ -142,6 +157,7 @@
 
 <script setup lang="ts">
 import type { CommentReactions, CommentView } from '~/composables/board/api/useCommentApi.types';
+import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilCommentDelayMessages from '~/utils/util-comment-delay-messages';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';

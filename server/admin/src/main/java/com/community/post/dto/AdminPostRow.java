@@ -9,7 +9,12 @@ import java.time.Instant;
  */
 public record AdminPostRow(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String title, String status, Boolean adult,
                            Integer viewCount, Integer likeCount, Integer commentCount, Instant hiddenAt, Instant hiddenUntil, Instant deleteScheduledAt,
-                           Instant deletedAt, Instant createdAt) {
+                           Instant deletedAt, Instant createdAt, Boolean anonymous) {
+
+    /** 익명 글(V184) — 작성자를 봉인한다(anonymous-board-contract 정책 8) */
+    public boolean anonymousPost() {
+        return Boolean.TRUE.equals(anonymous);
+    }
 
     public static final String PUBLIC = "PUBLIC";
     public static final String HIDDEN = "HIDDEN";

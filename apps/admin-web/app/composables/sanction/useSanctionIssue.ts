@@ -1,6 +1,7 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { SanctionCreateRequest, SanctionLine, SanctionPreview, SanctionTarget } from '~/composables/sanction/api/useSanctionApi.types';
 import type { SanctionIssueMember, SanctionIssueView } from '~/composables/sanction/useSanctionIssue.types';
+import UtilSanction from '~/utils/util-sanction';
 
 /** 다시 받아야 하는 오류 — 그 사이 회원 상태가 바뀌었다(현황을 새로 받고 대화창 안에 서버 문구) */
 const STALE = new Set(['SANCTION_STEP_TOO_LOW', 'SANCTION_ALREADY_SUSPENDED', 'SANCTION_ALREADY_BANNED']);
@@ -103,7 +104,7 @@ export function useSanctionIssue() {
         previewLoading.value = true;
         previewError.value = null;
         try {
-            const found = await api.preview(target.id);
+            const found = target.anonymous ? await api.previewAnonymous(target.anonymous) : await api.preview(target.id);
             if (mine === previewTicket) preview.value = found;
         } catch (e) {
             if (mine !== previewTicket) return;
@@ -121,7 +122,9 @@ export function useSanctionIssue() {
         error.value = '';
         fieldErrors.value = {};
         try {
-            const created = await api.create({ ...body, userId: target.id, reportCaseId: reportCaseId.value });
+            // 봉인된 익명 작성자 — 회원 ID 대신 그 글·댓글을 보낸다(서버가 작성자를 찾는다, anonymous-board-contract 「API 계약」 제재)
+            const who = target.anonymous ? UtilSanction.anonymousTargetFields(target.anonymous) : { userId: target.id };
+            const created = await api.create({ ...body, ...who, reportCaseId: reportCaseId.value });
             open.value = false;
             return created;
         } catch (e) {

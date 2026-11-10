@@ -106,7 +106,7 @@
                     </Column>
                     <Column :header="t('boardSanction.col.member')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openLine(data)">{{ data.user.nickname }}</button>
+                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openLine(data)">{{ UtilSanctionMessages.userName(t, data.user) }}</button>
                         </template>
                     </Column>
                     <Column :header="t('boardSanction.col.board')" style="min-width: 7rem">
@@ -174,7 +174,7 @@
             @submit="submitAct"
         >
             <p v-if="actTarget" class="m-0 flex flex-wrap items-center gap-1.5 text-sm">
-                <b>{{ actTarget.user.nickname }}</b>
+                <b>{{ UtilSanctionMessages.userName(t, actTarget.user) }}</b>
                 <span class="text-xs text-muted-color">{{ localizedName(actTarget.board.name, actTarget.board.nameEn) }}</span>
                 <BoardSanctionTag type="kind" :kind="actTarget.kind" />
                 <span v-if="actTarget.endsAt" class="text-xs text-muted-color tabular-nums">{{ t('sanction.endsAt', { at: time.full(actTarget.endsAt) }) }}</span>
@@ -468,7 +468,9 @@ const rowMenuItems = computed<MenuItem[]>(() => {
     if (UtilBoardSanction.canLift(line, canManage.value)) menu.push({ label: t('boardSanction.lift'), icon: 'pi pi-lock-open', command: () => openAct(line, 'lift') });
     if (UtilBoardSanction.canVoid(line, canManage.value)) menu.push({ label: t('boardSanction.void'), icon: 'pi pi-undo', command: () => openAct(line, 'void') });
     if (line.appeal) menu.push({ label: t('sanction.appealOpen', { no: line.appeal.no }), icon: 'pi pi-comments', command: () => void navigateTo({ path: '/appeals', query: { appeal: line.appeal!.id, status: 'ALL' } }) });
-    menu.push({ label: t('boardSanction.memberOnly'), icon: 'pi pi-filter', command: () => apply(UtilSanction.change(filters.value, { userId: line.user.id })) });
+    // 봉인된 익명 글 작성자(`user.sealed`)는 회원 ID 가 없어 「이 회원만」을 걸 수 없다
+    const userId = line.user.id;
+    if (userId) menu.push({ label: t('boardSanction.memberOnly'), icon: 'pi pi-filter', command: () => apply(UtilSanction.change(filters.value, { userId })) });
     return menu;
 });
 function openRowMenu(event: Event, line: BoardSanctionLine): void {

@@ -11,6 +11,8 @@ export interface ReportSanctionContext {
     eligible: boolean;
     /** 작성자 닉네임(안내 문구) */
     authorName: string;
+    /** 봉인된 익명 작성자(anonymous-board-contract) — 처리에 곁들이지 않고 서랍의 「이 글 작성자 제재」로 준다(안내만) */
+    sealed?: boolean;
     preview: SanctionPreview | null;
     loading: boolean;
     error: ApiError | null;

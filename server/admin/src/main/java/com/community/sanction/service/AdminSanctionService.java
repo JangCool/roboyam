@@ -4,6 +4,7 @@ import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.permission.exception.PermissionDeniedException;
 import com.community.permission.service.AccessDeniedRecorder;
+import com.community.post.service.AnonymousAuthorLookup;
 import com.community.report.exception.ReportCaseNotFoundException;
 import com.community.report.repository.master.ReportCaseRepository;
 import com.community.sanction.dto.SanctionIssue;
@@ -57,9 +58,11 @@ public class AdminSanctionService {
     private final SanctionViews views;
     private final ReportCaseRepository reportCases;
     private final AccessDeniedRecorder denied;
+    private final AnonymousAuthorLookup anonymousAuthors;
 
     public AdminSanctionService(MemberSanctionService sanctions, AdminSanctionStore store, SanctionViews views, ReportCaseRepository reportCases,
-                                AccessDeniedRecorder denied) {
+                                AccessDeniedRecorder denied, AnonymousAuthorLookup anonymousAuthors) {
+        this.anonymousAuthors = anonymousAuthors;
         this.sanctions = sanctions;
         this.store = store;
         this.views = views;
@@ -123,7 +126,14 @@ public class AdminSanctionService {
                 .toList();
     }
 
-    public SanctionPreviewView preview(String userIdText) {
+    /**
+     * @param anonymousPostId    「이 글 작성자」(익명 글 — V184)의 현황 — {@code userId} 대신. 응답 대상·이력 줄의 대상은 봉인({@code user.sealed true})
+     * @param anonymousCommentId 「이 댓글 작성자」
+     */
+    public SanctionPreviewView preview(String userIdText, String anonymousPostId, String anonymousCommentId) {
+        if (AnonymousAuthorLookup.given(anonymousPostId, anonymousCommentId)) {
+            return views.previewSealed(anonymousTarget(userIdText, anonymousPostId, anonymousCommentId).userId());
+        }
         Long userId = parseId(userIdText);
         if (userId == null) {
             throw new SanctionTargetNotFoundException();
@@ -131,9 +141,20 @@ public class AdminSanctionService {
         return views.preview(userId);
     }
 
+    /** 익명 대상 — 회원 ID 와 함께 보내면 400 {@code fields.userId}(셋 중 하나만), 찾기 규칙은 {@link AnonymousAuthorLookup#resolve} */
+    private AnonymousAuthorLookup.Found anonymousTarget(String userIdText, String anonymousPostId, String anonymousCommentId) {
+        if (trim(userIdText) != null) {
+            throw ValidationException.of("userId", new MessageRef("anonymous.target.one"));
+        }
+        return anonymousAuthors.resolve(anonymousPostId, anonymousCommentId, "anonymousPostId", "anonymousCommentId");
+    }
+
     @Transactional
     public SanctionLineView create(AdminActor actor, SanctionCreateRequest body) {
-        Long userId = body == null ? null : parseId(body.userId());
+        // 「이 글/댓글 작성자」(익명 — V184): 대상 회원은 서버가 그 글·댓글에서 찾는다 — 봉인 제재(닉네임 확인 없음 · 감사 대상은 그 글·댓글)
+        AnonymousAuthorLookup.Found anonymous = body != null && AnonymousAuthorLookup.given(body.anonymousPostId(), body.anonymousCommentId())
+                ? anonymousTarget(body.userId(), body.anonymousPostId(), body.anonymousCommentId()) : null;
+        Long userId = anonymous != null ? Long.valueOf(anonymous.userId()) : body == null ? null : parseId(body.userId());
         if (userId == null) {
             throw new SanctionTargetNotFoundException();
         }
@@ -144,8 +165,10 @@ public class AdminSanctionService {
                 throw new ReportCaseNotFoundException();
             }
         }
-        SanctionRow row = sanctions.issue(new SanctionIssue(userId, body.kind(), body.reason(), Boolean.TRUE.equals(body.skipStep()), body.confirmNickname(), reportCaseId, ""),
-                operator(actor, "MEMBER", Long.toString(userId)));
+        SanctionIssue.SealedSource sealed = anonymous == null ? null : new SanctionIssue.SealedSource(anonymous.postId(), anonymous.commentId());
+        SanctionRow row = sanctions.issue(new SanctionIssue(userId, body.kind(), body.reason(), Boolean.TRUE.equals(body.skipStep()), body.confirmNickname(), reportCaseId, "",
+                sealed), sealed == null ? operator(actor, "MEMBER", Long.toString(userId))
+                : sealed.commentId() != null ? operator(actor, "COMMENT", Long.toString(sealed.commentId())) : operator(actor, "POST", Long.toString(sealed.postId())));
         return views.line(row);
     }
 

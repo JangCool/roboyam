@@ -67,6 +67,8 @@ public final class AuditRetention {
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
             AuditActions.WITHDRAWN_CONTACT_REVEAL,
+            // 익명 글·댓글 작성자 열람(anonymous-board-contract 정책 10) — 봉인된 신원을 연 일
+            AuditActions.ANONYMOUS_AUTHOR_REVEAL,
             // 결제 주문 상세(회원 번호·닉네임 — commerce-payment-contract 결정 17)
             AuditActions.PAYMENT_ORDER_VIEW,
             // 공구 배송지 열람·배송 명단 내보내기(commerce.md 10-9)

@@ -17,11 +17,12 @@ spring:
     timeout: ${roboyam.admin-auth.session-idle-timeout}
 
   # @Scheduled 워커(배치 실행 요청 집기 · 배치 알림 감시 · 이후의 짧은 주기 워커)가 쓰는 스케줄러. 기본은 스레드 하나라 한 워커가 길어지면 다른 워커가 멈춘다 —
-  # 여럿 둔다. 배치 예약 실행(BatchScheduler)과 요청 실행은 자기 스레드 풀(roboyam.batch.pool-size)을 따로 쓴다
+  # 여럿 둔다. 배치 예약 실행(BatchScheduler)과 요청 실행은 자기 스레드 풀(roboyam.batch.pool-size)을 따로 쓴다.
+  # AI 회원 실행기(AiMemberScheduler)는 제공사 호출로 한 바퀴가 길 수 있어(최대 calls-per-tick × 응답 제한 시간) 그 몫으로 하나 더 둔다(2026-11-10 — api 에서 옮겨 옴)
   task:
     scheduling:
       pool:
-        size: 4
+        size: 5
       thread-name-prefix: worker-
 
   # 주소 DB 올리기(설정 › 주소 검색 — address-search-contract) 때문에 컨테이너 한도를 파일 한 개 300MB · 요청 610MB(한글 + 영문 zip)로 올린다.

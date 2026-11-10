@@ -86,12 +86,17 @@ export interface ReportBoardRef {
     nameEn?: string | null;
 }
 
-/** 대상 작성자 — 비회원은 `id` null, `name` 이 비회원 이름 */
+/**
+ * 대상 작성자 — 비회원은 `id` null, `name` 이 비회원 이름.
+ * **익명 게시판 글·댓글은 `sealed: true`** 이고 그 밖 칸(`kind`·`id`·`name`)은 null 이다(작성자 봉인 — anonymous-board-contract 정책 8). 제재는 「이 글 작성자」(`anonymousPostId`·`anonymousCommentId`)로만
+ */
 export interface ReportAuthorRef {
-    kind: 'MEMBER' | 'GUEST';
+    kind: 'MEMBER' | 'GUEST' | null;
     id: string | null;
-    name: string;
+    name: string | null;
     withdrawn: boolean;
+    /** 봉인된 익명 작성자 — 옛 응답(칸 없음)은 false */
+    sealed?: boolean;
 }
 
 export interface ReportOperatorRef {

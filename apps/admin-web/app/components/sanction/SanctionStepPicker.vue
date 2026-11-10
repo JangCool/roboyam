@@ -50,8 +50,19 @@
             <p v-if="skipError" :id="`${uid}-skip-error`" class="m-0 text-xs text-red-600 dark:text-red-400" role="alert">{{ skipError }}</p>
         </div>
 
+        <!-- 영구 정지 · 봉인된 익명 글 작성자 — 닉네임을 모르므로 확인 표시(`sealedBanConfirmed`, anonymous-board-contract) -->
+        <div v-if="model.kind === 'BAN' && preview.user.sealed" class="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 dark:border-red-900 dark:bg-red-950/30">
+            <div class="flex items-start gap-2">
+                <Checkbox v-model="sealedBanModel" binary :input-id="`${uid}-sealed-ban`" :disabled="disabled" :invalid="Boolean(sealedBanError)" :aria-describedby="sealedBanError ? `${uid}-sealed-ban-error` : undefined" />
+                <label :for="`${uid}-sealed-ban`" class="flex flex-col text-sm">
+                    {{ t('anonymousAuthor.banConfirm') }}
+                    <span class="text-xs leading-relaxed text-muted-color">{{ t('anonymousAuthor.banConfirmHelp') }}</span>
+                </label>
+            </div>
+            <p v-if="sealedBanError" :id="`${uid}-sealed-ban-error`" class="m-0 text-xs text-red-600 dark:text-red-400" role="alert">{{ sealedBanError }}</p>
+        </div>
         <!-- 영구 정지 — 회원 닉네임을 그대로 적어야 한다(`confirmNickname`) -->
-        <LabeledField v-if="model.kind === 'BAN'" :label="t('sanction.confirmNicknameLabel', { name: preview.user.nickname })" :help="t('sanction.confirmNicknameHelp')" :error="nicknameError">
+        <LabeledField v-else-if="model.kind === 'BAN'" :label="t('sanction.confirmNicknameLabel', { name: preview.user.nickname })" :help="t('sanction.confirmNicknameHelp')" :error="nicknameError">
             <template #default="{ id, describedBy, invalid }">
                 <InputText :id="id" v-model="nicknameModel" autocomplete="off" :disabled="disabled" :invalid="invalid" :aria-describedby="describedBy" fluid />
             </template>
@@ -89,7 +100,12 @@ const isSkip = computed(() => UtilSanction.isSkip(props.preview, model.value.kin
 
 const kindModel = computed<SanctionKind | null>({
     get: () => model.value.kind,
-    set: (kind) => (model.value = { ...model.value, kind, skipConfirmed: false, confirmNickname: kind === 'BAN' ? model.value.confirmNickname : '' }),
+    set: (kind) => (model.value = { ...model.value, kind, skipConfirmed: false, confirmNickname: kind === 'BAN' ? model.value.confirmNickname : '', sealedBanConfirmed: false }),
+});
+/** 봉인된 익명 글 작성자의 영구 정지 확인 */
+const sealedBanModel = computed<boolean>({
+    get: () => model.value.sealedBanConfirmed === true,
+    set: (sealedBanConfirmed) => (model.value = { ...model.value, sealedBanConfirmed }),
 });
 const skipModel = computed<boolean>({
     get: () => model.value.skipConfirmed,
@@ -102,6 +118,7 @@ const nicknameModel = computed<string>({
 
 const kindError = computed(() => props.fieldErrors.kind || (props.tried && !model.value.kind ? t('sanction.stepRequired') : ''));
 const skipError = computed(() => props.fieldErrors.skipStep || (props.tried && isSkip.value && !model.value.skipConfirmed ? t('sanction.skipRequired') : ''));
+const sealedBanError = computed(() => props.fieldErrors.confirmNickname || (props.tried && model.value.kind === 'BAN' && !model.value.sealedBanConfirmed ? t('anonymousAuthor.banConfirmRequired') : ''));
 const nicknameError = computed(() => {
     if (props.fieldErrors.confirmNickname) return props.fieldErrors.confirmNickname;
     if (!props.tried || model.value.kind !== 'BAN') return '';

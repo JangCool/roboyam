@@ -20,10 +20,11 @@ import java.util.List;
  * @param secretMode     비밀글 방식 OFF · OPTIONAL(글쓴이가 고름) · ALWAYS(모든 회원 글 비밀) — V166 운영 게시판 설정(일반·소모임 게시판만 — V168, 그 밖 OFF)
  * @param statusEnabled  처리 상태를 쓰는가(V166 — 일반·소모임 게시판만(V168), 그 밖 false)
  * @param chipPosition   글 목록 말머리·상태 칩 위치 ABOVE(제목 위) · BEFORE(제목 앞) · BELOW(닉네임 아래) — 게시판 값 또는 사이트 기본을 푼 실제 값(V169, post-chip-position-contract)
+ * @param authorMode     작성자 표시 NICKNAME · ANONYMOUS(V184 — 익명 게시판은 회원만 쓰고 글·댓글 작성자가 「익명」, anonymous-board-contract). 일반 게시판만 ANONYMOUS 일 수 있다
  */
 public record BoardView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                         String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor, String layout,
                         boolean dealEnabled, boolean promo,
                         boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, boolean debateEnabled, boolean pollEnabled, String kind,
-                        String secretMode, boolean statusEnabled, String chipPosition) {
+                        String secretMode, boolean statusEnabled, String chipPosition, String authorMode) {
 }

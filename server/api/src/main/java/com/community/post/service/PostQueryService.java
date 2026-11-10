@@ -246,7 +246,7 @@ public class PostQueryService {
                             Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
-        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
+        PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
@@ -316,7 +316,7 @@ public class PostQueryService {
         boolean staffViewer = (b.secretAlways() || b.secretOptional()) && userId != null && actors.resolve(userId, s).staffOf(b.id());
         Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), adultViewer, userId, staffViewer, now);
-        PostAuthorView author = authors.ofPost(post.getId(), post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
+        PostAuthorView author = authors.ofPost(post.getId(), post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), post.isAnonymous(), members, s).withMemo(lens.memoOf(post.getAuthorId()))
                 .withProfile(authors.detailProfile(post.getAuthorId(), members)); // 작성자 자기소개·공개 범위는 상세에만(profile-privacy-contract — 숨긴 글은 여기 오지 않는다)
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
@@ -341,7 +341,7 @@ public class PostQueryService {
 
     /** 보는 사람이 그 게시판 매니저·스텝이고 글쓴이가 같은 게시판 매니저·스텝인가(처리·제재 대상 보호 — 그 밖의 보는 사람은 늘 false) */
     private boolean staffAuthor(EffectiveBoard b, PostEntity post, Long userId) {
-        return !post.isGroupPost() && post.getAuthorId() != null && staffActions.protectedAuthorsFor(b.id(), userId).contains(post.getAuthorId());
+        return !post.isGroupPost() && !post.isAnonymous() && post.getAuthorId() != null && staffActions.protectedAuthorsFor(b.id(), userId).contains(post.getAuthorId());
     }
 
     /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */

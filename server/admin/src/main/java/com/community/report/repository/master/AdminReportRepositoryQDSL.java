@@ -1,5 +1,6 @@
 package com.community.report.repository.master;
 
+import com.community.comment.entity.QCommentEntity;
 import com.community.group.entity.QGroupEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.report.entity.QReportCaseEntity;
@@ -76,7 +77,13 @@ public class AdminReportRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         if (c.author() != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;
+            QPostEntity anonymousPost = new QPostEntity("anonymousPost");
+            QCommentEntity anonymousComment = new QCommentEntity("anonymousComment");
+            // 익명 글·댓글(V184) 사건은 작성자 닉네임으로 찾지 않는다(봉인 — anonymous-board-contract 정책 8). 익명 글의 댓글은 모두 익명이라 글도 본다
             where.and(CASE.targetAuthorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.author())))
+                    .and(JPAExpressions.selectOne().from(anonymousPost).where(anonymousPost.id.eq(CASE.postId), anonymousPost.anonymous.isTrue()).notExists())
+                    .and(JPAExpressions.selectOne().from(anonymousComment).where(CASE.targetType.eq(ReportEntity.COMMENT), anonymousComment.postId.eq(CASE.postId),
+                            anonymousComment.id.eq(CASE.targetId), anonymousComment.anonymous.isTrue()).notExists())
                     .or(CASE.targetAuthorId.isNull().and(JPAExpressions.selectOne().from(REPORT)
                             .where(REPORT.caseId.eq(CASE.id), REPORT.snapshotAuthorName.containsIgnoreCase(c.author())).exists())));
         }

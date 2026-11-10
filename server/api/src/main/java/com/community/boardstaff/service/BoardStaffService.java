@@ -25,6 +25,9 @@ import com.community.sanction.repository.master.BoardSanctionStore.BoardSanction
 import com.community.sanction.repository.master.BoardStaffActionStore.ActionRow;
 import com.community.sanction.service.BoardSanctionService;
 import com.community.sanction.service.BoardStaffActionService;
+import com.community.post.service.AnonymousAuthorLookup;
+import com.community.zconfiguration.exception.ValidationException;
+import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -43,24 +46,31 @@ public class BoardStaffService {
 
     private final BoardSanctionService sanctions;
     private final BoardStaffActionService staffActions;
+    private final AnonymousAuthorLookup anonymousAuthors;
 
-    public BoardStaffService(BoardSanctionService sanctions, BoardStaffActionService staffActions) {
+    public BoardStaffService(BoardSanctionService sanctions, BoardStaffActionService staffActions, AnonymousAuthorLookup anonymousAuthors) {
         this.sanctions = sanctions;
         this.staffActions = staffActions;
+        this.anonymousAuthors = anonymousAuthors;
     }
 
+    /**
+     * @param anonymousPostId    「이 글 작성자」(익명 글 — V184) — {@code userId} 대신. 대상 칸은 봉인({@code sealed true}, 닉네임·회원 ID 없음)
+     * @param anonymousCommentId 「이 댓글 작성자」(익명 댓글)
+     */
     @Transactional(readOnly = true)
-    public BoardSanctionPreviewView preview(long actorId, String boardIdText, String userIdText) {
+    public BoardSanctionPreviewView preview(long actorId, String boardIdText, String userIdText, String anonymousPostId, String anonymousCommentId) {
         Long boardId = parseId(boardIdText);
         if (boardId == null) {
             throw BoardSanctionException.forbidden();
         }
-        Long userId = parseId(userIdText);
+        boolean sealed = AnonymousAuthorLookup.given(anonymousPostId, anonymousCommentId);
+        Long userId = sealed ? anonymousTarget(userIdText, anonymousPostId, anonymousCommentId).userId() : parseId(userIdText);
         if (userId == null) {
             throw BoardSanctionException.targetProtected();
         }
         BoardSanctionService.Preview p = sanctions.preview(actorId, boardId, userId);
-        return new BoardSanctionPreviewView(new BoardSanctionTargetView(Long.toString(p.target().id()), nz(p.target().nickname())),
+        return new BoardSanctionPreviewView(sealed ? BoardSanctionTargetView.SEALED : new BoardSanctionTargetView(Long.toString(p.target().id()), nz(p.target().nickname()), false),
                 new BoardSanctionCountsView(p.counts().warnings(), p.counts().restrictions()),
                 p.active() == null ? null : new BoardSanctionActiveView(Long.toString(p.active().boardSanctionId()), p.active().until()), p.recommended().name(),
                 BoardStaffQuotaView.of(p.quota()), BoardSanctionService.nextResetAfter(sanctions.now()));
@@ -71,6 +81,15 @@ public class BoardStaffService {
         Long boardId = body == null ? null : parseId(body.boardId());
         if (boardId == null) {
             throw BoardSanctionException.forbidden();
+        }
+        // 「이 글/댓글 작성자」(익명 — V184, anonymous-board-contract 정책 9): 대상 회원은 서버가 그 글·댓글에서 찾고, 계기도 그 글·댓글이다(봉인 제재)
+        if (AnonymousAuthorLookup.given(body.anonymousPostId(), body.anonymousCommentId())) {
+            AnonymousAuthorLookup.Found found = anonymousTarget(body.userId(), body.anonymousPostId(), body.anonymousCommentId());
+            BoardSanctionService.Issued issued = sanctions.issue(new BoardSanctionService.Issue(actorId, boardId, found.userId(), body.kind(), body.reasonCode(),
+                    body.reasonText(), found.postId(), found.commentId(), ip, true));
+            BoardSanctionRow r = issued.row();
+            return new BoardSanctionIssuedView(Long.toString(r.id()), r.no(), r.kind().name(), r.startsAt(), r.endsAt(), BoardStaffQuotaView.of(issued.quota()),
+                    BoardSanctionService.nextResetAfter(sanctions.now()));
         }
         Long userId = parseId(body.userId());
         if (userId == null) {
@@ -172,13 +191,21 @@ public class BoardStaffService {
                 done.quota() == null ? BoardSanctionService.nextResetAfter(staffActions.now()) : done.quota().resetsAt());
     }
 
+    /** 익명 대상 — 회원 ID 와 함께 보내면 400 {@code fields.userId}(셋 중 하나만), 찾기 규칙은 {@link AnonymousAuthorLookup#resolve} */
+    private AnonymousAuthorLookup.Found anonymousTarget(String userIdText, String anonymousPostId, String anonymousCommentId) {
+        if (userIdText != null && !userIdText.isBlank()) {
+            throw ValidationException.of("userId", new MessageRef("anonymous.target.one"));
+        }
+        return anonymousAuthors.resolve(anonymousPostId, anonymousCommentId, "anonymousPostId", "anonymousCommentId");
+    }
+
     /** 처리 내역 한 줄 — 처리자는 매니저(·운영자 회원 계정)에게만, 되돌린 사람·사유는 싣지 않는다(정책 8). {@code canRestore} 는 줄마다 판정한 값 */
     private static BoardStaffActionRowView actionRow(ActionRow r, boolean manager, boolean canRestore) {
         BoardStaffActionRowView.Actor actor = manager && r.actorRole() != null ? new BoardStaffActionRowView.Actor(nz(r.actorNickname()), r.actorRole()) : null;
         return new BoardStaffActionRowView(Long.toString(r.id()), r.apiKind(), r.reasonCode(),
                 new BoardStaffActionRowView.Target(Long.toString(r.postId()), r.commentId() == null ? null : Long.toString(r.commentId()), nz(r.targetTitle()),
                         r.targetExcerpt()),
-                new BoardStaffActionRowView.Author(nz(r.authorName())), actor, r.createdAt(),
+                new BoardStaffActionRowView.Author(r.anonymousTarget() ? "" : nz(r.authorName()), r.anonymousTarget()), actor, r.createdAt(),
                 r.restoredAt() == null ? null : new BoardStaffActionRowView.Restored(r.restoredAt()), canRestore);
     }
 
@@ -188,7 +215,8 @@ public class BoardStaffService {
         BoardSanctionLiftInfoView lift = r.liftedAt() == null ? null : new BoardSanctionLiftInfoView(r.liftReason(), r.liftedAt());
         BoardSanctionSourceView source = r.postId() == null ? null
                 : new BoardSanctionSourceView(Long.toString(r.postId()), r.commentId() == null ? null : Long.toString(r.commentId()), r.sourceTitle());
-        return new BoardStaffSanctionRowView(Long.toString(r.id()), r.no(), new BoardSanctionTargetView(Long.toString(r.userId()), nz(r.nickname())), r.kind().name(),
+        return new BoardStaffSanctionRowView(Long.toString(r.id()), r.no(),
+                r.sealed() ? BoardSanctionTargetView.SEALED : new BoardSanctionTargetView(Long.toString(r.userId()), nz(r.nickname()), false), r.kind().name(),
                 r.reasonCode(), r.reasonText(), r.effectiveStatus(now).name(), r.startsAt(), r.endsAt(), r.createdAt(), issuer, lift, source,
                 canLift);
     }

@@ -196,6 +196,8 @@ export default class UtilPermissionCatalog {
         { code: 'sanction.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.sanctionManage', descKey: 'permission.item.sanctionManageDesc', featureReady: true },
         { code: 'appeal.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.appealManage', descKey: 'permission.item.appealManageDesc', featureReady: true },
         { code: 'sanction.ban', unit: 'SENSITIVE', type: 'sanction', nameKey: 'permission.item.sanctionBan', descKey: 'permission.item.sanctionBanDesc', featureReady: true },
+        // 익명 작성자 열람(anonymous-board-contract 정책 10) — 봉인된 익명 글·댓글 작성자를 사유를 적고 연다(감사 기록 + 다른 운영자 알림). 기본은 최고 관리자만, 역할에 줄 수 있다. ⚠ 서버 `Permission` 의 자리·차례와 맞출 것(가정: 제재 유형 끝)
+        { code: 'anonymous-author.reveal', unit: 'SENSITIVE', type: 'sanction', nameKey: 'permission.item.anonymousAuthorReveal', descKey: 'permission.item.anonymousAuthorRevealDesc', featureReady: true },
         { code: 'keeper-action.read', unit: 'READ', type: 'staffAudit', nameKey: 'permission.item.keeperActionRead', descKey: 'permission.item.keeperActionReadDesc', featureReady: true },
         { code: 'keeper-action.restore', unit: 'SENSITIVE', type: 'staffAudit', nameKey: 'permission.item.keeperActionRestore', descKey: 'permission.item.keeperActionRestoreDesc', featureReady: true },
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },

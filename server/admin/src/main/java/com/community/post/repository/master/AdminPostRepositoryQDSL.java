@@ -55,7 +55,7 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static ConstructorExpression<AdminPostRow> row() {
         return Projections.constructor(AdminPostRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
                 POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.hiddenAt, POST.hiddenUntil, POST.deleteScheduledAt, POST.deletedAt,
-                POST.createdAt);
+                POST.createdAt, POST.anonymous);
     }
 
     /** 글 ID 로 줄 읽기 — 지운·숨긴 글도. 순서는 정하지 않는다 */
@@ -120,7 +120,7 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return Projections.constructor(AdminPostListRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
                 POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenReason, POST.hiddenUntil,
                 POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt, POST.groupId, POST.publicPost, POST.groupLeftAt, POST.secret, POST.processStatus,
-                POST.processStatusAt);
+                POST.processStatusAt, POST.anonymous);
     }
 
     /** 지운 글 — 지움 · 공개 아님(임시저장) · 예약 삭제 시각 지남 */
@@ -161,7 +161,8 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (c.author() != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;
             where = where.and(POST.authorId.isNull().and(POST.guestName.containsIgnoreCase(c.author()))
-                    .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.author())))));
+                    .or(POST.anonymous.isFalse().and(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.author()))))));
+            // ↑ 익명 글(V184)은 작성자로 찾지 않는다(봉인 — anonymous-board-contract 정책 8)
         }
         if (c.createdFrom() != null) {
             where = where.and(POST.id.goe(SnowflakeIdGenerator.floorIdAt(c.createdFrom().minus(ID_RANGE_SLACK)))).and(POST.createdAt.goe(c.createdFrom()));

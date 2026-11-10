@@ -232,6 +232,8 @@ export default {
         appealManageDesc: 'Accept or reject appeals.',
         sanctionBan: 'Permanent ban and skipping steps',
         sanctionBanDesc: 'Give a permanent ban or skip sanction steps.',
+        anonymousAuthorReveal: 'Reveal anonymous author',
+        anonymousAuthorRevealDesc: 'Reveal the sealed author of an anonymous-board post or comment with a reason. Each reveal is logged and other operators are notified.',
         keeperActionRead: 'View staff actions',
         keeperActionReadDesc: 'See posts hidden or deleted and comments deleted by board managers and staff in Staff action oversight.',
         keeperActionRestore: 'Restore staff actions',

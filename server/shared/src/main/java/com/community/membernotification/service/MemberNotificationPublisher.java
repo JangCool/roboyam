@@ -82,17 +82,22 @@ public class MemberNotificationPublisher {
                     if (window > 0) {
                         var grouped = writer.groupable(target, notice.postId(), now.minus(Duration.ofMinutes(window)));
                         if (grouped.isPresent()) {
-                            writer.addToGroup(grouped.get(), notice.commenterId(), guestName(notice), notice.commentId());
+                            writer.addToGroup(grouped.get(), actorOf(notice), guestName(notice), notice.commentId());
                             return 1; // 묶인 댓글 — 메일은 처음 한 통만(다시 보내지 않는다)
                         }
                     }
                 }
-                writer.insert(ids.nextId(), target, type.name(), notice.commenterId(), guestName(notice), notice.postId(), notice.commentId(), null, now);
+                writer.insert(ids.nextId(), target, type.name(), actorOf(notice), guestName(notice), notice.postId(), notice.commentId(), null, now);
                 made = 1;
             }
             if (on.email()) {
-                requestEmail(target, MemberNotificationMessages.Facts.comment(type, guestName(notice), cut(notice.postTitle(), 200), cut(notice.excerpt(), SNAPSHOT_MAX), 1),
-                        notice.commenterId(), notice.postId());
+                MemberNotificationMessages.Facts facts = MemberNotificationMessages.Facts.comment(type, guestName(notice), cut(notice.postTitle(), 200),
+                        cut(notice.excerpt(), SNAPSHOT_MAX), 1);
+                if (notice.anonymous()) {
+                    events.publishEvent(new MemberEmailRequested(target, facts, null, notice.postId(), "/posts/" + notice.postId(), true)); // 이름은 발송 때 「익명」
+                } else {
+                    requestEmail(target, facts, notice.commenterId(), notice.postId());
+                }
             }
             return made;
         }, 0);
@@ -417,6 +422,13 @@ public class MemberNotificationPublisher {
      * @param excerpt   의견 앞부분(메일 문구)
      */
     public int opinionPinRequested(long recipientId, long requesterId, long postId, long commentId, String postTitle, String excerpt) {
+        return opinionPinRequested(recipientId, requesterId, postId, commentId, postTitle, excerpt, false);
+    }
+
+    /**
+     * @param anonymous 익명 의견(V184) — 알림 행에 요청한 회원을 남기지 않고 메일 이름도 「익명」. 자기 자신에게 보내지 않는 판정은 {@code requesterId} 로 그대로 한다
+     */
+    public int opinionPinRequested(long recipientId, long requesterId, long postId, long commentId, String postTitle, String excerpt, boolean anonymous) {
         if (recipientId == requesterId) {
             return 0;
         }
@@ -427,12 +439,17 @@ public class MemberNotificationPublisher {
             }
             int made = 0;
             if (on.inApp()) {
-                writer.insert(ids.nextId(), recipientId, MemberNotificationType.OPINION_PIN_REQUESTED.name(), requesterId, null, postId, commentId, null, Instant.now());
+                writer.insert(ids.nextId(), recipientId, MemberNotificationType.OPINION_PIN_REQUESTED.name(), anonymous ? null : requesterId, null, postId, commentId, null,
+                        Instant.now());
                 made = 1;
             }
             if (on.email()) {
-                requestEmail(recipientId, MemberNotificationMessages.Facts.pinRequested(null, cut(postTitle, SNAPSHOT_MAX), cut(excerpt, SNAPSHOT_MAX)), requesterId,
-                        postId);
+                MemberNotificationMessages.Facts facts = MemberNotificationMessages.Facts.pinRequested(null, cut(postTitle, SNAPSHOT_MAX), cut(excerpt, SNAPSHOT_MAX));
+                if (anonymous) {
+                    events.publishEvent(new MemberEmailRequested(recipientId, facts, null, postId, "/posts/" + postId, true));
+                } else {
+                    requestEmail(recipientId, facts, requesterId, postId);
+                }
             }
             return made;
         }, 0);
@@ -1284,7 +1301,12 @@ public class MemberNotificationPublisher {
     }
 
     private static String guestName(CommentNotice notice) {
-        return notice.commenterId() != null ? null : cut(notice.commenterGuestName(), NAME_MAX);
+        return notice.commenterId() != null || notice.anonymous() ? null : cut(notice.commenterGuestName(), NAME_MAX);
+    }
+
+    /** 알림 행의 일으킨 회원 — 익명 댓글이면 남기지 않는다(읽을 때 댓글의 익명 표시로 「익명」 — anonymous-board-contract 정책 4) */
+    private static Long actorOf(CommentNotice notice) {
+        return notice.anonymous() ? null : notice.commenterId();
     }
 
     private static String cut(String text, int max) {

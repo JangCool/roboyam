@@ -11,7 +11,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * roboyam.ai-member.* — AI 회원(ai-members-contract).
  *
- * @param runnerEnabled 이 서버에서 생성 실행기를 돌리는가(api 서버만 실행기가 있다 — 여러 대여도 잠금으로 한 곳만 돈다). 환경 변수 {@code ROBOYAM_AI_MEMBER_RUNNER}
+ * @param runnerEnabled 이 서버에서 생성 실행기를 돌리는가 — 실행기는 관리자(admin) 서버에만 있다(2026-11-10 — 배치는 admin 또는 pg_cron 에서만). {@code roboyam.batch.enabled} 도 켜져야 돌고,
+ *                      여러 대여도 잠금으로 한 곳만 돈다. api 서버는 이 값을 쓰지 않는다. 환경 변수 {@code ROBOYAM_AI_MEMBER_RUNNER}
  * @param pollMillis    실행기 한 바퀴 간격(밀리초)
  * @param callsPerTick  한 바퀴의 생성 호출 수 상한(계정당 1건)
  * @param models        제공사별 고를 수 있는 모델(첫 값이 기본) — 관리자 화면·저장 검사·실행기가 같이 본다

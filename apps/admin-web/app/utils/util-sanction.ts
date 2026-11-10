@@ -1,4 +1,5 @@
 import type { LocationQuery } from 'vue-router';
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
 import type { AppealQuery, AppealSort, AppealStatusFilter } from '~/composables/sanction/api/useAppealApi.types';
 import type {
     AppealStatus,
@@ -305,13 +306,23 @@ export default class UtilSanction {
         const choice = UtilSanction.choices(preview, perm).find((c) => c.option.kind === value.kind);
         if (!choice?.enabled) return false;
         if (choice.option.state === 'SKIP' && !value.skipConfirmed) return false;
-        return value.kind !== 'BAN' || value.confirmNickname.trim() === preview.user.nickname;
+        if (value.kind !== 'BAN') return true;
+        // 봉인된 익명 글 작성자는 닉네임을 모르므로 확인 표시로 대신한다(anonymous-board-contract)
+        if (preview.user.sealed) return value.sealedBanConfirmed === true;
+        return value.confirmNickname.trim() === preview.user.nickname;
     }
 
     /** 보낼 단계 값 — 건너뛰기 여부는 서버 선택지 상태로, 닉네임은 영구 정지일 때만 */
     static stepRequest(value: SanctionStepValue, preview: SanctionPreview): { kind: SanctionKind; skipStep: boolean; confirmNickname: string | null } {
         const kind = value.kind as SanctionKind;
-        return { kind, skipStep: UtilSanction.isSkip(preview, kind), confirmNickname: kind === 'BAN' ? value.confirmNickname.trim() : null };
+        // 봉인된 익명 글 작성자의 영구 정지는 닉네임 없이 보낸다(가정 — 서버가 봉인 대상이면 확인 칸을 보지 않는다)
+        return { kind, skipStep: UtilSanction.isSkip(preview, kind), confirmNickname: kind === 'BAN' && !preview.user.sealed ? value.confirmNickname.trim() : null };
+    }
+
+    /** 봉인된 익명 작성자 제재 요청의 대상 칸 — 댓글이면 `anonymousCommentId`, 글이면 `anonymousPostId`(둘 다 보내면 서버 400) */
+    static anonymousTargetFields(target: AnonymousTarget): { anonymousPostId?: string; anonymousCommentId?: string } {
+        if (target.commentId) return { anonymousCommentId: target.commentId };
+        return target.postId ? { anonymousPostId: target.postId } : {};
     }
 
     /** 이 회원에게 줄 수 있는 단계가 하나라도 있나(권한과 상관없이) */

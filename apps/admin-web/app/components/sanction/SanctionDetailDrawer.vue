@@ -20,7 +20,7 @@
     >
         <template #header>
             <div class="flex min-w-0 flex-1 items-start gap-2">
-                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ line ? t('sanction.drawerTitle', { no: line.no, name: line.user.nickname }) : t('sanction.drawerTitleEmpty') }}</h2>
+                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ line ? t('sanction.drawerTitle', { no: line.no, name: UtilSanctionMessages.userName(t, line.user) }) : t('sanction.drawerTitleEmpty') }}</h2>
                 <div class="flex shrink-0 items-center gap-0.5">
                     <Button v-tooltip.bottom="t('sanction.prev')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('sanction.prev')" :disabled="!hasPrev" @click="emit('prev')" />
                     <Button v-tooltip.bottom="t('sanction.next')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('sanction.next')" :disabled="!hasNext" @click="emit('next')" />
@@ -94,8 +94,12 @@
                 <p class="m-0 text-xs text-muted-color">{{ t('sanction.reasonSentNote') }}</p>
             </section>
 
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-member`">
-                <h3 :id="`${titleId}-member`" class="text-sm font-semibold">{{ t('sanction.memberHistoryTitle', { name: line.user.nickname }) }}</h3>
+            <!-- 봉인된 익명 글 작성자(anonymous-board-contract 정책 9) — 회원 현황·이력을 보이지 않는다(신원은 열람 창으로만) -->
+            <p v-if="line.user.sealed" class="m-0 flex items-center gap-1.5 rounded-lg border border-dashed border-(--line) px-3 py-2 text-xs text-muted-color" data-testid="sanction-sealed-note">
+                <i class="pi pi-lock text-[11px]" aria-hidden="true" />{{ t('anonymousAuthor.sanctionSealedNote') }}
+            </p>
+            <section v-else class="flex flex-col gap-2" :aria-labelledby="`${titleId}-member`">
+                <h3 :id="`${titleId}-member`" class="text-sm font-semibold">{{ t('sanction.memberHistoryTitle', { name: UtilSanctionMessages.userName(t, line.user) }) }}</h3>
                 <ErrorState v-if="previewError" :title="t('sanction.previewFailed')" :description="previewError.message" retry :retrying="previewLoading" @retry="emit('retry-preview')" />
                 <Skeleton v-else-if="!preview" height="6rem" />
                 <template v-else>
@@ -161,7 +165,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
         { key: 'kind', label: t('sanction.col.kind') },
         { key: 'state', label: t('sanction.col.status') },
         { key: 'no', label: t('sanction.col.no'), value: UtilSanctionMessages.no(t, l) },
-        { key: 'member', label: t('sanction.col.member'), value: l.user.nickname },
+        { key: 'member', label: t('sanction.col.member'), value: UtilSanctionMessages.userName(t, l.user) },
     ];
 });
 

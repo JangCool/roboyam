@@ -119,10 +119,11 @@ public class MemberNotificationEmailSender {
     /** 일으킨 회원의 지금 닉네임(없으면 받는 사람 언어의 「탈퇴한 회원」) · 비회원은 그때 이름 */
     private MemberNotificationMessages.Facts withActorName(MemberEmailRequested event, String language) {
         MemberNotificationMessages.Facts facts = event.facts();
-        if (event.actorUserId() == null) {
+        if (event.actorUserId() == null && !event.anonymousActor()) {
             return facts;
         }
-        String name = queries.nickname(event.actorUserId())
+        String name = event.anonymousActor() ? messages.get(new MessageRef("member.notification.actor.anonymous"), texts.localeOf(language)) // 익명 글·댓글(V184)
+                : queries.nickname(event.actorUserId())
                 .orElseGet(() -> messages.get(new MessageRef("member.notification.actor.withdrawn"), texts.localeOf(language)));
         return new MemberNotificationMessages.Facts(facts.type(), name, facts.postTitle(), facts.excerpt(), facts.groupCount(), facts.amount(), facts.pointsKind(),
                 facts.note(), facts.temporary(), facts.snapshot(), facts.result(), facts.reasonCode(), facts.targetType(), facts.restriction(), facts.expiring(),

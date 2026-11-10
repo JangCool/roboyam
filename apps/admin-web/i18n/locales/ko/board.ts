@@ -291,6 +291,7 @@ export default {
         writeLock: '읽기 전용 잠금',
         secretMode: '비밀글',
         statusEnabled: '처리 상태 쓰기',
+        authorMode: '작성자 표시',
         introText: '게시판 안내문',
         writeGuideText: '글쓰기 안내문',
         writeTemplate: '글 양식',
@@ -616,6 +617,15 @@ export default {
         OPTIONAL: '글쓴이가 고름',
         ALWAYS: '모든 글 비밀',
     },
+    authorMode: {
+        NICKNAME: '닉네임',
+        ANONYMOUS: '익명',
+    },
+    authorModeDesc: {
+        NICKNAME: '글·댓글에 작성자 닉네임이 보여요(기본).',
+        ANONYMOUS: '글·댓글 모두 「익명」으로 보여요. 글 안에서는 「익명1·익명2」처럼 번호가 붙어요.',
+    },
+    authorModeHelp: '작성자는 봉인돼서 운영자 화면에도 보이지 않아요. 제재는 「이 글 작성자」로 할 수 있고, 신원은 「익명 작성자 열람」 권한이 있는 운영자만 사유를 적고 열 수 있어요(기록이 남아요). 나중에 이 설정을 꺼도 이미 쓴 글은 익명으로 남아요.',
     statusEnabledHelp: '목록·글에 처리 상태(접수 → 완료 등)를 보이고 운영진이 바꿔요. 바뀌면 글쓴이에게 알림이 가요. 기본값이 없는 칸이에요.',
     statusEnabledHelpGroup: '소모임 글 목록·글에 처리 상태(접수 → 완료 등)를 보이고 소모임 운영진이 바꿔요. 바뀌면 글쓴이에게 알림이 가요.',
     reportFixed: '신고 누적 자동 숨김 없음 — 신고 관리에서 운영자가 판단해요.',

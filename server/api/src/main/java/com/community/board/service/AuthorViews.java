@@ -7,6 +7,7 @@ import com.community.operator.service.OperatorMemberAccountService;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
+import com.community.post.service.AnonymousAuthors;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserStatus;
 import com.community.user.repository.master.ProfileRepository;
@@ -103,7 +104,7 @@ public class AuthorViews {
      */
     public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false, null, null, null);
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false, null, null, null, null);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
@@ -111,7 +112,7 @@ public class AuthorViews {
         AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
                 ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), look == null ? null : look.avatarStillUrl(), members.business(authorId),
-                members.operator(authorId), null, null, aiView(members.ai(authorId)));
+                members.operator(authorId), null, null, aiView(members.ai(authorId)), null);
     }
 
     /**
@@ -135,9 +136,29 @@ public class AuthorViews {
         return new PostAuthorView.AuthorProfileView("PUBLIC", bio);
     }
 
-    /** 숨긴 글·지운 댓글의 작성자 —이름·IP·장식·아바타·사업자 뱃지·운영자 뱃지를 비운다(종류·회원 ID 는 그대로) */
+    /** 숨긴 글·지운 댓글의 작성자 —이름·IP·장식·아바타·사업자 뱃지·운영자 뱃지를 비운다(종류·회원 ID 는 그대로). 익명 작성자는 그대로(이미 비어 있다) */
     public static PostAuthorView blank(PostAuthorView author) {
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false, null, null, null);
+        if (author.anonymousAuthor()) {
+            return author;
+        }
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false, null, null, null, null);
+    }
+
+    /**
+     * 글 작성자 — 익명 글(V184)이면 {@link PostAuthorView#anonymous}(글쓴이 표시 {@code op}), 아니면 {@link #ofPost(long, Long, String, String, AuthorMembers, BoardCatalogSnapshot)}.
+     */
+    public PostAuthorView ofPost(long postId, Long authorId, String guestName, String authorIp, boolean anonymous, AuthorMembers members, BoardCatalogSnapshot catalog) {
+        return anonymous ? PostAuthorView.anonymous(null, true) : ofPost(postId, authorId, guestName, authorIp, members, catalog);
+    }
+
+    /** 익명 댓글 작성자(V184) — 글쓴이 표시·글 안 번호 */
+    public static PostAuthorView anonymous(AnonymousAuthors.Tag tag) {
+        return PostAuthorView.anonymous(tag.number(), tag.op());
+    }
+
+    /** 익명 표시를 응답 칸으로(댓글 목록 {@code viewerAnonymous}), 없으면 null */
+    public static PostAuthorView.AuthorAnonymousView anonymousView(AnonymousAuthors.Tag tag) {
+        return tag == null ? null : new PostAuthorView.AuthorAnonymousView(tag.number(), tag.op());
     }
 
     private static PostAuthorView.AuthorAiView aiView(AiMemberDirectory.AiAuthor ai) {

@@ -453,6 +453,9 @@ public class ReportService {
     }
 
     private String authorName(Target target) {
+        if (target.comment() != null ? target.comment().isAnonymous() : target.post().isAnonymous()) {
+            return null; // 익명 글·댓글(V184)은 작성자 이름 스냅숏을 남기지 않는다(봉인 — anonymous-board-contract 정책 8)
+        }
         Long authorId = target.authorId();
         if (authorId == null) {
             return target.comment() == null ? target.post().getGuestName() : target.comment().getGuestName();

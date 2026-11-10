@@ -179,7 +179,8 @@
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(글 목록·피드·가젯 글 줄도 같은 크기 — `PostAuthorLabel avatar`, 가젯 촘촘 줄은 제외 · 댓글·쪽지는 줄이 좁아 닉네임 색만) -->
                             <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
                             <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" :still-src="authorAvatarStill" size="xs" :border-style="authorDecoration?.profileBorder ?? null" :ai="!!post.author.ai" />
-                            <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />
+                            <!-- 익명 글은 회색 원 안 사람 아이콘 + 「익명」(프로필 링크·호버 없음 — `PostAuthorLabel` 이 가린다) -->
+                            <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" :avatar="post.author.kind === 'ANONYMOUS'" show-ip strong link class="text-sm" />
                             <span aria-hidden="true">·</span>
                             <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
                             <span v-if="post.updatedAt" :title="time.full(post.updatedAt)">{{ t('post.edited') }}</span>

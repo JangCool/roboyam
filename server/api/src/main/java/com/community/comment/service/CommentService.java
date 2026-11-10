@@ -32,11 +32,9 @@ import com.community.comment.dto.response.ReplyToView;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.exception.AlreadyDislikedException;
 import com.community.comment.exception.CannotDislikeOwnException;
-import com.community.comment.exception.CommentDailyLimitException;
 import com.community.comment.exception.CommentDislikeDisabledException;
 import com.community.comment.exception.CommentHiddenException;
 import com.community.comment.exception.CommentNotFoundException;
-import com.community.comment.exception.CommentTooFastException;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
 import com.community.debate.dto.response.CommentDebateView;
@@ -54,13 +52,12 @@ import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
-import com.community.post.dto.WriteRateData;
 import com.community.post.dto.response.PostAuthorView;
-import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostHiddenException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
+import com.community.post.service.AnonymousAuthors;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
 import com.community.post.service.WriterPromotion;
@@ -160,13 +157,20 @@ public class CommentService {
     private final BoardStaffActionService staffActions;
     /** 로보티콘 토큰 검사(개수 400 → 자격 409 — emoticon-contract 목업 5차) */
     private final EmoticonGuard emoticons;
+    /** 답글 대상·본문 칸·작성 간격·하루 한도 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
+    private final CommentWriteRules writeRules;
+    /** 익명 글·댓글의 글쓴이 표시·글 안 번호(V184 — anonymous-board-contract 정책 3) */
+    private final AnonymousAuthors anonymousAuthors;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
                           GroupPostGate groupGate, GroupMemberRepository groupMembers, GroupPostQueries groupPosts, Messages messages,
-                          PlatformTransactionManager txManager, BoardStaffActionService staffActions, EmoticonGuard emoticons) {
+                          PlatformTransactionManager txManager, BoardStaffActionService staffActions, EmoticonGuard emoticons, CommentWriteRules writeRules,
+                          AnonymousAuthors anonymousAuthors) {
+        this.anonymousAuthors = anonymousAuthors;
+        this.writeRules = writeRules;
         this.emoticons = emoticons;
         this.staffActions = staffActions;
         this.groupGate = groupGate;
@@ -207,15 +211,18 @@ public class CommentService {
      * @param pinned            고정한 의견(댓글 ID)
      * @param myPinRequests     내 의견의 고정 요청 상태(댓글 ID → 상태, 대기·거절만)
      * @param protectedAuthors  보는 사람이 그 게시판 매니저·스텝이면 같은 게시판 매니저·스텝 회원 ID(댓글 {@code staffProtected}), 아니면 빈 집합
+     * @param post              댓글이 달린 글 — 익명 댓글의 글쓴이 표시(V184)
+     * @param anonymousNumbers  익명 댓글이 있으면 이 글의 회원 → 번호(V184), 없으면 빈 값
      */
     private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice,
                           boolean dislikeEnabled, Set<Long> disliked, Set<Long> pinned, Map<Long, PinRequestStateView> myPinRequests, Map<Long, Instant> leftAt,
-                          Instant membersOnlyBefore, Set<Long> protectedAuthors) {
+                          Instant membersOnlyBefore, Set<Long> protectedAuthors, PostEntity post, Map<Long, Integer> anonymousNumbers) {
 
         /** 쓰기·고치기 응답용 — 목록 칸(추천·비추천·고정·내 요청)은 부르는 쪽이 정한다. 쓴 사람은 그 글을 열 수 있는 사람이라 공개 시각 가림을 하지 않는다 */
-        static Viewer self(Long userId, String ip, Set<Long> liked, EffectiveBoard b, Set<Long> disliked, Set<Long> pinned) {
+        static Viewer self(Long userId, String ip, Set<Long> liked, EffectiveBoard b, Set<Long> disliked, Set<Long> pinned, PostEntity post,
+                           Map<Long, Integer> anonymousNumbers) {
             return new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice(), b.commentDislikeEnabled(), disliked, pinned, Map.of(),
-                    Map.of(), null, Set.of());
+                    Map.of(), null, Set.of(), post, anonymousNumbers);
         }
 
         /** 비멤버·비회원이 보는 비공개 소모임의 개별 공개 글에서 공개 시각 이전에 달린 댓글인가(api-groups.md 11-7 — 되돌렸다 다시 공개하면 새 시각 기준) */
@@ -254,13 +261,18 @@ public class CommentService {
             Instant membersOnlyBefore = GroupPostGate.membersOnlyBefore(gate, post); // 비멤버에게 공개 시각 이전 댓글을 가린다(11-7)
             List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId());
             List<Long> pinOrder = all.isEmpty() ? List.of() : debateQueries.pinnedInOrder(post.getId());
+            // 익명 글·게시판(V184) — 익명 댓글의 번호와 보는 회원의 이 글에서의 표시(viewerAnonymous). 익명과 상관없는 글이면 읽지 않는다
+            boolean anonymousThread = AnonymousAuthors.anonymousComment(post, b.anonymous());
+            Map<Long, Integer> anonymousNumbers = anonymousThread || all.stream().anyMatch(CommentEntity::isAnonymous) ? anonymousAuthors.numbersOf(post.getId()) : Map.of();
+            PostAuthorView.AuthorAnonymousView viewerAnonymous = anonymousThread && userId != null
+                    ? AuthorViews.anonymousView(AnonymousAuthors.viewerTag(post, userId, anonymousNumbers)) : null;
             Viewer viewer = new Viewer(userId, ip, userId == null, b.commentGuestDelayMinutes(),
                     userId == null || all.isEmpty() ? Set.of() : counters.likedComments(post.getId(), userId),
                     all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()),
                     b.staffHiddenNotice(), b.commentDislikeEnabled(),
                     userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
                     new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId), leftAt(post, all),
-                    membersOnlyBefore, all.isEmpty() || post.isGroupPost() ? Set.of() : staffActions.protectedAuthorsFor(b.id(), userId));
+                    membersOnlyBefore, all.isEmpty() || post.isGroupPost() ? Set.of() : staffActions.protectedAuthorsFor(b.id(), userId), post, anonymousNumbers);
             AuthorMembers members = authors.forComments(authors.members(all.stream().map(CommentEntity::getAuthorId).toList()), all.stream().map(CommentEntity::getId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
@@ -298,7 +310,7 @@ public class CommentService {
             CommentDebateView debateView = debate.forComments(post, b, userId, now, counts, all, byId);
             int membersOnlyCount = membersOnlyBefore == null ? 0 : groupPosts.countCommentsBefore(post.getId(), membersOnlyBefore, now);
             return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView,
-                    new CommentReactionsView(b.commentDislikeEnabled(), b.commentLikeLabel(), b.commentDislikeLabel()), membersOnlyCount);
+                    new CommentReactionsView(b.commentDislikeEnabled(), b.commentLikeLabel(), b.commentDislikeLabel()), membersOnlyCount, viewerAnonymous);
         });
     }
 
@@ -433,7 +445,9 @@ public class CommentService {
                     replyTo(c, viewer, byId, members, s), groupLeftAuthor(), null, c.getContentFormat().name(), state, c.getCreatedAt(), c.getEditedAt(), 0, false,
                     false, null, c.getStance(), HIDDEN_BY_GROUP_LEFT, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null, false);
         }
-        PostAuthorView author = authors.ofComment(c.getId(), c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
+        // 익명 댓글(V184) — 회원 ID·이름·등급·장식·메모·AI 대신 글쓴이 표시·글 안 번호만(anonymous-board-contract 정책 4)
+        PostAuthorView author = c.isAnonymous() ? AuthorViews.anonymous(AnonymousAuthors.commentTag(viewer.post(), c.getAuthorId(), viewer.anonymousNumbers()))
+                : authors.ofComment(c.getId(), c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
         ReplyToView replyTo = replyTo(c, viewer, byId, members, s);
         return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()), replyTo,
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
@@ -444,7 +458,7 @@ public class CommentService {
                 !DELETED.equals(state) && !HIDDEN.equals(state) && viewer.pinned().contains(c.getId()),
                 viewer.dislikeEnabled() ? c.getDislikeCount() : null, viewer.dislikeEnabled() ? viewer.disliked().contains(c.getId()) : null,
                 viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null,
-                c.getAuthorId() != null && viewer.protectedAuthors().contains(c.getAuthorId()));
+                !c.isAnonymous() && c.getAuthorId() != null && viewer.protectedAuthors().contains(c.getAuthorId())); // 익명 댓글은 매니저·스텝인지도 드러내지 않는다
     }
 
     /** 답한 댓글 — 지운 댓글·나간 멤버의 가린 댓글이면 이름을 비운다 */
@@ -456,15 +470,26 @@ public class CommentService {
         if (target == null) {
             return null;
         }
+        if (target.isAnonymous() && !target.isDeleted()) {
+            // 익명 댓글에 답한 글(V184) — 이름은 「익명3」·「익명(글쓴이)」 같은 표시 문구, 칸 anonymous 에 같은 표시
+            AnonymousAuthors.Tag tag = AnonymousAuthors.commentTag(viewer.post(), target.getAuthorId(), viewer.anonymousNumbers());
+            return new ReplyToView(Long.toString(target.getId()), anonymousName(tag), AuthorViews.anonymousView(tag));
+        }
         String name = target.isDeleted() || viewer.groupLeft(target) ? ""
                 : viewer.membersOnly(target) ? messages.get(new MessageRef("comment.membersOnly.replyToName")) // 공개 시각 이전 댓글에 답한 글 — 「멤버」
                 : authors.of(target.getAuthorId(), target.getGuestName(), null, members, s).name();
-        return new ReplyToView(Long.toString(target.getId()), name);
+        return new ReplyToView(Long.toString(target.getId()), name, null);
+    }
+
+    /** 익명 표시 문구(요청 언어) — 「익명3」 · 글쓴이·번호 전이면 「익명」(글쓴이 표시는 칸 anonymous.op 로 화면이 단다) */
+    private String anonymousName(AnonymousAuthors.Tag tag) {
+        return tag.op() || tag.number() == null ? messages.get(new MessageRef("board.anonymous.name"))
+                : messages.get(new MessageRef("board.anonymous.numbered", String.valueOf(tag.number())));
     }
 
     /** 나간 멤버의 가린 댓글의 작성자 — 회원이라는 것만(회원 ID·이름·등급·장식 없음). 화면은 「소모임을 나간 멤버의 댓글이에요」 */
     private static PostAuthorView groupLeftAuthor() {
-        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null, null, false, false, null, null, null);
+        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null, null, false, false, null, null, null, null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -481,18 +506,6 @@ public class CommentService {
     // ── 쓰기 ──────────────────────────────────────────────────────────────
 
     public CommentView create(String postIdText, CommentWriteRequest body, Long userId, String ip) {
-        return create(postIdText, body, userId, ip, false, false);
-    }
-
-    /**
-     * AI 회원 실행기 전용(ai-members-contract 「쓰기 제한 면제」) — 사이트 댓글 작성 간격·하루 한도를 보지 않고, {@code gradeExempt} 면 게시판 최소 댓글 등급
-     * ({@code GRADE_TOO_LOW})도 보지 않는다(그 AI 계정의 쓸 곳으로 고른 게시판일 때만 부르는 쪽이 켠다). 금칙어 · 정지 · 게시판 제재 · 댓글 꺼짐·잠금 · 칸 검사는 그대로다.
-     */
-    public CommentView createByAiRunner(String postIdText, CommentWriteRequest body, long userId, String ip, boolean gradeExempt) {
-        return create(postIdText, body, userId, ip, true, gradeExempt);
-    }
-
-    private CommentView create(String postIdText, CommentWriteRequest body, Long userId, String ip, boolean rateExempt, boolean gradeExempt) {
         Instant start = Instant.now();
         PostEntity post = postQueries.requireVisible(postIdText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
@@ -502,35 +515,23 @@ public class CommentService {
         }
         BoardActor actor = actors.resolve(userId, s);
         // 소모임 글의 댓글은 게시판 댓글 정책(최소 등급·잠금·끔)을 받지 않는다 — 계정 자격만(비회원 401)
-        String blocked = post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s);
-        PostWriteService.requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked); // AI 실행기: 고른 게시판의 최소 등급만 면제
+        PostWriteService.requireWritable(post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s));
         if (!post.isGroupPost()) {
             PostWriteService.requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한 — 새 댓글·답글(board-sanction-contract 결정 5)
+        }
+        // 익명 댓글(V184) — 글이 익명이거나 게시판이 지금 익명이면. 회원만 쓴다(비회원 401 — 게시판을 닉네임으로 되돌린 뒤의 익명 글도)
+        boolean anonymous = !post.isGroupPost() && AnonymousAuthors.anonymousComment(post, b.anonymous());
+        if (anonymous && actor.guest()) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        // 답글 대상 — 답글이 의견인지(원댓글이 의견인지)를 정하므로 입장보다 먼저 본다
-        Long parentId = null;
-        Long replyToId = null;
-        CommentEntity parentRow = null;
-        if (body.parentId() != null && !body.parentId().isBlank()) {
-            parentId = PostQueryService.parseId(body.parentId());
-            Optional<CommentEntity> parent = parentId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), parentId);
-            if (parent.isEmpty() || parent.get().getParentId() != null || parent.get().isDeleted()) {
-                fields.put("parentId", new MessageRef("board.comment.parent"));
-            } else {
-                parentRow = parent.get();
-                if (body.replyToId() != null && !body.replyToId().isBlank()) {
-                    replyToId = PostQueryService.parseId(body.replyToId());
-                    Long parentKey = parentId;
-                    Optional<CommentEntity> target = replyToId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), replyToId);
-                    if (target.isEmpty() || !(target.get().getId().equals(parentKey) || parentKey.equals(target.get().getParentId()))) {
-                        fields.put("parentId", new MessageRef("board.comment.parent"));
-                    }
-                }
-            }
-        }
+        // 답글 대상 — 답글이 의견인지(원댓글이 의견인지)를 정하므로 입장보다 먼저 본다(판정은 shared CommentWriteRules — AI 회원 쓰기와 같은 코드)
+        CommentWriteRules.ReplyTarget reply = writeRules.replyTarget(post.getId(), body.parentId(), body.replyToId(), fields);
+        Long parentId = reply.parentId();
+        Long replyToId = reply.replyToId();
+        CommentEntity parentRow = reply.parent();
         // 하이라이트 토론 — 의견 쓰기 = 원댓글은 의견 표시(opinion·stance), 답글은 원댓글이 의견일 때(답글의 opinion 은 보지 않고, stance 를 보냈으면 지금 입장과 맞춰 본다). 칸 오류(형식·비회원·답글 대상)면 해석하지 않는다.
         // 해석은 409(DEBATE_NOT_OPEN · STANCE_REQUIRED · STANCE_LOCKED)를 던질 수 있다. 입장은 여기서 정해지지 않는다(PUT …/stance 투표로만)
         DebateStance requested = null;
@@ -577,13 +578,13 @@ public class CommentService {
         String hash = passwordHash;
         CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
-            if (!rateExempt) {
-                checkRate(s, authorId, ip, now);
-            } else {
-                counters.lockWriter("comment:m:" + authorId); // AI 실행기 — 간격·하루 한도는 보지 않고 작성자 잠금만(같은 줄 세우기)
-            }
+            writeRules.checkRate(s, authorId, ip, now); // 작성 간격 → 하루 한도(작성자 단위 잠금 아래 — shared, AI 회원 쓰기와 같은 잠금 열쇠)
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
                     stance.stanceName(), now);
+            if (anonymous) {
+                comment.markAnonymous();
+                anonymousAuthors.assign(post, authorId); // 글 안 번호 — 글 단위 잠금 아래(처음 다는 회원이면 새 번호, 글쓴이는 번호 없음)
+            }
             comments.persist(comment);
             emoticons.recordUse(authorId, content.content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3)
             counters.addCommentCount(post.getId(), 1);
@@ -595,7 +596,8 @@ public class CommentService {
             memberIds.add(authorId);
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
-            Viewer self = Viewer.self(userId, ip, Set.of(), b, Set.of(), Set.of());
+            Viewer self = Viewer.self(userId, ip, Set.of(), b, Set.of(), Set.of(), post, anonymous || byId.values().stream().anyMatch(CommentEntity::isAnonymous)
+                    ? anonymousAuthors.numbersOf(post.getId()) : Map.of());
             CommentView view = view(comment, self, byId, authors.forComments(authors.members(memberIds), List.of(comment.getId())), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
@@ -607,65 +609,24 @@ public class CommentService {
                 replyTargetAuthor = target == null ? null : target.getAuthorId();
             }
             notices.commentWritten(new CommentNotice(post.getId(), post.getAuthorId(), id, authorId, name, replyTargetAuthor, parent != null, post.getTitle(),
-                    masked.plain()));
+                    masked.plain(), anonymous));
             return view;
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 댓글이면 활동 수 조건 즉시 승급(실패해도 댓글쓰기는 성공)
         return created;
     }
 
-    /** 작성 간격 → 하루 한도(작성자 단위 잠금 아래) */
-    private void checkRate(BoardCatalogSnapshot s, Long authorId, String ip, Instant now) {
-        counters.lockWriter("comment:" + (authorId != null ? "m:" + authorId : "g:" + ip));
-        int gap = s.defaults().commentGapSeconds();
-        int daily = s.defaults().commentDailyLimit();
-        Instant since = now.minus(Duration.ofDays(1));
-        WriteRateData rate = commentQueries.rate(authorId, ip, since, SnowflakeIdGenerator.floorIdAt(since));
-        if (gap > 0 && rate.lastAt() != null) {
-            long elapsedMs = Duration.between(rate.lastAt(), now).toMillis();
-            if (elapsedMs < gap * 1000L) {
-                throw new CommentTooFastException(gap, Math.max(1, (gap * 1000L - elapsedMs + 999) / 1000));
-            }
-        }
-        if (rate.countInWindow() >= daily) {
-            throw new CommentDailyLimitException(daily);
-        }
-    }
-
     private static ContentRules.Writer writer(BoardActor actor, EffectiveBoard b, BoardCatalogSnapshot s) {
-        return actor.guest() ? ContentRules.Writer.GUEST
-                : BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
+        return CommentWriteRules.writer(actor, b, s);
     }
 
     /**
-     * 본문 형식 + 본문 1~{@code max}자(HTML 은 보이는 글자 — 일반 댓글 {@link ContentRules#COMMENT_MAX}, 입장 배지가 붙는 댓글 {@link DebateReader#OPINION_MAX})
-     * + 링크·이미지(댓글은 이미지 불가). 형식이 빠지면 TEXT, 모르는 형식·댓글 에디터 NONE 게시판의 HTML 은
-     * {@code fields.contentFormat}. HTML 은 댓글 허용 목록(간단 + 영상 표식 1개까지)으로 정화한다(이미지 표식은 목록에 없어 사라진다). 영상만 있는 댓글은 글자가 없어도 받는다.
+     * 본문 형식 + 본문 1~{@code max}자(일반 댓글 {@link ContentRules#COMMENT_MAX}, 입장 배지가 붙는 댓글 {@link DebateReader#OPINION_MAX}) + 링크·이미지 — 규칙은 shared
+     * {@link CommentWriteRules#checkContent}(관리자 서버의 AI 회원 쓰기와 같은 코드).
      */
     private static ContentBody checkContent(EffectiveBoard b, String formatText, String raw, ContentRules.Writer writer, BoardSecurityValues sec, int max,
                                             Map<String, MessageRef> fields) {
-        ContentFormat format = ContentRules.format(formatText);
-        if (format == null || (format == ContentFormat.HTML && !b.commentHtml())) {
-            fields.put("contentFormat", new MessageRef(format == null ? "board.content.format.unknown" : "board.content.format.notAllowed"));
-            return ContentBody.text(raw);
-        }
-        if (format == ContentFormat.HTML && raw != null && raw.length() > ContentRules.COMMENT_HTML_MAX * 2) {
-            fields.put("content", new MessageRef("board.comment.html.tooLong"));
-            return ContentBody.text("");
-        }
-        ContentBody content = format == ContentFormat.HTML ? ContentBody.html(raw, RichText.Level.COMMENT) : ContentBody.text(raw);
-        int length = ContentRules.length(content.plain());
-        // 영상만 있는 댓글(영상 주소를 붙여 넣은 것)은 보이는 글자가 없어도 받는다
-        if ((length < 1 && content.videos() == 0) || length > max) {
-            fields.put("content", new MessageRef("board.comment.length", String.format("%,d", max)));
-        } else if (content.isHtml() && content.content().length() > ContentRules.COMMENT_HTML_MAX) {
-            fields.put("content", new MessageRef("board.comment.html.tooLong"));
-        } else if (content.videos() > ContentRules.COMMENT_VIDEO_MAX) {
-            fields.put("content", new MessageRef("board.comment.video.limit", ContentRules.COMMENT_VIDEO_MAX));
-        } else {
-            ContentRules.checkCommentLinksImages(content, writer, sec, fields);
-        }
-        return content;
+        return CommentWriteRules.checkContent(b, formatText, raw, writer, sec, max, fields);
     }
 
     // ── 고치기·지우기·추천 ─────────────────────────────────────────────────
@@ -749,7 +710,10 @@ public class CommentService {
             Set<Long> liked = userId == null ? Set.of() : counters.likedComments(locked.getPostId(), userId);
             Set<Long> disliked = userId == null || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(locked.getPostId(), userId);
             Set<Long> pinned = locked.getStance() == null ? Set.of() : new HashSet<>(debateQueries.pinnedInOrder(locked.getPostId()));
-            return view(locked, Viewer.self(userId, ip, liked, b, disliked, pinned), byId, authors.forComments(authors.members(memberIds), List.of(locked.getId())), s, now);
+            Map<Long, Integer> anonymousNumbers = locked.isAnonymous() || byId.values().stream().anyMatch(CommentEntity::isAnonymous)
+                    ? anonymousAuthors.numbersOf(locked.getPostId()) : Map.of();
+            return view(locked, Viewer.self(userId, ip, liked, b, disliked, pinned, target.post(), anonymousNumbers), byId,
+                    authors.forComments(authors.members(memberIds), List.of(locked.getId())), s, now);
         });
     }
 

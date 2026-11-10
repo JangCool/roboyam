@@ -313,6 +313,11 @@ public final class AuditActions {
     public static final String SITE_ACTION_RESTORE = "SITE_ACTION_RESTORE";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
+    /**
+     * 익명 글·댓글 작성자 열람(anonymous-board-contract 정책 10) — 대상 POST(글) 또는 COMMENT(댓글 — {@code postId} 함께), 사유 코드 {@code reason}(LEGAL_REQUEST · RIGHTS_REPORT ·
+     * ABUSE · OTHER) · 메모 {@code memo}(감사 상세에만). 열린 회원 ID 는 싣지 않는다(감사를 읽는 사람에게 봉인이 풀리지 않게). 보관 분류는 개인정보 열람(2년)
+     */
+    public static final String ANONYMOUS_AUTHOR_REVEAL = "ANONYMOUS_AUTHOR_REVEAL";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──
     /** 탈퇴 신청(회원) — 대상 MEMBER, {@code withdrawalId}·{@code result}(COMPLETED · SCHEDULED)·{@code pendingCount}·고른 것·사유 코드(메모 없음) */
     public static final String MEMBER_WITHDRAW_REQUEST = "MEMBER_WITHDRAW_REQUEST";

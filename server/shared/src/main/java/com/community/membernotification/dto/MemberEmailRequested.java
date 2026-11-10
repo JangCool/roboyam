@@ -11,8 +11,14 @@ import com.community.membernotification.service.MemberNotificationMessages;
  * @param actorUserId 일으킨 회원(댓글·답글, 비회원이면 null — 이름은 {@code facts.actorName})
  * @param postId      링크가 가리키는 글(없으면 null)
  * @param path        메일 버튼이 가리키는 사이트 안 경로(사이트 공개 주소 뒤, 없으면 null — 버튼 없이). 글 알림은 {@code /posts/{postId}}
+ * @param anonymousActor 일으킨 사람이 익명 글·댓글의 작성자(V184 — anonymous-board-contract 「알림」) — 이름은 받는 사람 언어의 「익명」({@code actorUserId} 는 null)
  */
-public record MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId, String path) {
+public record MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId, String path, boolean anonymousActor) {
+
+    /** 익명이 아닌 일으킨 사람 */
+    public MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId, String path) {
+        this(userId, facts, actorUserId, postId, path, false);
+    }
 
     /** 글을 가리키는 알림 — 경로는 그 글({@code /posts/{postId}}, 글이 없으면 버튼 없이) */
     public MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {

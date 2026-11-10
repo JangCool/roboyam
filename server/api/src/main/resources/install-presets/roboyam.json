@@ -1515,6 +1515,42 @@
           "sortOrder": 50
         }
       ]
+    },
+    {
+      "slug": "anonymous",
+      "name": "익명게시판",
+      "nameEn": "Anonymous",
+      "kind": "GENERAL",
+      "sortOrder": 270,
+      "description": "닉네임 없이 털어놓는 곳 · 운영자도 작성자를 볼 수 없어요",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "고민",
+          "nameEn": "고민",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "회사",
+          "nameEn": "회사",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "연애",
+          "nameEn": "연애",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        }
+      ]
     }
   ],
   "structure": "roboyam.structure.json",

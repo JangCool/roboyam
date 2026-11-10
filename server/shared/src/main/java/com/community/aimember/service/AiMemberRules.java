@@ -7,7 +7,7 @@ import com.community.site.service.SiteNoticeBars;
 import java.util.Locale;
 
 /**
- * AI 회원 고정 규칙(ai-members-contract 정책 4·5·7) — 관리자 화면(읽기 전용 표시·저장 검사)과 api 실행기가 같이 본다.
+ * AI 회원 고정 규칙(ai-members-contract 정책 4·5·7) — 관리자 화면(읽기 전용 표시·저장 검사)과 관리자 서버의 실행기(생성 · 등록)가 같이 본다.
  */
 public final class AiMemberRules {
 
@@ -35,13 +35,15 @@ public final class AiMemberRules {
     public static final String BLOCK_NOTICE = "NOTICE";
     public static final String BLOCK_OPS = "OPS";
     public static final String BLOCK_BUSINESS = "BUSINESS";
+    /** 익명 게시판(anonymous-board-contract 정책 7 — AI 배지와 맞지 않는다) */
+    public static final String BLOCK_ANONYMOUS = "ANONYMOUS";
 
     private AiMemberRules() {
     }
 
     /**
      * AI 회원이 쓸 수 없는 게시판의 까닭(쓸 수 있으면 null) — 핫딜(종류 DEAL) · 사업자(종류 PROMO — 직접홍보·사업자 게시판) · 공지(공지 게시판 · 운영진만 글쓰기) ·
-     * 운영 게시판(버그 신고·기능 요청 · 늘 비밀글 · 처리 상태를 쓰는 게시판) · 공구·상점(주소가 group-buy·point-shop·shop 으로 시작). 소모임 게시판은 목록에 넣지 않는다(부르는 쪽).
+     * 운영 게시판(버그 신고·기능 요청 · 늘 비밀글 · 처리 상태를 쓰는 게시판) · 공구·상점(주소가 group-buy·point-shop·shop 으로 시작) · 익명 게시판(V184). 소모임 게시판은 목록에 넣지 않는다(부르는 쪽).
      */
     public static String blockedReason(EffectiveBoard b) {
         if (BoardFields.KIND_DEAL.equals(b.kind())) {
@@ -59,6 +61,9 @@ public final class AiMemberRules {
         }
         if (OpsBoardPreset.BOARDS.stream().anyMatch(o -> o.slug().equals(slug)) || b.secretAlways() || b.statusEnabled()) {
             return BLOCK_OPS;
+        }
+        if (b.anonymous()) {
+            return BLOCK_ANONYMOUS;
         }
         return null;
     }

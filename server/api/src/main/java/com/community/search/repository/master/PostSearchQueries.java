@@ -141,7 +141,8 @@ public class PostSearchQueries {
             String t = "lower(CAST(:t" + i + " AS text))";
             String title = "lower(p.title) LIKE " + t;
             String body = "lower(coalesce(p.content_text, p.content)) LIKE " + t;
-            String author = "(p.author_id IN (SELECT pr.user_id FROM profiles pr WHERE lower(pr.nickname) LIKE " + t + ")"
+            // 익명 글(V184)은 작성자로 찾기에 걸리지 않는다(anonymous-board-contract 정책 4)
+            String author = "((NOT p.anonymous AND p.author_id IN (SELECT pr.user_id FROM profiles pr WHERE lower(pr.nickname) LIKE " + t + "))"
                     + " OR (p.author_id IS NULL AND lower(p.guest_name) LIKE " + t + "))";
             String cond = switch (c.scope()) {
                 case TITLE -> title;

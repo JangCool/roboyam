@@ -1,6 +1,7 @@
 package com.community.comment.dto.response;
 
 import com.community.debate.dto.response.CommentDebateView;
+import com.community.post.dto.response.PostAuthorView;
 import java.util.List;
 
 /**
@@ -15,7 +16,9 @@ import java.util.List;
  * @param reactions  이 게시판의 댓글 추천·비추천 표시(비추천 켬·단추 이름)
  * @param membersOnlyCount 비멤버·비회원이 보는 비공개 소모임의 개별 공개 글에서 공개 시각 이전에 달려 가려진 댓글 수({@code hiddenBy MEMBERS_ONLY} — 소모임 5단계,
  *                         api-groups.md 11-7). 그 밖은 0
+ * @param viewerAnonymous  익명 글(또는 지금 익명 게시판의 글 — V184)이고 로그인한 회원이면 이 글에서 그 회원의 표시 — 글쓴이면 {@code op true}, 번호를 받았으면 {@code number},
+ *                         받기 전이면 {@code number null · op false}(댓글 입력 칸 「익명」). 그 밖은 null
  */
 public record CommentListResponse(List<CommentThreadView> threads, List<CommentView> best, int totalCount, String kind, CommentDebateView debate,
-                                  CommentReactionsView reactions, int membersOnlyCount) {
+                                  CommentReactionsView reactions, int membersOnlyCount, PostAuthorView.AuthorAnonymousView viewerAnonymous) {
 }

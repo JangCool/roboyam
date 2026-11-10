@@ -40,6 +40,8 @@ public class BoardEntity {
     private String secretMode = BoardFields.SECRET_OFF;
     /** 처리 상태를 쓰는가(V166) — 게시판마다의 값. 일반 게시판만 켤 수 있다 */
     private boolean statusEnabled;
+    /** 작성자 표시(V184) NICKNAME · ANONYMOUS — 게시판마다의 값. 일반 게시판만 익명을 고를 수 있다(anonymous-board-contract 정책 1) */
+    private String authorMode = BoardFields.AUTHOR_NICKNAME;
     /** 글 목록 말머리·상태 칩 위치(V169) ABOVE · BEFORE · BELOW, NULL = 사이트 기본({@link BoardDefaultsEntity} {@code listChipPosition})을 따름 */
     private String chipPosition;
     private boolean investmentNotice;
@@ -138,6 +140,11 @@ public class BoardEntity {
     public void changeOps(String secretMode, boolean statusEnabled) {
         this.secretMode = secretMode;
         this.statusEnabled = statusEnabled;
+    }
+
+    /** 작성자 표시를 바꾼다 — 이미 쓴 글·댓글의 익명 여부는 그대로 둔다(정책 2, 값 검사는 부르는 쪽이 끝냈다) */
+    public void changeAuthorMode(String authorMode) {
+        this.authorMode = authorMode;
     }
 
     /** 글 목록 칩 위치를 바꾼다 — null 이면 사이트 기본을 따른다(값 검사는 부르는 쪽이 끝냈다) */
@@ -265,6 +272,10 @@ public class BoardEntity {
 
     public boolean isStatusEnabled() {
         return statusEnabled;
+    }
+
+    public String getAuthorMode() {
+        return authorMode;
     }
 
     /** 글 목록 칩 위치 — null 이면 사이트 기본 */

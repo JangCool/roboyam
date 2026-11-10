@@ -1,10 +1,16 @@
+import type { AnonymousTarget } from '~/composables/anonymous/api/useAnonymousAuthorApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { SanctionKind, SanctionPreview, SanctionTarget } from '~/composables/sanction/api/useSanctionApi.types';
 
-/** 제재 대상 회원 — 이미 정해졌으면(회원 상세·신고 서랍) 찾기를 건너뛴다 */
+/**
+ * 제재 대상 회원 — 이미 정해졌으면(회원 상세·신고 서랍) 찾기를 건너뛴다.
+ * 익명 글·댓글의 봉인된 작성자(「이 글 작성자」 — anonymous-board-contract 정책 9)면 `anonymous` 에 그 글·댓글을 두고 `id` 는 빈 글자, `nickname` 은 화면에 보일 이름(「이 글 작성자」)이다
+ */
 export interface SanctionIssueMember {
     id: string;
     nickname: string;
+    /** 봉인된 익명 작성자의 글·댓글 — 요청에 `anonymousPostId`·`anonymousCommentId` 로 싣는다 */
+    anonymous?: AnonymousTarget | null;
 }
 
 /** [제재하기] 대화창이 그리는 값 — `useSanctionIssue().view` */
@@ -34,4 +40,6 @@ export interface SanctionStepValue {
     skipConfirmed: boolean;
     /** 영구 정지 확인 — 회원 닉네임을 그대로 */
     confirmNickname: string;
+    /** 봉인된 익명 글 작성자(`preview.user.sealed`)의 영구 정지 확인 — 닉네임을 모르므로 확인 표시로 대신한다(anonymous-board-contract) */
+    sealedBanConfirmed?: boolean;
 }

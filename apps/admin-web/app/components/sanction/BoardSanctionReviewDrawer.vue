@@ -21,7 +21,7 @@
     >
         <template #header>
             <div class="flex min-w-0 flex-1 items-start gap-2">
-                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ head ? t('boardSanction.review.drawerTitle', { no: head.no, name: head.user.nickname }) : t('boardSanction.review.drawerTitleEmpty') }}</h2>
+                <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words">{{ head ? t('boardSanction.review.drawerTitle', { no: head.no, name: UtilSanctionMessages.userName(t, head.user) }) : t('boardSanction.review.drawerTitleEmpty') }}</h2>
                 <div class="flex shrink-0 items-center gap-0.5">
                     <Button v-tooltip.bottom="t('boardSanction.review.prev')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('boardSanction.review.prev')" :disabled="!hasPrev" @click="emit('prev')" />
                     <Button v-tooltip.bottom="t('boardSanction.review.next')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('boardSanction.review.next')" :disabled="!hasNext" @click="emit('next')" />
@@ -69,7 +69,7 @@
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-site`">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h3 :id="`${titleId}-site`" class="text-sm font-semibold">{{ t('boardSanction.review.siteTitle') }}</h3>
-                    <NuxtLink :to="{ path: '/sanctions', query: { userId: detail.user.id } }" class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <NuxtLink v-if="detail.user.id" :to="{ path: '/sanctions', query: { userId: detail.user.id } }" class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
                         <i class="pi pi-shield text-[10px]" aria-hidden="true" />{{ t('boardSanction.review.openSiteSanctions') }}
                     </NuxtLink>
                 </div>
@@ -231,7 +231,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
     return [
         { key: 'state', label: t('boardSanction.review.filterStatus') },
         { key: 'no', label: t('boardSanction.review.col.no'), value: UtilSanctionMessages.no(t, h) },
-        { key: 'member', label: t('boardSanction.review.col.member'), value: h.user.nickname },
+        { key: 'member', label: t('boardSanction.review.col.member'), value: UtilSanctionMessages.userName(t, h.user) },
         { key: 'board', label: t('boardSanction.review.col.board'), value: boardName.value },
         { key: 'recent', label: t('boardSanction.review.col.recent'), value: t('boardSanction.review.recentValue', { n: h.recentCount }) },
         { key: 'opened', label: t('boardSanction.review.col.openedAt'), value: time.value.full(h.openedAt) },

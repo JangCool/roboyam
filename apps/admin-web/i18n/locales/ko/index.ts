@@ -8,6 +8,7 @@
 import account from './account';
 import address from './address';
 import aiMember from './aiMember';
+import anonymousAuthor from './anonymousAuthor';
 import analytics from './analytics';
 import audit from './audit';
 import avatarUpload from './avatarUpload';
@@ -87,6 +88,7 @@ export default {
     account,
     address,
     aiMember,
+    anonymousAuthor,
     analytics,
     audit,
     avatarUpload,

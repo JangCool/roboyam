@@ -85,7 +85,10 @@
                         <dd class="m-0">{{ localizedName(c.board.name, c.board.nameEn ?? null) }}</dd>
                     </template>
                     <dt class="text-muted-color">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.col.author') }}</dt>
-                    <dd class="m-0">{{ UtilReportMessages.author(t, c.author) }}</dd>
+                    <dd class="m-0">
+                        <AnonymousSealedAuthor v-if="c.author.sealed" />
+                        <template v-else>{{ UtilReportMessages.author(t, c.author) }}</template>
+                    </dd>
                     <dt class="text-muted-color">{{ t('report.targetStateLabel') }}</dt>
                     <dd class="m-0"><ReportTargetStateTag :target="c.target" lines /></dd>
                     <dt class="text-muted-color">{{ t('report.firstReported') }}</dt>
@@ -166,7 +169,15 @@
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-author`">
                 <h3 :id="`${titleId}-author`" class="text-sm font-semibold">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.authorTitle') }}</h3>
                 <div class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2">
-                    <p class="m-0 flex flex-wrap items-center gap-1.5 text-[13px]">
+                    <!-- 익명 게시판 글·댓글(`author.sealed` — anonymous-board-contract) — 자물쇠 + 「익명 · 작성자 봉인됨」, [이 글(댓글) 작성자 제재](`sanction.manage`) · [작성자 열람](`anonymous-author.reveal`) -->
+                    <template v-if="c.author.sealed">
+                        <AnonymousSealedAuthor class="text-[13px]" />
+                        <div v-if="canSanctionSealed || canRevealSealed" class="flex flex-wrap gap-1.5">
+                            <Button v-if="canSanctionSealed" type="button" :label="c.targetType === 'COMMENT' ? t('anonymousAuthor.sanctionComment') : t('anonymousAuthor.sanctionPost')" icon="pi pi-ban" size="small" severity="secondary" variant="outlined" :disabled="busy" data-testid="report-drawer-sealed-sanction" @click="emit('sealed-sanction')" />
+                            <Button v-if="canRevealSealed" type="button" :label="t('anonymousAuthor.reveal')" icon="pi pi-eye" size="small" severity="danger" variant="text" :disabled="busy" data-testid="report-drawer-sealed-reveal" @click="emit('sealed-reveal')" />
+                        </div>
+                    </template>
+                    <p v-else class="m-0 flex flex-wrap items-center gap-1.5 text-[13px]">
                         <span class="font-medium" :class="c.author.withdrawn ? 'text-muted-color' : ''">{{ UtilReportMessages.author(t, c.author) }}</span>
                         <GradeBadge v-if="authorGrade" v-bind="authorGrade" size="small" />
                     </p>
@@ -181,7 +192,7 @@
                         </template>
                     </dl>
                     <!-- 제재 현황(member-sanction-contract) — 부른 화면이 작성자 현황을 받아 내려 준다 -->
-                    <div v-if="authorSanction" class="flex flex-col gap-1.5">
+                    <div v-if="authorSanction && !c.author.sealed" class="flex flex-col gap-1.5">
                         <p class="m-0 flex items-center gap-1.5 text-xs font-medium"><i class="pi pi-ban text-[11px]" aria-hidden="true" />{{ t('report.sanctionLabel') }}</p>
                         <p v-if="!authorSanction.eligible" class="m-0 rounded-md border border-dashed border-(--line) px-2.5 py-1.5 text-xs text-muted-color">{{ t('report.sanctionNotMember') }}</p>
                         <ErrorState v-else-if="authorSanction.error" :title="t('sanction.previewFailed')" :description="authorSanction.error.message" retry :retrying="authorSanction.loading" @retry="emit('retry-sanction')" />
@@ -297,6 +308,10 @@ interface Props {
     authorGrade?: { label: string; color: string; icon: string | null } | null;
     /** 작성자 제재 현황(`sanction.read`) — 없으면 제재 줄을 그리지 않는다 */
     authorSanction?: ReportSanctionContext | null;
+    /** 봉인된 익명 작성자에게 「이 글 작성자 제재」를 보인다(`sanction.manage`) */
+    canSanctionSealed?: boolean;
+    /** 봉인된 익명 작성자에게 「작성자 열람」을 보인다(`anonymous-author.reveal`) */
+    canRevealSealed?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -312,6 +327,8 @@ const props = withDefaults(defineProps<Props>(), {
     canViewGroup: false,
     authorGrade: null,
     authorSanction: null,
+    canSanctionSealed: false,
+    canRevealSealed: false,
 });
 const emit = defineEmits<{
     retry: [];
@@ -322,6 +339,10 @@ const emit = defineEmits<{
     next: [];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
+    /** [이 글(댓글) 작성자 제재] — 봉인된 익명 작성자, 제재 창은 부른 화면이 연다 */
+    'sealed-sanction': [];
+    /** [작성자 열람] — 열람 창은 부른 화면이 연다 */
+    'sealed-reveal': [];
 }>();
 
 const { t } = useI18n();

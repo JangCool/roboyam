@@ -42,9 +42,11 @@ public class SecretPostGate {
     private final GroupRepository groups;
     private final GroupMemberRepository members;
     private final SecretPostUnlocks unlocks;
+    private final SecretPostReaders readers;
 
     public SecretPostGate(BoardActorResolver actors, OperatorMemberAccountService operatorAccounts, GroupRepository groups, GroupMemberRepository members,
-                          SecretPostUnlocks unlocks) {
+                          SecretPostUnlocks unlocks, SecretPostReaders readers) {
+        this.readers = readers;
         this.actors = actors;
         this.operatorAccounts = operatorAccounts;
         this.groups = groups;
@@ -91,16 +93,7 @@ public class SecretPostGate {
         if (post.isGuest() && unlocks.has(post.getId(), Instant.now())) {
             return true; // 비회원 비밀글 — 비밀번호로 연 방문자(V168)
         }
-        if (viewerId == null) {
-            return false;
-        }
-        if (viewerId.equals(post.getAuthorId())) {
-            return true;
-        }
-        if (post.isGroupPost()) {
-            return (group != null && GroupAccess.can(group, membership, viewerId, GroupManagerPermission.UNPUBLISH)) || operatorAccount(s, viewerId);
-        }
-        return post.getBoardId() != null && actors.resolve(viewerId, s).staffOf(post.getBoardId());
+        return readers.memberCanRead(s, post, viewerId, group, membership); // 회원 판정은 shared 한 곳(AI 회원 쓰기와 같은 코드)
     }
 
     private SecretPostException denied(BoardCatalogSnapshot s, PostEntity post) {
@@ -161,10 +154,6 @@ public class SecretPostGate {
 
     /** 힘이 살아 있는 운영자 회원 계정이고 정지 중이 아닌가 */
     private boolean operatorAccount(BoardCatalogSnapshot s, long userId) {
-        if (!operatorAccounts.isActiveOperatorAccount(userId)) {
-            return false;
-        }
-        BoardActor actor = actors.resolve(userId, s);
-        return !actor.guest() && !actor.restricted();
+        return readers.operatorAccount(s, userId);
     }
 }

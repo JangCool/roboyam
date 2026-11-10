@@ -65,7 +65,7 @@
                     </Column>
                     <Column :header="t('boardSanction.review.col.member')" style="min-width: 8rem">
                         <template #body="{ data }">
-                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ data.user.nickname }}</button>
+                            <button type="button" class="block max-w-full truncate text-left text-[13px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click.stop="openItem(data)">{{ UtilSanctionMessages.userName(t, data.user) }}</button>
                         </template>
                     </Column>
                     <Column :header="t('boardSanction.review.col.board')" style="min-width: 7rem">
@@ -262,7 +262,8 @@ async function loadDetail(id: string): Promise<void> {
         if (mine !== detailTicket) return;
         detail.value = found;
         clearForm();
-        if (sitePreview.userId.value !== found.user.id) void sitePreview.open(found.user.id);
+        if (!found.user.id) sitePreview.clear();
+        else if (sitePreview.userId.value !== found.user.id) void sitePreview.open(found.user.id);
     } catch (e) {
         if (mine !== detailTicket) return;
         detail.value = null;
@@ -279,7 +280,7 @@ function show(id: string): void {
     detail.value = null;
     clearForm();
     const known = items.value.find((r) => r.id === id);
-    if (known && sitePreview.userId.value !== known.user.id) void sitePreview.open(known.user.id);
+    if (known?.user.id && sitePreview.userId.value !== known.user.id) void sitePreview.open(known.user.id);
     void loadDetail(id);
 }
 
@@ -345,7 +346,9 @@ function submitClose(payload: { result: BoardSanctionReviewResult; memo: string 
     if (payload.result === 'SITE_SANCTIONED') {
         // 기존 사이트 제재 대화창 — 회원 고정. 부여에 성공하면 `submitIssue` 가 닫는다
         pendingSite.value = { reviewId: id, memo: payload.memo };
-        issue.start({ id: current.user.id, nickname: current.user.nickname });
+        // 봉인된 익명 글 작성자(회원 ID 없음)는 회원 고정 대화창을 열 수 없다 — 그런 검토 줄은 서버가 만들지 않는 것으로 본다(가정)
+        if (!current.user.id) return;
+        issue.start({ id: current.user.id, nickname: current.user.nickname ?? '' });
         return;
     }
     void close(id, { result: payload.result, memo: payload.memo, siteSanctionId: null, voidSanctionIds: payload.voidSanctionIds });

@@ -12,17 +12,23 @@ import java.time.Instant;
  * @param groupId       소모임 글이면 그 소모임(일반 글 null) — 섞인 목록이 줄에 소모임 표시({@code group})를 단다(소모임 6단계)
  * @param secret        비밀글인가(V166) — 섞인 목록 질의는 비밀글을 읽지 않는다(회원 작성글의 본인 보기만 예외)
  * @param processStatus 처리 상태(V166 — 저장된 값 그대로, 없으면 null). 응답 값은 {@code PostProcessStatus#effective}
+ * @param anonymous     익명 글인가(V184) — 공개 응답의 작성자를 감춘다(anonymous-board-contract 정책 4)
  */
 public record PostRowData(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String authorIp, String title, Boolean hasImage,
                           Boolean adult, Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, Instant hiddenUntil,
-                          String hiddenReason, Instant createdAt, Long groupId, Boolean secret, String processStatus) {
+                          String hiddenReason, Instant createdAt, Long groupId, Boolean secret, String processStatus, Boolean anonymous) {
 
     /** 운영 게시판 칸(비밀글·처리 상태)을 읽지 않는 투영 — 비밀글 아님 · 상태 없음 */
     public PostRowData(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String authorIp, String title, Boolean hasImage,
                        Boolean adult, Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, Instant hiddenUntil,
                        String hiddenReason, Instant createdAt, Long groupId) {
         this(id, boardId, prefixId, authorId, guestName, authorIp, title, hasImage, adult, viewCount, likeCount, commentCount, pinnedAt, hiddenAt, hiddenUntil,
-                hiddenReason, createdAt, groupId, false, null);
+                hiddenReason, createdAt, groupId, false, null, false);
+    }
+
+    /** 익명 글인가(V184) */
+    public boolean anonymousPost() {
+        return Boolean.TRUE.equals(anonymous);
     }
 
     public boolean hiddenAt(Instant now) {

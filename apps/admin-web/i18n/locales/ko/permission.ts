@@ -232,6 +232,8 @@ export default {
         appealManageDesc: '이의제기를 받아들이거나 기각합니다.',
         sanctionBan: '영구 정지·단계 건너뛰기',
         sanctionBanDesc: '영구 정지를 주거나 제재 단계를 건너뛰어 줍니다.',
+        anonymousAuthorReveal: '익명 작성자 열람',
+        anonymousAuthorRevealDesc: '익명 게시판 글·댓글의 봉인된 작성자를 사유를 적고 엽니다. 열람은 감사 기록에 남고 다른 운영자에게 알림이 가요.',
         keeperActionRead: '스텝 처리 내역 조회',
         keeperActionReadDesc: '게시판 매니저·스텝이 한 글 숨기기·글 삭제·댓글 삭제를 「스텝 처리 감독」에서 봅니다.',
         keeperActionRestore: '스텝 처리 복구',

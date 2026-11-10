@@ -258,7 +258,8 @@ public class BoardStaffActionService {
         extra.put("boardStaffActionId", Long.toString(actionId));
         extra.put("reasonCode", code);
         ModerationActor actor = moderationActor(actorId, who);
-        String authorName = post.getAuthorId() == null ? post.getGuestName() : store.nickname(post.getAuthorId());
+        // 익명 글(V184)은 작성자 이름 스냅숏을 남기지 않는다(봉인 — anonymous-board-contract 정책 4·8)
+        String authorName = post.isAnonymous() ? null : post.getAuthorId() == null ? post.getGuestName() : store.nickname(post.getAuthorId());
         long revoked = 0;
         if (hide) {
             actions.hide(actor, post, label, extra, now);
@@ -322,7 +323,7 @@ public class BoardStaffActionService {
 
         long actionId = ids.nextId();
         String text = plain(comment.getContentFormat(), comment.getContent());
-        String authorName = comment.getAuthorId() == null ? comment.getGuestName() : store.nickname(comment.getAuthorId());
+        String authorName = comment.isAnonymous() ? null : comment.getAuthorId() == null ? comment.getGuestName() : store.nickname(comment.getAuthorId()); // 익명 댓글은 스냅숏 없음(V184)
         store.insert(actionId, boardId, actorId, who.role(), who.operatorId(), BoardStaffActionStore.KIND_COMMENT, BoardStaffActionStore.ACTION_DELETE,
                 comment.getAuthorId(), post.getId(), comment.getId(), code, cut(post.getTitle(), 200), excerpt(text, EXCERPT_MAX), cut(authorName, 40), now);
         if (comment.getAuthorId() != null) {
