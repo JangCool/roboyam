@@ -5,6 +5,11 @@
  *
  *   node scripts/collect-licenses.mjs              # 두 화면을 빌드(nuxt generate)해 번들에 든 패키지 + 서버 런타임 의존성
  *   node scripts/collect-licenses.mjs --skip-build # 지난 빌드의 번들 목록(node_modules/.cache/roboyam-oss/*.json)을 다시 쓴다
+ *   node scripts/collect-licenses.mjs --with-server # 서버 런타임 의존성도 싣는다(서버 프로그램을 남에게 나눠 줄 때만 — 아래 「고지 범위」)
+ *
+ * 고지 범위(사용자 2026-11-10 「진짜 필요한 고지만」): 고지 의무는 코드를 남에게 배포할 때 생긴다. 브라우저로 내려가는 화면 번들만 배포에 해당하고,
+ * 우리 서버 안에서만 도는 서버 라이브러리는 배포가 아니라 기본으로 싣지 않는다(설치형으로 서버 프로그램을 나눠 줄 때만 --with-server).
+ * 같은 패키지의 여러 버전은 한 줄로 합치고(버전은 쉼표로), 고지를 요구하지 않는 라이선스(0BSD·MIT-0·CC0-1.0·Unlicense — 「또는」 식에 하나라도 있으면 그것을 고른다)는 뺀다.
  *
  * - 화면: 클라이언트 번들에 실제로 들어간 바깥 패키지(`scripts/oss-licenses/nuxt-bundle-scan.mjs` 가 빌드 중에 적는다). 워크스페이스 패키지(`@roboyam/*`)와
  *   빌드 도구·devDependencies 는 번들에 모듈로 들어가지 않아 빠지고, 워크스페이스 패키지가 끌어온 바깥 의존성은 들어간다. 이름·버전·라이선스·저장소는 package.json,
@@ -34,6 +39,14 @@ const WEB_APPS = [
 const SERVER_PROJECTS = [':server:api', ':server:admin'];
 const args = new Set(process.argv.slice(2));
 const SKIP_BUILD = args.has('--skip-build');
+const WITH_SERVER = args.has('--with-server');
+/** 고지(저작권·라이선스 문구 함께 주기)를 요구하지 않는 라이선스 */
+const NO_NOTICE = new Set(['0BSD', 'MIT-0', 'CC0-1.0', 'Unlicense']);
+function noticeFree(license) {
+    return stripParens(String(license ?? ''))
+        .split(/\s+OR\s+/i)
+        .some((part) => NO_NOTICE.has(part.trim()));
+}
 
 /** 글꼴·아이콘 묶음(공개 화면 「글꼴·아이콘」 칩) — 이름으로 정한다 */
 const FONT_ICON = new Set(['primeicons', '@primeicons/core', '@primeicons/vue', '@tabler/icons', '@tabler/icons-vue']);
@@ -450,12 +463,31 @@ function spdxPage(license) {
     return /^[A-Za-z0-9.\-+]+$/.test(license) && license !== 'UNKNOWN' ? `https://spdx.org/licenses/${license}.html` : null;
 }
 
+const dropped = [];
 function finalItems() {
     const order = { npm: 0, maven: 1 };
-    return [...entries.values()]
+    const merged = new Map();
+    for (const e of entries.values()) {
+        if (noticeFree(e.license)) {
+            dropped.push(`${e.name}@${e.version} ${e.license}`);
+            continue;
+        }
+        const key = `${e.ecosystem}:${e.name}`;
+        const found = merged.get(key);
+        if (!found) {
+            merged.set(key, { ...e, versions: [e.version], usedIn: [...e.usedIn] });
+            continue;
+        }
+        found.versions.push(e.version);
+        for (const u of e.usedIn) if (!found.usedIn.includes(u)) found.usedIn.push(u);
+        if (!found.licenseText && e.licenseText) Object.assign(found, { licenseText: e.licenseText, textSource: e.textSource });
+        if (!found.notice && e.notice) found.notice = e.notice;
+    }
+    for (const e of merged.values()) e.version = [...new Set(e.versions)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(', ');
+    return [...merged.values()]
         .sort((a, b) => order[a.ecosystem] - order[b.ecosystem] || a.name.localeCompare(b.name) || a.version.localeCompare(b.version, undefined, { numeric: true }))
         .map((e) => ({
-            id: `${e.ecosystem}:${e.name}@${e.version}`,
+            id: `${e.ecosystem}:${e.name}`,
             name: e.name,
             version: e.version,
             license: e.license,
@@ -481,6 +513,11 @@ function serialize(doc) {
     return lines.join('\n');
 }
 
+/** 항목 id(이름까지) 의 사용자 정의 라이선스 여부 — 합친 버전 중 하나라도 */
+function isCustom(id) {
+    return [...entries.values()].some((e) => `${e.ecosystem}:${e.name}` === id && e.custom);
+}
+
 function report(items) {
     const by = (pred) => items.filter(pred).length;
     console.log(`\n모은 항목 ${items.length}개 — 공개 화면 ${by((i) => i.usedIn.includes('user'))} · 관리자 화면 ${by((i) => i.usedIn.includes('admin'))} · 서버 ${by((i) => i.usedIn.includes('server'))} · 글꼴·아이콘 ${by((i) => i.category === 'fontIcon')}`);
@@ -490,12 +527,12 @@ function report(items) {
     console.log(`전문 ${texts.size}종 · 표준 문구로 대신 ${by((i) => i.textSource === 'template')} · 전문 없음 ${by((i) => i.textSource === 'none')}`);
     const warn = items.filter((i) => restrictive(i.license));
     const unknown = items.filter((i) => i.license === 'UNKNOWN');
-    const custom = items.filter((i) => entries.get(i.id)?.custom);
+    const custom = items.filter((i) => isCustom(i.id));
     if (warn.length) {
         console.warn(`\n⚠ 조건이 까다로운 라이선스 ${warn.length}개(빼거나 바꾸지 않았다 — 검토 필요):`);
         for (const i of warn) console.warn(`  - ${i.name}@${i.version}  ${i.license}  [${i.usedIn.join(',')}]${permissive(i.license) ? '  (허용형으로 고를 수 있음)' : ''}`);
     }
-    const other = items.filter((i) => !permissive(i.license) && !restrictive(i.license) && !entries.get(i.id)?.custom && i.license !== 'UNKNOWN');
+    const other = items.filter((i) => !permissive(i.license) && !restrictive(i.license) && !isCustom(i.id) && i.license !== 'UNKNOWN');
     if (other.length) {
         console.warn(`\n· 그 밖의 라이선스(흔한 허용형이 아님 — 검토 권장) ${other.length}개:`);
         for (const i of other) {
@@ -516,11 +553,12 @@ function report(items) {
         console.warn(`\n· 전문을 찾지 못해 라이선스 안내 주소만 싣는 항목 ${noText.length}개:`);
         for (const i of noText) console.warn(`  - ${i.name}@${i.version}  ${i.license}`);
     }
+    if (dropped.length) console.log(`\n· 고지를 요구하지 않아 뺀 항목 ${dropped.length}개: ${dropped.join(' · ')}`);
     for (const note of notes) console.log(note);
 }
 
 function main() {
-    collectServer(); // 서버 먼저 — Apache-2.0 표준 전문을 jar 에서 먼저 얻는다
+    if (WITH_SERVER) collectServer(); // 서버 먼저 — Apache-2.0 표준 전문을 jar 에서 먼저 얻는다(기본은 싣지 않는다 — 머리의 「고지 범위」)
     collectWeb();
     fillMissingTexts();
     const items = finalItems();

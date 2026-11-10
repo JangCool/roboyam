@@ -56,4 +56,5 @@ export default {
     footerContact: 'Contact {email}',
     footerSupport: 'Support',
     footerTerms: 'Terms & policies',
+    footerOss: 'Open source',
 };
