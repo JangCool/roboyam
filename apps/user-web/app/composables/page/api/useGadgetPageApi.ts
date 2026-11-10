@@ -1,4 +1,4 @@
-import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
+import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
 import type { GadgetPageResponse } from '~/composables/page/api/useGadgetPageApi.types';
 
 /**
@@ -16,14 +16,14 @@ export function useGadgetPageApi() {
     // CSRF 쿠키를 다시 받는 호출 — setup 문맥에서 미리 잡아 둔다(콜백 안에서 컴포저블을 부르지 않는다)
     const auth = useAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
-    const home = useHomeGadgetApi();
+    const home = useGadgetApi();
 
     return {
         /** 페이지 하나 — 머리 + 배치 + 가젯마다 그 데이터(미리보기면 홈 가젯을 바탕으로 같이) */
-        page: async (key: string, options: { signal?: AbortSignal; preview?: boolean } = {}): Promise<{ res: GadgetPageResponse; extra: HomeGadget[] }> => {
+        page: async (key: string, options: { signal?: AbortSignal; preview?: boolean } = {}): Promise<{ res: GadgetPageResponse; extra: Gadget[] }> => {
             const [res, extra] = await Promise.all([
                 client.get<GadgetPageResponse>(PATH.page(key), { signal: options.signal }),
-                options.preview ? home.gadgets(options.signal).then((r) => r.gadgets).catch(() => [] as HomeGadget[]) : Promise.resolve([] as HomeGadget[]),
+                options.preview ? home.gadgets(options.signal).then((r) => r.gadgets).catch(() => [] as Gadget[]) : Promise.resolve([] as Gadget[]),
             ]);
             return { res, extra };
         },

@@ -4,11 +4,11 @@ import com.community.home.dto.HomeGridLayout;
 import java.util.List;
 
 /**
- * {@code GET /api/pages/{key}} — user-web {@code GadgetPageResponse}. 배치·가젯은 홈 가젯 응답({@link HomeGadgetsResponse})과 같은 모양 + 페이지 머리.
+ * {@code GET /api/pages/{key}} — user-web {@code GadgetPageResponse}. 배치·가젯은 가젯 응답({@link GadgetsResponse})과 같은 모양 + 페이지 머리.
  *
  * @param theme 이 배치가 어느 테마의 것인가(지금 사이트 테마)
  */
-public record GadgetPageResponse(Page page, String theme, HomeGridLayout layout, List<HomeGadgetView> gadgets) {
+public record GadgetPageResponse(Page page, String theme, HomeGridLayout layout, List<GadgetView> gadgets) {
 
     /**
      * 페이지 머리

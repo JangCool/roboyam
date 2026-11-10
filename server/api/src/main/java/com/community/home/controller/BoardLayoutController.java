@@ -2,7 +2,7 @@ package com.community.home.controller;
 
 import com.community.auth.dto.AuthUser;
 import com.community.home.dto.response.BoardLayoutResponse;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/boards")
 public class BoardLayoutController {
 
-    private final HomeGadgetService gadgets;
+    private final GadgetService gadgets;
 
-    public BoardLayoutController(HomeGadgetService gadgets) {
+    public BoardLayoutController(GadgetService gadgets) {
         this.gadgets = gadgets;
     }
 

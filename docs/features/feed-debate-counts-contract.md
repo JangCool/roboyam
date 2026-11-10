@@ -4,7 +4,7 @@
 
 ## 화면 경로
 - `/latest` · `/popular` · `/search` · `/users/{id}` 작성글 — `components/feed/FeedPostItem.vue`
-- 홈·가젯 페이지의 하이라이트 가젯 — `components/home/HomeGadgetHighlight.vue` · `HomeGadgetHighlightMeta.vue` · `HomeDebateBand.vue`(/tips 「이번 주 추천」은 따로 그린 화면이라 이번 범위 밖)
+- 홈·가젯 페이지의 하이라이트 가젯 — `components/gadget/GadgetHighlight.vue` · `GadgetHighlightMeta.vue` · `GadgetDebateBand.vue`(/tips 「이번 주 추천」은 따로 그린 화면이라 이번 범위 밖)
 - 관리자 홈 편집·가젯 페이지 편집 ⚙ 설정(하이라이트) — admin-web `GadgetSettingsDialog.vue`
 - 푸터 — `components/shell/AppFooter.vue`
 

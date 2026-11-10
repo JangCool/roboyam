@@ -15,11 +15,11 @@ import com.community.home.dto.response.GadgetPageView;
 import com.community.home.dto.response.HomeLayoutBodyView;
 import com.community.home.entity.GadgetPageEntity;
 import com.community.home.entity.GadgetPageLayoutEntity;
-import com.community.home.entity.HomeGadgetEntity;
+import com.community.home.entity.GadgetEntity;
 import com.community.home.exception.GadgetPageNotFoundException;
 import com.community.home.repository.master.GadgetPageLayoutRepository;
 import com.community.home.repository.master.GadgetPageRepository;
-import com.community.home.repository.master.HomeGadgetRepository;
+import com.community.home.repository.master.GadgetRepository;
 import com.community.menu.repository.master.MenuNodeRepositoryQDSL;
 import com.community.menu.service.MenuBoardLinker;
 import com.community.menu.target.GadgetPageMenuTargetResolver;
@@ -67,7 +67,7 @@ public class GadgetPageAdminService {
 
     private final GadgetPageRepository pages;
     private final GadgetPageLayoutRepository layouts;
-    private final HomeGadgetRepository gadgets;
+    private final GadgetRepository gadgets;
     private final GadgetPageFolders folders;
     private final MenuNodeRepositoryQDSL nodeQueries;
     private final MenuBoardLinker linker;
@@ -77,7 +77,7 @@ public class GadgetPageAdminService {
     private final AuditLogService audit;
     private final AdminNotices notices;
 
-    public GadgetPageAdminService(GadgetPageRepository pages, GadgetPageLayoutRepository layouts, HomeGadgetRepository gadgets, GadgetPageFolders folders,
+    public GadgetPageAdminService(GadgetPageRepository pages, GadgetPageLayoutRepository layouts, GadgetRepository gadgets, GadgetPageFolders folders,
                                   MenuNodeRepositoryQDSL nodeQueries, MenuBoardLinker linker, OperatorRepository operators, SnowflakeIdGenerator ids,
                                   GadgetLayoutWriter writer, AuditLogService audit, AdminNotices notices) {
         this.pages = pages;
@@ -183,7 +183,7 @@ public class GadgetPageAdminService {
         GadgetPageEntity page = pages.findWithLockById(id).orElseThrow(GadgetPageNotFoundException::new);
         String themeId = known(theme);
         GadgetPageLayoutEntity row = layouts.findByPageIdAndTheme(id, themeId).orElse(null);
-        List<HomeGadgetEntity> stored = gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId);
+        List<GadgetEntity> stored = gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId);
         HomeLayoutDefaults.Home seeds = GadgetPageInitial.read(page.getInitialLayout(), themeId);
         Instant now = Instant.now();
         GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.page(themeId, id), stored, seeds::gadget, request, now);
@@ -261,9 +261,9 @@ public class GadgetPageAdminService {
                 nodeQueries.countLinking(GadgetPageMenuTargetResolver.TYPE, page.getId()), page.getUpdatedAt(), operatorName(page.getUpdatedBy()));
     }
 
-    private GadgetPageLayoutView view(GadgetPageLayoutEntity row, List<HomeGadgetEntity> rows) {
+    private GadgetPageLayoutView view(GadgetPageLayoutEntity row, List<GadgetEntity> rows) {
         return new GadgetPageLayoutView(Long.toString(row.getPageId()), row.getTheme(), row.toLayout(),
-                GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(),
+                GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(GadgetEntity::toSpec).toList()), row.getUpdatedAt(),
                 operatorName(row.getUpdatedBy()));
     }
 

@@ -1,5 +1,6 @@
 package com.community.site.service;
 
+import com.community.site.dto.SiteFooterNotice;
 import com.community.site.dto.SiteOperatorValues;
 import com.community.site.entity.SiteOperatorEntity;
 import com.community.site.repository.master.SiteOperatorRepository;
@@ -23,5 +24,10 @@ public class SiteOperatorReader {
     /** 지금 값 — 행이 없으면(마이그레이션 전) 처음 값 */
     public SiteOperatorValues current() {
         return operators.findById(SiteOperatorEntity.ROW_ID).map(SiteOperatorEntity::values).orElse(SiteOperatorValues.INITIAL);
+    }
+
+    /** 지금 푸터 안내 문구(V177) — 행이 없으면(마이그레이션 전) 처음 값 */
+    public SiteFooterNotice footerNotice() {
+        return operators.findById(SiteOperatorEntity.ROW_ID).map(SiteOperatorEntity::footerNotice).orElse(SiteFooterNotice.INITIAL);
     }
 }

@@ -60,15 +60,15 @@
 | 영역 | 항목 | 하위 축 | 슬롯 등록 |
 |---|---|---|---|
 | 셸(데스크톱) | 헤더 · 메뉴(위치·상단 메뉴 폭 포함) · 본문 폭 · 푸터 | - | **등록됨**(`shell`, `components/themes/default/DefaultShell.vue`, `daum/DaumShell.vue`(daum·roboyam), `naver/NaverShell.vue`). 모바일 상단 바(`AppHeader`)·탭·드로어는 테마 공통, 계정 부분은 공통 `AppHeaderActions` |
-| 홈 | 템플릿(겉모양) · 가젯 | - (가젯 종류는 슬롯이 아니다) | **등록됨**(`home`, 계약 `components/themes/HomeTemplate.types.ts` — props `layout`·`gadgets`). **템플릿 = 테마**(사용자 결정 2026-10-28): 기본 테마 = `DefaultHome`(기본형) · `daum/DaumHome`(다음식) · `roboyam/RoboyamHome`(로보얌형) · `naver/NaverHome`(네이버형). **템플릿은 겉모양만** 정한다 — 가젯 모양(`provideHomeGadgetLook(look, { heroSplit, galleryColumns })` — `classic`·`card` + 선택 세부 모양, 주지 않으면 기본값)과 `data-template` 을 두고 공통 격자 `components/home/HomeGadgetGrid` 를 그린다. 칸 이름(`MAIN`·`SIDE` …)·열·모바일 순서는 없다. **배치는 운영자 몫**(사용자 결정 2026-10-28 — 관리자 `/settings/theme`, 테마마다 칸 수 12·24 + 가젯별 x·y·w·h, 모양·계산은 공유 레이어 `@roboyam/home-layout` `UtilHomeLayout`): 데스크톱(lg) + 홈 폭 52rem 이상은 CSS grid 그대로(라이브러리 없음 — 행 15px·간격 16px 고정, `h` 는 최소 높이: 내용이 길면 칸이 늘고 같은 열 아래만 밀린다), 태블릿·사이드 메뉴로 좁을 때는 칸 수 반(반 폭 이하 둘은 나란히), md 미만·36rem 미만은 (y, x) 순서 한 열(`UtilHomeGrid`). 칸 안의 가젯은 테마 공통 부품(`components/home/HomeGadget*`, 종류 → 컴포넌트 `UtilHomeGadgetRegistry`) — 모양은 역할 변수 `--gadget-card-*`·`--gadget-gap`(`main.css` — 한 열일 때 간격)·공통 부품의 고리 클래스(`gadget-icon`·`gadget-more` — 기본 규칙 없음)로 바꾼다 |
+| 홈 | 템플릿(겉모양) · 가젯 | - (가젯 종류는 슬롯이 아니다) | **등록됨**(`home`, 계약 `components/themes/HomeTemplate.types.ts` — props `layout`·`gadgets`). **템플릿 = 테마**(사용자 결정 2026-10-28): 기본 테마 = `DefaultHome`(기본형) · `daum/DaumHome`(다음식) · `roboyam/RoboyamHome`(로보얌형) · `naver/NaverHome`(네이버형). **템플릿은 겉모양만** 정한다 — 가젯 모양(`provideGadgetLook(look, { heroSplit, galleryColumns })` — `classic`·`card` + 선택 세부 모양, 주지 않으면 기본값)과 `data-template` 을 두고 공통 격자 `components/gadget/GadgetGrid` 를 그린다. 칸 이름(`MAIN`·`SIDE` …)·열·모바일 순서는 없다. **배치는 운영자 몫**(사용자 결정 2026-10-28 — 관리자 `/settings/theme`, 테마마다 칸 수 12·24 + 가젯별 x·y·w·h, 모양·계산은 공유 레이어 `@roboyam/home-layout` `UtilHomeLayout`): 데스크톱(lg) + 홈 폭 52rem 이상은 CSS grid 그대로(라이브러리 없음 — 행 15px·간격 16px 고정, `h` 는 최소 높이: 내용이 길면 칸이 늘고 같은 열 아래만 밀린다), 태블릿·사이드 메뉴로 좁을 때는 칸 수 반(반 폭 이하 둘은 나란히), md 미만·36rem 미만은 (y, x) 순서 한 열(`UtilGadgetGrid`). 칸 안의 가젯은 테마 공통 부품(`components/gadget/Gadget*`, 종류 → 컴포넌트 `UtilGadgetRegistry`) — 모양은 역할 변수 `--gadget-card-*`·`--gadget-gap`(`main.css` — 한 열일 때 간격)·공통 부품의 고리 클래스(`gadget-icon`·`gadget-more` — 기본 규칙 없음)로 바꾼다 |
 | 게시판 | 목록 | 유형(`LIST`·`CARD`·`GALLERY`) | **등록됨**(`postList:<유형>`, 계약 `components/board/BoardPostList.types.ts`). 기본 테마 = `BoardPostList`·`BoardPostCards`·`BoardPostGallery`, `daum`·`roboyam`(같은 `DaumPostList`)·`naver` 는 `postList:LIST` 만 선언 |
 | 게시판 | 글 상세 · 댓글 · 글쓰기 | - | 구조가 달라질 때 승격 |
 | 회원 | 프로필 · 내 정보 · 쪽지 | - | 구조가 달라질 때 승격 |
 | 공통 | 알림 · 시트/확인창/토스트 · 등급·스태프 배지 | - | 구조가 달라질 때 승격 |
 | 인증 | 로그인 · 가입 | - | 구조가 달라질 때 승격 |
 
-* **홈 한 열(모바일) 모양**(사용자 요청 2026-10-28): 격자가 한 열(`stack` — md 미만 또는 홈 폭 36rem 미만)일 때만 바뀌고 데스크톱·태블릿 격자(`full`·`half`)는 그대로다. 템플릿이 `provideHomeGadgetLook(look, { mobile: { … } })` 로 고르고(주지 않은 값은 지금 모양 그대로), 격자가 한 열인지 `provideHomeGadgetStacked` 로 알려 가젯은 **둘 다일 때만** 한 열 모양을 그린다 — 가젯 부품을 테마별로 복사하지 않는다.
-    * 값(`HomeGadgetMobileLook`): `order`(`reading` (y, x) · `columns` 본문 열 먼저 — `UtilHomeGrid.byColumns`: 어떤 가젯도 가로지르지 않는 칸 경계로 열을 나눠 왼쪽 열부터, 경계가 없으면 `reading`) · `highlightScroll`·`heroBleed` · `galleryScroll` · `groupBuyScroll` · `groupsScroll` · `boardCardsScroll`.
+* **홈 한 열(모바일) 모양**(사용자 요청 2026-10-28): 격자가 한 열(`stack` — md 미만 또는 홈 폭 36rem 미만)일 때만 바뀌고 데스크톱·태블릿 격자(`full`·`half`)는 그대로다. 템플릿이 `provideGadgetLook(look, { mobile: { … } })` 로 고르고(주지 않은 값은 지금 모양 그대로), 격자가 한 열인지 `provideGadgetStacked` 로 알려 가젯은 **둘 다일 때만** 한 열 모양을 그린다 — 가젯 부품을 테마별로 복사하지 않는다.
+    * 값(`GadgetMobileLook`): `order`(`reading` (y, x) · `columns` 본문 열 먼저 — `UtilGadgetGrid.byColumns`: 어떤 가젯도 가로지르지 않는 칸 경계로 열을 나눠 왼쪽 열부터, 경계가 없으면 `reading`) · `highlightScroll`·`heroBleed` · `galleryScroll` · `groupBuyScroll` · `groupsScroll` · `boardCardsScroll`.
       운영자가 모바일 순서를 바꾸고 싶으면 모바일 전용 가젯(`mobile` 노출)을 본문 열 원하는 자리에 둔다(로보얌 목업의 모바일 공동구매).
     * 가로로 미는 줄은 공통 클래스 `gadget-scroll-row`(`main.css` — 스크롤바 숨김 · 칸 시작 스냅 · `--gadget-bleed` 만큼 카드 안쪽 여백/본문 여백 끝까지 · 칸 폭 `--row-item`)이고 줄에 이름(`aria-label` = `home.scrollRowLabel`)을 단다. 칸은 링크라 Tab 으로 넘어간다. 줄마다 `overflow-x-auto` 를 따로 쓰지 않는다.
     * 모든 테마 공통(한 열): 글 목록 두 열 → 한 열 · 기간 탭 큰 알약(36px) · 머리 「더보기 ›」 44px 터치 영역(`.gadget-head .gadget-more`). 카드 테마(다음식·로보얌·네이버식)의 모바일 카드는 화면 폭(반경 0 · 그림자 없음).
@@ -101,8 +101,8 @@ components/themes/<테마>/      # 그 테마만의 슬롯 컴포넌트: NaverSh
   **로보얌 홈**(사용자 결정 2026-10-28 — 「로봇과 AI, 쉽게 풀어 함께 이야기해요」, 뉴스 포털처럼 빽빽하지 않게): 목업 기본 배치(24칸) = 본문 넓은 열 17칸(하이라이트 큰 글 1 + 작은 글 3 · 지금 뜨는 글 순위 6 두 열 · 영상·짤 한 줄 4칸 · 방금 올라온 글 두 열 8줄) + 오른쪽 열 7칸(공동구매 · 인기 소모임). 머리는 막대 대신 아이콘 + 제목(색은 주 색상 하나), 게시판 이름 회색, 구분선·NEW 없음. 목업 배치는 `home-gadget-mock.ts` `roboyam()`(관리자 편집기 목업 `home-layout-mock.ts` 와 같은 자리).
 * **관리자 미리보기 모드**(사용자 결정 2026-10-28 — 관리자 미리보기는 실제 공개 화면과 똑같아야 한다, 관리자에서 따로 흉내 내 그리지 않는다): 관리자 테마 화면(`/settings/theme`)의 「실제 화면」이 이 앱을 iframe 으로 `/?adminPreview=1` 로 띄운다.
   `plugins/03.admin-preview.client.ts` 가 `runtimeConfig.public.adminOrigins`(`NUXT_PUBLIC_ADMIN_ORIGINS`, 개발 서버)와 서버가 머리에 넣은 `<meta name="roboyam-admin-origin">`(빌드한 화면 — 운영 `ADMIN_URL`, site-theme-layout-contract 「운영 배포」) 주소의 메시지만 받아 `useTheme` 상태(테마·메뉴 칸)를 덮고 홈 구성은 `useAdminPreview().home` 으로 홈에 덮는다(`UtilAdminPreview.applyHome`). 미리보기 안에서는 회원 보기 설정의 메뉴 위치를 쓰지 않고, 링크로 화면을 옮기지 않으며, 윗줄·메뉴·사이드 메뉴를 누르면 관리자에게 메뉴 설정을 열라고 알린다.
-  **편집도 실제 화면에서 한다**: 관리자가 「편집」이면 `useAdminPreview().editing` 이 켜져 `HomeGadgetGrid` 가 실제 가젯 위에 손잡이 층(끌기 = 옮기기 · 오른쪽 아래 = 크기 · × = 빼기)을 얹고, 놓은 칸·크기·빼기만 관리자에게 알린다(`roboyam:admin-preview-layout`).
-  배치 계산(최소 크기·밀기·위로 당기기)과 저장은 관리자 `HomeLayoutEditor`(배치의 주인)가 하고 바뀐 배치를 다시 보낸다. 관리자 쪽에서 가젯을 흉내 내 그리는 미리보기는 두지 않는다.
+  **편집도 실제 화면에서 한다**: 관리자가 「편집」이면 `useAdminPreview().editing` 이 켜져 `GadgetGrid` 가 실제 가젯 위에 손잡이 층(끌기 = 옮기기 · 오른쪽 아래 = 크기 · × = 빼기)을 얹고, 놓은 칸·크기·빼기만 관리자에게 알린다(`roboyam:admin-preview-layout`).
+  배치 계산(최소 크기·밀기·위로 당기기)과 저장은 관리자 `GadgetLayoutEditor`(배치의 주인)가 하고 바뀐 배치를 다시 보낸다. 관리자 쪽에서 가젯을 흉내 내 그리는 미리보기는 두지 않는다.
   셸·홈 부품은 이 모드를 몰라도 된다(상태만 바뀐다) — 새 테마 설정 칸을 만들면 관리자 메시지 읽기(`UtilAdminPreview.read`·플러그인)에도 한 줄 더한다.
 * 겉모양이 같은 테마는 이렇게 **슬롯 로더와 CSS 선택자를 묶어** 만들고, 기본값(`menuPosition`·`topItems`·`menuWidth`·`menuOverflow`·`menuStyle`)만 다르게 선언한다.
 1. 테마 id 를 정하고 토큰(변수·프리셋)을 채운다.
@@ -132,7 +132,7 @@ export const themes = {
 2. ❌ 변수·클래스 이름에 테마 이름 사용(`--naver-green`)
 3. ❌ 카탈로그에 없는 항목의 컴포넌트를 테마별로 복제
 4. ❌ `default.vue` 에 테마별 `v-if` 분기 누적
-5. ❌ 슬롯 컴포넌트에서 서버 호출·로직 처리, 같은 슬롯의 props 계약을 테마마다 다르게 정의, 홈 템플릿에 칸 이름·열 배치를 다시 두기(배치는 운영자 격자 — `HomeGadgetGrid`)
+5. ❌ 슬롯 컴포넌트에서 서버 호출·로직 처리, 같은 슬롯의 props 계약을 테마마다 다르게 정의, 홈 템플릿에 칸 이름·열 배치를 다시 두기(배치는 운영자 격자 — `GadgetGrid`)
 6. ❌ 색·모서리·간격 하드코딩, 카드를 `rounded-xl border bg-surface-0` 조합으로 직접 그리기(→ `content-card`·`panel-card`)
 7. ❌ 테마 컴포넌트를 동기 임포트(번들 부풀림)
 8. ❌ 셸·부품이 테마 선언(`UtilTheme.menuStyleDefault` 등)을 직접 읽어 메뉴 모양을 정하기, 메뉴 모양 CSS 를 `data-theme` 테마 이름에 묶기 — 해석 값(`useMenuStyle`·루트 설정 속성)을 쓴다

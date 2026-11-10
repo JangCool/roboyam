@@ -1,5 +1,5 @@
 /**
- * Public home (`/`) and home gadget copy — see `ko/home.ts`. Same keys, same order.
+ * Public home (`/`) and gadget copy — see `ko/home.ts`. Same keys, same order.
  */
 export default {
     // Home

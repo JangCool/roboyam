@@ -7,7 +7,7 @@ import com.community.commerce.CommerceApiTestBase;
 import com.community.home.dto.response.GadgetPageResponse;
 import com.community.home.service.GadgetPageFolders;
 import com.community.home.service.GadgetPageInitial;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.home.service.HomeLayoutJson;
 import com.community.menu.dto.response.MenuGroupNodeView;
 import com.community.menu.dto.response.MenuItemNodeView;
@@ -29,7 +29,7 @@ class PublicMenuShortcutTest extends CommerceApiTestBase {
     @Autowired
     private PublicMenuService menus;
     @Autowired
-    private HomeGadgetService gadgets;
+    private GadgetService gadgets;
     @Autowired
     private GadgetPageFolders folders;
     @Autowired

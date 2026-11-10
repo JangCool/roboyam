@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>보이는 공구: 공개된({@code published_at}) 공구. 탭 — 예정(공개된 DRAFT) · 진행(모집 중·집계 중) · 종료(그 밖, 중단 포함). 숨긴 카테고리의 상품은 빠진다.</li>
  *   <li>단추 상태 {@code purchase.reason}: 모집 상태 → 품절 → 로그인 → 진행 중 주문 → 자격(정지·이메일·권한·본인인증·만 19세·참여 제한·판매 스위치) → 1인 한도 차례로 첫 사유.</li>
  *   <li>「마감 임박」 = 모집 중이고 마감까지 24시간 안(1시간 점검 워커의 마감 임박 알림과 같은 창).</li>
- *   <li><b>운영 주체가 팔 수 없는 단계</b>({@link CommerceSalesStore#operatorCanSell} = false — 개인 단계이거나 통신판매업 신고번호 없음)면 목록·홈 가젯은 비고 상세는 404 다
+ *   <li><b>운영 주체가 팔 수 없는 단계</b>({@link CommerceSalesStore#operatorCanSell} = false — 개인 단계이거나 통신판매업 신고번호 없음)면 목록·가젯은 비고 상세는 404 다
  *       (사용자 결정 2026-11-07 — 통신판매업 신고 전에는 상품을 걸어 두지 않는다). 개인사업자 이상에서 판매 스위치만 꺼졌을 때는 그대로 보이고 주문만 막는다(결정 19).</li>
  * </ul>
  */

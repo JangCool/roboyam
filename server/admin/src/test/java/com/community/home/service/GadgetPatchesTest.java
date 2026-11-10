@@ -130,7 +130,7 @@ class GadgetPatchesTest {
     @Test
     void 꾸미기는_보낸_칸만_검사하고_비었을_때는_안쪽_칸을_합친다() {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        ObjectNode current = HomeGadgetKinds.baseStyle("naver");
+        ObjectNode current = GadgetKinds.baseStyle("naver");
         ObjectNode raw = o().put("cardColor", "TEAL");
         raw.putNull("icon");
         raw.putObject("empty").put("message", false);
@@ -148,10 +148,10 @@ class GadgetPatchesTest {
     @Test
     void 관리자_보기는_8종_모두_표_칸을_처음_값으로_채운다() {
         assertThat(GadgetConfigs.view("NOTICE_TEXT", null).propertyNames()).containsExactlyInAnyOrder("text", "format");
-        assertThat(GadgetConfigs.view("QUICK_LINKS", null).propertyNames()).containsExactlyInAnyOrder("shape", "items");
+        assertThat(GadgetConfigs.view("QUICK_LINKS", null).propertyNames()).containsExactlyInAnyOrder("hover", "shape", "items");
         assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("count", 12)).path("count").asInt()).isEqualTo(6);
         assertThat(GadgetConfigs.view("POST_LIST", null).path("meta")).hasSize(4);
-        assertThat(GadgetConfigs.view(HomeGadgetKinds.BOARD_BODY, null)).isNull();
+        assertThat(GadgetConfigs.view(GadgetKinds.BOARD_BODY, null)).isNull();
         assertThat(GadgetStyles.view("daum", "GROUPS", o().put("titleColor", "nope")).path("titleColor").isNull()).isTrue();
     }
 

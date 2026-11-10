@@ -25,18 +25,18 @@ class GadgetPatchesHotDealsTest {
     }
 
     private static ObjectNode config(ObjectNode raw, Map<String, MessageRef> fields) {
-        return GadgetPatches.config(HomeGadgetKinds.HOT_DEALS, raw, o(), GadgetConfigs.Place.HOME, BOARDS, DEALS, "gadgets[0]", fields);
+        return GadgetPatches.config(GadgetKinds.HOT_DEALS, raw, o(), GadgetConfigs.Place.HOME, BOARDS, DEALS, "gadgets[0]", fields);
     }
 
     @Test
     void 종류로_등록되고_최소_크기는_공구_가젯과_같다() {
-        assertThat(HomeGadgetKinds.isKnown(HomeGadgetKinds.HOT_DEALS)).isTrue();
-        assertThat(HomeGadgetKinds.types()).contains(HomeGadgetKinds.HOT_DEALS);
-        assertThat(HomeGadgetKinds.minW(HomeGadgetKinds.HOT_DEALS, 12)).isEqualTo(3);
-        assertThat(HomeGadgetKinds.minW(HomeGadgetKinds.HOT_DEALS, 24)).isEqualTo(6);
-        assertThat(HomeGadgetKinds.minH(HomeGadgetKinds.HOT_DEALS)).isEqualTo(8);
-        assertThat(GadgetConfigs.settable(HomeGadgetKinds.HOT_DEALS)).isTrue();
-        assertThat(HomeGadgetKinds.baseStyle("roboyam", HomeGadgetKinds.HOT_DEALS).get("icon").asString()).isEqualTo("pi-ticket");
+        assertThat(GadgetKinds.isKnown(GadgetKinds.HOT_DEALS)).isTrue();
+        assertThat(GadgetKinds.types()).contains(GadgetKinds.HOT_DEALS);
+        assertThat(GadgetKinds.minW(GadgetKinds.HOT_DEALS, 12)).isEqualTo(3);
+        assertThat(GadgetKinds.minW(GadgetKinds.HOT_DEALS, 24)).isEqualTo(6);
+        assertThat(GadgetKinds.minH(GadgetKinds.HOT_DEALS)).isEqualTo(8);
+        assertThat(GadgetConfigs.settable(GadgetKinds.HOT_DEALS)).isTrue();
+        assertThat(GadgetKinds.baseStyle("roboyam", GadgetKinds.HOT_DEALS).get("icon").asString()).isEqualTo("pi-ticket");
     }
 
     @Test
@@ -86,15 +86,15 @@ class GadgetPatchesHotDealsTest {
 
     @Test
     void 편집기가_보는_설정은_처음_값으로_채운다() {
-        ObjectNode view = GadgetConfigs.view(HomeGadgetKinds.HOT_DEALS, null);
+        ObjectNode view = GadgetConfigs.view(GadgetKinds.HOT_DEALS, null);
         assertThat(view.get("count").asInt()).isEqualTo(5);
         assertThat(view.get("sort").asString()).isEqualTo("LATEST");
         assertThat(view.get("boards")).isEmpty();
         ObjectNode stored = o().put("count", 99).put("sort", "NOPE");
         stored.putArray("boards").add("hotdeal").add(" ").add("hotdeal");
-        ObjectNode read = GadgetConfigs.view(HomeGadgetKinds.HOT_DEALS, stored);
+        ObjectNode read = GadgetConfigs.view(GadgetKinds.HOT_DEALS, stored);
         assertThat(read.get("sort").asString()).isEqualTo("LATEST");
         assertThat(read.get("boards")).hasSize(1);
-        assertThat(HomeGadgetKinds.hotDealsCount(stored)).isBetween(1, 10);
+        assertThat(GadgetKinds.hotDealsCount(stored)).isBetween(1, 10);
     }
 }

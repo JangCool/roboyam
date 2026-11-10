@@ -292,8 +292,8 @@
 ## 홈 `GROUP_BUY` 가젯 연결
 - `GroupBuyMemberService.recruiting(count, order)` — 회원 목록과 같은 거름(공개·숨긴 카테고리 제외)·줄 모양(`ListItem`, 리뷰 평균·수)에서 **모집 중(`RECRUITING`)만**(집계 중은 살 수 없어 뺀다). `count` 1~10(기본 5).
 - 차례(가젯 설정 `sort`, 사용자 결정 2026-10-29): `DEADLINE` 마감(연장 끝) 이른 순(기본 — 없거나 모르는 값도) · `NEWEST` 시작 시각 늦은 순 · `POPULAR` 참여 수량(`current_qty`) 많은 순, 같으면 마감 이른 순. 운영자는 관리자 홈 구성 실제 화면 편집의 ⚙ 설정 창에서 개수·정렬을 고친다(`PUT /api/admin/home-layouts/{theme}` 의 공구 가젯 `config`, 틀리면 400 `gadgets[i].config.count|sort`).
-- 테스트: api `HomeGadgetGroupBuyTest`(정렬 3가지·모르는 값 포함 7건), admin `HomeLayoutGroupBuyConfigTest`(처음 값·저장·보내지 않으면 그대로·새 가젯·400·다른 종류 무시 4건). data = `{items, salesOpen}` — 판매 스위치는 거르지 않고 값만 싣는다(꺼지면 가젯 위에 「지금은 주문을 받지 않아요」).
-- 화면 `HomeGadgetGroupBuyCard` 가 `GroupBuyListItem` 을 그린다(상세 주소는 `UtilGroupBuy.detailPath(id)`).
+- 테스트: api `GadgetGroupBuyTest`(정렬 3가지·모르는 값 포함 7건), admin `HomeLayoutGroupBuyConfigTest`(처음 값·저장·보내지 않으면 그대로·새 가젯·400·다른 종류 무시 4건). data = `{items, salesOpen}` — 판매 스위치는 거르지 않고 값만 싣는다(꺼지면 가젯 위에 「지금은 주문을 받지 않아요」).
+- 화면 `GadgetGroupBuyCard` 가 `GroupBuyListItem` 을 그린다(상세 주소는 `UtilGroupBuy.detailPath(id)`).
 
 ## 감사·오류 코드 (코드 주석의 「감사·오류 코드 후보」)
 - **감사 — 돈 관련**: `GROUPBUY_CANCEL`·`GROUPBUY_REFUND`·`GROUPBUY_REQUEST_APPROVE`·`GROUPBUY_REQUEST_REJECT`·`GROUPBUY_STOCK_ADD`·`GROUPBUY_STOCK_REDUCE`·`GROUPBUY_RETURN_DISPOSE`·`GROUPBUY_ROUND_CREATE`·`GROUPBUY_SUPPLY_FAILURE`·`GROUPBUY_BANK_TRANSFER`·`GROUPBUY_SUPPLY_PRICE`·`GROUPBUY_SETTINGS_UPDATE`·`COMMERCE_SALES_TOGGLE`·`COMMERCE_SHIPPING_POLICY_CREATE`·`COMMERCE_SHIPPING_POLICY_DELETE`.
@@ -401,7 +401,7 @@
 | 결정 74 | 결제 수동 처리 방법(콘솔 취소면 번호 필수·모르는 방법 400) | admin `GroupBuyAdminHttpTest.결정74_…` |
 | 워커 | 배치를 켠 서버만·워커 따로·워커 기록·가린 오류 · 기한 점검 | admin `GroupBuyStateSchedulerTest` · `기한_점검은_…` |
 | 결정 11·87 | local 시드(조건 검사 통과해 켬·예시 품목 여덟 고시 완성·공구 여덟·이름으로 가리는 단품 여럿) | admin `GroupBuyLocalSeederTest` |
-| 홈 가젯 | 모집 중만·마감 순·줄 모양 / 공개 전·집계 중·숨긴 카테고리 제외 / `count` 1~10·기본 5 / 판매 꺼짐 | api `HomeGadgetGroupBuyTest`(4) |
+| 홈 가젯 | 모집 중만·마감 순·줄 모양 / 공개 전·집계 중·숨긴 카테고리 제외 / `count` 1~10·기본 5 / 판매 꺼짐 | api `GadgetGroupBuyTest`(4) |
 
 ## 2b-5 로컬 실제 확인 (포트원 테스트 채널 KG이니시스 V2 카드 — 결제만 포트원, 본인인증은 가짜)
 | 확인 | 결과 |

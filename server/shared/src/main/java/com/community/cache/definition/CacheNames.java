@@ -12,7 +12,7 @@ public final class CacheNames {
     public static final String HOME_LATEST = "home.latest";
     public static final String HOME_POPULAR = "home.popular";
     public static final String MENU_PUBLIC = "menu.public";
-    // 가젯 데이터 — 유형별(서버 HomeGadgetKinds)
+    // 가젯 데이터 — 유형별(서버 GadgetKinds)
     public static final String GADGET_PREFIX = "gadget.";
     public static final String GADGET_POST_LIST = "gadget.POST_LIST";
     public static final String GADGET_HIGHLIGHT = "gadget.HIGHLIGHT";

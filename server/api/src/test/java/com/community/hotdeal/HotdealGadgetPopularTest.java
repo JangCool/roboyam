@@ -3,7 +3,7 @@ package com.community.hotdeal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.home.dto.response.gadget.HotDealsDataView;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.hotdeal.repository.master.DealQueries;
 import com.community.post.dto.response.PostFeedRowView;
 import java.sql.Timestamp;
@@ -22,7 +22,7 @@ import tools.jackson.databind.node.ObjectNode;
 class HotdealGadgetPopularTest extends HotdealStage2TestBase {
 
     @Autowired
-    private HomeGadgetService gadgets;
+    private GadgetService gadgets;
     @Autowired
     private DealQueries dealQueries;
 

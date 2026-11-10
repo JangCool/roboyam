@@ -34,7 +34,7 @@ export function postToAdminPreview(message: Record<string, unknown>): void {
  * 관리자 미리보기 상태(관리자 테마 화면의 iframe 안 — `plugins/03.admin-preview.client.ts` 가 켠다).
  * 켜져 있으면 회원 보기 설정의 메뉴 위치를 쓰지 않고(`useMenuPosition` — 운영자 설정 > 테마 기본만), 홈은 관리자의 홈 구성(`home`)을 덮어 그린다(`pages/index.vue`).
  * 가젯 페이지(`pages/p/[key].vue`)도 같은 `home` 자리로 받은 그 페이지의 배치를 덮고, 머리는 `page`(이름·설명·글쓰기 단추 — 저장 전 값)로 그린다.
- * 편집 중(`editing`)이면 홈 격자가 가젯 위에 끌기·크기·빼기 손잡이를 얹는다(`HomeGadgetGrid` — 바뀐 자리는 관리자에게 알리고, 계산·저장은 관리자가 한다).
+ * 편집 중(`editing`)이면 홈 격자가 가젯 위에 끌기·크기·빼기 손잡이를 얹는다(`GadgetGrid` — 바뀐 자리는 관리자에게 알리고, 계산·저장은 관리자가 한다).
  * 게시판 목록·글 보기(`BoardLayoutFrame`)는 `home` 자리로 받은 게시판 레이아웃(본문 칸 `BOARD_BODY` 포함)을 덮고, 적용 화면은 `board` 로 받는다(2026-10-30).
  * 컴포저블은 setup 에서 부른다.
  *

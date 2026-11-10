@@ -1,5 +1,5 @@
 /*
- * 가젯 카드의 보이는 여백(잉크 기준) 확인 — 브라우저 콘솔용, 빌드에 포함되지 않는다. 잉크 규칙은 `app/composables/home/useGadgetInk.ts` 와 같다.
+ * 가젯 카드의 보이는 여백(잉크 기준) 확인 — 브라우저 콘솔용, 빌드에 포함되지 않는다. 잉크 규칙은 `app/composables/gadget/useGadgetInk.ts` 와 같다.
  *
  * 쓰는 법: 홈 `/` · `/p/{key}` · 레이아웃이 켜진 `/boards/{slug}`(관리자 미리보기 iframe 안도 됨)에서 이 파일 내용을 콘솔에 붙여 넣는다.
  *          가젯 카드마다 표가 나오고, 다시 재려면 `gadgetInkPadding()` 을 부른다.

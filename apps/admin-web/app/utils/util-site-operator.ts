@@ -1,4 +1,4 @@
-import type { SiteOperatorProfile, SiteOperatorRequest, SiteOperatorStage } from '~/composables/site/api/useSiteOperatorApi.types';
+import type { SiteFooterNoticeScope, SiteOperatorProfile, SiteOperatorRequest, SiteOperatorStage } from '~/composables/site/api/useSiteOperatorApi.types';
 
 /** 입력칸 모양 — 모두 글자(빈 글자 = 없음). 사업자 칸은 개인 단계에서도 들고 있다(단계를 바꿔 볼 때 지운 듯 보이지 않게) */
 export interface SiteOperatorForm {
@@ -17,13 +17,16 @@ export interface SiteOperatorForm {
     mailOrderNumber: string;
     mailOrderAuthority: string;
     corporateNumber: string;
+    /** 푸터 안내 문구 — 여러 줄 입력 그대로(한 줄에 한 문장, 빈 글자 = 숨김) */
+    footerNotice: string;
+    footerNoticeScope: SiteFooterNoticeScope;
 }
 
 /** 칸 이름 — 서버 `fields` 의 열쇠와 같다(사업자 칸은 `business.` 이 붙는다 — `UtilSiteOperator.fieldKey`) */
-export type SiteOperatorField = Exclude<keyof SiteOperatorForm, 'stage' | 'privacyOfficerSameAsOperator'>;
+export type SiteOperatorField = Exclude<keyof SiteOperatorForm, 'stage' | 'privacyOfficerSameAsOperator' | 'footerNoticeScope'>;
 
-/** 칸 문제 — 비었음 · 길이 · 이메일 모양 · 전화 글자 · 사업자등록번호 모양 */
-export type SiteOperatorProblem = 'REQUIRED' | 'LENGTH' | 'EMAIL' | 'PHONE' | 'BIZ_NUMBER';
+/** 칸 문제 — 비었음 · 길이 · 이메일 모양 · 전화 글자 · 사업자등록번호 모양 · 푸터 안내 줄 수 · 푸터 안내 한 줄 길이 */
+export type SiteOperatorProblem = 'REQUIRED' | 'LENGTH' | 'EMAIL' | 'PHONE' | 'BIZ_NUMBER' | 'NOTICE_LINES' | 'NOTICE_LINE_LENGTH';
 
 export type SiteOperatorProblems = Partial<Record<SiteOperatorField, SiteOperatorProblem>>;
 
@@ -44,6 +47,7 @@ export default class UtilSiteOperator {
         'privacyOfficerEmail',
         'hostingProvider',
         ...BUSINESS_FIELDS,
+        'footerNotice',
     ];
 
     /** 운영자 이름·보호책임자 이름 1~30자 */
@@ -61,6 +65,22 @@ export default class UtilSiteOperator {
     static readonly PHONE_PATTERN = /^[0-9+\-() ]+$/;
     /** 사업자등록번호 `123-45-67890` */
     static readonly BIZ_NUMBER_PATTERN = /^\d{3}-\d{2}-\d{5}$/;
+    /** 푸터 안내 문구 최대 줄 수(서버 `SiteFooterNotice.LINES_MAX`) */
+    static readonly NOTICE_LINES_MAX = 3;
+    /** 푸터 안내 문구 줄마다 글자 수(서버 `SiteFooterNotice.LINE_MAX`, 코드 포인트) */
+    static readonly NOTICE_LINE_MAX = 120;
+
+    /**
+     * 푸터 안내 문구 → 줄 — 줄마다 앞뒤 공백을 떼고 빈 줄은 버린다(서버 `SiteFooterNotice.split` 과 같다).
+     * @param {string} text - 여러 줄 입력.
+     * @returns {string[]} 줄(없으면 빈 배열 = 숨김).
+     */
+    static noticeLines(text: string): string[] {
+        return text
+            .split(/\r\n|\r|\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0);
+    }
 
     /**
      * 사업자 단계인가(개인사업자·법인).
@@ -94,6 +114,8 @@ export default class UtilSiteOperator {
             mailOrderNumber: b?.mailOrderNumber ?? '',
             mailOrderAuthority: b?.mailOrderAuthority ?? '',
             corporateNumber: b?.corporateNumber ?? '',
+            footerNotice: profile.footerNotice ?? '',
+            footerNoticeScope: profile.footerNoticeScope === 'ALWAYS' ? 'ALWAYS' : 'INDIVIDUAL_ONLY',
         };
     }
 
@@ -125,21 +147,24 @@ export default class UtilSiteOperator {
                       corporateNumber: form.stage === 'CORPORATION' ? opt(form.corporateNumber) : null,
                   }
                 : null,
+            // 푸터 안내 — 줄마다 앞뒤 공백을 떼고 빈 줄을 버려 `\n` 으로 잇는다. 다 비면 빈 글자(= 숨김, null 은 서버가 「그대로 둠」으로 읽는다)
+            footerNotice: UtilSiteOperator.noticeLines(form.footerNotice).join('\n'),
+            footerNoticeScope: form.footerNoticeScope,
         };
     }
 
     /**
-     * 저장된 값과 다른 칸 수 — 보내는 값(`request`) 기준이라 숨은 칸(개인 단계의 사업자 칸 등)은 세지 않는다.
+     * 저장된 값과 다른 칸 수 — 양쪽 모두 보내는 값(`request`) 모양으로 맞춰 비교하므로 숨은 칸(개인 단계의 사업자 칸 등)·응답에만 있는 칸(`updatedAt`·`history`)은 세지 않는다.
      * @param {SiteOperatorProfile} saved - 저장된 값.
      * @param {SiteOperatorForm} form - 입력칸 값.
      * @returns {number} 바뀐 칸 수(단계 포함).
      */
     static changes(saved: SiteOperatorProfile, form: SiteOperatorForm): number {
-        const flat = (p: SiteOperatorProfile): Record<string, unknown> => {
+        const flat = (p: SiteOperatorRequest): Record<string, unknown> => {
             const { business, ...rest } = p;
             return { ...rest, ...(business ? Object.fromEntries(Object.entries(business).map(([k, v]) => [`business.${k}`, v])) : {}) };
         };
-        const a = flat(saved);
+        const a = flat(UtilSiteOperator.request(UtilSiteOperator.formOf(saved)));
         const b = flat(UtilSiteOperator.request(form));
         const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
         let count = 0;
@@ -189,6 +214,10 @@ export default class UtilSiteOperator {
             need('mailOrderAuthority', false);
             if (form.stage === 'CORPORATION') need('corporateNumber', false);
         }
+        // 푸터 안내 — 선택(비우면 숨김). 줄 수 → 한 줄 길이 차례
+        const notice = UtilSiteOperator.noticeLines(form.footerNotice);
+        if (notice.length > UtilSiteOperator.NOTICE_LINES_MAX) problems.footerNotice = 'NOTICE_LINES';
+        else if (notice.some((line) => Array.from(line).length > UtilSiteOperator.NOTICE_LINE_MAX)) problems.footerNotice = 'NOTICE_LINE_LENGTH';
         return problems;
     }
 
@@ -214,6 +243,8 @@ export default class UtilSiteOperator {
                 return 12;
             case 'address':
                 return UtilSiteOperator.ADDRESS_MAX;
+            case 'footerNotice':
+                return UtilSiteOperator.NOTICE_LINE_MAX;
             default:
                 return UtilSiteOperator.SHORT_MAX;
         }

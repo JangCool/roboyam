@@ -317,7 +317,7 @@ export interface BoardDetail extends BoardRef {
     /** 지금 기본 설정 — 「기본값 따름」 칸에 흐리게 보인다 */
     defaults: BoardDefaults;
     diffCount: number;
-    /** 「가젯 노출 금지」에 고를 수 있는 가젯 전부(목록 순서) — 홈 가젯이 생기면 늘어난다 */
+    /** 「가젯 노출 금지」에 고를 수 있는 가젯 전부(목록 순서) — 가젯 종류가 생기면 늘어난다 */
     gadgets: BoardGadgetOption[];
     /** 소모임 분류(소모임 게시판만) — 분류에 안 들었거나 일반 게시판이면 null */
     groupCategoryId: string | null;

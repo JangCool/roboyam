@@ -2,7 +2,7 @@ package com.community.home.controller;
 
 import com.community.auth.dto.AuthUser;
 import com.community.home.dto.response.GadgetPageResponse;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/pages")
 public class GadgetPageController {
 
-    private final HomeGadgetService gadgets;
+    private final GadgetService gadgets;
 
-    public GadgetPageController(HomeGadgetService gadgets) {
+    public GadgetPageController(GadgetService gadgets) {
         this.gadgets = gadgets;
     }
 

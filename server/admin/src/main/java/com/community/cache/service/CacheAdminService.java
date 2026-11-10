@@ -42,17 +42,17 @@ import com.community.cache.repository.master.CacheSettingRepository;
 import com.community.cache.repository.master.CacheStateStore;
 import com.community.cache.repository.master.CacheStateStore.NodeStateRow;
 import com.community.cache.repository.master.CacheStateStore.SettingRow;
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.entity.GadgetPageEntity;
-import com.community.home.entity.HomeGadgetEntity;
+import com.community.home.entity.GadgetEntity;
 import com.community.home.repository.master.BoardLayoutRepository;
 import com.community.home.repository.master.GadgetPageLayoutRepository;
 import com.community.home.repository.master.GadgetPageRepository;
-import com.community.home.repository.master.HomeGadgetRepository;
+import com.community.home.repository.master.GadgetRepository;
 import com.community.home.repository.master.HomeLayoutRepository;
 import com.community.home.service.BoardLayoutDefaults;
 import com.community.home.service.GadgetPageInitial;
-import com.community.home.service.HomeGadgetKinds;
+import com.community.home.service.GadgetKinds;
 import com.community.home.service.HomeLayoutDefaults;
 import com.community.hotdeal.repository.master.AdminDealQueries;
 import com.community.hotdeal.service.DealSettingsReader;
@@ -102,8 +102,8 @@ public class CacheAdminService {
     private static final String TARGET = "CACHE";
     private static final String QUICK_LINKS = "QUICK_LINKS";
     private static final String NOTICE_TEXT = "NOTICE_TEXT";
-    private static final List<String> UNCACHED = List.of(QUICK_LINKS, NOTICE_TEXT, HomeGadgetKinds.AD, HomeGadgetKinds.AD_TEXT_LINE,
-            HomeGadgetKinds.BOARD_BODY);
+    private static final List<String> UNCACHED = List.of(QUICK_LINKS, NOTICE_TEXT, GadgetKinds.AD, GadgetKinds.AD_TEXT_LINE,
+            GadgetKinds.BOARD_BODY);
     private static final List<String> LAYOUT_CACHES = List.of(CacheNames.HOME_LAYOUT, CacheNames.PAGES_LAYOUT, CacheNames.BOARDS_LAYOUT);
 
     private final CacheStateStore store;
@@ -121,7 +121,7 @@ public class CacheAdminService {
     private final GadgetPageLayoutRepository pageLayouts;
     private final HomeLayoutRepository homeLayouts;
     private final BoardLayoutRepository boardLayouts;
-    private final HomeGadgetRepository gadgets;
+    private final GadgetRepository gadgets;
     private final AdminDealQueries deals;
     private final DealSettingsReader dealSettings;
     private final CacheSampleStore samples;
@@ -129,7 +129,7 @@ public class CacheAdminService {
     public CacheAdminService(CacheStateStore store, CacheSettingRepository settings, CacheGlobalSettingRepository globals, CacheSettingChangeRepository changes,
                              CacheRefresher refresher, SnowflakeIdGenerator ids, AuditLogService audit, Messages messages, CacheProperties properties,
                              SiteSettingRepository siteSettings, BoardCatalog catalog, GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts,
-                             HomeLayoutRepository homeLayouts, BoardLayoutRepository boardLayouts, HomeGadgetRepository gadgets, AdminDealQueries deals,
+                             HomeLayoutRepository homeLayouts, BoardLayoutRepository boardLayouts, GadgetRepository gadgets, AdminDealQueries deals,
                              DealSettingsReader dealSettings, CacheSampleStore samples) {
         this.store = store;
         this.settings = settings;
@@ -454,25 +454,25 @@ public class CacheAdminService {
     private Placements placements(String theme, BoardCatalogSnapshot boards, List<GadgetPageEntity> pageRows) {
         boolean en = english();
         List<Placed> placed = new ArrayList<>();
-        List<HomeGadgetSpec> home = homeLayouts.findById(theme).isPresent()
-                ? gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList()
+        List<GadgetSpec> home = homeLayouts.findById(theme).isPresent()
+                ? gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(GadgetEntity::toSpec).toList()
                 : HomeLayoutDefaults.of(theme).gadgets();
         placed.add(new Placed(Placements.HOME, messages.get("cache.place.home"), "/", home));
         for (GadgetPageEntity p : pageRows) {
-            List<HomeGadgetSpec> specs = pageLayouts.findByPageIdAndTheme(p.getId(), theme).isPresent()
-                    ? gadgets.findByPageIdAndThemeOrderByIdAsc(p.getId(), theme).stream().map(HomeGadgetEntity::toSpec).toList()
+            List<GadgetSpec> specs = pageLayouts.findByPageIdAndTheme(p.getId(), theme).isPresent()
+                    ? gadgets.findByPageIdAndThemeOrderByIdAsc(p.getId(), theme).stream().map(GadgetEntity::toSpec).toList()
                     : GadgetPageInitial.read(p.getInitialLayout(), theme).gadgets();
             placed.add(new Placed(Placements.GADGET_PAGE, nameOf(p.getName(), p.getNameEn(), en), "/p/" + p.getPageKey(), specs));
         }
-        List<HomeGadgetSpec> boardSpecs = boardLayouts.findById(theme).isPresent()
-                ? gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList()
+        List<GadgetSpec> boardSpecs = boardLayouts.findById(theme).isPresent()
+                ? gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(GadgetEntity::toSpec).toList()
                 : BoardLayoutDefaults.of(theme).home().gadgets();
         String boardPath = publicBoards(boards).stream().findFirst().map(b -> "/boards/" + b.slug()).orElse(null);
         placed.add(new Placed(Placements.BOARD_LAYOUT, messages.get("cache.place.boardLayout"), boardPath, boardSpecs));
         return new Placements(placed);
     }
 
-    private record Placed(String place, String name, String path, List<HomeGadgetSpec> specs) {
+    private record Placed(String place, String name, String path, List<GadgetSpec> specs) {
     }
 
     /** 놓은 곳을 가젯 종류별로 센다 */

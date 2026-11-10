@@ -94,4 +94,14 @@
 
 - 개인 단계에서도 지난 주문(`/me/orders`)은 주소로 들어가 볼 수 있다(메뉴 항목만 빠진다).
 - 로컬 DB 의 메인 메뉴 「공동구매」는 주소 직접 입력(`PATH /group-buys`) 항목이었다 — 그래서 주소 항목도 같은 판정을 받게 했다(`MenuBuiltin.salesGatedPath`, admin-web `UtilMenu.salesGatedPath`).
-- 시험: api `PublicMenuSalesTest`(2, 주소 항목 포함) · `GroupBuyHttpTest.운영_주체가_팔_수_없는_단계면_…` · `HomeGadgetGroupBuyTest.운영_주체가_개인_단계면_…`.
+- 시험: api `PublicMenuSalesTest`(2, 주소 항목 포함) · `GroupBuyHttpTest.운영_주체가_팔_수_없는_단계면_…` · `GadgetGroupBuyTest.운영_주체가_개인_단계면_…`.
+
+## 푸터 안내 문구 (2026-11-10 — 사용자 시안 확정, 서버·두 앱 구현, 브라우저 확인 전)
+공개 푸터의 개인 운영 안내를 i18n 고정 문구 대신 관리자가 정한다.
+- **저장**: `site_operator.footer_notice text`(줄을 `\n` 으로 이은 글, NULL = 숨김) · `footer_notice_scope varchar(20) CHECK INDIVIDUAL_ONLY|ALWAYS`(기본 `INDIVIDUAL_ONLY`) — shared **V177**. 기본 문구(새 설치·기존 사이트 모두) 「{사이트}은 개인이 운영하는 커뮤니티입니다.」 / 「사이트 운영을 위해 광고가 표시될 수 있습니다.」. 설치 프리셋 구조 표에는 `site_operator` 가 없다(칸 기본값으로 충분).
+- **관리자** `GET·PUT /api/admin/site/operator`: `footerNotice: string | null`(응답 — 숨김이면 null) · `footerNoticeScope`. 요청은 빈 글자 = 숨김, **칸이 없으면(null) 지금 값을 둔다**(옛 화면·기존 시험 호환). 줄마다 앞뒤 공백을 떼고 빈 줄은 버린다. 검사 400 `VALIDATION` — `fields.footerNotice`(3줄 넘음 `siteOperator.footerNotice.lines` · 120자 넘는 줄 `siteOperator.footerNotice.lineLength`, 코드 포인트) · `fields.footerNoticeScope`(`siteOperator.footerNoticeScope.invalid`). 감사 `SITE_OPERATOR_UPDATE`(단계도 바뀌면 `…_STAGE_CHANGE`) before/after 에 `footerNotice`·`footerNoticeScope`.
+- **공개** `GET /api/site/info` 의 `operator`: `footerNotice: string[] | null`(줄 배열, 없으면 null) · `footerNoticeScope`. 사본 `site.info`·ETag 에 함께 든다(관리자 저장 = 자동 갱신 `SITE_OPERATOR_SAVE`).
+- **`{사이트}` 치환은 user-web 한 곳**(`UtilFooterNotice.render`): 사이트 표시 이름으로 바꾸고 바로 뒤 조사 은/는·이/가·을/를을 맞춘다 — 한글은 끝 글자 받침, 영문은 끝 글자 l·m·n·k·p·t 면 받침 있음, 숫자는 한국어 읽기(0·1·3·6·7·8 받침), 그 밖의 끝 글자는 「은(는)」 꼴. 서버·관리자 화면은 바꾸지 않는다.
+- **보일 때**: 문구가 있고 (`ALWAYS` 이거나 (`INDIVIDUAL_ONLY` 이고 단계 `INDIVIDUAL`)). 사업자 정보 표가 있어도 `ALWAYS` 면 보인다. 칸을 주지 않는 옛 서버 응답이면 숨긴다(i18n 대체 문구 없음 — `shell.footerIndividualText`·`footerIndividualAds` 키는 지움).
+- **배치**(`AppFooter`, `data-testid="footer-notice"`): 링크 묶음 아래 가는 선 다음 줄을 위아래로. 데스크톱 3열(개인 모양)은 1·2열 두 칸을 합친 너비(3열 아래 비움), 사업자 정보 표가 있으면 표 아래 폭 전체. 모바일은 한 단(© 위).
+- **관리자 화면**: 운영 주체 화면 사업자 칸 아래·저장 줄 위에 「푸터 안내 문구」 구획 — 여러 줄 입력 + 보이기 라디오 2개(개인 단계에서만 · 늘), 같은 저장 줄로 저장.

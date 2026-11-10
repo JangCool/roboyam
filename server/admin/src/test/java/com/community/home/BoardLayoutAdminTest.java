@@ -11,7 +11,7 @@ import com.community.home.dto.response.BoardLayoutView;
 import com.community.home.dto.response.HomeLayoutGadgetView;
 import com.community.home.service.BoardLayoutAdminService;
 import com.community.home.service.BoardLayoutDefaults;
-import com.community.home.service.HomeGadgetKinds;
+import com.community.home.service.GadgetKinds;
 import com.community.home.service.HomeLayoutJson;
 import com.community.permission.dto.AdminActor;
 import com.community.zconfiguration.exception.CommonException;
@@ -51,7 +51,7 @@ class BoardLayoutAdminTest extends CommerceAdminTestBase {
     }
 
     private static HomeLayoutSaveRequest.Gadget body(String id) {
-        return new HomeLayoutSaveRequest.Gadget(id, HomeGadgetKinds.BOARD_BODY, "바꾼 제목", null, null, HomeLayoutJson.object().put("icon", "pi-star"),
+        return new HomeLayoutSaveRequest.Gadget(id, GadgetKinds.BOARD_BODY, "바꾼 제목", null, null, HomeLayoutJson.object().put("icon", "pi-star"),
                 HomeLayoutJson.object().put("count", 3));
     }
 
@@ -82,7 +82,7 @@ class BoardLayoutAdminTest extends CommerceAdminTestBase {
         assertThat(view.layout().columns()).isEqualTo(24);
         assertThat(view.layout().items()).containsExactly(new HomeLayoutItem(BoardLayoutDefaults.BODY_ID, 0, 0, 24, 20));
         assertThat(view.gadgets()).singleElement().satisfies(g -> {
-            assertThat(g.type()).isEqualTo(HomeGadgetKinds.BOARD_BODY);
+            assertThat(g.type()).isEqualTo(GadgetKinds.BOARD_BODY);
             assertThat(g.style()).isNull();
             assertThat(g.config()).isNull();
         });
@@ -99,7 +99,7 @@ class BoardLayoutAdminTest extends CommerceAdminTestBase {
         assertThat(saved.updatedAt()).isNotNull();
         assertThat(saved.screens().list()).isTrue();
         assertThat(saved.screens().post()).isFalse();
-        HomeLayoutGadgetView body = saved.gadgets().stream().filter(g -> HomeGadgetKinds.BOARD_BODY.equals(g.type())).findFirst().orElseThrow();
+        HomeLayoutGadgetView body = saved.gadgets().stream().filter(g -> GadgetKinds.BOARD_BODY.equals(g.type())).findFirst().orElseThrow();
         assertThat(body.title()).isEqualTo(BoardLayoutDefaults.BODY_TITLE);
         assertThat(body.style()).isNull();
         assertThat(body.config()).isNull();

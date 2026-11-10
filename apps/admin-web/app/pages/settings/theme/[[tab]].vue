@@ -6,13 +6,13 @@
           카드를 고르면 아래 탭이 그 테마의 것으로 바뀐다(주소 `?theme=` 에 남는다, 아래에 저장하지 않은 변경이 있으면 묻는다). 사이트에 적용하는 것은 [테마 적용](`PUT /api/admin/site/theme` — 테마 id 만).
         배치: 넓은 화면(lg 이상)은 두 칸 — 왼쪽 위 ① 테마(폭 22.5rem, 창 위에 붙는다, 카드는 세로 목록·설명 두 줄) · 가운데 ②. 좁은 화면은 위아래.
         ② 레이아웃 — 페이지 종류 줄(홈 · 게시판 · 페이지) + 보기(실제 화면 · 편집) + [메뉴 설정] 단추.
-          게시판(게시판 레이아웃, 2026-10-30 — `useBoardLayoutApi`) — 테마마다 하나를 모든 게시판에 같이 쓴다. 홈과 같은 편집기(`HomeLayoutEditor` `board`)에
+          게시판(게시판 레이아웃, 2026-10-30 — `useBoardLayoutApi`) — 테마마다 하나를 모든 게시판에 같이 쓴다. 홈과 같은 편집기(`GadgetLayoutEditor` `board`)에
             고정 칸 「게시판 본문」 + 적용 화면(목록 · 글 보기) + [추천 배치]. 미리 볼 게시판·화면은 `BoardLayoutPicker`(주소 `?kind=board&board=<slug>&screen=post`), 실제 화면은 `/boards/{slug}`·`/posts/{id}`.
           페이지(가젯 페이지, 사용자 결정 2026-10-29) — 홈처럼 가젯 격자로 꾸미는 공개 페이지(`/p/{key}`)를 여러 개 만들고 고른다(`GadgetPagePicker` — 목록 · 만들기 · 정보 고치기 · 지우기).
-            고른 페이지를 홈과 같은 실제 화면 편집(같은 `ThemeLivePreview` + `HomeLayoutEditor`)으로 꾸미고, 배치는 홈처럼 테마마다 따로다. 종류·페이지는 주소 `?kind=page&page=<id>` 에 남는다.
+            고른 페이지를 홈과 같은 실제 화면 편집(같은 `ThemeLivePreview` + `GadgetLayoutEditor`)으로 꾸미고, 배치는 홈처럼 테마마다 따로다. 종류·페이지는 주소 `?kind=page&page=<id>` 에 남는다.
           보기(처음) · 편집 — **둘 다 실제 화면**이다(`ThemeLivePreview` — 공개 사이트 iframe, 사용자 결정 2026-10-28: 미리보기도 편집도 실제 공개 화면에서).
             고른 테마 · 메뉴 설정(drawer 가 열려 있으면 입력 중인 값) · 홈 구성(저장 전 값)을 그대로 그리고, 그 안의 윗줄·메뉴를 누르면 메뉴 설정 drawer 가 열린다.
-            편집이면 실제 홈 격자의 가젯 위에 손잡이가 얹혀 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · ×로 빼기를 하고(좌표 입력 칸은 없다), 그 일을 홈 구성 편집 도구(`HomeLayoutEditor` — 배치의 주인)가
+            편집이면 실제 홈 격자의 가젯 위에 손잡이가 얹혀 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · ×로 빼기를 하고(좌표 입력 칸은 없다), 그 일을 홈 구성 편집 도구(`GadgetLayoutEditor` — 배치의 주인)가
             계산해 다시 보낸다. 편집 도구 줄(칸 수 · 테마 기본 배치로 · 가젯 넣기)은 편집일 때만 보이고, 저장 줄은 늘 있다.
         ③ 메뉴 설정 drawer — 미리보기의 메뉴 자리를 누르거나 [메뉴 설정]을 누르면 오른쪽에 열린다(바탕을 막지 않아 미리보기가 같이 보인다). 내용은 `ThemeMenuSettings`(메뉴 배치 · 메뉴 모양, 테마마다 따로 저장).
           값을 바꾸면 미리보기가 바로 따르고, 저장하지 않고 닫으면 미리보기는 저장 값으로 돌아간다(입력은 버린다). 주소 `/settings/theme/menu` 로 오면 drawer 를 연 채 시작한다.
@@ -120,7 +120,7 @@
                     @update:path="(p) => (boardPath = p)"
                 />
                 <!-- 홈·게시판·페이지 구성 편집 도구(칸 수 · 기본 배치로 · 가젯 넣기 · 저장 줄) — 배치의 주인. 「보기」일 때는 도구 줄만 숨는다 -->
-                <HomeLayoutEditor
+                <GadgetLayoutEditor
                     v-if="layoutKind !== 'PAGE' || page"
                     ref="editor"
                     :theme="theme"
@@ -144,7 +144,7 @@
                         @edit-menu="openMenu"
                         @layout-op="(op) => editor?.applyOp(op)"
                     />
-                </HomeLayoutEditor>
+                </GadgetLayoutEditor>
             </div>
         </div>
 
@@ -170,7 +170,7 @@ import type { ApiError } from '~/composables/common/useApiClient';
 import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { SiteThemeResponse } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
-import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';
+import type { GadgetLayoutOp } from '~/components/theme/GadgetLayoutEditor.vue';
 import type { GadgetPage } from '~/composables/page/api/useGadgetPageApi.types';
 import type { BoardLayoutScreen, BoardLayoutScreens } from '~/composables/board/api/useBoardLayoutApi.types';
 import UtilGadgetPage from '~/utils/util-gadget-page';
@@ -280,7 +280,7 @@ function selectPage(id: string | null): void {
 /** 보기 · 편집 — 둘 다 실제 화면(공개 사이트 iframe)이다. 편집이면 실제 홈 격자에 손잡이가 얹히고 도구 줄이 보인다 */
 const viewMode = ref<'view' | 'edit'>('view');
 /** 홈 구성 편집 도구 — 실제 화면이 알린 일(옮기기·크기·빼기)을 넘긴다 */
-const editor = useTemplateRef<{ applyOp: (op: HomeLayoutOp) => void }>('editor');
+const editor = useTemplateRef<{ applyOp: (op: GadgetLayoutOp) => void }>('editor');
 const viewOptions = computed(() => [
     { value: 'view', label: t('site.viewModeLive') },
     { value: 'edit', label: t('site.viewModeEdit') },

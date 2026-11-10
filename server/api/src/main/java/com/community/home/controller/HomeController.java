@@ -1,9 +1,9 @@
 package com.community.home.controller;
 
 import com.community.auth.dto.AuthUser;
-import com.community.home.dto.response.HomeGadgetsResponse;
+import com.community.home.dto.response.GadgetsResponse;
 import com.community.home.dto.response.PopularListResponse;
-import com.community.home.service.HomeGadgetService;
+import com.community.home.service.GadgetService;
 import com.community.home.service.LatestFeedService;
 import com.community.home.service.PopularService;
 import com.community.post.dto.response.PostFeedPageView;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 최신글 전체·인기글 전체·홈 가젯(공개 사이트) — 모양은 user-web {@code useHomeApi.types.ts}·{@code useHomeGadgetApi.types.ts}. 로그인 없이 읽는다({@code SecurityConfig}).
+ * 최신글 전체·인기글 전체·홈 가젯(공개 사이트) — 모양은 user-web {@code useHomeApi.types.ts}·{@code useGadgetApi.types.ts}. 로그인 없이 읽는다({@code SecurityConfig}).
  * 쿼리 값은 글자로 받아 서비스가 칸별로 모아 검사한다(숫자가 아닌 값도 {@code 400 VALIDATION fields.*}).
  */
 @RestController
@@ -26,9 +26,9 @@ public class HomeController {
 
     private final LatestFeedService latest;
     private final PopularService popular;
-    private final HomeGadgetService gadgets;
+    private final GadgetService gadgets;
 
-    public HomeController(LatestFeedService latest, PopularService popular, HomeGadgetService gadgets) {
+    public HomeController(LatestFeedService latest, PopularService popular, GadgetService gadgets) {
         this.latest = latest;
         this.popular = popular;
         this.gadgets = gadgets;
@@ -39,7 +39,7 @@ public class HomeController {
      * 모르는 테마 값은 무시하고 사이트 테마로 준다(공개 데이터만 담겨 권한은 따로 보지 않는다).
      */
     @GetMapping("/gadgets")
-    public ResponseEntity<ApiResponse<HomeGadgetsResponse>> gadgets(@RequestParam(required = false) String theme, Authentication authentication) {
+    public ResponseEntity<ApiResponse<GadgetsResponse>> gadgets(@RequestParam(required = false) String theme, Authentication authentication) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(gadgets.gadgets(theme, viewerId(authentication))));
     }
 

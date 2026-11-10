@@ -4,16 +4,16 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
-import com.community.home.dto.HomeGadgetSpec;
+import com.community.home.dto.GadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
 import com.community.home.dto.response.HomeLayoutBodyView;
 import com.community.home.dto.response.HomeLayoutGadgetView;
 import com.community.home.dto.response.HomeLayoutView;
-import com.community.home.entity.HomeGadgetEntity;
+import com.community.home.entity.GadgetEntity;
 import com.community.home.entity.HomeLayoutEntity;
-import com.community.home.repository.master.HomeGadgetRepository;
+import com.community.home.repository.master.GadgetRepository;
 import com.community.home.repository.master.HomeLayoutRepository;
 import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorEntity;
@@ -60,14 +60,14 @@ public class HomeLayoutAdminService {
     private static final Logger log = LoggerFactory.getLogger(HomeLayoutAdminService.class);
 
     private final HomeLayoutRepository layouts;
-    private final HomeGadgetRepository gadgets;
+    private final GadgetRepository gadgets;
     private final SiteSettingRepository settings;
     private final OperatorRepository operators;
     private final GadgetLayoutWriter writer;
     private final AuditLogService audit;
     private final AdminNotices notices;
 
-    public HomeLayoutAdminService(HomeLayoutRepository layouts, HomeGadgetRepository gadgets, SiteSettingRepository settings, OperatorRepository operators,
+    public HomeLayoutAdminService(HomeLayoutRepository layouts, GadgetRepository gadgets, SiteSettingRepository settings, OperatorRepository operators,
                                   GadgetLayoutWriter writer, AuditLogService audit, AdminNotices notices) {
         this.layouts = layouts;
         this.gadgets = gadgets;
@@ -100,7 +100,7 @@ public class HomeLayoutAdminService {
         String themeId = known(theme);
         settings.findWithLockById(SiteSettingEntity.ROW_ID).orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
         HomeLayoutEntity row = layouts.findWithLockByTheme(themeId).orElse(null);
-        List<HomeGadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(themeId);
+        List<GadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(themeId);
         HomeLayoutDefaults.Home seeds = HomeLayoutDefaults.of(themeId);
         Instant now = Instant.now();
         GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.home(themeId), stored, seeds::gadget, request, now);
@@ -133,9 +133,9 @@ public class HomeLayoutAdminService {
         return theme;
     }
 
-    private HomeLayoutView view(HomeLayoutEntity row, List<HomeGadgetEntity> rows) {
+    private HomeLayoutView view(HomeLayoutEntity row, List<GadgetEntity> rows) {
         String updatedBy = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(OperatorEntity::getOperatorName).orElse(null);
-        return new HomeLayoutView(row.getTheme(), row.toLayout(), GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(),
+        return new HomeLayoutView(row.getTheme(), row.toLayout(), GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(GadgetEntity::toSpec).toList()), row.getUpdatedAt(),
                 updatedBy);
     }
 

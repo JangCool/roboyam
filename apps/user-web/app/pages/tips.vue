@@ -1,7 +1,7 @@
 <template>
     <!--
         팁·강좌·사용기 묶음 `/tips?board=&page=`(매거진형 — 사용자가 시안 B 를 고름, 2026-11-07 화면 확정·서버 연결). 게시판 두 개(팁과강좌·사용기)를 한 화면에 묶는다.
-        영역마다 따로 떨어진 카드(홈·가젯 페이지와 같은 `gadget-card` · 카드 사이 `gadget-stack` 간격 · 머리 = 아이콘 + 제목 + 오른쪽 자리, 모양은 홈 가젯 틀 `HomeGadgetFrame` 을 따른다):
+        영역마다 따로 떨어진 카드(홈·가젯 페이지와 같은 `gadget-card` · 카드 사이 `gadget-stack` 간격 · 머리 = 아이콘 + 제목 + 오른쪽 자리, 모양은 가젯 틀 `GadgetFrame` 을 따른다):
           · 카드 1 — 매거진 머리(페이지 제목·설명 + 오른쪽 게시판 칩, 굵은 밑줄 — 제목을 따로 떼지 않는다, 사용자 2026-11-07) 아래 「이번 주 추천」:
             게시판 칩은 전체 · 묶음의 게시판들(링크라 `?board=` 만 바뀌고 1쪽으로). 큰 카드 1 + 작은 카드 4 — 홈 하이라이트와 같은 크기(고르는 기준은 서버 몫 — 최근 7일 추천순).
           · 카드 2 「최신 글」 — 사진 + 제목 + 요약 2줄 + 게시판·작성자·날짜, 쪽 번호.
@@ -69,7 +69,7 @@
                     <FoldedRow v-if="lead" :reason="foldOf(lead)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                         <NuxtLink :to="`/posts/${lead.id}`" class="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="tips-lead">
                             <!-- 카드 머리가 이미 「이번 주 추천」이라 사진 위 꼬리표는 두지 않는다 -->
-                            <HomeThumb :src="lead.thumbnailUrl" ratio="16 / 9" class="w-full" />
+                            <GadgetThumb :src="lead.thumbnailUrl" ratio="16 / 9" class="w-full" />
                             <p class="mt-3.5 line-clamp-2 break-words text-lg font-bold leading-snug tracking-tight group-hover:underline">{{ lead.title }}</p>
                             <p v-if="lead.excerpt" class="mt-1.5 line-clamp-1 text-sm text-muted-color" data-testid="tips-lead-excerpt">{{ lead.excerpt }}</p>
                             <p class="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
@@ -96,7 +96,7 @@
                                     class="group flex flex-col gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary @min-[36rem]:flex-row @min-[36rem]:items-center @min-[36rem]:gap-3.5 @min-[36rem]:py-2.5"
                                     data-testid="tips-side-card"
                                 >
-                                    <HomeThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-full @min-[36rem]:w-20 @min-[36rem]:shrink-0" />
+                                    <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-full @min-[36rem]:w-20 @min-[36rem]:shrink-0" />
                                     <div class="min-w-0 flex-1">
                                         <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">{{ row.title }}</p>
                                         <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
@@ -143,7 +143,7 @@
                                         <NuxtLink :to="`/posts/${row.id}`" class="group block py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-latest-row">
                                             <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5">
                                                 <template #start>
-                                                    <HomeThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
+                                                    <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
                                                 </template>
                                                 <template #default="{ chips, stats, dateInline }">
                                                     <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
@@ -267,7 +267,7 @@ const mostViewedId = useId();
 const tagsId = useId();
 
 /**
- * 카드 머리 모양 — 홈 가젯 틀(`HomeGadgetFrame`)의 두 모양과 같은 클래스. 고르는 짝도 홈 템플릿과 같다(기본 테마 `DefaultHome` = 기본형 `classic`, 그 밖 테마 = 카드형 `card`).
+ * 카드 머리 모양 — 가젯 틀(`GadgetFrame`)의 두 모양과 같은 클래스. 고르는 짝도 홈 템플릿과 같다(기본 테마 `DefaultHome` = 기본형 `classic`, 그 밖 테마 = 카드형 `card`).
  * 기본형은 머리 아래 선 + 본문 위 여백, 카드형은 높이 44·48 머리 줄.
  */
 const look = computed<'classic' | 'card'>(() => (theme.value === 'default' ? 'classic' : 'card'));

@@ -6,7 +6,7 @@ import type { HomeLayoutGadget } from '~/composables/home/api/useHomeLayoutApi.t
 /**
  * 게시판 레이아웃(설정 › 테마 › 레이아웃 › 게시판, board-layout-contract)의 순수 계산 — 고정 칸 「게시판 본문」, 추천 배치(본문 + 오른쪽 열), 본문 하나 지키기, 적용 화면.
  * 기본 배치(본문만 전체 폭)는 서버가 준다(`GET …/defaults`). 본문은 **종류가 `BOARD_BODY` 인 가젯**으로 찾는다 — ID 는 서버가 정한다(기본 배치는 `seed-1`, 저장하면 Snowflake).
- * 테마마다 하나의 레이아웃을 모든 게시판에 같이 쓴다. 배치·가젯 모양은 홈과 같다(`HomeLayoutEditor` 가 편집, `UtilHomeLayoutEditor` 가 크기 계산 — 본문 최소 크기는 거기 `FIXED_KINDS`).
+ * 테마마다 하나의 레이아웃을 모든 게시판에 같이 쓴다. 배치·가젯 모양은 홈과 같다(`GadgetLayoutEditor` 가 편집, `UtilGadgetLayoutEditor` 가 크기 계산 — 본문 최소 크기는 거기 `FIXED_KINDS`).
  * 상태도 요청도 없다.
  */
 

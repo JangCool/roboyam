@@ -10,9 +10,11 @@ import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
+import com.community.site.dto.SiteFooterNotice;
 import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.request.SiteOperatorRequest;
 import com.community.site.dto.response.SiteOperatorResponse;
+import com.community.site.entity.SiteFooterNoticeScope;
 import com.community.site.entity.SiteOperatorEntity;
 import com.community.site.entity.SiteOperatorHistoryEntity;
 import com.community.site.entity.SiteOperatorStage;
@@ -44,7 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>검사</b>(칸마다 모아 한꺼번에 {@code 400 VALIDATION}, 사업자 칸은 {@code business.xxx}): 단계 · 운영자 이름 1~30 · 연락 이메일(254, 모양) · 전화(20, 숫자·{@code + - ( )}·띄어쓰기 —
  *       사업자 단계에서 필수) · 보호책임자(「같음」이 아니면 이름 30·이메일 필수) · 호스팅 50 · 사업자 단계의 상호 50·대표자 30·사업자등록번호 {@code ###-##-#####}·주소 200(모두 필수),
- *       통신판매업 신고번호·신고 기관 50, 법인등록번호 20(법인만). 화면 {@code UtilSiteOperator.validate} 와 같다.</li>
+ *       통신판매업 신고번호·신고 기관 50, 법인등록번호 20(법인만) · 푸터 안내 문구(V177) 최대 3줄·줄마다 120자, 보이기 {@code INDIVIDUAL_ONLY}·{@code ALWAYS}.
+ *       화면 {@code UtilSiteOperator.validate} 와 같다.</li>
+ *   <li><b>푸터 안내 문구</b>: 줄마다 앞뒤 공백을 떼고 빈 줄은 버린다(다 비면 안내 숨김). 요청에 칸이 없으면(null — 옛 화면) 지금 값을 둔다.</li>
  *   <li><b>개인 단계로 저장하면 사업자 칸을 비운다.</b> 「같음」이면 보호책임자 칸, 법인이 아니면 법인등록번호도 비운다.</li>
  *   <li><b>판매 중 막기</b>(커머스 규칙): 판매가 켜져 있는 동안 개인 단계로 바꾸거나 통신판매업 신고번호를 비우면 409 {@code COMMERCE_SALES_OPEN}, 로보티콘 유료 판매가
  *       켜져 있으면 409 {@code EMOTICON_PAID_SALES_OPEN}({@link CommerceSalesService#assertOperatorChangeAllowed}).</li>
@@ -96,15 +100,20 @@ public class SiteOperatorService {
 
     @Transactional
     public SiteOperatorResponse save(AdminActor actor, SiteOperatorRequest request) {
-        SiteOperatorValues next = validate(request);
+        Parsed parsed = validate(request);
+        SiteOperatorValues next = parsed.values();
         // 판매 스위치 행 → 운영 주체 행 차례로 잠근다(판매 켜기와 같은 차례 — 켜기가 읽는 운영 주체 값이 그 사이에 바뀌지 않는다)
         sales.assertOperatorChangeAllowed(next.stage(), next.mailOrderNumber());
         SiteOperatorEntity row = row(true);
         SiteOperatorValues before = row.values();
+        SiteFooterNotice noticeBefore = row.footerNotice();
+        // 칸이 없으면(옛 화면) 지금 값을 둔다
+        SiteFooterNotice noticeNext = new SiteFooterNotice(parsed.noticeLines() != null ? parsed.noticeLines() : noticeBefore.lines(),
+                parsed.noticeScope() != null ? parsed.noticeScope() : noticeBefore.scope());
         Map<String, Object> from = new LinkedHashMap<>();
         Map<String, Object> to = new LinkedHashMap<>();
-        Map<String, Object> after = flat(next);
-        flat(before).forEach((key, value) -> {
+        Map<String, Object> after = flat(next, noticeNext);
+        flat(before, noticeBefore).forEach((key, value) -> {
             if (!Objects.equals(value, after.get(key))) {
                 from.put(key, masked(key, value));
                 to.put(key, masked(key, after.get(key)));
@@ -114,7 +123,7 @@ public class SiteOperatorService {
             return view(row);
         }
         Instant now = Instant.now();
-        row.change(next, actor.operatorId(), now);
+        row.change(next, noticeNext, actor.operatorId(), now);
         boolean stageChanged = before.stage() != next.stage();
         if (stageChanged) {
             history.persist(SiteOperatorHistoryEntity.create(ids.nextId(), before.stage(), next.stage(), actor.operatorId(), now));
@@ -128,9 +137,18 @@ public class SiteOperatorService {
 
     // ── 검사 ──────────────────────────────────────────────────────────────
 
+    /**
+     * 검사를 마친 요청.
+     *
+     * @param noticeLines 푸터 안내 줄(빈 목록 = 숨김) — 요청에 칸이 없으면 null(지금 값을 둔다)
+     * @param noticeScope 푸터 안내 보이기 — 요청에 칸이 없으면 null(지금 값을 둔다)
+     */
+    private record Parsed(SiteOperatorValues values, List<String> noticeLines, SiteFooterNoticeScope noticeScope) {
+    }
+
     /** 요청 → 저장할 값(앞뒤 공백 뗌, 빈 선택 칸 null). 위반은 칸마다 모아 400 */
-    private static SiteOperatorValues validate(SiteOperatorRequest in) {
-        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null) : in;
+    private static Parsed validate(SiteOperatorRequest in) {
+        SiteOperatorRequest r = in == null ? new SiteOperatorRequest(null, null, null, null, null, null, null, null, null, null, null) : in;
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         SiteOperatorStage stage = SiteOperatorStage.of(r.stage() == null ? null : r.stage().strip()).orElse(null);
         if (stage == null) {
@@ -164,10 +182,30 @@ public class SiteOperatorService {
                     ? text(errors, "business.corporateNumber", b.corporateNumber(), CORPORATE_NUMBER_MAX, false) : null;
             biz = new SiteOperatorValues.Business(businessName, representative, registration, address, mailOrderNumber, mailOrderAuthority, corporateNumber);
         }
+        List<String> noticeLines = r.footerNotice() == null ? null : noticeLines(errors, r.footerNotice());
+        SiteFooterNoticeScope noticeScope = null;
+        if (r.footerNoticeScope() != null) {
+            noticeScope = SiteFooterNoticeScope.of(r.footerNoticeScope().strip()).orElse(null);
+            if (noticeScope == null) {
+                errors.put("footerNoticeScope", new MessageRef("siteOperator.footerNoticeScope.invalid"));
+            }
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new SiteOperatorValues(stage, operatorName, contactEmail, phone, same, officerName, officerEmail, hosting, biz);
+        return new Parsed(new SiteOperatorValues(stage, operatorName, contactEmail, phone, same, officerName, officerEmail, hosting, biz), noticeLines,
+                noticeScope);
+    }
+
+    /** 푸터 안내 문구 — 줄마다 앞뒤 공백을 떼고 빈 줄은 버린다. 3줄 넘게 · 120자 넘는 줄이 있으면 {@code errors.footerNotice} */
+    private static List<String> noticeLines(Map<String, MessageRef> errors, String raw) {
+        List<String> lines = SiteFooterNotice.split(raw);
+        if (lines.size() > SiteFooterNotice.LINES_MAX) {
+            errors.put("footerNotice", new MessageRef("siteOperator.footerNotice.lines", SiteFooterNotice.LINES_MAX));
+        } else if (lines.stream().anyMatch(line -> line.codePointCount(0, line.length()) > SiteFooterNotice.LINE_MAX)) {
+            errors.put("footerNotice", new MessageRef("siteOperator.footerNotice.lineLength", SiteFooterNotice.LINE_MAX));
+        }
+        return lines;
     }
 
     /** 글자 칸 — 앞뒤 공백을 떼고 빈 글자는 null. 필수인데 비었거나 길면 {@code errors} 에 넣는다 */
@@ -202,6 +240,7 @@ public class SiteOperatorService {
 
     private SiteOperatorResponse view(SiteOperatorEntity row) {
         SiteOperatorValues v = row.values();
+        SiteFooterNotice notice = row.footerNotice();
         List<SiteOperatorHistoryEntity> changes = history.findAllByOrderByChangedAtDescIdDesc();
         Set<Long> who = changes.stream().map(SiteOperatorHistoryEntity::getChangedBy).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> names = new HashMap<>();
@@ -215,13 +254,13 @@ public class SiteOperatorService {
                 v.privacyOfficerEmail(), v.hostingProvider(),
                 b == null ? null : new SiteOperatorResponse.Business(b.businessName(), b.representative(), b.registrationNumber(), b.address(), b.mailOrderNumber(),
                         b.mailOrderAuthority(), b.corporateNumber()),
-                row.getUpdatedAt(),
+                notice.stored(), notice.scope().name(), row.getUpdatedAt(),
                 changes.stream().map(c -> new SiteOperatorResponse.StageChange(c.getChangedAt(), c.getFromStage().name(), c.getToStage().name(),
                         c.getChangedBy() == null ? null : names.get(c.getChangedBy()))).toList());
     }
 
-    /** 감사 「바뀐 내용」의 칸 — 없는 값은 빈 글자(맵에 null 을 넣지 않는다), 사업자 칸은 {@code business.} 이 붙는다 */
-    private static Map<String, Object> flat(SiteOperatorValues v) {
+    /** 감사 「바뀐 내용」의 칸 — 없는 값은 빈 글자(맵에 null 을 넣지 않는다), 사업자 칸은 {@code business.} 이 붙는다. 푸터 안내 문구는 줄을 이은 글 */
+    private static Map<String, Object> flat(SiteOperatorValues v, SiteFooterNotice notice) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("stage", v.stage().name());
         out.put("operatorName", nz(v.operatorName()));
@@ -239,6 +278,8 @@ public class SiteOperatorService {
         out.put("business.mailOrderNumber", b == null ? "" : nz(b.mailOrderNumber()));
         out.put("business.mailOrderAuthority", b == null ? "" : nz(b.mailOrderAuthority()));
         out.put("business.corporateNumber", b == null ? "" : nz(b.corporateNumber()));
+        out.put("footerNotice", nz(notice.stored()));
+        out.put("footerNoticeScope", notice.scope().name());
         return out;
     }
 

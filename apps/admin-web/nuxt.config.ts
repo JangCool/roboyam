@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import Aura from '@primeuix/themes/aura';
 import { definePreset } from '@primeuix/themes';
@@ -63,7 +64,7 @@ const RoboyamPreset = definePreset(Aura, {
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
-    // 홈 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
+    // 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
     // 서식 에디터(`@roboyam/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
     // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이와 방문 분석(추이 · 이동 흐름 sankey)이 쓴다
     extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout', '@roboyam/chart'],
@@ -146,6 +147,10 @@ export default defineNuxtConfig({
 
     // Tailwind 4 는 설정 파일이 없다 (CSS-first — main.css 의 @theme)
     vite: { plugins: [tailwindcss()] },
+
+    // Tabler Icons(MIT, `@tabler/icons` 3.49.0) — 패키지 `exports` 가 `icons/*` 만 열어 두어 목록 파일(`tabler-nodes-outline.json`·`icons.json`)을 이 별칭으로 연다.
+    // 가젯 제목 아이콘 고르기(`utils/util-icon-catalog.ts`)가 고르기 창을 열 때만 `?raw` 로 늦게 읽는다(관리자 화면만 — 공개 사이트는 고른 아이콘의 path 만 저장해 그린다)
+    alias: { '#tabler-icons': fileURLToPath(new URL('./node_modules/@tabler/icons', import.meta.url)) },
 
     css: ['~/assets/css/main.css', 'primeicons/primeicons.css'],
 

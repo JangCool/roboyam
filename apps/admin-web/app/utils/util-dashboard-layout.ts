@@ -7,7 +7,7 @@ import UtilAdminMenu from '~/utils/util-admin-menu';
 /**
  * 관리자 대시보드 구성의 순수 계산 — 가젯 종류표(묶음·아이콘·필요 권한·최소/기본 크기·설정 칸), 저장 값 읽기 검증, 권한으로 만드는 기본 구성,
  * 옮기기·크기(`setBox` — 부딪친 가젯은 밀리고 위로 당긴다)·넣기·빼기. 상태도 요청도 없다.
- * 위로 당기기·읽는 순서는 홈 배치와 같은 규칙(공유 레이어 `UtilHomeLayout.compact`·`byReadingOrder`)이고, 방식은 홈 편집기(`util-home-layout-editor`)와 같다.
+ * 위로 당기기·읽는 순서는 홈 배치와 같은 규칙(공유 레이어 `UtilHomeLayout.compact`·`byReadingOrder`)이고, 방식은 홈 편집기(`util-gadget-layout-editor`)와 같다.
  *
  *  - 격자 48칸 고정(12·24칸 때 저장한 구성은 읽을 때 늘린다) · 행 높이 12px · 간격 16px(가정). 가젯 높이 `h` 는 고정(내용이 넘치면 가젯 안에서 스크롤).
  *  - 구성은 늘 위로 당긴(빈 줄 없는) 모양이다.

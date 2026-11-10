@@ -11,9 +11,9 @@ import com.community.home.dto.response.BoardLayoutBodyView;
 import com.community.home.dto.response.BoardLayoutScreensView;
 import com.community.home.dto.response.BoardLayoutView;
 import com.community.home.entity.BoardLayoutEntity;
-import com.community.home.entity.HomeGadgetEntity;
+import com.community.home.entity.GadgetEntity;
 import com.community.home.repository.master.BoardLayoutRepository;
-import com.community.home.repository.master.HomeGadgetRepository;
+import com.community.home.repository.master.GadgetRepository;
 import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
@@ -51,14 +51,14 @@ public class BoardLayoutAdminService {
     private static final Logger log = LoggerFactory.getLogger(BoardLayoutAdminService.class);
 
     private final BoardLayoutRepository layouts;
-    private final HomeGadgetRepository gadgets;
+    private final GadgetRepository gadgets;
     private final SiteSettingRepository settings;
     private final OperatorRepository operators;
     private final GadgetLayoutWriter writer;
     private final AuditLogService audit;
     private final AdminNotices notices;
 
-    public BoardLayoutAdminService(BoardLayoutRepository layouts, HomeGadgetRepository gadgets, SiteSettingRepository settings, OperatorRepository operators,
+    public BoardLayoutAdminService(BoardLayoutRepository layouts, GadgetRepository gadgets, SiteSettingRepository settings, OperatorRepository operators,
                                    GadgetLayoutWriter writer, AuditLogService audit, AdminNotices notices) {
         this.layouts = layouts;
         this.gadgets = gadgets;
@@ -91,7 +91,7 @@ public class BoardLayoutAdminService {
         String themeId = known(theme);
         settings.findWithLockById(SiteSettingEntity.ROW_ID).orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
         BoardLayoutEntity row = layouts.findWithLockByTheme(themeId).orElse(null);
-        List<HomeGadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(themeId);
+        List<GadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(themeId);
         BoardLayoutDefaults.Board seeds = BoardLayoutDefaults.of(themeId);
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -142,9 +142,9 @@ public class BoardLayoutAdminService {
         return new BoardLayoutScreensView(screens.list(), screens.post());
     }
 
-    private BoardLayoutView view(BoardLayoutEntity row, List<HomeGadgetEntity> rows) {
+    private BoardLayoutView view(BoardLayoutEntity row, List<GadgetEntity> rows) {
         String updatedBy = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(OperatorEntity::getOperatorName).orElse(null);
         return new BoardLayoutView(row.getTheme(), new BoardLayoutScreensView(row.isListEnabled(), row.isPostEnabled()), row.toLayout(),
-                GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(), updatedBy);
+                GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(GadgetEntity::toSpec).toList()), row.getUpdatedAt(), updatedBy);
     }
 }

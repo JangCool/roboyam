@@ -10,7 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 관리자 ⚙ 설정 창(「내용」)이 고치는 가젯 내용 설정 — 8종 전부의 칸·범위·처음 값(docs/features/gadget-page-contract.md 「가젯 설정」 표, admin-web {@code UtilGadgetConfig} ·
- * 공개 읽기 user-web {@code UtilHomeGadget} 과 같은 값). 검사는 관리자 서버 {@code GadgetPatches}, 공개 데이터는 {@code HomeGadgetService} 가 같은 범위로 읽는다.
+ * 공개 읽기 user-web {@code UtilGadget} 과 같은 값). 검사는 관리자 서버 {@code GadgetPatches}, 공개 데이터는 {@code GadgetService} 가 같은 범위로 읽는다.
  *
  * <ul>
  *   <li>{@code GROUP_BUY} {@code count} 1~10(5) · {@code sort} · {@code POST_LIST} 대상 게시판 · {@code count} 1~30(10) · {@code sort} · {@code periodTabs} · 보기 모양
@@ -19,6 +19,7 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
  *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
+ *   <li>공통 {@code hover} 마우스 올림 효과(누르면 가는 항목에 옅은 바탕 — 기본 켬, 칸이 없는 옛 가젯도 켬, 사용자 2026-11-10) — 항목이 있는 종류({@link #HOVER_KINDS})만. 안내 글·광고 2종에는 없다.</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
  *       {@code PICK} {@code boardIds}(게시판 slug). 저장 설정에 {@code boardScope} 가 없으면(옛 시드) {@code boardIds} 가 있으면 PICK, 없으면 ALL 로 읽는다.</li>
  * </ul>
@@ -54,21 +55,23 @@ public final class GadgetConfigs {
     public static final int QUICK_LINK_MAX = 12;
     public static final int QUICK_LABEL_MAX = 12;
     public static final int NOTICE_MAX = 300;
+    /** 마우스 올림 효과 칸({@code hover})이 있는 종류 — 누르면 가는 항목(글 줄·카드·바로가기)이 있는 것. admin-web {@code UtilGadgetConfig}·user-web {@code UtilGadget.hoverOn} 과 같은 종류 */
+    public static final List<String> HOVER_KINDS = List.of("HIGHLIGHT", "POST_LIST", "BOARD_CARDS", "GALLERY", "GROUPS", "GROUP_BUY", GadgetKinds.HOT_DEALS, "QUICK_LINKS");
     /** 사이트 안 경로 글자 수 한도 — user-web {@code safePath} */
     public static final int PATH_MAX = 300;
 
     private static final Pattern SCHEME = Pattern.compile("^/[a-zA-Z][a-zA-Z0-9+.-]*:.*", Pattern.DOTALL);
 
-    /** 종류 → 개수 칸 {이름, 최소, 최대, 처음} — 공개 {@code HomeGadgetService} 가 읽는 범위와 같다 */
+    /** 종류 → 개수 칸 {이름, 최소, 최대, 처음} — 공개 {@code GadgetService} 가 읽는 범위와 같다 */
     private static final Map<String, Count> COUNTS = Map.of(
-            "GROUP_BUY", new Count("count", 1, HomeGadgetKinds.GROUP_BUY_COUNT_MAX, HomeGadgetKinds.GROUP_BUY_COUNT_DEFAULT),
-            HomeGadgetKinds.HOT_DEALS, new Count("count", 1, HomeGadgetKinds.HOT_DEALS_COUNT_MAX, HomeGadgetKinds.HOT_DEALS_COUNT_DEFAULT),
+            "GROUP_BUY", new Count("count", 1, GadgetKinds.GROUP_BUY_COUNT_MAX, GadgetKinds.GROUP_BUY_COUNT_DEFAULT),
+            GadgetKinds.HOT_DEALS, new Count("count", 1, GadgetKinds.HOT_DEALS_COUNT_MAX, GadgetKinds.HOT_DEALS_COUNT_DEFAULT),
             "POST_LIST", new Count("count", 1, 30, 10),
             "GALLERY", new Count("count", 1, 24, 6),
             "BOARD_CARDS", new Count("perBoard", 1, 10, 4),
             "HIGHLIGHT", new Count("count", 1, 6, 5),
             "GROUPS", new Count("count", 1, 6, 3),
-            HomeGadgetKinds.AD_TEXT_LINE, new Count("count", 1, 5, 3));
+            GadgetKinds.AD_TEXT_LINE, new Count("count", 1, 5, 3));
 
     private GadgetConfigs() {
     }
@@ -104,12 +107,17 @@ public final class GadgetConfigs {
 
     /** ⚙ 설정을 고칠 수 있는 종류인가 — 8종 + 광고 2종 전부(게시판 본문은 아니다) */
     public static boolean settable(String type) {
-        return HomeGadgetKinds.isKnown(type);
+        return GadgetKinds.isKnown(type);
     }
 
     /** 대상 게시판을 고르는 종류인가 */
     public static boolean boards(String type) {
         return "POST_LIST".equals(type) || "GALLERY".equals(type) || "BOARD_CARDS".equals(type);
+    }
+
+    /** 마우스 올림 효과 칸({@code hover})이 있는 종류인가 */
+    public static boolean hover(String type) {
+        return type != null && HOVER_KINDS.contains(type);
     }
 
     /** 개수 칸(없는 종류 — 바로가기 · 안내 글 — 는 null) */
@@ -120,8 +128,8 @@ public final class GadgetConfigs {
     /** 정렬 목록(정렬 칸이 없는 종류는 빈 목록) */
     public static List<String> sorts(String type) {
         return switch (type) {
-            case "GROUP_BUY" -> HomeGadgetKinds.GROUP_BUY_SORTS;
-            case HomeGadgetKinds.HOT_DEALS -> HomeGadgetKinds.HOT_DEALS_SORTS;
+            case "GROUP_BUY" -> GadgetKinds.GROUP_BUY_SORTS;
+            case GadgetKinds.HOT_DEALS -> GadgetKinds.HOT_DEALS_SORTS;
             case "POST_LIST" -> POST_LIST_SORTS;
             default -> List.of();
         };
@@ -150,7 +158,7 @@ public final class GadgetConfigs {
         }
         List<String> sorts = sorts(type);
         if (!sorts.isEmpty()) {
-            String fallback = "GROUP_BUY".equals(type) ? HomeGadgetKinds.GROUP_BUY_SORT_DEFAULT : "LATEST";
+            String fallback = "GROUP_BUY".equals(type) ? GadgetKinds.GROUP_BUY_SORT_DEFAULT : "LATEST";
             out.put("sort", oneOf(config, "sort", sorts, fallback));
         }
         if (boards(type)) {
@@ -160,6 +168,9 @@ public final class GadgetConfigs {
             if (PICK.equals(scope)) {
                 HomeLayoutJson.texts(config, "boardIds").stream().distinct().limit(BOARD_PICK_MAX).forEach(ids::add);
             }
+        }
+        if (hover(type)) {
+            out.put("hover", bool(config, "hover", true)); // 마우스 올림 효과 — 칸이 없는 옛 가젯도 켬
         }
         switch (type) {
             case "POST_LIST" -> {
@@ -223,11 +234,11 @@ public final class GadgetConfigs {
                 out.put("text", cut(HomeLayoutJson.text(config, "text", ""), NOTICE_MAX));
                 out.put("format", oneOf(config, "format", NOTICE_FORMATS, "PLAIN"));
             }
-            case HomeGadgetKinds.AD -> out.put("adType", oneOf(config, "adType", AD_TYPES, AD_TYPE_DEFAULT));
-            case HomeGadgetKinds.AD_TEXT_LINE -> out.put("look", oneOf(config, "look", TEXT_LINE_LOOKS, "BAND"));
-            case HomeGadgetKinds.HOT_DEALS -> {
+            case GadgetKinds.AD -> out.put("adType", oneOf(config, "adType", AD_TYPES, AD_TYPE_DEFAULT));
+            case GadgetKinds.AD_TEXT_LINE -> out.put("look", oneOf(config, "look", TEXT_LINE_LOOKS, "BAND"));
+            case GadgetKinds.HOT_DEALS -> {
                 ArrayNode boards = out.putArray("boards");
-                HomeGadgetKinds.hotDealsBoards(config).forEach(boards::add);
+                GadgetKinds.hotDealsBoards(config).forEach(boards::add);
             }
             default -> {
             }
@@ -237,7 +248,7 @@ public final class GadgetConfigs {
 
     /**
      * 하이라이트 가젯이 쓸 곳({@code place} — {@code home}·{@code tips}·가젯 페이지 키, tips-contract 「결정」) — 칸이 없거나 모양이 틀리면 {@code home}.
-     * 있는 곳인지는 보지 않는다(공개 읽기 {@code HomeGadgetService} 가 없는 곳을 {@code home} 으로 읽는다).
+     * 있는 곳인지는 보지 않는다(공개 읽기 {@code GadgetService} 가 없는 곳을 {@code home} 으로 읽는다).
      */
     public static String highlightPlace(JsonNode config) {
         String raw = HomeLayoutJson.text(config, "place", null);

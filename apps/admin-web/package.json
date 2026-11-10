@@ -17,6 +17,7 @@
         "@roboyam/home-layout": "workspace:*",
         "@roboyam/i18n": "workspace:*",
         "@roboyam/rich-editor": "workspace:*",
+        "@tabler/icons": "3.49.0",
         "nuxt": "4.6.2",
         "primeicons": "8.0.2",
         "primevue": "5.0.2",

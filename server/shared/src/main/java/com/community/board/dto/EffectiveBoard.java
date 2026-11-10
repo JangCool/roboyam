@@ -27,7 +27,7 @@ import java.util.Set;
  * @param pointMinLengthApplied 「적립 최소 글자 수 적용」(게시판 값 ?? 기본값, 기본 켬) — 끄면 글 본문 최소 글자 수만 빠진다(커머스 1-3 확정 1)
  * @param writeTemplate      글 양식(새 글 본문에 미리 채우는 평문 — V153), 없으면 null
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
- * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
+ * @param gadgetExclusions   이 게시판 글을 내지 않을 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
  * @param adsHidden          「이 게시판에 광고 숨김」(게시판 값 그대로) — 켜면 게시판 맥락 광고(목록 한 줄·글 보기·핫딜 노출 · 날개)가 없다. 소모임 게시판은 이 값과 상관없이 없고, 19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다
  * @param secretMode         비밀글 방식 OFF · OPTIONAL · ALWAYS(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 OFF(V168)
  * @param statusEnabled      처리 상태를 쓰는가(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 false(V168)

@@ -45,5 +45,5 @@
   - mostViewed: 최근 30일 조회순 → 기간 밖. 헤드라인과 겹쳐도 된다. 공지·숨김·19금·비멤버에게 안 보이는 소모임 글은 둘 다 뺀다.
   - posts: 게시판 글 목록과 같은 거름(공지 빼고, 신고·운영자 숨긴 글은 자리만 남고 요약 null, 19금은 성인에게만), id 최신순.
 - **프론트 타입과 차이**(`useTipsApi.types.ts`): `TipsPost.tags`·`TipsOverview.tags` 없음(화면 목업 유지) · `boards[]` 에 `id` 가 더 있음 · headline 은 최대 5(타입 주석은 4).
-- **시험**: admin `HighlightPlaceAdminTest`(5) · `GadgetPatchesTest`(+1, 10) · `HomeLayoutGroupBuyConfigTest`(7, HIGHLIGHT 칸에 place) · api `TipsHttpTest`(6) · `HomeGadgetAdTest`·`HomeGadgetGroupBuyTest`(9) 통과.
+- **시험**: admin `HighlightPlaceAdminTest`(5) · `GadgetPatchesTest`(+1, 10) · `HomeLayoutGroupBuyConfigTest`(7, HIGHLIGHT 칸에 place) · api `TipsHttpTest`(6) · `GadgetAdTest`·`GadgetGroupBuyTest`(9) 통과.
 - 관리자 하이라이트 화면(곳 고르개)·user-web `/tips` 실제 연결은 아직(MOCK 그대로).

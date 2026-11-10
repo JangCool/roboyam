@@ -5,7 +5,7 @@ import java.time.Instant;
 
 /**
  * 게시판이 섞인 목록의 한 줄(user-web {@code PostFeedRow}) — 글 목록 한 줄({@link PostRowView})의 칸 + 그 글의 게시판.
- * 최신글·인기글·통합 검색·회원 작성글·홈 가젯이 쓴다.
+ * 최신글·인기글·통합 검색·회원 작성글·가젯이 쓴다.
  *
  * @param blocked 보는 사람 기준 차단({@code USER}·{@code WORD}, 내 글·숨긴 글·비로그인 null) — 게시판 글 목록과 같은 판정({@code ViewerBlocks})
  * @param hasPoll 글에 투표가 붙었는가(숨긴 글은 false)

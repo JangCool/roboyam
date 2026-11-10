@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * 공개 쪽 하이라이트 읽기 — 한 곳(V161 {@code place})의 노출 중인 하이라이트를 관리자 순서로. 홈·가젯 페이지의 {@code HIGHLIGHT} 가젯({@code HomeGadgetService})과
+ * 공개 쪽 하이라이트 읽기 — 한 곳(V161 {@code place})의 노출 중인 하이라이트를 관리자 순서로. 홈·가젯 페이지의 {@code HIGHLIGHT} 가젯({@code GadgetService})과
  * 팁 묶음 「이번 주 추천」({@code TipsService})이 같이 쓴다(tips-contract 「결정」).
  *
  * <ul>

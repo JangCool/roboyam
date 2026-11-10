@@ -3,6 +3,7 @@
          「고객 지원」 링크 묶음(버그 신고·기능 요청 …) — 메뉴 그룹 `footer`(`useFooterMenu`, 메인 메뉴와 따로). 같은 탭 이동, 항목이 `newTab` 이면 새 탭. 못 받았거나 비면 묶음을 숨긴다.
          데스크톱(md 이상): 두 단 — 왼쪽 = 사이트 이름 · 링크 · 고객 지원 · ©, 오른쪽 = 사업자 정보 표(`CommerceBusinessInfo` footer). 사업자 정보가 없으면 왼쪽 단만.
          사업자 정보가 없을 때(운영 주체 개인 단계 — 2026-11-06) 왼쪽 단에 「문의 help@…」 한 줄(운영 주체 연락 이메일 — `GET /api/site/info` 의 `operator.contactEmail`, null 이면 그 줄을 숨긴다).
+         그 아래 푸터 안내 문구(2026-11-10 — 관리자 운영 주체 화면에서 정하는 최대 3줄, `operator.footerNotice`·`footerNoticeScope`).
          모바일(사용자 요청 2026-11-06 — 모바일에도 보인다): 한 단으로 쌓는다 — 사이트 이름 · 링크 한 줄, 그 아래 사업자 정보 표(이름표 | 값), 맨 아래 ©. 하단 탭 바로 위에 놓인다 -->
     <footer class="border-t border-surface bg-surface-100 dark:bg-surface-900">
         <div class="mx-auto grid max-w-[var(--content-max)] grid-cols-1 gap-y-3 px-4 py-5 text-xs text-muted-color md:gap-x-8 md:py-6" :class="personal ? '' : 'md:grid-cols-[10rem_minmax(0,1fr)]'">
@@ -41,12 +42,21 @@
                 <span class="max-md:hidden md:mt-2" :class="personal ? 'md:col-start-1' : ''">{{ copyright }}</span>
             </div>
             <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="footer" class="max-md:border-t max-md:border-surface max-md:pt-3" />
+            <!-- 푸터 안내 문구(사용자 확정 2026-11-10) — 관리자 운영 주체 화면의 문구(`operator.footerNotice`, `{사이트}` 는 사이트 이름 + 맞춘 조사로). 보일 때 = 문구가 있고 (보이기 ALWAYS 이거나 개인 단계).
+                 칸을 주지 않는 옛 서버·비운 문구면 숨긴다. 링크 묶음(또는 사업자 정보 표) 아래 가는 선 다음에 줄을 위아래로 —
+                 데스크톱 3열(개인 모양)은 1·2열 두 칸을 합친 너비(3열 아래는 비움), 사업자 정보 표가 있으면 표 아래 폭 전체. 모바일은 한 단(© 위) -->
+            <div v-if="noticeLines.length" class="border-t border-surface pt-3 leading-relaxed" :class="personal ? 'md:grid md:grid-cols-3 md:gap-x-8' : 'md:col-span-2'" data-testid="footer-notice">
+                <div class="flex flex-col" :class="personal ? 'md:col-span-2' : ''">
+                    <p v-for="(line, index) in noticeLines" :key="index" class="m-0">{{ line }}</p>
+                </div>
+            </div>
             <span class="md:hidden">{{ copyright }}</span>
         </div>
     </footer>
 </template>
 
 <script setup lang="ts">
+import UtilFooterNotice from '~/utils/util-footer-notice';
 import UtilMenu from '~/utils/util-menu';
 
 const { t } = useI18n();
@@ -54,12 +64,20 @@ const { siteLabel } = useSiteName();
 const commerce = useCommerceInfo();
 // 커머스 정보를 받기 전(`undefined`)에는 문의 줄을 숨긴다 — 사업자 정보가 있는 사이트에서 한 번 비치지 않게
 const { shownBusiness, info: commerceInfo } = commerce;
+/** 사이트 정보(운영 주체 단계·연락 이메일) */
+const siteInfo = useSiteInfoState();
 /** 운영 주체 개인 단계(보일 사업자 정보 없음) — 데스크톱 가로 3열 */
 const personal = computed(() => !shownBusiness.value);
+/** 푸터 안내 줄(`{사이트}` 를 바꾼 것) — 문구가 있고 보이기가 ALWAYS 이거나 개인 단계일 때만, 아니면 빈 배열(숨김) */
+const noticeLines = computed(() => {
+    const operator = siteInfo.value?.operator;
+    if (!operator?.footerNotice) return [];
+    if (operator.footerNoticeScope !== 'ALWAYS' && operator.stage !== 'INDIVIDUAL') return [];
+    return operator.footerNotice.map((line) => UtilFooterNotice.render(line, siteLabel.value));
+});
 /** © 줄 — 데스크톱은 왼쪽 단 맨 아래, 모바일은 푸터 맨 아래 */
 const copyright = computed(() => `© ${new Date().getFullYear()} ${siteLabel.value}`);
 // 운영 주체 연락 이메일(사이트 정보) — 없으면 문의 줄을 숨긴다
-const siteInfo = useSiteInfoState();
 const contactEmail = computed(() => siteInfo.value?.operator?.contactEmail ?? null);
 onMounted(() => void commerce.ensureLoaded());
 // 고객 지원 링크(메뉴 그룹 `footer`) — 보는 사람마다 다를 수 있어 로그인·로그아웃으로 사람이 바뀌면 다시 받는다

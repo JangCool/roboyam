@@ -1,7 +1,7 @@
 import type {
     HomeAdBannerType,
     HomeBoardScope,
-    HomeGadgetConfig,
+    GadgetConfig,
     HomeGroupBuySort,
     HomeHotDealSort,
     HomeLayoutGadget,
@@ -27,7 +27,7 @@ export interface GadgetCountSpec {
     initial: number;
 }
 
-/** 고칠 수 있는 종류 하나의 공통 칸 — 서버 `HomeGadgetService`·user-web `UtilHomeGadget` 이 읽는 칸·범위·처음 값과 같다. 종류만의 칸은 `normalize` 에 */
+/** 고칠 수 있는 종류 하나의 공통 칸 — 서버 `GadgetService`·user-web `UtilGadget` 이 읽는 칸·범위·처음 값과 같다. 종류만의 칸은 `normalize` 에 */
 export interface GadgetConfigSpec {
     /** 대상 게시판을 고르는가 */
     boards: boolean;
@@ -60,6 +60,8 @@ const QUICK_KINDS: readonly HomeQuickLinkKind[] = ['ALL', 'POPULAR', 'LATEST', '
 /** 보일 차례 */
 const AD_BANNER_TYPES: readonly HomeAdBannerType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
+/** 마우스 올림 효과 칸(`hover`, 기본 켬 — 사용자 2026-11-10)이 있는 종류 — 누르면 가는 항목이 있는 것(안내 글·광고 2종은 없다). 서버 `GadgetConfigs.HOVER_KINDS`·user-web `UtilGadget.hoverOn` 과 같다 */
+const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
 
 /** 내용 설정(⚙)을 고칠 수 있는 종류 — 8종 전부(2026-10-30) + 광고 2종. user-web `UtilAdminPreview` 의 `SETTABLE_KINDS` 와 같은 종류 */
 const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
@@ -85,7 +87,7 @@ const QUICK_LINK_MAX = 12;
 const QUICK_LABEL_MAX = 12;
 /** 안내 글 글자 한도 — user-web `noticeText` 가 300자로 자른다 */
 const NOTICE_MAX = 300;
-/** 게시판 slug 모양 — user-web `UtilHomeGadget` `SLUG` */
+/** 게시판 slug 모양 — user-web `UtilGadget` `SLUG` */
 const SLUG = /^[A-Za-z0-9_-]{1,60}$/;
 
 function obj(value: unknown): Record<string, unknown> {
@@ -129,7 +131,7 @@ function readLink(raw: unknown): HomeQuickLink | null {
  * 가젯 내용 설정(관리자 실제 화면 편집의 ⚙ 설정 창 「내용」)의 순수 계산 — 고칠 수 있는 종류, 종류마다 칸·범위·처음 값, 읽기·바로잡기·검사·비교.
  * 공구(개수·정렬, 2026-10-29) · 글 목록 · 갤러리 · 게시판 카드(대상 게시판·개수·정렬, 가젯 페이지 때 넓힘 2026-10-29) ·
  * 8종 전부 + 글 목록 보기 모양 · 게시판 카드 열 수 · 하이라이트 · 소모임 · 바로가기 · 안내 글(2026-10-30 — 서버 `GadgetConfigs`·`GadgetPatches` 와 같은 칸·범위).
- * 값 범위는 user-web `UtilHomeGadget`(공개 화면이 읽는 쪽)에 맞췄다. 대상 게시판 `FOLDER` 는 가젯 페이지에서만, `BOARD`(지금 보는 게시판)는 게시판 레이아웃에서만 — 홈에서는 `ALL`·`PICK`.
+ * 값 범위는 user-web `UtilGadget`(공개 화면이 읽는 쪽)에 맞췄다. 대상 게시판 `FOLDER` 는 가젯 페이지에서만, `BOARD`(지금 보는 게시판)는 게시판 레이아웃에서만 — 홈에서는 `ALL`·`PICK`.
  */
 export default class UtilGadgetConfig {
     /** 직접 고를 수 있는 게시판 수 한도 */
@@ -169,6 +171,15 @@ export default class UtilGadgetConfig {
     }
 
     /**
+     * 마우스 올림 효과 칸(`hover`)이 있는 종류인가 — ⚙ 「모양」 탭에 켬/끔을 보인다
+     * @param {string} type - 가젯 종류.
+     * @returns {boolean} 있으면 true.
+     */
+    static hasHover(type: string): boolean {
+        return HOVER_KINDS.includes(type);
+    }
+
+    /**
      * 내용 설정을 고칠 수 있는 종류인가
      * @param {string} type - 가젯 종류.
      * @returns {boolean} 고칠 수 있으면 true.
@@ -201,17 +212,18 @@ export default class UtilGadgetConfig {
      * 처음 값 — 새로 넣은 가젯 · 설정이 없는 가젯. 대상 게시판은 가젯 페이지면 폴더 게시판 전체, 게시판 레이아웃이면 지금 보는 게시판, 홈이면 전체.
      * @param {string} type - 가젯 종류.
      * @param {GadgetPlace} place - 가젯이 놓인 자리.
-     * @returns {HomeGadgetConfig | null} 설정(고칠 수 없는 종류는 null).
+     * @returns {GadgetConfig | null} 설정(고칠 수 없는 종류는 null).
      */
-    static initial(type: string, place: GadgetPlace): HomeGadgetConfig | null {
+    static initial(type: string, place: GadgetPlace): GadgetConfig | null {
         const spec = SPECS[type];
         if (!spec) return null;
-        const out: HomeGadgetConfig = spec.count ? { [spec.count.field]: spec.count.initial } : {};
-        if (spec.sort) out.sort = spec.sort as HomeGadgetConfig['sort'];
+        const out: GadgetConfig = spec.count ? { [spec.count.field]: spec.count.initial } : {};
+        if (spec.sort) out.sort = spec.sort as GadgetConfig['sort'];
         if (spec.boards) {
             out.boardScope = UtilGadgetConfig.scopes(place)[0]!;
             out.boardIds = [];
         }
+        if (HOVER_KINDS.includes(type)) out.hover = true;
         switch (type) {
             case 'POST_LIST':
                 Object.assign(out, {
@@ -225,19 +237,19 @@ export default class UtilGadgetConfig {
                     dividers: false,
                     newBadgeHours: 0,
                     hotBadgeLikes: 0,
-                } satisfies HomeGadgetConfig);
+                } satisfies GadgetConfig);
                 break;
             case 'BOARD_CARDS':
-                Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies HomeGadgetConfig);
+                Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies GadgetConfig);
                 break;
             case 'HIGHLIGHT':
-                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME, showAuthor: true } satisfies HomeGadgetConfig);
+                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME, showAuthor: true } satisfies GadgetConfig);
                 break;
             case 'QUICK_LINKS':
-                Object.assign(out, { shape: 'PILL', items: [] } satisfies HomeGadgetConfig);
+                Object.assign(out, { shape: 'PILL', items: [] } satisfies GadgetConfig);
                 break;
             case 'NOTICE_TEXT':
-                Object.assign(out, { text: '', format: 'PLAIN' } satisfies HomeGadgetConfig);
+                Object.assign(out, { text: '', format: 'PLAIN' } satisfies GadgetConfig);
                 break;
             case 'AD':
                 out.adType = 'WIDE_BANNER';
@@ -257,17 +269,17 @@ export default class UtilGadgetConfig {
      * 읽기·바로잡기 — 범위 밖 개수는 범위 안으로, 모르는 값은 처음 값으로, 고른 게시판이 없으면 그 자리의 처음 범위, 그 자리에서 못 고르는 범위(`FOLDER`·`BOARD`)는 `ALL`.
      * 인기 정렬이 아니면 기간 탭을 끈다. 바로가기는 모르는 종류의 항목을 빼고 12개까지, 안내 글은 300자까지.
      * @param {string} type - 가젯 종류.
-     * @param {HomeGadgetConfig | null | undefined} config - 받은 설정.
+     * @param {GadgetConfig | null | undefined} config - 받은 설정.
      * @param {GadgetPlace} place - 가젯이 놓인 자리.
-     * @returns {HomeGadgetConfig | null} 설정(고칠 수 없는 종류는 null).
+     * @returns {GadgetConfig | null} 설정(고칠 수 없는 종류는 null).
      */
-    static normalize(type: string, config: HomeGadgetConfig | Record<string, unknown> | null | undefined, place: GadgetPlace): HomeGadgetConfig | null {
+    static normalize(type: string, config: GadgetConfig | Record<string, unknown> | null | undefined, place: GadgetPlace): GadgetConfig | null {
         const spec = SPECS[type];
         const initial = UtilGadgetConfig.initial(type, place);
         if (!spec || !initial) return null;
         const c = obj(config);
-        const out: HomeGadgetConfig = spec.count ? { [spec.count.field]: clamp(c[spec.count.field], spec.count.min, spec.count.max, spec.count.initial) } : {};
-        if (spec.sort) out.sort = (spec.sorts.includes(String(c.sort)) ? c.sort : spec.sort) as HomeGadgetConfig['sort'];
+        const out: GadgetConfig = spec.count ? { [spec.count.field]: clamp(c[spec.count.field], spec.count.min, spec.count.max, spec.count.initial) } : {};
+        if (spec.sort) out.sort = (spec.sorts.includes(String(c.sort)) ? c.sort : spec.sort) as GadgetConfig['sort'];
         if (spec.boards) {
             const ids = Array.isArray(c.boardIds) ? [...new Set(c.boardIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''))].slice(0, BOARD_PICK_MAX) : [];
             const known: readonly HomeBoardScope[] = ['ALL', 'FOLDER', 'PICK', 'BOARD'];
@@ -277,6 +289,7 @@ export default class UtilGadgetConfig {
             out.boardScope = scope;
             out.boardIds = scope === 'PICK' ? ids : [];
         }
+        if (HOVER_KINDS.includes(type)) out.hover = c.hover !== false; // 마우스 올림 효과 — 칸이 없는 옛 가젯도 켬
         switch (type) {
             case 'POST_LIST':
                 out.periodTabs = out.sort === 'POPULAR' && c.periodTabs === true;
@@ -332,11 +345,11 @@ export default class UtilGadgetConfig {
     /**
      * 저장할 모양으로 — 바로잡고, 바로가기 이름·값과 안내 글의 앞뒤 공백을 뗀다
      * @param {string} type - 가젯 종류.
-     * @param {HomeGadgetConfig} config - 편집 중 설정.
+     * @param {GadgetConfig} config - 편집 중 설정.
      * @param {GadgetPlace} place - 가젯이 놓인 자리.
-     * @returns {HomeGadgetConfig | null} 설정.
+     * @returns {GadgetConfig | null} 설정.
      */
-    static finish(type: string, config: HomeGadgetConfig, place: GadgetPlace): HomeGadgetConfig | null {
+    static finish(type: string, config: GadgetConfig, place: GadgetPlace): GadgetConfig | null {
         const out = UtilGadgetConfig.normalize(type, config, place);
         if (!out) return null;
         if (out.items) out.items = out.items.map((it) => ({ ...it, label: it.label.trim(), value: it.value === null ? null : it.value.trim() }));
@@ -358,10 +371,10 @@ export default class UtilGadgetConfig {
     /**
      * 적용 전에 막을 문제 — 바로가기 항목의 이름 없음 · 게시판 안 고름 · 사이트 안 경로가 아님(공개 화면은 그런 항목을 그리지 않는다)
      * @param {string} type - 가젯 종류.
-     * @param {HomeGadgetConfig | null} config - 편집 중 설정.
+     * @param {GadgetConfig | null} config - 편집 중 설정.
      * @returns {GadgetConfigProblem[]} 문제(없으면 빈 배열).
      */
-    static problems(type: string, config: HomeGadgetConfig | null): GadgetConfigProblem[] {
+    static problems(type: string, config: GadgetConfig | null): GadgetConfigProblem[] {
         if (type !== 'QUICK_LINKS' || !config?.items) return [];
         const out: GadgetConfigProblem[] = [];
         config.items.forEach((it, index) => {
@@ -375,10 +388,10 @@ export default class UtilGadgetConfig {
 
     /**
      * 바뀜 비교용 글자 — 칸 차례에 상관없이 같은 설정이면 같은 글자
-     * @param {HomeGadgetConfig | null | undefined} config - 설정.
+     * @param {GadgetConfig | null | undefined} config - 설정.
      * @returns {string} 비교 글자.
      */
-    static key(config: HomeGadgetConfig | null | undefined): string {
+    static key(config: GadgetConfig | null | undefined): string {
         return config ? stable(config) : '';
     }
 

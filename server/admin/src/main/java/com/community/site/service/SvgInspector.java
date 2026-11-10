@@ -25,18 +25,20 @@ import javax.xml.stream.XMLStreamReader;
  * 비었음 → 길이(100,000자) → DOCTYPE·ENTITY → xml-stylesheet → XML 읽기 → 뿌리 {@code svg} → (아이콘만) 정사각({@code viewBox} 또는 {@code width}·{@code height}) →
  * {@code script} → {@code foreignObject} → {@code on*} 속성 → 외부 {@code href} → 외부 {@code url()}·{@code @import}.
  *
+ * <p>가젯 제목 아이콘 올리기({@code com.community.home.service.GadgetIconUploadService})도 같은 검사를 쓴다(그래서 공개 — 거절 칸은 그쪽이 {@code file} 로 옮긴다).
+ *
  * <p>XML 은 DTD·외부 엔티티를 끈 StAX 로 읽는다. 통과한 소스는 XML 선언을 떼고, 뿌리에 {@code xmlns} 가 없으면 SVG 이름 공간을 넣은 글({@link Inspected#source})로 돌려준다.
  */
-final class SvgInspector {
+public final class SvgInspector {
 
     /** 소스 글자 수 상한(UTF-16 글자 수) */
-    static final int MAX_CHARS = 100_000;
+    public static final int MAX_CHARS = 100_000;
     static final String SVG_NAMESPACE = "http://www.w3.org/2000/svg";
     /** 오류가 가리키는 입력칸 — 프론트 필드명 */
     static final String FIELD = "svgSource";
 
     /** 검사를 통과한 소스 — 저장·그리기에 쓸 글(XML 선언을 떼고, 이름 공간이 없으면 {@code xmlns} 를 넣었다) */
-    record Inspected(String source) {
+    public record Inspected(String source) {
     }
 
     private static final Pattern DOCTYPE_OR_ENTITY = Pattern.compile("<!(?:DOCTYPE|ENTITY)", Pattern.CASE_INSENSITIVE);
@@ -55,7 +57,7 @@ final class SvgInspector {
      *
      * @param requireSquare 정사각이어야 하는가(사이트 아이콘 true, 로고 false)
      */
-    static Inspected inspect(String raw, boolean requireSquare) {
+    public static Inspected inspect(String raw, boolean requireSquare) {
         if (raw == null || raw.isBlank()) {
             throw invalid("site.svg.empty");
         }

@@ -16,7 +16,7 @@ import UtilMenuPosition, { type MenuOverflow, type MenuPosition, type MenuStyle,
  * - `shell` 데스크톱 셸(헤더·메뉴 위치·본문 폭·푸터) — 계약 `components/themes/ThemeShell.types.ts`
  * - `postList` 게시판 목록 — 하위 축은 게시판이 정한 목록 유형(`LIST`·`CARD`·`GALLERY`, 보기 전환 포함). 테마는 유형을 정하지 않고 같은 유형의 생김새만 바꾼다. 계약 `components/board/BoardPostList.types.ts`
  * - `home` 공개 홈의 템플릿(칸 구성 — 템플릿 = 테마, 사용자 결정 2026-10-28) — 기본 테마 = 기본형, 다음식 = 다음식, 로보얌 = 로보얌형(`RoboyamHome`), 네이버식 = 네이버형. 칸 안의 가젯은 테마 공통 부품
- *   (`components/home/`, `UtilHomeGadgetRegistry`)이다. 계약 `components/themes/HomeTemplate.types.ts`
+ *   (`components/gadget/`, `UtilGadgetRegistry`)이다. 계약 `components/themes/HomeTemplate.types.ts`
  */
 export type ThemeSlotName = 'shell' | 'postList' | 'home';
 
