@@ -6,8 +6,9 @@
         아래 「이전 버전」: 지금 보는 것을 뺀 게시본(버전·시행일·상태) — 누르면 `?version=N`.
         ⚠ 본문은 서버가 정화한 HTML(`p br strong em u s a ul ol li blockquote h2 h3 hr`)만 `v-html` 로 그린다 — 다른 글자(제목·변경 요지·날짜)는 글자로 따로 그린다.
     -->
-    <div class="mx-auto w-full max-w-3xl" data-cache-area="terms.public">
-        <h1 class="m-0 text-xl font-bold">{{ title }}</h1>
+    <!-- 흰 카드 한 장 안에 제목 머리 · 안내 · 본문 · 이전 버전(사용자 2026-11-10 「카드 안에 넣어 — 너무 휑해」, 다른 묶음 화면과 같은 `gadget-card` 머리 없음 + `PageTitleHead`) -->
+    <div class="gadget-card" data-headless data-cache-area="terms.public">
+        <PageTitleHead :title="title" divider />
 
         <div v-if="status === 'loading'" class="mt-4" role="status" :aria-label="t('common.loading')" data-testid="terms-loading">
             <div class="h-4 w-1/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
@@ -41,7 +42,7 @@
 
             <ErrorState v-else-if="versionError" :title="t('terms.loadError')" :description="versionError" retry @retry="emit('retry')" />
 
-            <article v-else-if="shown" class="mt-4" :aria-label="title" data-testid="terms-body">
+            <article v-else-if="shown" class="mt-3" :aria-label="title" data-testid="terms-body">
                 <p class="m-0 text-xs text-muted-color" data-testid="terms-meta">
                     {{ t('terms.versionLine', { version: shown.version, date: time.serviceDate(shown.effectiveDate) }) }}
                 </p>
