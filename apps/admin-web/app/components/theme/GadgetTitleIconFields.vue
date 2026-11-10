@@ -1,7 +1,7 @@
 <template>
     <!--
         가젯 ⚙ 설정 「모양」의 「제목 아이콘」 구획(사용자 시안 확정 2026-11-10 — gadget-page-contract 「가젯 제목 아이콘」). 고치는 값은 꾸미기(`look` — 설정 창의 편집 중 값을 그대로 고친다):
-          · 아이콘 보이기/숨기기(`iconShow` — 테마 기본: 로보얌 숨김 「제목만」, 다음·네이버 보이기)
+          · 아이콘 보이기/숨기기(`iconShow` — 테마 기본: 모든 테마 보이기)
           · 고르는 곳(`iconSource`): PrimeIcons(`icon`) · Tabler Icons(`iconTabler` — 이름 + path 조각, 공개 화면은 고른 것만 싣는다) · 직접 올리기(`iconUpload` — SVG·PNG·WEBP 200KB, 정사각 권장)
           · 아이콘 색(`iconColor`): 글자색 그대로 / 색 정하기(프리셋 12색 · #hex). 올린 PNG·WEBP 는 칠할 수 없어 숨긴다(SVG 는 모양만 따서 칠한다)
           · 아이콘 바탕(`iconBg`): 없음 / 옅은 네모

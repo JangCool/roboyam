@@ -220,7 +220,7 @@ export default {
     titleIcon: 'Title icon',
     titleIconPreview: 'Preview',
     titleIconShow: 'Show icon',
-    titleIconShowHint: 'Off shows the title only. The Roboyam theme starts with it off (Daum and Naver start on).',
+    titleIconShowHint: 'Off shows the title only.',
     iconSource: 'Source',
     iconSource_PRIME: 'PrimeIcons',
     iconSource_TABLER: 'Tabler Icons',

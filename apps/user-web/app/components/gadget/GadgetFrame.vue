@@ -6,7 +6,7 @@
           · 기본형 `classic` — 구역 이름 줄(아래 선) + 내용 + 아래 가운데 「더보기 ›」 줄. 평평하지 않은 가젯은 테두리 카드(`gadget-card`).
           · 카드형 `card` — 카드(`gadget-card`, 값은 테마 역할 변수) + 높이 48 머리(제목 · 오른쪽 「더보기 ›」).
         제목은 `h2`(페이지 `h1` 은 사이트 이름) — 머리를 숨긴 가젯은 영역 이름(`aria-label`)으로만 읽힌다. 색은 컴포넌트에 박지 않는다(고른 색은 `--gx-*` 변수).
-        제목 아이콘(`GadgetTitleIcon`, 2026-11-10): 보이기·출처(PrimeIcons·Tabler·올린 파일)·색·바탕(옅은 네모)은 꾸미기 칸, 칸이 없으면 테마 기본(로보얌 제목만 — `UtilGadget.titleIcon`).
+        제목 아이콘(`GadgetTitleIcon`, 2026-11-10): 보이기·출처(PrimeIcons·Tabler·올린 파일)·색·바탕(옅은 네모)은 꾸미기 칸, 칸이 없으면 테마 기본(모든 테마 보이기, 로보얌은 옅은 네모 — `UtilGadget.titleIcon`).
         클래스 `gadget-icon`(머리 아이콘)·`gadget-more`(「더보기」)·`gadget-head`(머리 줄)는 테마 CSS 가 모양을 바꾸는 고리다 — 데스크톱에는 기본 규칙이 없어 다른 테마에서는 아무것도 바뀌지 않는다(로보얌: 옅은 주 색상 칩 · 작은 글자, `main.css`).
         한 열(모바일, 격자 `stack`)에서는 머리 「더보기 ›」의 터치 영역을 44px 로 넓힌다(`main.css` `[data-grid-mode='stack'] .gadget-head .gadget-more` — 모든 테마).
         마우스 올림 효과: 설정 `hover`(기본 켬 — `UtilGadget.hoverOn`)면 뿌리에 `data-gadget-hover` 를 달고, 가젯 컴포넌트가 항목에 붙인 `gadget-hover`·`gadget-hover-box`·`gadget-hover-photo` 가 그때만 반응한다(`main.css`).
@@ -144,7 +144,7 @@ const showEmpty = computed(() => !props.gadget.locked && (props.empty ?? props.g
 /** 제목·아이콘 글자색 — 색을 골랐을 때만(채움 머리는 채움 위 글자색을 쓴다) */
 const titleColorStyle = computed(() => (style.value.titleColor !== null && style.value.headerStyle !== 'FILLED' ? { color: 'var(--gx-c)' } : undefined));
 
-/** 제목 아이콘 — 보이기·출처·바탕(칸이 없으면 테마 기본 — 로보얌은 제목만) */
+/** 제목 아이콘 — 보이기·출처·바탕(칸이 없으면 테마 기본 — 보이기, 로보얌은 옅은 네모) */
 const { theme } = useTheme();
 const titleIcon = computed(() => UtilGadget.titleIcon(style.value, theme.value));
 /** 아이콘 색 — 고른 색(`--gx-ic`), 아니면 글자색 그대로(제목 색) */

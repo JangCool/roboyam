@@ -44,7 +44,7 @@ public final class AdminScreenRegistry {
                     leaf(s("visitPages", "/analytics/visits/pages", "menu.visitPages", "pi pi-file", Permission.SITE_READ)),
                     leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.SITE_READ)),
                     leaf(s("visitFlows", "/analytics/visits/flows", "menu.visitFlows", "pi pi-sitemap", Permission.SITE_READ)),
-                    leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-clock", Permission.SITE_READ)),
+                    leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-calendar-clock", Permission.SITE_READ)),
                     leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.SITE_READ)),
                     // 2단계(site-analytics-contract 「2단계」, 화면 확정 2026-11-04) — 화면 util-admin-menu.ts 와 같은 키·주소·아이콘·차례
                     leaf(s("visitEnvironment", "/analytics/visits/environment", "menu.visitEnvironment", "pi pi-mobile", Permission.SITE_READ)),
@@ -59,7 +59,7 @@ public final class AdminScreenRegistry {
                     leaf(s("grades", "/grades", "menu.grades", "pi pi-trophy", Permission.GRADE_READ)),
                     leaf(s("nicknameImages", "/members/nickname-images", "menu.nicknameImages", "pi pi-image", Permission.NICKNAME_IMAGE_READ)),
                     // 아바타 올리기 심사(commerce-motion-avatar-contract) — 닉네임 이미지 심사와 같은 권한. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
-                    leaf(s("avatarUploads", "/members/avatar-uploads", "menu.avatarUploads", "pi pi-user-plus", Permission.NICKNAME_IMAGE_READ))),
+                    leaf(s("avatarUploads", "/members/avatar-uploads", "menu.avatarUploads", "pi pi-upload", Permission.NICKNAME_IMAGE_READ))),
             section(NORMAL, "menu.siteMenu", "pi pi-bars",
                     leaf(s("menusPublic", "/menus/public", "menu.menusPublic", "pi pi-globe", Permission.LAYOUT_READ)),
                     leaf(s("menusAdmin", "/menus/admin", "menu.menusAdmin", "pi pi-desktop", Permission.LAYOUT_READ))),
@@ -77,18 +77,18 @@ public final class AdminScreenRegistry {
                     // 제재·이의제기(docs/features/member-sanction-contract.md) — 둘 다 보기 sanction.read(처리는 화면 안에서 sanction.manage·sanction.ban·appeal.manage)
                     leaf(s("sanctions", "/sanctions", "menu.sanctions", "pi pi-ban", Permission.SANCTION_READ)),
                     // 게시판 제재(docs/features/board-sanction-contract.md) — 이력·반복 검토, 보기 sanction.read(해제·무효·검토 닫기는 화면 안에서 sanction.manage)
-                    leaf(s("boardSanctions", "/board-sanctions", "menu.boardSanctions", "pi pi-list-check", Permission.SANCTION_READ)),
+                    leaf(s("boardSanctions", "/board-sanctions", "menu.boardSanctions", "pi pi-hammer", Permission.SANCTION_READ)),
                     // 스텝 처리 감독(docs/features/board-staff-action-contract.md) — 모든 게시판의 매니저·스텝 글·댓글 처리, 보기 keeper-action.read(되돌리기는 화면 안에서 keeper-action.restore)
-                    leaf(s("staffActions", "/staff-actions", "menu.staffActions", "pi pi-user-edit", Permission.KEEPER_ACTION_READ)),
+                    leaf(s("staffActions", "/staff-actions", "menu.staffActions", "pi pi-eye", Permission.KEEPER_ACTION_READ)),
                     leaf(s("appeals", "/appeals", "menu.appeals", "pi pi-comments", Permission.SANCTION_READ))),
             // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md)·팝업 관리.
             // admin-web UtilAdminMenu 와 같은 키·주소·권한
-            section(NORMAL, "menu.content", "pi pi-star",
+            section(NORMAL, "menu.content", "pi pi-folder-open",
                     leaf(s("posts", "/posts", "menu.posts", "pi pi-file-edit", Permission.POST_READ)),
                     // 공지 관리(docs/features/notice-admin-contract.md) — 공지 게시판 글 쓰기·고치기·고정·삭제, 보기 post.read(화면 안에서 쓰기 post.manage)
                     leaf(s("notices", "/notices", "menu.notices", "pi pi-megaphone", Permission.POST_READ)),
-                    leaf(s("highlights", "/content/highlights", "menu.highlights", "pi pi-bookmark", Permission.HIGHLIGHT_READ)),
-                    leaf(s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-chart-line", Permission.POPULAR_READ)),
+                    leaf(s("highlights", "/content/highlights", "menu.highlights", "pi pi-sparkles", Permission.HIGHLIGHT_READ)),
+                    leaf(s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-thumbs-up", Permission.POPULAR_READ)),
                     leaf(s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ)),
                     // 팝업 관리(docs/features/site-popup-contract.md) — 콘텐츠 묶음 맨 끝, 보기 site.read(바꾸기는 화면 안에서 site.manage)
                     leaf(s("sitePopups", "/content/popups", "menu.popups", "pi pi-window-maximize", Permission.SITE_READ))),
@@ -108,7 +108,7 @@ public final class AdminScreenRegistry {
                     leaf(s("emoticonPacks", "/robotikon/packs", "menu.emoticonPacks", "pi pi-images", Permission.EMOTICON_READ)),
                     // 판매 내역(S3 — 조회·예외 환불 emoticon.sales) · 작가 정산(S4 — 조회·확정·보류·지급 기록 emoticon.settlement, 계좌 원문 보기는 화면 안에서 emoticon.payout.pii)
                     leaf(s("emoticonSales", "/robotikon/sales", "menu.emoticonSales", "pi pi-receipt", Permission.EMOTICON_SALES)),
-                    leaf(s("emoticonSettlements", "/robotikon/settlements", "menu.emoticonSettlements", "pi pi-wallet", Permission.EMOTICON_SETTLEMENT)),
+                    leaf(s("emoticonSettlements", "/robotikon/settlements", "menu.emoticonSettlements", "pi pi-money-bill", Permission.EMOTICON_SETTLEMENT)),
                     leaf(s("emoticonSettings", "/robotikon/settings", "menu.emoticonSettings", "pi pi-sliders-h", Permission.EMOTICON_READ))),
             // 보상 이벤트 묶음(docs/features/event-admin-contract.md 「화면」) — 로보티콘 묶음 바로 다음. 조회 reward-event.read(화면 안 처리는 reward-event.manage·reward-event.grant·
             // point.adjust.large). admin-web util-admin-menu 의 rewardEvent 묶음과 같은 키·주소·권한·아이콘·차례
@@ -116,24 +116,24 @@ public final class AdminScreenRegistry {
                     leaf(s("rewardEvents", "/reward-events", "menu.rewardEvents", "pi pi-gift", Permission.REWARD_EVENT_READ))),
             // 공구 묶음(커머스 2b — commerce-groupbuy-contract 「화면 목록」·결정 89) — 결제 묶음 앞. 상품·옵션 종류·카테고리·공구·수량은 조회 commerce.product.read,
             // 주문·요청은 commerce.order.read(화면 안의 처리는 각 권한). admin-web util-admin-menu 의 groupBuy 묶음과 같은 키·주소·권한·아이콘·차례
-            section(NORMAL, "menu.groupBuy", "pi pi-truck",
+            section(NORMAL, "menu.groupBuy", "pi pi-shop",
                     leaf(s("groupBuyProducts", "/group-buy-products", "menu.groupBuyProducts", "pi pi-tag", Permission.COMMERCE_PRODUCT_READ)),
                     leaf(s("groupBuyOptionTypes", "/group-buy-option-types", "menu.groupBuyOptionTypes", "pi pi-list-check", Permission.COMMERCE_PRODUCT_READ)),
                     leaf(s("groupBuyCategories", "/group-buy-categories", "menu.groupBuyCategories", "pi pi-sitemap", Permission.COMMERCE_PRODUCT_READ)),
                     leaf(s("groupBuys", "/group-buys", "menu.groupBuys", "pi pi-shopping-bag", Permission.COMMERCE_PRODUCT_READ)),
-                    leaf(s("groupBuyStock", "/group-buy-stock", "menu.groupBuyStock", "pi pi-box", Permission.COMMERCE_PRODUCT_READ)),
-                    leaf(s("groupBuyOrders", "/group-buy-orders", "menu.groupBuyOrders", "pi pi-list", Permission.COMMERCE_ORDER_READ)),
+                    leaf(s("groupBuyStock", "/group-buy-stock", "menu.groupBuyStock", "pi pi-warehouse", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuyOrders", "/group-buy-orders", "menu.groupBuyOrders", "pi pi-truck", Permission.COMMERCE_ORDER_READ)),
                     leaf(s("groupBuyRequests", "/group-buy-requests", "menu.groupBuyRequests", "pi pi-replay", Permission.COMMERCE_ORDER_READ)),
                     leaf(s("groupBuyQna", "/group-buy-qna", "menu.groupBuyQna", "pi pi-comments", Permission.COMMERCE_ORDER_READ)),
                     leaf(s("groupBuyReviews", "/group-buy-reviews", "menu.groupBuyReviews", "pi pi-star", Permission.COMMERCE_ORDER_READ))),
             // 결제 묶음(커머스 2a — commerce-payment-contract 결정 13·「2a-1 화면 목업」) — 포인트 상점 묶음 다음. 다섯 화면 모두 조회 commerce.payment.read
             // (화면 안의 처리 commerce.reconcile.manage). admin-web UtilAdminMenu 의 payment 묶음과 같은 키·주소·권한·아이콘·차례. PG 설정은 설정 › 포트원 그대로
             section(NORMAL, "menu.payment", "pi pi-credit-card",
-                    leaf(s("paymentOrders", "/payments/orders", "menu.paymentOrders", "pi pi-list", Permission.COMMERCE_PAYMENT_READ)),
+                    leaf(s("paymentOrders", "/payments/orders", "menu.paymentOrders", "pi pi-receipt", Permission.COMMERCE_PAYMENT_READ)),
                     leaf(s("paymentWebhooks", "/payments/webhooks", "menu.paymentWebhooks", "pi pi-inbox", Permission.COMMERCE_PAYMENT_READ)),
                     leaf(s("paymentAnomalies", "/payments/anomalies", "menu.paymentAnomalies", "pi pi-exclamation-triangle", Permission.COMMERCE_PAYMENT_READ)),
                     leaf(s("paymentReconcileDays", "/payments/reconcile-days", "menu.paymentReconcileDays", "pi pi-calendar", Permission.COMMERCE_PAYMENT_READ)),
-                    leaf(s("paymentReconciliation", "/payments/reconciliation", "menu.paymentReconciliation", "pi pi-check-square", Permission.COMMERCE_PAYMENT_READ))),
+                    leaf(s("paymentReconciliation", "/payments/reconciliation", "menu.paymentReconciliation", "pi pi-arrow-right-arrow-left", Permission.COMMERCE_PAYMENT_READ))),
             // 소모임 묶음(docs/features/group-contract.md 「관리자 화면」) — 포인트 상점 묶음 다음. 네 화면 모두 조회 group.read(화면 안에서 처리 group.manage ·
             // 설정 group.settings). admin-web UtilAdminMenu 의 group 묶음과 같은 키·주소·권한·아이콘·차례
             section(NORMAL, "menu.group", "pi pi-comments",
@@ -147,7 +147,7 @@ public final class AdminScreenRegistry {
             // 평문 열람 business.reveal · 정지 해제 business.unsuspend)
             section(NORMAL, "menu.business", "pi pi-briefcase",
                     leaf(s("businessReviews", "/business-reviews", "menu.businessReviews", "pi pi-inbox", Permission.BUSINESS_READ)),
-                    leaf(s("businesses", "/businesses", "menu.businesses", "pi pi-id-card", Permission.BUSINESS_READ))),
+                    leaf(s("businesses", "/businesses", "menu.businesses", "pi pi-building", Permission.BUSINESS_READ))),
             // 광고 묶음(biz-application-contract · ad-contract) — 광고 심사(AD_* 신청 건, 처리 ad.manage · 환불 deal-order.refund) · 광고 일정표(처리 ad.manage · ad.takedown · ad.restore) · 광고 성과(조회만) · 노출 자리 설정(저장 ad.settings)
             section(NORMAL, "menu.ad", "pi pi-megaphone",
                     leaf(s("adReviews", "/ad-reviews", "menu.adReviews", "pi pi-inbox", Permission.AD_READ)),
@@ -155,7 +155,7 @@ public final class AdminScreenRegistry {
                     // 광고 성과(ad-performance-contract — 읽기 전용, 조회 ad.read · 새 권한 없음)
                     leaf(s("adPerformance", "/ads/performance", "menu.adPerformance", "pi pi-chart-bar", Permission.AD_READ)),
                     // 광고주 관리(ad-advertiser-contract — 조회 ad.read, 처리는 화면 안에서 ad.manage · 연락처 평문 ad.contact.reveal)
-                    leaf(s("adAdvertisers", "/ad-advertisers", "menu.adAdvertisers", "pi pi-id-card", Permission.AD_READ)),
+                    leaf(s("adAdvertisers", "/ad-advertisers", "menu.adAdvertisers", "pi pi-address-book", Permission.AD_READ)),
                     // 노출 자리 설정(글 보기 중간 · 날개 · 목록 한 줄) — 조회 ad.read, 저장은 화면 안에서 ad.settings
                     leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ))),
             // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund) · 회원 핫딜 1차(hotdeal-contract): 핫딜 글(종료·재개 hotdeal.manage) ·
@@ -168,13 +168,13 @@ public final class AdminScreenRegistry {
                     leaf(s("hotdealSettings", "/hotdeals/settings", "menu.hotdealSettings", "pi pi-sliders-h", Permission.HOTDEAL_MANAGE))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
-                    leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),
+                    leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-sign-in", Permission.SITE_READ)),
                     // 포트원 설정(본인인증 칸 — commerce-foundation-contract 「0-4」) — 조회 site.read, 저장·지우기는 화면 안에서 site.secret
                     leaf(s("portone", "/settings/portone", "menu.portone", "pi pi-credit-card", Permission.SITE_READ)),
                     // 공공데이터포털(국세청 사업자 조회 서비스 키 — business-contract) — 조회·연결 시험 site.read, 저장·지우기는 화면 안에서 site.secret
-                    leaf(s("publicData", "/settings/public-data", "menu.publicData", "pi pi-database", Permission.SITE_READ)),
+                    leaf(s("publicData", "/settings/public-data", "menu.publicData", "pi pi-building-columns", Permission.SITE_READ)),
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
-                    leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
+                    leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-lock")),
                     // 휴일 관리(사이트 쉬는 날 표 하나 — 공공데이터 공휴일·회사 휴무일, 사용자 지시 2026-11-05) — 조회 site.read, 회사 휴무일 더하기·지우기·지금 받기는 화면 안에서 site.manage.
                     // admin-web util-admin-menu 와 같은 키·주소·문구 키·아이콘·권한·차례(로그인 보안 다음)
                     leaf(s("holidays", "/settings/holidays", "menu.holidays", "pi pi-calendar", Permission.SITE_READ)),
@@ -188,7 +188,7 @@ public final class AdminScreenRegistry {
             // 약관(terms-contract — 이용약관·개인정보처리방침·운영정책 게시, terms.read). admin-web UtilAdminMenu 의 settingsLegal 묶음과 같은 키·주소·권한·아이콘·차례
             section(SETTINGS, "menu.legal", "pi pi-book",
                     leaf(s("siteOperator", "/settings/operator", "menu.siteOperator", "pi pi-id-card", Permission.SITE_READ)),
-                    leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file", Permission.TERMS_READ))),
+                    leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file-check", Permission.TERMS_READ))),
             // 테마 묶음(site-theme-layout-contract) — 테마 고르기 · 그 테마의 홈 구성 · 메뉴 설정을 한 화면에서. 조회 site.read, 저장은 화면 안에서 site.manage.
             // admin-web UtilAdminMenu 의 settingsTheme 와 같은 키·주소·권한·아이콘·차례
             section(SETTINGS, "menu.theme", "pi pi-palette",
@@ -217,18 +217,18 @@ public final class AdminScreenRegistry {
             // 커머스 묶음(커머스 0-5) — 커머스 설정(지금은 「요청 제한」 구획). admin-web UtilAdminMenu 의 settingsCommerce 와 같은 키·주소·권한·차례
             section(SETTINGS, "menu.commerce", "pi pi-shopping-cart",
                     leaf(s("commerceSettings", "/settings/commerce", "menu.commerceSettings", "pi pi-sliders-h", Permission.COMMERCE_SETTINGS))),
-            section(SETTINGS, "menu.operatorsAndPermissions", "pi pi-users",
+            section(SETTINGS, "menu.operatorsAndPermissions", "pi pi-shield",
                     leaf(s("operators", "/settings/operators", "menu.operators", "pi pi-user-edit", Permission.OPERATOR_READ)),
-                    folder("menu.roles", "pi pi-id-card",
+                    folder("menu.roles", "pi pi-key",
                             s("rolesMember", "/settings/roles/member", "menu.rolesMember", null, Permission.ROLE_READ),
                             s("rolesOperator", "/settings/roles/operator", "menu.rolesOperator", null, Permission.ROLE_READ),
                             s("rolesGrade", "/settings/roles/grade", "menu.rolesGrade", null, Permission.ROLE_READ))),
             section(SETTINGS, "menu.batchAndLogs", "pi pi-history",
                     leaf(s("batches", "/settings/batches", "menu.batches", "pi pi-clock", Permission.BATCH_READ)),
-                    leaf(s("batchLogs", "/settings/batch-logs", "menu.batchLogs", "pi pi-book", Permission.BATCH_READ)),
+                    leaf(s("batchLogs", "/settings/batch-logs", "menu.batchLogs", "pi pi-list", Permission.BATCH_READ)),
                     // 캐시 관리(docs/features/cache-admin-contract.md) — 보기 cache.read, 바꾸기 cache.manage
                     leaf(s("caches", "/settings/caches", "menu.caches", "pi pi-database", Permission.CACHE_READ)),
-                    leaf(s("audit", "/settings/audit", "menu.audit", "pi pi-history", Permission.AUDIT_READ))));
+                    leaf(s("audit", "/settings/audit", "menu.audit", "pi pi-eye", Permission.AUDIT_READ))));
 
     private static final Map<String, Screen> SCREENS = collectScreens();
     private static final Set<String> LABEL_KEYS = collectLabelKeys();

@@ -221,7 +221,7 @@ export default {
     titleIcon: '제목 아이콘',
     titleIconPreview: '미리보기',
     titleIconShow: '아이콘 보이기',
-    titleIconShowHint: '끄면 제목만 보여요. 로보얌 테마는 처음에 꺼져 있어요(다음·네이버는 켜짐).',
+    titleIconShowHint: '끄면 제목만 보여요.',
     iconSource: '고르는 곳',
     iconSource_PRIME: 'PrimeIcons',
     iconSource_TABLER: 'Tabler Icons',

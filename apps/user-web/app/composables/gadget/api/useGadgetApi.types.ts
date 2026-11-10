@@ -54,7 +54,7 @@ export interface GadgetStyle {
     cardColor: string | null;
     mobileFold: GadgetMobileFold;
     empty: GadgetEmptyStyle;
-    /** 제목 아이콘 보이기 — null 이면 테마 기본(로보얌 숨김, 그 밖 보이기 — `UtilGadget.titleIcon`) */
+    /** 제목 아이콘 보이기 — null 이면 테마 기본(모든 테마 보이기 — `UtilGadget.titleIcon`) */
     iconShow: boolean | null;
     /** 아이콘 출처 — PrimeIcons(`icon`) · Tabler(`iconTabler`) · 올린 파일(`iconUpload`) */
     iconSource: GadgetIconSource;

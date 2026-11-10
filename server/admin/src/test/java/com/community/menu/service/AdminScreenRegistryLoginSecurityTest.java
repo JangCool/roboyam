@@ -15,7 +15,7 @@ class AdminScreenRegistryLoginSecurityTest {
 
         assertThat(screen.path()).isEqualTo("/settings/login-security");
         assertThat(screen.labelKey()).isEqualTo("menu.loginSecurity");
-        assertThat(screen.icon()).isEqualTo("pi pi-shield");
+        assertThat(screen.icon()).isEqualTo("pi pi-lock");
         assertThat(screen.superOnly()).isTrue();
         assertThat(screen.permission()).isNull();
         assertThat(AdminScreenRegistry.screen("socialLogin").orElseThrow().superOnly()).isFalse();
