@@ -131,11 +131,11 @@ const menuItems = computed(() => [
     { label: t('emoticon.shopTitle'), icon: 'pi pi-face-smile', command: () => void navigateTo(UtilEmoticon.PATH) },
     // 쪽지함 — 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6)
     { label: dmText.value ? t('shell.messageBoxUnread', { count: dmText.value }) : t('shell.messageBox'), icon: 'pi pi-envelope', command: () => void navigateTo(UtilDm.INBOX_PATH) },
-    // 사업자 센터(신청했거나 사업자 전용 계정) · 사업자 신청(일반 회원, 신청 전) — H-2
-    ...(businessEntry.value
+    // 사업자 센터(신청했거나 사업자 전용 계정만) — H-2. 「사업자 신청」은 일반 회원 모두가 보는 계정 메뉴에 두지 않고 푸터 「고객 지원」 끝으로 옮겼다(사용자 2026-11-10)
+    ...(businessEntry.value === 'CENTER'
         ? [
               {
-                  label: businessEntry.value === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'),
+                  label: t('business.centerEntry'),
                   icon: UtilBusinessMessages.ENTRY_CENTER_ICON,
                   command: () => void navigateTo(UtilBusiness.CENTER_PATH),
               },

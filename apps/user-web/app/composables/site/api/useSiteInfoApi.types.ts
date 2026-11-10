@@ -64,4 +64,6 @@ export interface SiteOperatorPublicResponse {
     footerNotice: string[] | null;
     /** 푸터 안내를 보일 때 */
     footerNoticeScope: SiteFooterNoticeScope;
+    /** 푸터 「고객 지원」 끝의 「사업자 신청」 링크 보이기(관리자 운영 주체 화면, 기본 켬 — 칸이 없는 옛 서버도 켬) */
+    footerBusinessApply: boolean;
 }

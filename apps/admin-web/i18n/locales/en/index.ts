@@ -56,6 +56,7 @@ import social from './social';
 import team from './team';
 import withdrawnContact from './withdrawnContact';
 import terms from './terms';
+import ossLicense from './ossLicense';
 import nicknameImage from './nicknameImage';
 import noticeBar from './noticeBar';
 import notice from './notice';
@@ -134,6 +135,7 @@ export default {
     team,
     withdrawnContact,
     terms,
+    ossLicense,
     nicknameImage,
     noticeBar,
     notice,

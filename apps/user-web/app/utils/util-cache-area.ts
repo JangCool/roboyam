@@ -8,7 +8,7 @@
  *   캐시하지 않는 가젯 종류는 `nocache:<종류>`(바로가기·안내 글은 배치 캐시에 포함, 광고 2종은 노출 집계·순환 때문에 캐시 안 함), 게시판 본문 칸은 붙이지 않는다.
  *   설정 사본·내부 규칙(2026-11-08): 포인트 화면 요약·규칙·내역 `point.policy` · 핫딜 「구매하러 가기」·글쓰기 링크 칸 `hotdeal.rules` · 핫딜 목록·딜 카드 `hotdeal.settings` ·
  *   알림 패널·알림 화면 목록 `notification.templates` · 포인트 상점 구매·공동구매 주문·결제 단추 `commerce.rateLimits` · 게시판 글쓰기 단추·글쓰기 게시판 고르기·게시판 모아보기 `board.catalog` ·
- *   약관 화면 본문·가입 약관 동의 `terms.public`.
+ *   약관 화면 본문·가입 약관 동의 `terms.public` · 오픈소스 라이선스 화면 `oss.notice`(안내 문구·직접 추가 항목 — 자동 수집 목록은 정적 파일).
  * - **한 요소가 캐시 여럿에 해당하면 공백으로 구분해 여러 키를 단다**(`data-cache-area="gadget.HOT_DEALS hotdeal.settings"`) — 상자는 하나이고 이름표가 키마다 붙으며, 수는 키마다 센다(`keysOf`).
  * - 받는 것 `roboyam:cache-preview` { keys, showAll, labels?, off? }(off = 꺼진 캐시 키 — 회색 점선) — 강조할 캐시 키 · 모든 영역 보기 · 이름표 글자(관리자가 고른 언어의 캐시 이름).
  * - 보내는 것 `roboyam:cache-preview-pick` { key }(상자를 눌렀다) · `roboyam:cache-preview-areas` { counts }(지금 화면에서 찾은 영역 수 — 키마다, 바뀔 때만).

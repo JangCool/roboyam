@@ -499,6 +499,17 @@ export default class UtilGadget {
     }
 
     /**
+     * 가젯 페이지 제목 카드에 넣는가 — 설정 `pageHead`(관리자 ⚙ 「노출」 「페이지 제목 카드에 넣기」, 기본 끔, 가젯 페이지만 — 사용자 2026-11-10).
+     * 종류는 마우스 올림 효과와 같다(안내 글·광고 2종은 넣지 않는다 — 서버 `GadgetPatches` 가 가젯 페이지에서만 받는다).
+     * @param {string} type - 가젯 종류.
+     * @param {Record<string, unknown>} config - 가젯 `config`.
+     * @returns {boolean} 넣으면 true.
+     */
+    static pageHeadOn(type: string, config: Record<string, unknown>): boolean {
+        return HOVER_KINDS.includes(type) && obj(config).pageHead === true;
+    }
+
+    /**
      * 하이라이트 설정
      * @param {Record<string, unknown>} config - 가젯 `config`.
      * @returns {HighlightConfig} 설정.

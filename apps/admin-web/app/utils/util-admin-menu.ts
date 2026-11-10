@@ -392,6 +392,8 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'siteOperator', to: '/settings/operator', icon: 'pi pi-id-card', labelKey: 'menu.siteOperator', permission: 'site.read' },
                 { key: 'terms', to: '/settings/terms', icon: 'pi pi-file-check', labelKey: 'menu.terms', permission: 'terms.read' },
+                // 오픈소스 라이선스 고지(oss-licenses-contract) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례(약관 다음)
+                { key: 'ossLicenses', to: '/settings/oss-licenses', icon: 'pi pi-code', labelKey: 'menu.ossLicenses', permission: 'site.read' },
             ],
         },
         // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·로보얌)를 고르고,

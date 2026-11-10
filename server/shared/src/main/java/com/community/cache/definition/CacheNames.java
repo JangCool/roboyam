@@ -26,6 +26,8 @@ public final class CacheNames {
     public static final String SITE_NOTICE_BAR = "site.noticeBar";
     public static final String SITE_POPUPS = "site.popups";
     public static final String TERMS_PUBLIC = "terms.public";
+    /** 오픈소스 라이선스 고지의 안내 문구·직접 추가 항목(자동 수집 목록은 정적 파일이라 캐시가 아니다) */
+    public static final String OSS_NOTICE = "oss.notice";
     public static final String NOTICE_GLOBAL = "notice.global";
     public static final String BOARD_CATALOG = "board.catalog";
     public static final String STATS_COLLECTION = "stats.collection";

@@ -134,7 +134,7 @@ export default class UtilSiteInfo {
                   .filter((line) => line.length > 0)
                   .slice(0, FOOTER_NOTICE_LINES_MAX)
             : [];
-        return { stage, contactEmail, footerNotice: lines.length ? lines : null, footerNoticeScope: raw.footerNoticeScope === 'ALWAYS' ? 'ALWAYS' : 'INDIVIDUAL_ONLY' };
+        return { stage, contactEmail, footerNotice: lines.length ? lines : null, footerNoticeScope: raw.footerNoticeScope === 'ALWAYS' ? 'ALWAYS' : 'INDIVIDUAL_ONLY', footerBusinessApply: raw.footerBusinessApply !== false };
     }
 
     /**

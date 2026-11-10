@@ -51,6 +51,9 @@ public class SiteOperatorEntity {
     @Enumerated(EnumType.STRING)
     private SiteFooterNoticeScope footerNoticeScope;
 
+    /** 푸터 「사업자 신청」 링크 보이기(V182) */
+    private boolean footerBusinessApply;
+
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -61,6 +64,7 @@ public class SiteOperatorEntity {
     public void change(SiteOperatorValues v, SiteFooterNotice notice, long operatorId, Instant now) {
         this.footerNotice = notice.stored();
         this.footerNoticeScope = notice.scope();
+        this.footerBusinessApply = notice.businessApply();
         this.stage = v.stage();
         this.operatorName = v.operatorName();
         this.contactEmail = v.contactEmail();
@@ -94,7 +98,7 @@ public class SiteOperatorEntity {
 
     /** 지금 푸터 안내 문구 — 줄이 없으면 빈 목록(숨김) */
     public SiteFooterNotice footerNotice() {
-        return new SiteFooterNotice(SiteFooterNotice.split(footerNotice), footerNoticeScope);
+        return new SiteFooterNotice(SiteFooterNotice.split(footerNotice), footerNoticeScope, footerBusinessApply);
     }
 
     public SiteOperatorStage getStage() {

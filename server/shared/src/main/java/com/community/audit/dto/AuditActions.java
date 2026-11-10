@@ -63,6 +63,16 @@ public final class AuditActions {
     public static final String SITE_POPUP_VISIBLE = "SITE_POPUP_VISIBLE";
     /** 팝업 여러 창 배치 바꾸기(사이트 전체 하나) — 대상 SITE_POPUP + {@code layout}, {@code from}/{@code to}(바뀐 때만) */
     public static final String SITE_POPUP_LAYOUT = "SITE_POPUP_LAYOUT";
+    /** 오픈소스 라이선스 안내 문구 바꾸기(설정 > 운영·약관 「오픈소스 라이선스」, oss-licenses-contract) — 대상 OSS_NOTICE + {@code intro}, {@code from}/{@code to}(바뀐 때만) */
+    public static final String OSS_NOTICE_INTRO_UPDATE = "OSS_NOTICE_INTRO_UPDATE";
+    /** 오픈소스 라이선스 직접 추가 항목 만들기 — 대상 OSS_NOTICE + 항목 ID, {@code after} 칸 값(전문은 글자 수만) */
+    public static final String OSS_NOTICE_ENTRY_CREATE = "OSS_NOTICE_ENTRY_CREATE";
+    /** 직접 추가 항목 고치기 — 바뀐 칸의 {@code before}/{@code after}(전문은 글자 수만, 바뀐 때만) */
+    public static final String OSS_NOTICE_ENTRY_UPDATE = "OSS_NOTICE_ENTRY_UPDATE";
+    /** 직접 추가 항목 숨기기·보이기 — {@code from}/{@code to}(바뀐 때만) */
+    public static final String OSS_NOTICE_ENTRY_HIDDEN = "OSS_NOTICE_ENTRY_HIDDEN";
+    /** 직접 추가 항목 지우기 — 지운 칸 값({@code before}) */
+    public static final String OSS_NOTICE_ENTRY_DELETE = "OSS_NOTICE_ENTRY_DELETE";
     /** 운영 주체 칸 저장(설정 > 일반 「운영 주체」, 단계는 그대로) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(이메일은 가림, 바뀐 때만) */
     public static final String SITE_OPERATOR_UPDATE = "SITE_OPERATOR_UPDATE";
     /** 운영 주체 단계 전환(개인 ↔ 개인사업자 ↔ 법인) — 대상 SITE/1, {@code stage} 전후 + 바뀐 칸의 {@code before}/{@code after}. 전환 이력 한 줄도 남긴다 */

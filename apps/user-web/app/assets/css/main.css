@@ -452,6 +452,34 @@ html[data-theme='naver'] {
 .gadget-card[data-headless][data-gadget='AD_TEXT_LINE'] {
     padding-block: 0.5rem;
 }
+/* 가젯 페이지 제목 카드 안에 넣은 가젯(⚙ 「페이지 제목 카드에 넣기」, 2026-11-10) — 카드 안 카드 없이 제목 카드의 면·여백을 그대로 쓴다 */
+.page-head-gadget > .gadget-card {
+    --gadget-card-pad: 0px;
+    --gadget-card-pad-x: 0px;
+    --gadget-card-bleed: 0px;
+    background-color: transparent;
+    border-color: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin-inline: 0;
+}
+/* 제목 카드 안 가젯 머리 줄 — 카드형 머리의 높이(h-11·12)·위로 당김(음수 여백)을 풀어 밑줄 아래 간격을 감싼 칸의 위 여백 하나로 정한다(아이콘 바탕 유무와 상관없이 같게, 팁·강좌·사용기 「이번 주 추천」과 같은 위아래 간격 — 사용자 2026-11-10) */
+.page-head-gadget > .gadget-card .gadget-head {
+    height: auto;
+    min-height: 0;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    padding-top: 0;
+}
+/* 제목 카드 안 가젯 제목 — 팁·강좌·사용기의 「이번 주 추천」과 같은 크기(0.96875rem 굵게 — 원래 1rem 과 0.9375rem 의 중간, 사용자 2026-11-10) */
+.page-head-gadget > .gadget-card .gadget-head h2 {
+    font-size: 0.96875rem;
+}
+/* 제목 카드 안 가젯 아이콘 — 바탕을 뺀(NONE) 아이콘도 주 색상(고른 아이콘 색이 있으면 그 색)으로, 팁·강좌·사용기 「이번 주 추천」 별처럼(사용자 2026-11-10) */
+.page-head-gadget > .gadget-card .gadget-icon[data-icon-bg="none"] {
+    color: var(--gx-ic, var(--p-primary-color));
+}
 /* 가젯 칸 — 세로로 쌓는 줄(칸 안 카드 사이 간격) */
 .gadget-stack {
     display: flex;

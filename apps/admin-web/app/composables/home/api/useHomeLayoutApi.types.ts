@@ -93,6 +93,8 @@ export interface GadgetConfig {
     showAuthor?: boolean;
     /** 항목 마우스 올림 효과(기본 켬 — 글 줄·카드·바로가기에 옅은 바탕, 사진 카드는 제목 밑줄) */
     hover?: boolean;
+    /** 가젯 페이지 제목 카드에 넣기(기본 끔 — 켜면 격자에서 빠지고 페이지 제목 아래 굵은 밑줄 뒤에 붙는다, 가젯 페이지만·한 페이지에 하나, 사용자 2026-11-10) */
+    pageHead?: boolean;
     shape?: 'PILL' | 'TAB';
     items?: HomeQuickLink[];
     text?: string;

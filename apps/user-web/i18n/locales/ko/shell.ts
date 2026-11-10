@@ -58,4 +58,5 @@ export default {
     footerContact: '문의 {email}',
     footerSupport: '고객 지원',
     footerTerms: '약관·정책',
+    footerOss: '오픈소스',
 };

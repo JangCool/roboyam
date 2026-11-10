@@ -60,6 +60,9 @@ export default {
 
     // ── 푸터 안내 문구 ──
     footerNoticeTitle: '푸터 안내 문구',
+    footerTitle: '푸터',
+    footerBusinessApply: '「고객 지원」에 「사업자 신청」 보이기',
+    footerBusinessApplyHint: '켜면(기본) 푸터 「고객 지원」 링크 맨 끝에 사업자 신청이 붙어요. 끄면 빠지고, 이미 신청한 회원은 계정 메뉴의 「사업자 센터」로 들어가요.',
     footerNotice: '안내 문구',
     footerNoticeHint: '한 줄에 한 문장 · {lines}줄까지 · 줄마다 {max}자까지',
     footerNoticeHelp:

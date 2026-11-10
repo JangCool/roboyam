@@ -12,7 +12,7 @@
 - 미리보기 대화상자: 공개 사이트 iframe `{공개 origin}/?adminPreview=1&cachePreview=1`. 쪽 고르기·경로 직접 입력, 「모든 영역 보기」, 캐시 고르기, 고른 영역 강조(주황), 영역 클릭 → 캐시 선택. 글·상품 상세 쪽은 예시 경로 규칙 + 최신 예시 id(지금은 기존 관리자 API로 고름, 서버 단계에서 캐시 API의 `sampleId`로 대체). 캐시 미리보기에서는 사이트 팝업을 숨기고 `site.popups`를 골랐을 때만 띄운다.
 - user-web: 영역 요소에 `data-cache-area="<키> [<키>…]"`(원천 `apps/user-web/app/utils/util-cache-area.ts`), 겹침 층 `components/shell/CacheAreaOverlay.vue`. 메시지 `roboyam:cache-preview`(관리자→) / `roboyam:cache-preview-pick`·`roboyam:cache-preview-areas`(→관리자). **캐시 키 이름 = `data-cache-area` 값**이어야 한다.
 
-## 캐시 목록(25)과 기본값
+## 캐시 목록(26)과 기본값
 | 분류 | 키 | 기본 TTL | 회원별 처리 | 서버 |
 |---|---|---|---|---|
 | 공개 화면 | `home.layout` · `pages.layout` · `boards.layout` | 300초 | 공용 | api |
@@ -20,6 +20,7 @@
 | 가젯 | `gadget.POST_LIST` 60 · `HIGHLIGHT` 120 · `GALLERY` 60 · `BOARD_CARDS` 120 · `HOT_DEALS` 60 | | 공용 + 회원 덧입힘 | api |
 | 가젯 | `gadget.GROUPS` 300 · `gadget.GROUP_BUY` 60 | | 공용 | api |
 | 설정 사본 | `site.info` · `site.noticeBar` · `site.popups` · `terms.public` 20초, `notice.global` 15초 | | 공용 | api |
+| 설정 사본 | `oss.notice` 60초(오픈소스 라이선스 안내 문구·직접 추가 항목 — oss-licenses-contract, 2026-11-10) | | 공용 | api |
 | 설정 사본 | `board.catalog` 15초 · `stats.collection` 30초 | | 공용 | api·admin |
 | 내부 규칙 | `commerce.rateLimits` · `hotdeal.rules` · `hotdeal.settings` · `notification.templates` · `point.policy` 15초 | | 공용 | api·admin |
 
