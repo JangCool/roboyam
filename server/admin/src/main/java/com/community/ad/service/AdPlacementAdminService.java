@@ -3,6 +3,7 @@ package com.community.ad.service;
 import com.community.ad.dto.AdPlacementAdmin;
 import com.community.ad.dto.AdPlacementHistory;
 import com.community.ad.dto.AdPlacements;
+import com.community.ad.dto.AdSenseSettings;
 import com.community.ad.entity.AdPlacementHistoryEntity;
 import com.community.ad.repository.master.AdPlacementHistoryRepository;
 import com.community.ad.repository.master.AdPlacementHistoryRepositoryQDSL;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
@@ -41,6 +43,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>켜기 칸(불리언)이 비면 {@code fields.<묶음>.<칸>}(가정 — 칸을 빠뜨린 요청을 기본값으로 메우지 않는다).</li>
  *   <li>{@code postInline.adType} TEXT_LINE·STRIP_BANNER·SQUARE_BANNER · {@code postInline.position} BETWEEN_CARDS·AFTER_BODY · {@code wings.screens} HOME·PAGE·BOARD·POST 중
  *       0~4개(겹치면 하나로, 보일 차례로 저장 — 비어도 된다: 가정) · {@code boardList.after} 1~20.</li>
+ *   <li><b>구글 애드센스</b>(V176, docs/features/adsense-contract.md): {@code adsense} 묶음은 선택(빠지면 그대로). {@code mode} OFF·VERIFY·SHOW · {@code client}
+ *       {@code ca-pub-} + 숫자 16자리(VERIFY·SHOW 면 필수) · 단위 ID 숫자 10자리 · 인피드는 단위 ID·레이아웃 키 둘 다 또는 둘 다 없음 — 틀리면 400
+ *       {@code fields.adsense.…}. 바뀐 칸은 다른 칸과 같이 감사·이력에 {@code adsense.…} 키로 남는다.</li>
  *   <li><b>변경 이력</b>(V120 {@code ad_placement_history}, 사용자 지시 2026-11-01 「변경 이력 관리해.」): 감사와 같은 바뀐 칸 계산으로 저장과 같은 트랜잭션에 한 줄(출처
  *       {@code ADMIN}). 처음 저장(행 없음)은 {@code CREATE} — 메일 서버 설정 이력과 같게 아홉 칸 모두 before null(감사는 기본값에서 바뀐 칸만 · {@code fromDefaults}).
  *       있던 행에 바뀐 칸이 없으면 이력도 감사도 없다. 조회는 메일 서버 설정 이력과 같은 쪽 규칙(기본 20 · 최대 100 · 틀리면 400 {@code fields.page}·{@code fields.size}).</li>
@@ -55,6 +60,12 @@ public class AdPlacementAdminService {
     /** 이력의 칸 이름 화면 i18n 키 앞부분 — 메일 서버 · 소셜 로그인 설정 이력과 같다 */
     private static final String LABEL_KEY_PREFIX = "settingHistory.field.";
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    /** 애드센스 게시자 ID · 광고 단위 ID · 인피드 레이아웃 키(대소문자 무시) 형식(V176) */
+    private static final Pattern ADSENSE_CLIENT = Pattern.compile("^ca-pub-\\d{16}$");
+    private static final Pattern ADSENSE_UNIT = Pattern.compile("^\\d{10}$");
+    private static final Pattern ADSENSE_LAYOUT_KEY = Pattern.compile("^[-+]?[0-9a-z]+([-+][0-9a-z]+)+$", Pattern.CASE_INSENSITIVE);
+    /** 레이아웃 키 최대 길이 — 칸 {@code adsense_board_list_layout_key varchar(64)} */
+    private static final int ADSENSE_LAYOUT_KEY_MAX = 64;
 
     private final AdPlacementStore store;
     private final AuditLogService audit;
@@ -80,16 +91,19 @@ public class AdPlacementAdminService {
 
     @Transactional
     public AdPlacementAdmin.View save(AdminActor actor, AdPlacementAdmin.Save body) {
-        AdPlacements next = validate(body);
+        Validated valid = validate(body);
+        AdPlacements next = valid.placements();
         AdPlacementStore.Stored was = store.lock().orElse(null);
         AdPlacements before = was == null ? AdPlacements.DEFAULTS : was.value();
         int beforeRate = was == null ? AdPlacementStore.DEFAULT_STOP_FEE_RATE : was.stopFeeRate();
-        // 환불 묶음(V127)은 선택 — 빠지면 지금 수수료율 그대로
+        AdSenseSettings beforeAdsense = was == null ? AdSenseSettings.DEFAULTS : was.adsense();
+        // 환불 묶음(V127)·애드센스 묶음(V176)은 선택 — 빠지면 지금 값 그대로
         int nextRate = body.refund() == null ? beforeRate : body.refund().stopFeeRate();
+        AdSenseSettings nextAdsense = valid.adsense() == null ? beforeAdsense : valid.adsense();
         Map<String, Object> from = new LinkedHashMap<>();
         Map<String, Object> to = new LinkedHashMap<>();
-        Map<String, Object> a = flat(before, beforeRate);
-        Map<String, Object> b = flat(next, nextRate);
+        Map<String, Object> a = flat(before, beforeRate, beforeAdsense);
+        Map<String, Object> b = flat(next, nextRate, nextAdsense);
         for (String key : a.keySet()) {
             if (!Objects.equals(a.get(key), b.get(key))) {
                 from.put(key, a.get(key));
@@ -100,11 +114,16 @@ public class AdPlacementAdminService {
             return get();
         }
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // DB(timestamptz) 정밀도 — 이력 시각과 저장 시각이 같게
-        store.save(next, nextRate, actor.operatorId(), now);
+        store.save(next, nextRate, nextAdsense, actor.operatorId(), now);
         // 이력 — 감사와 같은 계산(from/to). 처음 저장은 메일 서버 설정 이력처럼 모든 칸을 「없음 → 값」으로
         List<AdPlacementHistory.Change> changes = new ArrayList<>();
         if (was == null) {
-            b.forEach((key, value) -> changes.add(new AdPlacementHistory.Change(key, null, text(value))));
+            // 빈 칸(애드센스 게시자 ID·단위 ID 없음)은 「없음 → 없음」이라 남기지 않는다
+            b.forEach((key, value) -> {
+                if (value != null) {
+                    changes.add(new AdPlacementHistory.Change(key, null, text(value)));
+                }
+            });
         } else {
             to.forEach((key, value) -> changes.add(new AdPlacementHistory.Change(key, text(from.get(key)), text(value))));
         }
@@ -183,8 +202,11 @@ public class AdPlacementAdminService {
         }
     }
 
-    /** 이력 값 글자 — 켜기 true/false · 이름 그대로 · 화면 목록은 쉼표 이음(빈 목록은 빈 글자) · 숫자 글자 */
+    /** 이력 값 글자 — 켜기 true/false · 이름 그대로 · 화면 목록은 쉼표 이음(빈 목록은 빈 글자) · 숫자 글자 · 빈 값(애드센스 게시자 ID·단위 ID 없음)은 null */
     private static String text(Object value) {
+        if (value == null) {
+            return null;
+        }
         if (value instanceof List<?> list) {
             return String.join(",", list.stream().map(String::valueOf).toList());
         }
@@ -195,10 +217,15 @@ public class AdPlacementAdminService {
         AdPlacements p = stored == null ? AdPlacements.DEFAULTS : stored.value();
         return new AdPlacementAdmin.View(p.postInline(), p.wings(), p.boardList(), p.adult(), stored == null ? null : stored.updatedAt().toString(),
                 stored == null ? null : new AdPlacementAdmin.Operator(Long.toString(stored.updatedBy()), stored.updatedByName()),
-                new AdPlacementAdmin.RefundView(stored == null ? AdPlacementStore.DEFAULT_STOP_FEE_RATE : stored.stopFeeRate()));
+                new AdPlacementAdmin.RefundView(stored == null ? AdPlacementStore.DEFAULT_STOP_FEE_RATE : stored.stopFeeRate()),
+                stored == null ? AdSenseSettings.DEFAULTS : stored.adsense());
     }
 
-    private static AdPlacements validate(AdPlacementAdmin.Save body) {
+    /** 검사를 통과한 본문 — {@code adsense} 는 본문에 묶음이 없었으면 null(지금 값 그대로) */
+    private record Validated(AdPlacements placements, AdSenseSettings adsense) {
+    }
+
+    private static Validated validate(AdPlacementAdmin.Save body) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         MessageRef required = new MessageRef("ad.placement.required");
         MessageRef option = new MessageRef("ad.placement.option");
@@ -263,16 +290,74 @@ public class AdPlacementAdminService {
             fields.put("refund.stopFeeRate", new MessageRef("ad.placement.stopFeeRate", String.valueOf(AdPlacementStore.STOP_FEE_RATE_MIN),
                     String.valueOf(AdPlacementStore.STOP_FEE_RATE_MAX)));
         }
+        AdSenseSettings adsense = body == null || body.adsense() == null ? null : adsense(body.adsense(), fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        return new AdPlacements(new AdPlacements.PostInline(pi.enabled(), pi.adType(), pi.position()), new AdPlacements.Wings(w.left(), w.right(), screens),
+        return new Validated(new AdPlacements(new AdPlacements.PostInline(pi.enabled(), pi.adType(), pi.position()), new AdPlacements.Wings(w.left(), w.right(), screens),
                 new AdPlacements.BoardList(bl.enabled(), bl.after(), bl.count() == null ? AdPlacements.COUNT_DEFAULT : bl.count(),
-                        bl.gap() == null ? AdPlacements.GAP_DEFAULT : bl.gap()), new AdPlacements.Adult(ad.enabled()));
+                        bl.gap() == null ? AdPlacements.GAP_DEFAULT : bl.gap()), new AdPlacements.Adult(ad.enabled())), adsense);
     }
 
-    /** 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) — 끝에 V127 {@code refund.stopFeeRate}, V155 {@code boardList.count}·{@code boardList.gap} */
-    private static Map<String, Object> flat(AdPlacements p, int stopFeeRate) {
+    /**
+     * 애드센스 묶음 검사(V176, docs/features/adsense-contract.md) — 틀린 칸은 {@code fields} 에 {@code adsense.…} 키로 더하고, 정리한 값(앞뒤 공백 자름 · 빈 글자 null)을 돌려준다.
+     * OFF 여도 입력해 둔 게시자 ID·단위 ID 는 남기되 형식이 틀리면 거절한다.
+     */
+    private static AdSenseSettings adsense(AdPlacementAdmin.AdSense in, Map<String, MessageRef> fields) {
+        String mode = in.mode() == null ? null : in.mode().strip();
+        if (mode == null || !AdSenseSettings.MODES.contains(mode)) {
+            fields.put("adsense.mode", new MessageRef("ad.placement.option"));
+        }
+        String client = blankToNull(in.client());
+        if (client == null) {
+            if (AdSenseSettings.VERIFY.equals(mode) || AdSenseSettings.SHOW.equals(mode)) {
+                fields.put("adsense.client", new MessageRef("ad.placement.adsense.client.required"));
+            }
+        } else if (!ADSENSE_CLIENT.matcher(client).matches()) {
+            fields.put("adsense.client", new MessageRef("ad.placement.adsense.client"));
+        }
+        AdSenseSettings.Units u = in.units() == null ? AdSenseSettings.Units.EMPTY : in.units();
+        String[] display = new String[AdSenseSettings.DISPLAY_SLOTS.size()];
+        for (int i = 0; i < display.length; i++) {
+            String slot = AdSenseSettings.DISPLAY_SLOTS.get(i);
+            display[i] = blankToNull(u.display(slot));
+            if (display[i] != null && !ADSENSE_UNIT.matcher(display[i]).matches()) {
+                fields.put("adsense.units." + slot, new MessageRef("ad.placement.adsense.unit"));
+            }
+        }
+        String feedSlot = blankToNull(u.boardList().slot());
+        String layoutKey = blankToNull(u.boardList().layoutKey());
+        String feedPrefix = "adsense.units." + AdSenseSettings.BOARD_LIST;
+        if (feedSlot != null && !ADSENSE_UNIT.matcher(feedSlot).matches()) {
+            fields.put(feedPrefix + ".slot", new MessageRef("ad.placement.adsense.unit"));
+        }
+        if (layoutKey != null && (layoutKey.length() > ADSENSE_LAYOUT_KEY_MAX || !ADSENSE_LAYOUT_KEY.matcher(layoutKey).matches())) {
+            fields.put(feedPrefix + ".layoutKey", new MessageRef("ad.placement.adsense.layoutKey"));
+        }
+        // 인피드는 단위 ID 와 레이아웃 키를 함께 — 한쪽만 있으면 빈 쪽을 짚는다
+        if (feedSlot != null && layoutKey == null) {
+            fields.put(feedPrefix + ".layoutKey", new MessageRef("ad.placement.adsense.inFeedPair"));
+        } else if (feedSlot == null && layoutKey != null) {
+            fields.put(feedPrefix + ".slot", new MessageRef("ad.placement.adsense.inFeedPair"));
+        }
+        return new AdSenseSettings(mode, client, Boolean.TRUE.equals(in.adtest()), new AdSenseSettings.Units(display[0], display[1], display[2], display[3],
+                display[4], display[5], new AdSenseSettings.InFeed(feedSlot, layoutKey)));
+    }
+
+    /** 앞뒤 공백을 자르고 빈 글자는 null */
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String stripped = value.strip();
+        return stripped.isEmpty() ? null : stripped;
+    }
+
+    /**
+     * 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) — 끝에 V127 {@code refund.stopFeeRate}, V155 {@code boardList.count}·{@code boardList.gap},
+     * V176 {@code adsense.*}
+     */
+    private static Map<String, Object> flat(AdPlacements p, int stopFeeRate, AdSenseSettings adsense) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("postInline.enabled", p.postInline().enabled());
         out.put("postInline.adType", p.postInline().adType());
@@ -286,6 +371,14 @@ public class AdPlacementAdminService {
         out.put("refund.stopFeeRate", stopFeeRate);
         out.put("boardList.count", p.boardList().count());
         out.put("boardList.gap", p.boardList().gap());
+        out.put("adsense.mode", adsense.mode());
+        out.put("adsense.client", adsense.client());
+        out.put("adsense.adtest", adsense.adtest());
+        for (String slot : AdSenseSettings.DISPLAY_SLOTS) {
+            out.put("adsense.units." + slot, adsense.units().display(slot));
+        }
+        out.put("adsense.units." + AdSenseSettings.BOARD_LIST + ".slot", adsense.units().boardList().slot());
+        out.put("adsense.units." + AdSenseSettings.BOARD_LIST + ".layoutKey", adsense.units().boardList().layoutKey());
         return out;
     }
 }

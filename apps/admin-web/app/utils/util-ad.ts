@@ -1,5 +1,6 @@
 import type { AdBookingRow, AdBookingStatus, AdDaySlot, AdPlacementsRequest, AdPostInlinePosition, AdPostInlineType, AdTakedown, AdType, AdWingScreen } from '~/composables/ad/api/useAdApi.types';
 import { BIZ_AD_TYPES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import UtilAdSense from '~/utils/util-adsense';
 import UtilBizApplication from '~/utils/util-biz-application';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
@@ -146,6 +147,20 @@ export default class UtilAd {
         'adult.enabled',
         'refund',
         'refund.stopFeeRate',
+        // 구글 애드센스(shared V176)
+        'adsense',
+        'adsense.mode',
+        'adsense.client',
+        'adsense.adtest',
+        'adsense.units.WIDE_BANNER',
+        'adsense.units.STRIP_BANNER',
+        'adsense.units.SQUARE_BANNER',
+        'adsense.units.SMALL_BANNER',
+        'adsense.units.WING_BANNER',
+        'adsense.units.POST_INLINE',
+        'adsense.units.BOARD_LIST',
+        'adsense.units.BOARD_LIST.slot',
+        'adsense.units.BOARD_LIST.layoutKey',
     ];
 
     /* ── 광고 자리 미리보기(공개 화면 짜임을 단순하게 그린 도식) — 값은 user-web `UtilAd`·`AdWings` 와 같다 ── */
@@ -185,7 +200,7 @@ export default class UtilAd {
         return out;
     }
 
-    /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로. `adult` 가 없는 응답(옛 서버)은 끔으로 읽는다 */
+    /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로. `adult` 가 없는 응답(옛 서버)은 끔으로, `adsense` 가 없는 응답은 애드센스 끔으로 읽는다 */
     static placementsForm(view: AdPlacementsRequest): AdPlacementsRequest {
         return {
             postInline: { ...view.postInline },
@@ -193,7 +208,14 @@ export default class UtilAd {
             boardList: { ...view.boardList },
             adult: { enabled: view.adult?.enabled === true },
             refund: { stopFeeRate: view.refund?.stopFeeRate ?? UtilAd.STOP_FEE_RATE.def },
+            adsense: UtilAdSense.form(view.adsense),
         };
+    }
+
+    /** 보낼 본문 — 편집용 사본에 애드센스 칸 다듬기(빈 글자 → null, `pub-…` → `ca-pub-…`)를 더한 새 객체(반응형 객체가 아니다) */
+    static placementsBody(form: AdPlacementsRequest): AdPlacementsRequest {
+        const copy = UtilAd.placementsForm(form);
+        return { ...copy, adsense: UtilAdSense.body(copy.adsense) };
     }
 
     /**
@@ -206,7 +228,7 @@ export default class UtilAd {
     }
 
     /** 묶음마다 저장된 값과 다른 칸 수 */
-    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number; adult: number; refund: number } {
+    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number; adult: number; refund: number; adsense: number } {
         const screens = (a: readonly AdWingScreen[]) => UtilAd.WING_SCREENS.filter((s) => a.includes(s)).join(',');
         return {
             postInline: [form.postInline.enabled !== saved.postInline.enabled, form.postInline.adType !== saved.postInline.adType, form.postInline.position !== saved.postInline.position].filter(Boolean).length,
@@ -219,6 +241,7 @@ export default class UtilAd {
             ].filter(Boolean).length,
             adult: [(form.adult?.enabled === true) !== (saved.adult?.enabled === true)].filter(Boolean).length,
             refund: [form.refund.stopFeeRate !== saved.refund.stopFeeRate].filter(Boolean).length,
+            adsense: UtilAdSense.changes(form.adsense, saved.adsense),
         };
     }
 }

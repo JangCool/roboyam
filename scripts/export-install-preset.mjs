@@ -66,7 +66,10 @@ const TABLES = [
     { table: 'point_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'point_shop_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'deal_settings', mode: 'UPSERT', orderBy: 'id' },
-    { table: 'ad_placement_settings', mode: 'UPSERT', orderBy: 'id' },
+    // 구글 애드센스 칸(shared V176)은 사이트마다 다른 게시자 계정이라 내보내지 않는다 — 새 설치는 기본값(끔)
+    { table: 'ad_placement_settings', mode: 'UPSERT', orderBy: 'id', exclude: ['adsense_mode', 'adsense_client', 'adsense_adtest', 'adsense_wide_banner',
+        'adsense_strip_banner', 'adsense_square_banner', 'adsense_small_banner', 'adsense_wing_banner', 'adsense_post_inline', 'adsense_board_list_slot',
+        'adsense_board_list_layout_key'] },
     { table: 'group_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'grade_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'member_event_settings', mode: 'UPSERT', orderBy: 'code' },

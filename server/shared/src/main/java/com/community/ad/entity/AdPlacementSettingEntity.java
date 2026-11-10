@@ -8,7 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * 광고 노출 자리 설정 — shared V118 {@code ad_placement_settings}(한 행, id = 1 · V119 성인 · V127 중도 해지 수수료율 · V155 목록 한 줄 개수·간격). 행이 없으면 서버 기본값
+ * 광고 노출 자리 설정 — shared V118 {@code ad_placement_settings}(한 행, id = 1 · V119 성인 · V127 중도 해지 수수료율 · V155 목록 한 줄 개수·간격 · V176 구글 애드센스). 행이 없으면 서버 기본값
  * ({@code AdPlacements.DEFAULTS} · 수수료율 10). 처음 저장은 {@link #first}, 그 뒤는 저장소의 UPDATE 가 고친다.
  */
 @Entity
@@ -35,6 +35,18 @@ public class AdPlacementSettingEntity {
     private Integer boardListGap;
     private Boolean adultEnabled;
     private Integer stopFeeRate;
+    /** 구글 애드센스(V176) — 사용 단계 OFF·VERIFY·SHOW · 게시자 ID · 시험 표시 · 자리별 광고 단위 ID · 목록 인피드 단위 ID·레이아웃 키 */
+    private String adsenseMode;
+    private String adsenseClient;
+    private Boolean adsenseAdtest;
+    private String adsenseWideBanner;
+    private String adsenseStripBanner;
+    private String adsenseSquareBanner;
+    private String adsenseSmallBanner;
+    private String adsenseWingBanner;
+    private String adsensePostInline;
+    private String adsenseBoardListSlot;
+    private String adsenseBoardListLayoutKey;
     private Instant updatedAt;
     private Long updatedBy;
 

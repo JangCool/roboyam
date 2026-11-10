@@ -1,6 +1,5 @@
 package com.community.ad.controller;
 
-import com.community.ad.dto.AdPlacements;
 import com.community.ad.dto.PublicAdView;
 import com.community.ad.service.PublicAdService;
 import com.community.auth.dto.AuthUser;
@@ -44,7 +43,7 @@ public class PublicAdController {
     }
 
     @GetMapping("/placements")
-    public ResponseEntity<ApiResponse<AdPlacements>> placements() {
+    public ResponseEntity<ApiResponse<PublicAdView.Placements>> placements() {
         return ok(service.placements());
     }
 

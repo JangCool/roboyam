@@ -16,7 +16,7 @@ public final class AdPlacementAdmin {
      * @param updatedBy 마지막 저장 운영자 — 저장한 적 없으면 null(지워진 운영자면 이름 null)
      */
     public record View(AdPlacements.PostInline postInline, AdPlacements.Wings wings, AdPlacements.BoardList boardList, AdPlacements.Adult adult, String updatedAt,
-            Operator updatedBy, RefundView refund) {
+            Operator updatedBy, RefundView refund, AdSenseSettings adsense) {
     }
 
     public record Operator(String id, String name) {
@@ -30,14 +30,29 @@ public final class AdPlacementAdmin {
      * {@code PUT} 본문 — 네 묶음 모두 보낸다(빠지면 400 {@code fields.<묶음>}). {@code refund} 는 선택(V127 — 빠지면 지금 수수료율 그대로, 화면이 붙기 전 요청과 맞춘다 — 가정),
      * 보내면 {@code refund.stopFeeRate} 0~30 정수 필수(400 {@code fields.refund.stopFeeRate})
      */
-    public record Save(PostInline postInline, Wings wings, BoardList boardList, Adult adult, Refund refund) {
+    public record Save(PostInline postInline, Wings wings, BoardList boardList, Adult adult, Refund refund, AdSense adsense) {
 
         public Save(PostInline postInline, Wings wings, BoardList boardList, Adult adult) {
-            this(postInline, wings, boardList, adult, null);
+            this(postInline, wings, boardList, adult, null, null);
+        }
+
+        public Save(PostInline postInline, Wings wings, BoardList boardList, Adult adult, Refund refund) {
+            this(postInline, wings, boardList, adult, refund, null);
         }
     }
 
     public record Refund(Integer stopFeeRate) {
+    }
+
+    /**
+     * 구글 애드센스 묶음(V176, docs/features/adsense-contract.md — 탭 {@code ?tab=adsense}). 선택 — 빠지면 지금 값 그대로. 글자 칸은 앞뒤 공백을 자르고 빈 글자는 null 로 본다.
+     *
+     * @param mode   {@code OFF}·{@code VERIFY}·{@code SHOW}(400 {@code fields.adsense.mode})
+     * @param client 게시자 ID {@code ca-pub-} + 숫자 16자리 — VERIFY·SHOW 면 필수(400 {@code fields.adsense.client})
+     * @param adtest 시험 표시 — 비면 false
+     * @param units  자리별 광고 단위 ID(숫자 10자리, 400 {@code fields.adsense.units.<자리>}) · {@code BOARD_LIST} 는 {@code {slot, layoutKey}} 둘 다 있거나 둘 다 비어야 한다
+     */
+    public record AdSense(String mode, String client, Boolean adtest, AdSenseSettings.Units units) {
     }
 
     public record PostInline(Boolean enabled, String adType, String position) {

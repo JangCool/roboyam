@@ -48,6 +48,8 @@
                 </FoldedRow>
             </li>
             <li v-if="UtilAd.feedAdAt(feedAd, i)" class="border-t border-hairline"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i)!" variant="headline" /></li>
+            <!-- 장부 한 줄 광고가 채우지 못한 자리 — 애드센스 인피드(광고가 오지 않으면 줄째 사라진다) -->
+            <AdSenseFeedRow v-else-if="UtilAdSense.feedAt(feedAdsense, i)" :spec="UtilAdSense.feedAt(feedAdsense, i)!" variant="headline" class="border-t border-hairline" />
             </template>
         </ul>
     </div>
@@ -55,12 +57,13 @@
 
 <script setup lang="ts">
 import UtilAd from '~/utils/util-ad';
+import UtilAdSense from '~/utils/util-adsense';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
+withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE' });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();
