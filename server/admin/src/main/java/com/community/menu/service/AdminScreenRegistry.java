@@ -188,7 +188,10 @@ public final class AdminScreenRegistry {
             // 약관(terms-contract — 이용약관·개인정보처리방침·운영정책 게시, terms.read). admin-web UtilAdminMenu 의 settingsLegal 묶음과 같은 키·주소·권한·아이콘·차례
             section(SETTINGS, "menu.legal", "pi pi-book",
                     leaf(s("siteOperator", "/settings/operator", "menu.siteOperator", "pi pi-id-card", Permission.SITE_READ)),
-                    leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file-check", Permission.TERMS_READ))),
+                    leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file-check", Permission.TERMS_READ)),
+                    // 오픈소스 라이선스 고지(oss-licenses-contract) — 안내 문구·직접 추가 항목·자동 수집 목록. 조회 site.read, 저장은 화면 안에서 site.manage.
+                    // admin-web UtilAdminMenu 의 settingsLegal 묶음과 같은 키·주소·권한·아이콘·차례(약관 다음)
+                    leaf(s("ossLicenses", "/settings/oss-licenses", "menu.ossLicenses", "pi pi-code", Permission.SITE_READ))),
             // 테마 묶음(site-theme-layout-contract) — 테마 고르기 · 그 테마의 홈 구성 · 메뉴 설정을 한 화면에서. 조회 site.read, 저장은 화면 안에서 site.manage.
             // admin-web UtilAdminMenu 의 settingsTheme 와 같은 키·주소·권한·아이콘·차례
             section(SETTINGS, "menu.theme", "pi pi-palette",

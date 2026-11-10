@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 캐시 카탈로그 25개(공개 화면 6 · 가젯 7 · 설정 사본 7 · 내부 규칙 5) — 코드가 원천이다. 차례가 관리자 목록 차례다(docs/features/cache-admin-contract.md 「캐시 목록」).
+ * 캐시 카탈로그 26개(공개 화면 6 · 가젯 7 · 설정 사본 8 · 내부 규칙 5) — 코드가 원천이다. 차례가 관리자 목록 차례다(docs/features/cache-admin-contract.md 「캐시 목록」).
  * TTL·켜기/끄기·세대 번호는 DB({@code cache_settings})에 두고, 행이 없으면 이 정의의 기본값(TTL 기본값 · 켜짐 · 세대 0)이다.
  */
 public final class CacheCatalog {
@@ -38,6 +38,7 @@ public final class CacheCatalog {
     private static final AdminLink POPULAR = new AdminLink("popular", "/content/popular");
     private static final AdminLink POPULAR_SETTINGS = new AdminLink("popularSettings", "/content/popular/settings");
     private static final AdminLink TERMS = new AdminLink("terms", "/settings/terms");
+    private static final AdminLink OSS_LICENSES = new AdminLink("ossLicenses", "/settings/oss-licenses");
     private static final AdminLink ANALYTICS = new AdminLink("analytics", "/settings/analytics");
     private static final AdminLink COMMERCE = new AdminLink("commerce", "/settings/commerce");
     private static final AdminLink HOTDEAL_DOMAINS = new AdminLink("hotdealDomains", "/hotdeals/domains");
@@ -70,6 +71,8 @@ public final class CacheCatalog {
             copy(CacheNames.SITE_NOTICE_BAR, SETTINGS_COPY, 20, true, API, List.of(area("/")), List.of(GENERAL)),
             copy(CacheNames.SITE_POPUPS, SETTINGS_COPY, 20, true, API, List.of(area("/")), List.of(POPUPS)),
             copy(CacheNames.TERMS_PUBLIC, SETTINGS_COPY, 20, true, API, List.of(area("/"), area("/terms"), action("/signup", false)), List.of(TERMS)),
+            // 오픈소스 라이선스 고지(oss-licenses-contract) — 화면 /licenses 만 읽고 거의 바뀌지 않는다
+            copy(CacheNames.OSS_NOTICE, SETTINGS_COPY, 60, true, API, List.of(area("/licenses")), List.of(OSS_LICENSES)),
             copy(CacheNames.NOTICE_GLOBAL, SETTINGS_COPY, 15, false, API, List.of(area("/boards/free")), List.of(NOTICES)),
             copy(CacheNames.BOARD_CATALOG, SETTINGS_COPY, 15, false, BOTH,
                     List.of(area("/boards/free"), area("/boards"), action("/boards/free", false), action("/write", true)), List.of(BOARDS, GRADES)),

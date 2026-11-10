@@ -224,6 +224,7 @@ export default class UtilGadgetConfig {
             out.boardIds = [];
         }
         if (HOVER_KINDS.includes(type)) out.hover = true;
+        if (place === 'PAGE' && HOVER_KINDS.includes(type)) out.pageHead = false;
         switch (type) {
             case 'POST_LIST':
                 Object.assign(out, {
@@ -290,6 +291,7 @@ export default class UtilGadgetConfig {
             out.boardIds = scope === 'PICK' ? ids : [];
         }
         if (HOVER_KINDS.includes(type)) out.hover = c.hover !== false; // 마우스 올림 효과 — 칸이 없는 옛 가젯도 켬
+        if (place === 'PAGE' && HOVER_KINDS.includes(type)) out.pageHead = c.pageHead === true; // 제목 카드에 넣기 — 가젯 페이지만(서버 GadgetPatches 도 PAGE 만 받는다)
         switch (type) {
             case 'POST_LIST':
                 out.periodTabs = out.sort === 'POPULAR' && c.periodTabs === true;

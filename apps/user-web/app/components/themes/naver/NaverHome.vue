@@ -5,6 +5,8 @@
         게시판 카드 격자의 열 수는 가젯이 자기 칸 폭으로 정한다(1 → 2 → 3열). props 계약 `HomeTemplate.types.ts`.
     -->
     <div class="@container min-w-0" data-template="naver" data-testid="home-template">
+        <!-- 격자 위 머리(가젯 페이지 제목 카드 — 이 템플릿의 가젯 모양 안에서 그려야 제목 카드에 넣은 가젯이 같은 모양이 된다) -->
+        <div v-if="$slots.lead" class="mb-(--gadget-gap)"><slot name="lead" /></div>
         <GadgetGrid :layout="layout" :gadgets="gadgets" />
     </div>
 </template>

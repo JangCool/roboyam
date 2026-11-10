@@ -86,9 +86,9 @@ class CaffeineCacheControlTest {
     private static final Duration POINT_TTL = Duration.ofSeconds(15);
 
     @Test
-    void 이전_값_유지_캐시는_설정_사본과_내부_규칙_12개다() {
+    void 이전_값_유지_캐시는_설정_사본과_내부_규칙_13개다() {
         assertThat(CacheCatalog.all().stream().filter(CacheDefinition::keepsLastValue).map(CacheDefinition::key)).containsExactlyInAnyOrder(
-                CacheNames.SITE_INFO, CacheNames.SITE_NOTICE_BAR, CacheNames.SITE_POPUPS, CacheNames.TERMS_PUBLIC, CacheNames.NOTICE_GLOBAL, CacheNames.BOARD_CATALOG,
+                CacheNames.SITE_INFO, CacheNames.SITE_NOTICE_BAR, CacheNames.SITE_POPUPS, CacheNames.TERMS_PUBLIC, CacheNames.OSS_NOTICE, CacheNames.NOTICE_GLOBAL, CacheNames.BOARD_CATALOG,
                 CacheNames.STATS_COLLECTION, CacheNames.COMMERCE_RATE_LIMITS, CacheNames.HOTDEAL_RULES, CacheNames.HOTDEAL_SETTINGS, CacheNames.NOTIFICATION_TEMPLATES,
                 CacheNames.POINT_POLICY);
     }

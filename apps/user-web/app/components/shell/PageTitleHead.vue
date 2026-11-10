@@ -7,7 +7,7 @@
     <header class="flex min-w-0 flex-col gap-2 md:flex-row md:items-end md:gap-4" :class="divider ? 'border-b-2 border-[var(--p-text-color)] pb-3' : ''">
         <div class="min-w-0 flex-1">
             <h1 class="m-0 break-words text-xl font-bold leading-tight tracking-tight" :style="titleStyle" :data-testid="titleTestid"><slot name="title">{{ title }}</slot></h1>
-            <p v-if="description" class="m-0 mt-1 text-sm text-muted-color">{{ description }}</p>
+            <p v-if="description" class="m-0 mt-1 whitespace-pre-line text-sm text-muted-color">{{ description }}</p>
         </div>
         <div v-if="$slots.actions" class="flex min-w-0 shrink-0 items-center gap-1.5">
             <slot name="actions" />

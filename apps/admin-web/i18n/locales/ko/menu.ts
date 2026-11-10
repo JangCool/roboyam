@@ -155,6 +155,7 @@ export default {
     legal: '운영·약관',
     siteOperator: '운영 주체',
     terms: '약관',
+    ossLicenses: '오픈소스 라이선스',
     analyticsSettings: '통계 수집',
     memberSettings: '회원',
     nicknameImageSettings: '닉네임 이미지',

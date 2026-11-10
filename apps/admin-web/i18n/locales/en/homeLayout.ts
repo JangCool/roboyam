@@ -215,6 +215,8 @@ export default {
     colorFollowTitle: 'Same as title',
     // Hover effect (gadget setting `hover`, on by default)
     itemHover: 'Hover effect',
+    pageHead: 'Put in the page title card',
+    pageHeadHint: 'On: this gadget leaves the grid and sits under the page title, below the thick rule, at full width. Only one per page (others turn off).',
     itemHoverHint: 'On by default — post rows, cards and shortcuts get a light background on mouse hover (photo cards underline the title). Off removes the effect.',
     // Title icon (gadget style — confirmed 2026-11-10)
     titleIcon: 'Title icon',

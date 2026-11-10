@@ -120,7 +120,8 @@ export default defineNuxtConfig({
         },
     },
 
-    modules: ['@primevue/nuxt-module'],
+    // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`ROBOYAM_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
+    modules: ['@primevue/nuxt-module', ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
     // 화면 문구 — 모듈과 로캘 목록은 `@roboyam/i18n` 레이어가 정한다. 이 앱의 문구 설정 파일(`i18n/i18n.config.ts`)만 알린다(`i18n` 키가 있는 레이어·앱만 모듈이 읽는다)
     i18n: { vueI18n: 'i18n.config.ts' },

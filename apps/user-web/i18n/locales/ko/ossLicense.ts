@@ -1,0 +1,45 @@
+/**
+ * 오픈소스 라이선스 고지 화면(`/licenses`)의 문구 — `docs/features/oss-licenses-contract.md`. `en/ossLicense.ts` 와 같은 키, 같은 차례.
+ * `defaultIntro` 의 `{site}` 에는 화면이 `{사이트}` 자리표시를 넣고, 사이트 이름·조사는 `UtilFooterNotice.render` 가 바꾼다(관리자 안내 문구와 같은 규칙).
+ */
+export default {
+    title: '오픈소스 라이선스',
+    defaultIntro: '{site}은 아래 오픈소스 소프트웨어를 사용합니다. 각 라이선스 조건에 따라 저작권 고지와 라이선스 전문을 밝힙니다.',
+    filterLabel: '쓰는 곳으로 거르기',
+    filter: {
+        all: '전체',
+        user: '공개 화면',
+        admin: '관리자 화면',
+        server: '서버',
+        fontIcon: '글꼴·아이콘',
+    },
+    chip: '{label} {n}',
+    searchPlaceholder: '이름 찾기',
+    searchLabel: '이름이나 라이선스로 찾기',
+    distributionLabel: '라이선스 종류',
+    distributionItem: '{license} {n}',
+    distributionRest: '그 밖 {n}',
+    resultCount: '{n}개 항목',
+    usedInLabel: '쓰는 곳',
+    usedIn: {
+        user: '공개',
+        admin: '관리자',
+        server: '서버',
+    },
+    fontIcon: '글꼴·아이콘',
+    manual: '직접 추가',
+    copyright: '저작권 고지',
+    notice: '고지(NOTICE)',
+    licenseText: '라이선스 전문',
+    textTemplate: '패키지에 라이선스 파일이 없어 SPDX 표준 문구로 대신 실었어요.',
+    textNone: '라이선스 전문은 아래 안내 주소에서 볼 수 있어요.',
+    licenseLink: '라이선스 안내',
+    expandText: '전문 펼치기',
+    collapseText: '전문 접기',
+    repository: '원본 저장소',
+    newTab: '새 탭에서 열림',
+    collectedAt: '마지막으로 모은 날 {date}',
+    empty: '찾는 항목이 없어요.',
+    emptyHint: '다른 이름으로 찾거나 거르기를 「전체」로 바꿔 보세요.',
+    loadError: '오픈소스 라이선스 목록을 불러오지 못했어요.',
+};

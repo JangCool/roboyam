@@ -340,8 +340,14 @@ function openSettings(id: string): void {
 function applySettings(patch: GadgetSettingsPatch): void {
     const id = settingsId.value;
     if (!id) return;
+    // 제목 카드에 넣기는 한 페이지에 하나 — 이 가젯을 켜면 다른 가젯은 끈다(사용자 2026-11-10)
+    const headOn = patch.config?.pageHead === true;
     gadgets.value = gadgets.value.map((g) =>
-        g.id === id ? { ...g, title: patch.title, desktop: patch.desktop, mobile: patch.mobile, ...(patch.style ? { style: patch.style } : {}), ...(patch.config ? { config: patch.config } : {}) } : g,
+        g.id === id
+            ? { ...g, title: patch.title, desktop: patch.desktop, mobile: patch.mobile, ...(patch.style ? { style: patch.style } : {}), ...(patch.config ? { config: patch.config } : {}) }
+            : headOn && g.config?.pageHead
+              ? { ...g, config: { ...g.config, pageHead: false } }
+              : g,
     );
     saveError.value = '';
     const rest = { ...serverErrors.value };
