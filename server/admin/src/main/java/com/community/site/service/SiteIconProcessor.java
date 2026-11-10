@@ -95,11 +95,6 @@ public class SiteIconProcessor {
     }
 
     private Map<IconFile, byte[]> render(byte[] data) {
-        BufferedImage source = codec.decode(data, ImageFormat.PNG);
-        Map<IconFile, byte[]> files = new LinkedHashMap<>();
-        for (IconFile file : IconFile.values()) {
-            files.put(file, ImageCodec.png(ImageCodec.resize(source, file.side(), file.side()), file.flatten()));
-        }
-        return files;
+        return SiteBrandRender.iconFiles(codec.decode(data, ImageFormat.PNG));
     }
 }
