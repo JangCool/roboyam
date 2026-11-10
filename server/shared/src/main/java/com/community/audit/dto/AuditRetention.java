@@ -98,6 +98,8 @@ public final class AuditRetention {
             // 팝업 관리(site-popup-contract) — 공지 띠와 같은 사이트 운영 일
             AuditActions.SITE_POPUP_CREATE, AuditActions.SITE_POPUP_UPDATE, AuditActions.SITE_POPUP_DELETE, AuditActions.SITE_POPUP_ORDER, AuditActions.SITE_POPUP_VISIBLE, AuditActions.SITE_POPUP_LAYOUT,
             AuditActions.SITE_OPERATOR_UPDATE, AuditActions.SITE_OPERATOR_STAGE_CHANGE,
+            // 캐시 관리(cache-admin-contract) — 사본 새로 고침·유지 시간·켜고 끄기, 사이트 운영 일
+            AuditActions.CACHE_REFRESH, AuditActions.CACHE_REFRESH_ALL, AuditActions.CACHE_TTL_CHANGE, AuditActions.CACHE_ENABLED_CHANGE, AuditActions.CACHE_GLOBAL_ENABLED_CHANGE,
             AuditActions.GADGET_PAGE_CREATE, AuditActions.GADGET_PAGE_UPDATE, AuditActions.GADGET_PAGE_DELETE, AuditActions.GADGET_PAGE_LAYOUT_UPDATE,
             AuditActions.BOARD_LAYOUT_UPDATE,
             AuditActions.MAIL_SETTINGS_UPDATE, AuditActions.MAIL_SETTINGS_TEST,
