@@ -225,11 +225,11 @@ public class GroupBuyAdminQueries extends RoboyamRepositoryQDSL {
         return out;
     }
 
-    /** 살아 있는 선점(결제 대기 · 선점 시각 안) — 선점이 먼저 끝나는 것 먼저 */
+    /** 살아 있는 선점(결제 대기 · 선점 시각 안) — 선점이 먼저 끝나는 것 먼저, 같으면 id 순(차례가 흔들리지 않게) */
     public List<HoldRow> holds(long groupBuyId, Instant now) {
         return query.select(PA.id, PA.orderNo, PA.userId, PR.nickname, U.id, U.status, U.deletedAt, PA.reservedUntil).from(PA).leftJoin(U).on(U.id.eq(PA.userId))
                 .leftJoin(PR).on(PR.userId.eq(PA.userId)).where(PA.groupBuyId.eq(groupBuyId), PA.status.eq(ParticipationStatus.PENDING_PAYMENT), PA.reservedUntil.gt(now))
-                .orderBy(PA.reservedUntil.asc()).fetch().stream()
+                .orderBy(PA.reservedUntil.asc(), PA.id.asc()).fetch().stream()
                 .map(t -> new HoldRow(t.get(PA.id), t.get(PA.orderNo), t.get(PA.userId), t.get(PR.nickname), GroupBuyRowNames.gone(t.get(U.id), t.get(U.status),
                         t.get(U.deletedAt)), t.get(PA.reservedUntil))).toList();
     }

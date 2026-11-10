@@ -181,7 +181,7 @@ class GroupBuyAdminQueriesParityTest {
         jdbc.query("SELECT pa.id, (SELECT string_agg(s.name || ' × ' || i.qty, ', ' ORDER BY s.kind DESC, s.sort_order) FROM group_buy_participation_items i "
                 + "JOIN group_buy_skus s ON s.id = i.sku_id WHERE i.participation_id = pa.id), (SELECT sum(i.qty) FROM group_buy_participation_items i "
                 + "WHERE i.participation_id = pa.id) FROM group_buy_participations pa WHERE pa.group_buy_id = ? AND pa.status = 'PENDING_PAYMENT' AND pa.reserved_until > ? "
-                + "ORDER BY pa.reserved_until", rs -> {
+                + "ORDER BY pa.reserved_until, pa.id", rs -> {
             oldLines.put(rs.getLong(1), rs.getString(2) == null ? "" : rs.getString(2));
             oldQty.put(rs.getLong(1), rs.getInt(3));
         }, g, Timestamp.from(now));
