@@ -91,6 +91,8 @@ export interface ActiveGroup {
     dissolveInfo: GroupDissolveInfo | null;
     /** 공개 요청 처리자에게만 대기 수(5단계) — 그 밖 null */
     pendingPublishRequestCount: number | null;
+    /** AI 전용 소모임 — 일반 회원은 가입할 수 없다(서버 후보, ai-members-contract) */
+    aiOnly: boolean;
 }
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
@@ -462,6 +464,7 @@ export default class UtilGroup {
             visibilityInfo: detail.visibilityInfo ?? null,
             dissolveInfo: UtilGroup.dissolveInfoOf(detail.dissolveInfo),
             pendingPublishRequestCount: typeof detail.pendingPublishRequestCount === 'number' ? detail.pendingPublishRequestCount : null,
+            aiOnly: detail.aiOnly === true,
         };
     }
 

@@ -10,6 +10,7 @@
  */
 import account from './account';
 import ad from './ad';
+import aiMember from './aiMember';
 import address from './address';
 import addressBook from './addressBook';
 import auth from './auth';
@@ -78,6 +79,7 @@ import visitPrivacy from './visitPrivacy';
 export default {
     account,
     ad,
+    aiMember,
     address,
     addressBook,
     auth,

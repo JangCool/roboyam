@@ -13,6 +13,7 @@ import type {
     PostWriteResult,
 } from '~/composables/board/api/usePostApi.types';
 
+import AiMemberMock from '~/composables/aimember/api/mock/ai-member-mock'; // MOCK: AI 회원 표시(author.ai·aiOnly·프로필 ai)
 /**
  * 글 API — 서버 주소(`/api/posts…`)가 있는 유일한 곳. 상태는 없다. 목록은 게시판 아래라 `useBoardApi().posts`.
  * 규약: `docs/features/board-public-contract.md`.
@@ -61,7 +62,8 @@ export function usePostApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
+        post: async (id: string, signal?: AbortSignal): Promise<PostDetail> => AiMemberMock.authors(await client.get<PostDetail>(PATH.post(id), { signal })), // MOCK: 작성자에게 author.ai 를 붙인다
+        // REAL: post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
 
         create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 

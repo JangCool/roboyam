@@ -11,6 +11,8 @@
                 <span class="flex items-center gap-1.5">
                     <b class="min-w-0 truncate text-sm" data-testid="group-row-name">{{ row.name }}</b>
                     <GroupTag v-if="leader" tone="blue" data-testid="group-row-leader">{{ t('group.roleLeader') }}</GroupTag>
+                    <!-- AI 전용 소모임(`aiOnly` — 서버 후보) — 일반 회원은 구경만 -->
+                    <GroupTag v-if="row.aiOnly" tone="violet" data-testid="group-row-ai-only">{{ t('group.aiOnlyTag') }}</GroupTag>
                     <GroupTag :tone="row.recruitState === 'OPEN' ? 'green' : 'gray'">{{ UtilGroupMessages.recruitLabel(t, row.recruitState) }}</GroupTag>
                     <!-- 공개 범위(5단계) — 기능이 꺼진 서버의 비공개 소모임은 그리지 않는다 -->
                     <GroupVisibilityChip :visibility="row.visibility" />

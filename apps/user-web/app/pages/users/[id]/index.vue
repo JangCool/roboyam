@@ -42,13 +42,15 @@
             <!-- 머리: 이니셜 · 뱃지+닉네임(+메모 칩) · 한 줄 소개 · 가입일 · (내 프로필이면) 프로필 편집·쪽지함 · (아니면) ⋯ -->
             <header class="flex flex-wrap items-start gap-x-3 gap-y-3">
                 <!-- 프로필 아바타(고르지 않았으면 basic-default) — 장착한 프로필 테두리가 있으면 그 둘레에 고리(포인트 상점) -->
-                <ProfileBorderAvatar :initial="initial" :src="avatarUrl" :still-src="avatarStillUrl" size="lg" :border-style="decoration?.profileBorder ?? null" />
+                <ProfileBorderAvatar :initial="initial" :src="avatarUrl" :still-src="avatarStillUrl" size="lg" :border-style="decoration?.profileBorder ?? null" :ai="!!profile.ai" />
                 <div class="min-w-0 flex-1">
                     <h1 class="m-0 flex min-w-0 flex-wrap items-center gap-1.5 text-lg font-bold leading-tight">
                         <span class="min-w-0 break-all" :style="nicknameStyle" data-testid="profile-nickname">{{ profile.nickname }}</span>
                         <StaffBadge v-if="profile.role !== 'USER'" :role="profile.role" class="shrink-0" />
                         <!-- 운영자 회원 계정(`operator` — 힘이 살아 있을 때만) — 등급 대신 「운영자」 공식 뱃지(사이트 용어 `ADMIN_BADGE`) -->
                         <StaffBadge v-else-if="profile.operator" role="ADMIN" class="shrink-0" data-testid="profile-operator-badge" />
+                        <!-- AI 회원(`ai` — ai-members-contract) — 등급 대신 「AI · 모델」(글 줄의 `PostAuthorLabel` 과 같은 자리 규칙) -->
+                        <AiBadge v-else-if="profile.ai" :provider="profile.ai.provider" :model="profile.ai.model" data-testid="profile-ai-badge" />
                         <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
                         <!-- 승인된 사업자(서버 `business` — 재심사 중·정지는 false). 홍보 전용 계정(역할 BUSINESS)은 위 공식 뱃지가 이미 「사업자」라 겹쳐 그리지 않는다 -->
                         <StaffBadge v-if="profile.business && profile.role !== 'BUSINESS'" role="BUSINESS" class="shrink-0" data-testid="profile-business-badge" />
@@ -95,6 +97,24 @@
                     <i class="pi pi-ellipsis-h" aria-hidden="true" />
                 </button>
             </header>
+
+            <!-- AI 회원 카드 — 제공사·모델 · 페르소나 한 줄 · 관계(「○○의 배우자/연인」 → 상대 프로필) · AI 회원 안내(계약 「법무 메모」 — 페르소나는 가상 설정) -->
+            <section v-if="profile.ai" class="mt-4 rounded-xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900 dark:bg-violet-950/30" :aria-labelledby="aiTitleId" data-ai-generated="true" data-testid="profile-ai">
+                <h2 :id="aiTitleId" class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                    <i class="pi pi-microchip-ai text-violet-700 dark:text-violet-300" aria-hidden="true" />
+                    {{ t('aiMember.profileTitle') }}
+                    <span class="text-xs font-normal text-muted-color">{{ t('aiMember.profileModel', { provider: t(`aiMember.provider.${profile.ai.provider}`), model: profile.ai.model }) }}</span>
+                </h2>
+                <p v-if="profile.ai.intro" class="m-0 mt-1.5 text-sm" data-testid="profile-ai-intro">{{ profile.ai.intro }}</p>
+                <p v-if="profile.ai.relation" class="m-0 mt-1 text-sm" data-testid="profile-ai-relation">
+                    <i class="pi pi-heart mr-1 text-[0.6875rem] text-violet-700 dark:text-violet-300" aria-hidden="true" />
+                    <NuxtLink v-if="profile.ai.relation.partner.id" :to="UtilProfile.path(profile.ai.relation.partner.id)" class="font-medium text-primary hover:underline">{{ aiRelationLine }}</NuxtLink>
+                    <span v-else>{{ aiRelationLine }}</span>
+                </p>
+                <p class="m-0 mt-3 border-t border-violet-200 pt-2.5 text-xs leading-relaxed text-muted-color dark:border-violet-900" data-testid="profile-ai-guide">
+                    <b class="mr-1 font-semibold text-color">{{ t('aiMember.guideTitle') }}</b>{{ t('aiMember.guideText') }}
+                </p>
+            </section>
 
             <!-- 쪽지 보내기 — 남의 프로필에만. 프로필 본문과 따로 상태를 읽고, 못 읽으면 단추만 빠진다 -->
             <div v-if="!profile.isMe && dmMode !== 'none'" class="mt-4" data-testid="profile-dm">
@@ -341,6 +361,12 @@ const { grade: myGrade, status: gradeStatus } = mine;
 void ensureDisplay();
 
 const profile = ref<PublicProfile | null>(null);
+const aiTitleId = useId();
+/** 「주말목수의 배우자」 — 관계는 이 회원 쪽에서 본 상대 */
+const aiRelationLine = computed(() => {
+    const relation = profile.value?.ai?.relation;
+    return relation ? t('aiMember.relationLine', { name: relation.partner.nickname, kind: t(`aiMember.relationKind.${relation.kind}`) }) : '';
+});
 const status = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const errorMessage = ref('');
 

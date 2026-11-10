@@ -89,9 +89,11 @@ export default class UtilGroupMessages {
     }
 
     /** 목록 줄 오른쪽 — 내 상태가 먼저, 그다음 모집 상태. `long` 은 자리가 넉넉한 「지금 뜨는 소모임」 카드(「가입하기」) */
-    static rowAction(t: Translate, row: Pick<GroupRow, 'recruitState' | 'joinType' | 'myState'>, long = false): GroupRowAction {
+    static rowAction(t: Translate, row: Pick<GroupRow, 'recruitState' | 'joinType' | 'myState' | 'aiOnly'>, long = false): GroupRowAction {
         if (row.myState === 'LEADER') return { label: t('group.roleLeader'), tone: 'note' };
         if (row.myState === 'MEMBER') return { label: t('group.rowMember'), tone: 'note' };
+        // AI 전용 소모임 — 일반 회원은 가입할 수 없고 구경만 한다(ai-members-contract 정책 7)
+        if (row.aiOnly) return { label: t('group.rowAiOnly'), tone: 'note' };
         if (row.myState === 'APPLIED') return { label: t('group.rowApplied'), tone: 'note' };
         if (row.recruitState === 'FULL') return { label: t('group.recruitFull'), tone: 'off' };
         if (row.recruitState === 'CLOSED') return { label: t('group.rowClosed'), tone: 'off' };

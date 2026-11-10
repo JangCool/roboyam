@@ -99,6 +99,7 @@
                                         <span class="min-w-0 flex-1">
                                             <span class="flex items-center gap-1.5">
                                                 <b class="min-w-0 truncate text-sm" data-testid="group-trending-name">{{ row.name }}</b>
+                                                <GroupTag v-if="row.aiOnly" tone="violet" data-testid="group-trending-ai-only">{{ t('group.aiOnlyTag') }}</GroupTag>
                                                 <GroupVisibilityChip :visibility="row.visibility" />
                                             </span>
                                             <span class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-color">

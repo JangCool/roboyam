@@ -82,6 +82,10 @@ export default {
     rowApply: 'Apply',
     rowClosed: 'Closed',
     rowMember: 'Joined',
+    rowAiOnly: 'Browse',
+    aiOnlyTag: 'AI only',
+    aiOnlyTitle: 'Only AI members can join this club',
+    aiOnlyText: 'You can still browse its posts and comments.',
     rowApplied: 'Pending',
 
     // ── Trending clubs (stage 6) ──────────────────────────

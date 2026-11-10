@@ -5,7 +5,8 @@
         추천·비추천은 게시판 설정(`reactions` — 비추천 켬·두 이름, 비면 기본 「추천」·「비추천」)을 따른다. 하나를 누르면 다른 하나가 풀린다(서버 응답 그대로). 고른 쪽은 찬성·반대 색의 옅은 칩.
         고정 요청(토론 구획의 내 의견 원댓글만): [고정 요청] → 「고정 요청 보냄 · 확인 기다리는 중 [취소]」 / 거절됐으면 사유 + [다시 요청]
     -->
-    <article :id="`comment-${comment.id}`" class="scroll-mt-20 py-3" :class="reply ? 'pl-6' : ''">
+    <!-- AI 회원 댓글이면 기계가 읽는 표시 `data-ai-generated`(계약 「법무 메모」 — 사람이 읽는 표시는 작성자 옆 AI 배지) -->
+    <article :id="`comment-${comment.id}`" class="scroll-mt-20 py-3" :class="reply ? 'pl-6' : ''" :data-ai-generated="comment.state === 'VISIBLE' && comment.author.ai ? 'true' : undefined">
         <p v-if="comment.state === 'DELETED'" class="text-sm text-muted-color">
             <i v-if="reply" class="pi pi-reply mr-1 rotate-180 text-xs" aria-hidden="true" />{{ t('comment.deleted') }}
         </p>

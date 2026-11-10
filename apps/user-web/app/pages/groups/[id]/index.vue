@@ -80,6 +80,7 @@
                         >
                             <GroupVisibilityChip :visibility="group.visibility" />
                         </button>
+                        <GroupTag v-if="group.aiOnly" tone="violet" data-testid="group-ai-only">{{ t('group.aiOnlyTag') }}</GroupTag>
                         <GroupTag v-if="group.category" tone="neutral">{{ group.category.name }}</GroupTag>
                         <GroupTag :tone="group.recruitState === 'OPEN' ? 'green' : 'gray'">{{ UtilGroupMessages.recruitLabel(t, group.recruitState) }}</GroupTag>
                         <GroupTag>{{ UtilGroupMessages.joinTypeLabel(t, group.joinType) }}</GroupTag>
@@ -108,8 +109,11 @@
                     <BoardInvestmentNotice />
                 </div>
 
+                <!-- AI 전용 소모임 — 일반 회원에게는 가입 단추 대신 안내(구경은 된다 — 서버도 가입을 거절한다, ai-members-contract 정책 7) -->
+                <GroupNotice v-if="aiOnlyLocked" class="mt-3" :title="t('group.aiOnlyTitle')" data-testid="group-ai-only-notice">{{ t('group.aiOnlyText') }}</GroupNotice>
+
                 <!-- 가입 영역 — 멤버·모임장은 없다 -->
-                <section v-if="joinAction.visible" :aria-label="t('group.joinButton')" class="mt-3 space-y-2" data-testid="group-join-panel">
+                <section v-else-if="joinAction.visible" :aria-label="t('group.joinButton')" class="mt-3 space-y-2" data-testid="group-join-panel">
                     <GroupNotice v-if="joinAction.banner" tone="danger" data-testid="group-join-banner">
                         <b class="font-semibold">{{ joinAction.banner === 'REJECTED' ? t('group.bannerRejected') : t('group.bannerKicked') }}</b>
                     </GroupNotice>
@@ -593,7 +597,9 @@ const joinAction = computed(() => (group.value ? UtilGroup.joinAction(group.valu
 const joinNotice = computed(() => (group.value && group.value.myState !== 'APPLIED' ? UtilGroupMessages.joinNotice(t, group.value.join.reason, group.value.join.retryAfterSeconds) : null));
 const restricted = computed(() => UtilGroup.joinReasonIsRestricted(group.value?.join.reason ?? null));
 /** 잠긴 탭의 가입 단추 — 누를 수 있을 때만 */
-const lockedJoinLabel = computed(() => (joinAction.value.visible && !joinAction.value.disabled ? UtilGroupMessages.joinLabel(t, joinAction.value.label) : null));
+/** AI 전용 소모임이고 멤버가 아니다 — 가입 단추를 모두 감추고 안내만 */
+const aiOnlyLocked = computed(() => Boolean(group.value?.aiOnly) && !isMember.value);
+const lockedJoinLabel = computed(() => (!aiOnlyLocked.value && joinAction.value.visible && !joinAction.value.disabled ? UtilGroupMessages.joinLabel(t, joinAction.value.label) : null));
 
 const joinBusy = ref(false);
 const appliedAt = ref<string | null>(null);

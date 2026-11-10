@@ -44,6 +44,7 @@ import type {
 } from '~/composables/group/api/useGroupApi.types';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 
+import AiMemberMock from '~/composables/aimember/api/mock/ai-member-mock'; // MOCK: AI 회원 표시(author.ai·aiOnly·프로필 ai)
 /**
  * 소모임 API — 서버 주소 문자열(`/api/groups…`·`/api/me/groups…`)이 있는 **유일한 곳**이다. 상태는 없다. 모두 실제 호출이다(목업 없음 — `// MOCK:` 줄이 없다).
  *
@@ -181,16 +182,19 @@ export function useGroupApi() {
         // ── 읽기 ──
 
         /** 목록·검색 — 열린(ACTIVE) 소모임만. `sort=mine` 은 로그인 필요(비회원 401) */
-        list: (query: GroupListQuery = {}, signal?: AbortSignal) => client.get<GroupListResponse>(PATH.groups, { query: { ...query }, signal }),
+        list: async (query: GroupListQuery = {}, signal?: AbortSignal) => AiMemberMock.groups(await client.get<GroupListResponse>(PATH.groups, { query: { ...query }, signal })), // MOCK: AI 전용 소모임 aiOnly
+        // REAL: list: (query: GroupListQuery = {}, signal?: AbortSignal) => client.get<GroupListResponse>(PATH.groups, { query: { ...query }, signal }),
 
         /** 소모임 분류 — 목록 칩과 만들기 화면의 분류 고르기가 같이 쓴다(로그인 불필요) */
         categories: (signal?: AbortSignal) => client.get<GroupCategoriesResponse>(PATH.categories, { signal }),
 
         /** 지금 뜨는 소모임 — 가중 무작위라 요청마다 다를 수 있다(화면은 한 번 받아 고정). 로그인 불필요 */
-        trending: (signal?: AbortSignal) => client.get<GroupTrendingResponse>(PATH.trending, { signal }),
+        trending: async (signal?: AbortSignal) => AiMemberMock.groups(await client.get<GroupTrendingResponse>(PATH.trending, { signal })), // MOCK: AI 전용 소모임 aiOnly
+        // REAL: trending: (signal?: AbortSignal) => client.get<GroupTrendingResponse>(PATH.trending, { signal }),
 
         /** 상세 — 보는 사람에 따라 `myState`·`join`·`chat`·`permissions` 가 달라진다 */
-        detail: (id: string, signal?: AbortSignal) => client.get<GroupDetail>(PATH.group(id), { signal }),
+        detail: async (id: string, signal?: AbortSignal) => AiMemberMock.group(await client.get<GroupDetail>(PATH.group(id), { signal })), // MOCK: AI 전용 소모임 aiOnly · 가입 막기
+        // REAL: detail: (id: string, signal?: AbortSignal) => client.get<GroupDetail>(PATH.group(id), { signal }),
 
         /** 멤버 탭 — 멤버만(비멤버 `403 GROUP_NOT_MEMBER`) */
         members: (id: string, query: GroupMemberListQuery = {}, signal?: AbortSignal) =>
@@ -256,7 +260,8 @@ export function useGroupApi() {
         // ── 소모임 글(2단계) ──
 
         /** 글 탭 — 최신이 위, 커서로 더보기. 비멤버는 공개 글만 + 잠긴 글 수 */
-        posts: (id: string, query: GroupPostListQuery = {}, signal?: AbortSignal) => client.get<GroupPostPage>(PATH.posts(id), { query: { ...query }, signal }),
+        posts: async (id: string, query: GroupPostListQuery = {}, signal?: AbortSignal) => AiMemberMock.authors(await client.get<GroupPostPage>(PATH.posts(id), { query: { ...query }, signal })), // MOCK: 작성자에게 author.ai 를 붙인다
+        // REAL: posts: (id: string, query: GroupPostListQuery = {}, signal?: AbortSignal) => client.get<GroupPostPage>(PATH.posts(id), { query: { ...query }, signal }),
 
         /** 소모임 글쓰기 — 멤버만, 비공개 글로 만들어진다 */
         writePost: (id: string, body: GroupPostWriteRequest) => client.post<GroupPostWriteResult>(PATH.posts(id), body),

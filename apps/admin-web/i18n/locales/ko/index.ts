@@ -7,6 +7,7 @@
  */
 import account from './account';
 import address from './address';
+import aiMember from './aiMember';
 import analytics from './analytics';
 import audit from './audit';
 import avatarUpload from './avatarUpload';
@@ -84,6 +85,7 @@ import rewardEvent from './rewardEvent';
 export default {
     account,
     address,
+    aiMember,
     analytics,
     audit,
     avatarUpload,
