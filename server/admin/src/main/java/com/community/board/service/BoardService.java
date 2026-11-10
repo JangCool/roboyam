@@ -365,6 +365,9 @@ public class BoardService {
             invalid.put("authorMode", new MessageRef("board.field.choice"));
         } else if (!BoardFields.anonymousAllowed(board.getKind()) && BoardFields.AUTHOR_ANONYMOUS.equals(in.authorMode)) {
             invalid.put("authorMode", new MessageRef("board.anonymous.generalOnly"));
+        } else if (BoardFields.AUTHOR_ANONYMOUS.equals(board.getAuthorMode()) && !BoardFields.AUTHOR_ANONYMOUS.equals(in.authorMode) && !actor.root()) {
+            // 익명 → 닉네임은 최고 관리자만(사용자 2026-11-11 — 실수로 닉네임이 드러나지 않게). 닉네임 → 익명은 지금처럼 게시판 권한자
+            invalid.put("authorMode", new MessageRef("board.anonymous.rootOnly"));
         }
         // 글 목록 칩 위치(V169) — null(사이트 기본 따름) 또는 값 목록
         if (in.chipPosition != null && !BoardFields.CHIP_POSITIONS.contains(in.chipPosition)) {

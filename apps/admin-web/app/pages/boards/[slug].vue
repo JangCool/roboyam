@@ -135,9 +135,9 @@
                                     :key="mode"
                                     :for="`${idBase}-author-mode-${mode}`"
                                     class="flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5"
-                                    :class="[form.authorMode === mode ? 'border-primary bg-primary-50/40 dark:bg-primary-950/30' : 'border-(--line)', !canManage || saving ? 'cursor-not-allowed opacity-70' : '']"
+                                    :class="[form.authorMode === mode ? 'border-primary bg-primary-50/40 dark:bg-primary-950/30' : 'border-(--line)', !canManage || saving || (mode === 'NICKNAME' && nicknameLocked) ? 'cursor-not-allowed opacity-70' : '']"
                                 >
-                                    <RadioButton v-model="authorModeModel" :input-id="`${idBase}-author-mode-${mode}`" :name="`${idBase}-author-mode`" :value="mode" :disabled="!canManage || saving" class="mt-0.5 shrink-0" />
+                                    <RadioButton v-model="authorModeModel" :input-id="`${idBase}-author-mode-${mode}`" :name="`${idBase}-author-mode`" :value="mode" :disabled="!canManage || saving || (mode === 'NICKNAME' && nicknameLocked)" class="mt-0.5 shrink-0" />
                                     <span class="flex min-w-0 flex-col gap-0.5">
                                         <span class="text-sm">{{ t(`board.authorMode.${mode}`) }}</span>
                                         <span class="text-xs leading-relaxed text-muted-color">{{ t(`board.authorModeDesc.${mode}`) }}</span>
@@ -146,6 +146,13 @@
                             </div>
                             <p class="m-0 text-xs leading-relaxed" :class="serverFields.authorMode ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.authorMode ? 'alert' : undefined">
                                 {{ serverFields.authorMode || t('board.authorModeHelp') }}
+                            </p>
+                            <!-- 익명 → 닉네임(사용자 2026-11-11): 최고 관리자만 — 아니면 닉네임 칸을 막고 까닭, 최고 관리자가 고르면 저장 전 경고 -->
+                            <p v-if="nicknameLocked" class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color" data-testid="board-author-mode-root-only">
+                                <i class="pi pi-lock mt-0.5 text-[0.7rem]" aria-hidden="true" />{{ t('board.authorModeRootOnly') }}
+                            </p>
+                            <p v-else-if="revealingNicknames" class="m-0 flex items-start gap-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs leading-relaxed text-orange-800 dark:bg-orange-950/40 dark:text-orange-200" role="alert" data-testid="board-author-mode-reveal-warning">
+                                <i class="pi pi-exclamation-triangle mt-0.5 text-[0.7rem]" aria-hidden="true" />{{ t('board.authorModeToNickname') }}
                             </p>
                         </div>
 
@@ -519,7 +526,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
-const { can } = useAdminPermission();
+const { can, isSuper } = useAdminPermission();
 const { localizedName } = useLocalizedName();
 const time = useDisplayTime();
 const idBase = useId();
@@ -588,6 +595,10 @@ const secretModeModel = computed<BoardSecretMode>({
 });
 /** 작성자 표시를 고를 수 있는 게시판 — 일반 게시판만(anonymous-board-contract 정책 1) */
 const anonymousAllowed = computed(() => Boolean(saved.value && UtilBoard.anonymousAllowed(saved.value.kind)));
+/** 저장된 값이 익명이면 닉네임으로 되돌리기는 최고 관리자만(서버도 400 fields.authorMode) */
+const nicknameLocked = computed(() => saved.value?.authorMode === 'ANONYMOUS' && !isSuper.value);
+/** 최고 관리자가 익명 → 닉네임으로 고른 상태(저장 전 경고) */
+const revealingNicknames = computed(() => saved.value?.authorMode === 'ANONYMOUS' && form.value?.authorMode === 'NICKNAME');
 /** 작성자 표시 — 닉네임 · 익명. 고치면 그 칸의 서버 오류를 지운다 */
 const authorModeModel = computed<BoardAuthorMode>({
     get: () => form.value?.authorMode ?? 'NICKNAME',
