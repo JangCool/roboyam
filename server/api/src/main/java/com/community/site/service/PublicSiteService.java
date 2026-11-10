@@ -122,7 +122,7 @@ public class PublicSiteService implements CacheReloader {
     /** 운영 주체의 공개 칸 — 단계 · 연락 이메일(빈 글자는 null) · 푸터 안내 줄(없으면 null)과 보이기. 이 사본(20초)과 지문(ETag)에 함께 든다 */
     private static SiteOperatorPublicView operatorView(SiteOperatorValues v, SiteFooterNotice notice) {
         return new SiteOperatorPublicView(v.stage().name(), v.contactEmail() == null || v.contactEmail().isBlank() ? null : v.contactEmail(), notice.linesOrNull(),
-                notice.scope().name());
+                notice.scope().name(), notice.businessApply());
     }
 
     /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME) */

@@ -64,6 +64,8 @@ export interface SiteOperatorProfile {
     footerNotice: string | null;
     /** 푸터 안내를 보일 때 */
     footerNoticeScope: SiteFooterNoticeScope;
+    /** 푸터 「고객 지원」 끝의 「사업자 신청」 링크 보이기(V182, 기본 켬 — 사용자 2026-11-10). 요청에서 빼면 서버가 지금 값을 둔다 */
+    footerBusinessApply: boolean;
 }
 
 /** 단계 전환 이력 한 줄 */

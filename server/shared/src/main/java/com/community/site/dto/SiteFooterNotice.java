@@ -10,8 +10,9 @@ import java.util.List;
  *
  * @param lines 안내 줄(0~{@value #LINES_MAX}줄, 줄마다 {@value #LINE_MAX}자 이하 — 검사는 저장하는 쪽)
  * @param scope 보이기 — 개인 단계에서만 · 늘
+ * @param businessApply 푸터 「고객 지원」 끝의 「사업자 신청」 링크를 보이는가(V182, 기본 켬 — 사용자 2026-11-10)
  */
-public record SiteFooterNotice(List<String> lines, SiteFooterNoticeScope scope) {
+public record SiteFooterNotice(List<String> lines, SiteFooterNoticeScope scope, boolean businessApply) {
 
     /** 최대 줄 수 */
     public static final int LINES_MAX = 3;
@@ -20,7 +21,7 @@ public record SiteFooterNotice(List<String> lines, SiteFooterNoticeScope scope) 
 
     /** 저장한 적 없을 때(행이 없을 때)의 값 — 마이그레이션 기본값과 같다 */
     public static final SiteFooterNotice INITIAL = new SiteFooterNotice(
-            List.of("{사이트}은 개인이 운영하는 커뮤니티입니다.", "사이트 운영을 위해 광고가 표시될 수 있습니다."), SiteFooterNoticeScope.INDIVIDUAL_ONLY);
+            List.of("{사이트}은 개인이 운영하는 커뮤니티입니다.", "사이트 운영을 위해 광고가 표시될 수 있습니다."), SiteFooterNoticeScope.INDIVIDUAL_ONLY, true);
 
     public SiteFooterNotice {
         lines = lines == null ? List.of() : List.copyOf(lines);
