@@ -12,7 +12,12 @@
  * 글자 크기(보기 설정) — Tailwind 글자 크기 토큰(`text-xs`…`text-4xl`)에 배율을 곱한다. 글자만 바뀌고 여백·테두리는 그대로다(community 와 같은 방식).
  * 배율 `--text-scale` 은 `<html>` 에 걸린다(`plugins/view-theme.client.ts`, 1 = 100%). 뿌리(html)의 rem 은 키우지 않는다 — 여백까지 커지면 확대이지 글자 크기가 아니다.
  * 목록에 없는 임의 크기(`text-[0.6875rem]` 같은 것)는 아래 `@layer utilities` 에 따로 적는다. PrimeVue 위젯(단추·입력칸·선택 등) 글자는 `text-scale.css` 가 PrimeVue 글자 크기 토큰에 같은 배율을 곱한다.
+ * 기본 배율은 1.1(110% — 사용자 2026-11-11, `UtilViewSettings.DEFAULTS.textScale` 와 같게). 플러그인이 걸기 전 첫 화면도 같은 크기로 그리려고 뿌리에 둔다.
  */
+:root {
+    --text-scale: 1.1;
+}
+
 @theme {
     --text-xs: calc(0.75rem * var(--text-scale, 1));
     --text-sm: calc(0.875rem * var(--text-scale, 1));

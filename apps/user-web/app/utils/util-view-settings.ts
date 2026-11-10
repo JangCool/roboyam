@@ -13,7 +13,7 @@ export default class UtilViewSettings {
     static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 100, 110, 125];
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
 
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
 
     /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
     static readonly KEYS = ['theme', 'textScale', 'commentOrder', 'menuPosition'] as const;

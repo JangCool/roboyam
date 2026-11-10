@@ -20,7 +20,7 @@ public class MemberViewSettingEntity {
 
     /** 행이 없을 때의 기본값 — 회원 보기 설정(api {@code ViewSettingsPolicy})과 관리자 회원 상세(admin)가 같이 쓴다 */
     public static final String DEFAULT_THEME = "AUTO";
-    public static final int DEFAULT_TEXT_SCALE = 100;
+    public static final int DEFAULT_TEXT_SCALE = 110; // 사용자 2026-11-11 — 기본 글자 크기 110%(설정 안 한 회원·손님). 이미 저장한 회원은 그 값 그대로
     public static final String DEFAULT_COMMENT_ORDER = "OLDEST";
     /** 데스크톱 메뉴 위치 — 자동(운영자 설정 > 테마 기본을 따른다), V105 */
     public static final String DEFAULT_MENU_POSITION = "AUTO";
