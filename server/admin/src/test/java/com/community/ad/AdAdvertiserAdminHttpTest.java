@@ -474,7 +474,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("adAdvertisers").orElseThrow();
         assertThat(screen.path()).isEqualTo("/ad-advertisers");
         assertThat(screen.labelKey()).isEqualTo("menu.adAdvertisers");
-        assertThat(screen.icon()).isEqualTo("pi pi-id-card");
+        assertThat(screen.icon()).isEqualTo("pi pi-address-book");
         assertThat(screen.permission()).isEqualTo(Permission.AD_READ);
         AdminMenuNode ad = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL).stream().filter(n -> "menu.ad".equals(n.labelKey())).findFirst().orElseThrow();
         assertThat(ad.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers", "adPlacements");

@@ -53,7 +53,7 @@
 - 칸은 꾸미기 `style`(테마 기본이 있는 모양 값이라 `config` 가 아니라 여기 — 서버 `GadgetStyles`·검사 `GadgetPatches.style`, admin `UtilGadgetStyle`, 공개 `UtilGadget.readStyle`·`titleIcon`). ⚙ 「모양」 탭 「제목 아이콘」 구획(`GadgetTitleIconFields`).
   | 칸 | 값 |
   |---|---|
-  | `iconShow` | boolean — 테마 기본: **로보얌 false(「제목만」)**, 다음·네이버·기본 true. 칸이 없는 옛 가젯·시드도 테마 기본으로 읽는다 |
+  | `iconShow` | boolean — 테마 기본: **모든 테마 true**(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」, 처음 시안의 「제목만」을 바꿈). 칸이 없는 옛 가젯·시드도 테마 기본으로 읽는다 |
   | `iconSource` | `PRIME`(기본)·`TABLER`·`UPLOAD` |
   | `icon` | PrimeIcons `^pi-[a-z0-9-]{2,60}$`(30→60 으로 넓힘 — 8.0.2 의 가장 긴 이름 49자)·null |
   | `iconTabler` | `{ name ^[a-z0-9]+(-[a-z0-9]+)*$ ≤60, paths[1~40]{ d(경로 명령·숫자만, ≤3000자 · 합 ≤12000), fill?/stroke? currentColor·none, opacity? 0~1 } }`·null — 관리자가 고른 Tabler outline 한 개의 path 조각을 그대로 저장, 공개 화면은 그 조각만 요소로 그린다(웹폰트·전체 목록을 싣지 않는다, `v-html` 없음) |
@@ -62,6 +62,7 @@
   | `iconBg` | `NONE`·`SOFT`(옅은 네모 — 아이콘 색 12%, 다크 18%) — 테마 기본: 로보얌 SOFT, 그 밖 NONE |
 - 직접 올리기 `POST /api/admin/home-layouts/icons`(site.manage, multipart `file`) → 201 `{ fileId, url, svg }`. SVG(로고 SVG 와 같은 `SvgInspector` — script·on*·foreignObject·외부 href/url() 이 있으면 **거절**, 10만 자) 또는 PNG·WEBP(다시 만들기), 200KB. 400 `fields.file` `gadgetIcon.type`·`gadgetIcon.size`·`site.svg.*`. 키 `gadget-icon/{버전}/icon.{svg|png|webp}`, 파일 용도 `GADGET_ICON`(**shared V178** — `ck_files_purpose`). 쓰지 않은 파일은 「올리다 만 파일 정리」가 지운다.
 - 아이콘 고르기(관리자만): PrimeIcons 8.0.2 360개(`prime-icon-names.ts`) · Tabler Icons **3.49.0**(`@tabler/icons`, admin-web 의존성 — **MIT 라이선스**, 패키지의 LICENSE 로 충분 · 출처 표시 불필요) outline 5,184개는 고르기 창을 열 때만 `?raw` 로 읽는다. 검색 = 영어 이름·태그 + 한국어 별칭 몇 개, 한 번에 160개까지.
+- 기본 아이콘(사용자 2026-11-10 「가젯마다 어울리는 아이콘」): 로보얌 홈 시드 인기글 Tabler `flame` · 영상·짤 `photo-video` · 인기 소모임 `users-group`(나머지 PrimeIcons 그대로), 가젯 페이지 처음 배치 인기글 `flame` · 갤러리 `photo-video`(처음 배치 JSON 의 `tabler` 이름 → 서버 `GadgetTablerIcons` 가 그림 조각을 채움). 저장 가젯은 **shared V180** 이 처음 아이콘 그대로인 로보얌 가젯만 바꿨다(게시판 카드는 지금 데모 게시판 이름별 — 팁과강좌 `pi-lightbulb` · 사용기 `message-star` · 자유 `pi-comments` · 유머 `mood-happy` · AI·로봇·테크 `robot` · 시사 `news` · 산업·주식 `chart-candle` · 게임 `device-gamepad-2` · 스포츠 `ball-football` · 연애·결혼 `pi-heart` · 직장·취업 `pi-briefcase`).
 - 미정: 가젯에서 바꿔 뺀 올린 아이콘 파일(IN_USE)은 지우지 않는다(여러 테마·가젯이 같은 파일을 가리킬 수 있음 — 정리 배치는 나중에).
 
 ## 권한·정책

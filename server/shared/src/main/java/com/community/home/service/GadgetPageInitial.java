@@ -31,7 +31,7 @@ public final class GadgetPageInitial {
     }
 
     /**
-     * 처음 배치 JSON — {@code {columns, items[{gadgetId,x,y,w,h}], gadgets[{id,type,title,config,more,icon}]}}
+     * 처음 배치 JSON — {@code {columns, items[{gadgetId,x,y,w,h}], gadgets[{id,type,title,config,more,icon,tabler?}]}} — {@code tabler} 는 Tabler 아이콘 이름({@link GadgetTablerIcons})
      *
      * @param folderName 기준 폴더 이름(없으면 null)
      * @param boards     기준 폴더의 켜진 게시판(메뉴 차례)
@@ -42,7 +42,7 @@ public final class GadgetPageInitial {
         GadgetPageFolders.Board gallery = boards.stream().filter(x -> "GALLERY".equals(x.layout())).findFirst()
                 .orElseGet(() -> boards.stream().filter(GadgetPageFolders.Board::gallery).findFirst().orElse(null));
         int y = 0;
-        b.add("POST_LIST", folder + " 인기글", "pi-chart-line",
+        b.add("POST_LIST", folder + " 인기글", "pi-chart-line", GadgetTablerIcons.FLAME,
                 scope(HomeLayoutJson.object().put("sort", "POPULAR").put("rowStyle", "RANK").put("periodTabs", true).put("count", 10), GadgetConfigs.FOLDER, List.of())
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
                 null, 0, y, 24, TOP_H);
@@ -52,20 +52,20 @@ public final class GadgetPageInitial {
             GadgetPageFolders.Board board = cards.get(i);
             boolean left = i % 2 == 0;
             boolean last = i == cards.size() - 1;
-            b.add("BOARD_CARDS", board.name(), "pi-th-large",
+            b.add("BOARD_CARDS", board.name(), "pi-th-large", null,
                     scope(HomeLayoutJson.object().put("columns", "AUTO").put("perBoard", 4).put("cardHead", false), GadgetConfigs.PICK, List.of(board.slug())),
                     "/boards/" + board.slug(), left ? 0 : 12, y, left && last ? 24 : 12, CARDS_H);
             if (!left || last) {
                 y += CARDS_H;
             }
         }
-        b.add("POST_LIST", folder + " 최신글", "pi-clock",
+        b.add("POST_LIST", folder + " 최신글", "pi-clock", null,
                 scope(HomeLayoutJson.object().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("columns", 2).put("count", 16), GadgetConfigs.FOLDER, List.of())
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
                 null, 0, y, 24, LATEST_H);
         y += LATEST_H;
         if (gallery != null) {
-            b.add("GALLERY", gallery.name(), "pi-images", scope(HomeLayoutJson.object().put("count", 8), GadgetConfigs.PICK, List.of(gallery.slug())),
+            b.add("GALLERY", gallery.name(), "pi-images", GadgetTablerIcons.PHOTO_VIDEO, scope(HomeLayoutJson.object().put("count", 8), GadgetConfigs.PICK, List.of(gallery.slug())),
                     "/boards/" + gallery.slug(), 0, y, 24, GALLERY_H);
         }
         return b.json;
@@ -88,6 +88,11 @@ public final class GadgetPageInitial {
                 String icon = HomeLayoutJson.text(g, "icon", null);
                 if (icon != null) {
                     style.put("icon", icon);
+                }
+                // Tabler 아이콘(2026-11-10) — 이름만 두고 그림 조각은 GadgetTablerIcons 에서 채운다. 이 칸이 없는 옛 처음 배치는 PrimeIcons 그대로
+                String tablerName = HomeLayoutJson.text(g, "tabler", null);
+                if (GadgetTablerIcons.isKnown(tablerName)) {
+                    GadgetTablerIcons.apply(style, tablerName);
                 }
                 JsonNode config = g.get("config");
                 JsonNode more = g.get("more");
@@ -119,10 +124,13 @@ public final class GadgetPageInitial {
         private final ArrayNode items = json.putArray("items");
         private final ArrayNode gadgets = json.putArray("gadgets");
 
-        void add(String type, String title, String icon, JsonNode config, String moreTo, int x, int y, int w, int h) {
+        void add(String type, String title, String icon, String tabler, JsonNode config, String moreTo, int x, int y, int w, int h) {
             String id = HomeLayoutDefaults.SEED_PREFIX + (gadgets.size() + 1);
             String safeTitle = title.codePointCount(0, title.length()) > GadgetKinds.TITLE_MAX ? title.substring(0, title.offsetByCodePoints(0, GadgetKinds.TITLE_MAX)) : title;
             ObjectNode g = gadgets.addObject().put("id", id).put("type", type).put("title", safeTitle).put("icon", icon);
+            if (tabler != null) {
+                g.put("tabler", tabler);
+            }
             g.set("config", config);
             if (moreTo != null) {
                 ObjectNode more = g.putObject("more");

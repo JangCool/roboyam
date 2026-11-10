@@ -38,7 +38,7 @@ class Commerce2aCatalogTest {
     @Test
     void 결제_묶음은_보통_모드에서_포인트_상점_다음이고_다섯_화면_모두_결제_조회_권한() {
         List<String> paths = List.of("/payments/orders", "/payments/webhooks", "/payments/anomalies", "/payments/reconcile-days", "/payments/reconciliation");
-        List<String> icons = List.of("pi pi-list", "pi pi-inbox", "pi pi-exclamation-triangle", "pi pi-calendar", "pi pi-check-square");
+        List<String> icons = List.of("pi pi-receipt", "pi pi-inbox", "pi pi-exclamation-triangle", "pi pi-calendar", "pi pi-arrow-right-arrow-left");
         for (int i = 0; i < PAYMENT_SCREENS.size(); i++) {
             AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen(PAYMENT_SCREENS.get(i)).orElseThrow();
             assertThat(screen.path()).isEqualTo(paths.get(i));
