@@ -4,7 +4,6 @@ import com.community.media.exception.ImageUnreadableException;
 import com.community.media.service.ImageCodec;
 import com.community.media.service.ImageCodec.Info;
 import com.community.media.service.ImageFormat;
-import java.awt.image.BufferedImage;
 import org.springframework.stereotype.Component;
 
 /**
@@ -83,8 +82,6 @@ public class SiteOgImageProcessor {
     }
 
     private byte[] render(byte[] data) {
-        BufferedImage source = codec.decode(data, ImageFormat.PNG);
-        BufferedImage fitted = ImageCodec.resize(source, SiteMediaKeys.OG_WIDTH, SiteMediaKeys.OG_HEIGHT);
-        return ImageCodec.png(fitted, true);
+        return SiteBrandRender.ogPng(codec.decode(data, ImageFormat.PNG));
     }
 }
