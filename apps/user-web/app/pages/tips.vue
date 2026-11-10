@@ -39,7 +39,7 @@
             </PageTitleHead>
 
             <h2 :id="headlineId" class="m-0 mb-3 mt-4 flex items-center gap-1.5 text-[0.96875rem] font-bold">
-                <i class="pi pi-star text-xs text-primary" aria-hidden="true" />{{ t('tips.headlineTitle') }}
+                <i class="pi pi-star gadget-icon shrink-0 text-sm" aria-hidden="true" />{{ t('tips.headlineTitle') }}
             </h2>
 
             <div class="@container min-w-0">

@@ -29,7 +29,7 @@
                 <template v-if="head" #lead>
                     <section class="gadget-card" data-headless data-testid="gadget-page-head">
                         <PageTitleHead :title="head.name" :description="head.description" :divider="Boolean(headGadget)" title-testid="gadget-page-title" />
-                        <div v-if="headGadget" class="page-head-gadget mt-[1.125rem]" data-testid="gadget-page-head-gadget">
+                        <div v-if="headGadget" class="page-head-gadget mt-[0.9375rem]" data-testid="gadget-page-head-gadget">
                             <GadgetRenderer :gadget="headGadget" />
                         </div>
                     </section>
