@@ -119,7 +119,8 @@ public final class AiPrompts {
     }
 
     private static String quote(Quote q) {
-        String text = q.text() == null ? "" : q.text().strip();
+        // 제공사로 보내기 전에 개인정보 모양(연락처·식별 번호)을 가린다 — 국외 이전 최소화(법무 메모)
+        String text = AiPiiMasker.mask(q.text()).strip();
         if (text.length() > QUOTE_MAX) {
             text = text.substring(0, QUOTE_MAX) + "…";
         }
