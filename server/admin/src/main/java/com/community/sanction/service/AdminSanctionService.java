@@ -18,6 +18,7 @@ import com.community.sanction.dto.response.SanctionPreviewView;
 import com.community.sanction.dto.response.SanctionTargetView;
 import com.community.sanction.entity.SanctionKind;
 import com.community.sanction.exception.SanctionNotFoundException;
+import com.community.sanction.exception.SanctionNotLiftableException;
 import com.community.sanction.exception.SanctionTargetNotFoundException;
 import com.community.sanction.repository.master.AdminSanctionStore;
 import com.community.sanction.repository.master.MemberSanctionStore.SanctionRow;
@@ -179,6 +180,21 @@ public class AdminSanctionService {
             throw new SanctionNotFoundException();
         }
         return views.line(sanctions.lift(id, body == null ? null : body.reason(), operator(actor, "SANCTION", Long.toString(id))));
+    }
+
+    /**
+     * 회원의 진행 중 정지·영구 정지를 회원 기준으로 푼다(회원 상세 「정지 풀기」 — 봉인 정지는 화면에 ID 를 주지 않는다, anonymous-board-contract 2026-11-11).
+     * 진행 중인 것이 없으면 409 {@code SANCTION_NOT_LIFTABLE}(풀 ID 로 {@link #lift} 와 같은 판정), 없는 회원 404. 응답 줄은 봉인이면 {@link SanctionViews#sealedRunning}.
+     */
+    @Transactional
+    public SanctionLineView liftActive(AdminActor actor, String userIdText, SanctionLiftRequest body) {
+        Long userId = parseId(userIdText);
+        if (userId == null) {
+            throw new SanctionTargetNotFoundException();
+        }
+        long id = views.runningId(userId).orElseThrow(SanctionNotLiftableException::new);
+        SanctionLineView lifted = views.line(sanctions.lift(id, body == null ? null : body.reason(), operator(actor, "SANCTION", Long.toString(id))));
+        return lifted.sealed() ? SanctionViews.sealedRunning(lifted) : lifted;
     }
 
     /** 이 운영자의 제재 권한 — 모자라면 거부 감사(따로 커밋) 뒤 403 */

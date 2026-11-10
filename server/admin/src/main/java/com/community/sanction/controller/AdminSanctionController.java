@@ -85,6 +85,13 @@ public class AdminSanctionController {
         return noStore(service.lift(actor, id, body));
     }
 
+    /** 회원의 진행 중 정지·영구 정지 해제(회원 상세 — 봉인 정지는 ID 를 주지 않으므로 회원 기준) → 바뀐 줄 · 409 {@code SANCTION_NOT_LIFTABLE} */
+    @RequirePermission(anyOf = {Permission.SANCTION_MANAGE, Permission.SANCTION_BAN})
+    @PostMapping("/members/{userId}/lift-active")
+    public ResponseEntity<ApiResponse<SanctionLineView>> liftActive(@PathVariable String userId, @RequestBody(required = false) SanctionLiftRequest body, AdminActor actor) {
+        return noStore(service.liftActive(actor, userId, body));
+    }
+
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(body));
     }

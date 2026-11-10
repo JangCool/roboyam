@@ -1,5 +1,5 @@
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { SanctionLine, SanctionPreview } from '~/composables/sanction/api/useSanctionApi.types';
+import type { SanctionPreview, SanctionRunningLine } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 회원 한 명의 제재 현황(`GET /api/admin/sanctions/preview?userId=`)을 들고 있는 상태 — 회원 상세 서랍의 제재 구획·제재 화면의 서랍·신고 처리 대화창(줄 메뉴로 연 사건)이 쓴다.
@@ -56,9 +56,12 @@ export function useSanctionPreview() {
     }
 
     /** 진행 중 정지·영구 정지 해제 — 성공하면 null, 실패하면 오류 */
-    async function lift(line: SanctionLine, reason: string): Promise<ApiError | null> {
+    async function lift(line: SanctionRunningLine, reason: string): Promise<ApiError | null> {
         try {
-            await api.lift(line.id, reason);
+            // 봉인 진행 중 정지는 ID 가 없다 — 이 현황의 회원 기준으로 푼다(anonymous-board-contract 2026-11-11)
+            if (line.id) await api.lift(line.id, reason);
+            else if (userId.value) await api.liftActive(userId.value, reason);
+            else return null;
             void reload();
             return null;
         } catch (e) {
