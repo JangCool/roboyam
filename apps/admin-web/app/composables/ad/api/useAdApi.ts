@@ -41,6 +41,7 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  - `POST /api/admin/ads/{id}/takedown` `{ reason, notifyMail }` · `POST /api/admin/ads/{id}/restore` `{ compensation, reason }`
  *  - `GET  /api/admin/ads/placements`(`ad.read`) · `PUT /api/admin/ads/placements`(`ad.settings`) `AdPlacementsRequest` → `AdPlacementsView`(글 보기·날개 배너·게시판 목록 한 줄 자리 설정, 감사 `AD_PLACEMENT_UPDATE`).
  *    400 `fields.postInline.adType`·`fields.postInline.position`·`fields.wings.screens`·`fields.boardList.after`(1~20), 빠진 묶음은 `fields.postInline` 등.
+ *    구글 애드센스 묶음 `adsense`(shared V176 — PUT 에서 빠지면 그대로): 400 `fields.adsense.mode`·`fields.adsense.client`·`fields.adsense.units.<자리>`·`fields.adsense.units.BOARD_LIST.slot|layoutKey`.
  *  - `GET  /api/admin/ads/placements/history?page=&size=`(`ad.read`) → `AdPlacementHistoryPage`(메일 서버 설정 이력과 같은 모양 — 최신이 위, 바뀐 칸이 없는 저장은 줄이 없다)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  *  광고주 요청 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄(달력·표) `takedownCause`, 상세 `takedownCause`·`pause`·`takedown.channel`·`takedown.memo`·`takedown.pause`(신청 건 상세와 같은 모양).
@@ -107,6 +108,7 @@ export function useAdApi() {
 
         restore: (id: string, body: AdRestoreRequest): Promise<AdBookingDetail> => client.post<AdBookingDetail>(`${PATH.one(id)}/restore`, body),
 
+        /** 광고 기본 설정 — 구글 애드센스 묶음(`adsense`) 포함 */
         placements: (): Promise<AdPlacementsView> => client.get<AdPlacementsView>(PATH.placements()),
 
         savePlacements: (body: AdPlacementsRequest): Promise<AdPlacementsView> => client.put<AdPlacementsView>(PATH.placements(), body),

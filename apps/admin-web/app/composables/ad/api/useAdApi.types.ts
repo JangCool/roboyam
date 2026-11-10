@@ -277,6 +277,38 @@ export interface AdRefundSetting {
     stopFeeRate: number;
 }
 
+/**
+ * 구글 애드센스 사용 단계(탭 `?tab=adsense`, shared V176 `ad_placement_settings.adsense_mode`).
+ * `OFF` 끔 · `VERIFY` 사이트 확인만(승인 대기 — 서버가 index.html 머리에 애드센스 스크립트만 넣고 화면은 광고 단위를 그리지 않는다) · `SHOW` 광고 표시.
+ */
+export type AdSenseMode = 'OFF' | 'VERIFY' | 'SHOW';
+
+/** 디스플레이 광고 단위를 쓰는 자리 — 배너 가젯 넷 · 날개(160×600 고정) · 글 보기(반응형) */
+export type AdSenseDisplaySlot = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'POST_INLINE';
+
+/** 게시판 목록 한 줄(인피드) — 광고 단위 ID + 레이아웃 키(`-fb+5w+4e-db+86` 꼴) */
+export interface AdSenseInFeedUnit {
+    slot: string | null;
+    layoutKey: string | null;
+}
+
+/** 자리별 광고 단위 ID(숫자 10자리) — null 이면 그 자리는 애드센스를 쓰지 않는다(장부 광고만, 없으면 접힘) */
+export type AdSenseUnits = Record<AdSenseDisplaySlot, string | null> & { BOARD_LIST: AdSenseInFeedUnit };
+
+/**
+ * 구글 애드센스 묶음 — 장부 광고(사업자 신청·운영자 등록)가 없는 자리만 채운다(장부가 늘 우선).
+ * 서버 정본 shared `ad/dto/AdSenseSettings`. 검증: `mode` 가 `VERIFY`·`SHOW` 면 `client` 필수·`ca-pub-` + 숫자 16자리(400 `fields.adsense.client`) · 단위 ID 숫자 10자리(`fields.adsense.units.<자리>`) ·
+ * 인피드는 단위 ID 와 레이아웃 키(최대 64자)를 함께(`fields.adsense.units.BOARD_LIST.slot|layoutKey`).
+ */
+export interface AdSenseSetting {
+    mode: AdSenseMode;
+    /** 게시자 ID `ca-pub-` + 숫자 16자리 — 없으면 null */
+    client: string | null;
+    /** 시험 표시(`data-adtest="on"`) — 승인 전·개발 확인용, 수익·노출이 잡히지 않는다 */
+    adtest: boolean;
+    units: AdSenseUnits;
+}
+
 /** `PUT /api/admin/ads/placements` 본문 — `refund` 는 서버에선 선택(빠지면 그대로)이지만 화면은 늘 보낸다(400 `fields.refund.stopFeeRate`) */
 export interface AdPlacementsRequest {
     postInline: AdPostInlineSetting;
@@ -284,6 +316,8 @@ export interface AdPlacementsRequest {
     boardList: AdBoardListSetting;
     adult: AdAdultSetting;
     refund: AdRefundSetting;
+    /** 구글 애드센스 — 서버에선 선택(빠지면 그대로)이지만 화면은 늘 보낸다 */
+    adsense: AdSenseSetting;
 }
 
 /** `GET`·`PUT /api/admin/ads/placements` 응답 — 저장한 적 없으면 서버 기본값 + `updatedAt/updatedBy: null` */
@@ -308,7 +342,14 @@ export type AdPlacementHistoryField =
     | 'boardList.count'
     | 'boardList.gap'
     | 'adult.enabled'
-    | 'refund.stopFeeRate';
+    | 'refund.stopFeeRate'
+    // 구글 애드센스(값 없으면 null)
+    | 'adsense.mode'
+    | 'adsense.client'
+    | 'adsense.adtest'
+    | `adsense.units.${AdSenseDisplaySlot}`
+    | 'adsense.units.BOARD_LIST.slot'
+    | 'adsense.units.BOARD_LIST.layoutKey';
 
 /** `GET /api/admin/ads/placements/history` 한 줄 — 메일 서버 설정 이력과 같은 모양(공용 `SettingHistoryItem`, 출처는 늘 `ADMIN`) */
 export type AdPlacementHistoryItem = SettingHistoryItem;

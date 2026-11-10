@@ -188,7 +188,7 @@ export function usePublicAds() {
     /** 게시판 화면은 게시판을, 글 보기는 글·게시판을 받은 뒤 부른다 — 날개(`AdWings`)가 이 맥락으로 그릴지·어느 `board` 로 부를지 정한다 */
     function setWingContext(next: WingContext): void {
         const cur = state.value.wingContext;
-        if (cur && cur.path === next.path && cur.board === next.board && cur.adsHidden === next.adsHidden && cur.adult === next.adult && cur.group === next.group) return;
+        if (cur && cur.path === next.path && cur.board === next.board && cur.adsHidden === next.adsHidden && cur.adult === next.adult && cur.group === next.group && (cur.secret === true) === (next.secret === true)) return;
         state.value = { ...state.value, wingContext: { ...next } };
     }
 

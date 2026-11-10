@@ -81,11 +81,34 @@ export interface AdultPlacement {
     enabled: boolean;
 }
 
+/**
+ * 구글 애드센스 사용 단계(shared V176). `VERIFY` 는 서버가 index.html 머리에 스크립트만 넣는 단계라 화면은 단위를 그리지 않는다 — `SHOW` 만 그린다.
+ */
+export type AdSenseMode = 'OFF' | 'VERIFY' | 'SHOW';
+
+/** 애드센스 디스플레이 단위를 쓰는 자리 — 배너 가젯 넷 · 날개 · 글 보기 */
+export type AdSenseDisplaySlot = BannerAdType | 'WING_BANNER' | 'POST_INLINE';
+
+/**
+ * 공개 애드센스 묶음(`GET /api/ads/placements` 의 `adsense` — api `PublicAdView`, 정본 shared `AdSenseSettings.publicView()`). 모르는 값이면 끔.
+ * `units` 는 「광고 표시」일 때 단위 ID 가 있는 자리만(없는 자리 = 애드센스 안 씀, 「사이트 확인만」은 `{}`). 인피드는 단위 ID + 레이아웃 키가 다 있을 때만.
+ */
+export interface PublicAdSense {
+    mode: AdSenseMode;
+    /** 게시자 ID `ca-pub-` + 숫자 16자리 */
+    client: string;
+    /** 시험 표시(`data-adtest="on"`) */
+    adtest: boolean;
+    units: Partial<Record<AdSenseDisplaySlot, string>> & { BOARD_LIST?: { slot: string; layoutKey: string } };
+}
+
 export interface PublicAdPlacements {
     postInline: PostInlinePlacement;
     wings: WingPlacement;
     boardList: BoardListPlacement;
     adult: AdultPlacement;
+    /** 구글 애드센스 — 끔이거나 게시자 ID 가 없으면 null(키는 늘 있다) */
+    adsense: PublicAdSense | null;
 }
 
 export interface AdImpressionItem {

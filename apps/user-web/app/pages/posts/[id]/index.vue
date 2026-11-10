@@ -287,6 +287,8 @@
                             <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
                             <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" align="center" />
                         </div>
+                        <!-- 장부 글 보기 광고가 없으면 애드센스 반응형 디스플레이(유형이 한 줄이어도). 광고가 오지 않으면 칸째 접힌다 -->
+                        <AdSenseUnit v-else-if="inlineAdsense?.position === 'AFTER_BODY'" :key="`${post.id}:adsense-inline`" :spec="inlineAdsense.spec" class="py-3" data-testid="post-inline-adsense" @unfilled="inlineAdsenseUnfilled = post.id" />
 
                         <!-- 추천 · 링크 복사 · 신고 -->
                         <div class="flex flex-wrap items-center justify-center gap-2 py-3">
@@ -375,6 +377,15 @@
                     <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" slim placement="POST_INLINE" />
                     <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
                 </div>
+                <!-- 두 카드 사이 애드센스 — 장부 광고가 없을 때만. 접히면 요소가 없어 원래 간격 -->
+                <AdSenseUnit
+                    v-else-if="inlineAdsense?.position === 'BETWEEN_CARDS' && !folded"
+                    :key="`${post.id}:adsense-between`"
+                    :spec="inlineAdsense.spec"
+                    class="my-[max(calc(var(--content-card-gap)/2),0.5rem)]"
+                    data-testid="post-inline-adsense"
+                    @unfilled="inlineAdsenseUnfilled = post.id"
+                />
 
                 <div class="content-card" data-testid="post-comments-card">
                     <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
@@ -589,6 +600,23 @@ const inlineBoard = computed(() => {
     if (!p || p.group || (p.adult && !adultOn) || board.value?.slug !== p.board.slug || UtilAd.boardAdsHidden(board.value, adultOn)) return '';
     return p.board.slug;
 });
+/*
+ * 글 보기 애드센스 — 장부 글 보기 광고 후보가 0건인 자리를 반응형 디스플레이로(글 보기 유형이 한 줄이어도). 위치는 자리 설정 그대로.
+ * 장부 규칙(`inlineBoard` — 소모임·광고 숨김·19금 옵션)에 더해 19금 글·19금 게시판(옵션과 상관없이)·비밀글은 늘 뺀다. 관리자 미리보기는 `useAdSense` 가 뺀다.
+ */
+const adsense = useAdSense();
+/** 광고가 오지 않아 접은 글 — 다른 글로 가면 다시 그린다 */
+const inlineAdsenseUnfilled = ref<string | null>(null);
+const inlineAdsense = computed(() => {
+    const p = publicAds.placements.value?.postInline;
+    const cur = post.value;
+    if (!p?.enabled || !inlineBoard.value || !cur || cur.adult || cur.secret || board.value?.allowAdult || inlineAdsenseUnfilled.value === cur.id) return null;
+    const ads = publicAds.candidates(UtilAd.inlineType(p.adType), inlineBoard.value);
+    if (ads === undefined || ads.length > 0) return null;
+    const spec = adsense.unit('POST_INLINE');
+    return spec ? { spec, position: UtilAd.inlinePosition(p.position) } : null;
+});
+
 /** 자리 꺼짐·광고 없는 글·후보 0건이면 null */
 const inlineAd = computed(() => {
     const p = publicAds.placements.value?.postInline;
@@ -635,6 +663,8 @@ async function load(): Promise<void> {
             adsHidden: loadedBoard.adsHidden === true,
             adult: loaded.adult || loadedBoard.allowAdult === true,
             group: Boolean(loaded.group),
+            // 비밀글은 애드센스만 뺀다(장부 날개는 지금 규칙 그대로)
+            secret: loaded.secret === true,
         });
         if (!loaded.group) {
             current.set(loaded.board.slug);

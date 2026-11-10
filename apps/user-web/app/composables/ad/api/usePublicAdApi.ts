@@ -4,7 +4,8 @@ import type { AdClickRequest, AdImpressionsRequest, PublicAdPlacements, PublicAd
  * 공개 광고 노출 API(api 서버, 로그인 없이) — 계약 `docs/features/ad-contract.md` 「공개 노출 목업」.
  *  - `GET /api/ads?types=…[&board=<slug>][&prefix=]` → `PublicAdsResponse`(진행 중 건 + 최신 승인 소재, 서버 사본 20초).
  *    `board` 는 게시판 맥락 호출(목록 한 줄·글 보기·핫딜)만 — 숨김·19금·소모임·공개 아닌 게시판이면 서버가 빈 목록을 준다.
- *  - `GET /api/ads/placements` → `PublicAdPlacements`(저장한 적 없으면 서버 기본값)
+ *  - `GET /api/ads/placements` → `PublicAdPlacements`(저장한 적 없으면 서버 기본값, 요청마다 읽음).
+ *    `adsense` 는 끔·게시자 ID 없음이면 null, 아니면 `{ mode, client, adtest, units }` — 「사이트 확인만」은 `units: {}`, 「광고 표시」는 값 있는 자리만(`BOARD_LIST` 는 단위 ID·레이아웃 키가 다 있을 때만)
  *  - `POST /api/ads/impressions` `{ items[{ adId, version, placement }] }`(0~20건) · `POST /api/ads/{id}/clicks` `{ version, placement }` → data null.
  *    두 집계 주소는 서버가 CSRF 검사에서 뺀다 — `sendBeacon` 이 머리글을 붙이지 못한다.
  *  - 사업자 핫딜 노출(2차): `HOTDEAL_TOP`·`HOTDEAL_CATEGORY` 는 서버가 그 신청 건의 글(진행 중·공개)로 `deal` 을 채운다.
@@ -29,6 +30,7 @@ export function usePublicAdApi() {
         list: (query: PublicAdsQuery, signal?: AbortSignal): Promise<PublicAdsResponse> =>
             client.get<PublicAdsResponse>(PATH.ads, { query: { types: query.types.join(','), board: query.board, prefix: query.prefix }, signal }),
 
+        /** 자리 설정 — 구글 애드센스 묶음 포함(null = 끔) */
         placements: (signal?: AbortSignal): Promise<PublicAdPlacements> => client.get<PublicAdPlacements>(PATH.placements, { signal }),
 
         impressions: (request: AdImpressionsRequest): Promise<void> => client.post<void>(PATH.impressions, request),

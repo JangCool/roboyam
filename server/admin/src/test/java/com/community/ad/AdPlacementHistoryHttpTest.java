@@ -71,7 +71,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.items[0].operatorName").value(operatorName(me)))
                 .andExpect(jsonPath("$.data.items[0].operatorDeleted").value(false))
                 .andExpect(jsonPath("$.data.items[0].changedAt").isString())
-                .andExpect(jsonPath("$.data.items[0].changes.length()").value(12))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(14)) // 열두 칸 + 애드센스 mode·adtest(V176 — 빈 게시자 ID·단위 ID 는 남기지 않는다)
                 .andExpect(jsonPath("$.data.items[0].changes[0].field").value("postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].labelKey").value("settingHistory.field.postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].before").doesNotExist())
@@ -102,7 +102,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
         Cookie session = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
         save(session, DEFAULTS);
         mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(12))
+                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(14)) // 열두 칸 + 애드센스 mode·adtest(V176 — 빈 게시자 ID·단위 ID 는 남기지 않는다)
                 .andExpect(jsonPath("$.data.items[0].changes[5].after").value("HOME,PAGE,BOARD,POST"));
         // 그다음 같은 값 — 줄 없음
         save(session, DEFAULTS);
@@ -145,6 +145,63 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
 
         // 틀린 저장(400)은 이력도 남기지 않는다
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), session).content(VALID.replace("\"after\":12", "\"after\":0"))).andExpect(status().isBadRequest());
+        assertThat(rows()).isEqualTo(3);
+    }
+
+    @Test
+    void 애드센스_칸_변경도_이력에_adsense_키로_남는다() throws Exception {
+        Cookie session = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
+        String client = "ca-pub-1234567890123456";
+        String adsense = ",\"adsense\":{\"mode\":\"SHOW\",\"client\":\"" + client + "\",\"adtest\":true,\"units\":{\"WIDE_BANNER\":\"1234567890\","
+                + "\"BOARD_LIST\":{\"slot\":\"4234567890\",\"layoutKey\":\"-fb+5w+4e-db+86\"}}}}";
+        String withAdsense = VALID.substring(0, VALID.length() - 1) + adsense;
+        // 처음 저장 — 열두 칸 + 값 있는 애드센스 칸 여섯(mode·client·adtest·WIDE_BANNER·BOARD_LIST 둘), 빈 단위는 남기지 않는다
+        save(session, withAdsense);
+        mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].action").value("CREATE"))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(18))
+                .andExpect(jsonPath("$.data.items[0].changes[12].field").value("adsense.mode"))
+                .andExpect(jsonPath("$.data.items[0].changes[12].labelKey").value("settingHistory.field.adsense.mode"))
+                .andExpect(jsonPath("$.data.items[0].changes[12].before").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].changes[12].after").value("SHOW"))
+                .andExpect(jsonPath("$.data.items[0].changes[13].field").value("adsense.client"))
+                .andExpect(jsonPath("$.data.items[0].changes[13].after").value(client))
+                .andExpect(jsonPath("$.data.items[0].changes[14].field").value("adsense.adtest"))
+                .andExpect(jsonPath("$.data.items[0].changes[14].after").value("true"))
+                .andExpect(jsonPath("$.data.items[0].changes[15].field").value("adsense.units.WIDE_BANNER"))
+                .andExpect(jsonPath("$.data.items[0].changes[15].after").value("1234567890"))
+                .andExpect(jsonPath("$.data.items[0].changes[16].field").value("adsense.units.BOARD_LIST.slot"))
+                .andExpect(jsonPath("$.data.items[0].changes[16].after").value("4234567890"))
+                .andExpect(jsonPath("$.data.items[0].changes[17].field").value("adsense.units.BOARD_LIST.layoutKey"))
+                .andExpect(jsonPath("$.data.items[0].changes[17].labelKey").value("settingHistory.field.adsense.units.BOARD_LIST.layoutKey"))
+                .andExpect(jsonPath("$.data.items[0].changes[17].after").value("-fb+5w+4e-db+86"));
+
+        // 모드 SHOW → VERIFY · 넓은 배너 단위 비움 · 인피드 비움 — 바뀐 네 칸만, 비운 칸은 after 없음
+        save(session, VALID.substring(0, VALID.length() - 1) + ",\"adsense\":{\"mode\":\"VERIFY\",\"client\":\"" + client + "\",\"adtest\":true}}");
+        assertThat(rows()).isEqualTo(2);
+        mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].action").value("UPDATE"))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(4))
+                .andExpect(jsonPath("$.data.items[0].changes[0].field").value("adsense.mode"))
+                .andExpect(jsonPath("$.data.items[0].changes[0].before").value("SHOW")).andExpect(jsonPath("$.data.items[0].changes[0].after").value("VERIFY"))
+                .andExpect(jsonPath("$.data.items[0].changes[1].field").value("adsense.units.WIDE_BANNER"))
+                .andExpect(jsonPath("$.data.items[0].changes[1].before").value("1234567890"))
+                .andExpect(jsonPath("$.data.items[0].changes[1].after").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].changes[2].field").value("adsense.units.BOARD_LIST.slot"))
+                .andExpect(jsonPath("$.data.items[0].changes[3].field").value("adsense.units.BOARD_LIST.layoutKey"))
+                .andExpect(jsonPath("$.data.items[0].changes[3].before").value("-fb+5w+4e-db+86"))
+                .andExpect(jsonPath("$.data.items[0].changes[3].after").doesNotExist());
+
+        // adsense 없이 같은 자리 설정 — 애드센스는 그대로라 줄이 없다
+        save(session, VALID);
+        assertThat(rows()).isEqualTo(2);
+        // 시험 표시만 끔 — 한 줄
+        save(session, VALID.substring(0, VALID.length() - 1) + ",\"adsense\":{\"mode\":\"VERIFY\",\"client\":\"" + client + "\",\"adtest\":false}}");
+        mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].changes[0].field").value("adsense.adtest"))
+                .andExpect(jsonPath("$.data.items[0].changes[0].before").value("true")).andExpect(jsonPath("$.data.items[0].changes[0].after").value("false"));
+        // 틀린 애드센스(400)는 이력을 남기지 않는다
+        mvc.perform(withCsrf(put("/api/admin/ads/placements"), session).content(VALID.substring(0, VALID.length() - 1) + ",\"adsense\":{\"mode\":\"SHOW\"}}"))
+                .andExpect(status().isBadRequest());
         assertThat(rows()).isEqualTo(3);
     }
 

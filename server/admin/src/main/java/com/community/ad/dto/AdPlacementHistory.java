@@ -12,7 +12,11 @@ public final class AdPlacementHistory {
 
     /** 칸 이름 — 감사 {@code AD_PLACEMENT_UPDATE} before/after 의 키와 같고, 이 차례로 남긴다 */
     public static final List<String> FIELDS = List.of("postInline.enabled", "postInline.adType", "postInline.position", "wings.left", "wings.right", "wings.screens",
-            "boardList.enabled", "boardList.after", "adult.enabled", "refund.stopFeeRate", "boardList.count", "boardList.gap");
+            "boardList.enabled", "boardList.after", "adult.enabled", "refund.stopFeeRate", "boardList.count", "boardList.gap",
+            // 구글 애드센스(V176) — 게시자 ID·단위 ID 가 없으면 값 null
+            "adsense.mode", "adsense.client", "adsense.adtest", "adsense.units.WIDE_BANNER", "adsense.units.STRIP_BANNER", "adsense.units.SQUARE_BANNER",
+            "adsense.units.SMALL_BANNER", "adsense.units.WING_BANNER", "adsense.units.POST_INLINE", "adsense.units.BOARD_LIST.slot",
+            "adsense.units.BOARD_LIST.layoutKey");
 
     private AdPlacementHistory() {
     }

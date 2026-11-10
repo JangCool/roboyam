@@ -237,7 +237,7 @@
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :global-pinned="list.globalPinned ?? []" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :chip-position="chipPosition" />
+                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :global-pinned="list.globalPinned ?? []" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :feed-adsense="feedAdsense" :chip-position="chipPosition" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>
@@ -334,7 +334,7 @@ async function loadBoard(): Promise<void> {
         boardState.value = 'ready';
         current.setWrite({ slug: wanted, canWrite: result.viewer.canWrite, reason: result.viewer.writeBlockedReason });
         // 날개 배너 — 광고 숨김·19금(옵션 꺼짐) 게시판이면 그리지 않는다(받기 전에는 `board` 판정을 서버에 맡긴다)
-        if (slug.value === wanted) publicAds.setWingContext({ path: route.path, board: wanted, adsHidden: result.adsHidden === true, adult: result.allowAdult === true, group: false });
+        if (slug.value === wanted) publicAds.setWingContext({ path: route.path, board: wanted, adsHidden: result.adsHidden === true, adult: result.allowAdult === true, group: result.kind === 'GROUP' });
         // 게시판 모음(`/boards`)의 「최근 방문」 — 열린 게시판만 이 기기에 남긴다
         recentBoards.record(wanted);
     } catch (e) {
@@ -502,8 +502,12 @@ const listState = ref<ListState>('loading');
 const listError = ref('');
 const isEmpty = computed(() => !list.value || (list.value.items.length === 0 && list.value.pinned.length === 0));
 
-const feedAd = useBoardFeedAd(
-    computed(() => (view.value && list.value ? { slug: slug.value, board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null)),
+const feedTarget = computed(() => (view.value && list.value ? { slug: slug.value, board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null));
+const feedAd = useBoardFeedAd(feedTarget);
+/** 장부 한 줄 광고가 비운 자리의 애드센스 인피드 — 목록형(LIST)·핫딜 아님일 때만 */
+const feedAdsense = useBoardFeedAdSense(
+    computed(() => (feedTarget.value ? { ...feedTarget.value, listStyle: !isDeal.value && listKind.value === 'LIST' } : null)),
+    feedAd,
 );
 
 let listRequest = 0;

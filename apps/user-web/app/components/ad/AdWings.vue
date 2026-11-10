@@ -1,15 +1,21 @@
 <template>
-    <!-- 본문 상자 바깥 좌우에 덮는 층(본문 배치를 밀지 않는다) — 바깥 여백이 날개+간격보다 좁으면 숨는다 -->
+    <!--
+        본문 상자 바깥 좌우에 덮는 층(본문 배치를 밀지 않는다) — 바깥 여백이 날개+간격보다 좁으면 숨는다.
+        장부 날개 배너가 없는 쪽은 애드센스 단위(160×600 고정)로 채운다: 「광고 표시」 단계 + 날개 단위 ID · 그 쪽이 켜짐 · 장부 후보를 받았는데 그 쪽 광고가 없음 ·
+        게시판 화면·글 보기는 맥락이 19금(옵션과 상관없이)·광고 숨김·소모임·비밀글이 아님. 광고가 오지 않으면 그 쪽을 접는다(이 화면에서만).
+    -->
     <div ref="host" class="pointer-events-none absolute inset-x-0 top-0 z-10 max-lg:hidden" :style="layerStyle" data-testid="ad-wings">
         <template v-if="shown">
-            <div v-if="picked.left" class="absolute top-0 h-full" :style="{ left: `${box.left - UtilAd.WING.gap - UtilAd.WING.width}px`, width: `${UtilAd.WING.width}px` }">
+            <div v-if="picked.left || adsenseLeft" class="absolute top-0 h-full" :style="{ left: `${box.left - UtilAd.WING.gap - UtilAd.WING.width}px`, width: `${UtilAd.WING.width}px` }">
                 <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingLeftLabel')" data-testid="ad-wing-left">
-                    <AdSlot :key="`${route.path}:${picked.left.id}`" type="WING_BANNER" :ads="[picked.left]" placement="WING_LEFT" />
+                    <AdSlot v-if="picked.left" :key="`${route.path}:${picked.left.id}`" type="WING_BANNER" :ads="[picked.left]" placement="WING_LEFT" />
+                    <AdSenseUnit v-else-if="adsenseLeft" :key="`${route.path}:adsense-left`" :spec="adsenseLeft" @unfilled="unfilledAt.left = route.path" />
                 </aside>
             </div>
-            <div v-if="picked.right" class="absolute top-0 h-full" :style="{ left: `${box.right + UtilAd.WING.gap}px`, width: `${UtilAd.WING.width}px` }">
+            <div v-if="picked.right || adsenseRight" class="absolute top-0 h-full" :style="{ left: `${box.right + UtilAd.WING.gap}px`, width: `${UtilAd.WING.width}px` }">
                 <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingRightLabel')" data-testid="ad-wing-right">
-                    <AdSlot :key="`${route.path}:${picked.right.id}`" type="WING_BANNER" :ads="[picked.right]" placement="WING_RIGHT" />
+                    <AdSlot v-if="picked.right" :key="`${route.path}:${picked.right.id}`" type="WING_BANNER" :ads="[picked.right]" placement="WING_RIGHT" />
+                    <AdSenseUnit v-else-if="adsenseRight" :key="`${route.path}:adsense-right`" :spec="adsenseRight" @unfilled="unfilledAt.right = route.path" />
                 </aside>
             </div>
         </template>
@@ -76,6 +82,24 @@ watch(
     },
     { immediate: true },
 );
+
+/*
+ * 애드센스 — 장부 광고가 없는 쪽만. 장부 후보를 받기 전(`candidates` null)에는 그리지 않는다(애드센스가 먼저 떴다가 장부로 바뀌지 않게).
+ * 게시판 화면·글 보기는 맥락을 받은 뒤에만(19금은 옵션과 상관없이 뺀다 — `useAdSense().contextAllows`).
+ */
+const adsense = useAdSense();
+/** 광고가 오지 않아 접은 쪽 — 그때의 주소(다른 화면으로 가면 다시 그린다) */
+const unfilledAt = ref<{ left: string | null; right: string | null }>({ left: null, right: null });
+const adsenseSpec = computed(() => {
+    if (!candidates.value) return null;
+    const spec = adsense.unit('WING_BANNER');
+    if (!spec) return null;
+    const screen = UtilAd.wingScreen(route.path);
+    if ((screen === 'BOARD' || screen === 'POST') && !adsense.contextAllows(route.path)) return null;
+    return spec;
+});
+const adsenseLeft = computed(() => (wing.value.left && !picked.value.left && unfilledAt.value.left !== route.path ? adsenseSpec.value : null));
+const adsenseRight = computed(() => (wing.value.right && !picked.value.right && unfilledAt.value.right !== route.path ? adsenseSpec.value : null));
 
 const host = ref<HTMLElement | null>(null);
 const box = ref({ ok: false, top: 0, height: 0, left: 0, right: 0, stickyTop: 0 });
@@ -151,6 +175,6 @@ onBeforeUnmount(() => {
 // 화면·테마(셸)가 바뀌면 본문 요소가 바뀔 수 있다 — 그린 뒤 다시 잰다
 watch([() => route.path, theme], () => nextTick(schedule));
 
-const shown = computed(() => box.value.ok && (picked.value.left !== null || picked.value.right !== null));
+const shown = computed(() => box.value.ok && (picked.value.left !== null || picked.value.right !== null || adsenseLeft.value !== null || adsenseRight.value !== null));
 const layerStyle = computed<CSSProperties>(() => (shown.value ? { top: `${box.value.top}px`, height: `${box.value.height}px` } : { height: '0px' }));
 </script>

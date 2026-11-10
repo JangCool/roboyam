@@ -1,6 +1,7 @@
 package com.community.ad.service;
 
 import com.community.ad.dto.AdPlacements;
+import com.community.ad.dto.AdSenseSettings;
 import com.community.ad.dto.PublicAdView;
 import com.community.ad.repository.master.AdPlacementStore;
 import com.community.ad.repository.master.PublicAdStore;
@@ -148,9 +149,12 @@ public class PublicAdService {
         }
     }
 
-    /** 노출 자리 설정(저장한 적 없으면 기본값) */
-    public AdPlacements placements() {
-        return placements.current();
+    /** 노출 자리 설정 + 구글 애드센스 공개 묶음(저장한 적 없으면 기본값 · 애드센스 null) — 사본 없이 요청마다 읽는다 */
+    public PublicAdView.Placements placements() {
+        AdPlacementStore.Stored stored = placements.find().orElse(null);
+        AdPlacements p = stored == null ? AdPlacements.DEFAULTS : stored.value();
+        AdSenseSettings adsense = stored == null ? AdSenseSettings.DEFAULTS : stored.adsense();
+        return new PublicAdView.Placements(p.postInline(), p.wings(), p.boardList(), p.adult(), adsense.publicView());
     }
 
     /** 사본을 버린다(다음 읽기가 다시 읽는다) — 시험·운영 도구 */

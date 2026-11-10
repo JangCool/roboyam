@@ -1,5 +1,6 @@
 package com.community.site.config;
 
+import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.collect.VisitCollector;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -27,6 +28,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 파일 확장자가 있는 주소(정적 자산 — {@code /index.html} 만 예외). 화면 파일이 없거나(빌드 전) 머리를 만들다 실패하면 그대로 지나가 평소처럼 처리된다(서버가 막히지 않는다).
  * 내려 보내는 {@code index.html} 은 {@code Cache-Control: no-cache} + {@code ETag} 라 브라우저가 매번 물어보되 같으면 {@code 304} 다(설정을 바꾸면 곧 따라온다).
  * 관리자 미리보기 요청({@link AdminPreviewFrame#isPreview} — {@code ?adminPreview=1})이면 머리에 관리자 origin 메타를 더한 사본을 내린다(프레임 헤더는 보안 설정이 붙인다).
+ * 그 밖의 화면 요청은 구글 애드센스가 VERIFY·SHOW 이고 게시자 ID 가 있으면 머리 끝에 사이트 확인 메타·{@code adsbygoogle.js} 를 더한다({@link IndexHtmlRenderer#withAdSense} —
+ * 설정은 요청마다 읽어 저장 뒤 다음 요청부터, 미리보기에는 넣지 않는다 — docs/features/adsense-contract.md).
  *
  * <p>봇·크롤러 통계(site-analytics-contract 「2단계 — 봇」): 화면은 SPA(서버 렌더링 없음)라 크롤러가 받는 첫 응답이 이 {@code index.html} 이다 — 요청마다 원래 User-Agent 로
  * {@link VisitCollector#countBotPage} 가 봇만 종류별로 메모리에 센다(DB 에 쓰지 않는다, 1분 몰아쓰기). 화면 요청 하나 = 1, 그 뒤 화면이 부르는 {@code /api/**} 는 세지 않는다.
@@ -46,12 +49,15 @@ public class SiteHeadFilter extends OncePerRequestFilter {
     private final IndexHtmlRenderer renderer;
     private final AdminPreviewFrame preview;
     private final VisitCollector visits;
+    private final AdSenseSiteService adsense;
 
-    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview, VisitCollector visits) {
+    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview, VisitCollector visits,
+                          AdSenseSiteService adsense) {
         this.siteService = siteService;
         this.renderer = renderer;
         this.preview = preview;
         this.visits = visits;
+        this.adsense = adsense;
     }
 
     @Override
@@ -97,7 +103,12 @@ public class SiteHeadFilter extends OncePerRequestFilter {
         }
         RenderedIndex index = rendered.get();
         if (preview.isPreview(request)) {
-            index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow());
+            index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow()); // 미리보기에는 애드센스를 넣지 않는다
+        } else {
+            String client = adsenseClient();
+            if (client != null) {
+                index = renderer.withAdSense(index, client);
+            }
         }
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
         if (new ServletWebRequest(request, response).checkNotModified("\"" + index.etag() + "\"")) {
@@ -107,6 +118,16 @@ public class SiteHeadFilter extends OncePerRequestFilter {
         response.setContentLength(index.body().length);
         if (!HttpMethod.HEAD.matches(request.getMethod())) {
             response.getOutputStream().write(index.body());
+        }
+    }
+
+    /** 머리에 넣을 애드센스 게시자 ID — 끔·없음이면 null. 읽다 실패하면 애드센스 없이 내린다(화면이 막히지 않게) */
+    private String adsenseClient() {
+        try {
+            return adsense.activeClient().orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("애드센스 설정을 읽지 못해 머리에 넣지 않는다: {}", e.toString());
+            return null;
         }
     }
 }

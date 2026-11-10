@@ -17,10 +17,21 @@ const FIELD_KEYS: Record<AdPlacementHistoryField, string> = {
     'boardList.gap': 'ad.placementHistoryField.boardListGap',
     'adult.enabled': 'ad.placementHistoryField.adultEnabled',
     'refund.stopFeeRate': 'ad.placementHistoryField.refundStopFeeRate',
+    'adsense.mode': 'ad.placementHistoryField.adsenseMode',
+    'adsense.client': 'ad.placementHistoryField.adsenseClient',
+    'adsense.adtest': 'ad.placementHistoryField.adsenseAdtest',
+    'adsense.units.WIDE_BANNER': 'ad.placementHistoryField.adsenseUnitWide',
+    'adsense.units.STRIP_BANNER': 'ad.placementHistoryField.adsenseUnitStrip',
+    'adsense.units.SQUARE_BANNER': 'ad.placementHistoryField.adsenseUnitSquare',
+    'adsense.units.SMALL_BANNER': 'ad.placementHistoryField.adsenseUnitSmall',
+    'adsense.units.WING_BANNER': 'ad.placementHistoryField.adsenseUnitWing',
+    'adsense.units.POST_INLINE': 'ad.placementHistoryField.adsenseUnitPost',
+    'adsense.units.BOARD_LIST.slot': 'ad.placementHistoryField.adsenseUnitFeed',
+    'adsense.units.BOARD_LIST.layoutKey': 'ad.placementHistoryField.adsenseLayoutKey',
 };
 
 /** 켜고 끄는 칸 — 값 `"true"`/`"false"` */
-const TOGGLE_FIELDS: ReadonlySet<string> = new Set(['postInline.enabled', 'wings.left', 'wings.right', 'boardList.enabled', 'adult.enabled']);
+const TOGGLE_FIELDS: ReadonlySet<string> = new Set(['postInline.enabled', 'wings.left', 'wings.right', 'boardList.enabled', 'adult.enabled', 'adsense.adtest']);
 
 /**
  * 광고 화면의 계산이 낀 문구 — 상수 문구는 컴포넌트가 `t('ad.…')` 로 부른다. `t` 를 첫 인자로 받는다.
@@ -73,6 +84,7 @@ export default class UtilAdMessages {
         }
         if (field === 'postInline.adType') return UtilAdMessages.option(t, te, 'ad.postInlineTypeOption', value);
         if (field === 'postInline.position') return UtilAdMessages.option(t, te, 'ad.postInlinePositionOption', value);
+        if (field === 'adsense.mode') return UtilAdMessages.option(t, te, 'ad.adsenseModeOption', value);
         if (field === 'wings.screens') {
             const screens = value
                 .split(',')

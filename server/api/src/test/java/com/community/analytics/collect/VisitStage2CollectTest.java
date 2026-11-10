@@ -6,6 +6,7 @@ import static com.community.analytics.collect.AnalyticsTestSupport.settings;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.settings.StatsCollection;
 import com.community.search.controller.SearchController;
 import com.community.search.dto.response.SearchResponse;
@@ -308,7 +309,20 @@ class VisitStage2CollectTest {
     }
 
     private SiteHeadFilter filter(boolean rendered) {
-        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector);
+        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense());
+    }
+
+    /** 애드센스 끔(머리에 넣을 것 없음) */
+    static final class NoAdSense extends AdSenseSiteService {
+
+        NoAdSense() {
+            super(null);
+        }
+
+        @Override
+        public Optional<String> activeClient() {
+            return Optional.empty();
+        }
     }
 
     private static MockHttpServletRequest page(String method, String path, String ua) {

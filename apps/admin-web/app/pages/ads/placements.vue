@@ -6,7 +6,9 @@
           ③ 게시판 목록 한 줄 — 켜기 · 일반 글 몇 번째 뒤(1~20)
           ④ 19금 — 19금 게시판·19금 글에도 광고 보이기(기본 끔. 끄면 날개까지 모두 빠짐 · 게시판 「광고 숨김」·소모임은 늘 빠짐)
           ⑤ 중도 해지 수수료(biz-pause-contract 규칙 7 — V127) — 0~30 정수 %(기본 10), 광고·사업자 핫딜 공통, 신청 건을 낼 때 그 건에 고정. 미리보기는 예시 계산(남은 일할 100,000원 → 수수료 → 환불)
-        짜임(사용자 결정 2026-11-01): 묶음 다섯 = 탭 다섯(주소 `?tab=post|wings|list|adult|refund`, 모르는 값은 첫 탭). 세 칸 — 왼쪽 탭 메뉴 카드(세로, lg 이상 sticky) · 가운데 고른 탭의 폼 카드 + 저장 줄 · 오른쪽 미리보기 한 곳(lg 이상 sticky).
+          ⑥ 구글 애드센스(shared V176 — 계약 `docs/features/adsense-contract.md`) — 사용 단계(끔·사이트 확인만·광고 표시) · 게시자 ID · 시험 표시 · 자리별 광고 단위 ID.
+             장부 광고(사업자 신청·운영자 등록)가 없는 자리만 애드센스로 채운다. 미리보기는 단계·자리별 채우기 순서·서버가 낼 머리 스크립트와 `/ads.txt` 한 줄.
+        짜임(사용자 결정 2026-11-01): 묶음 다섯 = 탭 다섯(주소 `?tab=post|wings|list|adult|refund`, 모르는 값은 첫 탭) — 2026-11-10 여섯째 `adsense` 를 더했다. 세 칸 — 왼쪽 탭 메뉴 카드(세로, lg 이상 sticky) · 가운데 고른 탭의 폼 카드 + 저장 줄 · 오른쪽 미리보기 한 곳(lg 이상 sticky).
           좁은 화면(lg 미만)은 한 열 — 메뉴 카드(탭 가로 줄, 넘치면 가로 스크롤) → 폼 카드·저장 줄 → 미리보기.
           미리보기 도식(`AdPlacement*Preview` — 공개 화면 짜임을 회색 상자로 단순하게 그리고 광고 자리만 주 색상)은 고른 탭의 것으로 바뀌고, 저장 전 폼 값을 바로 따라 그린다(저장된 값과 다르면 「저장 전」).
           폼 값은 이 화면(`form`)에 있고 탭 패널은 숨기기만 해서 탭을 바꿔도 입력이 남는다. 탭 단추에 저장 전이면 주황 점, 서버가 거절한 칸이 있으면 빨간 점. 저장이 칸 오류로 실패하면 지금 탭에 오류가 없을 때 첫 오류 탭으로 옮긴다.
@@ -279,6 +281,168 @@
                                 </div>
                             </div>
 
+                            <!--
+                                ⑥ 구글 애드센스. 장부 광고(사업자 신청·운영자 등록)가 없는 자리만 채운다.
+                                사용 단계 · 게시자 ID(「사이트 확인만」·「광고 표시」면 필수) · 시험 표시 · 자리별 광고 단위 ID(비우면 그 자리는 애드센스 안 씀) · 준비 안내.
+                                칸 검사는 화면이 미리 알려 주고(`UtilAdSense.problems` — 형식 오류는 칸을 떠난 뒤·저장을 누른 뒤) 판정은 서버다(400 `fields.adsense.*` 는 그 칸 아래).
+                                붙여 넣은 값은 칸을 떠날 때 다듬는다 — `pub-…` → `ca-pub-…`, 광고 코드 통째면 그 안의 게시자 ID·단위 ID·레이아웃 키만.
+                            -->
+                            <div v-show="tab === 'adsense'" :id="panelIdOf('adsense')" role="tabpanel" :aria-labelledby="tabIdOf('adsense')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-5" data-testid="ad-placements-adsense">
+                                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.adsenseLead') }}</p>
+                                    <Message v-if="errorOf('adsense')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('adsense') }}</Message>
+
+                                    <!-- 사용 단계 -->
+                                    <fieldset class="m-0 flex flex-col gap-2.5 border-0 p-0">
+                                        <legend class="mb-1 p-0 text-sm font-medium">{{ t('ad.adsenseMode') }}</legend>
+                                        <div v-for="mode in UtilAdSense.MODES" :key="mode" class="flex items-start gap-2">
+                                            <RadioButton
+                                                v-model="form.adsense.mode"
+                                                :value="mode"
+                                                :input-id="`${idBase}-adsense-mode-${mode}`"
+                                                :disabled="locked"
+                                                class="mt-0.5 shrink-0"
+                                                :data-testid="`ad-placements-adsense-mode-${mode}`"
+                                                @update:model-value="clearServer('adsense.mode')"
+                                            />
+                                            <label :for="`${idBase}-adsense-mode-${mode}`" class="flex min-w-0 flex-col gap-0.5">
+                                                <span class="text-sm">{{ t(`ad.adsenseModeOption.${mode}`) }}</span>
+                                                <span class="text-xs leading-relaxed text-muted-color">{{ t(`ad.adsenseModeHelp.${mode}`) }}</span>
+                                            </label>
+                                        </div>
+                                        <small v-if="errorOf('adsense.mode')" class="text-xs text-red-600 dark:text-red-400">{{ errorOf('adsense.mode') }}</small>
+                                    </fieldset>
+
+                                    <!-- 게시자 ID · 시험 표시 -->
+                                    <div class="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                                        <LabeledField
+                                            :label="t('ad.adsenseClient')"
+                                            :hint="form.adsense.mode !== 'OFF' ? t('ad.adsenseRequired') : ''"
+                                            :help="t('ad.adsenseClientHelp')"
+                                            :error="adsenseError('adsense.client')"
+                                        >
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <InputText
+                                                    :id="id"
+                                                    v-model="form.adsense.client"
+                                                    :readonly="locked"
+                                                    :invalid="invalid"
+                                                    :aria-describedby="describedBy"
+                                                    placeholder="ca-pub-0000000000000000"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                    class="font-mono text-sm"
+                                                    fluid
+                                                    data-testid="ad-placements-adsense-client"
+                                                    @update:model-value="clearServer('adsense.client')"
+                                                    @blur="onAdsenseBlur('adsense.client')"
+                                                />
+                                            </template>
+                                        </LabeledField>
+                                        <div class="flex items-start gap-2 md:pt-7 lg:pt-0 xl:pt-7">
+                                            <ToggleSwitch v-model="form.adsense.adtest" :input-id="`${idBase}-adsense-adtest`" :disabled="locked" class="shrink-0" :aria-describedby="`${idBase}-adsense-adtest-help`" @update:model-value="clearServer('adsense.adtest')" />
+                                            <label :for="`${idBase}-adsense-adtest`" class="flex flex-col gap-0.5">
+                                                <span class="text-sm">{{ t('ad.adsenseAdtest') }}</span>
+                                                <span :id="`${idBase}-adsense-adtest-help`" class="text-xs leading-relaxed" :class="errorOf('adsense.adtest') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">
+                                                    {{ errorOf('adsense.adtest') || t('ad.adsenseAdtestHelp') }}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- 자리별 광고 단위 ID -->
+                                    <fieldset class="m-0 flex flex-col gap-3 border-0 p-0" :class="{ 'opacity-60': form.adsense.mode !== 'SHOW' }" :aria-describedby="`${idBase}-adsense-units-help`">
+                                        <legend class="mb-1 p-0 text-sm font-medium">{{ t('ad.adsenseUnits') }}</legend>
+                                        <p :id="`${idBase}-adsense-units-help`" class="m-0 -mt-1 text-xs leading-relaxed text-muted-color">{{ t('ad.adsenseUnitsHelp') }}</p>
+                                        <Message v-if="errorOf('adsense.units')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('adsense.units') }}</Message>
+                                        <div class="grid gap-x-6 gap-y-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                                            <LabeledField v-for="slot in UtilAdSense.DISPLAY_SLOTS" :key="slot" :label="t(`ad.adsenseUnit.${slot}`)" :hint="t(`ad.adsenseUnitHint.${slot}`)" :error="adsenseError(`adsense.units.${slot}`)">
+                                                <template #default="{ id, describedBy, invalid }">
+                                                    <InputText
+                                                        :id="id"
+                                                        v-model="form.adsense.units[slot]"
+                                                        :readonly="locked"
+                                                        :invalid="invalid"
+                                                        :aria-describedby="describedBy"
+                                                        inputmode="numeric"
+                                                        placeholder="1234567890"
+                                                        autocomplete="off"
+                                                        spellcheck="false"
+                                                        class="font-mono text-sm tabular-nums"
+                                                        fluid
+                                                        :data-testid="`ad-placements-adsense-unit-${slot}`"
+                                                        @update:model-value="clearServer(`adsense.units.${slot}`)"
+                                                        @blur="onAdsenseBlur(`adsense.units.${slot}`)"
+                                                    />
+                                                </template>
+                                            </LabeledField>
+                                        </div>
+                                        <!-- 게시판 목록 한 줄(인피드) — 단위 ID + 레이아웃 키 -->
+                                        <div class="flex flex-col gap-2 rounded-lg border border-(--line) p-3">
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="text-sm font-medium">{{ t('ad.adsenseUnit.BOARD_LIST') }}</span>
+                                                <span class="text-xs leading-relaxed text-muted-color">{{ t('ad.adsenseUnitHint.BOARD_LIST') }}</span>
+                                            </div>
+                                            <div class="grid gap-x-6 gap-y-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                                                <LabeledField :label="t('ad.adsenseFeedSlot')" :error="adsenseError('adsense.units.BOARD_LIST.slot')">
+                                                    <template #default="{ id, describedBy, invalid }">
+                                                        <InputText
+                                                            :id="id"
+                                                            v-model="form.adsense.units.BOARD_LIST.slot"
+                                                            :readonly="locked"
+                                                            :invalid="invalid"
+                                                            :aria-describedby="describedBy"
+                                                            inputmode="numeric"
+                                                            placeholder="1234567890"
+                                                            autocomplete="off"
+                                                            spellcheck="false"
+                                                            class="font-mono text-sm tabular-nums"
+                                                            fluid
+                                                            data-testid="ad-placements-adsense-unit-BOARD_LIST"
+                                                            @update:model-value="clearServer('adsense.units.BOARD_LIST.slot')"
+                                                            @blur="onAdsenseBlur('adsense.units.BOARD_LIST.slot')"
+                                                        />
+                                                    </template>
+                                                </LabeledField>
+                                                <LabeledField :label="t('ad.adsenseFeedLayoutKey')" :help="t('ad.adsenseFeedLayoutKeyHelp')" :error="adsenseError('adsense.units.BOARD_LIST.layoutKey')">
+                                                    <template #default="{ id, describedBy, invalid }">
+                                                        <InputText
+                                                            :id="id"
+                                                            v-model="form.adsense.units.BOARD_LIST.layoutKey"
+                                                            :readonly="locked"
+                                                            :invalid="invalid"
+                                                            :aria-describedby="describedBy"
+                                                            placeholder="-fb+5w+4e-db+86"
+                                                            autocomplete="off"
+                                                            spellcheck="false"
+                                                            class="font-mono text-sm"
+                                                            fluid
+                                                            data-testid="ad-placements-adsense-layout-key"
+                                                            @update:model-value="clearServer('adsense.units.BOARD_LIST.layoutKey')"
+                                                            @blur="onAdsenseBlur('adsense.units.BOARD_LIST.layoutKey')"
+                                                        />
+                                                    </template>
+                                                </LabeledField>
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <!-- 준비 안내 -->
+                                    <section class="flex flex-col gap-2 rounded-lg bg-surface-100 px-4 py-3 dark:bg-surface-950" :aria-labelledby="`${idBase}-adsense-guide`" data-testid="ad-placements-adsense-guide">
+                                        <h3 :id="`${idBase}-adsense-guide`" class="m-0 inline-flex items-center gap-1.5 text-xs font-semibold">
+                                            <i class="pi pi-info-circle text-[0.6875rem]" aria-hidden="true" />{{ t('ad.adsenseGuideTitle') }}
+                                        </h3>
+                                        <ol class="m-0 flex flex-col gap-1.5 pl-4 text-xs leading-relaxed text-muted-color">
+                                            <li>{{ t('ad.adsenseGuideApproval') }}</li>
+                                            <li>{{ t('ad.adsenseGuideAdsTxt') }}</li>
+                                            <li>{{ t('ad.adsenseGuideConsent') }}</li>
+                                            <li>{{ t('ad.adsenseGuidePrivacy') }}</li>
+                                            <li>{{ t('ad.adsenseGuideExcluded') }}</li>
+                                        </ol>
+                                    </section>
+                                </div>
+                            </div>
+
                             <!-- ④ 19금 게시판 -->
                             <div v-show="tab === 'adult'" :id="panelIdOf('adult')" role="tabpanel" :aria-labelledby="tabIdOf('adult')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                                 <div class="flex min-w-0 flex-col gap-4">
@@ -302,7 +466,7 @@
                     </p>
 
                     <!-- 다섯 묶음 한 번에 저장(PUT 한 번) — 본문 열 안이라 폼 카드와 같은 폭·위치로 창 아래에 붙는다 -->
-                    <StickySaveBar v-if="canEdit" submit revertable :dirty="dirty" :saving="saving" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
+                    <StickySaveBar v-if="canEdit" submit revertable :dirty="dirty" :saving="saving" :disabled="localErrorCount > 0" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
                 </div>
 
                 <!-- 고른 탭의 미리보기 한 곳 — 셸의 위쪽 막대는 스크롤 영역(.app-content) 밖이라 작은 여유(top-4)만 두고 붙인다(메뉴 카드와 같은 top) -->
@@ -311,6 +475,7 @@
                     <AdPlacementWingsPreview v-else-if="tab === 'wings'" :left="form.wings.left" :right="form.wings.right" :screens="form.wings.screens" :unsaved="changes.wings > 0" />
                     <AdPlacementListPreview v-else-if="tab === 'list'" :enabled="form.boardList.enabled" :after="form.boardList.after" :unsaved="changes.boardList > 0" />
                     <AdPlacementAdultPreview v-else-if="tab === 'adult'" :form="form" :unsaved="changes.adult > 0" />
+                    <AdPlacementAdSensePreview v-else-if="tab === 'adsense'" :adsense="form.adsense" :unsaved="changes.adsense > 0" />
                     <AdPlacementRefundPreview v-else :rate="form.refund.stopFeeRate" :unsaved="changes.refund > 0" />
                 </aside>
             </div>
@@ -339,17 +504,20 @@ import type { AdPlacementsRequest, AdPlacementsView } from '~/composables/ad/api
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
 import UtilAdMessages from '~/utils/util-ad-messages';
+import UtilAdSense from '~/utils/util-adsense';
 
-type Section = 'postInline' | 'wings' | 'boardList' | 'adult' | 'refund';
-type PlacementTab = 'post' | 'wings' | 'list' | 'adult' | 'refund';
+type Section = 'postInline' | 'wings' | 'boardList' | 'adult' | 'refund' | 'adsense';
+type PlacementTab = 'post' | 'wings' | 'list' | 'adult' | 'refund' | 'adsense';
 
-/** 탭 다섯(주소 `?tab=` 의 값 · 묶음 · 이름 · 설정 카드 머리의 한 줄 설명) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
+/** 탭 여섯(주소 `?tab=` 의 값 · 묶음 · 이름 · 설정 카드 머리의 한 줄 설명) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
 const TABS: readonly { key: PlacementTab; section: Section; label: string; desc: string }[] = [
     { key: 'post', section: 'postInline', label: 'ad.postInlineSection', desc: 'ad.postInlineDesc' },
     { key: 'wings', section: 'wings', label: 'ad.wingsSection', desc: 'ad.wingsDesc' },
     { key: 'list', section: 'boardList', label: 'ad.boardListSection', desc: 'ad.boardListDesc' },
     { key: 'adult', section: 'adult', label: 'ad.adultSection', desc: 'ad.adultDesc' },
     { key: 'refund', section: 'refund', label: 'ad.refundSection', desc: 'ad.refundDesc' },
+    // 구글 애드센스
+    { key: 'adsense', section: 'adsense', label: 'ad.adsenseSection', desc: 'ad.adsenseDesc' },
 ];
 const DEFAULT_TAB = TABS[0]!;
 
@@ -474,18 +642,62 @@ const feeRateModel = computed<number | null>({
     },
 });
 
-const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0, adult: 0, refund: 0 }));
-const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList + changes.value.adult + changes.value.refund);
+const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0, adult: 0, refund: 0, adsense: 0 }));
+const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList + changes.value.adult + changes.value.refund + changes.value.adsense);
 const dirty = computed(() => changeCount.value > 0);
-const errorCount = computed(() => Object.keys(serverErrors.value).length);
+
+/*
+ * 애드센스 칸 미리 검사(서버와 같은 규칙 — `UtilAdSense.problems`). 「게시자 ID 필요」는 단계를 바꾸자마자,
+ * 형식 오류는 그 칸을 떠난 뒤(`touched`)나 저장을 누른 뒤(`showAllProblems`)에 보인다 — 입력하는 중에 빨갛게 뜨지 않게.
+ */
+const touched = ref<ReadonlySet<string>>(new Set());
+const showAllProblems = ref(false);
+const adsenseProblems = computed(() => (form.value ? UtilAdSense.problems(form.value.adsense) : {}));
+/** 지금 보이는 화면 검사 오류(칸 키 → 문구 키) */
+const localErrors = computed<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const [key, problem] of Object.entries(adsenseProblems.value)) {
+        if (problem === 'clientRequired' || showAllProblems.value || touched.value.has(key)) out[key] = `ad.adsenseProblem.${problem}`;
+    }
+    return out;
+});
+const localErrorCount = computed(() => Object.keys(localErrors.value).length);
+const errorCount = computed(() => new Set([...Object.keys(serverErrors.value), ...Object.keys(localErrors.value)]).size);
 
 function errorOf(key: string): string {
     return serverErrors.value[key] ?? '';
 }
 
-/** 묶음의 오류 칸 수(묶음 자체 오류 포함) */
+/** 애드센스 칸 오류 — 서버 문구가 먼저, 없으면 화면 검사 */
+function adsenseError(key: string): string {
+    const local = localErrors.value[key];
+    return serverErrors.value[key] ?? (local ? t(local) : '');
+}
+
+/** 칸을 떠날 때 — 붙여 넣은 값을 다듬고(`pub-…` → `ca-pub-…`, 광고 코드 통째면 그 안의 값만) 그 칸의 형식 검사를 보이기 시작한다 */
+function onAdsenseBlur(key: string): void {
+    const value = form.value?.adsense;
+    if (!value) return;
+    if (key === 'adsense.client') {
+        value.client = UtilAdSense.normalizeClient(value.client);
+    } else if (key === 'adsense.units.BOARD_LIST.slot') {
+        const raw = value.units.BOARD_LIST.slot;
+        value.units.BOARD_LIST.slot = UtilAdSense.normalizeSlot(raw);
+        // 인피드 광고 코드를 통째로 붙여 넣었으면 레이아웃 키도 채운다(비어 있을 때만)
+        if (!value.units.BOARD_LIST.layoutKey && raw && /data-ad-layout-key/i.test(raw)) value.units.BOARD_LIST.layoutKey = UtilAdSense.normalizeLayoutKey(raw);
+    } else if (key === 'adsense.units.BOARD_LIST.layoutKey') {
+        value.units.BOARD_LIST.layoutKey = UtilAdSense.normalizeLayoutKey(value.units.BOARD_LIST.layoutKey);
+    } else {
+        const slot = UtilAdSense.DISPLAY_SLOTS.find((s) => key === `adsense.units.${s}`);
+        if (slot) value.units[slot] = UtilAdSense.normalizeSlot(value.units[slot]);
+    }
+    if (!touched.value.has(key)) touched.value = new Set([...touched.value, key]);
+}
+
+/** 묶음의 오류 칸 수(묶음 자체 오류 포함 · 애드센스는 화면 검사 오류도) */
 function invalidOf(section: Section): number {
-    return Object.keys(serverErrors.value).filter((key) => key === section || key.startsWith(`${section}.`)).length;
+    const keys = new Set([...Object.keys(serverErrors.value), ...Object.keys(localErrors.value)]);
+    return [...keys].filter((key) => key === section || key.startsWith(`${section}.`)).length;
 }
 
 function clearServer(key: string): void {
@@ -515,6 +727,8 @@ function applySaved(view: AdPlacementsView): void {
     form.value = UtilAd.placementsForm(view);
     serverErrors.value = {};
     formError.value = '';
+    touched.value = new Set();
+    showAllProblems.value = false;
 }
 
 function revert(): void {
@@ -523,8 +737,14 @@ function revert(): void {
 
 async function save(): Promise<void> {
     if (!canEdit.value || saving.value || !dirty.value || !form.value) return;
-    // 반응형 객체를 그대로 보내지 않는다 — 새로 만든 평범한 객체
-    const body = UtilAd.placementsForm(toRaw(form.value));
+    // 애드센스 칸이 맞지 않으면 보내지 않는다 — 모든 칸 오류를 보이고 그 탭으로(판정은 서버, 이건 미리 알림)
+    if (Object.keys(adsenseProblems.value).length) {
+        showAllProblems.value = true;
+        if (tab.value !== 'adsense') selectTab('adsense');
+        return;
+    }
+    // 반응형 객체를 그대로 보내지 않는다 — 새로 만든 평범한 객체(애드센스 칸은 다듬어서)
+    const body = UtilAd.placementsBody(toRaw(form.value));
     saving.value = true;
     formError.value = '';
     serverErrors.value = {};

@@ -15,6 +15,15 @@ public final class PublicAdView {
     }
 
     /**
+     * {@code GET /api/ads/placements} — 자리 설정({@link AdPlacements} 네 묶음) + 구글 애드센스(V176, docs/features/adsense-contract.md).
+     *
+     * @param adsense 끔(OFF)이거나 게시자 ID 가 없으면 null. {@code units} 는 SHOW 일 때 단위 ID 가 있는 자리만(VERIFY 면 빈 묶음)
+     */
+    public record Placements(AdPlacements.PostInline postInline, AdPlacements.Wings wings, AdPlacements.BoardList boardList, AdPlacements.Adult adult,
+                             AdSenseSettings.PublicView adsense) {
+    }
+
+    /**
      * 나가는 광고 한 건(고르기 — 비중 가중 무작위 — 는 화면이 한다)
      *
      * @param id             신청 건 ID

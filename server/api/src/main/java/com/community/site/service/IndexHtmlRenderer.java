@@ -29,6 +29,7 @@ import org.springframework.web.util.HtmlUtils;
  *       {@code <script>}·{@code <style>} 안은 건드리지 않는다. 아이콘 링크는 운영자가 아이콘을 올렸을 때만 틀의 것을 지우고 바꿔 넣는다(없으면 틀의 링크를 두고, 틀에도 없으면 기본 SVG 아이콘).</li>
  *   <li>이름·소개·주소는 모두 HTML 이스케이프한다(속성값 포함). 설정 행이 없으면(설치 전) 틀을 그대로 내린다.</li>
  *   <li>결과는 설정 사본({@link PublicSiteSnapshot})이 바뀔 때까지 캐시한다.</li>
+ *   <li>구글 애드센스(V176)가 켜져 있으면 부르는 쪽이 {@link #withAdSense} 로 머리 끝에 메타·스크립트를 더한다(바탕 사본 지문 + 게시자 ID 로 캐시 — 설정은 요청마다 읽으므로 바꾸면 다음 요청부터).</li>
  * </ul>
  */
 @Service
@@ -53,8 +54,13 @@ public class IndexHtmlRenderer {
     private static final Pattern ICON_LINK = Pattern.compile(
             "<link\\b[^>]*?\\brel=[\"']?(?:apple-touch-icon(?:-precomposed)?|shortcut icon|icon)[\"']?(?=[\\s>/])[^>]*>\\s*", Pattern.CASE_INSENSITIVE);
 
+    /** 구글 애드센스 사이트 확인 메타 이름 · 스크립트 주소(V176 — 구글이 정한 값) */
+    static final String ADSENSE_ACCOUNT_META = "google-adsense-account";
+    static final String ADSENSE_SCRIPT = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+
     private volatile String template;
     private volatile Cached cached;
+    private volatile AdSenseCached adsenseCached;
 
     /** 설정 사본에 맞게 머리를 채운 index.html. 화면 파일이 없으면 비어 있다 */
     public Optional<RenderedIndex> render(PublicSiteSnapshot snapshot) {
@@ -85,6 +91,31 @@ public class IndexHtmlRenderer {
         String meta = "\n<meta name=\"" + ADMIN_ORIGIN_META + "\" content=\"" + HtmlUtils.htmlEscape(adminOrigin) + "\">";
         byte[] body = (html.substring(0, open.end()) + meta + html.substring(open.end())).getBytes(StandardCharsets.UTF_8);
         return new RenderedIndex(body, hash(body));
+    }
+
+    /**
+     * 구글 애드센스 머리(V176, docs/features/adsense-contract.md) — {@code </head>} 바로 앞에 {@code <meta name="google-adsense-account">} 와 {@code adsbygoogle.js}
+     * 스크립트({@code async}·{@code crossorigin="anonymous"})를 더한 사본(지문도 새로). 공개 화면 응답에만 쓴다(관리자 미리보기에는 쓰지 않는다 — {@code SiteHeadFilter}).
+     * 게시자 ID 는 관리자 서버가 형식을 검사한 값이지만 다른 칸처럼 HTML 이스케이프한다. 같은 틀 지문·같은 게시자 ID 면 만들어 둔 사본을 다시 쓴다. 머리가 없는 틀이면 그대로다.
+     */
+    public RenderedIndex withAdSense(RenderedIndex index, String client) {
+        AdSenseCached current = adsenseCached;
+        if (current != null && current.baseEtag.equals(index.etag()) && current.client.equals(client)) {
+            return current.index;
+        }
+        String html = new String(index.body(), StandardCharsets.UTF_8);
+        Matcher open = HEAD_OPEN.matcher(html);
+        Matcher close = HEAD_CLOSE.matcher(html);
+        if (!open.find() || !close.find(open.end())) {
+            return index;
+        }
+        String c = esc(client);
+        String tags = "<meta name=\"" + ADSENSE_ACCOUNT_META + "\" content=\"" + c + "\">\n"
+                + "<script async src=\"" + ADSENSE_SCRIPT + "?client=" + c + "\" crossorigin=\"anonymous\"></script>\n";
+        byte[] body = (html.substring(0, close.start()) + tags + html.substring(close.start())).getBytes(StandardCharsets.UTF_8);
+        RenderedIndex withAds = new RenderedIndex(body, hash(body));
+        adsenseCached = new AdSenseCached(index.etag(), client, withAds);
+        return withAds;
     }
 
     /** 틀은 jar 안 파일이라 한 번 읽으면 된다. 없으면 기억하지 않고 다음 요청에 다시 본다(빌드 직후의 개발 환경) */
@@ -204,5 +235,9 @@ public class IndexHtmlRenderer {
     }
 
     private record Cached(String snapshotEtag, RenderedIndex index) {
+    }
+
+    /** 애드센스 머리를 더한 사본 — 바탕 사본의 지문·게시자 ID 가 같을 때만 다시 쓴다 */
+    private record AdSenseCached(String baseEtag, String client, RenderedIndex index) {
     }
 }

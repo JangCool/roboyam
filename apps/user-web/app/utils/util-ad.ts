@@ -216,7 +216,8 @@ export default class UtilAd {
     /** 광고 가젯의 `data` 는 화면이 채운다(`useAdGadgets`) — 모양이 아니면 받는 중 */
     static gadgetData(data: unknown): AdGadgetData {
         const d = obj(data);
-        return { ads: Array.isArray(d.ads) ? (d.ads as PublicAd[]) : null, placement: PLACEMENTS.find((p) => p === d.placement) ?? 'HOME' };
+        const adsense = d.adsense && typeof d.adsense === 'object' ? (d.adsense as AdGadgetData['adsense']) : null;
+        return { ads: Array.isArray(d.ads) ? (d.ads as PublicAd[]) : null, placement: PLACEMENTS.find((p) => p === d.placement) ?? 'HOME', adsense, adsenseKey: typeof d.adsenseKey === 'string' ? d.adsenseKey : '' };
     }
 
     /** 기본은 한 줄 광고 — 띠 배너 12:1 은 모바일 360px 에서 높이 약 30px 라 읽기 어렵다 */
