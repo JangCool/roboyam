@@ -17,6 +17,8 @@
                     <a href="/terms" target="_blank" rel="noopener" class="hover:underline">{{ t('common.terms') }}</a>
                     <a href="/privacy" target="_blank" rel="noopener" class="font-semibold text-surface-700 hover:underline dark:text-surface-200">{{ t('common.privacy') }}</a>
                     <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
+                    <!-- 오픈소스 라이선스 고지(oss-licenses-contract, 2026-11-10) — 약관 링크 묶음 맨 끝, 같은 탭 -->
+                    <NuxtLink to="/licenses" class="hover:underline" data-testid="footer-oss-licenses">{{ t('ossLicense.title') }}</NuxtLink>
                 </span>
                 <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 못 받았거나 비면 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
                 <nav

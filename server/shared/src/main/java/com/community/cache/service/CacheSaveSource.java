@@ -33,6 +33,8 @@ public enum CacheSaveSource {
     POPUP_SAVE(CacheNames.SITE_POPUPS),
     /** 약관 게시·옵션 저장 */
     TERMS_SAVE(CacheNames.TERMS_PUBLIC),
+    /** 오픈소스 라이선스 안내 문구·직접 추가 항목 저장 */
+    OSS_NOTICE_SAVE(CacheNames.OSS_NOTICE),
     /** 공지 관리(전체 공지·공지 글) 저장 — 공지 띠의 「공지 게시판」 줄도 같은 글이다 */
     NOTICE_SAVE(CacheNames.NOTICE_GLOBAL, CacheNames.SITE_NOTICE_BAR),
     /** 게시판 설정 저장 — 게시판 사본과, 게시판 이름·색·노출 규칙을 담은 메뉴·글 목록 */

@@ -70,6 +70,7 @@ import siteTerms from './siteTerms';
 import social from './social';
 import verify from './verify';
 import view from './view';
+import ossLicense from './ossLicense';
 import terms from './terms';
 import tips from './tips';
 import withdrawal from './withdrawal';
@@ -138,6 +139,7 @@ export default {
     social,
     verify,
     view,
+    ossLicense,
     terms,
     tips,
     withdrawal,

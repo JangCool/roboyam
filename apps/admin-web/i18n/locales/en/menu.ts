@@ -155,6 +155,7 @@ export default {
     legal: 'Operator & terms',
     siteOperator: 'Operator',
     terms: 'Terms',
+    ossLicenses: 'Open source licenses',
     analyticsSettings: 'Analytics collection',
     memberSettings: 'Members',
     nicknameImageSettings: 'Nickname image',
