@@ -22,6 +22,7 @@
           404 대신 안내만: 「판매자가 잠시 내린 딜이에요」/「판매자가 내린 딜이에요」 + 게시판 이름 + [핫딜 게시판으로], 정지이고 보는 사람이 그 사업자면 「신청 건에서 다시 켤 수 있어요 ›」.
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         게시판 제재(board-sanction-contract): 그 게시판 매니저·스텝(`viewer.staffTools.abilities.sanction`)에게만 글 아래 ⋯ 와 댓글 ⋯ 에 「작성자 제재」(남의 회원 글·댓글만) → `BoardSanctionDialog`(흐름 `useBoardSanctionForm`).
+          익명 글·댓글(anonymous-board-contract 정책 9)도 남의 것이면 「작성자 제재」 — 대상은 닉네임 없이 「이 글(댓글) 작성자」, 요청은 `anonymousPostId`·`anonymousCommentId`.
         스텝 처리(board-staff-action-contract): 글 ⋯ 「글 숨기기」·「글 삭제」(`abilities.postHide|postDelete`, 본인 글·소모임 글·`staffProtected`(공지·고정·같은 게시판 운영진의 글) 제외 — 「작성자 제재」는 `sanctionProtected` 면 없음), 댓글 ⋯ 「댓글 삭제」(`abilities.commentDelete`, 본인·지운 댓글 제외)
           → `BoardStaffActionDialog`(사유 → 확인, 흐름 `useBoardStaffActionForm`) → 토스트(오늘 남은 횟수) → 글이면 게시판 목록으로, 댓글이면 그 목록 새로. 그새 상태가 바뀌었으면 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
@@ -451,6 +452,7 @@
         <BoardSanctionDialog
             :visible="sanctionForm.visible.value"
             :nickname="sanctionForm.target.value?.nickname ?? ''"
+            :sealed="sanctionForm.target.value?.anonymous === true"
             :state="sanctionForm.state.value"
             :preview="sanctionForm.preview.value"
             :load-error="sanctionForm.loadError.value"
@@ -1272,10 +1274,15 @@ const staffTools = computed(() => (post.value && !post.value.group ? (board.valu
 const sanctionEnabled = computed(() => Boolean(staffTools.value?.abilities.sanction));
 const commentDeleteEnabled = computed(() => Boolean(staffTools.value?.abilities.commentDelete));
 const sanctionForm = useBoardSanctionForm(() => board.value);
-/** 글 ⋯ 「작성자 제재」 — 남의 회원 글만(본인·비회원·탈퇴 회원 글에는 없다. 그 밖의 대상 불가는 서버가 대화창에서 알린다) */
+/**
+ * 글 ⋯ 「작성자 제재」 — 남의 회원 글과 남의 익명 글(「이 글 작성자」 — anonymous-board-contract 정책 9)만(본인·비회원·탈퇴 회원 글에는 없다. 그 밖의 대상 불가는 서버가 대화창에서 알린다 —
+ * 익명 글은 `sanctionProtected` 가 늘 false 라 대상 보호도 대화창의 `409 ANONYMOUS_TARGET_UNAVAILABLE` 로 안다)
+ */
 const canSanctionPost = computed(() => {
     const p = post.value;
-    return Boolean(sanctionEnabled.value && p && !p.mine && !p.sanctionProtected && p.author.kind === 'MEMBER' && p.author.memberId && p.author.name);
+    if (!sanctionEnabled.value || !p || p.mine || p.sanctionProtected) return false;
+    if (p.author.kind === 'ANONYMOUS') return true;
+    return Boolean(p.author.kind === 'MEMBER' && p.author.memberId && p.author.name);
 });
 const postMenu = ref<{ toggle: (event: Event) => void } | null>(null);
 /** 글 ⋯ 메뉴 — 할 수 있는 것만(숨기기 · 삭제 · 작성자 제재). 비면 ⋯ 를 그리지 않는다 */
@@ -1296,12 +1303,23 @@ const postMenuItems = computed(() => {
 
 function openPostSanction(): void {
     const p = post.value;
-    if (!p?.author.memberId || !p.author.name) return;
+    if (!p) return;
+    // 익명 글 — 닉네임 없이 「이 글 작성자」, 요청은 회원 ID 대신 이 글(`anonymousPostId`)
+    if (p.author.kind === 'ANONYMOUS') {
+        sanctionForm.open({ userId: null, nickname: t('boardSanction.sealedPostAuthor'), anonymous: true, postId: p.id, commentId: null });
+        return;
+    }
+    if (!p.author.memberId || !p.author.name) return;
     sanctionForm.open({ userId: p.author.memberId, nickname: p.author.name, postId: p.id, commentId: null });
 }
 
 /** 댓글 ⋯ 「작성자 제재」 — 계기 댓글과 그 글을 함께 잇는다 */
 function openCommentSanction(c: CommentView): void {
+    // 익명 댓글 — 닉네임 없이 「이 댓글 작성자」, 요청은 회원 ID 대신 이 댓글(`anonymousCommentId`)
+    if (c.author.kind === 'ANONYMOUS') {
+        sanctionForm.open({ userId: null, nickname: t('boardSanction.sealedCommentAuthor'), anonymous: true, postId: post.value?.id ?? null, commentId: c.id });
+        return;
+    }
     if (!c.author.memberId || !c.author.name) return;
     sanctionForm.open({ userId: c.author.memberId, nickname: c.author.name, postId: post.value?.id ?? null, commentId: c.id });
 }

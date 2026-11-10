@@ -104,7 +104,8 @@ public class AdminBoardSanctionService {
     }
 
     private BoardSanctionDetailView detail(BoardSanctionRow row) {
-        return new BoardSanctionDetailView(BoardSanctionViews.line(row, sanctions.now()), views.history(row.userId()));
+        // 봉인 제재(V184)는 회원 이력을 싣지 않는다(이력 줄의 닉네임으로 신원이 이어지지 않게), 봉인 아닌 제재의 회원 이력에서는 봉인 줄이 빠진다(BoardSanctionViews.history)
+        return new BoardSanctionDetailView(BoardSanctionViews.line(row, sanctions.now()), row.sealed() ? List.of() : views.history(row.userId()));
     }
 
     private BoardSanctionRow require(String idText) {

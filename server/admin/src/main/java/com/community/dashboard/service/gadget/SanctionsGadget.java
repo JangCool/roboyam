@@ -33,7 +33,7 @@ public class SanctionsGadget implements DashboardGadgetProvider {
     @Override
     public DashboardGadgetData load(DashboardGadgetQuery query) {
         return new DashboardSanctionsView(store.running(query.now()), store.pendingAppeals(), store.oldestPending(APPEALS).stream()
-                .map(r -> new DashboardSanctionsView.Appeal(Long.toString(r.id()), r.nickname() == null ? "" : r.nickname(), kindName(r), r.appealedAt()))
+                .map(r -> new DashboardSanctionsView.Appeal(Long.toString(r.id()), r.sealed() ? messages.get(new MessageRef("anonymous.sealedAuthor")) : r.nickname() == null ? "" : r.nickname(), kindName(r), r.appealedAt()))
                 .toList());
     }
 

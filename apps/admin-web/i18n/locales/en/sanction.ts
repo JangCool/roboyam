@@ -98,9 +98,11 @@ export default {
     none: 'None',
     nextNone: 'This member is already permanently banned.',
     nextBanOnly: 'Suspended now — only a permanent ban can be issued.',
+    nextUnavailable: 'Not available right now.',
     blocked: {
         ALREADY_BANNED: 'This member is already permanently banned. No further sanction can be issued.',
         SUSPENDED: 'This member is suspended. Only a permanent ban can be issued — it ends the current suspension and replaces it.',
+        UNAVAILABLE: "This author can't be sanctioned right now.",
     },
 
     // History
@@ -124,6 +126,7 @@ export default {
     choiceDisabled: {
         LOWER: 'Already passed — cannot be issued',
         BLOCKED: 'Not available for this member',
+        UNAVAILABLE: 'Not available right now',
         NO_BAN: 'Needs the sanction.ban permission',
         NO_MANAGE: 'Needs the sanction.manage permission',
     },

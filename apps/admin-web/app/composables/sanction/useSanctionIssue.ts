@@ -3,8 +3,11 @@ import type { SanctionCreateRequest, SanctionLine, SanctionPreview, SanctionTarg
 import type { SanctionIssueMember, SanctionIssueView } from '~/composables/sanction/useSanctionIssue.types';
 import UtilSanction from '~/utils/util-sanction';
 
-/** 다시 받아야 하는 오류 — 그 사이 회원 상태가 바뀌었다(현황을 새로 받고 대화창 안에 서버 문구) */
-const STALE = new Set(['SANCTION_STEP_TOO_LOW', 'SANCTION_ALREADY_SUSPENDED', 'SANCTION_ALREADY_BANNED']);
+/**
+ * 다시 받아야 하는 오류 — 그 사이 회원 상태가 바뀌었다(현황을 새로 받고 대화창 안에 서버 문구).
+ * 봉인된 익명 작성자가 대상 보호로 막히면 `ANONYMOUS_TARGET_UNAVAILABLE` — 다시 받은 현황(`blockedReason: 'UNAVAILABLE'`)이 단계 고르기를 막는다
+ */
+const STALE = new Set(['SANCTION_STEP_TOO_LOW', 'SANCTION_ALREADY_SUSPENDED', 'SANCTION_ALREADY_BANNED', 'ANONYMOUS_TARGET_UNAVAILABLE']);
 /** 칸에 붙는 서버 오류 */
 const FIELD_KEYS = ['kind', 'reason', 'skipStep', 'confirmNickname'];
 

@@ -176,6 +176,8 @@ export default {
             SITE_SANCTIONED: '사이트 제재 대화창을 열어요. 부여하면 그 제재 번호와 함께 닫혀요.',
             VOIDED: '아래에서 고른 게시판 제재를 무효로 하고 닫아요(처리자 남용 바로잡기).',
         },
+        siteSealedHelp: '「이 글 작성자」 대상으로 사이트 제재 대화창을 열어요. 작성자는 봉인된 채로 제재돼요.',
+        siteSealedNoSource: '작성자를 가리킬 글·댓글이 남아 있지 않아 사이트 제재를 줄 수 없어요.',
         voidPick: '무효로 할 제재',
         voidPickCount: '위 목록에서 무효로 할 제재를 골라 주세요 — {n}/{max}건 골랐어요.',
         voidPickRequired: '무효로 할 제재를 하나 이상 골라 주세요.',

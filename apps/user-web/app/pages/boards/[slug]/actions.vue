@@ -83,7 +83,7 @@
                             {{ row.target.excerpt }}
                         </p>
                         <p class="m-0 mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-color">
-                            <span>{{ t('boardStaffAction.authorLine', { name: row.targetAuthor.nickname }) }}</span>
+                            <span>{{ t('boardStaffAction.authorLine', { name: row.targetAuthor.sealed ? t('boardSanction.sealedTarget') : row.targetAuthor.nickname }) }}</span>
                             <!-- 처리자 — 매니저에게만 온다 -->
                             <span v-if="row.actor" data-testid="board-action-actor">{{ UtilBoardStaffActionMessages.actorLine(t, row.actor) }}</span>
                             <span v-if="row.restored" data-testid="board-action-restored">{{ UtilBoardStaffActionMessages.restoredLine(t, row.restored.at, time) }}</span>

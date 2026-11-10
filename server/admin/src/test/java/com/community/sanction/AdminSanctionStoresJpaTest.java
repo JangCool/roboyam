@@ -202,11 +202,11 @@ class AdminSanctionStoresJpaTest {
                 .containsExactlyElementsOf(jdbc.queryForList("SELECT a.id FROM sanction_appeals a WHERE a.status = 'PENDING' ORDER BY a.created_at, a.id LIMIT 500", Long.class));
         assertThat(adminSanctions.appealPage(null, true, 0, 3)).extracting(AppealRow::id)
                 .containsExactlyElementsOf(jdbc.queryForList("SELECT a.id FROM sanction_appeals a ORDER BY a.created_at DESC, a.id DESC LIMIT 3", Long.class));
-        assertThat(adminSanctions.oldestPending(500)).isEqualTo(jdbc.query("SELECT a.id, p.nickname, coalesce(s.kind, 'BOARD_' || bs.kind), s.warning_no, a.created_at "
+        assertThat(adminSanctions.oldestPending(500)).isEqualTo(jdbc.query("SELECT a.id, CASE WHEN coalesce(s.sealed, bs.sealed, false) THEN NULL ELSE p.nickname END, coalesce(s.kind, 'BOARD_' || bs.kind), s.warning_no, a.created_at, coalesce(s.sealed, bs.sealed, false) "
                         + "FROM sanction_appeals a LEFT JOIN member_sanctions s ON s.id = a.sanction_id LEFT JOIN board_sanctions bs ON bs.id = a.board_sanction_id "
                         + "LEFT JOIN profiles p ON p.user_id = a.user_id WHERE a.status = 'PENDING' ORDER BY a.created_at, a.id LIMIT ?",
                 (rs, i) -> new AdminSanctionStore.PendingAppealRow(rs.getLong(1), rs.getString(2), rs.getString(3), (Integer) rs.getObject(4, Integer.class),
-                        rs.getTimestamp(5).toInstant()), 500));
+                        rs.getTimestamp(5).toInstant(), rs.getBoolean(6)), 500));
     }
 
     // ── 게시판 제재 · 반복 검토 ─────────────────────────────────────────

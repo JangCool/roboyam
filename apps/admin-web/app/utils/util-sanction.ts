@@ -59,7 +59,8 @@ export interface SanctionChoice {
     option: SanctionOption;
     enabled: boolean;
     /** 못 누르는 까닭 — `LOWER`(이미 지난 단계) · `BLOCKED`(이 회원에게는 못 줌) · `NO_BAN`(`sanction.ban` 없음) · `NO_MANAGE`(`sanction.manage` 없음) */
-    disabledBy: 'LOWER' | 'BLOCKED' | 'NO_BAN' | 'NO_MANAGE' | null;
+    /** `UNAVAILABLE` — 봉인된 익명 작성자가 대상 보호로 막힘(현황 `blockedReason: 'UNAVAILABLE'` — 모든 단계) */
+    disabledBy: 'LOWER' | 'BLOCKED' | 'UNAVAILABLE' | 'NO_BAN' | 'NO_MANAGE' | null;
 }
 
 const LADDER: readonly SanctionKind[] = ['WARNING', 'SUSPEND_3', 'SUSPEND_7', 'SUSPEND_30', 'BAN'];
@@ -268,6 +269,8 @@ export default class UtilSanction {
      * @returns {SanctionChoice[]} 단계 차례(경고 → 영구 정지).
      */
     static choices(preview: SanctionPreview, perm: { canManage: boolean; canBan: boolean }): SanctionChoice[] {
+        // 봉인된 익명 작성자가 대상 보호로 막혔다 — 서버 선택지 상태와 상관없이 모두 막는다(부여는 409 ANONYMOUS_TARGET_UNAVAILABLE)
+        if (preview.blockedReason === 'UNAVAILABLE') return preview.options.map((option) => ({ option, enabled: false, disabledBy: 'UNAVAILABLE' }));
         return preview.options.map((option) => {
             if (option.state === 'LOWER') return { option, enabled: false, disabledBy: 'LOWER' };
             if (option.state === 'BLOCKED') return { option, enabled: false, disabledBy: 'BLOCKED' };
@@ -327,6 +330,7 @@ export default class UtilSanction {
 
     /** 이 회원에게 줄 수 있는 단계가 하나라도 있나(권한과 상관없이) */
     static hasAnyOption(preview: SanctionPreview): boolean {
+        if (preview.blockedReason === 'UNAVAILABLE') return false;
         return preview.options.some((o) => o.state === 'NEXT' || o.state === 'SKIP');
     }
 

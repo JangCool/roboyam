@@ -52,6 +52,11 @@ export default {
     submit: 'Sanction',
     issuedToast: 'Gave {name} a {kind} · {n} left today',
     issuedToastPlain: 'Gave {name} a {kind}',
+    sealedPostAuthor: 'This post’s author',
+    sealedCommentAuthor: 'This comment’s author',
+    sealedTargetNote: 'Anonymous post — the nickname stays hidden. The sanction still goes to the author.',
+    issuedToastSealed: 'Gave the anonymous author a {kind} · {n} left today',
+    issuedToastSealedPlain: 'Gave the anonymous author a {kind}',
 
     /* Board header staff bar */
     staffBarManager: 'Moderating · Manager',
@@ -88,6 +93,9 @@ export default {
     liftNotice: 'Lifting keeps it in the suggested-level count, and today’s limit is not refunded.',
     liftSubmit: 'Lift',
     liftedToast: 'Lifted {name}’s write restriction.',
+    sealedTarget: 'Anonymous author',
+    liftTextSealed: 'Lift the anonymous author’s {kind} now.',
+    liftedToastSealed: 'Lifted the anonymous author’s write restriction.',
 
     /* Write restriction notice (sanctioned member) */
     restrictedUntil: 'You can’t post or comment on this board until {date}',

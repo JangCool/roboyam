@@ -69,7 +69,7 @@ public class BoardStaffService {
         if (userId == null) {
             throw BoardSanctionException.targetProtected();
         }
-        BoardSanctionService.Preview p = sanctions.preview(actorId, boardId, userId);
+        BoardSanctionService.Preview p = sanctions.preview(actorId, boardId, userId, sealed); // 봉인 대상의 보호 409 는 까닭을 가린 ANONYMOUS_TARGET_UNAVAILABLE
         return new BoardSanctionPreviewView(sealed ? BoardSanctionTargetView.SEALED : new BoardSanctionTargetView(Long.toString(p.target().id()), nz(p.target().nickname()), false),
                 new BoardSanctionCountsView(p.counts().warnings(), p.counts().restrictions()),
                 p.active() == null ? null : new BoardSanctionActiveView(Long.toString(p.active().boardSanctionId()), p.active().until()), p.recommended().name(),

@@ -12,6 +12,7 @@ import com.community.notification.service.NotificationPublisher;
 import com.community.operator.service.OperatorMemberAccountService;
 import com.community.operator.service.OperatorMemberAccountService.ActiveOperatorAccount;
 import com.community.permission.entity.Permission;
+import com.community.post.exception.AnonymousTargetUnavailableException;
 import com.community.sanction.entity.AppealStatus;
 import com.community.sanction.entity.BoardSanctionKind;
 import com.community.sanction.entity.BoardSanctionReason;
@@ -244,9 +245,16 @@ public class BoardSanctionService {
      * 대화창 현황 — 판정은 부여와 같다(계정 · 게시판 · 자리·권한 403, 대상 보호 409). 잠그지 않는다(부여가 다시 본다). 운영자 회원 계정은 한도가 없다(null).
      */
     public Preview preview(long actorId, long boardId, long targetId) {
+        return preview(actorId, boardId, targetId, false);
+    }
+
+    /**
+     * @param sealed 대상이 「이 글/댓글 작성자」(익명 — V184)인가 — 대상 보호면 까닭을 가린 409 {@code ANONYMOUS_TARGET_UNAVAILABLE}({@link #requireTargetable})
+     */
+    public Preview preview(long actorId, long boardId, long targetId, boolean sealed) {
         Issuer issuer = requireIssuer(boardId, actorId);
-        TargetRow target = store.target(targetId).orElseThrow(BoardSanctionException::targetProtected);
-        requireTargetable(target, boardId, actorId, issuer);
+        TargetRow target = store.target(targetId).orElseThrow(() -> unavailable(sealed));
+        requireTargetable(target, boardId, actorId, issuer, sealed);
         Instant now = now();
         Counts counts = store.counts(targetId, boardId);
         BoardWriteRestriction running = store.running(targetId, boardId, now).orElse(null);
@@ -313,8 +321,8 @@ public class BoardSanctionService {
             throw new ValidationException(invalid);
         }
 
-        TargetRow target = store.lockTarget(request.targetId()).orElseThrow(BoardSanctionException::targetProtected);
-        requireTargetable(target, request.boardId(), request.actorId(), issuer);
+        TargetRow target = store.lockTarget(request.targetId()).orElseThrow(() -> unavailable(request.sealed()));
+        requireTargetable(target, request.boardId(), request.actorId(), issuer, request.sealed());
         Instant now = now();
         store.endDue(target.id(), request.boardId(), now);
         if (kind.restricts() && store.running(target.id(), request.boardId(), now).isPresent()) {
@@ -481,6 +489,14 @@ public class BoardSanctionService {
         return row.postId() != null ? event.target("POST", Long.toString(row.postId())).with("sealed", true) : event.with("sealed", true);
     }
 
+    /** 봉인 검토의 감사 대상 — {@link #subject} 와 같은 모양(계기 댓글 → 글 → 대상 없음 + {@code sealed: true}) */
+    private static AuditEvent sealedSubject(AuditEvent event, BoardSanctionStore.SealedSource source) {
+        if (source.commentId() != null) {
+            return event.target("COMMENT", Long.toString(source.commentId())).with("sealed", true);
+        }
+        return source.postId() != null ? event.target("POST", Long.toString(source.postId())).with("sealed", true) : event.with("sealed", true);
+    }
+
     private BoardSanctionRow liftLocked(long[] owner, long sanctionId, Long byUser, Long byOperator, String reason, Instant now) {
         store.lockTarget(owner[0]);
         store.endDue(owner[0], owner[1], now);
@@ -616,6 +632,15 @@ public class BoardSanctionService {
         return store.ofUserBoardBetween(review.userId(), review.boardId(), review.windowStart(), until);
     }
 
+    /**
+     * 봉인 검토 — 이 검토가 센 제재({@link #reviewSanctions} 와 같은 범위) 가운데 하나라도 봉인(「이 글/댓글 작성자」 — V184)이면 그 가운데 가장 최근 것의 계기 글·댓글, 아니면 빈 값.
+     * 봉인 검토는 줄 전체가 봉인이다 — 회원·이력·감사에서 회원이 드러나지 않는다(anonymous-board-contract 2026-11-11). 같은 회원·게시판의 수는 봉인 제재도 그대로 센다(익명 도배도 거른다).
+     */
+    public Optional<BoardSanctionStore.SealedSource> sealedSource(ReviewRow review) {
+        Instant until = review.closedAt() == null ? now() : review.closedAt();
+        return store.latestSealedBetween(review.userId(), review.boardId(), review.windowStart(), until);
+    }
+
     /** 열린 검토의 지금 7일 건수(VOIDED 제외 · 마지막으로 닫힌 검토 이후) — 닫힌 검토는 닫은 때의 수 */
     public int recentCount(ReviewRow review, Instant now) {
         if (!review.open()) {
@@ -721,8 +746,11 @@ public class BoardSanctionService {
         if (!store.closeReview(reviewId, result, memo, siteSanctionId, voided, closedCount, closedBoards, operatorId, now)) {
             throw BoardSanctionException.reviewClosed();
         }
-        AuditEvent event = AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_REVIEW_CLOSE, AuditResult.SUCCESS).target(TARGET, Long.toString(userId))
-                .with("reviewId", Long.toString(reviewId)).with("reviewNo", review.no()).with("boardId", Long.toString(boardId)).with("result", result);
+        // 봉인 검토(V184)는 감사 대상도 회원 대신 가장 최근 봉인 제재의 계기 글·댓글(+ sealed) — 봉인 제재 감사와 같은 관례(닫기 전 범위로 본다)
+        Optional<BoardSanctionStore.SealedSource> sealed = store.latestSealedBetween(userId, boardId, review.windowStart(), now);
+        AuditEvent event = AuditEvent.byOperator(operatorId, ip, AuditActions.BOARD_SANCTION_REVIEW_CLOSE, AuditResult.SUCCESS);
+        event = sealed.isEmpty() ? event.target(TARGET, Long.toString(userId)) : sealedSubject(event, sealed.get());
+        event = event.with("reviewId", Long.toString(reviewId)).with("reviewNo", review.no()).with("boardId", Long.toString(boardId)).with("result", result);
         if (memo != null) {
             event = event.with("memo", memo);
         }
@@ -773,12 +801,20 @@ public class BoardSanctionService {
     /**
      * 받을 수 없는 대상 — 409 하나: 본인 · 탈퇴 · 운영자 회원 계정(힘이 살아 있음 — 매니저·스텝에게도 다른 운영자 회원 계정에게도) · 같은 게시판 매니저·스텝(매니저·스텝이 줄 때만 —
      * 운영자 회원 계정은 매니저·스텝을 제재할 수 있다).
+     *
+     * <p>봉인 대상(「이 글/댓글 작성자」 — V184)이면 까닭을 가린 409 {@code ANONYMOUS_TARGET_UNAVAILABLE} — 보호 409 가 익명 작성자의 신분(본인 · 운영자 회원 계정 · 매니저·스텝 ·
+     * 탈퇴)을 드러내지 않게(anonymous-board-contract 2026-11-11).
      */
-    private void requireTargetable(TargetRow target, long boardId, long actorId, Issuer issuer) {
+    private void requireTargetable(TargetRow target, long boardId, long actorId, Issuer issuer, boolean sealed) {
         if (target.gone() || target.id() == actorId || operatorAccounts.isActiveOperatorAccount(target.id())
                 || (!issuer.isOperator() && store.staffOf(boardId, target.id()))) {
-            throw BoardSanctionException.targetProtected();
+            throw unavailable(sealed);
         }
+    }
+
+    /** 대상 보호 409 — 봉인 대상이면 까닭을 가린 중립 오류 */
+    private static RuntimeException unavailable(boolean sealed) {
+        return sealed ? new AnonymousTargetUnavailableException() : BoardSanctionException.targetProtected();
     }
 
     private Quota quota(long boardId, long userId, Instant now) {

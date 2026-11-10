@@ -118,6 +118,7 @@ public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
         }
         if (f.userId() != null) {
             parts.add(S.userId.eq(f.userId()));
+            parts.add(S.sealed.isFalse()); // 회원으로 거른 목록에는 봉인 제재(V184)를 싣지 않는다 — anonymous-board-contract 2026-11-11
         }
         return parts.stream().reduce(BooleanExpression::and).orElse(null);
     }
@@ -130,16 +131,28 @@ public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
 
     // ── 회원 상세 ─────────────────────────────────────────────────────────
 
-    /** 그 회원의 게시판별 수 — 게시판 이름 차례 */
+    /** 그 회원의 게시판별 수 — 게시판 이름 차례. 회원 화면이라 봉인 제재(V184)는 세지 않는다(anonymous-board-contract 2026-11-11 — 규칙의 셈은 shared 가 따로 한다) */
     public List<MemberBoardRow> memberBoards(long userId, Instant now) {
         BooleanExpression valid = S.status.ne(SanctionStatus.VOIDED);
         NumberExpression<Long> warnings = countWhen(valid.and(S.kind.eq(BoardSanctionKind.WARNING)));
         NumberExpression<Long> restrictions = countWhen(valid.and(S.kind.ne(BoardSanctionKind.WARNING)));
         var until = BoardSanctionStore.runningUntilMax(S, now);
-        return query.select(S.boardId, B.slug, B.name, B.nameEn, warnings, restrictions, until).from(S).join(B).on(B.id.eq(S.boardId)).where(S.userId.eq(userId))
+        return query.select(S.boardId, B.slug, B.name, B.nameEn, warnings, restrictions, until).from(S).join(B).on(B.id.eq(S.boardId))
+                .where(S.userId.eq(userId), S.sealed.isFalse())
                 .groupBy(S.boardId, B.slug, B.name, B.nameEn).orderBy(B.name.asc(), S.boardId.asc()).fetch().stream()
                 .map(t -> new MemberBoardRow(new BoardRef(t.get(S.boardId), t.get(B.slug), t.get(B.name), t.get(B.nameEn)), zero(t.get(warnings)),
                         zero(t.get(restrictions)), t.get(until))).toList();
+    }
+
+    /** 그 회원의 봉인 아닌 게시판 제재 — 최근 것이 위, 최대 {@code limit}(무효 포함, 모든 게시판). 회원 단위 화면(회원 상세 최근 이력 · 회원 이력). 색인 {@code ix_board_sanctions_user} */
+    public List<BoardSanctionRow> memberLines(long userId, int limit) {
+        return store.sanctionRows().where(S.userId.eq(userId), S.sealed.isFalse()).orderBy(S.createdAt.desc(), S.id.desc()).limit(limit).fetch().stream()
+                .map(BoardSanctionStore::row).toList();
+    }
+
+    /** 그 회원의 열린 반복 검토(회원 상세 — 봉인 검토를 거르려고 줄로 읽는다, 게시판마다 많아야 하나) */
+    public List<ReviewRow> openReviewsOfUser(long userId) {
+        return store.reviewRows().where(R.userId.eq(userId), R.status.eq(BoardSanctionReviewEntity.OPEN)).fetch().stream().map(BoardSanctionStore::review).toList();
     }
 
     // ── 반복 검토 ─────────────────────────────────────────────────────────

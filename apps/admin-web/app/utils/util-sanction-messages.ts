@@ -61,6 +61,7 @@ export default class UtilSanctionMessages {
 
     /** 다음 단계 한 줄 — 막혔으면 그 까닭 */
     static nextStep(t: Translate, preview: SanctionPreview): string {
+        if (preview.blockedReason === 'UNAVAILABLE') return t('sanction.nextUnavailable');
         if (preview.blockedReason === 'ALREADY_BANNED' || !preview.next) return t('sanction.nextNone');
         if (preview.blockedReason === 'SUSPENDED') return t('sanction.nextBanOnly');
         return UtilSanctionMessages.kindName(t, preview.next.kind, preview.next.kind === 'WARNING' ? preview.next.rank : null);

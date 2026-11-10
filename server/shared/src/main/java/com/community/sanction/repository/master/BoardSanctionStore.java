@@ -418,6 +418,21 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
                 .orderBy(S.createdAt.asc(), S.id.asc()).fetch());
     }
 
+    /**
+     * 그 회원·그 게시판에서 {@code after} 뒤 ~ {@code until} 까지 받은 <b>봉인</b> 제재(V184 — 「이 글/댓글 작성자」) 가운데 가장 최근 것의 계기 글·댓글(무효 포함 — 반복 검토가 센
+     * 범위와 같다). 없으면 빈 값. 회원 범위 색인.
+     */
+    public Optional<SealedSource> latestSealedBetween(long userId, long boardId, Instant after, Instant until) {
+        Tuple t = query.select(S.postId, S.commentId).from(S)
+                .where(S.userId.eq(userId), S.boardId.eq(boardId), S.sealed.isTrue(), S.createdAt.gt(after), S.createdAt.loe(until))
+                .orderBy(S.createdAt.desc(), S.id.desc()).fetchFirst();
+        return t == null ? Optional.empty() : Optional.of(new SealedSource(t.get(S.postId), t.get(S.commentId)));
+    }
+
+    /** 봉인 제재의 계기 — 댓글이면 {@code commentId} 가 있고 {@code postId} 는 그 댓글의 글(계기를 잃었으면 둘 다 null) */
+    public record SealedSource(Long postId, Long commentId) {
+    }
+
     /** 그 게시판의 유효한 제재 수(권장 단계 · 현황) */
     public Counts counts(long userId, long boardId) {
         NumberExpression<Long> warnings = countWhen(S.kind.eq(BoardSanctionKind.WARNING));
@@ -599,10 +614,16 @@ public class BoardSanctionStore extends RoboyamRepositoryQDSL {
      * 그 회원의 게시판별 요약 — {@code since} 뒤 유효한 수 · 유효한 전체 수 · 진행 중 쓰기 제한의 끝. 게시판 이름 차례. 회원 범위 색인 한 번.
      */
     public List<BoardSummary> boardSummaries(long userId, Instant since, Instant now) {
+        return boardSummaries(userId, since, now, false);
+    }
+
+    /** @param withoutSealed 봉인 제재(V184)를 빼고 센다 — 회원이 드러난 관리자 화면(봉인 아닌 반복 검토의 다른 게시판, anonymous-board-contract 2026-11-11) */
+    public List<BoardSummary> boardSummaries(long userId, Instant since, Instant now, boolean withoutSealed) {
         NumberExpression<Long> recent = countWhen(valid(S).and(S.createdAt.gt(since)));
         NumberExpression<Long> total = countWhen(valid(S));
         var until = runningUntilMax(S, now);
-        return query.select(S.boardId, B.slug, B.name, B.nameEn, recent, total, until).from(S).join(B).on(B.id.eq(S.boardId)).where(S.userId.eq(userId))
+        return query.select(S.boardId, B.slug, B.name, B.nameEn, recent, total, until).from(S).join(B).on(B.id.eq(S.boardId))
+                .where(S.userId.eq(userId), withoutSealed ? S.sealed.isFalse() : null)
                 .groupBy(S.boardId, B.slug, B.name, B.nameEn).orderBy(B.name.asc(), S.boardId.asc()).fetch().stream()
                 .map(t -> new BoardSummary(t.get(S.boardId), t.get(B.slug), t.get(B.name), t.get(B.nameEn), zero(t.get(recent)), zero(t.get(total)), t.get(until)))
                 .toList();

@@ -14,7 +14,7 @@
             <div class="h-24 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" />
         </div>
 
-        <!-- 받을 수 없는 대상(409 BOARD_STAFF_TARGET_PROTECTED) — 서버 문구 그대로 -->
+        <!-- 받을 수 없는 대상(409 BOARD_STAFF_TARGET_PROTECTED · 익명 작성자는 409 ANONYMOUS_TARGET_UNAVAILABLE) — 서버 문구 그대로 -->
         <div v-else-if="state === 'protected'" class="flex flex-col gap-3" data-testid="board-sanction-protected">
             <Message severity="warn" :closable="false">{{ loadError }}</Message>
             <div class="flex justify-end">
@@ -33,7 +33,14 @@
         <form v-else class="flex flex-col gap-4" novalidate data-testid="board-sanction-form" @submit.prevent="submit">
             <!-- 대상 · 그 게시판 제재 현황 -->
             <div class="rounded-lg border border-surface bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60" data-testid="board-sanction-target">
-                <p class="m-0 text-sm"><span class="text-muted-color">{{ t('boardSanction.targetLabel') }}</span> <b class="font-semibold">{{ nickname }}</b></p>
+                <!-- 익명 글·댓글 작성자(봉인 — anonymous-board-contract 정책 9)는 닉네임 대신 익명 아이콘 + 「이 글(댓글) 작성자」 -->
+                <p v-if="sealed" class="m-0 flex items-center gap-1 text-sm" data-testid="board-sanction-target-sealed">
+                    <span class="text-muted-color">{{ t('boardSanction.targetLabel') }}</span>
+                    <AnonymousAuthorIcon class="text-muted-color" />
+                    <b class="font-semibold">{{ nickname }}</b>
+                </p>
+                <p v-else class="m-0 text-sm"><span class="text-muted-color">{{ t('boardSanction.targetLabel') }}</span> <b class="font-semibold">{{ nickname }}</b></p>
+                <p v-if="sealed" class="m-0 mt-1 text-xs text-muted-color">{{ t('boardSanction.sealedTargetNote') }}</p>
                 <p class="m-0 mt-1 text-xs text-muted-color" data-testid="board-sanction-counts">
                     {{ t('boardSanction.countsPrefix') }} {{ UtilBoardSanctionMessages.countsLine(t, preview) }}
                 </p>
@@ -119,8 +126,10 @@ import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 
 interface Props {
     visible: boolean;
-    /** 대상 닉네임(누른 글·댓글의 작성자) */
+    /** 대상 닉네임(누른 글·댓글의 작성자) — 익명 작성자(`sealed`)면 「이 글 작성자」·「이 댓글 작성자」 */
     nickname: string;
+    /** 익명 글·댓글의 봉인된 작성자 — 닉네임 대신 익명 아이콘 + 대상 이름, 안내 한 줄 */
+    sealed?: boolean;
     /** 현황 읽기 상태 — `protected` 는 받을 수 없는 대상 */
     state: BoardSanctionDialogState;
     preview?: BoardSanctionPreview | null;
@@ -134,6 +143,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+    sealed: false,
     preview: null,
     loadError: '',
     submitting: false,

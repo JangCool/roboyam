@@ -83,15 +83,27 @@ export interface BoardPendingWarning {
     issuedAt: string;
 }
 
-/** 제재 대상 회원 — 닉네임은 읽을 때의 값 */
+/**
+ * 제재 대상 회원 — 닉네임은 읽을 때의 값.
+ * **익명 글·댓글 작성자에게 건 제재(「이 글 작성자」 — anonymous-board-contract 정책 9)는 `sealed: true`** 이고 `userId`·`nickname` 은 null 이다(봉인) — 화면은 닉네임 대신 「익명 글 작성자」
+ */
 export interface BoardSanctionTarget {
-    userId: string;
-    nickname: string;
+    userId: string | null;
+    nickname: string | null;
+    /** 봉인된 익명 글 작성자 — 옛 응답(칸 없음)은 false */
+    sealed?: boolean;
 }
 
 /**
- * `GET /api/board-staff/sanctions/preview?boardId=&userId=` — 제재 대화창을 열 때.
+ * 제재 대상을 가리키는 칸 — 회원이면 `userId`, 익명 글·댓글 작성자면 그 글(`anonymousPostId`) 또는 댓글(`anonymousCommentId`) 하나(서버가 작성자를 찾는다).
+ * 둘 이상 보내면 400(`fields.userId`·`fields.anonymousCommentId`), 익명 글이 아니면 409 `NOT_ANONYMOUS`, 글·댓글이 없으면 404 `ANONYMOUS_TARGET_NOT_FOUND`
+ */
+export type BoardSanctionWho = { userId: string } | { anonymousPostId: string } | { anonymousCommentId: string };
+
+/**
+ * `GET /api/board-staff/sanctions/preview?boardId=&userId=`(또는 `anonymousPostId`·`anonymousCommentId`) — 제재 대화창을 열 때.
  * 받을 수 없는 대상(본인·같은 게시판 매니저·스텝·탈퇴·소모임 글)은 `409 BOARD_STAFF_TARGET_PROTECTED`(「제재할 수 없는 회원이에요」 하나로 통일).
+ * 익명 글·댓글 작성자가 대상 보호로 막히면 `409 ANONYMOUS_TARGET_UNAVAILABLE`(「지금 이 작성자에게는 제재를 걸 수 없어요.」 — 신원을 짐작할 수 없게 까닭을 뭉뚱그린다).
  * 매니저·스텝이 아니면 `403 BOARD_STAFF_FORBIDDEN`(역할 권한 `board.sanction.issue` 없음·계정 정상·인증 아님도 같다).
  */
 export interface BoardSanctionPreview {
@@ -107,10 +119,14 @@ export interface BoardSanctionPreview {
     resetsAt: string;
 }
 
-/** `POST /api/board-staff/sanctions` 요청 */
+/** `POST /api/board-staff/sanctions` 요청 — 대상은 `userId` 또는 `anonymousPostId`·`anonymousCommentId` 하나(`BoardSanctionWho`). 익명 대상이면 계기도 그 글·댓글이라 `postId`·`commentId` 는 null 로 보낸다 */
 export interface BoardSanctionIssueRequest {
     boardId: string;
-    userId: string;
+    userId?: string;
+    /** 이 익명 글의 작성자에게 준다 */
+    anonymousPostId?: string;
+    /** 이 익명 댓글의 작성자에게 준다 */
+    anonymousCommentId?: string;
     kind: BoardSanctionKind;
     reasonCode: BoardSanctionReasonCode;
     /** 덧붙임 0~200자 — 비면 null, `OTHER` 이면 5자 이상 필수(`400 VALIDATION fields.reasonText`) */
@@ -123,7 +139,7 @@ export interface BoardSanctionIssueRequest {
 
 /**
  * `POST /api/board-staff/sanctions` 응답(201) — 남은 한도를 함께 준다.
- * 거절: 한도 초과 `409 BOARD_STAFF_DAILY_LIMIT`(`limit`·`used`·`resetsAt`) · 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED` · 이미 제한 중 `409 BOARD_STAFF_ALREADY_RESTRICTED` · 입력 `400 VALIDATION`.
+ * 거절: 한도 초과 `409 BOARD_STAFF_DAILY_LIMIT`(`limit`·`used`·`resetsAt`) · 대상 불가 `409 BOARD_STAFF_TARGET_PROTECTED`(익명 대상은 `409 ANONYMOUS_TARGET_UNAVAILABLE`) · 이미 제한 중 `409 BOARD_STAFF_ALREADY_RESTRICTED` · 입력 `400 VALIDATION`.
  */
 export interface BoardSanctionIssued {
     id: string;
@@ -230,8 +246,8 @@ export interface BoardStaffActionRow {
     reasonCode: BoardStaffActionReasonCode | (string & {});
     /** 대상 — 제목·댓글 앞 40자는 처리 때 스냅숏 */
     target: { postId: string; commentId: string | null; title: string; excerpt: string | null };
-    /** 대상 작성자 — 회원 닉네임 또는 비회원 이름 */
-    targetAuthor: { nickname: string };
+    /** 대상 작성자 — 회원 닉네임 또는 비회원 이름. 익명 글·댓글이면 `sealed: true` + 이름 ""(anonymous-board-contract 정책 4) */
+    targetAuthor: { nickname: string; sealed?: boolean };
     /** 처리자 — `OPERATOR` 는 운영자 회원 계정(닉네임 = 그 회원 닉네임, operator-member-account-contract) */
     actor: { nickname: string; role: 'MANAGER' | 'STAFF' | 'OPERATOR' } | null;
     createdAt: string;
