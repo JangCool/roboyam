@@ -40,6 +40,28 @@ const SERVER_PROJECTS = [':server:api', ':server:admin'];
 const args = new Set(process.argv.slice(2));
 const SKIP_BUILD = args.has('--skip-build');
 const WITH_SERVER = args.has('--with-server');
+/**
+ * 같은 프로젝트(한 저장소·한 조직이 함께 내는 패키지)는 한 줄로 묶는다(사용자 2026-11-10 「같은 프로젝트면 묶어서」) — 이름 규칙 → 묶음 이름.
+ * 규칙에 없는 패키지는 자기 이름 한 줄. 묶음 줄은 포함 패키지(이름·버전·라이선스)·저작권 줄을 모두 갖고, 전문이 서로 다르면 패키지 이름 머리를 달아 이어 붙인다(고지 조건은 그대로).
+ */
+const PROJECTS = [
+    [/^@tiptap\//, 'Tiptap'],
+    [/^(prosemirror-.+|orderedmap|rope-sequence|w3c-keyname)$/, 'ProseMirror'],
+    [/^(vue|@vue\/.+)$/, 'Vue'],
+    [/^(@intlify\/.+|vue-i18n|@nuxtjs\/i18n)$/, 'Vue I18n'],
+    [/^(primevue|@primevue\/.+|@primeuix\/.+|primeicons|@primeicons\/.+|@primeui\/.+)$/, 'PrimeVue · PrimeIcons'],
+    [/^@floating-ui\//, 'Floating UI'],
+    [/^(nuxt|@nuxt\/.+|h3|ofetch|ufo|defu|destr|ohash|radix3|unctx|hookable|cookie-es|uncrypto|klona|perfect-debounce|errx|node-mock-http|iron-webcrypto|devalue|fnv1a-64|object-identity|nostics|uqr|birpc|unhead|@unhead\/.+)$/, 'Nuxt · UnJS'],
+    [/^(yjs|lib0)$/, 'Yjs'],
+    [/^(echarts|zrender)$/, 'Apache ECharts'],
+    [/^@tabler\//, 'Tabler Icons'],
+    [/^(tailwindcss|@tailwindcss\/.+)$/, 'Tailwind CSS'],
+    [/^@portone\//, 'PortOne SDK'],
+];
+function projectOf(name) {
+    for (const [rule, project] of PROJECTS) if (rule.test(name)) return project;
+    return name;
+}
 /** 고지(저작권·라이선스 문구 함께 주기)를 요구하지 않는 라이선스 */
 const NO_NOTICE = new Set(['0BSD', 'MIT-0', 'CC0-1.0', 'Unlicense']);
 function noticeFree(license) {
@@ -484,7 +506,41 @@ function finalItems() {
         if (!found.notice && e.notice) found.notice = e.notice;
     }
     for (const e of merged.values()) e.version = [...new Set(e.versions)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(', ');
-    return [...merged.values()]
+    // 같은 프로젝트를 한 줄로 — 패키지 목록·저작권 줄은 모두, 전문·NOTICE 는 서로 다르면 패키지 머리를 달아 잇는다
+    const projects = new Map();
+    for (const e of [...merged.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+        const key = `${e.ecosystem}:${projectOf(e.name)}`;
+        const list = projects.get(key) ?? [];
+        list.push(e);
+        projects.set(key, list);
+    }
+    const joinTexts = (list, field) => {
+        const distinct = [...new Map(list.filter((e) => e[field]).map((e) => [e[field], e])).values()];
+        if (distinct.length <= 1) return distinct[0]?.[field] ?? null;
+        return distinct.map((e) => `── ${list.filter((x) => x[field] === e[field]).map((x) => x.name).join(', ')} ──\n\n${e[field]}`).join('\n\n');
+    };
+    const grouped = [...projects.entries()].map(([key, list]) => {
+        if (list.length === 1) return { ...list[0], packages: null };
+        const first = list[0];
+        const licenses = [...new Set(list.map((e) => e.license))];
+        const copyright = [...new Set(list.flatMap((e) => String(e.copyright ?? '').split('\n')).map((l) => l.trim()).filter(Boolean))].join('\n');
+        const text = joinTexts(list, 'licenseText');
+        return {
+            ...first,
+            name: key.slice(key.indexOf(':') + 1),
+            version: '',
+            license: licenses.join(' · '),
+            usedIn: [...new Set(list.flatMap((e) => e.usedIn))],
+            category: list.every((e) => e.category === first.category) ? first.category : (list.some((e) => e.category === 'fontIcon') ? 'fontIcon' : null),
+            copyright,
+            licenseText: text,
+            textSource: text ? (list.some((e) => e.licenseText && e.textSource === 'package') ? 'package' : first.textSource) : 'none',
+            notice: joinTexts(list, 'notice'),
+            repository: list.length && list.every((e) => e.repository === first.repository) ? first.repository : null,
+            packages: list.map((e) => ({ name: e.name, version: e.version, license: e.license })),
+        };
+    });
+    return grouped
         .sort((a, b) => order[a.ecosystem] - order[b.ecosystem] || a.name.localeCompare(b.name) || a.version.localeCompare(b.version, undefined, { numeric: true }))
         .map((e) => ({
             id: `${e.ecosystem}:${e.name}`,
@@ -498,6 +554,7 @@ function finalItems() {
             textSource: e.licenseText ? e.textSource : 'none',
             noticeId: textId(e.notice),
             repository: e.repository ?? null,
+            packages: e.packages ?? null,
             licenseUrl: e.licenseUrl ?? (e.licenseText ? null : spdxPage(e.license)),
         }));
 }

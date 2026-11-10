@@ -56,6 +56,7 @@
                                 <span class="min-w-0 flex-1">
                                     <span class="break-all font-medium [overflow-wrap:anywhere]">{{ row.name }}</span>
                                     <span v-if="row.version" class="ml-1.5 text-xs tabular-nums text-muted-color">{{ row.version }}</span>
+                                    <span v-if="row.packages" class="ml-1.5 text-xs tabular-nums text-muted-color">{{ t('ossLicense.packageCount', { n: row.packages.length }) }}</span>
                                     <span class="ml-2 hidden text-xs text-muted-color sm:inline">{{ usedInLabel(row) }}</span>
                                 </span>
                                 <span
@@ -74,6 +75,16 @@
                                 <dt class="text-muted-color">{{ t('ossLicense.licenseText') }}</dt>
                                 <dd class="m-0 break-words">{{ row.license }}</dd>
                             </dl>
+
+                            <!-- 같은 프로젝트 묶음 — 든 패키지(이름 · 버전 · 라이선스) -->
+                            <section v-if="row.packages" class="mt-3" data-testid="oss-packages">
+                                <h3 class="m-0 text-xs font-semibold">{{ t('ossLicense.packages') }}</h3>
+                                <ul class="m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-0.5 p-0 text-[0.8125rem] leading-relaxed">
+                                    <li v-for="p in row.packages" :key="p.name" class="break-all [overflow-wrap:anywhere]">
+                                        {{ p.name }} <span class="text-xs tabular-nums text-muted-color">{{ p.version }}</span><span v-if="p.license !== row.license" class="text-xs text-muted-color"> · {{ p.license }}</span>
+                                    </li>
+                                </ul>
+                            </section>
 
                             <section v-if="row.copyright" class="mt-3">
                                 <h3 class="m-0 text-xs font-semibold">{{ t('ossLicense.copyright') }}</h3>

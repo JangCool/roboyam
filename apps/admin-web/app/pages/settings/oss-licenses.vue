@@ -123,6 +123,7 @@
                             <Column :header="t('ossLicense.col.name')">
                                 <template #body="{ data }">
                                     <span class="break-all [overflow-wrap:anywhere]">{{ data.name }}</span>
+                                    <span v-if="data.packages?.length" class="ml-1.5 text-xs tabular-nums text-muted-color" :title="data.packages.map((p: { name: string }) => p.name).join(', ')">{{ t('ossLicense.packageCount', { n: data.packages.length }) }}</span>
                                     <a v-if="UtilOssLicense.safeUrl(data.repository)" :href="UtilOssLicense.safeUrl(data.repository)!" target="_blank" rel="noopener" class="ml-1.5 text-xs text-primary hover:underline">{{ t('ossLicense.repository') }}</a>
                                 </template>
                             </Column>

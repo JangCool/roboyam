@@ -19,6 +19,8 @@ export default {
     distributionItem: '{license} {n}',
     distributionRest: 'Others {n}',
     resultCount: '{n} entries',
+    packageCount: '{n} packages',
+    packages: 'Packages',
     usedInLabel: 'Used in',
     usedIn: {
         user: 'Public',

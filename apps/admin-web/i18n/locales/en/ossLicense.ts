@@ -72,6 +72,7 @@ export default {
 
     collectedTitle: 'Collected list',
     collectedSummary: '{n} entries · last collected on {date}',
+    packageCount: '{n} packages',
     collectedHelp: 'Collected at build time from the web bundles (code sent to browsers) (read-only). Server libraries are not distributed to users, so they are not listed. After changing dependencies, run node scripts/collect-licenses.mjs in the repository.',
     collectedLoadFailed: 'Could not load the collected list (/oss-licenses.json).',
     searchPlaceholder: 'Search name or license',
