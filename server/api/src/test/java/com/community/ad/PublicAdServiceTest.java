@@ -17,9 +17,14 @@ import com.community.board.service.PublicBoardService;
 import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.time.ServiceTime;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  *       (숨김·소모임이 우선 — 사용자 결정 2026-11-01 2차), 보통 게시판은 나온다.</li>
  *   <li>하루 1번: 같은 방문자·버전·자리는 한국 하루 노출 1번·클릭 1번 — 다른 자리·다른 버전·다음 날은 다시 센다, 회원과 비회원은 따로, 봇·빈 User-Agent 는 세지 않는다,
  *       20건 초과 400, 나가지 않는 건·지금 버전이 아닌 줄·모르는 자리는 그 줄만 버린다, 해시 키가 없으면 세지 않는다.</li>
+ *   <li>판정 표 하루 파티션(V194): 그 날 조각이 없으면(23514) 조각을 만들고 다시 넣어 한 번만 센다 — 트랜잭션 안이면 세이브포인트로 그 문장만 되돌려 트랜잭션을 이어서 쓴다.</li>
  * </ul>
  * 공유 시험 DB 라 광고는 먼 미래의 겹치지 않는 기간({@link #freshPeriod})으로 잡고 시계를 그 기간 안으로 옮겨 「지금 나가는 건」을 만든다.
  */
@@ -449,5 +455,89 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
                 .isZero();
         assertThat(noKey.click(new Visitor(newMember(), "203.0.113.50", UA), Long.toString(id), new PublicAdView.Click(1, "HOME"))).isFalse();
         assertThat(stats(id, 1, ServiceTime.today(clock), "HOME")).containsExactly(0, 0);
+    }
+
+    // ── 판정 표 하루 파티션(V194) — 그 날 조각이 없을 때 ──────────────────────────
+
+    /** 그 날(한국 날짜) 판정 조각 이름 — ad_view_marks_YYYYMMDD(V194·R__batch_33) */
+    private static String markPartition(LocalDate day) {
+        return "ad_view_marks_" + day.format(DateTimeFormatter.BASIC_ISO_DATE);
+    }
+
+    /** 조각이 없는 날을 만든다 — 다른 시험이 쓰지 않는 먼 날(2049년)이다. 시험 뒤에도 같은 것으로 지운다 */
+    private void dropPartition(String name) {
+        // SQL 로 남김: 파티션 조각 DDL — 엔티티·저장소가 없는 DB 구조다
+        jdbc.execute("DROP TABLE IF EXISTS " + name);
+    }
+
+    /** 이 문맥(트랜잭션 안이면 그 연결)에서 본 조각 유무 */
+    private boolean partitionExists(String name) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT to_regclass(?) IS NOT NULL", Boolean.class, name));
+    }
+
+    /** 트랜잭션 밖의 다른 연결에서 본 조각 유무 — 커밋 전의 CREATE TABLE 은 보이지 않는다(to_regclass 는 잠금을 잡지 않아 기다리지 않는다) */
+    private boolean partitionVisibleElsewhere(String name) {
+        try (Connection other = dataSource.getConnection(); PreparedStatement ps = other.prepareStatement("SELECT to_regclass(?) IS NOT NULL")) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getBoolean(1);
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private int marks(long id, LocalDate day) {
+        return jdbc.queryForObject("SELECT count(*) FROM ad_view_marks WHERE application_id = ? AND day = ?", Integer.class, id, java.sql.Date.valueOf(day));
+    }
+
+    @Test
+    void 트랜잭션_안에서_그_날_조각이_없으면_그_문장만_되돌리고_조각을_만들어_한_번_센다() {
+        long id = submitBanner(approvedBusiness(), "WIDE", 0, 2, "ONLINE"); // 집계 표의 외래 키(biz_applications)만 있으면 된다
+        LocalDate day = LocalDate.of(2049, 6, 1);
+        String part = markPartition(day);
+        String visitor = "a".repeat(64);
+        dropPartition(part);
+        try {
+            assertThat(partitionVisibleElsewhere(part)).as("시작 — 그 날 조각이 없다").isFalse();
+            tx.executeWithoutResult(status -> {
+                assertThat(publicStore.count('I', day, visitor, id, 1, "HOME")).isTrue();
+                assertThat(status.isRollbackOnly()).as("롤백 전용이 되지 않았다").isFalse();
+                // 「current transaction is aborted」 라면 아래 질의가 실패한다 — 세이브포인트로 실패한 넣기만 되돌렸다
+                assertThat(stats(id, 1, day, "HOME")).as("같은 트랜잭션의 다음 질의").containsExactly(1, 0);
+                assertThat(publicStore.count('I', day, visitor, id, 1, "HOME")).as("같은 방문자·버전·자리 — 다시 세지 않는다").isFalse();
+                assertThat(publicStore.count('C', day, visitor, id, 1, "HOME")).as("클릭은 따로").isTrue();
+                assertThat(stats(id, 1, day, "HOME")).containsExactly(1, 1);
+                assertThat(partitionExists(part)).as("이 트랜잭션에서는 조각이 보인다").isTrue();
+                assertThat(partitionVisibleElsewhere(part)).as("조각 만들기도 업무 트랜잭션 안(같은 연결) — 커밋 전 다른 연결엔 안 보인다").isFalse();
+            });
+            assertThat(partitionVisibleElsewhere(part)).as("커밋 뒤에는 보인다").isTrue();
+            assertThat(stats(id, 1, day, "HOME")).as("판정·집계가 한 번씩만 들어갔다").containsExactly(1, 1);
+            assertThat(marks(id, day)).isEqualTo(2);
+        } finally {
+            dropPartition(part);
+            jdbc.update("DELETE FROM ad_daily_stats WHERE application_id = ?", id);
+        }
+    }
+
+    @Test
+    void 트랜잭션_밖에서도_그_날_조각이_없으면_만들고_다시_넣어_한_번_센다() {
+        long id = submitBanner(approvedBusiness(), "WIDE", 0, 2, "ONLINE");
+        LocalDate day = LocalDate.of(2049, 6, 2);
+        String part = markPartition(day);
+        String visitor = "b".repeat(64);
+        dropPartition(part);
+        try {
+            assertThat(partitionExists(part)).as("시작 — 그 날 조각이 없다").isFalse();
+            assertThat(publicStore.count('I', day, visitor, id, 1, "BOARD")).isTrue();
+            assertThat(partitionExists(part)).as("그 날 조각을 새로 만들었다").isTrue();
+            assertThat(publicStore.count('I', day, visitor, id, 1, "BOARD")).as("같은 방문자 — 다시 세지 않는다").isFalse();
+            assertThat(stats(id, 1, day, "BOARD")).containsExactly(1, 0);
+            assertThat(marks(id, day)).isEqualTo(1);
+        } finally {
+            dropPartition(part);
+            jdbc.update("DELETE FROM ad_daily_stats WHERE application_id = ?", id);
+        }
     }
 }

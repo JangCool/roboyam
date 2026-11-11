@@ -14,7 +14,11 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -22,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.type.TypeReference;
@@ -38,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  * </ul>
  *
  * <p>읽기는 QueryDSL 이다. Native SQL 로 남긴 것과 이유: {@link #count} — 판정 넣기와 집계 upsert 를 한 문장({@code WITH … INSERT … ON CONFLICT DO NOTHING RETURNING} +
- * {@code ON CONFLICT DO UPDATE})으로 해야 동시에 와도 하루 한 번만 센다.
+ * {@code ON CONFLICT DO UPDATE})으로 해야 동시에 와도 하루 한 번만 센다. 판정 표는 한국 날짜 하루 파티션(V194)이라 그 날 조각이 없으면 만들고 한 번 다시 쓴다.
  */
 @Repository
 public class PublicAdStore extends RoboyamRepositoryQDSL {
@@ -57,6 +62,9 @@ public class PublicAdStore extends RoboyamRepositoryQDSL {
     /** 지금 나가는 건 하나 — 소재는 최신 승인 버전의 내용(JSON) */
     public record Running(long applicationId, BizProduct product, int weight, String advertiserName, int version, Map<String, Object> content) {
     }
+
+    /** PostgreSQL 「행에 맞는 조각이 없다」(check_violation) — 판정 표의 그 날 조각이 없을 때 */
+    private static final String NO_PARTITION = "23514";
 
     private final JdbcTemplate jdbc;
 
@@ -105,21 +113,63 @@ public class PublicAdStore extends RoboyamRepositoryQDSL {
     /**
      * 하루 1번 집계 — 같은 날·방문자·종류·건·버전·자리가 처음이면 일별 집계에 +1. Native SQL 인 이유는 클래스 설명.
      *
+     * <p>판정 표는 V194 부터 한국 날짜 하루 파티션이다(조각은 DB 배치 {@code ad-view-mark-cleanup} 이 오늘~모레를 미리 만든다 — R__batch_33). 그 날 조각이 없으면 PostgreSQL 이
+     * 23514 로 거절하므로 조각을 한 번 만든 뒤({@code ad_ensure_view_mark_partitions} — 잠금 아래 한 번만) 다시 넣는다. 트랜잭션 안에서 불리면 <b>JDBC 세이브포인트</b>로 그 문장만
+     * 되돌린다(세이브포인트가 없으면 실패한 문장이 업무 트랜잭션 전체를 못 쓰게 한다). 안의 문장은 JDBC 뿐이다(세이브포인트 안에서 JPA 질의가 실패하면 롤백 전용이 된다 — repository.md).
+     * {@code RETURNING} 은 상수 {@code 1} 이다 — 파티션 표는 시스템 칸({@code xmax}·{@code ctid})을 돌려주지 못한다(0A000).
+     *
      * @param kind {@code I} 노출 · {@code C} 클릭
      * @return 셌으면 true(이미 센 것이면 false)
      */
     public boolean count(char kind, LocalDate day, String visitorHash, long applicationId, int version, String placement) {
+        Integer n = jdbc.execute((ConnectionCallback<Integer>) con -> {
+            Savepoint savepoint = con.getAutoCommit() ? null : con.setSavepoint();
+            try {
+                int counted = insertMark(con, kind, day, visitorHash, applicationId, version, placement);
+                if (savepoint != null) {
+                    con.releaseSavepoint(savepoint);
+                }
+                return counted;
+            } catch (SQLException e) {
+                if (savepoint != null) {
+                    con.rollback(savepoint);
+                }
+                if (!NO_PARTITION.equals(e.getSQLState())) {
+                    throw e;
+                }
+                try (PreparedStatement ps = con.prepareStatement("SELECT ad_ensure_view_mark_partitions(?)")) {
+                    ps.setDate(1, Date.valueOf(day));
+                    ps.execute();
+                }
+                return insertMark(con, kind, day, visitorHash, applicationId, version, placement); // 조각이 없어 거절됐다 — 한 번 만들고 다시
+            }
+        });
+        return n != null && n > 0;
+    }
+
+    private static int insertMark(Connection con, char kind, LocalDate day, String visitorHash, long applicationId, int version, String placement)
+            throws SQLException {
         String column = kind == 'C' ? "clicks" : "impressions";
-        int clicks = kind == 'C' ? 1 : 0;
-        int impressions = kind == 'C' ? 0 : 1;
-        int n = jdbc.update("WITH mark AS (INSERT INTO ad_view_marks (day, visitor_hash, kind, application_id, version, placement) VALUES (?, ?, ?, ?, ?, ?) "
+        try (PreparedStatement ps = con.prepareStatement(
+                "WITH mark AS (INSERT INTO ad_view_marks (day, visitor_hash, kind, application_id, version, placement) VALUES (?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT DO NOTHING RETURNING 1) "
                         + "INSERT INTO ad_daily_stats (application_id, version, day, placement, impressions, clicks, updated_at) "
                         + "SELECT ?, ?, ?, ?, ?, ?, now() FROM mark "
-                        + "ON CONFLICT (application_id, version, day, placement) DO UPDATE SET " + column + " = ad_daily_stats." + column + " + 1, updated_at = now()",
-                Date.valueOf(day), visitorHash, String.valueOf(kind), applicationId, version, placement, applicationId, version, Date.valueOf(day), placement,
-                impressions, clicks);
-        return n > 0;
+                        + "ON CONFLICT (application_id, version, day, placement) DO UPDATE SET " + column + " = ad_daily_stats." + column + " + 1, updated_at = now()")) {
+            ps.setDate(1, Date.valueOf(day));
+            ps.setString(2, visitorHash);
+            ps.setString(3, String.valueOf(kind));
+            ps.setLong(4, applicationId);
+            ps.setInt(5, version);
+            ps.setString(6, placement);
+            ps.setLong(7, applicationId);
+            ps.setInt(8, version);
+            ps.setDate(9, Date.valueOf(day));
+            ps.setString(10, placement);
+            ps.setInt(11, kind == 'C' ? 0 : 1); // impressions
+            ps.setInt(12, kind == 'C' ? 1 : 0); // clicks
+            return ps.executeUpdate();
+        }
     }
 
     private static int n(Integer value) {

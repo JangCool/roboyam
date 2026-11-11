@@ -142,7 +142,7 @@
   - 옮기기: 마이그레이션 한 번 — 같은 이름·같은 칸의 파티션 표를 새로 만들어 오늘·어제 줄만 옮기고 바꿔 끼운다(칸이 같아 롤링 배포 중 옛 jar 도 그대로 쓴다). `R__analytics_11` 은 DROP 방식으로 바꾼다. 삭제 요청 크론(`R__analytics_13`)은 부모 표에 지우므로 그대로.
 - **주·월 순방문자 표시(결정 ④)**: 처음부터 기간 파티션 — 월 표시는 달 조각, 주 표시는 주 조각. 기간이 끝나고 정리 여유(며칠)가 지나면 조각 DROP(큰 규모면 기간마다 월 약 150만·주 약 50만 줄을 DELETE 하게 되므로).
 - **핫딜 클릭 표시 `deal_click_daily`(결정 ⑤)**: 하루 파티션으로 만들어 오늘·어제만 남긴다.
-- 권장(미확정): 광고 노출·클릭 판정 `ad_view_marks`(shared, 2일 보관 DELETE `R__batch_33`)도 같은 모양(`day` 가 기본 키 맨 앞)이라 같은 방식으로 바꾼다. 글 조회수 중복 방지 `post_views` 는 글 번호 해시 파티션 + 24시간 기준이라 날짜로 떼기 어려워 그대로 둔다.
+- 구현(2026-11-11, shared V194): 광고 노출·클릭 판정 `ad_view_marks`(shared, 예전 2일 보관 DELETE `R__batch_33`)도 같은 모양(`day` 가 기본 키 맨 앞)이라 하루 파티션으로 바꿨다 — 같은 배치 키 `ad-view-mark-cleanup`(04:15)이 오늘·내일·모레 조각을 만들고 보관 일수(`retention_days` 기본 2, 2~30 — 조각 단위)보다 오래된 조각을 DROP, 쓰는 쪽 `PublicAdStore.count` 는 조각 없음(23514)이면 `ad_ensure_view_mark_partitions` 후 한 번 다시(트랜잭션 안이면 JDBC 세이브포인트, `RETURNING 1` 이라 시스템 칸 없음). 데모 팩 `EXCLUDE` 에 더함. 글 조회수 중복 방지 `post_views` 는 글 번호 해시 파티션 + 24시간 기준이라 날짜로 떼기 어려워 그대로 둔다.
 
 ### 디스크 추정(상한, 2026-11-11 — vacuum 빈자리·WAL·백업 20~30% 별도)
 가정: 초기 하루 1천 방문·5천 PV / 중간 1만·5만 / 큰 규모 10만·50만, 정해진 주소 150~300개.
@@ -195,7 +195,7 @@
 - 광고주용 산정 기준 문구(브라우저 기준·봇 제외·달력 월)를 화면에 적을지.
 - 과거 소급: 방문자 MAU 는 남은 원본(최대 2개월)으로만, 회원 MAU 는 소급 불가 — 시작한 날부터 쌓임.
 - 검색어·UTM 캠페인 월별을 「그달 상위 N개」만 남길지(N 값 포함).
-- 광고 판정 `ad_view_marks` 도 날짜 파티션으로 바꿀지(결정 ⑥ 권장).
+- ~~광고 판정 `ad_view_marks` 도 날짜 파티션으로 바꿀지(결정 ⑥ 권장).~~ → 구현(2026-11-11, shared V194 — 결정 ⑥).
 
 ### 고칠 곳 목록(빠뜨리기 쉬운 것, 2026-11-11 확인)
 - 서버: 보관 설정 묶음(`StatsCollection` · `StatsCollectionSettingEntity` · `AnalyticsSettingsAdminService`·`AnalyticsSettingsAdmin` DTO · `AnalyticsSettingsAdminController` · 요약 응답 `VisitAnalyticsAdmin` 의 보관 값) · `VisitDiagnosticsAdminService`(달 기준 판정·새 칸) · `VisitAnalyticsStore`(`{id}` 묶음 줄 제목) · api `VisitCollector`(라우트 표·kind·뺄 계정·세션 캐시)·`VisitBuffer`·`VisitFlusher`·`AnalyticsWriteStore`(주·월 표시·숫자 표) · `SearchController` 검색어 셈(뺄 계정) · 대시보드 「회원 현황」 오늘 가입 쿼리 · `R__analytics_10`·`11`·`13`·`R__batch_36`·`R__batch_38` · `BatchCatalog`(새 크론).
@@ -234,7 +234,7 @@
 - API(관리자, site.read, 결과 캐시 60초 — 다른 방문 통계와 같게): `GET /api/admin/analytics/visits/uniques`(기간 없음, 오늘 기준) · `GET /api/admin/analytics/visits/monthly?from=YYYY-MM&to=YYYY-MM`(최대 36개월 — 400 규칙은 types 주석). 월별 보기의 아직 합치지 않은 달(이번 달·1~2일의 지난달 — `analytics_monthly_rollups` 에 없는 달)은 일별 표를 더해 채운다.
 
 ### 결정 ④ 구현 결과 (2026-11-11 — 컴파일·admin-web 타입 검사만, 시험·DB 적용은 QA 때)
-- 번호: analytics **V8**(표시 표 4개 — `analytics_visitor_{week,month}_marks`(visitor_id uuid) · `analytics_member_{week,month}_marks`(member_id bigint), 모두 `period_start` 범위 파티션 · 숫자 표 `analytics_unique_counts(audience, period_kind, period_start, day, added)`) · 크론 **`R__analytics_16`**(`analytics-period-mark-partitions`, 매일 00:55 — 이번·다음 기간 조각 만들기, 끝나고 3일 지난 조각 DROP) · admin **V10**(메뉴 `visitMonthly` — 메뉴 구성을 저장한 설치에만 개요 뒤에 넣음). 다음 번호(develop 병합 뒤 2026-11-11): shared V194 · analytics V9 · admin V11 · `R__batch_44` · `R__analytics_17`.
+- 번호: analytics **V8**(표시 표 4개 — `analytics_visitor_{week,month}_marks`(visitor_id uuid) · `analytics_member_{week,month}_marks`(member_id bigint), 모두 `period_start` 범위 파티션 · 숫자 표 `analytics_unique_counts(audience, period_kind, period_start, day, added)`) · 크론 **`R__analytics_16`**(`analytics-period-mark-partitions`, 매일 00:55 — 이번·다음 기간 조각 만들기, 끝나고 3일 지난 조각 DROP) · admin **V10**(메뉴 `visitMonthly` — 메뉴 구성을 저장한 설치에만 개요 뒤에 넣음). 다음 번호(develop 병합 뒤 2026-11-11): shared V195(V194 = 광고 판정 하루 파티션) · analytics V9 · admin V11 · `R__batch_44` · `R__analytics_17`.
 - 쓰기: 방문자는 그날 새로 넣은 하루 표시만 주·월 표시에 넣고, 회원은 버퍼가 모은 회원 번호를 서버 메모리 「이번 기간에 이미 넣은 회원」(커밋 뒤에만 기억, 종류마다 상한 20만)으로 걸러 넣는다 — 같은 트랜잭션, 모두 `ON CONFLICT DO NOTHING RETURNING`(시스템 칸 없음)·키 차례, 조각 없음(23514)이면 하루·기간 조각을 만들고 한 번 다시.
 - 지우기: 삭제 요청(`R__analytics_13`)이 방문자 주·월 표시를 해시 앞 32자 → uuid 로 지운다(숫자 표는 남김). **회원 탈퇴는 `WithdrawalCompletionService` 가 `AnalyticsMemberMarks` 로 지운다**(계약의 `R__batch_36` 대신 — 분석 DB 를 떼어도 그 DB 에서 지워지게, 표가 아직 없으면 `to_regclass` 로 보고 건너뜀).
 - API: `GET …/visits/uniques`·`GET …/visits/monthly`(types 와 칸 같음, 결과 캐시 60초 — 키에 오늘 날짜) · 대시보드 `VISITORS.visitorsThisWeek`·`visitorsThisMonth`. uniques 는 `visits` 가 꺼져 있으면 수를 null 로 준다(화면이 꺼짐 안내로 덮음). monthly 는 스위치와 상관없이 쌓인 숫자를 준다(결정 ⓐ), 합치지 않은 달은 시간별·일별에서 채운다.
@@ -246,4 +246,4 @@
 1. 원본 달 단위(①) · 주소 `{id}`(②) · 핫딜 클릭 정리(⑤) · 판정 표 파티션(⑥) — 화면 변화가 작다.
 2. 일별 13개월 + 월별(③) — 서버 먼저, 「월별 보기」 화면은 목업 확정 뒤.
 3. WAU·MAU(④) — 화면 목업 확정 → 서버 → 연결.
-- 다음 번호(develop 병합 뒤 2026-11-11): shared V194 · analytics V9 · admin V11 · shared 배치 `R__batch_44` · analytics 크론 `R__analytics_17`. **develop 병합 때 번호를 옮김**: 이 브랜치의 shared V189 → **V193**, admin V9 → **V10**(develop 이 같은 날 AI 회원 V189~V192·admin V9 를 먼저 씀 — 이 브랜치 번호는 시험 컨테이너 밖에 적용된 적 없음).
+- 다음 번호(develop 병합 뒤 2026-11-11): shared V195(V194 = 광고 판정 하루 파티션) · analytics V9 · admin V11 · shared 배치 `R__batch_44` · analytics 크론 `R__analytics_17`. **develop 병합 때 번호를 옮김**: 이 브랜치의 shared V189 → **V193**, admin V9 → **V10**(develop 이 같은 날 AI 회원 V189~V192·admin V9 를 먼저 씀 — 이 브랜치 번호는 시험 컨테이너 밖에 적용된 적 없음).

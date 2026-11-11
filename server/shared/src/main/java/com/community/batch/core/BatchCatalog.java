@@ -242,8 +242,9 @@ public enum BatchCatalog implements BatchDefinition {
     GROUPBUY_PRIVACY_CLEANUP("groupbuy-privacy-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
-     * 공개 광고 하루 1번 판정 표({@code ad_view_marks}) 정리 — 한국 날짜가 보관 일수(기본 2 — 오늘·어제를 남김)를 넘긴 줄 삭제(집계는 그대로). DB 배치, 기본 매일 04:15 KST
-     * ({@code R__batch_33_ad_view_mark_cleanup.sql}, ad-contract 「공개 노출 목업」 확정 2026-11-01)
+     * 공개 광고 하루 1번 판정 표({@code ad_view_marks} — V194 부터 한국 날짜 하루 파티션) 조각 유지 — 오늘·내일·모레 조각을 미리 만들고 한국 날짜가 보관 일수(기본 2 — 오늘·어제를
+     * 남김)를 넘긴 조각을 통째로 DROP(집계는 그대로). DB 배치, 기본 매일 04:15 KST
+     * ({@code R__batch_33_ad_view_mark_cleanup.sql}, ad-contract 「공개 노출 목업」 확정 2026-11-01, site-analytics-contract 3단계 결정 ⑥ 2026-11-11)
      */
     AD_VIEW_MARK_CLEANUP("ad-view-mark-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
