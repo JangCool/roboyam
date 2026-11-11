@@ -26,7 +26,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 방문 원본 월 조각(analytics R__analytics_10 · VisitFlusher 「조각 없음 23514」) — 실제 PostgreSQL. 조각은 한국 달 경계, 보관 개월 2·3·6·12(이번 달 포함, 설정 표 V189 —
+ * 방문 원본 월 조각(analytics R__analytics_10 · VisitFlusher 「조각 없음 23514」) — 실제 PostgreSQL. 조각은 한국 달 경계, 보관 개월 2·3·6·12(이번 달 포함, 설정 표 V193 —
  * 3단계 결정 ①: 「이번 달부터 n번째 앞 달」보다 오래된 조각만 DROP, 줄 DELETE 없음).
  * 설정 행(stats_collection_settings id = 1)은 시험마다 바꾸고 끝나면 기본값(모두 꺼짐 · 2개월)으로 되돌린다.
  */

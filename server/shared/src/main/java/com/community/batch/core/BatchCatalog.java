@@ -287,7 +287,7 @@ public enum BatchCatalog implements BatchDefinition {
     HOTDEAL_EXPIRY_NOTICE("hotdeal-expiry-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 20 * * * *", true),
 
     /**
-     * 핫딜 구매 링크 클릭 판정 표({@code deal_click_daily} — V189 부터 하루 파티션) 조각 유지 — 어제~모레 조각 만들기 + 어제보다 앞선 조각 DROP(오늘·어제만 남긴다, 클릭 수는
+     * 핫딜 구매 링크 클릭 판정 표({@code deal_click_daily} — V193 부터 하루 파티션) 조각 유지 — 어제~모레 조각 만들기 + 어제보다 앞선 조각 DROP(오늘·어제만 남긴다, 클릭 수는
      * {@code post_deals.click_count}). DB 배치, 기본 매일 00:50 KST({@code R__batch_43_deal_click_partitions.sql}, site-analytics-contract 「3단계 결정 ⑤⑥」)
      */
     DEAL_CLICK_PARTITIONS("deal-click-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),

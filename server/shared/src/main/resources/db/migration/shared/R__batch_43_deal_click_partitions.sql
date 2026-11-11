@@ -1,4 +1,4 @@
--- DB 배치 `deal-click-partitions` — 핫딜 구매 링크 클릭 판정 표(deal_click_daily — V189 부터 한국 날짜 하루 범위 파티션) 조각 유지.
+-- DB 배치 `deal-click-partitions` — 핫딜 구매 링크 클릭 판정 표(deal_click_daily — V193 부터 한국 날짜 하루 범위 파티션) 조각 유지.
 -- docs/features/site-analytics-contract.md 「3단계」 결정 ⑤⑥ · hotdeal-contract.md(클릭 수는 post_deals.click_count — 판정 표는 「하루 같은 방문자·같은 글 1번」 거르기뿐).
 -- 번호: shared R__batch_42 다음.
 -- 규칙:
@@ -101,6 +101,6 @@ BEGIN
 END
 $proc$;
 
--- 마이그레이션 때 조각을 만들어 둔다(V189 가 만든 뒤 날이 바뀌었을 수 있다 — 빈 조각이라 비용이 없다)
+-- 마이그레이션 때 조각을 만들어 둔다(V193 가 만든 뒤 날이 바뀌었을 수 있다 — 빈 조각이라 비용이 없다)
 SELECT deal_ensure_click_partitions(NULL);
 SELECT batch_define('deal-click-partitions', 'batch_deal_click_partitions', 0, 50);

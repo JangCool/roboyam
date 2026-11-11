@@ -41,7 +41,7 @@ public final class AdminScreenRegistry {
             // admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
             section(NORMAL, "menu.visitStats", "pi pi-chart-line",
                     leaf(s("visitOverview", "/analytics/visits", "menu.visitOverview", "pi pi-chart-line", Permission.SITE_READ)),
-                    // 3단계 월별 보기(site-analytics-contract 「결정 ④ 화면 확정」 ⓒ — 개요 바로 아래). 저장한 메뉴 구성에는 admin V9 가 넣는다
+                    // 3단계 월별 보기(site-analytics-contract 「결정 ④ 화면 확정」 ⓒ — 개요 바로 아래). 저장한 메뉴 구성에는 admin V10 가 넣는다
                     leaf(s("visitMonthly", "/analytics/visits/monthly", "menu.visitMonthly", "pi pi-calendar", Permission.SITE_READ)),
                     leaf(s("visitPages", "/analytics/visits/pages", "menu.visitPages", "pi pi-file", Permission.SITE_READ)),
                     leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.SITE_READ)),

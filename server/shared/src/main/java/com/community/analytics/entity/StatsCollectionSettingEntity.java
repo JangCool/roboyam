@@ -7,10 +7,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 통계 수집 설정 행 — shared V133·V135·V189 {@code stats_collection_settings}(id = 1, 마이그레이션이 기본값으로 만들어 둔다). 메인 DB 다(크론이 이 행을 읽는다).
+ * 통계 수집 설정 행 — shared V133·V135·V193 {@code stats_collection_settings}(id = 1, 마이그레이션이 기본값으로 만들어 둔다). 메인 DB 다(크론이 이 행을 읽는다).
  * 저장은 잠금 조회({@code StatsCollectionStore#lock}) 뒤 {@link #apply} 로 바꾼다(변경 감지).
  *
- * <p>원본 보관은 {@code raw_retention_months}(V189, smallint 2·3·6·12) 만 매핑한다. 옛 칸 {@code raw_retention_days} 는 매핑하지 않는다 — 롤링 배포 동안 옛 서버만 읽고 쓰며
+ * <p>원본 보관은 {@code raw_retention_months}(V193, smallint 2·3·6·12) 만 매핑한다. 옛 칸 {@code raw_retention_days} 는 매핑하지 않는다 — 롤링 배포 동안 옛 서버만 읽고 쓰며
  * (행을 새로 만들 때는 DB 기본값이 들어간다) 다음 버전에서 지운다.
  */
 @Entity

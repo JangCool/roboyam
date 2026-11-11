@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * 「설정 › 통계 수집」 API(site-analytics-contract 「API」) + 대시보드 묶음 응답의 {@code disabled} — 실제 관리자 앱 문맥 + PostgreSQL(보안 필터·권한 인터셉터·CSRF·감사).
- * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 3개월(새 DB 의 값 — V133 기본 90일을 V189 가 옮긴 값)로 되돌린다. 방문 가젯이 읽는 분석 표는 api 모듈의 analytics 스트림 파일로 만든다(관리자 앱은 그 스트림을 이관하지 않는다).
+ * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 3개월(새 DB 의 값 — V133 기본 90일을 V193 가 옮긴 값)로 되돌린다. 방문 가젯이 읽는 분석 표는 api 모듈의 analytics 스트림 파일로 만든다(관리자 앱은 그 스트림을 이관하지 않는다).
  */
 class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 

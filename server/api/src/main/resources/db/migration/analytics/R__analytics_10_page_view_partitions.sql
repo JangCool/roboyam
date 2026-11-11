@@ -1,12 +1,12 @@
 -- DB 배치 `analytics-page-view-partitions` — 방문 원본(analytics_page_views, analytics V1) 월 조각 유지 + 보관 기간 지난 달 조각 지우기.
 -- docs/features/site-analytics-contract.md 「주기 작업」·「3단계 결정 ①」(원본 보관 = 달 단위, 기본 2개월).
--- analytics 스트림의 반복 마이그레이션이다. 공통 함수(batch_run_begin · batch_define …, shared R__batch_00)와 설정 표(stats_collection_settings, shared V133·V189)는 메인 DB 에 있다 —
+-- analytics 스트림의 반복 마이그레이션이다. 공통 함수(batch_run_begin · batch_define …, shared R__batch_00)와 설정 표(stats_collection_settings, shared V133·V193)는 메인 DB 에 있다 —
 -- 지금 분석 DB = 메인 DB 라 그대로 쓴다(분석 DB 를 따로 두게 되면 이 파일·설정 읽기를 그 DB 에 맞게 옮겨야 한다 — 계약 「미확정」).
 -- 규칙:
 --   ① 조각 만들기 — 설정 「방문 수집」(enabled)과 「원본 기록」(raw_events)이 모두 켜져 있을 때만: 이번 달·다음 달(한국 달 경계)의 조각이 없으면 만든다.
 --      켤 때 바로 쓸 수 있게 관리자 저장(원본 기록을 켬)과 이 파일 끝(마이그레이션 때)도 같은 함수를 부르고, 쓰는 쪽(api)은 조각이 없다는 오류를 받으면 한 번 만들고 다시 쓴다.
 --   ② 지우기 — 설정과 상관없이 돈다(끈 뒤에도 남은 원본은 보관 기간대로 지워야 한다 — 빈 표면 바로 끝난다). 보관 = stats_collection_settings.raw_retention_months
---      (V189 — 2 · 3 · 6 · 12개월, 이번 달 포함, 그 밖이면 2): 「이번 달부터 n번째 앞 달」보다 오래된 달 조각을 통째로 지운다(DROP). 줄 DELETE 는 없다 — 일 단위(예: 60일)는
+--      (V193 — 2 · 3 · 6 · 12개월, 이번 달 포함, 그 밖이면 2): 「이번 달부터 n번째 앞 달」보다 오래된 달 조각을 통째로 지운다(DROP). 줄 DELETE 는 없다 — 일 단위(예: 60일)는
 --      31일 달이 이어지면 지난달 첫날을 놓쳐 버렸다. 2개월이면 이번 달 + 지난달(31~62일, 지난달은 늘 통째로 있다). 옛 칸 raw_retention_days 는 읽지 않는다.
 -- 기본 실행: 매일 00:25 (한국시간 — batch_daily_cron 이 환산).
 -- 결과: 처리 건수 = 만든 조각 + 지운 조각, 0 이면 SKIP. 단계마다 COMMIT. 실패하면 그때까지의 건수와 사유를 남기고 FAIL.

@@ -3,7 +3,7 @@ package com.community.analytics.settings;
 import java.util.List;
 
 /**
- * 「설정 › 통계 수집」 값(shared V133 {@code stats_collection_settings} 한 행 + V135 의 2단계 세 칸 + V189 의 원본 보관 개월 수) — docs/features/site-analytics-contract.md
+ * 「설정 › 통계 수집」 값(shared V133 {@code stats_collection_settings} 한 행 + V135 의 2단계 세 칸 + V193 의 원본 보관 개월 수) — docs/features/site-analytics-contract.md
  * 「설정」·「2단계」·「3단계 결정 ①」. <b>모두 기본 꺼짐</b>, 원본 보관 2개월(이번 달 포함 — 이번 달과 지난달).
  *
  * <p>방문 하위 항목({@code visits}·{@code rawEvents}·{@code referrers}·{@code flows}·{@code environment}·{@code searchTerms}·{@code bots})은 {@code enabled}(방문 수집 전체)가

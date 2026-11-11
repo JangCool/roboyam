@@ -45,7 +45,7 @@ class StatsCollectionStage2Test {
             assertThat(c.get("is_nullable")).as("%s", c.get("column_name")).isEqualTo("NO");
             assertThat(c.get("column_default")).as("%s", c.get("column_name")).isEqualTo("false");
         }
-        // 보관 개월 — 새 DB 는 한 번도 저장하지 않은 설정이라 V189 가 새 기본값 2개월로 둔다(다른 시험 뒤에도 되돌린 값이 기본 2)
+        // 보관 개월 — 새 DB 는 한 번도 저장하지 않은 설정이라 V193 가 새 기본값 2개월로 둔다(다른 시험 뒤에도 되돌린 값이 기본 2)
         StatsCollection read = JpaTestContext.create(StatsCollectionStore.class).find().orElseThrow().value();
         assertThat(read.rawRetentionMonths()).isEqualTo(StatsCollection.DEFAULT_RETENTION_MONTHS);
         assertThat(read).usingRecursiveComparison().ignoringFields("rawRetentionMonths").isEqualTo(StatsCollection.OFF);

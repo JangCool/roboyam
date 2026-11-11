@@ -182,7 +182,7 @@ public class DealQueries extends RoboyamRepositoryQDSL {
      *
      * <p>Native SQL 인 이유(기록 한 줄): {@code deal_click_daily} 는 엔티티가 없는 표이고 「처음 한 번만」을 {@code INSERT … ON CONFLICT DO NOTHING} 한 문장으로 가린다.
      *
-     * <p>판정 표는 V189 부터 한국 날짜 하루 파티션이다(조각은 DB 배치 {@code deal-click-partitions} 가 어제~모레를 미리 만든다 — R__batch_43). 그 날 조각이 없으면 PostgreSQL 이
+     * <p>판정 표는 V193 부터 한국 날짜 하루 파티션이다(조각은 DB 배치 {@code deal-click-partitions} 가 어제~모레를 미리 만든다 — R__batch_43). 그 날 조각이 없으면 PostgreSQL 이
      * 23514 로 거절하므로 <b>JDBC 세이브포인트</b>로 그 넣기만 되돌리고 조각을 한 번 만든 뒤({@code deal_ensure_click_partitions} — 잠금 아래 한 번만) 다시 넣는다.
      * 세이브포인트가 없으면 실패한 문장이 업무 트랜잭션 전체를 못 쓰게 한다. 안의 문장은 JDBC 뿐이다(세이브포인트 안에서 JPA 질의가 실패하면 롤백 전용이 된다 — repository.md).
      *

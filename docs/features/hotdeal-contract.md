@@ -214,7 +214,7 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
 - 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 링크 규칙 `note` 100자(DB 200).
 - 매니저·스텝 API 가정(2026-11-01): 대상 판정은 다른 공개 상태 API 와 같아 숨긴 글은 `403 POST_HIDDEN`(숨긴 글의 딜은 관리자 앱에서) · 관리자 감사 조회의 행위자 이름 검색은 지금 운영자 이름만 찾는다(회원 행위자는 ID 로 찾기) · admin-web 감사 화면 타입 `AuditActorType` 에 `MEMBER` 추가는 화면 몫.
-- **클릭 판정 표 정리(2026-11-11 발견 · 같은 날 구현 브랜치 `claude/analytics-stage3`)**: `deal_click_daily` 가 정리 없이 방문자 해시와 함께 쌓이던 것을 하루 파티션(shared V189) + 어제~모레 조각 만들고 지난 조각 DROP(`R__batch_43` `deal-click-partitions`)으로 바꿨다. 쓰는 쪽 `DealQueries.recordClick` 은 조각이 없으면(23514) 세이브포인트로 되돌리고 조각을 만든 뒤 다시 넣는다. 클릭 수는 `click_count` 그대로(`site-analytics-contract.md` 「3단계」 결정 ⑤·⑥).
+- **클릭 판정 표 정리(2026-11-11 발견 · 같은 날 구현 브랜치 `claude/analytics-stage3`)**: `deal_click_daily` 가 정리 없이 방문자 해시와 함께 쌓이던 것을 하루 파티션(shared V193) + 어제~모레 조각 만들고 지난 조각 DROP(`R__batch_43` `deal-click-partitions`)으로 바꿨다. 쓰는 쪽 `DealQueries.recordClick` 은 조각이 없으면(23514) 세이브포인트로 되돌리고 조각을 만든 뒤 다시 넣는다. 클릭 수는 `click_count` 그대로(`site-analytics-contract.md` 「3단계」 결정 ⑤·⑥).
 - `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
 
 ## 법무 확인 (05 §5)
