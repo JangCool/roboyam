@@ -116,7 +116,7 @@ function logoStyle(card: BoardCard): Record<string, string> | undefined {
     if (mode === 'FIXED') return { background: 'var(--gx-bc)', color: 'var(--gx-bc-on)' };
     if (mode === 'NEUTRAL') return undefined;
     const dot = UtilBoard.dotStyle(card.board.color);
-    const on = UtilColor.cssOnPair(UtilBoard.presetColor(card.board.color));
+    const on = UtilColor.cssOnPair(UtilBoard.boardColor(card.board.color));
     return dot && on ? { ...dot, color: on } : undefined;
 }
 
@@ -124,7 +124,7 @@ function logoClass(index: number, card: BoardCard): string {
     const mode = cfg.value.badge.mode;
     if (mode === 'FIXED') return '';
     if (mode === 'NEUTRAL') return 'bg-surface-600 text-surface-0 dark:bg-surface-500';
-    if (UtilBoard.presetColor(card.board.color)) return '';
+    if (UtilBoard.boardColor(card.board.color)) return '';
     return `${UtilBoard.dotClass(UtilBoard.toneAt(index))} text-surface-0`;
 }
 

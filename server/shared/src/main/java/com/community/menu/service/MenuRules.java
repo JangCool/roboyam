@@ -16,7 +16,6 @@ public final class MenuRules {
     private static final Pattern WHITESPACE = Pattern.compile("\\s");
     private static final Pattern HREF_CHARS = Pattern.compile("[<>\"'\\\\`]");
     private static final Pattern AUTHORITY = Pattern.compile("^[a-z0-9.-]+(:\\d{1,5})?$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
 
     private MenuRules() {
     }
@@ -50,19 +49,12 @@ public final class MenuRules {
      * 그 밖의 값은 그대로 돌려준다({@link #textColorProblem} 이 거절한다).
      */
     public static String normalizeTextColor(String value) {
-        String color = stripToNull(value);
-        if (color == null) {
-            return null;
-        }
-        return HEX_COLOR.matcher(color).matches() ? color.toUpperCase(Locale.ROOT) : color;
+        return BoardFields.normalizeColor(value); // 게시판 표시색(V188)과 같은 규칙
     }
 
-    /** 글자 색 — {@link #normalizeTextColor} 를 거친 값이 null·12색 키·{@code #RRGGBB} 가 아니면 문제 */
+    /** 글자 색 — {@link #normalizeTextColor} 를 거친 값이 null·13색 키·{@code #RRGGBB} 가 아니면 문제 */
     public static MessageRef textColorProblem(String normalized) {
-        if (normalized == null || BoardFields.COLORS.contains(normalized) || HEX_COLOR.matcher(normalized).matches()) {
-            return null;
-        }
-        return new MessageRef("menu.textColor.invalid");
+        return BoardFields.isColor(normalized) ? null : new MessageRef("menu.textColor.invalid");
     }
 
     /** 배지 — 비어도 된다(null), 제어 문자·{@code <}·{@code >} 금지, 글자 수(코드 포인트) ≤ {@link MenuLimits#BADGE_MAX} */

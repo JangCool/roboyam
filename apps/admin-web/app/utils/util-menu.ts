@@ -278,10 +278,7 @@ export default class UtilMenu {
      * @returns {string | null} 정리한 값 또는 null(기본).
      */
     static normalizeTextColor(value: unknown): string | null {
-        if (typeof value !== 'string') return null;
-        const text = value.trim();
-        if ((UtilMenu.TEXT_COLORS as readonly string[]).includes(text)) return text;
-        return UtilColor.isHex(text) ? text.toUpperCase() : null;
+        return UtilBoard.normalizeColor(value); // 게시판 표시색(shared V188)과 같은 규칙
     }
 
     /**

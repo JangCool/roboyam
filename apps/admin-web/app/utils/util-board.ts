@@ -5,6 +5,7 @@ import type {
     BoardDefaults,
     BoardDefaultsField,
     BoardDetail,
+    BoardDisplayColor,
     BoardKind,
     BoardLayout,
     BoardListItem,
@@ -19,6 +20,7 @@ import type {
     BoardWriteLock,
 } from '~/composables/board/api/useBoardApi.types';
 import { BOARD_MIN_GUEST, BOARD_POLICY_FIELDS } from '~/composables/board/api/useBoardApi.types';
+import UtilColor from '~/utils/util-color';
 
 /**
  * 칸 하나를 그리는 방식 — 숫자 글자 입력 · 켜고 끄기 · 고르기 · 등급 고르기(글쓰기·댓글)
@@ -56,7 +58,7 @@ export type BoardLabelProblem = 'LABEL_LENGTH' | 'LABEL_CHARS';
 /** 정책 칸 하나의 화면 검사 결과(숫자 칸 + 이름 칸) — 문구는 `UtilBoardMessages.numProblem` */
 export type BoardFieldProblem = BoardNumProblem | BoardLabelProblem;
 /** 게시판 만들기·기본 정보·말머리 검사 결과 — 문구는 `UtilBoardMessages.problem` */
-export type BoardTextProblem = 'NAME_REQUIRED' | 'NAME_LENGTH' | 'NAME_DUPLICATE' | 'SLUG_REQUIRED' | 'SLUG_FORMAT' | 'SLUG_LENGTH' | 'SLUG_RESERVED' | 'SLUG_DUPLICATE' | 'DESC_LENGTH' | 'NAME_EN_LENGTH' | 'TEXT_LENGTH' | 'TEMPLATE_LENGTH' | 'PREFIX_NAME_REQUIRED' | 'PREFIX_NAME_LENGTH' | 'PREFIX_NAME_DUPLICATE';
+export type BoardTextProblem = 'COLOR_FORMAT' | 'NAME_REQUIRED' | 'NAME_LENGTH' | 'NAME_DUPLICATE' | 'SLUG_REQUIRED' | 'SLUG_FORMAT' | 'SLUG_LENGTH' | 'SLUG_RESERVED' | 'SLUG_DUPLICATE' | 'DESC_LENGTH' | 'NAME_EN_LENGTH' | 'TEXT_LENGTH' | 'TEMPLATE_LENGTH' | 'PREFIX_NAME_REQUIRED' | 'PREFIX_NAME_LENGTH' | 'PREFIX_NAME_DUPLICATE';
 
 /** 숫자 칸들 — 화면에서는 글자로 들고 있다(`InputText` + `inputmode=numeric`, grades.vue 와 같은 이유) */
 export const BOARD_NUM_FIELDS = [
@@ -116,7 +118,8 @@ export interface BoardDetailForm {
     viewToggle: boolean;
     /** 말머리·상태 칩 위치 — `null` = 사이트 기본 따르기(기본 설정 `listChipPosition`) */
     chipPosition: BoardChipPosition | null;
-    color: BoardColor | null;
+    /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `colorProblem` 이 막는다) */
+    color: BoardDisplayColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;
     writeLock: BoardWriteLock | null;
@@ -292,6 +295,12 @@ const COLOR_PALETTE: Record<BoardColor, string> = {
     SKY: 'sky',
     BROWN: 'stone',
     EMERALD: 'emerald',
+};
+/**
+ * 라이트 화면 견본의 팔레트 단계 — 기본 500. 분홍은 500(#ec4899)이 공개 화면 값(`UtilColor.PRESETS` PINK 라이트 #db2777)보다 옅어 600(#db2777)으로 맞춘다(사용자 2026-11-11).
+ */
+const COLOR_LIGHT_STEP: Partial<Record<BoardColor, number>> = {
+    PINK: 600,
 };
 
 /** slug 규칙 — 영소문자로 시작, 영소문자·숫자·`-` (서버 `BoardCreateRequest.slug` 와 같다) */
@@ -697,7 +706,7 @@ export default class UtilBoard {
             viewToggle: form.viewToggle,
             // 「사이트 기본 따르기」는 빈 글자로 보낸다(null 은 서버가 「그대로」로 읽는다 — writeTemplate 과 같은 규칙)
             chipPosition: form.chipPosition ?? '',
-            color: form.color,
+            color: UtilBoard.normalizeColor(form.color), // 13색 이름 또는 대문자 #RRGGBB(서버도 같은 모양으로 정리)
             allowAdult: form.allowAdult,
             investmentNotice: form.investmentNotice,
             writeLock: form.writeLock,
@@ -926,11 +935,35 @@ export default class UtilBoard {
 
     // ── 표시 ─
 
-    /** 표시색의 CSS 색 값(라이트·다크) — 색 없음이면 null */
-    static colorVar(color: BoardColor | null): string | null {
+    /**
+     * 표시색의 CSS 색 값(라이트·다크) — 13색은 PrimeVue 팔레트(라이트 500 · 분홍만 600, 다크 400), 직접 고른 `#RRGGBB` 는 두 바탕에서 읽히게 명도만 보정(`UtilColor.cssPair`, 공개 화면과 같은 식).
+     * 색 없음·틀린 값이면 null.
+     */
+    static colorVar(color: BoardDisplayColor | null): string | null {
         if (!color) return null;
-        const name = COLOR_PALETTE[color];
-        return `light-dark(var(--p-${name}-500), var(--p-${name}-400))`;
+        if (UtilColor.isHex(color)) return UtilColor.cssPair(color);
+        if (!Object.prototype.hasOwnProperty.call(COLOR_PALETTE, color)) return null;
+        const name = COLOR_PALETTE[color as BoardColor];
+        const light = COLOR_LIGHT_STEP[color as BoardColor] ?? 500;
+        return `light-dark(var(--p-${name}-${light}), var(--p-${name}-400))`;
+    }
+
+    /**
+     * 표시색 값을 읽는다 — 13색 이름(대문자)은 그대로, `#rrggbb` 는 대문자(서버 `BoardFields.normalizeColor` 와 같은 모양), 그 밖(빈 값·틀린 글자)은 null.
+     * 메뉴 글자 색(`UtilMenu.normalizeTextColor`)도 같은 규칙이다.
+     * @param {unknown} value - 서버 값 또는 입력 중인 글자.
+     * @returns {string | null} 정리한 값 또는 null(자동·기본).
+     */
+    static normalizeColor(value: unknown): string | null {
+        if (typeof value !== 'string') return null;
+        const text = value.trim();
+        if ((UtilBoard.COLORS as readonly string[]).includes(text)) return text;
+        return UtilColor.isHex(text) ? text.toUpperCase() : null;
+    }
+
+    /** 표시색의 문제 — 자동(null)·13색·`#RRGGBB` 가 아니면(직접 고르기 칸에 틀린 글자) `COLOR_FORMAT` */
+    static colorProblem(color: BoardDisplayColor | null): BoardTextProblem | null {
+        return color !== null && UtilBoard.normalizeColor(color) === null ? 'COLOR_FORMAT' : null;
     }
 
     /**

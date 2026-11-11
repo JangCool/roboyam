@@ -601,6 +601,9 @@ export default {
     investmentConfirmMessage: "After saving, this board's investment notice cannot be turned off.",
     investmentConfirm: 'Turn on and save',
     colorHelp: 'Now: {name}. Used for the dot next to the board name.',
+    colorCustom: 'Custom',
+    colorCustomPick: 'Pick a custom board color',
+    colorCustomInput: 'Board color value (#RRGGBB)',
     writeLockHelp: 'For archived or resting boards. Posts stay visible; only new posts (and comments) are blocked, operators and guests included. This field has no default.',
     writeLock: {
         NONE: 'No lock',
@@ -738,6 +741,7 @@ export default {
     problemSlugDuplicate: 'This address is already in use.',
     problemDescLength: 'Description can be up to {max} chars.',
     problemTextLength: 'Guide text can be up to {max} chars.',
+    problemColorFormat: 'Write the board color as #RRGGBB.',
     problemPrefixRequired: 'Enter a prefix name.',
     problemPrefixLength: 'Prefix name can be up to {max} chars.',
     problemPrefixDuplicate: 'A prefix with this name already exists.',

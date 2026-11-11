@@ -604,6 +604,9 @@ export default {
     investmentConfirmMessage: '저장하면 이 게시판의 투자 고지는 다시 끌 수 없어요.',
     investmentConfirm: '켜고 저장',
     colorHelp: '지금: {name}. 게시판 이름 옆 색 점에 쓰여요.',
+    colorCustom: '직접 고르기',
+    colorCustomPick: '표시색 직접 고르기',
+    colorCustomInput: '표시색 값(#RRGGBB)',
     writeLockHelp: '보관·휴식 게시판용이에요. 글은 계속 보이고 새 글(·댓글)만 막아요. 운영진과 비회원도 막혀요. 기본값이 없는 칸이에요.',
     writeLock: {
         NONE: '잠금 없음',
@@ -741,6 +744,7 @@ export default {
     problemSlugDuplicate: '이미 쓰는 주소예요.',
     problemDescLength: '설명은 {max}자까지예요.',
     problemTextLength: '안내문은 {max}자까지예요.',
+    problemColorFormat: '표시색은 #RRGGBB 꼴로 적어 주세요.',
     problemPrefixRequired: '말머리 이름을 입력해 주세요.',
     problemPrefixLength: '말머리 이름은 {max}자까지예요.',
     problemPrefixDuplicate: '같은 이름의 말머리가 있어요.',

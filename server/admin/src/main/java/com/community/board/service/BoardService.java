@@ -325,8 +325,8 @@ public class BoardService {
         if ("CARD".equals(board.getLayout()) && "CARD".equals(in.layout) && in.viewToggle) {
             invalid.put("viewToggle", new MessageRef("board.viewToggle.card"));
         }
-        if (in.color != null && !BoardFields.COLORS.contains(in.color)) {
-            invalid.put("color", new MessageRef("board.field.choice"));
+        if (!BoardFields.isColor(in.color)) {
+            invalid.put("color", new MessageRef("board.color.invalid")); // 메뉴 글자 색(MenuRules.textColorProblem)과 같은 규칙
         }
         if (in.writeLock != null && !BoardFields.WRITE_LOCKS.contains(in.writeLock)) {
             invalid.put("writeLock", new MessageRef("board.field.choice"));
@@ -576,7 +576,7 @@ public class BoardService {
         in.description = BoardRules.strip(request.description());
         in.layout = request.layout() == null ? board.getLayout() : request.layout();
         in.viewToggle = request.viewToggle() == null ? board.isViewToggle() : request.viewToggle();
-        in.color = request.color() == null || request.color().isBlank() ? null : request.color();
+        in.color = BoardFields.normalizeColor(request.color()); // 13색 키 또는 #RRGGBB(대문자로 정리, V188) — 빈 값 = 자동
         in.allowAdult = request.allowAdult() == null ? board.isAllowAdult() : request.allowAdult();
         in.investmentNotice = request.investmentNotice() == null ? board.isInvestmentNotice() : request.investmentNotice();
         in.adsHidden = request.adsHidden() == null ? board.isAdsHidden() : request.adsHidden();
