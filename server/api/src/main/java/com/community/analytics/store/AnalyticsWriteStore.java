@@ -6,8 +6,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
@@ -20,9 +24,9 @@ import org.springframework.stereotype.Repository;
  * <ul>
  *   <li>방문자: {@link #visits} 의 표시 넣기가 {@code ON CONFLICT DO NOTHING RETURNING} 이라 <b>실제로 들어간 줄만</b> 방문자로 더한다. 같은 방문자를 두 서버가 같은 1분에 넣으면
  *       기본 키(day, visitor_hash)가 한 서버만 받는다 — 동시면 PostgreSQL 이 뒤 서버를 앞 서버의 커밋까지 기다리게 하고 그 줄을 건너뛴다(앞 서버가 되돌리면 뒤 서버가 넣는다).
- *       넣기와 시간 칸 더하기가 한 문장(= 한 트랜잭션)이라 표시만 남고 숫자가 빠지는 일이 없다.
+ *       넣기와 시간 칸 더하기가 한 트랜잭션이라 표시만 남고 숫자가 빠지는 일이 없다.
  *       신규 방문자: 표시에 「신규」 칸(analytics V2)을 두고, 이미 있는 표시라도 늦게 온 신호가 신규면 false → true 로 바꾸면서 그때만 신규 +1 —
- *       첫 화면(신규)은 서버 A, 다음 화면은 서버 B 가 받고 B 가 먼저 써도 신규가 빠지지 않는다(QA 재현 2026-11-04). 방문자 수는 새로 넣은 줄만 센다({@code xmax = 0}).</li>
+ *       첫 화면(신규)은 서버 A, 다음 화면은 서버 B 가 받고 B 가 먼저 써도 신규가 빠지지 않는다(QA 재현 2026-11-04). 표시 표가 파티션이라 넣기·바꾸기를 두 문장으로 나눈다(3단계).</li>
  *   <li>페이지뷰·페이지별·유입처별·이동 횟수: 신호 하나는 서버 한 대만 받으므로 서버마다 자기 몫을 더해도 합이 정확하다. 더하기 upsert 는 행 잠금으로 차례가 정해진다.</li>
  *   <li>교착 방지: 모든 넣기를 키 차례({@code ORDER BY})로 해서 서버끼리 같은 행을 잠그는 차례가 같다.</li>
  *   <li>지금 접속: 방문자 키 한 줄에 마지막 시각을 {@code greatest} 로 — 늦게 도착한 옛 시각이 덮어쓰지 않는다. 세기는 DB 에서 한 번(관리자 대시보드).</li>
@@ -31,28 +35,29 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AnalyticsWriteStore {
 
-    /**
-     * 표시 넣기 → 새로 들어간 줄만 시간 칸 방문자 +1, 신규는 「새로 넣은 신규 표시」와 「false → true 로 바뀐 표시」만 +1 — 페이지뷰와 함께 한 문장으로 더한다.
-     * 같은 묶음에 같은 (날짜, 방문자)가 두 번 오면 하나로(신규 우선, 이른 시간 칸) — {@code ON CONFLICT DO UPDATE} 는 한 문장에서 같은 행을 두 번 바꿀 수 없다.
+    /*
+     * 방문자 몰아쓰기는 한 트랜잭션 안의 세 문장이다(3단계 — analytics V6 로 표시 표가 하루 파티션이 되면서 바꿈).
+     * 예전 한 문장은 「새로 넣었나」를 RETURNING (xmax = 0) 으로 갈랐는데, PostgreSQL 은 파티션 표(부모)에 넣을 때 RETURNING 에서 시스템 칸을 꺼내지 못한다(0A000 —
+     * QA 2026-11-11 재현: 몰아쓰기가 매번 되돌려져 방문자·페이지뷰·지금 접속이 하나도 쌓이지 않았다). 그래서:
+     *   ① MARK_INSERT: ON CONFLICT DO NOTHING RETURNING — 돌려받은 줄 = 이번에 새로 넣은 표시(= 방문자 +1). 동시에 같은 키를 넣는 다른 서버가 있으면 그 커밋까지 기다렸다 건너뛴다.
+     *   ② MARK_FLIP: ①에서 새로 넣지 못한 신규 신호만 「false → true」로 바꾼다(RETURNING 일반 칸). 다음 문장이라 READ COMMITTED 의 새 스냅숏으로 ①이 기다린 다른 서버의 표시도 본다
+     *      — 첫 화면(신규)은 서버 A, 다음 화면은 서버 B 가 받고 B 가 먼저 써도 신규가 빠지지 않는다(QA 재현 2026-11-04). 잠그는 차례는 키 차례(FOR UPDATE … ORDER BY).
+     *   ③ HOURLY: 시간 칸별 방문자·신규·페이지뷰를 자바에서 센 값으로 한 문장 더하기.
      */
-    private static final String VISITS = "WITH input AS ("
-            + "  SELECT DISTINCT ON (t.day, t.visitor_hash) t.day, t.visitor_hash, t.hour, t.new_visitor"
-            + "    FROM unnest(?::date[], ?::text[], ?::timestamptz[], ?::boolean[]) AS t(day, visitor_hash, hour, new_visitor)"
-            + "   ORDER BY t.day, t.visitor_hash, t.new_visitor DESC, t.hour"
-            + "), ins AS ("
-            + "  INSERT INTO analytics_visit_marks (day, visitor_hash, new_visitor) SELECT day, visitor_hash, new_visitor FROM input ORDER BY day, visitor_hash"
-            + "  ON CONFLICT (day, visitor_hash) DO UPDATE SET new_visitor = true"
-            + "    WHERE NOT analytics_visit_marks.new_visitor AND EXCLUDED.new_visitor"
-            + "  RETURNING day, visitor_hash, (xmax = 0) AS inserted"
-            + "), counted AS ("
-            + "  SELECT i.hour, count(*) FILTER (WHERE ins.inserted) AS visitors, count(*) FILTER (WHERE i.new_visitor) AS new_visitors"
-            + "    FROM ins JOIN input i ON i.day = ins.day AND i.visitor_hash = ins.visitor_hash GROUP BY i.hour"
-            + "), views AS ("
-            + "  SELECT p.hour, p.views FROM unnest(?::timestamptz[], ?::bigint[]) AS p(hour, views)"
+    private static final String MARK_INSERT = "INSERT INTO analytics_visit_marks (day, visitor_hash, new_visitor) "
+            + "SELECT t.day, t.visitor_hash, t.new_visitor FROM unnest(?::date[], ?::text[], ?::boolean[]) AS t(day, visitor_hash, new_visitor) ORDER BY t.day, t.visitor_hash "
+            + "ON CONFLICT (day, visitor_hash) DO NOTHING RETURNING day, visitor_hash";
+
+    private static final String MARK_FLIP = "WITH target AS ("
+            + "  SELECT m.day, m.visitor_hash FROM analytics_visit_marks m"
+            + "    JOIN unnest(?::date[], ?::text[]) AS t(day, visitor_hash) ON m.day = t.day AND m.visitor_hash = t.visitor_hash"
+            + "   WHERE NOT m.new_visitor ORDER BY m.day, m.visitor_hash FOR UPDATE OF m"
             + ") "
-            + "INSERT INTO analytics_visit_hourly (hour, visitors, new_visitors, page_views) "
-            + "SELECT coalesce(c.hour, v.hour), coalesce(c.visitors, 0), coalesce(c.new_visitors, 0), coalesce(v.views, 0) "
-            + "  FROM counted c FULL JOIN views v ON v.hour = c.hour ORDER BY 1 "
+            + "UPDATE analytics_visit_marks m SET new_visitor = true FROM target x "
+            + " WHERE m.day = x.day AND m.visitor_hash = x.visitor_hash AND NOT m.new_visitor RETURNING m.day, m.visitor_hash";
+
+    private static final String HOURLY = "INSERT INTO analytics_visit_hourly (hour, visitors, new_visitors, page_views) "
+            + "SELECT t.h, t.v, t.n, t.p FROM unnest(?::timestamptz[], ?::bigint[], ?::bigint[], ?::bigint[]) AS t(h, v, n, p) ORDER BY t.h "
             + "ON CONFLICT (hour) DO UPDATE SET visitors = analytics_visit_hourly.visitors + EXCLUDED.visitors, "
             + "new_visitors = analytics_visit_hourly.new_visitors + EXCLUDED.new_visitors, page_views = analytics_visit_hourly.page_views + EXCLUDED.page_views";
 
@@ -169,21 +174,84 @@ public class AnalyticsWriteStore {
         this.jdbc = db.jdbc();
     }
 
-    /** 방문자·페이지뷰(한 문장) + 지금 접속(한 문장) */
+    /** 표시 키 — 한국 날짜 + 방문자 해시 */
+    private record MarkKey(LocalDate day, String visitorHash) {
+    }
+
+    /** 같은 표시 키 두 줄 중 남길 것 — 신규 우선, 같으면 이른 시간 칸 */
+    private static VisitorRow preferred(VisitorRow a, VisitorRow b) {
+        if (a.newVisitor() != b.newVisitor()) {
+            return a.newVisitor() ? a : b;
+        }
+        return b.hour().isBefore(a.hour()) ? b : a;
+    }
+
+    /** ① 표시 넣기 — 이번에 새로 들어간 표시 키 */
+    private Set<MarkKey> insertMarks(List<VisitorRow> rows) {
+        List<MarkKey> keys = jdbc.query(con -> {
+            PreparedStatement ps = con.prepareStatement(MARK_INSERT);
+            ps.setArray(1, SqlArrays.text(con, rows.stream().map(VisitorRow::day).toList()));
+            ps.setArray(2, SqlArrays.text(con, rows.stream().map(VisitorRow::visitorHash).toList()));
+            ps.setArray(3, SqlArrays.text(con, rows.stream().map(VisitorRow::newVisitor).toList()));
+            return ps;
+        }, (rs, i) -> new MarkKey(rs.getObject("day", LocalDate.class), rs.getString("visitor_hash")));
+        return new HashSet<>(keys);
+    }
+
+    /** ② 이미 있던 표시 중 「신규 아님」을 신규로 — 실제로 바뀐 표시 키 */
+    private Set<MarkKey> flipMarks(List<VisitorRow> rows) {
+        List<MarkKey> keys = jdbc.query(con -> {
+            PreparedStatement ps = con.prepareStatement(MARK_FLIP);
+            ps.setArray(1, SqlArrays.text(con, rows.stream().map(VisitorRow::day).toList()));
+            ps.setArray(2, SqlArrays.text(con, rows.stream().map(VisitorRow::visitorHash).toList()));
+            return ps;
+        }, (rs, i) -> new MarkKey(rs.getObject("day", LocalDate.class), rs.getString("visitor_hash")));
+        return new HashSet<>(keys);
+    }
+
+    /**
+     * 방문자·신규·페이지뷰(표시 넣기 → 신규 바꾸기 → 시간 칸 더하기, 세 문장 — 위 설명) + 지금 접속(한 문장). 부르는 쪽이 한 트랜잭션으로 연다.
+     * 그 날 표시 조각이 없으면 ①이 23514 로 거절된다(부르는 쪽이 {@link #ensureMarkPartitions} 뒤 다시).
+     */
     public void visits(Collection<VisitorRow> visitors, Map<Instant, Long> pageViews, Map<String, Instant> active) {
         if (!visitors.isEmpty() || !pageViews.isEmpty()) {
-            List<Instant> hours = new ArrayList<>(pageViews.keySet());
-            List<Long> views = hours.stream().map(pageViews::get).toList();
-            jdbc.update(con -> {
-                PreparedStatement ps = con.prepareStatement(VISITS);
-                ps.setArray(1, SqlArrays.text(con, visitors.stream().map(VisitorRow::day).toList()));
-                ps.setArray(2, SqlArrays.text(con, visitors.stream().map(VisitorRow::visitorHash).toList()));
-                ps.setArray(3, SqlArrays.text(con, visitors.stream().map(VisitorRow::hour).toList()));
-                ps.setArray(4, SqlArrays.text(con, visitors.stream().map(VisitorRow::newVisitor).toList()));
-                ps.setArray(5, SqlArrays.text(con, hours));
-                ps.setArray(6, SqlArrays.text(con, views));
-                return ps;
+            // 같은 (날짜, 방문자)가 두 번 오면 하나로 — 신규 우선, 이른 시간 칸
+            Map<MarkKey, VisitorRow> unique = new LinkedHashMap<>();
+            for (VisitorRow v : visitors) {
+                unique.merge(new MarkKey(v.day(), v.visitorHash()), v, AnalyticsWriteStore::preferred);
+            }
+            Set<MarkKey> inserted = unique.isEmpty() ? Set.of() : insertMarks(new ArrayList<>(unique.values()));
+            List<VisitorRow> flipCandidates = unique.entrySet().stream()
+                    .filter(e -> e.getValue().newVisitor() && !inserted.contains(e.getKey())).map(Map.Entry::getValue).toList();
+            Set<MarkKey> flipped = flipCandidates.isEmpty() ? Set.of() : flipMarks(flipCandidates);
+
+            // 시간 칸마다 [방문자, 신규, 페이지뷰] — 새로 넣은 표시만 방문자, 「새로 넣은 신규」와 「false → true 로 바뀐 표시」만 신규
+            Map<Instant, long[]> perHour = new TreeMap<>();
+            unique.forEach((k, v) -> {
+                boolean in = inserted.contains(k);
+                boolean isNew = (in && v.newVisitor()) || flipped.contains(k);
+                if (in || isNew) {
+                    long[] c = perHour.computeIfAbsent(v.hour(), h -> new long[3]);
+                    if (in) {
+                        c[0]++;
+                    }
+                    if (isNew) {
+                        c[1]++;
+                    }
+                }
             });
+            pageViews.forEach((h, n) -> perHour.computeIfAbsent(h, x -> new long[3])[2] += n);
+            if (!perHour.isEmpty()) {
+                List<Instant> hours = new ArrayList<>(perHour.keySet());
+                jdbc.update(con -> {
+                    PreparedStatement ps = con.prepareStatement(HOURLY);
+                    ps.setArray(1, SqlArrays.text(con, hours));
+                    ps.setArray(2, SqlArrays.text(con, hours.stream().map(h -> perHour.get(h)[0]).toList()));
+                    ps.setArray(3, SqlArrays.text(con, hours.stream().map(h -> perHour.get(h)[1]).toList()));
+                    ps.setArray(4, SqlArrays.text(con, hours.stream().map(h -> perHour.get(h)[2]).toList()));
+                    return ps;
+                });
+            }
         }
         if (!active.isEmpty()) {
             List<String> keys = new ArrayList<>(active.keySet());

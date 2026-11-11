@@ -26,8 +26,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 방문 원본 월 조각(analytics R__analytics_10 · VisitFlusher 「조각 없음 23514」) — 실제 PostgreSQL. 조각은 한국 달 경계, 보관 일수 30·90·180·365(설정 표).
- * 설정 행(stats_collection_settings id = 1)은 시험마다 바꾸고 끝나면 기본값(모두 꺼짐 · 90일)으로 되돌린다.
+ * 방문 원본 월 조각(analytics R__analytics_10 · VisitFlusher 「조각 없음 23514」) — 실제 PostgreSQL. 조각은 한국 달 경계, 보관 개월 2·3·6·12(이번 달 포함, 설정 표 V189 —
+ * 3단계 결정 ①: 「이번 달부터 n번째 앞 달」보다 오래된 조각만 DROP, 줄 DELETE 없음).
+ * 설정 행(stats_collection_settings id = 1)은 시험마다 바꾸고 끝나면 기본값(모두 꺼짐 · 2개월)으로 되돌린다.
  */
 class PageViewPartitionTest {
 
@@ -42,7 +43,7 @@ class PageViewPartitionTest {
 
     @AfterEach
     void restore() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 2, referrers = false, flows = false, "
                 + "notification_sends = false, board_activity = false WHERE id = 1");
         jdbc.queryForObject("SELECT analytics_ensure_page_view_partitions(1)", Integer.class);
     }
@@ -78,8 +79,8 @@ class PageViewPartitionTest {
         return jdbc.queryForObject("SELECT count(*) FROM analytics_page_views WHERE id = ?", Long.class, id) > 0;
     }
 
-    private static void settingsRow(boolean enabled, boolean raw, int days) {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = ?, raw_events = ?, raw_retention_days = ? WHERE id = 1", enabled, raw, days);
+    private static void settingsRow(boolean enabled, boolean raw, int months) {
+        jdbc.update("UPDATE stats_collection_settings SET enabled = ?, raw_events = ?, raw_retention_months = ? WHERE id = 1", enabled, raw, months);
     }
 
     private static String lastMessage() {
@@ -114,40 +115,43 @@ class PageViewPartitionTest {
         long id = IDS.nextId();
         String path = "/qa/partition/" + id;
         collector.buffer().raw(new VisitBuffer.RawView(id, at, hash(), hash(), path, "OTHER", null, null, "DIRECT", null, null, null, "DESKTOP", true));
+        collector.buffer().page(ServiceTime.dateOf(at), path, "OTHER"); // 3단계: 페이지별은 원본과 따로 쌓고 따로 쓴다(buffer.page)
 
         flusher.flush();
 
         assertThat(exists(next)).isTrue();
         assertThat(rowExists(id)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM analytics_page_views WHERE id = ?", Long.class, id)).as("다시 쓴 원본도 한 줄").isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT views FROM analytics_page_daily WHERE day = ? AND path = ? AND kind = 'OTHER'", Long.class,
-                Date.valueOf(ServiceTime.dateOf(at)), path)).as("같은 트랜잭션의 페이지별 조회도 한 번만").isEqualTo(1);
+                Date.valueOf(ServiceTime.dateOf(at)), path)).as("원본을 다시 써도 따로 쓰는 페이지별 조회는 한 번만").isEqualTo(1);
         assertThat(collector.buffer().drain().isEmpty()).isTrue();
     }
 
-    // ── 크론: 보관 일수 경계 ────────────────────────────────────────────────
+    // ── 크론: 보관 개월 경계(달 단위) ────────────────────────────────────────
 
     @ParameterizedTest
-    @ValueSource(ints = {30, 90, 180, 365})
-    void 보관_기간이_다_지난_조각은_떼어_지우고_기한에_걸친_조각은_기한_앞_줄만_지운다(int days) {
-        settingsRow(true, true, days);
-        Instant cutoff = jdbc.queryForObject("SELECT now() - make_interval(days => ?)", Timestamp.class, days).toInstant();
-        YearMonth straddling = YearMonth.from(cutoff.atZone(ServiceTime.ZONE));
-        YearMonth expired = straddling.minusMonths(1);
+    @ValueSource(ints = {2, 3, 6, 12})
+    void 보관_기간이_다_지난_달_조각만_떼어_지우고_남길_달의_줄은_지우지_않는다(int months) {
+        settingsRow(true, true, months);
+        YearMonth keepFrom = thisMonth().minusMonths(months - 1); // 남길 첫 달 = 이번 달부터 n번째 앞 달(이번 달 포함 n개월)
+        YearMonth expired = keepFrom.minusMonths(1);
         ensure(expired);
-        ensure(straddling);
-        ensure(straddling.plusMonths(1));
+        ensure(keepFrom);
         long old = row(start(expired).plus(Duration.ofDays(3)));
-        long before = row(cutoff.minus(Duration.ofMinutes(10)));
-        long after = row(cutoff.plus(Duration.ofHours(2)));
+        long lastMinutes = row(start(keepFrom).minus(Duration.ofMinutes(10))); // 지울 달의 마지막 10분
+        long firstMinutes = row(start(keepFrom).plus(Duration.ofMinutes(10))); // 남길 달의 첫 10분 — 일 단위로 세면 오래됐어도 남는다
+        long middle = row(start(keepFrom).plus(Duration.ofDays(14)));
 
         jdbc.execute("CALL batch_analytics_page_view_partitions('MANUAL', NULL, NULL)");
 
-        assertThat(exists(expired)).as("끝이 기한 앞인 조각 %s 는 통째로 지운다", partition(expired)).isFalse();
+        assertThat(exists(expired)).as("끝이 남길 첫 달 앞인 조각 %s 는 통째로 지운다", partition(expired)).isFalse();
         assertThat(rowExists(old)).isFalse();
-        assertThat(exists(straddling)).as("기한에 걸친 조각은 남는다").isTrue();
-        assertThat(rowExists(before)).as("기한 10분 앞 줄").isFalse();
-        assertThat(rowExists(after)).as("기한 2시간 뒤 줄").isTrue();
-        assertThat(lastMessage()).isEqualTo("batch.result.analyticsPageViewPartitions");
+        assertThat(rowExists(lastMinutes)).as("지울 달의 마지막 10분 줄").isFalse();
+        assertThat(exists(keepFrom)).as("남길 첫 달 조각 %s 는 남는다", partition(keepFrom)).isTrue();
+        assertThat(rowExists(firstMinutes)).as("남길 달 첫 10분 줄 — 줄 DELETE 없음").isTrue();
+        assertThat(rowExists(middle)).isTrue();
+        assertThat(exists(thisMonth())).isTrue();
+        assertThat(lastMessage()).isEqualTo("batch.result.analyticsRawMonths");
     }
 
     // ── 크론: 설정이 꺼지면 조각 만들기를 건너뛴다 ──────────────────────────
@@ -156,16 +160,16 @@ class PageViewPartitionTest {
     void 원본_기록이_꺼져_있으면_조각을_만들지_않고_켜면_만든다() {
         YearMonth next = thisMonth().plusMonths(1);
 
-        settingsRow(true, false, 90); // 방문 수집은 켜졌지만 원본 기록은 꺼짐
+        settingsRow(true, false, 3); // 방문 수집은 켜졌지만 원본 기록은 꺼짐
         dropNextMonth();
         jdbc.execute("CALL batch_analytics_page_view_partitions('MANUAL', NULL, NULL)");
         assertThat(exists(next)).isFalse();
 
-        settingsRow(false, true, 90); // 원본 기록은 켜졌지만 방문 수집 전체가 꺼짐
+        settingsRow(false, true, 3); // 원본 기록은 켜졌지만 방문 수집 전체가 꺼짐
         jdbc.execute("CALL batch_analytics_page_view_partitions('MANUAL', NULL, NULL)");
         assertThat(exists(next)).isFalse();
 
-        settingsRow(true, true, 90);
+        settingsRow(true, true, 3);
         jdbc.execute("CALL batch_analytics_page_view_partitions('MANUAL', NULL, NULL)");
         assertThat(exists(next)).isTrue();
         assertThat(exists(thisMonth())).isTrue();

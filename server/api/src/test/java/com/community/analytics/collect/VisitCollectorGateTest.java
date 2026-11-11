@@ -71,7 +71,7 @@ class VisitCollectorGateTest {
             "{\"visitorId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"sessionId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"path\":\"board\",\"kind\":\"HOME\"}",
             "{\"visitorId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"sessionId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"path\":\"//evil.example\",\"kind\":\"HOME\"}",
             "{\"visitorId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"sessionId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"path\":\"/a b\",\"kind\":\"HOME\"}",
-            "{\"visitorId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"sessionId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"path\":\"/\",\"kind\":\"ADMIN\"}",
+            // (3단계) 브라우저 kind 는 읽지 않으므로 틀린 kind 는 「틀린 신호」가 아니다 — 서버 라우트 표가 정한다(경로의_쿼리와_조각은… 에서 확인)
             "{\"visitorId\":\"9b2b0b5e-6f3c-4c55-9d9a-0c2f2b1f0a11\",\"sessionId\":null,\"path\":\"/\",\"kind\":\"HOME\"}"})
     void 형식이_틀린_신호는_조용히_버린다(String raw) {
         assertThat(collector.accept(raw, UA, HOST)).isFalse();
@@ -90,11 +90,14 @@ class VisitCollectorGateTest {
 
     @Test
     void 경로의_쿼리와_조각은_떼고_저장한다() {
-        assertThat(collector.accept(body("/board/free/1?page=2&q=secret#c3"), UA, HOST)).isTrue();
+        // 3단계: 라우트 표 기준 주소 — 게시판 slug 는 값을 남기고, 글 번호는 {id}. 화면 종류도 서버가 정한다(본문 kind 는 BOARD 로 보낸다)
+        assertThat(collector.accept(body("/boards/free?page=2&q=secret#c3"), UA, HOST)).isTrue();
+        assertThat(collector.accept(body("/posts/1?page=2&q=secret#c3"), UA, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
-        assertThat(b.raw()).hasSize(1);
-        assertThat(b.raw().peekFirst().path()).isEqualTo("/board/free/1");
-        assertThat(b.pages().keySet()).extracting(VisitBuffer.PageKey::path).containsExactly("/board/free/1");
+        assertThat(b.raw()).hasSize(2);
+        assertThat(b.raw()).extracting(VisitBuffer.RawView::path).containsExactly("/boards/free", "/posts/{id}");
+        assertThat(b.raw()).extracting(VisitBuffer.RawView::kind).containsExactly("BOARD", "POST");
+        assertThat(b.pages().keySet()).extracting(VisitBuffer.PageKey::path).containsExactlyInAnyOrder("/boards/free", "/posts/{id}");
     }
 
     @Test
@@ -110,21 +113,24 @@ class VisitCollectorGateTest {
     // ── 5. 켜진 항목만 ───────────────────────────────────────────────────────
 
     @Test
-    void 방문자를_끄고_원본만_켜면_원본과_페이지별_조회만_모은다() {
+    void 방문자를_끄고_원본만_켜면_원본만_모으고_페이지별_조회는_모으지_않는다() {
+        // 3단계: 페이지별 일별 조회는 「원본 기록」이 아니라 「방문자·페이지뷰」(visits)에 딸린다
         setting.set(new StatsCollection(true, false, true, 3, false, false, false, false));
-        assertThat(collector.accept(body("/post/1", "/board/free", "https://www.google.com/search?q=x", null), UA, HOST)).isTrue();
+        assertThat(collector.accept(body("/posts/1", "/boards/free", "https://www.google.com/search?q=x", null), UA, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
         assertThat(b.visitors()).isEmpty();
         assertThat(b.pageViews()).isEmpty();
         assertThat(b.active()).isEmpty();
         assertThat(b.raw()).hasSize(1);
-        assertThat(b.pages()).hasSize(1);
+        assertThat(b.raw().peekFirst().path()).isEqualTo("/posts/{id}");
+        assertThat(b.raw().peekFirst().prevPath()).isEqualTo("/boards/free");
+        assertThat(b.pages()).isEmpty();
         assertThat(b.referrers()).isEmpty();
         assertThat(b.flows()).isEmpty();
     }
 
     @Test
-    void 방문자만_켜면_방문자_페이지뷰_지금_접속만_모은다() {
+    void 방문자만_켜면_방문자_페이지뷰_지금_접속_페이지별_조회만_모은다() {
         setting.set(new StatsCollection(true, true, false, 3, false, false, false, false));
         assertThat(collector.accept(body("/", null, "https://www.google.com/", null), UA, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
@@ -132,7 +138,8 @@ class VisitCollectorGateTest {
         assertThat(b.pageViews().values()).containsExactly(1L);
         assertThat(b.active()).hasSize(1);
         assertThat(b.raw()).isEmpty();
-        assertThat(b.pages()).isEmpty();
+        assertThat(b.pages()).as("3단계: 원본을 꺼도 페이지별 조회는 쌓인다").containsExactly(java.util.Map.entry(
+                new VisitBuffer.PageKey(b.pages().keySet().iterator().next().day(), "/", "HOME"), 1L));
         assertThat(b.referrers()).isEmpty();
         assertThat(b.flows()).isEmpty();
     }
@@ -152,15 +159,18 @@ class VisitCollectorGateTest {
 
     @Test
     void 이동은_직전에서_이번으로_새로_고침은_빼고_세션_첫_페이지는_바로_들어옴으로_센다() {
-        collector.accept(body("/board/free", "/", null, null), UA, HOST);
-        collector.accept(body("/board/free", "/", null, null), UA, HOST);
-        collector.accept(body("/board/free", "/board/free", null, null), UA, HOST); // 새로 고침 — 이동 아님
+        collector.accept(body("/boards/free", "/", null, null), UA, HOST);
+        collector.accept(body("/boards/free", "/", null, null), UA, HOST);
+        collector.accept(body("/boards/free", "/boards/free", null, null), UA, HOST); // 새로 고침 — 이동 아님
         collector.accept(body("/", null, null, null), UA, HOST); // 세션 첫 페이지 — 「바로 들어옴」(출발 '') 한 줄(방문자 통계 화면 확정 2026-11-04)
+        // 3단계: 같은 경로 다시 보기 판정은 받은 실제 주소로 — 같은 글 새로 고침은 이동 아님, 글 → 다른 글은 /posts/{id} → /posts/{id} 이동 한 줄
+        collector.accept(body("/posts/1", "/posts/1", null, null), UA, HOST);
+        collector.accept(body("/posts/2", "/posts/1", null, null), UA, HOST);
         VisitBuffer.Batch b = collector.buffer().drain();
-        assertThat(b.flows()).hasSize(2);
+        assertThat(b.flows()).hasSize(3);
         assertThat(b.flows().entrySet()).anySatisfy(e -> {
             assertThat(e.getKey().from()).isEqualTo("/");
-            assertThat(e.getKey().to()).isEqualTo("/board/free");
+            assertThat(e.getKey().to()).isEqualTo("/boards/free");
             assertThat(e.getValue()).isEqualTo(2L);
         });
         assertThat(b.flows().entrySet()).anySatisfy(e -> {
@@ -168,8 +178,13 @@ class VisitCollectorGateTest {
             assertThat(e.getKey().to()).isEqualTo("/");
             assertThat(e.getValue()).isEqualTo(1L);
         });
+        assertThat(b.flows().entrySet()).anySatisfy(e -> {
+            assertThat(e.getKey().from()).isEqualTo("/posts/{id}");
+            assertThat(e.getKey().to()).isEqualTo("/posts/{id}");
+            assertThat(e.getValue()).isEqualTo(1L);
+        });
         // 새로 고침도 페이지뷰로는 센다(계약 — 페이지뷰는 본 횟수)
-        assertThat(b.pageViews().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(4);
+        assertThat(b.pageViews().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(6);
     }
 
     // ── 4. 유입 분류 ─────────────────────────────────────────────────────────

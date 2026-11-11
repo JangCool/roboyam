@@ -505,13 +505,20 @@ class VisitAnalyticsAdminServiceTest {
     }
 
     @Test
-    void 원본_기록이_꺼지면_페이지_순위는_비고_0() {
+    void 방문자_수집이_꺼지면_페이지_순위는_비고_0_원본_기록만_꺼지면_그대로() {
+        // 3단계: 페이지별 집계는 「원본 기록」이 아니라 「방문자·페이지뷰」(visits)에 딸린다
         pageSet();
-        current = new StatsCollection(true, true, false, 3, true, true, false, false);
+        current = new StatsCollection(true, false, true, 3, true, true, false, false);
         VisitAnalyticsAdmin.PagePage p = service().pages("2097-03-10", "2097-03-11", null, null, null, null);
         assertThat(p.items()).isEmpty();
         assertThat(p.total()).isZero();
         assertThat(p.totalViews()).isZero();
+
+        current = new StatsCollection(true, true, false, 3, true, true, false, false);
+        VisitAnalyticsAdmin.PagePage rawOff = service().pages("2097-03-10", "2097-03-11", null, null, null, null);
+        assertThat(rawOff.items()).isNotEmpty();
+        assertThat(rawOff.total()).isPositive();
+        assertThat(rawOff.totalViews()).isPositive();
     }
 
     // ── 4. pages/detail · flows ─────────────────────────────────────────────
@@ -575,14 +582,20 @@ class VisitAnalyticsAdminServiceTest {
     }
 
     @Test
-    void 서랍_일별은_원본_기록_스위치_들어온_곳은_이동_스위치를_따른다() {
+    void 서랍_일별은_방문자_스위치_들어온_곳은_이동_스위치를_따른다() {
+        // 3단계: 서랍 일별 조회(페이지별 집계)는 「원본 기록」이 아니라 「방문자·페이지뷰」(visits)를 따른다
         page(day(3, 10), "/posts/1", "POST", 5);
         flowSet();
+        current = new StatsCollection(true, false, true, 3, true, true, false, false);
+        VisitAnalyticsAdmin.PageDetail visitsOff = service().pageDetail("2097-03-10", "2097-03-12", "/posts/1");
+        assertThat(visitsOff.views()).isZero();
+        assertThat(visitsOff.kind()).isEqualTo("OTHER");
+        assertThat(visitsOff.incomingTotal()).isEqualTo(89);
+
         current = new StatsCollection(true, true, false, 3, true, true, false, false);
         VisitAnalyticsAdmin.PageDetail rawOff = service().pageDetail("2097-03-10", "2097-03-12", "/posts/1");
-        assertThat(rawOff.views()).isZero();
-        assertThat(rawOff.kind()).isEqualTo("OTHER");
-        assertThat(rawOff.incomingTotal()).isEqualTo(89);
+        assertThat(rawOff.views()).as("원본 기록만 꺼지면 일별은 그대로").isEqualTo(5);
+        assertThat(rawOff.kind()).isEqualTo("POST");
 
         current = new StatsCollection(true, true, true, 3, true, false, false, false);
         VisitAnalyticsAdmin.PageDetail flowsOff = service().pageDetail("2097-03-10", "2097-03-12", "/posts/1");

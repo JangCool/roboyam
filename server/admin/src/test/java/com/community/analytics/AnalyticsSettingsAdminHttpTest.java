@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * 「설정 › 통계 수집」 API(site-analytics-contract 「API」) + 대시보드 묶음 응답의 {@code disabled} — 실제 관리자 앱 문맥 + PostgreSQL(보안 필터·권한 인터셉터·CSRF·감사).
- * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 90일로 되돌린다. 방문 가젯이 읽는 분석 표는 api 모듈의 analytics 스트림 파일로 만든다(관리자 앱은 그 스트림을 이관하지 않는다).
+ * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 3개월(새 DB 의 값 — V133 기본 90일을 V189 가 옮긴 값)로 되돌린다. 방문 가젯이 읽는 분석 표는 api 모듈의 analytics 스트림 파일로 만든다(관리자 앱은 그 스트림을 이관하지 않는다).
  */
 class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
@@ -35,7 +35,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
     @AfterEach
     void reset() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 2, referrers = false, flows = false, "
                 + "notification_sends = false, board_activity = false WHERE id = 1");
         statsSettings.invalidate();
     }
@@ -60,7 +60,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
         long me = operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE);
         Cookie session = login(me);
         mvc.perform(get(URL).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.enabled").value(false))
-                .andExpect(jsonPath("$.data.rawRetentionMonths").value(3));
+                .andExpect(jsonPath("$.data.rawRetentionMonths").value(2)); // 새 설치 기본 2개월(이번 달 + 지난달)
         long historyBefore = history();
 
         mvc.perform(withCsrf(put(URL), session).content(body(true, true, false, 6, false, false, true, false))).andExpect(status().isOk())
@@ -135,11 +135,12 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.gadgets.VISITORS").doesNotExist())
                 .andExpect(jsonPath("$.data.unavailable.length()").value(0));
 
-        // 방문자 + 알림만 켠다(설정 저장 — 이 서버 사본은 바로 바뀐다)
+        // 방문자 + 알림만 켠다(설정 저장 — 이 서버 사본은 바로 바뀐다). 3단계: 인기 페이지(페이지별 집계)는 원본 기록이 아니라 방문자에 딸려 원본이 꺼져도 켜진다
         mvc.perform(withCsrf(put(URL), full).content(body(true, true, false, 3, false, false, true, false))).andExpect(status().isOk());
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", all).cookie(full)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.disabled.length()").value(5))
-                .andExpect(jsonPath("$.data.disabled[0]").value("POPULAR_PAGES"))
+                .andExpect(jsonPath("$.data.disabled.length()").value(4))
+                .andExpect(jsonPath("$.data.disabled[0]").value("REFERRERS"))
+                .andExpect(jsonPath("$.data.gadgets.POPULAR_PAGES.items").isArray())
                 .andExpect(jsonPath("$.data.gadgets.VISITORS.visitorsToday").isNumber())
                 .andExpect(jsonPath("$.data.gadgets.VISITORS.hours").isArray())
                 .andExpect(jsonPath("$.data.gadgets.NOTIFICATION_HEALTH").exists());

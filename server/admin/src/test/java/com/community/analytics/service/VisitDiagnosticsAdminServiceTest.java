@@ -383,23 +383,37 @@ class VisitDiagnosticsAdminServiceTest {
     // ── 원본 보관 ───────────────────────────────────────────────────────────
 
     @Test
-    void 가장_오래된_원본이_보관_일수_더하기_1일을_넘으면_넘친_날_수로_WARN() {
+    void 가장_오래된_원본이_보관_첫_달_1일보다_앞이면_넘친_날_수로_WARN_그_달_1일엔_한_달_여유() {
+        // 3단계 결정 ①: 보관은 달 단위 — 남아도 되는 첫 날 = 이번 달부터 (n − 1)달 앞의 1일(rawKeepFrom). 지금 2098-05-20, 보관 3개월 → 2098-03-01
+        gateway.state = new DbBatchGateway.PgCronState("NOT_INSTALLED", "GMT"); // 시계를 날 단위로 옮긴다 — 크론 늦음 판정은 빼고 본다
         beat("qa-live", NOW.minusSeconds(10));
-        LocalDate today = ServiceTime.dateOf(NOW);
-        store.raw = new VisitHealthStore.RawRow(4, null, today.minusDays(91).atTime(0, 30).atZone(ServiceTime.ZONE).toInstant(), true);
-        assertThat(codes(service().health())).as("90일 + 1일 — 정리가 하루 늦은 것까지는 정상").isEmpty();
+        store.raw = new VisitHealthStore.RawRow(4, null, kst(3, 1, 0, 30, 0), true);
+        assertThat(codes(service().health())).as("남길 첫 달의 1일 줄은 정상").isEmpty();
 
-        store.raw = new VisitHealthStore.RawRow(4, null, today.minusDays(92).atTime(23, 59).atZone(ServiceTime.ZONE).toInstant(), true);
-        clock.now = NOW.plusSeconds(21);
-        beat("qa-live2", clock.now.minusSeconds(5));
+        store.raw = new VisitHealthStore.RawRow(4, null, kst(2, 28, 23, 59, 0), true);
         VisitAnalyticsAdmin.Health h = service().health();
-        assertThat(codes(h)).containsExactly("RAW_BACKLOG:WARN");
-        assertThat(h.issues().get(0).count()).isEqualTo(1);
+        assertThat(codes(h)).as("지울 달(2월)의 마지막 날 줄이 남았다").containsExactly("RAW_BACKLOG:WARN");
+        assertThat(h.issues().get(0).count()).as("2월 28일 → 3월 1일").isEqualTo(1);
         assertThat(h.raw().approxRows()).isNull();
-        assertThat(h.raw().oldestDay()).isEqualTo(today.minusDays(92).toString());
+        assertThat(h.raw().oldestDay()).isEqualTo("2098-02-28");
+        assertThat(h.raw().retentionMonths()).isEqualTo(3);
 
         current = new StatsCollection(true, true, true, 2, true, true, true, true, true, false, false);
-        assertThat(service().health().issues().get(0).count()).as("보관 30일이면 92 − 31").isEqualTo(61);
+        assertThat(service().health().issues().get(0).count()).as("보관 2개월이면 첫 날 4월 1일 — 2월 28일부터 1 + 31").isEqualTo(32);
+
+        // 달 1일에는 정리(00:25)가 하루 늦는 것까지 정상 — 한 달 더 앞까지 본다(옛 일 단위 판정의 「+1일」 여유)
+        current = ALL2;
+        clock.now = kst(6, 1, 12, 0, 0); // 보관 3개월 → 첫 날 4월 1일, 1일이라 3월 1일까지 정상
+        beat("qa-live-0601", clock.now.minusSeconds(5));
+        store.raw = new VisitHealthStore.RawRow(4, null, kst(3, 1, 0, 30, 0), true);
+        assertThat(codes(service().health())).as("6월 1일 — 3월 1일 줄은 아직 정상").isEmpty();
+        store.raw = new VisitHealthStore.RawRow(4, null, kst(2, 28, 23, 59, 0), true);
+        assertThat(service().health().issues()).extracting(i -> i.code() + ":" + i.count()).containsExactly("RAW_BACKLOG:1");
+
+        clock.now = kst(6, 2, 12, 1, 0); // 다음 날부터는 여유 없음 — 첫 날 4월 1일
+        beat("qa-live-0602", clock.now.minusSeconds(5));
+        store.raw = new VisitHealthStore.RawRow(4, null, kst(3, 1, 0, 30, 0), true);
+        assertThat(service().health().issues()).extracting(i -> i.code() + ":" + i.count()).as("6월 2일 — 3월 1일 → 4월 1일").containsExactly("RAW_BACKLOG:31");
     }
 
     @Test

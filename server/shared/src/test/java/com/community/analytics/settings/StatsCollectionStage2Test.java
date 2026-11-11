@@ -17,7 +17,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 통계 수집 설정 2단계 세 칸(shared V135 — site-analytics-contract 「2단계」): 기본 꺼짐, 방문 수집 전체가 꺼지면 동작하지 않음, 저장·읽기에 새 칸이 빠지지 않음.
- * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 90일로 되돌린다.
+ * 설정은 한 행이라 시험이 끝나면 모두 꺼짐 · 기본 보관 2개월(3단계 {@link StatsCollection#DEFAULT_RETENTION_MONTHS})로 되돌린다.
  */
 class StatsCollectionStage2Test {
 
@@ -32,7 +32,7 @@ class StatsCollectionStage2Test {
 
     @AfterEach
     void reset() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 2, referrers = false, flows = false, "
                 + "environment = false, search_terms = false, bots = false, notification_sends = false, board_activity = false WHERE id = 1");
     }
 
@@ -45,7 +45,10 @@ class StatsCollectionStage2Test {
             assertThat(c.get("is_nullable")).as("%s", c.get("column_name")).isEqualTo("NO");
             assertThat(c.get("column_default")).as("%s", c.get("column_name")).isEqualTo("false");
         }
-        assertThat(JpaTestContext.create(StatsCollectionStore.class).find().orElseThrow().value()).isEqualTo(StatsCollection.OFF);
+        // 보관 개월 — 새 DB 는 한 번도 저장하지 않은 설정이라 V189 가 새 기본값 2개월로 둔다(다른 시험 뒤에도 되돌린 값이 기본 2)
+        StatsCollection read = JpaTestContext.create(StatsCollectionStore.class).find().orElseThrow().value();
+        assertThat(read.rawRetentionMonths()).isEqualTo(StatsCollection.DEFAULT_RETENTION_MONTHS);
+        assertThat(read).usingRecursiveComparison().ignoringFields("rawRetentionMonths").isEqualTo(StatsCollection.OFF);
     }
 
     @Test

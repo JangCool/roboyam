@@ -26,6 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * DB 크론 {@code R__analytics_13}({@code batch_analytics_forget_requests}) · {@code R__analytics_14}({@code batch_analytics_log_cleanup})를 실제 PostgreSQL 에서 직접 부른다.
  * 원본은 시험 전용 월 조각 둘(2098년 1·2월 — 이름이 {@code analytics_page_views_YYYY_MM} 모양이 아니라 조각 크론이 건드리지 않는다)에 넣는다.
+ * 「그 날 셌다」 표시는 analytics V6 부터 하루 파티션이라 쓰는 날({@code MARK_DAYS})의 조각을 준비에서 만들고 끝나면 지운다 — 삭제 크론은 부모 표에 지운다.
  *
  * <p>크론은 표 전체의 대기 요청을 처리하므로 시험마다 넣은 요청·줄을 지운다(요청 받기 시험 {@code VisitForgetRequestTest} 도 같다).
  */
@@ -36,6 +37,8 @@ class VisitForgetCronTest {
     private static final String FEB = "qa_forget_pv_2098_02";
     private static final Instant JAN_AT = Instant.parse("2098-01-10T03:00:00Z");
     private static final Instant FEB_AT = Instant.parse("2098-02-10T03:00:00Z");
+    /** 판정 표시를 넣는 날(하루 조각을 미리 만든다) */
+    private static final List<LocalDate> MARK_DAYS = List.of(LocalDate.of(2098, 1, 10), LocalDate.of(2098, 1, 11), LocalDate.of(2098, 2, 10));
 
     private static DataSource dataSource;
     private static JdbcTemplate jdbc;
@@ -49,12 +52,17 @@ class VisitForgetCronTest {
         jdbc = new JdbcTemplate(dataSource);
         jdbc.execute("CREATE TABLE IF NOT EXISTS " + JAN + " PARTITION OF analytics_page_views FOR VALUES FROM ('2098-01-01 00:00:00+09') TO ('2098-02-01 00:00:00+09')");
         jdbc.execute("CREATE TABLE IF NOT EXISTS " + FEB + " PARTITION OF analytics_page_views FOR VALUES FROM ('2098-02-01 00:00:00+09') TO ('2098-03-01 00:00:00+09')");
+        // 판정 표시는 analytics V6 부터 하루 파티션 — 시험이 쓰는 날의 조각을 만든다(크론의 조각 정리는 어제보다 앞선 날만 지워 먼 미래 조각은 건드리지 않는다)
+        jdbc.queryForObject("SELECT analytics_ensure_visit_mark_partitions(?::date[])", Integer.class, array(MARK_DAYS.stream().map(LocalDate::toString).toList()));
     }
 
     @AfterAll
     static void dropPartitions() {
         jdbc.execute("DROP TABLE IF EXISTS " + JAN);
         jdbc.execute("DROP TABLE IF EXISTS " + FEB);
+        for (LocalDate d : MARK_DAYS) {
+            jdbc.execute("DROP TABLE IF EXISTS analytics_visit_marks_" + d.toString().replace("-", ""));
+        }
         jdbc.execute("DROP FUNCTION IF EXISTS qa_forget_fail() CASCADE");
     }
 

@@ -93,6 +93,14 @@ class VisitFlushMultiServerTest {
                 "{" + String.join(",", hashes) + "}");
     }
 
+    /**
+     * 그 날 표시 조각(analytics V6 — 하루 파티션)을 미리 만든다. 몰아쓰기({@link VisitFlusher})는 조각 없음(23514)을 받으면 스스로 만들고 다시 쓰지만,
+     * 저장소를 직접 부르는 시험은 열어 둔 트랜잭션이 23514 로 깨지므로 먼저 만들어 둔다.
+     */
+    private static void ensureMarkPartition(LocalDate day) {
+        jdbc.queryForObject("SELECT analytics_ensure_visit_mark_partitions(ARRAY[?]::date[])", Integer.class, Date.valueOf(day));
+    }
+
     private static long marksOn(LocalDate day, String hash) {
         return jdbc.queryForObject("SELECT count(*) FROM analytics_visit_marks WHERE day = ? AND visitor_hash = ?", Long.class, Date.valueOf(day), hash);
     }
@@ -170,6 +178,7 @@ class VisitFlushMultiServerTest {
     void 앞_서버가_커밋하기_전에_같은_방문자를_넣으면_뒤_서버는_기다렸다가_건너뛴다() throws Exception {
         Instant hour = freshHour();
         String visitor = hash();
+        ensureMarkPartition(ServiceTime.dateOf(hour));
         try (Connection a = dataSource.getConnection()) {
             a.setAutoCommit(false);
             AnalyticsWriteStore storeA = new AnalyticsWriteStore(new AnalyticsDatabase(new SingleConnectionDataSource(a, true), false));
@@ -192,6 +201,7 @@ class VisitFlushMultiServerTest {
     void 앞_서버가_되돌리면_기다리던_뒤_서버가_넣고_센다() throws Exception {
         Instant hour = freshHour();
         String visitor = hash();
+        ensureMarkPartition(ServiceTime.dateOf(hour));
         try (Connection a = dataSource.getConnection()) {
             a.setAutoCommit(false);
             AnalyticsWriteStore storeA = new AnalyticsWriteStore(new AnalyticsDatabase(new SingleConnectionDataSource(a, true), false));

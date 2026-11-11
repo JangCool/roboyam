@@ -8,8 +8,10 @@
 ALTER TABLE stats_collection_settings ADD COLUMN IF NOT EXISTS raw_retention_months smallint NOT NULL DEFAULT 2;
 ALTER TABLE stats_collection_settings DROP CONSTRAINT IF EXISTS ck_stats_collection_settings_retention_months;
 ALTER TABLE stats_collection_settings ADD CONSTRAINT ck_stats_collection_settings_retention_months CHECK (raw_retention_months IN (2, 3, 6, 12));
+-- 한 번도 저장하지 않은 설정(updated_at IS NULL — V133 기본 90일 그대로)은 새 기본값 2개월(계약 3단계 결정 ①). 운영자가 저장한 값만 옮긴다(30→2 · 90→3 · 180→6 · 365→12).
 UPDATE stats_collection_settings
-   SET raw_retention_months = CASE raw_retention_days WHEN 30 THEN 2 WHEN 90 THEN 3 WHEN 180 THEN 6 WHEN 365 THEN 12 ELSE 2 END;
+   SET raw_retention_months = CASE WHEN updated_at IS NULL THEN 2
+                                   ELSE CASE raw_retention_days WHEN 30 THEN 2 WHEN 90 THEN 3 WHEN 180 THEN 6 WHEN 365 THEN 12 ELSE 2 END END;
 
 -- ② deal_click_daily(V122 — 구매 링크 클릭 「하루 같은 방문자·같은 글 1번」 판정) → 한국 날짜(day) 하루 범위 파티션.
 --    클릭 수는 핫딜 행(post_deals.click_count)에 따로 있어 판정 표는 오늘·어제만 있으면 된다 — 지난 조각은 DB 배치(shared R__batch_43 `deal-click-partitions`)가
