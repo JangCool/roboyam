@@ -134,7 +134,15 @@
 - 수집 스위치(2026-11-11 결정): 「방문자·페이지뷰」(`visits`)에 딸린다 — 새 칸 없음(기본 꺼짐).
 
 ### 결정 ⑤ 핫딜 클릭 표시 정리(`hotdeal-contract.md` 와 같이)
-- `deal_click_daily`(하루 같은 방문자 1번 판정)에 정리 배치가 없어 방문자 해시와 함께 기한 없이 쌓인다. 클릭 수는 핫딜 행 `click_count` 에 따로 있으므로 `R__batch_33`(광고 표시)처럼 오늘·어제만 남기는 shared 배치를 더한다.
+- `deal_click_daily`(하루 같은 방문자 1번 판정)에 정리 배치가 없어 방문자 해시와 함께 기한 없이 쌓인다. 클릭 수는 핫딜 행 `click_count` 에 따로 있으므로 오늘·어제만 남기는 shared 배치를 더한다 — 지우는 방법은 결정 ⑥ 의 날짜 파티션 DROP(처음부터 파티션으로).
+
+### 결정 ⑥ 판정 표는 날짜·기간 파티션 + DROP — 큰 DELETE 를 두지 않는다(2026-11-11 사용자 「그때 바꾸지 말고 지금」)
+- **하루 방문 표시 `analytics_visit_marks`**: 지금은 매일 DELETE(`R__analytics_11` — 큰 규모면 하루 약 10만 줄을 지우고 vacuum 빈자리가 남는다) → `day` 범위 **하루 파티션**으로 바꾸고 오늘·어제만 남겨 지난 조각을 DROP. 기본 키 `(day, visitor_hash)` 가 파티션 열을 담아 `ON CONFLICT` 그대로 쓴다.
+  - 조각 만들기: 크론이 오늘·내일·모레 조각을 미리 만들고(자정에 조각이 없어 쓰기가 실패하지 않게), 쓰는 쪽(api)은 조각 없음 오류를 받으면 한 번 만들고 다시 쓴다(원본 `analytics_ensure_page_view_partitions` 와 같은 방식 — 잠금 아래 한 번만).
+  - 옮기기: 마이그레이션 한 번 — 같은 이름·같은 칸의 파티션 표를 새로 만들어 오늘·어제 줄만 옮기고 바꿔 끼운다(칸이 같아 롤링 배포 중 옛 jar 도 그대로 쓴다). `R__analytics_11` 은 DROP 방식으로 바꾼다. 삭제 요청 크론(`R__analytics_13`)은 부모 표에 지우므로 그대로.
+- **주·월 순방문자 표시(결정 ④)**: 처음부터 기간 파티션 — 월 표시는 달 조각, 주 표시는 주 조각. 기간이 끝나고 정리 여유(며칠)가 지나면 조각 DROP(큰 규모면 기간마다 월 약 150만·주 약 50만 줄을 DELETE 하게 되므로).
+- **핫딜 클릭 표시 `deal_click_daily`(결정 ⑤)**: 하루 파티션으로 만들어 오늘·어제만 남긴다.
+- 권장(미확정): 광고 노출·클릭 판정 `ad_view_marks`(shared, 2일 보관 DELETE `R__batch_33`)도 같은 모양(`day` 가 기본 키 맨 앞)이라 같은 방식으로 바꾼다. 글 조회수 중복 방지 `post_views` 는 글 번호 해시 파티션 + 24시간 기준이라 날짜로 떼기 어려워 그대로 둔다.
 
 ### 디스크 추정(상한, 2026-11-11 — vacuum 빈자리·WAL·백업 20~30% 별도)
 가정: 초기 하루 1천 방문·5천 PV / 중간 1만·5만 / 큰 규모 10만·50만, 정해진 주소 150~300개.
@@ -151,11 +159,26 @@
 - **세션 확인 비용**: 로그인 세션은 DB(`spring_session`)에 있어, 뺄 계정·회원 MAU 를 위해 신호마다 세션을 읽으면 페이지뷰마다 DB 읽기가 생긴다(「신호마다 DB 를 건드리지 않는다」와 충돌). → 각 api 서버 메모리에 「세션 → 회원 번호(없음 포함)」 캐시를 짧게(예: 10분) 둔다 — 같은 브라우저의 두 번째 신호부터 DB 를 읽지 않는다. 로그아웃·계정 연결이 늦게 반영되는 것(최대 캐시 시간)은 통계라 허용. 대안(로그인 때 서명 토큰을 내려 신호에 싣기)은 화면을 고쳐야 해 쓰지 않는다.
 - **월별 표의 「방문자」**: 하루 방문자를 한 달 더한 값은 월 순방문자가 아니다 → 월별 방문 표 칸은 「일별 합」(`visitors_daily_sum` 식 이름)으로 두고, 월 순방문자는 결정 ④ 숫자 표에서만 읽는다. 화면 글자도 「일별 합」.
 - **월별 합치기 시각**: 서버가 최대 1분 늦게 몰아 쓰므로 1일 자정 직후에 합치면 지난달 마지막 몇 분이 빠질 수 있다 → 매달 1일 00:30 이후 + 2일 한 번 더(같은 달은 덮어쓰기라 결과가 같다). 13개월 지난 줄 지우기는 합친 뒤에.
-- **설치 프리셋·데모 팩**: 원본 보관 단위를 바꿀 때 `export-install-preset.mjs` 결과물·데모 팩에 통계 설정 값(`stats_collection_settings`)이 들어 있으면 같이 고친다.
+- **화면 종류(`kind`)도 서버가 정한다**: 지금은 브라우저가 보낸 `kind` 를 쓰는데 페이지별 표 열쇠가 `(날짜, 주소, kind)` 라 같은 주소에 kind 만 바꿔 보내면 줄이 최대 10배 는다 → 결정 ② 의 라우트 표가 kind 도 정하고 브라우저 값은 무시한다.
+- **설정 칸은 바꾸지 말고 더한다(롤링 배포)**: API 서버 2~3대를 차례로 띄우는 동안 옛 jar 와 새 DB 가 함께 돈다 → `raw_retention_months` 를 새로 더하고 `raw_retention_days` 는 다음 버전에 지운다. 설정 변경 이력(`util-setting-history-messages.ts`·`settingHistory` 문구)은 옛 기록의 「일」 값도 읽어 보인다.
+- **월별로 합칠 표(빠짐 없게)**: `analytics_page_daily` · `analytics_flow_daily` · `analytics_referrer_daily` · `analytics_campaign_daily` · `analytics_env_daily` · `analytics_search_daily` · `analytics_search_filtered_daily` · `analytics_bot_daily` → 같은 열쇠의 월별 표, `analytics_visit_hourly` → 월 방문(방문자 일별 합·신규·페이지뷰). 13개월 지우기도 이 표들 전부. 진단 표(`analytics_collector_*`)는 원래 정리 크론(`R__analytics_14`)대로.
+- **기한 없이 두는 shared 통계 표(대상 밖, 작음)**: `board_activity_daily`·`site_activity_daily`(게시판 수 × 날) · `notification_send_daily` · `ad_daily_stats`(광고주 성과·정산 근거라 지우지 않는다).
+- **회원 표시 넣기 줄이기**: 방문자는 「그날 하루 표시에 처음 들어간 때」만 주·월 표시를 넣어 보지만 회원은 그런 관문이 없다 → 서버마다 메모리에 「이번 기간에 이미 넣은 회원」 집합(기간이 바뀌면 비움)을 두어 DB 시도는 서버당·회원당·기간당 한 번.
+- **삭제 요청의 해시 모양**: 주·월 표시는 `uuid` 라 삭제 크론은 64자 해시 앞 32자를 바꿔(`substr(visitor_hash, 1, 32)::uuid`) 지운다.
+- **회원 탈퇴 파기**: 탈퇴 정리(`R__batch_36` 쪽)에 회원 주·월 표시 지우기를 넣는다. 분석 DB 를 따로 떼게 되면 이 지우기도 그 DB 에서.
+- **기존 집계 합치기**: 옛 줄은 slug·key 를 확인하지 않고 동적 자리만 `{id}` 로(지운 게시판 기록도 남긴다), 같은 열쇠가 된 줄은 더해서 한 줄로.
+- **게시판 slug 를 바꾸면**: 옛 slug 로 오는 새 신호는 「알 수 없는 주소」. 지난 줄은 옛 slug 그대로, 화면 제목을 못 찾으면 slug 를 그대로 보인다.
 - **수집 진단 화면**: 「뺀 계정 신호」·「알 수 없는 주소」 수 칸 추가(admin-web 작은 수정).
 - **처리방침 고칠 곳(한데 모음 — `site-analytics-privacy-draft.md`)**: 원본 보관 최대 2개월(이번 달과 지난달) · 원본·집계에 읽은 글·주문 번호를 남기지 않음(주소는 묶음으로만) · 주·월 순방문자 표시(방문자 해시 최대 한 달 남짓) · 회원 활동 표시(회원 번호, 탈퇴 때 파기) · 운영자·AI 계정 신호는 세지 않음(안내 불필요, 내부 기준).
 
+### 3단계 성능 확인 (2026-11-11)
+- 신호마다: 라우트 바꾸기·slug/key 확인·뺄 계정 확인·세션→회원 확인 모두 서버 메모리(DB 는 캐시가 빌 때만).
+- 1분 몰아쓰기: 방문자 주·월 표시 문장 +2(그날 처음 본 방문자만), 회원 주·월 표시 문장 +2(서버당·회원당·기간당 한 번), 숫자 표 더하기 +1.
+- 크론: 판정 표·원본·주/월 표시는 조각 DROP 만(큰 DELETE 없음, 결정 ⑥), 월 크론의 13개월 지우기는 정해진 주소 기준이라 한 달치 줄이 적다. 게시판 활동의 계정 빼기는 대상 목록이 작아 쿼리 부담이 작다.
+
 ### 3단계 확인 결과 (2026-11-11 — 따로 바꿀 것 없음)
+- **설치 프리셋·데모 팩**: 구조 프리셋(`export-install-preset.mjs`)에는 통계 설정이 없고, 데모 팩(`build-demo-pack.mjs`)은 `stats_collection_settings`·이력을 `EXCLUDE`, `analytics_` 로 시작하는 표를 `EXCLUDE_PREFIX` 로 뺀다 → 새 표도 `analytics_` 접두사면 자동으로 빠진다(shared 쪽 `deal_click_daily` 는 지금도 데모 팩 대상 — 파티션으로 바꿀 때 조각 이름이 담기지 않는지 확인).
+- **user-web**: 바꿀 것 없음 — 브라우저는 지금처럼 실제 주소를 보내고 서버가 바꾼다.
 - **기간 선택 최대 90일**: 그대로 둔다. 일별이 13개월 있어도 긴 기간은 「월별 보기」로 본다(한 화면에서 90일 넘는 일별 막대는 읽기 어렵고 묻는 양만 는다).
 - **UTM 캠페인 값**: 열린 칸이라 임의 값으로 줄을 늘릴 여지가 있지만 칸마다 100자 제한 · 세션 첫 페이지에서만 받음 · 일별 13개월 보관이라 상한이 있다 → 지금은 그대로. 큰 규모가 되면 검색어와 같이 월별에 「그달 상위 N개」만 남긴다(아래 미확정과 함께 정함).
 
@@ -166,9 +189,24 @@
 - 광고주용 산정 기준 문구(브라우저 기준·봇 제외·달력 월)를 화면에 적을지.
 - 과거 소급: 방문자 MAU 는 남은 원본(최대 2개월)으로만, 회원 MAU 는 소급 불가 — 시작한 날부터 쌓임.
 - 검색어·UTM 캠페인 월별을 「그달 상위 N개」만 남길지(N 값 포함).
+- 광고 판정 `ad_view_marks` 도 날짜 파티션으로 바꿀지(결정 ⑥ 권장).
+
+### 고칠 곳 목록(빠뜨리기 쉬운 것, 2026-11-11 확인)
+- 서버: 보관 설정 묶음(`StatsCollection` · `StatsCollectionSettingEntity` · `AnalyticsSettingsAdminService`·`AnalyticsSettingsAdmin` DTO · `AnalyticsSettingsAdminController` · 요약 응답 `VisitAnalyticsAdmin` 의 보관 값) · `VisitDiagnosticsAdminService`(달 기준 판정·새 칸) · `VisitAnalyticsStore`(`{id}` 묶음 줄 제목) · api `VisitCollector`(라우트 표·kind·뺄 계정·세션 캐시)·`VisitBuffer`·`VisitFlusher`·`AnalyticsWriteStore`(주·월 표시·숫자 표) · `SearchController` 검색어 셈(뺄 계정) · 대시보드 「회원 현황」 오늘 가입 쿼리 · `R__analytics_10`·`11`·`13`·`R__batch_36`·`R__batch_38` · `BatchCatalog`(새 크론).
+- 시험: `rawRetentionDays` 를 쓰는 시험 8개(`AnalyticsSettingsAdminHttpTest` · `VisitAnalyticsAdminServiceTest` · `PageViewPartitionTest` · `VisitStage2AdminHttpTest` · `StatsCollectionStage2Test` · `VisitAnalyticsAdminHttpTest` …)를 새 칸에 맞춘다.
+- 관리자 화면: `pages/settings/analytics.vue`(보관 선택지) · `useAnalyticsSettingsApi(.types).ts` · 설정 이력 문구(`util-setting-history-messages.ts`·`i18n/locales/{ko,en}/settingHistory.ts`) · 수집 진단 새 칸 2개 · 「월별 보기」 · WAU·MAU 카드.
+
+### QA 때 볼 것(QA 요청 때 시나리오로)
+- 서버 3대 동시 기록에서 주·월 순방문자(방문자·회원) 1명 = 1명 · 주(일→월요일)·달(말일→1일) 자정 경계 · 「같은 시점까지」 합.
+- 운영자 회원 계정·AI 회원 신호가 원본·집계·순방문자·검색어·게시판 활동·오늘 가입 모두에서 빠짐, 수집 진단 「뺀 계정 신호」.
+- 라우트 표: 동적 라우트 13개 · 없는 slug/key · 모르는 주소 · kind 위조.
+- 삭제 요청이 주·월 표시(`uuid`)까지 지움 · 탈퇴 때 회원 표시 지움.
+- 조각: 원본 달 DROP(2개월) · 하루 표시·핫딜 클릭·주/월 표시 조각 미리 만들기와 DROP · 자정 조각 없음 오류 뒤 다시 쓰기.
+- 월 크론: 두 번 돌려도 같은 결과 · 13개월 지난 줄 지우기 · 1일 00:30 실행 전 늦게 온 줄.
+- 설정: 옛 일 값 → 개월 옮기기 · 설정 이력에 옛 「일」 값 표시 · 롤링 배포 중 옛 jar.
 
 ### 진행 순서·번호(2026-11-11 메모 기준 — 시작할 때 develop 최신에서 다시 확인)
-1. 원본 달 단위(①) · 주소 `{id}`(②) · 핫딜 클릭 정리(⑤) — 화면 변화가 작다.
+1. 원본 달 단위(①) · 주소 `{id}`(②) · 핫딜 클릭 정리(⑤) · 판정 표 파티션(⑥) — 화면 변화가 작다.
 2. 일별 13개월 + 월별(③) — 서버 먼저, 「월별 보기」 화면은 목업 확정 뒤.
 3. WAU·MAU(④) — 화면 목업 확정 → 서버 → 연결.
 - 다음 번호: shared V188 · analytics V5 · shared 배치 `R__batch_43` · analytics 크론 `R__analytics_15`.
