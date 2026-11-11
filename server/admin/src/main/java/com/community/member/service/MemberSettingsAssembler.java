@@ -87,9 +87,9 @@ public class MemberSettingsAssembler {
 
         MemberViewSettingEntity viewRow = viewSettings.findById(userId).orElse(null);
         MemberViewSettingsView view = viewRow != null
-                ? new MemberViewSettingsView(viewRow.getTheme(), viewRow.getTextScale(), viewRow.getCommentOrder(), true)
+                ? new MemberViewSettingsView(viewRow.getTheme(), viewRow.getTextScale(), viewRow.getTextScaleMobile(), viewRow.getCommentOrder(), true)
                 : new MemberViewSettingsView(MemberViewSettingEntity.DEFAULT_THEME, MemberViewSettingEntity.DEFAULT_TEXT_SCALE,
-                        MemberViewSettingEntity.DEFAULT_COMMENT_ORDER, false);
+                        MemberViewSettingEntity.DEFAULT_TEXT_SCALE_MOBILE, MemberViewSettingEntity.DEFAULT_COMMENT_ORDER, false);
 
         MemberSettingsView settings = new MemberSettingsView(display, own != null, view, notifications(userId), null, counts.blockedUsers(),
                 counts.blockedWords(), counts.memos(), new MemberInboxView(counts.notifications(), counts.unreadNotifications()));

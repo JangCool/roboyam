@@ -404,7 +404,7 @@ export default {
                 DARK: '어둡게',
             },
             textScale: '글자 크기',
-            textScaleValue: '{scale}%',
+            textScaleValue: 'PC {pc}% · 휴대폰 {mobile}%',
             commentOrder: '댓글 정렬',
             commentOrderValue: {
                 OLDEST: '오래된 순',

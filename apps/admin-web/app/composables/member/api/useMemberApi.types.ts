@@ -330,11 +330,13 @@ export type MemberViewTheme = 'AUTO' | 'LIGHT' | 'DARK';
 /** 댓글 기본 정렬(user-web 보기 설정 `CommentOrderSetting`) */
 export type MemberViewCommentOrder = 'OLDEST' | 'LATEST';
 
-/** 보기 설정(user-web `/settings/view`, 서버 `MemberViewSettingsView`) — `own` 이 false 면 회원이 정한 적이 없어 세 칸이 기본값(`AUTO`·`100`·`OLDEST`) */
+/** 보기 설정(user-web `/settings/view`, 서버 `MemberViewSettingsView`) — `own` 이 false 면 회원이 정한 적이 없어 칸이 기본값(`AUTO`·PC `100`·휴대폰 `110`·`OLDEST`) */
 export interface MemberViewSettings {
     theme: MemberViewTheme | null;
-    /** 글자 크기(백분율) */
+    /** PC 글자 크기(백분율) — 화면 폭이 넓은 기기 */
     textScale: number | null;
+    /** 휴대폰 글자 크기(백분율, 2026-11-11 추가) — 옛 서버 응답에는 없다(화면은 기본 110 으로 본다) */
+    textScaleMobile?: number | null;
     commentOrder: MemberViewCommentOrder | null;
     own: boolean;
 }

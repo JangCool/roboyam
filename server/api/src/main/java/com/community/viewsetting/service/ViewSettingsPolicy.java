@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 보기 설정 네 칸의 허용 값·기본값과 검사 — user-web {@code UtilViewSettings}(THEMES·TEXT_SCALES·COMMENT_ORDERS·DEFAULTS)·{@code UtilMenuPosition.MEMBER_SETTINGS}·V73·V105 CHECK 와 같다.
- * 위반은 칸마다 한꺼번에 돌려준다({@code fields.theme|textScale|commentOrder|menuPosition}). 앞 세 칸은 빠진 칸·타입이 틀린 칸도 같은 칸 오류이고,
- * {@code menuPosition} 은 빠지면(null) 저장된 값을 그대로 둔다(칸이 생기기 전 화면이 세 칸만 보낸다).
+ * 보기 설정 다섯 칸의 허용 값·기본값과 검사 — user-web {@code UtilViewSettings}(THEMES·TEXT_SCALES·COMMENT_ORDERS·DEFAULTS)·{@code UtilMenuPosition.MEMBER_SETTINGS}·V73·V105·V185 CHECK 와 같다.
+ * 위반은 칸마다 한꺼번에 돌려준다({@code fields.theme|textScale|textScaleMobile|commentOrder|menuPosition}). {@code theme}·{@code textScale}·{@code commentOrder}
+ * 는 빠진 칸·타입이 틀린 칸도 같은 칸 오류이고, {@code textScaleMobile}·{@code menuPosition} 은 빠지면(null) 저장된 값을 그대로 둔다(칸이 생기기 전 화면은 보내지 않는다).
  */
 public final class ViewSettingsPolicy {
 
@@ -22,11 +22,12 @@ public final class ViewSettingsPolicy {
 
     static final String DEFAULT_THEME = MemberViewSettingEntity.DEFAULT_THEME;
     static final int DEFAULT_TEXT_SCALE = MemberViewSettingEntity.DEFAULT_TEXT_SCALE;
+    static final int DEFAULT_TEXT_SCALE_MOBILE = MemberViewSettingEntity.DEFAULT_TEXT_SCALE_MOBILE;
     static final String DEFAULT_COMMENT_ORDER = MemberViewSettingEntity.DEFAULT_COMMENT_ORDER;
     static final String DEFAULT_MENU_POSITION = MemberViewSettingEntity.DEFAULT_MENU_POSITION;
 
-    /** 검사를 마친 네 칸 — {@code menuPosition} 이 null 이면 저장된 값을 그대로 둔다 */
-    public record Checked(String theme, int textScale, String commentOrder, String menuPosition) {
+    /** 검사를 마친 다섯 칸 — {@code textScaleMobile}·{@code menuPosition} 이 null 이면 저장된 값을 그대로 둔다 */
+    public record Checked(String theme, int textScale, Integer textScaleMobile, String commentOrder, String menuPosition) {
     }
 
     private ViewSettingsPolicy() {
@@ -49,6 +50,10 @@ public final class ViewSettingsPolicy {
         if (!(textScale instanceof Integer s) || !TEXT_SCALES.contains(s)) {
             errors.put("textScale", new MessageRef("viewSettings.textScale.invalid"));
         }
+        Object textScaleMobile = request == null ? null : request.textScaleMobile();
+        if (textScaleMobile != null && (!(textScaleMobile instanceof Integer m) || !TEXT_SCALES.contains(m))) {
+            errors.put("textScaleMobile", new MessageRef("viewSettings.textScaleMobile.invalid"));
+        }
         if (!(commentOrder instanceof String o) || !COMMENT_ORDERS.contains(o)) {
             errors.put("commentOrder", new MessageRef("viewSettings.commentOrder.invalid"));
         }
@@ -59,6 +64,6 @@ public final class ViewSettingsPolicy {
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Checked((String) theme, (Integer) textScale, (String) commentOrder, (String) menuPosition);
+        return new Checked((String) theme, (Integer) textScale, (Integer) textScaleMobile, (String) commentOrder, (String) menuPosition);
     }
 }

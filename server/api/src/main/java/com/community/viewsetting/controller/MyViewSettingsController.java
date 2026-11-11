@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 내 보기 설정(야간 모드·글자 크기·댓글 기본 정렬) — 로그인한 본인 것만(경로·본문에 회원 id 를 받지 않는다). 로그인 필요·CSRF({@code PUT})는 {@code SecurityConfig} 가 건다.
- * 두 요청 모두 같은 응답 {@code { theme, textScale, commentOrder }}(200, {@code Cache-Control: no-store}).
+ * 두 요청 모두 같은 응답 {@code { theme, textScale, textScaleMobile, commentOrder, menuPosition }}(200, {@code Cache-Control: no-store}).
  */
 @RestController
 @RequestMapping("/api/me/settings")

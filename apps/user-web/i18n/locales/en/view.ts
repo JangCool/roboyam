@@ -11,7 +11,12 @@ export default {
     themeAuto: 'Auto',
     themeLight: 'Light',
     themeDark: 'Dark',
-    textScale: 'Text size',
+    // Text size — separate for PC and phone (picked by screen width)
+    textScalePc: 'Text size on PC',
+    textScalePcHint: 'Applies to wide screens (landscape tablets, PCs) · default {n}%',
+    textScaleMobile: 'Text size on phone',
+    textScaleMobileHint: 'Applies to narrow screens (phones) · default {n}%',
+    textScaleThisDevice: 'This device',
     textScaleHint: 'Only text gets bigger; spacing stays the same',
     textScaleValue: '{n}%',
     textSmaller: 'Smaller text',

@@ -2,7 +2,7 @@ import type { CommentOrderSetting, TextScaleSetting, ThemeSetting, ViewSettings 
 import UtilMenuPosition from '~/utils/util-menu-position';
 
 /**
- * 보기 설정의 순수 규칙 — 기본값·고를 수 있는 값·서버 응답 읽기·합치기·되돌리기·야간 모드 풀기·글자 크기 단계(community `UtilSettings`·`UtilDisplay` 중 쓰는 것).
+ * 보기 설정의 순수 규칙 — 기본값·고를 수 있는 값·서버 응답 읽기·합치기·되돌리기·야간 모드 풀기·글자 크기 단계·기기별 글자 크기 고르기(community `UtilSettings`·`UtilDisplay` 중 쓰는 것).
  * 값 목록은 서버 후보 `ViewSettingsPolicy` 와 같다. 상태도 요청도 없다.
  */
 export default class UtilViewSettings {
@@ -13,13 +13,19 @@ export default class UtilViewSettings {
     static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 100, 110, 125];
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
 
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
+    /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
 
     /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
-    static readonly KEYS = ['theme', 'textScale', 'commentOrder', 'menuPosition'] as const;
+    static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition'] as const;
 
     /** 글자 배율을 담는 CSS 변수 */
     static readonly TEXT_SCALE_VAR = '--text-scale';
+
+    /**
+     * 휴대폰 글자 크기를 쓰는 폭 — 셸이 모바일 모양(하단 탭·상단 탭)으로 바뀌는 Tailwind `md`(768px) 경계와 같다(`useIsDesktop` 의 반대). `main.css` 의 첫 화면 배율도 같은 경계다.
+     */
+    static readonly MOBILE_QUERY = '(max-width: 767.98px)';
 
     /** 기본값 사본 */
     static defaults(): ViewSettings {
@@ -37,6 +43,8 @@ export default class UtilViewSettings {
         return {
             theme: UtilViewSettings.THEMES.find((v) => v === root.theme) ?? d.theme,
             textScale: UtilViewSettings.TEXT_SCALES.find((v) => v === root.textScale) ?? d.textScale,
+            // 옛 사본·옛 응답(칸이 없음)이면 휴대폰 기본 110
+            textScaleMobile: UtilViewSettings.TEXT_SCALES.find((v) => v === root.textScaleMobile) ?? d.textScaleMobile,
             commentOrder: UtilViewSettings.COMMENT_ORDERS.find((v) => v === root.commentOrder) ?? d.commentOrder,
             menuPosition: UtilMenuPosition.readMember(root.menuPosition),
         };
@@ -96,6 +104,16 @@ export default class UtilViewSettings {
         if (theme === 'DARK') return 'dark';
         if (theme === 'LIGHT') return 'light';
         return systemDark ? 'dark' : 'light';
+    }
+
+    /**
+     * 지금 기기에 걸 글자 크기 — 휴대폰 폭이면 `textScaleMobile`, 아니면 `textScale`(PC).
+     * @param {ViewSettings} settings - 설정.
+     * @param {boolean} mobile - 휴대폰 폭인가(`MOBILE_QUERY`).
+     * @returns {TextScaleSetting} 백분율.
+     */
+    static textScaleFor(settings: ViewSettings, mobile: boolean): TextScaleSetting {
+        return mobile ? settings.textScaleMobile : settings.textScale;
     }
 
     /**
