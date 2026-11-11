@@ -31,7 +31,7 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
 
 ## 실행 순서
 
-1. **묶음 만들기** — 로컬 PC(저장소 루트, Git Bash):
+1. **묶음 만들기** — 로컬 PC(저장소 루트, Git Bash). 운영 화면 환경 파일 `apps/user-web/.env.production` · `apps/admin-web/.env.production` 은 저장소에 있다(`VITE_PRIMEUI_LICENSE_KEY` 등 화면 빌드 값 — 화면 빌드 때 코드에 박힌다, 칸 설명은 각 앱 `.env.example`). 없거나 라이선스 키가 비면 `--build` 가 멈춘다. 로컬 개발은 같은 자리의 `.env.development` 를 쓴다(`pnpm --filter <앱> dev`).
    ```bash
    installer-native/make-package.sh --build
    ```
