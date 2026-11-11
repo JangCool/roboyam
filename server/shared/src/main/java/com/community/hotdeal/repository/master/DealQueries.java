@@ -19,6 +19,10 @@ import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -32,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.sql.DataSource;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -54,6 +59,8 @@ public class DealQueries extends RoboyamRepositoryQDSL {
     private static final QDealEndRequestEntity END = QDealEndRequestEntity.dealEndRequestEntity;
     /** DB 의 현재 시각({@link #DB_NOW} 와 같은 식) — {@code Instant} 칸과 견줄 때 */
     private static final DateTimeExpression<Instant> DB_INSTANT = Expressions.dateTimeTemplate(Instant.class, "offset_datetime");
+    /** PostgreSQL 「행에 맞는 조각이 없다」(check_violation) — 클릭 판정 표의 그 날 조각이 없을 때 */
+    private static final String NO_PARTITION = "23514";
 
     private final JdbcTemplate jdbc;
 
@@ -175,16 +182,50 @@ public class DealQueries extends RoboyamRepositoryQDSL {
      *
      * <p>Native SQL 인 이유(기록 한 줄): {@code deal_click_daily} 는 엔티티가 없는 표이고 「처음 한 번만」을 {@code INSERT … ON CONFLICT DO NOTHING} 한 문장으로 가린다.
      *
+     * <p>판정 표는 V189 부터 한국 날짜 하루 파티션이다(조각은 DB 배치 {@code deal-click-partitions} 가 어제~모레를 미리 만든다 — R__batch_43). 그 날 조각이 없으면 PostgreSQL 이
+     * 23514 로 거절하므로 <b>JDBC 세이브포인트</b>로 그 넣기만 되돌리고 조각을 한 번 만든 뒤({@code deal_ensure_click_partitions} — 잠금 아래 한 번만) 다시 넣는다.
+     * 세이브포인트가 없으면 실패한 문장이 업무 트랜잭션 전체를 못 쓰게 한다. 안의 문장은 JDBC 뿐이다(세이브포인트 안에서 JPA 질의가 실패하면 롤백 전용이 된다 — repository.md).
+     *
      * @return 이번에 셌다
      */
     public boolean recordClick(long postId, LocalDate day, String visitorHash, Instant now) {
-        int inserted = jdbc.update("INSERT INTO deal_click_daily (post_id, day, visitor_hash, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING", postId,
-                java.sql.Date.valueOf(day), visitorHash, Timestamp.from(now));
-        if (inserted == 0) {
+        Integer inserted = jdbc.execute((ConnectionCallback<Integer>) con -> {
+            Savepoint savepoint = con.getAutoCommit() ? null : con.setSavepoint();
+            try {
+                int n = insertClick(con, postId, day, visitorHash, now);
+                if (savepoint != null) {
+                    con.releaseSavepoint(savepoint);
+                }
+                return n;
+            } catch (SQLException e) {
+                if (savepoint != null) {
+                    con.rollback(savepoint);
+                }
+                if (!NO_PARTITION.equals(e.getSQLState())) {
+                    throw e;
+                }
+                try (PreparedStatement ps = con.prepareStatement("SELECT deal_ensure_click_partitions(?)")) {
+                    ps.setDate(1, java.sql.Date.valueOf(day));
+                    ps.execute();
+                }
+                return insertClick(con, postId, day, visitorHash, now); // 조각이 없어 거절됐다 — 한 번 만들고 다시
+            }
+        });
+        if (inserted == null || inserted == 0) {
             return false;
         }
         query.update(D).set(D.clickCount, D.clickCount.add(1)).where(D.postId.eq(postId)).execute();
         return true;
+    }
+
+    private static int insertClick(Connection con, long postId, LocalDate day, String visitorHash, Instant now) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("INSERT INTO deal_click_daily (post_id, day, visitor_hash, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING")) {
+            ps.setLong(1, postId);
+            ps.setDate(2, java.sql.Date.valueOf(day));
+            ps.setString(3, visitorHash);
+            ps.setTimestamp(4, Timestamp.from(now));
+            return ps.executeUpdate();
+        }
     }
 
     // ── 2단계: 가젯 · 인기글 · 배치 · 탈퇴 ─────────────────────────────────────

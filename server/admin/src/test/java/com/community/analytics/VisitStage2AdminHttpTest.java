@@ -45,7 +45,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
     @BeforeEach
     @AfterEach
     void allOff() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_days = 90, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
                 + "environment = false, search_terms = false, bots = false, notification_sends = false, board_activity = false WHERE id = 1");
         statsSettings.invalidate();
     }
@@ -114,7 +114,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.collect.bots").value(false)).andExpect(jsonPath("$.data.collect.visits").value(false));
         mvc.perform(get(BASE + "/health").cookie(session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.status").value("OFF")).andExpect(jsonPath("$.data.issues[*].code", org.hamcrest.Matchers.hasItem("COLLECT_OFF")))
-                .andExpect(jsonPath("$.data.crons.length()").value(7)).andExpect(jsonPath("$.data.raw.retentionDays").value(90));
+                .andExpect(jsonPath("$.data.crons.length()").value(8)).andExpect(jsonPath("$.data.raw.retentionMonths").value(3));
         mvc.perform(get(BASE + "/requests").cookie(session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.items").isArray()).andExpect(jsonPath("$.data.total").isNumber()).andExpect(jsonPath("$.data.pending").isNumber())
                 .andExpect(jsonPath("$.data.last30Days").isNumber());
@@ -123,7 +123,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
     // ── 설정의 2단계 세 칸 ──────────────────────────────────────────────────
 
     private static String body(boolean enabled, String more) {
-        return "{\"enabled\":" + enabled + ",\"visits\":true,\"rawEvents\":false,\"rawRetentionDays\":90,\"referrers\":false,\"flows\":false,"
+        return "{\"enabled\":" + enabled + ",\"visits\":true,\"rawEvents\":false,\"rawRetentionMonths\":3,\"referrers\":false,\"flows\":false,"
                 + "\"notificationSends\":false,\"boardActivity\":false" + more + "}";
     }
 

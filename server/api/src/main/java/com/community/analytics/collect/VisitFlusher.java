@@ -14,10 +14,13 @@ import jakarta.annotation.PreDestroy;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,13 +37,16 @@ import org.springframework.stereotype.Component;
  *
  * <p>한 번에 쓰는 문장(켜진 항목만, 빈 것은 건너뜀 — 문장 수는 방문량과 무관하다):
  * <ol>
- *   <li>방문자 + 페이지뷰: 표시 넣기 {@code ON CONFLICT DO NOTHING RETURNING} → 실제로 들어간 줄만 시간 칸 방문자·신규 방문자, 같은 문장에서 페이지뷰 더하기 upsert (1문장)</li>
+ *   <li>방문자 + 페이지뷰: 표시 넣기 {@code ON CONFLICT DO NOTHING RETURNING} → 실제로 들어간 줄만 시간 칸 방문자·신규 방문자, 같은 문장에서 페이지뷰 더하기 upsert (1문장).
+ *       표시 표는 analytics V6 부터 하루 파티션 — 그 날 조각이 없으면 한 번 만들고 다시 쓴다(크론이 어제~모레를 미리 만든다)</li>
  *   <li>지금 접속 upsert (1문장) — 1·2 는 한 트랜잭션</li>
- *   <li>원본 여러 줄 (1문장) + 페이지별 일별 조회 더하기 (1문장) — 한 트랜잭션. 그 달 조각이 없으면 한 번 만들고 다시 쓴다</li>
+ *   <li>페이지별 일별 조회 더하기 (1문장) — 3단계부터 「방문자·페이지뷰」에 딸린다(원본과 따로)</li>
+ *   <li>원본 여러 줄 (1문장). 그 달 조각이 없으면 한 번 만들고 다시 쓴다</li>
  *   <li>유입처 일별 더하기 (1문장) + 캠페인 일별 더하기 (1문장, analytics V3) — 한 트랜잭션</li>
  *   <li>이동 일별 더하기 (1문장) — 세션 첫 페이지의 「바로 들어옴」(from_path = '') 줄 포함</li>
  *   <li>2단계(analytics V4): 환경 일별 (1문장) · 검색어 일별 + 걸러진 검색 수 (2문장, 한 트랜잭션) · 봇 일별 (1문장)</li>
- *   <li><b>수집 진단 (1문장, 늘)</b>: 이 서버의 「살아 있음」 + 시간 칸(이번 1분의 기록 성공·실패 수 · 버린 줄 · 무시한 신호) + 기록 실패 줄. 신호가 없어도 쓴다 —
+ *   <li><b>수집 진단 (1문장, 늘)</b>: 이 서버의 「살아 있음」 + 시간 칸(이번 1분의 기록 성공·실패 수 · 버린 줄 · 무시한 신호 · 뺄 계정 신호 · 「알 수 없는 주소」로 묶은 신호
+ *       — 뒤 둘은 analytics V5) + 기록 실패 줄. 신호가 없어도 쓴다 —
  *       관리자 「수집 진단」이 서버가 멈췄는지 이것으로 안다. 진단 쓰기마저 실패하면 숫자를 메모리에 두었다가 다음 1분에 함께 쓴다.</li>
  * </ol>
  * 서버 여러 대의 정확성 근거는 {@link AnalyticsWriteStore} 머리말. 묶음 하나가 실패하면(트랜잭션째 되돌려졌다) 그 묶음만 메모리에 되돌려 다음 1분에 다시 쓴다(상한은 버퍼가 지킨다).
@@ -72,6 +78,8 @@ public class VisitFlusher {
     private long pendingDropped;
     private long pendingIgnoredBot;
     private long pendingIgnoredInvalid;
+    private long pendingIgnoredExcluded;
+    private long pendingUnknownPath;
     private final ArrayDeque<FailureRow> pendingFailures = new ArrayDeque<>();
 
     @Autowired
@@ -96,6 +104,8 @@ public class VisitFlusher {
         pendingDropped += b.dropped();
         pendingIgnoredBot += b.ignoredBot();
         pendingIgnoredInvalid += b.ignoredInvalid();
+        pendingIgnoredExcluded += b.ignoredExcluded();
+        pendingUnknownPath += b.unknownPath();
         if (!b.isEmpty()) {
             write(buffer, b);
         }
@@ -105,21 +115,33 @@ public class VisitFlusher {
     private void write(VisitBuffer buffer, VisitBuffer.Batch b) {
         if (!b.visitors().isEmpty() || !b.pageViews().isEmpty() || !b.active().isEmpty()) {
             List<VisitorRow> visitors = new ArrayList<>(b.visitors().size());
-            b.visitors().forEach((k, v) -> visitors.add(new VisitorRow(k.day(), k.visitorHash(), v.hour(), v.newVisitor())));
-            if (!step("방문자", () -> store.visits(visitors, b.pageViews(), b.active()))) {
+            Set<LocalDate> days = new TreeSet<>();
+            b.visitors().forEach((k, v) -> {
+                visitors.add(new VisitorRow(k.day(), k.visitorHash(), v.hour(), v.newVisitor()));
+                days.add(k.day());
+            });
+            Runnable writeVisits = () -> store.visits(visitors, b.pageViews(), b.active());
+            RuntimeException failure = run(writeVisits);
+            if (failure != null && sqlState(failure, NO_PARTITION) && run(() -> store.ensureMarkPartitions(days)) == null) {
+                failure = run(writeVisits); // 그 날 표시 조각(analytics V6)이 없어 거절됐다 — 한 번 만들고 다시(성공하면 실패로 세지 않는다)
+            }
+            if (!done("방문자", failure)) {
                 buffer.restoreVisits(b);
             }
         }
-        if (!b.raw().isEmpty() || !b.pages().isEmpty()) {
+        // 페이지별 일별 — 3단계부터 「방문자·페이지뷰」에 딸려 원본과 따로 쓴다(원본을 꺼도 쌓인다)
+        if (!b.pages().isEmpty()) {
+            List<DailyRow> pages = new ArrayList<>(b.pages().size());
+            b.pages().forEach((k, n) -> pages.add(new DailyRow(k.day(), k.path(), k.kind(), n)));
+            if (!step("페이지", () -> store.pages(pages))) {
+                buffer.restorePages(b);
+            }
+        }
+        if (!b.raw().isEmpty()) {
             List<RawRow> raw = new ArrayList<>(b.raw().size());
             b.raw().forEach(r -> raw.add(new RawRow(r.id(), r.viewedAt(), r.visitorHash(), r.sessionHash(), r.path(), r.kind(), r.prevPath(), r.referrerDomain(),
                     r.referrerGroup(), r.utmSource(), r.utmMedium(), r.utmCampaign(), r.device(), r.newVisitor())));
-            List<DailyRow> pages = new ArrayList<>(b.pages().size());
-            b.pages().forEach((k, n) -> pages.add(new DailyRow(k.day(), k.path(), k.kind(), n)));
-            Runnable writeRaw = () -> {
-                store.raw(raw);
-                store.pages(pages);
-            };
+            Runnable writeRaw = () -> store.raw(raw);
             RuntimeException failure = run(writeRaw);
             if (failure != null && sqlState(failure, NO_PARTITION) && run(store::ensurePartitions) == null) {
                 failure = run(writeRaw); // 조각이 없어 거절됐다 — 한 번 만들고 다시(성공하면 실패로 세지 않는다)
@@ -174,7 +196,7 @@ public class VisitFlusher {
     private void diagnostics() {
         Instant now = Instant.now();
         Diagnostics d = new Diagnostics(instance, now, now.truncatedTo(ChronoUnit.HOURS), pendingOk, pendingFail, pendingDropped, pendingIgnoredBot,
-                pendingIgnoredInvalid, List.copyOf(pendingFailures));
+                pendingIgnoredInvalid, pendingIgnoredExcluded, pendingUnknownPath, List.copyOf(pendingFailures));
         RuntimeException failure = run(() -> store.diagnostics(d));
         if (failure == null) {
             pendingOk = 0;
@@ -182,6 +204,8 @@ public class VisitFlusher {
             pendingDropped = 0;
             pendingIgnoredBot = 0;
             pendingIgnoredInvalid = 0;
+            pendingIgnoredExcluded = 0;
+            pendingUnknownPath = 0;
             pendingFailures.clear();
             return;
         }

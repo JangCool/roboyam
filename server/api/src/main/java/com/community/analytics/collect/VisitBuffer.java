@@ -86,11 +86,14 @@ final class VisitBuffer {
      * @param dropped        이 1분 사이 상한 때문에 버린 줄 수(수집 진단)
      * @param ignoredBot     이 1분 사이 봇·빈 User-Agent 라 무시한 방문 신호 수(수집 진단)
      * @param ignoredInvalid 이 1분 사이 형식이 틀려 무시한 방문 신호 수(수집 진단)
+     * @param ignoredExcluded 이 1분 사이 뺄 계정(운영자 회원 계정·AI 회원)의 신호라 버린 수(수집 진단, 3단계)
+     * @param unknownPath    이 1분 사이 「알 수 없는 주소」로 묶은 신호 수(수집 진단, 3단계 — 버리지 않고 세었다)
      */
     record Batch(LinkedHashMap<VisitorKey, FirstSeen> visitors, LinkedHashMap<Instant, Long> pageViews, LinkedHashMap<String, Instant> active,
                  ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows,
                  LinkedHashMap<CampaignKey, Long> campaigns, LinkedHashMap<EnvKey, Long> env, LinkedHashMap<SearchKey, SearchCount> searches,
-                 LinkedHashMap<LocalDate, Long> searchFiltered, LinkedHashMap<BotKey, Long> bots, long dropped, long ignoredBot, long ignoredInvalid) {
+                 LinkedHashMap<LocalDate, Long> searchFiltered, LinkedHashMap<BotKey, Long> bots, long dropped, long ignoredBot, long ignoredInvalid,
+                 long ignoredExcluded, long unknownPath) {
 
         /** 쓸 숫자가 없나(수집 진단 칸은 따로 — 비어도 「살아 있음」은 쓴다) */
         boolean isEmpty() {
@@ -103,10 +106,12 @@ final class VisitBuffer {
     private long dropped;
     private long ignoredBot;
     private long ignoredInvalid;
+    private long ignoredExcluded;
+    private long unknownPath;
 
     private static Batch empty() {
         return new Batch(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new ArrayDeque<>(), new LinkedHashMap<>(), new LinkedHashMap<>(),
-                new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), 0, 0, 0);
+                new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), 0, 0, 0, 0, 0);
     }
 
     // ── 넣기 ─────────────────────────────────────────────────────────────────
@@ -121,13 +126,18 @@ final class VisitBuffer {
         trim(current.active(), MAX_ACTIVE);
     }
 
-    synchronized void raw(RawView view, LocalDate day) {
+    /** 원본 한 줄(「원본 기록」을 켰을 때만) */
+    synchronized void raw(RawView view) {
         current.raw().addLast(view);
         while (current.raw().size() > MAX_RAW) {
             current.raw().pollFirst();
             dropped++;
         }
-        current.pages().merge(new PageKey(day, view.path(), view.kind()), 1L, Long::sum);
+    }
+
+    /** 페이지별 일별 조회 1 — 3단계부터 「방문자·페이지뷰」에 딸린다(원본 기록과 따로 쌓고 따로 쓴다). 주소·종류는 라우트 표가 정한 값 */
+    synchronized void page(LocalDate day, String path, String kind) {
+        current.pages().merge(new PageKey(day, path, kind), 1L, Long::sum);
         trim(current.pages(), MAX_PAGES);
     }
 
@@ -181,13 +191,23 @@ final class VisitBuffer {
         ignoredInvalid++;
     }
 
+    /** 뺄 계정(운영자 회원 계정·AI 회원)의 로그인 세션으로 온 방문 신호라 버린 1(수집 진단) */
+    synchronized void ignoredExcluded() {
+        ignoredExcluded++;
+    }
+
+    /** 「알 수 없는 주소」로 묶은 방문 신호 1(수집 진단 — 신호는 센다) */
+    synchronized void unknownPath() {
+        unknownPath++;
+    }
+
     // ── 넘기기·되돌리기 ───────────────────────────────────────────────────────
 
     /** 지금까지 모은 것을 통째로 넘기고 비운다. 그 사이 상한 때문에 버린 줄이 있으면 경고한다 */
     synchronized Batch drain() {
         Batch b = current;
         Batch out = new Batch(b.visitors(), b.pageViews(), b.active(), b.raw(), b.pages(), b.referrers(), b.flows(), b.campaigns(), b.env(), b.searches(),
-                b.searchFiltered(), b.bots(), dropped, ignoredBot, ignoredInvalid);
+                b.searchFiltered(), b.bots(), dropped, ignoredBot, ignoredInvalid, ignoredExcluded, unknownPath);
         current = empty();
         if (dropped > 0) {
             log.warn("방문 신호 모음이 메모리 상한을 넘어 오래된 {}줄을 버렸다(이 서버의 지난 1분 숫자가 그만큼 덜 세졌다)", dropped);
@@ -195,6 +215,8 @@ final class VisitBuffer {
         dropped = 0;
         ignoredBot = 0;
         ignoredInvalid = 0;
+        ignoredExcluded = 0;
+        unknownPath = 0;
         return out;
     }
 
@@ -218,6 +240,9 @@ final class VisitBuffer {
             current.raw().pollFirst();
             dropped++;
         }
+    }
+
+    synchronized void restorePages(Batch b) {
         b.pages().forEach((k, v) -> current.pages().merge(k, v, Long::sum));
         trim(current.pages(), MAX_PAGES);
     }

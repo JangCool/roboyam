@@ -1,6 +1,6 @@
 <template>
     <!--
-        페이지 순위 표 — 순위 · 화면 종류 꼬리표 · 페이지(제목 — 없으면 경로, 아래 작게 경로) · 조회수 · 비율 막대(거른 범위 조회수 합 대비). 20줄씩 쪽 넘김은 서버(`lazy`).
+        페이지 순위 표 — 순위 · 화면 종류 꼬리표 · 페이지(제목 — 없으면 묶음 주소의 화면 이름 `UtilVisitPathMessages`, 그것도 없으면 경로 · 이름이 있으면 아래 작게 경로) · 조회수 · 비율 막대(거른 범위 조회수 합 대비). 20줄씩 쪽 넘김은 서버(`lazy`).
         머리 오른쪽 경로·제목 찾기(`searchable` — 0.3초 멈추면 `search`) · 화면 종류 거르기(전체 + 10종). 줄(또는 제목 단추 — 키보드)을 누르면 `select(path)` — 화면이 서랍을 연다(그 줄은 강조).
         상태는 표 안: 오류 ErrorState(다시 시도) · 읽는 중 빈 칸 · 빈 결과 EmptyState.
     -->
@@ -59,14 +59,14 @@
                             <button
                                 type="button"
                                 class="min-w-0 cursor-pointer truncate rounded text-left text-[13px] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
-                                :class="data.title ? '' : 'font-mono text-[12px]'"
+                                :class="UtilVisitPathMessages.named(data) ? '' : 'font-mono text-[12px]'"
                                 :title="data.path"
                                 :aria-pressed="data.path === selectedPath"
                                 @click.stop="emit('select', data.path)"
                             >
-                                {{ data.title ? localizedName(data.title, data.titleEn) : data.path }}
+                                {{ UtilVisitPathMessages.label(t, localizedName, data) }}
                             </button>
-                            <span v-if="data.title" class="truncate font-mono text-[11px] text-muted-color">{{ data.path }}</span>
+                            <span v-if="UtilVisitPathMessages.named(data)" class="truncate font-mono text-[11px] text-muted-color">{{ data.path }}</span>
                         </span>
                     </template>
                 </Column>
@@ -92,6 +92,7 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import { VISIT_PAGE_KINDS, type VisitPageKind, type VisitPageRow } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 interface Props {
     rows?: VisitPageRow[];

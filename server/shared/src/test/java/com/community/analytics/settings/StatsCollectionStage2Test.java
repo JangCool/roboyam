@@ -32,7 +32,7 @@ class StatsCollectionStage2Test {
 
     @AfterEach
     void reset() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_days = 90, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
                 + "environment = false, search_terms = false, bots = false, notification_sends = false, board_activity = false WHERE id = 1");
     }
 
@@ -50,7 +50,7 @@ class StatsCollectionStage2Test {
 
     @Test
     void 일단계_생성자는_새_칸을_꺼짐으로_두고_OFF_는_모두_꺼짐() {
-        StatsCollection s = new StatsCollection(true, true, true, 90, true, true, true, true);
+        StatsCollection s = new StatsCollection(true, true, true, 3, true, true, true, true);
         assertThat(s.environment()).isFalse();
         assertThat(s.searchTerms()).isFalse();
         assertThat(s.bots()).isFalse();
@@ -62,26 +62,26 @@ class StatsCollectionStage2Test {
 
     @Test
     void 새_칸은_방문_수집_전체가_켜졌을_때만_동작하고_검색어_봇은_방문_신호가_아니다() {
-        StatsCollection offAll = new StatsCollection(false, false, false, 90, false, false, true, true, true, false, false);
+        StatsCollection offAll = new StatsCollection(false, false, false, 3, false, false, true, true, true, false, false);
         assertThat(offAll.environmentOn()).isFalse();
         assertThat(offAll.searchTermsOn()).isFalse();
         assertThat(offAll.botsOn()).isFalse();
         assertThat(offAll.anyVisitOn()).isFalse();
         assertThat(offAll.anyCollectOn()).isFalse();
 
-        StatsCollection searchOnly = new StatsCollection(true, false, false, 90, false, false, false, true, false, false, false);
+        StatsCollection searchOnly = new StatsCollection(true, false, false, 3, false, false, false, true, false, false, false);
         assertThat(searchOnly.searchTermsOn()).isTrue();
         assertThat(searchOnly.anyVisitOn()).as("검색어는 방문 신호가 아니다 — 브라우저 스위치에 들지 않는다").isFalse();
         assertThat(searchOnly.anyCollectOn()).isTrue();
 
-        StatsCollection botsOnly = new StatsCollection(true, false, false, 90, false, false, false, false, true, false, false);
+        StatsCollection botsOnly = new StatsCollection(true, false, false, 3, false, false, false, false, true, false, false);
         assertThat(botsOnly.anyVisitOn()).isFalse();
         assertThat(botsOnly.anyCollectOn()).isTrue();
 
-        StatsCollection envOnly = new StatsCollection(true, false, false, 90, false, false, true, false, false, false, false);
+        StatsCollection envOnly = new StatsCollection(true, false, false, 3, false, false, true, false, false, false, false);
         assertThat(envOnly.anyVisitOn()).as("환경은 신호에 싣는다").isTrue();
 
-        StatsCollection enabledOnly = new StatsCollection(true, false, false, 90, false, false, false, false, false, true, true);
+        StatsCollection enabledOnly = new StatsCollection(true, false, false, 3, false, false, false, false, false, true, true);
         assertThat(enabledOnly.anyCollectOn()).as("알림·게시판 활동은 방문 쪽 수집이 아니다").isFalse();
     }
 
@@ -89,7 +89,7 @@ class StatsCollectionStage2Test {
     void 저장하고_읽으면_새_칸이_그대로_돌아온다() {
         StatsCollectionStore store = JpaTestContext.create(StatsCollectionStore.class);
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
-        StatsCollection v = new StatsCollection(true, false, true, 180, false, true, true, false, true, false, true);
+        StatsCollection v = new StatsCollection(true, false, true, 6, false, true, true, false, true, false, true);
         TransactionTemplate tx = new TransactionTemplate(JpaTestContext.transactions());
         tx.executeWithoutResult(s -> store.save(v, 9_800_000_001L, now));
         StatsCollectionStore.Stored got = store.find().orElseThrow();
@@ -99,7 +99,7 @@ class StatsCollectionStage2Test {
         assertThat(jdbc.queryForObject("SELECT environment::text || search_terms::text || bots::text FROM stats_collection_settings WHERE id = 1", String.class))
                 .isEqualTo("truefalsetrue");
 
-        StatsCollection w = new StatsCollection(true, false, true, 180, false, true, false, true, false, false, true);
+        StatsCollection w = new StatsCollection(true, false, true, 6, false, true, false, true, false, false, true);
         tx.executeWithoutResult(s -> store.save(w, 9_800_000_001L, now.plusSeconds(1)));
         assertThat(store.find().orElseThrow().value()).isEqualTo(w);
     }

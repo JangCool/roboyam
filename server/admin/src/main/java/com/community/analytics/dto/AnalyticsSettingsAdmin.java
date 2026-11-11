@@ -12,10 +12,10 @@ public final class AnalyticsSettingsAdmin {
     }
 
     /**
-     * {@code PUT} 본문 — 1단계 여덟 칸은 비면 400 {@code fields.<칸>}, 보관 일수가 30·90·180·365 밖이면 400 {@code fields.rawRetentionDays}.
+     * {@code PUT} 본문 — 1단계 여덟 칸은 비면 400 {@code fields.<칸>}, 보관 개월 수가 2·3·6·12(이번 달 포함) 밖이면 400 {@code fields.rawRetentionMonths}.
      * 2단계 세 칸({@code environment}·{@code searchTerms}·{@code bots})은 비면 <b>저장된 값 그대로</b>(그 칸을 모르는 화면이 저장해도 꺼지지 않게).
      */
-    public record Save(Boolean enabled, Boolean visits, Boolean rawEvents, Integer rawRetentionDays, Boolean referrers, Boolean flows, Boolean environment,
+    public record Save(Boolean enabled, Boolean visits, Boolean rawEvents, Integer rawRetentionMonths, Boolean referrers, Boolean flows, Boolean environment,
                        Boolean searchTerms, Boolean bots, Boolean notificationSends, Boolean boardActivity) {
     }
 
@@ -25,11 +25,11 @@ public final class AnalyticsSettingsAdmin {
      * @param updatedAt 마지막 저장 시각(ISO) — 저장한 적 없으면 null
      * @param updatedBy 마지막으로 저장한 운영자 이름 — 저장한 적 없거나 운영자가 지워졌으면 null
      */
-    public record View(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionDays, boolean referrers, boolean flows, boolean environment,
+    public record View(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionMonths, boolean referrers, boolean flows, boolean environment,
                        boolean searchTerms, boolean bots, boolean notificationSends, boolean boardActivity, String updatedAt, String updatedBy) {
     }
 
-    /** 이력의 {@code changes} 원소(저장 모양) — 값은 글자: 켜기 {@code true}/{@code false}, 보관 일수는 숫자 글자 */
+    /** 이력의 {@code changes} 원소(저장 모양) — 값은 글자: 켜기 {@code true}/{@code false}, 보관 개월 수는 숫자 글자(3단계 전 줄은 {@code rawRetentionDays} 칸에 일 수) */
     public record Change(String field, String before, String after) {
     }
 

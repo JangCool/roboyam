@@ -53,7 +53,7 @@ class VisitStage2CollectTest {
     private static final String HOST = "roboyam.test";
 
     /** 2단계 세 칸까지 모두 켬 */
-    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 90, true, true, true, true, true, false, false);
+    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 3, true, true, true, true, true, false, false);
 
     private final AtomicReference<StatsCollection> setting = new AtomicReference<>(ALL2);
     private final VisitCollector collector = new VisitCollector(settings(setting), INDEX, IDS);
@@ -94,21 +94,21 @@ class VisitStage2CollectTest {
         assertThat(second.visitors()).hasSize(1);
 
         // 환경만 꺼짐 — 나머지는 그대로 센다
-        setting.set(new StatsCollection(true, true, true, 90, true, true, false, true, true, false, false));
+        setting.set(new StatsCollection(true, true, true, 3, true, true, false, true, true, false, false));
         assertThat(collector.accept(signal(null, env("CHROME", "WINDOWS", "W1440")), WIN_CHROME, HOST)).isTrue();
         VisitBuffer.Batch off = collector.buffer().drain();
         assertThat(off.env()).isEmpty();
         assertThat(off.visitors()).hasSize(1);
 
         // 방문 수집 전체가 꺼지면 환경이 켜져 있어도 아무것도
-        setting.set(new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false));
+        setting.set(new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false));
         assertThat(collector.accept(signal(null, env("CHROME", "WINDOWS", "W1440")), WIN_CHROME, HOST)).isFalse();
         assertThat(collector.buffer().drain().isEmpty()).isTrue();
     }
 
     @Test
     void 환경만_켜도_신호를_받아_환경만_센다() {
-        setting.set(new StatsCollection(true, false, false, 90, false, false, true, false, false, false, false));
+        setting.set(new StatsCollection(true, false, false, 3, false, false, true, false, false, false, false));
         assertThat(collector.accept(signal(null, env("SAFARI", "IOS", "W480")), IPHONE, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
         assertThat(onlyEnv(b).device()).isEqualTo("MOBILE");
@@ -251,7 +251,7 @@ class VisitStage2CollectTest {
     @Test
     void 방문_수집이_꺼져_있으면_무시한_신호도_세지_않는다() {
         // 검색어·봇만 켬 — 방문 신호를 하나도 쓰지 않는다(anyVisitOn false)
-        setting.set(new StatsCollection(true, false, false, 90, false, false, false, true, true, false, false));
+        setting.set(new StatsCollection(true, false, false, 3, false, false, false, true, true, false, false));
         collector.accept(signal(null, null), "Googlebot/2.1", HOST);
         collector.accept("not-json", WIN_CHROME, HOST);
         VisitBuffer.Batch b = collector.buffer().drain();
@@ -272,9 +272,9 @@ class VisitStage2CollectTest {
         assertThat(b.bots()).containsExactlyInAnyOrderEntriesOf(Map.of(new VisitBuffer.BotKey(d, "GOOGLE"), 2L, new VisitBuffer.BotKey(d, "NAVER"), 1L,
                 new VisitBuffer.BotKey(d, "TOOL"), 2L));
 
-        setting.set(new StatsCollection(true, true, true, 90, true, true, true, true, false, false, false));
+        setting.set(new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false));
         collector.countBotPage("Googlebot/2.1");
-        setting.set(new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false));
+        setting.set(new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false));
         collector.countBotPage("Googlebot/2.1");
         assertThat(collector.buffer().drain().bots()).isEmpty();
     }
@@ -379,7 +379,7 @@ class VisitStage2CollectTest {
 
     @Test
     void 봇이_꺼져_있으면_화면_요청도_세지_않는다() throws Exception {
-        setting.set(new StatsCollection(true, true, true, 90, true, true, true, true, false, false, false));
+        setting.set(new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false));
         filter(true).doFilter(page("GET", "/", "Googlebot/2.1"), new MockHttpServletResponse(), new MockFilterChain());
         assertThat(botRequests()).isZero();
     }
@@ -433,10 +433,10 @@ class VisitStage2CollectTest {
 
     @Test
     void 검색어가_꺼져_있거나_방문_수집_전체가_꺼지면_세지_않는다() {
-        setting.set(new StatsCollection(true, true, true, 90, true, true, true, false, true, false, false));
+        setting.set(new StatsCollection(true, true, true, 3, true, true, true, false, true, false, false));
         collector.countSearch("rtx 4090", false, WIN_CHROME);
         collector.countSearch("a", false, WIN_CHROME);
-        setting.set(new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false));
+        setting.set(new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false));
         collector.countSearch("rtx 4090", false, WIN_CHROME);
         VisitBuffer.Batch b = collector.buffer().drain();
         assertThat(b.searches()).isEmpty();
@@ -504,10 +504,10 @@ class VisitStage2CollectTest {
     @Test
     void 사이트_정보의_analytics_environment_는_전체와_환경이_모두_켜졌을_때만() {
         assertThat(SiteAnalyticsView.of(ALL2).environment()).isTrue();
-        assertThat(SiteAnalyticsView.of(new StatsCollection(false, true, true, 90, true, true, true, true, true, true, true)))
+        assertThat(SiteAnalyticsView.of(new StatsCollection(false, true, true, 3, true, true, true, true, true, true, true)))
                 .isEqualTo(new SiteAnalyticsView(false, false, false, false, false, false));
-        assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 90, false, false, false, true, true, false, false)))
+        assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 3, false, false, false, true, true, false, false)))
                 .as("검색어·봇은 신호가 아니라 여기 없다").isEqualTo(new SiteAnalyticsView(true, false, false, false, false, false));
-        assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 90, false, false, true, false, false, false, false)).environment()).isTrue();
+        assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 3, false, false, true, false, false, false, false)).environment()).isTrue();
     }
 }

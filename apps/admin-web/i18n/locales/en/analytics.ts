@@ -37,8 +37,8 @@ export default {
     },
     help: {
         enabled: 'When off, visitors\' browsers send no visit signals at all. The visit items below only work while this is on.',
-        visits: 'Counts today\'s visitors and page views and who is online now (last 5 minutes).',
-        rawEvents: 'Keeps the raw record of which page was viewed when. It feeds "Popular pages" and the page ranking and real-time views in Visitor stats.',
+        visits: 'Counts visitors, page views and who is online now (last 5 minutes), views per page ("Popular pages", page ranking) and weekly/monthly unique visitors.',
+        rawEvents: 'Keeps the raw record of which page was viewed when. It feeds the per-minute page views and recent pages in Visitor stats › Real-time. Page rankings keep counting when this is off.',
         referrers: 'Counts where visits came from (search, social, direct, other sites, campaigns) and the top referring sites.',
         flows: 'Counts which page visitors moved to from which page.',
         environment: 'Counts device, browser, OS and screen-width band per visit (first page of a session). Only the categories are kept, never the raw browser string.',
@@ -63,9 +63,26 @@ export default {
     usedBy: 'Used by',
     usedByPage: '{group} › {page}',
     retentionLabel: 'Raw record retention',
-    retentionHelp: 'Raw records older than the retention period are deleted.',
+    retentionHelp: 'Keeps the chosen number of months, counting this month, and deletes older months as a whole each month.',
+    /** Retention options (months, counting this month) */
+    retentionOption: {
+        2: '2 months (this and last month)',
+        3: '3 months (incl. this month)',
+        6: '6 months (incl. this month)',
+        12: '12 months (incl. this month)',
+    },
+    /** Retention period put into the privacy notice */
+    retentionPolicy: {
+        2: 'up to 2 months — this month and last month',
+        3: 'up to 3 months, counting this month',
+        6: 'up to 6 months, counting this month',
+        12: 'up to 12 months, counting this month',
+    },
+    /** Short retention text (collection health, settings history) */
+    retentionMonths: '{n} months',
+    /** Day-based retention in older settings history */
     retentionDays: '{n} days',
-    privacyNotice: 'To keep raw visit records (pages viewed, traffic sources), your privacy policy must describe them and how long they are kept.',
+    privacyNotice: 'To keep raw visit records (pages viewed, traffic sources), your privacy policy must describe them and how long they are kept ({period}).',
     privacyLink: 'Go to terms & privacy policy',
     searchPrivacyNotice: 'To collect search terms, describe it and how long they are kept in your privacy policy. Terms that look like phone numbers, emails or resident registration numbers are never stored.',
 

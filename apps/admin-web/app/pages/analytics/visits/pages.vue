@@ -2,7 +2,8 @@
     <!--
         방문자 통계 › 페이지(`/analytics/visits/pages`) — 페이지 순위(종류 거르기 · 경로·제목 찾기 · 20줄씩) + 줄을 누르면 오른쪽 서랍(`VisitPageDrawer` — 일별 조회 · 들어온/나간 곳 5 · 「이동 흐름에서 보기」).
         한 줄 요약: 가장 많이 본 페이지(거른 범위 조회 합 대비 — 전체 종류·찾기 없음·첫 쪽일 때만). 종류별 비율 문장은 서버의 종류별 합이 생기면 더한다(쪽 줄로 어림하지 않는다).
-        원천은 `analytics_page_daily`(원본 기록과 함께 쌓임) — 원본 기록이 꺼져 있으면 「수집이 꺼져 있어요」. 서랍의 들어온/나간 곳은 이동 수집이 켜져 있어야 한다.
+        원천은 `analytics_page_daily` — 3단계부터 「방문자·페이지뷰」(`visits`) 수집에 딸린다(원본 기록을 꺼도 쌓임). 꺼져 있으면 「수집이 꺼져 있어요」.
+        묶음 주소(`/posts/{id}` …)는 서버가 제목을 주지 않아 화면 이름(`UtilVisitPathMessages`)으로 보인다. 서랍에는 `{id}` 가 든 주소를 그대로 넘긴다(쿼리 인코딩만). 서랍의 들어온/나간 곳은 이동 수집이 켜져 있어야 한다.
         권한: `site.read`(메뉴 `visitPages`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -13,8 +14,8 @@
             <ErrorState :code="summary.error.value.status === 403 ? '403' : '!'" :title="t('visitAnalytics.summaryLoadFailed')" :description="summary.error.value.message" :retry="summary.error.value.status !== 403" :retrying="busy" @retry="loadAll" />
         </AppGadget>
         <Skeleton v-else-if="!s" height="24rem" border-radius="0.75rem" />
-        <AppGadget v-else-if="!s.collect.rawEvents" :title="t('visitAnalytics.pagesTitle')">
-            <VisitCollectOff item="rawEvents" :enabled="s.collect.enabled" />
+        <AppGadget v-else-if="!s.collect.visits" :title="t('visitAnalytics.pagesTitle')">
+            <VisitCollectOff item="visits" :enabled="s.collect.enabled" />
         </AppGadget>
         <VisitPageRanking
             v-else
@@ -53,6 +54,7 @@
 <script setup lang="ts">
 import type { VisitPageKind } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => `${t('menu.visitPages')} · ${t('menu.visitStats')}` });
@@ -85,7 +87,8 @@ async function loadAll(): Promise<void> {
     first.value = 0;
     const found = await summary.load(rangeArg());
     if (!found) return;
-    if (found.collect.rawEvents) loadPages();
+    // 3단계: 페이지별 집계(`analytics_page_daily`)는 「방문자·페이지뷰」 스위치에 딸린다(원본 기록과 떨어짐)
+    if (found.collect.visits) loadPages();
     else pages.clear();
     if (drawerOpen.value && selected.value) loadDetail();
 }
@@ -112,8 +115,8 @@ const drawerOpen = ref(false);
 const selected = ref<string | null>(null);
 const selectedTitle = computed(() => {
     const row = pages.data.value?.items.find((r) => r.path === selected.value);
-    if (!row) return selected.value ?? '';
-    return row.title ? localizedName(row.title, row.titleEn) : row.path;
+    if (!row) return selected.value ? (UtilVisitPathMessages.routeName(t, selected.value) ?? selected.value) : '';
+    return UtilVisitPathMessages.label(t, localizedName, row);
 });
 
 function loadDetail(): void {
@@ -135,6 +138,6 @@ const insights = computed(() => {
     const top = d.items[0];
     if (!top || d.totalViews <= 0) return [];
     const lang = locale.value;
-    return [t('visitAnalytics.insightTopPage', { page: top.title ? localizedName(top.title, top.titleEn) : top.path, rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(top.views, d.totalViews), lang, 0) })];
+    return [t('visitAnalytics.insightTopPage', { page: UtilVisitPathMessages.label(t, localizedName, top), rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(top.views, d.totalViews), lang, 0) })];
 });
 </script>

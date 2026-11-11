@@ -5,6 +5,7 @@ import UtilBizApplication from '~/utils/util-biz-application';
 export type VisitRangePreset = 'TODAY' | 'YESTERDAY' | 'LAST7' | 'LAST30';
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
 const PRESET_DAYS: Record<Exclude<VisitRangePreset, 'TODAY' | 'YESTERDAY'>, number> = { LAST7: 7, LAST30: 30 };
 
 /**
@@ -213,6 +214,92 @@ export default class UtilVisitAnalytics {
     static percent(n: number | null, locale: string, digits = 1): string {
         if (n === null || !Number.isFinite(n)) return '—';
         return `${UtilVisitAnalytics.decimal(n, locale, digits)}%`;
+    }
+
+    // ── 3단계: 달력 주·달(순방문자) · 월별 보기 ──
+
+    /** 월별 보기 주소 — 메뉴에 없고 개요의 「월별 보기 →」로 들어간다 */
+    static readonly MONTHLY_PATH = '/analytics/visits/monthly';
+    /** 월별 보기에서 고를 수 있는 가장 긴 기간(개월) — 서버도 같은 값으로 막는다(400) */
+    static readonly MAX_MONTHS = 36;
+    /** 월별 보기 기본 기간(개월, 이번 달 포함) */
+    static readonly DEFAULT_MONTHS = 24;
+    /** 월별 보기 빠른 선택(개월, 이번 달 포함) */
+    static readonly MONTH_PRESETS: readonly number[] = [12, 24, 36];
+
+    /** 이번 달(한국 날짜 `YYYY-MM`) */
+    static thisMonth(now = Date.now()): string {
+        return UtilVisitAnalytics.today(now).slice(0, 7);
+    }
+
+    /** 달 더하기 — `YYYY-MM` ± n */
+    static addMonths(ym: string, n: number): string {
+        const total = Number(ym.slice(0, 4)) * 12 + (Number(ym.slice(5, 7)) - 1) + n;
+        const y = Math.floor(total / 12);
+        const m = total - y * 12 + 1;
+        return `${y}-${String(m).padStart(2, '0')}`;
+    }
+
+    /** 기간의 달 수(양끝 포함) */
+    static monthCount(range: { from: string; to: string }): number {
+        const a = Number(range.from.slice(0, 4)) * 12 + Number(range.from.slice(5, 7));
+        const b = Number(range.to.slice(0, 4)) * 12 + Number(range.to.slice(5, 7));
+        return b - a + 1;
+    }
+
+    /** 최근 n개월(이번 달 포함) */
+    static lastMonths(n: number, now = Date.now()): { from: string; to: string } {
+        const to = UtilVisitAnalytics.thisMonth(now);
+        return { from: UtilVisitAnalytics.addMonths(to, -(n - 1)), to };
+    }
+
+    /**
+     * 월 기간을 고른다 — 맞바꾸기 · 끝은 이번 달까지 · 길이는 `MAX_MONTHS` 까지(끝을 두고 시작을 당긴다). 일별 기간의 `normalize` 와 같은 규칙.
+     * @returns 고친 기간과, 길이 때문에 잘랐는지.
+     */
+    static normalizeMonths(from: string, to: string, now = Date.now()): { range: { from: string; to: string }; clamped: boolean } {
+        const current = UtilVisitAnalytics.thisMonth(now);
+        let a = from;
+        let b = to;
+        if (a > b) [a, b] = [b, a];
+        if (b > current) b = current;
+        if (a > b) a = b;
+        const earliest = UtilVisitAnalytics.addMonths(b, -(UtilVisitAnalytics.MAX_MONTHS - 1));
+        const clamped = a < earliest;
+        return { range: { from: clamped ? earliest : a, to: b }, clamped };
+    }
+
+    /** 주소 쿼리 → 월 기간(`from`·`to` = `YYYY-MM`). 깨졌거나 없으면 기본(최근 24개월) */
+    static monthFilterOf(query: Record<string, unknown>, now = Date.now()): { from: string; to: string } {
+        const str = (key: string) => (typeof query[key] === 'string' ? (query[key] as string) : '');
+        const from = str('from');
+        const to = str('to');
+        if (!YM.test(from) || !YM.test(to)) return UtilVisitAnalytics.lastMonths(UtilVisitAnalytics.DEFAULT_MONTHS, now);
+        return UtilVisitAnalytics.normalizeMonths(from, to, now).range;
+    }
+
+    /** 그 날이 든 주의 월요일(한국 날짜 — 주는 월요일 시작) */
+    static weekStart(ymd: string): string {
+        const weekday = new Date(`${ymd}T00:00:00Z`).getUTCDay(); // 0 = 일요일
+        return UtilBizApplication.addDays(ymd, -((weekday + 6) % 7));
+    }
+
+    /** 그 달의 말일 `YYYY-MM-DD` */
+    static monthEnd(ym: string): string {
+        return UtilBizApplication.addDays(`${UtilVisitAnalytics.addMonths(ym, 1)}-01`, -1);
+    }
+
+    /** 달 글자 — 「2026년 11월」 · 「Nov 2026」 */
+    static monthLabel(ym: string, locale: string): string {
+        return new Intl.DateTimeFormat(UtilVisitAnalytics.intl(locale), { year: 'numeric', month: locale === 'en' ? 'short' : 'long', timeZone: 'UTC' }).format(new Date(`${ym}-01T00:00:00Z`));
+    }
+
+    /** 축 눈금용 짧은 달 글자 — 「25.11」 · 「Nov '25」 */
+    static monthShort(ym: string, locale: string): string {
+        const y = ym.slice(2, 4);
+        const m = Number(ym.slice(5, 7));
+        if (locale === 'en') return `${new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(new Date(`${ym}-01T00:00:00Z`))} '${y}`;
+        return `${y}.${String(m).padStart(2, '0')}`;
     }
 
     private static intl(locale: string): string {

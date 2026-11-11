@@ -45,7 +45,8 @@ import org.springframework.stereotype.Service;
  *   <li>{@code FLUSH_FAILED}: 서버별 24시간 기록 실패 수 — 지난 {@link #RECENT_FAIL} 안에도 실패가 있으면 ERROR, 아니면 WARN. {@code BUFFER_DROPPED}: 버린 줄이 있으면 WARN.</li>
  *   <li>크론(배치 로그 {@code batch_runs} 의 마지막 실행): 마지막이 FAIL 이면 {@code CRON_FAILED} ERROR. 마지막 실행 뒤 예정 시각을 두 번 지나도 돌지 않았으면(주기의 2배)
  *       {@code CRON_LATE} WARN — pg_cron 에 등록되어 켜진 배치만, 식은 pg_cron 의 지금 식.</li>
- *   <li>{@code RAW_BACKLOG}: 가장 오래된 원본의 날이 「오늘 − 보관 일수 − 1」보다 앞이면(매일 정리가 하루 늦는 것까지는 정상) 넘친 날 수로 WARN.
+ *   <li>{@code RAW_BACKLOG}: 가장 오래된 원본의 날이 「이번 달부터 (보관 개월 수 − 1)달 앞의 1일」보다 앞이면(3단계 — 달 단위 보관. 그 달 1일에는 정리가 하루 늦는 것까지 정상이라
+ *       한 달 더 앞까지 본다, {@link #rawKeepFrom}) 넘친 날 수로 WARN.
  *       {@code NEXT_PARTITION_MISSING}: 원본 기록이 켜졌는데 다음 달 조각이 없으면 WARN(그 달의 마지막 {@link #PARTITION_URGENT_DAYS}일이면 ERROR).</li>
  *   <li>{@code COLLECT_OFF}: 방문 쪽 수집(신호·검색어·봇)이 하나도 켜지지 않음 — 상태 OFF.</li>
  *   <li>상태: OFF(꺼짐) → STOPPED(최근 {@link #SILENT_WARN} 안에 기록한 서버가 하나도 없음) → DELAYED(문제가 하나라도) → OK. 문제는 ERROR 먼저, 같으면 코드 차례.</li>
@@ -71,6 +72,7 @@ public class VisitDiagnosticsAdminService {
     /** 화면에 보이는 크론 — 방문 분석 크론 + 같은 「설정 › 통계 수집」에 딸린 메인 DB 크론 */
     static final List<String> CRON_JOBS = List.of(BatchCatalog.ANALYTICS_PAGE_VIEW_PARTITIONS.key(), BatchCatalog.ANALYTICS_VISIT_MARK_CLEANUP.key(),
             BatchCatalog.ANALYTICS_VISIT_ACTIVE_CLEANUP.key(), BatchCatalog.ANALYTICS_FORGET_REQUESTS.key(), BatchCatalog.ANALYTICS_LOG_CLEANUP.key(),
+            BatchCatalog.ANALYTICS_MONTHLY_ROLLUP.key(),
             BatchCatalog.BOARD_ACTIVITY_DAILY.key(), BatchCatalog.NOTIFICATION_SEND_FAILURE_CLEANUP.key());
     /** 문제 코드 차례(같은 심각도 안에서) — admin-web {@code VISIT_HEALTH_ISSUE_CODES} */
     static final List<String> ISSUE_CODES = List.of("INSTANCE_SILENT", "FLUSH_FAILED", "BUFFER_DROPPED", "CRON_FAILED", "CRON_LATE", "RAW_BACKLOG",
@@ -116,7 +118,8 @@ public class VisitDiagnosticsAdminService {
         List<HealthInstance> instances = new ArrayList<>(rows.size());
         int live = 0;
         for (VisitHealthStore.InstanceRow r : rows) {
-            instances.add(new HealthInstance(r.instance(), r.lastWriteAt(), r.flushOk(), r.flushFail(), r.dropped(), r.ignoredBot(), r.ignoredInvalid()));
+            instances.add(new HealthInstance(r.instance(), r.lastWriteAt(), r.flushOk(), r.flushFail(), r.dropped(), r.ignoredBot(), r.ignoredInvalid(),
+                    r.ignoredExcluded(), r.unknownPath()));
             if (r.lastWriteAt() != null && r.lastWriteAt().isAfter(at.minus(SILENT_WARN))) {
                 live++;
             } else if (r.lastWriteAt() != null) {
@@ -140,7 +143,7 @@ public class VisitDiagnosticsAdminService {
         LocalDate today = ServiceTime.dateOf(at);
         LocalDate oldestDay = raw.oldest() == null ? null : ServiceTime.dateOf(raw.oldest());
         if (oldestDay != null) {
-            long backlog = ChronoUnit.DAYS.between(oldestDay, today) - (s.rawRetentionDays() + 1L);
+            long backlog = ChronoUnit.DAYS.between(oldestDay, rawKeepFrom(today, s.rawRetentionMonths()));
             if (backlog > 0) {
                 issues.add(new HealthIssue("RAW_BACKLOG", "WARN", null, null, backlog, null));
             }
@@ -155,9 +158,18 @@ public class VisitDiagnosticsAdminService {
         }
         issues.sort(Comparator.comparingInt((HealthIssue i) -> "ERROR".equals(i.level()) ? 0 : 1).thenComparingInt(i -> ISSUE_CODES.indexOf(i.code())));
         String status = off ? "OFF" : live == 0 ? "STOPPED" : issues.isEmpty() ? "OK" : "DELAYED";
-        VisitAnalyticsAdmin.HealthRaw rawView = new VisitAnalyticsAdmin.HealthRaw(s.rawEventsOn(), s.rawRetentionDays(), oldestDay == null ? null : oldestDay.toString(),
+        VisitAnalyticsAdmin.HealthRaw rawView = new VisitAnalyticsAdmin.HealthRaw(s.rawEventsOn(), s.rawRetentionMonths(), oldestDay == null ? null : oldestDay.toString(),
                 raw.partitions(), raw.approxRows(), raw.nextPartitionReady());
         return new VisitAnalyticsAdmin.Health(at.truncatedTo(ChronoUnit.SECONDS), status, issues, instances, failures, crons, rawView);
+    }
+
+    /**
+     * 원본이 남아 있어도 되는 첫 날 — 「이번 달부터 (보관 개월 수 − 1)달 앞」의 1일(R__analytics_10 이 그 앞 달 조각을 지운다). 정리 크론(매일 00:25)이 하루 늦는 것까지는 정상이라
+     * 그 달 1일에는 한 달 더 앞까지 본다(일 단위 판정의 「+1일」 여유와 같은 뜻).
+     */
+    static LocalDate rawKeepFrom(LocalDate today, int months) {
+        LocalDate keepFrom = today.withDayOfMonth(1).minusMonths(months - 1L);
+        return today.getDayOfMonth() == 1 ? keepFrom.minusMonths(1) : keepFrom;
     }
 
     /** 크론 줄 — 배치 로그의 마지막 실행 + pg_cron 의 지금 식(쓸 수 없으면 정의의 기본 식, 늦음 판정 없음) */

@@ -32,7 +32,7 @@ public final class VisitAnalyticsAdmin {
 
     /** {@code GET …/visits/summary} */
     public record Summary(Range range, Instant asOf, String granularity, Counts totals, PreviousCounts previous, List<SeriesPoint> series, Collect collect,
-                          int rawRetentionDays, long activeNow) {
+                          int rawRetentionMonths, long activeNow) {
     }
 
     public record PageRow(String path, String kind, String title, String titleEn, long views) {
@@ -147,8 +147,9 @@ public final class VisitAnalyticsAdmin {
     public record HealthIssue(String code, String level, String instance, String job, Long count, Instant since) {
     }
 
-    /** 서버 한 줄(최근 24시간) */
-    public record HealthInstance(String instance, Instant lastWriteAt, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid) {
+    /** 서버 한 줄(최근 24시간) — {@code ignoredExcluded} 뺄 계정(운영자 회원 계정·AI 회원) 신호라 버린 수 · {@code unknownPath} 「알 수 없는 주소」로 묶은 신호 수(3단계) */
+    public record HealthInstance(String instance, Instant lastWriteAt, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid,
+                                 long ignoredExcluded, long unknownPath) {
     }
 
     public record HealthFailure(Instant at, String instance, String reason, String detail) {
@@ -158,7 +159,8 @@ public final class VisitAnalyticsAdmin {
     public record HealthCron(String job, String cron, Instant lastRunAt, String lastStatus, Long processed, String message, boolean late) {
     }
 
-    public record HealthRaw(boolean rawEvents, int retentionDays, String oldestDay, int partitions, Long approxRows, boolean nextPartitionReady) {
+    /** 원본 보관 — {@code retentionMonths} 보관 개월 수(이번 달 포함, 3단계 — 예전 {@code retentionDays}) */
+    public record HealthRaw(boolean rawEvents, int retentionMonths, String oldestDay, int partitions, Long approxRows, boolean nextPartitionReady) {
     }
 
     /** {@code GET …/visits/health} — 기간 없음(최근 24시간). {@code status} OK · DELAYED · STOPPED · OFF */

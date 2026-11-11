@@ -181,6 +181,12 @@ export interface DashboardVisitors {
     visitorsYesterdaySameTime: number;
     pageViewsYesterdaySameTime: number;
     hours: { hour: number; visitors: number }[];
+    /**
+     * 이번 주(월요일부터)·이번 달 순방문자(방문자, 중복 없이 — 방문 통계 3단계 결정 ④). 세기 시작 전이면 null, 옛 서버는 칸이 없다(그러면 줄을 숨긴다).
+     * ⚠ 서버 전 목업 — `useDashboardGadgetApi` 의 MOCK 줄이 채운다(서버 후보: `VISITORS` 응답에 이 두 칸).
+     */
+    visitorsThisWeek?: number | null;
+    visitorsThisMonth?: number | null;
 }
 
 /** 오늘·내일 일정 항목 종류 — 항목마다 그 종류 조회 권한이 있을 때만 서버가 준다 */

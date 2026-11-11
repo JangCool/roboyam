@@ -36,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>저장: 한 행(shared V133 {@code stats_collection_settings} + V135, 마이그레이션이 기본값으로 만들어 둔다)을 잠가 덮는다. 1단계 여덟 칸 모두 필요 — 비면 400 {@code fields.<칸>},
- *       보관 일수가 30·90·180·365 밖이면 400 {@code fields.rawRetentionDays}. 2단계 세 칸(환경·검색어·봇)은 비면 저장된 값 그대로(그 칸을 모르는 화면이 저장해도 꺼지지 않게).
+ *       보관 개월 수가 2·3·6·12(이번 달 포함) 밖이면 400 {@code fields.rawRetentionMonths}. 2단계 세 칸(환경·검색어·봇)은 비면 저장된 값 그대로(그 칸을 모르는 화면이 저장해도 꺼지지 않게).
  *       방문 수집 전체를 꺼도 하위 칸 값은 그대로 저장한다(화면과 같다).</li>
  *   <li>같은 값 저장은 아무것도 남기지 않는다. 바뀐 칸만 같은 트랜잭션에서 이력 한 줄({@code UPDATE} · {@code ADMIN}) + 감사 {@code STATS_COLLECTION_UPDATE}({@code before}/{@code after}).</li>
  *   <li>저장 뒤 이 서버의 설정 사본을 버린다 — 다른 서버(공개 사이트 포함)는 최대 30초 늦게 따른다({@link StatsCollectionSettings}).</li>
@@ -53,7 +53,7 @@ public class AnalyticsSettingsAdminService {
     static final int HISTORY_MAX_SIZE = 100;
     static final int HISTORY_DEFAULT_SIZE = 20;
     /** 칸 차례 — 이력·감사가 이 차례로 남는다 */
-    static final List<String> FIELDS = List.of("enabled", "visits", "rawEvents", "rawRetentionDays", "referrers", "flows", "environment", "searchTerms", "bots",
+    static final List<String> FIELDS = List.of("enabled", "visits", "rawEvents", "rawRetentionMonths", "referrers", "flows", "environment", "searchTerms", "bots",
             "notificationSends", "boardActivity");
     private static final String LABEL_KEY_PREFIX = "settingHistory.field.";
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
@@ -169,7 +169,7 @@ public class AnalyticsSettingsAdminService {
 
     private static AnalyticsSettingsAdmin.View view(StatsCollectionStore.Stored stored) {
         StatsCollection s = stored == null ? StatsCollection.OFF : stored.value();
-        return new AnalyticsSettingsAdmin.View(s.enabled(), s.visits(), s.rawEvents(), s.rawRetentionDays(), s.referrers(), s.flows(), s.environment(),
+        return new AnalyticsSettingsAdmin.View(s.enabled(), s.visits(), s.rawEvents(), s.rawRetentionMonths(), s.referrers(), s.flows(), s.environment(),
                 s.searchTerms(), s.bots(), s.notificationSends(), s.boardActivity(), stored == null || stored.updatedAt() == null ? null : stored.updatedAt().toString(), stored == null ? null : stored.updatedByName());
     }
 
@@ -184,9 +184,9 @@ public class AnalyticsSettingsAdminService {
                 fields.put(names[i], required);
             }
         }
-        Integer days = body == null ? null : body.rawRetentionDays();
-        if (days == null || !StatsCollection.RETENTION_DAYS.contains(days)) {
-            fields.put("rawRetentionDays", new MessageRef("analytics.settings.retention"));
+        Integer months = body == null ? null : body.rawRetentionMonths();
+        if (months == null || !StatsCollection.RETENTION_MONTHS.contains(months)) {
+            fields.put("rawRetentionMonths", new MessageRef("analytics.settings.retention"));
         }
         if (!fields.isEmpty()) {
             // 칸 차례(FIELDS)로 다시 담는다 — 대표 문구가 화면 차례의 첫 칸이 되게
@@ -194,7 +194,7 @@ public class AnalyticsSettingsAdminService {
             FIELDS.stream().filter(fields::containsKey).forEach(k -> ordered.put(k, fields.get(k)));
             throw new ValidationException(ordered);
         }
-        return new StatsCollection(body.enabled(), body.visits(), body.rawEvents(), days, body.referrers(), body.flows(), body.notificationSends(),
+        return new StatsCollection(body.enabled(), body.visits(), body.rawEvents(), months, body.referrers(), body.flows(), body.notificationSends(),
                 body.boardActivity());
     }
 
@@ -203,7 +203,7 @@ public class AnalyticsSettingsAdminService {
         boolean environment = body.environment() == null ? before.environment() : body.environment();
         boolean searchTerms = body.searchTerms() == null ? before.searchTerms() : body.searchTerms();
         boolean bots = body.bots() == null ? before.bots() : body.bots();
-        return new StatsCollection(checked.enabled(), checked.visits(), checked.rawEvents(), checked.rawRetentionDays(), checked.referrers(), checked.flows(),
+        return new StatsCollection(checked.enabled(), checked.visits(), checked.rawEvents(), checked.rawRetentionMonths(), checked.referrers(), checked.flows(),
                 environment, searchTerms, bots, checked.notificationSends(), checked.boardActivity());
     }
 
@@ -212,7 +212,7 @@ public class AnalyticsSettingsAdminService {
         out.put("enabled", s.enabled());
         out.put("visits", s.visits());
         out.put("rawEvents", s.rawEvents());
-        out.put("rawRetentionDays", s.rawRetentionDays());
+        out.put("rawRetentionMonths", s.rawRetentionMonths());
         out.put("referrers", s.referrers());
         out.put("flows", s.flows());
         out.put("environment", s.environment());

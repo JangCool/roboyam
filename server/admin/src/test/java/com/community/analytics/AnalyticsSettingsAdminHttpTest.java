@@ -35,13 +35,13 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
     @AfterEach
     void reset() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_days = 90, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
                 + "notification_sends = false, board_activity = false WHERE id = 1");
         statsSettings.invalidate();
     }
 
-    private static String body(boolean enabled, boolean visits, boolean raw, Object days, boolean referrers, boolean flows, boolean sends, boolean board) {
-        return "{\"enabled\":" + enabled + ",\"visits\":" + visits + ",\"rawEvents\":" + raw + ",\"rawRetentionDays\":" + days + ",\"referrers\":" + referrers
+    private static String body(boolean enabled, boolean visits, boolean raw, Object months, boolean referrers, boolean flows, boolean sends, boolean board) {
+        return "{\"enabled\":" + enabled + ",\"visits\":" + visits + ",\"rawEvents\":" + raw + ",\"rawRetentionMonths\":" + months + ",\"referrers\":" + referrers
                 + ",\"flows\":" + flows + ",\"notificationSends\":" + sends + ",\"boardActivity\":" + board + "}";
     }
 
@@ -60,28 +60,28 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
         long me = operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE);
         Cookie session = login(me);
         mvc.perform(get(URL).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.enabled").value(false))
-                .andExpect(jsonPath("$.data.rawRetentionDays").value(90));
+                .andExpect(jsonPath("$.data.rawRetentionMonths").value(3));
         long historyBefore = history();
 
-        mvc.perform(withCsrf(put(URL), session).content(body(true, true, false, 180, false, false, true, false))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.enabled").value(true)).andExpect(jsonPath("$.data.rawRetentionDays").value(180))
+        mvc.perform(withCsrf(put(URL), session).content(body(true, true, false, 6, false, false, true, false))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(true)).andExpect(jsonPath("$.data.rawRetentionMonths").value(6))
                 .andExpect(jsonPath("$.data.updatedBy").value(operatorName(me))).andExpect(jsonPath("$.data.updatedAt").isString());
         assertThat(history()).isEqualTo(historyBefore + 1);
         String changes = jdbc.queryForObject("SELECT changes::text FROM stats_collection_setting_history WHERE operator_id = ? ORDER BY changed_at DESC LIMIT 1",
                 String.class, me);
-        assertThat(changes).contains("\"enabled\"", "\"visits\"", "\"rawRetentionDays\"", "\"notificationSends\"", "\"180\"")
+        assertThat(changes).contains("\"enabled\"", "\"visits\"", "\"rawRetentionMonths\"", "\"notificationSends\"", "\"6\"")
                 .doesNotContain("\"rawEvents\"", "\"referrers\"", "\"flows\"", "\"boardActivity\"");
         assertThat(audits(me)).isEqualTo(1);
         String detail = auditLogs.where().actor(me).action("STATS_COLLECTION_UPDATE").single().detail();
-        assertThat(detail).contains("before", "after", "rawRetentionDays").doesNotContain("boardActivity");
+        assertThat(detail).contains("before", "after", "rawRetentionMonths").doesNotContain("boardActivity");
 
         // 같은 값 — 이력·감사 없음
-        mvc.perform(withCsrf(put(URL), session).content(body(true, true, false, 180, false, false, true, false))).andExpect(status().isOk());
+        mvc.perform(withCsrf(put(URL), session).content(body(true, true, false, 6, false, false, true, false))).andExpect(status().isOk());
         assertThat(history()).isEqualTo(historyBefore + 1);
         assertThat(audits(me)).isEqualTo(1);
 
         // 방문 수집 전체를 꺼도 하위 칸 값은 그대로 저장한다
-        mvc.perform(withCsrf(put(URL), session).content(body(false, true, false, 180, false, false, true, false))).andExpect(status().isOk())
+        mvc.perform(withCsrf(put(URL), session).content(body(false, true, false, 6, false, false, true, false))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.enabled").value(false)).andExpect(jsonPath("$.data.visits").value(true));
 
         mvc.perform(get(URL + "/history").param("size", "1").cookie(session)).andExpect(status().isOk())
@@ -93,14 +93,14 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     @Test
-    void 보관_일수가_목록_밖이거나_칸이_비면_400() throws Exception {
+    void 보관_개월_수가_목록_밖이거나_칸이_비면_400() throws Exception {
         Cookie session = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE));
         long historyBefore = history();
-        for (Object days : new Object[] {45, 0, 366, -90, "null"}) {
-            mvc.perform(withCsrf(put(URL), session).content(body(true, true, true, days, true, true, true, true))).andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error.fields.rawRetentionDays").exists());
+        for (Object months : new Object[] {45, 0, 1, 4, 30, 90, 366, -90, "null"}) {
+            mvc.perform(withCsrf(put(URL), session).content(body(true, true, true, months, true, true, true, true))).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error.fields.rawRetentionMonths").exists());
         }
-        mvc.perform(withCsrf(put(URL), session).content("{\"enabled\":true,\"rawRetentionDays\":90}")).andExpect(status().isBadRequest())
+        mvc.perform(withCsrf(put(URL), session).content("{\"enabled\":true,\"rawRetentionMonths\":3}")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.visits").exists()).andExpect(jsonPath("$.error.fields.boardActivity").exists());
         mvc.perform(withCsrf(put(URL), session)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.enabled").exists());
         mvc.perform(get(URL + "/history").param("size", "101").cookie(session)).andExpect(status().isBadRequest())
@@ -113,13 +113,13 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
         Cookie reader = login(operatorWith(Permission.SITE_READ));
         mvc.perform(get(URL).cookie(reader)).andExpect(status().isOk());
         mvc.perform(get(URL + "/history").cookie(reader)).andExpect(status().isOk());
-        mvc.perform(withCsrf(put(URL), reader).content(body(true, true, false, 90, false, false, false, false))).andExpect(status().isForbidden());
+        mvc.perform(withCsrf(put(URL), reader).content(body(true, true, false, 3, false, false, false, false))).andExpect(status().isForbidden());
 
         Cookie nobody = login(operatorWith(Permission.POST_READ));
         mvc.perform(get(URL).cookie(nobody)).andExpect(status().isForbidden());
 
         Cookie manager = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE));
-        mvc.perform(put(URL).cookie(manager).contentType("application/json").content(body(true, true, false, 90, false, false, false, false)))
+        mvc.perform(put(URL).cookie(manager).contentType("application/json").content(body(true, true, false, 3, false, false, false, false)))
                 .andExpect(status().isForbidden()); // CSRF 없음
         assertThat(jdbc.queryForObject("SELECT enabled FROM stats_collection_settings WHERE id = 1", Boolean.class)).isFalse();
     }
@@ -136,7 +136,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.unavailable.length()").value(0));
 
         // 방문자 + 알림만 켠다(설정 저장 — 이 서버 사본은 바로 바뀐다)
-        mvc.perform(withCsrf(put(URL), full).content(body(true, true, false, 90, false, false, true, false))).andExpect(status().isOk());
+        mvc.perform(withCsrf(put(URL), full).content(body(true, true, false, 3, false, false, true, false))).andExpect(status().isOk());
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", all).cookie(full)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.disabled.length()").value(5))
                 .andExpect(jsonPath("$.data.disabled[0]").value("POPULAR_PAGES"))
@@ -145,13 +145,13 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.gadgets.NOTIFICATION_HEALTH").exists());
 
         // 방문 수집 전체를 끄면 방문자 칸이 켜져 있어도 꺼진 것
-        mvc.perform(withCsrf(put(URL), full).content(body(false, true, true, 90, true, true, true, true))).andExpect(status().isOk());
+        mvc.perform(withCsrf(put(URL), full).content(body(false, true, true, 3, true, true, true, true))).andExpect(status().isOk());
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", "VISITORS,POPULAR_PAGES,REFERRERS,POST_ACTIVITY").cookie(full)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.disabled.length()").value(3))
                 .andExpect(jsonPath("$.data.gadgets.POST_ACTIVITY").exists());
 
         // site.read 만 — 알림·글은 권한 없음(null, disabled 아님), 방문은 꺼짐(disabled)
-        mvc.perform(withCsrf(put(URL), full).content(body(false, false, false, 90, false, false, false, false))).andExpect(status().isOk());
+        mvc.perform(withCsrf(put(URL), full).content(body(false, false, false, 3, false, false, false, false))).andExpect(status().isOk());
         Cookie site = login(operatorWith(Permission.SITE_READ));
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", "VISITORS,NOTIFICATION_HEALTH,POST_ACTIVITY").cookie(site)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.disabled.length()").value(1))

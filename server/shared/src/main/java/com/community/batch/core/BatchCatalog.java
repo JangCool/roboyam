@@ -154,13 +154,22 @@ public enum BatchCatalog implements BatchDefinition {
     BOARD_ACTIVITY_DAILY("board-activity-daily", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
-     * 방문 원본({@code analytics_page_views}) 월 조각 만들기(원본 기록이 켜졌을 때) + 보관 기간 지난 원본 지우기. DB 배치(analytics 스트림), 기본 매일 00:25 KST
-     * ({@code R__analytics_10_page_view_partitions.sql}, site-analytics-contract 「주기 작업」)
+     * 방문 원본({@code analytics_page_views}) 월 조각 만들기(원본 기록이 켜졌을 때) + 보관 개월 수(이번 달 포함, 기본 2)가 지난 달 조각 통째로 지우기. DB 배치(analytics 스트림),
+     * 기본 매일 00:25 KST({@code R__analytics_10_page_view_partitions.sql}, site-analytics-contract 「주기 작업」·「3단계 결정 ①」)
      */
     ANALYTICS_PAGE_VIEW_PARTITIONS("analytics-page-view-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
-    /** 방문자 「그 날 셌다」 표시({@code analytics_visit_marks}) 정리 — 오늘·어제만 남긴다. DB 배치(analytics 스트림), 기본 매일 00:35 KST({@code R__analytics_11_visit_mark_cleanup.sql}) */
+    /**
+     * 방문자 「그 날 셌다」 표시({@code analytics_visit_marks} — analytics V6 부터 하루 파티션) — 어제~모레 조각 만들기 + 어제보다 앞선 조각 DROP(오늘·어제만 남긴다).
+     * DB 배치(analytics 스트림), 기본 매일 00:35 KST({@code R__analytics_11_visit_mark_cleanup.sql}, 「3단계 결정 ⑥」). 키는 1단계 정리 배치를 이어 쓴다
+     */
     ANALYTICS_VISIT_MARK_CLEANUP("analytics-visit-mark-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 방문 집계 월별 합치기 + 13개월 정리 — 끝난 달의 일별·시간별 집계를 월별 표(analytics V7)에 덮어써 합치고(매달 1·2일, 빠진 달은 따라잡기), 「이번 달 + 지난 12개월」보다 오래된
+     * 일별·시간별 줄을 지운다(합친 달만). DB 배치(analytics 스트림), 기본 매일 00:30 KST — 할 일이 없는 날은 SKIP({@code R__analytics_15_monthly_rollup.sql}, 「3단계 결정 ③」)
+     */
+    ANALYTICS_MONTHLY_ROLLUP("analytics-monthly-rollup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /** 「지금 접속」 표({@code analytics_visit_active}) 정리 — 10분 넘게 신호 없는 줄 삭제. DB 배치(analytics 스트림), 기본 10분마다({@code R__analytics_12_visit_active_cleanup.sql}) */
     ANALYTICS_VISIT_ACTIVE_CLEANUP("analytics-visit-active-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
@@ -270,6 +279,12 @@ public enum BatchCatalog implements BatchDefinition {
 
     /** 마감 없는 핫딜의 기간 종료 알림(한 번 — Java 배치 {@code DealExpiryNoticeJob}). 기본 매시 20분. 분류는 회원(MEMBER) */
     HOTDEAL_EXPIRY_NOTICE("hotdeal-expiry-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 20 * * * *", true),
+
+    /**
+     * 핫딜 구매 링크 클릭 판정 표({@code deal_click_daily} — V189 부터 하루 파티션) 조각 유지 — 어제~모레 조각 만들기 + 어제보다 앞선 조각 DROP(오늘·어제만 남긴다, 클릭 수는
+     * {@code post_deals.click_count}). DB 배치, 기본 매일 00:50 KST({@code R__batch_43_deal_click_partitions.sql}, site-analytics-contract 「3단계 결정 ⑤⑥」)
+     */
+    DEAL_CLICK_PARTITIONS("deal-click-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /** 핫딜 정리 — OG 사본(딜 종료·글 삭제 90일 뒤)·딜 칸 수정 이력(6개월). Java 배치 {@code DealCleanupJob}(저장소 파일을 지운다), 기본 매일 04:05 KST */
     HOTDEAL_CLEANUP("hotdeal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 5 4 * * *", true),

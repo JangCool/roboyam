@@ -59,9 +59,9 @@ export interface VisitSeriesPoint {
 export interface VisitCollect {
     /** 방문 수집 전체 — 꺼지면 아래가 모두 false(설정 링크는 전체 스위치로) */
     enabled: boolean;
-    /** 요약·추이 */
+    /** 요약·추이 · 페이지 순위·서랍 일별(3단계부터 `analytics_page_daily` 는 이 스위치에 딸린다 — 원본 기록을 꺼도 쌓인다) · 주·월 순방문자 */
     visits: boolean;
-    /** 페이지 순위(`analytics_page_daily` 는 원본 기록과 함께 쌓인다) · 실시간 분당·최근 5분(원본) */
+    /** 실시간 분당·최근 5분(원본 `analytics_page_views` 최근 30분) */
     rawEvents: boolean;
     /** 유입 분류·도메인·일별 · 캠페인 표(일별 캠페인 집계 표) */
     referrers: boolean;
@@ -83,7 +83,11 @@ export interface VisitSummary {
     activeNow: number;
 }
 
-/** 페이지 한 줄 — `title` = 글이면 글 제목, 아니면 화면 이름(게시판·공구·소모임 이름 …). 서버가 모르면 null(화면은 경로) */
+/**
+ * 페이지 한 줄 — `title` = 화면 이름(게시판 이름 · 가젯 페이지 이름 …). 서버가 모르면 null.
+ * 3단계(결정 ②): 서버가 주소의 동적 자리를 `{id}` 로 묶어 쌓는다(`/posts/{id}` · `/groups/{id}/events/{id}` · `/me/orders/{id}` …, 모르는 주소는 `/{unknown}`) — 이런 줄은 `title`·`titleEn` 이 null 이고
+ * 화면이 `UtilVisitPathMessages` 의 표로 「글 보기」 같은 이름을 붙인다(표에 없으면 경로 그대로). 게시판 `/boards/{slug}`·가젯 페이지 `/p/{key}` 는 값을 남긴다.
+ */
 export interface VisitPageRow {
     path: string;
     kind: VisitPageKind;
@@ -421,6 +425,10 @@ export interface VisitHealthInstance {
     ignoredBot: number;
     /** 무시한 신호 — 형식 오류 */
     ignoredInvalid: number;
+    /** 뺀 신호 — 운영자 회원 계정·AI 회원이 로그인해 보낸 신호(3단계 — 방문 통계 전체에서 뺀다) */
+    ignoredExcluded: number;
+    /** 「알 수 없는 주소」(`/{unknown}`)로 묶은 신호 — 라우트 표에 없거나 없는 게시판·가젯 페이지(버리지 않고 그 한 줄로 센다, 3단계) */
+    unknownPath: number;
 }
 
 /** 최근 기록 실패 한 줄 */
@@ -456,7 +464,8 @@ export interface VisitHealthCron {
 export interface VisitHealthRaw {
     /** 원본 기록이 켜져 있나 */
     rawEvents: boolean;
-    retentionDays: number;
+    /** 보관 개월 수(이번 달 포함 — 2 = 이번 달 + 지난달, 3단계 결정 ①) */
+    retentionMonths: number;
     /** 가장 오래된 원본의 날(한국 날짜) — 없으면 null */
     oldestDay: string | null;
     /** 월 조각 수 */
@@ -509,4 +518,102 @@ export interface VisitForgetPage {
     pending: number;
     /** 지난 30일 요청 수 */
     last30Days: number;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 3단계(2026-11-11 설계 합의 — 계약 「3단계」): 주·월 순방문자(WAU·MAU) · 월별 보기. ⚠ 서버 전 목업(`mock/visit-analytics-mock.ts`) — 아래 모양은 화면이 정한 후보다(서버 구현 때 맞춘다).
+// 권한은 모두 `site.read`. 수집 스위치는 「방문자·페이지뷰」(`visits`)에 딸린다(새 칸 없음).
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 순방문자를 세는 대상 — 방문자(브라우저의 방문자 ID) · 회원(로그인한 회원 번호) */
+export const VISIT_AUDIENCES = ['VISITOR', 'MEMBER'] as const;
+export type VisitAudience = (typeof VISIT_AUDIENCES)[number];
+
+/**
+ * 순방문자 한 기간 — 달력 기준(주는 월요일 ~ 일요일, 달은 1일 ~ 말일, 한국 날짜, 양끝 포함).
+ * `count` = 그 기간에 한 번 이상 온 사람 수(중복 없이, 정확값 — 서버 숫자 표의 그 기간 줄 합). 세기 시작 전 기간이면 null(「집계 전」).
+ * `partial` = 아직 끝나지 않은 기간(이번 주·이번 달 — 「진행 중」).
+ */
+export interface VisitUniquePeriod {
+    /** 기간 첫날 `YYYY-MM-DD` */
+    start: string;
+    /** 기간 끝날 `YYYY-MM-DD`(진행 중이어도 기간의 끝 — 오늘이 아니다) */
+    end: string;
+    count: number | null;
+    partial: boolean;
+}
+
+/** 이번 기간 · 지난 기간 · 「지난 기간의 같은 시점까지」 */
+export interface VisitUniqueCompare {
+    current: VisitUniquePeriod;
+    previous: VisitUniquePeriod;
+    /**
+     * 지난 기간을 이번 기간과 같은 시점까지 자른 순방문자(이번 주가 수요일까지면 지난 주 월~수) — 증감 칩의 비교값.
+     * 서버 숫자 표의 「그 날짜까지의 합」(계약 결정 ④). 지난 기간이 집계 전이면 null.
+     */
+    previousSamePoint: number | null;
+}
+
+/** 대상 하나(방문자 또는 회원)의 순방문자 */
+export interface VisitUniquesAudience {
+    week: VisitUniqueCompare;
+    month: VisitUniqueCompare;
+    /** 최근 12주(오래된 → 최근, 마지막이 이번 주) */
+    weeks: VisitUniquePeriod[];
+    /** 최근 12개월(오래된 → 최근, 마지막이 이번 달) */
+    months: VisitUniquePeriod[];
+}
+
+/**
+ * `GET /api/admin/analytics/visits/uniques` — 기간 쿼리 없음(늘 오늘 기준 — 화면에서 고른 기간과 무관). 「방문자 통계 › 개요」 순방문자 카드 · 대시보드 「방문 현황」 한 줄.
+ * 원천(계약 결정 ④): 숫자 표 `(대상, 종류 WEEK|MONTH, 기간 시작, 날짜, 새로 센 수)` — 기간 순방문자 = 그 기간 줄 합, 같은 시점까지 = 그 날짜까지의 합.
+ * 방문자는 브라우저 기준 · 회원은 로그인한 회원 기준 · 봇과 운영자 회원 계정·AI 회원은 빠진다. 수집이 꺼져 있으면(`collect.visits` false) 화면은 「수집이 꺼져 있어요」.
+ */
+export interface VisitUniques {
+    /** 센 시각(ISO — 서버가 1분마다 몰아 쓰므로 최대 1분 늦다) */
+    asOf: string;
+    collect: VisitCollect;
+    audiences: Record<VisitAudience, VisitUniquesAudience>;
+}
+
+/** 월별 보기의 기간 — 달 `YYYY-MM`, 양끝 포함(최대 36개월) */
+export interface VisitMonthRange {
+    from: string;
+    to: string;
+}
+
+/**
+ * 월별 한 칸 — 빈 달 없이 오래된 차례(수집 전 달은 0).
+ * `visitorsDailySum` = **날마다 센 방문자의 그 달 합**(같은 사람이 이틀 오면 2 — 월 순방문자가 아니다, 계약 「월별 표의 방문자」). 월 순방문자는 `uniqueVisitors`(결정 ④ 숫자 표).
+ */
+export interface VisitMonthlyPoint {
+    /** `YYYY-MM` */
+    month: string;
+    visitorsDailySum: number;
+    newVisitors: number;
+    pageViews: number;
+    /** 그 달 순방문자(MAU, 방문자 — 중복 없이). 세기 시작 전 달이면 null */
+    uniqueVisitors: number | null;
+    /** 진행 중인 달(이번 달 — 「집계 중」) */
+    partial: boolean;
+}
+
+/**
+ * `GET /api/admin/analytics/visits/monthly?from=YYYY-MM&to=YYYY-MM` — 일별이 13개월만 남으므로(결정 ③) 긴 기간은 월별 표에서 읽는다(이번 달은 서버가 일별을 더해 채운다).
+ * 기간 오류 400 VALIDATION(일별 기간과 같은 규칙): 비었거나·형식·`from>to`·36개월 초과 = `fields.from`, 이번 달 뒤 = `fields.to`.
+ * 원천: 월 방문 표(방문자 일별 합·신규·페이지뷰) · 월 페이지 표 · 월 유입 표 · 순방문자 숫자 표(MONTH).
+ */
+export interface VisitMonthly {
+    range: VisitMonthRange;
+    asOf: string;
+    collect: VisitCollect;
+    /** 기간 합(방문자는 일별 합) */
+    totals: { visitorsDailySum: number; newVisitors: number; pageViews: number };
+    months: VisitMonthlyPoint[];
+    /** 기간 많이 본 페이지 상위 10(묶음 주소 그대로 — 페이지 순위와 같은 줄 모양) */
+    pages: VisitPageRow[];
+    /** 기간 전체 조회수(비율 막대의 분모) */
+    pagesTotalViews: number;
+    /** 기간 유입 분류(세션 첫 페이지 수 — 유입 경로 수집이 꺼져 있으면 total 0·빈 배열) */
+    referrers: { total: number; groups: { group: VisitReferrerGroup; visits: number }[] };
 }

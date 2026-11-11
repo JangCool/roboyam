@@ -93,9 +93,9 @@ const KINDS_12: readonly DashboardKindSpec[] = [
     { type: 'POPULAR_NOW', group: 'COMMUNITY', icon: 'pi pi-star', permissions: ['popular.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 8 },
     { type: 'GROUP_REQUESTS', group: 'COMMUNITY', icon: 'pi pi-users', permissions: ['group.read'], multiple: false, refreshable: true, options: ['limit'], minW: 3, minH: 4, w: 4, h: 7 },
     // 방문 분석 — 방문 수집(`/settings/analytics`)이 만든 집계만 읽는다(원본 로그 GROUP BY 없음). 이동할 방문 분석 화면이 아직 없어 링크 없음
-    // 방문 현황 = 시간별 집계 · 인기 페이지 = 원본 기록을 1분마다 몰아 센 오늘 페이지별 조회 · 유입 경로 = 오늘 유입처 분류·도메인 집계
+    // 방문 현황 = 시간별 집계 · 인기 페이지 = 1분마다 몰아 센 오늘 페이지별 조회(3단계부터 「방문자·페이지뷰」 수집에 딸림 — 원본 기록과 떨어짐) · 유입 경로 = 오늘 유입처 분류·도메인 집계
     { type: 'VISITORS', group: 'ANALYTICS', icon: 'pi pi-eye', permissions: ['site.read'], multiple: false, refreshable: true, options: [], collect: 'visits', minW: 3, minH: 5, w: 4, h: 7 },
-    { type: 'POPULAR_PAGES', group: 'ANALYTICS', icon: 'pi pi-desktop', permissions: ['site.read'], multiple: false, refreshable: true, options: ['limit'], collect: 'rawEvents', minW: 3, minH: 4, w: 4, h: 8 },
+    { type: 'POPULAR_PAGES', group: 'ANALYTICS', icon: 'pi pi-desktop', permissions: ['site.read'], multiple: false, refreshable: true, options: ['limit'], collect: 'visits', minW: 3, minH: 4, w: 4, h: 8 },
     { type: 'REFERRERS', group: 'ANALYTICS', icon: 'pi pi-directions', permissions: ['site.read'], multiple: false, refreshable: true, options: [], collect: 'referrers', minW: 3, minH: 5, w: 4, h: 8 },
     { type: 'MEMBER_STATS', group: 'MEMBER', icon: 'pi pi-user', permissions: ['member.read'], multiple: false, refreshable: true, options: [], minW: 3, minH: 4, w: 3, h: 8 },
     { type: 'SIGNUP_TREND', group: 'MEMBER', icon: 'pi pi-chart-bar', permissions: ['member.read'], multiple: false, refreshable: true, options: ['days'], collect: 'boardActivity', minW: 3, minH: 4, w: 4, h: 5 },

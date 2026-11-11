@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
  * 방문 경로의 이름 붙이기 — 대시보드 「인기 페이지」({@code PopularPagesGadget})와 「방문자 통계」가 같이 쓴다. <b>돌려줄 줄의 경로만</b> 받아 표마다 PK 로 한 번씩 찾는다:
  * 글({@code /posts/<id>}) · 공구({@code /group-buys/<id>}) · 소모임({@code /groups/<id>}) · 포인트 상점 품목({@code /point-shop/<id>}) — 메인 DB,
  * 게시판({@code /boards/<slug>}) — 게시판 사본(메모리). 그 밖(홈·검색·목록 화면 등)은 이름 없음(화면이 경로·화면 종류 이름을 보인다).
+ * 3단계부터 수집 주소는 라우트 기준 묶음이라 {@code {id}} 가 든 주소·{@code /{unknown}} 은 찾지 않고 이름 없음이다({@link #grouped}) — 옛 원본(실시간 30분)·옛 집계 줄의 번호 주소만 찾는다.
  */
 @Component
 public class VisitPageTitles {
@@ -46,7 +47,7 @@ public class VisitPageTitles {
         Set<Long> groups = new LinkedHashSet<>();
         Set<Long> items = new LinkedHashSet<>();
         for (String p : paths) {
-            if (p == null || p.isEmpty()) {
+            if (p == null || p.isEmpty() || grouped(p)) {
                 continue;
             }
             collect(POST, p, posts);
@@ -61,7 +62,7 @@ public class VisitPageTitles {
         BoardCatalogSnapshot boards = null;
         Map<String, Name> out = new HashMap<>();
         for (String p : paths) {
-            if (p == null || p.isEmpty() || out.containsKey(p)) {
+            if (p == null || p.isEmpty() || grouped(p) || out.containsKey(p)) {
                 continue;
             }
             Name name = find(POST, p, postNames);
@@ -104,6 +105,14 @@ public class VisitPageTitles {
             }
         }
         return out;
+    }
+
+    /**
+     * 라우트 기준으로 묶은 주소인가(3단계 — {@code /posts/{id}} 처럼 번호 자리가 {@code {id}} 인 주소 · 「알 수 없는 주소」 {@code /{unknown}}) — 한 글·한 품목이 아니라 이름이
+     * 없다({@code title}·{@code titleEn} null, 화면이 화면 종류 이름을 보인다). 공개 사이트 수집기 {@code VisitRoutes} 의 {@code ID}·{@code UNKNOWN} 과 같은 글자.
+     */
+    static boolean grouped(String path) {
+        return path.contains("{id}") || path.equals("/{unknown}");
     }
 
     private static boolean contains(String text, String needle) {

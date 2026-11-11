@@ -259,7 +259,7 @@ class CaffeineCacheControlTest {
 
     // ── 부르는 쪽 규칙 — 통계 수집 설정(처음부터 못 읽으면 꺼짐) ─────────────────────
 
-    private static final StatsCollection ON = new StatsCollection(true, true, false, 90, false, false, false, false);
+    private static final StatsCollection ON = new StatsCollection(true, true, false, 3, false, false, false, false);
 
     @Test
     void 통계_수집_설정은_TTL_뒤_실패하면_이전_값_비운_뒤_첫_읽기_실패는_꺼짐() {

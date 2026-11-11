@@ -1,6 +1,7 @@
 package com.community.dashboard.repository.master;
 
 import com.community.ad.entity.QAdDailyStatEntity;
+import com.community.analytics.repository.master.AnalyticsReferenceStore;
 import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizProduct;
@@ -232,7 +233,8 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
      * 회원 숫자 {가입, 탈퇴, 정지 중, 탈퇴 대기} — 네 COUNT, 모두 인덱스로만 센다(한 표의 서로 다른 인덱스라 따로 센다).
      *
      * <ul>
-     *   <li>가입: 범위 {@code [from, to)} 에 만든 회원(지금 상태와 무관 — 그날 가입한 사실을 센다) — {@code ix_users_created(created_at DESC, id DESC)} 범위.</li>
+     *   <li>가입: 범위 {@code [from, to)} 에 만든 회원(지금 상태와 무관 — 그날 가입한 사실을 센다) — {@code ix_users_created(created_at DESC, id DESC)} 범위.
+     *       운영자 회원 계정·AI 회원은 빼고 센다({@link AnalyticsReferenceStore#countedMember} — 게시판 활동 집계 {@code R__batch_38} 의 「가입」과 같은 기준, site-analytics-contract 「3단계」).</li>
      *   <li>탈퇴: 범위에 탈퇴를 **완료**한 회원({@code status = 'WITHDRAWN'}, 탈퇴 완료 시각 = {@code deleted_at} — 회원 탈퇴의 완료 처리 {@code WithdrawalEraseStore} 가 쓴다) —
      *       부분 인덱스 {@code ix_users_withdrawn_at(deleted_at) WHERE status = 'WITHDRAWN'}(admin V6).</li>
      *   <li>정지 중: 기간 정지·영구 정지({@code SUSPENDED · BANNED} — 관리자 회원 목록의 「정지」 거르기와 같은 뜻) — 부분 인덱스
@@ -242,7 +244,8 @@ public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
      * </ul>
      */
     public long[] memberStats(Instant from, Instant to) {
-        long joined = nz(query.select(USER.count()).from(USER).where(USER.createdAt.goe(from), USER.createdAt.lt(to)).fetchOne());
+        long joined = nz(query.select(USER.count()).from(USER)
+                .where(USER.createdAt.goe(from), USER.createdAt.lt(to), AnalyticsReferenceStore.countedMember(USER.id)).fetchOne());
         long withdrawn = nz(query.select(USER.count()).from(USER)
                 .where(USER.status.eq(UserStatus.WITHDRAWN), USER.deletedAt.goe(from), USER.deletedAt.lt(to)).fetchOne());
         long suspended = nz(query.select(USER.count()).from(USER).where(USER.status.in(UserStatus.SUSPENDED, UserStatus.BANNED)).fetchOne());

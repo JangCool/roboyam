@@ -38,7 +38,7 @@ class NotificationSendStatsTest {
         jdbc = new JdbcTemplate(dataSource);
     }
 
-    private static final StatsCollection SENDS_ON = new StatsCollection(false, false, false, 90, false, false, true, false);
+    private static final StatsCollection SENDS_ON = new StatsCollection(false, false, false, 3, false, false, true, false);
 
     private static StatsCollectionSettings settings(AtomicReference<StatsCollection> ref) {
         return new StatsCollectionSettings(null, null) {

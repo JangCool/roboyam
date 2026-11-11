@@ -6,6 +6,10 @@
 --           숨김 글은 센다(쓰인 활동이다). 날짜는 쓴 시각 = 글 ID(Snowflake)의 시각 — 임시저장했다 나중에 게시하는 흐름은 지금 서버에 없다(게시 시각 칸이 생기면 그 칸 기준으로 바꾼다).
 --   「댓글」 = 같은 게시판들의 지워지지 않은 댓글, 쓴 시각 = 댓글 ID.
 --   「가입」 = users.created_at 이 그 날인 회원 수(관리자 대시보드 「회원 현황」 오늘 가입과 같은 기준 — 그 뒤 탈퇴해도 센다).
+--   뺄 계정(site-analytics-contract 「3단계」 2026-11-11): 운영자 회원 계정(operator_member_accounts.user_id — 「로보얌운영팀」 포함)·AI 회원(ai_member_profiles.user_id)이
+--           쓴 글·댓글(author_id)과 그 회원의 가입은 세지 않는다. 비회원 글·댓글(author_id NULL)은 지금처럼 센다. 대상 묶음은 작아(유일 인덱스 user_id) 줄마다 NOT EXISTS 로 본다.
+--           오늘·어제만 다시 세므로 나중에 운영자 계정으로 이어진 회원의 지난 날 숫자는 바뀌지 않는다. 대시보드 「회원 현황」 오늘 가입
+--           (admin DashboardGadgetStore#memberStats — AnalyticsReferenceStore#countedMember)도 같은 기준이다 — 한쪽을 고치면 같이 고친다.
 -- 인덱스: 글은 PK(id) 범위 — posts 는 id 월 범위 파티션이라 그 달 조각만 본다(board_snowflake_floor, R__batch_17). 댓글은 ix_comments_id(id)(V46) 범위.
 --         가입은 ix_users_created(created_at DESC, id DESC)(V9) 범위. 하루치 행만 읽는다.
 -- 설정 「게시판 활동 집계」(stats_collection_settings.board_activity)가 꺼져 있으면 세지 않고 SKIP(문구 off).
@@ -28,11 +32,15 @@ BEGIN
       FROM (SELECT p.board_id, count(*) AS posts, 0::bigint AS comments
               FROM posts p
              WHERE p.id >= v_lo AND p.id < v_hi AND p.status = 'PUBLISHED' AND p.deleted_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM operator_member_accounts o WHERE o.user_id = p.author_id)
+               AND NOT EXISTS (SELECT 1 FROM ai_member_profiles a WHERE a.user_id = p.author_id)
              GROUP BY p.board_id
             UNION ALL
             SELECT c.board_id, 0::bigint, count(*)
               FROM comments c
              WHERE c.id >= v_lo AND c.id < v_hi AND c.deleted_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM operator_member_accounts o WHERE o.user_id = c.author_id)
+               AND NOT EXISTS (SELECT 1 FROM ai_member_profiles a WHERE a.user_id = c.author_id)
              GROUP BY c.board_id) x
       JOIN boards b ON b.id = x.board_id AND b.kind <> 'GROUP'
      GROUP BY x.board_id;
@@ -41,7 +49,9 @@ BEGIN
     INSERT INTO site_activity_daily (day, posts, comments, signups)
     SELECT p_day, coalesce((SELECT sum(posts) FROM board_activity_daily WHERE day = p_day), 0),
            coalesce((SELECT sum(comments) FROM board_activity_daily WHERE day = p_day), 0),
-           (SELECT count(*) FROM users WHERE created_at >= v_from AND created_at < v_to)
+           (SELECT count(*) FROM users u WHERE u.created_at >= v_from AND u.created_at < v_to
+               AND NOT EXISTS (SELECT 1 FROM operator_member_accounts o WHERE o.user_id = u.id)
+               AND NOT EXISTS (SELECT 1 FROM ai_member_profiles a WHERE a.user_id = u.id))
     ON CONFLICT (day) DO UPDATE SET posts = EXCLUDED.posts, comments = EXCLUDED.comments, signups = EXCLUDED.signups;
     RETURN v_n + 1;
 END

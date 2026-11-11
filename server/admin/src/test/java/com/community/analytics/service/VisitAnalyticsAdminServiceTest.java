@@ -54,7 +54,7 @@ class VisitAnalyticsAdminServiceTest {
 
     static final ZoneId KST = ServiceTime.ZONE;
     static final Instant NOW = kst(2097, 3, 13, 10, 20, 30);
-    static final StatsCollection ALL_ON = new StatsCollection(true, true, true, 90, true, true, false, false);
+    static final StatsCollection ALL_ON = new StatsCollection(true, true, true, 3, true, true, false, false);
 
     private static DataSource base;
     private Connection connection;
@@ -201,7 +201,7 @@ class VisitAnalyticsAdminServiceTest {
         assertThat(s.previous()).isEqualTo(new VisitAnalyticsAdmin.PreviousCounts(new VisitAnalyticsAdmin.Range("2097-03-09", "2097-03-09"), 5, 1, 50));
         assertThat(s.asOf()).isEqualTo(NOW);
         assertThat(s.collect()).isEqualTo(new VisitAnalyticsAdmin.Collect(true, true, true, true, true));
-        assertThat(s.rawRetentionDays()).isEqualTo(90);
+        assertThat(s.rawRetentionMonths()).isEqualTo(3);
     }
 
     @Test
@@ -292,7 +292,7 @@ class VisitAnalyticsAdminServiceTest {
     void 방문_수집이_꺼지면_합은_0_series_는_빈_배열_collect_는_전체와_항목을_접은_값() {
         hour(kst(2097, 3, 10, 0, 0), 5, 2, 50);
         active("qa-a1", NOW.minusSeconds(10));
-        current = new StatsCollection(false, true, true, 180, true, true, true, true); // 전체 꺼짐 — 하위 칸은 켜져 있어도 꺼진 것
+        current = new StatsCollection(false, true, true, 6, true, true, true, true); // 전체 꺼짐 — 하위 칸은 켜져 있어도 꺼진 것
 
         VisitAnalyticsAdmin.Summary s = service().summary("2097-03-10", "2097-03-10");
 
@@ -302,9 +302,9 @@ class VisitAnalyticsAdminServiceTest {
         assertThat(s.series()).isEmpty();
         assertThat(s.activeNow()).isZero();
         assertThat(s.collect()).isEqualTo(new VisitAnalyticsAdmin.Collect(false, false, false, false, false));
-        assertThat(s.rawRetentionDays()).isEqualTo(180);
+        assertThat(s.rawRetentionMonths()).isEqualTo(6);
 
-        current = new StatsCollection(true, false, true, 90, false, true, false, false); // 방문자만 꺼짐
+        current = new StatsCollection(true, false, true, 3, false, true, false, false); // 방문자만 꺼짐
         VisitAnalyticsAdmin.Summary s2 = service().summary("2097-03-10", "2097-03-10");
         assertThat(s2.totals().visitors()).isZero();
         assertThat(s2.series()).isEmpty();
@@ -374,7 +374,7 @@ class VisitAnalyticsAdminServiceTest {
     @Test
     void 방문_수집이_꺼지면_168칸_모두_0() {
         hour(kst(2097, 3, 10, 5, 0), 5, 1, 50);
-        current = new StatsCollection(true, false, true, 90, true, true, false, false);
+        current = new StatsCollection(true, false, true, 3, true, true, false, false);
         VisitAnalyticsAdmin.Time t = service().time("2097-03-10", "2097-03-10");
         assertThat(t.cells()).hasSize(168).allSatisfy(c -> {
             assertThat(c.days()).isZero();
@@ -507,7 +507,7 @@ class VisitAnalyticsAdminServiceTest {
     @Test
     void 원본_기록이_꺼지면_페이지_순위는_비고_0() {
         pageSet();
-        current = new StatsCollection(true, true, false, 90, true, true, false, false);
+        current = new StatsCollection(true, true, false, 3, true, true, false, false);
         VisitAnalyticsAdmin.PagePage p = service().pages("2097-03-10", "2097-03-11", null, null, null, null);
         assertThat(p.items()).isEmpty();
         assertThat(p.total()).isZero();
@@ -578,13 +578,13 @@ class VisitAnalyticsAdminServiceTest {
     void 서랍_일별은_원본_기록_스위치_들어온_곳은_이동_스위치를_따른다() {
         page(day(3, 10), "/posts/1", "POST", 5);
         flowSet();
-        current = new StatsCollection(true, true, false, 90, true, true, false, false);
+        current = new StatsCollection(true, true, false, 3, true, true, false, false);
         VisitAnalyticsAdmin.PageDetail rawOff = service().pageDetail("2097-03-10", "2097-03-12", "/posts/1");
         assertThat(rawOff.views()).isZero();
         assertThat(rawOff.kind()).isEqualTo("OTHER");
         assertThat(rawOff.incomingTotal()).isEqualTo(89);
 
-        current = new StatsCollection(true, true, true, 90, true, false, false, false);
+        current = new StatsCollection(true, true, true, 3, true, false, false, false);
         VisitAnalyticsAdmin.PageDetail flowsOff = service().pageDetail("2097-03-10", "2097-03-12", "/posts/1");
         assertThat(flowsOff.views()).isEqualTo(5);
         assertThat(flowsOff.incoming()).isEmpty();
@@ -625,7 +625,7 @@ class VisitAnalyticsAdminServiceTest {
     @Test
     void 이동_수집이_꺼졌거나_이동이_없으면_기준은_홈이고_모두_빈_값() {
         flow(day(3, 10), "/a", "/b", 30);
-        current = new StatsCollection(true, true, true, 90, true, false, false, false);
+        current = new StatsCollection(true, true, true, 3, true, false, false, false);
         VisitAnalyticsAdmin.Flows off = service().flows("2097-03-10", "2097-03-10", null);
         assertThat(off.path()).isEqualTo("/");
         assertThat(off.incoming()).isEmpty();
@@ -716,7 +716,7 @@ class VisitAnalyticsAdminServiceTest {
     @Test
     void 유입_수집이_꺼지면_0과_빈_배열() {
         referrerSet();
-        current = new StatsCollection(true, true, true, 90, false, true, false, false);
+        current = new StatsCollection(true, true, true, 3, false, true, false, false);
         VisitAnalyticsAdmin.Referrers r = service().referrers("2097-03-10", "2097-03-12", null);
         assertThat(r.total()).isZero();
         assertThat(r.domains()).isEmpty();
@@ -772,7 +772,7 @@ class VisitAnalyticsAdminServiceTest {
         view(kst(2097, 3, 13, 10, 20, 0), "/", "HOME", "DIRECT");
         active("qa-r1", NOW.minusSeconds(30));
 
-        current = new StatsCollection(true, true, false, 90, true, true, false, false);
+        current = new StatsCollection(true, true, false, 3, true, true, false, false);
         VisitAnalyticsAdmin.Realtime rawOff = service().realtime();
         assertThat(rawOff.activeNow()).isEqualTo(1);
         assertThat(rawOff.perMinute()).isEmpty();
@@ -780,7 +780,7 @@ class VisitAnalyticsAdminServiceTest {
         assertThat(rawOff.referrers()).isEmpty();
         assertThat(rawOff.collect().rawEvents()).isFalse();
 
-        current = new StatsCollection(true, false, true, 90, true, true, false, false);
+        current = new StatsCollection(true, false, true, 3, true, true, false, false);
         VisitAnalyticsAdmin.Realtime visitsOff = service().realtime();
         assertThat(visitsOff.activeNow()).isZero();
         assertThat(visitsOff.perMinute()).hasSize(30);
@@ -839,7 +839,7 @@ class VisitAnalyticsAdminServiceTest {
     void 수집_스위치를_바꾸면_새_키라_바로_반영된다() {
         hour(kst(2097, 3, 10, 0, 0), 5, 2, 50);
         page(day(3, 10), "/", "HOME", 4);
-        current = new StatsCollection(false, true, true, 90, true, true, false, false);
+        current = new StatsCollection(false, true, true, 3, true, true, false, false);
         VisitAnalyticsAdminService svc = service();
         assertThat(svc.summary("2097-03-10", "2097-03-10").totals().visitors()).isZero();
         assertThat(svc.pages("2097-03-10", "2097-03-10", null, null, null, null).total()).isZero();
@@ -850,8 +850,8 @@ class VisitAnalyticsAdminServiceTest {
         assertThat(on.collect().enabled()).isTrue();
         assertThat(svc.pages("2097-03-10", "2097-03-10", null, null, null, null).total()).isEqualTo(1);
 
-        current = new StatsCollection(true, true, true, 365, true, true, false, false); // 보관 일수도 응답 칸이다
-        assertThat(svc.summary("2097-03-10", "2097-03-10").rawRetentionDays()).isEqualTo(365);
+        current = new StatsCollection(true, true, true, 12, true, true, false, false); // 보관 일수도 응답 칸이다
+        assertThat(svc.summary("2097-03-10", "2097-03-10").rawRetentionMonths()).isEqualTo(12);
     }
 
     @Test

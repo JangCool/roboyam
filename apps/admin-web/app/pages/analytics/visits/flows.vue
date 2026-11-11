@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import type { VisitPageRow } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => `${t('menu.visitFlows')} · ${t('menu.visitStats')}` });
@@ -103,10 +104,14 @@ const insights = computed(() => {
     const lang = locale.value;
     const out: string[] = [];
     const top = d.top[0];
-    if (top) out.push(t('visitAnalytics.insightTopMove', { from: top.from, to: top.to, n: UtilVisitAnalytics.num(top.moves, lang) }));
+    if (top) {
+        const from = UtilVisitPathMessages.routeName(t, top.from) ?? top.from;
+        const to = UtilVisitPathMessages.routeName(t, top.to) ?? top.to;
+        out.push(t('visitAnalytics.insightTopMove', { from, to, n: UtilVisitAnalytics.num(top.moves, lang) }));
+    }
     const direct = d.incoming.find((e) => e.path === null);
     if (direct && d.incomingTotal > 0) {
-        out.push(`${d.title ? localizedName(d.title, d.titleEn) : d.path} — ${t('visitAnalytics.insightDirectShare', { rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(direct.moves, d.incomingTotal), lang, 0) })}`);
+        out.push(`${UtilVisitPathMessages.label(t, localizedName, d)} — ${t('visitAnalytics.insightDirectShare', { rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(direct.moves, d.incomingTotal), lang, 0) })}`);
     }
     return out;
 });

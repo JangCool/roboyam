@@ -14,9 +14,14 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class VisitHealthStore {
 
-    /** 서버 한 줄 — 마지막 기록 시각(없으면 null) + 최근 합 + 지난 1시간의 기록 실패 */
+    /** 서버 한 줄 — 마지막 기록 시각(없으면 null) + 최근 합 + 지난 1시간의 기록 실패 + 뺄 계정 신호·「알 수 없는 주소」 신호(3단계, analytics V5) */
     public record InstanceRow(String instance, Instant lastWriteAt, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid,
-                              long recentFail) {
+                              long recentFail, long ignoredExcluded, long unknownPath) {
+
+        /** 2단계 칸만 주는 모양(3단계 두 칸 = 0) — 2단계 시험이 그대로 쓴다 */
+        public InstanceRow(String instance, Instant lastWriteAt, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid, long recentFail) {
+            this(instance, lastWriteAt, flushOk, flushFail, dropped, ignoredBot, ignoredInvalid, recentFail, 0, 0);
+        }
     }
 
     public record FailureRow(Instant at, String instance, String reason, String detail) {
@@ -45,17 +50,19 @@ public class VisitHealthStore {
      */
     public List<InstanceRow> instances(Instant since, Instant recentSince) {
         return jdbc.query("WITH h AS (SELECT instance, sum(flush_ok) AS ok, sum(flush_fail) AS fail, sum(dropped) AS dropped, sum(ignored_bot) AS bot, "
-                        + "sum(ignored_invalid) AS invalid, coalesce(sum(flush_fail) FILTER (WHERE hour >= ?), 0) AS recent "
+                        + "sum(ignored_invalid) AS invalid, coalesce(sum(flush_fail) FILTER (WHERE hour >= ?), 0) AS recent, "
+                        + "sum(ignored_excluded) AS excluded, sum(unknown_path) AS unknown "
                         + "FROM analytics_collector_hourly WHERE hour >= ? GROUP BY instance), "
                         + "b AS (SELECT instance, last_write_at FROM analytics_collector_beats WHERE last_write_at >= ?), "
                         + "f AS (SELECT instance, count(*) AS recent FROM analytics_collector_failures WHERE failed_at >= ? GROUP BY instance) "
                         + "SELECT coalesce(b.instance, h.instance), b.last_write_at, coalesce(h.ok, 0), coalesce(h.fail, 0), coalesce(h.dropped, 0), coalesce(h.bot, 0), "
-                        + "coalesce(h.invalid, 0), coalesce(h.recent, 0) + coalesce(f.recent, 0) FROM b FULL JOIN h ON h.instance = b.instance "
+                        + "coalesce(h.invalid, 0), coalesce(h.recent, 0) + coalesce(f.recent, 0), coalesce(h.excluded, 0), coalesce(h.unknown, 0) "
+                        + "FROM b FULL JOIN h ON h.instance = b.instance "
                         + "LEFT JOIN f ON f.instance = coalesce(b.instance, h.instance) ORDER BY 1",
                 (rs, i) -> {
                     Timestamp at = rs.getTimestamp(2);
                     return new InstanceRow(rs.getString(1), at == null ? null : at.toInstant(), rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getLong(7),
-                            rs.getLong(8));
+                            rs.getLong(8), rs.getLong(9), rs.getLong(10));
                 },
                 Timestamp.from(recentSince), Timestamp.from(since), Timestamp.from(since), Timestamp.from(recentSince));
     }

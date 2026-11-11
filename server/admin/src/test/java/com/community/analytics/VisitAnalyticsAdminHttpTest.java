@@ -43,7 +43,7 @@ class VisitAnalyticsAdminHttpTest extends Commerce04AdminTestBase {
     @BeforeEach
     @AfterEach
     void allOff() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_days = 90, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
                 + "notification_sends = false, board_activity = false WHERE id = 1");
         statsSettings.invalidate();
     }

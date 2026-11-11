@@ -1,12 +1,12 @@
 <template>
     <!--
         통계 수집(`/settings/analytics`) — 방문 분석·알림 발송 기록·게시판 활동 집계를 항목별로 켜고 끈다. **모든 항목은 기본 꺼짐**(사용자 결정 2026-11-04 「필요하면 켤 수 있게」).
-        구획: ① 수집 방식(방문자 구분·늦음·마지막 변경 — 내비에 올리지 않는다) ② 방문 수집(전체 스위치 + 방문자·페이지뷰 / 원본 기록(+ 보관 기간) / 유입 경로 / 이동 흐름 / 환경 / 검색어 / 봇·크롤러)
+        구획: ① 수집 방식(방문자 구분·늦음·마지막 변경 — 내비에 올리지 않는다) ② 방문 수집(전체 스위치 + 방문자·페이지뷰 / 원본 기록(+ 보관 기간 — 3단계부터 개월 2·3·6·12, 이번 달 포함) / 유입 경로 / 이동 흐름 / 환경 / 검색어 / 봇·크롤러)
         환경·검색어·봇·크롤러(2단계)도 서버 설정 칸이다(PUT 에 늘 함께 싣는다, 이력 칸 차례는 화면 차례와 같다). 수집 진단·정보주체 요청은 스위치 없이 늘 동작한다.
         ③ 알림·게시판 집계(알림 발송 기록 · 게시판 활동 집계). 항목마다 부담 꼬리표와 「쓰는 곳」(대시보드 가젯 — 종류표 `collect` 에서 읽는다 · 가젯이 없는 이동 흐름은 「방문자 통계 › 이동 흐름」 쪽 링크).
         - 방문 하위 항목은 방문 수집이 꺼지면 잠긴다(값은 그대로 저장). 원본 기록을 켜면 개인정보 처리방침 안내 + 약관 관리 링크(`terms.read` 가 있을 때).
         - 항목 줄의 `id` = `UtilAnalytics.anchor`(`analytics-raw-events` …) — 대시보드 가젯의 「수집 꺼짐」 링크가 `#앵커` 로 들어오면 불러온 뒤 그 줄로 옮기고 잠깐 강조한다.
-        - 저장은 한 번에(PUT) — 떠 있는 저장 줄(`StickySaveBar`). 입력 오류는 `fields.rawRetentionDays` 를 그 칸 아래, 나머지는 저장 줄에 서버 문구 그대로.
+        - 저장은 한 번에(PUT) — 떠 있는 저장 줄(`StickySaveBar`). 입력 오류는 `fields.rawRetentionMonths` 를 그 칸 아래, 나머지는 저장 줄에 서버 문구 그대로.
         - 변경 이력은 제목 옆 단추 → 오른쪽 서랍(`SettingHistoryDrawer`, 처음 열 때 받는다).
         - 권한: 조회 `site.read`(없으면 권한 없음) · 바꾸기 `site.manage` — 없으면 스위치가 잠기고 저장 줄이 없다. 감추는 것은 편의이고 막는 것은 서버다.
         - 메뉴: 설정 › 일반의 「통계 수집」(약관 다음 — `UtilAdminMenu` 의 `analyticsSettings` 와 서버 `AdminScreenRegistry` 의 같은 한 줄).
@@ -54,7 +54,7 @@
                 </AppGadget>
 
                 <!-- ② 방문 수집 -->
-                <AppGadget :title="t('analytics.visitSection')" anchor="analytics-visit-section" :changes="changesIn(VISIT_SECTION)" :invalid="serverErrors.rawRetentionDays ? 1 : 0">
+                <AppGadget :title="t('analytics.visitSection')" anchor="analytics-visit-section" :changes="changesIn(VISIT_SECTION)" :invalid="serverErrors.rawRetentionMonths ? 1 : 0">
                     <ul class="m-0 flex list-none flex-col gap-1 p-0">
                         <li v-for="key in VISIT_SECTION" :id="UtilAnalytics.anchor(key)" :key="key" :class="rowClass(key)">
                             <div v-if="key === 'visits' && !form.enabled" class="mb-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
@@ -89,10 +89,10 @@
                                     <!-- 원본 기록 — 보관 기간 + 처리방침 안내 -->
                                     <div v-if="key === 'rawEvents'" class="mt-2 flex flex-col gap-3">
                                         <div class="w-full max-w-60">
-                                            <LabeledField :label="t('analytics.retentionLabel')" :help="t('analytics.retentionHelp')" :error="serverErrors.rawRetentionDays ?? ''">
+                                            <LabeledField :label="t('analytics.retentionLabel')" :help="t('analytics.retentionHelp')" :error="serverErrors.rawRetentionMonths ?? ''">
                                                 <template #default="{ id, describedBy, invalid }">
                                                     <Select
-                                                        v-model="form.rawRetentionDays"
+                                                        v-model="form.rawRetentionMonths"
                                                         :input-id="id"
                                                         :options="retentionOptions"
                                                         option-label="label"
@@ -107,7 +107,7 @@
                                             </LabeledField>
                                         </div>
                                         <Message v-if="form.rawEvents" severity="warn" :closable="false" size="small">
-                                            {{ t('analytics.privacyNotice') }}
+                                            {{ t('analytics.privacyNotice', { period: t(`analytics.retentionPolicy.${form.rawRetentionMonths}`) }) }}
                                             <NuxtLink v-if="can('terms.read')" to="/settings/terms" class="font-medium text-primary hover:underline">{{ t('analytics.privacyLink') }}</NuxtLink>
                                         </Message>
                                     </div>
@@ -146,7 +146,7 @@
                     </ul>
                 </AppGadget>
 
-                <StickySaveBar v-if="canManage" submit revertable :dirty="dirty" :saving="saving" :count="changedCount" :error-count="serverErrors.rawRetentionDays ? 1 : 0" :error="formError" @revert="revert" />
+                <StickySaveBar v-if="canManage" submit revertable :dirty="dirty" :saving="saving" :count="changedCount" :error-count="serverErrors.rawRetentionMonths ? 1 : 0" :error="formError" @revert="revert" />
             </form>
         </template>
 
@@ -171,7 +171,7 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AnalyticsSettingsRequest, AnalyticsSettingsView, AnalyticsSwitch } from '~/composables/analytics/api/useAnalyticsSettingsApi.types';
-import { ANALYTICS_RETENTION_DAYS, ANALYTICS_VISIT_SWITCHES } from '~/composables/analytics/api/useAnalyticsSettingsApi.types';
+import { ANALYTICS_DEFAULT_RETENTION_MONTHS, ANALYTICS_RETENTION_MONTHS, ANALYTICS_VISIT_SWITCHES } from '~/composables/analytics/api/useAnalyticsSettingsApi.types';
 import UtilAnalytics from '~/utils/util-analytics';
 import UtilDashboardLayout from '~/utils/util-dashboard-layout';
 
@@ -181,7 +181,7 @@ const OTHER_SECTION: readonly AnalyticsSwitch[] = ['notificationSends', 'boardAc
 /** 수집 방식 안내 줄 */
 const HOW_KEYS = ['howVisitorId', 'howDelayVisits', 'howDelayBoard', 'howDefaultOff'] as const;
 /** 저장 값의 칸(바뀐 칸 세기) */
-const FIELDS: readonly (keyof AnalyticsSettingsRequest)[] = ['enabled', 'visits', 'rawEvents', 'rawRetentionDays', 'referrers', 'flows', 'environment', 'searchTerms', 'bots', 'notificationSends', 'boardActivity'];
+const FIELDS: readonly (keyof AnalyticsSettingsRequest)[] = ['enabled', 'visits', 'rawEvents', 'rawRetentionMonths', 'referrers', 'flows', 'environment', 'searchTerms', 'bots', 'notificationSends', 'boardActivity'];
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('analytics.title') });
@@ -207,18 +207,19 @@ const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
 const saving = ref(false);
 const formError = ref('');
-const serverErrors = ref<{ rawRetentionDays?: string }>({});
+const serverErrors = ref<{ rawRetentionMonths?: string }>({});
 /** `#앵커` 로 들어와 잠깐 강조하는 줄 */
 const highlight = ref<AnalyticsSwitch | null>(null);
 
-const retentionOptions = computed(() => ANALYTICS_RETENTION_DAYS.map((n) => ({ value: n, label: t('analytics.retentionDays', { n }) })));
+/** 보관 선택지 — 「2개월(이번 달 + 지난달)」 · 「3개월(이번 달 포함)」 … */
+const retentionOptions = computed(() => ANALYTICS_RETENTION_MONTHS.map((n) => ({ value: n, label: t(`analytics.retentionOption.${n}`) })));
 
 function formOf(view: AnalyticsSettingsView | null): AnalyticsSettingsRequest {
     return {
         enabled: view?.enabled ?? false,
         visits: view?.visits ?? false,
         rawEvents: view?.rawEvents ?? false,
-        rawRetentionDays: view?.rawRetentionDays ?? 90,
+        rawRetentionMonths: view?.rawRetentionMonths ?? ANALYTICS_DEFAULT_RETENTION_MONTHS,
         referrers: view?.referrers ?? false,
         flows: view?.flows ?? false,
         environment: view?.environment ?? false,
@@ -253,6 +254,8 @@ function usedBy(key: AnalyticsSwitch): string[] {
 
 /** 대시보드 가젯이 없는 항목의 「방문자 통계」 쪽(메뉴 키 · 주소) */
 const USED_BY_PAGES: Partial<Record<AnalyticsSwitch, { menu: string; to: string }[]>> = {
+    // 3단계: 페이지 순위(「인기 페이지」)가 `visits` 로 옮겨 가 원본 기록을 읽는 곳은 실시간(분당·최근 5분)만 남았다
+    rawEvents: [{ menu: 'visitRealtime', to: '/analytics/visits/realtime' }],
     flows: [{ menu: 'visitFlows', to: '/analytics/visits/flows' }],
     environment: [{ menu: 'visitEnvironment', to: '/analytics/visits/environment' }],
     searchTerms: [{ menu: 'visitSearch', to: '/analytics/visits/search' }],
@@ -274,11 +277,11 @@ const dirty = computed(() => changedCount.value > 0);
 
 /** 구획 안 바뀐 칸 수(보관 기간은 방문 구획) */
 function changesIn(section: readonly AnalyticsSwitch[]): number {
-    return changedKeys.value.filter((k) => (k === 'rawRetentionDays' ? section.includes('rawEvents') : section.includes(k))).length;
+    return changedKeys.value.filter((k) => (k === 'rawRetentionMonths' ? section.includes('rawEvents') : section.includes(k))).length;
 }
 
 function clearServer(): void {
-    if (serverErrors.value.rawRetentionDays) serverErrors.value = {};
+    if (serverErrors.value.rawRetentionMonths) serverErrors.value = {};
 }
 
 async function load(): Promise<void> {
@@ -298,7 +301,7 @@ async function load(): Promise<void> {
 /** 대시보드 「수집 꺼짐」 링크(`#analytics-…`)로 들어왔으면 그 줄로 옮기고 잠깐 강조한다(내용이 늦게 그려져 라우터의 해시 이동이 못 찾는다) */
 function focusHash(): void {
     const hash = decodeURIComponent(route.hash.slice(1));
-    const key = FIELDS.find((k): k is AnalyticsSwitch => k !== 'rawRetentionDays' && UtilAnalytics.anchor(k) === hash);
+    const key = FIELDS.find((k): k is AnalyticsSwitch => k !== 'rawRetentionMonths' && UtilAnalytics.anchor(k) === hash);
     if (!key) return;
     document.getElementById(hash)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     document.getElementById(inputId(key))?.focus({ preventScroll: true });
@@ -327,7 +330,7 @@ async function save(): Promise<void> {
         enabled: f.enabled,
         visits: f.visits,
         rawEvents: f.rawEvents,
-        rawRetentionDays: f.rawRetentionDays,
+        rawRetentionMonths: f.rawRetentionMonths,
         referrers: f.referrers,
         flows: f.flows,
         environment: f.environment,
@@ -345,9 +348,9 @@ async function save(): Promise<void> {
         if (history.loaded.value) void history.reloadFirst();
     } catch (e) {
         const failure = toApiError(e);
-        const retention = failure.field('rawRetentionDays');
+        const retention = failure.field('rawRetentionMonths');
         if (failure.code === 'VALIDATION' && retention) {
-            serverErrors.value = { rawRetentionDays: retention };
+            serverErrors.value = { rawRetentionMonths: retention };
             formError.value = t('analytics.saveFieldsRejected');
         } else formError.value = failure.message;
     } finally {

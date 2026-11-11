@@ -6,7 +6,7 @@ import type { SettingHistoryAction, SettingHistoryChange, SettingHistorySource }
  * 값 모양은 서버가 정한다(`login-contract.md` 「변경 이력」·`mail-settings-contract.md` 「설정 이력」):
  *  · 비밀 값(`clientSecret`·`password`)은 값 없이 표시 코드만 — `SET`(입력함) · `CHANGED`(바꿈) · `CLEARED`(지움)
  *  · `clientId` 는 끝 4자리만(`****abcd`) — 그대로 보인다 · `enabled`·`showLogo`·`showSiteName`(메일 레이아웃) 은 `"true"`/`"false"` · `security` 는 `NONE`·`STARTTLS`·`SSL` · 나머지는 글자 그대로
- *  · 통계 수집 설정의 `visits`·`rawEvents`·`referrers`·`flows`·`notificationSends`·`boardActivity` 도 `"true"`/`"false"` · `rawRetentionDays` 는 일 수 글자(「90일」)
+ *  · 통계 수집 설정의 `visits`·`rawEvents`·`referrers`·`flows`·`notificationSends`·`boardActivity` 도 `"true"`/`"false"` · `rawRetentionMonths` 는 개월 수 글자(「2개월」, 3단계) · 옛 기록의 `rawRetentionDays` 는 일 수 글자(「90일」)
  *  · 값이 없으면(null — 만들기의 전 값, 지우기의 후 값) 「(없음)」
  */
 
@@ -49,6 +49,8 @@ export default class UtilSettingHistoryMessages {
             if (value === 'true') return t('common.on');
             if (value === 'false') return t('common.off');
         }
+        // 원본 보관 — 3단계부터 개월(이번 달 포함). 옛 기록에 남은 일 단위 칸도 그대로 읽어 보인다
+        if (field === 'rawRetentionMonths') return t('analytics.retentionMonths', { n: value });
         if (field === 'rawRetentionDays') return t('analytics.retentionDays', { n: value });
         if (field === 'security' && value === 'NONE') return t('mail.securityNone');
         if (field === 'security' && value === 'SSL') return 'SSL/TLS';

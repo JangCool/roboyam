@@ -84,7 +84,7 @@
 - 「방문 분석」 화면(기간·페이지 순위·유입·이동 흐름 그림)은 다음 단계 목업부터.
 - 페이지별 방문자 수(중복 없이)는 원본에서 필요할 때 계산(이번 범위 밖).
 
-## 3단계 — 보관 정리·주소 묶음·주/월 순방문자 (설계 합의 2026-11-11, **미구현**)
+## 3단계 — 보관 정리·주소 묶음·주/월 순방문자 (설계 합의 2026-11-11 · **1차 구현 2026-11-11 브랜치 `claude/analytics-stage3`** — ①②③⑤⑥·뺄 계정 서버 + 관리자 화면, ④ 는 화면 목업만)
 **의도**: 통계 표가 기한 없이 커지지 않게 모든 표에 상한을 두고, 광고주에게 줄 수 있는 WAU·MAU(방문자·회원)를 정확하게 센다. **GA4 는 넣지 않는다**(자체 통계 중심 — 광고주가 「구글 숫자」를 요구하거나 구글 광고 전환·인구통계가 필요해지면 검증용으로만 검토). 애드센스 수익·RPM 은 애드센스 보고서에서 본다.
 아래가 구현되기 전까지는 위 절(원본 일 단위 보관·주소 전체 집계·집계 기한 없음)이 지금 동작이다.
 
@@ -210,6 +210,22 @@
 - 조각: 원본 달 DROP(2개월) · 하루 표시·핫딜 클릭·주/월 표시 조각 미리 만들기와 DROP · 자정 조각 없음 오류 뒤 다시 쓰기.
 - 월 크론: 두 번 돌려도 같은 결과 · 13개월 지난 줄 지우기 · 1일 00:30 실행 전 늦게 온 줄.
 - 설정: 옛 일 값 → 개월 옮기기 · 설정 이력에 옛 「일」 값 표시 · 롤링 배포 중 옛 jar.
+
+### 1차 구현 결과 (2026-11-11 — 컴파일·admin-web 타입 검사만, 시험은 QA 요청 때)
+- 번호: shared **V189**(보관 개월 칸 + `deal_click_daily` 하루 파티션) · analytics **V5**(기존 페이지·이동 줄 `{id}` 합치기 + 진단 칸 `ignored_excluded`·`unknown_path`) · **V6**(`analytics_visit_marks` 하루 파티션) · **V7**(월별 표 9개 + `analytics_monthly_rollups`) · 크론 **`R__analytics_15`**(`analytics-monthly-rollup`) · shared **`R__batch_43`**(`deal-click-partitions`, 00:50). `R__analytics_10`·`11`·`R__batch_38` 고침. 다음 번호: shared V190 · analytics V8 · `R__batch_44` · `R__analytics_16`.
+- 서버 새 부품: api `VisitRoutes`(라우트 표 — user-web 라우트를 더하면 `TEMPLATES` 도 고친다) · `VisitReferenceCache`(가젯 페이지 키·뺄 계정 1분) · `VisitSessionMembers`(`SESSION` 쿠키 → 회원 10분, 최대 10만, 세션을 만들지 않음) · shared `AnalyticsReferenceStore`(뺄 계정 조건 — 대시보드 「회원 현황」도 씀).
+- 관리자 API 칸: 설정·요약 `rawRetentionMonths` · 진단 `instances[].ignoredExcluded`·`unknownPath`, `raw.retentionMonths`, 크론 8개 · 페이지 순위·서랍·「인기 페이지」 가젯은 `collect.visits` 기준.
+- **계약과 다른 점(구현 때 정함)**:
+  - 월 크론은 **매일 00:30** — 한국 1·2일을 pg_cron(UTC) 식으로 옮기면 날짜가 밀려서. 할 일이 없으면 SKIP, 1·2일엔 지난달을 덮어써 합치고, 합친 기록(`analytics_monthly_rollups`)이 없는 끝난 달은 따라잡아 합친다(첫 배포 포함). 합치기가 다 성공해야 13개월 지난 줄을 지운다.
+  - `/{unknown}` 의 화면 종류는 OTHER(예전 브라우저 분류는 없는 게시판 `/boards/xyz` 도 BOARD 였다). 주소 맞추기는 vue-router 와 같게(끝 `/` 하나 뗌·정적 조각 대소문자 무시·같은 자리면 정적 주소 우선, slug·key 는 글자 그대로).
+  - 글 → 다른 글 이동은 `/posts/{id}` → `/posts/{id}` 한 줄로 남는다(같은 경로 다시 보기 판정은 받은 실제 주소로).
+  - 브라우저 kind 를 읽지 않으므로 kind 가 없거나 틀린 신호도 받는다(`ignoredInvalid` 로 세지 않음). 뺄 계정의 검색어는 세지 않지만 `ignoredExcluded` 에는 넣지 않는다(방문 신호만).
+  - 원본 보관 판정(`RAW_BACKLOG`)의 수는 여전히 「넘친 날 수」, 달 1일엔 정리가 하루 늦는 것까지 정상으로 본다.
+  - 데모 팩(`build-demo-pack.mjs`)은 `deal_click_daily` 를 담지 않는다(하루 조각이라 옛 날짜 줄이 새 설치에 들어갈 조각이 없고, 방문자 해시만 있다).
+- **배포 순서**: api 먼저(analytics 스트림을 api 가 옮긴다 — 관리자 서버가 먼저 V5 전 DB 를 읽으면 진단 새 칸이 없어 오류). 롤링 중 옛 서버가 쓴 몇 분치는 옛 주소로 남는다(통계라 허용).
+- **QA 때 고칠 것으로 보이는 시험**(동작이 바뀜): `PageViewPartitionTest`(일 → 달 경계) · `VisitCollectorGateTest`·`VisitStage2CollectTest`(kind·주소 묶음·페이지별 집계 스위치) · `VisitFlushMultiServerTest`·`VisitStage2FlushTest`·`VisitForgetCronTest`(판정 표 조각 — 시험 날짜에 조각 필요) · `VisitDiagnosticsAdminServiceTest`(RAW_BACKLOG) · `VisitAnalyticsAdminServiceTest`·`DashboardAnalyticsGadgetsTest`(스위치 기준) · `BoardActivityDailyBatchTest`·`HotdealGoTest`·`StatsCollectionStage2Test`.
+- **화면(목업 — 확정 전)**: 「방문자 통계 › 개요」 순방문자 카드(방문자/회원, 이번 주·지난 주·이번 달·지난 달, 같은 시점 증감, 12주·12개월 막대) · 대시보드 「방문 현황」 한 줄 · 새 화면 `/analytics/visits/monthly` 「월별 보기」(메뉴 없음, 개요 추이 카드 링크). 목업 API 모양의 원천 = `apps/admin-web/app/composables/analytics/api/useVisitAnalyticsApi.types.ts` 3단계 주석(`GET …/visits/uniques` · `GET …/visits/monthly?from=YYYY-MM&to=YYYY-MM` · 대시보드 `VISITORS.visitorsThisWeek`·`visitorsThisMonth`). 지울 곳: `mock/visit-analytics-mock.ts` + `// MOCK:` 줄.
+- 화면 확정 때 정할 것: 월별 보기는 지금 수집 스위치가 꺼지면 지난 숫자도 가린다 — 긴 기간 화면이라 보이게 할지 · 월별 응답에 회원 MAU 를 넣을지 · 월별 보기 메뉴 자리(관리자 메뉴는 DB — 서버 때 admin 마이그레이션).
 
 ### 진행 순서·번호(2026-11-11 메모 기준 — 시작할 때 develop 최신에서 다시 확인)
 1. 원본 달 단위(①) · 주소 `{id}`(②) · 핫딜 클릭 정리(⑤) · 판정 표 파티션(⑥) — 화면 변화가 작다.

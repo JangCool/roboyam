@@ -150,7 +150,7 @@ public class DashboardGadgetService {
     static boolean collectionOff(DashboardGadgetType type, StatsCollection s) {
         return switch (type) {
             case VISITORS -> !s.visitsOn();
-            case POPULAR_PAGES -> !s.rawEventsOn();
+            case POPULAR_PAGES -> !s.pagesOn(); // 3단계 — 페이지별 집계는 「방문자·페이지뷰」에 딸린다
             case REFERRERS -> !s.referrersOn();
             case NOTIFICATION_HEALTH -> !s.notificationSends();
             case POST_ACTIVITY, BOARD_RANKING, SIGNUP_TREND -> !s.boardActivity();

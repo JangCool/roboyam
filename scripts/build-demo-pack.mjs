@@ -54,6 +54,8 @@ const EXCLUDE = [
     'public_data_settings', 'address_search_settings', 'site_operator', 'site_operator_history', 'stats_collection_settings', 'stats_collection_setting_history',
     'commerce_sales_settings', 'admin_security_settings', 'operators', 'operator_roles', 'roles', 'role_permissions', 'permissions', 'audit_logs', 'auth_tokens',
     'login_attempts', 'idempotency_requests', 'guest_password_attempts', 'identity_verification_attempts', 'demo_pack_baseline', 'member_view_settings',
+    // 하루 판정 표 — 방문자 해시만 담고 날짜 조각(파티션)이 있어 옛 날짜 줄은 새 설치에 들어갈 조각이 없다(site-analytics-contract 3단계 결정 ⑤·⑥)
+    'deal_click_daily',
     // 구조 스냅숏이 넣는 표(scripts/export-install-preset.mjs 의 TABLES)
     'grades', 'boards', 'board_prefixes', 'group_categories', 'group_category_boards', 'menu_sets', 'menu_nodes', 'gadget_pages', 'gadget_page_layouts', 'home_gadgets',
     'home_layouts', 'board_layouts', 'site_theme_menus', 'board_defaults', 'board_report_settings', 'board_security_settings', 'board_notification_settings',

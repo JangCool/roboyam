@@ -7,7 +7,7 @@
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '36rem', maxWidth: '100vw' }">
         <template #header>
             <div class="flex min-w-0 flex-1 items-center gap-2">
-                <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold" :class="detail && !detail.title ? 'font-mono text-[14px]' : ''">{{ headTitle }}</h2>
+                <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold" :class="detail && !UtilVisitPathMessages.named(detail) ? 'font-mono text-[14px]' : ''">{{ headTitle }}</h2>
                 <Tag v-if="detail" :value="kindName(detail.kind)" severity="secondary" />
             </div>
         </template>
@@ -71,6 +71,7 @@ import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types'
 import type { VisitCollect, VisitFlowEnd, VisitPageDetail, VisitPageKind } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -109,7 +110,7 @@ function kindName(kind: VisitPageKind | string): string {
 const headTitle = computed(() => {
     const d = props.detail;
     if (!d) return props.fallbackTitle;
-    return d.title ? localizedName(d.title, d.titleEn) : d.path;
+    return UtilVisitPathMessages.label(t, localizedName, d);
 });
 
 const summaryItems = computed<DrawerSummaryItem[]>(() => {
@@ -134,7 +135,7 @@ function endRows(list: VisitFlowEnd[], total: number): VisitBarRow[] {
     const rows: VisitBarRow[] = list.map((e) =>
         e.path === null
             ? { key: '__entry', label: t('visitAnalytics.directEntry'), title: t('visitAnalytics.directEntryHelp'), value: e.moves, muted: true }
-            : { key: e.path, label: e.title ? localizedName(e.title, e.titleEn) : e.path, sub: e.title ? e.path : undefined, mono: !e.title, title: e.path, value: e.moves },
+            : { key: e.path, label: UtilVisitPathMessages.label(t, localizedName, { ...e, path: e.path }), sub: UtilVisitPathMessages.named(e) ? e.path : undefined, mono: !UtilVisitPathMessages.named(e), title: e.path, value: e.moves },
     );
     const rest = total - list.reduce((a, e) => a + e.moves, 0);
     if (rest > 0) rows.push({ key: '__rest', label: t('visitAnalytics.rest'), title: t('visitAnalytics.restHelp'), value: rest, muted: true });

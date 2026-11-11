@@ -68,7 +68,9 @@ export default {
         analyticsEnabled: 'Visit collection (all)',
         visits: 'Visitors, page views, online now',
         rawEvents: 'Raw visit records',
-        rawRetentionDays: 'Raw record retention',
+        rawRetentionMonths: 'Raw record retention',
+        // Older records (before stage 3 — in days)
+        rawRetentionDays: 'Raw record retention (days)',
         referrers: 'Traffic sources',
         flows: 'Navigation flows',
         environment: 'Environment',

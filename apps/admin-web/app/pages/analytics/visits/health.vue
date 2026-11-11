@@ -2,7 +2,7 @@
     <!--
         방문자 통계 › 수집 진단(`/analytics/visits/health`, 2단계 2026-11-04) — 기간 없음(최근 24시간). 운영 점검용이라 **숫자보다 「무엇이 문제인지」 문장을 먼저** 보인다.
         ① 상태 칸: 배지(정상·지연·멈춤·꺼짐 — 서버 판정) + 한 줄 + 문제 문장 목록(서버 코드 → 문장, 심각한 차례)
-        ② 서버별(인스턴스) 기록 표: 마지막 기록(점 색 — 2분 안 초록 · 10분 안 노랑 · 넘으면 빨강) · 1분 기록 성공/실패 · 버린 신호(버퍼 넘침) · 무시한 신호(봇 · 형식 오류) | 원본 보관 현황
+        ② 서버별(인스턴스) 기록 표: 마지막 기록(점 색 — 2분 안 초록 · 10분 안 노랑 · 넘으면 빨강) · 1분 기록 성공/실패 · 버린 신호(버퍼 넘침) · 무시한 신호(봇 · 형식 오류 · 뺀 계정 — 3단계) · 「알 수 없는 주소」로 묶은 신호(3단계) | 원본 보관 현황(보관 개월 수 — 이번 달 포함)
         ③ 크론 표(파티션·정리·게시판 활동 …): 주기 · 마지막 실행 · 결과(배치 로그와 같은 딱지) · 처리 건수 · 사유 · 「로그」(배치 로그 `?jobName=` — `batch.read` 일 때만)
         ④ 최근 기록 실패 5건(시각 · 서버 · 사유).
         스위치 없음(늘 동작). 권한: `site.read`(메뉴 `visitHealth`). 서버 호출은 `useVisitAnalyticsApi().health`(`GET /api/admin/analytics/visits/health` — 크론 7개, 실패 `detail` = 「예외 이름 (SQLSTATE x) — 묶음 이름」).
@@ -54,7 +54,20 @@
                                     <th scope="col" class="py-1.5 pr-2 font-normal">{{ t('visitAnalytics.health.colLastWrite') }}</th>
                                     <th scope="col" class="py-1.5 pr-2 text-right font-normal">{{ t('visitAnalytics.health.colFlush') }}</th>
                                     <th scope="col" class="py-1.5 pr-2 text-right font-normal">{{ t('visitAnalytics.health.colDropped') }}</th>
-                                    <th scope="col" class="py-1.5 text-right font-normal">{{ t('visitAnalytics.health.colIgnored') }}</th>
+                                    <th scope="col" class="py-1.5 pr-2 text-right font-normal">{{ t('visitAnalytics.health.colIgnored') }}</th>
+                                    <th scope="col" class="py-1.5 text-right font-normal">
+                                        <span class="inline-flex items-center gap-1">
+                                            {{ t('visitAnalytics.health.colUnknown') }}
+                                            <button
+                                                v-tooltip.top="t('visitAnalytics.health.unknownHelp')"
+                                                type="button"
+                                                class="inline-grid size-4 place-items-center rounded text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary"
+                                                :aria-label="`${t('visitAnalytics.helpOf', { name: t('visitAnalytics.health.colUnknown') })} — ${t('visitAnalytics.health.unknownHelp')}`"
+                                            >
+                                                <i class="pi pi-info-circle text-[10px]" aria-hidden="true" />
+                                            </button>
+                                        </span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-(--line)">
@@ -69,9 +82,10 @@
                                         {{ num(r.flushOk) }}<span class="text-muted-color"> / </span><span :class="r.flushFail ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">{{ num(r.flushFail) }}</span>
                                     </td>
                                     <td class="py-2 pr-2 text-right tabular-nums" :class="r.dropped ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-muted-color'">{{ num(r.dropped) }}</td>
-                                    <td class="py-2 text-right whitespace-nowrap tabular-nums text-muted-color" :title="t('visitAnalytics.health.ignoredTip', { bot: num(r.ignoredBot), invalid: num(r.ignoredInvalid) })">
-                                        {{ t('visitAnalytics.health.ignoredCell', { bot: num(r.ignoredBot), invalid: num(r.ignoredInvalid) }) }}
+                                    <td class="py-2 pr-2 text-right whitespace-nowrap tabular-nums text-muted-color" :title="t('visitAnalytics.health.ignoredTip', ignoredArgs(r))">
+                                        {{ t('visitAnalytics.health.ignoredCell', ignoredArgs(r)) }}
                                     </td>
+                                    <td class="py-2 text-right tabular-nums text-muted-color">{{ num(r.unknownPath ?? 0) }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -83,7 +97,7 @@
                     <p v-if="!h.raw.rawEvents" class="m-0 mb-3 rounded-lg bg-surface-50 px-3 py-2 text-[12px] text-muted-color dark:bg-surface-900">{{ t('visitAnalytics.health.rawOff') }}</p>
                     <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
                         <dt class="text-muted-color">{{ t('visitAnalytics.health.rawRetention') }}</dt>
-                        <dd class="m-0 text-right tabular-nums">{{ t('analytics.retentionDays', { n: h.raw.retentionDays }) }}</dd>
+                        <dd class="m-0 text-right tabular-nums">{{ t('analytics.retentionMonths', { n: h.raw.retentionMonths }) }}<span class="block text-[11px] text-muted-color">{{ t('visitAnalytics.health.rawRetentionNote') }}</span></dd>
                         <dt class="text-muted-color">{{ t('visitAnalytics.health.rawOldest') }}</dt>
                         <dd class="m-0 text-right tabular-nums">{{ h.raw.oldestDay ? time.serviceDate(h.raw.oldestDay) : '—' }}</dd>
                         <dt class="text-muted-color">{{ t('visitAnalytics.health.rawPartitions') }}</dt>
@@ -179,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import type { VisitHealthIssue, VisitHealthStatus } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
+import type { VisitHealthInstance, VisitHealthIssue, VisitHealthStatus } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import UtilBatch from '~/utils/util-batch';
 import UtilBatchMessages from '~/utils/util-batch-messages';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
@@ -208,6 +222,11 @@ onMounted(() => {
 
 function num(n: number): string {
     return UtilVisitAnalytics.num(n, locale.value);
+}
+
+/** 무시·뺀 신호 칸 — 봇 · 형식 오류 · 뺀 계정(운영자·AI 회원, 3단계 — 옛 서버는 칸이 없어 0) */
+function ignoredArgs(r: VisitHealthInstance): { bot: string; invalid: string; excluded: string } {
+    return { bot: num(r.ignoredBot), invalid: num(r.ignoredInvalid), excluded: num(r.ignoredExcluded ?? 0) };
 }
 
 /** 크론 이름 — 아는 배치는 이름, 모르는 배치는 키 그대로 */

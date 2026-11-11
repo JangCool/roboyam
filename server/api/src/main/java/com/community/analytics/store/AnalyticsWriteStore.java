@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -113,12 +114,14 @@ public class AnalyticsWriteStore {
             + "  INSERT INTO analytics_collector_failures (failed_at, instance, reason, detail)"
             + "  SELECT t.f, ?, t.r, t.d FROM unnest(?::timestamptz[], ?::text[], ?::text[]) AS t(f, r, d)"
             + ") "
-            + "INSERT INTO analytics_collector_hourly (hour, instance, flush_ok, flush_fail, dropped, ignored_bot, ignored_invalid) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            + "INSERT INTO analytics_collector_hourly (hour, instance, flush_ok, flush_fail, dropped, ignored_bot, ignored_invalid, ignored_excluded, unknown_path) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
             + "ON CONFLICT (hour, instance) DO UPDATE SET flush_ok = analytics_collector_hourly.flush_ok + EXCLUDED.flush_ok, "
             + "flush_fail = analytics_collector_hourly.flush_fail + EXCLUDED.flush_fail, dropped = analytics_collector_hourly.dropped + EXCLUDED.dropped, "
             + "ignored_bot = analytics_collector_hourly.ignored_bot + EXCLUDED.ignored_bot, "
-            + "ignored_invalid = analytics_collector_hourly.ignored_invalid + EXCLUDED.ignored_invalid";
+            + "ignored_invalid = analytics_collector_hourly.ignored_invalid + EXCLUDED.ignored_invalid, "
+            + "ignored_excluded = analytics_collector_hourly.ignored_excluded + EXCLUDED.ignored_excluded, "
+            + "unknown_path = analytics_collector_hourly.unknown_path + EXCLUDED.unknown_path";
 
     /** 캠페인 한 줄 — 그 날 · utm 세 칸(빈 칸 '') · 더할 방문 수 */
     public record CampaignRow(LocalDate day, String source, String medium, String campaign, long count) {
@@ -136,9 +139,15 @@ public class AnalyticsWriteStore {
     public record FailureRow(Instant at, String reason, String detail) {
     }
 
-    /** 수집 진단의 1분 몫 */
+    /** 수집 진단의 1분 몫 — {@code ignoredExcluded}(뺄 계정 신호)·{@code unknownPath}(「알 수 없는 주소」로 묶은 신호)는 analytics V5 */
     public record Diagnostics(String instance, Instant at, Instant hour, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid,
-                              List<FailureRow> failures) {
+                              long ignoredExcluded, long unknownPath, List<FailureRow> failures) {
+
+        /** 2단계 칸만 주는 모양(3단계 두 칸 = 0) — 2단계 시험이 그대로 쓴다 */
+        public Diagnostics(String instance, Instant at, Instant hour, long flushOk, long flushFail, long dropped, long ignoredBot, long ignoredInvalid,
+                           List<FailureRow> failures) {
+            this(instance, at, hour, flushOk, flushFail, dropped, ignoredBot, ignoredInvalid, 0, 0, failures);
+        }
     }
 
     /** 방문자 줄 — 그 날 · 방문자 키 · 이 1분에 처음 본 정시 · 신규 방문자 신호가 있었나 */
@@ -216,6 +225,18 @@ public class AnalyticsWriteStore {
     /** 이번 달·다음 달 원본 조각을 만든다(R__analytics_10 의 함수 — 이미 있으면 그대로) */
     public void ensurePartitions() {
         jdbc.queryForObject("SELECT analytics_ensure_page_view_partitions(1)", Integer.class);
+    }
+
+    /**
+     * 「그 날 셌다」 표시 조각(analytics V6 — 한국 날짜 하루 파티션)을 어제~모레 + 이 묶음의 날들로 만든다(R__analytics_11 의 함수 — 이미 있으면 그대로).
+     * 그 날 조각이 없으면 {@link #visits} 가 23514 로 거절된다(부르는 쪽이 이것을 부른 뒤 다시).
+     */
+    public void ensureMarkPartitions(Collection<LocalDate> days) {
+        jdbc.query(con -> {
+            PreparedStatement ps = con.prepareStatement("SELECT analytics_ensure_visit_mark_partitions(?::date[])");
+            ps.setArray(1, SqlArrays.text(con, List.copyOf(days)));
+            return ps;
+        }, (ResultSetExtractor<Void>) rs -> null);
     }
 
     public void pages(List<DailyRow> rows) {
@@ -319,6 +340,8 @@ public class AnalyticsWriteStore {
             ps.setLong(11, d.dropped());
             ps.setLong(12, d.ignoredBot());
             ps.setLong(13, d.ignoredInvalid());
+            ps.setLong(14, d.ignoredExcluded());
+            ps.setLong(15, d.unknownPath());
             return ps;
         });
     }

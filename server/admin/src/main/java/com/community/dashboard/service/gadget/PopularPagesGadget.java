@@ -13,7 +13,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * 인기 페이지(site.read · 수집 항목 {@code rawEvents}) — 오늘의 페이지별 일별 집계({@code analytics_page_daily})에서 조회 많은 차례 limit 건. 이름은 <b>그 상위 limit 건만</b> 붙인다
+ * 인기 페이지(site.read · 수집 항목 {@code visits} — 3단계부터 페이지별 집계는 「방문자·페이지뷰」에 딸린다) — 오늘의 페이지별 일별 집계({@code analytics_page_daily})에서 조회 많은 차례 limit 건. 이름은 <b>그 상위 limit 건만</b> 붙인다
  * ({@link VisitPageTitles} — 글·공구·소모임·포인트 상점 품목은 표마다 PK 로 한 번씩, 게시판은 게시판 사본, 그 밖은 null — 화면이 화면 종류 이름을 보인다).
  * 화면 종류({@code kind})는 브라우저가 보낸 값 그대로다(핫딜 게시판 글은 POST·BOARD 로 온다 — 서버에서 다시 가르지 않는다).
  */

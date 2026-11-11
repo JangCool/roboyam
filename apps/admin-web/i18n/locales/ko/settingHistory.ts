@@ -69,7 +69,9 @@ export default {
         analyticsEnabled: '방문 수집(전체)',
         visits: '방문자·페이지뷰·지금 접속',
         rawEvents: '방문 원본 기록',
-        rawRetentionDays: '원본 보관 기간',
+        rawRetentionMonths: '원본 보관 기간',
+        // 옛 기록(3단계 전 — 일 단위)
+        rawRetentionDays: '원본 보관 기간(일)',
         referrers: '유입 경로',
         flows: '이동 흐름',
         environment: '환경',

@@ -2,9 +2,10 @@
     <!--
         방문자 통계 › 개요(`/analytics/visits`) — 계약 `docs/features/site-analytics-contract.md`.
         머리(`VisitStatsHeader` — 기간은 쪽을 옮겨도 이어진다 · 한 줄 요약: 방문자 증감 · 가장 많이 본 페이지)
-        → 요약 카드 5(방문자 — 여러 날이면 「일별 합」 · 신규 · 페이지뷰 · 1인당 · 지금 접속, 카드마다 증감 칩·미니 추이) → 방문 추이
+        → 요약 카드 5(방문자 — 여러 날이면 「일별 합」 · 신규 · 페이지뷰 · 1인당 · 지금 접속, 카드마다 증감 칩·미니 추이)
+        → 주·월 순방문자 카드(3단계 — `VisitUniquesCard`, 방문자/회원 전환, 고른 기간과 무관 · ⚠ 목업) → 방문 추이(머리 오른쪽 「월별 보기 →」 = `/analytics/visits/monthly`, 메뉴 없음)
         → 미리보기 3장(많이 본 페이지 5 · 유입 분류 · 요일·시간대 작은 히트맵) — 각 카드 「자세히 →」 = 그 쪽(같은 기간).
-        읽는 차례: 요약(수집 스위치) → 켜진 미리보기만 같이(유입은 `detail=false` — 분류·사이트만). 요약이 실패하면 화면 오류 하나.
+        읽는 차례: 요약(수집 스위치) → 켜진 미리보기만 같이(유입은 `detail=false` — 분류·사이트만). 페이지 미리보기·순방문자는 3단계부터 `visits` 에 딸린다. 요약이 실패하면 화면 오류 하나.
         권한: `site.read`(메뉴 `visitOverview`). 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -21,9 +22,17 @@
                 <div class="transition-opacity" :class="{ 'opacity-60': summary.loading.value && s }" :aria-busy="summary.loading.value">
                     <VisitSummaryStrip :summary="s" />
                 </div>
+                <!-- 주·월 순방문자(3단계 — 고른 기간과 무관, ⚠ 목업 숫자) -->
+                <VisitUniquesCard v-if="s" :data="uniques.data.value" :loading="uniques.loading.value" :error="uniques.error.value" @retry="loadUniques" />
                 <AppGadget :title="t('visitAnalytics.trendTitle')">
                     <template #title-extra>
                         <span v-if="s" class="text-[12px] font-normal text-muted-color tabular-nums">{{ s.granularity === 'HOUR' ? t('visitAnalytics.trendHourly') : t('visitAnalytics.trendDaily') }}</span>
+                    </template>
+                    <!-- 긴 기간(일별은 13개월만 남는다)은 월별 보기로 — 메뉴에 없는 쪽이라 여기서 들어간다 -->
+                    <template #actions>
+                        <NuxtLink :to="UtilVisitAnalytics.MONTHLY_PATH" class="inline-flex items-center gap-1 rounded text-[12px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                            <i class="pi pi-calendar text-[11px]" aria-hidden="true" />{{ t('visitAnalytics.monthly.open') }}<i class="pi pi-arrow-right text-[10px]" aria-hidden="true" />
+                        </NuxtLink>
                     </template>
                     <div v-if="!s" role="status" :aria-label="t('common.loading')"><Skeleton height="14rem" /></div>
                     <EmptyState v-else-if="!s.totals.pageViews" icon="pi pi-chart-bar" :title="t('visitAnalytics.trendEmpty')" :description="t('visitAnalytics.trendEmptyHint')" />
@@ -38,7 +47,7 @@
             <div v-if="s" class="grid min-w-0 items-stretch gap-4 lg:grid-cols-3">
                 <AppGadget :title="t('visitAnalytics.topPagesTitle')">
                     <template #actions><VisitMoreLink :to="vr.linkTo(UtilVisitAnalytics.PAGES.pages)" /></template>
-                    <VisitCollectOff v-if="!s.collect.rawEvents" item="rawEvents" :enabled="s.collect.enabled" />
+                    <VisitCollectOff v-if="!s.collect.visits" item="visits" :enabled="s.collect.enabled" />
                     <ErrorState v-else-if="pages.error.value" :title="t('visitAnalytics.previewFailed')" :description="pages.error.value.message" retry :retrying="pages.loading.value" @retry="loadPages" />
                     <div v-else-if="!pages.data.value" class="flex flex-col gap-3"><Skeleton v-for="n in 5" :key="n" height="1.5rem" /></div>
                     <EmptyState v-else-if="!pages.data.value.items.length" icon="pi pi-desktop" :title="t('visitAnalytics.pagesEmpty')" />
@@ -76,6 +85,7 @@
 import type { VisitBarRow } from '~/components/analytics/VisitBarList.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
 import UtilVisitAnalyticsMessages from '~/utils/util-visit-analytics-messages';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 import UtilVisitTime from '~/utils/util-visit-time';
 
 const { t, te, locale } = useI18n();
@@ -92,8 +102,9 @@ const summary = useVisitLoad(api.summary);
 const pages = useVisitLoad(api.pages);
 const referrers = useVisitLoad(api.referrers);
 const timeLoad = useVisitLoad(api.time);
+const uniques = useVisitLoad(api.uniques);
 const s = computed(() => summary.data.value);
-const busy = computed(() => summary.loading.value || pages.loading.value || referrers.loading.value || timeLoad.loading.value);
+const busy = computed(() => summary.loading.value || pages.loading.value || referrers.loading.value || timeLoad.loading.value || uniques.loading.value);
 
 function rangeArg() {
     return { from: vr.range.value.from, to: vr.range.value.to };
@@ -102,13 +113,18 @@ function rangeArg() {
 const loadPages = () => void pages.load({ ...rangeArg(), page: 0, size: 5 });
 const loadReferrers = () => void referrers.load({ ...rangeArg(), detail: false });
 const loadTime = () => void timeLoad.load(rangeArg());
+/** 순방문자는 기간과 무관(늘 오늘 기준) — 기간을 바꿀 때도 새로 고침과 같이 다시 읽는다(가벼운 숫자 표) */
+const loadUniques = () => void uniques.load();
 
 async function loadAll(): Promise<void> {
     const found = await summary.load(rangeArg());
     if (!found) return;
     const c = found.collect;
-    if (c.rawEvents) loadPages();
+    // 3단계: 페이지별 집계는 「방문자·페이지뷰」에 딸린다(원본 기록과 떨어짐)
+    if (c.visits) loadPages();
     else pages.clear();
+    if (c.visits) loadUniques();
+    else uniques.clear();
     if (c.referrers) loadReferrers();
     else referrers.clear();
     if (c.visits) loadTime();
@@ -123,7 +139,7 @@ function kindName(kind: string): string {
 }
 
 const pageRows = computed<VisitBarRow[]>(() =>
-    (pages.data.value?.items ?? []).map((p) => ({ key: p.path, label: p.title ? localizedName(p.title, p.titleEn) : p.path, title: p.path, mono: !p.title, tag: kindName(p.kind), value: p.views })),
+    (pages.data.value?.items ?? []).map((p) => ({ key: p.path, label: UtilVisitPathMessages.label(t, localizedName, p), title: p.path, mono: !UtilVisitPathMessages.named(p), tag: kindName(p.kind), value: p.views })),
 );
 
 const groupRows = computed<VisitBarRow[]>(() => UtilVisitAnalyticsMessages.groupRows(t, referrers.data.value?.groups ?? []));
@@ -145,7 +161,7 @@ const insights = computed(() => {
     const top = pages.data.value?.items[0];
     const total = pages.data.value?.totalViews ?? 0;
     if (top && total > 0) {
-        out.push(t('visitAnalytics.insightTopPage', { page: top.title ? localizedName(top.title, top.titleEn) : top.path, rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(top.views, total), locale.value, 0) }));
+        out.push(t('visitAnalytics.insightTopPage', { page: UtilVisitPathMessages.label(t, localizedName, top), rate: UtilVisitAnalytics.percent(UtilVisitAnalytics.share(top.views, total), locale.value, 0) }));
     }
     return out;
 });

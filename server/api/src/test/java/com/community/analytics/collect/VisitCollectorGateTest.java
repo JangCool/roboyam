@@ -51,7 +51,7 @@ class VisitCollectorGateTest {
         setting.set(StatsCollection.OFF);
         assertThat(collector.accept(body("/board/free"), UA, HOST)).isFalse();
         // 방문 수집 전체(enabled)가 꺼지면 하위 칸이 다 켜져 있어도 아무것도 모으지 않는다
-        setting.set(new StatsCollection(false, true, true, 90, true, true, true, true));
+        setting.set(new StatsCollection(false, true, true, 3, true, true, true, true));
         assertThat(collector.accept(body("/board/free"), UA, HOST)).isFalse();
         assertThat(collector.buffer().drain().isEmpty()).isTrue();
     }
@@ -111,7 +111,7 @@ class VisitCollectorGateTest {
 
     @Test
     void 방문자를_끄고_원본만_켜면_원본과_페이지별_조회만_모은다() {
-        setting.set(new StatsCollection(true, false, true, 90, false, false, false, false));
+        setting.set(new StatsCollection(true, false, true, 3, false, false, false, false));
         assertThat(collector.accept(body("/post/1", "/board/free", "https://www.google.com/search?q=x", null), UA, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
         assertThat(b.visitors()).isEmpty();
@@ -125,7 +125,7 @@ class VisitCollectorGateTest {
 
     @Test
     void 방문자만_켜면_방문자_페이지뷰_지금_접속만_모은다() {
-        setting.set(new StatsCollection(true, true, false, 90, false, false, false, false));
+        setting.set(new StatsCollection(true, true, false, 3, false, false, false, false));
         assertThat(collector.accept(body("/", null, "https://www.google.com/", null), UA, HOST)).isTrue();
         VisitBuffer.Batch b = collector.buffer().drain();
         assertThat(b.visitors()).hasSize(1);

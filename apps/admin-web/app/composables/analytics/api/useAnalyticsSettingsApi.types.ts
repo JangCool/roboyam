@@ -5,9 +5,14 @@
  */
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
-/** 방문 원본 기록 보관 기간(일) — 고를 수 있는 값(기본 90) */
-export const ANALYTICS_RETENTION_DAYS = [30, 90, 180, 365] as const;
-export type AnalyticsRetentionDays = (typeof ANALYTICS_RETENTION_DAYS)[number];
+/**
+ * 방문 원본 기록 보관 기간(개월, **이번 달 포함**) — 고를 수 있는 값(기본 2 = 이번 달 + 지난달). 3단계 결정 ①: 달 조각 단위로 지운다(일 단위 30·90·180·365 를 대신한다).
+ * 서버는 옛 칸 `raw_retention_days` 를 한 버전 더 두지만(롤링 배포) 화면은 새 칸만 읽고 보낸다. 옛 값 옮기기 30→2 · 90→3 · 180→6 · 365→12 는 서버 마이그레이션.
+ */
+export const ANALYTICS_RETENTION_MONTHS = [2, 3, 6, 12] as const;
+export type AnalyticsRetentionMonths = (typeof ANALYTICS_RETENTION_MONTHS)[number];
+/** 기본 보관 개월 수 */
+export const ANALYTICS_DEFAULT_RETENTION_MONTHS: AnalyticsRetentionMonths = 2;
 
 /** 켜고 끄는 칸 — 화면 차례(서버 설정 이력 칸 차례와 같다). `environment`·`searchTerms`·`bots` 는 2단계 */
 export const ANALYTICS_SWITCHES = ['enabled', 'visits', 'rawEvents', 'referrers', 'flows', 'environment', 'searchTerms', 'bots', 'notificationSends', 'boardActivity'] as const;
@@ -20,12 +25,12 @@ export const ANALYTICS_VISIT_SWITCHES = ['visits', 'rawEvents', 'referrers', 'fl
 export interface AnalyticsSettingsRequest {
     /** 방문 수집 전체 — 끄면 사용자 브라우저가 방문 신호를 아예 보내지 않는다 */
     enabled: boolean;
-    /** 방문자·페이지뷰·지금 접속(대시보드 「방문 현황」) — 서버가 1분마다 몰아 쓴다 */
+    /** 방문자·페이지뷰·지금 접속(대시보드 「방문 현황」) · 페이지별 순위(「인기 페이지」 — 3단계) · 주·월 순방문자 — 서버가 1분마다 몰아 쓴다 */
     visits: boolean;
-    /** 방문 원본 기록(「인기 페이지」 원천·나중 분석용) */
+    /** 방문 원본 기록(실시간 분당·최근 페이지의 원천 · 나중 분석용) — 3단계부터 페이지별 순위는 `visits` 에 딸린다 */
     rawEvents: boolean;
-    /** 원본 기록 보관 기간(일) */
-    rawRetentionDays: AnalyticsRetentionDays;
+    /** 원본 기록 보관 기간(개월, 이번 달 포함) */
+    rawRetentionMonths: AnalyticsRetentionMonths;
     /** 유입 경로(「유입 경로」 가젯) */
     referrers: boolean;
     /** 이동 흐름(다음 단계 「방문 분석」 화면) */

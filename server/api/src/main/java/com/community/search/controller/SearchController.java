@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
  * 쿼리 값은 글자로 받아 서비스가 칸별로 모아 검사한다. 시간 제한을 넘기면 {@code 503 SEARCH_TIMEOUT}.
  *
  * <p>검색어 통계(site-analytics-contract 「2단계 — 검색어」): 검색이 끝난 <b>첫 쪽 응답</b>({@code page = 1}, 커서 더보기·다른 쪽은 아님)만 {@link VisitCollector#countSearch} 로
- * 메모리에 센다(DB 에 쓰지 않는다 — 1분 몰아쓰기). 검사 오류·시간 초과는 세지 않는다. 설정 「검색어」가 꺼져 있거나 봇이면 수집기가 버린다.
+ * 메모리에 센다(DB 에 쓰지 않는다 — 1분 몰아쓰기). 검사 오류·시간 초과는 세지 않는다. 설정 「검색어」가 꺼져 있거나 봇이거나, 로그인 회원이 뺄 계정(운영자 회원 계정·AI 회원 —
+ * 3단계)이면 수집기가 버린다.
  */
 @RestController
 @RequestMapping("/api/search")
@@ -44,7 +45,7 @@ public class SearchController {
         Long viewer = authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
         SearchResponse result = service.search(q, scope, board, order, page, cursor, size, viewer);
         if (result.page() != null && result.page() == 1) {
-            visits.countSearch(q, result.items().isEmpty(), request.getHeader(HttpHeaders.USER_AGENT));
+            visits.countSearch(q, result.items().isEmpty(), request.getHeader(HttpHeaders.USER_AGENT), viewer); // 뺄 계정(운영자 회원 계정·AI 회원)은 세지 않는다(3단계)
         }
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(result));
     }

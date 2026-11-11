@@ -3,26 +3,29 @@ package com.community.analytics.settings;
 import java.util.List;
 
 /**
- * 「설정 › 통계 수집」 값(shared V133 {@code stats_collection_settings} 한 행 + V135 의 2단계 세 칸) — docs/features/site-analytics-contract.md 「설정」·「2단계」.
- * <b>모두 기본 꺼짐</b>, 원본 보관 90일.
+ * 「설정 › 통계 수집」 값(shared V133 {@code stats_collection_settings} 한 행 + V135 의 2단계 세 칸 + V189 의 원본 보관 개월 수) — docs/features/site-analytics-contract.md
+ * 「설정」·「2단계」·「3단계 결정 ①」. <b>모두 기본 꺼짐</b>, 원본 보관 2개월(이번 달 포함 — 이번 달과 지난달).
  *
  * <p>방문 하위 항목({@code visits}·{@code rawEvents}·{@code referrers}·{@code flows}·{@code environment}·{@code searchTerms}·{@code bots})은 {@code enabled}(방문 수집 전체)가
  * 꺼지면 동작하지 않는다 — 값은 그대로 둔다. 동작 여부는 {@code …On()} 으로 읽는다(저장 값 그대로가 아니라).
+ *
+ * <p>원본 보관은 <b>달 단위</b>({@link #RETENTION_MONTHS}, 이번 달 포함): 크론이 「이번 달부터 n번째 앞 달보다 오래된 달 조각」을 통째로 지운다(R__analytics_10). 옛 칸
+ * {@code raw_retention_days} 는 롤링 배포 동안 옛 서버가 읽도록 남겨 두었을 뿐 새 코드는 읽지도 쓰지도 않는다(다음 버전에 지운다).
  */
-public record StatsCollection(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionDays, boolean referrers, boolean flows, boolean environment,
+public record StatsCollection(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionMonths, boolean referrers, boolean flows, boolean environment,
                               boolean searchTerms, boolean bots, boolean notificationSends, boolean boardActivity) {
 
-    /** 고를 수 있는 원본 보관 일수 */
-    public static final List<Integer> RETENTION_DAYS = List.of(30, 90, 180, 365);
-    public static final int DEFAULT_RETENTION_DAYS = 90;
+    /** 고를 수 있는 원본 보관 개월 수(이번 달 포함) */
+    public static final List<Integer> RETENTION_MONTHS = List.of(2, 3, 6, 12);
+    public static final int DEFAULT_RETENTION_MONTHS = 2;
 
     /** 행이 없거나 읽지 못했을 때 — 모두 꺼짐 */
-    public static final StatsCollection OFF = new StatsCollection(false, false, false, DEFAULT_RETENTION_DAYS, false, false, false, false, false, false, false);
+    public static final StatsCollection OFF = new StatsCollection(false, false, false, DEFAULT_RETENTION_MONTHS, false, false, false, false, false, false, false);
 
     /** 1단계 칸만 주는 모양(2단계 세 칸 {@code environment}·{@code searchTerms}·{@code bots} = 꺼짐) — 1단계 시험·호출이 그대로 쓴다 */
-    public StatsCollection(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionDays, boolean referrers, boolean flows, boolean notificationSends,
+    public StatsCollection(boolean enabled, boolean visits, boolean rawEvents, int rawRetentionMonths, boolean referrers, boolean flows, boolean notificationSends,
                            boolean boardActivity) {
-        this(enabled, visits, rawEvents, rawRetentionDays, referrers, flows, false, false, false, notificationSends, boardActivity);
+        this(enabled, visits, rawEvents, rawRetentionMonths, referrers, flows, false, false, false, notificationSends, boardActivity);
     }
 
     /** 방문자·페이지뷰·지금 접속 */
@@ -30,9 +33,17 @@ public record StatsCollection(boolean enabled, boolean visits, boolean rawEvents
         return enabled && visits;
     }
 
-    /** 방문 원본 기록 + 페이지별 일별 조회(인기 페이지) */
+    /** 방문 원본 기록({@code analytics_page_views}) — 실시간 화면·수집 진단이 읽는다 */
     public boolean rawEventsOn() {
         return enabled && rawEvents;
+    }
+
+    /**
+     * 페이지별 일별 조회({@code analytics_page_daily} — 인기 페이지·페이지 순위·서랍 일별). 3단계부터 「원본 기록」이 아니라 「방문자·페이지뷰」({@code visits})에 딸린다
+     * (주소가 정해진 묶음이 되어 작아졌으므로 원본을 꺼도 페이지 순위가 쌓인다 — site-analytics-contract 「3단계 결정 ②」).
+     */
+    public boolean pagesOn() {
+        return visitsOn();
     }
 
     public boolean referrersOn() {

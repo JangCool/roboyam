@@ -86,6 +86,7 @@
 import type { VisitBarRow } from '~/components/analytics/VisitBarList.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
 import UtilVisitAnalyticsMessages from '~/utils/util-visit-analytics-messages';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 const { t, te, locale } = useI18n();
 useSeoMeta({ title: () => `${t('visitAnalytics.realtimeTitle')} · ${t('menu.visitStats')}` });
@@ -162,7 +163,7 @@ function kindName(kind: string): string {
 }
 
 const pageRows = computed<VisitBarRow[]>(() =>
-    (rt.value?.pages ?? []).map((p) => ({ key: p.path, label: p.title ? localizedName(p.title, p.titleEn) : p.path, title: p.path, mono: !p.title, tag: kindName(p.kind), value: p.views })),
+    (rt.value?.pages ?? []).map((p) => ({ key: p.path, label: UtilVisitPathMessages.label(t, localizedName, p), title: p.path, mono: !UtilVisitPathMessages.named(p), tag: kindName(p.kind), value: p.views })),
 );
 const groupRows = computed<VisitBarRow[]>(() => UtilVisitAnalyticsMessages.groupRows(t, rt.value?.referrers ?? []));
 const referrerTotal = computed(() => (rt.value?.referrers ?? []).reduce((a, g) => a + g.visits, 0));
@@ -173,7 +174,7 @@ const insights = computed(() => {
     const lang = locale.value;
     const out = [t('visitAnalytics.insightActive', { n: UtilVisitAnalytics.num(d.activeNow, lang) })];
     const top = d.pages[0];
-    if (top) out.push(t('visitAnalytics.insightRealtimeTop', { page: top.title ? localizedName(top.title, top.titleEn) : top.path, n: UtilVisitAnalytics.num(top.views, lang) }));
+    if (top) out.push(t('visitAnalytics.insightRealtimeTop', { page: UtilVisitPathMessages.label(t, localizedName, top), n: UtilVisitAnalytics.num(top.views, lang) }));
     return out;
 });
 </script>

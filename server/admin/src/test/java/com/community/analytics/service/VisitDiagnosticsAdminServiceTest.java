@@ -50,7 +50,7 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 class VisitDiagnosticsAdminServiceTest {
 
     static final Instant NOW = kst(5, 20, 10, 20, 30);
-    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 90, true, true, true, true, true, false, false);
+    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 3, true, true, true, true, true, false, false);
     static final String FORGET_JOB = "analytics-forget-requests";
 
     private static DataSource base;
@@ -233,10 +233,10 @@ class VisitDiagnosticsAdminServiceTest {
 
         assertThat(h.status()).isEqualTo("OK");
         assertThat(h.issues()).isEmpty();
-        assertThat(h.instances()).containsExactly(new VisitAnalyticsAdmin.HealthInstance("qa-a", NOW.minusSeconds(50), 110, 0, 0, 5, 1),
-                new VisitAnalyticsAdmin.HealthInstance("qa-b", NOW.minusSeconds(30), 10, 0, 0, 0, 0));
+        assertThat(h.instances()).containsExactly(new VisitAnalyticsAdmin.HealthInstance("qa-a", NOW.minusSeconds(50), 110, 0, 0, 5, 1, 0, 0),
+                new VisitAnalyticsAdmin.HealthInstance("qa-b", NOW.minusSeconds(30), 10, 0, 0, 0, 0, 0, 0));
         assertThat(h.crons()).hasSize(VisitDiagnosticsAdminService.CRON_JOBS.size()).allMatch(c -> !c.late() && "OK".equals(c.lastStatus()));
-        assertThat(h.raw()).isEqualTo(new VisitAnalyticsAdmin.HealthRaw(true, 90, ServiceTime.dateOf(NOW.minus(Duration.ofDays(10))).toString(), 2, 1000L, true));
+        assertThat(h.raw()).isEqualTo(new VisitAnalyticsAdmin.HealthRaw(true, 3, ServiceTime.dateOf(NOW.minus(Duration.ofDays(10))).toString(), 2, 1000L, true));
         assertThat(h.asOf()).isEqualTo(NOW);
     }
 
@@ -267,15 +267,15 @@ class VisitDiagnosticsAdminServiceTest {
 
     @Test
     void 수집이_모두_꺼지면_서버가_멈췄어도_OFF_이고_COLLECT_OFF() {
-        current = new StatsCollection(true, false, false, 90, false, false, false, false, false, true, true);
+        current = new StatsCollection(true, false, false, 3, false, false, false, false, false, true, true);
         VisitAnalyticsAdmin.Health h = service().health();
         assertThat(h.status()).isEqualTo("OFF");
         assertThat(codes(h)).containsExactly("COLLECT_OFF:WARN");
 
-        current = new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false);
+        current = new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false);
         assertThat(service().health().status()).as("전체가 꺼지면 하위 칸 값과 상관없이").isEqualTo("OFF");
 
-        current = new StatsCollection(true, false, false, 90, false, false, false, false, true, false, false); // 봇만
+        current = new StatsCollection(true, false, false, 3, false, false, false, false, true, false, false); // 봇만
         beat("qa-live", NOW.minusSeconds(10));
         assertThat(service().health().status()).isEqualTo("OK");
     }
@@ -398,7 +398,7 @@ class VisitDiagnosticsAdminServiceTest {
         assertThat(h.raw().approxRows()).isNull();
         assertThat(h.raw().oldestDay()).isEqualTo(today.minusDays(92).toString());
 
-        current = new StatsCollection(true, true, true, 30, true, true, true, true, true, false, false);
+        current = new StatsCollection(true, true, true, 2, true, true, true, true, true, false, false);
         assertThat(service().health().issues().get(0).count()).as("보관 30일이면 92 − 31").isEqualTo(61);
     }
 
@@ -416,7 +416,7 @@ class VisitDiagnosticsAdminServiceTest {
         beat("qa-live-feb", clock.now.minusSeconds(5));
         assertThat(codes(service().health())).containsExactly("NEXT_PARTITION_MISSING:ERROR");
 
-        current = new StatsCollection(true, true, false, 90, true, true, true, true, true, false, false);
+        current = new StatsCollection(true, true, false, 3, true, true, true, true, true, false, false);
         clock.now = kst(2, 26, 12, 0, 30);
         assertThat(codes(service().health())).isEmpty();
     }

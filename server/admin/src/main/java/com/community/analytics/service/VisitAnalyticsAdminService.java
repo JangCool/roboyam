@@ -46,7 +46,8 @@ import org.springframework.stereotype.Service;
  *       원본({@code analytics_page_views})은 실시간의 최근 30분만. 2단계: 환경 = {@code analytics_env_daily} · 검색어 = {@code analytics_search_daily}(+ 걸러진 수
  *       {@code analytics_search_filtered_daily}) · 봇 = {@code analytics_bot_daily}(사람 대비 = {@code analytics_visit_hourly} 페이지뷰, 방문자·페이지뷰 수집이 꺼지면 null) — analytics V4.</li>
  *   <li><b>수집 스위치</b>: 응답의 {@code collect} = 「전체 && 항목」(설정 30초 사본). <b>꺼진 항목의 원천은 읽지 않는다</b>(그 칸은 0·빈 배열).
- *       페이지 순위·서랍 일별은 원본 기록({@code rawEvents})과 함께 쌓이는 표라 그 스위치를 따른다. 캠페인은 유입 경로({@code referrers}) 스위치를 따른다.</li>
+ *       페이지 순위·서랍 일별은 3단계부터 「방문자·페이지뷰」({@code visits} — {@link StatsCollection#pagesOn})에 딸려 그 스위치를 따른다(원본 기록과 무관).
+ *       캠페인은 유입 경로({@code referrers}) 스위치를 따른다. 주소는 라우트 기준 묶음({@code /posts/{id}} · {@code /{unknown}})이고 묶음 줄은 이름이 null 이다.</li>
  *   <li><b>오늘</b>: 오늘이 낀 기간의 직전 기간은 「같은 시각이 든 시간 칸까지」(대시보드 방문 현황과 같은 칸 단위). 요일·시간대는 오늘의 지금 시간(집계 중)과 그 뒤 칸을 빼고
  *       {@code days} 도 세지 않는다(admin-web {@code UtilVisitTime} 과 같은 규칙).</li>
  *   <li><b>이름</b>: 돌려줄 줄의 경로만 {@link VisitPageTitles} 로(표마다 PK 한 번).</li>
@@ -137,7 +138,7 @@ public class VisitAnalyticsAdminService {
         Collect collect = collect(s);
         if (!s.visitsOn()) {
             return new VisitAnalyticsAdmin.Summary(p.range(), asOf(at), granularity, new VisitAnalyticsAdmin.Counts(0, 0, 0),
-                    new VisitAnalyticsAdmin.PreviousCounts(prevRange, 0, 0, 0), List.of(), collect, s.rawRetentionDays(), 0);
+                    new VisitAnalyticsAdmin.PreviousCounts(prevRange, 0, 0, 0), List.of(), collect, s.rawRetentionMonths(), 0);
         }
         boolean includesToday = !p.to.isBefore(today);
         Instant start = startOf(p.from);
@@ -189,7 +190,7 @@ public class VisitAnalyticsAdminService {
         }
         long active = store.activeSince(at.minus(ACTIVE_WINDOW));
         return new VisitAnalyticsAdmin.Summary(p.range(), asOf(at), granularity, new VisitAnalyticsAdmin.Counts(visitors, newVisitors, views),
-                new VisitAnalyticsAdmin.PreviousCounts(prevRange, pv, pnv, pviews), series, collect, s.rawRetentionDays(), active);
+                new VisitAnalyticsAdmin.PreviousCounts(prevRange, pv, pnv, pviews), series, collect, s.rawRetentionMonths(), active);
     }
 
     // ── 페이지 ───────────────────────────────────────────────────────────────
@@ -222,7 +223,7 @@ public class VisitAnalyticsAdminService {
     }
 
     private VisitAnalyticsAdmin.PagePage computePages(Period p, StatsCollection s, String kind, String q, int page, int size) {
-        if (!s.rawEventsOn()) {
+        if (!s.pagesOn()) {
             return new VisitAnalyticsAdmin.PagePage(List.of(), 0, 0);
         }
         List<String> boards = q == null ? List.of() : titles.boardPathsMatching(q);
@@ -264,7 +265,7 @@ public class VisitAnalyticsAdminService {
     private VisitAnalyticsAdmin.PageDetail computePageDetail(Period p, StatsCollection s, String path) {
         Map<LocalDate, Long> byDay = new HashMap<>();
         String kind = null;
-        if (s.rawEventsOn()) {
+        if (s.pagesOn()) {
             store.pageDays(p.from, p.to, path).forEach(d -> byDay.put(d.day(), d.count()));
             kind = byDay.isEmpty() ? null : store.pageKind(p.from, p.to, path);
         }
@@ -358,7 +359,7 @@ public class VisitAnalyticsAdminService {
         if (path == null) {
             path = "/";
         }
-        String kind = s.rawEventsOn() ? store.pageKind(p.from, p.to, path) : null;
+        String kind = s.pagesOn() ? store.pageKind(p.from, p.to, path) : null;
         Ends ends = ends(p, s, path);
         List<VisitAnalyticsStore.Move> moves = s.flowsOn() ? store.topMoves(p.from, p.to, TOP_MOVES) : List.of();
         Map<String, Name> names = titles.resolve(ends.paths(path));
@@ -714,10 +715,10 @@ public class VisitAnalyticsAdminService {
         return new Collect(s.enabled(), s.visitsOn(), s.rawEventsOn(), s.referrersOn(), s.flowsOn());
     }
 
-    /** 결과에 영향을 주는 설정 값(동작 여부 일곱 칸 + 보관 일수) */
+    /** 결과에 영향을 주는 설정 값(동작 여부 일곱 칸 + 보관 개월 수) */
     static String fingerprint(StatsCollection s) {
         return (s.enabled() ? "E" : "e") + (s.visitsOn() ? "V" : "v") + (s.rawEventsOn() ? "R" : "r") + (s.referrersOn() ? "F" : "f") + (s.flowsOn() ? "L" : "l")
-                + (s.environmentOn() ? "N" : "n") + (s.searchTermsOn() ? "S" : "s") + (s.botsOn() ? "B" : "b") + s.rawRetentionDays();
+                + (s.environmentOn() ? "N" : "n") + (s.searchTermsOn() ? "S" : "s") + (s.botsOn() ? "B" : "b") + s.rawRetentionMonths();
     }
 
     /** 캐시 키 — API 이름 + 언어 + 수집 스위치 + 질의 값(구분자 \u0001, null 은 빈 칸) */

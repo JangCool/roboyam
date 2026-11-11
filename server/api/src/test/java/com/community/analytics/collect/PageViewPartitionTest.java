@@ -42,7 +42,7 @@ class PageViewPartitionTest {
 
     @AfterEach
     void restore() {
-        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_days = 90, referrers = false, flows = false, "
+        jdbc.update("UPDATE stats_collection_settings SET enabled = false, visits = false, raw_events = false, raw_retention_months = 3, referrers = false, flows = false, "
                 + "notification_sends = false, board_activity = false WHERE id = 1");
         jdbc.queryForObject("SELECT analytics_ensure_page_view_partitions(1)", Integer.class);
     }
@@ -113,8 +113,7 @@ class PageViewPartitionTest {
         VisitFlusher flusher = new VisitFlusher(collector, new AnalyticsWriteStore(db), db);
         long id = IDS.nextId();
         String path = "/qa/partition/" + id;
-        collector.buffer().raw(new VisitBuffer.RawView(id, at, hash(), hash(), path, "OTHER", null, null, "DIRECT", null, null, null, "DESKTOP", true),
-                ServiceTime.dateOf(at));
+        collector.buffer().raw(new VisitBuffer.RawView(id, at, hash(), hash(), path, "OTHER", null, null, "DIRECT", null, null, null, "DESKTOP", true));
 
         flusher.flush();
 

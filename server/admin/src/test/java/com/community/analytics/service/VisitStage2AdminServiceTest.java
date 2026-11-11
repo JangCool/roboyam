@@ -43,7 +43,7 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 class VisitStage2AdminServiceTest {
 
     static final Instant NOW = LocalDateTime.of(2098, 5, 20, 10, 20, 30).atZone(ServiceTime.ZONE).toInstant();
-    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 90, true, true, true, true, true, false, false);
+    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 3, true, true, true, true, true, false, false);
 
     private static DataSource base;
     private Connection connection;
@@ -172,8 +172,8 @@ class VisitStage2AdminServiceTest {
     @Test
     void 환경이_꺼져_있으면_DB_에_줄이_있어도_모든_키_0_series_빈_배열() {
         env(day(5, 10), "MOBILE", "SAFARI", "IOS", "W480", 5);
-        for (StatsCollection off : List.of(new StatsCollection(true, true, true, 90, true, true, false, true, true, false, false),
-                new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false))) {
+        for (StatsCollection off : List.of(new StatsCollection(true, true, true, 3, true, true, false, true, true, false, false),
+                new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false))) {
             current = off;
             VisitAnalyticsAdmin.Environment e = service().environment("2098-05-10", "2098-05-10");
             assertThat(e.total()).isZero();
@@ -222,7 +222,7 @@ class VisitStage2AdminServiceTest {
     void 검색어가_꺼져_있으면_0_과_빈_목록() {
         term(day(5, 10), "rtx 4090", 10, 1);
         filtered(day(5, 10), 3);
-        current = new StatsCollection(true, true, true, 90, true, true, true, false, true, false, false);
+        current = new StatsCollection(true, true, true, 3, true, true, true, false, true, false, false);
         VisitAnalyticsAdmin.Search s = service().search("2098-05-10", "2098-05-10");
         assertThat(s.totals()).isEqualTo(new VisitAnalyticsAdmin.SearchTotals(0, 0, 0, 0));
         assertThat(s.terms()).isEmpty();
@@ -274,7 +274,7 @@ class VisitStage2AdminServiceTest {
         bot(day(5, 10), "GOOGLE", 30);
         bot(day(5, 20), "GOOGLE", 3);
         hour(kst(5, 10, 0), 100);
-        current = new StatsCollection(true, true, true, 90, true, true, true, true, false, false, false);
+        current = new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false);
         VisitAnalyticsAdmin.Bots off = service().bots("2098-05-10", "2098-05-10");
         assertThat(off.totals()).isEqualTo(new VisitAnalyticsAdmin.BotCounts(0, 100L));
         assertThat(off.today().bots()).isZero();
@@ -282,7 +282,7 @@ class VisitStage2AdminServiceTest {
         assertThat(off.series()).isEmpty();
         assertThat(off.collect().bots()).isFalse();
 
-        current = new StatsCollection(true, false, true, 90, true, true, true, true, true, false, false);
+        current = new StatsCollection(true, false, true, 3, true, true, true, true, true, false, false);
         VisitAnalyticsAdmin.Bots noHumans = service().bots("2098-05-10", "2098-05-10");
         assertThat(noHumans.totals()).isEqualTo(new VisitAnalyticsAdmin.BotCounts(30, null));
         assertThat(noHumans.today()).isEqualTo(new VisitAnalyticsAdmin.BotCounts(3, null));
@@ -324,7 +324,7 @@ class VisitStage2AdminServiceTest {
         assertThat(svc.bots("2098-05-10", "2098-05-10").totals().bots()).isEqualTo(1);
 
         // 같은 시각이라도 2단계 칸 하나가 바뀌면 새 키 — 옛 값이 남지 않는다
-        current = new StatsCollection(true, true, true, 90, true, true, true, true, false, false, false);
+        current = new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false);
         assertThat(svc.environment("2098-05-10", "2098-05-10").total()).isEqualTo(7);
         current = ALL2;
         clock.now = NOW.plusSeconds(61);
@@ -336,20 +336,20 @@ class VisitStage2AdminServiceTest {
     void 캐시_키_지문은_새_칸_세_개를_모두_가른다() {
         Set<String> prints = new HashSet<>();
         prints.add(VisitAnalyticsAdminService.fingerprint(ALL2));
-        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 90, true, true, false, true, true, false, false)));
-        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 90, true, true, true, false, true, false, false)));
-        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 90, true, true, true, true, false, false, false)));
+        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 3, true, true, false, true, true, false, false)));
+        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 3, true, true, true, false, true, false, false)));
+        prints.add(VisitAnalyticsAdminService.fingerprint(new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false)));
         assertThat(prints).hasSize(4);
         // 전체가 꺼지면 저장 값과 상관없이 같은 지문(동작 여부로 접는다)
-        assertThat(VisitAnalyticsAdminService.fingerprint(new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false)))
-                .isEqualTo(VisitAnalyticsAdminService.fingerprint(new StatsCollection(false, false, false, 90, false, false, false, false, false, false, false)));
+        assertThat(VisitAnalyticsAdminService.fingerprint(new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false)))
+                .isEqualTo(VisitAnalyticsAdminService.fingerprint(new StatsCollection(false, false, false, 3, false, false, false, false, false, false, false)));
     }
 
     @Test
     void 접은_collect_는_전체와_항목() {
-        assertThat(VisitAnalyticsAdminService.collectMore(new StatsCollection(false, true, true, 90, true, true, true, true, true, false, false)))
+        assertThat(VisitAnalyticsAdminService.collectMore(new StatsCollection(false, true, true, 3, true, true, true, true, true, false, false)))
                 .isEqualTo(new VisitAnalyticsAdmin.CollectMore(false, false, false, false, false));
-        assertThat(VisitAnalyticsAdminService.collectMore(new StatsCollection(true, false, true, 90, true, true, true, false, true, false, false)))
+        assertThat(VisitAnalyticsAdminService.collectMore(new StatsCollection(true, false, true, 3, true, true, true, false, true, false, false)))
                 .isEqualTo(new VisitAnalyticsAdmin.CollectMore(true, true, false, true, false));
         assertThat(Duration.ofSeconds(60)).isEqualTo(VisitAnalyticsAdminService.TTL);
     }

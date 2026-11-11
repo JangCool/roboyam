@@ -39,7 +39,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 class VisitStage2FlushTest {
 
-    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 90, true, true, true, true, true, false, false);
+    static final StatsCollection ALL2 = new StatsCollection(true, true, true, 3, true, true, true, true, true, false, false);
     private static final AtomicLong DAYS = new AtomicLong();
     private static final List<String> DEVICES = List.of("MOBILE", "TABLET", "DESKTOP");
     private static final List<String> BROWSERS = List.of("CHROME", "SAFARI", "EDGE", "SAMSUNG", "WHALE", "FIREFOX", "OTHER");

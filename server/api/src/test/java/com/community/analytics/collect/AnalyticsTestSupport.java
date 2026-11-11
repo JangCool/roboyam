@@ -16,7 +16,7 @@ final class AnalyticsTestSupport {
     static final SnowflakeIdGenerator IDS = new SnowflakeIdGenerator(913);
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    static final StatsCollection ALL_ON = new StatsCollection(true, true, true, 90, true, true, true, true);
+    static final StatsCollection ALL_ON = new StatsCollection(true, true, true, 3, true, true, true, true);
 
     private AnalyticsTestSupport() {
     }

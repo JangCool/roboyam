@@ -7,8 +7,11 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 통계 수집 설정 행 — shared V133·V135 {@code stats_collection_settings}(id = 1, 마이그레이션이 기본값으로 만들어 둔다). 메인 DB 다(크론이 이 행을 읽는다).
+ * 통계 수집 설정 행 — shared V133·V135·V189 {@code stats_collection_settings}(id = 1, 마이그레이션이 기본값으로 만들어 둔다). 메인 DB 다(크론이 이 행을 읽는다).
  * 저장은 잠금 조회({@code StatsCollectionStore#lock}) 뒤 {@link #apply} 로 바꾼다(변경 감지).
+ *
+ * <p>원본 보관은 {@code raw_retention_months}(V189, smallint 2·3·6·12) 만 매핑한다. 옛 칸 {@code raw_retention_days} 는 매핑하지 않는다 — 롤링 배포 동안 옛 서버만 읽고 쓰며
+ * (행을 새로 만들 때는 DB 기본값이 들어간다) 다음 버전에서 지운다.
  */
 @Entity
 @Table(name = "stats_collection_settings")
@@ -22,7 +25,7 @@ public class StatsCollectionSettingEntity {
     private boolean enabled;
     private boolean visits;
     private boolean rawEvents;
-    private int rawRetentionDays;
+    private short rawRetentionMonths;
     private boolean referrers;
     private boolean flows;
     private boolean environment;
@@ -50,7 +53,7 @@ public class StatsCollectionSettingEntity {
         this.enabled = v.enabled();
         this.visits = v.visits();
         this.rawEvents = v.rawEvents();
-        this.rawRetentionDays = v.rawRetentionDays();
+        this.rawRetentionMonths = (short) v.rawRetentionMonths();
         this.referrers = v.referrers();
         this.flows = v.flows();
         this.environment = v.environment();
@@ -62,10 +65,11 @@ public class StatsCollectionSettingEntity {
         this.updatedBy = operatorId;
     }
 
-    /** 저장한 값(보존 일수가 허용 값이 아니면 기본 일수로 읽는다) */
+    /** 저장한 값(보관 개월 수가 허용 값이 아니면 기본 개월 수로 읽는다) */
     public StatsCollection value() {
-        return new StatsCollection(enabled, visits, rawEvents, StatsCollection.RETENTION_DAYS.contains(rawRetentionDays) ? rawRetentionDays
-                : StatsCollection.DEFAULT_RETENTION_DAYS, referrers, flows, environment, searchTerms, bots, notificationSends, boardActivity);
+        int months = rawRetentionMonths;
+        return new StatsCollection(enabled, visits, rawEvents, StatsCollection.RETENTION_MONTHS.contains(months) ? months : StatsCollection.DEFAULT_RETENTION_MONTHS,
+                referrers, flows, environment, searchTerms, bots, notificationSends, boardActivity);
     }
 
     public Instant getUpdatedAt() {

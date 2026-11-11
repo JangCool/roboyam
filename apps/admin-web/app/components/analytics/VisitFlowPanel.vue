@@ -29,8 +29,8 @@
                     <span class="flex min-w-0 items-center gap-2 text-[13px]">
                         <span class="inline-flex shrink-0 items-center justify-center rounded bg-surface-100 px-1.5 py-1 text-[11px] leading-none dark:bg-surface-800">{{ kindName(option.kind) }}</span>
                         <span class="flex min-w-0 flex-col">
-                            <span class="truncate">{{ option.title ? localizedName(option.title, option.titleEn) : option.path }}</span>
-                            <span v-if="option.title" class="truncate font-mono text-[11px] text-muted-color">{{ option.path }}</span>
+                            <span class="truncate">{{ UtilVisitPathMessages.label(t, localizedName, option) }}</span>
+                            <span v-if="UtilVisitPathMessages.named(option)" class="truncate font-mono text-[11px] text-muted-color">{{ option.path }}</span>
                         </span>
                     </span>
                 </template>
@@ -51,8 +51,8 @@
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-50 px-3 py-2 dark:bg-surface-900">
                 <span class="text-[12px] text-muted-color">{{ t('visitAnalytics.base') }}</span>
                 <span class="inline-flex shrink-0 items-center justify-center rounded bg-surface-100 px-1.5 py-1 text-[11px] leading-none dark:bg-surface-800">{{ kindName(data.kind) }}</span>
-                <span class="min-w-0 truncate text-[13px] font-medium" :class="data.title ? '' : 'font-mono'">{{ baseLabel }}</span>
-                <span v-if="data.title" class="min-w-0 truncate font-mono text-[11px] text-muted-color">{{ data.path }}</span>
+                <span class="min-w-0 truncate text-[13px] font-medium" :class="UtilVisitPathMessages.named(data) ? '' : 'font-mono'">{{ baseLabel }}</span>
+                <span v-if="UtilVisitPathMessages.named(data)" class="min-w-0 truncate font-mono text-[11px] text-muted-color">{{ data.path }}</span>
                 <span class="ml-auto flex gap-3 text-[12px] text-muted-color tabular-nums">
                     <span>{{ t('visitAnalytics.incomingTotal', { n: num(data.incomingTotal) }) }}</span>
                     <span>{{ t('visitAnalytics.outgoingTotal', { n: num(data.outgoingTotal) }) }}</span>
@@ -91,11 +91,11 @@
                             <tr v-for="(m, i) in data.top" :key="`${m.from}>${m.to}`">
                                 <td class="py-1.5 text-center text-[11px] font-semibold text-muted-color tabular-nums">{{ i + 1 }}</td>
                                 <td class="max-w-0 py-1.5 pr-2">
-                                    <button type="button" class="block max-w-full cursor-pointer truncate rounded text-left font-mono text-[12px] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" :class="{ 'text-primary': m.from === data.path }" :title="t('visitAnalytics.setBase', { page: m.from })" @click="emit('select', m.from)">{{ m.from }}</button>
+                                    <button type="button" class="block max-w-full cursor-pointer truncate rounded text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" :class="[moveClass(m.from), { 'text-primary': m.from === data.path }]" :title="t('visitAnalytics.setBase', { page: m.from })" @click="emit('select', m.from)">{{ moveLabel(m.from) }}</button>
                                 </td>
                                 <td class="py-1.5 text-muted-color" aria-hidden="true"><i class="pi pi-arrow-right text-[10px]" /></td>
                                 <td class="max-w-0 py-1.5 pr-2">
-                                    <button type="button" class="block max-w-full cursor-pointer truncate rounded text-left font-mono text-[12px] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" :class="{ 'text-primary': m.to === data.path }" :title="t('visitAnalytics.setBase', { page: m.to })" @click="emit('select', m.to)">{{ m.to }}</button>
+                                    <button type="button" class="block max-w-full cursor-pointer truncate rounded text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" :class="[moveClass(m.to), { 'text-primary': m.to === data.path }]" :title="t('visitAnalytics.setBase', { page: m.to })" @click="emit('select', m.to)">{{ moveLabel(m.to) }}</button>
                                 </td>
                                 <td class="py-1.5 text-right text-muted-color tabular-nums">{{ num(m.moves) }}</td>
                             </tr>
@@ -113,6 +113,7 @@ import type { FlowSankeyCenter, FlowSankeyEnd, FlowSankeyFormat, FlowSankeyLabel
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { VisitCollect, VisitFlowEnd, VisitFlows, VisitPageKind, VisitPageRow } from '~/composables/analytics/api/useVisitAnalyticsApi.types';
 import UtilVisitAnalytics from '~/utils/util-visit-analytics';
+import UtilVisitPathMessages from '~/utils/util-visit-path-messages';
 
 interface Props {
     /** 흐름 — null 이면 처음 읽는 중 */
@@ -157,7 +158,15 @@ function kindName(kind: VisitPageKind | string): string {
 
 function endLabel(e: { path: string | null; title: string | null; titleEn: string | null }): string {
     if (e.path === null) return t('visitAnalytics.directEntry');
-    return e.title ? localizedName(e.title, e.titleEn) : e.path;
+    return UtilVisitPathMessages.label(t, localizedName, { ...e, path: e.path });
+}
+
+/** 상위 이동 표의 칸 — 서버가 제목을 주지 않으므로 묶음 주소만 화면 이름, 나머지는 경로(고정폭) */
+function moveLabel(path: string): string {
+    return UtilVisitPathMessages.routeName(t, path) ?? path;
+}
+function moveClass(path: string): string {
+    return UtilVisitPathMessages.routeName(t, path) ? 'text-[13px]' : 'font-mono text-[12px]';
 }
 
 const baseLabel = computed(() => (props.data ? endLabel(props.data) : ''));
