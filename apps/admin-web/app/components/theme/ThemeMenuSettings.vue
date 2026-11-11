@@ -4,7 +4,8 @@
         구획 둘, **저장 단추는 구획마다 따로**다.
           ① 메뉴 배치(`menu-layout`) — 메뉴 위치 · 최상위 항목 위치 · 상단 메뉴 폭 · 메뉴가 넘칠 때 · 섞인 배치(상단+사이드)일 때만 상단 띠에 둘 그룹(공개 메뉴 `main` 의 최상위 그룹 — 메뉴 관리 API, `layout.read` 없으면 안내만).
             공개 사이트 메뉴 위치는 회원 보기 설정 > 이 값 > 테마 기본 순.
-          ② 메뉴 모양(`menu-style`) 7칸: 상단 메뉴 그룹 표시 · 사이드 그룹 · 상단 메뉴 크기 · 모바일 상단 메뉴 · 메뉴 설명 줄 · 메뉴 붙이기 · 모바일 상단 바 모양(값 목록 `SITE_MENU_STYLE_VALUES`).
+          ② 메뉴 모양(`menu-style`) 7칸: 상단 메뉴 그룹 표시 · 사이드 그룹 · 상단 메뉴 크기 · 모바일 상단 메뉴 · 메뉴 설명 줄 · 메뉴 붙이기 · 모바일 상단 바 모양(값 목록 `SITE_MENU_STYLE_VALUES`)
+            + 메뉴 글자 기본 굵게(`menuBold` 스위치 — 켬·끔, 「테마 기본」 없음, 처음 값은 다음 테마만 켬, V187).
         「테마 기본(…)」의 괄호는 `theme`(편집하는 테마)의 기본값이다. 지금 배치에서 쓰이지 않는 칸은 안내 한 줄.
         한 구획을 저장할 때 다른 구획 칸은 저장된 값 그대로 실어 보내고, 다른 구획에 입력 중이던 값은 그대로 둔다. `theme` 이 바뀌면 그 테마의 값을 다시 읽는다(저장하지 않은 변경 확인은 화면이 `dirty` 이벤트를 받아 먼저 한다).
         저장은 테마마다 `PUT /api/admin/site/themes/{id}/menu`(`useSiteSettingsApi().saveThemeMenu`) — 공개 사이트는 지금 테마의 값을 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 받는다.
@@ -154,6 +155,23 @@
                     </div>
                     <p :id="`${styleGroupId}-${field.key}-hint`" class="m-0 text-xs text-muted-color">{{ field.hint }}</p>
                     <p v-if="field.note" :id="`${styleGroupId}-${field.key}-note`" class="m-0 text-xs text-muted-color" :data-testid="`site-menu-style-${field.key}-note`">{{ field.note }}</p>
+                </div>
+
+                <!-- 메뉴 글자 기본 굵게(V187) — 켬·끔(「테마 기본」 없음). 처음 값은 다음 테마만 켬 -->
+                <div class="flex flex-col gap-1.5">
+                    <span :id="`${styleGroupId}-menuBold`" class="text-sm font-medium">{{ t('site.menuBoldLabel') }}</span>
+                    <div class="flex items-center gap-2">
+                        <ToggleSwitch
+                            v-model="boldInput"
+                            :input-id="`${styleGroupId}-menuBold-input`"
+                            :aria-labelledby="`${styleGroupId}-menuBold`"
+                            :aria-describedby="`${styleGroupId}-menuBold-hint`"
+                            :disabled="!canManage || styleSaving"
+                            data-testid="site-menu-bold"
+                        />
+                        <span class="text-sm" :class="boldInput ? '' : 'text-muted-color'">{{ t(boldInput ? 'common.on' : 'common.off') }}</span>
+                    </div>
+                    <p :id="`${styleGroupId}-menuBold-hint`" class="m-0 text-xs text-muted-color">{{ t('site.menuBoldHint') }}</p>
                 </div>
 
                 <Message v-if="styleFormError" severity="error" variant="simple" size="small">{{ styleFormError }}</Message>
@@ -382,7 +400,12 @@ const styleGroupId = useId();
 /** 화면에 보일 칸 차례 */
 const STYLE_KEYS = Object.keys(SITE_MENU_STYLE_VALUES) as SiteMenuStyleKey[];
 
-const styleChanged = computed(() => saved.value !== null && STYLE_KEYS.some((key) => styleInput.value[key] !== saved.value?.menuStyle[key]));
+/** 메뉴 글자 기본 굵게(켬·끔 — 「테마 기본」 없음) */
+const boldInput = ref(false);
+
+const styleChanged = computed(
+    () => saved.value !== null && (STYLE_KEYS.some((key) => styleInput.value[key] !== saved.value?.menuStyle[key]) || boldInput.value !== saved.value.menuBold),
+);
 
 /** 칸 하나를 바꾼다(라디오 값은 그 칸의 값 목록 또는 THEME 만 온다) */
 function setStyle(key: SiteMenuStyleKey, value: unknown): void {
@@ -430,6 +453,7 @@ function fillLayout(res: SiteThemeResponse): void {
 
 function fillStyle(res: SiteThemeResponse): void {
     styleInput.value = { ...res.menuStyle };
+    boldInput.value = res.menuBold;
     styleFormError.value = '';
 }
 
@@ -461,6 +485,7 @@ function body(base: SiteThemeResponse, section: 'layout' | 'style') {
         menuWidth: section === 'layout' ? widthInput.value : base.menuWidth,
         menuOverflow: section === 'layout' ? overflowInput.value : base.menuOverflow,
         menuStyle: { ...(section === 'style' ? styleInput.value : base.menuStyle) },
+        menuBold: section === 'style' ? boldInput.value : base.menuBold,
     };
 }
 
@@ -511,7 +536,15 @@ watch(() => props.theme, () => void load(), { immediate: true });
 watch(() => layoutChanged.value || styleChanged.value, (value) => emit('dirty', value), { immediate: true });
 /** 입력 중인 값 — 읽기 전(저장 값 없음)에는 보내지 않는다 */
 watch(
-    () => ({ menuPosition: menuInput.value, topItems: topInput.value, barGroupIds: [...barInput.value], menuWidth: widthInput.value, menuOverflow: overflowInput.value, menuStyle: { ...styleInput.value } }),
+    () => ({
+        menuPosition: menuInput.value,
+        topItems: topInput.value,
+        barGroupIds: [...barInput.value],
+        menuWidth: widthInput.value,
+        menuOverflow: overflowInput.value,
+        menuStyle: { ...styleInput.value },
+        menuBold: boldInput.value,
+    }),
     (value) => {
         if (saved.value) emit('preview', value);
     },
@@ -519,6 +552,6 @@ watch(
 );
 
 function emitSaved(res: SiteThemeResponse): void {
-    emit('saved', { menuPosition: res.menuPosition, topItems: res.topItems, barGroupIds: [...res.barGroupIds], menuWidth: res.menuWidth, menuOverflow: res.menuOverflow, menuStyle: { ...res.menuStyle } });
+    emit('saved', { menuPosition: res.menuPosition, topItems: res.topItems, barGroupIds: [...res.barGroupIds], menuWidth: res.menuWidth, menuOverflow: res.menuOverflow, menuStyle: { ...res.menuStyle }, menuBold: res.menuBold });
 }
 </script>

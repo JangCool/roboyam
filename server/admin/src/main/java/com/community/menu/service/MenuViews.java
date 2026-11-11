@@ -40,14 +40,15 @@ public class MenuViews {
                 out.add(new MenuFolderView(id, MenuNode.FOLDER, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(),
                         node.collapsible(), node.collapsed(), node.autoAdd(), node.divider(), linked ? node.targetType() : null,
                         linked ? node.targetId() : null, linked ? node.targetKey() : null, linked ? node.settings() : null,
-                        linked ? (node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick()) : null, nodes(node.children(), context)));
+                        linked ? (node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick()) : null, nodes(node.children(), context),
+                        node.textColor(), node.bold(), node.badge()));
                 continue;
             }
             MenuTargetResolver resolver = registry.find(node.targetType()).orElse(null);
             MenuTargetStatus status = resolver == null ? MenuTargetStatus.UNKNOWN_TYPE : resolver.status(node, context);
             out.add(new MenuItemView(id, MenuNode.ITEM, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(), node.targetType(),
                     node.targetId(), node.targetKey(), node.settings(), node.mobileTab(), node.divider(), node.description(),
-                    new MenuItemView.Resolved(status.name()), node.shortcut()));
+                    new MenuItemView.Resolved(status.name()), node.shortcut(), node.textColor(), node.bold(), node.badge()));
         }
         return out;
     }
@@ -68,7 +69,7 @@ public class MenuViews {
                     node.audience(), node.minGrade(), Boolean.TRUE.equals(node.collapsible()), Boolean.TRUE.equals(node.collapsed()),
                     Boolean.TRUE.equals(node.autoAdd()), node.targetType(), node.targetId(), node.targetKey(), node.settings(),
                     Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description(), node.linkClick(),
-                    Boolean.TRUE.equals(node.shortcut())));
+                    Boolean.TRUE.equals(node.shortcut()), node.textColor(), Boolean.TRUE.equals(node.bold()), node.badge()));
         }
         return out;
     }
@@ -105,6 +106,15 @@ public class MenuViews {
                 if (node.mobileTab()) {
                     line.append(" [tab]");
                 }
+            }
+            if (node.textColor() != null) {
+                line.append(" [color ").append(node.textColor()).append(']');
+            }
+            if (node.bold()) {
+                line.append(" [bold]");
+            }
+            if (node.badge() != null) {
+                line.append(" [badge ").append(node.badge()).append(']');
             }
             if (!node.visible()) {
                 line.append(" [hidden]");

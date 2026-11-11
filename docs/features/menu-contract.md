@@ -98,3 +98,13 @@
 - **(2026-10-29) 가젯 페이지 유형**: 서버 유형은 다섯(+`GADGET_PAGE`)이 됐고 화면은 `BUILTIN`·`GADGET_PAGE`·`PATH` 를 「사이트 화면」으로 보인다. 「준비 중」 `PAGE`(고정 페이지 — CMS)와는 다른 유형이다(정본: 위 「가젯 페이지 연결」).
 - **(2026-10-29) 폴더 연결은 바로가기다** — 메뉴 항목이 아니므로 한 번 규칙·모바일 탭·미연결 게시판 계산·지금 있는 곳 판정에 넣지 않는다.
 - 포인트 관리(`/points`)는 목업 화면이지만 메뉴는 `point.read` 보유 여부로만 감춘다(권한의 「준비 중」은 역할 권한 고르개 표시에만 쓰인다). 화면 확정 전 검토용으로 최고 관리자에게는 보인다 — 포인트 백엔드가 생길 때 서버 `Permission` 의 `point.*` 를 준비됨으로 바꾼다.
+
+## 메뉴 항목 글자 색·강조 (2026-11-11 사용자 확정)
+- 의도: 커뮤니티 오른쪽 게시판 목록 같은 공개 메뉴에서 특정 항목을 눈에 띄게. 이름 옆 점(●)은 지금처럼 게시판 표시색(`boards.color`, 12색)이고 이것과 따로다.
+- 관리자: 메뉴 › 항목 고치기 창에 「글자 색」(기본 / 12색 `BoardFields.COLORS` 키 / 직접 고르기 `#RRGGBB`) · 「강조」(굵게 체크, 배지 글자 1~4자 — 배지 색 = 글자 색, 글자 색이 기본이면 주 색).
+- 데이터(shared V186): `menu_nodes.text_color varchar(16) NULL`(NULL = 기본, 12색 키 또는 `#RRGGBB` 대문자로 정리) · `menu_nodes.bold boolean NOT NULL DEFAULT false` · `menu_nodes.badge varchar(8) NULL`(앞뒤 공백 정리, 빈 값 NULL, 4자까지 — 코드포인트 기준).
+- API: 관리자 메뉴 노드 응답·저장 요청에 `textColor`·`bold`·`badge`, 공개 메뉴(`GET /api/menu`) 줄에 `textColor`·`bold`·`badge`. 잘못된 색·5자 이상 배지는 400 `fields.textColor`/`fields.badge`.
+- 공개 표시: 메뉴 노드 이름을 그리는 모든 곳이 같은 부품(`AppMenuItemLabel` — 규칙 `UtilMenu.textStyle`·`labelClass`·`badgeStyle`) — 상단 메뉴·드롭다운·커뮤니티 오른쪽 목록(AppMenuList)·모바일 메뉴·다음·네이버 테마 막대·모바일 상단 탭·로고 옆 링크·푸터 링크·게시판 모음(/boards). 좁은 칸은 작은 배지(`compact`), 이미 더 굵은 칸(다음 테마 700 등)은 「굵게」로 얇아지지 않게 그 굵기 유지. 하단 탭(고정 6칸)은 메뉴 줄이 아니라 제외. 12색은 기존 라이트/다크 짝(`UtilColor.cssPair`), 직접 고른 색은 다크 모드에서 읽히게 밝게 섞은 짝을 자동으로 쓴다.
+- 설치 프리셋은 `export-install-preset.mjs` 가 칸을 DB 에서 읽으므로 자동으로 따라온다.
+- **(2026-11-11) 폴더(그룹)도 같다** — 관리자 폴더 고치기 창에 같은 「글자 색」·「강조」 칸(점 안내만 뺀다), 트리 줄·미리보기의 폴더 제목에도 같은 색·굵게·배지. 공개 메뉴 그룹 줄(`kind: "GROUP"`)의 `textColor`·`bold`·`badge` 를 상단 막대 그룹 제목·드롭다운 머리와 소제목·세로 메뉴 그룹 제목과 소제목·모바일 첫 줄 그룹 단추와 둘째 줄 그룹 제목에 항목과 같은 규칙(`AppMenuItemLabel`)으로 그린다. 기본(null)이면 제목의 흐린 색 그대로, 고른 색은 펼침·고른 상태에서도 유지된다.
+- **(2026-11-11) 테마 메뉴 설정 「메뉴 글자 기본 굵게」** — `site_theme_menus.menu_bold`(shared V187, 켬·끔 · 다음·로보얌 테마(같은 막대 — 예전부터 굵게)만 기본 켬, 행이 없는 테마의 처음 값도 `SiteThemeMenus.initialOf` 가 같은 규칙). 관리자 `GET /api/admin/site/theme`·`PUT /api/admin/site/themes/{id}/menu` 의 `menuBold`(PUT 에서 빠지면 지금 값 유지), 공개 `GET /api/site/theme` 의 `menuBold`. 켜면 막대 칸이 굵게(700)·이름은 `keep-weight`, 끄면 얇게·「굵게」 항목만 600 — 다음식(로보얌 포함)·네이버·기본 상단 막대.

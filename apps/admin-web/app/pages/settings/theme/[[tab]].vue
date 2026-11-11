@@ -303,7 +303,7 @@ async function loadSavedMenu(id: string): Promise<void> {
     try {
         const res = await api.theme(id);
         if (id !== theme.value) return;
-        savedMenu.value = { menuPosition: res.menuPosition, topItems: res.topItems, barGroupIds: [...res.barGroupIds], menuWidth: res.menuWidth, menuOverflow: res.menuOverflow, menuStyle: { ...res.menuStyle } };
+        savedMenu.value = { menuPosition: res.menuPosition, topItems: res.topItems, barGroupIds: [...res.barGroupIds], menuWidth: res.menuWidth, menuOverflow: res.menuOverflow, menuStyle: { ...res.menuStyle }, menuBold: res.menuBold };
     } catch {
         savedMenu.value = null;
     }

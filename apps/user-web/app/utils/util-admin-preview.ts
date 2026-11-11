@@ -87,6 +87,8 @@ export interface AdminPreviewMessage {
         menuWidth: unknown;
         menuOverflow: unknown;
         menuStyle: Record<string, unknown>;
+        /** 메뉴 막대 글자 기본 굵게(켬·끔) — 불리언이 아니면 덮지 않는다 */
+        menuBold?: unknown;
     } | null;
     home: AdminPreviewHome | null;
     /** 홈 구성 편집 중인가 — 격자에 손잡이를 얹는다 */

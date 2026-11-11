@@ -11,8 +11,10 @@ import java.util.List;
  * @param barGroupIds  섞인 배치에서 상단 띠에 둘 최상위 그룹 ID(공개 메뉴 main 의 폴더 ID) — 비면 첫 그룹
  * @param menuWidth    CONTENT · FULL
  * @param menuOverflow SCROLLBAR · ARROWS
+ * @param menuBold     메뉴 막대 글자 기본 굵게(V187) — 끄면 얇고 메뉴 항목의 「굵게」만 굵다. 테마 기본 따름(THEME)이 없는 켬·끔이다
  */
-public record SiteThemeMenu(String menuPosition, String topItems, List<String> barGroupIds, String menuWidth, String menuOverflow, Style style) {
+public record SiteThemeMenu(String menuPosition, String topItems, List<String> barGroupIds, String menuWidth, String menuOverflow, Style style,
+                            boolean menuBold) {
 
     public SiteThemeMenu {
         // 검사 전 요청 값에 null 이 섞일 수 있어 List.copyOf 대신 복사본을 감싼다(검사는 SiteThemeMenus.check)

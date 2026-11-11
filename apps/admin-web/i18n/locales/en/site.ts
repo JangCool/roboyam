@@ -219,6 +219,9 @@ export default {
     menuStyleHint_mobileHeader: 'The look of the bar and menu row at the very top of mobile screens. Primary color fills the bar with the primary color; white bar uses a white background with bold menu text and a dark underline.',
     menuStyleValue_mobileHeader_BRAND: 'Primary color',
     menuStyleValue_mobileHeader_PLAIN: 'White bar',
+    // Bold menu text by default (V187 — on/off, per theme, only the Daum theme starts on)
+    menuBoldLabel: 'Bold menu text by default',
+    menuBoldHint: 'When on, the menu bar text of this theme is bold by default. When off, it is regular weight and only menu items set to “Bold” appear bold.',
 
     // Errors checked on the screen
     nameRequired: 'Enter a site name.',

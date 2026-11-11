@@ -28,7 +28,8 @@ import org.springframework.stereotype.Component;
  *   <li>항목: 하위 노드 금지({@code children}) · 깊이 ≤ 4({@code kind}) · 모바일 탭은 {@code SIDE} 그룹만({@code mobileTab}) · 유형별 검사는 리졸버
  *       (이름 필수 여부·대상·주소·로그인 필요 화면의 보이는 대상) · 게시판·앱 화면은 그룹 안에서 한 번.
  *       모르는 유형은 유형 코드 모양·이름 길이만 보고 나머지 칸은 받은 그대로 보존한다.</li>
- *   <li>공통: 영문명 · 보이는 대상 값 · {@code GRADE_MIN} 의 등급(등급 목록에 있는 키).</li>
+ *   <li>공통: 영문명 · 보이는 대상 값 · {@code GRADE_MIN} 의 등급(등급 목록에 있는 키) · 글자 색({@code textColor} — 비면 기본, 12색 키 또는 {@code #RRGGBB}
+ *       대문자로) · 배지({@code badge} — 앞뒤 공백 정리, 비면 없음, 4자까지, 제어 문자 금지).</li>
  *   <li>트리: 노드 ≤ 80 · 모바일 탭 ≤ 10 · 자동 추가 폴더 하나 — 새로 켠 폴더가 하나면 이미 켜져 있던 것을 끄고, 새로 켠 것이 둘 이상이면 400.</li>
  *   <li>바로가기({@code shortcut}, menu-shortcut-contract): {@code BOARD} 항목만({@code targetType}) · 모바일 탭 없음({@code mobileTab}) ·
  *       「그룹 안에서 한 번」에 세지 않는다(진짜 자리끼리만). 칸 {@code targetId} 에 — 같은 그룹에 같은 게시판의 진짜 자리가 없음({@code SHORTCUT_ORIGIN_MISSING}) ·
@@ -141,19 +142,25 @@ public class MenuTreeValidator {
                 if (!MenuLimits.DIVIDERS.contains(divider)) {
                     fieldErrors.add("divider", new MessageRef("menu.divider.choice"));
                 }
+                // 글자 색·굵게·배지(V186) — 폴더·항목 모두
+                String textColor = MenuRules.normalizeTextColor(node.textColor());
+                fieldErrors.add("textColor", MenuRules.textColorProblem(textColor));
+                fieldErrors.add("badge", MenuRules.badgeProblem(node.badge()));
+                String badge = MenuRules.stripToNull(node.badge());
                 if (node.isFolder()) {
-                    out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade, divider));
+                    // 글자 색은 폴더를 만들 때 붙인다 — 자동 추가 하나로 줄이기(keepOnlyAutoAdd)가 폴더를 같은 객체로 찾는다
+                    out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade, divider, textColor, badge));
                 } else {
                     fieldErrors.add("description", MenuRules.descriptionProblem(node.description()));
                     out.add(item(node, path, prefix, depth, fieldErrors, label, nameEn, audience, minGrade)
-                            .withExtras(divider, MenuRules.stripToNull(node.description())));
+                            .withExtras(divider, MenuRules.stripToNull(node.description())).withStyle(textColor, node.bold(), badge));
                 }
             }
             return out;
         }
 
         private MenuNode folder(MenuNode node, String path, int depth, MenuFieldErrors fieldErrors, String label, String nameEn, String audience,
-                                String minGrade, String divider) {
+                                String minGrade, String divider, String textColor, String badge) {
             fieldErrors.add("label", MenuRules.labelProblem(node.label(), true, MenuLimits.LABEL_MAX));
             if (depth > MenuLimits.FOLDER_DEPTH) {
                 fieldErrors.add("kind", new MessageRef("menu.node.folderDepth", String.valueOf(MenuLimits.FOLDER_DEPTH)));
@@ -173,7 +180,7 @@ public class MenuTreeValidator {
             MenuNode folder = new MenuNode(node.id(), MenuNode.FOLDER, label, nameEn, node.visible(), audience, minGrade, node.collapsible(),
                     node.collapsible() && node.collapsed(), side && node.autoAdd(), link == null ? null : link.targetType(),
                     link == null ? null : link.targetId(), link == null ? null : link.targetKey(), link == null ? null : link.settings(), false, children,
-                    divider, null, linkClick);
+                    divider, null, linkClick).withStyle(textColor, node.bold(), badge);
             if (folder.autoAdd()) {
                 autoAddFolders.add(folder);
             }

@@ -1,5 +1,6 @@
 package com.community.menu.service;
 
+import com.community.board.service.BoardFields;
 import com.community.zconfiguration.message.MessageRef;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -15,6 +16,7 @@ public final class MenuRules {
     private static final Pattern WHITESPACE = Pattern.compile("\\s");
     private static final Pattern HREF_CHARS = Pattern.compile("[<>\"'\\\\`]");
     private static final Pattern AUTHORITY = Pattern.compile("^[a-z0-9.-]+(:\\d{1,5})?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
 
     private MenuRules() {
     }
@@ -39,6 +41,41 @@ public final class MenuRules {
         }
         if (text.codePointCount(0, text.length()) > MenuLimits.DESCRIPTION_MAX) {
             return new MessageRef("menu.description.length", String.valueOf(MenuLimits.DESCRIPTION_MAX));
+        }
+        return null;
+    }
+
+    /**
+     * 글자 색 정리(V186) — null·빈 값은 null(기본), 12색 키({@link BoardFields#COLORS})는 그대로, {@code #} + 16진 6자리는 대문자로.
+     * 그 밖의 값은 그대로 돌려준다({@link #textColorProblem} 이 거절한다).
+     */
+    public static String normalizeTextColor(String value) {
+        String color = stripToNull(value);
+        if (color == null) {
+            return null;
+        }
+        return HEX_COLOR.matcher(color).matches() ? color.toUpperCase(Locale.ROOT) : color;
+    }
+
+    /** 글자 색 — {@link #normalizeTextColor} 를 거친 값이 null·12색 키·{@code #RRGGBB} 가 아니면 문제 */
+    public static MessageRef textColorProblem(String normalized) {
+        if (normalized == null || BoardFields.COLORS.contains(normalized) || HEX_COLOR.matcher(normalized).matches()) {
+            return null;
+        }
+        return new MessageRef("menu.textColor.invalid");
+    }
+
+    /** 배지 — 비어도 된다(null), 제어 문자·{@code <}·{@code >} 금지, 글자 수(코드 포인트) ≤ {@link MenuLimits#BADGE_MAX} */
+    public static MessageRef badgeProblem(String value) {
+        String text = stripToNull(value);
+        if (text == null) {
+            return null;
+        }
+        if (hasForbiddenChars(text)) {
+            return new MessageRef("menu.badge.chars");
+        }
+        if (text.codePointCount(0, text.length()) > MenuLimits.BADGE_MAX) {
+            return new MessageRef("menu.badge.length", String.valueOf(MenuLimits.BADGE_MAX));
         }
         return null;
     }

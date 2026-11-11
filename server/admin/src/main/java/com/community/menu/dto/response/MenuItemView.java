@@ -9,10 +9,13 @@ import tools.jackson.databind.JsonNode;
  * @param description 한 줄 설명(메뉴 설명 줄, 80자까지) — 없으면 null
  * @param resolved 서버가 본 상태({@code OK}·{@code BOARD_INACTIVE}·{@code SALES_OFF}·{@code TARGET_MISSING}·{@code UNKNOWN_TYPE}) — 화면 타입에는 없는 덧붙임 칸이다(화면은 스스로 계산한다)
  * @param shortcut 바로가기 — 다른 묶음에 진짜 자리가 있는 게시판 항목(menu-shortcut-contract). 그 밖에는 false
+ * @param textColor 글자 색 — null = 기본, 12색 키 또는 {@code #RRGGBB}(V186)
+ * @param bold     굵게(V186)
+ * @param badge    이름 옆 배지 글자 — 없으면 null(V186)
  */
 public record MenuItemView(String id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, String targetType,
                            String targetId, String targetKey, JsonNode settings, boolean mobileTab, String divider, String description, Resolved resolved,
-                           boolean shortcut)
+                           boolean shortcut, String textColor, boolean bold, String badge)
         implements MenuTreeNodeView {
 
     /** 서버가 본 항목 상태 */

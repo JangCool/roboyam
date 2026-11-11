@@ -291,6 +291,7 @@ const COLOR_PALETTE: Record<BoardColor, string> = {
     INDIGO: 'indigo',
     SKY: 'sky',
     BROWN: 'stone',
+    EMERALD: 'emerald',
 };
 
 /** slug 규칙 — 영소문자로 시작, 영소문자·숫자·`-` (서버 `BoardCreateRequest.slug` 와 같다) */
@@ -326,7 +327,7 @@ export default class UtilBoard {
 
     static readonly LAYOUTS: readonly BoardLayout[] = ['LIST', 'CARD', 'GALLERY'];
     static readonly KINDS: readonly BoardKind[] = ['GENERAL', 'DEAL', 'PROMO', 'GROUP'];
-    static readonly COLORS: readonly BoardColor[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN'];
+    static readonly COLORS: readonly BoardColor[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN', 'EMERALD'];
     static readonly WRITE_LOCKS: readonly (BoardWriteLock | null)[] = [null, 'POST', 'POST_COMMENT'];
     /** 비밀글 방식 선택지 — 끔 · 글쓴이가 고름 · 모든 글 비밀 */
     static readonly SECRET_MODES: readonly BoardSecretMode[] = ['OFF', 'OPTIONAL', 'ALWAYS'];

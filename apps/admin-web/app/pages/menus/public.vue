@@ -132,7 +132,17 @@
         </template>
 
         <MenuSetDialog v-model:visible="setDialogOpen" :set="setDialogTarget" :taken-keys="(sets ?? []).map((s) => s.key)" :saving="setSaving" :field-errors="setFieldErrors" :error="setError" @submit="submitSet" />
-        <MenuFolderDialog v-if="options" v-model:visible="folderOpen" :folder="folderTarget" :parents="folderParents" :parent-key="dialogParent" :ctx="ctx" :edit-top-level="isTopLevel(folderTarget)" @save="onFolderSave" />
+        <MenuFolderDialog
+            v-if="options"
+            v-model:visible="folderOpen"
+            :folder="folderTarget"
+            :parents="folderParents"
+            :parent-key="dialogParent"
+            :ctx="ctx"
+            :edit-top-level="isTopLevel(folderTarget)"
+            :server-errors="folderTarget ? (serverRows[folderTarget.key] ?? {}) : {}"
+            @save="onFolderSave"
+        />
         <MenuItemDialog
             v-if="options"
             v-model:visible="itemOpen"
@@ -144,6 +154,7 @@
             :tab-count="itemTabCount"
             :edit-top-level="isTopLevel(itemTarget)"
             :shortcut-origin="itemTarget ? shortcutOriginOf(itemTarget) : ''"
+            :server-errors="itemTarget ? (serverRows[itemTarget.key] ?? {}) : {}"
             @save="onItemSave"
         />
 

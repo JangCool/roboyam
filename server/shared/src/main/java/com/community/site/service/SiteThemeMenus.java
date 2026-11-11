@@ -31,21 +31,27 @@ public final class SiteThemeMenus {
     /** 상단 띠 그룹 ID 개수 한도 */
     public static final int BAR_GROUPS_MAX = 20;
 
-    /** 저장한 적 없는 테마의 메뉴 설정 — 칸마다 테마 기본 따름 · 빈 상단 띠 그룹 */
-    public static final SiteThemeMenu INITIAL = new SiteThemeMenu(THEME, THEME, List.of(), THEME, THEME,
-            new SiteThemeMenu.Style(THEME, THEME, THEME, THEME, THEME, THEME, THEME));
+    /** 메뉴 글자 기본 굵게(V187)를 처음부터 켜 둔 테마 — 다음 테마만(마이그레이션 V187 의 UPDATE 와 같은 규칙) */
+    public static final Set<String> MENU_BOLD_THEMES = Set.of("daum", "roboyam"); // 같은 막대(DaumMenuBar) — 예전부터 굵게 보였다(사용자 2026-11-11)
+
+    private static final SiteThemeMenu.Style INITIAL_STYLE = new SiteThemeMenu.Style(THEME, THEME, THEME, THEME, THEME, THEME, THEME);
 
     private static final SiteThemeMenu.Style BASE_STYLE = new SiteThemeMenu.Style("TABS", "COLUMN", "NORMAL", "PICKED", "OFF", "OFF", "BRAND");
 
     /** 테마 기본값(THEME 없음, 상단 띠 그룹은 늘 빈 목록) */
     private static final Map<String, SiteThemeMenu> DEFAULTS = Map.of(
-            "default", new SiteThemeMenu("LEFT", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE),
-            "daum", new SiteThemeMenu("TOP", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE),
-            "naver", new SiteThemeMenu("TOP", "LOGO", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE),
+            "default", new SiteThemeMenu("LEFT", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, false),
+            "daum", new SiteThemeMenu("TOP", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, true),
+            "naver", new SiteThemeMenu("TOP", "LOGO", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, false),
             "roboyam", new SiteThemeMenu("TOP_RIGHT", "MENU", List.of(), "FULL", "SCROLLBAR",
-                    new SiteThemeMenu.Style("INLINE", "PICK", "COMPACT", "MENU", "ON", "ON", "PLAIN")));
+                    new SiteThemeMenu.Style("INLINE", "PICK", "COMPACT", "MENU", "ON", "ON", "PLAIN"), false));
 
     private SiteThemeMenus() {
+    }
+
+    /** 저장한 적 없는 테마의 메뉴 설정 — 칸마다 테마 기본 따름 · 빈 상단 띠 그룹 · 메뉴 글자 기본 굵게는 {@link #MENU_BOLD_THEMES} 만 켬 */
+    public static SiteThemeMenu initialOf(String theme) {
+        return new SiteThemeMenu(THEME, THEME, List.of(), THEME, THEME, INITIAL_STYLE, MENU_BOLD_THEMES.contains(theme));
     }
 
     /** 그 테마의 기본값 — 모르는 테마는 기본 테마의 것 */
@@ -62,13 +68,13 @@ public final class SiteThemeMenus {
 
     /**
      * 저장 요청을 검사해 정리한 값으로 — 칸마다 {@code THEME} 또는 허용 값, 상단 띠 그룹은 숫자 ID 글자(중복 제거, {@value #BAR_GROUPS_MAX}개까지).
-     * 빠진 칸도 칸 오류다(메뉴 설정 전체를 통째로 받는다).
+     * 빠진 칸도 칸 오류다(메뉴 설정 전체를 통째로 받는다) — 켬·끔인 {@code menuBold} 는 부르는 쪽이 빠진 값을 지금 값으로 채워 넘긴다.
      *
      * @throws ValidationException {@code fields.menuPosition|topItems|barGroupIds|menuWidth|menuOverflow|menuStyle.<칸>}
      */
     public static SiteThemeMenu check(SiteThemeMenu input) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        SiteThemeMenu in = input == null ? new SiteThemeMenu(null, null, null, null, null, null) : input;
+        SiteThemeMenu in = input == null ? new SiteThemeMenu(null, null, null, null, null, null, false) : input;
         choice(fields, "menuPosition", in.menuPosition(), POSITIONS);
         choice(fields, "topItems", in.topItems(), TOP_ITEMS);
         List<String> bar = barGroupIds(in.barGroupIds(), fields);
@@ -85,7 +91,7 @@ public final class SiteThemeMenus {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        return new SiteThemeMenu(in.menuPosition(), in.topItems(), bar, in.menuWidth(), in.menuOverflow(), style);
+        return new SiteThemeMenu(in.menuPosition(), in.topItems(), bar, in.menuWidth(), in.menuOverflow(), style, in.menuBold());
     }
 
     private static void choice(Map<String, MessageRef> fields, String field, String value, List<String> allowed) {

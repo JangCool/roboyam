@@ -1,10 +1,10 @@
 <template>
     <!-- 상단 가로 메뉴 안의 하위 그룹 — 제목 단추를 누르면 항목이 드롭다운으로 펼쳐진다. 안에 지금 있는 곳이 있으면 이 단추도 활성(아래 줄)이다.
-         그룹에 「누르면 가는 곳」(`path`)이 있으면 제목 이름은 링크이고 드롭다운은 옆 화살표 단추가 연다.
+         그룹에 「누르면 가는 곳」(`path`)이 있으면 제목 이름은 링크이고 드롭다운은 옆 화살표 단추가 연다. 제목·소제목 이름의 글자 색·굵게·배지는 항목과 같은 `AppMenuItemLabel`.
          가로 줄(`overflow-x-auto`) 안에 두면 드롭다운이 잘리므로 PrimeVue `Popover` 가 본문으로 띄운다 — 바깥 누르기·Esc 로 닫히고 키보드로 열고 닫는다 -->
     <!-- 「누르면 가는 곳」이 있는 그룹 — 이름은 링크, 옆 화살표 단추가 드롭다운을 연다(칸 모양·활성 표시는 감싼 칸이 그대로 갖는다) -->
     <span v-if="entry.group.path" :class="buttonClass || UtilMenu.barItemClass(entry.active)" :data-active="entry.active ? 'true' : undefined" :data-testid="`top-menu-dropdown-${entry.key}`">
-        <AppMenuGroupLabel :group="entry.group" />
+        <AppMenuGroupLabel :group="entry.group" :keep-weight="keepWeight" />
         <button
             type="button"
             class="-mr-1 rounded px-1 focus-visible:outline-2 focus-visible:outline-primary"
@@ -26,15 +26,15 @@
         :data-testid="`top-menu-dropdown-${entry.key}`"
         @click="toggle"
     >
-        <span>{{ localizedName(entry.group.label, entry.group.nameEn) }}</span>
+        <AppMenuItemLabel :node="entry.group" :keep-weight="keepWeight" />
         <i class="pi pi-angle-down text-xs" :class="open ? 'rotate-180' : ''" aria-hidden="true" />
     </button>
 
     <Popover ref="popover" :aria-label="localizedName(entry.group.label, entry.group.nameEn)" class="min-w-44 max-w-[calc(100vw-1rem)]" :pt="{ content: { class: 'p-0!' } }" @show="open = true" @hide="open = false">
         <div class="max-h-[70dvh] overflow-y-auto py-1 text-sm">
             <template v-for="block in entry.blocks" :key="block.key">
-                <!-- 더 아래 그룹의 소제목 — 들여쓴다 -->
-                <p v-if="block.group" class="m-0 px-4 pb-0.5 pt-2 text-xs text-muted-color" :style="indent(block.level)">{{ localizedName(block.group.label, block.group.nameEn) }}</p>
+                <!-- 더 아래 그룹의 소제목 — 들여쓴다. 글자 색·굵게·배지는 항목과 같은 규칙(`AppMenuItemLabel`, 기본이면 흐린 색) -->
+                <p v-if="block.group" class="m-0 px-4 pb-0.5 pt-2 text-xs text-muted-color" :style="indent(block.level)"><AppMenuItemLabel :node="block.group" /></p>
                 <ul class="m-0 list-none p-0">
                     <li v-for="row in block.items" :key="row.key">
                         <AppMenuLink
@@ -46,7 +46,7 @@
                         >
                             <span class="flex min-w-0 items-center">
                                 <i :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" :data-testid="row.color ? 'menu-dot-color' : 'menu-dot-slot'" />
-                                <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
+                                <AppMenuItemLabel :node="row.node" truncate />
                             </span>
                         </AppMenuLink>
                     </li>
@@ -72,9 +72,11 @@ interface Props {
     entry: Extract<MenuBarEntry, { kind: 'dropdown' }>;
     /** 제목 단추의 클래스 — 테마 셸이 자기 탭 모양을 줄 때만(활성 여부는 `entry.active` 로 셸이 고른다). 비우면 상단 가로 막대 칸 모양(`UtilMenu.barItemClass`) */
     buttonClass?: string;
+    /** 제목 단추 굵기를 테마 탭이 이미 정했으면 true — 제목 이름에 「굵게」(600)를 칠하지 않아 더 굵은 탭(700·800)이 얇아지지 않는다 */
+    keepWeight?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { buttonClass: '' });
+const props = withDefaults(defineProps<Props>(), { buttonClass: '', keepWeight: false });
 
 const route = useRoute();
 const { t } = useI18n();

@@ -12,8 +12,12 @@ import tools.jackson.databind.JsonNode;
  * @param targetKey  {@code BUILTIN} 의 앱 화면 키
  * @param settings   {@code PATH} {@code {path,newTab}} · {@code URL} {@code {href,newTab}}
  * @param linkClick  {@code NAVIGATE_OPEN} · {@code NAVIGATE}. 연결이 없으면 null
+ * @param textColor  글자 색 — null = 기본, 12색 키 또는 {@code #RRGGBB}(V186)
+ * @param bold       굵게(V186)
+ * @param badge      이름 옆 배지 글자 — 없으면 null(V186)
  */
 public record MenuFolderView(String id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
                              boolean collapsed, boolean autoAdd, String divider, String targetType, String targetId, String targetKey, JsonNode settings,
-                             String linkClick, List<MenuTreeNodeView> children) implements MenuTreeNodeView {
+                             String linkClick, List<MenuTreeNodeView> children, String textColor, boolean bold, String badge)
+        implements MenuTreeNodeView {
 }

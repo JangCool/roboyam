@@ -2,6 +2,7 @@
     <!-- 메뉴(세로) — 햄버거(모바일)와 왼쪽·오른쪽 메뉴(데스크톱)가 같은 데이터·같은 모양을 쓴다. 구성은 서버가 준 메뉴 트리 그대로다(`GET /api/menu`, 운영자가 메뉴 구성에서 정한다).
          연속된 최상위 항목(홈·공동구매)은 제목 없는 첫 구역, 최상위 그룹은 제목 있는 구역, 2단계 이하 그룹은 들여쓴 소제목이다(시안 25-menu M-1~M-4).
          그룹에 「누르면 가는 곳」(`path`)이 있으면 제목 이름이 링크(`AppMenuGroupLabel`)이고 접기는 오른쪽 표시 단추만 맡는다. 없으면 지금처럼 제목 전체가 접기 단추다.
+         그룹 제목·소제목 이름의 글자 색·굵게·배지는 항목과 같은 `AppMenuItemLabel`(기본이면 제목의 흐린 색 그대로).
          구성(구역·활성 판정·접힘·상태)은 상단 메뉴(가로, `AppTopMenu`)와 같은 `useMenuItems` 를 쓴다. `scope` 는 그리는 자리 — 햄버거는 전체(`all`), 데스크톱 사이드 메뉴는 배치대로 나눈 몫(`side`, `UtilMenu.split`).
          로딩·빈 메뉴·오류 안내는 이 자리가 맡을 때만(`ownsState`) 그린다 -->
     <nav :aria-label="t('menu.navLabel')" class="text-sm">
@@ -37,7 +38,7 @@
                                 <span class="flex min-w-0 items-center">
                                     <!-- 색 점은 표시색이 있는 줄에만 — 없는 줄은 자리를 비우지 않고 글자를 왼쪽에 붙인다(사용자 결정 2026-10-28) -->
                                     <i v-if="row.color" :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                    <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
+                                    <AppMenuItemLabel :node="row.node" truncate />
                                 </span>
                             </AppMenuLink>
                         </li>
@@ -71,10 +72,10 @@
                             :aria-label="UtilMenuMessages.groupButtonLabel(t, localizedName(section.title ?? '', section.titleEn), section.count)"
                             @click="toggle(section.group!)"
                         >
-                            <span>{{ localizedName(section.title ?? '', section.titleEn) }}</span>
+                            <AppMenuItemLabel :node="section.group" />
                             <span aria-hidden="true">{{ section.collapsed ? UtilMenuMessages.collapsedMark(section.count) : UtilMenuMessages.EXPANDED_MARK }}</span>
                         </button>
-                        <template v-else>{{ localizedName(section.title ?? '', section.titleEn) }}</template>
+                        <AppMenuItemLabel v-else :node="section.group" />
                     </h2>
                     <div :id="`${uid}-${section.key}-panel`">
                         <template v-for="block in section.blocks" :key="block.key">
@@ -103,10 +104,10 @@
                                     :aria-label="UtilMenuMessages.groupButtonLabel(t, localizedName(block.group.label, block.group.nameEn), block.count)"
                                     @click="toggle(block.group!)"
                                 >
-                                    <span>{{ localizedName(block.group.label, block.group.nameEn) }}</span>
+                                    <AppMenuItemLabel :node="block.group" />
                                     <span aria-hidden="true">{{ block.collapsed ? UtilMenuMessages.collapsedMark(block.count) : UtilMenuMessages.EXPANDED_MARK }}</span>
                                 </button>
-                                <template v-else>{{ localizedName(block.group.label, block.group.nameEn) }}</template>
+                                <AppMenuItemLabel v-else :node="block.group" />
                             </h3>
                             <ul :id="`${uid}-${block.key}-panel`" class="m-0 list-none p-0">
                                 <li v-for="row in block.items" :key="row.key">
@@ -119,7 +120,7 @@
                                     >
                                         <span class="flex min-w-0 items-center">
                                             <i v-if="row.color" :class="UtilMenu.dotClass(row.color)" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                            <span class="truncate">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
+                                            <AppMenuItemLabel :node="row.node" truncate />
                                         </span>
                                     </AppMenuLink>
                                 </li>

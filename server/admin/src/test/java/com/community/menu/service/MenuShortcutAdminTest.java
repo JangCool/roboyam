@@ -142,12 +142,12 @@ class MenuShortcutAdminTest extends CommerceAdminTestBase {
 
     private static MenuNodeRequest folder(String label, MenuNodeRequest... children) {
         return new MenuNodeRequest(null, "FOLDER", label, null, true, "ALL", null, false, false, false, Arrays.asList(children), null, null, null, null, false,
-                null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private static MenuNodeRequest board(long boardId, boolean shortcut) {
         return new MenuNodeRequest(null, "ITEM", null, null, true, "ALL", null, false, false, false, List.of(), "BOARD", Long.toString(boardId), null, null, false,
-                null, null, null, shortcut ? Boolean.TRUE : null);
+                null, null, null, shortcut ? Boolean.TRUE : null, null, null, null);
     }
 
     /** 응답 트리 → 같은 저장 요청(ID 그대로) */
@@ -157,10 +157,11 @@ class MenuShortcutAdminTest extends CommerceAdminTestBase {
             List<MenuNodeRequest> children = f.children().stream().map(c -> {
                 MenuItemView i = (MenuItemView) c;
                 return new MenuNodeRequest(i.id(), "ITEM", i.label(), i.nameEn(), i.visible(), i.audience(), i.minGrade(), false, false, false, List.of(),
-                        i.targetType(), i.targetId(), i.targetKey(), i.settings(), i.mobileTab(), i.divider(), i.description(), null, i.shortcut());
+                        i.targetType(), i.targetId(), i.targetKey(), i.settings(), i.mobileTab(), i.divider(), i.description(), null, i.shortcut(),
+                        i.textColor(), i.bold(), i.badge());
             }).toList();
             return new MenuNodeRequest(f.id(), "FOLDER", f.label(), f.nameEn(), f.visible(), f.audience(), f.minGrade(), f.collapsible(), f.collapsed(),
-                    f.autoAdd(), children, null, null, null, null, false, f.divider(), null, null, null);
+                    f.autoAdd(), children, null, null, null, null, false, f.divider(), null, null, null, f.textColor(), f.bold(), f.badge());
         }).toList();
     }
 

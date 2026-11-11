@@ -36,11 +36,15 @@
                 <p v-else class="mt-1 text-xs text-muted-color">{{ t('feed.recentEmpty') }}</p>
             </section>
 
-            <!-- 메뉴 그룹별 게시판 — 그룹 이름·순서는 메뉴 구성이 정한다. 하위 그룹은 평평하게 펴지 않고 상위 그룹 아래 소제목으로 둔다 -->
+            <!-- 메뉴 그룹별 게시판 — 그룹 이름·순서는 메뉴 구성이 정한다. 하위 그룹은 평평하게 펴지 않고 상위 그룹 아래 소제목으로 둔다.
+                 그룹 제목·게시판 이름의 글자 색·굵게·배지는 다른 메뉴와 같은 `AppMenuItemLabel`(기본이면 제목의 흐린 색 그대로). 왼쪽 글자 칸(●의 표시색)은 그대로다 -->
             <section v-for="section in sections" :key="section.key" class="mt-5" :aria-labelledby="section.title ? `${uid}-${section.key}` : undefined">
-                <h2 v-if="section.title" :id="`${uid}-${section.key}`" class="text-xs font-normal text-muted-color">{{ localizedName(section.title, section.titleEn) }}</h2>
+                <h2 v-if="section.title" :id="`${uid}-${section.key}`" class="text-xs font-normal text-muted-color">
+                    <AppMenuItemLabel v-if="section.group" :node="section.group" />
+                    <template v-else>{{ localizedName(section.title, section.titleEn) }}</template>
+                </h2>
                 <template v-for="block in section.blocks" :key="block.key">
-                    <h3 v-if="block.group" class="mt-3 text-xs font-normal text-muted-color">{{ localizedName(block.group.label, block.group.nameEn) }}</h3>
+                    <h3 v-if="block.group" class="mt-3 text-xs font-normal text-muted-color"><AppMenuItemLabel :node="block.group" /></h3>
                     <ul class="m-0 mt-1 list-none divide-y divide-surface-200 p-0 dark:divide-surface-800">
                         <li v-for="row in block.items" :key="row.key">
                             <NuxtLink
@@ -57,7 +61,7 @@
                                     {{ UtilBoard.iconText(localizedName(row.node.label, row.node.nameEn)) }}
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block font-medium">{{ localizedName(row.node.label, row.node.nameEn) }}</span>
+                                    <span class="block font-medium"><AppMenuItemLabel :node="row.node" /></span>
                                     <span class="block truncate text-xs text-muted-color">{{ summary(row.node.board?.slug) }}</span>
                                 </span>
                                 <i class="pi pi-angle-right text-muted-color" aria-hidden="true" />

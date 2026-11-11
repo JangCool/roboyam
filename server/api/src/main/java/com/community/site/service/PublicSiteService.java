@@ -113,7 +113,7 @@ public class PublicSiteService implements CacheReloader {
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
                 SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current(), operators.footerNotice()));
-        SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL));
+        SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, fingerprint(info + "|" + themeView, manifest, ogCustom));
@@ -125,11 +125,11 @@ public class PublicSiteService implements CacheReloader {
                 notice.scope().name(), notice.businessApply());
     }
 
-    /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME) */
+    /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME · 메뉴 글자 기본 굵게는 테마의 처음 값) */
     private static SiteThemeResponse themeView(String theme, SiteThemeMenu m) {
         SiteThemeMenu.Style s = m.style();
         return new SiteThemeResponse(theme, m.menuPosition(), m.topItems(), m.barGroupIds(), m.menuWidth(), m.menuOverflow(), s.menuGroupStyle(),
-                s.sideGroupStyle(), s.menuSize(), s.mobileMenu(), s.menuDescription(), s.stickyMenu(), s.mobileHeader());
+                s.sideGroupStyle(), s.menuSize(), s.mobileMenu(), s.menuDescription(), s.stickyMenu(), s.mobileHeader(), m.menuBold());
     }
 
     /** 이름은 사이트 이름, 아이콘은 올린 192·512 PNG 또는 기본 SVG 아이콘 — 같은 서버가 서빙하는 주소라 상대 주소 그대로 둔다 */

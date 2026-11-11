@@ -14,8 +14,12 @@ import tools.jackson.databind.JsonNode;
  * @param targetType  항목의 연결 유형. 폴더는 선택 연결(null·빈 값 = 연결 없음 — 나머지 연결 칸과 {@code linkClick} 은 버린다)
  * @param linkClick   연결이 있는 폴더의 상단 탭 동작 {@code NAVIGATE_OPEN}(빠지면 이것) · {@code NAVIGATE}. 항목·연결 없는 폴더는 무시한다
  * @param shortcut    바로가기({@code BOARD} 항목만, 빠지면 false — menu-shortcut-contract). 폴더는 무시한다
+ * @param textColor   글자 색 — null·빈 값 = 기본, 12색 키({@code BoardFields.COLORS}) 또는 {@code #RRGGBB}(소문자는 대문자로 정리). 그 밖 400 {@code textColor}
+ * @param bold        굵게(빠지면 false)
+ * @param badge       이름 옆 배지 글자 — 앞뒤 공백 정리, 빈 값 = 없음, 4자 초과·제어 문자 400 {@code badge}
  */
 public record MenuNodeRequest(String id, String kind, String label, String nameEn, Boolean visible, String audience, String minGrade, Boolean collapsible,
                               Boolean collapsed, Boolean autoAdd, List<MenuNodeRequest> children, String targetType, String targetId, String targetKey,
-                              JsonNode settings, Boolean mobileTab, String divider, String description, String linkClick, Boolean shortcut) {
+                              JsonNode settings, Boolean mobileTab, String divider, String description, String linkClick, Boolean shortcut,
+                              String textColor, Boolean bold, String badge) {
 }

@@ -25,7 +25,7 @@ public final class GadgetStyles {
     public static final List<String> CARD_LOOKS = List.of("DEFAULT", "FLAT", "OUTLINE", "TINT");
     public static final List<String> MOBILE_FOLDS = List.of("NONE", "OPEN", "CLOSED");
     /** 색 프리셋 12색 — user-web {@code UtilColor.PRESET_NAMES} 와 같은 이름 */
-    public static final List<String> COLOR_PRESETS = List.of("BLUE", "TEAL", "AMBER", "PURPLE", "GREEN", "ORANGE", "SLATE", "RED", "PINK", "INDIGO", "SKY", "BROWN");
+    public static final List<String> COLOR_PRESETS = List.of("BLUE", "TEAL", "AMBER", "PURPLE", "GREEN", "ORANGE", "SLATE", "RED", "PINK", "INDIGO", "SKY", "BROWN", "EMERALD");
     public static final int SUBTITLE_MAX = 40;
     public static final int EMPTY_TEXT_MAX = 40;
     /** PrimeIcons 이름 — 가장 긴 것이 49자(pi-arrow-up-right-and-arrow-down-left-from-center)라 60자까지 */

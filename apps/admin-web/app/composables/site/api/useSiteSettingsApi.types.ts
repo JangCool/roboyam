@@ -141,6 +141,8 @@ export interface SiteThemeResponse {
     menuStyle: SiteMenuStyleSetting;
     /** 테마 id → 그 테마의 메뉴 모양 기본값(「테마 기본(…)」 안내용) */
     themeMenuStyleDefaults: Record<string, SiteMenuStyle>;
+    /** 메뉴 글자 기본 굵게(V187 — 켬·끔, 테마 기본 따름 없음). 켜면 메뉴 막대 글자가 기본으로 굵고, 끄면 얇고 메뉴 항목의 「굵게」만 굵다. 처음 값은 다음 테마만 켬 */
+    menuBold: boolean;
     /** 사이트 설정의 공개 주소(설치 때 정한 값) — 빌드한 화면의 「실제 화면」 iframe 이 이 주소를 띄운다(`useUserWebOrigin`). 정하지 않았으면 null */
     publicUrl: string | null;
 }
@@ -150,7 +152,7 @@ export interface SiteThemeRequest {
 }
 
 /** 테마 하나의 메뉴 설정(운영자 값) — `PUT /api/admin/site/themes/{id}/menu` 본문(칸 전부). 테마마다 따로 둔다(사용자 결정 2026-10-28) */
-export type SiteThemeMenuFields = Pick<SiteThemeResponse, 'menuPosition' | 'topItems' | 'barGroupIds' | 'menuWidth' | 'menuOverflow' | 'menuStyle'>;
+export type SiteThemeMenuFields = Pick<SiteThemeResponse, 'menuPosition' | 'topItems' | 'barGroupIds' | 'menuWidth' | 'menuOverflow' | 'menuStyle' | 'menuBold'>;
 
 /**
  * 메뉴 모양 칸 → 고를 수 있는 값(user-web `UtilMenuPosition` 의 `MENU_STYLE_VALUES` 와 같은 값, 사용자 결정 2026-10-28 — 예전에는 테마 선언에 고정).

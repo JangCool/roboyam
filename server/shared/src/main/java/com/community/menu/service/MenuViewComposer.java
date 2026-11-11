@@ -77,7 +77,7 @@ public class MenuViewComposer {
                 List<MenuNodeView> children = filter(node.children(), side, context, tabs);
                 if (!children.isEmpty()) {
                     MenuGroupNodeView group = MenuGroupNodeView.of(idOf(node), node.label() == null ? "" : node.label(), node.nameEn(), node.collapsible(),
-                            node.collapsible() && node.collapsed(), node.divider(), children);
+                            node.collapsible() && node.collapsed(), node.divider(), children, node.textColor(), node.bold(), node.badge());
                     ResolvedTarget link = folderLink(node, context);
                     out.add(link == null ? group : group.withLink(link.path(), link.newTab(), link.extra(),
                             node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick()));
@@ -101,7 +101,8 @@ public class MenuViewComposer {
             MenuBoardView boardView = board == null ? null : new MenuBoardView(Long.toString(board.id()), board.slug(), board.color(), board.investmentNotice());
             String key = "BUILTIN".equals(node.targetType()) ? node.targetKey() : null;
             out.add(new MenuItemNodeView(id, MenuNode.ITEM, node.targetType(), key, label, nameEn, target.path(), target.matchPrefix(), target.newTab(), mobileTab,
-                    boardView, target.extra(), node.divider(), node.description(), node.shortcut()));
+                    boardView, target.extra(), node.divider(), node.description(), node.shortcut(), node.textColor(), node.bold(),
+                    node.badge()));
         }
         return out;
     }

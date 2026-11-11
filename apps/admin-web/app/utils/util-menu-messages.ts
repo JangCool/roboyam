@@ -27,7 +27,7 @@ export default class UtilMenuMessages {
     static problem(t: Translate, code: AdminMenuProblemCode): string {
         if (code.startsWith('PATH_')) return t(`menuConfig.problem.${code}`, { max: UtilMenu.LIMITS.pathMax });
         if (code.startsWith('HREF_')) return t(`menuConfig.problem.${code}`, { max: UtilMenu.LIMITS.hrefMax });
-        return t(`menuConfig.problem.${code}`, { max: UtilMenu.LIMITS.labelMax, maxEn: UtilMenu.LIMITS.nameEnMax });
+        return t(`menuConfig.problem.${code}`, { max: UtilMenu.LIMITS.labelMax, maxEn: UtilMenu.LIMITS.nameEnMax, badge: UtilMenu.LIMITS.badgeMax });
     }
 
     /** 트리 전체 문제 → 문구 */

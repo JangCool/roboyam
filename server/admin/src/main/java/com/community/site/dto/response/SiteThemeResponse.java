@@ -12,12 +12,13 @@ import java.util.Map;
  * @param themes                    고를 수 있는 테마 id(보일 순서)
  * @param menuTheme                 아래 메뉴 설정 칸이 어느 테마의 것인가
  * @param menuStyle                 메뉴 모양 7칸
+ * @param menuBold                  메뉴 글자 기본 굵게(V187 — 켬·끔, 테마 기본 따름 없음)
  * @param themeMenuDefaults         테마 id → 그 테마의 메뉴 위치 기본값(「테마 기본(…)」 안내용, 아래 넷도 같다)
  * @param themeMenuStyleDefaults    테마 id → 그 테마의 메뉴 모양 기본값
  * @param publicUrl                 사이트 설정의 공개 주소(설치 때 정한 값) — 「실제 화면」 iframe 이 이 주소를 띄운다. 정하지 않았으면 null
  */
 public record SiteThemeResponse(String theme, List<String> themes, String menuTheme, String menuPosition, String topItems, List<String> barGroupIds,
-                                String menuWidth, String menuOverflow, SiteThemeMenu.Style menuStyle, Map<String, String> themeMenuDefaults,
+                                String menuWidth, String menuOverflow, SiteThemeMenu.Style menuStyle, boolean menuBold, Map<String, String> themeMenuDefaults,
                                 Map<String, String> themeTopItemsDefaults, Map<String, String> themeMenuWidthDefaults,
                                 Map<String, String> themeMenuOverflowDefaults, Map<String, SiteThemeMenu.Style> themeMenuStyleDefaults,
                                 String publicUrl) {

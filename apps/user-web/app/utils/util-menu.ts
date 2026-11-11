@@ -2,6 +2,8 @@ import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
 import UtilBoard from '~/utils/util-board';
+import type { ColorStyle } from '~/utils/util-board';
+import UtilColor from '~/utils/util-color';
 import type { MenuBarScope, TopItemsPosition } from '~/utils/util-menu-position';
 
 /**
@@ -164,6 +166,16 @@ function readDivider(raw: Record<string, unknown>): MenuDivider | null {
     return raw.divider === 'BEFORE' || raw.divider === 'AFTER' ? raw.divider : null;
 }
 
+/** 배지 글자 한도(코드포인트) — 서버 `menu_nodes.badge` 와 같다 */
+const BADGE_MAX = 4;
+
+/** 서버가 준 배지 — 앞뒤 공백을 걷고 비면 null, 한도를 넘으면 잘라 읽는다(서버가 이미 막지만 줄이 깨지지 않게) */
+function readBadge(raw: unknown): string | null {
+    if (typeof raw !== 'string') return null;
+    const text = Array.from(raw.trim()).slice(0, BADGE_MAX).join('');
+    return text === '' ? null : text;
+}
+
 /** 개발 미리보기 `?divider=이름:before|after,…` 를 이 탭에 기억하는 저장 키 */
 const DIVIDER_PREVIEW_KEY = 'roboyam:menu-divider-preview';
 
@@ -219,6 +231,9 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
             collapsible,
             collapsed: collapsible && raw.collapsed === true,
             divider: readDivider(raw),
+            textColor: UtilColor.normalize(raw.textColor),
+            bold: raw.bold === true,
+            badge: readBadge(raw.badge),
             children,
         };
     }
@@ -240,6 +255,9 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
             extra: isRecord(raw.extra) ? raw.extra : null,
             divider: readDivider(raw),
             description: typeof raw.description === 'string' && raw.description.trim() !== '' ? raw.description.trim() : null,
+            textColor: UtilColor.normalize(raw.textColor),
+            bold: raw.bold === true,
+            badge: readBadge(raw.badge),
         };
     }
     return null;
@@ -824,14 +842,56 @@ export default class UtilMenu {
     }
 
     /**
+     * 메뉴 이름에 칠할 글자 색(운영자 「글자 색」) — 12색은 표의 라이트·다크 짝, `#RRGGBB` 는 라이트·다크 바탕에서 읽히게 **명도만** 보정한 짝(`UtilColor.cssPair` → `light-dark()`).
+     * 이름 앞 점(●)의 게시판 표시색과 따로다. 기본(null)이면 undefined — 줄 클래스의 색(지금 있는 곳 `text-primary`·hover)을 그대로 따른다.
+     * 색을 고른 줄은 지금 있는 곳이어도 이 색을 유지한다 — 지금 있는 곳 표시는 줄 바탕·밑줄·굵기가 맡는다.
+     * @param {Pick<MenuItemNode, 'textColor'>} node - 메뉴 항목.
+     * @returns {ColorStyle | undefined} 글자색 스타일.
+     */
+    static textStyle(node: Pick<MenuItemNode, 'textColor'>): ColorStyle | undefined {
+        const pair = UtilColor.cssPair(node.textColor);
+        return pair ? { color: pair } : undefined;
+    }
+
+    /**
+     * 메뉴 이름의 굵기 클래스(운영자 「강조 › 굵게」) — 굵게면 `font-semibold`(600, 지금 있는 곳 줄과 같은 굵기).
+     * @param {Pick<MenuItemNode, 'bold'>} node - 메뉴 항목.
+     * @returns {string} 클래스 문자열(굵게가 아니면 빈 문자열).
+     */
+    static labelClass(node: Pick<MenuItemNode, 'bold'>): string {
+        return node.bold === true ? 'font-semibold' : '';
+    }
+
+    /** 이름 뒤 배지(알약)의 클래스 — 글자 11px · 위아래 대칭 여백 · 줄 높이 1(components.md 2-4). 안쪽 글자는 `top-[-0.09em]` 으로 한글 내려앉음을 보정한다 */
+    static readonly BADGE_CLASS = 'ml-1.5 inline-flex shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none';
+
+    /** 좁은 칸(모바일 상단 탭·로고 옆 링크)의 작은 배지 — 글자 10px · 여백을 줄여 줄 높이를 거의 늘리지 않는다. 칸이 `whitespace-nowrap`·`shrink-0` 이라 줄바꿈 없이 옆으로 민다 */
+    static readonly BADGE_COMPACT_CLASS = 'ml-1 inline-flex shrink-0 items-center justify-center rounded-full px-1 py-px text-[10px] font-semibold leading-none';
+
+    /**
+     * 이름 뒤 배지의 색 — 배지 색 = 글자 색: 바탕은 그 색 14% + 카드 바탕, 글자는 그 바탕 위에서 4.5:1 이 되게 보정한 색(말머리 태그와 같은 식, `UtilBoard.tagStyle`).
+     * 글자 색이 기본(null)이면 주 색(`--p-primary-color`)으로 같은 식을 쓴다.
+     * @param {Pick<MenuItemNode, 'textColor'>} node - 메뉴 항목.
+     * @returns {ColorStyle} 배지 스타일.
+     */
+    static badgeStyle(node: Pick<MenuItemNode, 'textColor'>): ColorStyle {
+        const pair = UtilColor.cssPair(node.textColor);
+        const text = UtilColor.cssTagText(node.textColor);
+        if (pair && text) return { '--menu-badge-c': pair, color: text, background: 'color-mix(in srgb, var(--menu-badge-c) 14%, var(--p-content-background))' };
+        return { color: 'var(--p-primary-color)', background: 'color-mix(in srgb, var(--p-primary-color) 14%, var(--p-content-background))' };
+    }
+
+    /**
      * 상단 가로 막대 한 칸의 클래스 — 높이를 고정(2.5rem)해 막대 높이가 글자 크기에 흔들리지 않고, 활성은 아래 줄로 표시한다.
      * @param {boolean} active - 지금 보고 있는 곳인가.
+     * @param {boolean} [bold=false] - 메뉴 글자 기본 굵게(테마 메뉴 설정 `menuBold`)인가 — 켜면 칸이 모두 700(활성 포함), 끄면 활성만 600.
      * @returns {string} 클래스 문자열(다크 모드 포함).
      */
-    static barItemClass(active: boolean): string {
+    static barItemClass(active: boolean, bold = false): string {
         return [
             'flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
-            active ? 'border-primary font-semibold text-color' : 'border-transparent text-muted-color hover:text-color',
+            bold ? 'font-bold' : active ? 'font-semibold' : '',
+            active ? 'border-primary text-color' : 'border-transparent text-muted-color hover:text-color',
         ].join(' ');
     }
 }

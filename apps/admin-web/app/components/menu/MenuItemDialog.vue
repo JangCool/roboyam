@@ -4,7 +4,7 @@
         종류는 게시판 · 사이트 화면(목록에서 고르기 `BUILTIN` / 주소 직접 입력 `PATH` — 화면에서만 하나로 합쳤다) · 외부 링크(`UtilMenu.TARGET_KINDS`).
         수정할 때도 [종류 바꾸기]로 ①에 돌아가 다른 종류를 고를 수 있다 — 대상 칸만 비우고 이름·보이는 대상·탭·구분선·설명은 그대로 둔다(`UtilMenu.retarget`). 같은 종류를 다시 고르면 고친 값 그대로 ②로 돌아간다.
         대상 고르기는 `MenuTargetPicker`(이 그룹에 이미 있는 게시판·앱 화면은 비활성 + 「○○ 폴더에 있음」).
-        칸: 이름(게시판·목록의 사이트 화면은 비우면 대상 이름을 따라간다) · 영문명 · 넣을 곳(추가만) · 표시 여부 · 보이는 대상 · 모바일 탭(SIDE 그룹만) · 구분선 · 설명.
+        칸: 이름(게시판·목록의 사이트 화면은 비우면 대상 이름을 따라간다) · 영문명 · 글자 색·강조(`MenuTextStyleField`) · 넣을 곳(추가만) · 표시 여부 · 보이는 대상 · 모바일 탭(SIDE 그룹만) · 구분선 · 설명.
         로그인이 필요한 앱 화면을 고르면 보이는 대상을 「로그인」으로 바꿔 준다(모두·비로그인으로는 저장할 수 없다).
         목록에서 고른 화면을 「주소 직접 입력」으로 바꾸면 이름이 필수가 되므로, 이름이 비었으면 그 화면 이름을 채운다. [적용]은 트리(저장 전)에만 반영한다.
         바로가기(`shortcut`)는 연결 게시판을 바꿀 수 없다 — 종류 바꾸기·대상 고르기 대신 게시판과 원래 자리만 보이고, 모바일 탭 칸이 없다(이름·영문명·보이기·보이는 대상·구분선·설명은 고친다).
@@ -91,6 +91,16 @@
                 </template>
             </LabeledField>
 
+            <!-- 글자 색 · 강조(굵게 · 배지) — 서버 칸 오류(`…textColor`·`…badge`)도 칸 아래 -->
+            <MenuTextStyleField
+                v-model:text-color="form.textColor"
+                v-model:bold="form.bold"
+                v-model:badge="form.badge"
+                :sample-name="form.label.trim() ? localizedName(form.label.trim(), form.nameEn.trim() || null) : targetName"
+                :text-color-error="errorOf('textColor') || (serverErrors.textColor ?? '')"
+                :badge-error="errorOf('badge') || (serverErrors.badge ?? '')"
+            />
+
             <div class="flex items-center gap-2">
                 <ToggleSwitch v-model="form.visible" :input-id="`${formId}-visible`" />
                 <label :for="`${formId}-visible`" class="cursor-pointer text-sm">{{ t('menuConfig.field.visible') }}</label>
@@ -146,9 +156,11 @@ interface Props {
     editTopLevel?: boolean;
     /** 바로가기를 고칠 때 원래 자리 안내(「원래 자리: 커뮤니티」) — 그 밖에는 빈 글자 */
     shortcutOrigin?: string;
+    /** 지난 저장에서 서버가 이 항목에 준 칸 오류(칸 이름 → 문구, `UtilMenuTree.splitFieldErrors`) — 글자 색·배지 칸 아래에 보인다 */
+    serverErrors?: Record<string, string>;
 }
 
-const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0, editTopLevel: true, shortcutOrigin: '' });
+const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0, editTopLevel: true, shortcutOrigin: '', serverErrors: () => ({}) });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'save', item: MenuEditItem, parentKey: string | null): void }>();
 
 const { t } = useI18n();
@@ -252,6 +264,8 @@ function apply() {
             path: value.path.trim(),
             href: value.href.trim(),
             description: value.description.trim(),
+            textColor: UtilMenu.normalizeTextColor(value.textColor),
+            badge: value.badge.trim(),
             minGrade: value.audience === 'GRADE_MIN' ? value.minGrade : null,
             mobileTab: side.value && value.mobileTab && !value.shortcut,
             newTab: value.targetType === 'PATH' || value.targetType === 'URL' ? value.newTab : false,

@@ -9,6 +9,7 @@
  *  - 메뉴 모양 7칸(사용자 결정 2026-10-28, 칸마다 기본 `THEME` — 뜻은 `UtilMenuPosition` 의 `MENU_STYLE_VALUES`, `UtilMenuPosition.readSiteStyle`):
  *    `menuGroupStyle`(`TABS`·`INLINE`) · `sideGroupStyle`(`COLUMN`·`PICK`) · `menuSize`(`NORMAL`·`COMPACT`) · `mobileMenu`(`PICKED`·`MENU`) ·
  *    `menuDescription`(`ON`·`OFF`) · `stickyMenu`(`ON`·`OFF`) · `mobileHeader`(`BRAND`·`PLAIN`)
+ *  - `menuBold` 메뉴 막대 글자 기본 굵게(V187, 켬·끔 — 서버가 테마의 처음 값까지 채워 준다: 다음 테마만 켬). 끄면 얇고 메뉴 항목의 「굵게」만 굵다. 없으면 끔
  */
 export interface ThemeResponse {
     theme: string;
@@ -24,4 +25,5 @@ export interface ThemeResponse {
     menuDescription?: string;
     stickyMenu?: string;
     mobileHeader?: string;
+    menuBold?: boolean;
 }

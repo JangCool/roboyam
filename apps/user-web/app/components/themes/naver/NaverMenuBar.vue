@@ -2,6 +2,7 @@
     <!--
         네이버식 탭 바(데스크톱 전용, 창 위에 붙는다) — 주 색상 바(`.app-nav`, 높이 50) 위에 최상위 그룹마다 "그룹 이름(작은 글자) + 직속 칸 탭". 탭은 바 아래에 붙는다.
         활성 탭은 흰 글자 굵게 + 3px 흰 밑줄(위쪽만 둥글게), 비활성은 흰 글자 82%. 그룹 안의 하위 그룹은 드롭다운(`AppTopMenuDropdown`).
+        항목 이름의 글자 색·굵게·배지는 다른 메뉴와 같은 `AppMenuItemLabel` — 「굵게」는 비활성 탭(500)에서만 600 으로, 활성 탭(800)은 그 굵기 그대로(`keep-weight`). 고른 글자 색은 활성·hover 에서도 유지된다.
         최상위 항목(홈·공동구매 …)은 「로고 옆」(테마 기본)이면 윗줄의 작은 링크(`AppLogoLinks`)이고, 「메뉴 안」이면 이 바 맨 앞에 제목 없이 탭으로 온다.
         구역 구조는 `AppTopMenu` 와 같은 `useMenuItems('bar')`(섞인 배치면 상단 띠 그룹만, `UtilMenu.split`)이고 겉모양만 다르다. 로딩·오류 안내는 사이드가 없을 때만 여기서 그린다.
         넘치면 옆으로 밀고 활성 칸을 가운데로 끌어온다. 모바일은 테마 공통 셸이 맡는다(md 미만에서 숨는다).
@@ -36,10 +37,10 @@
                                     :aria-current="entry.row.active ? 'page' : undefined"
                                 >
                                     <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                    <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
+                                    <AppMenuItemLabel :node="entry.row.node" :keep-weight="entry.row.active || menuBold" />
                                 </AppMenuLink>
                                 <!-- 활성 표시(`data-active`)는 드롭다운 단추가 스스로 단다 -->
-                                <AppTopMenuDropdown v-else :entry="entry" :button-class="tabClass(entry.active)" />
+                                <AppTopMenuDropdown v-else :entry="entry" :button-class="tabClass(entry.active)" :keep-weight="entry.active || menuBold" />
                             </li>
                         </ul>
                     </section>
@@ -70,13 +71,16 @@ const { row, scroller } = useScrollRowRef();
 /** 칸을 그릴 수 있는가 — 받는 중·빈 메뉴는 상태 자리만 */
 const showEntries = computed(() => state.value !== 'loading' && state.value !== 'empty');
 
-/** 탭 한 칸 — 16.5px · 패딩 12/10/13. 활성은 굵게(800) + 3px 밑줄(좌우 패딩만큼 들임, 위쪽만 둥글게) */
+/** 메뉴 글자 기본 굵게(테마 메뉴 설정 `menuBold`, V187) — 켜면 비활성 탭도 굵게(700)이고 이름은 그 굵기를 그대로 받는다(`keep-weight`) */
+const { menuBold } = useMenuStyle();
+
+/** 탭 한 칸 — 16.5px · 패딩 12/10/13. 활성은 굵게(800) + 3px 밑줄(좌우 패딩만큼 들임, 위쪽만 둥글게), 비활성은 500(메뉴 글자 기본 굵게면 700) */
 function tabClass(active: boolean): string {
     return [
         'relative flex shrink-0 items-center gap-1.5 px-2.5 pb-[13px] pt-3 text-[16.5px] leading-6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
         active
             ? 'font-extrabold text-nav-fg after:absolute after:inset-x-2.5 after:bottom-0 after:h-[3px] after:rounded-t-[3px] after:bg-nav-fg'
-            : 'font-medium text-nav-tab hover:text-nav-fg',
+            : `${menuBold.value ? 'font-bold' : 'font-medium'} text-nav-tab hover:text-nav-fg`,
     ].join(' ');
 }
 
