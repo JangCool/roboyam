@@ -1527,7 +1527,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": null,
+      "color": "EMERALD",
       "prefixes": [
         {
           "name": "고민",
