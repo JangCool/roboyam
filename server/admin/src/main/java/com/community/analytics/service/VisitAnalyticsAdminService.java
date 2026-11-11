@@ -9,6 +9,7 @@ import com.community.analytics.dto.VisitAnalyticsAdmin.Range;
 import com.community.analytics.repository.master.VisitAnalyticsStore;
 import com.community.analytics.settings.StatsCollection;
 import com.community.analytics.settings.StatsCollectionSettings;
+import com.community.analytics.store.VisitPeriods;
 import com.community.dashboard.repository.master.DashboardAnalyticsStore.Name;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -18,6 +19,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -87,7 +89,11 @@ public class VisitAnalyticsAdminService {
     static final List<String> SCREENS = List.of("W480", "W768", "W1024", "W1440", "WIDE");
     static final List<String> BOT_KINDS = List.of("GOOGLE", "NAVER", "BING", "DAUM", "OTHER_CRAWLER", "TOOL");
     static final int SEARCH_TERMS = 20;
+    /** 월별 보기 — 한 번에 볼 수 있는 달 수 · 많이 본 페이지 수 */
+    static final int MAX_MONTHS = 36;
+    static final int MONTHLY_PAGES = 10;
     private static final Pattern CONTROL = Pattern.compile("[\\p{Cntrl}\\s]");
+    private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
 
     private final VisitAnalyticsStore store;
     private final VisitPageTitles titles;
@@ -95,6 +101,7 @@ public class VisitAnalyticsAdminService {
     private final Messages messages;
     private final Clock clock;
     private final VisitResultCache cache;
+    private final VisitUniqueCounts uniqueCounts;
 
     /** 시계는 {@code Clock} 빈이 하나면 그것(없으면 UTC 시스템 시계) — 다른 서비스와 같은 주입 방식 */
     @Autowired
@@ -111,6 +118,7 @@ public class VisitAnalyticsAdminService {
         this.messages = messages;
         this.clock = clock;
         this.cache = new VisitResultCache(clock);
+        this.uniqueCounts = new VisitUniqueCounts(store);
     }
 
     /** 결과 캐시(시험·점검용) */
@@ -583,6 +591,103 @@ public class VisitAnalyticsAdminService {
         }
         return new VisitAnalyticsAdmin.Bots(p.range(), asOf(at), collectMore(s), new VisitAnalyticsAdmin.BotCounts(todayBots, humansToday),
                 new VisitAnalyticsAdmin.BotCounts(totalBots, humansRange), kindRows, series);
+    }
+
+    // ── 3단계 — 주·월 순방문자 ───────────────────────────────────────────────
+
+    /**
+     * 기간 없음(오늘 기준) — 방문자·회원의 이번/지난 주·달, 같은 시점까지, 최근 12주·12개월({@link VisitUniqueCounts}). 수집({@code visits})이 꺼져 있으면 숫자 표를 읽지 않고
+     * 모든 수가 null(화면은 「수집이 꺼져 있어요」). 키 = 오늘 날짜 + 수집 스위치 + 언어.
+     */
+    public VisitAnalyticsAdmin.Uniques uniques() {
+        StatsCollection s = settings.current();
+        LocalDate today = ServiceTime.today(clock);
+        return cache.get(key("uniques", s, today), TTL,
+                at -> new VisitAnalyticsAdmin.Uniques(asOf(at), collect(s), uniqueCounts.audiences(ServiceTime.dateOf(at), s.visitsOn())));
+    }
+
+    // ── 3단계 — 월별 보기 ────────────────────────────────────────────────────
+
+    /**
+     * 달 {@code from}·{@code to}({@code YYYY-MM}, 양끝 포함, 최대 {@value #MAX_MONTHS}개월). 비었거나·형식·{@code from > to}·개월 초과 = 400 {@code fields.from},
+     * 이번 달 뒤 = 400 {@code fields.to}. 수집 스위치가 꺼져 있어도 쌓인 숫자를 준다(사용자 결정 ⓐ — {@code collect} 는 그대로, 화면이 안내만).
+     * 합친 달(analytics_monthly_rollups 에 있고 이번 달·1~2일의 지난달이 아닌 달)은 월별 표, 나머지 달은 일별·시간별 표를 더해 채운다.
+     */
+    public VisitAnalyticsAdmin.Monthly monthly(String fromText, String toText) {
+        YearMonth from = month(fromText);
+        YearMonth to = month(toText);
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        if (from == null || to == null || from.isAfter(to) || ChronoUnit.MONTHS.between(from, to) + 1 > MAX_MONTHS) {
+            fields.put("from", new MessageRef("analytics.visits.months.invalid", MAX_MONTHS));
+        } else if (to.isAfter(YearMonth.from(ServiceTime.today(clock)))) {
+            fields.put("to", new MessageRef("analytics.visits.months.future"));
+        }
+        if (!fields.isEmpty()) {
+            throw new ValidationException(fields);
+        }
+        StatsCollection s = settings.current();
+        LocalDate today = ServiceTime.today(clock);
+        return cache.get(key("monthly", s, from, to, today), TTL, at -> computeMonthly(from, to, s, ServiceTime.dateOf(at), at));
+    }
+
+    private VisitAnalyticsAdmin.Monthly computeMonthly(YearMonth from, YearMonth to, StatsCollection s, LocalDate today, Instant at) {
+        LocalDate first = from.atDay(1);
+        LocalDate last = to.atDay(1);
+        LocalDate thisMonth = today.withDayOfMonth(1);
+        LocalDate lastMonth = thisMonth.minusMonths(1);
+        Set<LocalDate> rolledRows = store.rolledMonths(first, last);
+        List<LocalDate> rolled = new ArrayList<>();
+        List<LocalDate> open = new ArrayList<>();
+        for (LocalDate m = first; !m.isAfter(last); m = m.plusMonths(1)) {
+            // 이번 달 · 1~2일의 지난달(크론이 덮어써 다시 합치는 중) · 합친 기록이 없는 달은 일별·시간별에서
+            boolean fresh = m.equals(thisMonth) || (m.equals(lastMonth) && today.getDayOfMonth() <= 2) || !rolledRows.contains(m);
+            (fresh ? open : rolled).add(m);
+        }
+        Map<LocalDate, long[]> visits = new HashMap<>();
+        store.visitMonths(rolled).forEach(v -> visits.put(v.month(), new long[] {v.visitorsDailySum(), v.newVisitors(), v.pageViews()}));
+        for (LocalDate m : open) {
+            visits.put(m, store.hourTotals(startOf(m), startOf(m.plusMonths(1))));
+        }
+        Map<String, LocalDate> firstDays = uniqueCounts.firstDays();
+        Map<LocalDate, Long> visitorMau = uniqueCounts.months(VisitPeriods.VISITOR, first, last, firstDays);
+        Map<LocalDate, Long> memberMau = uniqueCounts.months(VisitPeriods.MEMBER, first, last, firstDays);
+        List<VisitAnalyticsAdmin.MonthlyPoint> months = new ArrayList<>();
+        long sum = 0;
+        long newSum = 0;
+        long viewSum = 0;
+        for (LocalDate m = first; !m.isAfter(last); m = m.plusMonths(1)) {
+            long[] v = visits.getOrDefault(m, new long[3]);
+            sum += v[0];
+            newSum += v[1];
+            viewSum += v[2];
+            months.add(new VisitAnalyticsAdmin.MonthlyPoint(YearMonth.from(m).toString(), v[0], v[1], v[2], visitorMau.get(m), memberMau.get(m), m.equals(thisMonth)));
+        }
+        List<VisitAnalyticsStore.PageRank> ranks = store.monthPages(rolled, open, MONTHLY_PAGES);
+        Map<String, Name> names = titles.resolve(ranks.stream().map(VisitAnalyticsStore.PageRank::path).toList());
+        List<PageRow> pages = ranks.stream().map(r -> pageRow(r.path(), r.kind(), r.views(), names)).toList();
+        long pagesTotal = ranks.isEmpty() ? 0 : ranks.get(0).totalViews();
+        Map<String, Long> byGroup = new HashMap<>();
+        store.monthReferrerGroups(rolled, open).forEach(c -> byGroup.merge(c.key(), c.count(), Long::sum));
+        List<GroupCount> groups = groups(byGroup);
+        long referrerTotal = groups.stream().mapToLong(GroupCount::visits).sum();
+        return new VisitAnalyticsAdmin.Monthly(new VisitAnalyticsAdmin.MonthRange(from.toString(), to.toString()), asOf(at), collect(s),
+                new VisitAnalyticsAdmin.MonthlyTotals(sum, newSum, viewSum), months, pages, pagesTotal,
+                new VisitAnalyticsAdmin.MonthlyReferrers(referrerTotal, referrerTotal == 0 ? List.of() : groups));
+    }
+
+    private static YearMonth month(String text) {
+        if (blank(text)) {
+            return null;
+        }
+        String v = text.strip();
+        if (!MONTH.matcher(v).matches()) {
+            return null;
+        }
+        try {
+            return YearMonth.parse(v);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     /** 정해진 키 모두(없으면 0) — 키 차례 그대로 */

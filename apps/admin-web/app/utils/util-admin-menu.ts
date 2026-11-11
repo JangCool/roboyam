@@ -117,6 +117,8 @@ export default class UtilAdminMenu {
             labelKey: 'menu.visitStats',
             items: [
                 { key: 'visitOverview', to: '/analytics/visits', icon: 'pi pi-chart-line', labelKey: 'menu.visitOverview', permission: 'site.read' },
+                // 3단계 월별 보기(사용자 결정 2026-11-11 — 개요 바로 아래)
+                { key: 'visitMonthly', to: '/analytics/visits/monthly', icon: 'pi pi-calendar', labelKey: 'menu.visitMonthly', permission: 'site.read' },
                 { key: 'visitPages', to: '/analytics/visits/pages', icon: 'pi pi-file', labelKey: 'menu.visitPages', permission: 'site.read' },
                 { key: 'visitReferrers', to: '/analytics/visits/referrers', icon: 'pi pi-directions', labelKey: 'menu.visitReferrers', permission: 'site.read' },
                 { key: 'visitFlows', to: '/analytics/visits/flows', icon: 'pi pi-sitemap', labelKey: 'menu.visitFlows', permission: 'site.read' },

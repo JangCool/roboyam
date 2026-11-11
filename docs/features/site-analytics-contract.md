@@ -228,6 +228,20 @@
 - **화면(목업 — 확정 전)**: 「방문자 통계 › 개요」 순방문자 카드(방문자/회원, 이번 주·지난 주·이번 달·지난 달, 같은 시점 증감, 12주·12개월 막대) · 대시보드 「방문 현황」 한 줄 · 새 화면 `/analytics/visits/monthly` 「월별 보기」(메뉴 없음, 개요 추이 카드 링크). 목업 API 모양의 원천 = `apps/admin-web/app/composables/analytics/api/useVisitAnalyticsApi.types.ts` 3단계 주석(`GET …/visits/uniques` · `GET …/visits/monthly?from=YYYY-MM&to=YYYY-MM` · 대시보드 `VISITORS.visitorsThisWeek`·`visitorsThisMonth`). 지울 곳: `mock/visit-analytics-mock.ts` + `// MOCK:` 줄.
 - 화면 확정 때 정할 것: 월별 보기는 지금 수집 스위치가 꺼지면 지난 숫자도 가린다 — 긴 기간 화면이라 보이게 할지 · 월별 응답에 회원 MAU 를 넣을지 · 월별 보기 메뉴 자리(관리자 메뉴는 DB — 서버 때 admin 마이그레이션).
 
+### 결정 ④ 화면 확정 (2026-11-11 사용자 「이대로 확정」)
+- 화면: 「방문자 통계 › 개요」 순방문자 카드 · 대시보드 「방문 현황」 한 줄 · 「월별 보기」 `/analytics/visits/monthly` — 목업 그대로. 응답 모양의 원천 = `apps/admin-web/app/composables/analytics/api/useVisitAnalyticsApi.types.ts`(`VisitUniques` · `VisitMonthly`) + 대시보드 `VISITORS.visitorsThisWeek`·`visitorsThisMonth`(`number | null`).
+- 사용자 결정: ⓐ 월별 보기는 지금 수집 스위치가 꺼져 있어도 **쌓인 지난 기록을 보인다**(위에 「지금은 수집이 꺼져 있어 이번 달은 늘지 않아요」 안내) · ⓑ 월별 보기에 **회원 MAU 도** 넣는다(`months[].uniqueMembers: number | null`, 방문자/회원 전환) · ⓒ 메뉴 = 「방문자 통계」 묶음의 **개요 바로 아래**(`visitMonthly`, site.read — admin 메뉴 마이그레이션).
+- API(관리자, site.read, 결과 캐시 60초 — 다른 방문 통계와 같게): `GET /api/admin/analytics/visits/uniques`(기간 없음, 오늘 기준) · `GET /api/admin/analytics/visits/monthly?from=YYYY-MM&to=YYYY-MM`(최대 36개월 — 400 규칙은 types 주석). 월별 보기의 아직 합치지 않은 달(이번 달·1~2일의 지난달 — `analytics_monthly_rollups` 에 없는 달)은 일별 표를 더해 채운다.
+
+### 결정 ④ 구현 결과 (2026-11-11 — 컴파일·admin-web 타입 검사만, 시험·DB 적용은 QA 때)
+- 번호: analytics **V8**(표시 표 4개 — `analytics_visitor_{week,month}_marks`(visitor_id uuid) · `analytics_member_{week,month}_marks`(member_id bigint), 모두 `period_start` 범위 파티션 · 숫자 표 `analytics_unique_counts(audience, period_kind, period_start, day, added)`) · 크론 **`R__analytics_16`**(`analytics-period-mark-partitions`, 매일 00:55 — 이번·다음 기간 조각 만들기, 끝나고 3일 지난 조각 DROP) · admin **V9**(메뉴 `visitMonthly` — 메뉴 구성을 저장한 설치에만 개요 뒤에 넣음). 다음 번호: shared V190 · analytics V9 · admin V10 · `R__batch_44` · `R__analytics_17`.
+- 쓰기: 방문자는 그날 새로 넣은 하루 표시만 주·월 표시에 넣고, 회원은 버퍼가 모은 회원 번호를 서버 메모리 「이번 기간에 이미 넣은 회원」(커밋 뒤에만 기억, 종류마다 상한 20만)으로 걸러 넣는다 — 같은 트랜잭션, 모두 `ON CONFLICT DO NOTHING RETURNING`(시스템 칸 없음)·키 차례, 조각 없음(23514)이면 하루·기간 조각을 만들고 한 번 다시.
+- 지우기: 삭제 요청(`R__analytics_13`)이 방문자 주·월 표시를 해시 앞 32자 → uuid 로 지운다(숫자 표는 남김). **회원 탈퇴는 `WithdrawalCompletionService` 가 `AnalyticsMemberMarks` 로 지운다**(계약의 `R__batch_36` 대신 — 분석 DB 를 떼어도 그 DB 에서 지워지게, 표가 아직 없으면 `to_regclass` 로 보고 건너뜀).
+- API: `GET …/visits/uniques`·`GET …/visits/monthly`(types 와 칸 같음, 결과 캐시 60초 — 키에 오늘 날짜) · 대시보드 `VISITORS.visitorsThisWeek`·`visitorsThisMonth`. uniques 는 `visits` 가 꺼져 있으면 수를 null 로 준다(화면이 꺼짐 안내로 덮음). monthly 는 스위치와 상관없이 쌓인 숫자를 준다(결정 ⓐ), 합치지 않은 달은 시간별·일별에서 채운다.
+- 수집 진단 크론 목록에 `analytics-period-mark-partitions` 를 더했다(9개). 화면: 목업을 걷어 내고 실제 API · 월별 보기 방문자/회원 전환(회원일 때 툴팁 셋째 줄 = 로그인 회원 비율) · 꺼짐 안내 · 메뉴 `menu.visitMonthly`(`pi pi-calendar`, 화면 메뉴 표 `util-admin-menu.ts` 에도 한 줄).
+- **QA(2026-11-11)**: 실제 버그 없음 · 새 SQL(V8·`R__analytics_16`·삭제 요청 uuid·admin V9)은 Testcontainers·임시 PostgreSQL 18 에서 적용·동작 확인 · 낡은 시험 3건(`VisitFlushMultiServerTest` — 기간 조각 준비·4인자 실패 주입) 고침 · 새 시험: api `VisitUniqueFlushTest`(서버 3대·주/달 경계·조각 없음 다시 쓰기·회원 메모리) · `VisitPeriodMarkPartitionCronTest`(조각 만들기·DROP 경계·CALL) · `VisitForgetCronTest`(uuid 표시 지우기) · `WithdrawalFlowTest`(탈퇴 때 회원 표시 지우기), admin `VisitUniquesMonthlyServiceTest`(null/0·같은 시점·윤년·월별 섞기·400) · `VisitStage3AdminHttpTest`(403·400·꺼짐) · `DashboardAnalyticsGadgetsTest`(이번 주·이번 달). shared·api·admin 묶음 실패 0. 시험이 없는 것: V9 메뉴 자리(임시 DB 로만 확인). 알려진 점: `WithdrawalFlowTest` 의 기존 「모임장」 시험은 게시판 이름(`id % 1000`)이 겹치면 가끔 실패한다(이번 변경과 무관).
+- QA 때 볼 것: 서버 3대 동시 쓰기에서 방문자·회원 1명 = 1명 · 주(일→월)·달(말일→1일) 경계·조각 없음 다시 쓰기 · 서버 재시작 뒤 같은 회원 두 번 세지 않음 · 삭제 요청·탈퇴 지우기 · 조각 크론 · `previousSamePoint`(31일 → 2월)·null/0 규칙 · 월별 합친 달과 안 합친 달 섞기·스위치 끈 값 · V9 메뉴 자리.
+
 ### 진행 순서·번호(2026-11-11 메모 기준 — 시작할 때 develop 최신에서 다시 확인)
 1. 원본 달 단위(①) · 주소 `{id}`(②) · 핫딜 클릭 정리(⑤) · 판정 표 파티션(⑥) — 화면 변화가 작다.
 2. 일별 13개월 + 월별(③) — 서버 먼저, 「월별 보기」 화면은 목업 확정 뒤.

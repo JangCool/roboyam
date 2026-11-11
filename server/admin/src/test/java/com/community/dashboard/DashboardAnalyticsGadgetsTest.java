@@ -3,6 +3,9 @@ package com.community.dashboard;
 import static com.community.dashboard.SalesPeriodsTest.kst;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.community.analytics.dto.VisitAnalyticsAdmin;
+import com.community.analytics.repository.master.VisitAnalyticsStore;
+import com.community.analytics.service.VisitUniqueCounts;
 import com.community.analytics.store.AnalyticsDatabase;
 import com.community.dashboard.dto.DashboardGadgetQuery;
 import com.community.dashboard.dto.response.gadget.DashboardReferrersView;
@@ -107,6 +110,41 @@ class DashboardAnalyticsGadgetsTest {
         assertThat(v.visitorsToday()).isEqualTo(1);
         assertThat(v.visitorsYesterdaySameTime()).isEqualTo(6);
         assertThat(v.hours()).hasSize(1);
+    }
+
+    @Test
+    void 방문_현황의_이번_주_이번_달_순방문자는_순방문자_카드의_방문자_이번_기간과_같다() {
+        // 3단계 결정 ④ — 실제 생성자(순방문자 숫자 표를 읽는다). 세기 시작일은 숫자 표 전체의 가장 이른 날이라 트랜잭션 안에서 비우고 시작한다(되돌림)
+        jdbc.update("DELETE FROM analytics_unique_counts");
+        Instant now = kst(2096, 6, 13, 15, 0); // 수요일
+        assertThat(LocalDate.of(2096, 6, 13).getDayOfWeek()).isEqualTo(java.time.DayOfWeek.WEDNESDAY);
+        VisitAnalyticsStore visits = new VisitAnalyticsStore(new AnalyticsDatabase(new SingleConnectionDataSource(connection, true), false));
+        VisitorsGadget gadget = new VisitorsGadget(store, visits);
+
+        DashboardVisitorsView none = (DashboardVisitorsView) gadget.load(query(now));
+        assertThat(none.visitorsThisWeek()).as("숫자 표가 비었다 — 집계 전").isNull();
+        assertThat(none.visitorsThisMonth()).isNull();
+
+        String sql = "INSERT INTO analytics_unique_counts (audience, period_kind, period_start, day, added) VALUES (?, ?, ?, ?, ?)";
+        jdbc.update(sql, "VISITOR", "MONTH", Date.valueOf("2096-05-01"), Date.valueOf("2096-05-20"), 40); // 지난달 — 세기 시작
+        jdbc.update(sql, "VISITOR", "WEEK", Date.valueOf("2096-06-04"), Date.valueOf("2096-06-05"), 30); // 지난 주
+        jdbc.update(sql, "VISITOR", "WEEK", Date.valueOf("2096-06-11"), Date.valueOf("2096-06-11"), 5); // 이번 주
+        jdbc.update(sql, "VISITOR", "WEEK", Date.valueOf("2096-06-11"), Date.valueOf("2096-06-13"), 2);
+        jdbc.update(sql, "VISITOR", "MONTH", Date.valueOf("2096-06-01"), Date.valueOf("2096-06-01"), 20); // 이번 달
+        jdbc.update(sql, "VISITOR", "MONTH", Date.valueOf("2096-06-01"), Date.valueOf("2096-06-13"), 3);
+        jdbc.update(sql, "MEMBER", "WEEK", Date.valueOf("2096-06-11"), Date.valueOf("2096-06-12"), 99); // 회원은 이 한 줄에 쓰지 않는다
+        jdbc.update(sql, "MEMBER", "MONTH", Date.valueOf("2096-06-01"), Date.valueOf("2096-06-12"), 99);
+
+        DashboardVisitorsView v = (DashboardVisitorsView) gadget.load(query(now));
+        VisitAnalyticsAdmin.UniquesAudience card = new VisitUniqueCounts(visits).audiences(LocalDate.of(2096, 6, 13), true).get("VISITOR");
+
+        assertThat(v.visitorsThisWeek()).isEqualTo(7L).isEqualTo(card.week().current().count());
+        assertThat(v.visitorsThisMonth()).isEqualTo(23L).isEqualTo(card.month().current().count());
+
+        // 세기 시작 뒤 빈 주는 0(null 아님) — 다음 주 월요일 자정 직후
+        DashboardVisitorsView next = (DashboardVisitorsView) gadget.load(query(kst(2096, 6, 18, 0, 5)));
+        assertThat(next.visitorsThisWeek()).isZero();
+        assertThat(next.visitorsThisMonth()).isEqualTo(23L);
     }
 
     @Test

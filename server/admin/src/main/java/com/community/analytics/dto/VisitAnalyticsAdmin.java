@@ -175,4 +175,45 @@ public final class VisitAnalyticsAdmin {
     /** {@code GET …/visits/requests} — 최신 차례 */
     public record ForgetPage(List<ForgetRequest> items, long total, long pending, long last30Days) {
     }
+
+    // ── 3단계(site-analytics-contract 「3단계」 결정 ④ · 「결정 ④ 화면 확정」) — 주·월 순방문자 · 월별 보기 ─────────────
+
+    /**
+     * 순방문자 한 기간 — 달력 기준(주 월~일, 달 1일~말일, 한국 날짜, 양끝 포함). {@code count} = 숫자 표의 그 기간 줄 합(세기 시작 전 기간이면 null),
+     * {@code partial} = 아직 끝나지 않은 기간
+     */
+    public record UniquePeriod(String start, String end, Long count, boolean partial) {
+    }
+
+    /** 이번 기간 · 지난 기간 · 지난 기간을 이번 기간과 같은 시점까지 자른 합(지난 기간이 집계 전이면 null) */
+    public record UniqueCompare(UniquePeriod current, UniquePeriod previous, Long previousSamePoint) {
+    }
+
+    /** 대상 하나 — 최근 12주·12개월(오래된 → 최근, 마지막이 이번 기간) */
+    public record UniquesAudience(UniqueCompare week, UniqueCompare month, List<UniquePeriod> weeks, List<UniquePeriod> months) {
+    }
+
+    /** {@code GET …/visits/uniques} — {@code audiences} 키 VISITOR · MEMBER */
+    public record Uniques(Instant asOf, Collect collect, Map<String, UniquesAudience> audiences) {
+    }
+
+    /** 달 {@code YYYY-MM}, 양끝 포함 */
+    public record MonthRange(String from, String to) {
+    }
+
+    public record MonthlyTotals(long visitorsDailySum, long newVisitors, long pageViews) {
+    }
+
+    /** 월별 한 칸 — {@code visitorsDailySum} = 날마다 센 방문자의 그 달 합(월 순방문자 아님), {@code uniqueVisitors}·{@code uniqueMembers} = 그 달 순방문자(세기 시작 전 달이면 null) */
+    public record MonthlyPoint(String month, long visitorsDailySum, long newVisitors, long pageViews, Long uniqueVisitors, Long uniqueMembers, boolean partial) {
+    }
+
+    /** 기간 유입 분류(세션 첫 페이지 수) — 쌓인 줄이 없으면 total 0 · 빈 배열 */
+    public record MonthlyReferrers(long total, List<GroupCount> groups) {
+    }
+
+    /** {@code GET …/visits/monthly?from=YYYY-MM&to=YYYY-MM} — 수집 스위치가 꺼져 있어도 쌓인 숫자를 준다(사용자 결정 ⓐ — {@code collect} 로 화면이 안내만) */
+    public record Monthly(MonthRange range, Instant asOf, Collect collect, MonthlyTotals totals, List<MonthlyPoint> months, List<PageRow> pages, long pagesTotalViews,
+                          MonthlyReferrers referrers) {
+    }
 }

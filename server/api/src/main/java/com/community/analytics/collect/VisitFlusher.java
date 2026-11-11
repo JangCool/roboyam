@@ -7,6 +7,7 @@ import com.community.analytics.store.AnalyticsWriteStore.DailyRow;
 import com.community.analytics.store.AnalyticsWriteStore.Diagnostics;
 import com.community.analytics.store.AnalyticsWriteStore.EnvRow;
 import com.community.analytics.store.AnalyticsWriteStore.FailureRow;
+import com.community.analytics.store.AnalyticsWriteStore.MemberRow;
 import com.community.analytics.store.AnalyticsWriteStore.RawRow;
 import com.community.analytics.store.AnalyticsWriteStore.SearchRow;
 import com.community.analytics.store.AnalyticsWriteStore.VisitorRow;
@@ -40,6 +41,8 @@ import org.springframework.stereotype.Component;
  *   <li>방문자 + 페이지뷰: 표시 넣기 {@code ON CONFLICT DO NOTHING RETURNING} → 실제로 들어간 줄만 시간 칸 방문자·신규 방문자, 같은 문장에서 페이지뷰 더하기 upsert (1문장).
  *       표시 표는 analytics V6 부터 하루 파티션 — 그 날 조각이 없으면 한 번 만들고 다시 쓴다(크론이 어제~모레를 미리 만든다)</li>
  *   <li>지금 접속 upsert (1문장) — 1·2 는 한 트랜잭션</li>
+ *   <li>주·월 순방문자(3단계 결정 ④ — analytics V8, 1·2 와 같은 트랜잭션): 그날 처음 본 방문자의 주·달 표시 (2문장) · 로그인 회원의 주·달 표시 (2문장 — 이 서버가 이번 기간에
+ *       이미 넣은 회원은 빼고, {@link VisitMemberPeriods}) · 새로 들어간 표시만 숫자 표에 더하기 (1문장). 기간 조각이 없으면 하루 표시와 함께 한 번 만들고 다시 쓴다</li>
  *   <li>페이지별 일별 조회 더하기 (1문장) — 3단계부터 「방문자·페이지뷰」에 딸린다(원본과 따로)</li>
  *   <li>원본 여러 줄 (1문장). 그 달 조각이 없으면 한 번 만들고 다시 쓴다</li>
  *   <li>유입처 일별 더하기 (1문장) + 캠페인 일별 더하기 (1문장, analytics V3) — 한 트랜잭션</li>
@@ -81,6 +84,8 @@ public class VisitFlusher {
     private long pendingIgnoredExcluded;
     private long pendingUnknownPath;
     private final ArrayDeque<FailureRow> pendingFailures = new ArrayDeque<>();
+    /** 이 서버가 이번 기간에 이미 넣은 회원(주·달) — flush 잠금 안에서만 */
+    private final VisitMemberPeriods memberPeriods = new VisitMemberPeriods();
 
     @Autowired
     public VisitFlusher(VisitCollector collector, AnalyticsWriteStore store, AnalyticsDatabase db, @Value("${roboyam.analytics.instance-name:}") String instanceName,
@@ -113,19 +118,27 @@ public class VisitFlusher {
     }
 
     private void write(VisitBuffer buffer, VisitBuffer.Batch b) {
-        if (!b.visitors().isEmpty() || !b.pageViews().isEmpty() || !b.active().isEmpty()) {
+        if (!b.visitors().isEmpty() || !b.pageViews().isEmpty() || !b.active().isEmpty() || !b.members().isEmpty()) {
             List<VisitorRow> visitors = new ArrayList<>(b.visitors().size());
             Set<LocalDate> days = new TreeSet<>();
             b.visitors().forEach((k, v) -> {
                 visitors.add(new VisitorRow(k.day(), k.visitorHash(), v.hour(), v.newVisitor()));
                 days.add(k.day());
             });
-            Runnable writeVisits = () -> store.visits(visitors, b.pageViews(), b.active());
+            // 회원 주·월 표시(3단계 결정 ④) — 이 서버가 이번 기간에 이미 넣은 회원은 뺀다(서버당·회원당·기간당 한 번)
+            List<MemberRow> members = memberPeriods.rows(b.members().keySet());
+            members.forEach(m -> days.add(m.day()));
+            Runnable writeVisits = () -> store.visits(visitors, b.pageViews(), b.active(), members);
             RuntimeException failure = run(writeVisits);
-            if (failure != null && sqlState(failure, NO_PARTITION) && run(() -> store.ensureMarkPartitions(days)) == null) {
-                failure = run(writeVisits); // 그 날 표시 조각(analytics V6)이 없어 거절됐다 — 한 번 만들고 다시(성공하면 실패로 세지 않는다)
+            if (failure != null && sqlState(failure, NO_PARTITION) && run(() -> {
+                store.ensureMarkPartitions(days);
+                store.ensurePeriodMarkPartitions(days);
+            }) == null) {
+                failure = run(writeVisits); // 그 날 표시 조각(analytics V6)·그 기간 주·월 표시 조각(V8)이 없어 거절됐다 — 한 번 만들고 다시(성공하면 실패로 세지 않는다)
             }
-            if (!done("방문자", failure)) {
+            if (done("방문자", failure)) {
+                memberPeriods.committed(members);
+            } else {
                 buffer.restoreVisits(b);
             }
         }

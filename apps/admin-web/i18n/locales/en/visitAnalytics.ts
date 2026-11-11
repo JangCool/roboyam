@@ -3,6 +3,9 @@ export default {
     title: 'Visitor stats',
     subtitle: 'Visitors and page views of the public site at a glance.',
     forbiddenBody: "You don't have permission to view visit analytics.",
+    // One-line note over past records that are still shown (monthly view — `VisitCollectOff` note)
+    collectOffNote: '"{item}" collection is off now, so this month will not grow. Past records are still shown.',
+    collectOffNoteAsk: '"{item}" collection is off now, so this month will not grow. Past records are still shown. Ask an operator who can change site settings to turn it on.',
 
     // ── Filters ─
     filters: 'Visit analytics period',
@@ -179,9 +182,8 @@ export default {
         loadFailed: 'Couldn\'t load unique visitors.',
     },
 
-    // ── Monthly view (stage 3 — `/analytics/visits/monthly`, not in the menu) ─
+    // ── Monthly view (stage 3 — `/analytics/visits/monthly`, menu `visitMonthly` — the title is `menu.visitMonthly`) ─
     monthly: {
-        title: 'Monthly view',
         subtitle: 'See visits over long periods month by month. Daily numbers are kept for 13 months, so use this view for longer periods.',
         open: 'Monthly view',
         back: 'To overview',
@@ -198,6 +200,8 @@ export default {
         line: { UNIQUE: 'Unique visitors (MAU)', NEW: 'New visitors', VIEWS: 'Page views' },
         visitorsDaily: 'Visitors (sum of days)',
         uniqueVisitors: 'Unique visitors (MAU)',
+        uniqueMembers: 'Unique members (MAU)',
+        memberShare: 'Signed-in share',
         dailySumHelp: '"Visitors (sum of days)" adds up each day\'s visitors over the month (one person on two days counts as 2). "Unique visitors (MAU)" counts everyone who came that month once, so it is smaller.',
         visitDays: 'Avg. days visited',
         newRate: 'New share',
@@ -221,6 +225,7 @@ export default {
         insightTop: 'The most viewed page in this period is {page} ({rate}).',
         insightBestMonth: 'The month with the most visitors (sum of days) was {month}.',
         insightMau: 'Unique visitors in {month}: {n}.',
+        insightMauMembers: 'Unique members in {month}: {n}.',
     },
 
     // ── Pages (Visitor stats group) ─
@@ -521,6 +526,7 @@ export default {
             'analytics-forget-requests': 'Visit record deletion requests',
             'analytics-log-cleanup': 'Collection diagnostics cleanup',
             'analytics-monthly-rollup': 'Monthly totals & 13-month cleanup',
+            'analytics-period-mark-partitions': 'Weekly/monthly unique marks (create & drop)',
         },
         failuresTitle: 'Recent write failures',
         failuresEmpty: 'No failed writes in the last 24 hours.',

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.analytics.dto.VisitForget;
 import com.community.analytics.store.AnalyticsDatabase;
+import com.community.analytics.store.VisitPeriods;
 import com.community.analytics.store.VisitForgetStore;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -54,6 +55,8 @@ class VisitForgetCronTest {
         jdbc.execute("CREATE TABLE IF NOT EXISTS " + FEB + " PARTITION OF analytics_page_views FOR VALUES FROM ('2098-02-01 00:00:00+09') TO ('2098-03-01 00:00:00+09')");
         // 판정 표시는 analytics V6 부터 하루 파티션 — 시험이 쓰는 날의 조각을 만든다(크론의 조각 정리는 어제보다 앞선 날만 지워 먼 미래 조각은 건드리지 않는다)
         jdbc.queryForObject("SELECT analytics_ensure_visit_mark_partitions(?::date[])", Integer.class, array(MARK_DAYS.stream().map(LocalDate::toString).toList()));
+        // 주·월 순방문자 표시(analytics V8 — 기간 파티션)도 같은 날들이 든 주·달 조각을 만든다
+        jdbc.queryForObject("SELECT analytics_ensure_period_mark_partitions(?::date[])", Integer.class, array(MARK_DAYS.stream().map(LocalDate::toString).toList()));
     }
 
     @AfterAll
@@ -62,7 +65,14 @@ class VisitForgetCronTest {
         jdbc.execute("DROP TABLE IF EXISTS " + FEB);
         for (LocalDate d : MARK_DAYS) {
             jdbc.execute("DROP TABLE IF EXISTS analytics_visit_marks_" + d.toString().replace("-", ""));
+            String week = VisitPeriods.weekStart(d).toString().replace("-", "");
+            String month = d.toString().substring(0, 7).replace("-", "");
+            for (String audience : List.of("visitor", "member")) {
+                jdbc.execute("DROP TABLE IF EXISTS analytics_" + audience + "_week_marks_" + week);
+                jdbc.execute("DROP TABLE IF EXISTS analytics_" + audience + "_month_marks_" + month);
+            }
         }
+        jdbc.update("DELETE FROM analytics_unique_counts WHERE period_start >= '2098-01-01' AND period_start < '2098-03-01'");
         jdbc.execute("DROP FUNCTION IF EXISTS qa_forget_fail() CASCADE");
     }
 
@@ -77,6 +87,11 @@ class VisitForgetCronTest {
             jdbc.update("DELETE FROM analytics_page_views WHERE visitor_hash = ANY(?::text[])", a);
             jdbc.update("DELETE FROM analytics_visit_marks WHERE visitor_hash = ANY(?::text[])", a);
             jdbc.update("DELETE FROM analytics_visit_active WHERE visitor_hash = ANY(?::text[])", a);
+            List<String> ids = hashes.stream().map(VisitPeriods::visitorId).filter(java.util.Objects::nonNull).map(UUID::toString).toList();
+            if (!ids.isEmpty()) {
+                jdbc.update("DELETE FROM analytics_visitor_week_marks WHERE visitor_id = ANY(?::uuid[])", array(ids));
+                jdbc.update("DELETE FROM analytics_visitor_month_marks WHERE visitor_id = ANY(?::uuid[])", array(ids));
+            }
         }
         for (String i : instances) {
             jdbc.update("DELETE FROM analytics_collector_failures WHERE instance = ?", i);
@@ -154,7 +169,63 @@ class VisitForgetCronTest {
         active(hash);
     }
 
+    /** 수집기와 같은 모양(16진 64자)의 방문자 해시 — 주·월 표시는 이 앞 32자를 uuid 로 쓴다 */
+    private String hexVisitor() {
+        String h = (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "");
+        hashes.add(h);
+        return h;
+    }
+
+    /** 방문자 주·월 표시 3줄 — 1월 10일이 든 주, 1월·2월 */
+    private void periodMarks(String hash) {
+        UUID id = VisitPeriods.visitorId(hash);
+        jdbc.update("INSERT INTO analytics_visitor_week_marks (period_start, visitor_id) VALUES (?, ?)", Date.valueOf(VisitPeriods.weekStart(LocalDate.of(2098, 1, 10))), id);
+        jdbc.update("INSERT INTO analytics_visitor_month_marks (period_start, visitor_id) VALUES ('2098-01-01', ?), ('2098-02-01', ?)", id, id);
+    }
+
+    /** [주 표시, 달 표시] 줄 수 */
+    private static long[] periodRows(String hash) {
+        UUID id = VisitPeriods.visitorId(hash);
+        return new long[] {jdbc.queryForObject("SELECT count(*) FROM analytics_visitor_week_marks WHERE visitor_id = ?", Long.class, id),
+                jdbc.queryForObject("SELECT count(*) FROM analytics_visitor_month_marks WHERE visitor_id = ?", Long.class, id)};
+    }
+
     // ── R__analytics_13 — 삭제 요청 처리 ────────────────────────────────────
+
+    @Test
+    void 삭제_요청은_그_방문자의_주_월_순방문자_표시까지_uuid로_지우고_다른_방문자_줄과_숫자_표는_남긴다() {
+        // 3단계 결정 ④ — 주·월 표시는 해시 앞 16바이트 uuid(visitor_id). 숫자 표는 사람을 가리키지 않아 남는다
+        String target = hexVisitor();
+        String other = hexVisitor();
+        String samePrefix = other.substring(0, 32) + "0".repeat(32); // 앞 32자가 같은 다른 해시 — 요청은 이것이지만 지워지는 표시는 uuid 가 같은 줄
+        someoneWithData(target);
+        someoneWithData(other);
+        periodMarks(target);
+        periodMarks(other);
+        LocalDate week = VisitPeriods.weekStart(LocalDate.of(2098, 1, 10));
+        jdbc.update("INSERT INTO analytics_unique_counts (audience, period_kind, period_start, day, added) VALUES ('VISITOR', 'WEEK', ?, '2098-01-10', 2), "
+                + "('VISITOR', 'MONTH', '2098-01-01', '2098-01-10', 2) ON CONFLICT (audience, period_kind, period_start, day) DO UPDATE SET added = EXCLUDED.added",
+                Date.valueOf(week));
+        long done = request(target, Duration.ofMinutes(3));
+
+        forgetCron();
+
+        assertThat(rows(target)).containsExactly(0, 0, 0);
+        assertThat(periodRows(target)).as("주 1줄 · 달 2줄 모두 지움").containsExactly(0, 0);
+        assertThat(periodRows(other)).as("다른 방문자의 주·달 표시는 그대로").containsExactly(1, 2);
+        assertThat(rows(other)).containsExactly(5, 2, 1);
+        assertThat(req(done)).as("지운 줄 = 원본 5 + 하루 표시 2 + 지금 접속 1 + 주·달 표시 3").isEqualTo(new Req("DONE", null, 11L, true));
+        assertThat(jdbc.queryForObject("SELECT sum(added) FROM analytics_unique_counts WHERE audience = 'VISITOR' AND ((period_kind = 'WEEK' AND period_start = ?) "
+                + "OR (period_kind = 'MONTH' AND period_start = '2098-01-01')) AND day = '2098-01-10'", Long.class, Date.valueOf(week))).as("숫자 표는 남는다").isEqualTo(4);
+
+        // 해시 앞 32자가 같은 요청이면 uuid 가 같은 표시를 지운다(uuid 는 앞 16바이트 — 겹칠 확률 사실상 0 이라 계약이 받아들인 모양)
+        hashes.add(samePrefix);
+        long prefix = request(samePrefix, Duration.ofMinutes(3));
+        forgetCron();
+        assertThat(periodRows(other)).containsExactly(0, 0);
+        assertThat(rows(other)).as("원본·하루 표시·지금 접속은 64자 해시로 견주어 그대로").containsExactly(5, 2, 1);
+        assertThat(req(prefix)).isEqualTo(new Req("DONE", null, 3L, true));
+    }
 
     @Test
     void 받은_지_2분_넘은_요청의_해시만_원본_여러_조각과_판정_지금_접속에서_지우고_DONE_해시_NULL() {

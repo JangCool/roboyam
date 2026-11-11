@@ -6,12 +6,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
@@ -60,6 +62,29 @@ public class AnalyticsWriteStore {
             + "SELECT t.h, t.v, t.n, t.p FROM unnest(?::timestamptz[], ?::bigint[], ?::bigint[], ?::bigint[]) AS t(h, v, n, p) ORDER BY t.h "
             + "ON CONFLICT (hour) DO UPDATE SET visitors = analytics_visit_hourly.visitors + EXCLUDED.visitors, "
             + "new_visitors = analytics_visit_hourly.new_visitors + EXCLUDED.new_visitors, page_views = analytics_visit_hourly.page_views + EXCLUDED.page_views";
+
+    /*
+     * 주·월 순방문자(3단계 결정 ④ — analytics V8). 같은 트랜잭션에서 ③ 다음에:
+     *   ④ 방문자 주 표시 · ⑤ 방문자 달 표시 — ① 에서 새로 넣은 하루 표시(그날 처음 본 방문자)만 넣어 본다. 키 = (기간 시작, 해시 앞 16바이트 uuid)
+     *   ⑥ 회원 주 표시 · ⑦ 회원 달 표시 — 부르는 쪽이 서버 메모리의 「이번 기간에 이미 넣은 회원」을 뺀 줄만 준다. 키 = (기간 시작, 회원 번호)
+     *   ⑧ 숫자 표 — ④~⑦ 에서 돌려받은(= 실제로 새로 들어간) 줄을 (대상, 종류, 기간 시작, 그 날) 칸에 +1, 한 문장
+     * 표시 넣기는 ① 과 같이 ON CONFLICT DO NOTHING RETURNING 일반 칸(파티션 표라 시스템 칸을 쓰지 않는다) — 같은 키를 다른 서버가 동시에 넣으면 그 커밋까지 기다렸다 건너뛴다(1명은 1명).
+     * 모두 키 차례(ORDER BY)로 넣고 문장 차례도 서버마다 같아 서로 잠그는 차례가 같다. 그 기간 조각이 없으면 23514(부르는 쪽이 조각을 만들고 다시).
+     */
+    private static final String VISITOR_WEEK = periodMarks("analytics_visitor_week_marks", "visitor_id", "uuid");
+    private static final String VISITOR_MONTH = periodMarks("analytics_visitor_month_marks", "visitor_id", "uuid");
+    private static final String MEMBER_WEEK = periodMarks("analytics_member_week_marks", "member_id", "bigint");
+    private static final String MEMBER_MONTH = periodMarks("analytics_member_month_marks", "member_id", "bigint");
+
+    private static final String UNIQUE_COUNTS = "INSERT INTO analytics_unique_counts (audience, period_kind, period_start, day, added) "
+            + "SELECT t.a, t.k, t.p, t.d, t.n FROM unnest(?::text[], ?::text[], ?::date[], ?::date[], ?::bigint[]) AS t(a, k, p, d, n) ORDER BY t.a, t.k, t.p, t.d "
+            + "ON CONFLICT (audience, period_kind, period_start, day) DO UPDATE SET added = analytics_unique_counts.added + EXCLUDED.added";
+
+    private static String periodMarks(String table, String column, String type) {
+        return "INSERT INTO " + table + " (period_start, " + column + ") "
+                + "SELECT t.p, t.v FROM unnest(?::date[], ?::" + type + "[]) AS t(p, v) ORDER BY t.p, t.v "
+                + "ON CONFLICT (period_start, " + column + ") DO NOTHING RETURNING period_start, " + column;
+    }
 
     private static final String ACTIVE = "INSERT INTO analytics_visit_active (visitor_hash, last_seen) "
             + "SELECT t.h, t.s FROM unnest(?::text[], ?::timestamptz[]) AS t(h, s) ORDER BY t.h "
@@ -159,6 +184,10 @@ public class AnalyticsWriteStore {
     public record VisitorRow(LocalDate day, String visitorHash, Instant hour, boolean newVisitor) {
     }
 
+    /** 로그인 회원 줄(3단계 결정 ④) — 그 날 · 회원 번호 · 주 표시를 넣어 볼까 · 달 표시를 넣어 볼까(서버 메모리에 「이번 기간에 이미 넣음」이면 false) */
+    public record MemberRow(LocalDate day, long memberId, boolean week, boolean month) {
+    }
+
     /** 원본 한 줄 */
     public record RawRow(long id, Instant viewedAt, String visitorHash, String sessionHash, String path, String kind, String prevPath, String referrerDomain,
                          String referrerGroup, String utmSource, String utmMedium, String utmCampaign, String device, boolean newVisitor) {
@@ -176,6 +205,85 @@ public class AnalyticsWriteStore {
 
     /** 표시 키 — 한국 날짜 + 방문자 해시 */
     private record MarkKey(LocalDate day, String visitorHash) {
+    }
+
+    /** 주·월 표시 키 — 기간 시작 + 대상(방문자 uuid 글자 · 회원 번호 글자 — DB 가 돌려주는 글자와 같은 모양) */
+    private record PeriodKey(LocalDate start, String id) {
+    }
+
+    /** 숫자 표 칸 */
+    private record CountKey(String audience, String kind, LocalDate start, LocalDate day) {
+    }
+
+    /** 표시 넣기 — 이번에 새로 들어간 키(키마다 처음 본 날을 {@code firstDay} 에서 찾아 숫자 표 칸에 +1) */
+    private void insertPeriodMarks(String sql, String audience, String kind, Map<PeriodKey, LocalDate> firstDay, Map<CountKey, Long> counts) {
+        if (firstDay.isEmpty()) {
+            return;
+        }
+        List<PeriodKey> keys = new ArrayList<>(firstDay.keySet());
+        List<PeriodKey> inserted = jdbc.query(con -> {
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setArray(1, SqlArrays.text(con, keys.stream().map(PeriodKey::start).toList()));
+            ps.setArray(2, SqlArrays.text(con, keys.stream().map(PeriodKey::id).toList()));
+            return ps;
+        }, (rs, i) -> new PeriodKey(rs.getObject(1, LocalDate.class), rs.getString(2)));
+        for (PeriodKey k : inserted) {
+            LocalDate day = firstDay.get(k);
+            if (day != null) {
+                counts.merge(new CountKey(audience, kind, k.start(), day), 1L, Long::sum);
+            }
+        }
+    }
+
+    /** 같은 기간 키가 여러 날로 오면 이른 날로 */
+    private static void earliest(Map<PeriodKey, LocalDate> map, PeriodKey key, LocalDate day) {
+        map.merge(key, day, (a, b) -> b.isBefore(a) ? b : a);
+    }
+
+    /**
+     * 주·월 순방문자 표시 넣기 + 숫자 표 더하기(위 ④~⑧). 방문자는 이번에 새로 넣은 하루 표시만, 회원은 부르는 쪽이 고른 줄만.
+     */
+    private void uniques(Collection<MarkKey> newVisitors, Collection<MemberRow> members) {
+        Map<PeriodKey, LocalDate> visitorWeeks = new LinkedHashMap<>();
+        Map<PeriodKey, LocalDate> visitorMonths = new LinkedHashMap<>();
+        for (MarkKey k : newVisitors) {
+            UUID id = VisitPeriods.visitorId(k.visitorHash());
+            if (id == null) {
+                continue;
+            }
+            earliest(visitorWeeks, new PeriodKey(VisitPeriods.weekStart(k.day()), id.toString()), k.day());
+            earliest(visitorMonths, new PeriodKey(VisitPeriods.monthStart(k.day()), id.toString()), k.day());
+        }
+        Map<PeriodKey, LocalDate> memberWeeks = new LinkedHashMap<>();
+        Map<PeriodKey, LocalDate> memberMonths = new LinkedHashMap<>();
+        for (MemberRow m : members) {
+            String id = Long.toString(m.memberId());
+            if (m.week()) {
+                earliest(memberWeeks, new PeriodKey(VisitPeriods.weekStart(m.day()), id), m.day());
+            }
+            if (m.month()) {
+                earliest(memberMonths, new PeriodKey(VisitPeriods.monthStart(m.day()), id), m.day());
+            }
+        }
+        Map<CountKey, Long> counts = new TreeMap<>(Comparator.comparing(CountKey::audience).thenComparing(CountKey::kind).thenComparing(CountKey::start)
+                .thenComparing(CountKey::day));
+        insertPeriodMarks(VISITOR_WEEK, VisitPeriods.VISITOR, VisitPeriods.WEEK, visitorWeeks, counts);
+        insertPeriodMarks(VISITOR_MONTH, VisitPeriods.VISITOR, VisitPeriods.MONTH, visitorMonths, counts);
+        insertPeriodMarks(MEMBER_WEEK, VisitPeriods.MEMBER, VisitPeriods.WEEK, memberWeeks, counts);
+        insertPeriodMarks(MEMBER_MONTH, VisitPeriods.MEMBER, VisitPeriods.MONTH, memberMonths, counts);
+        if (counts.isEmpty()) {
+            return;
+        }
+        List<CountKey> keys = new ArrayList<>(counts.keySet());
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(UNIQUE_COUNTS);
+            ps.setArray(1, SqlArrays.text(con, keys.stream().map(CountKey::audience).toList()));
+            ps.setArray(2, SqlArrays.text(con, keys.stream().map(CountKey::kind).toList()));
+            ps.setArray(3, SqlArrays.text(con, keys.stream().map(CountKey::start).toList()));
+            ps.setArray(4, SqlArrays.text(con, keys.stream().map(CountKey::day).toList()));
+            ps.setArray(5, SqlArrays.text(con, keys.stream().map(counts::get).toList()));
+            return ps;
+        });
     }
 
     /** 같은 표시 키 두 줄 중 남길 것 — 신규 우선, 같으면 이른 시간 칸 */
@@ -211,9 +319,18 @@ public class AnalyticsWriteStore {
 
     /**
      * 방문자·신규·페이지뷰(표시 넣기 → 신규 바꾸기 → 시간 칸 더하기, 세 문장 — 위 설명) + 지금 접속(한 문장). 부르는 쪽이 한 트랜잭션으로 연다.
-     * 그 날 표시 조각이 없으면 ①이 23514 로 거절된다(부르는 쪽이 {@link #ensureMarkPartitions} 뒤 다시).
+     * 그 날 표시 조각이 없으면 ①이 23514 로 거절된다(부르는 쪽이 {@link #ensureMarkPartitions} 뒤 다시). 로그인 회원 없이 — {@link #visits(Collection, Map, Map, Collection)}.
      */
     public void visits(Collection<VisitorRow> visitors, Map<Instant, Long> pageViews, Map<String, Instant> active) {
+        visits(visitors, pageViews, active, List.of());
+    }
+
+    /**
+     * {@link #visits(Collection, Map, Map)} + 주·월 순방문자(3단계 결정 ④ — 위 ④~⑧): ① 에서 새로 넣은 하루 표시의 방문자와 {@code members} 의 회원을 주·달 표시에 넣어 보고
+     * 새로 들어간 줄만 숫자 표에 더한다. 모두 부르는 쪽의 한 트랜잭션 안. 그 기간 표시 조각이 없으면 23514(부르는 쪽이 {@link #ensurePeriodMarkPartitions} 뒤 다시).
+     */
+    public void visits(Collection<VisitorRow> visitors, Map<Instant, Long> pageViews, Map<String, Instant> active, Collection<MemberRow> members) {
+        Set<MarkKey> newMarks = Set.of();
         if (!visitors.isEmpty() || !pageViews.isEmpty()) {
             // 같은 (날짜, 방문자)가 두 번 오면 하나로 — 신규 우선, 이른 시간 칸
             Map<MarkKey, VisitorRow> unique = new LinkedHashMap<>();
@@ -221,6 +338,7 @@ public class AnalyticsWriteStore {
                 unique.merge(new MarkKey(v.day(), v.visitorHash()), v, AnalyticsWriteStore::preferred);
             }
             Set<MarkKey> inserted = unique.isEmpty() ? Set.of() : insertMarks(new ArrayList<>(unique.values()));
+            newMarks = inserted;
             List<VisitorRow> flipCandidates = unique.entrySet().stream()
                     .filter(e -> e.getValue().newVisitor() && !inserted.contains(e.getKey())).map(Map.Entry::getValue).toList();
             Set<MarkKey> flipped = flipCandidates.isEmpty() ? Set.of() : flipMarks(flipCandidates);
@@ -252,6 +370,9 @@ public class AnalyticsWriteStore {
                     return ps;
                 });
             }
+        }
+        if (!newMarks.isEmpty() || !members.isEmpty()) {
+            uniques(newMarks, members);
         }
         if (!active.isEmpty()) {
             List<String> keys = new ArrayList<>(active.keySet());
@@ -302,6 +423,18 @@ public class AnalyticsWriteStore {
     public void ensureMarkPartitions(Collection<LocalDate> days) {
         jdbc.query(con -> {
             PreparedStatement ps = con.prepareStatement("SELECT analytics_ensure_visit_mark_partitions(?::date[])");
+            ps.setArray(1, SqlArrays.text(con, List.copyOf(days)));
+            return ps;
+        }, (ResultSetExtractor<Void>) rs -> null);
+    }
+
+    /**
+     * 주·월 순방문자 표시 조각(analytics V8 — 네 표)을 이번·다음 주와 이번·다음 달 + 이 묶음의 날들이 든 기간으로 만든다(R__analytics_16 의 함수 — 이미 있으면 그대로).
+     * 그 기간 조각이 없으면 {@link #visits(Collection, Map, Map, Collection)} 가 23514 로 거절된다(부르는 쪽이 이것을 부른 뒤 다시).
+     */
+    public void ensurePeriodMarkPartitions(Collection<LocalDate> days) {
+        jdbc.query(con -> {
+            PreparedStatement ps = con.prepareStatement("SELECT analytics_ensure_period_mark_partitions(?::date[])");
             ps.setArray(1, SqlArrays.text(con, List.copyOf(days)));
             return ps;
         }, (ResultSetExtractor<Void>) rs -> null);

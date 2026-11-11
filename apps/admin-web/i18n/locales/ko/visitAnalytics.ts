@@ -3,6 +3,9 @@ export default {
     title: '방문자 통계',
     subtitle: '공개 사이트의 방문자·페이지뷰를 기간별로 한눈에 봐요.',
     forbiddenBody: '방문 분석을 볼 권한이 없어요.',
+    // 쌓인 지난 기록은 보이고 얹는 한 줄(월별 보기 — `VisitCollectOff` note)
+    collectOffNote: '지금은 「{item}」 수집이 꺼져 있어 이번 달은 늘지 않아요. 쌓인 지난 기록은 그대로 보여요.',
+    collectOffNoteAsk: '지금은 「{item}」 수집이 꺼져 있어 이번 달은 늘지 않아요. 쌓인 지난 기록은 그대로 보여요. 켜려면 사이트 설정을 바꿀 수 있는 운영자에게 요청해 주세요.',
 
     // ── 거르기 ─
     filters: '방문 분석 기간',
@@ -179,9 +182,8 @@ export default {
         loadFailed: '순방문자를 불러오지 못했어요.',
     },
 
-    // ── 월별 보기(3단계 — `/analytics/visits/monthly`, 메뉴 없음) ─
+    // ── 월별 보기(3단계 — `/analytics/visits/monthly`, 메뉴 `visitMonthly` — 제목은 `menu.visitMonthly`) ─
     monthly: {
-        title: '월별 보기',
         subtitle: '긴 기간의 방문을 달 단위로 봐요. 날마다의 숫자는 13개월만 남아서 그보다 긴 기간은 여기서 봐요.',
         open: '월별 보기',
         back: '개요로',
@@ -198,6 +200,8 @@ export default {
         line: { UNIQUE: '순방문자(MAU)', NEW: '신규 방문자', VIEWS: '페이지뷰' },
         visitorsDaily: '방문자(일별 합)',
         uniqueVisitors: '순방문자(MAU)',
+        uniqueMembers: '회원 순방문자(MAU)',
+        memberShare: '로그인 회원 비율',
         dailySumHelp: '「방문자(일별 합)」은 날마다 센 방문자를 그 달 동안 더한 값이에요(같은 사람이 이틀 오면 2). 「순방문자(MAU)」는 그 달에 한 번 이상 온 사람을 중복 없이 센 수라 더 작아요.',
         visitDays: '평균 방문 일수',
         newRate: '신규 비율',
@@ -221,6 +225,7 @@ export default {
         insightTop: '기간에 가장 많이 본 페이지는 {page}({rate})예요.',
         insightBestMonth: '방문자(일별 합)가 가장 많았던 달은 {month}이에요.',
         insightMau: '{month} 순방문자는 {n}명이에요.',
+        insightMauMembers: '{month} 회원 순방문자는 {n}명이에요.',
     },
 
     // ── 쪽(「방문자 통계」 묶음) ─
@@ -521,6 +526,7 @@ export default {
             'analytics-forget-requests': '방문 기록 삭제 요청 처리',
             'analytics-log-cleanup': '수집 진단 기록 정리',
             'analytics-monthly-rollup': '월별 합치기·13개월 정리',
+            'analytics-period-mark-partitions': '주·월 순방문자 표시 조각 만들기·지우기',
         },
         failuresTitle: '최근 기록 실패',
         failuresEmpty: '최근 24시간 동안 실패한 기록이 없어요.',

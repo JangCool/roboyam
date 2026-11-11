@@ -1,5 +1,8 @@
 package com.community.dashboard.service.gadget;
 
+import com.community.analytics.repository.master.VisitAnalyticsStore;
+import com.community.analytics.service.VisitUniqueCounts;
+import com.community.analytics.store.VisitPeriods;
 import com.community.dashboard.dto.DashboardGadgetQuery;
 import com.community.dashboard.dto.DashboardGadgetType;
 import com.community.dashboard.dto.response.gadget.DashboardGadgetData;
@@ -13,11 +16,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * 방문 현황(site.read · 수집 항목 {@code visits}) — 시간 칸 집계({@code analytics_visit_hourly}) 어제 0시 ~ 지금의 줄(최대 48줄) 한 번 + 지금 접속 COUNT 한 번. 원본을 세지 않는다.
  * 하루 방문자 = 그 날 시간 칸 방문자의 합(시간 칸 방문자는 그 날 처음 본 방문자라 중복이 없다). 「어제 같은 시각까지」는 어제 0시부터 지금 시각이 든 시간 칸까지(칸 단위).
+ * 3단계: 이번 주·이번 달 순방문자(방문자) — 순방문자 숫자 표({@code analytics_unique_counts}) 작은 질의 셋({@link VisitUniqueCounts#current}).
  */
 @Component
 public class VisitorsGadget implements DashboardGadgetProvider {
@@ -26,9 +31,19 @@ public class VisitorsGadget implements DashboardGadgetProvider {
     static final Duration ACTIVE_WINDOW = Duration.ofMinutes(5);
 
     private final DashboardAnalyticsStore store;
+    /** 이번 주·이번 달 순방문자(3단계 결정 ④) — 시험용 생성자는 null(그 두 칸 null) */
+    private final VisitUniqueCounts uniques;
 
+    @Autowired
+    public VisitorsGadget(DashboardAnalyticsStore store, VisitAnalyticsStore visits) {
+        this.store = store;
+        this.uniques = new VisitUniqueCounts(visits);
+    }
+
+    /** 시험용 — 순방문자 칸은 null */
     public VisitorsGadget(DashboardAnalyticsStore store) {
         this.store = store;
+        this.uniques = null;
     }
 
     @Override
@@ -65,6 +80,8 @@ public class VisitorsGadget implements DashboardGadgetProvider {
             hours.add(new DashboardVisitorsView.Hour(hour, byHour.getOrDefault(hour, 0L)));
         }
         long active = store.activeSince(query.now().minus(ACTIVE_WINDOW));
-        return new DashboardVisitorsView(visitors, newVisitors, views, active, visitorsYesterday, viewsYesterday, hours);
+        // 이번 주·이번 달 순방문자(방문자) — 순방문자 숫자 표(analytics V8), 「방문자 통계 › 개요」 순방문자 카드와 같은 규칙·같은 수
+        VisitUniqueCounts.Current unique = uniques == null ? new VisitUniqueCounts.Current(null, null) : uniques.current(VisitPeriods.VISITOR, query.today());
+        return new DashboardVisitorsView(visitors, newVisitors, views, active, visitorsYesterday, viewsYesterday, hours, unique.week(), unique.month());
     }
 }

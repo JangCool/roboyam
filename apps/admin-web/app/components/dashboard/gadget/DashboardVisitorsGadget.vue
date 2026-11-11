@@ -1,7 +1,7 @@
 <template>
     <!--
         방문 현황 — 오늘 방문자 · 페이지뷰 · 지금 접속(최근 5분)을 한 줄 행으로(어제 같은 시각까지 대비는 툴팁) + 오늘 시간대별 방문자 막대(시간별 집계만 읽는다 — 원본 로그를 세지 않는다).
-        숫자 아래 작은 한 줄 「이번 주 n명 · 이번 달 n명」(순방문자 — 방문 통계 3단계, 달력 기준·중복 없이. 서버가 칸을 주지 않으면 줄이 없다 — ⚠ 지금은 목업 숫자).
+        숫자 아래 작은 한 줄 「이번 주 n명 · 이번 달 n명」(순방문자 — 방문 통계 3단계, 달력 기준·중복 없이. 서버가 칸을 주지 않으면 줄이 없다).
         바로 가기 = 「방문자 통계 › 개요」의 오늘(`/analytics/visits?from=오늘&to=오늘`).
     -->
     <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" :disabled="state.disabled.value" :collect="state.collect" :more="moreLink" @refresh="state.reload">

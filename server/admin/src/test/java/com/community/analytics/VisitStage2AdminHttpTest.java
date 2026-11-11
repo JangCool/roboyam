@@ -114,7 +114,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.collect.bots").value(false)).andExpect(jsonPath("$.data.collect.visits").value(false));
         mvc.perform(get(BASE + "/health").cookie(session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.status").value("OFF")).andExpect(jsonPath("$.data.issues[*].code", org.hamcrest.Matchers.hasItem("COLLECT_OFF")))
-                .andExpect(jsonPath("$.data.crons.length()").value(8)).andExpect(jsonPath("$.data.raw.retentionMonths").value(3));
+                .andExpect(jsonPath("$.data.crons.length()").value(9)).andExpect(jsonPath("$.data.raw.retentionMonths").value(3));
         mvc.perform(get(BASE + "/requests").cookie(session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.items").isArray()).andExpect(jsonPath("$.data.total").isNumber()).andExpect(jsonPath("$.data.pending").isNumber())
                 .andExpect(jsonPath("$.data.last30Days").isNumber());

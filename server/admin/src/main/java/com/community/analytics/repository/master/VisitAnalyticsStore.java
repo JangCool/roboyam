@@ -7,8 +7,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -280,6 +285,98 @@ public class VisitAnalyticsStore {
     public long pageViews(Instant from, Instant to) {
         Long n = jdbc.queryForObject("SELECT coalesce(sum(page_views), 0) FROM analytics_visit_hourly WHERE hour >= ? AND hour < ?", Long.class, ts(from), ts(to));
         return n == null ? 0 : n;
+    }
+
+    // ── 3단계 — 주·월 순방문자 숫자 표(analytics_unique_counts, analytics V8) ──────
+
+    /** 한 기간의 순방문자 — 대상(VISITOR · MEMBER) · 기간 시작 · 그 기간 줄의 합 */
+    public record PeriodTotal(String audience, LocalDate start, long total) {
+    }
+
+    /** 대상별 세기 시작일(숫자 표의 가장 이른 날) — 대상에 줄이 없으면 맵에 없다. 작은 표(하루 최대 4줄)라 통째로 묶는다 */
+    public Map<String, LocalDate> uniqueFirstDays() {
+        Map<String, LocalDate> out = new HashMap<>();
+        jdbc.query("SELECT audience, min(day) FROM analytics_unique_counts GROUP BY audience",
+                (RowCallbackHandler) rs -> out.put(rs.getString(1), rs.getDate(2).toLocalDate()));
+        return out;
+    }
+
+    /** 종류(WEEK · MONTH)의 기간 시작이 [from, to] 인 기간별 합 — PK(audience, period_kind, period_start, day) 를 대상마다 건너뛰기 검색 */
+    public List<PeriodTotal> uniqueTotals(String kind, LocalDate from, LocalDate to) {
+        return jdbc.query("SELECT audience, period_start, sum(added) FROM analytics_unique_counts WHERE period_kind = ? AND period_start >= ? AND period_start <= ? "
+                        + "GROUP BY audience, period_start",
+                (rs, i) -> new PeriodTotal(rs.getString(1), rs.getDate(2).toLocalDate(), rs.getLong(3)), kind, Date.valueOf(from), Date.valueOf(to));
+    }
+
+    /** 한 기간을 그 날짜까지만 더한 합(「같은 시점까지」) — 대상별, 줄이 없는 대상은 맵에 없다 */
+    public Map<String, Long> uniqueUntil(String kind, LocalDate start, LocalDate until) {
+        Map<String, Long> out = new HashMap<>();
+        jdbc.query("SELECT audience, sum(added) FROM analytics_unique_counts WHERE period_kind = ? AND period_start = ? AND day <= ? GROUP BY audience",
+                (RowCallbackHandler) rs -> out.put(rs.getString(1), rs.getLong(2)), kind, Date.valueOf(start), Date.valueOf(until));
+        return out;
+    }
+
+    // ── 3단계 — 월별 보기(analytics V7 월별 표 + 아직 합치지 않은 달은 일별·시간별) ──
+
+    public record MonthVisit(LocalDate month, long visitorsDailySum, long newVisitors, long pageViews) {
+    }
+
+    /** 합친 기록이 있는 달(analytics_monthly_rollups) 중 [from, to] — 그 달 1일 */
+    public Set<LocalDate> rolledMonths(LocalDate from, LocalDate to) {
+        return new HashSet<>(jdbc.query("SELECT month FROM analytics_monthly_rollups WHERE month >= ? AND month <= ?",
+                (rs, i) -> rs.getDate(1).toLocalDate(), Date.valueOf(from), Date.valueOf(to)));
+    }
+
+    /** 합친 달의 월 방문(analytics_visit_monthly PK(month)) — 줄이 없는 달은 빠진다 */
+    public List<MonthVisit> visitMonths(Collection<LocalDate> months) {
+        if (months.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query("SELECT month, visitors_daily_sum, new_visitors, page_views FROM analytics_visit_monthly WHERE month = ANY (?::date[])",
+                (rs, i) -> new MonthVisit(rs.getDate(1).toLocalDate(), rs.getLong(2), rs.getLong(3), rs.getLong(4)), textArray(months.stream().map(LocalDate::toString).toList()));
+    }
+
+    /** [from, to) 시간 칸의 방문자(일별 합)·신규·페이지뷰 합 — 아직 합치지 않은 달(analytics_visit_hourly PK(hour) 범위) */
+    public long[] hourTotals(Instant from, Instant to) {
+        return jdbc.queryForObject("SELECT coalesce(sum(visitors), 0), coalesce(sum(new_visitors), 0), coalesce(sum(page_views), 0) FROM analytics_visit_hourly "
+                + "WHERE hour >= ? AND hour < ?", (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3)}, ts(from), ts(to));
+    }
+
+    /**
+     * 달 여럿의 많이 본 페이지 상위 limit + 전체 페이지 수·조회수 합(창 함수) — 합친 달은 analytics_page_monthly(PK(month, path, kind)),
+     * 아직 합치지 않은 달은 analytics_page_daily(PK(day, path, kind) 앞 칸 범위)를 더한다. {@code PageRank.total} = 페이지 수.
+     */
+    public List<PageRank> monthPages(Collection<LocalDate> rolled, Collection<LocalDate> open, int limit) {
+        DailyRange r = DailyRange.of(open);
+        return jdbc.query("WITH src AS ("
+                        + "  SELECT path, kind, views FROM analytics_page_monthly WHERE month = ANY (?::date[])"
+                        + "  UNION ALL SELECT path, kind, views FROM analytics_page_daily WHERE day >= ? AND day < ? AND date_trunc('month', day)::date = ANY (?::date[])"
+                        + "), agg AS (SELECT path, kind, sum(views) AS views FROM src GROUP BY path, kind) "
+                        + "SELECT path, kind, views, count(*) OVER (), sum(views) OVER () FROM agg ORDER BY views DESC, path, kind LIMIT ?",
+                (rs, i) -> new PageRank(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getLong(4), rs.getLong(5)),
+                textArray(rolled.stream().map(LocalDate::toString).toList()), Date.valueOf(r.from()), Date.valueOf(r.to()),
+                textArray(open.stream().map(LocalDate::toString).toList()), limit);
+    }
+
+    /** 달 여럿의 유입 분류별 방문(세션 첫 페이지 수) — 합친 달은 analytics_referrer_monthly, 아직 합치지 않은 달은 analytics_referrer_daily(PK 앞 칸 범위) */
+    public List<Count> monthReferrerGroups(Collection<LocalDate> rolled, Collection<LocalDate> open) {
+        DailyRange r = DailyRange.of(open);
+        return jdbc.query("SELECT referrer_group, sum(visits) FROM ("
+                        + "  SELECT referrer_group, visits FROM analytics_referrer_monthly WHERE month = ANY (?::date[])"
+                        + "  UNION ALL SELECT referrer_group, visits FROM analytics_referrer_daily WHERE day >= ? AND day < ? AND date_trunc('month', day)::date = ANY (?::date[])"
+                        + ") src GROUP BY referrer_group",
+                (rs, i) -> new Count(rs.getString(1), rs.getLong(2)), textArray(rolled.stream().map(LocalDate::toString).toList()), Date.valueOf(r.from()),
+                Date.valueOf(r.to()), textArray(open.stream().map(LocalDate::toString).toList()));
+    }
+
+    /** 아직 합치지 않은 달들(그 달 1일)을 덮는 일별 범위 [from, to) — 비었으면 빈 범위 */
+    private record DailyRange(LocalDate from, LocalDate to) {
+
+        static DailyRange of(Collection<LocalDate> months) {
+            LocalDate min = months.stream().min(LocalDate::compareTo).orElse(LocalDate.of(2000, 1, 1));
+            LocalDate max = months.stream().max(LocalDate::compareTo).map(m -> m.plusMonths(1)).orElse(min);
+            return new DailyRange(min, max);
+        }
     }
 
     private static String escapeLike(String v) {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.community.account.exception.AccountCurrentPasswordWrongException;
+import com.community.analytics.store.VisitPeriods;
 import com.community.audit.dto.AuditActions;
 import com.community.auth.dto.request.SignupRequest;
 import com.community.auth.exception.AuthRejoinBlockedException;
@@ -43,6 +44,7 @@ import com.community.zconfiguration.time.ServiceTime;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -220,6 +222,36 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
             assertThat(auditCount("MEMBER", Long.toString(member), AuditActions.MEMBER_WITHDRAW_REQUEST)).isEqualTo(1);
             assertThat(auditCount("MEMBER", Long.toString(member), AuditActions.MEMBER_WITHDRAW)).isEqualTo(1);
             assertThat(count("SELECT count(*) FROM spring_session WHERE principal_name = ?", Long.toString(member))).isZero();
+        }
+
+        @Test
+        void 탈퇴가_완료되면_그_회원의_방문_통계_주_월_순방문자_표시를_지우고_다른_회원_표시와_숫자_표는_남긴다() {
+            // site-analytics-contract 「3단계」 결정 ④ — 회원 표시는 탈퇴 파기 대상(WithdrawalCompletionService → AnalyticsMemberMarks), 숫자 표는 사람을 가리키지 않아 남긴다.
+            // 분석 표는 이 앱이 같은 DB 에 이관한다(roboyam.schema.analytics). 기간은 다른 시험과 겹치지 않는 먼 미래(2089년)
+            long member = memberWithPassword();
+            long other = newMember();
+            LocalDate week = VisitPeriods.weekStart(LocalDate.of(2089, 4, 12));
+            jdbc.queryForObject("SELECT analytics_ensure_period_mark_partitions(ARRAY['2089-04-12'::date, '2089-05-03'::date])", Integer.class);
+            for (long id : List.of(member, other)) {
+                jdbc.update("INSERT INTO analytics_member_week_marks (period_start, member_id) VALUES (?, ?)", java.sql.Date.valueOf(week), id);
+                jdbc.update("INSERT INTO analytics_member_month_marks (period_start, member_id) VALUES ('2089-04-01', ?), ('2089-05-01', ?)", id, id);
+            }
+            jdbc.update("INSERT INTO analytics_unique_counts (audience, period_kind, period_start, day, added) VALUES ('MEMBER', 'MONTH', '2089-04-01', '2089-04-12', 2) "
+                    + "ON CONFLICT (audience, period_kind, period_start, day) DO UPDATE SET added = EXCLUDED.added");
+            try {
+                assertThat(service.request(member, plain(), IP).state()).isEqualTo("COMPLETED");
+
+                assertThat(count("SELECT count(*) FROM analytics_member_week_marks WHERE member_id = ?", member)).isZero();
+                assertThat(count("SELECT count(*) FROM analytics_member_month_marks WHERE member_id = ?", member)).isZero();
+                assertThat(count("SELECT count(*) FROM analytics_member_week_marks WHERE member_id = ?", other)).isEqualTo(1);
+                assertThat(count("SELECT count(*) FROM analytics_member_month_marks WHERE member_id = ?", other)).isEqualTo(2);
+                assertThat(count("SELECT added FROM analytics_unique_counts WHERE audience = 'MEMBER' AND period_kind = 'MONTH' AND period_start = '2089-04-01' "
+                        + "AND day = '2089-04-12'")).as("숫자 표는 남는다").isEqualTo(2);
+            } finally {
+                jdbc.update("DELETE FROM analytics_member_week_marks WHERE member_id = ANY (?::bigint[])", "{" + member + "," + other + "}");
+                jdbc.update("DELETE FROM analytics_member_month_marks WHERE member_id = ANY (?::bigint[])", "{" + member + "," + other + "}");
+                jdbc.update("DELETE FROM analytics_unique_counts WHERE period_start = '2089-04-01' AND day = '2089-04-12'");
+            }
         }
 
         @Test

@@ -3,7 +3,7 @@
         방문자 통계 › 개요(`/analytics/visits`) — 계약 `docs/features/site-analytics-contract.md`.
         머리(`VisitStatsHeader` — 기간은 쪽을 옮겨도 이어진다 · 한 줄 요약: 방문자 증감 · 가장 많이 본 페이지)
         → 요약 카드 5(방문자 — 여러 날이면 「일별 합」 · 신규 · 페이지뷰 · 1인당 · 지금 접속, 카드마다 증감 칩·미니 추이)
-        → 주·월 순방문자 카드(3단계 — `VisitUniquesCard`, 방문자/회원 전환, 고른 기간과 무관 · ⚠ 목업) → 방문 추이(머리 오른쪽 「월별 보기 →」 = `/analytics/visits/monthly`, 메뉴 없음)
+        → 주·월 순방문자 카드(3단계 — `VisitUniquesCard`, 방문자/회원 전환, 고른 기간과 무관) → 방문 추이(머리 오른쪽 「월별 보기 →」 = `/analytics/visits/monthly`, 메뉴 `visitMonthly` 로도 간다)
         → 미리보기 3장(많이 본 페이지 5 · 유입 분류 · 요일·시간대 작은 히트맵) — 각 카드 「자세히 →」 = 그 쪽(같은 기간).
         읽는 차례: 요약(수집 스위치) → 켜진 미리보기만 같이(유입은 `detail=false` — 분류·사이트만). 페이지 미리보기·순방문자는 3단계부터 `visits` 에 딸린다. 요약이 실패하면 화면 오류 하나.
         권한: `site.read`(메뉴 `visitOverview`). 막는 것은 서버다.
@@ -22,7 +22,7 @@
                 <div class="transition-opacity" :class="{ 'opacity-60': summary.loading.value && s }" :aria-busy="summary.loading.value">
                     <VisitSummaryStrip :summary="s" />
                 </div>
-                <!-- 주·월 순방문자(3단계 — 고른 기간과 무관, ⚠ 목업 숫자) -->
+                <!-- 주·월 순방문자(3단계 — 고른 기간과 무관) -->
                 <VisitUniquesCard v-if="s" :data="uniques.data.value" :loading="uniques.loading.value" :error="uniques.error.value" @retry="loadUniques" />
                 <AppGadget :title="t('visitAnalytics.trendTitle')">
                     <template #title-extra>

@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.analytics.store.AnalyticsDatabase;
 import com.community.analytics.store.AnalyticsWriteStore;
+import com.community.analytics.store.AnalyticsWriteStore.MemberRow;
+import com.community.analytics.store.VisitPeriods;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.zconfiguration.time.ServiceTime;
 import java.sql.Connection;
@@ -46,6 +48,8 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 class VisitFlushMultiServerTest {
 
     private static final AtomicLong HOURS = new AtomicLong();
+    /** 시험 회원 번호(다른 시험의 회원 표시와 겹치지 않는 큰 수) */
+    private static final AtomicLong MEMBER_IDS = new AtomicLong(9_093_000_000_000L + (System.nanoTime() & 0xFFFFFL) * 1000);
     private static DataSource dataSource;
     private static JdbcTemplate jdbc;
     private static ExecutorService pool;
@@ -94,11 +98,45 @@ class VisitFlushMultiServerTest {
     }
 
     /**
-     * 그 날 표시 조각(analytics V6 — 하루 파티션)을 미리 만든다. 몰아쓰기({@link VisitFlusher})는 조각 없음(23514)을 받으면 스스로 만들고 다시 쓰지만,
-     * 저장소를 직접 부르는 시험은 열어 둔 트랜잭션이 23514 로 깨지므로 먼저 만들어 둔다.
+     * 그 날 표시 조각(analytics V6 — 하루 파티션)과 그 날이 든 주·달의 주·월 순방문자 표시 조각(analytics V8 — 3단계 결정 ④)을 미리 만든다. 몰아쓰기({@link VisitFlusher})는
+     * 조각 없음(23514)을 받으면 스스로 만들고 다시 쓰지만, 저장소를 직접 부르는 시험은 열어 둔 트랜잭션이 23514 로 깨지므로 먼저 만들어 둔다
+     * (저장소의 방문자 쓰기는 같은 트랜잭션에서 주·월 표시도 넣는다).
      */
     private static void ensureMarkPartition(LocalDate day) {
         jdbc.queryForObject("SELECT analytics_ensure_visit_mark_partitions(ARRAY[?]::date[])", Integer.class, Date.valueOf(day));
+        jdbc.queryForObject("SELECT analytics_ensure_period_mark_partitions(ARRAY[?]::date[])", Integer.class, Date.valueOf(day));
+    }
+
+    /** 방문자 주·월 표시 줄 수(해시 앞 16바이트 uuid 로) — {@code table} = analytics_visitor_week_marks · analytics_visitor_month_marks */
+    private static long visitorPeriodMarks(String table, Collection<String> hashes) {
+        return jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE visitor_id = ANY (?::uuid[])", Long.class,
+                "{" + String.join(",", hashes.stream().map(h -> VisitPeriods.visitorId(h).toString()).toList()) + "}");
+    }
+
+    /** 회원 주·월 표시 줄 수 — {@code table} = analytics_member_week_marks · analytics_member_month_marks */
+    private static long memberPeriodMarks(String table, long memberId) {
+        return jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE member_id = ?", Long.class, memberId);
+    }
+
+    /** 숫자 표의 한 기간 합(대상·종류·그 날이 든 기간) — 다른 시험도 같은 기간에 쓸 수 있어 시험은 앞뒤 차이로 본다 */
+    private static long uniqueAdded(String audience, String kind, LocalDate day) {
+        LocalDate start = VisitPeriods.WEEK.equals(kind) ? VisitPeriods.weekStart(day) : VisitPeriods.monthStart(day);
+        return jdbc.queryForObject("SELECT coalesce(sum(added), 0) FROM analytics_unique_counts WHERE audience = ? AND period_kind = ? AND period_start = ?", Long.class,
+                audience, kind, Date.valueOf(start));
+    }
+
+    /** [방문자 주, 방문자 달, 회원 주, 회원 달] 숫자 표 합 */
+    private static long[] uniqueAdded(LocalDate day) {
+        return new long[] {uniqueAdded(VisitPeriods.VISITOR, VisitPeriods.WEEK, day), uniqueAdded(VisitPeriods.VISITOR, VisitPeriods.MONTH, day),
+                uniqueAdded(VisitPeriods.MEMBER, VisitPeriods.WEEK, day), uniqueAdded(VisitPeriods.MEMBER, VisitPeriods.MONTH, day)};
+    }
+
+    private static long[] minus(long[] a, long[] b) {
+        long[] out = new long[a.length];
+        for (int i = 0; i < a.length; i++) {
+            out[i] = a[i] - b[i];
+        }
+        return out;
     }
 
     private static long marksOn(LocalDate day, String hash) {
@@ -177,12 +215,14 @@ class VisitFlushMultiServerTest {
     @Test
     void 앞_서버가_커밋하기_전에_같은_방문자를_넣으면_뒤_서버는_기다렸다가_건너뛴다() throws Exception {
         Instant hour = freshHour();
+        LocalDate day = ServiceTime.dateOf(hour);
         String visitor = hash();
-        ensureMarkPartition(ServiceTime.dateOf(hour));
+        ensureMarkPartition(day);
+        long[] before = uniqueAdded(day);
         try (Connection a = dataSource.getConnection()) {
             a.setAutoCommit(false);
             AnalyticsWriteStore storeA = new AnalyticsWriteStore(new AnalyticsDatabase(new SingleConnectionDataSource(a, true), false));
-            storeA.visits(List.of(new AnalyticsWriteStore.VisitorRow(ServiceTime.dateOf(hour), visitor, hour, true)), Map.of(hour, 1L), Map.of(visitor, hour));
+            storeA.visits(List.of(new AnalyticsWriteStore.VisitorRow(day, visitor, hour, true)), Map.of(hour, 1L), Map.of(visitor, hour));
 
             Server b = server();
             b.visit(visitor, hour.plusSeconds(30), true);
@@ -193,19 +233,25 @@ class VisitFlushMultiServerTest {
             flushB.get(30, TimeUnit.SECONDS);
             assertThat(b.bufferEmpty()).isTrue();
         }
-        assertThat(marksOn(ServiceTime.dateOf(hour), visitor)).isEqualTo(1);
+        assertThat(marksOn(day, visitor)).isEqualTo(1);
         assertThat(hourly(hour)).containsExactly(1, 1, 2);
+        // 주·월 순방문자(3단계 결정 ④) — 뒤 서버는 하루 표시를 새로 넣지 못했으므로 주·달 표시도 넣어 보지 않는다(앞 서버 몫 1번)
+        assertThat(visitorPeriodMarks("analytics_visitor_week_marks", List.of(visitor))).isEqualTo(1);
+        assertThat(visitorPeriodMarks("analytics_visitor_month_marks", List.of(visitor))).isEqualTo(1);
+        assertThat(minus(uniqueAdded(day), before)).containsExactly(1, 1, 0, 0);
     }
 
     @Test
     void 앞_서버가_되돌리면_기다리던_뒤_서버가_넣고_센다() throws Exception {
         Instant hour = freshHour();
+        LocalDate day = ServiceTime.dateOf(hour);
         String visitor = hash();
-        ensureMarkPartition(ServiceTime.dateOf(hour));
+        ensureMarkPartition(day);
+        long[] before = uniqueAdded(day);
         try (Connection a = dataSource.getConnection()) {
             a.setAutoCommit(false);
             AnalyticsWriteStore storeA = new AnalyticsWriteStore(new AnalyticsDatabase(new SingleConnectionDataSource(a, true), false));
-            storeA.visits(List.of(new AnalyticsWriteStore.VisitorRow(ServiceTime.dateOf(hour), visitor, hour, false)), Map.of(hour, 1L), Map.of(visitor, hour));
+            storeA.visits(List.of(new AnalyticsWriteStore.VisitorRow(day, visitor, hour, false)), Map.of(hour, 1L), Map.of(visitor, hour));
 
             Server b = server();
             b.visit(visitor, hour.plusSeconds(30), false);
@@ -215,8 +261,12 @@ class VisitFlushMultiServerTest {
             a.rollback();
             flushB.get(30, TimeUnit.SECONDS);
         }
-        assertThat(marksOn(ServiceTime.dateOf(hour), visitor)).isEqualTo(1);
+        assertThat(marksOn(day, visitor)).isEqualTo(1);
         assertThat(hourly(hour)).containsExactly(1, 0, 1);
+        // 앞 서버의 주·달 표시·숫자도 함께 되돌려졌고 뒤 서버가 한 번 넣었다
+        assertThat(visitorPeriodMarks("analytics_visitor_week_marks", List.of(visitor))).isEqualTo(1);
+        assertThat(visitorPeriodMarks("analytics_visitor_month_marks", List.of(visitor))).isEqualTo(1);
+        assertThat(minus(uniqueAdded(day), before)).containsExactly(1, 1, 0, 0);
     }
 
     /** 방문자 쓰기 뒤에 실패해 트랜잭션째 되돌려지는 저장소 */
@@ -228,9 +278,10 @@ class VisitFlushMultiServerTest {
             super(db);
         }
 
+        /** 몰아쓰기({@link VisitFlusher})가 부르는 회원 포함 4인자 — 주·월 표시·숫자 표까지 넣은 뒤 실패한다(3인자도 이것을 거친다) */
         @Override
-        public void visits(Collection<VisitorRow> visitors, Map<Instant, Long> pageViews, Map<String, Instant> active) {
-            super.visits(visitors, pageViews, active);
+        public void visits(Collection<VisitorRow> visitors, Map<Instant, Long> pageViews, Map<String, Instant> active, Collection<MemberRow> members) {
+            super.visits(visitors, pageViews, active, members);
             if (fail.get()) {
                 throw new IllegalStateException("시험 — 더하기 뒤 실패");
             }
@@ -247,22 +298,32 @@ class VisitFlushMultiServerTest {
         String v1 = hash();
         String v2 = hash();
         String v3 = hash();
+        long member = MEMBER_IDS.incrementAndGet();
+        List<String> all = List.of(v1, v2, v3);
+        long[] before = uniqueAdded(day);
         s.visit(v1, hour, true);
         s.visit(v1, hour.plusSeconds(10), false);
         s.visit(v2, hour.plusSeconds(20), false);
         s.visit(v3, hour.plusSeconds(30), false);
+        s.collector().buffer().member(day, member);
 
         s.flusher().flush();
-        assertThat(marks(List.of(v1, v2, v3))).as("실패한 트랜잭션의 표시는 남지 않는다").isZero();
+        assertThat(marks(all)).as("실패한 트랜잭션의 표시는 남지 않는다").isZero();
         assertThat(hourly(hour)).containsExactly(0, 0, 0);
+        assertThat(visitorPeriodMarks("analytics_visitor_week_marks", all)).as("주·달 표시도 같은 트랜잭션 — 남지 않는다").isZero();
+        assertThat(visitorPeriodMarks("analytics_visitor_month_marks", all)).isZero();
+        assertThat(memberPeriodMarks("analytics_member_week_marks", member)).isZero();
+        assertThat(memberPeriodMarks("analytics_member_month_marks", member)).isZero();
+        assertThat(minus(uniqueAdded(day), before)).as("숫자 표도 남지 않는다").containsExactly(0, 0, 0, 0);
 
         // 그 사이 다른 서버가 v3 을 먼저 셌다
         Server other = server();
         other.visit(v3, hour.plusSeconds(40), false);
         other.flusher().flush();
         assertThat(hourly(hour)).containsExactly(1, 0, 1);
+        assertThat(minus(uniqueAdded(day), before)).containsExactly(1, 1, 0, 0);
 
-        // 되돌린 묶음 + 그 사이 새 신호(v2 한 번 더)를 다음 번에 쓴다
+        // 되돌린 묶음 + 그 사이 새 신호(v2 한 번 더)를 다음 번에 쓴다 — 실패한 회원 줄은 서버 메모리에 「넣음」으로 남지 않아 다시 넣어 본다
         s.visit(v2, hour.plusSeconds(50), false);
         failing.fail.set(false);
         s.flusher().flush();
@@ -270,9 +331,15 @@ class VisitFlushMultiServerTest {
         assertThat(marksOn(day, v2)).isEqualTo(1);
         assertThat(marksOn(day, v3)).isEqualTo(1);
         assertThat(hourly(hour)).as("v1·v2 는 한 번만, v3 은 다른 서버 몫 — 페이지뷰는 4 + 1 + 1").containsExactly(3, 1, 6);
+        assertThat(visitorPeriodMarks("analytics_visitor_week_marks", all)).isEqualTo(3);
+        assertThat(visitorPeriodMarks("analytics_visitor_month_marks", all)).isEqualTo(3);
+        assertThat(memberPeriodMarks("analytics_member_week_marks", member)).isEqualTo(1);
+        assertThat(memberPeriodMarks("analytics_member_month_marks", member)).isEqualTo(1);
+        assertThat(minus(uniqueAdded(day), before)).as("방문자 3명(v3 은 다른 서버 몫)·회원 1명 — 한 번씩").containsExactly(3, 3, 1, 1);
 
         s.flusher().flush(); // 빈 묶음 — 아무것도 더하지 않는다
         assertThat(hourly(hour)).containsExactly(3, 1, 6);
+        assertThat(minus(uniqueAdded(day), before)).containsExactly(3, 3, 1, 1);
     }
 
     @Test

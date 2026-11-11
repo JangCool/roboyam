@@ -171,6 +171,12 @@ public enum BatchCatalog implements BatchDefinition {
      */
     ANALYTICS_MONTHLY_ROLLUP("analytics-monthly-rollup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 주·월 순방문자 표시(analytics V8 — 방문자·회원 × 주·달, 기간 파티션) — 이번·다음 주와 이번·다음 달 조각 만들기 + 기간이 끝나고 3일 지난 조각 DROP(끝난 기간은 숫자 표만 남긴다).
+     * DB 배치(analytics 스트림), 기본 매일 00:55 KST — 할 일이 없는 날은 SKIP({@code R__analytics_16_period_mark_partitions.sql}, 「3단계 결정 ④⑥」)
+     */
+    ANALYTICS_PERIOD_MARK_PARTITIONS("analytics-period-mark-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 「지금 접속」 표({@code analytics_visit_active}) 정리 — 10분 넘게 신호 없는 줄 삭제. DB 배치(analytics 스트림), 기본 10분마다({@code R__analytics_12_visit_active_cleanup.sql}) */
     ANALYTICS_VISIT_ACTIVE_CLEANUP("analytics-visit-active-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 

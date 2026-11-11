@@ -1,6 +1,4 @@
 import type { DashboardGadgetRequest, DashboardGadgetsResponse } from '~/composables/dashboard/api/useDashboardGadgetApi.types';
-// MOCK: 방문 통계 3단계 목업(순방문자 한 줄) — 「방문자 통계」 쪽과 같은 숫자를 쓰려고 그 목업을 빌린다(서버가 생기면 지운다)
-import VisitAnalyticsMock from '~/composables/analytics/api/mock/visit-analytics-mock';
 
 /**
  * 대시보드 가젯 숫자·목록 API — 서버 주소 문자열(`/api/admin/dashboard/gadgets`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -20,18 +18,13 @@ export function useDashboardGadgetApi() {
 
     return {
         /** 여러 종류의 숫자·목록을 한 번에 — 종류는 겹치지 않게 넘긴다(종류마다 질의 값이 하나다) */
-        load: async (requests: readonly DashboardGadgetRequest[]): Promise<DashboardGadgetsResponse> => {
+        load: (requests: readonly DashboardGadgetRequest[]): Promise<DashboardGadgetsResponse> => {
             const query: Record<string, string | number | undefined> = { types: requests.map((r) => r.type).join(',') };
             for (const r of requests) {
                 query[`limit.${r.type}`] = r.query.limit;
                 query[`days.${r.type}`] = r.query.days;
             }
-            const res = await client.get<DashboardGadgetsResponse>(PATH.gadgets, { query });
-            // MOCK: 방문 통계 3단계 — 「방문 현황」의 이번 주·이번 달 순방문자(서버가 `VISITORS` 에 두 칸을 주면 이 두 줄과 목업 import 를 지운다)
-            const visitors = res.gadgets.VISITORS;
-            if (visitors) res.gadgets.VISITORS = { ...visitors, ...VisitAnalyticsMock.visitorsThisWeekAndMonth() };
-            return res;
-            // REAL: return client.get<DashboardGadgetsResponse>(PATH.gadgets, { query });
+            return client.get<DashboardGadgetsResponse>(PATH.gadgets, { query });
         },
     };
 }

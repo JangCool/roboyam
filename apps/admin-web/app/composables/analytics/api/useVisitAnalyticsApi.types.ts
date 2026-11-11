@@ -521,7 +521,7 @@ export interface VisitForgetPage {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 3단계(2026-11-11 설계 합의 — 계약 「3단계」): 주·월 순방문자(WAU·MAU) · 월별 보기. ⚠ 서버 전 목업(`mock/visit-analytics-mock.ts`) — 아래 모양은 화면이 정한 후보다(서버 구현 때 맞춘다).
+// 3단계(2026-11-11 설계 합의 — 계약 「3단계」 결정 ④ 화면 확정): 주·월 순방문자(WAU·MAU) · 월별 보기. 아래 모양이 응답의 원천이다(서버가 그대로 따른다).
 // 권한은 모두 `site.read`. 수집 스위치는 「방문자·페이지뷰」(`visits`)에 딸린다(새 칸 없음).
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -584,7 +584,7 @@ export interface VisitMonthRange {
 
 /**
  * 월별 한 칸 — 빈 달 없이 오래된 차례(수집 전 달은 0).
- * `visitorsDailySum` = **날마다 센 방문자의 그 달 합**(같은 사람이 이틀 오면 2 — 월 순방문자가 아니다, 계약 「월별 표의 방문자」). 월 순방문자는 `uniqueVisitors`(결정 ④ 숫자 표).
+ * `visitorsDailySum` = **날마다 센 방문자의 그 달 합**(같은 사람이 이틀 오면 2 — 월 순방문자가 아니다, 계약 「월별 표의 방문자」). 월 순방문자는 `uniqueVisitors`(방문자)·`uniqueMembers`(회원) — 결정 ④ 숫자 표(MONTH)의 그 달 줄 합.
  */
 export interface VisitMonthlyPoint {
     /** `YYYY-MM` */
@@ -592,8 +592,10 @@ export interface VisitMonthlyPoint {
     visitorsDailySum: number;
     newVisitors: number;
     pageViews: number;
-    /** 그 달 순방문자(MAU, 방문자 — 중복 없이). 세기 시작 전 달이면 null */
+    /** 그 달 순방문자(MAU, 방문자 — 브라우저 기준, 중복 없이). 세기 시작 전 달이면 null */
     uniqueVisitors: number | null;
+    /** 그 달 회원 순방문자(MAU, 회원 — 로그인한 회원 번호 기준, 중복 없이 · 운영자·AI 회원 제외). 세기 시작 전 달이면 null(결정 ④ 화면 확정 ⓑ) */
+    uniqueMembers: number | null;
     /** 진행 중인 달(이번 달 — 「집계 중」) */
     partial: boolean;
 }
@@ -601,11 +603,14 @@ export interface VisitMonthlyPoint {
 /**
  * `GET /api/admin/analytics/visits/monthly?from=YYYY-MM&to=YYYY-MM` — 일별이 13개월만 남으므로(결정 ③) 긴 기간은 월별 표에서 읽는다(이번 달은 서버가 일별을 더해 채운다).
  * 기간 오류 400 VALIDATION(일별 기간과 같은 규칙): 비었거나·형식·`from>to`·36개월 초과 = `fields.from`, 이번 달 뒤 = `fields.to`.
- * 원천: 월 방문 표(방문자 일별 합·신규·페이지뷰) · 월 페이지 표 · 월 유입 표 · 순방문자 숫자 표(MONTH).
+ * 원천: 월 방문 표(방문자 일별 합·신규·페이지뷰) · 월 페이지 표 · 월 유입 표 · 순방문자 숫자 표(MONTH, 방문자·회원). 아직 합치지 않은 달(이번 달 · 1~2일의 지난달)은 일별 표를 더해 채운다.
+ * 수집 스위치(결정 ④ 화면 확정 ⓐ): 꺼져 있어도 **쌓인 지난 기록은 그대로 준다**(0 으로 가리지 않는다) — 화면이 그 위에 「지금은 수집이 꺼져 있어 이번 달은 늘지 않아요」를 얹는다.
+ * 쌓인 게 하나도 없고 꺼져 있으면 화면은 「수집이 꺼져 있어요」.
  */
 export interface VisitMonthly {
     range: VisitMonthRange;
     asOf: string;
+    /** 지금 스위치 값(가림 판단이 아니라 안내용 — 위 설명) */
     collect: VisitCollect;
     /** 기간 합(방문자는 일별 합) */
     totals: { visitorsDailySum: number; newVisitors: number; pageViews: number };
@@ -614,6 +619,6 @@ export interface VisitMonthly {
     pages: VisitPageRow[];
     /** 기간 전체 조회수(비율 막대의 분모) */
     pagesTotalViews: number;
-    /** 기간 유입 분류(세션 첫 페이지 수 — 유입 경로 수집이 꺼져 있으면 total 0·빈 배열) */
+    /** 기간 유입 분류(세션 첫 페이지 수 — 유입 경로 수집이 지금 꺼져 있어도 쌓인 기록은 준다) */
     referrers: { total: number; groups: { group: VisitReferrerGroup; visits: number }[] };
 }

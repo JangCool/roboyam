@@ -123,6 +123,22 @@ public class VisitAnalyticsAdminController {
         return ok(diagnostics.requests(page, size));
     }
 
+    // ── 3단계(site-analytics-contract 「3단계」 결정 ④ · 「결정 ④ 화면 확정」) ──────────────
+
+    /** 주·월 순방문자(방문자·회원) — 기간 없음(오늘 기준) */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/uniques")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Uniques>> uniques() {
+        return ok(service.uniques());
+    }
+
+    /** 월별 보기 — from·to 는 달 YYYY-MM(양끝 포함, 최대 36개월 — 틀리면 400 {@code fields.from}, 이번 달 뒤면 {@code fields.to}) */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/monthly")
+    public ResponseEntity<ApiResponse<VisitAnalyticsAdmin.Monthly>> monthly(@RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return ok(service.monthly(from, to));
+    }
+
     private static <T> ResponseEntity<ApiResponse<T>> ok(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(body));
     }

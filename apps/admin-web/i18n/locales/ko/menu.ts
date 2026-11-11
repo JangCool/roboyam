@@ -7,6 +7,7 @@ export default {
     dashboard: '대시보드',
     visitStats: '방문자 통계',
     visitOverview: '개요',
+    visitMonthly: '월별 보기',
     visitPages: '페이지',
     visitReferrers: '유입 경로',
     visitFlows: '이동 흐름',

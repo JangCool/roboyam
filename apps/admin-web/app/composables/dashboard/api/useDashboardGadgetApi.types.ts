@@ -183,7 +183,7 @@ export interface DashboardVisitors {
     hours: { hour: number; visitors: number }[];
     /**
      * 이번 주(월요일부터)·이번 달 순방문자(방문자, 중복 없이 — 방문 통계 3단계 결정 ④). 세기 시작 전이면 null, 옛 서버는 칸이 없다(그러면 줄을 숨긴다).
-     * ⚠ 서버 전 목업 — `useDashboardGadgetApi` 의 MOCK 줄이 채운다(서버 후보: `VISITORS` 응답에 이 두 칸).
+     * 서버가 준 값 그대로 쓴다(`uniques` 의 방문자 `week.current.count`·`month.current.count` 와 같은 숫자).
      */
     visitorsThisWeek?: number | null;
     visitorsThisMonth?: number | null;

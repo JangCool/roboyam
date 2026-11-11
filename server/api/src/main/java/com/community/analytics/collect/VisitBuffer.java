@@ -33,12 +33,18 @@ final class VisitBuffer {
     static final int MAX_SEARCH_TERMS = 20_000;
     static final int MAX_DAYS = 10;
     static final int MAX_BOTS = 100;
+    /** 로그인 회원 방문(그 날 · 회원) — 서버 한 대의 1분치 로그인 회원 수보다 넉넉한 값 */
+    static final int MAX_MEMBERS = 100_000;
 
     record VisitorKey(LocalDate day, String visitorHash) {
     }
 
     /** 이 1분 안에 처음 본 시간(정시)과 신규 방문자 신호가 있었나 */
     record FirstSeen(Instant hour, boolean newVisitor) {
+    }
+
+    /** 로그인 회원의 방문(3단계 결정 ④ — 회원 주·월 순방문자) — 그 날 · 회원 번호. 같은 1분 안의 같은 줄은 하나로 */
+    record MemberKey(LocalDate day, long memberId) {
     }
 
     record PageKey(LocalDate day, String path, String kind) {
@@ -88,16 +94,17 @@ final class VisitBuffer {
      * @param ignoredInvalid 이 1분 사이 형식이 틀려 무시한 방문 신호 수(수집 진단)
      * @param ignoredExcluded 이 1분 사이 뺄 계정(운영자 회원 계정·AI 회원)의 신호라 버린 수(수집 진단, 3단계)
      * @param unknownPath    이 1분 사이 「알 수 없는 주소」로 묶은 신호 수(수집 진단, 3단계 — 버리지 않고 세었다)
+     * @param members        이 1분 사이 신호를 보낸 로그인 회원(그 날 · 회원, 3단계 결정 ④ — 방문자와 같은 트랜잭션으로 쓴다). 값은 쓰지 않는다
      */
     record Batch(LinkedHashMap<VisitorKey, FirstSeen> visitors, LinkedHashMap<Instant, Long> pageViews, LinkedHashMap<String, Instant> active,
-                 ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows,
+                 LinkedHashMap<MemberKey, Boolean> members, ArrayDeque<RawView> raw, LinkedHashMap<PageKey, Long> pages, LinkedHashMap<ReferrerKey, Long> referrers, LinkedHashMap<FlowKey, Long> flows,
                  LinkedHashMap<CampaignKey, Long> campaigns, LinkedHashMap<EnvKey, Long> env, LinkedHashMap<SearchKey, SearchCount> searches,
                  LinkedHashMap<LocalDate, Long> searchFiltered, LinkedHashMap<BotKey, Long> bots, long dropped, long ignoredBot, long ignoredInvalid,
                  long ignoredExcluded, long unknownPath) {
 
         /** 쓸 숫자가 없나(수집 진단 칸은 따로 — 비어도 「살아 있음」은 쓴다) */
         boolean isEmpty() {
-            return visitors.isEmpty() && pageViews.isEmpty() && active.isEmpty() && raw.isEmpty() && pages.isEmpty() && referrers.isEmpty() && flows.isEmpty()
+            return visitors.isEmpty() && pageViews.isEmpty() && active.isEmpty() && members.isEmpty() && raw.isEmpty() && pages.isEmpty() && referrers.isEmpty() && flows.isEmpty()
                     && campaigns.isEmpty() && env.isEmpty() && searches.isEmpty() && searchFiltered.isEmpty() && bots.isEmpty();
         }
     }
@@ -110,7 +117,7 @@ final class VisitBuffer {
     private long unknownPath;
 
     private static Batch empty() {
-        return new Batch(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new ArrayDeque<>(), new LinkedHashMap<>(), new LinkedHashMap<>(),
+        return new Batch(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new ArrayDeque<>(), new LinkedHashMap<>(), new LinkedHashMap<>(),
                 new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), 0, 0, 0, 0, 0);
     }
 
@@ -124,6 +131,12 @@ final class VisitBuffer {
         trim(current.pageViews(), MAX_HOURS);
         current.active().merge(visitorHash, seenAt, (a, b) -> a.isAfter(b) ? a : b);
         trim(current.active(), MAX_ACTIVE);
+    }
+
+    /** 로그인 회원의 방문 1(회원 주·월 순방문자 — 「방문자·페이지뷰」 수집에 딸린다). 같은 1분 안의 같은 (날, 회원)은 한 줄 */
+    synchronized void member(LocalDate day, long memberId) {
+        current.members().putIfAbsent(new MemberKey(day, memberId), Boolean.TRUE);
+        trim(current.members(), MAX_MEMBERS);
     }
 
     /** 원본 한 줄(「원본 기록」을 켰을 때만) */
@@ -206,7 +219,7 @@ final class VisitBuffer {
     /** 지금까지 모은 것을 통째로 넘기고 비운다. 그 사이 상한 때문에 버린 줄이 있으면 경고한다 */
     synchronized Batch drain() {
         Batch b = current;
-        Batch out = new Batch(b.visitors(), b.pageViews(), b.active(), b.raw(), b.pages(), b.referrers(), b.flows(), b.campaigns(), b.env(), b.searches(),
+        Batch out = new Batch(b.visitors(), b.pageViews(), b.active(), b.members(), b.raw(), b.pages(), b.referrers(), b.flows(), b.campaigns(), b.env(), b.searches(),
                 b.searchFiltered(), b.bots(), dropped, ignoredBot, ignoredInvalid, ignoredExcluded, unknownPath);
         current = empty();
         if (dropped > 0) {
@@ -220,8 +233,10 @@ final class VisitBuffer {
         return out;
     }
 
-    /** 쓰지 못한(트랜잭션째 되돌려진) 방문자·페이지뷰·지금 접속을 다음 번에 다시 쓰도록 되돌린다 */
+    /** 쓰지 못한(트랜잭션째 되돌려진) 방문자·페이지뷰·지금 접속·로그인 회원을 다음 번에 다시 쓰도록 되돌린다 */
     synchronized void restoreVisits(Batch b) {
+        b.members().forEach((k, v) -> current.members().putIfAbsent(k, v));
+        trim(current.members(), MAX_MEMBERS);
         b.visitors().forEach((k, v) -> current.visitors().merge(k, v,
                 (was, now) -> new FirstSeen(was.hour().isBefore(now.hour()) ? was.hour() : now.hour(), was.newVisitor() || now.newVisitor())));
         b.pageViews().forEach((k, v) -> current.pageViews().merge(k, v, Long::sum));

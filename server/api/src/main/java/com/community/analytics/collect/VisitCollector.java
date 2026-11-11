@@ -33,7 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
  *       쌓는다. 브라우저가 보낸 {@code kind} 는 읽지 않는다. 라우트 표에 없거나 없는 게시판·가젯 페이지면 「알 수 없는 주소」로 묶고 진단에 센다.</li>
  *   <li>방문자·세션 키 = {@link BlindIndex} HMAC(용도 {@code analytics.visitor}·{@code analytics.session}, <b>날짜를 섞지 않는다</b> — 같은 브라우저는 날이 바뀌어도 같은 키라
  *       신규·재방문을 가를 수 있다). 원본 UUID·IP·원본 User-Agent 는 남기지 않는다.</li>
- *   <li>켜진 항목만 모은다: 방문자·페이지뷰·지금 접속 + 페이지별 일별 조회({@code visits} — 3단계부터 페이지별은 여기에 딸린다) · 원본({@code rawEvents}) · 유입처 + 캠페인 utm 묶음
+ *   <li>켜진 항목만 모은다: 방문자·페이지뷰·지금 접속 + 로그인 회원(회원 주·월 순방문자, 3단계 결정 ④) + 페이지별 일별 조회({@code visits} — 3단계부터 페이지별은 여기에 딸린다) · 원본({@code rawEvents}) · 유입처 + 캠페인 utm 묶음
  *       (세션 첫 페이지 = {@code prevPath} 없음, {@code referrers}) · 이동(직전 → 이번, 같은 경로 다시 보기(받은 주소 그대로 견준다)는 빼고 — 세션 첫 페이지는 직전 {@code ""}
  *       「바로 들어옴」, {@code flows}) · 환경(세션 첫 페이지의 {@code env} 분류값 + 서버가 UA 로 가른 기기, {@code environment}).</li>
  *   <li>유입처: {@code utm_*} 가 있으면 CAMPAIGN, 주소가 없으면 DIRECT, 그 밖은 도메인만 남기고 분류({@link ReferrerClassifier}). 원본의 기기: User-Agent 에서 MOBILE/DESKTOP 만(1단계 그대로).</li>
@@ -156,8 +156,10 @@ public class VisitCollector {
             buffer.ignoredInvalid();
             return false;
         }
+        // 로그인 회원(3단계) — 뺄 계정 가르기와 회원 주·월 순방문자에 쓴다(세션 사본이 비었을 때만 DB 를 읽는다, 한 번만 묻는다)
+        Long memberId = member == null ? null : member.get();
         // 뺄 계정(3단계) — 로그인 세션의 회원이 운영자 회원 계정·AI 회원이면 이 신호는 통계 어디에도 넣지 않는다
-        if (references != null && references.excludedMember(member == null ? null : member.get())) {
+        if (references != null && references.excludedMember(memberId)) {
             buffer.ignoredExcluded();
             return false;
         }
@@ -198,6 +200,10 @@ public class VisitCollector {
 
         if (s.visitsOn()) {
             buffer.visit(day, visitorHash, hour, newVisitor, now);
+            // 회원 주·월 순방문자(3단계 결정 ④) — 「방문자·페이지뷰」에 딸린다(새 설정 칸 없음). 로그인하지 않고 본 회원은 빠진다(방문자 쪽에는 들어간다)
+            if (memberId != null) {
+                buffer.member(day, memberId);
+            }
         }
         // 페이지별 일별 — 3단계부터 「방문자·페이지뷰」에 딸린다(원본 기록과 무관)
         if (s.pagesOn()) {

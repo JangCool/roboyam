@@ -72,7 +72,7 @@ public class VisitDiagnosticsAdminService {
     /** 화면에 보이는 크론 — 방문 분석 크론 + 같은 「설정 › 통계 수집」에 딸린 메인 DB 크론 */
     static final List<String> CRON_JOBS = List.of(BatchCatalog.ANALYTICS_PAGE_VIEW_PARTITIONS.key(), BatchCatalog.ANALYTICS_VISIT_MARK_CLEANUP.key(),
             BatchCatalog.ANALYTICS_VISIT_ACTIVE_CLEANUP.key(), BatchCatalog.ANALYTICS_FORGET_REQUESTS.key(), BatchCatalog.ANALYTICS_LOG_CLEANUP.key(),
-            BatchCatalog.ANALYTICS_MONTHLY_ROLLUP.key(),
+            BatchCatalog.ANALYTICS_MONTHLY_ROLLUP.key(), BatchCatalog.ANALYTICS_PERIOD_MARK_PARTITIONS.key(),
             BatchCatalog.BOARD_ACTIVITY_DAILY.key(), BatchCatalog.NOTIFICATION_SEND_FAILURE_CLEANUP.key());
     /** 문제 코드 차례(같은 심각도 안에서) — admin-web {@code VISIT_HEALTH_ISSUE_CODES} */
     static final List<String> ISSUE_CODES = List.of("INSTANCE_SILENT", "FLUSH_FAILED", "BUFFER_DROPPED", "CRON_FAILED", "CRON_LATE", "RAW_BACKLOG",

@@ -7,6 +7,7 @@ export default {
     dashboard: 'Dashboard',
     visitStats: 'Visitor stats',
     visitOverview: 'Overview',
+    visitMonthly: 'Monthly view',
     visitPages: 'Pages',
     visitReferrers: 'Referrers',
     visitFlows: 'Page flow',

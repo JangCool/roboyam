@@ -1,5 +1,6 @@
 package com.community.withdrawal.service;
 
+import com.community.analytics.store.AnalyticsMemberMarks;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditActorType;
@@ -41,7 +42,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>포인트: 남은 묶음 전부 {@code WITHDRAW_FORFEIT}(원장 보존) · 아이템 회수 · 사업자 신원 탈퇴(기다리기/포기) · 핫딜 작성자 종료 ·
  *       로보티콘 작가 팩 새 판매 멈춤·대기 심사 건 닫기({@link EmoticonCreatorWithdrawal}) · 정산 정보 없이 남은 로보티콘 수익은 동의했으면 포기, 아니면 시스템 보류(V148)</li>
  *   <li>재가입 제한 해시(이메일·소셜·본인인증, {@link WithdrawalRejoinPolicy} 의 끝까지) · 결제 이력이 있으면 연락용 이메일 분리 보관</li>
- *   <li>설정·이력·관계·역할·토큰·알림·내 쪽지함 삭제, 대기 요청·대기 메일 취소, 주소록 삭제, 배송지 암호문 즉시 마스킹, 작성 90일 지난 글·댓글 IP 삭제</li>
+ *   <li>설정·이력·관계·역할·토큰·알림·내 쪽지함 삭제, 대기 요청·대기 메일 취소, 주소록 삭제, 배송지 암호문 즉시 마스킹, 작성 90일 지난 글·댓글 IP 삭제 ·
+ *       방문 통계의 회원 주·월 순방문자 표시 삭제({@link AnalyticsMemberMarks} — site-analytics-contract 「3단계」 결정 ④, 숫자 표는 남김)</li>
  *   <li>프로필·계정 익명화(닉네임·이메일·비밀번호 NULL, WITHDRAWN, deleted_at) · 세션 모두 종료 · 감사 {@code MEMBER_WITHDRAW}(돈 관련) · 신청 줄 COMPLETED</li>
  *   <li>커밋 뒤: 완료 메일(익명화 전 주소 — 인증한 주소만) · 닉네임 이미지 디스크 파일 삭제</li>
  * </ol>
@@ -98,11 +100,13 @@ public class WithdrawalCompletionService {
     private final ImageStorage storage;
     private final WithdrawalProperties properties;
     private final Clock clock;
+    private final AnalyticsMemberMarks analyticsMarks;
 
     public WithdrawalCompletionService(WithdrawalQueries queries, WithdrawalEraseStore erase, MemberWithdrawalStore withdrawals, WithdrawalGroupHandler groupHandler,
                                        WithdrawalRejoinPolicy rejoinPolicy, PointService points, BusinessWithdrawal business, DealWithdrawal deals, EmoticonCreatorWithdrawal emoticons,
                                        IdentityWithdrawalRecorder identities, WithdrawnContactStore contacts, AuditLogService audit, WithdrawalMailSender mail,
-                                       ImageStorage storage, WithdrawalProperties properties, ObjectProvider<Clock> clocks) {
+                                       ImageStorage storage, WithdrawalProperties properties, ObjectProvider<Clock> clocks, AnalyticsMemberMarks analyticsMarks) {
+        this.analyticsMarks = analyticsMarks;
         this.queries = queries;
         this.erase = erase;
         this.withdrawals = withdrawals;
@@ -190,6 +194,7 @@ public class WithdrawalCompletionService {
         erase.deleteOwnRows(userId);
         int clearedIps = erase.clearOldAuthorIps(userId, AUTHOR_IP_DAYS, now);
         int masked = erase.maskParticipations(userId, now);
+        int visitMarks = analyticsMarks.deleteMember(userId);
 
         // 5. 익명화·세션·기록
         erase.anonymizeProfile(userId, now);
@@ -229,8 +234,8 @@ public class WithdrawalCompletionService {
         }
         afterCommit(() -> imageKeys.forEach(this::deleteQuietly));
 
-        log.info("회원 탈퇴를 완료했다 userId={} withdrawalId={} 무상포기={} 유상포기={} 결제이력={} 세션={} 마스킹={} IP삭제={} 대기메일취소={} 소모임={}", userId, request.id(),
-                forfeited.free(), forfeited.paid(), hasPaymentHistory, sessions, masked, clearedIps, canceledMail, leftGroups);
+        log.info("회원 탈퇴를 완료했다 userId={} withdrawalId={} 무상포기={} 유상포기={} 결제이력={} 세션={} 마스킹={} IP삭제={} 대기메일취소={} 소모임={} 방문표시={}", userId,
+                request.id(), forfeited.free(), forfeited.paid(), hasPaymentHistory, sessions, masked, clearedIps, canceledMail, leftGroups, visitMarks);
         return Optional.of(new Completed(request.id(), now, rejoin.until(), hasPaymentHistory, properties.contactRetentionYears(), mail.supportEmail()));
     }
 

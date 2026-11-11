@@ -3,11 +3,15 @@
 -- 규칙:
 --   ① 대기 요청을 한 번에 모은다 — 받은 지 delay_minutes(2분) 넘은 것만: 서버가 1분마다 몰아 쓰므로, 요청 직전의 신호가 아직 메모리에 있다가 처리 뒤에 써지는 일이 없게.
 --      한 번에 requests_per_run(500) 개까지(남은 것은 다음 5분).
---   ② 그 해시들로 한 번씩 지운다: 원본(analytics_page_views)은 월 조각마다 한 문장(조각 하나를 한 번 훑는다), 「그 날 셌다」 표시(analytics_visit_marks)·지금 접속(analytics_visit_active)은 한 문장씩.
+--   ② 그 해시들로 한 번씩 지운다: 원본(analytics_page_views)은 월 조각마다 한 문장(조각 하나를 한 번 훑는다), 「그 날 셌다」 표시(analytics_visit_marks)·지금 접속(analytics_visit_active)·
+--      주·월 순방문자 표시(방문자 두 표 — analytics V8)는 한 문장씩.
 --      성능: 원본에 visitor_hash 인덱스를 두지 않는다 — 두면 1분 몰아쓰기의 원본 넣기마다 인덱스 쓰기가 늘어난다(원본은 가장 큰 표). 대신 대기 요청이 있을 때만
 --      visitor_hash = ANY(모은 해시) 한 번으로 조각을 훑는다(요청이 몇 개든 조각마다 한 번). 판정 표시는 기본 키 (day, visitor_hash) 의 뒤 칸이라 PostgreSQL 18 의
 --      B-tree 건너뛰기 검색이 날(오늘·어제 — 2일 보관)마다 내려간다. 지금 접속은 기본 키(visitor_hash).
---      합산 표(analytics_visit_hourly · *_daily)는 사람을 가리키지 않아 지우지 않는다. 판정 표시를 지웠으므로 그 방문자가 오늘 다시 오면 방문자 1 로 다시 셀 수 있다(허용).
+--      주·월 표시(analytics_visitor_week_marks · analytics_visitor_month_marks, 3단계 결정 ④)는 방문자 키가 해시 앞 16바이트의 uuid 라 substr(visitor_hash, 1, 32)::uuid 로
+--      바꿔 지운다(기본 키 (period_start, visitor_id) 의 뒤 칸 — 조각이 이번·지난 기간 몇 개뿐이라 건너뛰기 검색이 짧다).
+--      합산 표(analytics_visit_hourly · *_daily · 순방문자 숫자 표 analytics_unique_counts)는 사람을 가리키지 않아 지우지 않는다. 판정 표시를 지웠으므로 그 방문자가 오늘(이번 주·달)
+--      다시 오면 방문자 1 로 다시 셀 수 있다(허용).
 --   ③ 지운 줄 수를 요청별로 더해 두고(RETURNING 을 해시로 묶어) 끝나면 DONE · processed_at 을 적고 해시를 비운다. 중간에 실패하면 요청은 대기로 남아 다음 실행이 이어서 지운다
 --      (이미 지운 줄은 다시 세지 않는다 — 누적 값이 맞다).
 -- 기본 실행: 5분마다(*/5). 설정값(batch_params): requests_per_run(500, 1~10000) · delay_minutes(2, 1~60).
@@ -22,6 +26,7 @@ DECLARE
     v_delay  bigint := batch_param(c_job, 'delay_minutes', 2, 1, 60);
     v_ids    bigint[];
     v_hashes text[];
+    v_uuids  uuid[];
     v_parts  regclass[];
     v_part   regclass;
     v_done   bigint := 0;
@@ -34,6 +39,12 @@ DECLARE
                            || 'c AS (SELECT visitor_hash, count(*) AS n FROM d GROUP BY visitor_hash) '
                            || 'UPDATE analytics_forget_requests r SET deleted_rows = coalesce(r.deleted_rows, 0) + c.n '
                            || 'FROM c WHERE r.id = ANY($2) AND r.visitor_hash = c.visitor_hash';
+    -- 주·월 표시(uuid) — 요청의 64자 해시 앞 32자를 uuid 로 바꿔 견준다($1 = uuid 들, $2 = 요청 id 들). 16진이 아닌 해시는 견주지 않는다(CASE 가 바꾸기 앞에 거른다)
+    c_count_uuid CONSTANT text := 'WITH d AS (DELETE FROM %s WHERE visitor_id = ANY($1) RETURNING visitor_id), '
+                           || 'c AS (SELECT visitor_id, count(*) AS n FROM d GROUP BY visitor_id) '
+                           || 'UPDATE analytics_forget_requests r SET deleted_rows = coalesce(r.deleted_rows, 0) + c.n '
+                           || 'FROM c WHERE r.id = ANY($2) '
+                           || 'AND (CASE WHEN r.visitor_hash ~ ''^[0-9a-f]{32}'' THEN substr(r.visitor_hash, 1, 32)::uuid END) = c.visitor_id';
 BEGIN
     p_run_id := batch_run_begin(c_job, p_trigger, p_operator);
     IF p_run_id IS NULL THEN
@@ -70,6 +81,11 @@ BEGIN
             BEGIN
                 EXECUTE format(c_count, 'analytics_visit_marks') USING v_hashes, v_ids;
                 EXECUTE format(c_count, 'analytics_visit_active') USING v_hashes, v_ids;
+                -- 주·월 순방문자 표시(analytics V8) — 해시 앞 32자 → uuid
+                SELECT coalesce(array_agg(DISTINCT substr(h, 1, 32)::uuid), '{}') INTO v_uuids
+                  FROM unnest(v_hashes) AS t(h) WHERE h ~ '^[0-9a-f]{32}';
+                EXECUTE format(c_count_uuid, 'analytics_visitor_week_marks') USING v_uuids, v_ids;
+                EXECUTE format(c_count_uuid, 'analytics_visitor_month_marks') USING v_uuids, v_ids;
             EXCEPTION WHEN OTHERS THEN
                 GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE, v_msg = MESSAGE_TEXT;
                 v_err := batch_error_text(v_state, v_msg);
