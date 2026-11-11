@@ -190,14 +190,11 @@ roboyam:
     progress-notice-days: 10     # 신청 뒤 이 일수 안에 완료되지 않으면 진행 상태 메일(개인정보보호법 시행령 제44조)
     reauth-minutes: 10           # 소셜 전용 회원의 본인 확인 — 최근 이 분 안 로그인
     support-email: ""            # 탈퇴 화면·완료 메일의 고객센터 메일. 비우면 메일 서버의 보내는 주소
-  # AI 회원(docs/features/ai-members-contract.md — AiMemberProperties). 모델 목록은 제공사별로 바꿀 수 있다(첫 값이 그 제공사의 기본). 관리자 화면은 이 목록에서만 고른다.
+  # AI 회원(docs/features/ai-members-contract.md — AiMemberProperties). 고를 수 있는 모델은 여기 두지 않는다 — 표 ai_models(shared V189)가 정본이고
+  # 관리자 설정 화면 「모델 목록」에서 켜고 끄기·기본·추가·지우기를 한다(2026-11-11 — 옛 models.* 는 지웠다. 처음 채우기용도 아니다).
   # 생성 실행기는 관리자(admin) 서버에서 돈다(정책 11 · 세션 정리 결정 2026-11-10 — 배치는 admin 또는 pg_cron 에서만, api 에는 실행기가 없다). roboyam.batch.enabled 와
   # runner-enabled 가 둘 다 켜진 관리자 서버만 돌고, 여러 대여도 BatchLockService 어드바이저리 잠금으로 한 곳만 돈다. api 서버에서는 이 값이 쓰이지 않는다.
   ai-member:
     runner-enabled: ${ROBOYAM_AI_MEMBER_RUNNER:true}
     poll-millis: 60000           # 실행기 한 바퀴 간격(승인 줄 등록 + 할 일 생성)
     calls-per-tick: 3            # 한 바퀴의 생성 호출 수 상한(계정당 1건)
-    models:
-      openai: gpt-6-luna,gpt-6.1-sol                 # developers.openai.com/api/docs/models 확인 2026-11-10
-      google: gemini-3.6-flash,gemini-3.5-flash-lite # aistudio.google.com/docs/models 의 Stable 확인 2026-11-10(Pro 는 preview 뿐이라 뺐다)
-      anthropic: claude-haiku-5-5,claude-sonnet-5-5

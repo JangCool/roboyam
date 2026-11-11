@@ -5,6 +5,8 @@ import com.community.aimember.dto.AiMemberViews;
 import com.community.aimember.service.AiDraftAdminService;
 import com.community.aimember.service.AiMemberAdminService;
 import com.community.aimember.service.AiMemberSettingsAdminService;
+import com.community.aimember.service.AiModelAdminService;
+import com.community.aimember.service.AiPromptAdminService;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -12,6 +14,7 @@ import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * AI 회원 관리 API(관리자 「AI 회원」 네 화면 — docs/features/ai-members-contract.md). 읽기 {@code ai-member.read}, 쓰기 {@code ai-member.manage},
+ * AI 회원 관리 API(관리자 「AI 회원」 다섯 화면 — docs/features/ai-members-contract.md). 읽기 {@code ai-member.read}, 쓰기 {@code ai-member.manage},
  * 제공사 키 저장 {@code ai-member.secret}. 응답은 {@code Cache-Control: no-store}. 입력 검사는 서비스가 한다.
  */
 @RestController
@@ -32,8 +35,13 @@ public class AiMemberAdminController {
     private final AiMemberAdminService accounts;
     private final AiDraftAdminService drafts;
     private final AiMemberSettingsAdminService settings;
+    private final AiModelAdminService models;
+    private final AiPromptAdminService prompts;
 
-    public AiMemberAdminController(AiMemberAdminService accounts, AiDraftAdminService drafts, AiMemberSettingsAdminService settings) {
+    public AiMemberAdminController(AiMemberAdminService accounts, AiDraftAdminService drafts, AiMemberSettingsAdminService settings, AiModelAdminService models,
+                                   AiPromptAdminService prompts) {
+        this.models = models;
+        this.prompts = prompts;
         this.accounts = accounts;
         this.drafts = drafts;
         this.settings = settings;
@@ -145,6 +153,65 @@ public class AiMemberAdminController {
     public ResponseEntity<ApiResponse<AiMemberViews.Settings>> key(@PathVariable String provider, @RequestBody(required = false) AiMemberRequests.Key body,
                                                                    AdminActor actor) {
         return noStore(settings.setKey(actor, provider, body));
+    }
+
+    // ── 모델 목록(표 ai_models — V189) ──
+
+    @RequirePermission(Permission.AI_MEMBER_READ)
+    @GetMapping("/models")
+    public ResponseEntity<ApiResponse<AiMemberViews.ModelList>> models() {
+        return noStore(models.list());
+    }
+
+    /** 모델 직접 추가 — 201 · 400 {@code VALIDATION}(provider · modelId(형식·중복) · label · priceInput · priceOutput) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PostMapping("/models")
+    public ResponseEntity<ApiResponse<AiMemberViews.ModelList>> createModel(@RequestBody(required = false) AiMemberRequests.ModelCreate body, AdminActor actor) {
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(models.create(actor, body)));
+    }
+
+    /** 사용 켜기·끄기 — 404 {@code AI_MODEL_NOT_FOUND} · 409 {@code AI_MODEL_DEFAULT_LOCKED}(기본 모델 끄기) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PutMapping("/models/{id}/enabled")
+    public ResponseEntity<ApiResponse<AiMemberViews.ModelList>> modelEnabled(@PathVariable String id, @RequestBody(required = false) AiMemberRequests.ModelEnabled body,
+                                                                             AdminActor actor) {
+        return noStore(models.setEnabled(actor, id, body == null ? null : body.enabled()));
+    }
+
+    /** 기본 정하기(제공사당 하나 — 꺼진 모델이면 함께 켠다) — 404 {@code AI_MODEL_NOT_FOUND} */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PutMapping("/models/{id}/default")
+    public ResponseEntity<ApiResponse<AiMemberViews.ModelList>> modelDefault(@PathVariable String id, AdminActor actor) {
+        return noStore(models.setDefault(actor, id));
+    }
+
+    /** 지우기 — 404 {@code AI_MODEL_NOT_FOUND} · 409 {@code AI_MODEL_DEFAULT_LOCKED} · 409 {@code AI_MODEL_IN_USE}(쓰는 계정이 있다 — 대신 끄기) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @DeleteMapping("/models/{id}")
+    public ResponseEntity<ApiResponse<AiMemberViews.ModelList>> deleteModel(@PathVariable String id, AdminActor actor) {
+        return noStore(models.delete(actor, id));
+    }
+
+    // ── 프롬프트(표 ai_prompt_settings — V190) ──
+
+    @RequirePermission(Permission.AI_MEMBER_READ)
+    @GetMapping("/prompts")
+    public ResponseEntity<ApiResponse<AiMemberViews.PromptSettings>> prompts() {
+        return noStore(prompts.view());
+    }
+
+    /** 저장 — 400 {@code VALIDATION}(common · post · news · comment · reply · moodChance · moods · moods[i].name · moods[i].prompt · newsRatio · newsKeyword · newsDays · paragraphSentences) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PutMapping("/prompts")
+    public ResponseEntity<ApiResponse<AiMemberViews.PromptSettings>> savePrompts(@RequestBody(required = false) AiMemberRequests.PromptSave body, AdminActor actor) {
+        return noStore(prompts.save(actor, body));
+    }
+
+    /** 미리 보기(저장 전 화면 값 · 제공사 호출 없음 · 읽기 권한) — 404 {@code AI_MEMBER_NOT_FOUND} · 400 {@code VALIDATION}(aiMemberId · kind · mood · settings.*) */
+    @RequirePermission(Permission.AI_MEMBER_READ)
+    @PostMapping("/prompts/preview")
+    public ResponseEntity<ApiResponse<AiMemberViews.PromptPreview>> previewPrompt(@RequestBody(required = false) AiMemberRequests.PromptPreview body) {
+        return noStore(prompts.preview(body));
     }
 
     // ── 기록 ──

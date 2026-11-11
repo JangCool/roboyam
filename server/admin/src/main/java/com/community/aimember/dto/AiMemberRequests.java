@@ -1,5 +1,6 @@
 package com.community.aimember.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -63,5 +64,34 @@ public final class AiMemberRequests {
     }
 
     public record GroupAiOnly(Boolean aiOnly) {
+    }
+
+    /** 모델 직접 추가 — 모델 ID 만 꼭 있어야 한다(설명·가격·무료 표시는 고르기) */
+    public record ModelCreate(String provider, String modelId, String label, BigDecimal priceInput, BigDecimal priceOutput, Boolean freeTier) {
+    }
+
+    /** 모델 사용 켜기·끄기 */
+    public record ModelEnabled(Boolean enabled) {
+    }
+
+    /** 분위기 한 줄 */
+    public record PromptMood(String name, String prompt, Boolean enabled) {
+    }
+
+    /**
+     * 프롬프트 설정 저장(V190) — 지시문 칸이 null·빈 글이거나 기본값과 같으면 기본값(NULL)으로 둔다. {@code moods} 가 null 이면 기본 목록.
+     * 확률·일수·문장 수가 빠지면 400 {@code VALIDATION}.
+     */
+    public record PromptSave(String common, String post, String news, String comment, String reply, Integer moodChance, List<PromptMood> moods, Integer newsRatio,
+                             String newsKeyword, Integer newsDays, Boolean paragraphAuto, Integer paragraphSentences) {
+    }
+
+    /**
+     * 프롬프트 미리 보기 — 저장 전 화면 값({@code settings})으로 실제 보낼 시스템·사용자 메시지를 만든다(제공사 호출 없음).
+     *
+     * @param kind POST · NEWS · COMMENT · REPLY
+     * @param mood {@code settings.moods} 안의 차례(0부터) — null 이면 분위기 없음
+     */
+    public record PromptPreview(String aiMemberId, String kind, Integer mood, PromptSave settings) {
     }
 }

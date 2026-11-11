@@ -1,4 +1,4 @@
-import { AI_PROVIDERS, type AiActivityWindows, type AiLogResult, type AiMemberCreateRequest, type AiMemberDetail, type AiMemberFormOptions, type AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
+import { AI_PROVIDERS, type AiActivityWindows, type AiLogResult, type AiMemberCreateRequest, type AiMemberDetail, type AiMemberFormOptions, type AiProvider, type AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
 
 /** 태그 색(PrimeVue `Tag` severity) */
 type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
@@ -11,6 +11,7 @@ export default class UtilAiMember {
     static readonly LIST_PATH = '/ai-members';
     static readonly DRAFTS_PATH = '/ai-members/drafts';
     static readonly SETTINGS_PATH = '/ai-members/settings';
+    static readonly PROMPTS_PATH = '/ai-members/prompts';
     static readonly LOGS_PATH = '/ai-members/logs';
 
     /** 권한(서버 `Permission` AI_MEMBER_*) — 조회 · 처리 · 제공사 키 */
@@ -28,14 +29,20 @@ export default class UtilAiMember {
     static readonly CALL_LIMIT_MAX = 5000;
     static readonly LOG_PAGE_SIZE = 20;
 
-    /** 새 계정 칸의 처음 값 — 모델은 설정에 모델이 있는 첫 제공사의 첫 모델. 활동 창은 오전 09:00~11:30 · 오후 14:00~21:00 */
+    /** 그 제공사의 처음 모델 — 모델 목록의 「기본」, 없으면 켜진 첫 모델, 하나도 없으면 빈 값 */
+    static defaultModel(options: AiMemberFormOptions | null, provider: AiProvider): string {
+        const list = options?.models[provider] ?? [];
+        return (list.find((m) => m.defaultModel) ?? list[0])?.modelId ?? '';
+    }
+
+    /** 새 계정 칸의 처음 값 — 켜진 모델이 있는 첫 제공사의 기본 모델. 활동 창은 오전 09:00~11:30 · 오후 14:00~21:00 */
     static blankForm(options: AiMemberFormOptions | null): AiMemberCreateRequest {
         const provider = AI_PROVIDERS.find((p) => (options?.models[p] ?? []).length > 0) ?? AI_PROVIDERS[0]!;
         return {
             nickname: '',
             avatarId: null,
             provider,
-            model: options?.models[provider]?.[0] ?? '',
+            model: UtilAiMember.defaultModel(options, provider),
             persona: { gender: 'MALE', ageBand: 'THIRTIES', personality: '', tone: '', interests: '' },
             bio: '',
             relation: null,

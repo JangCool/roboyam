@@ -45,22 +45,36 @@ public class AiDraftEntity {
     private int outputTokens;
     private boolean instant;
     private String failReason;
+    /** 실패 줄의 제공사 메시지(가린 것 · 300자 이하) — 옛 줄·등록 단계 실패는 비어 있다 */
+    private String failDetail;
     private Instant createdAt;
     private Instant reviewedAt;
     private Long reviewedBy;
     private Long publishedPostId;
     private Long publishedCommentId;
     private Instant publishedAt;
+    /** 뉴스 글의 소재 글(사이트 회원이 쓴 「뉴스」 말머리 글 — V190). 뉴스 글이 아니면 null */
+    private Long sourcePostId;
 
     protected AiDraftEntity() {
     }
 
-    /** 무엇에 대한 생성물인가 — 글이면 게시판·소모임만, 댓글·답글이면 글·댓글·상대까지 */
+    /** 무엇에 대한 생성물인가 — 글이면 게시판·소모임만(뉴스 글이면 소재 글까지), 댓글·답글이면 글·댓글·상대까지 */
     public record Target(AiDraftKind kind, Long boardId, Long groupId, Long postId, Long parentCommentId, Long replyToCommentId, Long counterpartUserId,
-                         boolean counterpartAi, Integer round) {
+                         boolean counterpartAi, Integer round, Long sourcePostId) {
+
+        public Target(AiDraftKind kind, Long boardId, Long groupId, Long postId, Long parentCommentId, Long replyToCommentId, Long counterpartUserId,
+                      boolean counterpartAi, Integer round) {
+            this(kind, boardId, groupId, postId, parentCommentId, replyToCommentId, counterpartUserId, counterpartAi, round, null);
+        }
 
         public static Target post(long boardId, Long groupId) {
-            return new Target(AiDraftKind.POST, boardId, groupId, null, null, null, null, false, null);
+            return new Target(AiDraftKind.POST, boardId, groupId, null, null, null, null, false, null, null);
+        }
+
+        /** 뉴스 글 — 게시판 글(소모임 아님) + 소재 글 */
+        public static Target newsPost(long boardId, long sourcePostId) {
+            return new Target(AiDraftKind.POST, boardId, null, null, null, null, null, false, null, sourcePostId);
         }
     }
 
@@ -79,12 +93,19 @@ public class AiDraftEntity {
 
     /** 생성 호출이 실패한 한 건 */
     public static AiDraftEntity failed(long id, long aiMemberId, Target t, AiProvider provider, String model, int in, int out, String reason, Instant now) {
+        return failed(id, aiMemberId, t, provider, model, in, out, reason, null, now);
+    }
+
+    /** 생성 호출이 실패한 한 건 — 제공사 메시지(가린 것 · 300자 이하, V189 {@code fail_detail})까지 */
+    public static AiDraftEntity failed(long id, long aiMemberId, Target t, AiProvider provider, String model, int in, int out, String reason, String detail,
+                                       Instant now) {
         AiDraftEntity d = base(id, aiMemberId, t, provider, model, now);
         d.status = AiDraftStatus.FAILED;
         d.body = "";
         d.inputTokens = Math.max(0, in);
         d.outputTokens = Math.max(0, out);
         d.failReason = reason;
+        d.failDetail = detail;
         return d;
     }
 
@@ -103,6 +124,7 @@ public class AiDraftEntity {
         d.round = t.round() == null ? null : t.round().shortValue();
         d.provider = provider;
         d.model = model;
+        d.sourcePostId = t.sourcePostId();
         d.createdAt = now;
         return d;
     }
@@ -220,6 +242,10 @@ public class AiDraftEntity {
         return failReason;
     }
 
+    public String getFailDetail() {
+        return failDetail;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -242,5 +268,9 @@ public class AiDraftEntity {
 
     public Instant getPublishedAt() {
         return publishedAt;
+    }
+
+    public Long getSourcePostId() {
+        return sourcePostId;
     }
 }

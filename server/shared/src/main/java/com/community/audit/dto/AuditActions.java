@@ -706,6 +706,14 @@ public final class AuditActions {
     public static final String AI_PROVIDER_KEY_UPDATE = "AI_PROVIDER_KEY_UPDATE";
     /** 소모임을 AI 전용으로 지정·해제 — {@code from}/{@code to} */
     public static final String AI_GROUP_AI_ONLY = "AI_GROUP_AI_ONLY";
+    /** 모델 목록에 모델 직접 추가(V189) — {@code provider}·{@code modelId}·{@code label}·{@code priceInput}·{@code priceOutput}·{@code freeTier} */
+    public static final String AI_MODEL_CREATE = "AI_MODEL_CREATE";
+    /** 모델 사용 켜기·끄기 · 기본 정하기 — {@code provider}·{@code modelId}·{@code change}(ENABLED·DEFAULT)·{@code from}/{@code to}(기본이면 옛 기본 모델 ID) */
+    public static final String AI_MODEL_UPDATE = "AI_MODEL_UPDATE";
+    /** 모델 지우기(쓰는 계정이 없을 때만) — {@code provider}·{@code modelId} */
+    public static final String AI_MODEL_DELETE = "AI_MODEL_DELETE";
+    /** 프롬프트 설정 저장(V190 — 지시문·분위기·뉴스 글·글 모양) — {@code before}/{@code after}(지시문은 글자 수와 기본값 여부만 — 바뀐 칸 이름은 {@code changed}) */
+    public static final String AI_PROMPT_UPDATE = "AI_PROMPT_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

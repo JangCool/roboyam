@@ -147,6 +147,8 @@ public final class AdminScreenRegistry {
                     leaf(s("aiMembers", "/ai-members", "menu.aiMembers", "pi pi-users", Permission.AI_MEMBER_READ)),
                     leaf(s("aiMemberDrafts", "/ai-members/drafts", "menu.aiMemberDrafts", "pi pi-inbox", Permission.AI_MEMBER_READ)),
                     leaf(s("aiMemberSettings", "/ai-members/settings", "menu.aiMemberSettings", "pi pi-cog", Permission.AI_MEMBER_READ)),
+                    // 프롬프트(2026-11-11 — 지시문·분위기·뉴스 글·글 모양, 저장 ai-member.manage). admin 스트림 V9 가 저장한 구성에도 넣는다
+                    leaf(s("aiMemberPrompts", "/ai-members/prompts", "menu.aiMemberPrompts", "pi pi-pen-to-square", Permission.AI_MEMBER_READ)),
                     leaf(s("aiMemberLogs", "/ai-members/logs", "menu.aiMemberLogs", "pi pi-history", Permission.AI_MEMBER_READ))),
             // 메뉴·권한·알림은 업무(사업자 / 광고 / 핫딜)별, 신청 건 서버 엔진은 하나(docs/plans/biz-ad-hotdeal/04-ia-review.md 1-2 · S7). 차례: 소모임 → 사업자 → 광고 → 핫딜.
             // admin-web UtilAdminMenu 의 business · ad · hotdeal 묶음과 같은 키·주소·권한·차례

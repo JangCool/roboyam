@@ -38,7 +38,8 @@ public final class MessageTargetCatalog {
             AdminNotificationEvent.OPERATOR_LOCKED_BY_FAILURES, List.of("operatorName"),
             AdminNotificationEvent.ROLES_CHANGED_ME, List.of("change"),
             AdminNotificationEvent.SITE_SETTINGS_CHANGED, List.of("changedItems"),
-            AdminNotificationEvent.GRADE_PROMOTION_RUN, List.of("count"));
+            AdminNotificationEvent.GRADE_PROMOTION_RUN, List.of("count"),
+            AdminNotificationEvent.AI_PROVIDER_PAUSED, List.of("provider", "reason"));
 
     // 운영자 이벤트 인자 변수의 번들 id(뜻이 이벤트마다 다르면 id 가 다르다) — 위 이름 중 null 이 아닌 것의 차례
     private static final Map<AdminNotificationEvent, List<String>> OPERATOR_ARG_IDS = Map.of(
@@ -49,7 +50,8 @@ public final class MessageTargetCatalog {
             AdminNotificationEvent.OPERATOR_LOCKED_BY_FAILURES, List.of("lockedOperatorName"),
             AdminNotificationEvent.ROLES_CHANGED_ME, List.of("roleChange"),
             AdminNotificationEvent.SITE_SETTINGS_CHANGED, List.of("changedItems"),
-            AdminNotificationEvent.GRADE_PROMOTION_RUN, List.of("promotedCount"));
+            AdminNotificationEvent.GRADE_PROMOTION_RUN, List.of("promotedCount"),
+            AdminNotificationEvent.AI_PROVIDER_PAUSED, List.of("aiProvider", "aiPauseReason"));
 
     private static final List<MessageTarget> TARGETS = build();
     private static final Map<String, MessageTarget> BY_KEY = index(TARGETS);
