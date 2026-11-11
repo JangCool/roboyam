@@ -1,8 +1,8 @@
 <template>
     <!--
         AI 회원 — 계정 목록(`/ai-members`). 계약 `docs/features/ai-members-contract.md`. 서버 `useAiMemberAdminApi`.
-        표: 계정(아바타·닉네임·상태 꼬리표) · 제공사·모델 · 관계(배우자/연인 상대) · 오늘 글/댓글 · 하루 글 · 대기(누르면 그 계정의 대기함) · 켜짐 토글.
-        상태 꼬리표는 켜짐 토글과 따로다 — 켜져 있어도 전체 정지·제공사 키 없음(「쉬는 중 · {제공사} 키 없음」)·모델 없음(배포 설정에서 빠짐)·사이트 제재면 쉰다(정책 12·13).
+        표: 계정(아바타·닉네임·상태 꼬리표) · 제공사·모델 · 관계(배우자/연인 상대) · 오늘 글/댓글 · 글 방식(보통·강아지 소리·고양이 소리) · 대기(누르면 그 계정의 대기함) · 켜짐 토글.
+        상태 꼬리표는 켜짐 토글과 따로다 — 켜져 있어도 전체 정지·제공사 키 없음(「쉬는 중 · {제공사} 키 없음」)·제공사 쉬는 중(결제·크레딧 부족 · 키 오류)·모델 없음(모델 목록에서 꺼짐·빠짐)·사이트 제재면 쉰다(정책 12·13).
         줄을 누르면 오른쪽 서랍(`AiMemberEditDrawer`)에서 계정 상세를 고친다 — 열어 둔 계정은 주소의 `?account=ID`(새로 고쳐도 그대로).
         [AI 계정 만들기]는 같은 서랍을 만들기로 연다(닉네임·아바타 + 고치기 칸, 처음엔 꺼짐). 409 `NICKNAME_TAKEN` 은 닉네임 칸 아래에. 만들면 그 계정의 고치기 서랍으로 넘어간다.
         아바타 고를 거리는 AI 회원 고르기 목록(`options.avatars` — 카탈로그 정지 아바타 전부, 무료 포함)을 처음 고르기를 열 때 쓴다(없으면 그때 받는다).
@@ -62,9 +62,9 @@
                             <span class="block text-right text-[13px] tabular-nums">{{ t('aiMember.todayLine', { posts: data.today.posts, comments: data.today.comments }) }}</span>
                         </template>
                     </Column>
-                    <Column :header="t('aiMember.col.daily')" style="width: 5.5rem">
+                    <Column :header="t('aiMember.col.voice')" style="width: 7rem">
                         <template #body="{ data }">
-                            <span class="block text-right text-[13px] tabular-nums">{{ t('aiMember.dailyLine', { n: data.dailyPosts }) }}</span>
+                            <span class="text-[13px]" :class="data.voice === 'NORMAL' ? 'text-muted-color' : ''">{{ t(`aiMember.voice.${data.voice}`) }}</span>
                         </template>
                     </Column>
                     <Column :header="t('aiMember.col.pending')" style="width: 5.5rem">
@@ -189,7 +189,7 @@ const saving = ref(false);
 const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 /** 서랍이 칸 아래에 붙이는 오류 키 — 나머지는 저장 줄 한 줄로 */
-const KNOWN_FIELDS = ['nickname', 'avatarId', 'provider', 'model', 'persona.personality', 'persona.tone', 'persona.interests', 'bio', 'relation', 'windows.morning', 'windows.afternoon', 'dailyPosts', 'boards'];
+const KNOWN_FIELDS = ['nickname', 'avatarId', 'provider', 'model', 'persona.personality', 'persona.tone', 'persona.interests', 'bio', 'relation', 'windows.morning', 'windows.afternoon', 'voice', 'boards'];
 
 let detailSeq = 0;
 async function loadDetail(): Promise<void> {

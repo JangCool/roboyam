@@ -30,7 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * AI 회원 설정(정책 6·12·13) — 바로 게시(범위 ALL | SELECTED) · 하루 호출 상한 · 회원 글 댓글 허용(기본 꺼짐) · 전체 정지(바로 반영) · 제공사 API 키.
+ * AI 회원 설정(정책 6·12·13) — 바로 게시(범위 ALL | SELECTED) · 하루 호출 상한 · 회원 글 댓글 허용(기본 꺼짐) · 글 쓰는 때(V191 — 조용한 게시판 기준 일수 ·
+ * 글이 잘 올라오는 게시판의 AI 글 간격 · 계정당 하루 최대 새 글) · 전체 정지(바로 반영) · 제공사 API 키.
  * 키는 암호문으로만 두고 응답에는 「설정됨」·바꾼 때·바꾼 사람만 준다. 감사에도 값을 싣지 않는다.
  */
 @Service
@@ -62,7 +63,7 @@ public class AiMemberSettingsAdminService {
 
     @Transactional
     public AiMemberViews.Settings save(AdminActor actor, AiMemberRequests.SettingsSave body) {
-        AiMemberRequests.SettingsSave b = body == null ? new AiMemberRequests.SettingsSave(null, null, null, null, null) : body;
+        AiMemberRequests.SettingsSave b = body == null ? new AiMemberRequests.SettingsSave(null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         boolean instant = Boolean.TRUE.equals(b.instantPublish());
         AiInstantScope scope = b.instantScope() == null ? AiInstantScope.ALL : AiMemberAdminService.parseEnum(AiInstantScope.class, b.instantScope());
@@ -87,15 +88,28 @@ public class AiMemberSettingsAdminService {
         if (limit < AiMemberRules.CALL_LIMIT_MIN || limit > AiMemberRules.CALL_LIMIT_MAX) {
             fields.put("dailyCallLimit", new MessageRef("aiMember.dailyCallLimit.range", AiMemberRules.CALL_LIMIT_MIN, AiMemberRules.CALL_LIMIT_MAX));
         }
+        int quiet = range(b.quietDays(), AiMemberRules.QUIET_DAYS_MIN, AiMemberRules.QUIET_DAYS_MAX, "quietDays", "aiMember.quietDays.range", fields);
+        int interval = range(b.busyIntervalDays(), AiMemberRules.BUSY_INTERVAL_MIN, AiMemberRules.BUSY_INTERVAL_MAX, "busyIntervalDays", "aiMember.busyIntervalDays.range", fields);
+        int dailyPosts = range(b.dailyPostMax(), AiMemberRules.DAILY_POST_MAX_MIN, AiMemberRules.DAILY_POST_MAX_MAX, "dailyPostMax", "aiMember.dailyPostMax.range", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
         AiMemberSettingsEntity s = lockRow();
         Map<String, Object> before = snapshot(s);
-        s.save(instant, scope, picked, limit, Boolean.TRUE.equals(b.commentOnMemberPosts()), actor.operatorId(), now());
+        s.save(instant, scope, picked, limit, Boolean.TRUE.equals(b.commentOnMemberPosts()), new AiMemberSettingsEntity.PostTiming(quiet, interval, dailyPosts),
+                actor.operatorId(), now());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_MEMBER_SETTINGS_UPDATE, AuditResult.SUCCESS).target(AUDIT_TARGET, "1")
                 .with("before", before).with("after", snapshot(s)));
         return view(s);
+    }
+
+    /** 정수 칸 범위 검사 — 빠졌거나 범위 밖이면 그 칸 오류({@code {0}~{1}}) */
+    private static int range(Integer raw, int min, int max, String field, String key, Map<String, MessageRef> fields) {
+        if (raw == null || raw < min || raw > max) {
+            fields.put(field, new MessageRef(key, min, max));
+            return min;
+        }
+        return raw;
     }
 
     /** 전체 정지 — 저장 줄을 거치지 않고 바로 반영(실행기는 바퀴마다 이 값을 읽는다) */
@@ -113,7 +127,7 @@ public class AiMemberSettingsAdminService {
     }
 
     /**
-     * 제공사 키 저장 — 앞뒤 공백을 지우고 {@value #KEY_MIN}~{@value #KEY_MAX}자 · 가운데 공백 없음(아니면 400 {@code fields.key}). 키 값은 응답·감사·로그에 없다.
+     * 제공사 키 저장(쉬는 중이던 제공사는 상태가 OK 로 돌아와 계정들이 다시 돈다 — V189) — 앞뒤 공백을 지우고 {@value #KEY_MIN}~{@value #KEY_MAX}자 · 가운데 공백 없음(아니면 400 {@code fields.key}). 키 값은 응답·감사·로그에 없다.
      *
      * @throws CommonException 모르는 제공사(404 NOT_FOUND)
      */
@@ -127,10 +141,11 @@ public class AiMemberSettingsAdminService {
         if (value.length() < KEY_MIN || value.length() > KEY_MAX || value.chars().anyMatch(Character::isWhitespace)) {
             throw ValidationException.of("key", new MessageRef("aiMember.key.invalid"));
         }
-        boolean replaced = keys.states().get(provider).configured();
+        AiProviderKeys.KeyState before = keys.states().get(provider);
+        boolean replaced = before.configured();
         keys.save(provider, value, actor.operatorId(), now());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_PROVIDER_KEY_UPDATE, AuditResult.SUCCESS).target(AUDIT_TARGET, provider.name())
-                .with("provider", provider.name()).with("replaced", replaced));
+                .with("provider", provider.name()).with("replaced", replaced).with("statusBefore", before.status().name())); // 쉬는 중이던 제공사는 저장하면 OK 로 돌아온다
         return view(row());
     }
 
@@ -145,14 +160,23 @@ public class AiMemberSettingsAdminService {
         List<AiMemberViews.KeyState> keyViews = new ArrayList<>();
         for (AiProvider p : AiProvider.values()) {
             AiProviderKeys.KeyState k = states.get(p);
-            keyViews.add(new AiMemberViews.KeyState(p.name(), k.configured(), k.updatedAt(), k.updatedBy() == null ? null : names.get(k.updatedBy())));
+            keyViews.add(new AiMemberViews.KeyState(p.name(), k.configured(), k.updatedAt(), k.updatedBy() == null ? null : names.get(k.updatedBy()), k.status().name(),
+                    k.statusDetail(), k.statusAt()));
         }
         return new AiMemberViews.Settings(s.isStopped(), s.getStoppedAt(), s.getStoppedBy() == null ? null : names.get(s.getStoppedBy()), s.isInstantPublish(),
                 s.getInstantScope().name(), s.getInstantAccountIds().stream().map(String::valueOf).toList(), s.getDailyCallLimit(),
                 queries.callsSince(AiMemberAdminService.startOfToday()), s.isCommentOnMemberPosts(),
                 new AiMemberViews.Range(AiMemberRules.FIRST_COMMENTS_MIN, AiMemberRules.FIRST_COMMENTS_MAX),
                 new AiMemberViews.Range(AiMemberRules.REPLY_ROUNDS_MIN, AiMemberRules.REPLY_ROUNDS_MAX),
-                new AiMemberViews.Range(AiMemberRules.MEMBER_REPLIES_MIN, AiMemberRules.MEMBER_REPLIES_MAX), keyViews, keys.cryptoConfigured());
+                new AiMemberViews.Range(AiMemberRules.MEMBER_REPLIES_MIN, AiMemberRules.MEMBER_REPLIES_MAX), keyViews, keys.cryptoConfigured(), postTiming(s));
+    }
+
+    private static AiMemberViews.PostTiming postTiming(AiMemberSettingsEntity s) {
+        AiMemberSettingsEntity.PostTiming t = s.getPostTiming();
+        return new AiMemberViews.PostTiming(t.quietDays(), t.busyIntervalDays(), t.dailyPostMax(),
+                new AiMemberViews.Range(AiMemberRules.QUIET_DAYS_MIN, AiMemberRules.QUIET_DAYS_MAX),
+                new AiMemberViews.Range(AiMemberRules.BUSY_INTERVAL_MIN, AiMemberRules.BUSY_INTERVAL_MAX),
+                new AiMemberViews.Range(AiMemberRules.DAILY_POST_MAX_MIN, AiMemberRules.DAILY_POST_MAX_MAX));
     }
 
     private static Map<String, Object> snapshot(AiMemberSettingsEntity s) {
@@ -162,6 +186,10 @@ public class AiMemberSettingsAdminService {
         m.put("instantAccountIds", s.getInstantAccountIds().stream().map(String::valueOf).toList());
         m.put("dailyCallLimit", s.getDailyCallLimit());
         m.put("commentOnMemberPosts", s.isCommentOnMemberPosts());
+        AiMemberSettingsEntity.PostTiming t = s.getPostTiming();
+        m.put("quietDays", t.quietDays());
+        m.put("busyIntervalDays", t.busyIntervalDays());
+        m.put("dailyPostMax", t.dailyPostMax());
         return m;
     }
 

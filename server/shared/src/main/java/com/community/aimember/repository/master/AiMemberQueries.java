@@ -123,6 +123,74 @@ public class AiMemberQueries extends RoboyamRepositoryQDSL {
         return out;
     }
 
+    // ── 글 쓰는 때(V191) ────────────────────────────────────────────────────
+
+    /** 곳별 마지막 글 시각 — 게시판(소모임 글 아님) · AI 전용 소모임. 그 시각 뒤 글이 없는 곳은 빠진다 */
+    public record LatestPosts(Map<Long, Instant> boards, Map<Long, Instant> groups) {
+    }
+
+    /**
+     * 그 게시판·소모임들의 {@code since} 뒤 마지막 글 시각(살아 있는 글 · 숨김 아님 — 비밀글·19금도 센다, 한 곳마다 한 줄). {@code aiAuthorsOnly} 면 AI 회원이 쓴 글만.
+     * 질의 두 번(게시판 · 소모임) — 색인 {@code ix_posts_board (board_id, id DESC)}·{@code ix_posts_group (group_id, id DESC)} 와 스노플레이크 id 하한으로 최근 범위만 읽는다.
+     */
+    public LatestPosts latestPosts(Collection<Long> boardIds, Collection<Long> groupIds, Instant since, Instant now, boolean aiAuthorsOnly) {
+        BooleanExpression base = PostRepositoryQDSL.alive(P, now).and(PostRepositoryQDSL.notHidden(P, now))
+                .and(P.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(P.createdAt.goe(since));
+        if (aiAuthorsOnly) {
+            base = base.and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).exists());
+        }
+        Map<Long, Instant> boards = new HashMap<>();
+        if (boardIds != null && !boardIds.isEmpty()) {
+            for (Tuple t : query.select(P.boardId, P.createdAt.max()).from(P).where(base, P.boardId.in(boardIds), P.groupId.isNull()).groupBy(P.boardId).fetch()) {
+                boards.put(t.get(P.boardId), t.get(P.createdAt.max()));
+            }
+        }
+        Map<Long, Instant> groups = new HashMap<>();
+        if (groupIds != null && !groupIds.isEmpty()) {
+            for (Tuple t : query.select(P.groupId, P.createdAt.max()).from(P).where(base, P.groupId.in(groupIds)).groupBy(P.groupId).fetch()) {
+                groups.put(t.get(P.groupId), t.get(P.createdAt.max()));
+            }
+        }
+        return new LatestPosts(boards, groups);
+    }
+
+    /** 새 글을 지금 쓰지 않을 곳 — 게시판(소모임 글 아님) ID · 소모임 ID */
+    public record BusyPlaces(Set<Long> boards, Set<Long> groups) {
+    }
+
+    /**
+     * 새 글 생성 줄이 대기·승인 중인 곳 + {@code retrySince} 뒤 새 글을 시도한 곳(실패·버림 포함) — 한 곳에 두 계정이 겹쳐 쓰지 않게, 실패한 곳을 바퀴마다 다시 부르지 않게.
+     * 색인 {@code ix_ai_member_drafts_status}·{@code ix_ai_member_drafts_created}.
+     */
+    public BusyPlaces postBusyPlaces(Instant retrySince) {
+        Set<Long> boards = new HashSet<>();
+        Set<Long> groups = new HashSet<>();
+        // 두 번 나눠 읽는다(OR 로 묶으면 색인을 못 탄다)
+        List<Tuple> rows = new java.util.ArrayList<>(query.select(D.boardId, D.groupId).from(D)
+                .where(D.status.in(AiDraftStatus.PENDING, AiDraftStatus.APPROVED), D.kind.eq(AiDraftKind.POST)).fetch());
+        rows.addAll(query.select(D.boardId, D.groupId).from(D).where(D.createdAt.goe(retrySince), D.kind.eq(AiDraftKind.POST)).fetch());
+        for (Tuple t : rows) {
+            if (t.get(D.groupId) != null) {
+                groups.add(t.get(D.groupId));
+            } else if (t.get(D.boardId) != null) {
+                boards.add(t.get(D.boardId));
+            }
+        }
+        return new BusyPlaces(boards, groups);
+    }
+
+    /** 계정별 마지막 새 글 시도 시각(어느 상태든 — 없으면 빠진다). 「가장 오래 글을 안 쓴 계정」 고르기 */
+    public Map<Long, Instant> lastPostAttempts(Collection<Long> aiMemberIds) {
+        Map<Long, Instant> out = new HashMap<>();
+        if (aiMemberIds == null || aiMemberIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(D.aiMemberId, D.createdAt.max()).from(D).where(D.aiMemberId.in(aiMemberIds), D.kind.eq(AiDraftKind.POST)).groupBy(D.aiMemberId).fetch()) {
+            out.put(t.get(D.aiMemberId), t.get(D.createdAt.max()));
+        }
+        return out;
+    }
+
     // ── 대기함 · 기록 ────────────────────────────────────────────────────────
 
     /** 검수 대기 줄(최신이 위) — 종류·계정으로 거른다 */
@@ -187,6 +255,26 @@ public class AiMemberQueries extends RoboyamRepositoryQDSL {
         if (!includeMembers) {
             where = where.and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).exists());
         }
+        return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
+                .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),
+                        t.get(P.createdAt))).toList();
+    }
+
+    /**
+     * 뉴스 글 소재 후보(ai-members-contract 「뉴스 글·프롬프트 관리」) — 그 말머리를 단 게시판 글, {@code since}~{@code until} 에 쓴 것, 최신이 위.
+     * 사람 회원 글만(비회원·AI 회원 글 제외) · 보이는 글 · 숨김 아님 · 비밀글 아님 · 19금 아님 · 익명 글 아님 · 소모임 글 아님(비회원이 못 읽을 수 있다) ·
+     * 이미 다른 생성 줄의 소재로 쓴 글 아님(실패 줄만 빼고 센다 — 대기·승인·게시·버림 모두). 게시판·말머리 거르기(쓸 수 있는 일반 게시판)는 부르는 쪽이 정한다.
+     */
+    public List<PostCandidate> newsCandidates(Collection<Long> prefixIds, Collection<Long> boardIds, Instant since, Instant until, Instant now, int limit) {
+        if (prefixIds == null || prefixIds.isEmpty() || boardIds == null || boardIds.isEmpty()) {
+            return List.of();
+        }
+        BooleanExpression where = PostRepositoryQDSL.alive(P, now).and(PostRepositoryQDSL.notHidden(P, now)).and(P.secret.isFalse()).and(P.adult.isFalse())
+                .and(P.anonymous.isFalse()).and(P.groupId.isNull()).and(P.authorId.isNotNull())
+                .and(P.prefixId.in(prefixIds)).and(P.boardId.in(boardIds))
+                .and(P.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(P.createdAt.goe(since)).and(P.createdAt.loe(until))
+                .and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).notExists())
+                .and(JPAExpressions.selectOne().from(D).where(D.sourcePostId.eq(P.id), D.status.ne(AiDraftStatus.FAILED)).notExists());
         return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
                 .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),
                         t.get(P.createdAt))).toList();

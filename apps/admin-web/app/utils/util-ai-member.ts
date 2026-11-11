@@ -1,4 +1,4 @@
-import { AI_PROVIDERS, type AiActivityWindows, type AiLogResult, type AiMemberCreateRequest, type AiMemberDetail, type AiMemberFormOptions, type AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
+import { AI_PROVIDERS, type AiActivityWindows, type AiLogResult, type AiMemberCreateRequest, type AiMemberDetail, type AiMemberFormOptions, type AiProvider, type AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
 
 /** 태그 색(PrimeVue `Tag` severity) */
 type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
@@ -11,6 +11,7 @@ export default class UtilAiMember {
     static readonly LIST_PATH = '/ai-members';
     static readonly DRAFTS_PATH = '/ai-members/drafts';
     static readonly SETTINGS_PATH = '/ai-members/settings';
+    static readonly PROMPTS_PATH = '/ai-members/prompts';
     static readonly LOGS_PATH = '/ai-members/logs';
 
     /** 권한(서버 `Permission` AI_MEMBER_*) — 조회 · 처리 · 제공사 키 */
@@ -18,8 +19,8 @@ export default class UtilAiMember {
     static readonly PERMISSION_MANAGE = 'ai-member.manage';
     static readonly PERMISSION_SECRET = 'ai-member.secret';
 
-    /** 하루 글 수 선택지(정책 4 — 2~3건) */
-    static readonly DAILY_POSTS: readonly number[] = [2, 3];
+    /** 「글 쓰는 때」 글이 잘 올라오는 게시판 간격 선택지(일) — 서버는 1~90 을 받는다 */
+    static readonly BUSY_INTERVAL_OPTIONS: readonly number[] = [7, 30];
     static readonly PERSONALITY_MAX = 200;
     static readonly TONE_MAX = 100;
     static readonly INTERESTS_MAX = 300;
@@ -28,19 +29,25 @@ export default class UtilAiMember {
     static readonly CALL_LIMIT_MAX = 5000;
     static readonly LOG_PAGE_SIZE = 20;
 
-    /** 새 계정 칸의 처음 값 — 모델은 설정에 모델이 있는 첫 제공사의 첫 모델. 활동 창은 오전 09:00~11:30 · 오후 14:00~21:00 */
+    /** 그 제공사의 처음 모델 — 모델 목록의 「기본」, 없으면 켜진 첫 모델, 하나도 없으면 빈 값 */
+    static defaultModel(options: AiMemberFormOptions | null, provider: AiProvider): string {
+        const list = options?.models[provider] ?? [];
+        return (list.find((m) => m.defaultModel) ?? list[0])?.modelId ?? '';
+    }
+
+    /** 새 계정 칸의 처음 값 — 켜진 모델이 있는 첫 제공사의 기본 모델. 활동 창은 오전 09:00~11:30 · 오후 14:00~21:00 */
     static blankForm(options: AiMemberFormOptions | null): AiMemberCreateRequest {
         const provider = AI_PROVIDERS.find((p) => (options?.models[p] ?? []).length > 0) ?? AI_PROVIDERS[0]!;
         return {
             nickname: '',
             avatarId: null,
             provider,
-            model: options?.models[provider]?.[0] ?? '',
+            model: UtilAiMember.defaultModel(options, provider),
             persona: { gender: 'MALE', ageBand: 'THIRTIES', personality: '', tone: '', interests: '' },
             bio: '',
             relation: null,
             windows: { morning: { start: '09:00', end: '11:30' }, afternoon: { start: '14:00', end: '21:00' } },
-            dailyPosts: UtilAiMember.DAILY_POSTS[0]!,
+            voice: 'NORMAL',
             boards: [],
             groups: [],
         };
@@ -57,7 +64,7 @@ export default class UtilAiMember {
             bio: detail.bio,
             relation: detail.relation ? { kind: detail.relation.kind, partnerAiMemberId: detail.relation.partner.aiMemberId } : null,
             windows: { morning: { ...detail.windows.morning }, afternoon: { ...detail.windows.afternoon } },
-            dailyPosts: detail.dailyPosts,
+            voice: detail.voice,
             boards: [...detail.boards],
             groups: [...detail.groups],
         };
@@ -77,7 +84,7 @@ export default class UtilAiMember {
         if (!same(a.relation, b.relation)) n++;
         if (!same(a.windows.morning, b.windows.morning)) n++;
         if (!same(a.windows.afternoon, b.windows.afternoon)) n++;
-        if (a.dailyPosts !== b.dailyPosts) n++;
+        if (a.voice !== b.voice) n++;
         if (!same(sorted(a.boards), sorted(b.boards))) n++;
         if (!same(sorted(a.groups), sorted(b.groups))) n++;
         return n;

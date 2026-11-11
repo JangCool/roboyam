@@ -197,7 +197,7 @@ public class AiDraftAdminService {
         String fail = d.getFailReason() == null ? null : messages.get(new MessageRef("aiMember.fail." + d.getFailReason()));
         return new AiMemberViews.Log(Long.toString(d.getId()), d.getCreatedAt(), new AiMemberViews.LogAccount(Long.toString(d.getAiMemberId()), nickname),
                 d.getKind().name(), result, d.getProvider().name(), d.getModel(), new AiMemberViews.LogTokens(d.getInputTokens(), d.getOutputTokens()),
-                target(d, r), reviewer, fail);
+                target(d, r), reviewer, fail, d.getFailDetail());
     }
 
     /** 대상 한 줄 — 「게시판 · 글 제목」(글이면 만든 제목) */

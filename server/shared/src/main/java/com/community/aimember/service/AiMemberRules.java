@@ -20,11 +20,18 @@ public final class AiMemberRules {
     /** 같은 사람 회원에게 글 하나당 다는 답글 상한 — 1 또는 2 */
     public static final int MEMBER_REPLIES_MIN = 1;
     public static final int MEMBER_REPLIES_MAX = 2;
-    /** 하루 글 수 */
-    public static final int DAILY_POSTS_MIN = 2;
-    public static final int DAILY_POSTS_MAX = 3;
-    /** 소모임 글 확률 — 글 차례마다(하루 2~3건 × 7일 ≈ 주 1~2건) */
-    public static final double GROUP_POST_CHANCE = 0.08;
+    /**
+     * 글 쓰는 때(V191 — 계정별 「하루 글 수」 대신, 모든 AI 계정 공통). 조용한 게시판 기준 일수 · 글이 잘 올라오는 게시판의 AI 글 간격(화면은 7·30, 서버는 범위) ·
+     * 계정당 하루 최대 새 글. 기본값은 V191 의 칸 기본값과 같다.
+     */
+    public static final int QUIET_DAYS_MIN = 1;
+    public static final int QUIET_DAYS_MAX = 30;
+    public static final int BUSY_INTERVAL_MIN = 1;
+    public static final int BUSY_INTERVAL_MAX = 90;
+    public static final int DAILY_POST_MAX_MIN = 0;
+    public static final int DAILY_POST_MAX_MAX = 5;
+    /** 한 곳(게시판·소모임)에 새 글을 시도한 뒤 다음 시도까지 쉬는 분 — 실패·버림 뒤 같은 곳을 바퀴마다 다시 부르지 않게 */
+    public static final int PLACE_RETRY_MINUTES = 60;
     /** 하루 호출 상한 범위 */
     public static final int CALL_LIMIT_MIN = 10;
     public static final int CALL_LIMIT_MAX = 5000;

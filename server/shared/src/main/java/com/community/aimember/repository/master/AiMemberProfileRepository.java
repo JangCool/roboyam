@@ -1,6 +1,7 @@
 package com.community.aimember.repository.master;
 
 import com.community.aimember.entity.AiMemberProfileEntity;
+import com.community.aimember.entity.AiProvider;
 import com.community.zconfiguration.jpa.RoboyamRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -17,4 +18,7 @@ public interface AiMemberProfileRepository extends RoboyamRepository<AiMemberPro
     Optional<AiMemberProfileEntity> findWithLockById(long id);
 
     List<AiMemberProfileEntity> findAllByOrderByIdAsc();
+
+    /** 이 모델을 쓰는 계정 수(모델 목록에서 지우기 전 확인) */
+    long countByProviderAndModel(AiProvider provider, String model);
 }

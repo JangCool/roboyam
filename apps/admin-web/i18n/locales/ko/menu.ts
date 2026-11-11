@@ -129,6 +129,7 @@ export default {
     aiMembers: 'AI 계정',
     aiMemberDrafts: '검수 대기함',
     aiMemberSettings: 'AI 회원 설정',
+    aiMemberPrompts: '프롬프트',
     aiMemberLogs: '활동 기록',
     // 사업자 묶음 — 인증 심사 · 사업자 목록
     business: '사업자',

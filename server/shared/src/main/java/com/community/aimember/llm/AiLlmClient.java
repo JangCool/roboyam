@@ -2,6 +2,7 @@ package com.community.aimember.llm;
 
 import com.community.aimember.service.AiMemberProperties;
 import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +29,8 @@ import org.springframework.web.client.RestClientResponseException;
  *       보내지 않는다), {@code output_config.effort: low}(짧은 잡담 글 — 생각이 늘 켜진 모델의 깊이를 낮춘다). 응답 {@code content[]} 의 {@code text} 블록만 ·
  *       {@code usage.input_tokens}·{@code output_tokens}. {@code stop_reason refusal} 이면 거절.</li>
  * </ul>
- * 재시도는 하지 않는다(정책 11 — 실패는 다음 차례로 미룬다). 키·프롬프트·응답 본문은 로그에 싣지 않는다(제공사·모델·HTTP 상태 번호만).
+ * 재시도는 하지 않는다(정책 11 — 실패는 다음 차례로 미룬다). 키·프롬프트·응답 본문은 로그에 싣지 않는다(제공사·모델·HTTP 상태 번호·까닭 코드만).
+ * 실패 응답은 {@link AiLlmErrors} 가 가른다 — 결제·크레딧 부족이면 {@code BILLING_REQUIRED}(429 {@code insufficient_quota} 포함), 제공사 메시지는 가려서 예외에 싣는다(2026-11-11).
  */
 @Component
 public class AiLlmClient {
@@ -71,9 +73,10 @@ public class AiLlmClient {
             throw e;
         } catch (RestClientResponseException e) {
             HttpStatusCode status = e.getStatusCode();
-            log.warn("AI 제공사 호출이 실패했다 provider={} model={} status={}", request.provider(), request.model(), status.value());
-            throw new AiLlmException(status.value() == 401 || status.value() == 403 ? AiLlmException.KEY_INVALID
-                    : status.value() == 429 ? AiLlmException.RATE_LIMITED : AiLlmException.PROVIDER_ERROR, 0, 0);
+            // 본문의 error 칸으로 결제·크레딧 부족을 가른다(AiLlmErrors) — 로그에는 까닭 코드만, 메시지는 예외에(가린 것 · 300자)
+            AiLlmErrors.Failure failure = AiLlmErrors.classify(request.provider(), status.value(), safeBody(e));
+            log.warn("AI 제공사 호출이 실패했다 provider={} model={} status={} reason={}", request.provider(), request.model(), status.value(), failure.reason());
+            throw new AiLlmException(failure.reason(), 0, 0, failure.detail());
         } catch (ResourceAccessException e) {
             log.warn("AI 제공사가 응답하지 않았다 provider={} model={}", request.provider(), request.model());
             throw new AiLlmException(AiLlmException.TIMEOUT, 0, 0);
@@ -156,6 +159,16 @@ public class AiLlmClient {
             }
         }
         return result(text.toString(), in, out);
+    }
+
+    /** 실패 응답 본문(못 읽으면 null) — 아주 긴 본문은 앞만 본다 */
+    private static String safeBody(RestClientResponseException e) {
+        try {
+            String body = e.getResponseBodyAsString(StandardCharsets.UTF_8);
+            return body.length() > 20_000 ? body.substring(0, 20_000) : body;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static AiLlmResult result(Object text, int in, int out) {

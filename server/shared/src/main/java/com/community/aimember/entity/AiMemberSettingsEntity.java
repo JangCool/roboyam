@@ -11,7 +11,7 @@ import java.util.List;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/** AI 회원 설정 — {@code ai_member_settings} 행 하나(id = 1, shared V183). 전체 정지 · 바로 게시 · 하루 호출 상한 · 회원 글 댓글 허용(기본 꺼짐) */
+/** AI 회원 설정 — {@code ai_member_settings} 행 하나(id = 1, shared V183). 전체 정지 · 바로 게시 · 하루 호출 상한 · 회원 글 댓글 허용(기본 꺼짐) · 글 쓰는 때(V191) */
 @Entity
 @Table(name = "ai_member_settings")
 public class AiMemberSettingsEntity {
@@ -34,10 +34,18 @@ public class AiMemberSettingsEntity {
 
     private int dailyCallLimit;
     private boolean commentOnMemberPosts;
+    /** 글 쓰는 때(V191) — 조용한 게시판 기준 일수 · 글이 잘 올라오는 게시판의 AI 글 간격(일) · 계정당 하루 최대 새 글 */
+    private short quietDays;
+    private short busyIntervalDays;
+    private short dailyPostMax;
     private Instant updatedAt;
     private Long updatedBy;
 
     protected AiMemberSettingsEntity() {
+    }
+
+    /** 글 쓰는 때 값(검사를 마친 것) */
+    public record PostTiming(int quietDays, int busyIntervalDays, int dailyPostMax) {
     }
 
     /** 전체 정지 켜기·끄기(바로 반영) */
@@ -48,13 +56,16 @@ public class AiMemberSettingsEntity {
     }
 
     /** 설정 저장 — 바로 게시가 꺼져 있거나 범위가 전체면 고른 계정은 비운다 */
-    public void save(boolean instantPublish, AiInstantScope scope, List<Long> accountIds, int dailyCallLimit, boolean commentOnMemberPosts, long operatorId,
-                     Instant now) {
+    public void save(boolean instantPublish, AiInstantScope scope, List<Long> accountIds, int dailyCallLimit, boolean commentOnMemberPosts, PostTiming timing,
+                     long operatorId, Instant now) {
         this.instantPublish = instantPublish;
         this.instantScope = scope;
         this.instantAccountIds = instantPublish && scope == AiInstantScope.SELECTED ? accountIds.toArray(Long[]::new) : new Long[0];
         this.dailyCallLimit = dailyCallLimit;
         this.commentOnMemberPosts = commentOnMemberPosts;
+        this.quietDays = (short) timing.quietDays();
+        this.busyIntervalDays = (short) timing.busyIntervalDays();
+        this.dailyPostMax = (short) timing.dailyPostMax();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }
@@ -97,6 +108,10 @@ public class AiMemberSettingsEntity {
 
     public boolean isCommentOnMemberPosts() {
         return commentOnMemberPosts;
+    }
+
+    public PostTiming getPostTiming() {
+        return new PostTiming(quietDays, busyIntervalDays, dailyPostMax);
     }
 
     public Instant getUpdatedAt() {

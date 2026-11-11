@@ -315,8 +315,8 @@ export default class UtilAdminMenu {
                 { key: 'groupSettings', to: '/group-settings', icon: 'pi pi-sliders-h', labelKey: 'menu.groupSettings', permission: 'group.read' },
             ],
         },
-        // AI 회원 묶음 — 계정 목록 · 검수 대기함 · 설정 · 활동 기록(docs/features/ai-members-contract.md). 소모임 묶음 다음.
-        // 네 화면 모두 조회 `ai-member.read`(화면 안에서 처리 `ai-member.manage` · 제공사 키 `ai-member.secret`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례(아이콘은 화면 안 `AiMemberNav` 와 같다).
+        // AI 회원 묶음 — 계정 목록 · 검수 대기함 · 설정 · 프롬프트 · 활동 기록(docs/features/ai-members-contract.md). 소모임 묶음 다음.
+        // 다섯 화면 모두 조회 `ai-member.read`(화면 안에서 처리 `ai-member.manage` · 제공사 키 `ai-member.secret`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례(아이콘은 화면 안 `AiMemberNav` 와 같다).
         // `/ai-members` 아래 세 화면은 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
         {
             key: 'aiMember',
@@ -326,6 +326,7 @@ export default class UtilAdminMenu {
                 { key: 'aiMembers', to: '/ai-members', icon: 'pi pi-users', labelKey: 'menu.aiMembers', permission: 'ai-member.read' },
                 { key: 'aiMemberDrafts', to: '/ai-members/drafts', icon: 'pi pi-inbox', labelKey: 'menu.aiMemberDrafts', permission: 'ai-member.read' },
                 { key: 'aiMemberSettings', to: '/ai-members/settings', icon: 'pi pi-cog', labelKey: 'menu.aiMemberSettings', permission: 'ai-member.read' },
+                { key: 'aiMemberPrompts', to: '/ai-members/prompts', icon: 'pi pi-pen-to-square', labelKey: 'menu.aiMemberPrompts', permission: 'ai-member.read' },
                 { key: 'aiMemberLogs', to: '/ai-members/logs', icon: 'pi pi-history', labelKey: 'menu.aiMemberLogs', permission: 'ai-member.read' },
             ],
         },

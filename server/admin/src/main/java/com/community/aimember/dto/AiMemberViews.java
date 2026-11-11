@@ -1,6 +1,7 @@
 package com.community.aimember.dto;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +38,9 @@ public final class AiMemberViews {
     public record Today(long posts, long comments) {
     }
 
-    /** 목록 한 줄 */
+    /** 목록 한 줄 — {@code voice} 글 방식 NORMAL·DOG·CAT(V191 — 옛 {@code dailyPosts} 대신) */
     public record Row(String id, PersonRef member, String avatarId, String provider, String model, Relation relation, boolean enabled, Today today,
-                      long pendingDrafts, int dailyPosts, String restingReason) {
+                      long pendingDrafts, String voice, String restingReason) {
     }
 
     /** 상세 = 목록 줄 + 편집 칸 */
@@ -71,7 +72,13 @@ public final class AiMemberViews {
     public record AvatarOption(String id, String name, String category) {
     }
 
-    public record FormOptions(Map<String, List<String>> models, List<BoardOption> boards, List<GroupOption> groups, List<AccountRef> accounts, List<AvatarOption> avatars) {
+    /** 계정에 고를 수 있는 모델 하나(모델 목록에서 「사용」인 것만) — 가격은 100만 토큰당 USD 참고값(없으면 null) */
+    public record ModelOption(String modelId, String label, BigDecimal priceInput, BigDecimal priceOutput, boolean freeTier, boolean defaultModel) {
+    }
+
+    /** {@code models} — 제공사 → 켜진 모델(목록 차례, 기본은 {@code defaultModel}). {@code voices} — 고를 수 있는 글 방식(V191, 차례 그대로) */
+    public record FormOptions(Map<String, List<ModelOption>> models, List<BoardOption> boards, List<GroupOption> groups, List<AccountRef> accounts,
+                              List<AvatarOption> avatars, List<String> voices) {
     }
 
     // ── 대기함 ──
@@ -106,12 +113,17 @@ public final class AiMemberViews {
     public record Range(int min, int max) {
     }
 
-    public record KeyState(String provider, boolean configured, Instant updatedAt, String updatedBy) {
+    /** 키 줄 — {@code status} OK · BILLING_REQUIRED · KEY_INVALID(OK 가 아니면 그 제공사 계정이 쉰다), {@code statusDetail} 제공사 메시지(가린 것), {@code statusAt} 바뀐 때 */
+    public record KeyState(String provider, boolean configured, Instant updatedAt, String updatedBy, String status, String statusDetail, Instant statusAt) {
+    }
+
+    /** 글 쓰는 때(V191) — 값 + 서버 검사 범위 */
+    public record PostTiming(int quietDays, int busyIntervalDays, int dailyPostMax, Range quietDaysRange, Range busyIntervalRange, Range dailyPostMaxRange) {
     }
 
     public record Settings(boolean stopped, Instant stoppedAt, String stoppedBy, boolean instantPublish, String instantScope, List<String> instantAccountIds,
                            int dailyCallLimit, long todayCalls, boolean commentOnMemberPosts, Range firstComments, Range replyRounds, Range memberReplies,
-                           List<KeyState> keys, boolean cryptoKeyConfigured) {
+                           List<KeyState> keys, boolean cryptoKeyConfigured, PostTiming postTiming) {
     }
 
     // ── 기록 ──
@@ -123,13 +135,58 @@ public final class AiMemberViews {
     }
 
     public record Log(String id, Instant at, LogAccount account, String kind, String result, String provider, String model, LogTokens tokens, String target,
-                      String reviewer, String failReason) {
+                      String reviewer, String failReason, String failDetail) {
     }
 
     public record LogPage(List<Log> items, int page, long total, long tokenSum) {
     }
 
+    // ── 모델 목록 ──
+
+    /** 모델 목록 한 줄 — {@code accounts} = 이 모델을 쓰는 AI 계정 수(있으면 지울 수 없다 — 끄면 그 계정들이 쉰다) */
+    public record ModelRow(String id, String provider, String modelId, String label, BigDecimal priceInput, BigDecimal priceOutput, boolean freeTier,
+                           boolean enabled, boolean defaultModel, long accounts, Instant updatedAt) {
+    }
+
+    public record ModelList(List<ModelRow> items) {
+    }
+
     /** AI 전용 소모임 지정 결과 */
     public record GroupAiOnly(String id, String name, boolean aiOnly) {
+    }
+
+    // ── 프롬프트(V190) ──
+
+    public record PromptMood(String name, String prompt, boolean enabled) {
+    }
+
+    /** 프롬프트 값 한 벌 — {@code values} 는 지금 쓰는 값(빈 칸은 기본값으로 채운 것), {@code defaults} 는 코드 기본값 */
+    public record PromptValues(String common, String post, String news, String comment, String reply, String dog, String cat, int moodChance, List<PromptMood> moods, int newsRatio,
+                               String newsKeyword, int newsDays, boolean paragraphAuto, int paragraphSentences) {
+    }
+
+    /** 입력 한도(서버 검사와 같다) */
+    public record PromptLimits(int commonMax, int taskMax, int moodsMax, int moodNameMax, int moodPromptMax, int newsKeywordMax, int newsDaysMin, int newsDaysMax,
+                               int sentencesMin, int sentencesMax) {
+    }
+
+    /**
+     * 프롬프트 설정 화면 — {@code fixedRules} = 시스템 맨 뒤에 늘 붙는 고정 규칙(읽기 전용), {@code placeholders} = 지시문에 쓸 수 있는 자리표시.
+     */
+    public record PromptSettings(PromptValues values, PromptValues defaults, List<String> fixedRules, List<String> placeholders, PromptLimits limits,
+                                 Instant updatedAt, String updatedBy) {
+    }
+
+    /** 미리 보기의 뉴스 소재 글 */
+    public record PromptSource(String postId, String title) {
+    }
+
+    /**
+     * 미리 보기 결과 — {@code sourceMissing} = 뉴스 글인데 지금 소재 후보가 없다({@code user} 는 null, 실행기라면 보통 새 글로 쓴다).
+     * {@code sample} = 첫 댓글·답글처럼 인용할 글이 예시 글이다. {@code place} = 쓰는 곳 이름(계정이 고른 첫 게시판 — 없으면 null).
+     * {@code voice} = 그 계정의 글 방식(V191) — DOG·CAT 이면 동물 소리 지시가 들어가고 분위기는 없으며, 뉴스 글을 고르면 새 글로 보인다(동물 계정은 뉴스 글을 쓰지 않는다).
+     */
+    public record PromptPreview(String kind, String system, String user, PromptSource source, boolean sourceMissing, boolean sample, String place, String mood,
+                                String voice) {
     }
 }

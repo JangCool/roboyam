@@ -717,7 +717,8 @@ async function seedGroups(members, admin, emoticons, psql) {
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // 6-1) AI 회원(ai 단계 — 원고 seed/demo/ai-members.json, docs/features/ai-members-contract.md). 키는 넣지 않고 계정은 꺼진 채로 둔다 — 데모가 제공사를 부르지 않는다.
-//   ① AI 전용 공개 소모임: 데모 사람 회원이 개설(공개) → 운영자 승인 → 관리자 API 로 AI 전용 → ② 계정 8명(관리자 API — 소모임 멤버로 넣고 관계는 뒤에 양쪽으로)
+//   ① AI 전용 공개 소모임: 데모 사람 회원이 개설(공개) → 운영자 승인 → 관리자 API 로 AI 전용 → ② 계정 10명(관리자 API — 소모임 멤버로 넣고 관계는 뒤에 양쪽으로 ·
+//      동물 계정 2개는 글 방식 voice DOG·CAT · 카탈로그에 없는 아바타는 빼고 만들고 경고만, 다시 돌리면 아바타가 없는 계정에 붙인다)
 //   → 모델 이력(두 계정은 만든 뒤 모델을 한 번 바꾼다 — 이력 시각은 SQL 로 며칠 전) → 모임장을 AI 로 넘기고 개설한 사람은 나간다(공개 API)
 //   ③ 글·댓글: 승인(APPROVED) 생성 줄을 SQL 로 넣으면 관리자 서버의 AI 실행기(1분마다)가 AI 쓰기 부품(공개 사이트와 같은 판정)으로 등록한다(계정이 꺼져 있어도 승인 줄은 등록된다 — 생성만 멈춘다).
 //      깊이마다 한 차례(글 → 첫 댓글·사람 댓글 → 답글 → 되받기 …), 등록되면 작성 시각을 계획 시각으로 옮긴다. 사람 댓글은 그 회원으로 공개 API.
@@ -739,7 +740,13 @@ async function seedAiMembers(members, admin) {
     }
     const doc = json(join(DEMO, 'ai-members.json'));
     const models = opt.data.models;
-    const modelOf = (provider, index) => models[provider]?.[index ?? 0] ?? models[provider]?.[0];
+    // options.models 는 제공사 → [{modelId, defaultModel, …}](V189). 차례가 없으면 그 제공사의 기본 모델
+    const modelIds = (provider) => (models[provider] ?? []).map((m) => (typeof m === 'string' ? m : m.modelId));
+    const defaultModelOf = (provider) => (models[provider] ?? []).find((m) => m?.defaultModel)?.modelId ?? modelIds(provider)[0];
+    const modelOf = (provider, index) => (index === undefined ? defaultModelOf(provider) : modelIds(provider)[index] ?? modelIds(provider)[0]);
+    // 카탈로그 아바타(정지 그림) — 다른 세션이 올리는 중인 아바타는 아직 없을 수 있다
+    const avatarIds = new Set((opt.data.avatars ?? []).map((x) => x.id));
+    const avatarOk = (id) => Boolean(id) && avatarIds.has(id);
     const boardSlugs = new Set(rows(sql(`SELECT slug FROM boards WHERE kind <> 'GROUP' AND active`)).map(([s]) => s));
     const byNick = new Map(members.map((m) => [m.nickname, m]));
 
@@ -755,9 +762,10 @@ async function seedAiMembers(members, admin) {
         const boards = a.boards.filter((s) => boardSlugs.has(s));
         if (boards.length !== a.boards.length) console.log(`  ${a.nickname}: 없는 게시판 ${a.boards.filter((s) => !boardSlugs.has(s)).join(',')} 은 뺀다`);
         const model = modelOf(a.provider, a.previousModelIndex ?? a.modelIndex);
+        if (a.avatarId && !avatarOk(a.avatarId)) console.log(`  ⚠ ${a.nickname}: 아바타 ${a.avatarId} 가 카탈로그에 없어 아바타 없이 만든다(카탈로그에 올린 뒤 다시 돌리면 붙인다)`);
         const r = await admin.request('POST', '/api/admin/ai-members', {
-            nickname: a.nickname, avatarId: a.avatarId, provider: a.provider, model, persona: a.persona, bio: a.bio, relation: null, windows: a.windows,
-            dailyPosts: a.dailyPosts, boards, groups: [group.id],
+            nickname: a.nickname, avatarId: avatarOk(a.avatarId) ? a.avatarId : null, provider: a.provider, model, persona: a.persona, bio: a.bio, relation: null,
+            windows: a.windows, voice: a.voice ?? 'NORMAL', boards, groups: [group.id],
         });
         if (!ok(r)) {
             failed(`AI 회원 ${a.nickname}`, r);
@@ -766,7 +774,7 @@ async function seedAiMembers(members, admin) {
         created.push(a.nickname);
     }
     have = await listed();
-    // 관계(양쪽) · 소모임 멤버 · 모델 바꾸기(이력 2줄) — 지금 값과 다를 때만 고친다
+    // 관계(양쪽) · 소모임 멤버 · 모델 바꾸기(이력 2줄) · 글 방식 · 빠진 아바타 — 지금 값과 다를 때만 고친다
     for (const a of doc.accounts) {
         const row = have.get(a.nickname);
         if (!row) continue;
@@ -779,10 +787,16 @@ async function seedAiMembers(members, admin) {
         const groupOk = d.groups.includes(group.id);
         const finalModel = modelOf(a.provider, a.modelIndex);
         const changeModel = a.previousModelIndex !== undefined && (d.modelHistory?.length ?? 0) < 2 && d.model !== finalModel;
-        if (relationOk && groupOk && !changeModel) continue;
+        const wantVoice = a.voice ?? 'NORMAL';
+        const voiceOk = (d.voice ?? 'NORMAL') === wantVoice;
+        // 아바타가 없는 계정만 붙인다(관리자가 바꾼 아바타는 그대로) — 처음 만들 때 카탈로그에 없던 아바타
+        const addAvatar = !d.avatarId && avatarOk(a.avatarId);
+        if (!d.avatarId && a.avatarId && !avatarOk(a.avatarId)) console.log(`  ⚠ ${a.nickname}: 아바타 ${a.avatarId} 가 아직 카탈로그에 없다`);
+        if (relationOk && groupOk && !changeModel && voiceOk && !addAvatar) continue;
         const r = await admin.request('PUT', `/api/admin/ai-members/${row.id}`, {
             provider: d.provider, model: changeModel ? finalModel : d.model, persona: d.persona, bio: d.bio, relation: wantRelation,
-            windows: d.windows, dailyPosts: d.dailyPosts, boards: d.boards.filter((s) => boardSlugs.has(s)), groups: groupOk ? d.groups : [...d.groups, group.id],
+            windows: d.windows, voice: wantVoice, boards: d.boards.filter((s) => boardSlugs.has(s)), groups: groupOk ? d.groups : [...d.groups, group.id],
+            avatarId: addAvatar ? a.avatarId : null,
         });
         if (!ok(r)) failed(`AI 회원 맞추기 ${a.nickname}`, r);
         else if (changeModel) console.log(`  ${a.nickname} 모델 ${d.model} → ${finalModel}(이력 2줄)`);

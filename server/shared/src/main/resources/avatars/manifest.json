@@ -1,5 +1,5 @@
 {
- "total": 338,
+ "total": 342,
  "categories": [
   {
    "id": "basic",
@@ -40,7 +40,7 @@
   {
    "id": "animal",
    "name": "동물 (수컷/암컷)",
-   "count": 18
+   "count": 22
   },
   {
    "id": "office",
@@ -1776,6 +1776,26 @@
    "id": "job-carpenter-f",
    "name": "목수 여",
    "category": "job"
+  },
+  {
+   "id": "animal-jindo-m",
+   "name": "백구 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-jindo-f",
+   "name": "백구 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-calico-m",
+   "name": "삼색이 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-calico-f",
+   "name": "삼색이 암컷",
+   "category": "animal"
   }
  ]
 }
