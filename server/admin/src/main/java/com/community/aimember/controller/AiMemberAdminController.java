@@ -75,7 +75,7 @@ public class AiMemberAdminController {
         return noStore(accounts.detail(id));
     }
 
-    /** 고치기 — 404 {@code AI_MEMBER_NOT_FOUND} · 400 {@code VALIDATION}(model · persona.* · bio · windows.* · dailyPosts · boards · groups · relation · avatarId) */
+    /** 고치기 — 404 {@code AI_MEMBER_NOT_FOUND} · 400 {@code VALIDATION}(model · persona.* · bio · windows.* · voice · boards · groups · relation · avatarId) */
     @RequirePermission(Permission.AI_MEMBER_MANAGE)
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<AiMemberViews.Detail>> save(@PathVariable String id, @RequestBody(required = false) AiMemberRequests.Save body, AdminActor actor) {
@@ -134,7 +134,7 @@ public class AiMemberAdminController {
         return noStore(settings.view());
     }
 
-    /** 400 {@code VALIDATION}(instantScope · instantAccountIds · dailyCallLimit) */
+    /** 400 {@code VALIDATION}(instantScope · instantAccountIds · dailyCallLimit · quietDays · busyIntervalDays · dailyPostMax) */
     @RequirePermission(Permission.AI_MEMBER_MANAGE)
     @PutMapping("/settings")
     public ResponseEntity<ApiResponse<AiMemberViews.Settings>> saveSettings(@RequestBody(required = false) AiMemberRequests.SettingsSave body, AdminActor actor) {
@@ -200,7 +200,7 @@ public class AiMemberAdminController {
         return noStore(prompts.view());
     }
 
-    /** 저장 — 400 {@code VALIDATION}(common · post · news · comment · reply · moodChance · moods · moods[i].name · moods[i].prompt · newsRatio · newsKeyword · newsDays · paragraphSentences) */
+    /** 저장 — 400 {@code VALIDATION}(common · post · news · comment · reply · dog · cat · moodChance · moods · moods[i].name · moods[i].prompt · newsRatio · newsKeyword · newsDays · paragraphSentences) */
     @RequirePermission(Permission.AI_MEMBER_MANAGE)
     @PutMapping("/prompts")
     public ResponseEntity<ApiResponse<AiMemberViews.PromptSettings>> savePrompts(@RequestBody(required = false) AiMemberRequests.PromptSave body, AdminActor actor) {

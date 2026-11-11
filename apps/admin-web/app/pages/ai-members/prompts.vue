@@ -2,13 +2,14 @@
     <!--
         AI 회원 — 프롬프트(`/ai-members/prompts`). 계약 「뉴스 글·프롬프트 관리 (2026-11-11)」. 서버 `useAiMemberAdminApi`(표 ai_prompt_settings — V190).
         저장 단위는 하나(한 번에 PUT — `StickySaveBar`):
-          ① 지시문 다섯 칸(공통 · 새 글 · 뉴스 글 · 첫 댓글 · 답글) — 칸마다 「기본값으로 되돌리기」, 기본값과 같으면 서버가 기본값(NULL)으로 둔다.
+          ① 지시문 일곱 칸(공통 · 새 글 · 뉴스 글 · 첫 댓글 · 답글 · 강아지 소리 · 고양이 소리 — 동물 소리 두 칸은 글 방식 DOG·CAT 계정의 새 글·첫 댓글·답글 지시를 대신한다, V191) — 칸마다 「기본값으로 되돌리기」, 기본값과 같으면 서버가 기본값(NULL)으로 둔다.
              자리표시 칩({페르소나}·{게시판}·{모델})을 누르면 마지막으로 고르던 칸의 커서 자리에 넣는다. 출력 형식·인용·최근 제목은 서버가 늘 붙인다(여기서 못 고친다).
           ② 고정 규칙 — 읽기 전용 회색 목록(서버 `fixedRules` — 시스템 맨 뒤에 늘 붙는다).
           ③ 분위기 — 확률(%) + 목록(켜기·이름·지시문·지우기, 추가). 생성 한 번마다 확률로 켜진 것 중 하나.
           ④ 뉴스 글 — 비율(%) · 말머리 키워드 · 최근 일수. 사이트 회원이 쓴 글만 소재(외부 뉴스·검색 API 없음).
           ⑤ 글 모양 — 문단 자동 나누기 · 한 문단 문장 수.
           ⑥ 미리 보기 — 계정 · 종류 · 분위기를 고르면 **저장 전 화면 값**으로 실제 보낼 시스템·사용자 메시지를 보인다(제공사 호출 없음, 읽기 권한).
+             동물 소리 계정을 고르면 그 계정의 동물 소리 지시가 들어가고 분위기는 빠진다(뉴스 글을 고르면 새 글로 보인다 — 안내 한 줄).
         권한: 보기·미리 보기 `ai-member.read` · 저장 `ai-member.manage`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -264,9 +265,11 @@
                     <template v-if="previewResult">
                         <div class="flex flex-wrap items-center gap-2 text-xs text-muted-color">
                             <Tag :value="t(`aiMember.promptKind.${previewResult.kind}`)" severity="secondary" class="ai-member-tag text-[11px]!" />
+                            <Tag v-if="previewResult.voice !== 'NORMAL'" :value="t(`aiMember.voice.${previewResult.voice}`)" severity="info" class="ai-member-tag text-[11px]!" />
                             <span>{{ t('aiMember.previewPlace', { place: previewResult.place ?? t('aiMember.previewPlaceNone') }) }}</span>
                             <span>· {{ previewResult.mood ? t('aiMember.previewMoodUsed', { name: previewResult.mood }) : t('aiMember.previewMoodNone') }}</span>
                         </div>
+                        <Message v-if="previewResult.voice !== 'NORMAL'" severity="info" size="small" :closable="false">{{ t(previewResult.kind === 'NEWS' ? 'aiMember.previewAnimalNews' : 'aiMember.previewAnimal') }}</Message>
                         <Message v-if="previewResult.sourceMissing" severity="warn" size="small" :closable="false">{{ t('aiMember.previewSourceMissing', { keyword: form.newsKeyword, days: form.newsDays }) }}</Message>
                         <p v-if="previewResult.source" class="m-0 text-xs text-muted-color">{{ t('aiMember.previewSource', { title: previewResult.source.title, id: previewResult.source.postId }) }}</p>
                         <p v-if="previewResult.sample" class="m-0 text-xs text-muted-color">{{ t('aiMember.previewSample') }}</p>

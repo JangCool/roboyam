@@ -24,18 +24,19 @@ public final class AiMemberRequests {
     }
 
     /**
-     * 고치기 — {@code avatarId} 는 목업 타입에 없던 칸(카탈로그 아바타 ID — 빠지거나 null 이면 그대로)
+     * 고치기 — {@code avatarId} 는 목업 타입에 없던 칸(카탈로그 아바타 ID — 빠지거나 null 이면 그대로). {@code voice} 글 방식 NORMAL·DOG·CAT(V191 — 빠지거나 null 이면 그대로,
+     * 만들기는 NORMAL). 옛 「하루 글 수」({@code dailyPosts})는 V191 에서 뺐다(새 글 양은 설정의 「글 쓰는 때」).
      */
-    public record Save(String provider, String model, Persona persona, String bio, Relation relation, Windows windows, Integer dailyPosts, List<String> boards,
+    public record Save(String provider, String model, Persona persona, String bio, Relation relation, Windows windows, String voice, List<String> boards,
                        List<String> groups, String avatarId) {
     }
 
     /** 만들기 — 고치기 칸 + 닉네임(서버가 로그인할 수 없는 회원 계정을 새로 만든다) */
     public record Create(String nickname, String avatarId, String provider, String model, Persona persona, String bio, Relation relation, Windows windows,
-                         Integer dailyPosts, List<String> boards, List<String> groups) {
+                         String voice, List<String> boards, List<String> groups) {
 
         public Save save() {
-            return new Save(provider, model, persona, bio, relation, windows, dailyPosts, boards, groups, avatarId);
+            return new Save(provider, model, persona, bio, relation, windows, voice, boards, groups, avatarId);
         }
     }
 
@@ -48,7 +49,9 @@ public final class AiMemberRequests {
     public record Edit(String title, String body) {
     }
 
-    public record SettingsSave(Boolean instantPublish, String instantScope, List<String> instantAccountIds, Integer dailyCallLimit, Boolean commentOnMemberPosts) {
+    /** 설정 저장 — 글 쓰는 때(V191) {@code quietDays} 1~30 · {@code busyIntervalDays} 1~90(화면은 7·30) · {@code dailyPostMax} 0~5 */
+    public record SettingsSave(Boolean instantPublish, String instantScope, List<String> instantAccountIds, Integer dailyCallLimit, Boolean commentOnMemberPosts,
+                               Integer quietDays, Integer busyIntervalDays, Integer dailyPostMax) {
     }
 
     public record Stopped(Boolean stopped) {
@@ -79,10 +82,10 @@ public final class AiMemberRequests {
     }
 
     /**
-     * 프롬프트 설정 저장(V190) — 지시문 칸이 null·빈 글이거나 기본값과 같으면 기본값(NULL)으로 둔다. {@code moods} 가 null 이면 기본 목록.
+     * 프롬프트 설정 저장(V190 · 강아지·고양이 소리 지시 {@code dog}·{@code cat} V191) — 지시문 칸이 null·빈 글이거나 기본값과 같으면 기본값(NULL)으로 둔다. {@code moods} 가 null 이면 기본 목록.
      * 확률·일수·문장 수가 빠지면 400 {@code VALIDATION}.
      */
-    public record PromptSave(String common, String post, String news, String comment, String reply, Integer moodChance, List<PromptMood> moods, Integer newsRatio,
+    public record PromptSave(String common, String post, String news, String comment, String reply, String dog, String cat, Integer moodChance, List<PromptMood> moods, Integer newsRatio,
                              String newsKeyword, Integer newsDays, Boolean paragraphAuto, Integer paragraphSentences) {
     }
 

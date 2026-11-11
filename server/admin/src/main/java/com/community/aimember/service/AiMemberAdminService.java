@@ -9,6 +9,7 @@ import com.community.aimember.entity.AiMemberProfileEntity;
 import com.community.aimember.entity.AiMemberSettingsEntity;
 import com.community.aimember.entity.AiProvider;
 import com.community.aimember.entity.AiRelationKind;
+import com.community.aimember.entity.AiVoice;
 import com.community.aimember.exception.AiMemberNotFoundException;
 import com.community.aimember.repository.master.AiMemberModelHistoryRepository;
 import com.community.aimember.repository.master.AiMemberProfileRepository;
@@ -53,6 +54,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -73,6 +75,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>만들기</b>({@link #create}): 서버가 로그인할 수 없는 회원 계정({@link UserEntity#createAiAccount} — 이메일·비밀번호·소셜 없음) + 프로필(닉네임 · 공개 소개 · 아바타)
  *       + 확장 줄을 한 트랜잭션에 만든다. 처음에는 꺼져 있다. 닉네임은 회원 닉네임 규칙({@link UserPolicy#memberNicknameViolation})과 중복 검사를 받는다.</li>
  *   <li><b>관계</b>: 양쪽 줄에 같이 적는다. 옛 상대 · 새 상대의 옛 상대는 푼다. 감사 기록 하나에 바뀐 상대를 남긴다.</li>
+ *   <li><b>글 방식</b>(V191): 보통 · 강아지 소리 · 고양이 소리. 옛 「하루 글 수」는 받지 않는다(새 글 양은 설정의 「글 쓰는 때」 — 표 칸은 쓰지 않고 둔다).</li>
  *   <li><b>쓸 곳</b>: 게시판은 「항상 막힘」({@link AiMemberRules#blockedReason})을 고를 수 없다. 소모임은 AI 전용 소모임만 — 저장하면 그 소모임 멤버로 넣고, 뺀 소모임에서는 나간다
  *       (모임장이면 그대로).</li>
  * </ul>
@@ -165,7 +168,7 @@ public class AiMemberAdminService {
                 .map(a -> new AiMemberViews.AccountRef(Long.toString(a.getUserId()), names.getOrDefault(a.getUserId(), ""), Long.toString(a.getId()))).toList();
         List<AiMemberViews.AvatarOption> avatarOptions = avatars.all().stream().filter(a -> !a.animated())
                 .map(a -> new AiMemberViews.AvatarOption(a.id(), a.name(), a.category())).toList();
-        return new AiMemberViews.FormOptions(modelOptions, boards, aiGroups, refs, avatarOptions);
+        return new AiMemberViews.FormOptions(modelOptions, boards, aiGroups, refs, avatarOptions, Arrays.stream(AiVoice.values()).map(Enum::name).toList());
     }
 
     public AiMemberViews.Detail detail(String idText) {
@@ -206,7 +209,7 @@ public class AiMemberAdminService {
         Map<String, Object> relation = applyRelation(a, c, actor.operatorId(), now);
         syncGroups(userId, c.groupIds(), now);
         AuditEvent created = AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_MEMBER_CREATE, AuditResult.SUCCESS).target(AUDIT_TARGET, Long.toString(a.getId()))
-                .with("userId", Long.toString(userId)).with("provider", a.getProvider().name()).with("model", a.getModel());
+                .with("userId", Long.toString(userId)).with("provider", a.getProvider().name()).with("model", a.getModel()).with("voice", a.getVoice().name());
         // 감사 detail 은 null 값을 받지 않는다(Map.copyOf) — 없는 사실은 넣지 않는다
         audit.record(relation == null ? created : created.with("relation", relation));
         return detailOf(a);
@@ -331,9 +334,10 @@ public class AiMemberAdminService {
         if (n == null || !n[0].isBefore(n[1]) || n[0].isBefore(NOON)) {
             f.put("windows.afternoon", new MessageRef("aiMember.windows.afternoon"));
         }
-        int daily = b.dailyPosts() == null ? -1 : b.dailyPosts();
-        if (daily < AiMemberRules.DAILY_POSTS_MIN || daily > AiMemberRules.DAILY_POSTS_MAX) {
-            f.put("dailyPosts", new MessageRef("aiMember.dailyPosts", AiMemberRules.DAILY_POSTS_MIN, AiMemberRules.DAILY_POSTS_MAX));
+        // 글 방식(V191) — 비우면 만들기는 보통, 고치기는 그대로
+        AiVoice voice = b.voice() == null || b.voice().isBlank() ? (self == null ? AiVoice.NORMAL : self.getVoice()) : parseEnum(AiVoice.class, b.voice());
+        if (voice == null) {
+            f.put("voice", new MessageRef("aiMember.voice.unknown"));
         }
         BoardCatalogSnapshot snap = catalog.snapshot();
         List<Long> boardIds = new ArrayList<>();
@@ -390,7 +394,7 @@ public class AiMemberAdminService {
             }
         }
         AiMemberProfileEntity.Values values = f.isEmpty() ? new AiMemberProfileEntity.Values(provider, model, gender, age, personality, tone, interests, m[0], m[1],
-                n[0], n[1], daily, boardIds) : null;
+                n[0], n[1], voice, boardIds) : null;
         return new Checked(values, bio, kind, partner, groupIds, avatarId, animated);
     }
 
@@ -499,7 +503,7 @@ public class AiMemberAdminService {
                 ctx.restricted().getOrDefault(a.getUserId(), false));
         return new AiMemberViews.Row(Long.toString(a.getId()), new AiMemberViews.PersonRef(Long.toString(a.getUserId()), ctx.nicknames().getOrDefault(a.getUserId(), "")),
                 avatarIdOf(ctx.images().get(a.getUserId())), a.getProvider().name(), a.getModel(), relation(a, ctx), a.isEnabled(), new AiMemberViews.Today(today[0], today[1]),
-                ctx.pending().getOrDefault(a.getId(), 0L), a.getDailyPosts(), resting);
+                ctx.pending().getOrDefault(a.getId(), 0L), a.getVoice().name(), resting);
     }
 
     private AiMemberViews.Relation relation(AiMemberProfileEntity a, Context ctx) {
@@ -548,7 +552,7 @@ public class AiMemberAdminService {
         m.put("model", a.getModel());
         m.put("gender", a.getGender().name());
         m.put("ageBand", a.getAgeBand().name());
-        m.put("dailyPosts", a.getDailyPosts());
+        m.put("voice", a.getVoice().name());
         m.put("morning", hhmm(a.getMorningStart()) + "-" + hhmm(a.getMorningEnd()));
         m.put("afternoon", hhmm(a.getAfternoonStart()) + "-" + hhmm(a.getAfternoonEnd()));
         m.put("boardIds", a.getBoardIds().stream().map(String::valueOf).toList());

@@ -2,8 +2,8 @@
     <!--
         AI 회원 계정 서랍 — 고치기(`mode="edit"`, `/ai-members?account=ID`, 목록의 줄을 누르면 연다)와 만들기(`mode="create"`, 목록의 [AI 계정 만들기])를 같이 한다.
         열리는 쪽은 화면 설정의 「서랍 위치」(`prefs.drawerPosition`)를 따른다(소모임·회원 상세 서랍과 같다).
-        구획 여섯: ⓪ 계정(만들기면 닉네임 · 아바타 고르기 `AiAvatarPicker`) ① 제공사 · 모델(모델은 서버 options — 모델 목록의 「사용」인 모델만, 가격·기본 같이) ② 페르소나(성별·나이대·성격·말투·관심사·공개 소개)
-          ③ 관계(배우자/연인 — 상대 AI 계정) ④ 활동량 · 시간대(오전·오후 창, 하루 글 2~3) ⑤ 쓸 수 있는 곳(게시판 고르기 — 항상 막힌 게시판은 비활성 + 이유, AI 전용 소모임).
+        구획 여섯: ⓪ 계정(만들기면 닉네임 · 아바타 고르기 `AiAvatarPicker`) ① 제공사 · 모델(모델은 서버 options — 모델 목록의 「사용」인 모델만, 가격·기본 같이) ② 페르소나(성별·나이대·글 방식 보통/강아지 소리/고양이 소리 · 성격·말투·관심사·공개 소개)
+          ③ 관계(배우자/연인 — 상대 AI 계정) ④ 활동 시간대(오전·오후 창 — 새 글은 이 안에서만, 양은 설정의 「글 쓰는 때」) ⑤ 쓸 수 있는 곳(게시판 고르기 — 항상 막힌 게시판은 비활성 + 이유, AI 전용 소모임).
         고치기는 서랍 하나가 저장 하나다 — 저장 줄은 서랍 맨 아래(`StickySaveBar`). 만들기는 아래 [취소]·[만들기]. 저장하지 않은 채 닫으면 묻는다.
         아바타는 바꿨을 때만 `avatarId` 를 싣는다(null 이면 서버가 그대로 둔다).
         머리(닉네임·상태)는 목록 줄(`summary`)로 먼저 그리고, 상세·고르기 목록은 부르는 쪽이 받아 내려 준다(서버를 부르지 않는다 — components.md).
@@ -116,6 +116,12 @@
                             </template>
                         </LabeledField>
                     </div>
+                    <!-- 글 방식(V191) — 동물 소리는 제목·본문을 소리로만 쓰고 끝에 괄호 해석. 뉴스 글·문단 나누기·분위기는 쓰지 않는다 -->
+                    <LabeledField :label="t('aiMember.field.voice')" :help="t(`aiMember.voiceHelp.${form.voice}`)" :error="fieldError('voice')">
+                        <template #default="{ describedBy }">
+                            <SelectButton v-model="form.voice" :options="voiceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('aiMember.field.voice')" :aria-describedby="describedBy" />
+                        </template>
+                    </LabeledField>
                     <LabeledField :label="t('aiMember.field.personality')" :hint="t('aiMember.hintMax', { max: UtilAiMember.PERSONALITY_MAX })" :help="t('aiMember.help.personality')" :error="fieldError('persona.personality')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.persona.personality" rows="2" auto-resize fluid :maxlength="UtilAiMember.PERSONALITY_MAX" :invalid="invalid" :aria-describedby="describedBy" />
@@ -183,11 +189,10 @@
                             </template>
                         </LabeledField>
                     </div>
-                    <LabeledField :label="t('aiMember.field.dailyPosts')" :help="t('aiMember.help.dailyPosts')" :error="fieldError('dailyPosts')">
-                        <template #default="{ describedBy }">
-                            <SelectButton v-model="form.dailyPosts" :options="dailyOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('aiMember.field.dailyPosts')" :aria-describedby="describedBy" />
-                        </template>
-                    </LabeledField>
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">
+                        {{ t('aiMember.help.postTiming') }}
+                        <NuxtLink :to="UtilAiMember.SETTINGS_PATH" class="ml-1 font-medium whitespace-nowrap text-primary hover:underline">{{ t('aiMember.postTimingLink') }} ›</NuxtLink>
+                    </p>
                 </section>
 
                 <!-- ⑤ 쓸 수 있는 곳 -->
@@ -252,6 +257,7 @@ import {
     AI_GENDERS,
     AI_PROVIDERS,
     AI_RELATION_KINDS,
+    AI_VOICES,
     type AiMemberCreateRequest,
     type AiMemberDetail,
     type AiMemberFormOptions,
@@ -392,7 +398,8 @@ const modelOptions = computed(() =>
 );
 const genderOptions = computed(() => AI_GENDERS.map((value) => ({ value, label: t(`aiMember.gender.${value}`) })));
 const ageOptions = computed(() => AI_AGE_BANDS.map((value) => ({ value, label: t(`aiMember.ageBand.${value}`) })));
-const dailyOptions = computed(() => UtilAiMember.DAILY_POSTS.map((value) => ({ value, label: t('aiMember.dailyLine', { n: value }) })));
+/** 글 방식 — 서버 options 의 차례(없으면 화면 기본 차례) */
+const voiceOptions = computed(() => (props.options?.voices?.length ? props.options.voices : AI_VOICES).map((value) => ({ value, label: t(`aiMember.voice.${value}`) })));
 const relationOptions = computed(() => [{ value: 'NONE', label: t('aiMember.relationNone') }, ...AI_RELATION_KINDS.map((value) => ({ value, label: t(`aiMember.relationKind.${value}`) }))]);
 const partnerOptions = computed(() => (props.options?.accounts ?? []).filter((a) => a.aiMemberId !== props.detail?.id).map((a) => ({ value: a.aiMemberId, label: a.nickname })));
 const openBoards = computed(() => (props.options?.boards ?? []).filter((b) => !b.blockedReason));
@@ -437,7 +444,7 @@ function submit(): void {
         bio: f.bio.trim(),
         relation: f.relation ? { ...toRaw(f.relation) } : null,
         windows: { morning: { ...toRaw(f.windows.morning) }, afternoon: { ...toRaw(f.windows.afternoon) } },
-        dailyPosts: f.dailyPosts,
+        voice: f.voice,
         boards: f.boards.map((slug) => slug),
         groups: f.groups.map((id) => id),
         // 아바타는 바꿨을 때만 — null 이면 서버가 그대로 둔다

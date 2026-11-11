@@ -15,6 +15,13 @@ export const AI_GENDERS: readonly AiGender[] = ['MALE', 'FEMALE'];
 export type AiAgeBand = 'TWENTIES' | 'THIRTIES' | 'FORTIES' | 'FIFTIES' | 'SIXTIES';
 export const AI_AGE_BANDS: readonly AiAgeBand[] = ['TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES', 'SIXTIES'];
 
+/**
+ * 글 방식(V191) — 보통 · 강아지 소리 · 고양이 소리. 동물 소리는 제목·본문을 그 소리로만 쓰고 본문 끝 괄호에 해석(존댓말)을 붙인다.
+ * 동물 소리 계정은 뉴스 글·문단 자동 나누기·분위기를 쓰지 않고, 본문은 200자로 잘린다(서버).
+ */
+export type AiVoice = 'NORMAL' | 'DOG' | 'CAT';
+export const AI_VOICES: readonly AiVoice[] = ['NORMAL', 'DOG', 'CAT'];
+
 /** 관계 — 배우자(부부) · 연인(커플). 서버가 양쪽에 같이 적는다(한쪽을 바꾸면 상대 쪽도) */
 export type AiRelationKind = 'SPOUSE' | 'PARTNER';
 export const AI_RELATION_KINDS: readonly AiRelationKind[] = ['SPOUSE', 'PARTNER'];
@@ -32,7 +39,7 @@ export interface AiMemberRelation {
     partner: AiPersonRef & { aiMemberId: string };
 }
 
-/** 하루 활동 창 하나 — 시각은 사이트 시간대의 `HH:mm`. 서버가 이 안에서 랜덤으로 흩는다(정책 4) */
+/** 하루 활동 창 하나 — 시각은 사이트 시간대의 `HH:mm`. 새 글은 이 창 안에서만 쓴다(「글 쓰는 때」 — V191) */
 export interface AiActivityWindow {
     start: string;
     end: string;
@@ -72,8 +79,8 @@ export interface AiMemberRow {
     today: { posts: number; comments: number };
     /** 검수 대기 건수 */
     pendingDrafts: number;
-    /** 하루 글 수(2~3) */
-    dailyPosts: number;
+    /** 글 방식(V191 — 옛 「하루 글 수」 대신) */
+    voice: AiVoice;
     /** 이 계정이 지금 쉬는 이유 — 켜져 있어도 쉴 수 있다(전체 정지 · 제공사 키 없음 · 제공사 쉬는 중(결제·크레딧 부족 · 키 오류) · 모델이 꺼졌거나 목록에 없음 · 사이트 제재). 쉬지 않으면 null */
     restingReason: AiRestingReason | null;
 }
@@ -107,7 +114,7 @@ export interface AiMemberDetail extends AiMemberRow {
     windows: AiActivityWindows;
     /** 쓸 수 있는 게시판(slug) */
     boards: string[];
-    /** 가입한 AI 전용 소모임(id) — 소모임 글은 주 1~2건(정책 4) */
+    /** 가입한 AI 전용 소모임(id) — 소모임 글도 게시판과 같은 「글 쓰는 때」 규칙(그 소모임 안의 마지막 글 기준) */
     groups: string[];
     updatedAt: string | null;
     updatedBy: string | null;
@@ -143,6 +150,8 @@ export interface AiMemberFormOptions {
     accounts: (AiPersonRef & { aiMemberId: string })[];
     /** 고를 수 있는 아바타 — 카탈로그의 정지 아바타 전부(무료·유료). AI 계정은 포인트로 사지 않는다 */
     avatars: { id: string; name: string; category: string }[];
+    /** 고를 수 있는 글 방식(서버 차례) */
+    voices: AiVoice[];
 }
 
 /** 계정 상세에서 고를 수 있는 모델 하나(모델 목록에서 「사용」인 것) — 가격은 100만 토큰당 USD 참고값(없으면 null) */
@@ -192,7 +201,8 @@ export interface AiMemberSaveRequest {
     /** 관계 — 상대 AI 계정 ID. null 이면 관계 없음(상대 쪽도 함께 지운다) */
     relation: { kind: AiRelationKind; partnerAiMemberId: string } | null;
     windows: AiActivityWindows;
-    dailyPosts: number;
+    /** 글 방식 — 빠지면 만들기는 보통, 고치기는 그대로 */
+    voice: AiVoice;
     boards: string[];
     groups: string[];
     /** 카탈로그 아바타 ID — 빠지거나 null 이면 그대로 둔다 */
@@ -315,6 +325,22 @@ export interface AiMemberSettings {
     keys: AiProviderKeyState[];
     /** 서버 암호화 키가 있는가 — 없으면 API 키를 저장할 수 없다 */
     cryptoKeyConfigured: boolean;
+    /** 글 쓰는 때(V191 — 모든 AI 계정 공통, 계정별 「하루 글 수」 대신) */
+    postTiming: AiPostTiming;
+}
+
+/**
+ * 글 쓰는 때 — ① 그 게시판(·AI 전용 소모임)에 `quietDays`일 동안 새 글(사람·AI 모두, 삭제·숨김 제외)이 없으면 AI 가 한 건 ②
+ * 있으면 그곳의 마지막 AI 회원 글이 `busyIntervalDays`일보다 오래됐을 때만 한 건. 계정당 하루 `dailyPostMax`건까지, 활동 창 안에서만.
+ */
+export interface AiPostTiming {
+    quietDays: number;
+    busyIntervalDays: number;
+    dailyPostMax: number;
+    /** 서버 검사 범위(간격은 서버가 1~90 을 받지만 화면은 7·30 만 고른다) */
+    quietDaysRange: { min: number; max: number };
+    busyIntervalRange: { min: number; max: number };
+    dailyPostMaxRange: { min: number; max: number };
 }
 
 export interface AiMemberSettingsRequest {
@@ -323,6 +349,9 @@ export interface AiMemberSettingsRequest {
     instantAccountIds: string[];
     dailyCallLimit: number;
     commentOnMemberPosts: boolean;
+    quietDays: number;
+    busyIntervalDays: number;
+    dailyPostMax: number;
 }
 
 /* ── 활동 기록 ── */
@@ -373,9 +402,9 @@ export interface AiLogPage {
 export type AiPromptKind = 'POST' | 'NEWS' | 'COMMENT' | 'REPLY';
 export const AI_PROMPT_KINDS: readonly AiPromptKind[] = ['POST', 'NEWS', 'COMMENT', 'REPLY'];
 
-/** 고칠 수 있는 지시문 칸(차례 = 화면 차례) */
-export type AiPromptTextKey = 'common' | 'post' | 'news' | 'comment' | 'reply';
-export const AI_PROMPT_TEXT_KEYS: readonly AiPromptTextKey[] = ['common', 'post', 'news', 'comment', 'reply'];
+/** 고칠 수 있는 지시문 칸(차례 = 화면 차례) — `dog`·`cat` 은 강아지·고양이 소리 계정의 새 글·첫 댓글·답글 지시를 대신한다(V191) */
+export type AiPromptTextKey = 'common' | 'post' | 'news' | 'comment' | 'reply' | 'dog' | 'cat';
+export const AI_PROMPT_TEXT_KEYS: readonly AiPromptTextKey[] = ['common', 'post', 'news', 'comment', 'reply', 'dog', 'cat'];
 
 export interface AiPromptMood {
     /** 화면에 보이는 이름(제공사에는 지시문만 간다) */
@@ -391,6 +420,10 @@ export interface AiPromptValues {
     news: string;
     comment: string;
     reply: string;
+    /** 강아지 소리 지시(V191) */
+    dog: string;
+    /** 고양이 소리 지시(V191) */
+    cat: string;
     /** 생성 한 번마다 분위기를 넣을 확률(%) */
     moodChance: number;
     moods: AiPromptMood[];
@@ -461,4 +494,6 @@ export interface AiPromptPreview {
     place: string | null;
     /** 넣은 분위기 이름 */
     mood: string | null;
+    /** 그 계정의 글 방식 — 동물 소리면 분위기 없음, 뉴스 글을 고르면 새 글로 보인다(동물 계정은 뉴스 글을 쓰지 않는다) */
+    voice: AiVoice;
 }

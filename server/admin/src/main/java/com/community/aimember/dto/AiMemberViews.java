@@ -38,9 +38,9 @@ public final class AiMemberViews {
     public record Today(long posts, long comments) {
     }
 
-    /** 목록 한 줄 */
+    /** 목록 한 줄 — {@code voice} 글 방식 NORMAL·DOG·CAT(V191 — 옛 {@code dailyPosts} 대신) */
     public record Row(String id, PersonRef member, String avatarId, String provider, String model, Relation relation, boolean enabled, Today today,
-                      long pendingDrafts, int dailyPosts, String restingReason) {
+                      long pendingDrafts, String voice, String restingReason) {
     }
 
     /** 상세 = 목록 줄 + 편집 칸 */
@@ -76,9 +76,9 @@ public final class AiMemberViews {
     public record ModelOption(String modelId, String label, BigDecimal priceInput, BigDecimal priceOutput, boolean freeTier, boolean defaultModel) {
     }
 
-    /** {@code models} — 제공사 → 켜진 모델(목록 차례, 기본은 {@code defaultModel}) */
+    /** {@code models} — 제공사 → 켜진 모델(목록 차례, 기본은 {@code defaultModel}). {@code voices} — 고를 수 있는 글 방식(V191, 차례 그대로) */
     public record FormOptions(Map<String, List<ModelOption>> models, List<BoardOption> boards, List<GroupOption> groups, List<AccountRef> accounts,
-                              List<AvatarOption> avatars) {
+                              List<AvatarOption> avatars, List<String> voices) {
     }
 
     // ── 대기함 ──
@@ -117,9 +117,13 @@ public final class AiMemberViews {
     public record KeyState(String provider, boolean configured, Instant updatedAt, String updatedBy, String status, String statusDetail, Instant statusAt) {
     }
 
+    /** 글 쓰는 때(V191) — 값 + 서버 검사 범위 */
+    public record PostTiming(int quietDays, int busyIntervalDays, int dailyPostMax, Range quietDaysRange, Range busyIntervalRange, Range dailyPostMaxRange) {
+    }
+
     public record Settings(boolean stopped, Instant stoppedAt, String stoppedBy, boolean instantPublish, String instantScope, List<String> instantAccountIds,
                            int dailyCallLimit, long todayCalls, boolean commentOnMemberPosts, Range firstComments, Range replyRounds, Range memberReplies,
-                           List<KeyState> keys, boolean cryptoKeyConfigured) {
+                           List<KeyState> keys, boolean cryptoKeyConfigured, PostTiming postTiming) {
     }
 
     // ── 기록 ──
@@ -157,7 +161,7 @@ public final class AiMemberViews {
     }
 
     /** 프롬프트 값 한 벌 — {@code values} 는 지금 쓰는 값(빈 칸은 기본값으로 채운 것), {@code defaults} 는 코드 기본값 */
-    public record PromptValues(String common, String post, String news, String comment, String reply, int moodChance, List<PromptMood> moods, int newsRatio,
+    public record PromptValues(String common, String post, String news, String comment, String reply, String dog, String cat, int moodChance, List<PromptMood> moods, int newsRatio,
                                String newsKeyword, int newsDays, boolean paragraphAuto, int paragraphSentences) {
     }
 
@@ -180,7 +184,9 @@ public final class AiMemberViews {
     /**
      * 미리 보기 결과 — {@code sourceMissing} = 뉴스 글인데 지금 소재 후보가 없다({@code user} 는 null, 실행기라면 보통 새 글로 쓴다).
      * {@code sample} = 첫 댓글·답글처럼 인용할 글이 예시 글이다. {@code place} = 쓰는 곳 이름(계정이 고른 첫 게시판 — 없으면 null).
+     * {@code voice} = 그 계정의 글 방식(V191) — DOG·CAT 이면 동물 소리 지시가 들어가고 분위기는 없으며, 뉴스 글을 고르면 새 글로 보인다(동물 계정은 뉴스 글을 쓰지 않는다).
      */
-    public record PromptPreview(String kind, String system, String user, PromptSource source, boolean sourceMissing, boolean sample, String place, String mood) {
+    public record PromptPreview(String kind, String system, String user, PromptSource source, boolean sourceMissing, boolean sample, String place, String mood,
+                                String voice) {
     }
 }
