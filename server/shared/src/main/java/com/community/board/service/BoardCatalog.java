@@ -147,7 +147,9 @@ public class BoardCatalog implements CacheReloader {
                 // 글 목록 칩 위치(V169) — 게시판 값 ?? 사이트 기본
                 or(b.getChipPosition(), d.listChipPosition()),
                 // 작성자 표시(V184) — 일반 게시판만 익명(anonymous-board-contract 정책 1)
-                BoardFields.anonymousAllowed(b.getKind()) ? b.getAuthorMode() : BoardFields.AUTHOR_NICKNAME);
+                BoardFields.anonymousAllowed(b.getKind()) ? b.getAuthorMode() : BoardFields.AUTHOR_NICKNAME,
+                // 글 목록 말머리 모양(V195) — 게시판 값 ?? 사이트 기본
+                or(b.getPrefixStyle(), d.listPrefixStyle()));
     }
 
     private static <T> T or(T value, T fallback) {

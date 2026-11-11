@@ -26,4 +26,8 @@ export default {
     descPopular: '실시간 · 어제 · 이번 주, 반응이 가장 좋은 글을 모아 봐요',
     descLatest: '모든 게시판의 새 글을 올라온 순서대로 봐요',
     descBoard: '{name}의 새 소식을 모아 봐요',
+
+    // 전체 화면 메뉴(`/menu` — 모바일 하단 탭 「메뉴」)
+    shortcutsTitle: '바로 가기',
+    pageSeoDescription: '{site}의 메뉴와 모든 게시판이에요.',
 };

@@ -10,8 +10,11 @@ package com.community.site.dto.response;
  * @param likeHighlight    글 목록 윗줄 추천 수가 이 값 이상이면 강조(관리자 {@code listLikeHighlight}, V170). 0 = 강조 안 함
  * @param viewHighlight    글 목록 윗줄 조회 수가 이 값 이상이면 강조(관리자 {@code listViewHighlight}, V170). 0 = 강조 안 함
  * @param highlightColor   강조 색 {@code #rrggbb}(소문자, 관리자 {@code listHighlightColor}, 기본 {@code #e5484d})
+ * @param listPrefixStyle  글 목록 말머리 모양의 사이트 기본 TEXT · MUTED · COLOR(관리자 게시판 기본 설정 {@code listPrefixStyle}, V195) — 섞인 목록이 쓴다.
+ *                         게시판 하나의 목록·글 보기는 게시판 응답의 {@code prefixStyle}(이미 푼 값)을 쓴다
  */
-public record BoardDisplayView(String dateDisplay, int newPostHours, String listChipPosition, int likeHighlight, int viewHighlight, String highlightColor) {
+public record BoardDisplayView(String dateDisplay, int newPostHours, String listChipPosition, int likeHighlight, int viewHighlight, String highlightColor,
+                               String listPrefixStyle) {
 
     public static final int NEW_POST_HOURS = 24;
 }

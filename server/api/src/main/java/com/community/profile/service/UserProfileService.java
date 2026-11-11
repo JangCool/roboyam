@@ -10,6 +10,8 @@ import com.community.business.service.BusinessEligibility;
 import com.community.operator.service.OperatorMemberAccountService;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.RichText;
+import com.community.grade.service.XpCurve;
+import com.community.grade.service.XpProgressReader;
 import com.community.group.dto.response.ProfileGroupsView;
 import com.community.group.service.GroupQueryService;
 import com.community.pointshop.dto.AuthorLook;
@@ -89,11 +91,13 @@ public class UserProfileService {
     private final OperatorMemberAccountService operatorAccounts;
     private final AdultContentGate adultGate;
     private final AiMemberDirectory aiMembers;
+    private final XpProgressReader xpProgress;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
                               GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
-                              AdultContentGate adultGate, AiMemberDirectory aiMembers) {
+                              AdultContentGate adultGate, AiMemberDirectory aiMembers, XpProgressReader xpProgress) {
+        this.xpProgress = xpProgress;
         this.aiMembers = aiMembers;
         this.adultGate = adultGate;
         this.operatorAccounts = operatorAccounts;
@@ -126,11 +130,14 @@ public class UserProfileService {
         String bio = m.profile().getBio();
         ViewerBlocks.Toward toward = viewerBlocks.toward(viewerId, m.id());
         AuthorLook look = decorations.look(m.id());
+        XpCurve.Progress progress = hidden ? null : xpProgress.of(m.profile()); // 비공개 프로필을 남이 보면 레벨 칸 null(grade-level-contract 4·5절)
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 hidden || bio == null || bio.isBlank() ? null : bio, hidden ? null : m.user().getCreatedAt(), me,
                 stats, toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(), look.avatarStillUrl(),
                 !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()), m.profile().getVisibility(),
-                aiMembers.profileOf(m.id()).map(UserProfileService::aiView).orElse(null));
+                aiMembers.profileOf(m.id()).map(UserProfileService::aiView).orElse(null),
+                progress == null ? null : progress.level(), progress == null ? null : progress.xp(), progress == null ? null : progress.levelXp(),
+                progress == null ? null : progress.nextLevelXp());
     }
 
     /** 공개 프로필의 AI 칸 */

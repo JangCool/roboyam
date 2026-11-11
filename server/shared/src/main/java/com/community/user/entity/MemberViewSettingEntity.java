@@ -27,6 +27,8 @@ public class MemberViewSettingEntity {
     public static final String DEFAULT_COMMENT_ORDER = "OLDEST";
     /** 데스크톱 메뉴 위치 — 자동(운영자 설정 > 테마 기본을 따른다), V105 */
     public static final String DEFAULT_MENU_POSITION = "AUTO";
+    /** 글 목록 제목 굵게 — 기본 보통 굵기(V198) */
+    public static final boolean DEFAULT_TITLE_BOLD = false;
 
     @Id
     private Long userId;
@@ -36,6 +38,7 @@ public class MemberViewSettingEntity {
     private short textScaleMobile;
     private String commentOrder;
     private String menuPosition;
+    private boolean titleBold;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -45,6 +48,12 @@ public class MemberViewSettingEntity {
     /** 처음 저장할 때 — 다섯 칸은 검사를 마친 값이다 */
     public static MemberViewSettingEntity create(long userId, String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition,
             Instant now) {
+        return create(userId, theme, textScale, textScaleMobile, commentOrder, menuPosition, DEFAULT_TITLE_BOLD, now);
+    }
+
+    /** 처음 저장할 때 — 제목 굵게(V198)까지 */
+    public static MemberViewSettingEntity create(long userId, String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition,
+            boolean titleBold, Instant now) {
         MemberViewSettingEntity setting = new MemberViewSettingEntity();
         setting.userId = userId;
         setting.theme = theme;
@@ -52,6 +61,7 @@ public class MemberViewSettingEntity {
         setting.textScaleMobile = (short) textScaleMobile;
         setting.commentOrder = commentOrder;
         setting.menuPosition = menuPosition;
+        setting.titleBold = titleBold;
         setting.createdAt = now;
         setting.updatedAt = now;
         return setting;
@@ -59,8 +69,13 @@ public class MemberViewSettingEntity {
 
     /** 값을 바꾼다 — 다섯 칸은 검사를 마친 값이다. 같은 값이면 아무것도 바꾸지 않는다 */
     public void change(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, Instant now) {
+        change(theme, textScale, textScaleMobile, commentOrder, menuPosition, this.titleBold, now);
+    }
+
+    /** 값을 바꾼다 — 제목 굵게(V198)까지. 같은 값이면 아무것도 바꾸지 않는다 */
+    public void change(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold, Instant now) {
         if (theme.equals(this.theme) && textScale == this.textScale && textScaleMobile == this.textScaleMobile && commentOrder.equals(this.commentOrder)
-                && menuPosition.equals(this.menuPosition)) {
+                && menuPosition.equals(this.menuPosition) && titleBold == this.titleBold) {
             return;
         }
         this.theme = theme;
@@ -68,7 +83,13 @@ public class MemberViewSettingEntity {
         this.textScaleMobile = (short) textScaleMobile;
         this.commentOrder = commentOrder;
         this.menuPosition = menuPosition;
+        this.titleBold = titleBold;
         this.updatedAt = now;
+    }
+
+    /** 글 목록 제목 굵게(V198) */
+    public boolean isTitleBold() {
+        return titleBold;
     }
 
     public String getMenuPosition() {

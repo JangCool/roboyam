@@ -6,12 +6,19 @@
   "tables": [
     {
       "table": "grades", "mode": "UPSERT", "key": ["grade_key"],
-      "columns": {"grade_key":"character varying(19)","level":"integer","label":"character varying(8)","min_days":"integer","min_activity":"integer","badge_color":"character varying(10)","badge_icon":"character varying(30)","created_at":"timestamp with time zone","updated_at":"timestamp with time zone"},
+      "columns": {"grade_key":"character varying(19)","level":"integer","label":"character varying(8)","min_days":"integer","min_activity":"integer","badge_color":"character varying(10)","badge_icon":"character varying(30)","created_at":"timestamp with time zone","updated_at":"timestamp with time zone","min_level":"integer","sprite":"character varying(16)"},
       "rows": [
-        {"grade_key":"SEEDLING","level":1,"label":"새싹","min_days":0,"min_activity":0,"badge_color":"gray","badge_icon":"pi pi-circle","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00"},
-        {"grade_key":"REGULAR","level":2,"label":"일반","min_days":7,"min_activity":10,"badge_color":"blue","badge_icon":"pi pi-star","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00"},
-        {"grade_key":"LOYAL","level":3,"label":"단골","min_days":30,"min_activity":50,"badge_color":"green","badge_icon":"pi pi-heart","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00"},
-        {"grade_key":"VETERAN","level":4,"label":"베테랑","min_days":90,"min_activity":200,"badge_color":"amber","badge_icon":"pi pi-crown","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00"}
+        {"grade_key":"SEEDLING","level":1,"label":"새싹","min_days":0,"min_activity":0,"badge_color":"gray","badge_icon":"pi pi-circle","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":1,"sprite":"SPROUT"},
+        {"grade_key":"GRADE_5","level":2,"label":"견습","min_days":3,"min_activity":0,"badge_color":"teal","badge_icon":"pi pi-bolt","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":10,"sprite":"BOLT"},
+        {"grade_key":"REGULAR","level":3,"label":"정식","min_days":7,"min_activity":0,"badge_color":"blue","badge_icon":"pi pi-star","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":20,"sprite":"ANTENNA"},
+        {"grade_key":"GRADE_6","level":4,"label":"숙련","min_days":14,"min_activity":0,"badge_color":"cyan","badge_icon":"pi pi-shield","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":30,"sprite":"BATTERY"},
+        {"grade_key":"GRADE_7","level":5,"label":"정예","min_days":30,"min_activity":0,"badge_color":"indigo","badge_icon":"pi pi-verified","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":40,"sprite":"GEAR"},
+        {"grade_key":"LOYAL","level":6,"label":"고수","min_days":60,"min_activity":0,"badge_color":"green","badge_icon":"pi pi-heart","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":50,"sprite":"HEART"},
+        {"grade_key":"GRADE_8","level":7,"label":"달인","min_days":90,"min_activity":0,"badge_color":"orange","badge_icon":"pi pi-lightbulb","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":60,"sprite":"LIGHTNING"},
+        {"grade_key":"GRADE_9","level":8,"label":"명인","min_days":180,"min_activity":0,"badge_color":"violet","badge_icon":"pi pi-star-fill","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":70,"sprite":"STAR"},
+        {"grade_key":"VETERAN","level":9,"label":"대가","min_days":365,"min_activity":0,"badge_color":"amber","badge_icon":"pi pi-crown","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":80,"sprite":"CROWN"},
+        {"grade_key":"GRADE_10","level":10,"label":"전설","min_days":540,"min_activity":0,"badge_color":"red","badge_icon":"pi pi-trophy","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":90,"sprite":"LEGEND"},
+        {"grade_key":"GRADE_11","level":11,"label":"신화","min_days":730,"min_activity":0,"badge_color":"pink","badge_icon":"pi pi-sparkles","created_at":"2026-10-27T17:09:14.728086+09:00","updated_at":"2026-10-27T17:09:14.728086+09:00","min_level":100,"sprite":"MYTH"}
       ]
     },
     {
@@ -652,9 +659,9 @@
     },
     {
       "table": "grade_settings", "mode": "UPSERT", "key": ["id"],
-      "columns": {"id":"integer","manual_policy":"character varying(16)","next_serial":"integer","updated_by":"bigint","updated_at":"timestamp with time zone"},
+      "columns": {"id":"integer","manual_policy":"character varying(16)","next_serial":"integer","updated_by":"bigint","updated_at":"timestamp with time zone","xp_curve_base":"integer"},
       "rows": [
-        {"id":1,"manual_policy":"CONTINUE_AUTO","next_serial":5,"updated_by":null,"updated_at":"2026-10-27T17:09:14.728086+09:00"}
+        {"id":1,"manual_policy":"CONTINUE_AUTO","next_serial":12,"updated_by":null,"updated_at":"2026-10-27T17:09:14.728086+09:00","xp_curve_base":10}
       ]
     },
     {

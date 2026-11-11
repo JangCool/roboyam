@@ -7,7 +7,22 @@
 export type AutoPromotion = 'ACTIVE' | 'PAUSED_SANCTION' | 'PAUSED_ADMIN';
 
 /** 승급 조건 종류 — 가입 일수 · 글+댓글 수 */
-export type RequirementKind = 'DAYS' | 'ACTIVITY';
+export type RequirementKind = 'DAYS' | 'ACTIVITY' | 'LEVEL';
+
+/**
+ * 등급 도트 캐릭터(grade-level-contract 3절) — 등급마다 운영자가 고른다(기본 = 서열 순). 그림은 화면 코드의 픽셀 지도(`UtilGradeSprite`).
+ * 새싹 · 볼트 · 안테나 · 배터리 · 톱니 · 하트 · 번개 · 별 · 왕관 · 전설 · 신화
+ */
+export type GradeSpriteKey = 'SPROUT' | 'BOLT' | 'ANTENNA' | 'BATTERY' | 'GEAR' | 'HEART' | 'LIGHTNING' | 'STAR' | 'CROWN' | 'LEGEND' | 'MYTH';
+
+/** 사이트 정보(`GET /api/site/info`)의 등급 한 줄 — 화면이 작성자 `grade` 키로 도트·이름을 찾는다 */
+export interface SiteGrade {
+    key: string;
+    label: string;
+    /** 서열(1부터) */
+    level: number;
+    sprite: GradeSpriteKey;
+}
 
 export interface GradeRef {
     /** 등급 키(`gradeKey`) */
@@ -33,12 +48,22 @@ export interface MyGrade {
     grade: GradeRef;
     autoPromotion: AutoPromotion;
     next: NextGrade | null;
+    /** 레벨(Lv.1~, 끝 없음 — grade-level-contract 1절). 서버가 아직 안 주면(옛 응답) 없음 — 화면은 레벨 표시를 숨긴다 */
+    level?: number | null;
+    /** 누적 경험치(적립된 활동 포인트 합 — 쓰거나 소멸해도 줄지 않는다) */
+    xp?: number | null;
+    /** 이 레벨이 시작하는 누적 XP */
+    levelXp?: number | null;
+    /** 다음 레벨이 되는 누적 XP */
+    nextLevelXp?: number | null;
 }
 
 /** 등급 하나의 승급 조건 — 첫 등급은 0·0(가입 즉시) */
 export interface GradeRule extends GradeRef {
     minDays: number;
     minActivity: number;
+    /** 최소 레벨(grade-level-contract 2절) — 서버가 아직 안 주면(옛 응답) 없음, 1 이하면 조건 글자에 넣지 않는다 */
+    minLevel?: number | null;
 }
 
 /** `GET /api/grade-rules` — **비회원도** 본다. 낮은 등급부터(등급 서열 순) */

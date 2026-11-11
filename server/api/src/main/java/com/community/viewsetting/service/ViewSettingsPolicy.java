@@ -27,8 +27,10 @@ public final class ViewSettingsPolicy {
     static final String DEFAULT_MENU_POSITION = MemberViewSettingEntity.DEFAULT_MENU_POSITION;
 
     /** 검사를 마친 다섯 칸 — {@code textScaleMobile}·{@code menuPosition} 이 null 이면 저장된 값을 그대로 둔다 */
-    public record Checked(String theme, int textScale, Integer textScaleMobile, String commentOrder, String menuPosition) {
+    public record Checked(String theme, int textScale, Integer textScaleMobile, String commentOrder, String menuPosition, Boolean titleBold) {
     }
+
+    static final boolean DEFAULT_TITLE_BOLD = MemberViewSettingEntity.DEFAULT_TITLE_BOLD;
 
     private ViewSettingsPolicy() {
     }
@@ -61,9 +63,14 @@ public final class ViewSettingsPolicy {
         if (menuPosition != null && (!(menuPosition instanceof String p) || !MENU_POSITIONS.contains(p))) {
             errors.put("menuPosition", new MessageRef("viewSettings.menuPosition.invalid"));
         }
+        // 제목 굵게(V198) — JSON 참·거짓만, 빠지면(null) 저장된 값 그대로
+        Object titleBold = request == null ? null : request.titleBold();
+        if (titleBold != null && !(titleBold instanceof Boolean)) {
+            errors.put("titleBold", new MessageRef("viewSettings.titleBold.invalid"));
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Checked((String) theme, (Integer) textScale, (Integer) textScaleMobile, (String) commentOrder, (String) menuPosition);
+        return new Checked((String) theme, (Integer) textScale, (Integer) textScaleMobile, (String) commentOrder, (String) menuPosition, (Boolean) titleBold);
     }
 }

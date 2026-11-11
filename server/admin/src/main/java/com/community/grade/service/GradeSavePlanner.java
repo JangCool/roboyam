@@ -10,6 +10,7 @@ import com.community.grade.exception.GradeFirstProtectedException;
 import com.community.grade.exception.GradeLimitException;
 import com.community.grade.exception.GradeNameDuplicatedException;
 import com.community.grade.exception.GradeRulesNotMonotonicException;
+import com.community.grade.service.XpCurve;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.util.ArrayList;
@@ -25,16 +26,18 @@ import org.springframework.stereotype.Component;
 /**
  * 등급 저장 요청을 검사해 계획({@link GradePlan})으로 바꾼다 — 저장({@code PUT})과 미리보기({@code POST …/preview})가 같은 규칙을 쓴다. admin-web 의 {@code util-grade.ts} 규칙과 같다.
  *
- * <p>검사 순서(어디서 멈추는지가 계약이다): 목록이 있는가(400 {@code grades}) → 등급 수 2~10(409 {@code GRADE_LIMIT}) → 첫 등급이 요청에 남아 있는가(409 {@code GRADE_FIRST_PROTECTED}) →
- * 칸별 입력 검사를 모아(400 {@code VALIDATION}, {@code grades[i].label|gradeKey|minDays|minActivity|badgeColor|badgeIcon}·{@code manualPolicy}) →
- * 이름 중복(409 {@code GRADE_NAME_DUPLICATED}) → 위 등급일수록 같거나 큰가(409 {@code GRADE_RULES_NOT_MONOTONIC}, 삭제·이동·추가 뒤 <b>남은 목록</b> 기준).
+ * <p>검사 순서(어디서 멈추는지가 계약이다): 목록이 있는가(400 {@code grades}) → 등급 수 2~11(409 {@code GRADE_LIMIT}, V196) → 첫 등급이 요청에 남아 있는가(409 {@code GRADE_FIRST_PROTECTED}) →
+ * 칸별 입력 검사를 모아(400 {@code VALIDATION}, {@code grades[i].label|gradeKey|minLevel|minDays|minActivity|badgeColor|badgeIcon|sprite}·{@code manualPolicy}·{@code xpCurveBase}) →
+ * 이름 중복(409 {@code GRADE_NAME_DUPLICATED}) → 위 등급일수록 같거나 큰가(최소 레벨·일수·활동 수 — 409 {@code GRADE_RULES_NOT_MONOTONIC}, 삭제·이동·추가 뒤 <b>남은 목록</b> 기준).
+ * 최소 레벨·도트 칸이 빠진 줄(예전 화면)은 기존 등급이면 지금 값, 새 등급이면 1·서열 기본 도트로 본다. 곡선 값이 빠지면 지금 값.
  * 하나라도 틀리면 아무것도 저장하지 않는다(저장 서비스가 이 검사를 끝낸 뒤에야 쓰기 시작한다).
  */
 @Component
 public class GradeSavePlanner {
 
     public static final int MIN_GRADES = 2;
-    public static final int MAX_GRADES = 10;
+    public static final int MAX_GRADES = 11;
+    public static final int LEVEL_MAX = 10_000;
     public static final int LABEL_MAX = 8;
     public static final int DAYS_MAX = 3650;
     public static final int ACTIVITY_MAX = 100_000;
@@ -45,7 +48,7 @@ public class GradeSavePlanner {
     /**
      * @param current 지금 저장된 등급(서열 순서)
      */
-    public GradePlan plan(GradesSaveRequest request, List<GradeEntity> current) {
+    public GradePlan plan(GradesSaveRequest request, List<GradeEntity> current, int currentCurveBase) {
         List<GradeRequest> rows = request == null ? null : request.grades();
         if (rows == null) {
             throw ValidationException.of("grades", new MessageRef("grade.grades.required"));
@@ -60,6 +63,8 @@ public class GradeSavePlanner {
 
         Set<String> currentKeys = new HashSet<>();
         current.forEach(grade -> currentKeys.add(grade.getGradeKey()));
+        Map<String, GradeEntity> currentByKey = new java.util.HashMap<>();
+        current.forEach(grade -> currentByKey.put(grade.getGradeKey(), grade));
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         List<PlannedGrade> planned = new ArrayList<>();
         Set<String> usedKeys = new HashSet<>();
@@ -69,7 +74,7 @@ public class GradeSavePlanner {
             String prefix = "grades[" + i + "].";
             if (row == null) {
                 fields.put(prefix + "label", new MessageRef("grade.label.required"));
-                planned.add(new PlannedGrade(null, i + 1, "", 0, 0, "gray", null));
+                planned.add(new PlannedGrade(null, i + 1, "", 1, 0, 0, "gray", null, GradeEntity.defaultSprite(i + 1)));
                 continue;
             }
 
@@ -89,9 +94,17 @@ public class GradeSavePlanner {
                 fields.put(prefix + "gradeKey", new MessageRef("grade.key.firstPosition"));
             }
 
+            GradeEntity existing = row.gradeKey() == null ? null : currentByKey.get(row.gradeKey());
             int minDays = 0;
             int minActivity = 0;
+            int minLevel = 1;
             if (i > 0) {
+                Integer wantedLevel = row.minLevel() != null ? row.minLevel() : existing != null ? Integer.valueOf(existing.getMinLevel()) : Integer.valueOf(1);
+                if (wantedLevel < 1 || wantedLevel > LEVEL_MAX) {
+                    fields.put(prefix + "minLevel", new MessageRef("grade.minLevel.range", String.valueOf(LEVEL_MAX)));
+                } else {
+                    minLevel = wantedLevel;
+                }
                 if (row.minDays() == null || row.minDays() < 0 || row.minDays() > DAYS_MAX) {
                     fields.put(prefix + "minDays", new MessageRef("grade.minDays.range", String.valueOf(DAYS_MAX)));
                 } else {
@@ -112,12 +125,30 @@ public class GradeSavePlanner {
                 fields.put(prefix + "badgeIcon", new MessageRef("grade.badgeIcon.invalid"));
             }
 
-            planned.add(new PlannedGrade(row.gradeKey(), i + 1, label, minDays, minActivity, row.badgeColor(), icon));
+            String sprite = row.sprite() == null || row.sprite().isBlank() ? (existing != null ? existing.getSprite() : GradeEntity.defaultSprite(i + 1))
+                    : row.sprite().strip().toUpperCase(Locale.ROOT);
+            if (!GradeEntity.SPRITES.contains(sprite)) {
+                fields.put(prefix + "sprite", new MessageRef("grade.sprite.invalid"));
+            }
+
+            planned.add(new PlannedGrade(row.gradeKey(), i + 1, label, minLevel, minDays, minActivity, row.badgeColor(), icon, sprite));
+        }
+
+        // 최소 레벨은 위 등급일수록 같거나 커야 한다 — 칸 오류로 알린다(400 grades[i].minLevel, 일수·활동 수는 아래 409)
+        for (int i = 1; i < planned.size(); i++) {
+            String path = "grades[" + i + "].minLevel";
+            if (!fields.containsKey(path) && planned.get(i).minLevel() < planned.get(i - 1).minLevel()) {
+                fields.put(path, new MessageRef("grade.minLevel.order"));
+            }
         }
 
         GradeManualPolicy policy = request.manualPolicy() == null ? null : GradeManualPolicy.ofName(request.manualPolicy()).orElse(null);
         if (policy == null) {
             fields.put("manualPolicy", new MessageRef("grade.manualPolicy.invalid"));
+        }
+        int curveBase = request.xpCurveBase() == null ? currentCurveBase : request.xpCurveBase();
+        if (curveBase < XpCurve.BASE_MIN || curveBase > XpCurve.BASE_MAX) {
+            fields.put("xpCurveBase", new MessageRef("grade.xpCurveBase.range", String.valueOf(XpCurve.BASE_MIN), String.valueOf(XpCurve.BASE_MAX)));
         }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -132,12 +163,12 @@ public class GradeSavePlanner {
         for (int i = 1; i < planned.size(); i++) {
             PlannedGrade lower = planned.get(i - 1);
             PlannedGrade upper = planned.get(i);
-            if (upper.minDays() < lower.minDays() || upper.minActivity() < lower.minActivity()) {
+            if (upper.minDays() < lower.minDays() || upper.minActivity() < lower.minActivity()) { // 최소 레벨 순서는 위에서 칸 오류(400)로 먼저 막았다
                 throw new GradeRulesNotMonotonicException(i + 1);
             }
         }
 
-        return new GradePlan(List.copyOf(planned), policy, removedTo(current, usedKeys));
+        return new GradePlan(List.copyOf(planned), policy, removedTo(current, usedKeys), curveBase);
     }
 
     /**

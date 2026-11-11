@@ -14,10 +14,10 @@ export default class UtilViewSettings {
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
 
     /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT, titleBold: false });
 
     /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
-    static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition'] as const;
+    static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition', 'titleBold'] as const;
 
     /** 글자 배율을 담는 CSS 변수 */
     static readonly TEXT_SCALE_VAR = '--text-scale';
@@ -47,6 +47,8 @@ export default class UtilViewSettings {
             textScaleMobile: UtilViewSettings.TEXT_SCALES.find((v) => v === root.textScaleMobile) ?? d.textScaleMobile,
             commentOrder: UtilViewSettings.COMMENT_ORDERS.find((v) => v === root.commentOrder) ?? d.commentOrder,
             menuPosition: UtilMenuPosition.readMember(root.menuPosition),
+            // 옛 사본·옛 응답(칸이 없음)이면 보통 굵기
+            titleBold: root.titleBold === true,
         };
     }
 

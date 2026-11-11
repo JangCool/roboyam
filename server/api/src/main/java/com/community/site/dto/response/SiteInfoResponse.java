@@ -13,8 +13,9 @@ package com.community.site.dto.response;
  * @param theme 운영자가 고른 공개 사이트 테마 id({@code SiteThemes}) — 설정 행이 없거나 목록에 없는 값이면 {@code default}. {@code GET /api/site/theme} 과 같은 값
  * @param analytics 방문 수집 스위치(site-analytics-contract) — 모두 기본 꺼짐
  * @param operator 운영 주체의 단계·연락 이메일·푸터 안내 문구(terms-operator-contract) — 운영 주체 행이 없으면(마이그레이션 전) 개인 단계·이메일 null·안내 처음 값
+ * @param grades   등급 목록(서열 순 — V196, grade-level-contract 5절): 키·이름·서열·도트 캐릭터
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,
                                SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay, String theme, SiteAnalyticsView analytics,
-                               SiteOperatorPublicView operator) {
+                               SiteOperatorPublicView operator, java.util.List<SiteGradeView> grades) {
 }

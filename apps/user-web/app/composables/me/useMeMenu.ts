@@ -96,8 +96,12 @@ export function useMeMenu() {
             ],
         });
 
-        // 설정 — 모바일 목록에만(위 설명). 이름 없는 묶음이라 줄 위에 구분선만 긋는다
-        list.push({ key: 'settings', title: '', entries: [entry('/settings', 'pi pi-cog', t('settings.title'), 'me-entry-settings')] });
+        // 보기 설정(위) · 설정(맨 아래) — 이름 없는 묶음이라 줄 위에 구분선만 긋는다. 보기 설정을 설정 안에서 꺼내 바로 가게 했다(사용자 결정 2026-11-12 — 모바일·데스크톱 모두)
+        list.push({
+            key: 'settings',
+            title: '',
+            entries: [entry('/settings/view', 'pi pi-eye', t('view.shortcut'), 'me-entry-view'), entry('/settings', 'pi pi-cog', t('settings.title'), 'me-entry-settings')],
+        });
 
         return list;
     });

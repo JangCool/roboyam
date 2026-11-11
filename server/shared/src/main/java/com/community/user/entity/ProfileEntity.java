@@ -40,6 +40,17 @@ public class ProfileEntity {
     /** 운영자가 등급을 수동으로 올린 적이 있는가 */
     private boolean gradeManual;
 
+    /**
+     * 누적 경험치(V196, 0 이상) — 포인트 원장 줄을 쓰는 흐름의 JDBC({@code ProfileXpWriter})만 고친다. 이 엔티티는 쓰지 않는다(넣기·변경 감지에서 빠진다 — 넣을 때는 DB 기본값 0).
+     * 같은 트랜잭션에서 원장 쪽이 바꾼 값은 이미 올린 엔티티에 보이지 않을 수 있다(응답은 다음 요청에서 맞는다).
+     */
+    @Column(insertable = false, updatable = false)
+    private long xp;
+
+    /** 레벨(V196, 1 이상) — {@link #xp} 와 같이 JDBC·일괄 문장만 고친다(넣을 때는 DB 기본값 1) */
+    @Column(insertable = false, updatable = false)
+    private int level = 1;
+
     /** 가입 뒤 닉네임을 바꾼 횟수 — 가입 때 정한 닉네임은 세지 않는다(V66) */
     private short nicknameChangeCount;
 
@@ -142,6 +153,14 @@ public class ProfileEntity {
     /** 등급 키(예: SEEDLING) */
     public String getGradeKey() {
         return gradeKey;
+    }
+
+    public long getXp() {
+        return xp;
+    }
+
+    public int getLevel() {
+        return level;
     }
 
     public boolean isGradeManual() {

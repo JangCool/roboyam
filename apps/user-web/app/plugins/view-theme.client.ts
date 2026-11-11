@@ -23,6 +23,9 @@ export default defineNuxtPlugin({
             const html = document.documentElement;
             html.setAttribute('data-color-scheme', UtilViewSettings.resolveScheme(values.value.theme, query.matches));
             html.style.setProperty(UtilViewSettings.TEXT_SCALE_VAR, String(UtilViewSettings.textScaleFor(values.value, mobile.matches) / 100));
+            // 글 목록 제목 굵게(보기 설정) — 켰을 때만 속성을 둔다(`main.css` `.post-row-title`)
+            if (values.value.titleBold) html.setAttribute('data-title-bold', '');
+            else html.removeAttribute('data-title-bold');
             // 색상 테마 — 기본이면 속성을 지운다(`palettes.css`)
             const paletteAttr = UtilColorPalette.attr(palette.value);
             if (paletteAttr) html.setAttribute('data-palette', paletteAttr);

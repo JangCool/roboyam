@@ -762,6 +762,8 @@ const postListComponent = computed(() => {
 });
 /** 글 줄의 말머리·상태 칩 위치 — 소모임 게시판 정보의 `chipPosition`(서버가 사이트 기본까지 푼 값), 칸이 없으면 제목 위(post-chip-position-contract) */
 const postChipPosition = computed(() => UtilBoard.chipPosition(posts.board?.chipPosition));
+/** 글 줄의 말머리 모양 — 소모임 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절) */
+providePrefixStyle(() => posts.board?.prefixStyle);
 function onView(mode: BoardViewMode): void {
     if (posts.board) viewMode.choose(posts.board.slug, mode);
 }

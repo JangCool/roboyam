@@ -11,9 +11,11 @@ export default {
 
     // 조건 글자
     ruleInstant: '가입 즉시',
+    ruleLevel: 'Lv.{n}',
     ruleDays: '가입 {n}일',
     ruleActivity: '글·댓글 합 {n}개',
     nextHeading: '다음 등급 {label}까지',
+    reqLevel: '레벨 {n}',
     reqDays: '가입 {n}일',
     reqActivity: '글·댓글 {n}개',
     reqOther: '조건 {n}',
@@ -21,13 +23,24 @@ export default {
     progressDaysLeft: '{n}일째 ({left}일 남음)',
     progressCount: '{n}개',
     progressCountLeft: '{n}개 ({left}개 남음)',
+    progressLevel: 'Lv.{n}',
+    progressLevelLeft: 'Lv.{n} ({left} 남음)',
     highestTitle: '가장 높은 등급이에요',
     highestText: '모든 승급 조건을 채웠어요.',
 
+    // 레벨·경험치(grade-level-contract 4절 — 레벨은 프로필·내 정보에서만 보인다)
+    levelHeading: '레벨',
+    levelValue: 'Lv.{n}',
+    nameWithLevel: '{grade} · Lv.{level}',
+    xpValue: '경험치 {xp} XP',
+    toNextLevel: '다음 레벨까지 {percent}%',
+    toNextLevelXp: 'Lv.{next}까지 {left} XP',
+    levelBarLabel: '다음 레벨까지 진행도',
+
     // 이렇게 계산해요
     howHeading: '이렇게 계산해요',
-    how1: '삭제·숨김 처리된 글·댓글은 활동 수에서 빠져요.',
-    how2: '받은 추천 수는 승급에 쓰이지 않아요.',
+    how1: '글·댓글·출석·추천 보너스 같은 활동으로 적립된 포인트가 경험치로 쌓여 레벨이 올라요. 포인트를 쓰거나 소멸해도 경험치는 줄지 않아요.',
+    how2: '삭제된 글·댓글로 받았던 포인트는 경험치에서도 빠져요.',
     how3: '정지 중에는 승급이 보류돼요.',
     how4: '조건을 채우면 자동으로 올라가요. 활동이 줄어도 자동으로 내려가지는 않아요.',
 

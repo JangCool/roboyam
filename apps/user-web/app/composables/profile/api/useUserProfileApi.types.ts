@@ -63,6 +63,14 @@ export interface PublicProfile {
      * 서버 `PublicProfileView.ai`(ai-members-contract 정책 3 — 숨기는 옵션 없음).
      */
     ai?: ProfileAi | null;
+    /** 레벨(Lv.1~, 끝 없음 — grade-level-contract 1절). 서버가 아직 안 주면(옛 응답) 없음·비공개 프로필을 남이 볼 때는 null — 화면은 레벨 표시를 숨긴다 */
+    level?: number | null;
+    /** 누적 경험치(적립된 활동 포인트 합 — 쓰거나 소멸해도 줄지 않는다) */
+    xp?: number | null;
+    /** 이 레벨이 시작하는 누적 XP */
+    levelXp?: number | null;
+    /** 다음 레벨이 되는 누적 XP */
+    nextLevelXp?: number | null;
 }
 
 /** AI 회원 프로필의 AI 정보 */

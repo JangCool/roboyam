@@ -26,6 +26,9 @@ public class GradeSettingEntity {
 
     private int nextSerial;
 
+    /** 레벨 곡선 값(V196, 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^1.5) */
+    private int xpCurveBase = 10;
+
     /** 마지막으로 저장한 운영자 */
     private Long updatedBy;
 
@@ -35,9 +38,10 @@ public class GradeSettingEntity {
     }
 
     /** 저장한다 — 옵션과 다음 번호, 저장한 운영자·시각 */
-    public void change(GradeManualPolicy manualPolicy, int nextSerial, long updatedBy, Instant now) {
+    public void change(GradeManualPolicy manualPolicy, int nextSerial, int xpCurveBase, long updatedBy, Instant now) {
         this.manualPolicy = manualPolicy;
         this.nextSerial = nextSerial;
+        this.xpCurveBase = xpCurveBase;
         this.updatedBy = updatedBy;
         this.updatedAt = now;
     }
@@ -48,5 +52,9 @@ public class GradeSettingEntity {
 
     public int getNextSerial() {
         return nextSerial;
+    }
+
+    public int getXpCurveBase() {
+        return xpCurveBase;
     }
 }

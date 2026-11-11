@@ -340,6 +340,11 @@ public class BoardDefaultsService {
                 overrides.computeIfAbsent("listChipPosition", key -> new ArrayList<>()).add(BoardViews.ref(board));
                 any = true;
             }
+            // 목록 말머리 모양(V195) — 게시판 칸 prefixStyle 을 고른 게시판은 기본값 listPrefixStyle 을 덮어쓴 것으로 센다
+            if (board.getPrefixStyle() != null) {
+                overrides.computeIfAbsent("listPrefixStyle", key -> new ArrayList<>()).add(BoardViews.ref(board));
+                any = true;
+            }
             if (!any) {
                 following++;
             }

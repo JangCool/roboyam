@@ -61,8 +61,8 @@ const { busy, run: logout } = useLogoutFlow();
 const { groups } = useMeMenu();
 const points = usePointSummary();
 
-/** 데스크톱 열(`home`)은 「설정」 묶음을 빼고(헤더 계정 메뉴에 있다), 모바일 목록은 「내 정보」 줄을 뺀다 */
-const shown = computed(() => groups.value.filter((group) => group.key !== (props.home ? 'settings' : 'home')));
+/** 모바일 목록은 「내 정보」 줄을 뺀다. 「보기 설정 · 설정」 묶음은 데스크톱 열에도 둔다(사용자 결정 2026-11-12 — 보기 설정을 찾기 쉽게) */
+const shown = computed(() => groups.value.filter((group) => props.home || group.key !== 'home'));
 
 onMounted(() => {
     if (user.value && !UtilBusiness.isBusinessAccount(user.value.role) && points.status.value === 'idle') void points.load();

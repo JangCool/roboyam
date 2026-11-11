@@ -1,6 +1,7 @@
 package com.community.installation.service;
 
 import com.community.installation.dto.TablePack;
+import com.community.grade.service.XpService;
 import com.community.installation.repository.master.InstallationRepositoryQDSL;
 import com.community.installation.repository.master.TablePackRepository;
 import com.community.business.service.BusinessPii;
@@ -84,10 +85,12 @@ public class DemoDataInstaller {
     private final SiteSettingRepository siteSettings;
     private final SiteImageFiles imageFiles;
     private final ImageCodec codec;
+    private final XpService xp;
 
     public DemoDataInstaller(DemoPackCatalog catalog, TablePackRestorer restorer, TablePackRepository tables, ImageStorage storage,
                              InstallationRepositoryQDSL installation, DataCipher cipher, BlindIndex index, PopularRecompute popular,
-                             SiteSettingRepository siteSettings, SiteImageFiles imageFiles, ImageCodec codec) {
+                             SiteSettingRepository siteSettings, SiteImageFiles imageFiles, ImageCodec codec, XpService xp) {
+        this.xp = xp;
         this.siteSettings = siteSettings;
         this.imageFiles = imageFiles;
         this.codec = codec;
@@ -122,6 +125,7 @@ public class DemoDataInstaller {
 
         tables.ensurePostPartitions(); // 글은 ID 범위로 월 조각에 들어간다 — 옮긴 ID 의 달 조각이 있어야 한다
         TablePackRestorer.Result result = restorer.restore(data, true, true, (table, row, columns) -> shift.row(table, rekey.row(table, row), columns));
+        xp.recomputeAllFromLedger(); // 경험치·레벨(V196)은 원장에서 다시 센다 — 예전에 만든 팩의 프로필에는 그 칸이 없다
 
         List<String> written = new ArrayList<>();
         try {

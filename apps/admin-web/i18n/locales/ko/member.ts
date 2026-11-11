@@ -296,6 +296,9 @@ export default {
         grade: {
             title: '등급',
             current: '현재 등급',
+            level: '레벨·경험치',
+            levelValue: 'Lv.{level}',
+            xpValue: '경험치 {xp}',
             autoPromotion: '자동 승급',
             auto: {
                 ACTIVE: '정상',
@@ -309,10 +312,12 @@ export default {
             nextTitle: '다음 등급까지',
             nextRequirements: '승급 조건',
             req: {
+                LEVEL: '레벨',
                 DAYS: '가입 후 일수',
                 ACTIVITY: '글·댓글 수',
             },
             reqValue: {
+                LEVEL: 'Lv.{current} / Lv.{required}',
                 DAYS: '{current} / {required}일',
                 ACTIVITY: '{current} / {required}개',
             },

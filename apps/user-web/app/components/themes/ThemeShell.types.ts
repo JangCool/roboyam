@@ -3,9 +3,9 @@ import type { MenuOverflow, MenuPosition, MenuWidth, TopItemsPosition } from '~/
 /**
  * 셸 슬롯(`shell`)의 props 계약 — 모든 테마의 셸 컴포넌트가 같은 계약을 지킨다(그래야 `<component :is>` 로 갈아끼워도 레이아웃이 그대로다). → `.claude/guides/frontend/themes.md`
  *
- * - emits: `open-menu` — 모바일 ☰ 를 눌렀다(드로어는 레이아웃이 연다).
+ * - emits: 없음(모바일 햄버거 서랍은 없앴다 — 메뉴는 하단 탭 「메뉴」의 전체 화면 `/menu`, mobile-nav-prefix-style-contract 3·4절).
  * - slots: 기본 = 본문(페이지) · `after-header` = 헤더(와 상단 메뉴) 아래에 놓을 안내 배너·모바일 상단 탭(테마와 무관해 레이아웃이 채운다).
- * - 모바일의 하단 탭·글쓰기 버튼·드로어는 테마와 무관해 레이아웃이 그린다. 셸은 데스크톱 구성(헤더·메뉴·본문 폭·푸터)을 정한다.
+ * - 모바일의 하단 탭·글쓰기 버튼은 테마와 무관해 레이아웃이 그린다. 셸은 데스크톱 구성(헤더·메뉴·본문 폭·푸터)을 정한다.
  * - 메뉴 **배치**는 셸이 정하지 않는다 — 레이아웃이 `useMenuPosition`(메뉴 위치: 회원 > 운영자 > 테마 기본, 최상위 항목 위치: 운영자 > 테마 기본)으로 정해 `menuPosition`·`topItems` 로 넘기고,
  *   셸은 다섯 위치(상단·사이드 왼쪽·사이드 오른쪽·상단+왼쪽·상단+오른쪽)와 두 최상위 항목 위치를 모두 자기 모양으로 그린다.
  *   어느 자리에 어떤 그룹을 그릴지는 메뉴 부품이 `useMenuItems(scope)`(`UtilMenu.split`)로 고른다 — 셸은 자리(로고 옆·상단 막대·사이드)만 놓는다.

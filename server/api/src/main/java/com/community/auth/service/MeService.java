@@ -8,6 +8,8 @@ import com.community.auth.dto.response.UserView;
 import com.community.business.service.BusinessEligibility;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepository;
+import com.community.grade.service.XpCurve;
+import com.community.grade.service.XpProgressReader;
 import com.community.sanction.service.MemberSanctionService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
@@ -46,9 +48,11 @@ public class MeService {
     private final BusinessEligibility business;
     private final MemberSanctionService sanctions;
     private final OperatorMemberAccountService operatorAccounts;
+    private final XpProgressReader xpProgress;
 
     public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, GradeRepository grades, BusinessEligibility business,
-                     MemberSanctionService sanctions, OperatorMemberAccountService operatorAccounts) {
+                     MemberSanctionService sanctions, OperatorMemberAccountService operatorAccounts, XpProgressReader xpProgress) {
+        this.xpProgress = xpProgress;
         this.operatorAccounts = operatorAccounts;
         this.sanctions = sanctions;
         this.business = business;
@@ -81,8 +85,9 @@ public class MeService {
         }
 
         String gradeLabel = grades.findById(p.getGradeKey()).map(GradeEntity::getLabel).orElse(p.getGradeKey()); // 등급 행이 없을 수는 없지만(외래키) 키라도 보인다
+        XpCurve.Progress progress = xpProgress.of(p); // 레벨·경험치(V196 — grade-level-contract 5절)
         UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), p.getGradeKey(), gradeLabel, u.getRole().name(), u.getEmail(),
-                u.isEmailVerified(), List.copyOf(methods), business.memberStatusOf(userId));
+                u.isEmailVerified(), List.copyOf(methods), business.memberStatusOf(userId), progress.level(), progress.xp(), progress.levelXp(), progress.nextLevelXp());
 
         RestrictionView restriction = restrictionOf(u);
 

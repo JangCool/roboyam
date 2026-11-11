@@ -60,7 +60,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'authorMode'])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'authorMode'])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -171,6 +171,21 @@
                             </p>
                         </div>
 
+                        <!-- 말머리 모양(목록 모양 묶음 — mobile-nav-prefix-style-contract 1절) — 사이트 기본 따르기(null)·글자·회색 칩·색상 칩, 카드마다 작은 미리보기. 저장은 `board.manage` -->
+                        <div class="flex flex-col gap-1.5 md:col-span-2" data-field="prefixStyle">
+                            <span class="text-sm font-medium">{{ t('board.field.prefixStyle') }}</span>
+                            <BoardPrefixStylePicker
+                                v-model="prefixStyleModel"
+                                :label="t('board.field.prefixStyle')"
+                                inherit
+                                :inherit-value="UtilBoard.prefixStyle(saved.defaults.listPrefixStyle)"
+                                :disabled="!canManage || saving"
+                            />
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.prefixStyle ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.prefixStyle ? 'alert' : undefined">
+                                {{ serverFields.prefixStyle || t('board.prefixStyleScope') }}
+                            </p>
+                        </div>
+
                         <!-- 표시색 — 자동 · 프리셋 13색 · 직접 고르기 #RRGGBB(shared V188 — 메뉴 글자 색과 같은 부품 `PresetColorPicker`·규칙) -->
                         <div class="flex flex-col gap-1.5 md:col-span-2">
                             <span :id="`${idBase}-color`" class="text-sm font-medium">{{ t('board.field.color') }}</span>
@@ -264,20 +279,25 @@
                                     />
                                     <p v-if="prefixErrorOf(p, i)" :id="`${idBase}-pe-${p.key}`" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ prefixErrorOf(p, i) }}</p>
                                 </div>
-                                <Select v-model="p.color" :options="prefixColorOptions" option-label="label" option-value="value" size="small" :disabled="!canManage || saving" :aria-label="t('board.prefixColor', { name: p.name || t('board.prefixUnnamed') })" class="w-32">
-                                    <template #value="{ value }">
-                                        <span class="inline-flex items-center gap-1.5 text-sm">
-                                            <span class="size-2.5 rounded-full" :class="value ? '' : 'border border-dashed border-(--line-strong)'" :style="value ? { background: UtilBoard.colorVar(value) ?? undefined } : undefined" aria-hidden="true" />
-                                            {{ t(`board.color.${value ?? 'AUTO'}`) }}
-                                        </span>
-                                    </template>
-                                    <template #option="{ option }">
-                                        <span class="inline-flex items-center gap-1.5 text-sm">
-                                            <span class="size-2.5 rounded-full" :class="option.value ? '' : 'border border-dashed border-(--line-strong)'" :style="option.value ? { background: UtilBoard.colorVar(option.value) ?? undefined } : undefined" aria-hidden="true" />
-                                            {{ option.label }}
-                                        </span>
-                                    </template>
-                                </Select>
+                                <!-- 말머리 색 — 단추(지금 색 점 + 이름)를 누르면 게시판 표시색과 같은 고르기 줄(`PresetColorPicker` — 자동 · 13색 · 직접 고르기 #RRGGBB)이 팝오버로 뜬다(mobile-nav-prefix-style-contract 2절) -->
+                                <Button
+                                    type="button"
+                                    size="small"
+                                    severity="secondary"
+                                    variant="outlined"
+                                    class="w-36 justify-start!"
+                                    :disabled="!canManage || saving"
+                                    :aria-label="t('board.prefixColor', { name: p.name || t('board.prefixUnnamed') })"
+                                    aria-haspopup="dialog"
+                                    :aria-expanded="prefixColorKey === p.key"
+                                    :data-testid="`prefix-color-${p.key}`"
+                                    @click="(event: Event) => openPrefixColor(event, p.key)"
+                                >
+                                    <span class="inline-flex min-w-0 items-center gap-1.5 text-sm">
+                                        <span class="size-2.5 shrink-0 rounded-full" :class="p.color ? '' : 'border border-dashed border-(--line-strong)'" :style="p.color ? { background: UtilBoard.colorVar(p.color) ?? undefined } : undefined" aria-hidden="true" />
+                                        <span class="truncate" :class="{ 'font-mono': p.color && !(UtilBoard.COLORS as readonly string[]).includes(p.color) }">{{ prefixColorName(p.color) }}</span>
+                                    </span>
+                                </Button>
                                 <div class="flex h-8 items-center gap-1.5">
                                     <Checkbox v-model="p.staffOnly" binary :input-id="`${idBase}-so-${p.key}`" :disabled="!canManage || saving" />
                                     <label :for="`${idBase}-so-${p.key}`" class="text-[13px]">{{ t('board.staffOnly') }}</label>
@@ -307,6 +327,25 @@
                         </li>
                     </ul>
                     <p v-else class="m-0 rounded-lg border border-dashed border-(--line) py-4 text-center text-xs text-muted-color">{{ t('board.noOwnPrefix') }}</p>
+
+                    <!-- 말머리 색 팝오버 — 행마다 단추가 같은 팝오버 하나를 연다(연 행은 `prefixColorKey`). Esc 로 닫고 초점은 단추로 돌아간다(PrimeVue Popover) -->
+                    <Popover ref="prefixColorPanel" :aria-labelledby="`${idBase}-pc-title`" @hide="prefixColorKey = null">
+                        <div class="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" data-testid="prefix-color-panel">
+                            <h3 :id="`${idBase}-pc-title`" class="m-0 text-sm font-semibold">{{ t('board.prefixColor', { name: prefixColorRow?.name || t('board.prefixUnnamed') }) }}</h3>
+                            <PresetColorPicker
+                                v-if="prefixColorRow"
+                                v-model="prefixColorModel"
+                                :labelledby="`${idBase}-pc-title`"
+                                :default-label="t('board.color.AUTO')"
+                                :custom-label="t('board.colorCustom')"
+                                :pick-label="t('board.prefixColorCustomPick')"
+                                :input-label="t('board.prefixColorCustomInput')"
+                                :disabled="!canManage || saving"
+                                testid-prefix="prefix-color"
+                            />
+                            <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('board.prefixColorHelp') }}</p>
+                        </div>
+                    </Popover>
 
                     <div v-if="canManage" class="mt-3 flex flex-wrap items-center gap-3">
                         <span v-tooltip.top="activeOwn >= UtilBoard.PREFIX_ACTIVE_MAX ? t('board.prefixActiveLimit', { max: UtilBoard.PREFIX_ACTIVE_MAX }) : undefined" class="inline-flex">
@@ -518,7 +557,7 @@
 
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
-import type { BoardColor, BoardDetail, BoardPolicyField, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDetail, BoardPolicyField, BoardPrefixStyle, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
 import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -575,7 +614,46 @@ let prefixSeq = 0;
 const grades = computed(() => appearance.grades.value);
 const layoutOptions = computed(() => UtilBoard.LAYOUTS.map((value) => ({ value, label: t(`board.layout.${value}`) })));
 const writeLockOptions = computed(() => UtilBoard.WRITE_LOCKS.map((value) => ({ value: value ?? 'NONE', label: t(`board.writeLock.${value ?? 'NONE'}`) })));
-const prefixColorOptions = computed(() => [{ value: null as BoardColor | null, label: t('board.color.AUTO') }, ...UtilBoard.COLORS.map((value) => ({ value: value as BoardColor | null, label: t(`board.color.${value}`) }))]);
+/** 말머리 색 팝오버 — 연 행의 key(닫혀 있으면 null)와 그 행 */
+const prefixColorPanel = ref<{ show: (event: Event, target?: HTMLElement) => void; hide: () => void } | null>(null);
+const prefixColorKey = ref<string | null>(null);
+const prefixColorRow = computed(() => form.value?.prefixes.find((p) => p.key === prefixColorKey.value) ?? null);
+/** 연 행의 말머리 색 — null 자동 · 13색 이름 · `#RRGGBB`(입력 중이면 틀린 글자일 수 있다 — `prefixProblems` 가 막는다) */
+const prefixColorModel = computed<string | null>({
+    get: () => prefixColorRow.value?.color ?? null,
+    set: (value) => {
+        if (prefixColorRow.value) prefixColorRow.value.color = value;
+    },
+});
+
+/** 행의 색 단추를 누르면 그 행으로 팝오버를 연다 — 같은 행이면 닫는다 */
+function openPrefixColor(event: Event, key: string): void {
+    const panel = prefixColorPanel.value;
+    if (!panel) return;
+    if (prefixColorKey.value === key) {
+        panel.hide();
+        return;
+    }
+    const target = event.currentTarget as HTMLElement;
+    if (prefixColorKey.value === null) {
+        prefixColorKey.value = key;
+        panel.show(event, target);
+        return;
+    }
+    // 다른 행에서 열려 있었으면 닫은 뒤(@hide 가 key 를 지운다) 이 단추 아래로 다시 연다 — 늦게 열 때 `event.currentTarget` 은 비어 있을 수 있어
+    // 단추를 잡아 둔 모양으로 넘긴다(Popover 가 바깥 클릭 판정에 쓰는 값이라 비면 같은 클릭에 다시 닫힌다)
+    panel.hide();
+    void nextTick(() => {
+        prefixColorKey.value = key;
+        panel.show({ currentTarget: target } as unknown as Event, target);
+    });
+}
+
+/** 말머리 색 단추 글자 — 자동·13색은 이름, 직접 고른 색은 그 값 */
+function prefixColorName(color: string | null): string {
+    if (color === null) return t('board.color.AUTO');
+    return (UtilBoard.COLORS as readonly string[]).includes(color) ? t(`board.color.${color}`) : color;
+}
 
 /** 읽기 전용 잠금 — SelectButton 은 null 값을 「안 고름」으로 보므로 `NONE` 으로 주고받는다 */
 const writeLockModel = computed<string>({
@@ -627,6 +705,15 @@ const colorModel = computed<string | null>({
         if (!form.value) return;
         form.value.color = value;
         clearServer('color');
+    },
+});
+/** 말머리 모양 — null 사이트 기본 따르기 · 글자 · 회색 칩 · 색상 칩. 고치면 서버 오류를 지운다 */
+const prefixStyleModel = computed<BoardPrefixStyle | null>({
+    get: () => form.value?.prefixStyle ?? null,
+    set: (value) => {
+        if (!form.value) return;
+        form.value.prefixStyle = value;
+        clearServer('prefixStyle');
     },
 });
 /** 도움말의 「지금: …」 — 자동·13색은 이름, 직접 고른 색은 그 값 */
@@ -705,7 +792,7 @@ function prefixErrorOf(p: BoardPrefixForm, index: number): string {
     if (problem) return UtilBoardMessages.problem(t, problem);
     const sentAt = sentPrefixes.findIndex((s) => s.key === p.key);
     const at = sentAt >= 0 ? sentAt : index;
-    return serverFields.value[`prefixes[${at}].name`] ?? serverFields.value[`prefixes[${at}].adultOnly`] ?? '';
+    return serverFields.value[`prefixes[${at}].name`] ?? serverFields.value[`prefixes[${at}].adultOnly`] ?? serverFields.value[`prefixes[${at}].color`] ?? '';
 }
 
 // ── 정책 칸 ─

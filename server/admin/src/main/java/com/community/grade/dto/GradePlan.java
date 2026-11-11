@@ -10,6 +10,7 @@ import java.util.Map;
  * @param grades    서열 순서의 최종 등급 목록
  * @param policy    저장할 옵션
  * @param removedTo 지울 등급 키 → 그 회원이 갈 등급 키(저장돼 있는 서열에서 바로 아래 남아 있는 등급). 지금 저장된 서열 순서
+ * @param xpCurveBase 저장할 레벨 곡선 값(V196, 1~1000)
  */
-public record GradePlan(List<PlannedGrade> grades, GradeManualPolicy policy, Map<String, String> removedTo) {
+public record GradePlan(List<PlannedGrade> grades, GradeManualPolicy policy, Map<String, String> removedTo, int xpCurveBase) {
 }

@@ -12,7 +12,7 @@
         <template v-if="order === 'author'">
             <span v-if="board" class="shrink-0 font-semibold" :class="boardStyle ? '' : 'text-color'" :style="boardStyle">{{ localizedName(post.board.name, post.board.nameEn) }}</span>
             <FeedDebateCounts v-if="debate && post.debate" :debate="post.debate" class="shrink-0" />
-            <PostAuthorLabel v-if="author" :author="post.author" avatar :grade="false" class="min-w-0" data-testid="home-highlight-byline" />
+            <PostAuthorLabel v-if="author" :author="post.author" avatar class="min-w-0" data-testid="home-highlight-byline" />
             <span v-if="likes" class="inline-flex shrink-0 items-center gap-0.5 tabular-nums" :class="hotLikes ? 'font-semibold' : ''" :style="hotLikes ? hotStyle : undefined" :data-hot="hotLikes ? 'true' : undefined" data-testid="home-highlight-likes">
                 <i :class="hotLikes ? 'pi pi-thumbs-up-fill' : 'pi pi-thumbs-up'" class="text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('board.likesShort', { n: post.likeCount }) }}</span><span aria-hidden="true">{{ post.likeCount.toLocaleString() }}</span>
             </span>
@@ -32,7 +32,7 @@
             </span>
             <span class="ml-auto inline-flex min-w-0 items-center gap-1" data-testid="home-highlight-byline">
                 <template v-if="author">
-                    <PostAuthorLabel :author="post.author" avatar :grade="false" />
+                    <PostAuthorLabel :author="post.author" avatar />
                     <span aria-hidden="true">·</span>
                 </template>
                 <PostListDate :iso="post.createdAt" :mode="display.dateDisplay" class="shrink-0" />

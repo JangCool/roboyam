@@ -17,10 +17,12 @@
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="px-4 py-2.5 text-sm md:px-2" hide-class="px-4 pb-2 md:px-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
                     <NuxtLink :to="`/posts/${row.id}`" class="block px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 md:py-3">
-                        <PostRowFrame :row="row" :position="chipPosition">
-                            <template #default="{ chips, stats, dateInline }">
+                        <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(제목 / 닉네임 · 말머리 · 추천·조회 · 날짜, 썸네일 오른쪽 — 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
+                        <BoardPostRowDesktop v-if="desktopRow" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden" />
+                        <PostRowFrame :row="row" :position="chipPosition" stats-below :class="desktopRow ? 'md:hidden' : ''">
+                            <template #default="{ chips, stats, dateInline, statsEnd }">
                                 <p class="line-clamp-2 text-sm leading-snug md:text-[0.9375rem]"><PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" /></p>
-                                <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                                <p class="mt-1 flex items-center gap-x-1.5 text-xs text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
                                     <PostAuthorLabel :author="row.author" avatar />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
@@ -35,6 +37,10 @@
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                     </template>
+                                    <!-- 모바일 숫자 아래 + 썸네일 없음 — 추천·조회를 닉네임 줄 오른쪽 끝에(사용자 결정 2026-11-12) -->
+                                    <span v-if="statsEnd" class="ml-auto inline-flex shrink-0 items-center gap-2">
+                                        <PostRowStats :row="row" />
+                                    </span>
                                 </p>
                             </template>
                             <template #end>
@@ -116,6 +122,8 @@ const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
 /** 데스크톱에서도 글 줄로 그리는가 — 칩 위치가 제목 앞이 아니면 표 대신 모바일과 같은 줄 모양 */
 const rowsEverywhere = computed(() => props.chipPosition !== 'BEFORE');
+/** 데스크톱에서 A 방식 두 줄(`BoardPostRowDesktop`)을 쓰는가 — 칩 위치 「제목 위」(기본)일 때만. 「닉네임 아래」는 지금 줄, 「제목 앞」은 표 */
+const desktopRow = computed(() => props.chipPosition === 'ABOVE');
 /** `all` 에서 한 줄 광고가 뒤에 붙는 차례 — 공지는 세지 않는다 */
 
 /** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */

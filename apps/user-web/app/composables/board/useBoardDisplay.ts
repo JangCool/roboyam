@@ -10,6 +10,7 @@ const FALLBACK: BoardDisplaySettings = {
     dateDisplay: 'STANDARD',
     newPostHours: 24,
     listChipPosition: 'ABOVE',
+    listPrefixStyle: 'TEXT',
     likeHighlight: UtilBoard.LIKES_HIGHLIGHT,
     viewHighlight: UtilBoard.VIEWS_HIGHLIGHT,
     highlightColor: UtilBoard.HIGHLIGHT_COLOR,

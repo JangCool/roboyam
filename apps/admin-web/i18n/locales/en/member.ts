@@ -296,6 +296,9 @@ export default {
         grade: {
             title: 'Grade',
             current: 'Current grade',
+            level: 'Level and XP',
+            levelValue: 'Lv.{level}',
+            xpValue: '{xp} XP',
             autoPromotion: 'Auto promotion',
             auto: {
                 ACTIVE: 'Active',
@@ -309,10 +312,12 @@ export default {
             nextTitle: 'Progress to next grade',
             nextRequirements: 'Requirements',
             req: {
+                LEVEL: 'Level',
                 DAYS: 'Days since joining',
                 ACTIVITY: 'Posts and comments',
             },
             reqValue: {
+                LEVEL: 'Lv.{current} / Lv.{required}',
                 DAYS: '{current} / {required} days',
                 ACTIVITY: '{current} / {required}',
             },

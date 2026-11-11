@@ -28,7 +28,7 @@ export type BoardLayout = 'LIST' | 'CARD' | 'GALLERY';
 export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
 /** 게시판 만들기에서 고르는 종류 — 일반(메뉴·게시판 페이지가 있다) · 핫딜(글마다 딜 정보. 19금 끔·쓰기 첫 등급 아님·비회원 글쓰기 끔은 서버가 설치 프리셋과 같게 정한다) · 소모임(메뉴·게시판 페이지가 없고 소모임 글을 담는다) */
 export type BoardCreateKind = Extract<BoardKind, 'GENERAL' | 'DEAL' | 'GROUP'>;
-/** 표시색 프리셋 13색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳. 말머리 색은 이것만 받는다 */
+/** 표시색 프리셋 13색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳. 말머리 색은 이것 + 직접 고른 `#rrggbb` 를 받는다(V195 — `BoardDisplayColor`) */
 export type BoardColor = 'BLUE' | 'TEAL' | 'AMBER' | 'PURPLE' | 'GREEN' | 'ORANGE' | 'SLATE' | 'RED' | 'PINK' | 'INDIGO' | 'SKY' | 'BROWN' | 'EMERALD';
 /** 게시판 표시색(이름 옆 점) — 13색 이름 또는 직접 고른 `#RRGGBB`(서버가 대문자로 정리, shared V188 · 메뉴 글자 색과 같은 규칙). 입력 중에는 틀린 글자일 수 있다 */
 export type BoardDisplayColor = BoardColor | string;
@@ -40,6 +40,11 @@ export type BoardCommentEditor = 'NONE' | 'SIMPLE';
 export type BoardDateDisplay = 'STANDARD' | 'RELATIVE';
 /** 글 목록 줄의 말머리·상태 칩 위치 — 제목 위(기본) · 제목 앞 · 닉네임 아래. 값 목록 원천은 서버 `BoardFields.CHIP_POSITIONS` */
 export type BoardChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
+/**
+ * 글 목록·글 보기의 말머리 모양(mobile-nav-prefix-style-contract 1절) — 글자(사이트 기본 — 칩 없이 12px 회색 글자, 지정 색은 그 색) · 회색 칩(한 가지 회색) · 색상 칩(표시색).
+ * 값 목록 원천은 서버 `BoardFields`(칩 위치와 같은 틀). 처리 상태·19·투표·광고 같은 기능 표시는 이 값과 상관없다
+ */
+export type BoardPrefixStyle = 'TEXT' | 'MUTED' | 'COLOR';
 /** 포인트 지급 — 포인트 규칙을 따름 · 지급 안 함 */
 export type BoardPointMode = 'ON' | 'OFF';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
@@ -74,6 +79,11 @@ export interface BoardDefaults {
      * 섞인 목록(최신글·인기글·검색·팁 등)도 이 값. 전체 기본값 `ABOVE`. 저장 때 칸이 없거나 null 이면 서버가 그대로 둔다(옛 화면 호환)
      */
     listChipPosition: BoardChipPosition;
+    /**
+     * 말머리 모양 사이트 기본(mobile-nav-prefix-style-contract, V195 `board_defaults.list_prefix_style`) — 게시판이 따로 고르지 않으면(`BoardDetail.prefixStyle` null) 이 값, 섞인 목록도 이 값.
+     * 전체 기본값 `TEXT`. 저장 때 칸이 없거나 null 이면 서버가 그대로 둔다. 옛 서버 응답에는 칸이 없을 수 있다(화면은 `TEXT` 로 본다)
+     */
+    listPrefixStyle: BoardPrefixStyle;
     /** 글 줄 추천 수 강조 기준(사이트 전체 — 게시판별 덮어쓰기 없음) — 이 수 이상이면 공개 목록 윗줄의 추천 숫자를 강조 색·굵게. 0 = 강조 안 함. 전체 기본값 10 */
     listLikeHighlight: number;
     /** 글 줄 조회 수 강조 기준 — 0 = 강조 안 함. 전체 기본값 1000 */
@@ -208,7 +218,7 @@ export interface BoardDefaultsResponse {
     /** 정책을 하나도 따로 정하지 않은(모두 기본값을 따르는) 게시판 수 */
     followingCount: number;
     /** 칸마다 그 칸을 따로 정한 게시판들 — 없으면 칸이 빠진다 */
-    overrides: Partial<Record<BoardPolicyField | 'listChipPosition', BoardRef[]>>;
+    overrides: Partial<Record<BoardPolicyField | 'listChipPosition' | 'listPrefixStyle', BoardRef[]>>;
     /** 마지막 저장 시각(UTC ISO) · 저장한 운영자 이름 — 저장한 적 없으면 null */
     updatedAt: string | null;
     updatedBy: string | null;
@@ -277,8 +287,8 @@ export interface BoardPrefix {
     staffOnly: boolean;
     /** 성인 전용 — 고른 글은 19금으로 저장된다(19금 허용 게시판에서만, 고유 말머리만) */
     adultOnly: boolean;
-    /** 표시색 — null = 자동 */
-    color: BoardColor | null;
+    /** 표시색 — null = 자동 · 13색 이름 · 직접 고른 `#rrggbb`(mobile-nav-prefix-style-contract 2절 — 게시판 표시색과 같은 규칙) */
+    color: BoardDisplayColor | null;
     active: boolean;
     /** 쓰는 글(삭제 포함)·임시저장 수 — 0 이어야 지울 수 있다 */
     usageCount: number;
@@ -296,6 +306,11 @@ export interface BoardDetail extends BoardRef {
      * 옛 서버 응답에는 칸이 없을 수 있다
      */
     chipPosition?: BoardChipPosition | null;
+    /**
+     * 말머리 모양(게시판마다의 값 — `diffCount` 에 세지 않는다, mobile-nav-prefix-style-contract). `null` = 사이트 기본(같은 응답 `defaults.listPrefixStyle`).
+     * 옛 서버 응답에는 칸이 없을 수 있다
+     */
+    prefixStyle?: BoardPrefixStyle | null;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
     /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
@@ -346,7 +361,8 @@ export interface BoardPrefixSaveItem {
     staffOnly: boolean;
     /** 성인 전용 — 새로 켜면 그 말머리의 기존 글도 19금이 된다 */
     adultOnly: boolean;
-    color: BoardColor | null;
+    /** 표시색 — null 자동 · 13색 이름 · `#RRGGBB`(서버가 정리한다) */
+    color: BoardDisplayColor | null;
     active: boolean;
 }
 
@@ -368,6 +384,8 @@ export interface BoardSaveRequest {
     viewToggle: boolean;
     /** 말머리·상태 칩 위치 — 빈 글자 `""` = 사이트 기본 따르기(null 저장), `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.chipPosition` */
     chipPosition: BoardChipPosition | '' | null;
+    /** 말머리 모양 — 빈 글자 `""` = 사이트 기본 따르기(null 저장), `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.prefixStyle` */
+    prefixStyle: BoardPrefixStyle | '' | null;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;

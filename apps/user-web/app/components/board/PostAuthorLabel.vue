@@ -1,5 +1,5 @@
 <template>
-    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 뱃지(운영자 회원 계정이면 그 자리에 「운영자」 공식 뱃지) + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
+    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 도트(운영자 회원 계정이면 그 자리에 「운영자」 공식 뱃지) + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
          공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
          「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`)
          AI 회원(`author.ai` — ai-members-contract): 등급 뱃지 자리에 「AI · {모델명}」(`AiBadge`). 늘 보인다 — 좁은 줄(`grade` 끔)에서도 빼지 않는다. 뱃지 차례: 운영자 → AI → 등급(AI 면 없음) → 사업자 -->
@@ -38,8 +38,9 @@
         <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
         <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
         <!-- AI 회원 — 등급 대신 「AI · 모델」(AI 는 포인트·등급에서 빠진다). 운영자 뱃지와 겹치면 그 뒤에 함께 선다 -->
-        <AiBadge v-if="ai" :provider="ai.provider" :model="ai.model" data-testid="author-ai-badge" />
-        <GradeBadge v-else-if="!operator && grade && author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
+        <AiBadge v-if="ai" :provider="ai.provider" :model="ai.model" plain data-testid="author-ai-badge" />
+        <!-- 등급 — 작성자 줄에서는 기본으로 그리지 않는다(`grade` 기본 끔 — 등급·레벨은 공개 프로필·내 정보에서만, 사용자 결정 2026-11-12). 켜면 작은 도트만 -->
+        <GradeBadge v-else-if="!operator && grade && author.kind === 'MEMBER' && author.grade" :grade="author.grade" :label="author.gradeLabel" :name="false" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
         <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
@@ -59,7 +60,6 @@
 </template>
 
 <script setup lang="ts">
-import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
 import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilColor from '~/utils/util-color';
@@ -80,7 +80,7 @@ interface Props {
     avatar?: boolean;
     /** 프로필 동그라미를 움직이는 그림 그대로(댓글 — 글 보기·프로필처럼 움직인다). 끄면 정지 그림이 있으면 그것(글 줄) */
     animated?: boolean;
-    /** 등급 뱃지 — 좁은 줄(홈 하이라이트 오른쪽 목록)은 끈다. 「운영자」·「사업자」 뱃지는 그대로 */
+    /** 등급 도트 — 기본 끔(사용자 결정 2026-11-12: 글 목록·글 보기·댓글 등 작성자 줄에는 등급을 보이지 않고 공개 프로필·내 정보에서만). 「운영자」·「AI」·「사업자」 뱃지는 그대로 */
     grade?: boolean;
 }
 
@@ -91,7 +91,7 @@ const props = withDefaults(defineProps<Props>(), {
     preview: false,
     avatar: false,
     animated: false,
-    grade: true,
+    grade: false,
 });
 
 const { t } = useI18n();

@@ -1,5 +1,6 @@
 import { ApiError } from '~/composables/common/useApiClient';
-import type { Grade, GradeBadgeColor, GradeKey, GradeManualPolicy, GradeRequest, GradesSaveRequest } from '~/composables/grade/api/useGradeApi.types';
+import type { Grade, GradeBadgeColor, GradeKey, GradeManualPolicy, GradeRequest, GradeSprite, GradesSaveRequest } from '~/composables/grade/api/useGradeApi.types';
+import UtilGradeSprite from '~/utils/util-grade-sprite';
 
 /**
  * 등급 설정 화면(`/grades`)과 역할 관리·회원 조회의 등급 표시(`GradeBadge`)가 쓰는 순수 로직 — **등급은 순서 있는 목록**이다(4단계 고정이 아니다).
@@ -9,11 +10,11 @@ import type { Grade, GradeBadgeColor, GradeKey, GradeManualPolicy, GradeRequest,
  * 입력은 **글자**로 든다(입력 도중의 빈 칸을 칸이 되돌려 쓰지 않게). 화면에 보이는 문구는 `util-grade-messages.ts` 와 `i18n/locales/{ko,en}/grade.ts` 에 있다.
  */
 
-/** 승급 조건 칸의 이름 — 서버 응답·요청의 키와 같다 */
-export type GradeField = 'minDays' | 'minActivity';
+/** 승급 조건 칸의 이름 — 서버 응답·요청의 키와 같다(최소 레벨 — grade-level-contract 2절 · 가입 후 일수 · 글·댓글 합계) */
+export type GradeField = 'minLevel' | 'minDays' | 'minActivity';
 
 /** 서버 오류가 붙는 칸 — 이름 · 승급 조건 · 뱃지 */
-export type GradeCellField = 'label' | GradeField | 'badgeColor' | 'badgeIcon';
+export type GradeCellField = 'label' | GradeField | 'badgeColor' | 'badgeIcon' | 'sprite';
 
 /** 입력칸의 문제 — 비어 있다 / 정수가 아니다 / 범위를 벗어났다 / 아래 등급보다 작다(순서) / 이름이 없다 / 이름이 길다 / 이름이 겹친다 */
 export type GradeProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE' | 'ORDER' | 'LABEL_REQUIRED' | 'LABEL_LENGTH' | 'LABEL_DUPLICATE';
@@ -25,10 +26,13 @@ export interface GradeRowForm {
     /** 서버 식별자. `null` = 새 등급(저장하면 서버가 발급한다) */
     gradeKey: GradeKey | null;
     label: string;
+    minLevel: string;
     minDays: string;
     minActivity: string;
     color: GradeBadgeColor;
     icon: string;
+    /** 도트 캐릭터 — 공개 화면이 쓴다 */
+    sprite: GradeSprite;
     /** 이 등급인 회원 수(새 등급은 0) */
     memberCount: number;
 }
@@ -40,6 +44,8 @@ export type GradeProblems = Record<string, Partial<Record<'label' | GradeField, 
 export interface GradeFieldErrors {
     cells: Record<string, Partial<Record<GradeCellField, string>>>;
     policy: string;
+    /** 레벨 곡선 기준값(`xpCurveBase`)의 문구 */
+    curve: string;
     form: string;
 }
 
@@ -56,10 +62,11 @@ export interface GradeBadgeColorDef {
     fgLight: 700 | 800;
 }
 
-const FIELDS: readonly GradeField[] = ['minDays', 'minActivity'];
+const FIELDS: readonly GradeField[] = ['minLevel', 'minDays', 'minActivity'];
 
 /** 칸별 허용 범위 [최소, 최대] — community V33 의 CHECK 와 같다 */
 const LIMITS: Record<GradeField, readonly [number, number]> = {
+    minLevel: [1, 10_000],
     minDays: [0, 3650],
     minActivity: [0, 100_000],
 };
@@ -93,18 +100,77 @@ const BADGE_ICONS: readonly string[] = [
 const ROLE_PREFIX = 'ROLE_GRADE_';
 
 /** 서버 칸 이름 읽기 — `grades[1].minDays`(번호는 요청 `grades` 의 차례) · `LOYAL.minDays`(등급 키) */
-const INDEXED = /^grades\[(\d+)\]\.(label|minDays|minActivity|badgeColor|badgeIcon)$/;
-const CODED = /^([A-Za-z0-9_]+)\.(label|minDays|minActivity|badgeColor|badgeIcon)$/;
+const INDEXED = /^grades\[(\d+)\]\.(label|minLevel|minDays|minActivity|badgeColor|badgeIcon|sprite)$/;
+const CODED = /^([A-Za-z0-9_]+)\.(label|minLevel|minDays|minActivity|badgeColor|badgeIcon|sprite)$/;
+
+/** 레벨 곡선 기준값 범위·기본값(grade-level-contract 1절, `grade_settings.xp_curve_base`) */
+const CURVE_MIN = 1;
+const CURVE_MAX = 1000;
+const CURVE_DEFAULT = 10;
 
 export default class UtilGrade {
-    /** 등급 수의 하한·상한 — 최소 2단계 · 최대 10단계(확정) */
+    /** 등급 수의 하한·상한 — 최소 2단계 · 최대 11단계(grade-level-contract 2절 — 장인 계급 11단계) */
     static readonly MIN_GRADES = 2;
-    static readonly MAX_GRADES = 10;
+    static readonly MAX_GRADES = 11;
+
+    /** 레벨 곡선 기준값 — 범위 1~1000 · 기본 10 */
+    static readonly CURVE_MIN = CURVE_MIN;
+    static readonly CURVE_MAX = CURVE_MAX;
+    static readonly CURVE_DEFAULT = CURVE_DEFAULT;
+    /** 곡선 안내 한 줄에 보이는 레벨 */
+    static readonly CURVE_SAMPLE_LEVELS: readonly number[] = [10, 50, 100];
+
+    /**
+     * 레벨 L 에 필요한 누적 경험치 — L≥2 면 ceil(base × (L−1)^1.5), Lv.1 은 0(서버 Java·SQL 과 같은 식).
+     * @param {number} base - 곡선 기준값.
+     * @param {number} level - 레벨.
+     * @returns {number} 누적 경험치.
+     */
+    static xpForLevel(base: number, level: number): number {
+        if (level <= 1) return 0;
+        return Math.ceil(base * Math.pow(level - 1, 1.5));
+    }
+
+    /**
+     * 곡선 기준값 입력의 문제 — 비었나 · 정수인가 · 1~1000.
+     * @param {string} text - 입력 글자.
+     * @returns {GradeProblem | null} 문제가 없으면 null.
+     */
+    static curveProblem(text: string): GradeProblem | null {
+        if (text.trim() === '') return 'REQUIRED';
+        const n = UtilGrade.parse(text);
+        if (n === null) return 'NOT_INTEGER';
+        return n < CURVE_MIN || n > CURVE_MAX ? 'OUT_OF_RANGE' : null;
+    }
+
+    /** 서버 곡선 기준값 — 옛 응답에 없거나 범위 밖이면 기본 10 */
+    static curveOf(value: number | undefined): number {
+        return typeof value === 'number' && Number.isInteger(value) && value >= CURVE_MIN && value <= CURVE_MAX ? value : CURVE_DEFAULT;
+    }
+
+    /**
+     * 저장된 등급의 승급 조건 값 — 옛 응답에 최소 레벨이 없으면 1.
+     * @param {Grade} grade - 저장된 등급.
+     * @param {GradeField} field - 칸 이름.
+     * @returns {number} 값.
+     */
+    static savedValue(grade: Grade, field: GradeField): number {
+        return field === 'minLevel' ? (grade.minLevel ?? 1) : grade[field];
+    }
+
+    /**
+     * 저장된 등급의 도트 — 옛 응답에 없거나 모르는 이름이면 서열 순 기본값.
+     * @param {Grade} grade - 저장된 등급.
+     * @returns {GradeSprite} 도트.
+     */
+    static spriteOf(grade: Grade): GradeSprite {
+        return UtilGradeSprite.isSprite(grade.sprite) ? grade.sprite : UtilGradeSprite.defaultFor(grade.level - 1);
+    }
 
     /** 등급 이름의 최대 길이 — community `label varchar(8)` */
     static readonly LABEL_MAX = 8;
 
-    /** 승급 조건 칸 둘 */
+    /** 승급 조건 칸 셋 — 최소 레벨 · 가입 후 일수 · 글·댓글 합계 */
     static readonly FIELDS: readonly GradeField[] = FIELDS;
 
     /** 뱃지 색 목록 — 고정 */
@@ -175,11 +241,22 @@ export default class UtilGrade {
     static formOf(grades: readonly Grade[]): GradeRowForm[] {
         return [...grades]
             .sort((a, b) => a.level - b.level)
-            .map((g) => ({ id: g.gradeKey, gradeKey: g.gradeKey, label: g.label, minDays: String(g.minDays), minActivity: String(g.minActivity), color: g.badgeColor, icon: g.badgeIcon ?? '', memberCount: g.memberCount }));
+            .map((g) => ({
+                id: g.gradeKey,
+                gradeKey: g.gradeKey,
+                label: g.label,
+                minLevel: String(UtilGrade.savedValue(g, 'minLevel')),
+                minDays: String(g.minDays),
+                minActivity: String(g.minActivity),
+                color: g.badgeColor,
+                icon: g.badgeIcon ?? '',
+                sprite: UtilGrade.spriteOf(g),
+                memberCount: g.memberCount,
+            }));
     }
 
     /**
-     * 새 등급 행 — 이름은 비우고, 승급 조건은 마지막 등급과 같게(위 등급일수록 같거나 커야 해서), 뱃지는 아직 안 쓴 색과 별 아이콘으로 채운다.
+     * 새 등급 행 — 이름은 비우고, 승급 조건은 마지막 등급과 같게(위 등급일수록 같거나 커야 해서), 뱃지는 아직 안 쓴 색과 별 아이콘, 도트는 그 서열의 기본 도트로 채운다.
      * @param {readonly GradeRowForm[]} rows - 지금 행들.
      * @param {number} seq - 새 행 번호(화면 안 식별자용).
      * @returns {GradeRowForm} 새 행.
@@ -188,7 +265,18 @@ export default class UtilGrade {
         const last = rows[rows.length - 1];
         const used = new Set(rows.map((r) => r.color));
         const color = BADGE_COLORS.find((c) => !used.has(c.name))?.name ?? 'gray';
-        return { id: `new-${seq}`, gradeKey: null, label: '', minDays: last?.minDays ?? '0', minActivity: last?.minActivity ?? '0', color, icon: 'pi pi-star', memberCount: 0 };
+        return {
+            id: `new-${seq}`,
+            gradeKey: null,
+            label: '',
+            minLevel: last?.minLevel ?? '1',
+            minDays: last?.minDays ?? '0',
+            minActivity: last?.minActivity ?? '0',
+            color,
+            icon: 'pi pi-star',
+            sprite: UtilGradeSprite.defaultFor(rows.length),
+            memberCount: 0,
+        };
     }
 
     /**
@@ -285,9 +373,10 @@ export default class UtilGrade {
                 return;
             }
             if (row.label.trim() !== before.label) out.rules++;
-            if (i > 0) for (const field of FIELDS) if (UtilGrade.parse(row[field]) !== before[field]) out.rules++;
+            if (i > 0) for (const field of FIELDS) if (UtilGrade.parse(row[field]) !== UtilGrade.savedValue(before, field)) out.rules++;
             if (row.color !== before.badgeColor) out.badge++;
             if (row.icon !== (before.badgeIcon ?? '')) out.badge++;
+            if (row.sprite !== UtilGrade.spriteOf(before)) out.badge++;
         });
         const kept = new Set(rows.map((r) => r.gradeKey).filter((key): key is GradeKey => key !== null));
         out.rules += saved.filter((g) => !kept.has(g.gradeKey)).length; // 삭제
@@ -306,7 +395,7 @@ export default class UtilGrade {
      */
     static cellChanged(row: GradeRowForm, saved: readonly Grade[], field: GradeField): boolean {
         const before = row.gradeKey === null ? undefined : UtilGrade.gradeOf(saved, row.gradeKey);
-        return before === undefined || UtilGrade.parse(row[field]) !== before[field];
+        return before === undefined || UtilGrade.parse(row[field]) !== UtilGrade.savedValue(before, field);
     }
 
     /**
@@ -314,17 +403,17 @@ export default class UtilGrade {
      * 이미 있는 등급(첫 등급 제외)만 견주고, 읽을 수 없는 칸은 따지지 않는다(그 전에 입력 검사가 막는다).
      * @param {readonly GradeRowForm[]} rows - 입력 행.
      * @param {readonly Grade[]} saved - 저장된 값.
-     * @returns {Record<GradeField, boolean>} 일수·글·댓글 중 어느 조건이 낮아졌는가.
+     * @returns {Record<GradeField, boolean>} 레벨·일수·글·댓글 중 어느 조건이 낮아졌는가.
      */
     static lowered(rows: readonly GradeRowForm[], saved: readonly Grade[]): Record<GradeField, boolean> {
-        const out: Record<GradeField, boolean> = { minDays: false, minActivity: false };
+        const out: Record<GradeField, boolean> = { minLevel: false, minDays: false, minActivity: false };
         rows.forEach((row, i) => {
             if (i === 0 || row.gradeKey === null) return;
             const before = UtilGrade.gradeOf(saved, row.gradeKey);
             if (!before) return;
             for (const field of FIELDS) {
                 const now = UtilGrade.parse(row[field]);
-                if (now !== null && now < before[field]) out[field] = true;
+                if (now !== null && now < UtilGrade.savedValue(before, field)) out[field] = true;
             }
         });
         return out;
@@ -354,20 +443,22 @@ export default class UtilGrade {
      * 저장 요청을 만든다 — 목록 순서가 곧 서열이다. 새 등급은 `gradeKey` 를 빼고, 첫 등급은 승급 조건을 보내지 않는다.
      * @param {readonly GradeRowForm[]} rows - 입력 행.
      * @param {GradeManualPolicy} manualPolicy - 수동 상향 회원 옵션.
+     * @param {string} curveText - 레벨 곡선 기준값 입력 글자.
      * @returns {GradesSaveRequest | null} 요청. 입력이 맞지 않으면 null.
      */
-    static toRequest(rows: readonly GradeRowForm[], manualPolicy: GradeManualPolicy): GradesSaveRequest | null {
-        if (UtilGrade.problemCount(UtilGrade.validate(rows)) > 0) return null;
+    static toRequest(rows: readonly GradeRowForm[], manualPolicy: GradeManualPolicy, curveText: string): GradesSaveRequest | null {
+        if (UtilGrade.problemCount(UtilGrade.validate(rows)) > 0 || UtilGrade.curveProblem(curveText)) return null;
         const grades: GradeRequest[] = rows.map((row, i) => {
-            const base: GradeRequest = { label: row.label.trim(), badgeColor: row.color, badgeIcon: row.icon ? row.icon : null };
+            const base: GradeRequest = { label: row.label.trim(), badgeColor: row.color, badgeIcon: row.icon ? row.icon : null, sprite: row.sprite };
             if (row.gradeKey !== null) base.gradeKey = row.gradeKey;
             if (i > 0) {
+                base.minLevel = UtilGrade.parse(row.minLevel)!;
                 base.minDays = UtilGrade.parse(row.minDays)!;
                 base.minActivity = UtilGrade.parse(row.minActivity)!;
             }
             return base;
         });
-        return { grades, manualPolicy };
+        return { grades, manualPolicy, xpCurveBase: UtilGrade.parse(curveText)! };
     }
 
     /**
@@ -423,7 +514,7 @@ export default class UtilGrade {
     }
 
     /**
-     * 서버가 거절한 칸별 문구를 읽는다(`400 VALIDATION` 의 `fields`) — `grades[i].칸` · `등급키.칸` 은 그 행·칸 아래에, `manualPolicy` 는 옵션 아래에, 그 밖의 문구는 칸에 붙지 않는 문구(`form`)로 모은다.
+     * 서버가 거절한 칸별 문구를 읽는다(`400 VALIDATION` 의 `fields`) — `grades[i].칸` · `등급키.칸` 은 그 행·칸 아래에, `manualPolicy` 는 옵션 아래에, `xpCurveBase` 는 곡선 칸 아래에, 그 밖의 문구는 칸에 붙지 않는 문구(`form`)로 모은다.
      * @param {unknown} e - 잡은 오류.
      * @param {readonly GradeRowForm[]} rows - 요청을 보낼 때의 입력 행(요청 `grades` 의 차례와 같다).
      * @returns {GradeFieldErrors | null} 칸별 문구. 입력 오류가 아니면 null.
@@ -433,9 +524,14 @@ export default class UtilGrade {
         const cells: GradeFieldErrors['cells'] = {};
         const rest: string[] = [];
         let policy = '';
+        let curve = '';
         for (const [name, message] of Object.entries(e.fields)) {
             if (name === 'manualPolicy') {
                 policy = message;
+                continue;
+            }
+            if (name === 'xpCurveBase') {
+                curve = message;
                 continue;
             }
             const indexed = INDEXED.exec(name);
@@ -445,7 +541,7 @@ export default class UtilGrade {
             if (row && field) cells[row.id] = { ...cells[row.id], [field]: message };
             else rest.push(message);
         }
-        if (Object.keys(cells).length === 0 && rest.length === 0 && !policy) return null;
-        return { cells, policy, form: rest.join(' ') };
+        if (Object.keys(cells).length === 0 && rest.length === 0 && !policy && !curve) return null;
+        return { cells, policy, curve, form: rest.join(' ') };
     }
 }

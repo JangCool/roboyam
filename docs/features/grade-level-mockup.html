@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로보얌 화면 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f4f4f2;--surface-1:#f7f7f5;--surface-2:#ffffff;--border:rgba(0,0,0,.12);--border-strong:rgba(0,0,0,.2);--border-stronger:rgba(0,0,0,.4);--border-accent:#378ADD;--text-primary:#1f1f1e;--text-secondary:#5f5e5a;--text-muted:#8a8984;--text-accent:#185FA5;--text-danger:#A32D2D;--bg-accent:#E6F1FB;--radius:8px}
+@media (prefers-color-scheme: dark){:root{--surface-0:#1b1b1a;--surface-1:#242423;--surface-2:#2b2b2a;--border:rgba(255,255,255,.12);--border-strong:rgba(255,255,255,.2);--border-stronger:rgba(255,255,255,.4);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85B7EB;--text-danger:#F09595;--bg-accent:#0C447C}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-0);color:var(--text-primary);font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:20px;font-weight:600;margin:4px 4px 12px}
+.ph{background:var(--surface-2);border:0.5px solid var(--border);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;height:640px}
+.cap{font-size:13px;color:var(--text-secondary);margin:0 0 6px 4px}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:640px){.two{grid-template-columns:minmax(0,1fr)}}
+.bar{display:flex;align-items:center;gap:2px;height:44px;padding:0 8px 0 12px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.ib{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-primary)}
+.me{width:26px;height:26px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);display:inline-flex;align-items:center;justify-content:center;font-size:15px;margin-left:4px}
+.tabs{display:flex;border-top:0.5px solid var(--border);margin-top:auto;flex-shrink:0}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 8px;font-size:11px;color:var(--text-muted)}
+.tab i{font-size:19px}
+.on{color:var(--text-primary);font-weight:600}
+.body{flex:1;overflow:hidden}
+.row{display:flex;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.rk{width:12px;font-size:13px;font-weight:600;color:var(--text-accent)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px}
+.lbl{font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sep{color:var(--text-muted);margin:0 4px}
+.st{font-size:12px;color:var(--text-secondary);display:flex;gap:6px;white-space:nowrap}
+.tt{font-size:14px;line-height:1.45;color:var(--text-primary)}
+.cm{color:var(--text-accent);font-size:13px}
+.nw{display:inline-flex;width:14px;height:14px;border-radius:50%;background:#378ADD;color:#fff;font-size:10px;font-weight:700;line-height:1;align-items:center;justify-content:center;vertical-align:middle;position:relative;top:-1px;margin-left:3px}
+.mt{font-size:12px;color:var(--text-secondary);margin-top:4px;display:flex;align-items:center;gap:4px}
+.av{width:16px;height:16px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.sec{font-size:12px;color:var(--text-muted);margin:14px 0 4px}
+.br{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.sq{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.nm{font-size:14px;color:var(--text-primary)}
+.sm{font-size:11px;color:var(--text-muted)}
+.pill{font-size:12px;border:0.5px solid var(--border-strong);border-radius:99px;padding:2px 10px;color:var(--text-primary)}
+.qk{text-align:center;font-size:11px;color:var(--text-secondary)}
+.qk .sq{margin:0 auto 3px;background:var(--surface-1)}
+.qk i{font-size:16px;color:var(--text-primary)}
+.opt{border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 10px;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:6px}
+.opt.sel{border:2px solid var(--border-accent)}
+.rd{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border-stronger);display:inline-block;flex-shrink:0}
+.sel .rd{border:4px solid var(--text-accent)}
+.sw{width:16px;height:16px;border-radius:4px;display:inline-block}
+.gs{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end}
+.gi{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--text-secondary)}
+canvas{display:inline-block;vertical-align:middle;image-rendering:pixelated}
+</style>
+</head>
+<body>
+<main>
+<h1>로보얌 화면 시안 (2026-11-11)</h1>
+<div class="two">
+<div><p class="cap">① 인기글 — 말머리 글자(지정 색 반영) · 작은 도트</p>
+<div class="ph">
+<div class="bar"><span style="font-size:15px;font-weight:600;color:var(--text-primary)"><i class="ti ti-robot" style="color:var(--text-accent)"></i> 로보얌</span><span style="flex:1"></span><span class="ib"><i class="ti ti-search"></i></span><span class="ib"><i class="ti ti-moon"></i></span><span class="ib"><i class="ti ti-bell"></i></span><span class="me"><i class="ti ti-user"></i></span></div>
+<div style="display:flex;gap:14px;padding:8px 12px;font-size:14px;border-bottom:0.5px solid var(--border);white-space:nowrap;overflow:hidden;flex-shrink:0">공지<span>핫딜</span><span>회원장터</span><span>팁·강좌·사용기</span></div>
+<div class="body">
+<div style="padding:10px 14px 6px"><div style="font-size:17px;font-weight:600">인기글</div><div style="font-size:13px;color:var(--text-secondary);display:flex;gap:12px;margin-top:6px"><span class="on" style="border-bottom:2px solid var(--text-accent);padding-bottom:2px">실시간</span><span>어제</span><span>이번 주</span></div></div>
+<div id="rows"></div>
+</div>
+<div class="tabs">
+<div class="tab"><i class="ti ti-home"></i>홈</div>
+<div class="tab on"><i class="ti ti-flame"></i>인기글</div>
+<div class="tab"><i class="ti ti-clock"></i>최신글</div>
+<div class="tab"><i class="ti ti-messages"></i>커뮤니티</div>
+<div class="tab"><i class="ti ti-users"></i>소모임</div>
+<div class="tab"><i class="ti ti-menu-2"></i>메뉴</div>
+</div>
+</div></div>
+<div><p class="cap">② 메뉴 — 전체 화면 · 바로 가기 · 화살표 없음</p>
+<div class="ph">
+<div class="bar"><span style="font-size:15px;font-weight:600;color:var(--text-primary)"><i class="ti ti-robot" style="color:var(--text-accent)"></i> 로보얌</span><span style="flex:1"></span><span class="ib"><i class="ti ti-search"></i></span><span class="ib"><i class="ti ti-moon"></i></span><span class="ib"><i class="ti ti-bell"></i></span><span class="me"><i class="ti ti-user"></i></span></div>
+<div class="body" style="padding:12px 14px 0">
+<div style="font-size:17px;font-weight:600">메뉴</div>
+<div class="sec" style="margin-top:8px">최근 방문</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill">자유게시판</span><span class="pill">핫딜</span><span class="pill">유머게시판</span></div>
+<div class="sec">바로 가기</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+<div class="qk"><div class="sq"><i class="ti ti-speakerphone"></i></div>공지</div>
+<div class="qk"><div class="sq"><i class="ti ti-tag"></i></div>핫딜</div>
+<div class="qk"><div class="sq"><i class="ti ti-building-store"></i></div>회원장터</div>
+<div class="qk"><div class="sq"><i class="ti ti-bulb"></i></div>팁·강좌</div>
+</div>
+<div class="sec">커뮤니티</div>
+<div class="br"><span class="sq" style="background:#EAF3DE;color:#27500A">자</span><span style="flex:1;min-width:0"><span class="nm" style="display:block">자유게시판</span><span class="sm">일상 이야기·고민·상담·정보 공유</span></span></div>
+<div class="br"><span class="sq" style="background:#FAEEDA;color:#633806">유</span><span style="flex:1;min-width:0"><span class="nm" style="display:block">유머게시판</span><span class="sm">웃긴 글·짤</span></span></div>
+<div class="br" style="border-bottom:0"><span class="sq" style="background:#EEEDFE;color:#3C3489">영</span><span style="flex:1;min-width:0"><span class="nm" style="display:block">영상·짤</span><span class="sm">영상·움짤</span></span></div>
+<div class="sec">생활</div>
+<div class="br" style="border-bottom:0"><span class="sq" style="background:#FBEAF0;color:#72243E">연</span><span style="flex:1;min-width:0"><span class="nm" style="display:block">연애·결혼</span><span class="sm">썸·소개팅·결혼 준비</span></span></div>
+<div class="sm" style="margin-top:10px;display:flex;gap:12px">이용약관<span style="font-weight:600">개인정보처리방침</span></div>
+</div>
+<div class="tabs">
+<div class="tab"><i class="ti ti-home"></i>홈</div>
+<div class="tab"><i class="ti ti-flame"></i>인기글</div>
+<div class="tab"><i class="ti ti-clock"></i>최신글</div>
+<div class="tab"><i class="ti ti-messages"></i>커뮤니티</div>
+<div class="tab"><i class="ti ti-users"></i>소모임</div>
+<div class="tab on"><i class="ti ti-menu-2"></i>메뉴</div>
+</div>
+</div></div>
+</div>
+<div class="two" style="margin-top:16px">
+<div><p class="cap">③ 글 보기 · 댓글 — 레벨 숫자 없음</p><div class="card">
+<div class="lbl"><span style="color:#378ADD">사용기</span><span class="sep">|</span>기타</div>
+<div style="font-size:16px;font-weight:600;margin-top:4px">보온 텀블러 1년 써 본 짧은 후기<span class="nw">N</span></div>
+<div class="mt" style="margin-top:8px"><span class="av"><i class="ti ti-robot"></i></span><span style="color:var(--text-primary)">프롬프트장인</span><span id="vh"></span><span>· 9시간 전 · 조회 422</span></div>
+<div style="border-top:0.5px solid var(--border);margin-top:12px;padding-top:10px">
+<div class="mt" style="margin-top:0"><span class="av"><i class="ti ti-robot"></i></span><span style="color:var(--text-primary)">로봇덕후진</span><span id="c1"></span><span>· 5분 전</span></div>
+<div class="tt" style="font-size:13px;margin:4px 0 0 20px">저도 이거 써 봤는데 보온 오래가요</div>
+<div class="mt" style="margin-top:10px"><span class="av"><i class="ti ti-robot"></i></span><span style="color:var(--text-primary)">초보집사</span><span id="c2"></span><span>· 3분 전</span></div>
+<div class="tt" style="font-size:13px;margin:4px 0 0 20px">어디서 사셨어요?</div>
+</div></div>
+<p class="cap" style="margin-top:12px">④ 공개 프로필 — 아바타는 그대로, 등급 도트는 닉네임 옆 · 레벨은 여기서만</p><div class="card" style="display:flex;align-items:flex-start;gap:12px">
+<span style="width:72px;height:72px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);display:inline-flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;box-shadow:0 0 0 3px var(--surface-2),0 0 0 5px #EF9F27"><i class="ti ti-robot"></i></span>
+<div style="min-width:0;flex:1">
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:17px;font-weight:700">로봇덕후진</span><span id="pf"></span><span style="font-size:12px;color:var(--text-secondary)">신화 · Lv.128</span></div>
+<div style="font-size:13px;margin-top:4px">로봇 덕질 10년차, 팁 게시판 자주 들러요</div>
+<div style="font-size:12px;color:var(--text-muted);margin-top:2px">2025.03.14 가입</div>
+<div style="margin-top:8px;display:flex;align-items:center;gap:8px"><div style="flex:1;max-width:180px;height:5px;border-radius:99px;background:var(--surface-1);overflow:hidden"><div style="width:40%;height:100%;background:#EF9F27"></div></div><span class="sm">다음 레벨까지 60%</span></div>
+</div></div>
+</div>
+<div><p class="cap">⑤ 관리자 · 게시판 설정 → 목록 모양</p><div class="card">
+<div style="font-size:13px;margin-bottom:6px">말머리 모양</div>
+<div style="display:grid;gap:6px">
+<div class="opt"><span class="rd"></span>사이트 기본 따르기 <span class="sm">(지금: 글자)</span></div>
+<div class="opt sel"><span class="rd"></span>글자 <span class="sm" style="margin-left:auto"><span style="color:#378ADD">사용기</span> | 기타</span></div>
+<div class="opt"><span class="rd"></span>회색 칩 <span style="margin-left:auto;font-size:11px;padding:1px 5px;border-radius:4px;border:0.5px solid var(--border);color:var(--text-secondary)">사용기</span></div>
+<div class="opt"><span class="rd"></span>색상 칩 <span style="margin-left:auto;font-size:11px;padding:1px 5px;border-radius:4px;background:#E6F1FB;color:#0C447C">사용기</span></div>
+</div>
+<div style="font-size:13px;margin:14px 0 6px">말머리 색</div>
+<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+<div style="display:flex;align-items:center;gap:8px">사용기<span style="margin-left:auto;display:flex;align-items:center;gap:6px;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:3px 8px"><span class="sw" style="background:#378ADD"></span>파랑<i class="ti ti-chevron-down sm"></i></span></div>
+<div style="display:flex;align-items:center;gap:8px">기타<span style="margin-left:auto;display:flex;align-items:center;gap:6px;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:3px 8px"><span class="sw" style="border:0.5px dashed var(--border-stronger)"></span>자동<i class="ti ti-chevron-down sm"></i></span></div>
+<div style="display:flex;align-items:center;gap:8px">거래완료<span style="margin-left:auto;display:flex;align-items:center;gap:6px;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:3px 8px"><span class="sw" style="background:#1D9E75"></span>#1d9e75 직접<i class="ti ti-chevron-down sm"></i></span></div>
+</div>
+<div class="sm" style="margin-top:10px;line-height:1.6">고르개 = 자동 · 13색 · 직접 고르기(#hex). 글자 모양에서도 지정 색은 그 색 글자, 자동은 회색 글자</div>
+</div></div>
+</div>
+<p class="cap" style="margin-top:16px">⑥ 등급 11단계 · 장인 계급 — 3배 / 아바타 옆 실제 크기 (전설·신화 움직임)</p>
+<div class="card"><div class="gs" id="g3"></div><div class="gs" id="g1" style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)"></div></div>
+</main>
+<script>
+const HEAD=["..oooooooo..",".olbbbbbbbo.","xobvvvvvvbox","xobvwvvwvbox","xobvwvvwvbox","xobvvvvvvbox",".obbbbbbbbo.","..oooooooo.."];
+const BIG=["..y..yy..y..","..yyyyyyyy..","..yryuuyry..","..YYYYYYYY.."];
+const G=[
+{n:"새싹",r:"1–9",c:"G",e:0,a:["..GGG..GGG..","...GgGGgG...",".....GG.....",".....GG....."]},
+{n:"견습",r:"10–19",c:"G",e:0,a:["....oooo....","...onoono...","....oooo....",".....oo....."]},
+{n:"정식",r:"20–29",c:"B",e:0,a:[".....aa.....","....aaaa....",".....oo.....",".....oo....."]},
+{n:"숙련",r:"30–39",c:"B",e:0,a:["...oooooo...","...oGGnnoo..","...oooooo...","............"]},
+{n:"정예",r:"40–49",c:"T",e:0,a:["....n..n....","...nnnnnn...","...nnvvnn...","....nnnn...."]},
+{n:"고수",r:"50–59",c:"P",e:1,a:["...hh..hh...","...hhhhhh...","....hhhh....",".....hh....."]},
+{n:"달인",r:"60–69",c:"P",e:1,a:["......yy....",".....yy.....","....yyyy....","....yy......"]},
+{n:"명인",r:"70–79",c:"C",e:1,a:[".....yy.....","...yyyyyy...","....yyyy....","....y..y...."]},
+{n:"대가",r:"80–89",c:"A",e:2,a:["...y.yy.y...","...yyyyyy...","...YYYYYY...","............"]},
+{n:"전설",r:"90–99",c:"L",e:2},{n:"신화",r:"100~",c:"M",e:2}];
+const EYE=["#ffffff","#5DCAA5","#FAC775"];
+const BODY={G:{b:"#97C459",l:"#C0DD97",o:"#27500A",x:"#639922"},B:{b:"#85B7EB",l:"#B5D4F4",o:"#0C447C",x:"#378ADD"},T:{b:"#5DCAA5",l:"#9FE1CB",o:"#085041",x:"#1D9E75"},P:{b:"#AFA9EC",l:"#CECBF6",o:"#3C3489",x:"#7F77DD"},C:{b:"#F0997B",l:"#F5C4B3",o:"#712B13",x:"#D85A30"},A:{b:"#FAC775",l:"#FAEEDA",o:"#854F0B",x:"#EF9F27",y:"#EF9F27"},L:{b:"#EF9F27",l:"#FAC775",o:"#633806",x:"#BA7517",y:"#FAC775"},M:{b:"#FAC775",l:"#ffffff",o:"#854F0B",x:"#EF9F27",y:"#EF9F27",r:"#378ADD",u:"#E24B4A",v:"#26215C",q:"#FAEEDA",Q:"#BA7517"}};
+const EX={g:"#97C459",G:"#3B6D11",a:"#FAC775",n:"#B4B2A9",h:"#D4537E",y:"#EF9F27",Y:"#854F0B",r:"#E24B4A",u:"#378ADD",v:"#042C53",S:"#EF9F27",s:"#ffffff"};
+const AURA={L:["#FAC775","#EF9F27","#FAC775","#FAEEDA"],M:["#EF9F27","#FAC775","#FAEEDA","#FAC775"]};
+function pad(m,l,r,t,b){const w=m[0].length+l+r;const e=".".repeat(w);return [...Array(t).fill(e),...m.map(s=>".".repeat(l)+s+".".repeat(r)),...Array(b).fill(e)]}
+function aura(m){const g=m.map(s=>[...s]);const o=g.map(r=>r.slice());for(let y=0;y<g.length;y++)for(let x=0;x<g[0].length;x++){if(g[y][x]!==".")continue;if([[0,1],[1,0],[0,-1],[-1,0]].some(([a,b])=>g[y+b]&&g[y+b][x+a]&&g[y+b][x+a]!=="."))o[y][x]="z"}return o.map(r=>r.join(""))}
+function put(m,pts,ch){const g=m.map(s=>[...s]);pts.forEach(([x,y])=>{if(g[y]&&g[y][x]!==undefined)g[y][x]=ch});return g.map(r=>r.join(""))}
+function legend(f){let m=aura(pad(BIG.concat(HEAD),2,2,1,1));[[0,0],[15,0],[0,13],[15,13]].forEach(([x,y],i)=>{if((f+i)%4!==2)m=put(m,[[x,y]],(f+i)%4===0?"s":"S")});return m}
+function myth(f){let m=pad(BIG.concat(HEAD),4,4,1,1);const W=["..Q",".QQ","QqQ","QqQ","QQ.","Q.."];const off=[5,4,5,6][f];W.forEach((s,i)=>{const y=off+i;if(!m[y])return;const row=[...m[y]];[...s].forEach((c,j)=>{if(c!=="."){row[1+j]=c;row[18-j]=c}});m[y]=row.join("")});m=aura(m);if(f===1)m=put(m,[[9,1],[10,1]],"s");return m}
+const dpr=window.devicePixelRatio||1;
+function draw(c,i,f,k){const d=G[i];const m=d.c==="L"?legend(f):d.c==="M"?myth(f):d.a.concat(HEAD);const p=Object.assign({},EX,BODY[d.c],{w:EYE[d.e],z:(AURA[d.c]||[])[f]});const s=Math.max(1,Math.round(k*dpr));c.width=m[0].length*s;c.height=m.length*s;c.style.width=(m[0].length*s/dpr)+"px";c.style.height=(m.length*s/dpr)+"px";const x=c.getContext("2d");x.clearRect(0,0,c.width,c.height);m.forEach((l,yy)=>[...l].forEach((ch,xx)=>{if(ch!=="."&&p[ch]){x.fillStyle=p[ch];x.fillRect(xx*s,yy*s,s,s)}}))}
+const anim=[];
+function icon(i,k){const c=document.createElement("canvas");c.setAttribute("role","img");c.setAttribute("aria-label",G[i].n);draw(c,i,0,k);if(i>=9)anim.push([c,i,k]);return c}
+const ROWS=[
+{p:[["사용기","#378ADD"],["기타",""]],t:"보온 텀블러 1년 써 본 짧은 후기",c:2,n:1,u:"프롬프트장인",g:5,like:12,hot:1,view:422,d:"9시간 전"},
+{p:[["스포츠","#D85A30"],["기타",""]],t:"내일부터 진짜 운동합니다 (N번째)",c:1,n:1,u:"로봇덕후진",g:10,like:10,hot:1,view:460,d:"10시간 전"},
+{p:[["연애·결혼","#D4537E"],["썸·소개팅",""]],t:"오늘 고백합니다",c:2,n:1,u:"댕댕이아빠",g:4,like:8,view:811,d:"12시간 전"},
+{p:[["회원장터",""],["거래완료","#1D9E75"]],t:"라즈베리파이 4 4GB + 7인치 터치스크린",c:3,u:"감자튀김",g:9,like:5,view:537,d:"14시간 전"},
+{p:[["자유게시판",""],["고민·상담",""]],t:"30대 중반에 로봇 분야로 진로 바꾸는 거 늦었을까요",c:12,u:"초보집사",g:0,like:31,hot:1,view:3984,d:"15시간 전"}];
+const rows=document.getElementById("rows");
+ROWS.forEach((r,i)=>{const lbl=r.p.map(([t,c])=>c?`<span style="color:${c}">${t}</span>`:t).join('<span class="sep">|</span>');const el=document.createElement("div");el.className="row";el.innerHTML=`<span class="rk" style="${i>2?"color:var(--text-muted)":""}">${i+1}</span><div style="flex:1;min-width:0"><div class="top"><span class="lbl">${lbl}</span><span class="st"><span style="${r.hot?"color:var(--text-danger)":""}"><i class="ti ti-thumb-up"></i> ${r.like}</span><span><i class="ti ti-eye"></i> ${r.view.toLocaleString()}</span></span></div><div class="tt">${r.t} <span class="cm">[${r.c}]</span>${r.n?'<span class="nw">N</span>':""}</div><div class="mt"><span class="av"><i class="ti ti-robot"></i></span>${r.u}<span class="ic"></span><span>· ${r.d}</span></div></div>`;el.querySelector(".ic").append(icon(r.g,1));rows.append(el)});
+document.getElementById("vh").append(icon(5,1));document.getElementById("c1").append(icon(10,1));document.getElementById("c2").append(icon(0,1));document.getElementById("pf").append(icon(10,2));
+G.forEach((d,i)=>{const a=document.createElement("div");a.className="gi";a.append(icon(i,3));a.insertAdjacentHTML("beforeend",`<span>${d.n}</span><span style="color:var(--text-muted)">Lv.${d.r}</span>`);document.getElementById("g3").append(a);const b=document.createElement("div");b.className="gi";const line=document.createElement("span");line.style.cssText="display:flex;align-items:center;gap:3px";const av=document.createElement("span");av.className="av";av.innerHTML='<i class="ti ti-robot"></i>';line.append(av,icon(i,1));b.append(line,d.n);document.getElementById("g1").append(b)});
+let f=0;const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+if(!reduce)setInterval(()=>{f=(f+1)%4;anim.forEach(([c,i,k])=>draw(c,i,f,k))},220);
+</script>
+</body>
+</html>

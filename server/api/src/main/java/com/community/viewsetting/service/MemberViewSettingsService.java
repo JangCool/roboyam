@@ -50,22 +50,24 @@ public class MemberViewSettingsService {
         if (setting == null) {
             int textScaleMobile = checked.textScaleMobile() == null ? ViewSettingsPolicy.DEFAULT_TEXT_SCALE_MOBILE : checked.textScaleMobile();
             String menuPosition = checked.menuPosition() == null ? ViewSettingsPolicy.DEFAULT_MENU_POSITION : checked.menuPosition();
-            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, now);
+            boolean titleBold = checked.titleBold() == null ? ViewSettingsPolicy.DEFAULT_TITLE_BOLD : checked.titleBold();
+            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold, now);
             settings.persist(setting);
         } else {
             int textScaleMobile = checked.textScaleMobile() == null ? setting.getTextScaleMobile() : checked.textScaleMobile();
             String menuPosition = checked.menuPosition() == null ? setting.getMenuPosition() : checked.menuPosition();
-            setting.change(checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, now);
+            boolean titleBold = checked.titleBold() == null ? setting.isTitleBold() : checked.titleBold();
+            setting.change(checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold, now);
         }
         return view(setting);
     }
 
     private static ViewSettingsResponse defaults() {
         return new ViewSettingsResponse(ViewSettingsPolicy.DEFAULT_THEME, ViewSettingsPolicy.DEFAULT_TEXT_SCALE, ViewSettingsPolicy.DEFAULT_TEXT_SCALE_MOBILE,
-                ViewSettingsPolicy.DEFAULT_COMMENT_ORDER, ViewSettingsPolicy.DEFAULT_MENU_POSITION);
+                ViewSettingsPolicy.DEFAULT_COMMENT_ORDER, ViewSettingsPolicy.DEFAULT_MENU_POSITION, ViewSettingsPolicy.DEFAULT_TITLE_BOLD);
     }
 
     private static ViewSettingsResponse view(MemberViewSettingEntity s) {
-        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getTextScaleMobile(), s.getCommentOrder(), s.getMenuPosition());
+        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getTextScaleMobile(), s.getCommentOrder(), s.getMenuPosition(), s.isTitleBold());
     }
 }

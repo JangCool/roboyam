@@ -14,6 +14,7 @@ import type {
     BoardPostEditor,
     BoardPrefix,
     BoardPrefixSaveItem,
+    BoardPrefixStyle,
     BoardSaveRequest,
     BoardSecretMode,
     BoardAuthorMode,
@@ -95,7 +96,8 @@ export interface BoardPrefixForm {
     name: string;
     staffOnly: boolean;
     adultOnly: boolean;
-    color: BoardColor | null;
+    /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `prefixProblems` 가 막는다) */
+    color: BoardDisplayColor | null;
     active: boolean;
     usageCount: number;
 }
@@ -118,6 +120,8 @@ export interface BoardDetailForm {
     viewToggle: boolean;
     /** 말머리·상태 칩 위치 — `null` = 사이트 기본 따르기(기본 설정 `listChipPosition`) */
     chipPosition: BoardChipPosition | null;
+    /** 말머리 모양 — `null` = 사이트 기본 따르기(기본 설정 `listPrefixStyle`) */
+    prefixStyle: BoardPrefixStyle | null;
     /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `colorProblem` 이 막는다) */
     color: BoardDisplayColor | null;
     allowAdult: boolean;
@@ -158,6 +162,8 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     dateDisplay: { field: 'dateDisplay', kind: 'dateDisplay', choices: ['STANDARD', 'RELATIVE'], overridable: false, permission: 'board.settings' },
     // 게시판별 값(`BoardDetail.chipPosition`)은 정책 칸이 아니라 게시판 기본 정보 칸이라 「게시판별 덮어쓰기」로 세지 않는다(서버 `BoardFields.DEFAULTS` — post-chip-position-contract)
     listChipPosition: { field: 'listChipPosition', kind: 'choice', choices: ['ABOVE', 'BEFORE', 'BELOW'], overridable: false, permission: 'board.settings' },
+    // 말머리 모양(mobile-nav-prefix-style-contract) — 칩 위치와 같은 틀: 게시판별 값(`BoardDetail.prefixStyle`)은 게시판 기본 정보 칸이라 「게시판별 덮어쓰기」로 세지 않는다
+    listPrefixStyle: { field: 'listPrefixStyle', kind: 'choice', choices: ['TEXT', 'MUTED', 'COLOR'], overridable: false, permission: 'board.settings' },
     // 글 줄 숫자 강조(사용자 2026-11-08 — 사이트 전체, 게시판별 덮어쓰기 없음). 0 = 강조 안 함. 범위는 서버 `BoardFields.LIKE_HIGHLIGHT_MAX`·`VIEW_HIGHLIGHT_MAX`(V170 CHECK)와 같다
     listLikeHighlight: { field: 'listLikeHighlight', kind: 'number', min: 0, max: 100000, unit: 'likes', overridable: false, permission: 'board.settings' },
     listViewHighlight: { field: 'listViewHighlight', kind: 'number', min: 0, max: 10000000, unit: 'times', overridable: false, permission: 'board.settings' },
@@ -266,7 +272,7 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
-    'defaults-display': ['dateDisplay', 'listChipPosition', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
+    'defaults-display': ['dateDisplay', 'listChipPosition', 'listPrefixStyle', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
     'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
@@ -344,6 +350,16 @@ export default class UtilBoard {
     static readonly AUTHOR_MODES: readonly BoardAuthorMode[] = ['NICKNAME', 'ANONYMOUS'];
     /** 글 목록 줄의 말머리·상태 칩 위치 선택지 — 제목 위(기본) · 제목 앞 · 닉네임 아래(서버 `BoardFields.CHIP_POSITIONS` 차례) */
     static readonly CHIP_POSITIONS: readonly BoardChipPosition[] = ['ABOVE', 'BEFORE', 'BELOW'];
+    /** 말머리 모양 선택지 — 글자(기본) · 회색 칩 · 색상 칩(서버 `BoardFields` 차례) */
+    static readonly PREFIX_STYLES: readonly BoardPrefixStyle[] = ['TEXT', 'MUTED', 'COLOR'];
+    /** 말머리 모양의 전체 기본값(서버 V195 기본값과 같다) — 옛 서버 응답에 칸이 없으면 이 값으로 본다 */
+    static readonly PREFIX_STYLE_DEFAULT: BoardPrefixStyle = 'TEXT';
+
+    /** 말머리 모양 값 — 선택지 밖이면(옛 응답·소문자 등) 전체 기본값 */
+    static prefixStyle(value: unknown): BoardPrefixStyle {
+        const upper = typeof value === 'string' ? value.toUpperCase() : '';
+        return (UtilBoard.PREFIX_STYLES as readonly string[]).includes(upper) ? (upper as BoardPrefixStyle) : UtilBoard.PREFIX_STYLE_DEFAULT;
+    }
     /** 글 줄 숫자 강조 색의 기본값 — 빨강(서버 기본값과 같다) */
     static readonly HIGHLIGHT_COLOR = '#e5484d';
     /** 강조 색 추천 칩 — 빨강(기본) · 주황 · 분홍 · 보라 · 파랑 · 초록. 공개 화면이 바탕에 맞게 명도만 보정한다 */
@@ -540,6 +556,8 @@ export default class UtilBoard {
         form.listLikeHighlight = String(defaults.listLikeHighlight ?? 10);
         form.listViewHighlight = String(defaults.listViewHighlight ?? 1000);
         form.listHighlightColor = UtilBoard.highlightColor(defaults.listHighlightColor);
+        // 말머리 모양을 아직 주지 않는 서버면 전체 기본값(글자)
+        form.listPrefixStyle = UtilBoard.prefixStyle(defaults.listPrefixStyle);
         return form;
     }
 
@@ -571,12 +589,14 @@ export default class UtilBoard {
         out.commentDislikeLabel = UtilBoard.labelValue(form.commentDislikeLabel);
         out.pinRequestReviewers = (UtilBoard.multiValue('pinRequestReviewers', form.pinRequestReviewers) ?? []) as BoardDefaults['pinRequestReviewers'];
         out.listHighlightColor = UtilBoard.highlightColor(form.listHighlightColor);
+        out.listPrefixStyle = UtilBoard.prefixStyle(form.listPrefixStyle);
         return out;
     }
 
-    /** 저장된 값과 다른 기본 설정 칸들 */
+    /** 저장된 값과 다른 기본 설정 칸들 — 옛 서버가 주지 않은 말머리 모양은 전체 기본값과 견준다(채워 넣은 기본값을 「바뀜」으로 세지 않게) */
     static defaultsChanged(form: BoardDefaultsForm, saved: BoardDefaults): BoardDefaultsField[] {
-        return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], saved[field]));
+        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle) };
+        return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], base[field]));
     }
 
     // ── 게시판별 정책 ─
@@ -666,6 +686,8 @@ export default class UtilBoard {
             viewToggle: detail.viewToggle,
             // 옛 서버 응답에 칸이 없으면 사이트 기본 따르기
             chipPosition: detail.chipPosition ?? null,
+            // 옛 서버 응답에 칸이 없으면 사이트 기본 따르기
+            prefixStyle: detail.prefixStyle ?? null,
             color: detail.color,
             allowAdult: detail.allowAdult,
             investmentNotice: detail.investmentNotice,
@@ -706,6 +728,8 @@ export default class UtilBoard {
             viewToggle: form.viewToggle,
             // 「사이트 기본 따르기」는 빈 글자로 보낸다(null 은 서버가 「그대로」로 읽는다 — writeTemplate 과 같은 규칙)
             chipPosition: form.chipPosition ?? '',
+            // 말머리 모양도 같은 규칙 — 「사이트 기본 따르기」는 빈 글자
+            prefixStyle: form.prefixStyle ?? '',
             color: UtilBoard.normalizeColor(form.color), // 13색 이름 또는 대문자 #RRGGBB(서버도 같은 모양으로 정리)
             allowAdult: form.allowAdult,
             investmentNotice: form.investmentNotice,
@@ -716,7 +740,8 @@ export default class UtilBoard {
             writeTemplate: UtilBoard.normalizeText(form.writeTemplate) ?? '',
             policy,
             commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
-            prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: p.color, active: p.active })),
+            // 말머리 색 — 13색 이름 또는 대문자 #RRGGBB(게시판 표시색과 같은 정리, 서버가 다시 정리한다)
+            prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: UtilBoard.normalizeColor(p.color), active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
             adsHidden: form.adsHidden,
             secretMode: opsOn ? form.secretMode : null,
@@ -755,7 +780,7 @@ export default class UtilBoard {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
-        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
+        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
@@ -852,6 +877,7 @@ export default class UtilBoard {
             if (!name) out[p.key] = 'PREFIX_NAME_REQUIRED';
             else if (name.length > UtilBoard.PREFIX_NAME_MAX) out[p.key] = 'PREFIX_NAME_LENGTH';
             else if ((seen.get(name.toLowerCase()) ?? 0) > 1) out[p.key] = 'PREFIX_NAME_DUPLICATE';
+            else if (UtilBoard.colorProblem(p.color)) out[p.key] = 'COLOR_FORMAT'; // 직접 고르기 칸에 틀린 글자
         }
         return out;
     }

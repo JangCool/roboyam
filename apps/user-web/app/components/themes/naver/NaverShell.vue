@@ -13,7 +13,7 @@
         메뉴 넘침 표시(`menuOverflow`)는 탭 바·로고 옆 링크 줄에 그대로 전한다(얇은 스크롤이면 탭 바가 예약 자리만큼 높아 사이드 메뉴의 붙는 높이도 `barOverflow` 로 맞춘다).
         로그인 단추의 작은 네모 상자 모양은 2단계 CSS(`main.css` 의 `html[data-theme='naver'] .shell-topbar .nav-btn-outline`)다.
     -->
-    <AppHeader :class="inner ? 'hidden' : 'md:hidden'" @open-menu="emit('open-menu')" />
+    <AppHeader :class="inner ? 'hidden' : 'md:hidden'" />
 
     <header class="shell-topbar relative border-b border-hairline bg-card [--scroll-fade-bg:var(--card-bg)] before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary max-md:hidden">
         <div class="mx-auto flex h-14 w-full max-w-[var(--content-max)] items-center gap-1 px-4">
@@ -53,7 +53,6 @@ import UtilMenuPosition from '~/utils/util-menu-position';
 
 interface Props extends ThemeShellProps {}
 const props = withDefaults(defineProps<Props>(), { inner: false, sideMenu: true });
-const emit = defineEmits<{ (e: 'open-menu'): void }>();
 
 const { t } = useI18n();
 const { siteLabel } = useSiteName();

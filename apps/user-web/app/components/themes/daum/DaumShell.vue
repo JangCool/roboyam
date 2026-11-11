@@ -12,7 +12,7 @@
         상단 메뉴 폭(`menuWidth`): CONTENT(테마 기본값) = 메뉴 카드가 본문 폭 · FULL = 메뉴 카드가 창 좌우 끝까지 닿는 흰 띠(반경 0), 칸의 시작은 본문 열 왼쪽 끝 그대로.
         메뉴 넘침 표시(`menuOverflow`)는 메뉴 카드·로고 옆 링크 줄에 그대로 전한다(GNB·LNB 는 줄 안 아래 여백에 스크롤 표시를 두어 높이가 그대로다 — 메뉴 카드는 창 위에 붙지 않는다).
     -->
-    <AppHeader :class="inner ? 'hidden' : 'md:hidden'" @open-menu="emit('open-menu')" />
+    <AppHeader :class="inner ? 'hidden' : 'md:hidden'" />
 
     <!-- `site-topbar`: 보기 설정 색상 테마의 로고 줄 바탕·글자(`palettes.css`) — 기본은 페이지 바탕 그대로 -->
     <header class="site-topbar max-md:hidden">
@@ -59,7 +59,6 @@ import UtilMenuPosition from '~/utils/util-menu-position';
 
 interface Props extends ThemeShellProps {}
 const props = withDefaults(defineProps<Props>(), { inner: false, sideMenu: true });
-const emit = defineEmits<{ (e: 'open-menu'): void }>();
 
 const { t } = useI18n();
 const { siteLabel } = useSiteName();

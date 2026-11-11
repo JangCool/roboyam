@@ -179,6 +179,20 @@ export default {
         author: 'Roboyam',
         date: '3 min ago',
     },
+    // Prefix style (mobile-nav-prefix-style-contract §1) — picker (`BoardPrefixStylePicker`) and preview
+    prefixStyleHelp: {
+        TEXT: 'Small gray text with no chip. Prefixes with a set color use that color.',
+        MUTED: 'Keeps the chip shape in a single gray.',
+        COLOR: 'Chips filled with the prefix or board color (current look).',
+    },
+    prefixStyleInherit: 'Use the site default',
+    prefixStyleInheritHelp: 'Site default now: {name}',
+    prefixStyleScope: 'Applies to prefixes and to board names in mixed lists. Status, 19+, poll and ad labels stay as they are.',
+    prefixPreview: {
+        first: 'Review',
+        second: 'Other',
+        title: 'A year with my insulated tumbler',
+    },
 
     // ── Sections ──
     section: {
@@ -236,6 +250,7 @@ export default {
     field: {
         dateDisplay: 'Date display',
         listChipPosition: 'List chip position',
+        listPrefixStyle: 'Prefix style',
         listLikeHighlight: 'Like highlight threshold',
         listViewHighlight: 'View highlight threshold',
         listHighlightColor: 'Highlight color',
@@ -282,6 +297,7 @@ export default {
         layout: 'Layout',
         viewToggle: "Reader's view toggle",
         chipPosition: 'Prefix and status chip position',
+        prefixStyle: 'Prefix style',
         color: 'Color',
         allowAdult: 'Allow 18+ posts',
         investmentNotice: 'Investment notice',
@@ -340,6 +356,7 @@ export default {
     fieldHelp: {
         dateDisplay: 'How post times are shown.',
         listChipPosition: 'Where prefix and status chips go on a row — above the title (chips, counts and date on the top line), before the title (one line), or below the author (chip line). Used when a board does not choose its own, and by mixed lists such as latest, popular and search.',
+        listPrefixStyle: 'How prefixes look in post lists and post views — text, gray chip or color chip. Used when a board does not choose its own, and by mixed lists such as latest, popular and search.',
         listLikeHighlight: 'Posts with at least this many likes get their like count highlighted. 0 turns it off.',
         listViewHighlight: 'Posts with at least this many views get their view count highlighted. 0 turns it off.',
         listHighlightColor: 'The color is used as is; the public site only adjusts brightness so it stays readable on light and dark backgrounds.',
@@ -437,6 +454,11 @@ export default {
             ABOVE: 'Above title',
             BEFORE: 'Before title',
             BELOW: 'Below author',
+        },
+        listPrefixStyle: {
+            TEXT: 'Text',
+            MUTED: 'Gray chip',
+            COLOR: 'Color chip',
         },
         dateDisplay: {
             STANDARD: 'Standard',
@@ -654,6 +676,9 @@ export default {
     prefixName: 'Custom prefix {n} name',
     prefixNamePlaceholder: 'Prefix name',
     prefixColor: '{name} color',
+    prefixColorCustomPick: 'Pick a custom prefix color',
+    prefixColorCustomInput: 'Prefix color value (#RRGGBB)',
+    prefixColorHelp: 'Shown as colored text in the Text style and as a colored chip in the Color chip style. Auto is gray in the Text style.',
     prefixRemove: 'Delete prefix {name}',
     prefixUnnamed: 'Unnamed prefix',
     prefixInUse: '{n} posts use this prefix, so it cannot be deleted. Turn it off instead.',

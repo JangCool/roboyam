@@ -17,6 +17,12 @@ export type GradeKey = string;
  */
 export type GradeBadgeColor = 'gray' | 'blue' | 'indigo' | 'violet' | 'pink' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'cyan';
 
+/**
+ * 등급 도트 캐릭터(grade-level-contract 3절, `grades.sprite`) — 11종, 기본은 서열 순. 공개 화면(작성자 줄·프로필)이 등급 칩 대신 이 그림을 쓴다.
+ * 그림(픽셀 지도·색)은 `UtilGradeSprite` 한 곳 — 시안 `docs/features/grade-level-mockup.html` 의 작은 판을 그대로 옮겼다
+ */
+export type GradeSprite = 'SPROUT' | 'BOLT' | 'ANTENNA' | 'BATTERY' | 'GEAR' | 'HEART' | 'LIGHTNING' | 'STAR' | 'CROWN' | 'LEGEND' | 'MYTH';
+
 /** 등급 하나 — 이름·서열·승급 조건·뱃지 표시·소속 회원 수 */
 export interface Grade {
     gradeKey: GradeKey;
@@ -24,6 +30,10 @@ export interface Grade {
     level: number;
     /** 표시 이름(고유, 최대 8자 — community `label varchar(8)`) */
     label: string;
+    /** 최소 레벨(grade-level-contract 2절, `grades.min_level` 1~10000). 기본 등급은 1. 옛 서버 응답에는 없을 수 있다(화면은 1 로 본다) */
+    minLevel?: number;
+    /** 도트 캐릭터 — 옛 서버 응답에는 없을 수 있다(화면은 서열 순 기본값으로 본다) */
+    sprite?: GradeSprite | null;
     /** 가입 후 일수. 기본 등급은 0 */
     minDays: number;
     /** 글·댓글 합계. 기본 등급은 0 */
@@ -48,6 +58,8 @@ export type GradeManualPolicy = 'CONTINUE_AUTO' | 'STOP_AUTO';
 export interface GradesResponse {
     grades: Grade[];
     manualPolicy: GradeManualPolicy;
+    /** 레벨 곡선 기준값(grade-level-contract 1절, `grade_settings.xp_curve_base` 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^1.5). 옛 서버 응답에는 없을 수 있다 */
+    xpCurveBase?: number;
 }
 
 /**
@@ -57,10 +69,14 @@ export interface GradesResponse {
 export interface GradeRequest {
     gradeKey?: GradeKey;
     label: string;
+    /** 최소 레벨 1~10000 — 기본 등급(첫 줄)은 보내지 않는다 */
+    minLevel?: number;
     minDays?: number;
     minActivity?: number;
     badgeColor: GradeBadgeColor;
     badgeIcon: string | null;
+    /** 도트 캐릭터 — 공개 화면이 쓴다 */
+    sprite: GradeSprite;
 }
 
 /**
@@ -70,6 +86,8 @@ export interface GradeRequest {
 export interface GradesSaveRequest {
     grades: GradeRequest[];
     manualPolicy: GradeManualPolicy;
+    /** 레벨 곡선 기준값 1~1000 — 틀리면 400 `fields.xpCurveBase` */
+    xpCurveBase: number;
 }
 
 /** `POST /api/admin/grades/preview` 요청 — 저장 요청과 같은 모양(저장하지 않고 소급 영향만 센다) */

@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BoardView, CommentEditorLevel, PostChipPosition, PostEditorLevel, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardView, CommentEditorLevel, PostChipPosition, PostEditorLevel, PostPrefixStyle, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
 
@@ -167,6 +167,25 @@ export default class UtilBoard {
      */
     static chipPosition(raw: unknown): PostChipPosition {
         return raw === 'BEFORE' || raw === 'BELOW' ? raw : 'ABOVE';
+    }
+
+    /**
+     * 말머리 모양 — 서버 값이 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) 글자(`TEXT`, 계약의 사이트 기본).
+     * @param {unknown} raw - 게시판 정보의 `prefixStyle` 또는 공개 표시 기본값의 `listPrefixStyle`.
+     * @returns {PostPrefixStyle} 그릴 모양.
+     */
+    static prefixStyle(raw: unknown): PostPrefixStyle {
+        return raw === 'MUTED' || raw === 'COLOR' ? raw : 'TEXT';
+    }
+
+    /**
+     * 글자 모양(`TEXT`)의 말머리·게시판 이름 글자색 — 운영자가 고른 색(13색·직접 고른 #hex)이 있으면 그 색(라이트·다크 명도 보정 `UtilColor.cssPair`). 「자동」(색 없음)·운영진 전용은 undefined(회색 글자).
+     * @param {unknown} color - 표시색.
+     * @param {boolean} [staffOnly] - 운영진 전용 말머리는 색과 무관하게 회색.
+     * @returns {ColorStyle | undefined} 글자색 스타일.
+     */
+    static prefixTextStyle(color: unknown, staffOnly = false): ColorStyle | undefined {
+        return staffOnly ? undefined : UtilBoard.textStyle(color);
     }
 
     /** 글 줄 추천 수 강조 기준의 기본값 — 운영자 설정(`boardDisplay.likeHighlight`)을 못 받았을 때만 쓴다(사용자 2026-11-08) */

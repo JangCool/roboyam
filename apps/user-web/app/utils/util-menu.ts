@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BoardView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardKind, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
 import UtilBoard from '~/utils/util-board';
 import type { ColorStyle } from '~/utils/util-board';
@@ -366,6 +366,29 @@ function normalizePath(path: string): string {
     return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
 }
 
+/** 공지 게시판의 고정 코드 — 서버 `SiteNoticeBars.NOTICE_BOARD_SLUG` 와 같다(바로 가기 확성기 아이콘) */
+const NOTICE_BOARD_SLUG = 'notice';
+
+/** 회원장터 게시판 코드(설치 프리셋의 `market`) — 서버에 따로 표시가 없어 코드로 알아본다. 운영자가 코드를 바꾸면 목록 아이콘으로 돌아간다(바로 가기 가게 아이콘) */
+const MARKET_BOARD_SLUG = 'market';
+
+/** 바로 가기 칸의 앱 화면별 아이콘(`BUILTIN` 화면 키 — 서버 `MenuBuiltin`). 없는 키는 묶음별 기본(`UtilMenu.itemIcon`) */
+const BUILTIN_ICONS: Readonly<Record<string, string>> = {
+    HOME: 'pi pi-home',
+    BOARDS_HUB: 'pi pi-th-large',
+    // 인기글은 하단 탭과 같은 불꽃 — PrimeIcons 에 없어 Tabler 선(`tabler:` 로 시작하면 그리는 쪽이 `TablerIcon` 을 쓴다)
+    POPULAR: 'tabler:flame',
+    LATEST: 'pi pi-clock',
+    SEARCH: 'pi pi-search',
+    GROUP_BUYS: 'pi pi-shopping-bag',
+    GROUP_BUY_ORDERS: 'pi pi-receipt',
+    MY_GRADE: 'pi pi-star',
+    MY_POINTS: 'pi pi-wallet',
+    MY_SHOP: 'pi pi-shopping-bag',
+    MESSAGES: 'pi pi-envelope',
+    NOTIFICATIONS: 'pi pi-bell',
+};
+
 export default class UtilMenu {
     /** 접힘 기억을 이 브라우저에 남기는 저장 키 — 계정에 저장하지 않는다(보기 설정과 분리, docs/api-menu.md 4-3) */
     static readonly COLLAPSE_STORAGE_KEY = 'roboyam:menu-collapsed';
@@ -494,6 +517,40 @@ export default class UtilMenu {
             else out.push(...UtilMenu.items(node.children));
         }
         return out;
+    }
+
+    /**
+     * 전체 화면 메뉴(`/menu`)의 「바로 가기」 칸에 놓을 항목 — 메뉴 트리의 최상위 항목(그룹에 들지 않은 끝 노드) 전부, 서버 순서 그대로(mobile-nav-prefix-style-contract 4절 — 운영자 메뉴 구성 그대로, 따로 고르는 설정 없음).
+     * @param {readonly MenuNode[]} nodes - 메뉴 트리.
+     * @returns {MenuItemNode[]} 최상위 항목들.
+     */
+    static topItems(nodes: readonly MenuNode[]): MenuItemNode[] {
+        return nodes.filter((node): node is MenuItemNode => node.kind === 'ITEM');
+    }
+
+    /**
+     * 바로 가기 칸의 기본 아이콘 — 공개 메뉴 항목에는 아이콘 칸이 없어 연결 유형으로 고른다: 앱 화면(`BUILTIN`)은 화면 키별, 게시판은 글 목록, 외부 링크는 링크, 그 밖은 칸 아이콘.
+     * 게시판 중 공지 게시판(서버 고정 slug `notice` — `SiteNoticeBars.NOTICE_BOARD_SLUG`)은 확성기, 핫딜 게시판(종류 `DEAL`)은 할인 배지, 회원장터(코드 `market`)는 가게(모두 Tabler — 사용자 결정 2026-11-12).
+     * @param {Pick<MenuItemNode, 'type' | 'key' | 'board'>} node - 메뉴 항목.
+     * @param {BoardKind | undefined} boardKind - 게시판 항목이면 그 게시판 종류(게시판 목록 `useBoards`에서). 모르면 비운다.
+     * @returns {string} PrimeIcons 클래스(`pi pi-…`) 또는 `tabler:<이름>`(`TablerIcon` 으로 그린다).
+     */
+    static itemIcon(node: Pick<MenuItemNode, 'type' | 'key' | 'board'>, boardKind?: BoardKind): string {
+        if (node.type === 'BUILTIN' && node.key) {
+            const key = node.key;
+            if (key in BUILTIN_ICONS) return BUILTIN_ICONS[key]!;
+            if (key.startsWith('GROUPS')) return 'pi pi-users';
+            if (key.startsWith('SETTINGS')) return 'pi pi-cog';
+            if (key.startsWith('MY_')) return 'pi pi-user';
+        }
+        if (node.type === 'BOARD') {
+            if (node.board?.slug === NOTICE_BOARD_SLUG) return 'tabler:speakerphone';
+            if (boardKind === 'DEAL') return 'tabler:rosette-discount';
+            if (node.board?.slug === MARKET_BOARD_SLUG) return 'tabler:building-store';
+            return 'pi pi-list';
+        }
+        if (node.type === 'URL') return 'pi pi-link';
+        return 'pi pi-th-large';
     }
 
     /**

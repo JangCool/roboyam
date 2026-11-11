@@ -9,8 +9,10 @@
 --   Java 쪽 promoteAll 은 「등급 저장 직후」에 일수 조건을 저장 전 값 이상으로 올려 부르므로(기준을 낮춘 몫은 다음 배치로 미룬다) 일수 조건을 낮춘 몫은 이 배치만 올린다.
 --
 -- 규칙 (Java 와 같다):
---   · 올리기만 한다(자동으로 내리지 않는다). 지금 등급보다 서열이 높은 등급 중 조건 두 개 — 가입 후 일수(grades.min_days)와 글+댓글 수(grades.min_activity) — 를 모두(AND) 채운
---     가장 높은 등급으로 한 번에 올린다. 일수 = 가입 시각(users.created_at) <= 지금 - min_days 일.
+--   · 올리기만 한다(자동으로 내리지 않는다). 지금 등급보다 서열이 높은 등급 중 조건 — 최소 레벨(grades.min_level ≤ profiles.level, V196 grade-level-contract 2절)과
+--     가입 후 일수(grades.min_days)와 글+댓글 수(grades.min_activity) — 를 모두(AND) 채운 가장 높은 등급으로 한 번에 올린다. 일수 = 가입 시각(users.created_at) <= 지금 - min_days 일.
+--     레벨은 경험치로 앱이 즉시 매긴다(XpService) — 이 배치는 레벨을 바꾸지 않고 저장된 레벨을 본다. 레벨이 올라 바로 채운 등급은 앱이 커밋 뒤 즉시 올리고(promoteOnLevelUp),
+--     레벨은 이미 채웠는데 일수가 모자랐던 회원을 이 배치가 일수가 찬 날 올린다.
 --   · 대상은 정상(ACTIVE) 회원이고 탈퇴 처리(deleted_at)되지 않은 회원만. 정지·탈퇴 회원은 자동 승급이 멈춘다.
 --   · 운영자가 수동으로 올린 회원(profiles.grade_manual)은 등급 옵션(grade_settings.manual_policy)이 CONTINUE_AUTO 일 때만 포함한다. 옵션 행이 없으면 포함한다.
 --   · 활동 수: 이 일괄 경로는 여전히 활동 수를 보지 않는다 — 모든 회원의 활동 수를 0 으로 보아 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올린다.
@@ -74,6 +76,7 @@ BEGIN
                          FROM grades g
                         WHERE g.level > cur.level
                           AND g.min_activity <= c_known_activity
+                          AND g.min_level <= p.level
                           AND u.created_at <= v_now - make_interval(days => g.min_days)
                         ORDER BY g.level DESC
                         LIMIT 1) t

@@ -54,6 +54,8 @@
                             :key="row.id"
                             :row="row"
                             :rank="startRank + i"
+                            strong-title
+                            desktop-row
                             :fill="UtilPopular.fillOf(fills, row.id)"
                             :date-display="display.dateDisplay"
                             :new-post-hours="display.newPostHours"

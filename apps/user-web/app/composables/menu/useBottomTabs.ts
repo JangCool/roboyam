@@ -5,6 +5,7 @@ export interface BottomTab {
     key: string;
     to: string;
     label: string;
+    /** PrimeIcons 클래스(`pi pi-…`) 또는 `flame` — 불꽃은 PrimeIcons 에 없어 하단 탭이 `TablerIcon name="flame"`(가젯 제목 아이콘과 같은 Tabler 세트)을 그린다 */
     icon: string;
     active: boolean;
 }
@@ -38,7 +39,8 @@ function findGroup(list: readonly MenuNode[], hit: (group: MenuGroupNode) => boo
 }
 
 /**
- * 모바일 하단 탭(숏컷) 목록 — 홈·최신글·커뮤니티·소모임·게시판·내 정보(사용자 결정 2026-11-06). **이 목록 하나가 원천이다**:
+ * 모바일 하단 탭(숏컷) 목록 — 홈·인기글·최신글·커뮤니티·소모임·메뉴(mobile-nav-prefix-style-contract 3절, 2026-11-11 — 게시판·내 정보 탭을 빼고 인기글·메뉴를 넣었다. 내 정보는 상단 바 오른쪽 끝 아이콘).
+ * **이 목록 하나가 원천이다**:
  * 하단 탭(`AppBottomTabs`)이 그리고, 모바일 상단 메뉴 줄(`AppMobileMenuRows`·`AppTopTabs`)은 `covers` 로 하단 탭에 있는 항목·그룹을 뺀다(데스크톱 메뉴는 그대로).
  * 탭을 바꾸면 상단 줄도 따라간다.
  */
@@ -75,6 +77,8 @@ export function useBottomTabs() {
 
     const tabs = computed<BottomTab[]>(() => [
         { key: 'home', to: '/', label: t('shell.tabHome'), icon: 'pi pi-home', active: under('/') },
+        // 인기글 — 시안의 불꽃은 PrimeIcons 에 없어 인기글 화면이 이미 쓰는 오름세 선 아이콘(`pages/popular.vue`)
+        { key: 'popular', to: '/popular', label: term('POPULAR'), icon: 'flame', active: under('/popular') },
         { key: 'latest', to: '/latest', label: term('LATEST'), icon: 'pi pi-clock', active: under('/latest') },
         {
             key: 'community',
@@ -84,9 +88,8 @@ export function useBottomTabs() {
             active: communityActive.value,
         },
         { key: 'groups', to: '/groups', label: term('GROUPS'), icon: 'pi pi-users', active: under('/groups') },
-        // 게시판 탭은 게시판 허브뿐 아니라 개별 게시판 목록도 밝힌다 — 커뮤니티 묶음 게시판이면 커뮤니티 탭이 대신 밝다
-        { key: 'boards', to: '/boards', label: t('shell.tabBoards'), icon: 'pi pi-th-large', active: under('/boards') && !communityActive.value },
-        { key: 'me', to: '/me', label: t('shell.myInfo'), icon: 'pi pi-user', active: under('/me') },
+        // 메뉴 — 햄버거 서랍 대신 게시판 페이지 모양의 전체 화면(`/menu`)
+        { key: 'menu', to: '/menu', label: t('shell.menu'), icon: 'pi pi-bars', active: under('/menu') },
     ]);
 
     /** 하단 탭이 가는 주소들(끝 `/` 없이) */
@@ -94,7 +97,8 @@ export function useBottomTabs() {
 
     /**
      * 이 메뉴 노드가 하단 탭에 이미 있는가 — 모바일 상단 줄에서 뺄 것.
-     * 항목은 주소가 탭 주소와 같으면(홈 `/`·최신글 `/latest`·게시판 `/boards` …), 그룹은 커뮤니티 그룹이거나 「누르면 가는 곳」이 탭 주소면(소모임 `/groups` …).
+     * 항목은 주소가 탭 주소와 같으면(홈 `/`·인기글 `/popular`·최신글 `/latest` …), 그룹은 커뮤니티 그룹이거나 「누르면 가는 곳」이 탭 주소면(소모임 `/groups` …).
+     * 게시판 모음(`/boards`)은 탭이 아니라 메뉴에 그 항목이 있으면 상단 줄에 나온다
      * 사이트 밖 주소(`https://…`)는 견주지 않는다
      */
     function covers(node: Pick<MenuNode, 'kind' | 'id'> & { path?: string | null }): boolean {

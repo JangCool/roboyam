@@ -23,7 +23,7 @@
                 <!-- 글 — 번호 없이 게시판 이름만 -->
                 <template v-else>
                     <ul class="-mx-4 m-0 list-none p-0 md:mx-0">
-                        <FeedPostItem v-for="row in items" :key="row.id" :row="row" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="display.listChipPosition" />
+                        <FeedPostItem v-for="row in items" :key="row.id" :row="row" strong-title desktop-row :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="display.listChipPosition" />
                     </ul>
 
                     <!-- 커서로 이어 받는다. 실패해도 앞서 받은 목록은 그대로 두고 이 줄에서 다시 시도한다 -->

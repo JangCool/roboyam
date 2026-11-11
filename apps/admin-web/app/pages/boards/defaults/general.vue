@@ -86,6 +86,33 @@
                     <p v-if="errorOf('listChipPosition')" class="m-0 text-xs text-red-600 dark:text-red-400" role="alert">{{ errorOf('listChipPosition') }}</p>
                 </div>
 
+                <!-- 말머리 모양(사이트 기본 — mobile-nav-prefix-style-contract 1절) — 글자 · 회색 칩 · 색상 칩. 칩 위치와 같은 틀(게시판이 따로 고르지 않으면, 그리고 섞인 목록은 이 값), 카드마다 작은 미리보기 -->
+                <div class="mt-5 flex flex-col gap-2 border-t border-(--line) pt-4" data-field="listPrefixStyle">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3 class="m-0 text-sm font-medium">{{ t('board.field.listPrefixStyle') }}</h3>
+                        <span
+                            v-if="prefixStyleOverrides.length"
+                            class="inline-flex items-center gap-1 rounded-full border border-(--line) px-2 py-0.5 text-[11px] leading-none text-muted-color"
+                            :title="prefixStyleOverrides.map((b) => localizedName(b.name, b.nameEn)).join(', ')"
+                        >
+                            <i class="pi pi-sliders-h text-[10px]" aria-hidden="true" />
+                            {{ t('board.overrideCount', { n: prefixStyleOverrides.length }) }}
+                        </span>
+                    </div>
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('board.fieldHelp.listPrefixStyle') }}</p>
+                    <BoardPrefixStylePicker
+                        :model-value="form.listPrefixStyle"
+                        :label="t('board.field.listPrefixStyle')"
+                        :disabled="!canSettings || saving"
+                        @update:model-value="(value) => onInput('listPrefixStyle', value ?? 'TEXT')"
+                    />
+                    <p class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color">
+                        <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                        <span>{{ t('board.prefixStyleScope') }}</span>
+                    </p>
+                    <p v-if="errorOf('listPrefixStyle')" class="m-0 text-xs text-red-600 dark:text-red-400" role="alert">{{ errorOf('listPrefixStyle') }}</p>
+                </div>
+
                 <!-- 숫자 강조(사이트 전체 — 게시판별 덮어쓰기 없음) — 추천·조회 기준(0 = 끔) · 강조 색(빨강 기본 + 추천 색 + 직접 고르기) · 미리보기. 공개 목록 「제목 위」 윗줄의 추천·조회 숫자에 쓰인다 -->
                 <div class="mt-5 flex flex-col gap-3 border-t border-(--line) pt-4" data-field="listHighlight">
                     <div class="flex flex-col gap-1">
@@ -220,6 +247,8 @@ const grades = computed(() => appearance.grades.value);
 const { localizedName } = useLocalizedName();
 /** 칩 위치를 따로 고른 게시판(서버 `overrides.listChipPosition`) */
 const chipOverrides = computed(() => saved.value?.overrides.listChipPosition ?? []);
+/** 말머리 모양을 따로 고른 게시판(서버 `overrides.listPrefixStyle`) */
+const prefixStyleOverrides = computed(() => saved.value?.overrides.listPrefixStyle ?? []);
 const problems = computed(() => (form.value ? UtilBoard.defaultsProblems(form.value) : {}));
 const changed = computed<BoardDefaultsField[]>(() => (form.value && saved.value ? UtilBoard.defaultsChanged(form.value, saved.value.defaults) : []));
 const dirty = computed(() => changed.value.length > 0);

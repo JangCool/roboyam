@@ -1,6 +1,7 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 import type { SiteIconResponse, SiteOperatorPublicResponse } from '~/composables/site/api/useSiteInfoApi.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+import type { SiteGrade } from '~/composables/grade/api/useGradeApi.types';
 import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
 
 /**
@@ -24,4 +25,6 @@ export interface SiteInfo {
     analytics: VisitCollectSwitch | null;
     /** 운영 주체(단계·연락 이메일) — 칸이 없으면(옛 서버) null. 연락 이메일이 없거나 쓸 수 없는 모양이면 `contactEmail` null(푸터 문의 줄을 숨긴다) */
     operator: SiteOperatorPublicResponse | null;
+    /** 등급 목록(서열 순, grade-level-contract 5절) — 칸이 없으면(옛 서버) null, 그러면 기본 4키를 서열 1·3·6·9 의 도트로 그린다(`useGrades`) */
+    grades: SiteGrade[] | null;
 }

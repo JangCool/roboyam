@@ -27,4 +27,6 @@ export interface ViewSettings {
      * 데스크톱 메뉴 위치(`AUTO` = 사이트 설정 따름 · `TOP` · `LEFT` · `RIGHT` · `TOP_LEFT` · `TOP_RIGHT`). 모바일에는 적용하지 않는다. 서버 `member_view_settings.menu_position`(V105).
      */
     menuPosition: MemberMenuSetting;
+    /** 글 목록 제목 굵게(서버 `member_view_settings.title_bold`, V198) — 기본 false. 옛 응답(칸 없음)은 false 로 읽는다 */
+    titleBold: boolean;
 }

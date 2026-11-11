@@ -100,6 +100,11 @@ public final class BoardFields {
     public static final String CHIP_BEFORE = "BEFORE";
     public static final String CHIP_BELOW = "BELOW";
     public static final List<String> CHIP_POSITIONS = List.of(CHIP_ABOVE, CHIP_BEFORE, CHIP_BELOW);
+    /** 글 목록 말머리 모양(V195 — mobile-nav-prefix-style-contract 1절) — 글자(사이트 기본) · 회색 칩 · 색상 칩 */
+    public static final String PREFIX_STYLE_TEXT = "TEXT";
+    public static final String PREFIX_STYLE_MUTED = "MUTED";
+    public static final String PREFIX_STYLE_COLOR = "COLOR";
+    public static final List<String> PREFIX_STYLES = List.of(PREFIX_STYLE_TEXT, PREFIX_STYLE_MUTED, PREFIX_STYLE_COLOR);
     /** 목록 숫자 강조 기준 상한(V170 CHECK 와 같다) · 처음 값 */
     public static final int LIKE_HIGHLIGHT_MAX = 100_000;
     public static final int VIEW_HIGHLIGHT_MAX = 10_000_000;
@@ -181,6 +186,8 @@ public final class BoardFields {
         choice(d, "dateDisplay", false, false, "STANDARD", "RELATIVE");
         // 목록 칩 위치의 사이트 기본(V169) — 게시판별 값은 정책 칸이 아니라 게시판 칸 chipPosition(null = 이 값)이다
         choice(d, "listChipPosition", false, false, CHIP_ABOVE, CHIP_BEFORE, CHIP_BELOW);
+        // 목록 말머리 모양의 사이트 기본(V195) — 게시판별 값은 게시판 칸 prefixStyle(null = 이 값)이다
+        choice(d, "listPrefixStyle", false, false, PREFIX_STYLE_TEXT, PREFIX_STYLE_MUTED, PREFIX_STYLE_COLOR);
         // 목록 윗줄 추천·조회 숫자 강조(V170) — 사이트 기본만(게시판별 덮어쓰기 없음), 0 = 강조 안 함
         number(d, "listLikeHighlight", 0, LIKE_HIGHLIGHT_MAX, false, false);
         number(d, "listViewHighlight", 0, VIEW_HIGHLIGHT_MAX, false, false);
@@ -314,6 +321,20 @@ public final class BoardFields {
             return null;
         }
         return HEX_COLOR.matcher(color).matches() ? color.toUpperCase(Locale.ROOT) : color;
+    }
+
+    /**
+     * 말머리 색 정리(V195 — mobile-nav-prefix-style-contract 2절) — null·빈 값은 null(자동), {@link #COLORS} 키는 그대로, {@code #} + 16진 6자리는 <b>소문자</b>로
+     * (화면 {@code UtilColor.normalize} 와 같은 {@code #rrggbb} — 게시판 표시색 {@link #normalizeColor} 는 대문자다). 그 밖의 값은 앞뒤 공백만 뗀다({@link #isPrefixColor} 가 거절한다).
+     */
+    public static String normalizePrefixColor(String value) {
+        String color = normalizeColor(value);
+        return color != null && HEX_COLOR.matcher(color).matches() ? color.toLowerCase(Locale.ROOT) : color;
+    }
+
+    /** {@link #normalizePrefixColor} 를 거친 값이 null·{@link #COLORS} 키·{@code #rrggbb} 면 참 */
+    public static boolean isPrefixColor(String normalized) {
+        return normalized == null || COLORS.contains(normalized) || (HEX_COLOR.matcher(normalized).matches() && normalized.equals(normalized.toLowerCase(Locale.ROOT)));
     }
 
     /** {@link #normalizeColor} 를 거친 값이 null·{@link #COLORS} 키·{@code #RRGGBB} 면 참 */

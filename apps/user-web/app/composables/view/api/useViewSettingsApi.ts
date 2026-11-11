@@ -35,6 +35,7 @@ export function useViewSettingsApi() {
                 textScaleMobile: settings.textScaleMobile,
                 commentOrder: settings.commentOrder,
                 menuPosition: settings.menuPosition,
+                titleBold: settings.titleBold,
             }),
     };
 }

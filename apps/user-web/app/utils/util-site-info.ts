@@ -3,6 +3,8 @@ import UtilVisitSignal from '#layers/analytics/utils/util-visit-signal';
 import type { SiteIconResponse, SiteOperatorPublicResponse, SiteOperatorStage } from '~/composables/site/api/useSiteInfoApi.types';
 import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
+import type { SiteGrade } from '~/composables/grade/api/useGradeApi.types';
+import UtilGradeSprite from '~/utils/util-grade-sprite';
 import UtilBoard from '~/utils/util-board';
 import UtilColor from '~/utils/util-color';
 import UtilSiteName from '~/utils/util-site-name';
@@ -113,7 +115,27 @@ export default class UtilSiteInfo {
             // 방문 수집 스위치 — 칸이 없거나 객체가 아니면 null(보내지 않는다). 읽기 규칙은 방문 신호 레이어가 가진다
             analytics: UtilVisitSignal.readSwitch(raw.analytics),
             operator: UtilSiteInfo.cleanOperator(raw.operator),
+            grades: UtilSiteInfo.cleanGrades(raw.grades),
         };
+    }
+
+    /**
+     * 등급 목록(`grades` — grade-level-contract 5절) — 키·이름이 글자이고 서열이 1 이상 정수인 줄만, 서열 순. 도트가 11가지 중 하나가 아니면 서열의 기본 도트.
+     * @param {unknown} raw - 서버가 준 `grades`.
+     * @returns {SiteGrade[] | null} 걸러 낸 목록. 칸이 없거나 배열이 아니면(옛 서버) null.
+     */
+    static cleanGrades(raw: unknown): SiteGrade[] | null {
+        if (!Array.isArray(raw)) return null;
+        const out: SiteGrade[] = [];
+        for (const item of raw) {
+            if (!isObject(item)) continue;
+            const key = typeof item.key === 'string' ? item.key.trim() : '';
+            const label = typeof item.label === 'string' ? item.label.trim() : '';
+            const level = item.level;
+            if (!key || !label || typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
+            out.push({ key, label, level, sprite: UtilGradeSprite.isKey(item.sprite) ? item.sprite : UtilGradeSprite.defaultFor(level) });
+        }
+        return out.sort((a, b) => a.level - b.level);
     }
 
     /**
@@ -138,7 +160,7 @@ export default class UtilSiteInfo {
     }
 
     /**
-     * 공개 게시판 표시 기본값(`boardDisplay`) — 날짜 표시 방식이 `STANDARD`·`RELATIVE` 가 아니면 `STANDARD`, 새 글 기준이 1~720시간 정수가 아니면 24, 목록 칩 위치가 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) `ABOVE`,
+     * 공개 게시판 표시 기본값(`boardDisplay`) — 날짜 표시 방식이 `STANDARD`·`RELATIVE` 가 아니면 `STANDARD`, 새 글 기준이 1~720시간 정수가 아니면 24, 목록 칩 위치가 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) `ABOVE`, 목록 말머리 모양이 셋 중 하나가 아니면 `TEXT`,
      * 숫자 강조 기준이 0 이상 정수가 아니면 추천 10·조회 1000, 강조 색이 `#rrggbb` 가 아니면 `#e5484d`.
      * @param {unknown} raw - 서버가 준 `boardDisplay`.
      * @returns {BoardDisplaySettings | null} 걸러 낸 값. 칸이 없거나 객체가 아니면 null.
@@ -150,6 +172,7 @@ export default class UtilSiteInfo {
             dateDisplay: raw.dateDisplay === 'RELATIVE' ? 'RELATIVE' : 'STANDARD',
             newPostHours: typeof hours === 'number' && Number.isInteger(hours) && hours >= 1 && hours <= 720 ? hours : 24,
             listChipPosition: UtilBoard.chipPosition(raw.listChipPosition),
+            listPrefixStyle: UtilBoard.prefixStyle(raw.listPrefixStyle),
             likeHighlight: UtilBoard.highlightThreshold(raw.likeHighlight, UtilBoard.LIKES_HIGHLIGHT),
             viewHighlight: UtilBoard.highlightThreshold(raw.viewHighlight, UtilBoard.VIEWS_HIGHLIGHT),
             highlightColor: UtilColor.isHex(raw.highlightColor) ? (raw.highlightColor as string).toLowerCase() : UtilBoard.HIGHLIGHT_COLOR,

@@ -90,6 +90,11 @@ export interface BoardView {
      */
     chipPosition?: PostChipPosition;
     /**
+     * 글 목록 줄·글 보기 머리의 말머리 모양(mobile-nav-prefix-style-contract 1절) — 서버가 게시판 값 ?? 사이트 기본을 푼 **실제 값**.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 글자(`TEXT`)로 본다(`UtilBoard.prefixStyle`)
+     */
+    prefixStyle?: PostPrefixStyle;
+    /**
      * 작성자 표시(anonymous-board-contract) — `NICKNAME` 닉네임(기본) · `ANONYMOUS` 글·댓글을 「익명」으로 올린다(글쓰기·댓글 입력 위 안내).
      * 익명 여부는 쓸 때 서버가 이 값으로 정해 글·댓글에 저장한다 — 보이는 이름은 늘 각 작성자 칸(`author.kind`)을 따른다. 옛 응답(칸 없음)은 `NICKNAME`
      */
@@ -104,6 +109,12 @@ export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';
  * 여러 줄로 그리는 목록만 따른다 — PC 표형 한 줄·갤러리 카드 이름 줄·고정 공지 한 줄은 늘 `BEFORE`
  */
 export type PostChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
+
+/**
+ * 말머리 모양 — `TEXT` 칩 없이 12px 글자(지정 색은 그 색 글자, 「자동」·운영진 전용은 회색, 여럿이면 `사용기 | 기타`) · `MUTED` 회색 칩(지정 색 무시) · `COLOR` 색상 칩(지금 모양).
+ * 말머리와 섞인 목록의 게시판 이름에만 쓴다 — 처리 상태·19·투표·광고·소모임 공개 라벨·「어제/지난주」는 모양과 상관없이 그대로(mobile-nav-prefix-style-contract 1절)
+ */
+export type PostPrefixStyle = 'TEXT' | 'MUTED' | 'COLOR';
 
 /** 비밀글 방식(게시판 설정 `secretMode`) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
 export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
@@ -180,6 +191,8 @@ export interface BoardDisplaySettings {
     newPostHours: number;
     /** 섞인 목록(최신글·인기글·검색·팁 등)의 말머리·상태 칩 위치 — 관리자 게시판 기본 설정 `listChipPosition`. 옛 응답에 없으면 걸러 낼 때 `ABOVE`(`UtilSiteInfo.cleanBoardDisplay`) */
     listChipPosition: PostChipPosition;
+    /** 섞인 목록의 말머리·게시판 이름 모양 — 관리자 게시판 기본 설정 `listPrefixStyle`. 옛 응답에 없으면 걸러 낼 때 `TEXT`(`UtilSiteInfo.cleanBoardDisplay`) */
+    listPrefixStyle: PostPrefixStyle;
     /** 글 줄 추천 수 강조 기준(관리자 기본 설정 `listLikeHighlight`) — 이 수 이상이면 숫자를 강조 색·굵게. 0 = 강조 안 함. 옛 응답에 없으면 10 */
     likeHighlight: number;
     /** 글 줄 조회 수 강조 기준(`listViewHighlight`) — 0 = 강조 안 함. 옛 응답에 없으면 1000 */

@@ -40,6 +40,8 @@ import java.util.List;
  * @param boardSanctions 게시판 제재 요약(게시판별 건수 + 최근 이력 5개 · 열린 반복 검토 수 — board-sanction-contract) — 탈퇴한 회원은 null
  * @param identity       본인 인증(커머스 0-4) — 인증 여부·시각·만 19세 이상·수단만(생년월일·해시 없음). 미인증이면 {@code verified:false}, <b>탈퇴한 회원은 null</b>
  * @param operatorAccount 이 회원이 운영자 회원 계정이면 그 운영자(operator-member-account-contract) — 아니면 null
+ * @param level          레벨(V196 — grade-level-contract 5절). 프로필 행이 없으면 null
+ * @param xp             누적 경험치(V196). 프로필 행이 없으면 null
  */
 public record MemberDetailView(
         String memberNo, String email, boolean emailMasked, String nickname, String grade, String memberType, String status, String authMethod,
@@ -50,5 +52,5 @@ public record MemberDetailView(
         List<MemberNicknameChange> nicknameHistory, boolean piiMasked,
         MemberGradePoint gradePoint, MemberSettingsView settings, Object contact, Object profile, MemberConsents consents, Object groupBuy,
         MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage, MemberIdentityView identity, boolean businessVerified,
-        com.community.sanction.dto.response.MemberBoardSanctionSummaryView boardSanctions, MemberOperatorAccountRef operatorAccount) {
+        com.community.sanction.dto.response.MemberBoardSanctionSummaryView boardSanctions, MemberOperatorAccountRef operatorAccount, Integer level, Long xp) {
 }

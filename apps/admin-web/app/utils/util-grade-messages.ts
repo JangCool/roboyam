@@ -22,7 +22,10 @@ export default class UtilGradeMessages {
         if (problem === 'LABEL_DUPLICATE') return t('grade.problemLabelDuplicate');
         if (problem === 'REQUIRED') return t('grade.problemRequired');
         if (problem === 'NOT_INTEGER') return t('grade.problemNotInteger');
-        if (problem === 'ORDER') return t(field === 'minDays' ? 'grade.problemOrderDays' : 'grade.problemOrderActivity', { lower: lower?.label ?? '', value: lower ? UtilGrade.format(lower.value) : '' });
+        if (problem === 'ORDER') {
+            const key = field === 'minLevel' ? 'grade.problemOrderLevel' : field === 'minDays' ? 'grade.problemOrderDays' : 'grade.problemOrderActivity';
+            return t(key, { lower: lower?.label ?? '', value: lower ? UtilGrade.format(lower.value) : '' });
+        }
         const [min, max] = UtilGrade.limitsOf(field === 'label' ? 'minDays' : field);
         return t('grade.problemRange', { min: UtilGrade.format(min), max: UtilGrade.format(max) });
     }
@@ -49,6 +52,7 @@ export default class UtilGradeMessages {
                 .map((item) => t('grade.confirmDetailItem', { label: item.label, count: UtilGrade.format(item.count) }))
                 .join(' · ');
             lines.push(t('grade.confirmSummary', { total: UtilGrade.format(preview.total), detail }));
+            if (lowered.minLevel) lines.push(t('grade.confirmLevelNote'));
             if (lowered.minActivity) lines.push(t('grade.confirmActivityNote'));
             if (lowered.minDays) lines.push(t('grade.confirmDaysNote'));
             if (added) lines.push(t('grade.confirmAddedNote'));
@@ -58,13 +62,27 @@ export default class UtilGradeMessages {
     }
 
     /**
-     * 승급 조건 한 줄 요약 — "가입 후 7일 · 글·댓글 10개 이상". 두 조건이 모두 0 이면 "가입 즉시 (조건 없음)".
+     * 레벨 곡선 안내 한 줄 — "Lv.10 270 · Lv.50 3,430 · Lv.100 9,851 경험치가 필요해요". 기준값이 맞지 않으면 빈 글자(칸 아래에 오류가 대신 선다).
      * @param {Translate} t - 번역 함수.
-     * @param {Pick<Grade, 'minDays' | 'minActivity'>} rule - 승급 조건.
+     * @param {string} curveText - 곡선 기준값 입력 글자.
      * @returns {string} 한 줄.
      */
-    static condition(t: Translate, rule: Pick<Grade, 'minDays' | 'minActivity'>): string {
+    static curveSample(t: Translate, curveText: string): string {
+        if (UtilGrade.curveProblem(curveText)) return '';
+        const base = UtilGrade.parse(curveText)!;
+        const items = UtilGrade.CURVE_SAMPLE_LEVELS.map((level) => t('grade.curveSampleItem', { level, xp: UtilGrade.format(UtilGrade.xpForLevel(base, level)) })).join(' · ');
+        return t('grade.curveSample', { items });
+    }
+
+    /**
+     * 승급 조건 한 줄 요약 — "Lv.10 이상 · 가입 후 7일 · 글·댓글 10개 이상". 조건이 모두 없으면(레벨 1 이하·0·0) "가입 즉시 (조건 없음)".
+     * @param {Translate} t - 번역 함수.
+     * @param {Pick<Grade, 'minDays' | 'minActivity' | 'minLevel'>} rule - 승급 조건(최소 레벨은 옛 응답에 없을 수 있다).
+     * @returns {string} 한 줄.
+     */
+    static condition(t: Translate, rule: Pick<Grade, 'minDays' | 'minActivity' | 'minLevel'>): string {
         const parts: string[] = [];
+        if ((rule.minLevel ?? 1) > 1) parts.push(t('grade.conditionLevel', { level: UtilGrade.format(rule.minLevel ?? 1) }));
         if (rule.minDays > 0) parts.push(t('grade.conditionDays', { count: UtilGrade.format(rule.minDays) }));
         if (rule.minActivity > 0) parts.push(t('grade.conditionActivity', { count: UtilGrade.format(rule.minActivity) }));
         return parts.length ? parts.join(' · ') : t('grade.noCondition');

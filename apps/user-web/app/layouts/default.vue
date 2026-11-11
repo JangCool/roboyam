@@ -1,7 +1,7 @@
 <template>
     <!--
         앱 셸 (design 01-shell) — 테마와 무관한 일만 한다. 데스크톱 배치(헤더·메뉴 위치·본문 폭·푸터)는 현재 테마의 셸 컴포넌트가 그린다(`UtilTheme.resolve(…, 'shell')`, 계약은 `components/themes/ThemeShell.types.ts`).
-          모바일(테마 공통): 상단 바 + 상단 가로 탭 + 하단 탭(홈·최신글·커뮤니티·소모임·게시판·내 정보) + 글쓰기 버튼, 햄버거 메뉴
+          모바일(테마 공통): 상단 바(오른쪽 끝 내 정보 아이콘) + 상단 가로 탭 + 하단 탭(홈·인기글·최신글·커뮤니티·소모임·메뉴) + 글쓰기 버튼. 햄버거 서랍은 없다 — 메뉴는 전체 화면 `/menu`
           데스크톱: 테마가 정한다 — 기본 테마는 상단 바 + 왼쪽 메뉴 + 본문 + 푸터, 다음식·네이버식은 상단 메뉴(왼쪽 메뉴 없음)
         안쪽 화면(글 상세·글쓰기)은 `definePageMeta({ shell: 'inner' })` — 모바일에서 상단 바·탭·하단 탭을 숨기고 페이지가 ‹ 헤더를 그린다.
         오른쪽 사이드(광고·공동구매 등)는 가젯이 본문 옆에 그린다.
@@ -18,7 +18,7 @@
             {{ t('shell.skipToContent') }}
         </a>
 
-        <component :is="shell" :inner="inner" :side-menu="sideMenu" :menu-position="menuPosition" :top-items="topItems" :menu-width="menuWidth" :menu-overflow="menuOverflow" @open-menu="menuOpen = true">
+        <component :is="shell" :inner="inner" :side-menu="sideMenu" :menu-position="menuPosition" :top-items="topItems" :menu-width="menuWidth" :menu-overflow="menuOverflow">
             <!-- 헤더 아래(테마가 놓는 자리) — 정지 중 안내(7-2, design 20-system 3)는 기간 정지·영구 정지 계정에만 보이고 제재 안내(`/sanction`)로 이어 준다(모바일은 상단 탭 위).
                  상단 가로 탭은 모바일 전용이고, 이메일 인증 전 안내는 로그인은 됐지만 글·댓글·추천·쪽지는 인증 뒤에 할 수 있다는 안내다 -->
             <template #after-header>
@@ -49,7 +49,6 @@
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 
         <WriteFab />
-        <AppDrawer v-model:visible="menuOpen" />
         <LoginPromptSheet />
         <!-- 이용자 메모 시트 — 프로필 ⋯ 메뉴·쪽지 대화방·설정 > 이용자 메모가 `useMemoSheet().open` 으로 연다 -->
         <MemoSheet />
@@ -68,7 +67,6 @@ import UtilTheme from '~/utils/util-theme';
 
 const { t } = useI18n();
 const route = useRoute();
-const menuOpen = ref(false);
 
 /** 안쪽 화면인가 — 모바일에서 셸의 위·아래 막대를 숨긴다 */
 const inner = computed(() => route.meta.shell === 'inner');

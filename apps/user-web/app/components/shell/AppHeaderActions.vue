@@ -1,7 +1,7 @@
 <template>
     <!-- 상단 바 오른쪽 계정 부분 — 검색 · 알림 종 · 쪽지 아이콘 · 로그인·가입 또는 계정 메뉴. 모든 테마의 셸(기본 `AppHeader`·다음식·네이버식 윗줄)이 같이 쓴다.
          알림 종은 모바일·데스크톱 모두(사용자 요청 2026-11-06). 쪽지 아이콘은 데스크톱에만 있다(모바일은 내 정보의 "쪽지함" 줄, design 01-shell 6).
-         모바일(사용자 결정 2026-11-06): 검색 · 야간 모드 · 알림 종(로그인 전엔 「로그인」 단추). 데스크톱도 검색 · 야간 모드 · 알림 종 · 쪽지 · 계정(2026-11-07) — 계정 메뉴는 하단 탭 「내 정보」가 맡아 뺐다. 메뉴 단추(☰)는 이 뒤 오른쪽 끝(`AppHeader`).
+         모바일(사용자 결정 2026-11-06): 검색 · 야간 모드 · 알림 종(로그인 전엔 「로그인」 단추). 데스크톱도 검색 · 야간 모드 · 알림 종 · 쪽지 · 계정(2026-11-07) — 모바일 계정 메뉴는 상단 바 오른쪽 끝 내 정보 아이콘(`AppHeader`, 2026-11-11 — ☰ 자리)이 맡는다.
          야간 모드는 잠깐 메뉴 서랍으로 옮겼다가 같은 날 상단 바로 되돌렸다(사용자 결정 — 자주 쓴다).
          모바일은 단추 사이 간격 없이 붙인다(360px 폭에서 아이콘 포함 로고 자리를 남긴다).
          주 색상 바(`.app-nav`) 안에 두면 글자·hover·단추가 바 색 기준으로 뒤집히고, 흰·회색 바탕(테마의 윗줄)에 두면 일반 색이다(`main.css`) -->
@@ -25,7 +25,7 @@
 
         <nav v-if="loaded" class="flex items-center gap-2 text-sm" :aria-label="t('shell.accountNav')">
             <template v-if="user">
-                <!-- 등급 + 닉네임 + ⌄ — 데스크톱만. 모바일은 하단 탭 「내 정보」가 계정 메뉴를 맡는다(사용자 결정 2026-11-06) -->
+                <!-- 등급(도트 + 이름) + 닉네임 + ⌄ — 데스크톱만. 모바일은 상단 바 오른쪽 끝 내 정보 아이콘(`AppHeader`)이 맡는다 -->
                 <button
                     type="button"
                     class="flex max-w-48 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary max-md:hidden dark:hover:bg-surface-800"
@@ -107,8 +107,6 @@ const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
  */
 const menuItems = computed(() => [
     { label: t('shell.myInfo'), icon: 'pi pi-user', command: () => void navigateTo('/me') },
-    // 설정 — 내 정보와 따로 둔 묶음(사용자 결정 2026-11-05). 누르면 설정 화면들만 보인다(`pages/settings.vue` 의 설정 메뉴)
-    { label: t('settings.title'), icon: 'pi pi-cog', command: () => void navigateTo('/settings') },
     // 계정·로그인 연결(소셜 계정 연결·해제) — 셸 고정 항목이다(이 앱은 메뉴 관리의 마이페이지 그룹을 그리지 않는다)
     { label: t('account.title'), icon: 'pi pi-link', command: () => void navigateTo('/settings/account') },
     ...(businessAccount.value
@@ -142,6 +140,10 @@ const menuItems = computed(() => [
           ]
         : []),
     ...(adminUrl.value ? [{ label: t('shell.adminAppNewTab'), text: t('shell.adminApp'), icon: UtilAdminLink.ICON, url: adminUrl.value, target: '_blank' }] : []),
+    { separator: true },
+    // 보기 설정(위) · 설정(맨 아래) — 보기 설정을 설정 안에서 꺼내 바로 가게 했다(사용자 결정 2026-11-12). 설정은 내 정보와 따로 둔 묶음(2026-11-05)
+    { label: t('view.shortcut'), icon: 'pi pi-eye', command: () => void navigateTo('/settings/view') },
+    { label: t('settings.title'), icon: 'pi pi-cog', command: () => void navigateTo('/settings') },
     { separator: true },
     { label: t('common.logout'), icon: 'pi pi-sign-out', command: () => void logout() },
 ]);

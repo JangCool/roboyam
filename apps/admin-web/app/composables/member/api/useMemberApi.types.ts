@@ -247,8 +247,8 @@ export interface MemberNicknameImage {
 /** 자동 승급 상태 — 정상 · 운영자가 등급을 바꿔 중지 · 제재로 중지 */
 export type MemberAutoPromotion = 'ACTIVE' | 'PAUSED_ADMIN' | 'PAUSED_SANCTION';
 
-/** 승급 조건 종류 — 가입 일수 · 글·댓글 수(roboyam 등급 설정의 두 조건) */
-export type MemberGradeRequirementKind = 'DAYS' | 'ACTIVITY';
+/** 승급 조건 종류 — 최소 레벨(grade-level-contract 2절 — 서버가 주기 시작하면 온다) · 가입 일수 · 글·댓글 수 */
+export type MemberGradeRequirementKind = 'LEVEL' | 'DAYS' | 'ACTIVITY';
 
 /** 다음 등급 조건 한 줄 — `current` 는 상한 없는 실제 값 */
 export interface MemberGradeRequirement {
@@ -498,6 +498,10 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     nicknameHistory: MemberNicknameChange[] | null;
     /** 휴대폰·전화·주소·배송지가 가려져 왔는가(`member.pii` 없음) — 이메일의 `emailMasked` 와 같은 방식 */
     piiMasked: boolean;
+    /** 레벨(grade-level-contract 4·5절, `profiles.level` — 1부터, 끝 없음). 옛 서버 응답에는 없고, 탈퇴 회원은 null 일 수 있다 */
+    level?: number | null;
+    /** 경험치(`profiles.xp` — 활동으로 적립된 포인트의 누적, 쓰거나 소멸해도 줄지 않는다). 옛 서버 응답에는 없을 수 있다 */
+    xp?: number | null;
     gradePoint: MemberGradePoint | null;
     settings: MemberSettings | null;
     contact: MemberContact | null;

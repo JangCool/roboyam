@@ -14,6 +14,9 @@ import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
 import com.community.site.dto.response.SiteDisplayDefaultsView;
+import com.community.site.dto.response.SiteGradeView;
+import com.community.grade.repository.master.GradeRepositoryQDSL;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
 import com.community.site.dto.response.SiteOperatorPublicView;
@@ -56,9 +59,18 @@ public class PublicSiteService implements CacheReloader {
     private final StatsCollectionSettings statsSettings;
     private final SiteOperatorReader operators;
     private final CacheManager caches;
+    /** 등급 목록(V196 — {@code grades}). 시험처럼 없이 만들면(null) 빈 목록 */
+    private final GradeRepositoryQDSL grades;
 
     public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus,
                              StatsCollectionSettings statsSettings, SiteOperatorReader operators, CacheManager caches) {
+        this(settings, assets, boardDefaults, themeMenus, statsSettings, operators, caches, null);
+    }
+
+    @Autowired
+    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus,
+                             StatsCollectionSettings statsSettings, SiteOperatorReader operators, CacheManager caches, GradeRepositoryQDSL grades) {
+        this.grades = grades;
         this.caches = caches;
         this.operators = operators;
         this.statsSettings = statsSettings;
@@ -107,12 +119,17 @@ public class PublicSiteService implements CacheReloader {
         int likeHighlight = boardValues.map(BoardDefaultsValues::listLikeHighlight).orElse(BoardFields.LIKE_HIGHLIGHT_DEFAULT);
         int viewHighlight = boardValues.map(BoardDefaultsValues::listViewHighlight).orElse(BoardFields.VIEW_HIGHLIGHT_DEFAULT);
         String highlightColor = boardValues.map(BoardDefaultsValues::listHighlightColor).orElse(BoardFields.HIGHLIGHT_COLOR_DEFAULT);
+        // 글 목록 말머리 모양의 사이트 기본(V195) — 섞인 목록이 쓴다
+        String listPrefixStyle = boardValues.map(BoardDefaultsValues::listPrefixStyle).orElse(BoardFields.PREFIX_STYLE_TEXT);
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS, listChipPosition, likeHighlight, viewHighlight,
-                highlightColor);
+                highlightColor, listPrefixStyle);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
-                SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current(), operators.footerNotice()));
+                SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current(), operators.footerNotice()),
+                // 등급 목록(V196) — 이 사본(20초)과 지문(ETag)에 함께 든다. 등급 저장 뒤 길어야 사본 시간만큼 늦게 보인다
+                grades == null ? List.of() : grades.findAllOrdered().stream()
+                        .map(g -> new SiteGradeView(g.getGradeKey(), g.getLabel(), g.getLevel(), g.getSprite())).toList());
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();

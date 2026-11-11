@@ -1,10 +1,14 @@
 <template>
     <!-- 다음 등급까지의 진행도 — 조건마다 막대(채운 조건은 초록). 가장 높은 등급이면 「가장 높은 등급이에요」. 자동 승급이 멈춰 있으면 흐리게 그린다 -->
     <div :class="paused ? 'opacity-60' : ''" :data-paused="paused ? 'true' : undefined" data-testid="grade-progress">
-        <p v-if="showGrade" class="m-0 flex items-center gap-1.5 text-sm">
-            {{ t('grade.mineLabel') }}
-            <GradeBadge :grade="grade.grade.code as Grade" :label="grade.grade.label" />
-        </p>
+        <!-- 내 등급 — 큰 판 도트 + 「등급 이름 · Lv.N」, 그 아래 경험치 막대·경험치·다음 레벨까지 남은 XP(grade-level-contract 4절 — 레벨 칸이 없으면 막대를 숨긴다) -->
+        <template v-if="showGrade">
+            <p class="m-0 flex flex-wrap items-center gap-1.5 text-sm">
+                {{ t('grade.mineLabel') }}
+                <GradeLevelLine :grade="grade.grade.code" :label="grade.grade.label" :level="level?.level ?? null" />
+            </p>
+            <GradeLevelBar v-if="level" :progress="level" detail class="mt-2" />
+        </template>
 
         <template v-if="grade.next">
             <p class="m-0 text-sm font-semibold" :class="showGrade ? 'mt-2' : ''" data-testid="grade-next-heading">{{ t('grade.nextHeading', { label: grade.next.label }) }}</p>
@@ -34,7 +38,6 @@
 </template>
 
 <script setup lang="ts">
-import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { MyGrade } from '~/composables/grade/api/useGradeApi.types';
 import UtilGrade from '~/utils/util-grade';
 import UtilGradeMessages from '~/utils/util-grade-messages';
@@ -53,4 +56,6 @@ const props = withDefaults(defineProps<Props>(), { showGrade: true });
 const { t } = useI18n();
 const bars = computed(() => (props.grade.next?.requirements ?? []).map((r) => UtilGrade.bar(r)));
 const paused = computed(() => UtilGrade.isPaused(props.grade.autoPromotion));
+/** 레벨·경험치(`GET /api/me/grade` 의 레벨 칸) — 없으면(옛 응답) null */
+const level = computed(() => UtilGrade.levelProgress(props.grade));
 </script>

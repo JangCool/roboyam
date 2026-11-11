@@ -22,6 +22,9 @@ public class MemberGradeChangeEntity {
     /** 등급 삭제로 회원이 바로 아래 등급으로 옮겨졌다 — 이력 조회가 요청 언어로 풀어 보인다({@code member.gradeChange.reason.GRADE_REMOVED}) */
     public static final String REASON_GRADE_REMOVED = "GRADE_REMOVED";
 
+    /** 레벨 도입 때 등급을 레벨에 맞춰 한 번 다시 매겼다(V197 — 올리기·내리기 모두) — {@code member.gradeChange.reason.LEVEL_REGRADE} */
+    public static final String REASON_LEVEL_REGRADE = "LEVEL_REGRADE";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

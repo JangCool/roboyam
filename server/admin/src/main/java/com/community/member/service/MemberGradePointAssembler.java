@@ -92,6 +92,7 @@ public class MemberGradePointAssembler {
         }
         long days = GradeProgress.elapsedDays(user.getCreatedAt(), now); // 승급 판정(가입 시각 <= 지금 - 일수)과 같은 날짜 계산
         return new MemberGradeNext(next.getGradeKey(), List.of(
+                new MemberGradeRequirement(MemberGradeRequirement.LEVEL, profile.getLevel(), next.getMinLevel()), // 최소 레벨(V196)
                 new MemberGradeRequirement(MemberGradeRequirement.DAYS, days, next.getMinDays()),
                 new MemberGradeRequirement(MemberGradeRequirement.ACTIVITY, activity.postCount() + activity.commentCount(), next.getMinActivity())));
     }
@@ -109,7 +110,7 @@ public class MemberGradePointAssembler {
         if (row.reason() != null && !row.reason().isBlank()) {
             return row.reason();
         }
-        if (MemberGradeChangeEntity.REASON_GRADE_REMOVED.equals(row.reasonCode())) {
+        if (MemberGradeChangeEntity.REASON_GRADE_REMOVED.equals(row.reasonCode()) || MemberGradeChangeEntity.REASON_LEVEL_REGRADE.equals(row.reasonCode())) {
             return messages.get("member.gradeChange.reason." + row.reasonCode());
         }
         return null;

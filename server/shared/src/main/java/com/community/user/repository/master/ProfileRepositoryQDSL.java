@@ -16,14 +16,18 @@ public class ProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     /** 등급 상태 — 지금 등급 키와 수동 상향 여부 */
-    public record GradeState(String gradeKey, boolean gradeManual) {
+    public record GradeState(String gradeKey, boolean gradeManual, int level) {
     }
 
     /** 회원의 등급 상태를 엔티티로 올리지 않고 읽는다(즉시 승급의 사전 판정 — 올릴 때는 행을 잠그고 새로 읽는다) */
     public Optional<GradeState> gradeStateOf(long userId) {
         QProfileEntity profile = QProfileEntity.profileEntity;
-        Tuple row = query.select(profile.gradeKey, profile.gradeManual).from(profile).where(profile.userId.eq(userId)).fetchOne();
-        return row == null ? Optional.empty() : Optional.of(new GradeState(row.get(profile.gradeKey), Boolean.TRUE.equals(row.get(profile.gradeManual))));
+        Tuple row = query.select(profile.gradeKey, profile.gradeManual, profile.level).from(profile).where(profile.userId.eq(userId)).fetchOne();
+        if (row == null) {
+            return Optional.empty();
+        }
+        Integer level = row.get(profile.level);
+        return Optional.of(new GradeState(row.get(profile.gradeKey), Boolean.TRUE.equals(row.get(profile.gradeManual)), level == null ? 1 : level));
     }
 
     /**

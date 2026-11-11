@@ -182,6 +182,20 @@ export default {
         author: '로보얌',
         date: '3분 전',
     },
+    // 말머리 모양(mobile-nav-prefix-style-contract 1절) — 고르개(`BoardPrefixStylePicker`)와 미리보기
+    prefixStyleHelp: {
+        TEXT: '칩 없이 작은 회색 글자로 보여요. 색을 지정한 말머리는 그 색 글자예요.',
+        MUTED: '칩 모양은 그대로, 색만 한 가지 회색이에요.',
+        COLOR: '말머리·게시판 표시색으로 칠한 칩이에요(지금 모양).',
+    },
+    prefixStyleInherit: '사이트 기본 따르기',
+    prefixStyleInheritHelp: '지금 사이트 기본: {name}',
+    prefixStyleScope: '말머리와 섞인 목록의 게시판 이름에 적용돼요. 처리 상태·19·투표·광고 표시는 모양과 상관없이 그대로예요.',
+    prefixPreview: {
+        first: '사용기',
+        second: '기타',
+        title: '보온 텀블러 1년 써 본 짧은 후기',
+    },
 
     // ── 구획 ──
     section: {
@@ -239,6 +253,7 @@ export default {
     field: {
         dateDisplay: '날짜 표시 방식',
         listChipPosition: '목록 칩 위치',
+        listPrefixStyle: '말머리 모양',
         listLikeHighlight: '추천 강조 기준',
         listViewHighlight: '조회 강조 기준',
         listHighlightColor: '강조 색',
@@ -285,6 +300,7 @@ export default {
         layout: '목록 모양',
         viewToggle: '읽는 사람의 보기 전환 단추',
         chipPosition: '말머리·상태 칩 위치',
+        prefixStyle: '말머리 모양',
         color: '표시색',
         allowAdult: '19금 글 허용',
         investmentNotice: '투자 고지',
@@ -343,6 +359,7 @@ export default {
     fieldHelp: {
         dateDisplay: '작성 시각을 보이는 방식이에요.',
         listChipPosition: '글 줄의 말머리·처리 상태 칩 자리 — 제목 위(윗줄에 칩·숫자·날짜) · 제목 앞(한 줄) · 닉네임 아래(칩 줄). 게시판이 따로 고르지 않으면, 그리고 최신글·인기글·검색 같은 섞인 목록은 이 값이에요.',
+        listPrefixStyle: '글 목록과 글 보기에서 말머리를 보이는 모양 — 글자 · 회색 칩 · 색상 칩. 게시판이 따로 고르지 않으면, 그리고 최신글·인기글·검색 같은 섞인 목록은 이 값이에요.',
         listLikeHighlight: '추천이 이 수 이상인 글의 추천 숫자를 강조해요. 0 이면 강조하지 않아요.',
         listViewHighlight: '조회가 이 수 이상인 글의 조회 숫자를 강조해요. 0 이면 강조하지 않아요.',
         listHighlightColor: '고른 색을 그대로 쓰되, 공개 화면이 밝은·어두운 바탕에서 읽히도록 밝기만 맞춰요.',
@@ -440,6 +457,11 @@ export default {
             ABOVE: '제목 위',
             BEFORE: '제목 앞',
             BELOW: '닉네임 아래',
+        },
+        listPrefixStyle: {
+            TEXT: '글자',
+            MUTED: '회색 칩',
+            COLOR: '색상 칩',
         },
         dateDisplay: {
             STANDARD: '표준형',
@@ -657,6 +679,9 @@ export default {
     prefixName: '고유 말머리 {n} 이름',
     prefixNamePlaceholder: '말머리 이름',
     prefixColor: '{name} 표시색',
+    prefixColorCustomPick: '말머리 색 직접 고르기',
+    prefixColorCustomInput: '말머리 색 값(#RRGGBB)',
+    prefixColorHelp: '「글자」 모양이면 이 색 글자로, 「색상 칩」이면 이 색 칩으로 보여요. 자동은 글자 모양에서 회색이에요.',
     prefixRemove: '{name} 말머리 지우기',
     prefixUnnamed: '이름 없는 말머리',
     prefixInUse: '이 말머리를 쓰는 글이 {n}개 있어 지울 수 없어요. 대신 꺼 주세요.',

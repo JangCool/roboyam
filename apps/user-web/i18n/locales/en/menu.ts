@@ -25,4 +25,8 @@ export default {
     descPopular: 'The most-loved posts — live, yesterday and this week',
     descLatest: 'New posts from every board, newest first',
     descBoard: 'The latest from {name}',
+
+    // 전체 화면 메뉴(`/menu` — 모바일 하단 탭 「메뉴」)
+    shortcutsTitle: 'Shortcuts',
+    pageSeoDescription: 'The menu and every board on {site}.',
 };

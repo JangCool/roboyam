@@ -191,7 +191,8 @@ public class MemberService {
                 withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
                 gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id),
                 withdrawn ? null : boardSanctionViews.memberSummary(id), // 게시판 제재 요약(board-sanction-contract) — 탈퇴 회원은 null
-                operatorAccounts.linkOfUser(id).map(l -> new MemberOperatorAccountRef(Long.toString(l.operatorId()), l.operatorName(), l.active())).orElse(null));
+                operatorAccounts.linkOfUser(id).map(l -> new MemberOperatorAccountRef(Long.toString(l.operatorId()), l.operatorName(), l.active())).orElse(null),
+                profile == null ? null : profile.getLevel(), profile == null ? null : profile.getXp()); // 레벨·경험치(V196)
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));

@@ -13,7 +13,19 @@
             <h3 :id="gradeId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.grade.title') }}</h3>
             <dl class="m-0 flex flex-col">
                 <MemberDetailItem :label="t('member.detail.grade.current')">
-                    <GradeBadge v-bind="gradeState.badgeOf(detail.grade)" />
+                    <span class="inline-flex items-center gap-1.5">
+                        <!-- 공개 화면에 보이는 도트(등급 설정의 `sprite` — 목록에 없는 등급이면 그리지 않는다) -->
+                        <GradeSpriteImage v-if="currentSprite" :sprite="currentSprite" :scale="2" />
+                        <GradeBadge v-bind="gradeState.badgeOf(detail.grade)" />
+                    </span>
+                </MemberDetailItem>
+                <!-- 레벨·경험치(grade-level-contract 5절 — 서버 `level`·`xp`). 옛 서버 응답(칸 없음)이면 「—」 -->
+                <MemberDetailItem :label="t('member.detail.grade.level')">
+                    <span v-if="detail.level != null" class="tabular-nums" data-testid="member-level">
+                        {{ t('member.detail.grade.levelValue', { level: detail.level.toLocaleString(locale) }) }}
+                        <span v-if="detail.xp != null" class="ml-1.5 text-xs text-muted-color">{{ t('member.detail.grade.xpValue', { xp: detail.xp.toLocaleString(locale) }) }}</span>
+                    </span>
+                    <span v-else class="text-muted-color">—</span>
                 </MemberDetailItem>
                 <MemberDetailItem :label="t('member.detail.grade.autoPromotion')">
                     <div class="flex flex-col gap-1">
@@ -229,6 +241,7 @@ import type { MemberDetail, MemberPointKind } from '~/composables/member/api/use
 import type { PointLot } from '~/composables/point/api/usePointApi.types';
 import type { MemberPointLotsView } from '~/components/member/MemberDetailContent.types';
 import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
+import UtilGrade from '~/utils/util-grade';
 import UtilMember from '~/utils/util-member';
 import UtilPoint from '~/utils/util-point';
 
@@ -248,6 +261,12 @@ const time = useDisplayTime();
 const gradeState = useGradeAppearance();
 const gradeId = useId();
 const pointId = useId();
+
+/** 지금 등급의 도트 — 등급 목록에 없는 등급(로딩 전·읽기 실패 포함)이면 null */
+const currentSprite = computed(() => {
+    const grade = gradeState.gradeOf(props.detail.grade);
+    return grade ? UtilGrade.spriteOf(grade) : null;
+});
 
 /** 포인트 글자 — `1,280P` */
 function points(value: number): string {

@@ -44,6 +44,8 @@ public class BoardEntity {
     private String authorMode = BoardFields.AUTHOR_NICKNAME;
     /** 글 목록 말머리·상태 칩 위치(V169) ABOVE · BEFORE · BELOW, NULL = 사이트 기본({@link BoardDefaultsEntity} {@code listChipPosition})을 따름 */
     private String chipPosition;
+    /** 글 목록 말머리 모양(V195) TEXT · MUTED · COLOR, NULL = 사이트 기본({@link BoardDefaultsEntity} {@code listPrefixStyle})을 따름 */
+    private String prefixStyle;
     private boolean investmentNotice;
     private boolean active;
     private int sortOrder;
@@ -150,6 +152,11 @@ public class BoardEntity {
     /** 글 목록 칩 위치를 바꾼다 — null 이면 사이트 기본을 따른다(값 검사는 부르는 쪽이 끝냈다) */
     public void changeChipPosition(String chipPosition) {
         this.chipPosition = chipPosition;
+    }
+
+    /** 글 목록 말머리 모양을 바꾼다 — null 이면 사이트 기본을 따른다(값 검사는 부르는 쪽이 끝냈다) */
+    public void changePrefixStyle(String prefixStyle) {
+        this.prefixStyle = prefixStyle;
     }
 
     /** 잠금·안내문을 바꾼다 */
@@ -281,6 +288,11 @@ public class BoardEntity {
     /** 글 목록 칩 위치 — null 이면 사이트 기본 */
     public String getChipPosition() {
         return chipPosition;
+    }
+
+    /** 글 목록 말머리 모양 — null 이면 사이트 기본 */
+    public String getPrefixStyle() {
+        return prefixStyle;
     }
 
     public boolean isInvestmentNotice() {

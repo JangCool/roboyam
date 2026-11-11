@@ -9,5 +9,10 @@ package com.community.viewsetting.dto.response;
  * @param commentOrder    댓글 기본 정렬 {@code OLDEST|LATEST}
  * @param menuPosition    데스크톱 메뉴 위치 {@code AUTO}(운영자 설정 > 테마 기본) {@code |TOP|LEFT|RIGHT|TOP_LEFT|TOP_RIGHT}
  */
-public record ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition) {
+public record ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold) {
+
+    /** 제목 굵게(V198) 기본값(false)으로 */
+    public ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition) {
+        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, false);
+    }
 }

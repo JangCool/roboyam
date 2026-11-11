@@ -13,13 +13,14 @@ export interface GradeCopy {
  */
 export default class UtilGradeMessages {
     /**
-     * 조건표 한 줄 — 「가입 7일 + 글·댓글 합 10개」, 첫 등급은 「가입 즉시」
+     * 조건표 한 줄 — 「Lv.20 + 가입 7일」「가입 7일 + 글·댓글 합 10개」, 첫 등급은 「가입 즉시」(최소 레벨은 서버가 줄 때만, 1 이하는 넣지 않는다)
      * @param {Translate} t - 번역 함수.
      * @param {GradeRule} rule - 등급 조건.
      * @returns {string} 글자.
      */
     static ruleText(t: Translate, rule: GradeRule): string {
         const parts: string[] = [];
+        if (rule.minLevel && rule.minLevel > 1) parts.push(t('grade.ruleLevel', { n: rule.minLevel }));
         if (rule.minDays > 0) parts.push(t('grade.ruleDays', { n: rule.minDays }));
         if (rule.minActivity > 0) parts.push(t('grade.ruleActivity', { n: rule.minActivity }));
         return parts.length ? parts.join(' + ') : t('grade.ruleInstant');
@@ -32,6 +33,7 @@ export default class UtilGradeMessages {
      * @returns {string} 글자.
      */
     static requirementLabel(t: Translate, r: GradeRequirement): string {
+        if (r.kind === 'LEVEL') return t('grade.reqLevel', { n: r.required });
         if (r.kind === 'DAYS') return t('grade.reqDays', { n: r.required });
         if (r.kind === 'ACTIVITY') return t('grade.reqActivity', { n: r.required });
         return t('grade.reqOther', { n: r.required });
@@ -48,6 +50,7 @@ export default class UtilGradeMessages {
         const left = Math.max(0, Math.floor(r.required) - n);
         const remaining = left > 0 && !r.met;
         if (r.kind === 'DAYS') return remaining ? t('grade.progressDaysLeft', { n, left }) : t('grade.progressDays', { n });
+        if (r.kind === 'LEVEL') return remaining ? t('grade.progressLevelLeft', { n, left }) : t('grade.progressLevel', { n });
         return remaining ? t('grade.progressCountLeft', { n, left }) : t('grade.progressCount', { n });
     }
 

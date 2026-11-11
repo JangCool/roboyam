@@ -15,7 +15,7 @@
                 <NuxtLink v-if="hero" :to="`/posts/${row.id}`" class="gadget-hover-photo block pb-3 pt-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-hero">
                     <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 9" class="w-full" />
                     <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-base font-bold leading-snug">
-                        <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" class="mr-1 align-[1px]" />
+                        <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
                         <span>{{ row.title }}</span>
                     </p>
                     <p class="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-muted-color">
@@ -38,7 +38,7 @@
                          인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
                         <p class="break-words leading-snug" :class="[lines === 1 ? 'line-clamp-1' : 'line-clamp-2', titleSize, rowStyle === 'COMPACT' ? 'min-w-0 flex-1' : '']">
-                            <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" class="mr-1 align-[1px]" />
+                            <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
                             <span v-if="isNew" class="mr-1 inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 align-[1px] text-[0.625rem] font-bold leading-none text-primary-contrast" data-testid="home-post-new">
                                 <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
                             </span>
@@ -95,6 +95,13 @@ const { t } = useI18n();
 const look = useGadgetLook();
 const { now } = useGadgetShared();
 const { display } = useBoardDisplay();
+/**
+ * 말머리 모양 — 가젯 글 줄은 섞인 목록과 같이 사이트 기본(`boardDisplay.listPrefixStyle`)을 따른다(mobile-nav-prefix-style-contract 1절, 2026-11-11 사용자 결정).
+ * 게시판 화면 옆에 놓인 가젯도 그 게시판 값이 아니라 사이트 기본이 되게 아래 말머리에 건다. 글자 모양은 칩이 아니라 기준선 맞춤 없이 오른쪽 여백만
+ */
+const prefixStyle = computed(() => UtilBoard.prefixStyle(display.value.listPrefixStyle));
+providePrefixStyle(() => prefixStyle.value);
+const prefixClass = computed(() => (prefixStyle.value === 'TEXT' ? 'mr-1' : 'mr-1 align-[1px]'));
 const { localizedName } = useLocalizedName();
 const overrides = useBlockOverrides();
 

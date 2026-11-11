@@ -32,6 +32,7 @@ import java.util.Set;
  * @param secretMode         비밀글 방식 OFF · OPTIONAL · ALWAYS(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 OFF(V168)
  * @param statusEnabled      처리 상태를 쓰는가(게시판 값 그대로 — V166). 일반·소모임 게시판이 아니면 늘 false(V168)
  * @param chipPosition       글 목록 말머리·상태 칩 위치 ABOVE · BEFORE · BELOW(게시판 값 ?? 기본값 {@code listChipPosition} — V169, 푼 실제 값)
+ * @param prefixStyle        글 목록 말머리 모양 TEXT · MUTED · COLOR(게시판 값 ?? 기본값 {@code listPrefixStyle} — V195, 푼 실제 값)
  * @param authorMode         작성자 표시 NICKNAME · ANONYMOUS(게시판 값 그대로 — V184). 일반 게시판이 아니면 늘 NICKNAME(anonymous-board-contract 정책 1)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
@@ -43,12 +44,14 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              int commentGuestDelayMinutes, boolean staffHiddenNotice, boolean commentDislikeEnabled, String commentLikeLabel,
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
-                             boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode) {
+                             boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
+                             String prefixStyle) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
         chipPosition = chipPosition == null ? BoardFields.CHIP_ABOVE : chipPosition;
         authorMode = authorMode == null ? BoardFields.AUTHOR_NICKNAME : authorMode;
+        prefixStyle = prefixStyle == null ? BoardFields.PREFIX_STYLE_TEXT : prefixStyle;
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
     }

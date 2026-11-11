@@ -10,7 +10,11 @@ import java.util.List;
  * @param email          소셜 가입자가 이메일을 안 줬으면 null
  * @param authMethods    비밀번호가 있으면 {@code EMAIL}, 연결된 소셜 공급자마다 {@code KAKAO} · {@code NAVER} · {@code GOOGLE}
  * @param businessStatus 사업자 신청 상태 — 사업자 기능이 없는 동안 항상 null
+ * @param level          레벨(V196 — 경험치로 오른다, Lv.1~ 끝 없음)
+ * @param xp             누적 경험치
+ * @param levelXp        이 레벨이 시작한 누적 경험치
+ * @param nextLevelXp    다음 레벨이 되는 누적 경험치(막대 = (xp − levelXp) / (nextLevelXp − levelXp))
  */
 public record UserView(String id, String nickname, String grade, String gradeLabel, String role, String email, boolean emailVerified,
-                       List<String> authMethods, String businessStatus) {
+                       List<String> authMethods, String businessStatus, int level, long xp, long levelXp, long nextLevelXp) {
 }

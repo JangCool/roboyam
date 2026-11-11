@@ -1,5 +1,6 @@
 package com.community.point.service;
 
+import com.community.grade.service.XpService;
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
 import com.community.point.entity.PointKind;
@@ -36,6 +37,7 @@ import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +62,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>사용</b>({@link #use})·<b>사용 취소</b>({@link #cancelUse}): 돈 흐름이라 격리하지 않는다({@code MANDATORY} — 실패하면 업무도 실패). 동결이면 사용 거절. 사용 취소는 원래 묶음으로
  *       (만료된 묶음이면 같은 종류 새 묶음 {@code restored_lot_valid_days}).</li>
  *   <li><b>소멸</b>({@link #expireLot}): 소멸 배치가 묶음마다 부른다(조건부·멱등).</li>
+ *   <li><b>경험치</b>(grade-level-contract 1절): 원장 줄을 쓸 때마다({@code line}) 같은 트랜잭션·같은 잠금 아래에서 {@link XpService#onLedgerLine} 이 경험치·레벨을 바꾼다
+ *       (경험치에 드는 사유만 — 적립 경로의 세이브포인트 안이라 실패하면 그 적립과 함께 되돌아간다).</li>
  * </ul>
  */
 @Service
@@ -105,9 +109,19 @@ public class PointService {
     private final SnowflakeIdGenerator ids;
     private final MemberRestrictionService restrictions;
     private final Clock clock;
+    /** 경험치·레벨 — 시험 키트처럼 없이 만들면(null) 경험치를 세지 않는다 */
+    private final XpService xp;
 
+    /** 경험치 없이(시험 키트) */
     public PointService(PointLedgerWriter ledger, PointPolicy policy, IsolatedSideWork isolated, SnowflakeIdGenerator ids, MemberRestrictionService restrictions,
                         ObjectProvider<Clock> clocks) {
+        this(ledger, policy, isolated, ids, restrictions, clocks, null);
+    }
+
+    @Autowired
+    public PointService(PointLedgerWriter ledger, PointPolicy policy, IsolatedSideWork isolated, SnowflakeIdGenerator ids, MemberRestrictionService restrictions,
+                        ObjectProvider<Clock> clocks, XpService xp) {
+        this.xp = xp;
         this.ledger = ledger;
         this.policy = policy;
         this.isolated = isolated;
@@ -736,6 +750,9 @@ public class PointService {
         long id = ids.nextId();
         ledger.insertEntry(id, a.userId, kind, reason.name(), (int) delta, freeDelta, paidDelta, a.total(), note, refType, refId, actor, a.now);
         save(a);
+        if (xp != null) {
+            xp.onLedgerLine(a.userId, reason, delta); // 경험치(V196) — 같은 트랜잭션·같은 잠금 아래
+        }
         return id;
     }
 

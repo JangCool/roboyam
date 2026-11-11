@@ -8,6 +8,9 @@ package com.community.grade.dto.response;
  * @param minActivity 글+댓글 수 조건(기본 등급은 0)
  * @param badgeIcon   PrimeIcons 클래스. 아이콘 없음이면 null
  * @param memberCount 이 등급인 회원 수(탈퇴 회원 제외) — 등급을 지우면 이 회원들이 바로 아래 등급으로 이동한다
+ * @param minLevel    최소 레벨 조건(V196, 기본 등급은 1)
+ * @param sprite      도트 캐릭터(V196)
  */
-public record GradeView(String gradeKey, int level, String label, int minDays, int minActivity, String badgeColor, String badgeIcon, long memberCount) {
+public record GradeView(String gradeKey, int level, String label, int minDays, int minActivity, String badgeColor, String badgeIcon, long memberCount,
+                        int minLevel, String sprite) {
 }

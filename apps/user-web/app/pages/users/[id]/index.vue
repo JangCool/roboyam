@@ -51,7 +51,8 @@
                         <StaffBadge v-else-if="profile.operator" role="ADMIN" class="shrink-0" data-testid="profile-operator-badge" />
                         <!-- AI 회원(`ai` — ai-members-contract) — 등급 대신 「AI · 모델」(글 줄의 `PostAuthorLabel` 과 같은 자리 규칙) -->
                         <AiBadge v-else-if="profile.ai" :provider="profile.ai.provider" :model="profile.ai.model" data-testid="profile-ai-badge" />
-                        <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
+                        <!-- 등급 — 닉네임 옆 큰 판 도트(2배) + 「등급 이름 · Lv.N」(grade-level-contract 4절 — 레벨은 프로필·내 정보에서만, 남의 비공개 프로필이면 서버가 레벨을 null 로 줘 이름만) -->
+                        <GradeLevelLine v-else :grade="profile.grade" :label="profile.gradeLabel" :level="levelProgress?.level ?? null" />
                         <!-- 승인된 사업자(서버 `business` — 재심사 중·정지는 false). 홍보 전용 계정(역할 BUSINESS)은 위 공식 뱃지가 이미 「사업자」라 겹쳐 그리지 않는다 -->
                         <StaffBadge v-if="profile.business && profile.role !== 'BUSINESS'" role="BUSINESS" class="shrink-0" data-testid="profile-business-badge" />
                         <!-- 이용자 메모 — 나에게만 보이는 노란 칩 -->
@@ -69,6 +70,8 @@
                     <p v-else-if="privateView" class="mt-1 flex items-center gap-1 text-xs text-muted-color" data-testid="profile-private-chip">
                         <i class="pi pi-lock text-[0.625rem]" aria-hidden="true" />{{ t('profile.privateBadge') }}
                     </p>
+                    <!-- 경험치 막대(다음 레벨까지) — 등급 줄이 보이는 회원만, 레벨을 받았을 때만(남의 비공개 프로필은 숨김) -->
+                    <GradeLevelBar v-if="levelProgress && gradeShown" :progress="levelProgress" class="mt-2" />
                 </div>
                 <div v-if="profile.isMe" class="flex gap-2 max-md:w-full md:ml-auto">
                     <Button as="router-link" to="/settings/profile" :label="t('me.editProfile')" icon="pi pi-pencil" size="small" class="max-md:flex-1" data-testid="profile-edit" />
@@ -336,7 +339,6 @@
 </template>
 
 <script setup lang="ts">
-import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { AuthorCommentRow, ProfileGroupRow, ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
 import type { DmCanSend } from '~/composables/dm/api/useDmApi.types';
 import type { UserAction } from '~/composables/block/useUserActions';
@@ -347,6 +349,7 @@ import type { ProfileTab } from '~/utils/util-profile';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilColor from '~/utils/util-color';
+import UtilGrade from '~/utils/util-grade';
 import UtilGradeMessages from '~/utils/util-grade-messages';
 import UtilGroup from '~/utils/util-group';
 import UtilPoint from '~/utils/util-point';
@@ -406,6 +409,10 @@ const statCells = computed<{ key: keyof ProfileStats; label: string }[]>(() => [
 ]);
 /** 남이 보는 비공개 프로필 — 수치·탭·목록 대신 안내(서버도 소개·가입일·수치를 비우고 목록을 `403 PROFILE_PRIVATE` 로 막는다) */
 const privateView = computed(() => profile.value?.visibility === 'PRIVATE' && !profile.value.isMe);
+/** 등급 줄(도트 + 이름 · Lv.N)을 그리는 회원인가 — 공식 뱃지·운영자·AI 회원은 등급 대신 그 뱃지라 레벨 막대도 없다 */
+const gradeShown = computed(() => Boolean(profile.value && profile.value.role === 'USER' && !profile.value.operator && !profile.value.ai));
+/** 레벨·경험치 막대 — 레벨이 없으면(옛 응답·남의 비공개 프로필) null(숨김) */
+const levelProgress = computed(() => (privateView.value ? null : UtilGrade.levelProgress(profile.value)));
 /** 내 프로필이 비공개 — 나에게는 다 보이고 위에 안내 띠 */
 const privateMine = computed(() => profile.value?.visibility === 'PRIVATE' && profile.value.isMe);
 /** 프로필 자리표시 — 닉네임 첫 글자(프로필 그림 기능이 없다) */

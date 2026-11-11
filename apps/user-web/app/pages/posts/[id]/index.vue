@@ -132,6 +132,11 @@
                                 <GroupTag :tone="post.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" data-testid="post-group-visibility">{{ UtilGroupMessages.postVisibility(t, post.group.visibility) }}</GroupTag>
                             </template>
                             <NuxtLink v-else :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
+                            <!-- 말머리 — 글자 모양(`TEXT`, mobile-nav-prefix-style-contract 1절)이면 제목 앞 칩 대신 이 줄에 「게시판 | 말머리」 글자(게시판 이름은 데스크톱만이라 막대도 데스크톱만) -->
+                            <span v-if="post.prefix && headPrefixStyle === 'TEXT'" class="inline-flex min-w-0 items-center gap-1" data-testid="post-prefix-text">
+                                <span v-if="!post.group" class="-ml-1 text-xs text-[var(--prefix-sep)] max-md:hidden" aria-hidden="true">|</span>
+                                <PostPrefixTag :prefix="post.prefix" mode="TEXT" />
+                            </span>
                             <!-- 지금 하이라이트로 노출 중인 글 -->
                             <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
                                 <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
@@ -140,7 +145,7 @@
                         <!-- 접힌 글은 제목(말머리)을 가린다 — 글의 이름표(`aria-labelledby`)는 접힌 까닭으로 둔다(아래 접힌 줄이 같은 글자를 보이므로 화면에서는 숨김) -->
                         <h1 v-if="folded && foldReason" :id="titleId" class="sr-only">{{ UtilBlockMessages.folded(t, foldReason, 'post') }}</h1>
                         <h1 v-else :id="titleId" class="post-title mt-1 break-words text-lg font-bold leading-snug md:text-xl">
-                            <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
+                            <PostPrefixTag v-if="post.prefix && headPrefixStyle !== 'TEXT'" :prefix="post.prefix" :mode="headPrefixStyle" class="mr-1.5 align-[3px]" />{{ post.title }}
                             <!-- 비밀글 딱지(운영 게시판) — 제목 옆, 글자가 늘 있다 -->
                             <span
                                 v-if="post.secret"
@@ -495,6 +500,7 @@ import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
+import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilBusiness from '~/utils/util-business';
@@ -582,6 +588,8 @@ const adultVerifying = ref(false);
 /** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
 const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
+/** 글 보기 머리의 말머리 모양 — 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절) */
+const headPrefixStyle = computed(() => UtilBoard.prefixStyle(board.value?.prefixStyle));
 const pageState = ref<PageState>('loading');
 /** 글쓴이 장식(테두리) — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다 */
 const authorDecoration = computed(() => (post.value ? decorations.decorationOf(post.value.author.memberId, post.value.author.decoration) : null));

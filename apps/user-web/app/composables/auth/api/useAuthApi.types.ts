@@ -20,7 +20,11 @@ export interface Restriction {
     pendingNotices: number;
 }
 
-export type Grade = 'SEEDLING' | 'REGULAR' | 'LOYAL' | 'VETERAN';
+/**
+ * 등급 키 — 기본 등급(`SEEDLING`·`REGULAR`·`LOYAL`·`VETERAN` …)과 운영자가 만든 등급(`GRADE_n` 등)이 섞이는 **글자**다(grade-level-contract 2절 — 11단계, 운영자가 고친다).
+ * 이름·도트는 키로 사이트 정보의 등급 목록(`grades[]`)에서 찾는다(`useGrades`).
+ */
+export type Grade = string;
 /** `BUSINESS` 는 사업자 전용 계정(H-2) — 일반 게시판 글쓰기·소모임·쪽지 보내기·출석·포인트를 못 쓰고 사업자 센터를 쓴다. 운영진 판정(`role !== 'USER'`)에 쓰지 않는다(`UtilBusiness.isOperator`) */
 export type Role = 'USER' | 'STAFF' | 'ADMIN' | 'BUSINESS';
 export type AuthMethod = 'EMAIL' | 'KAKAO' | 'NAVER' | 'GOOGLE';
@@ -38,6 +42,14 @@ export interface AuthUser {
     authMethods: AuthMethod[];
     /** 사업자 신청 상태(H-2) — 신청한 적이 없으면 `NONE`. 서버는 사업자 기능이 없는 동안 이 칸을 `null` 로 준다 — 칸이 없거나 `null` 이면 `NONE` 으로 읽는다 */
     businessStatus?: BusinessUserStatus | null;
+    /** 레벨(Lv.1~, 끝 없음 — grade-level-contract 1절). 서버가 아직 안 주면(옛 응답) 없음 — 화면은 레벨 표시를 숨긴다 */
+    level?: number | null;
+    /** 누적 경험치(적립된 활동 포인트 합 — 쓰거나 소멸해도 줄지 않는다) */
+    xp?: number | null;
+    /** 이 레벨이 시작하는 누적 XP */
+    levelXp?: number | null;
+    /** 다음 레벨이 되는 누적 XP */
+    nextLevelXp?: number | null;
 }
 
 /**

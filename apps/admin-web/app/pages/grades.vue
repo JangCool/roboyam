@@ -11,7 +11,9 @@
         **저장 전 영향 확인**: 기준이 하나라도 낮아졌거나 등급을 추가·삭제했거나 옵션을 "계속 자동 승급"으로 바꾸면 미리보기(`api.preview`)로 지금 승급될 인원과 이동할 회원 수를 받아 확인 대화상자로 보이고, 승급·이동이 모두 없으면 확인 없이 저장한다.
         미리보기가 실패하면 저장을 막지 않고 "영향 인원을 확인하지 못했어요. 그래도 저장할까요?" 로 묻는다. 기준을 올리기만 한 저장은 확인 없이 저장하고 토스트로 영향이 없음을 알린다. 시점은 구현 가정이다(활동 조건의 소급은 저장 직후, 일수 조건의 소급은 다음 배치).
         등급 삭제: 단추를 누르면 목록에서만 뺀다(되돌리기로 복구). **저장 시점**에 지우는 등급과 이동할 회원 수를 소급 승급 확인과 **하나의 확인 대화상자**로 묻는다("「단골」 등급을 삭제하면 회원 N명이 「일반」 등급으로 이동돼요. 되돌릴 수 없어요." — 확정 정책: 회원은 바로 아래 등급으로 이동).
-        등급 수는 최소 2 · 최대 10단계(확정) — 10개에서는 「등급 추가」가 비활성이고 안내(툴팁·글자)가 나온다.
+        등급 수는 최소 2 · 최대 11단계(grade-level-contract 2절 — 장인 계급 11단계) — 11개에서는 「등급 추가」가 비활성이고 안내(툴팁·글자)가 나온다.
+        경험치·레벨(grade-level-contract): 승급 조건에 **최소 레벨**(`minLevel` 1~10000)을 더했고(일수·글·댓글과 함께 모두 채워야 오른다), 레벨 곡선 구획(`grade-curve`)에서 전역 기준값 `xpCurveBase`(1~1000 — 레벨 L 의 누적 경험치 ceil(base × (L−1)^1.5))를 정한다.
+        등급 표시 구획에 **도트 캐릭터**(`sprite` 11종, 작은 판 2배 미리보기)를 더했다 — 공개 화면(작성자 줄·프로필)은 뱃지 대신 도트를 쓰고, 뱃지 색·아이콘은 관리자 화면 표시로 남는다.
         권한: 조회 `grade.read`(메뉴), 변경 `grade.manage` — 없으면 저장 줄·추가/삭제/순서 단추가 사라지고(저장 줄 자리에 읽기 전용 안내가 보인다) 입력칸은 `readonly`, 라디오는 `disabled`(서버 값이 그대로 보인다). 감추는 것은 편의이고 막는 것은 서버다.
         저장하지 않은 변경(등급 목록·옵션)이 있는 채 다른 화면으로 가면 확인을 묻는다(`onBeforeRouteLeave`).
     -->
@@ -49,8 +51,8 @@
                             </div>
                         </div>
 
-                        <!-- 입력 — 이름 · (기본 등급이 아니면) 가입 후 일수 · 글·댓글 합계 -->
-                        <div class="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(3,minmax(0,16rem))]">
+                        <!-- 입력 — 이름 · (기본 등급이 아니면) 최소 레벨 · 가입 후 일수 · 글·댓글 합계 -->
+                        <div class="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,14rem))]">
                             <LabeledField :label="t('grade.fieldLabel')" :hint="t('grade.labelHint', { max: UtilGrade.LABEL_MAX })" :error="errorOf(row, 'label')">
                                 <template #default="{ id, describedBy, invalid }">
                                     <InputText
@@ -70,7 +72,7 @@
                             </LabeledField>
 
                             <template v-if="i > 0">
-                                <LabeledField v-for="field in FIELDS" :key="field" :label="t(field === 'minDays' ? 'grade.fieldDays' : 'grade.fieldActivity')" :help="helpOf(field)" :error="errorOf(row, field)">
+                                <LabeledField v-for="field in FIELDS" :key="field" :label="t(FIELD_TEXT[field].label)" :help="helpOf(field)" :error="errorOf(row, field)">
                                     <template #default="{ id, describedBy, invalid }">
                                         <div class="flex items-center gap-2">
                                             <InputText
@@ -86,12 +88,12 @@
                                                 class="w-32 text-right tabular-nums"
                                                 @update:model-value="(value: string | undefined) => onInput(row, field, value ?? '')"
                                             />
-                                            <span class="text-sm text-muted-color">{{ t(field === 'minDays' ? 'grade.unitDays' : 'grade.unitActivity') }}</span>
+                                            <span class="text-sm text-muted-color">{{ t(FIELD_TEXT[field].unit) }}</span>
                                         </div>
                                     </template>
                                 </LabeledField>
                             </template>
-                            <div v-else class="flex flex-col justify-center gap-1 sm:col-span-2">
+                            <div v-else class="flex flex-col justify-center gap-1 xl:col-span-3">
                                 <p class="flex items-center gap-1.5 text-sm">
                                     <i class="pi pi-lock text-[11px] text-muted-color" aria-hidden="true" />
                                     {{ UtilGradeMessages.condition(t, { minDays: 0, minActivity: 0 }) }}
@@ -114,18 +116,62 @@
                 </div>
             </AppGadget>
 
+            <!-- 레벨 곡선(전역) — 기준값 하나로 레벨마다 필요한 누적 경험치가 정해진다. 안내 한 줄에 Lv.10·50·100 의 값 -->
+            <AppGadget :title="t('grade.curveTitle')" anchor="grade-curve" :changes="curveChanged ? 1 : 0" :invalid="curveError ? 1 : 0">
+                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveLead') }}</p>
+                <LabeledField :label="t('grade.curveField')" :help="t('grade.curveHelp', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX), def: UtilGrade.CURVE_DEFAULT })" :error="curveError">
+                    <template #default="{ id, describedBy, invalid }">
+                        <InputText
+                            :id="id"
+                            :model-value="curve"
+                            name="xpCurveBase"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            :readonly="!canManage || saving"
+                            :invalid="invalid"
+                            :aria-describedby="describedBy"
+                            :aria-required="true"
+                            class="w-32 text-right tabular-nums"
+                            @update:model-value="onCurveInput"
+                        />
+                    </template>
+                </LabeledField>
+                <p v-if="curveSample" class="mt-3 flex items-start gap-1.5 text-sm tabular-nums" data-testid="grade-curve-sample">
+                    <i class="pi pi-chart-line mt-1 text-xs text-muted-color" aria-hidden="true" />
+                    <span>{{ curveSample }}</span>
+                </p>
+            </AppGadget>
+
             <AppGadget :title="t('grade.badgeTitle')" anchor="grade-badge" :changes="changes.badge" :invalid="badgeErrorCount">
                 <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.badgeLead') }}</p>
 
                 <ul class="m-0 flex list-none flex-col divide-y divide-(--line) border-y border-(--line) p-0">
                     <li v-for="row in form" :key="row.id" class="grid gap-x-4 gap-y-3 py-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
-                        <!-- 미리보기 = 실제 사용 모양(같은 `GradeBadge`) -->
+                        <!-- 미리보기 — 공개 화면의 도트(작은 판 2배) + 관리자 화면의 뱃지(같은 `GradeBadge`) -->
                         <div class="flex flex-col gap-1">
                             <span class="text-xs text-muted-color">{{ t('grade.badgePreview') }}</span>
+                            <div class="flex min-h-10 items-center">
+                                <GradeSpriteImage :sprite="row.sprite" :label="nameOf(row)" :scale="2" />
+                            </div>
                             <div><GradeBadge :label="nameOf(row)" :color="row.color" :icon="row.icon || null" /></div>
                         </div>
 
                         <div class="flex min-w-0 flex-col gap-3">
+                            <!-- 도트 캐릭터 — 공개 화면이 쓴다. 고르개는 뱃지 아이콘과 같은 네이티브 라디오 묶음(화살표로 고른다) -->
+                            <div>
+                                <div class="mb-1.5 flex flex-wrap items-baseline gap-x-2">
+                                    <span class="text-sm font-medium">{{ t('grade.sprite') }}</span>
+                                    <span class="text-xs text-muted-color">{{ t('grade.spritePublic') }}</span>
+                                </div>
+                                <div role="radiogroup" :aria-label="t('grade.spriteGroup', { name: nameOf(row) })" class="flex flex-wrap gap-1.5">
+                                    <label v-for="s in UtilGradeSprite.SPRITES" :key="s" v-tooltip.top="t(`grade.spriteName.${s}`)" class="icon-opt sprite-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
+                                        <input v-model="row.sprite" type="radio" class="sr-only" :name="`${idBase}-${row.id}-sprite`" :value="s" :disabled="!canManage || saving" :aria-label="t(`grade.spriteName.${s}`)" />
+                                        <GradeSpriteImage :sprite="s" :scale="2" />
+                                    </label>
+                                </div>
+                                <p v-if="serverCellOf(row, 'sprite')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'sprite') }}</p>
+                            </div>
+
                             <div>
                                 <div :id="`${idBase}-${row.id}-color-label`" class="mb-1.5 text-sm font-medium">{{ t('grade.badgeColor') }}</div>
                                 <div role="radiogroup" :aria-label="t('grade.badgeColorGroup', { name: nameOf(row) })" class="flex flex-wrap gap-2">
@@ -195,6 +241,7 @@ import type { Grade, GradeManualPolicy, GradePreviewRequest, GradePreviewRespons
 import type { GradeCellField, GradeField, GradeFieldErrors, GradeRowForm } from '~/utils/util-grade';
 import UtilGrade from '~/utils/util-grade';
 import UtilGradeMessages from '~/utils/util-grade-messages';
+import UtilGradeSprite from '~/utils/util-grade-sprite';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('grade.title') });
@@ -211,6 +258,12 @@ const idBase = useId();
 const canManage = computed(() => can('grade.manage'));
 
 const FIELDS = UtilGrade.FIELDS;
+/** 승급 조건 칸마다 이름·단위·도움말 문구 키 */
+const FIELD_TEXT: Record<GradeField, { label: string; unit: string; help: string }> = {
+    minLevel: { label: 'grade.fieldLevel', unit: 'grade.unitLevel', help: 'grade.helpLevel' },
+    minDays: { label: 'grade.fieldDays', unit: 'grade.unitDays', help: 'grade.helpDays' },
+    minActivity: { label: 'grade.fieldActivity', unit: 'grade.unitActivity', help: 'grade.helpActivity' },
+};
 const POLICIES = UtilGrade.POLICIES;
 /** 옵션 라디오의 문구 키 */
 const POLICY_TEXT: Record<GradeManualPolicy, { label: string; help: string }> = {
@@ -218,7 +271,7 @@ const POLICY_TEXT: Record<GradeManualPolicy, { label: string; help: string }> = 
     STOP_AUTO: { label: 'grade.policyStopAuto', help: 'grade.policyStopAutoHelp' },
 };
 /** 안내·동작 구획의 문구 키 — 등급 목록이 원천 · 활동 수 한계 · 일수 배치(하루 한 번) · 올리기만 · 정상 회원만 · 저장 직후 소급 */
-const NOTES = ['grade.noteSource', 'grade.noteActivity', 'grade.noteDays', 'grade.noteUpOnly', 'grade.noteTarget', 'grade.noteRetro'] as const;
+const NOTES = ['grade.noteSource', 'grade.noteLevel', 'grade.noteActivity', 'grade.noteDays', 'grade.noteUpOnly', 'grade.noteTarget', 'grade.noteRetro'] as const;
 
 /** 서버가 준 등급 목록(저장된 값). `null` = 아직 못 받았다 */
 const saved = ref<Grade[] | null>(null);
@@ -227,6 +280,11 @@ const savedPolicy = ref<GradeManualPolicy>(UtilGrade.DEFAULT_POLICY);
 const form = ref<GradeRowForm[]>([]);
 /** 수동으로 올린 회원 옵션의 입력값 */
 const policy = ref<GradeManualPolicy>(UtilGrade.DEFAULT_POLICY);
+/** 레벨 곡선 기준값 — 저장된 값(수)과 입력(글자, 다른 숫자 칸과 같은 이유) */
+const savedCurve = ref<number>(UtilGrade.CURVE_DEFAULT);
+const curve = ref<string>(String(UtilGrade.CURVE_DEFAULT));
+/** 서버가 거절한 곡선 기준값 문구 — 칸을 고치면 지운다 */
+const serverCurveError = ref('');
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
 const saving = ref(false);
@@ -242,19 +300,32 @@ let newSeq = 0;
 const problems = computed(() => UtilGrade.validate(form.value));
 const changes = computed(() => (saved.value ? UtilGrade.changes(form.value, saved.value) : { rules: 0, badge: 0 }));
 const policyChanged = computed(() => policy.value !== savedPolicy.value);
-/** 저장하지 않은 변경 칸 수 — 등급 목록(이름·조건·추가·삭제·순서) + 뱃지 + 옵션 */
-const changeCount = computed(() => changes.value.rules + changes.value.badge + (policyChanged.value ? 1 : 0));
+const curveChanged = computed(() => UtilGrade.parse(curve.value) !== savedCurve.value);
+const curveProblem = computed(() => UtilGrade.curveProblem(curve.value));
+/** 곡선 칸 아래 오류 — 화면 검사가 먼저, 없으면 서버 문구 */
+const curveError = computed(() => {
+    const problem = curveProblem.value;
+    if (problem === 'OUT_OF_RANGE') return t('grade.problemRange', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX) });
+    if (problem) return UtilGradeMessages.problem(t, problem, 'minDays', null);
+    return serverCurveError.value;
+});
+/** 곡선 안내 한 줄 — Lv.10·50·100 에 필요한 경험치 */
+const curveSample = computed(() => UtilGradeMessages.curveSample(t, curve.value));
+/** 저장하지 않은 변경 칸 수 — 등급 목록(이름·조건·추가·삭제·순서) + 표시(도트·뱃지) + 레벨 곡선 + 옵션 */
+const changeCount = computed(() => changes.value.rules + changes.value.badge + (curveChanged.value ? 1 : 0) + (policyChanged.value ? 1 : 0));
 const dirty = computed(() => changeCount.value > 0);
 
-/** 서버가 거절한 칸 중 뱃지 칸(색·아이콘)과 나머지(이름·승급 조건)의 수 */
-const serverBadgeErrorCount = computed(() => Object.values(serverCells.value).reduce((sum, cells) => sum + Number(Boolean(cells?.badgeColor)) + Number(Boolean(cells?.badgeIcon)), 0));
-const serverRuleErrorCount = computed(() => Object.values(serverCells.value).reduce((sum, cells) => sum + Number(Boolean(cells?.label)) + Number(Boolean(cells?.minDays)) + Number(Boolean(cells?.minActivity)), 0));
+/** 서버가 거절한 칸 중 표시 칸(도트·색·아이콘)과 나머지(이름·승급 조건)의 수 */
+const serverBadgeErrorCount = computed(() => Object.values(serverCells.value).reduce((sum, cells) => sum + Number(Boolean(cells?.badgeColor)) + Number(Boolean(cells?.badgeIcon)) + Number(Boolean(cells?.sprite)), 0));
+const serverRuleErrorCount = computed(() =>
+    Object.values(serverCells.value).reduce((sum, cells) => sum + Number(Boolean(cells?.label)) + Number(Boolean(cells?.minLevel)) + Number(Boolean(cells?.minDays)) + Number(Boolean(cells?.minActivity)), 0),
+);
 const ruleErrorCount = computed(() => UtilGrade.problemCount(problems.value) + serverRuleErrorCount.value);
 const badgeErrorCount = computed(() => serverBadgeErrorCount.value);
 /** 맞지 않는 칸 수 — 화면이 미리 검사한 것 + 서버가 거절한 것 */
-const errorCount = computed(() => ruleErrorCount.value + badgeErrorCount.value + (serverPolicyError.value ? 1 : 0));
+const errorCount = computed(() => ruleErrorCount.value + badgeErrorCount.value + (curveError.value ? 1 : 0) + (serverPolicyError.value ? 1 : 0));
 /** 서버가 거절한 칸은 저장을 막지 않는다 — 고치지 않고 다시 보내 볼 수 있어야 하고, 서버가 다시 판정한다 */
-const canSave = computed(() => canManage.value && dirty.value && UtilGrade.problemCount(problems.value) === 0);
+const canSave = computed(() => canManage.value && dirty.value && UtilGrade.problemCount(problems.value) === 0 && !curveProblem.value);
 
 watch(policy, () => {
     serverPolicyError.value = '';
@@ -280,8 +351,12 @@ function applySaved(res: GradesResponse) {
     savedPolicy.value = res.manualPolicy;
     form.value = UtilGrade.formOf(res.grades);
     policy.value = res.manualPolicy;
+    // 곡선 기준값을 아직 주지 않는 서버면 기본 10
+    savedCurve.value = UtilGrade.curveOf(res.xpCurveBase);
+    curve.value = String(savedCurve.value);
     serverCells.value = {};
     serverPolicyError.value = '';
+    serverCurveError.value = '';
     appearance.set(res.grades);
 }
 
@@ -289,9 +364,16 @@ function revert() {
     if (!saved.value) return;
     form.value = UtilGrade.formOf(saved.value);
     policy.value = savedPolicy.value;
+    curve.value = String(savedCurve.value);
     serverCells.value = {};
     serverPolicyError.value = '';
+    serverCurveError.value = '';
     formError.value = '';
+}
+
+function onCurveInput(value: string | undefined) {
+    curve.value = value ?? '';
+    serverCurveError.value = '';
 }
 
 /** 행의 표시 이름 — 이름을 비웠으면 "(이름 없는 등급)" */
@@ -301,7 +383,7 @@ function nameOf(row: GradeRowForm): string {
 
 function helpOf(field: GradeField): string {
     const [min, max] = UtilGrade.limitsOf(field);
-    return t(field === 'minDays' ? 'grade.helpDays' : 'grade.helpActivity', { min: UtilGrade.format(min), max: UtilGrade.format(max) });
+    return t(FIELD_TEXT[field].help, { min: UtilGrade.format(min), max: UtilGrade.format(max) });
 }
 
 function serverCellOf(row: GradeRowForm, field: GradeCellField): string {
@@ -377,21 +459,23 @@ async function confirmImpact(body: GradePreviewRequest, lowered: Record<GradeFie
 
 async function save() {
     if (saving.value || !canSave.value || !saved.value) return;
-    const body = UtilGrade.toRequest(form.value, policy.value);
+    const body = UtilGrade.toRequest(form.value, policy.value, curve.value);
     if (!body) return;
     formError.value = '';
     serverCells.value = {};
     serverPolicyError.value = '';
+    serverCurveError.value = '';
     saving.value = true;
     // 서버가 거절하면 칸 오류를 붙일 행 — 요청 `grades` 의 차례와 같다
     const sent = [...form.value];
     try {
-        // 기준이 낮아졌거나 등급을 추가·삭제했거나 옵션을 "계속 자동 승급"으로 바꾸면 소급 승급·회원 이동이 일어나므로 먼저 영향을 확인한다
+        // 기준이 낮아졌거나(레벨 곡선 기준값을 낮추면 같은 경험치로 레벨이 높아진다) 등급을 추가·삭제했거나 옵션을 "계속 자동 승급"으로 바꾸면 소급 승급·회원 이동이 일어날 수 있어 먼저 영향을 확인한다
         const lowered = UtilGrade.lowered(form.value, saved.value);
         const added = UtilGrade.hasAdded(form.value);
         const removed = UtilGrade.hasRemoved(form.value, saved.value);
         const manualUnlocked = policy.value === 'CONTINUE_AUTO' && savedPolicy.value !== 'CONTINUE_AUTO';
-        const affects = lowered.minDays || lowered.minActivity || added || removed || manualUnlocked;
+        const curveLowered = body.xpCurveBase < savedCurve.value;
+        const affects = lowered.minLevel || lowered.minDays || lowered.minActivity || curveLowered || added || removed || manualUnlocked;
         const raisedOnly = changes.value.rules > 0 && !affects;
         if (affects && !(await confirmImpact(body, lowered, manualUnlocked, added, removed))) return;
 
@@ -402,7 +486,8 @@ async function save() {
         if (rejected) {
             serverCells.value = rejected.cells;
             serverPolicyError.value = rejected.policy;
-            formError.value = [Object.keys(rejected.cells).length || rejected.policy ? t('grade.saveFieldsRejected') : '', rejected.form].filter(Boolean).join(' ');
+            serverCurveError.value = rejected.curve;
+            formError.value = [Object.keys(rejected.cells).length || rejected.policy || rejected.curve ? t('grade.saveFieldsRejected') : '', rejected.form].filter(Boolean).join(' ');
         } else {
             formError.value = `${t('grade.saveFailed')} — ${toApiError(e).message}`;
         }
@@ -471,6 +556,13 @@ onBeforeRouteLeave(async () => {
 }
 .icon-opt--disabled {
     cursor: default;
+}
+/* 도트 고르개 — 전설(32px)·신화(40px) 그림이 들어가도록 넓힌다 */
+.sprite-opt {
+    width: auto;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding: 0 0.375rem;
 }
 .icon-opt:has(input:disabled:not(:checked)) {
     opacity: 0.6;

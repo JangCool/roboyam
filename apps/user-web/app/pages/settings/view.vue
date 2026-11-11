@@ -97,6 +97,21 @@
                     </div>
                     <!-- 두 줄 공통 안내 — 한 번만 -->
                     <p :id="`${uid}-scale-note`" class="m-0 px-4 py-2.5 text-xs leading-snug text-muted-color" data-testid="setting-text-scale-note">{{ t('view.textScaleHint') }}</p>
+
+                    <!-- 글 목록 제목 굵게(사용자 2026-11-12) — 게시판·인기글·최신글 목록의 제목만(글 보기 제목은 원래 굵다). 켜는 즉시 바뀐다 -->
+                    <div class="flex items-center justify-between gap-4 border-t border-surface px-4 py-3" data-testid="setting-title-bold-row">
+                        <div class="min-w-0 flex-1">
+                            <p :id="`${uid}-title-bold-label`" class="m-0 text-sm font-medium">{{ t('view.titleBold') }}</p>
+                            <p :id="`${uid}-title-bold-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.titleBoldHint') }}</p>
+                        </div>
+                        <ToggleSwitch
+                            :model-value="settings.titleBold"
+                            :aria-labelledby="`${uid}-title-bold-label`"
+                            :aria-describedby="`${uid}-title-bold-hint`"
+                            data-testid="setting-title-bold"
+                            @update:model-value="(v: boolean) => change({ titleBold: v })"
+                        />
+                    </div>
                 </div>
             </section>
 

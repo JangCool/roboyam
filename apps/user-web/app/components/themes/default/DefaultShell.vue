@@ -11,7 +11,7 @@
         메뉴 넘침 표시(`menuOverflow`)는 가로 메뉴 줄(`AppTopMenu`·`AppLogoLinks`)에 그대로 전한다(얇은 스크롤이면 `AppTopMenu` 가 예약 자리만큼 높아 사이드 메뉴의 붙는 높이도 `barOverflow` 로 맞춘다).
         props·slots 계약은 `ThemeShell.types.ts`. 메뉴 알맹이(`AppMenuList`·`AppTopMenu`·`AppLogoLinks`)는 공통 셸 부품이고 여기서는 어디에 놓느냐만 정한다.
     -->
-    <AppHeader :class="inner ? 'max-md:hidden' : ''" @open-menu="emit('open-menu')">
+    <AppHeader :class="inner ? 'max-md:hidden' : ''">
         <template #links>
             <AppLogoLinks v-if="topItems === 'LOGO'" :overflow="menuOverflow" class="ml-3 max-md:hidden" />
         </template>
@@ -37,7 +37,6 @@ import UtilMenuPosition from '~/utils/util-menu-position';
 
 interface Props extends ThemeShellProps {}
 const props = withDefaults(defineProps<Props>(), { inner: false, sideMenu: true });
-const emit = defineEmits<{ (e: 'open-menu'): void }>();
 
 /** 상단 가로 메뉴가 있는 배치인가 */
 const hasBar = computed(() => UtilMenuPosition.hasBar(props.menuPosition));

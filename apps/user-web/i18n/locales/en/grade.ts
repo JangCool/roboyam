@@ -11,9 +11,11 @@ export default {
 
     // Requirement text
     ruleInstant: 'On sign-up',
+    ruleLevel: 'Lv.{n}',
     ruleDays: '{n} days after sign-up',
     ruleActivity: '{n} posts + comments',
     nextHeading: 'To the next grade, {label}',
+    reqLevel: 'Level {n}',
     reqDays: '{n} days after sign-up',
     reqActivity: '{n} posts + comments',
     reqOther: 'Requirement {n}',
@@ -21,13 +23,24 @@ export default {
     progressDaysLeft: 'Day {n} ({left} days left)',
     progressCount: '{n}',
     progressCountLeft: '{n} ({left} to go)',
+    progressLevel: 'Lv.{n}',
+    progressLevelLeft: 'Lv.{n} ({left} to go)',
     highestTitle: "You're at the highest grade",
     highestText: "You've met every requirement.",
 
+    // Level and XP
+    levelHeading: 'Level',
+    levelValue: 'Lv.{n}',
+    nameWithLevel: '{grade} · Lv.{level}',
+    xpValue: '{xp} XP',
+    toNextLevel: '{percent}% to the next level',
+    toNextLevelXp: '{left} XP to Lv.{next}',
+    levelBarLabel: 'Progress to the next level',
+
     // How it works
     howHeading: 'How it works',
-    how1: "Deleted or hidden posts and comments don't count toward activity.",
-    how2: "Likes you receive don't count toward promotion.",
+    how1: "Points you earn from activity — posts, comments, check-ins, like bonuses — add up as XP and raise your level. Spending or expiring points doesn't lower your XP.",
+    how2: 'Points from posts or comments that were deleted are taken out of your XP too.',
     how3: 'Promotion is on hold while your account is suspended.',
     how4: "You move up automatically when you meet the requirements. You won't move down automatically if your activity drops.",
 

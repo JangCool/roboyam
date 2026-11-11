@@ -17,12 +17,14 @@
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
                     <NuxtLink :to="`/posts/${row.id}`" class="group block py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
-                        <PostRowFrame :row="row" :position="chipPosition">
-                            <template #default="{ chips, stats, dateInline }">
+                        <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(`BoardPostRowDesktop`, 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
+                        <BoardPostRowDesktop v-if="chipPosition === 'ABOVE'" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden" />
+                        <PostRowFrame :row="row" :position="chipPosition" stats-below :class="chipPosition === 'ABOVE' ? 'md:hidden' : ''">
+                            <template #default="{ chips, stats, dateInline, statsEnd }">
                                 <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
                                     <PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" />
                                 </p>
-                                <p class="m-0 mt-[3px] flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color">
+                                <p class="m-0 mt-[3px] flex items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
                                     <PostAuthorLabel :author="row.author" avatar />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
@@ -37,9 +39,13 @@
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                     </template>
+                                    <!-- 모바일 숫자 아래 + 썸네일 없음 — 추천·조회를 닉네임 줄 오른쪽 끝에(사용자 결정 2026-11-12) -->
+                                    <span v-if="statsEnd" class="ml-auto inline-flex shrink-0 items-center gap-2">
+                                        <PostRowStats :row="row" />
+                                    </span>
                                 </p>
                             </template>
-                            <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
+                            <!-- 썸네일 64×44 — 모바일은 그 밑에 추천·조회(제목 두 줄 높이와 거의 같다 — 2026-11-12 사용자 원래 크기로) -->
                             <template #end>
                                 <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
                             </template>

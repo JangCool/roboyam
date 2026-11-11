@@ -10,13 +10,16 @@
                     <!-- 내 프로필 아바타(고르지 않았으면 basic-default — 결정 14) + 장착한 프로필 테두리. 방금 고른·장착한 것을 겹친다(`useMyDecoration`) -->
                     <ProfileBorderAvatar :initial="initial" :src="myAvatar" :still-src="myAvatarStill" size="md" surface="card" :border-style="myDecoration?.profileBorder ?? null" data-testid="me-avatar" />
                     <div class="min-w-0 flex-1">
-                        <p class="flex items-center gap-1.5">
-                            <GradeBadge v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" />
-                            <StaffBadge v-else :role="user.role" />
+                        <!-- 닉네임 옆 등급 — 큰 판 도트(2배) + 「등급 이름 · Lv.N」(grade-level-contract 4절, 레벨은 로그인 정보의 `level` — 없으면 이름만). 운영진·사업자 계정은 공식 뱃지 -->
+                        <p class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                             <b class="min-w-0 break-all text-base" data-testid="me-nickname">{{ user.nickname }}</b>
+                            <GradeLevelLine v-if="user.role === 'USER'" :grade="user.grade" :label="user.gradeLabel" :level="levelProgress?.level ?? null" />
+                            <StaffBadge v-else :role="user.role" />
                         </p>
                         <p class="mt-0.5 break-all text-sm text-muted-color">{{ user.email ?? t('me.noEmail') }}</p>
                         <p v-if="profile" class="mt-0.5 text-xs text-muted-color" data-testid="me-joined">{{ t('me.joined', { date: time.date(profile.joinedAt) }) }}</p>
+                        <!-- 경험치 막대 · 경험치와 다음 레벨까지 남은 XP — 레벨을 받았을 때만 -->
+                        <GradeLevelBar v-if="levelProgress && user.role === 'USER'" :progress="levelProgress" detail class="mt-2" data-testid="me-level" />
                     </div>
                     <Button as="router-link" to="/settings/profile" :label="t('me.editProfile')" size="small" severity="secondary" variant="outlined" class="shrink-0" data-testid="me-edit-profile" />
                 </div>
@@ -74,6 +77,7 @@
 import type { PointCount } from '~/composables/point/api/usePointApi.types';
 import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
+import UtilGrade from '~/utils/util-grade';
 import UtilPoint from '~/utils/util-point';
 
 /**
@@ -99,6 +103,8 @@ const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value
 
 /** 닉네임 첫 글자 — 아바타 그림을 하나도 못 불러왔을 때만 보인다 */
 const initial = computed(() => Array.from(user.value?.nickname ?? '')[0] ?? '');
+/** 레벨·경험치 — 로그인 정보의 레벨 칸(없으면 null — 레벨 표시를 숨긴다) */
+const levelProgress = computed(() => UtilGrade.levelProgress(user.value));
 /** 내 아바타·장착 장식 — 서버 값(후보)에 방금 고른·장착한 것을 겹친다 */
 const decorations = useMyDecoration();
 const decorationSync = useMyDecorationSync();

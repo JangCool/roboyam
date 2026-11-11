@@ -22,13 +22,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 등급 자동 승급 판정 (docs/features/roles-contract.md 2단계, docs/domain/operator-permissions.md "회원 역할").
  *
  * <ul>
- *   <li><b>올리기만 한다</b> — 자동으로 내리지 않는다. 조건 두 개(가입 후 일수 · 글+댓글 수)를 <b>모두</b> 채운 가장 높은 등급으로 올린다(가정).</li>
+ *   <li><b>올리기만 한다</b> — 자동으로 내리지 않는다. 조건 — 최소 레벨(V196, grade-level-contract 2절) · 가입 후 일수 · 글+댓글 수(남겨 둔 조건, 새 기본값 0) — 를 <b>모두</b>
+ *       채운 가장 높은 등급으로 올린다. 레벨은 경험치({@link XpService})로 오르고 수동 등급과 상관없이 계속 오른다.</li>
+ *   <li><b>레벨 경로</b>: 경험치로 레벨이 오르면 {@link XpService} 가 커밋 뒤 {@link #promoteOnLevelUp}(별도 트랜잭션)을 부른다 — 글·댓글 말고도 추천 보너스·출석·인기글로 레벨이 오를 때.</li>
  *   <li><b>시점</b>: 활동 수 조건은 사건(글·댓글)이 생길 때 즉시({@link #promoteOnActivity} → {@link #promoteOnEvent}) — api 의 글쓰기({@code PostWriteService#create})·
  *       댓글쓰기({@code CommentService#create})가 회원 글일 때 저장이 커밋된 뒤 별도 트랜잭션으로 부른다(승급 실패가 글쓰기를 깨지 않는다). 가입 일수 조건은 시간이 지나야
  *       채워지므로 배치. 배치는 <b>DB 배치</b>다 — 저장 프로시저 {@code batch_grade_promotion} 을 pg_cron 이 하루 한 번 부른다(기본 04:30 KST — {@code R__batch_15_grade_promotion.sql}).</li>
@@ -93,7 +96,7 @@ public class GradePromotionService {
                 continue;
             }
             List<String> below = ordered.subList(0, i).stream().map(GradeThreshold::gradeKey).toList();
-            promoted += gradeQueries.promote(new PromotionScope(below, cutoff(now, target.minDays()), null, includeManual), target.gradeKey(), now);
+            promoted += gradeQueries.promote(new PromotionScope(below, cutoff(now, target.minDays()), target.minLevel(), null, includeManual), target.gradeKey(), now);
         }
         return promoted;
     }
@@ -103,24 +106,34 @@ public class GradePromotionService {
      * 저장하지 않고 센다. 새 등급(키가 없는)도 센다.
      *
      * @param fromKeys 지금 이 등급(index)보다 낮은 서열에 있는 <b>기존</b> 등급 키들(새 목록의 서열 기준 — 지워질 등급은 넣지 않는다)
+     * @param curveBase 저장할 레벨 곡선 값 — 레벨 조건을 이 곡선의 경계 경험치로 센다(곡선을 바꿔도 저장 뒤 결과와 맞게)
      */
     @Transactional(readOnly = true)
-    public long countPromotedTo(List<GradeThreshold> ordered, int index, Collection<String> fromKeys, boolean includeManual, Instant now) {
+    public long countPromotedTo(List<GradeThreshold> ordered, int index, Collection<String> fromKeys, boolean includeManual, int curveBase, Instant now) {
         GradeThreshold target = ordered.get(index);
         if (index == 0 || !activityReachable(target.minActivity())) {
             return 0;
         }
-        Instant notBefore = null; // 위 등급의 일수 조건까지 채운 회원은 그 위 등급이 된다
+        PromotionScope.Upper upper = null; // 위 등급의 일수·레벨 조건까지 채운 회원은 그 위 등급이 된다
         if (index + 1 < ordered.size() && activityReachable(ordered.get(index + 1).minActivity())) {
-            notBefore = cutoff(now, ordered.get(index + 1).minDays());
+            upper = new PromotionScope.Upper(cutoff(now, ordered.get(index + 1).minDays()), ordered.get(index + 1).minLevel());
         }
-        return gradeQueries.countPromotable(new PromotionScope(fromKeys, cutoff(now, target.minDays()), notBefore, includeManual));
+        return gradeQueries.countPromotable(new PromotionScope(fromKeys, cutoff(now, target.minDays()), target.minLevel(), upper, includeManual, curveBase));
+    }
+
+    /**
+     * <b>즉시(레벨 경로)</b> — 경험치로 레벨이 오른 트랜잭션이 <b>커밋된 뒤</b> {@link XpService} 가 부른다. 커밋 뒤 콜백 안이라 새 트랜잭션을 연다({@code REQUIRES_NEW}).
+     * 판정은 {@link #promoteOnActivity} 와 같다(레벨·일수·활동 수 — 활동 조건이 있으면 필요한 수까지만 센다).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<String> promoteOnLevelUp(long userId, Instant now) {
+        return promoteOnActivity(userId, now);
     }
 
     /**
      * <b>즉시(활동 수 경로)</b> — 회원이 글·댓글을 쓴 직후 부른다(글·댓글 저장이 커밋된 뒤, 이 메서드의 트랜잭션은 따로다).
      * <ol>
-     *   <li>사전 판정(잠금 없음): 정상 회원인가 · 수동 상향 옵션 · 지금 등급보다 높고 <b>일수 조건을 채운</b> 등급이 있는가. 없으면 활동 수를 세지 않고 끝낸다.</li>
+     *   <li>사전 판정(잠금 없음): 정상 회원인가 · 수동 상향 옵션 · 지금 등급보다 높고 <b>레벨·일수 조건을 채운</b> 등급이 있는가. 없으면 활동 수를 세지 않고 끝낸다.</li>
      *   <li>활동 수를 그 등급들이 요구하는 가장 큰 수까지만 센다({@link MemberActivityRepository#countUpTo}) — 매 글쓰기마다 전체 수를 세지 않는다. 일수뿐인 등급만 남았으면 세지 않는다(0).</li>
      *   <li>올릴 등급이 있으면 회원 프로필 행을 잠그고({@code findWithLockByUserId} — 같은 회원의 동시 승급이 이력을 두 줄 남기지 않게) {@link #promoteOnEvent} 로 다시 판정해 올린다.</li>
      * </ol>
@@ -142,7 +155,9 @@ public class GradePromotionService {
         String currentKey = state.get().gradeKey();
         int currentLevel = grades.stream().filter(g -> g.getGradeKey().equals(currentKey)).mapToInt(GradeEntity::getLevel).findFirst().orElse(1);
         long days = Duration.between(user.get().getCreatedAt(), now).toDays();
-        List<GradeEntity> candidates = grades.stream().filter(g -> g.getLevel() > currentLevel && days >= g.getMinDays()).toList();
+        int memberLevel = state.get().level();
+        List<GradeEntity> candidates = grades.stream()
+                .filter(g -> g.getLevel() > currentLevel && days >= g.getMinDays() && memberLevel >= g.getMinLevel()).toList();
         if (candidates.isEmpty()) {
             return Optional.empty();
         }
@@ -156,7 +171,7 @@ public class GradePromotionService {
     }
 
     /**
-     * 회원 한 명을 주어진 활동 수로 판정해 올린다. 일수와 활동 수 조건을 모두 채운 가장 높은 등급이 지금보다 높으면 올린다.
+     * 회원 한 명을 주어진 활동 수로 판정해 올린다. 레벨(프로필의 지금 값)·일수·활동 수 조건을 모두 채운 가장 높은 등급이 지금보다 높으면 올린다.
      * 글·댓글 작성 경로는 {@link #promoteOnActivity} 를 거쳐 부른다(활동 수를 상한까지 센 값 — 상한 이상이면 조건 판정에는 같다).
      * 일수 승급 배치(SQL)와 같은 규칙이다 — 고치면 {@code R__batch_15_grade_promotion.sql} 도 고친다.
      *
@@ -180,7 +195,7 @@ public class GradePromotionService {
         long days = Duration.between(user.get().getCreatedAt(), now).toDays();
         GradeEntity target = null;
         for (GradeEntity grade : grades) {
-            if (grade.getLevel() > currentLevel && days >= grade.getMinDays() && activityCount >= grade.getMinActivity()) {
+            if (grade.getLevel() > currentLevel && days >= grade.getMinDays() && p.getLevel() >= grade.getMinLevel() && activityCount >= grade.getMinActivity()) {
                 target = grade; // 서열 순서라 마지막으로 맞은 것이 가장 높은 등급이다
             }
         }

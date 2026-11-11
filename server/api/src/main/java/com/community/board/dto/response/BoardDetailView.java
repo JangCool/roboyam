@@ -23,6 +23,7 @@ import java.util.List;
  * @param statusEnabled        처리 상태를 쓰는가({@link BoardView#statusEnabled()} 와 같다 — V166). 상태를 바꾸는 사람 = {@code viewer.staff}
  * @param chipPosition         글 목록 칩 위치({@link BoardView#chipPosition()} 와 같다 — V169, 푼 실제 값)
  * @param authorMode           작성자 표시 NICKNAME · ANONYMOUS({@link BoardView#authorMode()} 와 같다 — V184)
+ * @param prefixStyle          말머리 모양 TEXT · MUTED · COLOR({@link BoardView#prefixStyle()} 와 같다 — V195, 푼 실제 값)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -31,5 +32,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               String commentMinGradeLabel, String introText, String writeGuideText, String writeTemplate, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
-                              String secretMode, boolean statusEnabled, String chipPosition, String authorMode) {
+                              String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle) {
 }

@@ -46,7 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>등급 역할(파생)</b>: 같은 트랜잭션에서 {@code ROLE_GRADE_<키>} 역할을 만들고(권한은 바로 아래 등급 역할의 것을 복사), 이름이 바뀌면 따라가고, 지워진 등급의 역할은 지운다.</li>
  *   <li><b>소급 승급</b>: 저장 직후 새 기준으로 이미 조건을 채운 회원을 올린다. 가입 일수 조건은 시간이 지나야 채워지는 조건이라 <b>저장 직후에는 기준을 낮춘 몫을 적용하지 않고</b>(저장 전 일수와 새 일수 중 큰 값으로 판정)
  *       다음 배치(DB 배치 {@code grade-promotion} — 프로시저 {@code batch_grade_promotion})가 올린다. 활동 수 조건·새 등급·옵션을 "계속 자동 승급"으로 바꾼 경우는 저장 직후 올린다. 이동한 회원도 판정 대상이다.</li>
- *   <li>변경이 있으면 감사 기록({@code GRADE_UPDATE})을 남긴다 — 추가·삭제(이동 인원)·이름 변경·순서·옵션·소급 승급 인원.</li>
+ *   <li><b>레벨 곡선</b>({@code xpCurveBase}, V196): 바꾸면 같은 트랜잭션에서 모든 회원의 레벨을 새 곡선으로 다시 매긴 뒤({@code recomputeLevels} — 레벨은 내려갈 수 있고 등급은 내리지 않는다)
+ *       소급 승급을 판정한다. 최소 레벨 조건은 활동 수 조건처럼 저장 직후 적용한다(일수만 다음 배치로 미룬다). 미리보기는 저장할 곡선의 경계 경험치로 센다.</li>
+ *   <li>변경이 있으면 감사 기록({@code GRADE_UPDATE})을 남긴다 — 추가·삭제(이동 인원)·이름 변경·순서·옵션·곡선·소급 승급 인원.</li>
  * </ul>
  * 입구의 권한(읽기는 grade.read · member.read · role.read 중 하나, 저장·미리보기는 grade.manage)은 컨트롤러가 선언한다.
  */
@@ -84,7 +86,8 @@ public class GradeService {
         List<GradeEntity> current = gradeQueries.findAllOrdered();
         Map<String, Long> counts = gradeQueries.memberCounts();
         List<GradeView> views = current.stream().map(grade -> view(grade, counts.getOrDefault(grade.getGradeKey(), 0L))).toList();
-        return new GradesResponse(views, settingOf().getManualPolicy().name());
+        GradeSettingEntity setting = settingOf();
+        return new GradesResponse(views, setting.getManualPolicy().name(), XpCurve.baseOrDefault(setting.getXpCurveBase()), GradeSavePlanner.MAX_GRADES);
     }
 
     /**
@@ -94,7 +97,7 @@ public class GradeService {
     @Transactional(readOnly = true)
     public GradePreviewResponse preview(GradesSaveRequest request) {
         List<GradeEntity> current = gradeQueries.findAllOrdered();
-        GradePlan plan = planner.plan(request, current);
+        GradePlan plan = planner.plan(request, current, XpCurve.baseOrDefault(settingOf().getXpCurveBase()));
         Instant now = Instant.now();
 
         Map<String, GradeEntity> byKey = new HashMap<>();
@@ -107,7 +110,7 @@ public class GradeService {
         plan.removedTo().forEach((fromKey, toKey) -> willMove.add(new GradeMoveItem(fromKey, byKey.get(fromKey).getLabel(), toKey,
                 plannedByKey.get(toKey).label(), counts.getOrDefault(fromKey, 0L))));
 
-        List<GradeThreshold> thresholds = plan.grades().stream().map(g -> new GradeThreshold(g.gradeKey(), g.level(), g.minDays(), g.minActivity())).toList();
+        List<GradeThreshold> thresholds = plan.grades().stream().map(g -> new GradeThreshold(g.gradeKey(), g.level(), g.minLevel(), g.minDays(), g.minActivity())).toList();
         boolean includeManual = plan.policy().includesManual();
         List<GradePreviewItem> items = new ArrayList<>();
         long total = 0;
@@ -115,7 +118,7 @@ public class GradeService {
             PlannedGrade target = plan.grades().get(i);
             // 새 목록에서 이 등급보다 낮은 서열에 있는 기존 등급의 회원만 이 등급이 될 수 있다
             List<String> below = plan.grades().subList(0, i).stream().map(PlannedGrade::gradeKey).filter(key -> key != null).toList();
-            long count = promotion.countPromotedTo(thresholds, i, below, includeManual, now);
+            long count = promotion.countPromotedTo(thresholds, i, below, includeManual, plan.xpCurveBase(), now);
             items.add(new GradePreviewItem(target.gradeKey(), target.label(), count));
             total += count;
         }
@@ -127,7 +130,8 @@ public class GradeService {
     public GradesResponse save(AdminActor actor, GradesSaveRequest request) {
         GradeSettingEntity setting = settings.findWithLockById(GradeSettingEntity.ROW_ID).orElseThrow(() -> new IllegalStateException("grade_settings 행이 없다"));
         List<GradeEntity> current = gradeQueries.findAllOrdered();
-        GradePlan plan = planner.plan(request, current);
+        int previousBase = XpCurve.baseOrDefault(setting.getXpCurveBase());
+        GradePlan plan = planner.plan(request, current, previousBase);
 
         Instant now = Instant.now();
         Map<String, GradeEntity> byKey = new HashMap<>();
@@ -156,7 +160,8 @@ public class GradeService {
             GradeEntity grade;
             if (planned.gradeKey() == null) {
                 String key = "GRADE_" + nextSerial++;
-                grade = GradeEntity.create(key, planned.level(), planned.label(), planned.minDays(), planned.minActivity(), planned.badgeColor(), planned.badgeIcon(), now);
+                grade = GradeEntity.create(key, planned.level(), planned.label(), planned.minLevel(), planned.minDays(), planned.minActivity(), planned.badgeColor(),
+                        planned.badgeIcon(), planned.sprite(), now);
                 grades.persist(grade);
                 created.add(key);
             } else {
@@ -168,7 +173,8 @@ public class GradeService {
                 if (differs(grade, planned)) {
                     changed.add(grade.getGradeKey());
                 }
-                grade.change(planned.level(), planned.label(), planned.minDays(), planned.minActivity(), planned.badgeColor(), planned.badgeIcon(), now);
+                grade.change(planned.level(), planned.label(), planned.minLevel(), planned.minDays(), planned.minActivity(), planned.badgeColor(), planned.badgeIcon(),
+                        planned.sprite(), now);
             }
             finalGrades.add(grade);
         }
@@ -177,11 +183,15 @@ public class GradeService {
         }
         boolean policyChanged = setting.getManualPolicy() != plan.policy();
         String previousPolicy = setting.getManualPolicy().name();
-        boolean anyChange = !created.isEmpty() || !deleted.isEmpty() || !changed.isEmpty() || policyChanged;
+        boolean curveChanged = previousBase != plan.xpCurveBase();
+        boolean anyChange = !created.isEmpty() || !deleted.isEmpty() || !changed.isEmpty() || policyChanged || curveChanged;
         if (anyChange) {
-            setting.change(plan.policy(), nextSerial, actor.operatorId(), now);
+            setting.change(plan.policy(), nextSerial, plan.xpCurveBase(), actor.operatorId(), now);
         }
         entityManager.flush(); // 등급 행(추가·수정·삭제)을 먼저 내보낸다 — 아래 역할·승급이 이 표를 읽는다
+
+        // 레벨 곡선을 바꿨으면 모든 회원의 레벨을 새 곡선으로 다시 매긴다(소급 승급이 새 레벨을 본다)
+        long relevelled = curveChanged ? gradeQueries.recomputeLevels(plan.xpCurveBase()) : 0;
 
         // 3) 등급 역할(파생)
         gradeRoles.sync(finalGrades, plan.removedTo().keySet(), now);
@@ -190,8 +200,8 @@ public class GradeService {
         long promoted = 0;
         if (anyChange) {
             List<GradeThreshold> immediate = finalGrades.stream()
-                    .map(grade -> new GradeThreshold(grade.getGradeKey(), grade.getLevel(), Math.max(grade.getMinDays(), oldDays.getOrDefault(grade.getGradeKey(), 0)),
-                            grade.getMinActivity()))
+                    .map(grade -> new GradeThreshold(grade.getGradeKey(), grade.getLevel(), grade.getMinLevel(),
+                            Math.max(grade.getMinDays(), oldDays.getOrDefault(grade.getGradeKey(), 0)), grade.getMinActivity()))
                     .toList();
             promoted = promotion.promoteAll(immediate, plan.policy().includesManual(), now);
         }
@@ -215,6 +225,9 @@ public class GradeService {
             if (policyChanged) {
                 event = event.with("manualPolicy", Map.of("from", previousPolicy, "to", plan.policy().name()));
             }
+            if (curveChanged) {
+                event = event.with("xpCurveBase", Map.of("from", previousBase, "to", plan.xpCurveBase())).with("relevelled", relevelled);
+            }
             audit.record(event);
             notices.gradeSettingsSaved(actor);
             log.info("등급 설정을 저장했다 추가={}개 삭제={}개 수정={}개 승급={}명 operatorId={}", created.size(), deleted.size(), changed.size(), promoted, actor.operatorId());
@@ -228,13 +241,14 @@ public class GradeService {
     }
 
     private static boolean differs(GradeEntity grade, PlannedGrade planned) {
-        return grade.getLevel() != planned.level() || !grade.getLabel().equals(planned.label()) || grade.getMinDays() != planned.minDays()
+        return grade.getLevel() != planned.level() || !grade.getLabel().equals(planned.label()) || grade.getMinLevel() != planned.minLevel()
+                || !grade.getSprite().equals(planned.sprite()) || grade.getMinDays() != planned.minDays()
                 || grade.getMinActivity() != planned.minActivity() || !grade.getBadgeColor().equals(planned.badgeColor())
                 || !Objects.equals(grade.getBadgeIcon(), planned.badgeIcon());
     }
 
     private static GradeView view(GradeEntity grade, long memberCount) {
         return new GradeView(grade.getGradeKey(), grade.getLevel(), grade.getLabel(), grade.getMinDays(), grade.getMinActivity(), grade.getBadgeColor(),
-                grade.getBadgeIcon(), memberCount);
+                grade.getBadgeIcon(), memberCount, grade.getMinLevel(), grade.getSprite());
     }
 }

@@ -12,5 +12,10 @@ package com.community.viewsetting.dto.request;
  * @param commentOrder    {@code OLDEST|LATEST}
  * @param menuPosition    데스크톱 메뉴 위치 {@code AUTO|TOP|LEFT|RIGHT|TOP_LEFT|TOP_RIGHT} — 빠지면 그대로
  */
-public record ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition) {
+public record ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition, Object titleBold) {
+
+    /** 제목 굵게(V198) 없이 — 빠지면 저장된 값 그대로 */
+    public ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition) {
+        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, null);
+    }
 }

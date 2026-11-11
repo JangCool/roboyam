@@ -9,8 +9,8 @@
         <!-- 비밀글 — 제목은 그대로 보이고 앞에 자물쇠(본문은 글쓴이·운영진만) -->
         <i v-if="row.secret" class="pi pi-lock mr-1 text-xs text-muted-color" :title="t('post.secretMark')" aria-hidden="true" data-testid="post-row-secret" />
         <span v-if="row.secret" class="sr-only">{{ t('post.secretMark') }}</span>
-        <span v-if="tokens.length" class="break-words"><template v-for="(part, i) in titleParts" :key="i"><mark v-if="part.match" class="rounded-sm bg-transparent font-bold text-primary">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
-        <span v-else class="break-words">{{ row.title }}</span>
+        <span v-if="tokens.length" class="post-row-title break-words"><template v-for="(part, i) in titleParts" :key="i"><mark v-if="part.match" class="rounded-sm bg-transparent font-bold text-primary">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+        <span v-else class="post-row-title break-words">{{ row.title }}</span>
         <!-- 투표가 붙은 글(post-poll-contract `hasPoll`) — 제목 옆 투표 칩 -->
         <span
             v-if="row.hasPoll"
@@ -24,10 +24,11 @@
         <i v-if="row.hasImage" class="pi pi-image ml-1 text-xs text-muted-color" :title="t('board.hasImage')" aria-hidden="true" />
         <span v-if="row.hasImage" class="sr-only">{{ t('board.hasImage') }}</span>
         <span v-if="commentCount && row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
-            <span class="sr-only">{{ t('board.commentCountLabel') }}</span>[{{ row.commentCount }}]
+            <span class="sr-only">{{ t('board.commentCountLabel') }}</span><template v-if="plainCount">{{ row.commentCount }}</template><template v-else>[{{ row.commentCount }}]</template>
         </span>
-        <span v-if="isNew" class="ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary align-[1px] text-[0.5625rem] font-bold leading-none text-primary-contrast" :title="t('board.newMark')">
-            <span class="relative top-[-0.09em]" aria-hidden="true">N</span>
+        <!-- 새 글 「N」 — 제목 글자 줄의 세로 가운데(`align-middle` 은 소문자 가운데라 1px 올린다, 확정 시안), 안의 「N」 은 라틴 대문자라 한글 보정(`top:-0.09em`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
+        <span v-if="isNew" class="relative -top-px ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary align-middle text-[0.5625rem] font-bold leading-none text-primary-contrast" :title="t('board.newMark')">
+            <span aria-hidden="true">N</span>
             <span class="sr-only">{{ t('board.newMark') }}</span>
         </span>
     </span>
@@ -51,6 +52,8 @@ interface Props {
     tokens?: string[];
     /** 칩을 제목 앞에 붙인다(칩 위치 `BEFORE`·한 줄짜리 자리) — 제목 위·닉네임 아래 칩 줄로 따로 그리는 목록은 끈다 */
     chips?: boolean;
+    /** 댓글 수를 대괄호 없이 숫자만(데스크톱 게시판 목록 A 방식 — 사용자 시안 2026-11-12) */
+    plainCount?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -59,6 +62,7 @@ const props = withDefaults(defineProps<Props>(), {
     commentCount: true,
     tokens: () => [],
     chips: true,
+    plainCount: false,
 });
 
 const { t } = useI18n();

@@ -430,6 +430,8 @@ const listComponent = computed(() => (isDeal.value ? (listKind.value === 'LIST' 
 const listExtra = computed(() => (isDeal.value && listKind.value !== 'LIST' ? { variant: listKind.value } : {}));
 /** 글 줄의 말머리·상태 칩 위치 — 게시판 정보의 `chipPosition`(서버가 사이트 기본까지 푼 값), 칸이 없으면 제목 위(post-chip-position-contract) */
 const chipPosition = computed(() => UtilBoard.chipPosition(view.value?.chipPosition));
+/** 글 줄의 말머리 모양 — 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절). 아래 글 줄 부품들이 읽는다 */
+providePrefixStyle(() => view.value?.prefixStyle);
 
 function onView(mode: BoardViewMode): void {
     viewMode.choose(slug.value, mode);
