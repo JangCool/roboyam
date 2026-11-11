@@ -3,13 +3,14 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "nuxt dev",
-        "generate": "nuxt generate",
+        "dev": "nuxt dev --dotenv .env.development",
+        "generate": "nuxt generate --dotenv .env.production",
         "preview": "nuxt preview",
         "postinstall": "nuxt prepare",
         "typecheck": "nuxt typecheck"
     },
     "dependencies": {
+        "@primeui/license-manager": "^1.1.0",
         "@primeuix/themes": "3.0.1",
         "@primevue/nuxt-module": "5.0.2",
         "@roboyam/chart": "workspace:*",

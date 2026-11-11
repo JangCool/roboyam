@@ -38,6 +38,15 @@ ADMIN_JAR="${ROBOYAM_ADMIN_JAR:-${REPO_DIR}/server/admin/build/libs/roboyam-admi
 cd "$REPO_DIR"
 
 if [ "$BUILD" -eq 1 ]; then
+    # 운영 화면 환경 파일 — generate 가 apps/<앱>/.env.production 을 읽는다(package.json 「generate」 = nuxt generate --dotenv .env.production).
+    # VITE_ 값은 빌드할 때 화면 코드에 박히므로 여기(패키지를 만드는 PC)에 있어야 한다. 키가 비면 화면에 PrimeUI 라이선스 경고가 뜬다.
+    step "운영 화면 환경 파일 확인"
+    for app in user-web admin-web; do
+        env_file="apps/${app}/.env.production"
+        [ -f "$env_file" ] || fail "없습니다: ${env_file} — 저장소의 apps/${app}/.env.production 을 받으세요(칸 설명은 .env.example)"
+        grep -Eq '^VITE_PRIMEUI_LICENSE_KEY=.+' "$env_file" || fail "${env_file} 에 VITE_PRIMEUI_LICENSE_KEY 가 비었습니다"
+        printf '   %-34s 있음\n' "$env_file"
+    done
     step "빌드 (화면 → jar)"
     pnpm --filter user-web generate
     ./gradlew :server:api:bootJar
