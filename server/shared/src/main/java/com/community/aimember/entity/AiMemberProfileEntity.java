@@ -50,7 +50,12 @@ public class AiMemberProfileEntity {
     private LocalTime afternoonStart;
     private LocalTime afternoonEnd;
 
+    /** 쓰지 않는 칸(V191 — 새 글 양은 설정의 「글 쓰는 때」). 새 계정은 CHECK(2~3)에 맞춰 2, 고치기는 건드리지 않는다 */
     private short dailyPosts;
+
+    /** 글 방식(V191) — 보통 · 강아지 소리 · 고양이 소리 */
+    @Enumerated(EnumType.STRING)
+    private AiVoice voice;
 
     /** {@code bigint[]} — 쓸 수 있는 게시판 ID */
     @JdbcTypeCode(SqlTypes.ARRAY)
@@ -65,9 +70,9 @@ public class AiMemberProfileEntity {
     protected AiMemberProfileEntity() {
     }
 
-    /** 페르소나·활동 값 한 묶음 — 검사는 부르는 서비스가 끝냈다 */
+    /** 페르소나·활동 값 한 묶음 — 검사는 부르는 서비스가 끝냈다. 활동 창은 「이 시간대에만 글·댓글·답글을 쓴다」 */
     public record Values(AiProvider provider, String model, AiGender gender, AiAgeBand ageBand, String personality, String tone, String interests,
-                         LocalTime morningStart, LocalTime morningEnd, LocalTime afternoonStart, LocalTime afternoonEnd, int dailyPosts, List<Long> boardIds) {
+                         LocalTime morningStart, LocalTime morningEnd, LocalTime afternoonStart, LocalTime afternoonEnd, AiVoice voice, List<Long> boardIds) {
     }
 
     /** 새 AI 회원 — 처음에는 꺼져 있다(관리자가 켠다) */
@@ -76,6 +81,7 @@ public class AiMemberProfileEntity {
         e.id = id;
         e.userId = userId;
         e.enabled = false;
+        e.dailyPosts = 2; // 쓰지 않는 칸(V191) — CHECK(2~3)만 맞춘다
         e.createdAt = now;
         e.createdBy = operatorId;
         e.apply(v, operatorId, now);
@@ -95,7 +101,7 @@ public class AiMemberProfileEntity {
         this.morningEnd = v.morningEnd();
         this.afternoonStart = v.afternoonStart();
         this.afternoonEnd = v.afternoonEnd();
-        this.dailyPosts = (short) v.dailyPosts();
+        this.voice = v.voice() == null ? AiVoice.NORMAL : v.voice();
         this.boardIds = v.boardIds().toArray(Long[]::new);
         touch(operatorId, now);
     }
@@ -180,8 +186,18 @@ public class AiMemberProfileEntity {
         return afternoonEnd;
     }
 
-    public int getDailyPosts() {
-        return dailyPosts;
+    /** 글 방식 — 칸이 비면(옛 줄) 보통 */
+    public AiVoice getVoice() {
+        return voice == null ? AiVoice.NORMAL : voice;
+    }
+
+    /** 오늘 지금이 활동 창 안인가(서비스 시간대 시각 — 오전 창 · 오후 창, 끝 시각 포함). 새 글·첫 댓글·답글 모두 이 안에서만 쓴다 */
+    public boolean activeAt(LocalTime t) {
+        return within(t, morningStart, morningEnd) || within(t, afternoonStart, afternoonEnd);
+    }
+
+    private static boolean within(LocalTime t, LocalTime start, LocalTime end) {
+        return start != null && end != null && !t.isBefore(start) && !t.isAfter(end);
     }
 
     public List<Long> getBoardIds() {

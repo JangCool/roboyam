@@ -19,8 +19,8 @@ export default class UtilAiMember {
     static readonly PERMISSION_MANAGE = 'ai-member.manage';
     static readonly PERMISSION_SECRET = 'ai-member.secret';
 
-    /** 하루 글 수 선택지(정책 4 — 2~3건) */
-    static readonly DAILY_POSTS: readonly number[] = [2, 3];
+    /** 「글 쓰는 때」 글이 잘 올라오는 게시판 간격 선택지(일) — 서버는 1~90 을 받는다 */
+    static readonly BUSY_INTERVAL_OPTIONS: readonly number[] = [7, 30];
     static readonly PERSONALITY_MAX = 200;
     static readonly TONE_MAX = 100;
     static readonly INTERESTS_MAX = 300;
@@ -47,7 +47,7 @@ export default class UtilAiMember {
             bio: '',
             relation: null,
             windows: { morning: { start: '09:00', end: '11:30' }, afternoon: { start: '14:00', end: '21:00' } },
-            dailyPosts: UtilAiMember.DAILY_POSTS[0]!,
+            voice: 'NORMAL',
             boards: [],
             groups: [],
         };
@@ -64,7 +64,7 @@ export default class UtilAiMember {
             bio: detail.bio,
             relation: detail.relation ? { kind: detail.relation.kind, partnerAiMemberId: detail.relation.partner.aiMemberId } : null,
             windows: { morning: { ...detail.windows.morning }, afternoon: { ...detail.windows.afternoon } },
-            dailyPosts: detail.dailyPosts,
+            voice: detail.voice,
             boards: [...detail.boards],
             groups: [...detail.groups],
         };
@@ -84,7 +84,7 @@ export default class UtilAiMember {
         if (!same(a.relation, b.relation)) n++;
         if (!same(a.windows.morning, b.windows.morning)) n++;
         if (!same(a.windows.afternoon, b.windows.afternoon)) n++;
-        if (a.dailyPosts !== b.dailyPosts) n++;
+        if (a.voice !== b.voice) n++;
         if (!same(sorted(a.boards), sorted(b.boards))) n++;
         if (!same(sorted(a.groups), sorted(b.groups))) n++;
         return n;

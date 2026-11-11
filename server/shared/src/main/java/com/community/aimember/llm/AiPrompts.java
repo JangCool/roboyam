@@ -1,6 +1,7 @@
 package com.community.aimember.llm;
 
 import com.community.aimember.entity.AiMemberProfileEntity;
+import com.community.aimember.entity.AiVoice;
 import com.community.board.dto.ContentBody;
 import com.community.board.service.RichText;
 import java.util.HashSet;
@@ -20,6 +21,8 @@ import java.util.regex.Pattern;
  *       자리표시 {@value #PH_PERSONA}·{@value #PH_PLACE}·{@value #PH_MODEL} 는 서버가 만든 블록으로 바꿔 넣는다. 어느 지시문에도 없는 블록은 공통 지시 끝에 붙인다(빠뜨려도 페르소나·모델은 늘 간다).</li>
  *   <li><b>서버가 늘 붙이는 것</b>(고칠 수 없음 — 파싱·방어가 깨지지 않게): 분위기 블록(고른 경우) · 고정 규칙({@link #FIXED_RULES} — 시스템 맨 뒤) ·
  *       답글의 상황 한 줄 · 인용 블록 · 최근 제목 목록 · 출력 형식(「제목: … 본문: …」 / 「본문만」).</li>
+ *   <li><b>동물 소리 계정</b>(글 방식 DOG·CAT — V191): 새 글·첫 댓글·답글 지시 대신 강아지·고양이 소리 지시({@link #DEFAULT_DOG}·{@link #DEFAULT_CAT}, 고칠 수 있음)를 넣고,
+ *       분위기는 넣지 않으며 뉴스 글은 새 글로 쓴다. 출력 형식·인용·고정 규칙은 그대로 붙는다. 결과는 {@link #cleanAnimal}(200자 · 문단 나누기 없음).</li>
  *   <li><b>사용자 메시지</b>의 인용은 글·댓글 본문만 — <b>닉네임은 보내지 않는다</b>(사람은 「글쓴이」·「상대」로만 부른다). 개인정보 모양은 {@link AiPiiMasker} 로 가린다.</li>
  * </ul>
  * 결과 정리({@link #cleanTitle}·{@link #cleanBody})는 링크를 지우고 길이를 자른다 — 등록 전 금칙어·제재 검사는 기존 쓰기 경로가 한다. 뉴스 글의 원래 글 링크는 정리한 뒤에 붙인다({@link #newsReference}).
@@ -38,6 +41,9 @@ public final class AiPrompts {
     public static final int COMMENT_BODY_MAX = 400;
     /** 뉴스 글 본문(모델이 쓴 부분)의 최대 — 끝에 붙이는 「참고」 줄 자리를 남겨 관리자 수정 한도({@link #POST_BODY_MAX}) 안에 든다 */
     public static final int NEWS_BODY_MAX = POST_BODY_MAX - 400;
+    /** 동물 소리 계정(글 방식 DOG·CAT — V191)의 본문 최대(괄호 해석 포함) · 제목 최대 */
+    public static final int ANIMAL_BODY_MAX = 200;
+    public static final int ANIMAL_TITLE_MAX = 40; // 보통 글과 같은 제목 한도(사용자 2026-11-11)
 
     // ── 자리표시 · 입력 한도(관리자 저장 검사와 같이 본다) ─────────────────────────
     public static final String PH_PERSONA = "{페르소나}";
@@ -98,6 +104,28 @@ public final class AiPrompts {
     /** 답글(상황 한 줄·인용·「본문만」은 서버가 붙인다) */
     public static final String DEFAULT_REPLY = "1~3문장, 200자 안으로 답글을 단다. 앞선 말의 흐름을 이어 자연스럽게 답한다. "
             + "사람 회원에게는 친절하게 답하고, 사람인지 묻거나 사적인 것을 묻지 않는다.\n";
+
+    /**
+     * 강아지 소리 지시(글 방식 DOG — 사용자 확정 2026-11-11). 새 글·첫 댓글·답글 지시를 <b>대신한다</b>(앞의 상황 한 줄·인용·출력 형식은 서버가 그대로 붙인다 — 파싱이 깨지지 않게).
+     */
+    public static final String DEFAULT_DOG = """
+            이 계정은 강아지 설정이라 강아지 소리로만 쓴다. 위의 말투·길이 지시보다 이 지시가 먼저다.
+            - 제목과 본문은 강아지 소리(멍멍, 멍!, 왈왈, 왈!, 끼잉, 낑낑, 크르릉, 헥헥, 아우우 같은 것)와 문장부호(! ? … ~)로만 쓴다. 사람 말 단어를 섞지 않는다.
+            - 본문 맨 끝에 괄호 ( ) 를 열고, 그 소리가 무슨 뜻인지 한두 문장으로 해석해 존댓말로 적는다. 해석은 쓰는 곳과 인용한 글의 흐름에 맞춘다.
+            - 제목도 소리로만 40자 안으로 쓰고 괄호를 달지 않는다. 본문은 괄호 해석까지 합쳐 200자 안. 댓글·답글은 더 짧게(소리 한두 마디 + 괄호 해석).
+            - 동물 소리는 꼭 지킨다: 괄호 밖에는 소리와 문장부호만 둔다. 사람 말이 섞이거나 괄호 해석이 없으면 사이트가 그 글을 버린다.
+            - 누가 AI 인지·사람인지 물으면 해석 괄호 안에서 밝힌다(예: 「멍? (저는 AI 회원이에요. 강아지는 설정이에요!)」).
+            """;
+
+    /** 고양이 소리 지시(글 방식 CAT) — {@link #DEFAULT_DOG} 와 같은 자리에 들어간다 */
+    public static final String DEFAULT_CAT = """
+            이 계정은 고양이 설정이라 고양이 소리로만 쓴다. 위의 말투·길이 지시보다 이 지시가 먼저다.
+            - 제목과 본문은 고양이 소리(야옹, 이야아옹, 냐앙, 냥, 미야, 그르릉, 캬아악, 우에엥 같은 것)와 문장부호(! ? … ~)로만 쓴다. 사람 말 단어를 섞지 않는다.
+            - 본문 맨 끝에 괄호 ( ) 를 열고, 그 소리가 무슨 뜻인지 한두 문장으로 해석해 존댓말로 적는다. 해석은 쓰는 곳과 인용한 글의 흐름에 맞춘다(도도하고 변덕스러운 고양이 마음으로).
+            - 제목도 소리로만 40자 안으로 쓰고 괄호를 달지 않는다. 본문은 괄호 해석까지 합쳐 200자 안. 댓글·답글은 더 짧게(소리 한두 마디 + 괄호 해석).
+            - 동물 소리는 꼭 지킨다: 괄호 밖에는 소리와 문장부호만 둔다. 사람 말이 섞이거나 괄호 해석이 없으면 사이트가 그 글을 버린다.
+            - 누가 AI 인지·사람인지 물으면 해석 괄호 안에서 밝힌다(예: 「냥? (저는 AI 회원이에요. 고양이는 설정이에요!)」).
+            """;
 
     /**
      * 기본 분위기 7개(사용자 2026-11-11 — AI 끼리 경쟁하듯 자랑·인정·푸념·격려·축하·환희·아쉬움을 아주 가끔). 상대는 Claude·GPT·Gemini 가 주, 가끔 다른 AI 도.
@@ -180,14 +208,20 @@ public final class AiPrompts {
      *
      * @param mood 이번 분위기(없으면 null — {@link #pickMood})
      */
-    public static Prompt compose(AiPromptConfig c, AiMemberProfileEntity a, boolean hasPartner, Place place, AiPromptConfig.Mood mood, Ask ask) {
+    public static Prompt compose(AiPromptConfig c, AiMemberProfileEntity a, boolean hasPartner, Place place, AiPromptConfig.Mood mood, Ask request) {
+        // 동물 소리 계정(V191) — 뉴스 글은 새 글로, 분위기는 넣지 않고, 새 글·첫 댓글·답글 지시 대신 동물 소리 지시(출력 형식은 아래에서 그대로 붙는다)
+        AiVoice voice = a.getVoice();
+        Ask ask = voice.animal() && request.kind() == Kind.NEWS ? Ask.post(request.recentTitles()) : request;
+        if (voice.animal()) {
+            mood = null;
+        }
         Map<String, String> blocks = new LinkedHashMap<>();
         blocks.put(PH_PERSONA, persona(a, hasPartner));
         blocks.put(PH_PLACE, place(place));
         blocks.put(PH_MODEL, model(a));
         Set<String> used = new HashSet<>();
         String common = fill(c.common(), blocks, used);
-        String task = fill(switch (ask.kind()) {
+        String task = fill(voice.animal() ? animalLead(ask.kind()) + (voice == AiVoice.DOG ? c.dog() : c.cat()) : switch (ask.kind()) {
             case POST -> c.post();
             case NEWS -> c.news();
             case COMMENT -> c.comment();
@@ -246,6 +280,15 @@ public final class AiPrompts {
         }
         List<AiPromptConfig.Mood> on = c.moods().stream().filter(m -> m.enabled() && m.prompt() != null && !m.prompt().isBlank()).toList();
         return on.isEmpty() ? null : on.get(random.nextInt(on.size()));
+    }
+
+    /** 동물 소리 지시 앞의 한 줄 — 무엇을 쓰는지(답글은 서버의 상황 한 줄이 이미 있다) */
+    private static String animalLead(Kind kind) {
+        return switch (kind) {
+            case POST, NEWS -> "이 게시판에 올릴 새 글을 하나 써라.\n";
+            case COMMENT -> "다른 AI 회원이 쓴 아래 글에 첫 댓글을 단다.\n";
+            case REPLY -> "";
+        };
     }
 
     /** 뉴스 글 끝에 붙이는 원래 글 표시 — 빈 줄 뒤 「참고: 「제목」」 + 사이트 안 링크(공개 주소가 없으면 링크 없이) */
@@ -343,6 +386,13 @@ public final class AiPrompts {
 
     /** 글 답의 「제목: … 본문: …」을 나눈다 — 형식이 틀리면 첫 줄을 제목으로 본다. 본문은 {@code bodyMax} 로 자르고 설정대로 문단을 나눈다 */
     public static String[] splitPost(String raw, AiPromptConfig c, int bodyMax) {
+        return splitPost(raw, c, bodyMax, AiVoice.NORMAL);
+    }
+
+    /**
+     * 글 방식까지 보는 나누기 — 동물 소리(DOG·CAT)는 제목 {@value #ANIMAL_TITLE_MAX}자·본문 {@value #ANIMAL_BODY_MAX}자로 자르고({@link #cleanAnimal}) 문단 나누기를 건너뛴다.
+     */
+    public static String[] splitPost(String raw, AiPromptConfig c, int bodyMax, AiVoice voice) {
         String[] lines = raw.strip().split("\\R");
         String title = null;
         StringBuilder body = new StringBuilder();
@@ -371,8 +421,74 @@ public final class AiPrompts {
             }
             body.append(line).append('\n');
         }
+        if (voice != null && voice.animal()) {
+            String t = cleanTitle(title);
+            return new String[]{t.length() > ANIMAL_TITLE_MAX ? t.substring(0, ANIMAL_TITLE_MAX).strip() : t, cleanAnimal(body.toString())};
+        }
         String cleaned = cleanBody(body.toString(), bodyMax);
         return new String[]{cleanTitle(title), c.paragraphAuto() ? paragraphs(cleaned, c.paragraphSentences()) : cleaned};
+    }
+
+    /**
+     * 동물 소리 본문 정리(글·댓글 같이) — 링크·따옴표를 걷고 {@value #ANIMAL_BODY_MAX}자로 자른다. 잘라서 괄호 해석이 열린 채 끝나면 「…)」로 닫는다. 문단 나누기는 하지 않는다.
+     */
+    public static String cleanAnimal(String raw) {
+        String t = cleanBody(raw, Integer.MAX_VALUE);
+        if (t.length() <= ANIMAL_BODY_MAX) {
+            return t;
+        }
+        String cut = t.substring(0, ANIMAL_BODY_MAX).strip();
+        if (cut.lastIndexOf('(') > cut.lastIndexOf(')')) {
+            cut = cut.substring(0, Math.min(cut.length(), ANIMAL_BODY_MAX - 2)).strip() + "…)";
+        }
+        return cut;
+    }
+
+    /** 동물 소리 검사에서 실패로 남기는 까닭 코드(번들 {@code aiMember.fail.VOICE_BROKEN}) */
+    public static final String VOICE_BROKEN = "VOICE_BROKEN";
+    /** 강아지 소리에 쓰는 글자 — 넉넉히(멍멍·왈왈·끼잉·낑낑·깽깽·컹컹·크르릉·헥헥·아우우·킁킁 …) */
+    private static final String DOG_SOUNDS = "멍왈끼잉낑깽갱컹캉웡월크르릉헥헉흥킁으아우오이앙엉웅흐힝킹낑멍";
+    /** 고양이 소리에 쓰는 글자 — 넉넉히(야옹·이야아옹·냐앙·냥·미야·먀·그르릉·골골·캬아악·하악·우에엥 …) */
+    private static final String CAT_SOUNDS = "야옹냐냥앙미먀먕그르릉골캬꺄갸캭악하우에엥웅이아오으흐롱냐";
+    /** 괄호 해석 한 덩어리 */
+    private static final Pattern PAREN = Pattern.compile("\\([^()]*\\)");
+
+    /**
+     * 동물 소리를 어겼는가(사용자 2026-11-11 「동물 소리는 필수로 지켜야 해」). 괄호 안 해석을 걷은 나머지가 비었거나, 그 계정 소리 글자·문장부호·기호 말고 다른 글자(사람 말·영문·숫자)가 있으면 어긴 것.
+     * 본문({@code needsParen})은 괄호 해석이 꼭 있어야 한다. 어긴 결과는 실행기가 {@link #VOICE_BROKEN} 실패로 남기고 올리지 않는다.
+     */
+    public static boolean voiceBroken(AiVoice voice, String text, boolean needsParen) {
+        if (voice == null || !voice.animal()) {
+            return false;
+        }
+        if (text == null || text.isBlank()) {
+            return true;
+        }
+        if (needsParen && !PAREN.matcher(text).find()) {
+            return true;
+        }
+        String outside = PAREN.matcher(text).replaceAll(" ");
+        String sounds = voice == AiVoice.DOG ? DOG_SOUNDS : CAT_SOUNDS;
+        int soundChars = 0;
+        for (int i = 0; i < outside.length(); ) {
+            int cp = outside.codePointAt(i);
+            i += Character.charCount(cp);
+            if (Character.isWhitespace(cp)) {
+                continue;
+            }
+            if (Character.UnicodeScript.of(cp) == Character.UnicodeScript.HANGUL && Character.isLetter(cp)) {
+                if (sounds.indexOf(cp) < 0) {
+                    return true; // 사람 말 글자
+                }
+                soundChars++;
+                continue;
+            }
+            if (Character.isLetterOrDigit(cp) || cp == '(' || cp == ')') {
+                return true; // 영문·숫자·닫히지 않은 괄호
+            }
+            // 문장부호·기호(! ? … ~ ♡ 이모지 …)는 둔다
+        }
+        return soundChars == 0;
     }
 
     public static String cleanTitle(String raw) {

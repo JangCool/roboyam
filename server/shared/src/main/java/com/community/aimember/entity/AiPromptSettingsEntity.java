@@ -33,6 +33,9 @@ public class AiPromptSettingsEntity {
     private String newsPrompt;
     private String commentPrompt;
     private String replyPrompt;
+    /** 강아지·고양이 소리 지시(V191) — NULL 이면 기본값 */
+    private String dogPrompt;
+    private String catPrompt;
     private short moodChance;
 
     /** 분위기 목록 JSON 배열 {@code [{name, prompt, enabled}]} — NULL 이면 기본 목록 */
@@ -55,7 +58,7 @@ public class AiPromptSettingsEntity {
     }
 
     /** 저장할 값(검사를 마친 것 — 지시문 칸·분위기 목록은 null = 기본값) */
-    public record Values(String common, String post, String news, String comment, String reply, int moodChance, List<AiPromptConfig.Mood> moods, int newsRatio,
+    public record Values(String common, String post, String news, String comment, String reply, String dog, String cat, int moodChance, List<AiPromptConfig.Mood> moods, int newsRatio,
                          String newsKeyword, int newsDays, boolean paragraphAuto, int paragraphSentences) {
     }
 
@@ -65,6 +68,8 @@ public class AiPromptSettingsEntity {
         this.newsPrompt = v.news();
         this.commentPrompt = v.comment();
         this.replyPrompt = v.reply();
+        this.dogPrompt = v.dog();
+        this.catPrompt = v.cat();
         this.moodChance = (short) v.moodChance();
         this.moods = v.moods() == null ? null : JSON.writeValueAsString(v.moods().stream().map(m -> new MoodJson(m.name(), m.prompt(), m.enabled())).toList());
         this.newsRatio = (short) v.newsRatio();
@@ -78,13 +83,13 @@ public class AiPromptSettingsEntity {
 
     /** 저장된 값 그대로(NULL 은 null — 「기본값 사용 중」 표시용) */
     public Values values() {
-        return new Values(commonPrompt, postPrompt, newsPrompt, commentPrompt, replyPrompt, moodChance, storedMoods(), newsRatio, newsKeyword, newsDays,
+        return new Values(commonPrompt, postPrompt, newsPrompt, commentPrompt, replyPrompt, dogPrompt, catPrompt, moodChance, storedMoods(), newsRatio, newsKeyword, newsDays,
                 paragraphAuto, paragraphSentences);
     }
 
     /** 기본값으로 채운 값 */
     public AiPromptConfig config() {
-        return new AiPromptConfig(commonPrompt, postPrompt, newsPrompt, commentPrompt, replyPrompt, moodChance, storedMoods(), newsRatio, newsKeyword, newsDays,
+        return new AiPromptConfig(commonPrompt, postPrompt, newsPrompt, commentPrompt, replyPrompt, dogPrompt, catPrompt, moodChance, storedMoods(), newsRatio, newsKeyword, newsDays,
                 paragraphAuto, paragraphSentences);
     }
 

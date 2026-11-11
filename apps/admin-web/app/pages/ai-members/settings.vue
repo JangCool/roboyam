@@ -13,7 +13,8 @@
           ②-1 AI 전용 소모임 — 지정·해제가 한 건씩 바로 반영(확인 뒤 `PUT /api/admin/ai-members/groups/{id}`). 지금 AI 전용 소모임은 options 의 `groups`(열린 것만),
              지정할 소모임은 소모임 관리 목록(`useGroupAdminApi().list`, 권한 `group.read` — 403 이면 찾기만 끈다)에서 찾는다. 공개 소모임만 지정할 수 있다 — 비공개는 단추를 끄고 이유를 보이며,
              서버도 409 `GROUP_NOT_PUBLIC` 으로 거절한다(그 사이 비공개로 바뀐 경우). 이미 사람 멤버가 있으면 그대로 남는다(새 일반 회원 가입만 막힌다).
-          ③ 게시 방식·비용 보호·댓글 규칙 — 한 번에 PUT(`StickySaveBar`). 「바로 게시」 범위 전체(기본값) / 계정별, 계정별이면 계정 다중 선택이 나오고 하나도 안 고르면 저장을 막는다.
+          ③ 게시 방식·글 쓰는 때·비용 보호·댓글 규칙 — 한 번에 PUT(`StickySaveBar`).
+             「글 쓰는 때」(V191 — 모든 AI 계정 공통, 계정별 「하루 글 수」 대신): 조용한 게시판 기준 N일(기본 2) · 글이 잘 올라오는 게시판 간격 7일/30일(기본 7) · 계정당 하루 최대 글(기본 1). 「바로 게시」 범위 전체(기본값) / 계정별, 계정별이면 계정 다중 선택이 나오고 하나도 안 고르면 저장을 막는다.
              「일반 회원 글에도 댓글 허용」은 기본 꺼짐(나중 정책). 다른 AI 글 첫 댓글 1~2개 등 서버 규칙은 읽기 전용으로 보인다.
         권한: 보기 `ai-member.read` · 바꾸기 `ai-member.manage`(정지·소모임·③) · 키 `ai-member.secret`(②). 503 `CRYPTO_KEY_MISSING` 이면 키 칸을 잠그고 위 경고를 띄운다.
     -->
@@ -297,6 +298,65 @@
                     </fieldset>
                 </AppGadget>
 
+                <!-- 글 쓰는 때(V191) — 모든 AI 계정 공통 -->
+                <AppGadget :title="t('aiMember.postTimingTitle')">
+                    <fieldset :disabled="!canManage || saving" class="m-0 flex flex-col gap-4 border-0 p-0">
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('aiMember.postTimingHelp') }}</p>
+                        <div class="flex flex-wrap items-start gap-4">
+                            <LabeledField
+                                :label="t('aiMember.quietDays')"
+                                :hint="t('aiMember.daysRangeHint', { min: settings.postTiming.quietDaysRange.min, max: settings.postTiming.quietDaysRange.max, n: 2 })"
+                                :help="t('aiMember.quietDaysHelp', { n: form.quietDays })"
+                                :error="fieldErrors.quietDays"
+                            >
+                                <template #default="{ id, describedBy, invalid }">
+                                    <InputNumber
+                                        v-model="form.quietDays"
+                                        :input-id="id"
+                                        :min="settings.postTiming.quietDaysRange.min"
+                                        :max="settings.postTiming.quietDaysRange.max"
+                                        :suffix="t('aiMember.daysSuffix')"
+                                        :invalid="invalid"
+                                        :aria-describedby="describedBy"
+                                        class="max-w-[8rem]"
+                                    />
+                                </template>
+                            </LabeledField>
+                            <LabeledField :label="t('aiMember.busyInterval')" :help="t('aiMember.busyIntervalHelp', { n: form.busyIntervalDays, quiet: form.quietDays })" :error="fieldErrors.busyIntervalDays">
+                                <template #default="{ describedBy }">
+                                    <SelectButton v-model="form.busyIntervalDays" :options="intervalOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('aiMember.busyInterval')" :aria-describedby="describedBy" />
+                                </template>
+                            </LabeledField>
+                            <LabeledField
+                                :label="t('aiMember.dailyPostMax')"
+                                :hint="t('aiMember.countRangeHint', { min: settings.postTiming.dailyPostMaxRange.min, max: settings.postTiming.dailyPostMaxRange.max, n: 1 })"
+                                :help="t('aiMember.dailyPostMaxHelp')"
+                                :error="fieldErrors.dailyPostMax"
+                            >
+                                <template #default="{ id, describedBy, invalid }">
+                                    <InputNumber
+                                        v-model="form.dailyPostMax"
+                                        :input-id="id"
+                                        :min="settings.postTiming.dailyPostMaxRange.min"
+                                        :max="settings.postTiming.dailyPostMaxRange.max"
+                                        :suffix="t('aiMember.countSuffix')"
+                                        :invalid="invalid"
+                                        :aria-describedby="describedBy"
+                                        class="max-w-[8rem]"
+                                    />
+                                </template>
+                            </LabeledField>
+                        </div>
+                        <ul class="m-0 flex list-disc flex-col gap-1 pl-5 text-xs leading-relaxed text-muted-color">
+                            <li>{{ t('aiMember.postTimingRulePick') }}</li>
+                            <li>{{ t('aiMember.postTimingRuleOne') }}</li>
+                            <li>{{ t('aiMember.postTimingRuleGroups') }}</li>
+                            <li>{{ t('aiMember.postTimingRuleNews') }}</li>
+                            <li>{{ t('aiMember.postTimingRuleComments') }}</li>
+                        </ul>
+                    </fieldset>
+                </AppGadget>
+
                 <AppGadget :title="t('aiMember.limitTitle')">
                     <fieldset :disabled="!canManage || saving" class="m-0 border-0 p-0">
                         <LabeledField
@@ -374,6 +434,13 @@ const loadError = ref<ApiError | null>(null);
 const pendingTotal = computed(() => (accounts.value ? accounts.value.items.reduce((sum, row) => sum + row.pendingDrafts, 0) : null));
 const accountOptions = computed(() => (accounts.value?.items ?? []).map((row) => ({ value: row.id, label: row.member.nickname })));
 const scopeOptions = computed(() => (['ALL', 'SELECTED'] as const).map((value) => ({ value, label: t(`aiMember.instantScopeOption.${value}`) })));
+/** 글이 잘 올라오는 게시판 간격 — 7일 · 30일(서버에 다른 값이 저장돼 있으면 그 값도 보인다) */
+const intervalOptions = computed(() => {
+    const values = [...UtilAiMember.BUSY_INTERVAL_OPTIONS];
+    const saved = initial.value?.busyIntervalDays;
+    if (saved !== undefined && !values.includes(saved)) values.push(saved);
+    return values.sort((a, b) => a - b).map((value) => ({ value, label: t('aiMember.daysLine', { n: value }) }));
+});
 
 function accountsOf(provider: AiProvider): number {
     return (accounts.value?.items ?? []).filter((row) => row.provider === provider).length;
@@ -387,7 +454,16 @@ const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 
 function requestOf(s: AiMemberSettings): AiMemberSettingsRequest {
-    return { instantPublish: s.instantPublish, instantScope: s.instantScope, instantAccountIds: [...s.instantAccountIds], dailyCallLimit: s.dailyCallLimit, commentOnMemberPosts: s.commentOnMemberPosts };
+    return {
+        instantPublish: s.instantPublish,
+        instantScope: s.instantScope,
+        instantAccountIds: [...s.instantAccountIds],
+        dailyCallLimit: s.dailyCallLimit,
+        commentOnMemberPosts: s.commentOnMemberPosts,
+        quietDays: s.postTiming.quietDays,
+        busyIntervalDays: s.postTiming.busyIntervalDays,
+        dailyPostMax: s.postTiming.dailyPostMax,
+    };
 }
 
 /** 서버 값으로 칸을 다시 만든다 — 처음 받을 때와 저장한 뒤 */
@@ -413,6 +489,9 @@ const changes = computed(() => {
     if ([...a.instantAccountIds].sort().join() !== [...b.instantAccountIds].sort().join()) n++;
     if (a.dailyCallLimit !== b.dailyCallLimit) n++;
     if (a.commentOnMemberPosts !== b.commentOnMemberPosts) n++;
+    if (a.quietDays !== b.quietDays) n++;
+    if (a.busyIntervalDays !== b.busyIntervalDays) n++;
+    if (a.dailyPostMax !== b.dailyPostMax) n++;
     return n;
 });
 
@@ -459,7 +538,7 @@ async function save(): Promise<void> {
         if (error.fields && Object.keys(error.fields).length) {
             fieldErrors.value = { ...error.fields };
             formError.value = Object.entries(error.fields)
-                .filter(([key]) => !['instantAccountIds', 'dailyCallLimit'].includes(key))
+                .filter(([key]) => !['instantAccountIds', 'dailyCallLimit', 'quietDays', 'busyIntervalDays', 'dailyPostMax'].includes(key))
                 .map(([, message]) => message)
                 .join(' ');
         } else {

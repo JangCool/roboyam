@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  * AI 회원 프롬프트 관리(관리자 「AI 회원 › 프롬프트」 — ai-members-contract 「뉴스 글·프롬프트 관리 (2026-11-11)」, 표 {@code ai_prompt_settings} V190).
  *
  * <ul>
- *   <li>지시문 다섯 칸(공통·새 글·뉴스 글·첫 댓글·답글) — 비었거나 기본값과 같으면 NULL(= 코드 기본값 {@link AiPrompts}). 분위기 목록도 기본과 같으면 NULL.</li>
+ *   <li>지시문 일곱 칸(공통·새 글·뉴스 글·첫 댓글·답글 · 강아지 소리·고양이 소리 — V191) — 비었거나 기본값과 같으면 NULL(= 코드 기본값 {@link AiPrompts}). 분위기 목록도 기본과 같으면 NULL.</li>
  *   <li>고정 규칙·출력 형식·인용 블록·최근 제목은 고칠 수 없다(서버가 늘 붙인다 — 화면에는 고정 규칙만 읽기 전용으로).</li>
  *   <li>저장은 감사 {@code AI_PROMPT_UPDATE}(대상 {@code AI_MEMBER_SETTINGS}·{@code PROMPTS}) — 감사 상세 한도(4000자) 때문에 지시문은 「기본값 / 직접(글자 수)」만 싣는다.</li>
  *   <li>미리 보기는 저장 전 화면 값으로 실제 보낼 메시지를 만든다(제공사 호출 없음 · 감사 없음). 뉴스 글은 지금 소재 후보가 있으면 그것으로, 없으면 「소재 없음」.</li>
@@ -73,7 +73,7 @@ public class AiPromptAdminService {
         return view(row());
     }
 
-    /** 저장 — 400 {@code VALIDATION}(common · post · news · comment · reply · moodChance · moods · moods[i].name · moods[i].prompt · newsRatio · newsKeyword · newsDays · paragraphSentences) */
+    /** 저장 — 400 {@code VALIDATION}(common · post · news · comment · reply · dog · cat · moodChance · moods · moods[i].name · moods[i].prompt · newsRatio · newsKeyword · newsDays · paragraphSentences) */
     @Transactional
     public AiMemberViews.PromptSettings save(AdminActor actor, AiMemberRequests.PromptSave body) {
         AiPromptSettingsEntity.Values values = validate(body);
@@ -122,6 +122,10 @@ public class AiPromptAdminService {
             throw new ValidationException(fields);
         }
         AiMemberProfileEntity a = accounts.findById(accountId).orElseThrow(AiMemberNotFoundException::new);
+        String voice = a.getVoice().name();
+        if (a.getVoice().animal()) {
+            mood = null; // 동물 소리 계정은 분위기를 넣지 않는다(실행기와 같다)
+        }
         AiPrompts.Place place = placeOf(a);
         List<String> titles = queries.recentTitles(a.getId(), 10);
         AiPrompts.Ask ask;
@@ -130,11 +134,16 @@ public class AiPromptAdminService {
         switch (kind) {
             case POST -> ask = AiPrompts.Ask.post(titles);
             case NEWS -> {
+                if (a.getVoice().animal()) {
+                    // 동물 소리 계정은 뉴스 글을 쓰지 않는다 — 실행기처럼 새 글로 만든다(compose 도 같은 규칙)
+                    ask = AiPrompts.Ask.post(titles);
+                    break;
+                }
                 Optional<AiNewsSources.Source> found = news.find(a, config, Instant.now(), ThreadLocalRandom.current());
                 if (found.isEmpty()) {
                     // 소재 없음 — 실행기라면 보통 새 글로 쓴다. 시스템 메시지만 보인다
                     AiPrompts.Prompt p = AiPrompts.compose(config, a, a.getPartnerId() != null, place, mood, AiPrompts.Ask.post(titles));
-                    return new AiMemberViews.PromptPreview(kind.name(), p.system(), null, null, true, false, place == null ? null : place.name(), moodName(mood));
+                    return new AiMemberViews.PromptPreview(kind.name(), p.system(), null, null, true, false, place == null ? null : place.name(), moodName(mood), voice);
                 }
                 AiNewsSources.Source src = found.get();
                 source = new AiMemberViews.PromptSource(Long.toString(src.postId()), src.title());
@@ -151,19 +160,21 @@ public class AiPromptAdminService {
             default -> throw new IllegalStateException();
         }
         AiPrompts.Prompt p = AiPrompts.compose(config, a, a.getPartnerId() != null, place, mood, ask);
-        return new AiMemberViews.PromptPreview(kind.name(), p.system(), p.user(), source, false, sample, place == null ? null : place.name(), moodName(mood));
+        return new AiMemberViews.PromptPreview(kind.name(), p.system(), p.user(), source, false, sample, place == null ? null : place.name(), moodName(mood), voice);
     }
 
     // ── 검사 ──────────────────────────────────────────────────────────────
 
     private AiPromptSettingsEntity.Values validate(AiMemberRequests.PromptSave body) {
-        AiMemberRequests.PromptSave b = body == null ? new AiMemberRequests.PromptSave(null, null, null, null, null, null, null, null, null, null, null, null) : body;
+        AiMemberRequests.PromptSave b = body == null ? new AiMemberRequests.PromptSave(null, null, null, null, null, null, null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String common = text(b.common(), AiPrompts.DEFAULT_COMMON, AiPrompts.COMMON_MAX, "common", fields);
         String post = text(b.post(), AiPrompts.DEFAULT_POST, AiPrompts.TASK_MAX, "post", fields);
         String newsText = text(b.news(), AiPrompts.DEFAULT_NEWS, AiPrompts.TASK_MAX, "news", fields);
         String comment = text(b.comment(), AiPrompts.DEFAULT_COMMENT, AiPrompts.TASK_MAX, "comment", fields);
         String reply = text(b.reply(), AiPrompts.DEFAULT_REPLY, AiPrompts.TASK_MAX, "reply", fields);
+        String dog = text(b.dog(), AiPrompts.DEFAULT_DOG, AiPrompts.TASK_MAX, "dog", fields);
+        String cat = text(b.cat(), AiPrompts.DEFAULT_CAT, AiPrompts.TASK_MAX, "cat", fields);
         int moodChance = percent(b.moodChance(), "moodChance", "aiMember.moodChance.range", fields);
         List<AiPromptConfig.Mood> moods = null;
         if (b.moods() != null) {
@@ -211,7 +222,7 @@ public class AiPromptAdminService {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        return new AiPromptSettingsEntity.Values(common, post, newsText, comment, reply, moodChance, moods, newsRatio, keyword, days,
+        return new AiPromptSettingsEntity.Values(common, post, newsText, comment, reply, dog, cat, moodChance, moods, newsRatio, keyword, days,
                 !Boolean.FALSE.equals(b.paragraphAuto()), sentences);
     }
 
@@ -249,19 +260,19 @@ public class AiPromptAdminService {
     }
 
     private static AiMemberViews.PromptValues values(AiPromptConfig c) {
-        return new AiMemberViews.PromptValues(c.common(), c.post(), c.news(), c.comment(), c.reply(), c.moodChance(),
+        return new AiMemberViews.PromptValues(c.common(), c.post(), c.news(), c.comment(), c.reply(), c.dog(), c.cat(), c.moodChance(),
                 c.moods().stream().map(m -> new AiMemberViews.PromptMood(m.name(), m.prompt(), m.enabled())).toList(), c.newsRatio(), c.newsKeyword(), c.newsDays(),
                 c.paragraphAuto(), c.paragraphSentences());
     }
 
     private static AiPromptConfig config(AiPromptSettingsEntity.Values v) {
-        return new AiPromptConfig(v.common(), v.post(), v.news(), v.comment(), v.reply(), v.moodChance(), v.moods(), v.newsRatio(), v.newsKeyword(), v.newsDays(),
+        return new AiPromptConfig(v.common(), v.post(), v.news(), v.comment(), v.reply(), v.dog(), v.cat(), v.moodChance(), v.moods(), v.newsRatio(), v.newsKeyword(), v.newsDays(),
                 v.paragraphAuto(), v.paragraphSentences());
     }
 
     /** 저장된 값을 요청 모양으로(미리 보기에 화면 값이 없을 때) */
     private static AiMemberRequests.PromptSave request(AiPromptSettingsEntity.Values v) {
-        return new AiMemberRequests.PromptSave(v.common(), v.post(), v.news(), v.comment(), v.reply(), v.moodChance(),
+        return new AiMemberRequests.PromptSave(v.common(), v.post(), v.news(), v.comment(), v.reply(), v.dog(), v.cat(), v.moodChance(),
                 v.moods() == null ? null : v.moods().stream().map(m -> new AiMemberRequests.PromptMood(m.name(), m.prompt(), m.enabled())).toList(), v.newsRatio(),
                 v.newsKeyword(), v.newsDays(), v.paragraphAuto(), v.paragraphSentences());
     }
@@ -274,6 +285,8 @@ public class AiPromptAdminService {
         m.put("news", custom(v.news()));
         m.put("comment", custom(v.comment()));
         m.put("reply", custom(v.reply()));
+        m.put("dog", custom(v.dog()));
+        m.put("cat", custom(v.cat()));
         m.put("moodChance", v.moodChance());
         m.put("moods", v.moods() == null ? "DEFAULT"
                 : v.moods().stream().map(x -> x.name() + (x.enabled() ? "" : "(off)")).reduce((x, y) -> x + "·" + y).orElse("(none)"));

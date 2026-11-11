@@ -6,6 +6,7 @@ import com.community.aimember.entity.AiMemberProfileEntity;
 import com.community.aimember.entity.AiMemberSettingsEntity;
 import com.community.aimember.entity.AiProvider;
 import com.community.aimember.entity.AiProviderKeyStatus;
+import com.community.aimember.entity.AiVoice;
 import com.community.aimember.llm.AiLlmClient;
 import com.community.aimember.llm.AiLlmException;
 import com.community.aimember.llm.AiLlmRequest;
@@ -19,6 +20,7 @@ import com.community.aimember.repository.master.AiMemberSettingsRepository;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.BoardFields;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupMemberEntity;
 import com.community.group.entity.GroupMemberStatus;
@@ -29,12 +31,11 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -56,14 +57,17 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>쉬는 계정</b>: 꺼짐 · 전체 정지 · 제공사 키 없음 · 제공사 쉬는 중(결제·크레딧 부족 · 키 오류 — V189 키 상태) · 모델이 모델 목록에서 꺼졌거나 없음({@code MODEL_UNAVAILABLE}) · 사이트 제재(정지·영구 정지·탈퇴 진행) —
  *       아무것도 만들지 않는다(관리자 목록에 쉬는 이유로 보인다).</li>
  *   <li><b>하루 호출 상한</b>: 오늘(한국 날짜) 생성 호출 수(실패 포함)가 상한에 닿으면 멈춘다. 한 바퀴 상한 {@code calls-per-tick}, 계정당 한 바퀴 1건.</li>
- *   <li><b>글</b>: 하루 2~3건 — 오전·오후 창 안의 시각을 계정·날짜로 정한다(서버 여러 대·재기동에도 같다). 그 시각이 지난 차례 수만큼 만든다(같은 종류 시도 사이 30분 이상).
- *       쓸 곳은 고른 게시판 중 무작위, AI 전용 소모임은 가끔(글 차례마다 {@value AiMemberRules#GROUP_POST_CHANCE}, 게시판이 없으면 늘).</li>
+ *   <li><b>글 — 글 쓰는 때</b>(V191, 모든 계정 공통 설정 {@link AiMemberSettingsEntity.PostTiming} — 계정별 「하루 글 수」 대신): 바퀴마다 곳(고른 게시판 · 가입한 AI 전용 소모임)을 본다.
+ *       ① 그곳에 {@code quietDays}일 동안 새 글(사람·AI 모두 — 삭제·숨김 제외)이 없으면 한 건 ② 있으면 그곳의 마지막 AI 회원 글이 {@code busyIntervalDays}일보다 오래됐을 때만 한 건.
+ *       대기·승인 중인 새 글이 있는 곳, {@value AiMemberRules#PLACE_RETRY_MINUTES}분 안에 새 글을 시도한 곳(실패·버림 포함)은 건너뛴다. 쓰는 계정은 그곳을 고른 계정 중 지금 활동 창 안 ·
+ *       쉬지 않음 · 오늘 새 글 시도가 {@code dailyPostMax} 미만인 계정에서 가장 오래 새 글을 안 쓴 계정(한 바퀴에 곳마다 한 건, 계정마다 한 곳). 질의는 곳별 최근 글 시각을 한 번에({@link AiMemberQueries#latestPosts}).</li>
+ *   <li><b>글 방식</b>(V191 {@link AiVoice}): 강아지·고양이 소리 계정은 뉴스 글·분위기·문단 나누기 없이 동물 소리 지시로 쓰고, 본문을 {@value AiPrompts#ANIMAL_BODY_MAX}자로 자른다.</li>
  *   <li><b>댓글 규칙</b>(서버에서 강제): ① 다른 AI 글에 첫 댓글 — 글마다 1~2개({@link AiMemberRules#firstCommentTarget}), 계정마다 한 글에 하나 ② 내 글에 달린 AI 댓글에 답글 —
  *       같은 상대와 2~3번까지({@link AiMemberRules#replyRoundLimit}), 상대 AI 는 내 답글에 되받는다(차례가 남았을 때) ③ 내 글에 달린 사람 회원 댓글에 답글 — 같은 회원에게
  *       글 하나당 1~2번({@link AiMemberRules#memberReplyLimit}). <b>사람 회원 글에는 댓글을 달지 않는다</b>(설정 「회원 글 댓글 허용」이 켜졌을 때만 첫 댓글 후보에 넣는다 — 기본 꺼짐).</li>
  *   <li><b>프롬프트</b>({@link AiPrompts}): 회원 글·댓글은 인용 블록의 내용으로만 넣는다(지시가 아니다). 닉네임은 보내지 않는다. 지시문·분위기·뉴스 글 비율·문단 나누기는
  *       관리자 「프롬프트」 설정({@link AiPromptSettings} — 바퀴마다 읽고, 못 읽으면 코드 기본값).</li>
- *   <li><b>뉴스 글</b>: 게시판 새 글 차례에서 설정 비율(기본 10%)로 사이트 회원이 올린 「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
+ *   <li><b>뉴스 글</b>: 보통 계정의 게시판 새 글 차례에서 설정 비율(기본 10%)로 사이트 회원이 올린 「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
  *       본문 끝에 빈 줄 + 「참고: 「원래 글 제목」」 + 사이트 안 링크를 서버가 붙이고(링크를 지우는 정리 뒤에), 생성 줄에 소재 글({@code source_post_id})을 남겨 다시 쓰지 않는다.</li>
  *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록({@link AiContentWriter} — 공개 사이트 쓰기 경로와 같은 판정, 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
  *       (다시 시도하지 않는다 — 다음 차례로). 결제·크레딧 부족 · 키 오류면 그 제공사를 쉬게 한다({@link AiProviderKeys#pause} — 상태가 바뀔 때만 관리자 알림 한 번, 키를 다시 저장하면 다시 돈다).</li>
@@ -75,7 +79,6 @@ public class AiDraftGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(AiDraftGenerator.class);
 
-    static final Duration SAME_KIND_GAP = Duration.ofMinutes(30);
     static final Duration COMMENT_GAP = Duration.ofMinutes(20);
     static final Duration POST_LOOKBACK = Duration.ofHours(48);
     static final Duration REPLY_LOOKBACK = Duration.ofHours(72);
@@ -152,9 +155,16 @@ public class AiDraftGenerator {
 
     // ── 고르기 ────────────────────────────────────────────────────────────
 
-    /** 이번 바퀴에 돌 계정과 남은 호출 수 · 프롬프트 설정 · 이번 바퀴에 쉬게 한 제공사({@code pausedNow} — 바퀴 안에서만 쓰는 모음) */
+    /**
+     * 이번 바퀴에 돌 계정과 남은 호출 수 · 프롬프트 설정 · 이번 바퀴에 쉬게 한 제공사({@code pausedNow} — 바퀴 안에서만 쓰는 모음) ·
+     * 새 글을 쓸 계정 → 곳({@code postSlots} — 글 쓰는 때 판정 결과, 곳마다 한 계정)
+     */
     private record Plan(List<AiMemberProfileEntity> accounts, AiMemberSettingsEntity settings, AiPromptConfig prompts, int budget,
-                        Map<Long, Map<AiDraftKind, Long>> attempts, Set<Long> aiUsers, Set<AiProvider> pausedNow) {
+                        Map<Long, Map<AiDraftKind, Long>> attempts, Set<Long> aiUsers, Set<AiProvider> pausedNow, Map<Long, PostSlot> postSlots) {
+    }
+
+    /** 새 글을 쓸 곳 — 게시판(소모임 아님) 또는 AI 전용 소모임 하나 */
+    private record PostSlot(Long boardId, Long groupId) {
     }
 
     private Plan plan(Instant now, AiPromptConfig config) {
@@ -182,7 +192,81 @@ public class AiDraftGenerator {
         Collections.shuffle(active);
         Set<Long> aiUsers = new HashSet<>();
         all.forEach(a -> aiUsers.add(a.getUserId()));
-        return new Plan(active, s, config, budget, queries.attemptsSince(startOfDay(now)), aiUsers, EnumSet.noneOf(AiProvider.class));
+        Map<Long, Map<AiDraftKind, Long>> attempts = queries.attemptsSince(startOfDay(now));
+        return new Plan(active, s, config, budget, attempts, aiUsers, EnumSet.noneOf(AiProvider.class), postSlots(active, s.getPostTiming(), attempts, now));
+    }
+
+    /**
+     * 글 쓰는 때 판정(V191) — 이번 바퀴에 새 글을 쓸 계정 → 곳. 곳마다 한 계정, 계정마다 한 곳. 질의: 곳별 최근 글 · 바쁜 곳의 최근 AI 글 · 대기·최근 시도 곳 · 계정별 마지막 새 글 시도.
+     *
+     * @param active 쉬지 않는 계정(섞인 차례 — 같은 조건이면 이 차례로 고른다)
+     */
+    private Map<Long, PostSlot> postSlots(List<AiMemberProfileEntity> active, AiMemberSettingsEntity.PostTiming timing, Map<Long, Map<AiDraftKind, Long>> attempts,
+                                          Instant now) {
+        if (timing.dailyPostMax() <= 0) {
+            return Map.of();
+        }
+        LocalTime local = now.atZone(ServiceTime.ZONE).toLocalTime();
+        BoardCatalogSnapshot snap = catalog.snapshot();
+        Map<Long, Set<PostSlot>> placesOf = new HashMap<>();
+        Set<Long> boardIds = new HashSet<>();
+        Set<Long> groupIds = new HashSet<>();
+        List<AiMemberProfileEntity> candidates = new ArrayList<>();
+        for (AiMemberProfileEntity a : active) {
+            long postsToday = attempts.getOrDefault(a.getId(), Map.of()).getOrDefault(AiDraftKind.POST, 0L);
+            if (!a.activeAt(local) || postsToday >= timing.dailyPostMax()) {
+                continue; // 활동 창 밖이거나 오늘 새 글을 다 썼다
+            }
+            Set<PostSlot> places = new HashSet<>();
+            for (Long id : a.getBoardIds()) {
+                if (snap.board(id).filter(b -> b.active() && !BoardFields.KIND_GROUP.equals(b.kind()) && AiMemberRules.blockedReason(b) == null).isPresent()) {
+                    places.add(new PostSlot(id, null));
+                    boardIds.add(id);
+                }
+            }
+            for (Long g : aiGroupsOf(a.getUserId())) {
+                places.add(new PostSlot(null, g));
+                groupIds.add(g);
+            }
+            if (!places.isEmpty()) {
+                placesOf.put(a.getId(), places);
+                candidates.add(a);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return Map.of();
+        }
+        // ① 조용한 곳 = quietDays 안에 새 글이 없다 ② 바쁜 곳(quietDays 안에 글이 있다)은 busyIntervalDays 안에 AI 회원 글이 없을 때만
+        AiMemberQueries.LatestPosts recent = queries.latestPosts(boardIds, groupIds, now.minus(Duration.ofDays(timing.quietDays())), now, false);
+        AiMemberQueries.LatestPosts recentAi = recent.boards().isEmpty() && recent.groups().isEmpty()
+                ? new AiMemberQueries.LatestPosts(Map.of(), Map.of())
+                : queries.latestPosts(recent.boards().keySet(), recent.groups().keySet(), now.minus(Duration.ofDays(timing.busyIntervalDays())), now, true);
+        AiMemberQueries.BusyPlaces busy = queries.postBusyPlaces(now.minus(Duration.ofMinutes(AiMemberRules.PLACE_RETRY_MINUTES)));
+        List<PostSlot> due = new ArrayList<>();
+        for (Long b : boardIds) {
+            // 조용한 곳은 최근 글이 없어 최근 AI 글 질의에도 빠진다 → 그대로 차례. 바쁜 곳은 최근 AI 글이 없을 때만
+            if (!busy.boards().contains(b) && !recentAi.boards().containsKey(b)) {
+                due.add(new PostSlot(b, null));
+            }
+        }
+        for (Long g : groupIds) {
+            if (!busy.groups().contains(g) && !recentAi.groups().containsKey(g)) {
+                due.add(new PostSlot(null, g));
+            }
+        }
+        if (due.isEmpty()) {
+            return Map.of();
+        }
+        Collections.shuffle(due);
+        Map<Long, Instant> lastPost = queries.lastPostAttempts(candidates.stream().map(AiMemberProfileEntity::getId).toList());
+        // 가장 오래 새 글을 안 쓴 계정 — 한 번도 안 썼으면 맨 앞, 같으면 섞인 차례(min 은 앞의 것을 고른다)
+        Comparator<AiMemberProfileEntity> oldestFirst = Comparator.comparing(a -> lastPost.getOrDefault(a.getId(), Instant.EPOCH));
+        Map<Long, PostSlot> out = new HashMap<>();
+        for (PostSlot slot : due) {
+            candidates.stream().filter(a -> !out.containsKey(a.getId()) && placesOf.get(a.getId()).contains(slot)).min(oldestFirst)
+                    .ifPresent(a -> out.put(a.getId(), slot));
+        }
+        return out;
     }
 
     /** 할 일 하나 — 답글(기다리는 사람이 있다) → 글(차례가 됐으면) → 첫 댓글(가끔). {@code sourceTitle} = 뉴스 글의 원래 글 제목(아니면 null) */
@@ -194,6 +278,9 @@ public class AiDraftGenerator {
     }
 
     private Task pick(AiMemberProfileEntity a, Plan plan, Instant now) {
+        if (!a.activeAt(now.atZone(ServiceTime.ZONE).toLocalTime())) {
+            return null; // 새 글·첫 댓글·답글 모두 활동 시간대 안에서만(사용자 2026-11-11 — 댓글도 그 시간에)
+        }
         Map<AiDraftKind, Instant> last = queries.lastAttempts(a.getId());
         List<Long> myGroups = aiGroupsOf(a.getUserId());
         BoardCatalogSnapshot snap = catalog.snapshot();
@@ -201,9 +288,9 @@ public class AiDraftGenerator {
         if (reply != null) {
             return reply;
         }
-        long postsToday = plan.attempts().getOrDefault(a.getId(), Map.of()).getOrDefault(AiDraftKind.POST, 0L);
-        if (postsToday < duePosts(a, now) && gapPassed(last.get(AiDraftKind.POST), SAME_KIND_GAP, now)) {
-            Task post = postTask(a, snap, myGroups, now, postsToday, plan.prompts());
+        PostSlot slot = plan.postSlots().get(a.getId());
+        if (slot != null) {
+            Task post = postTask(a, slot, snap, now, plan.prompts()); // 글 쓰는 때 판정이 이 계정에 준 곳(V191)
             if (post != null) {
                 return post;
             }
@@ -214,51 +301,23 @@ public class AiDraftGenerator {
         return null;
     }
 
-    /** 오늘 지금까지 지난 글 차례 수(0~하루 글 수) */
-    static int duePosts(AiMemberProfileEntity a, Instant now) {
-        ZonedDateTime local = now.atZone(ServiceTime.ZONE);
-        LocalDate day = local.toLocalDate();
-        LocalTime time = local.toLocalTime();
-        int n = a.getDailyPosts();
-        long seed = AiMemberRules.mix(a.getId(), day.toEpochDay());
-        int morning = n == 2 ? 1 : (int) (1 + seed % 2);
-        int due = 0;
-        for (int i = 0; i < n; i++) {
-            boolean am = i < morning;
-            LocalTime start = am ? a.getMorningStart() : a.getAfternoonStart();
-            LocalTime end = am ? a.getMorningEnd() : a.getAfternoonEnd();
-            long span = Math.max(1, Duration.between(start, end).getSeconds());
-            LocalTime slot = start.plusSeconds(AiMemberRules.mix(seed, i, 101) % span);
-            if (!time.isBefore(slot)) {
-                due++;
-            }
-        }
-        return due;
-    }
-
-    private Task postTask(AiMemberProfileEntity a, BoardCatalogSnapshot snap, List<Long> myGroups, Instant now, long postsToday, AiPromptConfig config) {
-        List<EffectiveBoard> boards = new ArrayList<>();
-        for (Long id : a.getBoardIds()) {
-            snap.board(id).filter(b -> b.active() && AiMemberRules.blockedReason(b) == null).ifPresent(boards::add);
-        }
-        long seed = AiMemberRules.mix(a.getId(), now.atZone(ServiceTime.ZONE).toLocalDate().toEpochDay(), postsToday, 7);
-        boolean toGroup = !myGroups.isEmpty() && (boards.isEmpty() || (seed % 10_000) < AiMemberRules.GROUP_POST_CHANCE * 10_000);
+    /** 판정이 준 곳에 새 글 — 소모임이면 소모임 글, 게시판이면 보통 계정만 뉴스 글을 설정 비율로 시도(소재가 없으면 보통 새 글) */
+    private Task postTask(AiMemberProfileEntity a, PostSlot slot, BoardCatalogSnapshot snap, Instant now, AiPromptConfig config) {
         List<String> titles = queries.recentTitles(a.getId(), 10);
-        if (toGroup) {
-            Long groupId = myGroups.get((int) (seed % myGroups.size()));
-            GroupEntity g = groups.findById(groupId).orElse(null);
+        if (slot.groupId() != null) {
+            GroupEntity g = groups.findById(slot.groupId()).orElse(null);
             if (g == null) {
                 return null;
             }
             return new Task(AiDraftEntity.Target.post(g.getBoardId(), g.getId()), new AiPrompts.Place(g.getName(), g.getDescription(), true), AiPrompts.Ask.post(titles));
         }
-        if (boards.isEmpty()) {
+        EffectiveBoard b = snap.board(slot.boardId()).filter(x -> x.active() && AiMemberRules.blockedReason(x) == null).orElse(null);
+        if (b == null) {
             return null;
         }
-        EffectiveBoard b = boards.get(ThreadLocalRandom.current().nextInt(boards.size()));
         AiPrompts.Place place = new AiPrompts.Place(b.name(), b.description(), false);
-        // 뉴스 글 — 게시판 글 차례에서 설정 비율로 시도, 소재가 없으면 보통 새 글(소모임 글은 뉴스 글로 쓰지 않는다)
-        if (config.newsRatio() > 0 && ThreadLocalRandom.current().nextInt(100) < config.newsRatio()) {
+        // 뉴스 글 — 보통 계정의 게시판 글 차례에서 설정 비율로 시도(동물 소리 계정·소모임 글은 뉴스 글로 쓰지 않는다)
+        if (a.getVoice() == AiVoice.NORMAL && config.newsRatio() > 0 && ThreadLocalRandom.current().nextInt(100) < config.newsRatio()) {
             Optional<AiNewsSources.Source> source = news.find(a, config, now, ThreadLocalRandom.current());
             if (source.isPresent()) {
                 AiNewsSources.Source src = source.get();
@@ -407,7 +466,9 @@ public class AiDraftGenerator {
             save(AiDraftEntity.failed(id, a.getId(), task.target(), provider, model, 0, 0, "NO_KEY", now()));
             return;
         }
-        AiPrompts.Prompt prompt = AiPrompts.compose(config, a, a.getPartnerId() != null, task.place(), AiPrompts.pickMood(config, ThreadLocalRandom.current()), task.ask());
+        AiVoice voice = a.getVoice();
+        AiPromptConfig.Mood mood = voice.animal() ? null : AiPrompts.pickMood(config, ThreadLocalRandom.current()); // 동물 소리 계정은 분위기를 넣지 않는다
+        AiPrompts.Prompt prompt = AiPrompts.compose(config, a, a.getPartnerId() != null, task.place(), mood, task.ask());
         AiLlmRequest request = new AiLlmRequest(provider, model, prompt.system(), prompt.user(), properties.maxOutputTokens());
         Long sourcePostId = task.target().sourcePostId();
         try {
@@ -415,7 +476,7 @@ public class AiDraftGenerator {
             String title = null;
             String body;
             if (task.target().kind() == AiDraftKind.POST) {
-                String[] split = AiPrompts.splitPost(result.text(), config, sourcePostId == null ? AiPrompts.POST_BODY_MAX : AiPrompts.NEWS_BODY_MAX);
+                String[] split = AiPrompts.splitPost(result.text(), config, sourcePostId == null ? AiPrompts.POST_BODY_MAX : AiPrompts.NEWS_BODY_MAX, voice);
                 title = split[0];
                 body = split[1];
                 if (sourcePostId != null && !body.isBlank()) {
@@ -423,10 +484,15 @@ public class AiDraftGenerator {
                     body = body + "\n\n" + AiPrompts.newsReference(task.sourceTitle(), news.link(sourcePostId));
                 }
             } else {
-                body = AiPrompts.cleanBody(result.text(), AiPrompts.COMMENT_BODY_MAX);
+                body = voice.animal() ? AiPrompts.cleanAnimal(result.text()) : AiPrompts.cleanBody(result.text(), AiPrompts.COMMENT_BODY_MAX);
             }
             if (body.isBlank() || (title != null && title.isBlank())) {
                 save(AiDraftEntity.failed(id, a.getId(), task.target(), provider, model, result.inputTokens(), result.outputTokens(), AiLlmException.EMPTY, now()));
+                return;
+            }
+            if (AiPrompts.voiceBroken(voice, body, true) || (title != null && AiPrompts.voiceBroken(voice, title, false))) {
+                // 동물 소리 계정이 사람 말을 섞었거나 괄호 해석이 없다 — 올리지 않는다(사용자 2026-11-11 「동물 소리는 필수」)
+                save(AiDraftEntity.failed(id, a.getId(), task.target(), provider, model, result.inputTokens(), result.outputTokens(), AiPrompts.VOICE_BROKEN, now()));
                 return;
             }
             save(AiDraftEntity.generated(id, a.getId(), task.target(), title, body, provider, model, result.inputTokens(), result.outputTokens(), instant, now()));
