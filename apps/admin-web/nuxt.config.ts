@@ -157,6 +157,10 @@ export default defineNuxtConfig({
 
     primevue: {
         options: {
+            // PrimeUI 라이선스(PrimeVue 5) — PrimeVue 가 설치되는 순간 키를 확인하므로 app.vue 가 아니라 여기서 넘긴다(늦게 넘기면 「Invalid PrimeUI License」 배너).
+            // 값은 이 앱의 .env.development(dev)·.env.production(generate) 의 VITE_PRIMEUI_LICENSE_KEY — nuxt.config 를 읽기 전에 --dotenv 파일이 process.env 에 들어온다.
+            // primevue 5.0.2 의 PrimeVueConfiguration 타입(nuxt-module 이 쓰는 primevue/config)에 license 가 빠져 있어 펼침으로 넘긴다 — 실행 코드(@primevue/core setup)는 options.license 를 읽는다
+            ...({ license: process.env.VITE_PRIMEUI_LICENSE_KEY || undefined } as Record<string, unknown>),
             theme: {
                 preset: RoboyamPreset,
                 options: {
