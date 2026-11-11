@@ -1521,7 +1521,7 @@
       "name": "익명게시판",
       "nameEn": "Anonymous",
       "kind": "GENERAL",
-      "sortOrder": 270,
+      "sortOrder": 290,
       "description": "닉네임 없이 털어놓는 곳 · 운영자도 작성자를 볼 수 없어요",
       "layout": "LIST",
       "viewToggle": true,
