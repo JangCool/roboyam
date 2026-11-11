@@ -11,6 +11,9 @@ import type {
     MenuNodeDto,
     MenuPlacement,
 } from '~/composables/menu/api/useMenuApi.types';
+import type { BoardColor } from '~/composables/board/api/useBoardApi.types';
+import UtilBoard from '~/utils/util-board';
+import UtilColor from '~/utils/util-color';
 import type { MenuMoveAction } from '~/utils/util-menu-tree';
 import UtilMenuTree from '~/utils/util-menu-tree';
 
@@ -38,6 +41,15 @@ interface MenuEditCommon {
     minGrade: string | null;
     /** 구분선 — 최상위에서만 뜻이 있다(하위로 옮기면 저장 때 `NONE` 으로 보낸다) */
     divider: MenuDivider;
+    /**
+     * 글자 색 — null 기본 · 12색 이름(`UtilMenu.TEXT_COLORS`) · `#RRGGBB`(직접 고른 색). 직접 입력 중에는 틀린 글자도 들고 있다가 검사(`TEXT_COLOR_FORMAT`)로 막는다.
+     * 이름 앞 점(●)의 게시판 표시색과 따로다(menu-contract 「메뉴 항목 글자 색·강조」). 폴더·항목 모두 창에서 고친다(`MenuTextStyleField` — 폴더 창·항목 창).
+     */
+    textColor: string | null;
+    /** 이름을 굵게 */
+    bold: boolean;
+    /** 이름 뒤 배지 글자(빈 글자 = 없음, 1~`LIMITS.badgeMax`자) — 배지 색 = 글자 색 */
+    badge: string;
 }
 
 /** 연결 대상 — 항목의 대상, 폴더 이름을 누르면 가는 곳(`MenuEditFolder.link`)이 같은 모양이다 */
@@ -183,7 +195,7 @@ export interface MenuLinkedTarget {
 // ── 검증 ─
 
 /** 줄 하나의 문제 칸 */
-export type MenuProblemField = 'label' | 'nameEn' | 'target' | 'path' | 'href' | 'minGrade' | 'audience' | 'mobileTab';
+export type MenuProblemField = 'label' | 'nameEn' | 'target' | 'path' | 'href' | 'minGrade' | 'audience' | 'mobileTab' | 'textColor' | 'badge';
 
 export type MenuProblemCode =
     | 'LABEL_REQUIRED'
@@ -211,7 +223,10 @@ export type MenuProblemCode =
     | 'MOBILE_TAB_SIDE'
     | 'SHORTCUT_ORIGIN_MISSING'
     | 'SHORTCUT_TOP_LEVEL'
-    | 'SHORTCUT_SAME_FOLDER';
+    | 'SHORTCUT_SAME_FOLDER'
+    | 'TEXT_COLOR_FORMAT'
+    | 'BADGE_LENGTH'
+    | 'BADGE_CHARS';
 
 /** 트리 전체의 문제 */
 export type MenuTreeProblem = 'NODES_LIMIT' | 'TABS_LIMIT' | 'AUTO_ADD_MULTI' | 'FOLDER_DEPTH' | 'ITEM_DEPTH';
@@ -234,6 +249,8 @@ export default class UtilMenu {
         hrefMax: 2000,
         /** 항목 설명(MOCK — 서버 한도가 정해지면 맞춘다) */
         descriptionMax: 80,
+        /** 배지 글자(코드포인트) — 서버 `menu_nodes.badge` */
+        badgeMax: 4,
     } as const;
 
     /** 메뉴 그룹 칸 한도 */
@@ -249,6 +266,66 @@ export default class UtilMenu {
 
     /** 구분선 고르기 차례 — 없음 · 왼쪽 · 오른쪽 */
     static readonly DIVIDERS: readonly MenuDivider[] = ['NONE', 'BEFORE', 'AFTER'];
+
+    // ── 글자 색 · 강조(menu-contract 「메뉴 항목 글자 색·강조」) ─
+
+    /** 글자 색 12색 — 게시판 표시색과 같은 목록·순서(`UtilBoard.COLORS`, 서버 `BoardFields.COLORS`) */
+    static readonly TEXT_COLORS: readonly BoardColor[] = UtilBoard.COLORS;
+
+    /**
+     * 글자 색 값을 읽는다 — 12색 이름(대문자)은 그대로, `#rrggbb` 는 대문자(서버가 정리하는 모양과 같다), 그 밖(빈 값·틀린 글자)은 null.
+     * @param {unknown} value - 서버 값 또는 입력 중인 글자.
+     * @returns {string | null} 정리한 값 또는 null(기본).
+     */
+    static normalizeTextColor(value: unknown): string | null {
+        if (typeof value !== 'string') return null;
+        const text = value.trim();
+        if ((UtilMenu.TEXT_COLORS as readonly string[]).includes(text)) return text;
+        return UtilColor.isHex(text) ? text.toUpperCase() : null;
+    }
+
+    /**
+     * 배지 글자의 문제 — 서버와 같은 규칙: 앞뒤 공백을 걷고 4코드포인트까지, 제어 문자·꺾쇠 괄호 불가. 빈 글자는 배지 없음.
+     * @param {string} value - 배지 글자.
+     * @returns {MenuProblemCode | null} 문제 또는 null.
+     */
+    static badgeProblem(value: string): MenuProblemCode | null {
+        const text = value.trim();
+        if (!text) return null;
+        if (/[<>\p{Cc}]/u.test(text)) return 'BADGE_CHARS';
+        return Array.from(text).length > UtilMenu.LIMITS.badgeMax ? 'BADGE_LENGTH' : null;
+    }
+
+    /**
+     * 글자 색의 CSS 값(라이트·다크) — 12색은 게시판 표시색 견본과 같은 팔레트(`UtilBoard.colorVar`), 직접 고른 색은 두 바탕에서 읽히게 명도만 보정(`UtilColor.cssPair`, 공개 화면과 같은 식).
+     * @param {string | null} value - 글자 색.
+     * @returns {string | null} CSS 색 값. 기본·틀린 값이면 null.
+     */
+    static textColorCss(value: string | null): string | null {
+        const color = UtilMenu.normalizeTextColor(value);
+        if (color === null) return null;
+        return UtilColor.isHex(color) ? UtilColor.cssPair(color) : UtilBoard.colorVar(color as BoardColor);
+    }
+
+    /**
+     * 이름에 칠할 글자 색 스타일 — 기본이면 undefined.
+     * @param {Pick<MenuEditCommon, 'textColor'>} node - 노드.
+     * @returns {Record<string, string> | undefined} 스타일.
+     */
+    static textStyle(node: Pick<MenuEditCommon, 'textColor'>): Record<string, string> | undefined {
+        const css = UtilMenu.textColorCss(node.textColor);
+        return css ? { color: css } : undefined;
+    }
+
+    /**
+     * 이름 뒤 배지의 색 — 배지 색 = 글자 색(바탕은 그 색 14% + 카드 바탕), 글자 색이 기본이면 주 색.
+     * @param {Pick<MenuEditCommon, 'textColor'>} node - 노드.
+     * @returns {Record<string, string>} 스타일.
+     */
+    static badgeStyle(node: Pick<MenuEditCommon, 'textColor'>): Record<string, string> {
+        const css = UtilMenu.textColorCss(node.textColor) ?? 'var(--p-primary-color)';
+        return { '--menu-badge-c': css, color: 'var(--menu-badge-c)', background: 'color-mix(in srgb, var(--menu-badge-c) 14%, var(--p-content-background))' };
+    }
 
     /** 연결 있는 폴더의 탭을 누르면 — 고르기 차례(첫째가 기본) */
     static readonly LINK_CLICKS: readonly MenuLinkClick[] = ['NAVIGATE_OPEN', 'NAVIGATE'];
@@ -378,7 +455,19 @@ export default class UtilMenu {
      */
     static toEdit(nodes: MenuNodeDto[]): MenuEditNode[] {
         return nodes.map((node): MenuEditNode => {
-            const common = { key: UtilMenuTree.newKey(), id: node.id, label: node.label ?? '', nameEn: node.nameEn ?? '', visible: node.visible, audience: node.audience, minGrade: node.minGrade, divider: node.divider ?? 'NONE' };
+            const common = {
+                key: UtilMenuTree.newKey(),
+                id: node.id,
+                label: node.label ?? '',
+                nameEn: node.nameEn ?? '',
+                visible: node.visible,
+                audience: node.audience,
+                minGrade: node.minGrade,
+                divider: node.divider ?? 'NONE',
+                textColor: UtilMenu.normalizeTextColor(node.textColor),
+                bold: node.bold === true,
+                badge: node.badge ?? '',
+            };
             if (node.kind === 'FOLDER') {
                 // 이 화면이 모르는 유형의 폴더 연결은 연결 없음으로 읽는다(폴더 연결은 화면이 아는 유형만 저장된다)
                 const link = node.targetType && UtilMenu.typeOf(node.targetType) ? UtilMenu.linkOf(node.targetType, node.targetId ?? null, node.targetKey ?? null, node.settings ?? null) : null;
@@ -448,6 +537,9 @@ export default class UtilMenu {
                 audience: node.audience,
                 minGrade: node.audience === 'GRADE_MIN' ? node.minGrade : null,
                 divider: side && top ? node.divider : 'NONE',
+                textColor: UtilMenu.normalizeTextColor(node.textColor),
+                bold: node.bold,
+                badge: node.badge.trim() || null,
             };
             if (node.kind === 'FOLDER') {
                 // 폴더 연결은 화면이 아는 유형만 만든다(`newLink`)
@@ -484,7 +576,7 @@ export default class UtilMenu {
      * @returns {MenuEditFolder} 이름이 빈 폴더(보임 · 모두 · 접기 안 함).
      */
     static newFolder(): MenuEditFolder {
-        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, divider: 'NONE', collapse: 'NONE', autoAdd: false, link: null, linkClick: 'NAVIGATE_OPEN', children: [] };
+        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, divider: 'NONE', textColor: null, bold: false, badge: '', collapse: 'NONE', autoAdd: false, link: null, linkClick: 'NAVIGATE_OPEN', children: [] };
     }
 
     /**
@@ -508,6 +600,9 @@ export default class UtilMenu {
             description: '',
             rawSettings: null,
             shortcut: false,
+            textColor: null,
+            bold: false,
+            badge: '',
         };
     }
 
@@ -789,6 +884,9 @@ export default class UtilMenu {
         Object.assign(out, UtilMenu.linkProblems(item));
         if (item.targetType === 'BUILTIN' && UtilMenu.builtinOf(item.targetKey)?.loginRequired && !UtilMenu.isLoginAudience(item.audience)) out.audience = 'LOGIN_AUDIENCE';
         if (item.mobileTab && !UtilMenu.isSide(placement)) out.mobileTab = 'MOBILE_TAB_SIDE';
+        if (item.textColor !== null && UtilMenu.normalizeTextColor(item.textColor) === null) out.textColor = 'TEXT_COLOR_FORMAT';
+        const badge = UtilMenu.badgeProblem(item.badge);
+        if (badge) out.badge = badge;
         return out;
     }
 
@@ -826,6 +924,9 @@ export default class UtilMenu {
         if (nameEn) out.nameEn = nameEn;
         if (folder.audience === 'GRADE_MIN' && !folder.minGrade) out.minGrade = 'GRADE_REQUIRED';
         if (folder.link) Object.assign(out, UtilMenu.linkProblems(folder.link));
+        if (folder.textColor !== null && UtilMenu.normalizeTextColor(folder.textColor) === null) out.textColor = 'TEXT_COLOR_FORMAT';
+        const badge = UtilMenu.badgeProblem(folder.badge);
+        if (badge) out.badge = badge;
         return out;
     }
 

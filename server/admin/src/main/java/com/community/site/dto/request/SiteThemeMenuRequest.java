@@ -9,11 +9,13 @@ import java.util.List;
  *
  * @param barGroupIds 상단 띠 그룹 ID(문자열) — 비면 첫 그룹
  * @param menuStyle   메뉴 모양 7칸
+ * @param menuBold    메뉴 글자 기본 굵게(V187) — 빠지면(null) 지금 값 유지
  */
 public record SiteThemeMenuRequest(String menuPosition, String topItems, List<String> barGroupIds, String menuWidth, String menuOverflow,
-                                   SiteThemeMenu.Style menuStyle) {
+                                   SiteThemeMenu.Style menuStyle, Boolean menuBold) {
 
-    public SiteThemeMenu toMenu() {
-        return new SiteThemeMenu(menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle);
+    /** @param currentBold 지금 저장된 메뉴 글자 기본 굵게 — 요청이 {@code menuBold} 를 빼면 이 값 */
+    public SiteThemeMenu toMenu(boolean currentBold) {
+        return new SiteThemeMenu(menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle, menuBold == null ? currentBold : menuBold);
     }
 }

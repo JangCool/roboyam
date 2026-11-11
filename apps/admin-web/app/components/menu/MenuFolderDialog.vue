@@ -1,6 +1,6 @@
 <template>
     <!--
-        공개 사이트 메뉴의 폴더 추가·수정 — 이름(필수) · 영문명 · 넣을 곳(추가할 때만) · 표시 여부 · 보이는 대상 ·
+        공개 사이트 메뉴의 폴더 추가·수정 — 이름(필수) · 영문명 · 글자 색·강조(`MenuTextStyleField`, 서버 칸 오류 `…textColor`·`…badge` 도 칸 아래) · 넣을 곳(추가할 때만) · 표시 여부 · 보이는 대상 ·
         누르면 가는 곳(선택: 없음 · 게시판 · 사이트 화면 · 외부 링크, `MenuTargetPicker` — 공개 사이트에서 폴더 이름이 링크가 되고 펼치기·접기는 화살표가 맡는다) ·
         연결이 있으면 상단 탭을 누를 때(이동하고 하위 메뉴도 열기 — 기본 · 이동만) · 접기(안 함/펼친 채 시작/접은 채 시작) · 새 게시판 자동 추가(SIDE 그룹만).
         폴더 연결은 「한 그룹 안 한 번」 규칙을 세지 않아 하위 항목과 같은 대상을 골라도 된다(예: 「소모임」 → 전체 소모임).
@@ -24,6 +24,17 @@
                     <InputText :id="id" v-model="form.nameEn" :invalid="invalid" :aria-describedby="describedBy" autocomplete="off" fluid />
                 </template>
             </LabeledField>
+
+            <!-- 글자 색 · 강조(굵게 · 배지) — 항목 창과 같은 칸. 서버 칸 오류(`…textColor`·`…badge`)도 칸 아래 -->
+            <MenuTextStyleField
+                v-model:text-color="form.textColor"
+                v-model:bold="form.bold"
+                v-model:badge="form.badge"
+                :sample-name="form.label.trim() ? localizedName(form.label.trim(), form.nameEn.trim() || null) : ''"
+                :text-color-error="errorOf('textColor') || (serverErrors.textColor ?? '')"
+                :badge-error="errorOf('badge') || (serverErrors.badge ?? '')"
+                :dot-note="false"
+            />
 
             <div class="flex items-center gap-2">
                 <ToggleSwitch v-model="form.visible" :input-id="`${formId}-visible`" />
@@ -98,12 +109,15 @@ interface Props {
     ctx: MenuContext;
     /** 고칠 폴더가 최상위인가(구분선은 최상위만) — 추가할 때는 넣을 곳으로 정한다 */
     editTopLevel?: boolean;
+    /** 지난 저장에서 서버가 이 폴더에 준 칸 오류(칸 이름 → 문구, `UtilMenuTree.splitFieldErrors`) — 글자 색·배지 칸 아래에 보인다 */
+    serverErrors?: Record<string, string>;
 }
 
-const props = withDefaults(defineProps<Props>(), { folder: null, parents: () => [], parentKey: '', editTopLevel: true });
+const props = withDefaults(defineProps<Props>(), { folder: null, parents: () => [], parentKey: '', editTopLevel: true, serverErrors: () => ({}) });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'save', folder: MenuEditFolder, parentKey: string | null): void }>();
 
 const { t } = useI18n();
+const { localizedName } = useLocalizedName();
 const formId = useId();
 
 const form = ref<MenuEditFolder | null>(null);
@@ -165,6 +179,8 @@ function apply() {
             ...form.value,
             label: form.value.label.trim(),
             nameEn: form.value.nameEn.trim(),
+            textColor: UtilMenu.normalizeTextColor(form.value.textColor),
+            badge: form.value.badge.trim(),
             minGrade: form.value.audience === 'GRADE_MIN' ? form.value.minGrade : null,
             link: link ? { ...link, path: link.path.trim(), href: link.href.trim(), newTab: link.targetType === 'PATH' || link.targetType === 'URL' ? link.newTab : false } : null,
         },

@@ -66,6 +66,7 @@ function readBarPreview(value: string | null): string[] | null {
  *   `?mobilemenu=picked|menu|theme` · `?menudesc=on|off|theme` · `?sticky=on|off|theme` · `?mheader=brand|plain|theme`. 미리보기가 있어도 서버에는 물어보고, 미리보기 값이 그 칸만 대신한다.
  *
  * @returns `theme` 지금 테마 id(항상 값이 있다) · `siteMenu`·`siteTopItems`·`siteBarGroupIds`·`siteMenuWidth`·`siteMenuOverflow` 운영자 배치 값 · `siteMenuStyle` 운영자 메뉴 모양 값(해석은 `useMenuStyle`) ·
+ *   `siteMenuBold` 메뉴 막대 글자 기본 굵게(V187 — 켬·끔) ·
  *   `ensureLoaded()` 아직 안 받았으면 받는다(앱 시작 때 플러그인이 한 번 부른다).
  */
 export function useTheme() {
@@ -84,6 +85,9 @@ export function useTheme() {
     const siteMenuOverflow = computed<SiteMenuOverflowSetting>(() => overflowState.value ?? UtilMenuPosition.SITE_OVERFLOW_DEFAULT);
     const styleState = useState<SiteMenuStyle | undefined>('site-menu-style', () => undefined);
     const siteMenuStyle = computed<SiteMenuStyle>(() => styleState.value ?? UtilMenuPosition.SITE_MENU_STYLE_DEFAULT);
+    /** 메뉴 막대 글자 기본 굵게(운영자 값 — 켬·끔, 테마 기본 따름 없음). 받기 전·못 받으면 끔 */
+    const boldState = useState<boolean | undefined>('site-menu-bold', () => undefined);
+    const siteMenuBold = computed<boolean>(() => boldState.value ?? false);
 
     async function ensureLoaded(): Promise<void> {
         if (state.value !== undefined) return;
@@ -94,6 +98,7 @@ export function useTheme() {
         let serverWidth: SiteMenuWidthSetting = UtilMenuPosition.SITE_WIDTH_DEFAULT;
         let serverOverflow: SiteMenuOverflowSetting = UtilMenuPosition.SITE_OVERFLOW_DEFAULT;
         let serverStyle: SiteMenuStyle = { ...UtilMenuPosition.SITE_MENU_STYLE_DEFAULT };
+        let serverBold = false;
         try {
             const res = await api.current();
             serverTheme = UtilTheme.normalize(res.theme);
@@ -103,6 +108,7 @@ export function useTheme() {
             serverWidth = UtilMenuPosition.readSiteWidth(res.menuWidth);
             serverOverflow = UtilMenuPosition.readSiteOverflow(res.menuOverflow);
             serverStyle = UtilMenuPosition.readSiteStyle(res);
+            serverBold = res.menuBold === true;
         } catch {
             // 못 받았다 — 기본값으로 둔다
         }
@@ -119,6 +125,7 @@ export function useTheme() {
                 style[key] = devPreview(param, `roboyam:menu-style-${param}-preview`, (v) => UtilMenuPosition.readStyleValue(key, v)) ?? serverStyle[key];
             }
             styleState.value = style as SiteMenuStyle;
+            boldState.value = serverBold;
             return;
         }
         state.value = serverTheme;
@@ -128,7 +135,8 @@ export function useTheme() {
         widthState.value = serverWidth;
         overflowState.value = serverOverflow;
         styleState.value = serverStyle;
+        boldState.value = serverBold;
     }
 
-    return { theme, siteMenu, siteTopItems, siteBarGroupIds, siteMenuWidth, siteMenuOverflow, siteMenuStyle, ensureLoaded };
+    return { theme, siteMenu, siteTopItems, siteBarGroupIds, siteMenuWidth, siteMenuOverflow, siteMenuStyle, siteMenuBold, ensureLoaded };
 }

@@ -90,11 +90,12 @@ public class SiteThemeService {
         if (!SiteThemes.isKnown(themeId)) {
             throw new CommonException(ErrorCode.NOT_FOUND);
         }
-        SiteThemeMenu next = SiteThemeMenus.check(request == null ? null : request.toMenu());
         SiteSettingEntity site = lockSettings();
         Instant now = Instant.now();
         SiteThemeMenuEntity row = menus.findWithLockByTheme(themeId).orElse(null);
-        SiteThemeMenu before = row == null ? SiteThemeMenus.INITIAL : row.toMenu();
+        SiteThemeMenu before = row == null ? SiteThemeMenus.initialOf(themeId) : row.toMenu();
+        // 메뉴 글자 기본 굵게는 요청에서 빠지면 지금 값 유지
+        SiteThemeMenu next = SiteThemeMenus.check(request == null ? null : request.toMenu(before.menuBold()));
         boolean changed;
         if (row == null) {
             changed = !next.equals(before);
@@ -122,7 +123,7 @@ public class SiteThemeService {
     }
 
     private SiteThemeMenu menuOf(String theme) {
-        return menus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL);
+        return menus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme));
     }
 
     /** 바뀐 칸만 전후 맵에 — 감사 「바뀐 내용」 */
@@ -152,13 +153,14 @@ public class SiteThemeService {
         out.put("menuDescription", s.menuDescription());
         out.put("stickyMenu", s.stickyMenu());
         out.put("mobileHeader", s.mobileHeader());
+        out.put("menuBold", m.menuBold());
         return out;
     }
 
     private static SiteThemeResponse view(String current, String menuTheme, SiteThemeMenu menu, String publicUrl) {
         Map<String, SiteThemeMenu> defaults = SiteThemeMenus.allDefaults();
         return new SiteThemeResponse(current, SiteThemes.IDS, menuTheme, menu.menuPosition(), menu.topItems(), menu.barGroupIds(), menu.menuWidth(),
-                menu.menuOverflow(), menu.style(), pick(defaults, SiteThemeMenu::menuPosition), pick(defaults, SiteThemeMenu::topItems),
+                menu.menuOverflow(), menu.style(), menu.menuBold(), pick(defaults, SiteThemeMenu::menuPosition), pick(defaults, SiteThemeMenu::topItems),
                 pick(defaults, SiteThemeMenu::menuWidth), pick(defaults, SiteThemeMenu::menuOverflow), pick(defaults, SiteThemeMenu::style),
                 publicUrl == null || publicUrl.isBlank() ? null : publicUrl);
     }

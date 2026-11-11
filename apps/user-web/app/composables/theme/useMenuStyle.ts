@@ -11,12 +11,13 @@ import UtilTheme from '~/utils/util-theme';
  *  - `menuDescription` 최상위 항목(인기글·최신글·공지 …)에서 둘째 줄에 메뉴 설명(`useMenuDescription`)
  *  - `stickyMenu` 메뉴 줄 붙이기(데스크톱 다음식 셸 메뉴 카드 · 모바일 상단 탭 — 모바일은 루트 `data-sticky-menu` CSS)
  *  - `plainMobileHeader` 모바일 상단 바 흰 모양(`mobileHeader: PLAIN` — 루트 `data-mobile-header` CSS)
+ *  - `menuBold` 메뉴 막대 글자 기본 굵게(테마 메뉴 설정 `menuBold`, V187 — 켬·끔, 처음 값은 다음 테마만 켬). 켜면 막대 칸이 굵고 항목 이름(`AppMenuItemLabel`)은 `keep-weight` 로 받는다 — 다음식(로보얌 포함)·네이버·기본 상단 막대
  * 루트 속성은 `plugins/01.site-theme.client.ts` 가 붙인다.
  *
  * @returns `style` 해석된 7칸 + 위 불리언들.
  */
 export function useMenuStyle() {
-    const { theme, siteMenuStyle } = useTheme();
+    const { theme, siteMenuStyle, siteMenuBold } = useTheme();
 
     const style = computed<MenuStyle>(() => UtilMenuPosition.resolveStyle(siteMenuStyle.value, UtilTheme.menuStyleDefault(theme.value)));
     const inlineGroups = computed(() => style.value.menuGroupStyle === 'INLINE');
@@ -27,5 +28,5 @@ export function useMenuStyle() {
     const stickyMenu = computed(() => style.value.stickyMenu === 'ON');
     const plainMobileHeader = computed(() => style.value.mobileHeader === 'PLAIN');
 
-    return { style, inlineGroups, pickSideGroups, compactBar, mobileMenuRows, menuDescription, stickyMenu, plainMobileHeader };
+    return { style, inlineGroups, pickSideGroups, compactBar, mobileMenuRows, menuDescription, stickyMenu, plainMobileHeader, menuBold: siteMenuBold };
 }

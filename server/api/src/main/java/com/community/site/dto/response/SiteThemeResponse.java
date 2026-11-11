@@ -8,8 +8,9 @@ import java.util.List;
  *
  * @param theme       테마 id — 설정 행이 없거나 목록에 없는 값이면 {@code default}
  * @param barGroupIds 섞인 배치에서 상단 띠에 둘 최상위 그룹 ID — 비면 첫 그룹
+ * @param menuBold    메뉴 막대 글자 기본 굵게(V187) — 끄면 얇고 메뉴 항목의 「굵게」만 굵다
  */
 public record SiteThemeResponse(String theme, String menuPosition, String topItems, List<String> barGroupIds, String menuWidth, String menuOverflow,
                                 String menuGroupStyle, String sideGroupStyle, String menuSize, String mobileMenu, String menuDescription, String stickyMenu,
-                                String mobileHeader) {
+                                String mobileHeader, boolean menuBold) {
 }

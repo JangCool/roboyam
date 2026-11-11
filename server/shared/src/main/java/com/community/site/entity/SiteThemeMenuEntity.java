@@ -32,6 +32,8 @@ public class SiteThemeMenuEntity {
     private String menuDescription;
     private String stickyMenu;
     private String mobileHeader;
+    /** 메뉴 막대 글자 기본 굵게(V187) */
+    private boolean menuBold;
     private Long updatedBy;
     private Instant updatedAt;
 
@@ -67,6 +69,7 @@ public class SiteThemeMenuEntity {
         menuDescription = menu.style().menuDescription();
         stickyMenu = menu.style().stickyMenu();
         mobileHeader = menu.style().mobileHeader();
+        menuBold = menu.menuBold();
         updatedBy = operatorId;
         updatedAt = now;
     }
@@ -74,7 +77,7 @@ public class SiteThemeMenuEntity {
     public SiteThemeMenu toMenu() {
         List<String> bar = barGroupIds == null || barGroupIds.isEmpty() ? List.of() : Arrays.asList(barGroupIds.split(","));
         return new SiteThemeMenu(menuPosition, topItems, bar, menuWidth, menuOverflow,
-                new SiteThemeMenu.Style(menuGroupStyle, sideGroupStyle, menuSize, mobileMenu, menuDescription, stickyMenu, mobileHeader));
+                new SiteThemeMenu.Style(menuGroupStyle, sideGroupStyle, menuSize, mobileMenu, menuDescription, stickyMenu, mobileHeader), menuBold);
     }
 
     public String getTheme() {

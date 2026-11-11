@@ -124,6 +124,7 @@ export default {
         INDIGO: '남색',
         SKY: '하늘',
         BROWN: '갈색',
+        EMERALD: '에메랄드',
     },
 
     // ── 기본 설정 ──

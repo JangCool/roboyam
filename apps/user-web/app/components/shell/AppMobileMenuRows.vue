@@ -5,6 +5,7 @@
           둘째 줄: 기본은 상단 띠 그룹(주제 …)을 「그룹 이름(작은 글자) + 칸」으로 — 데스크톱 둘째 줄과 같다(홈에서도 주제가 보인다).
             커뮤니티·소모임 단추를 누르거나 그 그룹 안에 있으면 둘째 줄이 그 그룹의 칸으로 바뀐다(데스크톱에서는 오른쪽 사이드에 뜨는 것 — 모바일은 사이드가 없어 둘째 줄이 대신한다). 같은 단추를 다시 누르면 주제로 돌아간다.
         고른 그룹 상태는 데스크톱 사이드와 같은 `useSideGroupPick` 이다. 상단 띠·사이드 나누기는 데스크톱과 같은 `useMenuItems('bar' | 'side')`(`UtilMenu.split`).
+        그룹 이름(첫 줄 그룹 단추·둘째 줄 그룹 제목)의 글자 색·굵게·배지는 항목과 같은 `AppMenuItemLabel` — 기본이면 칸의 색(흐림·고른 칸 진하게)을 그대로 따른다. 좁은 탭이라 배지는 작게(`compact`, `AppTopTabs` 와 같다).
         두 줄 모두 옆으로 밀고 활성 칸을 가운데로 끌어온다. 넘치면 양끝에 그라데이션 화살표(`AppScrollRow` `ARROWS` + `touch` — 게시판 말머리 줄과 같다, 사용자 결정 2026-11-05). 겉모양은 테마 CSS(`app-top-tabs` 고리 클래스)가 정한다.
     -->
     <nav v-if="visible" :aria-label="t('menu.tabsLabel')" class="app-top-tabs border-b border-surface bg-surface-0 text-sm dark:bg-surface-900" data-testid="mobile-menu-rows">
@@ -22,7 +23,7 @@
                         :class="tabClass(tab.key === underlineKey)"
                         :aria-current="tab.row.active ? 'page' : undefined"
                     >
-                        {{ localizedName(tab.row.node.label, tab.row.node.nameEn) }}
+                        <AppMenuItemLabel :node="tab.row.node" compact />
                     </AppMenuLink>
                     <!-- 그룹에 「누르면 가는 곳」이 있으면 링크 — 그곳으로 가고, 간 뒤에도 둘째 줄을 이 그룹으로 연다 -->
                     <AppMenuLink
@@ -32,7 +33,7 @@
                         :class="tabClass(tab.key === underlineKey)"
                         @click="afterNavigate(tab.group, () => sidePick.open(tab.key))"
                     >
-                        {{ localizedName(tab.title, tab.titleEn) }}
+                        <AppMenuItemLabel :node="tab.group" compact />
                     </AppMenuLink>
                     <button
                         v-else
@@ -43,7 +44,8 @@
                         :aria-controls="rowId"
                         @click="sidePick.pick(tab.key)"
                     >
-                        {{ localizedName(tab.title, tab.titleEn) }}
+                        <AppMenuItemLabel v-if="tab.group" :node="tab.group" compact />
+                        <template v-else>{{ localizedName(tab.title, tab.titleEn) }}</template>
                     </button>
                     <span v-if="tab.divider === 'AFTER'" class="mx-1 my-auto h-4 w-px shrink-0 bg-hairline-strong" aria-hidden="true" />
                 </template>
@@ -84,7 +86,7 @@
                             :aria-current="row.active ? 'page' : undefined"
                         >
                             <i v-if="row.color" class="inline-block size-1.5 shrink-0 rounded-full" :style="UtilBoard.dotStyle(row.color)" aria-hidden="true" />
-                            <span>{{ localizedName(row.node.label, row.node.nameEn) }}</span>
+                            <AppMenuItemLabel :node="row.node" compact />
                         </AppMenuLink>
                     </li>
                 </ul>

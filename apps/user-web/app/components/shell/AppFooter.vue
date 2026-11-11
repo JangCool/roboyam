@@ -19,7 +19,7 @@
                     <a href="/privacy" target="_blank" rel="noopener" class="text-primary hover:underline">{{ t('common.privacy') }}</a>
                     <a href="/policy" target="_blank" rel="noopener" class="hover:underline">{{ t('terms.operationPolicy') }}</a>
                 </span>
-                <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 운영자 링크가 비고 「사업자 신청」도 끄면 묶음을 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
+                <!-- 고객 지원 — 메뉴 그룹 `footer`(운영자가 정하는 링크, 폴더면 그 아래 항목을 평평하게). 이름의 글자 색·굵게·배지는 다른 메뉴와 같은 `AppMenuItemLabel`(글자가 작아 작은 배지). 운영자 링크가 비고 「사업자 신청」도 끄면 묶음을 숨긴다. 모바일은 약관 줄 다음 한 줄, 데스크톱은 왼쪽 단 약관 아래 -->
                 <nav
                     v-if="supportLinks.length || businessApply"
                     class="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:basis-full md:flex-col md:items-start md:gap-1"
@@ -29,7 +29,7 @@
                 >
                     <span class="font-semibold text-surface-700 dark:text-surface-200">{{ t('shell.footerSupport') }}</span>
                     <NuxtLink v-for="link in supportLinks" :key="link.id" :to="link.path" v-bind="UtilMenu.linkAttrs(link)" class="hover:underline">
-                        {{ localizedName(link.label, link.nameEn) }}<i v-if="link.newTab" class="pi pi-external-link ml-1 text-[0.5625rem]" aria-hidden="true" />
+                        <AppMenuItemLabel :node="link" compact /><i v-if="link.newTab" class="pi pi-external-link ml-1 text-[0.5625rem]" aria-hidden="true" />
                     </NuxtLink>
                     <!-- 사업자 신청 — 운영자가 정하는 고객 지원 링크 뒤에 붙는 고정 항목(계정 메뉴에서 옮김, 사용자 2026-11-10 시안 A). 관리자 운영 주체 화면에서 켜고 끈다(`operator.footerBusinessApply`, 기본 켬). 비회원은 사업자 센터가 로그인으로 보낸다 -->
                     <NuxtLink v-if="businessApply" :to="UtilBusiness.CENTER_PATH" class="hover:underline" data-testid="footer-business-apply">{{ t('business.applyEntry') }}</NuxtLink>
@@ -97,7 +97,6 @@ const copyright = computed(() => `© ${new Date().getFullYear()} ${siteLabel.val
 const contactEmail = computed(() => siteInfo.value?.operator?.contactEmail ?? null);
 onMounted(() => void commerce.ensureLoaded());
 // 고객 지원 링크(메뉴 그룹 `footer`) — 보는 사람마다 다를 수 있어 로그인·로그아웃으로 사람이 바뀌면 다시 받는다
-const { localizedName } = useLocalizedName();
 const footerMenu = useFooterMenu();
 const supportLinks = footerMenu.items;
 const { user } = useAuth();

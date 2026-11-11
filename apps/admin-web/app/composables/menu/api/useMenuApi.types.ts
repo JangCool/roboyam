@@ -72,6 +72,15 @@ interface MenuNodeBase {
     minGrade: string | null;
     /** 구분선(서버가 늘 준다, 새 노드는 `NONE`) */
     divider: MenuDivider;
+    /**
+     * 글자 색 — null 기본 · 12색 프리셋 이름(`BoardColor`, 서버 `BoardFields.COLORS`) · `#RRGGBB`(직접 고른 색, 서버가 대문자로 정리). 이름 앞 점(●)의 게시판 표시색과 따로다.
+     * 서버 `menu_nodes.text_color`(shared V186) — 폴더·항목 모두 실린다(폴더 창·항목 창에서 고친다). 잘못된 값은 400 `fields["nodes[i]….textColor"]`. 옛 응답이면 없음 = 기본(menu-contract 「메뉴 항목 글자 색·강조」).
+     */
+    textColor?: string | null;
+    /** 이름을 굵게 — 서버 `menu_nodes.bold`(기본 false). 옛 응답이면 없음 = false */
+    bold?: boolean;
+    /** 이름 뒤 배지 글자 1~4자(코드포인트) — 배지 색 = 글자 색(기본이면 주 색). 서버 `menu_nodes.badge`(앞뒤 공백 정리, 빈 값 null). 5자 이상은 400 `…badge` */
+    badge?: string | null;
 }
 
 /** 폴더 — 이름과 하위 노드, 그리고 이름을 누르면 가는 곳(선택). 깊이 3 까지 */

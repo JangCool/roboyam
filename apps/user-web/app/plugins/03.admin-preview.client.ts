@@ -50,6 +50,7 @@ export default defineNuxtPlugin(() => {
     const width = useState<SiteMenuWidthSetting | undefined>('site-menu-width');
     const overflow = useState<SiteMenuOverflowSetting | undefined>('site-menu-overflow');
     const style = useState<SiteMenuStyle | undefined>('site-menu-style');
+    const bold = useState<boolean | undefined>('site-menu-bold');
 
     window.addEventListener('message', (event: MessageEvent) => {
         if (!allowed.includes(event.origin)) return;
@@ -72,6 +73,7 @@ export default defineNuxtPlugin(() => {
             width.value = UtilMenuPosition.readSiteWidth(msg.menu.menuWidth);
             overflow.value = UtilMenuPosition.readSiteOverflow(msg.menu.menuOverflow);
             style.value = UtilMenuPosition.readSiteStyle(msg.menu.menuStyle);
+            if (typeof msg.menu.menuBold === 'boolean') bold.value = msg.menu.menuBold;
         }
         home.value = msg.home;
         page.value = msg.page;

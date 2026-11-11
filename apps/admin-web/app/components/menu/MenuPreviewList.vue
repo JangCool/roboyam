@@ -4,14 +4,22 @@
         <li v-for="entry in nodes" :key="entry.node.key">
             <template v-if="entry.node.kind === 'FOLDER'">
                 <div class="flex items-center gap-1.5 px-2 pt-2 pb-1 text-[11px] font-semibold text-muted-color">
-                    <span class="truncate" :class="entry.linked ? 'text-color underline decoration-dotted underline-offset-2' : ''">{{ nameOf(entry.node) }}</span>
+                    <!-- 폴더 제목은 늘 굵다 — 「굵게」면 한 단계 더(font-bold), 글자 색은 흐린 기본색 대신 그 색 -->
+                    <span
+                        class="truncate"
+                        :class="[entry.linked ? 'text-color underline decoration-dotted underline-offset-2' : '', entry.node.bold ? 'font-bold' : '']"
+                        :style="UtilMenu.textStyle(entry.node)"
+                        >{{ nameOf(entry.node) }}</span
+                    >
+                    <MenuNodeBadge :badge="entry.node.badge" :text-color="entry.node.textColor" />
                     <i v-if="entry.linked" class="pi pi-link text-[9px]" :aria-label="t('menuConfig.folderLinkTag')" />
                     <i v-if="entry.node.collapse !== 'NONE'" :class="entry.node.collapse === 'CLOSED' ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="ml-auto text-[9px]" aria-hidden="true" />
                 </div>
                 <MenuPreviewList :nodes="entry.children" :ctx="ctx" :depth="depth + 1" />
             </template>
             <div v-else class="flex items-center gap-1.5 rounded px-2 py-1 text-[13px] hover:bg-surface-100 dark:hover:bg-surface-800">
-                <span class="min-w-0 truncate">{{ nameOf(entry.node) }}</span>
+                <span class="min-w-0 truncate" :class="entry.node.bold ? 'font-semibold' : ''" :style="UtilMenu.textStyle(entry.node)">{{ nameOf(entry.node) }}</span>
+                <MenuNodeBadge :badge="entry.node.badge" :text-color="entry.node.textColor" />
                 <i v-if="entry.node.shortcut" class="pi pi-clone text-[10px] text-muted-color" :aria-label="t('menuConfig.shortcutTag')" v-tooltip.top="t('menuConfig.shortcutTag')" />
                 <i v-if="UtilMenu.isExternal(entry.node)" class="pi pi-external-link ml-auto text-[10px] text-muted-color" :aria-label="t('menuConfig.externalLink')" />
             </div>

@@ -8,7 +8,14 @@
     <div class="flex min-w-0 flex-col gap-1" :class="dimmed ? 'opacity-55' : ''">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <i :class="node.kind === 'FOLDER' ? 'pi pi-folder' : (typeDef?.icon ?? 'pi pi-question-circle')" class="shrink-0 text-[13px] text-muted-color" aria-hidden="true" />
-            <span class="min-w-0 truncate text-[13px]" :class="[name.following ? 'italic text-muted-color' : 'font-medium', !node.visible ? 'line-through decoration-surface-400' : '']">{{ name.text }}</span>
+            <!-- 이름 — 글자 색·굵게·배지는 공개 메뉴와 같은 칸(`textColor`·`bold`·`badge`, 글자 색은 관리자 테마 기준으로 칠한다) -->
+            <span
+                class="min-w-0 truncate text-[13px]"
+                :class="[node.bold ? 'font-semibold' : name.following ? 'italic text-muted-color' : 'font-medium', node.bold && name.following ? 'italic' : '', !node.visible ? 'line-through decoration-surface-400' : '']"
+                :style="UtilMenu.textStyle(node)"
+                >{{ name.text }}</span
+            >
+            <MenuNodeBadge :badge="node.badge" :text-color="node.textColor" />
 
             <template v-if="node.kind === 'ITEM'">
                 <MenuTag :value="typeLabel" :severity="status === 'UNKNOWN_TYPE' ? 'warn' : 'secondary'" />

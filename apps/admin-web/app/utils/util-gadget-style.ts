@@ -14,7 +14,7 @@ const TITLE_SIZES: readonly GadgetStyle['titleSize'][] = ['S', 'M', 'L'];
 const CARD_LOOKS: readonly GadgetCardLook[] = ['DEFAULT', 'FLAT', 'OUTLINE', 'TINT'];
 const MOBILE_FOLDS: readonly GadgetMobileFold[] = ['NONE', 'OPEN', 'CLOSED'];
 /** 색 프리셋 12색 — user-web `UtilColor.PRESET_NAMES` 와 같은 이름·차례(게시판 표시색 `UtilBoard.COLORS` 와도 같다) */
-const COLOR_PRESETS: readonly string[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN'];
+const COLOR_PRESETS: readonly string[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN', 'EMERALD'];
 /** 머리 아이콘 후보(PrimeIcons 8 에 있는 것만) — 받은 값이 목록 밖이어도 모양(`pi-…`)이 맞으면 그대로 둔다 */
 const ICONS: readonly string[] = [
     'pi-star',

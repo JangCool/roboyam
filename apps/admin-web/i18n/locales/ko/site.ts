@@ -219,6 +219,9 @@ export default {
     menuStyleHint_mobileHeader: '모바일 화면 맨 위 바와 메뉴 줄의 모양이에요. 주 색상은 바를 주 색상으로 채우고, 흰 바는 흰 바탕에 굵은 메뉴 글자와 검은 밑줄로 그려요.',
     menuStyleValue_mobileHeader_BRAND: '주 색상',
     menuStyleValue_mobileHeader_PLAIN: '흰 바',
+    // 메뉴 글자 기본 굵게(V187 — 켬·끔, 테마마다 따로, 다음 테마만 처음부터 켬)
+    menuBoldLabel: '메뉴 글자 기본 굵게',
+    menuBoldHint: '켜면 이 테마의 메뉴 막대 글자가 기본으로 굵게 보여요. 끄면 얇게 보이고, 메뉴 항목에 「굵게」를 고른 것만 굵게 보여요.',
 
     // 화면이 미리 검사한 오류
     nameRequired: '사이트 이름을 입력해 주세요.',

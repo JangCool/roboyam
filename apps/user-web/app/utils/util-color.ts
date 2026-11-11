@@ -22,7 +22,7 @@ export interface ColorPair {
 }
 
 /** 프리셋 12색의 이름 — 보여 주는 순서이기도 하다 */
-const PRESET_NAMES = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN'] as const;
+const PRESET_NAMES = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN', 'EMERALD'] as const;
 
 /** 프리셋 색값 표 — 계약서 1절(공개·관리자 화면이 같은 표를 쓴다). 프리셋은 이미 두 바탕에서 읽히는 값이라 보정하지 않는다 */
 const PRESETS: Readonly<Record<string, ColorPreset>> = Object.freeze({
@@ -38,6 +38,7 @@ const PRESETS: Readonly<Record<string, ColorPreset>> = Object.freeze({
     INDIGO: { light: '#4338ca', dark: '#818cf8' },
     SKY: { light: '#0369a1', dark: '#38bdf8' },
     BROWN: { light: '#78350f', dark: '#d6a574' },
+    EMERALD: { light: '#059669', dark: '#34d399' },
 });
 
 const HEX = /^#[0-9a-fA-F]{6}$/;

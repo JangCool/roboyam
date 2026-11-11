@@ -123,6 +123,7 @@ export default {
         INDIGO: 'Indigo',
         SKY: 'Sky',
         BROWN: 'Brown',
+        EMERALD: 'Emerald',
     },
 
     // ── Defaults ──

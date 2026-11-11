@@ -42,6 +42,9 @@ public final class MenuLimits {
     /** 항목 설명(메뉴 설명 줄) 글자 수 */
     public static final int DESCRIPTION_MAX = 80;
 
+    /** 메뉴 배지 글자 수(코드 포인트, V186) */
+    public static final int BADGE_MAX = 4;
+
     /** 게시판이 만들어질 때 자동 추가 폴더를 찾는 그룹 */
     public static final String MAIN_SET = "main";
 

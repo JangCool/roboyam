@@ -55,6 +55,15 @@ export interface MenuItemNode {
     divider?: MenuDivider | null;
     /** 운영자가 적은 한 줄 설명 — 최상위 항목(인기글·최신글·공지 …)에 들어가면 메뉴 둘째 줄에 보인다(`useMenuDescription`). 없으면(null) 화면 기본 설명 */
     description?: string | null;
+    /**
+     * 메뉴 글자 색(운영자 「글자 색」) — null 기본 · 12색 프리셋 이름 · `#RRGGBB`(직접 고른 색). 이름 앞 점(●)의 게시판 표시색(`board.color`)과는 따로다.
+     * 그릴 때 라이트·다크 짝으로 푼다(`UtilMenu.textStyle` → `UtilColor.cssPair`). 옛 응답이면 없음 = 기본(menu-contract 「메뉴 항목 글자 색·강조」)
+     */
+    textColor?: string | null;
+    /** 이름을 굵게(운영자 「강조 › 굵게」) — 없으면 false */
+    bold?: boolean;
+    /** 이름 뒤 작은 배지 글자(1~4자, 운영자 「강조 › 배지」) — 배지 색 = 글자 색(기본이면 주 색). 없으면 null */
+    badge?: string | null;
 }
 
 /** 폴더형 노드 — 이름과 아래 노드들, 그리고 이름을 누르면 가는 곳(선택) */
@@ -81,6 +90,12 @@ export interface MenuGroupNode {
     collapsed: boolean;
     /** 상단 가로 메뉴에서 이 그룹 이름 탭 옆에 긋는 구분선(`MenuDivider`) — 없으면 없음 */
     divider?: MenuDivider | null;
+    /** 그룹 이름의 글자 색 — 항목의 `textColor` 와 같은 값·규칙(운영자가 폴더 창에서 고른다). 옛 응답이면 없음 = 기본 */
+    textColor?: string | null;
+    /** 그룹 이름을 굵게 — 항목의 `bold` 와 같다. 없으면 false */
+    bold?: boolean;
+    /** 그룹 이름 뒤 배지 글자(1~4자) — 항목의 `badge` 와 같다. 없으면 null */
+    badge?: string | null;
     children: MenuNode[];
 }
 

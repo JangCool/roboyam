@@ -35,9 +35,9 @@
     -->
     <div v-if="hasBar" class="max-md:hidden" :class="stickyMenu ? 'sticky top-0 z-20 bg-page' : ''" data-testid="daum-menu-wrap">
         <div v-if="!fullBar" class="mx-auto w-full max-w-[var(--content-max)] px-4">
-            <DaumMenuBar :inline-groups="inlineGroups" :overflow="menuOverflow" :side-tabs="sideTabs" :compact="compact" :description="menuDescription" />
+            <DaumMenuBar :inline-groups="inlineGroups" :overflow="menuOverflow" :side-tabs="sideTabs" :compact="compact" :description="menuDescription" :bold="menuBold" />
         </div>
-        <DaumMenuBar v-else full :inline-groups="inlineGroups" :overflow="menuOverflow" :side-tabs="sideTabs" :compact="compact" :description="menuDescription" />
+        <DaumMenuBar v-else full :inline-groups="inlineGroups" :overflow="menuOverflow" :side-tabs="sideTabs" :compact="compact" :description="menuDescription" :bold="menuBold" />
     </div>
     <slot name="after-header" />
 
@@ -74,7 +74,7 @@ const fullBar = computed(() => props.menuWidth === 'FULL');
  * 메뉴 모양(운영자 설정 > 테마 기본, `useMenuStyle`) — 그룹을 둘째 줄 「이름 + 칸」으로(`inlineGroups`) · 사이드 그룹을 첫 줄 탭으로 골라 보기(`pickSideGroups`) ·
  * 메뉴 카드 한 단계 작게(`compactBar`) · 본문을 내리면 메뉴 카드를 창 위에 붙이기(`stickyMenu`, 윗줄은 사라진다)
  */
-const { inlineGroups, pickSideGroups, compactBar: compact, stickyMenu, menuDescription } = useMenuStyle();
+const { inlineGroups, pickSideGroups, compactBar: compact, stickyMenu, menuDescription, menuBold } = useMenuStyle();
 /** 사이드 그룹 탭 — 설정이 「골라 보기」이고 상단 막대와 사이드가 함께 있는 배치일 때만 */
 const sideTabs = computed(() => pickSideGroups.value && hasBar.value && side.value !== null);
 /**

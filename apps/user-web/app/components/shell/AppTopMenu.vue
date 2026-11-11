@@ -44,7 +44,7 @@
                         class="flex shrink-0 items-center"
                         :class="index > 0 ? 'ml-2 border-l border-surface pl-3' : ''"
                     >
-                        <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크 -->
+                        <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크. 글자 색·굵게·배지는 항목과 같은 규칙(`AppMenuGroupLabel` → `AppMenuItemLabel`) -->
                         <h2 v-if="section.title" :id="`${uid}-${section.key}`" class="m-0 pr-1 text-xs font-normal text-muted-color">
                             <AppMenuGroupLabel v-if="section.group" :group="section.group" />
                             <template v-else>{{ localizedName(section.title, section.titleEn) }}</template>
@@ -55,13 +55,13 @@
                                     v-if="entry.kind === 'item'"
                                     :node="entry.row.node"
                                     :data-active="entry.row.active ? 'true' : undefined"
-                                    :class="UtilMenu.barItemClass(entry.row.active)"
+                                    :class="UtilMenu.barItemClass(entry.row.active, menuBold)"
                                     :aria-current="entry.row.active ? 'page' : undefined"
                                 >
                                     <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                    <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
+                                    <AppMenuItemLabel :node="entry.row.node" :keep-weight="menuBold" />
                                 </AppMenuLink>
-                                <AppTopMenuDropdown v-else :entry="entry" />
+                                <AppTopMenuDropdown v-else :entry="entry" :button-class="UtilMenu.barItemClass(entry.active, menuBold)" :keep-weight="menuBold" />
                             </li>
                         </ul>
                     </section>
@@ -85,6 +85,8 @@ withDefaults(defineProps<Props>(), { overflow: 'SCROLLBAR' });
 const { t } = useI18n();
 const { bar, state, ownsState, activeId, loading, reload } = useMenuItems('bar');
 const uid = useId();
+/** 메뉴 글자 기본 굵게(테마 메뉴 설정 `menuBold`, V187) — 켜면 칸이 모두 굵고 이름은 그 굵기를 그대로 받는다(`keep-weight`), 끄면 활성만 600·「굵게」 항목만 600 */
+const { menuBold } = useMenuStyle();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
 /** 메뉴 줄(`AppScrollRow`)과 그 안의 스크롤 상자 — 활성 항목 가운데로 끌어오기가 쓴다 */

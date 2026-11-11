@@ -53,6 +53,15 @@ public class MenuNodeEntity {
     /** 바로가기 — 다른 묶음에 진짜 자리가 있는 게시판(BOARD 항목만, V167) */
     private boolean shortcut;
 
+    /** 글자 색 — null = 기본, 12색 키 또는 #RRGGBB(V186) */
+    private String textColor;
+
+    /** 굵게(V186) */
+    private boolean bold;
+
+    /** 이름 옆 배지 글자 — null = 없음(V186) */
+    private String badge;
+
     protected MenuNodeEntity() {
     }
 
@@ -81,13 +90,16 @@ public class MenuNodeEntity {
         entity.description = node.isItem() ? node.description() : null;
         entity.linkClick = node.hasFolderLink() ? node.linkClick() : null;
         entity.shortcut = node.isItem() && node.shortcut();
+        entity.textColor = node.textColor();
+        entity.bold = node.bold();
+        entity.badge = node.badge();
         return entity;
     }
 
     /** 저장 형태 → 노드(하위 없음) */
     public MenuNode toNode() {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey,
-                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick, shortcut);
+                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick, shortcut, textColor, bold, badge);
     }
 
     public Long getId() {

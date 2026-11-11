@@ -6,6 +6,8 @@
           LNB(높이 55): 고른 그룹의 직속 항목 + 하위 그룹 드롭다운(`AppTopMenuDropdown`). 고른 그룹이 없으면 줄 자체가 없다.
           `inlineGroups`(운영자 설정 「상단 메뉴 그룹 표시」 > 테마 기본, 로보얌 기본): GNB 는 최상위 항목만, LNB 에 막대 몫의 그룹을 모두 「그룹 이름(작은 글자) + 칸」으로 이어 놓는다(고르는 단추 없음, 사용자 결정 2026-10-28).
           모양 값(`inlineGroups`·`sideTabs`·`compact`·`description`)은 셸이 `useMenuStyle` 로 해석해 넘긴다 — 이 부품은 테마 선언을 읽지 않는다.
+        항목·그룹 이름의 글자 색·굵게·배지는 다른 메뉴와 같은 `AppMenuItemLabel`(GNB 밑줄은 이름 글자에만, 배지 밑에는 긋지 않는다). 메뉴 글자 굵기는 테마 메뉴 설정 「메뉴 글자 기본 굵게」(`bold` — 셸이 `useMenuStyle().menuBold` 로 넘긴다, V187 · 다음 테마만 기본 켬)가 정한다:
+          켜면 칸이 모두 굵게(700)이고 이름은 `keep-weight` 로 그 굵기를 그대로 받는다. 끄면 얇게(400)이고, 메뉴에 「굵게」를 고른 항목만 굵게(600) 보인다(사용자 2026-11-11).
         활성 탭(검정 + 글자 폭 2px 밑줄)은 지금 있는 곳 기준 — 최상위 항목이면 그 탭, 그룹 안이면 그 그룹 탭. 고른 그룹 기본값은 활성 그룹이고 주소가 바뀌면 다시 활성 그룹으로 돌아간다.
         메뉴 구성·활성 판정·로딩/오류는 다른 메뉴와 같은 `useMenuItems('bar')` 다(섞인 배치면 상단 띠 그룹만, 최상위 항목이 「로고 옆」이면 GNB 에 없다 — `UtilMenu.split`). 로딩·오류 안내는 사이드가 없을 때만 여기서 그린다. 넘치면 옆으로 밀고 활성 칸을 가운데로 끌어온다. 모바일은 테마 공통 셸이 맡는다(md 미만에서 숨는다).
         넘칠 때의 표시(`overflow`)는 줄마다 공통 `AppScrollRow` 가 그린다. 칸(높이 40)이 줄 가운데에 놓여 줄 안 아래 여백(GNB 15px — 활성 밑줄 아래로도 13px, LNB 7.5px)이 남으므로
@@ -34,7 +36,8 @@
                             :data-testid="`daum-menu-side-${group.key}`"
                             @click="afterNavigate(group.group, () => sidePick.open(group.key))"
                         >
-                            <span :class="gnbLabelClass(group.key === underlineKey)">{{ localizedName(group.title ?? '', group.titleEn) }}</span>
+                            <AppMenuItemLabel v-if="group.group" :keep-weight="bold" :node="group.group" :name-class="gnbLabelClass(group.key === underlineKey)" />
+                            <span v-else :class="gnbLabelClass(group.key === underlineKey)">{{ localizedName(group.title ?? '', group.titleEn) }}</span>
                         </AppMenuLink>
                         <button
                             v-else
@@ -46,7 +49,8 @@
                             :data-testid="`daum-menu-side-${group.key}`"
                             @click="sidePick.pick(group.key)"
                         >
-                            <span :class="gnbLabelClass(group.key === underlineKey)">{{ localizedName(group.title ?? '', group.titleEn) }}</span>
+                            <AppMenuItemLabel v-if="group.group" :keep-weight="bold" :node="group.group" :name-class="gnbLabelClass(group.key === underlineKey)" />
+                            <span v-else :class="gnbLabelClass(group.key === underlineKey)">{{ localizedName(group.title ?? '', group.titleEn) }}</span>
                         </button>
                     </li>
                     <!-- 칸 옆 구분선(운영자가 메뉴 구성에서 정한다 — 예: 공동구매 왼쪽) -->
@@ -59,7 +63,7 @@
                             :aria-current="tab.row.active ? 'page' : undefined"
                         >
                             <i v-if="tab.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(tab.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                            <span :class="gnbLabelClass(tab.key === underlineKey)">{{ localizedName(tab.row.node.label, tab.row.node.nameEn) }}</span>
+                            <AppMenuItemLabel :keep-weight="bold" :node="tab.row.node" :name-class="gnbLabelClass(tab.key === underlineKey)" />
                         </AppMenuLink>
                         <!-- 그룹 이름 탭 — 「누르면 가는 곳」이 있으면 링크(간 뒤에도 이 그룹을 LNB 에 연다), 없으면 고르기 단추 -->
                         <AppMenuLink
@@ -70,7 +74,8 @@
                             :data-testid="`daum-menu-group-${tab.key}`"
                             @click="afterNavigate(tab.section.group, () => (selectedKey = tab.key))"
                         >
-                            <span :class="gnbLabelClass(tab.key === activeTabKey)">{{ localizedName(tab.section.title, tab.section.titleEn) }}</span>
+                            <AppMenuItemLabel v-if="tab.section.group" :keep-weight="bold" :node="tab.section.group" :name-class="gnbLabelClass(tab.key === activeTabKey)" />
+                            <span v-else :class="gnbLabelClass(tab.key === activeTabKey)">{{ localizedName(tab.section.title, tab.section.titleEn) }}</span>
                         </AppMenuLink>
                         <button
                             v-else
@@ -83,7 +88,8 @@
                             :data-testid="`daum-menu-group-${tab.key}`"
                             @click="selectedKey = tab.key"
                         >
-                            <span :class="gnbLabelClass(tab.key === activeTabKey)">{{ localizedName(tab.section.title, tab.section.titleEn) }}</span>
+                            <AppMenuItemLabel v-if="tab.section.group" :keep-weight="bold" :node="tab.section.group" :name-class="gnbLabelClass(tab.key === activeTabKey)" />
+                            <span v-else :class="gnbLabelClass(tab.key === activeTabKey)">{{ localizedName(tab.section.title, tab.section.titleEn) }}</span>
                         </button>
                     </li>
                 </ul>
@@ -129,9 +135,9 @@
                                     :aria-current="entry.row.active ? 'page' : undefined"
                                 >
                                     <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                    <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
+                                    <AppMenuItemLabel :keep-weight="bold" :node="entry.row.node" />
                                 </AppMenuLink>
-                                <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" />
+                                <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" :keep-weight="bold" />
                             </li>
                         </ul>
                     </section>
@@ -153,10 +159,10 @@
                                 :aria-current="entry.row.active ? 'page' : undefined"
                             >
                                 <i v-if="entry.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(entry.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
-                                <span>{{ localizedName(entry.row.node.label, entry.row.node.nameEn) }}</span>
+                                <AppMenuItemLabel :keep-weight="bold" :node="entry.row.node" />
                             </AppMenuLink>
                             <!-- 활성 표시(`data-active`)는 드롭다운 단추가 스스로 단다 -->
-                            <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" />
+                            <AppTopMenuDropdown v-else :entry="entry" :button-class="lnbClass(entry.active)" :keep-weight="bold" />
                         </li>
                     </ul>
                 </AppScrollRow>
@@ -190,8 +196,10 @@ interface Props {
     compact?: boolean;
     /** 최상위 항목(인기글·최신글·공지 …)에 있을 때 둘째 줄에 메뉴 설명을 보이는가(운영자 설정 「메뉴 설명 줄」 > 테마 기본) */
     description?: boolean;
+    /** 메뉴 글자 기본 굵게(테마 메뉴 설정 `menuBold`, 셸이 넘긴다) — 켜면 GNB·LNB 칸이 굵게(700), 끄면 얇게(400)이고 「굵게」를 고른 항목만 굵다 */
+    bold?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), { full: false, inlineGroups: false, overflow: 'SCROLLBAR', sideTabs: false, compact: false, description: false });
+const props = withDefaults(defineProps<Props>(), { full: false, inlineGroups: false, overflow: 'SCROLLBAR', sideTabs: false, compact: false, description: false, bold: false });
 
 /** 사이드 그룹 고르기 — 사이드 칸(`AppSideMenu`)과 같은 상태 */
 const sidePick = useSideGroupPick();
@@ -305,12 +313,16 @@ const selected = computed(() => bar.value.find((section): section is MenuBarSect
 /** 둘째 줄이 메뉴 설명인가 — 그룹 이어 놓기면 주제 줄 대신, 그룹 탭 방식이면 고른 그룹이 없을 때 */
 const showDesc = computed(() => showEntries.value && shownDesc.value !== null && (props.inlineGroups || !selected.value));
 
-/** GNB 탭 — 17px 굵게 · 좌우 18px · 줄 높이 40. 활성·고른 탭은 진한 글자 */
+/** 칸 글자 굵기 — 메뉴 글자 기본 굵게(`bold`)면 700, 아니면 400 */
+const weightClass = computed(() => (props.bold ? 'font-bold' : 'font-normal'));
+
+/** GNB 탭 — 17px · 좌우 18px · 줄 높이 40(굵기는 `weightClass`). 활성·고른 탭은 진한 글자 */
 function gnbClass(strong: boolean): string {
     return [
         props.compact
-            ? 'flex h-9 shrink-0 items-center gap-1.5 px-3.5 text-[0.9375rem] font-bold leading-9 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
-            : 'flex h-10 shrink-0 items-center gap-1.5 px-[18px] text-[17px] font-bold leading-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+            ? 'flex h-9 shrink-0 items-center gap-1.5 px-3.5 text-[0.9375rem] leading-9 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
+            : 'flex h-10 shrink-0 items-center gap-1.5 px-[18px] text-[17px] leading-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+        weightClass.value,
         strong ? 'text-tab-active' : 'text-tab hover:text-tab-active',
     ].join(' ');
 }
@@ -320,12 +332,13 @@ function gnbLabelClass(active: boolean): string {
     return active ? 'relative after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:bg-tab-active' : '';
 }
 
-/** LNB 칸 — 16px 굵게 · 좌우 16px. 활성은 본문 글자색 */
+/** LNB 칸 — 16px · 좌우 16px(굵기는 `weightClass`). 활성은 본문 글자색 */
 function lnbClass(active: boolean): string {
     return [
         props.compact
-            ? 'flex h-8 shrink-0 items-center gap-1.5 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
-            : 'flex h-10 shrink-0 items-center gap-1.5 px-4 text-base font-bold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+            ? 'flex h-8 shrink-0 items-center gap-1.5 px-3 text-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
+            : 'flex h-10 shrink-0 items-center gap-1.5 px-4 text-base focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
+        weightClass.value,
         active ? 'text-subtab-active' : 'text-subtab hover:text-subtab-active',
     ].join(' ');
 }

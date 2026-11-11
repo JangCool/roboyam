@@ -22,10 +22,14 @@ import tools.jackson.databind.JsonNode;
  *                   항목·연결 없는 폴더는 null
  * @param shortcut   바로가기 — 같은 그룹의 다른 묶음(폴더)에 진짜 자리가 있는 게시판을 이 묶음에도 보이게 둔 {@code BOARD} 항목(menu-shortcut-contract).
  *                   게시판의 소속 묶음은 진짜 자리(바로가기 아닌 항목)가 정한다. 폴더·그 밖의 항목은 false
+ * @param textColor  글자 색(V186) — null = 기본, 게시판 표시색 12색 키({@code BoardFields.COLORS}) 또는 {@code #RRGGBB}(대문자). 폴더·항목 모두
+ * @param bold       굵게(V186)
+ * @param badge      이름 옆 배지 글자(V186) — null = 없음, 코드포인트 {@value MenuLimits#BADGE_MAX}개까지
  */
 public record MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
                        boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
-                       List<MenuNode> children, String divider, String description, String linkClick, boolean shortcut) {
+                       List<MenuNode> children, String divider, String description, String linkClick, boolean shortcut, String textColor, boolean bold,
+                       String badge) {
 
     public static final String FOLDER = "FOLDER";
     public static final String ITEM = "ITEM";
@@ -42,6 +46,14 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
     public MenuNode {
         children = children == null ? List.of() : List.copyOf(children);
         divider = divider == null ? DIVIDER_NONE : divider;
+    }
+
+    /** 글자 색·강조가 없는 노드 — 검사({@code MenuTreeValidator})가 요청의 칸을 다시 붙인다 */
+    public MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
+                    boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
+                    List<MenuNode> children, String divider, String description, String linkClick, boolean shortcut) {
+        this(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings, mobileTab,
+                children, divider, description, linkClick, shortcut, null, false, null);
     }
 
     /** 바로가기가 아닌 노드 */
@@ -62,7 +74,7 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
 
     public MenuNode withExtras(String newDivider, String newDescription) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, newDivider, newDescription, linkClick, shortcut);
+                mobileTab, children, newDivider, newDescription, linkClick, shortcut, textColor, bold, badge);
     }
 
     public boolean isFolder() {
@@ -80,22 +92,28 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
 
     public MenuNode withChildren(List<MenuNode> newChildren) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, newChildren, divider, description, linkClick, shortcut);
+                mobileTab, newChildren, divider, description, linkClick, shortcut, textColor, bold, badge);
     }
 
     public MenuNode withAutoAdd(boolean value) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, value, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, shortcut);
+                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge);
     }
 
     public MenuNode withId(Long newId) {
         return new MenuNode(newId, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, shortcut);
+                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge);
     }
 
     public MenuNode withShortcut(boolean value) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, value);
+                mobileTab, children, divider, description, linkClick, value, textColor, bold, badge);
+    }
+
+    /** 글자 색·굵게·배지를 붙인다(정리를 마친 값) */
+    public MenuNode withStyle(String newTextColor, boolean newBold, String newBadge) {
+        return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
+                mobileTab, children, divider, description, linkClick, shortcut, newTextColor, newBold, newBadge);
     }
 
     /** 트리의 노드 수(하위 포함) */
