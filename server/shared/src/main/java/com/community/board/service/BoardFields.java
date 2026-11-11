@@ -4,6 +4,7 @@ import com.community.board.entity.BoardGadget;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -298,6 +299,26 @@ public final class BoardFields {
 
     private static void choice(Map<String, Spec> map, String field, boolean overridable, boolean staffLimit, Object... values) {
         put(map, new Spec(field, Kind.CHOICE, 0, 0, List.of(values), overridable, staffLimit));
+    }
+
+    /**
+     * 표시색 정리 — 게시판 표시색(boards.color, V188)과 메뉴 글자 색(menu_nodes.text_color, V186)이 같은 규칙을 쓴다.
+     * null·빈 값은 null(자동·기본), {@link #COLORS} 키는 그대로, {@code #} + 16진 6자리는 대문자로. 그 밖의 값은 앞뒤 공백만 떼어 돌려준다({@link #isColor} 가 거절한다).
+     */
+    public static String normalizeColor(String value) {
+        if (value == null) {
+            return null;
+        }
+        String color = value.strip();
+        if (color.isEmpty()) {
+            return null;
+        }
+        return HEX_COLOR.matcher(color).matches() ? color.toUpperCase(Locale.ROOT) : color;
+    }
+
+    /** {@link #normalizeColor} 를 거친 값이 null·{@link #COLORS} 키·{@code #RRGGBB} 면 참 */
+    public static boolean isColor(String normalized) {
+        return normalized == null || COLORS.contains(normalized) || HEX_COLOR.matcher(normalized).matches();
     }
 
     private static Map<String, String> orderedMap(String... pairs) {

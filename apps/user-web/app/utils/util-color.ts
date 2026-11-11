@@ -34,7 +34,7 @@ const PRESETS: Readonly<Record<string, ColorPreset>> = Object.freeze({
     ORANGE: { light: '#c2410c', dark: '#fb923c' },
     SLATE: { light: '#5b6270', dark: '#94a3b8' },
     RED: { light: '#d92b2b', dark: '#f87171' },
-    PINK: { light: '#be185d', dark: '#f472b6' },
+    PINK: { light: '#db2777', dark: '#f472b6' }, // 밝은 값 #be185d → #db2777(사용자 2026-11-11: 빨강처럼 보인다 — 흰 바탕 대비 약 4.6:1)
     INDIGO: { light: '#4338ca', dark: '#818cf8' },
     SKY: { light: '#0369a1', dark: '#38bdf8' },
     BROWN: { light: '#78350f', dark: '#d6a574' },

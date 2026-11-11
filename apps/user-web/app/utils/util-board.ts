@@ -107,12 +107,14 @@ export default class UtilBoard {
     }
 
     /**
-     * 운영자가 고른 표시색(프리셋 이름)을 읽는다 — 12색 이름이 아닌 값(빈 값·옛 응답·모르는 이름)은 null(색 없음). 이름 → 색 값 표는 `UtilColor.PRESETS` 한 곳에만 있다.
+     * 운영자가 고른 표시색을 읽는다 — 13색 이름 또는 직접 고른 `#RRGGBB`(shared V188, 메뉴 글자 색과 같은 규칙). 그 밖(빈 값·옛 응답·모르는 이름)은 null(색 없음).
+     * 이름 → 색 값 표는 `UtilColor.PRESETS` 한 곳, 직접 고른 색은 그릴 때 라이트·다크 바탕에서 읽히게 명도만 보정한다(`UtilColor.cssPair`).
+     * 말머리 색(13색 이름만)도 같은 길로 읽는다.
      * @param {unknown} color - 서버가 준 `color`.
-     * @returns {string | null} 프리셋 이름 또는 null(색 없음).
+     * @returns {string | null} 프리셋 이름·소문자 `#rrggbb` 또는 null(색 없음).
      */
-    static presetColor(color: unknown): string | null {
-        return UtilColor.isPreset(color) ? (color as string) : null;
+    static boardColor(color: unknown): string | null {
+        return UtilColor.normalize(color);
     }
 
     /**
@@ -121,7 +123,7 @@ export default class UtilBoard {
      * @returns {ColorStyle | undefined} 라이트·다크를 따르는 배경 스타일.
      */
     static dotStyle(color: unknown): ColorStyle | undefined {
-        const pair = UtilColor.cssPair(UtilBoard.presetColor(color));
+        const pair = UtilColor.cssPair(UtilBoard.boardColor(color));
         return pair ? { background: pair } : undefined;
     }
 
@@ -131,7 +133,7 @@ export default class UtilBoard {
      * @returns {ColorStyle | undefined} 라이트·다크를 따르는 글자색 스타일.
      */
     static textStyle(color: unknown): ColorStyle | undefined {
-        const pair = UtilColor.cssPair(UtilBoard.presetColor(color));
+        const pair = UtilColor.cssPair(UtilBoard.boardColor(color));
         return pair ? { color: pair } : undefined;
     }
 
@@ -142,7 +144,7 @@ export default class UtilBoard {
      * @returns {ColorStyle | undefined} 태그 스타일. 자동·회색이면 undefined(클래스로 그린다).
      */
     static tagStyle(color: unknown, staffOnly = false): ColorStyle | undefined {
-        const preset = staffOnly ? null : UtilBoard.presetColor(color);
+        const preset = staffOnly ? null : UtilBoard.boardColor(color);
         const pair = UtilColor.cssPair(preset);
         const text = UtilColor.cssTagText(preset);
         return pair && text ? { '--tag-c': pair, color: text, background: 'color-mix(in srgb, var(--tag-c) 14%, var(--p-content-background))' } : undefined;

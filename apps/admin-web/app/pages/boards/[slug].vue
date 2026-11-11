@@ -171,17 +171,22 @@
                             </p>
                         </div>
 
-                        <!-- 표시색 — 프리셋 12색 또는 자동(같은 이름의 네이티브 라디오, grades.vue 와 같은 방식) -->
+                        <!-- 표시색 — 자동 · 프리셋 13색 · 직접 고르기 #RRGGBB(shared V188 — 메뉴 글자 색과 같은 부품 `PresetColorPicker`·규칙) -->
                         <div class="flex flex-col gap-1.5 md:col-span-2">
                             <span :id="`${idBase}-color`" class="text-sm font-medium">{{ t('board.field.color') }}</span>
-                            <div role="radiogroup" :aria-labelledby="`${idBase}-color`" class="flex flex-wrap gap-1.5">
-                                <label v-for="c in COLOR_CHOICES" :key="c" class="color-opt" :class="{ 'color-opt--disabled': !canManage || saving }" :title="t(`board.color.${c}`)">
-                                    <input v-model="colorModel" type="radio" class="sr-only" :name="`${idBase}-color`" :value="c" :disabled="!canManage || saving" :aria-label="t(`board.color.${c}`)" />
-                                    <span v-if="c === 'AUTO'" class="color-opt__auto" aria-hidden="true" />
-                                    <span v-else class="color-opt__dot" :style="{ background: UtilBoard.colorVar(c) ?? undefined }" aria-hidden="true" />
-                                </label>
-                            </div>
-                            <p class="m-0 text-xs text-muted-color">{{ t('board.colorHelp', { name: t(`board.color.${colorModel}`) }) }}</p>
+                            <PresetColorPicker
+                                v-model="colorModel"
+                                :labelledby="`${idBase}-color`"
+                                :default-label="t('board.color.AUTO')"
+                                :custom-label="t('board.colorCustom')"
+                                :pick-label="t('board.colorCustomPick')"
+                                :input-label="t('board.colorCustomInput')"
+                                :disabled="!canManage || saving"
+                                testid-prefix="board-color"
+                            />
+                            <p class="m-0 text-xs leading-relaxed" :class="textErrorOf('color') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="textErrorOf('color') ? 'alert' : undefined">
+                                {{ textErrorOf('color') || t('board.colorHelp', { name: colorName }) }}
+                            </p>
                         </div>
                     </div>
                 </AppGadget>
@@ -550,8 +555,6 @@ function guideMax(field: (typeof GUIDE_FIELDS)[number]): number {
     return field === 'writeTemplate' ? UtilBoard.TEMPLATE_MAX : UtilBoard.TEXT_MAX;
 }
 const ROLES: readonly BoardStaffRole[] = ['MANAGER', 'STAFF'];
-/** 표시색 선택지 — 자동(색 없음) + 프리셋 12색 */
-const COLOR_CHOICES = ['AUTO', ...UtilBoard.COLORS] as const;
 
 const slug = computed(() => String(route.params.slug ?? ''));
 
@@ -617,12 +620,20 @@ const statusEnabledModel = computed<boolean>({
         clearServer('statusEnabled');
     },
 });
-/** 표시색 — 색 없음은 `AUTO` */
-const colorModel = computed<string>({
-    get: () => form.value?.color ?? 'AUTO',
+/** 표시색 — null 자동 · 13색 이름 · `#RRGGBB`(직접 고르기 입력 중이면 틀린 글자일 수 있다 — `textProblems.color` 가 막는다). 고치면 서버 오류를 지운다 */
+const colorModel = computed<string | null>({
+    get: () => form.value?.color ?? null,
     set: (value) => {
-        if (form.value) form.value.color = value === 'AUTO' ? null : (value as BoardColor);
+        if (!form.value) return;
+        form.value.color = value;
+        clearServer('color');
     },
+});
+/** 도움말의 「지금: …」 — 자동·13색은 이름, 직접 고른 색은 그 값 */
+const colorName = computed(() => {
+    const color = form.value?.color ?? null;
+    if (color === null) return t('board.color.AUTO');
+    return (UtilBoard.COLORS as readonly string[]).includes(color) ? t(`board.color.${color}`) : color;
 });
 
 /** 가젯 노출 금지 — 체크 목록이 고른 키 배열을 주고받는다. 고치면 그 칸의 서버 오류를 지운다 */
@@ -670,6 +681,7 @@ const textProblems = computed(() => {
         introText: UtilBoard.textProblem(f.introText),
         writeGuideText: UtilBoard.textProblem(f.writeGuideText),
         writeTemplate: UtilBoard.templateProblem(f.writeTemplate),
+        color: UtilBoard.colorProblem(f.color),
     };
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v));
 });
@@ -1058,40 +1070,5 @@ onBeforeRouteUpdate(async () => {
 .board-tag :deep(.p-tag-label) {
     position: relative;
     top: -0.09em;
-}
-
-/* 표시색 고르개 — 원형 견본. 선택은 윤곽(색만으로 구분하지 않고 이름은 aria-label·title 이 말한다) */
-.color-opt {
-    display: inline-grid;
-    place-items: center;
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid var(--line);
-    border-radius: 9999px;
-    cursor: pointer;
-}
-.color-opt:has(input:checked) {
-    outline: 2px solid var(--p-text-color);
-    outline-offset: 1px;
-}
-.color-opt:has(input:focus-visible) {
-    box-shadow: 0 0 0 4px var(--p-focus-ring-color, var(--p-primary-color));
-}
-.color-opt--disabled {
-    cursor: default;
-}
-.color-opt:has(input:disabled:not(:checked)) {
-    opacity: 0.5;
-}
-.color-opt__dot {
-    width: 1.1rem;
-    height: 1.1rem;
-    border-radius: 9999px;
-}
-.color-opt__auto {
-    width: 1.1rem;
-    height: 1.1rem;
-    border: 1.5px dashed var(--line-strong);
-    border-radius: 9999px;
 }
 </style>

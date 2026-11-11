@@ -434,8 +434,9 @@ public class BoardPresetCatalog {
         if (board.layout() != null && !BoardFields.LAYOUTS.contains(board.layout())) {
             throw invalid(where, "layout 은 " + BoardFields.LAYOUTS + " 중 하나여야 한다");
         }
-        if (board.color() != null && !BoardFields.COLORS.contains(board.color())) {
-            throw invalid(where, "color 는 " + BoardFields.COLORS + " 중 하나여야 한다");
+        // 13색 키 또는 #RRGGBB(대문자 — DB CHECK V188 이 대문자만 받는다)
+        if (!BoardFields.isColor(board.color()) || !java.util.Objects.equals(board.color(), BoardFields.normalizeColor(board.color()))) {
+            throw invalid(where, "color 는 " + BoardFields.COLORS + " 중 하나이거나 #RRGGBB(대문자)여야 한다");
         }
         if (board.kind() != null && !BoardFields.KINDS.contains(board.kind())) {
             throw invalid(where, "kind 는 " + BoardFields.KINDS + " 중 하나여야 한다");

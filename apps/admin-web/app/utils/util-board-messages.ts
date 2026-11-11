@@ -42,6 +42,8 @@ export default class UtilBoardMessages {
     /** 이름·slug·설명·말머리 문제 → 문구 */
     static problem(t: Translate, problem: BoardTextProblem): string {
         switch (problem) {
+            case 'COLOR_FORMAT':
+                return t('board.problemColorFormat');
             case 'NAME_REQUIRED':
                 return t('board.problemNameRequired');
             case 'NAME_LENGTH':

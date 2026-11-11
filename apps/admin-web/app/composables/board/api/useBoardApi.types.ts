@@ -28,8 +28,10 @@ export type BoardLayout = 'LIST' | 'CARD' | 'GALLERY';
 export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
 /** 게시판 만들기에서 고르는 종류 — 일반(메뉴·게시판 페이지가 있다) · 핫딜(글마다 딜 정보. 19금 끔·쓰기 첫 등급 아님·비회원 글쓰기 끔은 서버가 설치 프리셋과 같게 정한다) · 소모임(메뉴·게시판 페이지가 없고 소모임 글을 담는다) */
 export type BoardCreateKind = Extract<BoardKind, 'GENERAL' | 'DEAL' | 'GROUP'>;
-/** 표시색 프리셋 12색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳 */
+/** 표시색 프리셋 13색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳. 말머리 색은 이것만 받는다 */
 export type BoardColor = 'BLUE' | 'TEAL' | 'AMBER' | 'PURPLE' | 'GREEN' | 'ORANGE' | 'SLATE' | 'RED' | 'PINK' | 'INDIGO' | 'SKY' | 'BROWN' | 'EMERALD';
+/** 게시판 표시색(이름 옆 점) — 13색 이름 또는 직접 고른 `#RRGGBB`(서버가 대문자로 정리, shared V188 · 메뉴 글자 색과 같은 규칙). 입력 중에는 틀린 글자일 수 있다 */
+export type BoardDisplayColor = BoardColor | string;
 /** 글 에디터 수준 — 평문(Textarea) · 간단(굵게·기울임·밑줄·취소선·링크·목록·인용) · 고급(+ 제목·구분선·코드·글자색/배경색·이미지·유튜브). 공개 게시판 계약 「에디터 화면」 */
 export type BoardPostEditor = 'NONE' | 'SIMPLE' | 'ADVANCED';
 /** 댓글 에디터 수준 — 평문 · 간단 */
@@ -220,7 +222,7 @@ export interface BoardListItem extends BoardRef {
     description: string;
     kind: BoardKind;
     layout: BoardLayout;
-    color: BoardColor | null;
+    color: BoardDisplayColor | null;
     active: boolean;
     /** 1부터 세는 자리 */
     sortOrder: number;
@@ -294,7 +296,7 @@ export interface BoardDetail extends BoardRef {
      * 옛 서버 응답에는 칸이 없을 수 있다
      */
     chipPosition?: BoardChipPosition | null;
-    color: BoardColor | null;
+    color: BoardDisplayColor | null;
     allowAdult: boolean;
     /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
     adsHidden: boolean;
@@ -366,7 +368,7 @@ export interface BoardSaveRequest {
     viewToggle: boolean;
     /** 말머리·상태 칩 위치 — 빈 글자 `""` = 사이트 기본 따르기(null 저장), `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.chipPosition` */
     chipPosition: BoardChipPosition | '' | null;
-    color: BoardColor | null;
+    color: BoardDisplayColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;
     writeLock: BoardWriteLock | null;

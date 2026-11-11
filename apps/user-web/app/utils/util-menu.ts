@@ -290,8 +290,8 @@ function isBoardItem(node: MenuItemNode): boolean {
 }
 
 function toRow(node: MenuItemNode, level: number, ctx: MenuContext): MenuItemRow {
-    // 색 점은 운영자가 고른 표시색이 있을 때만 단다 — 서버 `color` 가 12색 이름이 아니면(비었거나 모르는 값) 점이 없다
-    const color = UtilBoard.presetColor(node.board?.color);
+    // 색 점은 운영자가 고른 표시색이 있을 때만 단다 — 서버 `color` 가 13색 이름·`#RRGGBB` 가 아니면(비었거나 모르는 값) 점이 없다
+    const color = UtilBoard.boardColor(node.board?.color);
     const here = node.id === ctx.activeId;
     // 바로가기 줄 — 지금 보는 게시판이면 함께 밝게(진짜 자리는 아니다)
     const echo = !here && node.shortcut === true && ctx.activeSlug !== null && isBoardItem(node) && node.board!.slug === ctx.activeSlug;
