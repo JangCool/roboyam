@@ -169,7 +169,7 @@
       "viewToggle": false,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": "AMBER",
+      "color": "PURPLE",
       "prefixes": [
         {
           "name": "게임 뉴스",
@@ -226,7 +226,7 @@
       "viewToggle": false,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": "TEAL",
+      "color": "ORANGE",
       "prefixes": [
         {
           "name": "축구",
@@ -858,7 +858,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": null,
+      "color": "BROWN",
       "prefixes": [
         {
           "name": "정치·정부·국회",
@@ -1143,7 +1143,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": null,
+      "color": "PINK",
       "prefixes": [
         {
           "name": "연애 고민",
@@ -1200,7 +1200,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "color": null,
+      "color": "TEAL",
       "prefixes": [
         {
           "name": "직장생활",
