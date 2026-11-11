@@ -4,13 +4,21 @@
         {
             "name": "user-web",
             "runtimeExecutable": "pnpm",
-            "runtimeArgs": ["--filter", "user-web", "dev"],
+            "runtimeArgs": [
+                "--filter",
+                "user-web",
+                "dev"
+            ],
             "port": 3100
         },
         {
             "name": "admin-web",
             "runtimeExecutable": "pnpm",
-            "runtimeArgs": ["--filter", "admin-web", "dev"],
+            "runtimeArgs": [
+                "--filter",
+                "admin-web",
+                "dev"
+            ],
             "port": 3200
         },
         {
@@ -60,6 +68,206 @@
                 "set JAVA_HOME=%USERPROFILE%/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2&& set ROBOYAM_PAYMENT_GATEWAY=portone&& set ROBOYAM_IDENTITY_PROVIDER=portone&& .\\gradlew.bat :server:admin:bootRun --console=plain"
             ],
             "port": 8920
+        },
+        {
+            "name": "api-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\api&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\a6c0fa5a-cd45-44a4-983d-ff6c8a9d30f8\\scratchpad\\run\\roboyam-api.jar"
+            ],
+            "port": 8910,
+            "autoPort": false
+        },
+        {
+            "name": "admin-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\admin&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\a6c0fa5a-cd45-44a4-983d-ff6c8a9d30f8\\scratchpad\\run\\roboyam-admin.jar"
+            ],
+            "port": 8920,
+            "autoPort": false
+        },
+        {
+            "name": "api-jar-portone",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\api&& set ROBOYAM_PAYMENT_GATEWAY=portone&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\a6c0fa5a-cd45-44a4-983d-ff6c8a9d30f8\\scratchpad\\run\\roboyam-api.jar"
+            ],
+            "port": 8910,
+            "autoPort": false
+        },
+        {
+            "name": "admin-jar-portone",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\admin&& set ROBOYAM_PAYMENT_GATEWAY=portone&& set ROBOYAM_IDENTITY_PROVIDER=portone&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\a6c0fa5a-cd45-44a4-983d-ff6c8a9d30f8\\scratchpad\\run\\roboyam-admin.jar"
+            ],
+            "port": 8920,
+            "autoPort": false
+        },
+        {
+            "name": "biz-api-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\api&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\d4b9a0d1-110e-4e86-91bc-5b394d60b02f\\scratchpad\\run\\roboyam-api.jar"
+            ],
+            "port": 8910,
+            "autoPort": false
+        },
+        {
+            "name": "biz-admin-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\admin&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\d4b9a0d1-110e-4e86-91bc-5b394d60b02f\\scratchpad\\run\\roboyam-admin.jar"
+            ],
+            "port": 8920,
+            "autoPort": false
+        },
+        {
+            "name": "biz-api-jar-portone",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\api&& set ROBOYAM_PAYMENT_GATEWAY=portone&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\d4b9a0d1-110e-4e86-91bc-5b394d60b02f\\scratchpad\\run\\roboyam-api.jar"
+            ],
+            "port": 8910,
+            "autoPort": false
+        },
+        {
+            "name": "biz-admin-jar-portone",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\server\\admin&& set ROBOYAM_PAYMENT_GATEWAY=portone&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\d4b9a0d1-110e-4e86-91bc-5b394d60b02f\\scratchpad\\run\\roboyam-admin.jar"
+            ],
+            "port": 8920,
+            "autoPort": false
+        },
+        {
+            "name": "dash-admin-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\D--project-roboyam\\71832ba2-2669-47b0-8557-5d065b0b10a6\\scratchpad\\dash-dev.cmd"
+            ],
+            "port": 3201,
+            "autoPort": false
+        },
+        {
+            "name": "biz-user-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop&& pnpm --filter user-web dev"
+            ],
+            "port": 3100,
+            "autoPort": false
+        },
+        {
+            "name": "biz-admin-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop&& pnpm --filter admin-web dev"
+            ],
+            "port": 3200,
+            "autoPort": false
+        },
+        {
+            "name": "profile-privacy-user-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\profile-privacy&& set NUXT_PORT=3130&& pnpm --filter user-web dev"
+            ],
+            "port": 3130,
+            "autoPort": false
+        },
+        {
+            "name": "animated-avatar-user-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\animated-avatar&& set NUXT_PORT=3140&& pnpm --filter user-web dev"
+            ],
+            "port": 3140,
+            "autoPort": false
+        },
+        {
+            "name": "site-logo-user-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\site-logo-variants&& set NUXT_PORT=3150&& pnpm --filter user-web dev"
+            ],
+            "port": 3150,
+            "autoPort": false
+        },
+        {
+            "name": "site-logo-admin-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\site-logo-variants&& set NUXT_PORT=3250&& pnpm --filter admin-web dev"
+            ],
+            "port": 3250,
+            "autoPort": false
+        },
+        {
+            "name": "animated-avatar-admin-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\animated-avatar&& set NUXT_PORT=3240&& pnpm --filter admin-web dev"
+            ],
+            "port": 3240,
+            "autoPort": false
+        },
+        {
+            "name": "develop-api-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop\\server\\api&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\211db037f252289d\\ed45a343-ef0d-48de-ac68-3ddacec2e2e0\\scratchpad\\run\\roboyam-api.jar"
+            ],
+            "port": 8910,
+            "autoPort": false
+        },
+        {
+            "name": "develop-admin-jar",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop\\server\\admin&& %USERPROFILE%\\.gradle\\jdks\\eclipse_adoptium-25-amd64-windows.2\\bin\\java.exe -jar C:\\Users\\장진철\\AppData\\Local\\Temp\\claude\\211db037f252289d\\ed45a343-ef0d-48de-ac68-3ddacec2e2e0\\scratchpad\\run\\roboyam-admin.jar"
+            ],
+            "port": 8920,
+            "autoPort": false
+        },
+        {
+            "name": "develop-user-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop&& set NUXT_PORT=3100&& pnpm --filter user-web dev"
+            ],
+            "port": 3100,
+            "autoPort": false
+        },
+        {
+            "name": "develop-admin-web",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:\\project\\roboyam\\.claude\\worktrees\\run-develop&& set NUXT_PORT=3200&& pnpm --filter admin-web dev"
+            ],
+            "port": 3200,
+            "autoPort": false
         }
     ]
 }
