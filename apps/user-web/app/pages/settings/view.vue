@@ -34,13 +34,40 @@
                         </div>
                     </div>
 
-                    <!-- 글자 크기 — − / + 로 한 단씩. 끝에서는 `aria-disabled` 로(진짜 disabled 는 누른 채 비활성이 되면 초점이 사라진다) -->
-                    <div class="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
-                        <div class="min-w-0 flex-1">
-                            <p :id="`${uid}-scale-label`" class="m-0 text-sm font-medium">{{ t('view.textScale') }}</p>
-                            <p :id="`${uid}-scale-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.textScaleHint') }}</p>
+                    <!--
+                        글자 크기 — PC·휴대폰 따로(화면 폭으로 고른다, `UtilViewSettings.MOBILE_QUERY`). − / + 로 한 단씩. 끝에서는 `aria-disabled` 로(진짜 disabled 는 누른 채 비활성이 되면 초점이 사라진다).
+                        지금 보고 있는 기기의 줄에 「지금 이 기기」 칩과 옅은 강조 — 창 폭이 경계를 넘으면 따라 옮겨 간다
+                    -->
+                    <div
+                        v-for="row in scaleRows"
+                        :key="row.key"
+                        class="flex flex-col gap-2 border-b border-surface px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
+                        :class="row.current ? 'bg-primary-50/40 dark:bg-primary-950/30' : ''"
+                        :data-current-device="row.current ? '' : undefined"
+                        :data-testid="`${row.testid}-row`"
+                    >
+                        <div class="flex min-w-0 flex-1 items-start gap-2.5">
+                            <i :class="[row.icon, row.current ? 'text-primary' : 'text-muted-color']" class="mt-0.5 shrink-0 text-base" aria-hidden="true" />
+                            <div class="min-w-0 flex-1">
+                                <p class="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm font-medium">
+                                    <span :id="`${uid}-${row.key}-label`">{{ row.label }}</span>
+                                    <span
+                                        v-if="row.current"
+                                        class="inline-flex items-center rounded-full bg-primary-50 px-1.5 text-[0.625rem] font-semibold leading-4 text-primary-700 dark:bg-primary-950 dark:text-primary-300"
+                                        :data-testid="`${row.testid}-this-device`"
+                                        >{{ t('view.textScaleThisDevice') }}</span
+                                    >
+                                </p>
+                                <p :id="`${uid}-${row.key}-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ row.hint }}</p>
+                            </div>
                         </div>
-                        <div class="flex w-full items-center justify-between gap-1 md:w-64 md:shrink-0" role="group" :aria-labelledby="`${uid}-scale-label`" :aria-describedby="`${uid}-scale-hint`" data-testid="setting-text-scale">
+                        <div
+                            class="flex w-full items-center justify-between gap-1 md:w-64 md:shrink-0"
+                            role="group"
+                            :aria-labelledby="`${uid}-${row.key}-label`"
+                            :aria-describedby="`${uid}-${row.key}-hint ${uid}-scale-note`"
+                            :data-testid="row.testid"
+                        >
                             <Button
                                 type="button"
                                 icon="pi pi-minus"
@@ -48,12 +75,12 @@
                                 rounded
                                 severity="secondary"
                                 :aria-label="t('view.textSmaller')"
-                                :aria-disabled="canSmaller ? undefined : 'true'"
-                                :class="canSmaller ? '' : 'opacity-40'"
-                                data-testid="setting-text-smaller"
-                                @click="stepText(-1)"
+                                :aria-disabled="row.canSmaller ? undefined : 'true'"
+                                :class="row.canSmaller ? '' : 'opacity-40'"
+                                :data-testid="`${row.testid}-smaller`"
+                                @click="stepText(row.key, -1)"
                             />
-                            <span class="min-w-14 text-center text-sm font-medium tabular-nums" aria-live="polite" data-testid="setting-text-scale-value">{{ t('view.textScaleValue', { n: settings.textScale }) }}</span>
+                            <span class="min-w-14 text-center text-sm font-medium tabular-nums" aria-live="polite" :data-testid="`${row.testid}-value`">{{ t('view.textScaleValue', { n: row.value }) }}</span>
                             <Button
                                 type="button"
                                 icon="pi pi-plus"
@@ -61,13 +88,15 @@
                                 rounded
                                 severity="secondary"
                                 :aria-label="t('view.textLarger')"
-                                :aria-disabled="canLarger ? undefined : 'true'"
-                                :class="canLarger ? '' : 'opacity-40'"
-                                data-testid="setting-text-larger"
-                                @click="stepText(1)"
+                                :aria-disabled="row.canLarger ? undefined : 'true'"
+                                :class="row.canLarger ? '' : 'opacity-40'"
+                                :data-testid="`${row.testid}-larger`"
+                                @click="stepText(row.key, 1)"
                             />
                         </div>
                     </div>
+                    <!-- 두 줄 공통 안내 — 한 번만 -->
+                    <p :id="`${uid}-scale-note`" class="m-0 px-4 py-2.5 text-xs leading-snug text-muted-color" data-testid="setting-text-scale-note">{{ t('view.textScaleHint') }}</p>
                 </div>
             </section>
 
@@ -223,10 +252,10 @@
                 <i class="pi pi-angle-right text-muted-color" aria-hidden="true" />
             </NuxtLink>
 
-            <!-- 미리보기 — 라이트·다크를 나란히(지금 화면의 모드와 상관없이). 고른 모드에 「선택됨」, 글자 크기는 이 안의 배율 -->
+            <!-- 미리보기 — 라이트·다크를 나란히(지금 화면의 모드와 상관없이). 고른 모드에 「선택됨」, 글자 크기는 지금 보고 있는 기기 쪽(PC·휴대폰) 배율 -->
             <section :aria-labelledby="`${uid}-preview`">
                 <h2 :id="`${uid}-preview`" class="px-1 pb-2 text-xs font-semibold text-muted-color">{{ t('view.previewTitle') }}</h2>
-                <div class="grid grid-cols-2 gap-2" aria-hidden="true" :style="{ '--text-scale': String(settings.textScale / 100) }" data-testid="view-preview">
+                <div class="grid grid-cols-2 gap-2" aria-hidden="true" :style="{ '--text-scale': String(previewScale / 100) }" data-testid="view-preview">
                     <div v-for="mode in modes" :key="mode.theme" class="relative min-w-0 rounded-xl border p-2 text-[0.6875rem] leading-snug" :class="mode.card" :data-mode="mode.theme">
                         <span v-if="settings.theme === mode.theme" class="absolute -top-2 right-1.5 rounded-full px-1.5 text-[0.625rem] font-semibold leading-4" :class="mode.fill" data-testid="preview-selected">{{
                             t('view.previewSelected')
@@ -264,7 +293,7 @@ import UtilColorPalette from '~/utils/util-color-palette';
 
 /**
  * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 로보얌에 적용할 곳이 있는 것).
- * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기(90·100·110·125%), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
+ * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기 PC·휴대폰 따로(90·100·110·125%, 기본 PC 100·휴대폰 110 — 사용자 2026-11-11, 지금 기기 줄에 「지금 이 기기」), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
  * 「색상」: 색상 테마 8가지(기본 · 살구·코랄 · 꿀·버터 · 세이지 그린 · 하늘·크림 · 청록 바다 · 진한 파랑 · 남색 — 사용자 결정 2026-11-06, 개인 색 금지였던 themes.md 결정을 바꿨다) + 배경색(테마 기본 · 회색 · 아이보리 · 흰색 · 연한 하늘) + 상단 그라데이션 켜기.
@@ -313,8 +342,30 @@ const orderOptions = computed(() => [
     { value: 'LATEST', label: t('view.orderLatest') },
 ]);
 
-const canSmaller = computed(() => UtilViewSettings.canStepTextScale(settings.value.textScale, -1));
-const canLarger = computed(() => UtilViewSettings.canStepTextScale(settings.value.textScale, 1));
+/** 글자 크기 두 칸 — PC(`textScale`)·휴대폰(`textScaleMobile`) */
+type TextScaleKey = 'textScale' | 'textScaleMobile';
+/** 지금 보고 있는 기기가 휴대폰 폭인가 — 셸·`view-theme` 플러그인과 같은 경계 */
+const isMobile = useMediaQuery(UtilViewSettings.MOBILE_QUERY);
+const scaleRows = computed(() => {
+    const d = UtilViewSettings.DEFAULTS;
+    const rows: { key: TextScaleKey; icon: string; label: string; hint: string; current: boolean; testid: string }[] = [
+        { key: 'textScale', icon: 'pi pi-desktop', label: t('view.textScalePc'), hint: t('view.textScalePcHint', { n: d.textScale }), current: !isMobile.value, testid: 'setting-text-scale' },
+        {
+            key: 'textScaleMobile',
+            icon: 'pi pi-mobile',
+            label: t('view.textScaleMobile'),
+            hint: t('view.textScaleMobileHint', { n: d.textScaleMobile }),
+            current: isMobile.value,
+            testid: 'setting-text-scale-mobile',
+        },
+    ];
+    return rows.map((row) => {
+        const value = settings.value[row.key];
+        return { ...row, value, canSmaller: UtilViewSettings.canStepTextScale(value, -1), canLarger: UtilViewSettings.canStepTextScale(value, 1) };
+    });
+});
+/** 미리보기 배율 — 지금 기기 쪽 값 */
+const previewScale = computed(() => UtilViewSettings.textScaleFor(settings.value, isMobile.value));
 
 /** 바꾼 칸을 저장한다 — 이미 그 값이면 저장도 토스트도 없다 */
 async function change(partial: Partial<ViewSettings>) {
@@ -350,9 +401,11 @@ function changeGradient(on: boolean) {
     toast.success(where === 'device' ? t('view.savedDevice') : t('view.savedMemory'));
 }
 
-function stepText(by: number) {
-    if (!UtilViewSettings.canStepTextScale(settings.value.textScale, by)) return;
-    void change({ textScale: UtilViewSettings.stepTextScale(settings.value.textScale, by) });
+function stepText(key: TextScaleKey, by: number) {
+    const current = settings.value[key];
+    if (!UtilViewSettings.canStepTextScale(current, by)) return;
+    const next = UtilViewSettings.stepTextScale(current, by);
+    void change(key === 'textScale' ? { textScale: next } : { textScaleMobile: next });
 }
 
 /** 미리보기 두 장 — 화면 모드와 상관없이 칠하므로 `dark:` 변형을 쓰지 않고 정해 둔 값으로 칠한다 */

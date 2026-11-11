@@ -11,7 +11,12 @@ export default {
     themeAuto: '자동',
     themeLight: '라이트',
     themeDark: '다크',
-    textScale: '글자 크기',
+    // 글자 크기 — PC·휴대폰 따로(화면 폭으로 고른다)
+    textScalePc: 'PC 글자 크기',
+    textScalePcHint: '화면 폭이 넓은 기기(태블릿 가로·PC)에 적용돼요 · 기본 {n}%',
+    textScaleMobile: '휴대폰 글자 크기',
+    textScaleMobileHint: '화면 폭이 좁은 기기(휴대폰)에 적용돼요 · 기본 {n}%',
+    textScaleThisDevice: '지금 이 기기',
     textScaleHint: '글자만 커지고 여백은 그대로예요',
     textScaleValue: '{n}%',
     textSmaller: '글자 작게',

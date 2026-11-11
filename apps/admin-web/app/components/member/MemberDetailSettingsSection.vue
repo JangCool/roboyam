@@ -1,7 +1,7 @@
 <template>
     <!--
         회원 상세 — 개인 설정 구획(회원이 직접 정한 값을 운영자가 읽기만 한다).
-        표시 형식은 공유 레이어 `@roboyam/display-time` 의 표기(시간대·시간 형식·날짜 형식 이름과 견본)를 그대로 쓴다. 보기 설정(야간 모드·글자 크기·댓글 정렬)은 회원이 정한 적이 없으면 「기본값」.
+        표시 형식은 공유 레이어 `@roboyam/display-time` 의 표기(시간대·시간 형식·날짜 형식 이름과 견본)를 그대로 쓴다. 보기 설정(야간 모드·글자 크기 PC·휴대폰·댓글 정렬)은 회원이 정한 적이 없으면 「기본값」.
         알림은 서버 회원 이벤트 카탈로그 차례로 서버가 준 이름 + 앱 알림·이메일 켜짐/꺼짐(회원이 끌 수 없는 것은 「끌 수 없음」)과 앱 푸시 구독. 차단·메모·알림함은 건수만 보이고 내용은 보이지 않는다.
         서버가 null 로 준 칸은 `-`.
     -->
@@ -30,7 +30,7 @@
             <dl class="m-0 flex flex-col">
                 <MemberDetailItem :label="t('member.detail.settings.theme')" :empty="!view?.theme">{{ view?.theme ? t(`member.detail.settings.themeValue.${view.theme}`) : '' }}</MemberDetailItem>
                 <MemberDetailItem :label="t('member.detail.settings.textScale')" :empty="view?.textScale == null">
-                    <span class="tabular-nums">{{ t('member.detail.settings.textScaleValue', { scale: view?.textScale ?? '' }) }}</span>
+                    <span class="tabular-nums">{{ t('member.detail.settings.textScaleValue', { pc: view?.textScale ?? '', mobile: textScaleMobile }) }}</span>
                 </MemberDetailItem>
                 <MemberDetailItem :label="t('member.detail.settings.commentOrder')" :empty="!view?.commentOrder">{{ view?.commentOrder ? t(`member.detail.settings.commentOrderValue.${view.commentOrder}`) : '' }}</MemberDetailItem>
             </dl>
@@ -95,6 +95,9 @@ const countsId = useId();
 const now = Date.now();
 
 const view = computed(() => props.detail.settings?.view ?? null);
+/** 휴대폰 글자 크기 — 옛 서버 응답(칸 없음)이면 user-web 기본값 110 */
+const MOBILE_TEXT_SCALE_DEFAULT = 110;
+const textScaleMobile = computed(() => view.value?.textScaleMobile ?? MOBILE_TEXT_SCALE_DEFAULT);
 
 /** 알림 한 줄의 받기 뱃지(앱 알림·이메일) — 값을 모르면(null) `-` */
 function channelsOf(n: MemberNotificationSetting): { key: string; text: string; icon: string | undefined; severity: TagSeverity }[] {

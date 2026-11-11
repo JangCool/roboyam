@@ -404,7 +404,7 @@ export default {
                 DARK: 'Dark',
             },
             textScale: 'Text size',
-            textScaleValue: '{scale}%',
+            textScaleValue: 'PC {pc}% · Phone {mobile}%',
             commentOrder: 'Comment order',
             commentOrderValue: {
                 OLDEST: 'Oldest first',
