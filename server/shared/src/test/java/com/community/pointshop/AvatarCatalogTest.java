@@ -14,8 +14,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * 아바타 카탈로그(결정 14, 계약 「1-2 서버 계획」 · commerce-motion-avatar-contract) — 서버 자원 {@code avatars/manifest.json} 338종(정지 330 = 무료 22 · 유료 308 +
- * 움직이는 아바타 8), 유료 ID 집합 = V86·V157·V183 이 시드한 아바타 품목, 두 앱 {@code public/avatars/roboyam/*.svg} 이름 집합 = 정지 카탈로그 330,
+ * 아바타 카탈로그(결정 14, 계약 「1-2 서버 계획」 · commerce-motion-avatar-contract) — 서버 자원 {@code avatars/manifest.json} 342종(정지 334 = 무료 22 · 유료 312 +
+ * 움직이는 아바타 8), 유료 ID 집합 = V86·V157·V183·V192 이 시드한 아바타 품목, 두 앱 {@code public/avatars/roboyam/*.svg} 이름 집합 = 정지 카탈로그 334,
  * 두 앱 {@code public/avatars/motion/} 의 그림·정지 그림 = 움직이는 8종.
  */
 class AvatarCatalogTest extends PointShopTestBase {
@@ -23,10 +23,10 @@ class AvatarCatalogTest extends PointShopTestBase {
     private static final AvatarCatalog CATALOG = new AvatarCatalog();
 
     @Test
-    void 카탈로그는_338종_정지_330_무료_22_basic_hobby_유료_308_움직이는_8_카테고리_15() {
-        assertThat(CATALOG.all()).hasSize(338);
-        assertThat(CATALOG.all().stream().filter(a -> !a.animated())).hasSize(330);
-        assertThat(CATALOG.paid()).hasSize(316);
+    void 카탈로그는_342종_정지_334_무료_22_basic_hobby_유료_312_움직이는_8_카테고리_15() {
+        assertThat(CATALOG.all()).hasSize(342);
+        assertThat(CATALOG.all().stream().filter(a -> !a.animated())).hasSize(334);
+        assertThat(CATALOG.paid()).hasSize(320);
         assertThat(CATALOG.all().stream().filter(AvatarCatalog.Avatar::free).map(AvatarCatalog.Avatar::category).collect(Collectors.toSet()))
                 .containsExactlyInAnyOrder("basic", "hobby");
         assertThat(CATALOG.categories()).hasSize(15);
@@ -34,7 +34,7 @@ class AvatarCatalogTest extends PointShopTestBase {
         assertThat(CATALOG.categories().get(2).id()).as("움직이는 아바타는 무료 다음 첫 칩").isEqualTo("motion");
         assertThat(CATALOG.categories().get(2).animated()).isTrue();
         assertThat(CATALOG.categories().stream().filter(AvatarCatalog.Category::animated)).hasSize(1);
-        assertThat(CATALOG.categories().stream().mapToInt(AvatarCatalog.Category::count).sum()).isEqualTo(338);
+        assertThat(CATALOG.categories().stream().mapToInt(AvatarCatalog.Category::count).sum()).isEqualTo(342);
         assertThat(CATALOG.find(AvatarCatalog.DEFAULT_ID)).isPresent();
         assertThat(CATALOG.find("job-doctor-m").orElseThrow().url()).isEqualTo("/avatars/roboyam/job-doctor-m.svg");
         assertThat(CATALOG.find("job-doctor-m").orElseThrow().stillUrl()).as("정지 아바타는 정지 그림이 없다").isNull();
@@ -71,14 +71,14 @@ class AvatarCatalogTest extends PointShopTestBase {
             assertThat(row.get("sale_start_at")).isNull();
             assertThat(row.get("sale_end_at")).isNull();
             assertThat(row.get("name")).isEqualTo(avatar.name());
-            assertThat(row.get("sort_order")).as("카탈로그 순서 — 유료 안 1..316(움직이는 8종은 307..314 · 목수 2종 315·316 — V183)").isEqualTo(CATALOG.paid().indexOf(avatar) + 1);
+            assertThat(row.get("sort_order")).as("카탈로그 순서 — 유료 안 1..320(움직이는 8종은 307..314 · 목수 2종 315·316 — V183 · 백구·삼색이 4종 317..320 — V192)").isEqualTo(CATALOG.paid().indexOf(avatar) + 1);
         }
         assertThat(kit.count("SELECT count(*) FROM point_shop_items WHERE kind = 'PROFILE_AVATAR' AND avatar_id IN ('basic-default', 'hobby-gamer')"))
                 .as("무료 아바타는 품목이 없다").isZero();
     }
 
     @Test
-    void 두_앱의_public_avatars_roboyam_svg_이름_집합은_정지_카탈로그_330_과_같다() throws IOException {
+    void 두_앱의_public_avatars_roboyam_svg_이름_집합은_정지_카탈로그_334_과_같다() throws IOException {
         Set<String> catalog = CATALOG.all().stream().filter(avatar -> !avatar.animated()).map(avatar -> avatar.id() + ".svg").collect(Collectors.toSet());
         for (String app : List.of("user-web", "admin-web")) {
             Path dir = Path.of("..", "..", "apps", app, "public", "avatars", "roboyam");

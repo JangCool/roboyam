@@ -2,7 +2,7 @@ import type { AvatarCategory, AvatarItem } from '~/composables/avatar/api/useAva
 
 /**
  * 프로필 아바타 규칙 — 기본 아바타 주소, 무료 카테고리, 고르기·상점 목록 거르기. 상태도 요청도 없다.
- * 카탈로그(338종 — 정지 330(무료 22 · 유료 308) + 움직이는 8)의 정본은 서버(`GET /api/avatars`, 배포 자산 `avatars/manifest.json`)다. 화면은 주소를 만들지 않고 응답의 `url` 을 쓴다 — 대체 이미지(`FALLBACK_URL`)만 예외.
+ * 카탈로그(342종 — 정지 334(무료 22 · 유료 312) + 움직이는 8)의 정본은 서버(`GET /api/avatars`, 배포 자산 `avatars/manifest.json`)다. 화면은 주소를 만들지 않고 응답의 `url` 을 쓴다 — 대체 이미지(`FALLBACK_URL`)만 예외.
  * 계약: `docs/features/commerce-stage1-contract.md` B절 「아바타 품목」·「고른 아바타」·결정 14.
  */
 export default class UtilAvatar {

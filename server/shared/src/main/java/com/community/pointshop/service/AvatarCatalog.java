@@ -106,7 +106,7 @@ public class AvatarCatalog {
         this.categories = List.copyOf(cats);
     }
 
-    /** 카탈로그 순서 전부(338 — 정지 330 + 움직이는 8, 목수 2종은 V183 에서 맨 뒤에 더했다) */
+    /** 카탈로그 순서 전부(342 — 정지 334 + 움직이는 8, 목수 2종은 V183 · 백구·삼색이 4종은 V192 에서 맨 뒤에 더했다) */
     public List<Avatar> all() {
         return avatars;
     }
