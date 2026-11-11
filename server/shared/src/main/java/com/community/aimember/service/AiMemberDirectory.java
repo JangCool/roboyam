@@ -3,6 +3,7 @@ package com.community.aimember.service;
 import com.community.aimember.entity.AiMemberProfileEntity;
 import com.community.aimember.entity.AiMemberSettingsEntity;
 import com.community.aimember.entity.AiProvider;
+import com.community.aimember.entity.AiProviderKeyStatus;
 import com.community.aimember.entity.AiRelationKind;
 import com.community.aimember.repository.master.AiMemberModelHistoryRepository;
 import com.community.aimember.repository.master.AiMemberProfileRepository;
@@ -26,11 +27,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AiMemberDirectory {
 
-    /** 쉬는 이유(켜져 있어도 쉴 수 있다) — 차례: 꺼짐 → 전체 정지 → 제공사 키 없음 → 모델 없음 → 사이트 제재 */
+    /** 쉬는 이유(켜져 있어도 쉴 수 있다) — 차례: 꺼짐 → 전체 정지 → 제공사 키 없음 → 제공사 쉬는 중(결제·크레딧 부족 · 키 오류) → 모델 없음 → 사이트 제재 */
     public static final String DISABLED = "DISABLED";
     public static final String GLOBAL_STOP = "GLOBAL_STOP";
     public static final String NO_PROVIDER_KEY = "NO_PROVIDER_KEY";
-    /** 계정의 모델이 배포 설정({@code roboyam.ai-member.models.*}) 목록에서 빠졌다 — 관리자가 모델을 다시 골라야 돈다 */
+    /** 제공사가 결제·크레딧 부족으로 거절해 그 제공사를 쉬게 했다(V189 키 상태) — 결제한 뒤 키를 다시 저장하면 돈다 */
+    public static final String BILLING_REQUIRED = "BILLING_REQUIRED";
+    /** 제공사가 키를 받지 않아 그 제공사를 쉬게 했다(V189 키 상태) — 키를 다시 저장하면 돈다 */
+    public static final String KEY_INVALID = "KEY_INVALID";
+    /** 계정의 모델이 모델 목록(표 {@code ai_models} — {@link AiModelCatalog})에서 꺼졌거나 없다 — 관리자가 모델을 다시 골라야 돈다 */
     public static final String MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE";
     public static final String SANCTIONED = "SANCTIONED";
 
@@ -123,14 +128,16 @@ public class AiMemberDirectory {
     }
 
     /**
-     * 쉬는 이유(쉬지 않으면 null) — 꺼짐 → 전체 정지 → 제공사 키 없음 → 모델이 목록에서 빠짐 → 사이트 제재(정지·영구 정지·탈퇴 진행) 차례(정책 12·13).
+     * 쉬는 이유(쉬지 않으면 null) — 꺼짐 → 전체 정지 → 제공사 키 없음 → 제공사 쉬는 중(결제·크레딧 부족 · 키 오류) → 모델이 꺼졌거나 목록에 없음
+     * → 사이트 제재(정지·영구 정지·탈퇴 진행) 차례(정책 12·13).
      *
-     * @param usableKeys 키가 저장되고 풀 수 있는 제공사
-     * @param modelAvailable 계정의 모델이 지금 배포 설정의 그 제공사 목록에 있는가({@link AiMemberProperties#allows})
-     * @param restricted 회원 계정이 활동을 멈춰야 하는가
+     * @param usableKeys      키가 저장되고 풀 수 있는 제공사
+     * @param pausedProviders 쉬는 중인 제공사 → 키 상태({@link AiProviderKeys#paused})
+     * @param modelAvailable  계정의 모델이 지금 모델 목록에서 켜져 있는가({@link AiModelCatalog})
+     * @param restricted      회원 계정이 활동을 멈춰야 하는가
      */
-    public static String restingReason(AiMemberProfileEntity a, AiMemberSettingsEntity settings, Set<AiProvider> usableKeys, boolean modelAvailable,
-                                       boolean restricted) {
+    public static String restingReason(AiMemberProfileEntity a, AiMemberSettingsEntity settings, Set<AiProvider> usableKeys,
+                                       Map<AiProvider, AiProviderKeyStatus> pausedProviders, boolean modelAvailable, boolean restricted) {
         if (!a.isEnabled()) {
             return DISABLED;
         }
@@ -139,6 +146,13 @@ public class AiMemberDirectory {
         }
         if (!usableKeys.contains(a.getProvider())) {
             return NO_PROVIDER_KEY;
+        }
+        AiProviderKeyStatus paused = pausedProviders == null ? null : pausedProviders.get(a.getProvider());
+        if (paused == AiProviderKeyStatus.BILLING_REQUIRED) {
+            return BILLING_REQUIRED;
+        }
+        if (paused == AiProviderKeyStatus.KEY_INVALID) {
+            return KEY_INVALID;
         }
         if (!modelAvailable) {
             return MODEL_UNAVAILABLE;

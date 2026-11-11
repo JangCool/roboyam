@@ -1,10 +1,22 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { AiMemberRelation, AiProvider, AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
+import type { AiMemberRelation, AiModelOption, AiProvider, AiProviderKeyStatus, AiRestingReason } from '~/composables/aimember/api/useAiMemberAdminApi.types';
 import UtilAdminAuthMessages from '~/utils/util-admin-auth-messages';
 
 /** AI 회원 화면이 코드로 아는 서버 오류 — 서버 문구가 없을 때 `aiMember.error.<코드>` 를 쓴다 */
-const ERROR_CODES: ReadonlySet<string> = new Set(['NICKNAME_TAKEN', 'GROUP_NOT_FOUND', 'GROUP_NOT_PUBLIC', 'CRYPTO_KEY_MISSING', 'BLOCKED_WORD', 'VALIDATION', 'AI_MEMBER_NOT_FOUND', 'AI_DRAFT_NOT_FOUND']);
+const ERROR_CODES: ReadonlySet<string> = new Set([
+    'NICKNAME_TAKEN',
+    'GROUP_NOT_FOUND',
+    'GROUP_NOT_PUBLIC',
+    'CRYPTO_KEY_MISSING',
+    'BLOCKED_WORD',
+    'VALIDATION',
+    'AI_MEMBER_NOT_FOUND',
+    'AI_DRAFT_NOT_FOUND',
+    'AI_MODEL_NOT_FOUND',
+    'AI_MODEL_IN_USE',
+    'AI_MODEL_DEFAULT_LOCKED',
+]);
 
 /** AI 회원 관리 화면의 계산이 낀 문구(i18n.md 3절) */
 export default class UtilAiMemberMessages {
@@ -12,6 +24,34 @@ export default class UtilAiMemberMessages {
     static status(t: Translate, reason: AiRestingReason | null, provider: AiProvider): string {
         if (!reason) return t('aiMember.active');
         return t(`aiMember.resting.${reason}`, { provider: t(`aiMember.provider.${provider}`) });
+    }
+
+    /** 가격 한 칸 — 「$0.10 / $0.50」(100만 토큰당 USD). 둘 다 없으면 「—」 */
+    static price(t: Translate, input: number | null, output: number | null): string {
+        if (input == null && output == null) return '—';
+        return t('aiMember.modelPrice', { input: UtilAiMemberMessages.usd(input), output: UtilAiMemberMessages.usd(output) });
+    }
+
+    /** 계정 상세의 모델 고르기 한 줄 — 「gpt-6-luna · $0.10 / $0.50 · 무료 · 기본」(값이 없는 꼬리는 뺀다) */
+    static modelOption(t: Translate, model: AiModelOption): string {
+        const parts = [model.modelId];
+        if (model.priceInput != null || model.priceOutput != null) parts.push(UtilAiMemberMessages.price(t, model.priceInput, model.priceOutput));
+        if (model.freeTier) parts.push(t('aiMember.modelFree'));
+        if (model.defaultModel) parts.push(t('aiMember.modelOptionDefault'));
+        return parts.join(' · ');
+    }
+
+    private static usd(value: number | null): string {
+        if (value == null) return '—';
+        // 0.1 → $0.10 · 10 → $10.00 · 0.075 → $0.075 — 달러 표기라 숫자 모양은 화면 언어와 상관없이 en-US
+        return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+    }
+
+    /** 키 줄 아래 한 줄 — 쉬는 중이면 시각 · 제공사 메시지 · 쉬는 계정 수 · 다시 돌리는 방법 */
+    static keyPaused(t: Translate, status: AiProviderKeyStatus, at: string, detail: string | null, accounts: number): string {
+        if (status === 'OK') return '';
+        const hint = t(`aiMember.keyPausedHint.${status}`);
+        return detail ? t('aiMember.keyPausedLine', { at, detail, n: accounts, hint }) : t('aiMember.keyPausedLineNoDetail', { at, n: accounts, hint });
     }
 
     static relation(t: Translate, relation: AiMemberRelation | null): string {

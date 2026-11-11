@@ -74,12 +74,15 @@ export interface AiMemberRow {
     pendingDrafts: number;
     /** 하루 글 수(2~3) */
     dailyPosts: number;
-    /** 이 계정이 지금 쉬는 이유 — 켜져 있어도 쉴 수 있다(전체 정지 · 제공사 키 없음 · 모델이 배포 설정에서 빠짐 · 사이트 제재). 쉬지 않으면 null */
+    /** 이 계정이 지금 쉬는 이유 — 켜져 있어도 쉴 수 있다(전체 정지 · 제공사 키 없음 · 제공사 쉬는 중(결제·크레딧 부족 · 키 오류) · 모델이 꺼졌거나 목록에 없음 · 사이트 제재). 쉬지 않으면 null */
     restingReason: AiRestingReason | null;
 }
 
-/** 서버 판정 차례: 꺼짐 → 전체 정지 → 제공사 키 없음 → 모델 없음(배포 설정 `roboyam.ai-member.models.*` 에서 빠짐 — 모델을 다시 골라야 돈다) → 사이트 제재 */
-export type AiRestingReason = 'DISABLED' | 'GLOBAL_STOP' | 'NO_PROVIDER_KEY' | 'MODEL_UNAVAILABLE' | 'SANCTIONED';
+/**
+ * 서버 판정 차례: 꺼짐 → 전체 정지 → 제공사 키 없음 → 제공사 쉬는 중(`BILLING_REQUIRED` 결제·크레딧 부족 · `KEY_INVALID` 키 오류 — 키를 다시 저장하면 돈다)
+ * → 모델 없음(모델 목록에서 꺼졌거나 없음 — 모델을 다시 골라야 돈다) → 사이트 제재
+ */
+export type AiRestingReason = 'DISABLED' | 'GLOBAL_STOP' | 'NO_PROVIDER_KEY' | 'BILLING_REQUIRED' | 'KEY_INVALID' | 'MODEL_UNAVAILABLE' | 'SANCTIONED';
 
 /** 쓸 곳 고르기의 게시판 하나 — `blockedReason` 이 있으면 고를 수 없다(정책 7 「항상 막힘」) */
 export interface AiBoardOption {
@@ -132,8 +135,8 @@ export interface AiMemberListView {
 
 /** 상세 편집에 필요한 고르기 목록 */
 export interface AiMemberFormOptions {
-    /** 제공사별 고를 수 있는 모델명 — 원천은 서버 배포 설정(`roboyam.ai-member.models.*`). 설정에 없는 제공사는 빠질 수 있다 */
-    models: Partial<Record<AiProvider, string[]>>;
+    /** 제공사별 고를 수 있는 모델 — 원천은 모델 목록(서버 표 `ai_models`)의 「사용」인 모델(목록 차례). 켜진 모델이 없는 제공사는 빈 목록 */
+    models: Partial<Record<AiProvider, AiModelOption[]>>;
     boards: AiBoardOption[];
     groups: AiGroupOption[];
     /** 관계 상대로 고를 수 있는 AI 계정 */
@@ -142,8 +145,47 @@ export interface AiMemberFormOptions {
     avatars: { id: string; name: string; category: string }[];
 }
 
+/** 계정 상세에서 고를 수 있는 모델 하나(모델 목록에서 「사용」인 것) — 가격은 100만 토큰당 USD 참고값(없으면 null) */
+export interface AiModelOption {
+    modelId: string;
+    /** 짧은 설명(관리자가 적은 값) */
+    label: string | null;
+    priceInput: number | null;
+    priceOutput: number | null;
+    /** 무료 등급이 있는 모델(Google) */
+    freeTier: boolean;
+    /** 제공사의 기본 — 새 계정에 처음 들어간다 */
+    defaultModel: boolean;
+}
+
+/** 모델 목록 한 줄(설정 화면 「모델 목록」) */
+export interface AiModelRow extends AiModelOption {
+    id: string;
+    provider: AiProvider;
+    /** 「사용」 — 켠 모델만 계정 상세에서 고를 수 있다. 끄면 그 모델을 쓰는 계정은 쉰다 */
+    enabled: boolean;
+    /** 이 모델을 쓰는 AI 계정 수 — 있으면 지울 수 없다(409 `AI_MODEL_IN_USE`) */
+    accounts: number;
+    updatedAt: string;
+}
+
+export interface AiModelList {
+    items: AiModelRow[];
+}
+
+/** 모델 직접 추가 — 모델 ID 만 꼭(영숫자·`.`·`-`·`_` 1~64자, 제공사 안에서 중복 금지) */
+export interface AiModelCreateRequest {
+    provider: AiProvider;
+    modelId: string;
+    label?: string | null;
+    priceInput?: number | null;
+    priceOutput?: number | null;
+    freeTier?: boolean;
+}
+
 export interface AiMemberSaveRequest {
     provider: AiProvider;
+    /** 비워 보내면 서버가 그 제공사의 기본 모델을 넣는다 */
     model: string;
     persona: AiPersona;
     bio: string;
@@ -235,11 +277,19 @@ export interface AiDraftBatchResult {
 /** 바로 게시 범위 — 전체(기본값) / 계정별 */
 export type AiInstantScope = 'ALL' | 'SELECTED';
 
+/** 제공사 키 상태 — `OK` 가 아니면 그 제공사의 계정은 쉰다(실행기가 제공사 거절을 보고 바꾼다. 키를 다시 저장하면 `OK`) */
+export type AiProviderKeyStatus = 'OK' | 'BILLING_REQUIRED' | 'KEY_INVALID';
+
 export interface AiProviderKeyState {
     provider: AiProvider;
     configured: boolean;
     updatedAt: string | null;
     updatedBy: string | null;
+    status: AiProviderKeyStatus;
+    /** 쉬게 한 제공사 메시지(서버가 키 모양·개인정보를 가리고 300자로 자른 것) */
+    statusDetail: string | null;
+    /** 상태가 바뀐 때 */
+    statusAt: string | null;
 }
 
 export interface AiMemberSettings {
@@ -296,6 +346,8 @@ export interface AiActivityLog {
     reviewer: string | null;
     /** 실패 이유 한 줄(서버 문구) */
     failReason: string | null;
+    /** 실패 때 제공사 메시지(가린 것, 300자 이하) — 옛 줄·등록 단계 실패는 null */
+    failDetail: string | null;
 }
 
 export interface AiLogQuery {
@@ -313,4 +365,100 @@ export interface AiLogPage {
     total: number;
     /** 이 조건의 토큰 합 */
     tokenSum: number;
+}
+
+/* ── 프롬프트(V190 — 계약 「뉴스 글·프롬프트 관리 (2026-11-11)」) ── */
+
+/** 미리 보기 종류 — 새 글 · 뉴스 글 · 첫 댓글 · 답글(서버 `AiPrompts.Kind`) */
+export type AiPromptKind = 'POST' | 'NEWS' | 'COMMENT' | 'REPLY';
+export const AI_PROMPT_KINDS: readonly AiPromptKind[] = ['POST', 'NEWS', 'COMMENT', 'REPLY'];
+
+/** 고칠 수 있는 지시문 칸(차례 = 화면 차례) */
+export type AiPromptTextKey = 'common' | 'post' | 'news' | 'comment' | 'reply';
+export const AI_PROMPT_TEXT_KEYS: readonly AiPromptTextKey[] = ['common', 'post', 'news', 'comment', 'reply'];
+
+export interface AiPromptMood {
+    /** 화면에 보이는 이름(제공사에는 지시문만 간다) */
+    name: string;
+    prompt: string;
+    enabled: boolean;
+}
+
+/** 프롬프트 값 한 벌 — 저장 요청과 응답(`values`·`defaults`)이 같은 모양 */
+export interface AiPromptValues {
+    common: string;
+    post: string;
+    news: string;
+    comment: string;
+    reply: string;
+    /** 생성 한 번마다 분위기를 넣을 확률(%) */
+    moodChance: number;
+    moods: AiPromptMood[];
+    /** 새 글 차례에서 뉴스 글을 시도할 확률(%) */
+    newsRatio: number;
+    /** 소재 글 말머리 이름에 들어 있어야 할 말 */
+    newsKeyword: string;
+    /** 최근 며칠 안의 글만 소재로 */
+    newsDays: number;
+    /** 문단 자동 나누기 */
+    paragraphAuto: boolean;
+    /** 자동 나누기 때 한 문단 문장 수 */
+    paragraphSentences: number;
+}
+
+/** 입력 한도(서버 검사와 같다) */
+export interface AiPromptLimits {
+    commonMax: number;
+    taskMax: number;
+    moodsMax: number;
+    moodNameMax: number;
+    moodPromptMax: number;
+    newsKeywordMax: number;
+    newsDaysMin: number;
+    newsDaysMax: number;
+    sentencesMin: number;
+    sentencesMax: number;
+}
+
+export interface AiPromptSettings {
+    /** 지금 쓰는 값(비어 있는 칸은 기본값으로 채운 것) */
+    values: AiPromptValues;
+    /** 코드 기본값 — 「기본값으로 되돌리기」 */
+    defaults: AiPromptValues;
+    /** 시스템 맨 뒤에 늘 붙는 고정 규칙(읽기 전용) */
+    fixedRules: string[];
+    /** 지시문에 쓸 수 있는 자리표시(`{페르소나}` …) */
+    placeholders: string[];
+    limits: AiPromptLimits;
+    updatedAt: string | null;
+    updatedBy: string | null;
+}
+
+/** 저장 요청 — 지시문이 기본값과 같거나 비면 서버가 기본값(NULL)으로 둔다. `moods: null` = 기본 목록 */
+export type AiPromptSaveRequest = Omit<AiPromptValues, 'moods'> & { moods: AiPromptMood[] | null };
+
+export interface AiPromptPreviewRequest {
+    aiMemberId: string;
+    kind: AiPromptKind;
+    /** `settings.moods` 안의 차례(0부터) — null 이면 분위기 없음 */
+    mood: number | null;
+    /** 저장 전 화면 값 */
+    settings: AiPromptSaveRequest;
+}
+
+export interface AiPromptPreview {
+    kind: AiPromptKind;
+    system: string;
+    /** 뉴스 글인데 소재가 없으면 null */
+    user: string | null;
+    /** 뉴스 글의 소재 글 */
+    source: { postId: string; title: string } | null;
+    /** 뉴스 글인데 지금 소재 후보가 없다(실행기라면 보통 새 글로 쓴다) */
+    sourceMissing: boolean;
+    /** 첫 댓글·답글 — 인용한 글이 예시 글이다 */
+    sample: boolean;
+    /** 쓰는 곳(계정이 고른 첫 게시판) */
+    place: string | null;
+    /** 넣은 분위기 이름 */
+    mood: string | null;
 }

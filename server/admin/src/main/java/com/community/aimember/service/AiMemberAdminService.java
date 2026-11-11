@@ -14,6 +14,9 @@ import com.community.aimember.repository.master.AiMemberModelHistoryRepository;
 import com.community.aimember.repository.master.AiMemberProfileRepository;
 import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.aimember.repository.master.AiMemberSettingsRepository;
+import com.community.aimember.repository.master.AiModelRepository;
+import com.community.aimember.entity.AiModelEntity;
+import com.community.aimember.entity.AiProviderKeyStatus;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -92,7 +95,8 @@ public class AiMemberAdminService {
     private final AiMemberQueries queries;
     private final AiMemberSettingsRepository settings;
     private final AiProviderKeys keys;
-    private final AiMemberProperties properties;
+    private final AiModelCatalog modelCatalog;
+    private final AiModelRepository models;
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final ProfileRepositoryQDSL profileQueries;
@@ -106,7 +110,7 @@ public class AiMemberAdminService {
     private final AiMemberModelHistoryRepository history;
 
     public AiMemberAdminService(AiMemberProfileRepository accounts, AiMemberQueries queries, AiMemberSettingsRepository settings, AiProviderKeys keys,
-                                AiMemberProperties properties, UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries,
+                                AiModelCatalog modelCatalog, AiModelRepository models, UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries,
                                 PointShopMemberStore avatarStore, AvatarCatalog avatars, BoardCatalog catalog, GroupRepository groups,
                                 GroupMemberRepository groupMembers, SnowflakeIdGenerator ids, AuditLogService audit, AiMemberModelHistoryRepository history) {
         this.history = history;
@@ -114,7 +118,8 @@ public class AiMemberAdminService {
         this.queries = queries;
         this.settings = settings;
         this.keys = keys;
-        this.properties = properties;
+        this.modelCatalog = modelCatalog;
+        this.models = models;
         this.users = users;
         this.profiles = profiles;
         this.profileQueries = profileQueries;
@@ -138,8 +143,17 @@ public class AiMemberAdminService {
     }
 
     public AiMemberViews.FormOptions options() {
-        Map<String, List<String>> models = new LinkedHashMap<>();
-        properties.models().byProvider().forEach((p, list) -> models.put(p.name(), list));
+        // 제공사 → 켜진 모델(모델 목록 차례) — 원천은 표 ai_models(V189). 켜진 모델이 없는 제공사도 빈 목록으로 낸다
+        Map<String, List<AiMemberViews.ModelOption>> modelOptions = new LinkedHashMap<>();
+        for (AiProvider p : AiProvider.values()) {
+            modelOptions.put(p.name(), new ArrayList<>());
+        }
+        for (AiModelEntity m : models.findAllByOrderByProviderAscSortOrderAscIdAsc()) {
+            if (m.isEnabled()) {
+                modelOptions.get(m.getProvider().name()).add(new AiMemberViews.ModelOption(m.getModelId(), m.getLabel(), m.getPriceInput(), m.getPriceOutput(),
+                        m.isFreeTier(), m.isDefault()));
+            }
+        }
         BoardCatalogSnapshot snap = catalog.snapshot();
         List<AiMemberViews.BoardOption> boards = snap.boards().stream().filter(b -> !BoardFields.KIND_GROUP.equals(b.kind()) && b.active())
                 .map(b -> new AiMemberViews.BoardOption(b.slug(), b.name(), AiMemberRules.blockedReason(b))).toList();
@@ -151,7 +165,7 @@ public class AiMemberAdminService {
                 .map(a -> new AiMemberViews.AccountRef(Long.toString(a.getUserId()), names.getOrDefault(a.getUserId(), ""), Long.toString(a.getId()))).toList();
         List<AiMemberViews.AvatarOption> avatarOptions = avatars.all().stream().filter(a -> !a.animated())
                 .map(a -> new AiMemberViews.AvatarOption(a.id(), a.name(), a.category())).toList();
-        return new AiMemberViews.FormOptions(models, boards, aiGroups, refs, avatarOptions);
+        return new AiMemberViews.FormOptions(modelOptions, boards, aiGroups, refs, avatarOptions);
     }
 
     public AiMemberViews.Detail detail(String idText) {
@@ -284,9 +298,13 @@ public class AiMemberAdminService {
 
     private Checked check(AiMemberRequests.Save b, AiMemberProfileEntity self, Map<String, MessageRef> f) {
         AiProvider provider = parseEnum(AiProvider.class, b.provider());
+        // 모델을 비워 보내면 그 제공사의 기본 모델(모델 목록 「기본」). 꺼졌거나 목록에 없는 모델은 고를 수 없다
+        String model = b.model() == null || b.model().isBlank()
+                ? (provider == null ? null : models.findFirstByProviderAndDefaultModelTrue(provider).map(AiModelEntity::getModelId).orElse(null))
+                : b.model().strip();
         if (provider == null) {
             f.put("provider", new MessageRef("aiMember.provider.unknown"));
-        } else if (!properties.allows(provider, b.model())) {
+        } else if (!modelCatalog.allows(provider, model)) {
             f.put("model", new MessageRef("aiMember.model.invalid"));
         }
         AiMemberRequests.Persona p = b.persona() == null ? new AiMemberRequests.Persona(null, null, null, null, null) : b.persona();
@@ -371,7 +389,7 @@ public class AiMemberAdminService {
                 animated = avatar.animated();
             }
         }
-        AiMemberProfileEntity.Values values = f.isEmpty() ? new AiMemberProfileEntity.Values(provider, b.model(), gender, age, personality, tone, interests, m[0], m[1],
+        AiMemberProfileEntity.Values values = f.isEmpty() ? new AiMemberProfileEntity.Values(provider, model, gender, age, personality, tone, interests, m[0], m[1],
                 n[0], n[1], daily, boardIds) : null;
         return new Checked(values, bio, kind, partner, groupIds, avatarId, animated);
     }
@@ -461,7 +479,8 @@ public class AiMemberAdminService {
 
     /** 목록 한 벌을 만들 때 한 번에 읽어 둔 것 */
     private record Context(Map<Long, String> nicknames, Map<Long, String> images, Map<Long, AiMemberProfileEntity> byId, Map<Long, long[]> today,
-                           Map<Long, Long> pending, Set<AiProvider> usable, Map<Long, Boolean> restricted) {
+                           Map<Long, Long> pending, Set<AiProvider> usable, Map<AiProvider, AiProviderKeyStatus> paused, AiModelCatalog.Enabled models,
+                           Map<Long, Boolean> restricted) {
     }
 
     private Context context(List<AiMemberProfileEntity> list) {
@@ -471,12 +490,12 @@ public class AiMemberAdminService {
         byId.values().forEach(a -> userIds.add(a.getUserId()));
         list.forEach(a -> userIds.add(a.getUserId()));
         return new Context(queries.nicknames(userIds), avatarStore.profileImages(userIds), byId, queries.publishedSince(startOfToday()), queries.pendingByMember(),
-                keys.usable(), queries.restricted(userIds));
+                keys.usable(), keys.paused(), modelCatalog.enabled(), queries.restricted(userIds));
     }
 
     private AiMemberViews.Row row(AiMemberProfileEntity a, Context ctx, AiMemberSettingsEntity s) {
         long[] today = ctx.today().getOrDefault(a.getId(), new long[2]);
-        String resting = AiMemberDirectory.restingReason(a, s, ctx.usable(), properties.allows(a.getProvider(), a.getModel()),
+        String resting = AiMemberDirectory.restingReason(a, s, ctx.usable(), ctx.paused(), ctx.models().allows(a.getProvider(), a.getModel()),
                 ctx.restricted().getOrDefault(a.getUserId(), false));
         return new AiMemberViews.Row(Long.toString(a.getId()), new AiMemberViews.PersonRef(Long.toString(a.getUserId()), ctx.nicknames().getOrDefault(a.getUserId(), "")),
                 avatarIdOf(ctx.images().get(a.getUserId())), a.getProvider().name(), a.getModel(), relation(a, ctx), a.isEnabled(), new AiMemberViews.Today(today[0], today[1]),

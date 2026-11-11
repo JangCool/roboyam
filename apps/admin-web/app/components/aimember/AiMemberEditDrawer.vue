@@ -2,7 +2,7 @@
     <!--
         AI 회원 계정 서랍 — 고치기(`mode="edit"`, `/ai-members?account=ID`, 목록의 줄을 누르면 연다)와 만들기(`mode="create"`, 목록의 [AI 계정 만들기])를 같이 한다.
         열리는 쪽은 화면 설정의 「서랍 위치」(`prefs.drawerPosition`)를 따른다(소모임·회원 상세 서랍과 같다).
-        구획 여섯: ⓪ 계정(만들기면 닉네임 · 아바타 고르기 `AiAvatarPicker`) ① 제공사 · 모델(모델은 서버 options — 배포 설정이 원천) ② 페르소나(성별·나이대·성격·말투·관심사·공개 소개)
+        구획 여섯: ⓪ 계정(만들기면 닉네임 · 아바타 고르기 `AiAvatarPicker`) ① 제공사 · 모델(모델은 서버 options — 모델 목록의 「사용」인 모델만, 가격·기본 같이) ② 페르소나(성별·나이대·성격·말투·관심사·공개 소개)
           ③ 관계(배우자/연인 — 상대 AI 계정) ④ 활동량 · 시간대(오전·오후 창, 하루 글 2~3) ⑤ 쓸 수 있는 곳(게시판 고르기 — 항상 막힌 게시판은 비활성 + 이유, AI 전용 소모임).
         고치기는 서랍 하나가 저장 하나다 — 저장 줄은 서랍 맨 아래(`StickySaveBar`). 만들기는 아래 [취소]·[만들기]. 저장하지 않은 채 닫으면 묻는다.
         아바타는 바꿨을 때만 `avatarId` 를 싣는다(null 이면 서버가 그대로 둔다).
@@ -70,10 +70,21 @@
                     </LabeledField>
                     <LabeledField :label="t('aiMember.field.model')" :help="t('aiMember.help.model')" :error="fieldError('model')">
                         <template #default="{ id, describedBy, invalid }">
-                            <Select v-model="form.model" :input-id="id" :options="modelOptions" :invalid="invalid" :aria-describedby="describedBy" :placeholder="modelOptions.length ? undefined : t('aiMember.noModels')" class="max-w-xs" />
+                            <Select
+                                v-model="form.model"
+                                :input-id="id"
+                                :options="modelOptions"
+                                option-label="label"
+                                option-value="value"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                                :placeholder="modelOptions.length ? undefined : t('aiMember.noModels')"
+                                class="max-w-md"
+                                fluid
+                            />
                         </template>
                     </LabeledField>
-                    <!-- 지금 모델이 배포 설정에서 빠졌다(쉬는 이유 MODEL_UNAVAILABLE) — 다시 골라야 돈다 -->
+                    <!-- 지금 모델이 모델 목록에서 꺼졌거나 빠졌다(쉬는 이유 MODEL_UNAVAILABLE) — 다시 골라야 돈다 -->
                     <p v-if="modelMissing" class="m-0 flex gap-1.5 text-xs text-amber-800 dark:text-amber-300"><i class="pi pi-exclamation-triangle mt-0.5 text-[10px]" aria-hidden="true" />{{ t('aiMember.modelMissing', { model: initial?.model ?? '' }) }}</p>
                     <!-- 모델 이력(읽기 전용) — 접어 두고 버튼으로 펼친다. 한 줄뿐이면(지금 모델만) 버튼을 숨긴다 -->
                     <div v-if="!creating && history.length > 1" class="flex flex-col gap-2">
@@ -375,7 +386,10 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
 /* ── 고르기 목록 ── */
 
 const providerOptions = computed(() => AI_PROVIDERS.map((value) => ({ value, label: t(`aiMember.provider.${value}`) })));
-const modelOptions = computed(() => (form.value && props.options ? (props.options.models[form.value.provider] ?? []) : []));
+/** 고를 수 있는 모델 — 모델 목록에서 「사용」인 것만(가격·무료·기본을 같이 보인다) */
+const modelOptions = computed(() =>
+    (form.value && props.options ? (props.options.models[form.value.provider] ?? []) : []).map((m) => ({ value: m.modelId, label: UtilAiMemberMessages.modelOption(t, m) })),
+);
 const genderOptions = computed(() => AI_GENDERS.map((value) => ({ value, label: t(`aiMember.gender.${value}`) })));
 const ageOptions = computed(() => AI_AGE_BANDS.map((value) => ({ value, label: t(`aiMember.ageBand.${value}`) })));
 const dailyOptions = computed(() => UtilAiMember.DAILY_POSTS.map((value) => ({ value, label: t('aiMember.dailyLine', { n: value }) })));
@@ -384,14 +398,16 @@ const partnerOptions = computed(() => (props.options?.accounts ?? []).filter((a)
 const openBoards = computed(() => (props.options?.boards ?? []).filter((b) => !b.blockedReason));
 const blockedBoards = computed(() => (props.options?.boards ?? []).filter((b) => b.blockedReason));
 const relationKind = computed(() => form.value?.relation?.kind ?? 'NONE');
-/** 지금 모델이 고르기 목록(배포 설정)에 없다 — 고치기에서 처음 값 그대로일 때만 */
-const modelMissing = computed(() => !creating.value && Boolean(form.value && initial.value && form.value.model === initial.value.model && !modelOptions.value.includes(form.value.model)));
+/** 지금 모델이 고르기 목록(모델 목록의 「사용」)에 없다 — 고치기에서 처음 값 그대로일 때만 */
+const modelMissing = computed(
+    () => !creating.value && Boolean(form.value && initial.value && form.value.model === initial.value.model && !modelOptions.value.some((o) => o.value === form.value?.model)),
+);
 
-/** 제공사를 바꾸면 모델은 그 제공사의 첫 모델로 */
+/** 제공사를 바꾸면 모델은 그 제공사의 기본 모델로 */
 function setProvider(provider: AiProvider): void {
     if (!form.value || provider === form.value.provider) return;
     form.value.provider = provider;
-    form.value.model = props.options?.models[provider]?.[0] ?? '';
+    form.value.model = UtilAiMember.defaultModel(props.options, provider);
 }
 
 function setRelationKind(kind: AiRelationKind | 'NONE'): void {

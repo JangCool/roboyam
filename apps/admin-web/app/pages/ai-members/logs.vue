@@ -80,6 +80,8 @@
                         <div class="flex flex-col items-start gap-0.5">
                             <Tag :value="t(`aiMember.result.${data.result}`)" :severity="UtilAiMember.resultSeverity(data.result)" class="ai-member-tag text-[11px]!" />
                             <small v-if="data.failReason" class="text-[11px] leading-snug text-red-700 dark:text-red-400">{{ data.failReason }}</small>
+                            <!-- 제공사 메시지(서버가 키 모양·개인정보를 가리고 300자로 자른 것) — 옛 줄·등록 단계 실패는 없다 -->
+                            <small v-if="data.failDetail" class="line-clamp-3 max-w-[18rem] text-[11px] leading-snug text-muted-color [overflow-wrap:anywhere]" :title="data.failDetail">{{ t('aiMember.logFailDetail', { detail: data.failDetail }) }}</small>
                         </div>
                     </template>
                 </Column>

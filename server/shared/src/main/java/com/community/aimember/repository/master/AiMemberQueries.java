@@ -192,6 +192,26 @@ public class AiMemberQueries extends RoboyamRepositoryQDSL {
                         t.get(P.createdAt))).toList();
     }
 
+    /**
+     * 뉴스 글 소재 후보(ai-members-contract 「뉴스 글·프롬프트 관리」) — 그 말머리를 단 게시판 글, {@code since}~{@code until} 에 쓴 것, 최신이 위.
+     * 사람 회원 글만(비회원·AI 회원 글 제외) · 보이는 글 · 숨김 아님 · 비밀글 아님 · 19금 아님 · 익명 글 아님 · 소모임 글 아님(비회원이 못 읽을 수 있다) ·
+     * 이미 다른 생성 줄의 소재로 쓴 글 아님(실패 줄만 빼고 센다 — 대기·승인·게시·버림 모두). 게시판·말머리 거르기(쓸 수 있는 일반 게시판)는 부르는 쪽이 정한다.
+     */
+    public List<PostCandidate> newsCandidates(Collection<Long> prefixIds, Collection<Long> boardIds, Instant since, Instant until, Instant now, int limit) {
+        if (prefixIds == null || prefixIds.isEmpty() || boardIds == null || boardIds.isEmpty()) {
+            return List.of();
+        }
+        BooleanExpression where = PostRepositoryQDSL.alive(P, now).and(PostRepositoryQDSL.notHidden(P, now)).and(P.secret.isFalse()).and(P.adult.isFalse())
+                .and(P.anonymous.isFalse()).and(P.groupId.isNull()).and(P.authorId.isNotNull())
+                .and(P.prefixId.in(prefixIds)).and(P.boardId.in(boardIds))
+                .and(P.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(P.createdAt.goe(since)).and(P.createdAt.loe(until))
+                .and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).notExists())
+                .and(JPAExpressions.selectOne().from(D).where(D.sourcePostId.eq(P.id), D.status.ne(AiDraftStatus.FAILED)).notExists());
+        return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
+                .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),
+                        t.get(P.createdAt))).toList();
+    }
+
     /** 내 최근 글(답글 후보를 찾을 글) */
     public List<PostCandidate> myRecentPosts(long userId, Instant since, Instant now, int limit) {
         BooleanExpression where = PostRepositoryQDSL.alive(P, now).and(PostRepositoryQDSL.notHidden(P, now)).and(P.authorId.eq(userId))

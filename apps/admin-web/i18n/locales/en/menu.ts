@@ -128,6 +128,7 @@ export default {
     aiMembers: 'AI accounts',
     aiMemberDrafts: 'Review queue',
     aiMemberSettings: 'AI member settings',
+    aiMemberPrompts: 'Prompts',
     aiMemberLogs: 'Activity log',
     // Business section — verification review · business list
     business: 'Businesses',

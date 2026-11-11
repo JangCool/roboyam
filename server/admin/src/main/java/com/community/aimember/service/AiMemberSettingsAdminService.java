@@ -113,7 +113,7 @@ public class AiMemberSettingsAdminService {
     }
 
     /**
-     * 제공사 키 저장 — 앞뒤 공백을 지우고 {@value #KEY_MIN}~{@value #KEY_MAX}자 · 가운데 공백 없음(아니면 400 {@code fields.key}). 키 값은 응답·감사·로그에 없다.
+     * 제공사 키 저장(쉬는 중이던 제공사는 상태가 OK 로 돌아와 계정들이 다시 돈다 — V189) — 앞뒤 공백을 지우고 {@value #KEY_MIN}~{@value #KEY_MAX}자 · 가운데 공백 없음(아니면 400 {@code fields.key}). 키 값은 응답·감사·로그에 없다.
      *
      * @throws CommonException 모르는 제공사(404 NOT_FOUND)
      */
@@ -127,10 +127,11 @@ public class AiMemberSettingsAdminService {
         if (value.length() < KEY_MIN || value.length() > KEY_MAX || value.chars().anyMatch(Character::isWhitespace)) {
             throw ValidationException.of("key", new MessageRef("aiMember.key.invalid"));
         }
-        boolean replaced = keys.states().get(provider).configured();
+        AiProviderKeys.KeyState before = keys.states().get(provider);
+        boolean replaced = before.configured();
         keys.save(provider, value, actor.operatorId(), now());
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_PROVIDER_KEY_UPDATE, AuditResult.SUCCESS).target(AUDIT_TARGET, provider.name())
-                .with("provider", provider.name()).with("replaced", replaced));
+                .with("provider", provider.name()).with("replaced", replaced).with("statusBefore", before.status().name())); // 쉬는 중이던 제공사는 저장하면 OK 로 돌아온다
         return view(row());
     }
 
@@ -145,7 +146,8 @@ public class AiMemberSettingsAdminService {
         List<AiMemberViews.KeyState> keyViews = new ArrayList<>();
         for (AiProvider p : AiProvider.values()) {
             AiProviderKeys.KeyState k = states.get(p);
-            keyViews.add(new AiMemberViews.KeyState(p.name(), k.configured(), k.updatedAt(), k.updatedBy() == null ? null : names.get(k.updatedBy())));
+            keyViews.add(new AiMemberViews.KeyState(p.name(), k.configured(), k.updatedAt(), k.updatedBy() == null ? null : names.get(k.updatedBy()), k.status().name(),
+                    k.statusDetail(), k.statusAt()));
         }
         return new AiMemberViews.Settings(s.isStopped(), s.getStoppedAt(), s.getStoppedBy() == null ? null : names.get(s.getStoppedBy()), s.isInstantPublish(),
                 s.getInstantScope().name(), s.getInstantAccountIds().stream().map(String::valueOf).toList(), s.getDailyCallLimit(),

@@ -105,6 +105,12 @@ public enum AdminNotificationEvent {
      * 처리는 관리자 심사 화면의 그 건 서랍({@code /robotikon/reviews?id=}) — 승인·반려 {@code emoticon.review}
      */
     EMOTICON_REVIEW_PENDING(spec(MEMBER, INFO).holders(Permission.EMOTICON_REVIEW).link("/robotikon/reviews?id={reviewId}")),
+    /**
+     * AI 제공사를 쉬게 했다 — 제공사가 결제·크레딧 부족이나 키 오류로 거절해 그 제공사의 AI 회원이 모두 쉰다(shared {@code AiProviderKeys#pause}, V189 — ai-members-contract
+     * 「모델 목록·결제 부족」). 상태가 바뀐 그 순간에만 한 번(같은 제공사가 계속 쉬는 동안은 다시 내지 않는다 — 키를 다시 저장하면 풀린다). 인자 {0} 제공사 이름 · {1} 이유.
+     * 처리는 AI 회원 설정의 키 줄(결제한 뒤 키 다시 저장 — {@code ai-member.secret})
+     */
+    AI_PROVIDER_PAUSED(spec(CONTENT, WARNING).holders(Permission.AI_MEMBER_MANAGE, Permission.AI_MEMBER_SECRET).email().link("/ai-members/settings")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */
