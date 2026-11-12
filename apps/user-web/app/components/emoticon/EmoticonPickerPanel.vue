@@ -96,7 +96,7 @@
                         :title="e.label"
                         :aria-label="e.label"
                         data-testid="picker-emoticon"
-                        @click="pickEmoticon(e.id)"
+                        @click="pickEmoticon(e)"
                     >
                         <img :src="e.url" alt="" class="size-16 object-contain" loading="lazy" decoding="async" />
                     </button>
@@ -188,9 +188,13 @@ onMounted(() => {
     });
 });
 
-/** 팩의 로보티콘을 넣는다 — 넣기만 해서는 「사용함」이 되지 않는다(글·댓글을 저장해야 서버가 찍는다) */
-function pickEmoticon(id: string): void {
-    emit('emoticon', id);
+/**
+ * 팩의 로보티콘을 넣는다 — 넣기만 해서는 「사용함」이 되지 않는다(글·댓글을 저장해야 서버가 찍는다).
+ * 넣기 전에 그림을 카탈로그에 기억시킨다 — 카탈로그를 아직 안 받았거나 사본이 낡아도 에디터가 토큰 글자(`:emo-ID:`)가 아니라 그림으로 그린다.
+ */
+function pickEmoticon(item: EmoticonItem): void {
+    catalog.remember(item);
+    emit('emoticon', item.id);
 }
 
 function pickEmoji(value: string): void {
