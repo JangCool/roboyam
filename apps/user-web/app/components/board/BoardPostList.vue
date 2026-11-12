@@ -32,7 +32,7 @@
                             <template #default="{ chips, stats, dateInline, statsEnd }">
                                 <p class="line-clamp-2 text-sm leading-snug md:text-[0.9375rem]"><PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" /></p>
                                 <p class="mt-1 flex items-center gap-x-1.5 text-xs text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
-                                    <PostAuthorLabel :author="row.author" avatar />
+                                    <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
@@ -105,7 +105,7 @@
                                     {{ t('block.hideAgain') }}
                                 </button>
                             </td>
-                            <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" avatar link class="max-w-full" /></td>
+                            <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" avatar link menu :blocked="row.blocked === 'USER'" class="max-w-full" /></td>
                             <td class="py-2.5 text-center text-xs text-muted-color tabular-nums"><PostListDate :iso="row.createdAt" :mode="dateDisplay" /></td>
                             <td class="py-2.5 text-right text-xs text-muted-color tabular-nums">{{ row.viewCount.toLocaleString() }}</td>
                             <td class="py-2.5 pr-1 text-right text-xs text-muted-color tabular-nums">{{ row.likeCount.toLocaleString() }}</td>

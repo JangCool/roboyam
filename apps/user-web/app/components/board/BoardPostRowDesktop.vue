@@ -11,7 +11,7 @@
     <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(4rem,auto)] grid-rows-[1.5rem_1.5rem] items-center gap-x-3" data-testid="post-row-desktop">
         <p class="col-start-1 row-start-1 truncate text-[0.9375rem] font-normal leading-6"><PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="false" :pinned-mark="pinnedMark" :tokens="tokens" plain-count /></p>
         <p class="col-start-1 row-start-2 flex min-w-0 items-center gap-x-1.5 overflow-hidden whitespace-nowrap text-xs leading-6 text-muted-color">
-            <PostAuthorLabel :author="row.author" avatar class="shrink-0" />
+            <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" class="shrink-0" />
             <!-- 섞인 목록 — 게시판 이름(·채운 기간·소모임)이 말머리 앞 -->
             <template v-if="$slots.lead">
                 <span aria-hidden="true">·</span>

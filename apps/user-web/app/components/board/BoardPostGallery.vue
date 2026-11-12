@@ -24,7 +24,7 @@
                         <PostRowChips v-if="chipPosition === 'ABOVE'" :row="row" :show-prefix="false" class="mt-1.5" />
                         <p class="line-clamp-2 text-sm leading-snug" :class="chipPosition === 'ABOVE' ? 'mt-1' : 'mt-1.5'"><PostRowTitle :row="row" :new-post-hours="newPostHours" :show-prefix="false" :chips="chipPosition === 'BEFORE'" /></p>
                         <p class="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-muted-color">
-                            <PostAuthorLabel :author="row.author" avatar />
+                            <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                             <span aria-hidden="true">·</span>
                             <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                         </p>

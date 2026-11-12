@@ -11,6 +11,13 @@ export default {
     guestIp: '작성 IP {ip}',
     /** 탈퇴가 완료된 회원의 글·댓글 — 서버가 닉네임을 비워(null) 준다 */
     authorWithdrawn: '탈퇴한 회원',
+    /** 닉네임을 누르면 뜨는 회원 메뉴(AuthorMenuName — 2026-11-12) */
+    authorMenu: {
+        label: '{name} 회원 메뉴',
+        activity: '활동 보기',
+        message: '쪽지 보내기',
+        block: '차단하기',
+    },
     pinned: '고정 공지',
     /** 전체 공지(공지 게시판 고정글을 모든 게시판 맨 위에도 — 2026-11-08) */
     globalNoticeChip: '공지',

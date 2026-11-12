@@ -21,7 +21,7 @@
                             <template #default="{ chips, stats, dateInline }">
                                 <p class="line-clamp-2 text-sm font-medium leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" /></p>
                                 <p class="mt-auto flex flex-wrap items-center gap-x-1.5 pt-1 text-xs text-muted-color">
-                                    <PostAuthorLabel :author="row.author" avatar />
+                                    <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />

@@ -25,8 +25,22 @@
             data-testid="author-avatar"
         />
         <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지) -->
+        <!-- 회원 메뉴(`menu` — 글 목록·글 보기·댓글·가젯): 이름을 누르면 활동 보기·쪽지·메모·차단 메뉴(AuthorMenuName). 링크 자리(글 보기·댓글)는 이름 전체, 글 줄은 6자 + 「…」 -->
+        <AuthorMenuName
+            v-if="menuShown"
+            :member-id="author.memberId!"
+            :name="name"
+            :display="link ? null : shortName"
+            :role="author.role"
+            :operator="operator"
+            :memo="memo"
+            :blocked="blocked"
+            class="truncate"
+            :class="strong ? 'font-semibold text-color' : ''"
+            :style="nameStyle"
+        />
         <NuxtLink
-            v-if="profilePath"
+            v-else-if="profilePath"
             :to="profilePath"
             class="truncate hover:underline focus-visible:outline-2 focus-visible:outline-primary"
             :class="strong ? 'font-semibold text-color' : ''"
@@ -83,6 +97,10 @@ interface Props {
     animated?: boolean;
     /** 등급 도트 — 기본 끔(사용자 결정 2026-11-12: 글 목록·글 보기·댓글 등 작성자 줄에는 등급을 보이지 않고 공개 프로필·내 정보에서만). 「운영자」·「AI」·「사업자」 뱃지는 그대로 */
     grade?: boolean;
+    /** 이름을 누르면 회원 메뉴(활동 보기·쪽지·메모·차단 — AuthorMenuName). 회원 글·댓글 자리만 켠다(쪽지·소모임·상점 미리보기는 끔) */
+    menu?: boolean;
+    /** 내가 이 작성자를 차단했는가(서버 값 — 목록 줄·댓글의 `blocked === 'USER'`). 회원 메뉴의 「차단 해제」에 쓴다 */
+    blocked?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -93,6 +111,8 @@ const props = withDefaults(defineProps<Props>(), {
     avatar: false,
     animated: false,
     grade: false,
+    menu: false,
+    blocked: false,
 });
 
 const { t } = useI18n();
@@ -132,5 +152,12 @@ const ai = computed(() => (props.author.kind === 'MEMBER' ? (props.author.ai ?? 
 const operator = computed(() => props.author.kind === 'MEMBER' && props.author.operator === true);
 /** 이용자 메모 — 서버가 준 `author.memo`(나에게만 오는 값, 서버 후보)에 이 기기에서 방금 남기거나 지운 것을 겹친다 */
 const memo = computed(() => (props.author.kind === 'MEMBER' ? overrides.memoOf(props.author.memberId, props.author.memo) : null));
+/** 회원 메뉴를 그리는가 — 회원이고 이름이 보이며(탈퇴·숨긴 글 제외) 상점 미리보기가 아닐 때 */
+const menuShown = computed(() => props.menu && !props.preview && props.author.kind === 'MEMBER' && !!props.author.memberId && !!props.author.name);
+/** 글 줄의 이름 — 6자를 넘으면 6자 + 「…」(전체 이름은 회원 메뉴 머리글, 사용자 결정 2026-11-12) */
+const shortName = computed(() => {
+    const chars = Array.from(name.value);
+    return chars.length > 6 ? `${chars.slice(0, 6).join('')}…` : name.value;
+});
 const profilePath = computed(() => (props.link && props.author.kind === 'MEMBER' && props.author.memberId ? UtilProfile.path(props.author.memberId) : null));
 </script>

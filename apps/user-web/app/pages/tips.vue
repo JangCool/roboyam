@@ -153,7 +153,7 @@
                                                     <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
                                                         <span class="font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
                                                         <span aria-hidden="true">·</span>
-                                                        <PostAuthorLabel :author="row.author" />
+                                                        <PostAuthorLabel :author="row.author" menu />
                                                         <template v-if="stats">
                                                             <span aria-hidden="true">·</span>
                                                             <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />

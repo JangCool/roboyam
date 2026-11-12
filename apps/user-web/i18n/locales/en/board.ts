@@ -8,6 +8,13 @@ export default {
     guestBadge: 'Guest',
     guestIp: 'IP {ip}',
     authorWithdrawn: 'Withdrawn member',
+    /** Member menu opened by clicking a nickname (AuthorMenuName) */
+    authorMenu: {
+        label: 'Member menu for {name}',
+        activity: 'View activity',
+        message: 'Send message',
+        block: 'Block',
+    },
     pinned: 'Pinned',
     globalNoticeChip: 'Notice',
     globalNoticeList: 'Site notices',

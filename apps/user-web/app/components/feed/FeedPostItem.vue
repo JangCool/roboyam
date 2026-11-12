@@ -45,7 +45,7 @@
                                 <template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
                             </p>
                             <p class="mt-1 flex items-center gap-x-1.5 text-xs text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
-                                <PostAuthorLabel :author="row.author" avatar />
+                                <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                 <template v-if="stats">
                                     <template v-if="row.debate">
                                         <span aria-hidden="true">·</span>

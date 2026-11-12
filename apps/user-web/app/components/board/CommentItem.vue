@@ -31,7 +31,7 @@
                 <!-- 찬반 토론의 입장 배지(지금 입장 — 입장을 바꾸면 따라 바뀐다) -->
                 <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
                 <!-- 닉네임 왼쪽 프로필 동그라미(사용자 2026-11-08 — 글 줄과 같은 크기, 댓글에서는 움직이는 아바타 그대로) -->
-                <PostAuthorLabel :author="comment.author" show-ip link avatar animated class="text-color" />
+                <PostAuthorLabel :author="comment.author" show-ip link avatar animated menu :blocked="comment.blocked === 'USER'" class="text-color" />
                 <!-- 익명 댓글(anonymous-board-contract) — 글쓴이면 「글쓴이」(주 색 옅은 바탕), 내 댓글이면 「나」(회색). 번호(「익명3」)는 이름 자리가 그린다 -->
                 <template v-if="comment.author.kind === 'ANONYMOUS'">
                     <span

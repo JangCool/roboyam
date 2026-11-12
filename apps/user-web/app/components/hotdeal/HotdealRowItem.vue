@@ -41,7 +41,7 @@
                     <HotdealPriceLine :deal="deal" shipping />
                 </p>
                 <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                    <PostAuthorLabel :author="author" avatar />
+                    <PostAuthorLabel :author="author" avatar menu />
                     <span aria-hidden="true">·</span>
                     <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                     <span aria-hidden="true">·</span>

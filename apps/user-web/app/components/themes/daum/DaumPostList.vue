@@ -34,7 +34,7 @@
                                     <PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" />
                                 </p>
                                 <p class="m-0 mt-[3px] flex items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
-                                    <PostAuthorLabel :author="row.author" avatar />
+                                    <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
