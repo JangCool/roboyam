@@ -134,6 +134,36 @@ public class EmoticonAcquireService {
         return new Acquired(new EmoticonPublicView.AcquireResult(Long.toString(packId), true, count), rewarded);
     }
 
+    /**
+     * 가입 때 무료 운영 팩 주기(사용자 결정 2026-11-12 — 「어차피 무료」라 상점에서 따로 받지 않아도 처음부터 가진다). 이메일·소셜 가입이 회원을 만든 뒤 부른다.
+     * 판매 중인 <b>무료 운영 팩</b>({@link EmoticonPackStore#officialFreeOnSale})만이고, 팩마다 상점의 받기({@link #acquire})와 같은 길이다 — 같은 받기 줄({@code FREE})·받은 수 + 1
+     * (운영 팩이라 받기 보상은 없다). 그 팩의 받기 줄이 이미 있으면(받았거나 뺀 줄) 건드리지 않는다 — 다시 불러도 한 번만이고, 스스로 뺀 팩을 되살리지 않는다.
+     * 그사이 판매 중단·유료가 된 팩은 건너뛴다. 가입 뒤에 새로 나온 운영 팩은 주지 않는다(가입 때만 — 상점의 받기는 그대로).
+     *
+     * @return 이번에 새로 준 팩 수
+     */
+    @Transactional
+    public int grantSignupPacks(long userId) {
+        int granted = 0;
+        for (long packId : packs.officialFreeOnSale()) {
+            if (acquisitions.find(userId, packId).isPresent()) {
+                continue;
+            }
+            try {
+                // 같은 트랜잭션 — 잠금·받기 줄·받은 수가 상점 받기와 같다(운영자 회원 계정이면 받기가 줄을 만들지 않아 acquired=false)
+                if (acquire(userId, Long.toString(packId)).result().acquired()) {
+                    granted++;
+                }
+            } catch (EmoticonPackNotFoundException | EmoticonConflictException e) {
+                log.info("가입 로보티콘 건너뜀 userId={} packId={} 원인={}", userId, packId, e.getClass().getSimpleName()); // 그사이 판매 중단·유료 — 쓰기 전에 거른다
+            }
+        }
+        if (granted > 0) {
+            log.info("가입 로보티콘 지급 userId={} packs={}", userId, granted);
+        }
+        return granted;
+    }
+
     /** 목록에서 빼기 — 형식이 틀린 ID·가지지 않은 팩은 할 일이 없다. 산 팩은 빼지 않는다({@code 409 EMOTICON_PACK_PAID} — 쓰지 않았으면 구매 내역에서 환불, 가정 11) */
     @Transactional
     public void remove(long userId, String packIdText) {

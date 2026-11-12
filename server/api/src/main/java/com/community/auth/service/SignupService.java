@@ -5,6 +5,7 @@ import com.community.auth.dto.request.SignupRequest;
 import com.community.auth.dto.response.EmailAvailabilityResponse;
 import com.community.auth.dto.response.NicknameAvailabilityResponse;
 import com.community.auth.exception.AuthRejoinBlockedException;
+import com.community.emoticon.service.EmoticonAcquireService;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
 import com.community.user.repository.master.UserRepository;
 import com.community.user.service.UserPolicy;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li><b>가입 검사 순서</b>: 입력(이메일 → 비밀번호 → 닉네임(형식 → 예약어) → 약관 → 개인정보 → 만 14세, 위반을 한꺼번에 {@code 400 VALIDATION}) →
  *       이메일 중복 {@code 409 EMAIL_TAKEN} → 닉네임 중복 {@code 409 NICKNAME_TAKEN}(대소문자 무시) → 비밀번호 해시 → 저장(동시 가입은 유일 제약이 같은 409 로) →
- *       첫 인증 메일.</li>
+ *       무료 운영 로보티콘(상점 받기와 같은 길) → 첫 인증 메일.</li>
  *   <li>첫 인증 메일은 재발송과 같은 흐름({@link EmailVerificationService#resend})이 보낸다 — 같은 {@code auth_tokens} 행이 생기므로 가입 직후 「다시 받기」도 60초 제한에 걸린다.
  *       가입은 이미 커밋됐으므로 메일을 못 보내도 가입은 성공이다(화면의 다시 받기로 이어진다).</li>
  *   <li>약관 버전은 {@link TermsVersionProvider#currentTermsVersion()} 한 곳이 정한다(소셜 가입과 같다).</li>
@@ -46,9 +47,12 @@ public class SignupService {
     private final TermsVersionProvider terms;
     private final EmailVerificationService verification;
     private final IdentityWithdrawalRecorder withdrawals;
+    private final EmoticonAcquireService emoticons;
 
     public SignupService(MemberSignupWriter writer, UserRepository users, ProfileRepositoryQDSL profileQueries, PasswordEncoder encoder,
-                         TermsVersionProvider terms, EmailVerificationService verification, IdentityWithdrawalRecorder withdrawals) {
+                         TermsVersionProvider terms, EmailVerificationService verification, IdentityWithdrawalRecorder withdrawals,
+                         EmoticonAcquireService emoticons) {
+        this.emoticons = emoticons;
         this.writer = writer;
         this.users = users;
         this.profileQueries = profileQueries;
@@ -93,12 +97,25 @@ public class SignupService {
             throw new AuthRejoinBlockedException(until, now);
         });
         AuthUser member = writer.create(email, encoder.encode(password), nickname, terms.currentTermsVersion());
+        grantSignupEmoticons(emoticons, member.id());
         try {
             verification.resend(member.id());
         } catch (RuntimeException e) {
             log.warn("이메일 가입 뒤 인증 메일을 시작하지 못했다 userId={} 원인={}", member.id(), e.getClass().getSimpleName());
         }
         return member;
+    }
+
+    /**
+     * 가입 때 무료 운영 로보티콘(상점 받기와 같은 길 — {@link EmoticonAcquireService#grantSignupPacks}, 사용자 결정 2026-11-12). 회원은 이미 커밋됐으므로 실패해도 가입은 성공이다
+     * (상점의 받기로 받을 수 있다). 소셜 가입도 이것을 부른다.
+     */
+    public static void grantSignupEmoticons(EmoticonAcquireService emoticons, long userId) {
+        try {
+            emoticons.grantSignupPacks(userId);
+        } catch (RuntimeException e) {
+            log.warn("가입 뒤 무료 로보티콘을 주지 못했다 userId={} 원인={}", userId, e.getClass().getSimpleName());
+        }
     }
 
     /**

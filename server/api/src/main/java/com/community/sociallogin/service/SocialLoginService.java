@@ -2,6 +2,8 @@ package com.community.sociallogin.service;
 
 import com.community.auth.dto.AuthUser;
 import com.community.auth.service.EmailVerificationService;
+import com.community.auth.service.SignupService;
+import com.community.emoticon.service.EmoticonAcquireService;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
 import com.community.social.entity.SocialProvider;
@@ -67,9 +69,12 @@ public class SocialLoginService {
     private final SocialLoginProperties props;
     private final Messages messages;
     private final Map<SocialProvider, SocialProviderAdapter> adapters = new EnumMap<>(SocialProvider.class);
+    private final EmoticonAcquireService emoticons;
 
     public SocialLoginService(SocialClientRegistry clients, SocialEndpoints endpoints, SocialAccountWriter writer, SiteSettingsService siteSettings,
-                              EmailVerificationService verification, SocialLoginProperties props, Messages messages, List<SocialProviderAdapter> adapters) {
+                              EmailVerificationService verification, SocialLoginProperties props, Messages messages, List<SocialProviderAdapter> adapters,
+                              EmoticonAcquireService emoticons) {
+        this.emoticons = emoticons;
         this.clients = clients;
         this.endpoints = endpoints;
         this.writer = writer;
@@ -204,6 +209,7 @@ public class SocialLoginService {
         }
 
         AuthUser member = writer.createMember(pending, nickname);
+        SignupService.grantSignupEmoticons(emoticons, member.id()); // 무료 운영 로보티콘 — 이메일 가입과 같다
         if (pending.email() != null && !pending.emailVerified()) {
             try {
                 verification.resend(member.id()); // 가입은 이미 커밋됐다 — 메일은 덤이다(못 보내도 화면의 다시 보내기로 이어진다)
