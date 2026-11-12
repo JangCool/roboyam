@@ -161,6 +161,11 @@ export interface BoardDefaults {
     pollEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
+    /**
+     * 토론 의견에 [고정 요청]을 보낼 수 있는 최소 추천 수 0~1000(0 = 제한 없음, 전체 기본값 10 — shared V200). 사이트 전체 값 하나(게시판별 덮어쓰기 없음).
+     * 공개 화면은 추천이 모자란 의견에 단추를 감추고, 서버는 409 `PIN_REQUEST_NOT_ENOUGH_LIKES`. 옛 서버 응답에는 칸이 없을 수 있다(화면은 10 으로 본다)
+     */
+    pinRequestMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
     managerMax: number;
     /** 게시판당 스텝 수 1~10 */

@@ -129,6 +129,7 @@
                         :editing="editingId === thread.id"
                         :reactions="reactions"
                         :pin-requests="pinRequestsOpen"
+                        :pin-request-min-likes="debate?.pinRequestMinLikes ?? 0"
                         :pin-busy="pinBusyId === thread.id"
                         :sanctionable="sanctionable(thread)"
                         :staff-deletable="staffDeletable(thread)"
@@ -387,7 +388,7 @@ const KINDS: readonly OpinionKind[] = ['OPINION', 'PRO', 'CON', 'NEUTRAL'];
 /** 토론 상태가 바뀐 거절 — 서버 문구를 보이고 목록을 다시 받아 지금 상태(열림·내 입장)로 맞춘다 */
 const DEBATE_CODES: ReadonlySet<string> = new Set(['DEBATE_NOT_OPEN', 'STANCE_LOCKED', 'STANCE_REQUIRED', 'STANCE_CHANGE_LOCKED']);
 /** 고정 요청이 지금 상태와 맞지 않는 거절 — 알리고 목록을 맞춘다 */
-const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPINION_UNAVAILABLE', 'DEBATE_NOT_OPEN', 'OPINION_ALREADY_PINNED', 'PIN_REQUEST_EXISTS']);
+const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPINION_UNAVAILABLE', 'DEBATE_NOT_OPEN', 'OPINION_ALREADY_PINNED', 'PIN_REQUEST_EXISTS', 'PIN_REQUEST_NOT_ENOUGH_LIKES']);
 /** 고른 칩 — 중립 surface 채움(시안: 글자·바탕을 뒤집은 칩) */
 const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-300 dark:text-surface-900';
 

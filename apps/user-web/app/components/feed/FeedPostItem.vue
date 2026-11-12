@@ -29,7 +29,7 @@
                             <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap" />
                         </template>
                     </BoardPostRowDesktop>
-                    <PostRowFrame :row="row" :position="chipPosition" :general="false" stats-below :class="useDesktopRow ? 'md:hidden' : ''">
+                    <PostRowFrame :row="row" :position="chipPosition" :general="false" stats-below :date-display="dateDisplay" :class="useDesktopRow ? 'md:hidden' : ''">
                         <template #lead><FeedPostLeadTags :row="row" :fill="fill" /></template>
                         <template v-if="row.debate" #stats-lead>
                             <FeedDebateCounts :debate="row.debate" class="text-xs leading-none" />

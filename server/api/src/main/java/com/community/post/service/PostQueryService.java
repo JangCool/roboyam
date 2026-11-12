@@ -31,6 +31,7 @@ import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostDetailView;
 import com.community.post.dto.response.PostListResponse;
+import com.community.post.dto.response.PostFeedDebateView;
 import com.community.post.dto.response.PostNeighborView;
 import com.community.post.dto.response.PostPrefixRefView;
 import com.community.post.dto.response.PostProtectionView;
@@ -88,12 +89,14 @@ public class PostQueryService {
     private final SecretPostGate secretGate;
     private final PostProcessStatusChanger statusChanger;
     private final GlobalNoticeReader globalNotices;
+    private final PostFeedRows feedRows;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
-                            PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices) {
+                            PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows) {
+        this.feedRows = feedRows;
         this.globalNotices = globalNotices;
         this.statusChanger = statusChanger;
         this.secretGate = secretGate;
@@ -218,11 +221,14 @@ public class PostQueryService {
         List<DealStoreChipView> stores = !deal ? null : impossible ? List.of()
                 : dealQueries.storeChips(b.id(), prefixId, hide, autoExpireDays, now, STORE_CHIPS).stream().map(c -> new DealStoreChipView(c.name(), c.count()))
                 .toList();
+        // 찬반 토론 글의 찬·반·중 수 — 섞인 목록과 같은 계산(질의 두 번, 사용자 2026-11-12 「게시판 목록에도 찬반중」)
+        Map<Long, PostFeedDebateView> debates = feedRows.debates(Stream.concat(pinned.stream(), result.items().stream())
+                .filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id())).map(PostRowData::id).toList());
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
         // 전체 공지(V174) — 고정 공지와 같은 조건(첫 쪽 · 거르기 없음)일 때만 맨 위에
         List<GlobalNoticeView> global = plain && current == 1 ? globalNotices.forBoard(b, now) : List.of();
-        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, sealed.contains(r.id()))).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, sealed.contains(r.id()))).toList(), current, totalPages,
+        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()))).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()))).toList(), current, totalPages,
                 result.total(), stores);
     }
 
@@ -243,7 +249,7 @@ public class PostQueryService {
 
     /** @param sealed 보는 사람이 읽을 수 없는 비밀글 — 제목·작성자는 그대로, 내용이 드러나는 칸(썸네일·이미지·투표·딜)을 비운다 */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, boolean sealed) {
+                            Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, Map<Long, PostFeedDebateView> debates, boolean sealed) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
         PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
@@ -251,7 +257,7 @@ public class PostQueryService {
                 !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && polls.contains(r.id()), bare ? null : deals.get(r.id()), r.secretPost(),
-                hidden ? null : PostProcessStatus.effective(b, r.processStatus()));
+                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), bare ? null : debates.get(r.id()));
     }
 
     /**

@@ -109,6 +109,8 @@ public final class BoardFields {
     public static final String DELAY_NOTICE_TIME = "TIME";
     public static final String DELAY_NOTICE_LOGIN = "LOGIN";
     public static final List<String> COMMENT_DELAY_NOTICES = List.of(DELAY_NOTICE_TIME, DELAY_NOTICE_LOGIN);
+    /** 고정 요청 최소 추천 수 상한(V200 CHECK 와 같다) */
+    public static final int PIN_REQUEST_MIN_LIKES_MAX = 1000;
     /** 목록 숫자 강조 기준 상한(V170 CHECK 와 같다) · 처음 값 */
     public static final int LIKE_HIGHLIGHT_MAX = 100_000;
     public static final int VIEW_HIGHLIGHT_MAX = 10_000_000;
@@ -229,6 +231,8 @@ public final class BoardFields {
         bool(d, "debateEnabled", true);
         bool(d, "pollEnabled", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
+        // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음)
+        number(d, "pinRequestMinLikes", 0, PIN_REQUEST_MIN_LIKES_MAX, false, false);
         number(d, "managerMax", 1, 10, true, true);
         number(d, "staffMax", 1, 10, false, true);
         number(d, "staffPostDailyLimit", 1, 50, true, true);

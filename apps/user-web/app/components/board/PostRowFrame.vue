@@ -16,6 +16,8 @@
             </PostRowChips>
             <!-- 숫자 앞 슬롯(`stats-lead`) — 섞인 목록의 찬반 토론 수(찬·반·중 → 세로 구분선 → 추천·조회, feed-debate-counts-contract) -->
             <!-- `statsBelow` 면 숫자는 이 줄이 아니라 아래 칸 오른쪽 끝(썸네일이 있으면 그 밑) — 모바일, 사용자 결정 2026-11-12 -->
+            <!-- 숫자 아래(`statsBelow`) — 날짜는 이 윗줄 오른쪽 끝(썸네일 위, 사용자 결정 2026-11-12 — 닉네임 줄이 찬반·추천·조회로 좁아 날짜가 밀려 내려가던 것) -->
+            <PostListDate v-if="statsBelow && dateDisplay" :iso="row.createdAt" :mode="dateDisplay" class="ml-auto shrink-0 text-xs text-muted-color" data-testid="post-row-date-top" />
             <template v-if="!statsBelow">
                 <span v-if="$slots['stats-lead']" class="ml-auto inline-flex shrink-0 items-center gap-2">
                     <slot name="stats-lead" />
@@ -30,7 +32,7 @@
         -->
         <div v-if="statsBelow && position === 'ABOVE' && row.thumbnailUrl" class="flex items-stretch gap-3">
             <div class="flex min-w-0 flex-1 flex-col justify-between" :class="bodyClass">
-                <slot :chips="false" :stats="false" :date-inline="true" />
+                <slot :chips="false" :stats="false" :date-inline="!dateDisplay" />
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1">
                 <slot name="end" />
@@ -44,7 +46,7 @@
         <div v-else class="flex" :class="rowClass">
             <slot name="start" />
             <div class="min-w-0 flex-1" :class="bodyClass">
-                <slot :chips="position === 'BEFORE'" :stats="position !== 'ABOVE'" :date-inline="position === 'ABOVE'" :stats-end="statsBelow && position === 'ABOVE'" />
+                <slot :chips="position === 'BEFORE'" :stats="position !== 'ABOVE'" :date-inline="position === 'ABOVE' && !(statsBelow && dateDisplay)" :stats-end="statsBelow && position === 'ABOVE'" />
                 <PostRowChips v-if="position === 'BELOW'" :row="row" :show-prefix="showPrefix" class="mt-1">
                     <template v-if="$slots.lead" #default><slot name="lead" /></template>
                 </PostRowChips>
@@ -55,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import type { PostChipPosition } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDateDisplay, PostChipPosition } from '~/composables/board/api/useBoardApi.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props {
@@ -65,6 +67,8 @@ interface Props {
     /** 「제목 위」에서 추천·조회를 윗줄이 아니라 메타 줄 오른쪽 끝(추천 · 조회 · 날짜)으로 — 기본 슬롯의 `statsEnd` 로 목록이 그린다(모바일 목록, 사용자 결정 2026-11-12) */
     statsBelow?: boolean;
     showPrefix?: boolean;
+    /** 날짜 표시 방식 — `statsBelow` 와 함께 주면 날짜를 닉네임 줄이 아니라 윗줄 오른쪽 끝(썸네일 위)에 그린다(모바일 목록, 사용자 결정 2026-11-12) */
+    dateDisplay?: BoardDateDisplay;
     /** 「제목 위」 윗줄의 조회 칸 — 원래 메타 줄에 조회 수가 없던 목록은 끈다 */
     views?: boolean;
     /** 「제목 위」 윗줄의 추천 칸 — 원래 메타 줄에 추천 수가 없던 목록은 끈다 */

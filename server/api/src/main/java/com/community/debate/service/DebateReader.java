@@ -1,6 +1,7 @@
 package com.community.debate.service;
 
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.comment.entity.CommentEntity;
 import com.community.debate.dto.DebateVotesView;
@@ -44,8 +45,11 @@ public class DebateReader {
     private final DebateQueries queries;
     private final PinReviewers pinReviewers;
     private final DebateWriteStance writeStance;
+    private final BoardCatalog catalog;
 
-    public DebateReader(HighlightRepository highlights, PostDebateRepository debates, DebateQueries queries, PinReviewers pinReviewers, DebateWriteStance writeStance) {
+    public DebateReader(HighlightRepository highlights, PostDebateRepository debates, DebateQueries queries, PinReviewers pinReviewers, DebateWriteStance writeStance,
+                        BoardCatalog catalog) {
+        this.catalog = catalog;
         this.writeStance = writeStance;
         this.highlights = highlights;
         this.debates = debates;
@@ -149,7 +153,7 @@ public class DebateReader {
         Integer pending = status.open() || votes.total() > 0 ? pinReviewers.pendingFor(b, post, userId, now, null) : null;
         Manage m = manage(status, post, b, userId);
         return new DebateSummaryView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), status.stanceChangeAllowed(),
-                votes, pending, pinRequestEnabled(b), status.openedBy(), m.canManage(), canClose(status, m, votes));
+                votes, pending, pinRequestEnabled(b), pinRequestMinLikes(), status.openedBy(), m.canManage(), canClose(status, m, votes));
     }
 
     /**
@@ -175,7 +179,12 @@ public class DebateReader {
         Integer pending = status.open() || votes.total() > 0 ? pinReviewers.pendingFor(b, post, userId, now, byId) : null;
         Manage m = manage(status, post, b, userId);
         return new CommentDebateView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), status.stanceChangeAllowed(), votes, counts,
-                myOpinions, pending, pinRequestEnabled(b), status.openedBy(), m.canManage(), canClose(status, m, votes));
+                myOpinions, pending, pinRequestEnabled(b), pinRequestMinLikes(), status.openedBy(), m.canManage(), canClose(status, m, votes));
+    }
+
+    /** [고정 요청]에 필요한 최소 추천 수(게시판 기본 설정 — 사이트 전체, V200, 0 = 제한 없음) */
+    private int pinRequestMinLikes() {
+        return catalog.snapshot().defaults().pinRequestMinLikes();
     }
 
     /** 이 게시판이 의견 고정 요청을 받는가 — 유효 정책 {@code pinRequestReviewers} 가 비어 있지 않다({@code PIN_REQUEST_OFF} 판정과 같은 기준) */

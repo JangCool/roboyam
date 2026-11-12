@@ -13,8 +13,9 @@ import java.time.Instant;
  * @param deal         핫딜 게시판 목록의 줄이면 딜(숨긴 글·그 밖 목록은 null — docs/features/hotdeal-contract.md)
  * @param secret       비밀글인가(V166) — 줄과 제목은 그대로 두고, 읽을 수 없는 사람에게는 썸네일·이미지·투표 표시를 비운다(글을 열면 403 SECRET_POST)
  * @param processStatus 처리 상태(V166) — 게시판이 상태를 쓰지 않으면 null, 쓰면 글 값(없으면 RECEIVED). 숨긴 글은 null
+ * @param debate       찬반 토론 요약(찬·반·중 수) — 토론 글만, 그 밖·숨긴 글·읽을 수 없는 비밀글은 null. 게시판 글 목록만 채운다(섞인 목록은 {@link PostFeedRowView#debate}) — feed-debate-counts-contract
  */
 public record PostRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                           Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked, boolean hasPoll,
-                          PostDealView deal, boolean secret, String processStatus) {
+                          PostDealView deal, boolean secret, String processStatus, PostFeedDebateView debate) {
 }

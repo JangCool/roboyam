@@ -18,8 +18,17 @@
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
                     <NuxtLink :to="`/posts/${row.id}`" class="group block py-2.5 md:py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                         <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(`BoardPostRowDesktop`, 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
-                        <BoardPostRowDesktop v-if="chipPosition === 'ABOVE'" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden" />
-                        <PostRowFrame :row="row" :position="chipPosition" stats-below :class="chipPosition === 'ABOVE' ? 'md:hidden' : ''">
+                        <BoardPostRowDesktop v-if="chipPosition === 'ABOVE'" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden">
+                            <!-- 찬반 토론 글 — 날짜 뒤·추천 앞에 찬·반·중 수(섞인 목록과 같다, 2026-11-12) -->
+                            <template v-if="row.debate" #stats-lead>
+                                <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap" />
+                            </template>
+                        </BoardPostRowDesktop>
+                        <PostRowFrame :row="row" :position="chipPosition" stats-below :date-display="dateDisplay" :class="chipPosition === 'ABOVE' ? 'md:hidden' : ''">
+                            <template v-if="row.debate" #stats-lead>
+                                <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap text-xs leading-none" />
+                                <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
+                            </template>
                             <template #default="{ chips, stats, dateInline, statsEnd }">
                                 <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
                                     <PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" />
@@ -29,6 +38,10 @@
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                        <template v-if="row.debate">
+                                            <span aria-hidden="true">·</span>
+                                            <FeedDebateCounts :debate="row.debate" />
+                                        </template>
                                         <span aria-hidden="true">·</span>
                                         <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
                                         <span aria-hidden="true">·</span>
@@ -41,6 +54,7 @@
                                     </template>
                                     <!-- 모바일 숫자 아래 + 썸네일 없음 — 추천·조회를 닉네임 줄 오른쪽 끝에(사용자 결정 2026-11-12) -->
                                     <span v-if="statsEnd" class="ml-auto inline-flex shrink-0 items-center gap-2">
+                                        <template v-if="row.debate"><FeedDebateCounts :debate="row.debate" /><span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" /></template>
                                         <PostRowStats :row="row" />
                                     </span>
                                 </p>

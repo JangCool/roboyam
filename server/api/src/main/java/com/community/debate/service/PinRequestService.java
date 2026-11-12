@@ -53,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>보내기</b>({@code POST /api/comments/{commentId}/pin-request}): 내가 쓴 의견(입장 있는 원댓글)만. 차례: 댓글 404 → 글·게시판 읽기 규칙 → 내 댓글(403) → 의견인가(409
  *       {@code PIN_REQUEST_NOT_OPINION}) → 숨김(409 {@code OPINION_UNAVAILABLE}) → 토론 열림(409 {@code DEBATE_NOT_OPEN}) → 게시판 고정 요청 켬(409 {@code PIN_REQUEST_OFF})
+ *       → 추천 수가 기본 설정 {@code pinRequestMinLikes} 이상(409 {@code PIN_REQUEST_NOT_ENOUGH_LIKES}, V200 — 0 이면 검사 없음)
  *       → 이미 고정(409 {@code OPINION_ALREADY_PINNED}) → 대기 요청 있음(409 {@code PIN_REQUEST_EXISTS}). 거절된 뒤에는 다시 보낼 수 있다. 확인할 수 있는 회원(글쓴이·게시판 매니저 —
  *       나 제외)에게 회원 알림 {@code OPINION_PIN_REQUESTED}, 정책에 OPERATOR 가 있으면 관리자 알림 {@code OPINION_PIN_REQUEST_PENDING}.</li>
  *   <li><b>취소</b>({@code DELETE /api/comments/{commentId}/pin-request}): 내 대기 요청을 지운다(없으면 그대로 204).</li>
@@ -129,6 +130,10 @@ public class PinRequestService {
         }
         if (b.pinRequestReviewers().isEmpty()) {
             throw PinRequestException.conflict(PinRequestException.OFF);
+        }
+        // 추천을 일정 이상 받은 의견만 요청할 수 있다(사용자 2026-11-12 「모두 보내면 너무 많다」) — 이미 대기 중인 요청은 추천이 줄어도 그대로
+        if (c.getLikeCount() < catalog.snapshot().defaults().pinRequestMinLikes()) {
+            throw PinRequestException.conflict(PinRequestException.NOT_ENOUGH_LIKES);
         }
         if (queries.pinnedOf(post.getId()).contains(c.getId())) {
             throw PinRequestException.conflict(PinRequestException.ALREADY_PINNED);

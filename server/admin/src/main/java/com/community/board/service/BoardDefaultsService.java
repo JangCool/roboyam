@@ -113,7 +113,7 @@ public class BoardDefaultsService {
         if (request == null) {
             throw ValidationException.of("dateDisplay", new MessageRef("board.field.required"));
         }
-        // 목록 칩 위치(V169)·숫자 강조(V170)·말머리 모양(V195)·댓글 지연 안내(V199)는 요청에 없으면 지금 값 그대로 — 이 칸을 모르는 예전 화면이 저장해도 지우거나 400 이 되지 않게
+        // 목록 칩 위치(V169)·숫자 강조(V170)·말머리 모양(V195)·댓글 지연 안내(V199)·고정 요청 최소 추천(V200)은 요청에 없으면 지금 값 그대로 — 이 칸을 모르는 예전 화면이 저장해도 지우거나 400 이 되지 않게
         request = request.filledFrom(row.values());
         Map<String, Object> current = row.values().toMap();
         Map<String, Object> wanted = request.toMap();

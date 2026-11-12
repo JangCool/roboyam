@@ -73,6 +73,7 @@ export const BOARD_NUM_FIELDS = [
     'attachmentRetentionDays',
     'commentProtectMin',
     'bestCommentMinLikes',
+    'pinRequestMinLikes',
     'managerMax',
     'staffMax',
     'staffPostDailyLimit',
@@ -202,6 +203,8 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     debateEnabled: { field: 'debateEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     pollEnabled: { field: 'pollEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
+    // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음, 사용자 2026-11-12) — 사이트 전체, 게시판별 덮어쓰기 없음
+    pinRequestMinLikes: { field: 'pinRequestMinLikes', kind: 'number', min: 0, max: 1000, unit: 'likes', overridable: false, permission: 'board.settings' },
     managerMax: { field: 'managerMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: true, permission: 'board.staff.limit' },
     staffMax: { field: 'staffMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: false, permission: 'board.staff.limit' },
     staffPostDailyLimit: { field: 'staffPostDailyLimit', kind: 'number', min: 1, max: 50, unit: 'times', overridable: true, permission: 'board.staff.limit' },
@@ -283,7 +286,7 @@ const DEFAULT_SECTIONS = {
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'commentDelayNotice', 'staffHiddenNotice'],
-    'defaults-reaction': ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
+    'defaults-reaction': ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers', 'pinRequestMinLikes'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
 } as const satisfies Record<string, readonly BoardDefaultsField[]>;
@@ -561,6 +564,8 @@ export default class UtilBoard {
     static defaultsFormOf(defaults: BoardDefaults): BoardDefaultsForm {
         const form = { ...defaults } as unknown as BoardDefaultsForm;
         for (const field of BOARD_NUM_FIELDS) form[field] = String(defaults[field]);
+        // 고정 요청 최소 추천을 아직 주지 않는 서버면 전체 기본값(10)
+        form.pinRequestMinLikes = String(defaults.pinRequestMinLikes ?? 10);
         form.pinRequestReviewers = [...(defaults.pinRequestReviewers ?? [])];
         // 숫자 강조 칸을 아직 주지 않는 서버(새 칸을 서버보다 먼저 배포한 경우)면 기본값(추천 10 · 조회 1000 · 빨강)으로 채운다
         form.listLikeHighlight = String(defaults.listLikeHighlight ?? 10);
@@ -608,7 +613,7 @@ export default class UtilBoard {
 
     /** 저장된 값과 다른 기본 설정 칸들 — 옛 서버가 주지 않은 말머리 모양·비회원 댓글 지연 안내는 전체 기본값과 견준다(채워 넣은 기본값을 「바뀜」으로 세지 않게) */
     static defaultsChanged(form: BoardDefaultsForm, saved: BoardDefaults): BoardDefaultsField[] {
-        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle), commentDelayNotice: UtilBoard.commentDelayNotice(saved.commentDelayNotice) };
+        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle), commentDelayNotice: UtilBoard.commentDelayNotice(saved.commentDelayNotice), pinRequestMinLikes: saved.pinRequestMinLikes ?? 10 };
         return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], base[field]));
     }
 

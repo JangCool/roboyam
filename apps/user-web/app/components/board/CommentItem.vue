@@ -3,7 +3,7 @@
         댓글 하나 — (고정 표시)·(토론 입장 배지)·작성자·시각·본문·[추천][비추천][답글][고치기·지우기·신고]·(내 의견의 고정 요청).
         지운 댓글·숨긴 댓글은 자리만(운영자가 숨겼고 게시판이 밝히기로 했으면 `hiddenBy` STAFF — 「운영자가 숨긴 댓글이에요」, 소모임을 나간 멤버의 댓글은 `GROUP_LEFT`, 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글은 `MEMBERS_ONLY` — 자물쇠), 비회원에게 늦게 보이는 댓글은 로그인 안내 단추.
         추천·비추천은 게시판 설정(`reactions` — 비추천 켬·두 이름, 비면 기본 「추천」·「비추천」)을 따른다. 하나를 누르면 다른 하나가 풀린다(서버 응답 그대로). 고른 쪽은 찬성·반대 색의 옅은 칩.
-        고정 요청(토론 구획의 내 의견 원댓글만): [고정 요청] → 「고정 요청 보냄 · 확인 기다리는 중 [취소]」 / 거절됐으면 사유 + [다시 요청]
+        고정 요청(토론 구획의 내 의견 원댓글만, 추천이 `pinRequestMinLikes` 이상일 때): [고정 요청] → 「고정 요청 보냄 · 확인 기다리는 중 [취소]」 / 거절됐으면 사유 + [다시 요청]
     -->
     <!-- AI 회원 댓글이면 기계가 읽는 표시 `data-ai-generated`(계약 「법무 메모」 — 사람이 읽는 표시는 작성자 옆 AI 배지) -->
     <article :id="`comment-${comment.id}`" class="scroll-mt-20 py-3" :class="reply ? 'pl-6' : ''" :data-ai-generated="comment.state === 'VISIBLE' && comment.author.ai ? 'true' : undefined">
@@ -136,7 +136,7 @@
                             <Button type="button" :label="t('comment.pinRequestCancel')" size="small" variant="text" :disabled="pinBusy" @click="$emit('pin-cancel')" />
                         </span>
                         <Button
-                            v-else-if="pinRequests"
+                            v-else-if="pinRequests && comment.likeCount >= pinRequestMinLikes"
                             type="button"
                             icon="pi pi-thumbtack"
                             :label="comment.pinRequest?.status === 'REJECTED' ? t('comment.pinRequestAgain') : t('comment.pinRequest')"
@@ -179,6 +179,8 @@ interface Props {
     reactions?: CommentReactions | null;
     /** 내 의견에 고정 요청을 보낼 수 있다(열린 토론 구획) — 대기 중인 요청의 상태·취소는 이것과 무관하게 보인다 */
     pinRequests?: boolean;
+    /** [고정 요청]에 필요한 최소 추천 수 — 내 의견의 추천이 이보다 적으면 단추를 감춘다(사용자 2026-11-12 「추천을 일정 이상 받으면 나오게」, 0 = 제한 없음). 보낸 요청의 대기·거절 상태는 그대로 보인다 */
+    pinRequestMinLikes?: number;
     /** 고정 요청을 보내거나 취소하는 중 */
     pinBusy?: boolean;
     /** ⋯ 에 「작성자 제재」를 보인다(매니저·스텝이 보는 남의 회원 댓글 — 판정은 부르는 쪽) */
@@ -195,6 +197,7 @@ const props = withDefaults(defineProps<Props>(), {
     editing: false,
     reactions: null,
     pinRequests: false,
+    pinRequestMinLikes: 0,
     pinBusy: false,
     sanctionable: false,
     staffDeletable: false,

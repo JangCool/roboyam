@@ -16,11 +16,12 @@ import com.community.debate.dto.DebateVotesView;
  *                           확인할 수 없는 사람·토론이 닫혀 있고 투표도 없는 글은 null
  * @param pinRequestEnabled  이 글의 게시판이 의견 고정 요청을 받는가 — 유효 정책 {@code pinRequestReviewers} 가 비어 있지 않다(게시판 값만 — 토론이 열렸는지·내 의견인지는
  *                           따로 본다). false 면 {@code POST /api/comments/{id}/pin-request} 가 409 {@code PIN_REQUEST_OFF}
+ * @param pinRequestMinLikes 의견에 [고정 요청]을 보낼 수 있는 최소 추천 수(게시판 기본 설정 {@code pinRequestMinLikes}, V200 — 0 = 제한 없음). 모자라면 409 {@code PIN_REQUEST_NOT_ENOUGH_LIKES}
  * @param openedBy       토론을 연 사람 MEMBER(글쓴이) · OPERATOR(운영자 또는 그 게시판 매니저 — 글쓴이에게 읽기 전용). 닫혀 있으면 null
  * @param canManage      지금 보는 사람이 {@code PUT /api/posts/{id}/debate} 로 열고·바꿀 수 있는가 — 그 게시판 매니저, 또는 글쓴이(회원 글 + 게시판 {@code debateEnabled}
  *                       + 토론이 없거나 글쓴이가 연 토론)
  * @param canClose       닫기까지 되는가 — 열려 있고, 매니저이거나 글쓴이면 투표가 없을 때(있으면 409 {@code DEBATE_HAS_VOTES})
  */
 public record DebateSummaryView(boolean enabled, String myStance, int opinionMax, boolean neutralEnabled, boolean stanceChangeAllowed, DebateVotesView votes,
-                                Integer pendingPinRequests, boolean pinRequestEnabled, String openedBy, boolean canManage, boolean canClose) {
+                                Integer pendingPinRequests, boolean pinRequestEnabled, int pinRequestMinLikes, String openedBy, boolean canManage, boolean canClose) {
 }

@@ -10,6 +10,7 @@
 
 ## API
 - 섞인 목록 줄(`PostFeedRowView` — 최신글·인기글·검색 `SearchRowView`·회원 작성글·홈 가젯·하이라이트 `post`·팁 `TipsPostView`)에 `debate: { pro, con, neutral | null } | null`.
+- **게시판 글 목록 줄**(`GET /api/boards/{slug}/posts` 의 `PostRowView`)에도 같은 `debate`(2026-11-12 사용자 「게시판 목록에 찬반중이 안 나온다」) — 같은 `PostFeedRows#debates`(쪽마다 질의 두 번), 숨긴 글·읽을 수 없는 비밀글은 null. 화면: 데스크톱은 날짜 뒤·추천 앞(`BoardPostRowDesktop` `stats-lead`), 모바일은 추천·조회 앞(세로 구분선), 네이버 테마는 윗줄 숫자 앞.
   - 토론 글 = 토론이 열려 있거나(`post_debates` 행) 이미 표가 있는 글(글 상세 토론 구획이 보이는 기준 `UtilDebate.visible` 과 같다). 그 밖·숨긴 글은 null.
   - 수 = 입장을 고른 사람 수(`post_stances`, 글 상세 `debate.votes` 와 같은 `DebateQueries#votesOf`).
   - 열린 토론이 중립을 받지 않으면(`neutralEnabled = false`) `neutral` null. 닫힌 토론(표만 남음)은 글 상세처럼 중립을 받는 것으로 본다.

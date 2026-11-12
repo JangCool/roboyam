@@ -233,6 +233,8 @@ export interface PostRow {
     secret?: boolean;
     /** 처리 상태 — 상태가 켜진 게시판(`statusEnabled`)의 글만, 그 밖·공지는 null */
     processStatus?: PostProcessStatus | null;
+    /** 찬반 토론 요약(찬·반·중 수) — 토론 글만, 그 밖·숨긴 글·옛 응답은 null·없음(아무것도 그리지 않는다). 게시판 목록·섞인 목록 모두(2026-11-12) */
+    debate?: PostFeedDebate | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -317,8 +319,6 @@ export interface PostFeedDebate {
 /** 게시판이 섞인 목록의 한 줄 — 목록 한 줄 + 그 글의 게시판 */
 export interface PostFeedRow extends PostRow {
     board: PostBoardRef;
-    /** 찬반 토론 요약 — 토론 글이 아니거나 숨긴 글·옛 응답은 null·없음(아무것도 그리지 않는다) */
-    debate?: PostFeedDebate | null;
 }
 
 /** 커서로 이어 받는 목록 한 쪽(최신글 전체·회원 작성글) — `nextCursor` 를 다음 요청의 `cursor` 로 보낸다 */

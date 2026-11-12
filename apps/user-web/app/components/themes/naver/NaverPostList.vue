@@ -18,6 +18,11 @@
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — 「제목 위」 윗줄은 썸네일보다 위(줄 폭 전체), 썸네일은 이 테마대로 아래 칸 왼쪽. 말풍선 댓글 수는 메타 줄 오른쪽 그대로 -->
                     <NuxtLink :to="`/posts/${row.id}`" class="group block py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5">
                         <PostRowFrame :row="row" :position="chipPosition" row-class="gap-3.5" body-class="flex flex-col">
+                            <!-- 찬반 토론 글 — 윗줄 숫자 앞에 찬·반·중 수(2026-11-12) -->
+                            <template v-if="row.debate" #stats-lead>
+                                <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap text-xs leading-none" />
+                                <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
+                            </template>
                             <!-- 썸네일은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(2026-11-06 사용자) -->
                             <template #start>
                                 <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="h-11 w-16 shrink-0 rounded-md object-cover" loading="lazy" />

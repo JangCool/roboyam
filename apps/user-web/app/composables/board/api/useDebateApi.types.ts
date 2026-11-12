@@ -70,6 +70,8 @@ export interface DebateSummary {
     pendingPinRequests?: number | null;
     /** 이 글의 게시판이 의견 고정 요청을 받는가(유효 정책 `pinRequestReviewers` 가 비어 있지 않음 — `PIN_REQUEST_OFF` 와 같은 기준). 옛 응답에는 없을 수 있다 */
     pinRequestEnabled?: boolean;
+    /** [고정 요청]에 필요한 최소 추천 수(게시판 기본 설정 — 사이트 전체, 0 = 제한 없음, V200). 옛 응답에는 없을 수 있다(0 으로 본다) */
+    pinRequestMinLikes?: number;
 }
 
 /** 글의 댓글 수 구분 — 모두 지우거나 숨긴 것 제외, `kind` 와 무관하게 글 전체 */
@@ -111,6 +113,8 @@ export interface CommentDebate {
     pendingPinRequests: number | null;
     /** 이 글의 게시판이 의견 고정 요청을 받는가(글 상세와 같다) — false 면 [고정 요청] 단추를 처음부터 숨긴다(이미 보낸 요청의 대기·거절 상태는 보인다) */
     pinRequestEnabled: boolean;
+    /** 글 상세와 같다 — 추천이 이 수보다 적은 내 의견에는 [고정 요청] 단추를 감춘다(서버 409 `PIN_REQUEST_NOT_ENOUGH_LIKES`). 옛 응답에는 없을 수 있다 */
+    pinRequestMinLikes?: number;
 }
 
 /** `PUT /api/posts/{postId}/stance` 요청 — 처음 고르기(투표)와 바꾸기 모두 */

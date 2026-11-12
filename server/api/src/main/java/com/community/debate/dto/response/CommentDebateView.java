@@ -17,11 +17,12 @@ import com.community.debate.dto.DebateVotesView;
  *                       옮겨 간다(확인창의 「N개가 바뀐다」). 비로그인·입장 없음은 0
  * @param pendingPinRequests {@link DebateSummaryView#pendingPinRequests()} 와 같다
  * @param pinRequestEnabled  {@link DebateSummaryView#pinRequestEnabled()} 와 같다
+ * @param pinRequestMinLikes {@link DebateSummaryView#pinRequestMinLikes()} 와 같다
  * @param openedBy       {@link DebateSummaryView#openedBy()} 와 같다
  * @param canManage      {@link DebateSummaryView#canManage()} 와 같다
  * @param canClose       {@link DebateSummaryView#canClose()} 와 같다
  */
 public record CommentDebateView(boolean enabled, String myStance, int opinionMax, boolean neutralEnabled, boolean stanceChangeAllowed, DebateVotesView votes,
                                 DebateCountsView counts,
-                                int myOpinionCount, Integer pendingPinRequests, boolean pinRequestEnabled, String openedBy, boolean canManage, boolean canClose) {
+                                int myOpinionCount, Integer pendingPinRequests, boolean pinRequestEnabled, int pinRequestMinLikes, String openedBy, boolean canManage, boolean canClose) {
 }

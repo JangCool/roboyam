@@ -231,6 +231,6 @@ public class PostFeedRows {
                 hidden ? 0 : r.commentCount(), !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && withPoll.contains(r.id()), bare ? null : deal, r.secretPost(),
-                hidden ? null : PostProcessStatus.effective(b, r.processStatus()));
+                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), null);
     }
 }

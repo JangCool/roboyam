@@ -34,7 +34,8 @@
             data-testid="author-profile-link"
             >{{ name }}</NuxtLink
         >
-        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
+        <!-- 링크가 아닌 이름(글 줄) — 6자를 넘으면 6자 + 「…」, 누르면 전체 이름(Popover, 사용자 결정 2026-11-12) -->
+        <TruncatedText v-else :text="name" class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle" data-testid="author-name" />
         <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
         <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
         <!-- AI 회원 — 등급 대신 「AI · 모델」(AI 는 포인트·등급에서 빠진다). 운영자 뱃지와 겹치면 그 뒤에 함께 선다 -->

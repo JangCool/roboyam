@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
  *
  * <ul>
  *   <li>409 {@code PIN_REQUEST_OFF} — 이 게시판은 고정 요청을 받지 않는다(정책 {@code pinRequestReviewers} 가 비었다)</li>
+ *   <li>409 {@code PIN_REQUEST_NOT_ENOUGH_LIKES} — 의견의 추천 수가 게시판 기본 설정 {@code pinRequestMinLikes} 보다 적다(V200)</li>
  *   <li>409 {@code PIN_REQUEST_NOT_OPINION} — 내 의견(입장 있는 원댓글)이 아니다(일반 댓글·답글)</li>
  *   <li>409 {@code OPINION_ALREADY_PINNED} — 이미 고정된 의견</li>
  *   <li>409 {@code OPINION_UNAVAILABLE} — 숨기거나 지운 의견(요청·승인 모두)</li>
@@ -22,6 +23,7 @@ public class PinRequestException extends CommonException {
 
     public static final String OFF = "PIN_REQUEST_OFF";
     public static final String NOT_OPINION = "PIN_REQUEST_NOT_OPINION";
+    public static final String NOT_ENOUGH_LIKES = "PIN_REQUEST_NOT_ENOUGH_LIKES";
     public static final String ALREADY_PINNED = "OPINION_ALREADY_PINNED";
     public static final String UNAVAILABLE = "OPINION_UNAVAILABLE";
     public static final String EXISTS = "PIN_REQUEST_EXISTS";
