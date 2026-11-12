@@ -123,7 +123,7 @@ import UtilValidation from '~/utils/util-validation';
  * 이메일 변경 `/settings/account/email` — 원본(community) `pages/settings/account/email.vue` 를 설정 묶음 안으로 옮겼다. 로그인 필요(`auth` 미들웨어, 서버도 401).
  *
  * 현재 이메일(읽기 전용) · 새 이메일(형식은 `UtilValidation` 으로 미리 검사) · 현재 비밀번호(본인 확인) → 「인증 메일 보내기」.
- * `202` 면 결과 화면: 새 주소로 인증 메일을 보냈고, **링크를 누를 때까지 지금 이메일이 그대로**다. 60초 동안은 다시 보낼 수 없다(`useCountdown`).
+ * `202` 면 결과 화면: 새 주소로 인증 메일을 보냈고, **링크를 누를 때까지 지금 이메일이 그대로**다. 2분 동안은 다시 보낼 수 없다(`useCountdown`).
  * 다시 보내는 것은 같은 요청을 한 번 더 보내는 것이라 **비밀번호를 다시 받는다** — 비밀번호는 입력칸 값(이 화면의 `password` 하나)에만 있고 성공·잠금 때 비운다.
  * 오류는 서버 문구를 그대로 쓰고 코드로 갈라 자리에 붙인다 —
  *  - `400 VALIDATION`(`fields.newEmail`)·`409 EMAIL_TAKEN` → 새 이메일 칸 아래 · `401 CURRENT_PASSWORD_WRONG`·`429 LOGIN_LOCKED` → 비밀번호 칸 아래(잠금 동안은 입력·단추 잠금)
@@ -157,7 +157,7 @@ const formError = ref('');
 const emailInput = ref<{ $el: HTMLInputElement } | null>(null);
 const passwordField = ref<{ focus: () => void } | null>(null);
 
-/** 인증 메일을 다시 보낼 수 있을 때까지(60초) */
+/** 인증 메일을 다시 보낼 수 있을 때까지(2분) */
 const cooldown = useCountdown();
 /** 비밀번호를 여러 번 틀려 잠겼다 — 잠금이 풀리면 오류를 걷고 비밀번호 칸으로 돌아온다 */
 const lock = useCountdown(undefined, () => {

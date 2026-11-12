@@ -16,7 +16,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "irobit.admin-auth.password-reset")
 public record AdminPasswordResetProperties(@DefaultValue("10") int codeValidMinutes, @DefaultValue("5") int maxFailures,
-                                           @DefaultValue("60") int cooldownSeconds, @DefaultValue("60") int windowMinutes,
+                                           @DefaultValue("120") int cooldownSeconds, @DefaultValue("60") int windowMinutes,
                                            @DefaultValue("5") int emailLimit, @DefaultValue("20") int ipLimit) {
 
     /** 승인번호 자릿수 — 응답의 {@code codeLength} */

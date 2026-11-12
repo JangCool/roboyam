@@ -65,7 +65,7 @@ irobit:
     password-reset:
       code-valid-minutes: 10      # 승인번호(숫자 6자리) 유효 시간
       max-failures: 5             # 한 번호로 틀릴 수 있는 횟수(이 횟수째 틀리면 소진 — 다시 받아야 한다)
-      cooldown-seconds: 60        # 같은 이메일로 다시 받을 수 있기까지의 초
+      cooldown-seconds: 120       # 같은 이메일로 다시 받을 수 있기까지의 초 — 2분(사용자 2026-11-13)
       window-minutes: 60          # 시간당 한도를 세는 창
       email-limit: 5              # 창 안에서 이메일 하나가 받을 수 있는 요청 수(가입 여부와 무관하게 센다)
       ip-limit: 20                # 창 안에서 IP 하나가 보낼 수 있는 요청 수

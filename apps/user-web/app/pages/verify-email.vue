@@ -107,7 +107,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
 
 /**
  * 이메일 인증 `/verify-email` — 원본(community) `pages/verify-email.vue` 를 옮겼다.
- * 주소에 `?token=` 이 있으면 메일 링크를 확인하고(로그인 없이 된다 — `auth-unless-token`), 없으면 로그인한 사람에게 "인증 메일을 보냈어요" 안내와 재발송(60초 쿨다운)을 보여 준다.
+ * 주소에 `?token=` 이 있으면 메일 링크를 확인하고(로그인 없이 된다 — `auth-unless-token`), 없으면 로그인한 사람에게 "인증 메일을 보냈어요" 안내와 재발송(2분 쿨다운)을 보여 준다.
  * 같은 주소가 **이메일 변경 링크**(`/settings/account/email`)도 받는다 — 응답의 `changed` 가 true 면 "이메일을 바꿨어요", 변경 링크에서만 오는 `409 EMAIL_TAKEN` 은 "이메일을 바꾸지 못했어요".
  *
  * - 재발송은 **실제** `POST /api/auth/email/resend`(`useEmailResend` — 안내 배너와 같은 쿨다운). 링크 확인도 실제 `POST /api/auth/email/verify`(로그인 없이).

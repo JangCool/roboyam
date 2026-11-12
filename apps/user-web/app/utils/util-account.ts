@@ -16,7 +16,7 @@ export default class UtilAccount {
     /** 비밀번호를 여러 번 틀려 잠겼을 때 서버가 시간을 안 줬으면 쓰는 값(로그인 잠금과 같은 10분) */
     static readonly DEFAULT_LOCK_SECONDS = 600;
     /** 인증·재설정 메일을 다시 보낼 수 있을 때까지(서버가 시간을 안 줬을 때) */
-    static readonly DEFAULT_RESEND_SECONDS = 60;
+    static readonly DEFAULT_RESEND_SECONDS = 120;
 
     /**
      * 기다릴 시간(초) — 서버가 준 값이 있으면 그것, 없거나 0 이하면 기본값

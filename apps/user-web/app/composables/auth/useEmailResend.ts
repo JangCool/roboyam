@@ -1,15 +1,15 @@
 /**
- * 인증 메일 다시 보내기 + 쿨다운(60초에 한 번).
+ * 인증 메일 다시 보내기 + 쿨다운(2분에 한 번 — 서버 resend-cooldown-seconds 와 같게).
  *
  * 안내 배너(`EmailVerifyBanner`)와 `/verify-email` 화면이 **같은 카운트다운**을 본다 — 끝나는 시각을
  * `useState` 에 두므로 한쪽에서 보내면 다른 쪽 버튼도 같이 잠긴다.
  *
  * 서버의 응답으로 갈린다.
- *  - `202` 보냈다 → 60초 쿨다운
+ *  - `202` 보냈다 → 2분 쿨다운
  *  - `429 RESEND_COOLDOWN` → 서버가 준 `retryAfterSeconds` 로 쿨다운
  *  - `409 ALREADY_VERIFIED` → 이미 인증됨. 로그인 상태를 새로 받아 배너가 사라지게 한다
  */
-const DEFAULT_COOLDOWN_SECONDS = 60;
+const DEFAULT_COOLDOWN_SECONDS = 120;
 
 export type ResendOutcome = 'sent' | 'cooldown' | 'already' | 'error';
 

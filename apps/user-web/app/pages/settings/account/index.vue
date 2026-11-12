@@ -68,7 +68,7 @@
                         </span>
                     </div>
 
-                    <!-- 인증 전 — 인증 메일 다시 보내기(60초 쿨다운은 상단 안내 배너와 같이 센다 — 실제 `POST /api/auth/email/resend`) -->
+                    <!-- 인증 전 — 인증 메일 다시 보내기(2분 쿨다운은 상단 안내 배너와 같이 센다 — 실제 `POST /api/auth/email/resend`) -->
                     <div v-if="user?.email && !user.emailVerified" class="border-b border-surface px-4 py-3" data-testid="account-resend">
                         <Button
                             type="button"

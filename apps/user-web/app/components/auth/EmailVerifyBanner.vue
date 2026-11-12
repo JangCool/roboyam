@@ -32,7 +32,7 @@
 import UtilTime from '#layers/display-time/utils/util-time';
 import type { ResendOutcome } from '~/composables/auth/useEmailResend';
 
-/** 이메일 인증 안내 배너 — 재발송 버튼과 쿨다운(60초) 카운트다운. 인증을 마치면(로그인 상태가 새로 오면) 사라진다. */
+/** 이메일 인증 안내 배너 — 재발송 버튼과 쿨다운(2분) 카운트다운. 인증을 마치면(로그인 상태가 새로 오면) 사라진다. */
 const { t } = useI18n();
 const { user } = useAuth();
 const { sending, errorMessage, cooldownRemaining, coolingDown, resend } = useEmailResend();

@@ -44,7 +44,7 @@ irobit:
     login-max-failures: 5         # 같은 이메일로 연속으로 틀릴 수 있는 횟수(이 횟수째 틀리면 잠근다 — 5번째 응답까지는 401, 그 뒤가 429)
     login-lock-seconds: 600       # 잠그는 시간(10분)
     verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
-    resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
+    resend-cooldown-seconds: 120  # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준) — 2분(사용자 2026-11-13 「너무 짧아」)
     session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
   # 회원 계정 흐름(docs/features/member-account-contract.md) — 재발송 60초·로그인 잠금은 위 auth 값을 함께 쓴다
   account:
