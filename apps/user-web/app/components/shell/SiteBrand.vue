@@ -10,6 +10,7 @@
           · 모바일도 데스크톱처럼 로고 전체(아이콘 포함)를 보인다(사용자 결정 2026-11-06 — 메뉴 단추가 상단 바 오른쪽 끝으로 가면서 「글자만(#wordmark)」을 그만둠).
         ⚠ 그림은 `<img src>` 로만 그린다 — SVG 로 올린 것도 서버가 data URI 로 바꿔 주므로 `v-html` 을 쓰지 않는다.
         크기: 가로로 긴 그림 로고(약 200×36)가 잘리지 않게 높이 28px(데스크톱 32px), 가로는 비율대로 최대 220px(모바일은 화면 폭의 45% 까지) — 헤더(48·56·60px)·드로어·로그인·설치 레이아웃에서 넘치지 않는다.
+          `size="lg"`(사이트 소개 머리)는 높이 48px(데스크톱 64px), 가로는 놓인 자리 폭까지. 이름 글자 크기는 둘 다 부모가 정한다.
     -->
     <span class="inline-flex min-w-0 items-center gap-2" data-cache-area="site.info">
         <img v-if="lightSrc && lightSrc === darkSrc" :src="lightSrc" :alt="imgAlt" :class="imgClass" data-testid="site-brand-logo" @error="markFailed(lightSrc)" />
@@ -23,6 +24,13 @@
 
 <script setup lang="ts">
 import UtilSiteLogo from '~/utils/util-site-logo';
+
+interface Props {
+    /** 그림 크기 — `md` 상단 바·로그인·설치(기본) · `lg` 사이트 소개 머리처럼 크게 보일 곳 */
+    size?: 'md' | 'lg';
+}
+
+const props = withDefaults(defineProps<Props>(), { size: 'md' });
 
 /** 상단 로고 자리(헤더·모바일 메뉴·로그인·설치 레이아웃). 이름을 모르면 기본 이름(`UtilSiteName.DEFAULT`)이다. */
 const { siteLabel, siteLogos, nameInLogo } = useSiteName();
@@ -45,5 +53,9 @@ const showName = computed(() => !nameInLogo.value || !lightSrc.value || !darkSrc
 /** 그림의 대체 텍스트 — 이름 글자가 옆에 없을 때만 이름 */
 const imgAlt = computed(() => (showName.value ? '' : siteLabel.value));
 
-const imgClass = 'block h-7 w-auto max-w-[min(13.75rem,45vw)] shrink-0 object-contain md:h-8 md:max-w-[13.75rem]';
+const imgClass = computed(() =>
+    props.size === 'lg'
+        ? 'block h-12 w-auto max-w-full shrink-0 object-contain md:h-16'
+        : 'block h-7 w-auto max-w-[min(13.75rem,45vw)] shrink-0 object-contain md:h-8 md:max-w-[13.75rem]',
+);
 </script>
