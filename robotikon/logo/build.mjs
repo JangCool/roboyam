@@ -28,19 +28,21 @@ function textPaths(runs, x0, baseline, size) {
 
 const C = { navy: '#0E1F4D', blue: '#2F6BFF', orange: '#FF9F2E', yellow: '#FFC83D', white: '#FFFFFF' }
 
-// 다리: 아바타의 A자 다리(꼭짓점 100,42 → 바닥 46,164 / 154,164)와 같은 기울기로, 머리 아래로만 짧게 낸다(바닥 y=LEG_END, 원본 164).
-// 머리 몸통 중앙(y=107)을 글자 중앙에 맞추는 정렬은 그대로 — 안테나처럼 다리도 아래로 튀어나온다. 캔버스 높이 40 안에 들도록 159 이하
+// 다리: 로보티콘(robotikon/src/parts.mjs body)과 같은 A자 — 꼭짓점 100,42 에서 머리 뒤로 내려가 바닥(46,164 / 154,164 기울기)으로 나온다.
+// 안테나 공(100,36 r12)이 꼭짓점에 얹혀 꼭대기를 대부분 가리고, 공과 머리 사이에 A 의 어깨만 살짝 보인다(사용자 2026-11-13 「로보티콘처럼, A 꼭대기는 너무 보이지 않게, 그래도 A 처럼」).
+// 머리 몸통 중앙(y=107)을 글자 중앙에 맞추는 정렬은 그대로. 캔버스 높이 40 안에 들도록 바닥 159 이하
 const LEG_END = Number(process.env.LEG_END ?? 159)
 const legX = (y, side) => +(100 + side * 54 * ((y - 42) / 122)).toFixed(2)
-const legs = (attrs) => [-1, 1].map((side) => `<line x1="${legX(130, side)}" y1="130" x2="${legX(LEG_END, side)}" y2="${LEG_END}" ${attrs}/>`).join('')
+const legs = (attrs) => [-1, 1].map((side) => `<line x1="100" y1="42" x2="${legX(LEG_END, side)}" y2="${LEG_END}" ${attrs}/>`).join('')
+const BALL = { cx: 100, cy: 36, r: 12 }
 
-// 심볼: 아바타 200 좌표의 머리(10..190 × 57..157) — 안테나 공(y=45, r12+테두리)이 위로, 다리가 아래로 튀어나온다
+// 심볼: 아바타 200 좌표의 머리(10..190 × 57..157) — 안테나 공(y=36, r12+테두리)이 위로, 다리가 아래로 튀어나온다
 function symbol(tx, ty, s, head) {
   return `<g transform="translate(${tx} ${ty}) scale(${s}) translate(-10 -57)">
-<g stroke="#FFFFFF" stroke-width="10" fill="#FFFFFF" stroke-linejoin="round"><line x1="100" y1="45" x2="100" y2="64"/><circle cx="100" cy="45" r="12"/><rect x="16" y="92" width="18" height="34" rx="9"/><rect x="166" y="92" width="18" height="34" rx="9"/><rect x="28" y="62" width="144" height="90" rx="40"/></g>
+<g stroke="#FFFFFF" stroke-width="10" fill="#FFFFFF" stroke-linejoin="round"><circle cx="${BALL.cx}" cy="${BALL.cy}" r="${BALL.r}"/><rect x="16" y="92" width="18" height="34" rx="9"/><rect x="166" y="92" width="18" height="34" rx="9"/><rect x="28" y="62" width="144" height="90" rx="40"/></g>
 ${legs('stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"')}
 ${legs(`stroke="${C.navy}" stroke-width="16" stroke-linecap="round"`)}
-<line x1="100" y1="45" x2="100" y2="64" stroke="${C.navy}" stroke-width="8" stroke-linecap="round"/><circle cx="100" cy="45" r="12" fill="${C.orange}"/>
+<circle cx="${BALL.cx}" cy="${BALL.cy}" r="${BALL.r}" fill="${C.orange}"/>
 <rect x="16" y="92" width="18" height="34" rx="9" fill="${C.navy}"/><rect x="166" y="92" width="18" height="34" rx="9" fill="${C.navy}"/>
 <rect x="28" y="62" width="144" height="90" rx="40" fill="${head}"/>
 <rect x="46" y="76" width="108" height="62" rx="28" fill="${C.navy}"/>
@@ -48,7 +50,7 @@ ${legs(`stroke="${C.navy}" stroke-width="16" stroke-linecap="round"`)}
 </g>`
 }
 
-// 캔버스 높이 40: 머리 몸통 높이 26(180×100 → s=0.26 → 너비 46.8), 세로 중앙 y=23, 안테나 꼭대기 ≈ 23-13-(12+12+5)*0.26 ≈ 2.5
+// 캔버스 높이 40: 머리 몸통 높이 26(180×100 → s=0.26 → 너비 46.8), 세로 중앙 y=23, 안테나 꼭대기(공 위 테두리 y=19) ≈ 10+(19-57)*0.26 ≈ 0.1, 다리 바닥(159+13) ≈ 39.9
 const H = 40
 const CY = 23
 const S = 0.26

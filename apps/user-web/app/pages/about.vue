@@ -169,6 +169,40 @@ const community = computed(() => {
 /** 로그인 뒤 이 화면으로 돌아온다 */
 const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
 
+/**
+ * 「할 수 있는 것」 같은 본문 글머리 목록 — 항목마다 뜻에 맞는 아이콘(사용자 2026-11-13 「각 항목에 맞는 아이콘 넣어」).
+ * 본문은 관리자가 고치는 HTML 이라 차례가 아니라 항목 머리(첫 굵은 글자, 없으면 항목 글 전체)의 낱말로 고른다. 맞는 낱말이 없으면 반짝 아이콘.
+ * 위에서부터 처음 맞는 줄을 쓴다(「이야기 나누기」 설명에 「게시판」이 있어도 머리 낱말이 먼저 맞게 머리를 먼저 본다).
+ */
+const LIST_ICONS: readonly { icon: string; words: RegExp }[] = [
+    { icon: 'pi pi-comments', words: /이야기|대화|수다|나누|게시판|talk|chat|share|discuss/i },
+    { icon: 'pi pi-graduation-cap', words: /배우|알려|강좌|팁|사용기|노하우|learn|tip|guide|review/i },
+    { icon: 'pi pi-users', words: /모이|모임|소모임|함께|meet|group|together/i },
+    { icon: 'pi pi-shopping-bag', words: /사기|쇼핑|핫딜|공동구매|장터|거래|shop|deal|buy|market/i },
+    { icon: 'pi pi-face-smile', words: /표현|로보티콘|이모티콘|감정|express|emoticon|emoji/i },
+];
+const LIST_ICON_FALLBACK = 'pi pi-sparkles';
+
+/** 정화된 본문 HTML 의 맨 위 글머리 목록 항목 앞에 아이콘 칩(장식, 읽지 않음)을 넣는다 — 화면이 SPA(`ssr: false`)라 브라우저 DOMParser 를 쓴다 */
+function withListIcons(source: string): string {
+    const doc = new DOMParser().parseFromString(`<div>${source}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return source;
+    for (const li of root.querySelectorAll(':scope > ul > li')) {
+        const head = li.querySelector('strong')?.textContent?.trim() || '';
+        const text = li.textContent ?? '';
+        const icon = LIST_ICONS.find((item) => head && item.words.test(head))?.icon ?? LIST_ICONS.find((item) => item.words.test(text))?.icon ?? LIST_ICON_FALLBACK;
+        const chip = doc.createElement('span');
+        chip.className = 'about-li-icon';
+        chip.setAttribute('aria-hidden', 'true');
+        const i = doc.createElement('i');
+        i.className = icon;
+        chip.appendChild(i);
+        li.prepend(chip);
+    }
+    return root.innerHTML;
+}
+
 const html = ref<string | null>(null);
 const status = ref<'loading' | 'error' | 'ready'>('loading');
 const errorMessage = ref('');
@@ -178,7 +212,7 @@ async function load(): Promise<void> {
     errorMessage.value = '';
     try {
         const res = await api.about();
-        html.value = res.html?.trim() ? res.html : null;
+        html.value = res.html?.trim() ? withListIcons(res.html) : null;
         status.value = 'ready';
     } catch (e) {
         html.value = null;
@@ -252,7 +286,7 @@ onMounted(() => void load());
     border-radius: 9999px;
     background: var(--p-primary-color);
 }
-/* 글머리 목록 — 한 줄에 한 항목(여러 열로 나누면 설명이 좁아져 안 읽힌다 — 사용자 2026-11-13), 항목마다 반짝 아이콘 칩(PrimeIcons `pi-sparkles` 글자, 읽지 않게 대체 글자 빈칸) */
+/* 글머리 목록 — 한 줄에 한 항목(여러 열로 나누면 설명이 좁아져 안 읽힌다 — 사용자 2026-11-13), 항목마다 뜻에 맞는 아이콘 칩(`withListIcons` 가 넣는 `.about-li-icon`) */
 .about-body > :deep(ul) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -264,28 +298,27 @@ onMounted(() => void load());
 .about-body > :deep(ul > li) {
     position: relative;
     margin: 0;
-    padding: 0.875rem 1rem 0.875rem 3rem;
+    padding: 0.875rem 1rem 0.875rem 3.75rem;
     border: 1px solid color-mix(in srgb, var(--p-primary-color) 18%, transparent);
     border-radius: 0.875rem;
     background: color-mix(in srgb, var(--p-primary-color) 5%, transparent);
     line-height: 1.6;
 }
-.about-body > :deep(ul > li)::before {
-    content: '\ea21';
-    content: '\ea21' / '';
+.about-body > :deep(ul > li > .about-li-icon) {
     position: absolute;
     left: 0.875rem;
-    top: 0.875rem;
+    top: 0.75rem;
     display: grid;
     place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: 9999px;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.75rem;
     background: var(--p-primary-color);
     color: var(--p-primary-contrast-color);
-    font-family: 'primeicons';
-    font-size: 0.75rem;
-    font-style: normal;
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--p-primary-color) 28%, transparent);
+}
+.about-body > :deep(ul > li > .about-li-icon > i) {
+    font-size: 1.05rem;
     line-height: 1;
 }
 /* ④ 행동 단추 상자 */
