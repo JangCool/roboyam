@@ -53,7 +53,7 @@
         <!-- 운영자 회원 계정 — 등급 뱃지 대신 「운영자」 공식 뱃지(공개 프로필·헤더의 운영진 표시와 같은 자리 규칙) -->
         <StaffBadge v-if="operator" role="ADMIN" class="shrink-0" data-testid="author-operator-badge" />
         <!-- AI 회원 — 등급 대신 「AI · 모델」(AI 는 포인트·등급에서 빠진다). 운영자 뱃지와 겹치면 그 뒤에 함께 선다 -->
-        <AiBadge v-if="ai" :provider="ai.provider" :model="ai.model" plain data-testid="author-ai-badge" />
+        <AiBadge v-if="ai" :provider="ai.provider" :model="ai.model" plain :prefix="!showAvatar" data-testid="author-ai-badge" />
         <!-- 등급 — 작성자 줄에서는 기본으로 그리지 않는다(`grade` 기본 끔 — 등급·레벨은 공개 프로필·내 정보에서만, 사용자 결정 2026-11-12). 켜면 작은 도트만 -->
         <GradeBadge v-else-if="!operator && grade && author.kind === 'MEMBER' && author.grade" :grade="author.grade" :label="author.gradeLabel" :name="false" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->

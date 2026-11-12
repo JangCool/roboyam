@@ -54,11 +54,10 @@
         <!-- 모바일 — 작성자 줄을 사진 밑까지 줄 폭 전체로, 오른쪽 끝에 추천 · 조회 · 날짜(댓글 수는 제목 옆 숫자만 — 사용자 2026-11-12) -->
         <p class="mt-2 flex items-center gap-x-1.5 text-xs text-muted-color md:hidden" data-testid="hotdeal-row-author-mobile">
             <PostAuthorLabel :author="author" avatar menu class="min-w-0" />
-            <span class="ml-auto inline-flex shrink-0 items-center gap-1.5">
-                <PostRowStats :row="row" />
-                <span aria-hidden="true">·</span>
-                <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-            </span>
+            <!-- 날짜는 닉네임 바로 오른쪽, 추천·조회는 오른쪽 끝(사용자 2026-11-12 — 게시판 목록과 같게) -->
+            <span aria-hidden="true">·</span>
+            <PostListDate :iso="row.createdAt" :mode="dateDisplay" class="shrink-0" />
+            <PostRowStats :row="row" class="ml-auto" />
         </p>
     </NuxtLink>
     <NuxtLink

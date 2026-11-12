@@ -160,12 +160,10 @@
                                                 <p v-if="row.excerpt" class="m-0 mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-color">{{ row.excerpt }}</p>
                                                 <p class="mt-2 flex items-center gap-x-1.5 text-xs text-muted-color">
                                                     <PostAuthorLabel :author="row.author" avatar menu class="min-w-0" />
-                                                    <!-- 오른쪽 끝 — 추천 · 시간(사용자 2026-11-12 「추천수는 나와야지」) -->
-                                                    <span class="ml-auto inline-flex shrink-0 items-center gap-1.5">
-                                                        <PostRowStats :row="row" :views="false" />
-                                                        <span aria-hidden="true">·</span>
-                                                        <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
-                                                    </span>
+                                                    <!-- 시간은 닉네임 바로 오른쪽, 추천은 오른쪽 끝(사용자 2026-11-12 — 게시판 목록과 같게) -->
+                                                    <span aria-hidden="true">·</span>
+                                                    <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" class="shrink-0" />
+                                                    <PostRowStats :row="row" :views="false" class="ml-auto" />
                                                 </p>
                                             </div>
                                             <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5" class="max-md:hidden">
