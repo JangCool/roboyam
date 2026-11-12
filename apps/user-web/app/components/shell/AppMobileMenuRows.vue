@@ -130,7 +130,7 @@ const { description: menuDesc } = useMenuDescription();
 const { menuDescription: showDesc } = useMenuStyle();
 const { nodes } = useMenu();
 /** 하단 탭(숏컷)에 이미 있는 메뉴 노드인가 — 모바일 상단 두 줄에서 뺀다 */
-const { covers: inBottomTabs } = useBottomTabs();
+const { covers: inBottomTabs, isCommunity } = useBottomTabs();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
 const rowId = useId();
@@ -147,7 +147,7 @@ function groupDivider(key: string): MenuDivider | null {
 
 /**
  * 첫 줄 — 최상위 항목(그룹 밖 항목)과 사이드 몫 그룹 이름을 메뉴 트리 차례대로(2026-11-12 — 예전엔 항목 먼저). 상단 띠 그룹(주제)은 둘째 줄에만 둔다(데스크톱과 같게).
- * 하단 탭(숏컷)에 있는 항목·그룹(최신글·커뮤니티·소모임·게시판 …)은 이 줄에서 뺀다 — 홈만은 남겨 맨 왼쪽에 둔다(사용자 결정 2026-11-12) — 기준은 하단 탭 목록 하나(`useBottomTabs().covers`, 사용자 결정 2026-11-06 — 데스크톱 메뉴는 그대로)
+ * 하단 탭(숏컷)에 있는 항목·그룹(최신글·소모임 …)은 이 줄에서 뺀다 — 홈(맨 왼쪽)과 커뮤니티 묶음(트리 차례대로 홈 오른쪽)은 남긴다(사용자 결정 2026-11-12) — 기준은 하단 탭 목록 하나(`useBottomTabs().covers`, 사용자 결정 2026-11-06 — 데스크톱 메뉴는 그대로)
  */
 /** 홈 항목 — 하단 탭에 있어도 첫 줄 맨 왼쪽(공지 앞)에 남긴다(사용자 결정 2026-11-12) */
 function isHome(node: MenuItemRow['node']): boolean {
@@ -163,11 +163,15 @@ const tabs = computed<FirstTab[]>(() => {
             ),
         );
     const groups = sidePick.groups.value
-        .filter((section) => !(section.group && inBottomTabs(section.group)))
+        .filter((section) => !(section.group && inBottomTabs(section.group) && !isCommunity(section.group)))
         .map<FirstTab>((section) => ({ kind: 'group', key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
     // 메뉴 관리의 트리 차례 그대로 섞어 놓는다 — 항목을 앞에 모으지 않는다(사용자 결정 2026-11-12 「홈 옆에 팁·강좌·사용기」 — 데스크톱 막대와 같은 규칙)
     const order = new Map(nodes.value.map((node, index) => [node.id, index]));
-    const at = (tab: FirstTab) => order.get(tab.kind === 'item' ? tab.row.node.id : tab.key) ?? Number.MAX_SAFE_INTEGER;
+    // 홈을 맨 앞에, 그 뒤는 트리 차례 — 홈 · 인기글 · 커뮤니티 · 팁·강좌·사용기 …(사용자 2026-11-12 「커뮤니티 인기글 위치 바꿔」)
+    const at = (tab: FirstTab) => {
+        if (tab.kind === 'item' && isHome(tab.row.node)) return -1;
+        return order.get(tab.kind === 'item' ? tab.row.node.id : tab.key) ?? Number.MAX_SAFE_INTEGER;
+    };
     return [...items, ...groups].sort((a, b) => at(a) - at(b));
 });
 

@@ -39,7 +39,7 @@ function findGroup(list: readonly MenuNode[], hit: (group: MenuGroupNode) => boo
 }
 
 /**
- * 모바일 하단 탭(숏컷) 목록 — 홈·인기글·최신글·커뮤니티·소모임·메뉴(mobile-nav-prefix-style-contract 3절, 2026-11-11 — 게시판·내 정보 탭을 빼고 인기글·메뉴를 넣었다. 내 정보는 상단 바 오른쪽 끝 아이콘).
+ * 모바일 하단 탭(숏컷) 목록 — 홈·최신글·커뮤니티·소모임·메뉴(2026-11-12 인기글 뺌)(mobile-nav-prefix-style-contract 3절, 2026-11-11 — 게시판·내 정보 탭을 빼고 인기글·메뉴를 넣었다. 내 정보는 상단 바 오른쪽 끝 아이콘).
  * **이 목록 하나가 원천이다**:
  * 하단 탭(`AppBottomTabs`)이 그리고, 모바일 상단 메뉴 줄(`AppMobileMenuRows`·`AppTopTabs`)은 `covers` 로 하단 탭에 있는 항목·그룹을 뺀다(데스크톱 메뉴는 그대로).
  * 탭을 바꾸면 상단 줄도 따라간다.
@@ -77,8 +77,7 @@ export function useBottomTabs() {
 
     const tabs = computed<BottomTab[]>(() => [
         { key: 'home', to: '/', label: t('shell.tabHome'), icon: 'pi pi-home', active: under('/') },
-        // 인기글 — 시안의 불꽃은 PrimeIcons 에 없어 인기글 화면이 이미 쓰는 오름세 선 아이콘(`pages/popular.vue`)
-        { key: 'popular', to: '/popular', label: term('POPULAR'), icon: 'flame', active: under('/popular') },
+        // 인기글은 뺐다(사용자 2026-11-12 「하단에서 인기글 빼」) — 모바일 상단 첫 줄에 나온다
         { key: 'latest', to: '/latest', label: term('LATEST'), icon: 'pi pi-clock', active: under('/latest') },
         {
             key: 'community',
@@ -106,5 +105,10 @@ export function useBottomTabs() {
         return Boolean(node.path?.startsWith('/')) && tabPaths.value.has(trim(node.path as string));
     }
 
-    return { tabs, covers };
+    /** 이 노드가 커뮤니티 묶음인가 — 모바일 상단 첫 줄은 하단 탭에 있어도 커뮤니티를 홈 오른쪽에 남긴다(사용자 2026-11-12) */
+    function isCommunity(node: Pick<MenuNode, 'kind' | 'id'>): boolean {
+        return node.kind === 'GROUP' && Boolean(community.value) && node.id === community.value?.id;
+    }
+
+    return { tabs, covers, isCommunity };
 }
