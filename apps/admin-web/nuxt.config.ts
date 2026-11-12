@@ -1,7 +1,5 @@
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
-import Aura from '@primeuix/themes/aura';
-import { definePreset } from '@primeuix/themes';
 
 /**
  * 관리자 화면은 Nuxt SPA 다 (`ssr: false`) — user-web 과 같은 방식이다.
@@ -20,47 +18,6 @@ import { definePreset } from '@primeuix/themes';
  * 세션 쿠키(`ADMIN_SESSION`)·CSRF 쿠키(`XSRF-TOKEN`)는 프록시를 지나 개발 서버 주소(`localhost:NUXT_PORT`)의 쿠키로 저장된다(쿠키는 포트를 가르지 않는다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8920';
-
-/** 강조색이 파랑이라 PrimeVue 기본(에메랄드) 대신 파랑을 쓴다 — user-web 과 같다. */
-const RoboyamPreset = definePreset(Aura, {
-    semantic: {
-        primary: {
-            50: '{blue.50}',
-            100: '{blue.100}',
-            200: '{blue.200}',
-            300: '{blue.300}',
-            400: '{blue.400}',
-            500: '{blue.500}',
-            600: '{blue.600}',
-            700: '{blue.700}',
-            800: '{blue.800}',
-            900: '{blue.900}',
-            950: '{blue.950}',
-        },
-        /* 보더 선 색 — 하모니카3 기준(`main.css` 의 `--line` · `--line-strong` 와 같다): 면 경계 라이트 surface-200 · 다크 surface-800, 입력 칸 경계 라이트 300 · 다크 700 */
-        content: { borderColor: 'light-dark({surface.200}, {surface.800})' },
-        /* 입력 칸 — 경계색은 위와 같고, 글자 크기는 하모니카3 기준(small 을 13px 로 한 단계만 줄여 앱 기본으로 쓴다 — 아래 `primevue.options.pt` 가 입력 칸 전부에 small 을 기본으로 건다) */
-        formField: {
-            borderColor: 'light-dark({surface.300}, {surface.700})',
-            sm: { fontSize: '0.8125rem', paddingX: '0.625rem', paddingY: '0.4rem' },
-        },
-        /* 흐린 글자(`text-muted-color`)의 라이트 색을 한 단계 진하게 — 근거는 user-web 의 같은 설정 */
-        text: {
-            mutedColor: 'light-dark({surface.600}, {surface.400})',
-            hoverMutedColor: 'light-dark({surface.700}, {surface.300})',
-        },
-    },
-    components: {
-        /* 안내 상자 Message 의 경고(warn) 글자색 — 연한 노랑 바탕에서 4.5:1 을 넘기게 한 단계 진하게(user-web 과 같다) */
-        message: {
-            warn: {
-                color: 'light-dark({yellow.700}, {yellow.500})',
-                outlined: { color: 'light-dark({yellow.800}, {yellow.500})' },
-                simple: { color: 'light-dark({yellow.800}, {yellow.500})' },
-            },
-        },
-    },
-});
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
@@ -121,10 +78,8 @@ export default defineNuxtConfig({
     },
 
     // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`ROBOYAM_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
-    modules: ['@primevue/nuxt-module', ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
-
-    // 화면 문구 — 모듈과 로캘 목록은 `@roboyam/i18n` 레이어가 정한다. 이 앱의 문구 설정 파일(`i18n/i18n.config.ts`)만 알린다(`i18n` 키가 있는 레이어·앱만 모듈이 읽는다)
-    i18n: { vueI18n: 'i18n.config.ts' },
+    // SPA 를 가볍게(`scripts/nuxt/spa-slim.mjs` — PrimeVue 실행 설정의 목록 빼기·미리 받기 끄기) — PrimeVue 모듈 뒤에 둔다
+    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
     // 폴더명을 컴포넌트 이름에 붙이지 않는다
     components: [{ path: '~/components', pathPrefix: false, extensions: ['vue'] }],
@@ -156,21 +111,16 @@ export default defineNuxtConfig({
     css: ['~/assets/css/main.css', 'primeicons/primeicons.css'],
 
     primevue: {
+        // SPA 라 컴포넌트 스타일을 HTML 에 미리 넣지 않는다 — 켜 두면 빌드가 등록된 모든 컴포넌트(안 쓰는 DataTable·Galleria 까지)의 스타일 약 49만 자를 index.html 에 박는다.
+        // 화면이 뜰 때 PrimeVue 가 쓰는 컴포넌트의 스타일만 넣는다(`scripts/nuxt/spa-slim.mjs`)
+        loadStyles: false,
+        // 테마(프리셋·다크 모드·CSS 층)는 `app/theme/primevue-theme.ts` 를 화면 번들로 불러온다 — `options.theme` 에 두면 Aura 전체 토큰(약 11만 자)이 실행 설정으로 index.html 에 박힌다
+        importTheme: { as: 'RoboyamTheme', from: fileURLToPath(new URL('./app/theme/primevue-theme.ts', import.meta.url)) },
         options: {
             // PrimeUI 라이선스(PrimeVue 5) — PrimeVue 가 설치되는 순간 키를 확인하므로 app.vue 가 아니라 여기서 넘긴다(늦게 넘기면 「Invalid PrimeUI License」 배너).
             // 값은 이 앱의 .env.development(dev)·.env.production(generate) 의 VITE_PRIMEUI_LICENSE_KEY — nuxt.config 를 읽기 전에 --dotenv 파일이 process.env 에 들어온다.
             // primevue 5.0.2 의 PrimeVueConfiguration 타입(nuxt-module 이 쓰는 primevue/config)에 license 가 빠져 있어 펼침으로 넘긴다 — 실행 코드(@primevue/core setup)는 options.license 를 읽는다
             ...({ license: process.env.VITE_PRIMEUI_LICENSE_KEY || undefined } as Record<string, unknown>),
-            theme: {
-                preset: RoboyamPreset,
-                options: {
-                    darkModeSelector: '[data-theme="dark"]',
-                    cssLayer: {
-                        name: 'primevue',
-                        order: 'theme, base, primevue',
-                    },
-                },
-            },
             ripple: true,
             /*
              * 입력 칸의 기본 크기를 small 로 내린다(하모니카3 와 같다). PrimeVue 에는 전역 size 설정이 없고 size 프롭이 `p-*-sm` 클래스를 붙이는 방식이라

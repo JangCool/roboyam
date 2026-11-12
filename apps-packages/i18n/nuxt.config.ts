@@ -1,3 +1,6 @@
+import { fileURLToPath } from 'node:url';
+import { defineNuxtConfig } from 'nuxt/config';
+
 /**
  * 화면 문구(한국어·영어) 공유 레이어 — user-web · admin-web 이 `extends: ['@roboyam/i18n']` 로 쓴다(`@roboyam/display-time` 이 이 레이어에 의존하므로 display-time 을 쓰면 따라온다).
  * 규약은 `.claude/guides/frontend/i18n.md`.
@@ -10,19 +13,24 @@
  * **브라우저 언어를 자동으로 따르지 않는다** (`detectBrowserLanguage: false`). 서버가 정한 값이 있는데 브라우저가 덮으면, 관리자가 사이트 기본값을 바꿔도 어떤 사람에게는 안 먹는다.
  *
  * **문구 파일은 `i18n/locales/{언어}/{업무}.ts`** — 언어별 한 파일이 아니라 업무별로 나눈다. 한 파일에 다 넣으면 수천 줄이 되어 무엇이 어디 있는지 못 찾는다.
- * 파일을 늘리면 두 언어의 `locales/{언어}/index.ts` 에 한 줄씩 더한다(파일 이름이 키의 첫 마디). `import.meta.glob` 자동 수집은 쓰지 않는다 — Nitro 서버 번들에서 변환되지 않아 서버가 500 이 된다.
+ * **파일 이름이 업무 이름**(키의 첫 마디)이고 따로 목록에 등록하지 않는다 — 문구는 **쓰는 화면이 가져간다**(빌드 모듈 `buildtime/business-messages.ts`: 코드의 `'업무.키'` 를 보고
+ * 그 화면 조각에 그 업무의 한국어 문구를 싣는다. 다른 언어와 코드에서 못 찾은 키는 실행 중에 업무 단위로 받는다 — `runtime/business-messages.ts`).
  *
  * ⚠ **설정 파일 위치는 모듈이 정한다.** 각 레이어(와 앱)의 **루트 아래 `i18n/`** (`restructureDir` 기본값)이다 — `app/i18n/` 에 두면 "설정 파일을 못 찾았다"고 하고 조용히 건너뛴다.
- *    레이어마다 자기 `i18n/i18n.config.ts`(문구)를 두면 모듈이 모든 레이어의 것을 읽어 `messages` 를 깊게 합친다(앱 → 레이어 순으로 모두). 로캘 목록(`locales`)과 언어 기본값은 이 레이어만 정한다.
+ *    문구 파일은 레이어·앱마다 자기 루트의 `i18n/locales/{언어}/{업무}.ts` 에 두면 빌드 모듈이 모두 모은다(업무 이름은 레이어를 통틀어 하나 — 겹치면 빌드가 멈춘다).
+ *    로캘 목록·이름과 언어 기본값(`i18n/i18n.config.ts`)은 이 레이어만 정한다.
  */
 export default defineNuxtConfig({
     $meta: { name: 'i18n' },
 
-    modules: ['@nuxtjs/i18n'],
+    // 업무별 문구 나누기(`buildtime/business-messages.ts`) — 문구를 쓰는 화면 조각에 싣는다(첫 화면은 첫 화면이 쓰는 업무만)
+    modules: ['@nuxtjs/i18n', fileURLToPath(new URL('./buildtime/business-messages.ts', import.meta.url))],
 
     i18n: {
         strategy: 'no_prefix',
         defaultLocale: 'ko',
+        // 문구 파일(`file`)은 적지 않는다 — 문구는 모듈의 로캘 파일이 아니라 업무별로 쓰는 화면이 가져온다(`buildtime/business-messages.ts`).
+        // 예전에는 `i18n.config.ts` 의 `messages` 로 두 언어·모든 화면 문구를 첫 화면에서 한꺼번에 받았다(user-web 약 186KB gzip — 2026-11-12 측정).
         locales: [
             { code: 'ko', language: 'ko-KR', name: '한국어' },
             { code: 'en', language: 'en-US', name: 'English' },

@@ -15,9 +15,6 @@ export default defineNuxtConfig({
     // 에디터 문구를 화면 언어로 — i18n 레이어에 의존한다
     extends: ['@roboyam/i18n'],
 
-    // 이 레이어의 문구 설정 파일(`i18n/i18n.config.ts`)을 모듈에 알린다 — `i18n` 키가 있는 레이어만 모듈이 읽는다
-    i18n: { vueI18n: 'i18n.config.ts' },
-
     // 컴포저블은 업무 폴더(composables/rich-editor/…)로 나눈다. `*.types.ts`·`mock/` 의 제외는 앱의 `imports:dirs` 훅이 한다
     imports: { dirs: ['composables/**'] },
 

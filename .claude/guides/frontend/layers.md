@@ -7,7 +7,7 @@
 * **쓰는 법**: 앱 `package.json` 에 `"@roboyam/<이름>": "workspace:*"`, `nuxt.config.ts` 에 `extends: ['@roboyam/<이름>']`(상대 경로 extends 금지). 추가 후 루트에서 `pnpm install`.
 * **의존 방향**: 앱 → 레이어. 레이어는 앱을 모르므로 `~/`·`~~/`·앱 코드를 import 하지 않는다. 레이어 코드는 `#layers/<이름>/utils/util-xxx` 로 명시 import 한다. 레이어의 순수 코어(`utils/`)는 `vue`·Nuxt 자동 임포트를 쓰지 않는다.
 * **서버 호출 금지**: 레이어에 `$fetch`·`useApiClient`·`/api/` 가 없다. 앱이 서버 값을 받아 레이어 상태(`setXxx`)에 채운다.
-* **규약은 앱과 같다**: composables 업무 폴더·타입 `.types.ts`(`composables.md`), 문구 i18n 키(`i18n.md` — 레이어 자신의 문구는 레이어 루트 `i18n/locales/{ko,en}/` 와 `i18n: { vueI18n: 'i18n.config.ts' }`), 컴포넌트(`components.md` — 레이어는 `components/` 바로 아래에 두고 `pathPrefix:false`·`extensions:['vue']` 로 등록).
+* **규약은 앱과 같다**: composables 업무 폴더·타입 `.types.ts`(`composables.md`), 문구 i18n 키(`i18n.md` — 레이어 자신의 문구는 레이어 루트 `i18n/locales/{ko,en}/{업무}.ts` — 설정 없이 `@roboyam/i18n` 의 빌드 모듈이 모아 쓰는 화면에 싣는다), 컴포넌트(`components.md` — 레이어는 `components/` 바로 아래에 두고 `pathPrefix:false`·`extensions:['vue']` 로 등록).
 * **자동 임포트**: 레이어는 `imports.dirs: ['composables/**']` 를 두고, `*.types.ts`·`mock/` 제외 훅은 **앱** `nuxt.config.ts` 에만 둔다(레이어 훅은 앱의 같은 훅에 가려진다). 새 앱에도 같은 훅을 건다.
 
 ## 2. 공유 패키지
