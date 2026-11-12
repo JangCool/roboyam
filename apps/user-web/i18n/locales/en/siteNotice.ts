@@ -4,6 +4,7 @@
 export default {
     label: 'Site notice',
     badge: 'Notice',
+    boardLink: 'Go to the notice board',
     newWindow: '(opens in a new window)',
     prev: 'Previous notice',
     next: 'Next notice',
@@ -13,9 +14,5 @@ export default {
         DAY: 'Hide for a day',
         WEEK: 'Hide for a week',
         MONTH: 'Hide for a month',
-        FOREVER: 'Hide forever',
     },
-    foreverTitle: 'Hide this notice forever?',
-    foreverMessage: "You're responsible for any harm from not checking notices in time.\nThe bar comes back when a new notice is posted.",
-    foreverConfirm: 'Hide forever',
 };

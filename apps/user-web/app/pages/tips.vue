@@ -141,7 +141,34 @@
                                     <FoldedRow :reason="foldOf(row)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                                         <!-- 칩·날짜 자리는 섞인 목록의 칩 위치(`listChipPosition`)를 따른다 — 이 목록은 원래 조회·추천 수를 보이지 않는다. 게시판 이름은 메타 줄 글자 그대로 -->
                                         <NuxtLink :to="`/posts/${row.id}`" class="group block py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-latest-row">
-                                            <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5">
+                                            <!--
+                                                모바일(사용자 시안 확정 2026-11-12): 윗줄 = 게시판 이름(맨 왼쪽) · 말머리 → 썸네일 64×48(그림 표시만) + 제목 → 본문 미리보기(썸네일 아래 줄 폭 전체) →
+                                                아랫줄(썸네일 밑까지 줄 폭 전체) = 아바타·닉네임 … 오른쪽 끝 추천 · 시간. 데스크톱은 아래 `PostRowFrame` 그대로
+                                            -->
+                                            <div class="md:hidden" data-testid="tips-latest-row-mobile">
+                                                <PostRowChips :row="row" general class="mb-1.5">
+                                                    <span class="shrink-0 text-xs font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
+                                                    <span class="text-xs text-muted-color" aria-hidden="true">·</span>
+                                                </PostRowChips>
+                                                <div class="flex items-start gap-2.5">
+                                                    <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" :label="false" class="w-16 shrink-0" />
+                                                    <p class="m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
+                                                        <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" :chips="false" />
+                                                    </p>
+                                                </div>
+                                                <!-- 본문 미리보기 — 썸네일 아래 줄 폭 전체(사용자 2026-11-12) -->
+                                                <p v-if="row.excerpt" class="m-0 mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-color">{{ row.excerpt }}</p>
+                                                <p class="mt-2 flex items-center gap-x-1.5 text-xs text-muted-color">
+                                                    <PostAuthorLabel :author="row.author" avatar menu class="min-w-0" />
+                                                    <!-- 오른쪽 끝 — 추천 · 시간(사용자 2026-11-12 「추천수는 나와야지」) -->
+                                                    <span class="ml-auto inline-flex shrink-0 items-center gap-1.5">
+                                                        <PostRowStats :row="row" :views="false" />
+                                                        <span aria-hidden="true">·</span>
+                                                        <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5" class="max-md:hidden">
                                                 <template #start>
                                                     <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
                                                 </template>

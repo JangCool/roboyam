@@ -24,16 +24,17 @@
                                 <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap" />
                             </template>
                         </BoardPostRowDesktop>
-                        <PostRowFrame :row="row" :position="chipPosition" stats-below :date-display="dateDisplay" :class="chipPosition === 'ABOVE' ? 'md:hidden' : ''">
+                        <PostRowFrame :row="row" :position="chipPosition" stats-below :date-display="dateDisplay" meta-class="text-[12.5px] leading-[18px] text-muted-color" :class="chipPosition === 'ABOVE' ? 'md:hidden' : ''">
                             <template v-if="row.debate" #stats-lead>
                                 <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap text-xs leading-none" />
                                 <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
                             </template>
-                            <template #default="{ chips, stats, dateInline, statsEnd }">
+                            <template #author><PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" /></template>
+                            <template #default="{ chips, stats, dateInline, metaBelow }">
                                 <p class="m-0 line-clamp-2 break-keep text-[15.5px] font-normal leading-[23px] group-hover:underline">
                                     <PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" />
                                 </p>
-                                <p class="m-0 mt-[3px] flex items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
+                                <p v-if="!metaBelow" class="m-0 mt-[3px] flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-[18px] text-muted-color">
                                     <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
@@ -52,11 +53,6 @@
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                     </template>
-                                    <!-- 모바일 숫자 아래 + 썸네일 없음 — 추천·조회를 닉네임 줄 오른쪽 끝에(사용자 결정 2026-11-12) -->
-                                    <span v-if="statsEnd" class="ml-auto inline-flex shrink-0 items-center gap-2">
-                                        <template v-if="row.debate"><FeedDebateCounts :debate="row.debate" /><span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" /></template>
-                                        <PostRowStats :row="row" />
-                                    </span>
                                 </p>
                             </template>
                             <!-- 썸네일 64×44 — 모바일은 그 밑에 추천·조회(제목 두 줄 높이와 거의 같다 — 2026-11-12 사용자 원래 크기로) -->

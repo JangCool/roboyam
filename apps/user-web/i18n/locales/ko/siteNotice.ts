@@ -5,6 +5,7 @@
 export default {
     label: '사이트 공지',
     badge: '공지',
+    boardLink: '공지 게시판으로 가기',
     newWindow: '(새 창)',
     prev: '이전 공지',
     next: '다음 공지',
@@ -14,9 +15,5 @@ export default {
         DAY: '하루 동안 보지 않기',
         WEEK: '1주일 동안 보지 않기',
         MONTH: '1달 동안 보지 않기',
-        FOREVER: '영원히 보지 않기',
     },
-    foreverTitle: '이 공지를 영원히 닫을까요?',
-    foreverMessage: '공지를 신속하게 확인하지 못해 생기는 피해는 본인 책임이에요.\n새 공지가 올라오면 띠가 다시 보여요.',
-    foreverConfirm: '영원히 닫기',
 };

@@ -27,3 +27,6 @@
 - 검사 `MenuTreeValidator`(shared): 오류는 `fields["nodes[i]….targetId"]` — `menu.shortcut.originMissing`(=`SHORTCUT_ORIGIN_MISSING`) · `menu.shortcut.topLevel`(최상위) · `menu.shortcut.sameFolder`(=`SHORTCUT_SAME_FOLDER`, 같은 폴더 두 번째부터). 게시판 아닌 바로가기 `….targetType`(`menu.shortcut.board`), 모바일 탭 `….mobileTab`(`menu.shortcut.mobileTab`). 폴더의 `shortcut` 은 버린다. 진짜 자리 = 트리 차례 첫 진짜 항목(하위 폴더 안도).
 - 응답: 관리자 트리 항목·공개 메뉴 항목 모두 `shortcut` 을 늘 싣는다(일반 항목은 false). 감사 기록 트리 요약에 `[shortcut]`.
 - 서버에서 게시판→폴더를 menu_nodes 로 정하는 곳은 가젯 페이지 기준 폴더(`GadgetPageFolders` — 공개 페이지 FOLDER 범위·글쓰기 게시판 `writeBoard`, 관리자 `/api/admin/gadget-pages/folders`)뿐이고 결정대로 바로가기 게시판을 담는다. 글쓰기 기본 게시판·지금 있는 곳·게시판 모음은 화면이 공개 메뉴로 계산한다(서버 바꿀 곳 없음). 폴더 자동 넣기(`MenuBoardLinker`)는 새 게시판을 진짜 자리로만 넣는다.
+
+- **핫 로토픽 정리**(2026-11-12 사용자): 핫 로토픽 묶음의 「누르면 가는 곳」(가젯 페이지 연결)을 뗐다 — 설치 프리셋 `roboyam.structure.json` 메뉴 행 + 로컬 DB. 가젯 페이지 행 자체는 지우지 않았다(관리자 가젯 페이지 목록에 남음). 홈에서는 지금처럼 둘째 줄에 핫 로토픽 게시판 칸이 보인다.
+  둘째 줄(모바일 `AppMobileMenuRows`·데스크톱 `DaumMenuBar` LNB)의 그룹 이름은 그 줄의 그룹이 하나뿐이면 숨긴다(화면 읽기용으로만). 모바일 첫 줄은 하단 탭 항목을 빼되 홈만은 남겨 맨 왼쪽(공지 앞)에 둔다.

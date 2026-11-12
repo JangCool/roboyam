@@ -4,7 +4,7 @@
         · 목록(사용자 시안 확정 2026-11-08 — 기존 핫딜 UI 는 두고 칩·추천·조회만 바꿨다. 칩 위치 설정 `chipPosition` 과 상관없이 이 모양 고정):
             윗줄(줄 폭 전체, 사진보다 위) = 왼쪽 칩[딜 배지(광고(사업자 글)/제휴·수수료/종료·품절·기간 종료/품절 알림 N/얼마 안 남음/마감 임박/HOT/링크 바뀜·가격 수정) + 말머리(없으면 흐린 「일반」)·처리 상태·19]
                      | 얇은 세로선 | 상점 아이콘 + 몰 이름 · 오른쪽 끝 추천·조회(`PostRowStats` — 차례·강조 기준·색은 운영자 설정)
-            → 사진(왼쪽) + 제목·[댓글 수] / 할인율 · 딜가 굵게 · 정상가 취소선 · 배송비 / 작성자(사업자 글은 상호 + 「사업자」) · 시각 · 댓글
+            → 사진(왼쪽) + 제목·[댓글 수] / 할인율 · 딜가 굵게 · 정상가 취소선 · 배송비 / 작성자(사업자 글은 상호 + 「사업자」) · 시각 · 댓글(모바일은 작성자 줄이 사진 밑 줄 폭 전체 · 오른쪽 끝 추천 · 조회 · 날짜, 윗줄 숫자 없음, 댓글은 제목 옆 숫자만 — 2026-11-12)
         · `compact`(가젯): 사진 · 배지 · 제목 / 몰 이름 · 가격 한 줄 — 말머리·메타 줄·수정 이력 배지·「배송비 모름」 없이 좁게(이전 모양 그대로)
     -->
     <NuxtLink
@@ -29,7 +29,8 @@
                     </span>
                 </template>
             </div>
-            <PostRowStats :row="row" class="ml-auto" />
+            <!-- 데스크톱만 — 모바일은 추천·조회를 작성자 줄의 날짜 왼쪽에(사용자 2026-11-12) -->
+            <PostRowStats :row="row" class="ml-auto max-md:hidden" />
         </div>
         <div class="flex items-start gap-3">
             <HotdealThumb :url="deal?.image?.url ?? row.thumbnailUrl" class="size-16 md:size-[4.5rem]" />
@@ -40,7 +41,8 @@
                 <p v-if="deal" class="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2">
                     <HotdealPriceLine :deal="deal" shipping />
                 </p>
-                <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                <!-- 데스크톱 — 작성자 줄은 사진 옆 칸 안 -->
+                <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color max-md:hidden">
                     <PostAuthorLabel :author="author" avatar menu />
                     <span aria-hidden="true">·</span>
                     <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
@@ -49,6 +51,15 @@
                 </p>
             </div>
         </div>
+        <!-- 모바일 — 작성자 줄을 사진 밑까지 줄 폭 전체로, 오른쪽 끝에 추천 · 조회 · 날짜(댓글 수는 제목 옆 숫자만 — 사용자 2026-11-12) -->
+        <p class="mt-2 flex items-center gap-x-1.5 text-xs text-muted-color md:hidden" data-testid="hotdeal-row-author-mobile">
+            <PostAuthorLabel :author="author" avatar menu class="min-w-0" />
+            <span class="ml-auto inline-flex shrink-0 items-center gap-1.5">
+                <PostRowStats :row="row" />
+                <span aria-hidden="true">·</span>
+                <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+            </span>
+        </p>
     </NuxtLink>
     <NuxtLink
         v-else

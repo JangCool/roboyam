@@ -121,7 +121,8 @@
                         class="flex shrink-0 items-center"
                         :class="index > 0 ? 'ml-2 border-l border-hairline pl-2' : ''"
                     >
-                        <h2 :id="`${lnbId}-${section.key}`" class="m-0 pl-4 pr-0.5 text-xs font-normal text-muted-color">
+                        <!-- 그룹 이름 — 이 줄의 그룹이 하나뿐이면 숨긴다(화면 읽기용으로만, 사용자 결정 2026-11-12 「핫 로토픽 글자 빼」). 둘 이상이면 구분하려고 보인다 -->
+                        <h2 :id="`${lnbId}-${section.key}`" class="m-0 pl-4 pr-0.5 text-xs font-normal text-muted-color" :class="groupSections.length === 1 ? 'sr-only' : ''">
                             <AppMenuGroupLabel v-if="section.group" :group="section.group" />
                             <template v-else>{{ localizedName(section.title, section.titleEn) }}</template>
                         </h2>
@@ -241,13 +242,15 @@ function isGroup(section: MenuBarSection): section is MenuBarSection & { title: 
  * GNB 탭 — 제목 없는 구역(최상위 항목)은 항목마다 탭 하나, 최상위 그룹은 그룹 이름 탭 하나. 제목 없는 구역에는 항목만 있다(`UtilMenu.barSections`).
  * 그룹을 둘째 줄에 이어 놓는 방식(`inlineGroups`)이면 그룹 탭은 없고 최상위 항목만 남는다.
  */
+/** 공지 띠가 켜져 있으면 첫 줄에서 공지 칸을 뺀다(띠의 「공지」로 들어간다, 사용자 결정 2026-11-12) */
+const noticeInBar = useNoticeInBar();
 const tabs = computed<GnbTab[]>(() =>
     bar.value.flatMap<GnbTab>((section) =>
         isGroup(section)
             ? props.inlineGroups
                 ? []
                 : [{ kind: 'group', key: section.key, section }]
-            : section.entries.flatMap<GnbTab>((entry) => (entry.kind === 'item' ? [{ kind: 'item', key: entry.key, row: entry.row }] : [])),
+            : section.entries.flatMap<GnbTab>((entry) => (entry.kind === 'item' && !noticeInBar.hidden(entry.row.node) ? [{ kind: 'item', key: entry.key, row: entry.row }] : [])),
     ),
 );
 

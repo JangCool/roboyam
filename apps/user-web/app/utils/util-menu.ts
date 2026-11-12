@@ -692,6 +692,15 @@ export default class UtilMenu {
     }
 
     /**
+     * 공지 게시판 칸인가(서버 고정 slug `notice` — `SiteNoticeBars.NOTICE_BOARD_SLUG`)
+     * @param {Pick<MenuItemNode, 'type' | 'board'>} node - 메뉴 항목.
+     * @returns {boolean} 공지 게시판 칸이면 true.
+     */
+    static isNoticeBoard(node: Pick<MenuItemNode, 'type' | 'board'>): boolean {
+        return node.type === 'BOARD' && node.board?.slug === NOTICE_BOARD_SLUG;
+    }
+
+    /**
      * 데스크톱 메뉴 배치에 따라 트리를 로고 옆 · 상단 막대 · 사이드로 나눈다 — 모든 셸·메뉴 부품이 이 한 규칙을 쓴다(`useMenuItems(scope)`).
      * - 최상위 항목(그룹 밖에 놓인 항목 — 홈·인기글 …): `LOGO` 면 로고 옆에만, `MENU` 면 메뉴 안(상단 막대가 있으면 막대, 없으면 사이드).
      * - 최상위 그룹: `ALL` 이면 모두 막대, `NONE` 이면 모두 사이드, 그룹 ID 목록이면 고른 그룹은 막대·나머지는 사이드.

@@ -47,3 +47,5 @@
 - **프론트 타입과 차이**(`useTipsApi.types.ts`): `TipsPost.tags`·`TipsOverview.tags` 없음(화면 목업 유지) · `boards[]` 에 `id` 가 더 있음 · headline 은 최대 5(타입 주석은 4).
 - **시험**: admin `HighlightPlaceAdminTest`(5) · `GadgetPatchesTest`(+1, 10) · `HomeLayoutGroupBuyConfigTest`(7, HIGHLIGHT 칸에 place) · api `TipsHttpTest`(6) · `GadgetAdTest`·`GadgetGroupBuyTest`(9) 통과.
 - 관리자 하이라이트 화면(곳 고르개)·user-web `/tips` 실제 연결은 아직(MOCK 그대로).
+
+- **모바일 최신 글 줄**(2026-11-12 사용자 시안 확정): 윗줄 = 게시판 이름(맨 왼쪽) · 말머리, 썸네일 64×48(그림 표시만 — `GadgetThumb :label=false`) + 제목, 본문 미리보기는 썸네일 아래 줄 폭 전체, 아랫줄(썸네일 밑까지 줄 폭 전체) = 아바타·닉네임(회원 메뉴) … 오른쪽 끝 추천 · 시간. 데스크톱은 그대로.

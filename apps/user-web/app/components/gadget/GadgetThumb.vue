@@ -4,7 +4,7 @@
         <img v-if="src && !broken" :src="src" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" decoding="async" @error="broken = true" />
         <span v-else class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 text-muted-color" aria-hidden="true" data-testid="home-thumb-empty">
             <i class="pi pi-image text-base" />
-            <span class="whitespace-nowrap text-[0.625rem] leading-none @max-[3.5rem]:hidden">{{ t('home.noImage') }}</span>
+            <span v-if="label" class="whitespace-nowrap text-[0.625rem] leading-none @max-[3.5rem]:hidden">{{ t('home.noImage') }}</span>
         </span>
         <slot />
     </span>
@@ -15,9 +15,11 @@ interface Props {
     src?: string | null;
     /** CSS `aspect-ratio`(예: `16 / 10`) */
     ratio?: string;
+    /** 빈 자리에 「이미지 없음」 글자 — 끄면 그림 표시만(작은 썸네일, /tips 모바일 최신 글 64×48) */
+    label?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { src: null, ratio: '16 / 10' });
+const props = withDefaults(defineProps<Props>(), { src: null, ratio: '16 / 10', label: true });
 
 const { t } = useI18n();
 const broken = ref(false);

@@ -72,8 +72,9 @@
                 :class="index > 0 ? 'ml-1 border-l border-hairline pl-1' : ''"
             >
                 <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크(첫 줄 그룹 단추는 둘째 줄을 바꾸는 일만 한다).
-                     첫 줄에서 고른 그룹(커뮤니티·팁·강좌·사용기 …)을 펼친 때는 첫 줄에 이미 그 이름이 밝게 있으니 화면에서 숨기고 화면 읽기용으로만 둔다(사용자 2026-11-08). 기본 둘째 줄(상단 띠 그룹 — 핫 로토픽 …)은 첫 줄에 없는 이름이라 그대로 -->
-                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color" :class="sidePick.current.value ? 'sr-only' : ''">
+                     첫 줄에서 고른 그룹(커뮤니티·팁·강좌·사용기 …)을 펼친 때는 첫 줄에 이미 그 이름이 밝게 있으니 화면에서 숨기고 화면 읽기용으로만 둔다(사용자 2026-11-08).
+                     기본 둘째 줄(상단 띠 그룹 — 핫 로토픽 …)도 그룹이 하나뿐이면 이름을 숨긴다(사용자 결정 2026-11-12 「핫 로토픽 글자 빼」 — 그룹이 둘 이상이면 구분하려고 보인다) -->
+                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color" :class="sidePick.current.value || secondGroups.length === 1 ? 'sr-only' : ''">
                     <AppMenuGroupLabel v-if="group.group" :group="group.group" />
                     <template v-else>{{ localizedName(group.title, group.titleEn) }}</template>
                 </h2>
@@ -133,6 +134,8 @@ const { covers: inBottomTabs } = useBottomTabs();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
 const rowId = useId();
+/** 공지 띠가 켜져 있으면 첫 줄에서 공지 칸을 뺀다(띠의 「공지」로 들어간다, 사용자 결정 2026-11-12) */
+const noticeInBar = useNoticeInBar();
 /** 두 줄(`AppScrollRow`)과 그 안의 스크롤 상자 — 활성 칸 가운데로 끌어오기가 쓴다 */
 const { row: firstRow, scroller: firstScroller } = useScrollRowRef();
 const { row: secondRow, scroller: secondScroller } = useScrollRowRef();
@@ -143,21 +146,29 @@ function groupDivider(key: string): MenuDivider | null {
 }
 
 /**
- * 첫 줄 — 최상위 항목(그룹 밖 항목)을 먼저, 그 뒤에 사이드 몫 그룹 이름. 상단 띠 그룹(주제)은 둘째 줄에만 둔다(데스크톱과 같게).
- * 하단 탭(숏컷)에 있는 항목·그룹(홈·최신글·커뮤니티·소모임·게시판 …)은 이 줄에서 뺀다 — 기준은 하단 탭 목록 하나(`useBottomTabs().covers`, 사용자 결정 2026-11-06 — 데스크톱 메뉴는 그대로)
+ * 첫 줄 — 최상위 항목(그룹 밖 항목)과 사이드 몫 그룹 이름을 메뉴 트리 차례대로(2026-11-12 — 예전엔 항목 먼저). 상단 띠 그룹(주제)은 둘째 줄에만 둔다(데스크톱과 같게).
+ * 하단 탭(숏컷)에 있는 항목·그룹(최신글·커뮤니티·소모임·게시판 …)은 이 줄에서 뺀다 — 홈만은 남겨 맨 왼쪽에 둔다(사용자 결정 2026-11-12) — 기준은 하단 탭 목록 하나(`useBottomTabs().covers`, 사용자 결정 2026-11-06 — 데스크톱 메뉴는 그대로)
  */
+/** 홈 항목 — 하단 탭에 있어도 첫 줄 맨 왼쪽(공지 앞)에 남긴다(사용자 결정 2026-11-12) */
+function isHome(node: MenuItemRow['node']): boolean {
+    return node.type === 'BUILTIN' && node.key === 'HOME';
+}
+
 const tabs = computed<FirstTab[]>(() => {
     const items = allBar.value
         .filter((section) => section.title === null)
         .flatMap<FirstTab>((section) =>
             section.entries.flatMap<FirstTab>((entry) =>
-                entry.kind === 'item' && !inBottomTabs(entry.row.node) ? [{ kind: 'item', key: entry.key, row: entry.row, divider: entry.row.node.divider ?? null }] : [],
+                entry.kind === 'item' && !noticeInBar.hidden(entry.row.node) && (isHome(entry.row.node) || !inBottomTabs(entry.row.node)) ? [{ kind: 'item', key: entry.key, row: entry.row, divider: entry.row.node.divider ?? null }] : [],
             ),
         );
     const groups = sidePick.groups.value
         .filter((section) => !(section.group && inBottomTabs(section.group)))
         .map<FirstTab>((section) => ({ kind: 'group', key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
-    return [...items, ...groups];
+    // 메뉴 관리의 트리 차례 그대로 섞어 놓는다 — 항목을 앞에 모으지 않는다(사용자 결정 2026-11-12 「홈 옆에 팁·강좌·사용기」 — 데스크톱 막대와 같은 규칙)
+    const order = new Map(nodes.value.map((node, index) => [node.id, index]));
+    const at = (tab: FirstTab) => order.get(tab.kind === 'item' ? tab.row.node.id : tab.key) ?? Number.MAX_SAFE_INTEGER;
+    return [...items, ...groups].sort((a, b) => at(a) - at(b));
 });
 
 /**

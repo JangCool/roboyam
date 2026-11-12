@@ -29,9 +29,10 @@
                                 <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap text-xs leading-none" />
                                 <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
                             </template>
-                            <template #default="{ chips, stats, dateInline, statsEnd }">
+                            <template #author><PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" /></template>
+                            <template #default="{ chips, stats, dateInline, metaBelow }">
                                 <p class="line-clamp-2 text-sm leading-snug md:text-[0.9375rem]"><PostRowTitle :row="row" :new-post-hours="newPostHours" :chips="chips" /></p>
-                                <p class="mt-1 flex items-center gap-x-1.5 text-xs text-muted-color" :class="statsEnd ? 'flex-nowrap' : 'flex-wrap'">
+                                <p v-if="!metaBelow" class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
                                     <PostAuthorLabel :author="row.author" avatar menu :blocked="row.blocked === 'USER'" />
                                     <template v-if="stats">
                                         <span aria-hidden="true">·</span>
@@ -50,11 +51,6 @@
                                         <span aria-hidden="true">·</span>
                                         <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                     </template>
-                                    <!-- 모바일 숫자 아래 + 썸네일 없음 — 추천·조회를 닉네임 줄 오른쪽 끝에(사용자 결정 2026-11-12) -->
-                                    <span v-if="statsEnd" class="ml-auto inline-flex shrink-0 items-center gap-2">
-                                        <template v-if="row.debate"><FeedDebateCounts :debate="row.debate" /><span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" /></template>
-                                        <PostRowStats :row="row" />
-                                    </span>
                                 </p>
                             </template>
                             <template #end>
