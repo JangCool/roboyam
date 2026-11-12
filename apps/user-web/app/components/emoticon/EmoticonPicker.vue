@@ -1,7 +1,7 @@
 <template>
     <!--
         이모티콘 단추 + 고르기 창 — 댓글 평문 입력(아래 줄)·글/댓글 에디터 도구 모음(`RichEditor` 의 `#tools` 칸)이 같이 쓴다.
-        데스크톱은 단추 아래 팝오버, 모바일은 아래에서 올라오는 시트(`AppSheet`). 이모지는 여러 개 연달아 고를 수 있게 창을 열어 두고, 이모티콘은 넣으면 닫는다.
+        데스크톱은 단추 아래 팝오버, 모바일은 아래에서 올라오는 시트(`AppSheet`). 이모지·이모티콘 모두 하나 넣으면 창을 닫는다(넣은 모습을 바로 보이게).
         넣는 일은 부르는 쪽이 한다(`emoji`·`emoticon` 이벤트) — 입력칸마다 커서 다루는 법이 달라서.
     -->
     <Button
@@ -65,6 +65,7 @@ function close(): void {
 
 function onEmoji(value: string): void {
     emit('emoji', value);
+    close();
 }
 
 function onEmoticon(id: string): void {
