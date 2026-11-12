@@ -322,7 +322,7 @@ export default {
         LEFT: '「{screen}」 본문 상자 바깥 왼쪽에 세로 배너(160×600)가 떠요 — 스크롤해도 따라와요.',
         RIGHT: '「{screen}」 본문 상자 바깥 오른쪽에 세로 배너(160×600)가 떠요 — 스크롤해도 따라와요.',
     },
-    previewWingsWidth: '창이 넓을 때만 보여요 — 본문 바깥 한쪽 여백이 {margin}px 이상이어야 해서 기본·네이버식 셸은 창 {base}px, 다음식·로보얌 셸은 {wide}px 이상이에요. 모바일·태블릿에는 없어요.',
+    previewWingsWidth: '창이 넓을 때만 보여요 — 본문 바깥 한쪽 여백이 {margin}px 이상이어야 해서 기본·네이버식 셸은 창 {base}px, 다음식·아이로빗 셸은 {wide}px 이상이에요. 모바일·태블릿에는 없어요.',
     previewWingsExcluded: '소모임 화면·소모임 글·광고 숨김 게시판에는 없고, 19금 게시판·19금 글은 「19금 게시판」 설정이 켜져야 나와요.',
     previewPinnedKind: { NOTICE: '공지', PINNED: '고정' },
     previewRowsFolded: '⋯ {n}줄',

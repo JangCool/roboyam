@@ -8,7 +8,7 @@ export default {
     readOnly: 'View only. Changing or removing the key needs the secret settings permission.',
     loadFailed: 'Could not load the public data settings',
     cryptoMissingTitle: 'The server has no encryption key',
-    cryptoMissingText: 'Without it values cannot be saved (removing still works). Check the server setting ROBOYAM_CRYPTO_KEY first.',
+    cryptoMissingText: 'Without it values cannot be saved (removing still works). Check the server setting IROBIT_CRYPTO_KEY first.',
 
     usageTitle: 'Used by',
     usageNts: 'NTS business check',
@@ -32,7 +32,7 @@ export default {
     notConfigured: 'Not set',
     updatedAt: 'Changed {at}',
     updatedBy: '{at} · {name}',
-    envNotice: 'The server env variable ROBOYAM_NTS_SERVICE_KEY is in use. A key saved here takes priority; removing it falls back to the env variable.',
+    envNotice: 'The server env variable IROBIT_NTS_SERVICE_KEY is in use. A key saved here takes priority; removing it falls back to the env variable.',
     value: 'Auth key',
     newValue: 'New auth key',
     valueHelp: 'Letters and digits, no spaces',

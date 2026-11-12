@@ -6,7 +6,7 @@ import com.community.payment.dto.PaymentOrderType;
 import com.community.payment.dto.PaymentStatus;
 import com.community.payment.entity.PaymentOrderEntity;
 import com.community.payment.entity.QPaymentOrderEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -34,7 +34,7 @@ import org.springframework.stereotype.Repository;
  * 결제 번호)은 이 행을 잠근 결제 확정 안에서 넣는다.
  */
 @Repository
-public class PaymentOrderStore extends RoboyamRepositoryQDSL {
+public class PaymentOrderStore extends IrobitRepositoryQDSL {
 
     /** 결제 주문 — 한 줄 모양의 별칭(관리자 읽기 저장소가 함께 쓴다) */
     static final QPaymentOrderEntity O = QPaymentOrderEntity.paymentOrderEntity;

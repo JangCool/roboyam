@@ -1,0 +1,200 @@
+# 공개 사이트(server/api)와 관리자 앱(server/admin)이 같이 쓰는 설정 — 환경에 상관없는 기본값
+#
+# 두 앱의 application.yml 이 `spring.config.import: classpath:irobit-shared.yml` 로 이 파일을 가져온다.
+#   - 환경(local · dev · prod)은 빌드가 아니라 실행 때 고른다: SPRING_PROFILES_ACTIVE=dev (지정하지 않으면 local, 기본값은 각 앱의 application.yml)
+#   - 환경마다 다른 값은 irobit-shared-<환경>.yml(이 파일의 프로파일 변형)과 환경 변수가 정한다
+#   - 여기에는 환경에 상관없는 값과, 환경 변수로 받을 자리(기본값 없음)만 둔다
+#   - dev · prod 는 접속 정보에 기본값이 없다. 환경 변수가 빠지면 기동이 실패한다(빠뜨린 채 뜨지 않게)
+#   - 비밀값은 저장소에 넣지 않는다. 환경 변수 목록은 docker/<환경>/.env.example
+# 같은 키는 한 곳에서만 정한다 — 한 앱만 읽는 값은 그 앱의 application.yml 에 둔다.
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    # dev · prod 는 평문이 아니라 암호문 ENC(...) 를 넣는다. 기동 때 IROBIT_CRYPTO_KEY 로 복호화한다(EncryptedPropertyPostProcessor)
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  # 스키마는 Flyway 마이그레이션(db/migration/<스트림>)이 만든다. Hibernate 가 만들지 않는다
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+
+  # 위치·이력 표(shared 스트림)와 자기 스트림 이관은 코드가 정한다(SchemaMigrationConfig) — 여기에 spring.flyway.locations 를 두지 않는다.
+  # 끄면(false) shared·자기 스트림 모두 이관되지 않는다(자동 구성이 이관 전략을 부르므로).
+  flyway:
+    enabled: true
+
+  # 서버가 응답에 싣는 문구(오류 message·입력 오류 fields·설치 점검·인증 메일)의 번들. 언어는 요청의 Accept-Language(ko|en, 기본 ko)로 정한다.
+  # 번들 위치·인코딩은 이 값을 따른다(MessageConfig). 키가 없는 언어는 ko 로 되돌아간다.
+  messages:
+    basename: messages/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+  # 인증 메일 서버는 설치 마법사·설정 화면이 DB(mail_settings)에 저장한다. 여기에 spring.mail.* 기본값을 두지 않는다.
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  # 파일 올리기(multipart) 한도. 이미지 규칙(2MB)은 서비스가 판정하고 "지금 몇 MB" 를 문구로 알려야 하므로 그 위(10MB)까지는 받아 서비스가 거절한다. 그 위는 413 FILE_TOO_LARGE
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
+server:
+  shutdown: graceful
+  # Caddy 뒤에서 도므로 X-Forwarded-* 를 따른다(원래 주소·https 여부 — 세션·CSRF 쿠키의 Secure 판단)
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+# 로그 줄마다 요청 ID(MDC requestId — RequestIdFilter)를 싣는다. 요청 밖의 로그는 빈 칸이다
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
+# 도커·설치기는 앱을 /actuator/health/readiness 로 기다린다
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+irobit:
+  # 올린 이미지(로고·글 이미지·아바타 등)의 저장소(docs/features/media-storage-contract.md) — local(서버 디스크) | r2(Cloudflare R2) | s3(AWS S3·MinIO 등 S3 호환).
+  # r2 와 s3 는 같은 S3 호환 구현이고 기본값만 다르다. 기본은 local·dev = local, prod = r2(irobit-shared-prod.yml). IROBIT_STORAGE_TYPE 로 어느 프로필이든 바꾼다.
+  # local: 폴더를 공개 사이트(api)와 관리자 앱(admin)이 같이 본다 — 앱 서버가 여러 대이면 같은 폴더를 볼 수 없어 r2·s3 를 쓴다.
+  # r2·s3: 설정이 틀리면(버킷·지역·계정 ID 없음, 키 한쪽만) 기동을 멈춘다. 비밀 키는 ENC(...) 가능(IROBIT_CRYPTO_KEY 로 복호화)
+  storage:
+    type: ${IROBIT_STORAGE_TYPE:local}
+    local-path: ${IROBIT_STORAGE_PATH:/var/lib/irobit/media}
+    r2:
+      account-id: ${IROBIT_STORAGE_R2_ACCOUNT_ID:}           # r2: 이 값으로 endpoint https://<계정 ID>.r2.cloudflarestorage.com · region auto 를 채운다
+    # 버킷 공통(r2·s3)
+    s3:
+      endpoint: ${IROBIT_STORAGE_S3_ENDPOINT:}               # 직접 주면 이것이 이긴다. s3 에서 비우면 AWS S3, MinIO = http://localhost:9000
+      region: ${IROBIT_STORAGE_S3_REGION:}                   # r2 는 비우면 auto. s3 는 필수(AWS = ap-northeast-2 등, MinIO = us-east-1)
+      bucket: ${IROBIT_STORAGE_S3_BUCKET:}
+      access-key: ${IROBIT_STORAGE_S3_ACCESS_KEY:}           # r2 는 R2 API 토큰(필수). s3 는 키 둘 다 비우면 AWS 기본 자격 증명 체인(EC2 IAM 역할 등)
+      secret-key: ${IROBIT_STORAGE_S3_SECRET_KEY:}           # ENC(...) 권장
+      path-style: ${IROBIT_STORAGE_S3_PATH_STYLE:false}      # MinIO 는 true
+      public-base-url: ${IROBIT_STORAGE_S3_PUBLIC_BASE_URL:} # 새 이미지 주소의 머리(R2 사용자 도메인 https://media.example.com). 비우면 /media/… 를 앱이 버킷에서 읽어 내보낸다
+  # 공개 사이트 캐시(docs/features/cache-admin-contract.md) — 서버 메모리(Caffeine). TTL·켜기/끄기·비우기는 관리자 화면(DB)이 정하고 각 서버가 poll-seconds 마다 따라간다.
+  # node-name 을 비우면 「<api|admin>-<NODE_ID>」(관리자 화면의 서버 이름). report-seconds 마다 상태를 DB 에 보고하고, node-timeout-seconds 넘게 보고가 없으면 목록에서 뺀다
+  cache:
+    node-name: ${IROBIT_CACHE_NODE_NAME:}
+    poll-seconds: 3
+    report-seconds: 10
+    node-timeout-seconds: 60
+  # Snowflake ID 의 서버 번호(0~1023). 앱 서버마다 달라야 한다(공개 사이트·관리자 앱·서버 여러 대 모두 서로 다른 값). dev · prod 는 기본값이 없다 — 빠지면 기동이 실패한다
+  node-id: ${NODE_ID}
+  # 개인정보 칸 암호화(DataCipher)·중복 확인 해시(BlindIndex) — 설정 비밀값용 IROBIT_CRYPTO_KEY 와 따로다(docs/domain/commerce.md 10-9).
+  # 비어 있어도 앱은 뜨고 그 키가 필요한 요청만 503 이다. local 만 개발용 기본값이 있다(irobit-shared-local.yml)
+  data-crypto:
+    key: ${IROBIT_DATA_KEY:}                     # 지금 키 「<버전>:<base64 32바이트>」 — 잃으면 저장된 값을 영영 못 읽는다(백업)
+    previous-keys: ${IROBIT_DATA_KEY_PREVIOUS:}  # 키 교체 중의 예전 키(쉼표로 여럿, 풀기만 한다). 교체 배치가 끝나면 비운다
+    index-key: ${IROBIT_INDEX_KEY:}              # 해시 키 base64 32바이트 — 바꿀 수 없다(원문을 남기지 않아 다시 계산할 수 없다)
+  # 방문 분석(docs/features/site-analytics-contract.md). 수집은 「설정 › 통계 수집」(DB stats_collection_settings — 모두 기본 꺼짐)이 켠다.
+  # datasource.url 이 비면 분석 표(analytics_*)를 메인 DB 에 둔다. 나중에 TimescaleDB 등으로 옮길 때만 준다(AnalyticsDatabaseConfig — 비밀번호는 ENC(...) 가능)
+  analytics:
+    datasource:
+      url: ${IROBIT_ANALYTICS_DB_URL:}
+      username: ${IROBIT_ANALYTICS_DB_USERNAME:}
+      password: ${IROBIT_ANALYTICS_DB_PASSWORD:}
+      maximum-pool-size: 3
+  # 메일 서버 연결 시험의 시간 제한(설치 마법사 mail-check)
+  mail:
+    connect-timeout-millis: 5000
+    io-timeout-millis: 10000
+  # 설치 마법사(docs/features/install-contract.md). 서버를 처음 띄우면 설치 전이고 /install 에서 설치를 마쳐야 쓸 수 있다
+  install:
+    # 설치 토큰. 비우면 설치 전 기동 때 서버가 무작위 토큰(24자)을 만들어 로그에 한 번만 출력한다. 자동화·컨테이너·서버 여러 대는 환경 변수로 같은 토큰을 준다.
+    # local 만 개발용 기본값이 있다(irobit-shared-local.yml) — dev · prod 에는 기본값이 없다
+    token: ${IROBIT_INSTALL_TOKEN:}
+    max-failures: 5               # 같은 IP 가 연속으로 틀릴 수 있는 횟수(이 횟수째 틀리면 잠근다)
+    lock-seconds: 600             # 잠그는 시간(10분)
+    global-per-minute: 30         # 서버 전체에서 분당 받는 토큰 확인 시도 상한
+    refresh-millis: 15000         # 설치 전에 다른 앱 서버가 끝낸 설치를 따라오는 주기(설치가 끝나면 멈춘다)
+  # 본인인증(docs/features/commerce-foundation-contract.md 「0-4」). 구현은 배포 설정이다 — portone(포트원 통합 본인인증) | fake(local·시험 전용).
+  # dev · prod 프로필에서 fake 면 기동을 멈춘다(IdentityConfig). 포트원 상점 ID·API 비밀키·채널 키는 관리자 화면(설정 › 포트원)이 DB 에 암호화해 둔다. local 은 fake(irobit-shared-local.yml)
+  identity:
+    provider: ${IROBIT_IDENTITY_PROVIDER:portone}
+    verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 사업자 신원(docs/features/business-contract.md) — 국세청 사업자 상태조회 구현은 배포 설정이다 — odcloud(공공데이터포털) | fake(local·시험 전용).
+  # dev · prod 프로필에서 fake 면 기동을 멈춘다(NtsConfig). 서비스 키(일반 인증키 Decoding)는 관리자 화면(설정 › 공공데이터포털)에서 저장한 값이 먼저,
+  # 없으면 이 환경 변수 — 조회 때마다 읽는다(화면에서 바꾸면 재기동 없이 반영). 둘 다 없으면 모든 조회가 「조회 불가(키 없음)」 — 신청은 받고 운영자는 사유를 적고 승인한다
+  business:
+    nts:
+      provider: ${IROBIT_NTS_PROVIDER:odcloud}
+      service-key: ${IROBIT_NTS_SERVICE_KEY:}
+      daily-validate-limit: 5   # 회원 한 명의 신청·수정 진위확인 하루(한국 날짜) 횟수 — 넘으면 429 BUSINESS_NTS_DAILY_LIMIT, 0 이면 제한 없음
+  # 사업자 신청 건(docs/features/biz-application-contract.md — BizApplicationProperties). 결제 기한 기본 72시간 · 입금 기한 기본 7일(승인 화면이 기한을 정해 보낸다).
+  # 입금 계좌는 수동 결제 안내(공개 상세)에 보인다 — 비면 화면은 「운영팀이 따로 안내」(가정)
+  biz:
+    payment-hours: 72
+    deposit-days: 7
+    # 운영자 등록 건의 자기 승인(등록자 = 승인자, 04-ia-review §2) — allow(기본, 1인 운영: 승인 창 경고 + 메모 필수 + 처리 기록·감사 selfApproved) | deny(409 BIZ_SELF_APPROVAL_DENIED)
+    self-approval: ${IROBIT_BIZ_SELF_APPROVAL:allow}
+    # 광고주 요청 일시 정지 횟수 한도(한 건에 — biz-pause-contract 규칙 1). 넘으면 409 BIZ_PAUSE_LIMIT
+    pause-limit: 3
+    deposit-account:
+      bank-name: ${IROBIT_BIZ_BANK_NAME:}
+      account-no: ${IROBIT_BIZ_ACCOUNT_NO:}
+      account-holder: ${IROBIT_BIZ_ACCOUNT_HOLDER:}
+  # 소모임(docs/features/group-contract.md — GroupProperties). 아래는 관리자 앱 소모임 설정에 저장된 값이 없을 때의 기본값이다(저장된 값이 이긴다 — DB > yml).
+  # 화면에 없는 한도: 하루 개설 신청 수 · 하루 가입·신청 수 · 상세 「최근 N일 가입」. 그 밖의 칸(매니저·공개 범위·지금 뜨는·일정 한도)은 GroupProperties 의 기본값을 쓴다
+  groups:
+    creation-mode: APPROVAL      # 개설 방식 APPROVAL(승인제) | OPEN(자유 개설)
+    min-grade: REGULAR           # 개설 최소 등급 키(등급 설정에 없으면 누구나)
+    max-per-owner: 3             # 한 사람이 모임장일 수 있는 소모임 수(신청 중·열림·비활성 합)
+    dissolve-penalty-days: 30    # 해산한 모임장이 새 소모임을 개설 신청할 수 없는 일수(0 = 끔, 개설부터 1년 이상 유지된 소모임은 면제)
+    reapply-days: 7              # 가입 거절 뒤 재신청 대기 일수
+    capacity-min: 5
+    capacity-max: 200
+    create-daily-limit: 1        # 24시간 개설 신청 수(0 = 제한 없음)
+    join-daily-limit: 50         # 24시간 가입·신청 수 합(0 = 제한 없음)
+  # 결제 모듈(docs/features/commerce-payment-contract.md). 게이트웨이는 배포 설정이다 — portone(포트원 V2) | fake(local·시험 전용). dev · prod 프로필에서 fake 면 기동을 멈춘다(PaymentConfig).
+  # 포트원 상점 ID·API 비밀키·결제 채널 키·웹훅 비밀키는 관리자 화면(설정 › 포트원)이 DB 에 암호화해 둔다. 운영 값(READY 여유 시간·웹훅 기록 보관)은 batch_params 다
+  payment:
+    gateway: ${IROBIT_PAYMENT_GATEWAY:portone}
+    test-orders: ${IROBIT_PAYMENT_TEST_ORDERS:false}  # 결제 시험 주문(PAYMENT_TEST · /api/dev/payments) — local · dev 만. prod 에서 켜면 기동을 멈춘다
+    cancel-batch-size: 20        # 취소 워커가 한 바퀴(1분)에 집는 취소 수 — PG 호출 속도 제한
+    cancel-gap: 200ms            # 취소 사이 간격
+    cancel-max-retries: 5        # 즉시 시도 뒤 재시도 횟수 — 다 쓰면 GAVE_UP(결제 이상 목록·운영자 알림)
+    cancel-backoff: 1m,5m,30m,120m,720m  # n 번째 재시도까지의 간격
+    cancel-stale: 10m            # SENDING 으로 이만큼 머문 취소는 보내던 서버가 죽은 것으로 보고 되돌린다
+  # 회원 탈퇴(commerce.md 17절, docs/features/member-withdrawal-contract.md)
+  withdrawal:
+    rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다). 제재 중 탈퇴면 제재 끝과 비교해 늦은 쪽
+    rejoin-block-max-days: 365   # 재가입 제한 상한 — 무기한 제한·영구 정지 중 탈퇴하면 이 값
+    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 마지막 거래 시각부터 보관하는 기간(전자상거래법 — 세법의 보존 기준일은 거래 기록에만)
+    progress-notice-days: 10     # 신청 뒤 이 일수 안에 완료되지 않으면 진행 상태 메일(개인정보보호법 시행령 제44조)
+    reauth-minutes: 10           # 소셜 전용 회원의 본인 확인 — 최근 이 분 안 로그인
+    support-email: ""            # 탈퇴 화면·완료 메일의 고객센터 메일. 비우면 메일 서버의 보내는 주소
+  # AI 회원(docs/features/ai-members-contract.md — AiMemberProperties). 고를 수 있는 모델은 여기 두지 않는다 — 표 ai_models(shared V189)가 정본이고
+  # 관리자 설정 화면 「모델 목록」에서 켜고 끄기·기본·추가·지우기를 한다(2026-11-11 — 옛 models.* 는 지웠다. 처음 채우기용도 아니다).
+  # 생성 실행기는 관리자(admin) 서버에서 돈다(정책 11 · 세션 정리 결정 2026-11-10 — 배치는 admin 또는 pg_cron 에서만, api 에는 실행기가 없다). irobit.batch.enabled 와
+  # runner-enabled 가 둘 다 켜진 관리자 서버만 돌고, 여러 대여도 BatchLockService 어드바이저리 잠금으로 한 곳만 돈다. api 서버에서는 이 값이 쓰이지 않는다.
+  ai-member:
+    runner-enabled: ${IROBIT_AI_MEMBER_RUNNER:true}
+    poll-millis: 60000           # 실행기 한 바퀴 간격(승인 줄 등록 + 할 일 생성)
+    calls-per-tick: 3            # 한 바퀴의 생성 호출 수 상한(계정당 1건)

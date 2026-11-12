@@ -8,7 +8,7 @@
 #   - 스왑 2GB(앱 두 개 + PostgreSQL 이 4GB 메모리를 같이 쓴다 — 순간적인 초과에 대비)
 #   - 시간대 Asia/Seoul(백업 cron · 로그 시각)
 #   - 보안 업데이트 자동 설치(unattended-upgrades — Ubuntu 기본값이 켜져 있는지 확인만 한다)
-#   - 설치 폴더 /opt/roboyam/{dev,postgres,backups} 와 매일 04:00 백업 cron
+#   - 설치 폴더 /opt/irobit/{dev,postgres,backups} 와 매일 04:00 백업 cron
 #
 # 사용법(서버에서, 처음 한 번):
 #   sudo bash server-setup.sh
@@ -21,7 +21,7 @@ set -Eeuo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "오류: sudo 로 실행하세요: sudo bash $0" >&2; exit 1; }
 
 APP_USER=${APP_USER:-ubuntu}
-BASE=/opt/roboyam
+BASE=/opt/irobit
 SWAP_FILE=/swapfile
 SWAP_SIZE=2G
 
@@ -53,8 +53,8 @@ if ! swapon --show=NAME --noheadings | grep -qx "$SWAP_FILE"; then
     grep -q "^$SWAP_FILE " /etc/fstab || echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
 fi
 # 메모리가 남을 때는 스왑을 거의 쓰지 않게 한다(JVM 힙이 스왑으로 밀리면 GC 가 매우 느려진다)
-echo 'vm.swappiness=10' > /etc/sysctl.d/99-roboyam.conf
-sysctl -q -p /etc/sysctl.d/99-roboyam.conf
+echo 'vm.swappiness=10' > /etc/sysctl.d/99-irobit.conf
+sysctl -q -p /etc/sysctl.d/99-irobit.conf
 
 echo "[4/6] 시간대 Asia/Seoul"
 timedatectl set-timezone Asia/Seoul
@@ -72,11 +72,11 @@ mkdir -p "$BASE/dev/scripts" "$BASE/postgres" "$BASE/backups"
 chown -R "$APP_USER:$APP_USER" "$BASE"
 chmod 700 "$BASE/backups"
 # 매일 04:00(한국시간) — backup.sh 는 release.sh 가 올린다. 아직 없으면 그날은 건너뛴다
-cat > /etc/cron.d/roboyam-backup <<EOF
-# ROBOYAM 개발 서버 DB · 올린 이미지 백업 (docker/dev/scripts/backup.sh)
+cat > /etc/cron.d/irobit-backup <<EOF
+# IROBIT 개발 서버 DB · 올린 이미지 백업 (docker/dev/scripts/backup.sh)
 0 4 * * * $APP_USER [ -x $BASE/dev/scripts/backup.sh ] && $BASE/dev/scripts/backup.sh >> $BASE/backups/backup.log 2>&1
 EOF
-chmod 644 /etc/cron.d/roboyam-backup
+chmod 644 /etc/cron.d/irobit-backup
 
 echo
 echo "완료. 로그아웃했다가 다시 접속한 뒤 'docker ps' 가 sudo 없이 되는지 확인하세요."

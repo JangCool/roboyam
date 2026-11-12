@@ -2,8 +2,8 @@ import type { MemberPointKind } from '~/composables/member/api/useMemberApi.type
 
 /**
  * 포인트 API 가 주고받는 모양 — 서버 `point/dto/response`(`PointLedgerItemView`·`PointLedgerPageView`·`PointSettingsResponse` …)와 같다(`docs/features/point-contract.md`).
- * community `docs/api-point.md` 의 관리자 API 를 roboyam 권한 코드로 옮기고, 전체 원장 조회를 더했다.
- * 종류 이름(`EARN`·`USE`·`REVOKE`)은 회원 상세의 포인트 내역(`MemberPointKind`·`MemberPointEntry`)과 같고, 사유 코드는 community 원장(`point_ledger.reason`)과 같다(가입 포인트 `SIGNUP` 만 roboyam 추가).
+ * community `docs/api-point.md` 의 관리자 API 를 irobit 권한 코드로 옮기고, 전체 원장 조회를 더했다.
+ * 종류 이름(`EARN`·`USE`·`REVOKE`)은 회원 상세의 포인트 내역(`MemberPointKind`·`MemberPointEntry`)과 같고, 사유 코드는 community 원장(`point_ledger.reason`)과 같다(가입 포인트 `SIGNUP` 만 irobit 추가).
  * ⚠ ID 는 문자열이다(Snowflake). 숫자로 바꾸지 않는다.
  */
 
@@ -11,7 +11,7 @@ import type { MemberPointKind } from '~/composables/member/api/useMemberApi.type
 export type PointLedgerKind = MemberPointKind;
 
 /**
- * 원장 한 줄의 사유 코드 — community `point_ledger.reason` 그대로 + `SIGNUP`(가입 포인트, 그누보드에서 가져온 roboyam 추가)
+ * 원장 한 줄의 사유 코드 — community `point_ledger.reason` 그대로 + `SIGNUP`(가입 포인트, 그누보드에서 가져온 irobit 추가)
  * + 커머스 1-1·1-2(`POINT_SHOP_PURCHASE`·`POINT_SHOP_REFUND`·`REVOKE_DEBT_OFFSET`(미회수 상계)·`EXPIRE`). 거르기 목록에 넣는 것만 적었다 —
  * 3단계·공구 사유(`CHARGE`·`CHARGE_BONUS`·`CHARGE_REFUND`·`GB_POINT_USE` …)는 기능이 생길 때 더한다(서버가 모르는 코드를 줘도 화면은 서버 `reason` 글자를 그대로 보인다).
  * `ADMIN_ADJUST` 는 부호에 따라 `EARN`(지급) 또는 `REVOKE`(차감)다.
@@ -187,7 +187,7 @@ export interface PointMemberLots {
 }
 
 /**
- * 포인트 정책 값 — community `point_settings` 12칸 + `signupPoints`(roboyam 추가) + 커머스 1-3 「적립 규칙 보강」(`docs/domain/commerce.md` 6-2) 칸. `PUT` 은 모두 보낸다.
+ * 포인트 정책 값 — community `point_settings` 12칸 + `signupPoints`(irobit 추가) + 커머스 1-3 「적립 규칙 보강」(`docs/domain/commerce.md` 6-2) 칸. `PUT` 은 모두 보낸다.
  * 숫자는 0 이면 그 항목·규칙이 꺼진다(추천 보너스 문턱은 1 이상 · `dailyTotalCap` 0 = 총 한도 없음 · `adjustLargeThreshold` 0 = 모든 조정이 고액).
  */
 export interface PointSettingsValues {

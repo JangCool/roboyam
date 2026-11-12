@@ -3,7 +3,7 @@ package com.community.withdrawal.repository.master;
 import com.community.withdrawal.entity.IdentityWithdrawalEntity;
 import com.community.withdrawal.entity.QIdentityWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalKind;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.Optional;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
  * 해시만 다룬다(누구의 것인지 잇는 칸이 없다). <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class IdentityWithdrawalStore extends RoboyamRepositoryQDSL {
+public class IdentityWithdrawalStore extends IrobitRepositoryQDSL {
 
     private static final QIdentityWithdrawalEntity I = QIdentityWithdrawalEntity.identityWithdrawalEntity;
 

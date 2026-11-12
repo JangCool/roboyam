@@ -1,6 +1,6 @@
 /**
- * 등급 안내·내 진행도 API 가 주고받는 모양 — 서버 `grade/dto/response/*`(`GradeRulesResponse`·`MyGradeResponse`)와 같다(2026-10-24 연결). 모양은 community `docs/api-grade.md`「공개」에서 로보얌 등급 규칙(운영자가 정하는 2~10단계, 조건은 가입 일수·글+댓글 수)으로 옮겼다.
- * 인기글 조건(`minPopular`·`POPULAR`)은 로보얌에 없어 뺐다. 등급 키는 고정 enum 이 아니라 등급 목록의 `gradeKey` 다. 계약: `docs/features/member-activity-contract.md`.
+ * 등급 안내·내 진행도 API 가 주고받는 모양 — 서버 `grade/dto/response/*`(`GradeRulesResponse`·`MyGradeResponse`)와 같다(2026-10-24 연결). 모양은 community `docs/api-grade.md`「공개」에서 아이로빗 등급 규칙(운영자가 정하는 2~10단계, 조건은 가입 일수·글+댓글 수)으로 옮겼다.
+ * 인기글 조건(`minPopular`·`POPULAR`)은 아이로빗에 없어 뺐다. 등급 키는 고정 enum 이 아니라 등급 목록의 `gradeKey` 다. 계약: `docs/features/member-activity-contract.md`.
  */
 
 /** 자동 승급 상태 — 켜짐 · 정지 중이라 보류 · 운영자가 등급을 직접 바꿔 고정(정지가 우선) */

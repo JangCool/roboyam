@@ -15,7 +15,7 @@ import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Repository;
  * 진 쪽은 오류 없이 0 줄을 받는다. JPA 넣기로는 진 쪽이 유일 위반으로 업무 트랜잭션 전체가 롤백 전용이 된다).
  */
 @Repository
-public class BizDealPostStore extends RoboyamRepositoryQDSL {
+public class BizDealPostStore extends IrobitRepositoryQDSL {
 
     public static final String POSTED = "POSTED";
     public static final String FAILED = "FAILED";

@@ -7,7 +7,7 @@ export default {
     readOnly: "You don't have permission to change social login keys, so this is read-only.",
     loadFailed: "Couldn't load the social login settings",
     cryptoMissingTitle: "Can't save without an encryption key",
-    cryptoMissingText: 'Set the encryption key (ROBOYAM_CRYPTO_KEY) on the server, restart it and reload this page. Until then the public site shows no social login buttons.',
+    cryptoMissingText: 'Set the encryption key (IROBIT_CRYPTO_KEY) on the server, restart it and reload this page. Until then the public site shows no social login buttons.',
     footnote: 'Saved changes apply to the public login screen right away. Secrets are stored encrypted and never shown again.',
     historyHint: 'Changes made in the install wizard and on this screen. Secrets are recorded only as set, changed or removed, and client IDs show only their last four characters.',
     provider_KAKAO: 'Kakao',

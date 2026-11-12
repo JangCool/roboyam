@@ -1,12 +1,12 @@
 package com.community.user.repository.master;
 
 import com.community.user.entity.UserEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
-public interface UserRepository extends RoboyamRepository<UserEntity, Long> {
+public interface UserRepository extends IrobitRepository<UserEntity, Long> {
 
     /** 이메일은 소문자로 정규화한 값으로 찾는다 */
     boolean existsByEmail(String email);

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 결제 시험(docs/features/commerce-payment-contract.md 결정 7) — user-web {@code /dev/payment} 가 쓴다. <b>{@code roboyam.payment.test-orders=true} 인 서버에만 있다</b>
+ * 결제 시험(docs/features/commerce-payment-contract.md 결정 7) — user-web {@code /dev/payment} 가 쓴다. <b>{@code irobit.payment.test-orders=true} 인 서버에만 있다</b>
  * (local·dev, prod 에서 켜면 기동하지 않는다 — 꺼져 있으면 주소가 없어 404). 로그인 필요·CSRF·{@code no-store}, 그 회원의 시험 결제만. 모양은 2a-1 화면 계약이 정본이다.
  *
  * <ul>
@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/dev/payments")
-@ConditionalOnProperty(prefix = "roboyam.payment", name = "test-orders", havingValue = "true")
+@ConditionalOnProperty(prefix = "irobit.payment", name = "test-orders", havingValue = "true")
 public class PaymentTestController {
 
     private final PaymentTestOrderService tests;

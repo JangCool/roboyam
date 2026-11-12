@@ -2,7 +2,7 @@ package com.community.bizapplication.repository.master;
 
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.QBizPriceRuleEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 /** 요금표(V112 {@code biz_price_rules}) — 상품 하나에 한 줄. 편집 API 는 후속(지금은 시드 값). QueryDSL 만 쓴다 */
 @Repository
-public class BizPriceRuleStore extends RoboyamRepositoryQDSL {
+public class BizPriceRuleStore extends IrobitRepositoryQDSL {
 
     private static final QBizPriceRuleEntity R = QBizPriceRuleEntity.bizPriceRuleEntity;
     /** DB 의 현재 시각({@link #DB_NOW} 와 같은 식) — {@code Instant} 칸에 넣을 때 */

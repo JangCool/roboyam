@@ -9,7 +9,7 @@ export default {
     logsTitle: '배치 로그',
     logsSubtitle: '배치가 언제 돌았고 어떻게 끝났는지 봅니다.',
 
-    // hamonica3 의 공통 문구 "다시 조회"·"조건 지우기" — 이 앱 공통 문구(`@roboyam/i18n`)에 아직 없어 여기 둔다
+    // hamonica3 의 공통 문구 "다시 조회"·"조건 지우기" — 이 앱 공통 문구(`@irobit/i18n`)에 아직 없어 여기 둔다
     reload: '다시 조회',
     clearFilter: '조건 지우기',
 

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AdminPasswordMatcher {
 
-    private static final String TIMING_DUMMY_PASSWORD = "roboyam-timing-dummy-password-1";
+    private static final String TIMING_DUMMY_PASSWORD = "irobit-timing-dummy-password-1";
 
     private final PasswordEncoder encoder;
 

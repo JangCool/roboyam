@@ -4,9 +4,9 @@
 # =============================================================================
 #
 # 사용법(서버에서 — 보통은 로컬의 release.sh 가 ssh 로 부른다):
-#   /opt/roboyam/dev/scripts/deploy.sh <태그>      # 그 태그로 바꿔 띄운다
-#   /opt/roboyam/dev/scripts/deploy.sh             # 태그를 바꾸지 않고 다시 띄운다(compose · Caddyfile 만 바뀌었을 때)
-#   /opt/roboyam/dev/scripts/deploy.sh --history   # 지금까지 띄운 태그(되돌릴 태그 찾기)
+#   /opt/irobit/dev/scripts/deploy.sh <태그>      # 그 태그로 바꿔 띄운다
+#   /opt/irobit/dev/scripts/deploy.sh             # 태그를 바꾸지 않고 다시 띄운다(compose · Caddyfile 만 바뀌었을 때)
+#   /opt/irobit/dev/scripts/deploy.sh --history   # 지금까지 띄운 태그(되돌릴 태그 찾기)
 #
 # 순서: 새 이미지를 먼저 받는다(실패하면 아무것도 바꾸지 않는다) → .env 의 태그를 바꾼다 → docker compose up -d →
 #       두 도메인의 /actuator/health/readiness 가 응답할 때까지 기다린다.
@@ -28,8 +28,8 @@ fi
 
 require_env_file
 TAG=${1:-}
-API_IMAGE=$(env_get ROBOYAM_IMAGE)
-ADMIN_IMAGE=$(env_get ROBOYAM_ADMIN_IMAGE)
+API_IMAGE=$(env_get IROBIT_IMAGE)
+ADMIN_IMAGE=$(env_get IROBIT_ADMIN_IMAGE)
 OLD_TAG=${API_IMAGE##*:}
 if [ -n "$TAG" ]; then
     API_IMAGE=$(with_tag "$API_IMAGE" "$TAG")
@@ -44,8 +44,8 @@ docker pull -q "$API_IMAGE" > /dev/null || fail "이미지를 받지 못했습�
 docker pull -q "$ADMIN_IMAGE" > /dev/null || fail "이미지를 받지 못했습니다: $ADMIN_IMAGE"
 
 echo "[2/4] .env 태그 바꾸기 ($OLD_TAG → $TAG)"
-env_set ROBOYAM_IMAGE "$API_IMAGE"
-env_set ROBOYAM_ADMIN_IMAGE "$ADMIN_IMAGE"
+env_set IROBIT_IMAGE "$API_IMAGE"
+env_set IROBIT_ADMIN_IMAGE "$ADMIN_IMAGE"
 printf '%s  %s -> %s\n' "$(date '+%Y-%m-%d %H:%M')" "$OLD_TAG" "$TAG" >> "$HISTORY_FILE"
 
 echo "[3/4] docker compose up"

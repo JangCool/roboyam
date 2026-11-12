@@ -51,7 +51,7 @@ import org.springframework.stereotype.Service;
 public class NotificationMessageRenderer {
 
     private static final DateTimeFormatter OCCURRED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String DEFAULT_SITE_NAME = "ROBOYAM";
+    private static final String DEFAULT_SITE_NAME = "IROBIT";
 
     private final MessageTemplateStore store;
     private final BuiltinMessages builtins;
@@ -60,7 +60,7 @@ public class NotificationMessageRenderer {
     private final String adminUrl;
 
     public NotificationMessageRenderer(MessageTemplateStore store, BuiltinMessages builtins, BuiltinTemplates builtinTemplates, Messages messages,
-                                       @Value("${roboyam.admin-url:}") String adminUrl) {
+                                       @Value("${irobit.admin-url:}") String adminUrl) {
         this.store = store;
         this.builtins = builtins;
         this.builtinTemplates = builtinTemplates;

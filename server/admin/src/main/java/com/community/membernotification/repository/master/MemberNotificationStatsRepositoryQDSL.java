@@ -1,7 +1,7 @@
 package com.community.membernotification.repository.master;
 
 import com.community.membernotification.entity.QMemberNotificationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 
 /** 회원 이벤트 관리의 발송 수 — 회원 알림 표({@code member_notifications})를 종류별로 센다. <b>트랜잭션은 부르는 서비스가 연다.</b> */
 @Repository
-public class MemberNotificationStatsRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class MemberNotificationStatsRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QMemberNotificationEntity NOTIFICATION = QMemberNotificationEntity.memberNotificationEntity;
 

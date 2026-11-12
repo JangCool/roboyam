@@ -9,12 +9,12 @@
 - 도메인 상세 문서는 관련 업무를 다룰 때만 `docs/domain/`에서 찾아 읽는다. 모든 도메인 문서를 한꺼번에 읽거나 `@` import하지 않는다.
 
 ## 프로젝트 구조 (모노레포)
-- `apps/admin-web`, `apps/user-web`: Nuxt 프론트엔드. 루트 `pnpm-workspace.yaml`(`apps/*`, `apps-packages/*`)로 묶는다. 두 앱이 같이 쓰는 프론트 코드는 `apps-packages/<이름>/`(Nuxt 레이어 + 워크스페이스 패키지 `@roboyam/<이름>`, 앱은 `extends`로 사용, 지금은 `i18n`: 화면 문구 한국어·영어, `display-time`: 표시 값·시각 글자·DatePicker, `chart`: ECharts 차트)에 둔다. 새 화면의 문구는 i18n 키를 쓴다(`.claude/guides/frontend/i18n.md`).
+- `apps/admin-web`, `apps/user-web`: Nuxt 프론트엔드. 루트 `pnpm-workspace.yaml`(`apps/*`, `apps-packages/*`)로 묶는다. 두 앱이 같이 쓰는 프론트 코드는 `apps-packages/<이름>/`(Nuxt 레이어 + 워크스페이스 패키지 `@irobit/<이름>`, 앱은 `extends`로 사용, 지금은 `i18n`: 화면 문구 한국어·영어, `display-time`: 표시 값·시각 글자·DatePicker, `chart`: ECharts 차트)에 둔다. 새 화면의 문구는 i18n 키를 쓴다(`.claude/guides/frontend/i18n.md`).
 - `server/shared`(공통 엔티티·저장소·서비스·DTO), `server/api`(user-web용 서버), `server/admin`(admin-web용 서버): Gradle 멀티프로젝트. `api`와 `admin`은 서로 의존하지 않고 공통 코드는 `shared`에 둔다.
 - 공통 설정은 `server/shared`의 `com.community.zconfiguration`(`jpa`·`mapper`·`exception`·`response` 등)에 둔다. 앱 진입점의 스캔 범위에 이 패키지가 포함되어야 한다.
-- `docker/{local,dev,prod}`: 환경별 compose. `installer/`: 설치형 배포 스크립트(`roboyam-install.sh`). DB 비밀번호는 `DB_PASSWORD=ENC(...)` 암호문 + `ROBOYAM_CRYPTO_KEY`로 받는다(평문 금지, local 제외).
-- DB 스키마는 Flyway가 만든다(Hibernate `ddl-auto: none`). 마이그레이션은 스트림별 폴더에 둔다: `server/shared/.../db/migration/shared`(api·admin 공용, 기본), `server/api/.../db/migration/api`, `server/admin/.../db/migration/admin`. 번호는 스트림마다 독립이고 이미 적용된 파일은 고치지 않는다. 앱의 `roboyam.schema.stream`이 자기 스트림을 정한다.
-- 빌드 규약은 `buildSrc`의 `roboyam.*-conventions` 플러그인, 버전은 루트 `gradle.properties`에서 관리한다.
+- `docker/{local,dev,prod}`: 환경별 compose. `installer/`: 설치형 배포 스크립트(`irobit-install.sh`). DB 비밀번호는 `DB_PASSWORD=ENC(...)` 암호문 + `IROBIT_CRYPTO_KEY`로 받는다(평문 금지, local 제외).
+- DB 스키마는 Flyway가 만든다(Hibernate `ddl-auto: none`). 마이그레이션은 스트림별 폴더에 둔다: `server/shared/.../db/migration/shared`(api·admin 공용, 기본), `server/api/.../db/migration/api`, `server/admin/.../db/migration/admin`. 번호는 스트림마다 독립이고 이미 적용된 파일은 고치지 않는다. 앱의 `irobit.schema.stream`이 자기 스트림을 정한다.
+- 빌드 규약은 `buildSrc`의 `irobit.*-conventions` 플러그인, 버전은 루트 `gradle.properties`에서 관리한다.
 
 ## 기능 개발 흐름
 - UI 중심 기능은 프론트엔드부터 목업 데이터로 구현한다. 요구사항에 중요한 모호성이 있을 때만 질문하고, 나머지는 명시적인 가정을 두어 프로토타입을 만든다.

@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 출석체크(계약 「1-3 출석체크」 — community {@code AttendanceService}·{@code docs/api-point.md} 「출석」을 로보얌에 맞춘 것).
+ * 출석체크(계약 「1-3 출석체크」 — community {@code AttendanceService}·{@code docs/api-point.md} 「출석」을 아이로빗에 맞춘 것).
  *
  * <ul>
  *   <li><b>출석</b>({@link #attend}): 자격 — 회원(없거나 탈퇴 401) → 정지·영구 정지 {@code 403 ACCOUNT_RESTRICTED} → 이메일 인증 전 {@code 403 EMAIL_NOT_VERIFIED}

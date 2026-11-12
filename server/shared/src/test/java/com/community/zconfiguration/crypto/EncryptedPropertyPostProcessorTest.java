@@ -17,26 +17,26 @@ class EncryptedPropertyPostProcessorTest {
     private final String key = SecretCipher.generateKey();
     private final SecretCipher cipher = new SecretCipher(key);
 
-    /** 운영 설치처럼 환경 변수(ROBOYAM_STORAGE_S3_SECRET_KEY=ENC(...))로 받은 값이 roboyam.storage.s3.secret-key 에 평문으로 묶인다 */
+    /** 운영 설치처럼 환경 변수(IROBIT_STORAGE_S3_SECRET_KEY=ENC(...))로 받은 값이 irobit.storage.s3.secret-key 에 평문으로 묶인다 */
     @Test
     void 환경_변수의_암호문은_환경_변수식_이름으로_묶여도_평문이다() {
         StandardEnvironment environment = environment(
-                Map.of("ROBOYAM_CRYPTO_KEY", key, "ROBOYAM_STORAGE_S3_SECRET_KEY", "ENC(" + cipher.encrypt("plain-secret") + ")"),
-                Map.of("roboyam.crypto.key", "${ROBOYAM_CRYPTO_KEY:}", "roboyam.storage.s3.secret-key", "${ROBOYAM_STORAGE_S3_SECRET_KEY:}"));
+                Map.of("IROBIT_CRYPTO_KEY", key, "IROBIT_STORAGE_S3_SECRET_KEY", "ENC(" + cipher.encrypt("plain-secret") + ")"),
+                Map.of("irobit.crypto.key", "${IROBIT_CRYPTO_KEY:}", "irobit.storage.s3.secret-key", "${IROBIT_STORAGE_S3_SECRET_KEY:}"));
 
         new EncryptedPropertyPostProcessor().postProcessEnvironment(environment, new SpringApplication());
 
-        assertThat(bind(environment, "roboyam.storage.s3.secret-key")).isEqualTo("plain-secret");
-        assertThat(environment.getProperty("roboyam.storage.s3.secret-key")).isEqualTo("plain-secret");
-        assertThat(environment.getProperty("ROBOYAM_STORAGE_S3_SECRET_KEY")).isEqualTo("plain-secret");
+        assertThat(bind(environment, "irobit.storage.s3.secret-key")).isEqualTo("plain-secret");
+        assertThat(environment.getProperty("irobit.storage.s3.secret-key")).isEqualTo("plain-secret");
+        assertThat(environment.getProperty("IROBIT_STORAGE_S3_SECRET_KEY")).isEqualTo("plain-secret");
     }
 
     /** yml 이 다른 이름의 환경 변수를 가리키는 경우(spring.datasource.password: ${DB_PASSWORD}) — 예전부터 되던 길 */
     @Test
     void 다른_이름의_환경_변수를_가리키는_설정도_평문이다() {
         StandardEnvironment environment = environment(
-                Map.of("ROBOYAM_CRYPTO_KEY", key, "DB_PASSWORD", "ENC(" + cipher.encrypt("db-pass") + ")"),
-                Map.of("roboyam.crypto.key", "${ROBOYAM_CRYPTO_KEY:}", "spring.datasource.password", "${DB_PASSWORD}"));
+                Map.of("IROBIT_CRYPTO_KEY", key, "DB_PASSWORD", "ENC(" + cipher.encrypt("db-pass") + ")"),
+                Map.of("irobit.crypto.key", "${IROBIT_CRYPTO_KEY:}", "spring.datasource.password", "${DB_PASSWORD}"));
 
         new EncryptedPropertyPostProcessor().postProcessEnvironment(environment, new SpringApplication());
 
@@ -48,11 +48,11 @@ class EncryptedPropertyPostProcessorTest {
     @Test
     void 설정_파일의_암호문도_평문이다() {
         StandardEnvironment environment = environment(Map.of(),
-                Map.of("roboyam.crypto.key", key, "roboyam.storage.s3.secret-key", "ENC(" + cipher.encrypt("yml-secret") + ")"));
+                Map.of("irobit.crypto.key", key, "irobit.storage.s3.secret-key", "ENC(" + cipher.encrypt("yml-secret") + ")"));
 
         new EncryptedPropertyPostProcessor().postProcessEnvironment(environment, new SpringApplication());
 
-        assertThat(bind(environment, "roboyam.storage.s3.secret-key")).isEqualTo("yml-secret");
+        assertThat(bind(environment, "irobit.storage.s3.secret-key")).isEqualTo("yml-secret");
     }
 
     private static StandardEnvironment environment(Map<String, Object> env, Map<String, Object> yml) {

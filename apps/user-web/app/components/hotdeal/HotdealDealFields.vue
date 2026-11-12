@@ -7,7 +7,7 @@
         그리기만 하고 판정(`check` — `useDealLinkCheck`)·검사 문구(`errors`)·저장은 부르는 화면이 한다. 이미지 올리기·다시 시도는 `actions`.
         `readonly`(종료된 딜 고치기)면 모든 칸을 막고 안내만. `expired`(기간 지남)면 「마감을 고쳐 주세요」 안내.
         제휴 링크 방식(D5 — `affiliateMode` prop, 판정 결과의 값이 우선): `SITE` 면 「제휴 링크예요」 체크를 숨기고, 개인 제휴 링크(AFFILIATE — 최종 호스트 포함)는 칸 오류(등록 불가),
-          사이트 제휴 몰이면 판정 줄에 단정형 「구매 링크는 로보얌 제휴 링크로 바뀝니다」. `MEMBER` 면 그대로.
+          사이트 제휴 몰이면 판정 줄에 단정형 「구매 링크는 아이로빗 제휴 링크로 바뀝니다」. `MEMBER` 면 그대로.
     -->
     <fieldset class="m-0 flex min-w-0 flex-col gap-4 rounded-lg border border-surface p-3.5" :aria-busy="check.status === 'checking'" data-testid="hotdeal-fields">
         <legend v-if="legend" class="px-1 text-sm font-semibold">{{ t('hotdeal.legend') }}</legend>

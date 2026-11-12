@@ -19,7 +19,7 @@
 ## 정책 (사용자 확정 2026-11-07)
 - 보일 곳: `HOME`(주소 `/`) · `ALL`(기본 레이아웃의 모든 화면). 기기: `PC`(폭 768px 이상) · `MOBILE` — 화면이 가린다.
 - 닫기 줄 선택지는 팝업마다 하나: `TODAY`(그날 자정, 이 기기 시각) · `WEEK`(7일) · `NEVER`(다시 보지 않기) · `NONE`(「닫기」만).
-- 「보지 않기」 기록은 **이 브라우저**(localStorage `roboyam:site-popups` = `{ [id]: { version, until|null } }`)에만. 손님도 쓴다. 서버 `version` 이 바뀌면(운영자가 내용 고침) 기록이 있어도 다시 보인다. 목록에 없는 팝업·끝난 기록은 쓸 때 지운다.
+- 「보지 않기」 기록은 **이 브라우저**(localStorage `irobit:site-popups` = `{ [id]: { version, until|null } }`)에만. 손님도 쓴다. 서버 `version` 이 바뀌면(운영자가 내용 고침) 기록이 있어도 다시 보인다. 목록에 없는 팝업·끝난 기록은 쓸 때 지운다.
 - 권한: 보기 `site.read`, 바꾸기 `site.manage`(공지 띠와 같다, 새 권한 없음).
 - 그림: 하이라이트 대표 이미지와 같은 검사·저장(PNG·JPG·GIF·WEBP 2MB, 한 변 4000px, GIF 는 첫 장면) — 파일 API 새 쓰임 `SITE_POPUP_IMAGE`.
 

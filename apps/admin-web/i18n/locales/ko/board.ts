@@ -179,7 +179,7 @@ export default {
         prefix: '질문',
         status: '진행 중',
         title: '키보드 추천 부탁드려요',
-        author: '로보얌',
+        author: '아이로빗',
         date: '3분 전',
     },
     // 말머리 모양(mobile-nav-prefix-style-contract 1절) — 고르개(`BoardPrefixStylePicker`)와 미리보기

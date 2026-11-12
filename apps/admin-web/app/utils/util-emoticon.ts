@@ -11,7 +11,7 @@ import type {
 
 /**
  * 로보티콘 운영 화면의 순수 규칙 — 서버 규칙을 **미리 알려 주는 용도**이고 판정은 서버다(`forms.md`).
- * 규격 값은 계약 `emoticon-contract.md` 「목업 가정」 4(로보얌콘 기준)이고 user-web 제작 가이드·업로드 검사와 같은 값이어야 한다.
+ * 규격 값은 계약 `emoticon-contract.md` 「목업 가정」 4(아이로빗콘 기준)이고 user-web 제작 가이드·업로드 검사와 같은 값이어야 한다.
  * 서버 규칙 이름(서버 단계에 만든다 — 후보): 업로드 검사 `EmoticonImageValidator` · 신청 검사 `EmoticonSubmissionService` · 설정 `emoticon_settings` CHECK.
  */
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# installer/lib/common.sh — roboyam-install.sh · roboyam-uninstall.sh · roboyam-mfa-reset.sh 공통 함수
+# installer/lib/common.sh — irobit-install.sh · irobit-uninstall.sh · irobit-mfa-reset.sh 공통 함수
 # =============================================================================
 #
 # source 해서 쓴다(단독 실행하지 않는다). bash 3.2(macOS 기본)에서도 돌도록 bash 4 전용 문법
@@ -21,8 +21,8 @@
 INSTALLER_VERSION="1.0.0"
 
 # 모든 자원에 붙는 라벨. 프로젝트(설치 하나)와 실행(설치를 한 번 돌린 것)을 가른다.
-LABEL_PROJECT="com.roboyam.installer.project"
-LABEL_RUN="com.roboyam.installer.run"
+LABEL_PROJECT="com.irobit.installer.project"
+LABEL_RUN="com.irobit.installer.run"
 MANIFEST_NAME=".install-manifest"
 
 # --- 실행 환경 ---------------------------------------------------------------
@@ -486,7 +486,7 @@ cleanup_report() {
                 esac
             done <<< "$CLEAN_LEFT"
         fi
-        printf '%s\n' "     위 명령으로 직접 지우거나, roboyam-uninstall.sh --project ${CLEAN_PROJECT:-<프로젝트>} 를 실행하세요." >&2
+        printf '%s\n' "     위 명령으로 직접 지우거나, irobit-uninstall.sh --project ${CLEAN_PROJECT:-<프로젝트>} 를 실행하세요." >&2
         return 1
     fi
     return 0

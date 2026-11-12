@@ -12,7 +12,7 @@ import type { SanctionKind, SanctionLine, SanctionStatus } from '~/composables/s
  *    표시 형식·알림 설정·앱 푸시·차단/메모 건수·가입 동의(약관·개인정보처리방침·만 14세)·공동구매 주문(상태·배송지 스냅샷). 파일: community 관리자 `pages/members/[id].vue`, `types/admin-member.ts`·`admin-grade.ts`·`admin-point.ts`,
  *    문서 `docs/api-account.md`·`api-profile.md`·`api-display.md`·`api-notification.md`·`api-push.md`·`api-block-scrap.md`·`api-dm.md`·`api-dormancy.md`·`api-auth.md`·`api-commerce.md`·`api-commerce-admin.md`.
  *  · 근거: 그누보드7 회원 상세(사용자 제시) — 연락처·위치(홈페이지·휴대폰·전화·국가·주소), 서명, 관리자 메모, 마케팅·광고성 이메일·제3자 제공·정보 공개 동의와 변경·철회 이력, 게시글 완료/답변 알림, 알림함 건수.
- *    community 와 roboyam 서버에 대응이 없다. 쇼핑 데이터는 roboyam 이 쇼핑몰이 아니라 공동구매라서 찜·장바구니·상품문의·배송지 목록 대신 공동구매 주문 요약으로 대응했다.
+ *    community 와 irobit 서버에 대응이 없다. 쇼핑 데이터는 irobit 이 쇼핑몰이 아니라 공동구매라서 찜·장바구니·상품문의·배송지 목록 대신 공동구매 주문 요약으로 대응했다.
  *  · 준비 중(칸을 만들지 않았다) — 「본인 인증」 탭에 나중에 채울 후보: 본인확인 방법(휴대폰·아이핀)·본인확인 여부·성인인증(본인 인증 기준)·인증 이력(일시·방법·결과).
  *
  * ⚠ 미확정: PII 가림 규칙(휴대폰·전화·주소·공동구매 배송지·닉네임 이력)은 `docs/domain/operator-permissions.md` 에 이메일 외에는 정해진 것이 없어 목업 가정이다(`member.pii` 없으면 서버가 가려서 준다).

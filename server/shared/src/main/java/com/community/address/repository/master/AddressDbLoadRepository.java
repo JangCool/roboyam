@@ -2,11 +2,11 @@ package com.community.address.repository.master;
 
 import com.community.address.entity.AddressDbLoadEntity;
 import com.community.address.entity.AddressLoadStatus;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface AddressDbLoadRepository extends RoboyamRepository<AddressDbLoadEntity, Long> {
+public interface AddressDbLoadRepository extends IrobitRepository<AddressDbLoadEntity, Long> {
 
     /** 돌고 있는 적재(사이트에 하나) */
     Optional<AddressDbLoadEntity> findFirstByStatus(AddressLoadStatus status);

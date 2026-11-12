@@ -47,7 +47,7 @@
 ### 보기 설정 (`composables/view/api/useViewSettingsApi.ts`) — community `GET·PUT /api/me/settings` 경로·규칙, 칸 셋
 - `GET` → `{theme: AUTO|LIGHT|DARK, textScale: 90|100|110|125, commentOrder: OLDEST|LATEST}`(저장 전 기본값 AUTO·100·OLDEST) · `PUT` 세 칸 통째 → 저장된 값 · `400 fields.<칸>`. 서버는 값만 저장, 적용은 화면.
 - **서버 구현 결과 (2026-10-24)**: api `com.community.viewsetting`(`MyViewSettingsController` `GET·PUT /api/me/settings`, `MemberViewSettingsService`, 허용 값 `ViewSettingsPolicy`) — 응답은 `ViewSettings` 그대로(`textScale` JSON 정수), 둘 다 `Cache-Control: no-store`. 로그인 필요(`/api/**` 규칙, 401)·`PUT` CSRF·본인만, 이메일 인증·정지 검사 없음. `PUT` 은 세 칸 모두 필수 — 빠진 칸·타입 틀림(`"100"`·`100.5`)·없는 값은 `400 VALIDATION fields.theme|textScale|commentOrder` 를 한꺼번에(저장 없음), 본문 없음도 세 칸 오류. 표 `member_view_settings`(shared `V73__member_view_settings.sql`, 회원당 한 행, 값 CHECK, `users` FK `ON DELETE CASCADE`), 행이 없으면 기본값 AUTO·100·OLDEST(GET 은 행을 만들지 않는다). 문구 `viewSettings.*.invalid`(ko·en).
-- **화면 연결 (2026-10-24)**: `useViewSettingsApi` 가 실제 `GET·PUT` 을 부른다(목업 `view-mock.ts`·`?mock=view-*` 스위치 삭제, CSRF 는 `useApiClient` 재시도). 비로그인은 서버를 부르지 않고 이 브라우저 사본(`roboyam:view-settings`)만 쓴다. 로그인하면 첫 그림은 사본으로 그리고(`view-theme.client.ts`) 서버 값이 오면 이긴다(`view-settings.client.ts` — 로그인한 사람이 바뀔 때마다 다시 받음). 서버에 저장한 적 없는 회원은 기본값이 와서 사본도 기본값으로 덮인다(계정 값이 정본 — 비회원 보기 설정은 두지 않으므로 의도대로).
+- **화면 연결 (2026-10-24)**: `useViewSettingsApi` 가 실제 `GET·PUT` 을 부른다(목업 `view-mock.ts`·`?mock=view-*` 스위치 삭제, CSRF 는 `useApiClient` 재시도). 비로그인은 서버를 부르지 않고 이 브라우저 사본(`irobit:view-settings`)만 쓴다. 로그인하면 첫 그림은 사본으로 그리고(`view-theme.client.ts`) 서버 값이 오면 이긴다(`view-settings.client.ts` — 로그인한 사람이 바뀔 때마다 다시 받음). 서버에 저장한 적 없는 회원은 기본값이 와서 사본도 기본값으로 덮인다(계정 값이 정본 — 비회원 보기 설정은 두지 않으므로 의도대로).
 - **글자 크기 PC·휴대폰 따로 (서버 2026-11-11, 사용자 확정)**: shared `V185__member_view_text_scale_mobile.sql` 이 `text_scale_mobile smallint NOT NULL DEFAULT 110` + CHECK 를 더한다(기존 행도 휴대폰은 110). `textScale` = PC 값(이름 유지), 새 `textScaleMobile` = 휴대폰 값. 기본값 PC 100·휴대폰 110(`MemberViewSettingEntity.DEFAULT_TEXT_SCALE`·`DEFAULT_TEXT_SCALE_MOBILE`). `GET·PUT` 응답에 `textScaleMobile` 추가. `PUT` 의 `textScaleMobile` 은 선택 — 빠지면(null) 저장된 값 그대로(새 행이면 110), 보내면 `90|100|110|125` 검사(`400 fields.textScaleMobile`, 문구 `viewSettings.textScaleMobile.invalid`). 관리자 회원 상세 `view` 에도 `textScaleMobile`(행 없으면 110).
 
 ## 목업 가정
@@ -59,14 +59,14 @@
 6. 개발 스위치(`?mock=`): 쪽지 `dm-empty|dm-inbox-fail|dm-room-fail|dm-too-new|dm-daily-limit|dm-partner-limit|dm-send-fail|dm-send-offline|dm-recipients-fail|dm-settings-fail|dm-settings-save-fail|dm-reply` · 차단·메모 `block-fail|blocks-users-fail|blocks-words-fail|blocks-empty|memo-save-fail|memos-fail|memos-empty` · 닉네임 그림 `nickimg-eligible|nickimg-pending|nickimg-rejected|nickimg-current|nickimg-fail|nickimg-apply-fail|nickimg-approve` · 성인 확인 `adult-fail|adult-save-fail|adult-confirmed|adult-minor`.
 
 ## community 대비 뺀 것
-- **보기 설정**: 주 색상·배경 색상·본문 너비·목록 밀도·메뉴 위치·「화면 꾸미기 되돌리기」 — 로보얌은 사이트 테마(운영자 설정)가 정하고 개인 테마·보기 설정을 두지 않는다(`.claude/guides/frontend/themes.md`). 이미지 숨기기·답글 접기·한 번에 보는 댓글 수 — 적용할 곳(본문 이미지 가리기·답글 묶음 접기·댓글 쪽 나누기)이 아직 없다. 시간 표시는 기존 `/settings/display` 를 그대로 두고 「보기」에서 잇는다(합치지 않음). 비회원 보기 설정(설정 묶음 전체가 로그인 필요).
-- **쪽지**: 쪽지 신고(로보얌 신고 대상에 쪽지가 없다) · 푸시. **닉네임 그림**: 아이템샵 변경권(로보얌에 아이템샵 화면이 없다)·닉네임 그림 신고·작성자 표시에 그림 그리기(서버 작성자 칸에 `nicknameImage` 가 없다 — 미리보기만). **차단**: 글/댓글 ⋯ 메뉴의 차단·메모 항목(로보얌 글·댓글에 회원 ⋯ 메뉴가 없다 — 프로필·쪽지 대화방에서만), 설정 목록의 개수 요약(`GET /api/me/counts`).
+- **보기 설정**: 주 색상·배경 색상·본문 너비·목록 밀도·메뉴 위치·「화면 꾸미기 되돌리기」 — 아이로빗은 사이트 테마(운영자 설정)가 정하고 개인 테마·보기 설정을 두지 않는다(`.claude/guides/frontend/themes.md`). 이미지 숨기기·답글 접기·한 번에 보는 댓글 수 — 적용할 곳(본문 이미지 가리기·답글 묶음 접기·댓글 쪽 나누기)이 아직 없다. 시간 표시는 기존 `/settings/display` 를 그대로 두고 「보기」에서 잇는다(합치지 않음). 비회원 보기 설정(설정 묶음 전체가 로그인 필요).
+- **쪽지**: 쪽지 신고(아이로빗 신고 대상에 쪽지가 없다) · 푸시. **닉네임 그림**: 아이템샵 변경권(아이로빗에 아이템샵 화면이 없다)·닉네임 그림 신고·작성자 표시에 그림 그리기(서버 작성자 칸에 `nicknameImage` 가 없다 — 미리보기만). **차단**: 글/댓글 ⋯ 메뉴의 차단·메모 항목(아이로빗 글·댓글에 회원 ⋯ 메뉴가 없다 — 프로필·쪽지 대화방에서만), 설정 목록의 개수 요약(`GET /api/me/counts`).
 - **성인 확인**: community 도 출생연도 **자기 신고**라 그대로 옮겼다(본인인증 기반은 커머스 세션 0-4 범위 — 그때 `method: IDENTITY`). 게시판 머리의 19금 안내·글쓰기 19금 체크와의 연결은 하지 않았다.
 
 ## 미확정
 1. 쪽지 「가입 7일」·하루 20통·새 상대 5명·3초 간격·500자·1년 보관의 주인(서버 상수? 사이트 설정?) — 관리자 화면 필요 여부.
 2. 회원 알림에 `DM`(쪽지 받음) 이벤트를 더할지 — 회원 알림 카탈로그(`member-notification-contract.md`)와 겹치는 개념이라 그 계약과 맞춘다. 닉네임 그림 검토 결과 알림(`NICKNAME_IMAGE_REVIEWED`)도 같다.
-3. 차단·메모를 글·댓글 ⋯ 메뉴에도 둘지(로보얌 글 상세·댓글에 회원 메뉴가 생길 때). 글 상세의 차단 안내는 붙였다(2026-10-24, 아래 「글 상세 접힘」).
+3. 차단·메모를 글·댓글 ⋯ 메뉴에도 둘지(아이로빗 글 상세·댓글에 회원 메뉴가 생길 때). 글 상세의 차단 안내는 붙였다(2026-10-24, 아래 「글 상세 접힘」).
 4. 닉네임 그림 관리자 검토 화면(승인·반려·해제)과 그 권한·메뉴, 아이템샵 변경권을 둘지.
 5. 성인 확인 결과를 어디에 쓰나(19금 글 보기 판정 — 게시판 `adult` 글 처리, 서버 몫), 본인인증 도입 시 자기 신고 값을 어떻게 다룰지. → **정함(2026-11-06)**: 본인인증 만 19세 이상만 19금 글을 본다, 자기 신고는 없앴다(`adult-content-contract.md`).
 6. 보기 설정의 글자 크기를 PrimeVue 위젯(단추·입력칸) 글자에도 적용할지(지금은 Tailwind 글자만 — community 의 `text-scale.css`·프리셋 보정은 옮기지 않았다).
@@ -76,9 +76,9 @@
 - **쪽지 받음 알림**: 쪽지 서버를 만들 때 회원 이벤트 `DM`(앱 알림, 회원이 끌 수 있음)을 더한다.
 - **닉네임 그림 검토**: 쪽지·차단 서버 단계에서 관리자 검토 화면과 권한(`nickname-image.manage`)을 함께 만든다(운영자 이벤트 `NICKNAME_IMAGE_PENDING` 발행 포함).
 
-## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 로보얌에 맞춤)
+## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 아이로빗에 맞춤)
 - **쪽지 나머지 값(미확정 1)**: 연속 전송 3초 간격(`429 RATE_LIMITED` + `retryAfterSeconds`)·500자·1년 보관(매일 정리, 신고된 대화는 처리 끝까지 보관)도 서버 상수로 둔다(community `api-dm.md` 와 같다). 관리자 화면은 두지 않는다.
-- **글·댓글의 차단·메모(미확정 3)**: 로보얌 글 상세·댓글에 회원 메뉴(⋯)가 생길 때 차단·메모를 넣는다. 이번 범위가 아니다.
+- **글·댓글의 차단·메모(미확정 3)**: 아이로빗 글 상세·댓글에 회원 메뉴(⋯)가 생길 때 차단·메모를 넣는다. 이번 범위가 아니다.
 - **성인 확인(미확정 5)**: 19금 글은 성인 열람자(성인 확인 회원·글쓴이·운영진)만 보고 그 밖에는 글 ID 로 와도 `404`, 여러 게시판 모음에는 싣지 않는다(community `api-board.md`). **본인인증과의 관계는 커머스 0-4(본인인증·기능 제한) 병합 뒤에 정한다** — 커머스는 다른 작업에서 진행 중이다. → **정함(2026-11-06, `adult-content-contract.md`)**: 성인 = 본인인증 만 19세 이상(글쓴이·운영진 예외 없음), 목록에서 빼고 글 보기는 `403 POST_ADULT_ONLY`.
 - **글자 크기(미확정 6)**: 보기 설정의 글자 크기를 PrimeVue 위젯(단추·입력칸·선택 등) 글자에도 적용한다. community 의 `--text-scale` 방식을 user-web 에 맞춰 옮긴다(화면 몫, 서버 계약은 그대로).
 

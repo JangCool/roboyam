@@ -16,8 +16,8 @@ import javax.crypto.spec.SecretKeySpec;
  * 나중에 키를 교체할 때 구분하는 데 쓴다. IV 는 암호화할 때마다 새로 뽑는다(GCM 은 같은 키로 IV 를 재사용하면 안 된다).
  * GCM 은 인증 암호화라서 암호문이 변조되면 복호화가 실패한다.
  *
- * <p>키는 base64 로 인코딩한 32바이트이고, 암호문과 같은 곳에 두지 않는다 — 환경 변수 {@code ROBOYAM_CRYPTO_KEY}
- * ({@code roboyam.crypto.key}) 로 받는다. 새 키는 {@link SecretCipherTool} 로 만든다.
+ * <p>키는 base64 로 인코딩한 32바이트이고, 암호문과 같은 곳에 두지 않는다 — 환경 변수 {@code IROBIT_CRYPTO_KEY}
+ * ({@code irobit.crypto.key}) 로 받는다. 새 키는 {@link SecretCipherTool} 로 만든다.
  */
 public final class SecretCipher {
 

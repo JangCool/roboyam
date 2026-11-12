@@ -121,7 +121,7 @@ import { ApiError } from '~/composables/common/useApiClient';
 import type { PaymentResult, PaymentTestOrder } from '~/composables/payment/api/usePaymentApi.types';
 
 /**
- * 시험 결제 `/dev/payment` — 개발 모드에서만 열린다(운영 빌드는 404). 서버도 `roboyam.payment.test-orders` 를 켠 환경(local·dev)에서만 시험 주문을 받는다.
+ * 시험 결제 `/dev/payment` — 개발 모드에서만 열린다(운영 빌드는 404). 서버도 `irobit.payment.test-orders` 를 켠 환경(local·dev)에서만 시험 주문을 받는다.
  * 로그인해야 한다(`auth` 미들웨어 — 결제는 회원의 것).
  * 결제창 열기·포트원 SDK·창 닫기 판정·모바일 리디렉션 복원·완료 요청은 공용 `usePaymentCheckout` 이 한다(공구 주문서와 같은 흐름).
  */
@@ -145,7 +145,7 @@ const testApi = usePaymentTestApi();
 
 const pay = usePaymentCheckout<PaymentTestOrder>({
     /** 모바일 리디렉션으로 이 화면을 떠났다 돌아올 때 이어 갈 시험 주문(sessionStorage — 이 탭에만) */
-    pendingKey: 'roboyam-dev-payment-pending',
+    pendingKey: 'irobit-dev-payment-pending',
     redirectPath: () => '/dev/payment',
     // 개발 시험용 고정값 — 충전·공구 화면은 회원 정보에서 받는다(KG이니시스는 구매자 이름·전화·이메일을 요구한다)
     customer: () => ({ fullName: '시험회원', phoneNumber: '01000000000', email: 'test@example.com' }),

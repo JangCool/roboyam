@@ -20,7 +20,7 @@ import type {
  *   - `POST   /api/admin/notification-channels/{channelId}/test` → 200 `NotificationChannelTestResult` (연결 시험. 시험 결과는 `lastTest` 로 도구에 남는다. 서랍·브라우저는 400 `NOTIFICATION_CHANNEL_NOT_TESTABLE`. 운영자당 분당 6회 — 넘으면 429 `NOTIFICATION_CHANNEL_TEST_RATE_LIMITED` + `Retry-After`.
  *       시험이 **실패한 것**은 오류가 아니라 `ok:false` 응답이다 — 요청 자체가 실패한 것(권한·한도·서버 오류)만 `ApiError`)
  *   공통 오류: 404 `NOTIFICATION_CHANNEL_NOT_FOUND` · 403 `PERMISSION_DENIED`. 감사: `NOTIFICATION_CHANNEL_CREATE|UPDATE|DELETE|TOGGLE|TEST`(비밀 값은 기록하지 않는다).
- *   비밀 저장: 서버가 암호문으로 저장한다(`ROBOYAM_CRYPTO_KEY`, 메일 비밀번호와 같은 방식). 화면은 비밀을 그 화면 메모리에만 두고 제출하면 비운다(`forms.md`).
+ *   비밀 저장: 서버가 암호문으로 저장한다(`IROBIT_CRYPTO_KEY`, 메일 비밀번호와 같은 방식). 화면은 비밀을 그 화면 메모리에만 두고 제출하면 비운다(`forms.md`).
  */
 const PATH = {
     channels: '/api/admin/notification-channels',

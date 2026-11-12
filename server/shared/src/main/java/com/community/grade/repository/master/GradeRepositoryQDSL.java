@@ -8,7 +8,7 @@ import com.community.grade.service.XpCurve;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.JPAExpressions;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Repository;
  * 회원 수는 탈퇴 회원을 뺀 수다.
  */
 @Repository
-public class GradeRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class GradeRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QGradeEntity GRADE = QGradeEntity.gradeEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

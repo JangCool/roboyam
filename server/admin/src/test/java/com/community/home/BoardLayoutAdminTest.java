@@ -31,7 +31,7 @@ import tools.jackson.databind.node.ObjectNode;
 class BoardLayoutAdminTest extends CommerceAdminTestBase {
 
     /** 24칸 테마 · 12칸 테마(다음식) */
-    private static final String THEME = "roboyam";
+    private static final String THEME = "irobit";
     private static final String THEME_12 = "daum";
 
     @Autowired

@@ -86,7 +86,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 캐시 관리(docs/features/cache-admin-contract.md) — 목록·상세(서버별 보고를 합친다)와 지금 갱신·전체 갱신·TTL 변경·켜기/끄기.
  *
  * <ul>
- *   <li>서버별 값은 각 서버가 DB 에 보고한 것({@code cache_node_states})이다 — {@code roboyam.cache.node-timeout-seconds}(기본 60초) 넘게 보고가 없는 서버는 뺀다.
+ *   <li>서버별 값은 각 서버가 DB 에 보고한 것({@code cache_node_states})이다 — {@code irobit.cache.node-timeout-seconds}(기본 60초) 넘게 보고가 없는 서버는 뺀다.
  *       목록 줄은 그 캐시를 두는 서버들의 합(항목 수·적중·누락)이고 마지막 갱신은 가장 늦게 비운 서버 기준(한 대라도 띄운 뒤 안 비웠으면 null)이다.</li>
  *   <li>갱신 대기 = 반영 세대가 지금 세대보다 작거나 반영 켜짐이 실제 켜짐과 다른 서버가 있음. 대기가 시작된 시각은 마지막 갱신 요청·켜기/끄기 시각.</li>
  *   <li>지금 갱신은 세대 번호를 올리고(202) 각 서버가 몇 초 안에 비운다. 꺼진 캐시는 409 {@code CACHE_DISABLED}, 전체 갱신은 꺼진 캐시를 건너뛴다. 확인 창은 화면 몫(세션 정리 결정 1).</li>

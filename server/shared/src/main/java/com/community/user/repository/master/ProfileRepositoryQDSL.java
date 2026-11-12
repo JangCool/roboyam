@@ -1,7 +1,7 @@
 package com.community.user.repository.master;
 
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -9,7 +9,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class ProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class ProfileRepositoryQDSL extends IrobitRepositoryQDSL {
 
     public ProfileRepositoryQDSL(JPAQueryFactory query) {
         super(query);

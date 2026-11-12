@@ -48,7 +48,7 @@ import org.springframework.stereotype.Service;
 public class PublicSiteService implements CacheReloader {
 
     /** 이름을 모를 때(설정 행 없음)의 매니페스트 이름 */
-    private static final String FALLBACK_NAME = "Roboyam";
+    private static final String FALLBACK_NAME = "IROBIT";
     private static final int SHORT_NAME_MAX = 12;
     private static final String MANIFEST_COLOR = "#ffffff";
 
@@ -126,16 +126,21 @@ public class PublicSiteService implements CacheReloader {
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS, listChipPosition, likeHighlight, viewHighlight,
                 highlightColor, listPrefixStyle, commentDelayNotice);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
+        // 사이트 소개(V203) — 관리자가 저장할 때 소독했다. 본문은 사본에만 두고 info 에는 있는지만 싣는다
+        String aboutHtml = found.map(SiteSettingEntity::getAboutHtml).filter(SiteAbouts::present).orElse(null);
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,
                 SiteAnalyticsView.of(statsSettings.current()), operatorView(operators.current(), operators.footerNotice()),
                 // 등급 목록(V196) — 이 사본(20초)과 지문(ETag)에 함께 든다. 등급 저장 뒤 길어야 사본 시간만큼 늦게 보인다
                 grades == null ? List.of() : grades.findAllOrdered().stream()
-                        .map(g -> new SiteGradeView(g.getGradeKey(), g.getLabel(), g.getLevel(), g.getSprite())).toList());
+                        .map(g -> new SiteGradeView(g.getGradeKey(), g.getLabel(), g.getLevel(), g.getSprite())).toList(),
+                aboutHtml != null);
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
-        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, fingerprint(info + "|" + themeView, manifest, ogCustom));
+        // 지문에 소개 본문도 넣는다 — 본문만 바뀌어도 /api/site/about 이 304 로 옛 본문을 돌려주지 않게
+        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, aboutHtml,
+                fingerprint(info + "|" + themeView + "|" + (aboutHtml == null ? "" : aboutHtml), manifest, ogCustom));
     }
 
     /** 운영 주체의 공개 칸 — 단계 · 연락 이메일(빈 글자는 null) · 푸터 안내 줄(없으면 null)과 보이기. 이 사본(20초)과 지문(ETag)에 함께 든다 */

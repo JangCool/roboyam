@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * 글 이미지 올리기의 회원 단위 속도 한도 — 1분 창 안에 {@code roboyam.post-image.per-minute}(기본 20)장까지. 넘으면 {@code 429 IMAGE_RATE_LIMITED}(+{@code Retry-After}).
+ * 글 이미지 올리기의 회원 단위 속도 한도 — 1분 창 안에 {@code irobit.post-image.per-minute}(기본 20)장까지. 넘으면 {@code 429 IMAGE_RATE_LIMITED}(+{@code Retry-After}).
  * 이 서버 안에서 센다({@code SocialRateLimiter} 와 같은 방식) — 서버가 여러 대면 대수만큼 늘 수 있다(남용 방지용 한도이고, 하루 한도는 DB 가 센다).
  */
 @Component

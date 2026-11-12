@@ -64,9 +64,9 @@ const PATH_D = /^[MmLlHhVvCcSsQqTtAaZz0-9.,\s+\-eE]+$/;
 const OPACITY = /^(?:0|1|0?\.\d{1,3}|1\.0{1,3})$/;
 const FILE_ID = /^[0-9]{1,19}$/;
 
-/** 테마 기본 제목 아이콘 — 모든 테마 보이기(로보얌도 — 사용자 2026-11-10), 바탕은 로보얌 옅은 네모 · 그 밖 없음(서버 `GadgetKinds.baseStyle`) */
+/** 테마 기본 제목 아이콘 — 모든 테마 보이기(아이로빗도 — 사용자 2026-11-10), 바탕은 아이로빗 옅은 네모 · 그 밖 없음(서버 `GadgetKinds.baseStyle`) */
 function themeIcon(theme: string | null | undefined): { show: boolean; bg: GadgetStyle['iconBg'] } {
-    return { show: true, bg: theme === 'roboyam' ? 'SOFT' : 'NONE' };
+    return { show: true, bg: theme === 'irobit' ? 'SOFT' : 'NONE' };
 }
 
 function readTabler(raw: unknown): GadgetTablerIcon | null {

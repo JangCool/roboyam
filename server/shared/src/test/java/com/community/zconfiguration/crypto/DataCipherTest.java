@@ -204,7 +204,7 @@ class DataCipherTest {
 
         @Test
         void 예전_키만_있고_지금_키가_없다() {
-            assertThatThrownBy(() -> cipher("", "1:" + KEY_A)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ROBOYAM_DATA_KEY");
+            assertThatThrownBy(() -> cipher("", "1:" + KEY_A)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("IROBIT_DATA_KEY");
         }
 
         @Test
@@ -220,7 +220,7 @@ class DataCipherTest {
 
             assertThatThrownBy(() -> cipher("1:@@@@", "")).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> cipher("1:" + shortKey, "")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("32바이트");
-            assertThatThrownBy(() -> cipher("2:" + KEY_B, "1:@@@@")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ROBOYAM_DATA_KEY_PREVIOUS");
+            assertThatThrownBy(() -> cipher("2:" + KEY_B, "1:@@@@")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("IROBIT_DATA_KEY_PREVIOUS");
         }
 
         @Test

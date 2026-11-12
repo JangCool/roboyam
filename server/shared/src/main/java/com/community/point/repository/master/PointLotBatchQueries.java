@@ -3,7 +3,7 @@ package com.community.point.repository.master;
 import com.community.point.entity.PointLotKind;
 import com.community.point.entity.QPointBalanceEntity;
 import com.community.point.entity.QPointLotEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * Native SQL 로 남긴 것과 이유: 알림 표시 {@code UPDATE … RETURNING} — 표시한 묶음과 알릴 묶음이 같은 문장의 결과여야 한다(나누면 그 사이 다른 실행이 표시한 묶음이 섞인다).
  */
 @Repository
-public class PointLotBatchQueries extends RoboyamRepositoryQDSL {
+public class PointLotBatchQueries extends IrobitRepositoryQDSL {
 
     /** 소멸 대상 묶음 하나 — 정렬 키 (소멸일, ID) */
     public record DueLot(long id, long userId, Instant expiresAt) {

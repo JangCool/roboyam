@@ -29,7 +29,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 @EnableJpaRepositories(
         // 마스터용 리포지토리만 스캔한다. slave 가 생기면 그쪽은 자기 설정이 스캔한다.
         basePackages = "com.community.**.repository.master",
-        // save() 대신 persist()/update() 를 쓰게 하는 바탕 구현 (RoboyamRepository 참조)
+        // save() 대신 persist()/update() 를 쓰게 하는 바탕 구현 (IrobitRepository 참조)
         repositoryBaseClass = BaseJpaRepositoryImpl.class,
         entityManagerFactoryRef = JpaMasterConfig.ENTITY_MANAGER,
         transactionManagerRef = JpaMasterConfig.TRANSACTION_MANAGER)
@@ -42,7 +42,7 @@ public class JpaMasterConfig {
     public static final String TRANSACTION_MANAGER = "transactionManager";
 
     /** 마스터 질의 팩토리. slave 가 생기면 slave 용이 옆에 선다. */
-    public static final String QUERY_FACTORY = "roboyam-master-query-factory";
+    public static final String QUERY_FACTORY = "irobit-master-query-factory";
 
     /**
      * JPA(Hibernate) 의 SQL 예외를 {@code JdbcTemplate} 과 같은 규칙({@link SQLExceptionSubclassTranslator} — PostgreSQL 은 SQLState 로 가른다)으로 바꾼다.
@@ -54,7 +54,7 @@ public class JpaMasterConfig {
      * <p>{@code static} — 빈 후처리기라 설정 클래스보다 먼저 만들어진다.
      */
     @Bean
-    public static BeanPostProcessor roboyamJpaExceptionTranslation() {
+    public static BeanPostProcessor irobitJpaExceptionTranslation() {
         return new BeanPostProcessor() {
             @Override
             public Object postProcessBeforeInitialization(Object bean, String beanName) {

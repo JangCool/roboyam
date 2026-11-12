@@ -13,7 +13,7 @@ const START_WAIT_MS = 2000;
 
 export default defineNuxtPlugin({
     // 테마(`01.site-theme`)·로그인 상태(`auth`)와 동시에 받는다(`parallel`) — 기다리던 왕복을 한 번으로 줄인다(휴대폰 회선에서 차이가 크다)
-    name: 'roboyam:site-info',
+    name: 'irobit:site-info',
     parallel: true,
     async setup() {
         const install = useInstallState();

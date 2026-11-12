@@ -10,7 +10,7 @@ import com.community.batch.entity.QBatchRunFailureEntity;
 import com.community.batch.entity.QBatchRunRequestEntity;
 import com.community.batch.entity.QBatchRunStepEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class BatchRunDetailRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class BatchRunDetailRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QBatchRunEntity RUN = QBatchRunEntity.batchRunEntity;
     private static final QBatchRunStepEntity STEP = QBatchRunStepEntity.batchRunStepEntity;

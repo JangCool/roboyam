@@ -1,5 +1,5 @@
 {
-    "name": "roboyam",
+    "name": "irobit",
     "private": true,
     "scripts": {
         "seed:local": "node scripts/seed-local.mjs"

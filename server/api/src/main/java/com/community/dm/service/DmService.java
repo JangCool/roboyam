@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>보낼 자격(나 때문)</b> — 이 차례로 처음 걸린 하나: 이메일 인증 전 {@code EMAIL_NOT_VERIFIED} → 정지·영구 정지({@code users.status}) {@code ACCOUNT_RESTRICTED} →
- *       사업자 회원 역할 {@code BUSINESS_RESTRICTED} → 회원 역할 권한 {@code message.send} 없음 {@code NOT_PERMITTED}(로보얌 — 게시판 글쓰기의 {@code post.write} 판정과 같은
+ *       사업자 회원 역할 {@code BUSINESS_RESTRICTED} → 회원 역할 권한 {@code message.send} 없음 {@code NOT_PERMITTED}(아이로빗 — 게시판 글쓰기의 {@code post.write} 판정과 같은
  *       {@link BoardActorResolver} 를 쓴다) → 가입 7일 전 {@code TOO_NEW}(+ {@code availableFrom}) → 오늘 20통 {@code DAILY_LIMIT}. 제재·본인인증·기능 제한 모델은 따로 두지 않는다
  *       (커머스 0-4 몫 — 지금 있는 값만 본다).</li>
  *   <li><b>받는 사람 때문</b>: 탈퇴 {@code RECIPIENT_WITHDRAWN}(대화방만) → 차단 관계(어느 쪽이든) {@code UNAVAILABLE} → 수신 거부 {@code RECIPIENT_REFUSES} → 하루 한도 →

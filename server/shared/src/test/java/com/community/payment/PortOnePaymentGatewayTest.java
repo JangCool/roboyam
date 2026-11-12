@@ -97,7 +97,7 @@ class PortOnePaymentGatewayTest {
     void 취소된_결제는_취소_내역을_읽는다() {
         String body = paid(PAY, STORE, 10_000).replace("\"status\":\"PAID\"", "\"status\":\"PARTIAL_CANCELLED\"").replace("\"cancelled\":0,", "\"cancelled\":3000,")
                 .replace("\"disputes\":[]", "\"disputes\":[],\"cancellations\":[{\"status\":\"SUCCEEDED\",\"id\":\"c-1\",\"totalAmount\":3000,\"taxFreeAmount\":0,"
-                        + "\"vatAmount\":0,\"reason\":\"roboyam REFUND rc:42\",\"requestedAt\":\"2026-10-26T02:00:00Z\",\"cancelledAt\":\"2026-10-26T02:00:01Z\"},"
+                        + "\"vatAmount\":0,\"reason\":\"irobit REFUND rc:42\",\"requestedAt\":\"2026-10-26T02:00:00Z\",\"cancelledAt\":\"2026-10-26T02:00:01Z\"},"
                         + "{\"status\":\"REQUESTED\",\"id\":\"c-2\",\"totalAmount\":1000,\"taxFreeAmount\":0,\"vatAmount\":0,\"reason\":\"x\",\"requestedAt\":\"2026-10-26T03:00:00Z\"}]");
         expectGet(PAY, withSuccess(body, MediaType.APPLICATION_JSON));
         PgPayment payment = gateway.getPayment(PAY);
@@ -108,7 +108,7 @@ class PortOnePaymentGatewayTest {
         assertThat(payment.cancellations().get(0).id()).isEqualTo("c-1");
         assertThat(payment.cancellations().get(0).status()).isEqualTo(PgCancelStatus.SUCCEEDED);
         assertThat(payment.cancellations().get(0).amount()).isEqualTo(3_000);
-        assertThat(payment.cancellations().get(0).reason()).isEqualTo("roboyam REFUND rc:42");
+        assertThat(payment.cancellations().get(0).reason()).isEqualTo("irobit REFUND rc:42");
         assertThat(payment.cancellations().get(1).status()).isEqualTo(PgCancelStatus.REQUESTED);
         assertThat(payment.cancellations().get(1).cancelledAt()).isNull();
     }
@@ -142,7 +142,7 @@ class PortOnePaymentGatewayTest {
                 .andExpect(jsonPath("$.storeId").value(STORE))
                 .andExpect(jsonPath("$.amount").value(3000))
                 .andExpect(jsonPath("$.currentCancellableAmount").value(10000))
-                .andExpect(jsonPath("$.reason").value("roboyam REFUND rc:7"))
+                .andExpect(jsonPath("$.reason").value("irobit REFUND rc:7"))
                 .andRespond(response);
     }
 
@@ -154,38 +154,38 @@ class PortOnePaymentGatewayTest {
     @Test
     void 취소는_금액_취소_가능_잔액_사유를_보내고_응답의_취소_상태를_읽는다() {
         expectCancel(withSuccess(cancellation("SUCCEEDED", "c-9"), MediaType.APPLICATION_JSON));
-        PgCancelResult done = gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7");
+        PgCancelResult done = gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7");
         server.verify();
         assertThat(done.succeeded()).isTrue();
         assertThat(done.cancellationId()).isEqualTo("c-9");
 
         server.reset();
         expectCancel(withSuccess(cancellation("REQUESTED", "c-10"), MediaType.APPLICATION_JSON));
-        PgCancelResult requested = gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7");
+        PgCancelResult requested = gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7");
         assertThat(requested.status()).as("접수만").isEqualTo(PgCancelStatus.REQUESTED);
         assertThat(requested.cancellationId()).isEqualTo("c-10");
 
         server.reset();
         expectCancel(withSuccess(cancellation("FAILED", "c-11"), MediaType.APPLICATION_JSON));
-        assertThat(gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7").status()).isEqualTo(PgCancelStatus.FAILED);
+        assertThat(gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7").status()).isEqualTo(PgCancelStatus.FAILED);
     }
 
     @Test
     void 포트원이_거절한_취소는_실패와_오류_type_이고_5xx_연결_실패는_503() {
         expectCancel(withStatus(HttpStatus.CONFLICT).body("{\"type\":\"CANCELLABLE_AMOUNT_CONSISTENCY_BROKEN\",\"message\":\"m\"}").contentType(MediaType.APPLICATION_JSON));
-        PgCancelResult rejected = gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7");
+        PgCancelResult rejected = gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7");
         assertThat(rejected.status()).isEqualTo(PgCancelStatus.FAILED);
         assertThat(rejected.errorType()).isEqualTo("CANCELLABLE_AMOUNT_CONSISTENCY_BROKEN");
 
         server.reset();
         expectCancel(withStatus(HttpStatus.BAD_GATEWAY).body("{\"type\":\"PG_PROVIDER\"}").contentType(MediaType.APPLICATION_JSON));
-        assertThatThrownBy(() -> gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7")).isInstanceOf(PaymentGatewayUnavailableException.class);
+        assertThatThrownBy(() -> gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7")).isInstanceOf(PaymentGatewayUnavailableException.class);
 
         server.reset();
         expectCancel(request -> {
             throw new java.io.IOException("timeout");
         });
-        assertThatThrownBy(() -> gateway.cancel(PAY, 3_000, 10_000, "roboyam REFUND rc:7")).isInstanceOf(PaymentGatewayUnavailableException.class);
+        assertThatThrownBy(() -> gateway.cancel(PAY, 3_000, 10_000, "irobit REFUND rc:7")).isInstanceOf(PaymentGatewayUnavailableException.class);
     }
 
     @Test

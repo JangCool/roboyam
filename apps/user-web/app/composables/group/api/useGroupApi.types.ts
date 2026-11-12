@@ -9,7 +9,7 @@ import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopA
  * 4단계(9절 일정)는 서버 `GroupEventRowView`·`GroupEventDetailView`·`GroupEventPageView`·`GroupEventAttendeePageView`·`GroupEventResponseResultView`·`GroupEventRequest`·
  * `MyGroupsView.NextEvent` 와 칸 단위로 맞췄다(2026-10-26).
  * 5단계(11절 공개 범위·공개 요청)는 community `docs/api-groups.md` 11절과 같은 이름·칸이고, 서버 `GroupVisibilityViews`·`GroupDetailView`(`VisibilityInfo`·`Permissions`)와 대조했다(`useGroupApi.ts` 머리말).
- * 로보얌 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
+ * 아이로빗 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
  * 원본과 다르게 둔 것은 `useGroupApi.ts` 머리말에 적는다.
  */
 
@@ -92,7 +92,7 @@ export type GroupMyState = 'NONE' | 'MEMBER' | 'LEADER' | 'APPLIED' | 'REJECTED'
 /** 목록 정렬 — 인기순(기본) · 신규 · 모집중 · 내 소모임(로그인 필요) */
 export type GroupSort = 'popular' | 'new' | 'recruiting' | 'mine';
 
-/** 대표 이미지(로보얌 추가) — 올리기 응답·상세·개설 신청이 같은 모양. `url` 은 공개 주소(움직이는 GIF·WebP 는 그대로 움직인다) */
+/** 대표 이미지(아이로빗 추가) — 올리기 응답·상세·개설 신청이 같은 모양. `url` 은 공개 주소(움직이는 GIF·WebP 는 그대로 움직인다) */
 export interface GroupImage {
     fileId: string;
     url: string;
@@ -477,7 +477,7 @@ export interface GroupCreationRules {
     visibilityChoice?: boolean;
     /**
      * 로그인했을 때만 — 개설 규칙만 본다(이메일 인증·정지는 신청할 때 403).
-     * `reason`: 서버 `creationBlocked` 차례로 `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 로보얌 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
+     * `reason`: 서버 `creationBlocked` 차례로 `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 아이로빗 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
      *   → `DISSOLVE_PENALTY`(스스로 해산한 소모임의 패널티 기간 — `penaltyUntil` 까지)
      */
     me: {
@@ -587,7 +587,7 @@ export interface GroupPostPage {
 }
 
 /**
- * `POST /api/groups/{id}/posts` 본문 — 로보얌 글쓰기 본문(`PostWriteRequest`)에서 게시판(`boardSlug` — 소모임 게시판으로 정해진다)·비회원(`guest` — 회원만)·찬반 토론(`debate`)을 뺀 것.
+ * `POST /api/groups/{id}/posts` 본문 — 아이로빗 글쓰기 본문(`PostWriteRequest`)에서 게시판(`boardSlug` — 소모임 게시판으로 정해진다)·비회원(`guest` — 회원만)·찬반 토론(`debate`)을 뺀 것.
  * 말머리는 소모임 게시판의 말머리. 임시저장·예약 발행은 없다. 글은 **비공개**로 만들어진다. `adult` 는 늘 false(`true` 면 서버 `400 fields.adult` — 소모임 글은 19금이 될 수 없다).
  */
 export type GroupPostWriteRequest = Omit<PostWriteRequest, 'boardSlug' | 'guest' | 'debate'>;

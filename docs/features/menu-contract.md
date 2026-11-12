@@ -1,7 +1,7 @@
 # 메뉴 관리 계약 (**관리자 화면 확정 2026-10-22** — 이번 범위는 백엔드 구현, 화면 연결은 후속)
 
 **의도**: 공개 사이트 메뉴와 관리자 사이트 메뉴를 관리자 앱에서 구성한다. 공개 메뉴는 **메뉴 그룹**(좌측 사이드·마이페이지·공동구매·사용자 정의) 마다 트리를 따로 갖고, 트리는 폴더(선택: 누르면 가는 곳)와 항목(게시판·사이트 화면·외부 링크 연결)으로 이루어진다. 관리자 메뉴는 일반/설정 두 모드의 사이드 메뉴 순서·묶음·이름·아이콘·표시를 바꾼다(권한은 화면이 정한다).
-**참고(읽기 전용)**: community `D:\project\community\workspace\community` — `docs/api-menu.md`(트리·연결 유형·검증·리졸버 구조의 원본), `server/shared/.../menu/**`. roboyam 은 이를 **메뉴 그룹 여러 개**로 넓혔다.
+**참고(읽기 전용)**: community `D:\project\community\workspace\community` — `docs/api-menu.md`(트리·연결 유형·검증·리졸버 구조의 원본), `server/shared/.../menu/**`. irobit 은 이를 **메뉴 그룹 여러 개**로 넓혔다.
 
 ## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
 - `/menus/public` · `/menus/admin` (`/menus` → `/menus/public`).
@@ -50,7 +50,7 @@
 **group-buy 시드**: 목업의 PATH `/boards/notice` 는 게시판 존재 보장이 없어 뺐다.
 
 ## 설치 프리셋의 메뉴 (2026-10-27 확정, 구현 전)
-설치 때 `main` 트리를 프리셋 JSON 의 `menu` 로 바꾸고(ROBOYAM: 홈·인기글·최신글·「주제」·「커뮤니티」(autoAdd)·「소모임」·공지), `mypage` 의 V49 숨김을 화면이 있는 항목만 풀고 `MY_SHOP` 을 넣는다(새 마이그레이션). 정본은 `install-contract.md` 「프리셋 구조」.
+설치 때 `main` 트리를 프리셋 JSON 의 `menu` 로 바꾸고(IROBIT: 홈·인기글·최신글·「주제」·「커뮤니티」(autoAdd)·「소모임」·공지), `mypage` 의 V49 숨김을 화면이 있는 항목만 풀고 `MY_SHOP` 을 넣는다(새 마이그레이션). 정본은 `install-contract.md` 「프리셋 구조」.
 
 ## 구분선·설명 (화면 확정 2026-10-28 · 서버 구현 2026-10-29 — 화면은 아직 관리자 목업 `composables/menu/api/mock/menu-extra-mock.ts`)
 - 공개 메뉴 노드(폴더·항목)에 `divider`: `NONE`(기본) · `BEFORE` · `AFTER` — 공개 사이트 상단 메뉴 첫 줄에서 그 칸 앞/뒤에 세로 구분선(예: 나중에 「공동구매 · 핫딜」 묶음 앞). 관리자 항목·폴더 대화상자 `MenuDividerField`.
@@ -107,4 +107,4 @@
 - 공개 표시: 메뉴 노드 이름을 그리는 모든 곳이 같은 부품(`AppMenuItemLabel` — 규칙 `UtilMenu.textStyle`·`labelClass`·`badgeStyle`) — 상단 메뉴·드롭다운·커뮤니티 오른쪽 목록(AppMenuList)·모바일 메뉴·다음·네이버 테마 막대·모바일 상단 탭·로고 옆 링크·푸터 링크·게시판 모음(/boards). 좁은 칸은 작은 배지(`compact`), 이미 더 굵은 칸(다음 테마 700 등)은 「굵게」로 얇아지지 않게 그 굵기 유지. 하단 탭(고정 6칸)은 메뉴 줄이 아니라 제외. 12색은 기존 라이트/다크 짝(`UtilColor.cssPair`), 직접 고른 색은 다크 모드에서 읽히게 밝게 섞은 짝을 자동으로 쓴다.
 - 설치 프리셋은 `export-install-preset.mjs` 가 칸을 DB 에서 읽으므로 자동으로 따라온다.
 - **(2026-11-11) 폴더(그룹)도 같다** — 관리자 폴더 고치기 창에 같은 「글자 색」·「강조」 칸(점 안내만 뺀다), 트리 줄·미리보기의 폴더 제목에도 같은 색·굵게·배지. 공개 메뉴 그룹 줄(`kind: "GROUP"`)의 `textColor`·`bold`·`badge` 를 상단 막대 그룹 제목·드롭다운 머리와 소제목·세로 메뉴 그룹 제목과 소제목·모바일 첫 줄 그룹 단추와 둘째 줄 그룹 제목에 항목과 같은 규칙(`AppMenuItemLabel`)으로 그린다. 기본(null)이면 제목의 흐린 색 그대로, 고른 색은 펼침·고른 상태에서도 유지된다.
-- **(2026-11-11) 테마 메뉴 설정 「메뉴 글자 기본 굵게」** — `site_theme_menus.menu_bold`(shared V187, 켬·끔 · 다음·로보얌 테마(같은 막대 — 예전부터 굵게)만 기본 켬, 행이 없는 테마의 처음 값도 `SiteThemeMenus.initialOf` 가 같은 규칙). 관리자 `GET /api/admin/site/theme`·`PUT /api/admin/site/themes/{id}/menu` 의 `menuBold`(PUT 에서 빠지면 지금 값 유지), 공개 `GET /api/site/theme` 의 `menuBold`. 켜면 막대 칸이 굵게(700)·이름은 `keep-weight`, 끄면 얇게·「굵게」 항목만 600 — 다음식(로보얌 포함)·네이버·기본 상단 막대.
+- **(2026-11-11) 테마 메뉴 설정 「메뉴 글자 기본 굵게」** — `site_theme_menus.menu_bold`(shared V187, 켬·끔 · 다음·아이로빗 테마(같은 막대 — 예전부터 굵게)만 기본 켬, 행이 없는 테마의 처음 값도 `SiteThemeMenus.initialOf` 가 같은 규칙). 관리자 `GET /api/admin/site/theme`·`PUT /api/admin/site/themes/{id}/menu` 의 `menuBold`(PUT 에서 빠지면 지금 값 유지), 공개 `GET /api/site/theme` 의 `menuBold`. 켜면 막대 칸이 굵게(700)·이름은 `keep-weight`, 끄면 얇게·「굵게」 항목만 600 — 다음식(아이로빗 포함)·네이버·기본 상단 막대.

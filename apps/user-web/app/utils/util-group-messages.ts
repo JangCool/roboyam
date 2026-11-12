@@ -21,7 +21,7 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 
 /**
  * 소모임 화면의 계산이 낀 문구 — 분기·자리표시자·조합이 있는 것만 둔다(상수 문구는 컴포넌트가 `t('group.키')` 로 부른다).
- * 문구 본문은 `i18n/locales/{ko,en}/group.ts`. 이름은 고정 「소모임」/"Club"(로보얌에는 community 의 용어 설정 `GROUPS` 이름 바꾸기가 소모임 문구에 걸려 있지 않다).
+ * 문구 본문은 `i18n/locales/{ko,en}/group.ts`. 이름은 고정 「소모임」/"Club"(아이로빗에는 community 의 용어 설정 `GROUPS` 이름 바꾸기가 소모임 문구에 걸려 있지 않다).
  * 서버 `message` 가 있는 오류는 서버 문구를 그대로 쓴다(`UtilBoardMessages.of`) — 여기서 푸는 것은 코드만 오는 상태(`join.reason` 등)다.
  */
 

@@ -73,7 +73,7 @@ class MotionAvatarTest extends PointShopTestBase {
         long plain = kit.newMember();
         Map<Long, AuthorLook> looks = kit.decorations.resolve(java.util.List.of(member, plain));
         assertThat(looks.get(plain).avatarStillUrl()).as("정지 아바타는 정지 그림이 없다").isNull();
-        assertThat(looks.get(plain).avatarUrl()).isEqualTo("/avatars/roboyam/basic-default.svg");
+        assertThat(looks.get(plain).avatarUrl()).isEqualTo("/avatars/irobit/basic-default.svg");
     }
 
     @Test

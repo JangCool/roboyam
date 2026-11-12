@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  * (대량 환불이 마감·만료를 막지 않게). 한 바퀴의 일은 shared 의 워커가 한다 — 배치 서버로 뗄 때 이 클래스만 옮긴다(15-2). {@code PaymentCancelScheduler} 와 같은 모양이다.
  *
  * <ul>
- *   <li>{@code roboyam.batch.enabled=false} 인 서버는 돌지 않는다(선점 만료는 회원이 주문할 때 본인 것을 그 자리에서 정리하므로 워커가 잠시 멈춰도 판매가 틀어지지 않는다 — 15-4).</li>
+ *   <li>{@code irobit.batch.enabled=false} 인 서버는 돌지 않는다(선점 만료는 회원이 주문할 때 본인 것을 그 자리에서 정리하므로 워커가 잠시 멈춰도 판매가 틀어지지 않는다 — 15-4).</li>
  *   <li>바퀴마다 워커 기록({@code worker_heartbeats}) — 일이 없으면 간격마다 한 번만, 실패하면 가린 오류 한 줄.</li>
  * </ul>
  */
@@ -44,7 +44,7 @@ public class GroupBuyStateScheduler {
     }
 
     /** @return 이번 바퀴에 다룬 건수(배치를 끈 서버면 -1) */
-    @Scheduled(initialDelayString = "${roboyam.groupbuy.state-poll-millis:60000}", fixedDelayString = "${roboyam.groupbuy.state-poll-millis:60000}")
+    @Scheduled(initialDelayString = "${irobit.groupbuy.state-poll-millis:60000}", fixedDelayString = "${irobit.groupbuy.state-poll-millis:60000}")
     public int stateTick() {
         if (!properties.enabled()) {
             return -1;
@@ -61,7 +61,7 @@ public class GroupBuyStateScheduler {
     }
 
     /** @return 이번 바퀴에 다룬 주문 수(배치를 끈 서버면 -1) */
-    @Scheduled(initialDelayString = "${roboyam.groupbuy.refund-poll-millis:60000}", fixedDelayString = "${roboyam.groupbuy.refund-poll-millis:60000}")
+    @Scheduled(initialDelayString = "${irobit.groupbuy.refund-poll-millis:60000}", fixedDelayString = "${irobit.groupbuy.refund-poll-millis:60000}")
     public int refundTick() {
         if (!properties.enabled()) {
             return -1;
@@ -78,7 +78,7 @@ public class GroupBuyStateScheduler {
     }
 
     /** 발송·요청 워커(에스크로 대기열·부족분 미결제 요청 닫기·공급 불가 기본 선택 — 2b-3). @return 다룬 건수(배치를 끈 서버면 -1) */
-    @Scheduled(initialDelayString = "${roboyam.groupbuy.fulfillment-poll-millis:60000}", fixedDelayString = "${roboyam.groupbuy.fulfillment-poll-millis:60000}")
+    @Scheduled(initialDelayString = "${irobit.groupbuy.fulfillment-poll-millis:60000}", fixedDelayString = "${irobit.groupbuy.fulfillment-poll-millis:60000}")
     public int fulfillmentTick() {
         if (!properties.enabled()) {
             return -1;
@@ -95,7 +95,7 @@ public class GroupBuyStateScheduler {
     }
 
     /** 기한 점검(1시간 — P35 요청 처리 기한 · 결정 51 발송 기한 · 마감 임박 알림, 2b-4) */
-    @Scheduled(initialDelayString = "${roboyam.groupbuy.deadline-poll-millis:3600000}", fixedDelayString = "${roboyam.groupbuy.deadline-poll-millis:3600000}")
+    @Scheduled(initialDelayString = "${irobit.groupbuy.deadline-poll-millis:3600000}", fixedDelayString = "${irobit.groupbuy.deadline-poll-millis:3600000}")
     public int deadlineTick() {
         if (!properties.enabled()) {
             return -1;

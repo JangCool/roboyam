@@ -50,7 +50,7 @@ class VisitStage2CollectTest {
     private static final String IPAD_OLD = "Mozilla/5.0 (iPad; CPU OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Mobile/15E148 Safari/604.1";
     private static final String ANDROID_PHONE = "Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/24.0 Chrome/117.0 Mobile Safari/537.36";
     private static final String ANDROID_TABLET = "Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
-    private static final String HOST = "roboyam.test";
+    private static final String HOST = "irobit.test";
 
     /** 2단계 세 칸까지 모두 켬 */
     static final StatsCollection ALL2 = new StatsCollection(true, true, true, 3, true, true, true, true, true, false, false);

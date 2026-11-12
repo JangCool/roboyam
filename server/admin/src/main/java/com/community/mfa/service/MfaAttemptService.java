@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 2차 인증 코드 실패 제한 — {@code login_attempts} 표의 키 {@code sha256("mfa:" + 운영자 ID)}(이메일 로그인 키 {@code "admin:"+이메일} · 공개 사이트 회원 키와 섞이지 않는다).
  *
  * <ul>
- *   <li>한도 = 로그인 보안 설정의 {@code max_failures}(3~10), 잠금 = 관리자 로그인 잠금 시간({@code roboyam.admin-auth.login-lock-seconds}, 10분).</li>
+ *   <li>한도 = 로그인 보안 설정의 {@code max_failures}(3~10), 잠금 = 관리자 로그인 잠금 시간({@code irobit.admin-auth.login-lock-seconds}, 10분).</li>
  *   <li>대기 세션의 verify·강제 등록 확정과 로그인 세션의 복구 코드 새로 만들기·자발 등록 확정이 <b>같은 키</b>를 쓴다. 성공하면 지운다.</li>
  *   <li>한도에 닿는 그 실패부터 {@code 429 MFA_LOCKED}(목업·화면과 같은 약속). 그 전까지는 남은 횟수를 돌려준다.</li>
  *   <li>실패 기록은 <b>독립 트랜잭션</b>이다 — 요청이 오류로 끝나 업무 트랜잭션이 롤백돼도 횟수는 남는다.</li>

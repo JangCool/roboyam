@@ -51,7 +51,7 @@ import type { ChatCardModel } from '~/utils/util-chat-template';
 interface Props {
     /** 카드 값(`UtilChatTemplate.card`) */
     card: ChatCardModel;
-    /** 봇(앱) 이름 — 없으면 「로보얌 알림」 */
+    /** 봇(앱) 이름 — 없으면 「아이로빗 알림」 */
     botName?: string;
     /** 이름 줄의 시각 글자 — 없으면 「방금」 */
     timeLabel?: string;

@@ -1,0 +1,66 @@
+# 로컬 개발 PC 전용 값 — docker/local/compose.yml 의 postgres 에 맞춘 기본값이다.
+# 환경 변수를 주면 그것이 먼저다. dev · prod 에는 기본값이 없다(irobit-shared.yml).
+# 여기의 비밀번호는 개발용 평문이다 — ENC(...) 가 아니므로 복호화 키를 요구하지 않는다.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5420/irobit}
+    username: ${DB_USERNAME:irobit}
+    password: ${DB_PASSWORD:irobit}
+
+logging:
+  level:
+    root: INFO
+    com.community: DEBUG
+
+irobit:
+  # Snowflake 서버 번호 — local 만 기본값이 있다(dev · prod 는 환경 변수 NODE_ID 가 필수)
+  node-id: ${NODE_ID:1}
+  # 알림 도구(Slack · Mattermost)의 주소로 로컬호스트·사설망을 허용한다 — 개발용 가짜 수신기로 시험하려고. dev · prod 는 기본 false(irobit-shared.yml 에 두지 않고 코드 기본값)이다.
+  # 클라우드 메타데이터·링크 로컬·와일드카드 주소는 이 값과 상관없이 항상 막는다
+  notification:
+    allow-private-targets: ${IROBIT_NOTIFICATION_ALLOW_PRIVATE_TARGETS:true}
+  # 이미지 저장 폴더 — 개발 PC 의 사용자 폴더(api·admin 을 어느 폴더에서 띄워도 같은 곳을 본다). IROBIT_STORAGE_PATH 로 바꿀 수 있다
+  storage:
+    local-path: ${IROBIT_STORAGE_PATH:${user.home}/.irobit/media}
+  # 설정 비밀값 키(SecretEncryptor — 포트원·메일·소셜·알림 비밀값, 관리자 OTP) — local 만 개발용 고정값을 내장한다(없으면 그 설정 저장이 503 CRYPTO_KEY_MISSING).
+  # 저장소에 공개된 값이라 개발 PC 전용이다 — 진짜 비밀값을 로컬 DB 에 둘 때는 환경 변수 IROBIT_CRYPTO_KEY 로 따로 만든 키를 준다. dev · prod 는 환경 변수가 필수다
+  crypto:
+    key: ${IROBIT_CRYPTO_KEY:DirTCFp7G1I46TWbLQy+LMAysro2YktdQZfOftTlx+o=}
+  # 포트원 설정 시드 — local 만. 포트원 설정 표가 비어 있을 때(재설치 등) 서버가 뜨면서 암호화해 넣는다(PortOneLocalSeeder). 화면에서 한 번이라도 저장·지운 뒤에는 쓰지 않는다.
+  # 공개 저장소에 평문으로 둔다(사용자 결정 2026-10-27 — 아이로빗 전용 상점의 테스트 키). dev · prod 는 관리자 화면에서 저장한다
+  portone:
+    seed:
+      store-id: ${IROBIT_PORTONE_STORE_ID:store-1ee339cc-0ccd-4789-a760-79481b511c67}
+      api-secret: ${IROBIT_PORTONE_API_SECRET:zFrdqkwnTvNZZAJbYsGzP9UxLIeHzuSrWcKZUtGmfHe6S9Ue6NeqAh4euaKNSUz0dyxphrS7qha2kerI}
+      identity-channel-key: ${IROBIT_PORTONE_IDENTITY_CHANNEL_KEY:channel-key-f5261d6e-8bc7-4458-ad56-fb4d9704d14c}
+      payment-channel-key: ${IROBIT_PORTONE_PAYMENT_CHANNEL_KEY:channel-key-1e946786-368e-4a24-9583-ae6410ffd935}
+      webhook-secret: ${IROBIT_PORTONE_WEBHOOK_SECRET:whsec_Dcdkv3y/ZBeJvJ2r/ZqckHO6u78dndScoUteVds4nmg=}
+  # 개인정보 칸 암호화·해시 키 — local 만 개발용 고정값을 내장한다(개발 DB 의 시험 데이터를 다시 띄워도 읽을 수 있게).
+  # 저장소에 공개된 값이라 개발 PC 전용이다 — dev · prod 는 설치 스크립트나 운영자가 따로 만든 키를 환경 변수로 준다
+  data-crypto:
+    key: ${IROBIT_DATA_KEY:1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=}
+    index-key: ${IROBIT_INDEX_KEY:OXBeGHD3B6PiO5pHknzjqZydjP09rZ85oOF6IflaFGs=}
+  # 설치 토큰 — local 만 개발용 기본값을 내장한다(화면 목업의 데모 값과 같다). 설치 전 DB 에서 /install 의 토큰 칸에 이 값을 넣으면 된다.
+  # 개발 PC 전용이다 — dev · prod 에서는 환경 변수 IROBIT_INSTALL_TOKEN 에 따로 만든 값을 넣거나 비워 두어 서버가 무작위 토큰을 로그에 출력하게 한다.
+  install:
+    token: ${IROBIT_INSTALL_TOKEN:irobit-demo-token}
+  # 본인인증 — local 은 가짜 구현(「가짜 본인인증(개발용)」 대화상자: 생년월일·사람 번호, 같은 번호 = 같은 사람). dev · prod 에서 fake 면 기동하지 않는다
+  identity:
+    provider: ${IROBIT_IDENTITY_PROVIDER:fake}
+  # 국세청 사업자 상태조회·진위확인 — local 은 가짜 구현. 등록번호 끝에서 둘째 자리: 5 진위 불일치 · 6 국세청에 없는 번호(상태 NOT_FOUND + 진위 불일치) ·
+  # 7 휴업 · 8 폐업 · 9 조회 불가 · 그 밖 계속사업자 + 진위 일치(개업일·대표자명·상호는 보지 않는다). dev · prod 에서 fake 면 기동하지 않는다.
+  # 실제 국세청으로 시험하려면 IROBIT_NTS_PROVIDER=odcloud + 관리자 설정 › 공공데이터포털에 서비스 키(또는 IROBIT_NTS_SERVICE_KEY)
+  business:
+    nts:
+      provider: ${IROBIT_NTS_PROVIDER:fake}
+  # 사업자 신청 건 — local 은 예시 입금 계좌(가정)
+  biz:
+    deposit-account:
+      bank-name: ${IROBIT_BIZ_BANK_NAME:국민은행}
+      account-no: ${IROBIT_BIZ_ACCOUNT_NO:123456-01-987654}
+      account-holder: ${IROBIT_BIZ_ACCOUNT_HOLDER:(주)아이로빗}
+  # 결제 — local 은 가짜 게이트웨이(가짜 결제창 /dev/payment)와 결제 시험 주문을 켠다. dev · prod 에서 fake 면 기동하지 않는다
+  payment:
+    gateway: ${IROBIT_PAYMENT_GATEWAY:fake}
+    test-orders: ${IROBIT_PAYMENT_TEST_ORDERS:true}

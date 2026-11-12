@@ -1,7 +1,7 @@
 /**
  * 관리자 제재 API(`/api/admin/sanctions…`)가 주고받는 모양 — 서버 `server/admin` `com.community.sanction.dto`(`SanctionLineView`·`SanctionPreviewView`·`SanctionOptionView`·`SanctionTargetView`·`SanctionListView`·요청 DTO)와 같은 칸 이름. 계약 `docs/features/member-sanction-contract.md`,
- * 모양의 근거는 community `docs/api-sanction.md` 3절(`SanctionLine`·`preview`·`options[].state`)을 로보얌 운영자 권한에 맞춘 것이다:
- *   - community 의 「최고 관리자만」(`requiresAdmin`·`403 ADMIN_ONLY`)은 로보얌 권한 `sanction.ban`(영구 정지·단계 건너뛰기·영구 정지 해제)으로 바꿨다 → `requiresBan`·`403 PERMISSION_DENIED`.
+ * 모양의 근거는 community `docs/api-sanction.md` 3절(`SanctionLine`·`preview`·`options[].state`)을 아이로빗 운영자 권한에 맞춘 것이다:
+ *   - community 의 「최고 관리자만」(`requiresAdmin`·`403 ADMIN_ONLY`)은 아이로빗 권한 `sanction.ban`(영구 정지·단계 건너뛰기·영구 정지 해제)으로 바꿨다 → `requiresBan`·`403 PERMISSION_DENIED`.
  *   - 운영자는 `users` 가 아니라 따로라 「운영진 계정」 막힘(`TARGET_STAFF`·`SANCTION_TARGET_NOT_ALLOWED`)은 없다.
  *   - 게시판 한정 제재(`BOARD_SANCTION`)는 이번 범위가 아니다(결정 1).
  *   - 이의제기 마감(`appealDeadline` = 시작 + 30일, 결정 3)을 더했다.

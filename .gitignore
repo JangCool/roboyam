@@ -33,7 +33,7 @@ server/admin/src/main/resources/static/
 .env.*
 !.env.example
 # 화면 앱의 개발·운영 환경 파일은 저장소에 넣는다(사용자 2026-11-11 — PrimeUI 라이선스 키 같은 화면 빌드 값, 어차피 화면 코드에 박혀 공개된다).
-# 서버 비밀값(DB 비밀번호·암호화 키 등)은 여기 적지 않는다 — 서버 env(/etc/roboyam/roboyam.env)에 ENC(...) 로.
+# 서버 비밀값(DB 비밀번호·암호화 키 등)은 여기 적지 않는다 — 서버 env(/etc/irobit/irobit.env)에 ENC(...) 로.
 !apps/*/.env.development
 !apps/*/.env.production
 

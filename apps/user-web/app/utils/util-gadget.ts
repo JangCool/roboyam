@@ -33,7 +33,7 @@ import UtilGroupBuy from '~/utils/util-group-buy';
 
 /**
  * 가젯의 순수 계산 — 서버 응답(`GET /api/home/gadgets`)을 읽고(없는 칸·모르는 값에도 깨지지 않게), 가젯을 폭에 따라 거르고,
- * 「더보기」·바로가기 주소, 글 줄 모양, 꾸미기 CSS 변수를 정한다. 상태도 요청도 없다. community `utils/util-home-gadget.ts` 를 로보얌 가젯 8종으로 줄였다.
+ * 「더보기」·바로가기 주소, 글 줄 모양, 꾸미기 CSS 변수를 정한다. 상태도 요청도 없다. community `utils/util-home-gadget.ts` 를 아이로빗 가젯 8종으로 줄였다.
  * 색 값은 `UtilColor`(프리셋 12색·자유 색 보정), 종류 → 컴포넌트는 `UtilGadgetRegistry`.
  *
  * **모르는 키는 건너뛴다**: 모르는 종류(`type`)는 `isVisible` 이 false(그리지 않는다), 모르는 값은 칸마다 기본값.
@@ -266,7 +266,7 @@ export default class UtilGadget {
 
     /**
      * 바로가기 한 개의 주소 — `ALL` `/` · `POPULAR` `/popular` · `LATEST` `/latest` · `GROUPS` `/groups` · `GROUP_BUY` `/group-buys` · `BOARD` `/boards/{slug}` · `PATH` 그대로.
-     * community 의 `HOTDEAL` 은 로보얌에 핫딜이 없어 뺐다(모르는 종류 = 그리지 않는다).
+     * community 의 `HOTDEAL` 은 아이로빗에 핫딜이 없어 뺐다(모르는 종류 = 그리지 않는다).
      * @param {{ kind: string; value: string | null }} item - 항목.
      * @returns {string | null} 사이트 안 경로. 모르는 종류·틀린 값이면 null.
      */
@@ -692,15 +692,15 @@ export default class UtilGadget {
 
     /**
      * 그릴 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 숨김이거나 고른 출처의 값이 없으면 null.
-     * 칸이 없는 가젯(옛 가젯·시드)은 테마 기본: 모든 테마 보이기(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」), 바탕은 로보얌 옅은 네모·그 밖 없음.
+     * 칸이 없는 가젯(옛 가젯·시드)은 테마 기본: 모든 테마 보이기(아이로빗도 — 사용자 2026-11-10 「아이로빗 기본 보이기」), 바탕은 아이로빗 옅은 네모·그 밖 없음.
      * @param {GadgetStyle} style - 꾸미기.
      * @param {string} theme - 지금 사이트 테마 id.
      * @returns {GadgetTitleIcon | null} 그릴 아이콘.
      */
     static titleIcon(style: GadgetStyle, theme: string): GadgetTitleIcon | null {
-        const roboyam = theme === 'roboyam';
+        const irobit = theme === 'irobit';
         if (!(style.iconShow ?? true)) return null;
-        const bg = style.iconBg ?? (roboyam ? 'SOFT' : 'NONE');
+        const bg = style.iconBg ?? (irobit ? 'SOFT' : 'NONE');
         if (style.iconSource === 'TABLER') return style.iconTabler ? { kind: 'tabler', name: style.iconTabler.name, paths: style.iconTabler.paths, url: null, bg } : null;
         if (style.iconSource === 'UPLOAD') return style.iconUpload ? { kind: style.iconUpload.svg ? 'svg' : 'image', name: null, paths: [], url: style.iconUpload.url, bg } : null;
         return style.icon ? { kind: 'prime', name: style.icon, paths: [], url: null, bg } : null;

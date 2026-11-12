@@ -2,7 +2,7 @@ package com.community.notification.repository.master;
 
 import com.community.batch.entity.BatchRunEntity;
 import com.community.batch.entity.QBatchRunEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
  * <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class BatchRunWatchRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class BatchRunWatchRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QBatchRunEntity RUN = QBatchRunEntity.batchRunEntity;
 

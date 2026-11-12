@@ -2,8 +2,8 @@
  * 관리자 미리보기 — 관리자 테마 화면(admin-web `/settings/theme`)이 이 앱을 iframe 으로 `/?adminPreview=1` 로 띄우면 켜진다(사용자 결정 2026-10-28: 미리보기는 실제 공개 화면과 똑같아야 한다).
  *
  * - iframe 안이고 주소에 `adminPreview=1` 이 있을 때만 켠다. 메시지는 `runtimeConfig.public.adminOrigins`(쉼표로 여러 개, 개발 서버)와 서버가 머리에 넣은
- *   `<meta name="roboyam-admin-origin">`(빌드한 화면 — api 의 `AdminPreviewFrame`, 환경 값 `ADMIN_URL`)에서 온 것만 받는다 — 다른 곳의 메시지는 버린다.
- * - 받는 것(`roboyam:admin-preview`): 테마 id · 메뉴 설정(운영자 설정 모양 — 저장 전 값) · 홈 구성(배치 + 가젯 id·종류·제목·보이는 폭·내용 설정) · 가젯 페이지 머리(`/p/{key}` 를 띄웠을 때). 이 탭의 화면 상태만 바꾼다(서버에 아무것도 보내지 않는다).
+ *   `<meta name="irobit-admin-origin">`(빌드한 화면 — api 의 `AdminPreviewFrame`, 환경 값 `ADMIN_URL`)에서 온 것만 받는다 — 다른 곳의 메시지는 버린다.
+ * - 받는 것(`irobit:admin-preview`): 테마 id · 메뉴 설정(운영자 설정 모양 — 저장 전 값) · 홈 구성(배치 + 가젯 id·종류·제목·보이는 폭·내용 설정) · 가젯 페이지 머리(`/p/{key}` 를 띄웠을 때). 이 탭의 화면 상태만 바꾼다(서버에 아무것도 보내지 않는다).
  *   테마·메뉴는 `useTheme` 의 상태(`site-theme`·`site-menu-*`)를 덮고, 홈 구성은 `useAdminPreview().home` 에 두어 홈 화면이 덮어 그린다(`pages/index.vue`).
  *   게시판 레이아웃(게시판 목록·글 보기를 띄웠을 때)은 같은 `home` 자리 + 적용 화면 `board`(`BoardLayoutFrame`).
  * - 보내는 것: 준비됨(`…-ready` — 관리자가 이때 값을 보낸다) · 메뉴 자리를 눌렀다(`…-edit-menu` — 관리자가 메뉴 설정 drawer 를 연다).
@@ -12,7 +12,7 @@
  * - 미리보기 안에서는 다른 화면으로 가지 않는다 — 링크 누르기는 막고(단추가 부르는 화면 이동도 라우터에서 막는다), 윗줄·메뉴·사이드 메뉴(본문 `#main-content` 밖의 `header`·`nav`, `.side-menu`)를 누르면 메뉴 설정을 열라고 알린다.
  * - 회원 보기 설정의 메뉴 위치는 쓰지 않는다(`useMenuPosition`) — 운영자가 보는 값이 공개 기본 화면이어야 한다.
  * - **캐시 영역 미리보기**(관리자 캐시 관리 `/settings/caches` 의 「미리보기」, 주소에 `cachePreview=1` 도 있을 때, 2026-11-08): 같은 허용 주소·같은 준비됨 메시지를 쓰되
- *   캐시 영역 메시지(`roboyam:cache-preview` — `util-cache-area.ts`)만 받고 테마·메뉴·홈 구성 값은 받지 않는다(저장된 공개 화면 그대로). 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않고 링크만 막는다.
+ *   캐시 영역 메시지(`irobit:cache-preview` — `util-cache-area.ts`)만 받고 테마·메뉴·홈 구성 값은 받지 않는다(저장된 공개 화면 그대로). 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않고 링크만 막는다.
  *   상자 그리기·누르기 알림은 `CacheAreaOverlay`(기본 셸 `layouts/default.vue`)가 한다.
  */
 import UtilAdminPreview, { ADMIN_PREVIEW_EDIT_MENU, ADMIN_PREVIEW_READY } from '~/utils/util-admin-preview';
@@ -30,7 +30,7 @@ export default defineNuxtPlugin(() => {
     if (!UtilAdminPreview.isPreviewWindow(window.parent !== window, window.location.search)) return;
 
     // 관리자 주소 — 개발 서버는 runtimeConfig, 빌드한 화면은 서버가 이 응답 머리에 넣은 메타(ADMIN_URL — 서버가 같은 주소만 frame-ancestors 로 허락한다)
-    const served = document.querySelector<HTMLMetaElement>('meta[name="roboyam-admin-origin"]')?.content ?? '';
+    const served = document.querySelector<HTMLMetaElement>('meta[name="irobit-admin-origin"]')?.content ?? '';
     const allowed = [...String(useRuntimeConfig().public.adminOrigins ?? '').split(','), served]
         .map((origin) => origin.trim())
         .filter(Boolean);

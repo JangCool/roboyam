@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 매니저 안내 알림의 <b>안전망</b>(community api-groups.md 11-8) — 공개 범위 기능은 관리자 앱의 켜기 저장 요청 안에서 안내를 보낸다. 설정 파일·환경 변수
- * ({@code roboyam.groups.visibility-enabled})로 켜진 채(저장된 값 없음) 뜨는 서버는 그 길을 타지 않으므로, 켜져 있는 채 뜬 api 서버가 같은 선점으로 한 번 보낸다(이미 보냈으면 아무 일도 없다).
+ * ({@code irobit.groups.visibility-enabled})로 켜진 채(저장된 값 없음) 뜨는 서버는 그 길을 타지 않으므로, 켜져 있는 채 뜬 api 서버가 같은 선점으로 한 번 보낸다(이미 보냈으면 아무 일도 없다).
  */
 @Component
 public class GroupVisibilityRolloutStartup {

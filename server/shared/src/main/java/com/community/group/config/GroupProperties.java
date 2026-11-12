@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * roboyam.groups.* — 소모임 설정의 <b>기본값</b>(관리자 앱 소모임 설정에 저장된 값이 없을 때 쓰는 값, 화면의 「기본값으로」 기준)과 설정 화면에 없는 한도.
+ * irobit.groups.* — 소모임 설정의 <b>기본값</b>(관리자 앱 소모임 설정에 저장된 값이 없을 때 쓰는 값, 화면의 「기본값으로」 기준)과 설정 화면에 없는 한도.
  * 범위 밖 값은 읽을 때 가까운 값으로 보정한다({@code GroupSettingsService}). 저장된 값이 있으면 그 값이 이긴다(DB &gt; yml).
  *
  * @param creationMode           개설 방식(승인제)
@@ -33,7 +33,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param joinDailyLimit         한 회원의 하루(24시간) 가입·신청 수 합(화면 설정 없음)
  * @param newcomerDays           상세 「최근 N일 가입」의 N
  */
-@ConfigurationProperties(prefix = "roboyam.groups")
+@ConfigurationProperties(prefix = "irobit.groups")
 public record GroupProperties(@DefaultValue("APPROVAL") GroupCreationMode creationMode, @DefaultValue("REGULAR") String minGrade,
                               @DefaultValue("3") int maxPerOwner, @DefaultValue("30") int dissolvePenaltyDays,
                               @DefaultValue("false") boolean managersEnabled, @DefaultValue("5") int managerLimitDefault, @DefaultValue("10") int managerLimitMax,

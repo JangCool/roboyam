@@ -1,7 +1,7 @@
 package com.community.dashboard.repository.master;
 
 import com.community.dashboard.entity.QOperatorDashboardEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
  * 읽기는 QueryDSL(칸을 골라 읽는다 — jsonb 는 PostgreSQL 이 정규화한 글자 그대로), 저장만 네이티브 upsert 다. 트랜잭션은 부르는 서비스의 것을 따른다.
  */
 @Repository
-public class DashboardLayoutStore extends RoboyamRepositoryQDSL {
+public class DashboardLayoutStore extends IrobitRepositoryQDSL {
 
     private static final QOperatorDashboardEntity DASHBOARD = QOperatorDashboardEntity.operatorDashboardEntity;
 

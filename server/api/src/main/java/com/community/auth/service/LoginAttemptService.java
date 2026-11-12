@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 로그인 시도 제한: 같은 이메일로 연속 5회 틀리면 10분 잠근다(설정값 {@code roboyam.auth.*}).
+ * 로그인 시도 제한: 같은 이메일로 연속 5회 틀리면 10분 잠근다(설정값 {@code irobit.auth.*}).
  *
  * <ul>
  *   <li><b>이메일 단위</b>로 세고 계정이 없는 이메일도 똑같이 센다(계정 존재를 알리지 않기 위해). 키는 정규화한 이메일의 SHA-256 이다.</li>

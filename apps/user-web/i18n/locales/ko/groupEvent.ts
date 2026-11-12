@@ -1,6 +1,6 @@
 /**
  * 소모임 일정 문구(4단계 — community `docs/api-groups.md` 9절·「화면 (SPA) — 6-3」) — 상세의 일정 탭 · 지난 일정 · 일정 상세(참석 응답·참석자·취소) · 일정 만들기·수정 · 내 소모임의 다음 일정.
- * 계산이 낀 조합은 `utils/util-group-event-messages.ts`. `en/groupEvent.ts` 와 같은 키, 같은 차례. 이름은 고정 「소모임」(로보얌은 용어 설정이 소모임 문구에 걸려 있지 않다).
+ * 계산이 낀 조합은 `utils/util-group-event-messages.ts`. `en/groupEvent.ts` 와 같은 키, 같은 차례. 이름은 고정 「소모임」(아이로빗은 용어 설정이 소모임 문구에 걸려 있지 않다).
  * 칸 검사 문구의 숫자는 서버 운영 한도(`limits.eventMaxDaysAhead`·`eventMaxLengthDays`)·서버 글자 수 한도와 같은 값을 넣는다.
  */
 export default {

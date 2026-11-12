@@ -5,7 +5,7 @@ import type { PaymentCheckout } from '~/composables/payment/api/usePaymentApi.ty
  * 본문에는 토큰 `:emo-{이모티콘ID}:` 만 저장하고(가정 7) 화면이 카탈로그로 그림을 그린다.
  */
 
-/** 팩 출처 — 운영(로보얌콘·로보얌콘핑크) · 회원 작가 */
+/** 팩 출처 — 운영(아이로빗콘·아이로빗콘핑크) · 회원 작가 */
 export type EmoticonPackSource = 'OFFICIAL' | 'CREATOR';
 
 /** 상점 정렬 — 인기(받은 수) · 최신(승인일) */

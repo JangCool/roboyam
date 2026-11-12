@@ -255,10 +255,10 @@ class VisitStage2FlushTest {
         Server s = server();
         LocalDate day = LocalDate.of(2099, 3, 1); // 날 칸 11개를 쓴다 — freshDay(2일 간격)와 겹치지 않는 해
         for (int i = 0; i < 3; i++) {
-            s.collector().accept("{\"visitorId\":\"" + UUID.randomUUID() + "\"}", "Googlebot/2.1", "roboyam.test");
+            s.collector().accept("{\"visitorId\":\"" + UUID.randomUUID() + "\"}", "Googlebot/2.1", "irobit.test");
         }
-        s.collector().accept("not-json", "Mozilla/5.0 Chrome/130", "roboyam.test");
-        s.collector().accept("{}", "Mozilla/5.0 Chrome/130", "roboyam.test");
+        s.collector().accept("not-json", "Mozilla/5.0 Chrome/130", "irobit.test");
+        s.collector().accept("{}", "Mozilla/5.0 Chrome/130", "irobit.test");
         for (int i = 0; i <= VisitBuffer.MAX_DAYS; i++) { // 걸러진 검색 날 칸 상한 + 1 → 가장 오래된 1줄 버림
             s.buffer().searchFiltered(day.plusDays(i));
         }
@@ -316,7 +316,7 @@ class VisitStage2FlushTest {
         // ② 환경은 성공(되돌린 1 + 새 1), 진단 쓰기가 실패 — DB 의 진단은 그대로, 숫자는 메모리에
         store.diagFails.set(1);
         s.buffer().env(day, "MOBILE", "SAFARI", "IOS", "W480");
-        s.collector().accept("{}", "Googlebot/2.1", "roboyam.test");
+        s.collector().accept("{}", "Googlebot/2.1", "irobit.test");
         s.flusher().flush();
         assertThat(envVisits(day, "MOBILE", "SAFARI", "IOS", "W480")).isEqualTo(2);
         assertThat(hourly(s.instance())).containsExactly(1, 1, 0, 0, 0);

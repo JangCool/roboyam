@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
  * 공개 사이트 쓰기 경로와 같은 판정 코드로 한다(그래서 api 서버에는 실행기가 없다).
  *
  * <ul>
- *   <li>{@code roboyam.batch.enabled=false} 인 서버, 또는 {@code roboyam.ai-member.runner-enabled=false}(환경 변수 {@code ROBOYAM_AI_MEMBER_RUNNER})인 서버는 돌지 않는다.</li>
- *   <li>한 바퀴({@code roboyam.ai-member.poll-millis}, 기본 1분): ① 승인 줄 등록 ② 할 일 생성. 전체 정지 중에는 둘 다 하지 않는다(각 부품이 본다).</li>
+ *   <li>{@code irobit.batch.enabled=false} 인 서버, 또는 {@code irobit.ai-member.runner-enabled=false}(환경 변수 {@code IROBIT_AI_MEMBER_RUNNER})인 서버는 돌지 않는다.</li>
+ *   <li>한 바퀴({@code irobit.ai-member.poll-millis}, 기본 1분): ① 승인 줄 등록 ② 할 일 생성. 전체 정지 중에는 둘 다 하지 않는다(각 부품이 본다).</li>
  *   <li>관리자 서버를 여러 대(배치를 켠 서버가 둘 이상) 띄워도 DB 어드바이저리 잠금({@link BatchLockService}, 키 {@value #LOCK_KEY})으로 한 바퀴는 한 곳에서만 돈다
  *       (잡지 못한 서버는 그 바퀴를 건너뛴다).</li>
  *   <li>바퀴마다 워커 기록({@code worker_heartbeats}, 키 {@value #LOCK_KEY}) — 일이 없으면 간격마다 한 번만, 실패하면 가린 오류 한 줄. 바퀴의 실패는 로그만 남기고 다음 바퀴로 넘어간다.</li>
@@ -50,7 +50,7 @@ public class AiMemberScheduler {
     }
 
     /** @return 이번 바퀴에 등록·생성한 수(돌지 않았으면 -1) */
-    @Scheduled(initialDelayString = "${roboyam.ai-member.poll-millis:60000}", fixedDelayString = "${roboyam.ai-member.poll-millis:60000}")
+    @Scheduled(initialDelayString = "${irobit.ai-member.poll-millis:60000}", fixedDelayString = "${irobit.ai-member.poll-millis:60000}")
     public int tick() {
         if (!batch.enabled() || !properties.runnerEnabled()) {
             return -1;

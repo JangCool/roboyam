@@ -8,7 +8,7 @@ export default {
     readOnly: '보기만 할 수 있어요. 값을 바꾸거나 지우려면 비밀 설정 권한이 필요해요.',
     loadFailed: '포트원 설정을 불러오지 못했어요',
     cryptoMissingTitle: '서버에 암호화 키가 없어요',
-    cryptoMissingText: '키가 없으면 값을 저장할 수 없어요(지우기는 돼요). 서버 설정(ROBOYAM_CRYPTO_KEY)을 먼저 확인해 주세요.',
+    cryptoMissingText: '키가 없으면 값을 저장할 수 없어요(지우기는 돼요). 서버 설정(IROBIT_CRYPTO_KEY)을 먼저 확인해 주세요.',
 
     providerTitle: '지금 쓰는 구현',
     providerIdentity: '본인인증',
@@ -17,7 +17,7 @@ export default {
         PORTONE: '포트원',
         FAKE: '가짜(개발용)',
     },
-    providerHelp: '서버 배포 설정(roboyam.identity.provider · roboyam.payment.gateway)으로 정해지고, 이 화면에서는 바꿀 수 없어요.',
+    providerHelp: '서버 배포 설정(irobit.identity.provider · irobit.payment.gateway)으로 정해지고, 이 화면에서는 바꿀 수 없어요.',
     providerFake: '가짜 본인인증은 local·시험 전용이에요. dev·prod 에서는 서버가 뜨지 않아요.',
     notReadyTitle: '본인인증을 쓸 수 없어요',
     notReadyText: '공통 카드의 상점 ID · API 비밀키와 본인인증 채널 키를 모두 채우세요.',

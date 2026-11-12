@@ -7,7 +7,7 @@ import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.Ilike;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Repository;
  * (JPQL 에 배열 연산이 없다).
  */
 @Repository
-public class AdminDealQueries extends RoboyamRepositoryQDSL {
+public class AdminDealQueries extends IrobitRepositoryQDSL {
 
     private static final QPostDealEntity DEAL = QPostDealEntity.postDealEntity;
     private static final QPostEntity POST = QPostEntity.postEntity;

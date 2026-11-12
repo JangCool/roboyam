@@ -64,7 +64,7 @@ public class GroupPostController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 소모임 게시판 정보(로보얌 추가) — {@code GET /api/boards/{slug}} 와 같은 모양, 보는 사람 판정은 소모임 기준 */
+    /** 소모임 게시판 정보(아이로빗 추가) — {@code GET /api/boards/{slug}} 와 같은 모양, 보는 사람 판정은 소모임 기준 */
     @GetMapping("/{id}/board")
     public ResponseEntity<ApiResponse<BoardDetailView>> board(@PathVariable String id, Authentication authentication) {
         return noStore(posts.board(id, GroupController.userId(authentication)));

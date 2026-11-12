@@ -478,7 +478,7 @@
     },
     {
       "key": "gb-12",
-      "name": "로보얌 후드 집업",
+      "name": "아이로빗 후드 집업",
       "category": "의류",
       "notice": "CLOTHING",
       "normalPrice": 69000,
@@ -525,17 +525,17 @@
       ],
       "description": [
         "기모 안감 오버핏 후드 집업이에요.",
-        "가슴에 작은 로보얌 자수가 들어가요."
+        "가슴에 작은 아이로빗 자수가 들어가요."
       ],
       "images": [
         {
           "kind": "product",
-          "caption": "로보얌 후드 집업",
+          "caption": "아이로빗 후드 집업",
           "scene": "차콜색 후드 집업"
         }
       ],
       "groupBuy": {
-        "title": "로보얌 후드 집업 겨울 공구",
+        "title": "아이로빗 후드 집업 겨울 공구",
         "price": 45900,
         "min": 30,
         "max": 200,

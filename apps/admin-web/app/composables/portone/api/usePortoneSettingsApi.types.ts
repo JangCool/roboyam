@@ -5,9 +5,9 @@
  * 결제 칸(`paymentGateway`·`paymentReady`·결제 두 칸의 상태)은 2a-3 서버가 2a-1 화면이 정한 모양 그대로 준다.
  */
 
-/** 지금 쓰는 본인인증 구현 — 서버 배포 설정(`roboyam.identity.provider`)이 정하고 화면에서 바꿀 수 없다. `FAKE` 는 local·시험 전용(dev·prod 에서는 서버가 뜨지 않는다) */
+/** 지금 쓰는 본인인증 구현 — 서버 배포 설정(`irobit.identity.provider`)이 정하고 화면에서 바꿀 수 없다. `FAKE` 는 local·시험 전용(dev·prod 에서는 서버가 뜨지 않는다) */
 export type PortoneIdentityProvider = 'PORTONE' | 'FAKE';
-/** 지금 쓰는 결제 게이트웨이 — 배포 설정 `roboyam.payment.gateway`(공통 portone, local fake). `FAKE` 면 dev·prod 에서 서버가 뜨지 않는다(2a 결정 1) */
+/** 지금 쓰는 결제 게이트웨이 — 배포 설정 `irobit.payment.gateway`(공통 portone, local fake). `FAKE` 면 dev·prod 에서 서버가 뜨지 않는다(2a 결정 1) */
 export type PortonePaymentGateway = 'PORTONE' | 'FAKE';
 
 /** 공통 카드의 칸 — 상점 ID · API 비밀키(V2 API Secret). 본인인증·결제가 같이 쓴다 */
@@ -34,7 +34,7 @@ export interface PortoneFieldState {
 export interface PortoneSettingsView {
     identityProvider: PortoneIdentityProvider;
     paymentGateway: PortonePaymentGateway;
-    /** false 면 서버에 암호화 키(`ROBOYAM_CRYPTO_KEY`)가 없어 저장할 수 없다(지우기는 된다) */
+    /** false 면 서버에 암호화 키(`IROBIT_CRYPTO_KEY`)가 없어 저장할 수 없다(지우기는 된다) */
     cryptoKeyConfigured: boolean;
     fields: PortoneFieldState[];
     /** 포트원 본인인증을 쓸 수 있는가 — 상점 ID · API 비밀키 · 본인인증 채널 키 */

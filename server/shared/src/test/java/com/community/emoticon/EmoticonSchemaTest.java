@@ -12,7 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * V142 의 표·제약·트리거·시드(emoticon-contract S1) — 실제 PostgreSQL. 낸 판 고치기 금지 · 상점 판은 그 팩의 판 · 팩마다 대기 건 하나 · 무료만 · 고정 규격 CHECK · 판의 로보티콘은 그 팩의 것 ·
- * 운영 팩 시드(로보얌콘 남·여 32개씩 — 이름표는 robotikon/meta.json, 그림 정보는 두 앱 public 의 파일과 같다).
+ * 운영 팩 시드(아이로빗콘 남·여 32개씩 — 이름표는 robotikon/meta.json, 그림 정보는 두 앱 public 의 파일과 같다).
  */
 class EmoticonSchemaTest extends EmoticonTestBase {
 
@@ -26,8 +26,8 @@ class EmoticonSchemaTest extends EmoticonTestBase {
     }
 
     @Test
-    void 시드_로보얌콘_남_여_32개씩_무료_판매_중_이름표는_meta_json_그림은_앱_정적_파일과_같다() {
-        for (String[] pack : new String[][] {{"로보얌콘", "m"}, {"로보얌콘핑크", "f"}}) {
+    void 시드_아이로빗콘_남_여_32개씩_무료_판매_중_이름표는_meta_json_그림은_앱_정적_파일과_같다() {
+        for (String[] pack : new String[][] {{"아이로빗콘", "m"}, {"아이로빗콘핑크", "f"}}) {
             long id = officialPack(pack[0]);
             Map<String, Object> row = kit.jdbc.queryForMap("SELECT status, price, creator_id, published_at FROM emoticon_packs WHERE id = ?", id);
             assertThat(row.get("status")).isEqualTo("APPROVED");
@@ -61,7 +61,7 @@ class EmoticonSchemaTest extends EmoticonTestBase {
 
     @Test
     void 운영_팩_가격은_늘_0_유료_판매가_켜져_있고_열린_단계여도() {
-        long id = officialPack("로보얌콘");
+        long id = officialPack("아이로빗콘");
         // 유료 판매가 켜져 있고 1,500 이 열린 단계여도 운영 팩은 CHECK 가 막는다(S2 — 작가 팩의 유료 가격은 EmoticonPaidTest)
         kit.withPaid(() -> assertThatThrownBy(() -> kit.jdbc.update("UPDATE emoticon_packs SET price = 1500 WHERE id = ?", id))
                 .isInstanceOf(DataIntegrityViolationException.class));
@@ -127,7 +127,7 @@ class EmoticonSchemaTest extends EmoticonTestBase {
     @Test
     void 받기는_회원과_팩_하나에_한_줄() {
         long member = kit.member();
-        long pack = officialPack("로보얌콘");
+        long pack = officialPack("아이로빗콘");
         kit.jdbc.update("INSERT INTO emoticon_acquisitions (id, user_id, pack_id, first_acquired_at, acquired_at) VALUES (?, ?, ?, now(), now())", kit.ids.nextId(), member, pack);
         assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO emoticon_acquisitions (id, user_id, pack_id, first_acquired_at, acquired_at) VALUES (?, ?, ?, now(), now())",
                 kit.ids.nextId(), member, pack)).isInstanceOf(DataIntegrityViolationException.class);

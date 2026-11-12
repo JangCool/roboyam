@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 인기글 관리 — 기간별 순위 보기({@code popular.read}), 인기글에서 빼기·다시 넣기({@code popular.manage}). docs/features/popular-highlight-contract.md 「서버 구현 결과」
- * (community docs/api-popular.md 8절을 로보얌에 맞춘 것).
+ * (community docs/api-popular.md 8절을 아이로빗에 맞춘 것).
  *
  * <ul>
  *   <li><b>순위</b>: 마지막 계산의 스냅샷에서 지금 볼 수 없는 글을 걸러 번호를 이어서 붙인다(공개 인기글과 같은 차례·같은 글). 계산 뒤에 뺀 글은 {@code excluded} 로 자리에 남는다.

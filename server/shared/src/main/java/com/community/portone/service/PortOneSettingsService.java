@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 포트원 설정(관리자 화면의 DB 설정 — 세션 정리 결정 9, docs/features/commerce-foundation-contract.md 「0-4」). 소셜 로그인 설정처럼 값을 {@link SecretEncryptor}
- * ({@code ROBOYAM_CRYPTO_KEY})로 암호화해 {@code portone_settings} 에 칸마다 한 줄로 둔다.
+ * ({@code IROBIT_CRYPTO_KEY})로 암호화해 {@code portone_settings} 에 칸마다 한 줄로 둔다.
  *
  * <ul>
  *   <li>화면({@link #view})에는 값이 없다 — 설정 여부·마지막 변경 시각·바꾼 사람만. 감사({@code PORTONE_SETTINGS_UPDATE}·{@code PORTONE_SETTINGS_DELETE})에도 칸 이름만.</li>

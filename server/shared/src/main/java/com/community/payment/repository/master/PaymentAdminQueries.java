@@ -21,7 +21,7 @@ import com.community.payment.repository.master.PaymentOrderStore.OrderRow;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -54,7 +54,7 @@ import org.springframework.stereotype.Repository;
  * {@code UNION}·jsonb 연산·정규식 비교가 없다(따로 읽어 메모리에서 합치면 쪽 나누기를 DB 에서 하지 못한다).
  */
 @Repository
-public class PaymentAdminQueries extends RoboyamRepositoryQDSL {
+public class PaymentAdminQueries extends IrobitRepositoryQDSL {
 
     /** 관리자 목록 한 줄 — 결제 주문 + 회원 닉네임·탈퇴 여부 + 끝나지 않은 취소(PENDING·SENDING·GAVE_UP)가 있는가 */
     public record OrderAdminRow(OrderRow order, String nickname, boolean withdrawn, boolean cancelPending) {

@@ -2,18 +2,18 @@
 # ============================================================================
 # 원스톱 설치 묶음 만들기 — 로컬(개발 PC, Git Bash 가능)에서 실행한다
 #
-# 만드는 것: installer-native/dist/roboyam-native-<커밋>-<날짜>.tar.gz
-#   roboyam-native/
-#     roboyam-install.sh · install.conf.example · README.md · PACKAGE_INFO
+# 만드는 것: installer-native/dist/irobit-native-<커밋>-<날짜>.tar.gz
+#   irobit-native/
+#     irobit-install.sh · install.conf.example · README.md · PACKAGE_INFO
 #     lib/ · db/ · app/
-#     application/roboyam-api.jar · roboyam-admin.jar
+#     application/irobit-api.jar · irobit-admin.jar
 #     certs/            ← Origin CA 인증서를 DB 서버에서 여기에 넣는다(묶음에는 비어 있다)
 #
 # 사용법
 #   installer-native/make-package.sh            이미 빌드된 jar 로 묶는다
 #   installer-native/make-package.sh --build    화면 generate + bootJar 까지 한 뒤 묶는다
 #
-# 다음: scp dist/roboyam-native-*.tar.gz → DB 서버, 풀고 sudo ./roboyam-install.sh (README.md)
+# 다음: scp dist/irobit-native-*.tar.gz → DB 서버, 풀고 sudo ./irobit-install.sh (README.md)
 # ============================================================================
 set -Eeuo pipefail
 
@@ -31,9 +31,9 @@ case "${1:-}" in
     *) fail "알 수 없는 옵션: $1" ;;
 esac
 
-# 다른 곳의 jar 를 묶으려면 ROBOYAM_API_JAR · ROBOYAM_ADMIN_JAR 로 준다
-API_JAR="${ROBOYAM_API_JAR:-${REPO_DIR}/server/api/build/libs/roboyam-api.jar}"
-ADMIN_JAR="${ROBOYAM_ADMIN_JAR:-${REPO_DIR}/server/admin/build/libs/roboyam-admin.jar}"
+# 다른 곳의 jar 를 묶으려면 IROBIT_API_JAR · IROBIT_ADMIN_JAR 로 준다
+API_JAR="${IROBIT_API_JAR:-${REPO_DIR}/server/api/build/libs/irobit-api.jar}"
+ADMIN_JAR="${IROBIT_ADMIN_JAR:-${REPO_DIR}/server/admin/build/libs/irobit-admin.jar}"
 
 cd "$REPO_DIR"
 
@@ -77,9 +77,9 @@ fi
 
 step "묶기"
 STAGE="$(mktemp -d)"
-PKG="${STAGE}/roboyam-native"
+PKG="${STAGE}/irobit-native"
 mkdir -p "$PKG/application" "$PKG/certs"
-cp "${SCRIPT_DIR}/roboyam-install.sh" "${SCRIPT_DIR}/install.conf.example" "${SCRIPT_DIR}/README.md" "$PKG/"
+cp "${SCRIPT_DIR}/irobit-install.sh" "${SCRIPT_DIR}/install.conf.example" "${SCRIPT_DIR}/README.md" "$PKG/"
 cp -r "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/db" "${SCRIPT_DIR}/app" "$PKG/"
 rm -f "$PKG/db/backup-hook.sh"
 cp "$API_JAR" "$ADMIN_JAR" "$PKG/application/"
@@ -96,8 +96,8 @@ fi
 find "$PKG" -name '*.sh' -exec chmod 755 {} +
 
 mkdir -p "${SCRIPT_DIR}/dist"
-OUT="${SCRIPT_DIR}/dist/roboyam-native-${SHA}-$(date '+%Y%m%d-%H%M').tar.gz"
-tar -czf "$OUT" -C "$STAGE" roboyam-native
+OUT="${SCRIPT_DIR}/dist/irobit-native-${SHA}-$(date '+%Y%m%d-%H%M').tar.gz"
+tar -czf "$OUT" -C "$STAGE" irobit-native
 rm -rf "$STAGE"
 
 echo

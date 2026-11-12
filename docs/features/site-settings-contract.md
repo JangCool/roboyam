@@ -58,7 +58,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 - 저장 순서: 검사·처리 → 저장소 쓰기 → DB 교체 트랜잭션(설정 행 잠금) → 커밋 뒤 예전 파일 삭제, DB 실패 시 새 파일 삭제. 감사: `SITE_BASIC_UPDATE`·`SITE_LOGO_CHANGE`/`_REMOVE`·`SITE_ICON_CHANGE`/`_RESET`·`SITE_OG_CHANGE`/`_RESET`·`SITE_DISPLAY_UPDATE`(파일 내용·이름·SVG 소스는 남기지 않는다).
 
 **저장소·서빙**
-- `ImageStorage` 인터페이스(S3 는 후속) + 로컬 디스크 구현. 폴더 `roboyam.storage.local-path`(`ROBOYAM_STORAGE_PATH`; 기본 `/var/lib/roboyam/media`, local 프로파일 `~/.roboyam/media`). 키에 버전 토큰: `site-logo/{버전}/logo.{png|jpg|webp}` · `site-icon/{버전}/icon-512.png` 등 5장 · `site-og/{버전}/og.png`.
+- `ImageStorage` 인터페이스(S3 는 후속) + 로컬 디스크 구현. 폴더 `irobit.storage.local-path`(`IROBIT_STORAGE_PATH`; 기본 `/var/lib/irobit/media`, local 프로파일 `~/.irobit/media`). 키에 버전 토큰: `site-logo/{버전}/logo.{png|jpg|webp}` · `site-icon/{버전}/icon-512.png` 등 5장 · `site-og/{버전}/og.png`.
 - **`/media/**` 는 공개 서버(api)와 관리자 서버(admin)가 둘 다 같은 폴더를 서빙**한다(1년 immutable, 로그인 불필요). admin 이 쓰고 두 앱이 같은 폴더를 보므로 compose 에서 같은 볼륨을 두 서비스에 마운트한다(`docker/dev`, `docker/prod` 의 `MEDIA_DIR`, 설치기 `<프로젝트>-media`). 응답 주소는 상대 주소 `/media/…` — 보는 쪽 서버가 같은 주소로 서빙하므로 프록시는 `/media` 를 그 서버로 넘기면 된다. 링크 미리보기 메타·manifest 처럼 다른 도메인이 읽는 곳은 `SiteAssets.absolute(url, publicUrl)` 로 공개 주소를 붙인다.
 - 기본 아이콘·OG: jar 안의 SVG `/media/default/site-icon.svg`·`site-og.svg`(고정 주소, 하루 캐시). 공개 사이트가 og:image 로 쓸 기본 **PNG** 는 후속(`apps/user-web/public` 에 파일이 아직 없다).
 - 서버가 2대 이상이면 로컬 디스크로는 부족하다(공유 디스크 NFS·EFS 또는 S3 구현 필요).
@@ -77,7 +77,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 - 허용 필드만 담는다(이메일·설치 정보·내부 ID·공개 주소 원문 없음). 설치 전에는 기존 가드가 `503 NOT_INSTALLED`(`/api/**` 전체 규칙) — 화면은 설치 상태를 먼저 본다.
 - 캐시: 서버 메모리 사본 20초(`PublicSiteService` — 다시 읽다 실패하면 이전 값을 쓰고 5초 뒤 재시도), 응답 `Cache-Control: no-cache` + `ETag`(사본 지문, `If-None-Match` 가 같으면 304 — 브라우저는 매번 확인한다, 2026-10-29 사용자 결정으로 `public, max-age=60` 에서 바꿈). `SecurityConfig` 에 `GET /api/site/info` 허용(api 에만 있는 주소).
 
-**`GET /manifest.webmanifest`**(`application/manifest+json`, `ApiResponse` 로 감싸지 않는다 — 표준 형식) — `name`=사이트 이름(없으면 `Roboyam`), `short_name`(12자까지), `description`=슬로건, `lang`=표시 언어, `start_url`·`scope`=`/`, `display=standalone`, 색 `#ffffff`, `icons` = 올린 192·512 PNG(`purpose: any`) 또는 기본 SVG(`sizes: any`). 아이콘 주소는 상대 주소(같은 서버가 서빙) — 위 「서빙」의 「절대 주소」 안내와 달리 매니페스트는 상대로 뒀다(공개 주소와 접속 도메인이 달라도 깨지지 않게). 캐시·ETag 는 위와 같다.
+**`GET /manifest.webmanifest`**(`application/manifest+json`, `ApiResponse` 로 감싸지 않는다 — 표준 형식) — `name`=사이트 이름(없으면 `Irobit`), `short_name`(12자까지), `description`=슬로건, `lang`=표시 언어, `start_url`·`scope`=`/`, `display=standalone`, 색 `#ffffff`, `icons` = 올린 192·512 PNG(`purpose: any`) 또는 기본 SVG(`sizes: any`). 아이콘 주소는 상대 주소(같은 서버가 서빙) — 위 「서빙」의 「절대 주소」 안내와 달리 매니페스트는 상대로 뒀다(공개 주소와 접속 도메인이 달라도 깨지지 않게). 캐시·ETag 는 위와 같다.
 
 **`index.html` 머리 채우기**(`SiteHeadFilter` → `IndexHtmlRenderer`, 보안 필터 뒤)
 - 적용: 확장자 없는 GET·HEAD 주소(`/`·`/login` …)와 `/index.html`. `/api`·`/media`·`/actuator`·`/error`·`/_nuxt`·`/.well-known`·확장자 있는 주소는 건드리지 않는다.
@@ -110,8 +110,14 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 - 권한 없음 `403 PERMISSION_DENIED`. 표시 기본값 저장 API(`/site/display-defaults`)와 따로 둔 별도 PUT 이다(구획별 저장 — 일반 설정 화면의 한 구획 또는 표시 기본값 구획 안의 한 줄로 붙이면 된다).
 - `themes` 는 고를 수 있는 id(보일 순서). 이름(화면 문구)은 화면이 id 로 i18n 키를 찾는다.
 
-**규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 둔다(2026-10-29 — `default`·`daum`·`naver`·`roboyam`). 새 테마는 두 곳에 한 줄씩 + 서버 `SiteThemeMenus`(메뉴 설정 기본값)·`HomeLayoutDefaults`(홈 기본 배치)에 그 테마 값. 테마 선택 화면은 `/settings/theme`(`site-theme-layout-contract.md`)로 옮겼다. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
+**규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 둔다(2026-10-29 — `default`·`daum`·`naver`·`irobit`). 새 테마는 두 곳에 한 줄씩 + 서버 `SiteThemeMenus`(메뉴 설정 기본값)·`HomeLayoutDefaults`(홈 기본 배치)에 그 테마 값. 테마 선택 화면은 `/settings/theme`(`site-theme-layout-contract.md`)로 옮겼다. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
 
 **화면**: `general.vue` ③ 구획 — 라디오 카드(이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 모르는 id 는 id 그대로), 구획 안 [되돌리기]·[저장], `fields.theme` 는 고르기 아래·`fields.site` 와 그 밖은 구획 안 한 줄. 선택지가 하나면 「지금은 기본 테마 하나만 있어요」. `site.manage` 없으면 라디오 비활성·저장 줄 없음.
 
 **미확정**: 테마가 `default` 하나뿐이라 공개 응답 값이 실제로 바뀌는 것은 두 번째 테마가 생겨야 확인된다(전파 경로는 다른 사이트 설정과 같은 사본). 테마 미리보기·테마별 설정값(색 등)은 범위 밖.
+
+## 사이트 소개 페이지 (사용자 지시 2026-11-12 — 「푸터에 사이트 소개 항목 만들고 거기에 저장해」)
+- 저장: `site_settings.about_html`(+ `about_updated_at`) — shared V203. 소독은 약관과 같은 `TermsHtml`(h2·h3·p·br·strong·em·u·s·a·ul·ol·li·blockquote·hr), 20000자(소독 전) 넘으면 400 `fields.html`, 보이는 글자가 없으면 null(= 소개 없음). V203 은 사이트 이름이 IROBIT 이고 비어 있을 때 아이로빗 소개글을 기본으로 넣는다.
+- 관리자: 설정 › 일반 ④ 「사이트 소개」(`/settings/general#site-about`, 약관과 같은 `RichEditor level=DOCUMENT`) — `GET/PUT /api/admin/site/about` → `{ html, updatedAt, publicUrl }`, 권한 site.read / site.manage, 감사 `SITE_ABOUT_UPDATE`(글자 수만), 저장하면 공개 `site.info` 캐시 비움.
+- 공개: `GET /api/site/about` → `{ html }`(비로그인, info 와 같은 ETag 규칙), `GET /api/site/info` 의 `about: boolean` 이 true 일 때만 푸터 1열(사이트 이름 아래, 모바일은 이름 다음) 「사이트 소개」 → `/about`. 방문 통계 라우트 `/about` 추가.
+- 미정: 새로 설치하는 사이트(설치 프리셋 「아이로빗 구성 그대로」)에도 기본 소개를 넣을지 — 지금은 마이그레이션 시점에 설정 행이 있는 사이트만 들어간다.

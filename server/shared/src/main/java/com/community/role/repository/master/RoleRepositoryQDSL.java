@@ -12,7 +12,7 @@ import com.community.role.entity.RoleEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Repository;
  * <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class RoleRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
     private static final QGradeEntity GRADE = QGradeEntity.gradeEntity;

@@ -41,7 +41,7 @@
   1. 운영자 등록 → `biz_applications(source=OPERATOR, status=SUBMITTED, preferred_method=MANUAL, 광고주 또는 business_profile_id)` + 소재 버전 1 + 자리 줄, 처리 기록 `SUBMITTED`(actor OPERATOR). 감사 `BIZ_APP_OPERATOR_CREATE`(ad-contract 의 `AD_MANUAL_CREATE` 대신).
   2. 광고 심사 큐 「심사 대기」에 「운영자 등록」 Tag 로 들어온다. 점검표 동일.
   3. 승인: `source=OPERATOR` 면 결제 방식 `MANUAL` 만(온라인이면 400 `fields.method`).
-  4. **자기 승인**(등록자 = 승인자): 설정 `roboyam.biz.self-approval`(`allow` 기본 | `deny`, `BizApplicationProperties`). `allow` = 승인 창 경고 + 메모 필수 + 처리 기록·감사 detail `selfApproved=true`. `deny` = 409 `BIZ_SELF_APPROVAL_DENIED`.
+  4. **자기 승인**(등록자 = 승인자): 설정 `irobit.biz.self-approval`(`allow` 기본 | `deny`, `BizApplicationProperties`). `allow` = 승인 창 경고 + 메모 필수 + 처리 기록·감사 detail `selfApproved=true`. `deny` = 409 `BIZ_SELF_APPROVAL_DENIED`.
   5. 등록 실수: `OPERATOR_CANCEL: SUBMITTED → CANCELED` 를 `source=OPERATOR` 에만 허용(반려로 닫지 않는다).
 - 차례: **심사(승인) → 계약서 사본 + 입금 확인 → [예약 확정].** 승인이 금액(`approved_total`)·자리를 확정하므로 계약 금액 근거가 승인 스냅샷이어야 하고, 확정 CHECK(`ck_ba_manual_confirmed`)를 그대로 쓴다. 오프라인 계약서를 먼저 받은 경우를 위해 **계약서 올리기는 운영자 건 `SUBMITTED` 부터 허용**(지금 `uploadContracts` 상태 제한 여부는 [미확인]). 입금 확인은 `AWAITING_DEPOSIT` 에서만.
 - 구현 시점: 운영자 등록 API·자기 승인 설정·`OPERATOR_CANCEL` 은 광고주 표(`ad_advertisers`)와 함께 **`/ads` 백엔드 세션**. 이번 보완은 계약 문서에 설계만 적는다.

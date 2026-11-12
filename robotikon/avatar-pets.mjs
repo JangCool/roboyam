@@ -3,13 +3,13 @@
 //  - animal-jindo-{m,f}  : 얼굴 전체 흰 털, 윙크 + 크림빛 점 눈썹 + 볼터치 + 흰 주둥이·검은 코, 말린 꼬리
 //  - animal-calico-{m,f} : 남색 화면에 부탁하는 큰 눈(장화 신은 고양이 느낌) + 걱정 눈썹, 흰 수염 패드·분홍 코,
 //                          수염 한쪽 4가닥(아래로 갈수록 짧게), 짧은 귀(왼 주황·오른 검정), 흰 바탕 주황·검정 얼룩 꼬리
-// 사용: node avatar-pets.mjs → apps/{user-web,admin-web}/public/avatars/roboyam/animal-{jindo,calico}-{m,f}.svg
+// 사용: node avatar-pets.mjs → apps/{user-web,admin-web}/public/avatars/irobit/animal-{jindo,calico}-{m,f}.svg
 // 카탈로그 등록: server/shared/src/main/resources/avatars/manifest.json · shared V192 (상점 품목)
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { body, sparkle, C, V, setVariant, OUTLINE as O, resetIds } from './src/parts.mjs'
 
-const APPS = ['user-web', 'admin-web'].map((app) => join(import.meta.dirname, '..', 'apps', app, 'public', 'avatars', 'roboyam'))
+const APPS = ['user-web', 'admin-web'].map((app) => join(import.meta.dirname, '..', 'apps', app, 'public', 'avatars', 'irobit'))
 const NAVY = C.navy
 const NS = `stroke="${NAVY}" stroke-width="3.5" stroke-linejoin="round"`
 // 흰 스티커 외곽선 + 남색 선 + 채움

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 「지금 실행」·「실패 지점부터 다시」·「실패 건만 다시」가 넣은 요청 한 줄({@code batch_run_requests}) — 배치를 켠 서버({@code roboyam.batch.enabled})가 집어 실행한다.
+ * 「지금 실행」·「실패 지점부터 다시」·「실패 건만 다시」가 넣은 요청 한 줄({@code batch_run_requests}) — 배치를 켠 서버({@code irobit.batch.enabled})가 집어 실행한다.
  * 화면은 요청 뒤 이 줄을 다시 읽어 상태를 따라간다({@code GET /api/admin/batch-requests/{requestId}}).
  *
  * @param kind     {@code NOW} · {@code RESUME} · {@code RETRY_FAILED}

@@ -5,7 +5,7 @@ import com.community.group.entity.QGroupEntity;
 import com.community.groupbuy.entity.QGroupBuyEntity;
 import com.community.pointshop.entity.QPointShopItemEntity;
 import com.community.post.entity.QPostEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Date;
@@ -30,7 +30,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class DashboardAnalyticsStore extends RoboyamRepositoryQDSL {
+public class DashboardAnalyticsStore extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QGroupEntity GROUP = QGroupEntity.groupEntity;

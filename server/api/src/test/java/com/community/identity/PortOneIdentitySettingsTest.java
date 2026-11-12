@@ -27,10 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * 포트원 구현(roboyam.identity.provider=portone)의 설정 — 상점 ID·API 비밀키·본인인증 채널 키는 DB 에 {@code SecretEncryptor} 암호문으로, 화면·감사에는 값이 없다.
+ * 포트원 구현(irobit.identity.provider=portone)의 설정 — 상점 ID·API 비밀키·본인인증 채널 키는 DB 에 {@code SecretEncryptor} 암호문으로, 화면·감사에는 값이 없다.
  * 칸이 하나라도 비면 인증 시작이 503 {@code IDENTITY_NOT_CONFIGURED}(계약 「0-4」 결정 9). 저장·지우기는 카드 단위(공통 = 상점 ID·API 비밀키, 본인인증 = 채널 키 — 2a 결정 14). 포트원 실제 호출은 하지 않는다(조회 응답 해석은 shared 의 {@code PortOneIdentityVerifierTest}).
  */
-@TestPropertySource(properties = "roboyam.identity.provider=portone")
+@TestPropertySource(properties = "irobit.identity.provider=portone")
 class PortOneIdentitySettingsTest extends CommerceApiTestBase {
 
     private static final String STORE = "store-11111111-2222-3333-4444-555555555555";

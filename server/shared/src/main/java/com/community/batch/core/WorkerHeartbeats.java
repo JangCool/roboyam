@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * 4단계에서 이 표를 읽어 만든다(결정 16 — 0단계는 기록만).
  *
  * <ul>
- *   <li>{@link #success}: 마지막 성공 시각·처리 건수. 일이 없을 때(건수 0)는 그 워커의 마지막 성공 기록 뒤 {@code roboyam.batch.heartbeat-idle-seconds}(기본 30초)가 지났을 때만
+ *   <li>{@link #success}: 마지막 성공 시각·처리 건수. 일이 없을 때(건수 0)는 그 워커의 마지막 성공 기록 뒤 {@code irobit.batch.heartbeat-idle-seconds}(기본 30초)가 지났을 때만
  *       쓴다 — 2초마다 도는 워커가 매번 쓰지 않게. 일을 했으면 늘 쓴다.</li>
  *   <li>{@link #failure}: 마지막 오류(가린 한 줄 — {@link BatchErrorText})와 시각. 늘 쓴다.</li>
  *   <li>기록이 실패해도 워커를 멈추지 않는다(경고 로그만) — 덧붙은 기록이다.</li>
@@ -42,7 +42,7 @@ public class WorkerHeartbeats {
     private final Map<String, Instant> lastSuccessWrite = new ConcurrentHashMap<>();
 
     @Autowired
-    public WorkerHeartbeats(DataSource dataSource, @Value("${roboyam.node-id}") int nodeId, @Value("${roboyam.batch.heartbeat-idle-seconds:30}") long idleSeconds) {
+    public WorkerHeartbeats(DataSource dataSource, @Value("${irobit.node-id}") int nodeId, @Value("${irobit.batch.heartbeat-idle-seconds:30}") long idleSeconds) {
         this(dataSource, nodeId, Duration.ofSeconds(idleSeconds), Clock.systemUTC());
     }
 

@@ -150,8 +150,8 @@ export default {
     themeDesc_daum: 'White cards on a gray page with large menu tabs and a sub-menu row. The default menu position is top.',
     themeName_naver: 'Naver style',
     themeDesc_naver: 'A white top row and a tab bar in the primary color, like a news publisher home. The default menu position is top.',
-    themeName_roboyam: 'Roboyam theme',
-    themeDesc_roboyam: 'The Daum-style look (white cards on a gray page) with a top menu and a right side menu together — the Roboyam default layout. The default menu position is top + right side.',
+    themeName_irobit: 'IROBIT theme',
+    themeDesc_irobit: 'The Daum-style look (white cards on a gray page) with a top menu and a right side menu together — the IROBIT default layout. The default menu position is top + right side.',
     // Menu position — the public site uses the member view setting, then this value, then the theme default
     menuPositionLabel: 'Menu position',
     menuPositionHint: 'Where the menu sits on wide screens. A member’s own view setting comes first, and it does not apply on mobile screens.',
@@ -192,7 +192,7 @@ export default {
     menuStyleNotMixed: 'The current menu position is not “top + side”, so this does not apply. It applies only when a member picks top + side in their view settings.',
     // Menu style fields — name (`menuStyleLabel_<field>`), hint (`menuStyleHint_<field>`), value names (`menuStyleValue_<field>_<value>`)
     menuStyleLabel_menuGroupStyle: 'Top menu groups',
-    menuStyleHint_menuGroupStyle: 'How groups appear in the top menu on wide screens. Group tabs show a group’s items on the second row when its name is clicked on the first row; second-row groups keep only items outside groups on the first row and list “group name + items” on the second row. Used by Daum-style themes (Daum, Roboyam).',
+    menuStyleHint_menuGroupStyle: 'How groups appear in the top menu on wide screens. Group tabs show a group’s items on the second row when its name is clicked on the first row; second-row groups keep only items outside groups on the first row and list “group name + items” on the second row. Used by Daum-style themes (Daum, IROBIT).',
     menuStyleValue_menuGroupStyle_TABS: 'Group tabs',
     menuStyleValue_menuGroupStyle_INLINE: 'Second-row groups',
     menuStyleLabel_sideGroupStyle: 'Side groups',

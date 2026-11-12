@@ -3,12 +3,12 @@
 
 import type { SiteLogoSet } from '~/utils/util-site-logo';
 
-/** 목업 기본 그림 — `public/brand/` 의 로보얌 그림 로고(아바타 머리 + 글자) */
+/** 목업 기본 그림 — `public/brand/` 의 아이로빗 그림 로고(아바타 머리 + 글자) */
 const DEFAULT_LOGOS: SiteLogoSet = {
-    koLight: '/brand/roboyam-logo-ko-light.svg',
-    koDark: '/brand/roboyam-logo-ko-dark.svg',
-    enLight: '/brand/roboyam-logo-en-light.svg',
-    enDark: '/brand/roboyam-logo-en-dark.svg',
+    koLight: '/brand/irobit-logo-ko-light.svg',
+    koDark: '/brand/irobit-logo-ko-dark.svg',
+    enLight: '/brand/irobit-logo-en-light.svg',
+    enDark: '/brand/irobit-logo-en-dark.svg',
 };
 
 export default class SiteLogoMock {

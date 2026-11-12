@@ -1,14 +1,14 @@
 package com.community.report.repository.master;
 
 import com.community.report.entity.ReportCaseEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 신고 사건(V82 {@code report_cases}) — 대상마다 열린 사건은 하나(부분 유일 색인 {@code ux_report_cases_open_target}) */
-public interface ReportCaseRepository extends RoboyamRepository<ReportCaseEntity, Long> {
+public interface ReportCaseRepository extends IrobitRepository<ReportCaseEntity, Long> {
 
     /** 사건 행을 쓰기 잠금으로 읽는다 — 두 운영자가 동시에 처리해도 한 번만 처리된다 */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

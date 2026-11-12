@@ -150,8 +150,8 @@ export default {
     themeDesc_daum: '회색 바탕 위 흰 카드에 큰 메뉴 탭과 아래 하위 메뉴 줄이 있는 모양이에요. 기본 메뉴 위치는 상단이에요.',
     themeName_naver: '네이버식',
     themeDesc_naver: '흰 윗줄과 주 색상 탭 바가 있는 뉴스 언론사 홈 같은 모양이에요. 기본 메뉴 위치는 상단이에요.',
-    themeName_roboyam: '로보얌 테마',
-    themeDesc_roboyam: '다음식 모양(회색 바탕 위 흰 카드)에 상단 메뉴와 오른쪽 사이드 메뉴를 함께 두는 로보얌 기본 구성이에요. 기본 메뉴 위치는 상단 + 사이드 오른쪽이에요.',
+    themeName_irobit: '아이로빗 테마',
+    themeDesc_irobit: '다음식 모양(회색 바탕 위 흰 카드)에 상단 메뉴와 오른쪽 사이드 메뉴를 함께 두는 아이로빗 기본 구성이에요. 기본 메뉴 위치는 상단 + 사이드 오른쪽이에요.',
     // 메뉴 위치 — 공개 사이트는 회원 보기 설정 > 이 값 > 테마 기본 순으로 정한다
     menuPositionLabel: '메뉴 위치',
     menuPositionHint: 'PC 화면에서 메뉴를 둘 곳이에요. 회원이 보기 설정에서 따로 고르면 그 값이 먼저이고, 모바일 화면에는 적용되지 않아요.',
@@ -192,7 +192,7 @@ export default {
     menuStyleNotMixed: '지금 메뉴 위치는 「상단 + 사이드」가 아니어서 적용되지 않아요. 회원이 보기 설정에서 상단 + 사이드를 고를 때만 적용돼요.',
     // 메뉴 모양 칸 — 이름(`menuStyleLabel_<칸>`)·안내(`menuStyleHint_<칸>`)·값 이름(`menuStyleValue_<칸>_<값>`)
     menuStyleLabel_menuGroupStyle: '상단 메뉴 그룹 표시',
-    menuStyleHint_menuGroupStyle: 'PC 화면 상단 메뉴에서 그룹을 보이는 방법이에요. 그룹 이름 탭은 첫 줄의 그룹 이름을 누르면 둘째 줄에 그 그룹 메뉴가 보이고, 둘째 줄에 펼치기는 첫 줄에 그룹 밖 항목만 두고 둘째 줄에 「그룹 이름 + 메뉴」를 이어 놓아요. 다음식 모양 테마(다음식·로보얌)에서 쓰여요.',
+    menuStyleHint_menuGroupStyle: 'PC 화면 상단 메뉴에서 그룹을 보이는 방법이에요. 그룹 이름 탭은 첫 줄의 그룹 이름을 누르면 둘째 줄에 그 그룹 메뉴가 보이고, 둘째 줄에 펼치기는 첫 줄에 그룹 밖 항목만 두고 둘째 줄에 「그룹 이름 + 메뉴」를 이어 놓아요. 다음식 모양 테마(다음식·아이로빗)에서 쓰여요.',
     menuStyleValue_menuGroupStyle_TABS: '그룹 이름 탭',
     menuStyleValue_menuGroupStyle_INLINE: '둘째 줄에 펼치기',
     menuStyleLabel_sideGroupStyle: '사이드 그룹',

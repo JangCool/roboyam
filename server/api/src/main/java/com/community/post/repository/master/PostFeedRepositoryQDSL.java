@@ -2,7 +2,7 @@ package com.community.post.repository.master;
 
 import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
  * 보임·게시판 조건은 읽은 행에 거는 거름이다(꺼진 게시판·숨김·지운 글이 많지 않은 한 몇 행 더 읽을 뿐이다).
  */
 @Repository
-public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class PostFeedRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
 

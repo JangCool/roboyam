@@ -53,7 +53,7 @@ export interface SignupPointRule {
     received: boolean;
 }
 
-/** 연속 출석 보너스(커머스 1-3 — roboyam 추가) — 연속 출석이 `days` 의 배수가 될 때마다 `bonus` P 를 더 준다. 둘 중 하나가 0 이면 꺼짐 */
+/** 연속 출석 보너스(커머스 1-3 — irobit 추가) — 연속 출석이 `days` 의 배수가 될 때마다 `bonus` P 를 더 준다. 둘 중 하나가 0 이면 꺼짐 */
 export interface AttendanceStreakRule {
     days: number;
     bonus: number;
@@ -205,7 +205,7 @@ export interface AttendanceToday {
 }
 
 /**
- * `GET /api/me/attendance?month=YYYY-MM` — 한 달의 출석(커머스 1-3, community `docs/api-point.md` 「출석」 + roboyam `streak`).
+ * `GET /api/me/attendance?month=YYYY-MM` — 한 달의 출석(커머스 1-3, community `docs/api-point.md` 「출석」 + irobit `streak`).
  * 미래 달은 `days: []`. `streak` 은 보는 달과 상관없이 오늘 또는 어제까지 이어진 연속 출석 일수(끊겼으면 0).
  */
 export interface AttendanceMonth {

@@ -8,7 +8,7 @@ import com.community.report.entity.QReportEntity;
 import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * 색인: 상태 + 마지막 신고({@code ix_report_cases_status_last}) · 마지막 신고({@code ix_report_cases_last}) · 글({@code ix_report_cases_post}) · 작성자({@code ix_report_cases_author_closed}).
  */
 @Repository
-public class AdminReportRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AdminReportRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QReportCaseEntity CASE = QReportCaseEntity.reportCaseEntity;
     private static final QReportEntity REPORT = QReportEntity.reportEntity;

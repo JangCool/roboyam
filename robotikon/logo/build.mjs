@@ -67,36 +67,36 @@ function build({ lang, tone }) {
   if (lang === 'ko') {
     const size = 32
     // 한글 가운데를 머리 중앙에 — 개구체 한글 높이 ≈ 0.72em, 기준선 = CY + 0.36em
-    const main = textPaths([{ text: '로보', color: ink }, { text: '얌', color: accent }], tx, CY + size * 0.29, size)
+    const main = textPaths([{ text: '아이로', color: ink }, { text: '빗', color: accent }], tx, CY + size * 0.29, size)
     const subSize = Number(process.env.SUB ?? 15)
-    const sub = textPaths([{ text: 'Roboyam', color: ink }], tx + main.width + 6, CY + size * 0.29, subSize)
+    const sub = textPaths([{ text: 'IROBIT', color: ink }], tx + main.width + 6, CY + size * 0.29, subSize)
     parts = [...main.out, ...sub.out.map((p) => ({ ...p, opacity: dark ? 0.85 : 0.6 }))]
     wordmark = [...main.out, ...sub.out]
     width = Math.ceil(tx + main.width + 6 + sub.width + 2)
   } else {
     const size = 34
     // 영문: 소문자 x높이 중심이 머리 중앙에 오게 — 기준선 = CY + 0.24em
-    const main = textPaths([{ text: 'Robo', color: ink }, { text: 'yam', color: accent }], tx, CY + size * 0.24, size)
+    const main = textPaths([{ text: 'IRO', color: ink }, { text: 'BIT', color: accent }], tx, CY + size * 0.24, size)
     parts = main.out
     wordmark = main.out
     width = Math.ceil(tx + main.width + 2)
   }
   const SW = Number(process.env.STROKE ?? 0)
   const paths = parts.map((p) => `<path d="${p.d}" fill="${p.color}"${SW ? ` stroke="${p.color}" stroke-width="${SW}" stroke-linejoin="round"` : ''}${p.opacity ? ` fill-opacity="${p.opacity}"${SW ? ` stroke-opacity="${p.opacity}"` : ''}` : ''}/>`).join('')
-  // 모바일용 「글자만」 영역 — <img src="….svg#wordmark"> 가 이 viewBox 로 보인다(심볼만 뺀 글자 — 한글은 작은 Roboyam 포함). 높이는 전체 40 그대로 두어 글자 크기가 같다.
+  // 모바일용 「글자만」 영역 — <img src="….svg#wordmark"> 가 이 viewBox 로 보인다(심볼만 뺀 글자 — 한글은 작은 IROBIT 포함). 높이는 전체 40 그대로 두어 글자 크기가 같다.
   // ⚠ 루트에 width·height 를 두면 Chrome 이 #wordmark 를 무시한다 — viewBox 만 둔다(그림 비율은 viewBox 로 정해진다)
   const pad = 1 + SW
   const x1 = Math.floor(Math.min(...wordmark.map((p) => p.bb.x1)) - pad)
   const x2 = Math.ceil(Math.max(...wordmark.map((p) => p.bb.x2)) + pad)
   // xMinYMid: 그림 상자가 영역보다 넓게 잡혀도(브라우저가 전체 비율로 상자를 만들 때) 글자가 가운데로 가지 않고 아이콘이 있던 왼쪽 끝에 붙는다
   const view = `<view id="wordmark" viewBox="${x1} 0 ${x2 - x1} ${H}" preserveAspectRatio="xMinYMid meet"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '로보얌' : 'Roboyam'}">${view}${symbol(0, CY - 13, S, head)}${paths}</svg>\n`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '아이로빗' : 'IROBIT'}">${view}${symbol(0, CY - 13, S, head)}${paths}</svg>\n`
 }
 
 const outDir = process.argv[2]
 fs.mkdirSync(outDir, { recursive: true })
 for (const lang of ['ko', 'en']) for (const tone of ['light', 'dark']) {
   const svg = build({ lang, tone })
-  fs.writeFileSync(path.join(outDir, `roboyam-logo-${lang}-${tone}.svg`), svg)
+  fs.writeFileSync(path.join(outDir, `irobit-logo-${lang}-${tone}.svg`), svg)
   console.log(lang, tone, svg.length, svg.match(/viewBox="([^"]+)"/)[1])
 }

@@ -62,8 +62,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class TemplateSupport {
 
-    static final String SAMPLE_ADMIN_URL = "https://admin.roboyam.example.com";
-    static final String SAMPLE_SITE_URL = "https://roboyam.example.com";
+    static final String SAMPLE_ADMIN_URL = "https://admin.irobit.example.com";
+    static final String SAMPLE_SITE_URL = "https://irobit.example.com";
 
     private final Messages messages;
     private final BuiltinMessages builtins;

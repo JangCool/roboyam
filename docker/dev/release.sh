@@ -10,10 +10,10 @@
 #   docker/dev/release.sh --deploy <태그> # 빌드 없이 이미 올린 태그를 띄운다(되돌리기)
 #
 # 설정: docker/dev/.env.release (저장소에 넣지 않는다 — .gitignore 의 .env.*). 예:
-#   ROBOYAM_ECR=123456789012.dkr.ecr.ap-northeast-2.amazonaws.com
-#   ROBOYAM_EC2_HOST=ubuntu@3.35.0.10
-#   ROBOYAM_EC2_KEY=~/.ssh/roboyam-dev.pem
-#   AWS_PROFILE=roboyam-release            # (선택) aws configure --profile 로 만든 배포용 계정
+#   IROBIT_ECR=123456789012.dkr.ecr.ap-northeast-2.amazonaws.com
+#   IROBIT_EC2_HOST=ubuntu@3.35.0.10
+#   IROBIT_EC2_KEY=~/.ssh/irobit-dev.pem
+#   AWS_PROFILE=irobit-release            # (선택) aws configure --profile 로 만든 배포용 계정
 #
 # 필요한 것: pnpm(의존성 설치됨), JDK(gradlew), Docker Desktop(buildx — arm64 를 에뮬레이션으로 빌드), AWS CLI v2, ssh · scp.
 # 서버(t4g = Graviton)는 arm64 라 이미지를 linux/arm64 로 만든다. 에뮬레이션이라 빌드가 몇 분 걸린다.
@@ -23,7 +23,7 @@ set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 CONF="$ROOT/docker/dev/.env.release"
-REMOTE_BASE=/opt/roboyam
+REMOTE_BASE=/opt/irobit
 
 fail() { printf '오류: %s\n' "$*" >&2; exit 1; }
 step() { printf '\n== %s\n' "$*"; }
@@ -43,14 +43,14 @@ set -a
 # shellcheck disable=SC1090
 . <(tr -d '\r' < "$CONF")
 set +a
-[ -n "${ROBOYAM_ECR:-}" ] || fail ".env.release 에 ROBOYAM_ECR 이 없습니다"
-[ -n "${ROBOYAM_EC2_HOST:-}" ] || fail ".env.release 에 ROBOYAM_EC2_HOST 가 없습니다"
-[ -n "${ROBOYAM_EC2_KEY:-}" ] || fail ".env.release 에 ROBOYAM_EC2_KEY 가 없습니다"
-KEY=${ROBOYAM_EC2_KEY/#\~/$HOME}
+[ -n "${IROBIT_ECR:-}" ] || fail ".env.release 에 IROBIT_ECR 이 없습니다"
+[ -n "${IROBIT_EC2_HOST:-}" ] || fail ".env.release 에 IROBIT_EC2_HOST 가 없습니다"
+[ -n "${IROBIT_EC2_KEY:-}" ] || fail ".env.release 에 IROBIT_EC2_KEY 가 없습니다"
+KEY=${IROBIT_EC2_KEY/#\~/$HOME}
 [ -f "$KEY" ] || fail "SSH 키 파일이 없습니다: $KEY"
 SSH_OPTS=(-i "$KEY" -o StrictHostKeyChecking=accept-new)
-REGION=$(printf '%s' "$ROBOYAM_ECR" | sed -n 's/^[0-9]*\.dkr\.ecr\.\([a-z0-9-]*\)\.amazonaws\.com$/\1/p')
-[ -n "$REGION" ] || fail "ROBOYAM_ECR 형식이 아닙니다: $ROBOYAM_ECR"
+REGION=$(printf '%s' "$IROBIT_ECR" | sed -n 's/^[0-9]*\.dkr\.ecr\.\([a-z0-9-]*\)\.amazonaws\.com$/\1/p')
+[ -n "$REGION" ] || fail "IROBIT_ECR 형식이 아닙니다: $IROBIT_ECR"
 
 cd "$ROOT"
 
@@ -70,28 +70,28 @@ build_and_push() {
     step "jar 빌드"
     ./gradlew :server:api:bootJar :server:admin:bootJar
 
-    step "ECR 로그인 ($ROBOYAM_ECR)"
-    aws ecr get-login-password --region "$REGION" | tr -d '\r' | docker login --username AWS --password-stdin "$ROBOYAM_ECR"
+    step "ECR 로그인 ($IROBIT_ECR)"
+    aws ecr get-login-password --region "$REGION" | tr -d '\r' | docker login --username AWS --password-stdin "$IROBIT_ECR"
 
     step "arm64 이미지 빌드 · 업로드 (태그 $TAG)"
     docker buildx build --platform linux/arm64 --provenance=false --push \
-        -t "$ROBOYAM_ECR/roboyam-api:$TAG" -f server/api/Dockerfile server/api
+        -t "$IROBIT_ECR/irobit-api:$TAG" -f server/api/Dockerfile server/api
     docker buildx build --platform linux/arm64 --provenance=false --push \
-        -t "$ROBOYAM_ECR/roboyam-admin:$TAG" -f server/admin/Dockerfile server/admin
+        -t "$IROBIT_ECR/irobit-admin:$TAG" -f server/admin/Dockerfile server/admin
 }
 
 copy_files() {
-    step "서버에 파일 복사 ($ROBOYAM_EC2_HOST:$REMOTE_BASE)"
-    ssh "${SSH_OPTS[@]}" "$ROBOYAM_EC2_HOST" "mkdir -p $REMOTE_BASE/dev/scripts $REMOTE_BASE/postgres"
-    scp -q "${SSH_OPTS[@]}" docker/dev/compose.yml docker/dev/Caddyfile docker/dev/.env.example "$ROBOYAM_EC2_HOST:$REMOTE_BASE/dev/"
-    scp -q "${SSH_OPTS[@]}" docker/dev/scripts/*.sh "$ROBOYAM_EC2_HOST:$REMOTE_BASE/dev/scripts/"
-    scp -q "${SSH_OPTS[@]}" docker/postgres/Dockerfile docker/postgres/init-pg-cron.sh "$ROBOYAM_EC2_HOST:$REMOTE_BASE/postgres/"
-    ssh "${SSH_OPTS[@]}" "$ROBOYAM_EC2_HOST" "chmod +x $REMOTE_BASE/dev/scripts/*.sh $REMOTE_BASE/postgres/init-pg-cron.sh"
+    step "서버에 파일 복사 ($IROBIT_EC2_HOST:$REMOTE_BASE)"
+    ssh "${SSH_OPTS[@]}" "$IROBIT_EC2_HOST" "mkdir -p $REMOTE_BASE/dev/scripts $REMOTE_BASE/postgres"
+    scp -q "${SSH_OPTS[@]}" docker/dev/compose.yml docker/dev/Caddyfile docker/dev/.env.example "$IROBIT_EC2_HOST:$REMOTE_BASE/dev/"
+    scp -q "${SSH_OPTS[@]}" docker/dev/scripts/*.sh "$IROBIT_EC2_HOST:$REMOTE_BASE/dev/scripts/"
+    scp -q "${SSH_OPTS[@]}" docker/postgres/Dockerfile docker/postgres/init-pg-cron.sh "$IROBIT_EC2_HOST:$REMOTE_BASE/postgres/"
+    ssh "${SSH_OPTS[@]}" "$IROBIT_EC2_HOST" "chmod +x $REMOTE_BASE/dev/scripts/*.sh $REMOTE_BASE/postgres/init-pg-cron.sh"
 }
 
 remote_deploy() {
     step "서버에서 deploy.sh $1"
-    ssh "${SSH_OPTS[@]}" "$ROBOYAM_EC2_HOST" "$REMOTE_BASE/dev/scripts/deploy.sh $1"
+    ssh "${SSH_OPTS[@]}" "$IROBIT_EC2_HOST" "$REMOTE_BASE/dev/scripts/deploy.sh $1"
 }
 
 case "$MODE" in

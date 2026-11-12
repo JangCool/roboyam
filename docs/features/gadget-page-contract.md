@@ -25,7 +25,7 @@
   「{폴더} 최신글」(POST_LIST LATEST 16개 두 열·대상 FOLDER, 24칸) / 맨 아래 「{게시판}」(GALLERY PICK 8개, 24칸 — 사진·영상 게시판: 목록 모양 `GALLERY` 인 첫 폴더 게시판, 없으면 갤러리 보기 전환(`viewToggle`)이 켜진 첫 게시판, 없으면 이 줄 없음). 기준 폴더가 없으면 이름 자리는 「전체」.
   커뮤니티 예(사용자 결정 2026-10-29): 커뮤니티 인기글 / 자유게시판 · 유머게시판(두 열) / 커뮤니티 최신글 / 영상·짤(전체 폭, 맨 아래).
   높이(h = 최소 높이, 행): 인기글 15 · 갤러리 11 · 게시판 카드 줄 13 · 최신글 15 — 보통 내용에 맞췄다(내용이 길면 격자가 늘린다). **가젯 상자 높이는 운영자 높이 hPx(= h×15 + (h−1)×16)와 내용 높이 contentPx(내용 + 테마 위·아래 여백, 정수)로 정한다. hPx − contentPx 가 한 칸(31px) 이상이면 운영자가 일부러 키운 것으로 보고 상자 = hPx 로 늘린다(내용은 위에서 시작하고 남는 공간은 아래, 빈 상태 안내는 가운데). 한 칸 미만이거나 hPx 가 더 작으면 상자 = contentPx 로 정확히 맞춰 위·아래 여백이 같다(한 칸 미만은 칸 단위 반올림일 뿐이다). 데스크톱 배치는 저장된 x·w·y 의 읽는 순서로 위에서부터 px 단위로 쌓는다: 각 가젯의 위 끝 = 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 16px(없으면 0). 같은 y·같은 h 로 나란히 둔 짝은 각자 위 규칙으로 정한 상자 높이 중 가장 큰 값으로 맞춰 아래 끝을 맞추고(user-web `UtilGadgetGrid.place` 「같은 줄 맞추기」), 늘어난 쪽도 내용은 위에서 시작한다. 모바일 한 열과 게시판 본문 칸은 내용 높이 그대로다**(사용자 결정 2026-10-31 「가젯을 늘리고 줄이면 높이도 따라야」 · 「최소 상태에서 상하 여백 동일」 — 칸마다 절대 위치, 저장 형식·admin 끌기 스냅·충돌 계산은 그대로, 첫 그리기는 재기 전이라 hPx 로 그렸다가 한 번 다시 쌓는다). 편집기는 칸을 점선으로 그리고(점선 = 상자), 크기 끌기 중 놓일 h 로 상자를 바로 늘이고 줄인다. 크기 꼬리표는 최적 칸 수 need = max(1, ceil((contentPx + 16) / 31))(내용이 다 들어가는 가장 작은 칸 수 — 이때 남는 0~30px 은 반올림이라 상자 = contentPx)와 h 를 견준다: h < need 빨강 「더 줄일 수 없어요 — 최소 N칸」 · h > need 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(need, admin 종류별 최소 높이 — 미리보기 메시지 `minH`)) · 같으면 없음(저장은 막지 않음 — 주황을 따라 줄인 끝은 늘 「표시 없음」). 칸에는 실제로 늘린 px 를 `data-grid-stretched` 로 붙인다(0 이면 없음 — `scripts/gadget-ink-padding.js` 가 읽음).
-  저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기 + 아이콘 — 로보얌 테마는 홈 로보얌 시드처럼 흰 카드 + 아이콘 머리). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
+  저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기 + 아이콘 — 아이로빗 테마는 홈 아이로빗 시드처럼 흰 카드 + 아이콘 머리). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
 
 ## 가젯 설정(⚙ — 홈·가젯 페이지·게시판 레이아웃 공통, 2026-10-29 넓힘 · 2026-10-30 8종 전부 + 모양·노출, 화면 확정)
 창은 「내용」「모양」「노출」 세 탭(`GadgetSettingsDialog.vue`, 범위의 원천 admin `util-gadget-config.ts`·`util-gadget-style.ts` = 공개 읽기 user-web `UtilGadget`).
@@ -46,23 +46,23 @@
 - `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 그 밖에서 보내면 400) · `BOARD` 지금 보는 게시판(게시판 레이아웃에서만 — `board-layout-contract.md`) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
   저장된 설정에 `boardScope` 가 없으면(옛 시드) `boardIds` 가 있으면 PICK, 없으면 ALL 로 읽는다. FOLDER 인데 기준 폴더가 없거나 게시판이 없으면 ALL 과 같다.
 - 저장: `style`·`config` 는 보낸 칸만 저장 값에 덮는다(보내지 않은 칸 — `badge` 등 — 은 그대로), `null` 이면 그대로. 오류 `400 fields.gadgets[i].config.<칸>`.
-- 새로 넣은 가젯의 처음 꾸미기(서버 `GadgetKinds.baseStyle(theme, type)`): 다음식·네이버식 카드 + 막대 머리 · 로보얌 흰 카드 + 장식 없는 머리 + 종류 아이콘(홈 로보얌 시드와 같은 모양, 2026-10-30) · 기본 카드 없는 구역.
+- 새로 넣은 가젯의 처음 꾸미기(서버 `GadgetKinds.baseStyle(theme, type)`): 다음식·네이버식 카드 + 막대 머리 · 아이로빗 흰 카드 + 장식 없는 머리 + 종류 아이콘(홈 아이로빗 시드와 같은 모양, 2026-10-30) · 기본 카드 없는 구역.
 - 관리자 응답: `config` 는 이 표의 칸(저장 값, 없으면 처음 값 — 8종 전부), `style` 은 위 칸 전부(저장 값, 없으면 테마 기본 꾸미기). 기본·처음 배치 응답도 같다.
 
 ## 가젯 제목 아이콘 (사용자 시안 확정 2026-11-10 — 모든 종류 공통, 홈·가젯 페이지 `/p/{key}`·게시판 레이아웃 같은 머리 부품 `GadgetFrame`)
 - 칸은 꾸미기 `style`(테마 기본이 있는 모양 값이라 `config` 가 아니라 여기 — 서버 `GadgetStyles`·검사 `GadgetPatches.style`, admin `UtilGadgetStyle`, 공개 `UtilGadget.readStyle`·`titleIcon`). ⚙ 「모양」 탭 「제목 아이콘」 구획(`GadgetTitleIconFields`).
   | 칸 | 값 |
   |---|---|
-  | `iconShow` | boolean — 테마 기본: **모든 테마 true**(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」, 처음 시안의 「제목만」을 바꿈). 칸이 없는 옛 가젯·시드도 테마 기본으로 읽는다 |
+  | `iconShow` | boolean — 테마 기본: **모든 테마 true**(아이로빗도 — 사용자 2026-11-10 「아이로빗 기본 보이기」, 처음 시안의 「제목만」을 바꿈). 칸이 없는 옛 가젯·시드도 테마 기본으로 읽는다 |
   | `iconSource` | `PRIME`(기본)·`TABLER`·`UPLOAD` |
   | `icon` | PrimeIcons `^pi-[a-z0-9-]{2,60}$`(30→60 으로 넓힘 — 8.0.2 의 가장 긴 이름 49자)·null |
   | `iconTabler` | `{ name ^[a-z0-9]+(-[a-z0-9]+)*$ ≤60, paths[1~40]{ d(경로 명령·숫자만, ≤3000자 · 합 ≤12000), fill?/stroke? currentColor·none, opacity? 0~1 } }`·null — 관리자가 고른 Tabler outline 한 개의 path 조각을 그대로 저장, 공개 화면은 그 조각만 요소로 그린다(웹폰트·전체 목록을 싣지 않는다, `v-html` 없음) |
   | `iconUpload` | `{ fileId, url, svg }`·null — 저장 때는 `fileId` 만 믿고 서버가 파일(용도 `GADGET_ICON`)에서 주소·SVG 여부를 채우며 파일을 `IN_USE` 로. 없는 파일 → `style.iconUpload` `homeLayout.gadget.style.iconFile` |
   | `iconColor` | null(글자색 그대로 — 제목 색, 옅은 네모면 제목 색→주 색상)·프리셋 12색·`#rrggbb`. 올린 PNG·WEBP 는 칠하지 않는다(설정 창에서 숨김), 올린 SVG 는 모양만 따서(CSS mask) 칠한다 |
-  | `iconBg` | `NONE`·`SOFT`(옅은 네모 — 아이콘 색 12%, 다크 18%) — 테마 기본: 로보얌 SOFT, 그 밖 NONE |
+  | `iconBg` | `NONE`·`SOFT`(옅은 네모 — 아이콘 색 12%, 다크 18%) — 테마 기본: 아이로빗 SOFT, 그 밖 NONE |
 - 직접 올리기 `POST /api/admin/home-layouts/icons`(site.manage, multipart `file`) → 201 `{ fileId, url, svg }`. SVG(로고 SVG 와 같은 `SvgInspector` — script·on*·foreignObject·외부 href/url() 이 있으면 **거절**, 10만 자) 또는 PNG·WEBP(다시 만들기), 200KB. 400 `fields.file` `gadgetIcon.type`·`gadgetIcon.size`·`site.svg.*`. 키 `gadget-icon/{버전}/icon.{svg|png|webp}`, 파일 용도 `GADGET_ICON`(**shared V178** — `ck_files_purpose`). 쓰지 않은 파일은 「올리다 만 파일 정리」가 지운다.
 - 아이콘 고르기(관리자만): PrimeIcons 8.0.2 360개(`prime-icon-names.ts`) · Tabler Icons **3.49.0**(`@tabler/icons`, admin-web 의존성 — **MIT 라이선스**, 패키지의 LICENSE 로 충분 · 출처 표시 불필요) outline 5,184개는 고르기 창을 열 때만 `?raw` 로 읽는다. 검색 = 영어 이름·태그 + 한국어 별칭 몇 개, 한 번에 160개까지.
-- 기본 아이콘(사용자 2026-11-10 「가젯마다 어울리는 아이콘」): 로보얌 홈 시드 인기글 Tabler `flame` · 영상·짤 `photo-video` · 인기 소모임 `users-group`(나머지 PrimeIcons 그대로), 가젯 페이지 처음 배치 인기글 `flame` · 갤러리 `photo-video`(처음 배치 JSON 의 `tabler` 이름 → 서버 `GadgetTablerIcons` 가 그림 조각을 채움). 저장 가젯은 **shared V180** 이 처음 아이콘 그대로인 로보얌 가젯만 바꿨다(게시판 카드는 지금 데모 게시판 이름별 — 팁과강좌 `pi-lightbulb` · 사용기 `message-star` · 자유 `pi-comments` · 유머 `mood-happy` · AI·로봇·테크 `robot` · 시사 `news` · 산업·주식 `chart-candle` · 게임 `device-gamepad-2` · 스포츠 `ball-football` · 연애·결혼 `pi-heart` · 직장·취업 `pi-briefcase`).
+- 기본 아이콘(사용자 2026-11-10 「가젯마다 어울리는 아이콘」): 아이로빗 홈 시드 인기글 Tabler `flame` · 영상·짤 `photo-video` · 인기 소모임 `users-group`(나머지 PrimeIcons 그대로), 가젯 페이지 처음 배치 인기글 `flame` · 갤러리 `photo-video`(처음 배치 JSON 의 `tabler` 이름 → 서버 `GadgetTablerIcons` 가 그림 조각을 채움). 저장 가젯은 **shared V180** 이 처음 아이콘 그대로인 아이로빗 가젯만 바꿨다(게시판 카드는 지금 데모 게시판 이름별 — 팁과강좌 `pi-lightbulb` · 사용기 `message-star` · 자유 `pi-comments` · 유머 `mood-happy` · AI·로봇·테크 `robot` · 시사 `news` · 산업·주식 `chart-candle` · 게임 `device-gamepad-2` · 스포츠 `ball-football` · 연애·결혼 `pi-heart` · 직장·취업 `pi-briefcase`).
 - 미정: 가젯에서 바꿔 뺀 올린 아이콘 파일(IN_USE)은 지우지 않는다(여러 테마·가젯이 같은 파일을 가리킬 수 있음 — 정리 배치는 나중에).
 
 ## 권한·정책

@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Configuration;
  * </ul>
  * 위치·이력 표는 yml 의 {@code spring.flyway.locations} 가 아니라 여기(코드)에서 정한다 — 시험이 같은 값을 쓰도록 한 곳에서만.
  *
- * <p>자기 스트림 이름은 앱의 {@code application.yml} 이 {@code roboyam.schema.stream} 으로 정한다(api → {@code api}, admin → {@code admin}).
+ * <p>자기 스트림 이름은 앱의 {@code application.yml} 이 {@code irobit.schema.stream} 으로 정한다(api → {@code api}, admin → {@code admin}).
  * 비어 있으면 shared 만 이관한다.
  *
  * <p>주의: 앱 진입점의 스캔 범위에 {@code com.community.zconfiguration} 이 들어와야 이 설정이 적용된다.
@@ -39,12 +39,12 @@ public class SchemaMigrationConfig {
     /**
      * shared 를 이관한 뒤 자기 스트림을 이관한다 — 자동 구성의 초기화 단계에서 불리므로 JPA 보다 먼저다.
      *
-     * <p>{@code roboyam.schema.analytics=true} 인 앱(공개 사이트 api 만 — 방문 표를 쓰는 쪽이 주인)은 이어서 analytics 스트림을 분석 전용 연결({@code analyticsJdbc})로 이관한다.
+     * <p>{@code irobit.schema.analytics=true} 인 앱(공개 사이트 api 만 — 방문 표를 쓰는 쪽이 주인)은 이어서 analytics 스트림을 분석 전용 연결({@code analyticsJdbc})로 이관한다.
      * analytics 의 크론(R__analytics_*)이 shared 의 공통 함수·설정 표를 쓰므로 shared 뒤에 둔다. 관리자 앱은 이관하지 않고 집계 표를 읽기만 한다.
      */
     @Bean
-    FlywayMigrationStrategy schemaMigrationStrategy(@Value("${roboyam.schema.stream:}") String ownStream,
-                                                    @Value("${roboyam.schema.analytics:false}") boolean analytics,
+    FlywayMigrationStrategy schemaMigrationStrategy(@Value("${irobit.schema.stream:}") String ownStream,
+                                                    @Value("${irobit.schema.analytics:false}") boolean analytics,
                                                     ObjectProvider<AnalyticsDatabase> analyticsDatabase) {
         List<String> ownStreams = ownStream == null || ownStream.isBlank() ? List.of() : List.of(ownStream.strip());
         return flyway -> {

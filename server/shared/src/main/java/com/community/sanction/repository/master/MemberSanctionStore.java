@@ -11,7 +11,7 @@ import com.community.sanction.entity.SanctionStatus;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Repository;
  * <p>⚠ {@link #endDue}·{@link #releaseMember} 는 DB 배치 {@code R__batch_39_sanction_expire.sql} 과 같은 판정이다(이중 구현) — 한쪽을 고치면 다른 쪽도 고친다.
  */
 @Repository
-public class MemberSanctionStore extends RoboyamRepositoryQDSL {
+public class MemberSanctionStore extends IrobitRepositoryQDSL {
 
     /** 제재 — 한 줄 모양의 별칭(관리자 목록 저장소가 거르기에 쓴다) */
     public static final QMemberSanctionEntity S = QMemberSanctionEntity.memberSanctionEntity;

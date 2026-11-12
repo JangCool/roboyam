@@ -1,6 +1,6 @@
 /**
  * 온보딩(`/onboarding`, 가입 직후 첫 화면)의 문구 — 환영 + 운영 원칙 3장. 원칙 문구는 원본(community) `pages/onboarding.vue` 의 초안 그대로(오픈 전 전문 검토),
- * 예시(`*Tag`·`*Example`·`*Note`·`investNotice`)만 로보얌 주제(로봇·AI)로 바꿨다 — `member-account-contract.md` 「결정 (2026-10-24 2차)」.
+ * 예시(`*Tag`·`*Example`·`*Note`·`investNotice`)만 아이로빗 주제(로봇·AI)로 바꿨다 — `member-account-contract.md` 「결정 (2026-10-24 2차)」.
  * 키는 `onboarding.무엇` 두 마디. `en/onboarding.ts` 와 같은 키, 같은 차례.
  */
 export default {

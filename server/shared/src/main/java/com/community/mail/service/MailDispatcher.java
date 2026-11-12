@@ -20,7 +20,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 /**
- * 저장된 메일 서버 설정({@code mail_settings}, 설치 마법사·관리자 화면이 저장)으로 메일 한 통을 보낸다. 로보얌의 모든 메일(회원 인증, 운영자 초대·자격 증명·
+ * 저장된 메일 서버 설정({@code mail_settings}, 설치 마법사·관리자 화면이 저장)으로 메일 한 통을 보낸다. 아이로빗의 모든 메일(회원 인증, 운영자 초대·자격 증명·
  * 비밀번호 재설정 승인번호, 관리자 알림, 시험 메일)이 이 길로 나간다.
  *
  * <ul>
@@ -98,7 +98,7 @@ public class MailDispatcher {
         String password = null;
         if (setting.getUsername() != null) {
             if (setting.getPasswordEnc() == null || !encryptor.isConfigured()) {
-                log.warn("메일 서버 비밀번호를 풀 수 없어 메일을 보내지 못했다 — 서버에 ROBOYAM_CRYPTO_KEY 가 있는지, 비밀번호가 저장돼 있는지 확인해 주세요");
+                log.warn("메일 서버 비밀번호를 풀 수 없어 메일을 보내지 못했다 — 서버에 IROBIT_CRYPTO_KEY 가 있는지, 비밀번호가 저장돼 있는지 확인해 주세요");
                 return ChannelPostResult.CRYPTO_KEY_MISSING;
             }
             try {

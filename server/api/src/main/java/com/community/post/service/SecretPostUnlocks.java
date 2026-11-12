@@ -25,7 +25,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Component
 public class SecretPostUnlocks {
 
-    static final String ATTRIBUTE = "roboyam.post.secretUnlocks";
+    static final String ATTRIBUTE = "irobit.post.secretUnlocks";
     static final int TTL_MINUTES = 60;
     static final int MAX_POSTS = 20;
 

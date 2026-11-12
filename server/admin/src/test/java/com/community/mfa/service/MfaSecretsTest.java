@@ -9,7 +9,7 @@ import com.community.zconfiguration.exception.CommonException;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
-/** 비밀키 20바이트 무작위(base32) · ROBOYAM_CRYPTO_KEY 로 암호화(키 없으면 503 CRYPTO_KEY_MISSING) · otpauth 주소(issuer = 사이트 이름, 계정 = 이메일, URL 인코딩) */
+/** 비밀키 20바이트 무작위(base32) · IROBIT_CRYPTO_KEY 로 암호화(키 없으면 503 CRYPTO_KEY_MISSING) · otpauth 주소(issuer = 사이트 이름, 계정 = 이메일, URL 인코딩) */
 class MfaSecretsTest {
 
     private static final String KEY = Base64.getEncoder().encodeToString(new byte[32]);
@@ -55,6 +55,6 @@ class MfaSecretsTest {
 
     @Test
     void 한글_사이트_이름도_인코딩한다() {
-        assertThat(MfaSecrets.otpauthUri("로보얌", "a@b.c", "AAAA")).startsWith("otpauth://totp/%EB%A1%9C%EB%B3%B4%EC%96%8C:a%40b.c?").contains("issuer=%EB%A1%9C");
+        assertThat(MfaSecrets.otpauthUri("아이로빗", "a@b.c", "AAAA")).startsWith("otpauth://totp/%EC%95%84%EC%9D%B4%EB%A1%9C%EB%B9%97:a%40b.c?").contains("issuer=%EC%95%84");
     }
 }

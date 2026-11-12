@@ -13,7 +13,7 @@ import com.community.group.entity.QGroupPublishRequestEntity;
 import com.community.group.entity.QGroupSettingsEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Repository;
  * 트랜잭션은 부르는 서비스의 것을 따르고, 쓰기는 소모임 행을 잠근 뒤 한다.
  */
 @Repository
-public class GroupPublishRequestQueries extends RoboyamRepositoryQDSL {
+public class GroupPublishRequestQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupPublishRequestEntity R = QGroupPublishRequestEntity.groupPublishRequestEntity;
     private static final QPostEntity POST = QPostEntity.postEntity;

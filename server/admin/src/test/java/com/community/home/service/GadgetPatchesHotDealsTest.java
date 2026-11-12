@@ -36,7 +36,7 @@ class GadgetPatchesHotDealsTest {
         assertThat(GadgetKinds.minW(GadgetKinds.HOT_DEALS, 24)).isEqualTo(6);
         assertThat(GadgetKinds.minH(GadgetKinds.HOT_DEALS)).isEqualTo(8);
         assertThat(GadgetConfigs.settable(GadgetKinds.HOT_DEALS)).isTrue();
-        assertThat(GadgetKinds.baseStyle("roboyam", GadgetKinds.HOT_DEALS).get("icon").asString()).isEqualTo("pi-ticket");
+        assertThat(GadgetKinds.baseStyle("irobit", GadgetKinds.HOT_DEALS).get("icon").asString()).isEqualTo("pi-ticket");
     }
 
     @Test

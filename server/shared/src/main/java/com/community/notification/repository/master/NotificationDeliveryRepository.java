@@ -5,7 +5,7 @@ import com.community.notification.entity.NotificationEventTeamEntity;
 import com.community.notification.entity.QNotificationEventChannelEntity;
 import com.community.notification.entity.QNotificationEventEntity;
 import com.community.notification.entity.QNotificationEventTeamEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class NotificationDeliveryRepository extends RoboyamRepositoryQDSL {
+public class NotificationDeliveryRepository extends IrobitRepositoryQDSL {
 
     private static final QNotificationEventChannelEntity EC = QNotificationEventChannelEntity.notificationEventChannelEntity;
     private static final QNotificationEventTeamEntity ET = QNotificationEventTeamEntity.notificationEventTeamEntity;

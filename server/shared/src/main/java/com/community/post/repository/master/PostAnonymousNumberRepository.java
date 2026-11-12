@@ -2,7 +2,7 @@ package com.community.post.repository.master;
 
 import com.community.post.entity.PostAnonymousNumberEntity;
 import com.community.post.entity.PostAnonymousNumberId;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /** 익명 글 안의 회원 번호(V184 {@code post_anonymous_numbers}) — 글 ID 로 읽는다 */
-public interface PostAnonymousNumberRepository extends RoboyamRepository<PostAnonymousNumberEntity, PostAnonymousNumberId> {
+public interface PostAnonymousNumberRepository extends IrobitRepository<PostAnonymousNumberEntity, PostAnonymousNumberId> {
 
     /** 글 하나의 번호 전부 */
     List<PostAnonymousNumberEntity> findByPostId(Long postId);

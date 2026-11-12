@@ -14,7 +14,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Repository;
  * AI 회원 질의 — 작성자 표시(한 질의), 대기함·기록 목록, 실행기의 셈과 할 일 후보. 「AI 회원」 = {@code ai_member_profiles} 에 줄이 있는 회원.
  */
 @Repository
-public class AiMemberQueries extends RoboyamRepositoryQDSL {
+public class AiMemberQueries extends IrobitRepositoryQDSL {
 
     private static final QAiMemberProfileEntity A = QAiMemberProfileEntity.aiMemberProfileEntity;
     private static final QAiDraftEntity D = QAiDraftEntity.aiDraftEntity;

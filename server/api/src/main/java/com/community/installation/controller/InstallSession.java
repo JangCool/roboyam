@@ -22,7 +22,7 @@ public class InstallSession {
 
     private static final Logger log = LoggerFactory.getLogger(InstallSession.class);
 
-    static final String ATTRIBUTE = "roboyam.install.authorized";
+    static final String ATTRIBUTE = "irobit.install.authorized";
     static final int IDLE_SECONDS = 30 * 60;
 
     /** 이 요청의 세션을 "설치 인증됨" 으로 만든다. 세션 ID 를 새로 바꾼다 */

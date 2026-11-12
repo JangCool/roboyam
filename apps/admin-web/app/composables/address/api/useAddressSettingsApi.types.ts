@@ -107,7 +107,7 @@ export interface AddressServerFile {
     modifiedAt: string;
 }
 
-/** `GET /api/admin/address/server-files` — 서버 폴더(`ROBOYAM_ADDRESS_IMPORT_DIR`)가 설정돼 있지 않으면 `enabled: false` */
+/** `GET /api/admin/address/server-files` — 서버 폴더(`IROBIT_ADDRESS_IMPORT_DIR`)가 설정돼 있지 않으면 `enabled: false` */
 export interface AddressServerFiles {
     enabled: boolean;
     files: AddressServerFile[];

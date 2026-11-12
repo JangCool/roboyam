@@ -32,7 +32,7 @@ import com.community.user.entity.QProfileNicknameHistoryEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.QUserIdentityEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.EntityPathBase;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberPath;
@@ -55,7 +55,7 @@ import org.springframework.stereotype.Repository;
  * 엔티티가 매핑하지 않는 칸을 고치는 문장({@code profiles.profile_image}·{@code nickname_image}, {@code user_items.reserved_at}).
  */
 @Repository
-public class WithdrawalEraseStore extends RoboyamRepositoryQDSL {
+public class WithdrawalEraseStore extends IrobitRepositoryQDSL {
 
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QPostEntity POST = QPostEntity.postEntity;

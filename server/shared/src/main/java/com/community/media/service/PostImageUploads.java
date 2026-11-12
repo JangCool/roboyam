@@ -19,7 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 공개 사이트 글 이미지({@code POST /api/images})와 관리자 공지 본문 이미지({@code POST /api/admin/notices/images})가 같은 규칙을 쓴다 — 누가 올릴 수 있는지·속도 한도는 부르는 쪽이 본다.
  *
  * <p>순서: 검사·다시 만들기(트랜잭션 밖 — 이미지 처리 동안 DB 연결을 붙잡지 않는다) → 저장소 쓰기 → 장부 행 저장(짧은 트랜잭션) → 실패하면 쓴 파일을 지운다.
- * 글에 쓰이지 않은 채 {@code roboyam.media.orphan-retention-hours} 가 지나면 「올리다 만 파일 정리」 배치가 지운다. 글에 붙이는 일은 {@code PostImages#bind}.
+ * 글에 쓰이지 않은 채 {@code irobit.media.orphan-retention-hours} 가 지나면 「올리다 만 파일 정리」 배치가 지운다. 글에 붙이는 일은 {@code PostImages#bind}.
  *
  * <p>저장소 키는 {@code post-image/{UTC 년월}/{무작위 32자}.{확장자}} — 주소를 짐작할 수 없고, 한 번 쓴 파일은 고치지 않는다(1년 immutable 캐시).
  */

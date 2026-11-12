@@ -121,7 +121,7 @@ public class BizApplicationReviewService {
 
     /**
      * 승인 + 운영자 등록 건 규칙(04 §2): 운영자 등록 건(source=OPERATOR)은 수동 결제만(온라인이면 400 {@code fields.method}). <b>자기 승인</b>(등록한 운영자 = 승인하는 운영자)은
-     * 설정 {@code roboyam.biz.self-approval} — {@code deny} 면 409 {@code BIZ_SELF_APPROVAL_DENIED}, {@code allow} 면 메모 1~200자 필수(400 {@code fields.memo})이고
+     * 설정 {@code irobit.biz.self-approval} — {@code deny} 면 409 {@code BIZ_SELF_APPROVAL_DENIED}, {@code allow} 면 메모 1~200자 필수(400 {@code fields.memo})이고
      * 처리 기록 메모 {@code SELF_APPROVED · 메모} · 감사 detail {@code selfApproved=true}·{@code selfApprovalMemo}.
      *
      * @param selfMemoText 자기 승인 메모(자기 승인이 아니면 무시)

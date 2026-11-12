@@ -17,7 +17,7 @@ import org.owasp.html.PolicyFactory;
  */
 public final class MailHtml {
 
-    private static final String VAR_PROTOCOL = "roboyam-var";
+    private static final String VAR_PROTOCOL = "irobit-var";
     private static final Pattern VAR_HREF = Pattern.compile("href=\"\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\"");
     private static final Pattern MARKED_HREF = Pattern.compile("href=\"" + VAR_PROTOCOL + ":([A-Za-z][A-Za-z0-9_]*)\"");
 

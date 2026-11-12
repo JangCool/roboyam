@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * 설정 비밀값 키({@code ROBOYAM_CRYPTO_KEY})가 없는 관리자 서버 — 앱은 뜨고 포트원 화면은 그것을 알리며({@code cryptoKeyConfigured:false}), 저장만 503 {@code CRYPTO_KEY_MISSING}
+ * 설정 비밀값 키({@code IROBIT_CRYPTO_KEY})가 없는 관리자 서버 — 앱은 뜨고 포트원 화면은 그것을 알리며({@code cryptoKeyConfigured:false}), 저장만 503 {@code CRYPTO_KEY_MISSING}
  * (계약 「0-4」). 키가 빠진 문맥이라 따로 띄우고, 본인인증 구현은 portone 으로 둬 화면의 {@code identityProvider} 가 배포 설정을 따르는지도 본다.
  */
-@TestPropertySource(properties = {"roboyam.crypto.key=", "roboyam.identity.provider=portone"})
+@TestPropertySource(properties = {"irobit.crypto.key=", "irobit.identity.provider=portone"})
 class PortOneCryptoKeyMissingHttpTest extends Commerce04AdminTestBase {
 
     @Test
@@ -25,7 +25,7 @@ class PortOneCryptoKeyMissingHttpTest extends Commerce04AdminTestBase {
         int before = jdbc.queryForObject("SELECT count(*) FROM portone_settings WHERE key = 'identityChannelKey'", Integer.class);
 
         mvc.perform(get("/api/admin/portone-settings").cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.cryptoKeyConfigured").value(false))
-                .andExpect(jsonPath("$.data.identityProvider").value("PORTONE")); // 화면의 지금 구현 = 이 서버의 roboyam.identity.provider
+                .andExpect(jsonPath("$.data.identityProvider").value("PORTONE")); // 화면의 지금 구현 = 이 서버의 irobit.identity.provider
         mvc.perform(withCsrf(put("/api/admin/portone-settings/identity"), session).content("{\"identityChannelKey\":\"channel-no-key\"}"))
                 .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("CRYPTO_KEY_MISSING"));
 

@@ -9,7 +9,7 @@ export default {
     logsTitle: 'Batch logs',
     logsSubtitle: 'When each job ran and how it ended.',
 
-    // hamonica3 common texts "Reload" / "Clear filters" — not in the app-wide texts (`@roboyam/i18n`) yet, so they live here
+    // hamonica3 common texts "Reload" / "Clear filters" — not in the app-wide texts (`@irobit/i18n`) yet, so they live here
     reload: 'Reload',
     clearFilter: 'Clear filters',
 

@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * 관리자 서버의 {@code PaymentCancelScheduler} 가 정한다(배치 서버로 뗄 때 그 클래스만 옮긴다, 15-2).
  *
  * <ol>
- *   <li>SENDING 으로 {@code roboyam.payment.cancel-stale}(10분) 넘게 머문 줄(보내던 서버가 죽었다)을 PENDING 으로 되돌린다 — 다음 시도의 「재시도 전 조회」가 이중 취소를 막는다.</li>
+ *   <li>SENDING 으로 {@code irobit.payment.cancel-stale}(10분) 넘게 머문 줄(보내던 서버가 죽었다)을 PENDING 으로 되돌린다 — 다음 시도의 「재시도 전 조회」가 이중 취소를 막는다.</li>
  *   <li>차례가 된 줄을 {@code FOR UPDATE SKIP LOCKED} 로 {@code cancel-batch-size}(20)줄까지 집는다 — 서버 여럿이 돌아도 같은 취소를 두 번 집지 않고,
  *       한 결제에서는 보내는 중인 취소가 하나뿐이다(V100).</li>
  *   <li>줄마다 {@link PaymentCancelExecutor#execute} — 줄 사이에 {@code cancel-gap}(200ms)을 둔다(PG 호출 속도 제한, commerce.md 8-3).</li>

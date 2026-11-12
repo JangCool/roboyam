@@ -99,7 +99,7 @@ class EmoticonAdminPackTest extends EmoticonTestBase {
         List<EmoticonAdminView.PackRow> all = kit.packs.list(null, null, null, null).items();
         assertThat(all.get(0).source()).isEqualTo("OFFICIAL");
         assertThat(all.stream().filter(r -> r.source().equals("OFFICIAL")).allMatch(r -> r.rewardTotal() == null)).isTrue();
-        assertThat(kit.packs.list("OFFICIAL", "APPROVED", "로보얌콘핑크", null).items()).extracting(EmoticonAdminView.PackRow::name).contains("로보얌콘핑크");
+        assertThat(kit.packs.list("OFFICIAL", "APPROVED", "아이로빗콘핑크", null).items()).extracting(EmoticonAdminView.PackRow::name).contains("아이로빗콘핑크");
         EmoticonAdminView.PackDetail detail = kit.packs.detail(Long.toString(approved));
         assertThat(detail.items()).hasSize(8);
         assertThat(detail.items().get(0).contentHash()).matches("^[0-9a-f]{64}$");

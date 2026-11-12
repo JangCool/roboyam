@@ -6,7 +6,7 @@ import com.community.nicknameimage.entity.NicknameImageStatus;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
  * 신청한 회원의 지금 닉네임·등급 이름과 검토한 운영자 이름을 왼쪽 조인으로 함께 읽는다.
  */
 @Repository
-public class AdminNicknameImageRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AdminNicknameImageRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QNicknameImageRequestEntity REQUEST = QNicknameImageRequestEntity.nicknameImageRequestEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

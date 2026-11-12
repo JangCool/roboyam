@@ -5,7 +5,7 @@ import com.community.holiday.entity.QSiteHolidayEntity;
 import com.community.holiday.entity.QSiteHolidaySyncEntity;
 import com.community.holiday.entity.SiteHolidayEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.OrderSpecifier;
@@ -30,7 +30,7 @@ import org.springframework.stereotype.Repository;
  * <p>Native SQL 로 남긴 것: 받기 결과 1행 덮어쓰기({@code INSERT … ON CONFLICT (id) DO UPDATE} — 처음 받을 때 행이 없다).
  */
 @Repository
-public class SiteHolidayStore extends RoboyamRepositoryQDSL {
+public class SiteHolidayStore extends IrobitRepositoryQDSL {
 
     /**
      * 한 줄.

@@ -3,7 +3,7 @@
 ## 1. 역할 및 기본 원칙
 * Repository 는 DB 조회·저장만 한다. 업무 규칙과 트랜잭션은 Service 에 둔다(Repository 에 `@Transactional` 을 붙이지 않는다 — 부르는 Service 가 연다).
 * 위치는 `<업무>/repository/master/` 다(`JpaMasterConfig` 가 이 패키지를 스캔한다).
-* 도메인 Repository 는 `RoboyamRepository<T, ID>` 를 상속하고 `JpaRepository` 등을 직접 상속하지 않는다.
+* 도메인 Repository 는 `IrobitRepository<T, ID>` 를 상속하고 `JpaRepository` 등을 직접 상속하지 않는다.
 * `save()` 를 쓰지 않는다. ID 를 앱이 발급하므로 새 Entity 는 `persist()`, 고칠 때는 `update()`(또는 변경 감지)를 쓴다.
 
 ---
@@ -11,7 +11,7 @@
 ## 2. 주요 업무 및 규약
 * **기술 선택**:
   * PK 조회/삭제: 기본 메서드 · 단순 필드 조건: 파생 메서드
-  * 복합 조건/조인/정렬/페이징/프로젝션, 조건부 UPDATE: QueryDSL (`XxxRepositoryQDSL extends RoboyamRepositoryQDSL`, `@Repository`, 질의 팩토리 `query` 사용, DB 시각은 `DB_NOW`)
+  * 복합 조건/조인/정렬/페이징/프로젝션, 조건부 UPDATE: QueryDSL (`XxxRepositoryQDSL extends IrobitRepositoryQDSL`, `@Repository`, 질의 팩토리 `query` 사용, DB 시각은 `DB_NOW`)
   * 행 잠금: 파생 메서드에 `@Lock(PESSIMISTIC_WRITE)` (트랜잭션 안에서만 의미가 있다)
   * 대량 INSERT: 건수를 재 보고 JPA 배치·JDBC 배치·PostgreSQL `COPY` 중 선택
   * DB 전용 기능: 네이티브 SQL — 사유를 주석으로 적는다
@@ -34,12 +34,12 @@
 
 ## 3. 작성 예시
 ```java
-public interface UserRepository extends RoboyamRepository<UserEntity, Long> {
+public interface UserRepository extends IrobitRepository<UserEntity, Long> {
     Optional<UserEntity> findByEmail(String email);
 }
 
 @Repository
-public class ProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class ProfileRepositoryQDSL extends IrobitRepositoryQDSL {
 
     public ProfileRepositoryQDSL(JPAQueryFactory query) {
         super(query);

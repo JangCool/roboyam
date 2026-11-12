@@ -1,7 +1,7 @@
 package com.community.membernotification.repository.master;
 
 import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
  * <p>읽기는 QueryDSL 이다. Native SQL 로 남긴 것과 이유: {@link #upsert}(아래).
  */
 @Repository
-public class MemberNotificationPreferenceQueries extends RoboyamRepositoryQDSL {
+public class MemberNotificationPreferenceQueries extends IrobitRepositoryQDSL {
 
     private static final QMemberNotificationPreferenceEntity P = QMemberNotificationPreferenceEntity.memberNotificationPreferenceEntity;
 

@@ -3,7 +3,7 @@ package com.community.installation.repository.master;
 import com.community.installation.entity.InstallationEntity;
 import com.community.installation.entity.InstallationStatus;
 import com.community.installation.entity.QInstallationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * 행은 마이그레이션(V4)이 만들어 두므로 여기서 만들지 않는다.
  */
 @Repository
-public class InstallationRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class InstallationRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QInstallationEntity INSTALLATION = QInstallationEntity.installationEntity;
 

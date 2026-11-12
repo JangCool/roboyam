@@ -12,7 +12,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
- * 국세청 조회 구현 고르기 — 배포 설정 {@code roboyam.business.nts.provider}(odcloud | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>
+ * 국세청 조회 구현 고르기 — 배포 설정 {@code irobit.business.nts.provider}(odcloud | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>
  * (본인인증 {@code IdentityConfig} 와 같은 규칙) — 가짜 구현은 아무 번호나 계속사업자·진위 일치로 만들기 때문이다. 공개 사이트(신청·수정 때 진위확인)와
  * 관리자 앱(다시 조회)이 같이 쓴다.
  *
@@ -34,7 +34,7 @@ public class NtsConfig {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build());
         factory.setReadTimeout(READ_TIMEOUT);
-        // 기본 주소는 호출마다 읽는다 — 화면(설정 › 공공데이터포털 › API 주소)에서 넣은 값 → 배포 설정 roboyam.business.nts.base-url(사용자 지시 2026-11-05)
+        // 기본 주소는 호출마다 읽는다 — 화면(설정 › 공공데이터포털 › API 주소)에서 넣은 값 → 배포 설정 irobit.business.nts.base-url(사용자 지시 2026-11-05)
         return new OdcloudNtsApi(RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build(), endpoints::ntsBaseUrl);
     }
 
@@ -54,10 +54,10 @@ public class NtsConfig {
      */
     public static NtsProviderKind guard(NtsProviderKind kind, Environment environment) {
         if (kind == null) {
-            throw new IllegalStateException("roboyam.business.nts.provider 가 비어 있습니다(odcloud | fake).");
+            throw new IllegalStateException("irobit.business.nts.provider 가 비어 있습니다(odcloud | fake).");
         }
         if (kind == NtsProviderKind.FAKE && environment.acceptsProfiles(GUARDED)) {
-            throw new IllegalStateException("dev·prod 프로필에서는 가짜 국세청 조회(roboyam.business.nts.provider=fake)를 쓸 수 없습니다. ROBOYAM_NTS_PROVIDER=odcloud 로 두세요.");
+            throw new IllegalStateException("dev·prod 프로필에서는 가짜 국세청 조회(irobit.business.nts.provider=fake)를 쓸 수 없습니다. IROBIT_NTS_PROVIDER=odcloud 로 두세요.");
         }
         return kind;
     }

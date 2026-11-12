@@ -3,7 +3,7 @@ package com.community.membernotification.dto.response;
 import java.time.Instant;
 
 /**
- * 회원 알림 한 건 — community {@code NotificationItem} 을 roboyam 으로 옮긴 모양(docs/features/member-notification-contract.md). ID 는 문자열(Snowflake).
+ * 회원 알림 한 건 — community {@code NotificationItem} 을 irobit 으로 옮긴 모양(docs/features/member-notification-contract.md). ID 는 문자열(Snowflake).
  * {@code title}·{@code body} 는 서버가 요청 언어({@code Accept-Language})로 푼 문장이다(관리자 알림과 같은 방식). 나머지 칸은 화면이 직접 그릴 때 쓴다.
  *
  * @param type           {@code COMMENT} · {@code REPLY} · {@code POINTS_REVOKED} · {@code POST_HIDDEN} · {@code COMMENT_HIDDEN} · {@code DM}(쪽지 받음 — {@code actor} 는 보낸 회원, {@code link} 는 그 대화방) · {@code NICKNAME_IMAGE_REVIEWED}(닉네임 그림 승인·반려·해제 — {@code body} 는 사유) · {@code OPINION_PIN_REQUESTED}(내가 확인할 의견 고정 요청 — {@code actor} 는 요청한 회원,

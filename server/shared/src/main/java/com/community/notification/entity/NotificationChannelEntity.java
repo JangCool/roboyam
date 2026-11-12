@@ -11,7 +11,7 @@ import org.hibernate.annotations.DynamicUpdate;
 /**
  * 알림 도구(Slack · Mattermost) — V41__teams_notification_channels.sql 의 {@code notification_channels}.
  *
- * <p>비밀(봇 토큰·웹훅 주소)은 {@code ROBOYAM_CRYPTO_KEY} 로 암호화한 <b>암호문</b>만 들고({@code *Enc}) 평문은 어디에도 두지 않는다.
+ * <p>비밀(봇 토큰·웹훅 주소)은 {@code IROBIT_CRYPTO_KEY} 로 암호화한 <b>암호문</b>만 들고({@code *Enc}) 평문은 어디에도 두지 않는다.
  * 암호문도 응답·로그·감사·{@code toString} 에 내보내지 않는다(이 클래스는 {@code toString} 을 재정의하지 않아 기본 {@code Object.toString} 이다).
  * 마지막 연결 시험은 시각·성공 여부·짧은 사유 코드만 남긴다(외부 응답 본문은 저장하지 않는다).
  */

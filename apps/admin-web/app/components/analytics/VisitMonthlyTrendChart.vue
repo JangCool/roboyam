@@ -1,6 +1,6 @@
 <template>
     <!--
-        월별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@roboyam/chart` — 방문 추이 `VisitTrendChart` 와 같은 부품)에 월별 문구·숫자 글자를 입히는 얇은 겹(방문 통계 3단계 「월별 보기」).
+        월별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@irobit/chart` — 방문 추이 `VisitTrendChart` 와 같은 부품)에 월별 문구·숫자 글자를 입히는 얇은 겹(방문 통계 3단계 「월별 보기」).
         막대 = 방문자(일별 합 — 왼쪽 축) · 선 = 고른 숫자(오른쪽 축): 순방문자(MAU) · 신규 방문자 · 페이지뷰. 툴팁 셋째 줄(레이어의 「클릭률」 자리)은 선에 맞춘 비율 —
         순방문자면 평균 방문 일수(일별 합 ÷ MAU — 회원으로 보면 로그인 회원 비율 = 회원 MAU ÷ 방문자 MAU), 신규면 신규 비율, 페이지뷰면 1인당 페이지뷰.
         순방문자 선은 `audience`(방문자 `uniqueVisitors` / 회원 `uniqueMembers` — 결정 ④ 화면 확정 ⓑ)를 따른다.

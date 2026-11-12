@@ -1,7 +1,7 @@
 import type { VisitKind } from '#layers/analytics/utils/util-visit-signal';
 
 /**
- * 방문 신호의 화면 종류(`kind`) — 이 앱의 라우트(`pages/`) 경로로 정한다. 상태도 요청도 없다(신호는 `@roboyam/analytics`, 거는 곳은 `plugins/04.analytics.client.ts`).
+ * 방문 신호의 화면 종류(`kind`) — 이 앱의 라우트(`pages/`) 경로로 정한다. 상태도 요청도 없다(신호는 `@irobit/analytics`, 거는 곳은 `plugins/04.analytics.client.ts`).
  * 서버가 인기 페이지의 묶음·제목 찾기(글이면 글 제목)에 쓴다(`docs/features/site-analytics-contract.md`).
  *
  * | 경로 | 종류 |

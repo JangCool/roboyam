@@ -11,7 +11,7 @@ import type {
 
 /**
  * 메뉴 관리 API — 서버 주소 문자열(`/api/admin/menu-sets…`·`/api/admin/menu/…`·`/api/admin/admin-menu`)이 있는 **유일한 곳**이다. 상태는 없다.
- * community `docs/api-menu.md`(공개 메뉴 트리 하나)를 roboyam 의 **메뉴 그룹(메뉴 세트) 여럿**으로 옮기고, 관리자 사이트 메뉴 구성을 더했다.
+ * community `docs/api-menu.md`(공개 메뉴 트리 하나)를 irobit 의 **메뉴 그룹(메뉴 세트) 여럿**으로 옮기고, 관리자 사이트 메뉴 구성을 더했다.
  *
  * 계약: `docs/features/menu-contract.md`(서버 `MenuSetController`·`MenuTargetController`·`AdminMenuController`, 공개는 api 서버 `PublicMenuController`). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF. 권한: 조회 `layout.read`, 공개 메뉴 저장 `layout.settings`, 관리자 메뉴 저장 `admin-menu.manage`.
  *   공개 사이트 메뉴 — 메뉴 그룹

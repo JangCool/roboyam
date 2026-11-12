@@ -30,12 +30,12 @@ class StorageConfigTest {
         return new StorageProperties.S3(endpoint, region, bucket, accessKey, secretKey, pathStyle, publicBaseUrl);
     }
 
-    /** 기본값: local·dev = local(공통 파일), prod = r2(prod 파일) — 둘 다 ROBOYAM_STORAGE_TYPE 이 먼저다 */
+    /** 기본값: local·dev = local(공통 파일), prod = r2(prod 파일) — 둘 다 IROBIT_STORAGE_TYPE 이 먼저다 */
     @Test
     void defaultTypeIsLocalExceptProd() {
-        assertThat(yaml("roboyam-shared.yml").getProperty("roboyam.storage.type")).isEqualTo("${ROBOYAM_STORAGE_TYPE:local}");
-        assertThat(yaml("roboyam-shared-prod.yml").getProperty("roboyam.storage.type")).isEqualTo("${ROBOYAM_STORAGE_TYPE:r2}");
-        assertThat(yaml("roboyam-shared-local.yml").getProperty("roboyam.storage.type")).isNull();
+        assertThat(yaml("irobit-shared.yml").getProperty("irobit.storage.type")).isEqualTo("${IROBIT_STORAGE_TYPE:local}");
+        assertThat(yaml("irobit-shared-prod.yml").getProperty("irobit.storage.type")).isEqualTo("${IROBIT_STORAGE_TYPE:r2}");
+        assertThat(yaml("irobit-shared-local.yml").getProperty("irobit.storage.type")).isNull();
     }
 
     private static Properties yaml(String path) {
@@ -56,7 +56,7 @@ class StorageConfigTest {
     @Test
     void unknownOrBlankTypeStopsStartup() {
         assertThatThrownBy(() -> new StorageConfig().imageStorage(new StorageProperties("ftp", temp.toString(), null, null), new MockEnvironment()))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ROBOYAM_STORAGE_TYPE");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("IROBIT_STORAGE_TYPE");
         assertThatThrownBy(() -> new StorageConfig().imageStorage(new StorageProperties("", temp.toString(), null, null), new MockEnvironment()))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("local · r2 · s3");
     }
@@ -65,27 +65,27 @@ class StorageConfigTest {
     void missingBucketAndRegionAreReportedTogether() {
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, s3("", " ", null, null, null, null, null), null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_BUCKET")
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_REGION");
-        assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, null, null)).isInstanceOf(IllegalStateException.class).hasMessageContaining("ROBOYAM_STORAGE_S3_BUCKET");
+                .hasMessageContaining("IROBIT_STORAGE_S3_BUCKET")
+                .hasMessageContaining("IROBIT_STORAGE_S3_REGION");
+        assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, null, null)).isInstanceOf(IllegalStateException.class).hasMessageContaining("IROBIT_STORAGE_S3_BUCKET");
     }
 
     @Test
     void onlyOneOfTheKeyPairIsRejectedWithoutLeakingTheSecret() {
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, s3(null, "auto", "media", null, SECRET, null, null), null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_ACCESS_KEY")
+                .hasMessageContaining("IROBIT_STORAGE_S3_ACCESS_KEY")
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain(SECRET));
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, s3(null, "auto", "media", "AKID", " ", null, null), null))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ROBOYAM_STORAGE_S3_SECRET_KEY");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("IROBIT_STORAGE_S3_SECRET_KEY");
     }
 
     @Test
     void endpointAndPublicUrlMustBeHttpUrls() {
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, s3("r2.example.com", "auto", "media", null, null, null, "media.example.com"), null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_ENDPOINT")
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL");
+                .hasMessageContaining("IROBIT_STORAGE_S3_ENDPOINT")
+                .hasMessageContaining("IROBIT_STORAGE_S3_PUBLIC_BASE_URL");
     }
 
     @Test
@@ -128,8 +128,8 @@ class StorageConfigTest {
     void r2NeedsAccountIdAndTokenKeys() {
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.R2, s3(null, null, "media", null, null, null, null), new StorageProperties.R2(" ")))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ROBOYAM_STORAGE_R2_ACCOUNT_ID")
-                .hasMessageContaining("ROBOYAM_STORAGE_S3_ACCESS_KEY");
+                .hasMessageContaining("IROBIT_STORAGE_R2_ACCOUNT_ID")
+                .hasMessageContaining("IROBIT_STORAGE_S3_ACCESS_KEY");
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.R2, s3(null, null, "media", "tok", "sec", null, null),
                 new StorageProperties.R2("bad.id/x"))).isInstanceOf(IllegalStateException.class).hasMessageContaining("영숫자");
     }
@@ -137,7 +137,7 @@ class StorageConfigTest {
     @Test
     void s3DoesNotDefaultTheRegionOrEndpoint() {
         assertThatThrownBy(() -> StorageConfig.settings(StorageConfig.BucketKind.S3, s3(null, null, "media", null, null, null, null), new StorageProperties.R2("0123abcd")))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ROBOYAM_STORAGE_S3_REGION");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("IROBIT_STORAGE_S3_REGION");
         StorageConfig.S3Settings aws = StorageConfig.settings(StorageConfig.BucketKind.S3, s3(null, "ap-northeast-2", "media", null, null, null, null),
                 new StorageProperties.R2("0123abcd"));
         assertThat(aws.endpoint()).isNull();

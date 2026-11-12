@@ -43,9 +43,9 @@ MIT·Apache·BSD 등 무료 오픈소스도 저작권 고지와 라이선스 전
 ## 자동 수집 방법
 ```
 JAVA_HOME=<JDK 25> node scripts/collect-licenses.mjs            # 두 화면 빌드(nuxt generate) + 서버 의존성 → 두 앱 public/oss-licenses.json
-JAVA_HOME=<JDK 25> node scripts/collect-licenses.mjs --skip-build  # 지난 번들 목록(node_modules/.cache/roboyam-oss/*.json) 재사용
+JAVA_HOME=<JDK 25> node scripts/collect-licenses.mjs --skip-build  # 지난 번들 목록(node_modules/.cache/irobit-oss/*.json) 재사용
 ```
-- **화면**: 환경 변수 `ROBOYAM_OSS_SCAN` 이 있을 때만 두 앱 `nuxt.config.ts` 가 `scripts/oss-licenses/nuxt-bundle-scan.mjs` 모듈을 더하고, 클라이언트 빌드가 읽은 모듈 경로 중 `node_modules/<패키지>` 만 적는다 — devDependencies·빌드 도구·워크스페이스 패키지(`@roboyam/*`)는 저절로 빠지고 그 패키지가 끌어온 바깥 의존성은 잡힌다. 번들 밖에서 실리는 것은 스크립트의 `EXTRA_USAGE`(Tabler 아이콘 그림 → 공개 화면, Tailwind preflight CSS → 두 화면).
+- **화면**: 환경 변수 `IROBIT_OSS_SCAN` 이 있을 때만 두 앱 `nuxt.config.ts` 가 `scripts/oss-licenses/nuxt-bundle-scan.mjs` 모듈을 더하고, 클라이언트 빌드가 읽은 모듈 경로 중 `node_modules/<패키지>` 만 적는다 — devDependencies·빌드 도구·워크스페이스 패키지(`@irobit/*`)는 저절로 빠지고 그 패키지가 끌어온 바깥 의존성은 잡힌다. 번들 밖에서 실리는 것은 스크립트의 `EXTRA_USAGE`(Tabler 아이콘 그림 → 공개 화면, Tailwind preflight CSS → 두 화면).
   package.json 의 `license`(「SEE LICENSE IN 파일」이면 그 파일 제목)·`repository`, 폴더의 LICENSE·COPYING·NOTICE 파일. 라이선스 파일이 없으면 SPDX 표준 문구(`scripts/oss-licenses/license-texts.mjs`, Apache-2.0 은 모은 전문 하나를 빌림)로 대신하고 `textSource: template`.
 - **서버**: Gradle 내장 `:server:api:dependencies`·`:server:admin:dependencies --configuration runtimeClasspath`(shared 포함)의 좌표 → Gradle 캐시의 POM(라이선스 이름 → SPDX, 없으면 부모 POM)·jar 안 `META-INF/LICENSE`·`NOTICE`. 플러그인·새 의존성 없음.
 - 글꼴·아이콘 묶음: `primeicons`·`@primeicons/*`·`@tabler/icons`. 싣는 글꼴 파일은 없다(시스템 글꼴만 — `main.css` 의 font-family). PrimeIcons 글꼴은 primeicons 패키지 안이다.

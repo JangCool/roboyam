@@ -14,7 +14,7 @@ import com.community.sanction.entity.QBoardSanctionEntity;
 import com.community.sanction.entity.SanctionStatus;
 import com.community.sanction.repository.master.BoardSanctionStore.BoardSanctionRow;
 import com.community.sanction.repository.master.BoardSanctionStore.ReviewRow;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Repository;
  * 반복 검토는 {@code ix_board_sanction_reviews_open_list}·{@code ix_board_sanction_reviews_closed_list}, 회원 범위는 {@code ix_board_sanctions_user}.
  */
 @Repository
-public class AdminBoardSanctionStore extends RoboyamRepositoryQDSL {
+public class AdminBoardSanctionStore extends IrobitRepositoryQDSL {
 
     /** 하위 질의용 별칭 */
     private static final QBoardSanctionEntity X = new QBoardSanctionEntity("x");

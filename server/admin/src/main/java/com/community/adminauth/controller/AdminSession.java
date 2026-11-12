@@ -36,10 +36,10 @@ import org.springframework.stereotype.Component;
 public class AdminSession {
 
     /** 세션에 적어 두는 로그인 시각(epoch ms) — 최대 길이 12시간을 센다 */
-    static final String LOGIN_AT_ATTRIBUTE = "roboyam.admin.loginAt";
+    static final String LOGIN_AT_ATTRIBUTE = "irobit.admin.loginAt";
 
     /** 2차 대기 세션에 두는 대기 정보({@link PendingMfa}) */
-    static final String MFA_PENDING_ATTRIBUTE = "roboyam.admin.mfaPending";
+    static final String MFA_PENDING_ATTRIBUTE = "irobit.admin.mfaPending";
 
     /** 2차 대기의 유효 시간 — 만든 때부터 */
     public static final Duration MFA_PENDING_TTL = Duration.ofMinutes(5);

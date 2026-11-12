@@ -39,7 +39,7 @@ export interface MyProfile {
     /** 닉네임 변경 규칙의 지금 상태 */
     nicknameChange: NicknameChange;
     /**
-     * 프로필 아바타 그림 주소 — 서버가 늘 채운다(고르지 않았으면 `/avatars/roboyam/basic-default.svg`). 옛 응답에 없을 수 있어 선택 칸으로 둔다.
+     * 프로필 아바타 그림 주소 — 서버가 늘 채운다(고르지 않았으면 `/avatars/irobit/basic-default.svg`). 옛 응답에 없을 수 있어 선택 칸으로 둔다.
      * 고르기는 `useAvatarApi().select`(`PUT /api/me/profile/avatar`).
      */
     avatarUrl?: string | null;

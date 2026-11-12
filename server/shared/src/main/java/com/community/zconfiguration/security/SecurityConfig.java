@@ -80,8 +80,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/email-available", "/api/auth/nickname-available", "/api/auth/password/reset/check").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/email/verify", "/api/auth/password/forgot", "/api/auth/password/reset")
                         .permitAll()
-                        // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값)·공지 띠·팝업 — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
-                        .requestMatchers(HttpMethod.GET, "/api/site/info", "/api/site/theme", "/api/site/notice-bar", "/api/site/popups").permitAll()
+                        // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값)·공지 띠·팝업·사이트 소개 — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/site/info", "/api/site/theme", "/api/site/notice-bar", "/api/site/popups", "/api/site/about").permitAll()
                         // 오픈소스 라이선스 고지(docs/features/oss-licenses-contract.md) — 안내 문구·직접 추가 항목, 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/site/oss-licenses").permitAll()
                         // 표시 효과값(docs/features/display-contract.md) — 비로그인은 사이트 기본값, 로그인했으면 개인 값까지 합친 값. 개인 값 API(/api/me/display)는 아래 규칙대로 로그인 필요

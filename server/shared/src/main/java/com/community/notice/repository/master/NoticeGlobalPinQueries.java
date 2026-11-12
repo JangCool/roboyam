@@ -4,7 +4,7 @@ import com.community.notice.dto.NoticeGlobalPinRow;
 import com.community.notice.entity.QNoticeGlobalPinEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
  * 게시판이 켜졌는지는 부르는 쪽이 본다(게시판 사본).
  */
 @Repository
-public class NoticeGlobalPinQueries extends RoboyamRepositoryQDSL {
+public class NoticeGlobalPinQueries extends IrobitRepositoryQDSL {
 
     private static final QNoticeGlobalPinEntity G = QNoticeGlobalPinEntity.noticeGlobalPinEntity;
     private static final QPostEntity POST = QPostEntity.postEntity;

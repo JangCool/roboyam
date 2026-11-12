@@ -2,7 +2,7 @@ package com.community.portone.repository.master;
 
 import com.community.operator.entity.QOperatorEntity;
 import com.community.portone.entity.QPortOneSettingEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
  * api·admin 이 같이 떠도 한 번만 들어가야 한다). {@code JdbcTemplate} 이라 부르는 쪽 트랜잭션이 있으면 참여하고, 없으면(기동 때 시드 {@code PortOneLocalSeeder}) 한 문장으로 바로 커밋한다.
  */
 @Repository
-public class PortOneSettingStore extends RoboyamRepositoryQDSL {
+public class PortOneSettingStore extends IrobitRepositoryQDSL {
 
     /**
      * 칸 한 줄. {@code valueCipher} 가 null 이면 지운 칸(바꾼 시각·사람은 남는다).

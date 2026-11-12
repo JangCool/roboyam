@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DebateReader {
 
-    /** 입장 의견의 글자 수 한도 — community 는 토론 2,000 · 일반 1,000 이었으나 로보얌 일반 댓글이 이미 2,000 이라 같은 값이다(따로 둔 상수) */
+    /** 입장 의견의 글자 수 한도 — community 는 토론 2,000 · 일반 1,000 이었으나 아이로빗 일반 댓글이 이미 2,000 이라 같은 값이다(따로 둔 상수) */
     public static final int OPINION_MAX = DebateWriteStance.OPINION_MAX; // 값은 shared 한 곳(AI 회원 쓰기와 같다)
 
     private final HighlightRepository highlights;

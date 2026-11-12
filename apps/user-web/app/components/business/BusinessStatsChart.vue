@@ -1,6 +1,6 @@
 <template>
     <!--
-        광고 성과 날짜별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@roboyam/chart` — ECharts)에 이 앱의 문구·숫자 글자를 입히는 얇은 겹.
+        광고 성과 날짜별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@irobit/chart` — ECharts)에 이 앱의 문구·숫자 글자를 입히는 얇은 겹.
         신청 건 상세 「성과」 칸(큰 모양 — 막대 = 노출 왼쪽 축 · 선 = 클릭 오른쪽 축, 정지·내림 띠, 오늘 빗금, 범례, 화살표 툴팁, 숨긴 표)과
         사업자 센터 「진행 중 광고」 줄의 최근 7일 노출 미니 막대(`compact`)가 같이 쓴다. 운영자 화면(admin-web `AdStatsChart`)과 같은 모양이다.
     -->

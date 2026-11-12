@@ -70,7 +70,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
         long board = ids.nextId();
         boardFixture.board(board, "ad" + Long.toString(board, 36), "관리 핫딜 " + Long.toString(board, 36), 950, "DEAL", "REGULAR");
         boardCatalog.invalidate();
-        return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
+        return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/irobit/products/9",
                 "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "1+1 행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "2026-11-02"));
     }
 

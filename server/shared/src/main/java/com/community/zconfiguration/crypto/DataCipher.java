@@ -26,8 +26,8 @@ import org.springframework.stereotype.Component;
  * (docs/domain/commerce.md 10-9, docs/features/commerce-foundation-contract.md).
  *
  * <ul>
- *   <li><b>키는 설정 비밀값용 {@code ROBOYAM_CRYPTO_KEY}({@link SecretEncryptor})와 따로</b>다 — 한 키가 새도 피해가 나뉘고 교체 주기를 따로 가져간다.
- *       지금 쓰는 키는 {@code ROBOYAM_DATA_KEY}({@code <버전>:<base64 32바이트>}, 예 {@code 2:AbC…}), 예전 키는 {@code ROBOYAM_DATA_KEY_PREVIOUS}
+ *   <li><b>키는 설정 비밀값용 {@code IROBIT_CRYPTO_KEY}({@link SecretEncryptor})와 따로</b>다 — 한 키가 새도 피해가 나뉘고 교체 주기를 따로 가져간다.
+ *       지금 쓰는 키는 {@code IROBIT_DATA_KEY}({@code <버전>:<base64 32바이트>}, 예 {@code 2:AbC…}), 예전 키는 {@code IROBIT_DATA_KEY_PREVIOUS}
  *       (쉼표로 여럿, 풀기만 한다)다. 키를 바꿀 때는 새 버전을 지금 키로 두고 옛 키를 예전 키로 옮긴 뒤, 키 교체 배치가 옛 암호문을 모두 새 키로 바꾸면 예전 키를 뺀다.</li>
  *   <li>암호문 형식: {@code d<버전>:} + base64(IV 12바이트 ‖ 암호문 ‖ 태그 16바이트). 설정 비밀값의 {@code v1:} 과 앞머리가 달라 섞이지 않는다.
  *       용도 이름({@link DataPurpose})을 추가 인증 데이터로 묶어 다른 칸에 옮겨 붙인 암호문은 풀리지 않는다.</li>
@@ -60,24 +60,24 @@ public class DataCipher {
     /** 지금 키의 버전. 키가 없으면 0 */
     private final int activeVersion;
 
-    public DataCipher(@Value("${roboyam.data-crypto.key:}") String activeKey, @Value("${roboyam.data-crypto.previous-keys:}") String previousKeys) {
+    public DataCipher(@Value("${irobit.data-crypto.key:}") String activeKey, @Value("${irobit.data-crypto.previous-keys:}") String previousKeys) {
         Map<Integer, SecretKeySpec> parsed = new TreeMap<>();
         boolean hasActive = activeKey != null && !activeKey.isBlank();
         boolean hasPrevious = previousKeys != null && !previousKeys.isBlank();
         if (!hasActive) {
             if (hasPrevious) {
-                throw new IllegalArgumentException("ROBOYAM_DATA_KEY_PREVIOUS 만 있고 지금 키 ROBOYAM_DATA_KEY 가 없습니다.");
+                throw new IllegalArgumentException("IROBIT_DATA_KEY_PREVIOUS 만 있고 지금 키 IROBIT_DATA_KEY 가 없습니다.");
             }
             this.keys = Map.of();
             this.activeVersion = 0;
-            log.warn("데이터 암호화 키(ROBOYAM_DATA_KEY)가 없다 — 개인정보 칸을 암호화·복호화하는 요청은 503 DATA_KEY_MISSING 이 된다");
+            log.warn("데이터 암호화 키(IROBIT_DATA_KEY)가 없다 — 개인정보 칸을 암호화·복호화하는 요청은 503 DATA_KEY_MISSING 이 된다");
             return;
         }
-        int active = put(parsed, activeKey, "ROBOYAM_DATA_KEY");
+        int active = put(parsed, activeKey, "IROBIT_DATA_KEY");
         if (hasPrevious) {
             for (String entry : previousKeys.split(",")) {
                 if (!entry.isBlank()) {
-                    put(parsed, entry, "ROBOYAM_DATA_KEY_PREVIOUS");
+                    put(parsed, entry, "IROBIT_DATA_KEY_PREVIOUS");
                 }
             }
         }
@@ -130,7 +130,7 @@ public class DataCipher {
         int version = Integer.parseInt(matcher.group(1));
         SecretKeySpec key = keys.get(version);
         if (key == null) {
-            log.error("암호문의 키 버전 {} 이 설정에 없다 — ROBOYAM_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
+            log.error("암호문의 키 버전 {} 이 설정에 없다 — IROBIT_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
             throw new CommonException(ErrorCode.DATA_KEY_MISSING);
         }
         try {
@@ -182,7 +182,7 @@ public class DataCipher {
         int version = bytesVersion(cipherBytes, colon);
         SecretKeySpec key = keys.get(version);
         if (key == null) {
-            log.error("암호문의 키 버전 {} 이 설정에 없다 — ROBOYAM_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
+            log.error("암호문의 키 버전 {} 이 설정에 없다 — IROBIT_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
             throw new CommonException(ErrorCode.DATA_KEY_MISSING);
         }
         int start = colon + 1;
@@ -301,7 +301,7 @@ public class DataCipher {
         SecretKeySpec key = new SecretKeySpec(raw, "AES");
         SecretKeySpec existing = keys.get(version);
         if (existing != null && !MessageDigest.isEqual(existing.getEncoded(), raw)) {
-            throw new IllegalArgumentException("키 버전 " + version + " 에 서로 다른 키가 둘 있습니다(ROBOYAM_DATA_KEY · ROBOYAM_DATA_KEY_PREVIOUS 를 확인하세요).");
+            throw new IllegalArgumentException("키 버전 " + version + " 에 서로 다른 키가 둘 있습니다(IROBIT_DATA_KEY · IROBIT_DATA_KEY_PREVIOUS 를 확인하세요).");
         }
         keys.put(version, key);
         return version;

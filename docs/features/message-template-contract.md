@@ -5,7 +5,7 @@
 
 ## 결정
 1. **용어**: **템플릿 = 겉모양(디자인 틀, 도구별)**, **문구 = 이벤트·채널별 제목과 본문**. 화면·코드·i18n 이 이 말을 쓴다(문구 `Message*`·`notificationMessage.*`, 템플릿 `…Template`·`notificationTemplate.*`).
-2. 메일 본문은 간단 서식(`@roboyam/rich-editor` SIMPLE) + 변수 + 메일 템플릿. 변수 문법은 `{{변수}}` 만(조건·반복 없음).
+2. 메일 본문은 간단 서식(`@irobit/rich-editor` SIMPLE) + 변수 + 메일 템플릿. 변수 문법은 `{{변수}}` 만(조건·반복 없음).
 3. 조건은 대상·채널마다 **코드가 정한 선택지만**(자유 조건식 없음).
 4. **받는 사람은 메뉴로 나눈다** — 화면 안에서 회원/운영자를 고르는 선택을 두지 않는다(종류가 적은 필수 안내 메일만 한 화면 구획, 메일 템플릿은 왼쪽 위 영역).
 5. 권한은 `template.read`(조회)·`template.manage`(편집·고르기·규칙) — 이름 「알림 템플릿·문구 조회·관리」. 이벤트 자체(사용·도구·팀)는 기존 `notification.read`·`notification.manage`.
@@ -67,7 +67,7 @@
   - 기본 2개(builtin, 고치기·지우기 불가, 복사로 만든다): 「회원 기본」(`mail-member` — 꼬리말 「{{siteName}}에서 보낸 발신 전용 메일」+`{{siteUrl}}`) · 「운영자 기본」(`mail-operator` — 관리 사이트 안내 + `{{adminUrl}}`). 새 문구는 받는 사람의 기본 템플릿으로 시작한다.
   - 쓰는 대상은 그 템플릿을 쓰는 문구의 받는 사람과 맞지 않게 바꿀 수 없다(`fields.audience`). `ANY` 는 공통 변수 중 `siteName`·`recipientName` 만.
 - **Slack · Mattermost 템플릿**(한 화면 구조, 종류마다 기본 1개): 이름 · 심각도 그림 보이기 · 제목 굵게 · 심각도별 색 막대 `colors{INFO,WARNING,CRITICAL}`(같은 팔레트) · 사이트 이름 보이기 · 보낸 시각 보이기 · 「열기」 버튼 보이기 + 글자 ko·en(보일 때 필수, 20자) · 틀 ko·en(그 앱 표기, `{{content}}` 한 번, 500자, 변수는 `content`·운영자 공통 변수). 「열기」 주소는 이벤트의 `{{link}}`. 기본값 = 지금 `ChannelMessageFormatter` 모양(그림·굵게·안내 파랑/주의 호박/긴급 빨강·「열기」).
-- **카카오톡 템플릿**(준비 중 — 목록·보기만): 알림톡 템플릿 코드 · 상태 `REQUESTED|APPROVED|REJECTED` · 승인 본문(읽기 전용) · 강조 · 변수 대응표(`#{이름}` ↔ 로보얌 변수, 견본) · 버튼(이름·링크 변수) · 채널 이름.
+- **카카오톡 템플릿**(준비 중 — 목록·보기만): 알림톡 템플릿 코드 · 상태 `REQUESTED|APPROVED|REJECTED` · 승인 본문(읽기 전용) · 강조 · 변수 대응표(`#{이름}` ↔ 아이로빗 변수, 견본) · 버튼(이름·링크 변수) · 채널 이름.
 - 공통: 쓰는 문구가 있으면 삭제 409 `TEMPLATE_IN_USE`(단추도 잠금), 기본 템플릿 수정·삭제 409 `TEMPLATE_BUILTIN`, 유형별 사용자 템플릿 20개 409 `TEMPLATE_LIMIT`.
 
 ## 문구 (내용)
@@ -97,7 +97,7 @@
 
 ## 변수
 - 대상(이벤트·필수 안내 메일)마다 코드가 정한다(이름·설명·견본 값·필수 여부 — 서버가 요청 언어로). 받는 사람별 공통 변수: 회원 `siteName`·`siteUrl`(공개 사이트)·`recipientName`, 운영자 `siteName`·`adminUrl`(관리 사이트)·`recipientName`. 예: 인증 `nickname`·`verifyLink`(필수)·`validHours`, 초대 `inviteLink`(필수)·`validHours`, 임시 비밀번호 `operatorName`·`temporaryPassword`(필수), 승인번호 `code`(필수)·`validMinutes`, 운영자 이벤트 `title`·`body`·`link`·`occurredAt`·`jobName`·`reason`·`operatorName`·`change`·`changedItems`·`count`, 회원 이벤트 `actorName`·`excerpt`·`postTitle`·`amount`·`reason`·`otherCount`.
-- 변수 메뉴·미리보기 견본 값은 받는 사람을 따른다(회원 `https://roboyam.example.com`, 운영자 `https://admin.roboyam.example.com`). Slack·Mattermost 로 올릴 때 변수 값의 멘션·표기는 지금처럼 서버가 무력화한다.
+- 변수 메뉴·미리보기 견본 값은 받는 사람을 따른다(회원 `https://irobit.example.com`, 운영자 `https://admin.irobit.example.com`). Slack·Mattermost 로 올릴 때 변수 값의 멘션·표기는 지금처럼 서버가 무력화한다.
 
 ## 변경 이력
 - 문구·템플릿 편집 화면 제목 옆 「변경 이력」 → `SettingHistoryDrawer`(설정 이력 모양 `{items, total, page, size}`, `labelKey` = `settingHistory.field.<칸>`).

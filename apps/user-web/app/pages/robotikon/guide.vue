@@ -32,7 +32,7 @@
                 </table>
             </section>
 
-            <!-- 2. 좋은 예 — 로보얌콘 -->
+            <!-- 2. 좋은 예 — 아이로빗콘 -->
             <section class="panel-card p-4" :aria-labelledby="`${uid}-good`">
                 <h2 :id="`${uid}-good`" class="m-0 text-base font-bold">{{ t('emoticon.guideGoodTitle') }}</h2>
                 <p class="m-0 mt-1 text-sm leading-relaxed text-muted-color">{{ t('emoticon.guideGoodText') }}</p>
@@ -138,7 +138,7 @@ import UtilEmoticonSettlement from '~/utils/util-emoticon-settlement';
 import UtilPoint from '~/utils/util-point';
 
 /**
- * 로보티콘 제작 가이드 `/robotikon/guide` — 비로그인도 본다. 규격 표·좋은 예(로보얌콘)·보이는 크기(100·80·64px)·어두운 바탕(흰 테두리)·팁(GIF 반투명 없음·프레임·용량)·
+ * 로보티콘 제작 가이드 `/robotikon/guide` — 비로그인도 본다. 규격 표·좋은 예(아이로빗콘)·보이는 크기(100·80·64px)·어두운 바탕(흰 테두리)·팁(GIF 반투명 없음·프레임·용량)·
  * 심사 기준·무료 팩 보상(받을 때마다 적립 포인트, 하루 상한)·유료 판매 규칙(카카오 방식 — 사이트가 판매자·작가는 상품화 계약 · 가격 단계(운영자가 정함) ·
  * 부가세 제외 뒤 배분 + 한 건 예시(`UtilEmoticonSettlement`) · 월 정산 · 원천징수/세금계산서 · 정산 정보 · 구매자 환불 · 가격 변경 요청 — 계약 「가격과 결제」·가정 1·3·4·5).
  * 규격·보상 값은 서버 설정(`GET /api/emoticons/rules` — 가격·수수료·정산·환불 칸은 S2~S4 기본값)에서 읽는다 — 업로드 검사와 같은 값.
@@ -214,7 +214,7 @@ const paidRows = computed(() => {
     ];
 });
 
-/** 좋은 예 — 로보얌콘 몇 개(공개 폴더의 운영 팩 그림) */
+/** 좋은 예 — 아이로빗콘 몇 개(공개 폴더의 운영 팩 그림) */
 const examples = computed(() => [
     { url: '/emoticons/robotikon-m/01.gif', label: t('emoticon.exampleJoy') },
     { url: '/emoticons/robotikon-m/19.gif', label: t('emoticon.exampleThumbs') },

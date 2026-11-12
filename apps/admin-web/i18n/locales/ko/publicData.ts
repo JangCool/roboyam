@@ -8,7 +8,7 @@ export default {
     readOnly: '보기만 할 수 있어요. 키를 바꾸거나 지우려면 비밀 설정 권한이 필요해요.',
     loadFailed: '공공데이터포털 설정을 불러오지 못했어요',
     cryptoMissingTitle: '서버에 암호화 키가 없어요',
-    cryptoMissingText: '키가 없으면 값을 저장할 수 없어요(지우기는 돼요). 서버 설정(ROBOYAM_CRYPTO_KEY)을 먼저 확인해 주세요.',
+    cryptoMissingText: '키가 없으면 값을 저장할 수 없어요(지우기는 돼요). 서버 설정(IROBIT_CRYPTO_KEY)을 먼저 확인해 주세요.',
 
     usageTitle: '사용처',
     usageNts: '국세청 사업자 조회',
@@ -32,7 +32,7 @@ export default {
     notConfigured: '설정 안 됨',
     updatedAt: '{at} 변경',
     updatedBy: '{at} · {name}',
-    envNotice: '서버 배포 환경 변수(ROBOYAM_NTS_SERVICE_KEY)의 값을 쓰고 있어요. 여기서 저장하면 화면 값이 먼저 쓰이고, 지우면 다시 환경 변수로 돌아가요.',
+    envNotice: '서버 배포 환경 변수(IROBIT_NTS_SERVICE_KEY)의 값을 쓰고 있어요. 여기서 저장하면 화면 값이 먼저 쓰이고, 지우면 다시 환경 변수로 돌아가요.',
     value: '인증키',
     newValue: '새 인증키',
     valueHelp: '영문·숫자만, 공백 없이',

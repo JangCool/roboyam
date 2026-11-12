@@ -3,7 +3,7 @@
  * community `palettes.css` 방식: PrimeVue 의 의미 변수(`--p-primary-50…950`·`--p-primary-color` …)만 Aura 원색 램프(`--p-orange-*` 등)로 다시 가리킨다 —
  * PrimeVue 위젯과 Tailwind(`primary-*`)가 함께 바뀐다. 셸 역할 변수는 라이트에서만 바꾼다(다크는 기본 어두운 면 그대로, 강조색만 바뀐다):
  *   --page-bg    페이지 바탕(따뜻한 미색 계열)
- *   --topbar-bg / --topbar-fg / --brand-color   PC 로고 줄(`.site-topbar` — 다음식·로보얌 셸)의 바탕 · 글자·아이콘 · 로고 글자(진한 바만 흰색, 그 밖은 본문 글자색 — 로고는 사이트 얼굴이라 테마를 따르지 않는다, 2026-11-06)
+ *   --topbar-bg / --topbar-fg / --brand-color   PC 로고 줄(`.site-topbar` — 다음식·아이로빗 셸)의 바탕 · 글자·아이콘 · 로고 글자(진한 바만 흰색, 그 밖은 본문 글자색 — 로고는 사이트 얼굴이라 테마를 따르지 않는다, 2026-11-06)
  *   --nav-bg / --nav-fg                          모바일 상단 바(`.app-nav`) — 로고 줄과 같은 색(로고 `.site-brand` 도 PC 와 같은 `--brand-color`, 그라데이션도 같이)
  * 채움 단계: 흰 글자가 4.5:1 에 가깝게 읽히는 단계(600 또는 700)를 라이트 채움으로, 다크는 400(PrimeVue 기본과 같은 간격).
  * 명시도: 층 밖 규칙 + `html[data-palette]`(0,1,1) 이라 PrimeVue `:root` 를 이기고, 셸 값은 `:not([data-color-scheme='dark'])` 로 테마 규칙(0,1,1)보다 높다.

@@ -2,7 +2,7 @@
  * PrimeVue 컴포넌트가 스스로 쓰는 말 — DatePicker(날짜·시간 고르개)의 요일·달 이름과 단추 글자, 파일 고르기 안내, 고르기 목록의 빈 결과 안내.
  * 우리 문구(vue-i18n)와는 별개의 사전이다 — 둘을 함께 바꿔야 "달력은 영어인데 단추는 한국어"가 되지 않는다(`useLanguage`). 필요한 키만 덮는다(나머지는 PrimeVue 기본).
  * 영어는 PrimeVue 기본 사전이 영어라 따로 적지 않는다 — 시작할 때 기본 사전을 복사해 두었다가(`defaults`) 영어로 바꿀 때 그것을 되돌려 덮는다(`useLanguage`).
- * 날짜 패턴(`dateFormat`)은 표시 값의 날짜 형식을 따르므로 언어와 별개로 `@roboyam/display-time` 이 덮는다.
+ * 날짜 패턴(`dateFormat`)은 표시 값의 날짜 형식을 따르므로 언어와 별개로 `@irobit/display-time` 이 덮는다.
  * 이 파일은 `vue`·`~/` 를 쓰지 않는 순수 TypeScript 다.
  */
 

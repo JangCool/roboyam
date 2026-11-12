@@ -198,12 +198,12 @@ class PointShopRefundTest extends PointShopTestBase {
         kit.grant(member, 1000);
         long userItem = kit.buyItem(member, item);
         kit.inTx(() -> kit.profileAvatars.select(member, "job-nurse-f"));
-        assertThat(kit.decorations.look(member).avatarUrl()).isEqualTo("/avatars/roboyam/job-nurse-f.svg");
+        assertThat(kit.decorations.look(member).avatarUrl()).isEqualTo("/avatars/irobit/job-nurse-f.svg");
 
         kit.inTx(() -> kit.refunds.refundByOperator(kit.purchaseOf(userItem), "아바타 환불 요청", kit.operator, null));
 
         assertThat(kit.jdbc.queryForObject("SELECT profile_image FROM profiles WHERE user_id = ?", String.class, member)).isNull();
-        assertThat(kit.decorations.look(member).avatarUrl()).isEqualTo("/avatars/roboyam/basic-default.svg");
+        assertThat(kit.decorations.look(member).avatarUrl()).isEqualTo("/avatars/irobit/basic-default.svg");
         assertThat(kit.profileAvatars.catalog(member).selectedId()).isNull();
         assertThat(kit.profileAvatars.catalog(member).items().stream().filter(a -> a.id().equals("job-nurse-f")).findFirst().orElseThrow().owned()).isFalse();
         kit.assertInvariants(member);

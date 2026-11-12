@@ -2,9 +2,9 @@ import type { GroupDetail, GroupListPage, GroupListQuery, GroupOpenRequestList }
 
 /**
  * 소모임 개설 승인·소모임 관리 API — 서버 주소 문자열(`/api/admin/groups…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약: community `docs/api-groups.md` 6-1·6-2·11-9 → 로보얌 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`) — 이 머리말의 경로·칸·오류가 서버의 정본이다.
+ * 계약: community `docs/api-groups.md` 6-1·6-2·11-9 → 아이로빗 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`) — 이 머리말의 경로·칸·오류가 서버의 정본이다.
  *
- * 권한(로보얌 코드 — 서버 `Permission`): 조회 `group.read`, 승인·반려·비활성화·다시 열기 `group.manage`. 없으면 `403 PERMISSION_DENIED`.
+ * 권한(아이로빗 코드 — 서버 `Permission`): 조회 `group.read`, 승인·반려·비활성화·다시 열기 `group.manage`. 없으면 `403 PERMISSION_DENIED`.
  *   - `GET  /api/admin/groups/requests` → `GroupOpenRequestList`(승인 대기, 오래된 신청이 위)
  *   - `POST /api/admin/groups/{id}/approve` → 204(신청자가 모임장·첫 멤버). `PENDING` 이 아니면 `404 GROUP_NOT_FOUND`
  *   - `POST /api/admin/groups/{id}/reject` `{ reason }`(1~200자 필수) → 204. `400 VALIDATION fields.reason` · `404 GROUP_NOT_FOUND`

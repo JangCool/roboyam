@@ -15,7 +15,7 @@ import com.community.pointshop.entity.QUserItemEntity;
 import com.community.pointshop.entity.UploadTicketUse;
 import com.community.pointshop.entity.UserItemEntity;
 import com.community.pointshop.entity.UserItemStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -47,7 +47,7 @@ import org.springframework.stereotype.Repository;
  * 장착은 {@code INSERT … ON CONFLICT (user_id, slot) DO UPDATE}(upsert).
  */
 @Repository
-public class UserItemStore extends RoboyamRepositoryQDSL {
+public class UserItemStore extends IrobitRepositoryQDSL {
 
     /** 보유 줄 하나 */
     public record UserItemRow(long id, long userId, long itemId, Long purchaseId, PointShopUsageType usageType, UserItemStatus status, Instant startsAt,

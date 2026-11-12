@@ -176,7 +176,7 @@ export default {
         prefix: 'Question',
         status: 'In progress',
         title: 'Any keyboard recommendations?',
-        author: 'Roboyam',
+        author: 'IROBIT',
         date: '3 min ago',
     },
     // Prefix style (mobile-nav-prefix-style-contract §1) — picker (`BoardPrefixStylePicker`) and preview

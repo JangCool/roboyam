@@ -3,7 +3,7 @@
         인기 소모임 가젯(`GROUPS`) — 지금 뜨는 소모임(`GET /api/groups/trending` 과 같은 줄)을 가젯 개수만큼. 이름 첫 글자 상자 · 이름 · 모집 상태 / 멤버 수 · (주식이면 종목 추천 금지) / 한 줄 소개.
         한 열(모바일) + 템플릿이 `mobile.groupsScroll` 을 고르면 가로로 미는 작은 카드 줄(`gadget-scroll-row` — 첫 글자 상자 · 이름 · 멤버 수 · 모집 상태, 한 칸 8.75rem).
         마우스 올림 효과(설정 `hover`, `main.css`): 줄은 옅은 바탕(`gadget-hover`), 작은 카드는 테두리 상자 바탕(`gadget-hover-box`).
-        community 는 이 가젯의 `data` 가 null 이고 컴포넌트가 따로 받았지만, 로보얌은 가젯 `data.items` 로 받는다(컴포넌트는 서버를 부르지 않는다 — 가정).
+        community 는 이 가젯의 `data` 가 null 이고 컴포넌트가 따로 받았지만, 아이로빗은 가젯 `data.items` 로 받는다(컴포넌트는 서버를 부르지 않는다 — 가정).
     -->
     <GadgetFrame :gadget="gadget" :empty="gadget.empty || rows.length === 0" empty-icon="pi pi-users">
         <!-- 한 열 — 가로로 미는 작은 카드 -->

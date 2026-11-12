@@ -70,7 +70,7 @@ export default class UtilMfa {
 
     /**
      * 복구 코드 내려받기 파일의 내용 — 제목 줄(사이트·계정)과 코드 한 줄씩. 화면 문구가 아니라 파일 내용이라 줄 머리는 부르는 쪽이 넘긴다.
-     * @param {string} heading - 첫 줄(예: 「roboyam 관리자 · name@example.com — 복구 코드」).
+     * @param {string} heading - 첫 줄(예: 「irobit 관리자 · name@example.com — 복구 코드」).
      * @param {readonly string[]} codes - 복구 코드들.
      * @param {string} note - 끝 줄 안내(한 번씩만 쓸 수 있어요 …).
      * @returns {string} 줄바꿈으로 이은 글.

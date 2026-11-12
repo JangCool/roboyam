@@ -8,7 +8,7 @@ import java.security.SecureRandom;
 import org.springframework.stereotype.Component;
 
 /**
- * OTP 비밀키 — 만들기(20바이트 {@link SecureRandom}, base32 로 보인다), 저장용 암호화·복호화({@link SecretEncryptor} = {@code ROBOYAM_CRYPTO_KEY}, 결정 4), otpauth 주소.
+ * OTP 비밀키 — 만들기(20바이트 {@link SecureRandom}, base32 로 보인다), 저장용 암호화·복호화({@link SecretEncryptor} = {@code IROBIT_CRYPTO_KEY}, 결정 4), otpauth 주소.
  *
  * <ul>
  *   <li>DB 에는 base32 비밀키의 암호문(「v1:」)만 둔다 — 평문은 등록 시작 응답에만 실린다. 키가 없으면 {@code 503 CRYPTO_KEY_MISSING}(앱은 뜬다 — dev·prod 는 이 키 없이 뜨지 않는다).</li>

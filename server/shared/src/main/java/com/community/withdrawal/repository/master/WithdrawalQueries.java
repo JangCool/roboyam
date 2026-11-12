@@ -37,7 +37,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.QUserIdentityEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -68,7 +68,7 @@ import org.springframework.stereotype.Repository;
  * Native SQL 로 남긴 것은 아래 메서드 주석에 사유를 적었다(회원 줄의 {@code FOR UPDATE} — {@link #lockStatus} 등).
  */
 @Repository
-public class WithdrawalQueries extends RoboyamRepositoryQDSL {
+public class WithdrawalQueries extends IrobitRepositoryQDSL {
 
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

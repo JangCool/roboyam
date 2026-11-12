@@ -7,7 +7,7 @@ import com.community.point.entity.QPointLedgerLotEntity;
 import com.community.point.entity.QPointLotEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Repository;
  * 내 포인트 내역 질의 — 원장 본인 줄(색인 {@code ix_point_ledger_user (user_id, id DESC)}) + 줄이 가리키는 글의 제목(볼 수 있는 글만).
  */
 @Repository
-public class MyPointLedgerQueries extends RoboyamRepositoryQDSL {
+public class MyPointLedgerQueries extends IrobitRepositoryQDSL {
 
     private static final QPointLedgerEntity LEDGER = QPointLedgerEntity.pointLedgerEntity;
     private static final QPointLedgerLotEntity LEDGER_LOT = QPointLedgerLotEntity.pointLedgerLotEntity;

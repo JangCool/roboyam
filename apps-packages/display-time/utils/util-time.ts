@@ -27,7 +27,7 @@
  *    `language` 가 없거나 모르는 값이면 한국어다. **한국어 출력은 서버 `ServerTimeText` 와 같은 말이라 바꾸지 않는다.**
  *    날짜 **형식**(`YMD_DOT` 등)이 정한 숫자 날짜의 순서·구분자는 영어에서도 그대로 따른다(`2026.10.02`·`10/02/2026`) — 영어로 바뀌는 것은 요일·월 이름·"어제" 같은 말뿐이다.
  *
- * 이 파일은 `apps-packages/display-time/`(user-web·admin-web 이 `extends` 하는 공유 Nuxt 레이어 `@roboyam/display-time`)에 **한 벌만** 있다.
+ * 이 파일은 `apps-packages/display-time/`(user-web·admin-web 이 `extends` 하는 공유 Nuxt 레이어 `@irobit/display-time`)에 **한 벌만** 있다.
  * `vue`·`~/`·Nuxt 자동 import 를 쓰지 않는 순수 TypeScript 여야 한다— 두 앱에서 `#layers/display-time/utils/util-time` 으로 불러 쓴다.
  * `now` 인자는 시험·고정 표시용이다 — 안 주면 지금.
  */

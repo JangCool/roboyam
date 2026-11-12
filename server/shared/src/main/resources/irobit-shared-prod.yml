@@ -1,0 +1,7 @@
+# 운영(prod 프로필) 전용 값 — irobit-shared.yml 위에 덮인다. 환경 변수를 주면 그것이 먼저다.
+
+irobit:
+  # 올린 이미지 저장소 — 운영은 앱 서버가 여러 대라 Cloudflare R2 가 기본이다(사용자 결정 2026-11-09). AWS S3 로 옮기면 IROBIT_STORAGE_TYPE=s3,
+  # 서버 한 대 구성에서 로컬 디스크를 쓰려면 IROBIT_STORAGE_TYPE=local
+  storage:
+    type: ${IROBIT_STORAGE_TYPE:r2}

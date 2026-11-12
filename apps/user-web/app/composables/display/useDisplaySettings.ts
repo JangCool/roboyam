@@ -5,7 +5,7 @@ import UtilInstallState from '~/utils/util-install-state';
 
 /**
  * 표시 값(시간대·시간 형식·날짜 형식)을 서버에서 받고 바꾸는 방법 — 앱 시작 플러그인(`plugins/display.client.ts`)과 개인 설정 화면("시간 표시")이 쓴다.
- * 서버와 말하는 것은 `useDisplayApi` 다(frontend-guide 3장). **효과값 자체의 상태와 화면 반영은 공유 레이어 `@roboyam/display-time` 의 `useDisplay()` 가 든다** —
+ * 서버와 말하는 것은 `useDisplayApi` 다(frontend-guide 3장). **효과값 자체의 상태와 화면 반영은 공유 레이어 `@irobit/display-time` 의 `useDisplay()` 가 든다** —
  * 여기는 서버 값을 거기에 채우고(`setDisplay`) "이 값이 누구 것인지"(`owner`)·받기 상태(`phase`)를 든다. 시각을 그리는 컴포넌트는 이것이 아니라 `useDisplayTime()` 을 쓴다.
  *
  * **층**: 개인 값(사용자 선택값) → 사이트 기본값 → 시스템 폴백. 합치는 것은 서버 한 곳이고 화면은 효과값 하나만 받는다(브라우저 시간대는 쓰지 않는다).
@@ -13,7 +13,7 @@ import UtilInstallState from '~/utils/util-install-state';
  * 서버(`/api/display/effective`·`/api/me/display`)가 같은 사이트 정보 사본에서 기본값을 합치므로 결과는 서버 값과 같고, 효과값을 받기 전 첫 화면을 사이트 값으로 맞추는 몫이 크다.
  * 개인 값이 있으면 개인 값이 이긴다(`UtilDisplaySettings`). 사이트 정보를 못 받았으면 서버 값(못 받으면 기억값 → 시스템 폴백)을 그대로 쓴다.
  *
- * **처음 값은 기억값이다(깜빡임 방지)**: 이 브라우저에 마지막으로 받은 효과값(localStorage `roboyam:display` — 값 + 받은 사람 id)으로 **동기로** 시작한다(`follow()` 의 앞부분).
+ * **처음 값은 기억값이다(깜빡임 방지)**: 이 브라우저에 마지막으로 받은 효과값(localStorage `irobit:display` — 값 + 받은 사람 id)으로 **동기로** 시작한다(`follow()` 의 앞부분).
  * 받은 사람이 지금 사람과 다르면(다른 계정·비로그인 ↔ 로그인) 버리고 시스템 폴백으로 시작한다 — 다른 사람의 기억값을 쓰지 않는다. 서버 값이 오면 그것으로 바꾸고 다시 기억한다.
  *
  * **서버에서 받는 때**(`plugins/display.client.ts` 가 건다): 앱이 시작할 때(로그인 상태가 정해진 뒤) · 로그인한 사람이 바뀔 때(로그인·로그아웃·다른 계정).

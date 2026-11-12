@@ -16,7 +16,7 @@ export interface SocialProviderSettingView {
     label: string;
     /** 공급자 콘솔에 등록할 콜백 주소. 사이트 공개 주소가 없으면 null */
     callbackUrl: string | null;
-    /** `SETTINGS`(등록됨) · `NONE`(미등록). roboyam 에는 `ENV` 가 없다 */
+    /** `SETTINGS`(등록됨) · `NONE`(미등록). irobit 에는 `ENV` 가 없다 */
     source: 'SETTINGS' | 'NONE';
     /** 저장된 켜짐 값(미등록이면 false) */
     enabled: boolean;

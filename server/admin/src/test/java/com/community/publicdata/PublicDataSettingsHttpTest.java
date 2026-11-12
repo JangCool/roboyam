@@ -24,12 +24,12 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * 공공데이터포털 설정 API(business-contract 「국세청 진위확인 · 공공데이터 설정」) — 조회·연결 시험 {@code site.read}, 저장·지우기 {@code site.secret}. 키 값은 어떤 응답·감사에도
- * 없다. 키 읽는 차례: 화면 저장값 → 환경 변수({@code roboyam.business.nts.service-key}) → 없음 — 이 시험은 환경 변수 키를 둔다. 연결 시험은 구현이 가짜여도 실제 HTTP 를 부른다 —
+ * 없다. 키 읽는 차례: 화면 저장값 → 환경 변수({@code irobit.business.nts.service-key}) → 없음 — 이 시험은 환경 변수 키를 둔다. 연결 시험은 구현이 가짜여도 실제 HTTP 를 부른다 —
  * 시험에서는 국세청 주소를 닫힌 포트로 돌려 「응답 없음(TIMEOUT)」을 본다(밖으로 나가지 않는다). 설정 표는 사이트에 하나라 시험 앞뒤로 원래 줄을 되돌린다.
  */
 @TestPropertySource(properties = {
-        "roboyam.business.nts.service-key=" + PublicDataSettingsHttpTest.ENV_KEY,
-        "roboyam.business.nts.base-url=http://127.0.0.1:9"
+        "irobit.business.nts.service-key=" + PublicDataSettingsHttpTest.ENV_KEY,
+        "irobit.business.nts.base-url=http://127.0.0.1:9"
 })
 class PublicDataSettingsHttpTest extends Commerce04AdminTestBase {
 

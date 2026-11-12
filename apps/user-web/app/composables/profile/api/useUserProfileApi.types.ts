@@ -1,5 +1,5 @@
 /**
- * 공개 회원 프로필 API 가 주고받는 모양 — **서버 연결됨**(server/api `PublicProfileView`·`AuthorCommentPageView`, 작성글은 `PostFeedPageView`). 모양은 community `docs/api-profile.md`「공개 프로필」에서 로보얌에 있는 것만 남겼다
+ * 공개 회원 프로필 API 가 주고받는 모양 — **서버 연결됨**(server/api `PublicProfileView`·`AuthorCommentPageView`, 작성글은 `PostFeedPageView`). 모양은 community `docs/api-profile.md`「공개 프로필」에서 아이로빗에 있는 것만 남겼다
  * (프로필 이미지·닉네임 이미지·꾸미기·스크랩·인기글 수 없음 — 소모임 탭은 6단계에 더했다). 계약: `docs/features/member-activity-contract.md` 「공개 프로필」.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */

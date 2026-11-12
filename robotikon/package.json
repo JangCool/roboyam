@@ -2,7 +2,7 @@
   "name": "robotikon",
   "private": true,
   "type": "module",
-  "description": "로보얌 이모티콘(디시콘) 빌드 파이프라인 — SVG 원본을 프레임별로 계산해 GIF/PNG 로 내보낸다",
+  "description": "아이로빗 이모티콘(디시콘) 빌드 파이프라인 — SVG 원본을 프레임별로 계산해 GIF/PNG 로 내보낸다",
   "scripts": {
     "build": "node build.mjs",
     "verify": "node verify.mjs",

@@ -67,7 +67,7 @@ export interface AiPersona {
 export interface AiMemberRow {
     id: string;
     member: AiPersonRef;
-    /** 프로필 아바타(카탈로그 ID — `/avatars/roboyam/{id}.svg`). 역할에 맞춰 관리자가 정한다. 카탈로그 아바타가 아니면(없음·올린 그림) null — 이니셜 */
+    /** 프로필 아바타(카탈로그 ID — `/avatars/irobit/{id}.svg`). 역할에 맞춰 관리자가 정한다. 카탈로그 아바타가 아니면(없음·올린 그림) null — 이니셜 */
     avatarId: string | null;
     provider: AiProvider;
     /** 실제로 부를 모델명(공개 배지에 그대로 보인다 — 정책 3) */

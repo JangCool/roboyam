@@ -50,9 +50,9 @@ public class MailOutboxWorker {
     private final Clock clock;
 
     @Autowired
-    public MailOutboxWorker(MailOutboxStore store, OutboxMailSender sender, @Value("${roboyam.node-id}") int nodeId,
-                            @Value("${roboyam.mail-outbox.max-attempts:12}") int maxAttempts, @Value("${roboyam.mail-outbox.batch-size:20}") int batchSize,
-                            @Value("${roboyam.mail-outbox.stale-minutes:10}") long staleMinutes) {
+    public MailOutboxWorker(MailOutboxStore store, OutboxMailSender sender, @Value("${irobit.node-id}") int nodeId,
+                            @Value("${irobit.mail-outbox.max-attempts:12}") int maxAttempts, @Value("${irobit.mail-outbox.batch-size:20}") int batchSize,
+                            @Value("${irobit.mail-outbox.stale-minutes:10}") long staleMinutes) {
         this(store, sender, new MailOutboxPolicy(maxAttempts, batchSize, Duration.ofMinutes(staleMinutes), MailOutboxPolicy.DEFAULTS.baseBackoff(),
                 MailOutboxPolicy.DEFAULTS.maxBackoff()), nodeId, Clock.systemUTC());
     }

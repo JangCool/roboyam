@@ -36,7 +36,7 @@
 - **쓰기 화면이 `affiliateMode` 를 아는 곳**: 핫딜 게시판 응답 `BoardDetail.dealAffiliateMode`(없으면 MEMBER — 링크를 넣기 전부터 체크를 숨김)로 먼저 알고, link-check 응답 `DealLinkCheck.affiliateMode` 가 오면 그 값을 우선. link-check 에 `siteAffiliate: { programName } | null`.
 - **「가격 수정 N회」 = 딜가·정상가를 바꾼 수정 줄 수**(배송비 제외). 「링크 바뀜」 = 호스트가 바뀐 적 있음.
 - **공개 화면 상한·경고값**(금액 상한·할인율 경고·마감 없는 딜 기간): 서버 단계에서 핫딜 게시판 응답에 핫딜 설정 공개 칸(`priceMaxWon`·`discountWarnPercent`·`autoExpireDays`)으로 내리고 화면은 그 값으로 미리 검사(목업은 기본값 1억·90%·30일 상수). 최종 판정은 서버.
-- 제휴 표기(공정위 추천·보증 심사지침 2024-12 개정 — 조건부 표현 금지·첫 부분 표시): 목록 줄·카드 제목 앞 배지 「제휴·수수료」, 카드 첫 줄 「제휴 링크 — 이 링크로 구매하면 작성자가 판매자로부터 수수료를 받습니다」, 글쓴이 체크 문구도 단정형. 카드 아래 「로보얌은 판매자가 아니에요. 가격·재고는 판매처 기준이에요」. **사이트 제휴**(`SITE` 이고 사이트 제휴 몰): 배지 「제휴」 + 카드 첫 줄 「로보얌 제휴 링크 — 이 링크로 구매하면 로보얌이 판매자로부터 수수료를 받습니다」(단정형, ko·en). `MEMBER` 모드 개인 제휴 글은 개인 제휴 문구 그대로.
+- 제휴 표기(공정위 추천·보증 심사지침 2024-12 개정 — 조건부 표현 금지·첫 부분 표시): 목록 줄·카드 제목 앞 배지 「제휴·수수료」, 카드 첫 줄 「제휴 링크 — 이 링크로 구매하면 작성자가 판매자로부터 수수료를 받습니다」, 글쓴이 체크 문구도 단정형. 카드 아래 「아이로빗은 판매자가 아니에요. 가격·재고는 판매처 기준이에요」. **사이트 제휴**(`SITE` 이고 사이트 제휴 몰): 배지 「제휴」 + 카드 첫 줄 「아이로빗 제휴 링크 — 이 링크로 구매하면 아이로빗이 판매자로부터 수수료를 받습니다」(단정형, ko·en). `MEMBER` 모드 개인 제휴 글은 개인 제휴 문구 그대로.
 
 ## 데이터 모양 (목업 공통 — 두 앱이 같은 이름을 쓴다)
 ```
@@ -180,7 +180,7 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 ### 제휴 방식 목업 (D5, 커밋 user-web `de9764d0` · admin-web `59cca827`)
 - 새 `?mock=` — user-web: `deal-site-affiliate`(SITE — 쓰기 체크 숨김·개인 제휴 링크 칸 오류·쿠팡·11번가 글 「제휴」) · `deal-site-affiliate-nostore`(SITE 인데 사이트 제휴 몰 없음 → 제휴 표시 없음). admin-web: `site-affiliate`(SITE 로 시작) · `site-affiliate-empty`(몰 표 빔) · `affiliate-impact-zero`(영향 0건), 기존 `conflict` 는 몰 저장에도(409), `forbidden` 이면 몰 표 보기만.
 - 화면이 새로 정한 것(2026-11-01 확정)
-  - `siteAffiliate` 가 있으면 쓰기에 단정형 안내 「구매 링크는 로보얌 제휴 링크로 바뀝니다」. (`affiliateMode` 받는 곳·고치기 규칙은 「확정 가정」.)
+  - `siteAffiliate` 가 있으면 쓰기에 단정형 안내 「구매 링크는 아이로빗 제휴 링크로 바뀝니다」. (`affiliateMode` 받는 곳·고치기 규칙은 「확정 가정」.)
   - SITE 에서 개인 제휴 링크 칸 오류는 판정 즉시 보임. 서버는 `400 VALIDATION fields."deal.productUrl"` 또는 단독 코드 `DEAL_MEMBER_AFFILIATE_OFF` 둘 다 같은 칸에.
   - **구매 링크 주소 결정(2026-11-01)**: `/api/deals/{postId}/go`(302). 목업은 그 주소를 받는 서버가 없어 `buyUrl` 에 저장된 상품 링크를 바로 넣는다(`// REAL:` 주석에 실주소).
   - 관리자: 방식 선택은 초안에 들어가고 **[저장] 때 확인 창**(방향별 문구 + 영향 글 수 + 켠 몰 0개 경고 + 함께 저장할 다른 칸 수). 사이트 제휴 몰 표는 초안이 SITE 면 저장 전에도 보이고 바로 저장(설정 저장과 별개). impact 응답 `{ mode, memberAffiliateActive, siteStoreMatched, siteStoreActive(켠 몰로 가는 진행 중 글 전체) }`. 상세·링크 규칙 목록 응답 `affiliateMode`. 몰 줄에 `updatedBy`·`updatedAt`. 변환: TEMPLATE 은 `{url}` 자리에 `encodeURIComponent(원래 주소)`, QUERY 는 쿼리를 붙이되 같은 이름이면 바꿈. 틀 ≤1000자·쿼리 ≤300자, 새 몰은 켠 채로, 켬/끔은 줄 전체 PUT, 몰 표 조회·편집 `hotdeal.manage`. 몰 판정은 최종 호스트 우선·접미사·긴 도메인 우선·켠 몰만. 코드 `404 HOTDEAL_SITE_AFFILIATE_NOT_FOUND`, `fields.affiliateMode`.
@@ -203,7 +203,7 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 ### 서버 구현 결과
 - 1·2단계의 API 모양·빈칸 결정은 세션 공유 메모 `hotdeal-member-api.md` 0~3절(서버 DTO 가 정본). 2단계(2026-11-01): 작성자 종료·되돌리기·keep·종료 요청 API, 보상, 신고 연결, 가젯 `HOT_DEALS`, 인기글 제외, 회원 알림 5종, Java 배치 4개(`hotdeal-auto-end`·`hotdeal-expiry-notice`·`hotdeal-cleanup`·`hotdeal-suspicion`).
 - 3단계(관리자)가 부를 shared 진입점: 운영진 종료 `DealEndService#endByManager(postId, actorId, reason)`(보상·작성자 알림 포함) · 운영진 재개 `DealEndService#reopenByManager(postId)`(의심·keep·요청 리셋 + 「마감을 고쳐 주세요」) · 결과 `Outcome`(`STATE_CHANGED` → `409 HOTDEAL_STATE_CHANGED`) · 알림 `DealNotices` · 탈퇴 `DealWithdrawal#withdraw`(탈퇴 API 가 생기면).
-- 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`roboyam.batch.enabled`)가 돌린다.
+- 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`irobit.batch.enabled`)가 돌린다.
 - 3단계(관리자, 2026-11-01): `/api/admin/hotdeals`(boards·목록·상세·revisions·end·reopen) · `hotdeal-domains`(+impact) · `hotdeal-suspicions`(+dismiss) · `hotdeal-settings`(+affiliate-impact) · `hotdeal-site-affiliates` · 신고 사건 `DEAL_END`·`deal: {view}` · 관리자 글 줄 `deal: boolean` · `AdminScreenRegistry` 4줄 · 감사 10개(모두 일반). 딜 보기 계산은 shared `DealViewAssembler`(공개·관리자 같은 판정), 담당 판정은 shared `DealModeration`. V122 에 신고 사건 조치 CHECK `DEAL_END` 추가(로컬 DB 미적용 확인). 공개 손질: 핫딜 쓰기 자격(회원·정지 아님·이메일 인증·새싹 아님)을 `BoardAccessPolicy.writeBlocked` 에 넣어 게시판 응답 `viewer.writeBlockedReason`·`/api/boards/writable` 이 미리 막고, 글쓰기 `GRADE_TOO_LOW` 에 `minGrade`·`minGradeLabel`(핫딜은 첫 등급 바로 위 등급).
 - 3단계 결정(세션 정리): 게시판 매니저·스텝은 회원이라 관리자 앱에 들어오지 않는다 — 관리자 종료·재개 API 는 `hotdeal.manage` 만, 매니저·스텝 판정(그 게시판만)은 shared `DealModeration.Actor.boardMember` 에 두고, 공개 사이트가 매니저·스텝 API(`/deal/moderate/end`·`reopen`)로 부른다(2026-11-01 서버 — 화면 연결은 user-web). 신고 조치 `DEAL_END` 는 신고 처리 권한(`report.manage`)이 담당을 대신한다. 핫딜 설정 조회는 `hotdeal.read`(메뉴 항목은 `hotdeal.manage`).
 
@@ -224,6 +224,6 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 회원 글 수정 이력 6개월 자율 보존 표기.
 - 위장 홍보 집계에 IP·기기 정보를 쓸지(1차는 안 씀).
 - 0원 딜·체험단 모집이 광고인지.
-- **사이트 제휴(D5)**: 사이트 제휴일 때 표시 의무자 = 로보얌(표시 문구·위치), 각 제휴 프로그램 약관이 커뮤니티 게시글 링크 변환·재작성을 허용하는지, 회원이 올린 링크를 사이트 제휴로 바꾸는 것에 대한 이용약관 고지.
+- **사이트 제휴(D5)**: 사이트 제휴일 때 표시 의무자 = 아이로빗(표시 문구·위치), 각 제휴 프로그램 약관이 커뮤니티 게시글 링크 변환·재작성을 허용하는지, 회원이 올린 링크를 사이트 제휴로 바꾸는 것에 대한 이용약관 고지.
 
 - **모바일 작성자 줄**(2026-11-12 사용자): 핫딜 목록 줄의 작성자 줄을 모바일에서는 사진 밑 줄 폭 전체로 내리고 오른쪽 끝에 추천 · 조회 · 날짜(윗줄 오른쪽 숫자 없음), 댓글 수는 제목 옆 숫자만(데스크톱은 그대로).

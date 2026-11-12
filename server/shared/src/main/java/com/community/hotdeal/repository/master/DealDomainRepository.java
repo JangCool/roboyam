@@ -1,11 +1,11 @@
 package com.community.hotdeal.repository.master;
 
 import com.community.hotdeal.entity.DealDomainEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface DealDomainRepository extends RoboyamRepository<DealDomainEntity, Long> {
+public interface DealDomainRepository extends IrobitRepository<DealDomainEntity, Long> {
 
     Optional<DealDomainEntity> findByDomain(String domain);
 

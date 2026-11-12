@@ -322,7 +322,7 @@ export default {
         LEFT: 'On {screen}, a tall banner (160×600) floats to the left of the body box and follows as you scroll.',
         RIGHT: 'On {screen}, a tall banner (160×600) floats to the right of the body box and follows as you scroll.',
     },
-    previewWingsWidth: 'Only on wide windows — each side margin outside the body must be at least {margin}px, so {base}px+ for the default and Naver-style shells and {wide}px+ for the Daum-style and Roboyam shells. Never on mobile or tablets.',
+    previewWingsWidth: 'Only on wide windows — each side margin outside the body must be at least {margin}px, so {base}px+ for the default and Naver-style shells and {wide}px+ for the Daum-style and IROBIT shells. Never on mobile or tablets.',
     previewWingsExcluded: 'Never on group pages, group posts or boards with ads hidden. 18+ boards and 18+ posts need the “18+ boards” setting on.',
     previewPinnedKind: { NOTICE: 'Notice', PINNED: 'Pinned' },
     previewRowsFolded: '⋯ {n} rows',

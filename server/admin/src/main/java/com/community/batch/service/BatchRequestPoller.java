@@ -14,12 +14,12 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 /**
- * 실행 요청 집기 워커(「언제 돌릴지」 — 관리자 서버 쪽). {@code roboyam.batch.request-poll-millis}(기본 2초)마다 대기 요청을 집어({@code FOR UPDATE SKIP LOCKED} — 서버 여러 대가
+ * 실행 요청 집기 워커(「언제 돌릴지」 — 관리자 서버 쪽). {@code irobit.batch.request-poll-millis}(기본 2초)마다 대기 요청을 집어({@code FOR UPDATE SKIP LOCKED} — 서버 여러 대가
  * 같은 요청을 두 번 집지 않는다) 실행 스레드에 넘긴다. 실행·결과 기록은 core 의 {@link BatchRequestExecutor} 가 한다 — 배치를 별도 서버로 뗄 때 이 클래스만 옮기면 된다(15-2).
  *
  * <ul>
- *   <li>{@code roboyam.batch.enabled=false} 인 서버는 집지 않는다(화면의 요청은 배치를 켠 다른 서버가 집는다). 서버가 뜬 뒤({@link #start}) 부터 집는다.</li>
- *   <li>동시에 {@code roboyam.batch.pool-size} 개까지 실행한다 — 빈 자리가 있을 때만 집는다(긴 배치가 다른 배치의 요청을 막지 않게, 그리고 못 돌릴 요청을 미리 집어 두지 않게).</li>
+ *   <li>{@code irobit.batch.enabled=false} 인 서버는 집지 않는다(화면의 요청은 배치를 켠 다른 서버가 집는다). 서버가 뜬 뒤({@link #start}) 부터 집는다.</li>
+ *   <li>동시에 {@code irobit.batch.pool-size} 개까지 실행한다 — 빈 자리가 있을 때만 집는다(긴 배치가 다른 배치의 요청을 막지 않게, 그리고 못 돌릴 요청을 미리 집어 두지 않게).</li>
  *   <li>한 바퀴마다 워커 기록({@code worker_heartbeats}, 키 {@value #WORKER_KEY})을 남긴다 — 일이 없으면 간격마다 한 번만.</li>
  * </ul>
  */
@@ -71,7 +71,7 @@ public class BatchRequestPoller {
      *
      * @return 이번 바퀴에 집은 요청 수(배치를 끈 서버·시작 전이면 0 이고 아무것도 읽지 않는다)
      */
-    @Scheduled(initialDelayString = "${roboyam.batch.request-poll-millis:2000}", fixedDelayString = "${roboyam.batch.request-poll-millis:2000}")
+    @Scheduled(initialDelayString = "${irobit.batch.request-poll-millis:2000}", fixedDelayString = "${irobit.batch.request-poll-millis:2000}")
     public int poll() {
         if (!properties.enabled() || !started) {
             return 0;

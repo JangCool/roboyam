@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * <p>{@code request.getRemoteAddr()} 를 그대로 쓰면 안 된다: {@code server.forward-headers-strategy=framework} 의 {@code ForwardedHeaderFilter} 가
  * 컨트롤러가 보는 요청에서 {@code X-Forwarded-*} 헤더를 지우고 {@code getRemoteAddr()} 를 헤더의 <b>첫 번째(요청자가 보낸) 값</b>으로 바꾼다.
  * Caddy 는 자기가 본 접속 주소를 목록의 <b>끝에 덧붙이므로</b> 앞쪽은 헤더 한 줄로 마음대로 바꿀 수 있다(요청마다 바꾸면 IP 별 잠금을 피한다).
- * 그래서 감싼 요청들을 벗겨 <b>원래 요청</b>의 헤더·접속 주소를 읽고, 뒤에서 {@code roboyam.proxy.trusted-hops} 번째 값을 고른다.
+ * 그래서 감싼 요청들을 벗겨 <b>원래 요청</b>의 헤더·접속 주소를 읽고, 뒤에서 {@code irobit.proxy.trusted-hops} 번째 값을 고른다.
  */
 @Component
 public class ClientIpResolver {

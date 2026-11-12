@@ -6,7 +6,7 @@ import com.community.block.entity.QUserMemoEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 목록 차례·커서는 줄 ID(Snowflake — 만든 시각 순) 내림차순이다.
  */
 @Repository
-public class BlockRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class BlockRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QUserBlockEntity BLOCK = QUserBlockEntity.userBlockEntity;
     private static final QBlockedWordEntity WORD = QBlockedWordEntity.blockedWordEntity;

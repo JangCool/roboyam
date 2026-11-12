@@ -1,13 +1,13 @@
 package com.community.operator.repository.master;
 
 import com.community.operator.entity.OperatorInvitationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
-public interface OperatorInvitationRepository extends RoboyamRepository<OperatorInvitationEntity, Long> {
+public interface OperatorInvitationRepository extends IrobitRepository<OperatorInvitationEntity, Long> {
 
     /** 아직 수락하지 않은 초대 — 같은 이메일에는 하나뿐이다(유일 인덱스) */
     Optional<OperatorInvitationEntity> findByEmailAndConsumedAtIsNull(String email);

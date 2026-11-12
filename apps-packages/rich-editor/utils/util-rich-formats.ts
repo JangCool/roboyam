@@ -1,7 +1,7 @@
 /**
  * 고급 에디터(`RichEditor` level `ADVANCED`)의 글자색·배경색 **고정 팔레트**와 붙여넣기 style 정리 — community `layers/rich-editor/app/editor/richFormats.ts` 의 색 부분을 옮겼다.
  * 서버 정화가 같은 팔레트로 거른다(community `UtilPostHtml.TEXT_COLORS`·`BACKGROUND_COLORS` 와 같은 값) — 한쪽을 바꾸면 다른 쪽도 바꾼다.
- * 글꼴·글자 크기·줄 간격·정렬은 로보얌 에디터 수준에 없어 가져오지 않았다(그 확장도 켜지 않는다).
+ * 글꼴·글자 크기·줄 간격·정렬은 아이로빗 에디터 수준에 없어 가져오지 않았다(그 확장도 켜지 않는다).
  * 레이어의 순수 코어 — `vue`·Nuxt 자동 임포트를 쓰지 않는다. 이름은 화면이 `richEditor.color.<key>` 로 번역한다.
  */
 

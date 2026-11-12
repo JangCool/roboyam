@@ -8,7 +8,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 가젯 종류 8종 + 광고 2종({@code AD}·{@code AD_TEXT_LINE} — ad-contract 「공개 노출 목업」 확정 2026-11-01)과 종류별 최소 크기 — admin-web {@code UtilGadgetLayoutEditor.KINDS}
- * (12칸 기준 minW·minH, 24칸이면 폭 ×2)와 같은 값. 로보얌에 없는 핫딜·직접홍보는 없다. 광고 가젯은 공개 응답의 {@code data} 가 null 이다(화면이 {@code GET /api/ads} 로 채운다). 격자 고정값(행 높이 15px · 간격 16px, 높이 최대 {@value #MAX_H}행, 위치 최대 {@value #MAX_Y}행)은 공유 레이어 {@code UtilHomeLayout} 과 같다.
+ * (12칸 기준 minW·minH, 24칸이면 폭 ×2)와 같은 값. 아이로빗에 없는 핫딜·직접홍보는 없다. 광고 가젯은 공개 응답의 {@code data} 가 null 이다(화면이 {@code GET /api/ads} 로 채운다). 격자 고정값(행 높이 15px · 간격 16px, 높이 최대 {@value #MAX_H}행, 위치 최대 {@value #MAX_Y}행)은 공유 레이어 {@code UtilHomeLayout} 과 같다.
  */
 public final class GadgetKinds {
 
@@ -52,7 +52,7 @@ public final class GadgetKinds {
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
     public static final String AD_TEXT_LINE = "AD_TEXT_LINE";
 
-    /** 종류 → 머리 아이콘(로보얌 테마의 새 가젯) */
+    /** 종류 → 머리 아이콘(아이로빗 테마의 새 가젯) */
     private static final Map<String, String> ICONS = Map.ofEntries(Map.entry("HIGHLIGHT", "pi-sparkles"), Map.entry("POST_LIST", "pi-list"),
             Map.entry("BOARD_CARDS", "pi-th-large"), Map.entry("GALLERY", "pi-images"), Map.entry("GROUPS", "pi-users"), Map.entry("GROUP_BUY", "pi-shopping-bag"),
             Map.entry(HOT_DEALS, "pi-ticket"), Map.entry("QUICK_LINKS", "pi-link"), Map.entry("NOTICE_TEXT", "pi-megaphone"), Map.entry(AD, "pi-image"),
@@ -111,11 +111,11 @@ public final class GadgetKinds {
     }
 
     /**
-     * 테마의 기본 꾸미기 — 다음식·네이버식은 카드 + 막대 머리, 로보얌은 카드 + 장식 없는 머리(홈 로보얌 시드와 같은 흰 카드), 기본은 카드 없는 구역.
+     * 테마의 기본 꾸미기 — 다음식·네이버식은 카드 + 막대 머리, 아이로빗은 카드 + 장식 없는 머리(홈 아이로빗 시드와 같은 흰 카드), 기본은 카드 없는 구역.
      */
     public static ObjectNode baseStyle(String theme) {
         boolean news = "daum".equals(theme) || "naver".equals(theme);
-        boolean card = news || "roboyam".equals(theme);
+        boolean card = news || "irobit".equals(theme);
         ObjectNode empty = HomeLayoutJson.object().put("keep", true).put("message", true).put("text", "");
         ObjectNode style = HomeLayoutJson.object();
         style.putNull("icon");
@@ -125,24 +125,24 @@ public final class GadgetKinds {
         style.putNull("cardColor");
         style.put("mobileFold", "NONE");
         style.set("empty", empty);
-        // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 모든 테마 보이기(로보얌도 — 사용자 2026-11-10 「로보얌 기본 보이기」), 바탕은 로보얌 옅은 네모 · 그 밖 없음
-        boolean roboyam = "roboyam".equals(theme);
+        // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 모든 테마 보이기(아이로빗도 — 사용자 2026-11-10 「아이로빗 기본 보이기」), 바탕은 아이로빗 옅은 네모 · 그 밖 없음
+        boolean irobit = "irobit".equals(theme);
         style.put("iconShow", true).put("iconSource", GadgetStyles.ICON_PRIME);
         style.putNull("iconTabler");
         style.putNull("iconUpload");
         style.putNull("iconColor");
-        style.put("iconBg", roboyam ? "SOFT" : "NONE");
+        style.put("iconBg", irobit ? "SOFT" : "NONE");
         return style;
     }
 
     /**
-     * 새로 넣은 가젯의 처음 꾸미기 — 테마 기본 꾸미기에, 로보얌이면 종류 아이콘을 더한다(홈 로보얌 시드처럼. 아이콘은 admin-web {@code UtilGadgetLayoutEditor.KINDS} 와 같다).
-     * 로보얌은 이 아이콘이 처음부터 보인다(사용자 2026-11-10 「로보얌 기본 보이기」).
+     * 새로 넣은 가젯의 처음 꾸미기 — 테마 기본 꾸미기에, 아이로빗이면 종류 아이콘을 더한다(홈 아이로빗 시드처럼. 아이콘은 admin-web {@code UtilGadgetLayoutEditor.KINDS} 와 같다).
+     * 아이로빗은 이 아이콘이 처음부터 보인다(사용자 2026-11-10 「아이로빗 기본 보이기」).
      */
     public static ObjectNode baseStyle(String theme, String type) {
         ObjectNode style = baseStyle(theme);
         String icon = ICONS.get(type);
-        if ("roboyam".equals(theme) && icon != null) {
+        if ("irobit".equals(theme) && icon != null) {
             style.put("icon", icon);
         }
         return kindStyle(style, type);

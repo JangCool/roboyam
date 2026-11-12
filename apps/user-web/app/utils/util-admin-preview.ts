@@ -135,11 +135,11 @@ function oneOf(value: unknown, list: readonly string[]): string | undefined {
 }
 
 /** 관리자 → 공개 사이트 메시지 종류 */
-export const ADMIN_PREVIEW_APPLY = 'roboyam:admin-preview';
+export const ADMIN_PREVIEW_APPLY = 'irobit:admin-preview';
 /** 공개 사이트 → 관리자 메시지 종류 — 준비됨 · 메뉴 자리를 눌렀다 · 홈 격자 편집(`AdminPreviewLayoutOp`) */
-export const ADMIN_PREVIEW_READY = 'roboyam:admin-preview-ready';
-export const ADMIN_PREVIEW_EDIT_MENU = 'roboyam:admin-preview-edit-menu';
-export const ADMIN_PREVIEW_LAYOUT = 'roboyam:admin-preview-layout';
+export const ADMIN_PREVIEW_READY = 'irobit:admin-preview-ready';
+export const ADMIN_PREVIEW_EDIT_MENU = 'irobit:admin-preview-edit-menu';
+export const ADMIN_PREVIEW_LAYOUT = 'irobit:admin-preview-layout';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);

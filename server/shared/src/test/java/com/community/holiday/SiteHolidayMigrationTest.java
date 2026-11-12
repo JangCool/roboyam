@@ -36,7 +36,7 @@ class SiteHolidayMigrationTest {
     static void setUp() {
         admin = new JdbcTemplate(CommerceTestDatabase.migrated());
         admin.execute("CREATE DATABASE " + DB);
-        legacy = new DriverManagerDataSource(CommerceTestDatabase.jdbcUrl().replaceFirst("/roboyam(?=\\?|$)", "/" + DB), CommerceTestDatabase.username(),
+        legacy = new DriverManagerDataSource(CommerceTestDatabase.jdbcUrl().replaceFirst("/irobit(?=\\?|$)", "/" + DB), CommerceTestDatabase.username(),
                 CommerceTestDatabase.password());
         legacy.setDriverClassName("org.postgresql.Driver");
         jdbc = new JdbcTemplate(legacy);

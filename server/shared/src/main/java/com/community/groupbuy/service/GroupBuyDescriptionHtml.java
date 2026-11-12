@@ -6,7 +6,7 @@ import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
 
 /**
- * 상품 설명 HTML 정화(계약 결정 2 — 공용 편집기 {@code @roboyam/rich-editor} 가 만든 HTML 도 <b>서버에서 반드시</b> 거친다, OWASP Java HTML Sanitizer). 회원 상세가 이 결과를
+ * 상품 설명 HTML 정화(계약 결정 2 — 공용 편집기 {@code @irobit/rich-editor} 가 만든 HTML 도 <b>서버에서 반드시</b> 거친다, OWASP Java HTML Sanitizer). 회원 상세가 이 결과를
  * {@code v-html} 로 그린다. 허용: {@code p br strong em u s blockquote ul ol li h2 h3 hr} + 링크(http·https·mailto, 늘 새 탭·{@code rel="nofollow noopener noreferrer"})
  * + 이미지({@code src} 는 https 또는 우리 미디어 경로 {@code /media/…} 만, {@code alt}·{@code width}·{@code height}). 스크립트·이벤트 속성·style·iframe 은 모두 사라진다(글자는 남는다).
  */

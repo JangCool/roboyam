@@ -4,7 +4,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.operator.entity.QOperatorPreferenceEntity;
 import com.community.role.entity.QOperatorRoleEntity;
 import com.community.role.entity.QRolePermissionEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
  * <b>트랜잭션은 부르는 서비스가 연다.</b> 알림 발행기의 JDBC 세이브포인트 안에서는 부르지 않는다 — 거기서는 같은 조건의 JDBC 판({@link NotificationPublishReads})을 쓴다.
  */
 @Repository
-public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class NotificationRecipientRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QOperatorRoleEntity OPERATOR_ROLE = QOperatorRoleEntity.operatorRoleEntity;

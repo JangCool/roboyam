@@ -2,7 +2,7 @@
     <!--
         게시판 기본 설정 › 개인정보 보유기간 — 게시판에 남는 개인정보를 기간이 지나면 파기·익명화한다. 자기 요청·자기 저장(`GET·PUT /api/admin/boards/defaults/privacy`, 하단 StickySaveBar).
         **이 화면의 변경과 「지금 실행」은 감사 기록 대상이다**(후보 `BOARD_PRIVACY_RETENTION_UPDATE` · `BOARD_PRIVACY_RUN`).
-        그누보드7 원본(개인정보 탭: enabled false · ip_retention_days 365(1~3650) · guest_retention_days 0 + guest_mode anonymize/delete · 대상 건수 미리보기·대상 보기·지금 실행 · 켜기 전 처리방침 고지 안내) → roboyam 권장안:
+        그누보드7 원본(개인정보 탭: enabled false · ip_retention_days 365(1~3650) · guest_retention_days 0 + guest_mode anonymize/delete · 대상 건수 미리보기·대상 보기·지금 실행 · 켜기 전 처리방침 고지 안내) → irobit 권장안:
           · 전체 스위치 기본 꺼짐·처리방침 고지 경고·대상 N건·대상 보기·지금 실행은 그대로.
           · 비회원 축은 그대로 살렸다: guestRetentionDays(0~3650, 0 = 처리 안 함) 권장 365 · guestMode ANONYMIZE(이름 ***·비밀번호·IP 파기, 글은 남김) 권장 / DELETE(글·답글·댓글 삭제 + 파기 — 되돌릴 수 없다는 경고, 그누보드 delete_warning 취지).
           · IP 보유 365일은 그대로, 하한을 90일로 올렸다(분쟁·수사 협조 대응 — 1년 권장).

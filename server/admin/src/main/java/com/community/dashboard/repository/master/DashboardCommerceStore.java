@@ -9,7 +9,7 @@ import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.payment.entity.QPaymentReconcileDayEntity;
 import com.community.payment.entity.QPaymentWebhookLogEntity;
 import com.community.payment.entity.QReconciliationIssueEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.time.ServiceTime;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Repository;
  * {@code AT TIME ZONE} 으로 한국 날짜로 묶는다). 질의마다 쓰는 인덱스를 주석으로 적는다.
  */
 @Repository
-public class DashboardCommerceStore extends RoboyamRepositoryQDSL {
+public class DashboardCommerceStore extends IrobitRepositoryQDSL {
 
     /**
      * 받아들인 현금 결제(별칭 {@code o}) — 결제된 계열 상태 · 이상 없음(금액 불일치·도메인 거절·늦은 결제는 자동 취소되는 결제라 매출이 아니다) · 결제 시험 제외.

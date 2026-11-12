@@ -2,7 +2,7 @@
  * 로보티콘 운영(관리자) API 의 요청·응답 모양 — 서버 `EmoticonAdminView`·`EmoticonSettlementView` 등(계약 `docs/features/emoticon-contract.md` 「S1~S4 구현 결과」)과 같은 모양.
  */
 
-/** 팩 출처 — 운영(로보얌콘·로보얌콘핑크) · 회원 작가 */
+/** 팩 출처 — 운영(아이로빗콘·아이로빗콘핑크) · 회원 작가 */
 export type EmoticonPackSource = 'OFFICIAL' | 'CREATOR';
 export const EMOTICON_PACK_SOURCES: readonly EmoticonPackSource[] = ['OFFICIAL', 'CREATOR'];
 

@@ -4,14 +4,14 @@ import com.community.group.entity.GroupMemberEntity;
 import com.community.group.entity.GroupMemberId;
 import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupRole;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 /** 소모임 멤버·가입 신청 — 멤버 행은 소모임 행을 잠근 뒤 고친다(소모임 잠금이 줄을 세운다) */
-public interface GroupMemberRepository extends RoboyamRepository<GroupMemberEntity, GroupMemberId> {
+public interface GroupMemberRepository extends IrobitRepository<GroupMemberEntity, GroupMemberId> {
 
     Optional<GroupMemberEntity> findByGroupIdAndUserId(Long groupId, Long userId);
 

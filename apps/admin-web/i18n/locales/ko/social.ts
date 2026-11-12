@@ -8,7 +8,7 @@ export default {
     readOnly: '소셜 로그인 키를 바꿀 권한이 없어서 조회만 할 수 있어요.',
     loadFailed: '소셜 로그인 설정을 불러오지 못했어요',
     cryptoMissingTitle: '암호화 키가 없어 저장할 수 없어요',
-    cryptoMissingText: '서버에 암호화 키(ROBOYAM_CRYPTO_KEY)를 설정하고 서버를 다시 시작한 뒤 이 화면을 새로 고쳐 주세요. 그동안 공개 사이트에는 소셜 로그인 버튼이 나오지 않아요.',
+    cryptoMissingText: '서버에 암호화 키(IROBIT_CRYPTO_KEY)를 설정하고 서버를 다시 시작한 뒤 이 화면을 새로 고쳐 주세요. 그동안 공개 사이트에는 소셜 로그인 버튼이 나오지 않아요.',
     footnote: '저장하면 바로 공개 사이트 로그인 화면에 적용돼요. 시크릿은 암호화해 저장하고 다시 보여 주지 않아요.',
     historyHint: '설치 마법사와 이 화면에서 바꾼 기록이에요. 시크릿은 값 없이 입력·변경·삭제 여부만 남고, 클라이언트 ID 는 끝 네 자리만 보여요.',
     provider_KAKAO: '카카오',

@@ -295,8 +295,8 @@ const canPii = computed(() => can('member.pii'));
 // 조건 — 화면 값(draft). 「검색」을 눌러야 서버로 간다
 const filter = reactive<MemberFilter>(UtilMember.emptyFilter());
 // 표에 보일 칸 · 화면에 보일 상세 조건 줄 — 이 브라우저에 기억한다(localStorage, 계정 설정 API 가 생기면 서버로)
-const columns = useStoredList<MemberColumnKey>('roboyam:admin:member-columns', UtilMember.defaultColumns, UtilMember.sanitizeColumns);
-const detailRows = useStoredList<MemberDetailRow>('roboyam:admin:member-detail-rows', UtilMember.defaultDetailRows, UtilMember.sanitizeDetailRows);
+const columns = useStoredList<MemberColumnKey>('irobit:admin:member-columns', UtilMember.defaultColumns, UtilMember.sanitizeColumns);
+const detailRows = useStoredList<MemberDetailRow>('irobit:admin:member-detail-rows', UtilMember.defaultDetailRows, UtilMember.sanitizeDetailRows);
 
 const roleOptions = ref<MemberRoleOption[]>([]);
 const rows = ref<MemberRow[]>([]);

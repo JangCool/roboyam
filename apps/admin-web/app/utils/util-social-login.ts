@@ -33,7 +33,7 @@ function problemOf(value: string, max: number, required: boolean): SocialProblem
 }
 
 /**
- * 소셜 로그인 설정 화면(`/settings/social-login`)의 순수 로직 — 상태 딱지·입력 규칙·요청 만들기. community `util-admin-social.ts` 를 roboyam 계약에 맞춘 것이다.
+ * 소셜 로그인 설정 화면(`/settings/social-login`)의 순수 로직 — 상태 딱지·입력 규칙·요청 만들기. community `util-admin-social.ts` 를 irobit 계약에 맞춘 것이다.
  * 입력 규칙은 서버 `SocialSettingsService`(shared `social/service` — 설치 마법사와 같은 검사) + `SocialProviderAdminService`(시크릿 유지 규칙)와 같다 — 화면 검사는 미리 알려 주는 용도이고 판정은 서버다.
  *  · clientId 앞뒤 공백을 자른 뒤 1~200자, 공백·제어 문자 없음(필수)
  *  · clientSecret 1~500자, 공백·제어 문자 없음. **필수 판정은 `!secretSet`** — 저장된 것이 없거나 지금 키로 풀 수 없으면 다시 넣어야 한다. 비우면 저장된 값을 그대로 쓴다

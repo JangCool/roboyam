@@ -7,7 +7,7 @@ export default {
     title: '감사 로그',
     subtitle: '누가 언제 무엇을 했는지 남은 기록입니다.',
 
-    // hamonica3 의 공통 문구 "조회"·"조건 지우기" — 이 앱 공통 문구(`@roboyam/i18n`)에 아직 없어 여기 둔다
+    // hamonica3 의 공통 문구 "조회"·"조건 지우기" — 이 앱 공통 문구(`@irobit/i18n`)에 아직 없어 여기 둔다
     search: '조회',
     clearFilter: '조건 지우기',
 

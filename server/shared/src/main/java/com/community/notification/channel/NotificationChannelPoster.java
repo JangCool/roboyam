@@ -44,7 +44,7 @@ public class NotificationChannelPoster {
     private final String slackApiUrl;
 
     public NotificationChannelPoster(SafeHttpClient http, SecretEncryptor encryptor,
-                                     @Value("${roboyam.notification.slack-api-url:https://slack.com/api/chat.postMessage}") String slackApiUrl) {
+                                     @Value("${irobit.notification.slack-api-url:https://slack.com/api/chat.postMessage}") String slackApiUrl) {
         this.http = http;
         this.encryptor = encryptor;
         this.slackApiUrl = slackApiUrl;

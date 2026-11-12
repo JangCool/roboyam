@@ -1,5 +1,5 @@
 <template>
-    <!-- 유튜브 넣기(community `YoutubeSheet`) — 주소 입력 → 미리보기 → 본문에 넣기. 로보얌은 서버의 주소 확인 API 가 없어 화면이 주소에서 영상 ID 를 읽는다(`UtilRichMedia.youtubeIdOf`).
+    <!-- 유튜브 넣기(community `YoutubeSheet`) — 주소 입력 → 미리보기 → 본문에 넣기. 아이로빗은 서버의 주소 확인 API 가 없어 화면이 주소에서 영상 ID 를 읽는다(`UtilRichMedia.youtubeIdOf`).
          글에 실리는 것은 `<div data-youtube-id="ID">` 뿐이고 서버가 저장 때 형식을 다시 본다 -->
     <Dialog v-model:visible="open" modal :header="t('richEditor.youtubeTitle')" :style="{ width: '30rem' }" :breakpoints="{ '640px': 'calc(100vw - 2rem)' }" :draggable="false">
         <form class="flex flex-col gap-3" novalidate @submit.prevent="onSubmit">

@@ -32,7 +32,7 @@ public final class SiteThemeMenus {
     public static final int BAR_GROUPS_MAX = 20;
 
     /** 메뉴 글자 기본 굵게(V187)를 처음부터 켜 둔 테마 — 다음 테마만(마이그레이션 V187 의 UPDATE 와 같은 규칙) */
-    public static final Set<String> MENU_BOLD_THEMES = Set.of("daum", "roboyam"); // 같은 막대(DaumMenuBar) — 예전부터 굵게 보였다(사용자 2026-11-11)
+    public static final Set<String> MENU_BOLD_THEMES = Set.of("daum", "irobit"); // 같은 막대(DaumMenuBar) — 예전부터 굵게 보였다(사용자 2026-11-11)
 
     private static final SiteThemeMenu.Style INITIAL_STYLE = new SiteThemeMenu.Style(THEME, THEME, THEME, THEME, THEME, THEME, THEME);
 
@@ -43,7 +43,7 @@ public final class SiteThemeMenus {
             "default", new SiteThemeMenu("LEFT", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, false),
             "daum", new SiteThemeMenu("TOP", "MENU", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, true),
             "naver", new SiteThemeMenu("TOP", "LOGO", List.of(), "CONTENT", "SCROLLBAR", BASE_STYLE, false),
-            "roboyam", new SiteThemeMenu("TOP_RIGHT", "MENU", List.of(), "FULL", "SCROLLBAR",
+            "irobit", new SiteThemeMenu("TOP_RIGHT", "MENU", List.of(), "FULL", "SCROLLBAR",
                     new SiteThemeMenu.Style("INLINE", "PICK", "COMPACT", "MENU", "ON", "ON", "PLAIN"), false));
 
     private SiteThemeMenus() {

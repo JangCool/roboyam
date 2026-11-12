@@ -4,7 +4,7 @@ import com.community.comment.entity.QCommentEntity;
 import com.community.debate.dto.DebateVotesView;
 import com.community.debate.entity.DebateStance;
 import com.community.highlight.dto.response.HighlightCommentCountsView;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * 투표 수({@code votes})는 부르는 쪽이 {@code DebateQueries#votesOf} 로 읽어 넘긴다.
  */
 @Repository
-public class HighlightCommentRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class HighlightCommentRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
 

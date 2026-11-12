@@ -1,6 +1,6 @@
-# 사업자등록 영역 분석 — 커뮤니티 → 로보얌 이식 (2026-10-30)
+# 사업자등록 영역 분석 — 커뮤니티 → 아이로빗 이식 (2026-10-30)
 
-근거 표기: `C:파일:줄` = 커뮤니티(`D:\project\community\workspace\community`), `R:파일:줄` = 로보얌(`D:\project\roboyam`). 광고·핫딜 내부는 다루지 않고 사업자와 맞물리는 지점만 적는다.
+근거 표기: `C:파일:줄` = 커뮤니티(`D:\project\community\workspace\community`), `R:파일:줄` = 아이로빗(`D:\project\irobit`). 광고·핫딜 내부는 다루지 않고 사업자와 맞물리는 지점만 적는다.
 
 ## 1. 커뮤니티 설계 요약
 
@@ -69,19 +69,19 @@ stateDiagram-v2
 |---|---|---|---|
 | 🔴 | **등록번호 진위·휴폐업 확인이 없다** — 체크섬만 맞으면 통과. 가짜·폐업 번호로 승인 가능, 운영자가 눈으로 판단 | `api-business.md:43`, `BusinessInputs.java:169` | 국세청 「사업자등록정보 진위확인 및 상태조회」(공공데이터포털, 무료 키) 호출을 **승인 단계**에 둔다: 상태(계속/휴업/폐업)·과세유형·대표자 일치 여부를 심사 화면에 표시하고 결과 스냅샷(조회 시각·상태코드)을 저장. 신청 시점은 체크섬만(서비스 장애가 신청을 막지 않게). 폐업이면 승인 단추 잠금 |
 | 🔴 | **증빙 서류(사업자등록증 사본) 첨부가 없다** — 텍스트 입력만 | `api-business.md:24-39` | 신청 폼에 등록증 이미지/PDF 1장(선택→정책에 따라 필수) 첨부. 암호화 저장소에 두고 평문 열람과 같은 규칙(열람 기록)으로 본다. 심사 끝나면 N일 뒤 파기(개인정보 최소 보유) |
-| 🔴 | **정지 해제·평문 열람이 "최고 관리자(루트)"에 묶임** — 로보얌은 루트 1명이라 운영이 막힌다 | `BusinessReviewService.java:235,254`; 로보얌 `R:docs/domain/operator-permissions.md:16` | 로보얌 권한 카탈로그로 푼다: `business.reveal`(SENSITIVE)·`business.unsuspend`(SENSITIVE)를 새로 두고 역할에 준다(이미 `BUSINESS_READ/MANAGE` 자리가 있다 `R:server/shared/.../permission/entity/Permission.java:116-117`) |
-| 🟠 | **열람 기록에 사유가 없고 IP도 없다** | `V36:55-61`, `BusinessViewLogEntity.java` | 로보얌 배송지 열람 패턴을 그대로 쓴다: 사유 필수 + 운영자 ID + IP(`R:server/admin/.../GroupBuyOrderAdminFacade.java:225-229`, `R:V102__group_buy_fulfillment.sql:181-191`) |
-| 🟠 | **개인정보 보유 기간·파기 정책 없음** — 반려된 신청의 암호문이 영구 보존, 심사 기록 보존 기간 미정 | `V36`에 파기 규칙 없음; 로보얌은 보존 배치가 있음 `R:docs/domain/commerce.md:788` | 반려 후 N일(제안 90일) 지나면 암호문·해시 파기(상태·사업자명·끝4자리만), 승인 사업자는 탈퇴 때 파기(지금과 같음), 세금계산서 근거(사업자명·끝4자리)는 전자상거래법 5년 보존. `R__batch_*` DB 배치로 |
+| 🔴 | **정지 해제·평문 열람이 "최고 관리자(루트)"에 묶임** — 아이로빗은 루트 1명이라 운영이 막힌다 | `BusinessReviewService.java:235,254`; 아이로빗 `R:docs/domain/operator-permissions.md:16` | 아이로빗 권한 카탈로그로 푼다: `business.reveal`(SENSITIVE)·`business.unsuspend`(SENSITIVE)를 새로 두고 역할에 준다(이미 `BUSINESS_READ/MANAGE` 자리가 있다 `R:server/shared/.../permission/entity/Permission.java:116-117`) |
+| 🟠 | **열람 기록에 사유가 없고 IP도 없다** | `V36:55-61`, `BusinessViewLogEntity.java` | 아이로빗 배송지 열람 패턴을 그대로 쓴다: 사유 필수 + 운영자 ID + IP(`R:server/admin/.../GroupBuyOrderAdminFacade.java:225-229`, `R:V102__group_buy_fulfillment.sql:181-191`) |
+| 🟠 | **개인정보 보유 기간·파기 정책 없음** — 반려된 신청의 암호문이 영구 보존, 심사 기록 보존 기간 미정 | `V36`에 파기 규칙 없음; 아이로빗은 보존 배치가 있음 `R:docs/domain/commerce.md:788` | 반려 후 N일(제안 90일) 지나면 암호문·해시 파기(상태·사업자명·끝4자리만), 승인 사업자는 탈퇴 때 파기(지금과 같음), 세금계산서 근거(사업자명·끝4자리)는 전자상거래법 5년 보존. `R__batch_*` DB 배치로 |
 | 🟠 | **승인 뒤 사업자명·번호 수정 → 조용히 재승인 대기** — 사업자에게 알림 없음, 그동안 핫딜 새 게시가 막히는데 이유를 모름 | `api-business.md:97,129`, `BusinessService.java:173-179` | 수정 전 확인 창("이 두 칸을 바꾸면 다시 심사받아요") + 저장 뒤 사업자 알림(`BUSINESS_REVIEWED` result `REAPPROVAL_PENDING`) |
 | 🟠 | **반려·정지 사유가 자유 글만** — 통계·재신청 안내가 어렵다 | `BusinessReviewService.java:325-335` | 사유 코드(번호 불일치·서류 미비·폐업·정책 위반·기타) + 자유 글. 사업자 화면에 "고쳐야 할 것" 안내 |
 | 🟠 | **정지·탈퇴 때 세금계산서·주문 기록 연계가 핫딜 쪽에만** — 사업자 영역에 "사업자 증빙 보기"가 없다 | `C:docs/hotdeal.md:52`, `BusinessCleanupService.java:49-50` | 사업자 상세에 "거래 요약"(주문 수·세금계산서 상태) 읽기 칸만 두고 상세는 핫딜·커머스 화면 링크 |
 | 🟠 | **관리자 대행 등록이 없다** — 운영팀이 메일로 받은 사업자를 대신 등록할 길이 없다(광고는 대행 등록 있음 `plans/03:7`) | `api-business.md` 전체 | 관리자 "사업자 직접 등록"(회원 선택 + 사업자 정보 입력 + 즉시 승인 가능, 운영 로그 `BUSINESS_CREATE_BY_OPERATOR`) |
 | 🟡 | **동시성 — 신청·수정이 `FOR UPDATE`로 잠그지만 승인 쪽 이메일 인증 확인은 잠금 밖 조회** | `BusinessReviewService.java:190-192` | 사용자 줄도 함께 읽거나 승인 트랜잭션 안에서 재확인(실질 위험 낮음) |
-| 🟡 | **알림 종류가 하나(`BUSINESS_REVIEWED`)에 결과를 payload로 넣음** — 로보얌 회원 알림은 이벤트마다 카탈로그·끄기 가능 여부가 코드 | `api-business.md:127-131`; `R:server/shared/.../membernotification/entity/MemberEvent.java:30-51` | 로보얌식으로 `BUSINESS_APPROVED`·`_REJECTED`·`_SUSPENDED`·`_UNSUSPENDED`·`_SERVICE_*`·`_REAPPROVAL_PENDING` 이벤트를 각각 등록(계정 알림 = 끌 수 없음) |
+| 🟡 | **알림 종류가 하나(`BUSINESS_REVIEWED`)에 결과를 payload로 넣음** — 아이로빗 회원 알림은 이벤트마다 카탈로그·끄기 가능 여부가 코드 | `api-business.md:127-131`; `R:server/shared/.../membernotification/entity/MemberEvent.java:30-51` | 아이로빗식으로 `BUSINESS_APPROVED`·`_REJECTED`·`_SUSPENDED`·`_UNSUSPENDED`·`_SERVICE_*`·`_REAPPROVAL_PENDING` 이벤트를 각각 등록(계정 알림 = 끌 수 없음) |
 | 🟡 | **운영자 알림이 신청 접수 하나만** — 재승인 대기·서비스 신청(심사 필요)·정지된 사업자의 광고 중단 결과를 운영자가 모른다 | `AdminNotificationKind.java:20` | 관리자 알림 이벤트 `BUSINESS_APPLIED`·`BUSINESS_SERVICE_REQUESTED`·`BUSINESS_REAPPROVAL` 3개 |
-| 🟡 | **사업자 약관·개인정보 수집 동의가 없다** — 사업자 정보(대표자 성명·연락처)는 별도 수집 항목인데 일반 약관 3개만 | `api-business.md:53`, `C:frontend/app/pages/business/signup.vue:277` | 로보얌 약관 종류에 `BUSINESS`(사업자 이용약관) 추가(`R:docs/features/terms-contract.md:7` 지금은 `TERMS·PRIVACY`), 신청 폼에 동의 버전 저장 |
-| 🟡 | **감사 로그가 "실패한 요청은 남기지 않음"** — 권한 없는 열람 시도가 기록되지 않음 | `api-business.md:178` | 로보얌 `PERMISSION_DENIED` 감사(`R:server/shared/.../audit/dto/AuditActions.java:19`)가 이미 있어 자동 해결. 열람 거부는 별도 액션 불필요 |
-| 🟡 | 사업자 전용 계정은 `users.role=BUSINESS`인데 로보얌 `Role`은 `USER`만, 회원 유형은 "회원 역할"로 설계됨 | `R:server/shared/.../user/entity/Role.java`, `R:docs/domain/operator-permissions.md:103` | 아래 5절 — `role` 대신 회원 역할(회원 유형 = 사업자 회원)로 |
+| 🟡 | **사업자 약관·개인정보 수집 동의가 없다** — 사업자 정보(대표자 성명·연락처)는 별도 수집 항목인데 일반 약관 3개만 | `api-business.md:53`, `C:frontend/app/pages/business/signup.vue:277` | 아이로빗 약관 종류에 `BUSINESS`(사업자 이용약관) 추가(`R:docs/features/terms-contract.md:7` 지금은 `TERMS·PRIVACY`), 신청 폼에 동의 버전 저장 |
+| 🟡 | **감사 로그가 "실패한 요청은 남기지 않음"** — 권한 없는 열람 시도가 기록되지 않음 | `api-business.md:178` | 아이로빗 `PERMISSION_DENIED` 감사(`R:server/shared/.../audit/dto/AuditActions.java:19`)가 이미 있어 자동 해결. 열람 거부는 별도 액션 불필요 |
+| 🟡 | 사업자 전용 계정은 `users.role=BUSINESS`인데 아이로빗 `Role`은 `USER`만, 회원 유형은 "회원 역할"로 설계됨 | `R:server/shared/.../user/entity/Role.java`, `R:docs/domain/operator-permissions.md:103` | 아래 5절 — `role` 대신 회원 역할(회원 유형 = 사업자 회원)로 |
 
 ## 4. 프로세스 끊김 점검
 
@@ -93,16 +93,16 @@ stateDiagram-v2
 | 4 | 서비스 이용 시작 | 핫딜·홍보는 신청 때 자동, 광고는 센터 [이용 시작] | 규칙 "즉시 승인"이면 APPROVED, "심사 필요"면 REQUESTED | 신원 APPROVED | 서비스 알림(ENABLED·APPROVED…) | 409 상태·409 분야 0개 | 핫딜·홍보를 **나중에 새로 신청하는 길이 없음**(끈 뒤 되살리기는 운영팀만, `api-business-services.md:10-2`) |
 | 5 | 정보 변경 | 수정 폼(세 민감 칸은 비움=유지) | 명·번호 바뀌면 APPROVED→PENDING | 본인, PENDING/APPROVED만 | **없음**(사업자·운영자 모두 — 운영자는 `UPDATE` 접수 알림만) | 400·409 중복 | 재승인 중 핫딜 글쓰기 막히는 이유 안내 없음(3절 🟠) |
 | 6 | 정지 | 사유 | APPROVED→SUSPENDED, AD 건 TAKEN_DOWN | `BUSINESSES` 처리 | 사업자(사유 포함) | 409 | 정지 중 **사업자가 소명·문의할 길 없음**(연락처만 화면에). 정지 기간 개념 없음(무기한) |
-| 7 | 복구 | — | SUSPENDED→APPROVED | **루트만** | 사업자 | 409 | 로보얌 구조에서 막힘(3절 🔴). 중단된 광고는 운영팀이 건별 복구 — 사업자 화면에 "복구 요청" 없음 |
-| 8 | 탈퇴 | 탈퇴 요청 | 가드 → WITHDRAWN(암호문 삭제) | 본인 | 없음 | 403 `WITHDRAW_NOT_ALLOWED` + 이유 코드 5종 | **사업자 쪽 안내 화면 미구현**(`BIZ-001-3.md:12`); 로보얌에는 공개 탈퇴 API 자체가 아직 없다(`R:docs/features/member-account-contract.md:64`) |
+| 7 | 복구 | — | SUSPENDED→APPROVED | **루트만** | 사업자 | 409 | 아이로빗 구조에서 막힘(3절 🔴). 중단된 광고는 운영팀이 건별 복구 — 사업자 화면에 "복구 요청" 없음 |
+| 8 | 탈퇴 | 탈퇴 요청 | 가드 → WITHDRAWN(암호문 삭제) | 본인 | 없음 | 403 `WITHDRAW_NOT_ALLOWED` + 이유 코드 5종 | **사업자 쪽 안내 화면 미구현**(`BIZ-001-3.md:12`); 아이로빗에는 공개 탈퇴 API 자체가 아직 없다(`R:docs/features/member-account-contract.md:64`) |
 | 9 | 반려 후 재신청 | 민감 3칸 새로 입력, 나머지 채워짐 | REJECTED→PENDING 같은 줄, 서비스 둘 다 REQUESTED | 본인 | 운영자 `APPLY` | 409 중복 | 반려 사유에 "무엇을 고치면 되는지" 구조화 없음. 반려 뒤 재신청 횟수·간격 제한 없음(스팸 가능) |
 | 10 | 일반 회원 ↔ 사업자 전환 | 길 ①은 `USER` 유지로 "전환" 개념 없음. 전용 계정→일반 회원 전환 불가 | — | — | — | — | 전용 계정이 사업을 그만두면 **탈퇴만** 가능. 게시판 매니저·스텝은 사업자 전환 시 자동 해제(`R:operator-permissions.md:46`) — 길 ①에서는 승인 시점에 해제해야 하는데 커뮤니티엔 없음 |
 | 11 | 운영자 대행 등록 | — | — | — | — | — | **없음**(3절 🟠). 광고만 대행 등록 있음 |
 
-## 5. 로보얌 이식 방향
+## 5. 아이로빗 이식 방향
 
 ### 5-1. 재사용할 것
-| 로보얌 기존 | 쓰는 곳 | 근거 |
+| 아이로빗 기존 | 쓰는 곳 | 근거 |
 |---|---|---|
 | 권한 카탈로그 `BUSINESS_READ`·`BUSINESS_MANAGE`(BIZ_REVIEW, featureReady=false) | 목록·상세 / 승인·반려·정지·서비스 처리 → `featureReady=true`로. **추가** `business.reveal`·`business.unsuspend`(SENSITIVE)·`business.settings`(서비스 이용 규칙, CONFIG) | `R:Permission.java:116-117`, `R:operator-permissions.md:83`(역할 유형 "사업자·광고") |
 | `DataCipher`(AES-GCM, `d<ver>:`, `DataPurpose` AAD, 키 교체 배치) | 등록번호·대표자·연락처 암호화. 커뮤니티 `SecretCipher.blindIndex`(HMAC) 상당 메서드는 `DataCipher`에 추가 필요(확인: 현재 blind index 없음) | `R:server/shared/.../zconfiguration/crypto/DataCipher.java` 머리 |
@@ -115,7 +115,7 @@ stateDiagram-v2
 | 회원 역할 "회원 유형: 사업자 회원" | `users.role=BUSINESS` 대신 **회원 역할 부여**로 표현(승인 시 자동, 정지·탈퇴 시 해제). 사업자 전용 계정 제한(글쓰기 불가)은 회원 역할의 능력 단위로 | `R:operator-permissions.md:103-108`, `R:Role.java` |
 | 커머스 사이트 사업자 정보(`commerce_business_info`, 통신판매업 번호) | 사이트 자신의 정보 — 사업자 회원 표와 섞지 않음. 세금계산서 발행 쪽(핫딜 영역)이 쓴다 | `R:commerce.md:659,713` |
 | admin-web 패턴: `Tabs` 상태 탭 + `lazy DataTable` + 행 클릭 `Drawer` + 짧은 입력 `Dialog` + `useConfirmDialog` | 사업자 목록·상세 | `R:apps/admin-web/app/pages/group-buy-requests.vue:28-37,97,132,178`, `members/index.vue:30-37,139` |
-| i18n 레이어(`@roboyam/i18n`) | 모든 문구 키로 | `R:CLAUDE.md` 구조 |
+| i18n 레이어(`@irobit/i18n`) | 모든 문구 키로 | `R:CLAUDE.md` 구조 |
 
 ### 5-2. 새로 만들 것
 - 표: `business_profiles`·`business_services`·`business_service_rules`·`business_profile_views`(사유·IP) · **`business_verifications`**(국세청 조회 스냅샷) · **`business_documents`**(등록증 파일 참조) · `business_terms_agreements`(또는 users 쪽 동의 기록 재사용).
@@ -135,7 +135,7 @@ stateDiagram-v2
 
 ## 6. 사용자가 정해야 할 질문 (추천안 포함)
 
-1. **사업자 전용 계정(가입 길 ②)을 로보얌에도 두나?** 추천: **1차 보류, 길 ①만**. 로보얌 회원 역할 모델("사업자 회원" 유형)과 맞고, 전용 계정의 글쓰기 제한은 회원 역할 능력으로 같은 효과. 필요해지면 "가입 → 즉시 신청" 흐름으로 추가.
+1. **사업자 전용 계정(가입 길 ②)을 아이로빗에도 두나?** 추천: **1차 보류, 길 ①만**. 아이로빗 회원 역할 모델("사업자 회원" 유형)과 맞고, 전용 계정의 글쓰기 제한은 회원 역할 능력으로 같은 효과. 필요해지면 "가입 → 즉시 신청" 흐름으로 추가.
 2. **등록번호 진위 확인을 어디까지?** 추천: **승인 단계에 국세청 상태조회(휴폐업·과세유형) 필수 표시**, 신청 단계는 체크섬만. 키 없으면 "조회 불가" 배지로 수동 승인 허용(설정으로 강제 가능).
 3. **등록증 사본 첨부는 필수인가?** 추천: **필수**(국세청 조회가 대표자 성명 일치를 100% 주지 않음). 승인·반려 후 90일 뒤 파일 파기.
 4. **대표자 본인인증(포트원)을 신청 조건으로?** 추천: **2차에 선택 설정**. 1인 사업자는 유용하지만 법인 대표가 직접 인증하지 않는 경우가 많다.
@@ -144,7 +144,7 @@ stateDiagram-v2
 7. **승인 후 사업자명·번호 변경 = 재승인**을 유지하나? 추천: **유지 + 사전 확인 창 + 알림**. 대안은 "변경 요청"을 별도 줄로 두고 승인 전까지 기존 값 유지(더 안전하지만 표가 하나 늘어남).
 8. **탈퇴 사업자 보존 범위?** 추천: 사업자명·끝4자리·주문 요약을 **5년**(전자상거래법 제6조 거래기록), 그 외 암호문은 즉시 삭제(지금과 같음). 반려·미인증 방치 신청은 90일 뒤 파기.
 
-## 7. 화면 설계 제안 (PrimeVue 5, 로보얌 패턴 기준)
+## 7. 화면 설계 제안 (PrimeVue 5, 아이로빗 패턴 기준)
 
 ### 7-1. 관리자(admin-web)
 **A. 사업자 목록 `/businesses`** — 진입: 사이드바 묶음 「사업자」 › 「사업자 심사」(권한 `business.read`), 대시보드 "처리할 일" 칸의 숫자 클릭.

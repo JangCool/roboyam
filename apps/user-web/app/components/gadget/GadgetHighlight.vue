@@ -2,18 +2,18 @@
     <!--
         하이라이트 가젯(`HIGHLIGHT`) — 운영자가 고른 글(관리자 하이라이트)을 크게 보이는 영역. 무엇을 보일지는 관리 화면의 하이라이트가 정하고, 가젯은 모양만 정한다.
           · 첫 글 크게(`lead: HERO`, 기본형·다음식): 큰 글(사진 + 큰 제목 + 요약 + 메타 — 칸이 좁으면 사진이 위) → 나머지는 두 열 목록(제목 + 작은 사진).
-          · 첫 글 크게 + 템플릿이 `heroSplit` 을 고름(로보얌): 칸이 40rem 이상이면 큰 글(사진 + 제목 + 한 줄 요약 + 메타) 왼쪽 · 나머지 오른쪽 목록(작은 사진 + 제목·추천 + 메타), 좁으면 위아래.
-            한 열(모바일) + 템플릿 한 열 모양 `mobile.highlightScroll`(로보얌): 모든 글을 옆으로 밀어 넘기는 슬라이드(한 장 88% — 낮은 5:2 사진 + 두 줄 제목 + 메타, 2026-11-05).
+          · 첫 글 크게 + 템플릿이 `heroSplit` 을 고름(아이로빗): 칸이 40rem 이상이면 큰 글(사진 + 제목 + 한 줄 요약 + 메타) 왼쪽 · 나머지 오른쪽 목록(작은 사진 + 제목·추천 + 메타), 좁으면 위아래.
+            한 열(모바일) + 템플릿 한 열 모양 `mobile.highlightScroll`(아이로빗): 모든 글을 옆으로 밀어 넘기는 슬라이드(한 장 88% — 낮은 5:2 사진 + 두 줄 제목 + 메타, 2026-11-05).
           · 첫 글 크게 아님(`lead: NONE`, 네이버형): 사진 왼쪽 + 굵은 제목 + 요약 + 메타가 한 행씩 쌓인다.
         운영자가 적은 노출 제목·요약·대표 이미지가 있으면 그것을 쓴다(없으면 글 제목·요약 없음·글 썸네일). 비었는데 영역 유지가 꺼져 있으면 템플릿이 자리째 뺀다.
         community 와 다른 점: 찬성·반대 의견 슬라이드(`debate`)는 옮기지 않았다(토론은 글 상세에 있다 — `post-debate-contract.md`).
         찬반 토론 글(feed-debate-counts-contract, 사용자 2026-11-10 시안): 사진 안 위쪽 폭 전체 띠(`GadgetDebateBand` — 큰 사진은 이름표 포함 「찬 0 · 반 3 · 중 3」, 작은 사진은 색 숫자만 + 툴팁).
         사진을 그리지 않는 줄은 띠 대신 메타 줄(게시판 이름 다음)에 글자 색으로. 메타 줄 = 게시판 이름 → 추천 → 댓글 → 오른쪽 끝 [아바타 · 닉네임] · 날짜(조회수는 넣지 않는다).
-        로보얌 오른쪽 작은 목록 줄은 추천을 제목 줄 오른쪽 끝으로(제목은 추천 칸 앞에서 두 줄 말줄임 — 사용자 2026-11-10 추가 결정). 작성자는 가젯 설정 「작성자 보이기」(`showAuthor`, 기본 켬)를 따른다.
+        아이로빗 오른쪽 작은 목록 줄은 추천을 제목 줄 오른쪽 끝으로(제목은 추천 칸 앞에서 두 줄 말줄임 — 사용자 2026-11-10 추가 결정). 작성자는 가젯 설정 「작성자 보이기」(`showAuthor`, 기본 켬)를 따른다.
         마우스 올림 효과(설정 `hover`, `main.css`): 목록 줄(오른쪽 작은 목록 · 두 열 목록 · 행)은 옅은 바탕(`gadget-hover`), 큰 글·슬라이드(사진 카드)는 제목 밑줄(`gadget-hover-photo`) — 줄 모양은 그대로.
     -->
     <GadgetFrame :gadget="gadget" :empty="gadget.empty || picks.length === 0" empty-icon="pi pi-star">
-        <!-- 한 열(모바일) + 템플릿 한 열 모양(로보얌) — 모든 글을 옆으로 밀어 넘기는 슬라이드(한 장씩 스냅, 다음 장이 조금 보인다). 사진은 낮게(5:2) 해 화면을 덜 차지한다(2026-11-05 사용자 결정) -->
+        <!-- 한 열(모바일) + 템플릿 한 열 모양(아이로빗) — 모든 글을 옆으로 밀어 넘기는 슬라이드(한 장씩 스냅, 다음 장이 조금 보인다). 사진은 낮게(5:2) 해 화면을 덜 차지한다(2026-11-05 사용자 결정) -->
         <ul v-if="split && cfg.lead === 'HERO' && restScroll" class="gadget-scroll-row pt-1" :style="SLIDE" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" data-testid="home-highlight-slides">
             <li v-for="h in picks" :key="h.id">
                 <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
@@ -28,7 +28,7 @@
             </li>
         </ul>
 
-        <!-- 큰 글 왼쪽 + 나머지 오른쪽 목록(템플릿이 `heroSplit` 을 고를 때 — 로보얌). 칸이 40rem 보다 좁으면 큰 글 위 · 목록 아래 한 열 -->
+        <!-- 큰 글 왼쪽 + 나머지 오른쪽 목록(템플릿이 `heroSplit` 을 고를 때 — 아이로빗). 칸이 40rem 보다 좁으면 큰 글 위 · 목록 아래 한 열 -->
         <div v-else-if="split && cfg.lead === 'HERO' && first" class="grid gap-x-7 pb-1 pt-1 @min-[40rem]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" data-testid="home-highlight-split">
             <FoldedRow :reason="foldOf(first)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                 <NuxtLink :to="`/posts/${first.post.id}`" class="gadget-hover-photo block rounded-lg pb-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary @min-[40rem]:pb-0" data-testid="home-highlight-hero">

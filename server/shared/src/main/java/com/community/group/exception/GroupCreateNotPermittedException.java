@@ -4,7 +4,7 @@ import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.message.MessageRef;
 import org.springframework.http.HttpStatus;
 
-/** 회원 역할에 소모임 개설(group.create) 권한이 없다(403 — 로보얌 추가) — 코드 {@code GROUP_CREATE_NOT_PERMITTED} */
+/** 회원 역할에 소모임 개설(group.create) 권한이 없다(403 — 아이로빗 추가) — 코드 {@code GROUP_CREATE_NOT_PERMITTED} */
 public class GroupCreateNotPermittedException extends CommonException {
 
     public GroupCreateNotPermittedException() {

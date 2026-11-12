@@ -7,7 +7,7 @@ import com.community.cache.entity.QCacheSettingChangeEntity;
 import com.community.cache.entity.QCacheSettingEntity;
 import com.community.cache.entity.CacheGlobalSettingEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 처음 보고할 때는 행이 없고, 보고마다 행을 읽고 고치면 질의가 캐시 수 × 2 가 된다.
  */
 @Repository
-public class CacheStateStore extends RoboyamRepositoryQDSL {
+public class CacheStateStore extends IrobitRepositoryQDSL {
 
     private static final QCacheSettingEntity SETTING = QCacheSettingEntity.cacheSettingEntity;
     private static final QCacheGlobalSettingEntity GLOBAL = QCacheGlobalSettingEntity.cacheGlobalSettingEntity;

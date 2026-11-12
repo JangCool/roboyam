@@ -32,7 +32,7 @@ const sections = VARIANT_IDS.map((v) => {
 
 const html = `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>로보얌콘 갤러리</title>
+<title>아이로빗콘 갤러리</title>
 <style>
 :root { --bg: #f4f6fa; --card: #ffffff; --ink: #0e1f4d; --muted: #6b7489; --line: #dde2ec; }
 body.dark { --bg: #17181c; --card: #1e1f24; --ink: #e8ebf3; --muted: #9aa3b5; --line: #2c2e36; }

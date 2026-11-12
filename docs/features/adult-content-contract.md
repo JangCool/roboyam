@@ -12,7 +12,7 @@
 5. **말머리 「성인 전용」**(`board_prefixes.adult_only`, shared V152): 고유 말머리만, 게시판 `allowAdult` 가 켜진 게시판에서만 켤 수 있다. 그 말머리를 고른 글은 글쓴이가 체크하지 않아도 19금으로 저장된다.
    관리자가 켜고 저장하면 **그 말머리의 기존 글도 19금**이 된다(감사 기록 `after.adultMarkedPosts` = 바꾼 글 수). 끄면 기존 글은 그대로(글쓴이가 따로 고른 19금일 수 있다).
 6. 영상·짤(`video`) 게시판의 「전방·후방」을 성인 전용으로 켠다 — 운영자 값이라 마이그레이션에 넣지 않고 관리자 게시판 편집 화면에서 켠다. 나머지 말머리 글은 누구나 본다.
-7. **19금 글은 성인만 쓴다**(로보얌 판단 — 볼 수 없는 글을 쓰지 않게): 19금을 고르거나 성인 전용 말머리를 고른 글쓰기·고치기가 성인이 아니면 `400 VALIDATION` — 직접 고른 19금이면 `fields.adult`, 말머리 때문이면 `fields.prefixId`(`board.content.adult.identity`). 비회원은 19금 글을 쓸 수 없다.
+7. **19금 글은 성인만 쓴다**(아이로빗 판단 — 볼 수 없는 글을 쓰지 않게): 19금을 고르거나 성인 전용 말머리를 고른 글쓰기·고치기가 성인이 아니면 `400 VALIDATION` — 직접 고른 19금이면 `fields.adult`, 말머리 때문이면 `fields.prefixId`(`board.content.adult.identity`). 비회원은 19금 글을 쓸 수 없다.
 
 ## 화면
 - **user-web 글 보기** `/posts/{id}`: 403 `POST_ADULT_ONLY` 면 본문 대신 「19금 글이에요」 + 사유별 안내 — `LOGIN` [로그인](로그인하면 다시 읽는다) · `IDENTITY` [본인인증하고 보기](`useIdentityGate` 대화상자, 용도 `ADULT_CONTENT` → 통과하면 다시 읽기) · `UNDERAGE` 19세 생일 안내. [돌아가기].

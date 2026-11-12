@@ -22,26 +22,26 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
  * <pre>{@code
  * spring:
  *   datasource:
- *     url: jdbc:postgresql://db:5432/roboyam
- *     username: roboyam
+ *     url: jdbc:postgresql://db:5432/irobit
+ *     username: irobit
  *     password: ENC(v1:q8F...)        # 평문 대신 암호문. 기동하면 복호화되어 Hikari 에 전달된다
  * }</pre>
  *
  * <p>{@code password: ${DB_PASSWORD}} 처럼 환경 변수를 거쳐도 된다 — 값을 풀어 본 결과가 {@code ENC(...)} 이면 복호화한다.
  *
- * <p>복호화 키는 {@code roboyam.crypto.key}(환경 변수 {@code ROBOYAM_CRYPTO_KEY}) 로 받는다. {@code ENC(...)} 값이
+ * <p>복호화 키는 {@code irobit.crypto.key}(환경 변수 {@code IROBIT_CRYPTO_KEY}) 로 받는다. {@code ENC(...)} 값이
  * 하나도 없으면 키를 요구하지 않는다(키 없이 평문으로 뜨는 local 개발을 막지 않는다). 값이 있는데 키가 없거나
  * 복호화에 실패하면 기동을 멈춘다. 오류 메시지에는 프로퍼티 이름만 담고 값은 담지 않는다.
  *
- * <p>환경 변수에서 온 값(예: {@code ROBOYAM_STORAGE_S3_SECRET_KEY=ENC(...)})은 환경 변수 소스({@link SystemEnvironmentPropertySource})로 따로 얹는다.
- * 바인딩은 {@code roboyam.storage.s3.secret-key} 를 환경 변수식 이름으로 바꿔 찾는데, 일반 맵 소스에 두면 그 이름으로 찾지 못해
+ * <p>환경 변수에서 온 값(예: {@code IROBIT_STORAGE_S3_SECRET_KEY=ENC(...)})은 환경 변수 소스({@link SystemEnvironmentPropertySource})로 따로 얹는다.
+ * 바인딩은 {@code irobit.storage.s3.secret-key} 를 환경 변수식 이름으로 바꿔 찾는데, 일반 맵 소스에 두면 그 이름으로 찾지 못해
  * 아래의 원래 환경 변수(암호문)가 그대로 묶인다.
  *
  * <p>설정 파일(config data)이 다 읽힌 뒤에 돌도록 가장 늦은 순서로 둔다.
  */
 public class EncryptedPropertyPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-    static final String KEY_PROPERTY = "roboyam.crypto.key";
+    static final String KEY_PROPERTY = "irobit.crypto.key";
     static final String SOURCE_NAME = "decryptedProperties";
     /** 이름이 「-systemEnvironment」로 끝나야 Spring Boot 가 환경 변수식 이름으로 찾아 준다 */
     static final String ENV_SOURCE_NAME = "decrypted-" + StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME;
@@ -113,12 +113,12 @@ public class EncryptedPropertyPostProcessor implements EnvironmentPostProcessor,
         String key = environment.getProperty(KEY_PROPERTY);
         if (key == null || key.isBlank()) {
             throw new IllegalStateException(
-                    "암호화된 설정값(" + firstProperty + ")이 있지만 복호화 키가 없습니다. 환경 변수 ROBOYAM_CRYPTO_KEY 를 설정하세요.");
+                    "암호화된 설정값(" + firstProperty + ")이 있지만 복호화 키가 없습니다. 환경 변수 IROBIT_CRYPTO_KEY 를 설정하세요.");
         }
         try {
             return new SecretCipher(key);
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("ROBOYAM_CRYPTO_KEY 가 올바르지 않습니다: " + e.getMessage());
+            throw new IllegalStateException("IROBIT_CRYPTO_KEY 가 올바르지 않습니다: " + e.getMessage());
         }
     }
 

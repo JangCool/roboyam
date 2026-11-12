@@ -10,7 +10,7 @@
 ## 2. 주요 업무 및 규약
 * **위치**: 매퍼는 `<업무>/mapper/` 에 둔다. 공통 인터페이스와 설정은 `com.community.zconfiguration.mapper` 에 있다.
 * **공통 계약**: `EntityMapper<D, E>`(`toDto`, `toDtoList`)를 상속한다. 매퍼 인터페이스는 `@Mapper` 를 붙이고 본문 없이 상속만 하며, 이름이 다른 필드만 `toDto` 를 `@Override` 해 `@Mapping` 을 단다.
-* **전역 설정**: 빌드 규약(`roboyam.mapstruct-conventions`)이 `componentModel=spring`, `unmappedTargetPolicy=ERROR` 를 건다. 매퍼에는 `@Mapper` 만 붙이고 누락 필드는 컴파일 오류로 잡는다. 의도적으로 비우는 필드만 `@Mapping(target = "...", ignore = true)` 로 밝힌다.
+* **전역 설정**: 빌드 규약(`irobit.mapstruct-conventions`)이 `componentModel=spring`, `unmappedTargetPolicy=ERROR` 를 건다. 매퍼에는 `@Mapper` 만 붙이고 누락 필드는 컴파일 오류로 잡는다. 의도적으로 비우는 필드만 `@Mapping(target = "...", ignore = true)` 로 밝힌다.
 * **커스터마이징**: 이름이 다르면 `@Mapping(source, target)`, 반복되는 변환은 `@Named` 메서드. 복잡한 조립은 매퍼가 아니라 Service 에서 한다.
 
 ---

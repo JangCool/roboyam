@@ -1,10 +1,10 @@
 package com.community.report.repository.master;
 
 import com.community.report.entity.ReportEventEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 
-public interface ReportEventRepository extends RoboyamRepository<ReportEventEntity, Long> {
+public interface ReportEventRepository extends IrobitRepository<ReportEventEntity, Long> {
 
     /** 한 사건의 기록 — 오래된 것부터(색인 ix_report_events_case) */
     List<ReportEventEntity> findByCaseIdOrderByIdAsc(Long caseId);

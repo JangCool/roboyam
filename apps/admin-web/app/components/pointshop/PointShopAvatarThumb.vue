@@ -1,7 +1,7 @@
 <template>
     <!--
         아바타 그림 동그라미 — 아바타 탭 격자 · 구매 내역 줄 · 편집 서랍 미리보기가 같은 모양으로 쓴다(결정 14).
-        그림은 배포 자산 `/avatars/roboyam/<id>.svg` 를 **`<img>` 로만** 그린다(`v-html`·인라인 SVG 금지). 284종이 가로로 조금 넓어 틀 안에서 `object-fit: contain`.
+        그림은 배포 자산 `/avatars/irobit/<id>.svg` 를 **`<img>` 로만** 그린다(`v-html`·인라인 SVG 금지). 284종이 가로로 조금 넓어 틀 안에서 `object-fit: contain`.
         못 읽으면(없는 ID) 기본 아바타 `basic-default` 로 바꿔 그린다(공개 화면의 대체 이미지와 같다). 이름(`alt`)이 비면 장식으로 숨긴다.
         동그라미 면은 `light-dark()` 라 감싼 상자의 `color-scheme` 을 따른다.
     -->

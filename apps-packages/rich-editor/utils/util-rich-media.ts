@@ -1,7 +1,7 @@
 /**
  * 에디터의 이미지·유튜브 규칙 — community `frontend/app/utils/util-media.ts` 에서 옮겼다.
  * 서버가 거절할 것을 화면이 **보내기 전에** 미리 알려 주는 용도이고, 판정은 늘 서버가 한다(서버 문구를 그대로 보인다).
- * 로보얌 서버의 용량·장수 한도는 화면이 모른다(서버 설정값) — 그래서 미리 보는 것은 **형식**(JPG·PNG·GIF·WebP)과 빈 파일뿐이고, 크기·한도·속도는 서버 문구로 알린다.
+ * 아이로빗 서버의 용량·장수 한도는 화면이 모른다(서버 설정값) — 그래서 미리 보는 것은 **형식**(JPG·PNG·GIF·WebP)과 빈 파일뿐이고, 크기·한도·속도는 서버 문구로 알린다.
  * 레이어의 순수 코어 — `vue`·Nuxt 자동 임포트를 쓰지 않는다.
  */
 
@@ -142,7 +142,7 @@ export default class UtilRichMedia {
 
     /**
      * 붙여 넣은 유튜브 주소에서 영상 ID 를 꺼낸다 — `youtu.be/ID` · `youtube.com/watch?v=ID` · `/shorts/ID` · `/embed/ID` · `/live/ID` · `youtube-nocookie.com/embed/ID`, 또는 ID 그대로.
-     * 로보얌은 서버의 주소 확인 API 가 없어 화면이 읽는다(community 는 서버 `POST /api/media/youtube` 가 확인했다). 글에 실리는 것은 ID 뿐이고 서버가 저장 때 형식을 다시 본다.
+     * 아이로빗은 서버의 주소 확인 API 가 없어 화면이 읽는다(community 는 서버 `POST /api/media/youtube` 가 확인했다). 글에 실리는 것은 ID 뿐이고 서버가 저장 때 형식을 다시 본다.
      * @param {string} raw - 입력한 주소.
      * @returns {string | null} 영상 ID. 읽을 수 없으면 null.
      */

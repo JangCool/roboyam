@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class SiteAffiliateLinkerTest {
 
     private static final SiteStore COUPANG = new SiteStore(1, "coupang.com", "쿠팡 파트너스", "TEMPLATE", "https://link.example/c?u={url}&x={url}", null, true);
-    private static final SiteStore ELEVEN = new SiteStore(2, "11st.co.kr", "11번가 제휴", "QUERY", null, "aff=roboyam&src=r", true);
+    private static final SiteStore ELEVEN = new SiteStore(2, "11st.co.kr", "11번가 제휴", "QUERY", null, "aff=irobit&src=r", true);
     private static final SiteStore ELEVEN_M = new SiteStore(3, "m.11st.co.kr", "11번가 모바일", "QUERY", null, "aff=mobile", true);
     private static final SiteStore OFF = new SiteStore(4, "gmarket.co.kr", "G마켓", "QUERY", null, "aff=g", false);
 
@@ -42,7 +42,7 @@ class SiteAffiliateLinkerTest {
 
     @Test
     void QUERY_는_붙이되_같은_이름은_바꾸고_조각은_끝에() {
-        assertThat(SiteAffiliateLinker.transform(ELEVEN, "https://11st.co.kr/p?prdNo=1&aff=me#a")).isEqualTo("https://11st.co.kr/p?prdNo=1&aff=roboyam&src=r#a");
-        assertThat(SiteAffiliateLinker.transform(ELEVEN, "https://11st.co.kr/p")).isEqualTo("https://11st.co.kr/p?aff=roboyam&src=r");
+        assertThat(SiteAffiliateLinker.transform(ELEVEN, "https://11st.co.kr/p?prdNo=1&aff=me#a")).isEqualTo("https://11st.co.kr/p?prdNo=1&aff=irobit&src=r#a");
+        assertThat(SiteAffiliateLinker.transform(ELEVEN, "https://11st.co.kr/p")).isEqualTo("https://11st.co.kr/p?aff=irobit&src=r");
     }
 }

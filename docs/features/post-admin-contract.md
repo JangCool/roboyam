@@ -1,6 +1,6 @@
 # 게시글 관리 계약 (관리자)
 
-운영자가 모든 게시판의 글을 찾아 숨기기·숨김 해제·삭제·복구·이동·공지 지정·고정을 하고, 조치 기록과 글의 찬반 토론을 한 화면에서 본다. community `docs/api-content.md` 게시글 관리 절·`admin/app/pages/posts`를 로보얌 글 상태 모델·권한·UI(admin-web PrimeVue)에 맞춰 옮긴 것이다.
+운영자가 모든 게시판의 글을 찾아 숨기기·숨김 해제·삭제·복구·이동·공지 지정·고정을 하고, 조치 기록과 글의 찬반 토론을 한 화면에서 본다. community `docs/api-content.md` 게시글 관리 절·`admin/app/pages/posts`를 아이로빗 글 상태 모델·권한·UI(admin-web PrimeVue)에 맞춰 옮긴 것이다.
 
 ## 결정 (2026-10-24, 사용자)
 - **운영자가 숨긴 글의 공개 표시 = 댓글과 같은 게시판 옵션** `staffHiddenNotice`(V77): 켜면 목록에 「운영자가 숨긴 글이에요」 자리, 끄면 「신고로 숨겨진 글이에요」(지금 신고 숨김과 같은 모양). 글을 직접 열면 지금처럼 `403 POST_HIDDEN`.
@@ -8,10 +8,10 @@
 - **복구 권한 = 새 민감 권한 `post.restore`**. 일괄 삭제는 이미 있는 민감 권한 `post.bulk-delete`.
 
 ## community 와 다른 점
-- 뺌: 소모임(비공개 소모임 탭·`restricted`·`POST_GROUP_MANAGED` — 로보얌에 소모임 기능이 아직 없다, 생기면 다시 붙인다), 출하(`UNSHIPPED`·`RESHIPPED`), 예약 발행, `TAKEN_DOWN`, 글 유형·설문(`kindInfo`·`poll`), 지킴이 복구 예외, 담당 게시판 범위(`BOARD_SCOPE_FORBIDDEN`).
+- 뺌: 소모임(비공개 소모임 탭·`restricted`·`POST_GROUP_MANAGED` — 아이로빗에 소모임 기능이 아직 없다, 생기면 다시 붙인다), 출하(`UNSHIPPED`·`RESHIPPED`), 예약 발행, `TAKEN_DOWN`, 글 유형·설문(`kindInfo`·`poll`), 지킴이 복구 예외, 담당 게시판 범위(`BOARD_SCOPE_FORBIDDEN`).
 - 권한: 메뉴 키 `POSTS` 대신 `post.read`(조회·조치 기록·토론 보기) · `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·의견 관리) · `post.restore`(복구) · `post.bulk-delete`(일괄 삭제). 네 개 모두 `featureReady true`.
 - 고정 한도: community 의 2개 대신 게시판 정책 `pinnedMax`(0이면 고정 불가 → `409 PIN_LIMIT`).
-- 상태: 로보얌 글 칸(`hiddenAt/hiddenReason/hiddenUntil` · `deleteScheduledAt` · `deletedAt` · `purgedAt` · `adult` · 비회원 글) 기준. 원문을 파기한(`purgedAt`) 글은 복구 불가(`409 POST_PURGED`).
+- 상태: 아이로빗 글 칸(`hiddenAt/hiddenReason/hiddenUntil` · `deleteScheduledAt` · `deletedAt` · `purgedAt` · `adult` · 비회원 글) 기준. 원문을 파기한(`purgedAt`) 글은 복구 불가(`409 POST_PURGED`).
 
 ## DB (shared `V80__post_moderation.sql` — V81 = 게시글 투표, V82 = 신고 관리, 월요일 커머스 shared 는 **V83부터**)
 - `posts.hidden_reason` CHECK 에 `STAFF` 추가(파티션 부모에서 DROP 뒤 다시).
@@ -56,7 +56,7 @@
 - **목록**: `page` 는 **0부터**(감사 로그·포인트·회원과 같다 — 화면 주소 1쪽 → API 0), 응답 `page` 도 0부터. `board`·`prefix` 의 깨진 ID → 빈 결과(건수 0), `prefix` 는 `board` 가 있을 때만 본다. 검색(2026-10-24 변경): `searchField` 한 칸만 — ID 는 자릿수와 무관(0·19자리 넘침은 빈 결과), 제목은 `lower(title)` trgm 색인, 작성자는 프로필 닉네임 하위 질의 + 비회원(`author_id IS NULL`) 이름. 작성 기간은 `created_at` 조건 + id 범위(Snowflake, ±1시간 여유)를 함께 걸어 월 조각 가지치기·id 색인을 탄다. 400 은 칸 오류를 모아 `VALIDATION` 한 번(문구 `post.admin.query.*`), 그 뒤 기간 뒤집힘.
 - **AdminPostItem**: `hiddenReason`·`hiddenAt`·`hiddenUntil` 은 지금 숨김 중일 때만(지운 글이라도 숨긴 채면 값이 있다). `deletedAt` 은 예약 삭제 시각이 지나 아직 확정 전이면 예약 시각. `author.name` 은 회원이면 지금 닉네임(프로필이 없으면 빈 글자), `withdrawn` = 탈퇴·삭제·프로필 없음. `openReports` = 글 신고(댓글 신고 제외) 중 `PENDING`.
 - **상세**: 계약 + **`publicUrl: string|null`**(사이트 설정 공개 주소 + `/posts/{id}`, 공개 주소가 없으면 null). `events[].detail` 은 JSON 객체 — 숨김 `notifyAuthor`, 해제 `hiddenReason`(풀기 전), 삭제 `revokedPoints`, 복구 `restoredPoints`, 이동 `fromBoardId·fromPrefixId·toBoardId·toPrefixId`, 공지 `fromPrefixId·toPrefixId`, 신고 숨김 `hiddenReason·hiddenUntil`, 고정이 풀렸으면 `unpinned true`, 일괄이면 `bulk true`. `actor.name` 은 운영자 지금 이름(SYSTEM·지운 운영자 null).
-- **오류**: 사유 비었음·200자 초과 `400 fields.reason`(앞뒤 공백을 뗀 글자 수, 사유는 공백을 떼고 저장) — 사유 검사가 404 보다 먼저다. 이동: `boardId` 없음·꺼진/없는 게시판 `400 fields.boardId`, 켜진 말머리가 아님 `400 fields.prefixId`, 같은 자리 `400 fields.prefixId`(검사 차례: 사유 → 게시판 → 말머리 → 404 → 409 → 같은 자리). `prefixId: null`(말머리 없음)은 늘 받는다 — **로보얌에는 「말머리 필수」 게시판 정책이 없다**. 공지 지정에 켜진 공통 「공지」 말머리가 없으면 `400 fields.prefixId`. 복구는 지운 글이 아니면 409 `POST_STATE_INVALID` → 파기 409 `POST_PURGED` → 임시저장 409 `POST_STATE_INVALID`. `PIN_LIMIT` 메시지는 한도 숫자를 싣는다.
+- **오류**: 사유 비었음·200자 초과 `400 fields.reason`(앞뒤 공백을 뗀 글자 수, 사유는 공백을 떼고 저장) — 사유 검사가 404 보다 먼저다. 이동: `boardId` 없음·꺼진/없는 게시판 `400 fields.boardId`, 켜진 말머리가 아님 `400 fields.prefixId`, 같은 자리 `400 fields.prefixId`(검사 차례: 사유 → 게시판 → 말머리 → 404 → 409 → 같은 자리). `prefixId: null`(말머리 없음)은 늘 받는다 — **아이로빗에는 「말머리 필수」 게시판 정책이 없다**. 공지 지정에 켜진 공통 「공지」 말머리가 없으면 `400 fields.prefixId`. 복구는 지운 글이 아니면 409 `POST_STATE_INVALID` → 파기 409 `POST_PURGED` → 임시저장 409 `POST_STATE_INVALID`. `PIN_LIMIT` 메시지는 한도 숫자를 싣는다.
 - **상태 규칙**: 숨김 해제·공지·고정은 지운 글에 409. 고정 해제는 고정만 돼 있으면 상태와 무관. 고정 한도는 그 게시판의 보이는(지우지 않은) 고정 글 수로 센다(숨긴 고정 글도 센다 — 운영자 숨김은 고정을 푸므로 신고 숨김만 해당).
 - **일괄**: 검사(`fields.action` → `fields.ids`(같은 ID 는 한 번, 1~50) → `fields.reason`)를 모아 한 번에 400, 그 뒤 DELETE 는 `post.bulk-delete`(없으면 403 `PERMISSION_DENIED` + 거부 감사). `failed[].code` 는 `POST_NOT_FOUND`·`POST_STATE_INVALID`(예상 밖 오류는 `INTERNAL`). 감사 `POST_BULK` 대상 `POST`/`bulk`, 덧붙임 `action·reason·done·failed(ID)·notifyAuthor`.
 - **알림·포인트**: 운영자 숨김 + 「작성자에게 알림」 → `POST_HIDDEN`(덧붙임 `by STAFF`·`reason`, 기본 문구 「운영자가 내 글을 숨겼어요」 / 본문 「제목 · 사유: …」, 문구 조건 `hideReason=STAFF`, 변수 `reason` 추가). 운영자 삭제 → `POST_REMOVED`(제목 「운영자가 내 글을 지웠어요: {제목}」, 본문 = 사유, 링크 없음, 덧붙임 `snapshot·reason·revokedPoints`) — 회원 이벤트 `POST_REMOVED`(SAFETY, 처리 알림 잠금). 따로 `POINTS_REVOKED` 알림은 내지 않는다. 복구 되돌림은 탈퇴·삭제 회원 제외(정지 회원은 받는다), 알림 없음.

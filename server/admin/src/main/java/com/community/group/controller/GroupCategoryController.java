@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 소모임 분류 API (docs/features/group-contract.md, admin-web {@code useGroupCategoryApi.ts} 머리말). 조회 {@code group.read}, 만들기·저장·순서·삭제 {@code group.settings}
- * (community 는 최고 관리자 전용 {@code ADMIN_ONLY} — 로보얌은 권한 코드로 위임한다. 없으면 403 {@code PERMISSION_DENIED}).
+ * (community 는 최고 관리자 전용 {@code ADMIN_ONLY} — 아이로빗은 권한 코드로 위임한다. 없으면 403 {@code PERMISSION_DENIED}).
  */
 @RestController
 @RequestMapping("/api/admin/group-categories")

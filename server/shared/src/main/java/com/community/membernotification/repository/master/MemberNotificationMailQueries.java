@@ -5,7 +5,7 @@ import com.community.user.entity.QMemberDisplayPreferenceEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
  * 이메일 주소는 돌려주기만 하고 로그에 남기지 않는다({@link Recipient#toString()} 도 감춘다).
  */
 @Repository
-public class MemberNotificationMailQueries extends RoboyamRepositoryQDSL {
+public class MemberNotificationMailQueries extends IrobitRepositoryQDSL {
 
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

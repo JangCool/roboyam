@@ -1,22 +1,22 @@
 # 인기글 설정·인기글 관리·하이라이트(토론 포함) 계약 (결정 2026-10-24 — 구현 전)
 
-**의도**: 인기글 순위 규칙을 운영자가 화면에서 정하고(지금은 서버 상수), 순위에 오른 부적절한 글을 빼고 다시 넣고, 운영자가 고른 글을 하이라이트로 지정해 그 글에 찬성·반대 의견(토론)을 받는다. community 의 같은 기능을 로보얌 구조·권한·배치 방식에 맞춰 옮긴다.
-**정책 원본(읽기 전용)**: community `D:\community\docs\api-popular.md`(8·9절 관리자, 2·3절 규칙), `api-content.md` 1절(하이라이트)·1-2절(인기글 관리), `api-debate.md`(토론 전부). 로보얌의 현재 인기글 구현은 `member-activity-contract.md` 「서버 구현 결과」(DB 배치 `popular-rank`, `R__batch_24_popular_rank.sql`, 표 `post_rank_snapshots`).
+**의도**: 인기글 순위 규칙을 운영자가 화면에서 정하고(지금은 서버 상수), 순위에 오른 부적절한 글을 빼고 다시 넣고, 운영자가 고른 글을 하이라이트로 지정해 그 글에 찬성·반대 의견(토론)을 받는다. community 의 같은 기능을 아이로빗 구조·권한·배치 방식에 맞춰 옮긴다.
+**정책 원본(읽기 전용)**: community `D:\community\docs\api-popular.md`(8·9절 관리자, 2·3절 규칙), `api-content.md` 1절(하이라이트)·1-2절(인기글 관리), `api-debate.md`(토론 전부). 아이로빗의 현재 인기글 구현은 `member-activity-contract.md` 「서버 구현 결과」(DB 배치 `popular-rank`, `R__batch_24_popular_rank.sql`, 표 `post_rank_snapshots`).
 
 ## 결정 (2026-10-24, 사용자)
 
 > **토론은 게시글 기능으로 옮김**(2026-10-24 사용자, 정본 = `post-debate-contract.md`): 토론과 그 설정(중립 받기·입장 바꾸기 허용)은 하이라이트가 아니라 **글**(`post_debates`)에 붙는다. 이 문서의 「하이라이트의 debate·neutralEnabled·stanceChangeAllowed」·「노출 중인 하이라이트에서만 토론」·`/api/admin/highlights/{id}/opinions·pin-requests` 는 그 계약이 대신한다. 토론 안의 규칙(투표·의견·소급·고정·고정 요청·비추천)은 이 문서 그대로.
 - **인기글 설정·인기글 관리·하이라이트 셋 다 만든다**(앞서 「서버 상수로 둔다」던 `member-activity-contract.md` 결정을 바꾼다).
-- **하이라이트는 관리자 화면·서버만 먼저**: 로보얌 홈(`/`)이 아직 자리표시라 공개 홈 표시는 하지 않는다. 홈은 나중에 **테마 형식을 접목해** 구성하고, 그때 하이라이트 표시를 붙인다.
+- **하이라이트는 관리자 화면·서버만 먼저**: 아이로빗 홈(`/`)이 아직 자리표시라 공개 홈 표시는 하지 않는다. 홈은 나중에 **테마 형식을 접목해** 구성하고, 그때 하이라이트 표시를 붙인다.
 - **토론(찬성·반대 의견 받기)도 함께 가져온다** — 관리자 의견 관리와 공개 사이트의 글 상세·댓글 쪽 토론(입장 탭·배지·입장 바꾸기·글자 수 한도)까지. 공개 홈 하이라이트 가젯의 토론 요약(`api-debate.md` 6절)은 홈과 함께 뒤로 미룬다.
 
-## 로보얌에 맞춰 바꾸는 점 (구현 세션 기준 — 구현하며 확정해 이 문서에 적는다)
+## 아이로빗에 맞춰 바꾸는 점 (구현 세션 기준 — 구현하며 확정해 이 문서에 적는다)
 - **설정 항목**: community `home-settings` 13개 중 홈 개수(`popularCount`·`latestCount`)는 홈이 없어 뺀다 → 가중치(추천·댓글·조회)·시간 감쇠(`gravity`·`ageOffsetHours`)·최소 추천/댓글/조회·운영진 전용 게시판 제외·한 사람 최대 글 수·이번 주 시작 요일. 기본값은 지금 서버 상수와 같게(3·2·0.1·1.5·2·3·0·0·켬·2·월요일).
 - **순위 계산은 지금처럼 DB 배치(`popular-rank`, pg_cron)**: 상수 대신 설정 표를 읽는다. 저장·빼기·다시 넣기 뒤에는 바로 다시 계산한다(배치 「지금 실행」 요청 표 — `batch-contract.md`). community 의 30초 Java 스케줄러는 옮기지 않는다.
 - **빼기(제외)**: 세 기간 탭·채우기·게시판 「가젯 노출 금지」와 별개로 그 글만 순위에서 뺀다. 글 자체(게시판·검색·최신)는 그대로.
-- **권한**: 운영자 권한 유형 「콘텐츠 > 공지·주요글」(`docs/domain/operator-permissions.md` 66행 — 처리 「하이라이트, 인기글 노출·제외」, 설정 「인기글 점수식」)에 새 권한 코드를 둔다. 후보: `highlight.read`·`highlight.manage`·`popular.read`·`popular.manage`(빼기·다시 넣기)·`popular.settings`(점수식). community 의 「최고 관리자만」은 로보얌 권한 모델(역할·권한 코드, 루트는 모두)로 바꾼다.
-- **하이라이트 칸**: community 의 제목·요약·대표 이미지·노출·순서·토론 켜기를 따르되 로보얌 미디어 저장소·서식 규칙에 맞춘다. 소모임·출하 완료글 같은 로보얌에 없는 개념은 뺀다.
-- **알림·감사**: community 운영 로그 코드는 로보얌 감사(`AuditActions`)로 옮긴다.
+- **권한**: 운영자 권한 유형 「콘텐츠 > 공지·주요글」(`docs/domain/operator-permissions.md` 66행 — 처리 「하이라이트, 인기글 노출·제외」, 설정 「인기글 점수식」)에 새 권한 코드를 둔다. 후보: `highlight.read`·`highlight.manage`·`popular.read`·`popular.manage`(빼기·다시 넣기)·`popular.settings`(점수식). community 의 「최고 관리자만」은 아이로빗 권한 모델(역할·권한 코드, 루트는 모두)로 바꾼다.
+- **하이라이트 칸**: community 의 제목·요약·대표 이미지·노출·순서·토론 켜기를 따르되 아이로빗 미디어 저장소·서식 규칙에 맞춘다. 소모임·출하 완료글 같은 아이로빗에 없는 개념은 뺀다.
+- **알림·감사**: community 운영 로그 코드는 아이로빗 감사(`AuditActions`)로 옮긴다.
 
 - **운영자가 숨긴 의견의 공개 표시는 게시판 옵션**(2026-10-24 사용자): 게시판 정책 칸 하나(게시판별, 비우면 기본 설정을 따름 — 기존 정책 칸과 같은 구조)로 「운영자가 숨긴 댓글임을 공개 화면에 밝힐지」를 정한다. **켜면** 그 댓글 자리에 「운영자가 숨긴 댓글이에요」, **끄면(기본)** 지금처럼 「신고로 숨겨진 댓글이에요」. 끈 게시판에서는 서버가 숨긴 까닭을 내려 주지 않는다(신고 숨김과 구별되지 않게).
 
@@ -131,7 +131,7 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - **고정 요청(운영자 처리, V78)** — 목록 읽기는 `highlight.read`, 승인·거절은 `highlight.manage`(2026-10-24 — 읽기를 `highlight.read` 로 열었다):
   - `GET /{id}/pin-requests`(`highlight.read`) → `{ highlightId, postId, items: [PinRequest] }` — 대기 중(오래된 것부터, 지우거나 숨긴 의견의 요청 제외). `PinRequest { id, commentId, status(PENDING|APPROVED|REJECTED), opinion: Opinion|null, requesterId, rejectReason|null, createdAt, decidedAt|null }`.
   - `POST /{id}/pin-requests/{requestId}/approve` · `POST …/reject` `{ reason? }`(0~100자) → 200 `PinRequest`(처리 뒤). 오류: `404 HIGHLIGHT_NOT_FOUND` · `404 PIN_REQUEST_NOT_FOUND`(그 하이라이트 글의 요청이 아님·형식 오류) · `409 PIN_REQUEST_DECIDED` · `409 OPINION_UNAVAILABLE`(승인할 의견이 지워졌거나 숨김) · `400 fields.reason`. 감사 `HIGHLIGHT_PIN_REQUEST_APPROVE|REJECT`(대상 `COMMENT`, highlightId·postId·requestId·requesterId·reason). 게시판 정책에 OPERATOR 가 없어도 운영자는 처리할 수 있다(직접 고정과 같은 권한).
-- community 와 다른 점: 숨김이 따로 칸(`hidden_at`)이 아니라 신고 숨김 칸 + 까닭 STAFF(그래서 답글이 없어도 공개 목록에서 빠지지 않고 HIDDEN 자리가 남는다 — 로보얌 신고 숨김과 같은 모습), `authorNickname` → `authorKind/authorId/authorName`, `hiddenReason`·`open`·`size` 추가.
+- community 와 다른 점: 숨김이 따로 칸(`hidden_at`)이 아니라 신고 숨김 칸 + 까닭 STAFF(그래서 답글이 없어도 공개 목록에서 빠지지 않고 HIDDEN 자리가 남는다 — 아이로빗 신고 숨김과 같은 모습), `authorNickname` → `authorKind/authorId/authorName`, `hiddenReason`·`open`·`size` 추가.
 
 ### 공개 사이트 토론 (server/api — V78 갱신, 기존 댓글·차단 동작은 그대로)
 - 토론이 열려 있다 = 그 글의 하이라이트가 노출 켬 + 기간 안 + `debate` 켬. 요청마다 DB 를 바로 읽는다(사본 없음). 입장 = `PRO`·`CON`·`NEUTRAL`.
@@ -250,7 +250,7 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - 문구: user-web `comment.*`(ko·en — `stance`·`stanceTo`(「찬성으로」)·`debate*`·`vote*`·`changeStance*`(`{from}`·`{to}` 자리 채우기)·`opinion*`·`pin*`·`likeDefault`·`dislikeDefault`). 없어진 키: `kind.ALL|GENERAL`·`stancePick*`·`stanceGeneral`·`likeLabel`.
 
 ### 화면 구현 세션 결정 · 서버와 맞춘 점
-- **@ 지정의 `@닉네임` 은 본문에 붙이지 않는다** — 로보얌 `CommentItem` 이 `replyTo` 로 `@이름` 을 이미 그려 둘이 겹친다(서버는 `replyToId` 가 원댓글이어도 `replyTo` 를 채운다). 계약의 「`@닉네임` 은 화면이 본문 앞에」를 이렇게 바꾼다.
+- **@ 지정의 `@닉네임` 은 본문에 붙이지 않는다** — 아이로빗 `CommentItem` 이 `replyTo` 로 `@이름` 을 이미 그려 둘이 겹친다(서버는 `replyToId` 가 원댓글이어도 `replyTo` 를 채운다). 계약의 「`@닉네임` 은 화면이 본문 앞에」를 이렇게 바꾼다.
 - 하이라이트·인기글 화면의 「글 링크」는 글 번호 복사로 대신한다 — admin-web 은 공개 사이트 주소를 모른다(`me` 응답·설정에 없음).
 - 후보의 게시판 고르개는 게시판 목록 API(`board.read`)를 빌려 쓴다 — `highlight.read` 만 가진 운영자는 게시판으로 거를 수 없다(전체 게시판으로 찾는다).
 - 대표 이미지 화면 검사는 로고 검사(`UtilSiteSetting.logoFile` — 형식·2MB)를 그대로 쓴다. 한 변 4000px·GIF 첫 장면은 서버 판정.

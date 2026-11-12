@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>설정을 바꾸면 감사 기록({@code BATCH_TOGGLE} · {@code BATCH_SCHEDULE_CHANGE})을 남긴다. Java 배치는 커밋 뒤 이 서버의 예약을 곧바로 맞추고(다른 서버는 주기적으로 따라온다),
  *       DB 배치는 {@code cron.alter_job} 으로 pg_cron 에 바로 반영한다(DB 가 실행 주체라 서버를 몇 대 띄웠든 한 곳의 설정이다).</li>
- *   <li>지금 실행·「실패 지점부터 다시」·「실패 건만 다시」는 <b>요청 표에 줄만 넣고</b> 바로 돌아온다(202 — 결정 7). 배치를 켠 서버({@code roboyam.batch.enabled})가 집어 실행한다.
+ *   <li>지금 실행·「실패 지점부터 다시」·「실패 건만 다시」는 <b>요청 표에 줄만 넣고</b> 바로 돌아온다(202 — 결정 7). 배치를 켠 서버({@code irobit.batch.enabled})가 집어 실행한다.
  *       꺼져 있어도 돈다. 같은 배치가 실행 중이거나 끝나지 않은 요청이 있으면 409 {@code BATCH_RUNNING}(끝나지 않은 요청은 부분 유일 색인으로도 막는다). 파라미터·단계는 넣을 때
  *       검사한다(400 {@code fields.params.<이름>}·{@code fields.steps}). 요청을 넣으면 감사 기록({@code BATCH_RUN} — 종류·요청 번호)을 남긴다.</li>
  *   <li>DB 배치를 쓸 수 없으면(pg_cron 없음·미등록) 켜기/끄기·cron·지금 실행은 409 {@code BATCH_UNAVAILABLE}. DB 배치는 다시 실행이 없다(409 {@code BATCH_NOT_RESUMABLE}·{@code BATCH_NO_FAILURES}).</li>

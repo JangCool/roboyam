@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 import javax.imageio.ImageIO;
 
 /**
- * 시험용 그림 바이트 — 손으로 짠 GIF(논리 화면 크기 · 프레임 수 · 무한 반복 · 주석 덧붙임으로 지문·용량 조절)와 ImageIO 로 만든 PNG, 그리고 두 앱 public 의 로보얌콘 파일.
+ * 시험용 그림 바이트 — 손으로 짠 GIF(논리 화면 크기 · 프레임 수 · 무한 반복 · 주석 덧붙임으로 지문·용량 조절)와 ImageIO 로 만든 PNG, 그리고 두 앱 public 의 아이로빗콘 파일.
  * GIF 프레임은 1×1 그림(잘 알려진 최소 LZW 데이터 {@code 02 02 44 01 00})이라 ImageIO 가 실제로 디코딩한다.
  */
 final class TestImages {
@@ -155,7 +155,7 @@ final class TestImages {
         return png(200, 200, rgb, 0);
     }
 
-    /** 두 앱 public 의 로보얌콘 파일({@code robotikon-m/01.gif} 등) */
+    /** 두 앱 public 의 아이로빗콘 파일({@code robotikon-m/01.gif} 등) */
     static byte[] robotikon(String file) {
         try {
             return Files.readAllBytes(REPO.resolve("apps/user-web/public/emoticons").resolve(file));

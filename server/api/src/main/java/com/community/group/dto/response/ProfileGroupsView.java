@@ -13,7 +13,7 @@ public record ProfileGroupsView(List<Row> items) {
     /**
      * 한 줄 — 소모임 목록 줄({@link GroupRowView}) 칸을 펼친 것 + <b>프로필 주인의</b> 역할·가입 시각. {@code myState} 는 <b>보는 사람</b>의 상태다.
      *
-     * @param role     프로필 주인의 역할 LEADER · MANAGER · MEMBER(원본은 LEADER · MEMBER — 로보얌은 매니저를 가른다, 화면은 LEADER 만 「모임장」으로 표시)
+     * @param role     프로필 주인의 역할 LEADER · MANAGER · MEMBER(원본은 LEADER · MEMBER — 아이로빗은 매니저를 가른다, 화면은 LEADER 만 「모임장」으로 표시)
      * @param joinedAt 프로필 주인이 가입한 시각(모임장은 개설 시각)
      */
     public record Row(@JsonUnwrapped GroupRowView group, String role, Instant joinedAt) {

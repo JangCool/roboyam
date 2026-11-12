@@ -13,7 +13,7 @@ import com.community.business.entity.QBusinessProfileEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -40,7 +40,7 @@ import org.springframework.stereotype.Repository;
  * {@link #lock}·{@link #lockProfile} 의 {@code FOR UPDATE}(사유는 메서드 주석).
  */
 @Repository
-public class AdAdvertiserStore extends RoboyamRepositoryQDSL {
+public class AdAdvertiserStore extends IrobitRepositoryQDSL {
 
     private static final QAdAdvertiserEntity A = QAdAdvertiserEntity.adAdvertiserEntity;
     private static final QAdAdvertiserViewEntity V = QAdAdvertiserViewEntity.adAdvertiserViewEntity;

@@ -183,7 +183,7 @@ class AvatarUploadFlowTest extends PointShopTestBase {
             return null;
         });
         assertThat(kit.profileImage(other)).as("마지막 정지 아바타가 지운 그림이면 기본").isEqualTo("avatar:basic-default");
-        assertThat(kit.decorations.look(other).avatarUrl()).isEqualTo("/avatars/roboyam/basic-default.svg");
+        assertThat(kit.decorations.look(other).avatarUrl()).isEqualTo("/avatars/irobit/basic-default.svg");
     }
 
     @Test

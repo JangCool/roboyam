@@ -2,7 +2,7 @@ package com.community.group.repository.master;
 
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupStatus;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
@@ -11,7 +11,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 소모임 — 복합 조건·집계는 {@link GroupRepositoryQDSL} */
-public interface GroupRepository extends RoboyamRepository<GroupEntity, Long> {
+public interface GroupRepository extends IrobitRepository<GroupEntity, Long> {
 
     /** 정원·멤버 수·상태를 바꾸기 전에 행을 잠근다(트랜잭션 안에서만) */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

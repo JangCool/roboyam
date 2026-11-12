@@ -19,7 +19,7 @@ import UtilMember from '~/utils/util-member';
 
 /**
  * 게시글 관리 화면(`/posts`)의 순수 로직 — 주소 쿼리 ↔ 필터 · 검색어 검사(대상별) · 작성일 기간 · 사유 검사 · 글마다 가능한 조치 · 일괄 대상 · 이동 검사 · 상태·기록 색.
- * 계약 `docs/features/post-admin-contract.md` 와 같은 규칙이다(community `util-admin-post.ts` 를 로보얌 상태·권한에 맞게 옮김). 서버가 거절할 것을 미리 알려 주는 용도이고 **판정은 늘 서버가 한다**.
+ * 계약 `docs/features/post-admin-contract.md` 와 같은 규칙이다(community `util-admin-post.ts` 를 아이로빗 상태·권한에 맞게 옮김). 서버가 거절할 것을 미리 알려 주는 용도이고 **판정은 늘 서버가 한다**.
  * 계산이 낀 문구는 `util-post-messages.ts`.
  */
 

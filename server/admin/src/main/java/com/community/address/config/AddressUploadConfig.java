@@ -13,7 +13,7 @@ import org.springframework.util.unit.DataSize;
 public class AddressUploadConfig {
 
     @Bean
-    public FilterRegistrationBean<AddressUploadLimitFilter> addressUploadLimitFilter(@Value("${roboyam.upload.default-max-request-size}") DataSize defaultMax,
+    public FilterRegistrationBean<AddressUploadLimitFilter> addressUploadLimitFilter(@Value("${irobit.upload.default-max-request-size}") DataSize defaultMax,
                                                                                     ErrorResponseWriter errors) {
         FilterRegistrationBean<AddressUploadLimitFilter> registration = new FilterRegistrationBean<>(new AddressUploadLimitFilter(defaultMax, errors));
         registration.addUrlPatterns("/*");

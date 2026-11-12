@@ -10,7 +10,7 @@
  *
  * ⚠ 이 파일은 Nuxt 문맥(`useNuxtApp`)을 쓰지 않는다 — 화면 조각이 뜰 때(앱이 만들어지기 전에도) 불린다.
  */
-import loaders from 'virtual:roboyam-messages-loaders';
+import loaders from 'virtual:irobit-messages-loaders';
 
 type Messages = Record<string, unknown>;
 /** 받은 문구를 vue-i18n 에 넘기는 곳 */

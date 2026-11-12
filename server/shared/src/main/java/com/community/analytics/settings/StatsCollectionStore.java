@@ -7,7 +7,7 @@ import com.community.analytics.entity.StatsCollectionSettingHistoryEntity;
 import com.community.analytics.repository.master.StatsCollectionSettingHistoryRepository;
 import com.community.analytics.repository.master.StatsCollectionSettingRepository;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * 엔티티를 고친다(변경 감지, 다음 질의나 커밋 때 나간다).
  */
 @Repository
-public class StatsCollectionStore extends RoboyamRepositoryQDSL {
+public class StatsCollectionStore extends IrobitRepositoryQDSL {
 
     /** 저장한 값 + 마지막 저장(저장한 적 없으면 시각·운영자 null, 운영자가 지워졌으면 이름 null) */
     public record Stored(StatsCollection value, Instant updatedAt, Long updatedBy, String updatedByName) {

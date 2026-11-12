@@ -182,7 +182,7 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
         assertThat(check.blocked()).isTrue();
         assertThat(check.blockedReason()).isNotBlank();
         assertThat(view.checkLink("https://bit.ly/abc").blocked()).isTrue(); // 단축 주소(링크 규칙 시드)
-        BizMemberView.DealLinkCheck ok = view.checkLink("https://smartstore.naver.com/roboyam/products/1");
+        BizMemberView.DealLinkCheck ok = view.checkLink("https://smartstore.naver.com/irobit/products/1");
         assertThat(ok.blocked()).isFalse();
         assertThat(ok.shopName()).isEqualTo("네이버 스마트스토어");
     }

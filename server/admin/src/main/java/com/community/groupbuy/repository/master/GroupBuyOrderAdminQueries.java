@@ -14,7 +14,7 @@ import com.community.payment.dto.PaymentStatus;
 import com.community.payment.entity.QPaymentOrderEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Repository;
  * 메모 쓰기는 Facade 가 그 문장 하나의 트랜잭션을 연다).
  */
 @Repository
-public class GroupBuyOrderAdminQueries extends RoboyamRepositoryQDSL {
+public class GroupBuyOrderAdminQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupBuyParticipationEntity PA = QGroupBuyParticipationEntity.groupBuyParticipationEntity;
     private static final QGroupBuyParticipationItemEntity I = QGroupBuyParticipationItemEntity.groupBuyParticipationItemEntity;

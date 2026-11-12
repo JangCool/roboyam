@@ -6,8 +6,8 @@
  */
 export default defineNuxtPlugin({
     // 로그인 상태(`auth`)는 동시에 받으므로 끝나기를 기다린다 — 비로그인으로 한 번 비웠다가 다시 받지 않게
-    name: 'roboyam:view-settings',
-    dependsOn: ['roboyam:auth'],
+    name: 'irobit:view-settings',
+    dependsOn: ['irobit:auth'],
     setup() {
         const { user } = useAuth();
         const settings = useViewSettings();

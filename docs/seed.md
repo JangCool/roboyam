@@ -1,16 +1,16 @@
 # 시험 데이터 (seed)
 
-로컬 개발 DB 에 community 에서 쓰던 시험 계정·글·댓글·추천을 채운다 — **community 의 그 계정(이메일·비밀번호)으로 로보얌 공개 사이트에 로그인**하기 위한 것이다.
+로컬 개발 DB 에 community 에서 쓰던 시험 계정·글·댓글·추천을 채운다 — **community 의 그 계정(이메일·비밀번호)으로 아이로빗 공개 사이트에 로그인**하기 위한 것이다.
 
 | 파일 | 역할 |
 |---|---|
-| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 13개(베테랑 2개 포함 — 2026-10-24 로보얌에서 더함) · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(임시저장·공동구매 등)은 로보얌에 아직 없는 기능이라 로더가 건너뛴다 |
+| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 13개(베테랑 2개 포함 — 2026-10-24 아이로빗에서 더함) · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(임시저장·공동구매 등)은 아이로빗에 아직 없는 기능이라 로더가 건너뛴다 |
 | `scripts/seed-local.mjs` | **로더**(Node 내장 `fetch` + `docker exec … psql`, 의존성 없음). 서버 코드는 바꾸지 않았다 |
 
 ## 쓰는 법
 
 ```bash
-cd docker/local && docker compose up -d     # 로컬 DB(roboyam-local-postgres)
+cd docker/local && docker compose up -d     # 로컬 DB(irobit-local-postgres)
 # 공개 서버(8910)를 띄우고, 공개 사이트의 /install 에서 설치 마법사를 먼저 마친다 — 로더는 설치하지 않는다
 node scripts/seed-local.mjs                 # 또는 pnpm seed:local
 ```
@@ -22,21 +22,21 @@ node scripts/seed-local.mjs                 # 또는 pnpm seed:local
 - **콘텐츠 단계(글·댓글·추천)는 DB 에 글이 하나라도 있으면 건너뛴다**(종료 코드 0, 안내만). 덧붙이려면 `--force` — 같은 글이 한 벌 더 생긴다.
   단 서버의 「같은 글 반복」 규칙(보안 설정 `duplicate_post_window_minutes`, 기본 10분) 안에서는 같은 회원의 같은 제목·본문 글이 `409 DUPLICATE_POST` 로 거절되어 그 글과 거기 딸린 댓글·추천은 「못 한 것」으로 나온다(서버 규칙을 우회하지 않는다).
 - 로그인은 `e2e.author@example.com` 같은 이메일과 **seed.json 의 `password`** 로 한다(모든 계정이 같은 값, 시험용). 로더는 이 값을 출력하지 않는다.
-- 관리자 화면(admin-web)은 **설치 때 만든 루트 계정으로** 들어간다. 시드의 `e2e.admin` 은 로보얌에서는 일반 회원일 뿐이다(운영자는 `operators` 표의 별도 계정 — 로더는 운영자를 만들지 않는다).
+- 관리자 화면(admin-web)은 **설치 때 만든 루트 계정으로** 들어간다. 시드의 `e2e.admin` 은 아이로빗에서는 일반 회원일 뿐이다(운영자는 `operators` 표의 별도 계정 — 로더는 운영자를 만들지 않는다).
 
 ### 환경 변수(전부 선택)
 
 | 변수 | 기본 | 뜻 |
 |---|---|---|
 | `SEED_API` | `http://localhost:8910` | 공개 서버. `localhost`·`127.0.0.1`·`[::1]` 만 허용 |
-| `SEED_DB_CONTAINER` | `roboyam-local-postgres` | DB 컨테이너 |
-| `SEED_DB_NAME` | `roboyam` | SQL 대상 DB. **`SEED_API` 를 기본과 다르게 주면 반드시 준다** |
-| `SEED_DB_USER` | `roboyam` | DB 사용자 |
+| `SEED_DB_CONTAINER` | `irobit-local-postgres` | DB 컨테이너 |
+| `SEED_DB_NAME` | `irobit` | SQL 대상 DB. **`SEED_API` 를 기본과 다르게 주면 반드시 준다** |
+| `SEED_DB_USER` | `irobit` | DB 사용자 |
 
 다른 서버·DB 에서 시험할 때(예: 일회용 DB 에 붙인 9091 서버):
 
 ```powershell
-$env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest"; node scripts/seed-local.mjs
+$env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "irobit_seedtest"; node scripts/seed-local.mjs
 ```
 
 ## 안전장치 (community 로더와 같은 수준)
@@ -44,7 +44,7 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 아래에 걸리면 **아무것도 바꾸기 전에** 멈춘다(종료 코드 2).
 
 - 서버 주소가 localhost 가 아니다.
-- `SEED_API` 를 기본과 다르게 줬는데 `SEED_DB_NAME` 이 없다 — 로더의 SQL 이 기본 DB(개발 DB)에 닿는 사고를 막는다. 일부러 기본 DB 면 `SEED_DB_NAME=roboyam` 으로 명시한다.
+- `SEED_API` 를 기본과 다르게 줬는데 `SEED_DB_NAME` 이 없다 — 로더의 SQL 이 기본 DB(개발 DB)에 닿는 사고를 막는다. 일부러 기본 DB 면 `SEED_DB_NAME=irobit` 으로 명시한다.
 - 서버의 설치 상태(`GET /api/system/installation/status`)와 SQL 대상 DB 의 설치 상태(`installation.status`)가 다르다 — 서버가 붙은 DB 와 `SEED_DB_NAME` 이 다르다는 뜻이다.
 - 설치 전 DB 다.
 - 서버가 보여 주는 게시판(`GET /api/boards`)이 SQL 대상 DB 의 `boards` 에 없다(서버와 DB 가 다르다는 두 번째 확인).
@@ -55,7 +55,7 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 
 ## 로더가 하는 일
 
-### 1) 계정 — SQL (로보얌에는 공개 이메일 가입 API 가 없다)
+### 1) 계정 — SQL (아이로빗에는 공개 이메일 가입 API 가 없다)
 
 `seed.json` 의 `users` 전부를 회원으로 만든다. 공개 가입(소셜 가입 완료, `SocialAccountWriter.createMember`)과 같은 모양이다.
 
@@ -64,7 +64,7 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 | `users.id` | Snowflake(서버 번호 1023 — 앱 서버의 `NODE_ID` 와 겹치지 않게) |
 | `users.email` | 소문자 |
 | `users.password_hash` | pgcrypto `crypt(password, gen_salt('bf', 10))` = `$2a$10$…` — 서버 `BCryptPasswordEncoder`(강도 10)와 호환. pgcrypto 확장이 없으면 그 트랜잭션 안에서만 만들어 해시를 받은 뒤 되돌린다(DB 에 확장이 남지 않는다) |
-| `users.role` | `USER`(로보얌 회원은 `USER` 뿐 — `role: ADMIN` 도 회원) |
+| `users.role` | `USER`(아이로빗 회원은 `USER` 뿐 — `role: ADMIN` 도 회원) |
 | `users.status` | `seed.json` 의 `status`(`e2e.banned` = `SUSPENDED` — 로그인은 되고 응답의 `restriction` 과 쓰기·추천 판정에서 막힌다) |
 | `users.created_at` | 지금 − `ageDays` 일(가입 일수 — 등급 승급 조건 `grades.min_days`·새 회원 규칙에 쓰인다) |
 | `users.email_verified_at` | `emailVerified` 면 가입 시각, 아니면 NULL(`e2e.unverified` — 이메일 미인증이라 글·댓글 쓰기가 막힌다) |
@@ -78,16 +78,16 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 서버 규칙·카운터·포인트 적립·회원 알림이 그대로 적용된다. 순서: 글 → 댓글 → 추천 → 지우기(`p6`, 추천이 쌓인 뒤 글쓴이가 지운다).
 
 - **게시판 규칙**: 시드 글의 게시판(`board` slug)이 있으면 그대로 쓴다. 없으면 **`free` 로 옮긴다**(`free` 도 없으면 그 글은 건너뛴다). **`notice` 로는 옮기지 않는다**(중립 설치의 공지는 운영진 전용 쓰기). 쓰기 전에 그 회원의 게시판 판정(`viewer.canWrite`)을 보고 쓸 수 없으면 까닭과 함께 건너뛴다.
-  지금 시드 글 6개는 모두 `ai`(ROBOYAM 예시 구성) 게시판이라 **중립 설치(`free`·`notice`)에서는 6개 모두 `free` 로 간다.** ROBOYAM 예시 구성으로 설치한 DB 면 `ai` 에 그대로 간다.
+  지금 시드 글 6개는 모두 `ai`(IROBIT 예시 구성) 게시판이라 **중립 설치(`free`·`notice`)에서는 6개 모두 `free` 로 간다.** IROBIT 예시 구성으로 설치한 DB 면 `ai` 에 그대로 간다.
 - **말머리 규칙**: 옮긴 게시판에 같은 이름의 말머리가 있고 운영진 전용이 아니면 그것, 아니면 말머리 없이 쓴다(`free` 에는 `뉴스` 가 없어 말머리 없이).
-- **답글**: 로보얌 답글은 1단계다 — `parentId` = 답한 댓글의 원댓글, `replyToId` = 답한 댓글.
-- **작성 간격**: 로보얌은 작성 속도를 따로 표에 두지 않고 `posts`·`comments` 의 `created_at` 최댓값으로 판정한다(기본 글 60초·댓글 10초). `429 POST_TOO_FAST`·`COMMENT_TOO_FAST` 를 받으면 그 시드 회원의 최근(1시간 안) 글·댓글의 `created_at`·`updated_at` 을 응답의 `retryAfterSeconds` + 1초만큼 앞으로 당기고 다시 쓴다. 하루 한도(`*_DAILY_LIMIT`, 기본 글 30·댓글 200)는 비우지 않는다(시드 양으로는 닿지 않는다).
+- **답글**: 아이로빗 답글은 1단계다 — `parentId` = 답한 댓글의 원댓글, `replyToId` = 답한 댓글.
+- **작성 간격**: 아이로빗은 작성 속도를 따로 표에 두지 않고 `posts`·`comments` 의 `created_at` 최댓값으로 판정한다(기본 글 60초·댓글 10초). `429 POST_TOO_FAST`·`COMMENT_TOO_FAST` 를 받으면 그 시드 회원의 최근(1시간 안) 글·댓글의 `created_at`·`updated_at` 을 응답의 `retryAfterSeconds` + 1초만큼 앞으로 당기고 다시 쓴다. 하루 한도(`*_DAILY_LIMIT`, 기본 글 30·댓글 200)는 비우지 않는다(시드 양으로는 닿지 않는다).
 - 투표(`p4`·`p5` 의 `poll`): 그 게시판의 「글쓴이가 투표를 붙일 수 있음」(`pollEnabled`)이 켜져 있으면 글쓰기 본문 `poll` 로 붙이고 `votes` 를 공개 API 로 넣는다. 꺼져 있으면 글만 쓰고 「못 한 것」에 알린다(로더는 게시판 정책을 바꾸지 않는다 — 관리자 게시판 설정에서 켜고 `--force`). 지난 마감(`closesInHours` 0 이하)은 표를 넣은 뒤 SQL 로 마감 시각을 되돌린다.
 - 끝에 시드 회원별 포인트 잔액·회원 알림 수를 출력한다.
 
-### 건너뛰는 것(로보얌에 아직 없는 기능 — 실행할 때 목록으로 출력한다)
+### 건너뛰는 것(아이로빗에 아직 없는 기능 — 실행할 때 목록으로 출력한다)
 
-운영자 역할(`e2e.admin`) · 임시저장(`drafts`) · 공동구매(`commerce`) · 광고 직접 배너(`adBanners`) · 핫딜 입점(`hotdealBusiness`) · 직접홍보·끌올(`promoBump`) · 홈 가젯(`homeGadgets`) · ROBOYAM 운영 예시(`roboyamConcept`) · 영상·짤 시험 글(`galleryPosts`).
+운영자 역할(`e2e.admin`) · 임시저장(`drafts`) · 공동구매(`commerce`) · 광고 직접 배너(`adBanners`) · 핫딜 입점(`hotdealBusiness`) · 직접홍보·끌올(`promoBump`) · 홈 가젯(`homeGadgets`) · IROBIT 운영 예시(`irobitConcept`) · 영상·짤 시험 글(`galleryPosts`).
 
 ## 계정
 
@@ -97,7 +97,7 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 |---|---|---|---|---|---|---|
 | `e2e.author` | `e2e.author@example.com` | e2eauthor | 정상 | ○ | 6 | 글쓴이(글 5 · 댓글 2) |
 | `e2e.l1`~`e2e.l5` | `e2e.l1@example.com` ~ `e2e.l5@example.com` | e2el1 ~ e2el5 | 정상 | ○ | 6 | 댓글·추천 |
-| `e2e.admin` | `e2e.admin@example.com` | e2eadmin | 정상 | ○ | 6 | 글 1(community 에서는 최고 관리자 — **로보얌에서는 회원**) |
+| `e2e.admin` | `e2e.admin@example.com` | e2eadmin | 정상 | ○ | 6 | 글 1(community 에서는 최고 관리자 — **아이로빗에서는 회원**) |
 | `e2e.banned` | `e2e.banned@example.com` | e2ebanned | 정지(`SUSPENDED`) | ○ | 6 | 로그인은 되고 쓰기·추천이 막힌다 |
 | `e2e.user1` | `e2e.user1@example.com` | 로봇덕후 | 정상 | ○ | 1 | |
 | `e2e.newbie` | `e2e.newbie@example.com` | e2enewbie | 정상 | ○ | 1 | 가입 1일 |

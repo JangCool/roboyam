@@ -9,14 +9,14 @@ import UtilMenuPosition, {
 import UtilTheme, { type ThemeId } from '~/utils/util-theme';
 
 /** 개발 미리보기로 고른 값을 이 탭에 기억하는 저장 키(sessionStorage) */
-const PREVIEW_THEME_KEY = 'roboyam:theme-preview';
-const PREVIEW_MENU_KEY = 'roboyam:menu-preview';
-const PREVIEW_TOP_KEY = 'roboyam:top-items-preview';
-const PREVIEW_BAR_KEY = 'roboyam:bar-groups-preview';
-const PREVIEW_WIDTH_KEY = 'roboyam:menu-width-preview';
-const PREVIEW_OVERFLOW_KEY = 'roboyam:menu-overflow-preview';
+const PREVIEW_THEME_KEY = 'irobit:theme-preview';
+const PREVIEW_MENU_KEY = 'irobit:menu-preview';
+const PREVIEW_TOP_KEY = 'irobit:top-items-preview';
+const PREVIEW_BAR_KEY = 'irobit:bar-groups-preview';
+const PREVIEW_WIDTH_KEY = 'irobit:menu-width-preview';
+const PREVIEW_OVERFLOW_KEY = 'irobit:menu-overflow-preview';
 
-/** 메뉴 모양 칸 → 개발 미리보기 주소 이름(`?groups=tabs|inline|theme` …). 저장 키는 `roboyam:menu-style-<칸>-preview` */
+/** 메뉴 모양 칸 → 개발 미리보기 주소 이름(`?groups=tabs|inline|theme` …). 저장 키는 `irobit:menu-style-<칸>-preview` */
 const STYLE_PREVIEW_PARAMS: Record<MenuStyleKey, string> = {
     menuGroupStyle: 'groups',
     sideGroupStyle: 'sidegroups',
@@ -60,7 +60,7 @@ function readBarPreview(value: string | null): string[] | null {
  *
  * - `undefined` = 아직 안 물어봄. 그동안 `theme` 은 기본 테마, `siteMenu`·`siteTopItems`·`siteMenuWidth`·`siteMenuOverflow` 는 `THEME`(테마 기본 따름), `siteBarGroupIds` 는 빈 목록이다.
  * - 못 받거나 모르는 값이어도 던지지 않고 기본값으로 둔다(앱을 막지 않는다).
- * - 개발 모드에서만 미리 본다: `?theme=<id>`(서버 `SiteThemes.IDS` 가 아직 `default` 하나 — `daum`·`naver`·`roboyam` 은 여기로 본다) · `?menu=top|left|right|top-left|top-right|theme` ·
+ * - 개발 모드에서만 미리 본다: `?theme=<id>`(서버 `SiteThemes.IDS` 가 아직 `default` 하나 — `daum`·`naver`·`irobit` 은 여기로 본다) · `?menu=top|left|right|top-left|top-right|theme` ·
  *   `?top=logo|menu|theme`(최상위 항목 위치) · `?bar=<그룹ID>,<그룹ID>`(상단 띠 그룹, `?bar=first` 는 첫 그룹 폴백) · `?width=content|full|theme`(상단 메뉴 폭) ·
  *   `?overflow=scrollbar|arrows|theme`(메뉴가 넘칠 때의 표시) · 메뉴 모양 `?groups=tabs|inline|theme` · `?sidegroups=column|pick|theme` · `?menusize=normal|compact|theme` ·
  *   `?mobilemenu=picked|menu|theme` · `?menudesc=on|off|theme` · `?sticky=on|off|theme` · `?mheader=brand|plain|theme`. 미리보기가 있어도 서버에는 물어보고, 미리보기 값이 그 칸만 대신한다.
@@ -122,7 +122,7 @@ export function useTheme() {
             const style = { ...serverStyle } as Record<MenuStyleKey, string>;
             for (const key of UtilMenuPosition.styleKeys()) {
                 const param = STYLE_PREVIEW_PARAMS[key];
-                style[key] = devPreview(param, `roboyam:menu-style-${param}-preview`, (v) => UtilMenuPosition.readStyleValue(key, v)) ?? serverStyle[key];
+                style[key] = devPreview(param, `irobit:menu-style-${param}-preview`, (v) => UtilMenuPosition.readStyleValue(key, v)) ?? serverStyle[key];
             }
             styleState.value = style as SiteMenuStyle;
             boldState.value = serverBold;

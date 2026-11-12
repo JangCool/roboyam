@@ -1,5 +1,5 @@
 /**
- * 방문 분석 신호 공유 레이어 — user-web 이 `extends: ['@roboyam/analytics']` 로 쓴다(`docs/features/site-analytics-contract.md` 「옮기기 쉽게」).
+ * 방문 분석 신호 공유 레이어 — user-web 이 `extends: ['@irobit/analytics']` 로 쓴다(`docs/features/site-analytics-contract.md` 「옮기기 쉽게」).
  * 방문자 ID·세션(`utils/util-visit-store.ts`) · 신호 규칙(`utils/util-visit-signal.ts`) · 보내기(`utils/util-visit-transport.ts`) · 화면 이동 따라가기(`composables/analytics/useVisitTracking.ts`).
  * 나중에 수집 위치·도구(다른 서버·외부 분석 도구)를 바꿀 때 이 레이어만 고친다 — 보내는 곳은 `utils/util-visit-transport.ts` 한 파일이다.
  *

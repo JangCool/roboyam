@@ -1,7 +1,7 @@
 /**
  * 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)용 Nuxt 모듈 — 화면 빌드(클라이언트 번들)에 실제로 들어간 바깥 패키지의 폴더를 적는다.
  *
- * - 환경 변수 `ROBOYAM_OSS_SCAN`(적을 파일의 절대 경로)이 있을 때만 일한다. 개발 서버·보통 빌드에서는 아무것도 하지 않는다.
+ * - 환경 변수 `IROBIT_OSS_SCAN`(적을 파일의 절대 경로)이 있을 때만 일한다. 개발 서버·보통 빌드에서는 아무것도 하지 않는다.
  * - 클라이언트 빌드(Vite 환경 `client`)의 **최종 청크에 실제로 남은** 모듈(`renderedLength` > 0 — 트리 셰이킹으로 잘린 모듈·빌드 중에 읽기만 한 서버용 모듈은 빠진다,
  *   사용자 2026-11-10 「진짜 공개해야 하는 것만」)과 CSS·글꼴 모듈(번들 CSS 로 뽑혀 길이가 0 으로 잡힌다) 경로에서 `node_modules/<이름>` 꼴의 패키지 폴더만 모은다 — 워크스페이스 패키지(`apps-packages/*`)는
  *   실제 경로가 node_modules 밖이라 저절로 빠지고, 그 패키지들이 끌어온 바깥 의존성은 node_modules 안이라 잡힌다. 빌드 도구(Vite·Nuxt 빌더 등)는 번들에 모듈로 들어가지 않아 빠진다.
@@ -27,11 +27,11 @@ function packageRoot(id) {
 }
 
 export default function ossBundleScan(_options, nuxt) {
-    const out = process.env.ROBOYAM_OSS_SCAN;
+    const out = process.env.IROBIT_OSS_SCAN;
     if (!out) return;
     const roots = new Set();
     const plugin = {
-        name: 'roboyam-oss-bundle-scan',
+        name: 'irobit-oss-bundle-scan',
         apply: 'build',
         applyToEnvironment: (environment) => environment.name === 'client',
         generateBundle(_output, bundle) {

@@ -39,15 +39,15 @@ import org.springframework.test.context.DynamicPropertySource;
  *   <li>시계는 {@link MutableClock}(시험마다 지금 시각으로 되돌린다) — TOTP 칸·대기 5분·유예·기기 기간·잠금을 시각을 옮겨 확인한다.</li>
  *   <li>DB 를 다른 시험과 같이 쓴다 — 운영자는 시험마다 새로 만들고(겹치지 않는 Snowflake ID), 설정 행({@code admin_security_settings})은 시험 끝에 원래 값으로 되돌린다.</li>
  *   <li>루트는 하나뿐이라(유일 색인) 있으면 쓰고 없으면 만든다. 루트의 OTP 상태는 시험마다 필요한 대로 정한다.</li>
- *   <li>배치 스케줄러·알림 감시자는 끈다. 설정 비밀값 키(ROBOYAM_CRYPTO_KEY)는 시험용 고정값이다.</li>
+ *   <li>배치 스케줄러·알림 감시자는 끈다. 설정 비밀값 키(IROBIT_CRYPTO_KEY)는 시험용 고정값이다.</li>
  * </ul>
  */
 @SpringBootTest(classes = AdminApplication.class, properties = {
-        "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        // 배치를 끈다 — 예전 "roboyam.batch.scheduler-enabled" 는 없는 설정이라 배치가 켜진 채였고, 그 문맥이 뜰 때 local 공구 시드가 같이 쓰는 시험 DB 에
+        "irobit.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        // 배치를 끈다 — 예전 "irobit.batch.scheduler-enabled" 는 없는 설정이라 배치가 켜진 채였고, 그 문맥이 뜰 때 local 공구 시드가 같이 쓰는 시험 DB 에
         // 예시 분류·상품을 넣어 뒤에 도는 공구 시험(GroupBuyLocalSeederTest · GroupBuyAdminHttpTest)이 실행 순서에 따라 깨졌다
-        "roboyam.batch.enabled=false",
-        "roboyam.notification.watcher-enabled=false"
+        "irobit.batch.enabled=false",
+        "irobit.notification.watcher-enabled=false"
 })
 @Import(MfaSpringTestBase.TestClockConfig.class)
 public abstract class MfaSpringTestBase {

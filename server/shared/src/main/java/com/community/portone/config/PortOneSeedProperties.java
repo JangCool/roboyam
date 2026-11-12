@@ -7,12 +7,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * roboyam.portone.seed.* — local 개발 PC 의 포트원 설정 시드(roboyam-shared-local.yml). DB 를 새로 만들어도(재설치) 포트원 설정이 등록된 상태로 뜨게 한다.
+ * irobit.portone.seed.* — local 개발 PC 의 포트원 설정 시드(irobit-shared-local.yml). DB 를 새로 만들어도(재설치) 포트원 설정이 등록된 상태로 뜨게 한다.
  * 값은 평문이고 {@link PortOneLocalSeeder} 가 암호화해 넣는다. 공통 설정(dev·prod)에는 없다 — 거기서는 관리자 화면에서 저장한다.
  *
- * @param enabled false 면 넣지 않는다 — Gradle 시험 작업이 끈다(앱 시험도 local 프로필로 뜨기 때문, roboyam.java-conventions)
+ * @param enabled false 면 넣지 않는다 — Gradle 시험 작업이 끈다(앱 시험도 local 프로필로 뜨기 때문, irobit.java-conventions)
  */
-@ConfigurationProperties(prefix = "roboyam.portone.seed")
+@ConfigurationProperties(prefix = "irobit.portone.seed")
 public record PortOneSeedProperties(@DefaultValue("true") boolean enabled, String storeId, String apiSecret, String identityChannelKey, String paymentChannelKey,
                                     String webhookSecret) {
 

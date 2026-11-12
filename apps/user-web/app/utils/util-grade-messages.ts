@@ -9,7 +9,7 @@ export interface GradeCopy {
 
 /**
  * 등급 화면의 계산이 낀 문구 — 조건 글자·진행 글자·자동 승급이 멈춘 안내. 문구 본문은 `i18n/locales/{ko,en}/grade.ts`.
- * 원본(community) `UtilGradeMessages` 에서 인기글 조건·닉네임 이미지·공식 뱃지 안내·등급 알림 문구를 뺐다(로보얌에 없다).
+ * 원본(community) `UtilGradeMessages` 에서 인기글 조건·닉네임 이미지·공식 뱃지 안내·등급 알림 문구를 뺐다(아이로빗에 없다).
  */
 export default class UtilGradeMessages {
     /**

@@ -9,7 +9,7 @@ import java.time.Clock;
  * 0 | 41비트 시각(ms, 2026-01-01 기준) | 10비트 서버 번호 | 12비트 순번
  * </pre>
  *
- * <p>시각이 앞에 있어 ID 순서가 곧 생성 순서다. 서버 번호({@code roboyam.node-id}, 환경 변수 {@code NODE_ID})는
+ * <p>시각이 앞에 있어 ID 순서가 곧 생성 순서다. 서버 번호({@code irobit.node-id}, 환경 변수 {@code NODE_ID})는
  * 앱 서버마다 달라야 한다(같은 번호로 두 대를 띄우면 ID 가 겹친다). 한 서버에서 1ms 에 4096개까지 발급하고, 넘치면 다음 ms 를 기다린다.
  */
 public class SnowflakeIdGenerator {

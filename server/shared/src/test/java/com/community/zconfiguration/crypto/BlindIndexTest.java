@@ -77,7 +77,7 @@ class BlindIndexTest {
     void 잘못된_키는_기동을_멈추고_문구에_키를_싣지_않는다() {
         String shortKey = Base64.getEncoder().encodeToString(new byte[16]);
 
-        assertThatThrownBy(() -> new BlindIndex("@@@@")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ROBOYAM_INDEX_KEY");
+        assertThatThrownBy(() -> new BlindIndex("@@@@")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("IROBIT_INDEX_KEY");
         assertThatThrownBy(() -> new BlindIndex(shortKey)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("32바이트")
                 .message().doesNotContain(shortKey);
         assertThatThrownBy(() -> new BlindIndex("1:" + KEY)).isInstanceOf(IllegalArgumentException.class); // 데이터 키 형식(버전 붙임)은 받지 않는다

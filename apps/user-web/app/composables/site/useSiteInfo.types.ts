@@ -27,4 +27,6 @@ export interface SiteInfo {
     operator: SiteOperatorPublicResponse | null;
     /** 등급 목록(서열 순, grade-level-contract 5절) — 칸이 없으면(옛 서버) null, 그러면 기본 4키를 서열 1·3·6·9 의 도트로 그린다(`useGrades`) */
     grades: SiteGrade[] | null;
+    /** 사이트 소개가 있는가 — true 일 때만 푸터 「사이트 소개」 링크(`/about`). 칸이 없으면(옛 서버) 숨김 */
+    about?: boolean;
 }

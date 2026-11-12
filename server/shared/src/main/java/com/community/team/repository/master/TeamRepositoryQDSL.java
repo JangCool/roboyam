@@ -5,7 +5,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.team.dto.TeamMemberRow;
 import com.community.team.entity.QTeamEntity;
 import com.community.team.entity.QTeamMemberEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
 
 /** 팀 조회 — 이름 중복, 팀원(운영자 정보 포함), 팀에 넣을 수 있는 활성 운영자. <b>트랜잭션은 부르는 서비스가 연다.</b> */
 @Repository
-public class TeamRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class TeamRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QTeamEntity TEAM = QTeamEntity.teamEntity;
     private static final QTeamMemberEntity MEMBER = QTeamMemberEntity.teamMemberEntity;

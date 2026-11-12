@@ -1,9 +1,9 @@
 plugins {
-    // 실행 앱이 아니라 평범한 라이브러리 jar 다 — bootJar 가 없다(roboyam.spring-app-conventions 를 쓰지 않는다).
-    id 'roboyam.spring-conventions'
+    // 실행 앱이 아니라 평범한 라이브러리 jar 다 — bootJar 가 없다(irobit.spring-app-conventions 를 쓰지 않는다).
+    id 'irobit.spring-conventions'
     // Q 클래스·매퍼 구현체는 엔티티·매퍼가 있는 이 모듈에서 만든다
-    id 'roboyam.querydsl-conventions'
-    id 'roboyam.mapstruct-conventions'
+    id 'irobit.querydsl-conventions'
+    id 'irobit.mapstruct-conventions'
     // 커머스 테스트가 같이 쓰는 실제 PostgreSQL 시험 DB(src/testFixtures — CommerceTestDatabase). api·admin 의 시험은 testFixtures(project(':server:shared')) 로 쓴다
     id 'java-test-fixtures'
 }
@@ -15,7 +15,7 @@ plugins {
 // implementation = 이 모듈 안에서만 쓰는 것.
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
-    // RoboyamRepository 가 이 라이브러리의 타입을 상속한다. -hibernate-74 는 없어서 -hibernate-73 을 쓴다
+    // IrobitRepository 가 이 라이브러리의 타입을 상속한다. -hibernate-74 는 없어서 -hibernate-73 을 쓴다
     api "io.hypersistence:hypersistence-utils-hibernate-73:${hypersistenceVersion}"
     // 저장소·서비스 시그니처에 JPAQueryFactory·Q 타입이 나온다
     api "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"

@@ -8,7 +8,7 @@ import com.community.membernotification.entity.QMemberNotificationEntity;
 import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * <p>쪽지 상태({@code dm_user_states})와 알림 선택({@code member_notification_preferences})도 shared 엔티티(QueryDSL)로 읽는다 — 둘 다 회원 ID 가 키(의 앞)다.
  */
 @Repository
-public class MemberSettingsQueries extends RoboyamRepositoryQDSL {
+public class MemberSettingsQueries extends IrobitRepositoryQDSL {
 
     private static final QUserBlockEntity BLOCK = QUserBlockEntity.userBlockEntity;
     private static final QBlockedWordEntity WORD = QBlockedWordEntity.blockedWordEntity;

@@ -5,7 +5,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Repository;
  * {@code ix_member_withdrawals_completed}, 취소일 {@code ix_member_withdrawals_canceled}, 진행 중·10일 넘긴 진행 중 {@code ix_member_withdrawals_scheduled}, 회원별 {@code ix_member_withdrawals_user}.
  */
 @Repository
-public class MemberWithdrawalAdminStore extends RoboyamRepositoryQDSL {
+public class MemberWithdrawalAdminStore extends IrobitRepositoryQDSL {
 
     private static final QMemberWithdrawalEntity W = QMemberWithdrawalEntity.memberWithdrawalEntity;
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;

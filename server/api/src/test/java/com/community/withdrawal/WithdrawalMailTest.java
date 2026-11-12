@@ -30,7 +30,7 @@ import org.springframework.test.context.TestPropertySource;
  * 완료 메일은 익명화 전 <b>인증한</b> 주소로(재가입 가능일·고객센터·결제 이력이 있을 때만 연락용 이메일 보관 안내, 회원 언어), 진행 안내 메일은 남은 일 목록·예상 완료일. 미인증 주소면 안 간다.
  */
 @Import(WithdrawalMailTest.FakeMailConfig.class)
-@TestPropertySource(properties = "roboyam.withdrawal.support-email=help@test.local")
+@TestPropertySource(properties = "irobit.withdrawal.support-email=help@test.local")
 class WithdrawalMailTest extends CommerceApiTestBase {
 
     private static final String IP = "127.0.0.1";

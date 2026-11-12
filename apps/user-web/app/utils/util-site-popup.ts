@@ -11,12 +11,12 @@ export type SitePopupHideRecords = Record<string, SitePopupHideRecord>;
 
 /**
  * 팝업(`SitePopupLayer`)의 순수 규칙 — 어디·어느 기기에 띄울지, 「보지 않기」 기록 읽기·만들기·판정, 링크 종류.
- * 「보지 않기」 기록은 공지 띠처럼 **이 브라우저**(localStorage `roboyam:site-popups`)에만 남는다 — 손님도 닫을 수 있고 다른 기기에서는 다시 보인다(가정).
+ * 「보지 않기」 기록은 공지 띠처럼 **이 브라우저**(localStorage `irobit:site-popups`)에만 남는다 — 손님도 닫을 수 있고 다른 기기에서는 다시 보인다(가정).
  *  · TODAY — 누른 날의 자정(이 기기 시각)까지 · WEEK — 누른 때부터 7일 · NEVER — 그 팝업의 내용 표식(`version`)이 바뀔 때까지
  *  · 어느 것이든 운영자가 팝업을 고쳐 표식이 바뀌면 다시 보인다.
  */
 export default class UtilSitePopup {
-    static readonly STORAGE_KEY = 'roboyam:site-popups';
+    static readonly STORAGE_KEY = 'irobit:site-popups';
 
     private static readonly DAY_MS = 86_400_000;
 

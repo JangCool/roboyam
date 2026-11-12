@@ -60,6 +60,6 @@
 - 「받았다」 = 지금 등록증 사본(파기 안 됨) 또는 **이번 신청(`submitted_at`) 뒤** 잘못 기록이 아닌 등록증 종이 접수(`BusinessCertificateReceipt`) — 사업자 상세 `certificateReceived`, 회원 `certificateReceived`. 반려 뒤 재신청이면 예전 종이 접수는 안 센다.
 - 관리자가 올린 등록증이 지금 등록증이 된다(옛 사본 줄은 신원에 붙은 채 남고 파기 배치가 신원 단위로 지운다). 사업자 상세 등록증에 문서 `id`.
 - 묶음 GET 은 조회 권한(`ad.read`·`hotdeal.read` / `business.read`), 쓰기는 처리 권한. 등록증 잘못 기록은 상태 제한 없음(열린 줄이면).
-- user-web 수정(`PUT`)은 늘 `UPLOAD`. 보낼 곳 `GET /api/business/doc-send-to` → `{postcode, address, recipient, fax}`(빈 칸 null) — api 설정 `roboyam.biz.doc-send-to.*`(환경 변수 `ROBOYAM_BIZ_DOC_POSTCODE·ADDRESS·RECIPIENT·FAX`, 기본 빈 값). 주소·팩스 둘 다 비면 `MAIL_FAX` 신청 400 `fields.certificateDelivery`.
+- user-web 수정(`PUT`)은 늘 `UPLOAD`. 보낼 곳 `GET /api/business/doc-send-to` → `{postcode, address, recipient, fax}`(빈 칸 null) — api 설정 `irobit.biz.doc-send-to.*`(환경 변수 `IROBIT_BIZ_DOC_POSTCODE·ADDRESS·RECIPIENT·FAX`, 기본 빈 값). 주소·팩스 둘 다 비면 `MAIL_FAX` 신청 400 `fields.certificateDelivery`.
 - 감사: `BIZ_APP_PAPER_RECEIVE·HANDLING·DISPOSE·VOID`(돈 — 5년), `BUSINESS_PAPER_RECEIVE·HANDLING·DISPOSE·VOID`·`BUSINESS_CERT_UPLOAD`.
 - 테스트는 쓰지 않았다(컴파일·타입 검사만). V140 은 로컬 DB 에서 트랜잭션으로 돌려 보고 되돌림.

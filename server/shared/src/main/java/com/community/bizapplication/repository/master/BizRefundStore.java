@@ -6,7 +6,7 @@ import com.community.bizapplication.entity.BizRefundStatus;
 import com.community.bizapplication.entity.BizRefundType;
 import com.community.bizapplication.entity.QBizRefundEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * QueryDSL 만 쓴다 — 읽기는 한 줄 모양, 상태 전이는 조건부 DML, 넣기는 {@code persist} + {@code flush}(유일 위반 → {@code DuplicateKeyException}).
  */
 @Repository
-public class BizRefundStore extends RoboyamRepositoryQDSL {
+public class BizRefundStore extends IrobitRepositoryQDSL {
 
     /** 송금 상태(수동) */
     public static final String TRANSFER_PENDING = "PENDING";

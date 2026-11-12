@@ -2,7 +2,7 @@ package com.community.publicdata.repository.master;
 
 import com.community.operator.entity.QOperatorEntity;
 import com.community.publicdata.entity.QPublicDataSettingEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
  * {@code JdbcTemplate} 이라 부르는 쪽 트랜잭션이 있으면 같은 연결로 참여하고, 없으면(연결 시험 {@code PublicDataSettingsService#test} 는 국세청을 부르므로 트랜잭션 밖) 한 문장으로 바로 커밋한다 — 예전과 같다.
  */
 @Repository
-public class PublicDataSettingStore extends RoboyamRepositoryQDSL {
+public class PublicDataSettingStore extends IrobitRepositoryQDSL {
 
     /**
      * 칸 한 줄. {@code valueCipher} 가 null 이면 지웠거나 저장한 적 없는 칸.

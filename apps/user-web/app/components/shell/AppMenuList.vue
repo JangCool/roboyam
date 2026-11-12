@@ -142,7 +142,7 @@ import UtilMenuMessages from '~/utils/util-menu-messages';
 interface Props {
     /** 그리는 자리 — 전체(햄버거, 기본) 또는 데스크톱 사이드 메뉴 몫(`side`) */
     scope?: MenuScope;
-    /** 이 그룹(구역 키) 하나만 그린다 — 상단 탭에서 고른 사이드 그룹(로보얌, `useSideGroupPick`). `undefined` 면 모두 */
+    /** 이 그룹(구역 키) 하나만 그린다 — 상단 탭에서 고른 사이드 그룹(아이로빗, `useSideGroupPick`). `undefined` 면 모두 */
     onlyGroup?: string | null;
 }
 

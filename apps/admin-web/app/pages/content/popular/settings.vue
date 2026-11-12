@@ -1,7 +1,7 @@
 <template>
     <!--
         인기글 설정 — 인기글 순위를 정하는 점수식(가중치·시간 감쇠)과 조건(최소 추천·댓글·조회, 한 사람 최대 글 수, 운영진 전용 게시판 빼기)과 이번 주 시작 요일 11칸(계약 `docs/features/popular-highlight-contract.md`).
-        community 관리자 앱의 인기글 설정(`home-settings` 13칸)에서 홈 개수 두 칸을 뺐다(로보얌 홈은 아직 없다). 문구는 community `api-popular.md` 9절의 권고를 따른다.
+        community 관리자 앱의 인기글 설정(`home-settings` 13칸)에서 홈 개수 두 칸을 뺐다(아이로빗 홈은 아직 없다). 문구는 community `api-popular.md` 9절의 권고를 따른다.
         **저장은 한 번에**(11칸 모두, PUT 한 번) — [저장]·[되돌리기]·상태 글은 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`, `forms.md` 2-4). 숫자 칸은 `InputText` + `inputmode=decimal`(`InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위·소수 자리 검사는 서버가 준 `limits`(`UtilPopular`) — 하나라도 틀리면 [저장]이 꺼진다. 서버가 거절한 칸(`400 VALIDATION` `fields.<칸>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에.
         [기본값으로] 는 서버가 준 `defaults` 로 칸을 채울 뿐 저장하지 않는다(저장 줄로 저장한다).

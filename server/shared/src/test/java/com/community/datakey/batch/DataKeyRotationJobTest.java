@@ -543,7 +543,7 @@ class DataKeyRotationJobTest {
         return jdbc.queryForObject(sql, String.class, id);
     }
 
-    /** {@code DataCipher} 가 아니라 설정 비밀값 키(ROBOYAM_CRYPTO_KEY, {@code SecretEncryptor} — {@code v1:} 암호문)로 잠그는 칸 */
+    /** {@code DataCipher} 가 아니라 설정 비밀값 키(IROBIT_CRYPTO_KEY, {@code SecretEncryptor} — {@code v1:} 암호문)로 잠그는 칸 */
     private static final Set<String> SECRET_ENCRYPTOR_COLUMNS = Set.of("portone_settings.value_cipher", "public_data_settings.value_cipher",
             "social_provider_settings.client_secret_enc", "mail_settings.password_enc", "notification_channels.bot_token_enc",
             "notification_channels.webhook_url_enc");

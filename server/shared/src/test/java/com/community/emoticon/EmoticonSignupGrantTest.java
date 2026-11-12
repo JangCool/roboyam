@@ -29,7 +29,7 @@ class EmoticonSignupGrantTest extends EmoticonTestBase {
     @Test
     void 새_회원은_무료_운영_팩을_상점_받기와_같은_줄로_한_번만_받는다() {
         List<Long> packs = officialFree();
-        assertThat(packs).as("시드 운영 팩(로보얌콘 남·여)").isNotEmpty();
+        assertThat(packs).as("시드 운영 팩(아이로빗콘 남·여)").isNotEmpty();
         Map<Long, Integer> before = counts(packs);
         long member = kit.member();
 

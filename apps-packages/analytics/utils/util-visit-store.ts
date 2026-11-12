@@ -11,13 +11,13 @@ import UtilVisitSignal from './util-visit-signal';
  */
 
 /** 로컬 스토리지(또는 대신 세션 저장소)의 방문자 ID 키 */
-const VISITOR_KEY = 'roboyam:analytics:vid';
+const VISITOR_KEY = 'irobit:analytics:vid';
 
 /** 세션 저장소의 세션 키 — `{ id, lastAt, lastPath }` JSON */
-const SESSION_KEY = 'roboyam:analytics:session';
+const SESSION_KEY = 'irobit:analytics:session';
 
 /** 로컬 스토리지(또는 대신 세션 저장소)의 「이 브라우저는 방문 통계 수집 거부」 표시 — 값 `'1'`. 처리방침 화면의 스위치가 바꾼다 */
-const OPT_OUT_KEY = 'roboyam:analytics:optout';
+const OPT_OUT_KEY = 'irobit:analytics:optout';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

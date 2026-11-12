@@ -17,7 +17,7 @@ import com.community.rewardevent.entity.RewardRunKind;
 import com.community.rewardevent.entity.RewardRunPhase;
 import com.community.rewardevent.entity.RewardRunStatus;
 import com.community.zconfiguration.jpa.Ilike;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -51,7 +51,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class RewardEventStore extends RoboyamRepositoryQDSL {
+public class RewardEventStore extends IrobitRepositoryQDSL {
 
     /** 등수 한 줄 */
     public record TierRow(long id, long eventId, int position, String name, int quota) {

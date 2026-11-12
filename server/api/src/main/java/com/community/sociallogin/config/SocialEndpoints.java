@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 /**
  * 공급자 주소(인가·토큰·회원 정보)와 구글 ID 토큰의 발급자 — <b>코드에 고정</b>이다. 사용자·운영자가 넣는 주소는 없다.
  *
- * <p>시험용 덮어쓰기({@code roboyam.social.test-endpoints.*})는 아래를 <b>모두</b> 만족할 때만 쓰인다. 하나라도 어기면 무시하고 고정 주소를 쓴다(경고 로그).
+ * <p>시험용 덮어쓰기({@code irobit.social.test-endpoints.*})는 아래를 <b>모두</b> 만족할 때만 쓰인다. 하나라도 어기면 무시하고 고정 주소를 쓴다(경고 로그).
  * <ol>
  *   <li>{@code enabled=true}</li>
  *   <li>활성 프로필이 {@code local} 이고 {@code dev}·{@code prod} 가 아니다(기본 프로필 local 포함)</li>
@@ -56,7 +56,7 @@ public class SocialEndpoints {
                 test.put(provider, new Endpoints(base + "/authorize", base + "/token", base + "/me", Set.of(base)));
             }
             this.endpoints = Map.copyOf(test);
-            log.warn("소셜 로그인이 시험용 가짜 공급자({})를 쓴다 — local 프로필 전용 설정 roboyam.social.test-endpoints 가 켜져 있다", testBase);
+            log.warn("소셜 로그인이 시험용 가짜 공급자({})를 쓴다 — local 프로필 전용 설정 irobit.social.test-endpoints 가 켜져 있다", testBase);
         }
     }
 
@@ -76,7 +76,7 @@ public class SocialEndpoints {
         }
         boolean local = environment.acceptsProfiles(Profiles.of("local")) && !environment.acceptsProfiles(Profiles.of("dev", "prod"));
         if (!local) {
-            log.warn("roboyam.social.test-endpoints 는 local 프로필 전용이라 무시한다 — 실제 공급자 주소를 쓴다");
+            log.warn("irobit.social.test-endpoints 는 local 프로필 전용이라 무시한다 — 실제 공급자 주소를 쓴다");
             return null;
         }
         String base = test.baseUrl() == null ? "" : test.baseUrl().strip();
@@ -84,7 +84,7 @@ public class SocialEndpoints {
             base = base.substring(0, base.length() - 1);
         }
         if (!isLoopbackHttp(base)) {
-            log.warn("roboyam.social.test-endpoints.base-url 이 루프백 http(s) 주소가 아니라 무시한다 — 실제 공급자 주소를 쓴다");
+            log.warn("irobit.social.test-endpoints.base-url 이 루프백 http(s) 주소가 아니라 무시한다 — 실제 공급자 주소를 쓴다");
             return null;
         }
         return base;

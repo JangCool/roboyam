@@ -567,7 +567,7 @@ watch(
 const boardHead = ref<HTMLElement | null>(null);
 let headObserver: IntersectionObserver | null = null;
 
-/** 창 위에 붙는 셸 막대(본문 밖 `sticky`·`fixed` 이고 위가 0)의 가장 큰 높이 — 테마마다 다르다(로보얌은 메뉴 줄까지 붙어 `--shell-header-h` 보다 높다) */
+/** 창 위에 붙는 셸 막대(본문 밖 `sticky`·`fixed` 이고 위가 0)의 가장 큰 높이 — 테마마다 다르다(아이로빗은 메뉴 줄까지 붙어 `--shell-header-h` 보다 높다) */
 function shellHeaderPx(): number {
     const main = document.getElementById('main-content');
     let max = 0;

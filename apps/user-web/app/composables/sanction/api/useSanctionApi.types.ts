@@ -46,7 +46,7 @@ export interface MySanction {
     /** 이의제기 — 없으면 null. null 이고 무효가 아니고 마감 전이면 접수할 수 있다 */
     appeal: AppealView | null;
     /**
-     * 이의제기 마감 — 제재 시작(`startsAt`) + 30일(로보얌 결정, `member-sanction-contract.md` 결정 3). 무효(`VOIDED`)면 null.
+     * 이의제기 마감 — 제재 시작(`startsAt`) + 30일(아이로빗 결정, `member-sanction-contract.md` 결정 3). 무효(`VOIDED`)면 null.
      * 지나면 접수가 `409 APPEAL_EXPIRED` 다(이미 접수한 이의제기의 처리와는 상관없다).
      */
     appealDeadline: string | null;

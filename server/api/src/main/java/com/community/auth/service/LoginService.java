@@ -32,7 +32,7 @@ public class LoginService {
     private static final Logger log = LoggerFactory.getLogger(LoginService.class);
 
     /** 계정이 없을 때도 해시 비교에 드는 시간을 비슷하게 맞추기 위한 값 */
-    private static final String TIMING_DUMMY_PASSWORD = "roboyam-timing-dummy-password-1";
+    private static final String TIMING_DUMMY_PASSWORD = "irobit-timing-dummy-password-1";
 
     private final UserRepository users;
     private final PasswordEncoder encoder;

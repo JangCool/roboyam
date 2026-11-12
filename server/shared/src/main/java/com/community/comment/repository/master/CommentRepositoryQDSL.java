@@ -2,7 +2,7 @@ package com.community.comment.repository.master;
 
 import com.community.comment.entity.QCommentEntity;
 import com.community.post.dto.WriteRateData;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 
 /** 댓글 질의 — 댓글 ID 만으로 글 찾기(주소에 글 ID 가 없는 API), 작성 속도 */
 @Repository
-public class CommentRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class CommentRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
 

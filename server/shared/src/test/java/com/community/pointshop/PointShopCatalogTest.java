@@ -170,7 +170,7 @@ class PointShopCatalogTest extends PointShopTestBase {
         assertThat(looks.get(b).decoration().nicknameColor()).isNull();
         assertThat(looks.get(b).decoration().profileBorder()).isEqualTo("GOLD");
         assertThat(looks.get(c).decoration()).isNull();
-        assertThat(looks.get(c).avatarUrl()).isEqualTo("/avatars/roboyam/basic-default.svg");
+        assertThat(looks.get(c).avatarUrl()).isEqualTo("/avatars/irobit/basic-default.svg");
     }
 
     @Test

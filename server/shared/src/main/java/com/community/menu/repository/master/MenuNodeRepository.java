@@ -1,11 +1,11 @@
 package com.community.menu.repository.master;
 
 import com.community.menu.entity.MenuNodeEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface MenuNodeRepository extends RoboyamRepository<MenuNodeEntity, Long> {
+public interface MenuNodeRepository extends IrobitRepository<MenuNodeEntity, Long> {
 
     /** 그룹의 모든 노드 — 부모 안의 차례대로(트리는 부르는 쪽이 짓는다) */
     List<MenuNodeEntity> findBySetKeyOrderBySortOrderAscIdAsc(String setKey);

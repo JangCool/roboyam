@@ -204,7 +204,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
 
     /** 핫딜 정보 — 받는 게시판·첫 말머리, 재고 IN_STOCK, 대형몰 링크(막히지 않음) */
     protected BizDealInfo deal(String placement) {
-        return new BizDealInfo("https://smartstore.naver.com/roboyam/products/1", "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "IN_STOCK", "1+1 행사", placement,
+        return new BizDealInfo("https://smartstore.naver.com/irobit/products/1", "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "IN_STOCK", "1+1 행사", placement,
                 Long.toString(dealBoard()), Long.toString(dealPrefix()), null, null);
     }
 

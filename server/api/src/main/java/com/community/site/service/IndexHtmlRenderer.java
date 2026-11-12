@@ -41,7 +41,7 @@ public class IndexHtmlRenderer {
     private static final String MANIFEST_URL = "/manifest.webmanifest";
     private static final String TITLE_SEPARATOR = " — ";
     /** 관리자 미리보기 응답에만 넣는 관리자 origin 메타 이름(user-web {@code plugins/03.admin-preview.client.ts} 가 읽는다) */
-    static final String ADMIN_ORIGIN_META = "roboyam-admin-origin";
+    static final String ADMIN_ORIGIN_META = "irobit-admin-origin";
 
     private static final Pattern HEAD_OPEN = Pattern.compile("<head(?:\\s[^>]*)?>", Pattern.CASE_INSENSITIVE);
     private static final Pattern HEAD_CLOSE = Pattern.compile("</head\\s*>", Pattern.CASE_INSENSITIVE);
@@ -79,7 +79,7 @@ public class IndexHtmlRenderer {
     }
 
     /**
-     * 관리자 미리보기 응답 — 머리 맨 앞에 {@code <meta name="roboyam-admin-origin" content="관리자 origin">} 을 더한 사본(지문도 새로). 공개 화면이 이 주소의 메시지만 받는다
+     * 관리자 미리보기 응답 — 머리 맨 앞에 {@code <meta name="irobit-admin-origin" content="관리자 origin">} 을 더한 사본(지문도 새로). 공개 화면이 이 주소의 메시지만 받는다
      * (user-web {@code plugins/03.admin-preview.client.ts}). 머리가 없는 틀이면 그대로다.
      */
     public RenderedIndex withAdminOrigin(RenderedIndex index, String adminOrigin) {

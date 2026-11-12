@@ -565,7 +565,7 @@ async function cancel(): Promise<void> {
 const payStarting = ref(false);
 const payError = ref('');
 const pay = usePaymentCheckout<BizPaymentStart>({
-    pendingKey: 'roboyam-biz-application-payment-pending',
+    pendingKey: 'irobit-biz-application-payment-pending',
     redirectPath: (target) => UtilBusiness.applicationPath(target.orderRefId),
     // 포트원은 구매자 전화번호가 비면 결제창을 열지 않는다 — 서버가 결제 시작 응답에 사업자 상호·연락처·이메일을 싣는다(없을 때만 회원 값)
     customer: (target) => target.customer ?? { fullName: user.value?.nickname ?? '', phoneNumber: '', email: user.value?.email ?? '' },

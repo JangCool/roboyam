@@ -15,7 +15,7 @@ import com.community.sanction.repository.master.MemberSanctionStore.SanctionRow;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -38,7 +38,7 @@ import org.springframework.stereotype.Repository;
  * {@code ix_sanction_appeals_status}), 회원 찾기는 닉네임 trigram 색인({@code ix_profiles_nickname_trgm}).
  */
 @Repository
-public class AdminSanctionStore extends RoboyamRepositoryQDSL {
+public class AdminSanctionStore extends IrobitRepositoryQDSL {
 
     private static final QUserEntity U = QUserEntity.userEntity;
     private static final QMemberSanctionEntity X = new QMemberSanctionEntity("x");

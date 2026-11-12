@@ -4,7 +4,7 @@ import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.QGroupBuyEntity;
 import com.community.pointshop.entity.PointShopItemKind;
 import com.community.pointshop.entity.QPointShopItemEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.Optional;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
  * 판매 중 = 켜짐 · 판매 시작 지남 · 판매 끝 전 · 재고 남음(없음 = 무제한) — 관리자 화면 {@code UtilPointShop.saleState} 의 ON_SALE 과 같다. 프로필 아바타 품목은 상품 화면이 없어 뺀다.
  */
 @Repository
-public class CacheSampleStore extends RoboyamRepositoryQDSL {
+public class CacheSampleStore extends IrobitRepositoryQDSL {
 
     private static final QPointShopItemEntity ITEM = QPointShopItemEntity.pointShopItemEntity;
     private static final QGroupBuyEntity GROUP_BUY = QGroupBuyEntity.groupBuyEntity;

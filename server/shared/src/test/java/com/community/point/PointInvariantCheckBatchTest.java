@@ -46,7 +46,7 @@ class PointInvariantCheckBatchTest {
     static void setUp() {
         admin = new JdbcTemplate(CommerceTestDatabase.migrated());
         admin.execute("CREATE DATABASE " + DB);
-        dataSource = new DriverManagerDataSource(CommerceTestDatabase.jdbcUrl().replaceFirst("/roboyam(?=\\?|$)", "/" + DB), CommerceTestDatabase.username(),
+        dataSource = new DriverManagerDataSource(CommerceTestDatabase.jdbcUrl().replaceFirst("/irobit(?=\\?|$)", "/" + DB), CommerceTestDatabase.username(),
                 CommerceTestDatabase.password());
         dataSource.setDriverClassName("org.postgresql.Driver");
         jdbc = new JdbcTemplate(dataSource);

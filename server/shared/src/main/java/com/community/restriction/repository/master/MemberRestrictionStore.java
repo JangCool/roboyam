@@ -7,7 +7,7 @@ import com.community.restriction.entity.RestrictionSource;
 import com.community.restriction.entity.RestrictionType;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class MemberRestrictionStore extends RoboyamRepositoryQDSL {
+public class MemberRestrictionStore extends IrobitRepositoryQDSL {
 
     private static final QMemberRestrictionEntity R = QMemberRestrictionEntity.memberRestrictionEntity;
     private static final QOperatorEntity CREATED = new QOperatorEntity("createdOperator");

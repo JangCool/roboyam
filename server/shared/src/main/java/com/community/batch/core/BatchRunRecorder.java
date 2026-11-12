@@ -103,7 +103,7 @@ public class BatchRunRecorder {
 
     @Autowired
     public BatchRunRecorder(@Qualifier(JpaMasterConfig.QUERY_FACTORY) JPAQueryFactory query, BatchRunRepository runs, BatchRunStepRepository steps,
-                            EntityManager entityManager, PlatformTransactionManager transactions, SnowflakeIdGenerator ids, @Value("${roboyam.node-id}") int nodeId) {
+                            EntityManager entityManager, PlatformTransactionManager transactions, SnowflakeIdGenerator ids, @Value("${irobit.node-id}") int nodeId) {
         this.query = query;
         this.runs = runs;
         this.steps = steps;

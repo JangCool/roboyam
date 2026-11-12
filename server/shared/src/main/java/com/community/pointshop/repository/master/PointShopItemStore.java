@@ -9,7 +9,7 @@ import com.community.pointshop.entity.PointShopUsageType;
 import com.community.pointshop.entity.QPointShopItemEntity;
 import com.community.pointshop.entity.QPointShopPurchaseEntity;
 import com.community.pointshop.entity.QPointShopSettingEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -37,7 +37,7 @@ import org.springframework.stereotype.Repository;
  * Native SQL 로 남긴 것과 이유: 설정 행 「없으면 만든다」({@code INSERT … ON CONFLICT (id) DO NOTHING} — upsert).
  */
 @Repository
-public class PointShopItemStore extends RoboyamRepositoryQDSL {
+public class PointShopItemStore extends IrobitRepositoryQDSL {
 
     /** 품목 한 줄(만든·고친 운영자 이름 포함 — 시스템(마이그레이션)이거나 지워진 운영자면 null) */
     public record ItemRow(long id, String code, PointShopItemKind kind, PointShopUsageType usageType, String name, String nameEn, String description,

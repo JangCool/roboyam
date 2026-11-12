@@ -28,7 +28,7 @@ export type DealImageSource = 'OG' | 'UPLOAD';
  */
 export type AffiliateMode = 'MEMBER' | 'SITE';
 /**
- * 글의 제휴 표시 종류 — **지금 방식으로 서버가 계산**한다(저장값이 아니다). `MEMBER` 작성자 개인 제휴(「제휴·수수료」) · `SITE` 로보얌 사이트 제휴(「제휴」).
+ * 글의 제휴 표시 종류 — **지금 방식으로 서버가 계산**한다(저장값이 아니다). `MEMBER` 작성자 개인 제휴(「제휴·수수료」) · `SITE` 아이로빗 사이트 제휴(「제휴」).
  * `SITE` 모드면 사이트 제휴 몰 글 = `SITE`, 그 밖(기존 개인 제휴 글 포함) = null. `MEMBER` 모드면 `affiliate` 글 = `MEMBER`
  */
 export type DealAffiliateKind = 'MEMBER' | 'SITE';
@@ -197,7 +197,7 @@ export interface DealLinkCheck {
      * `SITE` 이고 `rule === 'AFFILIATE'`(개인 제휴 — 제휴 네트워크 단축·추적 링크, 최종 호스트 포함)면 등록 불가(저장 때 `400 VALIDATION fields."deal.productUrl"`)
      */
     affiliateMode: AffiliateMode;
-    /** `SITE` 이고 이 링크(최종 호스트 우선)가 켜진 사이트 제휴 몰이면 그 프로그램 — 쓰기 화면이 「구매 링크는 로보얌 제휴 링크로 바뀝니다」를 보인다. 그 밖 null */
+    /** `SITE` 이고 이 링크(최종 호스트 우선)가 켜진 사이트 제휴 몰이면 그 프로그램 — 쓰기 화면이 「구매 링크는 아이로빗 제휴 링크로 바뀝니다」를 보인다. 그 밖 null */
     siteAffiliate: { programName: string } | null;
 }
 

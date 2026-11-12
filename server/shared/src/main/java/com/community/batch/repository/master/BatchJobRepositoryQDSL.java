@@ -2,7 +2,7 @@ package com.community.batch.repository.master;
 
 import com.community.batch.dto.BatchLastRun;
 import com.community.batch.entity.QBatchJobEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.stereotype.Repository;
 
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
  * <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class BatchJobRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class BatchJobRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QBatchJobEntity JOB = QBatchJobEntity.batchJobEntity;
 

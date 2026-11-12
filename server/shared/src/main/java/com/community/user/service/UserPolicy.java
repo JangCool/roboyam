@@ -68,7 +68,7 @@ public final class UserPolicy {
      * 회원이 고르는 닉네임의 예약어 — 운영자로 오해될 이름. 소문자로 바꾸고 공백·밑줄을 뺀 닉네임에 <b>들어 있으면</b> 쓸 수 없다(community 입력 규칙 「예약어 불가」).
      * 형식 검사({@link #nicknameViolation})와 따로 둔다 — 설치 마법사의 루트 계정은 예약어를 쓸 수 있어야 한다. 회원 가입·닉네임 확인·닉네임 변경이 부른다(목록은 코드 고정 — docs/features/member-mypage-contract.md 「결정」).
      */
-    public static final List<String> RESERVED_NICKNAME_WORDS = List.of("admin", "운영자", "관리자", "운영진", "roboyam", "로보얌");
+    public static final List<String> RESERVED_NICKNAME_WORDS = List.of("admin", "운영자", "관리자", "운영진", "irobit", "아이로빗", "roboyam", "로보얌"); // 옛 이름(로보얌)도 사칭 막기
 
     /** 예약어가 들어 있는 닉네임인가({@link #RESERVED_NICKNAME_WORDS}) — 위반 문구는 {@code user.nickname.reserved} */
     public static boolean isReservedNickname(String nickname) {

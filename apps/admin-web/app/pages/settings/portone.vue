@@ -1,7 +1,7 @@
 <template>
     <!--
         포트원 설정(`/settings/portone`, 커머스 0-4 + 2a 결정 14) — 포트원 V2 의 비밀값을 넣고 지운다. 값은 **절대 보이지 않고** 설정 여부·마지막 변경만 보인다.
-        구획: ① 지금 쓰는 구현(읽기 전용 — 본인인증 `roboyam.identity.provider`, 결제 `roboyam.payment.gateway` 배포 설정이 정하고 화면에서 바꿀 수 없다)
+        구획: ① 지금 쓰는 구현(읽기 전용 — 본인인증 `irobit.identity.provider`, 결제 `irobit.payment.gateway` 배포 설정이 정하고 화면에서 바꿀 수 없다)
               ② 「공통」 카드(상점 ID · API 비밀키 — 본인인증·결제가 같이 쓴다) ③ 「본인인증」 카드(본인인증 채널 키) ④ 「결제」 카드(결제 채널 키 · 웹훅 비밀키 + 「결제 준비됨」).
         카드마다 따로 저장한다(`PortoneSecretCard`). 한 카드가 저장·지우는 동안 다른 카드는 잠근다.
         - 서버에 암호화 키가 없으면(`cryptoKeyConfigured=false`) 맨 위 경고 — 저장할 수 없다(지우기는 된다). 소셜 로그인 설정과 같다.

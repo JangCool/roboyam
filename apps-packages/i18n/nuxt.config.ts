@@ -2,12 +2,12 @@ import { fileURLToPath } from 'node:url';
 import { defineNuxtConfig } from 'nuxt/config';
 
 /**
- * 화면 문구(한국어·영어) 공유 레이어 — user-web · admin-web 이 `extends: ['@roboyam/i18n']` 로 쓴다(`@roboyam/display-time` 이 이 레이어에 의존하므로 display-time 을 쓰면 따라온다).
+ * 화면 문구(한국어·영어) 공유 레이어 — user-web · admin-web 이 `extends: ['@irobit/i18n']` 로 쓴다(`@irobit/display-time` 이 이 레이어에 의존하므로 display-time 을 쓰면 따라온다).
  * 규약은 `.claude/guides/frontend/i18n.md`.
  *
  * (hamonica3 `frontend/nuxt.config.ts` 의 i18n 블록 — D-89 — 을 옮겼다.)
  *
- * **주소로 언어를 가르지 않는다** (`strategy: 'no_prefix'`). 언어는 <b>표시 값</b>(`@roboyam/display-time` 의 `DisplayValues.language`)에서 온다 —
+ * **주소로 언어를 가르지 않는다** (`strategy: 'no_prefix'`). 언어는 <b>표시 값</b>(`@irobit/display-time` 의 `DisplayValues.language`)에서 온다 —
  * 주소에 `/en` 을 붙이면 같은 화면에 주소가 둘이 되고, "내 설정은 영어인데 주소는 한국어" 같은 상태가 생긴다.
  *
  * **브라우저 언어를 자동으로 따르지 않는다** (`detectBrowserLanguage: false`). 서버가 정한 값이 있는데 브라우저가 덮으면, 관리자가 사이트 기본값을 바꿔도 어떤 사람에게는 안 먹는다.

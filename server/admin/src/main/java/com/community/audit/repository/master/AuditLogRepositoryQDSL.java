@@ -12,7 +12,7 @@ import com.community.post.entity.QPostEntity;
 import com.community.report.entity.QReportCaseEntity;
 import com.community.role.entity.QRoleEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Repository;
  * 실패·거부 {@code WHERE result <> 'SUCCESS'}, 내 로그인 이력 {@code (actor_id, occurred_at DESC, id DESC) WHERE action IN (로그인 성공·실패)}.
  */
 @Repository
-public class AuditLogRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AuditLogRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QAuditLogEntity AUDIT = QAuditLogEntity.auditLogEntity;
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;

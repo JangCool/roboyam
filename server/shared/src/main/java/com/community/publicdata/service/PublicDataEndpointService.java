@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 공공데이터 API 주소 설정(사용자 지시 2026-11-05 「받는 주소가 바뀔 수 있으니 설정 화면에 API 주소 칸」) — 국세청 사업자 상태 조회 기본 주소와 특일 정보(공휴일) 주소·요청 글자 틀·응답 칸 이름.
  *
  * <ul>
- *   <li>읽는 차례: 화면에서 넣은 값 → 기본값(국세청은 배포 설정 {@code roboyam.business.nts.base-url} — 기본 {@code https://api.odcloud.kr}, 특일 정보는 코드의 공식 값
+ *   <li>읽는 차례: 화면에서 넣은 값 → 기본값(국세청은 배포 설정 {@code irobit.business.nts.base-url} — 기본 {@code https://api.odcloud.kr}, 특일 정보는 코드의 공식 값
  *       {@link SpecialDayApi#DEFAULT_URL} 등). 요청마다 DB 를 읽는다 — 저장하면 재시작 없이 다음 요청부터, 서버가 여럿이어도 같은 값.</li>
  *   <li>검사(400 {@code fields.<칸>}): 주소는 {@code https://} 만 · {@value #URL_MAX}자 이하 · 공백·{@code ?}·{@code #} 없음 · 끝의 {@code /} 는 지운다.
  *       요청 글자 틀은 {@value #TEMPLATE_MAX}자 이하 · 공백 없음 · {@code {serviceKey}}·{@code {year}}·{@code {month}} 자리 필수. 칸 이름은 영문·숫자·밑줄 {@value #FIELD_MAX}자 이하.

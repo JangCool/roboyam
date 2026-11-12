@@ -9,7 +9,7 @@ import com.community.group.entity.QGroupEventResponseEntity;
 import com.community.group.entity.QGroupMemberEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -24,10 +24,10 @@ import org.springframework.stereotype.Repository;
  * 소모임 일정 질의(V93 — community api-groups.md 9절) — 다가오는/지난 일정, 다음 일정, 참석 집계·참석자. 「지금」은 부르는 쪽이 넘기고 「끝났나」는 {@code closes_at} 한 조건이다.
  *
  * <p>집계·참석자는 <b>지금 멤버(ACTIVE)이고 탈퇴하지 않은 회원의 응답만</b> 센다 — 나가거나 강퇴된 멤버의 응답은 남아 있어도 빠지고 다시 가입하면 돌아온다
- * (원본은 서비스 탈퇴 때 응답을 지운다 — 로보얌은 탈퇴 정리가 아직 없어 읽을 때 뺀다). 트랜잭션은 부르는 서비스의 것을 따른다.
+ * (원본은 서비스 탈퇴 때 응답을 지운다 — 아이로빗은 탈퇴 정리가 아직 없어 읽을 때 뺀다). 트랜잭션은 부르는 서비스의 것을 따른다.
  */
 @Repository
-public class GroupEventQueries extends RoboyamRepositoryQDSL {
+public class GroupEventQueries extends IrobitRepositoryQDSL {
 
     /** 한 일정의 응답별 인원 */
     public record Counts(int going, int notGoing, int maybe) {

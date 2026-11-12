@@ -2,7 +2,7 @@ package com.community.addressbook.repository.master;
 
 import com.community.addressbook.entity.MemberAddressEntity;
 import com.community.addressbook.entity.QMemberAddressEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
  * 회원 단위 잠금({@link #lockMember})은 부르는 서비스의 트랜잭션 안에서만 뜻이 있다. 암호문 칸은 {@code toString} 에 싣지 않는다.
  */
 @Repository
-public class MemberAddressStore extends RoboyamRepositoryQDSL {
+public class MemberAddressStore extends IrobitRepositoryQDSL {
 
     /** 저장된 한 줄(암호문 그대로) */
     public record Row(long id, long userId, String label, String recipientEnc, String phoneEnc, String postcode, String address1Enc, String address2Enc, String memoEnc,

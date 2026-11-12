@@ -1,16 +1,16 @@
 /**
- * 화면 문구를 **쓰는 화면이 가져가게** 나누는 빌드 모듈(2026-11-12) — 이 레이어(`@roboyam/i18n`)를 extends 한 앱(user-web · admin-web)에 붙는다.
+ * 화면 문구를 **쓰는 화면이 가져가게** 나누는 빌드 모듈(2026-11-12) — 이 레이어(`@irobit/i18n`)를 extends 한 앱(user-web · admin-web)에 붙는다.
  *
  * 예전에는 모든 업무의 문구를 한꺼번에(한국어만 user-web gzip 약 97KB) 첫 화면에서 받았다. 휴대폰에서 첫 화면이 느린 큰 이유였다.
  *
  * 하는 일
  * 1. 모든 레이어·앱의 `i18n/locales/{언어}/{업무}.ts` 를 모은다 — **파일 이름이 업무 이름**(키의 첫 마디, `t('account.title')` 의 `account`)이다. 따로 목록에 등록하지 않는다.
  * 2. 화면·컴포넌트·유틸 코드(이 저장소 안, node_modules 밖)에 `'업무.` · `"업무.` · `` `업무. `` 꼴의 글자가 있으면 그 모듈 맨 앞에
- *    `import 'virtual:roboyam-messages/<업무>'` 를 넣는다. 그 가상 모듈은 기본 언어(`ko`) 문구를 들고 와 `registerMessages` 로 등록한다
+ *    `import 'virtual:irobit-messages/<업무>'` 를 넣는다. 그 가상 모듈은 기본 언어(`ko`) 문구를 들고 와 `registerMessages` 로 등록한다
  *    → 문구가 그 화면 조각과 같이 실려 오고, 화면을 그리기 전에 등록된다. 여러 화면이 같이 쓰는 업무는 번들러가 공통 조각으로 뺀다.
  *    키를 상수로 들고 다니는 경우(`labelKey: 'menu.home'`)도 그 상수가 있는 모듈에서 잡힌다. `.` 뒤 첫마디가 그 업무 파일의 맨 위 키일 때만 문구 키로 본다
  *    — 권한 코드(`'team.read'`)처럼 꼴만 같은 글자를 거른다(관리자 메뉴가 권한 코드를 모아 두어 모든 업무 문구를 첫 화면으로 끌고 왔다).
- * 3. 다른 언어(`en`)와, 코드에서 못 찾은 키(서버가 내려주는 `nameKey` 등)는 실행 중에 업무 단위로 받는다(`virtual:roboyam-messages-loaders` — `runtime/business-messages.ts`).
+ * 3. 다른 언어(`en`)와, 코드에서 못 찾은 키(서버가 내려주는 `nameKey` 등)는 실행 중에 업무 단위로 받는다(`virtual:irobit-messages-loaders` — `runtime/business-messages.ts`).
  *
  * ⚠ `.vue?macro=true`(페이지 `definePageMeta` 를 뽑는 모듈 — 경로 표가 엔트리에서 모두 import 한다)에는 넣지 않는다. 넣으면 모든 화면의 문구가 엔트리로 다시 몰린다.
  */
@@ -20,15 +20,15 @@ import { fileURLToPath } from 'node:url';
 import { addTypeTemplate, addVitePlugin, defineNuxtModule } from 'nuxt/kit';
 
 /** 문구 등록 가상 모듈 접두어 — 뒤에 업무 이름 */
-const MESSAGES = 'virtual:roboyam-messages/';
+const MESSAGES = 'virtual:irobit-messages/';
 /** 업무·언어별 늦게 받기 함수 표 */
-const LOADERS = 'virtual:roboyam-messages-loaders';
+const LOADERS = 'virtual:irobit-messages-loaders';
 /**
  * 늦게 받을 때 부르는 다시 내보내기 모듈 접두어 — 뒤에 `<업무>/<언어>`. 문구 파일을 `import()` 로 바로 부르면, 그 파일이 화면 조각에도 정적으로 묶여 있어
  * 번들러가 모듈 이름공간 객체를 만드는 도우미(`rolldown/runtime`)를 문구 조각마다 쓰게 된다 — 그 도우미가 큰 조각(관리자 화면: ECharts)에 들어가면
  * 첫 화면이 그 조각을 통째로 받는다(2026-11-12). `export default` 한 줄짜리 모듈을 거치면 이름 하나만 가져와 도우미가 필요 없다.
  */
-const LAZY = 'virtual:roboyam-messages-lazy/';
+const LAZY = 'virtual:irobit-messages-lazy/';
 /** 화면 조각과 같이 싣는 언어 — `i18n.config.ts` 의 `fallbackLocale` 과 같다 */
 const DEFAULT_LOCALE = 'ko';
 /** 코드 안의 키 꼴 — 따옴표·백틱 바로 뒤의 `업무.첫마디`(첫마디는 비거나 `${` 로 끊길 수 있다) */
@@ -54,7 +54,7 @@ const toPosix = (path: string) => path.replaceAll('\\', '/');
 const real = (path: string) => toPosix(realpathSync(path));
 
 export default defineNuxtModule({
-    meta: { name: 'roboyam:business-messages' },
+    meta: { name: 'irobit:business-messages' },
     setup(_options, nuxt) {
         const registry = real(fileURLToPath(new URL('../runtime/business-messages.ts', import.meta.url)));
 
@@ -74,7 +74,7 @@ export default defineNuxtModule({
                     const other = byLocale.get(locale);
                     // 레이어 순서(앱 → 레이어)로 같은 파일 경로가 다시 올 수 있다 — 다른 파일이면 키가 겹친다
                     if (other && other !== path) {
-                        throw new Error(`[roboyam:business-messages] 문구 업무 '${name}'(${locale}) 이 두 곳에 있습니다 — ${other} · ${path}. 업무 이름(파일 이름)은 레이어를 통틀어 하나여야 합니다.`);
+                        throw new Error(`[irobit:business-messages] 문구 업무 '${name}'(${locale}) 이 두 곳에 있습니다 — ${other} · ${path}. 업무 이름(파일 이름)은 레이어를 통틀어 하나여야 합니다.`);
                     }
                     byLocale.set(locale, path);
                     files.set(name, byLocale);
@@ -82,7 +82,7 @@ export default defineNuxtModule({
             }
         }
         for (const [name, byLocale] of files) {
-            if (!byLocale.has(DEFAULT_LOCALE)) throw new Error(`[roboyam:business-messages] 문구 업무 '${name}' 에 ${DEFAULT_LOCALE} 파일이 없습니다: ${[...byLocale.values()].join(', ')}`);
+            if (!byLocale.has(DEFAULT_LOCALE)) throw new Error(`[irobit:business-messages] 문구 업무 '${name}' 에 ${DEFAULT_LOCALE} 파일이 없습니다: ${[...byLocale.values()].join(', ')}`);
         }
 
         const workspace = real(nuxt.options.workspaceDir).replace(/\/?$/, '/');
@@ -104,7 +104,7 @@ export default defineNuxtModule({
         };
 
         addVitePlugin({
-            name: 'roboyam:business-messages',
+            name: 'irobit:business-messages',
             enforce: 'post',
             resolveId(id) {
                 if (id === LOADERS || id.startsWith(MESSAGES) || id.startsWith(LAZY)) return '\0' + id;
@@ -158,7 +158,7 @@ export default defineNuxtModule({
         });
 
         addTypeTemplate({
-            filename: 'types/roboyam-messages.d.ts',
+            filename: 'types/irobit-messages.d.ts',
             getContents: () =>
                 [
                     `declare module '${LOADERS}' {`,

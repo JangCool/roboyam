@@ -11,7 +11,7 @@ export interface BottomTab {
 }
 
 /**
- * 커뮤니티 탭이 가는 곳 — 메뉴 「커뮤니티」 폴더의 「누르면 가는 곳」(가젯 페이지, 설치 프리셋 `roboyam.json`).
+ * 커뮤니티 탭이 가는 곳 — 메뉴 「커뮤니티」 폴더의 「누르면 가는 곳」(가젯 페이지, 설치 프리셋 `irobit.json`).
  * 메뉴 그룹에는 고유 키가 없어 이 주소로 그 그룹을 먼저 찾고, 없으면 이름으로 찾는다(아래 `community`). 이름·영문명·가는 곳은 찾은 그룹 것을 쓴다
  */
 const COMMUNITY_PATH = '/p/community';

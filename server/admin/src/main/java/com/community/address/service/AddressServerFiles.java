@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 서버 폴더의 주소 DB 파일(「지정 경로에서 적재」 — address-search-contract). 운영자가 서버에 직접 둔 zip 을 올리지 않고 그대로 넣는다(수백 MB 를 브라우저로 보내지 않게).
- * 폴더는 배포 설정 {@code roboyam.address.import-dir}(환경 변수 {@code ROBOYAM_ADDRESS_IMPORT_DIR}) — 비우면 이 기능은 꺼진다.
+ * 폴더는 배포 설정 {@code irobit.address.import-dir}(환경 변수 {@code IROBIT_ADDRESS_IMPORT_DIR}) — 비우면 이 기능은 꺼진다.
  *
  * <p>고를 수 있는 것은 그 폴더 <b>바로 아래</b>의 {@code .zip} 파일뿐이다(숨김 파일·하위 폴더·링크 밖 경로 제외). 요청은 경로가 아니라 이 목록에 있는 <b>이름</b>을 보내고,
  * 서버는 목록에서 같은 이름을 찾아 쓴다 — {@code ../} 같은 경로로 폴더 밖 파일을 고를 수 없다. 적재가 끝나도 파일은 지우지 않는다(운영자 것).
@@ -32,7 +32,7 @@ public class AddressServerFiles {
 
     private final Path dir;
 
-    public AddressServerFiles(@Value("${roboyam.address.import-dir:}") String dir) {
+    public AddressServerFiles(@Value("${irobit.address.import-dir:}") String dir) {
         this.dir = dir == null || dir.isBlank() ? null : Paths.get(dir.strip()).toAbsolutePath().normalize();
     }
 

@@ -7,7 +7,7 @@ import UtilMenuPosition from '~/utils/util-menu-position';
  */
 export default class UtilViewSettings {
     /** 이 브라우저에 저장해 두는 열쇠 — 서버 값이 늦게 와도 첫 화면(야간 모드 깜빡임)을 막는다 */
-    static readonly STORAGE_KEY = 'roboyam:view-settings';
+    static readonly STORAGE_KEY = 'irobit:view-settings';
 
     static readonly THEMES: readonly ThemeSetting[] = ['AUTO', 'LIGHT', 'DARK'];
     static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 100, 110, 125];

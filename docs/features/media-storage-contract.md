@@ -5,7 +5,7 @@
 `r2`·`s3` 는 S3 API 하나로 만든 같은 구현이고 기본값만 다르다. local·dev 는 로컬 디스크가 기본이고 설정만으로 버킷을 붙여 시험할 수 있다. 화면·API·DB 는 바뀌지 않는다(서버 설정·내보내기만).
 
 ## 구조
-- `ImageStorage`(shared `com.community.media.service`) — 구현 `LocalDiskImageStorage` · `S3ImageStorage`(r2·s3 공용). 빈은 `StorageConfig` 가 `roboyam.storage.type` 으로 고른다.
+- `ImageStorage`(shared `com.community.media.service`) — 구현 `LocalDiskImageStorage` · `S3ImageStorage`(r2·s3 공용). 빈은 `StorageConfig` 가 `irobit.storage.type` 으로 고른다.
 - 장부·업무 표에는 **키**(`post-image/202611/<32자>.webp` 등)만 둔다. 모든 구현이 같은 키를 쓴다 → 로컬 폴더를 그대로 버킷에 올리면 옮겨진다(DB 변경·마이그레이션 없음).
 - 예외: 글 본문 HTML·공동구매 설명 HTML 에는 저장할 때의 공개 주소(`src="/media/…"`)가 박혀 있다 → `/media/**` 는 r2·s3 에서도 계속 연다.
 
@@ -18,18 +18,18 @@
 
 직접 준 endpoint·region 은 늘 이긴다.
 
-## 설정 (`roboyam.storage.*`, 환경 변수)
+## 설정 (`irobit.storage.*`, 환경 변수)
 | 칸 | 환경 변수 | 기본 | 설명 |
 |---|---|---|---|
-| `type` | `ROBOYAM_STORAGE_TYPE` | local·dev `local`, prod `r2`(`roboyam-shared-prod.yml`) | `local` \| `r2` \| `s3` — 어느 프로필이든 이 값이 먼저 |
-| `local-path` | `ROBOYAM_STORAGE_PATH` | `/var/lib/roboyam/media`(local 프로필 `~/.roboyam/media`) | local 폴더 |
-| `r2.account-id` | `ROBOYAM_STORAGE_R2_ACCOUNT_ID` | — | r2: endpoint 를 만든다 |
-| `s3.endpoint` | `ROBOYAM_STORAGE_S3_ENDPOINT` | 위 표 | 버킷 공통(r2·s3) |
-| `s3.region` | `ROBOYAM_STORAGE_S3_REGION` | 위 표 | |
-| `s3.bucket` | `ROBOYAM_STORAGE_S3_BUCKET` | — (필수) | |
-| `s3.access-key` · `s3.secret-key` | `ROBOYAM_STORAGE_S3_ACCESS_KEY` · `_SECRET_KEY` | 위 표 | 둘 다 주거나 둘 다 비운다. 비밀 키는 `ENC(...)`(ROBOYAM_CRYPTO_KEY — `EncryptedPropertyPostProcessor` 가 모든 설정에 적용) |
-| `s3.path-style` | `ROBOYAM_STORAGE_S3_PATH_STYLE` | false | MinIO true |
-| `s3.public-base-url` | `ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL` | 비움 | 새 이미지 주소의 머리(R2 사용자 도메인) |
+| `type` | `IROBIT_STORAGE_TYPE` | local·dev `local`, prod `r2`(`irobit-shared-prod.yml`) | `local` \| `r2` \| `s3` — 어느 프로필이든 이 값이 먼저 |
+| `local-path` | `IROBIT_STORAGE_PATH` | `/var/lib/irobit/media`(local 프로필 `~/.irobit/media`) | local 폴더 |
+| `r2.account-id` | `IROBIT_STORAGE_R2_ACCOUNT_ID` | — | r2: endpoint 를 만든다 |
+| `s3.endpoint` | `IROBIT_STORAGE_S3_ENDPOINT` | 위 표 | 버킷 공통(r2·s3) |
+| `s3.region` | `IROBIT_STORAGE_S3_REGION` | 위 표 | |
+| `s3.bucket` | `IROBIT_STORAGE_S3_BUCKET` | — (필수) | |
+| `s3.access-key` · `s3.secret-key` | `IROBIT_STORAGE_S3_ACCESS_KEY` · `_SECRET_KEY` | 위 표 | 둘 다 주거나 둘 다 비운다. 비밀 키는 `ENC(...)`(IROBIT_CRYPTO_KEY — `EncryptedPropertyPostProcessor` 가 모든 설정에 적용) |
+| `s3.path-style` | `IROBIT_STORAGE_S3_PATH_STYLE` | false | MinIO true |
+| `s3.public-base-url` | `IROBIT_STORAGE_S3_PUBLIC_BASE_URL` | 비움 | 새 이미지 주소의 머리(R2 사용자 도메인) |
 
 ## 기동 정책 (결정)
 - r2·s3 인데 설정이 틀리면(버킷·지역·계정 ID 없음, 키 한쪽만, r2 인데 키 없음, 주소 형식) **어느 프로필이든 기동을 멈춘다**(로그에 칸 이름만, 값·비밀은 안 싣는다). 근거: 조용히 로컬로 물러나면 서버 여러 대가 서로 다른 곳에 쓰는 문제가 아무도 모르게 돌아온다. 설치기·로드밸런서가 readiness 로 바로 알아챈다.
@@ -44,7 +44,7 @@
 - 올리기 한도·처리 관문·`file-orphan-cleanup`·기본 이미지는 저장소와 무관하게 같다(모두 `ImageStorage` 만 부른다). 삭제는 버킷도 멱등.
 
 ## 로컬 → 버킷 옮기기
-`rclone copy /var/lib/roboyam/media r2:<버킷> --exclude '.upload-*' --header-upload 'Cache-Control: public, max-age=31536000, immutable'` 후 `ROBOYAM_STORAGE_TYPE=r2` 재기동(installer-native/README.md 「올린 이미지」). local·dev 에서 R2·MinIO 시험도 같은 환경 변수만 준다.
+`rclone copy /var/lib/irobit/media r2:<버킷> --exclude '.upload-*' --header-upload 'Cache-Control: public, max-age=31536000, immutable'` 후 `IROBIT_STORAGE_TYPE=r2` 재기동(installer-native/README.md 「올린 이미지」). local·dev 에서 R2·MinIO 시험도 같은 환경 변수만 준다.
 
 ## 미확정
 - 실제 R2 연결 시험 안 함(키 필요) — 첫 설치 때 확인: 기동 로그 「이미지 저장소: r2 버킷」, 로고 올리기 → 두 서버에서 보이기, 공개 주소 `cf-cache-status`.

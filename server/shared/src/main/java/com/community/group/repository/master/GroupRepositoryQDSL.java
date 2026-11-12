@@ -13,7 +13,7 @@ import com.community.group.entity.QGroupMemberEntity;
 import com.community.group.entity.QGroupSettingHistoryEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
@@ -37,7 +37,7 @@ import org.springframework.stereotype.Repository;
  * 소모임 목록·검색·집계 — 정렬·페이징은 DB 에서 한다. 검색은 {@code lower(칸) LIKE '%단어%'}(V90 의 pg_trgm 색인과 같은 식).
  */
 @Repository
-public class GroupRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class GroupRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QGroupEntity GROUP = QGroupEntity.groupEntity;
     private static final QGroupMemberEntity MEMBER = QGroupMemberEntity.groupMemberEntity;

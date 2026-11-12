@@ -4,7 +4,7 @@ import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class TipsPostQueries extends RoboyamRepositoryQDSL {
+public class TipsPostQueries extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
 

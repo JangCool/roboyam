@@ -7,7 +7,7 @@ import com.community.bizapplication.entity.QBizApplicationEntity;
 import com.community.bizapplication.entity.QBizApplicationItemEntity;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * 비중({@code weight}) 가중 무작위는 노출 쪽이 고른다.
  */
 @Repository
-public class AdLedgerStore extends RoboyamRepositoryQDSL {
+public class AdLedgerStore extends IrobitRepositoryQDSL {
 
     private static final QBizApplicationEntity A = QBizApplicationEntity.bizApplicationEntity;
     private static final QBizApplicationItemEntity I = QBizApplicationItemEntity.bizApplicationItemEntity;

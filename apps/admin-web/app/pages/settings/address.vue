@@ -438,7 +438,7 @@ const fileErrors = computed<Record<FileSlot, string>>(() => ({
     ko: fileProblems.value.ko ? t(FILE_PROBLEM_KEYS[fileProblems.value.ko], { max: UtilAddressSettings.megabytes(UtilAddressSettings.FILE_MAX_BYTES) }) : '',
     en: fileProblems.value.en ? t(FILE_PROBLEM_KEYS[fileProblems.value.en], { max: UtilAddressSettings.megabytes(UtilAddressSettings.FILE_MAX_BYTES) }) : '',
 }));
-/* 가져올 곳 — 내 컴퓨터에서 올리기(기본) · 서버 폴더의 파일(`ROBOYAM_ADDRESS_IMPORT_DIR` 가 있을 때만) */
+/* 가져올 곳 — 내 컴퓨터에서 올리기(기본) · 서버 폴더의 파일(`IROBIT_ADDRESS_IMPORT_DIR` 가 있을 때만) */
 type ImportSource = 'upload' | 'server';
 const source = ref<ImportSource>('upload');
 const SOURCE_OPTIONS = computed<{ value: ImportSource; label: string }[]>(() => [

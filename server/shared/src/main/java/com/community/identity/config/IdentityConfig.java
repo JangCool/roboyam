@@ -17,7 +17,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
- * 본인인증 구현 고르기 — 배포 설정 {@code roboyam.identity.provider}(portone | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>(commerce.md 12-1 「결제 Fake 와 같다」,
+ * 본인인증 구현 고르기 — 배포 설정 {@code irobit.identity.provider}(portone | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>(commerce.md 12-1 「결제 Fake 와 같다」,
  * 세션 정리 결정 9) — 가짜 구현은 아무 생년월일·사람이나 인증된 것으로 만들기 때문이다. 공개 사이트와 관리자 앱이 같이 쓴다(관리자 앱은 포트원 설정 화면에 지금 구현을 보인다).
  */
 @Configuration
@@ -52,10 +52,10 @@ public class IdentityConfig {
      */
     public static IdentityProviderKind guard(IdentityProviderKind kind, Environment environment) {
         if (kind == null) {
-            throw new IllegalStateException("roboyam.identity.provider 가 비어 있습니다(portone | fake).");
+            throw new IllegalStateException("irobit.identity.provider 가 비어 있습니다(portone | fake).");
         }
         if (kind == IdentityProviderKind.FAKE && environment.acceptsProfiles(GUARDED)) {
-            throw new IllegalStateException("dev·prod 프로필에서는 가짜 본인인증(roboyam.identity.provider=fake)을 쓸 수 없습니다. ROBOYAM_IDENTITY_PROVIDER=portone 으로 두세요.");
+            throw new IllegalStateException("dev·prod 프로필에서는 가짜 본인인증(irobit.identity.provider=fake)을 쓸 수 없습니다. IROBIT_IDENTITY_PROVIDER=portone 으로 두세요.");
         }
         return kind;
     }

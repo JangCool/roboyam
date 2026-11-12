@@ -21,10 +21,10 @@ const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8920';
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
-    // 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
-    // 서식 에디터(`@roboyam/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
-    // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이와 방문 분석(추이 · 이동 흐름 sankey)이 쓴다
-    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout', '@roboyam/chart'],
+    // 가젯 배치(`@irobit/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
+    // 서식 에디터(`@irobit/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
+    // 차트(`@irobit/chart` — ECharts)는 광고 성과 날짜별 추이와 방문 분석(추이 · 이동 흐름 sankey)이 쓴다
+    extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart'],
     ssr: false,
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
@@ -77,9 +77,9 @@ export default defineNuxtConfig({
         },
     },
 
-    // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`ROBOYAM_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
+    // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`IROBIT_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
     // SPA 를 가볍게(`scripts/nuxt/spa-slim.mjs` — PrimeVue 실행 설정의 목록 빼기·미리 받기 끄기) — PrimeVue 모듈 뒤에 둔다
-    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
+    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.IROBIT_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
     // 폴더명을 컴포넌트 이름에 붙이지 않는다
     components: [{ path: '~/components', pathPrefix: false, extensions: ['vue'] }],
@@ -115,7 +115,7 @@ export default defineNuxtConfig({
         // 화면이 뜰 때 PrimeVue 가 쓰는 컴포넌트의 스타일만 넣는다(`scripts/nuxt/spa-slim.mjs`)
         loadStyles: false,
         // 테마(프리셋·다크 모드·CSS 층)는 `app/theme/primevue-theme.ts` 를 화면 번들로 불러온다 — `options.theme` 에 두면 Aura 전체 토큰(약 11만 자)이 실행 설정으로 index.html 에 박힌다
-        importTheme: { as: 'RoboyamTheme', from: fileURLToPath(new URL('./app/theme/primevue-theme.ts', import.meta.url)) },
+        importTheme: { as: 'IrobitTheme', from: fileURLToPath(new URL('./app/theme/primevue-theme.ts', import.meta.url)) },
         options: {
             // PrimeUI 라이선스(PrimeVue 5) — PrimeVue 가 설치되는 순간 키를 확인하므로 app.vue 가 아니라 여기서 넘긴다(늦게 넘기면 「Invalid PrimeUI License」 배너).
             // 값은 이 앱의 .env.development(dev)·.env.production(generate) 의 VITE_PRIMEUI_LICENSE_KEY — nuxt.config 를 읽기 전에 --dotenv 파일이 process.env 에 들어온다.

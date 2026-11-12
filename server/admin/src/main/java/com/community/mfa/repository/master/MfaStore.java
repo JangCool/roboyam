@@ -12,7 +12,7 @@ import com.community.mfa.entity.QOperatorMfaEntity;
 import com.community.mfa.entity.QOperatorMfaRecoveryCodeEntity;
 import com.community.mfa.entity.QOperatorTrustedDeviceEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Repository;
  * <p>네이티브 SQL 로 남긴 것: 설정 기본 행 넣기·등록 시작({@code ON CONFLICT} — 사유는 메서드 주석).
  */
 @Repository
-public class MfaStore extends RoboyamRepositoryQDSL {
+public class MfaStore extends IrobitRepositoryQDSL {
 
     private static final QAdminSecuritySettingEntity SETTING = QAdminSecuritySettingEntity.adminSecuritySettingEntity;
     private static final QOperatorMfaEntity MFA = QOperatorMfaEntity.operatorMfaEntity;

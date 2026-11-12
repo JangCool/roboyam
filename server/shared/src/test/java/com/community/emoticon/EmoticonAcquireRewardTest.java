@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class EmoticonAcquireRewardTest extends EmoticonTestBase {
 
     private long official() {
-        return kit.jdbc.queryForObject("SELECT p.id FROM emoticon_packs p JOIN emoticon_pack_revisions r ON r.id = p.live_revision_id WHERE p.source = 'OFFICIAL' AND r.name = '로보얌콘' "
+        return kit.jdbc.queryForObject("SELECT p.id FROM emoticon_packs p JOIN emoticon_pack_revisions r ON r.id = p.live_revision_id WHERE p.source = 'OFFICIAL' AND r.name = '아이로빗콘' "
                 + "ORDER BY p.id LIMIT 1", Long.class);
     }
 

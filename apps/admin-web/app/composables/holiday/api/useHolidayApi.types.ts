@@ -1,6 +1,6 @@
 /**
  * 휴일 API(`useHolidayApi`)의 모양 — 서버 계약(휴일 관리 · 달력 표시) 그대로.
- * 달력 한 줄(`HolidayDay`)은 공유 레이어(`@roboyam/display-time` 의 `util-holiday`)의 모양을 그대로 쓴다.
+ * 달력 한 줄(`HolidayDay`)은 공유 레이어(`@irobit/display-time` 의 `util-holiday`)의 모양을 그대로 쓴다.
  */
 
 /** 휴일 줄의 출처 — `PUBLIC_DATA` 공공데이터(한국천문연구원 특일 정보) · `SEED` 기본값 · `OPERATOR` 운영자가 넣은 회사 휴무일 */

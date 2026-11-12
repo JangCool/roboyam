@@ -12,7 +12,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.site.entity.QSiteOperatorEntity;
 import com.community.site.entity.SiteOperatorEntity;
 import com.community.site.entity.SiteOperatorStage;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Repository;
  * {@code PESSIMISTIC_READ}({@code FOR SHARE}). Native SQL 로 남긴 것은 없다.
  */
 @Repository
-public class CommerceSalesStore extends RoboyamRepositoryQDSL {
+public class CommerceSalesStore extends IrobitRepositoryQDSL {
 
     private static final QSiteOperatorEntity SO = QSiteOperatorEntity.siteOperatorEntity;
     private static final QCommerceSalesSettingsEntity SW = QCommerceSalesSettingsEntity.commerceSalesSettingsEntity;

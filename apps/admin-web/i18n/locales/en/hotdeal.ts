@@ -439,7 +439,7 @@ export default {
         imageSection: 'Product images',
         imageLead: 'The link’s OG image is saved on our server as a copy (600px wide) and shown. Security values like timeouts and size are set by the server.',
         affiliateSection: 'Affiliate links',
-        affiliateLead: 'Buy buttons always go through our server to the product. Start by accepting authors’ own affiliate links; once traffic grows, switch to site affiliate so buy links become Roboyam affiliate links.',
+        affiliateLead: 'Buy buttons always go through our server to the product. Start by accepting authors’ own affiliate links; once traffic grows, switch to site affiliate so buy links become IROBIT affiliate links.',
         loadFailed: 'Couldn’t load hot deal settings',
         field: {
             endRequestThreshold: 'Reports to flag',
@@ -536,7 +536,7 @@ export default {
         },
         affiliateChoiceHelp: {
             MEMBER: 'Authors can post their own affiliate links (Coupang Partners etc.) and earn the commission. Suits early operation.',
-            SITE: 'Member affiliate links are not accepted; buy links are converted to Roboyam affiliate links with the store table below. Switch once traffic grows.',
+            SITE: 'Member affiliate links are not accepted; buy links are converted to IROBIT affiliate links with the store table below. Switch once traffic grows.',
         },
         affiliateDefault: 'Default',
         affiliateSaveNote: 'If you change the mode, saving shows how many posts are affected and asks once more.',
@@ -562,7 +562,7 @@ export default {
     // ── Site affiliate stores (Hot deal settings › Affiliate links) ─
     siteAffiliate: {
         title: 'Site affiliate stores',
-        lead: 'If a buy link’s product or final address is on one of these stores (subdomains included), the member affiliate part is removed and it becomes a Roboyam affiliate link this way. Saved product links stay; conversion happens only on click.',
+        lead: 'If a buy link’s product or final address is on one of these stores (subdomains included), the member affiliate part is removed and it becomes an IROBIT affiliate link this way. Saved product links stay; conversion happens only on click.',
         draftNote: 'Member affiliate mode is still the saved mode. You can add stores in advance; they apply once you save the mode.',
         immediateNote: 'The store table is saved right away (separately from the save bar below).',
         add: 'Add store',
@@ -616,10 +616,10 @@ export default {
         templateMultiple: '{ph} can appear only once.',
         templateNotUrl: 'It must be an address starting with http:// or https:// (no spaces).',
         queryLabel: 'Append query',
-        queryPlaceholder: 'partner=roboyam&pcode=RB0001',
+        queryPlaceholder: 'partner=irobit&pcode=RB0001',
         queryHelp: 'Join name=value pairs with &. The leading ? is optional.',
         queryRequired: 'Enter the query to append.',
-        queryInvalid: 'It must be name=value pairs joined with &. e.g. partner=roboyam&pcode=1',
+        queryInvalid: 'It must be name=value pairs joined with &. e.g. partner=irobit&pcode=1',
         previewTitle: 'Conversion preview',
         exampleLabel: 'Example product address (editable)',
         previewResult: 'Clicking buy goes to this address',

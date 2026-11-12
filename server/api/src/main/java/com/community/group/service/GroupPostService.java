@@ -46,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 소모임 글(community api-groups.md 8절) — 글 탭 · 글쓰기 · 「봤어요」 · 소모임 게시판 정보(로보얌 추가). 글 공개 전환·공개 요청·공개 범위(11절)는 {@link GroupPostVisibilityService}.
+ * 소모임 글(community api-groups.md 8절) — 글 탭 · 글쓰기 · 「봤어요」 · 소모임 게시판 정보(아이로빗 추가). 글 공개 전환·공개 요청·공개 범위(11절)는 {@link GroupPostVisibilityService}.
  *
  * <p>소모임 글은 {@code posts} 표의 글이다({@code group_id}·{@code is_public} — V91·V94). 비공개 소모임의 글은 <b>비공개로 시작해 멤버에게만 보이고</b> 개별 공개되면 누구에게나 보인다.
  * 공개 소모임의 글은 쓰는 순간 비멤버에게도 보인다(모임장·매니저가 멤버 전용으로 돌릴 수 있다).
@@ -256,7 +256,7 @@ public class GroupPostService {
         return new GroupPostWriteResultView(Long.toString(written.id()), written.pointsEarned());
     }
 
-    // ── 소모임 게시판(로보얌 추가) ─────────────────────────────────────────────
+    // ── 소모임 게시판(아이로빗 추가) ─────────────────────────────────────────────
 
     /**
      * {@code GET /api/groups/{id}/board} — 소모임 게시판 정보({@code GET /api/boards/{slug}} 와 같은 모양). 소모임 게시판은 공개 게시판 API 에서 없는 게시판이라

@@ -332,7 +332,7 @@ class PaymentAdminHttpTest extends PaymentAdminTestBase {
         Order paid = paidOrder(newMember(), 5_000);
         long cancel = gaveUpCancel(paid, "REFUND", 2_000, now());
         fakePg.pay(paid.paymentId(), 5_000, "KRW", now());
-        fakePg.cancel(paid.paymentId(), 2_000, 5_000, "roboyam REFUND rc:" + cancel, "pgc-" + cancel, now()); // 응답은 못 받았지만 포트원은 취소했다
+        fakePg.cancel(paid.paymentId(), 2_000, 5_000, "irobit REFUND rc:" + cancel, "pgc-" + cancel, now()); // 응답은 못 받았지만 포트원은 취소했다
 
         mvc.perform(withCsrf(post("/api/admin/payments/" + paid.id() + "/recheck"), session).content("{\"reason\":\"" + REASON + "\"}"))
                 .andExpect(status().isOk())

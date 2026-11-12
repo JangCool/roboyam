@@ -1,11 +1,11 @@
 package com.community.group.repository.master;
 
 import com.community.group.entity.GroupCategoryBoardEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface GroupCategoryBoardRepository extends RoboyamRepository<GroupCategoryBoardEntity, Long> {
+public interface GroupCategoryBoardRepository extends IrobitRepository<GroupCategoryBoardEntity, Long> {
 
     /** 할당 전부(분류·할당 순서, 같으면 게시판 ID 순) — 분류 수·게시판 수가 작아 한 번에 읽는다 */
     List<GroupCategoryBoardEntity> findAllByOrderByCategoryIdAscAssignedOrderAscBoardIdAsc();

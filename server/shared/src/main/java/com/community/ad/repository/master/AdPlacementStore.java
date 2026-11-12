@@ -5,7 +5,7 @@ import com.community.ad.dto.AdSenseSettings;
 import com.community.ad.entity.AdPlacementSettingEntity;
 import com.community.ad.entity.QAdPlacementSettingEntity;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * 저장은 「있으면 고치기(QueryDSL), 없으면 넣기(네이티브 {@code ON CONFLICT} — 처음 저장의 동시 경합)」(부르는 쪽이 같은 트랜잭션에서 {@link #lock} 으로 행을 잠근 뒤 부른다).
  */
 @Repository
-public class AdPlacementStore extends RoboyamRepositoryQDSL {
+public class AdPlacementStore extends IrobitRepositoryQDSL {
 
     /** 중도 해지 수수료율 기본값(%, V127 — 행이 없을 때) */
     public static final int DEFAULT_STOP_FEE_RATE = 10;

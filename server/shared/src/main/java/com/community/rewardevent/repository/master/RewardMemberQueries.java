@@ -11,7 +11,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.Ilike;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.time.ServiceTime;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Repository;
  * {@code WITHDRAWN}·지움)는 늘 뺀다. 운영자 회원 계정은 부르는 쪽이 넘기는 번호 묶음으로 뺀다(운영자 수만큼 — {@code OperatorMemberAccountService}).
  */
 @Repository
-public class RewardMemberQueries extends RoboyamRepositoryQDSL {
+public class RewardMemberQueries extends IrobitRepositoryQDSL {
 
     /** 회원 한 명 — 닉네임 · 이메일(원문 — 가리기는 부르는 쪽) · 상태 · 지움 */
     public record MemberRow(long id, String nickname, String email, UserStatus status, boolean deleted) {

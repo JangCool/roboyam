@@ -23,7 +23,7 @@ export interface MailSettingsView {
      * ⚠ 서버(shared V55)가 함께 들어오는 칸이라 아직 응답에 없을 수 있다 → 없으면 null 로 다룬다.
      */
     senderName?: string | null;
-    /** 제목 머리말(모든 메일 제목 앞에 붙는 글자, 예: `[ROBOYAM]`). `senderName` 과 같은 이유로 없을 수 있다 */
+    /** 제목 머리말(모든 메일 제목 앞에 붙는 글자, 예: `[IROBIT]`). `senderName` 과 같은 이유로 없을 수 있다 */
     subjectPrefix?: string | null;
     /** 서버에 암호화 키가 있는가 — 없으면 새 비밀번호 저장이 503 `CRYPTO_KEY_MISSING` 이고 인증 메일도 못 보낸다 */
     cryptoKeyConfigured: boolean;

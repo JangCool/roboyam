@@ -112,7 +112,7 @@ public class GroupController {
     }
 
     /**
-     * 대표 이미지 올리기(로보얌 추가, V154) — multipart {@code file} 한 장 → {@code 201 {fileId, url, width, height}}. 개설 신청·정보 수정의 {@code imageFileId} 로 붙인다.
+     * 대표 이미지 올리기(아이로빗 추가, V154) — multipart {@code file} 한 장 → {@code 201 {fileId, url, width, height}}. 개설 신청·정보 수정의 {@code imageFileId} 로 붙인다.
      * 칸이 빠진 요청도 서비스가 칸 오류({@code fields.file})로 거절하도록 {@code required = false}.
      */
     @PostMapping("/images")

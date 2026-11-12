@@ -83,7 +83,7 @@
 - **대상**: 정상 회원 = `ACTIVE` 이고 지우지 않음(이메일 인증 여부는 보지 않는다). `WITHDRAWING`·`WITHDRAWN`·지움 = 탈퇴, `SUSPENDED`·`BANNED` = 정지. 운영자 회원 계정 = 활성 연결(`OperatorMemberAccountService`).
 - **이메일 인증 기준 사건** = 인증 링크로 처음 인증(이메일 변경은 아님) + 공급자가 확인한 이메일로 소셜 가입. 본인인증은 확정 트랜잭션(가입 포인트 다음). 모두 이벤트마다 세이브포인트.
 - **댓글 추첨**: 기간은 [from, to] 포함, 비우면 이벤트 기간(미리 보기는 처음~지금). 추첨 번호 = `SecureRandom` 64비트, 표시 16자리 16진수(목업 8자리), 섞기 = `java.util.Random(seed)` + `Collections.shuffle`(자바 명세가 차례를 정한다).
-- **나눠 처리**: 일괄 대상 500명 · 지급 100명이 한 덩어리(한 트랜잭션), 요청 안에서 3덩어리, 나머지는 관리자 서버 워커(`roboyam.reward-event.run-poll-millis` 기본 5초, `roboyam.batch.enabled` 서버만, `worker_heartbeats` 키 `reward-event-runs`). 일괄 실행의 `targetCount` 는 시작 때 미리 센 수 → 대상 만들기가 끝나면 실제 수.
+- **나눠 처리**: 일괄 대상 500명 · 지급 100명이 한 덩어리(한 트랜잭션), 요청 안에서 3덩어리, 나머지는 관리자 서버 워커(`irobit.reward-event.run-poll-millis` 기본 5초, `irobit.batch.enabled` 서버만, `worker_heartbeats` 키 `reward-event-runs`). 일괄 실행의 `targetCount` 는 시작 때 미리 센 수 → 대상 만들기가 끝나면 실제 수.
 - **고치기(준비)**: 등수는 요청 번호가 그 이벤트의 등수면 남기고, 보상 줄은 모두 새로 만든다(줄 번호가 바뀐다) — 남은 당첨자의 줄 결과도 다시 만든다. 당첨자 선정이 아니게 바꾸면 넣은 당첨자는 지운다. 댓글 기간(`from`·`to`)은 목업처럼 범위 검사에서 보지 않는다.
 - **오류 코드 추가**(목업에 있던 것): `404 REWARD_RECIPIENT_NOT_FOUND` · `409 REWARD_EVENT_NO_COMMENT_SOURCE` · `409 REWARD_REVOKE_NOTHING` · `409 REWARD_DELIVERY_STATE` · 미리 보기 `404 POST_NOT_FOUND`. `DELETE …/recipients/{rid}` 는 200 + 상세.
 - **기록 탭** 한 줄 = 번들 `rewardEvent.audit.*`(요청 언어). 지급·재시도는 시작·끝 두 줄(돈 관련 5년), 회수 한 줄.

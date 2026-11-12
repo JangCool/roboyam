@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 설치 때 고른 기본 게시판 구성(프리셋)을 적용한다 — 정본은 docs/features/install-contract.md 「프리셋 구조 (2026-10-27)」.
  *
  * <ul>
- *   <li>구조 스냅숏이 있는 구성(ROBOYAM — {@link BoardPresetCatalog#structureOf})은 설치 때 아래 대신 그 스냅숏을 넣는다({@link PresetStructureApplier} — 게시판·말머리·소모임 분류·
+ *   <li>구조 스냅숏이 있는 구성(IROBIT — {@link BoardPresetCatalog#structureOf})은 설치 때 아래 대신 그 스냅숏을 넣는다({@link PresetStructureApplier} — 게시판·말머리·소모임 분류·
  *       모든 메뉴 그룹·가젯 페이지·홈 배치·게시판 설정, 운영 게시판 포함). 넣지 못하면 그 부분을 되돌리고 아래 방식(프리셋 {@code boards})으로 물러선다.</li>
  *   <li>설치({@link InstallationInstaller} → {@link #applyAtInstall}): 설치 트랜잭션 안에서 ① 일반 게시판 → ② 소모임 게시판({@code kind = GROUP}) + 소모임 분류 만들기·잇기
  *       → ③ 공개 메뉴 {@code main} 트리를 프리셋 {@code menu} 로 바꾸기({@link PresetMenuApplier}). 설치가 롤백되면 모두 없다.</li>

@@ -1,7 +1,7 @@
 # 로보티콘 계약 (화면 목업 단계 — 2026-11-05, 화면 확정 전)
 
 **의도**: 회원이 로보티콘 상점에서 로보티콘 팩을 받거나(무료) 실결제로 사서(유료) 글·댓글에 쓴다. 회원도 팩을 만들어 올릴 수 있고(제작 가이드 제공), 운영자가 심사해 승인하면 상점에 나온다. 무료 팩은 받아질수록 작가에게 적립 포인트를, 유료 팩은 판매액에서 수수료를 뺀 금액을 작가에게 따로 정산한다. 유니코드 이모지는 누구나 바로 쓴다.
-**참고(읽기 전용)**: community `docs/api-emoticon.md`(토큰·카탈로그·고르기·그리기의 본보기), `docs/domain/commerce.md` 2-3·7·8·12절(포인트 상점 환불 규칙·결제 모듈·본인인증), `commerce-payment-contract.md`(결제 모듈 — `PaymentOrderHandler`·`order_type`), `board-public-contract.md` 「이모티콘 — 범위 밖」, 로보얌콘 규격 `D:/project/roboyam/robotikon/`(아직 저장소 밖 — 그림만 두 앱 `public/emoticons/robotikon-{m,f}/NN.gif`·`cover.png` 로 복사).
+**참고(읽기 전용)**: community `docs/api-emoticon.md`(토큰·카탈로그·고르기·그리기의 본보기), `docs/domain/commerce.md` 2-3·7·8·12절(포인트 상점 환불 규칙·결제 모듈·본인인증), `commerce-payment-contract.md`(결제 모듈 — `PaymentOrderHandler`·`order_type`), `board-public-contract.md` 「이모티콘 — 범위 밖」, 아이로빗콘 규격 `D:/project/irobit/robotikon/`(아직 저장소 밖 — 그림만 두 앱 `public/emoticons/robotikon-{m,f}/NN.gif`·`cover.png` 로 복사).
 
 ## 이름 (사용자 확정 2026-11-05)
 - 화면에 보이는 이름은 **로보티콘**(상점 = 「로보티콘 상점」, 팩 = 「로보티콘 팩」, 내 화면 = 「내 로보티콘」, 만들기 = 「로보티콘 만들기」). 주소는 `/robotikon/**`(회원)·`/robotikon/**`(관리자). 코드 식별자(폴더·컴포넌트·타입·`:emo-ID:` 토큰)는 일반 이름 `emoticon` 그대로 둔다.
@@ -9,7 +9,7 @@
 - 로보티콘 상점은 포인트 상점(`/point-shop`)과 메뉴를 따로 둔다.
 
 ## 팩 출처
-`OFFICIAL`(운영 — 로보얌콘·로보얌콘핑크) · `CREATOR`(회원 작가).
+`OFFICIAL`(운영 — 아이로빗콘·아이로빗콘핑크) · `CREATOR`(회원 작가).
 
 ## 가격과 결제 (사용자 확정 2026-11-05)
 - 팩은 **무료**(「받기」) 또는 **유료 — 실결제(원)**. **포인트(적립·충전)로는 사지 않는다**(복잡해져서 — 사용자 결정). 결제가 완료되면 그 팩을 갖는다.
@@ -25,7 +25,7 @@
 4. **수수료·정산**: 사이트가 판매자라 부가세는 사이트가 낸다 — **정산 기준 금액 = (판매 − 환불) ÷ 1.1(부가세 제외)**, 작가 몫 = 정산 기준 × (1 − 수수료율). 수수료율 기본 30%(결제 대행 수수료 포함, 관리자 설정). 정산은 월 1회 — 전달 판매 중 환불 기간(7일)이 끝난 것을 모아 다음 달 10일 지급, 1만원 미만은 다음 달로 넘긴다. 개인 작가는 사업소득 원천징수 3.3%, 사업자 작가는 세금계산서. 정산 상태 `ESTIMATED`(예정) → `CONFIRMED`(확정) → `PAID`(지급 완료, 운영자가 이체 후 기록) / `HELD`(보류 — 사유).
 5. **작가 정산 정보**: 유료 팩을 신청하려면 먼저 등록 — 본인인증 · 개인/사업자(사업자 번호) · 은행·계좌(예금주 = 본인 이름). 서버 단계에서 암호화 저장·가림 표시(commerce.md 1-1 #12 와 같은 방식).
 6. **작가 보상(무료 팩)**: 다른 회원이 무료 팩을 받을 때마다 작가에게 적립 포인트 `rewardPerAcquire`(기본 10P), 작가 하루 상한 `rewardDailyCap`(기본 500P). 세는 받기 = 본인 아님 · 이메일 인증 정상 회원 · 새싹보다 높은 등급. 운영 팩·유료 팩은 보상 포인트 없음.
-7. **팩 규격**(제작 가이드와 업로드 검사가 같은 값 — 로보얌콘 기준): 200×200px(그림 190 + 둘레 5px 투명), GIF(움직임) 또는 PNG(정지), 배경 투명, GIF 24프레임 이하·무한 반복, 한 개 2MB 이하(권장 300KB), 팩당 8~40개, 대표 이미지 200×200 PNG 1MB 이하, 이름 2~20자, 이름표(alt) 1~10자, 태그 5개 이하. 표시 크기 100×100(글·댓글, 모바일 80), 고르기 창 64px.
+7. **팩 규격**(제작 가이드와 업로드 검사가 같은 값 — 아이로빗콘 기준): 200×200px(그림 190 + 둘레 5px 투명), GIF(움직임) 또는 PNG(정지), 배경 투명, GIF 24프레임 이하·무한 반복, 한 개 2MB 이하(권장 300KB), 팩당 8~40개, 대표 이미지 200×200 PNG 1MB 이하, 이름 2~20자, 이름표(alt) 1~10자, 태그 5개 이하. 표시 크기 100×100(글·댓글, 모바일 80), 고르기 창 64px.
 8. **신청 상태**: `DRAFT` → `PENDING` → `APPROVED`(판매 중) / `REJECTED`(사유) · `SUSPENDED`(운영자 판매 중단 — 사유, 이미 산 사람은 계속 쓴다). 승인된 팩을 고치면 새 판 심사(그동안 옛 판이 나온다).
 9. **작가 자격**: 로그인 · 이메일 인증 · 정상 회원 + 동의 셋(직접 만들었거나 권리를 가졌다 · 사이트가 보이고 줄여 쓸 수 있게 허락 · 가이드·운영 정책 준수). 유료는 정산 정보까지. 심사 대기 3개까지.
 10. **본문 저장**: 본문에는 토큰 `:emo-{ID}:` 만(community 와 같다). 가진 팩의 것만 쓸 수 있다(서버 검사), 본문 하나에 20개까지. 환불하면 그 팩을 더 쓸 수 없지만 이미 쓴 글의 토큰은 그대로 보인다(환불은 「안 쓴」 팩만이라 실제로는 없다).
@@ -71,7 +71,7 @@
 ## 서버 구현 단계 (커머스 예외 — 설계 규칙은 테스트로 막고 바꾼 범위 테스트가 통과해야 그 단계가 끝난다, commerce.md 18절)
 | 단계 | 내용 |
 |---|---|
-| S1 | 팩·판·로보티콘(토큰 ID 는 판이 바뀌어도 유지)·그림 올리기 검사(형식·200×200·프레임·반복·용량)·심사(신청·승인·반려·판매 중단/재개)·카탈로그(ETag)·무료 받기/빼기·내 로보티콘·토큰 검사(글·소모임 글·댓글 쓰기·고치기)·무료 팩 받기 보상(`EMOTICON_CREATOR_REWARD`, 인정된 받기·하루 상한)·운영 팩(로보얌콘 남·여 시드 — 그림은 앱 정적 파일)·설정·권한 `emoticon.read/review/settings`·관리자 메뉴·작가 알림(승인·반려·중단)·운영자 이벤트(심사 대기) |
+| S1 | 팩·판·로보티콘(토큰 ID 는 판이 바뀌어도 유지)·그림 올리기 검사(형식·200×200·프레임·반복·용량)·심사(신청·승인·반려·판매 중단/재개)·카탈로그(ETag)·무료 받기/빼기·내 로보티콘·토큰 검사(글·소모임 글·댓글 쓰기·고치기)·무료 팩 받기 보상(`EMOTICON_CREATOR_REWARD`, 인정된 받기·하루 상한)·운영 팩(아이로빗콘 남·여 시드 — 그림은 앱 정적 파일)·설정·권한 `emoticon.read/review/settings`·관리자 메뉴·작가 알림(승인·반려·중단)·운영자 이벤트(심사 대기) |
 | S2 | 상품화 계약(약관 종류 `ROBOTIKON_CONTRACT`·공개 약관 API·동의 기록 표)·정산 정보(본인인증·암호화·가림·사유 열람 `emoticon.payout.pii`)·유료 희망 신청 조건·승인 때 가격·가격 바꾸기(유료↔무료)·가격 단계 설정 |
 | S3 | 유료 구매(결제 주문 종류 `ROBOTIKON_PACK`·`PaymentOrderHandler`·본인인증·만 19세)·사용함 기록(저장 트랜잭션)·셀프 환불(멱등)·예외 환불(`emoticon.sales`)·판매 내역·구매 내역 |
 | S4 | 정산(월 계산·확정 굳힘·보류·지급 기록·이월·확정 뒤 환불 차감, `emoticon.settlement`)·작가 판매 요약·정산 내역 |
@@ -84,7 +84,7 @@
 - ~~수수료율·정산일·최소 금액(가정 4)~~ → **정함**: 관리자 로보티콘 설정값(기본 30% · 다음 달 10일 · 10,000원 — S2). ~~받기·구매 기록을 포인트 상점 표에 둘지 따로 둘지~~ → **정함**: 따로(S3 결정 1 — 보유는 받기 줄 출처, 구매 기록은 `emoticon_purchases`). ~~운영 팩을 처음부터 모두 갖게 할지~~ → **정함(지금 구현대로)**: 아니다 — 운영 팩도 받기로 가진다(무료 팩 받기 · 운영자 회원 계정만 판매 중 팩 전부를 쓴다, 아래 「운영자 회원 계정 연결」). → **2026-11-12 바뀜**: 가입 때 무료 운영 팩을 받기 줄로 넣어 준다(아래 「가입 때 무료 운영 팩」). ~~신고 대상에 로보티콘 팩 추가 여부~~ → **정함(지금 구현대로)**: 넣지 않는다 — 권리 분쟁은 운영자 판매 중단(사유)·정산 보류로 다룬다(S1·S4).
 
 ## S1 구현 결과 (2026-11-05 — 서버만, 화면 연결은 다음 단계)
-- **마이그레이션** shared `V140__emoticons.sql`(가번호 — 처음 V139, develop 의 V139 배송지와 겹쳐 V142 으로 바꿨다. 합칠 때 다시 확인): `emoticon_settings`(1행 — 받기 보상 10 · 작가 하루 상한 500P · 팩당 8~40 · 심사 대기 3) · `emoticon_images`(고정 규격 CHECK, 지문 SHA-256, 저장소 키 또는 시드 정적 경로) · `emoticon_packs`(가격 CHECK `price = 0` — S2 가 넓힌다, 상점 판 `live_revision_id` ↔ 판 서로 가리키는 외래 키는 커밋 때) · `emoticon_pack_revisions`(낸 판 = 판 번호, 고치기·지우기·차례 더하기 금지 트리거, 팩마다 임시 판 하나) · `emoticons`(토큰 ID) · `emoticon_revision_items`(판의 차례 — 그 팩의 로보티콘만) · `emoticon_reviews`(팩마다 대기 하나, 동의 셋 시각·문구 판, S1 승인 가격 0 만) · `emoticon_acquisitions`(회원·팩 한 줄, 빼면 `removed_at`). 원장 사유 ∪ `EMOTICON_CREATOR_REWARD` · 대상 ∪ `EMOTICON_ACQUIRE` · 회원 알림 종류 ∪ `EMOTICON_PACK`(모두 최신 목록과 합집합). 시드 로보얌콘·로보얌콘핑크 32개씩(이름표 meta.json, 지문·용량은 앱 public 파일에서 잰 값). `R__batch` 없음. 판매·정산·정산 정보·계약 칸은 S2~S4 마이그레이션이 더한다(판의 `sale_wish`·`price_request_memo`, 팩 `price` 만 S1 API 모양이라 넣었다).
+- **마이그레이션** shared `V140__emoticons.sql`(가번호 — 처음 V139, develop 의 V139 배송지와 겹쳐 V142 으로 바꿨다. 합칠 때 다시 확인): `emoticon_settings`(1행 — 받기 보상 10 · 작가 하루 상한 500P · 팩당 8~40 · 심사 대기 3) · `emoticon_images`(고정 규격 CHECK, 지문 SHA-256, 저장소 키 또는 시드 정적 경로) · `emoticon_packs`(가격 CHECK `price = 0` — S2 가 넓힌다, 상점 판 `live_revision_id` ↔ 판 서로 가리키는 외래 키는 커밋 때) · `emoticon_pack_revisions`(낸 판 = 판 번호, 고치기·지우기·차례 더하기 금지 트리거, 팩마다 임시 판 하나) · `emoticons`(토큰 ID) · `emoticon_revision_items`(판의 차례 — 그 팩의 로보티콘만) · `emoticon_reviews`(팩마다 대기 하나, 동의 셋 시각·문구 판, S1 승인 가격 0 만) · `emoticon_acquisitions`(회원·팩 한 줄, 빼면 `removed_at`). 원장 사유 ∪ `EMOTICON_CREATOR_REWARD` · 대상 ∪ `EMOTICON_ACQUIRE` · 회원 알림 종류 ∪ `EMOTICON_PACK`(모두 최신 목록과 합집합). 시드 아이로빗콘·아이로빗콘핑크 32개씩(이름표 meta.json, 지문·용량은 앱 public 파일에서 잰 값). `R__batch` 없음. 판매·정산·정산 정보·계약 칸은 S2~S4 마이그레이션이 더한다(판의 `sale_wish`·`price_request_memo`, 팩 `price` 만 S1 API 모양이라 넣었다).
 - **코드** shared `com.community.emoticon`(JDBC 저장소 — 포인트 상점과 같은 방식 · 서비스 · `EmoticonGuard` · 그림 검사기 `EmoticonImageValidator`), api 컨트롤러 3개(`/api/emoticons/**` · `/api/me/emoticons/**` · `/api/me/emoticon-studio/**`), admin `EmoticonAdminController`(`/api/admin/emoticons/**`). 글쓰기·글 고치기·소모임 글쓰기(`PostWriteService`)·댓글 쓰기·고치기(`CommentService`)에 토큰 검사. 받기 보상은 `PointService.emoticonCreatorReward` 한 길. 권한 `emoticon.read`(READ)·`emoticon.review`(MANAGE)·`emoticon.settings`(CONFIG) — 등급·포인트 유형, `pointshop.refund` 다음. 화면 레지스트리 로보티콘 묶음(포인트 상점 다음, `/robotikon/reviews|packs|settings`, 모두 `emoticon.read`). 운영자 이벤트 `EMOTICON_REVIEW_PENDING`(holders `emoticon.review`). 감사 `EMOTICON_REVIEW_APPROVE|REJECT`·`EMOTICON_PACK_SUSPEND|RESUME|CREATE|UPDATE`·`EMOTICON_SETTINGS_UPDATE`(일반 운영).
 - **구현하며 정한 것**: (1) 로보티콘 ID 잇기 = 그 팩이 쓰던 그림이면 그 ID → 같은 지문이면 그 ID → 새 ID. (2) 카탈로그 = 판매 중·판매 중단 팩의 **상점 판** 로보티콘만(새 판에서 뺀 로보티콘의 옛 토큰은 글자). ETag = 카탈로그 내용 SHA-256 앞 16바이트. (3) 판매 중단 팩도 임시 저장·심사 요청이 된다 — 새 판 심사(UPDATE)로 받고 승인하면 다시 판매, 반려하면 판매 중단 그대로(목업은 PENDING 으로 바꿨다). (4) 무한 반복 아님은 작가 올리기에서 막고(`NOT_LOOP`) 운영자 올리기는 받아 둔다(목업대로). 저장 바이트: GIF 그대로(끝 표식 뒤만 뗌), PNG 다시 인코딩 — 지문·용량은 저장 바이트의 것. 압축 폭탄 = 프레임이 논리 화면 밖·IHDR 크기를 디코딩 전에 거른다(`TYPE`). (5) 유료 판매 희망 신청은 S1 에서 늘 `409 EMOTICON_PAYOUT_REQUIRED`(정산 정보 등록이 S2), 판매 중·판매 중단 팩의 새 판은 판매 희망을 바꾸지 않는다. (6) 받기 자격 = 로그인(탈퇴 아님)만 — 목업처럼. 보상의 「인정된 받기」 = 인정된 추천 판정(`PointLedgerWriter.recognizedAcquirer`) + 이메일 인증. 작가 하루 상한은 **포인트 합**(걸치면 남은 만큼). 보상은 활동 하루 총 한도에 들지 않는다. (7) 작가 그림 올리기 하루 300장(`429 EMOTICON_UPLOAD_LIMIT`). 올리고 쓰지 않은 그림 정리는 아직 없다. (8) 설정 응답의 유료·수수료·정산·환불·가격 단계 칸은 기본값(저장하지 않음, `paidSalesEnabled=false`).
 - **목업과 달라진 API(연결 때 고칠 것)**: 그림 올리기 `fields.cover`·`fields.file` 은 관리자도 **이유 코드**(문구는 `message`). 승인·반려는 `204`. 작가 새 팩 임시 저장·새 팩 심사 요청은 `201`. 스튜디오 `contract`·`payout-account`·`settlements`, 공개 `purchase`, 내 `emoticon-purchases`, 관리자 `price`·`sales`·`settlements` 는 아직 없다(S2~S4 — 목업 유지). 관리자 작가 요약이 없으면 `data` 칸이 빠진다(= null). 권한 카탈로그 S1 세 줄 `featureReady: true`, 메뉴 판매 내역·작가 정산 줄은 S3·S4 까지 최고 관리자만. 회원 알림 종류 `EMOTICON_PACK`(kind 6가지) 그리기·아이콘. admin-web `PointReasonCode` 에 `EMOTICON_CREATOR_REWARD`.

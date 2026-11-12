@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
 /**
- * 차트 공유 레이어 — user-web(사업자 광고 성과) · admin-web(운영자 광고 성과)이 `extends: ['@roboyam/chart']` 로 쓴다.
+ * 차트 공유 레이어 — user-web(사업자 광고 성과) · admin-web(운영자 광고 성과)이 `extends: ['@irobit/chart']` 로 쓴다.
  * Apache ECharts(`echarts` — 이 패키지의 의존, 래퍼 없이 `echarts/core` 에서 필요한 것만 등록)로 그린다. 사용법은 `.claude/guides/frontend/layers.md`.
  *
  * 레이어는 앱을 모른다 — 서버를 부르지 않고 앱의 i18n 키도 모른다. 화면 문구·숫자·날짜 글자는 앱이 번역·서식해 props 로 넘긴다.

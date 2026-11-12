@@ -47,7 +47,7 @@ class EmoticonCatalogGuardTest extends EmoticonTestBase {
         assertThat(items).filteredOn(i -> i.packId().equals(Long.toString(onSale))).hasSize(8);
         assertThat(items).filteredOn(i -> i.packId().equals(Long.toString(suspended))).hasSize(8);
         assertThat(items).noneMatch(i -> i.packId().equals(Long.toString(pending)));
-        EmoticonPublicView.CatalogItem robot = items.stream().filter(i -> i.packId().equals(Long.toString(official("로보얌콘")))).findFirst().orElseThrow();
+        EmoticonPublicView.CatalogItem robot = items.stream().filter(i -> i.packId().equals(Long.toString(official("아이로빗콘")))).findFirst().orElseThrow();
         assertThat(robot.url()).isEqualTo("/emoticons/robotikon-m/01.gif");
         assertThat(robot.label()).isEqualTo("기쁨");
         assertThat(robot.animated()).isTrue();
@@ -117,16 +117,16 @@ class EmoticonCatalogGuardTest extends EmoticonTestBase {
 
     @Test
     void 운영_팩_카드와_상세() {
-        long id = official("로보얌콘핑크");
+        long id = official("아이로빗콘핑크");
         EmoticonPublicView.PackDetail detail = kit.shop.pack(null, Long.toString(id));
         assertThat(detail.source()).isEqualTo("OFFICIAL");
         assertThat(detail.creator()).isNull();
         assertThat(detail.count()).isEqualTo(32);
         assertThat(detail.coverUrl()).isEqualTo("/emoticons/robotikon-f/cover.png");
-        assertThat(detail.tags()).containsExactly("로봇", "로보얌", "핑크", "리액션", "귀여움");
+        assertThat(detail.tags()).containsExactly("로봇", "아이로빗", "핑크", "리액션", "귀여움");
         assertThat(detail.saleState()).isEqualTo("ON_SALE");
         assertThat(detail.emoticons().get(18).label()).isEqualTo("굿");
-        assertThat(kit.shop.packs(null, "OFFICIAL", null, null, "로보얌콘핑크", null).items()).extracting(EmoticonPublicView.PackCard::id).contains(Long.toString(id));
+        assertThat(kit.shop.packs(null, "OFFICIAL", null, null, "아이로빗콘핑크", null).items()).extracting(EmoticonPublicView.PackCard::id).contains(Long.toString(id));
     }
 
     // ── 토큰 검사 ───────────────────────────────────────────────────────────
@@ -153,8 +153,8 @@ class EmoticonCatalogGuardTest extends EmoticonTestBase {
 
     @Test
     void 가지지_않은_팩의_로보티콘은_409_처음_걸린_ID_가진_팩은_통과_없는_ID_는_글자() {
-        long pink = official("로보얌콘핑크");
-        long robot = official("로보얌콘");
+        long pink = official("아이로빗콘핑크");
+        long robot = official("아이로빗콘");
         List<Long> pinkIds = kit.liveEmoticons(pink);
         List<Long> robotIds = kit.liveEmoticons(robot);
         long member = kit.member();

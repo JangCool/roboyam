@@ -1,7 +1,7 @@
-# 핫딜 영역 분석 — 커뮤니티 → 로보얌 이식
+# 핫딜 영역 분석 — 커뮤니티 → 아이로빗 이식
 
-작성 2026-10-30. 근거 표기: `C/…` = `D:\project\community\workspace\community`, `R/…` = `D:\project\roboyam`. **문서와 코드가 다르면 코드를 사실로 적었다.**
-먼저 바로잡을 것 하나: 커뮤니티의 「입점 상품 판매(deal shop)」는 **사업자에게 파는 디지털 이용권**(입점권·게시권·노출권·끌올권)이다. 소비자에게 물건을 팔거나 배송·반품하는 기능이 아니다(`C/docs/hotdeal.md:17` "ROBOYAM 이 직접 팔지 않는다", `C/docs/api-deal-shop.md:71-77`). 그래서 4절의 「배송→반품」 시나리오는 「입점권 사용→미사용 환불」로 바꿔 점검했다.
+작성 2026-10-30. 근거 표기: `C/…` = `D:\project\community\workspace\community`, `R/…` = `D:\project\irobit`. **문서와 코드가 다르면 코드를 사실로 적었다.**
+먼저 바로잡을 것 하나: 커뮤니티의 「입점 상품 판매(deal shop)」는 **사업자에게 파는 디지털 이용권**(입점권·게시권·노출권·끌올권)이다. 소비자에게 물건을 팔거나 배송·반품하는 기능이 아니다(`C/docs/hotdeal.md:17` "IROBIT 이 직접 팔지 않는다", `C/docs/api-deal-shop.md:71-77`). 그래서 4절의 「배송→반품」 시나리오는 「입점권 사용→미사용 환불」로 바꿔 점검했다.
 
 ---
 
@@ -112,20 +112,20 @@ stateDiagram-v2
 
 | 등급 | 문제 | 근거 | 제안 |
 |---|---|---|---|
-| 🔴 | **사업자가 환불을 요청할 길이 없고, 미사용 입점권이 있으면 탈퇴도 막힌다**. 환불 API 는 운영자 전용, 사업자 센터에 요청 단추 없음 → 쓰지 않을 입점권을 산 사업자는 기간이 끝날 때까지(최대 366일) 탈퇴 불가 | `C/docs/api-deal-shop.md:24,244,303`, `C/.../BusinessWithdrawalGuard.java:81` | 사업자 센터 「환불 요청」(미사용 입점권·노출권은 자동 승인 전액, 사용분은 운영자 심사) + 「포기하고 탈퇴」 선택. 로보얌 커머스 충전 환불 규칙(`R/docs/domain/commerce.md` 9-3·17-1)과 같은 틀 |
+| 🔴 | **사업자가 환불을 요청할 길이 없고, 미사용 입점권이 있으면 탈퇴도 막힌다**. 환불 API 는 운영자 전용, 사업자 센터에 요청 단추 없음 → 쓰지 않을 입점권을 산 사업자는 기간이 끝날 때까지(최대 366일) 탈퇴 불가 | `C/docs/api-deal-shop.md:24,244,303`, `C/.../BusinessWithdrawalGuard.java:81` | 사업자 센터 「환불 요청」(미사용 입점권·노출권은 자동 승인 전액, 사용분은 운영자 심사) + 「포기하고 탈퇴」 선택. 아이로빗 커머스 충전 환불 규칙(`R/docs/domain/commerce.md` 9-3·17-1)과 같은 틀 |
 | 🔴 | **사업자 정지·서비스 끄기 때 선결제 건 처리가 없다**. 노출은 화면에서만 빠지고 기간·입점권은 그대로 흐른다. 정지 사유가 운영 잘못이면 보상할 길이 운영자 수동 환불뿐 | `C/docs/api-hotdeal-business.md` 10절 ⑦, `BusinessImpacts.java:19-46` | 정지·끄기 창에서 영향 건수(이미 셈)와 함께 「영향 건을 환불 필요로 넘김」 선택 → `NEEDS_REFUND` 큐. 정지 해제 때 노출 기간 연장 여부 정책 결정 |
-| 🔴 | **결제 코드 이중화**. 커뮤니티는 deal shop 결제·환불·웹훅을 커머스와 따로 만들었다(`DealRefundService` 자체 재시도 없음, 대사 없음). 로보얌은 `payment` 모듈(`payment_orders/cancels/events`, 재시도 큐, 대사, Fake PG, 테스트 필수)이 이미 있다 | `C/.../dealshop/payment/*`, `R/.../payment/dto/PaymentOrderType.java`, `R/docs/domain/commerce.md` 3·8절 | 입점 주문은 `PaymentOrderHandler` 구현으로 흡수(5절). 자체 PG 호출 코드는 옮기지 않는다 |
-| 🔴 | **법적 지위 미확인**. ① 입점권 판매 = 로보얌이 판매자인 B2B 디지털 서비스 → 통신판매업 신고 범위·청약철회 적용 여부·약관·사업자 정보 표시 필요. ② 핫딜 글은 외부몰 링크(통신판매중개 아님)지만 사업자 핫딜·노출·구획은 광고 → 「광고」표시는 구현됨. ③ 제휴 링크 표기는 AFFILIATE 도메인 등록 + 작성자 체크에 의존 — **단축 URL·리디렉션은 못 잡는다** | `C/docs/hotdeal.md:112-118`, `DealService.java:205-208`, `DealPanel.vue:75-81`(nofollow sponsored 있음) | 법무 확인 항목 그대로 유지. 단축 URL 도메인(bit.ly·han.gl·coupa.ng 등)은 기본 BLOCK 시드; 2차에 서버가 최종 URL 을 풀어(HEAD, 3회 리디렉션) 도메인 규칙 재적용 |
+| 🔴 | **결제 코드 이중화**. 커뮤니티는 deal shop 결제·환불·웹훅을 커머스와 따로 만들었다(`DealRefundService` 자체 재시도 없음, 대사 없음). 아이로빗은 `payment` 모듈(`payment_orders/cancels/events`, 재시도 큐, 대사, Fake PG, 테스트 필수)이 이미 있다 | `C/.../dealshop/payment/*`, `R/.../payment/dto/PaymentOrderType.java`, `R/docs/domain/commerce.md` 3·8절 | 입점 주문은 `PaymentOrderHandler` 구현으로 흡수(5절). 자체 PG 호출 코드는 옮기지 않는다 |
+| 🔴 | **법적 지위 미확인**. ① 입점권 판매 = 아이로빗이 판매자인 B2B 디지털 서비스 → 통신판매업 신고 범위·청약철회 적용 여부·약관·사업자 정보 표시 필요. ② 핫딜 글은 외부몰 링크(통신판매중개 아님)지만 사업자 핫딜·노출·구획은 광고 → 「광고」표시는 구현됨. ③ 제휴 링크 표기는 AFFILIATE 도메인 등록 + 작성자 체크에 의존 — **단축 URL·리디렉션은 못 잡는다** | `C/docs/hotdeal.md:112-118`, `DealService.java:205-208`, `DealPanel.vue:75-81`(nofollow sponsored 있음) | 법무 확인 항목 그대로 유지. 단축 URL 도메인(bit.ly·han.gl·coupa.ng 등)은 기본 BLOCK 시드; 2차에 서버가 최종 URL 을 풀어(HEAD, 3회 리디렉션) 도메인 규칙 재적용 |
 | 🟠 | **회원 핫딜 중복 글 감지 없음** — 같은 상품 링크를 여러 회원이 올려도 그대로. 중복 검사는 사업자 글만(`product_url_key` 도 사업자만 채움) | `C/.../DealService.java:133,248` | 모든 글에 `product_url_key` 채우고 글쓰기 때 「진행 중 같은 딜 N건」 안내(막지 않음) + 상세에 「같은 딜」 묶음 |
 | 🟠 | **가격 정확성·종료 처리의 시간 공백**. 가격 변경 이력 없음, 의심 상태 12h 유예 — 심야 품절 딜이 반나절 노출. 사업자 글 가격 수정에 제한 없음 | `quality.md:28`, `api-hotdeal.md:202` | 목록 기본 「진행 중만」 + 의심 글은 자동 하단 정렬. 사업자 핫딜은 가격·링크 수정 이력(`post_deal_revisions`) 보존 — 표시광고 6개월(`R/commerce.md` 17-3) |
 | 🟠 | **노출 한도 축소 시 초과 예약 방치**. 동시성은 잠금+조건부 UPDATE 로 막혔지만, 운영자가 설정 `capacity` 를 줄이면 이미 예약된 건이 한도를 넘고 표시 때 뒷순위가 소리 없이 빠진다(환불 없음) | `PlacementService.java:174-185`, `api-hotdeal-business.md` 6절 「최대 한도 개」 | 설정 저장 때 초과 건수 경고, 초과 건은 운영자 취소(`restoreEntitlement`) 또는 한도 상향 |
-| 🟠 | **신고↔제재 끊김**. 핫딜 신고 사유는 일반 글 사유 그대로(FALSE_INFO·AD), 사업자 신고 누적→서비스 정지는 수동. 종료 요청·의심 후보도 신고 화면과 별도 | `hotdeal.md:133`, `quality.md:73` | 로보얌 신고 사유에 `DEAL_FALSE_PRICE`·`DEAL_HIDDEN_AD` 추가, 신고 사건 서랍에서 「핫딜 종료」·「사업자 서비스 정지」 바로 가기. 자동 정지는 임계 설정값(0=끔) |
+| 🟠 | **신고↔제재 끊김**. 핫딜 신고 사유는 일반 글 사유 그대로(FALSE_INFO·AD), 사업자 신고 누적→서비스 정지는 수동. 종료 요청·의심 후보도 신고 화면과 별도 | `hotdeal.md:133`, `quality.md:73` | 아이로빗 신고 사유에 `DEAL_FALSE_PRICE`·`DEAL_HIDDEN_AD` 추가, 신고 사건 서랍에서 「핫딜 종료」·「사업자 서비스 정지」 바로 가기. 자동 정지는 임계 설정값(0=끔) |
 | 🟠 | **환불 사유가 사업자에게 가지 않는다**(알림·푸시에 금액만). 분쟁 때 근거 부족 | `api-deal-shop.md:185,246` | 환불 창에 「내부 메모」와 「사업자에게 보이는 사유」 두 칸 |
-| 🟠 | **포트원 실서버 미검증·비동기 결제 미지원** | `api-deal-shop.md:62-65` | 로보얌 payment 모듈로 흡수하면 그쪽 검증(dev 배포 뒤 PG 확인 예정)에 얹힌다 |
-| 🟡 | 감사: 운영자 조치는 운영 로그 있음. 사업자 본인의 노출 연결·취소·끌올은 행 기록만, 평문 열람은 열람 기록+로그 | `api-deal-shop.md:262`, `api-bump.md:149` | 로보얌 `audit.record` + `AuditActions.HOTDEAL_*`(민감: 환불·평문 열람·강제 취소) |
+| 🟠 | **포트원 실서버 미검증·비동기 결제 미지원** | `api-deal-shop.md:62-65` | 아이로빗 payment 모듈로 흡수하면 그쪽 검증(dev 배포 뒤 PG 확인 예정)에 얹힌다 |
+| 🟡 | 감사: 운영자 조치는 운영 로그 있음. 사업자 본인의 노출 연결·취소·끌올은 행 기록만, 평문 열람은 열람 기록+로그 | `api-deal-shop.md:262`, `api-bump.md:149` | 아이로빗 `audit.record` + `AuditActions.HOTDEAL_*`(민감: 환불·평문 열람·강제 취소) |
 | 🟡 | 기간 만료 알림 없음(문서는 있음), 작성자가 만료를 모른다 | 2절 표 | 만료 글은 「기간 지남」 표시로 충분하면 생략, 아니면 하루 배치 알림 |
 | 🟡 | 상품 이미지·OG 자동 채움 없음 — 핫딜 목록이 글자만 | `DealFormFields.vue`(링크 검사만) | 2차: 서버 OG 조회(허용 도메인·크기 제한·캐시) |
-| 🟡 | 끌올 정렬 열 `list_id` 가 앱·DB 시계 차이에 민감(생성 열 + 파티션) | `api-bump.md` 8-1 | 로보얌 `posts` 구조 확인 전에는 끌올 보류 |
+| 🟡 | 끌올 정렬 열 `list_id` 가 앱·DB 시계 차이에 민감(생성 열 + 파티션) | `api-bump.md` 8-1 | 아이로빗 `posts` 구조 확인 전에는 끌올 보류 |
 | 🟡 | 노출·클릭 집계 없음 → 광고주에게 가치를 보여 줄 수 없음 | `hotdeal.md:135` | 3차. 광고 담당의 집계 설계와 같이 |
 
 ---
@@ -134,7 +134,7 @@ stateDiagram-v2
 
 | 시나리오 | 단계 | 상태 | 끊긴 곳·비고 |
 |---|---|---|---|
-| **A. 회원 핫딜** | 쓰기(링크 검사→딜 칸→저장) | ✅ | 임시저장에 딜 없음, 예약 발행 불가 — 로보얌은 둘 다 없어 무관 |
+| **A. 회원 핫딜** | 쓰기(링크 검사→딜 칸→저장) | ✅ | 임시저장에 딜 없음, 예약 발행 불가 — 아이로빗은 둘 다 없어 무관 |
 | | 추천·댓글·포인트 | ✅ | 일반 글과 같음 |
 | | 신고 | ⚠️ | 일반 사유만. 핫딜 전용 사유·조치 연결 없음(3절 🟠) |
 | | 종료 요청→의심→keep/자동 종료→보상 | ✅ | 12h 공백은 정책값 |
@@ -150,10 +150,10 @@ stateDiagram-v2
 | | **미사용 입점권 환불** | ❌ | 요청 경로 없음(3절 🔴) |
 | **C. 입점 주문** | 주문→결제(SDK)→complete/웹훅→PAID | ✅ | 멱등·금액 재검증. 실PG 미검증 ⚠️ |
 | | 결제 전 이탈 | ✅ | 30분 만료 배치·알림 |
-| | 금액 불일치·늦은 결제 | ✅ | NEEDS_REFUND → 운영자 수동. 자동 취소 없음(로보얌 커머스는 자동 취소) ⚠️ |
+| | 금액 불일치·늦은 결제 | ✅ | NEEDS_REFUND → 운영자 수동. 자동 취소 없음(아이로빗 커머스는 자동 취소) ⚠️ |
 | | 세금계산서 | ⚠️ | REQUESTED 줄 생성→외부 발행→표시. 사업자가 「발행 요청/불필요」를 고를 수 없음, 전자세금계산서 연동 없음 |
 | | 환불(전액·일부·사용 후) | ✅ | 운영자만. PG 실패 시 재시도 큐 없이 수동 ⚠️ |
-| | 정산·매출 집계 | ⚠️ | 매출 요약 API 만(기간·상태 건수). PG 대사 없음 — 로보얌 `payment` 대사로 대체 |
+| | 정산·매출 집계 | ⚠️ | 매출 요약 API 만(기간·상태 건수). PG 대사 없음 — 아이로빗 `payment` 대사로 대체 |
 | **D. 사업자 정지·탈퇴 중 진행 건** | 서비스 정지 | ⚠️ | 영향 건수 표시(`BusinessImpacts`)·노출 표시 중단·새 글 차단. 입점권·노출 기간은 흐름, 환불 큐 없음(🔴) |
 | | 정지 중 결제 확정·취소 | ✅ | 상태 무관 허용(돈이 낀 주문 보호) |
 | | 서비스 끄기 | ✅ | 끝나지 않은 노출 있으면 막음 |
@@ -162,14 +162,14 @@ stateDiagram-v2
 
 ---
 
-## 5. 로보얌 이식 방향
+## 5. 아이로빗 이식 방향
 
 ### 5-1. 재사용(이미 자리가 있다)
-| 로보얌 기반 | 어떻게 쓰나 | 근거 |
+| 아이로빗 기반 | 어떻게 쓰나 | 근거 |
 |---|---|---|
 | **게시판 종류 `boards.kind = DEAL`** | 커뮤니티의 `deal_enabled` 대신 이미 예약된 DEAL 종류를 켠다(글쓰기에 딜 칸 필수·종료 규칙). `BoardFields.KIND_DEAL` 과 DEAL 게시판용 가젯 자리도 있음 | `R/.../V42__boards.sql:207,254`, `R/.../BoardFields.java:60-63,232` |
 | **글 부가 표 패턴**(`post_polls`·`post_debates`) | `post_deals(post_id PK)` 를 같은 방식으로 붙인다(FK 없음, 글 저장 트랜잭션에 합류). 관리자 글 목록 칩(`poll`·`debate`)처럼 「딜」 칩 | `R/docs/features/post-poll-contract.md`, `R/apps/admin-web/app/pages/posts/index.vue:174-186` |
-| **권한 카탈로그** | `hotdeal.read/manage/domain.manage`, `deal-order.read/manage/settings/refund(SENSITIVE)` 가 `featureReady=false` 로 예약돼 있다 — 이름을 새로 정하지 말고 이것을 켠다. 담당 게시판 범위는 로보얌이 뺐으니(post-admin-contract) **게시판 매니저/스텝**으로 핫딜 담당을 둔다 | `R/.../Permission.java:93-95,118-121`, `R/docs/features/post-admin-contract.md` 「community 와 다른 점」 |
+| **권한 카탈로그** | `hotdeal.read/manage/domain.manage`, `deal-order.read/manage/settings/refund(SENSITIVE)` 가 `featureReady=false` 로 예약돼 있다 — 이름을 새로 정하지 말고 이것을 켠다. 담당 게시판 범위는 아이로빗이 뺐으니(post-admin-contract) **게시판 매니저/스텝**으로 핫딜 담당을 둔다 | `R/.../Permission.java:93-95,118-121`, `R/docs/features/post-admin-contract.md` 「community 와 다른 점」 |
 | **신고** | 사건 모델·자동 숨김·사유 코드 체계에 핫딜 사유 2개 추가. 종료 요청은 신고가 아니라 **별도 가벼운 신호**로 둔다(커뮤니티 결정 유지) | `R/docs/features/report-admin-contract.md` |
 | **포인트** | `PointService` 한 길 + 원장 유일 `(reason, ref_type, ref_id)` → 사유 `DEAL_END_REQUEST`(ref = 글) 추가, 하루 상한은 `point_settings` 칸 2개 | `R/docs/features/point-contract.md` 「저장」 |
 | **인기글** | 사업자 글 제외는 인기글 설정의 「제외 조건」에 `post_deals.source = BUSINESS` 를 더한다(운영자 수동 제외 `popular_exclusions` 와 별개) | `R/docs/features/popular-highlight-contract.md` |
@@ -177,11 +177,11 @@ stateDiagram-v2
 | **결제 모듈** | `PaymentOrderType.BIZ_PRODUCT`(또는 `HOTDEAL_PRODUCT`) + `PaymentOrderHandler` 구현: `onPaid` → 주문 PAID + 입점권 생성 + 세금계산서 REQUESTED, `onCanceled` → 입점권 REFUNDED·노출 CANCELED. PG 상태·웹훅·취소 재시도·대사·결제 이상 화면은 `payment` 가 맡고 `deal_orders` 는 **도메인 주문**(상품·사업자 스냅샷·세금계산서·환불 사유)만 | `R/.../PaymentOrderHandler.java:19-32`, `R/docs/domain/commerce.md` 3절·8-2·8-3·16-1 |
 | **감사·알림·탈퇴** | `audit.record(...)` + `AuditActions.HOTDEAL_*`; 회원 알림 종류 3개 추가; 탈퇴 전 검증 자리(`withdrawal` 패키지)에 사업자 막는 이유 추가 | `R/.../AddressRevealService.java:178`, `R/docs/domain/commerce.md` 17-1 |
 
-### 5-2. 입점 판매는 로보얌 커머스로 **흡수**(추천)
-- 흡수하는 것: 결제·취소·웹훅·대사·결제 이상 처리·보존 기간(5년)·**테스트 필수 규칙**(`commerce.md` 18절 — 입점 상품 주문도 「돈이 움직이는 커머스」라 같은 기준). 커뮤니티의 `PaymentGateway`·웹훅 검증기·`DealRefundService` 는 가져오지 않는다(로보얌에 같은 것이 더 완성돼 있다: 재시도 큐·대사·Fake PG).
+### 5-2. 입점 판매는 아이로빗 커머스로 **흡수**(추천)
+- 흡수하는 것: 결제·취소·웹훅·대사·결제 이상 처리·보존 기간(5년)·**테스트 필수 규칙**(`commerce.md` 18절 — 입점 상품 주문도 「돈이 움직이는 커머스」라 같은 기준). 커뮤니티의 `PaymentGateway`·웹훅 검증기·`DealRefundService` 는 가져오지 않는다(아이로빗에 같은 것이 더 완성돼 있다: 재시도 큐·대사·Fake PG).
 - 별도로 두는 것: 상품 카탈로그(`biz_products` kind 5종 — 사업자·광고 담당의 PROMO·광고 상품도 같은 표를 쓰게), 입점권·노출권·주문 도메인 표, 세금계산서(수동), 사업자 평문 열람. 패키지 `com.community.hotdeal`(글·링크 규칙·품질) 과 `com.community.bizproduct`(상품·주문·입점권·노출) 둘, 의존은 `bizproduct → payment`, `hotdeal → bizproduct`(입점권 소모) 단방향.
-- 이유: ① 결제 코드 하나(🔴 3번), ② 커머스 테스트·동시성 기준을 그대로 받음, ③ 로보얌 `payment_cancels` 재시도 큐가 커뮤니티의 「PG 취소 실패 → 수동」 끊김을 메움, ④ 관리자 「결제 › 주문·이상·대사」 화면이 입점 결제도 함께 보여 운영 화면이 줄어듦.
-- 주의: 공구는 소비자 B2C(청약철회·에스크로), 입점권은 B2B 디지털 서비스 — **환불 규칙은 도메인 핸들러가 따로 가진다**(미사용 전액·사용 후 운영자 심사·규칙 위반 취소 시 환불 없음). 로보얌 커머스의 「늦은 결제·금액 불일치 자동 취소」는 입점 주문에도 그대로 적용(커뮤니티의 NEEDS_REFUND 수동 처리보다 낫다).
+- 이유: ① 결제 코드 하나(🔴 3번), ② 커머스 테스트·동시성 기준을 그대로 받음, ③ 아이로빗 `payment_cancels` 재시도 큐가 커뮤니티의 「PG 취소 실패 → 수동」 끊김을 메움, ④ 관리자 「결제 › 주문·이상·대사」 화면이 입점 결제도 함께 보여 운영 화면이 줄어듦.
+- 주의: 공구는 소비자 B2C(청약철회·에스크로), 입점권은 B2B 디지털 서비스 — **환불 규칙은 도메인 핸들러가 따로 가진다**(미사용 전액·사용 후 운영자 심사·규칙 위반 취소 시 환불 없음). 아이로빗 커머스의 「늦은 결제·금액 불일치 자동 취소」는 입점 주문에도 그대로 적용(커뮤니티의 NEEDS_REFUND 수동 처리보다 낫다).
 
 ### 5-3. 새로 만들 것·단계
 - **1차 — 회원 핫딜(사업자 없이 완결)**: `post_deals`·`deal_domains`·`deal_end_requests`·`deal_suspicions`(shared 스트림 V111~), DEAL 게시판 글쓰기·수정·목록 정렬(최신·인기·마감 임박)·배지·종료/재개·종료 요청·자동 종료 배치·포인트·위장 감지, 관리자 3화면(핫딜 글·링크 규칙·의심 후보), 신고 사유 2개, `HOT_DEALS` 가젯. **중복 딜 안내(모든 글 `product_url_key`)와 단축 URL 기본 차단**을 처음부터.
@@ -192,7 +192,7 @@ stateDiagram-v2
 
 ## 6. 사용자가 정해야 할 질문
 
-1. **입점 판매 결제를 로보얌 `payment` 모듈에 흡수할까?** — 추천 **예**(5-2). 아니면 커뮤니티 코드 이식 + 대사·재시도 따로 구현.
+1. **입점 판매 결제를 아이로빗 `payment` 모듈에 흡수할까?** — 추천 **예**(5-2). 아니면 커뮤니티 코드 이식 + 대사·재시도 따로 구현.
 2. **사업자가 스스로 환불을 요청할 수 있게 할까?** — 추천 **예**: 미사용 입점권·노출권은 신청 즉시 전액 자동 승인(결제 7일 이내 조건 없이), 사용분은 운영자 심사. 탈퇴 화면에 「미사용 입점권 포기」 선택.
 3. **노출권(홈·카테고리 상단)을 광고 일정표와 통합할까?** — 커뮤니티는 통합하지 않았다(ADM-045: 핫딜 노출은 읽기 전용, BIZ-001 D-22: 입점 노출권 구매 화면으로 이동만). 추천 **1차는 분리 유지, 2차에 광고 담당과 「광고 유형 HOTDEAL_TOP」 통합 여부 결정**(한도 판정 코드가 둘이 되는 문제).
 4. **사업자 상단 구획·끌올을 가져올까?** — 추천 구획은 2차(계산만, 표 없음), 끌올은 3차(정렬 열이 글 표 구조를 건드림).
@@ -216,7 +216,7 @@ stateDiagram-v2
 | **입점 상품** `/biz-products` (사업자 묶음) | [상품 추가] → `Dialog`: 종류 `SelectButton`(5종) → 종류별 칸만 보이게(기간·건수·슬롯) → 공급가 입력 시 부가세·총액 자동 표시 → 저장(판매 전) → 행 `ToggleSwitch` 판매 중 | `DataTable` + `Dialog`: 상품은 적고 칸이 종류에 따라 바뀌어 한 창이 편함. 삭제는 주문 0건일 때만 보이게 | 주문 있는 상품 삭제 409 → 「판매 중단으로 바꿔 주세요」 |
 | **입점 주문** `/deal-orders` (관리자 결제 › 주문과 나란히) | 상단 `Message`(환불 필요 N·세금계산서 대기 N → 누르면 필터) → 상태 `SelectButton` → 기간 `DateRangeField` → 행 클릭 → Drawer(금액·스냅샷·입점권 사용량·`Timeline` 이벤트·환불 목록) → [환불] `Dialog`(금액 `InputNumber` 기본 잔액, 「사용 후 환불」 `Checkbox` 는 사용량>0 일 때만, 내부 사유·사업자 안내 사유) → [세금계산서 발행 표시] `Dialog` 메모 → [평문 보기] `useConfirm` → 10분 `Tag` 카운트다운 | Drawer 안 `Timeline` 으로 PAID→환불→세금계산서 흐름이 읽힌다. 환불은 되돌릴 수 없어 `Dialog` + 금액 확인 문구. PG 상태는 `payments/orders` 링크로 | 빈: 「주문이 없어요」 · 502 PG 실패: `Message` 「환불 요청 상태로 남겼어요」 + 재시도 |
 | **노출 현황** `/deal-placements` | 슬롯 `Tabs`(홈 상단·카테고리별) 상단에 한도 `ProgressBar`(사용/한도) → 상태 필터 → `DataTable`(사업자·글·기간·상태) → [취소] `Dialog`(사유 필수, 「노출권 돌려주기」 `Checkbox`) | 자리 상황이 핵심이라 표 위에 미터. 달력은 사업자 쪽에만(운영자는 숫자로 충분) | 한도 0: 「이 슬롯은 꺼져 있어요」+ 설정 링크 |
-| **핫딜·입점 설정** `/settings/hotdeal` | 구획 4개(사업자 게시·노출 한도·종료 요청·구획/끌올) `Fieldset` → `InputNumber`(범위 도움말) → [저장] → 바뀐 칸만 감사 | 로보얌 설정 화면 패턴. 한도를 줄일 때 「예약 N건이 한도를 넘어요」 경고 `Message` | — |
+| **핫딜·입점 설정** `/settings/hotdeal` | 구획 4개(사업자 게시·노출 한도·종료 요청·구획/끌올) `Fieldset` → `InputNumber`(범위 도움말) → [저장] → 바뀐 칸만 감사 | 아이로빗 설정 화면 패턴. 한도를 줄일 때 「예약 N건이 한도를 넘어요」 경고 `Message` | — |
 
 ### 7-2. 사용자(user-web)
 | 화면 · 진입 | 핵심 흐름 | 컴포넌트 · 왜 | 빈/오류/대기 |

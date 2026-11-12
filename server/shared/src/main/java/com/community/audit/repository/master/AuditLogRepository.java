@@ -1,7 +1,7 @@
 package com.community.audit.repository.master;
 
 import com.community.audit.entity.AuditLogEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 
-public interface AuditLogRepository extends RoboyamRepository<AuditLogEntity, Long> {
+public interface AuditLogRepository extends IrobitRepository<AuditLogEntity, Long> {
 }

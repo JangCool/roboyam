@@ -25,10 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 공공데이터포털 설정(관리자 설정 › 시스템 › 공공데이터포털, business-contract 「국세청 진위확인 · 공공데이터 설정」) — 국세청 상태조회·진위확인이 같이 쓰는
- * 서비스 키 하나. 포트원 설정과 같은 규칙으로 {@link SecretEncryptor}({@code ROBOYAM_CRYPTO_KEY}) 암호문을 {@code public_data_settings} 에 둔다.
+ * 서비스 키 하나. 포트원 설정과 같은 규칙으로 {@link SecretEncryptor}({@code IROBIT_CRYPTO_KEY}) 암호문을 {@code public_data_settings} 에 둔다.
  *
  * <ul>
- *   <li>키 읽는 차례({@link #ntsServiceKey}): 화면에서 저장한 값 → 환경 변수 {@code ROBOYAM_NTS_SERVICE_KEY} → 없음. 국세청 조회 때마다 읽는다
+ *   <li>키 읽는 차례({@link #ntsServiceKey}): 화면에서 저장한 값 → 환경 변수 {@code IROBIT_NTS_SERVICE_KEY} → 없음. 국세청 조회 때마다 읽는다
  *       (화면에서 바꾸면 재기동 없이 다음 조회부터).</li>
  *   <li>화면({@link #view})에는 값이 없다 — 출처·마지막 변경·마지막 연결 시험만. 감사({@code PUBLIC_DATA_SETTINGS_UPDATE}·{@code _DELETE})에도 칸 이름만.</li>
  *   <li>연결 시험({@link #test})은 구현이 가짜여도 실제 국세청 상태조회를 한 번 부른다(트랜잭션 밖). 고정 시험 번호는 아무 실재 번호면 된다.</li>
@@ -166,7 +166,7 @@ public class PublicDataSettingsService {
             return Optional.empty();
         }
         if (!encryptor.isConfigured()) {
-            log.error("공공데이터포털 서비스 키를 풀 수 없다 — 암호화 키(ROBOYAM_CRYPTO_KEY)가 없다. 환경 변수 키로 넘어간다");
+            log.error("공공데이터포털 서비스 키를 풀 수 없다 — 암호화 키(IROBIT_CRYPTO_KEY)가 없다. 환경 변수 키로 넘어간다");
             return Optional.empty();
         }
         try {

@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * 고를 수 있는 모델 한 줄 — {@code ai_models}(shared V189). 옛 배포 설정 {@code roboyam.ai-member.models.*} 를 대신하는 정본이다.
+ * 고를 수 있는 모델 한 줄 — {@code ai_models}(shared V189). 옛 배포 설정 {@code irobit.ai-member.models.*} 를 대신하는 정본이다.
  * {@link #isEnabled()} 인 모델만 계정에 고를 수 있고 실행기가 부른다. {@link #isDefault()} 는 제공사당 하나(켜진 모델만 — DB 검사·부분 유일 색인).
  * 가격은 100만 토큰당 USD 참고값(없으면 null).
  */

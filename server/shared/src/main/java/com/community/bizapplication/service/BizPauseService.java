@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 처리는 신청 건 행을 잠그고 상태를 다시 본다 — 아니면 409 {@code BIZ_APPLICATION_STATE_CHANGED}. 처리 기록·감사·알림·핫딜 글 고리는 같은 트랜잭션.
  *
  * <ul>
- *   <li><b>정지</b>: 진행 중 예약(시작 ≤ 지금 &lt; 끝)·열린 환불 없음 · 사업자 핫딜 글은 게시되고 보이며 딜 진행 중일 때만. 정지 횟수 한도(설정 {@code roboyam.biz.pause-limit}, 기본 3 —
+ *   <li><b>정지</b>: 진행 중 예약(시작 ≤ 지금 &lt; 끝)·열린 환불 없음 · 사업자 핫딜 글은 게시되고 보이며 딜 진행 중일 때만. 정지 횟수 한도(설정 {@code irobit.biz.pause-limit}, 기본 3 —
  *       정지할 때 센다, 넘으면 409 {@code BIZ_PAUSE_LIMIT}) → {@code TAKEN_DOWN}·{@code ADVERTISER_PAUSE}. 자리는 계속 그 광고주 몫(내림이 자리를 차지한다), 공개 노출은 예약만 내므로 빠진다.</li>
  *   <li><b>다시 켜기</b>: 정지 중이고 끝 전만 → {@code SCHEDULED}(승인 없이 · 소재 그대로 · <b>끝 시각을 늘리지 않는다</b> · 멈춘 분을 {@code paused_minutes} 에 더한다).
  *       사업자가 직접 켤 때는 자격을 다시 본다(정지된 사업자는 409 {@code BUSINESS_NOT_APPROVED} — 가정).</li>

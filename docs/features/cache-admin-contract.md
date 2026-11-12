@@ -10,7 +10,7 @@
 - 요약(서버 수, 확인 주기, 갱신 대기 수, 전체 갱신) · 거르기(분류 공개 화면/가젯/설정 사본/내부 규칙, 적용 서버, 검색) · 목록(TTL, 회원별 처리, 항목 수, 적중률, 마지막 갱신, 상태 정상/갱신 대기, 지금 갱신, TTL 변경, 이름 아래 「쓰이는 곳」 한 줄) · 캐시하지 않는 가젯 안내 상자.
 - 상세 서랍 `?cache=<key>`: 서버별 상태(반영된 세대, 마지막 비움, 적중/누락), 갱신 기록(수동/전체/자동(저장)), TTL 변경 이력, 「쓰이는 곳」(화면 영역/동작/서버 내부 + 미리보기), 관련 관리 화면 링크, 가젯이면 「이 가젯 유형을 놓은 곳」.
 - 미리보기 대화상자: 공개 사이트 iframe `{공개 origin}/?adminPreview=1&cachePreview=1`. 쪽 고르기·경로 직접 입력, 「모든 영역 보기」, 캐시 고르기, 고른 영역 강조(주황), 영역 클릭 → 캐시 선택. 글·상품 상세 쪽은 예시 경로 규칙 + 최신 예시 id(지금은 기존 관리자 API로 고름, 서버 단계에서 캐시 API의 `sampleId`로 대체). 캐시 미리보기에서는 사이트 팝업을 숨기고 `site.popups`를 골랐을 때만 띄운다.
-- user-web: 영역 요소에 `data-cache-area="<키> [<키>…]"`(원천 `apps/user-web/app/utils/util-cache-area.ts`), 겹침 층 `components/shell/CacheAreaOverlay.vue`. 메시지 `roboyam:cache-preview`(관리자→) / `roboyam:cache-preview-pick`·`roboyam:cache-preview-areas`(→관리자). **캐시 키 이름 = `data-cache-area` 값**이어야 한다.
+- user-web: 영역 요소에 `data-cache-area="<키> [<키>…]"`(원천 `apps/user-web/app/utils/util-cache-area.ts`), 겹침 층 `components/shell/CacheAreaOverlay.vue`. 메시지 `irobit:cache-preview`(관리자→) / `irobit:cache-preview-pick`·`irobit:cache-preview-areas`(→관리자). **캐시 키 이름 = `data-cache-area` 값**이어야 한다.
 
 ## 캐시 목록(26)과 기본값
 | 분류 | 키 | 기본 TTL | 회원별 처리 | 서버 |
@@ -62,7 +62,7 @@
 ## 서버 구현 결과(2026-11-09)
 - **틀**: Spring Cache + Caffeine(`spring-boot-starter-cache`·`caffeine`, 버전은 Boot BOM). 업무 코드는 `CacheManager`·`Cache` 만 쓴다. TTL 적용·켜기/끄기·비우기·통계는 `zconfiguration.cache.CacheControl` 하나에 가두고 구현은 `CaffeineCacheControl`(같은 객체가 `CacheManager`) — 원격 전환 때 이 구현만 바꾼다. 꺼진 캐시·이 서버가 두지 않는 캐시는 `NoOpCache`(원본을 읽는다). 캐시 정의 25개는 코드 `CacheCatalog`(이름·대상·쓰이는 곳·관련 화면은 번들 `cache.def.*`·`cache.link.*`).
 - **DB(shared V175)**: `cache_settings`(캐시별 ttl NULL=기본·enabled·generation·changed_at — 25행 미리 넣음) · `cache_global_settings`(1행) · `cache_node_states`(서버×캐시 보고, PK node_id+cache_key) · `cache_refresh_logs`(MANUAL·AUTO_SAVE, source_code·source_detail·operator_id·generation) · `cache_setting_changes`(TTL·ENABLED·GLOBAL_ENABLED, 전체는 cache_key NULL).
-- **동기화**(`CacheSync`, api·admin 모두): 3초마다 질의 2개(설정 전부 · 전체 스위치)로 세대(바뀌면 비움)·TTL·실제 켜짐(전체 AND 캐시, 끄면 비움)을 따라간다. 10초마다·바뀐 것을 반영한 직후 서버 상태를 `ON CONFLICT` 한 묶음으로 보고. 노드 ID = `roboyam.cache.node-name` 또는 `<api|admin>-<NODE_ID>`. 화면은 60초 넘게 보고 없는 서버를 빼고, 1시간 넘은 줄은 지운다. 띄운 직후 한 번 바로 맞춘다.
+- **동기화**(`CacheSync`, api·admin 모두): 3초마다 질의 2개(설정 전부 · 전체 스위치)로 세대(바뀌면 비움)·TTL·실제 켜짐(전체 AND 캐시, 끄면 비움)을 따라간다. 10초마다·바뀐 것을 반영한 직후 서버 상태를 `ON CONFLICT` 한 묶음으로 보고. 노드 ID = `irobit.cache.node-name` 또는 `<api|admin>-<NODE_ID>`. 화면은 60초 넘게 보고 없는 서버를 빼고, 1시간 넘은 줄은 지운다. 띄운 직후 한 번 바로 맞춘다.
 - **갱신**(`CacheRefresher`): 행 쓰기 잠금(키 차례)으로 세대 +1 + 기록, 부르는 쪽 트랜잭션에 참여, 커밋 뒤 이 서버는 바로 비운다. 자동(저장)은 커밋 직전에 한꺼번에(캐시 행 잠금이 늘 업무 잠금 뒤·키 차례), 한 트랜잭션에서 같은 캐시는 한 번만.
 - **자동(저장)**: 관리자 저장의 감사 기록(`AuditLogService#record` → `AuditRecorded` 이벤트, 같은 트랜잭션)을 `CacheAutoRefresh`(admin)가 작업 이름 → 계기(`CacheSaveSource`)로 바꿔 올린다(홈·가젯 페이지·게시판 레이아웃·테마·메뉴·사이트 기본·운영 주체·공지 띠·팝업·약관·공지·게시판·게시판 기본·등급·하이라이트·인기글·글 숨김/삭제 등). 설정 사본·내부 규칙(포인트 정책·요청 한도·통계 수집·핫딜 규칙/설정·알림 문구)은 예전 `invalidate()` 자리에서 서비스가 직접 올린다. 회원 새 글은 TTL.
 - **사본 12개 이전**: `TTL_SECONDS`·직접 만든 메모리 사본을 지우고 `Cache.get(key, loader)` 로(기본 TTL 은 예전 값). `invalidate()` 는 「이 서버만 비우기」로 남겼다(시험용, 운영 저장은 세대 올리기).

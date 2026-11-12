@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 아바타 카탈로그(결정 14, 계약 「1-2 서버 계획」 · commerce-motion-avatar-contract) — 서버 자원 {@code avatars/manifest.json} 342종(정지 334 = 무료 22 · 유료 312 +
- * 움직이는 아바타 8), 유료 ID 집합 = V86·V157·V183·V192 이 시드한 아바타 품목, 두 앱 {@code public/avatars/roboyam/*.svg} 이름 집합 = 정지 카탈로그 334,
+ * 움직이는 아바타 8), 유료 ID 집합 = V86·V157·V183·V192 이 시드한 아바타 품목, 두 앱 {@code public/avatars/irobit/*.svg} 이름 집합 = 정지 카탈로그 334,
  * 두 앱 {@code public/avatars/motion/} 의 그림·정지 그림 = 움직이는 8종.
  */
 class AvatarCatalogTest extends PointShopTestBase {
@@ -36,7 +36,7 @@ class AvatarCatalogTest extends PointShopTestBase {
         assertThat(CATALOG.categories().stream().filter(AvatarCatalog.Category::animated)).hasSize(1);
         assertThat(CATALOG.categories().stream().mapToInt(AvatarCatalog.Category::count).sum()).isEqualTo(342);
         assertThat(CATALOG.find(AvatarCatalog.DEFAULT_ID)).isPresent();
-        assertThat(CATALOG.find("job-doctor-m").orElseThrow().url()).isEqualTo("/avatars/roboyam/job-doctor-m.svg");
+        assertThat(CATALOG.find("job-doctor-m").orElseThrow().url()).isEqualTo("/avatars/irobit/job-doctor-m.svg");
         assertThat(CATALOG.find("job-doctor-m").orElseThrow().stillUrl()).as("정지 아바타는 정지 그림이 없다").isNull();
         AvatarCatalog.Avatar motion = CATALOG.find("motion-robot-blink").orElseThrow();
         assertThat(motion.animated()).isTrue();
@@ -49,10 +49,10 @@ class AvatarCatalogTest extends PointShopTestBase {
 
     @Test
     void 고른_값이_없거나_카탈로그에_없으면_기본_아바타로_그린다() {
-        assertThat(CATALOG.urlOf(null)).isEqualTo("/avatars/roboyam/basic-default.svg");
-        assertThat(CATALOG.urlOf("avatar:no-such-avatar")).isEqualTo("/avatars/roboyam/basic-default.svg");
-        assertThat(CATALOG.urlOf("profiles/1-x/avatar.png")).as("아바타 값이 아니면").isEqualTo("/avatars/roboyam/basic-default.svg");
-        assertThat(CATALOG.urlOf("avatar:hobby-gamer")).isEqualTo("/avatars/roboyam/hobby-gamer.svg");
+        assertThat(CATALOG.urlOf(null)).isEqualTo("/avatars/irobit/basic-default.svg");
+        assertThat(CATALOG.urlOf("avatar:no-such-avatar")).isEqualTo("/avatars/irobit/basic-default.svg");
+        assertThat(CATALOG.urlOf("profiles/1-x/avatar.png")).as("아바타 값이 아니면").isEqualTo("/avatars/irobit/basic-default.svg");
+        assertThat(CATALOG.urlOf("avatar:hobby-gamer")).isEqualTo("/avatars/irobit/hobby-gamer.svg");
     }
 
     @Test
@@ -78,10 +78,10 @@ class AvatarCatalogTest extends PointShopTestBase {
     }
 
     @Test
-    void 두_앱의_public_avatars_roboyam_svg_이름_집합은_정지_카탈로그_334_과_같다() throws IOException {
+    void 두_앱의_public_avatars_irobit_svg_이름_집합은_정지_카탈로그_334_과_같다() throws IOException {
         Set<String> catalog = CATALOG.all().stream().filter(avatar -> !avatar.animated()).map(avatar -> avatar.id() + ".svg").collect(Collectors.toSet());
         for (String app : List.of("user-web", "admin-web")) {
-            Path dir = Path.of("..", "..", "apps", app, "public", "avatars", "roboyam");
+            Path dir = Path.of("..", "..", "apps", app, "public", "avatars", "irobit");
             try (Stream<Path> files = Files.list(dir)) {
                 Set<String> names = files.map(path -> path.getFileName().toString()).filter(name -> name.endsWith(".svg")).collect(Collectors.toSet());
                 assertThat(names).as(app).isEqualTo(catalog);

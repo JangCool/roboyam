@@ -8,7 +8,7 @@ import com.community.post.entity.QPostEntity;
 import com.community.post.entity.QPostLikeEntity;
 import com.community.post.entity.QPostProcessStatusHistoryEntity;
 import com.community.post.entity.QPostViewEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.JPQLQuery;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 추천·조회 기록 표({@code post_likes}·{@code post_views}·{@code comment_likes}·{@code comment_dislikes})도 엔티티로 일괄 삭제한다(글 ID 를 이 게시판의 글에서 고르는 부분 질의).
  */
 @Repository
-public class BoardContentQueries extends RoboyamRepositoryQDSL {
+public class BoardContentQueries extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;

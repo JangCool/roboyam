@@ -2,7 +2,7 @@ import type { MenuItemRow } from '~/utils/util-menu';
 
 /**
  * 메뉴 설명 — 지금 있는 곳이 최상위 항목(인기글·최신글·공지 …, 홈 제외)이면 그 항목의 한 줄 설명(사용자 결정 2026-10-28).
- * 로보얌 메뉴 둘째 줄(데스크톱 `DaumMenuBar` 의 `inlineGroups`, 모바일 `AppMobileMenuRows`)이 주제 대신 이것을 보인다. 홈이나 그룹 안에서는 null(주제·그룹 칸).
+ * 아이로빗 메뉴 둘째 줄(데스크톱 `DaumMenuBar` 의 `inlineGroups`, 모바일 `AppMobileMenuRows`)이 주제 대신 이것을 보인다. 홈이나 그룹 안에서는 null(주제·그룹 칸).
  *
  * 설명 고르는 차례: 운영자가 메뉴 구성에 적은 `description` → 게시판 항목이면 게시판 소개 → 앱 화면 기본 문구(인기글·최신글) → 게시판 이름으로 만든 기본 문구.
  * 컴포저블은 setup 에서 부른다.

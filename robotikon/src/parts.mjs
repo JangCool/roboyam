@@ -1,4 +1,4 @@
-// 로보얌 아바타(apps/*/public/avatars/roboyam/basic-default.svg)를 그대로 옮긴 공통 파트.
+// 아이로빗 아바타(apps/*/public/avatars/irobit/basic-default.svg)를 그대로 옮긴 공통 파트.
 // 캐릭터는 아바타와 같은 200 단위 좌표로 그리고, 360 캔버스에 CHAR 변환으로 올린다.
 // 이펙트(김·배터리·톱니 등)도 같은 200 단위 좌표에 그린다 — 캔버스 위쪽 여유는 y -43 까지다.
 
@@ -80,7 +80,7 @@ export const SCREEN = { x: 46, y: 76, w: 108, h: 62, cx: 100, cy: 107 }
 export const EYE = { w: 20, h: 26, rx: 10, y: 92, lx: 70, rx2: 110 }
 
 /**
- * 로보얌 몸 한 벌.
+ * 아이로빗 몸 한 벌.
  * @param {object} o
  *  dx,dy: 이동 / sy: 바닥(y=164) 기준 세로 눌림 / rot: 바닥 중심 회전(도)
  *  head, screen, limb: 색 / ears: 귀 세로 이동

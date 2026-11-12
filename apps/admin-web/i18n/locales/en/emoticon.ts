@@ -411,7 +411,7 @@ export default {
             once: 'If a member removes the pack and gets it again, only the first time counts.',
         },
         rewardNote: {
-            official: 'Official packs (Roboyamcon and others) give no rewards.',
+            official: 'Official packs (IROBITcon and others) give no rewards.',
             kept: 'Points already paid stay even if the pack is suspended or deleted.',
             ledger: 'They appear in point history as “Robotikon creator reward”.',
         },

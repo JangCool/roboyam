@@ -1,7 +1,7 @@
 package com.community.debate.repository.master;
 
 import com.community.debate.entity.PostDebateEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 글의 찬반 토론(V79 {@code post_debates}) — 행이 있으면 열림. 쓰기는 {@link com.community.debate.service.PostDebateWriter} 를 거친다 */
-public interface PostDebateRepository extends RoboyamRepository<PostDebateEntity, Long> {
+public interface PostDebateRepository extends IrobitRepository<PostDebateEntity, Long> {
 
     /** 그 글의 토론 — 쓰기 잠금(설정 바꾸기·닫기가 줄을 선다) */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

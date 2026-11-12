@@ -1,7 +1,7 @@
 <template>
     <!--
         게시판 기본 설정 › 보안 — 조회수 중복 방지 · 금지어 · 새 회원 스팸 방지 · 외부 링크. **자기 요청·자기 저장**(`GET·PUT /api/admin/boards/defaults/security`, 하단 StickySaveBar).
-        그누보드7 원본(보안 탭 + `config/board.php` limits) → roboyam 권장안:
+        그누보드7 원본(보안 탭 + `config/board.php` limits) → irobit 권장안:
           · post/comment_cooldown_seconds 0 → 이 화면에 두지 않는다. 이미 「일반 › 작성 속도」(60초·10초)에 있어 중복하지 않고 링크로 안내한다.
           · report_cooldown_seconds 60 → 「신고 정책 › 신고 제한」으로 옮겼다.
           · view_count_cache_ttl 86400초(60~604800) → 시간 단위 viewCountDedupHours 24(1~168)로 바꿨다(운영자가 읽기 쉬운 단위, 최대 7일 그대로).

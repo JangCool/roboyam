@@ -11,7 +11,7 @@ import UtilAdminLink from '~/utils/util-admin-link';
  *
  * 서버와 말하는 것은 `useAuthApi` 다(frontend-guide 3장). 여기는 상태만 든다.
  *
- * 이메일 가입은 `signup`, 소셜 가입 마무리는 `completeSocialSignup`. 원본(community)의 사업자 가입(`signupBusiness`)은 로보얌에 없어 뺐다.
+ * 이메일 가입은 `signup`, 소셜 가입 마무리는 `completeSocialSignup`. 원본(community)의 사업자 가입(`signupBusiness`)은 아이로빗에 없어 뺐다.
  */
 
 /** 진행 중인 `me` 호출 — 동시에 여러 곳이 물어도 한 번만 보낸다 */

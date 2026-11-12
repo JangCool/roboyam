@@ -2,7 +2,7 @@
  * Robotikon strings (code name emoticon) — same keys and order as `ko/emoticon.ts`.
  */
 export default {
-    seoDescription: 'Get or buy Robotikon for posts and comments — from Roboyamcon to creator packs.',
+    seoDescription: 'Get or buy Robotikon for posts and comments — from IROBITcon to creator packs.',
 
     // Shop
     shopTitle: 'Robotikon shop',
@@ -114,7 +114,7 @@ export default {
     specRowTagsValue: 'Up to {max}',
     specRowDisplay: 'Display size',
     specRowDisplayValue: 'Posts and comments {size}px (mobile {mobile}px), picker {picker}px',
-    guideGoodTitle: 'Good example — Roboyamcon',
+    guideGoodTitle: 'Good example — IROBITcon',
     guideGoodText: 'Bold outlines, big expressions and simple motion keep the meaning clear even when small.',
     exampleJoy: 'Joy',
     exampleThumbs: 'Thumbs up',
@@ -146,7 +146,7 @@ export default {
     guideRewardCount: 'Only counts members in good standing with a verified email (not you, and not members at the Sprout grade).',
     guideRewardOnce: 'If a member removes your pack and gets it again, the reward is paid only once.',
     guideRewardKeep: 'Points already paid stay even if the pack is suspended or deleted.',
-    guideRewardOfficial: 'Official packs (Roboyamcon) and paid packs earn no reward points (paid packs are settled from sales).',
+    guideRewardOfficial: 'Official packs (IROBITcon) and paid packs earn no reward points (paid packs are settled from sales).',
     guidePaidTitle: 'Paid sales and settlement',
     guidePaidText: 'The site sells packs as the seller. When paid sales are approved, creators sign a Robotikon licensing agreement with the site and are settled monthly. Members pay by card (not with points).',
     paidRowSeller: 'Seller',

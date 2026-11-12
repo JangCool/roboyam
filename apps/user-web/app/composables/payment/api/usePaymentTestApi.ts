@@ -2,7 +2,7 @@ import type { PaymentFakeCheckoutRequest, PaymentResult, PaymentTestOrder, Payme
 
 /**
  * 시험 주문 API(`PAYMENT_TEST`) — 서버 주소 문자열(`/api/dev/payments…`)이 있는 **유일한 곳**이다. 상태는 없다. 계약 결정 7·8.
- * 서버가 `roboyam.payment.test-orders` 를 켠 환경(local·dev)에서만 있다 — 꺼져 있으면 404. 화면은 `/dev/payment`(개발 모드) 하나다.
+ * 서버가 `irobit.payment.test-orders` 를 켠 환경(local·dev)에서만 있다 — 꺼져 있으면 404. 화면은 `/dev/payment`(개발 모드) 하나다.
  *  - `POST /api/dev/payments` `{ amount(100~1,000,000), validMinutes(1~60) }` → `PaymentTestOrder`(결제창 정보 포함) · `400 VALIDATION fields.amount|validMinutes` · `503 PAYMENT_NOT_CONFIGURED`
  *  - `POST /api/dev/payments/{paymentId}/fake-checkout` `{ outcome, amount, late }` → 204 — 가짜 PG(`fake_pg_payments`)에 결제 결과를 남긴다.
  *      가짜 게이트웨이가 아니면 `409 PAYMENT_GATEWAY_NOT_FAKE`, 이미 남겼으면 `409 FAKE_PG_ALREADY_DONE`

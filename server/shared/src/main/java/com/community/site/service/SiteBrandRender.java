@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * 사이트 아이콘·링크 미리보기 이미지를 저장할 PNG 로 그리는 규칙 — 관리자 올리기({@code SiteIconProcessor}·{@code SiteOgImageProcessor})와
- * 설치의 데모 데이터(로보얌 브랜드 그림)가 같은 결과를 만들도록 한 곳에 둔다. 검사(형식·크기·비율)는 부르는 쪽이 먼저 한다.
+ * 설치의 데모 데이터(아이로빗 브랜드 그림)가 같은 결과를 만들도록 한 곳에 둔다. 검사(형식·크기·비율)는 부르는 쪽이 먼저 한다.
  */
 public final class SiteBrandRender {
 

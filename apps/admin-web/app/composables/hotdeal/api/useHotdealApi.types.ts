@@ -27,7 +27,7 @@ export type DomainRule = 'BLOCK' | 'AFFILIATE' | null;
 /** 제휴 링크 방식(D5) — 개인 제휴 허용(`MEMBER`, 기본 — 초기 운영) · 사이트 제휴(`SITE` — 개인 제휴 받지 않음, 구매 링크를 사이트 제휴 몰 표로 바꾼다) */
 export type AffiliateMode = 'MEMBER' | 'SITE';
 
-/** 지금 방식으로 계산한 구매 링크의 제휴 종류 — 개인 제휴(작성자) · 사이트 제휴(로보얌) · 없음 */
+/** 지금 방식으로 계산한 구매 링크의 제휴 종류 — 개인 제휴(작성자) · 사이트 제휴(아이로빗) · 없음 */
 export type DealAffiliateKind = 'MEMBER' | 'SITE' | null;
 
 /** 상품 이미지 — 링크 OG 사본(`OG` — 우리 서버에 저장한 600px JPEG, D1) 또는 글쓴이가 올림(`UPLOAD`) */

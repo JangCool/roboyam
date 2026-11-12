@@ -27,7 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>조용히 버리는 신호(응답은 늘 204): 설정이 꺼짐(방문 하위 항목이 하나도 동작하지 않음) · 봇·빈 User-Agent({@link BotClassifier}) · 형식 오류(본문 JSON·UUID·경로) ·
- *       해시 키({@code ROBOYAM_INDEX_KEY}) 없음 · <b>뺄 계정</b>(3단계 — 로그인 세션의 회원이 운영자 회원 계정·AI 회원, {@link VisitReferenceCache}). 설정이 켜진 동안 봇·형식 오류·
+ *       해시 키({@code IROBIT_INDEX_KEY}) 없음 · <b>뺄 계정</b>(3단계 — 로그인 세션의 회원이 운영자 회원 계정·AI 회원, {@link VisitReferenceCache}). 설정이 켜진 동안 봇·형식 오류·
  *       뺄 계정으로 버린 신호는 수집 진단용으로 센다(내용은 남기지 않는다). 로그인 회원은 부르는 쪽(컨트롤러 — {@link VisitSessionMembers})이 넘긴다.</li>
  *   <li><b>주소·화면 종류는 라우트 표</b>({@link VisitRoutes}, 3단계)가 정한다 — 경로·직전 경로를 정해진 주소({@code /posts/{id}} …)로 바꾸고 원본·페이지별·이동 흐름 모두 그 주소로
  *       쌓는다. 브라우저가 보낸 {@code kind} 는 읽지 않는다. 라우트 표에 없거나 없는 게시판·가젯 페이지면 「알 수 없는 주소」로 묶고 진단에 센다.</li>
@@ -58,7 +58,7 @@ public class VisitCollector {
 
     /** 화면 종류 값(계약 「API」) — 3단계부터 라우트 표({@link VisitRoutes})가 정하고 브라우저 값은 읽지 않는다 */
     static final Set<String> KINDS = Set.of("HOME", "BOARD", "POST", "GROUP_BUY", "HOTDEAL", "GROUP", "POINT_SHOP", "SEARCH", "MY", "OTHER");
-    /** 환경 분류값 — user-web {@code @roboyam/analytics} 의 {@code util-visit-env.ts} · admin-web {@code useVisitAnalyticsApi.types.ts} 와 같은 값 */
+    /** 환경 분류값 — user-web {@code @irobit/analytics} 의 {@code util-visit-env.ts} · admin-web {@code useVisitAnalyticsApi.types.ts} 와 같은 값 */
     static final Set<String> BROWSERS = Set.of("CHROME", "SAFARI", "EDGE", "SAMSUNG", "WHALE", "FIREFOX", "OTHER");
     static final Set<String> OSES = Set.of("WINDOWS", "MACOS", "ANDROID", "IOS", "LINUX", "OTHER");
     static final Set<String> SCREENS = Set.of("W480", "W768", "W1024", "W1440", "WIDE");

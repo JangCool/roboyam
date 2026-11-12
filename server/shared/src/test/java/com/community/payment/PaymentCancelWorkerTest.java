@@ -135,7 +135,7 @@ class PaymentCancelWorkerTest {
             assertThat(kit.handler.cashOf(created.orderRefId())).isZero();
             assertThat(kit.handler.canceledCallsOf(first)).isEqualTo(1);
             assertThat(kit.handler.canceledCallsOf(second)).isEqualTo(1);
-            assertThat(kit.gateway.cancelReasons).allSatisfy(reason -> assertThat(reason).startsWith("roboyam REFUND rc:"));
+            assertThat(kit.gateway.cancelReasons).allSatisfy(reason -> assertThat(reason).startsWith("irobit REFUND rc:"));
         }
 
         @Test

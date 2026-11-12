@@ -1,7 +1,7 @@
 package com.community.menu.repository.master;
 
 import com.community.menu.entity.QMenuNodeEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.HashMap;
@@ -10,7 +10,7 @@ import java.util.Map;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class MenuNodeRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class MenuNodeRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final String BOARD = "BOARD";
     private static final String ITEM = "ITEM";

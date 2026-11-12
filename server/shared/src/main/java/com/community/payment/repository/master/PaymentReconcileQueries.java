@@ -3,7 +3,7 @@ package com.community.payment.repository.master;
 import static com.community.payment.repository.master.PaymentOrderStore.O;
 import static com.community.payment.repository.master.PaymentOrderStore.ts;
 
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * {@code UNION} 이 없고, {@code OR EXISTS} 한 질의로 바꾸면 두 색인({@code ix_payment_orders_paid_at}·{@code ix_payment_cancels_completed})을 각각 타지 못해 결제 주문 표를 다 훑는다.
  */
 @Repository
-public class PaymentReconcileQueries extends RoboyamRepositoryQDSL {
+public class PaymentReconcileQueries extends IrobitRepositoryQDSL {
 
     private final EntityManager entityManager;
 

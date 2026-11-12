@@ -1,7 +1,7 @@
 # 로그인 · default 레이아웃 계약 (화면 확정 2026-10-21)
 
 **의도**: 이메일+비밀번호 로그인과 로그인 상태 조회, 로그아웃, 인증 메일 재발송. default 레이아웃(헤더·메뉴·배너)이 `GET /api/auth/me` 로 사용자 상태를 그린다. 이번 백엔드 범위는 **인증 API 5개**뿐이다.
-**상세 규칙의 출처**: community 의 `docs/api-auth.md` (`D:\project\community\workspace\community\docs\api-auth.md`) — 공통 규약·사용자 객체·오류 응답이 같다. 아래는 roboyam 에서 달라지는 점만 적는다.
+**상세 규칙의 출처**: community 의 `docs/api-auth.md` (`D:\project\community\workspace\community\docs\api-auth.md`) — 공통 규약·사용자 객체·오류 응답이 같다. 아래는 irobit 에서 달라지는 점만 적는다.
 
 ## 화면
 - `/login`(+ 카드 레이아웃 `auth`), default 레이아웃. 타입·동작의 기준은 화면 코드: `apps/user-web/app/composables/auth/api/useAuthApi.types.ts`, `composables/auth/api/useAuthApi.ts`(`// REAL:` 줄이 실제 호출 모양), `utils/util-auth-messages.ts`, `pages/login.vue`.
@@ -68,14 +68,14 @@
 `reason`: `cancelled`(동의 거부) · `invalid_state`(없음·위조·재사용·다른 브라우저·로그아웃으로 흐름이 사라짐) · `expired`(10분 초과) · `provider_error`(토큰 교환·회원 정보·ID 토큰 검증 실패, 그 사이 꺼짐) · `account_unavailable`(연결된 회원이 탈퇴) · `session_changed`(연결을 시작한 회원과 지금 회원이 다름) · `already_linked`(이 회원에 그 공급자의 다른 계정이 있음).
 
 ### 정책(구현)
-- **state** 256비트 일회용(세션에 해시만, 콜백에서 꺼내며 지움, 한 세션 최대 3개), 유효 10분(`roboyam.social.state-ttl`). **PKCE S256**: 카카오·구글(네이버는 미지원 — state 만). **구글** `nonce`(해시 보관) + ID 토큰 `iss`·`aud`(+여럿이면 `azp`)·`exp`(60초 차이 허용)·`iat`·`nonce`·`sub` 확인. 서명은 확인하지 않는다 — 토큰 엔드포인트에서 TLS 로 직접 받은 ID 토큰이라 OIDC Core 3.1.3.7(6)에 따라 TLS 서버 확인으로 대신한다. `alg=none` 거절.
+- **state** 256비트 일회용(세션에 해시만, 콜백에서 꺼내며 지움, 한 세션 최대 3개), 유효 10분(`irobit.social.state-ttl`). **PKCE S256**: 카카오·구글(네이버는 미지원 — state 만). **구글** `nonce`(해시 보관) + ID 토큰 `iss`·`aud`(+여럿이면 `azp`)·`exp`(60초 차이 허용)·`iat`·`nonce`·`sub` 확인. 서명은 확인하지 않는다 — 토큰 엔드포인트에서 TLS 로 직접 받은 ID 토큰이라 OIDC Core 3.1.3.7(6)에 따라 TLS 서버 확인으로 대신한다. `alg=none` 거절.
 - **`next`**: `/` 로 시작, `//`·`/\`·`/%2f`·`/%5c` 시작 불가, 역슬래시·공백·제어·비ASCII 불가, 512자 이하, 스킴·호스트 없음. 어기면 시작을 400 으로 거절한다(조용히 `/` 로 바꾸지 않는다). 연결 흐름은 `next` 를 받지 않는다.
 - **세션**: 로그인·가입 완료 때 `LoginSession.establish`(옛 세션 폐기 → 새 ID, 30일). 가입 대기를 둘 때도 `changeSessionId`. 비로그인으로 새로 만든 세션은 기한을 흐름+가입 대기(25분)로 짧게 둔다. 로그인 기록은 이메일 로그인과 같이 `last_login_at` 갱신 + 서버 로그(공급자·회원 ID). 감사 기록(운영자용 `audit_logs`)은 이메일 로그인과 같이 남기지 않는다.
 - **로그인 불가 상태**: 탈퇴·삭제 회원은 `account_unavailable`. 정지·영구 정지는 이메일 로그인과 같이 로그인되고 `restriction` 으로 알린다.
 - **이메일 겹침**: 처음 보는 소셜 계정의 공급자 이메일이 기존 회원과 같으면(확인 여부 무관) 연결·가입하지 않고 `email_exists`. 연결은 로그인한 회원이 `POST /api/me/social/{provider}/link` 로 시작한 흐름에서만, 콜백이 **같은 회원의 세션**으로 돌아올 때만 된다. 한 회원에 한 공급자 하나, 같은 소셜 계정은 한 회원에만(유일 제약 `ux_user_identities_provider`).
 - **가입 대기**: 서버 세션에만(공급자·회원 번호·이메일·검증 여부·닉네임 후보·next), 유효 15분(`pending-ttl`), 공급자 토큰 없음. **가입**: 비밀번호 없음, 이용약관·개인정보·만 14세 동의를 `terms_agreed_at`·`age_confirmed_at` = 지금(개인정보 동의는 따로 저장하는 칸이 없다 — 관리자 회원 상세와 같음), `terms_version` = `v1`(자리표시자), 닉네임은 `UserPolicy.nicknameViolation` + 중복(대소문자 무시). 이메일은 **공급자가 확인했다고 한 경우만** `email_verified_at` 을 채운다(카카오 `is_email_valid && is_email_verified`, 구글 `email_verified`, 네이버는 알려 주지 않아 늘 미확인) — 미확인이면 가입 뒤 인증 메일(`auth_tokens` VERIFY_EMAIL, 기존 재발송 흐름)을 시작한다. 닉네임 후보는 카카오 프로필 닉네임·네이버 별명 중 규칙에 맞는 것만(실명 안 씀, 구글은 늘 null).
 - **비밀**: 클라이언트 시크릿은 콜백에서만 복호화, 공급자 액세스 토큰은 회원 정보를 읽고 버린다(저장 안 함). 시크릿·코드·state·토큰·이메일·회원 번호는 로그·응답·예외에 없다. 외부 호출 접속 3초·응답 5초·본문 64KB·리다이렉트 안 따라감, 공급자 응답 본문은 사용자에게 돌려주지 않는다.
-- **공급자 주소는 코드 고정**(`SocialEndpoints`). 시험용 덮어쓰기 `roboyam.social.test-endpoints.enabled/base-url`(env `ROBOYAM_SOCIAL_TEST_ENDPOINTS_ENABLED`·`_BASE_URL`, 기본 꺼짐)은 **local 프로필이고 dev·prod 가 아니며 주소가 루프백(숫자 IP·localhost)일 때만** 쓰이고, 그 밖에는 경고 로그를 남기고 무시한다.
+- **공급자 주소는 코드 고정**(`SocialEndpoints`). 시험용 덮어쓰기 `irobit.social.test-endpoints.enabled/base-url`(env `IROBIT_SOCIAL_TEST_ENDPOINTS_ENABLED`·`_BASE_URL`, 기본 꺼짐)은 **local 프로필이고 dev·prod 가 아니며 주소가 루프백(숫자 IP·localhost)일 때만** 쓰이고, 그 밖에는 경고 로그를 남기고 무시한다.
 - **요청 한도**(IP, 서버 메모리, 10분 창): 시작(로그인·연결) 30번, 가입 완료 10번 → `429 SOCIAL_RATE_LIMITED`. 서버가 여러 대면 대수만큼 늘 수 있다.
 - **콜백 URL** = 사이트 공개 주소(`site_settings.public_url`, 설치 마법사·설정) + `/api/auth/social/{provider}/callback`. 공개 주소가 없으면 시작이 404.
 
@@ -94,7 +94,7 @@
 - **미확정**: 연결된 소셜로 로그인한 정지 회원의 제재 안내 착륙(원본 `useLoginLanding`)은 없다. `/signup`(이메일 가입)·`/password/forgot`·`/terms`·`/privacy` 화면은 아직 없어 링크가 비어 있다. 구글은 가짜 공급자로 시험하지 않았다.
 
 ## 관리자 소셜 로그인 설정 (서버 구현 2026-10-23, 화면은 다음 단계)
-**의도**: 설치 마법사에서만 넣던 카카오·네이버·구글 클라이언트 ID·시크릿을 관리자 앱에서 보고·고치고·지운다. 화면은 community `admin/app/pages/social-login.vue`·`SocialProviderCard.vue` 를 옮기고, API 모양은 community `docs/api-admin-social.md` 를 따르되 roboyam 차이를 더했다. 코드: `server/admin/.../social/**`, shared `com.community.social`.
+**의도**: 설치 마법사에서만 넣던 카카오·네이버·구글 클라이언트 ID·시크릿을 관리자 앱에서 보고·고치고·지운다. 화면은 community `admin/app/pages/social-login.vue`·`SocialProviderCard.vue` 를 옮기고, API 모양은 community `docs/api-admin-social.md` 를 따르되 irobit 차이를 더했다. 코드: `server/admin/.../social/**`, shared `com.community.social`.
 
 ### API (`/api/admin/social-providers`, 공통 래퍼, 모두 `Cache-Control: no-store`, 쓰기는 CSRF)
 | | 권한 | 요청 | 응답 |
@@ -108,7 +108,7 @@
 - **항목** `{ provider, id, label, callbackUrl, source, enabled, active, clientId, secretSet, configured, updatedAt, updatedBy }`
   - `provider` 대문자 코드, `id` 소문자(`/api/auth/providers` 의 id), `label` 요청 언어 이름.
   - `callbackUrl` = `{site_settings.public_url}/api/auth/social/{id}/callback`(공급자 콘솔에 등록할 값). 공개 주소가 없으면 `null`.
-  - `source` = `SETTINGS`(행 있음) · `NONE`(미등록). roboyam 은 환경 변수 키가 없어 `ENV` 는 나오지 않는다.
+  - `source` = `SETTINGS`(행 있음) · `NONE`(미등록). irobit 은 환경 변수 키가 없어 `ENV` 는 나오지 않는다.
   - `enabled` = 저장된 켜짐 값(미등록이면 false). `active` = 지금 공개 로그인 화면에 버튼이 나오는가(켜짐 + 키 + 서버 암호화 키 — `GET /api/auth/providers` 와 같은 기준).
   - `secretSet` = 시크릿이 있고 **지금 키로 풀 수 있는가**(값은 절대 내보내지 않는다). `configured` = clientId + 풀 수 있는 시크릿. 키가 없으면 풀어 볼 수 없어 `secretSet` 은 암호문 유무다.
   - `updatedAt` 마지막 저장 시각(설치 값이면 설치 시각), `updatedBy` 운영자 이름(없거나 지워졌으면 null).

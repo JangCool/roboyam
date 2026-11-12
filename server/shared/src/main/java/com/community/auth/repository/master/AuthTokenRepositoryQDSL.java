@@ -2,7 +2,7 @@ package com.community.auth.repository.master;
 
 import com.community.auth.entity.AuthTokenPurpose;
 import com.community.auth.entity.QAuthTokenEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 
 /** 인증·재설정 토큰 질의. <b>트랜잭션은 부르는 서비스가 연다.</b> */
 @Repository
-public class AuthTokenRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AuthTokenRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QAuthTokenEntity TOKEN = QAuthTokenEntity.authTokenEntity;
 

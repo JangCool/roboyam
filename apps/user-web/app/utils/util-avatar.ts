@@ -9,8 +9,8 @@ export default class UtilAvatar {
     /** 고르지 않았거나 카탈로그에 없는 아바타·그림을 못 불러왔을 때 그리는 것 */
     static readonly FALLBACK_ID = 'basic-default';
 
-    /** 대체 이미지 주소(앱 정적 자원 `public/avatars/roboyam/`) */
-    static readonly FALLBACK_URL = '/avatars/roboyam/basic-default.svg';
+    /** 대체 이미지 주소(앱 정적 자원 `public/avatars/irobit/`) */
+    static readonly FALLBACK_URL = '/avatars/irobit/basic-default.svg';
 
     /** 무료 카테고리(서버 `AvatarCatalog` 의 판정과 같다) — 품목 행이 없다 */
     static readonly FREE_CATEGORIES: readonly string[] = ['basic', 'hobby'];

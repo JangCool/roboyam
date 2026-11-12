@@ -3,7 +3,7 @@ package com.community.analytics.repository.master;
 import com.community.aimember.entity.QAiMemberProfileEntity;
 import com.community.home.entity.QGadgetPageEntity;
 import com.community.operator.entity.QOperatorMemberAccountEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -17,14 +17,14 @@ import org.springframework.stereotype.Repository;
  * 방문 통계가 메인 DB 에서 읽는 기준 목록(site-analytics-contract 「3단계」) — 공개 사이트 서버가 서버 메모리에 짧게 들고 쓴다(신호마다 DB 를 읽지 않게).
  *
  * <ul>
- *   <li><b>뺄 계정</b>: 운영자 회원 계정({@code operator_member_accounts.user_id} — 「로보얌운영팀」 포함) · AI 회원({@code ai_member_profiles.user_id}). 이 회원의 방문 신호·
+ *   <li><b>뺄 계정</b>: 운영자 회원 계정({@code operator_member_accounts.user_id} — 「아이로빗운영팀」 포함) · AI 회원({@code ai_member_profiles.user_id}). 이 회원의 방문 신호·
  *       사이트 검색어는 방문 통계 전체에서 버리고, 게시판 활동(글·댓글·가입 — DB 배치 {@code R__batch_38})과 대시보드 「회원 현황」 오늘 가입에서도 뺀다
  *       ({@link #countedMember} — 두 표 모두 {@code user_id} 유일 인덱스).</li>
  *   <li><b>가젯 페이지 키</b>: 방문 주소 {@code /p/[key]} 가 실제 있는 페이지인지 볼 목록({@code gadget_pages.page_key}).</li>
  * </ul>
  */
 @Repository
-public class AnalyticsReferenceStore extends RoboyamRepositoryQDSL {
+public class AnalyticsReferenceStore extends IrobitRepositoryQDSL {
 
     private static final QOperatorMemberAccountEntity OPERATOR_MEMBER = QOperatorMemberAccountEntity.operatorMemberAccountEntity;
     private static final QAiMemberProfileEntity AI_MEMBER = QAiMemberProfileEntity.aiMemberProfileEntity;

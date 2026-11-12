@@ -186,7 +186,7 @@ export interface BizDeal {
 export interface BizDepositInfo {
     bankName: string;
     accountNo: string;
-    /** 예금주 — 서버 설정(`roboyam.biz.deposit-account`)이 비면 null */
+    /** 예금주 — 서버 설정(`irobit.biz.deposit-account`)이 비면 null */
     accountHolder: string | null;
     /** 입금자명 — 이 이름으로 넣어 달라고 안내한다 */
     depositorName: string;

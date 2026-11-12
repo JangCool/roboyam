@@ -4,7 +4,7 @@ import com.community.point.entity.QPointBalanceEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
  * 쓰지 않는 칸으로 매핑돼 있고 여기의 QueryDSL UPDATE 만 고친다. 읽기는 한 줄 모양(프로젝션).
  */
 @Repository
-public class PointShopMemberStore extends RoboyamRepositoryQDSL {
+public class PointShopMemberStore extends IrobitRepositoryQDSL {
 
     /** 자격 판정 재료 — {@code status} 는 users.status, {@code gone} 은 탈퇴·삭제 */
     public record MemberState(String status, boolean emailVerified, boolean gone) {

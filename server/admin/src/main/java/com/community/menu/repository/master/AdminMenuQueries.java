@@ -5,7 +5,7 @@ import com.community.menu.entity.AdminMenuNodeEntity;
 import com.community.menu.entity.AdminMenuStateEntity;
 import com.community.menu.entity.QAdminMenuNodeEntity;
 import com.community.menu.entity.QAdminMenuStateEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
  * <p>네이티브 SQL 로 남긴 것: 상태 기본 행 넣기({@code ON CONFLICT} — 사유는 메서드 주석).
  */
 @Repository
-public class AdminMenuQueries extends RoboyamRepositoryQDSL {
+public class AdminMenuQueries extends IrobitRepositoryQDSL {
 
     private static final QAdminMenuStateEntity STATE = QAdminMenuStateEntity.adminMenuStateEntity;
     private static final QAdminMenuNodeEntity NODE = QAdminMenuNodeEntity.adminMenuNodeEntity;

@@ -4,7 +4,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * 고정 규격 — 설정에서 바꾸지 않는 값(그리기 크기 · 제작 가이드 문구 · 업로드 검사와 묶여 있어 바꾸면 이미 승인된 팩이 규격을 어기게 된다). 계약 가정 7(로보얌콘 기준),
+ * 고정 규격 — 설정에서 바꾸지 않는 값(그리기 크기 · 제작 가이드 문구 · 업로드 검사와 묶여 있어 바꾸면 이미 승인된 팩이 규격을 어기게 된다). 계약 가정 7(아이로빗콘 기준),
  * user-web {@code EmoticonRules} 의 고정 칸 · admin-web {@code UtilEmoticon.SPEC} 과 같은 값이다. 바꿀 수 있는 값(팩당 개수 · 보상 · 심사 대기 상한)은 설정({@code emoticon_settings}).
  * 그림 크기·프레임·용량은 V142 CHECK 로도 막는다.
  */

@@ -6,7 +6,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
 
 /** 게시판 매니저·스텝 조회 — 담당 목록(닉네임·등급·지정한 운영자), 게시판별 인원, 회원별 담당 수, 후보 회원 검색 */
 @Repository
-public class BoardStaffQueries extends RoboyamRepositoryQDSL {
+public class BoardStaffQueries extends IrobitRepositoryQDSL {
 
     private static final QBoardStaffEntity STAFF = QBoardStaffEntity.boardStaffEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

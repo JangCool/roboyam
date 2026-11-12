@@ -1,14 +1,14 @@
 package com.community.debate.repository.master;
 
 import com.community.debate.entity.DebatePinRequestEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 의견 고정 요청(V78) */
-public interface DebatePinRequestRepository extends RoboyamRepository<DebatePinRequestEntity, Long> {
+public interface DebatePinRequestRepository extends IrobitRepository<DebatePinRequestEntity, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<DebatePinRequestEntity> findWithLockById(Long id);

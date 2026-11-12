@@ -1,11 +1,11 @@
 /**
- * 게시판 관리 API 가 주고받는 모양 — 서버(`server/admin` `board/dto/response`·`request`, shared `board/dto/*Values`)와 맞춘 계약이다(2026-10-22 서버 연결). 시각은 UTC ISO 글자(`Instant`), 정책 칸의 `null` 은 응답에 그대로 온다. community `docs/api-board-settings.md`(정책 열·`board_defaults`)와 `docs/api-content.md` 3절(게시판·말머리)을 roboyam 에 맞게 옮겼다.
+ * 게시판 관리 API 가 주고받는 모양 — 서버(`server/admin` `board/dto/response`·`request`, shared `board/dto/*Values`)와 맞춘 계약이다(2026-10-22 서버 연결). 시각은 UTC ISO 글자(`Instant`), 정책 칸의 `null` 은 응답에 그대로 온다. community `docs/api-board-settings.md`(정책 열·`board_defaults`)와 `docs/api-content.md` 3절(게시판·말머리)을 irobit 에 맞게 옮겼다.
  *
  * community 와 다른 점:
  *  · 글쓰기·댓글 최소 자격은 고정 enum(SEEDLING..VETERAN)이 아니라 `'GUEST'`(비회원 포함 모두 — 게시판별로만) · **등급 목록의 `gradeKey`** · `'STAFF'`(운영진·그 게시판 매니저/스텝만), 댓글은 `'OFF'` 도 받는다.
  *  · 「지킴이」 → **게시판 매니저·스텝**(`docs/domain/operator-permissions.md` "게시판 매니저 · 스텝"). 한도 칸 이름은 `staff*`.
  *  · 기본 설정에 그누보드 항목(날짜 표시 방식·목록 글 수·삭제 첨부 정리)과 댓글 공개 시간·베스트 댓글 기준을 한 화면 한 번 저장으로 합쳤다.
- *  · 게시판 순서는 이 화면이 정한다(roboyam 관리자 앱에 메뉴 구성 화면이 없다 — 가정). 글 없는 게시판은 지울 수 있다(가정, 권한 `board.delete`).
+ *  · 게시판 순서는 이 화면이 정한다(irobit 관리자 앱에 메뉴 구성 화면이 없다 — 가정). 글 없는 게시판은 지울 수 있다(가정, 권한 `board.delete`).
  */
 
 import type { GradeKey } from '~/composables/grade/api/useGradeApi.types';

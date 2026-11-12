@@ -4,7 +4,7 @@ import com.community.operator.dto.OperatorCounts;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.entity.OperatorTab;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 /** 운영자 목록(탭·키워드)·탭별 인원. 정렬·조건은 DB 에서 한다. <b>트랜잭션은 부르는 서비스가 연다.</b> */
 @Repository
-public class OperatorRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class OperatorRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
 

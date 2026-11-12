@@ -32,7 +32,7 @@ public final class MyBusinessView {
     }
 
     /**
-     * {@code GET /api/business/doc-send-to} — 등록증을 우편·팩스로 보낼 곳(서버 설정 {@code roboyam.biz.doc-send-to.*}). 비어 있는 칸은 null — 주소와 팩스가 둘 다 없으면 화면은
+     * {@code GET /api/business/doc-send-to} — 등록증을 우편·팩스로 보낼 곳(서버 설정 {@code irobit.biz.doc-send-to.*}). 비어 있는 칸은 null — 주소와 팩스가 둘 다 없으면 화면은
      * 「우편·팩스로 보내기」를 보이지 않고, 서버도 {@code MAIL_FAX} 신청을 400 으로 막는다.
      */
     public record DocSendTo(String postcode, String address, String recipient, String fax) {

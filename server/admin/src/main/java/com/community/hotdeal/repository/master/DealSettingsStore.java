@@ -3,7 +3,7 @@ package com.community.hotdeal.repository.master;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.entity.DealSettingEntity;
 import com.community.hotdeal.entity.QDealSettingEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
  * <p>Native SQL 로 남긴 것: 행이 지워졌을 때 기본값으로 다시 만드는 {@code INSERT … ON CONFLICT (id) DO NOTHING}(두 요청이 동시에 읽어도 한 줄).
  */
 @Repository
-public class DealSettingsStore extends RoboyamRepositoryQDSL {
+public class DealSettingsStore extends IrobitRepositoryQDSL {
 
     private static final QDealSettingEntity S = QDealSettingEntity.dealSettingEntity;
 

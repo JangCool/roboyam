@@ -1,13 +1,13 @@
 package com.community.menu.repository.master;
 
 import com.community.menu.entity.MenuSetEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
-public interface MenuSetRepository extends RoboyamRepository<MenuSetEntity, String> {
+public interface MenuSetRepository extends IrobitRepository<MenuSetEntity, String> {
 
     /**
      * 그룹 행을 쓰기 잠금으로 읽는다 — 같은 그룹의 트리 저장·정보 수정·삭제·게시판 자동 추가/삭제를 줄 세운다(버전 비교가 이 잠금 아래에서 일어난다).

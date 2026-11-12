@@ -18,7 +18,7 @@ export interface SiteAffiliateStore {
     id: string;
     /** 정규화된 몰 도메인(유일 — 하위 도메인에도 걸린다) */
     domain: string;
-    /** 제휴 프로그램 이름 1~40자(예 쿠팡 파트너스) — 공개 카드 「로보얌 제휴 링크」 옆에 쓸 수 있다 */
+    /** 제휴 프로그램 이름 1~40자(예 쿠팡 파트너스) — 공개 카드 「아이로빗 제휴 링크」 옆에 쓸 수 있다 */
     programName: string;
     transform: SiteAffiliateTransform;
     /** 끄면 이 몰도 제휴 없이 원래 상품 링크로 간다(줄은 남는다) */

@@ -9,7 +9,7 @@ import com.community.point.entity.QPointLedgerEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Repository;
  * {@code member.pii} 가 있으면 부분 일치, 없으면 <b>전체 주소가 같을 때만</b>(가려진 값으로 짐작해 찾지 못하게, 회원 목록과 같은 규칙).
  */
 @Repository
-public class PointLedgerRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class PointLedgerRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QPointLedgerEntity LEDGER = QPointLedgerEntity.pointLedgerEntity;
     private static final QPointBalanceEntity BALANCE = QPointBalanceEntity.pointBalanceEntity;

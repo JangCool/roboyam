@@ -8,7 +8,7 @@ import com.community.nicknameimage.entity.NicknameImageStatus;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Repository;
  * 새 신청은 넣자마자 내보낸다(flush) — 같은 트랜잭션의 JDBC 저장소가 그 줄을 보고, 문장 차례(대기 하나 — 앞 대기 취소 → 새 대기)가 예전과 같게.
  */
 @Repository
-public class AvatarUploadStore extends RoboyamRepositoryQDSL {
+public class AvatarUploadStore extends IrobitRepositoryQDSL {
 
     /** 신청 한 줄 */
     public record Row(long id, long userId, AvatarUploadStatus status, String imageKey, String stillKey, String contentType, int bytes, int width, int height,

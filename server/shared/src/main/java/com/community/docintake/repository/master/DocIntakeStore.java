@@ -7,7 +7,7 @@ import com.community.docintake.entity.DocIntakeHandling;
 import com.community.docintake.entity.QBizDocIntakeEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Repository;
  * 같은 트랜잭션에서 하고, 처리·폐기·잘못 기록은 「아직 열린 줄(잘못 기록 아님 · 폐기 안 함)」일 때만 바꾼다(아니면 false — 409). QueryDSL 만 쓴다.
  */
 @Repository
-public class DocIntakeStore extends RoboyamRepositoryQDSL {
+public class DocIntakeStore extends IrobitRepositoryQDSL {
 
     private static final QBizDocIntakeEntity I = QBizDocIntakeEntity.bizDocIntakeEntity;
     private static final QOperatorEntity RECEIVER = new QOperatorEntity("receiver");

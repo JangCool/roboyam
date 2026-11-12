@@ -83,13 +83,13 @@
 ### 설치·설정
 | 환경 | 이미지 | 설정 |
 |---|---|---|
-| local · dev compose | `docker/postgres/Dockerfile` (공식 `postgres:18` + `postgresql-18-cron`, 앱 compose 가 `build:` 로 만든다) | compose `command`: `shared_preload_libraries=pg_cron` · `cron.database_name=roboyam`(앱 DB 와 같아야 한다) · `cron.use_background_workers=on` · `cron.timezone=Asia/Seoul` |
+| local · dev compose | `docker/postgres/Dockerfile` (공식 `postgres:18` + `postgresql-18-cron`, 앱 compose 가 `build:` 로 만든다) | compose `command`: `shared_preload_libraries=pg_cron` · `cron.database_name=irobit`(앱 DB 와 같아야 한다) · `cron.use_background_workers=on` · `cron.timezone=Asia/Seoul` |
 | 설치형(`installer/`) | `installer/templates/postgres/Dockerfile`(위의 사본)을 설치기가 `<프로젝트>-postgres:18` 로 빌드. `make-package.sh` 가 패키지에 넣는다 | 위와 같은 `command` (`templates/compose.yml`) |
 | 운영(DB 전용 EC2 — **RDS 는 쓰지 않는다**, 사용자 결정 2026-11-04) | `docker/prod/compose.db.yml` — 위와 같은 `docker/postgres/Dockerfile` | 위와 같은 `command`(+ `max_connections=200`). 확장은 관리자 앱이 뜰 때 만든다(`DB_USERNAME` 이 슈퍼유저). 참고: pg_cron 이 GMT 로 도는 서버(RDS 등)에 올리게 되더라도 기본 cron 은 한국시간 값을 `cron.timezone` 에 맞춰 환산해 등록한다(`batch_daily_cron`) |
 - 이유: `CREATE EXTENSION pg_cron` 은 슈퍼유저 권한이, 패키지·`shared_preload_libraries`·`cron.database_name` 은 서버 설치·재기동이 필요해 **앱이 대신 못 한다**. 그래서 이미지/서버 설정은 설치 쪽이 맡고, 앱(Flyway)은 가능한 만큼만 한다 — 확장이 없으면 만들 수 있을 때만 만들고(`batch_enable_pg_cron()`: 패키지·설정이 맞고 앱 계정이 슈퍼유저일 때) 아니면 건너뛴다. 처음 만드는 DB 는 이미지의 init 스크립트(`10-pg-cron.sh`)가 슈퍼유저로 `CREATE EXTENSION` 한다.
 - **pg_cron 이 없어도 서버는 뜬다.** 마이그레이션은 확장 유무를 검사해(`batch_pg_cron_status()`) 등록을 건너뛰고, 관리자 서버는 기동 때 `batch_enable_pg_cron()`+`batch_register_missing()` 을 시도하다 실패해도 경고 로그만 남긴다. 그때 목록에서 DB 배치는 `available=false` + `unavailableReason`(`MISSING_PACKAGE` 서버에 패키지 없음 · `NOT_PRELOADED` 서버 설정에 없음 · `WRONG_DATABASE` `cron.database_name` 이 다른 DB · `NOT_CREATED` 확장 미생성(슈퍼유저가 해야 함) · `NO_PERMISSION` cron 스키마 권한 없음 · `UNREADABLE` · `NOT_REGISTERED` DB 에 미등록)이고, Java 배치는 영향이 없다. 프로시저 자체는 항상 만들어지므로 DBA 가 `CALL batch_…()` 로 직접 돌릴 수 있다.
 - **pg_cron 을 나중에 도입한 설치**: 서버 설정+재기동+확장 생성(또는 앱 계정이 슈퍼유저면 생략) 뒤 관리자 서버를 한 번 재시작하면 기동 때 `batch_register_missing()` 이 빠진 배치를 기본 cron 으로 등록한다.
-- **이미 설치된 환경(pg_cron 없음) 업그레이드**: ① 새 이미지를 만든다(local·dev: `docker compose up -d --build` — 볼륨은 그대로, PostgreSQL 18 호환). 설치형: 설치 폴더에서 `docker build -t <프로젝트>-postgres:18 <패키지>/templates/postgres`, `compose.yml` 의 postgres 에 `image: <프로젝트>-postgres:18`·`pull_policy: never`·위 `command` 를 넣고 `docker compose up -d postgres`. ② 앱을 새 버전으로 올린다 — Flyway 가 V20 과 R__ 를 적용하고 관리자 서버가 기동 때 확장을 만들고(`POSTGRES_USER` 가 슈퍼유저) 배치를 등록한다. 앱을 올린 뒤에 DB 를 바꿨다면 ②를 한 번 더(관리자 서버 재시작). 확장 생성이 막혀 있으면(슈퍼유저 아님): `psql -U <슈퍼유저> -d roboyam -c 'CREATE EXTENSION pg_cron'` 한 번.
+- **이미 설치된 환경(pg_cron 없음) 업그레이드**: ① 새 이미지를 만든다(local·dev: `docker compose up -d --build` — 볼륨은 그대로, PostgreSQL 18 호환). 설치형: 설치 폴더에서 `docker build -t <프로젝트>-postgres:18 <패키지>/templates/postgres`, `compose.yml` 의 postgres 에 `image: <프로젝트>-postgres:18`·`pull_policy: never`·위 `command` 를 넣고 `docker compose up -d postgres`. ② 앱을 새 버전으로 올린다 — Flyway 가 V20 과 R__ 를 적용하고 관리자 서버가 기동 때 확장을 만들고(`POSTGRES_USER` 가 슈퍼유저) 배치를 등록한다. 앱을 올린 뒤에 DB 를 바꿨다면 ②를 한 번 더(관리자 서버 재시작). 확장 생성이 막혀 있으면(슈퍼유저 아님): `psql -U <슈퍼유저> -d irobit -c 'CREATE EXTENSION pg_cron'` 한 번.
 - **cron 시간대를 나중에 바꾸면**(`cron.timezone`) 이미 등록된 cron 식은 옛 시간대 기준 숫자 그대로라 시각이 어긋난다 — 바꾸지 않는 것을 권한다. 바꿨다면 `cron.alter_job` 으로 식을 다시 맞춘다.
 
 ### 프로시저 규약 (새 DB 배치를 만들 때) — `.claude/guides/backend/db-batch.md`
@@ -102,7 +102,7 @@
 | | JAVA | POSTGRESQL (pg_cron) |
 |---|---|---|
 | 칸 | 6칸: 초 분 시 일 월 요일 | 5칸: 분 시 일 월 요일 (+ `N seconds` 형식) |
-| 시간대 | `Asia/Seoul`(`roboyam.batch.zone`) | pg_cron 의 `cron.timezone` (우리 구성 `Asia/Seoul`, 기본 `GMT`) |
+| 시간대 | `Asia/Seoul`(`irobit.batch.zone`) | pg_cron 의 `cron.timezone` (우리 구성 `Asia/Seoul`, 기본 `GMT`) |
 | 특수 | `?` `L` `W` `#` `@daily` 등 Spring 문법 | 일 칸 `$`(말일), 월·요일 영문 이름. `? L W #` `@daily` 는 **거절** |
 | 간격 하한 | 앞으로 64번의 실행에서 인접 간격 ≥ 60초 | 같다. `N seconds`(1~59초)는 하한 때문에 거절 |
 | 일·요일 동시 지정 | AND | pg_cron(Vixie)은 OR — `nextRunAt` 이 어긋날 수 있다(둘 다 지정하는 식은 쓰지 않는 것을 권한다) |

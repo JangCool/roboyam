@@ -240,7 +240,7 @@ for (const field of UtilInstall.ROOT_FIELDS) watch(() => root[field], () => drop
 watch(() => site.name, () => dropError('site.name'));
 watch(() => site.publicUrl, () => dropError('site.publicUrl'));
 watch(() => site.tagline, () => dropError('site.tagline'));
-// 구성을 고르면(목록을 받아 기본값이 정해질 때 포함) 그 구성의 사이트 이름·한 줄 소개로 미리 채운다 — 직접 고친 값은 그대로(로보얌 = ROBOYAM · 「로봇과 AI, 우리가 함께 만드는 이야기」)
+// 구성을 고르면(목록을 받아 기본값이 정해질 때 포함) 그 구성의 사이트 이름·한 줄 소개로 미리 채운다 — 직접 고친 값은 그대로(아이로빗 = IROBIT · 「로봇과 AI, 우리가 함께 만드는 이야기」)
 watch([boardPreset, boardPresets], ([id], [prevId]) => {
     const find = (key: string | undefined) => boardPresets.value.find((p) => p.id === key) ?? null;
     UtilInstall.applyPresetSite(site, prevId === id ? null : find(prevId), find(id));

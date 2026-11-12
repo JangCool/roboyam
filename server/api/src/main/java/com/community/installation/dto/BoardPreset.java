@@ -11,7 +11,7 @@ import java.util.Locale;
  * 설치({@code complete})는 이 칸으로 일반 게시판 → 소모임 게시판·분류 → 메뉴 트리를 만들고({@code BoardPresetApplier}), 이미 설치된 곳의 한 번 적용은 일반 게시판만 만든다.
  * 모르는 칸은 무시한다({@code ignoreUnknown}). 구조의 정본은 docs/features/install-contract.md 「프리셋 구조 (2026-10-27)」.
  *
- * @param id            {@code NEUTRAL} · {@code ROBOYAM} … 설치 요청의 {@code boardPreset} 값
+ * @param id            {@code NEUTRAL} · {@code IROBIT} … 설치 요청의 {@code boardPreset} 값
  * <p>이름·설명은 기본값(한국어, {@code name}·{@code description})과 영문({@code nameEn}·{@code descriptionEn}) 짝으로 둔다 — 프로젝트의 "이름은 {@code name} + 선택 {@code nameEn}" 규칙과 같다.
  * 응답은 요청 언어가 {@code en} 이고 영문이 있으면 영문, 아니면 기본값이다({@link #localized}). 영문이 없는 프리셋도 {@code ko} 로 나가므로 깨지지 않지만, 이 저장소의 프리셋은 모두 영문을 갖추도록 시작 때 검사한다.
  *
@@ -24,7 +24,7 @@ import java.util.Locale;
  * @param siteName      이 구성을 고르고 설치 입력의 사이트 이름이 임시 이름(「SAMPLE」 — 설치 화면 처음 값)이거나 비어 있을 때 넣을 사이트 이름 — 없으면(null) 넣지 않는다. 직접 입력한 이름이 이긴다
  * @param siteTagline   이 구성을 고르고 설치 입력의 슬로건이 비어 있을 때 사이트 설정에 넣을 슬로건 — 없으면(null) 넣지 않는다. 입력한 값이 있으면 그것이 이긴다
  * @param menu          설치 때 공개 메뉴 {@code main} 그룹의 트리를 바꿀 정의(최상위 노드 차례대로). 없으면(null) 메뉴를 바꾸지 않는다(V43 시드 + 게시판 자동 추가 그대로)
- * @param structure     구조 스냅숏 파일 이름({@code install-presets/} 안, 예: {@code roboyam.structure.json} — {@code scripts/export-install-preset.mjs} 가 만든다). 있으면 설치는
+ * @param structure     구조 스냅숏 파일 이름({@code install-presets/} 안, 예: {@code irobit.structure.json} — {@code scripts/export-install-preset.mjs} 가 만든다). 있으면 설치는
  *                      {@code boards}·{@code menu} 대신 이 스냅숏(게시판·메뉴·가젯·홈 배치·게시판 설정 …)을 넣고, 넣지 못하면 {@code boards} 로 물러선다. {@code boards} 는 설치 화면 목록과
  *                      이미 설치된 곳의 한 번 적용에 쓴다. 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」
  * @param demo          이 구성으로 설치할 때 데모 데이터(데모 팩)를 고를 수 있는가 — 팩이 그 구성의 구조를 가리키므로 구조 스냅숏이 있는 구성만. 비우면 false

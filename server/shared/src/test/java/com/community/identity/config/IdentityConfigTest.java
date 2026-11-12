@@ -68,7 +68,7 @@ class IdentityConfigTest {
     private static org.springframework.boot.test.context.runner.ApplicationContextRunner runner(String provider, String... profiles) {
         return new org.springframework.boot.test.context.runner.ApplicationContextRunner()
                 .withUserConfiguration(PropertiesOnly.class, IdentityConfig.class)
-                .withPropertyValues("roboyam.identity.provider=" + provider)
+                .withPropertyValues("irobit.identity.provider=" + provider)
                 .withInitializer(context -> context.getEnvironment().setActiveProfiles(profiles));
     }
 
@@ -88,11 +88,11 @@ class IdentityConfigTest {
 
     @Test
     void 공통_설정의_기본값은_포트원이고_local_만_가짜다_인증_번호는_30분() {
-        Properties shared = yaml("roboyam-shared.yml");
-        assertThat(shared.getProperty("roboyam.identity.provider")).isEqualTo("${ROBOYAM_IDENTITY_PROVIDER:portone}");
-        assertThat(shared.getProperty("roboyam.identity.verification-ttl")).isEqualTo("30m");
-        assertThat(yaml("roboyam-shared-local.yml").getProperty("roboyam.identity.provider")).isEqualTo("${ROBOYAM_IDENTITY_PROVIDER:fake}");
-        assertThat(shared.getProperty("roboyam.withdrawal.rejoin-block-days")).isEqualTo("30");
-        assertThat(shared.getProperty("roboyam.withdrawal.contact-retention-years")).isEqualTo("5");
+        Properties shared = yaml("irobit-shared.yml");
+        assertThat(shared.getProperty("irobit.identity.provider")).isEqualTo("${IROBIT_IDENTITY_PROVIDER:portone}");
+        assertThat(shared.getProperty("irobit.identity.verification-ttl")).isEqualTo("30m");
+        assertThat(yaml("irobit-shared-local.yml").getProperty("irobit.identity.provider")).isEqualTo("${IROBIT_IDENTITY_PROVIDER:fake}");
+        assertThat(shared.getProperty("irobit.withdrawal.rejoin-block-days")).isEqualTo("30");
+        assertThat(shared.getProperty("irobit.withdrawal.contact-retention-years")).isEqualTo("5");
     }
 }

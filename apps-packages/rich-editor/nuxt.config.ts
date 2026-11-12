@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 
 /**
- * 서식 에디터(TipTap) 공유 레이어 — user-web 이 `extends: ['@roboyam/rich-editor']` 로 쓴다(관리자 앱은 메일 템플릿 편집 때 같은 방법으로 붙인다). 사용법은 `.claude/guides/frontend/layers.md`.
- * community `layers/rich-editor`(도구 모음·서식·드래그 핸들·드롭존·`rich-text.css`)와 `frontend/app/editor/*`(이미지·올리기 자리·유튜브·첨부 수)·`components/write/RichEditor.vue` 를 옮겼다. 이모티콘은 로보얌에 없어 가져오지 않았다.
+ * 서식 에디터(TipTap) 공유 레이어 — user-web 이 `extends: ['@irobit/rich-editor']` 로 쓴다(관리자 앱은 메일 템플릿 편집 때 같은 방법으로 붙인다). 사용법은 `.claude/guides/frontend/layers.md`.
+ * community `layers/rich-editor`(도구 모음·서식·드래그 핸들·드롭존·`rich-text.css`)와 `frontend/app/editor/*`(이미지·올리기 자리·유튜브·첨부 수)·`components/write/RichEditor.vue` 를 옮겼다. 이모티콘은 아이로빗에 없어 가져오지 않았다.
  *
  * 서버를 부르지 않는다: 이미지 올리기는 쓰는 앱이 함수(`RichEditor` 의 `upload` 속성)로 넘긴다.
  * 레이어는 앱을 모른다 — 이 폴더의 코드는 `~/`(앱 경로)를 쓰지 않고 `#layers/rich-editor/…` 또는 상대 경로만 쓴다.
@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     $meta: { name: 'rich-editor' },
 
     // 에디터 문구를 화면 언어로 — i18n 레이어에 의존한다
-    extends: ['@roboyam/i18n'],
+    extends: ['@irobit/i18n'],
 
     // 컴포저블은 업무 폴더(composables/rich-editor/…)로 나눈다. `*.types.ts`·`mock/` 의 제외는 앱의 `imports:dirs` 훅이 한다
     imports: { dirs: ['composables/**'] },

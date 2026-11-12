@@ -18,7 +18,7 @@ export interface AttendanceCalendarCell {
 
 /**
  * 포인트 표시·판정 — 셸(헤더 메뉴·햄버거)과 내 정보(`/me`)·포인트 화면(`/me/points`)이 쓴다.
- * 출석 달력(커머스 1-3)은 원본(community)의 `UtilPoint` 를 옮겼다 — 날짜는 모두 서비스 하루(한국 시간)다. 교환 규칙은 로보얌에 그 기능이 없어 옮기지 않았다.
+ * 출석 달력(커머스 1-3)은 원본(community)의 `UtilPoint` 를 옮겼다 — 날짜는 모두 서비스 하루(한국 시간)다. 교환 규칙은 아이로빗에 그 기능이 없어 옮기지 않았다.
  */
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;

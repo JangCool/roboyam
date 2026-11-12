@@ -5,7 +5,7 @@ import com.community.withdrawal.entity.MemberWithdrawalEntity;
 import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalSource;
 import com.community.withdrawal.entity.WithdrawalStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.DateTimePath;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 읽기는 모두 프로젝션이다 — 대량 UPDATE 는 영속성 컨텍스트의 엔티티를 고치지 않으므로, 같은 트랜잭션에서 넣거나 잠근 엔티티를 다시 읽으면 낡은 값이 나온다.
  */
 @Repository
-public class MemberWithdrawalStore extends RoboyamRepositoryQDSL {
+public class MemberWithdrawalStore extends IrobitRepositoryQDSL {
 
     private static final QMemberWithdrawalEntity W = QMemberWithdrawalEntity.memberWithdrawalEntity;
 

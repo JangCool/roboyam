@@ -144,7 +144,7 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
                 .andExpect(jsonPath("$.data.items[0].id").isString()).andReturn();
         String etag = first.getResponse().getHeader("ETag");
         assertThat(etag).matches("^\"[0-9a-f]{32}\"$");
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         String body = first.getResponse().getContentAsString(StandardCharsets.UTF_8);
         List<String> packIds = JsonPath.read(body, "$.data.items[*].packId");
         assertThat(packIds).contains(Long.toString(robot));
@@ -159,8 +159,8 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
     void 규칙과_상점_목록_상세는_로그인_없이_읽고_받기는_로그인이_필요하다() throws Exception {
         mvc.perform(get("/api/emoticons/rules")).andExpect(status().isOk()).andExpect(jsonPath("$.data.imageSize").value(200)).andExpect(jsonPath("$.data.maxFrames").value(24))
                 .andExpect(jsonPath("$.data.rewardPerAcquire").value(10)).andExpect(jsonPath("$.data.maxPending").value(3)).andExpect(header().string("Cache-Control", "no-cache"));
-        long robot = official("로보얌콘");
-        mvc.perform(get("/api/emoticons/packs/" + robot)).andExpect(status().isOk()).andExpect(jsonPath("$.data.name").value("로보얌콘"))
+        long robot = official("아이로빗콘");
+        mvc.perform(get("/api/emoticons/packs/" + robot)).andExpect(status().isOk()).andExpect(jsonPath("$.data.name").value("아이로빗콘"))
                 .andExpect(jsonPath("$.data.count").value(32)).andExpect(jsonPath("$.data.acquired").value(false)).andExpect(header().string("Cache-Control", "no-store"));
         mvc.perform(get("/api/emoticons/packs").param("source", "OFFICIAL")).andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].source").value("OFFICIAL"));
         mvc.perform(get("/api/emoticons/packs/abc")).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("EMOTICON_PACK_NOT_FOUND"));
@@ -197,8 +197,8 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
     @Test
     void 글쓰기_가지지_않은_팩은_409_21개부터_400_가진_팩은_201_자격이_금지어보다_먼저() throws Exception {
         long member = member();
-        List<Long> pink = emoticons(official("로보얌콘핑크"));
-        List<Long> robot = emoticons(official("로보얌콘"));
+        List<Long> pink = emoticons(official("아이로빗콘핑크"));
+        List<Long> robot = emoticons(official("아이로빗콘"));
         writePost(member, "안녕하세요 " + token(pink.get(2)) + " 반가워요").andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"))
                 .andExpect(jsonPath("$.error.emoticonId").value(Long.toString(pink.get(2))));
         // 개수가 자격보다 먼저 — 21개(가지지 않은 것이라도)는 400 fields.content
@@ -206,7 +206,7 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
                 .value("로보티콘은 한 번에 20개까지 쓸 수 있어요."));
         // 자격이 금지어보다 먼저
         writePost(member, "지랄 " + token(pink.get(0))).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"));
-        acquire(member, official("로보얌콘"));
+        acquire(member, official("아이로빗콘"));
         // 가진 팩 20개 · 없는 ID 는 글자
         writePost(member, "좋아요 " + token(robot.get(18)).repeat(19) + " :emo-1: 끝").andExpect(status().isCreated());
     }
@@ -214,7 +214,7 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
     @Test
     void 자격이_속도_제한보다_먼저() throws Exception {
         long member = member();
-        List<Long> pink = emoticons(official("로보얌콘핑크"));
+        List<Long> pink = emoticons(official("아이로빗콘핑크"));
         writePost(member, "첫 글이에요 반가워요").andExpect(status().isCreated());
         // 바로 다음 글 — 작성 간격(429)보다 자격(409)이 먼저
         writePost(member, "둘째 글 " + token(pink.get(0))).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"));
@@ -224,17 +224,17 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
     void 글_고치기도_본문_전체를_다시_본다() throws Exception {
         long member = member();
         long postId = postOf(member);
-        List<Long> robot = emoticons(official("로보얌콘"));
+        List<Long> robot = emoticons(official("아이로빗콘"));
         String update = "{\"title\":\"고친 제목\",\"contentFormat\":\"TEXT\",\"content\":" + json("고친 본문 " + token(robot.get(0))) + "}";
         mvc.perform(as(member, put("/api/posts/" + postId).contentType(MediaType.APPLICATION_JSON).content(update))).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.emoticonId").value(Long.toString(robot.get(0))));
         String many = "{\"title\":\"고친 제목\",\"contentFormat\":\"TEXT\",\"content\":" + json("x " + token(robot.get(0)).repeat(21)) + "}";
         mvc.perform(as(member, put("/api/posts/" + postId).contentType(MediaType.APPLICATION_JSON).content(many))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.content").exists());
-        acquire(member, official("로보얌콘"));
+        acquire(member, official("아이로빗콘"));
         mvc.perform(as(member, put("/api/posts/" + postId).contentType(MediaType.APPLICATION_JSON).content(update))).andExpect(status().isOk());
         // 팩을 빼면 그 토큰이 든 글을 다시 고칠 수 없다(예전에 쓴 토큰이어도)
-        mvc.perform(as(member, delete("/api/me/emoticons/" + official("로보얌콘")))).andExpect(status().isNoContent());
+        mvc.perform(as(member, delete("/api/me/emoticons/" + official("아이로빗콘")))).andExpect(status().isNoContent());
         mvc.perform(as(member, put("/api/posts/" + postId).contentType(MediaType.APPLICATION_JSON).content(update))).andExpect(status().isConflict());
     }
 
@@ -243,13 +243,13 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
         long writer = member();
         long member = member();
         long postId = postOf(writer);
-        List<Long> robot = emoticons(official("로보얌콘"));
+        List<Long> robot = emoticons(official("아이로빗콘"));
         writeComment(member, postId, "댓글 " + token(robot.get(3))).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"));
         writeComment(member, postId, token(robot.get(3)).repeat(21)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.content").exists());
         long commentId = commentOf(postId, member);
         String update = "{\"contentFormat\":\"TEXT\",\"content\":" + json("고친 댓글 " + token(robot.get(3))) + "}";
         mvc.perform(as(member, put("/api/comments/" + commentId).contentType(MediaType.APPLICATION_JSON).content(update))).andExpect(status().isConflict());
-        acquire(member, official("로보얌콘"));
+        acquire(member, official("아이로빗콘"));
         writeComment(member, postId, "댓글 " + token(robot.get(3))).andExpect(status().isCreated());
         mvc.perform(as(member, put("/api/comments/" + commentId).contentType(MediaType.APPLICATION_JSON).content(update))).andExpect(status().isOk());
     }
@@ -262,14 +262,14 @@ class EmoticonApiHttpTest extends CommerceApiTestBase {
                 + "VALUES (?, ?, ?, '시험', ?, 'OPEN', 50, 'ACTIVE', ?, ?, 1, now(), now())", groupId, "e" + Long.toString(groupId, 36), "e" + Long.toString(groupId, 36), board,
                 leader, leader);
         jdbc.update("INSERT INTO group_members (group_id, user_id, role, status, joined_at) VALUES (?, ?, 'LEADER', 'ACTIVE', now())", groupId, leader);
-        List<Long> robot = emoticons(official("로보얌콘"));
+        List<Long> robot = emoticons(official("아이로빗콘"));
         String body = "{\"title\":\"소모임 글\",\"contentFormat\":\"TEXT\",\"content\":" + json("모임 " + token(robot.get(7))) + "}";
         mvc.perform(as(leader, post("/api/groups/" + groupId + "/posts").contentType(MediaType.APPLICATION_JSON).content(body))).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("EMOTICON_NOT_OWNED"));
         String many = "{\"title\":\"소모임 글\",\"contentFormat\":\"TEXT\",\"content\":" + json("x " + token(robot.get(7)).repeat(21)) + "}";
         mvc.perform(as(leader, post("/api/groups/" + groupId + "/posts").contentType(MediaType.APPLICATION_JSON).content(many))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.content").exists());
-        acquire(leader, official("로보얌콘"));
+        acquire(leader, official("아이로빗콘"));
         mvc.perform(as(leader, post("/api/groups/" + groupId + "/posts").contentType(MediaType.APPLICATION_JSON).content(body))).andExpect(status().is2xxSuccessful());
     }
 

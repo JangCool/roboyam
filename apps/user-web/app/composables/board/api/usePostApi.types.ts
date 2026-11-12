@@ -1,6 +1,6 @@
 /**
  * 글 API 가 주고받는 모양 — 목록 한 줄(`PostRow`)·글 하나(`PostDetail`)·쓰기/수정/삭제 요청. 서버 `server/api/.../post/dto`·`board/dto/request` 와 같다(2026-10-22 연결).
- * community `docs/api-board.md` 의 글 모양에서 roboyam 개념(비회원 글·비밀번호·IP 마스킹, 문자열 Snowflake ID)으로 옮겼다.
+ * community `docs/api-board.md` 의 글 모양에서 irobit 개념(비회원 글·비밀번호·IP 마스킹, 문자열 Snowflake ID)으로 옮겼다.
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다. 시각은 UTC ISO 글자.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';

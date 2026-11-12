@@ -12,7 +12,7 @@ import com.community.rewardevent.entity.RewardRecipientStatus;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.zconfiguration.jpa.Ilike;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Repository;
  * ({@code GroupBuySavepoint} 의 약속과 같다). 이 저장소의 DML 은 0 줄로 지거나 CHECK 를 지키는 값만 쓴다(세이브포인트 안에서 실패하지 않게).
  */
 @Repository
-public class RewardRecipientStore extends RoboyamRepositoryQDSL {
+public class RewardRecipientStore extends IrobitRepositoryQDSL {
 
     /** 받는 사람 한 줄 */
     public record RecipientRow(long id, long eventId, long tierId, long userId, RewardRecipientMethod method, RewardRecipientStatus status, Instant selectedAt,

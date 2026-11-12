@@ -5,7 +5,7 @@
 
 ## 화면
 - 경로 제안: admin-web `/settings/mail`. 메뉴 등록(`AdminScreenRegistry`)은 프론트 단계에서 메뉴와 함께 한다 — 키 `mailSettings`, 주소 `/settings/mail`, 문구 키 `menu.mailSettings`, 아이콘 `pi pi-envelope`, 권한 `Permission.SITE_READ`, 묶음 `SETTINGS` 의 `menu.system`(`siteGeneral` 옆).
-- 칸: 서버 주소 · 포트 · 보안 방식(`NONE`·`STARTTLS`·`SSL`) · 사용자 이름 · 비밀번호(입력됨 표시만) · 보내는 사람 이메일 · 보내는 이름 · 제목 머리말(V55). 하모니카3 의 제품 주소·사용 여부·최근 성공/실패 칸은 로보얌 표(`mail_settings`)에 없어 넣지 않았다.
+- 칸: 서버 주소 · 포트 · 보안 방식(`NONE`·`STARTTLS`·`SSL`) · 사용자 이름 · 비밀번호(입력됨 표시만) · 보내는 사람 이메일 · 보내는 이름 · 제목 머리말(V55). 하모니카3 의 제품 주소·사용 여부·최근 성공/실패 칸은 아이로빗 표(`mail_settings`)에 없어 넣지 않았다.
 
 ## API (`server/admin`, 응답은 공통 래퍼 `ApiResponse`)
 | 메서드·경로 | 권한 | 요청 → 응답 |
@@ -17,7 +17,7 @@
 
 `MailSettingsView` = `{configured, host, port, security, username, passwordSet, fromAddress, senderName: string|null, subjectPrefix: string|null, cryptoKeyConfigured, updatedAt, updatedByName}`
 - 설치 마법사가 넣은 행(`mail_settings` id 1)을 그대로 읽는다. 없으면(설치 때 건너뜀) `configured:false` 이고 값 칸은 모두 `null`, `passwordSet:false`.
-- **비밀번호는 값을 내보내지 않는다** — `passwordSet` 만. `cryptoKeyConfigured` 는 서버에 `ROBOYAM_CRYPTO_KEY` 가 있는지(없으면 새 비밀번호 저장이 503, 인증 메일도 못 보낸다). `updatedByName` 은 지워진 운영자면 「삭제된 운영자」.
+- **비밀번호는 값을 내보내지 않는다** — `passwordSet` 만. `cryptoKeyConfigured` 는 서버에 `IROBIT_CRYPTO_KEY` 가 있는지(없으면 새 비밀번호 저장이 503, 인증 메일도 못 보낸다). `updatedByName` 은 지워진 운영자면 「삭제된 운영자」.
 
 ## 저장 규칙
 - 검사는 설치 마법사와 같다(`MailSettingsService.normalize`) — 틀린 칸을 모아 400 `VALIDATION` `fields.<칸>`(`host`·`port`·`security`·`username`·`password`·`fromAddress`). 보안 방식은 비우면 `NONE`.

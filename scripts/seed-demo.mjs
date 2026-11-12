@@ -26,9 +26,9 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_API = 'http://localhost:8910';
 const API = (process.env.SEED_API ?? DEFAULT_API).replace(/\/+$/, '');
 const ADMIN_API = (process.env.SEED_ADMIN_API ?? 'http://localhost:8920').replace(/\/+$/, '');
-const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'roboyam-local-postgres';
-const DB_NAME = process.env.SEED_DB_NAME ?? 'roboyam';
-const DB_USER = process.env.SEED_DB_USER ?? 'roboyam';
+const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'irobit-local-postgres';
+const DB_NAME = process.env.SEED_DB_NAME ?? 'irobit';
+const DB_USER = process.env.SEED_DB_USER ?? 'irobit';
 const FORCE = process.argv.includes('--force');
 /** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,ai,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
 const LIMIT = Number(process.argv.find((a) => a.startsWith('--limit='))?.slice(8)) || Infinity;
@@ -990,7 +990,7 @@ async function aiWave(wave, ctx) {
         const left = Number(rows(sql(`SELECT count(*) FROM ai_member_drafts WHERE id IN (${ids}) AND status = 'APPROVED'`))[0][0]);
         if (!left) break;
         if (Date.now() > deadline) {
-            failed('AI 글 등록', { status: 0, code: 'RUNNER_IDLE', error: { message: `${left}건이 ${AI_WAIT_MS / 1000}초 동안 승인 상태 그대로 — 관리자 서버의 AI 실행기(roboyam.batch.enabled · roboyam.ai-member.runner-enabled · 새 jar)를 확인하고 다시 돌린다` } });
+            failed('AI 글 등록', { status: 0, code: 'RUNNER_IDLE', error: { message: `${left}건이 ${AI_WAIT_MS / 1000}초 동안 승인 상태 그대로 — 관리자 서버의 AI 실행기(irobit.batch.enabled · irobit.ai-member.runner-enabled · 새 jar)를 확인하고 다시 돌린다` } });
             return false;
         }
         await sleep(5_000);
@@ -1291,7 +1291,7 @@ async function seedGroupBuys(admin) {
         const values = category.items.map((item) => ({
             custom: false, itemKey: item.key, unavailable: false, unavailableReason: null,
             value: item.kind === 'DATE_LIKE' ? '제조일·유통기한: 받으신 날로부터 7일 이상 남은 상품을 보냅니다(일반원칙 ④ 대체 표기)'
-                : item.kind === 'KC_CERT' ? 'KC 인증번호 R-R-TST-ROBOYAM0001(데모 번호)'
+                : item.kind === 'KC_CERT' ? 'KC 인증번호 R-R-TST-IROBIT0001(데모 번호)'
                     : item.kind === 'QUALITY_WARRANTY' ? '소비자분쟁해결기준(공정거래위원회 고시)에 따릅니다'
                         : `${item.name}: 상세 설명 참고(데모 — ${p.name})`,
         }));
@@ -1466,12 +1466,12 @@ async function seedAds(admin) {
             ok(r) ? console.log(`  광고 자리 설정: ${JSON.stringify(doc.placements)}`) : failed('광고 자리 설정', r);
         }
     }
-    await placeAdGadgets(admin, '홈', '/api/admin/home-layouts/roboyam', doc.homeGadgets);
+    await placeAdGadgets(admin, '홈', '/api/admin/home-layouts/irobit', doc.homeGadgets);
     await placePageAdGadgets(admin, doc.pageGadgets);
 }
 
 /**
- * 홈(roboyam 테마)·가젯 페이지에 광고 가젯을 놓는다(페이지마다 따로 — 사용자 결정 2026-11-06). 같은 제목의 광고 가젯이 이미 있으면 그 가젯만 건너뛴다.
+ * 홈(irobit 테마)·가젯 페이지에 광고 가젯을 놓는다(페이지마다 따로 — 사용자 결정 2026-11-06). 같은 제목의 광고 가젯이 이미 있으면 그 가젯만 건너뛴다.
  * 자리: `place.top` = 맨 위 전체 폭(모든 가젯을 그만큼 내림) · `place.afterFirst` = 첫 가젯 바로 아래 · 아니면 `place.after` 가젯 아래(폭은 그 가젯, 원고의 x·w 가 있으면 그것 — 아래 같은 열 가젯을 내림).
  */
 async function placeAdGadgets(admin, label, layoutPath, specs) {
@@ -1526,7 +1526,7 @@ async function placeAdGadgets(admin, label, layoutPath, specs) {
     ok(r) ? console.log(`  ${label}: 광고 가젯 ${added.length}개를 놓았다`) : failed(`${label} 광고 가젯 저장`, r);
 }
 
-/** 가젯 페이지(주소 key — community·topics …)의 roboyam 테마 배치에 광고 가젯을 놓는다 */
+/** 가젯 페이지(주소 key — community·topics …)의 irobit 테마 배치에 광고 가젯을 놓는다 */
 async function placePageAdGadgets(admin, specs) {
     const pages = (await admin.request('GET', '/api/admin/gadget-pages')).data;
     const list = Array.isArray(pages) ? pages : (pages?.items ?? pages?.pages ?? Object.values(pages ?? {}).find(Array.isArray) ?? []);
@@ -1536,7 +1536,7 @@ async function placePageAdGadgets(admin, specs) {
             failed(`가젯 페이지 ${key}`, '없음');
             continue;
         }
-        await placeAdGadgets(admin, `가젯 페이지 ${key}`, `/api/admin/gadget-pages/${page.id}/layouts/roboyam`, specs.filter((s) => s.page === key));
+        await placeAdGadgets(admin, `가젯 페이지 ${key}`, `/api/admin/gadget-pages/${page.id}/layouts/irobit`, specs.filter((s) => s.page === key));
     }
 }
 
@@ -1561,7 +1561,7 @@ async function operatorMember(admin) {
              ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING
              RETURNING id, created_at)
          INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, profile_visibility, created_at, updated_at)
-         SELECT id, ${q(op.memberNickname ?? '로보얌운영팀')}, 'VETERAN', true, 'PRIVATE', created_at, created_at FROM ins;`, // 운영팀 계정은 기본 비공개 프로필(사용자 2026-11-08 — 서버 연결도 비공개로 바꾼다)
+         SELECT id, ${q(op.memberNickname ?? '아이로빗운영팀')}, 'VETERAN', true, 'PRIVATE', created_at, created_at FROM ins;`, // 운영팀 계정은 기본 비공개 프로필(사용자 2026-11-08 — 서버 연결도 비공개로 바꾼다)
         'COMMIT;',
     ].join('\n'), { sensitive: true });
     const [[operatorId] = []] = rows(sql(`SELECT id FROM operators WHERE email = ${q(op.email)}`));
@@ -1571,14 +1571,14 @@ async function operatorMember(admin) {
     if (!view.data?.linked) {
         const r = await admin.request('PUT', `/api/admin/operators/${operatorId}/member-account`, { userId });
         if (!ok(r)) return failed('운영자 회원 계정 잇기', r), null;
-        console.log(`  운영자 회원 계정을 이었다(${op.memberNickname ?? '로보얌운영팀'})`);
+        console.log(`  운영자 회원 계정을 이었다(${op.memberNickname ?? '아이로빗운영팀'})`);
     } else if (String(view.data.linked.userId) !== String(userId)) {
         return failed('운영자 회원 계정', `데모 운영자가 다른 회원(${view.data.linked.userId})에 이어져 있다`), null;
     }
     const s = new Session('operator-member');
     const login = await s.request('POST', '/api/auth/login', { email: op.email, password: op.password });
     if (!ok(login) || login.data?.authenticated !== true) return failed('운영자 회원 계정 로그인', login), null;
-    Object.assign(s, { userId: login.data.user.id, nickname: op.memberNickname ?? '로보얌운영팀', grade: 'VETERAN', level: 4, adult: false, operator: true });
+    Object.assign(s, { userId: login.data.user.id, nickname: op.memberNickname ?? '아이로빗운영팀', grade: 'VETERAN', level: 4, adult: false, operator: true });
     operatorMemberSession = s;
     return s;
 }
@@ -1775,26 +1775,26 @@ async function seedOpsBoards(admin, members, boards, emoticons, psql) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// 14) 사이트 — 사이트 아이콘·링크 미리보기(기본일 때만 로보얌 브랜드) · 공지 띠(꺼져 있을 때만 켬) · 환영 팝업(같은 이름이 없을 때) · 보상 이벤트(같은 이름이 없을 때, 만들기·시작까지 — 추첨·지급은 하지 않는다)
+// 14) 사이트 — 사이트 아이콘·링크 미리보기(기본일 때만 아이로빗 브랜드) · 공지 띠(꺼져 있을 때만 켬) · 환영 팝업(같은 이름이 없을 때) · 보상 이벤트(같은 이름이 없을 때, 만들기·시작까지 — 추첨·지급은 하지 않는다)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 async function seedSite(admin) {
     console.log('\n사이트(아이콘·링크 미리보기·공지 띠·팝업·보상 이벤트)');
     const doc = json(join(DEMO, 'site.json'));
     const now = Date.now();
-    // 사이트 아이콘·링크 미리보기 이미지(로보얌 브랜드 — seed/demo/brand/, 원본 design/brand/) — 기본 그대로일 때만 올린다(이미 올린 것은 두기)
+    // 사이트 아이콘·링크 미리보기 이미지(아이로빗 브랜드 — seed/demo/brand/, 원본 design/brand/) — 기본 그대로일 때만 올린다(이미 올린 것은 두기)
     const icon = await admin.request('GET', '/api/admin/site/icon');
     if (!ok(icon)) failed('사이트 아이콘 읽기', icon);
     else if (icon.data.custom) console.log('  사이트 아이콘: 이미 올려 둔 것이 있어 그대로');
     else {
         const r = await admin.request('POST', '/api/admin/site/icon', fileForm(join(DEMO, 'brand', 'site-icon.png')));
-        ok(r) ? console.log('  사이트 아이콘: 로보얌 아이콘을 올림') : failed('사이트 아이콘', r);
+        ok(r) ? console.log('  사이트 아이콘: 아이로빗 아이콘을 올림') : failed('사이트 아이콘', r);
     }
     const og = await admin.request('GET', '/api/admin/site/og-image');
     if (!ok(og)) failed('링크 미리보기 이미지 읽기', og);
     else if (og.data.configured) console.log('  링크 미리보기 이미지: 이미 올려 둔 것이 있어 그대로');
     else {
         const r = await admin.request('POST', '/api/admin/site/og-image', fileForm(join(DEMO, 'brand', 'site-og.png')));
-        ok(r) ? console.log('  링크 미리보기 이미지: 로보얌 이미지를 올림(1200×630)') : failed('링크 미리보기 이미지', r);
+        ok(r) ? console.log('  링크 미리보기 이미지: 아이로빗 이미지를 올림(1200×630)') : failed('링크 미리보기 이미지', r);
     }
     // 공지 띠
     const bar = await admin.request('GET', '/api/admin/site/notice-bar');

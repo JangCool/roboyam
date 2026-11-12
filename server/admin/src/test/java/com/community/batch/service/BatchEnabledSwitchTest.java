@@ -40,7 +40,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 배치 설정은 {@code roboyam.batch.enabled} 하나다(결정 6 — 예약 실행·실행 요청 집기·워커가 함께 켜지고 꺼진다). 끈 서버는 요청을 집지 않고(대기로 남아 다른 서버가 집는다)
+ * 배치 설정은 {@code irobit.batch.enabled} 하나다(결정 6 — 예약 실행·실행 요청 집기·워커가 함께 켜지고 꺼진다). 끈 서버는 요청을 집지 않고(대기로 남아 다른 서버가 집는다)
  * 예약도 하지 않는다. 켠 서버는 집어서 실행하고 워커 기록을 남긴다. 실제 PostgreSQL(커머스 시험 DB).
  */
 class BatchEnabledSwitchTest {
@@ -178,14 +178,14 @@ class BatchEnabledSwitchTest {
     }
 
     @Test
-    void 설정_이름은_roboyam_batch_enabled_하나이고_워커_스케줄러는_스레드를_여럿_둔다() {
+    void 설정_이름은_irobit_batch_enabled_하나이고_워커_스케줄러는_스레드를_여럿_둔다() {
         YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
         yaml.setResources(new ClassPathResource("application.yml"));
         Properties settings = yaml.getObject();
 
-        assertThat(settings).containsKey("roboyam.batch.enabled");
-        assertThat(settings).doesNotContainKey("roboyam.batch.scheduler-enabled");
+        assertThat(settings).containsKey("irobit.batch.enabled");
+        assertThat(settings).doesNotContainKey("irobit.batch.scheduler-enabled");
         assertThat(Integer.parseInt(settings.getProperty("spring.task.scheduling.pool.size"))).as("@Scheduled 워커끼리 막지 않게").isGreaterThanOrEqualTo(2);
-        assertThat(settings).containsKeys("roboyam.batch.request-poll-millis", "roboyam.batch.request-stale-seconds", "roboyam.batch.heartbeat-idle-seconds");
+        assertThat(settings).containsKeys("irobit.batch.request-poll-millis", "irobit.batch.request-stale-seconds", "irobit.batch.heartbeat-idle-seconds");
     }
 }

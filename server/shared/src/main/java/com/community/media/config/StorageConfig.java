@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 /**
- * 저장소 빈 — 설정 {@code roboyam.storage.type}({@link StorageProperties})에 맞는 구현을 만든다(docs/features/media-storage-contract.md).
+ * 저장소 빈 — 설정 {@code irobit.storage.type}({@link StorageProperties})에 맞는 구현을 만든다(docs/features/media-storage-contract.md).
  *
  * <ul>
  *   <li>{@code local}: 로컬 폴더가 없으면 만든다(못 만들어도 기동은 막지 않고, 올리는 순간 503 으로 알린다).</li>
@@ -65,7 +65,7 @@ public class StorageConfig {
             case "local" -> local(properties.localPath());
             case "r2" -> bucket(settings(BucketKind.R2, properties.s3(), properties.r2()), environment.acceptsProfiles(PROD));
             case "s3" -> bucket(settings(BucketKind.S3, properties.s3(), properties.r2()), environment.acceptsProfiles(PROD));
-            default -> throw new IllegalStateException("roboyam.storage.type(환경 변수 ROBOYAM_STORAGE_TYPE)은 local · r2 · s3 중 하나다 — 지금 값: '" + type + "'");
+            default -> throw new IllegalStateException("irobit.storage.type(환경 변수 IROBIT_STORAGE_TYPE)은 local · r2 · s3 중 하나다 — 지금 값: '" + type + "'");
         };
     }
 
@@ -98,7 +98,7 @@ public class StorageConfig {
                 settings.endpoint() == null ? "(AWS 기본)" : settings.endpoint(), settings.region(), settings.pathStyle(),
                 settings.accessKey() == null ? "기본 체인(IAM 역할 등)" : "접근 키", settings.publicBaseUrl() == null ? "(없음 — 앱이 /media/** 로 내보낸다)" : settings.publicBaseUrl());
         if (prod && settings.publicBaseUrl() == null) {
-            log.warn("prod 인데 roboyam.storage.s3.public-base-url(ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL)이 비었다 — 이미지를 앱 서버가 버킷에서 읽어 내보낸다. "
+            log.warn("prod 인데 irobit.storage.s3.public-base-url(IROBIT_STORAGE_S3_PUBLIC_BASE_URL)이 비었다 — 이미지를 앱 서버가 버킷에서 읽어 내보낸다. "
                     + "R2 사용자 도메인 등 공개 주소를 주면 브라우저가 CDN 에서 바로 가져간다");
         }
         storage.probe();
@@ -142,9 +142,9 @@ public class StorageConfig {
             String accountId = r2 == null ? null : trimmed(r2.accountId());
             if (endpoint == null) {
                 if (accountId == null) {
-                    problems.add("r2.account-id(ROBOYAM_STORAGE_R2_ACCOUNT_ID)가 비었다 — R2 › 개요의 계정 ID(또는 ROBOYAM_STORAGE_S3_ENDPOINT 를 직접 준다)");
+                    problems.add("r2.account-id(IROBIT_STORAGE_R2_ACCOUNT_ID)가 비었다 — R2 › 개요의 계정 ID(또는 IROBIT_STORAGE_S3_ENDPOINT 를 직접 준다)");
                 } else if (!R2_ACCOUNT_ID.matcher(accountId).matches()) {
-                    problems.add("r2.account-id(ROBOYAM_STORAGE_R2_ACCOUNT_ID)는 영숫자다");
+                    problems.add("r2.account-id(IROBIT_STORAGE_R2_ACCOUNT_ID)는 영숫자다");
                 } else {
                     endpoint = "https://" + accountId + ".r2.cloudflarestorage.com";
                 }
@@ -153,27 +153,27 @@ public class StorageConfig {
                 region = "auto";
             }
             if (accessKey == null || secretKey == null) {
-                problems.add("r2 는 R2 API 토큰의 access-key(ROBOYAM_STORAGE_S3_ACCESS_KEY)와 secret-key(ROBOYAM_STORAGE_S3_SECRET_KEY)가 둘 다 필요하다");
+                problems.add("r2 는 R2 API 토큰의 access-key(IROBIT_STORAGE_S3_ACCESS_KEY)와 secret-key(IROBIT_STORAGE_S3_SECRET_KEY)가 둘 다 필요하다");
             }
         } else {
             if (region == null) {
-                problems.add("region(ROBOYAM_STORAGE_S3_REGION)이 비었다 — AWS 는 ap-northeast-2 등, MinIO 는 us-east-1");
+                problems.add("region(IROBIT_STORAGE_S3_REGION)이 비었다 — AWS 는 ap-northeast-2 등, MinIO 는 us-east-1");
             }
             if ((accessKey == null) != (secretKey == null)) {
-                problems.add("access-key(ROBOYAM_STORAGE_S3_ACCESS_KEY)와 secret-key(ROBOYAM_STORAGE_S3_SECRET_KEY)는 둘 다 주거나 둘 다 비운다(비우면 IAM 역할 등 기본 자격 증명)");
+                problems.add("access-key(IROBIT_STORAGE_S3_ACCESS_KEY)와 secret-key(IROBIT_STORAGE_S3_SECRET_KEY)는 둘 다 주거나 둘 다 비운다(비우면 IAM 역할 등 기본 자격 증명)");
             }
         }
         if (bucket == null) {
-            problems.add("bucket(ROBOYAM_STORAGE_S3_BUCKET)이 비었다");
+            problems.add("bucket(IROBIT_STORAGE_S3_BUCKET)이 비었다");
         }
         if (endpoint != null && !HTTP_URL.matcher(endpoint).matches()) {
-            problems.add("endpoint(ROBOYAM_STORAGE_S3_ENDPOINT)는 http(s)://주소 형식이다");
+            problems.add("endpoint(IROBIT_STORAGE_S3_ENDPOINT)는 http(s)://주소 형식이다");
         }
         if (publicBaseUrl != null && !HTTP_URL.matcher(publicBaseUrl).matches()) {
-            problems.add("public-base-url(ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL)은 http(s)://주소 형식이다");
+            problems.add("public-base-url(IROBIT_STORAGE_S3_PUBLIC_BASE_URL)은 http(s)://주소 형식이다");
         }
         if (!problems.isEmpty()) {
-            throw new IllegalStateException("이미지 저장소 " + kind.name().toLowerCase(Locale.ROOT) + " 설정(roboyam.storage.*)이 올바르지 않다: "
+            throw new IllegalStateException("이미지 저장소 " + kind.name().toLowerCase(Locale.ROOT) + " 설정(irobit.storage.*)이 올바르지 않다: "
                     + String.join(" / ", problems));
         }
         return new S3Settings(kind, endpoint, region, bucket, accessKey, secretKey, Boolean.TRUE.equals(raw.pathStyle()), publicBaseUrl);

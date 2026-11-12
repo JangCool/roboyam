@@ -4,7 +4,7 @@
         소모임 대상(community `docs/api-report.md` 의 `GROUP`): 대상 칸은 소모임 칩 + 이름·소개 앞부분, 게시판 칸은 소모임 게시판(없으면 —), 작성자 칸은 모임장. 줄 메뉴의 「소모임 관리에서 보기」는 `/groups?group=`(`group.read`).
           관리자 소모임 상세 서랍의 비활성 사건 번호가 `/reports?report={caseId}&status=ALL` 로, 「신고 보기 ›」가 `?groupId={소모임 ID}&status=ALL` 로 넘어온다(툴바에 풀기 칩).
           사유 거르기는 글·댓글 6종 + 소모임 4종, 처리 대화창의 사유 코드는 사건 대상의 체계만.
-        계약 `docs/features/report-admin-contract.md`(community `admin/app/pages/reports` 의 동작을 로보얌 신고 모델·자동 숨김·게시판 신고 정책에 맞춤). 모양·구조는 게시글 관리(`pages/posts/index.vue`)와 같다.
+        계약 `docs/features/report-admin-contract.md`(community `admin/app/pages/reports` 의 동작을 아이로빗 신고 모델·자동 숨김·게시판 신고 정책에 맞춤). 모양·구조는 게시글 관리(`pages/posts/index.vue`)와 같다.
         - 조회 폼: 검색 대상(제목·작성자·사건 번호) + 검색 칸 · 대상(전체/글/댓글 라디오) · 사유(Select) · 게시판(Select) · 마지막 신고일 기간(빠른 선택) · 상태 라디오(처리 대기·검토 중·처리됨·무시·전체 — 건수 없음) · 가운데 검색·초기화.
           검색 대상·검색어·기간은 「검색」(또는 Enter)을 눌러야 주소로 가고, 대상·사유·게시판·상태는 고르는 즉시 주소로 간다.
           목록: 정렬은 표의 「마지막 신고」(내림 = 최신 · 오름 = 오래된)·「신고 수」(많은 순) 머리 · 표 위 툴바에 건수·정렬 안내 · 쪽 크기(10/20/50).

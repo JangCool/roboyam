@@ -11,7 +11,7 @@
  */
 export default defineNuxtPlugin({
     // 테마·사이트 정보와 동시에 받는다(`parallel`). 로그인 사용자를 바로 쓰는 플러그인(`display`·`view-settings`)은 `dependsOn` 으로 이것을 기다린다
-    name: 'roboyam:auth',
+    name: 'irobit:auth',
     parallel: true,
     async setup() {
         if (useInstallState().phase.value === 'pending') return;

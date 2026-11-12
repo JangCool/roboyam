@@ -7,7 +7,7 @@ export default {
     title: 'Audit log',
     subtitle: 'A record of who did what, and when.',
 
-    // hamonica3 common texts "Search" / "Clear filters" — not in the app-wide texts (`@roboyam/i18n`) yet, so they live here
+    // hamonica3 common texts "Search" / "Clear filters" — not in the app-wide texts (`@irobit/i18n`) yet, so they live here
     search: 'Search',
     clearFilter: 'Clear filters',
 

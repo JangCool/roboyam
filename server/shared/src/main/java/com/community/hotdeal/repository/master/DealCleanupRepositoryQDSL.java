@@ -5,7 +5,7 @@ import com.community.hotdeal.entity.QDealOgImageEntity;
 import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.hotdeal.entity.QPostDealRevisionEntity;
 import com.community.post.entity.QPostEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * 핫딜 정리 배치({@code hotdeal-cleanup} — {@code DealCleanupService})의 질의 — OG 사본 고르기·지움 표시·딜 이미지 칸 비우기, 오래된 수정 이력 지우기. <b>트랜잭션은 부르는 서비스가 연다</b>(덩어리마다).
  */
 @Repository
-public class DealCleanupRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class DealCleanupRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QDealOgImageEntity OG = QDealOgImageEntity.dealOgImageEntity;
     private static final QPostDealEntity D = QPostDealEntity.postDealEntity;

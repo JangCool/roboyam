@@ -88,7 +88,7 @@ class GroupBuyLocalSeederTest extends CommerceAdminTestBase {
         }
         List<Map<String, Object>> seeded = jdbc.queryForList("SELECT p.id AS product_id, p.name, g.status, g.close_reason, g.fulfillment, g.published_at IS NOT NULL AS published "
                 + "FROM group_buy_products p JOIN group_buys g ON g.product_id = p.id WHERE p.name IN ('2026 햅쌀 신동진', '제철 과일 박스', '제주 손질 고등어 10팩', '전라도 포기김치', "
-                + "'수제 바비큐 소스 2병', '로보얌 오버핏 티셔츠', '경량 러닝화', '휴머노이드 로봇 키트')");
+                + "'수제 바비큐 소스 2병', '아이로빗 오버핏 티셔츠', '경량 러닝화', '휴머노이드 로봇 키트')");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM group_buy_products", Integer.class) - before).isEqualTo(8);
         assertThat(seeded).hasSize(8).allSatisfy(r -> assertThat(r.get("published")).isEqualTo(true));
         assertThat(seeded).filteredOn(r -> "RECRUITING".equals(r.get("status"))).hasSize(6);

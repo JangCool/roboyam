@@ -23,7 +23,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 공급자(코드에 고정한 주소 — {@code SocialEndpoints})에 보내는 작은 HTTP 클라이언트.
  *
  * <ul>
- *   <li>접속·응답 제한 시간이 짧다({@code roboyam.social.connect-timeout}·{@code read-timeout}, 기본 3초·5초). 리다이렉트를 따라가지 않는다.</li>
+ *   <li>접속·응답 제한 시간이 짧다({@code irobit.social.connect-timeout}·{@code read-timeout}, 기본 3초·5초). 리다이렉트를 따라가지 않는다.</li>
  *   <li>응답 본문은 {@value #MAX_BODY} 바이트까지만 읽고 JSON 으로만 해석한다. 본문은 <b>부르는 쪽 안에서만</b> 쓰고 사용자·로그에 내보내지 않는다.</li>
  *   <li>실패는 {@link SocialProviderException}(짧은 사유만, 본문·토큰·시크릿 없음)이다.</li>
  * </ul>

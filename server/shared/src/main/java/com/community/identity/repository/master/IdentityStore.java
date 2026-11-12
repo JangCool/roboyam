@@ -4,7 +4,7 @@ import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.entity.IdentityVerificationAttemptEntity;
 import com.community.identity.entity.QIdentityVerificationAttemptEntity;
 import com.community.identity.entity.QIdentityVerificationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Repository;
  * {@link #insertVerification}({@code ON CONFLICT DO NOTHING} — 1인 1계정의 마지막 그물인 유일 제약 경합), {@link #deleteVerification}({@code DELETE … RETURNING} — 지운 줄 그대로).
  */
 @Repository
-public class IdentityStore extends RoboyamRepositoryQDSL {
+public class IdentityStore extends IrobitRepositoryQDSL {
 
     private static final QIdentityVerificationEntity V = QIdentityVerificationEntity.identityVerificationEntity;
     private static final QIdentityVerificationAttemptEntity A = QIdentityVerificationAttemptEntity.identityVerificationAttemptEntity;

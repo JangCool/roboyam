@@ -6,7 +6,7 @@ import com.community.media.entity.FileStatus;
 import com.community.media.entity.QFileEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
  * 글 이미지({@code files.purpose = POST_IMAGE}) 질의 — 글 저장 때 본문의 이미지 확인·붙이기, 고치기 때 빠진 이미지 찾기, 하루 올리기 수, 정리 배치의 「주인 잃은 이미지」.
  */
 @Repository
-public class FileRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class FileRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QFileEntity FILE = QFileEntity.fileEntity;
 

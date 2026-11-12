@@ -65,7 +65,7 @@ export default {
     footerNotice: 'Notice text',
     footerNoticeHint: 'One sentence per line · up to {lines} lines · {max} characters per line',
     footerNoticeHelp:
-        "Each line is shown on its own line near the bottom of the public site footer. Leave it empty to hide the notice. {'{'}사이트{'}'} is replaced with the site name, and a Korean particle right after it (은/는·이/가·을/를) is adjusted to fit the name (e.g. {'{'}사이트{'}'}은 → 로보얌은, ROBOYAM은).",
+        "Each line is shown on its own line near the bottom of the public site footer. Leave it empty to hide the notice. {'{'}사이트{'}'} is replaced with the site name, and a Korean particle right after it (은/는·이/가·을/를) is adjusted to fit the name (e.g. {'{'}사이트{'}'}은 → 아이로빗은, IROBIT은).",
     footerNoticeScopeLabel: 'Show',
     footerNoticeScope: {
         INDIVIDUAL_ONLY: 'Only while run by an individual',

@@ -100,7 +100,7 @@
 
                 <LabeledField :label="t('mail.subjectPrefixLabel')" :hint="t('mail.optionalMax', { max: UtilMailSettings.SUBJECT_PREFIX_MAX })" :help="t('mail.subjectPrefixHelp')" :error="fieldError('subjectPrefix')">
                     <template #default="{ id, describedBy, invalid }">
-                        <InputText :id="id" v-model="form.subjectPrefix" name="subjectPrefix" size="small" autocomplete="off" placeholder="[ROBOYAM]" :readonly="readonly" :invalid="invalid" :aria-describedby="describedBy" class="w-full sm:w-64" />
+                        <InputText :id="id" v-model="form.subjectPrefix" name="subjectPrefix" size="small" autocomplete="off" placeholder="[IROBIT]" :readonly="readonly" :invalid="invalid" :aria-describedby="describedBy" class="w-full sm:w-64" />
                     </template>
                 </LabeledField>
 

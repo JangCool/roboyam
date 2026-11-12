@@ -29,7 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
  * <p>순서: 401 → 쓰기 자격(403 {@code EMAIL_NOT_VERIFIED} → {@code ACCOUNT_RESTRICTED} → {@code BUSINESS_ACCOUNT_RESTRICTED} — 개설 신청·정보 수정과 같은 {@link GroupAccess#requireWriter})
  * → 파일 칸({@code 400 fields.file}) → 1분 속도(글 이미지와 같은 회원 단위 한도 {@code 429 IMAGE_RATE_LIMITED}) → 검사·다시 만들기({@link PostImageProcessor} — JPEG·PNG·WebP·GIF 10MB,
  * 움직이는 GIF·WebP 는 원본 유지, 디코딩 실패 {@code 400 fields.file}, 트랜잭션 밖) → 공개 저장소 쓰기 → 장부 행({@code files}, 용도 GROUP_IMAGE, PENDING) → 실패하면 쓴 파일을 지운다.
- * 어느 소모임에도 붙지 않은 채 {@code roboyam.media.orphan-retention-hours}(24시간)가 지나면 「올리다 만 파일 정리」 배치가 지운다. 하루 한도는 세지 않는다(글 이미지 한도는 글 이미지만 센다).
+ * 어느 소모임에도 붙지 않은 채 {@code irobit.media.orphan-retention-hours}(24시간)가 지나면 「올리다 만 파일 정리」 배치가 지운다. 하루 한도는 세지 않는다(글 이미지 한도는 글 이미지만 센다).
  *
  * <p>저장소 키는 {@code group/{UTC 년월}/{무작위 32자}.{확장자}} — 주소를 짐작할 수 없고, 한 번 쓴 파일은 고치지 않는다.
  */

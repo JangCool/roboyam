@@ -8,7 +8,7 @@ import type { AttendResult, PointSummary } from '~/composables/point/api/usePoin
  * - 실패해도 던지지 않는다 — 메뉴는 포인트 줄만 빠지고, 화면은 `status === 'error'` 로 오류 상태를 그린다(받아 둔 값이 있으면 그 값을 계속 보인다).
  *
  * - 출석이 끝나면 응답의 새 잔액을 바로 반영한다(`applyAttendance`). 다른 기기에서 이미 출석했다는 것을 알게 되면 `markAttended`(잔액은 다시 받아 맞춘다).
- * 원본(community)의 교환(`applyExchange`)은 로보얌에 기능이 없어 없다(포인트 상점은 구매 뒤 `load` 로 다시 받는다).
+ * 원본(community)의 교환(`applyExchange`)은 아이로빗에 기능이 없어 없다(포인트 상점은 구매 뒤 `load` 로 다시 받는다).
  * 서버와 말하는 것은 `usePointApi` 다. 같은 요청이 겹치면 늦게 온 옛 응답은 요청 번호로 버린다.
  */
 

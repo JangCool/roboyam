@@ -4,7 +4,7 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * roboyam.social.* — 소셜 로그인(OAuth 2.0 인가 코드 흐름)의 수치. docs/features/login-contract.md 「소셜 로그인」.
+ * irobit.social.* — 소셜 로그인(OAuth 2.0 인가 코드 흐름)의 수치. docs/features/login-contract.md 「소셜 로그인」.
  *
  * @param stateTtl          시작한 흐름(state·PKCE·nonce)의 유효 시간 — 이 안에 공급자에서 돌아와야 한다
  * @param pendingTtl        처음 보는 소셜 계정의 가입 완료 대기(서버 세션의 임시 정보) 유효 시간
@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param readTimeout       공급자 응답 제한 시간(요청 하나 전체)
  * @param testEndpoints     <b>local 프로필 전용</b> 가짜 공급자 주소 — {@link SocialEndpoints} 가 local 이 아니거나 루프백 주소가 아니면 무시한다
  */
-@ConfigurationProperties(prefix = "roboyam.social")
+@ConfigurationProperties(prefix = "irobit.social")
 public record SocialLoginProperties(Duration stateTtl, Duration pendingTtl, Duration rateWindow, int startPerWindow, int completePerWindow,
                                     Duration connectTimeout, Duration readTimeout, TestEndpoints testEndpoints) {
 

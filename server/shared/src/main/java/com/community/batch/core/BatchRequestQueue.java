@@ -70,7 +70,7 @@ public class BatchRequestQueue {
 
     @Autowired
     public BatchRequestQueue(@Qualifier(JpaMasterConfig.QUERY_FACTORY) JPAQueryFactory query, BatchRunRequestRepository requests, EntityManager entityManager,
-                             PlatformTransactionManager transactions, SnowflakeIdGenerator ids, @Value("${roboyam.node-id}") int nodeId) {
+                             PlatformTransactionManager transactions, SnowflakeIdGenerator ids, @Value("${irobit.node-id}") int nodeId) {
         this.query = query;
         this.requests = requests;
         this.entityManager = entityManager;

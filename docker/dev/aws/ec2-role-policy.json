@@ -8,7 +8,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "EcrPullRoboyamImages",
+      "Sid": "EcrPullIrobitImages",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchGetImage",
@@ -16,8 +16,8 @@
         "ecr:BatchCheckLayerAvailability"
       ],
       "Resource": [
-        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/roboyam-api",
-        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/roboyam-admin"
+        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/irobit-api",
+        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/irobit-admin"
       ]
     },
     {
@@ -37,8 +37,8 @@
       "Effect": "Allow",
       "Action": ["ssm:PutParameter", "ssm:GetParameter", "ssm:GetParametersByPath"],
       "Resource": [
-        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/roboyam/dev",
-        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/roboyam/dev/*"
+        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/irobit/dev",
+        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/irobit/dev/*"
       ]
     }
   ]

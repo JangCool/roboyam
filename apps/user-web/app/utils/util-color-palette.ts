@@ -33,11 +33,11 @@ export interface PageBackgroundSwatch {
 
 export default class UtilColorPalette {
     /** 이 브라우저에 저장해 두는 열쇠 */
-    static readonly STORAGE_KEY = 'roboyam:color-palette';
+    static readonly STORAGE_KEY = 'irobit:color-palette';
     /** 상단 그라데이션 켜짐(`on`·`off`)을 저장해 두는 열쇠 */
-    static readonly GRADIENT_STORAGE_KEY = 'roboyam:topbar-gradient';
+    static readonly GRADIENT_STORAGE_KEY = 'irobit:topbar-gradient';
     /** 배경색을 저장해 두는 열쇠 */
-    static readonly BACKGROUND_STORAGE_KEY = 'roboyam:page-background';
+    static readonly BACKGROUND_STORAGE_KEY = 'irobit:page-background';
 
     static readonly DEFAULT: ColorPalette = 'DEFAULT';
     static readonly DEFAULT_BACKGROUND: PageBackground = 'THEME';

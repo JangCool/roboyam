@@ -28,7 +28,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.Ilike;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -67,7 +67,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 입금 확인 upsert({@code ON CONFLICT (application_id) DO UPDATE} — 같은 건을 두 운영자가 동시에 처음 확인해도 한 줄).
  */
 @Repository
-public class BizApplicationStore extends RoboyamRepositoryQDSL {
+public class BizApplicationStore extends IrobitRepositoryQDSL {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {

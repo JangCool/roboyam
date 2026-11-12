@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       DB 에만 있는 칸은 기본값이 된다. 사용자 트리거는 끈 채 넣는다(팩의 행은 트리거가 이미 만든 결과다).</li>
  *   <li><b>개인정보 칸</b>(DataCipher 암호문 — {@link DataKeyColumns#ALL} 의 칸: 사업자 신원·광고주 연락처·등록증·계약서 파일 …): 팩의 키(목록의 {@code dataKey})로 풀어
  *       설치한 곳의 키로 다시 잠근다. 사업자등록번호 찾기 해시({@code business_profiles.biz_no_hash})도 설치한 곳의 찾기 키로 다시 만든다. 이 칸들은 ID·시각을 옮기지 않는다.
- *       설치한 곳에 키({@code ROBOYAM_DATA_KEY}·{@code ROBOYAM_INDEX_KEY})가 없으면 실패(데모만 건너뜀).</li>
+ *       설치한 곳에 키({@code IROBIT_DATA_KEY}·{@code IROBIT_INDEX_KEY})가 없으면 실패(데모만 건너뜀).</li>
  *   <li><b>파일</b>: 팩의 올린 파일을 같은 키(안의 ID 도 같은 규칙으로 옮김)로 저장소에 쓴다. 실패하면 쓴 파일을 지운다.</li>
  * </ul>
  * 실패하면 트랜잭션이 롤백돼 데모는 하나도 남지 않고, 부르는 쪽({@link InstallationService})이 {@link #markFailed} 로 적는다 — 설치(구조)는 그대로 쓸 수 있다.
@@ -147,7 +147,7 @@ public class DemoDataInstaller {
     }
 
     /**
-     * 사이트 아이콘·링크 미리보기 이미지 — 데모 팩은 설치 입력(site_settings)을 담지 않으므로, 아직 기본(올린 것 없음)일 때만 로보얌 브랜드 그림
+     * 사이트 아이콘·링크 미리보기 이미지 — 데모 팩은 설치 입력(site_settings)을 담지 않으므로, 아직 기본(올린 것 없음)일 때만 아이로빗 브랜드 그림
      * ({@code install-presets/brand/site-icon.png} 512 · {@code site-og.png} 1200×630, 원본 {@code design/brand/})을 관리자 올리기와 같은 규칙({@link SiteBrandRender})으로 넣는다.
      * 브랜드 그림은 덤이라 실패해도 데모는 그대로 넣는다(경고만, 이번에 쓴 파일은 지운다).
      *

@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code DataCipher}(ROBOYAM_DATA_KEY)로 암호화한 칸 목록 — <b>새 개인정보 칸을 {@code DataCipher} 로 저장하기 시작하면 여기에 한 줄 더한다</b>(배송지·환불 계좌·현금영수증 번호 등 —
+ * {@code DataCipher}(IROBIT_DATA_KEY)로 암호화한 칸 목록 — <b>새 개인정보 칸을 {@code DataCipher} 로 저장하기 시작하면 여기에 한 줄 더한다</b>(배송지·환불 계좌·현금영수증 번호 등 —
  * 커머스 1~3단계). 빠뜨리면 키 교체 배치가 그 칸을 옮기지 않아, 예전 키를 비운 뒤 그 칸이 503 {@code DATA_KEY_MISSING} 이 된다.
  * 줄의 차례가 배치 단계의 차례다. 단계 이름·대상 종류는 번들 두 곳에 이름을 둔다(docs/features/commerce-foundation-contract.md 「0-4」).
  * 용도는 쓰는 쪽의 상수를 그대로 가리킨다 — 용도가 다르면 풀리지 않는다(AAD). 마스킹·파기로 비운 칸(NULL)은 고르지 않는다.

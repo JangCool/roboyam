@@ -11,9 +11,9 @@ export type GadgetLook = 'classic' | 'card';
  * 템플릿이 고르는 가젯 세부 모양(선택) — 주지 않은 값은 기본값이라, 값을 주지 않는 템플릿(기본형·다음식·네이버형)의 모양은 그대로다. 가젯은 테마 id 를 모르고 이 값만 본다.
  */
 export interface GadgetLookOptions {
-    /** 하이라이트(첫 글 크게)를 넓은 칸(40rem 이상)에서 「큰 글 왼쪽 + 나머지 오른쪽 목록」 두 열로 — 기본 false(큰 글 위 + 나머지 두 열 목록). 로보얌 템플릿 */
+    /** 하이라이트(첫 글 크게)를 넓은 칸(40rem 이상)에서 「큰 글 왼쪽 + 나머지 오른쪽 목록」 두 열로 — 기본 false(큰 글 위 + 나머지 두 열 목록). 아이로빗 템플릿 */
     heroSplit: boolean;
-    /** 갤러리가 넓은 칸에서 쓰는 열 수 — 기본 3(30rem 이상 3칸, 좁으면 2). 4 면 36rem 이상에서 한 줄 4칸(좁으면 2). 로보얌 템플릿 */
+    /** 갤러리가 넓은 칸에서 쓰는 열 수 — 기본 3(30rem 이상 3칸, 좁으면 2). 4 면 36rem 이상에서 한 줄 4칸(좁으면 2). 아이로빗 템플릿 */
     galleryColumns: 3 | 4;
     /** 한 열(모바일) 모양 — 홈 격자가 한 열(`stack` — md 미만 또는 홈 폭 36rem 미만)일 때만 쓴다. 데스크톱·태블릿 격자에는 영향이 없다 */
     mobile: GadgetMobileLook;
@@ -27,7 +27,7 @@ export interface GadgetMobileLook {
     /**
      * 한 열의 가젯 순서 — `reading`(기본): 운영자 배치의 (y, x) · `columns`: 본문 열 먼저, 오른쪽 열은 그 뒤(`UtilGadgetGrid.byColumns` — 어떤 가젯도 가로지르지 않는 칸 경계로 열을 나눈다. 나눌 경계가 없으면 `reading`).
      * 모바일에서만 보일 가젯(`mobile` 노출)을 본문 열 중간에 두면 그 자리에 끼어든다.
-     * `beside`: 열 나누기는 `columns` 와 같고, 오른쪽 열 가젯은 본문 열이 그 가젯의 아래 끝까지 내려온 자리에 끼운다(`UtilGadgetGrid.besideColumns` — 로보얌, 2026-11-06).
+     * `beside`: 열 나누기는 `columns` 와 같고, 오른쪽 열 가젯은 본문 열이 그 가젯의 아래 끝까지 내려온 자리에 끼운다(`UtilGadgetGrid.besideColumns` — 아이로빗, 2026-11-06).
      */
     order: 'reading' | 'columns' | 'beside';
     /** 하이라이트(`heroSplit` 큰 글)의 나머지 글을 가로로 미는 카드 줄로 */

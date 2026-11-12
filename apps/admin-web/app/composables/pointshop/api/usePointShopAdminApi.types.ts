@@ -40,7 +40,7 @@ export interface PointShopAdminItem {
     color: string | null;
     /** 팔레트 키 — 프로필 테두리만(그 밖은 null) */
     borderStyle: PointShopBorderStyle | null;
-    /** 아바타 카탈로그 ID(코드 `avatar-<id>` 의 `<id>`, 그림 `/avatars/roboyam/<id>.svg`) — 아바타만(그 밖은 null), 유일·불변 */
+    /** 아바타 카탈로그 ID(코드 `avatar-<id>` 의 `<id>`, 그림 `/avatars/irobit/<id>.svg`) — 아바타만(그 밖은 null), 유일·불변 */
     avatarId: string | null;
     /** 아바타 카탈로그 카테고리 ID(`job` …) — 아바타만(그 밖은 null). 이름은 화면 i18n 키 `pointShop.avatarCategory.<id>` */
     category: string | null;

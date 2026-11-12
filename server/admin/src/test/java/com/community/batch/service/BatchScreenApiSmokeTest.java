@@ -37,7 +37,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * 배치 화면 API 의 서버 쪽(docs/features/batch-contract.md 「0-2 보강」)을 관리자 앱 문맥 그대로(JPA 매핑·QueryDSL·메시지 번들) 한 바퀴 돌려 본다 — 지금 실행 요청 → 배치 서버가 집어 실행 →
- * 요청·목록·로그·상세·실패 건, 다시 실행의 409. 실제 PostgreSQL(커머스 시험 DB, pg_cron 없음). 이 서버는 배치를 끈 채(roboyam.batch.enabled=false) 띄우고 집기는 시험이 직접 한다.
+ * 요청·목록·로그·상세·실패 건, 다시 실행의 409. 실제 PostgreSQL(커머스 시험 DB, pg_cron 없음). 이 서버는 배치를 끈 채(irobit.batch.enabled=false) 띄우고 집기는 시험이 직접 한다.
  */
 @SpringBootTest(classes = AdminApplication.class, webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class BatchScreenApiSmokeTest {
@@ -50,8 +50,8 @@ class BatchScreenApiSmokeTest {
         registry.add("spring.datasource.url", CommerceTestDatabase::jdbcUrl);
         registry.add("spring.datasource.username", CommerceTestDatabase::username);
         registry.add("spring.datasource.password", CommerceTestDatabase::password);
-        registry.add("roboyam.batch.enabled", () -> "false");
-        registry.add("roboyam.notification.watcher-enabled", () -> "false");
+        registry.add("irobit.batch.enabled", () -> "false");
+        registry.add("irobit.notification.watcher-enabled", () -> "false");
     }
 
     @Autowired

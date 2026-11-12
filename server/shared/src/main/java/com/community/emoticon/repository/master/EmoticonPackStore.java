@@ -123,7 +123,7 @@ public class EmoticonPackStore extends EmoticonStoreSupport {
         return packs().where(P.id.in(ids)).fetch().stream().map(EmoticonPackStore::packOf).collect(Collectors.toList());
     }
 
-    /** 판매 중(APPROVED)인 무료 운영 팩(로보얌콘 등) — 가입 때 주는 팩({@code EmoticonAcquireService#grantSignupPacks}), 팩 ID 차례 */
+    /** 판매 중(APPROVED)인 무료 운영 팩(아이로빗콘 등) — 가입 때 주는 팩({@code EmoticonAcquireService#grantSignupPacks}), 팩 ID 차례 */
     public List<Long> officialFreeOnSale() {
         return query.select(P.id).from(P).where(P.source.eq(EmoticonPackSource.OFFICIAL), P.status.eq(EmoticonPackStatus.APPROVED), P.price.eq(0))
                 .orderBy(P.id.asc()).fetch();

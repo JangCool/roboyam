@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class VisitCollectorGateTest {
 
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
-    private static final String HOST = "roboyam.test";
+    private static final String HOST = "irobit.test";
 
     private final AtomicReference<StatsCollection> setting = new AtomicReference<>(ALL_ON);
     private final VisitCollector collector = new VisitCollector(settings(setting), INDEX, IDS);
@@ -229,7 +229,7 @@ class VisitCollectorGateTest {
             "|DIRECT|",
             "javascript:alert(1)|DIRECT|",
             "ftp://files.example.com/|DIRECT|",
-            "https://roboyam.test/board|DIRECT|"})
+            "https://irobit.test/board|DIRECT|"})
     void 유입_주소를_검색_SNS_직접_다른_사이트로_가른다(String line) {
         String[] p = line.split("\\|", -1);
         ReferrerClassifier.Referrer r = ReferrerClassifier.classify(p[0].isEmpty() ? null : p[0], false, HOST);

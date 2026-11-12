@@ -8,7 +8,7 @@ import type { NicknameChange } from '~/composables/profile/api/useProfileApi.typ
  * - `TICKET`      : 무료 1번을 썼고 변경권이 있다 — 칸이 열리고, 바꾸면 변경권 1장을 쓴다(`useTicket: true`).
  * - `NEED_TICKET` : 무료 1번을 썼고 변경권이 없다 — 칸을 잠그고 포인트 상점에서 변경권을 사는 링크를 보인다.
  *
- * 원본(community) `UtilNicknameChange` 에서 기다림(`WAITING`)을 뺐다(로보얌은 날짜 대기가 없다).
+ * 원본(community) `UtilNicknameChange` 에서 기다림(`WAITING`)을 뺐다(아이로빗은 날짜 대기가 없다).
  */
 export type NicknameStage = 'FREE' | 'TICKET' | 'NEED_TICKET';
 

@@ -1,6 +1,6 @@
 /**
  * 표시 값(언어·시간대·시간 형식·날짜 형식) API 가 주고받는 모양 — 서버 계약 `docs/features/display-contract.md`(원본 community `docs/api-display.md`)와 같다.
- * 값 자체(`DisplayValues`)는 공유 레이어 `@roboyam/display-time` 의 `UtilTime` 코어가 주인이다.
+ * 값 자체(`DisplayValues`)는 공유 레이어 `@irobit/display-time` 의 `UtilTime` 코어가 주인이다.
  */
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 

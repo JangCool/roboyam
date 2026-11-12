@@ -9,7 +9,7 @@ import com.community.groupbuy.entity.QGroupBuyRequestEntity;
 import com.community.groupbuy.entity.RequestStatus;
 import com.community.groupbuy.entity.RequestType;
 import com.community.operator.entity.QOperatorEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 수를 DB 에서 센다({@link #openRequestsStartedBefore}). 시작 = 취소는 요청한 시각, 반품은 돌려받은 시각(없으면 단계 없음).
  */
 @Repository
-public class CommerceGroupBuySettingsQueries extends RoboyamRepositoryQDSL {
+public class CommerceGroupBuySettingsQueries extends IrobitRepositoryQDSL {
 
     private static final QCommerceCarrierEntity CA = QCommerceCarrierEntity.commerceCarrierEntity;
     private static final QOperatorEntity O = QOperatorEntity.operatorEntity;

@@ -61,7 +61,7 @@ class EmoticonOperatorAccountTest extends EmoticonTestBase {
     void 운영자_회원_계정은_가지지_않은_판매_중_팩을_쓰고_받기_줄_받은_수_보상_사용함이_생기지_않는다() {
         long creator = kit.member();
         long creatorPack = kit.approvedPack(creator);
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         long user = operatorAccount();
         int countBefore = kit.acquireCount(creatorPack);
         long rewardsBefore = kit.rewards(creator);
@@ -97,7 +97,7 @@ class EmoticonOperatorAccountTest extends EmoticonTestBase {
 
     @Test
     void 연결을_풀거나_운영자를_사용_중지하면_바로_409() {
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         String body = tokens(kit.liveEmoticons(robot).subList(0, 2));
         long unlinked = operatorAccount();
         kit.guard.requireOwned(unlinked, body);
@@ -117,7 +117,7 @@ class EmoticonOperatorAccountTest extends EmoticonTestBase {
 
     @Test
     void 게시판_매니저_스텝은_바뀌지_않는다() {
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         String body = tokens(kit.liveEmoticons(robot).subList(0, 1));
         long manager = kit.member();
         boardStaff(manager, "MANAGER");
@@ -159,7 +159,7 @@ class EmoticonOperatorAccountTest extends EmoticonTestBase {
 
     @Test
     void 내_로보티콘의_allPacks_는_힘이_살아_있는_운영자_회원_계정만_목록은_가진_팩만() {
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         long user = operatorAccount();
         EmoticonPublicView.MyPacks mine = kit.acquire.mine(user);
         assertThat(mine.allPacks()).isTrue();
@@ -178,7 +178,7 @@ class EmoticonOperatorAccountTest extends EmoticonTestBase {
 
     @Test
     void 팩_상세의_operatorUsable_은_판매_중_팩이고_acquired_는_그대로() {
-        long robot = official("로보얌콘");
+        long robot = official("아이로빗콘");
         long user = operatorAccount();
         EmoticonPublicView.PackDetail detail = kit.shop.pack(user, Long.toString(robot));
         assertThat(detail.operatorUsable()).isTrue();

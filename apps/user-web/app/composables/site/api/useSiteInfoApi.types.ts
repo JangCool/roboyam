@@ -47,6 +47,8 @@ export interface SiteInfoResponse {
     analytics?: VisitCollectSwitch | null;
     /** 운영 주체의 단계·연락 이메일(terms-operator-contract — 서버 `SiteOperatorPublicView`). 운영 주체 행이 없으면 개인 단계·이메일 null. 옛 응답에는 없다 */
     operator?: SiteOperatorPublicResponse | null;
+    /** 사이트 소개(`GET /api/site/about`)가 있으면 true — 푸터 「사이트 소개」 링크를 보인다. 옛 응답에는 없다(없으면 숨김) */
+    about?: boolean;
 }
 
 /** 운영 주체 단계 — 개인(사업자등록 전) · 개인사업자 · 법인 */

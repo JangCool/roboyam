@@ -2,7 +2,7 @@ package com.community.commerce.guard.repository.master;
 
 import com.community.commerce.guard.dto.RequestRateLimitRow;
 import com.community.commerce.guard.entity.QRequestRateLimitEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  * 그때는 질의 하나가 자기 연결로 끝난다).
  */
 @Repository
-public class RequestRateLimitRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class RequestRateLimitRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QRequestRateLimitEntity LIMIT = QRequestRateLimitEntity.requestRateLimitEntity;
 

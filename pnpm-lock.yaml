@@ -36,7 +36,7 @@ importers:
 
   apps-packages/display-time:
     dependencies:
-      '@roboyam/i18n':
+      '@irobit/i18n':
         specifier: workspace:*
         version: link:../i18n
     devDependencies:
@@ -77,7 +77,7 @@ importers:
 
   apps-packages/rich-editor:
     dependencies:
-      '@roboyam/i18n':
+      '@irobit/i18n':
         specifier: workspace:*
         version: link:../i18n
       '@tiptap/extension-drag-handle':
@@ -120,19 +120,19 @@ importers:
       '@primevue/nuxt-module':
         specifier: 5.0.2
         version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
-      '@roboyam/chart':
+      '@irobit/chart':
         specifier: workspace:*
         version: link:../../apps-packages/chart
-      '@roboyam/display-time':
+      '@irobit/display-time':
         specifier: workspace:*
         version: link:../../apps-packages/display-time
-      '@roboyam/home-layout':
+      '@irobit/home-layout':
         specifier: workspace:*
         version: link:../../apps-packages/home-layout
-      '@roboyam/i18n':
+      '@irobit/i18n':
         specifier: workspace:*
         version: link:../../apps-packages/i18n
-      '@roboyam/rich-editor':
+      '@irobit/rich-editor':
         specifier: workspace:*
         version: link:../../apps-packages/rich-editor
       '@tabler/icons':
@@ -190,22 +190,22 @@ importers:
       '@primevue/nuxt-module':
         specifier: 5.0.2
         version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
-      '@roboyam/analytics':
+      '@irobit/analytics':
         specifier: workspace:*
         version: link:../../apps-packages/analytics
-      '@roboyam/chart':
+      '@irobit/chart':
         specifier: workspace:*
         version: link:../../apps-packages/chart
-      '@roboyam/display-time':
+      '@irobit/display-time':
         specifier: workspace:*
         version: link:../../apps-packages/display-time
-      '@roboyam/home-layout':
+      '@irobit/home-layout':
         specifier: workspace:*
         version: link:../../apps-packages/home-layout
-      '@roboyam/i18n':
+      '@irobit/i18n':
         specifier: workspace:*
         version: link:../../apps-packages/i18n
-      '@roboyam/rich-editor':
+      '@irobit/rich-editor':
         specifier: workspace:*
         version: link:../../apps-packages/rich-editor
       nuxt:

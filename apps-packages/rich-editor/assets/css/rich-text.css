@@ -1,7 +1,7 @@
 /*
  * 본문(리치 텍스트) 모양 — 글 보기·댓글 보기의 서버 HTML(`v-html`)과 에디터(TipTap)가 **같은 모양**을 쓴다(쓰는 대로 보인다).
  * `v-html` 로 그려진 것과 에디터 안 요소는 컴포넌트 스타일(scoped)이 닿지 않아 전역 클래스 하나로 둔다. 층(@layer) 밖 규칙이라 Tailwind 기본값(목록 점 없음 등)을 이긴다.
- * community `layers/rich-editor/app/assets/css/rich-text.css` 에서 로보얌 에디터가 만드는 것만 남겼다(표·작업 목록·형광펜·첨자·이모티콘·GIF 정지는 뺐다).
+ * community `layers/rich-editor/app/assets/css/rich-text.css` 에서 아이로빗 에디터가 만드는 것만 남겼다(표·작업 목록·형광펜·첨자·이모티콘·GIF 정지는 뺐다).
  * 색은 PrimeVue 토큰(`--p-*`)을 써서 다크 모드(`html[data-color-scheme='dark']`)를 따라간다.
  */
 

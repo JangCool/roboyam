@@ -38,7 +38,7 @@ public final class CommerceTestDatabase {
      */
     public static synchronized DataSource migrated(String... ownStreams) {
         if (container == null) {
-            container = new PostgreSQLContainer(IMAGE).withDatabaseName("roboyam").withUsername("roboyam").withPassword("roboyam");
+            container = new PostgreSQLContainer(IMAGE).withDatabaseName("irobit").withUsername("irobit").withPassword("irobit");
             container.start();
             DriverManagerDataSource source = new DriverManagerDataSource(container.getJdbcUrl(), container.getUsername(), container.getPassword());
             source.setDriverClassName("org.postgresql.Driver");

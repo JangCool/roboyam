@@ -8,7 +8,7 @@ import com.community.poll.entity.PollVoteEntity;
 import com.community.poll.entity.QPollEntity;
 import com.community.poll.entity.QPollOptionEntity;
 import com.community.poll.entity.QPollVoteEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Repository;
  * <b>익명</b>: 누가 무엇을 골랐는지는 {@link #myOptionIds}(그 사람 본인 것)로만 읽는다 — 사람별 목록을 내는 질의는 두지 않는다.
  */
 @Repository
-public class PollQueries extends RoboyamRepositoryQDSL {
+public class PollQueries extends IrobitRepositoryQDSL {
 
     private static final QPollEntity POLL = QPollEntity.pollEntity;
     private static final QPollOptionEntity OPTION = QPollOptionEntity.pollOptionEntity;

@@ -4,14 +4,14 @@
 #
 # 쓰는 법: 이 파일을 복사해 값을 채운 뒤 설치 때 넘긴다
 #   cp backup-hook.example.sh /root/backup-hook.sh && vi /root/backup-hook.sh
-#   ./roboyam-db-install.sh --allow ... --backup-hook /root/backup-hook.sh
+#   ./irobit-db-install.sh --allow ... --backup-hook /root/backup-hook.sh
 # 인자: $1 = DB 덤프(.dump), $2 = 역할 덤프(.sql, 없을 수 있다)
 # R2 쪽 보관 기간은 버킷의 수명 주기 규칙(예: 30일 뒤 삭제)으로 정한다.
 # R2 API 토큰은 이 버킷에 「객체 읽기·쓰기」만 준다.
 # ============================================================================
 set -Eeuo pipefail
 
-BUCKET="roboyam-backup"        # R2 버킷 이름
+BUCKET="irobit-backup"        # R2 버킷 이름
 PREFIX="db"                    # 버킷 안 폴더
 
 # ── 방법 1: rclone ───────────────────────────────────────────────────────────

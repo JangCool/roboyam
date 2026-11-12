@@ -4,7 +4,7 @@
  * 공개 화면 `/licenses` 와 관리자 「오픈소스 라이선스」가 이 파일을 정적 파일로 읽는다. 저장소에 커밋해 두고, 의존성을 바꾸면 다시 돌린다.
  *
  *   node scripts/collect-licenses.mjs              # 두 화면을 빌드(nuxt generate)해 번들에 든 패키지 + 서버 런타임 의존성
- *   node scripts/collect-licenses.mjs --skip-build # 지난 빌드의 번들 목록(node_modules/.cache/roboyam-oss/*.json)을 다시 쓴다
+ *   node scripts/collect-licenses.mjs --skip-build # 지난 빌드의 번들 목록(node_modules/.cache/irobit-oss/*.json)을 다시 쓴다
  *   node scripts/collect-licenses.mjs --with-server # 서버 런타임 의존성도 싣는다(서버 프로그램을 남에게 나눠 줄 때만 — 아래 「고지 범위」)
  *
  * 공개 화면 파일(user-web)에는 버전을 싣지 않는다(아래 OUTPUTS — 사용자 2026-11-11), 관리자 화면 파일(admin-web)은 버전까지 싣는다.
@@ -13,7 +13,7 @@
  * 우리 서버 안에서만 도는 서버 라이브러리는 배포가 아니라 기본으로 싣지 않는다(설치형으로 서버 프로그램을 나눠 줄 때만 --with-server).
  * 같은 패키지의 여러 버전은 한 줄로 합치고(버전은 쉼표로), 고지를 요구하지 않는 라이선스(0BSD·MIT-0·CC0-1.0·Unlicense — 「또는」 식에 하나라도 있으면 그것을 고른다)는 뺀다.
  *
- * - 화면: 클라이언트 번들에 실제로 들어간 바깥 패키지(`scripts/oss-licenses/nuxt-bundle-scan.mjs` 가 빌드 중에 적는다). 워크스페이스 패키지(`@roboyam/*`)와
+ * - 화면: 클라이언트 번들에 실제로 들어간 바깥 패키지(`scripts/oss-licenses/nuxt-bundle-scan.mjs` 가 빌드 중에 적는다). 워크스페이스 패키지(`@irobit/*`)와
  *   빌드 도구·devDependencies 는 번들에 모듈로 들어가지 않아 빠지고, 워크스페이스 패키지가 끌어온 바깥 의존성은 들어간다. 이름·버전·라이선스·저장소는 package.json,
  *   전문은 패키지 폴더의 LICENSE·COPYING(+ NOTICE) 파일. 파일이 없으면 SPDX 표준 문구로 대신하고 `textSource: 'template'` 로 표시한다.
  * - 서버: `gradlew :server:api:dependencies`·`:server:admin:dependencies`(runtimeClasspath — shared 의 의존성도 그 아래 잡힌다)의 좌표를 읽고, Gradle 캐시의
@@ -32,7 +32,7 @@ import { inflateRawSync } from 'node:zlib';
 import { permissive, restrictive, spdxFromPom, stripParens, TEMPLATES } from './oss-licenses/license-texts.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const CACHE = join(ROOT, 'node_modules', '.cache', 'roboyam-oss');
+const CACHE = join(ROOT, 'node_modules', '.cache', 'irobit-oss');
 /**
  * 공개 화면 파일에는 버전을 싣지 않는다(사용자 2026-11-11 「버전 빼기」) — 고지 의무는 저작권·라이선스 전문이라 버전이 없어도 되고,
  * 누구나 받는 파일에 버전이 있으면 패치가 늦은 라이브러리의 알려진 취약점을 찾는 단서가 된다. 관리자 화면 파일은 버전을 그대로 둔다(운영자가 본다).
@@ -211,7 +211,7 @@ function buildWeb(app) {
     // 셸에 한 줄 명령으로 넘긴다(Windows 의 pnpm.cmd 를 찾게) — 들어가는 값은 이 파일이 정한 앱 이름뿐이다
     const result = spawnSync(`pnpm --filter ${app} exec nuxt generate`, {
         cwd: ROOT,
-        env: { ...process.env, ROBOYAM_OSS_SCAN: out },
+        env: { ...process.env, IROBIT_OSS_SCAN: out },
         stdio: ['ignore', 'ignore', 'inherit'],
         shell: true,
     });
@@ -279,7 +279,7 @@ function collectWeb() {
         for (const dir of dirs) {
             if (!existsSync(join(dir, 'package.json'))) continue;
             const entry = npmEntry(dir);
-            if (!entry.name || entry.name.startsWith('@roboyam/')) continue;
+            if (!entry.name || entry.name.startsWith('@irobit/')) continue;
             upsert(entry, usedIn);
         }
         for (const [name, extraUsedIn, reason] of EXTRA_USAGE) {

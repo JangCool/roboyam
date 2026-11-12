@@ -7,7 +7,7 @@ import Aura from '@primeuix/themes/aura';
 import { definePreset } from '@primeuix/themes';
 
 /** 강조색이 파랑이라 PrimeVue 기본(에메랄드) 대신 파랑을 쓴다. */
-const RoboyamPreset = definePreset(Aura, {
+const IrobitPreset = definePreset(Aura, {
     semantic: {
         primary: {
             50: '{blue.50}',
@@ -51,7 +51,7 @@ const RoboyamPreset = definePreset(Aura, {
 });
 
 export default {
-    preset: RoboyamPreset,
+    preset: IrobitPreset,
     options: {
         darkModeSelector: '[data-color-scheme="dark"]',
         cssLayer: {

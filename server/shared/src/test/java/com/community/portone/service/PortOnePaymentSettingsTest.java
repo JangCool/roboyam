@@ -85,7 +85,7 @@ class PortOnePaymentSettingsTest {
         PortOneSettingsView view = service.view();
         assertThat(view.fields()).extracting(PortOneFieldStateView::key).containsExactly("storeId", "apiSecret", "identityChannelKey", "paymentChannelKey", "webhookSecret");
         assertThat(view.fields()).extracting(PortOneFieldStateView::configured).containsExactly(true, true, false, true, true);
-        assertThat(view.paymentGateway()).as("배포 설정 roboyam.payment.gateway").isEqualTo(PaymentGatewayKind.PORTONE);
+        assertThat(view.paymentGateway()).as("배포 설정 irobit.payment.gateway").isEqualTo(PaymentGatewayKind.PORTONE);
         assertThat(view.paymentReady()).isTrue();
         assertThat(view.identityReady()).isFalse();
         put(encryptor, Map.of("identityChannelKey", "i"));

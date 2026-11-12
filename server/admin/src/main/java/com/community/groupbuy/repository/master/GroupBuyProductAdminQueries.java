@@ -8,7 +8,7 @@ import com.community.groupbuy.entity.QGroupBuyProductImageEntity;
 import com.community.groupbuy.entity.QGroupBuyProductSkuEntity;
 import com.community.groupbuy.entity.QGroupBuySkuEntity;
 import com.community.groupbuy.entity.SkuKind;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * 예전 목록 줄의 「대표 이미지」 상관 부분 질의({@code ORDER BY sort_order LIMIT 1})는 그 쪽 상품들의 이미지를 한 번에 읽어 상품마다 첫 장을 고른다({@link #thumbKeys}).
  */
 @Repository
-public class GroupBuyProductAdminQueries extends RoboyamRepositoryQDSL {
+public class GroupBuyProductAdminQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupBuyProductEntity P = QGroupBuyProductEntity.groupBuyProductEntity;
     private static final QGroupBuyCategoryEntity C = QGroupBuyCategoryEntity.groupBuyCategoryEntity;

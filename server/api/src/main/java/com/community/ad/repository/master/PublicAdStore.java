@@ -9,7 +9,7 @@ import com.community.bizapplication.entity.QBizDealPostEntity;
 import com.community.hotdeal.entity.QPostDealEntity;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -46,7 +46,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code ON CONFLICT DO UPDATE})으로 해야 동시에 와도 하루 한 번만 센다. 판정 표는 한국 날짜 하루 파티션(V194)이라 그 날 조각이 없으면 만들고 한 번 다시 쓴다.
  */
 @Repository
-public class PublicAdStore extends RoboyamRepositoryQDSL {
+public class PublicAdStore extends IrobitRepositoryQDSL {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {

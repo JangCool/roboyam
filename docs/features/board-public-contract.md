@@ -84,7 +84,7 @@
 
 ### 이미지 올리기 `POST /api/images`
 - multipart `file` 한 장, **로그인 회원만**(비회원 401), CSRF. → `201 {id, url, width, height}`(`Cache-Control: no-store`). 게시판을 모른다.
-- 정지 `403 ACCOUNT_RESTRICTED`, 글쓰기 역할 권한 없음 `403 BOARD_RESTRICTED` → 칸(`400 fields.file`: 빈 파일·형식·용량·깨짐·화소) → 1분 20장 `429 IMAGE_RATE_LIMITED`(+`retryAfterSeconds`) → 최근 24시간 300장 `429 IMAGE_DAILY_LIMIT`. 10MB 초과는 multipart 한도라 `413 FILE_TOO_LARGE`. 값은 `roboyam.post-image.*`.
+- 정지 `403 ACCOUNT_RESTRICTED`, 글쓰기 역할 권한 없음 `403 BOARD_RESTRICTED` → 칸(`400 fields.file`: 빈 파일·형식·용량·깨짐·화소) → 1분 20장 `429 IMAGE_RATE_LIMITED`(+`retryAfterSeconds`) → 최근 24시간 300장 `429 IMAGE_DAILY_LIMIT`. 10MB 초과는 multipart 한도라 `413 FILE_TOO_LARGE`. 값은 `irobit.post-image.*`.
 - 형식은 첫 바이트로 JPEG·PNG·WebP·GIF 만(이름·Content-Type 무시 — 위장 파일·SVG 는 `post.image.type`). 화소 2,500만 초과는 디코딩 전에 거절. 디코딩해 실제 그림인지 확인.
 - 다시 만들기(메타데이터 제거): JPEG 는 EXIF 방향을 반영해 돌린 뒤 긴 변 2048 로 줄이고 다시 인코딩(EXIF 없음), PNG 는 줄여 다시 인코딩, 움직이는 GIF 는 원본 그대로(긴 변 2048 이하일 때 — 넘으면 첫 장 PNG), 한 장 GIF 는 PNG, WebP 는 디코더가 없어 컨테이너만 정리(EXIF·XMP 제거, **줄이지 않는다**).
 - 장부는 기존 `files`(용도 `POST_IMAGE`, 올린 회원 `uploaded_by_user`, 쓰는 글 `post_id`): 올리면 PENDING → 글에 쓰이면 IN_USE. 저장소 키 `post-image/{UTC 년월}/{무작위 32자}.{확장자}`, `/media/**` 1년 캐시. 이미지 코덱(`ImageCodec`·`ImageGate`)은 admin 에서 shared 로 옮겼다(api 도 쓴다).
@@ -98,7 +98,7 @@
 - 목록 `thumbnailUrl`(2026-11-06): 글에 붙은 첫 이미지(`files` 의 IN_USE 글 이미지 중 id 가 가장 작은 것 = 먼저 올린 것), 이미지가 없으면 본문 첫 YouTube 표식의 `https://i.ytimg.com/vi/{ID}/hqdefault.jpg`, 둘 다 없으면 null(`PostThumbnails` — 게시판 목록·섞인 목록·가젯). 숨긴 글은 null. `hasImage` 는 이미지 표식이 있으면 true. 홈 갤러리 가젯은 이제 `hasImage` 대신 썸네일이 있는 글(영상만 있는 글 포함)을 고른다.
 
 ### 이모티콘 — 범위 밖
-community 의 이모티콘은 아이템샵(포인트 구매) 품목이라 로보얌에는 없다. 토큰 `:emo-ID:` 는 평문 그대로 저장·표시된다. **아이템샵이 생기면** 이모티콘 표식·허용 목록을 후속으로 더한다.
+community 의 이모티콘은 아이템샵(포인트 구매) 품목이라 아이로빗에는 없다. 토큰 `:emo-ID:` 는 평문 그대로 저장·표시된다. **아이템샵이 생기면** 이모티콘 표식·허용 목록을 후속으로 더한다.
 
 ### 미확정
 1. 이미지만 있는 글도 보이는 글자 10자가 필요(기존 본문 최소 규칙 그대로) — 사진 글을 허용할지.
@@ -106,7 +106,7 @@ community 의 이모티콘은 아이템샵(포인트 구매) 품목이라 로보
 3. 목록 썸네일 — 2026-11-06 채움(위 「목록 `thumbnailUrl`」). 갤러리 레이아웃 연결은 후속.
 4. 올리기 1분 한도는 서버 메모리(서버 대수만큼 늘 수 있다), 하루 한도는 DB.
 ## 에디터 화면 (2026-10-23 — 프론트 구현, 서버는 동시 구현 중)
-**의도**: 게시판 설정에 따라 글·댓글을 평문(Textarea) 또는 서식 에디터(community 에디터를 옮긴 공용 레이어 `@roboyam/rich-editor`)로 쓰고, 에디터 글은 서버가 정화한 HTML 로 보인다.
+**의도**: 게시판 설정에 따라 글·댓글을 평문(Textarea) 또는 서식 에디터(community 에디터를 옮긴 공용 레이어 `@irobit/rich-editor`)로 쓰고, 에디터 글은 서버가 정화한 HTML 로 보인다.
 - **게시판 칸**(공개 `GET /api/boards`·`/{slug}`·`/writable`): `postEditor: NONE|SIMPLE|ADVANCED` · `imageUploadAllowed` · `commentEditor: NONE|SIMPLE`(유효값, 없으면 `NONE`/`false`/`NONE`). 관리자 게시판 설정·기본 설정 「일반 › 쓰기 권한·에디터」에 같은 이름 칸(정책 칸 모양, 기본값 따르기). 전체 기본값 글 `SIMPLE`·이미지 `true`·댓글 `SIMPLE`(처음 `NONE` — 2026-11-05 사용자 결정으로 `V151__comment_editor_default_simple.sql` 이 바꿨다. 평문 입력칸에서는 고른 로보티콘이 토큰 글자로 보여서).
 - **본문 형식**: 글·댓글 요청/응답 `contentFormat: TEXT|HTML`(응답에 없으면 `TEXT`). `NONE` → Textarea + `TEXT`, 에디터 → HTML + `HTML`(HTML 은 다듬지 않고 그대로 보낸다). 길이(글 10~200,000 · 댓글 1~2,000)는 **태그를 뗀 보이는 글자 수**(연속 공백 하나, 앞뒤 자름 — `UtilRichText.visibleLength`).
 - **보기**: `contentFormat==='HTML'` 일 때만 서버 HTML 을 `v-html`(글 본문 `pages/posts/[id]/index.vue`, 댓글 `CommentItem.vue` — 이 두 곳뿐). 그린 뒤 `UtilRichBody.enhance` 가 `div[data-youtube-id]` 를 썸네일 → 누르면 `youtube-nocookie` iframe 으로, 못 불러온 `img[data-image-id]` 를 자리표시로 바꾼다. 모양은 `rich-text.css`(레이어가 넣는다).

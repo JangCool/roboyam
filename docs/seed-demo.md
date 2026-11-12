@@ -13,7 +13,7 @@
 | `seed/demo/groupbuys.json` | 공동구매 상품·공구 23개 |
 | `seed/demo/content/notice.json` · `bugs.json` · `requests.json` | 공지 11개 · 버그 신고 10개 · 기능 요청 11개(비밀글·처리 상태·운영자 답변 칸 — `CONTENT-FORMAT.md` 아래쪽). 게시판 글 단계가 아니라 notices·ops 단계가 읽는다 |
 | `seed/demo/site.json` | 공지 띠(꺼져 있을 때만 켬) · 환영 팝업 1 · 보상 이벤트 2 · 소모임 일정 7 · 공동구매 문의 7 |
-| `seed/demo/brand/*.png` | 사이트 아이콘(512)·링크 미리보기 이미지(1200×630) — `design/brand/` 의 로보얌 브랜드 그림 사본. site 단계가 기본일 때만 올린다 |
+| `seed/demo/brand/*.png` | 사이트 아이콘(512)·링크 미리보기 이미지(1200×630) — `design/brand/` 의 아이로빗 브랜드 그림 사본. site 단계가 기본일 때만 올린다 |
 | `seed/demo/ads.json` | 데모 광고 — 광고주 5곳(+사업자 파이언넷) · 네모 배너 2 · 띠 배너 2 · 한 줄 광고 4 · 날개 2 · 홈·가젯 페이지 광고 가젯. 배너 그림 `images/ad-<key>.png`(규격 비율) |
 | `seed/demo/images/*.jpg` | 원고의 이미지 칸을 그린 자리표시 그림(238장). `scripts/seed-demo-images.ps1`(Windows PowerShell + System.Drawing)이 만든다 — 저장소에 두므로 다른 OS 에서는 다시 그릴 필요가 없다 |
 | `scripts/seed-demo.mjs` | 로더(Node 내장 `fetch` + `docker exec … psql`, 의존성 없음) |
@@ -46,18 +46,18 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 10. **공동구매 23개**(관리자 API): 상품(기존 공구 카테고리, 고시 항목 전부 채움, 대표 이미지) → 공구 → 공개. 모집 중 18 · 공개된 예정 3 · 조기 마감 2 — local 공구 시더의 9개와 합쳐 「진행 중」 탭이 2쪽(한 쪽 20개)이 된다. 참여(주문)는 넣지 않는다.
 11. **하이라이트 5개 + 5개**: 이미지가 있고 반응이 가장 많은 데모 글(19금·핫딜·비밀글·운영 게시판 제외), 대표 이미지는 그 원고의 그림. 놓일 곳(V161 `place`)마다 따로 — 홈 `home` 5개, 팁·강좌·사용기 `tips` 5개(`tip`·`review` 글만, 다른 곳에 이미 쓴 글은 빼고). 곳마다 데모 하이라이트가 5개 있으면 건너뛴다.
 
-12. **광고**(2026-11-06): 광고주(관리자 API `POST /api/admin/ads/advertisers` — 같은 이름이 있으면 그것, 사업자는 상호로 찾음) → 배너 그림 `POST /api/admin/ads/images` → 운영자 등록 `POST /api/admin/ads/manual`(14일) → 승인(수동 결제 — 이때 소재 승인, 같은 운영자 승인이라 메모) → 계약서 → 입금 → 확정 → 시작 시각을 SQL 로 지금으로(공개 사본 20초 뒤 노출). 자리 설정은 기본값 그대로라 **게시판 목록 5번째 뒤 한 줄**·**글과 댓글 사이 한 줄**에 한 줄 광고가 나온다. 광고 가젯은 페이지마다 따로 둔다(사용자 결정 2026-11-06) — 홈(roboyam): 하이라이트 바로 아래 띠 배너 · 인기글 아래 네모 배너 · 방금 올라온 글 아래 한 줄 광고(2줄) · 팁과강좌·사용기 아래 띠 배너(왼쪽 열 전체 폭), 커뮤니티: 첫 가젯(인기글) 아래 띠 배너, 핫 로토픽: 첫 가젯 아래 한 줄 광고(2줄) — 맨 위는 보기 안 좋아 첫 가젯 아래로(사용자 2026-11-06). 같은 제목의 광고 가젯이 있으면 그 가젯만 건너뛰고, 종류별 최소 높이에 못 미치는 칸은 최소값으로 올린다. **날개**(세로 160×600, 본문 바깥 양옆 — 화면이 넓을 때만) 2건. 넓은 배너는 넣지 않는다.
-13. **운영자 회원 계정**(notices·ops 단계 앞, 2026-11-08): 데모 운영자와 같은 이메일(`demo.operator@example.com`, 인증됨)의 회원 「로보얌운영팀」을 SQL 로 만들고 관리자 API `PUT /api/admin/operators/{id}/member-account` 로 잇는다. 공지 작성자이자 버그 신고·기능 요청 답변자다(비밀글을 읽고 답하려면 운영자 회원 계정이어야 한다 — ops-boards-contract).
+12. **광고**(2026-11-06): 광고주(관리자 API `POST /api/admin/ads/advertisers` — 같은 이름이 있으면 그것, 사업자는 상호로 찾음) → 배너 그림 `POST /api/admin/ads/images` → 운영자 등록 `POST /api/admin/ads/manual`(14일) → 승인(수동 결제 — 이때 소재 승인, 같은 운영자 승인이라 메모) → 계약서 → 입금 → 확정 → 시작 시각을 SQL 로 지금으로(공개 사본 20초 뒤 노출). 자리 설정은 기본값 그대로라 **게시판 목록 5번째 뒤 한 줄**·**글과 댓글 사이 한 줄**에 한 줄 광고가 나온다. 광고 가젯은 페이지마다 따로 둔다(사용자 결정 2026-11-06) — 홈(irobit): 하이라이트 바로 아래 띠 배너 · 인기글 아래 네모 배너 · 방금 올라온 글 아래 한 줄 광고(2줄) · 팁과강좌·사용기 아래 띠 배너(왼쪽 열 전체 폭), 커뮤니티: 첫 가젯(인기글) 아래 띠 배너, 핫 로토픽: 첫 가젯 아래 한 줄 광고(2줄) — 맨 위는 보기 안 좋아 첫 가젯 아래로(사용자 2026-11-06). 같은 제목의 광고 가젯이 있으면 그 가젯만 건너뛰고, 종류별 최소 높이에 못 미치는 칸은 최소값으로 올린다. **날개**(세로 160×600, 본문 바깥 양옆 — 화면이 넓을 때만) 2건. 넓은 배너는 넣지 않는다.
+13. **운영자 회원 계정**(notices·ops 단계 앞, 2026-11-08): 데모 운영자와 같은 이메일(`demo.operator@example.com`, 인증됨)의 회원 「아이로빗운영팀」을 SQL 로 만들고 관리자 API `PUT /api/admin/operators/{id}/member-account` 로 잇는다. 공지 작성자이자 버그 신고·기능 요청 답변자다(비밀글을 읽고 답하려면 운영자 회원 계정이어야 한다 — ops-boards-contract).
 14. **공지 11개**(`notices`): 관리자 공지 API `POST /api/admin/notices`(작성자 = 내 운영자 회원 계정, 포인트 없음 — notice-admin-contract) → 작성 시각을 `daysAgo`(30일 전 ~ 어제)로 옮김 → 2개 고정(`pinned`, 고정 시각 = 글 시각) → `global` 이 있는 고정 공지(이용 안내 1개)를 **전체 공지**로(관리자 공지 고치기 `PUT /api/admin/notices/{id}` — `scope: ALL` · 뺄 게시판 = 핫딜 · 소모임 게시판은 넣음 · 기간 없음, 이미 전체 공지면 건너뜀, 고치기의 「수정됨」 표시는 SQL 로 지움) → 데모 회원 댓글·운영자 답글(공개 API) → 추천·조회수. 같은 제목의 지우지 않은 공지가 있으면 건너뛴다. 이용 안내·운영 정책·등급·포인트·핫딜 규칙·회원장터 주의·소모임 개설·로보티콘 상점·운영 게시판 안내·댓글 이벤트·개인정보 처리방침·정기 점검 — 숫자(포인트·등급 조건)는 지금 로컬 설정값이다. 공지 띠(게시판 출처)가 최근 5개를 그대로 보인다.
 15. **버그 신고 10 · 기능 요청 11**(`ops`): 데모 회원이 공개 API 로 쓴다(지난 21일, 버그 2개는 비밀글 — 그 글의 댓글은 글쓴이·운영자만). 운영자 회원 계정이 답변하고, 관리자 API `PUT /api/admin/posts/{id}/process-status` 로 원고의 처리 상태를 차례로 바꾼다(메모 포함 — 글쓴이 알림·이력이 서버 규칙대로 남는다). 이력·알림·`process_status_at` 시각은 글 뒤 ~ 운영자 마지막 답변 뒤로 옮긴다. 비밀글이 아닌 글만 다른 회원이 추천한다. 같은 게시판에 같은 제목의 글이 있으면 건너뛴다.
-16. **사이트**(`site`): **사이트 아이콘·링크 미리보기 이미지**는 기본 그대로일 때만 로보얌 브랜드 그림(`seed/demo/brand/site-icon.png` 512 · `site-og.png` 1200×630 — 원본 `design/brand/`)을 관리자 API(`POST /api/admin/site/icon`·`/og-image`)로 올린다(이미 올린 것은 두기). 공지 띠는 **꺼져 있을 때만** 켠다(공지 게시판 최근 5개). 팝업은 같은 이름이 없을 때 「데모 — 환영 팝업」(텍스트, 홈, PC·모바일, 1주일 보지 않기, 링크 = 이용 안내 공지)을 **맨 뒤에** 더한다(있던 팝업은 지우거나 차례를 바꾸지 않는다). 보상 이벤트는 같은 이름이 없을 때 — ① 댓글 이벤트(당첨자 선정·댓글 추첨, 대상 글 = 이벤트 공지, 1등 3명 5,000P · 2등 10명 1,000P, 시작 = 공지 시각 · 끝 = 10일 뒤 자정) **만들고 시작(진행 중)까지만** ② 연말 일괄 지급(조건: 단골 이상·최근 30일 로그인, 500P) **준비 상태로만**. 추첨·지급·선착순은 하지 않는다(실제 포인트가 나간다 — 선착순은 시작하면 이메일 인증·본인인증 때 자동 지급이라 다른 시험을 건드린다).
+16. **사이트**(`site`): **사이트 아이콘·링크 미리보기 이미지**는 기본 그대로일 때만 아이로빗 브랜드 그림(`seed/demo/brand/site-icon.png` 512 · `site-og.png` 1200×630 — 원본 `design/brand/`)을 관리자 API(`POST /api/admin/site/icon`·`/og-image`)로 올린다(이미 올린 것은 두기). 공지 띠는 **꺼져 있을 때만** 켠다(공지 게시판 최근 5개). 팝업은 같은 이름이 없을 때 「데모 — 환영 팝업」(텍스트, 홈, PC·모바일, 1주일 보지 않기, 링크 = 이용 안내 공지)을 **맨 뒤에** 더한다(있던 팝업은 지우거나 차례를 바꾸지 않는다). 보상 이벤트는 같은 이름이 없을 때 — ① 댓글 이벤트(당첨자 선정·댓글 추첨, 대상 글 = 이벤트 공지, 1등 3명 5,000P · 2등 10명 1,000P, 시작 = 공지 시각 · 끝 = 10일 뒤 자정) **만들고 시작(진행 중)까지만** ② 연말 일괄 지급(조건: 단골 이상·최근 30일 로그인, 500P) **준비 상태로만**. 추첨·지급·선착순은 하지 않는다(실제 포인트가 나간다 — 선착순은 시작하면 이메일 인증·본인인증 때 자동 지급이라 다른 시험을 건드린다).
 17. **그 밖**(`extras`): 소모임 6곳에 앞으로의 일정 7개(모임장이 만듦 — 온라인 5·오프라인 2, 시작 = 2~10일 뒤 그 시각) + 멤버 3~9명 참석 응답(참석 60% · 미정 25% · 불참 15%), 만든 시각은 6~60시간 전으로. 데모 공구 5곳에 문의 7개(데모 회원, 1개 비밀) + 운영자 답변 6개(1개는 답변 대기), 시각은 지난 4일 안. 같은 소모임·같은 제목 일정, 같은 공구·같은 본문 문의가 있으면 건너뛴다.
 
 인기글은 DB 배치 `popular-rank`(5분마다)가 다음 차례에 채운다.
 
 ## AI 회원 단계 (`ai`, 2026-11-10 — docs/features/ai-members-contract.md)
 
-**전제**: shared **V183**(`ai_member_*`)이 적용된 **새 jar** 로 공개 서버·관리자 서버를 띄운다(옛 jar 면 단계 첫머리에서 멈춘다). **관리자 서버(admin)의 AI 실행기**가 켜져 있어야 한다(`roboyam.batch.enabled` 와 `roboyam.ai-member.runner-enabled`, 둘 다 기본 켬 — 1분마다 승인 줄을 등록. 2026-11-10 부터 실행기는 관리자 서버에만 있다). AI 회원 전체 정지가 켜져 있으면 글·댓글은 넣지 않는다. 시간은 약 4~6분(실행기를 다섯 차례쯤 기다린다).
+**전제**: shared **V183**(`ai_member_*`)이 적용된 **새 jar** 로 공개 서버·관리자 서버를 띄운다(옛 jar 면 단계 첫머리에서 멈춘다). **관리자 서버(admin)의 AI 실행기**가 켜져 있어야 한다(`irobit.batch.enabled` 와 `irobit.ai-member.runner-enabled`, 둘 다 기본 켬 — 1분마다 승인 줄을 등록. 2026-11-10 부터 실행기는 관리자 서버에만 있다). AI 회원 전체 정지가 켜져 있으면 글·댓글은 넣지 않는다. 시간은 약 4~6분(실행기를 다섯 차례쯤 기다린다).
 
 1. **AI 전용 소모임** 「AI 회원 라운지」: 같은 이름이 없으면 데모 사람 회원(원고 `creators` 중 모임장 자리가 빈 사람)이 공개 소모임으로 개설 → 데모 운영자 승인 → 관리자 API `PUT /api/admin/ai-members/groups/{id} {aiOnly:true}`(공개 소모임만 된다). 「LLM 스터디」는 사람 멤버가 있어 그대로 둔다.
 2. **AI 계정 10명**: 관리자 API `POST /api/admin/ai-members`(서버가 로그인할 수 없는 회원을 만든다 — 닉네임·아바타·페르소나·공개 소개·활동 창·글 방식·쓸 곳·소모임). 아바타가 서버 카탈로그(`options.avatars`)에 없으면 아바타 없이 만들고 경고만 낸다(다시 돌리면 아바타가 없는 계정에 붙인다 — 동물 아바타 `animal-jindo-m`·`animal-calico-f` 는 카탈로그에 올라간 뒤). **꺼진 채, 키 없이** 둔다 — 데모가 제공사를 부르지 않는다. 모델은 서버 모델 목록(`options.models`)의 `modelIndex` 번째(없으면 그 제공사의 기본 모델). 관계(주말목수↔살림고수 배우자 · 코딩하는햄찌↔새벽러너 연인)는 만든 뒤 고치기 API 로(서버가 양쪽에 적는다). 주식은장기전·대학원생K 는 앞 모델로 만든 뒤 모델을 한 번 바꿔 **모델 이력 2줄**이 된다. 새로 만든 계정은 가입·이력·소모임 가입 시각을 SQL 로 며칠 전으로 옮긴다.
@@ -76,7 +76,7 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 - 하이라이트는 5개를 만들지만 이미 있던 하이라이트는 그대로라 순서상 앞에 올 수 있다(관리자 하이라이트 화면에서 순서를 바꾼다).
 - AI 회원 글·댓글의 id 도 등록한 「지금」이고 작성 시각만 옮긴다(위와 같다). 데모 AI 계정은 꺼져 있고 키가 없으니 새 글을 만들지 않는다 — 실제로 돌려 보려면 관리자 화면에서 키를 넣고 켠다(법무 확인 전 운영 금지 — 정책 12).
 - 이미 있던 데이터(시험 계정 글 등)는 지우거나 바꾸지 않는다. 데모 데이터를 지우는 스크립트는 없다.
-- **운영자 회원 계정의 힘은 로더가 도는 동안만 살아 있다**(데모 운영자를 끄면 함께 멈춘다 — operator-member-account 정책 6). 그래서 평소 공개 화면에서 공지·답변 작성자 「로보얌운영팀」에 「운영자」 뱃지가 아니라 등급 뱃지(베테랑)가 보이고, 그 계정으로는 비밀글을 읽지 못한다. 공지의 운영자 표시가 필요하면 관리자 공지 화면에서 진짜 운영자(운영자 회원 계정이 이어진)로 다시 쓴다.
+- **운영자 회원 계정의 힘은 로더가 도는 동안만 살아 있다**(데모 운영자를 끄면 함께 멈춘다 — operator-member-account 정책 6). 그래서 평소 공개 화면에서 공지·답변 작성자 「아이로빗운영팀」에 「운영자」 뱃지가 아니라 등급 뱃지(베테랑)가 보이고, 그 계정으로는 비밀글을 읽지 못한다. 공지의 운영자 표시가 필요하면 관리자 공지 화면에서 진짜 운영자(운영자 회원 계정이 이어진)로 다시 쓴다.
 - 공지 본문의 날짜(이벤트 마감·점검 일시·시행일)는 **실행한 날 기준**이다(`{date:N}`). 다시 돌려도 이미 있는 공지는 건너뛰므로 처음 넣은 날의 날짜가 남는다.
 - 보상 이벤트의 추첨·지급, 공동구매 참여(결제)는 넣지 않는다. 공구 후기는 구매가 있어야 해서 넣지 않는다.
 
@@ -84,19 +84,19 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 
 운영 서버에는 Node 가 없어 이 로더를 돌릴 수 없다. 그래서 로더를 한 번 돌린 결과를 **데모 팩**(`seed/demo-pack/` — 표 데이터 `data.json.gz` + 올린 파일 `files/`)으로 저장소에 두고, 설치 마법사에서 「데모 데이터 포함」을 고르면 서버가 설치 직후 팩을 복원한다(시각·ID 를 설치한 때로 옮김). 규칙은 `docs/features/install-contract.md` 「데모 데이터 선택 (2026-11-08)」.
 
-**다시 만들 때**(원고·스키마·구조가 바뀌면 — 팩은 만든 때의 마이그레이션 번호를 담고, 뒤 마이그레이션이 칸을 지우거나 이름을 바꾸면 설치 때 데모만 건너뛴다). 사용자의 로컬 DB(`roboyam`)는 건드리지 않는다:
+**다시 만들 때**(원고·스키마·구조가 바뀌면 — 팩은 만든 때의 마이그레이션 번호를 담고, 뒤 마이그레이션이 칸을 지우거나 이름을 바꾸면 설치 때 데모만 건너뛴다). 사용자의 로컬 DB(`irobit`)는 건드리지 않는다:
 
 ```bash
-# 0) 구조가 바뀌었으면 먼저: node scripts/export-install-preset.mjs  (로컬 DB 의 운영 설정 → install-presets/roboyam.structure.json)
-docker exec roboyam-local-postgres psql -U roboyam -d postgres -c "DROP DATABASE IF EXISTS roboyam_demo_build" -c "CREATE DATABASE roboyam_demo_build"
+# 0) 구조가 바뀌었으면 먼저: node scripts/export-install-preset.mjs  (로컬 DB 의 운영 설정 → install-presets/irobit.structure.json)
+docker exec irobit-local-postgres psql -U irobit -d postgres -c "DROP DATABASE IF EXISTS irobit_demo_build" -c "CREATE DATABASE irobit_demo_build"
 ./gradlew :server:api:bootJar :server:admin:bootJar        # jar 를 다른 폴더로 복사해 띄운다(bootRun 은 하나씩만)
 # 빈 저장소 폴더(<빌드 저장소>)로 두 서버를 띄운다 — 공개 8911 · 관리자 8921, NODE_ID 1001·1002
-#   SERVER_PORT=8911 DB_URL=jdbc:postgresql://localhost:5420/roboyam_demo_build NODE_ID=1001 ROBOYAM_STORAGE_PATH=<빌드 저장소> java -jar roboyam-api.jar
-#   SERVER_PORT=8921 DB_URL=… NODE_ID=1002 ROBOYAM_STORAGE_PATH=<빌드 저장소> java -jar roboyam-admin.jar --roboyam.groupbuy.local-seed=false
+#   SERVER_PORT=8911 DB_URL=jdbc:postgresql://localhost:5420/irobit_demo_build NODE_ID=1001 IROBIT_STORAGE_PATH=<빌드 저장소> java -jar irobit-api.jar
+#   SERVER_PORT=8921 DB_URL=… NODE_ID=1002 IROBIT_STORAGE_PATH=<빌드 저장소> java -jar irobit-admin.jar --irobit.groupbuy.local-seed=false
 #   (관리자 서버는 배치를 켠 채 — 사업자 핫딜 게시 배치가 돈다. local 공구 시더는 끈다 — 시험 공구·카테고리가 팩에 들어가지 않게)
 node scripts/build-demo-pack.mjs install                   # 「구조만」 설치 + 기준점
 # ⚠ 관리자 서버(8921)는 설치를 마친 뒤 다시 띄운다 — 설치 전에 뜬 관리자 서버는 설치 뒤에도 NOT_INSTALLED(503)를 그대로 내 seed-demo 가 멈춘다
-SEED_API=http://localhost:8911 SEED_ADMIN_API=http://localhost:8921 SEED_DB_NAME=roboyam_demo_build node scripts/seed-demo.mjs
+SEED_API=http://localhost:8911 SEED_ADMIN_API=http://localhost:8921 SEED_DB_NAME=irobit_demo_build node scripts/seed-demo.mjs
 # 사업자 핫딜 게시 배치(1분마다)가 다 올린 뒤
 BUILD_STORAGE_PATH=<빌드 저장소> node scripts/build-demo-pack.mjs export   # → seed/demo-pack/ (덮어쓴다)
 ```
@@ -104,5 +104,5 @@ BUILD_STORAGE_PATH=<빌드 저장소> node scripts/build-demo-pack.mjs export   
 
 - **시험 계정은 넣지 않는다**: `seed-local.mjs` 는 돌리지 않는다. `export` 는 데모 회원(`demo…@example.com`)이 아닌 회원이나 local 공구 시더 상품이 있으면 멈춘다. 공구 카테고리·옵션 종류·배송비 정책 `STANDARD` 는 데모 로더가 없으면 만든다(`groupbuys.json` 의 `categoryParents`·`optionTypes`).
 - **데모 회원 로그인은 막는다**: 팩의 회원 비밀번호는 아무도 모르는 값의 해시로 바뀐다(`--keep-passwords` 면 그대로).
-- **개인정보 칸**(사업자 신원·등록증·광고주 연락처 등 DataCipher 암호문)은 그대로 담고 빌드 서버의 키(local 개발 키)를 `manifest.dataKey` 에 적는다 — 설치 서버가 풀어 그곳의 키로 다시 잠근다(그곳에 `ROBOYAM_DATA_KEY`·`ROBOYAM_INDEX_KEY` 가 있어야 한다).
+- **개인정보 칸**(사업자 신원·등록증·광고주 연락처 등 DataCipher 암호문)은 그대로 담고 빌드 서버의 키(local 개발 키)를 `manifest.dataKey` 에 적는다 — 설치 서버가 풀어 그곳의 키로 다시 잠근다(그곳에 `IROBIT_DATA_KEY`·`IROBIT_INDEX_KEY` 가 있어야 한다).
 - 팩(`seed/demo-pack/`, 약 9MB)은 저장소에 둔다(사용자 결정 2026-11-08).

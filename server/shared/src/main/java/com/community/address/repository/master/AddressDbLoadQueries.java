@@ -4,14 +4,14 @@ import com.community.address.entity.AddressDbLoadEntity;
 import com.community.address.entity.AddressImportPhase;
 import com.community.address.entity.AddressLoadStatus;
 import com.community.address.entity.QAddressDbLoadEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** 적재 이력 쪽 읽기 — 끝난 적재({@code DONE})만, 최신이 위. 색인 {@code ix_address_db_loads_done} 을 탄다 */
 @Repository
-public class AddressDbLoadQueries extends RoboyamRepositoryQDSL {
+public class AddressDbLoadQueries extends IrobitRepositoryQDSL {
 
     private static final QAddressDbLoadEntity LOAD = QAddressDbLoadEntity.addressDbLoadEntity;
 

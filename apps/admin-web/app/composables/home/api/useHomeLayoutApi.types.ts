@@ -1,6 +1,6 @@
 /**
  * 관리자 홈 배치 API(`/api/admin/home-layouts/**`)가 주고받는 모양 — 서버 `HomeLayoutController`(site-theme-layout-contract 「API」).
- * 홈 배치는 **테마마다 따로** 둔다(템플릿 = 테마, 사용자 결정 2026-10-28). 배치 모양·고정값·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 공개 홈(user-web)과 같은 값이다.
+ * 홈 배치는 **테마마다 따로** 둔다(템플릿 = 테마, 사용자 결정 2026-10-28). 배치 모양·고정값·계산은 공유 레이어 `@irobit/home-layout`(`UtilHomeLayout`) — 공개 홈(user-web)과 같은 값이다.
  * 범위는 **위치·크기·칸 수와 가젯 넣기·빼기** + 내용 설정(`config` — 공구의 개수·정렬 2026-10-29, 글 목록·갤러리·게시판 카드의 대상 게시판·개수·정렬은 가젯 페이지 때 넓혔다)이다.
  * 2026-10-30: ⚙ 설정 창이 8종 전부의 내용 설정 + 공통 설정(제목 · 꾸미기 `style` · 노출 `desktop`·`mobile`)을 고친다(gadget-page-contract 「가젯 설정」 — 서버 `HomeLayoutGadgetView`·`HomeLayoutSaveRequest`).
  * 새로 넣은 가젯은 서버가 종류별 처음 설정(테마 기본 꾸미기)으로 만든다. 가젯 페이지(`useGadgetPageApi`)의 배치도 같은 모양이다.
@@ -130,7 +130,7 @@ export interface GadgetStyle {
     mobileFold: GadgetMobileFold;
     /** 비었을 때 — 자리 남기기 · 안내 보이기 · 안내 문구(0~40자, 비우면 종류별 기본 문구) */
     empty: { keep: boolean; message: boolean; text: string };
-    /** 제목 아이콘 보이기(테마 기본 — 로보얌 끔, 그 밖 켬 — gadget-page-contract 「가젯 제목 아이콘」) */
+    /** 제목 아이콘 보이기(테마 기본 — 아이로빗 끔, 그 밖 켬 — gadget-page-contract 「가젯 제목 아이콘」) */
     iconShow: boolean;
     /** 아이콘 출처 — PrimeIcons(`icon`) · Tabler Icons(`iconTabler`) · 직접 올리기(`iconUpload`) */
     iconSource: GadgetIconSource;
@@ -140,7 +140,7 @@ export interface GadgetStyle {
     iconUpload: GadgetIconUpload | null;
     /** 아이콘 색 — null 이면 글자색 그대로, 프리셋 12색 이름 또는 `#rrggbb`(PNG·WEBP 올린 아이콘은 칠하지 않는다) */
     iconColor: string | null;
-    /** 아이콘 바탕 — 없음 · 옅은 네모(테마 기본 — 로보얌 옅은 네모, 그 밖 없음) */
+    /** 아이콘 바탕 — 없음 · 옅은 네모(테마 기본 — 아이로빗 옅은 네모, 그 밖 없음) */
     iconBg: 'NONE' | 'SOFT';
 }
 

@@ -13,7 +13,7 @@ import com.community.business.entity.BusinessServiceStatus;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.entity.QBusinessProfileEntity;
 import com.community.business.entity.QBusinessServiceEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Repository;
  * 돈 · 최근 광고일 재료). 쓰기는 shared {@code AdAdvertiserStore}. QueryDSL 만 쓴다.
  */
 @Repository
-public class AdAdvertiserAdminStore extends RoboyamRepositoryQDSL {
+public class AdAdvertiserAdminStore extends IrobitRepositoryQDSL {
 
     private static final QBizApplicationEntity A = QBizApplicationEntity.bizApplicationEntity;
     private static final QAdAdvertiserEntity ADV = new QAdAdvertiserEntity("adv");

@@ -73,19 +73,19 @@ function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;
     const home = props.home ? { ...props.home, gadgets: props.home.gadgets.map((g) => ({ ...g, minH: UtilGadgetLayoutEditor.spec(g.type).minH })) } : null;
-    const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home, editing: props.editing, page: props.page, board: props.board }));
+    const message = JSON.parse(JSON.stringify({ type: 'irobit:admin-preview', theme: props.theme, menu: props.menu, home, editing: props.editing, page: props.page, board: props.board }));
     target.postMessage(message, origin.value);
 }
 
 function onMessage(event: MessageEvent): void {
     if (!origin.value || event.origin !== origin.value || event.source !== frame.value?.contentWindow) return;
     const type = (event.data as { type?: unknown } | null)?.type;
-    if (type === 'roboyam:admin-preview-ready') {
+    if (type === 'irobit:admin-preview-ready') {
         ready.value = true;
         send();
-    } else if (type === 'roboyam:admin-preview-edit-menu') {
+    } else if (type === 'irobit:admin-preview-edit-menu') {
         emit('edit-menu');
-    } else if (type === 'roboyam:admin-preview-layout') {
+    } else if (type === 'irobit:admin-preview-layout') {
         const op = readOp(event.data);
         if (op) emit('layout-op', op);
     }

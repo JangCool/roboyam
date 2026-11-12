@@ -51,11 +51,11 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[]): value i
 
 export default class UtilLayoutPrefs {
     /** 브라우저에 설정을 두는 자리 */
-    static readonly STORAGE_KEY = 'roboyam.admin.layout';
+    static readonly STORAGE_KEY = 'irobit.admin.layout';
     /** 사이드바 펼침(사람이 고른 것)을 두는 자리 — 설정과 따로 둔다(이 브라우저의 지금 상태이지 계정 설정이 아니다) */
-    static readonly SIDEBAR_KEY = 'roboyam.admin.sidebar-expanded';
+    static readonly SIDEBAR_KEY = 'irobit.admin.sidebar-expanded';
 
-    /** 기본 강조색 — `nuxt.config.ts` 의 `RoboyamPreset.semantic.primary` 와 같다(파랑). 바꾸면 둘을 함께 바꾼다 */
+    /** 기본 강조색 — `nuxt.config.ts` 의 `IrobitPreset.semantic.primary` 와 같다(파랑). 바꾸면 둘을 함께 바꾼다 */
     static readonly DEFAULT_PRIMARY: PrimaryName = DEFAULT_PRIMARY;
 
     static readonly TEXT_SCALES: readonly TextScale[] = [90, 100, 110, 125];

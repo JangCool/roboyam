@@ -1,6 +1,6 @@
 <template>
     <!--
-        광고 성과 날짜별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@roboyam/chart` — ECharts)에 이 앱의 문구·숫자 글자를 입히는 얇은 겹.
+        광고 성과 날짜별 추이 — 공유 레이어 차트(`StatsTrendChart`, `@irobit/chart` — ECharts)에 이 앱의 문구·숫자 글자를 입히는 얇은 겹.
         막대 = 노출(왼쪽 축) · 선 = 클릭(오른쪽 축). 한 건 성과(일정표 서랍 「성과」 탭)는 그날 `state` 가 있어 정지·내림 띠를 깔고, 운영자 합계(`/ads/performance`)는 `state` 가 없어 띠가 없다.
         오늘 막대는 빗금·흐리게(집계 중), 화살표 툴팁·범례·숨긴 표는 레이어가 그린다. 사업자 화면(user-web `BusinessStatsChart`)과 같은 모양이다.
     -->

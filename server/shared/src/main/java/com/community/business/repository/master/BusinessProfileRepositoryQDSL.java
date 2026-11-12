@@ -8,7 +8,7 @@ import com.community.business.entity.QBusinessServiceEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.Ilike;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Repository;
 
 /** 사업자 신원 여러 명 한 번에 읽기 — 작성자 사업자 뱃지(공개 사이트) · 관리자 사업자 심사 목록(admin {@code BusinessAdminService}) */
 @Repository
-public class BusinessProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class BusinessProfileRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QBusinessProfileEntity BUSINESS = QBusinessProfileEntity.businessProfileEntity;
     private static final QBusinessServiceEntity SERVICE = QBusinessServiceEntity.businessServiceEntity;

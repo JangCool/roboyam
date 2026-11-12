@@ -64,7 +64,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * 하이라이트 관리 — 목록·글 찾기·후보는 {@code highlight.read}, 만들기·고치기·순서·노출·지우기는 {@code highlight.manage}(컨트롤러가 선언).
- * docs/features/popular-highlight-contract.md 「서버 구현 결과」(community docs/api-content.md 1절을 로보얌에 맞춘 것). 공개 홈 표시는 아직 없다.
+ * docs/features/popular-highlight-contract.md 「서버 구현 결과」(community docs/api-content.md 1절을 아이로빗에 맞춘 것). 공개 홈 표시는 아직 없다.
  *
  * <ul>
  *   <li><b>지정할 수 있는 글</b>: 보이는 글(지움·임시저장·예약 삭제 시각 지남 아님) · 숨김 아님 · 19금 아님 · 켜진 게시판. 아니면 {@code 400 HIGHLIGHT_POST_INVALID}

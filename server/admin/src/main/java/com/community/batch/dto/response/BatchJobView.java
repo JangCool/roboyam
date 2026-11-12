@@ -21,7 +21,7 @@ import java.util.List;
  * @param available         쓸 수 있는가. Java 배치는 항상 true. DB 배치는 pg_cron 을 쓸 수 없거나(확장·서버 설정·권한) DB 에 등록되어 있지 않으면 false —
  *                          이때 켜기/끄기·cron 수정·지금 실행은 409 {@code BATCH_UNAVAILABLE}
  * @param unavailableReason {@code available=false} 인 이유(요청 언어로 푼 글). 쓸 수 있으면 null
- * @param scheduleZone      {@code schedule} 을 해석하는 시간대(IANA 이름). Java 배치는 {@code roboyam.batch.zone}, DB 배치는 pg_cron 의 {@code cron.timezone}(기본 GMT)
+ * @param scheduleZone      {@code schedule} 을 해석하는 시간대(IANA 이름). Java 배치는 {@code irobit.batch.zone}, DB 배치는 pg_cron 의 {@code cron.timezone}(기본 GMT)
  * @param lastRunId         마지막 실행(지금 도는 중이면 그 실행)의 로그 번호. 한 번도 안 돌았으면 null
  * @param pendingRequest    아직 끝나지 않은 요청(PENDING·RUNNING). 없으면 null — 있는 동안 지금 실행은 409 {@code BATCH_RUNNING}
  * @param params            받을 수 있는 실행 파라미터(없으면 빈 배열)

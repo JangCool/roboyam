@@ -38,7 +38,7 @@
 - 변경권 값 2,000P(닉네임 이미지 — community 기본)·3,000P(아바타)는 가정. 아바타 그림 규격(300KB·96px·정사각형)도 가정.
 - 닉네임 이미지 변경권은 서버가 몰라서 장 수·예약을 이 기기에서 맞춘다(신청 성공 → 예약, 취소 → 반환, 다시 읽을 때 반려 → 반환·승인 → 사용). 자격 미달 회원에게는 신청 폼이 안 보여 변경권 줄도 안 보인다.
 - 아바타 올리기 그림은 data URL 로 이 기기에 저장(서버에 올리지 않는다). 내 글에만 보인다.
-- 목업 자산: `apps/user-web/public/avatars/motion/`(움직이는 SVG 8종 + 정지 그림 8 + 닉네임 이미지 목업 2). `public/avatars/roboyam/`(카탈로그 328 시험 대상)과 따로 뒀다.
+- 목업 자산: `apps/user-web/public/avatars/motion/`(움직이는 SVG 8종 + 정지 그림 8 + 닉네임 이미지 목업 2). `public/avatars/irobit/`(카탈로그 328 시험 대상)과 따로 뒀다.
 - 목업 상태: `composables/avatar/api/mock/motion-avatar-mock.ts`(회원별 localStorage). 사기는 잔액을 실제로 줄이지 않는다. 내 글에만 보인다(서버는 모른다). 서버가 붙으면 이 파일과 `// MOCK:` 줄을 지운다(`useAvatarApi`·`usePointShopApi`·`useMyItemsApi`·`useMyDecoration`·`useAvatarChoice`·닉네임 이미지 화면).
 - 가격 3,000P·카테고리 하나(「움직이는 아바타」)는 가정.
 

@@ -160,7 +160,7 @@ class HotdealReadTest extends HotdealApiTestBase {
         String mall = "mall" + uniq() + ".example";
         long site = writeId(member(), deal(url(mall)));
         long personal = writeId(member(), withAffiliate(deal(url("shop.example.com")), true));
-        siteStore(mall, "QUERY", null, "aff=roboyam");
+        siteStore(mall, "QUERY", null, "aff=irobit");
         setting("affiliate_mode", "SITE");
         assertThat(view(site).affiliateKind()).isEqualTo("SITE");
         assertThat(view(site).siteProgramName()).isEqualTo("시험 제휴");

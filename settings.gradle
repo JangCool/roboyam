@@ -14,7 +14,7 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
-rootProject.name = 'roboyam'
+rootProject.name = 'irobit'
 
 include 'server:shared'
 include 'server:api'

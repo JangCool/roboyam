@@ -22,10 +22,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
 
 /**
- * 결제 게이트웨이 고르기 — 배포 설정 {@code roboyam.payment.gateway}(portone | fake, 결정 1). {@code IdentityConfig.guard} 와 같은 모양으로 기동을 막는다:
+ * 결제 게이트웨이 고르기 — 배포 설정 {@code irobit.payment.gateway}(portone | fake, 결정 1). {@code IdentityConfig.guard} 와 같은 모양으로 기동을 막는다:
  * <ul>
  *   <li><b>dev·prod 프로필에서 가짜 게이트웨이면 멈춘다</b>(commerce.md 8-5) — 가짜는 아무 결제나 「결제됨」으로 만든다.</li>
- *   <li><b>prod 프로필에서 시험 주문({@code roboyam.payment.test-orders})을 켜면 멈춘다</b>(결정 7) — 시험 주문은 도메인 없이 돈을 받는 길이다.</li>
+ *   <li><b>prod 프로필에서 시험 주문({@code irobit.payment.test-orders})을 켜면 멈춘다</b>(결정 7) — 시험 주문은 도메인 없이 돈을 받는 길이다.</li>
  * </ul>
  * 공개 사이트(완료 API·웹훅)와 관리자 앱(취소 워커·READY 정리)이 같이 쓴다.
  */
@@ -66,13 +66,13 @@ public class PaymentConfig {
      */
     public static PaymentGatewayKind guard(PaymentProperties properties, Environment environment) {
         if (properties.gateway() == null) {
-            throw new IllegalStateException("roboyam.payment.gateway 가 비어 있습니다(portone | fake).");
+            throw new IllegalStateException("irobit.payment.gateway 가 비어 있습니다(portone | fake).");
         }
         if (properties.gateway() == PaymentGatewayKind.FAKE && environment.acceptsProfiles(FAKE_GUARDED)) {
-            throw new IllegalStateException("dev·prod 프로필에서는 가짜 결제 게이트웨이(roboyam.payment.gateway=fake)를 쓸 수 없습니다. ROBOYAM_PAYMENT_GATEWAY=portone 으로 두세요.");
+            throw new IllegalStateException("dev·prod 프로필에서는 가짜 결제 게이트웨이(irobit.payment.gateway=fake)를 쓸 수 없습니다. IROBIT_PAYMENT_GATEWAY=portone 으로 두세요.");
         }
         if (properties.testOrders() && environment.acceptsProfiles(TEST_ORDERS_GUARDED)) {
-            throw new IllegalStateException("prod 프로필에서는 결제 시험 주문(roboyam.payment.test-orders=true)을 켤 수 없습니다.");
+            throw new IllegalStateException("prod 프로필에서는 결제 시험 주문(irobit.payment.test-orders=true)을 켤 수 없습니다.");
         }
         return properties.gateway();
     }

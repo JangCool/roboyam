@@ -5,19 +5,19 @@
  *   node scripts/seed-local.mjs            # 계정을 만들고(늘 멱등), 글이 없는 DB 면 글·댓글·추천까지 채운다
  *   node scripts/seed-local.mjs --force    # 글이 이미 있어도 글·댓글·추천을 덧붙인다(중복이 생긴다). 계정 단계는 그대로 멱등이다
  *
- * 1) 계정: 로보얌에는 공개 이메일 가입 API 가 없으므로 seed.json 의 users 를 로컬 DB 컨테이너에 SQL 로 넣는다 —
+ * 1) 계정: 아이로빗에는 공개 이메일 가입 API 가 없으므로 seed.json 의 users 를 로컬 DB 컨테이너에 SQL 로 넣는다 —
  *    users(비밀번호는 pgcrypto 의 bcrypt `crypt(pw, gen_salt('bf', 10))` — 서버 BCryptPasswordEncoder 와 호환, 상태·이메일 인증·가입 일수·필수 동의)
  *    + profiles(닉네임·기본 등급). 같은 이메일이 이미 있으면 건너뛴다. 만든 뒤 모든 계정을 공개 API 로 실제 로그인해 본다.
- *    `role: ADMIN` 도 회원으로만 만든다(로보얌의 운영자는 operators 표의 별도 계정 — 관리자 화면은 설치 때 만든 루트 계정으로 들어간다).
+ *    `role: ADMIN` 도 회원으로만 만든다(아이로빗의 운영자는 operators 표의 별도 계정 — 관리자 화면은 설치 때 만든 루트 계정으로 들어간다).
  * 2) 콘텐츠: 글·투표·댓글·추천·지우기는 그 회원으로 로그인해 공개 API 로 한다(서버 규칙·카운터·포인트·회원 알림이 그대로 적용된다).
  *    투표는 글쓰기 본문 `poll` 로 붙이고(그 게시판 pollEnabled 가 꺼져 있으면 글만 쓰고 알린다 — 게시판 정책은 바꾸지 않는다), 시드의 votes 를 공개 API 로 넣는다.
  *    API 로 못 하는 것만 SQL 로 한다: 작성 간격(429 *_TOO_FAST)에 걸리면 그 시드 회원의 최근 글·댓글 작성 시각을 기다릴 초만큼 앞으로 당긴다
- *    (로보얌의 작성 속도 판정은 따로 표가 없고 posts·comments 의 created_at 으로 센다). 지난 마감 투표(closesInHours 0 이하)는 표를 넣은 뒤 마감 시각을 되돌린다.
+ *    (아이로빗의 작성 속도 판정은 따로 표가 없고 posts·comments 의 created_at 으로 센다). 지난 마감 투표(closesInHours 0 이하)는 표를 넣은 뒤 마감 시각을 되돌린다.
  *
  * 안전장치: 서버(SEED_API)는 localhost 만, 서버 주소를 기본과 다르게 주면 SEED_DB_NAME 필수, 서버와 DB 의 설치 상태가 다르면(또는 설치 전이면)
  * 아무것도 바꾸기 전에 멈춘다. 설치는 하지 않는다(설치 마법사를 먼저 마친다). 비밀번호는 출력하지 않는다(psql 에는 명령 인자가 아니라 표준 입력으로 넘긴다).
  *
- * 환경 변수(전부 선택): SEED_API(기본 http://localhost:8910) · SEED_DB_CONTAINER(기본 roboyam-local-postgres) · SEED_DB_NAME(기본 roboyam) · SEED_DB_USER(기본 roboyam)
+ * 환경 변수(전부 선택): SEED_API(기본 http://localhost:8910) · SEED_DB_CONTAINER(기본 irobit-local-postgres) · SEED_DB_NAME(기본 irobit) · SEED_DB_USER(기본 irobit)
  * ⚠ 로컬 개발 전용이다. 운영·개발 서버에 쓰지 않는다.
  */
 import { execFileSync } from 'node:child_process';
@@ -27,9 +27,9 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_API = 'http://localhost:8910';
 const API = (process.env.SEED_API ?? DEFAULT_API).replace(/\/+$/, '');
-const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'roboyam-local-postgres';
-const DB_NAME = process.env.SEED_DB_NAME ?? 'roboyam';
-const DB_USER = process.env.SEED_DB_USER ?? 'roboyam';
+const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'irobit-local-postgres';
+const DB_NAME = process.env.SEED_DB_NAME ?? 'irobit';
+const DB_USER = process.env.SEED_DB_USER ?? 'irobit';
 const FORCE = process.argv.includes('--force');
 
 /** 시드 글의 게시판이 이 DB 에 없을 때 옮길 게시판 — 이것도 없으면 그 글은 건너뛴다. 공지(notice)로는 옮기지 않는다(운영진 전용 쓰기) */
@@ -136,9 +136,9 @@ async function main() {
     if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(API)) {
         return fail(`로컬 서버(localhost)에만 쓸 수 있다: ${API}`);
     }
-    // 서버 주소를 바꿨는데 SQL 대상 DB 를 정하지 않았으면 멈춘다 — 로더의 SQL 이 기본 DB(개발 DB roboyam)에 닿는 사고를 막는다
+    // 서버 주소를 바꿨는데 SQL 대상 DB 를 정하지 않았으면 멈춘다 — 로더의 SQL 이 기본 DB(개발 DB irobit)에 닿는 사고를 막는다
     if (API !== DEFAULT_API && !process.env.SEED_DB_NAME) {
-        return fail(`SEED_API 를 기본(${DEFAULT_API})과 다르게 줬는데 SEED_DB_NAME 이 없다. 그 서버가 붙은 DB 이름을 SEED_DB_NAME 으로 준다(일부러 기본 DB 면 SEED_DB_NAME=roboyam).`);
+        return fail(`SEED_API 를 기본(${DEFAULT_API})과 다르게 줬는데 SEED_DB_NAME 이 없다. 그 서버가 붙은 DB 이름을 SEED_DB_NAME 으로 준다(일부러 기본 DB 면 SEED_DB_NAME=irobit).`);
     }
     if (!PASSWORD || !Array.isArray(seed.users)) {
         return fail('seed/seed.json 에 password 또는 users 가 없다');
@@ -146,7 +146,7 @@ async function main() {
 
     const status = await fetch(`${API}/api/system/installation/status`).then((r) => r.json()).catch(() => null);
     if (typeof status?.data?.installed !== 'boolean') {
-        return fail(`서버(${API})가 떠 있지 않거나 로보얌 공개 서버가 아니다(/api/system/installation/status 응답 없음).`);
+        return fail(`서버(${API})가 떠 있지 않거나 아이로빗 공개 서버가 아니다(/api/system/installation/status 응답 없음).`);
     }
     let dbInstalled;
     try {
@@ -298,7 +298,7 @@ function pollInput(poll) {
 
 /**
  * 작성 간격(429 POST_TOO_FAST·COMMENT_TOO_FAST)에 걸리면 <b>그 시드 회원</b>이 간격 안에 쓴 글(또는 댓글)의 작성 시각을 기다릴 초만큼 앞으로 당기고 다시 쓴다.
- * 로보얌은 작성 속도를 따로 표에 두지 않고 posts·comments 의 created_at 최댓값으로 판정한다(PostRepositoryQDSL.rate·CommentRepositoryQDSL.rate).
+ * 아이로빗은 작성 속도를 따로 표에 두지 않고 posts·comments 의 created_at 최댓값으로 판정한다(PostRepositoryQDSL.rate·CommentRepositoryQDSL.rate).
  * 당기는 줄은 그 회원(author_id)의 최근(간격 안) 줄뿐이다 — 하루 한도(*_DAILY_LIMIT)는 비우지 않는다(시드 양으로는 닿지 않는다).
  */
 async function writeWithGap(session, kind, path, body) {
@@ -469,14 +469,14 @@ async function seedContent(sessions) {
     }
 }
 
-/** 로보얌에 아직 없는 기능의 시드 데이터 — 건너뛴다 */
+/** 아이로빗에 아직 없는 기능의 시드 데이터 — 건너뛴다 */
 function listUnsupported() {
     const out = [];
     const admins = seed.users.filter((u) => u.role === 'ADMIN').map((u) => u.key);
     if (admins.length) out.push(`운영자 역할(${admins.join('·')} — 회원으로만 만든다. 관리자 화면은 설치 때 만든 루트 계정으로)`);
     const labels = {
         drafts: '임시저장', commerce: '공동구매', adBanners: '광고 직접 배너', hotdealBusiness: '핫딜 입점(사업자)', promoBump: '직접홍보·끌올',
-        homeGadgets: '홈 가젯', roboyamConcept: 'ROBOYAM 운영 예시(관리자 설정)', galleryPosts: '영상·짤 시험 글',
+        homeGadgets: '홈 가젯', irobitConcept: 'IROBIT 운영 예시(관리자 설정)', galleryPosts: '영상·짤 시험 글',
     };
     for (const [key, label] of Object.entries(labels)) {
         const v = seed[key];
@@ -488,7 +488,7 @@ function listUnsupported() {
 
 function printUnsupported(list) {
     if (!list.length) return;
-    console.log('\n건너뛴 것(로보얌에 아직 없는 기능)');
+    console.log('\n건너뛴 것(아이로빗에 아직 없는 기능)');
     for (const line of list) console.log(`  ${line}`);
 }
 

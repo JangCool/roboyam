@@ -2,7 +2,7 @@ package com.community.hotdeal.repository.master;
 
 import com.community.hotdeal.entity.DealEndRequestEntity;
 import com.community.hotdeal.entity.QDealEndRequestEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * 의심인 동안 들어온 요청도 켠 채로 넣는다. 「아직 진행 중」은 모두 끈다(작성자가 반박한 회차). 보상(규칙 5)은 딜이 끝날 때 켜진 줄의 요청자에게만 간다.
  */
 @Repository
-public class DealEndRequestStore extends RoboyamRepositoryQDSL {
+public class DealEndRequestStore extends IrobitRepositoryQDSL {
 
     private static final QDealEndRequestEntity E = QDealEndRequestEntity.dealEndRequestEntity;
 

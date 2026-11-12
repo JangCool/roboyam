@@ -52,11 +52,11 @@ import org.springframework.web.context.WebApplicationContext;
  * </ul>
  */
 @SpringBootTest(classes = AdminApplication.class, properties = {
-        "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "roboyam.data-crypto.key=" + Commerce04AdminTestBase.DATA_KEY,
-        "roboyam.batch.enabled=false",
-        "roboyam.batch.scheduler-enabled=false",
-        "roboyam.notification.watcher-enabled=false"
+        "irobit.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "irobit.data-crypto.key=" + Commerce04AdminTestBase.DATA_KEY,
+        "irobit.batch.enabled=false",
+        "irobit.batch.scheduler-enabled=false",
+        "irobit.notification.watcher-enabled=false"
 })
 public abstract class Commerce04AdminTestBase {
 

@@ -3,7 +3,7 @@
  * 생년월일·CI·DI·이름·휴대폰 번호는 화면에 내려오지 않는다 — 만 19세 이상 여부(`adult`)와 19세 생일(`adultFrom`)만 온다.
  */
 
-/** 지금 쓰는 본인인증 구현 — 서버 배포 설정(`roboyam.identity.provider`)이 정한다. `FAKE` 는 local·시험 전용(dev·prod 에서는 서버가 뜨지 않는다) */
+/** 지금 쓰는 본인인증 구현 — 서버 배포 설정(`irobit.identity.provider`)이 정한다. `FAKE` 는 local·시험 전용(dev·prod 에서는 서버가 뜨지 않는다) */
 export type IdentityProvider = 'PORTONE' | 'FAKE';
 
 /** 내 본인인증 상태 — `GET /api/identity-verifications/me`, 인증 완료(`confirm`)의 응답도 같은 모양 */

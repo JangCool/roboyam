@@ -3,6 +3,7 @@ package com.community.site.controller;
 import com.community.popup.dto.response.SitePopupsResponse;
 import com.community.popup.service.PublicSitePopupService;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.response.SiteAboutPublicResponse;
 import com.community.site.dto.response.SiteInfoResponse;
 import com.community.site.dto.response.SiteNoticeBarResponse;
 import com.community.site.dto.response.SiteThemeResponse;
@@ -67,6 +68,16 @@ public class PublicSiteController {
                 .cacheControl(CacheControl.noCache())
                 .eTag(snapshot.etag())
                 .body(ApiResponse.success(snapshot.response()));
+    }
+
+    /** 사이트 소개(V203 — 공개 푸터 「사이트 소개」 페이지) — {@code /info} 와 같은 사본·같은 캐시 규칙. 없으면 {@code html: null}({@code info.about} 이 false) */
+    @GetMapping("/about")
+    public ResponseEntity<ApiResponse<SiteAboutPublicResponse>> about() {
+        PublicSiteSnapshot snapshot = siteService.snapshot();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .eTag(snapshot.etag())
+                .body(ApiResponse.success(new SiteAboutPublicResponse(snapshot.aboutHtml())));
     }
 
     /** 테마 + 그 테마의 메뉴 설정 — {@code /info} 와 같은 사본·같은 캐시 규칙({@code theme} 은 {@code info.theme} 과 같은 값) */

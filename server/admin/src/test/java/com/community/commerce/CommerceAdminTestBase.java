@@ -23,9 +23,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * 운영자는 엔티티 픽스처({@link OperatorFixture}), 감사 기록 확인은 {@link AuditLogQuery} 로 한다.
  */
 @SpringBootTest(classes = AdminApplication.class, properties = {
-        "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "roboyam.batch.enabled=false",
-        "roboyam.notification.watcher-enabled=false"
+        "irobit.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "irobit.batch.enabled=false",
+        "irobit.notification.watcher-enabled=false"
 })
 public abstract class CommerceAdminTestBase {
 

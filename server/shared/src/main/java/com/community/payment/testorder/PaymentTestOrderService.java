@@ -36,12 +36,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 결제 시험 주문(결정 7 — {@code /api/dev/payments}, {@code roboyam.payment.test-orders} 인 서버만). 실제 도메인이 하듯 「도메인 주문 + 결제 주문」을 한 트랜잭션에서 만든다 —
+ * 결제 시험 주문(결정 7 — {@code /api/dev/payments}, {@code irobit.payment.test-orders} 인 서버만). 실제 도메인이 하듯 「도메인 주문 + 결제 주문」을 한 트랜잭션에서 만든다 —
  * 시험 주문의 도메인 주문 번호는 새 Snowflake ID 이고 판정은 처리기 메모리에 둔다. 가짜 게이트웨이일 때는 가짜 결제창의 결과(결제함·실패, 늦은 결제)를 가짜 PG 에 쓴다.
  * 모두 그 회원의 시험 결제만 다룬다(남의 결제는 404). 요청·응답 모양은 2a-1 화면 계약이 정본이다.
  */
 @Service
-@ConditionalOnProperty(prefix = "roboyam.payment", name = "test-orders", havingValue = "true")
+@ConditionalOnProperty(prefix = "irobit.payment", name = "test-orders", havingValue = "true")
 public class PaymentTestOrderService {
 
     /** 시험 주문 금액 범위(원) */

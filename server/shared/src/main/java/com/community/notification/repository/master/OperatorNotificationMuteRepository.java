@@ -2,11 +2,11 @@ package com.community.notification.repository.master;
 
 import com.community.notification.entity.OperatorNotificationMuteEntity;
 import com.community.notification.entity.OperatorNotificationMuteId;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.Collection;
 import java.util.List;
 
-public interface OperatorNotificationMuteRepository extends RoboyamRepository<OperatorNotificationMuteEntity, OperatorNotificationMuteId> {
+public interface OperatorNotificationMuteRepository extends IrobitRepository<OperatorNotificationMuteEntity, OperatorNotificationMuteId> {
 
     /** 운영자 한 명이 끈 이벤트들 */
     List<OperatorNotificationMuteEntity> findByOperatorId(Long operatorId);

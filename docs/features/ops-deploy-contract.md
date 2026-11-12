@@ -52,8 +52,8 @@
 
 ## 시험 환경 (2026-11-09)
 - 무료 플랜 계정은 **한 리전(시드니 `ap-southeast-2`)에 묶여** 서울을 못 쓴다(AWS 관리 조직의 SCP 거부, 「플랜 업그레이드 후 고급 기능 활성화」). 그래서 시험은 무료 플랜 그대로 시드니에서 한다 — 3대 모두 `t4g.small`, 서브넷 `ap-southeast-2a`, Rocky `Rocky-9-EC2-Base-9.8-20260525.0.aarch64`.
-- 역할: api+admin = 탄력적 IP `13.211.96.249`(사설 `172.31.9.142`, `admin.roboyam.kr`), api = `16.178.114.162`(`172.31.12.255`, `roboyam.kr`·`www`), DB = `52.62.22.182`(`172.31.14.143`).
-- Cloudflare: 도메인 `roboyam.kr`(호스팅케이알 등록, 네임서버만 Cloudflare), SSL 전체(엄격), Origin 인증서, R2 버킷 `roboyam-media` + 사용자 도메인 `media.roboyam.kr`, `sg-was` 443 ← Cloudflare IPv4 대역.
+- 역할: api+admin = 탄력적 IP `13.211.96.249`(사설 `172.31.9.142`, `admin.irobit.kr`), api = `16.178.114.162`(`172.31.12.255`, `irobit.kr`·`www`), DB = `52.62.22.182`(`172.31.14.143`).
+- Cloudflare: 도메인 `irobit.kr`(호스팅케이알 등록, 네임서버만 Cloudflare), SSL 전체(엄격), Origin 인증서, R2 버킷 `irobit-media` + 사용자 도메인 `media.irobit.kr`, `sg-was` 443 ← Cloudflare IPv4 대역.
 - 오픈 때는 유료 플랜으로 바꾸고 **서울에 새로 만들어** `installer-native` 로 다시 설치한다(시드니 서버는 옮길 수 없다).
 
 ## 미확정 · 남은 일

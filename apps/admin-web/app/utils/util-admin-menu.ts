@@ -413,7 +413,7 @@ export default class UtilAdminMenu {
                 { key: 'ossLicenses', to: '/settings/oss-licenses', icon: 'pi pi-code', labelKey: 'menu.ossLicenses', permission: 'site.read' },
             ],
         },
-        // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·로보얌)를 고르고,
+        // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·아이로빗)를 고르고,
         // 그 테마의 레이아웃(홈 구성 — 게시판·페이지 레이아웃은 자리만) · 메뉴 설정(메뉴 배치·메뉴 모양)을 탭으로 편집한다. 레이아웃·메뉴 설정은 테마마다 따로 저장된다.
         // 메뉴 설정은 이 메뉴에 따로 두지 않는다(사용자 결정 2026-10-28 — 화면 안 탭으로만). 항목 주소가 `/settings/theme` 라 두 탭(`…/layout`·`…/menu`) 모두 이 항목이 활성이다.
         // 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 메뉴 항목 자체(무엇을 어떤 차례로)는 일반 메뉴의 「공개 메뉴」(`/menus/public`)에서 정한다. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)

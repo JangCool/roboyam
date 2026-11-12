@@ -62,7 +62,7 @@ import org.springframework.web.util.HtmlUtils;
  * <ul>
  *   <li><b>도구 종류</b>: 사용자가 만드는 것은 Slack · Mattermost 뿐이다. 서랍·이메일·브라우저는 <b>기본 제공</b>이라 코드가 내려주고(id {@code drawer}·{@code email}·{@code browser}, 행 없음)
  *       이름 변경·지우기가 안 되며 사용 여부만 바꾼다(서랍은 늘 켜짐). 이메일은 설정 칸이 없고 설정 &gt; 메일 서버로 보낸다. 카카오·SMS 는 만들 수 없다(400).</li>
- *   <li><b>비밀</b>(봇 토큰·웹훅 주소)은 {@link SecretEncryptor}(AES-256-GCM, {@code ROBOYAM_CRYPTO_KEY})로 암호화해 저장하고 응답·로그·감사·예외에 평문도 암호문도 싣지 않는다 — 응답은
+ *   <li><b>비밀</b>(봇 토큰·웹훅 주소)은 {@link SecretEncryptor}(AES-256-GCM, {@code IROBIT_CRYPTO_KEY})로 암호화해 저장하고 응답·로그·감사·예외에 평문도 암호문도 싣지 않는다 — 응답은
  *       {@code secretKeys}(「입력됨」)뿐이다. 고칠 때 비밀을 안 보내면 저장된 값을 유지하고, 이제 쓰지 않는 비밀(Mattermost 방식·종류에 안 맞는 것)은 지운다. 암호화 키가 없으면 비밀을 저장하는 쓰기는 503.</li>
  *   <li><b>주소 검사</b>: 서버 주소·웹훅 주소는 저장할 때 {@link OutboundTargetGuard} 로 본다(http/https 만, 자격 증명·막힌 주소 거부 — 보낼 때 다시 본다). 주소·토큰이 바뀌면 지난 시험 결과는 지운다.</li>
  *   <li>도구는 최대 {@value #MAX_CHANNELS}개, 이름은 대소문자 무시 유일(1~100자). 도구를 지우면 이벤트의 전달 도구 선택에서도 함께 빠진다(DB 연쇄 삭제).</li>

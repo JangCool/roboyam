@@ -4,14 +4,14 @@
 지금의 단일 로고(`site-settings-contract.md` 의 `logo_file_id`·`logo_svg`)를 넓히는 일이다. 화면은 목업(`// MOCK:`)으로 확정됐고, 서버와 API는 아직 없다.
 
 ## 기본 로고(디자인 확정 — 사용자 결정 2026-11-06)
-- 심볼: 로보얌 아바타(`robotikon/src/parts.mjs` 좌표) 머리와 짧은 다리를 그린다. 웃는 눈(^^), 흰 테두리, 남색 귀를 쓰고 안테나는 줄기 절반 길이다. 다리는 원래 A자 다리와 같은 기울기로 머리 아래로만 짧게 낸다(바닥 y=159, 원본 164 — 사용자 결정 2026-11-07).
+- 심볼: 아이로빗 아바타(`robotikon/src/parts.mjs` 좌표) 머리와 짧은 다리를 그린다. 웃는 눈(^^), 흰 테두리, 남색 귀를 쓰고 안테나는 줄기 절반 길이다. 다리는 원래 A자 다리와 같은 기울기로 머리 아래로만 짧게 낸다(바닥 y=159, 원본 164 — 사용자 결정 2026-11-07).
   - 밝은 바탕용은 머리가 파랑 `#2F6BFF`, 어두운 바탕용은 흰색이다.
 - 글자는 개구체(Gaegu 700)를 쓰고 윤곽을 0.5만큼 「살짝 굵게」 한다(더 굵게는 탈락). 글자는 패스로 굳혀 두어서 웹 글꼴이 필요 없다.
-  - 한글: 「로보**얌**」 옆에 작은 「Roboyam」을 붙인다(R 대문자).
+  - 한글: 「로보**얌**」 옆에 작은 「Irobit」을 붙인다(R 대문자).
   - 영문: 「Robo**yam**」만 쓴다.
   - 강조색: 밝은 바탕에서는 파랑, 어두운 바탕에서는 노랑 `#FFC83D` 이다.
 - 정렬: 머리 몸통의 세로 중앙을 글자에 맞추고, 안테나는 위로 튀어나오게 둔다.
-- 파일: `apps/{admin,user}-web/public/brand/roboyam-logo-{ko,en}-{light,dark}.svg`(viewBox 높이 40, 한글 198 · 영문 176 너비, 루트 width·height 없음, 글자만 영역 `<view id="wordmark">` 포함).
+- 파일: `apps/{admin,user}-web/public/brand/irobit-logo-{ko,en}-{light,dark}.svg`(viewBox 높이 40, 한글 198 · 영문 176 너비, 루트 width·height 없음, 글자만 영역 `<view id="wordmark">` 포함).
   - 생성 스크립트: `robotikon/logo/build.mjs`(opentype.js + @fontsource/gaegu, `STROKE=0.5 SUB=16 node build.mjs <출력폴더>`).
 
 ## 화면
@@ -45,7 +45,7 @@
 
 ## 필드·검증 (후보)
 - 칸 `koLight`·`koDark`·`enLight`·`enDark`: 각각 null 을 허용하고, 값은 파일 주소(`/media/…`) 또는 SVG data URI 다. 파일·SVG 검사는 지금 로고와 같다(형식·2MB·한 변 4000px, SVG 위험 요소는 거절).
-- `nameInLogo` boolean: 기본값 후보는 false(기존 사이트는 이름 글자가 계속 보이게). 데모와 로보얌 설치 기본값은 true.
+- `nameInLogo` boolean: 기본값 후보는 false(기존 사이트는 이름 글자가 계속 보이게). 데모와 아이로빗 설치 기본값은 true.
 
 ## API 후보 (`useSiteSettingsApi.ts` 의 `// REAL:` 줄)
 - 관리자(`site.read`·`site.manage`). 응답은 매번 4칸 전체와 `nameInLogo` 다.
@@ -63,4 +63,10 @@
 - 관리자 앱 상단 `SiteBrand` 는 20×20 정사각이라, 가로로 긴 로고가 아주 작게 보인다. 관리자 상단도 4칸 중 하나를 쓸지, 아이콘을 쓸지 정해야 한다(이번에는 그대로 둠).
 - `util-site-logo.ts` 가 두 앱에 복사되어 있다. 공용 레이어(`apps-packages`)로 옮길지 정해야 한다.
 - 쓰지 않는 옛 i18n 키(`site.logoHint`·`logoAdd`·`logoChange`·`logoRemoveMessage`)를 정리할지.
-- 기본 로고 4장을 설치 때 기본값으로 넣을지(`boardPreset ROBOYAM` 처럼), 데모 데이터에만 넣을지.
+- 기본 로고 4장을 설치 때 기본값으로 넣을지(`boardPreset IROBIT` 처럼), 데모 데이터에만 넣을지.
+
+## 사이트 이름 바꿈 — 아이로빗 → 아이로빗(IROBIT) (사용자 결정 2026-11-12)
+- 이름: 한글 「아이로빗」, 영문 「IROBIT」. 뜻 = Intelligence · Robot · Our Bit. 한 줄 소개 「AI와 로봇, 그리고 우리(OUR)가 함께 만들어가는 작은 이야기」.
+- 로고: 시안 ① — 한글 「아이로」+「빗」(강조색) + 작은 「IROBIT」, 영문 「IRO」+「BIT」(강조색). 마스코트(머리·다리)·개구체·색은 그대로. 생성 `robotikon/logo/build.mjs`, 링크 미리보기·아이콘 `design/brand/`.
+- 바꾸는 범위: 사용자에게 보이는 이름 전부(사이트 이름·로고·문구·테마 표시 이름 「아이로빗 테마」·운영 로보티콘 「아이로빗콘·아이로빗콘핑크」·군인 아바타 이름표·데모 원고). **코드 이름은 그대로** — `@irobit/*`, `irobit` 테마 id, 설치 프리셋 id `IROBIT`, `irobit-logo-*.svg` 파일 이름, `IROBIT_*` 환경 변수, DB·패키지 이름.
+- 이미 설치된 사이트: 새 shared 마이그레이션이 옛 기본값 그대로인 값(사이트 이름 `IROBIT`, 옛 소개, 운영 로보티콘 이름 등)만 새 이름으로 바꾼다. 운영자가 바꾼 값은 두기.

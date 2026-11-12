@@ -1,7 +1,7 @@
 # 회원 마이페이지(공개 사이트) 계약 (**화면 확정 · 서버 구현·연결 2026-10-24** — 아래 「서버 구현·연결 결과」)
 
 **의도**: 셸(헤더 프로필 메뉴·모바일 하단 탭·햄버거)의 「내 정보」「포인트」「알림」「계정·로그인 연결」이 실제 화면으로 가게 한다. 서버 API 가 있는 곳(로그인 정보·포인트 요약·회원 알림·표시 설정·소셜 연결)은 실제로 부르고, 없는 곳(프로필·포인트 내역·알림 설정)은 `// MOCK:`/`// REAL:` 짝 목업으로 화면을 먼저 확정한다.
-**참고(읽기 전용)**: community `pages/me/{index,points}.vue`·`pages/settings/{index,profile}.vue`·`pages/notifications/*` — 로보얌에 없는 기능(스크랩·소모임·아이템샵·주문·등급 안내·쪽지·차단·메모·19금·닉네임 그림·출석 달력·교환)은 옮기지 않았다.
+**참고(읽기 전용)**: community `pages/me/{index,points}.vue`·`pages/settings/{index,profile}.vue`·`pages/notifications/*` — 아이로빗에 없는 기능(스크랩·소모임·아이템샵·주문·등급 안내·쪽지·차단·메모·19금·닉네임 그림·출석 달력·교환)은 옮기지 않았다.
 
 ## 화면 (user-web, 모두 로그인 필요 — `auth` 미들웨어, 비로그인은 `/login?next=`)
 | 경로 | 내용 | API |
@@ -65,7 +65,7 @@ interface MyNotificationSetting {
 - 적용 지점(서버 몫): 발행기가 `enabled && inApp && 회원 inApp` 일 때 알림함 줄을, `enabled && email && 회원 email` 일 때 메일을. 표 후보는 `member-notification-contract.md` 미확정 1(`member_notification_mutes(user_id, kind, channel …)`).
 
 ## 목업 가정
-1. 프로필 닉네임 변경: 가입 뒤 1번만(목업 `FREE_LIMIT` = 1, 날짜 대기 없음). 확인 대화상자는 화면이 묻는다(서버 몫 아님). 정지 여부는 로그인 정보 `restriction`(정지·영구 정지만 — 경고는 아님)으로 미리 알고, 저장 때 `403 ACCOUNT_RESTRICTED` 가 와도 읽기 전용으로 바꾼다. 예약어 `admin·운영자·관리자·roboyam`, 중복 시험 값 `taken`·`사용중`. 목업은 서버 닉네임을 실제로 바꾸지 않는다(새로고침하면 처음 값).
+1. 프로필 닉네임 변경: 가입 뒤 1번만(목업 `FREE_LIMIT` = 1, 날짜 대기 없음). 확인 대화상자는 화면이 묻는다(서버 몫 아님). 정지 여부는 로그인 정보 `restriction`(정지·영구 정지만 — 경고는 아님)으로 미리 알고, 저장 때 `403 ACCOUNT_RESTRICTED` 가 와도 읽기 전용으로 바꾼다. 예약어 `admin·운영자·관리자·irobit`, 중복 시험 값 `taken`·`사용중`. 목업은 서버 닉네임을 실제로 바꾸지 않는다(새로고침하면 처음 값).
 2. 가입일·한 줄 소개는 로그인 정보(`/api/auth/me`)에 없어 프로필 API 가 준다.
 3. 포인트 내역 목업 45줄은 요약 잔액과 맞지 않을 수 있다. 「사용(USE)」은 교환 기능이 없어 거르기에 두지 않았다.
 4. 알림 설정 목업의 운영자 값: 5종 모두 앱 알림 켬, 이메일은 「내 글에 댓글」「포인트 회수」만. 운영자가 어느 채널로도 보내지 않는 이벤트는 화면에서 감춘다.
@@ -78,7 +78,7 @@ interface MyNotificationSetting {
 4. 알림 설정의 이메일 받기가 「수신 동의」(`message-template-contract.md` 미해결)와 같은 것인지.
 5. `StickySaveBar`·`AppSideNav` 를 두 앱 공용 레이어로 옮길지(지금은 user-web 에 같은 모양으로 따로 있다).
 
-## 결정 (2026-10-24, 사용자 "추천대로" — community 정책을 로보얌에 맞춤)
+## 결정 (2026-10-24, 사용자 "추천대로" — community 정책을 아이로빗에 맞춤)
 - **「안 읽은 것만」(미확정 1)**: 화면 거르기(불러온 알림 안에서)를 유지한다. 서버 거르기는 묶음 `filter` 뿐이다(community 와 같다).
 - **닉네임 변경(미확정 2)**: **가입 때 정한 뒤 1번만 바꿀 수 있다**(2026-10-24 사용자 확정 — 처음 결정한 「무료 2회·30일 간격」을 바꿨다). 그 1번은 언제든 할 수 있고(날짜 대기 없음), 쓰고 나면 더 바꿀 수 없다(`409 NICKNAME_CHANGE_LIMIT`). **닉네임 변경권은 아이템샵이 생길 때 포인트로 사는 품목으로 만든다**(2026-10-24 사용자 확정 — 지금은 아이템샵이 없어 두지 않는다). 할 일은 아래 「후속 작업: 닉네임 변경권」. 횟수 1은 서버 상수, 예약어는 코드 고정(`UserPolicy`). 닉네임을 바꾸지 않는 저장(소개만)은 횟수를 쓰지 않는다. 이전 닉네임은 공개하지 않는다.
 - **정지 회원·공개 범위(미확정 3)**: 정지 중에는 프로필(닉네임·한 줄 소개) 수정 불가 — `403 ACCOUNT_RESTRICTED`(글쓰기와 같다), 화면은 읽기 전용 + 제재 안내 링크. 한 줄 소개는 공개 프로필에 보인다(`member-activity-contract.md` 결정과 같다).
@@ -88,9 +88,9 @@ interface MyNotificationSetting {
 ## 후속 작업: 닉네임 변경권 (아이템샵을 만들 때 — 빠뜨리지 말 것)
 > **구현됨(2026-10-26, 커머스 1-2 — `commerce-stage1-contract.md` 「1-2 구현 결과」)**: 변경권은 포인트 상점 품목 `nickname-change`(소모형), `PUT /api/me/profile` 의 `useTicket`·`409 NICKNAME_TICKET_REQUIRED`·`ticketCount`·`ticketPrice` 가 서버·화면에 연결됐다. `NICKNAME_CHANGE_LIMIT` 은 없어졌다. 아래 「지금 자리만 있는 곳」 표는 모두 실제 값으로 바뀌었다.
 > **세션 정리 결정(2026-10-26, `commerce-stage1-contract.md` 결정 1·2·3·9)**: 아이템샵의 정식 이름은 **포인트 상점**(`pointshop`, 품목 `NICKNAME_CHANGE_TICKET`)이다. 변경권은 **다른 포인트 상점 품목과 같은 환불 규칙**(안 썼고 7일 안이면 셀프 환불 — commerce.md D6)을 따르고, 값은 **포인트 상점 품목 가격**이 정본이다(`nicknameTicketPrice` 는 옮긴 뒤 없앤다). 원장 사유는 `POINT_SHOP_PURCHASE`. 적립·충전 포인트 모두 쓸 수 있다(적립부터 차감). 아래 「환불 불가」·「값은 `nicknameTicketPrice`」·「원장 이유 `TICKET_PURCHASE`」는 이 결정으로 바뀌었다. 사용 규칙(`useTicket`·`409 NICKNAME_TICKET_REQUIRED`·동시 요청)은 그대로다.
-**확정(2026-10-24)**: 가입 뒤 1번의 변경을 쓴 다음부터는 바꿀 때마다 **아이템샵에서 포인트로 산 닉네임 변경권 1장**을 쓴다(날짜 대기 없음 — community 의 「30일 전에 앞당기기」는 로보얌에 없다). 그 전까지는 `409 NICKNAME_CHANGE_LIMIT`(더 못 바꿈)로 둔다. 규칙의 원본은 community `docs/api-profile.md` 「닉네임 변경 규칙」·`docs/api-point.md` 「교환」「닉네임 변경권」·`docs/api-shop.md`.
+**확정(2026-10-24)**: 가입 뒤 1번의 변경을 쓴 다음부터는 바꿀 때마다 **아이템샵에서 포인트로 산 닉네임 변경권 1장**을 쓴다(날짜 대기 없음 — community 의 「30일 전에 앞당기기」는 아이로빗에 없다). 그 전까지는 `409 NICKNAME_CHANGE_LIMIT`(더 못 바꿈)로 둔다. 규칙의 원본은 community `docs/api-profile.md` 「닉네임 변경 규칙」·`docs/api-point.md` 「교환」「닉네임 변경권」·`docs/api-shop.md`.
 
-**규칙 (community 와 같게, 로보얌에 맞춤)**
+**규칙 (community 와 같게, 아이로빗에 맞춤)**
 - 사는 곳: 아이템샵 품목 `nickname-change`. 값은 포인트 설정의 `nicknameTicketPrice`(이미 저장만 되어 있다 — 기본 1,000P, `point-contract.md`). 차감은 `PointService` 한 길, 원장 이유 `TICKET_PURCHASE`. **환불 불가·유효기간 없음.** 이메일 인증 + 정지 아님.
 - 쓰는 곳: `PUT /api/me/profile` 요청에 `useTicket: true`(선택, 기본 `false`).
   - 무료로 바꿀 수 있으면 `useTicket` 을 보내도 쓰지 않는다. 닉네임이 실제로 바뀔 때만 쓴다.
@@ -112,7 +112,7 @@ interface MyNotificationSetting {
 ## 서버 구현·연결 결과 (2026-10-24)
 위 「목업 API 후보」 모양 그대로 서버에 만들고(api 서버, `ApiResponse` 감싸기, `Cache-Control: no-store`, 쓰기는 CSRF) user-web 을 실제 호출로 바꿨다 — `useProfileApi`·`usePointApi.ledger`·`useNotificationSettingsApi` 의 `// MOCK:` 줄과 목업 파일(`profile-mock.ts`·`point-mock.ts`·`notification-settings-mock.ts`)을 지웠다. 위 「목업 가정」 5의 `?mock=` 스위치는 목업과 함께 없어졌다.
 - **저장**: shared `V66__profile_nickname_change.sql` — `profiles.nickname_change_count`(0 시작, 가입 때 닉네임은 세지 않음) · 비공개 이력 `profile_nickname_history(user_id, old_nickname, new_nickname, changed_at)`. `bio`·`nickname_changed_at` 은 V2 에 이미 있던 칸을 이제 채운다. shared `V67__member_notification_preferences.sql` — 회원 개인 알림 설정 `member_notification_preferences(user_id, event_code, in_app, email, PK(user_id, event_code))`, 줄이 없으면 둘 다 켬(`member-notification-contract.md` 미확정 1 의 `member_notification_mutes` 후보 대신 이 모양).
-- **프로필** `MyProfileService`: 검사 순서 401 → `403 ACCOUNT_RESTRICTED`(글쓰기와 같은 예외) → 프로필 행 쓰기 잠금 → `400 VALIDATION fields.nickname|bio` → `409 NICKNAME_CHANGE_LIMIT` → `409 NICKNAME_TAKEN`(동시 저장이 유일 색인에 걸려도). 닉네임이 글자 그대로 같으면(소개만) 검사·횟수 없음, **대소문자만 바꿔도 변경**이다. 소개 글자 수는 코드 포인트로 센다(화면은 UTF-16 — 이모지에서 화면이 더 엄격). 예약어는 `UserPolicy.memberNicknameViolation`(admin·운영자·관리자·roboyam, 대소문자 무시 부분 일치) — 가입도 예약어를 검사한다(`SignupService` 의 닉네임 확인·가입이 `UserPolicy.isReservedNickname` — 사유 `RESERVED`). `/api/auth/me` 는 닉네임을 DB 에서 읽으므로(세션엔 ID·역할만) 저장 뒤 다시 받으면 셸이 맞는다.
+- **프로필** `MyProfileService`: 검사 순서 401 → `403 ACCOUNT_RESTRICTED`(글쓰기와 같은 예외) → 프로필 행 쓰기 잠금 → `400 VALIDATION fields.nickname|bio` → `409 NICKNAME_CHANGE_LIMIT` → `409 NICKNAME_TAKEN`(동시 저장이 유일 색인에 걸려도). 닉네임이 글자 그대로 같으면(소개만) 검사·횟수 없음, **대소문자만 바꿔도 변경**이다. 소개 글자 수는 코드 포인트로 센다(화면은 UTF-16 — 이모지에서 화면이 더 엄격). 예약어는 `UserPolicy.memberNicknameViolation`(admin·운영자·관리자·irobit, 대소문자 무시 부분 일치) — 가입도 예약어를 검사한다(`SignupService` 의 닉네임 확인·가입이 `UserPolicy.isReservedNickname` — 사유 `RESERVED`). `/api/auth/me` 는 닉네임을 DB 에서 읽으므로(세션엔 ID·역할만) 저장 뒤 다시 받으면 셸이 맞는다.
 - **포인트 내역** `MyPointService#ledger`: `reason` = 관리자 원장과 같은 `point.reason.<코드>` 번들. `target` 은 `ref_type` 이 글·댓글일 때만(댓글이면 그 글), 글을 볼 수 없으면 `available=false`·`title=null`, 댓글을 못 찾으면 `postId` 도 null. `size` 범위 밖은 잘라 맞추지 않고 `400 fields.size`.
 - **알림 설정** `MyNotificationSettingsService`: `lockReason` 은 코드 잠금(ACCOUNT·ACTION)만 — 운영자가 「회원이 끌 수 있음」을 끈 이벤트는 `memberCanTurnOff=false`·`lockReason=null`(화면은 「운영자가 정한 알림이라 끌 수 없어요」, 키 `notification.lockedSite`). PUT 은 줄마다 `code·inApp·email` 모두 필요(`fields.events`·`fields.events[i].code|inApp|email` — 모르는·준비 중·중복 코드는 `code`), 잠긴 이벤트에 `true` 는 무시, 운영자가 보내지 않는 채널은 회원의 이전 값을 지킨다. **발행기**(`MemberNotificationPublisher`): 알림함 줄 = `enabled && inApp && 회원 inApp`, 메일 = `enabled && email && 회원 email`, 잠긴 이벤트(코드·운영자)는 회원 값을 무시한다. 회원 값 읽기도 세이브포인트 안이라 실패가 업무를 깨지 않는다.
 - **관리자 회원 상세**: `nicknameHistory` 를 이력 표로 채운다(최신 20줄, `member.pii` 없으면 null 그대로). `settings`(알림·표시·차단·메모 건수·알림함)는 차단·메모가 소통 세션 데이터라 이번에 채우지 않았다 — 칸별 nullable 로 바꾸거나 합친 뒤 한 번에 채운다.

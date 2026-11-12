@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
  * {@link DataCipher#reencrypt} 로 지금 키로 다시 잠근다. 파일 바이트 칸(사업자등록증·계약서 사본)은 행 키만 덩어리로 고르고 내용은 한 건씩 읽어 {@link DataCipher#reencryptBytes} 로.
  *
  * <ul>
- *   <li>키 교체 절차: 새 키를 버전을 올려 {@code ROBOYAM_DATA_KEY} 에, 옛 키를 {@code ROBOYAM_DATA_KEY_PREVIOUS} 에 두고 재기동 → <b>이 배치를 「지금 실행」</b> →
+ *   <li>키 교체 절차: 새 키를 버전을 올려 {@code IROBIT_DATA_KEY} 에, 옛 키를 {@code IROBIT_DATA_KEY_PREVIOUS} 에 두고 재기동 → <b>이 배치를 「지금 실행」</b> →
  *       실패 건이 없으면 예전 키를 비운다. 그래서 기본은 <b>예약 꺼짐</b>(수동 실행 위주 — 켜면 매일 05:00 KST, 지금 키인 행은 고르지 않으므로 할 일이 없으면 곧 끝난다).</li>
  *   <li>저장은 <b>조건부 UPDATE</b>(읽은 암호문 그대로일 때만) — 그 사이 다른 곳(탈퇴 기능 등)이 값을 바꿨으면 덮어쓰지 않고 「건너뜀」으로 센다(다음 실행이 새 값을 본다).</li>
  *   <li>풀 수 없는 행(예전 키가 설정에 없음·용도가 다름·깨진 암호문)은 그 건만 실패({@code DATA_KEY_UNREADABLE}, 문구에 값·암호문 없음)로 남기고 나머지는 계속한다.
@@ -242,7 +242,7 @@ public class DataKeyRotationJob implements BatchJob {
             return cipher.reencryptBytes(column.purpose(), content);
         } catch (CommonException | IllegalArgumentException e) {
             String head = new String(content, 0, Math.min(content.length, 5), StandardCharsets.US_ASCII);
-            throw new BatchItemException(UNREADABLE, "풀 수 없는 암호문이다(키 버전 " + versionOf(head) + " — 예전 키가 ROBOYAM_DATA_KEY_PREVIOUS 에 있는지 확인)");
+            throw new BatchItemException(UNREADABLE, "풀 수 없는 암호문이다(키 버전 " + versionOf(head) + " — 예전 키가 IROBIT_DATA_KEY_PREVIOUS 에 있는지 확인)");
         }
     }
 
@@ -251,7 +251,7 @@ public class DataKeyRotationJob implements BatchJob {
             return cipher.reencrypt(column.purpose(), row.cipherText());
         } catch (CommonException | IllegalArgumentException e) {
             // 예전 키가 설정에 없거나(503 DATA_KEY_MISSING) 풀리지 않는 암호문 — 값·암호문은 싣지 않고 키 버전만
-            throw new BatchItemException(UNREADABLE, "풀 수 없는 암호문이다(키 버전 " + versionOf(row.cipherText()) + " — 예전 키가 ROBOYAM_DATA_KEY_PREVIOUS 에 있는지 확인)");
+            throw new BatchItemException(UNREADABLE, "풀 수 없는 암호문이다(키 버전 " + versionOf(row.cipherText()) + " — 예전 키가 IROBIT_DATA_KEY_PREVIOUS 에 있는지 확인)");
         }
     }
 

@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 제공사 API 키(정책 12) — {@link SecretEncryptor}({@code ROBOYAM_CRYPTO_KEY}) 암호문을 {@code ai_provider_keys} 에 둔다. 키 값은 실행기가 호출 직전에만 푼다 —
+ * 제공사 API 키(정책 12) — {@link SecretEncryptor}({@code IROBIT_CRYPTO_KEY}) 암호문을 {@code ai_provider_keys} 에 둔다. 키 값은 실행기가 호출 직전에만 푼다 —
  * 응답·로그·감사에 싣지 않는다. 키가 없거나 풀 수 없는 제공사의 AI 계정은 쉰다({@code NO_PROVIDER_KEY}).
  *
  * <p><b>제공사 쉬게 하기</b>(V189, 2026-11-11): 제공사가 결제·크레딧 부족이나 키 오류로 거절하면 실행기가 {@link #pause} 로 상태를 바꾸고 — 그 제공사의 계정은 「키 없음」과 같은 방식으로

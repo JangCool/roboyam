@@ -27,7 +27,7 @@
 ## 옮기기 쉽게
 - 표 접두사 `analytics_`, 마이그레이션 별도 스트림 `analytics`(표 + 크론 `R__analytics_*`). 원본 표 기본 키 맨 앞이 시각(`viewed_at, id`) — TimescaleDB hypertable 조건. 다른 표와 외래 키 없음.
 - 자바 `com.community.analytics`(collect·store·aggregate·settings), DB 접근은 분석 전용 연결 `analyticsJdbc`(지금 메인 DB, 설정만 바꾸면 다른 DB), JPA 없이 SQL.
-- 사용자 화면 공용 레이어 `apps-packages/analytics`(`@roboyam/analytics`) — 방문자 ID·세션·신호.
+- 사용자 화면 공용 레이어 `apps-packages/analytics`(`@irobit/analytics`) — 방문자 ID·세션·신호.
 - AWS RDS PostgreSQL 은 TimescaleDB 확장을 지원하지 않는다 — **사용자 결정(2026-11-04): AWS 에서도 RDS 를 쓰지 않고 PostgreSQL 을 직접 올린다**(pg_cron 크론 때문). 그래서 옮길 때도 같은 자체 DB 에 확장만 붙이면 된다.
 
 ## 설정 (`analytics_settings`, 조회 site.read · 변경 site.manage · 감사 기록)
@@ -70,7 +70,7 @@
 - 서버 구현(2026-11-04): shared **V135**(설정 칸 3개 — PUT 에서 빠지면 저장값 유지) · analytics **V4**(`analytics_env_daily`·`analytics_search_daily`·`analytics_search_filtered_daily`·`analytics_bot_daily`·`analytics_collector_beats`·`analytics_collector_hourly`·`analytics_collector_failures`·`analytics_forget_requests`) · 크론 `R__analytics_13` `analytics-forget-requests`(5분) · `R__analytics_14` `analytics-log-cleanup`(매일 00:45 — 진단 7일, 처리 끝난 요청 1년).
 - 봇 셈 지점: user-web 은 SPA(`ssr: false`)라 운영에서 api `SiteHeadFilter` 가 `index.html` 을 내릴 때 화면 HTML 요청 하나를 1로 센다(`/api/**` 는 세지 않아 중복 없음). `/api` 만 두드리는 도구·로컬 Nuxt 개발 서버로 온 봇은 안 잡힌다. 배포 확인(2026-11-04): dev 는 Caddy → app, prod 는 ALB → app 이고 `pnpm generate` 정적 파일을 Spring Boot 가 내리므로 이 지점에서 센다. 봇 판정 `BotClassifier` 에 네이버(Yeti)·다음을 더해 **방문 신호에서도 이 둘을 봇으로 뺀다**.
 - 검색어: `SearchController` 성공 응답 중 `page == 1` 만. 주민등록번호 모양도 거른다. 환경: 맥 UA + `env.os=IOS` 면 TABLET.
-- 진단: 서버 이름 기본 `api-<NODE_ID>`(`roboyam.analytics.instance-name`). 판정 — 마지막 기록 3분 넘음 WARN·10분 ERROR, 24시간 안 기록 실패 WARN(지난 1시간이면 ERROR), 버린 신호 WARN, 크론 마지막 실패 ERROR·주기 2배 지남 WARN, 원본이 보관 기간+1일 넘게 남음 WARN, 다음 달 조각 없음 WARN(그 달 마지막 3일 ERROR). 상태 OFF → STOPPED(3분 안 기록 서버 0) → DELAYED → OK.
+- 진단: 서버 이름 기본 `api-<NODE_ID>`(`irobit.analytics.instance-name`). 판정 — 마지막 기록 3분 넘음 WARN·10분 ERROR, 24시간 안 기록 실패 WARN(지난 1시간이면 ERROR), 버린 신호 WARN, 크론 마지막 실패 ERROR·주기 2배 지남 WARN, 원본이 보관 기간+1일 넘게 남음 WARN, 다음 달 조각 없음 WARN(그 달 마지막 3일 ERROR). 상태 OFF → STOPPED(3분 안 기록 서버 0) → DELAYED → OK.
 - 삭제 요청: 원본에 `visitor_hash` 인덱스를 두지 않고, 받은 지 2분 넘은 대기 요청을 최대 500개씩 모아 월 조각마다 `visitor_hash = ANY(…)` 한 번(1분 몰아쓰기 직전 신호가 처리 뒤에 써지는 것을 막으려고 2분). 빈도 제한 IP당 1시간 5회(서버 메모리, IP 저장 안 함 — 서버 2~3대면 그 배수까지) + **대기 요청 전체 상한 1,000개**(DB, 서버 여러 대가 함께 지킴 — 넣기 문장에 조건으로, 넘으면 503 `VISIT_FORGET_BUSY` Retry-After 300초, 같은 해시가 대기 중이면 상한과 상관없이 그 요청 반환). 요청 번호는 Snowflake 숫자. 같은 해시가 대기 중이면 그 요청을 돌려준다.
 - 알려진 점: 지운 그날 같은 브라우저가 다시 오면 방문자 1로 다시 센다(판정 표시를 지웠으므로). 요청 목록은 캐시 60초.
 
@@ -128,7 +128,7 @@
 - 회원: 대상 = 회원 번호 `bigint`(표시 방식 — 로그인 시각 방식은 버림). 로그인하지 않고 본 회원은 빠진다(방문자 쪽에는 들어감).
 - 보관: 표시는 이번 기간(+ 정리까지 며칠)만, 끝난 기간은 숫자만 남긴다. DAU·WAU·MAU 숫자는 기한 없음.
 - 숫자 표(2026-11-11 결정): `(대상 VISITOR|MEMBER, 종류 WEEK|MONTH, 기간 시작, 날짜, 새로 센 수)` — 표시에 처음 들어간 줄을 그날 칸에 +1. 기간 순방문자 = 그 기간 줄의 합, 「같은 시점까지」(이번 달 vs 지난달 같은 날까지) = 그 날짜까지의 합 → 표시를 지운 뒤에도 비교된다. 하루 4줄(대상 2 × 종류 2), 1년 약 1,500줄(100KB 안팎) — 기한 없음.
-- **뺄 계정(2026-11-11 결정)**: 운영자 회원 계정(`operator_member_accounts.user_id` — 「로보얌운영팀」 포함)·AI 회원(`ai_member_profiles.user_id`)의 신호는 **방문 통계 전체에서 뺀다** — 신호를 받을 때 로그인 세션의 회원이 이 둘에 있으면 그 신호를 버린다(원본·하루 방문자·신규·페이지뷰·지금 접속·페이지·유입·캠페인·이동·환경·주/월 순방문자 모두 안 셈, 사이트 검색어 셈도 같은 규칙). 수집 진단에는 「뺀 계정 신호」 수로 남긴다(무시한 신호와 같은 자리). 대상 회원 번호 묶음은 서버 메모리에 두고 짧게(예: 1분) 새로 읽는다. 로그인하기 전에 같은 브라우저로 본 것은 가를 수 없어 들어간다.
+- **뺄 계정(2026-11-11 결정)**: 운영자 회원 계정(`operator_member_accounts.user_id` — 「아이로빗운영팀」 포함)·AI 회원(`ai_member_profiles.user_id`)의 신호는 **방문 통계 전체에서 뺀다** — 신호를 받을 때 로그인 세션의 회원이 이 둘에 있으면 그 신호를 버린다(원본·하루 방문자·신규·페이지뷰·지금 접속·페이지·유입·캠페인·이동·환경·주/월 순방문자 모두 안 셈, 사이트 검색어 셈도 같은 규칙). 수집 진단에는 「뺀 계정 신호」 수로 남긴다(무시한 신호와 같은 자리). 대상 회원 번호 묶음은 서버 메모리에 두고 짧게(예: 1분) 새로 읽는다. 로그인하기 전에 같은 브라우저로 본 것은 가를 수 없어 들어간다.
 - **게시판 활동에서도 뺀다(2026-11-11 결정)**: `R__batch_38`(`board_activity_daily`·`site_activity_daily`)이 글·댓글을 셀 때 `author_id` 가 위 두 묶음에 있는 줄을 빼고(비회원 글·댓글은 지금처럼 센다), 「가입」도 그 회원을 뺀다. 같은 기준을 쓰는 관리자 대시보드 「회원 현황」 오늘 가입도 함께 맞춘다. 크론은 오늘·어제만 다시 세므로, 나중에 운영자 계정으로 이어진 회원의 지난 날 숫자는 바뀌지 않는다.
 - 개인정보: 방문자 해시 보관이 이틀 → 최대 한 달 남짓(처리방침 고침) · 방문 기록 삭제 요청 크론(`R__analytics_13`)에 방문자 주·월 표시 추가 · 회원 표시는 **회원 탈퇴 파기 대상** + 처리방침.
 - 수집 스위치(2026-11-11 결정): 「방문자·페이지뷰」(`visits`)에 딸린다 — 새 칸 없음(기본 꺼짐).

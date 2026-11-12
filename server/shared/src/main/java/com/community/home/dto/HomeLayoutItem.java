@@ -1,7 +1,7 @@
 package com.community.home.dto;
 
 /**
- * 홈 격자에서 가젯 하나의 자리(칸 단위) — 공유 레이어 {@code @roboyam/home-layout} 의 {@code HomeLayoutItem} 과 같은 모양.
+ * 홈 격자에서 가젯 하나의 자리(칸 단위) — 공유 레이어 {@code @irobit/home-layout} 의 {@code HomeLayoutItem} 과 같은 모양.
  *
  * @param gadgetId 가젯 ID(문자열)
  * @param x        왼쪽 칸(0부터)

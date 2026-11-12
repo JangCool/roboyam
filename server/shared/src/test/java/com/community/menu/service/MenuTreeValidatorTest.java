@@ -60,7 +60,7 @@ class MenuTreeValidatorTest {
         assertThat(MenuRules.pathProblem("/api/x")).isNotNull();
         assertThat(MenuRules.pathProblem("/a/../b")).isNotNull();
         assertThat(MenuRules.pathProblem("/javascript:alert(1)")).isNotNull();
-        assertThat(MenuRules.hrefProblem("https://blog.roboyam.com/a?b=1")).isNull();
+        assertThat(MenuRules.hrefProblem("https://blog.irobit.com/a?b=1")).isNull();
         assertThat(MenuRules.hrefProblem("/boards/free")).isNull();
         assertThat(MenuRules.hrefProblem("http://a.com").key()).isEqualTo("menu.href.http");
         assertThat(MenuRules.hrefProblem("https://user@a.com")).isNotNull();

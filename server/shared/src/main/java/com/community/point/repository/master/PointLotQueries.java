@@ -3,7 +3,7 @@ package com.community.point.repository.master;
 import com.community.point.dto.PointExpiring;
 import com.community.point.entity.PointLotKind;
 import com.community.point.entity.QPointLotEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.time.ServiceTime;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
  * 트랜잭션은 부르는 서비스가 연다. 색인 {@code ix_point_lots_deduction (user_id, kind, expires_at, id) WHERE remaining_amount > 0} 를 탄다.
  */
 @Repository
-public class PointLotQueries extends RoboyamRepositoryQDSL {
+public class PointLotQueries extends IrobitRepositoryQDSL {
 
     private static final QPointLotEntity LOT = QPointLotEntity.pointLotEntity;
 

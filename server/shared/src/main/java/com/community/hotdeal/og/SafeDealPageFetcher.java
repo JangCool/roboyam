@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * 상품 링크 가져오기의 운영 구현(서버 규칙 1·2) — {@link OutboundTargetGuard}·{@link SafeHttpClient} 를 그대로 쓴다(검사한 IP 로만 연결 · SNI · 헤더 주입 거절 · 전체 마감).
  *
  * <ul>
- *   <li><b>사설망 늘 거절</b>: 설정({@code roboyam.notification.allow-private-targets})과 무관하게 {@link OutboundTargetGuard#strictlyBlocked} 로 막는다.
+ *   <li><b>사설망 늘 거절</b>: 설정({@code irobit.notification.allow-private-targets})과 무관하게 {@link OutboundTargetGuard#strictlyBlocked} 로 막는다.
  *       풀어 주는 길은 시험용 생성자({@link #SafeDealPageFetcher(OutboundTargetGuard, SafeHttpClient, Limits, Predicate)})뿐이고 설정 값이 없다.</li>
  *   <li><b>리디렉션</b>: 최대 {@value #MAX_REDIRECTS}회, 매 단계 새 주소를 다시 검사(모양·DNS·주소)한다. 따라간 모든 호스트가 판정(규칙 2) 대상이다 — 막혔거나 3회를 넘어
  *       따라가지 못한 마지막 주소의 호스트도 체인에 넣는다(보수적으로).</li>
@@ -37,7 +37,7 @@ public class SafeDealPageFetcher implements DealPageFetcher {
     public static final int MAX_REDIRECTS = 3;
     public static final int HTML_MAX_BYTES = 1024 * 1024;
     public static final int IMAGE_MAX_BYTES = 5 * 1024 * 1024;
-    private static final String USER_AGENT = "Mozilla/5.0 (compatible; roboyam-linkcheck/1.0)";
+    private static final String USER_AGENT = "Mozilla/5.0 (compatible; irobit-linkcheck/1.0)";
 
     /** 시간 한도(밀리초) */
     public record Limits(int connectMillis, int readMillis, int totalMillis) {

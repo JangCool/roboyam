@@ -3,7 +3,7 @@ import UtilRichMedia from '#layers/rich-editor/utils/util-rich-media';
 
 /**
  * 본문 이미지 노드 — 글에 실리는 표식은 `<img data-image-id="이미지ID">` 하나다(서버가 `data-image-id` 만 보고 주소·크기를 다시 채운다).
- * community `frontend/app/editor/imageBlock.ts` 에서 옮겼다(GIF 정지 이미지 `data-animated`·`data-poster` 는 로보얌 서버에 없어 뺐다).
+ * community `frontend/app/editor/imageBlock.ts` 에서 옮겼다(GIF 정지 이미지 `data-animated`·`data-poster` 는 아이로빗 서버에 없어 뺐다).
  * 에디터 미리보기를 위해 `src`·`width`·`height` 도 함께 직렬화한다 — 서버가 준 본문을 그대로 불러와 다시 보내도 같은 결과가 되도록(수정 왕복) **모두 읽고 모두 쓴다**.
  * `data-image-id` 가 없는 `<img>`(다른 곳에서 붙여넣은 외부 이미지)는 읽지 않는다 — 서버도 받지 않는다.
  *

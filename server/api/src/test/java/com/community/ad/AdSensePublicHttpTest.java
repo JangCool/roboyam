@@ -51,9 +51,9 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
 
     private static final String CLIENT = "ca-pub-1234567890123456";
     private static final String OTHER = "ca-pub-6543210987654321";
-    private static final String ADMIN_ORIGIN = "https://admin.roboyam.test";
+    private static final String ADMIN_ORIGIN = "https://admin.irobit.test";
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final String BASE_HTML = "<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>로보얌</title></head>"
+    private static final String BASE_HTML = "<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>아이로빗</title></head>"
             + "<body><div id=\"__nuxt\"></div></body></html>";
     private static final String BASE_ETAG = "base-etag";
 
@@ -283,7 +283,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
                 assertThat(html.indexOf("adsbygoogle.js")).isEqualTo(html.lastIndexOf("adsbygoogle.js"));
                 assertThat(html.substring(html.indexOf(script(CLIENT)) + script(CLIENT).length()).strip()).startsWith("</head>");
                 // 나머지는 바탕 그대로
-                assertThat(html).startsWith("<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>로보얌</title>")
+                assertThat(html).startsWith("<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>아이로빗</title>")
                         .endsWith("</head><body><div id=\"__nuxt\"></div></body></html>");
                 // ETag 는 바탕과 다르다(바탕 지문을 그대로 쓰면 설정을 바꿔도 304 가 된다)
                 assertThat(res.getHeader("ETag")).isNotNull().isNotEqualTo("\"" + BASE_ETAG + "\"");
@@ -307,15 +307,15 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
         row("SHOW", CLIENT, false, units());
         SiteHeadFilter f = filter(ADMIN_ORIGIN);
         String preview = serve(f, page("/", true)).getContentAsString(StandardCharsets.UTF_8);
-        assertThat(preview).contains("<meta name=\"roboyam-admin-origin\" content=\"" + ADMIN_ORIGIN + "\">")
+        assertThat(preview).contains("<meta name=\"irobit-admin-origin\" content=\"" + ADMIN_ORIGIN + "\">")
                 .doesNotContain("google-adsense-account", "adsbygoogle");
         String previewBoard = serve(f, page("/boards/free", true)).getContentAsString(StandardCharsets.UTF_8);
         assertThat(previewBoard).doesNotContain("google-adsense-account", "adsbygoogle");
         // 같은 필터의 보통 요청에는 들어간다
-        assertThat(serve(f, page("/", false)).getContentAsString(StandardCharsets.UTF_8)).contains(meta(CLIENT)).doesNotContain("roboyam-admin-origin");
+        assertThat(serve(f, page("/", false)).getContentAsString(StandardCharsets.UTF_8)).contains(meta(CLIENT)).doesNotContain("irobit-admin-origin");
         // 관리자 주소가 없으면 adminPreview=1 은 미리보기가 아니다(AdminPreviewFrame#isPreview) — 보통 요청처럼 애드센스가 들어간다
         String notPreview = serve(filter(""), page("/", true)).getContentAsString(StandardCharsets.UTF_8);
-        assertThat(notPreview).contains(meta(CLIENT)).doesNotContain("roboyam-admin-origin");
+        assertThat(notPreview).contains(meta(CLIENT)).doesNotContain("irobit-admin-origin");
     }
 
     @Test

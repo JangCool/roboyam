@@ -15,7 +15,7 @@ import com.community.pointshop.entity.QUserItemEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Repository;
  * 모두 QueryDSL 이다 — 읽기는 한 줄 모양(프로젝션), 넣기는 넣고 바로 내보낸다(유일 위반은 {@code DuplicateKeyException} — {@link UniqueViolations}), 구매마다 가장 최근 신청은 {@code DISTINCT ON} 대신 {@code id IN (SELECT max(id) … GROUP BY)}.
  */
 @Repository
-public class PointShopPurchaseStore extends RoboyamRepositoryQDSL {
+public class PointShopPurchaseStore extends IrobitRepositoryQDSL {
 
     /** 구매 한 줄 */
     public record PurchaseRow(long id, long userId, long itemId, String itemCode, String itemName, PointShopItemKind itemKind, PointShopUsageType usageType, int price,

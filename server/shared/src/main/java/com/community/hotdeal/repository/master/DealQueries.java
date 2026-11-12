@@ -9,7 +9,7 @@ import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -49,7 +49,7 @@ import org.springframework.stereotype.Repository;
  * <p>Native SQL 로 남긴 것: 클릭 기록({@code deal_click_daily} — 엔티티 없음, {@code ON CONFLICT DO NOTHING}).
  */
 @Repository
-public class DealQueries extends RoboyamRepositoryQDSL {
+public class DealQueries extends IrobitRepositoryQDSL {
 
     private static final QPostDealEntity D = QPostDealEntity.postDealEntity;
     private static final QPostEntity P = QPostEntity.postEntity;

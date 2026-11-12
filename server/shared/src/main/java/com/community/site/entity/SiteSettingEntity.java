@@ -84,6 +84,12 @@ public class SiteSettingEntity {
     /** 팝업 여러 창 배치(V165) — {@code HORIZONTAL}(PC 가로로 나란히) · {@code VERTICAL}(위아래로 쌓기). 규칙은 {@code SitePopups} */
     private String popupLayout;
 
+    /** 사이트 소개(V203 — 공개 사이트 푸터 「사이트 소개」 페이지). 서버가 소독한 HTML({@code TermsHtml}), 없으면(null) 소개 없음 */
+    private String aboutHtml;
+
+    /** 사이트 소개를 마지막으로 바꾼 때(V203) — 행의 {@code updatedAt} 은 다른 설정 저장에도 바뀐다. 저장한 적 없으면 null */
+    private Instant aboutUpdatedAt;
+
     protected SiteSettingEntity() {
     }
 
@@ -185,6 +191,23 @@ public class SiteSettingEntity {
     public void changePopupLayout(String layout, long operatorId, Instant now) {
         this.popupLayout = layout;
         touch(operatorId, now);
+    }
+
+    /** 사이트 소개를 바꾼다(소독·빈 값 정리는 부르는 쪽이 끝냈다 — null 이면 소개 없음) */
+    public void changeAbout(String html, long operatorId, Instant now) {
+        this.aboutHtml = html;
+        this.aboutUpdatedAt = now;
+        touch(operatorId, now);
+    }
+
+    /** 사이트 소개 HTML(소독된 것). 없으면 null */
+    public String getAboutHtml() {
+        return aboutHtml;
+    }
+
+    /** 사이트 소개를 마지막으로 바꾼 때. 저장한 적 없으면 null */
+    public Instant getAboutUpdatedAt() {
+        return aboutUpdatedAt;
     }
 
     /** 팝업 여러 창 배치 — {@code HORIZONTAL} · {@code VERTICAL} */

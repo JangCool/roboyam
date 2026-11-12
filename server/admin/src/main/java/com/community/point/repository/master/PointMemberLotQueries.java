@@ -5,7 +5,7 @@ import com.community.point.entity.PointLotKind;
 import com.community.point.entity.PointRevokeShortfallEntity;
 import com.community.point.entity.QPointLotEntity;
 import com.community.point.entity.QPointRevokeShortfallEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class PointMemberLotQueries extends RoboyamRepositoryQDSL {
+public class PointMemberLotQueries extends IrobitRepositoryQDSL {
 
     private static final QPointLotEntity LOT = QPointLotEntity.pointLotEntity;
     private static final QPointRevokeShortfallEntity SHORTFALL = QPointRevokeShortfallEntity.pointRevokeShortfallEntity;

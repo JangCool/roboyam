@@ -8,4 +8,4 @@ STROKE=0.5 SUB=16 node build.mjs out
 node render.mjs   # out/*.svg 를 preview.png 로 확인(../node_modules 의 @resvg/resvg-js 사용)
 ```
 
-결과 `out/roboyam-logo-{ko,en}-{light,dark}.svg` 를 `apps/{admin,user}-web/public/brand/` 에 복사한다.
+결과 `out/irobit-logo-{ko,en}-{light,dark}.svg` 를 `apps/{admin,user}-web/public/brand/` 에 복사한다.

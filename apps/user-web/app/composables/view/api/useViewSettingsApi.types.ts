@@ -1,6 +1,6 @@
 /**
  * 보기 설정 API 가 주고받는 모양 — 서버 응답 그대로(`server/api` `com.community.viewsetting`, `textScale` 은 JSON 정수). 경로·규칙은 community `docs/api-profile.md` 「설정(보기)」(`GET·PUT /api/me/settings`)이고,
- * 칸은 로보얌에 적용할 곳이 있는 것만 남겼다(야간 모드·글자 크기 PC·휴대폰·댓글 정렬 + 데스크톱 메뉴 위치). 사이트 테마·색·본문 너비·목록 밀도는 운영자가 고르는 사이트 테마 몫이라 개인 설정에 두지 않는다
+ * 칸은 아이로빗에 적용할 곳이 있는 것만 남겼다(야간 모드·글자 크기 PC·휴대폰·댓글 정렬 + 데스크톱 메뉴 위치). 사이트 테마·색·본문 너비·목록 밀도는 운영자가 고르는 사이트 테마 몫이라 개인 설정에 두지 않는다
  * (`.claude/guides/frontend/themes.md`). 메뉴 위치는 회원 > 운영자 > 테마 기본 순으로 정한다(사용자 결정 2026-10-28, `UtilMenuPosition`). 시간 표시는 따로 있다(`/api/me/display`). 계약 후보: `docs/features/member-social-contract.md`.
  */
 

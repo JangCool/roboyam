@@ -3,7 +3,7 @@ package com.community.report.repository.master;
 import com.community.report.entity.QReportEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.report.entity.ReportReasons;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.core.Tuple;
 import java.time.Instant;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
 
 /** 신고 정책 판정에 쓰는 집계 — 하루 수·마지막 시각·반려(허위 표시) 누적·사건별 서로 다른 신고자 수 — 와 관리자 회원 상세의 신고 요약, 관리자 신고 관리의 사건별 신고 */
 @Repository
-public class ReportRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class ReportRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QReportEntity REPORT = QReportEntity.reportEntity;
 

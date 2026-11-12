@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>{@link BatchSource#JAVA} — 서버가 뜰 때 {@code batch_jobs} 표와 맞춘다(없는 배치만 기본값으로 넣는다). 새 배치는 <b>① 여기에 한 줄 ② {@code BatchJob} 구현 하나(빈)
  *       ③ 메시지 번들 두 곳에 이름·설명</b>으로 더한다. 카탈로그와 구현이 짝이 맞지 않으면 서버가 뜨지 않는다({@code BatchRegistry}). cron 은 Spring 6칸 식(초 분 시 일 월 요일),
- *       시간대는 {@code roboyam.batch.zone}(Asia/Seoul)이다.</li>
+ *       시간대는 {@code irobit.batch.zone}(Asia/Seoul)이다.</li>
  *   <li>{@link BatchSource#POSTGRESQL} — DB 의 저장 프로시저를 pg_cron 이 부른다. 새 배치는 <b>① 여기에 한 줄(이름·분류) ② 반복 마이그레이션
  *       {@code R__batch_<번호>_<이름>.sql}(프로시저 {@code batch_<키의 하이픈을 밑줄로>} 정의 + {@code batch_define} 로 기본 cron 등록) ③ 메시지 번들 두 곳</b>이다.
  *       사용 여부·현재 cron 은 pg_cron({@code cron.job})이 원천이고, 기본 cron 은 마이그레이션이 {@code batch_db_jobs} 에 둔다 — 그래서 여기에는 cron 이 없다.
@@ -192,7 +192,7 @@ public enum BatchCatalog implements BatchDefinition {
      */
     ANALYTICS_LOG_CLEANUP("analytics-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
-    /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
+    /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code irobit.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 
     /**

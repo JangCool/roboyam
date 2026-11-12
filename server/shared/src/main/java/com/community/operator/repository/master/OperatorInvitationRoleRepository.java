@@ -1,11 +1,11 @@
 package com.community.operator.repository.master;
 
 import com.community.operator.entity.OperatorInvitationRoleEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.Collection;
 import java.util.List;
 
-public interface OperatorInvitationRoleRepository extends RoboyamRepository<OperatorInvitationRoleEntity, Long> {
+public interface OperatorInvitationRoleRepository extends IrobitRepository<OperatorInvitationRoleEntity, Long> {
 
     List<OperatorInvitationRoleEntity> findByInvitationIdIn(Collection<Long> invitationIds);
 }

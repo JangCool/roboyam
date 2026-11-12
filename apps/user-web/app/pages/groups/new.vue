@@ -6,7 +6,7 @@
         비회원은 로그인 안내, 이메일 인증 전·등급 미달·상한 도달·해산 패널티(`me.reason = DISSOLVE_PENALTY` + `penaltyUntil`, 신청은 `403 GROUP_DISSOLVE_PENALTY`)는 폼은 두고 단추만 끈다(정지 중은 서버가 `403 ACCOUNT_RESTRICTED` 로 막는다 — 안내 띠).
         공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
           고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
-        대표 이미지(선택, 로보얌 추가): 고르면 바로 올리고(`POST /api/groups/images`) 신청 본문에 `imageFileId`. 올리는 중에는 신청 단추를 끈다. 반려된 신청을 다시 낼 때 신청의 이미지를 되살린다.
+        대표 이미지(선택, 아이로빗 추가): 고르면 바로 올리고(`POST /api/groups/images`) 신청 본문에 `imageFileId`. 올리는 중에는 신청 단추를 끈다. 반려된 신청을 다시 낼 때 신청의 이미지를 되살린다.
     -->
     <div class="content-card">
         <NuxtLink :to="UtilGroup.LIST_PATH" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">

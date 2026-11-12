@@ -13,10 +13,10 @@ import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
 /**
- * 배치 cron 식의 검증과 다음 실행 시각 계산. 형식은 Spring 6칸(초 분 시 일 월 요일), 시간대는 {@code roboyam.batch.zone}.
+ * 배치 cron 식의 검증과 다음 실행 시각 계산. 형식은 Spring 6칸(초 분 시 일 월 요일), 시간대는 {@code irobit.batch.zone}.
  *
  * <p>안전장치(가정): ① 6칸이 아니거나 해석할 수 없으면 거절 ② 앞으로 실행될 시각이 하나도 없으면 거절(예: 2월 30일) ③ 앞으로 {@value #SAMPLE}번의 실행에서 인접한 실행
- * 간격이 {@code roboyam.batch.min-interval-seconds}(기본 60초)보다 짧으면 거절 — 초 칸에 여러 값이나 {@code *} 를 쓰는 식이 여기에 걸린다. 입력은 {@code schedule} 칸의 오류(400
+ * 간격이 {@code irobit.batch.min-interval-seconds}(기본 60초)보다 짧으면 거절 — 초 칸에 여러 값이나 {@code *} 를 쓰는 식이 여기에 걸린다. 입력은 {@code schedule} 칸의 오류(400
  * {@code VALIDATION})로 알린다.
  */
 @Component

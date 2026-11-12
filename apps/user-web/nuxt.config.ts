@@ -23,17 +23,17 @@ import tailwindcss from '@tailwindcss/vite';
  * 소모임(`docs/features/group-contract.md` 1단계): 목록·분류·상세·가입·내 소모임·개설 신청·모임장 관리(`useGroupApi`)는 처음부터 실제 서버다(목업 없음).
  * 소통·개인 설정(`docs/features/member-social-contract.md`): 쪽지(`useDmApi` — 헤더 쪽지 아이콘·메뉴·햄버거·`/me` 의 「쪽지함」)·차단(`useBlockApi`)·이용자 메모(`useMemoApi`)·닉네임 그림(`useNicknameImageApi`)은 실제 서버, 보기 설정(`useViewSettingsApi`)은 목업이다(옛 성인 확인 `useAdultApi` 는 본인인증으로 바뀌어 지웠다 — adult-content-contract).
  *
- * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: palettes/home-gadget css(보기 설정 — PrimeVue 글자 크기 `text-scale.css` 는 다시 옮겨 왔다)(display-time·rich-editor 레이어는 공유 패키지 `@roboyam/display-time`·`@roboyam/rich-editor` 로 가져왔다 — tiptap 은 rich-editor 패키지의 의존이고 `rich-text.css` 도 그 레이어가 넣는다),
- * 사이트 아이콘·웹 앱 매니페스트 링크, 원본의 소셜 로그인 프록시(`/oauth2`·`/login/oauth2` — roboyam 은 `/api/auth/social/**` 를 쓴다).
+ * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: palettes/home-gadget css(보기 설정 — PrimeVue 글자 크기 `text-scale.css` 는 다시 옮겨 왔다)(display-time·rich-editor 레이어는 공유 패키지 `@irobit/display-time`·`@irobit/rich-editor` 로 가져왔다 — tiptap 은 rich-editor 패키지의 의존이고 `rich-text.css` 도 그 레이어가 넣는다),
+ * 사이트 아이콘·웹 앱 매니페스트 링크, 원본의 소셜 로그인 프록시(`/oauth2`·`/login/oauth2` — irobit 은 `/api/auth/social/**` 를 쓴다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8910';
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
-    // 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
-    // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이가 쓴다
-    // 방문 신호(`@roboyam/analytics` — 방문자 ID·세션·`POST /api/visits`)는 이 앱만 쓴다. 켜기·미리보기 빼기·화면 종류는 `plugins/04.analytics.client.ts`
-    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout', '@roboyam/chart', '@roboyam/analytics'],
+    // 가젯 배치(`@irobit/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
+    // 차트(`@irobit/chart` — ECharts)는 광고 성과 날짜별 추이가 쓴다
+    // 방문 신호(`@irobit/analytics` — 방문자 ID·세션·`POST /api/visits`)는 이 앱만 쓴다. 켜기·미리보기 빼기·화면 종류는 `plugins/04.analytics.client.ts`
+    extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart', '@irobit/analytics'],
     ssr: false,
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
@@ -43,7 +43,7 @@ export default defineNuxtConfig({
             /**
              * 관리자 미리보기(`?adminPreview=1`, 관리자 테마 화면의 iframe)가 메시지를 받을 관리자 주소들(쉼표로) — 이 주소에서 온 메시지만 받는다(`plugins/03.admin-preview.client.ts`).
              * 환경 변수 `NUXT_PUBLIC_ADMIN_ORIGINS`. 기본은 로컬 관리자 개발 서버. 빌드한 화면(`$production` — jar·운영 이미지)은 비워 두고, 공개 사이트 서버(api)가 `?adminPreview=1`
-             * 응답 머리에 넣는 `<meta name="roboyam-admin-origin">`(서버 환경 값 `ADMIN_URL`)을 쓴다 — 같은 응답에 frame-ancestors 도 그 주소로 붙는다(site-theme-layout-contract 「운영 배포」).
+             * 응답 머리에 넣는 `<meta name="irobit-admin-origin">`(서버 환경 값 `ADMIN_URL`)을 쓴다 — 같은 응답에 frame-ancestors 도 그 주소로 붙는다(site-theme-layout-contract 「운영 배포」).
              */
             adminOrigins: 'http://localhost:3200,http://localhost:3201',
         },
@@ -92,9 +92,9 @@ export default defineNuxtConfig({
         },
     },
 
-    // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`ROBOYAM_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
+    // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`IROBIT_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
     // SPA 를 가볍게(`scripts/nuxt/spa-slim.mjs` — PrimeVue 실행 설정의 목록 빼기·미리 받기 끄기) — PrimeVue 모듈 뒤에 둔다
-    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
+    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.IROBIT_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
     // 폴더명을 컴포넌트 이름에 붙이지 않는다
     components: [{ path: '~/components', pathPrefix: false, extensions: ['vue'] }],
@@ -128,7 +128,7 @@ export default defineNuxtConfig({
         // 화면이 뜰 때 PrimeVue 가 쓰는 컴포넌트의 스타일만 넣는다(`scripts/nuxt/spa-slim.mjs`)
         loadStyles: false,
         // 테마(프리셋·다크 모드·CSS 층)는 `app/theme/primevue-theme.ts` 를 화면 번들로 불러온다 — `options.theme` 에 두면 Aura 전체 토큰(약 11만 자)이 실행 설정으로 index.html 에 박힌다
-        importTheme: { as: 'RoboyamTheme', from: fileURLToPath(new URL('./app/theme/primevue-theme.ts', import.meta.url)) },
+        importTheme: { as: 'IrobitTheme', from: fileURLToPath(new URL('./app/theme/primevue-theme.ts', import.meta.url)) },
         options: {
             // PrimeUI 라이선스(PrimeVue 5) — PrimeVue 가 설치되는 순간 키를 확인하므로 app.vue 가 아니라 여기서 넘긴다(늦게 넘기면 「Invalid PrimeUI License」 배너).
             // 값은 이 앱의 .env.development(dev)·.env.production(generate) 의 VITE_PRIMEUI_LICENSE_KEY — nuxt.config 를 읽기 전에 --dotenv 파일이 process.env 에 들어온다.

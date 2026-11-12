@@ -96,7 +96,7 @@ public final class AuditRetention {
             AuditActions.BATCH_TOGGLE, AuditActions.BATCH_SCHEDULE_CHANGE, AuditActions.BATCH_RUN,
             AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
             AuditActions.SITE_OG_CHANGE, AuditActions.SITE_OG_RESET, AuditActions.SITE_DISPLAY_UPDATE, AuditActions.SITE_THEME_UPDATE,
-            AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
+            AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.SITE_ABOUT_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
             // 팝업 관리(site-popup-contract) — 공지 띠와 같은 사이트 운영 일
             AuditActions.SITE_POPUP_CREATE, AuditActions.SITE_POPUP_UPDATE, AuditActions.SITE_POPUP_DELETE, AuditActions.SITE_POPUP_ORDER, AuditActions.SITE_POPUP_VISIBLE, AuditActions.SITE_POPUP_LAYOUT,
             // 오픈소스 라이선스 고지(oss-licenses-contract) — 안내 문구·직접 추가 항목, 약관 게시와 같은 사이트 운영 일

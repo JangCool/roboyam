@@ -50,7 +50,7 @@ export default class UtilSiteTerms {
     });
 
     /** 이 브라우저에 마지막으로 받은 이름을 남기는 저장 키 — 다음 방문의 첫 화면이 깜빡이지 않게 한다 */
-    static readonly STORAGE_KEY = 'roboyam:site-terms';
+    static readonly STORAGE_KEY = 'irobit:site-terms';
 
     /** 이름 길이 상한(글자 수) */
     static readonly MAX_LENGTH = MAX_LENGTH;

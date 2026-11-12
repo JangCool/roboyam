@@ -1,5 +1,5 @@
 # ============================================================================
-# ROBOYAM 운영 — 관리자 앱 (공개 사이트 앱 서버와 별개의 compose)
+# IROBIT 운영 — 관리자 앱 (공개 사이트 앱 서버와 별개의 compose)
 # ============================================================================
 #
 # 관리자 앱은 공개 사이트 앱과 다른 프로세스·다른 도메인이다. 앱 서버 한 대 안에 같이 올려도 되고(포트만 다르게),
@@ -11,18 +11,18 @@
 #   - 접속 제한(회사 IP 만, WAF 등)은 이 규칙·보안 그룹에서 건다
 #
 # 서버에서:
-#   cp .env.example .env      # 공개 사이트 앱 서버와 같은 .env 를 쓰고 ROBOYAM_ADMIN_IMAGE 만 더한다
+#   cp .env.example .env      # 공개 사이트 앱 서버와 같은 .env 를 쓰고 IROBIT_ADMIN_IMAGE 만 더한다
 #   docker compose -f compose.admin.yml up -d
 #
 # DB 비밀번호·암호화 키는 공개 사이트 앱 서버와 같은 값이어야 한다.
 # ⚠ 이 파일은 실제 서버에서 아직 시험하지 않았다(문법만 확인).
 # ============================================================================
 
-name: roboyam-prod-admin
+name: irobit-prod-admin
 
 services:
   admin:
-    image: ${ROBOYAM_ADMIN_IMAGE}
+    image: ${IROBIT_ADMIN_IMAGE}
     restart: unless-stopped
     ports:
       - "8081:8080"
@@ -31,11 +31,11 @@ services:
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+      IROBIT_CRYPTO_KEY: ${IROBIT_CRYPTO_KEY}
       # 개인정보 칸 암호화 키·교체 중의 예전 키·중복 확인 해시 키 — 공개 사이트 앱 서버와 같은 값
-      ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
-      ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
-      ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
+      IROBIT_DATA_KEY: ${IROBIT_DATA_KEY:-}
+      IROBIT_DATA_KEY_PREVIOUS: ${IROBIT_DATA_KEY_PREVIOUS:-}
+      IROBIT_INDEX_KEY: ${IROBIT_INDEX_KEY:-}
       # Snowflake ID 서버 번호 — 공개 사이트 앱 서버 2대(NODE_ID)와 모두 달라야 한다 (예: 앱 1·2, 관리자 앱 3)
       NODE_ID: ${ADMIN_NODE_ID}
       # 공개 사이트 앱 서버 2대와 합친 풀 크기가 DB 서버 max_connections(compose.db.yml)보다 작아야 한다. 관리 콘솔은 작게 잡는다
@@ -45,23 +45,23 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--XX:MaxRAMPercentage=60}
       # 올린 이미지 저장소(docs/features/media-storage-contract.md) — r2(prod 기본) | s3(AWS·MinIO) | local. 아래 volumes 의 폴더는 local 일 때만 쓴다
-      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-r2}
-      ROBOYAM_STORAGE_R2_ACCOUNT_ID: ${ROBOYAM_STORAGE_R2_ACCOUNT_ID:-}
-      ROBOYAM_STORAGE_S3_ENDPOINT: ${ROBOYAM_STORAGE_S3_ENDPOINT:-}
-      ROBOYAM_STORAGE_S3_REGION: ${ROBOYAM_STORAGE_S3_REGION:-}
-      ROBOYAM_STORAGE_S3_BUCKET: ${ROBOYAM_STORAGE_S3_BUCKET:-}
-      ROBOYAM_STORAGE_S3_PATH_STYLE: ${ROBOYAM_STORAGE_S3_PATH_STYLE:-false}
-      ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL: ${ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL:-}
-      ROBOYAM_STORAGE_S3_ACCESS_KEY: ${ROBOYAM_STORAGE_S3_ACCESS_KEY:-}
-      ROBOYAM_STORAGE_S3_SECRET_KEY: ${ROBOYAM_STORAGE_S3_SECRET_KEY:-}
+      IROBIT_STORAGE_TYPE: ${IROBIT_STORAGE_TYPE:-r2}
+      IROBIT_STORAGE_R2_ACCOUNT_ID: ${IROBIT_STORAGE_R2_ACCOUNT_ID:-}
+      IROBIT_STORAGE_S3_ENDPOINT: ${IROBIT_STORAGE_S3_ENDPOINT:-}
+      IROBIT_STORAGE_S3_REGION: ${IROBIT_STORAGE_S3_REGION:-}
+      IROBIT_STORAGE_S3_BUCKET: ${IROBIT_STORAGE_S3_BUCKET:-}
+      IROBIT_STORAGE_S3_PATH_STYLE: ${IROBIT_STORAGE_S3_PATH_STYLE:-false}
+      IROBIT_STORAGE_S3_PUBLIC_BASE_URL: ${IROBIT_STORAGE_S3_PUBLIC_BASE_URL:-}
+      IROBIT_STORAGE_S3_ACCESS_KEY: ${IROBIT_STORAGE_S3_ACCESS_KEY:-}
+      IROBIT_STORAGE_S3_SECRET_KEY: ${IROBIT_STORAGE_S3_SECRET_KEY:-}
       # 주소 DB 를 서버 폴더에서 적재(address-search-contract) — ADDRESS_IMPORT_DIR 에 행정안전부 zip 을 두면 설정 › 주소 검색에서 고른다(읽기만)
-      ROBOYAM_ADDRESS_IMPORT_DIR: /var/lib/roboyam/address-import
+      IROBIT_ADDRESS_IMPORT_DIR: /var/lib/irobit/address-import
     # 올린 이미지 저장 폴더 — 관리자 앱이 쓰므로 공개 사이트 앱 서버(compose.yml)와 같은 공유 디스크 경로를 MEDIA_DIR 에 준다(자세한 설명은 compose.yml)
     volumes:
-      - ${MEDIA_DIR:-roboyam-media}:/var/lib/roboyam/media
-      - ${ADDRESS_IMPORT_DIR:-roboyam-address-import}:/var/lib/roboyam/address-import:ro
+      - ${MEDIA_DIR:-irobit-media}:/var/lib/irobit/media
+      - ${ADDRESS_IMPORT_DIR:-irobit-address-import}:/var/lib/irobit/address-import:ro
     stop_grace_period: 40s
 
 volumes:
-  roboyam-media:
-  roboyam-address-import:
+  irobit-media:
+  irobit-address-import:

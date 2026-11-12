@@ -40,6 +40,6 @@
   - `global`(공지만, `pinned` 인 글): **전체 공지**로 건다 — 모든 게시판(소모임 포함) 글 목록 맨 위에도 보인다(notice-admin-contract 「전체 공지」, 사이트 전체 최대 3개). `{ "exclude": ["hotdeal"], "excludeAllGroupBoards": false }` — `exclude` 는 뺄 게시판 주소(slug), `excludeAllGroupBoards` 는 소모임 게시판 전체를 뺀다(생략 = false). 기간은 늘 「풀 때까지」.
   - `secret`: 비밀글(버그 신고 — 게시판 비밀글 `OPTIONAL`). 그 글의 댓글은 글쓴이·운영자만 단다(다른 사람은 읽지도 못한다).
   - `status`: 처리 상태를 차례로 바꾼다 — `[{ "to": "CHECKING" }, { "to": "DONE", "note": "운영진 메모(1~200자, 한 줄)" }]`. 값은 `RECEIVED`·`CHECKING`·`IN_PROGRESS`·`DONE`·`ON_HOLD`·`REJECTED`·`DUPLICATE`(새 글은 `RECEIVED`).
-  - 댓글·답글 `by`: `"operator"` = 데모 운영자의 운영자 회원 계정(「로보얌운영팀」) · `"author"` = 글쓴이. 답글은 글자 또는 `{ "text": "…", "by": "operator" }`. `by` 가 없는 댓글·답글은 다른 데모 회원이 단다(이 세 원고에서는 글쓴이 몫 35% 규칙을 쓰지 않는다).
+  - 댓글·답글 `by`: `"operator"` = 데모 운영자의 운영자 회원 계정(「아이로빗운영팀」) · `"author"` = 글쓴이. 답글은 글자 또는 `{ "text": "…", "by": "operator" }`. `by` 가 없는 댓글·답글은 다른 데모 회원이 단다(이 세 원고에서는 글쓴이 몫 35% 규칙을 쓰지 않는다).
 - 공지 본문·댓글의 `{date:N}` 은 로더가 「실행한 날 + N일」의 한국 날짜(`11월 18일(수)`)로 바꾼다. **제목에는 쓰지 않는다** — 같은 제목이면 건너뛰는 판정이 날마다 달라진다.
 - 사이트 전체 데모(공지 띠·팝업·보상 이벤트·소모임 일정·공동구매 문의)는 `seed/demo/site.json` — 칸 설명은 그 파일의 `_readme`·`_comment`.

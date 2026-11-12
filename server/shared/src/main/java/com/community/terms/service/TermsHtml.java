@@ -28,14 +28,18 @@ public final class TermsHtml {
             .requireRelsOnLinks("nofollow", "noopener", "noreferrer")
             .toFactory();
 
+    /** rel 에 nofollow·noopener·noreferrer 세 낱말이 어떤 차례로든 있는 것 */
+    private static final java.util.regex.Pattern REL_ANY_ORDER = java.util.regex.Pattern.compile(
+            " rel=\"(?=[^\"]*nofollow)(?=[^\"]*noopener)(?=[^\"]*noreferrer)(?:nofollow|noopener|noreferrer)(?: (?:nofollow|noopener|noreferrer)){2}\"");
+
     private TermsHtml() {
     }
 
     /** 허용 목록으로 정화한 HTML. 앞뒤의 빈 문단은 떼어 낸다 */
     public static String sanitize(String raw) {
         String safe = POLICY.sanitize(raw == null ? "" : raw);
-        // 정화기는 rel 을 「noreferrer noopener nofollow」 차례로 쓴다 — 계약의 차례로 맞춘다(뜻은 같다, RichText 와 같다)
-        safe = safe.replace(" rel=\"noreferrer noopener nofollow\"", " rel=\"nofollow noopener noreferrer\"");
+        // 정화기가 쓰는 rel 세 낱말의 차례는 일정하지 않다(입력 속성에 따라 다름) — 계약의 차례로 맞춘다(뜻은 같다). 차례가 흔들리면 「같은 값 다시 저장」이 바뀐 것으로 보인다
+        safe = REL_ANY_ORDER.matcher(safe).replaceAll(" rel=\"nofollow noopener noreferrer\"");
         safe = TRAILING_EMPTY_PARAGRAPHS.matcher(safe).replaceFirst("");
         return LEADING_EMPTY_PARAGRAPHS.matcher(safe).replaceFirst("");
     }

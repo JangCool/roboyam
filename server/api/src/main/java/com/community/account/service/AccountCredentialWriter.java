@@ -87,7 +87,7 @@ public class AccountCredentialWriter {
     }
 
     /**
-     * 이메일 변경 링크를 만든다 — 60초 제한 → 이전 변경 링크 무효 → 새 링크(새 주소, 유효 {@code roboyam.account.email-change-token-hours}) → 로그인 실패 횟수 초기화
+     * 이메일 변경 링크를 만든다 — 60초 제한 → 이전 변경 링크 무효 → 새 링크(새 주소, 유효 {@code irobit.account.email-change-token-hours}) → 로그인 실패 횟수 초기화
      * (현재 비밀번호를 맞혔다). 링크를 누르기 전까지 지금 이메일은 그대로다.
      *
      * @param newEmail 정규화한 새 주소(겹침은 부르는 쪽이 이미 봤다 — 링크를 누를 때 다시 본다)

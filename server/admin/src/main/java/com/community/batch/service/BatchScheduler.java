@@ -22,13 +22,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * 예약 실행. 사용 여부·cron 은 DB({@code batch_jobs})가 원천이라 <b>재기동 없이</b> 바뀐다 — 이 서버에서 바꾸면 곧바로({@link #reconcile}), 다른 서버에서 바꾸면
- * {@code roboyam.batch.refresh-seconds}(기본 30초) 안에 따라온다.
+ * {@code irobit.batch.refresh-seconds}(기본 30초) 안에 따라온다.
  *
  * <ul>
  *   <li><b>스스로 다음 시각을 계산한다</b>: 켜진 배치마다 다음 실행 시각(slot)을 cron 으로 계산해 그 시각에 한 번 예약하고, 끝나면 다음 시각을 다시 계산한다. slot 은 초 단위로 정해지므로
  *       서버가 여러 대여도 같은 값이 되고, 실행기가 slot 별로 한 번만 돌게 막는다({@link BatchRunner}).</li>
  *   <li><b>밀린 실행을 되살리지 않는다</b>: 서버가 내려가 있던 동안의 시각은 건너뛴다(다음 시각부터). 일이 다음 시각을 넘겨 길어져도 겹쳐 돌지 않는다(잠금).</li>
- *   <li>시간대는 {@code roboyam.batch.zone}(Asia/Seoul)이다.</li>
+ *   <li>시간대는 {@code irobit.batch.zone}(Asia/Seoul)이다.</li>
  *   <li>스프링의 {@code @Scheduled} 전용 스케줄러와 섞이지 않게 이 클래스가 자기 스케줄러를 쥔다(빈으로 노출하지 않는다).</li>
  * </ul>
  */
@@ -75,14 +75,14 @@ public class BatchScheduler {
         scheduler.setErrorHandler(error -> log.error("배치 스케줄러 오류", error));
     }
 
-    /** 서버가 뜬 뒤 한 번 부른다 — 예약을 맞추고, 주기적으로 DB 를 다시 읽는다. 배치를 끈 서버({@code roboyam.batch.enabled=false})는 아무것도 하지 않는다 */
+    /** 서버가 뜬 뒤 한 번 부른다 — 예약을 맞추고, 주기적으로 DB 를 다시 읽는다. 배치를 끈 서버({@code irobit.batch.enabled=false})는 아무것도 하지 않는다 */
     public synchronized void start() {
         if (started) {
             return;
         }
         started = true;
         if (!properties.enabled()) {
-            log.info("이 서버는 배치를 돌지 않는다(roboyam.batch.enabled=false) — 예약 실행·요청 집기·워커가 꺼져 있다. 화면의 요청은 배치를 켠 다른 서버가 집는다");
+            log.info("이 서버는 배치를 돌지 않는다(irobit.batch.enabled=false) — 예약 실행·요청 집기·워커가 꺼져 있다. 화면의 요청은 배치를 켠 다른 서버가 집는다");
             return;
         }
         scheduler.initialize();

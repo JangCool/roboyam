@@ -43,8 +43,8 @@
   - `entity` — `PaymentOrderEntity`·`PaymentCancelEntity`·`PaymentEventEntity`·`PaymentWebhookLogEntity`·`ReconciliationIssueEntity`·`PaymentReconcileDayEntity`(3단계 1차 2026-11-07 — 표는 V97~V144 그대로)
   - `repository.master` — JPA·QueryDSL 저장소(조건부 UPDATE·잠금·프로젝션, 넣기는 바로 내보냄 — 사유를 적은 네이티브만 남김: `ON CONFLICT` 멱등 넣기·취소 집기 `UPDATE … RETURNING`(+`SKIP LOCKED`)·`generate_series`·`UNION`): `PaymentOrderStore`·`PaymentCancelStore`·`PaymentEventStore`·`PaymentWebhookLogStore`·`ReconciliationIssueStore`·`PaymentReconcileDayStore`, 관리자 읽기 `PaymentAdminQueries`·`PaymentReconcileQueries`
   - `service` — `PaymentOrderService.create`(MANDATORY — 도메인 트랜잭션 안, 같은 주문의 이전 READY 는 EXPIRED)·`expireOpen`·`openCheckout` · **`PaymentConfirmService.confirm`**(확정 코드 하나 — 완료 API·웹훅·READY 정리·관리자 다시 확인이 함께 쓴다) · `PaymentCompletionService` · `PaymentWebhookService` · `PaymentCancelService`(넣기, MANDATORY) · `PaymentCancelExecutor`·`PaymentCancelWorker`·`PaymentCancelImmediateAttempt` · `PaymentAnomalyService` · `ReconciliationService` · `PaymentAdminReadService`·`PaymentAdminActionService`·`PaymentCancelManualService`·`PaymentDetailText`
-  - `batch` — `PaymentReadyCleanupJob`·`PaymentReconciliationJob` · `testorder` — `PaymentTestOrderHandler`·`PaymentTestOrderService`(`PAYMENT_TEST`, `roboyam.payment.test-orders` 를 켠 환경만)
-- api `payment.controller`: `PaymentController`(완료 API)·`PaymentWebhookController`·`PaymentTestController`(`/api/dev/payments`). admin `payment.controller.PaymentAdminController`·`PortOneSettingsController`, `batch.service.PaymentCancelScheduler`(1분, `roboyam.batch.enabled` 서버만).
+  - `batch` — `PaymentReadyCleanupJob`·`PaymentReconciliationJob` · `testorder` — `PaymentTestOrderHandler`·`PaymentTestOrderService`(`PAYMENT_TEST`, `irobit.payment.test-orders` 를 켠 환경만)
+- api `payment.controller`: `PaymentController`(완료 API)·`PaymentWebhookController`·`PaymentTestController`(`/api/dev/payments`). admin `payment.controller.PaymentAdminController`·`PortOneSettingsController`, `batch.service.PaymentCancelScheduler`(1분, `irobit.batch.enabled` 서버만).
 
 ## 확정 흐름 (8-2 를 구체화)
 1. 포트원 단건 조회는 **트랜잭션 밖**. 조회 결과의 `id`·`storeId` 가 우리 것이어야 한다.
@@ -54,13 +54,13 @@
 5. 취소 실행(고침 — 「2a 보강 — 취소 호출을 잠금 밖으로」): 집기 커밋 → 재시도 전 조회(이미 취소됐으면 SUCCEEDED 로 맞춤) → **잠금 없이** 잔액(`paid − canceled`)을 읽어 포트원 `POST /payments/{id}/cancel`(`amount`·`currentCancellableAmount`·`reason`) → 새 트랜잭션에서 결제 주문 행을 잠그고 `canceled_amount` 조건부 증가(`WHERE canceled_amount + :amt <= paid_amount`)·상태 갱신·`onCanceled`, 또는 재시도·GAVE_UP. 즉시 1 + 재시도 5, 간격 1·5·30·120·720분, 다 실패하면 `GAVE_UP` + 결제 이상 목록 + 운영자 알림.
 
 ## 세션 정리 결정 (1~18)
-1. **PG 설정 위치**: DB(`portone_settings`) — commerce.md 8-5 「환경 변수」를 고쳤다. 포트원/가짜 선택만 배포 설정 `roboyam.payment.gateway`(공통 portone, local fake).
+1. **PG 설정 위치**: DB(`portone_settings`) — commerce.md 8-5 「환경 변수」를 고쳤다. 포트원/가짜 선택만 배포 설정 `irobit.payment.gateway`(공통 portone, local fake).
 2. **취소 대기열 상태**: 우리 상태 `PENDING`·`SENDING`·`SUCCEEDED`·`GAVE_UP`·`MANUAL`, 포트원 응답은 `pg_status`. 재시도 전에 조회로 확인.
 3. **받아들인 PAID 하나**: 부분 유일 색인에 `AND anomaly IS NULL` — 이상 결제가 정상 결제와 부딪쳐 확정이 되돌아가지 않게.
 4. **늦은 결제 판정**: 우리 상태가 EXPIRED 면 무조건 늦음. READY 면 포트원 `paidAt > expires_at` 일 때만(1µs 도 늦음, 같으면 아님 — 확인 요청이 늦게 온 것은 회원 탓이 아니다). 숨은 여유 시간 없음.
 5. **웹훅을 받는 서버**: api. `POST /api/payments/webhooks/portone`, `SecurityConfig` permitAll + CSRF 제외(`PaymentWebhookPaths`), 본문 64KB 제한, 원본 바이트로 서명 검증.
 6. **완료 API**: 공용 `POST /api/payments/{paymentId}/complete` + `{orderType, orderRefId}` — 그 회원·그 주문의 결제가 아니면 거절(P24, 포트원 조회 없음). 속도 제한·멱등 키 없음(12-4). 결제 시작 API 는 도메인마다.
-7. **시험 주문**: `PAYMENT_TEST` + 시험 처리기는 `roboyam.payment.test-orders` 로 local·dev 만, prod 에서 켜면 기동을 막는다. 처리기 판정·현금은 그 서버 메모리(다시 띄우면 잊고 READY 정리는 기본 ACCEPT).
+7. **시험 주문**: `PAYMENT_TEST` + 시험 처리기는 `irobit.payment.test-orders` 로 local·dev 만, prod 에서 켜면 기동을 막는다. 처리기 판정·현금은 그 서버 메모리(다시 띄우면 잊고 READY 정리는 기본 ACCEPT).
 8. **가짜 PG 상태**: DB 표 `fake_pg_payments`(api·admin 이 같은 가짜 결제를 본다).
 9. **브라우저 SDK**: `@portone/browser-sdk` 0.1.13(정확한 버전 고정), `@portone/browser-sdk/v2` 를 클라이언트에서만 동적 import.
 10. **운영자 알림**: `COMMERCE_PAYMENT_ANOMALY`(CRITICAL — 최종 취소 실패·금액 불일치, 이메일 기본 켬, 같은 결제 하루 한 건 — 묶음 키 결제 ID, 고정 문구, 링크 `/payments/anomalies`) · `COMMERCE_RECONCILE_MISMATCH`(WARNING, 이메일 없음, 링크 `/payments/reconciliation`, 묶음 키 `reconcile:<KST 날짜>` + 24시간 — 한 실행이 새 이슈를 열었을 때만). 받는 사람 `commerce.reconcile.manage` 보유자, 영역 GROUPBUY. `COMMERCE_ORDER_ANOMALY` 는 공구 몫.
@@ -68,10 +68,10 @@
 12. **결제 이상·대사 처리 권한**: 「다시 시도」·「수동 처리 완료」·「포트원에서 다시 확인」·대사 이슈 처리 = `commerce.reconcile.manage` + 사유 5~200자(`400 fields.reason`) + 감사(돈). 조회 = `commerce.payment.read`. 두 권한 `featureReady=true`.
 13. **메뉴**: 보통 모드 묶음 「결제」(`menu.payment`, 포인트 상점 다음 — 공구 묶음 뒤, 아이콘 `pi pi-credit-card`) — 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. PG 설정은 `/settings/portone`.
 14. **포트원 설정**: `PortOneSettingKey` 묶음 공통(storeId·apiSecret)·본인인증(identityChannelKey)·결제(`paymentChannelKey`·`webhookSecret`) — 키 문자열 불변. API `PUT /api/admin/portone-settings/{common|identity|payment}` · `DELETE …/{group}/{key}`(권한 `site.read`/`site.secret`). `paymentReady` = 결제 4칸(상점 ID·API 비밀키·결제 채널 키·웹훅 비밀키) + 암호화 키. 저장·지우기는 카드 단위이고 다른 카드 칸은 받지 않는다(400), 감사 대상 ID = 카드 이름·칸 이름만(값 없음, 돈 관련). 웹훅 비밀키 = `whsec_` + 비어 있지 않은 base64(아니면 `400 fields.webhookSecret`, 그 카드는 저장 안 함). 0-4 계약 API 표는 고쳤다.
-15. **결제 채널**: KG이니시스 V2 하나(사용자 결정 2026-10-27). 카카오페이·네이버페이는 이니시스 결제창 안 간편결제(포트원이 `PaymentMethodEasyPay` 로 돌려줌 — 화면 「간편결제」). 직접 채널(카카오페이 CID)은 필요할 때 칸을 더한다. 포트원 상점은 로보얌 전용이라 대사에서 상점을 거를 필요가 없다.
+15. **결제 채널**: KG이니시스 V2 하나(사용자 결정 2026-10-27). 카카오페이·네이버페이는 이니시스 결제창 안 간편결제(포트원이 `PaymentMethodEasyPay` 로 돌려줌 — 화면 「간편결제」). 직접 채널(카카오페이 CID)은 필요할 때 칸을 더한다. 포트원 상점은 아이로빗 전용이라 대사에서 상점을 거를 필요가 없다.
 16. **대사**: 포트원 다건 조회 기준 `STATUS_CHANGED_AT`, 하루 = KST 날짜, 매일 04:50 KST, 날짜 지정 다시 실행, 자동 보정 없음.
 17. **결제 화면 개인정보**: 회원 번호·닉네임만(이메일 없음, 탈퇴 회원 번호 없음). 상세를 열면 `PAYMENT_ORDER_VIEW`(개인정보 열람, 2년).
-18. **숫자 위치**: 워커 구조는 배포 설정 `roboyam.payment.*` — `cancel-batch-size` 20 · `cancel-gap` 200ms · `cancel-max-retries` 5 · `cancel-backoff` 1m,5m,30m,120m,720m · `cancel-stale` 10m · (admin) `cancel-poll-millis` 60000 · `test-orders`(공통 false, local true). 배치 값은 `batch_params`(`payment-ready-cleanup.grace_minutes` 기본 10 · 0~1440, 웹훅 기록 `retention_days` 90). 웹훅 시각 오차 5분은 코드 상수.
+18. **숫자 위치**: 워커 구조는 배포 설정 `irobit.payment.*` — `cancel-batch-size` 20 · `cancel-gap` 200ms · `cancel-max-retries` 5 · `cancel-backoff` 1m,5m,30m,120m,720m · `cancel-stale` 10m · (admin) `cancel-poll-millis` 60000 · `test-orders`(공통 false, local true). 배치 값은 `batch_params`(`payment-ready-cleanup.grace_minutes` 기본 10 · 0~1440, 웹훅 기록 `retention_days` 90). 웹훅 시각 오차 5분은 코드 상수.
 - **감사 행위**: `RECONCILE_ISSUE_RESOLVE`·`PAYMENT_CANCEL_RETRY`·`PAYMENT_CANCEL_MANUAL`·`PAYMENT_RECHECK` = 돈 관련, `PAYMENT_ORDER_VIEW` = 개인정보 열람, `PAYMENT_RECONCILE_RERUN` = 일반. 대상 `PAYMENT_ORDER`·`PAYMENT_CANCEL`·`RECONCILIATION_ISSUE`·`PAYMENT_RECONCILE_DAY`.
 - **오류 코드**: `PAYMENT_ORDER_NOT_FOUND`(404) · `PAYMENT_NOT_PAID`(409) · `PAYMENT_ORDER_MISMATCH`(409) · `PAYMENT_CANCEL_EXCEEDS`(409) · `PAYMENT_GATEWAY_UNAVAILABLE`(503) · `PAYMENT_NOT_CONFIGURED`(503) · `PAYMENT_GATEWAY_NOT_FAKE`(409) · `FAKE_PG_ALREADY_DONE`(409) · `PAYMENT_CANCEL_NOT_FOUND`(404) · `PAYMENT_CANCEL_NOT_GAVE_UP`(409) · `RECONCILE_ISSUE_NOT_FOUND`(404) · `RECONCILE_ISSUE_NOT_OPEN`(409) · `RECONCILE_ALREADY_RUNNING`(409).
 
@@ -132,7 +132,7 @@
 ## 구현 때 정한 것
 **2a-2**
 1. **비교 금액 = 포트원 `amount.total`**(카드사 할인으로 `amount.paid` 가 작을 수 있다). `paid_amount` 에도 `amount.total`(취소 금액의 기준).
-2. **우리 취소 표시**: 포트원에 보내는 `reason` = `roboyam <종류> rc:<취소 ID>`(내부 사유는 보내지 않는다). 취소 아이디를 못 받아도 재시도 전 조회·취소 웹훅이 이 표시로 우리 취소를 알아본다.
+2. **우리 취소 표시**: 포트원에 보내는 `reason` = `irobit <종류> rc:<취소 ID>`(내부 사유는 보내지 않는다). 취소 아이디를 못 받아도 재시도 전 조회·취소 웹훅이 이 표시로 우리 취소를 알아본다.
 3. **재시도 횟수**: 즉시 시도 1 + 재시도 5 = 최대 6번, 간격 1·5·30·120·720분. REQUESTED(접수만)는 다시 보내지 않고 조회로 확인.
 4. **잠그는 차례**: 취소 결과 기록·웹훅 맞춤·운영자 처리 모두 결제 주문 행 → 취소 줄. 포트원 취소 호출 자체는 잠금 밖(고침 — 「2a 보강」).
 5. **커밋 뒤 즉시 시도는 새 트랜잭션으로 집는다**(`AFTER_COMMIT` 단계의 연결은 끝난 트랜잭션에 묶여 있다).
@@ -160,14 +160,14 @@
 **2a-4**
 - 회원 API 는 2a-1 화면 계약에 맞췄다(화면 계약이 정본): 시험 주문 `POST /api/dev/payments`(`validMinutes` 로 유효 시각 — 고정 10분 상수 없음), 가짜 결제창 `…/fake-checkout`, 결과 `PaymentResult`(완료 API·`GET` 공용). `checkout` 은 공용 `PaymentCheckoutView`(내부 `paymentOrderId` 는 내리지 않음).
 - **`cancel` 고르는 규칙**: 그 결제의 `AUTO_REJECT` 취소 줄(여럿이면 ID 가 가장 큰 것), 없으면 null. 회원 취소·환불 등 다른 종류는 `cancel` 에 싣지 않고 `canceledAmount` 로만.
-- 로컬 포트원 모드: `.claude/launch.json` 의 `api-portone`·`admin-portone`(`ROBOYAM_PAYMENT_GATEWAY=portone`·`ROBOYAM_IDENTITY_PROVIDER=portone`).
+- 로컬 포트원 모드: `.claude/launch.json` 의 `api-portone`·`admin-portone`(`IROBIT_PAYMENT_GATEWAY=portone`·`IROBIT_IDENTITY_PROVIDER=portone`).
 - 본인인증(`useIdentity`): 포트원이면 `PortOne.requestIdentityVerification`(이름 `PortOne` 팝업) → 서버 confirm. 창을 닫으면 오류 안내 없이 끝나고 시도 기록은 PENDING(30분 뒤 완료 요청이 오면 410 `IDENTITY_VERIFICATION_EXPIRED`). 모바일 리디렉션은 아직 없다(데스크톱 팝업만).
 
 ## 2a-4 로컬 실제 확인 (이니시스 V2 테스트 채널)
 | 확인 | 결과 |
 |---|---|
 | 정상 결제(1,000원) | 결제창 → 완료 API → 포트원 조회 → PAID(`COMPLETE_API`), 관리자 목록·상세 같은 값. **`paymentId` 36자를 포트원이 받는다** |
-| 늦은 결제(유효 1분 뒤 결제) | LATE_PAYMENT → `AUTO_REJECT` 1회 만에 SUCCEEDED → CANCELED·누계 1,000. 포트원 단건 조회로 같은 취소 ID·사유 `roboyam AUTO_REJECT rc:<취소 ID>` 확인 |
+| 늦은 결제(유효 1분 뒤 결제) | LATE_PAYMENT → `AUTO_REJECT` 1회 만에 SUCCEEDED → CANCELED·누계 1,000. 포트원 단건 조회로 같은 취소 ID·사유 `irobit AUTO_REJECT rc:<취소 ID>` 확인 |
 | 결제창 안 간편결제(네이버페이) | 포트원 `PaymentMethodEasyPay` → 화면 「간편결제」 |
 | 결제창 닫기 | SDK `code: FAILURE_TYPE_PG`, `pgCode` 없음, 문구 「사용자가 결제를 취소하였습니다」 → `isUserCancel` 규칙 |
 | 본인인증 창 닫기 | 단추 원래대로, 시도 PENDING(실명 인증 자체는 하지 않음) |
@@ -218,7 +218,7 @@
 - 테스트로 막지 못하는 것: 실제 포트원 호출·웹훅 전송·재전송, 상수 시간 비교의 실제 시간, pg_cron 등록, 워커·배치의 실제 예약 주기, 운영자 알림의 실제 발행(무엇을 냈는가까지), 브라우저 결제창(타입 검사만).
 
 ## 미확정·남은 일
-- **dev 서버 확인**(공개 주소 필요): 웹훅 실제 수신·재전송, 콘솔 직접 취소(P18 `CANCEL_MISMATCH`), dev 의 `ROBOYAM_PAYMENT_TEST_ORDERS` 를 compose 에 넣기, 다건 조회 실제 응답·60,000건 한도. 공구 쪽 확인 목록(에스크로·네이버페이·카카오페이 부분 취소·가맹점 취소 한도)은 공구 계약 「남은 일」.
+- **dev 서버 확인**(공개 주소 필요): 웹훅 실제 수신·재전송, 콘솔 직접 취소(P18 `CANCEL_MISMATCH`), dev 의 `IROBIT_PAYMENT_TEST_ORDERS` 를 compose 에 넣기, 다건 조회 실제 응답·60,000건 한도. 공구 쪽 확인 목록(에스크로·네이버페이·카카오페이 부분 취소·가맹점 취소 한도)은 공구 계약 「남은 일」.
 - **포트원**: 웹훅 비밀키의 실제 형식, 채널별 승인/매입 분리.
 - 본인인증 실제 완료(실명 인증)·모바일 리디렉션 복원.
 

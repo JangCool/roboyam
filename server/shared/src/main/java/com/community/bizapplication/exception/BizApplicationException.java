@@ -66,12 +66,12 @@ public class BizApplicationException extends CommonException {
         return new BizApplicationException(HttpStatus.CONFLICT, OPERATOR_STAGE);
     }
 
-    /** 운영자 등록 건을 등록한 운영자가 직접 승인하려 했는데 설정이 자기 승인을 막는다(roboyam.biz.self-approval = deny) */
+    /** 운영자 등록 건을 등록한 운영자가 직접 승인하려 했는데 설정이 자기 승인을 막는다(irobit.biz.self-approval = deny) */
     public static BizApplicationException selfApprovalDenied() {
         return new BizApplicationException(HttpStatus.CONFLICT, SELF_APPROVAL_DENIED);
     }
 
-    /** 한 건에 일시 정지할 수 있는 횟수(설정 {@code roboyam.biz.pause-limit}, 기본 3)를 다 썼다 — 사업자·운영자 대신 처리 같은 셈 */
+    /** 한 건에 일시 정지할 수 있는 횟수(설정 {@code irobit.biz.pause-limit}, 기본 3)를 다 썼다 — 사업자·운영자 대신 처리 같은 셈 */
     public static BizApplicationException pauseLimit() {
         return new BizApplicationException(HttpStatus.CONFLICT, PAUSE_LIMIT);
     }

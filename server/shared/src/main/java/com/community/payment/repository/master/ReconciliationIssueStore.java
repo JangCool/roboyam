@@ -3,7 +3,7 @@ package com.community.payment.repository.master;
 import static com.community.payment.repository.master.PaymentOrderStore.ts;
 
 import com.community.payment.entity.QReconciliationIssueEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -21,7 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 부분 유일 색인의 멱등 넣기, JPQL·QueryDSL 에 대응 문법이 없다).
  */
 @Repository
-public class ReconciliationIssueStore extends RoboyamRepositoryQDSL {
+public class ReconciliationIssueStore extends IrobitRepositoryQDSL {
 
     /** 이슈 종류(DB CHECK 와 같은 목록) */
     public enum Type {

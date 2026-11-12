@@ -15,7 +15,7 @@ export function useGroupBuyCheckout(onResult?: (result: PaymentResult, target: G
     const { user } = useAuth();
 
     return usePaymentCheckout<GroupBuyPaymentStart>({
-        pendingKey: 'roboyam-group-buy-payment-pending',
+        pendingKey: 'irobit-group-buy-payment-pending',
         redirectPath: (target) => UtilGroupBuy.myOrderPath(target.orderNo),
         customer: (target) => target.customer ?? { fullName: user.value?.nickname ?? '', phoneNumber: '', email: user.value?.email ?? '' },
         fakeCheckout: (paymentId, body) => api.fakeCheckout(paymentId, body),

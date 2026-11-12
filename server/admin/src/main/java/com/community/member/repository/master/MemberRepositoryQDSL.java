@@ -20,7 +20,7 @@ import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.QUserIdentityEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
@@ -51,7 +51,7 @@ import org.springframework.stereotype.Repository;
  * 포인트는 잔액 행({@code point_balances}, 없으면 0P)으로 거르고 정렬한다. 휴면·제재 이력은 데이터가 없어 그 조건을 걸면 해당 회원이 없는 것으로 판정한다.
  */
 @Repository
-public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class MemberRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

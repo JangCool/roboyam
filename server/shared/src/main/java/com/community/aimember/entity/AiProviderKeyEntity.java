@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 제공사 API 키 — {@code ai_provider_keys}(shared V183, 정책 12 · 상태 칸 V189). 값은 {@code SecretEncryptor}({@code ROBOYAM_CRYPTO_KEY}) 암호문만 둔다.
+ * 제공사 API 키 — {@code ai_provider_keys}(shared V183, 정책 12 · 상태 칸 V189). 값은 {@code SecretEncryptor}({@code IROBIT_CRYPTO_KEY}) 암호문만 둔다.
  * {@link #toString()} 은 기본(값 없음) 그대로 — 암호문도 로그에 싣지 않는다.
  * 상태({@link AiProviderKeyStatus})는 실행기가 제공사 거절을 보고 바꾸고({@link #pause}), 키를 다시 저장하면({@link #change}) {@code OK} 로 돌아온다.
  */

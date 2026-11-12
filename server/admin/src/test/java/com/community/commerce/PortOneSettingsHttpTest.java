@@ -77,8 +77,8 @@ class PortOneSettingsHttpTest extends Commerce04AdminTestBase {
     void 처음에는_다섯_칸_모두_비었고_지금_구현_둘과_암호화_키_준비_여부를_알린다() throws Exception {
         mvc.perform(get("/api/admin/portone-settings").cookie(login(operatorWith(Permission.SITE_READ)))).andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.data.identityProvider").value(identity.provider().name())) // 이 서버의 roboyam.identity.provider
-                .andExpect(jsonPath("$.data.paymentGateway").value(payment.gateway().name())) // 이 서버의 roboyam.payment.gateway
+                .andExpect(jsonPath("$.data.identityProvider").value(identity.provider().name())) // 이 서버의 irobit.identity.provider
+                .andExpect(jsonPath("$.data.paymentGateway").value(payment.gateway().name())) // 이 서버의 irobit.payment.gateway
                 .andExpect(jsonPath("$.data.cryptoKeyConfigured").value(true))
                 .andExpect(jsonPath("$.data.identityReady").value(false))
                 .andExpect(jsonPath("$.data.paymentReady").value(false))

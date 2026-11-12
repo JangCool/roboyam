@@ -19,7 +19,7 @@ import org.springframework.web.util.HtmlUtils;
 /**
  * 글·댓글 HTML 본문 — 허용 목록 정화(OWASP Java HTML Sanitizer)와 정화된 HTML 에서 뽑는 값(보이는 글자·링크·이미지 표식·YouTube 표식).
  * 에디터가 만든 HTML 이라도 <b>서버에서 반드시</b> 거친다. 목록에 없는 태그·속성(스크립트, 이벤트 속성, 임의 style, iframe …)은 모두 사라진다(글자는 남는다).
- * community {@code UtilPostHtml}·{@code PostMedia} 를 로보얌 에디터 수준(간단·고급)에 맞춰 옮겼다.
+ * community {@code UtilPostHtml}·{@code PostMedia} 를 아이로빗 에디터 수준(간단·고급)에 맞춰 옮겼다.
  *
  * <ul>
  *   <li><b>간단</b>(글·댓글): {@code p br strong em u s a ul ol li blockquote}. 링크는 http·https·mailto 만, 저장할 때 {@code target="_blank"}

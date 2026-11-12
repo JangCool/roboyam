@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li><b>표가 비어 있을 때만</b> 넣는다 — 관리자 화면에서 한 번이라도 저장하거나 지운 칸이 있으면 손대지 않는다(화면에서 바꾼 값을 서버 재기동이 덮지 않게).</li>
- *   <li>dev·prod 프로필에서는 넣지 않는다(시드 값이 있어도 WARN 만). 설정 비밀값 키({@code ROBOYAM_CRYPTO_KEY})가 없거나 시드가 꺼져 있어도(시험) 넣지 않는다.</li>
+ *   <li>dev·prod 프로필에서는 넣지 않는다(시드 값이 있어도 WARN 만). 설정 비밀값 키({@code IROBIT_CRYPTO_KEY})가 없거나 시드가 꺼져 있어도(시험) 넣지 않는다.</li>
  *   <li>감사는 남기지 않는다(운영자가 바꾼 것이 아니다 — 바꾼 사람 없음). 로그에는 칸 수만.</li>
  * </ul>
  */
@@ -56,11 +56,11 @@ public class PortOneLocalSeeder implements ApplicationRunner {
             return 0;
         }
         if (environment.acceptsProfiles(GUARDED)) {
-            log.warn("dev·prod 프로필에서는 포트원 시드(roboyam.portone.seed)를 넣지 않는다 — 관리자 화면에서 저장하세요");
+            log.warn("dev·prod 프로필에서는 포트원 시드(irobit.portone.seed)를 넣지 않는다 — 관리자 화면에서 저장하세요");
             return 0;
         }
         if (!encryptor.isConfigured()) {
-            log.warn("설정 비밀값 키(ROBOYAM_CRYPTO_KEY)가 없어 포트원 시드를 넣지 않았다");
+            log.warn("설정 비밀값 키(IROBIT_CRYPTO_KEY)가 없어 포트원 시드를 넣지 않았다");
             return 0;
         }
         if (!store.findAll().isEmpty()) {

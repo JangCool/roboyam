@@ -217,7 +217,7 @@ type TabSpecRow = readonly [string, 'bool' | 'grade'] | readonly [string, 'numbe
 
 /**
  * 기본 설정 하위 화면(신고 정책·보안·알림·개인정보 보유기간)의 칸 정의 — 일반 화면의 `SPECS` 와 같은 모양이고 같은 부품(`BoardSettingField`)이 그린다. 모두 `board.settings` 로 고친다.
- * 범위·기본값의 근거는 각 화면 머리 주석(그누보드7 `config/settings/defaults.json`·`config/board.php` → roboyam 권장안).
+ * 범위·기본값의 근거는 각 화면 머리 주석(그누보드7 `config/settings/defaults.json`·`config/board.php` → irobit 권장안).
  */
 const TAB_SPEC_ROWS: readonly TabSpecRow[] = [
     // 신고 정책

@@ -253,7 +253,7 @@
                 </div>
             </section>
 
-            <!-- 시간 표시 — 로보얌은 따로 있는 화면(언어·시간대·형식, 자기 저장 줄)이라 이어지는 줄만 둔다 -->
+            <!-- 시간 표시 — 아이로빗은 따로 있는 화면(언어·시간대·형식, 자기 저장 줄)이라 이어지는 줄만 둔다 -->
             <NuxtLink
                 to="/settings/display"
                 class="flex min-h-14 items-center gap-3 panel-card px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
@@ -307,7 +307,7 @@ import type { ColorPalette, PageBackground } from '~/utils/util-color-palette';
 import UtilColorPalette from '~/utils/util-color-palette';
 
 /**
- * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 로보얌에 적용할 곳이 있는 것).
+ * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 아이로빗에 적용할 곳이 있는 것).
  * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기 PC·휴대폰 따로(90·100·110·125%, 기본 PC 100·휴대폰 110 — 사용자 2026-11-11, 지금 기기 줄에 「지금 이 기기」), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.

@@ -23,7 +23,7 @@ export default class UtilRewardEventMessages {
     }
 
     /**
-     * 보상 줄 하나의 짧은 이름 — 「1,000P」 · 「닉네임 변경권 ×2」 · 「로보티콘 팩 로보얌 기본 팩」 · 「커피 기프티콘(직접 전달)」.
+     * 보상 줄 하나의 짧은 이름 — 「1,000P」 · 「닉네임 변경권 ×2」 · 「로보티콘 팩 아이로빗 기본 팩」 · 「커피 기프티콘(직접 전달)」.
      * @param {Translate} t - 번역 함수.
      * @param {RewardLine} line - 보상 줄.
      * @param {string} locale - 숫자 표기 언어.

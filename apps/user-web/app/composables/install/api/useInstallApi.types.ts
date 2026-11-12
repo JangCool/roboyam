@@ -108,7 +108,7 @@ export interface InstallBoardPresetBoard {
 
 /** 기본 게시판 구성(프리셋) 하나 — 설치 화면에서 고른다 */
 export interface InstallBoardPreset {
-    /** `NEUTRAL` · `ROBOYAM` … 설치 요청의 `boardPreset` */
+    /** `NEUTRAL` · `IROBIT` … 설치 요청의 `boardPreset` */
     id: string;
     name: string;
     description: string;

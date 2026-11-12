@@ -16,7 +16,7 @@
 
 ### 권한 (카탈로그에 있던 코드를 그대로 쓴다 — `featureReady` 는 아직 false)
 - `group.read`(READ) 네 화면 열기 · `group.manage`(MANAGE) 승인·반려·비활성화·다시 열기 · `group.settings`(CONFIG) 분류·설정 저장. 권한이 없으면 단추를 막거나 숨기고 읽기 전용 안내.
-- community 와 다름: 분류·설정은 community 에서 최고 관리자 전용(`ADMIN_ONLY`)이지만 로보얌은 `group.settings` 로 위임한다. 오류도 `MENU_FORBIDDEN`·`MENU_READ_ONLY`·`ADMIN_ONLY` 대신 `403 PERMISSION_DENIED`.
+- community 와 다름: 분류·설정은 community 에서 최고 관리자 전용(`ADMIN_ONLY`)이지만 아이로빗은 `group.settings` 로 위임한다. 오류도 `MENU_FORBIDDEN`·`MENU_READ_ONLY`·`ADMIN_ONLY` 대신 `403 PERMISSION_DENIED`.
 - 운영자 알림 이벤트 `CLUB_OPEN_REQUEST_PENDING`(예약, `group.manage`) — 개설 승인 화면이 그 이벤트 화면 링크를 둔다(`notification.read`). 서버가 개설 신청(`PENDING`)을 받을 때 발행하고 `featureReady` 를 켠다.
 
 ### API 후보 (모양은 community 관리자 절과 같다 — 각 `use*Api.ts` 머리말이 정본)
@@ -24,7 +24,7 @@
 - `GET /api/admin/groups?q&status&closed&offline&visibility&page&size` → `{items, page, size, hasNext, total, counts{all,active,inactive,closed,offline}, pendingRequests}` · `GET /api/admin/groups/{id}` · `POST …/{id}/deactivate {reason 1~200}`(409 `GROUP_ALREADY_INACTIVE`) · `POST …/{id}/reactivate {memo 0~200}`(409 `GROUP_NOT_INACTIVE`)
 - `GET·POST /api/admin/group-categories` · `PUT …/{id} {name, boardIds, updatedAt?}`(409 `GROUP_CATEGORY_STALE`·`GROUP_CATEGORY_NAME_TAKEN`) · `PUT …/order {ids}` · `DELETE …/{id}`(409 `GROUP_CATEGORY_NOT_EMPTY` + 최상위 `groupCount`)
 - `GET·PUT /api/admin/group-settings/{creation,manager,visibility,policy}-rules` — `{values, defaults, limits, fromDefaults, updatedAt, updatedBy}` (+ creation `pendingRequestCount`, manager `usage`, visibility `usage`·`noticeSent`). PUT 은 구획의 칸 모두, 틀린 칸은 `400 fields.<칸>`(기본>최대 `fields.limitDefault`, 최소>최대 정원 `fields.capacityMax`).
-- **로보얌 추가 후보**: `GET /api/admin/group-settings/history?section=CREATION|MANAGER|VISIBILITY|POLICY&page&size` → 공용 `SettingHistoryPage` 모양 + `section`. 바뀐 칸의 `before`·`after` 는 서버가 요청 언어의 표시 글자(「승인제」·「켜짐」·「7일」)로 준다고 가정했다. `labelKey` = `group.historyField.<칸>`.
+- **아이로빗 추가 후보**: `GET /api/admin/group-settings/history?section=CREATION|MANAGER|VISIBILITY|POLICY&page&size` → 공용 `SettingHistoryPage` 모양 + `section`. 바뀐 칸의 `before`·`after` 는 서버가 요청 언어의 표시 글자(「승인제」·「켜짐」·「7일」)로 준다고 가정했다. `labelKey` = `group.historyField.<칸>`.
 - 감사 행위 후보: `GROUP_APPROVE`·`GROUP_REJECT`·`GROUP_DEACTIVATE`·`GROUP_REACTIVATE`·`GROUP_CATEGORY_CREATE|UPDATE|ORDER|DELETE`·`GROUP_CREATION_RULE_UPDATE`·`GROUP_MANAGER_RULE_UPDATE`·`GROUP_VISIBILITY_RULE_UPDATE`·`GROUP_POLICY_RULE_UPDATE`.
 
 ### 저장 규칙
@@ -37,7 +37,7 @@
 ### 미확정
 1. ~~분류 화면에서 소모임 게시판을 바로 만들지~~ → 2026-10-26: 만든다. 분류 화면의 [소모임 게시판 만들기]가 `/boards?create=group&category=<ID>` 를 연다(`board-contract.md` 「소모임 게시판」).
 2. 등급 고르기(`limits.grades`) — 목업은 community 네 등급. 서버는 등급 설정의 등급 키를 줄 것으로 가정.
-3. 설정 변경 이력 API(로보얌 추가)의 모양·전후 값 표시 방식.
+3. 설정 변경 이력 API(아이로빗 추가)의 모양·전후 값 표시 방식.
 4. 메뉴·권한의 서버 쪽(`AdminScreenRegistry` 네 줄, `Permission` 의 `group.*` `featureReady=true`)은 서버 단계.
 
 ## 소모임 분류 서버 (2026-10-26 — 사용자 「분류 서버까지」, 분류 화면은 실제 API 연결)
@@ -48,10 +48,10 @@
 - **동시성**: 분류 바꾸기와 「분류를 고른 게시판 만들기」는 어드바이저리 잠금 `7_340_005` 하나로 줄을 선다.
 - 그대로 둔 것: `AdminScreenRegistry` 네 줄·`Permission` `group.*` `featureReady`(다른 소모임 화면이 아직 목업). 게시판을 지울 때 그 분류 `updatedAt` 은 오르지 않는다(열어 둔 화면이 지워진 ID 로 저장하면 `400 fields.boardIds`).
 
-- **설치 프리셋**(2026-10-27 확정, 구현 전): 설치 때 프리셋의 소모임 게시판과 분류(ROBOYAM 5개)를 만들어 잇는다. 소모임 게시판 말머리 = 가입인사·질문·후기·잡담·자료 + 주제별 하나, 「공지」 없음(매니저가 쓸 수 없어서) — `install-contract.md` 「프리셋 구조」.
+- **설치 프리셋**(2026-10-27 확정, 구현 전): 설치 때 프리셋의 소모임 게시판과 분류(IROBIT 5개)를 만들어 잇는다. 소모임 게시판 말머리 = 가입인사·질문·후기·잡담·자료 + 주제별 하나, 「공지」 없음(매니저가 쓸 수 없어서) — `install-contract.md` 「프리셋 구조」.
 
 ## 전체 개발 계획 (2026-10-26 사용자 — 「전부」 옮기고 「멈춤 없이 끝까지」)
-- **원본**: community `docs/api-groups.md`(절 번호는 아래 단계에 적는다) + `frontend/app/{pages/groups,components/groups}` + `admin/app` 소모임 화면. 로보얌 관례(권한 코드 `group.*`·`403 PERMISSION_DENIED`, i18n 키, Snowflake ID, 회원 알림 `MemberNotificationType`, 기능 제한 `restriction`, 메뉴 `MenuBuiltin.GROUPS_ALL|MINE|NEW`)에 맞춘다. 원본과 다르게 한 것은 단계마다 아래에 「로보얌 차이」로 적는다.
+- **원본**: community `docs/api-groups.md`(절 번호는 아래 단계에 적는다) + `frontend/app/{pages/groups,components/groups}` + `admin/app` 소모임 화면. 아이로빗 관례(권한 코드 `group.*`·`403 PERMISSION_DENIED`, i18n 키, Snowflake ID, 회원 알림 `MemberNotificationType`, 기능 제한 `restriction`, 메뉴 `MenuBuiltin.GROUPS_ALL|MINE|NEW`)에 맞춘다. 원본과 다르게 한 것은 단계마다 아래에 「아이로빗 차이」로 적는다.
 - **진행 방식(사용자 결정)**: 화면 목업 → 확인 → 서버의 규칙을 이 기능에서는 쓰지 않는다. 단계마다 화면·서버·연동을 한 번에 끝내고, 화면은 단계 끝에 개발자가 몰아서 본다. 관리자 목업 화면 3개(`/groups`·`/group-requests`·`/group-settings`)도 확정으로 본다.
 - **작업 자리**: 작업 트리 `.claude/worktrees/group-full`, 브랜치 `claude/group-full`(develop `4641db5` 에서). 단계가 끝날 때마다 커밋하고, develop 에 합치는 것은 사용자 지시로. 마이그레이션은 V90~V93(2026-10-26 develop 병합 때 커머스 1-3 의 V89 다음으로 다시 매김 — 다음 단계는 V94 부터, 합칠 때 develop 의 마지막 번호를 다시 본다).
 - **단계** (앞 단계에 기댄다 — 차례대로):
@@ -65,19 +65,19 @@
 ## 단계별 결과 (2026-10-26 — 브랜치 `claude/group-full`, 경로·칸의 정본은 user-web `composables/group/api/useGroupApi.ts` 머리말·admin-web `useGroup*Api.ts` 머리말과 서버 DTO)
 - **마이그레이션**: V90 `groups`(소모임·멤버·설정·이력) · V91 `group_posts`(posts.group_id·is_public·group_left_at) · V92 `group_managers`(알림 종류, member_notifications.type varchar(40)) · V93 `group_events` · V94 `group_visibility`. 회원 알림 종류 CHECK 는 단계마다 앞 목록과의 합집합으로 다시 만든다 — develop 에 합칠 때 develop 쪽 목록과 다시 맞춘다.
 - **1단계 기본**: 회원 `/api/groups…`·`/api/me/groups…`(목록·분류·개설 규칙·상세·멤버·가입·신청 취소·탈퇴·개설 신청·모임장 관리), 관리자 개설 승인·소모임 관리·설정 4구획·이력, 알림 GROUP_* 10종 + 운영자 `CLUB_OPEN_REQUEST_PENDING`. user-web `/groups`·`/groups/me`·`/groups/new`·`/groups/[id]`·`/groups/[id]/manage/{,edit,members,applications,chat}`, admin-web 목업 3화면 실제 연결.
-- **2단계 글**: `/api/groups/{id}/posts`(커서)·`board`(로보얌 추가 — 공개 `BoardDetail` 모양, 소모임 게시판은 공개 게시판 API 가 404 라서)·`seen`·`posts/{postId}/visibility`, 기존 글·댓글·투표·신고 경로는 `GroupPostGate` 한 곳에서 판정. user-web 글 탭(기본)·`/groups/[id]/write`·글 상세 소모임 표시. 관리자 글 관리는 비공개 소모임 글의 제목·본문을 가리고(내용은 신고 상세에서만) 옮기기 409.
+- **2단계 글**: `/api/groups/{id}/posts`(커서)·`board`(아이로빗 추가 — 공개 `BoardDetail` 모양, 소모임 게시판은 공개 게시판 API 가 404 라서)·`seen`·`posts/{postId}/visibility`, 기존 글·댓글·투표·신고 경로는 `GroupPostGate` 한 곳에서 판정. user-web 글 탭(기본)·`/groups/[id]/write`·글 상세 소모임 표시. 관리자 글 관리는 비공개 소모임 글의 제목·본문을 가리고(내용은 신고 상세에서만) 옮기기 409.
 - **3단계 매니저**: `/api/groups/{id}/managers`(목록·임명/교체·해임·`me` 사퇴)·`manager-limit`, 알림 5종. 관리 화면은 체크형 권한으로 매니저에게도 열린다.
 - **4단계 일정**: `/api/groups/{id}/events`(목록·만들기·상세·수정·취소·응답·참석자), 내 소모임 `nextEvent`, 알림 `GROUP_EVENT`(소모임 알림 중 유일하게 회원이 끌 수 있다).
 - **5단계 공개 범위**: `visibility-preview`·`PUT visibility`(쿨다운)·공개 요청(`publish-request`·`publish-requests`·approve·reject)·글 단위 visibility 네 가지 일, 멤버 전용 댓글 가림(`hiddenBy MEMBERS_ONLY`), 알림 7종. `posts.is_public` 의 뜻은 「비멤버에게 보이는가(유효 노출)」로 넓혔고 쓰는 길은 `GroupPostVisibilityService` 하나.
 
-### 로보얌 차이 (원본 community 대비)
+### 아이로빗 차이 (원본 community 대비)
 - 사람 칸: 회원 API 는 `DmPartnerView`(user-web `GroupUser`), 관리자 API 는 `GroupPerson{grade{label,color,icon}}`.
-- 개설에 회원 권한 `group.create` 판정(로보얌 추가, `post.write` 가진 역할에 같이 줌) — 없으면 403 `GROUP_CREATE_NOT_PERMITTED`. 공개 사이트에 로그인하는 최고 관리자가 없어 「운영자 개설 201」·「운영진 등급 면제」 없음.
+- 개설에 회원 권한 `group.create` 판정(아이로빗 추가, `post.write` 가진 역할에 같이 줌) — 없으면 403 `GROUP_CREATE_NOT_PERMITTED`. 공개 사이트에 로그인하는 최고 관리자가 없어 「운영자 개설 201」·「운영진 등급 면제」 없음.
 - 쓰기 자격은 게시판과 같은 코드(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED`) — 사업자 회원은 소모임 쓰기가 막힌다(탈퇴·신청 취소·매니저 사퇴는 된다).
 - 같은 이름 막기 범위에 INACTIVE 포함. 소모임이 쓰는 게시판은 지울 수 없다(409 `BOARD_HAS_GROUPS`).
-- 나가서 가린 글은 `hidden_reason` 대신 따로 칸 `group_left_at`(운영자 숨김과 덮어쓰지 않게). 지운 글은 410 대신 로보얌대로 404.
+- 나가서 가린 글은 `hidden_reason` 대신 따로 칸 `group_left_at`(운영자 숨김과 덮어쓰지 않게). 지운 글은 410 대신 아이로빗대로 404.
 - 소모임 신고: 2026-10-26 사용자 「신고는 당연히 소모임에도 있어야지」 — 신고 대상에 소모임을 더한다(7단계 「소모임 신고」, V95).
-- 알림 문구는 서버가 만든다(로보얌 알림 응답에 원본의 `groupManager` 칸이 없다). 소모임 알림은 묶음 `system`. 푸시는 없고 메일 채널만.
+- 알림 문구는 서버가 만든다(아이로빗 알림 응답에 원본의 `groupManager` 칸이 없다). 소모임 알림은 묶음 `system`. 푸시는 없고 메일 채널만.
 - 원본의 `group_visibility_rollout`·`group_visibility_settings` 표 대신 `group_settings` 한 행.
 - 용어 설정(`GROUPS` 이름 바꾸기)은 소모임 화면에 걸지 않는다 — 고정 「소모임」. **영어 이름은 "Club(s)" 로 통일**(2026-10-26 사용자 「영어이름 통일해」 — 하단 탭·서비스 이름 기본값·서버 영어 문구까지).
 
@@ -95,7 +95,7 @@
 - **포인트는 회수하지 않는다**(2026-10-26 사용자 — 앞서 정한 「3개월 미만이면 회수」를 바꿨다). 대신 **해산 패널티**: 해산한 모임장은 `dissolvePenaltyDays`(관리자 설정 「개설 규칙」, 기본 30일, 0 = 끔) 동안 새 소모임을 개설 신청할 수 없다. **개설(`opened_at`)부터 해산까지 1년(달력, KST) 이상 유지된 소모임은 패널티가 없다.** 포인트 원장을 건드리지 않으므로 커머스 규칙이 아니다.
 
 ### 소모임 신고 (2026-10-26 — 서버 `e955b0f`, V95)
-- 공개 `POST /api/reports {targetType:"GROUP", targetId, reason, detail?}`(로보얌 기존 신고 경로·오류 그대로), 사유 `PROMOTION`·`OFFLINE_RISK`·`STOCK_RECOMMENDATION`(투자 고지 게시판 소모임만)·`OTHER`. 자동 숨김 없음. 관리자 신고 목록·상세의 소모임 사건(`target.groupId`, 상세 `group`), 조치 `DEACTIVATE`(소모임 비활성화 + `groups.deactivate_case_id` + 모임장 알림), 신고자 결과 알림. 관리자 소모임 상세 `reportCaseCount`·`deactivation.reportCase`.
+- 공개 `POST /api/reports {targetType:"GROUP", targetId, reason, detail?}`(아이로빗 기존 신고 경로·오류 그대로), 사유 `PROMOTION`·`OFFLINE_RISK`·`STOCK_RECOMMENDATION`(투자 고지 게시판 소모임만)·`OTHER`. 자동 숨김 없음. 관리자 신고 목록·상세의 소모임 사건(`target.groupId`, 상세 `group`), 조치 `DEACTIVATE`(소모임 비활성화 + `groups.deactivate_case_id` + 모임장 알림), 신고자 결과 알림. 관리자 소모임 상세 `reportCaseCount`·`deactivation.reportCase`.
 - 사용자 결정(「추천대로」): 신고 처리의 비활성화는 `report.manage` 만 본다(`group.manage` 를 따로 묻지 않는다). 모임장이 받은 소모임 신고도 회원 상세의 「받은 신고 수」에 든다.
 - **세션 정리 결정(2026-11-06, 사용자)**: user-web `/groups` 목록은 「지금 뜨는 소모임」 슬라이드의 모임을 `exclude` 로 빼지 않는다 — 소모임이 적으면 목록이 거의 비어 보인다(6개 중 1개). 서버의 `exclude` 칸은 그대로 둔다(화면이 안 보낼 뿐).
 

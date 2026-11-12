@@ -12,6 +12,8 @@
                  묶음 제목(약관·정책 · 고객 지원 · 오픈소스)은 진하게, 개인정보처리방침은 굵기 대신 주 색상 글자로 구분한다(작성지침: 다른 고지와 구분되게 — 굵게 하면 하위 제목처럼 보여서, 사용자 2026-11-10 시안 B) -->
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1" :class="personal ? 'md:grid md:grid-cols-4 md:items-start md:gap-x-8 md:gap-y-1' : 'md:flex-col md:items-start md:gap-1'" data-testid="footer-main">
                 <b class="text-sm font-semibold text-surface-700 md:col-start-1 md:mb-1 dark:text-surface-200">{{ siteLabel }}</b>
+                <!-- 사이트 소개(`/about`, 같은 탭) — 사이트 정보의 `about` 이 true 일 때만(옛 서버는 칸이 없어 숨김). 데스크톱은 1열 사이트 이름 바로 아래(문의·© 위), 모바일은 사이트 이름 다음 맨 앞(약관 링크 앞) -->
+                <NuxtLink v-if="hasAbout" to="/about" class="hover:underline" :class="personal ? 'md:col-start-1' : ''" data-testid="footer-about">{{ t('siteAbout.title') }}</NuxtLink>
                 <!-- 약관 링크 — 캐시 관리 미리보기의 영역 표시(`data-cache-area`, `contents` 라 줄 배치는 그대로 — 데스크톱 3열에서는 2열 한 칸) -->
                 <span class="contents" :class="personal ? 'md:col-start-2 md:row-span-3 md:row-start-1 md:flex md:flex-col md:items-start md:gap-1' : ''" data-cache-area="terms.public">
                     <span v-if="personal" class="hidden font-semibold text-surface-700 md:block dark:text-surface-200">{{ t('shell.footerTerms') }}</span>
@@ -85,6 +87,8 @@ const personal = computed(() => !shownBusiness.value);
 /** 푸터 안내 줄(`{사이트}` 를 바꾼 것) — 문구가 있고 보이기가 ALWAYS 이거나 개인 단계일 때만, 아니면 빈 배열(숨김) */
 /** 「사업자 신청」 링크 보이기 — 사이트 정보를 아직 못 받았으면 켬(기본값과 같게) */
 const businessApply = computed(() => siteInfo.value?.operator?.footerBusinessApply !== false);
+/** 「사이트 소개」 링크 보이기 — 소개가 있을 때만(사이트 정보를 아직 못 받았거나 옛 서버면 숨김) */
+const hasAbout = computed(() => siteInfo.value?.about === true);
 const noticeLines = computed(() => {
     const operator = siteInfo.value?.operator;
     if (!operator?.footerNotice) return [];

@@ -36,7 +36,7 @@ public class InstallationEntity {
     /** 설치 때 만든 루트 운영자(최고 관리자, operators.id) */
     private Long rootOperatorId;
 
-    /** 설치 때 고른 기본 게시판 구성의 아이디({@code NEUTRAL} · {@code ROBOYAM} …). 게시판을 실제로 만드는 적용은 게시판 기능에서 한다 */
+    /** 설치 때 고른 기본 게시판 구성의 아이디({@code NEUTRAL} · {@code IROBIT} …). 게시판을 실제로 만드는 적용은 게시판 기능에서 한다 */
     private String boardPreset;
 
     /** 고른 게시판 구성으로 기본 게시판을 만든(또는 게시판이 이미 있어 건너뛴) 시각 — V42__boards.sql. null 이면 아직 */

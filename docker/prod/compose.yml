@@ -1,5 +1,5 @@
 # ============================================================================
-# ROBOYAM 운영 — 앱 서버 한 대분 (운영은 이 구성을 앱 서버 2대에 각각 올린다)
+# IROBIT 운영 — 앱 서버 한 대분 (운영은 이 구성을 앱 서버 2대에 각각 올린다)
 # ============================================================================
 #
 # 운영 구성: ALB(HTTPS, ACM 인증서) → 앱 서버 2대(EC2) → DB 서버 1대(EC2, PostgreSQL 직접 운영 — compose.db.yml)
@@ -20,16 +20,16 @@
 #   docker compose up -d
 #
 # 서버 2대가 같은 DB 를 쓰므로 서버 간 정합이 필요한 상태는 DB 로 공유한다.
-# DB 비밀번호는 DB_PASSWORD=ENC(...) 암호문으로 받고 기동 때 ROBOYAM_CRYPTO_KEY 로 복호화한다 — 두 서버가 같은 키를 써야 한다.
+# DB 비밀번호는 DB_PASSWORD=ENC(...) 암호문으로 받고 기동 때 IROBIT_CRYPTO_KEY 로 복호화한다 — 두 서버가 같은 키를 써야 한다.
 #
 # ⚠ 이 파일은 실제 서버에서 아직 시험하지 않았다(문법만 확인).
 # ============================================================================
 
-name: roboyam-prod
+name: irobit-prod
 
 services:
   app:
-    image: ${ROBOYAM_IMAGE}
+    image: ${IROBIT_IMAGE}
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -39,15 +39,15 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       # 암호문 ENC(...) — 복호화 키와 한 쌍이다
       DB_PASSWORD: ${DB_PASSWORD}
-      ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+      IROBIT_CRYPTO_KEY: ${IROBIT_CRYPTO_KEY}
       # 개인정보 칸 암호화 키·교체 중의 예전 키·중복 확인 해시 키 — 모든 앱 서버와 관리자 앱이 같은 값이어야 한다
-      ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
-      ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
-      ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
+      IROBIT_DATA_KEY: ${IROBIT_DATA_KEY:-}
+      IROBIT_DATA_KEY_PREVIOUS: ${IROBIT_DATA_KEY_PREVIOUS:-}
+      IROBIT_INDEX_KEY: ${IROBIT_INDEX_KEY:-}
       # Snowflake ID 서버 번호 — 앱 서버마다 달라야 한다 (한 대는 1, 다른 한 대는 2 처럼)
       NODE_ID: ${NODE_ID}
       # 설치 마법사(/install) 토큰 — 비워 두면 서버가 뜰 때 무작위 토큰을 만들어 로그에 한 번 출력한다. 앱 서버를 여러 대 띄우면 같은 값을 준다
-      ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
+      IROBIT_INSTALL_TOKEN: ${IROBIT_INSTALL_TOKEN:-}
       # 관리자 앱 주소(http(s)://…) — 관리자 테마 화면 「실제 화면」 iframe 허락(?adminPreview=1 화면에만 frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다
       ADMIN_URL: ${ADMIN_URL:-}
       # 서버 2대 x 풀 크기(+ 관리자 앱)가 DB 서버 max_connections(compose.db.yml)보다 작아야 한다
@@ -55,21 +55,21 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
       # 올린 이미지 저장소(docs/features/media-storage-contract.md) — r2(prod 기본) | s3(AWS·MinIO) | local. 아래 volumes 의 폴더는 local 일 때만 쓴다
-      ROBOYAM_STORAGE_TYPE: ${ROBOYAM_STORAGE_TYPE:-r2}
-      ROBOYAM_STORAGE_R2_ACCOUNT_ID: ${ROBOYAM_STORAGE_R2_ACCOUNT_ID:-}
-      ROBOYAM_STORAGE_S3_ENDPOINT: ${ROBOYAM_STORAGE_S3_ENDPOINT:-}
-      ROBOYAM_STORAGE_S3_REGION: ${ROBOYAM_STORAGE_S3_REGION:-}
-      ROBOYAM_STORAGE_S3_BUCKET: ${ROBOYAM_STORAGE_S3_BUCKET:-}
-      ROBOYAM_STORAGE_S3_PATH_STYLE: ${ROBOYAM_STORAGE_S3_PATH_STYLE:-false}
-      ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL: ${ROBOYAM_STORAGE_S3_PUBLIC_BASE_URL:-}
-      ROBOYAM_STORAGE_S3_ACCESS_KEY: ${ROBOYAM_STORAGE_S3_ACCESS_KEY:-}
-      ROBOYAM_STORAGE_S3_SECRET_KEY: ${ROBOYAM_STORAGE_S3_SECRET_KEY:-}
+      IROBIT_STORAGE_TYPE: ${IROBIT_STORAGE_TYPE:-r2}
+      IROBIT_STORAGE_R2_ACCOUNT_ID: ${IROBIT_STORAGE_R2_ACCOUNT_ID:-}
+      IROBIT_STORAGE_S3_ENDPOINT: ${IROBIT_STORAGE_S3_ENDPOINT:-}
+      IROBIT_STORAGE_S3_REGION: ${IROBIT_STORAGE_S3_REGION:-}
+      IROBIT_STORAGE_S3_BUCKET: ${IROBIT_STORAGE_S3_BUCKET:-}
+      IROBIT_STORAGE_S3_PATH_STYLE: ${IROBIT_STORAGE_S3_PATH_STYLE:-false}
+      IROBIT_STORAGE_S3_PUBLIC_BASE_URL: ${IROBIT_STORAGE_S3_PUBLIC_BASE_URL:-}
+      IROBIT_STORAGE_S3_ACCESS_KEY: ${IROBIT_STORAGE_S3_ACCESS_KEY:-}
+      IROBIT_STORAGE_S3_SECRET_KEY: ${IROBIT_STORAGE_S3_SECRET_KEY:-}
     # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 저장 폴더. 관리자 앱(compose.admin.yml)과 앱 서버 2대가 같은 파일을 봐야 하므로 MEDIA_DIR 에
-    # 공유 디스크(NFS·EFS)의 경로를 준다 — ROBOYAM_STORAGE_TYPE=local 일 때만 쓴다(기본 r2 는 버킷). 비우면 이 서버에만 있는 도커 볼륨이라 서버 한 대 구성에서만 쓸 수 있다
+    # 공유 디스크(NFS·EFS)의 경로를 준다 — IROBIT_STORAGE_TYPE=local 일 때만 쓴다(기본 r2 는 버킷). 비우면 이 서버에만 있는 도커 볼륨이라 서버 한 대 구성에서만 쓸 수 있다
     volumes:
-      - ${MEDIA_DIR:-roboyam-media}:/var/lib/roboyam/media
+      - ${MEDIA_DIR:-irobit-media}:/var/lib/irobit/media
     # 배포 때 ALB 가 이 서버를 빼는 동안 진행 중인 요청을 마무리한다
     stop_grace_period: 40s
 
 volumes:
-  roboyam-media:
+  irobit-media:

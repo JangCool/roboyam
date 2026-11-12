@@ -15,7 +15,7 @@ import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
@@ -44,7 +44,7 @@ import org.springframework.stereotype.Repository;
  * 상태 = DELETED(지움·예약 삭제 시각 지남·임시저장) · HIDDEN(지우지 않았고 숨김 중) · PUBLIC(그 밖) — {@link AdminPostListRow#stateAt} 와 같은 기준.
  */
 @Repository
-public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AdminPostRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
 

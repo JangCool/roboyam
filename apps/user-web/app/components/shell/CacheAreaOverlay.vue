@@ -4,7 +4,7 @@
         화면에서 `data-cache-area` 가 붙은 요소(`util-cache-area.ts` 머리의 표)를 찾아, 관리자가 고른 캐시(`keys`) 또는 모든 영역(`showAll`)의 위치에 테두리 상자와 이름표를 겹쳐 그린다.
         한 요소에 키가 여럿이면(공백 구분) 상자는 하나, 이름표는 보이는 키마다 하나씩이고 이름표를 누르면 그 키를 고른다(상자 몸통은 첫 키).
         위치는 그리는 동안 매 프레임 다시 잰다 — 스크롤·창 크기·늦게 뜨는 가젯·붙는 메뉴·열린 알림 패널을 그대로 따라간다. 겹친 영역은 작은 것이 위라 안쪽 상자를 누를 수 있다.
-        상자를 누르면 관리자에게 그 키를 알리고(`roboyam:cache-preview-pick`), 찾은 영역 수나 로그인 상태가 바뀌면 키마다 수와 로그인 여부를 알린다(`roboyam:cache-preview-areas` { counts, loggedIn } — 「이 쪽에는 이 영역이 없습니다」·「로그인한 회원에게만」 판정).
+        상자를 누르면 관리자에게 그 키를 알리고(`irobit:cache-preview-pick`), 찾은 영역 수나 로그인 상태가 바뀌면 키마다 수와 로그인 여부를 알린다(`irobit:cache-preview-areas` { counts, loggedIn } — 「이 쪽에는 이 영역이 없습니다」·「로그인한 회원에게만」 판정).
         강조할 키가 새로 오면 그 첫 영역으로 스크롤한다. 캐시하지 않는 가젯(`nocache:<종류>`)은 점선 회색 상자다. 이 층의 눌림은 미리보기 클릭 막기(`plugins/03.admin-preview.client.ts`)가 건너뛴다(`data-cache-overlay`).
     -->
     <div v-if="cacheMode && cache" data-cache-overlay class="pointer-events-none fixed inset-0 z-[2950] overflow-hidden" data-testid="cache-area-overlay">

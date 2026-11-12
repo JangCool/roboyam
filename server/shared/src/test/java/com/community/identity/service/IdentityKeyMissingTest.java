@@ -24,7 +24,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
- * 해시 키({@code ROBOYAM_INDEX_KEY})가 없으면 본인인증은 503 {@code INDEX_KEY_MISSING} — 시작부터 막아 결과를 저장할 수 없는 업체 인증을 열지 않고, 확정에서 걸려도 시도를 끝내지 않는다
+ * 해시 키({@code IROBIT_INDEX_KEY})가 없으면 본인인증은 503 {@code INDEX_KEY_MISSING} — 시작부터 막아 결과를 저장할 수 없는 업체 인증을 열지 않고, 확정에서 걸려도 시도를 끝내지 않는다
  * (키를 넣고 다시 낼 수 있다). 계약 「0-1」(키가 없으면 앱은 뜨고 그 요청만 503).
  */
 class IdentityKeyMissingTest {

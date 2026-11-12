@@ -3,8 +3,8 @@
         캐시 적용 영역의 실제 화면 — 공개 사이트(user-web)를 iframe 으로 띄운다(사용자 결정 2026-10-28: 미리보기는 실제 공개 화면과 똑같아야 한다 — 테마 화면 `ThemeLivePreview` 와 같은 방식).
         주소 `{공개 사이트 origin}{path}?adminPreview=1&cachePreview=1` — origin 은 `useUserWebOrigin`(개발 서버는 `runtimeConfig.public.userWebOrigin`, 빌드한 화면은 서버가 준 사이트 공개 주소).
         공개 사이트는 `cachePreview=1` 이면 테마 값을 받지 않고 저장된 화면 그대로 그린 뒤, `data-cache-area` 요소 위에 상자·이름표를 겹친다(user-web `CacheAreaOverlay`).
-          보내는 것 `roboyam:cache-preview` { keys(강조할 캐시 키), showAll(모든 영역), labels(키 → 이름표) } — 값이 바뀔 때와 공개 사이트가 「준비됨」을 알릴 때.
-          받는 것 `roboyam:cache-preview-pick` { key }(상자를 눌렀다) → `pick` · `roboyam:cache-preview-areas` { counts, loggedIn }(찾은 영역 수 · 그 창의 로그인 여부) → `areas`. 경로에 쿼리가 있으면(`/write?board=hotdeal`) 그 뒤에 미리보기 표시를 잇는다.
+          보내는 것 `irobit:cache-preview` { keys(강조할 캐시 키), showAll(모든 영역), labels(키 → 이름표) } — 값이 바뀔 때와 공개 사이트가 「준비됨」을 알릴 때.
+          받는 것 `irobit:cache-preview-pick` { key }(상자를 눌렀다) → `pick` · `irobit:cache-preview-areas` { counts, loggedIn }(찾은 영역 수 · 그 창의 로그인 여부) → `areas`. 경로에 쿼리가 있으면(`/write?board=hotdeal`) 그 뒤에 미리보기 표시를 잇는다.
         창 크기는 데스크톱 1280 × 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다. 메시지는 공개 사이트 origin 으로만 보내고 그 origin·그 창에서 온 것만 받는다. origin 을 모르면 띄우지 않고 안내만.
     -->
     <div ref="box" class="relative w-full overflow-hidden rounded-lg border border-(--line) bg-surface-0 dark:bg-surface-900" :style="{ height: `${VIEW_H * scale}px` }" data-testid="cache-live-frame">
@@ -61,7 +61,7 @@ const ready = ref(false);
 function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;
-    const message = { type: 'roboyam:cache-preview', keys: [...props.keys], showAll: props.showAll, labels: { ...props.labels }, off: [...props.offKeys] };
+    const message = { type: 'irobit:cache-preview', keys: [...props.keys], showAll: props.showAll, labels: { ...props.labels }, off: [...props.offKeys] };
     target.postMessage(JSON.parse(JSON.stringify(message)), origin.value);
 }
 
@@ -69,12 +69,12 @@ function onMessage(event: MessageEvent): void {
     if (!origin.value || event.origin !== origin.value || event.source !== frame.value?.contentWindow) return;
     const data = event.data as Record<string, unknown> | null;
     const type = data?.type;
-    if (type === 'roboyam:admin-preview-ready') {
+    if (type === 'irobit:admin-preview-ready') {
         ready.value = true;
         send();
-    } else if (type === 'roboyam:cache-preview-pick' && typeof data?.key === 'string') {
+    } else if (type === 'irobit:cache-preview-pick' && typeof data?.key === 'string') {
         emit('pick', data.key);
-    } else if (type === 'roboyam:cache-preview-areas' && data?.counts && typeof data.counts === 'object') {
+    } else if (type === 'irobit:cache-preview-areas' && data?.counts && typeof data.counts === 'object') {
         const counts: Record<string, number> = {};
         for (const [k, v] of Object.entries(data.counts as Record<string, unknown>)) if (typeof v === 'number' && Number.isFinite(v)) counts[k] = v;
         emit('areas', counts, typeof data.loggedIn === 'boolean' ? data.loggedIn : null);

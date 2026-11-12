@@ -4,7 +4,7 @@
           GNB(높이 70): 최상위 항목(홈·공동구매 …)은 링크 탭, 최상위 그룹은 이름 탭(단추). 그룹 탭을 누르면 그 그룹을 "고른 그룹"으로 만들어 아래 LNB 에 직속 칸을 보인다(이동하지 않는다).
             운영자가 그 폴더에 「누르면 가는 곳」을 골랐으면(`group.path`) 그룹 탭은 링크다 — 그곳으로 가고, 간 뒤에도 그 그룹을 연다(`useAfterMenuNavigate`). 사이드 그룹 탭도 같다.
           LNB(높이 55): 고른 그룹의 직속 항목 + 하위 그룹 드롭다운(`AppTopMenuDropdown`). 고른 그룹이 없으면 줄 자체가 없다.
-          `inlineGroups`(운영자 설정 「상단 메뉴 그룹 표시」 > 테마 기본, 로보얌 기본): GNB 는 최상위 항목만, LNB 에 막대 몫의 그룹을 모두 「그룹 이름(작은 글자) + 칸」으로 이어 놓는다(고르는 단추 없음, 사용자 결정 2026-10-28).
+          `inlineGroups`(운영자 설정 「상단 메뉴 그룹 표시」 > 테마 기본, 아이로빗 기본): GNB 는 최상위 항목만, LNB 에 막대 몫의 그룹을 모두 「그룹 이름(작은 글자) + 칸」으로 이어 놓는다(고르는 단추 없음, 사용자 결정 2026-10-28).
           모양 값(`inlineGroups`·`sideTabs`·`compact`·`description`)은 셸이 `useMenuStyle` 로 해석해 넘긴다 — 이 부품은 테마 선언을 읽지 않는다.
         항목·그룹 이름의 글자 색·굵게·배지는 다른 메뉴와 같은 `AppMenuItemLabel`(GNB 밑줄은 이름 글자에만, 배지 밑에는 긋지 않는다). 메뉴 글자 굵기는 테마 메뉴 설정 「메뉴 글자 기본 굵게」(`bold` — 셸이 `useMenuStyle().menuBold` 로 넘긴다, V187 · 다음 테마만 기본 켬)가 정한다:
           켜면 칸이 모두 굵게(700)이고 이름은 `keep-weight` 로 그 굵기를 그대로 받는다. 끄면 얇게(400)이고, 메뉴에 「굵게」를 고른 항목만 굵게(600) 보인다(사용자 2026-11-11).
@@ -20,7 +20,7 @@
                 <AppMenuBarState v-if="ownsState" :state="state" :loading="loading" class="px-3" @reload="reload" />
 
                 <ul v-if="showEntries" class="m-0 flex list-none items-center p-0">
-                    <!-- 사이드 그룹 탭(`sideTabs`, 로보얌) — 최상위 항목과 메뉴 관리 차례대로 섞어 놓고(`orderStyle`), 누르면 그 그룹만 사이드 칸에 보인다(다시 누르면 닫는다) -->
+                    <!-- 사이드 그룹 탭(`sideTabs`, 아이로빗) — 최상위 항목과 메뉴 관리 차례대로 섞어 놓고(`orderStyle`), 누르면 그 그룹만 사이드 칸에 보인다(다시 누르면 닫는다) -->
                     <li
                         v-for="group in sideTabs ? sidePick.groups.value : []"
                         :key="`side-${group.key}`"
@@ -97,7 +97,7 @@
         </div>
 
         <!--
-            메뉴 설명 줄(`description` — 운영자 설정 「메뉴 설명 줄」 > 테마 기본, 로보얌 기본 켜짐) — 지금 있는 곳이 최상위 항목(인기글·최신글·공지 …)이면 둘째 줄이 그 메뉴의 한 줄 설명(`useMenuDescription`). 높이는 둘째 줄과 같다.
+            메뉴 설명 줄(`description` — 운영자 설정 「메뉴 설명 줄」 > 테마 기본, 아이로빗 기본 켜짐) — 지금 있는 곳이 최상위 항목(인기글·최신글·공지 …)이면 둘째 줄이 그 메뉴의 한 줄 설명(`useMenuDescription`). 높이는 둘째 줄과 같다.
             그룹 이어 놓기(`inlineGroups`)면 주제 줄 대신, 그룹 탭 방식이면 그룹 탭을 눌러 고르기 전까지(고르면 그 그룹 줄).
         -->
         <div v-if="showDesc && shownDesc" :class="showGnb ? 'border-t border-hairline' : ''" data-testid="daum-menu-desc">
@@ -110,7 +110,7 @@
             </div>
         </div>
 
-        <!-- 그룹을 둘째 줄에 이어 놓는 방식(`inlineGroups`, 로보얌) — 그룹마다 「이름(작은 글자) + 칸」, 그룹 사이 세로 선. 첫 줄이 있으면 사이에 머리카락 선 -->
+        <!-- 그룹을 둘째 줄에 이어 놓는 방식(`inlineGroups`, 아이로빗) — 그룹마다 「이름(작은 글자) + 칸」, 그룹 사이 세로 선. 첫 줄이 있으면 사이에 머리카락 선 -->
         <div v-else-if="inlineGroups && showEntries && groupSections.length" :class="showGnb ? 'border-t border-hairline' : ''">
             <div :class="rowClass">
                 <AppScrollRow ref="lnbRow" :mode="overflow" :scroller-class="`flex ${compact ? 'h-[46px]' : 'h-[55px]'} items-center whitespace-nowrap px-1.5`" data-testid="daum-menu-lnb">

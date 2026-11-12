@@ -3,7 +3,7 @@
  * 저장은 localStorage 이고 계정에 올리지 않는다(서버 동기화는 계정 설정 API 가 생길 때). 읽고 쓰기가 막혀 있어도(사생활 보호 모드 등) 이번 방문 동안은 메모리에서 동작한다.
  * 저장된 값은 `sanitize` 로 지금 정의에 맞춘다 — 없어진 항목을 버리고 필수 항목을 채운다. 저장된 것이 없거나 깨졌으면 `defaults()`.
  *
- * @param key - localStorage 열쇠(`roboyam:admin:…`).
+ * @param key - localStorage 열쇠(`irobit:admin:…`).
  * @param defaults - 저장된 것이 없을 때의 기본 선택.
  * @param sanitize - 저장소에서 읽은 값(JSON 으로 푼 것)을 쓸 수 있는 선택으로 고치는 함수.
  * @returns 선택 목록의 `ref` — 바꾸면 저장된다.

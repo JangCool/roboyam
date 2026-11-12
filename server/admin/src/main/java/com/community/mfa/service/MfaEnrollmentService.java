@@ -58,7 +58,7 @@ public class MfaEnrollmentService {
     public static final Duration PENDING_VALIDITY = Duration.ofMinutes(10);
 
     /** 사이트 이름이 없을 때(설치 전 등)의 issuer */
-    static final String DEFAULT_ISSUER = "roboyam";
+    static final String DEFAULT_ISSUER = "IROBIT";
 
     private final MfaStore store;
     private final MfaSecrets secrets;

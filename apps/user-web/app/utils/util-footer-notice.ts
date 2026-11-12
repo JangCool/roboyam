@@ -21,7 +21,7 @@ const DIGIT_FINAL: Record<string, boolean> = { 0: true, 1: true, 2: false, 3: tr
 
 export default class UtilFooterNotice {
     /**
-     * 낱말 끝소리에 받침이 있는가 — 한글은 끝 글자의 받침, 영문은 끝 글자 소리(l·m·n·k·p·t 로 끝나면 받침이 있는 것으로 — ROBOYAM은), 숫자는 한국어 읽기.
+     * 낱말 끝소리에 받침이 있는가 — 한글은 끝 글자의 받침, 영문은 끝 글자 소리(l·m·n·k·p·t 로 끝나면 받침이 있는 것으로 — IROBIT은), 숫자는 한국어 읽기.
      * @param {string} word - 낱말.
      * @returns {boolean | null} 받침 여부. 그 밖의 글자(기호 등)로 끝나거나 비면 null(모름).
      */

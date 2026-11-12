@@ -1,15 +1,15 @@
 /**
  * 공개 홈 가젯 API(`GET /api/home/gadgets`)가 주고받는 모양 — 서버 `GadgetService`(site-theme-layout-contract 「API」, 2026-10-29).
  * `GROUP_BUY` 줄은 회원 공구 목록(`GET /api/group-buys`)과 같은 모양이다. `GalleryItem.kind` 는 null, `locked` 는 false 다(노출 기간·보는 사람 설정 없음).
- * community `docs/api-home-gadgets.md` 1·2·4절의 공개 응답을 로보얌으로 옮겼다. 다른 점:
- *  - **템플릿 = 사이트 테마**(사용자 결정 2026-10-28) — 응답의 배치는 서버가 지금 사이트 테마(`default` 기본형 · `daum` 다음식 · `roboyam` 로보얌형 · `naver` 네이버형)로 정한다.
+ * community `docs/api-home-gadgets.md` 1·2·4절의 공개 응답을 아이로빗으로 옮겼다. 다른 점:
+ *  - **템플릿 = 사이트 테마**(사용자 결정 2026-10-28) — 응답의 배치는 서버가 지금 사이트 테마(`default` 기본형 · `daum` 다음식 · `irobit` 아이로빗형 · `naver` 네이버형)로 정한다.
  *    요청에 템플릿·테마를 싣지 않는다. 이용자 유형별 템플릿 규칙·「기본 템플릿」 고르기는 없다. 응답의 `theme` 은 이 배치가 어느 테마 것인지 알려 주는 값이다.
  *  - **배치 = 격자 좌표**(사용자 결정 2026-10-28 — community 의 고정 칸 이름(`MAIN`·`SIDE` …) 대신): 운영자가 관리자 홈 배치 편집기에서 테마마다 칸 수(12·24)와 가젯별 위치·크기를 정한다.
- *    모양·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
+ *    모양·계산은 공유 레이어 `@irobit/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
  *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) + 광고 2종(`AD` · `AD_TEXT_LINE` — 서버 종류 등록 전).
  *    광고 가젯은 서버가 `data` 를 비워 보내고 화면이 채운다(`useAdGadgets`). 커뮤니티의 핫딜·직접홍보(`DEAL_PLACEMENT`·`PROMO_TOP`)는 없다.
  *    회원 핫딜 1차의 `HOT_DEALS`(진행 중인 핫딜 가격 줄 목록 — `hotdeal-contract.md`)는 서버 2단계에서 데이터를 싣는다(모양 `HotDealsData` 확정).
- *  - `GROUPS`·`GROUP_BUY` 도 가젯 `data` 에 목록을 싣는다(community 는 `null` + 컴포넌트가 따로 받음) — 컴포넌트는 서버를 부르지 않는다(로보얌 `components.md`).
+ *  - `GROUPS`·`GROUP_BUY` 도 가젯 `data` 에 목록을 싣는다(community 는 `null` + 컴포넌트가 따로 받음) — 컴포넌트는 서버를 부르지 않는다(아이로빗 `components.md`).
  *  - 노출 기간·보는 사람(`audience`)은 **서버가 걸러** 응답에서 뺀다. 로그인한 사람만 보는 가젯을 로그인하지 않은 방문자에게 안내로 보일 때만 `locked: true` 뼈대로 온다.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO. 화면은 없는 칸·모르는 값에도 깨지지 않게 `UtilGadget.sanitize` 로 한 번 읽는다(모르는 종류는 건너뛴다).
  */
@@ -38,7 +38,7 @@ export interface GadgetEmptyStyle {
 }
 
 /**
- * 가젯 공통 꾸미기(`style`) — community 의 칸 중 공개 화면이 그리는 것만. `density`(줄 간격)는 로보얌에 목록 밀도 보기 설정이 없어 뺐고,
+ * 가젯 공통 꾸미기(`style`) — community 의 칸 중 공개 화면이 그리는 것만. `density`(줄 간격)는 아이로빗에 목록 밀도 보기 설정이 없어 뺐고,
  * `more`(「더보기」 설정)는 서버가 계산한 `Gadget.more` 만 쓰므로 `style` 에는 두지 않는다.
  */
 export interface GadgetStyle {
@@ -64,7 +64,7 @@ export interface GadgetStyle {
     iconUpload: GadgetIconUpload | null;
     /** 아이콘 색 — null 이면 글자색 그대로(제목 색 · 옅은 네모면 그 색) */
     iconColor: string | null;
-    /** 아이콘 바탕 — null 이면 테마 기본(로보얌 옅은 네모, 그 밖 없음) */
+    /** 아이콘 바탕 — null 이면 테마 기본(아이로빗 옅은 네모, 그 밖 없음) */
     iconBg: GadgetIconBg | null;
 }
 
@@ -134,7 +134,7 @@ export interface Gadget {
 
 /** `GET /api/home/gadgets` 응답 */
 export interface GadgetsResponse {
-    /** 이 배치가 어느 사이트 테마의 것인가(`default`·`daum`·`roboyam`·`naver`) — 화면은 지금 테마의 템플릿(겉모양)으로 그린다 */
+    /** 이 배치가 어느 사이트 테마의 것인가(`default`·`daum`·`irobit`·`naver`) — 화면은 지금 테마의 템플릿(겉모양)으로 그린다 */
     theme: string;
     /** 격자 배치 — 칸 수(12·24) + 가젯마다 `{ gadgetId, x, y, w, h }`. 배치에 자리가 없는 가젯은 화면이 맨 아래에 붙인다(`UtilHomeLayout.read`) */
     layout: HomeLayout;

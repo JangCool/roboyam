@@ -4,7 +4,7 @@
  * ⚠ 문구 안의 `@`·`|` 는 글자가 아니다(`{'@'}`·`{'|'}` 로 감싼다).
  */
 export default {
-    seoDescription: '로보얌콘부터 작가 팩까지, 글과 댓글에 쓰는 로보티콘을 받거나 사요.',
+    seoDescription: '아이로빗콘부터 작가 팩까지, 글과 댓글에 쓰는 로보티콘을 받거나 사요.',
 
     // 상점
     shopTitle: '로보티콘 상점',
@@ -116,7 +116,7 @@ export default {
     specRowTagsValue: '{max}개 이하',
     specRowDisplay: '보이는 크기',
     specRowDisplayValue: '글·댓글 {size}px (모바일 {mobile}px), 고르기 창 {picker}px',
-    guideGoodTitle: '좋은 예 — 로보얌콘',
+    guideGoodTitle: '좋은 예 — 아이로빗콘',
     guideGoodText: '굵은 외곽선, 큰 표정, 단순한 동작이라 작게 줄여도 무슨 뜻인지 바로 보여요.',
     exampleJoy: '기쁨',
     exampleThumbs: '엄지척',
@@ -148,7 +148,7 @@ export default {
     guideRewardCount: '이메일 인증을 마친 정상 회원이 받을 때만 세요(내가 받은 것·새싹 등급 회원이 받은 것은 세지 않아요).',
     guideRewardOnce: '같은 회원이 목록에서 뺐다가 다시 받아도 보상은 처음 한 번만이에요.',
     guideRewardKeep: '팩 판매가 중단되거나 지워져도 이미 받은 포인트는 그대로예요.',
-    guideRewardOfficial: '운영 팩(로보얌콘)과 유료 팩에는 보상 포인트가 없어요(유료 팩은 판매액을 정산해요).',
+    guideRewardOfficial: '운영 팩(아이로빗콘)과 유료 팩에는 보상 포인트가 없어요(유료 팩은 판매액을 정산해요).',
     guidePaidTitle: '유료 판매와 정산',
     guidePaidText: '사이트가 판매자가 되어 팩을 팔아요. 작가는 유료 판매가 승인될 때 사이트와 로보티콘 상품화 계약을 맺고, 판매 수익을 매달 정산받아요. 회원은 카드로 사요(포인트로는 사지 않아요).',
     paidRowSeller: '판매자',

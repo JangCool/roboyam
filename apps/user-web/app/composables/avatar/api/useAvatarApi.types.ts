@@ -1,5 +1,5 @@
 /**
- * 프로필 아바타 API 가 주고받는 모양 — **서버 연결됨**. 계약: `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」 API 후보 「아바타」(모양은 community `docs/api-avatar.md` 를 로보얌에 맞춤).
+ * 프로필 아바타 API 가 주고받는 모양 — **서버 연결됨**. 계약: `docs/features/commerce-stage1-contract.md` 「1-2 화면 목업」 API 후보 「아바타」(모양은 community `docs/api-avatar.md` 를 아이로빗에 맞춤).
  * 아바타 306줄(유료)은 품목 목록(`/api/point-shop/items`)에 섞지 않고 이 응답으로만 온다. 사기는 `POST /api/point-shop/purchases { itemId }` 그대로다.
  */
 
@@ -33,7 +33,7 @@ export interface AvatarItem {
     selected: boolean;
     /** 유료이고 안 썼고 환불 기한 안(서버 판정) — 고르면 환불할 수 없어 한 번 묻는다 */
     refundable: boolean;
-    /** 그림 주소(`/avatars/roboyam/<id>.svg`) — `<img>` 로만 그린다 */
+    /** 그림 주소(`/avatars/irobit/<id>.svg`) — `<img>` 로만 그린다 */
     url: string;
     /**
      * 움직이는 아바타(카탈로그 `motion`·움직이는 GIF 를 올린 내가 올린 아바타). 움직이는 아바타와 움직이는 닉네임 그림은 함께 쓰지 못한다(하나만 — 나중에 고른 쪽이 남는다, `useAvatarChoice`).

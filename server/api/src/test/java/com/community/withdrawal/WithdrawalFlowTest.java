@@ -227,7 +227,7 @@ class WithdrawalFlowTest extends CommerceApiTestBase {
         @Test
         void 탈퇴가_완료되면_그_회원의_방문_통계_주_월_순방문자_표시를_지우고_다른_회원_표시와_숫자_표는_남긴다() {
             // site-analytics-contract 「3단계」 결정 ④ — 회원 표시는 탈퇴 파기 대상(WithdrawalCompletionService → AnalyticsMemberMarks), 숫자 표는 사람을 가리키지 않아 남긴다.
-            // 분석 표는 이 앱이 같은 DB 에 이관한다(roboyam.schema.analytics). 기간은 다른 시험과 겹치지 않는 먼 미래(2089년)
+            // 분석 표는 이 앱이 같은 DB 에 이관한다(irobit.schema.analytics). 기간은 다른 시험과 겹치지 않는 먼 미래(2089년)
             long member = memberWithPassword();
             long other = newMember();
             LocalDate week = VisitPeriods.weekStart(LocalDate.of(2089, 4, 12));

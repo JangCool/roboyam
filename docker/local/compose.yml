@@ -1,5 +1,5 @@
 # ============================================================================
-# ROBOYAM 로컬 개발용 — PostgreSQL
+# IROBIT 로컬 개발용 — PostgreSQL
 # ============================================================================
 #
 # 실행:
@@ -8,11 +8,11 @@
 #
 # 개발 PC 전용이다. dev · prod 는 docker/dev, docker/prod 를 본다.
 # 호스트 포트는 community(5410)·hamonica3(5400)와 겹치지 않게 5420 으로 잡았다.
-# 여기의 접속 정보(roboyam / roboyam)는 이 PC 의 로컬 컨테이너에서만 쓰는 개발용 값이다 —
+# 여기의 접속 정보(irobit / irobit)는 이 PC 의 로컬 컨테이너에서만 쓰는 개발용 값이다 —
 # local 프로파일은 평문 비밀번호를 허용한다(ENC(...) 가 없으면 복호화 키를 요구하지 않는다).
 # ============================================================================
 
-name: roboyam-local
+name: irobit-local
 
 services:
   postgres:
@@ -20,8 +20,8 @@ services:
     # pg_cron 이 더해진 이미지(docker/postgres/Dockerfile) — DB 배치(저장 프로시저 + pg_cron)용. docker compose up -d --build 가 만든다.
     # 이미 쓰던 볼륨(데이터)은 그대로 쓴다: 이미지가 바뀌어도 PostgreSQL 18 이라 호환되고, pg_cron 확장은 관리자 앱이 뜰 때(앱 계정이 슈퍼유저) 만들어진다.
     build: ../postgres
-    image: roboyam-postgres:18
-    container_name: roboyam-local-postgres
+    image: irobit-postgres:18
+    container_name: irobit-local-postgres
     restart: unless-stopped
     # shared_preload_libraries 는 서버를 다시 띄워야 적용된다(이미 떠 있던 컨테이너는 docker compose up -d --build 로 다시 만든다).
     # cron.database_name 은 앱 DB(POSTGRES_DB)와 같아야 한다 — pg_cron 은 그 DB 하나에서만 돈다. use_background_workers=on 이 없으면 job 마다 localhost 로 새로 접속한다.
@@ -31,15 +31,15 @@ services:
       - -c
       - shared_preload_libraries=pg_cron
       - -c
-      - cron.database_name=roboyam
+      - cron.database_name=irobit
       - -c
       - cron.use_background_workers=on
       - -c
       - cron.timezone=Asia/Seoul
     environment:
-      POSTGRES_DB: roboyam
-      POSTGRES_USER: roboyam
-      POSTGRES_PASSWORD: roboyam
+      POSTGRES_DB: irobit
+      POSTGRES_USER: irobit
+      POSTGRES_PASSWORD: irobit
       # 한글 데이터가 들어가므로 UTF8 로 못 박는다. 로캘은 반드시 UTF-8 을 아는 C.UTF-8(libc)이어야 한다 — `--locale=C` 로 만들면
       # pg_trgm 이 한글을 색인하지 못해(show_trgm('로봇') = {}) 한글 검색이 색인을 못 탄다.
       # 로캘은 DB 를 만들 때만 정해진다: 이미 만든 볼륨에는 적용되지 않으니 바꾸려면 볼륨을 지우고 다시 만든다.
@@ -49,12 +49,12 @@ services:
       - "5420:5432"
     volumes:
       # PostgreSQL 18 부터 공식 이미지의 데이터 위치가 /var/lib/postgresql/<메이저>/docker 로 바뀌었다
-      - roboyam-local-pgdata:/var/lib/postgresql
+      - irobit-local-pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U roboyam -d roboyam"]
+      test: ["CMD-SHELL", "pg_isready -U irobit -d irobit"]
       interval: 5s
       timeout: 3s
       retries: 20
 
 volumes:
-  roboyam-local-pgdata:
+  irobit-local-pgdata:

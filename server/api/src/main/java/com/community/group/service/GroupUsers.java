@@ -4,7 +4,7 @@ import com.community.dm.dto.response.DmPartnerView;
 import com.community.group.dto.response.GroupPersonView;
 
 /**
- * 공개 사이트 소모임 응답의 사람 칸 — 로보얌 쪽지 상대({@link DmPartnerView}, user-web {@code GroupUser})와 같은 모양으로 바꾼다
+ * 공개 사이트 소모임 응답의 사람 칸 — 아이로빗 쪽지 상대({@link DmPartnerView}, user-web {@code GroupUser})와 같은 모양으로 바꾼다
  * ({@code id|null · nickname · grade(키) · gradeLabel · role(USER) · withdrawn · memo(늘 null) · decoration · avatarUrl · business}). 탈퇴한 회원은 {@code id: null}·{@code withdrawn: true}·「탈퇴한 회원」.
  */
 public final class GroupUsers {

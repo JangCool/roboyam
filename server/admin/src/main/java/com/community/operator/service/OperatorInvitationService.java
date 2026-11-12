@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 운영자 초대 — 1회용 초대 링크를 이메일로 보낸다 (docs/features/roles-contract.md, docs/domain/operator-permissions.md "추가 확정").
  *
  * <ul>
- *   <li>링크는 유효 72시간(가정, {@code roboyam.admin-auth.invitation-valid-hours}). 토큰 원문은 <b>커밋된 뒤 메일로만</b> 나가고 DB 에는 SHA-256 해시만 남는다.</li>
+ *   <li>링크는 유효 72시간(가정, {@code irobit.admin-auth.invitation-valid-hours}). 토큰 원문은 <b>커밋된 뒤 메일로만</b> 나가고 DB 에는 SHA-256 해시만 남는다.</li>
  *   <li>같은 이메일에 <b>유효한 초대가 이미 있으면</b> 409 {@code INVITATION_DUPLICATED}, 기한이 지난 초대는 새 초대가 대신한다(옛 것을 지운다).
  *       이미 운영자인 이메일은 409 {@code OPERATOR_EMAIL_DUPLICATED}(운영자 바로 추가가 같은 이메일의 유효한 초대를 막는 409 {@code OPERATOR_INVITATION_PENDING} 의 짝). 수락하지 않은 초대는 같은 이메일에 하나뿐이다(유일 인덱스).</li>
  *   <li>역할을 함께 정할 수 있고 {@link OperatorRoleAssignmentPolicy} 가 운영자에게 역할을 줄 때와 같은 검사를 한다(권한 상승 방지 포함).</li>

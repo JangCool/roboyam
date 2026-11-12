@@ -24,7 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 계좌 송금(commerce.md 9-3 방식 — 계약 결정 6·39·67). 계좌 암호문({@code ROBOYAM_DATA_KEY} — 용도 {@code commerce.bank.*}), 송금 완료 뒤 계좌를 지운다. 모두 감사(돈 관련, 계좌는 싣지 않는다).
+ * 계좌 송금(commerce.md 9-3 방식 — 계약 결정 6·39·67). 계좌 암호문({@code IROBIT_DATA_KEY} — 용도 {@code commerce.bank.*}), 송금 완료 뒤 계좌를 지운다. 모두 감사(돈 관련, 계좌는 싣지 않는다).
  *
  * <ul>
  *   <li><b>전환</b>(결정 67): PG 가 영구 거절해 멈춘(GAVE_UP) 환불 — 결제 모듈 「수동 처리 완료(계좌 송금)」({@link PaymentCancelManualService})를 같은 트랜잭션에서 부르고,

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 관리자 로그인 시도 제한: 같은 이메일로 연속 5회 틀리면 10분 잠근다(설정값 {@code roboyam.admin-auth.*}). 공개 사이트의 {@code LoginAttemptService} 와 같은 방식이다.
+ * 관리자 로그인 시도 제한: 같은 이메일로 연속 5회 틀리면 10분 잠근다(설정값 {@code irobit.admin-auth.*}). 공개 사이트의 {@code LoginAttemptService} 와 같은 방식이다.
  *
  * <ul>
  *   <li><b>이메일 단위</b>로 세고 계정이 없는 이메일도 똑같이 센다(계정 존재를 알리지 않기 위해). 키는 {@code "admin:" + 정규화한 이메일} 의 SHA-256 이다 —

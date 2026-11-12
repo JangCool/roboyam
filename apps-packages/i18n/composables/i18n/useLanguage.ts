@@ -6,7 +6,7 @@ import { switchMessagesLocale } from '#layers/i18n/runtime/business-messages';
  * 언어를 화면 전체에 먹인다 (hamonica3 D-89 `applyLanguage`) — **두 군데를 함께 간다**: 우리 문구(vue-i18n 의 `locale`)와 컴포넌트가 제 사전에서 꺼내 쓰는 말(PrimeVue 로캘).
  * 하나만 바꾸면 "달력은 영어인데 단추는 한국어"가 된다.
  *
- * 언어는 주소나 브라우저가 아니라 **표시 값**(`DisplayValues.language`)에서 온다 — 값을 채우는 앱이 표시 값을 바꿀 때 `@roboyam/display-time` 의 플러그인이 `setLanguage` 를 부른다.
+ * 언어는 주소나 브라우저가 아니라 **표시 값**(`DisplayValues.language`)에서 온다 — 값을 채우는 앱이 표시 값을 바꿀 때 `@irobit/display-time` 의 플러그인이 `setLanguage` 를 부른다.
  * 이 레이어는 서버를 부르지 않는다.
  *
  * ⚠ **Nuxt 문맥은 부르는 순간(setup)에만 잡힌다.** `useNuxtApp()`·`usePrimeVue()` 는 `await` 뒤나 콜백 안에서 부르면 던지지도 않고 조용히 아무 일도 안 한다(실제로 그렇게 짰다가 언어를 바꿔도 달력이 영어 그대로인 것을 한참 못 찾았다).

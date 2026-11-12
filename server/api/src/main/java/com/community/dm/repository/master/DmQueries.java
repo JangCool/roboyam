@@ -11,7 +11,7 @@ import com.community.membernotification.entity.QMemberNotificationEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Predicate;
@@ -45,7 +45,7 @@ import org.springframework.stereotype.Repository;
  * ({@link #lockState}·{@link #setAccept}). 모두 유일 제약 경합이고 PostgreSQL 은 위반 한 번에 트랜잭션 전체를 못 쓰게 한다.
  */
 @Repository
-public class DmQueries extends RoboyamRepositoryQDSL {
+public class DmQueries extends IrobitRepositoryQDSL {
 
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;

@@ -43,7 +43,7 @@ import com.community.user.entity.UserStatus;
 import com.community.withdrawal.entity.QMemberWithdrawalEntity;
 import com.community.withdrawal.entity.WithdrawalStatus;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -76,7 +76,7 @@ import org.springframework.stereotype.Repository;
  * 운영자 2차 인증({@code operator_mfa})은 admin 모듈의 엔티티({@code com.community.mfa.entity})로 QueryDSL 이다.
  */
 @Repository
-public class DashboardGadgetStore extends RoboyamRepositoryQDSL {
+public class DashboardGadgetStore extends IrobitRepositoryQDSL {
 
     private static final QReportCaseEntity CASE = QReportCaseEntity.reportCaseEntity;
     private static final QReportEntity REPORT = QReportEntity.reportEntity;

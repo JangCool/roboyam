@@ -21,7 +21,7 @@
 - **언어(`language`)는 선택 칸**: 화면 타입 `DisplayValues` 에 있어 함께 저장한다. 빼면 지금 개인 값의 언어, 개인 값이 없으면 사이트 기본 언어를 쓴다.
 - 감사 기록 없음(회원 본인의 읽기 취향 — 운영자 감사 대상이 아니다).
 - **표**: Flyway shared `V52__member_display_and_site_theme.sql` — `member_display_preferences(user_id PK → users ON DELETE CASCADE, language, zone_id, time_format, date_format, created_at, updated_at)` + 언어·시간 형식·날짜 형식 CHECK(시간대는 서비스가 검사). 엔티티·저장소는 shared(`com.community.user.entity.MemberDisplayPreferenceEntity`·`...repository.master.MemberDisplayPreferenceRepository`).
-- **탈퇴 정리**: roboyam 에 아직 탈퇴 흐름이 없다(`users` 행을 남기고 상태만 바꾸는 코드 없음). 회원 행 삭제는 CASCADE 로 함께 지워지고, 탈퇴 흐름을 만들 때 그 트랜잭션에서 `MemberDisplayPreferenceRepository.deleteById(userId)` 를 부른다(저장소 주석에 적어 둠).
+- **탈퇴 정리**: irobit 에 아직 탈퇴 흐름이 없다(`users` 행을 남기고 상태만 바꾸는 코드 없음). 회원 행 삭제는 CASCADE 로 함께 지워지고, 탈퇴 흐름을 만들 때 그 트랜잭션에서 `MemberDisplayPreferenceRepository.deleteById(userId)` 를 부른다(저장소 주석에 적어 둠).
 
 ## 프론트 연결(`// MOCK:` → `// REAL:`) 때 주의
 - 응답 모양은 목업 타입과 같다. 다른 점: ① 서버 처음 값(설정 행 없음)의 날짜 형식은 `YMD_DASH`(서버 `SiteSettingEntity.DEFAULT_*`, `/api/site/info` 와 같음) — 화면 `UtilTime.FALLBACK_DISPLAY` 는 `YMD_DOT`. ② `DELETE` 는 204 가 아니라 200 + 본문. ③ PUT 에서 `language` 를 빼도 된다(목업 `sanitize` 처럼 `ko` 로 바꾸지 않고 지금 값을 유지).
@@ -37,5 +37,5 @@
 ## 프론트 연결 결과 (2026-10-23)
 - user-web `useDisplayApi`·`useThemeApi` 를 `// REAL:` 로 바꾸고 `display/api/mock/`·`theme/api/mock/` 를 지웠다. `PUT`·`DELETE` 는 `useApiClient({ refreshCsrf: auth.me })`, `DELETE` 는 `client.del<MyDisplayResponse>`(200 본문). 화면은 `language` 까지 네 칸을 보낸다.
 - `useDisplaySettings` 의 폴백(실패·404 → 기억값 → 시스템 폴백)과 「사이트 정보의 `displayDefaults` 로 바꿔 끼우기」는 그대로 뒀다(결과가 서버와 같고, 효과값을 받기 전 첫 값을 맞춘다).
-- **시스템 폴백 날짜 형식을 서버에 맞췄다**: 공유 레이어 `@roboyam/display-time` `UtilTime.FALLBACK_DISPLAY` 를 `YMD_DOT` → `YMD_DASH`(서버 `SiteSettingEntity.DEFAULT_DATE_FORMAT`). 두 앱 공용이라 admin-web 도 값을 받기 전·로그아웃 뒤 그림이 대시 형식이 된다(받은 뒤는 서버 값이라 그대로). 같은 규칙으로 고르개의 모르는 형식 대체값(`UtilDatePicker`)과 날짜 형식 선택지 순서(`UtilDisplayChoices.DATE_FORMATS`, 처음 기본값이 먼저)도 `YMD_DASH` 를 앞으로 했다.
+- **시스템 폴백 날짜 형식을 서버에 맞췄다**: 공유 레이어 `@irobit/display-time` `UtilTime.FALLBACK_DISPLAY` 를 `YMD_DOT` → `YMD_DASH`(서버 `SiteSettingEntity.DEFAULT_DATE_FORMAT`). 두 앱 공용이라 admin-web 도 값을 받기 전·로그아웃 뒤 그림이 대시 형식이 된다(받은 뒤는 서버 값이라 그대로). 같은 규칙으로 고르개의 모르는 형식 대체값(`UtilDatePicker`)과 날짜 형식 선택지 순서(`UtilDisplayChoices.DATE_FORMATS`, 처음 기본값이 먼저)도 `YMD_DASH` 를 앞으로 했다.
 - 일회용 환경에서 확인: 비로그인 `effective`(from `DEFAULT`, `YMD_DASH`)·`me` 401, 로그인 뒤 `saveOwn`→효과값 즉시 적용·새로고침 뒤 `from: USER` 유지, 틀린 시간대 400 `fields.zoneId`, `resetOwn` 200 `own: null`, 공개 테마 `{theme:'default'}`(`max-age=60`·`ETag`).

@@ -21,7 +21,7 @@ import com.community.sanction.entity.QBoardStaffUsageEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -44,7 +44,7 @@ import org.springframework.stereotype.Repository;
  * 메모리 상태 없이 DB 가 막는다).
  */
 @Repository
-public class BoardStaffActionStore extends RoboyamRepositoryQDSL {
+public class BoardStaffActionStore extends IrobitRepositoryQDSL {
 
     public static final String KIND_POST = "POST";
     public static final String KIND_COMMENT = "COMMENT";

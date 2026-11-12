@@ -1,5 +1,5 @@
 /**
- * 방문 신호 — 화면이 바뀔 때(첫 화면 포함) 공용 레이어 `@roboyam/analytics` 가 `POST /api/visits` 를 보낸다(`docs/features/site-analytics-contract.md`).
+ * 방문 신호 — 화면이 바뀔 때(첫 화면 포함) 공용 레이어 `@irobit/analytics` 가 `POST /api/visits` 를 보낸다(`docs/features/site-analytics-contract.md`).
  * 신호를 만들고 보내는 일(방문자 ID·세션·2초 겹침·유입·보내는 곳)은 모두 레이어가 한다 — 이 앱은 아래 셋만 정해 넘긴다.
  *
  *  - **켤지**: 앱 시작 때 이미 받는 공개 사이트 정보(`useSiteInfo` — `GET /api/site/info`, `plugins/02.site-info.client.ts`)의 `analytics` 칸.

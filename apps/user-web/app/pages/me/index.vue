@@ -84,7 +84,7 @@ import UtilPoint from '~/utils/util-point';
  * 내 정보 `/me` — 로그인 필요(`auth` 미들웨어). 하단 탭·헤더 프로필 메뉴·햄버거의 「내 정보」가 온다.
  * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 `GET /api/me/profile`) · 포인트 요약(`GET /api/me/points`).
  * 메뉴(바로가기 묶음 · 관리자 앱 · 로그아웃)는 `MeMenu` — 모바일은 이 화면 아래 목록, 데스크톱은 셸의 오른쪽 열(`MeFrame`)에 늘 있다.
- * 원본(community) `pages/me/index.vue` 의 구성에서 로보얌에 없는 것(스크랩·소모임·주문·쪽지·프로필 그림)을 뺐다. 포인트 상점(`/point-shop`)·내 아이템(`/me/items`) 바로가기가 있다. 바로가기에 내 공개 프로필(`/users/{내 ID}`)·등급 안내(`/me/grade`)가 있다.
+ * 원본(community) `pages/me/index.vue` 의 구성에서 아이로빗에 없는 것(스크랩·소모임·주문·쪽지·프로필 그림)을 뺐다. 포인트 상점(`/point-shop`)·내 아이템(`/me/items`) 바로가기가 있다. 바로가기에 내 공개 프로필(`/users/{내 ID}`)·등급 안내(`/me/grade`)가 있다.
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();

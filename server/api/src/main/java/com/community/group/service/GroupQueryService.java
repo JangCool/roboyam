@@ -59,7 +59,7 @@ public class GroupQueryService {
     static final int MEMBER_DEFAULT_SIZE = 30;
     static final int MEMBER_MAX_SIZE = 50;
     static final int Q_MAX = 30;
-    /** 목록 {@code exclude} 상한 — 「지금 뜨는 소모임」 개수 설정의 최대(trendingSize 1~20)와 같다(원본은 5 — 설정 최대가 20이라 로보얌은 20, 6단계) */
+    /** 목록 {@code exclude} 상한 — 「지금 뜨는 소모임」 개수 설정의 최대(trendingSize 1~20)와 같다(원본은 5 — 설정 최대가 20이라 아이로빗은 20, 6단계) */
     static final int EXCLUDE_MAX = 20;
     /** 프로필 소모임 탭에 보이는 수 상한(원본 PROFILE_GROUPS_SHOWN) */
     static final int PROFILE_GROUPS_SHOWN = 50;

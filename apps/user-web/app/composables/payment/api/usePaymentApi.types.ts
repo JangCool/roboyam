@@ -6,7 +6,7 @@
 export type PaymentStatus = 'READY' | 'PAID' | 'PARTIAL_CANCELED' | 'CANCELED' | 'EXPIRED';
 export type PaymentAnomaly = 'AMOUNT_MISMATCH' | 'DOMAIN_REJECTED' | 'LATE_PAYMENT';
 export type PaymentCancelStatus = 'PENDING' | 'SENDING' | 'SUCCEEDED' | 'GAVE_UP' | 'MANUAL';
-/** 결제창 구현 — 서버 배포 설정 `roboyam.payment.gateway`. FAKE 면 가짜 결제창, PORTONE 이면 포트원 SDK(2a-4) */
+/** 결제창 구현 — 서버 배포 설정 `irobit.payment.gateway`. FAKE 면 가짜 결제창, PORTONE 이면 포트원 SDK(2a-4) */
 export type PaymentGateway = 'FAKE' | 'PORTONE';
 
 /** 결제창을 여는 데 필요한 값 — 도메인의 결제 시작 API 가 같이 준다(포트원이면 상점 ID·채널 키) */

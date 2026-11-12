@@ -15,7 +15,7 @@ import com.community.post.entity.PostProcessStatus;
 import com.community.post.entity.QPostEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Repository;
  * (검색·이전/다음 글에서는 뺀다). 앱의 {@code PostEntity#isGoneAt}·{@code #isHiddenAt} 과 같은 기준이다.
  */
 @Repository
-public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QGroupEntity INACTIVE_GROUP = new QGroupEntity("inactiveGroup");

@@ -3,7 +3,7 @@ package com.community.payment.repository.master;
 import static com.community.payment.repository.master.PaymentOrderStore.ts;
 
 import com.community.payment.entity.QPaymentReconcileDayEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * 아직 안 한 날 찾기({@code generate_series} — 줄이 없는 날까지 날짜 목록을 DB 가 만든다).
  */
 @Repository
-public class PaymentReconcileDayStore extends RoboyamRepositoryQDSL {
+public class PaymentReconcileDayStore extends IrobitRepositoryQDSL {
 
     /** 날짜 상태(DB CHECK 와 같은 목록 — 「아직 안 함」은 줄이 없다) */
     public enum Status {

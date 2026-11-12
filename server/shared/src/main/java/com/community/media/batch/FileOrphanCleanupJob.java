@@ -26,7 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 쓰이지 않는 파일을 저장소와 장부에서 지운다(Java 배치 {@code file-orphan-cleanup} — 한 단계 {@code main}). 대상은 둘이다.
  * <ol>
- *   <li>올리기만 하고 어디에도 지정하지 않은 채 오래된 파일({@code files.status = PENDING}, 기준 {@code roboyam.media.orphan-retention-hours} 기본 24시간) —
+ *   <li>올리기만 하고 어디에도 지정하지 않은 채 오래된 파일({@code files.status = PENDING}, 기준 {@code irobit.media.orphan-retention-hours} 기본 24시간) —
  *       사이트 로고 후보와 글에 넣지 않은(또는 고치면서 뺀) 글 이미지.</li>
  *   <li>쓰던 글이 더는 보이지 않는 글 이미지(IN_USE) — 글을 지웠거나 예약 삭제 시각이 지났거나 글 행이 없어졌다(V56, {@link FileRepositoryQDSL#abandonedPostImages}).</li>
  * </ol>

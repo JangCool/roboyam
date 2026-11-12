@@ -83,7 +83,7 @@ public class AddressImportService {
 
     public AddressImportService(AddressDbLoadRepository loads, AddressDbLoadQueries loadQueries, OperatorRepository operators, AddressImportJobs jobs,
                                 AddressImportWorker worker, AddressServerFiles serverFiles, SnowflakeIdGenerator ids, Messages messages, PlatformTransactionManager transactions,
-                                @Value("${roboyam.node-id}") int nodeId) {
+                                @Value("${irobit.node-id}") int nodeId) {
         this.loads = loads;
         this.loadQueries = loadQueries;
         this.operators = operators;
@@ -257,7 +257,7 @@ public class AddressImportService {
 
     private static AddressFileReader.Source copyToTemp(MultipartFile file) {
         try {
-            Path temp = Files.createTempFile("roboyam-address-", ".zip");
+            Path temp = Files.createTempFile("irobit-address-", ".zip");
             file.transferTo(temp);
             return new AddressFileReader.Source(temp, baseName(file.getOriginalFilename()));
         } catch (IOException e) {

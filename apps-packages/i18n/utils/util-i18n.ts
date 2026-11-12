@@ -3,7 +3,7 @@
  * 이 파일은 `vue`·`~/` 를 쓰지 않는 순수 TypeScript 다. (`useI18n`·`t()` 는 setup 문맥이 필요해 여기서 부르지 않는다 — 번역 함수는 인자로 받는다.)
  */
 
-/** 언어 코드 — 지원하는 언어는 이 둘이다(`@roboyam/i18n` 의 `locales`) */
+/** 언어 코드 — 지원하는 언어는 이 둘이다(`@irobit/i18n` 의 `locales`) */
 export type Language = 'ko' | 'en';
 
 /**

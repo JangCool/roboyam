@@ -2,14 +2,14 @@ package com.community.business.repository.master;
 
 import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessStatus;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 사업자 신원 — 회원 화면(api)과 운영자 심사(admin)가 같이 쓴다 */
-public interface BusinessProfileRepository extends RoboyamRepository<BusinessProfileEntity, Long> {
+public interface BusinessProfileRepository extends IrobitRepository<BusinessProfileEntity, Long> {
 
     Optional<BusinessProfileEntity> findByUserId(Long userId);
 

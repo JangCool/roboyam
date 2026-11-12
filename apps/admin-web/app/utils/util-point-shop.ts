@@ -118,12 +118,12 @@ export default class UtilPointShop {
     }
 
     /**
-     * 아바타 그림 주소 — 두 앱의 `public/avatars/roboyam/<id>.svg`(배포 자산). `<img>` 로만 그린다(`v-html`·인라인 SVG 금지).
+     * 아바타 그림 주소 — 두 앱의 `public/avatars/irobit/<id>.svg`(배포 자산). `<img>` 로만 그린다(`v-html`·인라인 SVG 금지).
      * @param {string} avatarId - 카탈로그 아바타 ID.
      * @returns {string} 그림 주소.
      */
     static avatarUrl(avatarId: string): string {
-        return `/avatars/roboyam/${encodeURIComponent(avatarId)}.svg`;
+        return `/avatars/irobit/${encodeURIComponent(avatarId)}.svg`;
     }
 
     static hasDuration(usage: PointShopUsageType | null): boolean {

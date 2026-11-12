@@ -48,7 +48,7 @@
 ## 목업 가정 (2026-10-24 실제 API 연결로 목업 파일·스위치는 지웠다 — 기록용)
 1. **목업 가입은 서버 세션을 만들지 못한다** — 응답으로 화면 상태만 로그인한 것처럼 둔다. 그 상태로 다른 화면에서 실제 API 를 부르면 401 → 「로그인 시간이 지났어요」로 간다. 새로고침하면 사라진다.
 2. `GET /api/me/account` 목업은 실제 `/api/me/social`(비밀번호 유무·공급자) + 로그인 정보(이메일·인증)로 만들고, 변경 대기 이메일만 메모리에 둔다.
-3. 갈래 값(비밀번호 값은 쓰지 않는다): 이메일에 `taken` → 이미 가입/사용 중 · 닉네임 `taken`·`사용중` 중복, `admin`·`운영자`·`관리자`·`roboyam` 예약어 · 메일 링크 토큰 `expired`·`invalid`·`changed`·`taken`(인증), `expired`·`invalid`(재설정).
+3. 갈래 값(비밀번호 값은 쓰지 않는다): 이메일에 `taken` → 이미 가입/사용 중 · 닉네임 `taken`·`사용중` 중복, `admin`·`운영자`·`관리자`·`irobit` 예약어 · 메일 링크 토큰 `expired`·`invalid`·`changed`·`taken`(인증), `expired`·`invalid`(재설정).
 4. `?mock=` 스위치: `signup-fail` · `email-check-fail` · `nickname-check-fail` · `verify-fail` · `forgot-fail` · `reset-check-fail` · `reset-fail` · `reset-same` · `account-fail` · `account-social` · `account-pending` · `password-wrong` · `password-locked` · `password-change-fail` · `password-not-set` · `email-send-fail` · `email-cooldown` · `email-not-allowed`.
 5. 목업은 비밀번호를 비교·저장하지 않는다(맞고 틀림은 스위치로만). 비밀번호 변경·재설정은 실제로 바뀌지 않는다.
 6. 이메일·비밀번호 변경(`/settings/account/*`)은 정지 중에도 막지 않는다(화면·목업 모두 정지 검사 없음).
@@ -60,13 +60,13 @@
 - 이메일 변경 알림 메일(지금 주소)·재설정 메일·소셜 전용 안내 메일의 필수 안내 문구(`RequiredMail` 에 추가 필요 — 알림 문구 엔진).
 
 ## community 대비 뺀 것·바꾼 것
-- 가입: 사업자 전용 계정 가입 링크(로보얌에 사업자 가입 화면 없음), 「본인인증도 없어요」(본인인증은 다른 세션 범위), 「닉네임은 30일에 1번」(로보얌은 가입 뒤 1번만 바꿀 수 있다 — `member-mypage-contract.md` 결정, 가입 닉네임 단계가 그렇게 알린다). 닉네임 칸은 별도 부품(`NicknameField`) 대신 화면 안에 둠(한 화면만 씀).
+- 가입: 사업자 전용 계정 가입 링크(아이로빗에 사업자 가입 화면 없음), 「본인인증도 없어요」(본인인증은 다른 세션 범위), 「닉네임은 30일에 1번」(아이로빗은 가입 뒤 1번만 바꿀 수 있다 — `member-mypage-contract.md` 결정, 가입 닉네임 단계가 그렇게 알린다). 닉네임 칸은 별도 부품(`NicknameField`) 대신 화면 안에 둠(한 화면만 씀).
 - 계정 화면: 로그아웃·회원 탈퇴 줄(탈퇴는 커머스 세션 「탈퇴 대비」 범위), 변경 대기 이메일 안내(`GET /api/me/account` 가 생기면 옮긴다). 모바일 안쪽 헤더(`InnerHeader`) 대신 설정 묶음의 돌아가기 링크.
 - `/password/social` 은 community 처럼 **안내 화면**이다(비밀번호 만들기 아님 — community 에도 만들기 API 가 없다).
 
 ## 미확정
 1. 소셜 전용 회원이 비밀번호를 **만드는** 기능을 둘지(요청에는 있었으나 community 에 없다 — 둔다면 API·화면을 새로 정해야 한다).
-2. 온보딩 운영 원칙 문구(원본 시안 초안 — 전문 검토 대상)와 로보얌에 맞는 예시(「휴머노이드 출하량」) 여부.
+2. 온보딩 운영 원칙 문구(원본 시안 초안 — 전문 검토 대상)와 아이로빗에 맞는 예시(「휴머노이드 출하량」) 여부.
 3. ~~약관 본문 화면(`/terms`·`/privacy`)이 없어 가입의 「보기」 링크가 빈 화면이다.~~ → 해결: `/terms`·`/privacy` 화면이 있고, 「보기」 링크는 `useTermsSummary().showLinks`(관리자 옵션)를 따른다.
 4. 가입 직후 인증 메일 재발송 60초 제한을 서버가 첫 메일에도 거는지(community 는 건다 — 화면은 가입 직후 `markSent()`).
 5. 정지 회원의 이메일·비밀번호 변경 허용 여부(community 는 개인 설정이라 허용).
@@ -74,8 +74,8 @@
 ## 결정 (2026-10-24, 사용자 "추천대로")
 - **소셜 회원 비밀번호 만들기**: 지금은 만들지 않는다(community 에도 없는 기능). `/password/social` 은 안내 화면으로 둔다.
 
-## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 로보얌에 맞춤)
-- **온보딩 문구(미확정 2)**: 운영 원칙 3장은 원본 초안 문구를 쓰고, 예시만 로보얌 주제(로봇·AI)로 바꾼다. 문구 전문 검토는 오픈 전 할 일로 남긴다.
+## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 아이로빗에 맞춤)
+- **온보딩 문구(미확정 2)**: 운영 원칙 3장은 원본 초안 문구를 쓰고, 예시만 아이로빗 주제(로봇·AI)로 바꾼다. 문구 전문 검토는 오픈 전 할 일로 남긴다.
 - **약관 본문(미확정 3)**: `/terms`·`/privacy` 화면은 약관 기능에서 만든다(community 에도 없다). 그 전까지 가입 약관 동의의 「보기」 링크는 숨긴다(동의 체크는 그대로 필수).
 - **첫 인증 메일의 60초 제한(미확정 4)**: 건다. 서버의 재발송 60초는 가입 때 보낸 첫 메일도 센다(`login-contract.md` 「이전에 보낸 것도 포함」과 같다). 화면은 가입 직후 `markSent()` 를 유지한다.
 - **정지 회원의 이메일·비밀번호 변경(미확정 5)**: 허용한다 — 개인 설정이다(community `api-account.md`). 정지 중에 막는 것은 탈퇴뿐이다.
@@ -84,10 +84,10 @@
 목업 API 10개를 서버에 만들었다(경로·모양·오류 코드는 위 표 그대로). 코드: `server/api/.../auth/controller/AccountFlowController.java`(가입·확인·메일 링크·비밀번호 찾기/재설정), `.../auth/service/{SignupService,MemberSignupWriter,EmailLinkService,PasswordResetService,PasswordResetTokenService,PasswordForgotThrottle,AccountMailSender,MemberSessionTerminator,TermsVersionProvider}.java`, `server/api/.../account/**`(`/api/me/account`·비밀번호 변경·이메일 변경). 마이그레이션 shared `V64__auth_token_email_change.sql`(용도 `CHANGE_EMAIL` + `new_email`). V65 미사용.
 
 **처리한 「백엔드에 필요한 것」·미확정**
-- 토큰: 기존 `auth_tokens`(해시만 저장) — `VERIFY_EMAIL` 24시간, `RESET_PASSWORD` 60분(`roboyam.account.reset-token-minutes`), `CHANGE_EMAIL` 24시간(`email-change-token-hours`, 새 주소는 `new_email`). 새 링크는 같은 용도의 이전 링크를 무효로 한다. 정리 배치(`R__batch_10`)는 용도와 무관해 그대로.
+- 토큰: 기존 `auth_tokens`(해시만 저장) — `VERIFY_EMAIL` 24시간, `RESET_PASSWORD` 60분(`irobit.account.reset-token-minutes`), `CHANGE_EMAIL` 24시간(`email-change-token-hours`, 새 주소는 `new_email`). 새 링크는 같은 용도의 이전 링크를 무효로 한다. 정리 배치(`R__batch_10`)는 용도와 무관해 그대로.
 - 가입: `UserPolicy` + 약관 3개(`fields` 한 번에: email→password→nickname→agreeTerms→agreePrivacy→ageConfirmed) → `409 EMAIL_TAKEN` → `409 NICKNAME_TAKEN`(동시 가입의 유일 제약 위반도 같은 코드) → 저장 → `LoginSession.establish` → 201 me. 첫 인증 메일도 `auth_tokens` 행을 만들어 **재발송 60초에 센다**(미확정 4 결정).
 - **약관 버전**: `server/api/src/main/java/com/community/auth/service/TermsVersionProvider.java` 의 `currentTermsVersion()` 한 곳(지금 자리표시 `v1`). 이메일 가입과 소셜 가입 마무리(`SocialAccountWriter`)가 둘 다 이것을 부른다 — 약관 기능을 합칠 때 이 몸통만 바꾼다.
-- 닉네임 확인 사유 순서 LENGTH → CHARS → RESERVED → DUPLICATE(대소문자 무시). **예약어**는 새로 정했다(`UserPolicy.isReservedNickname` — admin·운영자·관리자·운영진·roboyam·로보얌, 소문자·공백/밑줄 제거 뒤 포함 여부). 닉네임 변경 API 는 마이페이지 범위.
+- 닉네임 확인 사유 순서 LENGTH → CHARS → RESERVED → DUPLICATE(대소문자 무시). **예약어**는 새로 정했다(`UserPolicy.isReservedNickname` — admin·운영자·관리자·운영진·irobit·아이로빗, 소문자·공백/밑줄 제거 뒤 포함 여부). 닉네임 변경 API 는 마이페이지 범위.
 - 메일 링크 확인(`POST /api/auth/email/verify`): 없음·모름·다른 용도·이미 씀·탈퇴 회원 → 400 `TOKEN_INVALID` → 410 `TOKEN_EXPIRED` → (변경 링크) 새 주소가 그 사이 쓰이면 409 `EMAIL_TAKEN`(링크는 쓰지 않은 채 남음). 변경 완료 = `email`·`email_verified_at` 교체 + 옛 주소의 인증 링크 무효, 다른 기기 세션은 유지.
 - **계정 존재 숨김**: 비밀번호 찾기는 요청 스레드에서 형식 검사 → 이메일 해시 기준 메모리 60초 제한 → 작업 풀(2스레드·대기열 200, 넘치면 버림)에 넘기고 늘 202. 계정 조회·토큰·메일은 풀에서 하므로 응답 내용·시간이 계정 유무와 무관하다(관리자 앱 `PasswordResetMailSender` 와 같은 방식). 비밀번호 있는 회원은 DB 의 최근 발급 시각으로도 60초를 막는다. 소셜 전용 회원은 가장 먼저 연결한 공급자로 `/password/social?provider=` 안내 메일.
 - 재설정: 400 VALIDATION → 토큰 400/410 → 400 SAME_PASSWORD → 교체 + 재설정 링크 모두 무효 + 로그인 실패 횟수 초기화 + **그 회원의 모든 세션 종료**. check 와 적용 사이에 비밀번호가 바뀌었으면 400 `TOKEN_INVALID`(계약에 더한 동작).

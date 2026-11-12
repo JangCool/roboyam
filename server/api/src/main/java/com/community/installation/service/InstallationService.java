@@ -56,7 +56,7 @@ import org.springframework.stereotype.Service;
  *   <li>실행은 한 트랜잭션이다({@link InstallationInstaller}). 실패하면 아무것도 남지 않고 <b>토큰 인증 세션은 그대로</b>라 같은 화면에서 다시 시도할 수 있다.
  *       응답·로그 어디에도 비밀번호·시크릿·토큰을 싣지 않는다.</li>
  *   <li>「데모 데이터 포함」({@code demoData})이면 설치가 커밋된 <b>뒤</b> 데모 팩을 요청과 따로 넣는다({@link DemoInstallLauncher} → {@link DemoDataInstaller}) — 응답의 {@code demo} 는
- *       {@code RUNNING} 이고 화면은 {@link #demoStatus} 로 결과({@code APPLIED} · {@code FAILED})를 따라온다. 넣지 못하면 데모만 건너뛴다(설치는 끝났다). 데모는 데모를 지원하는 구성(구조 스냅숏이 있는 ROBOYAM)이고 이 서버에 데모 팩이 있을 때만 고를 수 있다(아니면 {@code demoData} 400).</li>
+ *       {@code RUNNING} 이고 화면은 {@link #demoStatus} 로 결과({@code APPLIED} · {@code FAILED})를 따라온다. 넣지 못하면 데모만 건너뛴다(설치는 끝났다). 데모는 데모를 지원하는 구성(구조 스냅숏이 있는 IROBIT)이고 이 서버에 데모 팩이 있을 때만 고를 수 있다(아니면 {@code demoData} 400).</li>
  * </ul>
  * 이 클래스에는 {@code @Transactional} 이 없다 — 메일 서버 연결 시험처럼 응답 없는 서버를 기다리는 일이 DB 연결을 붙잡지 않게 하려는 것이다.
  * DB 를 쓰는 일은 각 서비스가 자기 트랜잭션을 연다.
@@ -71,10 +71,10 @@ public class InstallationService {
     private static final String PLACEHOLDER_SITE_NAME = "SAMPLE";
 
     /**
-     * 옛 프리셋 아이디 → 지금 아이디. 예시 구성의 이름을 BOTBI 에서 ROBOYAM 으로 바꿨는데, 이미 {@code boardPreset: "BOTBI"} 를 보내는
+     * 옛 프리셋 아이디 → 지금 아이디. 예시 구성의 이름을 BOTBI 에서 IROBIT 으로 바꿨는데, 이미 {@code boardPreset: "BOTBI"} 를 보내는
      * 스크립트가 있을 수 있어 요청은 옛 값도 받는다. 목록({@code GET …/board-presets})에는 지금 아이디만 나온다.
      */
-    private static final Map<String, String> LEGACY_PRESET_IDS = Map.of("BOTBI", "ROBOYAM");
+    private static final Map<String, String> LEGACY_PRESET_IDS = Map.of("BOTBI", "IROBIT", "ROBOYAM", "IROBIT"); // 옛 프리셋 id(봇비·로보얌) → 아이로빗
 
     private final InstallationState state;
     private final InstallTokenService tokens;

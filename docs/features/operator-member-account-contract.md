@@ -90,4 +90,4 @@
 - 검증: 두 앱 `pnpm typecheck` 통과. dev 서버·브라우저 확인은 안 함.
 
 ## 운영팀 계정 기본 비공개 프로필 (사용자 2026-11-08)
-- 운영자에 회원 계정을 이을 때(`PUT /api/admin/operators/{id}/member-account`) 그 회원 프로필을 비공개(`PRIVATE`)로 바꾼다 — 같은 트랜잭션, 감사 `OPERATOR_MEMBER_LINK` 의 `profileMadePrivate`. 이을 때 한 번만이고, 회원 본인이 나중에 공개로 돌리면 그대로 둔다. 데모 로더·데모 팩의 「로보얌운영팀」도 비공개.
+- 운영자에 회원 계정을 이을 때(`PUT /api/admin/operators/{id}/member-account`) 그 회원 프로필을 비공개(`PRIVATE`)로 바꾼다 — 같은 트랜잭션, 감사 `OPERATOR_MEMBER_LINK` 의 `profileMadePrivate`. 이을 때 한 번만이고, 회원 본인이 나중에 공개로 돌리면 그대로 둔다. 데모 로더·데모 팩의 「아이로빗운영팀」도 비공개.

@@ -4,7 +4,7 @@ import com.community.comment.entity.CommentEntity;
 import com.community.comment.entity.QCommentEntity;
 import com.community.membernotification.entity.MemberNotificationEntity;
 import com.community.membernotification.entity.QMemberNotificationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
  * 트랜잭션은 부르는 서비스가 연다.
  */
 @Repository
-public class MemberNotificationRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class MemberNotificationRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QMemberNotificationEntity N = QMemberNotificationEntity.memberNotificationEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;

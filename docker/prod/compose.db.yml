@@ -1,5 +1,5 @@
 # ============================================================================
-# ROBOYAM 운영 — DB 서버 (EC2 한 대, PostgreSQL 직접 운영 — RDS 를 쓰지 않는다)
+# IROBIT 운영 — DB 서버 (EC2 한 대, PostgreSQL 직접 운영 — RDS 를 쓰지 않는다)
 # ============================================================================
 #
 # RDS 대신 직접 올린다(사용자 결정 2026-11-04 — DB 배치를 pg_cron 으로 두는 설계라 확장·설정·시간대를 마음대로 쓰려고).
@@ -19,18 +19,18 @@
 #   cp .env.example .env      # DB_USERNAME · POSTGRES_PASSWORD(평문 — 이 컨테이너만 쓴다) · PGDATA_DIR 를 채운다
 #   docker compose -f compose.db.yml up -d --build
 #
-# 앱 쪽 DB_URL: jdbc:postgresql://<이 서버의 사설 IP>:5432/roboyam (앱은 같은 비밀번호를 암호문 DB_PASSWORD=ENC(...) 로 받는다)
+# 앱 쪽 DB_URL: jdbc:postgresql://<이 서버의 사설 IP>:5432/irobit (앱은 같은 비밀번호를 암호문 DB_PASSWORD=ENC(...) 로 받는다)
 # 최대 연결 수(max_connections 200): 앱 서버 2대 × DB_POOL_SIZE + 관리자 앱 ADMIN_DB_POOL_SIZE + 여유(psql·백업)보다 커야 한다.
 #
 # ⚠ 이 파일은 실제 서버에서 아직 시험하지 않았다(문법만 확인).
 # ============================================================================
 
-name: roboyam-prod-db
+name: irobit-prod-db
 
 services:
   postgres:
     build: ../postgres
-    image: roboyam-postgres:18
+    image: irobit-postgres:18
     restart: unless-stopped
     # dev compose 와 같은 설정 — shared_preload_libraries 는 서버를 다시 띄워야 적용된다. cron.database_name 은 앱 DB 와 같아야 한다.
     # cron.timezone: DB 배치 cron 식의 시간대(한국시간). 나중에 바꾸면 등록된 cron 식이 어긋난다(docs/features/batch-contract.md).
@@ -39,7 +39,7 @@ services:
       - -c
       - shared_preload_libraries=pg_cron
       - -c
-      - cron.database_name=roboyam
+      - cron.database_name=irobit
       - -c
       - cron.use_background_workers=on
       - -c
@@ -47,7 +47,7 @@ services:
       - -c
       - max_connections=200
     environment:
-      POSTGRES_DB: roboyam
+      POSTGRES_DB: irobit
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # 로캘은 C.UTF-8(libc) — `--locale=C` 로 만들면 pg_trgm 이 한글을 색인하지 못해 한글 검색이 색인을 못 탄다. DB 를 만들 때만 정해진다.
@@ -56,14 +56,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ${PGDATA_DIR:-roboyam-prod-pgdata}:/var/lib/postgresql
+      - ${PGDATA_DIR:-irobit-prod-pgdata}:/var/lib/postgresql
     shm_size: 256mb
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d roboyam"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d irobit"]
       interval: 5s
       timeout: 3s
       retries: 20
     stop_grace_period: 60s
 
 volumes:
-  roboyam-prod-pgdata:
+  irobit-prod-pgdata:

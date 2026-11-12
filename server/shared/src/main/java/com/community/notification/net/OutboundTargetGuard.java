@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  *   <li><b>항상 막는 주소</b>: 클라우드 메타데이터·링크 로컬({@code 169.254.0.0/16}, {@code fe80::/10}, AWS {@code fd00:ec2::/32}, 알리바바 {@code 100.100.100.200}),
  *       와일드카드({@code 0.0.0.0/8}, {@code ::}), 멀티캐스트·예약({@code 224.0.0.0/3}, {@code ff00::/8}).</li>
  *   <li><b>설정으로 막는 주소</b>: 로컬호스트·사설망({@code 127/8}, {@code 10/8}, {@code 172.16/12}, {@code 192.168/16}, {@code 100.64/10}, {@code ::1}, {@code fc00::/7} 등)은
- *       {@code roboyam.notification.allow-private-targets} 가 true 일 때만 허용한다(기본 false, {@code local} 프로파일만 true).</li>
+ *       {@code irobit.notification.allow-private-targets} 가 true 일 때만 허용한다(기본 false, {@code local} 프로파일만 true).</li>
  *   <li>IPv4 가 섞여 들어온 IPv6({@code ::ffff:a.b.c.d}, NAT64, 6to4)는 안의 IPv4 로 같은 검사를 한다.</li>
  * </ul>
  * 거절 사유({@link Reason})만 알리고 풀린 IP·입력 주소는 오류에 싣지 않는다.
@@ -63,7 +63,7 @@ public class OutboundTargetGuard {
 
     private final boolean allowPrivate;
 
-    public OutboundTargetGuard(@Value("${roboyam.notification.allow-private-targets:false}") boolean allowPrivate) {
+    public OutboundTargetGuard(@Value("${irobit.notification.allow-private-targets:false}") boolean allowPrivate) {
         this.allowPrivate = allowPrivate;
     }
 

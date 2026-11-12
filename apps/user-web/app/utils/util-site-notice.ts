@@ -9,11 +9,11 @@ export interface SiteNoticeDismissal {
 
 /**
  * 공지 띠(`SiteNoticeBar`)의 순수 규칙 — 닫음 기록 읽기·만들기·판정, 링크 종류.
- * 닫음 기록은 이 브라우저(localStorage `roboyam:site-notice`)에만 남는다(사용자 결정 2026-11-06 — 손님도 닫을 수 있고 다른 기기에서는 다시 보인다).
+ * 닫음 기록은 이 브라우저(localStorage `irobit:site-notice`)에만 남는다(사용자 결정 2026-11-06 — 손님도 닫을 수 있고 다른 기기에서는 다시 보인다).
  * 기간은 누른 때부터 센다(하루 = 24시간 · 1주일 = 7일 · 1달 = 30일 — 가정).
  */
 export default class UtilSiteNotice {
-    static readonly STORAGE_KEY = 'roboyam:site-notice';
+    static readonly STORAGE_KEY = 'irobit:site-notice';
 
     static readonly PERIODS: readonly SiteNoticeHidePeriod[] = ['DAY', 'WEEK', 'MONTH'];
 

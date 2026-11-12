@@ -400,7 +400,7 @@ export interface BizRegistrant {
     me: boolean;
 }
 
-/** 자기 승인 설정(`roboyam.biz.self-approval`) — DENY 면 등록한 운영자는 승인할 수 없다(409 `BIZ_SELF_APPROVAL_DENIED`) */
+/** 자기 승인 설정(`irobit.biz.self-approval`) — DENY 면 등록한 운영자는 승인할 수 없다(409 `BIZ_SELF_APPROVAL_DENIED`) */
 export type BizSelfApproval = 'ALLOW' | 'DENY';
 
 export interface BizApplicationDetail extends BizApplicationRow {

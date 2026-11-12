@@ -2,11 +2,11 @@ package com.community.user.repository.master;
 
 import com.community.social.entity.SocialProvider;
 import com.community.user.entity.UserIdentityEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface UserIdentityRepository extends RoboyamRepository<UserIdentityEntity, Long> {
+public interface UserIdentityRepository extends IrobitRepository<UserIdentityEntity, Long> {
 
     /** 그 회원에게 연결된 소셜 계정(연결한 순서) */
     List<UserIdentityEntity> findByUserIdOrderByCreatedAtAsc(Long userId);

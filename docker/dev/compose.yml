@@ -1,5 +1,5 @@
 # ============================================================================
-# ROBOYAM 개발 서버 (AWS EC2 한 대) — 앱 + 관리자 앱 + PostgreSQL + Caddy(HTTPS)
+# IROBIT 개발 서버 (AWS EC2 한 대) — 앱 + 관리자 앱 + PostgreSQL + Caddy(HTTPS)
 # ============================================================================
 #
 # 서버에서:
@@ -10,40 +10,40 @@
 # 앱 이미지는 로컬 · dev · prod 가 한 벌이다. 환경은 실행 때 환경 변수로 갈린다.
 # 이미지를 만드는 법은 server/api/Dockerfile · server/admin/Dockerfile 머리말을 본다.
 #
-# DB 비밀번호: 앱은 DB_PASSWORD=ENC(...) 암호문을 받아 기동 때 복호화한다(ROBOYAM_CRYPTO_KEY 필요).
+# DB 비밀번호: 앱은 DB_PASSWORD=ENC(...) 암호문을 받아 기동 때 복호화한다(IROBIT_CRYPTO_KEY 필요).
 # postgres 컨테이너는 평문이 필요하므로 같은 비밀번호를 POSTGRES_PASSWORD 로 따로 준다(.env.example 참고).
 #
 # ⚠ 이 파일은 실제 서버에서 아직 시험하지 않았다(문법만 확인).
 # ============================================================================
 
 # 앱(공개 사이트)과 관리자 앱이 같이 쓰는 환경 변수
-x-roboyam-env: &roboyam-env
+x-irobit-env: &irobit-env
   SPRING_PROFILES_ACTIVE: dev
-  DB_URL: jdbc:postgresql://postgres:5432/roboyam
+  DB_URL: jdbc:postgresql://postgres:5432/irobit
   DB_USERNAME: ${DB_USERNAME}
   # 암호문 ENC(...) — 복호화 키와 한 쌍이다
   DB_PASSWORD: ${DB_PASSWORD}
-  ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+  IROBIT_CRYPTO_KEY: ${IROBIT_CRYPTO_KEY}
   # 개인정보 칸 암호화 키·교체 중의 예전 키·중복 확인 해시 키 — 비어 있어도 뜨지만 그 키가 필요한 요청은 503
-  ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
-  ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
-  ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
+  IROBIT_DATA_KEY: ${IROBIT_DATA_KEY:-}
+  IROBIT_DATA_KEY_PREVIOUS: ${IROBIT_DATA_KEY_PREVIOUS:-}
+  IROBIT_INDEX_KEY: ${IROBIT_INDEX_KEY:-}
   # 설치 마법사(/install) 토큰 — 비우면 서버가 뜰 때 무작위 토큰을 만들어 로그에 한 번 출력한다(docker compose logs app). 서버를 여러 대 띄우면 같은 값을 준다
-  ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
+  IROBIT_INSTALL_TOKEN: ${IROBIT_INSTALL_TOKEN:-}
   # 관리자 앱 주소(http(s)://…, 예: https://admin.dev.example.com) — 초대·알림 메일의 관리자 링크(admin), 관리자 테마 화면 「실제 화면」 iframe 허락(app 이 ?adminPreview=1 화면에만
   # frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다. init-env.sh 가 https://<ADMIN_DOMAIN> 으로 채운다
   ADMIN_URL: ${ADMIN_URL:-}
   PUBLIC_URL: ${PUBLIC_URL:-}
   JAVA_OPTS: ${JAVA_OPTS:--Xmx1g}
 
-name: roboyam-dev
+name: irobit-dev
 
 services:
   postgres:
     # pg_cron 이 더해진 이미지(docker/postgres/Dockerfile) — DB 배치(저장 프로시저 + pg_cron)용. docker compose up -d --build 가 만든다.
     # 이미 쓰던 볼륨(데이터)은 그대로 쓴다(PostgreSQL 18 호환). pg_cron 확장은 관리자 앱이 뜰 때 만든다(DB 계정 POSTGRES_USER 가 슈퍼유저).
     build: ../postgres
-    image: roboyam-postgres:18
+    image: irobit-postgres:18
     restart: unless-stopped
     # shared_preload_libraries 는 서버를 다시 띄워야 적용된다. cron.database_name 은 앱 DB(POSTGRES_DB)와 같아야 한다. cron.timezone: DB 배치 cron 식의 시간대(한국시간).
     command:
@@ -51,13 +51,13 @@ services:
       - -c
       - shared_preload_libraries=pg_cron
       - -c
-      - cron.database_name=roboyam
+      - cron.database_name=irobit
       - -c
       - cron.use_background_workers=on
       - -c
       - cron.timezone=Asia/Seoul
     environment:
-      POSTGRES_DB: roboyam
+      POSTGRES_DB: irobit
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # 로캘은 C.UTF-8(libc) — `--locale=C` 로 만들면 pg_trgm 이 한글을 색인하지 못해 한글 검색이 색인을 못 탄다.
@@ -65,48 +65,48 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
       TZ: Asia/Seoul
     volumes:
-      - roboyam-dev-pgdata:/var/lib/postgresql
+      - irobit-dev-pgdata:/var/lib/postgresql
     # 바깥으로 포트를 열지 않는다. 같은 compose 네트워크의 app 만 붙는다
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d roboyam"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d irobit"]
       interval: 5s
       timeout: 3s
       retries: 20
 
   app:
-    image: ${ROBOYAM_IMAGE}
+    image: ${IROBIT_IMAGE}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      <<: *roboyam-env
+      <<: *irobit-env
       # Snowflake ID 서버 번호 — 앱·관리자 앱이 서로 달라야 ID 가 겹치지 않는다
       NODE_ID: ${NODE_ID}
     # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) — 관리자 앱이 쓰고 두 앱이 같은 볼륨을 /media/** 로 내보낸다
     volumes:
-      - roboyam-dev-media:/var/lib/roboyam/media
+      - irobit-dev-media:/var/lib/irobit/media
     stop_grace_period: 40s
 
   # 관리자 앱 — 공개 사이트(app)와 다른 도메인(ADMIN_DOMAIN)으로 접속한다. 같은 DB 를 쓰지만 세션은 따로다.
   # 이미지는 server/admin/Dockerfile 로 만든다
   admin:
-    image: ${ROBOYAM_ADMIN_IMAGE}
+    image: ${IROBIT_ADMIN_IMAGE}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      <<: *roboyam-env
+      <<: *irobit-env
       # Snowflake ID 서버 번호 — 앱(NODE_ID)과 달라야 한다
       NODE_ID: ${ADMIN_NODE_ID}
       # 관리 콘솔은 트래픽이 작다 — 한 대에 같이 올리므로 힙을 작게 잡는다
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--Xmx512m}
       # 주소 DB 를 서버 폴더에서 적재(address-search-contract) — 아래 볼륨에 행정안전부 zip 을 두면 설정 › 주소 검색에서 고른다(읽기만)
-      ROBOYAM_ADDRESS_IMPORT_DIR: /var/lib/roboyam/address-import
+      IROBIT_ADDRESS_IMPORT_DIR: /var/lib/irobit/address-import
     volumes:
-      - roboyam-dev-media:/var/lib/roboyam/media
-      - ${ADDRESS_IMPORT_DIR:-roboyam-dev-address-import}:/var/lib/roboyam/address-import:ro
+      - irobit-dev-media:/var/lib/irobit/media
+      - ${ADDRESS_IMPORT_DIR:-irobit-dev-address-import}:/var/lib/irobit/address-import:ro
     stop_grace_period: 40s
 
   # HTTPS 종단. 인증서 발급·갱신(Let's Encrypt)은 Caddy 가 알아서 한다
@@ -124,12 +124,12 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - roboyam-dev-caddy-data:/data
-      - roboyam-dev-caddy-config:/config
+      - irobit-dev-caddy-data:/data
+      - irobit-dev-caddy-config:/config
 
 volumes:
-  roboyam-dev-pgdata:
-  roboyam-dev-media:
-  roboyam-dev-address-import:
-  roboyam-dev-caddy-data:
-  roboyam-dev-caddy-config:
+  irobit-dev-pgdata:
+  irobit-dev-media:
+  irobit-dev-address-import:
+  irobit-dev-caddy-data:
+  irobit-dev-caddy-config:

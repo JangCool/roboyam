@@ -137,7 +137,7 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
                 .andExpect(jsonPath("$.data.placements[1].placement").value("CATEGORY_TOP")).andExpect(jsonPath("$.data.placements[1].accepting").value(false)).andExpect(jsonPath("$.data.boards").isArray())
                 .andExpect(jsonPath("$.data.boards[?(@.id == '" + dealBoard() + "')].prefixes[0].name").value("로봇"));
         mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
-        String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/roboyam/products/1\",\"shopName\":\"네이버 스마트스토어\","
+        String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/irobit/products/1\",\"shopName\":\"네이버 스마트스토어\","
                 + "\"listPrice\":32000,\"dealPrice\":15900,\"shippingFee\":0,\"endsOn\":null,\"stock\":\"LIMITED\",\"body\":\"1+1 행사\",\"placement\":\"NONE\"},"
                 + "\"placementStartDate\":null,\"placementEndDate\":null,\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"2026-11-02\"}";
         // 옛 모양(게시판 없음 · 재고 LIMITED) — 칸 오류 deal.boardId·deal.stock

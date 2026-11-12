@@ -20,7 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li><b>무료 판정</b>: 카테고리 {@code basic}·{@code hobby} 이면 무료(이 한 곳). 무료 아바타는 품목 행이 없다. 움직이는 아바타는 모두 유료다.</li>
- *   <li><b>그림 주소</b>: 정지 {@code /avatars/roboyam/<id>.svg} · 움직이는 것 {@code /avatars/motion/<id>.svg} + 정지 그림 {@code /avatars/motion/<id>-still.svg}
+ *   <li><b>그림 주소</b>: 정지 {@code /avatars/irobit/<id>.svg} · 움직이는 것 {@code /avatars/motion/<id>.svg} + 정지 그림 {@code /avatars/motion/<id>-still.svg}
  *       (두 앱의 {@code public/avatars/…}). 화면은 {@code <img>} 로만 그린다.</li>
  *   <li><b>고른 아바타</b>: {@code profiles.profile_image} 에 {@code avatar:<id>}. 비었거나 카탈로그에 없는 값이면 {@link #DEFAULT_ID} 로 그린다.
  *       {@code avatar:upload-mine}({@link #UPLOAD_ID} — 승인된 내가 올린 아바타)은 카탈로그 밖이라 {@link AvatarLooks} 가 푼다.</li>
@@ -33,7 +33,7 @@ public class AvatarCatalog {
     /** 고르지 않은 회원·카탈로그에 없는 값의 표시 */
     public static final String DEFAULT_ID = "basic-default";
     public static final Set<String> FREE_CATEGORIES = Set.of("basic", "hobby");
-    public static final String URL_PREFIX = "/avatars/roboyam/";
+    public static final String URL_PREFIX = "/avatars/irobit/";
     /** 움직이는 아바타 그림의 머리(정지 그림은 {@code <id>-still.svg}) */
     public static final String MOTION_URL_PREFIX = "/avatars/motion/";
     /** {@code profiles.profile_image} 의 아바타 값 접두 */

@@ -4,7 +4,7 @@ import com.community.point.entity.QPointAttendanceEntity;
 import com.community.point.entity.QPointBalanceEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * 세이브포인트 안에서 불리지 않는다.
  */
 @Repository
-public class PointAttendanceStore extends RoboyamRepositoryQDSL {
+public class PointAttendanceStore extends IrobitRepositoryQDSL {
 
     /** 출석 자격에 필요한 회원 상태 */
     public record MemberState(String status, boolean emailVerified, boolean gone) {

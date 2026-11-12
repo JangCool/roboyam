@@ -33,7 +33,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 export default class UtilDisplaySettings {
     /** 이 브라우저에 마지막 효과값을 남기는 저장 키 — 값은 JSON(`{ values, userId? }`) */
-    static readonly STORAGE_KEY = 'roboyam:display';
+    static readonly STORAGE_KEY = 'irobit:display';
 
     /** 상태 값이 누구 것인지를 담는 상태 키(`useState`) — 효과값 자체의 상태는 공유 레이어가 갖는다 */
     static readonly OWNER_KEY = 'display-owner';

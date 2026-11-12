@@ -7,7 +7,7 @@ import com.community.payment.dto.CancelStatus;
 import com.community.payment.dto.ManualCancelMethod;
 import com.community.payment.dto.PgCancelStatus;
 import com.community.payment.entity.QPaymentCancelEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -41,7 +41,7 @@ import org.springframework.stereotype.Repository;
  * </ul>
  */
 @Repository
-public class PaymentCancelStore extends RoboyamRepositoryQDSL {
+public class PaymentCancelStore extends IrobitRepositoryQDSL {
 
     static final QPaymentCancelEntity C = QPaymentCancelEntity.paymentCancelEntity;
 

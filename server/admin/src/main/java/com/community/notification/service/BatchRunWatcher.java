@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 배치 실패·종료 알림 감시자 — {@code roboyam.notification.batch-watch-seconds}(기본 30초)마다 {@link BatchRunNotifier} 를 돌려 새로 끝난 배치 실행 줄을 알림으로 바꾼다.
+ * 배치 실패·종료 알림 감시자 — {@code irobit.notification.batch-watch-seconds}(기본 30초)마다 {@link BatchRunNotifier} 를 돌려 새로 끝난 배치 실행 줄을 알림으로 바꾼다.
  * 배치는 요청 밖에서(Java 스케줄러·pg_cron) 끝나고 DB 프로시저가 알림 수신자를 계산하게 하지 않기 위해 Java 감시자가 한다. 여러 서버가 동시에 돌려도 줄을
  * {@code FOR UPDATE SKIP LOCKED} 로 나눠 잡으므로 알림이 중복되지 않는다. 한 번에 {@value #CHUNK} 줄씩 처리하고 더 남았으면 이어서 처리한다.
  *
@@ -38,7 +38,7 @@ public class BatchRunWatcher {
         this.heartbeats = heartbeats;
     }
 
-    @Scheduled(initialDelayString = "${roboyam.notification.batch-watch-seconds:30}", fixedDelayString = "${roboyam.notification.batch-watch-seconds:30}",
+    @Scheduled(initialDelayString = "${irobit.notification.batch-watch-seconds:30}", fixedDelayString = "${irobit.notification.batch-watch-seconds:30}",
             timeUnit = java.util.concurrent.TimeUnit.SECONDS)
     public void watch() {
         if (!properties.watcherEnabled()) {

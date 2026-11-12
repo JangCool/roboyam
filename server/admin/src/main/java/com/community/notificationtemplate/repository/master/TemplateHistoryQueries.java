@@ -6,14 +6,14 @@ import com.community.notificationtemplate.entity.NotificationMessageHistoryEntit
 import com.community.notificationtemplate.entity.QNotificationChatTemplateHistoryEntity;
 import com.community.notificationtemplate.entity.QNotificationMailTemplateHistoryEntity;
 import com.community.notificationtemplate.entity.QNotificationMessageHistoryEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** 문구 · 메일 템플릿 · Slack/Mattermost 템플릿 변경 이력 조회 — 한 대상의 줄, 최신순(시각, 같으면 id 큰 쪽 먼저), 페이징은 DB 에서 */
 @Repository
-public class TemplateHistoryQueries extends RoboyamRepositoryQDSL {
+public class TemplateHistoryQueries extends IrobitRepositoryQDSL {
 
     private static final QNotificationMessageHistoryEntity MESSAGE = QNotificationMessageHistoryEntity.notificationMessageHistoryEntity;
     private static final QNotificationMailTemplateHistoryEntity MAIL = QNotificationMailTemplateHistoryEntity.notificationMailTemplateHistoryEntity;

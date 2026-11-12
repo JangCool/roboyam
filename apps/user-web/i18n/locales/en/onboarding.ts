@@ -1,6 +1,6 @@
 /**
  * Onboarding (`/onboarding`, the first screen after signing up): a welcome and three community rules (draft wording — to be reviewed).
- * Only the examples are adapted to Roboyam's topics (robots and AI).
+ * Only the examples are adapted to Irobit's topics (robots and AI).
  * Same keys and order as `ko/onboarding.ts`.
  */
 export default {

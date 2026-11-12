@@ -11,7 +11,7 @@ import com.community.role.entity.QUserRoleEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
 import com.community.user.entity.UserStatus;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.jpa.UniqueViolations;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Repository;
  * Native SQL 로 남긴 것과 이유: 연결 끊기·게시판 담당 끝내기({@code DELETE … RETURNING} — 지운 줄과 돌려줄 값이 같은 문장의 결과여야 한다).
  */
 @Repository
-public class OperatorMemberAccountStore extends RoboyamRepositoryQDSL {
+public class OperatorMemberAccountStore extends IrobitRepositoryQDSL {
 
     /**
      * 연결 한 줄 + 지금 판정.

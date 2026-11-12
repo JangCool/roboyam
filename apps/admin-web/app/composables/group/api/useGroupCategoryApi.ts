@@ -2,9 +2,9 @@ import type { GroupCategoriesResponse, GroupCategoryCreateRequest, GroupCategory
 
 /**
  * 소모임 분류 API — 서버 주소 문자열(`/api/admin/group-categories…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약: community `docs/api-groups.md` 6-3 → 로보얌 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`).
+ * 계약: community `docs/api-groups.md` 6-3 → 아이로빗 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`).
  *
- * 권한(로보얌 코드): 조회 `group.read`, 만들기·저장·순서·삭제 `group.settings`(community 는 최고 관리자 전용 `403 ADMIN_ONLY` — 로보얌은 권한 코드로 위임한다). 없으면 `403 PERMISSION_DENIED`.
+ * 권한(아이로빗 코드): 조회 `group.read`, 만들기·저장·순서·삭제 `group.settings`(community 는 최고 관리자 전용 `403 ADMIN_ONLY` — 아이로빗은 권한 코드로 위임한다). 없으면 `403 PERMISSION_DENIED`.
  *   - `GET    /api/admin/group-categories` → `GroupCategoriesResponse`(분류 sortOrder 순 + 할당할 수 있는 켜진 소모임 게시판)
  *   - `POST   /api/admin/group-categories` `{ name }` → 201 `GroupCategoryItem`(맨 끝, 게시판 0개). `400 fields.name` · `409 GROUP_CATEGORY_NAME_TAKEN`
  *   - `PUT    /api/admin/group-categories/{id}` `{ name, boardIds, updatedAt? }` → 200 GET 본문 전체(게시판 전체 교체 — 다른 분류의 게시판은 옮겨진다).

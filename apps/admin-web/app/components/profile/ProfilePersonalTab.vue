@@ -256,7 +256,7 @@ async function save(): Promise<void> {
 
 <style scoped>
 /*
- * 공유 레이어(`@roboyam/display-time`)의 `DisplayValueForm` 은 user-web 과 함께 쓰므로 레이어는 고치지 않고 이 화면에서만 글자를 줄인다(하모니카3 기준).
+ * 공유 레이어(`@irobit/display-time`)의 `DisplayValueForm` 은 user-web 과 함께 쓰므로 레이어는 고치지 않고 이 화면에서만 글자를 줄인다(하모니카3 기준).
  * 항목 이름(언어·시간대·시간 형식·날짜 형식)은 12px 볼드 · 기본 글자색, 라디오 선택지 글자는 13px.
  */
 .display-form-sm :deep(label:not(.cursor-pointer)),

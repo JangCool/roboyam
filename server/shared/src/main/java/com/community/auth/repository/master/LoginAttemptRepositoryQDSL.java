@@ -2,7 +2,7 @@ package com.community.auth.repository.master;
 
 import com.community.auth.entity.LoginAttemptEntity;
 import com.community.auth.entity.QLoginAttemptEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
  * 로그인 실패 횟수 행의 생성(upsert)·잠금 읽기·잠금 시각 읽기. <b>트랜잭션은 부르는 서비스가 연다</b> — 행 잠금은 트랜잭션 안에서만 의미가 있다.
  */
 @Repository
-public class LoginAttemptRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class LoginAttemptRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QLoginAttemptEntity ATTEMPT = QLoginAttemptEntity.loginAttemptEntity;
 

@@ -4,7 +4,7 @@ import static com.community.payment.repository.master.PaymentOrderStore.ts;
 
 import com.community.payment.entity.PaymentEventEntity;
 import com.community.payment.entity.QPaymentEventEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -23,7 +23,7 @@ import tools.jackson.databind.json.JsonMapper;
  * JPQL·QueryDSL 에 대응 문법이 없다).
  */
 @Repository
-public class PaymentEventStore extends RoboyamRepositoryQDSL {
+public class PaymentEventStore extends IrobitRepositoryQDSL {
 
     /** 이력 종류(DB CHECK 와 같은 목록 — RECHECKED 는 V98, 운영자의 「포트원에서 다시 확인」) */
     public enum Kind {

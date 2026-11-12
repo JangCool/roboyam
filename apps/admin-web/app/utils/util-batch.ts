@@ -35,7 +35,7 @@ export default class UtilBatch {
     }
 
     /**
-     * 요청이 너무 오래 대기 중인가 — 배치를 켠 서버(`roboyam.batch.enabled`)가 없거나 멈췄을 수 있다.
+     * 요청이 너무 오래 대기 중인가 — 배치를 켠 서버(`irobit.batch.enabled`)가 없거나 멈췄을 수 있다.
      * @param {{ status: string; requestedAt: string } | null | undefined} request - 요청 한 줄.
      * @param {number} now - 지금(ms).
      * @returns {boolean} `PENDING` 이 30초를 넘었으면 true.

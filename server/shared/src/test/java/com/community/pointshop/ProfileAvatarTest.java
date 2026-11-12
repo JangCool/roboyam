@@ -29,9 +29,9 @@ class ProfileAvatarTest extends PointShopTestBase {
         SelectedAvatarView selected = kit.inTx(() -> kit.profileAvatars.select(member, "hobby-gamer"));
         kit.inTx(() -> kit.profileAvatars.select(member, "hobby-gamer"));
 
-        assertThat(selected.avatarUrl()).isEqualTo("/avatars/roboyam/hobby-gamer.svg");
+        assertThat(selected.avatarUrl()).isEqualTo("/avatars/irobit/hobby-gamer.svg");
         assertThat(kit.jdbc.queryForObject("SELECT profile_image FROM profiles WHERE user_id = ?", String.class, member)).isEqualTo("avatar:hobby-gamer");
-        assertThat(kit.profileAvatars.avatarUrl(member)).isEqualTo("/avatars/roboyam/hobby-gamer.svg");
+        assertThat(kit.profileAvatars.avatarUrl(member)).isEqualTo("/avatars/irobit/hobby-gamer.svg");
         AvatarCatalogView view = kit.profileAvatars.catalog(member);
         assertThat(view.selectedId()).isEqualTo("hobby-gamer");
         assertThat(item(view, "hobby-gamer").selected()).isTrue();
@@ -61,7 +61,7 @@ class ProfileAvatarTest extends PointShopTestBase {
         var mine = kit.userItems.myItems(member).items().get(0);
         assertThat(mine.inUse()).isTrue();
         assertThat(mine.equipped()).as("아바타는 장착 칸을 쓰지 않는다").isFalse();
-        assertThat(mine.avatarUrl()).isEqualTo("/avatars/roboyam/job-chef-m.svg");
+        assertThat(mine.avatarUrl()).isEqualTo("/avatars/irobit/job-chef-m.svg");
     }
 
     @Test
@@ -74,7 +74,7 @@ class ProfileAvatarTest extends PointShopTestBase {
         try {
             assertThat(item(kit.profileAvatars.catalog(member), "job-chef-f").forSale()).isFalse();
             kit.inTx(() -> kit.profileAvatars.select(member, "job-chef-f"));
-            assertThat(kit.profileAvatars.avatarUrl(member)).isEqualTo("/avatars/roboyam/job-chef-f.svg");
+            assertThat(kit.profileAvatars.avatarUrl(member)).isEqualTo("/avatars/irobit/job-chef-f.svg");
         } finally {
             kit.jdbc.update("UPDATE point_shop_items SET active = true WHERE id = ?", item);
         }

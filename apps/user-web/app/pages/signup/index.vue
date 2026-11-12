@@ -168,7 +168,7 @@ import UtilValidation from '~/utils/util-validation';
  * 서버 규칙은 community `docs/api-auth.md` 「입력 규칙」과 같고 화면이 미리 알려 준다(판정은 서버). 약관은 소셜 가입과 같은 `TermsAgreement`.
  * 가입이 끝나면 인증 메일 안내(`/verify-email`)로 간다 — 재발송 60초 제한을 이어서 센다(`useEmailResend().markSent`).
  * 가입 성공(`201`)은 실제 로그인 세션을 만든다 — 응답 me 로 로그인 상태를 담는다(`useAuth.signup`).
- * community 대비 뺀 것: 사업자 전용 계정 가입 링크(로보얌에 사업자 가입 화면이 없다), "본인인증도 없어요" 문구(본인인증은 다른 세션 범위), 닉네임 30일 주기 문구(정책 미확정).
+ * community 대비 뺀 것: 사업자 전용 계정 가입 링크(아이로빗에 사업자 가입 화면이 없다), "본인인증도 없어요" 문구(본인인증은 다른 세션 범위), 닉네임 30일 주기 문구(정책 미확정).
  */
 definePageMeta({ layout: 'auth', middleware: 'guest' });
 const { t } = useI18n();

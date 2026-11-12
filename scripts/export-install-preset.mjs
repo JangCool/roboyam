@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * 로컬 DB 의 「로보얌 구조」(운영 설정)를 설치 프리셋 ROBOYAM 으로 내보낸다 — 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」.
+ * 로컬 DB 의 「아이로빗 구조」(운영 설정)를 설치 프리셋 IROBIT 으로 내보낸다 — 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」.
  *
- *   node scripts/export-install-preset.mjs            # 로컬 DB(roboyam) → install-presets/roboyam.structure.json + roboyam.json 의 boards
+ *   node scripts/export-install-preset.mjs            # 로컬 DB(irobit) → install-presets/irobit.structure.json + irobit.json 의 boards
  *   node scripts/export-install-preset.mjs --check    # 쓰지 않고 무엇이 담기는지만 출력
  *
  * 구조가 바뀌면(게시판·메뉴·가젯·홈 배치·게시판 설정을 관리자 화면에서 고친 뒤) 다시 돌린다. 데이터(회원·글·댓글·소모임·공구·광고·하이라이트 항목·포인트)는 담지 않는다.
@@ -15,7 +15,7 @@
  * 데이터를 가리키는 칸(FK → files·posts·users 등 TABLES 밖의 표)은 내보내지 않는다(설치 DB 의 기본값) — 아래 DATA_REF 에 걸리면 출력에 적는다.
  * 사이트 팝업(site_popups)은 담지 않는다 — 로컬의 팝업은 시험 항목이고 그림 팝업은 올린 파일에 매인다(팝업 배치 popup_layout 만 담는다).
  *
- * 환경 변수(선택): EXPORT_DB_CONTAINER(기본 roboyam-local-postgres) · EXPORT_DB_NAME(기본 roboyam) · EXPORT_DB_USER(기본 roboyam)
+ * 환경 변수(선택): EXPORT_DB_CONTAINER(기본 irobit-local-postgres) · EXPORT_DB_NAME(기본 irobit) · EXPORT_DB_USER(기본 irobit)
  * 의존성 없음(docker exec … psql). 로컬 DB 는 읽기만 한다.
  */
 import { execFileSync } from 'node:child_process';
@@ -23,15 +23,15 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const DB_CONTAINER = process.env.EXPORT_DB_CONTAINER ?? 'roboyam-local-postgres';
-const DB_NAME = process.env.EXPORT_DB_NAME ?? 'roboyam';
-const DB_USER = process.env.EXPORT_DB_USER ?? 'roboyam';
+const DB_CONTAINER = process.env.EXPORT_DB_CONTAINER ?? 'irobit-local-postgres';
+const DB_NAME = process.env.EXPORT_DB_NAME ?? 'irobit';
+const DB_USER = process.env.EXPORT_DB_USER ?? 'irobit';
 const CHECK = process.argv.includes('--check');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PRESET_DIR = join(ROOT, 'server', 'api', 'src', 'main', 'resources', 'install-presets');
-const PRESET_FILE = join(PRESET_DIR, 'roboyam.json');
-const STRUCTURE_NAME = 'roboyam.structure.json';
+const PRESET_FILE = join(PRESET_DIR, 'irobit.json');
+const STRUCTURE_NAME = 'irobit.structure.json';
 const ROOT_MARK = '$ROOT';
 
 /**
@@ -168,13 +168,13 @@ for (const t of out.filter((x) => ['home_gadgets', 'home_layouts', 'gadget_page_
 const sharedVersion = sql(`SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1`);
 const snapshot = {
     format: 1,
-    preset: 'ROBOYAM',
+    preset: 'IROBIT',
     exportedAt: new Date().toISOString(),
     source: { sharedVersion },
     tables: out,
 };
 
-// ── 설치 화면 목록(roboyam.json 의 boards) — 일반·핫딜 게시판(켜진 것)과 소모임 게시판, 켜진 말머리 ──
+// ── 설치 화면 목록(irobit.json 의 boards) — 일반·핫딜 게시판(켜진 것)과 소모임 게시판, 켜진 말머리 ──
 const boards = out.find((t) => t.table === 'boards').rows;
 const prefixes = out.find((t) => t.table === 'board_prefixes').rows;
 const categories = new Map(out.find((t) => t.table === 'group_categories').rows.map((c) => [String(c.id), c.name]));

@@ -2,7 +2,7 @@ package com.community.publicdata.repository.master;
 
 import com.community.operator.entity.QOperatorEntity;
 import com.community.publicdata.entity.QPublicDataEndpointEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
  * {@code JdbcTemplate} 이라 부르는 쪽 트랜잭션이 있으면 같은 연결로 참여하고, 없으면(연결 시험 기록은 바깥 HTTP 를 부르므로 트랜잭션 밖) 한 문장으로 바로 커밋한다 — 예전과 같다.
  */
 @Repository
-public class PublicDataEndpointStore extends RoboyamRepositoryQDSL {
+public class PublicDataEndpointStore extends IrobitRepositoryQDSL {
 
     /**
      * 한 줄.

@@ -28,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>순서: 정지 {@code 403 ACCOUNT_RESTRICTED} · 글쓰기 역할 권한 없음 {@code 403 BOARD_RESTRICTED} → 파일 칸({@code 400 fields.file}) → 1분 속도({@code 429 IMAGE_RATE_LIMITED})
  * → 하루 한도({@code 429 IMAGE_DAILY_LIMIT}) → 검사·다시 만들기({@link PostImageProcessor}, 트랜잭션 밖 — 이미지 처리 동안 DB 연결을 붙잡지 않는다) → 저장소 쓰기
- * → 장부 행({@code files}, PENDING) 저장 → 실패하면 쓴 파일을 지운다. 글에 쓰이지 않은 채 {@code roboyam.media.orphan-retention-hours}(24시간)가 지나면
+ * → 장부 행({@code files}, PENDING) 저장 → 실패하면 쓴 파일을 지운다. 글에 쓰이지 않은 채 {@code irobit.media.orphan-retention-hours}(24시간)가 지나면
  * 「올리다 만 파일 정리」 배치가 지운다. 검사부터 장부 행까지는 관리자 공지 본문 이미지와 같은 몸통(shared {@link PostImageUploads})이다.
  *
  * <p>저장소 키는 {@code post-image/{UTC 년월}/{무작위 32자}.{확장자}} — 주소를 짐작할 수 없고, 한 번 쓴 파일은 고치지 않는다(1년 immutable 캐시).

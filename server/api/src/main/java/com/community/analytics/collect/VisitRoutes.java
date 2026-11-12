@@ -43,7 +43,8 @@ public class VisitRoutes {
      */
     static final List<String> TEMPLATES = List.of(
             "/",
-            "/boards", "/boards/[slug]", "/boards/[slug]/actions", "/boards/[slug]/sanctions",
+            "/about",
+            "/boards","/boards/[slug]", "/boards/[slug]/actions", "/boards/[slug]/sanctions",
             "/business", "/business/ads/new", "/business/applications", "/business/applications/[id]", "/business/apply", "/business/deals/new",
             "/dev/address", "/dev/display", "/dev/identity", "/dev/payment",
             "/group-buys", "/group-buys/[id]", "/group-buys/[id]/order",

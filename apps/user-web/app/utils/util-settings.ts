@@ -21,7 +21,7 @@ export interface SettingsSubEntry {
 /**
  * 설정 묶음(`/settings/*`)의 화면 목록 — 넓은 화면의 왼쪽 메뉴(`pages/settings.vue`)와 좁은 화면의 목록(`pages/settings/index.vue`)이 같은 차례로 그린다.
  * **지금 만들어진 화면만** 둔다. 차례는 community 설정 메뉴와 같다(프로필 · 닉네임 이미지 · 보기 · 차단 관리 · 이용자 메모 · 알림 · 쪽지 수신 · 계정) —
- * community 에서 「보기」 안에 있던 시간 표시는 로보얌에서 따로 있는 화면이라 「보기」 바로 뒤에 둔다. community 에 없는 배송지 관리는 쪽지 수신과 계정 사이에 둔다.
+ * community 에서 「보기」 안에 있던 시간 표시는 아이로빗에서 따로 있는 화면이라 「보기」 바로 뒤에 둔다. community 에 없는 배송지 관리는 쪽지 수신과 계정 사이에 둔다.
  */
 export default class UtilSettings {
     /** 설정 묶음 첫 화면(넓은 화면에서 `/settings` 로 오면 여기로) */

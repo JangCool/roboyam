@@ -116,6 +116,8 @@ export default class UtilSiteInfo {
             analytics: UtilVisitSignal.readSwitch(raw.analytics),
             operator: UtilSiteInfo.cleanOperator(raw.operator),
             grades: UtilSiteInfo.cleanGrades(raw.grades),
+            // 사이트 소개가 있는가 — `true` 만 켬(칸이 없는 옛 서버·다른 값은 숨김)
+            about: raw.about === true,
         };
     }
 

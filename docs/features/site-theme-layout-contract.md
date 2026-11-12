@@ -1,6 +1,6 @@
 # 테마 · 레이아웃 · 메뉴 설정 계약 (**화면 확정 2026-10-28 · 서버 구현·화면 연결 2026-10-29**)
 
-**의도**: 운영자가 공개 사이트 테마(기본 · 다음식 · 네이버식 · 로보얌)를 고르고, **그 테마의** 레이아웃(지금은 홈 구성 — 게시판·페이지 레이아웃은 자리만)과 메뉴 설정(배치·모양)을 정한다. 레이아웃·메뉴 설정은 테마마다 따로 저장된다.
+**의도**: 운영자가 공개 사이트 테마(기본 · 다음식 · 네이버식 · 아이로빗)를 고르고, **그 테마의** 레이아웃(지금은 홈 구성 — 게시판·페이지 레이아웃은 자리만)과 메뉴 설정(배치·모양)을 정한다. 레이아웃·메뉴 설정은 테마마다 따로 저장된다.
 보기와 편집은 **실제 공개 화면**에서 한다 — 관리자가 공개 사이트를 iframe 으로 띄워 저장 전 값을 보내고, 공개 사이트가 그대로 그린다(관리자에서 흉내 내 그리지 않는다).
 
 ## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
@@ -12,12 +12,12 @@
 - 공개 사이트 미리보기 모드: `/?adminPreview=1` + iframe 안일 때만(`plugins/03.admin-preview.client.ts`, `composables/preview/useAdminPreview.ts`, `utils/util-admin-preview.ts`, 편집 손잡이 `components/gadget/GadgetGrid.vue`). 규칙은 `.claude/guides/frontend/themes.md` 2-5.
 
 ## 필드·검증
-- 테마 id: 서버 `SiteThemes.IDS` = `default` · `daum` · `naver` · `roboyam`(보일 순서 — user-web `THEMES` 와 같은 id. user-web 객체의 키 차례는 default·daum·roboyam·naver 지만 화면은 id 로만 찾는다).
+- 테마 id: 서버 `SiteThemes.IDS` = `default` · `daum` · `naver` · `irobit`(보일 순서 — user-web `THEMES` 와 같은 id. user-web 객체의 키 차례는 default·daum·irobit·naver 지만 화면은 id 로만 찾는다).
 - 메뉴 설정(테마마다, 칸마다 `THEME` = 테마 기본 따름 — 테마 기본값 표는 user-web `util-theme.ts` `THEMES[*]`):
   - 배치: `menuPosition` TOP·LEFT·RIGHT·TOP_LEFT·TOP_RIGHT · `topItems` LOGO·MENU · `barGroupIds`(공개 메뉴 main 의 최상위 폴더 ID — 섞인 배치에서만, 비면 첫 그룹) · `menuWidth` CONTENT·FULL · `menuOverflow` SCROLLBAR·ARROWS
   - 모양: `menuGroupStyle` TABS·INLINE · `sideGroupStyle` COLUMN·PICK · `menuSize` NORMAL·COMPACT · `mobileMenu` PICKED·MENU · `menuDescription` ON·OFF · `stickyMenu` ON·OFF · `mobileHeader` BRAND·PLAIN
   - 공개 사이트 메뉴 위치 = 회원 보기 설정(`AUTO` 아니면) > 이 값 > 테마 기본. 나머지 칸은 회원이 고르지 않는다.
-- 홈 구성(테마마다): `{ columns: 12|24, items: [{ gadgetId, x, y, w, h }] }` + 가젯 `{ id, type, title, desktop, mobile }` — 행 높이 15px · 간격 16px · `h` 는 최소 높이(공유 레이어 `@roboyam/home-layout`). 최소 크기·기본 크기는 종류별(admin `UtilGadgetLayoutEditor.KINDS`). 새 가젯 id 는 `new-<n>`.
+- 홈 구성(테마마다): `{ columns: 12|24, items: [{ gadgetId, x, y, w, h }] }` + 가젯 `{ id, type, title, desktop, mobile }` — 행 높이 15px · 간격 16px · `h` 는 최소 높이(공유 레이어 `@irobit/home-layout`). 최소 크기·기본 크기는 종류별(admin `UtilGadgetLayoutEditor.KINDS`). 새 가젯 id 는 `new-<n>`.
 
 ## 권한·정책
 - 조회 `site.read`(메뉴), 테마 적용·메뉴 설정·홈 구성 저장 `site.manage`. 감추는 것은 편의, 막는 것은 서버.
@@ -38,7 +38,7 @@
 
 **규칙(서버)**
 - 테마별 기본값의 원천은 서버 `SiteThemeMenus`(메뉴 설정 — user-web `THEMES[*]` 와 같은 값)·`HomeLayoutDefaults`(홈 기본 배치 — 확정 때 목업과 같은 가젯·자리·꾸미기·설정). 저장 표: `site_theme_menus`(테마마다 한 행, 없으면 칸마다 `THEME`)·`home_layouts`(테마마다 한 행)·`home_gadgets`(테마에 딸림). 테마 id 칸에 CHECK 없음.
-  - **세션 정리 결정(2026-10-29, 사용자 요청 「로보얌 가젯 기준으로 다른 테마 구성 맞추기」)**: 네 테마의 홈 기본 배치는 로보얌 구성이 정본이다 — 본문 넓은 열(하이라이트 · 인기글 두 열 · [모바일 전용 공구] · 방금 올라온 글 두 열 · 영상·짤 — 2026-11-05 영상·짤을 맨 아래로) + 오른쪽 열(공구 데스크톱 전용 · 인기 소모임), 24칸 17+7 · 다음식 12칸 8+4. 테마마다 다른 것은 꾸미기(머리 모양·제목 색·부제)·하이라이트 모양·영상·짤 줄 수이고, 네이버식만 언론사 홈 모양으로 본문 「게시판별 새 글」(게시판 카드 격자, 인기글 · [모바일 공구] 다음)과 오른쪽 「많이 본 글」(공구 다음, PC 전용)을 더한다(사용자 요청 「네이버식 본문 내용이 부족해」). 네 템플릿 모두 한 열(모바일) 순서는 본문 열 먼저(`mobile.order: 'columns'`). 이미 저장한 테마(로컬: `naver`)는 저장 배치가 이기므로 관리자 「테마 기본 배치로」 + 저장으로 다시 받아야 한다.
+  - **세션 정리 결정(2026-10-29, 사용자 요청 「아이로빗 가젯 기준으로 다른 테마 구성 맞추기」)**: 네 테마의 홈 기본 배치는 아이로빗 구성이 정본이다 — 본문 넓은 열(하이라이트 · 인기글 두 열 · [모바일 전용 공구] · 방금 올라온 글 두 열 · 영상·짤 — 2026-11-05 영상·짤을 맨 아래로) + 오른쪽 열(공구 데스크톱 전용 · 인기 소모임), 24칸 17+7 · 다음식 12칸 8+4. 테마마다 다른 것은 꾸미기(머리 모양·제목 색·부제)·하이라이트 모양·영상·짤 줄 수이고, 네이버식만 언론사 홈 모양으로 본문 「게시판별 새 글」(게시판 카드 격자, 인기글 · [모바일 공구] 다음)과 오른쪽 「많이 본 글」(공구 다음, PC 전용)을 더한다(사용자 요청 「네이버식 본문 내용이 부족해」). 네 템플릿 모두 한 열(모바일) 순서는 본문 열 먼저(`mobile.order: 'columns'`). 이미 저장한 테마(로컬: `naver`)는 저장 배치가 이기므로 관리자 「테마 기본 배치로」 + 저장으로 다시 받아야 한다.
 - 홈 저장 = 넣고 뺀 결과 전체: 빠진 저장 가젯은 지우고, 저장 가젯 ID 는 그대로(제목·노출·꾸미기·설정은 서버 값), 기본 배치 ID(`seed-<n>`)는 그 시드 설정 그대로, 그 밖(`new-<n>`)은 종류별 처음 값(테마 기본 꾸미기 · 빈 설정 · PC·모바일 보임) + 보낸 제목으로 새로 만든다. 통과하면 공유 레이어 `compact` 와 같이 위로 당겨 저장한다. 최소 크기는 admin `KINDS` 와 같은 값(24칸이면 폭 ×2).
 - 공개 홈 데이터(가젯 설정 `config` 로 고른다, `boardIds` 는 게시판 slug): `POST_LIST` `sort` LATEST(최신글 범위)·POPULAR(인기글 스냅샷, `periodTabs` 면 세 기간)·VIEWS·LIKES·COMMENTS(이번 주 인기글 후보 50개를 그 수로 다시 정렬 — 전체 글 집계 아님), `count` 기본 10 · `HIGHLIGHT` 노출 중인 하이라이트 · `GALLERY` 사진 있는 최신 글 · `BOARD_CARDS` 게시판마다 최신 `perBoard`(기본 4) + 대표 글(정하지 않으면 켜진 일반 게시판 앞 6개) · `GROUPS` 지금 뜨는 소모임 · `QUICK_LINKS`·`NOTICE_TEXT` 는 설정의 `items`·`text`·`format`. `GROUP_BUY` 모집 중인 공개 공구(회원 공구 목록과 같은 거름·줄 모양, `sort` DEADLINE 마감 이른 순(기본)·NEWEST 새로 시작한 순·POPULAR 참여 많은 순(같으면 마감 이른 순), `count` 기본 5 · 1~10) + `salesOpen`(판매 스위치 — 꺼져도 공구는 보이고 화면이 안내 한 줄), `GALLERY.kind` 는 늘 null, 노출 기간·보는 사람 설정이 없어 `locked` 는 늘 false.
 - 감사: 메뉴 설정 `SITE_THEME_MENU_UPDATE`(바뀐 때만, 바뀐 칸 전후 + `theme`) · 홈 저장 `HOME_LAYOUT_UPDATE`(저장마다, 칸 수·가젯 수 전후 + 넣은·뺀 수). 관리자 알림은 사이트 설정 변경(변형 `siteThemeMenu`·`homeLayout`). 같은 테마 저장은 사이트 설정 행 잠금으로 줄 세운다.
@@ -47,8 +47,8 @@
 ## 운영 배포 (결정 2026-10-29)
 화면은 `nuxt generate` 정적 파일이라 `NUXT_PUBLIC_*` 가 빌드 때 박히지만, 이미지는 로컬·dev·prod·설치형이 한 벌이므로 **운영 주소를 화면 빌드에 넣지 않고 서버 설정을 실행 때 쓴다**. 빌드한 화면(`$production`)은 두 값을 비워 둔다.
 - 공개 사이트 HTML 은 nginx 가 아니라 api 가 내린다(`SiteHeadFilter` — Caddy·ALB 는 전달만). 프레임 헤더는 공통 `SecurityConfig` 의 `FrameHeaderWriter` 가 붙인다: 늘 `X-Frame-Options: DENY`, 앱의 `FrameAncestorsPolicy` 가 허락한 응답만 그 대신 `Content-Security-Policy: frame-ancestors …`.
-- 허락하는 응답(api `AdminPreviewFrame`): 화면 주소의 GET·HEAD 이면서 `adminPreview=1` 인 것만 `frame-ancestors 'self' <관리자 origin>`. 관리자 origin = 환경 값 `ADMIN_URL`(api 의 `roboyam.admin-preview.origin`)의 스킴·호스트·포트 — 비었거나 http(s) 가 아니면 허락하지 않는다. 그 밖의 화면·API·정적 파일·관리자 앱은 그대로 DENY(관리자 앱은 정책 빈이 없다).
-- 공개 화면이 받을 관리자 주소: 같은 응답 머리의 `<meta name="roboyam-admin-origin">`(서버가 넣는다) + `runtimeConfig.public.adminOrigins`(개발 서버 기본 `http://localhost:3200,3201`).
+- 허락하는 응답(api `AdminPreviewFrame`): 화면 주소의 GET·HEAD 이면서 `adminPreview=1` 인 것만 `frame-ancestors 'self' <관리자 origin>`. 관리자 origin = 환경 값 `ADMIN_URL`(api 의 `irobit.admin-preview.origin`)의 스킴·호스트·포트 — 비었거나 http(s) 가 아니면 허락하지 않는다. 그 밖의 화면·API·정적 파일·관리자 앱은 그대로 DENY(관리자 앱은 정책 빈이 없다).
+- 공개 화면이 받을 관리자 주소: 같은 응답 머리의 `<meta name="irobit-admin-origin">`(서버가 넣는다) + `runtimeConfig.public.adminOrigins`(개발 서버 기본 `http://localhost:3200,3201`).
 - 관리자가 띄울 공개 사이트 주소: 사이트 설정 공개 주소(설치 마법사 값 — `GET /api/admin/site/theme` 응답 `publicUrl`)의 origin. 개발 서버는 `runtimeConfig.public.userWebOrigin`(기본 `http://localhost:3100`)이 먼저다(`useUserWebOrigin`). 둘 다 없으면 「실제 화면」 자리에 안내 문구(`site.livePreviewNoOrigin`).
 - 하위 도메인 여부와 무관하다(주소를 origin 으로 정확히 맞춘다). 다만 공개·관리자 도메인의 등록 도메인이 다르면 iframe 안 공개 사이트 쿠키가 서드파티라 브라우저가 막을 수 있다 — 그때 실제 화면은 비로그인 화면으로 보인다(아래 미확정 「로그인 상태」와 같은 결과).
 - 배포 값: dev 는 `init-env.sh` 가 `ADMIN_URL=https://<관리자 도메인>` 을 쓴다. prod 는 `.env` 의 `ADMIN_URL`(앱 서버·관리자 앱 같은 값). 설치형(`installer/`)은 관리자 앱이 없어 해당 없음. 절차·확인 명령은 `docker/dev/README.md` 9.

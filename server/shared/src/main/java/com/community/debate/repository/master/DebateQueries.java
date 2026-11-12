@@ -4,7 +4,7 @@ import com.community.debate.dto.DebateVotesView;
 import com.community.debate.entity.DebateStance;
 import com.community.debate.entity.QDebatePinEntity;
 import com.community.debate.entity.QPostStanceEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Repository;
  * (실패한 문장이 트랜잭션을 망가뜨리지 않게), 고정도 같은 방식(멱등), 토론 열기({@code post_debates} — 엔티티 {@code PostDebateEntity} 의 나머지 문장은 {@code PostDebateRepository})도 같은 방식. 입장 바꾸기의 의견 소급({@code WITH moved AS (UPDATE … RETURNING)} — 바꾼 줄 중 지우지 않은 것의 수를 한 문장으로).
  */
 @Repository
-public class DebateQueries extends RoboyamRepositoryQDSL {
+public class DebateQueries extends IrobitRepositoryQDSL {
 
     private static final QPostStanceEntity STANCE = QPostStanceEntity.postStanceEntity;
     private static final QDebatePinEntity PIN = QDebatePinEntity.debatePinEntity;

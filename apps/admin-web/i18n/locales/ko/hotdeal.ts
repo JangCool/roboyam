@@ -439,7 +439,7 @@ export default {
         imageSection: '상품 이미지',
         imageLead: '링크의 OG 이미지를 우리 서버에 사본(가로 600px)으로 저장해 보여 줘요. 시간 제한·크기 같은 보안 값은 서버가 정해요.',
         affiliateSection: '제휴 링크',
-        affiliateLead: '구매하기는 늘 우리 서버를 거쳐 상품으로 가요. 처음에는 작성자의 개인 제휴 링크를 받고, 사람이 많이 모이면 사이트 제휴로 바꿔 구매 링크를 로보얌 제휴로 돌려요.',
+        affiliateLead: '구매하기는 늘 우리 서버를 거쳐 상품으로 가요. 처음에는 작성자의 개인 제휴 링크를 받고, 사람이 많이 모이면 사이트 제휴로 바꿔 구매 링크를 아이로빗 제휴로 돌려요.',
         loadFailed: '핫딜 설정을 불러오지 못했어요',
         field: {
             endRequestThreshold: '의심으로 바꾸는 요청 수',
@@ -536,7 +536,7 @@ export default {
         },
         affiliateChoiceHelp: {
             MEMBER: '작성자가 자기 제휴 링크(쿠팡 파트너스 등)를 올릴 수 있어요. 수수료는 작성자가 받아요. 초기 운영에 알맞아요.',
-            SITE: '개인 제휴 링크는 받지 않고, 구매 링크를 아래 사이트 제휴 몰 표로 로보얌 제휴로 바꿔요. 사람이 많이 모이면 바꿔요.',
+            SITE: '개인 제휴 링크는 받지 않고, 구매 링크를 아래 사이트 제휴 몰 표로 아이로빗 제휴로 바꿔요. 사람이 많이 모이면 바꿔요.',
         },
         affiliateDefault: '기본',
         affiliateSaveNote: '방식을 바꾸면 [저장]할 때 영향받는 글 수를 보여 주고 한 번 더 물어요.',
@@ -562,7 +562,7 @@ export default {
     // ── 사이트 제휴 몰(핫딜 설정 › 제휴 링크) ─
     siteAffiliate: {
         title: '사이트 제휴 몰',
-        lead: '구매 링크의 상품·최종 주소가 이 몰(하위 도메인 포함)이면 개인 제휴를 떼고 이 방식으로 로보얌 제휴 링크로 바꿔요. 저장된 상품 링크는 그대로이고 클릭할 때만 바꿔요.',
+        lead: '구매 링크의 상품·최종 주소가 이 몰(하위 도메인 포함)이면 개인 제휴를 떼고 이 방식으로 아이로빗 제휴 링크로 바꿔요. 저장된 상품 링크는 그대로이고 클릭할 때만 바꿔요.',
         draftNote: '아직 개인 제휴 방식으로 저장돼 있어요. 몰은 미리 넣어 둘 수 있고, 방식을 저장하면 그때부터 쓰여요.',
         immediateNote: '몰 표는 바로 저장돼요(아래 저장 줄과 따로).',
         add: '몰 추가',
@@ -616,10 +616,10 @@ export default {
         templateMultiple: '{ph} 는 한 번만 쓸 수 있어요.',
         templateNotUrl: 'http:// 또는 https:// 로 시작하는 주소여야 해요(공백 없이).',
         queryLabel: '붙일 쿼리',
-        queryPlaceholder: 'partner=roboyam&pcode=RB0001',
+        queryPlaceholder: 'partner=irobit&pcode=RB0001',
         queryHelp: '이름=값 을 & 로 이어요. 앞의 ? 는 없어도 돼요.',
         queryRequired: '붙일 쿼리를 입력해 주세요.',
-        queryInvalid: '이름=값 을 & 로 이은 모양이어야 해요. 예: partner=roboyam&pcode=1',
+        queryInvalid: '이름=값 을 & 로 이은 모양이어야 해요. 예: partner=irobit&pcode=1',
         previewTitle: '변환 미리 보기',
         exampleLabel: '예시 상품 주소(고칠 수 있어요)',
         previewResult: '구매하기를 누르면 이 주소로 가요',

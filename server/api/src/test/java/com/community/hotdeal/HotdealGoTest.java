@@ -103,7 +103,7 @@ class HotdealGoTest extends HotdealApiTestBase {
         String tmplMall = "tm" + uniq() + ".example";
         String queryMall = "qm" + uniq() + ".example";
         siteStore(tmplMall, "TEMPLATE", "https://partners.example/r?u={url}", null);
-        siteStore(queryMall, "QUERY", null, "aff=roboyam");
+        siteStore(queryMall, "QUERY", null, "aff=irobit");
         String tmplLink = "https://" + tmplMall + "/p/1?affid=writer&size=L";
         String queryLink = "https://" + queryMall + "/p/2?aff=writer&utm_source=x";
         String plainLink = "https://plain" + uniq() + ".example/p/3?utm_medium=y&id=9";
@@ -114,7 +114,7 @@ class HotdealGoTest extends HotdealApiTestBase {
 
         assertThat(go.target(Long.toString(tmpl), new Visitor(null, "10.0.0.2", UA)))
                 .isEqualTo("https://partners.example/r?u=" + com.community.hotdeal.service.SiteAffiliateLinker.encodeUriComponent("https://" + tmplMall + "/p/1?size=L"));
-        assertThat(go.target(Long.toString(query), new Visitor(null, "10.0.0.2", UA))).isEqualTo("https://" + queryMall + "/p/2?aff=roboyam");
+        assertThat(go.target(Long.toString(query), new Visitor(null, "10.0.0.2", UA))).isEqualTo("https://" + queryMall + "/p/2?aff=irobit");
         assertThat(go.target(Long.toString(plain), new Visitor(null, "10.0.0.2", UA))).as("사이트 제휴 몰이 아니면 뗀 주소").startsWith("https://plain").endsWith("/p/3?id=9");
         assertThat(dealRow(tmpl).get("product_url")).as("저장한 링크는 바꾸지 않는다").isEqualTo(tmplLink);
     }

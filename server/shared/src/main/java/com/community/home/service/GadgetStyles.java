@@ -13,10 +13,10 @@ import tools.jackson.databind.node.ObjectNode;
  * {@code subtitle} 0~40 · {@code cardLook} · {@code mobileFold} · {@code empty{keep, message, text 0~40}}.
  *
  * <p>제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」, 사용자 시안 확정 2026-11-10 — 모든 종류 공통):
- * {@code iconShow} 보이기(테마 기본 — 모든 테마 켬, 2026-11-10 로보얌도 켬) · {@code iconSource} PRIME·TABLER·UPLOAD(기본 PRIME) ·
+ * {@code iconShow} 보이기(테마 기본 — 모든 테마 켬, 2026-11-10 아이로빗도 켬) · {@code iconSource} PRIME·TABLER·UPLOAD(기본 PRIME) ·
  * {@code icon}(PRIME 이름 {@code ^pi-[a-z0-9-]{2,60}$}) · {@code iconTabler{name, paths[{d, fill?, stroke?, opacity?}]}}(Tabler Icons outline 한 개 — 이름과 그림 조각을 함께 둔다,
  * 공개 화면은 그 조각만 그린다) · {@code iconUpload{fileId, url, svg}}(올린 파일 — 주소·SVG 여부는 저장 때 서버가 채운다) ·
- * {@code iconColor} null(글자색 그대로)·프리셋·{@code #rrggbb} · {@code iconBg} NONE·SOFT(옅은 네모 — 테마 기본: 로보얌 SOFT, 그 밖 NONE). 칸이 없는 옛 가젯은 테마 기본으로 읽는다.
+ * {@code iconColor} null(글자색 그대로)·프리셋·{@code #rrggbb} · {@code iconBg} NONE·SOFT(옅은 네모 — 테마 기본: 아이로빗 SOFT, 그 밖 NONE). 칸이 없는 옛 가젯은 테마 기본으로 읽는다.
  */
 public final class GadgetStyles {
 

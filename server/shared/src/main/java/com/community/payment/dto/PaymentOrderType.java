@@ -15,6 +15,6 @@ public enum PaymentOrderType {
     BIZ_APPLICATION,
     /** 로보티콘 유료 팩 구매(V144 — 대상 = 구매 기록 {@code emoticon_purchases}, 금액 = 결제 준비 때의 팩 가격, 처리기 {@code EmoticonPackPaymentHandler}) */
     ROBOTIKON_PACK,
-    /** 결제 모듈 시험 주문(local·dev 의 {@code roboyam.payment.test-orders} — prod 에서 켜면 기동하지 않는다) */
+    /** 결제 모듈 시험 주문(local·dev 의 {@code irobit.payment.test-orders} — prod 에서 켜면 기동하지 않는다) */
     PAYMENT_TEST
 }

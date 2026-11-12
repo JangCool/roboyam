@@ -31,10 +31,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 캐시 동기화 — api·admin 서버마다 돈다(docs/features/cache-admin-contract.md 「정책」).
  *
  * <ul>
- *   <li>{@code roboyam.cache.poll-seconds}(기본 3초)마다 설정을 읽는다 — 질의 두 개({@code cache_settings} 전부 · 전체 스위치 1행). 서버 2~3대면 초당 질의 2개 남짓이다.
+ *   <li>{@code irobit.cache.poll-seconds}(기본 3초)마다 설정을 읽는다 — 질의 두 개({@code cache_settings} 전부 · 전체 스위치 1행). 서버 2~3대면 초당 질의 2개 남짓이다.
  *       바뀐 세대 번호면 그 캐시를 비우고, TTL 이 바뀌었으면 적용하고(비우지 않는다 — 세션 정리 결정 3), 실제 켜짐(전체 AND 캐시)이 바뀌었으면 따라간다(끄면 비운다).
  *       행이 없는 캐시는 정의의 기본값(TTL 기본값 · 켜짐 · 세대 0)이다.</li>
- *   <li>상태(반영 세대·반영 켜짐·마지막 비움·마지막 확인·항목 수·적중·누락)는 {@code roboyam.cache.report-seconds}(기본 10초)마다, 그리고 바뀐 것을 반영한 직후 DB 에 한 묶음으로
+ *   <li>상태(반영 세대·반영 켜짐·마지막 비움·마지막 확인·항목 수·적중·누락)는 {@code irobit.cache.report-seconds}(기본 10초)마다, 그리고 바뀐 것을 반영한 직후 DB 에 한 묶음으로
  *       덮어쓴다(관리자 서버는 다른 서버의 메모리를 볼 수 없다). 한 시간 넘게 보고가 없는 줄은 가끔 지운다(화면은 1분 넘게 보고가 없는 서버를 뺀다).</li>
  *   <li>처음 읽을 때는 비우지 않고 지금 세대를 반영한 것으로 둔다(띄운 직후는 비어 있다 — 「마지막 비움」 없음).</li>
  *   <li>DB 를 읽지 못하면 지금 상태 그대로 두고 다음 주기에 다시 읽는다.</li>
@@ -63,7 +63,7 @@ public class CacheSync {
     }
 
     public CacheSync(CacheControl control, CacheStateStore store, CacheProperties properties, PlatformTransactionManager transactionManager,
-                     @Value("${roboyam.schema.stream:api}") String stream, @Value("${roboyam.node-id:0}") int nodeNumber) {
+                     @Value("${irobit.schema.stream:api}") String stream, @Value("${irobit.node-id:0}") int nodeNumber) {
         this.control = control;
         this.store = store;
         this.properties = properties;
@@ -88,7 +88,7 @@ public class CacheSync {
         poll();
     }
 
-    @Scheduled(fixedDelayString = "${roboyam.cache.poll-seconds:3}", initialDelayString = "${roboyam.cache.poll-seconds:3}", timeUnit = TimeUnit.SECONDS)
+    @Scheduled(fixedDelayString = "${irobit.cache.poll-seconds:3}", initialDelayString = "${irobit.cache.poll-seconds:3}", timeUnit = TimeUnit.SECONDS)
     public void scheduledPoll() {
         poll();
     }

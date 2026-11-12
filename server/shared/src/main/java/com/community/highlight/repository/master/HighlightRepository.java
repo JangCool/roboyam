@@ -1,7 +1,7 @@
 package com.community.highlight.repository.master;
 
 import com.community.highlight.entity.HighlightEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 /** 하이라이트 — 목록·순서는 놓일 곳({@code place}, V161)마다 따로다. 같은 글이 여러 곳에 있을 수 있다 */
-public interface HighlightRepository extends RoboyamRepository<HighlightEntity, Long> {
+public interface HighlightRepository extends IrobitRepository<HighlightEntity, Long> {
 
     /** 그 곳의 저장한 순서(같으면 먼저 만든 것) */
     List<HighlightEntity> findAllByPlaceOrderBySortOrderAscIdAsc(String place);

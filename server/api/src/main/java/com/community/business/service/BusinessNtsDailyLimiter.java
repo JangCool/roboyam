@@ -26,7 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>회원 × 한국 날짜(KST 0시 기준)로 센다 — 신청·수정 합산. 국세청을 실제로 부르게 되는 시도만 부르기 바로 앞에서 센다(결과와 무관).</li>
  *   <li>{@code INSERT … ON CONFLICT … DO UPDATE … WHERE count < 한도 RETURNING count} 한 문장을 <b>업무 트랜잭션과 따로</b>(새 트랜잭션) 먼저 커밋한다 —
  *       업무가 실패해도 시도 수는 남는다. 한도에 닿은 줄은 더 올리지 않고(돌려받는 줄이 없다) 429 {@code BUSINESS_NTS_DAILY_LIMIT} + 다음 한국 0시까지의 초.</li>
- *   <li>한도({@code roboyam.business.nts.daily-validate-limit}, 기본 5)가 <b>0 이하면 제한 없음</b> — 세지도 않는다. 운영자 [다시 조회](admin)는 이 길을 거치지 않는다.</li>
+ *   <li>한도({@code irobit.business.nts.daily-validate-limit}, 기본 5)가 <b>0 이하면 제한 없음</b> — 세지도 않는다. 운영자 [다시 조회](admin)는 이 길을 거치지 않는다.</li>
  *   <li>지난 날짜 줄은 DB 배치 {@code business-nts-count-cleanup}(R__batch_34)이 지운다.</li>
  * </ul>
  * 세는 문장(native — {@code INSERT … ON CONFLICT … RETURNING})은 저장소 {@link BusinessNtsDailyCountQueries} 다.

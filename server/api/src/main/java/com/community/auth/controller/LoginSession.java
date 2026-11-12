@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>로그인하면 <b>옛 세션을 없애고 새 세션을 만든다</b> — 세션 고정 공격을 막고, 옛 세션의 속성(설치 인증 표시 등)과 기한(30분)이 새 세션에 섞이지 않는다.</li>
- *   <li>새 세션의 기한은 {@code roboyam.auth.session-timeout}(30일)을 세션마다 명시한다. 요청이 올 때마다 마지막 활동 시각이 갱신돼 기한이 늘어난다(슬라이딩).</li>
+ *   <li>새 세션의 기한은 {@code irobit.auth.session-timeout}(30일)을 세션마다 명시한다. 요청이 올 때마다 마지막 활동 시각이 갱신돼 기한이 늘어난다(슬라이딩).</li>
  *   <li>세션에는 {@link AuthUser}(회원 ID·역할)만 담는다. 비밀번호·토큰은 담지 않는다.</li>
  *   <li>로그아웃은 세션을 없앤다(로그인하지 않은 상태에서 불러도 아무 일도 없다).</li>
  * </ul>

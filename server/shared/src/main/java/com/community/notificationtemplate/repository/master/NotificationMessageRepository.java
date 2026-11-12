@@ -3,13 +3,13 @@ package com.community.notificationtemplate.repository.master;
 import com.community.notificationtemplate.catalog.MessageChannel;
 import com.community.notificationtemplate.catalog.MessageTargetType;
 import com.community.notificationtemplate.entity.NotificationMessageEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
-public interface NotificationMessageRepository extends RoboyamRepository<NotificationMessageEntity, Long> {
+public interface NotificationMessageRepository extends IrobitRepository<NotificationMessageEntity, Long> {
 
     /** 모든 사용자 문구, 만든 차례 */
     List<NotificationMessageEntity> findAllByOrderByIdAsc();

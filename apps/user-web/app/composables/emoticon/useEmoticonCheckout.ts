@@ -14,7 +14,7 @@ export function useEmoticonCheckout(onResult?: (result: PaymentResult, target: E
     const { user } = useAuth();
 
     return usePaymentCheckout<EmoticonPurchaseStart>({
-        pendingKey: 'roboyam-robotikon-payment-pending',
+        pendingKey: 'irobit-robotikon-payment-pending',
         redirectPath: (target) => UtilEmoticon.packPath(target.packId),
         customer: (target) => target.customer ?? { fullName: user.value?.nickname ?? '', phoneNumber: '', email: user.value?.email ?? '' },
         fakeCheckout: (paymentId, body) => api.fakeCheckout(paymentId, body),

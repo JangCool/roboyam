@@ -34,13 +34,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 커머스 0-4(본인인증·기능 제한·탈퇴 대비) 규칙 시험의 바탕 — 공개 사이트 앱 문맥 전체를 커머스 시험 DB({@link CommerceTestDatabase}, 실제 PostgreSQL)에 띄운다(commerce.md 18절).
  *
  * <ul>
- *   <li>프로필은 앱 기본값 local — 본인인증은 가짜 구현(roboyam-shared-local.yml), 데이터 키·해시 키는 local 의 개발용 키다. 설정 비밀값 키(ROBOYAM_CRYPTO_KEY)는 시험용 고정값.</li>
+ *   <li>프로필은 앱 기본값 local — 본인인증은 가짜 구현(irobit-shared-local.yml), 데이터 키·해시 키는 local 의 개발용 키다. 설정 비밀값 키(IROBIT_CRYPTO_KEY)는 시험용 고정값.</li>
  *   <li>시계는 {@link MutableClock}(시험마다 지금으로 되돌린다).</li>
  *   <li>DB 를 다른 시험과 같이 쓴다 — 회원·운영자는 시험마다 새로 만들고(겹치지 않는 Snowflake ID), 표를 비우지 않는다.</li>
  * </ul>
  */
 @SpringBootTest(classes = ApiApplication.class, properties = {
-        "roboyam.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        "irobit.crypto.key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 })
 @Import(CommerceApiTestBase.TestClockConfig.class)
 public abstract class CommerceApiTestBase {

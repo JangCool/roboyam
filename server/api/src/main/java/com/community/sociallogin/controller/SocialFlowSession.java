@@ -28,8 +28,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class SocialFlowSession {
 
-    static final String FLOWS = "roboyam.social.flows";
-    static final String PENDING = "roboyam.social.pending";
+    static final String FLOWS = "irobit.social.flows";
+    static final String PENDING = "irobit.social.pending";
     static final int MAX_FLOWS = 3;
     /** state 원문의 최대 길이(우리가 만든 값은 43자) */
     private static final int STATE_MAX = 256;

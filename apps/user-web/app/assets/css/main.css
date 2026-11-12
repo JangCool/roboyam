@@ -103,10 +103,10 @@ html[data-color-scheme='dark'] {
 /*
  * 다음식(`daum`) — news.daum.net 을 잰 값(2026-10-27): 페이지 #f2f4f7 · 흰 카드 반경 12 + 거의 없는 그림자 · 전체 폭 1168 ·
  * GNB 글자 검정 72%(활성 검정) · LNB 글자 검정 48%(활성 본문 글자색) · GNB/LNB 사이 #eceef1. 다크는 페이지 #17181b · 카드 #202125 · 선 #2e3036.
- * 로보얌 테마(`roboyam`, 사용자 결정 2026-10-28)는 겉모양이 다음식 그대로라 이 파일의 다음식 규칙을 모두 함께 쓴다(`html:is([data-theme='daum'], [data-theme='roboyam'])`).
- * 로보얌만 바꿀 값은 파일 끝의 「로보얌 테마 덮어쓰기」 자리에 둔다.
+ * 아이로빗 테마(`irobit`, 사용자 결정 2026-10-28)는 겉모양이 다음식 그대로라 이 파일의 다음식 규칙을 모두 함께 쓴다(`html:is([data-theme='daum'], [data-theme='irobit'])`).
+ * 아이로빗만 바꿀 값은 파일 끝의 「아이로빗 테마 덮어쓰기」 자리에 둔다.
  */
-html:is([data-theme='daum'], [data-theme='roboyam']) {
+html:is([data-theme='daum'], [data-theme='irobit']) {
     --page-bg: #f2f4f7;
     --card-bg: #ffffff;
     --card-radius: 12px;
@@ -118,7 +118,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) {
     --subtab-fg: rgba(0, 0, 0, 0.48);
     --content-max: calc(1168px * var(--ui-scale, 1));
 }
-html:is([data-theme='daum'], [data-theme='roboyam'])[data-color-scheme='dark'] {
+html:is([data-theme='daum'], [data-theme='irobit'])[data-color-scheme='dark'] {
     --page-bg: #17181b;
     --card-bg: #202125;
     --card-shadow: none;
@@ -173,12 +173,12 @@ html[data-theme='naver'][data-color-scheme='dark'] {
     --shell-bar-reserve: var(--scroll-reserve);
     --side-menu-gap: 0px;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']),
+html:is([data-theme='daum'], [data-theme='irobit']),
 html[data-theme='naver'] {
     --shell-header-h: 0px;
     --side-menu-gap: 16px;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) {
+html:is([data-theme='daum'], [data-theme='irobit']) {
     --shell-bar-h: 0px;
     --shell-bar-reserve: 0px;
 }
@@ -202,7 +202,7 @@ html[data-theme='naver'] {
     max-height: calc(100dvh - var(--shell-header-h) - var(--shell-bar-h) - var(--shell-bar-reserve) - 2 * var(--side-menu-gap));
 }
 /* 2단계 — 다음식 로고 옆 링크 줄(최상위 항목 「로고 옆」)은 다음 뉴스 서비스 링크처럼 16px */
-html:is([data-theme='daum'], [data-theme='roboyam']) .logo-links a {
+html:is([data-theme='daum'], [data-theme='irobit']) .logo-links a {
     font-size: calc(16px * var(--text-scale, 1) * var(--ui-scale, 1));
 }
 /* 2단계 — 네이버식 사이드 메뉴의 지금 있는 곳: 연한 바탕 위에 본문 쪽 가장자리 3px 주 색상 막대 */
@@ -277,7 +277,7 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
 /*
  * 패널 카드(`panel-card`) — 화면 안의 작은 상자(내 정보 묶음·설정 묶음·주문 요약·공동구매 구획·소모임 카드 …). 안쪽 여백은 쓰는 곳이 정한다(`p-4` 등).
  *   --panel-bg / -border / -radius / -shadow  면 · 테두리 색 · 모서리 · 그림자
- * 기본값이 기본 테마 모양(흰 면 + 회색 테두리 + 반경 12)이고, 카드 테마(다음식·로보얌·네이버식)는 테두리 없는 흰 카드(가젯 카드와 같은 반경·그림자)다.
+ * 기본값이 기본 테마 모양(흰 면 + 회색 테두리 + 반경 12)이고, 카드 테마(다음식·아이로빗·네이버식)는 테두리 없는 흰 카드(가젯 카드와 같은 반경·그림자)다.
  * 흰 카드(`content-card`·`gadget-card`) 안이나 패널 안의 패널은 바탕이 같아 경계가 사라지므로 머리카락 선 테두리 · 그림자 없음으로 바꾼다.
  * `rounded-xl border border-surface bg-surface-0 dark:bg-surface-900` 같은 고정 조합을 직접 쓰지 않는다(themes.md 2-1).
  */
@@ -287,7 +287,7 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
     --panel-radius: 0.75rem;
     --panel-shadow: none;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) {
+html:is([data-theme='daum'], [data-theme='irobit']) {
     --panel-border: transparent;
     --panel-radius: var(--card-radius);
     --panel-shadow: var(--card-shadow);
@@ -311,7 +311,7 @@ html[data-theme='naver'] {
 }
 
 /* 다음식 — 카드 안 여백 위 6 · 좌우 24 · 아래 22(시안 `.nw-card`), 모바일은 좌우 16 · 반경 0 으로 화면 끝까지 */
-html:is([data-theme='daum'], [data-theme='roboyam']) {
+html:is([data-theme='daum'], [data-theme='irobit']) {
     --content-card-bg: var(--card-bg);
     --content-card-radius: var(--card-radius);
     --content-card-shadow: var(--card-shadow);
@@ -327,7 +327,7 @@ html[data-theme='naver'] {
     --content-card-gap: 12px;
 }
 @media (max-width: 47.99rem) {
-    html:is([data-theme='daum'], [data-theme='roboyam']),
+    html:is([data-theme='daum'], [data-theme='irobit']),
     html[data-theme='naver'] {
         --content-card-radius: 0px;
         --content-card-shadow: none;
@@ -337,7 +337,7 @@ html[data-theme='naver'] {
         --content-card-title-top: 18px;
     }
     /* 좌우 바깥 여백은 화면 끝까지 닿을 때(카드 테마의 모바일)만 건다 — 데스크톱에서 가운데 정렬(`mx-auto`)한 카드와 부딪치지 않게 */
-    html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {
+    html:is([data-theme='daum'], [data-theme='irobit'], [data-theme='naver']) .content-card {
         margin-inline: var(--content-card-bleed);
     }
 }
@@ -349,38 +349,38 @@ html[data-theme='naver'] {
  * 층 밖 규칙이라 Tailwind 유틸리티를 이긴다.
  */
 /* 카드 안에 놓인 가로 줄의 그라데이션 화살표(`AppScrollRow`)는 카드 바탕에서 사라진다 */
-html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {
+html:is([data-theme='daum'], [data-theme='irobit'], [data-theme='naver']) .content-card {
     --scroll-fade-bg: var(--content-card-bg);
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :first-child,
+html:is([data-theme='daum'], [data-theme='irobit']) .content-card > :first-child,
 html[data-theme='naver'] .content-card > :first-child {
     margin-top: 0;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :is(header, h1, a):first-child,
+html:is([data-theme='daum'], [data-theme='irobit']) .content-card > :is(header, h1, a):first-child,
 html[data-theme='naver'] .content-card > :is(header, h1, a):first-child {
     padding-top: 14px;
 }
-html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
+html:is([data-theme='daum'], [data-theme='irobit']) .post-title {
     font-size: calc(20px * var(--text-scale, 1) * var(--ui-scale, 1));
     line-height: 28px;
     font-weight: 700;
 }
 /* 모바일 안쪽 화면 막대(`md:hidden` — 글쓰기의 ✕ 막대)가 카드 첫 줄이면 위 0 규칙이 `-mt-4` 를 지워 본문 위 여백(16)·카드 위 여백(4)이 회색으로 남는다 — 둘 다 끌어올려 헤더에 붙인다(사용자 결정 2026-11-05) */
 @media (max-width: 47.99rem) {
-    html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child,
+    html:is([data-theme='daum'], [data-theme='irobit']) .content-card > .md\:hidden:first-child,
     html[data-theme='naver'] .content-card > .md\:hidden:first-child {
         margin-top: calc(-1rem - 4px);
     }
 }
 /* 첫 줄이 모바일 전용 막대(`md:hidden` — 글쓰기의 ✕ 막대)라 넓은 화면에서 숨으면, 그 다음 머리·제목에 같은 위 여백을 준다 */
 @media (min-width: 48rem) {
-    html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > .md\:hidden:first-child + :is(header, h1),
+    html:is([data-theme='daum'], [data-theme='irobit']) .content-card > .md\:hidden:first-child + :is(header, h1),
     html[data-theme='naver'] .content-card > .md\:hidden:first-child + :is(header, h1) {
         padding-top: 14px;
     }
 }
 @media (min-width: 48rem) {
-    html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
+    html:is([data-theme='daum'], [data-theme='irobit']) .post-title {
         font-size: calc(22px * var(--text-scale, 1) * var(--ui-scale, 1));
         line-height: 30px;
     }
@@ -410,7 +410,7 @@ html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
     --gadget-row-card-radius: 0.75rem;
 }
 /* 다음식 — 시안 `02-home-v2`(카드 반경 12 · 거의 없는 그림자 · 카드 사이 16). 안 여백 12/24/24(머리 줄 안쪽 12 를 더하면 네 쪽 24) */
-html:is([data-theme='daum'], [data-theme='roboyam']) {
+html:is([data-theme='daum'], [data-theme='irobit']) {
     --gadget-card-border: transparent;
     --gadget-card-radius: var(--card-radius);
     --gadget-card-shadow: var(--card-shadow);
@@ -433,7 +433,7 @@ html[data-theme='naver'] {
     :root {
         --gadget-gap: 1.25rem;
     }
-    html:is([data-theme='daum'], [data-theme='roboyam']),
+    html:is([data-theme='daum'], [data-theme='irobit']),
     html[data-theme='naver'] {
         --gadget-card-radius: 0px;
         --gadget-card-shadow: none;
@@ -507,7 +507,7 @@ html[data-theme='naver'] {
 }
 /*
  * 가젯 항목 마우스 올림 효과(사용자 2026-11-10 — 게시판 카드 가젯 글 줄의 효과를 모든 가젯 항목으로). 가젯 설정 `hover`(관리자 ⚙ 「마우스 올림 효과」, 기본 켬)일 때
- * 껍데기(`GadgetFrame`)가 뿌리에 `data-gadget-hover` 를 달고, 그 안에서만 반응한다. 클래스는 테마 공통이다(색은 surface 토큰이라 다음식·네이버형·로보얌·야간 모드가 같이 따라간다).
+ * 껍데기(`GadgetFrame`)가 뿌리에 `data-gadget-hover` 를 달고, 그 안에서만 반응한다. 클래스는 테마 공통이다(색은 surface 토큰이라 다음식·네이버형·아이로빗·야간 모드가 같이 따라간다).
  *   gadget-hover        줄 항목(글 줄·목록 칸·작은 사진 줄) — 글자 자리는 그대로 두고 바탕만 좌우로 8px 넓혀 칠한다(음수 여백 + 같은 안쪽 여백 · 모서리 6px). 효과를 꺼도 자리는 같다.
  *   gadget-hover-box    테두리·안쪽 여백이 있는 상자 항목(소모임 작은 카드 · 바로가기 단추·탭) — 넓히지 않고 상자 바탕만 칠한다(모서리는 상자 것).
  *   gadget-hover-photo  사진 카드(큰 글 · 슬라이드 · 갤러리 칸 · 공구 카드 · 위아래 여백 없이 사진이 줄을 채우는 대표 글) — 바탕 대신 안의 제목(`gadget-hover-title`)에 밑줄.
@@ -575,7 +575,7 @@ html[data-theme='naver'] {
     margin-inline: 0;
     border-radius: var(--gadget-row-card-radius);
 }
-/* 끝까지 닿는 사진(로보얌 하이라이트 큰 글) — 카드 안쪽 좌우 여백만큼 나가고 모서리 없음 */
+/* 끝까지 닿는 사진(아이로빗 하이라이트 큰 글) — 카드 안쪽 좌우 여백만큼 나가고 모서리 없음 */
 .gadget-bleed-x {
     margin-inline: calc(-1 * var(--gadget-bleed));
     border-radius: 0;
@@ -919,29 +919,29 @@ html[data-theme='naver'] .shell-topbar .nav-btn-outline {
 }
 
 /*
- * 로보얌 테마 덮어쓰기(`html[data-theme='roboyam']`) — 셸·목록은 위의 다음식 규칙을 함께 쓰고, 로보얌만 바꿀 값을 여기에 둔다(지금은 가젯만 — 로보얌 홈 템플릿 `RoboyamHome`).
- * 역할 변수만 다시 채우거나(예: `html[data-theme='roboyam'] { --page-bg: …; }`, 다크는 `[data-color-scheme='dark']` 를 붙인다), 공통 부품이 열어 둔 고리 클래스(`gadget-icon`·`gadget-more`)에 2단계 모양을 건다.
+ * 아이로빗 테마 덮어쓰기(`html[data-theme='irobit']`) — 셸·목록은 위의 다음식 규칙을 함께 쓰고, 아이로빗만 바꿀 값을 여기에 둔다(지금은 가젯만 — 아이로빗 홈 템플릿 `IrobitHome`).
+ * 역할 변수만 다시 채우거나(예: `html[data-theme='irobit'] { --page-bg: …; }`, 다크는 `[data-color-scheme='dark']` 를 붙인다), 공통 부품이 열어 둔 고리 클래스(`gadget-icon`·`gadget-more`)에 2단계 모양을 건다.
  * 다음식 규칙과 우선순위가 같아 파일 뒤에 있는 이 자리가 이긴다(모바일 값도 그래서 아래에 다시 둔다). 변수 이름에 테마 이름을 넣지 않는다(themes.md).
  */
 /* 가젯 카드 — 안 여백을 넉넉하게(위 14 + 머리 줄 안쪽 12 = 26 · 좌우 26 · 아래 26), 사진 모서리 10. 테두리 없음 · 그림자(거의 없음)는 다음식 값 그대로. 모바일은 화면 끝까지 닿는 카드(반경 0 · 그림자 없음 — 다음식 모바일 값)에 좌우 16(본문 글자가 셸 좌우 여백 16 과 줄이 맞는다) · 아래 16(좌우와 같게) */
-html[data-theme='roboyam'] {
+html[data-theme='irobit'] {
     --gadget-card-pad: 14px 26px 26px;
     --gadget-card-pad-x: 26px;
     --gadget-thumb-radius: 10px;
 }
 @media (max-width: 47.99rem) {
-    html[data-theme='roboyam'] {
+    html[data-theme='irobit'] {
         --gadget-card-pad: 6px 16px 16px;
         --gadget-card-pad-x: 16px;
     }
 }
 /*
  * 옅은 네모 아이콘 — 아이콘 뒤 옅은 바탕 네모(아이콘 색 12%, 다크 18%). 색은 고른 아이콘 색(`--gx-ic`) → 제목 색(`--gx-c`) → 주 색상 차례.
- *   · 가젯 제목 아이콘(`GadgetTitleIcon`)은 꾸미기 `iconBg` 가 SOFT 일 때만(`data-icon-bg='soft'` — 모든 테마, 로보얌 기본, 2026-11-10). `none` 이면 바탕 없이 글자처럼.
- *   · 가젯이 아닌 로보얌 화면(매거진 `/tips` 의 카드 머리 등 — `data-icon-bg` 없음)은 예전처럼 로보얌 테마에서 늘 네모.
+ *   · 가젯 제목 아이콘(`GadgetTitleIcon`)은 꾸미기 `iconBg` 가 SOFT 일 때만(`data-icon-bg='soft'` — 모든 테마, 아이로빗 기본, 2026-11-10). `none` 이면 바탕 없이 글자처럼.
+ *   · 가젯이 아닌 아이로빗 화면(매거진 `/tips` 의 카드 머리 등 — `data-icon-bg` 없음)은 예전처럼 아이로빗 테마에서 늘 네모.
  */
 .gadget-icon[data-icon-bg='soft'],
-html[data-theme='roboyam'] .gadget-icon:not([data-icon-bg]) {
+html[data-theme='irobit'] .gadget-icon:not([data-icon-bg]) {
     display: grid;
     place-items: center;
     width: 1.75rem;
@@ -953,16 +953,16 @@ html[data-theme='roboyam'] .gadget-icon:not([data-icon-bg]) {
     background-color: color-mix(in srgb, currentColor 12%, transparent);
 }
 html[data-color-scheme='dark'] .gadget-icon[data-icon-bg='soft'],
-html[data-theme='roboyam'][data-color-scheme='dark'] .gadget-icon:not([data-icon-bg]) {
+html[data-theme='irobit'][data-color-scheme='dark'] .gadget-icon:not([data-icon-bg]) {
     background-color: color-mix(in srgb, currentColor 18%, transparent);
 }
 /* 2단계 — 「더보기 ›」는 작게(12px) */
-html[data-theme='roboyam'] .gadget-more {
+html[data-theme='irobit'] .gadget-more {
     font-size: calc(0.75rem * var(--text-scale, 1));
 }
 
 /*
- * 모바일 상단 바 모양 「흰 바」(운영자 설정 `mobileHeader: PLAIN` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28) — 테마 이름이 아니라 해석된 설정값(루트 `data-mobile-header`, `plugins/01.site-theme.client.ts`)에 묶는다.
+ * 모바일 상단 바 모양 「흰 바」(운영자 설정 `mobileHeader: PLAIN` > 테마 기본 — 아이로빗 기본, 사용자 결정 2026-10-28) — 테마 이름이 아니라 해석된 설정값(루트 `data-mobile-header`, `plugins/01.site-theme.client.ts`)에 묶는다.
  * 모바일 셸(상단 바 `AppHeader` · 상단 탭 `AppTopTabs`)은 테마 공통 부품이고 겉모양만 바꾼다(기본 `BRAND` = 주 색상 채움).
  *  - 상단 바: 주 색상 채움 대신 흰 면(카드 바탕 — 회색 페이지 바탕은 쓰지 않는다) + 본문 글자색(`.app-nav` 가 읽는 `--nav-bg`·`--nav-fg` 를 다시 채운다 — 아이콘·로그인 단추·초점 윤곽이 함께 따라온다).
  *    모바일(md 미만)에서만 — 데스크톱의 `.app-nav`(네이버식 탭 바·기본 테마 상단 바)는 그대로 주 색상이다.
@@ -1011,7 +1011,7 @@ html[data-mobile-header='plain'] .app-top-tabs .app-top-tabs-sub a[data-active='
 }
 
 /*
- * 메뉴 붙이기(운영자 설정 `stickyMenu: ON` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28) — 본문을 내리면 로고·알림이 있는 윗줄은 위로 사라지고 메뉴 줄이 창 맨 위에 붙는다.
+ * 메뉴 붙이기(운영자 설정 `stickyMenu: ON` > 테마 기본 — 아이로빗 기본, 사용자 결정 2026-10-28) — 본문을 내리면 로고·알림이 있는 윗줄은 위로 사라지고 메뉴 줄이 창 맨 위에 붙는다.
  *  - 데스크톱: 다음식 셸(`DaumShell`)이 메뉴 카드를 `sticky top-0` 으로 두고, 사이드 메뉴가 그 카드 아래에 붙도록 본문 상자에 붙는 머리 높이(`--shell-header-h`)를 카드 높이로 채운다
  *    (작은 카드 103px · 보통 126px — 메뉴 크기 설정에 따라). 기본 테마·네이버식 셸은 원래 상단 바·탭 바가 붙는다.
  *  - 모바일: 루트 `data-sticky-menu='on'` — 상단 바(`AppHeader`)는 붙지 않고 위로 사라지며, 상단 탭(`app-top-tabs` — 한 줄 탭·메뉴 두 줄)이 창 맨 위에 붙는다.

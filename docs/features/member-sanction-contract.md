@@ -1,12 +1,12 @@
 # 회원 제재·이의제기 계약 (**정책·화면 확정 2026-11-04 · 서버 구현 중**)
 
-**의도**: 운영자가 회원에게 사이트 제재(경고 → 경고 → 정지 3일 → 7일 → 30일 → 영구 정지)를 주고 풀며, 회원은 제재 안내를 확인하고 이의제기를 한다. 정지는 `users.status`(SUSPENDED·BANNED)를 바꾸고, 그 상태를 보고 막는 일(글·댓글·쪽지·소모임·핫딜·신고·출석·포인트 상점·공구 구매)은 이미 서버에 있다(`BoardActorResolver` 등). 근거는 community `docs/api-sanction.md` 1~5절을 로보얌 운영자 권한에 맞춘 것.
+**의도**: 운영자가 회원에게 사이트 제재(경고 → 경고 → 정지 3일 → 7일 → 30일 → 영구 정지)를 주고 풀며, 회원은 제재 안내를 확인하고 이의제기를 한다. 정지는 `users.status`(SUSPENDED·BANNED)를 바꾸고, 그 상태를 보고 막는 일(글·댓글·쪽지·소모임·핫딜·신고·출석·포인트 상점·공구 구매)은 이미 서버에 있다(`BoardActorResolver` 등). 근거는 community `docs/api-sanction.md` 1~5절을 아이로빗 운영자 권한에 맞춘 것.
 **별개 기능**: 이용 제한(포인트 동결·공구 금지·충전 금지 — `server/shared/.../restriction/**`, 표 `member_restrictions`)은 계정 상태를 바꾸지 않는 기능별 제한이다. 표·화면·단계를 섞지 않는다(관리자 API 는 둘 다 `sanction.manage` 를 쓴다).
 
 ## 결정 (2026-11-04, 사용자)
 1. **사이트 제재만** 만든다. 게시판 한정 제재(매니저·스텝의 경고·쓰기 제한, `board.sanction.issue`)는 스텝 처리 기능과 함께 따로 — 단계·횟수도 따로 센다.
 2. **경고·제재는 시간이 지나도 사라지지 않는다**(community 그대로). 유효한(`VOIDED` 아닌) 제재로 다음 단계를 센다.
-3. **이의제기는 제재 시작 후 30일 안에만** 받는다(community 는 기한 없음 — 로보얌 결정). 30일이 지나면 `409 APPEAL_EXPIRED`, 화면에 마감 시각을 보인다.
+3. **이의제기는 제재 시작 후 30일 안에만** 받는다(community 는 기한 없음 — 아이로빗 결정). 30일이 지나면 `409 APPEAL_EXPIRED`, 화면에 마감 시각을 보인다.
 4. **신고 처리에서 바로 제재**한다 — 조치(숨기기·자동 숨김 확정·삭제)에 작성자 제재를 곁들이거나 「제재만」. 같은 트랜잭션, 제재에 신고 사건이 이어진다.
 5. 아래 「정책」 1~7 은 제안대로(사용자 이의 없음).
 
@@ -61,5 +61,5 @@
   - 영구 정지 해제 권한 = `sanction.ban` 만 있어도 된다(기간 정지 부여·해제는 `sanction.manage`). 부여 입구도 둘 중 하나.
   - 알림 문구: 제목 「{제재 이름} 제재를 받았어요 (끝, 한국 시간)」·「… 제재가 풀렸어요」·「… 이의제기에 답변이 왔어요(인용·기각)」, 본문 = 사유·답변(해제 사유는 회원에게 보내지 않는다).
   - 회원 상세의 `sanctions`·`sanctionSummary` 는 그대로 비어 있다(화면이 preview 로 그림).
-- **검증**: `compileJava`·`compileTestJava`(shared·api·admin) 통과. 로컬 DB(roboyam-local-postgres)에 V136 을 `BEGIN … ROLLBACK` 으로 적용(색인·CHECK·유일 색인 막힘·`ON CONFLICT`·EXPLAIN 부분 색인 확인), 스키마 사본 임시 DB 에 V136 + R__batch_39 적용 후 `CALL batch_sanction_expire()` 실행 확인(만료·바로잡기·제재 없는 SUSPENDED 그대로, 실행 로그 OK). 테스트 작성·실행·bootRun·API 실제 호출은 하지 않았다.
+- **검증**: `compileJava`·`compileTestJava`(shared·api·admin) 통과. 로컬 DB(irobit-local-postgres)에 V136 을 `BEGIN … ROLLBACK` 으로 적용(색인·CHECK·유일 색인 막힘·`ON CONFLICT`·EXPLAIN 부분 색인 확인), 스키마 사본 임시 DB 에 V136 + R__batch_39 적용 후 `CALL batch_sanction_expire()` 실행 확인(만료·바로잡기·제재 없는 SUSPENDED 그대로, 실행 로그 OK). 테스트 작성·실행·bootRun·API 실제 호출은 하지 않았다.
 - **프론트 후속**: admin `useSanctionApi.ts`·`useAppealApi.ts`·`useReportApi.ts` MOCK → REAL(`preview(userId, hint)` 의 `hint` 인자 제거, `resolveWithSanctionMock` 삭제), `util-permission-catalog.ts` 네 권한 featureReady true, user-web `useSanctionApi.ts` MOCK → REAL.

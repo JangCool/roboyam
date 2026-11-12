@@ -3,7 +3,7 @@ package com.community.debate.repository.master;
 import com.community.comment.entity.QCommentEntity;
 import com.community.debate.entity.DebatePinRequestEntity;
 import com.community.debate.entity.QDebatePinRequestEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 /** 관리자 토론 줄의 대기 고정 요청 수 — 지우거나 숨긴 의견의 요청은 뺀다(의견 서랍의 대기 목록과 같은 기준). 댓글 표는 post_id 해시 파티션이라 글 ID 로 조각을 고른다 */
 @Repository
-public class DebateAdminRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class DebateAdminRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QDebatePinRequestEntity REQUEST = QDebatePinRequestEntity.debatePinRequestEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;

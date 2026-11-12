@@ -15,8 +15,8 @@ public final class SiteThemes {
     /** 기본 테마 — 설치 직후의 값(V52 의 칸 기본값과 같다), 모르는 값의 폴백 */
     public static final String DEFAULT = "default";
 
-    /** 고를 수 있는 테마 id(화면에 보일 순서) — 기본 · 다음식 · 네이버식 · 로보얌 */
-    public static final List<String> IDS = List.of(DEFAULT, "daum", "naver", "roboyam");
+    /** 고를 수 있는 테마 id(화면에 보일 순서) — 기본 · 다음식 · 네이버식 · 아이로빗 */
+    public static final List<String> IDS = List.of(DEFAULT, "daum", "naver", "irobit");
 
     private SiteThemes() {
     }

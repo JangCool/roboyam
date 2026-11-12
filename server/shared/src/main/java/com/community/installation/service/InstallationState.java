@@ -14,7 +14,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  *
  * <ul>
  *   <li><b>{@code COMPLETED} 가 되면 다시 읽지 않는다</b> — 한 번 완료된 설치는 되돌아가지 않으므로 캐시는 한 방향({@code false → true})으로만 바뀐다.</li>
- *   <li>설치 전에는 <b>다른 앱 서버가 설치를 끝내는 것</b>을 따라가려고 {@code roboyam.install.refresh-millis}(기본 15초)마다 DB 를 읽는다.
+ *   <li>설치 전에는 <b>다른 앱 서버가 설치를 끝내는 것</b>을 따라가려고 {@code irobit.install.refresh-millis}(기본 15초)마다 DB 를 읽는다.
  *       이 서버가 설치를 끝내면 <b>커밋 직후</b> 즉시 완료로 바꾼다({@link #onCompleted}) — 롤백되면 이벤트가 오지 않아 메모리는 처음 그대로다.</li>
  *   <li>읽지 못하면(DB 일시 장애) <b>설치 전으로 본다</b>(닫힌 쪽으로 실패한다) — 다음 주기에 다시 읽는다.</li>
  * </ul>
@@ -60,7 +60,7 @@ public class InstallationState {
     }
 
     /** 설치 전인 동안 DB 를 다시 읽어 다른 서버가 끝낸 설치를 따라간다 */
-    @Scheduled(fixedDelayString = "${roboyam.install.refresh-millis:15000}")
+    @Scheduled(fixedDelayString = "${irobit.install.refresh-millis:15000}")
     public void poll() {
         if (!completed) {
             refresh();

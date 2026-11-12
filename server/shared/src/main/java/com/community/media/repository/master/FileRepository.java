@@ -2,14 +2,14 @@ package com.community.media.repository.master;
 
 import com.community.media.entity.FileEntity;
 import com.community.media.entity.FileStatus;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
-public interface FileRepository extends RoboyamRepository<FileEntity, Long> {
+public interface FileRepository extends IrobitRepository<FileEntity, Long> {
 
     /** 행을 쓰기 잠금으로 읽는다 — 같은 파일을 두 곳에서 지정하는 요청을 줄 세울 때. 트랜잭션 안에서만 의미가 있다 */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

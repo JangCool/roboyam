@@ -9,7 +9,7 @@ import java.time.Instant;
  * @param id          공개 API·콜백 경로에 쓰는 소문자 이름({@code kakao}) — {@code GET /api/auth/providers} 의 {@code id} 와 같다
  * @param label       요청 언어의 이름(카카오/Kakao)
  * @param callbackUrl 공급자 콘솔에 등록할 콜백 주소 {@code {공개 주소}/api/auth/social/{id}/callback}. 사이트 공개 주소가 없으면 null
- * @param source      {@code SETTINGS}(등록됨) · {@code NONE}(미등록). roboyam 에는 환경 변수 키가 없어 {@code ENV} 는 나오지 않는다
+ * @param source      {@code SETTINGS}(등록됨) · {@code NONE}(미등록). irobit 에는 환경 변수 키가 없어 {@code ENV} 는 나오지 않는다
  * @param enabled     저장된 켜짐 값(등록돼 있지 않으면 false). {@code SETTINGS} + false 는 「등록했지만 꺼 둠」
  * @param active      지금 공개 사이트 로그인 화면에 버튼이 나오는가 — 켜짐 + 키 있음 + 서버 암호화 키 있음({@code GET /api/auth/providers} 와 같은 기준)
  * @param clientId    공개값이라 그대로 보인다. 미등록이면 null

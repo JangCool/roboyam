@@ -20,7 +20,7 @@ import type {
  *   - `PUT  /api/admin/batch-jobs/{jobName}/schedule` `{ schedule }` → 200 **바뀐 목록 전체** (`batch.manage`). 문법은 배치의 `source` 가 정한다 —
  *       `JAVA` Spring 6칸(초 분 시 일 월 요일) · `POSTGRESQL` pg_cron 5칸(분 시 일 월 요일). 틀린 식은 400 `VALIDATION` `fields.schedule`(서버 문구가 어느 문법인지 알려 준다)
  *   - `POST /api/admin/batch-jobs/{jobName}/run` `{ params?, steps? }`(본문 선택) → **202 `BatchRunRequestView`** (`batch.run`). 요청 표에 줄을 넣고 바로 돌아온다 —
- *       배치를 켠 서버(`roboyam.batch.enabled`)가 집어 실행한다(DB 배치는 그 서버가 프로시저를 `CALL` 한다). 꺼져 있어도 돈다.
+ *       배치를 켠 서버(`irobit.batch.enabled`)가 집어 실행한다(DB 배치는 그 서버가 프로시저를 `CALL` 한다). 꺼져 있어도 돈다.
  *       오류 순서: 404 `BATCH_NOT_FOUND` → 409 `BATCH_UNAVAILABLE` → 409 `BATCH_RUNNING`(실행 중이거나 끝나지 않은 요청이 있음) → 400 `VALIDATION`
  *       (`fields.params.<이름>` · `fields.steps` · 정의에 없는 파라미터 이름은 `fields.params` 한 칸)
  *   - `GET  /api/admin/batch-requests/{requestId}` → 200 `BatchRunRequestView` (`batch.read`) · 404 `BATCH_REQUEST_NOT_FOUND`.

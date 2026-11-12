@@ -5,7 +5,7 @@ import com.community.post.dto.PostRowData;
 import com.community.post.entity.ContentFormat;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * 작성자 색인 {@code ix_posts_author_recent}·{@code ix_comments_author_recent}({@code (author_id, id DESC)}, V46)을 탄다.
  */
 @Repository
-public class UserActivityQueries extends RoboyamRepositoryQDSL {
+public class UserActivityQueries extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
@@ -56,7 +56,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
 
     /**
      * 작성 댓글이 달린 글 조건 — 볼 수 있는 일반 글만. 소모임 글의 댓글은 넣지 않는다: 공개 글이어도 공개 전의 댓글은 비멤버에게 가려지고(MEMBERS_ONLY)
-     * 나간 멤버의 댓글은 「탈퇴한 회원」으로 가려지므로(GROUP_LEFT) 프로필에 모으면 가린 것이 드러난다(소모임 6단계 — 로보얌 판단).
+     * 나간 멤버의 댓글은 「탈퇴한 회원」으로 가려지므로(GROUP_LEFT) 프로필에 모으면 가린 것이 드러난다(소모임 6단계 — 아이로빗 판단).
      */
     private static BooleanExpression commentablePost(Collection<Long> boardIds, boolean adultViewer, boolean includeSecret, Instant now) {
         return visiblePost(boardIds, adultViewer, includeSecret, now).and(POST.groupId.isNull());

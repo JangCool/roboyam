@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * 알림 도구 연결 시험의 횟수 제한 — <b>운영자 한 명이 1분에 {@code roboyam.notification.channel-test-per-minute} 번</b>(기본 6)까지. 시험은 외부 서비스에 실제로 요청을 보내므로
+ * 알림 도구 연결 시험의 횟수 제한 — <b>운영자 한 명이 1분에 {@code irobit.notification.channel-test-per-minute} 번</b>(기본 6)까지. 시험은 외부 서비스에 실제로 요청을 보내므로
  * 버튼을 연타하거나 도구를 돌려가며 눌러 서버를 외부 요청의 발사대로 쓰지 못하게 한다. 이 서버 안에서 센다(서버가 여러 대면 대수만큼 늘 수 있다 — 한도는 남용 방지용이다).
  */
 @Component

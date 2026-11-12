@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * 결제 모듈 시험 주문({@code PAYMENT_TEST}, 결정 7)의 처리기 — 도메인 없이 결제 모듈만 끝까지 돌려 보려는 「가짜 도메인」이다. {@code roboyam.payment.test-orders=true} 인 서버에만 있다
+ * 결제 모듈 시험 주문({@code PAYMENT_TEST}, 결정 7)의 처리기 — 도메인 없이 결제 모듈만 끝까지 돌려 보려는 「가짜 도메인」이다. {@code irobit.payment.test-orders=true} 인 서버에만 있다
  * (local·dev — prod 에서 켜면 기동하지 않는다, {@code PaymentConfig}).
  *
  * <ul>
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@ConditionalOnProperty(prefix = "roboyam.payment", name = "test-orders", havingValue = "true")
+@ConditionalOnProperty(prefix = "irobit.payment", name = "test-orders", havingValue = "true")
 public class PaymentTestOrderHandler implements PaymentOrderHandler {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentTestOrderHandler.class);

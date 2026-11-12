@@ -1,7 +1,7 @@
 <template>
     <!--
         게시판 기본 설정 › 신고 정책 — 모든 게시판에 적용되는 신고 받기·자동 숨김·즉시 조치·남용 방지·알림. **자기 요청·자기 저장**(`GET·PUT /api/admin/boards/defaults/report`, 하단 StickySaveBar).
-        그누보드7 원본(`config/settings/defaults.json` 신고 탭) → roboyam 권장안:
+        그누보드7 원본(`config/settings/defaults.json` 신고 탭) → irobit 권장안:
           · auto_hide_threshold 5 · auto_hide_target both → 그대로(5 · BOTH). community 는 신고 몰이 악용 때문에 "자동 숨김 없음"이었는데, 권장안은 **자동 숨김을 쓰되 악용 방지 조건**을 붙인다:
             서로 다른 회원 수로만 센다(고정) · 최소 등급(기본 두 번째 등급 — 새싹 신고는 접수만 되고 셈에서 빠짐) · 운영자·공지 글 제외. 자동 숨김은 「검토 대기 숨김」이고 반려되면 자동 복구한다.
           · 즉시 조치(그누보드엔 없음, 추가): 불법촬영물·아동성착취물은 1건으로 즉시 숨김 + 긴급 알림, **끌 수 없음**(전기통신사업법 제22조의5 삭제·접속차단 의무).

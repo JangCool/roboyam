@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
  *       다시 낼 때 화면이 그 이미지를 되살려 보낸다 — 새 신청으로 옮기고 반려 행에서는 뗀다). 파일 행을 쓰기 잠금으로 읽어 「올리다 만 파일 정리」 배치와 줄을 선다.</li>
  *   <li><b>붙이기</b>({@link #attach}): 파일을 IN_USE 로. 한 파일은 한 소모임 행만 쓴다(V154 고유 색인).</li>
  *   <li><b>떼기</b>({@link #detach}): 바꾸기·지우기·신청 취소·해산 때. 파일은 {@link FileEntity#release} 로 PENDING 으로 돌아가고, 올린 지
- *       {@code roboyam.media.orphan-retention-hours} 가 지났으면 다음 「올리다 만 파일 정리」(file-orphan-cleanup)가 저장소·장부에서 지운다(글 이미지와 같은 방식).
+ *       {@code irobit.media.orphan-retention-hours} 가 지났으면 다음 「올리다 만 파일 정리」(file-orphan-cleanup)가 저장소·장부에서 지운다(글 이미지와 같은 방식).
  *       반려된 신청·비활성 소모임은 떼지 않는다(다시 내기·다시 열기 때 그대로 쓴다).</li>
  * </ul>
  */

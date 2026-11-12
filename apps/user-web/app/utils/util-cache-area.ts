@@ -10,8 +10,8 @@
  *   알림 패널·알림 화면 목록 `notification.templates` · 포인트 상점 구매·공동구매 주문·결제 단추 `commerce.rateLimits` · 게시판 글쓰기 단추·글쓰기 게시판 고르기·게시판 모아보기 `board.catalog` ·
  *   약관 화면 본문·가입 약관 동의 `terms.public` · 오픈소스 라이선스 화면 `oss.notice`(안내 문구·직접 추가 항목 — 자동 수집 목록은 정적 파일).
  * - **한 요소가 캐시 여럿에 해당하면 공백으로 구분해 여러 키를 단다**(`data-cache-area="gadget.HOT_DEALS hotdeal.settings"`) — 상자는 하나이고 이름표가 키마다 붙으며, 수는 키마다 센다(`keysOf`).
- * - 받는 것 `roboyam:cache-preview` { keys, showAll, labels?, off? }(off = 꺼진 캐시 키 — 회색 점선) — 강조할 캐시 키 · 모든 영역 보기 · 이름표 글자(관리자가 고른 언어의 캐시 이름).
- * - 보내는 것 `roboyam:cache-preview-pick` { key }(상자를 눌렀다) · `roboyam:cache-preview-areas` { counts }(지금 화면에서 찾은 영역 수 — 키마다, 바뀔 때만).
+ * - 받는 것 `irobit:cache-preview` { keys, showAll, labels?, off? }(off = 꺼진 캐시 키 — 회색 점선) — 강조할 캐시 키 · 모든 영역 보기 · 이름표 글자(관리자가 고른 언어의 캐시 이름).
+ * - 보내는 것 `irobit:cache-preview-pick` { key }(상자를 눌렀다) · `irobit:cache-preview-areas` { counts }(지금 화면에서 찾은 영역 수 — 키마다, 바뀔 때만).
  * 테마 미리보기(`util-admin-preview.ts`)와 같은 창·같은 허용 주소를 쓰지만 메시지 종류가 따로라 섞이지 않는다.
  */
 
@@ -21,10 +21,10 @@ const CACHED_GADGET_KINDS: readonly string[] = ['POST_LIST', 'HIGHLIGHT', 'GALLE
 const BOARD_BODY = 'BOARD_BODY';
 
 /** 관리자 → 공개 사이트 */
-export const CACHE_PREVIEW_APPLY = 'roboyam:cache-preview';
+export const CACHE_PREVIEW_APPLY = 'irobit:cache-preview';
 /** 공개 사이트 → 관리자 — 상자를 눌렀다 · 찾은 영역 수 */
-export const CACHE_PREVIEW_PICK = 'roboyam:cache-preview-pick';
-export const CACHE_PREVIEW_AREAS = 'roboyam:cache-preview-areas';
+export const CACHE_PREVIEW_PICK = 'irobit:cache-preview-pick';
+export const CACHE_PREVIEW_AREAS = 'irobit:cache-preview-areas';
 /** 캐시하지 않는 영역의 키 앞머리 */
 export const NOCACHE_PREFIX = 'nocache:';
 

@@ -4,7 +4,7 @@ import UtilSearchQuery from '~/utils/util-search-query';
  * 최근 검색어 — **이 기기(브라우저)에만** 남긴다(서버에 보내지 않는다). 검색 화면이 실제로 검색해 결과를 받았을 때 하나 더한다.
  * 저장이 막혀 있어도(사생활 보호 창 등) 이번 방문 동안은 메모리(`useState`)에 남는다.
  */
-const KEY = 'roboyam:recent-searches';
+const KEY = 'irobit:recent-searches';
 
 function read(): string[] | null {
     try {

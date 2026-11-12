@@ -1,14 +1,14 @@
 package com.community.popup.repository.master;
 
 import com.community.popup.entity.SitePopupEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 팝업(V162) — 목록은 저장한 차례(같으면 먼저 만든 것) */
-public interface SitePopupRepository extends RoboyamRepository<SitePopupEntity, Long> {
+public interface SitePopupRepository extends IrobitRepository<SitePopupEntity, Long> {
 
     List<SitePopupEntity> findAllByOrderBySortOrderAscIdAsc();
 

@@ -2,7 +2,7 @@ package com.community.notification.repository.master;
 
 import com.community.notification.entity.AdminNotificationEntity;
 import com.community.notification.entity.QAdminNotificationEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
  * 끄지 않은 이벤트)를 받아 서로 어긋나지 않는다. {@code codes} 가 비어 있으면 아무것도 보이지 않는다. <b>트랜잭션은 부르는 서비스가 연다.</b>
  */
 @Repository
-public class AdminNotificationRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class AdminNotificationRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QAdminNotificationEntity NOTIFICATION = QAdminNotificationEntity.adminNotificationEntity;
 

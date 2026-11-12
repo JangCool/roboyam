@@ -16,7 +16,7 @@ const REDIRECT_QUERY = ['paymentId', 'code', 'message', 'pgCode', 'pgMessage', '
  *   같을 때만 복원해 이어 간 뒤 쿼리를 지운다. 돌아올 화면이 `onMounted` 에서 `resumeRedirect()` 를 부른다.
  *
  * ```ts
- * const pay = usePaymentCheckout<MyTarget>({ pendingKey: 'roboyam-x-pending', redirectPath: (t) => '/x', customer: () => ({…}), fakeCheckout: api.fakeCheckout });
+ * const pay = usePaymentCheckout<MyTarget>({ pendingKey: 'irobit-x-pending', redirectPath: (t) => '/x', customer: () => ({…}), fakeCheckout: api.fakeCheckout });
  * pay.open(await api.start());             // 결제창 열기
  * onMounted(() => void pay.resumeRedirect());
  * ```

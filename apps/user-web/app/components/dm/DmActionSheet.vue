@@ -1,5 +1,5 @@
 <template>
-    <!-- 대화방 ⋯ 시트 — 차단 · 대화 삭제(community 의 쪽지 신고는 로보얌 신고 대상에 쪽지가 없어 뺐다) -->
+    <!-- 대화방 ⋯ 시트 — 차단 · 대화 삭제(community 의 쪽지 신고는 아이로빗 신고 대상에 쪽지가 없어 뺐다) -->
     <AppSheet v-model:visible="visible" :title="title">
         <ul class="m-0 mt-3 list-none p-0">
             <li v-if="showBlock">

@@ -82,9 +82,9 @@ public class SafeHttpClient {
     private final int readTimeoutMillis;
     private final int totalTimeoutMillis;
 
-    public SafeHttpClient(OutboundTargetGuard guard, @Value("${roboyam.notification.connect-timeout-millis:3000}") int connectTimeoutMillis,
-                          @Value("${roboyam.notification.read-timeout-millis:5000}") int readTimeoutMillis,
-                          @Value("${roboyam.notification.total-timeout-millis:10000}") int totalTimeoutMillis) {
+    public SafeHttpClient(OutboundTargetGuard guard, @Value("${irobit.notification.connect-timeout-millis:3000}") int connectTimeoutMillis,
+                          @Value("${irobit.notification.read-timeout-millis:5000}") int readTimeoutMillis,
+                          @Value("${irobit.notification.total-timeout-millis:10000}") int totalTimeoutMillis) {
         this.guard = guard;
         this.connectTimeoutMillis = connectTimeoutMillis;
         this.readTimeoutMillis = readTimeoutMillis;
@@ -188,7 +188,7 @@ public class SafeHttpClient {
         StringBuilder head = new StringBuilder();
         head.append("POST ").append(target.requestTarget()).append(" HTTP/1.1\r\n");
         head.append("Host: ").append(hostHeader(target)).append("\r\n");
-        head.append("User-Agent: roboyam-notification\r\n");
+        head.append("User-Agent: irobit-notification\r\n");
         head.append("Accept: application/json\r\n");
         head.append("Content-Type: application/json; charset=utf-8\r\n");
         head.append("Content-Length: ").append(body.length).append("\r\n");

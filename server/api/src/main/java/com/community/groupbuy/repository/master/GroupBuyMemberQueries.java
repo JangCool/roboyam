@@ -8,7 +8,7 @@ import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
 import com.community.groupbuy.entity.QGroupBuyProductEntity;
 import com.community.groupbuy.entity.QGroupBuyRequestEntity;
 import com.community.groupbuy.entity.QGroupBuySupplyFailureEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Repository;
  * 회원 공구 화면({@code GroupBuyMemberService} · {@code MyGroupBuyOrderService})이 읽는 값 — 서비스 안에 있던 SQL 을 옮겼다. 모두 QueryDSL 이다(읽기만).
  */
 @Repository
-public class GroupBuyMemberQueries extends RoboyamRepositoryQDSL {
+public class GroupBuyMemberQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
     private static final QGroupBuyProductEntity P = QGroupBuyProductEntity.groupBuyProductEntity;

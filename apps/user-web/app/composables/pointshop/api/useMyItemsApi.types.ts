@@ -41,7 +41,7 @@ export interface MyItemView {
     /** 표시값은 품목의 지금 값(운영자가 색을 고치면 산 사람의 색도 바뀐다) */
     color: string | null;
     borderStyle: ProfileBorderStyle | string | null;
-    /** 프로필 아바타만 — 카탈로그 ID(그림은 `/avatars/roboyam/<id>.svg`) */
+    /** 프로필 아바타만 — 카탈로그 ID(그림은 `/avatars/irobit/<id>.svg`) */
     avatarId: string | null;
     /** 프로필 아바타만 — 그림 주소(`<img>` 로만) */
     avatarUrl: string | null;

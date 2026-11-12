@@ -43,9 +43,9 @@ public final class SecretCipherTool {
     }
 
     private static SecretCipher cipher() {
-        String key = System.getenv("ROBOYAM_CRYPTO_KEY");
+        String key = System.getenv("IROBIT_CRYPTO_KEY");
         if (key == null || key.isBlank()) {
-            throw new IllegalStateException("환경 변수 ROBOYAM_CRYPTO_KEY 를 설정하세요. 새 키는 keygen 으로 만듭니다.");
+            throw new IllegalStateException("환경 변수 IROBIT_CRYPTO_KEY 를 설정하세요. 새 키는 keygen 으로 만듭니다.");
         }
         return new SecretCipher(key);
     }

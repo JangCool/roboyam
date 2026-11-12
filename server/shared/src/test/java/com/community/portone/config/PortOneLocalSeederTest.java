@@ -98,19 +98,19 @@ class PortOneLocalSeederTest {
 
     @Test
     void Gradle_시험_작업은_시드를_끈다() {
-        assertThat(System.getProperty("roboyam.portone.seed.enabled")).isEqualTo("false"); // 앱 시험이 local 프로필로 떠 시험 DB 를 채우지 않게
+        assertThat(System.getProperty("irobit.portone.seed.enabled")).isEqualTo("false"); // 앱 시험이 local 프로필로 떠 시험 DB 를 채우지 않게
     }
 
     @Test
     void 시드는_local_설정_파일에만_다섯_칸이_있고_공통_설정에는_없다() throws IOException {
-        StandardEnvironment local = load("roboyam-shared.yml", "roboyam-shared-local.yml");
-        StandardEnvironment shared = load("roboyam-shared.yml");
+        StandardEnvironment local = load("irobit-shared.yml", "irobit-shared-local.yml");
+        StandardEnvironment shared = load("irobit-shared.yml");
 
         for (String field : List.of("store-id", "api-secret", "identity-channel-key", "payment-channel-key", "webhook-secret")) {
-            assertThat(local.resolvePlaceholders("${roboyam.portone.seed." + field + ":}")).as(field).isNotBlank();
-            assertThat(shared.resolvePlaceholders("${roboyam.portone.seed." + field + ":}")).as(field).isEmpty();
+            assertThat(local.resolvePlaceholders("${irobit.portone.seed." + field + ":}")).as(field).isNotBlank();
+            assertThat(shared.resolvePlaceholders("${irobit.portone.seed." + field + ":}")).as(field).isEmpty();
         }
-        assertThat(local.resolvePlaceholders("${roboyam.portone.seed.webhook-secret:}")).startsWith("whsec_");
+        assertThat(local.resolvePlaceholders("${irobit.portone.seed.webhook-secret:}")).startsWith("whsec_");
     }
 
     @Test

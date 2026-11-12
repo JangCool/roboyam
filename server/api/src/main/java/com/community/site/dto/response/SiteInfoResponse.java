@@ -14,8 +14,9 @@ package com.community.site.dto.response;
  * @param analytics 방문 수집 스위치(site-analytics-contract) — 모두 기본 꺼짐
  * @param operator 운영 주체의 단계·연락 이메일·푸터 안내 문구(terms-operator-contract) — 운영 주체 행이 없으면(마이그레이션 전) 개인 단계·이메일 null·안내 처음 값
  * @param grades   등급 목록(서열 순 — V196, grade-level-contract 5절): 키·이름·서열·도트 캐릭터
+ * @param about    사이트 소개가 있는가(V203) — 공개 푸터의 「사이트 소개」 링크를 보일지. 본문은 {@code GET /api/site/about}
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,
                                SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay, String theme, SiteAnalyticsView analytics,
-                               SiteOperatorPublicView operator, java.util.List<SiteGradeView> grades) {
+                               SiteOperatorPublicView operator, java.util.List<SiteGradeView> grades, boolean about) {
 }

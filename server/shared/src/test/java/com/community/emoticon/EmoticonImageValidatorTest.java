@@ -36,7 +36,7 @@ class EmoticonImageValidatorTest {
     }
 
     @Test
-    void 로보얌콘_시드_그림은_그대로_받고_지문은_SHA256_이다() {
+    void 아이로빗콘_시드_그림은_그대로_받고_지문은_SHA256_이다() {
         byte[] gif = TestImages.robotikon("robotikon-m/19.gif");
         EmoticonImageValidator.Checked checked = validator.check(gif, EmoticonImageKind.EMOTICON, true, "file");
         assertThat(checked.format()).isEqualTo(EmoticonImageFormat.GIF);

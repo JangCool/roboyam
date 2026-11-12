@@ -2,7 +2,7 @@
     <!--
         소모임 글쓰기 `/groups/{id}/write`(community `pages/groups/[id]/write.vue`, `docs/api-groups.md` 8절·「화면 (SPA) — 6-2」).
         게시판 고르기가 없다 — 「소모임: 이름」이 고정으로 보이고 말머리는 소모임 게시판의 것만 고른다. 폼·에디터·이미지 올리기는 일반 글쓰기(`/write`)와 같은 `PostEditorForm` 을 쓴다.
-        에디터 수준·이미지·투표·말머리·글쓰기 안내문은 소모임 게시판 정보(`GET /api/groups/{id}/board` — `BoardDetail` 모양, 로보얌 추가)를 따른다. 19금 칸은 없다(소모임 글은 19금이 될 수 없다 — 서버 `400 fields.adult`).
+        에디터 수준·이미지·투표·말머리·글쓰기 안내문은 소모임 게시판 정보(`GET /api/groups/{id}/board` — `BoardDetail` 모양, 아이로빗 추가)를 따른다. 19금 칸은 없다(소모임 글은 19금이 될 수 없다 — 서버 `400 fields.adult`).
         글은 **비공개**로 만들어진다(멤버에게만 보인다) — 전체 공개는 글을 쓴 뒤 글 상세에서 고른다. 임시저장·자동 저장·예약 발행·찬반 토론·비회원 글쓰기는 없다. 투표는 게시판이 받으면 붙일 수 있다.
         입구가 막힌 사람(비회원·멤버 아님·이메일 인증 전·정지 등 `canWritePost` false, 또는 게시판 정보의 `viewer.writeBlockedReason`)에게는 폼 대신 까닭을 보인다 — 서버가 최종 판단한다(`403 GROUP_NOT_MEMBER` 등).
         비밀글(운영 설정 — 소모임 게시판 `secretMode`): 폼이 일반 글쓰기처럼 「비밀글」 체크(`OPTIONAL`)·고정 안내(`ALWAYS`)를 그리고 본문에 `secret` 을 싣는다. 비밀글은 공개 요청·직접 공개를 할 수 없다(글 상세 패널).

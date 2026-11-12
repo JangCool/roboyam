@@ -4,7 +4,7 @@ import type { ApiError } from '~/composables/common/useApiClient';
 import UtilVisitAnalytics, { type VisitRangePreset } from '~/utils/util-visit-analytics';
 
 /** 이 브라우저에 기억하는 마지막 기간 — 빠른 선택이면 그 종류(내일 열어도 「최근 7일」), 직접 고른 기간이면 날짜 */
-const STORE_KEY = 'roboyam:admin:visit-analytics:range';
+const STORE_KEY = 'irobit:admin:visit-analytics:range';
 
 type Remembered = { preset: VisitRangePreset } | { from: string; to: string };
 

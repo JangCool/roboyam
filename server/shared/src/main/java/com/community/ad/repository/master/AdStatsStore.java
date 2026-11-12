@@ -2,7 +2,7 @@ package com.community.ad.repository.master;
 
 import com.community.ad.entity.QAdDailyStatEntity;
 import com.community.bizapplication.entity.QBizApplicationEventEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
  * {@code biz_application_events}(멈춘 구간). 쓰지 않는다. 날짜 범위는 끝 포함이고 PK 맨 앞이 신청 건이라 한 건·몇 건 읽기는 PK 로 탄다. QueryDSL 만 쓴다.
  */
 @Repository
-public class AdStatsStore extends RoboyamRepositoryQDSL {
+public class AdStatsStore extends IrobitRepositoryQDSL {
 
     private static final QAdDailyStatEntity S = QAdDailyStatEntity.adDailyStatEntity;
     private static final QBizApplicationEventEntity E = QBizApplicationEventEntity.bizApplicationEventEntity;

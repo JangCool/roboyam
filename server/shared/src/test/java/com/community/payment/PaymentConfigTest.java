@@ -100,7 +100,7 @@ class PaymentConfigTest {
             assertThat(bound.cancelStale()).isEqualTo(Duration.ofMinutes(10));
             assertThat(bound).isEqualTo(PaymentProperties.DEFAULTS);
         });
-        new ApplicationContextRunner().withUserConfiguration(PropertiesOnly.class).withPropertyValues("roboyam.payment.cancel-max-retries=6")
+        new ApplicationContextRunner().withUserConfiguration(PropertiesOnly.class).withPropertyValues("irobit.payment.cancel-max-retries=6")
                 .run(context -> assertThat(context).as("재시도 간격이 횟수보다 적다").hasFailed());
     }
 
@@ -108,7 +108,7 @@ class PaymentConfigTest {
     void 시험_주문_처리기는_test_orders_를_켠_서버에만_있다() {
         ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(PaymentTestOrderHandler.class);
         runner.run(context -> assertThat(context).doesNotHaveBean(PaymentTestOrderHandler.class));
-        runner.withPropertyValues("roboyam.payment.test-orders=true").run(context -> assertThat(context).hasSingleBean(PaymentTestOrderHandler.class));
+        runner.withPropertyValues("irobit.payment.test-orders=true").run(context -> assertThat(context).hasSingleBean(PaymentTestOrderHandler.class));
     }
 
     private static Properties yaml(String path) {
@@ -119,15 +119,15 @@ class PaymentConfigTest {
 
     @Test
     void 공통_설정은_포트원_시험_주문_꺼짐이고_local_만_가짜와_시험_주문이다() {
-        Properties shared = yaml("roboyam-shared.yml");
-        assertThat(shared.getProperty("roboyam.payment.gateway")).isEqualTo("${ROBOYAM_PAYMENT_GATEWAY:portone}");
-        assertThat(shared.getProperty("roboyam.payment.test-orders")).isEqualTo("${ROBOYAM_PAYMENT_TEST_ORDERS:false}");
-        assertThat(shared.getProperty("roboyam.payment.cancel-batch-size")).isEqualTo("20");
-        assertThat(shared.getProperty("roboyam.payment.cancel-max-retries")).isEqualTo("5");
-        assertThat(shared.getProperty("roboyam.payment.cancel-backoff")).isEqualTo("1m,5m,30m,120m,720m");
-        Properties local = yaml("roboyam-shared-local.yml");
-        assertThat(local.getProperty("roboyam.payment.gateway")).isEqualTo("${ROBOYAM_PAYMENT_GATEWAY:fake}");
-        assertThat(local.getProperty("roboyam.payment.test-orders")).isEqualTo("${ROBOYAM_PAYMENT_TEST_ORDERS:true}");
+        Properties shared = yaml("irobit-shared.yml");
+        assertThat(shared.getProperty("irobit.payment.gateway")).isEqualTo("${IROBIT_PAYMENT_GATEWAY:portone}");
+        assertThat(shared.getProperty("irobit.payment.test-orders")).isEqualTo("${IROBIT_PAYMENT_TEST_ORDERS:false}");
+        assertThat(shared.getProperty("irobit.payment.cancel-batch-size")).isEqualTo("20");
+        assertThat(shared.getProperty("irobit.payment.cancel-max-retries")).isEqualTo("5");
+        assertThat(shared.getProperty("irobit.payment.cancel-backoff")).isEqualTo("1m,5m,30m,120m,720m");
+        Properties local = yaml("irobit-shared-local.yml");
+        assertThat(local.getProperty("irobit.payment.gateway")).isEqualTo("${IROBIT_PAYMENT_GATEWAY:fake}");
+        assertThat(local.getProperty("irobit.payment.test-orders")).isEqualTo("${IROBIT_PAYMENT_TEST_ORDERS:true}");
         assertThat(List.of(FakePaymentGateway.STORE_ID, FakePaymentGateway.WEBHOOK_SECRET)).allSatisfy(value -> assertThat(value).isNotBlank());
     }
 }

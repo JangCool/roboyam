@@ -2,10 +2,10 @@ package com.community.board.repository.master;
 
 import com.community.board.entity.BoardStaffEntity;
 import com.community.board.entity.BoardStaffId;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.List;
 
-public interface BoardStaffRepository extends RoboyamRepository<BoardStaffEntity, BoardStaffId> {
+public interface BoardStaffRepository extends IrobitRepository<BoardStaffEntity, BoardStaffId> {
 
     List<BoardStaffEntity> findByBoardId(Long boardId);
 

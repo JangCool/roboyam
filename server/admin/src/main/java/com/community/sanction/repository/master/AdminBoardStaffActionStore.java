@@ -6,7 +6,7 @@ import static com.community.sanction.repository.master.BoardStaffActionStore.ACT
 import com.community.board.entity.QBoardEntity;
 import com.community.sanction.repository.master.AdminBoardSanctionStore.BoardRef;
 import com.community.sanction.repository.master.BoardStaffActionStore.ActionRow;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
  * 제재 줄(kind SANCTION)은 넣지 않는다. 색인: V138 의 {@code ix_board_staff_actions_content}(전체) · {@code ix_board_staff_actions_board_content}(게시판).
  */
 @Repository
-public class AdminBoardStaffActionStore extends RoboyamRepositoryQDSL {
+public class AdminBoardStaffActionStore extends IrobitRepositoryQDSL {
 
     private static final QBoardEntity B = QBoardEntity.boardEntity;
 

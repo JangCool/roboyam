@@ -1,7 +1,7 @@
 package com.community.groupbuy.repository.master;
 
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -29,7 +29,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *   <li>JDBC({@link #jdbc}) 문장은 같은 트랜잭션의 연결을 쓴다(JPA 트랜잭션 관리자가 연결을 묶는다). 사유는 문장마다 주석으로 적는다.</li>
  * </ul>
  */
-abstract class GroupBuyStoreSupport extends RoboyamRepositoryQDSL {
+abstract class GroupBuyStoreSupport extends IrobitRepositoryQDSL {
 
     protected final EntityManager entityManager;
     protected final JdbcTemplate jdbc;

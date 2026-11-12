@@ -4,7 +4,7 @@ import com.community.hotdeal.entity.QDealDomainEntity;
 import com.community.hotdeal.entity.QDealSiteAffiliateEntity;
 import com.community.hotdeal.service.DealLinkJudge.DomainRule;
 import com.community.hotdeal.service.SiteAffiliateLinker.SiteStore;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Arrays;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Repository;
  * (트랜잭션 밖에서도 부른다 — 그때는 질의 하나가 자기 연결로 끝난다).
  */
 @Repository
-public class DealRuleRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class DealRuleRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QDealDomainEntity DOMAIN = QDealDomainEntity.dealDomainEntity;
     private static final QDealSiteAffiliateEntity STORE = QDealSiteAffiliateEntity.dealSiteAffiliateEntity;

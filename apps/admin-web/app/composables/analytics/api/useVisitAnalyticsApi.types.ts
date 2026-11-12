@@ -270,7 +270,7 @@ export interface VisitCollectMore {
 export const VISIT_DEVICES = ['MOBILE', 'TABLET', 'DESKTOP'] as const;
 export type VisitDevice = (typeof VISIT_DEVICES)[number];
 
-/** 브라우저 분류값 — user-web `@roboyam/analytics` 의 `util-visit-env.ts` 와 같은 값(그 밖은 OTHER) */
+/** 브라우저 분류값 — user-web `@irobit/analytics` 의 `util-visit-env.ts` 와 같은 값(그 밖은 OTHER) */
 export const VISIT_BROWSERS = ['CHROME', 'SAFARI', 'EDGE', 'SAMSUNG', 'WHALE', 'FIREFOX', 'OTHER'] as const;
 export type VisitBrowser = (typeof VISIT_BROWSERS)[number];
 

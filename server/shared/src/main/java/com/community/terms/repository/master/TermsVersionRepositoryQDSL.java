@@ -3,14 +3,14 @@ package com.community.terms.repository.master;
 import com.community.terms.dto.TermsVersionMeta;
 import com.community.terms.entity.QTermsVersionEntity;
 import com.community.terms.entity.TermsKind;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class TermsVersionRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class TermsVersionRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QTermsVersionEntity VERSION = QTermsVersionEntity.termsVersionEntity;
 

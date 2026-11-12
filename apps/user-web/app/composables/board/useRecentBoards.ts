@@ -2,7 +2,7 @@
  * 최근 방문한 게시판 — **이 기기(브라우저)에만** 5개까지 남긴다. 게시판 목록 화면(`/boards/{slug}`)이 열릴 때 하나 더하고, 게시판 모음(`/boards`)이 읽는다.
  * 저장이 막혀 있어도 이번 방문 동안은 메모리(`useState`)에 남는다.
  */
-const KEY = 'roboyam:recent-boards';
+const KEY = 'irobit:recent-boards';
 const MAX = 5;
 
 function read(): string[] {

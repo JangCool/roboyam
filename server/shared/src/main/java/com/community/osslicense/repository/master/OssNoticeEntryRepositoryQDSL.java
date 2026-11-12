@@ -2,7 +2,7 @@ package com.community.osslicense.repository.master;
 
 import com.community.osslicense.entity.OssNoticeEntryEntity;
 import com.community.osslicense.entity.QOssNoticeEntryEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 
 /** 직접 추가 항목 목록 — 이름순(대소문자 무시, 같으면 먼저 만든 것). 색인 {@code ix_oss_notice_entries_name (lower(name), id)} */
 @Repository
-public class OssNoticeEntryRepositoryQDSL extends RoboyamRepositoryQDSL {
+public class OssNoticeEntryRepositoryQDSL extends IrobitRepositoryQDSL {
 
     private static final QOssNoticeEntryEntity ENTRY = QOssNoticeEntryEntity.ossNoticeEntryEntity;
 

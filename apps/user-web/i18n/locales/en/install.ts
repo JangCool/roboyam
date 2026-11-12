@@ -13,7 +13,7 @@ export default {
     // Step names, titles and descriptions
     stepTokenLabel: 'Setup check',
     stepTokenTitle: 'Setup check',
-    stepTokenDescription: 'Enter the setup token shown in the log when the server first started. If you set the ROBOYAM_INSTALL_TOKEN environment variable, use that value.',
+    stepTokenDescription: 'Enter the setup token shown in the log when the server first started. If you set the IROBIT_INSTALL_TOKEN environment variable, use that value.',
     stepRootLabel: 'Root account',
     stepRootTitle: 'Root account',
     stepRootDescription: 'Create the first Administrator account for this site. Email verification is skipped and the account is created as verified.',

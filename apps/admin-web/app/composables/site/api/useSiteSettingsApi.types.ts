@@ -93,7 +93,7 @@ export interface SiteOgImageResponse {
 }
 
 /**
- * 표시 기본값 — 언어·시간대·시간 형식·날짜 형식. 칸 모양은 공유 레이어(`@roboyam/display-time`)의 `DisplayValues` 와 같다.
+ * 표시 기본값 — 언어·시간대·시간 형식·날짜 형식. 칸 모양은 공유 레이어(`@irobit/display-time`)의 `DisplayValues` 와 같다.
  * 이 값이 곧 개인 설정 탭의 "기본 설정"(내 표시 형식을 쓰지 않을 때 따르는 값)이다.
  * ⚠ 서버는 `site_settings` 한 행에 둔다. 개인 설정 쪽 연결(`inherited`)과 공개 회원 값과의 관계는 미정.
  */

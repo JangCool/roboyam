@@ -177,7 +177,7 @@ function readBadge(raw: unknown): string | null {
 }
 
 /** 개발 미리보기 `?divider=이름:before|after,…` 를 이 탭에 기억하는 저장 키 */
-const DIVIDER_PREVIEW_KEY = 'roboyam:menu-divider-preview';
+const DIVIDER_PREVIEW_KEY = 'irobit:menu-divider-preview';
 
 /** `이름:before|after` 쉼표 목록 → 이름 → 구분선. 읽을 수 없으면 null */
 function readDividerPreview(text: string | null): Map<string, MenuDivider> | null {
@@ -193,7 +193,7 @@ function readDividerPreview(text: string | null): Map<string, MenuDivider> | nul
 }
 
 /** 개발 미리보기 `?groupLink=이름:/주소,…` 를 이 탭에 기억하는 저장 키 */
-const GROUP_LINK_PREVIEW_KEY = 'roboyam:menu-group-link-preview';
+const GROUP_LINK_PREVIEW_KEY = 'irobit:menu-group-link-preview';
 
 /** `이름:/주소` 쉼표 목록(주소 끝 `!` = 이동만) → 이름 → 주소(사이트 안 주소만). 읽을 수 없으면 null */
 function readGroupLinkPreview(text: string | null): Map<string, string> | null {
@@ -391,7 +391,7 @@ const BUILTIN_ICONS: Readonly<Record<string, string>> = {
 
 export default class UtilMenu {
     /** 접힘 기억을 이 브라우저에 남기는 저장 키 — 계정에 저장하지 않는다(보기 설정과 분리, docs/api-menu.md 4-3) */
-    static readonly COLLAPSE_STORAGE_KEY = 'roboyam:menu-collapsed';
+    static readonly COLLAPSE_STORAGE_KEY = 'irobit:menu-collapsed';
 
     /**
      * 지금 주소가 공동구매인가 — 목록(`/group-buys`)·상세·주문서(`/group-buys/…`)가 같은 메뉴 항목을 밝힌다. 내 주문(`/me/orders`)은 내 정보 쪽이라 밝히지 않는다.

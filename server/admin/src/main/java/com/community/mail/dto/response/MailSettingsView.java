@@ -11,7 +11,7 @@ import java.time.Instant;
  * @param passwordSet         저장된 비밀번호가 있는가
  * @param senderName          보내는 이름(없으면 null — From 은 주소만)
  * @param subjectPrefix       제목 머리말(없으면 null)
- * @param cryptoKeyConfigured 서버에 암호화 키({@code ROBOYAM_CRYPTO_KEY})가 있는가 — 없으면 비밀번호를 새로 저장하는 요청이 503 {@code CRYPTO_KEY_MISSING} 이고 인증 메일도 나가지 않는다
+ * @param cryptoKeyConfigured 서버에 암호화 키({@code IROBIT_CRYPTO_KEY})가 있는가 — 없으면 비밀번호를 새로 저장하는 요청이 503 {@code CRYPTO_KEY_MISSING} 이고 인증 메일도 나가지 않는다
  * @param updatedAt           마지막 저장 시각(설정이 없으면 null)
  * @param updatedByName       마지막으로 저장한 운영자 이름(지워진 운영자는 대체 문구, 설정이 없으면 null)
  */

@@ -3,12 +3,12 @@
  * 데모 팩(seed/demo-pack/)을 만든다 — 설치 마법사 「데모 데이터 포함」이 설치 직후 넣는 표본 데이터. 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」,
  * 만드는 차례는 docs/seed-demo.md 「데모 팩」.
  *
- *   node scripts/build-demo-pack.mjs install   # ① 빈 빌드 DB 에 「구조만」(ROBOYAM)으로 설치하고 기준점(이때까지의 행 = 팩에 넣지 않음)을 적는다
+ *   node scripts/build-demo-pack.mjs install   # ① 빈 빌드 DB 에 「구조만」(프리셋 IROBIT)으로 설치하고 기준점(이때까지의 행 = 팩에 넣지 않음)을 적는다
  *   (seed-demo.mjs 만 빌드 서버·빌드 DB 로 돌린다 — seed-local.mjs 의 시험 계정은 팩에 넣지 않는다. 빌드 관리자 서버는 배치를 켜고(사업자 핫딜 게시 배치) local 공구 시더를 끈다
- *    --roboyam.groupbuy.local-seed=false)
+ *    --irobit.groupbuy.local-seed=false)
  *   node scripts/build-demo-pack.mjs export    # ② 기준점 뒤에 생기거나 바뀐 행 + 올린 파일 → seed/demo-pack/
  *
- * ⚠ 사용자의 로컬 DB(roboyam)에 쓰지 않는다 — BUILD_DB_NAME 이 roboyam 이면 멈춘다. 빌드 DB·빌드 서버(다른 포트, NODE_ID 1001, 빈 저장소 폴더)를 따로 띄운다.
+ * ⚠ 사용자의 로컬 DB(irobit)에 쓰지 않는다 — BUILD_DB_NAME 이 irobit 이면 멈춘다. 빌드 DB·빌드 서버(다른 포트, NODE_ID 1001, 빈 저장소 폴더)를 따로 띄운다.
  *
  * 팩 형식: manifest.json(형식·구성·만든 시각·마이그레이션 번호·운영자 ID·파일 목록·표별 행 수) + data.json.gz(TablePack — 표마다 칸 형식·열쇠·행) + files/<저장 키>.
  *   - 표는 FK 차례(부모 먼저)로, 행은 기본 키 차례로. bigint·numeric 칸은 글자로(18자리 ID 가 JSON 숫자로 끝자리를 잃지 않게).
@@ -20,8 +20,8 @@
  *   - 데모 회원이 아닌 회원(시험 계정)·local 공구 시더 상품이 있으면 멈춘다.
  *   - 회원 비밀번호는 아무도 모르는 값의 해시로 바꾼다(데모 회원으로 로그인할 수 없다 — 원고의 시험 비밀번호가 실제 사이트에 남지 않게). --keep-passwords 면 그대로.
  *
- * 환경 변수: BUILD_API(기본 http://localhost:8911) · BUILD_DB_CONTAINER(기본 roboyam-local-postgres) · BUILD_DB_NAME(기본 roboyam_demo_build) · BUILD_DB_USER(기본 roboyam)
- *           · BUILD_STORAGE_PATH(빌드 서버의 ROBOYAM_STORAGE_PATH — export 에 필요) · BUILD_INSTALL_TOKEN(기본 roboyam-demo-token, local 프로필 기본값)
+ * 환경 변수: BUILD_API(기본 http://localhost:8911) · BUILD_DB_CONTAINER(기본 irobit-local-postgres) · BUILD_DB_NAME(기본 irobit_demo_build) · BUILD_DB_USER(기본 irobit)
+ *           · BUILD_STORAGE_PATH(빌드 서버의 IROBIT_STORAGE_PATH — export 에 필요) · BUILD_INSTALL_TOKEN(기본 irobit-demo-token, local 프로필 기본값)
  */
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -31,18 +31,18 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 const API = (process.env.BUILD_API ?? 'http://localhost:8911').replace(/\/+$/, '');
-const DB_CONTAINER = process.env.BUILD_DB_CONTAINER ?? 'roboyam-local-postgres';
-const DB_NAME = process.env.BUILD_DB_NAME ?? 'roboyam_demo_build';
-const DB_USER = process.env.BUILD_DB_USER ?? 'roboyam';
+const DB_CONTAINER = process.env.BUILD_DB_CONTAINER ?? 'irobit-local-postgres';
+const DB_NAME = process.env.BUILD_DB_NAME ?? 'irobit_demo_build';
+const DB_USER = process.env.BUILD_DB_USER ?? 'irobit';
 const STORAGE = process.env.BUILD_STORAGE_PATH ?? '';
-const TOKEN = process.env.BUILD_INSTALL_TOKEN ?? 'roboyam-demo-token';
+const TOKEN = process.env.BUILD_INSTALL_TOKEN ?? 'irobit-demo-token';
 const KEEP_PASSWORDS = process.argv.includes('--keep-passwords');
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'seed', 'demo-pack');
-const PRESET = 'ROBOYAM';
-/** 빌드 서버가 개인정보 칸을 잠근 키 — 기본은 local 개발 키(저장소에 공개된 값, roboyam-shared-local.yml). 팩 목록(dataKey)에 적어 설치 서버가 풀고 다시 잠근다 */
+const PRESET = 'IROBIT';
+/** 빌드 서버가 개인정보 칸을 잠근 키 — 기본은 local 개발 키(저장소에 공개된 값, irobit-shared-local.yml). 팩 목록(dataKey)에 적어 설치 서버가 풀고 다시 잠근다 */
 const DATA_KEY = process.env.BUILD_DATA_KEY
-    ?? readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'shared', 'src', 'main', 'resources', 'roboyam-shared-local.yml'), 'utf8')
-        .match(/key:\s*\$\{ROBOYAM_DATA_KEY:([^}]+)\}/)?.[1];
+    ?? readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'shared', 'src', 'main', 'resources', 'irobit-shared-local.yml'), 'utf8')
+        .match(/key:\s*\$\{IROBIT_DATA_KEY:([^}]+)\}/)?.[1];
 
 /** 표 전체를 갈아 끼우는 시드 표(마이그레이션이 설치 시각 Snowflake 로 ID 를 매긴다 — V86·V142·V157) */
 const FULL_TABLES = ['emoticon_images', 'emoticons', 'emoticon_packs', 'emoticon_pack_revisions', 'emoticon_revision_items', 'point_shop_items'];
@@ -79,8 +79,8 @@ const json = (script) => JSON.parse(sql(script) || 'null');
 const ident = (name) => `"${name.replace(/"/g, '""')}"`;
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
-if (DB_NAME === 'roboyam') {
-    console.error('BUILD_DB_NAME 이 사용자의 로컬 DB(roboyam)다 — 빌드 DB 를 따로 만든다(예: roboyam_demo_build). 아무것도 하지 않았다.');
+if (DB_NAME === 'irobit') {
+    console.error('BUILD_DB_NAME 이 사용자의 로컬 DB(irobit)다 — 빌드 DB 를 따로 만든다(예: irobit_demo_build). 아무것도 하지 않았다.');
     process.exit(2);
 }
 if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API)) {
@@ -123,7 +123,7 @@ async function install() {
     const password = `Demo${randomBytes(9).toString('hex')}1`; // 빌드 DB 의 루트 — 쓰지 않는다(데모 로더는 데모 운영자로 들어간다)
     const done = await call('POST', '/api/system/installation/complete', {
         root: { email: 'demo-build-root@example.com', nickname: '빌드루트', password },
-        site: { name: 'ROBOYAM', publicUrl: 'http://localhost:3100', tagline: null },
+        site: { name: 'IROBIT', publicUrl: 'http://localhost:3100', tagline: null },
         mail: null, social: null, boardPreset: PRESET, demoData: false,
     });
     if (done.status !== 201) throw new Error(`설치 실패 ${done.status} ${JSON.stringify(done.body?.error)}`);
@@ -146,7 +146,7 @@ function exportPack() {
     }
     const seededGroupBuys = sql(`SELECT count(*) FROM group_buy_products WHERE name LIKE '%local 시드%' OR summary LIKE '%local 시드%'`);
     if (seededGroupBuys !== '0') {
-        console.error('local 공구 시더의 상품이 있다 — 빌드 관리자 서버를 --roboyam.groupbuy.local-seed=false 로 띄워 다시 한다.');
+        console.error('local 공구 시더의 상품이 있다 — 빌드 관리자 서버를 --irobit.groupbuy.local-seed=false 로 띄워 다시 한다.');
         process.exit(1);
     }
     const baseline = sql(`SELECT xid FROM demo_pack_baseline`);

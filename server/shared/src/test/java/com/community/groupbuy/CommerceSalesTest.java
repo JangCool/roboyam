@@ -175,12 +175,12 @@ class CommerceSalesTest {
         assertThat(sole.businessHours()).as("커머스 고유 칸은 커머스 값").isEqualTo("평일 10~17시");
         assertThat(sole.shippingRefundPolicy()).isEqualTo("7일 안 청약철회");
 
-        kit.jdbc.update("UPDATE site_operator SET stage = 'CORPORATION', business_name = '로보얌 주식회사', corporate_number = '110111-0000000', "
+        kit.jdbc.update("UPDATE site_operator SET stage = 'CORPORATION', business_name = '아이로빗 주식회사', corporate_number = '110111-0000000', "
                 + "privacy_officer_same = false, privacy_officer_name = '김보호', privacy_officer_email = 'privacy@test.local' WHERE id = 1");
         BusinessInfo corp = sales.publicInfo().business();
-        assertThat(corp.companyName()).as("법인은 상호 자리에 회사명").isEqualTo("로보얌 주식회사");
+        assertThat(corp.companyName()).as("법인은 상호 자리에 회사명").isEqualTo("아이로빗 주식회사");
         assertThat(corp.privacyOfficer()).as("따로 적은 보호책임자").isEqualTo("김보호");
-        assertThat(sales.businessInfo().companyName()).as("관리자 읽기 응답도 운영 주체 값").isEqualTo("로보얌 주식회사");
+        assertThat(sales.businessInfo().companyName()).as("관리자 읽기 응답도 운영 주체 값").isEqualTo("아이로빗 주식회사");
     }
 
     @Test

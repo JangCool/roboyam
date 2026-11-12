@@ -1,7 +1,7 @@
 package com.community.display.dto.response;
 
 /**
- * 표시 값 네 칸 — user-web {@code DisplayValues}(공유 레이어 {@code @roboyam/display-time})와 같은 모양.
+ * 표시 값 네 칸 — user-web {@code DisplayValues}(공유 레이어 {@code @irobit/display-time})와 같은 모양.
  *
  * @param language   {@code ko} · {@code en}
  * @param zoneId     IANA 시간대 이름

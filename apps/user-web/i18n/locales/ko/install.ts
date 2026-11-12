@@ -16,7 +16,7 @@ export default {
     // 단계의 이름·제목·설명
     stepTokenLabel: '설치 확인',
     stepTokenTitle: '설치 확인',
-    stepTokenDescription: '서버를 처음 띄울 때 로그에 나온 설치 토큰을 입력해 주세요. 환경 변수 ROBOYAM_INSTALL_TOKEN 으로 정했다면 그 값이에요.',
+    stepTokenDescription: '서버를 처음 띄울 때 로그에 나온 설치 토큰을 입력해 주세요. 환경 변수 IROBIT_INSTALL_TOKEN 으로 정했다면 그 값이에요.',
     stepRootLabel: '루트 계정',
     stepRootTitle: '루트 계정',
     stepRootDescription: '이 사이트를 운영할 첫 최고 관리자 계정을 만들어요. 이메일 인증은 건너뛰고, 인증된 계정으로 만들어져요.',

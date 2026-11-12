@@ -1,7 +1,7 @@
 /**
  * 고르기 창 「이모지」 탭의 최근 사용 — 이 기기(localStorage)에만 남긴다(서버에 보내지 않는다). 저장소를 못 쓰면(사생활 창 등) 이 화면 동안만 기억한다.
  */
-const STORAGE_KEY = 'roboyam.emoji.recent';
+const STORAGE_KEY = 'irobit.emoji.recent';
 const MAX = 24;
 
 export function useRecentEmoji() {

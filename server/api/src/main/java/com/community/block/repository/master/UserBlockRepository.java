@@ -1,10 +1,10 @@
 package com.community.block.repository.master;
 
 import com.community.block.entity.UserBlockEntity;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import java.util.Optional;
 
-public interface UserBlockRepository extends RoboyamRepository<UserBlockEntity, Long> {
+public interface UserBlockRepository extends IrobitRepository<UserBlockEntity, Long> {
 
     Optional<UserBlockEntity> findByUserIdAndTargetId(Long userId, Long targetId);
 

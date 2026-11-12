@@ -64,7 +64,7 @@ export interface LoginHistoryResponse {
 }
 
 /**
- * 내 표시 형식 — 언어·시간대·시간 형식·날짜 형식. 칸 모양은 공유 레이어(`@roboyam/display-time`)의 `DisplayValues` 와 같다.
+ * 내 표시 형식 — 언어·시간대·시간 형식·날짜 형식. 칸 모양은 공유 레이어(`@irobit/display-time`)의 `DisplayValues` 와 같다.
  * 관리자 표시 값의 층: 사이트 표시 기본값 ← 내 표시 형식.
  */
 export type { DisplayValues };

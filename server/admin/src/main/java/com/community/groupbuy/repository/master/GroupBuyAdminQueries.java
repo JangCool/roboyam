@@ -21,7 +21,7 @@ import com.community.groupbuy.entity.SkuKind;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.user.entity.QUserEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -44,7 +44,7 @@ import org.springframework.stereotype.Repository;
  * 예전 {@code string_agg}(선점 줄 요약)는 줄을 따로 읽어 자바가 잇는다({@link #holdLines}).
  */
 @Repository
-public class GroupBuyAdminQueries extends RoboyamRepositoryQDSL {
+public class GroupBuyAdminQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupBuyEntity G = QGroupBuyEntity.groupBuyEntity;
     private static final QGroupBuyProductEntity P = QGroupBuyProductEntity.groupBuyProductEntity;

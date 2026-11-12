@@ -1,12 +1,12 @@
-# 관리자 앱 서버(admin-web 용). 두 앱이 같이 쓰는 값은 server/shared 의 roboyam-shared.yml 에 있다.
-# 접속 정보·환경 변수는 공개 사이트와 같은 이름(DB_URL … ROBOYAM_CRYPTO_KEY)이다.
+# 관리자 앱 서버(admin-web 용). 두 앱이 같이 쓰는 값은 server/shared 의 irobit-shared.yml 에 있다.
+# 접속 정보·환경 변수는 공개 사이트와 같은 이름(DB_URL … IROBIT_CRYPTO_KEY)이다.
 spring:
   application:
-    name: roboyam-admin
+    name: irobit-admin
   profiles:
     default: local
   config:
-    import: classpath:roboyam-shared.yml
+    import: classpath:irobit-shared.yml
 
   # 운영자 로그인 세션은 DB(Spring Session JDBC)에 두되 공개 사이트와 다른 표(admin 스트림 V1 의 admin_spring_session)를 쓴다 — 표는 마이그레이션이 만들고 Spring 은 만들지 않는다.
   # timeout 은 비활동 기한(마지막 활동 뒤 2시간)이다 — 로그인 때 AdminSession 이 세션마다 같은 값을 명시한다. 최대 12시간은 AdminSession 이 따로 센다.
@@ -14,10 +14,10 @@ spring:
     jdbc:
       initialize-schema: never
       table-name: admin_spring_session
-    timeout: ${roboyam.admin-auth.session-idle-timeout}
+    timeout: ${irobit.admin-auth.session-idle-timeout}
 
   # @Scheduled 워커(배치 실행 요청 집기 · 배치 알림 감시 · 이후의 짧은 주기 워커)가 쓰는 스케줄러. 기본은 스레드 하나라 한 워커가 길어지면 다른 워커가 멈춘다 —
-  # 여럿 둔다. 배치 예약 실행(BatchScheduler)과 요청 실행은 자기 스레드 풀(roboyam.batch.pool-size)을 따로 쓴다.
+  # 여럿 둔다. 배치 예약 실행(BatchScheduler)과 요청 실행은 자기 스레드 풀(irobit.batch.pool-size)을 따로 쓴다.
   # AI 회원 실행기(AiMemberScheduler)는 제공사 호출로 한 바퀴가 길 수 있어(최대 calls-per-tick × 응답 제한 시간) 그 몫으로 하나 더 둔다(2026-11-10 — api 에서 옮겨 옴)
   task:
     scheduling:
@@ -26,7 +26,7 @@ spring:
       thread-name-prefix: worker-
 
   # 주소 DB 올리기(설정 › 주소 검색 — address-search-contract) 때문에 컨테이너 한도를 파일 한 개 300MB · 요청 610MB(한글 + 영문 zip)로 올린다.
-  # 그 밖의 올리기는 AddressUploadLimitFilter 가 아래 roboyam.upload.default-max-request-size(공유 설정과 같은 11MB)로 본문을 읽기 전에 막는다
+  # 그 밖의 올리기는 AddressUploadLimitFilter 가 아래 irobit.upload.default-max-request-size(공유 설정과 같은 11MB)로 본문을 읽기 전에 막는다
   servlet:
     multipart:
       max-file-size: 300MB
@@ -40,14 +40,14 @@ server:
         # 공개 사이트의 SESSION 과 이름을 갈라 같은 호스트(포트만 다른)에서도 서로의 세션을 읽지 않는다. 기한(max-age)이 없는 브라우저 세션 쿠키다
         name: ADMIN_SESSION
 
-roboyam:
-  # 주소 DB 올리기가 아닌 multipart 요청의 한도(roboyam-shared.yml 의 spring.servlet.multipart.max-request-size 와 같은 값)
+irobit:
+  # 주소 DB 올리기가 아닌 multipart 요청의 한도(irobit-shared.yml 의 spring.servlet.multipart.max-request-size 와 같은 값)
   upload:
     default-max-request-size: 11MB
   # 주소 DB 를 서버 폴더에서 적재(설정 › 주소 검색 — address-search-contract). 운영자가 이 폴더에 행정안전부 zip 을 두면 화면에서 골라 넣는다(올리지 않는다).
   # 비우면 꺼진다. 폴더 바로 아래 .zip 만 보이고 적재 뒤에도 지우지 않는다
   address:
-    import-dir: ${ROBOYAM_ADDRESS_IMPORT_DIR:}
+    import-dir: ${IROBIT_ADDRESS_IMPORT_DIR:}
   schema:
     # 자기 스트림(db/migration/admin). shared 이관은 api 와 어느 쪽이 먼저 떠도 된다 — Flyway 가 DB 잠금으로 한 쪽만 적용한다
     stream: admin
@@ -72,7 +72,7 @@ roboyam:
   # 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…) — 초대 메일의 링크 기준. 비어 있으면 초대 메일을 보내지 못하고 로그만 남긴다
   admin-url: ${ADMIN_URL:}
 
-  # 이미지 처리 보호 한도(사이트 로고·아이콘·링크 미리보기 이미지 올리기). 저장소 위치는 공유 설정 roboyam.storage
+  # 이미지 처리 보호 한도(사이트 로고·아이콘·링크 미리보기 이미지 올리기). 저장소 위치는 공유 설정 irobit.storage
   media:
     max-concurrent-processing: 2  # 동시에 디코딩·변환할 이미지 수(디코딩한 그림은 메모리를 많이 쓴다). 모자라면 기다리다 10초가 지나면 503 IMAGE_BUSY
     acquire-timeout-seconds: 10
@@ -80,7 +80,7 @@ roboyam:
 
   # 배치 (docs/features/roles-contract.md 「배치 인프라 결과」 가정, docs/domain/commerce.md 15-1·15-4). 배치 정의는 코드(BatchCatalog), 사용 여부·cron 은 DB(batch_jobs)가 원천이다
   batch:
-    enabled: true                 # 이 서버가 배치를 도는가 — 예약 실행·실행 요청 집기·워커가 함께 켜지고 꺼진다(환경 변수로는 ROBOYAM_BATCH_ENABLED). 끈 서버의 「지금 실행」 요청은 배치를 켠 다른 서버가 집는다
+    enabled: true                 # 이 서버가 배치를 도는가 — 예약 실행·실행 요청 집기·워커가 함께 켜지고 꺼진다(환경 변수로는 IROBIT_BATCH_ENABLED). 끈 서버의 「지금 실행」 요청은 배치를 켠 다른 서버가 집는다
     zone: Asia/Seoul              # cron 을 해석하는 시간대
     refresh-seconds: 30           # 다른 서버가 바꾼 사용 여부·cron 을 따라오고 죽은 실행·남은 요청을 정리하는 주기
     min-interval-seconds: 60      # cron 으로 정할 수 있는 실행 간격의 하한
@@ -95,4 +95,4 @@ roboyam:
     batch-watch-seconds: 30       # 감시 주기(초) — 배치가 끝난 뒤 알림까지 최대 이만큼 늦는다(재기동해야 바뀐다)
     batch-watch-max-age-hours: 24 # 끝난 지 이만큼 지난 줄은 알리지 않고 표시만 한다(감시가 오래 멈췄다 돌아온 경우)
     channel-test-per-minute: 6    # 알림 도구 연결 시험을 운영자 한 명이 1분에 할 수 있는 횟수(서버마다 따로 센다). 넘으면 429 NOTIFICATION_CHANNEL_TEST_RATE_LIMITED
-    # 알림 도구(Slack · Mattermost)의 주소 규칙(allow-private-targets·slack-api-url·시간 제한)은 shared 가 읽는다 — 로컬호스트·사설망 허용은 local 프로파일만 true(roboyam-shared-local.yml)
+    # 알림 도구(Slack · Mattermost)의 주소 규칙(allow-private-targets·slack-api-url·시간 제한)은 shared 가 읽는다 — 로컬호스트·사설망 허용은 local 프로파일만 true(irobit-shared-local.yml)

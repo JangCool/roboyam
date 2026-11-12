@@ -5,7 +5,7 @@ import com.community.bizapplication.entity.QBizContractFileEntity;
 import com.community.docintake.entity.DocFileChannel;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * QueryDSL 만 쓴다.
  */
 @Repository
-public class BizContractStore extends RoboyamRepositoryQDSL {
+public class BizContractStore extends IrobitRepositoryQDSL {
 
     private static final QBizContractFileEntity CF = QBizContractFileEntity.bizContractFileEntity;
     private static final QOperatorEntity UPLOADER = new QOperatorEntity("uploader");

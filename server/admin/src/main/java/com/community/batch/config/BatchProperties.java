@@ -5,7 +5,7 @@ import java.time.ZoneId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * roboyam.batch.* — 배치를 도는 인스턴스의 역할과 수치(docs/features/roles-contract.md 「배치 인프라 결과」, docs/domain/commerce.md 15-1·15-4). 모두 배포 설정이다.
+ * irobit.batch.* — 배치를 도는 인스턴스의 역할과 수치(docs/features/roles-contract.md 「배치 인프라 결과」, docs/domain/commerce.md 15-1·15-4). 모두 배포 설정이다.
  *
  * @param enabled              이 서버가 배치를 도는가 — <b>하나로</b> 예약 실행·실행 요청 집기·짧은 주기 워커가 함께 켜지고 꺼진다(결정 6). 끈 서버도 화면 API(목록·로그·요청 넣기)는
  *                             그대로다 — 요청은 배치를 켠 다른 서버가 집는다. 같은 관리자 이미지를 「배치 전용」으로 하나 더 띄우고 나머지는 끄면 사실상 배치 서버다
@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>실행 로그 보관 일수는 여기 없다 — 로그 정리는 DB 배치({@code batch-log-cleanup})이고 보관 일수는 DB 의 {@code batch_params} 에 있다.
  * {@code zone} 은 Java 배치의 cron 해석 시간대이고, DB 배치의 cron 은 pg_cron 의 {@code cron.timezone} 으로 해석된다.
  */
-@ConfigurationProperties(prefix = "roboyam.batch")
+@ConfigurationProperties(prefix = "irobit.batch")
 public record BatchProperties(boolean enabled, String zone, int refreshSeconds, int minIntervalSeconds, int poolSize, long requestPollMillis, int requestStaleSeconds,
                               int heartbeatIdleSeconds) {
 

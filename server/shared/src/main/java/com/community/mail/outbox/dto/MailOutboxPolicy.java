@@ -3,7 +3,7 @@ package com.community.mail.outbox.dto;
 import java.time.Duration;
 
 /**
- * 메일 대기열 워커의 재시도 규칙(배포 설정 {@code roboyam.mail-outbox.*} — 운영 정책이 아니라 발송 장치의 값이라 프로퍼티).
+ * 메일 대기열 워커의 재시도 규칙(배포 설정 {@code irobit.mail-outbox.*} — 운영 정책이 아니라 발송 장치의 값이라 프로퍼티).
  *
  * @param maxAttempts 이만큼 시도해도 못 보내면 DEAD(기본 12 — 1·2·4·…분, 최대 2시간 간격으로 약 10시간)
  * @param batchSize   한 바퀴에 집는 줄 수(기본 20)

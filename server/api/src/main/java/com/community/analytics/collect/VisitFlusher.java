@@ -55,7 +55,7 @@ import org.springframework.stereotype.Component;
  * 서버 여러 대의 정확성 근거는 {@link AnalyticsWriteStore} 머리말. 묶음 하나가 실패하면(트랜잭션째 되돌려졌다) 그 묶음만 메모리에 되돌려 다음 1분에 다시 쓴다(상한은 버퍼가 지킨다).
  * 서버가 갑자기 꺼지면 아직 쓰지 않은 최대 1분치를 잃는다(통계라 허용 — 계약). 「오늘 셌다」 표시는 DB 에 있어 재시작해도 같은 방문자를 다시 세지 않는다.
  *
- * <p>서버 이름(진단의 {@code instance}): 설정 {@code roboyam.analytics.instance-name}, 없으면 {@code api-<NODE_ID>} — 서버마다 다른 NODE_ID 를 쓰므로(Snowflake 규칙) 겹치지 않고,
+ * <p>서버 이름(진단의 {@code instance}): 설정 {@code irobit.analytics.instance-name}, 없으면 {@code api-<NODE_ID>} — 서버마다 다른 NODE_ID 를 쓰므로(Snowflake 규칙) 겹치지 않고,
  * 컨테이너를 새로 띄워도 같은 이름이라 「멈춘 서버」가 남지 않는다.
  */
 @Component
@@ -88,8 +88,8 @@ public class VisitFlusher {
     private final VisitMemberPeriods memberPeriods = new VisitMemberPeriods();
 
     @Autowired
-    public VisitFlusher(VisitCollector collector, AnalyticsWriteStore store, AnalyticsDatabase db, @Value("${roboyam.analytics.instance-name:}") String instanceName,
-                        @Value("${roboyam.node-id:0}") int nodeId) {
+    public VisitFlusher(VisitCollector collector, AnalyticsWriteStore store, AnalyticsDatabase db, @Value("${irobit.analytics.instance-name:}") String instanceName,
+                        @Value("${irobit.node-id:0}") int nodeId) {
         this.collector = collector;
         this.store = store;
         this.db = db;

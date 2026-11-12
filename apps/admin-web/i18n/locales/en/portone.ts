@@ -7,7 +7,7 @@ export default {
     readOnly: 'View only. Changing or clearing values needs the secret settings permission.',
     loadFailed: 'Couldn’t load PortOne settings',
     cryptoMissingTitle: 'The server has no encryption key',
-    cryptoMissingText: 'Values can’t be saved without it (clearing still works). Check the server setting (ROBOYAM_CRYPTO_KEY) first.',
+    cryptoMissingText: 'Values can’t be saved without it (clearing still works). Check the server setting (IROBIT_CRYPTO_KEY) first.',
 
     providerTitle: 'Implementation in use',
     providerIdentity: 'Identity',
@@ -16,7 +16,7 @@ export default {
         PORTONE: 'PortOne',
         FAKE: 'Fake (development)',
     },
-    providerHelp: 'Set by the server deployment (roboyam.identity.provider · roboyam.payment.gateway). It can’t be changed here.',
+    providerHelp: 'Set by the server deployment (irobit.identity.provider · irobit.payment.gateway). It can’t be changed here.',
     providerFake: 'Fake identity verification is for local and tests only. The server won’t start with it on dev or prod.',
     notReadyTitle: 'Identity verification isn’t available',
     notReadyText: 'Fill in the store ID and API secret in the Common card, and the identity channel key.',

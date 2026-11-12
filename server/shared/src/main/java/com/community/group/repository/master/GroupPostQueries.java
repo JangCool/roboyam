@@ -5,7 +5,7 @@ import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
 import com.community.post.entity.PostProcessStatus;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Repository;
  * (소모임 행을 잠근 뒤 부른다 — 글쓰기·공개 전환과 줄을 선다).
  */
 @Repository
-public class GroupPostQueries extends RoboyamRepositoryQDSL {
+public class GroupPostQueries extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QGroupMemberEntity MEMBER = QGroupMemberEntity.groupMemberEntity;

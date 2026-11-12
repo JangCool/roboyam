@@ -14,7 +14,7 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.payment.dto.PaymentStatus;
 import com.community.payment.entity.QPaymentOrderEntity;
 import com.community.user.entity.QProfileEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Repository;
  * 「시작 시각 &lt; 경계 시각」({@code GroupBuyBusinessDays#elapsedCutoff})이라 DB 에서 거르고 나눈다({@link ListFilter#warnBefore}). 시작 = 취소는 요청한 시각, 반품은 돌려받은 시각.
  */
 @Repository
-public class GroupBuyRequestAdminQueries extends RoboyamRepositoryQDSL {
+public class GroupBuyRequestAdminQueries extends IrobitRepositoryQDSL {
 
     private static final QGroupBuyRequestEntity RQ = QGroupBuyRequestEntity.groupBuyRequestEntity;
     private static final QGroupBuyRequestItemEntity RI = QGroupBuyRequestItemEntity.groupBuyRequestItemEntity;

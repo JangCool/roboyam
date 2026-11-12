@@ -11,7 +11,7 @@ type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast
 export default class UtilAd {
     static readonly TYPES: readonly AdType[] = BIZ_AD_TYPES;
 
-    /** 긴급 내림 뒤 다른 서버 사본이 비워지기까지(초) — 로보얌 20초 사본 */
+    /** 긴급 내림 뒤 다른 서버 사본이 비워지기까지(초) — 아이로빗 20초 사본 */
     static readonly CACHE_SECONDS = 20;
 
     /** 운영자 등록이 되는 유형 — 광고 종류(배너 넷·날개 배너·한 줄). 핫딜 노출 자리는 글이 있어야 해서 서버가 400 `fields.type`(서버 `BizProduct.adProduct()`) */
@@ -167,7 +167,7 @@ export default class UtilAd {
 
     /** 날개 폭 · 본문과 날개 사이 · 날개와 창 끝 사이(px) — user-web `UtilAd.WING`. 한쪽 바깥 여백이 셋의 합(192px) 이상일 때만 그린다 */
     static readonly WING = { width: 160, gap: 16, edge: 16 } as const;
-    /** 공개 셸의 본문 폭(`--content-max`, px) — 기본·네이버식 1100 · 다음식·로보얌 1168 */
+    /** 공개 셸의 본문 폭(`--content-max`, px) — 기본·네이버식 1100 · 다음식·아이로빗 1168 */
     static readonly PUBLIC_CONTENT = { base: 1100, wide: 1168 } as const;
 
     /** 날개가 보이기 시작하는 창 너비(px) — 본문 폭 + 양쪽 (날개 + 간격 + 끝 여백) */

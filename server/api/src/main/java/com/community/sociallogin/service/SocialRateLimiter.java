@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * 소셜 로그인의 IP 기준 요청 한도 — 창({@code roboyam.social.rate-window}, 기본 10분) 안에 시작(로그인·연결) {@code start-per-window}(30)번,
+ * 소셜 로그인의 IP 기준 요청 한도 — 창({@code irobit.social.rate-window}, 기본 10분) 안에 시작(로그인·연결) {@code start-per-window}(30)번,
  * 가입 완료 {@code complete-per-window}(10)번까지. 넘으면 {@code 429 SOCIAL_RATE_LIMITED}(+{@code Retry-After}).
  *
  * <p>시작은 세션 행을 만들고 공급자로 보내는 일이라, 버튼 연타·스크립트로 세션 표와 외부 요청을 늘리지 못하게 한다. 키는 {@code sha256(구분|IP)} 이라 IP 원문을 메모리에도 두지 않는다.

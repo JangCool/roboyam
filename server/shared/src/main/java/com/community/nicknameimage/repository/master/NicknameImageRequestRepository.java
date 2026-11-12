@@ -2,7 +2,7 @@ package com.community.nicknameimage.repository.master;
 
 import com.community.nicknameimage.entity.NicknameImageRequestEntity;
 import com.community.nicknameimage.entity.NicknameImageStatus;
-import com.community.zconfiguration.jpa.RoboyamRepository;
+import com.community.zconfiguration.jpa.IrobitRepository;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
 
 /** 닉네임 그림 신청 — 회원 화면(api)과 운영자 검토(admin)가 같이 쓴다 */
-public interface NicknameImageRequestRepository extends RoboyamRepository<NicknameImageRequestEntity, Long> {
+public interface NicknameImageRequestRepository extends IrobitRepository<NicknameImageRequestEntity, Long> {
 
     /** 회원의 그 상태 신청(대기·적용 중은 회원당 하나 — 부분 유일 색인) */
     Optional<NicknameImageRequestEntity> findFirstByUserIdAndStatus(Long userId, NicknameImageStatus status);

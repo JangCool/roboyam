@@ -5,7 +5,7 @@ import com.community.comment.entity.QCommentEntity;
 import com.community.comment.entity.QCommentLikeEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.post.entity.QPostLikeEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Repository;
  * 두 문장으로 나누면 동시 요청에서 {@code duplicate key} 로 트랜잭션이 깨진다)와 작성자 줄 세우기({@code pg_advisory_xact_lock}).
  */
 @Repository
-public class PostCounterQueries extends RoboyamRepositoryQDSL {
+public class PostCounterQueries extends IrobitRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
     private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;

@@ -3,7 +3,7 @@ package com.community.audit.repository.master;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditRetentionClass;
 import com.community.audit.entity.QAuditLogEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.sql.Timestamp;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * 마지막 저장(감사 기록)은 엔티티로 읽는다.
  */
 @Repository
-public class AuditRetentionStore extends RoboyamRepositoryQDSL {
+public class AuditRetentionStore extends IrobitRepositoryQDSL {
 
     private static final QAuditLogEntity AUDIT = QAuditLogEntity.auditLogEntity;
 

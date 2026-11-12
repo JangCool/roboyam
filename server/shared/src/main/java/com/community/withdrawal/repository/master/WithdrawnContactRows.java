@@ -3,7 +3,7 @@ package com.community.withdrawal.repository.master;
 import com.community.audit.entity.QAuditLogEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.withdrawal.entity.QWithdrawnMemberContactEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.StringExpression;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
  * <p>읽기는 QueryDSL 이다. Native SQL 로 남긴 것과 이유: {@link #upsert}({@code ON CONFLICT DO UPDATE} — 아래).
  */
 @Repository
-public class WithdrawnContactRows extends RoboyamRepositoryQDSL {
+public class WithdrawnContactRows extends IrobitRepositoryQDSL {
 
     private static final QWithdrawnMemberContactEntity C = QWithdrawnMemberContactEntity.withdrawnMemberContactEntity;
     private static final QAuditLogEntity AUDIT = QAuditLogEntity.auditLogEntity;

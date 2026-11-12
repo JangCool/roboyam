@@ -1,7 +1,7 @@
 # 개발 서버 스크립트(init-env · deploy · backup · restore)가 같이 쓰는 함수. 직접 실행하지 않고 source 한다.
 # shellcheck shell=bash
 
-DEV_DIR=${DEV_DIR:-/opt/roboyam/dev}
+DEV_DIR=${DEV_DIR:-/opt/irobit/dev}
 ENV_FILE="$DEV_DIR/.env"
 
 fail() { printf '오류: %s\n' "$*" >&2; exit 1; }
@@ -30,13 +30,13 @@ ecr_login() {
     region=$(printf '%s' "$registry" | sed -n 's/^[0-9]*\.dkr\.ecr\.\([a-z0-9-]*\)\.amazonaws\.com$/\1/p')
     [ -n "$region" ] || fail "ECR 레지스트리 주소 형식이 아닙니다: $registry"
     aws ecr get-login-password --region "$region" | docker login --username AWS --password-stdin "$registry" > /dev/null \
-        || fail "ECR 로그인 실패 — 서버에 IAM 역할(roboyam-dev-ec2)이 붙어 있는지, 정책에 ECR 읽기 권한이 있는지 확인하세요."
+        || fail "ECR 로그인 실패 — 서버에 IAM 역할(irobit-dev-ec2)이 붙어 있는지, 정책에 ECR 읽기 권한이 있는지 확인하세요."
 }
 
-# 이미지 주소에서 레지스트리 호스트만 뗀다: 123.dkr.ecr.ap-northeast-2.amazonaws.com/roboyam-api:tag → 123.dkr.ecr...com
+# 이미지 주소에서 레지스트리 호스트만 뗀다: 123.dkr.ecr.ap-northeast-2.amazonaws.com/irobit-api:tag → 123.dkr.ecr...com
 registry_of() { printf '%s' "${1%%/*}"; }
 
-# 이미지 주소의 태그를 바꾼다: .../roboyam-api:old → .../roboyam-api:new
+# 이미지 주소의 태그를 바꾼다: .../irobit-api:old → .../irobit-api:new
 with_tag() { printf '%s:%s' "${1%:*}" "$2"; }
 
 dc() { docker compose --project-directory "$DEV_DIR" -f "$DEV_DIR/compose.yml" --env-file "$ENV_FILE" "$@"; }

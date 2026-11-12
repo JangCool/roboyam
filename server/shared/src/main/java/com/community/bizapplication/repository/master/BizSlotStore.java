@@ -4,7 +4,7 @@ import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.QBizApplicationEntity;
 import com.community.bizapplication.entity.QBizApplicationItemEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
  * 한 번에 하나씩 된다).
  */
 @Repository
-public class BizSlotStore extends RoboyamRepositoryQDSL {
+public class BizSlotStore extends IrobitRepositoryQDSL {
 
     private static final QBizApplicationItemEntity I = QBizApplicationItemEntity.bizApplicationItemEntity;
     private static final QBizApplicationEntity A = QBizApplicationEntity.bizApplicationEntity;

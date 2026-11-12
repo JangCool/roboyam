@@ -21,7 +21,7 @@ import com.community.docintake.entity.QBizDocIntakeEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
@@ -41,7 +41,7 @@ import org.springframework.stereotype.Repository;
  * 줄은 고치지 않고 쌓는다(등록증의 붙이기·파기만 고친다). QueryDSL 만 쓴다 — 넣기는 {@code persist} + {@code flush}({@link JpaStoreWrites}).
  */
 @Repository
-public class BusinessStore extends RoboyamRepositoryQDSL {
+public class BusinessStore extends IrobitRepositoryQDSL {
 
     // 처리 기록 행위(ck_bh_action)
     public static final String APPLIED = "APPLIED";

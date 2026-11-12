@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 고를 수 있는 모델(정본 = 표 {@code ai_models}, shared V189 — 옛 배포 설정 {@code roboyam.ai-member.models.*} 대신). 관리자 저장 검사 · 목록의 쉬는 이유 · 실행기가 같이 본다.
+ * 고를 수 있는 모델(정본 = 표 {@code ai_models}, shared V189 — 옛 배포 설정 {@code irobit.ai-member.models.*} 대신). 관리자 저장 검사 · 목록의 쉬는 이유 · 실행기가 같이 본다.
  * 「사용」이 꺼졌거나 표에 없는 모델을 쓰는 계정은 쉰다({@link AiMemberDirectory#MODEL_UNAVAILABLE} — 관리자가 모델을 다시 골라야 돈다).
  * 캐시하지 않는다(행 몇십 개 — 바꾸면 바로 반영).
  */

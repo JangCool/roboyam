@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 비밀번호 재설정 링크의 DB 일 — 메서드마다 짧은 트랜잭션이다(비밀번호 해시 비교·만들기는 이 밖에서 한다). 흐름은 {@link PasswordResetService}.
  *
  * <ul>
- *   <li>링크 토큰은 무작위 256비트, <b>해시만 저장</b>, 유효 {@code roboyam.account.reset-token-minutes}(60분). 새 링크를 만들면 이전 링크는 무효다.</li>
+ *   <li>링크 토큰은 무작위 256비트, <b>해시만 저장</b>, 유효 {@code irobit.account.reset-token-minutes}(60분). 새 링크를 만들면 이전 링크는 무효다.</li>
  *   <li>같은 회원은 60초에 한 번만 새 링크를 만든다(가장 최근 발급 시각 — 서버가 여러 대여도 같다). 넘치면 조용히 보내지 않는다.</li>
  *   <li>회원 행을 먼저 잠그고 토큰을 읽는다(인증·이메일 변경 링크와 같은 잠금 순서).</li>
  * </ul>

@@ -1,7 +1,7 @@
 package com.community.emoticon.repository.master;
 
 import com.community.zconfiguration.jpa.JpaStoreWrites;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -32,7 +32,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *   <li>시각은 서비스가 넘기는 {@code now} 다(시험이 시계를 옮긴다 — {@code DB_NOW} 로 바꾸지 않는다).</li>
  * </ul>
  */
-abstract class EmoticonStoreSupport extends RoboyamRepositoryQDSL {
+abstract class EmoticonStoreSupport extends IrobitRepositoryQDSL {
 
     protected final EntityManager entityManager;
     protected final JdbcTemplate jdbc;

@@ -10,7 +10,7 @@
  */
 export default defineNuxtPlugin({
     // 사이트 정보(`02.site-info`)·로그인 상태(`auth`)와 동시에 받는다(`parallel`) — 앱은 셋이 다 끝난 뒤 뜬다(Nuxt 가 동시 플러그인을 모두 기다린다)
-    name: 'roboyam:site-theme',
+    name: 'irobit:site-theme',
     parallel: true,
     async setup() {
         const { theme, ensureLoaded } = useTheme();

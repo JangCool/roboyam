@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 const { t } = useI18n();
-/** 모바일 상단 메뉴를 메뉴 구조 두 줄로 그리는가(운영자 설정 「모바일 상단 메뉴」 `MENU` > 테마 기본, 로보얌 기본 — `useMenuStyle`) — 그러면 운영자가 고른 모바일 탭 대신 `AppMobileMenuRows` */
+/** 모바일 상단 메뉴를 메뉴 구조 두 줄로 그리는가(운영자 설정 「모바일 상단 메뉴」 `MENU` > 테마 기본, 아이로빗 기본 — `useMenuStyle`) — 그러면 운영자가 고른 모바일 탭 대신 `AppMobileMenuRows` */
 const { mobileMenuRows: menuRows } = useMenuStyle();
 const { tabs: pickedTabs, state, activeId, reload } = useMenuItems();
 /** 운영자가 고른 탭 — 하단 탭(숏컷)에 이미 있는 항목(홈·최신글·게시판 …)은 뺀다(사용자 결정 2026-11-06, 기준은 하단 탭 목록 `useBottomTabs` — `AppMobileMenuRows` 와 같다) */

@@ -6,7 +6,7 @@ import type { TermsKind, TermsNotice } from '~/composables/terms/api/useTermsApi
  */
 export default class UtilTerms {
     /** 띠를 닫은 버전을 기억하는 localStorage 열쇠의 앞부분 — 뒤에 종류(`TERMS`·`PRIVACY`)가 붙고 값은 닫은 버전 번호 */
-    static readonly NOTICE_STORAGE_PREFIX = 'roboyam:terms-notice:';
+    static readonly NOTICE_STORAGE_PREFIX = 'irobit:terms-notice:';
 
     /**
      * 종류의 공개 화면 주소.
@@ -53,7 +53,7 @@ export default class UtilTerms {
     /**
      * 띠를 닫은 기억 열쇠.
      * @param {TermsKind} kind - 약관 종류.
-     * @returns {string} `roboyam:terms-notice:TERMS` 꼴.
+     * @returns {string} `irobit:terms-notice:TERMS` 꼴.
      */
     static noticeStorageKey(kind: TermsKind): string {
         return `${UtilTerms.NOTICE_STORAGE_PREFIX}${kind}`;

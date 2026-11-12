@@ -7,7 +7,7 @@ import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.QBizApplicationEntity;
 import com.community.bizapplication.entity.QBizApplicationItemEntity;
-import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.core.types.dsl.Expressions;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Repository;
  * QueryDSL 만 쓴다 — 건의 유형은 상품 이름이 가장 앞선 줄({@code min(product)}) 상관 서브쿼리다(예전 {@code JOIN LATERAL … ORDER BY product LIMIT 1} 과 같은 값).
  */
 @Repository
-public class AdStatsAdminStore extends RoboyamRepositoryQDSL {
+public class AdStatsAdminStore extends IrobitRepositoryQDSL {
 
     private static final QAdDailyStatEntity S = QAdDailyStatEntity.adDailyStatEntity;
     private static final QBizApplicationEntity A = QBizApplicationEntity.bizApplicationEntity;

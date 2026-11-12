@@ -70,7 +70,7 @@ public class PaymentCancelExecutor {
 
     public PaymentCancelExecutor(PaymentOrderStore orders, PaymentCancelStore cancels, PaymentEventStore events, PaymentOrderHandlers handlers, PaymentGateway gateway,
                                  PaymentAnomalyService anomalies, PaymentProperties properties, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
-                                 @Value("${roboyam.node-id}") int nodeId, ObjectProvider<Clock> clocks) {
+                                 @Value("${irobit.node-id}") int nodeId, ObjectProvider<Clock> clocks) {
         this.orders = orders;
         this.cancels = cancels;
         this.events = events;
@@ -227,7 +227,7 @@ public class PaymentCancelExecutor {
 
     /** 포트원에 보낼 사유 — 우리 취소 표시 {@code rc:<취소 ID>} 를 붙인다(취소 내역 아이디를 받지 못했을 때 재시도 전 조회·웹훅이 우리 취소를 알아본다) */
     static String providerReason(CancelRow row) {
-        return "roboyam " + row.kind().name() + " rc:" + row.id();
+        return "irobit " + row.kind().name() + " rc:" + row.id();
     }
 
     /** 포트원 취소 목록에서 이 취소 — 취소 내역 아이디가 같거나 사유에 우리 표시가 있는 것(성공한 것을 먼저) */

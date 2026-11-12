@@ -1,6 +1,6 @@
 <template>
     <!--
-        날짜별 미니 막대 — 공유 레이어 차트(`StatsTrendChart` compact, `@roboyam/chart` — ECharts)에 하루 숫자 하나를 막대로 넘기는 얇은 겹. 오늘 막대는 빗금·흐리게(집계 중).
+        날짜별 미니 막대 — 공유 레이어 차트(`StatsTrendChart` compact, `@irobit/chart` — ECharts)에 하루 숫자 하나를 막대로 넘기는 얇은 겹. 오늘 막대는 빗금·흐리게(집계 중).
         축·툴팁이 없어 차트 상자의 `aria-label`(요약)과 아래 첫날·마지막 날 글자로 읽는다.
         날짜가 아닌 칸(방문 현황의 시간대)은 `edges` 로 양 끝 글자를, `current` 로 집계 중인 칸의 키를 준다.
     -->

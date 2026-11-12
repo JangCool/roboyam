@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 공구 이미지 올리기(계약 결정 2 — 상품 대표 이미지·요청 사진·운영자 근거 사진 같은 길). JPEG·PNG·WebP <b>정지 이미지</b>만, 5MB 까지. 다시 인코딩해(JPEG — EXIF·위치 정보가 빠진다)
- * 방향을 바로잡고 긴 변 1600px·썸네일 400px 로 저장소({@code roboyam.storage})에 둔다. 키는 {@code groupbuy/<용도>/<년월>/<번호>.jpg}, 썸네일은 {@code …_thumb.jpg}
+ * 방향을 바로잡고 긴 변 1600px·썸네일 400px 로 저장소({@code irobit.storage})에 둔다. 키는 {@code groupbuy/<용도>/<년월>/<번호>.jpg}, 썸네일은 {@code …_thumb.jpg}
  * ({@link #thumbKey}) — 화면이 다루는 미디어 ID 는 이 키다(DB 행 없이 — 상품·요청이 저장할 때 키를 남긴다).
  */
 @Component
