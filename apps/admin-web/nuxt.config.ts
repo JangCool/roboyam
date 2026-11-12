@@ -81,9 +81,6 @@ export default defineNuxtConfig({
     // SPA 를 가볍게(`scripts/nuxt/spa-slim.mjs` — PrimeVue 실행 설정의 목록 빼기·미리 받기 끄기) — PrimeVue 모듈 뒤에 둔다
     modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.ROBOYAM_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
-    // 화면 문구 — 모듈과 로캘 목록은 `@roboyam/i18n` 레이어가 정한다. 이 앱의 문구(`i18n/locales/{언어}/index.ts`)를 언어별로 나눠 받게 알린다(같은 코드의 파일을 모듈이 합친다)
-    i18n: { locales: [{ code: 'ko', file: 'ko/index.ts' }, { code: 'en', file: 'en/index.ts' }] },
-
     // 폴더명을 컴포넌트 이름에 붙이지 않는다
     components: [{ path: '~/components', pathPrefix: false, extensions: ['vue'] }],
 
