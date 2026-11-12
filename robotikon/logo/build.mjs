@@ -90,7 +90,9 @@ function build({ lang, tone }) {
   const x2 = Math.ceil(Math.max(...wordmark.map((p) => p.bb.x2)) + pad)
   // xMinYMid: 그림 상자가 영역보다 넓게 잡혀도(브라우저가 전체 비율로 상자를 만들 때) 글자가 가운데로 가지 않고 아이콘이 있던 왼쪽 끝에 붙는다
   const view = `<view id="wordmark" viewBox="${x1} 0 ${x2 - x1} ${H}" preserveAspectRatio="xMinYMid meet"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '아이로빗' : 'IROBIT'}">${view}${symbol(0, CY - 13, S, head)}${paths}</svg>\n`
+  // 로봇 그림만 — <img src="….svg#symbol">(사이트 소개의 「AI」 카드: 안테나와 A자 다리가 A 를 그린다)
+  const symbolView = `<view id="symbol" viewBox="0 0 ${Math.ceil(SYM_W) + 1} ${H}" preserveAspectRatio="xMidYMid meet"/>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '아이로빗' : 'IROBIT'}">${view}${symbolView}${symbol(0, CY - 13, S, head)}${paths}</svg>\n`
 }
 
 const outDir = process.argv[2]

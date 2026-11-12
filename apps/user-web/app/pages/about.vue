@@ -5,7 +5,7 @@
             흰 카드(`gadget-card` data-headless) 한 장에 차례로(사용자 2026-11-12 「텍스트 위주로 심심해, 이미지·로고 아이콘으로 꾸며 줘」):
               ① 머리 — 사이트 로고 크게(`SiteBrand size="lg"` — 운영자 로고·언어·밝은/어두운 바탕 고르기는 상단 바와 같은 규칙) + 한 줄 소개(사이트 정보의 슬로건, 없으면 줄 없음)
                  + 다루는 이야기 칩 + 마스코트 로보티콘 둘(파란 로봇 「인사」·분홍 리본 로봇 「기쁨」 움직이는 GIF). 바탕은 주 색상을 옅게 섞어 라이트·다크 모두 따라간다.
-              ② 「IROBIT」 세 단어 카드 — I(Intelligence) · ROB(Robot) · BIT(Our Bit), 화면 문구(i18n). 소개 본문이 없거나 못 불러와도 ①②는 보인다.
+              ② 「IROBIT」 세 단어 카드 — AI(로고의 로봇이 A + I) · ROB(Robot) · BIT(Our Bit), 화면 문구(i18n). 소개 본문이 없거나 못 불러와도 ①②는 보인다.
               ③ 관리자 본문 — 관리자 설정 › 일반 「사이트 소개」, 서버가 정화한 HTML 만 `v-html`(`GET /api/site/about`). 없으면(`html: null`) 빈 상태.
                  글 모양(`rich-text`) 위에 이 화면에서만 제목 막대·목록 카드 격자·강조 색을 더한다(아래 scoped 스타일 — 다른 본문 화면에 새지 않는다).
               ④ 행동 단추 — 비회원 「가입하기」·「로그인」, 회원 「글쓰기」(사업자 전용 계정 제외)·「커뮤니티 둘러보기」(하단 탭과 같은 커뮤니티 자리 `useBottomTabs`).
@@ -55,7 +55,13 @@
                             <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
                                 <i :class="word.icon" class="text-xl" />
                             </span>
-                            <span class="text-3xl font-black leading-none tracking-tight text-primary" aria-hidden="true">{{ t(word.letterKey) }}</span>
+                            <!-- 「AI」 카드는 A 자리에 로고의 로봇(안테나와 A자 다리가 A 를 그린다) + I — 다른 카드는 글자만 -->
+                            <span v-if="word.key === 'ai'" class="inline-flex items-end text-3xl font-black leading-none tracking-tight text-primary" aria-hidden="true">
+                                <img src="/brand/irobit-logo-ko-light.svg#symbol" alt="" class="site-logo-light -mb-0.5 h-10 w-12" />
+                                <img src="/brand/irobit-logo-ko-dark.svg#symbol" alt="" class="site-logo-dark -mb-0.5 h-10 w-12" />
+                                <span>I</span>
+                            </span>
+                            <span v-else class="text-3xl font-black leading-none tracking-tight text-primary" aria-hidden="true">{{ t(word.letterKey) }}</span>
                         </div>
                         <h3 class="relative m-0 mt-4 text-base font-bold">{{ t(word.titleKey) }}</h3>
                         <p class="relative m-0 mt-1 text-sm leading-relaxed text-muted-color">{{ t(word.descKey) }}</p>
@@ -145,7 +151,7 @@ const topics = [
 
 /** 「IROBIT」 세 단어 카드 — 머리글자 · 이름 · 한 줄 뜻 */
 const words = [
-    { key: 'i', icon: 'pi pi-microchip-ai', letterKey: 'siteAbout.wordILetter', titleKey: 'siteAbout.wordITitle', descKey: 'siteAbout.wordIDesc' },
+    { key: 'ai', icon: 'pi pi-microchip-ai', letterKey: 'siteAbout.wordILetter', titleKey: 'siteAbout.wordITitle', descKey: 'siteAbout.wordIDesc' },
     { key: 'rob', icon: 'pi pi-cog', letterKey: 'siteAbout.wordRobLetter', titleKey: 'siteAbout.wordRobTitle', descKey: 'siteAbout.wordRobDesc' },
     { key: 'bit', icon: 'pi pi-sparkles', letterKey: 'siteAbout.wordBitLetter', titleKey: 'siteAbout.wordBitTitle', descKey: 'siteAbout.wordBitDesc' },
 ] as const;
@@ -246,10 +252,10 @@ onMounted(() => void load());
     border-radius: 9999px;
     background: var(--p-primary-color);
 }
-/* 글머리 목록 — 카드 격자(좁으면 한 열), 항목마다 반짝 아이콘 칩(PrimeIcons `pi-sparkles` 글자, 읽지 않게 대체 글자 빈칸) */
+/* 글머리 목록 — 한 줄에 한 항목(여러 열로 나누면 설명이 좁아져 안 읽힌다 — 사용자 2026-11-13), 항목마다 반짝 아이콘 칩(PrimeIcons `pi-sparkles` 글자, 읽지 않게 대체 글자 빈칸) */
 .about-body > :deep(ul) {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.75rem;
     margin: 1em 0 1.5em;
     padding: 0;
