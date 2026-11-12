@@ -35,6 +35,17 @@ export default defineNuxtConfig({
     // 방문 신호(`@irobit/analytics` — 방문자 ID·세션·`POST /api/visits`)는 이 앱만 쓴다. 켜기·미리보기 빼기·화면 종류는 `plugins/04.analytics.client.ts`
     extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart', '@irobit/analytics'],
     ssr: false,
+    /*
+     * 첫 화면 틀(`app/spa-loading-template.html`, srcDir 기준) — SPA 라 JS 를 받아 화면을 그릴 때까지 빈 흰 화면이던 자리에 공통 겉모양(상단 바 · 본문 카드 · 모바일 하단 탭)을 먼저 보인다
+     * (사용자 결정 2026-11-13 「첫 로딩 체감 줄이기」). generate 가 그 HTML 을 index.html 의 <body> 에 넣고(`#__nuxt-loader`, 화면 위를 덮는 고정 층),
+     * 앱이 그려지면(`app:suspense:resolve`) Nuxt 가 지운다 — 지우는 코드는 따로 없다. 모든 사용자에게 내려가므로 그 파일에는 긴 주석을 두지 않는다(index.html gzip 약 +2KB).
+     *  - Vue·CSS 가 오기 전이라 그 파일 안의 색·크기만 쓴다(Tailwind·PrimeVue 변수 없음). 화면마다 다른 모양은 따라 그리지 않는다.
+     *  - 맞춰 둔 값: 상단 바 높이 48px(`AppHeader` h-12) · 모바일 상단 탭 줄 40px · 본문 최대 폭 1168px(아이로빗·다음식 테마 `--content-max`) ·
+     *    바탕 #f2f4f7 / 다크 #17181b · 카드 #fff / #202125(main.css 아이로빗 테마 값). 사이트 전체 틀을 바꾸면 그 숫자도 맞춘다. 다른 테마·색은 1~2초 뒤 진짜 화면으로 바뀐다.
+     *  - 다크 판정은 `plugins/view-theme.client.ts` 와 같은 규칙(이 브라우저의 보기 설정 `irobit:view-settings` 의 theme — 자동이면 휴대폰 폭은 라이트, 그 밖은 기기 설정)으로
+     *    `<html data-color-scheme>` 을 미리 건다 — 진짜 화면이 뜰 때 바탕이 번쩍 바뀌지 않는다. 플러그인이 같은 값을 다시 건다. 규칙을 바꾸면 두 곳을 같이 고친다.
+     */
+    spaLoadingTemplate: 'spa-loading-template.html',
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
 

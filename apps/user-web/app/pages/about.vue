@@ -4,7 +4,7 @@
             사이트 소개(`/about`) — 기본 레이아웃, 비회원도 본다. 푸터 「사이트 소개」 링크(사이트 정보의 `about` 이 true 일 때)가 여기로 온다.
             흰 카드(`gadget-card` data-headless) 한 장에 차례로(사용자 2026-11-12 「텍스트 위주로 심심해, 이미지·로고 아이콘으로 꾸며 줘」):
               ① 머리 — 사이트 로고 크게(`SiteBrand size="lg"` — 운영자 로고·언어·밝은/어두운 바탕 고르기는 상단 바와 같은 규칙) + 한 줄 소개(사이트 정보의 슬로건, 없으면 줄 없음)
-                 + 다루는 이야기 칩 + 마스코트 로보티콘 둘(파란 로봇 「인사」·분홍 리본 로봇 「기쁨」 움직이는 GIF). 바탕은 주 색상을 옅게 섞어 라이트·다크 모두 따라간다.
+                 + 다루는 이야기 칩 + 마스코트 로보티콘 둘(파란 로봇 「인사」·분홍 리본 로봇 「기쁨」 — 움직이는 WebP `public/brand/mascot-*.webp`). 바탕은 주 색상을 옅게 섞어 라이트·다크 모두 따라간다.
               ② 「IROBIT」 세 단어 카드 — AI(로고의 로봇이 A + I) · ROB(Robot) · BIT(Our Bit), 화면 문구(i18n). 소개 본문이 없거나 못 불러와도 ①②는 보인다.
               ③ 관리자 본문 — 관리자 설정 › 일반 「사이트 소개」, 서버가 정화한 HTML 만 `v-html`(`GET /api/site/about`). 없으면(`html: null`) 빈 상태.
                  글 모양(`rich-text`) 위에 이 화면에서만 제목 막대·목록 카드 격자·강조 색을 더한다(아래 scoped 스타일 — 다른 본문 화면에 새지 않는다).
@@ -35,8 +35,9 @@
                         <span class="about-bubble absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold leading-none md:left-6 md:translate-x-0">
                             {{ t('siteAbout.heroHello') }}
                         </span>
-                        <img src="/emoticons/robotikon-m/17.gif" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
-                        <img src="/emoticons/robotikon-f/01.gif" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
+                        <!-- 로보티콘 GIF(`/emoticons/robotikon-m/17.gif`·`robotikon-f/01.gif`)를 화질 손실 없는 움직이는 WebP 로 바꾼 사본(픽셀·프레임 간격 같음, 180KB → 137KB — 2026-11-13) -->
+                        <img src="/brand/mascot-robotikon-m-17.webp" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
+                        <img src="/brand/mascot-robotikon-f-01.webp" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
                     </div>
                 </div>
             </section>

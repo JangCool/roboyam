@@ -1,0 +1,189 @@
+<!-- 첫 화면 틀 — 설명은 nuxt.config.ts 의 spaLoadingTemplate -->
+<script>
+    (function () {
+        try {
+            var theme = 'AUTO';
+            try {
+                var saved = JSON.parse(localStorage.getItem('irobit:view-settings') || 'null');
+                if (saved && (saved.theme === 'DARK' || saved.theme === 'LIGHT')) theme = saved.theme;
+            } catch (e) {}
+            var mobile = window.matchMedia('(max-width: 767.98px)').matches;
+            var dark = theme === 'DARK' || (theme === 'AUTO' && !mobile && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+        } catch (e) {}
+    })();
+</script>
+<style>
+    .irb-boot {
+        --boot-bg: #f2f4f7;
+        --boot-bar: #ffffff;
+        --boot-line: #eceef1;
+        --boot-card: #ffffff;
+        --boot-bone: #e6e9ee;
+        --boot-shine: #f3f5f8;
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        overflow: hidden;
+        background: var(--boot-bg);
+    }
+    html[data-color-scheme='dark'] .irb-boot {
+        --boot-bg: #17181b;
+        --boot-bar: #202125;
+        --boot-line: #2e3036;
+        --boot-card: #202125;
+        --boot-bone: #2c2e33;
+        --boot-shine: #36383e;
+    }
+    .irb-boot-bar {
+        height: 48px;
+        background: var(--boot-bar);
+        border-bottom: 1px solid var(--boot-line);
+    }
+    .irb-boot-wrap {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 1168px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+    .irb-boot-bar .irb-boot-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 100%;
+    }
+    .irb-boot-tabs {
+        display: none;
+        gap: 16px;
+        height: 40px;
+        align-items: center;
+        background: var(--boot-bar);
+        border-bottom: 1px solid var(--boot-line);
+    }
+    .irb-boot-main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        padding-top: 16px;
+    }
+    .irb-boot-card {
+        box-sizing: border-box;
+        padding: 16px;
+        border-radius: 12px;
+        background: var(--boot-card);
+    }
+    .irb-boot-card + .irb-boot-card {
+        margin-top: 16px;
+    }
+    .irb-boot-b {
+        display: block;
+        height: 12px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, var(--boot-bone) 25%, var(--boot-shine) 37%, var(--boot-bone) 63%) 0 0 / 400% 100%;
+        animation: irb-boot-shine 1.4s ease infinite;
+    }
+    .irb-boot-b + .irb-boot-b {
+        margin-top: 14px;
+    }
+    .irb-boot-bottom {
+        display: none;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: 56px;
+        background: var(--boot-bar);
+        border-top: 1px solid var(--boot-line);
+        justify-content: space-around;
+        align-items: center;
+    }
+    @keyframes irb-boot-shine {
+        from {
+            background-position: 100% 0;
+        }
+        to {
+            background-position: 0 0;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .irb-boot-b {
+            animation: none;
+        }
+    }
+    /* 휴대폰 폭(Tailwind md 미만) — 상단 가로 탭 줄 · 한 열 · 하단 탭 */
+    @media (max-width: 767.98px) {
+        .irb-boot-wrap {
+            padding: 0 12px;
+        }
+        .irb-boot-tabs {
+            display: flex;
+        }
+        .irb-boot-main {
+            grid-template-columns: minmax(0, 1fr);
+            padding-top: 12px;
+        }
+        .irb-boot-side {
+            display: none;
+        }
+        .irb-boot-card {
+            border-radius: 0;
+            margin: 0 -12px;
+        }
+        .irb-boot-card + .irb-boot-card {
+            margin-top: 8px;
+        }
+        .irb-boot-bottom {
+            display: flex;
+        }
+    }
+</style>
+<div class="irb-boot" aria-hidden="true">
+    <div class="irb-boot-bar">
+        <div class="irb-boot-wrap">
+            <span class="irb-boot-b" style="width: 112px; height: 22px; border-radius: 8px"></span>
+            <span style="flex: 1"></span>
+            <span class="irb-boot-b" style="width: 28px; height: 28px; border-radius: 50%"></span>
+            <span class="irb-boot-b" style="width: 28px; height: 28px; border-radius: 50%; margin-top: 0"></span>
+        </div>
+    </div>
+    <div class="irb-boot-tabs irb-boot-wrap">
+        <span class="irb-boot-b" style="width: 40px"></span>
+        <span class="irb-boot-b" style="width: 56px; margin-top: 0"></span>
+        <span class="irb-boot-b" style="width: 48px; margin-top: 0"></span>
+        <span class="irb-boot-b" style="width: 52px; margin-top: 0"></span>
+    </div>
+    <div class="irb-boot-wrap irb-boot-main">
+        <div>
+            <div class="irb-boot-card">
+                <span class="irb-boot-b" style="width: 30%; height: 16px"></span>
+                <span class="irb-boot-b" style="width: 92%"></span>
+                <span class="irb-boot-b" style="width: 78%"></span>
+                <span class="irb-boot-b" style="width: 86%"></span>
+                <span class="irb-boot-b" style="width: 64%"></span>
+                <span class="irb-boot-b" style="width: 82%"></span>
+            </div>
+            <div class="irb-boot-card">
+                <span class="irb-boot-b" style="width: 24%; height: 16px"></span>
+                <span class="irb-boot-b" style="width: 88%"></span>
+                <span class="irb-boot-b" style="width: 72%"></span>
+                <span class="irb-boot-b" style="width: 80%"></span>
+            </div>
+        </div>
+        <div class="irb-boot-side">
+            <div class="irb-boot-card">
+                <span class="irb-boot-b" style="width: 40%; height: 16px"></span>
+                <span class="irb-boot-b" style="width: 90%"></span>
+                <span class="irb-boot-b" style="width: 70%"></span>
+                <span class="irb-boot-b" style="width: 84%"></span>
+            </div>
+        </div>
+    </div>
+    <div class="irb-boot-bottom">
+        <span class="irb-boot-b" style="width: 24px; height: 24px; border-radius: 8px"></span>
+        <span class="irb-boot-b" style="width: 24px; height: 24px; border-radius: 8px; margin-top: 0"></span>
+        <span class="irb-boot-b" style="width: 24px; height: 24px; border-radius: 8px; margin-top: 0"></span>
+        <span class="irb-boot-b" style="width: 24px; height: 24px; border-radius: 8px; margin-top: 0"></span>
+        <span class="irb-boot-b" style="width: 24px; height: 24px; border-radius: 8px; margin-top: 0"></span>
+    </div>
+</div>
