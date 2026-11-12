@@ -21,6 +21,9 @@ export function useLanguage() {
     const prime = usePrimeVue();
     const defaults = useState<Record<string, unknown> | null>(PRIME_LOCALE_DEFAULTS_KEY, () => null);
 
+    /** 마지막으로 바꾸라고 한 언어 — 문구를 받는 동안 또 바뀌었는지 본다 */
+    let requested: Language | null = null;
+
     /** 지금 언어 */
     const language = computed<Language>(() => UtilI18n.languageOf(i18n.locale.value));
 
@@ -32,8 +35,16 @@ export function useLanguage() {
      */
     function setLanguage(value: string): Language {
         const next = UtilI18n.languageOf(value);
-        // 우리가 가진 언어만 받는다 — 없는 것을 넣으면 키가 그대로 화면에 나온다
-        if (i18n.locale.value !== next && i18n.availableLocales.includes(next)) i18n.locale.value = next;
+        // 우리가 가진 언어만 받는다 — 없는 것을 넣으면 키가 그대로 화면에 나온다.
+        // 문구는 언어별로 나눠 받으므로(`@roboyam/i18n` 의 `locales[].file`) 그 언어 문구를 받은 뒤에 바꾼다 — 먼저 바꾸면 받는 동안 키가 보인다.
+        // (`availableLocales` 는 이미 받은 언어만 있어 처음 바꾸는 언어를 막는다 — 설정한 언어 목록 `localeCodes` 를 본다)
+        // 받는 사이 다른 언어로 또 바꾸면 마지막 요청만 먹인다(늦게 끝난 받기가 덮지 않게)
+        requested = next;
+        if (i18n.locale.value !== next && i18n.localeCodes.value.includes(next)) {
+            void i18n.loadLocaleMessages(next).then(() => {
+                if (requested === next && i18n.locale.value !== next) i18n.locale.value = next;
+            });
+        }
         const locale = prime?.config?.locale;
         if (locale) Object.assign(locale, UtilPrimeLocale.overridesFor(next) ?? defaults.value ?? {});
         return next;

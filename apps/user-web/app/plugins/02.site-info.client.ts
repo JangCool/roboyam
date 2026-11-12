@@ -1,7 +1,7 @@
 /**
  * 앱이 뜨기 전에 공개 사이트 정보(이름·소개·로고·아이콘·표시 기본값)를 받아 상태에 채운다 (`useSiteInfo().ensureLoaded()` → `GET /api/site/info`).
  *
- * - 파일 이름의 `02.` 는 순서다 — 설치 상태(`00.installation`)·테마(`01.site-theme`) 다음, 로그인 상태(`auth.client.ts`)·표시 값(`display.client.ts`)보다 먼저 돈다.
+ * - 파일 이름의 `02.` 는 순서다 — 설치 상태(`00.installation`) 다음에 시작해 테마·로그인 상태와 **동시에** 받는다(`parallel`). 앱은 셋이 다 끝난 뒤 뜬다.
  *   그래서 첫 화면의 로고 자리와 표시 값의 처음 기본값이 받은 값으로 그려진다(깜빡임 최소화).
  * - **설치 전(`pending`)에는 부르지 않는다** — `/api/**` 가 `503 NOT_INSTALLED` 다. 설치가 끝나 상태가 바뀌면(`installed`) 그때 받는다.
  * - 서버가 느려도 앱 시작을 오래 막지 않는다 — 짧게(2초) 기다린 뒤 먼저 뜨고, 응답이 오면 상태가 채워져 화면이 바뀐다.
@@ -11,16 +11,21 @@
 /** 앱 시작을 기다려 주는 최대 시간(ms) */
 const START_WAIT_MS = 2000;
 
-export default defineNuxtPlugin(async () => {
-    const install = useInstallState();
-    const { ensureLoaded } = useSiteInfo();
+export default defineNuxtPlugin({
+    // 테마(`01.site-theme`)·로그인 상태(`auth`)와 동시에 받는다(`parallel`) — 기다리던 왕복을 한 번으로 줄인다(휴대폰 회선에서 차이가 크다)
+    name: 'roboyam:site-info',
+    parallel: true,
+    async setup() {
+        const install = useInstallState();
+        const { ensureLoaded } = useSiteInfo();
 
-    if (install.phase.value !== 'pending') {
-        await Promise.race([ensureLoaded(), new Promise<void>((resolve) => setTimeout(resolve, START_WAIT_MS))]);
-    }
+        if (install.phase.value !== 'pending') {
+            await Promise.race([ensureLoaded(), new Promise<void>((resolve) => setTimeout(resolve, START_WAIT_MS))]);
+        }
 
-    // 설치 마법사를 마치면(pending → installed) 그때 받는다. 이미 받았으면 다시 묻지 않는다
-    watch(install.phase, (phase) => {
-        if (phase === 'installed') void ensureLoaded();
-    });
+        // 설치 마법사를 마치면(pending → installed) 그때 받는다. 이미 받았으면 다시 묻지 않는다
+        watch(install.phase, (phase) => {
+            if (phase === 'installed') void ensureLoaded();
+        });
+    },
 });

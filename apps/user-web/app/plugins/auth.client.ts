@@ -9,13 +9,18 @@
  * 플러그인이 끝나야 첫 이동(미들웨어)이 시작된다. 서버에 닿지 못해도 앱은 뜬다 — 비로그인으로 보고,
  * 로그인을 시도하면 그때 오류를 보여 준다.
  */
-export default defineNuxtPlugin(async () => {
-    if (useInstallState().phase.value === 'pending') return;
+export default defineNuxtPlugin({
+    // 테마·사이트 정보와 동시에 받는다(`parallel`). 로그인 사용자를 바로 쓰는 플러그인(`display`·`view-settings`)은 `dependsOn` 으로 이것을 기다린다
+    name: 'roboyam:auth',
+    parallel: true,
+    async setup() {
+        if (useInstallState().phase.value === 'pending') return;
 
-    const { refresh } = useAuth();
-    try {
-        await refresh();
-    } catch {
-        /* loaded 는 true 로 남는다. 화면이 각자 서버 오류를 보여 준다 */
-    }
+        const { refresh } = useAuth();
+        try {
+            await refresh();
+        } catch {
+            /* loaded 는 true 로 남는다. 화면이 각자 서버 오류를 보여 준다 */
+        }
+    },
 });

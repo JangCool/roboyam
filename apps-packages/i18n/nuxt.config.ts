@@ -13,7 +13,8 @@
  * 파일을 늘리면 두 언어의 `locales/{언어}/index.ts` 에 한 줄씩 더한다(파일 이름이 키의 첫 마디). `import.meta.glob` 자동 수집은 쓰지 않는다 — Nitro 서버 번들에서 변환되지 않아 서버가 500 이 된다.
  *
  * ⚠ **설정 파일 위치는 모듈이 정한다.** 각 레이어(와 앱)의 **루트 아래 `i18n/`** (`restructureDir` 기본값)이다 — `app/i18n/` 에 두면 "설정 파일을 못 찾았다"고 하고 조용히 건너뛴다.
- *    레이어마다 자기 `i18n/i18n.config.ts`(문구)를 두면 모듈이 모든 레이어의 것을 읽어 `messages` 를 깊게 합친다(앱 → 레이어 순으로 모두). 로캘 목록(`locales`)과 언어 기본값은 이 레이어만 정한다.
+ *    레이어마다 자기 `nuxt.config.ts` 에 `i18n.locales` 를 같은 코드로 `file` 만 적으면(아래) 모듈이 모든 레이어의 `i18n/locales/{언어}/index.ts` 를 언어별로 합친다(앱 → 레이어 순으로 모두).
+ *    로캘 이름·`language` 와 언어 기본값(`i18n/i18n.config.ts`)은 이 레이어만 정한다.
  */
 export default defineNuxtConfig({
     $meta: { name: 'i18n' },
@@ -23,9 +24,12 @@ export default defineNuxtConfig({
     i18n: {
         strategy: 'no_prefix',
         defaultLocale: 'ko',
+        // 문구는 언어별로 나눠 받는다(`file` — 첫 화면은 쓰는 언어 하나만, 영어로 바꿀 때 영어를 받는다). 레이어·앱마다 자기 `i18n/locales/{언어}/index.ts` 를
+        // 같은 코드로 적으면 모듈이 파일을 합친다(`code` 만 적으면 된다 — 이름·language 는 여기서 정한다).
+        // 예전에는 `i18n.config.ts` 의 `messages` 로 두 언어·모든 화면 문구를 첫 화면에서 한꺼번에 받았다(user-web 약 186KB gzip — 2026-11-12 측정).
         locales: [
-            { code: 'ko', language: 'ko-KR', name: '한국어' },
-            { code: 'en', language: 'en-US', name: 'English' },
+            { code: 'ko', language: 'ko-KR', name: '한국어', file: 'ko/index.ts' },
+            { code: 'en', language: 'en-US', name: 'English', file: 'en/index.ts' },
         ],
         detectBrowserLanguage: false,
         // 설정 파일 이름을 적어 두면 못 찾을 때 경고가 나온다(적지 않으면 조용히 건너뛴다)

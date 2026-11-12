@@ -1,7 +1,9 @@
 package com.community.zconfiguration;
 
 import java.io.IOException;
+import java.time.Duration;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -27,8 +29,17 @@ public class SpaResourceConfig implements WebMvcConfigurer {
     /** 화면이 없을 때 돌려줄 파일. 빌드가 만들어 jar 에 넣는다. */
     private static final String INDEX = "/static/index.html";
 
+    /** 빌드 산출물(JS·CSS·글꼴) 자리 — 파일 이름에 내용 해시가 붙는다. */
+    private static final String BUILD_ASSETS = "/_nuxt/**";
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 이름에 해시가 붙어 내용이 바뀌면 이름도 바뀌므로 1년 동안 다시 묻지 않게 한다(immutable).
+        // 없는 조각은 index.html 이 아니라 404 다 — 배포 뒤 옛 화면이 지운 조각을 부르면 HTML 을 JS 로 읽어 깨지는 대신 Nuxt 가 새로 고친다.
+        registry.addResourceHandler(BUILD_ASSETS)
+                .addResourceLocations("classpath:/static/_nuxt/")
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable());
+
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .resourceChain(true)
