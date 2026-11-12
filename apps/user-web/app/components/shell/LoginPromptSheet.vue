@@ -29,9 +29,11 @@ const open = computed({
 /**
  * 종류별 제목·설명 — 문구는 `i18n/locales/{ko,en}/prompt.ts` 의 `prompt.{종류}Title`·`prompt.{종류}Description`(종류는 `LoginPromptAction`).
  * 한도 수치(7일·20통·5명)는 시안 문구 그대로다 — 비회원은 서버 설정값(내 쪽지 상태의 rules·quota)을 읽을 수 없다.
- * `view` 는 댓글 지연 노출(COM-003) — 비회원에게 아직 가려진 댓글 자리를 눌렀다. 시간 숫자는 알리지 않는다.
+ * `view` 는 댓글 지연 노출(COM-003) — 비회원에게 아직 가려진 댓글 자리를 눌렀다. 안내 방식이 `TIME`(기본)이면 부르는 쪽이 「N시간 뒤 공개 · 로그인하면 지금 바로」 문구를
+ * `copy` 로 넘기고(`UtilCommentDelayMessages.viewSheet`), `LOGIN` 이면 기본 문구(시간 숫자 없음)다.
  */
 const copy = computed(() => {
+    if (state.value.copy) return state.value.copy;
     const action: LoginPromptAction = state.value.action;
     return { title: t(`prompt.${action}Title`), description: t(`prompt.${action}Description`) };
 });

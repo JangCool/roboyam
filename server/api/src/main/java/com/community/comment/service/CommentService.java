@@ -458,7 +458,9 @@ public class CommentService {
                 !DELETED.equals(state) && !HIDDEN.equals(state) && viewer.pinned().contains(c.getId()),
                 viewer.dislikeEnabled() ? c.getDislikeCount() : null, viewer.dislikeEnabled() ? viewer.disliked().contains(c.getId()) : null,
                 viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null,
-                !c.isAnonymous() && c.getAuthorId() != null && viewer.protectedAuthors().contains(c.getAuthorId())); // 익명 댓글은 매니저·스텝인지도 드러내지 않는다
+                !c.isAnonymous() && c.getAuthorId() != null && viewer.protectedAuthors().contains(c.getAuthorId()), // 익명 댓글은 매니저·스텝인지도 드러내지 않는다
+                // 비회원 공개 시각(board-public-contract 결정 2) — DELAYED 일 때만 작성 시각 + 지연 분. 본문은 여전히 보내지 않는다
+                DELAYED.equals(state) ? c.getCreatedAt().plus(Duration.ofMinutes(viewer.delayMinutes())) : null);
     }
 
     /** 답한 댓글 — 지운 댓글·나간 멤버의 가린 댓글이면 이름을 비운다 */

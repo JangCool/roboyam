@@ -55,15 +55,19 @@
             <!-- 고치는 중이면 본문 자리에 편집 폼(부르는 쪽이 슬롯으로 넣는다) -->
             <slot v-if="editing" name="editor" />
             <template v-else>
-                <!-- 비회원에게 아직 공개되지 않은 댓글 — 시간 숫자는 알리지 않는다(`util-comment-delay-messages.ts`). 누르면 로그인 안내 -->
+                <!--
+                    비회원에게 아직 공개되지 않은 댓글 — 안내 방식은 사이트 기본 `boardDisplay.commentDelayNotice`(`util-comment-delay-messages.ts`):
+                    `TIME`(기본) 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인」(`visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」. 누르면 로그인 안내
+                -->
                 <button
                     v-if="comment.state === 'DELAYED'"
                     type="button"
                     class="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-surface-100 px-3 py-2 text-sm text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-800"
-                    :aria-label="UtilCommentDelayMessages.placeholderLabel(t, comment.author.kind === 'ANONYMOUS' ? UtilAnonymousMessages.authorName(t, comment.author) : comment.author.name)"
+                    :aria-label="delayLabel"
+                    data-testid="comment-delayed"
                     @click="$emit('view-delayed')"
                 >
-                    <i class="pi pi-lock text-xs" aria-hidden="true" />{{ t('prompt.delayPlaceholder') }}
+                    <i class="pi pi-lock text-xs" aria-hidden="true" />{{ delayText }}
                 </button>
                 <!--
                     에디터로 쓴 댓글(`contentFormat === 'HTML'`, 간단 에디터) — 서버가 정화한 HTML 만 온다(공개 게시판 계약 「에디터 화면」).
@@ -240,6 +244,23 @@ watch(
         UtilRichEmoticon.replaceIn(el, catalog.resolve);
     },
     { flush: 'post' },
+);
+
+/**
+ * 가려진 댓글 자리의 안내(비회원) — 남은 시간은 화면 전체가 같이 쓰는 1초 시계(`useNowTicker`)로 줄여 간다. 시계는 처음부터 가려진 댓글에만 붙인다(보이는 댓글은 시계를 돌리지 않는다).
+ * 안내 방식을 못 받았으면 `TIME`(`useBoardDisplay` 기본).
+ */
+const { display: boardDisplay } = useBoardDisplay();
+const delayNow = props.comment.state === 'DELAYED' ? useNowTicker() : null;
+const delayText = computed(() => UtilCommentDelayMessages.placeholder(t, boardDisplay.value.commentDelayNotice, props.comment.visibleAt, delayNow?.value ?? Date.now()));
+const delayLabel = computed(() =>
+    UtilCommentDelayMessages.placeholderLabel(
+        t,
+        props.comment.author.kind === 'ANONYMOUS' ? UtilAnonymousMessages.authorName(t, props.comment.author) : props.comment.author.name,
+        boardDisplay.value.commentDelayNotice,
+        props.comment.visibleAt,
+        delayNow?.value ?? Date.now(),
+    ),
 );
 
 /** 숨긴 자리의 문구 — 운영자 숨김 · 소모임을 나간 멤버의 댓글 · 멤버 전용 댓글(소모임 5단계 — 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글) · 신고 숨김 */

@@ -121,8 +121,10 @@ public class PublicSiteService implements CacheReloader {
         String highlightColor = boardValues.map(BoardDefaultsValues::listHighlightColor).orElse(BoardFields.HIGHLIGHT_COLOR_DEFAULT);
         // 글 목록 말머리 모양의 사이트 기본(V195) — 섞인 목록이 쓴다
         String listPrefixStyle = boardValues.map(BoardDefaultsValues::listPrefixStyle).orElse(BoardFields.PREFIX_STYLE_TEXT);
+        // 비회원 댓글 공개 지연 안내 문구 방식(V199) — 사이트 전체 값 하나
+        String commentDelayNotice = boardValues.map(BoardDefaultsValues::commentDelayNotice).orElse(BoardFields.DELAY_NOTICE_TIME);
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS, listChipPosition, likeHighlight, viewHighlight,
-                highlightColor, listPrefixStyle);
+                highlightColor, listPrefixStyle, commentDelayNotice);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         // 방문 수집 스위치 — 설정 사본(30초)에서. 이 사본(20초)의 지문(ETag)에도 들어간다
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme,

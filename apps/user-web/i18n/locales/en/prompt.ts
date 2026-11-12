@@ -33,6 +33,10 @@ export default {
     dealEndDescription: 'Only logged-in members at the regular grade or above can report sold-out or price changes. You can read without logging in.',
     viewTitle: 'Log in to see it right away',
     viewDescription: 'A new comment appears a little later to visitors who are not logged in. Log in to read comments as soon as they are posted.',
+    viewTimeHoursTitle: 'This comment goes public in {n} hours',
+    viewTimeMinutesTitle: 'This comment goes public in {n} minutes',
+    viewTimeSoonTitle: 'This comment goes public soon',
+    viewTimeDescription: 'New comments appear a little later to visitors who are not logged in. Log in to read it right now.',
     // Clubs — join · create
     groupJoinTitle: 'Log in to join a club',
     groupJoinDescription: 'You can browse clubs without logging in. Only logged-in members can join or apply.',
@@ -42,4 +46,8 @@ export default {
     // Placeholder for a hidden comment body
     delayPlaceholder: 'Log in to see it right away',
     delayPlaceholderLabel: '{name}’s comment — Log in to see it right away',
+    delayAfterHours: 'Visible in {n} hours · Log in to see it now',
+    delayAfterMinutes: 'Visible in {n} minutes · Log in to see it now',
+    delaySoon: 'Visible soon · Log in to see it now',
+    delayNoticeLabel: '{name}’s comment — {notice}',
 };

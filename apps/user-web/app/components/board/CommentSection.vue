@@ -334,6 +334,7 @@ import type { CommentActions, DebateActions } from '~/components/board/CommentSe
 import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilCommentDelayMessages from '~/utils/util-comment-delay-messages';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
@@ -398,6 +399,8 @@ const route = useRoute();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { prompt } = useLoginPrompt();
+/** 비회원에게 가려진 댓글의 안내 방식(`boardDisplay.commentDelayNotice`, 기본 `TIME`) — 안내 시트 문구를 고른다 */
+const { display: boardDisplay } = useBoardDisplay();
 const headingId = useId();
 
 /** 지금 열린 폼과 그 서버 오류 — `new` · `reply` · `edit:{id}` */
@@ -885,7 +888,9 @@ async function dislike(comment: CommentView): Promise<void> {
     }
 }
 
+/** 가려진 댓글을 눌렀다 — 로그인 안내 시트(종류 view). `TIME` 이면 「N시간 뒤 공개 · 로그인하면 지금 바로」 문구, `LOGIN` 이면 기본 문구 */
 function viewDelayed(comment: CommentView): void {
-    prompt('view', `${route.path}#comment-${comment.id}`);
+    const copy = UtilCommentDelayMessages.viewSheet(t, boardDisplay.value.commentDelayNotice, comment.visibleAt, Date.now());
+    prompt('view', `${route.path}#comment-${comment.id}`, copy);
 }
 </script>

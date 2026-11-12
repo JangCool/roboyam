@@ -14,7 +14,7 @@ import type {
  * 규약: `docs/features/board-public-contract.md`.
  *
  *  - `GET /api/posts/{id}/comments?sort=OLDEST|LATEST&kind=ALL|GENERAL|OPINION|PRO|CON|NEUTRAL` 원댓글 + 답글(1단계) + 베스트 + 보이는 수 + 토론 칸(`debate`) + 추천·비추천 표시(`reactions`).
- *      비회원이 보면 최근 N분 댓글은 `state: DELAYED`(본문 없음, 같은 IP 의 비회원에게는 바로 보인다). `kind` 는 원댓글의 입장으로 가른다(답글은 원댓글을 따라간다), 그 밖 값은 400 `fields.kind`.
+ *      비회원이 보면 최근 N분 댓글은 `state: DELAYED`(본문 없음, 공개 시각 `visibleAt` 을 싣는다, 같은 IP 의 비회원에게는 바로 보인다). `kind` 는 원댓글의 입장으로 가른다(답글은 원댓글을 따라간다), 그 밖 값은 400 `fields.kind`.
  *      토론 구분(OPINION·PRO·CON·NEUTRAL)은 고정한 보이는 의견이 맨 위. 화면은 댓글 구획을 `GENERAL`, 토론 구획을 `OPINION`(또는 한 입장)으로 부른다
  *  - `POST /api/posts/{id}/comments` 쓰기(비회원은 `guest` 칸, 토론 의견은 `opinion: true`(+ `stance`)) → 새 댓글(쓴 사람에게 늘 `VISIBLE`).
  *      토론 오류 409 `DEBATE_NOT_OPEN`·`STANCE_REQUIRED`(먼저 투표)·`STANCE_LOCKED`(보낸 입장이 지금 입장과 다름)

@@ -105,6 +105,10 @@ public final class BoardFields {
     public static final String PREFIX_STYLE_MUTED = "MUTED";
     public static final String PREFIX_STYLE_COLOR = "COLOR";
     public static final List<String> PREFIX_STYLES = List.of(PREFIX_STYLE_TEXT, PREFIX_STYLE_MUTED, PREFIX_STYLE_COLOR);
+    /** 비회원 댓글 공개 지연 안내 문구 방식(V199 — board-public-contract 결정 2) — 남은 시간(기본) · 로그인 안내. 사이트 전체 값 하나 */
+    public static final String DELAY_NOTICE_TIME = "TIME";
+    public static final String DELAY_NOTICE_LOGIN = "LOGIN";
+    public static final List<String> COMMENT_DELAY_NOTICES = List.of(DELAY_NOTICE_TIME, DELAY_NOTICE_LOGIN);
     /** 목록 숫자 강조 기준 상한(V170 CHECK 와 같다) · 처음 값 */
     public static final int LIKE_HIGHLIGHT_MAX = 100_000;
     public static final int VIEW_HIGHLIGHT_MAX = 10_000_000;
@@ -215,6 +219,8 @@ public final class BoardFields {
         choice(d, "commentProtectDelete", true, false, "BLOCK", "DELAY", "ALLOW");
         choice(d, "commentProtectDelayMinutes", true, false, 5, 10, 30);
         choice(d, "commentGuestDelayMinutes", true, false, 0, 10, 30, 60, 180);
+        // 비회원 댓글 공개 지연 안내 문구 방식(V199) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음)
+        choice(d, "commentDelayNotice", false, false, DELAY_NOTICE_TIME, DELAY_NOTICE_LOGIN);
         bool(d, "staffHiddenNotice", true);
         bool(d, "commentDislikeEnabled", true);
         put(d, new Spec("commentLikeLabel", Kind.LABEL, 1, REACTION_LABEL_MAX, List.of(), true, false));

@@ -21,21 +21,33 @@ import java.time.Instant;
  * @param pinRequest 내 의견의 고정 요청 상태(대기·거절) — 내가 쓴 의견 원댓글이 아니거나 요청이 없거나 승인됐으면 null
  * @param staffProtected 보는 사람이 그 게시판 매니저·스텝이고 댓글 작성자가 같은 게시판 매니저·스텝이다 — 스텝 「댓글 삭제」·「작성자 제재」가 막혀 화면이 ⋯ 메뉴에서 뺀다
  *                  (docs/features/board-staff-action-contract.md 정책 4). 그 밖의 보는 사람은 늘 false
+ * @param visibleAt 비회원에게 공개되는 시각(작성 시각 + 게시판 유효값 {@code commentGuestDelayMinutes}) — {@code state} 가 DELAYED 일 때만, 아니면 null.
+ *                  화면은 사이트 기본 {@code boardDisplay.commentDelayNotice}(TIME · LOGIN, V199)에 따라 안내 문구를 고른다(board-public-contract 결정 2)
  */
 public record CommentView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat, String state,
                           Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine, String blocked, String stance,
                           String hiddenBy, boolean pinned, Integer dislikeCount, Boolean disliked, PinRequestStateView pinRequest,
-                          boolean staffProtected) {
+                          boolean staffProtected, Instant visibleAt) {
 
-    /** 차단·입장·숨김 까닭·고정·비추천 칸 없이(null·false) */
+    /** 공개 시각 없이(null) — DELAYED 가 아닌 댓글 */
+    public CommentView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat, String state,
+                       Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine, String blocked, String stance,
+                       String hiddenBy, boolean pinned, Integer dislikeCount, Boolean disliked, PinRequestStateView pinRequest,
+                       boolean staffProtected) {
+        this(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, blocked, stance,
+                hiddenBy, pinned, dislikeCount, disliked, pinRequest, staffProtected, null);
+    }
+
+    /** 차단·입장·숨김 까닭·고정·비추천·공개 시각 칸 없이(null·false) */
     public CommentView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat, String state,
                        Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine) {
-        this(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, null, null, null, false, null, null, null, false);
+        this(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, null, null, null, false, null, null, null, false,
+                null);
     }
 
     /** 고정 표시를 바꾼 사본 */
     public CommentView withPinned(boolean value) {
         return new CommentView(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, blocked, stance,
-                hiddenBy, value, dislikeCount, disliked, pinRequest, staffProtected);
+                hiddenBy, value, dislikeCount, disliked, pinRequest, staffProtected, visibleAt);
     }
 }

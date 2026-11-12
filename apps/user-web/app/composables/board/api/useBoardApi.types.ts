@@ -179,6 +179,11 @@ export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 
 /** 날짜 표시 방식 — 표준형(최근은 N분/N시간 전, 올해는 월-일, 오래된 글은 연-월-일) · 유동형(모두 상대 시간). 관리자 기본 설정 `dateDisplay` */
 export type BoardDateDisplay = 'STANDARD' | 'RELATIVE';
+/**
+ * 비회원에게 가려진 댓글(`DELAYED`) 자리의 안내 방식 — 관리자 게시판 기본 설정 `commentDelayNotice`(사이트 전체, board-public-contract 결정 2 정정 2026-11-12).
+ * `TIME`(기본) 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」(남은 시간 = 댓글의 `visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」(시간을 알리지 않는다).
+ */
+export type CommentDelayNotice = 'TIME' | 'LOGIN';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
 export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 
@@ -199,6 +204,8 @@ export interface BoardDisplaySettings {
     viewHighlight: number;
     /** 강조 색 원색 `#rrggbb`(`listHighlightColor`) — 그릴 때 라이트·다크 바탕에서 읽히게 명도만 보정한다(`UtilColor.cssPair`). 옛 응답·틀린 값이면 `#e5484d` */
     highlightColor: string;
+    /** 비회원에게 가려진 댓글 자리의 안내 방식(관리자 기본 설정 `commentDelayNotice`) — 옛 응답·틀린 값이면 `TIME`(`UtilSiteInfo.cleanBoardDisplay`) */
+    commentDelayNotice: CommentDelayNotice;
 }
 
 /** 공개 화면이 쓰는 정책 유효값(게시판 값 ?? 기본값) — 관리자 `BoardDefaults` 의 같은 이름 칸 */

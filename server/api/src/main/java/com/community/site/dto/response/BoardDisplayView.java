@@ -12,9 +12,11 @@ package com.community.site.dto.response;
  * @param highlightColor   강조 색 {@code #rrggbb}(소문자, 관리자 {@code listHighlightColor}, 기본 {@code #e5484d})
  * @param listPrefixStyle  글 목록 말머리 모양의 사이트 기본 TEXT · MUTED · COLOR(관리자 게시판 기본 설정 {@code listPrefixStyle}, V195) — 섞인 목록이 쓴다.
  *                         게시판 하나의 목록·글 보기는 게시판 응답의 {@code prefixStyle}(이미 푼 값)을 쓴다
+ * @param commentDelayNotice 비회원 댓글 공개 지연 안내 문구 방식 TIME(남은 시간 — 댓글의 {@code visibleAt} 으로 센다) · LOGIN(로그인 안내)(관리자 게시판 기본 설정
+ *                         {@code commentDelayNotice}, V199) — 사이트 전체 값 하나
  */
 public record BoardDisplayView(String dateDisplay, int newPostHours, String listChipPosition, int likeHighlight, int viewHighlight, String highlightColor,
-                               String listPrefixStyle) {
+                               String listPrefixStyle, String commentDelayNotice) {
 
     public static final int NEW_POST_HOURS = 24;
 }

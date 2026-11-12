@@ -68,6 +68,8 @@ public class BoardDefaultsEntity {
     private String listHighlightColor;
     /** 글 목록 말머리 모양의 사이트 기본(V195) TEXT · MUTED · COLOR — 게시판 {@code prefix_style} 이 NULL 이면 이 값 */
     private String listPrefixStyle;
+    /** 비회원 댓글 공개 지연 안내 문구 방식(V199) TIME(남은 시간) · LOGIN(로그인 안내) — 사이트 전체 값, 게시판별 덮어쓰기 없음 */
+    private String commentDelayNotice;
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -80,7 +82,7 @@ public class BoardDefaultsEntity {
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
-                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle);
+                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -127,6 +129,7 @@ public class BoardDefaultsEntity {
         this.listViewHighlight = v.listViewHighlight();
         this.listHighlightColor = v.listHighlightColor();
         this.listPrefixStyle = v.listPrefixStyle();
+        this.commentDelayNotice = v.commentDelayNotice();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

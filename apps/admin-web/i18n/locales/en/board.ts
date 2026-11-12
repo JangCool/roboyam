@@ -239,7 +239,7 @@ export default {
         list: 'Posts per page, pinned notices, and whether to include in search engines and site search.',
         attachment: 'When attachments of deleted posts are removed for good.',
         protect: 'Point rewards, and rules that stop authors from editing or deleting posts with many comments.',
-        guest: 'How long new comments are hidden from guests (not signed in), and how comments hidden by staff appear on the public site.',
+        guest: 'How long new comments are hidden from guests (not signed in), what guests see meanwhile, and how comments hidden by staff appear on the public site.',
         reaction: 'Whether authors can open a pro & con debate or add a poll, like and dislike buttons on comments and debate opinions, their names, and who reviews requests to pin an opinion.',
         best: 'The bar for a comment to become a best comment. One value for the whole site.',
         staff: 'Default headcount and daily action limits for managers and staff assigned per board.',
@@ -277,6 +277,7 @@ export default {
         commentProtectDelete: 'Delete when protected',
         commentProtectDelayMinutes: 'Scheduled delete after',
         commentGuestDelayMinutes: 'Guest comment delay',
+        commentDelayNotice: 'Guest delay notice',
         staffHiddenNotice: 'Say when staff hid a post or comment',
         commentDislikeEnabled: 'Show dislikes too',
         commentLikeLabel: 'Like button name',
@@ -383,6 +384,7 @@ export default {
         commentProtectDelete: 'What happens when an author deletes a protected post.',
         commentProtectDelayMinutes: 'Wait time before a "scheduled delete" happens.',
         commentGuestDelayMinutes: 'Wait time before new comments are shown to guests. Members see them right away.',
+        commentDelayNotice: 'What guests see in place of a comment that is still hidden. "Show time left" reads "Visible in 3 hours · Log in to see it now"; "Login prompt only" reads "Log in to see it right away". Applies to every board.',
         commentDislikeEnabled: 'When off, comments and opinions show likes only. Existing dislike counts are kept but hidden.',
         commentLikeLabel: 'Leave empty to use "Like".',
         commentDislikeLabel: 'Leave empty to use "Dislike".',
@@ -476,6 +478,10 @@ export default {
         pointMode: {
             ON: 'Award by rules',
             OFF: 'No points',
+        },
+        commentDelayNotice: {
+            TIME: 'Show time left',
+            LOGIN: 'Login prompt only',
         },
         commentProtectDelete: {
             BLOCK: 'Block',

@@ -16,7 +16,7 @@
  * prompt('dm');                               // 쪽지 보내기(프로필의 쪽지 단추)
  * prompt('report');                           // 신고(글·댓글·소모임·프로필 이미지·쪽지의 ⋯ 메뉴, 7-1)
  * prompt('dealEnd');                          // 핫딜 종료 알리기(딜 카드의 "품절·가격이 달라졌어요", H-5)
- * prompt('view', '/posts/9#comment-5');       // 비회원에게 가려진 댓글 본문(댓글 지연 노출, COM-003) — 로그인하면 그 글의 그 댓글로 돌아온다
+ * prompt('view', '/posts/9#comment-5', copy); // 비회원에게 가려진 댓글 본문(댓글 지연 노출, COM-003) — 로그인하면 그 글의 그 댓글로 돌아온다. copy = 남은 시간 문구(없으면 기본 문구)
  * prompt('groupJoin');                       // 소모임 가입·신청(상세의 가입 단추)
  * prompt('groupCreate', '/groups/new');      // 소모임 만들기(목록의 + 만들기)
  * ```
@@ -28,14 +28,19 @@ export interface LoginPromptState {
     action: LoginPromptAction;
     /** 로그인 뒤 돌아갈 곳(같은 사이트 안의 경로) */
     next: string;
+    /**
+     * 종류의 기본 문구 대신 쓸 제목·설명 — 부르는 쪽이 값이 낀 문구를 만들어 넘길 때만(가려진 댓글의 「N시간 뒤 공개」 — `UtilCommentDelayMessages.viewSheet`).
+     * 없으면 `prompt.{종류}Title`·`prompt.{종류}Description`.
+     */
+    copy?: { title: string; description: string } | null;
 }
 
 export function useLoginPrompt() {
     const state = useState<LoginPromptState>('login-prompt', () => ({ open: false, action: 'write', next: '/' }));
     const route = useRoute();
 
-    function prompt(action: LoginPromptAction, next?: string): void {
-        state.value = { open: true, action, next: next ?? route.fullPath };
+    function prompt(action: LoginPromptAction, next?: string, copy?: { title: string; description: string } | null): void {
+        state.value = { open: true, action, next: next ?? route.fullPath, copy: copy ?? null };
     }
 
     function close(): void {

@@ -242,7 +242,7 @@ export default {
         list: '한 쪽의 글 수와 고정 공지 수, 검색엔진·통합검색에 넣을지 정해요.',
         attachment: '삭제된 글의 첨부파일을 언제 영구히 지울지 정해요.',
         protect: '포인트 지급과, 댓글이 많이 달린 글을 글쓴이가 고치거나 지우는 것을 막는 규칙이에요.',
-        guest: '비회원(로그인하지 않은 사람)에게 새 댓글을 늦게 보이는 시간과, 운영자가 숨긴 댓글을 공개 화면에 어떻게 보일지 정해요.',
+        guest: '비회원(로그인하지 않은 사람)에게 새 댓글을 늦게 보이는 시간과 그동안 보일 안내, 운영자가 숨긴 댓글을 공개 화면에 어떻게 보일지 정해요.',
         reaction: '글쓴이가 찬반 토론을 열거나 투표를 붙일 수 있는지, 댓글·토론 의견의 추천·비추천 단추와 그 이름, 토론 의견의 고정 요청을 누가 확인할지 정해요.',
         best: '댓글이 베스트 댓글로 올라가는 기준이에요. 사이트 전체에 하나예요.',
         staff: '게시판마다 지정하는 매니저·스텝의 인원과 하루 처리 한도의 기본값이에요.',
@@ -280,6 +280,7 @@ export default {
         commentProtectDelete: '보호 중 삭제',
         commentProtectDelayMinutes: '예약 삭제까지',
         commentGuestDelayMinutes: '비회원 댓글 공개 지연',
+        commentDelayNotice: '비회원 댓글 지연 안내',
         staffHiddenNotice: '운영자가 숨긴 글·댓글임을 밝히기',
         commentDislikeEnabled: '비추천도 보이기',
         commentLikeLabel: '추천 이름',
@@ -386,6 +387,7 @@ export default {
         commentProtectDelete: '보호 중인 글을 글쓴이가 지우려 할 때의 방식이에요.',
         commentProtectDelayMinutes: '「예약 삭제」일 때 지워지기까지 기다리는 시간이에요.',
         commentGuestDelayMinutes: '새 댓글이 비회원에게 보이기까지 기다리는 시간이에요. 회원에게는 바로 보여요.',
+        commentDelayNotice: '아직 가려진 댓글 자리에 비회원에게 보일 안내예요. 「남은 시간 알리기」는 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인」, 「로그인 안내만」은 「로그인하면 바로 볼 수 있어요」예요. 모든 게시판에 같이 쓰여요.',
         commentDislikeEnabled: '끄면 댓글·의견에 추천만 보여요. 이미 쌓인 비추천 수는 지우지 않고 감춰요.',
         commentLikeLabel: '비우면 「추천」이에요.',
         commentDislikeLabel: '비우면 「비추천」이에요.',
@@ -479,6 +481,10 @@ export default {
         pointMode: {
             ON: '규칙대로 지급',
             OFF: '지급 안 함',
+        },
+        commentDelayNotice: {
+            TIME: '남은 시간 알리기',
+            LOGIN: '로그인 안내만',
         },
         commentProtectDelete: {
             BLOCK: '막기',

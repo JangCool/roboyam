@@ -24,6 +24,8 @@ export interface CommentView {
     /** 본문 형식 — `HTML` 이면 서버가 정화한 HTML(`v-html` 로 그린다), 없으면(옛 응답) `TEXT` */
     contentFormat?: ContentFormat;
     state: CommentState;
+    /** 비회원에게 공개되는 시각(UTC ISO — 작성 시각 + 게시판 `commentGuestDelayMinutes`). 서버가 `DELAYED` 일 때만 준다 — 그 밖·옛 응답에는 없다(그때 안내는 「곧 볼 수 있어요」) */
+    visibleAt?: string | null;
     createdAt: string;
     updatedAt: string | null;
     likeCount: number;

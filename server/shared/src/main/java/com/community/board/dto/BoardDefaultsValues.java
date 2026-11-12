@@ -11,6 +11,7 @@ import java.util.Map;
  * {@code listChipPosition}(V169) = 글 목록 말머리·상태 칩 위치의 사이트 기본 ABOVE · BEFORE · BELOW — 게시판 {@code chipPosition} 이 null 이면 이 값, 섞인 목록도 이 값.
  * {@code listPrefixStyle}(V195) = 글 목록 말머리 모양의 사이트 기본 TEXT · MUTED · COLOR — 게시판 {@code prefixStyle} 이 null 이면 이 값, 섞인 목록도 이 값.
  * {@code listLikeHighlight}·{@code listViewHighlight}·{@code listHighlightColor}(V170) = 글 목록 윗줄 추천·조회 숫자를 강조할 기준(0 = 안 함)과 색 {@code #rrggbb} — 사이트 기본만.
+ * {@code commentDelayNotice}(V199) = 비회원 댓글 공개 지연 안내 문구 방식 TIME(남은 시간, 기본) · LOGIN(로그인 안내) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음).
  * 요청으로 받을 때 빠진 칸을 알아보려고 감싼 타입(Integer·Boolean)을 쓴다 — 저장된 값은 모두 채워져 있다. 칸 이름·범위의 원천은 {@link com.community.board.service.BoardFields}.
  */
 public record BoardDefaultsValues(String dateDisplay, String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor,
@@ -23,7 +24,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   Boolean debateEnabled, Boolean pollEnabled, Integer bestCommentMinLikes, Integer managerMax,
                                   Integer staffMax, Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit,
                                   String listChipPosition, Integer listLikeHighlight, Integer listViewHighlight, String listHighlightColor,
-                                  String listPrefixStyle) {
+                                  String listPrefixStyle, String commentDelayNotice) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 화면 기본 이름) */
     public BoardDefaultsValues {
@@ -33,8 +34,8 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
     }
 
     /**
-     * 나중에 생긴 목록 표시 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을 그대로 둔다
-     * (이 칸들을 모르는 예전 화면·호출과 맞추려고). 칩 위치는 대문자, 강조 색은 소문자로 맞춘다(앞뒤 공백 뗌 — 모양·범위는 검사에서 400).
+     * 나중에 생긴 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양 · V199 댓글 지연 안내)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을
+     * 그대로 둔다(이 칸들을 모르는 예전 화면·호출과 맞추려고). 칩 위치·말머리 모양·지연 안내는 대문자, 강조 색은 소문자로 맞춘다(앞뒤 공백 뗌 — 모양·범위는 검사에서 400).
      */
     public BoardDefaultsValues filledFrom(BoardDefaultsValues current) {
         String chip = listChipPosition == null ? current.listChipPosition() : listChipPosition.strip().toUpperCase(Locale.ROOT);
@@ -42,12 +43,13 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         Integer view = listViewHighlight == null ? current.listViewHighlight() : listViewHighlight;
         String color = listHighlightColor == null ? current.listHighlightColor() : listHighlightColor.strip().toLowerCase(Locale.ROOT);
         String prefixStyle = listPrefixStyle == null ? current.listPrefixStyle() : listPrefixStyle.strip().toUpperCase(Locale.ROOT);
+        String delayNotice = commentDelayNotice == null ? current.commentDelayNotice() : commentDelayNotice.strip().toUpperCase(Locale.ROOT);
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit,
                 commentGapSeconds, commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays,
                 pointMode, pointMinLengthApplied, commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes,
                 commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, pinRequestReviewers, debateEnabled,
                 pollEnabled, bestCommentMinLikes, managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, chip, like, view,
-                color, prefixStyle);
+                color, prefixStyle, delayNotice);
     }
 
     /** 단추 이름 정리 — 앞뒤 공백을 자르고 비면 null */
@@ -104,6 +106,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("listViewHighlight", listViewHighlight);
         map.put("listHighlightColor", listHighlightColor);
         map.put("listPrefixStyle", listPrefixStyle);
+        map.put("commentDelayNotice", commentDelayNotice);
         return map;
     }
 }

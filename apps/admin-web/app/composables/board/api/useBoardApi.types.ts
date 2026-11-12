@@ -49,6 +49,11 @@ export type BoardPrefixStyle = 'TEXT' | 'MUTED' | 'COLOR';
 export type BoardPointMode = 'ON' | 'OFF';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
 export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
+/**
+ * 비회원에게 가려진 댓글 자리의 안내 방식(사이트 전체) — 남은 시간 알리기(기본, 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」) · 로그인 안내만(「로그인하면 바로 볼 수 있어요」).
+ * board-public-contract 결정 2(정정 2026-11-12), 저장 shared V199 `board_defaults.comment_delay_notice`.
+ */
+export type BoardCommentDelayNotice = 'TIME' | 'LOGIN';
 /** 읽기 전용 잠금 — 새 글만 막기 · 새 글·댓글 막기. `null` = 잠금 없음(기본값이 없는 게시판 전용 칸) */
 export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 /** 비밀글 방식(게시판마다의 값 — 기본 설정에서 물려받지 않는다) — 없음 · 글쓴이가 고름 · 모든 글 비밀 */
@@ -132,6 +137,11 @@ export interface BoardDefaults {
     commentProtectDelayMinutes: number;
     /** 비회원에게 댓글을 늦게 보이는 시간(분) 0·10·30·60·180 */
     commentGuestDelayMinutes: number;
+    /**
+     * 비회원에게 가려진 댓글 자리의 안내 방식(사이트 전체 — 게시판별 덮어쓰기 없음). 공개 `GET /api/site/info` 의 `boardDisplay.commentDelayNotice` 로 나간다.
+     * 전체 기본값 `TIME`. 옛 서버 응답에는 칸이 없을 수 있다(화면은 `TIME` 으로 본다 — `UtilBoard.commentDelayNotice`)
+     */
+    commentDelayNotice: BoardCommentDelayNotice;
     /** 운영자가 숨긴 댓글임을 공개 화면에 밝힌다(켜면 「운영자가 숨긴 댓글이에요」, 끄면 신고 숨김과 같은 문구). 전체 기본값 `false` */
     staffHiddenNotice: boolean;
     /** 댓글 비추천도 보인다(끄면 추천만 — 쌓인 비추천 수는 지우지 않고 감춘다). 토론 의견도 그 글의 게시판 설정을 따른다. 전체 기본값 `false` */

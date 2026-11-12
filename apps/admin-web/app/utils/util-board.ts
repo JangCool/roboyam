@@ -2,6 +2,7 @@ import { ApiError } from '~/composables/common/useApiClient';
 import type {
     BoardChipPosition,
     BoardColor,
+    BoardCommentDelayNotice,
     BoardDefaults,
     BoardDefaultsField,
     BoardDetail,
@@ -191,6 +192,8 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentProtectDelete: { field: 'commentProtectDelete', kind: 'choice', choices: ['BLOCK', 'DELAY', 'ALLOW'], overridable: true, permission: 'board.settings' },
     commentProtectDelayMinutes: { field: 'commentProtectDelayMinutes', kind: 'choice', choices: [5, 10, 30], unit: 'minutes', overridable: true, permission: 'board.settings' },
     commentGuestDelayMinutes: { field: 'commentGuestDelayMinutes', kind: 'choice', choices: [0, 10, 30, 60, 180], unit: 'minutes', overridable: true, permission: 'board.settings' },
+    // 비회원 댓글 지연 안내(board-public-contract 결정 2 정정 2026-11-12) — 사이트 전체, 게시판별 덮어쓰기 없음. 공개 `boardDisplay.commentDelayNotice`
+    commentDelayNotice: { field: 'commentDelayNotice', kind: 'choice', choices: ['TIME', 'LOGIN'], overridable: false, permission: 'board.settings' },
     staffHiddenNotice: { field: 'staffHiddenNotice', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentDislikeEnabled: { field: 'commentDislikeEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentLikeLabel: { field: 'commentLikeLabel', kind: 'label', min: 1, max: 10, overridable: true, permission: 'board.settings' },
@@ -279,7 +282,7 @@ const DEFAULT_SECTIONS = {
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
-    'defaults-guest': ['commentGuestDelayMinutes', 'staffHiddenNotice'],
+    'defaults-guest': ['commentGuestDelayMinutes', 'commentDelayNotice', 'staffHiddenNotice'],
     'defaults-reaction': ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
@@ -359,6 +362,13 @@ export default class UtilBoard {
     static prefixStyle(value: unknown): BoardPrefixStyle {
         const upper = typeof value === 'string' ? value.toUpperCase() : '';
         return (UtilBoard.PREFIX_STYLES as readonly string[]).includes(upper) ? (upper as BoardPrefixStyle) : UtilBoard.PREFIX_STYLE_DEFAULT;
+    }
+    /** 비회원 댓글 지연 안내 선택지 — 남은 시간 알리기(기본) · 로그인 안내만(board-public-contract 결정 2 정정 2026-11-12) */
+    static readonly COMMENT_DELAY_NOTICES: readonly BoardCommentDelayNotice[] = ['TIME', 'LOGIN'];
+
+    /** 비회원 댓글 지연 안내 값 — `LOGIN` 이 아니면(옛 응답에 칸이 없음·틀린 값) 전체 기본값 `TIME` */
+    static commentDelayNotice(value: unknown): BoardCommentDelayNotice {
+        return value === 'LOGIN' ? 'LOGIN' : 'TIME';
     }
     /** 글 줄 숫자 강조 색의 기본값 — 빨강(서버 기본값과 같다) */
     static readonly HIGHLIGHT_COLOR = '#e5484d';
@@ -558,6 +568,8 @@ export default class UtilBoard {
         form.listHighlightColor = UtilBoard.highlightColor(defaults.listHighlightColor);
         // 말머리 모양을 아직 주지 않는 서버면 전체 기본값(글자)
         form.listPrefixStyle = UtilBoard.prefixStyle(defaults.listPrefixStyle);
+        // 비회원 댓글 지연 안내를 아직 주지 않는 서버면 전체 기본값(남은 시간 알리기)
+        form.commentDelayNotice = UtilBoard.commentDelayNotice(defaults.commentDelayNotice);
         return form;
     }
 
@@ -590,12 +602,13 @@ export default class UtilBoard {
         out.pinRequestReviewers = (UtilBoard.multiValue('pinRequestReviewers', form.pinRequestReviewers) ?? []) as BoardDefaults['pinRequestReviewers'];
         out.listHighlightColor = UtilBoard.highlightColor(form.listHighlightColor);
         out.listPrefixStyle = UtilBoard.prefixStyle(form.listPrefixStyle);
+        out.commentDelayNotice = UtilBoard.commentDelayNotice(form.commentDelayNotice);
         return out;
     }
 
-    /** 저장된 값과 다른 기본 설정 칸들 — 옛 서버가 주지 않은 말머리 모양은 전체 기본값과 견준다(채워 넣은 기본값을 「바뀜」으로 세지 않게) */
+    /** 저장된 값과 다른 기본 설정 칸들 — 옛 서버가 주지 않은 말머리 모양·비회원 댓글 지연 안내는 전체 기본값과 견준다(채워 넣은 기본값을 「바뀜」으로 세지 않게) */
     static defaultsChanged(form: BoardDefaultsForm, saved: BoardDefaults): BoardDefaultsField[] {
-        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle) };
+        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle), commentDelayNotice: UtilBoard.commentDelayNotice(saved.commentDelayNotice) };
         return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], base[field]));
     }
 
