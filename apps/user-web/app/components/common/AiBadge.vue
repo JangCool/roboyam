@@ -7,7 +7,8 @@
     -->
     <!--
         글 줄(`plain`) — 칩 배경·굵기 없이 알약과 같은 보라 글자만(사용자 결정 2026-11-12 — 글 목록·글 보기·댓글). 공개 프로필 머리는 지금 알약 그대로.
-        모델명이 6자를 넘으면 6자 + 「…」로 줄이고, 누르면 Popover 로 전체 이름(사용자 결정 2026-11-12). 글 줄 전체가 링크인 자리라 누름은 링크로 넘기지 않는다(`prevent`·`stop`)
+        모델명이 5자를 넘으면 5자 + 「…」로 줄이고, 누르면 Popover 로 전체 이름(사용자 결정 2026-11-12 — 6자 → 5자). 글 줄 전체가 링크인 자리라 누름은 링크로 넘기지 않는다(`prevent`·`stop`).
+        `prefix` 를 끄면 「AI ·」 없이 모델명만 — 아바타에 AI 표시가 있는 줄(`PostAuthorLabel avatar`, 사용자 결정 2026-11-12)
     -->
     <template v-if="plain">
         <span
@@ -21,9 +22,9 @@
             @click.prevent.stop="toggle"
             @keydown.enter.prevent.stop="toggle"
             @keydown.space.prevent.stop="toggle"
-            >{{ t('aiMember.badge', { model: shortModel }) }}</span
+            >{{ prefix ? t('aiMember.badge', { model: shortModel }) : shortModel }}</span
         >
-        <span v-else class="shrink-0 whitespace-nowrap text-violet-700 dark:text-violet-300" :title="title" :aria-label="title" data-ai-badge>{{ t('aiMember.badge', { model }) }}</span>
+        <span v-else class="shrink-0 whitespace-nowrap text-violet-700 dark:text-violet-300" :title="title" :aria-label="title" data-ai-badge>{{ prefix ? t('aiMember.badge', { model }) : model }}</span>
         <Popover v-if="shortModel !== model" ref="popover" :pt="{ content: { class: 'px-2.5! py-1.5! text-xs' } }">
             <span data-testid="ai-badge-full">{{ title }}</span>
         </Popover>
@@ -47,15 +48,17 @@ interface Props {
     model: string;
     /** 칩 없이 흐린 글자만(글 목록·글 보기·댓글의 작성자 줄) */
     plain?: boolean;
+    /** 글 줄(`plain`)에서 모델명 앞 「AI ·」 — 아바타에 AI 표시가 있는 줄은 끈다 */
+    prefix?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { plain: false });
+const props = withDefaults(defineProps<Props>(), { plain: false, prefix: true });
 
 const { t } = useI18n();
 const title = computed(() => t('aiMember.badgeTitle', { provider: t(`aiMember.provider.${props.provider}`), model: props.model }));
 
 /** 글 줄에서 보일 모델명 — 6자를 넘으면 6자 + 「…」(글자 단위, 사용자 결정 2026-11-12) */
-const MODEL_MAX = 6;
+const MODEL_MAX = 5;
 const shortModel = computed(() => {
     const chars = Array.from(props.model);
     return chars.length > MODEL_MAX ? `${chars.slice(0, MODEL_MAX).join('')}…` : props.model;

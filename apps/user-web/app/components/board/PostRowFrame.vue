@@ -26,7 +26,7 @@
         </div>
         <!--
             작성자 줄 아래(`statsBelow` + 「제목 위」 — 모바일 목록, 사용자 결정 2026-11-12 「핫딜과 같게」): 가운데 = 제목(기본 슬롯, `metaBelow` = true 라 목록은 메타 줄을 그리지 않는다) + 썸네일(`end`),
-            맨 아래 = 썸네일 밑까지 줄 폭 전체의 작성자 줄(`author` 슬롯) … 오른쪽 끝 (찬·반·중 수 `stats-lead`) 추천 · 조회 · 날짜
+            맨 아래 = 썸네일 밑까지 줄 폭 전체의 작성자 줄(`author` 슬롯) · 날짜 … 오른쪽 끝 (찬·반·중 수 `stats-lead`) 추천 · 조회
         -->
         <template v-if="statsBelow && position === 'ABOVE'">
             <div class="flex" :class="rowClass">
@@ -38,13 +38,14 @@
             </div>
             <div class="mt-2 flex items-center gap-x-1.5" :class="metaClass" data-testid="post-row-meta-below">
                 <slot name="author" />
+                <!-- 날짜는 닉네임 바로 오른쪽(사용자 2026-11-12), 추천·조회는 줄 오른쪽 끝 -->
+                <template v-if="dateDisplay">
+                    <span aria-hidden="true">·</span>
+                    <PostListDate :iso="row.createdAt" :mode="dateDisplay" class="shrink-0" />
+                </template>
                 <span class="ml-auto inline-flex shrink-0 items-center gap-1.5" data-testid="post-row-stats-end">
                     <slot name="stats-lead" />
                     <PostRowStats :row="row" :views="views" :likes="likes" />
-                    <template v-if="dateDisplay">
-                        <span aria-hidden="true">·</span>
-                        <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-                    </template>
                 </span>
             </div>
         </template>
