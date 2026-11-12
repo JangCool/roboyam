@@ -2,7 +2,7 @@
     <!-- 게시판이 섞인 목록의 글 한 줄(목록의 <li>) — [순위] · [어제/지난주] · 게시판 이름 · 말머리 · 제목(일치 강조)·[댓글 수] / 본문 조각 / 작성자·추천·날짜.
          최신글 전체·인기글 전체·검색·회원 프로필 작성글이 함께 쓴다(community `PostRowItem` + `SearchResultItem`). 줄 전체가 글로 가는 링크라 작성자 이름은 링크가 아니다 -->
     <li class="border-b border-surface last:border-b-0" :class="ranked ? 'flex items-start' : ''">
-        <span v-if="ranked" class="w-9 shrink-0 pl-4 pt-3 text-sm font-bold leading-snug tabular-nums md:pl-2" :class="[rank <= 3 ? 'text-primary' : 'text-muted-color', desktopRow ? 'md:leading-6' : '']" data-testid="post-rank">
+        <span v-if="ranked" class="w-9 shrink-0 pl-4 pt-3 text-sm font-bold leading-snug tabular-nums md:pl-2 md:pt-2" :class="[rank <= 3 ? 'text-primary' : 'text-muted-color', desktopRow ? 'md:leading-6' : '']" data-testid="post-rank">
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>
         <!-- 차단한 회원·단어의 글은 접힌 한 줄(게시판 글 목록과 같은 `FoldedRow` — 「보기」로 그 자리에서 펼친다). 순위 칸은 남겨 순서가 밀리지 않는다 -->
@@ -14,7 +14,7 @@
                      「제목 위」 윗줄 오른쪽 = 찬·반·중 → 세로 구분선 → 추천 → 조회, 그 밖의 칩 위치는 메타 줄(글쓴이 다음)에 -->
                 <NuxtLink
                     :to="`/posts/${row.id}`"
-                    class="block min-w-0 flex-1 py-3 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
+                    class="block min-w-0 flex-1 py-3 hover:bg-surface-100 md:py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
                     :class="padClass"
                 >
                     <!-- 데스크톱 + 「제목 위」(기본) — 게시판 목록과 같은 A 방식 두 줄(`BoardPostRowDesktop` — 제목 / 닉네임 · 게시판 | 말머리 · 날짜, 오른쪽 추천·조회 칸 · 썸네일, 사용자 결정 2026-11-12). 인기글·최신글만(`desktopRow`) -->
@@ -25,9 +25,8 @@
                             <span v-if="row.group" class="shrink-0 text-surface-900 dark:text-surface-0" data-testid="post-group-badge">{{ t('group.postBadge') }}</span>
                             <span v-else class="shrink-0" :class="boardTextStyle ? '' : 'text-surface-900 dark:text-surface-0'" :style="boardTextStyle" data-testid="post-board">{{ boardName }}</span>
                         </template>
-                        <template v-if="row.debate" #extra>
-                            <span aria-hidden="true">·</span>
-                            <FeedDebateCounts :debate="row.debate" />
+                        <template v-if="row.debate" #stats-lead>
+                            <FeedDebateCounts :debate="row.debate" class="whitespace-nowrap" />
                         </template>
                     </BoardPostRowDesktop>
                     <PostRowFrame :row="row" :position="chipPosition" :general="false" stats-below :class="useDesktopRow ? 'md:hidden' : ''">
@@ -37,7 +36,7 @@
                             <span aria-hidden="true" class="h-3 w-px bg-surface-300 dark:bg-surface-600" />
                         </template>
                         <template #default="{ chips, stats, dateInline, statsEnd }">
-                            <p class="line-clamp-2 break-words leading-snug" :class="strongTitle ? 'text-[0.9375rem] font-medium' : 'text-sm'">
+                            <p class="line-clamp-2 break-words leading-snug" :class="strongTitle ? 'text-[0.9375rem]' : 'text-sm'">
                                 <FeedPostLeadTags v-if="chips" :row="row" :fill="fill" inline />
                                 <PostRowTitle :row="row" :new-post-hours="newPostHours" :pinned-mark="false" :tokens="tokens" :chips="chips" />
                             </p>
@@ -106,7 +105,7 @@ interface Props {
     snippet?: string | null;
     /** 말머리·상태 칩 위치 — 페이지가 공개 표시 기본값의 `listChipPosition` 을 준다(기본 `ABOVE`) */
     chipPosition?: PostChipPosition;
-    /** 제목을 한 단계 크게(15px)·조금 굵게(500) — 인기글·최신글(사용자 결정 2026-11-12). 검색·회원 작성글은 지금 크기 */
+    /** 제목을 한 단계 크게(15px) — 인기글·최신글. 굵기는 기본 보통이고 보기 설정 「제목 굵게」로만 굵어진다(사용자 결정 2026-11-12). 검색·회원 작성글은 지금 크기 */
     strongTitle?: boolean;
     /** 데스크톱(md 이상)에서 게시판 목록과 같은 A 방식 두 줄(`BoardPostRowDesktop`) — 인기글·최신글(사용자 결정 2026-11-12). 칩 위치 「제목 위」일 때만 */
     desktopRow?: boolean;

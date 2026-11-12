@@ -102,9 +102,11 @@ export default class UtilViewSettings {
      * @param {boolean} systemDark - 기기가 다크인가.
      * @returns {'light' | 'dark'} `<html data-color-scheme>` 값.
      */
-    static resolveScheme(theme: ThemeSetting, systemDark: boolean): 'light' | 'dark' {
+    static resolveScheme(theme: ThemeSetting, systemDark: boolean, mobile = false): 'light' | 'dark' {
         if (theme === 'DARK') return 'dark';
         if (theme === 'LIGHT') return 'light';
+        // 자동(`AUTO`) — 휴대폰 폭(`MOBILE_QUERY`)은 기기 설정과 상관없이 라이트가 기본(사용자 결정 2026-11-12). 다크로 보려면 보기 설정·상단 달 단추로 직접 고른다
+        if (mobile) return 'light';
         return systemDark ? 'dark' : 'light';
     }
 

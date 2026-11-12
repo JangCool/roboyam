@@ -7,7 +7,7 @@ export default {
     loadFailed: 'Couldn’t load view settings',
     sectionScreen: 'Screen',
     theme: 'Dark mode',
-    themeHint: 'Follow your device or choose yourself',
+    themeHint: 'Auto follows your device on PC and stays light on phones. You can also choose yourself',
     themeAuto: 'Auto',
     themeLight: 'Light',
     themeDark: 'Dark',

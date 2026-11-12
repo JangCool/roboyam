@@ -23,20 +23,32 @@ const { update } = useViewSettings();
 const mounted = ref(false);
 /** 기기 설정이 다크인가 — `AUTO` 일 때만 쓴다 */
 const systemDark = ref(false);
+/** 휴대폰 폭인가 — `AUTO` 면 휴대폰은 라이트가 기본(`UtilViewSettings.resolveScheme`) */
+const mobileWidth = ref(false);
 
-const dark = computed(() => UtilViewSettings.resolveScheme(values.value.theme, systemDark.value) === 'dark');
+const dark = computed(() => UtilViewSettings.resolveScheme(values.value.theme, systemDark.value, mobileWidth.value) === 'dark');
 
 let query: MediaQueryList | null = null;
+let mobileQuery: MediaQueryList | null = null;
 const onSystemChange = (e: MediaQueryListEvent) => {
     systemDark.value = e.matches;
+};
+const onMobileChange = (e: MediaQueryListEvent) => {
+    mobileWidth.value = e.matches;
 };
 onMounted(() => {
     query = window.matchMedia('(prefers-color-scheme: dark)');
     systemDark.value = query.matches;
     query.addEventListener('change', onSystemChange);
+    mobileQuery = window.matchMedia(UtilViewSettings.MOBILE_QUERY);
+    mobileWidth.value = mobileQuery.matches;
+    mobileQuery.addEventListener('change', onMobileChange);
     mounted.value = true;
 });
-onBeforeUnmount(() => query?.removeEventListener('change', onSystemChange));
+onBeforeUnmount(() => {
+    query?.removeEventListener('change', onSystemChange);
+    mobileQuery?.removeEventListener('change', onMobileChange);
+});
 
 function toggle(): void {
     void update({ theme: dark.value ? 'LIGHT' : 'DARK' });

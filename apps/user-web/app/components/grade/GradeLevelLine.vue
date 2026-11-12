@@ -1,7 +1,7 @@
 <template>
     <!-- 등급 + 레벨 한 줄 — 큰 판 도트(2배) + 「등급 이름 · Lv.N」(grade-level-contract 4절 — 공개 프로필 닉네임 옆·내 정보·등급 안내). 레벨이 없으면(옛 응답·남의 비공개 프로필) 등급 이름만 -->
     <span class="inline-flex shrink-0 items-center gap-1.5" data-testid="grade-level-line">
-        <GradeBadge :grade="grade" :label="label" :name="false" size="lg" />
+        <GradeBadge :grade="grade" :label="label" :name="false" />
         <span class="text-xs font-normal text-muted-color" data-testid="grade-level-text">{{ text }}</span>
     </span>
 </template>

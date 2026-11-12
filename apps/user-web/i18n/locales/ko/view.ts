@@ -7,7 +7,7 @@ export default {
     loadFailed: '보기 설정을 불러오지 못했어요',
     sectionScreen: '화면',
     theme: '야간 모드',
-    themeHint: '기기 설정을 따르거나 직접 고를 수 있어요',
+    themeHint: '자동은 PC 에서 기기 설정을 따르고 휴대폰에서는 라이트로 보여요. 직접 고를 수도 있어요',
     themeAuto: '자동',
     themeLight: '라이트',
     themeDark: '다크',

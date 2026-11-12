@@ -16,7 +16,7 @@
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="px-4 py-2.5 text-sm md:px-2" hide-class="px-4 pb-2 md:px-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
-                    <NuxtLink :to="`/posts/${row.id}`" class="block px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 md:py-3">
+                    <NuxtLink :to="`/posts/${row.id}`" class="block px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 md:py-2">
                         <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(제목 / 닉네임 · 말머리 · 추천·조회 · 날짜, 썸네일 오른쪽 — 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
                         <BoardPostRowDesktop v-if="desktopRow" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden" />
                         <PostRowFrame :row="row" :position="chipPosition" stats-below :class="desktopRow ? 'md:hidden' : ''">

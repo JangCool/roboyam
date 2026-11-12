@@ -21,7 +21,7 @@ export default defineNuxtPlugin({
 
         const apply = () => {
             const html = document.documentElement;
-            html.setAttribute('data-color-scheme', UtilViewSettings.resolveScheme(values.value.theme, query.matches));
+            html.setAttribute('data-color-scheme', UtilViewSettings.resolveScheme(values.value.theme, query.matches, mobile.matches));
             html.style.setProperty(UtilViewSettings.TEXT_SCALE_VAR, String(UtilViewSettings.textScaleFor(values.value, mobile.matches) / 100));
             // 글 목록 제목 굵게(보기 설정) — 켰을 때만 속성을 둔다(`main.css` `.post-row-title`)
             if (values.value.titleBold) html.setAttribute('data-title-bold', '');
