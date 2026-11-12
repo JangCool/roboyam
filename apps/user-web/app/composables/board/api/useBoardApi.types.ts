@@ -181,7 +181,7 @@ export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 export type BoardDateDisplay = 'STANDARD' | 'RELATIVE';
 /**
  * 비회원에게 가려진 댓글(`DELAYED`) 자리의 안내 방식 — 관리자 게시판 기본 설정 `commentDelayNotice`(사이트 전체, board-public-contract 결정 2 정정 2026-11-12).
- * `TIME`(기본) 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」(남은 시간 = 댓글의 `visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」(시간을 알리지 않는다).
+ * `TIME`(기본) 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」(남은 시간 = 댓글의 `visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」(시간을 알리지 않는다).
  */
 export type CommentDelayNotice = 'TIME' | 'LOGIN';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */

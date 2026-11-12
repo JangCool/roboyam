@@ -13,7 +13,7 @@ const MINUTE_MS = 60_000;
  *
  * 회원 문구에는 운영 주체가 나오지 않는다(규칙 22).
  * 안내 방식은 사이트 공개 표시 기본값 `boardDisplay.commentDelayNotice`(board-public-contract 결정 2, 정정 2026-11-12)가 정한다:
- *  - `TIME`(기본): 남은 시간을 알린다 — 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인」(남은 시간 = 댓글의 `visibleAt` − 지금, 1시간 이상은 시간 올림·미만은 분 올림,
+ *  - `TIME`(기본): 남은 시간을 알린다 — 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」(남은 시간 = 댓글의 `visibleAt` − 지금, 1시간 이상은 시간 올림·미만은 분 올림,
  *    지났거나 `visibleAt` 이 없으면 「곧 볼 수 있어요」). 안내 시트도 「N시간 뒤 공개 · 로그인하면 지금 바로」 취지(`viewSheet`).
  *  - `LOGIN`: 시간 숫자를 알리지 않는다 — 「로그인하면 바로 볼 수 있어요」(`prompt.delayPlaceholder`, 시트는 `prompt.viewTitle`·`prompt.viewDescription` 그대로).
  */
@@ -40,7 +40,7 @@ export default class UtilCommentDelayMessages {
      * @param {CommentDelayNotice} notice - 안내 방식(`boardDisplay.commentDelayNotice`).
      * @param {string | null | undefined} visibleAt - 댓글의 공개 시각.
      * @param {number} now - 지금(밀리초).
-     * @returns {string} `TIME` 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」(분·「곧」 포함) · `LOGIN` 「로그인하면 바로 볼 수 있어요」.
+     * @returns {string} `TIME` 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」(분·「곧」 포함) · `LOGIN` 「로그인하면 바로 볼 수 있어요」.
      */
     static placeholder(t: Translate, notice: CommentDelayNotice, visibleAt: string | null | undefined, now: number): string {
         if (notice === 'LOGIN') return t('prompt.delayPlaceholder');

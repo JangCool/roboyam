@@ -57,7 +57,7 @@
             <template v-else>
                 <!--
                     비회원에게 아직 공개되지 않은 댓글 — 안내 방식은 사이트 기본 `boardDisplay.commentDelayNotice`(`util-comment-delay-messages.ts`):
-                    `TIME`(기본) 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인」(`visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」. 누르면 로그인 안내
+                    `TIME`(기본) 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」(`visibleAt` − 지금) · `LOGIN` 「로그인하면 바로 볼 수 있어요」. 누르면 로그인 안내
                 -->
                 <button
                     v-if="comment.state === 'DELAYED'"

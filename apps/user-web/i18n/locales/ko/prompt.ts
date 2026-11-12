@@ -50,8 +50,8 @@ export default {
     // 가려진 댓글 본문 자리 — `LOGIN` 은 delayPlaceholder(·Label), `TIME`(기본)은 남은 시간(1시간 이상 시간 올림·미만 분 올림, 지났거나 모르면 delaySoon)
     delayPlaceholder: '로그인하면 바로 볼 수 있어요',
     delayPlaceholderLabel: '{name}님의 댓글 — 로그인하면 바로 볼 수 있어요',
-    delayAfterHours: '{n}시간 후에 볼 수 있어요 · 지금 보려면 로그인',
-    delayAfterMinutes: '{n}분 후에 볼 수 있어요 · 지금 보려면 로그인',
-    delaySoon: '곧 볼 수 있어요 · 지금 보려면 로그인',
+    delayAfterHours: '{n}시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요',
+    delayAfterMinutes: '{n}분 후에 볼 수 있어요 · 지금 보려면 로그인하세요',
+    delaySoon: '곧 볼 수 있어요 · 지금 보려면 로그인하세요',
     delayNoticeLabel: '{name}님의 댓글 — {notice}',
 };

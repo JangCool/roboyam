@@ -50,7 +50,7 @@ export type BoardPointMode = 'ON' | 'OFF';
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
 export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 /**
- * 비회원에게 가려진 댓글 자리의 안내 방식(사이트 전체) — 남은 시간 알리기(기본, 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」) · 로그인 안내만(「로그인하면 바로 볼 수 있어요」).
+ * 비회원에게 가려진 댓글 자리의 안내 방식(사이트 전체) — 남은 시간 알리기(기본, 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」) · 로그인 안내만(「로그인하면 바로 볼 수 있어요」).
  * board-public-contract 결정 2(정정 2026-11-12), 저장 shared V199 `board_defaults.comment_delay_notice`.
  */
 export type BoardCommentDelayNotice = 'TIME' | 'LOGIN';

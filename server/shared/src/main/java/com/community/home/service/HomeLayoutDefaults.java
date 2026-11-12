@@ -60,7 +60,7 @@ public final class HomeLayoutDefaults {
                 "인기글 더보기", "/popular", 0, 12, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().put("cardLook", "DEFAULT").set("empty", noKeep()), null, null, null, 0, 20, 17, 10);
         b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 더보기", "/boards/video", 0, 38, 17, 11);
-        b.add("POST_LIST", "방금 올라온 글", true, true, null,
+        b.add("POST_LIST", "최신글", true, true, null,
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 "최신글 더보기", "/latest", 0, 30, 17, 8);
@@ -80,7 +80,7 @@ public final class HomeLayoutDefaults {
         b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().put("titleColor", "RED").set("empty", noKeep()), null, null, null, 0, 20, 8, 10);
         b.add("GALLERY", "영상·짤", true, true, style().put("titleColor", "ORANGE"), cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video",
                 0, 38, 8, 11);
-        b.add("POST_LIST", "방금 올라온 글", true, true, style().put("titleColor", "TEAL").put("subtitle", "전체 게시판 최신순"),
+        b.add("POST_LIST", "최신글", true, true, style().put("titleColor", "TEAL").put("subtitle", "전체 게시판 최신순"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .put("newBadgeHours", 1).set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 "최신글 더보기", "/latest", 0, 30, 8, 8);
@@ -105,7 +105,7 @@ public final class HomeLayoutDefaults {
                 cfg().put("columns", "AUTO").put("perBoard", 4).put("boardScope", GadgetConfigs.PICK).set("boardIds", meta("ai", "robot", "stock", "game", "sports", "free")),
                 null, null, 0, 26, 17, 30);
         b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video", 0, 64, 17, 11);
-        b.add("POST_LIST", "방금 올라온 글", true, true, null,
+        b.add("POST_LIST", "최신글", true, true, null,
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 null, "/latest", 0, 56, 17, 8);
@@ -130,7 +130,7 @@ public final class HomeLayoutDefaults {
                 null, "/popular", 0, 12, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", false, true, plain("pi-shopping-bag").set("empty", noKeep()), null, null, null, 0, 20, 17, 10);
         b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video", 0, 38, 17, 7);
-        b.add("POST_LIST", "방금 올라온 글", true, true, plain("pi-clock"),
+        b.add("POST_LIST", "최신글", true, true, plain("pi-clock"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .put("dividers", false).set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 null, "/latest", 0, 30, 17, 8);

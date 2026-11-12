@@ -24,7 +24,7 @@
 
 ## 결정 (2026-10-22, 추천대로)
 1. 비회원 삭제는 `POST …/delete` 본문 방식.
-2. ~~비회원 댓글 공개 지연은 **시간 숫자를 보이지 않고** 「로그인하면 바로 볼 수 있어요」(기존 `util-comment-delay-messages.ts` 규칙).~~ **정정(2026-11-12 사용자)**: 문구 방식을 게시판 기본 설정(사이트 전체)으로 고른다 — `commentDelayNotice` = **`TIME`(기본)** 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인」(남은 시간 — 1시간 이상은 시간 올림, 미만은 분 올림) · `LOGIN` 「로그인하면 바로 볼 수 있어요」(예전 문구). 서버는 `DELAYED` 댓글에 공개 시각 `visibleAt`(작성 시각 + `commentGuestDelayMinutes`)을 싣는다. 저장 shared `V199` `board_defaults.comment_delay_notice`, 공개 `GET /api/site/info` 의 `boardDisplay.commentDelayNotice`, 관리자 `GET·PUT /api/admin/boards/defaults` 의 `defaults.commentDelayNotice`.
+2. ~~비회원 댓글 공개 지연은 **시간 숫자를 보이지 않고** 「로그인하면 바로 볼 수 있어요」(기존 `util-comment-delay-messages.ts` 규칙).~~ **정정(2026-11-12 사용자)**: 문구 방식을 게시판 기본 설정(사이트 전체)으로 고른다 — `commentDelayNotice` = **`TIME`(기본)** 「N시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」(남은 시간 — 1시간 이상은 시간 올림, 미만은 분 올림) · `LOGIN` 「로그인하면 바로 볼 수 있어요」(예전 문구). 서버는 `DELAYED` 댓글에 공개 시각 `visibleAt`(작성 시각 + `commentGuestDelayMinutes`)을 싣는다. 저장 shared `V199` `board_defaults.comment_delay_notice`, 공개 `GET /api/site/info` 의 `boardDisplay.commentDelayNotice`, 관리자 `GET·PUT /api/admin/boards/defaults` 의 `defaults.commentDelayNotice`.
 3. 날짜 표시: 표준형의 오래된 글은 사용자 표시 설정의 날짜 형식(`time.date`)을 따른다(그누보드의 `YY-MM-DD` 고정이 아님). 유동형은 모두 상대 시간. 기준은 공개 기본값 `dateDisplay`.
 4. 비회원 IP 앞 두 자리 표시.
 5. 19금: ~~성인 인증이 없으므로 확인 단추로 이번 방문만 연다(목록에는 19 표시와 함께 나온다).~~ **정정(2026-11-06, `adult-content-contract.md`)**: 확인 단추를 없앴다. 19금 글은 본인인증으로 만 19세 이상이 확인된 회원에게만 보이고(목록에는 19 표시), 그 밖에는 서버가 모든 공개 목록에서 빼고 글 보기·댓글은 403 `POST_ADULT_ONLY`.

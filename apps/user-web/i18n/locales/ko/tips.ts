@@ -7,7 +7,7 @@ export default {
     subtitle: '따라 하기 좋은 팁과 강좌, 직접 써 본 사용기를 모아 봐요',
     boardTabs: '게시판 고르기',
     headlineTitle: '이번 주 추천',
-    latestTitle: '최신 글',
+    latestTitle: '최신글',
     mostViewedTitle: '많이 본 글',
     mostViewedEmpty: '아직 모을 글이 없어요',
     tagsTitle: '태그',

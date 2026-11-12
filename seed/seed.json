@@ -673,7 +673,7 @@
     "gadgetConfigs": [
       { "template": "DAUM", "title": "핫 로보픽", "config": { "thumbs": "FIRST" } },
       { "template": "NAVER", "title": "핫 로보픽", "config": { "thumbs": "FIRST" } },
-      { "template": "DAUM", "title": "방금 올라온 글", "config": { "thumbnail": "NONE" } }
+      { "template": "DAUM", "title": "최신글", "config": { "thumbnail": "NONE" } }
     ],
     "gadgetTitles": [
       {

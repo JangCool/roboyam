@@ -388,7 +388,7 @@ export default {
         commentProtectDelete: '보호 중인 글을 글쓴이가 지우려 할 때의 방식이에요.',
         commentProtectDelayMinutes: '「예약 삭제」일 때 지워지기까지 기다리는 시간이에요.',
         commentGuestDelayMinutes: '새 댓글이 비회원에게 보이기까지 기다리는 시간이에요. 회원에게는 바로 보여요.',
-        commentDelayNotice: '아직 가려진 댓글 자리에 비회원에게 보일 안내예요. 「남은 시간 알리기」는 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인」, 「로그인 안내만」은 「로그인하면 바로 볼 수 있어요」예요. 모든 게시판에 같이 쓰여요.',
+        commentDelayNotice: '아직 가려진 댓글 자리에 비회원에게 보일 안내예요. 「남은 시간 알리기」는 「3시간 후에 볼 수 있어요 · 지금 보려면 로그인하세요」, 「로그인 안내만」은 「로그인하면 바로 볼 수 있어요」예요. 모든 게시판에 같이 쓰여요.',
         commentDislikeEnabled: '끄면 댓글·의견에 추천만 보여요. 이미 쌓인 비추천 수는 지우지 않고 감춰요.',
         commentLikeLabel: '비우면 「추천」이에요.',
         commentDislikeLabel: '비우면 「비추천」이에요.',
