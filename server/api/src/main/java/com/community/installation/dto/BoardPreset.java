@@ -28,10 +28,21 @@ import java.util.Locale;
  *                      {@code boards}·{@code menu} 대신 이 스냅숏(게시판·메뉴·가젯·홈 배치·게시판 설정 …)을 넣고, 넣지 못하면 {@code boards} 로 물러선다. {@code boards} 는 설치 화면 목록과
  *                      이미 설치된 곳의 한 번 적용에 쓴다. 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」
  * @param demo          이 구성으로 설치할 때 데모 데이터(데모 팩)를 고를 수 있는가 — 팩이 그 구성의 구조를 가리키므로 구조 스냅숏이 있는 구성만. 비우면 false
+ * @param siteAbout     사이트 소개(공개 푸터 「사이트 소개」 페이지) 기본 본문 파일 이름({@code install-presets/} 안, 예: {@code irobit.about.html}) — 이 구성으로 설치하면
+ *                      사이트 설정의 소개가 비어 있을 때 넣는다(사용자 2026-11-13 「데모 전체 설치했는데 사이트 소개가 빠져 있다」). 없으면(null) 넣지 않는다.
+ *                      저장 규칙은 관리자 저장과 같다({@code SiteAbouts} — 길이·소독). 이미 설치된 DB 의 기본 소개는 마이그레이션 V203·V205 가 넣었다
+ * @param siteBrand     이 구성으로 설치하면 사이트 아이콘·링크 미리보기 이미지에 브랜드 그림({@code install-presets/brand/})을 넣는가 — 데모 포함 여부와 무관
+ *                      ({@code SiteBrandInstaller}, 사용자 2026-11-13). 비우면 false
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoardPreset(String id, String name, String nameEn, String description, String descriptionEn, boolean defaultPreset, int order,
-                          String siteName, String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo) {
+                          String siteName, String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo,
+                          String siteAbout, Boolean siteBrand) {
+
+    /** 설치 때 브랜드 그림(사이트 아이콘·링크 미리보기)을 넣는 구성인가 */
+    public boolean brandOn() {
+        return Boolean.TRUE.equals(siteBrand);
+    }
 
     /** 데모 데이터를 고를 수 있는 구성인가 */
     public boolean demoOn() {

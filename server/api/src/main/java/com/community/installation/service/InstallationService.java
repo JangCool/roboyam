@@ -31,6 +31,7 @@ import com.community.zconfiguration.crypto.SecretEncryptor;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -91,12 +92,14 @@ public class InstallationService {
     private final DemoPackCatalog demoPack;
     private final DemoInstallLauncher demoLauncher;
     private final InstallationStore store;
+    private final SiteBrandInstaller brand;
 
     public InstallationService(InstallationState state, InstallTokenService tokens, InstallTokenGuard tokenGuard,
                                InstallationChecks checks, InstallationInstaller installer, BoardPresetCatalog boardPresets,
                                SiteSettingsService siteSettings, MailSettingsService mailSettings, MailConnectionChecker mailChecker,
                                SocialSettingsService socialSettings, SecretEncryptor encryptor, Messages messages, DemoPackCatalog demoPack,
-                               DemoInstallLauncher demoLauncher, InstallationStore store) {
+                               DemoInstallLauncher demoLauncher, InstallationStore store, SiteBrandInstaller brand) {
+        this.brand = brand;
         this.demoPack = demoPack;
         this.demoLauncher = demoLauncher;
         this.store = store;
@@ -177,6 +180,14 @@ public class InstallationService {
         }
 
         long rootOperatorId = installer.install(command); // 한 트랜잭션. 던지면 아무것도 남지 않는다
+        // 구성의 브랜드 그림(아이로빗 — 사이트 아이콘·링크 미리보기) — 설치는 커밋됐다. 데모 포함 여부와 무관하고, 실패해도 설치는 그대로(경고만)
+        if (boardPresets.find(command.boardPresetId()).map(BoardPreset::brandOn).orElse(false)) {
+            try {
+                brand.applyIfDefault(rootOperatorId, Instant.now());
+            } catch (RuntimeException e) {
+                log.warn("설치 — 브랜드 그림을 넣지 못했다(설치는 그대로) 원인={}", e.getMessage(), e);
+            }
+        }
         if (!command.demoData()) {
             return new InstallCompletedResponse(true, InstallCompletedResponse.DEMO_NONE);
         }

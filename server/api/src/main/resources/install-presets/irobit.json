@@ -8,6 +8,8 @@
   "order": 20,
   "siteName": "IROBIT",
   "siteTagline": "AI와 로봇, 그리고 우리(OUR)가 함께 만들어가는 작은 이야기",
+  "siteAbout": "irobit.about.html",
+  "siteBrand": true,
   "boards": [
     {
       "slug": "ai",

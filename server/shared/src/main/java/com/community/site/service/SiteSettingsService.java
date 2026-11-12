@@ -56,4 +56,19 @@ public class SiteSettingsService {
         settings.persist(SiteSettingEntity.create(values.name(), values.publicUrl(), values.tagline(), adminId, now));
         log.info("사이트 설정 저장(슬로건 {}) userId={}", values.tagline() == null ? "없음" : "있음", adminId);
     }
+
+    /**
+     * 사이트 소개가 비어 있을 때만 넣는다 — 설치 때 고른 구성의 기본 소개(소독한 HTML). 부르는 쪽(설치)의 트랜잭션 안에서, 방금 만든 행에.
+     *
+     * @return 넣었는가(행이 없거나 이미 소개가 있으면 false)
+     */
+    public boolean setAboutIfEmpty(String safeHtml, long adminId, Instant now) {
+        SiteSettingEntity row = settings.findById(SiteSettingEntity.ROW_ID).orElse(null);
+        if (row == null || SiteAbouts.present(row.getAboutHtml())) {
+            return false;
+        }
+        row.changeAbout(safeHtml, adminId, now);
+        log.info("사이트 소개 기본 본문을 넣었다 length={}", safeHtml.length());
+        return true;
+    }
 }

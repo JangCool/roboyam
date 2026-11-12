@@ -7,19 +7,11 @@ import com.community.installation.repository.master.TablePackRepository;
 import com.community.business.service.BusinessPii;
 import com.community.datakey.batch.DataKeyColumns;
 import com.community.datakey.batch.EncryptedColumn;
-import com.community.media.service.ImageCodec;
-import com.community.media.service.ImageFormat;
 import com.community.media.service.ImageStorage;
-import com.community.site.entity.SiteSettingEntity;
-import com.community.site.repository.master.SiteSettingRepository;
-import com.community.site.service.SiteBrandRender;
-import com.community.site.service.SiteImageFiles;
-import com.community.site.service.SiteMediaKeys;
 import com.community.popular.service.PopularRecompute;
 import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.crypto.DataCipher;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -60,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       설치한 곳에 키({@code IROBIT_DATA_KEY}·{@code IROBIT_INDEX_KEY})가 없으면 실패(데모만 건너뜀).</li>
  *   <li><b>파일</b>: 팩의 올린 파일을 같은 키(안의 ID 도 같은 규칙으로 옮김)로 저장소에 쓴다. 실패하면 쓴 파일을 지운다.</li>
  * </ul>
+ * 사이트 아이콘·링크 미리보기 브랜드 그림은 데모가 아니라 설치 구성의 몫이다({@link SiteBrandInstaller} — 데모 없이 설치해도 넣는다, 2026-11-13).
  * 실패하면 트랜잭션이 롤백돼 데모는 하나도 남지 않고, 부르는 쪽({@link InstallationService})이 {@link #markFailed} 로 적는다 — 설치(구조)는 그대로 쓸 수 있다.
  */
 @Service
@@ -82,18 +75,11 @@ public class DemoDataInstaller {
     private final DataCipher cipher;
     private final BlindIndex index;
     private final PopularRecompute popular;
-    private final SiteSettingRepository siteSettings;
-    private final SiteImageFiles imageFiles;
-    private final ImageCodec codec;
     private final XpService xp;
 
     public DemoDataInstaller(DemoPackCatalog catalog, TablePackRestorer restorer, TablePackRepository tables, ImageStorage storage,
-                             InstallationRepositoryQDSL installation, DataCipher cipher, BlindIndex index, PopularRecompute popular,
-                             SiteSettingRepository siteSettings, SiteImageFiles imageFiles, ImageCodec codec, XpService xp) {
+                             InstallationRepositoryQDSL installation, DataCipher cipher, BlindIndex index, PopularRecompute popular, XpService xp) {
         this.xp = xp;
-        this.siteSettings = siteSettings;
-        this.imageFiles = imageFiles;
-        this.codec = codec;
         this.popular = popular;
         this.cipher = cipher;
         this.index = index;
@@ -138,68 +124,11 @@ public class DemoDataInstaller {
             written.forEach(this::deleteQuietly);
             throw e instanceof IOException io ? new UncheckedIOException("데모 팩 파일을 쓰지 못했다", io) : (RuntimeException) e;
         }
-        int brand = brand(rootOperatorId, now);
         installation.markDemoResult(APPLIED, now);
         // 인기글 순위는 DB 배치(popular-rank, 기본 5분)가 글 표에서 계산한다 — 팩에는 순위 스냅숏이 없어 다음 정기 실행까지 인기글이 비므로 같은 트랜잭션에서 「지금 실행」을 요청한다
         popular.request(rootOperatorId);
-        log.info("데모 데이터를 넣었다 — 표 {}개 · 행 {}개 · 파일 {}개 · 시각 {}시간 옮김 · 브랜드 그림 {}장", result.written().size(), result.total(), written.size(), deltaMs / 3_600_000L, brand);
+        log.info("데모 데이터를 넣었다 — 표 {}개 · 행 {}개 · 파일 {}개 · 시각 {}시간 옮김", result.written().size(), result.total(), written.size(), deltaMs / 3_600_000L);
         return new Outcome(result.total(), written.size());
-    }
-
-    /**
-     * 사이트 아이콘·링크 미리보기 이미지 — 데모 팩은 설치 입력(site_settings)을 담지 않으므로, 아직 기본(올린 것 없음)일 때만 아이로빗 브랜드 그림
-     * ({@code install-presets/brand/site-icon.png} 512 · {@code site-og.png} 1200×630, 원본 {@code design/brand/})을 관리자 올리기와 같은 규칙({@link SiteBrandRender})으로 넣는다.
-     * 브랜드 그림은 덤이라 실패해도 데모는 그대로 넣는다(경고만, 이번에 쓴 파일은 지운다).
-     *
-     * @return 넣은 그림 수(아이콘 1 + 미리보기 1, 이미 있거나 실패하면 그만큼 적다)
-     */
-    private int brand(long rootOperatorId, Instant now) {
-        SiteSettingEntity row = siteSettings.findById(SiteSettingEntity.ROW_ID).orElse(null);
-        if (row == null) {
-            return 0;
-        }
-        int done = 0;
-        if (row.getIconToken() == null) {
-            Map<String, byte[]> files = new LinkedHashMap<>();
-            try {
-                String version = imageFiles.newVersion();
-                byte[] source = brandFile("site-icon.png");
-                codec.limited(() -> SiteBrandRender.iconFiles(codec.decode(source, ImageFormat.PNG))).forEach((icon, bytes) -> files.put(SiteMediaKeys.icon(version, icon), bytes));
-                imageFiles.writeAll(files);
-                row.changeIconToken(version, rootOperatorId, now);
-                done++;
-            } catch (IOException | RuntimeException e) {
-                imageFiles.deleteQuietly(List.copyOf(files.keySet()));
-                log.warn("데모 — 사이트 아이콘을 넣지 못했다(데모는 그대로)", e);
-            }
-        }
-        if (row.getOgToken() == null) {
-            String key = null;
-            try {
-                String version = imageFiles.newVersion();
-                byte[] source = brandFile("site-og.png");
-                byte[] png = codec.limited(() -> SiteBrandRender.ogPng(codec.decode(source, ImageFormat.PNG)));
-                key = SiteMediaKeys.og(version);
-                imageFiles.writeAll(Map.of(key, png));
-                row.changeOgToken(version, rootOperatorId, now);
-                done++;
-            } catch (IOException | RuntimeException e) {
-                if (key != null) {
-                    imageFiles.deleteQuietly(List.of(key));
-                }
-                log.warn("데모 — 링크 미리보기 이미지를 넣지 못했다(데모는 그대로)", e);
-            }
-        }
-        return done;
-    }
-
-    private static byte[] brandFile(String name) throws IOException {
-        try (InputStream in = DemoDataInstaller.class.getResourceAsStream("/install-presets/brand/" + name)) {
-            if (in == null) {
-                throw new IOException("브랜드 그림이 없다: " + name);
-            }
-            return in.readAllBytes();
-        }
     }
 
     /** 데모를 넣지 못했다고 적는다(설치는 그대로) */

@@ -53,10 +53,13 @@ public class InstallationInstaller {
     private final SocialSettingsService socialSettings;
     private final ApplicationEventPublisher events;
     private final BoardPresetApplier boardPresets;
+    private final BoardPresetCatalog presetCatalog;
 
     public InstallationInstaller(InstallationRepositoryQDSL installation, OperatorRepository operators, PasswordEncoder encoder,
                                  SnowflakeIdGenerator ids, SiteSettingsService siteSettings, MailSettingsService mailSettings,
-                                 SocialSettingsService socialSettings, ApplicationEventPublisher events, BoardPresetApplier boardPresets) {
+                                 SocialSettingsService socialSettings, ApplicationEventPublisher events, BoardPresetApplier boardPresets,
+                                 BoardPresetCatalog presetCatalog) {
+        this.presetCatalog = presetCatalog;
         this.installation = installation;
         this.operators = operators;
         this.encoder = encoder;
@@ -98,6 +101,8 @@ public class InstallationInstaller {
         }
 
         siteSettings.create(command.site(), rootId, now);
+        // 고른 구성의 사이트 소개 기본 본문(IROBIT — install-presets/irobit.about.html). 사이트 설정 행을 막 만들었으니 늘 비어 있다
+        presetCatalog.aboutOf(command.boardPresetId()).ifPresent(html -> siteSettings.setAboutIfEmpty(html, rootId, now));
         if (command.mail() != null) {
             mailSettings.create(command.mail(), rootId, now);
         }

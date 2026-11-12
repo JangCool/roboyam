@@ -10,10 +10,12 @@ import com.community.installation.dto.response.BoardPresetsResponse;
 import com.community.menu.service.MenuLimits;
 import com.community.menu.service.MenuRules;
 import com.community.menu.target.MenuBuiltin;
+import com.community.site.service.SiteAbouts;
 import com.community.site.service.SitePolicy;
 import com.community.zconfiguration.message.MessageRef;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -53,6 +55,7 @@ public class BoardPresetCatalog {
     static final String LOCATION = "classpath*:install-presets/*.json";
     /** 구조 스냅숏 파일의 끝 — 프리셋 목록으로 읽지 않는다 */
     static final String STRUCTURE_SUFFIX = ".structure.json";
+    static final String ABOUT_SUFFIX = ".about.html";
 
     /**
      * 구조 스냅숏에 담을 수 있는 표와 방식 — {@code scripts/export-install-preset.mjs} 의 TABLES 와 같아야 한다(표를 더하면 둘 다 고친다).
@@ -84,6 +87,8 @@ public class BoardPresetCatalog {
     private final BoardPreset defaultPreset;
     /** 프리셋 아이디 → 구조 스냅숏(있는 것만) */
     private final Map<String, TablePack> structures = new LinkedHashMap<>();
+    /** 프리셋 아이디 → 사이트 소개 기본 본문(소독한 HTML, 있는 것만) */
+    private final Map<String, String> abouts = new LinkedHashMap<>();
 
     /** 클래스패스의 {@code install-presets/*.json} 을 읽는다 */
     public BoardPresetCatalog() {
@@ -98,6 +103,9 @@ public class BoardPresetCatalog {
             validate(preset);
             if (preset.structure() != null) {
                 structures.put(preset.id(), loadStructure(preset));
+            }
+            if (preset.siteAbout() != null) {
+                abouts.put(preset.id(), loadAbout(preset));
             }
             if (presets.put(preset.id(), preset) != null) {
                 throw invalid(preset.id(), "아이디가 겹친다");
@@ -118,6 +126,11 @@ public class BoardPresetCatalog {
     /** 설치 요청이 고르지 않았을 때 쓰는 프리셋 */
     public BoardPreset defaultPreset() {
         return defaultPreset;
+    }
+
+    /** 그 구성의 사이트 소개 기본 본문(소독한 HTML) — 없으면 비어 있다 */
+    public Optional<String> aboutOf(String presetId) {
+        return presetId == null ? Optional.empty() : Optional.ofNullable(abouts.get(presetId));
     }
 
     /** 그 구성의 구조 스냅숏 — 없으면 비어 있다 */
@@ -207,6 +220,31 @@ public class BoardPresetCatalog {
         if (preset.menu() != null) {
             validateMenu(preset);
         }
+    }
+
+    // ── 사이트 소개 기본 본문 ──
+
+    /** {@code install-presets/<siteAbout>} 를 읽어 관리자 저장과 같은 규칙(길이·소독)으로 — 어기면 서버가 뜨지 않는다 */
+    private static String loadAbout(BoardPreset preset) {
+        String where = preset.id() + "/" + preset.siteAbout();
+        if (!(preset.siteAbout().endsWith(ABOUT_SUFFIX) && preset.siteAbout().matches("[a-z0-9][a-z0-9.-]*"))) {
+            throw invalid(preset.id(), "siteAbout 는 install-presets 안의 *" + ABOUT_SUFFIX + " 파일 이름이다: " + preset.siteAbout());
+        }
+        Resource resource = new PathMatchingResourcePatternResolver(BoardPresetCatalog.class.getClassLoader()).getResource("classpath:install-presets/" + preset.siteAbout());
+        String raw;
+        try (InputStream in = resource.getInputStream()) {
+            raw = new String(in.readAllBytes(), StandardCharsets.UTF_8).strip();
+        } catch (IOException e) {
+            throw new IllegalStateException("설치 프리셋의 사이트 소개를 읽지 못했다: " + where, e);
+        }
+        if (SiteAbouts.tooLong(raw)) {
+            throw invalid(where, "사이트 소개가 " + SiteAbouts.HTML_MAX + "자를 넘는다");
+        }
+        String safe = SiteAbouts.clean(raw);
+        if (safe == null) {
+            throw invalid(where, "사이트 소개에 보이는 글자가 없다");
+        }
+        return safe;
     }
 
     // ── 구조 스냅숏 ──
