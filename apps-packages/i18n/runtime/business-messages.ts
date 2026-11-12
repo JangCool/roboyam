@@ -1,5 +1,5 @@
 /**
- * 업무별 화면 문구 저장소(실행 쪽) — 빌드 모듈 `build/business-messages.ts` 가 넣는 가상 모듈이 여기에 문구를 등록하고,
+ * 업무별 화면 문구 저장소(실행 쪽) — 빌드 모듈 `buildtime/business-messages.ts` 가 넣는 가상 모듈이 여기에 문구를 등록하고,
  * 플러그인 `plugins/business-messages.client.ts` 가 vue-i18n 에 잇는다.
  *
  * - 기본 언어(`ko`) 문구는 쓰는 화면 조각과 같이 와서 모듈이 뜰 때 `registerMessages` 로 들어온다(그 화면을 그리기 전).
