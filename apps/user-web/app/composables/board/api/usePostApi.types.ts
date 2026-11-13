@@ -420,6 +420,43 @@ export interface PostDetail {
     processStatusNote?: string | null;
     /** 보는 사람이 이 글에서 할 수 있는 일(서버 판정) — 옛 응답에는 없다 */
     viewer?: PostViewer | null;
+    /**
+     * 대표 썸네일(list-thumbnail-contract 「2단계」 — 서버 `PostThumbnailView`) — 글쓴이 본인(회원 글·소모임 글 아님)에게만, 그 밖의 보는 사람·옛 응답은 null·없음(고치기 화면이 쓴다).
+     */
+    thumbnail?: PostThumbnailView | null;
+}
+
+/**
+ * 대표 썸네일을 무엇으로 정했나 — `AUTO` 자동(본문 첫 이미지, 없으면 첫 YouTube 영상 — 지금 동작) · `IMAGE` 본문 이미지 하나 · `UPLOAD` 따로 올린 그림 · `NONE` 대표 이미지 없음(목록에 그림을 안 보임).
+ */
+export type PostThumbnailMode = 'AUTO' | 'IMAGE' | 'UPLOAD' | 'NONE';
+/** 누가 정했나 — 운영자가 정하면 글쓴이 것보다 우선하고, 그동안 글쓴이는 바꿀 수 없다 */
+export type PostThumbnailSetBy = 'AUTHOR' | 'OPERATOR';
+
+/** 글 보기 응답의 대표 썸네일 — 고른 이미지를 본문에서 빼면 `mode AUTO` 로 보인다 */
+export interface PostThumbnailView {
+    mode: PostThumbnailMode;
+    /** 누가 정했나 — 자동이면 null. `OPERATOR` 면 글쓴이는 바꿀 수 없다(저장하면 `409 THUMBNAIL_LOCKED`) */
+    setBy: PostThumbnailSetBy | null;
+    /** `IMAGE` — 고른 본문 이미지 ID(`<img data-image-id>`) */
+    imageId: string | null;
+    /** `UPLOAD` — 올린 그림 ID */
+    fileId: string | null;
+    /** 지금 목록에 보이는 썸네일 주소 — 없으면 null */
+    url: string | null;
+}
+
+/**
+ * 글쓰기·고치기 저장 요청의 대표 썸네일(서버 `PostThumbnailInput`) — 게시판 `authorThumbnailEnabled` 가 켜진 게시판의 회원 글에서만 보고, 아니면 서버가 무시한다.
+ * 글쓰기: 칸을 빼면 자동. 고치기: 칸을 빼면 그대로(바꿨을 때만 싣는다). 운영자가 정한 글이면 `409 THUMBNAIL_LOCKED`(고치기 전체가 저장되지 않는다).
+ * 모르는 방식·본문에 없는 이미지·쓸 수 없는 올린 그림은 `400 VALIDATION fields.thumbnail`.
+ */
+export interface PostThumbnailInput {
+    mode: PostThumbnailMode;
+    /** `IMAGE` 일 때 — 본문 이미지 ID */
+    imageId?: string;
+    /** `UPLOAD` 일 때 — `POST /api/images/thumbnails` 로 올린 그림 ID(또는 이 글이 이미 쓰는 그 그림) */
+    fileId?: string;
 }
 
 /** 글 상세의 보는 사람 판정 — 칸이 없으면 화면은 게시판 `viewer.staff` 로 판단한다 */
@@ -461,6 +498,8 @@ export interface PostWriteRequest {
      * (null·없음 = 서버가 게시판 방식대로)
      */
     secret?: boolean | null;
+    /** 대표 썸네일 — 빼면 자동 */
+    thumbnail?: PostThumbnailInput;
 }
 
 export interface PostWriteResult {
@@ -489,6 +528,8 @@ export interface PostUpdateRequest {
     deal?: DealInput;
     /** 비밀글 여부 — 게시판 `secretMode` 가 `OPTIONAL` 일 때만 싣는다(칸을 빼거나 null 이면 그대로) */
     secret?: boolean | null;
+    /** 대표 썸네일 — 바꿨을 때만 싣는다(빼면 그대로) */
+    thumbnail?: PostThumbnailInput;
 }
 
 /**

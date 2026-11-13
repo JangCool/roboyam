@@ -154,7 +154,7 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "pointMinLengthApplied", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
+            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
     /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
     public static final int REACTION_LABEL_MAX = 10;
@@ -230,6 +230,8 @@ public final class BoardFields {
         put(d, new Spec("pinRequestReviewers", Kind.MULTI, 0, 0, List.of(PIN_REVIEWER_POST_AUTHOR, PIN_REVIEWER_BOARD_MANAGER, PIN_REVIEWER_OPERATOR), true, false));
         bool(d, "debateEnabled", true);
         bool(d, "pollEnabled", true);
+        // 글쓴이가 대표 이미지(목록 썸네일) 고르기(V206 — list-thumbnail-contract 「2단계」, 기본 끔)
+        bool(d, "authorThumbnailEnabled", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음)
         number(d, "pinRequestMinLikes", 0, PIN_REQUEST_MIN_LIKES_MAX, false, false);

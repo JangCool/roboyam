@@ -254,6 +254,11 @@ public final class AuditActions {
     public static final String POST_POLL_DELETE = "POST_POLL_DELETE";
     /** 글의 처리 상태 바꾸기(V166 운영 게시판 — 버그 신고·기능 요청) — 대상 POST + 글 ID, {@code from}/{@code to}(PostProcessStatus 이름). 같은 값이면 남기지 않는다 */
     public static final String POST_PROCESS_STATUS = "POST_PROCESS_STATUS";
+    /**
+     * 글의 대표 썸네일 정하기(운영자 — {@code PUT /api/admin/posts/{id}/thumbnail}, list-thumbnail-contract 「2단계」) — 대상 POST + 글 ID,
+     * {@code from}/{@code to}(방식 AUTO·IMAGE·UPLOAD·NONE) · {@code fromSetBy}(AUTHOR·OPERATOR) · {@code fromFileId}/{@code toFileId}
+     */
+    public static final String POST_THUMBNAIL = "POST_THUMBNAIL";
     // ── 공지 관리(docs/features/notice-admin-contract.md) — 공지 게시판 글, 대상 POST + 글 ID ──
     /** 공지 쓰기(작성자 = 운영자 회원 계정) — {@code boardId}·{@code authorUserId}·{@code prefixId}·{@code title}·{@code pinned} */
     public static final String NOTICE_CREATE = "NOTICE_CREATE";

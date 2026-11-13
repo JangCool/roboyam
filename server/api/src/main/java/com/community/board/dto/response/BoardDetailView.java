@@ -24,6 +24,7 @@ import java.util.List;
  * @param chipPosition         글 목록 칩 위치({@link BoardView#chipPosition()} 와 같다 — V169, 푼 실제 값)
  * @param authorMode           작성자 표시 NICKNAME · ANONYMOUS({@link BoardView#authorMode()} 와 같다 — V184)
  * @param prefixStyle          말머리 모양 TEXT · MUTED · COLOR({@link BoardView#prefixStyle()} 와 같다 — V195, 푼 실제 값)
+ * @param authorThumbnailEnabled 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있는가(유효 정책, 기본 false — V206, list-thumbnail-contract 「2단계」)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -32,5 +33,6 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               String commentMinGradeLabel, String introText, String writeGuideText, String writeTemplate, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
-                              String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle) {
+                              String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
+                              boolean authorThumbnailEnabled) {
 }

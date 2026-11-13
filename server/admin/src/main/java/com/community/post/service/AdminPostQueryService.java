@@ -32,6 +32,9 @@ import com.community.post.dto.response.AdminPostItemView;
 import com.community.post.dto.response.AdminPostListView;
 import com.community.post.dto.response.AdminPostPrefixOptionView;
 import com.community.post.dto.response.AdminPostPrefixRefView;
+import com.community.post.dto.response.AdminPostThumbnailView;
+import com.community.post.entity.ContentFormat;
+import com.community.post.service.PostThumbnailChoices;
 import com.community.post.dto.response.AdminPollOptionView;
 import com.community.post.dto.response.AdminPollView;
 import com.community.post.entity.PostEntity;
@@ -120,11 +123,14 @@ public class AdminPostQueryService {
     private final GroupRepository groupRepository;
     private final PostDealRepository deals;
     private final PostProcessStatusHistoryRepository statusHistory;
+    private final PostThumbnailChoices thumbnails;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
-                                 GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory) {
+                                 GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory,
+                                 PostThumbnailChoices thumbnails) {
         this.statusHistory = statusHistory;
+        this.thumbnails = thumbnails;
         this.deals = deals;
         this.groupRepository = groupRepository;
         this.polls = polls;
@@ -191,7 +197,18 @@ public class AdminPostQueryService {
         AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() || blocked ? null : post.getContent(),
                 post.getEditedAt());
         return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), blocked ? null : pollOf(id, now),
-                blocked ? BLOCKED_GROUP_PRIVATE : null);
+                blocked ? BLOCKED_GROUP_PRIVATE : null, blocked || post.isPurged() ? null : thumbnailOf(post));
+    }
+
+    /** 글 상세의 대표 썸네일(list-thumbnail-contract 「2단계」) — 지금 상태 · 자동 그림 · 고르기 격자(본문 이미지) */
+    private AdminPostThumbnailView thumbnailOf(PostEntity post) {
+        PostThumbnailChoices.Detail d = thumbnails.detail(post.getId(), post.getContentFormat() == ContentFormat.HTML ? post.getContent() : null);
+        return new AdminPostThumbnailView(d.mode(), d.setBy(), idString(d.imageId()), idString(d.fileId()), d.url(), d.autoUrl(), d.autoFrom(),
+                d.images().stream().map(i -> new AdminPostThumbnailView.Image(Long.toString(i.imageId()), i.url())).toList());
+    }
+
+    private static String idString(Long id) {
+        return id == null ? null : Long.toString(id);
     }
 
     /**

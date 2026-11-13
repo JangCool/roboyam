@@ -11,6 +11,7 @@ import java.time.Instant;
  * 올린 파일의 장부 — V12__site_media.sql·V56 의 {@code files}. 파일 바이트는 저장소({@code ImageStorage})에 있고 여기에는 키·크기·상태만 둔다.
  * 올리면 {@code PENDING}, 어딘가에 쓰이게 되면({@link #markUsed}·{@link #attachToPost}) {@code IN_USE}. 이름·원본 파일명은 저장하지 않는다.
  * 운영자가 올린 파일(사이트 로고)은 {@code uploadedBy}, 회원이 올린 글 이미지는 {@code uploadedByUser} 와 쓰는 글 {@code postId} 를 갖는다.
+ * 글 이미지·대표 썸네일 그림은 목록용 작은 그림의 키 {@code thumbnailKey}(V206)를 함께 갖는다.
  */
 @Entity
 @Table(name = "files")
@@ -42,6 +43,9 @@ public class FileEntity {
 
     /** 이 이미지를 쓰는 글(글 이미지가 IN_USE 일 때) — 파티션 표라 외래 키가 없다 */
     private Long postId;
+
+    /** 목록 썸네일의 저장소 키(V206 — 글 이미지·대표 썸네일 그림만. 만들지 못했거나 예전 파일이면 null → 목록은 원본을 쓴다) */
+    private String thumbnailKey;
 
     private Instant createdAt;
 
@@ -96,6 +100,25 @@ public class FileEntity {
         file.uploadedByUser = userId;
         file.createdAt = now;
         return file;
+    }
+
+    /** 운영자가 올린 대표 썸네일 그림(V206) — 대표 썸네일로 정하면 그 글에 IN_USE */
+    public static FileEntity pendingPostThumbnailByOperator(long id, String storageKey, String contentType, long sizeBytes, int width, int height, long operatorId,
+                                                            Instant now) {
+        return pending(id, FilePurpose.POST_THUMBNAIL, storageKey, contentType, sizeBytes, width, height, operatorId, now);
+    }
+
+    /** 회원(글쓴이)이 올린 대표 썸네일 그림(V206) — 글 저장의 {@code thumbnail.fileId} 로 정하면 그 글에 IN_USE */
+    public static FileEntity pendingPostThumbnailByUser(long id, String storageKey, String contentType, long sizeBytes, int width, int height, long userId,
+                                                        Instant now) {
+        FileEntity file = pendingPostImage(id, storageKey, contentType, sizeBytes, width, height, userId, now);
+        file.purpose = FilePurpose.POST_THUMBNAIL;
+        return file;
+    }
+
+    /** 목록 썸네일 키를 단다(올릴 때 · 채우기 배치) */
+    public void recordThumbnail(String thumbnailKey) {
+        this.thumbnailKey = thumbnailKey;
     }
 
     /** 글에 쓰인다 — 쓰는 중(IN_USE) + 글 ID. 이미 쓰는 중이면 처음 시각은 그대로 둔다 */
@@ -160,6 +183,10 @@ public class FileEntity {
 
     public Long getPostId() {
         return postId;
+    }
+
+    public String getThumbnailKey() {
+        return thumbnailKey;
     }
 
     public Instant getCreatedAt() {

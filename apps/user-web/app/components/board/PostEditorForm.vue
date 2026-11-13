@@ -1,7 +1,7 @@
 <template>
     <!--
         글쓰기·고치기 폼 — 글쓰기(`/write`)와 고치기(`/posts/[id]/edit`)가 같이 쓴다. 그리기·화면 검사만 하고 저장(서버 호출)은 페이지가 한다.
-        칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만 — 성인 전용 말머리를 고르면 켜고 잠근다, 19금 글은 본인인증한 만 19세 이상만 쓴다: 판정은 서버) · 비밀글(게시판 `secretMode` — `OPTIONAL` 체크 · `ALWAYS` 고정 안내 · 비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
+        칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만 — 성인 전용 말머리를 고르면 켜고 잠근다, 19금 글은 본인인증한 만 19세 이상만 쓴다: 판정은 서버) · 비밀글(게시판 `secretMode` — `OPTIONAL` 체크 · `ALWAYS` 고정 안내 · 비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다) · (`belowContent` 자리 — 본문 바로 아래, 대표 이미지) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
         이미지는 고급 에디터 안에서 올린다(게시판이 허용하고 회원일 때만 — 비회원 글쓰기·비회원 글 고치기는 감춘다). 올리기 함수(`upload`)는 페이지가 API 컴포저블로 만들어 넘긴다.
         화면 검사는 미리 알려 주는 용도이고 판정은 서버다(서버 `fields` 가 있으면 그것을 칸 아래에 먼저 보인다).
         `lead` 자리(제목 위 — 핫딜 딜 칸)와 단계 입력(`step` — 모바일 핫딜: 1 = 게시판·말머리·`lead` + [다음], 2 = 나머지 + [이전]·[등록], 0 = 한 번에)을 둔다.
@@ -130,6 +130,9 @@
         <p v-else-if="ruleHint" class="-mt-2 text-xs text-muted-color">{{ ruleHint }}</p>
         <!-- 이미지 올리기가 끝나지 않았다 — 등록을 막는다(올리는 중·실패한 것은 에디터 아래 목록에 있다) -->
         <Message v-if="tried && mediaProblem" severity="error" variant="simple" size="small" role="alert">{{ mediaProblem }}</Message>
+
+        <!-- 화면이 본문 바로 아래에 덧붙이는 칸(대표 이미지 고르기) — `imageUpload` = 이 폼에서 이미지를 올릴 수 있나(게시판 허용·회원·올리기 함수) -->
+        <slot name="belowContent" :image-upload="imageOn" />
 
         <div v-if="board.allowAdult" class="flex flex-col gap-1">
             <label class="inline-flex cursor-pointer items-center gap-2 self-start text-sm" :class="{ 'cursor-not-allowed': adultLocked }">

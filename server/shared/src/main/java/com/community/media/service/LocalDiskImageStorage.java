@@ -77,6 +77,25 @@ public class LocalDiskImageStorage implements ImageStorage {
         return URL_PREFIX + key;
     }
 
+    @Override
+    public java.util.Optional<byte[]> readBytes(String key) {
+        Path target;
+        try {
+            target = resolve(key);
+        } catch (IllegalArgumentException e) {
+            return java.util.Optional.empty();
+        }
+        if (!Files.isRegularFile(target)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(Files.readAllBytes(target));
+        } catch (IOException e) {
+            log.warn("로컬 디스크 저장소에서 읽지 못했다 key={}", key, e);
+            throw new StorageUnavailableException();
+        }
+    }
+
     /** 키를 폴더 안의 경로로 바꾼다. 폴더 밖이면 거절 */
     Path resolve(String key) {
         Path path = root.resolve(key).normalize();

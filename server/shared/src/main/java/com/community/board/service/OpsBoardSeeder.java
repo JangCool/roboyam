@@ -102,6 +102,6 @@ public class OpsBoardSeeder {
     /** 정책 — 글쓰기·댓글 첫 등급 · 이미지 켬 · 색인 끔 · 검색 켬 · 적립 끔 · 토론·투표 끔(나머지는 기본값 따름) */
     static BoardPolicyValues policy(String firstGrade) {
         return new BoardPolicyValues(firstGrade, firstGrade, null, true, null, null, null, false, true, null, "OFF", null, null, null, null, null, null, null, null,
-                null, null, null, false, false, null, null, null, null);
+                null, null, null, false, false, null, null, null, null, null);
     }
 }

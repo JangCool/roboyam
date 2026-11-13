@@ -159,6 +159,12 @@ export interface BoardDefaults {
     debateEnabled: boolean;
     /** 글쓴이(회원)가 글쓰기·고치기에서 글에 투표를 붙일 수 있다(post-poll-contract). 끄면 새로 붙일 수 없다 — 이미 붙은 투표는 그대로. 전체 기본값 `false` */
     pollEnabled: boolean;
+    /**
+     * 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있다(list-thumbnail-contract 「2단계」). 끄면 자동(첫 이미지) — 나중에 꺼도 이미 고른 글은 그대로.
+     * 운영자 교체(게시글 관리)는 이 칸과 관계없이 늘 된다. 전체 기본값 `false`.
+     * 서버 shared V206 `boards.author_thumbnail_enabled`(NULL = 기본값)·`board_defaults.author_thumbnail_enabled`
+     */
+    authorThumbnailEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /**
@@ -206,6 +212,7 @@ export const BOARD_POLICY_FIELDS = [
     'pinRequestReviewers',
     'debateEnabled',
     'pollEnabled',
+    'authorThumbnailEnabled',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

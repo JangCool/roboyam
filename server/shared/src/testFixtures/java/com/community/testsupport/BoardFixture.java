@@ -86,7 +86,7 @@ public final class BoardFixture {
         tx.run(() -> {
             BoardEntity board = BoardEntity.create(id, slug, name, null, "", GENERAL, "LIST", true, null, false, sortOrder, null, FixtureTx.now());
             board.changePolicy(new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, pointMode, pointMinLengthApplied, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null, null));
+                    null, null, null, null, null, null, null, null, null, null, null, null, null));
             boards.persist(board);
         });
     }
@@ -143,6 +143,6 @@ public final class BoardFixture {
 
     private static BoardPolicyValues writeMinOnly(String writeMin) {
         return new BoardPolicyValues(writeMin, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 }

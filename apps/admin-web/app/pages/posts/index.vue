@@ -18,6 +18,7 @@
           `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
         - 소모임 글(소모임 2단계 — 줄의 `group`·`restricted`): 제목 앞에 「소모임 · 이름」·공개 상태(멤버만·공개 전환)·해산·나간 멤버 칩. **비공개 소모임 글은 서버가 제목을 싣지 않아(`title: null`)**
           제목 자리에 「소모임 비공개 글」(자물쇠·기울임), 서랍은 본문·투표 대신 「신고 상세에서만」 안내(`contentBlocked: GROUP_PRIVATE`). 소모임 글은 이동이 없다(서버도 `409 POST_STATE_INVALID`).
+        - 글 대표 썸네일(list-thumbnail-contract 「2단계」): 서랍의 「대표 썸네일」 구획(지금 그림·출처) + [바꾸기](`post.manage`) → `PostThumbnailDialog`(글 이미지 고르기·올리기·없음·자동) → 저장 뒤 서랍을 조용히 다시 받는다.
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -373,7 +374,19 @@
             :can-reveal-sealed="reveal.canReveal.value"
             @sealed-sanction="openSealedSanction"
             @sealed-reveal="openSealedReveal"
+            thumbnail-shown
+            @thumbnail-change="openThumbnail"
             @closed="onDrawerClosed"
+        />
+
+        <!-- 글 대표 썸네일 바꾸기(list-thumbnail-contract 「2단계」 — `PUT /api/admin/posts/{id}/thumbnail`) -->
+        <PostThumbnailDialog
+            v-model:visible="thumbnailOpen"
+            :view="detail.detail.value?.thumbnail ?? null"
+            :actions="thumbnailActions"
+            :saving="thumbnailSaving"
+            :error="thumbnailError"
+            @save="saveThumbnail"
         />
 
         <!-- 익명 게시판 글의 봉인된 작성자(anonymous-board-contract) — 「이 글 작성자」 제재(기존 제재 창, 대상 = 이 글 작성자) · 작성자 열람 -->
@@ -390,7 +403,8 @@ import type { MenuItem } from 'primevue/menuitem';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
-import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostProcessStatus, PostProcessStatusHistoryItem, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, AdminPostThumbnailRequest, PostBulkAction, PostBulkResult, PostProcessStatus, PostProcessStatusHistoryItem, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { PostThumbnailActions } from '~/components/post/PostThumbnailDialog.types';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -1014,6 +1028,44 @@ watch(
         void loadProcessHistory();
     },
 );
+
+/*
+ * ── 대표 썸네일(list-thumbnail-contract 「2단계」) — 서랍의 [바꾸기](`post.manage`) → 바꾸기 창. 저장하면 창을 닫고 서랍의 글을 조용히 다시 받는다.
+ * 실패: 400 `fields.mode|imageId|fileId` 와 그 밖은 창 안 서버 문구, 404 `POST_NOT_FOUND`(그새 없어짐)는 창을 닫고 토스트 + 서랍 다시 받기 ──
+ */
+const thumbnailOpen = ref(false);
+const thumbnailSaving = ref(false);
+const thumbnailError = ref('');
+const thumbnailActions: PostThumbnailActions = { upload: (file) => api.uploadThumbnail(file) };
+function openThumbnail(): void {
+    if (!detail.detail.value?.thumbnail || !canManage.value) return;
+    thumbnailError.value = '';
+    thumbnailOpen.value = true;
+}
+async function saveThumbnail(body: AdminPostThumbnailRequest): Promise<void> {
+    const id = detail.openId.value;
+    if (!id || thumbnailSaving.value) return;
+    thumbnailSaving.value = true;
+    thumbnailError.value = '';
+    try {
+        await api.setThumbnail(id, body);
+        thumbnailOpen.value = false;
+        toast.success(t('postThumbnail.saved'));
+        await detail.reload(true);
+    } catch (e) {
+        const error = errorOf(e);
+        if (error.code === 'POST_NOT_FOUND') {
+            // 그새 지워져 없어진 글 — 다른 조치처럼 알리고 서랍을 다시 받는다(서랍이 없는 글 안내를 보인다)
+            thumbnailOpen.value = false;
+            toast.error(error.message, 8000);
+            await detail.reload(false);
+            return;
+        }
+        thumbnailError.value = error.fields?.imageId ?? error.fields?.fileId ?? error.fields?.mode ?? error.message;
+    } finally {
+        thumbnailSaving.value = false;
+    }
+}
 
 function onDrawerClosed(): void {
     if (drawerOpen.value) return;

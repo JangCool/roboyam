@@ -308,6 +308,11 @@ export interface BoardDetail extends BoardView {
      */
     pollEnabled?: boolean;
     /**
+     * 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있다(유효 정책 `authorThumbnailEnabled` — list-thumbnail-contract 「2단계」, 기본 끔). 없으면 끔.
+     * `debateEnabled` 와 같은 자리(서버 `BoardDetailView.authorThumbnailEnabled` — shared V206)
+     */
+    authorThumbnailEnabled?: boolean;
+    /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
      */

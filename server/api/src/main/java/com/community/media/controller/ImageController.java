@@ -34,4 +34,15 @@ public class ImageController {
         Long userId = authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.upload(userId, file)));
     }
+
+    /**
+     * 대표 썸네일로 따로 올리는 그림(list-thumbnail-contract 「2단계」) — 같은 모양 {@code 201 {id, url, width, height}}(url = 목록 썸네일 주소), 같은 한도·검사·속도 제한.
+     * 받은 {@code id} 를 글 저장의 {@code thumbnail.fileId} 로 넘긴다
+     */
+    @PostMapping("/thumbnails")
+    public ResponseEntity<ApiResponse<ImageUploadResponse>> uploadThumbnail(@RequestParam(value = "file", required = false) MultipartFile file,
+                                                                           Authentication authentication) {
+        Long userId = authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.uploadThumbnail(userId, file)));
+    }
 }

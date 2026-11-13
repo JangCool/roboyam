@@ -17,4 +17,12 @@ public interface ImageStorage {
 
     /** 브라우저가 이 파일을 가져가는 주소(로컬은 {@code /media/…}, S3 는 공개 주소가 있으면 그 주소 전체 · 없으면 {@code /media/…}) */
     String publicUrl(String key);
+
+    /**
+     * 파일을 통째로 읽는다 — 없으면 빈 값. 이미 올라간 글 이미지의 목록 썸네일 채우기 배치가 쓴다(올린 이미지는 처리 관문이 크기를 제한해 메모리에 담을 만하다).
+     * 읽지 못하면 {@code StorageUnavailableException}(503). 두 구현(로컬 디스크·S3)이 바꿔 쓰고, 시험용 가짜 저장소는 기본 구현(지원 안 함)을 쓴다.
+     */
+    default java.util.Optional<byte[]> readBytes(String key) {
+        throw new UnsupportedOperationException("이 저장소는 읽기를 지원하지 않는다");
+    }
 }

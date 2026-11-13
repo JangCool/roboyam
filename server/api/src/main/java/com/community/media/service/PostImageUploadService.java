@@ -56,6 +56,24 @@ public class PostImageUploadService {
     }
 
     public ImageUploadResponse upload(Long userId, MultipartFile file) {
+        byte[] data = checked(userId, file);
+        PostImageUploads.Stored stored = uploads.store(userId, data);
+        return new ImageUploadResponse(Long.toString(stored.id()), stored.url(), stored.width(), stored.height());
+    }
+
+    /**
+     * 대표 썸네일로 따로 올리는 그림({@code POST /api/images/thumbnails}, 용도 {@code POST_THUMBNAIL} — list-thumbnail-contract 「2단계」) — 글 이미지와 같은 검사 순서·한도
+     * (정지·권한 → 파일 칸 → 1분 속도 → 하루 한도[글 이미지와 함께 센다] → 검사·다시 만들기·썸네일). 게시판을 모른다 — 게시판 정책 {@code authorThumbnailEnabled} 는 글을 저장할 때 본다.
+     * 응답 {@code url} 은 목록에 보일 썸네일 주소(만들지 못했으면 원본). 받은 {@code id} 를 글 저장의 {@code thumbnail.fileId} 로 넘긴다 — 쓰지 않으면 정리 배치가 지운다.
+     */
+    public ImageUploadResponse uploadThumbnail(Long userId, MultipartFile file) {
+        byte[] data = checked(userId, file);
+        PostImageUploads.Stored stored = uploads.storeThumbnailByUser(userId, data);
+        return new ImageUploadResponse(Long.toString(stored.id()), stored.thumbnailUrl(), stored.width(), stored.height());
+    }
+
+    /** 공통 검사(정지·권한·파일 칸·속도·하루 한도) — 통과하면 파일 바이트 */
+    private byte[] checked(Long userId, MultipartFile file) {
         if (userId == null) {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
@@ -78,13 +96,10 @@ public class PostImageUploadService {
             throw new ImageDailyLimitException(props.dailyLimit());
         }
 
-        byte[] data;
         try {
-            data = file.getBytes();
+            return file.getBytes();
         } catch (IOException e) {
             throw ValidationException.of("file", new MessageRef("site.image.corrupt"));
         }
-        PostImageUploads.Stored stored = uploads.store(userId, data);
-        return new ImageUploadResponse(Long.toString(stored.id()), stored.url(), stored.width(), stored.height());
     }
 }

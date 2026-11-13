@@ -22,5 +22,12 @@ public enum FilePurpose {
     SITE_POPUP_IMAGE,
 
     /** 가젯 제목 아이콘(SVG — 위험 요소 거절 · PNG·WEBP, 200KB) — 저장소 키 {@code gadget-icon/{버전}/icon.{확장자}}. 운영자가 올린다({@code POST /api/admin/home-layouts/icons}, 권한 site.manage, V178) */
-    GADGET_ICON
+    GADGET_ICON,
+
+    /**
+     * 글의 대표 썸네일로 따로 올린 그림(JPEG·PNG·WebP·GIF, 글 이미지와 같은 검사·한도 10MB) — 저장소 키 {@code post-thumb/{년월}/{버전}.{확장자}} + 목록 썸네일 {@code …-t.{jpg|png}}(V206).
+     * 글쓴이({@code POST /api/images/thumbnails})나 운영자({@code POST /api/admin/files}, 권한 post.manage)가 올리고, 대표 썸네일로 정하면 그 글에 IN_USE({@code post_id}).
+     * 바꾸거나 자동으로 되돌리면 PENDING 으로 돌아가 정리 배치가 지운다. 글 본문 이미지({@link #POST_IMAGE})와 용도를 나눠 「첫 이미지」·본문 동기화가 건드리지 않게 한다
+     */
+    POST_THUMBNAIL
 }

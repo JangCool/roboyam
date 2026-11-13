@@ -12,6 +12,7 @@
           좁은 화면(md 미만)은 `Stepper` 단계 입력(딜 정보 → 설명) — [다음]은 딜 칸 검사를 통과해야 넘어가고, 2단계에서 딜 칸 오류가 생기면 「딜 정보에 확인할 칸이 N개」 + [딜 정보로].
           제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`). `?from={postId}`(끝난 딜에서 새 딜)면 `prefill` 로 링크·몰·이미지·제목을 채운다(가격·마감은 비움).
           하루 글 한도·같은 쇼핑몰 간격(`429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`)은 폼 아래 안내, 저장 응답 `warnings[]` 는 토스트.
+        대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 회원 글쓰기면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker` — 본문 이미지 고르기 · 자동 · 따로 올리기 · 없음). 자동이 아니면 본문 `thumbnail` 로 보낸다.
         게시판 제재(board-sanction-contract): 고른 게시판에서 쓰기 제한 중이면 폼 대신 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」. 등록 때 `403 BOARD_WRITE_RESTRICTED` 면 폼 위에 같은 안내(쓰던 글은 그대로).
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
@@ -100,6 +101,19 @@
                 <template v-if="isDeal" #titleHint>
                     <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
                 </template>
+                <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 회원 글쓰기만, 본문 바로 아래 -->
+                <template #belowContent="{ imageUpload }">
+                    <PostThumbnailPicker
+                        v-if="thumbnailShown"
+                        v-model="thumbnail"
+                        :content="form.content"
+                        :content-format="form.contentFormat"
+                        :can-upload="imageUpload"
+                        :upload="uploadThumbnail"
+                        :disabled="submitting"
+                        :error="fieldErrors.thumbnail ?? ''"
+                    />
+                </template>
                 <!-- 찬반 토론 — 게시판이 글쓴이 토론을 받고(`debateEnabled`) 회원일 때만. 켜면 글과 함께 연다 -->
                 <template #extra>
                     <PollSettingsFields v-if="pollShown" v-model="poll" :disabled="submitting" :errors="pollErrors" />
@@ -118,6 +132,9 @@ import UtilBoardSanction from '~/utils/util-board-sanction';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
 import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import { AUTO_THUMBNAIL, type PostThumbnailChoice } from '~/components/board/PostThumbnailPicker.types';
+import type { PostThumbnailInput } from '~/composables/board/api/usePostApi.types';
+import UtilPostThumbnail from '~/utils/util-post-thumbnail';
 import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -289,6 +306,21 @@ watch(poll, () => {
     fieldErrors.value = UtilPoll.withoutPollFields(fieldErrors.value);
 });
 
+/*
+ * ── 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 회원 글쓰기만(비회원은 이미지를 못 올린다). 기본 자동, 게시판을 바꿔도 들고 간다.
+ * 저장은 실제로 쓰일 값(`effective` — 고른 이미지가 본문에서 빠졌으면 자동)으로, 자동이면 칸을 뺀다 ──
+ */
+const thumbnail = ref<PostThumbnailChoice>({ ...AUTO_THUMBNAIL });
+/** 게시판 정책 「글쓴이가 대표 이미지 고르기」(`authorThumbnailEnabled`, 기본 끔)를 켠 게시판의 회원 글쓰기만. 꺼진 게시판은 칸을 싣지 않는다(자동) */
+const thumbnailShown = computed(() => board.value?.viewer.guest === false && board.value.authorThumbnailEnabled === true);
+const uploadThumbnail = (file: File) => imageApi.uploadThumbnail(file);
+/** 저장 요청의 `thumbnail` 칸 — 자동이면 뺀다 */
+function thumbnailField(): { thumbnail?: PostThumbnailInput } {
+    if (!thumbnailShown.value) return {};
+    const chosen = UtilPostThumbnail.effective(thumbnail.value, UtilPostThumbnail.bodyImages(form.value.content, form.value.contentFormat));
+    return chosen.mode === 'AUTO' ? {} : { thumbnail: UtilPostThumbnail.inputOf(chosen) };
+}
+
 /* ── 핫딜 딜 칸 ── */
 const hotdealApi = useHotdealApi();
 const isDeal = computed(() => UtilHotdeal.isDealBoard(board.value));
@@ -368,7 +400,8 @@ const dirty = computed(
         form.value.title.trim() !== '' ||
         // 미리 채운 글 양식 그대로면 쓴 것이 없다
         (UtilPost.hasContent(form.value.content, form.value.contentFormat) && !UtilPost.isUntouchedTemplate(form.value.content, appliedTemplate, form.value.contentFormat)) ||
-        (pollShown.value && poll.value.enabled),
+        (pollShown.value && poll.value.enabled) ||
+        (thumbnailShown.value && thumbnail.value.mode !== 'AUTO'),
 );
 
 async function submit(): Promise<void> {
@@ -399,9 +432,11 @@ async function submit(): Promise<void> {
             // 비밀글(운영 게시판 `secretMode`) — 글쓴이가 고름 · 모든 글 비밀 · 없음이면 칸을 뺀다(비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다)
             ...UtilPostOps.secretField(UtilPostOps.writeSecret(UtilPostOps.secretMode(b), form.value.secret)),
             ...(isDeal.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
+            ...thumbnailField(),
         });
         saved = true;
         form.value = { ...EMPTY_POST_FORM };
+        thumbnail.value = { ...AUTO_THUMBNAIL };
         debate.value = { ...DEFAULT_DEBATE_SETTINGS };
         poll.value = UtilPoll.emptyForm();
         dealForm.value = UtilHotdeal.emptyForm();

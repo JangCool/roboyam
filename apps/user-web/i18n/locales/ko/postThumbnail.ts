@@ -1,0 +1,38 @@
+/**
+ * 글 대표 썸네일(list-thumbnail-contract 「2단계」) — 글쓰기·고치기의 「대표 이미지」 줄 문구.
+ * `en/postThumbnail.ts` 와 같은 키, 같은 차례. ⚠ 문구 안의 `@`·`|` 는 `{'@'}`·`{'|'}` 로 감싼다.
+ */
+export default {
+    title: '대표 이미지',
+    hint: '게시판 목록·가젯에 작게 보이는 그림이에요.',
+    lockedTitle: '운영자가 정한 대표 이미지예요',
+    lockedText: '이 글의 대표 이미지는 운영자가 정해서 바꿀 수 없어요.',
+    lockedNone: '운영자가 이 글을 대표 이미지 없이 보이게 했어요. 바꿀 수 없어요.',
+    lockedConflict: '그사이 운영자가 이 글의 대표 이미지를 정해 글이 저장되지 않았어요. 대표 이미지는 운영자가 정한 대로 두고, 쓴 내용은 그대로 있으니 다시 저장해 주세요.',
+    noImages: '본문에 이미지가 없어 목록에 그림 없이 보여요.',
+    upload: '따로 올리기',
+    uploadAgain: '다른 그림 올리기',
+    uploadHint: '따로 올린 그림은 본문에 들어가지 않아요 · JPEG·PNG·WebP·GIF, {max}MB 까지',
+    uploadFailed: '그림을 올리지 못했어요. 잠시 뒤 다시 해 주세요.',
+    previewNone: '그림 없음',
+    previewCaption: '목록에서 이렇게 보여요',
+    imagesLabel: '본문 이미지',
+    imageN: '{n}번째 이미지',
+    pickedBadge: '대표',
+    autoBadge: '자동',
+    uploadedLabel: '따로 올린 그림',
+    uploadedBadge: '올린 그림',
+    optionsLabel: '대표 이미지 고르기',
+    auto: '자동(첫 이미지)',
+    none: '대표 이미지 없음',
+    fellBack: '고른 이미지가 본문에서 빠져 자동으로 돌아갔어요.',
+    statusAutoImage: '본문 첫 이미지가 목록에 보여요.',
+    statusAutoVideo: '본문에 이미지가 없어 첫 영상의 그림이 목록에 보여요.',
+    statusAutoEmpty: '본문에 이미지가 없어 목록에 그림 없이 보여요.',
+    statusImage: '고른 이미지가 목록에 보여요.',
+    statusUpload: '따로 올린 그림이 목록에 보여요.',
+    statusNone: '목록에 그림 없이 보여요.',
+    fileEmpty: '빈 파일이에요. 다른 그림을 골라 주세요.',
+    fileSize: '{max}MB 까지 올릴 수 있어요.',
+    fileType: 'JPEG·PNG·WebP·GIF 그림만 올릴 수 있어요.',
+};

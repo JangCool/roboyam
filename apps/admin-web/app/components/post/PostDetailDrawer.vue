@@ -6,6 +6,7 @@
         본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로) ·
           **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
+          **대표 썸네일 구획**(부른 화면이 `thumbnailShown` 일 때만 — 지금 그림·출처, `post.manage` 면 [바꾸기] → 부른 화면이 `PostThumbnailDialog` 를 연다) ·
           조치 기록(최근 것부터, 처리자·사유·덧붙임).
         운영 게시판: 요약 칩에 비밀글 자물쇠, 「처리 상태」 줄(딱지 · 마지막 변경 · 운영진 메모 · `post.manage` 면 「상태 고르기 + 메모(선택 0~200자, 글자 수) + [바꾸기]」 →
           `process-status(status, note)` 를 올린다 — 바꾸기는 부른 화면, 서버 `fields.note` 는 메모 칸 아래) · 그 아래 처리 이력(시각 · 전 → 후 · 바꾼 쪽(이름) · 메모 — 부른 화면이 받는다).
@@ -208,6 +209,30 @@
                 <div v-else class="max-h-[28rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-line" :class="post.state === 'DELETED' ? 'opacity-80' : ''">{{ detail.content.body }}</div>
             </section>
 
+            <!--
+                대표 썸네일(list-thumbnail-contract 「2단계」) — 부른 화면이 켤 때만(`thumbnailShown`, 지금은 게시글 관리). 지금 목록·가젯에 보이는 그림 + 출처.
+                [바꾸기]는 다른 글 조치와 같은 `post.manage` 이고 지운 글에는 없다 — 바꾸기 창(`PostThumbnailDialog`)은 부른 화면이 연다
+            -->
+            <section v-if="thumbnailShown && thumbnail" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-thumbnail`" data-testid="post-drawer-thumbnail">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h3 :id="`${titleId}-thumbnail`" class="text-sm font-semibold">{{ t('postThumbnail.title') }}</h3>
+                    <Button v-if="canManage && post.state !== 'DELETED'" type="button" :label="t('postThumbnail.change')" icon="pi pi-image" size="small" severity="secondary" variant="outlined" :disabled="busy || loading" @click="emit('thumbnail-change')" />
+                </div>
+                <div class="flex items-start gap-3 rounded-lg border border-(--line) px-3 py-2.5">
+                    <div class="flex aspect-[16/10] w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-(--line) bg-surface-100 dark:bg-surface-800">
+                        <img v-if="thumbnail.url" :src="thumbnail.url" alt="" class="size-full object-cover" />
+                        <i v-else class="pi pi-image text-lg text-muted-color" aria-hidden="true" />
+                    </div>
+                    <div class="flex min-w-0 flex-col gap-1.5 text-xs text-muted-color">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <Tag :value="UtilPostThumbnailMessages.source(t, thumbnail)" :severity="thumbnail.setBy === 'OPERATOR' ? 'info' : 'secondary'" class="text-[11px]!" />
+                        </div>
+                        <p class="m-0 leading-relaxed">{{ thumbnail.url ? t('postThumbnail.shownHint') : t('postThumbnail.hiddenHint') }}</p>
+                        <p v-if="thumbnail.setBy === 'OPERATOR'" class="m-0 leading-relaxed">{{ t('postThumbnail.lockedHint') }}</p>
+                    </div>
+                </div>
+            </section>
+
             <!-- 찬반 토론 — 소모임 글(`group` 있음)은 숨긴다(서버가 소모임 글의 토론을 받지 않는다 — 소모임 글쓰기 본문에 `debate` 가 없다) -->
             <section v-if="!post.group" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-debate`">
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -351,6 +376,7 @@ import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem, PostProcessS
 import UtilDebate from '~/utils/util-debate';
 import UtilPost, { type PostActionKind, type PostActions } from '~/utils/util-post';
 import UtilPostMessages, { type PostEventDetailLine } from '~/utils/util-post-messages';
+import UtilPostThumbnailMessages from '~/utils/util-post-thumbnail-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -388,6 +414,8 @@ interface Props {
     canSanctionSealed?: boolean;
     /** 봉인된 익명 작성자에게 「작성자 열람」을 보인다(`anonymous-author.reveal`) */
     canRevealSealed?: boolean;
+    /** 「대표 썸네일」 구획을 보인다(게시글 관리만 — list-thumbnail-contract 「2단계」) */
+    thumbnailShown?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -412,6 +440,7 @@ const props = withDefaults(defineProps<Props>(), {
     processHistoryError: '',
     canSanctionSealed: false,
     canRevealSealed: false,
+    thumbnailShown: false,
 });
 const emit = defineEmits<{
     retry: [];
@@ -431,6 +460,8 @@ const emit = defineEmits<{
     'sealed-sanction': [];
     /** [작성자 열람] — 열람 창은 부른 화면이 연다 */
     'sealed-reveal': [];
+    /** 대표 썸네일 [바꾸기] — 바꾸기 창(`PostThumbnailDialog`)은 부른 화면이 연다 */
+    'thumbnail-change': [];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
 }>();
@@ -483,6 +514,8 @@ const bodyEmpty = computed(() => {
 const actionList = computed(() => UtilPost.actionList(props.actions));
 /** 글의 투표(없으면 null) */
 const poll = computed(() => props.detail?.poll ?? null);
+/** 글의 대표 썸네일(비공개 소모임 글·원문 파기 글·옛 응답은 null) */
+const thumbnail = computed(() => props.detail?.thumbnail ?? null);
 const pollRows = computed(() => (poll.value ? UtilPost.pollRows(poll.value) : []));
 const pollClosed = computed(() => Boolean(poll.value?.closed));
 

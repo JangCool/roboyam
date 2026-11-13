@@ -44,6 +44,10 @@ dependencies {
     }
     implementation "software.amazon.awssdk:url-connection-client:${awsSdkVersion}"
 
+    // WebP 읽기(TwelveMonkeys imageio-webp — 버전은 루트 gradle.properties). ImageIO 서비스 플러그인이라 코드가 클래스를 직접 import 하지 않는다 — 실행 때만 싣는다.
+    // 글 목록 썸네일 만들기(PostThumbnailMaker → ImageCodec#decodeFirstFrame)만 이 리더를 이름("webp")으로 고른다 — 다른 이미지 처리는 그대로 WebP 를 디코딩하지 않는다
+    runtimeOnly "com.twelvemonkeys.imageio:imageio-webp:${twelvemonkeysVersion}"
+
     // 스키마 이관(Flyway). 앱이 동시에 기동해도 Flyway 가 DB 잠금으로 한 대만 적용한다. 마이그레이션 파일은 이 모듈(db/migration/shared)에 있다
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.flywaydb:flyway-database-postgresql'

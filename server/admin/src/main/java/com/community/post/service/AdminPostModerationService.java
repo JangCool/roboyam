@@ -21,6 +21,7 @@ import com.community.post.dto.request.AdminPostBulkRequest;
 import com.community.post.dto.request.AdminPostHideRequest;
 import com.community.post.dto.request.AdminPostMoveRequest;
 import com.community.post.dto.request.AdminPostReasonRequest;
+import com.community.post.dto.request.AdminPostThumbnailRequest;
 import com.community.post.dto.response.AdminPostBulkFailureView;
 import com.community.post.dto.response.AdminPostBulkResultView;
 import com.community.post.entity.PostEntity;
@@ -97,11 +98,14 @@ public class AdminPostModerationService {
     private final PollQueries polls;
     private final PostModerationActions actions;
     private final PostProcessStatusChanger statusChanger;
+    private final PostThumbnailChoices thumbnails;
     private final TransactionTemplate tx;
 
     public AdminPostModerationService(PostRepository posts, AdminPostRepositoryQDSL queries, BoardCatalog catalog, PostModerationLog moderation,
                                       MemberNotificationPublisher memberNotices, PointService points, AuditLogService audit, AccessDeniedRecorder denied, PollQueries polls,
-                                      PostModerationActions actions, PostProcessStatusChanger statusChanger, PlatformTransactionManager txManager) {
+                                      PostModerationActions actions, PostProcessStatusChanger statusChanger, PostThumbnailChoices thumbnails,
+                                      PlatformTransactionManager txManager) {
+        this.thumbnails = thumbnails;
         this.statusChanger = statusChanger;
         this.actions = actions;
         this.posts = posts;
@@ -221,6 +225,36 @@ public class AdminPostModerationService {
         polls.delete(poll.id());
         moderation.operator(post.getId(), PostModerationEventEntity.POLL_DELETED, actor.operatorId(), reason, detail, Instant.now());
         record(actor, AuditActions.POST_POLL_DELETE, post.getId(), reason, detail);
+    }
+
+    /**
+     * 글의 대표 썸네일 정하기({@code PUT /api/admin/posts/{id}/thumbnail}, list-thumbnail-contract 「2단계」) — 게시판 정책 {@code authorThumbnailEnabled} 와 무관, 사유 칸 없음.
+     * 글 행 잠금(없는 글 404 POST_NOT_FOUND) → {@link PostThumbnailChoices#applyOperator}(모르는 방식 400 {@code fields.mode} · 그 글 이미지가 아님 {@code fields.imageId} ·
+     * 올린 그림이 아님 {@code fields.fileId}). AUTO 는 운영자·글쓴이 설정을 모두 지운다(잠금 해제 — 사용자 결정 A안). 감사 {@code POST_THUMBNAIL}(같은 값이어도 남긴다).
+     * 글 조치 기록({@code post_moderation_events})에는 남기지 않는다 — 사유가 없는 꾸미기 조치이고 종류 CHECK·화면 문구가 없다(감사로만 추적).
+     */
+    @Transactional
+    public void thumbnail(AdminActor actor, String idText, AdminPostThumbnailRequest body) {
+        String mode = PostThumbnailChoices.mode(body == null ? null : body.mode());
+        if (mode == null) {
+            throw ValidationException.of("mode", new MessageRef("post.thumbnail.mode"));
+        }
+        PostEntity post = lock(idText);
+        PostThumbnailChoices.Change change = thumbnails.applyOperator(post.getId(), actor.operatorId(), mode, PostThumbnailChoices.parseLong(body.imageId()),
+                PostThumbnailChoices.parseLong(body.fileId()), Instant.now());
+        AuditEvent event = AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.POST_THUMBNAIL, AuditResult.SUCCESS).target(TARGET, Long.toString(post.getId()))
+                .with("from", change.fromMode()).with("to", change.toMode());
+        if (change.fromSetBy() != null) {
+            event = event.with("fromSetBy", change.fromSetBy());
+        }
+        if (change.fromFileId() != null) {
+            event = event.with("fromFileId", Long.toString(change.fromFileId()));
+        }
+        if (change.toFileId() != null) {
+            event = event.with("toFileId", Long.toString(change.toFileId()));
+        }
+        audit.record(event);
+        log.info("글 대표 썸네일 postId={} {}→{} by operatorId={}", post.getId(), change.fromMode(), change.toMode(), actor.operatorId());
     }
 
     @Transactional

@@ -7,6 +7,7 @@ import com.community.post.dto.request.AdminPostBulkRequest;
 import com.community.post.dto.request.AdminPostHideRequest;
 import com.community.post.dto.request.AdminPostMoveRequest;
 import com.community.post.dto.request.AdminPostReasonRequest;
+import com.community.post.dto.request.AdminPostThumbnailRequest;
 import com.community.post.dto.request.PostProcessStatusRequest;
 import com.community.post.dto.response.PostProcessStatusHistoryView;
 import com.community.post.dto.response.PostProcessStatusView;
@@ -153,6 +154,17 @@ public class AdminPostController {
     @GetMapping("/{id}/process-status/history")
     public ResponseEntity<ApiResponse<PostProcessStatusHistoryView>> processStatusHistory(@PathVariable String id) {
         return noStore(queries.statusHistory(id));
+    }
+
+    /**
+     * 글의 대표 썸네일 정하기(list-thumbnail-contract 「2단계」) — 본문 {@code { mode, imageId?, fileId? }} → 204. 숨기기·이동과 같은 권한({@code post.manage}), 게시판 정책과 무관.
+     * AUTO = 운영자·글쓴이 설정을 모두 지우고 자동으로(잠금 해제). 400 {@code fields.mode}·{@code fields.imageId}·{@code fields.fileId}, 없는 글 404 POST_NOT_FOUND. 감사 {@code POST_THUMBNAIL}
+     */
+    @RequirePermission(Permission.POST_MANAGE)
+    @PutMapping("/{id}/thumbnail")
+    public ResponseEntity<Void> thumbnail(@PathVariable String id, @RequestBody(required = false) AdminPostThumbnailRequest body, AdminActor actor) {
+        moderation.thumbnail(actor, id, body);
+        return ResponseEntity.noContent().build();
     }
 
     /** 글의 투표 지우기(표가 있어도) — 본문 {@code { reason }}. 투표가 없으면 404 POLL_NOT_FOUND */

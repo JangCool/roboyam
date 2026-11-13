@@ -28,6 +28,7 @@ import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
 import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
+import com.community.post.dto.request.PostThumbnailInput;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.response.PostDeleteResult;
@@ -77,6 +78,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 검사({@code fields."deal.*"})는 다른 칸과 함께, 하루 글 수·같은 판매처 간격(429)은 저장 트랜잭션의 작성자 잠금 아래에서 본다. 고치기의 {@code deal} 은 빠지면 그대로(링크만 지금
  * 규칙으로 다시 판정해 {@code warnings}), 값이면 고치기(이력·가격 수정 셈·판매처 바뀜 알림). docs/features/hotdeal-contract.md.
  *
+ * <p><b>대표 썸네일</b>({@link PostThumbnailChoices}, list-thumbnail-contract 「2단계」): 본문 {@code thumbnail} 은 회원 글 + 게시판 정책 {@code authorThumbnailEnabled} 일 때만 보고
+ * (아니면 무시 — 비회원·소모임 글 포함). 칸 검사에서 방식·고른 본문 이미지·올린 그림을 보고({@code fields.thumbnail}), 운영자가 정한 글이면 409 {@code THUMBNAIL_LOCKED}(고치기),
+ * 저장 트랜잭션에서 본문 이미지를 붙인 뒤 정한다. 쓰기는 칸 없음 = 자동, 고치기는 칸 없음 = 그대로.
+ *
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
  *
  * <p>회원 글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 글쓰기는 성공).
@@ -107,14 +112,16 @@ public class PostWriteService {
     private final SecretPostUnlocks unlocks;
     /** 쓰기 막힘·게시판 제재·비밀글·작성 간격·하루 한도·같은 글 반복 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
     private final PostWriteRules rules;
+    private final PostThumbnailChoices thumbnails;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
-                            PlatformTransactionManager txManager) {
+                            PostThumbnailChoices thumbnails, PlatformTransactionManager txManager) {
         this.rules = rules;
+        this.thumbnails = thumbnails;
         this.unlocks = unlocks;
         this.adultGate = adultGate;
         this.emoticons = emoticons;
@@ -164,6 +171,8 @@ public class PostWriteService {
         PollRules.Valid poll = polls.checkForCreate(body.poll(), actor.guest(), b, Instant.now(), fields); // 회원 + 게시판 pollEnabled, 칸 오류는 poll.*
         // 핫딜 게시판이면 딜 필수(칸 오류는 deal.*), 아니면 거절 — 새 링크의 리디렉션 체인은 여기(트랜잭션 밖)서 가져온다
         DealWriter.Checked deal = deals.checkForCreate(body.deal(), b, actor.guest() ? null : actor.userId(), fields);
+        // 대표 썸네일 — 회원 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시), 칸 오류는 fields.thumbnail
+        ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), actor.guest(), false, b, c.body().imageIds(), actor.guest() ? null : actor.userId(), null, fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -215,6 +224,9 @@ public class PostWriteService {
             }
             if (deal != null) {
                 deals.create(id, b.id(), authorId, deal, deals.now()); // 하루 글 수 · 같은 판매처 간격(429)도 작성자 잠금 아래에서
+            }
+            if (thumb != null && !thumb.auto()) {
+                thumbnails.applyAuthor(id, authorId, thumb.mode(), thumb.imageId(), thumb.fileId(), now); // 본문 이미지를 붙인 뒤(IMAGE 는 그 글의 이미지여야 한다)
             }
             if (authorId != null) {
                 // 실패·조건 미달·상한이어도 글은 그대로 올라간다(커머스 1-3 — 게시판 pointMode·최소 글자 수 스위치)
@@ -295,6 +307,32 @@ public class PostWriteService {
         promotion.afterWrite(authorId);
     }
 
+    /** 글쓴이가 고른 대표 썸네일(정해진 방식 · 숫자 ID) */
+    private record ThumbnailChoice(String mode, Long imageId, Long fileId) {
+
+        boolean auto() {
+            return com.community.post.entity.PostThumbnailEntity.AUTO.equals(mode);
+        }
+    }
+
+    /**
+     * 글쓴이의 대표 썸네일 입력 — 받지 않는 글(칸 없음 · 비회원 · 소모임 · 게시판 정책 꺼짐)이면 null(무시). 틀리면 {@code fields.thumbnail} 에 문구를 넣고 null.
+     *
+     * @param postId 고치기면 글 ID, 쓰기면 null
+     */
+    private ThumbnailChoice authorThumbnail(PostThumbnailInput in, boolean guest, boolean groupPost, EffectiveBoard b, List<Long> bodyImageIds, Long authorId,
+                                            Long postId, Map<String, MessageRef> fields) {
+        if (in == null || guest || groupPost || authorId == null || !b.authorThumbnailEnabled()) {
+            return null;
+        }
+        String mode = PostThumbnailChoices.mode(in.mode());
+        Long imageId = PostThumbnailChoices.parseLong(in.imageId());
+        Long fileId = PostThumbnailChoices.parseLong(in.fileId());
+        int before = fields.size();
+        thumbnails.checkAuthor(mode, imageId, fileId, bodyImageIds, authorId, postId, fields);
+        return mode == null || fields.size() > before ? null : new ThumbnailChoice(mode, imageId, fileId);
+    }
+
     /**
      * 새 글의 비밀글 여부(V166 · V168) — 규칙은 shared {@link PostWriteRules#secretOnCreate}(관리자 서버의 AI 회원 쓰기와 같은 코드).
      */
@@ -361,9 +399,14 @@ public class PostWriteService {
         if (post.isGroupPost() && c.adult()) {
             fields.put("adult", new MessageRef("group.post.adult.notAllowed")); // 소모임 글은 19금이 될 수 없다
         }
+        // 대표 썸네일 — 칸이 없으면 그대로. 회원 글 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시)
+        ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), post.isGuest(), post.isGroupPost(), b, c.body().imageIds(), post.getAuthorId(), post.getId(), fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
+        }
+        if (thumb != null) {
+            thumbnails.requireNotLocked(post.getId()); // 운영자가 정한 글 409 THUMBNAIL_LOCKED — 저장 트랜잭션에서 다시 본다
         }
         List<Long> imageIds = c.body().imageIds();
         if (!imageIds.isEmpty()) {
@@ -399,6 +442,9 @@ public class PostWriteService {
             }
             // 글 이미지 맞추기 다음 — 올린 딜 이미지를 다시 붙이고, 딜 칸이 바뀌면 이력·셈·알림(D3). 차단 링크를 그대로 두면 경고(규칙 7)
             List<DealWarningView> warnings = deals.apply(locked, dealChange, deals.now());
+            if (thumb != null) {
+                thumbnails.applyAuthor(locked.getId(), locked.getAuthorId(), thumb.mode(), thumb.imageId(), thumb.fileId(), now); // 본문 이미지를 맞춘 뒤 — 409 면 글도 고치지 않는다
+            }
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
             posts.flush();

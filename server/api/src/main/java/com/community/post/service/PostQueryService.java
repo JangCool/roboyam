@@ -30,6 +30,7 @@ import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostDetailView;
+import com.community.post.dto.response.PostThumbnailView;
 import com.community.post.dto.response.PostListResponse;
 import com.community.post.dto.response.PostFeedDebateView;
 import com.community.post.dto.response.PostNeighborView;
@@ -38,6 +39,7 @@ import com.community.post.dto.response.PostProtectionView;
 import com.community.post.dto.response.PostRowView;
 import com.community.post.dto.response.PostViewerView;
 import com.community.board.dto.BoardActor;
+import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.PostProcessStatus;
 import com.community.post.exception.PostHiddenException;
@@ -90,13 +92,16 @@ public class PostQueryService {
     private final PostProcessStatusChanger statusChanger;
     private final GlobalNoticeReader globalNotices;
     private final PostFeedRows feedRows;
+    private final PostThumbnailChoices thumbnailChoices;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
-                            PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows) {
+                            PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows,
+                            PostThumbnailChoices thumbnailChoices) {
         this.feedRows = feedRows;
+        this.thumbnailChoices = thumbnailChoices;
         this.globalNotices = globalNotices;
         this.statusChanger = statusChanger;
         this.secretGate = secretGate;
@@ -337,7 +342,20 @@ public class PostQueryService {
                 pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings,
                 staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor, post.isSecret(),
                 PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()),
-                statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)));
+                statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)), thumbnailFor(post, userId));
+    }
+
+    /**
+     * 글 보기의 대표 썸네일({@code thumbnail}) — 글쓴이 본인(회원 글 · 소모임 글 아님)에게만(고치기 화면이 쓴다), 그 밖 null. 질의 두세 번(선택 · 본문 이미지 · 고른 그림).
+     * 게시판 정책 {@code authorThumbnailEnabled} 와 무관하게 싣는다(화면은 게시판 값으로 줄을 보일지 정한다)
+     */
+    private PostThumbnailView thumbnailFor(PostEntity post, Long userId) {
+        if (userId == null || !userId.equals(post.getAuthorId()) || post.isGroupPost()) {
+            return null;
+        }
+        PostThumbnailChoices.Detail d = thumbnailChoices.detail(post.getId(), post.getContentFormat() == ContentFormat.HTML ? post.getContent() : null);
+        return new PostThumbnailView(d.mode(), d.setBy(), d.imageId() == null ? null : Long.toString(d.imageId()), d.fileId() == null ? null : Long.toString(d.fileId()),
+                d.url());
     }
 
     /** 보는 사람이 처리 상태를 바꿀 수 있는가(V168 {@code viewer.canChangeStatus}) — 상태를 쓰지 않는 게시판·비회원이면 질의하지 않는다 */

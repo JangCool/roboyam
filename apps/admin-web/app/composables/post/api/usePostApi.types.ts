@@ -268,6 +268,63 @@ export interface AdminPostDetail {
     poll?: AdminPollView | null;
     /** 본문을 싣지 않은 까닭 — `GROUP_PRIVATE`(비공개 소모임 글 — `content.body`·`poll` 이 null), 그 밖 null(소모임 2단계) */
     contentBlocked?: 'GROUP_PRIVATE' | null;
+    /**
+     * 대표 썸네일(list-thumbnail-contract 「2단계」 — 서버 `AdminPostThumbnailView`). 비공개 소모임 글·원문 파기 글은 null. 옛 응답에는 없을 수 있다.
+     */
+    thumbnail?: AdminPostThumbnailView | null;
+}
+
+/**
+ * 대표 썸네일을 무엇으로 정했나 — `AUTO` 자동(본문 첫 이미지, 없으면 첫 YouTube 영상 — 지금 동작) · `IMAGE` 글에 붙은 이미지 하나 · `UPLOAD` 따로 올린 그림 · `NONE` 썸네일 없음(목록에 그림을 안 보임).
+ */
+export type PostThumbnailMode = 'AUTO' | 'IMAGE' | 'UPLOAD' | 'NONE';
+/** 누가 정했나 — 운영자가 정하면 글쓴이 것보다 우선하고, 그동안 글쓴이는 바꿀 수 없다 */
+export type PostThumbnailSetBy = 'AUTHOR' | 'OPERATOR';
+
+/** 글에 붙은 이미지 하나(본문 순서) — 고르기 격자 */
+export interface PostThumbnailImage {
+    /** 본문 `<img data-image-id>` 의 이미지 ID */
+    imageId: string;
+    url: string;
+}
+
+/**
+ * 글 상세의 대표 썸네일(서버 `AdminPostThumbnailView`) — 고른 이미지를 본문에서 빼면 `mode AUTO` 로 보인다(운영자가 정한 것이면 `setBy OPERATOR` 는 남는다).
+ * `images[].url` 은 목록 썸네일 주소(없으면 원본)
+ */
+export interface AdminPostThumbnailView {
+    mode: PostThumbnailMode;
+    /** 누가 정했나 — `AUTO` 면 null */
+    setBy: PostThumbnailSetBy | null;
+    /** `IMAGE` 일 때 고른 본문 이미지 ID */
+    imageId: string | null;
+    /** `UPLOAD` 일 때 올린 파일 ID */
+    fileId: string | null;
+    /** 지금 목록·가젯에 보이는 썸네일 주소 — 없으면 null(썸네일 없음, 또는 자동인데 본문에 이미지·영상이 없음) */
+    url: string | null;
+    /** 자동이면 쓰일 그림(본문 첫 이미지 → 첫 YouTube 영상 썸네일) — 없으면 null. 「자동으로 되돌리기」 미리보기에 쓴다 */
+    autoUrl: string | null;
+    /** `autoUrl` 이 어디서 왔나 — 첫 이미지 / 첫 영상 / 없음 */
+    autoFrom: 'IMAGE' | 'VIDEO' | null;
+    /** 글에 붙은 이미지(본문 순서) */
+    images: PostThumbnailImage[];
+}
+
+/**
+ * `PUT /api/admin/posts/{id}/thumbnail`(`post.manage`) → 204 — 서버 `AdminPostThumbnailRequest`. 400 `fields.mode|imageId|fileId` · 404 `POST_NOT_FOUND`. — 운영자가 정한다. `AUTO` 는 운영자·글쓴이 설정을 모두 지우고 자동으로 되돌린다(잠금이 풀린다).
+ */
+export interface AdminPostThumbnailRequest {
+    mode: PostThumbnailMode;
+    /** `IMAGE` 일 때 — 글에 붙은 이미지 ID */
+    imageId?: string;
+    /** `UPLOAD` 일 때 — 파일 API(`purpose=POST_THUMBNAIL`)로 올린 파일 ID */
+    fileId?: string;
+}
+
+/** 썸네일 그림 올리기 결과 — 파일 ID 와 미리보기 주소 */
+export interface PostThumbnailUploadResult {
+    fileId: string;
+    url: string;
 }
 
 /** 투표 선택지 하나와 그 득표 수 — 누가 골랐는지는 없다(익명) */

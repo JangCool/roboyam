@@ -52,6 +52,8 @@ public class BoardDefaultsEntity {
     private boolean debateEnabled;
     /** 「글쓴이가 투표를 붙일 수 있음」(V81, 기본 끔) */
     private boolean pollEnabled;
+    /** 「글쓴이가 대표 이미지 고르기」(V206, 기본 끔) */
+    private boolean authorThumbnailEnabled;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -84,7 +86,7 @@ public class BoardDefaultsEntity {
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
-                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes);
+                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -133,6 +135,7 @@ public class BoardDefaultsEntity {
         this.listPrefixStyle = v.listPrefixStyle();
         this.commentDelayNotice = v.commentDelayNotice();
         this.pinRequestMinLikes = v.pinRequestMinLikes();
+        this.authorThumbnailEnabled = v.authorThumbnailEnabled();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

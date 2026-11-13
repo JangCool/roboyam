@@ -196,6 +196,12 @@ public enum BatchCatalog implements BatchDefinition {
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 
     /**
+     * 글 이미지 썸네일 만들기 — 이미 올라간(쓰는 중) 글 이미지·대표 썸네일 그림 중 목록 썸네일이 없는 것을 id 순으로 만든다(Java 배치 {@code PostImageThumbnailBackfillJob} —
+     * 그림을 디코딩하므로 DB 배치가 아니다, docs/features/list-thumbnail-contract.md). 사람이 적은 시간에 「지금 실행」하는 배치라 <b>예약은 기본 꺼짐</b>(켜면 매일 04:15).
+     */
+    POST_IMAGE_THUMBNAIL_BACKFILL("post-image-thumbnail-backfill", BatchCategory.SYSTEM, BatchSource.JAVA, "0 15 4 * * *", false),
+
+    /**
      * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:25 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
      * 남는 대화는 1년 지난 쪽지만 지운다. 신고된 대화의 보관은 신고 대상에 쪽지가 생길 때 더한다.
      */

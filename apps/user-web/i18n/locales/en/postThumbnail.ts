@@ -1,0 +1,38 @@
+/**
+ * Post thumbnail (list-thumbnail-contract stage 2) — the "Thumbnail" row on the write and edit screens.
+ * Same keys and order as `ko/postThumbnail.ts`.
+ */
+export default {
+    title: 'Thumbnail',
+    hint: 'The small image shown in board lists and gadgets.',
+    lockedTitle: 'Thumbnail set by an operator',
+    lockedText: 'An operator set this post’s thumbnail, so it can’t be changed.',
+    lockedNone: 'An operator set this post to show without a thumbnail. It can’t be changed.',
+    lockedConflict: 'An operator set this post’s thumbnail in the meantime, so the post wasn’t saved. The thumbnail stays as the operator set it and your changes are still here — save again.',
+    noImages: 'No images in the post, so lists show it without one.',
+    upload: 'Upload separately',
+    uploadAgain: 'Upload another',
+    uploadHint: 'Uploaded images aren’t added to the post · JPEG, PNG, WebP or GIF, up to {max} MB',
+    uploadFailed: 'Couldn’t upload the image. Try again shortly.',
+    previewNone: 'No image',
+    previewCaption: 'How it looks in lists',
+    imagesLabel: 'Images in the post',
+    imageN: 'Image {n}',
+    pickedBadge: 'Main',
+    autoBadge: 'Auto',
+    uploadedLabel: 'Uploaded image',
+    uploadedBadge: 'Uploaded',
+    optionsLabel: 'Choose a thumbnail',
+    auto: 'Auto (first image)',
+    none: 'No thumbnail',
+    fellBack: 'The picked image was removed from the post, so it’s back to auto.',
+    statusAutoImage: 'The first image in the post appears in lists.',
+    statusAutoVideo: 'No images, so the first video’s image appears in lists.',
+    statusAutoEmpty: 'No images in the post, so lists show it without one.',
+    statusImage: 'The picked image appears in lists.',
+    statusUpload: 'The uploaded image appears in lists.',
+    statusNone: 'Lists show this post without an image.',
+    fileEmpty: 'The file is empty. Choose another image.',
+    fileSize: 'You can upload up to {max} MB.',
+    fileType: 'Only JPEG, PNG, WebP and GIF images can be uploaded.',
+};

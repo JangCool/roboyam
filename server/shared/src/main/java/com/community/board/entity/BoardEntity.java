@@ -84,6 +84,8 @@ public class BoardEntity {
     private Boolean debateEnabled;
     /** 「글쓴이가 투표를 붙일 수 있음」(V81, NULL = 기본값 따름) */
     private Boolean pollEnabled;
+    /** 「글쓴이가 대표 이미지 고르기」(V206, NULL = 기본값 따름) */
+    private Boolean authorThumbnailEnabled;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -202,6 +204,7 @@ public class BoardEntity {
         this.pinRequestReviewers = BoardFields.joinReviewers(policy.pinRequestReviewers());
         this.debateEnabled = policy.debateEnabled();
         this.pollEnabled = policy.pollEnabled();
+        this.authorThumbnailEnabled = policy.authorThumbnailEnabled();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -231,7 +234,7 @@ public class BoardEntity {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, pointMinLengthApplied, commentProtectMin,
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
-                staffCommentDailyLimit, staffSanctionDailyLimit);
+                staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled);
     }
 
     public Long getId() {

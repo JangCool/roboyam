@@ -13,6 +13,8 @@ import type {
     PostProcessStatusHistory,
     PostProcessStatusRequest,
     PostProcessStatusResult,
+    AdminPostThumbnailRequest,
+    PostThumbnailUploadResult,
 } from '~/composables/post/api/usePostApi.types';
 
 /**
@@ -30,6 +32,8 @@ import type {
  *   운영 게시판: 목록·상세 줄 `secret`·`processStatus`, 목록 쿼리 `processStatus`. 서버 연결됨(2026-11-08, shared V166 — 감사 `POST_PROCESS_STATUS`)
  *   2차(2026-11-08 — 서버와 동시 구현): 바꾸기 본문 `note?`(0~200자, 400 `fields.note`) · 상세 줄 `processStatusNote` ·
  *   `GET /{id}/process-status/history` (`post.read`) → `{ items: [{ fromStatus, toStatus, note, changedAt, actor, actorName }] }`
+ *   대표 썸네일(list-thumbnail-contract 「2단계」 — 서버 연결 2026-11-13, shared V206): 상세 `thumbnail` 칸(비공개 소모임·원문 파기 글 null) ·
+ *   `PUT /{id}/thumbnail { mode, imageId?, fileId? }`(`post.manage`) → 204 · 400 `fields.mode|imageId|fileId` · 404 `POST_NOT_FOUND`. 그림은 파일 API(`purpose=POST_THUMBNAIL`) 두 걸음.
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
  */
 const ROOT = '/api/admin/posts';
@@ -42,11 +46,15 @@ const PATH = {
     poll: (id: string) => `${ROOT}/${encodeURIComponent(id)}/poll`,
     processStatus: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status`,
     processStatusHistory: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status/history`,
+    /** 대표 썸네일 정하기 */
+    thumbnail: (id: string) => `${ROOT}/${encodeURIComponent(id)}/thumbnail`,
 };
 
 export function usePostApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
+    /** 대표 썸네일 그림 올리기 — 바이트는 파일 API 한 곳으로 */
+    const files = useFileApi();
 
     return {
         list: (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> =>
@@ -70,8 +78,20 @@ export function usePostApi() {
         /** 켜진 게시판·말머리(필터·이동 대화창) */
         boardOptions: (): Promise<AdminPostBoardOptionsView> => client.get<AdminPostBoardOptionsView>(PATH.boardOptions),
 
-        /** 글 하나 — 본문(지운 글도 파기 전까지)·조치 기록 */
+        /** 글 하나 — 본문(지운 글도 파기 전까지)·조치 기록 · 대표 썸네일 */
         get: (id: string): Promise<AdminPostDetail> => client.get<AdminPostDetail>(PATH.one(id)),
+
+        /** 대표 썸네일 정하기(`post.manage`) → 204 — 운영자가 정하면 글쓴이 것보다 우선한다. `AUTO` 는 설정을 지워 자동으로 되돌린다 */
+        setThumbnail: (id: string, body: AdminPostThumbnailRequest): Promise<void> => client.put<void>(PATH.thumbnail(id), body),
+
+        /**
+         * 대표 썸네일 그림 올리기 — 파일 API(`purpose=POST_THUMBNAIL`)로 올리고 받은 파일 ID 를 `setThumbnail` 의 `fileId` 로 넘긴다.
+         * 서버는 파일 ID 만 주므로 미리보기는 브라우저 임시 주소(바꾸기 창이 쓰는 동안만 — 저장 뒤 서랍은 서버 주소를 다시 받는다)
+         */
+        async uploadThumbnail(file: File): Promise<PostThumbnailUploadResult> {
+            const { fileId } = await files.upload(file, 'POST_THUMBNAIL');
+            return { fileId, url: URL.createObjectURL(file) };
+        },
 
         /** 처리 상태 바꾸기(운영 게시판 — 상태가 켜진 게시판의 글만, `post.manage`) — 서버가 글쓴이에게 알림을 보낸다 */
         changeProcessStatus: (id: string, status: PostProcessStatus, note?: string): Promise<PostProcessStatusResult> =>

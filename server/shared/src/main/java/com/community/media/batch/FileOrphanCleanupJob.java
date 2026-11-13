@@ -100,7 +100,7 @@ public class FileOrphanCleanupJob implements BatchJob {
         return new long[] {examined, deleted};
     }
 
-    /** 잠가 다시 읽고 여전히 대상이면 저장소 → 장부 순으로 지운다. 지운 수 */
+    /** 잠가 다시 읽고 여전히 대상이면 저장소(목록 썸네일 → 원본, V206) → 장부 순으로 지운다. 지운 수 */
     private long deleteAll(List<Long> candidates, Predicate<FileEntity> stillOrphan) {
         long count = 0;
         for (Long candidate : candidates) {
@@ -109,6 +109,9 @@ public class FileOrphanCleanupJob implements BatchJob {
                 continue;
             }
             try {
+                if (file.getThumbnailKey() != null) {
+                    storage.delete(file.getThumbnailKey()); // 멱등 — 못 지우면 장부 행이 남아 다음 실행이 둘 다 다시 시도한다
+                }
                 storage.delete(file.getStorageKey());
                 files.delete(file);
                 count++;

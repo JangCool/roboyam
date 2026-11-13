@@ -73,7 +73,12 @@ irobit:
     max-pixels: 25000000        # 가로×세로 최대 화소(디코딩 전에 거절)
     max-side: 2048              # 긴 변이 넘으면 줄인다(JPEG·PNG·한 장 GIF)
     per-minute: 20              # 회원당 1분 올리기 수(이 서버 메모리) — 넘으면 429 IMAGE_RATE_LIMITED
-    daily-limit: 300            # 회원당 최근 24시간 올리기 수(DB) — 넘으면 429 IMAGE_DAILY_LIMIT
+    daily-limit: 300            # 회원당 최근 24시간 올리기 수(DB, 대표 썸네일 그림 포함) — 넘으면 429 IMAGE_DAILY_LIMIT
+    # 목록 썸네일(list-thumbnail-contract — 올릴 때 함께 만든다. 관리자 앱은 같은 기본값을 쓴다)
+    thumb-width: 800            # 이 상자(가로×세로)를 덮을 만큼 줄인다(키우지 않음) — 가로가 넘치면 가운데를 남긴다
+    thumb-height: 450
+    thumb-max-height: 1200      # 세로가 넘치면 위쪽을 남기고 자른다
+    thumb-quality: 0.8          # 투명이 없으면 JPEG 품질, 있으면 PNG
   # 이미지 처리 보호 한도(코덱·관문은 shared). 안 쓴 이미지 정리(file-orphan-cleanup)는 관리자 앱의 배치다
   media:
     max-concurrent-processing: 2  # 동시에 디코딩·변환할 이미지 수 — 모자라면 기다리다 10초가 지나면 503 IMAGE_BUSY

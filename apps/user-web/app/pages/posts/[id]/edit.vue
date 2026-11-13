@@ -17,6 +17,9 @@
           글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력. 제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`).
           저장 응답의 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 서버가 지금 규칙으로 링크를 다시 판정해 차단이면 저장은 하고 경고)는 토스트로 알리고 글로 간다.
         소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(아이로빗 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
+        대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 내 회원 글이면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker`), 바꿨을 때만 본문 `thumbnail`.
+          운영자가 정한 글(`thumbnail.setBy OPERATOR`)은 「운영자가 정한 대표 이미지예요」 안내와 미리보기만. 저장 때 그새 운영자가 정했으면(`409 THUMBNAIL_LOCKED` — 글 전체가 저장되지 않음)
+          글을 다시 읽어 대표 이미지 줄을 잠그고, 쓰던 내용은 그대로 둔 채 「다시 저장해 주세요」 안내.
         비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
     <div class="content-card">
@@ -105,6 +108,19 @@
             <template v-if="dealMode !== 'hidden'" #titleHint>
                 <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
+            <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
+            <template v-if="thumbnailMode !== 'hidden'" #belowContent="{ imageUpload }">
+                <PostThumbnailPicker
+                    v-model="thumbnail"
+                    :content="form.content"
+                    :content-format="form.contentFormat"
+                    :can-upload="imageUpload"
+                    :upload="uploadThumbnail"
+                    :locked="thumbnailMode === 'locked' ? (post.thumbnail ?? null) : null"
+                    :disabled="submitting"
+                    :error="fieldErrors.thumbnail ?? ''"
+                />
+            </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
                 <DebateSettingsFields
@@ -126,6 +142,8 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import { AUTO_THUMBNAIL, type PostThumbnailChoice } from '~/components/board/PostThumbnailPicker.types';
+import UtilPostThumbnail from '~/utils/util-post-thumbnail';
 import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
 import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoard from '~/utils/util-board';
@@ -194,6 +212,8 @@ async function load(): Promise<void> {
         linkCheck.prime(loaded.deal?.productUrl ?? '');
         dealInitial.value = UtilHotdeal.formOf(loaded.deal);
         dealForm.value = UtilHotdeal.formOf(loaded.deal);
+        thumbnailInitial.value = UtilPostThumbnail.choiceOf(loaded.thumbnail);
+        thumbnail.value = UtilPostThumbnail.choiceOf(loaded.thumbnail);
         pageState.value = 'ready';
     } catch (e) {
         // 아직 열지 않은 비밀글(비회원 비밀글은 글 보기에서 비밀번호로 연다) — 글 보기의 잠금 화면으로 보낸다
@@ -323,6 +343,38 @@ function onStepPick(value: string | number | undefined): void {
     else if (value === 2) onStepNext();
 }
 
+/*
+ * ── 대표 이미지(list-thumbnail-contract 「2단계」) — 내 회원 글만(비회원 글은 이미지를 못 올리고, 소모임 글은 범위 밖이라 감춘다).
+ * 운영자가 정한 글(`thumbnail.setBy OPERATOR`)은 잠김 — 안내와 미리보기만, 저장 요청에 칸을 싣지 않는다.
+ * 바꿨을 때만 저장 요청에 `thumbnail` 을 싣는다 — 실제로 쓰일 값(`effective` — 고른 이미지를 본문에서 지웠으면 자동)으로 견준다 ──
+ */
+const thumbnail = ref<PostThumbnailChoice>({ ...AUTO_THUMBNAIL });
+const thumbnailInitial = ref<PostThumbnailChoice>({ ...AUTO_THUMBNAIL });
+const uploadThumbnail = (file: File) => imageApi.uploadThumbnail(file);
+const thumbnailMode = computed<'hidden' | 'edit' | 'locked'>(() => {
+    const p = post.value;
+    // 게시판 옵션이 꺼졌으면 줄을 그리지 않는다(운영자 잠김 안내도) — 이미 고른 값은 저장 요청에 싣지 않아 그대로 남는다
+    if (!p || !p.mine || p.author.kind === 'GUEST' || p.group || board.value?.authorThumbnailEnabled !== true) return 'hidden';
+    return p.thumbnail?.setBy === 'OPERATOR' ? 'locked' : 'edit';
+});
+/** 실제로 쓰일 값 — 고른 본문 이미지가 지금 본문에 없으면 자동 */
+const thumbnailEffective = computed(() => UtilPostThumbnail.effective(thumbnail.value, UtilPostThumbnail.bodyImages(form.value.content, form.value.contentFormat)));
+const thumbnailChanged = computed(() => thumbnailMode.value === 'edit' && !UtilPostThumbnail.same(thumbnailEffective.value, thumbnailInitial.value));
+
+/** 저장하다 `409 THUMBNAIL_LOCKED` — 글의 대표 썸네일만 다시 읽는다(못 읽으면 지금 값에 「운영자가 정함」만 표시해 잠근다) */
+async function reloadThumbnail(postId: string): Promise<void> {
+    const p = post.value;
+    if (!p) return;
+    try {
+        p.thumbnail = (await postApi.post(postId)).thumbnail ?? null;
+    } catch {
+        p.thumbnail = null;
+    }
+    if (p.thumbnail?.setBy !== 'OPERATOR') p.thumbnail = { mode: p.thumbnail?.mode ?? 'AUTO', setBy: 'OPERATOR', imageId: p.thumbnail?.imageId ?? null, fileId: p.thumbnail?.fileId ?? null, url: p.thumbnail?.url ?? null };
+    thumbnailInitial.value = UtilPostThumbnail.choiceOf(p.thumbnail);
+    thumbnail.value = UtilPostThumbnail.choiceOf(p.thumbnail);
+}
+
 /* ── 비회원 글 비밀번호 ── */
 const password = ref('');
 const verified = ref(false);
@@ -351,7 +403,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -388,6 +440,8 @@ async function submit(): Promise<void> {
             ...(dealChanged.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
             // 비밀글 — 글쓴이가 고르는 게시판(`OPTIONAL`)일 때만 싣는다(그 밖은 그대로 — 설정을 바꿔도 이미 쓴 글은 그대로). 비회원 글도 같다.
             ...UtilPostOps.secretField(UtilPostOps.updateSecret(UtilPostOps.secretMode(board.value), form.value.secret)),
+            // 대표 이미지 — 바꿨을 때만(잠긴 글은 늘 뺀다)
+            ...(thumbnailChanged.value ? { thumbnail: UtilPostThumbnail.inputOf(thumbnailEffective.value) } : {}),
         });
         saved = true;
         password.value = '';
@@ -404,7 +458,11 @@ async function submit(): Promise<void> {
             fieldErrors.value = { ...e.fields };
             if (UtilHotdeal.hasDealFields(e.fields) && !('title' in e.fields) && !('content' in e.fields)) step.value = 1;
         }
-        else if (e instanceof ApiError && e.code === 'POLL_LOCKED') {
+        else if (e instanceof ApiError && e.code === 'THUMBNAIL_LOCKED') {
+            // 그새 운영자가 대표 이미지를 정했다 — 글 전체가 저장되지 않았다. 글의 대표 이미지만 다시 읽어 줄을 잠그고(다시 [저장]하면 대표 이미지 칸은 빠진다) 쓰던 내용은 그대로 둔다
+            await reloadThumbnail(p.id);
+            formError.value = t('postThumbnail.lockedConflict');
+        } else if (e instanceof ApiError && e.code === 'POLL_LOCKED') {
             // 그새 첫 표가 들어왔다 — 투표 칸 안에 서버 문구, 투표를 다시 읽어 잠근다(다시 [저장]하면 투표는 그대로 두고 글만 고친다)
             await reloadPoll(p.id);
             await nextTick(); // 투표 칸이 바뀌어 낡은 오류를 지우는 감시가 먼저 돈 뒤에 싣는다

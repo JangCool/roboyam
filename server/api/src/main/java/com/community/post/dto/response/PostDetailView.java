@@ -38,6 +38,7 @@ import java.util.List;
  * @param processStatusAt      처리 상태를 마지막으로 바꾼 시각(처음 접수·상태를 쓰지 않는 게시판은 null)
  * @param processStatusNote    마지막 상태 변경의 메모(V168 — 없거나 상태를 쓰지 않는 게시판은 null)
  * @param viewer               보는 사람이 할 수 있는 일({@code canChangeStatus} — V168)
+ * @param thumbnail            대표 썸네일 — 글쓴이 본인(회원 글, 소모임 글 아님)에게만, 그 밖 null(V206, list-thumbnail-contract 「2단계」)
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
@@ -45,5 +46,5 @@ public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefVie
                              boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate, PollView poll,
                              PostGroupView group, PostDealView deal, PostDealModerationView dealModeration, List<DealWarningView> warnings,
                              boolean staffProtected, boolean sanctionProtected, boolean secret, String processStatus, Instant processStatusAt,
-                             String processStatusNote, PostViewerView viewer) {
+                             String processStatusNote, PostViewerView viewer, PostThumbnailView thumbnail) {
 }

@@ -16,19 +16,26 @@ import com.community.poll.dto.request.PollInput;
  *                 null 이면 붙이지 않는다(docs/features/post-poll-contract.md)
  * @param deal     핫딜 게시판({@code kind DEAL})이면 필수 — 딜 정보(칸 오류는 {@code fields."deal.*"}), 그 밖 게시판은 보내면 400 {@code fields.deal}(docs/features/hotdeal-contract.md)
  * @param secret   비밀글로 쓴다(V166) — 게시판 {@code secretMode} 가 OPTIONAL 일 때만 이 값(null = false), ALWAYS 면 늘 true, OFF 면 늘 false(보내도 무시한다). 비회원 글도 같다(V168 — 비밀번호로 연다)
+ * @param thumbnail 대표 썸네일({@link PostThumbnailInput}) — 빼면 자동. 회원 + 게시판 정책 {@code authorThumbnailEnabled} 일 때만 보고, 아니면 무시한다(list-thumbnail-contract 「2단계」)
  */
 public record PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
-                               DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret) {
+                               DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail) {
+
+    /** 대표 썸네일 칸 없이(자동) */
+    public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
+                            DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret) {
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, secret, null);
+    }
 
     /** 비밀글 칸 없이 */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                             DebateOptionsRequest debate, PollInput poll, DealInput deal) {
-        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, null);
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, null, null);
     }
 
     /** 딜 없는 글(핫딜 게시판이 아닌 곳) */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                             DebateOptionsRequest debate, PollInput poll) {
-        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, null, null);
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, null, null, null);
     }
 }

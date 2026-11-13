@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 파일 올리기 API — multipart {@code file} + {@code purpose}({@code SITE_LOGO} · {@code HIGHLIGHT_IMAGE} · {@code SITE_POPUP_IMAGE}). 올린 파일은 어디에 쓰겠다고 지정하기 전까지 쓰이지 않는다.
- * 입구 권한은 용도들의 권한 중 하나(site.manage — 로고·팝업 그림 · highlight.manage)이고, 용도별 권한은 서비스가 다시 확인한다(403). 칸이 빠진 요청도 서비스가 칸 오류로 거절하도록 {@code required = false} 로 받는다.
+ * 파일 올리기 API — multipart {@code file} + {@code purpose}({@code SITE_LOGO} · {@code HIGHLIGHT_IMAGE} · {@code SITE_POPUP_IMAGE} · {@code POST_THUMBNAIL}(post.manage, 10MB — V206)). 올린 파일은 어디에 쓰겠다고 지정하기 전까지 쓰이지 않는다.
+ * 입구 권한은 용도들의 권한 중 하나(site.manage — 로고·팝업 그림 · highlight.manage · post.manage — 글 대표 썸네일)이고, 용도별 권한은 서비스가 다시 확인한다(403). 칸이 빠진 요청도 서비스가 칸 오류로 거절하도록 {@code required = false} 로 받는다.
  */
 @RestController
 @RequestMapping("/api/admin/files")
@@ -28,7 +28,7 @@ public class FileController {
         this.service = service;
     }
 
-    @RequirePermission(anyOf = {Permission.SITE_MANAGE, Permission.HIGHLIGHT_MANAGE})
+    @RequirePermission(anyOf = {Permission.SITE_MANAGE, Permission.HIGHLIGHT_MANAGE, Permission.POST_MANAGE})
     @PostMapping
     public ResponseEntity<ApiResponse<FileUploadResponse>> upload(@RequestParam(value = "file", required = false) MultipartFile file,
                                                                  @RequestParam(value = "purpose", required = false) String purpose, AdminActor actor) {

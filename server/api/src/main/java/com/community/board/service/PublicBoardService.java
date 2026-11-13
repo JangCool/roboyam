@@ -121,7 +121,7 @@ public class PublicBoardService {
                         writeRestriction, pendingWarnings),
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
-                v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle());
+                v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled());
     }
 
     /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */

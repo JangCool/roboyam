@@ -91,6 +91,11 @@ public class S3ImageStorage implements ImageStorage, AutoCloseable {
         return publicBaseUrl == null ? LocalDiskImageStorage.URL_PREFIX + key : publicBaseUrl + "/" + key;
     }
 
+    @Override
+    public Optional<byte[]> readBytes(String key) {
+        return read(key).map(StoredObject::data);
+    }
+
     /**
      * 객체를 통째로 읽는다 — 없으면 빈 값. 올린 이미지는 처리 관문이 크기를 제한해 메모리에 담을 만하다.
      * 버킷에 닿지 못하면 {@code StorageUnavailableException}(503)

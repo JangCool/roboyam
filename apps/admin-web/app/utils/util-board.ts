@@ -202,6 +202,8 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     pinRequestReviewers: { field: 'pinRequestReviewers', kind: 'multi', choices: ['POST_AUTHOR', 'BOARD_MANAGER', 'OPERATOR'], overridable: true, permission: 'board.settings' },
     debateEnabled: { field: 'debateEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     pollEnabled: { field: 'pollEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
+    // 글쓴이 대표 이미지 고르기(list-thumbnail-contract 「2단계」 — shared V206)
+    authorThumbnailEnabled: { field: 'authorThumbnailEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
     // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음, 사용자 2026-11-12) — 사이트 전체, 게시판별 덮어쓰기 없음
     pinRequestMinLikes: { field: 'pinRequestMinLikes', kind: 'number', min: 0, max: 1000, unit: 'likes', overridable: false, permission: 'board.settings' },
@@ -286,7 +288,7 @@ const DEFAULT_SECTIONS = {
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'commentDelayNotice', 'staffHiddenNotice'],
-    'defaults-reaction': ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers', 'pinRequestMinLikes'],
+    'defaults-reaction': ['debateEnabled', 'pollEnabled', 'authorThumbnailEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers', 'pinRequestMinLikes'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
 } as const satisfies Record<string, readonly BoardDefaultsField[]>;
@@ -809,7 +811,7 @@ export default class UtilBoard {
             exposure:
                 policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)) + diff(form.adsHidden, base.adsHidden),
             protect: policyDiff(['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
-            reaction: policyDiff(['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
+            reaction: policyDiff(['debateEnabled', 'pollEnabled', 'authorThumbnailEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };
     }
