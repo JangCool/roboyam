@@ -198,6 +198,7 @@ const typed = boards
             viewToggle: b.view_toggle,
             investmentNotice: b.investment_notice,
             staffOnlyWrite: b.write_min === 'STAFF',
+            ...(b.debate_enabled ? { debateEnabled: true } : {}),
             color: b.color,
             ...(b.kind === 'GROUP' ? { groupCategoryName: categoryOf.get(String(b.id)) } : {}),
             prefixes: own.map((p, i) => {

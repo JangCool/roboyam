@@ -66,10 +66,17 @@ public record BoardPreset(String id, String name, String nameEn, String descript
      * @param color          표시색 이름(없으면 자동)
      * @param staffOnlyWrite 운영진만 글쓰기 — 게시판 정책 writeMin = STAFF 로 만든다
      * @param groupCategoryName 소모임 게시판({@code GROUP})만 — 이 이름의 소모임 분류(없으면 만든다)에 게시판을 잇는다. 일반 게시판은 비운다
+     * @param debateEnabled  글쓴이가 찬반 토론을 열 수 있음 — 게시판 정책 {@code debateEnabled} 를 켠 채 만든다(비우면 기본값 따름, 예: 시사 — 사용자 2026-11-13)
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Board(String slug, String name, String nameEn, String kind, int sortOrder, List<Prefix> prefixes, String description, String layout,
-                        boolean viewToggle, String color, boolean investmentNotice, boolean staffOnlyWrite, String groupCategoryName) {
+                        boolean viewToggle, String color, boolean investmentNotice, boolean staffOnlyWrite, String groupCategoryName,
+                        Boolean debateEnabled) {
+
+        /** 글쓴이 찬반 토론을 켠 채 만드는가 */
+        public boolean debateOn() {
+            return Boolean.TRUE.equals(debateEnabled);
+        }
 
         /** 소모임 게시판인가 */
         public boolean isGroupBoard() {

@@ -366,12 +366,12 @@
 
                     <!-- 이전·다음 글 · 게시판으로(소모임 글에는 이전·다음 글이 없다) -->
                     <nav v-if="!post.group" class="mt-4 divide-y divide-surface border-y border-surface text-sm" :aria-label="t('post.neighborNav')">
-                        <NuxtLink v-if="post.next" :to="`/posts/${post.next.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
-                            <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-up mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.next') }}</span>
+                        <NuxtLink v-if="post.next" :to="`/posts/${post.next.id}`" class="flex items-center gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
+                            <span class="inline-flex w-14 shrink-0 items-center gap-1 text-xs text-muted-color"><i class="pi pi-angle-up text-[0.625rem]" aria-hidden="true" />{{ t('post.next') }}</span>
                             <span class="truncate">{{ post.next.title }}</span>
                         </NuxtLink>
-                        <NuxtLink v-if="post.prev" :to="`/posts/${post.prev.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
-                            <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-down mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.prev') }}</span>
+                        <NuxtLink v-if="post.prev" :to="`/posts/${post.prev.id}`" class="flex items-center gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
+                            <span class="inline-flex w-14 shrink-0 items-center gap-1 text-xs text-muted-color"><i class="pi pi-angle-down text-[0.625rem]" aria-hidden="true" />{{ t('post.prev') }}</span>
                             <span class="truncate">{{ post.prev.title }}</span>
                         </NuxtLink>
                     </nav>

@@ -208,6 +208,11 @@ public class BoardEntity {
         this.staffSanctionDailyLimit = policy.staffSanctionDailyLimit();
     }
 
+    /** 글쓴이 찬반 토론 정책 칸 하나만 바꾼다(null = 기본값 따름) — 설치 프리셋이 게시판을 만들 때 쓴다 */
+    public void changeDebateEnabled(Boolean debateEnabled) {
+        this.debateEnabled = debateEnabled;
+    }
+
     public void changeActive(boolean active) {
         this.active = active;
     }

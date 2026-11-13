@@ -860,6 +860,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
+      "debateEnabled": true,
       "color": "BROWN",
       "prefixes": [
         {

@@ -178,6 +178,9 @@ public class BoardPresetApplier {
                 continue;
             }
             BoardEntity entity = creator.create(toNewBoard(board), ++existing.order, operatorId, now);
+            if (board.debateOn()) {
+                entity.changeDebateEnabled(true);
+            }
             existing.slugs.add(board.slug());
             existing.names.add(name);
             created.add(new CreatedBoard(entity.getId(), board.groupCategoryName()));
