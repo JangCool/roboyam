@@ -26,6 +26,14 @@
         z-index: 2147483000;
         overflow: hidden;
         background: var(--boot-bg);
+        /* 0.4초 안에 앱이 뜨면(빠른 회선·재방문) 틀은 보이지 않는다 — 그 뒤에만 서서히 나타남 */
+        opacity: 0;
+        animation: irb-boot-in 0.2s ease-out 0.4s forwards;
+    }
+    @keyframes irb-boot-in {
+        to {
+            opacity: 1;
+        }
     }
     html[data-color-scheme='dark'] .irb-boot {
         --boot-bg: #17181b;
@@ -107,6 +115,9 @@
         }
     }
     @media (prefers-reduced-motion: reduce) {
+        .irb-boot {
+            animation-duration: 0s;
+        }
         .irb-boot-b {
             animation: none;
         }

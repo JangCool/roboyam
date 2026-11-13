@@ -37,8 +37,11 @@ export default defineNuxtConfig({
     ssr: false,
     /*
      * 첫 화면 틀(`app/spa-loading-template.html`, srcDir 기준) — SPA 라 JS 를 받아 화면을 그릴 때까지 빈 흰 화면이던 자리에 공통 겉모양(상단 바 · 본문 카드 · 모바일 하단 탭)을 먼저 보인다
-     * (사용자 결정 2026-11-13 「첫 로딩 체감 줄이기」). generate 가 그 HTML 을 index.html 의 <body> 에 넣고(`#__nuxt-loader`, 화면 위를 덮는 고정 층),
-     * 앱이 그려지면(`app:suspense:resolve`) Nuxt 가 지운다 — 지우는 코드는 따로 없다. 모든 사용자에게 내려가므로 그 파일에는 긴 주석을 두지 않는다(index.html gzip 약 +2KB).
+     * (사용자 결정 2026-11-13 「첫 로딩 체감 줄이기」). generate 가 그 HTML 을 index.html 의 <body> 에 넣는다(`#__nuxt-loader`, 화면 위를 덮는 고정 층).
+     * 모든 사용자에게 내려가므로 그 파일에는 긴 주석을 두지 않는다(index.html gzip 약 +1.6KB).
+     *  - 지우는 때: 진짜 화면이 붙는 순간(`app:mounted` — `plugins/spa-loader.client.ts`). Nuxt 기본(`app:suspense:resolve`, 화면의 데이터 요청까지 기다림)은 이미 그려진
+     *    상단 바를 틀이 덮어 더 느리게 느껴졌다(사용자 2026-11-13). Nuxt 도 그 뒤에 지우려 하지만 이미 없어 아무 일도 없다.
+     *  - 나타나는 때: 0.4초 뒤에 서서히(그 파일의 CSS) — 빠른 회선·재방문에서는 틀이 보이지 않고 느린 회선에서만 흰 화면 대신 보인다(흔한 「지연 로딩 표시」).
      *  - Vue·CSS 가 오기 전이라 그 파일 안의 색·크기만 쓴다(Tailwind·PrimeVue 변수 없음). 화면마다 다른 모양은 따라 그리지 않는다.
      *  - 맞춰 둔 값: 상단 바 높이 48px(`AppHeader` h-12) · 모바일 상단 탭 줄 40px · 본문 최대 폭 1168px(아이로빗·다음식 테마 `--content-max`) ·
      *    바탕 #f2f4f7 / 다크 #17181b · 카드 #fff / #202125(main.css 아이로빗 테마 값). 사이트 전체 틀을 바꾸면 그 숫자도 맞춘다. 다른 테마·색은 1~2초 뒤 진짜 화면으로 바뀐다.
