@@ -16,6 +16,8 @@ export interface SettingHistoryChange {
     field: string;
     /** 칸 이름의 i18n 키 `settingHistory.field.<field>` — 화면이 정한다 */
     labelKey: string;
+    /** 화면이 만든 칸 이름 글자(서버는 주지 않는다) — 키 하나로 안 되는 이름(「넓은 배너 · 단가」)만. 있으면 `labelKey` 대신 보인다 */
+    label?: string;
     /** 전 값(만들기면 null). 비밀 값(시크릿·비밀번호)은 표시 코드만(`SET`) */
     before: string | null;
     /** 후 값(지우기면 null). 비밀 값은 `SET`(처음 넣음) · `CHANGED`(바꿈) · `CLEARED`(지움) */

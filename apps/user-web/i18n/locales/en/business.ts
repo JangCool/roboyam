@@ -263,6 +263,22 @@ export default {
         line: '{days} days × {amount}',
     },
 
+    /** Scheduled price change notes (⚠ assumption — server not built yet) */
+    priceChange: {
+        up: 'From {when}: goes up to {price}',
+        down: 'From {when}: goes down to {price}',
+        alsoMaxDays: 'max length becomes {days} days',
+        maxDays: 'From {when}: max booking length becomes {days} days',
+        leadDays: 'From {when}: you can book up to {days} days ahead',
+        summaryTitle: 'Prices are about to change',
+        summaryText: 'Apply now and the current price applies. Applications made after {when} use the new price (even if review or payment happens later, you keep the current price).',
+        summaryTextMulti: 'Apply now and the current price applies. Applications made after the change time use the new price (even if review or payment happens later, you keep the current price).',
+        lineUp: '{label}: {from} → {to} (up)',
+        lineDown: '{label}: {from} → {to} (down)',
+        lineWhen: '{line} · from {when}',
+        postLabel: 'Hot deal post',
+    },
+
     deadline: {
         over: 'Past due',
         daysClock: '{days}d {clock}',

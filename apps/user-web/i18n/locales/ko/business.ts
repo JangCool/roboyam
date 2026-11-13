@@ -264,6 +264,22 @@ export default {
         line: '{days}일 × {amount}',
     },
 
+    /** 요금 예약 변경 안내(⚠ 가정 — 서버 미구현) */
+    priceChange: {
+        up: '{when}부터 {price}으로 올라요',
+        down: '{when}부터 {price}으로 내려요',
+        alsoMaxDays: '최대 신청 일수도 {days}일로 바뀌어요',
+        maxDays: '{when}부터 최대 신청 일수가 {days}일로 바뀌어요',
+        leadDays: '{when}부터 {days}일 뒤까지 미리 신청할 수 있게 바뀌어요',
+        summaryTitle: '가격이 바뀔 예정이에요',
+        summaryText: '지금 신청하면 지금 가격으로 계산돼요. {when} 이후 신청부터 새 가격이에요(심사·결제가 그 뒤여도 지금 가격 그대로).',
+        summaryTextMulti: '지금 신청하면 지금 가격으로 계산돼요. 바뀌는 시각 이후 신청부터 새 가격이에요(심사·결제가 그 뒤여도 지금 가격 그대로).',
+        lineUp: '{label}: {from} → {to} (올라요)',
+        lineDown: '{label}: {from} → {to} (내려요)',
+        lineWhen: '{line} · {when}부터',
+        postLabel: '핫딜 글',
+    },
+
     deadline: {
         over: '기한 지남',
         daysClock: '{days}일 {clock}',

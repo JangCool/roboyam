@@ -107,6 +107,23 @@ public class BizSlotService {
         }
     }
 
+    /**
+     * 날짜별 최대 동시 겹침 수(한도와 상관없는 날것 — 한도를 넘은 날도 그대로) — 그날 한국 [00:00, 24:00) 기준, {@link #daily} 와 같은 판정. 한도 없는 상품(핫딜 게시)은 빈 목록.
+     * 관리자 상품 가격 화면의 「새 한도를 넘는 날」 분포(ad-price-rules-contract {@code occupancy})가 쓴다.
+     */
+    public List<Integer> dailyPeaks(BizProduct product, LocalDate from, LocalDate to) {
+        PriceRule rule = rules.find(product).orElseThrow();
+        if (rule.capacity() == null) {
+            return List.of();
+        }
+        List<Occupied> rows = slots.overlapping(product, BizPeriods.startOf(from), BizPeriods.startOf(to.plusDays(1)), null);
+        List<Integer> out = new ArrayList<>();
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            out.add(maxOverlap(rows, BizPeriods.startOf(d), BizPeriods.startOf(d.plusDays(1))));
+        }
+        return out;
+    }
+
     /** 날짜별 남은 칸 — 그날 한국 [00:00, 24:00) 안의 최대 동시 겹침 기준 */
     public List<DayRoom> daily(BizProduct product, LocalDate from, LocalDate to) {
         PriceRule rule = rules.find(product).orElseThrow();

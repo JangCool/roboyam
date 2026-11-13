@@ -91,15 +91,25 @@ public final class BizMemberView {
     public record Created(String id) {
     }
 
-    public record AdProduct(String type, long dailyPrice, int maxDays, int maxLeadDays, int capacity, int openDays, boolean accepting, boolean onlinePayment) {
+    /**
+     * 요금표 예약 변경(ad-price-rules-contract) — 아직 적용 전인 가장 가까운 예약 하나. 이 시각 이후에 낸 신청부터 새 값(견적은 신청을 낸 시각의 요금표로 고정). 없으면 null.
+     *
+     * @param unitPrice 새 단가(공급가, 원) — 광고·노출 자리는 하루, 핫딜 글은 건당
+     */
+    public record ScheduledChange(Instant effectiveAt, long unitPrice, int maxDays, int maxLeadDays) {
+    }
+
+    public record AdProduct(String type, long dailyPrice, int maxDays, int maxLeadDays, int capacity, int openDays, boolean accepting, boolean onlinePayment,
+                            ScheduledChange scheduledChange) {
     }
 
     /** 핫딜 노출 자리 — {@code accepting} 은 요금표 받기(끄면 신청 409 {@code BIZ_PRODUCT_CLOSED}) */
-    public record DealPlacement(String placement, long dailyPrice, int capacity, int maxDays, boolean accepting) {
+    public record DealPlacement(String placement, long dailyPrice, int capacity, int maxDays, boolean accepting, ScheduledChange scheduledChange) {
     }
 
-    /** 사업자 핫딜 요금 — {@code accepting} 은 글 게시({@code HOTDEAL_POST}) 받기. 꺼져 있으면 화면은 신청 대신 「준비 중」 안내 */
-    public record DealProduct(long postPrice, boolean accepting, boolean onlinePayment, List<DealPlacement> placements, List<DealBoard> boards) {
+    /** 사업자 핫딜 요금 — {@code accepting} 은 글 게시({@code HOTDEAL_POST}) 받기. 꺼져 있으면 화면은 신청 대신 「준비 중」 안내. {@code scheduledChange} 는 글 게시 1건 값의 예약 */
+    public record DealProduct(long postPrice, boolean accepting, boolean onlinePayment, ScheduledChange scheduledChange, List<DealPlacement> placements,
+                              List<DealBoard> boards) {
     }
 
     /** 받는 핫딜 게시판(2차 — 켜진 DEAL 게시판, 말머리는 켜짐·운영진 전용 아님) — user-web {@code BizDealBoard} */

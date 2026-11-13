@@ -34,6 +34,8 @@
 
         <template v-else>
             <Message severity="info" size="small" :closable="false">{{ t('business.deal.intro') }}</Message>
+            <!-- 게시 1건 값 예약 변경(⚠ 가정) — 글 값은 ⑤ 예상 금액에만 보여서 여기서 미리 알린다 -->
+            <BusinessPriceChangeNote v-if="postNote" :note="postNote" />
             <BusinessStepHeader :steps="stepNames" :current="step" />
 
             <form class="panel-card flex flex-col gap-4 p-4" novalidate @submit.prevent="next">
@@ -229,6 +231,7 @@
                                     <span v-if="option.dailyPrice" class="text-xs font-semibold tabular-nums">{{ t('business.deal.placementPrice', { amount: UtilBusinessMessages.won(t, option.dailyPrice) }) }}</span>
                                 </span>
                                 <span class="mt-0.5 block text-xs text-muted-color">{{ option.help }}</span>
+                                <BusinessPriceChangeNote v-if="option.note" :note="option.note" class="mt-1" />
                             </span>
                         </label>
                     </fieldset>
@@ -250,6 +253,7 @@
                 <section v-else class="flex flex-col gap-4">
                     <BusinessPaymentMethodPicker v-model="paymentMethod" :online-available="dealProduct.onlinePayment !== false" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
+                    <BusinessPriceChangeNotice v-if="priceChange" :summary="priceChange" />
                     <!-- 게시 정책 — 동의 바로 위(사용자 확정 2026-11-02) -->
                     <section class="flex flex-col gap-2 rounded-lg border border-hairline p-3.5" :aria-labelledby="`${uid}-policy`" data-testid="business-deal-policy">
                         <h2 :id="`${uid}-policy`" class="m-0 text-sm font-semibold">{{ t('business.deal.policyTitle') }}</h2>
@@ -274,13 +278,27 @@
 <script setup lang="ts">
 import type { BusinessAgreeItem } from '~/components/business/BusinessAgreeList.types';
 import type { PeriodValue } from '~/components/business/BusinessPeriodCalendar.types';
-import type { AvailabilityDay, BizDeal, BizDealStock, BizPaymentMethod, BusinessFile, BusinessProfile, DealLinkCheck, DealPlacement, DealProduct } from '~/composables/business/api/useBusinessApi.types';
+import type {
+    AvailabilityDay,
+    BizDeal,
+    BizDealStock,
+    BizPaymentMethod,
+    BizScheduledPriceChange,
+    BusinessFile,
+    BusinessProfile,
+    DealLinkCheck,
+    DealPlacement,
+    DealPlacementProduct,
+    DealProduct,
+} from '~/composables/business/api/useBusinessApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
-import UtilBusinessMessages from '~/utils/util-business-messages';
+import UtilBusinessMessages, { type BizPriceChangeItem, type BizPriceChangeNote } from '~/utils/util-business-messages';
 
 /**
  * 사업자 핫딜 신청 `/business/deals/new` — 로그인 + 승인된 사업자. 사업자 센터 홈의 핫딜 카드가 온다. ⚠ 목업 단계(`useBusinessApi`).
+ * 요금표 예약 변경(`scheduledChange` — 계약 `ad-price-rules-contract.md`): 맨 위 안내 아래 글 1건 값, ④ 노출 자리 줄, ⑤ 예상 금액 아래 「지금 신청하면 지금 가격」.
+ * 적용 시각이 지나면 안내만 숨긴다(견적은 서버가 신청 시각 요금표로 정한다).
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 
@@ -471,17 +489,61 @@ function placementHelp(value: DealPlacement): string {
     if (value === 'CATEGORY_TOP' && board && pickedPrefix.value) return t('business.deal.placementHelpCategory', { board, prefix: pickedPrefix.value.name });
     return t(`business.placementHelp.${value}`);
 }
+
+/* ── 요금 예약 변경 안내(`scheduledChange`) ── */
+const now = useNowTicker();
+/** 아직 적용 전인 예약 변경 — 글 1건은 `POST`, 노출 자리는 자리 값. 글자 하나로 묶어 1초마다 도는 「지금」이 바뀌어도 적용 시각이 지날 때만 아래 안내가 다시 계산된다 */
+const pendingKeys = computed(() => {
+    const p = dealProduct.value;
+    if (!p) return '';
+    const keys: string[] = [];
+    if (UtilBusiness.pendingPriceChange(p.scheduledChange, now.value)) keys.push('POST');
+    for (const pl of p.placements) if (UtilBusiness.pendingPriceChange(pl.scheduledChange, now.value)) keys.push(pl.placement);
+    return keys.join(',');
+});
+function pendingChange(key: string, change: BizScheduledPriceChange | null | undefined): BizScheduledPriceChange | null {
+    return change && pendingKeys.value.split(',').includes(key) ? change : null;
+}
+/** 글 1건 값 안내 — 글 받기가 꺼졌으면 폼 대신 「준비 중」이 보이므로 따로 막지 않는다 */
+const postNote = computed(() => {
+    const p = dealProduct.value;
+    const change = p ? pendingChange('POST', p.scheduledChange) : null;
+    return p && change ? UtilBusinessMessages.priceChangeNote(t, time.value.slot(change.effectiveAt), 'perPost', { price: p.postPrice }, change) : null;
+});
+/** 노출 자리 줄의 안내 — 고를 수 없는 자리(받기 꺼짐·말머리 없음)는 기존 안내가 먼저라 뺀다. 미리 신청 일수는 화면 고정값(`LEAD_DAYS`)이라 비교하지 않는다 */
+function placementNote(p: DealPlacementProduct, selectable: boolean): BizPriceChangeNote | null {
+    const change = selectable ? pendingChange(p.placement, p.scheduledChange) : null;
+    return change ? UtilBusinessMessages.priceChangeNote(t, time.value.slot(change.effectiveAt), 'daily', { price: p.dailyPrice, maxDays: p.maxDays }, change) : null;
+}
+/** 예상 금액 옆 안내 — 글 1건과 고른 노출 자리 중 단가가 바뀔 예정인 것 */
+const priceChange = computed(() => {
+    const p = dealProduct.value;
+    if (!p) return null;
+    const items: BizPriceChangeItem[] = [];
+    const postChange = pendingChange('POST', p.scheduledChange);
+    if (postChange) items.push({ label: t('business.priceChange.postLabel'), unit: 'perPost', price: p.postPrice, change: postChange });
+    const pl = placement.value;
+    const plChange = pl && placementOptions.value.find((o) => o.value === pl.placement)?.accepting ? pendingChange(pl.placement, pl.scheduledChange) : null;
+    if (pl && plChange) items.push({ label: t(`business.placement.${pl.placement}`), unit: 'daily', price: pl.dailyPrice, change: plChange });
+    return UtilBusinessMessages.priceChangeSummary(t, items, (iso) => time.value.slot(iso));
+});
+
 const placementOptions = computed(() => [
-    { value: 'NONE' as DealPlacement, dailyPrice: 0, accepting: true, closed: false, help: placementHelp('NONE') },
-    ...(dealProduct.value?.placements ?? []).map((p) => ({
-        value: p.placement as DealPlacement,
-        dailyPrice: p.dailyPrice,
+    { value: 'NONE' as DealPlacement, dailyPrice: 0, accepting: true, closed: false, help: placementHelp('NONE'), note: null as BizPriceChangeNote | null },
+    ...(dealProduct.value?.placements ?? []).map((p) => {
         /** 고를 수 있나(받기 켬 + 말머리 상단이면 말머리 있는 게시판) */
-        accepting: p.accepting && !(p.placement === 'CATEGORY_TOP' && categoryBlocked.value),
-        /** 받기 꺼짐 — 「지금은 받지 않아요」 */
-        closed: !p.accepting,
-        help: placementHelp(p.placement),
-    })),
+        const accepting = p.accepting && !(p.placement === 'CATEGORY_TOP' && categoryBlocked.value);
+        return {
+            value: p.placement as DealPlacement,
+            dailyPrice: p.dailyPrice,
+            accepting,
+            /** 받기 꺼짐 — 「지금은 받지 않아요」 */
+            closed: !p.accepting,
+            help: placementHelp(p.placement),
+            /** 요금 예약 변경 안내(⚠ 가정) */
+            note: placementNote(p, accepting),
+        };
+    }),
 ]);
 const placement = computed(() => dealProduct.value?.placements.find((p) => p.placement === deal.placement) ?? null);
 const minDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), 1));

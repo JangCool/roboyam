@@ -49,6 +49,7 @@
                                 <span class="text-xs text-muted-color">{{ t(`business.adTypeWhere.${p.type}`) }} · {{ t(`business.adTypeSize.${p.type}`) }}</span>
                                 <span class="text-xs tabular-nums text-muted-color">{{ t('business.ad.openDays', { count: p.openDays }) }} · {{ t('business.ad.capacity', { count: p.capacity }) }}</span>
                                 <span class="text-sm font-bold tabular-nums">{{ t('business.price.daily', { amount: UtilBusinessMessages.won(t, p.dailyPrice) }) }}</span>
+                                <BusinessPriceChangeNote v-if="changeNotes[p.type]" :note="changeNotes[p.type]!" />
                             </span>
                         </label>
                     </div>
@@ -114,6 +115,7 @@
                 <section v-else-if="step === 4" class="flex flex-col gap-4">
                     <BusinessPaymentMethodPicker v-model="paymentMethod" :online-available="onlinePayment" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
+                    <BusinessPriceChangeNotice v-if="priceChange" :summary="priceChange" />
                 </section>
 
                 <!-- ⑤ 확인·동의 -->
@@ -131,6 +133,7 @@
                     </dl>
                     <BusinessAdPreview :ad-type="adType" :image-url="image?.previewUrl ?? null" :link-url="creative.linkUrl.trim()" :alt-text="creative.altText" :text="creative.text" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
+                    <BusinessPriceChangeNotice v-if="priceChange" :summary="priceChange" />
                     <BusinessAgreeList v-model="agreed" :items="agreeItems" :error="errors.agree" />
                     <p class="m-0 flex items-start gap-1.5 text-xs font-medium text-primary">
                         <i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.ad.noPayNow') }}
@@ -148,13 +151,15 @@
 <script setup lang="ts">
 import type { BusinessAgreeItem } from '~/components/business/BusinessAgreeList.types';
 import type { PeriodValue } from '~/components/business/BusinessPeriodCalendar.types';
-import type { AdProduct, AdType, AvailabilityDay, BizPaymentMethod, BusinessFile, BusinessProfile } from '~/composables/business/api/useBusinessApi.types';
+import type { AdProduct, AdType, AvailabilityDay, BizPaymentMethod, BizScheduledPriceChange, BusinessFile, BusinessProfile } from '~/composables/business/api/useBusinessApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
-import UtilBusinessMessages from '~/utils/util-business-messages';
+import UtilBusinessMessages, { type BizPriceChangeNote } from '~/utils/util-business-messages';
 
 /**
  * 광고 신청 `/business/ads/new` — 로그인 + 승인된 사업자. 사업자 센터 홈의 광고 카드가 온다. ⚠ 목업 단계(`useBusinessApi`).
+ * 요금표 예약 변경(`scheduledChange` — 계약 `ad-price-rules-contract.md`): 종류 카드에 「○월 ○일 00:00부터 하루 ○원으로 올라요」, 결제·확인 단계 예상 금액 아래에
+ * 「지금 신청하면 지금 가격」 안내. 적용 시각이 지나면 안내만 숨긴다(견적은 서버가 신청 시각 요금표로 정한다).
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 
@@ -269,6 +274,37 @@ const periodLabel = computed(() =>
 );
 const estimate = computed(() => UtilBusiness.estimate(product.value?.dailyPrice ?? 0, days.value));
 const breakdown = computed(() => (product.value ? [t('business.price.line', { days: days.value, amount: UtilBusinessMessages.won(t, product.value.dailyPrice) })] : []));
+
+/* ── 요금 예약 변경 안내(`scheduledChange`) ── */
+const now = useNowTicker();
+/** 아직 적용 전인 예약 변경이 있는 종류 — 글자 하나로 묶어 1초마다 도는 「지금」이 바뀌어도 적용 시각이 지날 때만 아래 안내가 다시 계산된다 */
+const pendingTypes = computed(() =>
+    products.value
+        .filter((p) => UtilBusiness.pendingPriceChange(p.scheduledChange, now.value))
+        .map((p) => p.type)
+        .join(','),
+);
+function pendingChangeOf(p: AdProduct): BizScheduledPriceChange | null {
+    return p.scheduledChange && pendingTypes.value.split(',').includes(p.type) ? p.scheduledChange : null;
+}
+/** 종류 카드의 안내 한 줄 — 받지 않는 종류는 기존 「지금은 받지 않아요」가 먼저라 뺀다 */
+const changeNotes = computed(() => {
+    const out: Partial<Record<AdType, BizPriceChangeNote>> = {};
+    for (const p of products.value) {
+        const change = p.accepting ? pendingChangeOf(p) : null;
+        const note = change ? UtilBusinessMessages.priceChangeNote(t, time.value.slot(change.effectiveAt), 'daily', { price: p.dailyPrice, maxDays: p.maxDays, maxLeadDays: p.maxLeadDays }, change) : null;
+        if (note) out[p.type] = note;
+    }
+    return out;
+});
+/** 예상 금액 옆 안내 — 고른 종류의 단가가 바뀔 예정일 때만 */
+const priceChange = computed(() => {
+    const p = product.value;
+    const change = p?.accepting ? pendingChangeOf(p) : null;
+    if (!p || !change) return null;
+    return UtilBusinessMessages.priceChangeSummary(t, [{ label: t(`business.adType.${p.type}`), unit: 'daily', price: p.dailyPrice, change }], (iso) => time.value.slot(iso));
+});
+
 const linkOk = computed(() => UtilBusiness.isHttpUrl(creative.linkUrl));
 
 /** 고른 기간 안에 꽉 찬 날이 있나 */

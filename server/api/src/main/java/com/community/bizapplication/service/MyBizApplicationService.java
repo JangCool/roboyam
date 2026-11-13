@@ -18,6 +18,7 @@ import com.community.bizapplication.repository.master.BizApplicationStore.AppRow
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.ItemRow;
 import com.community.bizapplication.repository.master.BizPriceRuleStore.PriceRule;
+import com.community.bizapplication.repository.master.BizPriceRuleStore.Schedule;
 import com.community.bizapplication.repository.master.BizRefundStore.RefundRow;
 import com.community.bizapplication.service.BizApplicationReader.Bucket;
 import com.community.bizapplication.service.BizApplicationReader.Snapshot;
@@ -76,21 +77,29 @@ public class MyBizApplicationService {
     /** {@code accepting} = 요금표 받기, {@code onlinePayment} = 운영 주체가 온라인 결제를 받을 수 있는 단계(개인이면 false — 수동 결제만, 사용자 결정 2026-11-07) */
     public List<BizMemberView.AdProduct> adProducts() {
         boolean selling = members.operatorCanSell();
+        Map<BizProduct, Schedule> next = members.scheduledChanges();
         return members.adProducts().stream().map(p -> new BizMemberView.AdProduct(p.rule().product().publicName(), p.rule().unitPrice(), p.rule().maxDays(),
-                p.rule().maxLeadDays(), p.rule().capacity() == null ? 0 : p.rule().capacity(), p.openDays(), p.rule().accepting(), selling)).toList();
+                p.rule().maxLeadDays(), p.rule().capacity() == null ? 0 : p.rule().capacity(), p.openDays(), p.rule().accepting(), selling,
+                scheduledChange(next.get(p.rule().product())))).toList();
     }
 
+    /** 요금표 예약 변경 — 상품마다 아직 적용 전인 가장 가까운 하나(ad-price-rules-contract, 노출 자리 포함) */
     public BizMemberView.DealProduct dealProduct() {
         Map<BizProduct, PriceRule> all = members.priceRules();
+        Map<BizProduct, Schedule> next = members.scheduledChanges();
         boolean selling = members.operatorCanSell();
         List<BizMemberView.DealPlacement> placements = List.of(BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY).stream().map(all::get)
                 .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays(),
-                        r.accepting()))
+                        r.accepting(), scheduledChange(next.get(r.product()))))
                 .toList();
         PriceRule post = all.get(BizProduct.HOTDEAL_POST);
         List<BizMemberView.DealBoard> boards = dealForm.boards().stream().map(b -> new BizMemberView.DealBoard(Long.toString(b.id()), b.slug(), b.name(),
                 b.prefixes().stream().map(x -> new BizMemberView.Prefix(Long.toString(x.id()), x.name())).toList())).toList();
-        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), selling, placements, boards);
+        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), selling, scheduledChange(next.get(BizProduct.HOTDEAL_POST)), placements, boards);
+    }
+
+    private static BizMemberView.ScheduledChange scheduledChange(Schedule s) {
+        return s == null ? null : new BizMemberView.ScheduledChange(s.effectiveAt(), s.unitPrice(), s.maxDays(), s.maxLeadDays());
     }
 
     public List<BizMemberView.AvailabilityDay> availability(String slot, String from, String to) {

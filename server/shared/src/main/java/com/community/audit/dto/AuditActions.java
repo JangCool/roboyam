@@ -640,6 +640,15 @@ public final class AuditActions {
     public static final String AD_RESTORE = "AD_RESTORE";
     /** 광고 노출 자리 설정 저장(글 보기 중간·날개·목록 한 줄, 대상 AD_PLACEMENTS · 1) — 바뀐 칸 {@code before}·{@code after}(처음 저장이면 기본값에서). 일반 */
     public static final String AD_PLACEMENT_UPDATE = "AD_PLACEMENT_UPDATE";
+    // ── 상품 가격(요금표 biz_price_rules 예약 변경 — ad-price-rules-contract, V208). 대상 AD_PRICE_RULES · 상품 이름(여러 상품은 bulk · 모두 취소는 all 한 건). 돈 관련 ──
+    /** 가격 변경 예약 만들기 — {@code effectiveAt}·{@code schedules}(상품마다 {@code product}·{@code id}·{@code before}(그 시각 직전 값)·{@code after}(예약 값)), 여러 상품이면 {@code adjust}. 돈 관련 */
+    public static final String AD_PRICE_SCHEDULE_CREATE = "AD_PRICE_SCHEDULE_CREATE";
+    /** 가격 변경 예약 고치기 — {@code id}·{@code before}·{@code after}(적용 시각 + 값 넷). 돈 관련 */
+    public static final String AD_PRICE_SCHEDULE_UPDATE = "AD_PRICE_SCHEDULE_UPDATE";
+    /** 가격 변경 예약 취소(한 건 · 모두) — {@code schedules}(지운 예약의 {@code id}·{@code product}·{@code effectiveAt}·값). 돈 관련 */
+    public static final String AD_PRICE_SCHEDULE_CANCEL = "AD_PRICE_SCHEDULE_CANCEL";
+    /** 신청 받기 켬/끔(바로 적용 — 긴급 스위치) — {@code before}·{@code after}. 돈 관련(판매 스위치) */
+    public static final String AD_PRICE_ACCEPTING_UPDATE = "AD_PRICE_ACCEPTING_UPDATE";
     /** 통계 수집 설정 저장(대상 STATS_COLLECTION · 1, site-analytics-contract) — 바뀐 칸 {@code before}·{@code after}. 일반 */
     public static final String STATS_COLLECTION_UPDATE = "STATS_COLLECTION_UPDATE";
     // ── 회원 핫딜 1차(hotdeal-contract 「권한·정책」 감사 — 모두 일반) ──

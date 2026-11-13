@@ -125,6 +125,11 @@ public class BizApplicationMemberService {
         return rules.all();
     }
 
+    /** 상품마다 아직 적용 전인 가장 가까운 요금표 예약(ad-price-rules-contract — 사업자 신청 화면의 「○부터 바뀌어요」). 없는 상품은 빠진다 */
+    public Map<BizProduct, BizPriceRuleStore.Schedule> scheduledChanges() {
+        return rules.nextSchedules(ops.now());
+    }
+
     /**
      * 운영 주체가 <b>온라인 결제</b>를 받을 수 있는 단계인가 — 판정은 {@link CommerceSalesStore#operatorCanSell} 한 곳(개인사업자 이상 + 통신판매업 신고번호).
      * 개인 단계도 광고·핫딜 신청은 받되 수동 결제(계약서 사본 + 입금 확인)만 받는다(사용자 결정 2026-11-07 오후 — 처음의 「신청 자체를 막기」를 풀었다).
@@ -267,14 +272,22 @@ public class BizApplicationMemberService {
         return id;
     }
 
-    /** 자리·금액 줄 — 요금표로 다시 계산(승인 때 기간이 바뀌어도 같은 식) */
+    /**
+     * 자리·금액 줄 — 승인 때 기간이 바뀌어도 같은 식(단가 × 일수, 건당은 1). 단가는 <b>신청을 낸 시각의 요금표</b>(ad-price-rules-contract 규칙 1): 이미 줄이 있는 건(심사 중 다시 계산)은
+     * 그 줄의 단가를 그대로 쓰고, 새 신청만 지금 적용되는 요금표({@link BizPriceRuleStore#all} — 지난 예약 포함)를 쓴다. 그래서 적용 시각 뒤에 승인·결제해도 낼 때의 단가다.
+     */
     List<ItemRow> items(long applicationId, List<BizProduct> products, Period period) {
         Map<BizProduct, PriceRule> all = rules.all();
+        Map<BizProduct, Long> fixed = new java.util.EnumMap<>(BizProduct.class);
+        for (ItemRow item : store.items(applicationId)) {
+            fixed.put(item.product(), item.unitPrice());
+        }
         List<ItemRow> out = new ArrayList<>();
         for (BizProduct p : products) {
             PriceRule rule = all.get(p);
+            long unitPrice = fixed.getOrDefault(p, rule.unitPrice());
             int units = rule.perPost() ? 1 : BizPricing.days(period.start(), period.end());
-            out.add(new ItemRow(ops.nextId(), applicationId, p, rule.unitPrice(), units, rule.unitPrice() * units, period.start(), period.end()));
+            out.add(new ItemRow(ops.nextId(), applicationId, p, unitPrice, units, unitPrice * units, period.start(), period.end()));
         }
         return out;
     }

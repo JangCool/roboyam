@@ -50,6 +50,7 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *  - 광고 성과(서버 연결 2026-11-02 — `ad-performance-contract.md`): `GET …/{id}/stats?from&to` → `AdApplicationStats`(본인 건만, 없으면 404) ·
  *    `GET /api/business/ads/stats-summary` → `BizAdStatsSummary`(진행 중·정지 중·내려진 건(광고주 중단 제외) 최대 5건 · 최근 7일). 기간 400 은 늘 `fields.from`.
  *  - 환불 규정:`GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
+ *  - 요금표 예약 변경 `scheduledChange`(`ad-products` 상품마다 · `deal-products` 글 1건과 노출 자리마다 — 아직 적용 전인 가장 가까운 예약 하나, 없으면 null). 계약 `ad-price-rules-contract.md`
  */
 const PATH = {
     me: '/api/business/me',

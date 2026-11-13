@@ -22,13 +22,15 @@ const SECRET_CODE_KEYS: Record<string, string> = {
 
 export default class UtilSettingHistoryMessages {
     /**
-     * 칸 이름 — 서버가 준 i18n 키(`settingHistory.field.<field>`)로 찾고, 화면이 아직 모르는 칸이면 칸 코드 그대로.
+     * 칸 이름 — 화면이 이미 만든 글자(`label` — 상품 이름 + 칸 이름처럼 키 하나로 안 되는 것)가 있으면 그것, 아니면 서버가 준 i18n 키(`settingHistory.field.<field>`)로 찾고,
+     * 화면이 아직 모르는 칸이면 칸 코드 그대로.
      * @param t - 번역 함수.
      * @param te - 키가 있는지 보는 함수(`useI18n().te`).
      * @param change - 바뀐 칸.
      * @returns 칸 이름.
      */
     static fieldLabel(t: Translate, te: (key: string) => boolean, change: SettingHistoryChange): string {
+        if (change.label) return change.label;
         return te(change.labelKey) ? t(change.labelKey) : change.field;
     }
 

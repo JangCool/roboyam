@@ -4,11 +4,13 @@ import com.community.ad.dto.AdAdminRequest;
 import com.community.ad.dto.AdAdminView;
 import com.community.ad.dto.AdPlacementAdmin;
 import com.community.ad.dto.AdPlacementHistory;
+import com.community.ad.dto.AdPriceRuleAdmin;
 import com.community.ad.dto.AdStatsAdminView;
 import com.community.ad.dto.AdStatsView;
 import com.community.ad.service.AdAdminService;
 import com.community.ad.service.AdAdvertiserService;
 import com.community.ad.service.AdPlacementAdminService;
+import com.community.ad.service.AdPriceRuleAdminService;
 import com.community.ad.service.AdStatsAdminService;
 import com.community.bizapplication.dto.BizAdminView;
 import com.community.permission.annotation.RequirePermission;
@@ -18,7 +20,9 @@ import com.community.zconfiguration.response.ApiResponse;
 import java.util.List;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -41,11 +45,74 @@ public class AdAdminController {
     private final AdAdminService service;
     private final AdPlacementAdminService placements;
     private final AdStatsAdminService stats;
+    private final AdPriceRuleAdminService prices;
 
-    public AdAdminController(AdAdminService service, AdPlacementAdminService placements, AdStatsAdminService stats) {
+    public AdAdminController(AdAdminService service, AdPlacementAdminService placements, AdStatsAdminService stats, AdPriceRuleAdminService prices) {
         this.service = service;
         this.placements = placements;
         this.stats = stats;
+        this.prices = prices;
+    }
+
+    // ── 상품 가격(요금표 예약 변경 — docs/features/ad-price-rules-contract.md). 조회 ad.read · 쓰기 ad.settings. 쓰기 응답은 모두 조회와 같은 모양 ──
+
+    /** 상품 9줄 — 지금 값(지난 예약 포함) · 걸린 예약 · 최근 적용 3건 · 앞날 겹침 분포 */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/price-rules")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> priceRules() {
+        return ok(prices.get());
+    }
+
+    /** 예약 만들기 — 400 {@code fields.effectiveAt|unitPrice|capacity|maxDays|maxLeadDays}, 모르는 상품 404, 감사 {@code AD_PRICE_SCHEDULE_CREATE} */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @PostMapping("/price-rules/{product}/schedules")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> createPriceSchedule(@PathVariable String product,
+                                                                              @RequestBody(required = false) AdPriceRuleAdmin.ScheduleRequest body, AdminActor actor) {
+        return ok(prices.createSchedule(actor, product, body));
+    }
+
+    /** 예약 고치기 — 적용 전 예약만(아니면 404 {@code AD_PRICE_SCHEDULE_NOT_FOUND}), 감사 {@code AD_PRICE_SCHEDULE_UPDATE} */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @PutMapping("/price-rules/{product}/schedules/{id}")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> updatePriceSchedule(@PathVariable String product, @PathVariable String id,
+                                                                              @RequestBody(required = false) AdPriceRuleAdmin.ScheduleRequest body, AdminActor actor) {
+        return ok(prices.updateSchedule(actor, product, id, body));
+    }
+
+    /** 예약 한 건 취소 — 적용 전 예약만, 감사 {@code AD_PRICE_SCHEDULE_CANCEL} */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @DeleteMapping("/price-rules/{product}/schedules/{id}")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> cancelPriceSchedule(@PathVariable String product, @PathVariable String id, AdminActor actor) {
+        return ok(prices.cancelSchedule(actor, product, id));
+    }
+
+    /** 걸린 예약 모두 취소 — 감사 한 건 */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @DeleteMapping("/price-rules/schedules")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> cancelAllPriceSchedules(AdminActor actor) {
+        return ok(prices.cancelAll(actor));
+    }
+
+    /** 여러 상품 한꺼번에(단가만) — 400 {@code fields.effectiveAt|products|adjust.value}, 전부 되거나 전부 안 된다 */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @PostMapping("/price-rules/schedules/bulk")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> bulkPriceSchedules(@RequestBody(required = false) AdPriceRuleAdmin.BulkRequest body, AdminActor actor) {
+        return ok(prices.bulk(actor, body));
+    }
+
+    /** 신청 받기 켬/끔 — 바로 적용, 감사 {@code AD_PRICE_ACCEPTING_UPDATE} */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @PatchMapping("/price-rules/{product}/accepting")
+    public ResponseEntity<ApiResponse<AdPriceRuleAdmin.View>> priceAccepting(@PathVariable String product,
+                                                                         @RequestBody(required = false) AdPriceRuleAdmin.AcceptingRequest body, AdminActor actor) {
+        return ok(prices.setAccepting(actor, product, body));
+    }
+
+    /** 상품 가격 변경 이력 — 광고 노출 자리 이력과 같은 모양·쪽 규칙 */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/price-rules/history")
+    public ResponseEntity<ApiResponse<AdPlacementHistory.Page>> priceRuleHistory(@RequestParam(required = false) String page, @RequestParam(required = false) String size) {
+        return ok(prices.history(page, size));
     }
 
     /** 노출 자리 설정(글 보기 중간 · 날개 배너 · 게시판 목록 한 줄) — 저장한 적 없으면 기본값 · {@code updatedAt}·{@code updatedBy} null */

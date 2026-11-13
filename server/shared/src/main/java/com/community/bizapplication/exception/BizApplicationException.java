@@ -109,4 +109,17 @@ public class BizApplicationException extends CommonException {
     public static BizApplicationException contractNotFound() {
         return new BizApplicationException(HttpStatus.NOT_FOUND, CONTRACT_NOT_FOUND);
     }
+
+    /** 요금표 예약이 없다 — 없는 ID · 다른 상품의 예약 · 이미 적용 시각이 지난 예약(고치기·취소는 적용 전 예약만, ad-price-rules-contract 규칙 3) */
+    public static final String PRICE_SCHEDULE_NOT_FOUND = "AD_PRICE_SCHEDULE_NOT_FOUND";
+    /** 요금표에 없는 상품 이름 */
+    public static final String PRICE_PRODUCT_NOT_FOUND = "AD_PRICE_PRODUCT_NOT_FOUND";
+
+    public static BizApplicationException priceScheduleNotFound() {
+        return new BizApplicationException(HttpStatus.NOT_FOUND, PRICE_SCHEDULE_NOT_FOUND);
+    }
+
+    public static BizApplicationException priceProductNotFound() {
+        return new BizApplicationException(HttpStatus.NOT_FOUND, PRICE_PRODUCT_NOT_FOUND);
+    }
 }

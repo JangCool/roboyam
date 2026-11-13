@@ -456,6 +456,22 @@ export interface BizApplicationPage {
 
 /* ── 광고 신청 ─────────────────────────────────────────── */
 
+/**
+ * 요금표 예약 변경(서버 api `BizMemberView.ScheduledChange` — 아직 적용 전인 가장 가까운 예약 하나) — 관리자가 상품(·노출 자리)마다 적용 시각을 정해 바꿔 둔 새 요금표.
+ * 견적은 **신청을 낸 시각의 요금표**로 고정된다 — 적용 시각 전에 낸 신청은 심사·결제가 뒤여도 지금 값이다. 바뀔 예정이 없으면 null(옛 응답에는 칸이 없다).
+ * 적용 시각이 지나면 서버가 이 값을 지금 값으로 올리고 이 칸을 비운다고 가정한다(화면은 지난 안내를 숨기기만 한다).
+ */
+export interface BizScheduledPriceChange {
+    /** 적용 시각(ISO-8601 순간) — 이 시각 이후에 낸 신청부터 새 값 */
+    effectiveAt: string;
+    /** 새 단가(공급가, 원) — 광고·노출 자리는 하루, 핫딜 글은 건당 */
+    unitPrice: number;
+    /** 새 최대 신청 일수 */
+    maxDays: number;
+    /** 새 미리 신청 일수 */
+    maxLeadDays: number;
+}
+
 /** `GET /api/business/ad-products` — 광고 종류 하나 */
 export interface AdProduct {
     type: AdType;
@@ -473,6 +489,8 @@ export interface AdProduct {
     accepting: boolean;
     /** 온라인 결제를 받는가 — 운영 주체가 개인 단계면 false(수동 결제만, 서버 `400 fields.paymentMethod`) */
     onlinePayment: boolean;
+    /** 예약된 요금 변경 — 없으면 null */
+    scheduledChange: BizScheduledPriceChange | null;
 }
 
 /** 남은 칸을 셀 자리 — 광고 종류 또는 핫딜 노출 자리(광고 건 한도 엔진 하나 — X8) */
@@ -520,10 +538,23 @@ export interface DealProduct {
     accepting: boolean;
     /** 온라인 결제를 받는가 — 운영 주체가 개인 단계면 false(수동 결제만) */
     onlinePayment: boolean;
+    /** 게시 1건 값의 예약 변경(`unitPrice` = 새 건당 값) — 없으면 null */
+    scheduledChange: BizScheduledPriceChange | null;
     /** 노출 자리별 — `accepting` 꺼짐이면 흐리게 「지금은 받지 않아요」 */
-    placements: { placement: Exclude<DealPlacement, 'NONE'>; dailyPrice: number; capacity: number; maxDays: number; accepting: boolean }[];
+    placements: DealPlacementProduct[];
     /** 받는 핫딜 게시판(2차) — 하나면 화면이 자동으로 고르고 칸을 감춘다. 옛 응답에는 없다(없거나 비면 칸을 감추고 `boardId` 는 빈 글자) */
     boards?: BizDealBoard[];
+}
+
+/** 핫딜 노출 자리 하나의 요금 */
+export interface DealPlacementProduct {
+    placement: Exclude<DealPlacement, 'NONE'>;
+    dailyPrice: number;
+    capacity: number;
+    maxDays: number;
+    accepting: boolean;
+    /** 예약된 요금 변경 — 없으면 null */
+    scheduledChange: BizScheduledPriceChange | null;
 }
 
 /** `POST /api/business/applications/deals` — 노출을 고르면 같은 신청 건에 묶는다(목업 가정) */

@@ -8,6 +8,7 @@ import type {
     BizApplicationStatus,
     BizHistoryEntry,
     BizSchedulePhase,
+    BizScheduledPriceChange,
     BizTakedownCause,
     BusinessDocSendTo,
     BusinessProfile,
@@ -142,6 +143,19 @@ export default class UtilBusiness {
         const supply = Math.max(0, dailyPrice) * Math.max(0, days);
         const vat = Math.floor(supply * UtilBusiness.VAT_RATE);
         return { supply, vat, total: supply + vat };
+    }
+
+    /**
+     * 아직 오지 않은 요금표 예약 변경 — 적용 시각이 지났거나(화면을 오래 열어 둔 경우) 없으면 null. 지난 변경을 지금 값으로 바꿔 계산하지는 않는다(견적은 서버가 정한다).
+     * `scheduledChange` 는 서버가 아직 적용 전인 가장 가까운 예약 하나를 준다(ad-price-rules-contract).
+     * @param {BizScheduledPriceChange | null | undefined} change - 상품의 예약 변경.
+     * @param {number} now - 지금(밀리초).
+     * @returns {BizScheduledPriceChange | null} 아직 앞으로의 변경이면 그대로, 아니면 null.
+     */
+    static pendingPriceChange(change: BizScheduledPriceChange | null | undefined, now: number): BizScheduledPriceChange | null {
+        if (!change) return null;
+        const at = Date.parse(change.effectiveAt);
+        return Number.isFinite(at) && at > now ? change : null;
     }
 
     /** 두 달력 날짜(`YYYY-MM-DD`, 끝 포함) 사이의 일수 */

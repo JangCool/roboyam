@@ -355,6 +355,120 @@ export type AdPlacementHistoryField =
 export type AdPlacementHistoryItem = SettingHistoryItem;
 export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;
 
+/* ── 상품 가격(요금표 `biz_price_rules` — 광고 기본 설정 「상품 가격」 탭 `?tab=prices`) — 서버 admin `AdPriceRuleAdminService`, 계약 `docs/features/ad-price-rules-contract.md` ──
+ * 가격 칸(단가·동시 한도·최대 일수·미리 신청 일수)은 바로 바꾸지 않고 상품마다 「적용 시각」을 정해 예약한다. 한 상품에 예약 여러 건(서로 다른 시각 — 같은 시각 중복은 400 `fields.effectiveAt`).
+ * 예약 하나는 네 칸 값을 통째로 가진다(바꾸지 않는 칸은 그 시각 직전 값 그대로). 받기 켬/끔은 긴급 스위치라 바로 바뀐다.
+ * 어느 가격이 적용되나 = 사업자가 신청을 낸 시각 기준(신청 건에 견적 고정 — 승인·결제가 적용 시각 뒤여도 낼 때의 견적).
+ */
+
+/** 요금표 상품 — 자리 상품(`BizAdType`) 8개 + 핫딜 글 게시(`HOTDEAL_POST`). 서버 `BizProduct` */
+export type AdPriceProduct = BizAdType | 'HOTDEAL_POST';
+
+/** 값 단위 — 하루 단가(`DAY`) · 건당(`POST`, 핫딜 글 게시만). 바꿀 수 없다(`biz_price_rules.unit`) */
+export type AdPriceUnit = 'DAY' | 'POST';
+
+/** 칸 이름(서버 `BizPriceRuleStore.PriceRule` 과 같은 이름) — 예약 칸 넷 + 받기 */
+export type AdPriceField = 'unitPrice' | 'capacity' | 'maxDays' | 'maxLeadDays' | 'accepting';
+
+/** 예약으로 바꾸는 값 넷 */
+export interface AdPriceValues {
+    /** 단가(원) — 0 이상 정수(0 = 무료로 받기) */
+    unitPrice: number;
+    /** 같은 시각에 함께 나갈 수 있는 건수 — `DAY` 는 1 이상, `POST` 는 늘 null(한도 없음) */
+    capacity: number | null;
+    /** 한 번에 신청할 수 있는 최대 일수(1 이상) */
+    maxDays: number;
+    /** 며칠 뒤 시작까지 미리 신청할 수 있나(1 이상) */
+    maxLeadDays: number;
+}
+
+/**
+ * 상품 하나의 예약 만들기·고치기 본문 — `POST /api/admin/ads/price-rules/{product}/schedules` · `PUT …/{product}/schedules/{id}`.
+ * 400 `fields.effectiveAt`(지금보다 뒤 · 그 상품에 같은 시각 예약이 이미 있음) · `fields.unitPrice|capacity|maxDays|maxLeadDays` · 칸에 안 붙는 것은 `message`.
+ */
+export interface AdPriceScheduleRequest extends AdPriceValues {
+    /** 적용 시각(순간 ISO) — 화면 기본값 「내일 00:00(한국 시각)」 */
+    effectiveAt: string;
+}
+
+/** 걸린 예약 한 건 — 서버는 가격 기간표(「이 시각부터 이 값」)로 두고, 적용 시각이 지나면 지금 값이 되며 이 목록에서 빠져 「최근 변경」으로 옮겨 간다(배치 없음) */
+export interface AdPriceSchedule extends AdPriceScheduleRequest {
+    /** Snowflake(문자열) */
+    id: string;
+    createdBy: { id: string; name: string };
+    createdAt: string;
+    /** 마지막으로 고친 시각(고친 적 없으면 null) */
+    updatedAt: string | null;
+}
+
+/** 단가 일괄 조정 방식 — 비율(%) · 정액(원). 결과는 10원 단위 버림, 0원 아래 금지(가정 — 서버가 계산) */
+export type AdPriceAdjustKind = 'PERCENT' | 'AMOUNT';
+
+/**
+ * 여러 상품 한꺼번에 — `POST /api/admin/ads/price-rules/schedules/bulk`. 고른 상품마다 예약 1건(단가만 바꾸고 나머지 칸은 그 시각 직전 값 그대로, 기준 단가 = 각 상품의 지금 단가).
+ * 400 `fields.effectiveAt`(지남 · 고른 상품 중 같은 시각 예약이 이미 있음) · `fields.products`(빈 목록) · `fields.adjust.value`. 전부 되거나 전부 안 된다(가정).
+ */
+export interface AdPriceBulkScheduleRequest {
+    effectiveAt: string;
+    products: AdPriceProduct[];
+    adjust: { kind: AdPriceAdjustKind; value: number };
+}
+
+/** `PATCH /api/admin/ads/price-rules/{product}/accepting` 본문 — 바로 적용(새 신청만 409 `BIZ_PRODUCT_CLOSED`, 들어온 건·노출은 그대로) */
+export interface AdPriceAcceptingRequest {
+    accepting: boolean;
+}
+
+/**
+ * 앞으로 잡힌 광고 예약(신청 건)의 날짜별 최대 동시 겹침 분포 — 「이 겹침 수인 날이 며칠」(오늘부터 미리 신청 일수 안, 한국 날짜). 서버가 계산한다(가정).
+ * 화면은 새 한도 L 을 넣으면 `peak > L` 인 날 수를 더해 「앞으로 N일은 이미 새 한도를 넘어 있어요」를 보인다. `POST` 상품은 빈 목록.
+ */
+export interface AdPriceOccupancy {
+    peak: number;
+    days: number;
+}
+
+/** 그 상품의 최근 적용된 변경 한 건(적용 시각이 지난 예약 · 받기 켬/끔) — 최신이 앞, 3건까지(서버가 자른다) */
+export interface AdPriceRecentChange {
+    id: string;
+    /** 예약은 적용 시각, 받기는 바꾼 때 */
+    changedAt: string;
+    /** 예약을 마지막으로 손댄 운영자 · 받기를 바꾼 운영자 */
+    operatorName: string;
+    /** 칸 값 글자: 금액·일수·한도는 숫자 글자(한도 없음은 null) · `accepting` 은 `"true"`/`"false"` */
+    changes: { field: AdPriceField; before: string | null; after: string | null }[];
+}
+
+/** 요금표 한 줄(지금 값 + 그 상품의 예약들 + 최근 변경) */
+export interface AdPriceRule extends AdPriceValues {
+    product: AdPriceProduct;
+    unit: AdPriceUnit;
+    /** 신청 받기 */
+    accepting: boolean;
+    occupancy: AdPriceOccupancy[];
+    /** 걸린 예약 — 적용 시각 차례 */
+    schedules: AdPriceSchedule[];
+    recentChanges: AdPriceRecentChange[];
+}
+
+/**
+ * `GET /api/admin/ads/price-rules` 응답(예약·취소·받기 API 도 이 모양을 돌려준다) — 시드만 있고 고친 적 없으면 `updatedAt/updatedBy: null`.
+ * 예약 취소: 한 건 `DELETE …/price-rules/{product}/schedules/{id}` · 모두 `DELETE …/price-rules/schedules`.
+ */
+export interface AdPriceRulesView {
+    rules: AdPriceRule[];
+    /** 지금 값이 마지막으로 바뀐 시각·사람(가장 늦게 적용된 예약의 적용 시각·그 예약을 손댄 운영자 · 받기 켬/끔) */
+    updatedAt: string | null;
+    updatedBy: { id: string; name: string } | null;
+}
+
+/**
+ * 요금표 변경 이력(전체 서랍) — 광고 자리 설정 이력과 같은 모양(공용 `SettingHistoryItem`). 관리자가 한 일만(감사 `AD_PRICE_SCHEDULE_CREATE`·`_UPDATE`·`_CANCEL` · 받기 `AD_PRICE_ACCEPTING_UPDATE`).
+ * 줄의 작업: 예약 만들기 `CREATE` · 고치기 `UPDATE` · 취소 `DELETE` · 받기 `UPDATE`. 여러 상품 한꺼번에는 한 줄. 예약이 적용되는 순간은 이력 줄이 아니다(상품 카드 「최근 변경」에 보인다).
+ * 칸 코드: `schedules.<상품>.effectiveAt`(적용 시각, 순간 ISO) · `schedules.<상품>.<칸>`(예약 값 — 직전 값 → 예약 값) · `rules.<상품>.accepting`(받기).
+ */
+export type AdPriceRuleHistoryPage = SettingHistoryPage<SettingHistoryItem>;
+
 /* ── 광고 성과(`/ads/performance`·일정표 서랍 「성과」 탭) — 서버 DTO 정본 shared `ad/dto/AdStatsView`·admin `ad/dto/AdStatsAdminView`. 집계 원천 shared V118 `ad_daily_stats(application_id, version, day, placement, impressions, clicks)` ── */
 
 /** 노출 자리 — `ad_daily_stats.placement` 값. 화면 이름은 `ad.statPlacement.<값>` */

@@ -37,6 +37,8 @@ public final class AuditRetention {
             // 공구 환불·요청 승인·거절·반품 처리·공급 불가·계좌 송금 — 돈이 움직이거나 청약철회 기록(commerce-groupbuy-contract 결정 55·70)
             AuditActions.GROUPBUY_REFUND, AuditActions.GROUPBUY_REQUEST_APPROVE, AuditActions.GROUPBUY_REQUEST_REJECT, AuditActions.GROUPBUY_RETURN_DISPOSE,
             AuditActions.GROUPBUY_SUPPLY_FAILURE, AuditActions.GROUPBUY_BANK_TRANSFER,
+            // 광고·핫딜 상품 가격 예약·신청 받기 — 판매 조건(값)을 바꾸거나 판매를 열고 닫는 일(ad-price-rules-contract)
+            AuditActions.AD_PRICE_SCHEDULE_CREATE, AuditActions.AD_PRICE_SCHEDULE_UPDATE, AuditActions.AD_PRICE_SCHEDULE_CANCEL, AuditActions.AD_PRICE_ACCEPTING_UPDATE,
             // 판매 스위치·공구 설정(문턱·보상 상한)·배송비 정책 줄 지우기 — 판매를 열고 닫거나 돈의 기준을 바꾸는 일(2b-4)
             AuditActions.COMMERCE_SALES_TOGGLE, AuditActions.GROUPBUY_SETTINGS_UPDATE, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE,
             // 사업자 신청 건 — 금액 확정(승인·조정)·계약서 사본·입금 확인·예약 확정·취소·환불 승인·거절·송금 — 계약·대금 기록(5년, biz-application-contract)

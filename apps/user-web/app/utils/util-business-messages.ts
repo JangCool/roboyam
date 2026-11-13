@@ -1,6 +1,38 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BizDealFailReason, BizHistoryEntry, BusinessRejectCode } from '~/composables/business/api/useBusinessApi.types';
+import type { BizDealFailReason, BizHistoryEntry, BizScheduledPriceChange, BusinessRejectCode } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
+
+/** 단가 단위 — `daily` 하루(광고·핫딜 노출) · `perPost` 게시 1건(핫딜 글) */
+export type BizPriceUnit = 'daily' | 'perPost';
+
+/** 지금 요금(예약 변경과 비교할 값) — 화면이 모르는 일수는 뺀다 */
+export interface BizPriceRuleNow {
+    price: number;
+    maxDays?: number;
+    maxLeadDays?: number;
+}
+
+/** 상품 카드의 예약 변경 안내 한 줄 — `direction` 은 단가가 오르나(`UP`)·내리나(`DOWN`), 단가가 그대로면 null */
+export interface BizPriceChangeNote {
+    direction: 'UP' | 'DOWN' | null;
+    text: string;
+}
+
+/** 예상 금액 옆 안내에 넣을 고른 상품 하나 */
+export interface BizPriceChangeItem {
+    /** 상품 이름(「넓은 배너」·「핫딜 글」) */
+    label: string;
+    unit: BizPriceUnit;
+    /** 지금 단가 */
+    price: number;
+    change: BizScheduledPriceChange;
+}
+
+/** 예상 금액 옆 안내 — 본문 한 문장 + 바뀌는 단가 줄들 */
+export interface BizPriceChangeSummary {
+    text: string;
+    lines: string[];
+}
 
 /** 신청 건 반려 사유 코드(서버 `BizRejectCode`) */
 const REJECT_CODES: readonly BusinessRejectCode[] = ['CREATIVE_SPEC', 'POLICY_VIOLATION', 'LINK_BROKEN', 'PERIOD_UNAVAILABLE', 'FALSE_PRICE', 'OTHER'];
@@ -46,6 +78,57 @@ export default class UtilBusinessMessages {
         const pad = (n: number) => String(n).padStart(2, '0');
         const clock = `${pad(Math.floor((total % 86400) / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
         return days > 0 ? t('business.deadline.daysClock', { days, clock }) : clock;
+    }
+
+    /**
+     * 상품 카드의 요금 예약 변경 안내 한 줄 — 단가가 바뀌면 「6월 22일 (월) 00:00부터 하루 60,000원으로 올라요」(최대 일수도 바뀌면 뒤에 덧붙임),
+     * 단가는 그대로고 최대 일수만이면 「… 최대 신청 일수가 14일로 바뀌어요」, 미리 신청 일수만이면 그 안내. 바뀌는 것이 없으면 null.
+     * 오름·내림은 문구(「올라요」·「내려요」)와 아이콘으로 알린다(색만으로 가르지 않는다). ⚠ `scheduledChange` 는 가정(서버 미구현)이다.
+     * @param {Translate} t - 번역 함수.
+     * @param {string} when - 적용 시각 글자(부르는 쪽이 표시 형식으로 — `time.slot(effectiveAt)`).
+     * @param {BizPriceUnit} unit - 단가 단위(`daily` 하루 · `perPost` 게시 1건).
+     * @param {BizPriceRuleNow} current - 지금 값(최대·미리 신청 일수를 화면이 모르면 빼면 그 비교를 건너뛴다).
+     * @param {BizScheduledPriceChange} change - 예약 변경.
+     * @returns {BizPriceChangeNote | null} 안내 한 줄 또는 null.
+     */
+    static priceChangeNote(t: Translate, when: string, unit: BizPriceUnit, current: BizPriceRuleNow, change: BizScheduledPriceChange): BizPriceChangeNote | null {
+        const daysChanged = current.maxDays !== undefined && change.maxDays !== current.maxDays;
+        if (change.unitPrice !== current.price) {
+            const up = change.unitPrice > current.price;
+            const price = UtilBusinessMessages.unitPrice(t, unit, change.unitPrice);
+            const head = up ? t('business.priceChange.up', { when, price }) : t('business.priceChange.down', { when, price });
+            return { direction: up ? 'UP' : 'DOWN', text: daysChanged ? `${head} · ${t('business.priceChange.alsoMaxDays', { days: change.maxDays })}` : head };
+        }
+        if (daysChanged) return { direction: null, text: t('business.priceChange.maxDays', { when, days: change.maxDays }) };
+        if (current.maxLeadDays !== undefined && change.maxLeadDays !== current.maxLeadDays) return { direction: null, text: t('business.priceChange.leadDays', { when, days: change.maxLeadDays }) };
+        return null;
+    }
+
+    /**
+     * 예상 금액 옆 안내 — 고른 상품 중 **단가가** 바뀔 예정인 것만(일수만 바뀌는 것은 금액과 무관해 뺀다). 없으면 null.
+     * 적용 시각이 모두 같으면 「지금 신청하면 지금 가격 … {when} 이후 신청부터 새 가격」, 서로 다르면 시각 없는 문장 + 줄마다 시각.
+     * @param {Translate} t - 번역 함수.
+     * @param {BizPriceChangeItem[]} items - 고른 상품들(이름·단위·지금 단가·예약 변경).
+     * @param {(iso: string) => string} whenOf - 적용 시각 글자 만들기(`time.slot`).
+     * @returns {BizPriceChangeSummary | null} 안내 또는 null.
+     */
+    static priceChangeSummary(t: Translate, items: BizPriceChangeItem[], whenOf: (iso: string) => string): BizPriceChangeSummary | null {
+        const changed = items.filter((i) => i.change.unitPrice !== i.price);
+        if (!changed.length) return null;
+        const single = new Set(changed.map((i) => Date.parse(i.change.effectiveAt))).size === 1;
+        const lines = changed.map((i) => {
+            const params = { label: i.label, from: UtilBusinessMessages.unitPrice(t, i.unit, i.price), to: UtilBusinessMessages.unitPrice(t, i.unit, i.change.unitPrice) };
+            const line = i.change.unitPrice > i.price ? t('business.priceChange.lineUp', params) : t('business.priceChange.lineDown', params);
+            return single ? line : t('business.priceChange.lineWhen', { line, when: whenOf(i.change.effectiveAt) });
+        });
+        const text = single ? t('business.priceChange.summaryText', { when: whenOf(changed[0]!.change.effectiveAt) }) : t('business.priceChange.summaryTextMulti');
+        return { text, lines };
+    }
+
+    /** 단가 글자 — 「하루 60,000원」 · 「게시 1건 20,000원」 */
+    static unitPrice(t: Translate, unit: BizPriceUnit, amount: number): string {
+        const won = UtilBusinessMessages.won(t, amount);
+        return unit === 'perPost' ? t('business.price.perPost', { amount: won }) : t('business.price.daily', { amount: won });
     }
 
     /** 기간 — 「10.31 ~ 11.06 · 7일」(날짜 글자는 부르는 쪽이 표시 형식으로 만든다) */
