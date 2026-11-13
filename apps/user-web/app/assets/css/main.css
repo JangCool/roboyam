@@ -101,7 +101,7 @@ html[data-color-scheme='dark'] {
 }
 
 /*
- * 다음식(`daum`) — news.daum.net 을 잰 값(2026-10-27): 페이지 #f2f4f7 · 흰 카드 반경 12 + 거의 없는 그림자 · 전체 폭 1168 ·
+ * 다음식(`daum`) — news.daum.net 을 잰 값(2026-10-27): 페이지 #f2f4f7 · 흰 카드 반경 12 + 거의 없는 그림자 · 전체 폭 1264(PC 95% 를 곱해 실제 1200 — 이토랜드·퀘이사존과 같은 폭, 사용자 2026-11-13. 그 전 1168 → 실제 1110) ·
  * GNB 글자 검정 72%(활성 검정) · LNB 글자 검정 48%(활성 본문 글자색) · GNB/LNB 사이 #eceef1. 다크는 페이지 #17181b · 카드 #202125 · 선 #2e3036.
  * 아이로빗 테마(`irobit`, 사용자 결정 2026-10-28)는 겉모양이 다음식 그대로라 이 파일의 다음식 규칙을 모두 함께 쓴다(`html:is([data-theme='daum'], [data-theme='irobit'])`).
  * 아이로빗만 바꿀 값은 파일 끝의 「아이로빗 테마 덮어쓰기」 자리에 둔다.
@@ -116,7 +116,7 @@ html:is([data-theme='daum'], [data-theme='irobit']) {
     --tab-fg: rgba(0, 0, 0, 0.72);
     --tab-fg-active: #000000;
     --subtab-fg: rgba(0, 0, 0, 0.48);
-    --content-max: calc(1168px * var(--ui-scale, 1));
+    --content-max: calc(1264px * var(--ui-scale, 1));
 }
 html:is([data-theme='daum'], [data-theme='irobit'])[data-color-scheme='dark'] {
     --page-bg: #17181b;

@@ -5,7 +5,7 @@
           · 카드 1 — 매거진 머리(페이지 제목·설명 + 오른쪽 게시판 칩, 굵은 밑줄 — 제목을 따로 떼지 않는다, 사용자 2026-11-07) 아래 「이번 주 추천」:
             게시판 칩은 전체 · 묶음의 게시판들(링크라 `?board=` 만 바뀌고 1쪽으로). 큰 카드 1 + 작은 카드 4 — 홈 하이라이트와 같은 크기(고르는 기준은 서버 몫 — 최근 7일 추천순).
           · 카드 2 「최신 글」 — 사진 + 제목 + 요약 2줄 + 게시판·작성자·날짜, 쪽 번호.
-          · 카드 3 「많이 본 글」 1~5 — 넓으면 카드 2 오른쪽 좁은 칸, 좁으면 카드 2 아래.
+          · 카드 3 「많이 본 글」 1~5 — 넓으면 카드 2 오른쪽 칸(20rem — 본문 폭을 1200 으로 넓힐 때 늘어난 6rem 을 이 칸만 받아 최신 글 칸 폭은 그대로, 사용자 2026-11-13), 좁으면 카드 2 아래.
           · 카드 4 「태그」 — 카드 3 아래(같은 칸). 칩을 누르면 `/search?q=태그`(태그 거르기가 없어 임시).
         칸 나누기는 화면 폭이 아니라 카드·본문 폭(`@container`)으로 한다 — 사이드 메뉴로 본문이 좁을 때도 맞게. 가로로 미는 상자에는 `relative` 를 둔다(안의 절대 위치 글자가 빠져나와 문서를 넓히지 않게).
         서버 `GET /api/tips`·`GET /api/tips/posts`(`useTipsApi`). ⚠ MOCK: 태그만 서버에 없어 지어낸 값이다(`composables/tips/api/mock/tips-mock.ts`).
@@ -114,7 +114,7 @@
         </section>
 
         <!-- 카드 2·3 — 넓으면 최신 글 왼쪽 · 많이 본 글 오른쪽 좁은 칸, 좁으면 위아래. 많이 본 글을 못 받았으면(머리 몫 오류 — 카드 1 이 알린다) 최신 글만 -->
-        <div class="grid items-start gap-(--gadget-gap)" :class="showMostViewed ? '@min-[40rem]:grid-cols-[minmax(0,1fr)_14rem]' : ''">
+        <div class="grid items-start gap-(--gadget-gap)" :class="showMostViewed ? '@min-[46rem]:grid-cols-[minmax(0,1fr)_20rem]' : ''">
             <!-- 카드 2 — 최신 글 -->
             <section class="gadget-card flex min-w-0 flex-col" :data-look="look" :aria-labelledby="latestId" :aria-busy="listStatus === 'loading'" data-testid="tips-latest">
                 <div :class="headClass">

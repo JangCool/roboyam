@@ -56,7 +56,7 @@ const emit = defineEmits<{ (e: 'edit-menu'): void; (e: 'layout-op', value: Gadge
 
 const { t } = useI18n();
 
-/** 공개 사이트를 띄울 창 크기 — 데스크톱 폭(본문 1168 + 여백). 칸 폭에 맞춰 줄인다 */
+/** 공개 사이트를 띄울 창 크기 — 데스크톱 폭(본문 1200 + 여백). 칸 폭에 맞춰 줄인다 */
 const VIEW_W = 1280;
 const VIEW_H = 800;
 

@@ -167,8 +167,8 @@ export default class UtilAd {
 
     /** 날개 폭 · 본문과 날개 사이 · 날개와 창 끝 사이(px) — user-web `UtilAd.WING`. 한쪽 바깥 여백이 셋의 합(192px) 이상일 때만 그린다 */
     static readonly WING = { width: 160, gap: 16, edge: 16 } as const;
-    /** 공개 셸의 본문 폭(`--content-max`, px) — 기본·네이버식 1100 · 다음식·아이로빗 1168 */
-    static readonly PUBLIC_CONTENT = { base: 1100, wide: 1168 } as const;
+    /** 공개 셸의 PC 본문 폭(`--content-max`, 실제 px) — 기본·네이버식 1100 · 다음식·아이로빗 1200(1264 × PC 95%) */
+    static readonly PUBLIC_CONTENT = { base: 1100, wide: 1200 } as const;
 
     /** 날개가 보이기 시작하는 창 너비(px) — 본문 폭 + 양쪽 (날개 + 간격 + 끝 여백) */
     static wingMinViewport(content: number): number {

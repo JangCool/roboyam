@@ -7,7 +7,7 @@
         최상위 항목(`topItems`): MENU(테마 기본값) = 메뉴 안 · LOGO = 로고 옆 서비스 링크 자리의 링크 줄(`AppLogoLinks`, 다음식은 16px — `main.css`).
         모바일(md 미만)은 테마 공통 — 기본 상단 바(`AppHeader`, 안쪽 화면이면 숨김)를 그대로 쓰고 이 윗줄·카드는 숨는다. 하단 탭·드로어·상단 탭은 레이아웃이 그린다.
         props·slots 계약은 `ThemeShell.types.ts`. `sideMenu=false`(글쓰기)는 사이드 메뉴만 숨기고 상단 메뉴는 그대로 둔다.
-        값(바탕·카드·선·탭 글자색·폭 1168)은 역할 변수로 읽고 `main.css` 의 다음식 값(`html:is([data-theme='daum'], [data-theme='irobit'])`)이 채운다.
+        값(바탕·카드·선·탭 글자색·폭 1264 — PC 실제 1200)은 역할 변수로 읽고 `main.css` 의 다음식 값(`html:is([data-theme='daum'], [data-theme='irobit'])`)이 채운다.
         아이로빗 테마(`irobit`)도 이 셸을 그대로 쓴다(`util-theme.ts` 의 같은 슬롯 로더) — 다른 것은 기본 배치(상단 + 사이드 왼쪽)뿐이다.
         상단 메뉴 폭(`menuWidth`): CONTENT(테마 기본값) = 메뉴 카드가 본문 폭 · FULL = 메뉴 카드가 창 좌우 끝까지 닿는 흰 띠(반경 0), 칸의 시작은 본문 열 왼쪽 끝 그대로.
         메뉴 넘침 표시(`menuOverflow`)는 메뉴 카드·로고 옆 링크 줄에 그대로 전한다(GNB·LNB 는 줄 안 아래 여백에 스크롤 표시를 두어 높이가 그대로다 — 메뉴 카드는 창 위에 붙지 않는다).
