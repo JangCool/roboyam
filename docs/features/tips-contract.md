@@ -49,3 +49,24 @@
 - 관리자 하이라이트 화면(곳 고르개)·user-web `/tips` 실제 연결은 아직(MOCK 그대로).
 
 - **모바일 최신 글 줄**(2026-11-12 사용자 시안 확정): 윗줄 = 게시판 이름(맨 왼쪽) · 말머리, 썸네일 64×48(그림 표시만 — `GadgetThumb :label=false`) + 제목, 본문 미리보기는 썸네일 아래 줄 폭 전체, 아랫줄(썸네일 밑까지 줄 폭 전체) = 아바타·닉네임(회원 메뉴) … 오른쪽 끝 추천 · 시간. 데스크톱은 그대로.
+
+## /tips 레이아웃 편집 (사용자 2026-11-13 — 「tips 도 편집 당연히 되어야지, 두 개 다 되게 하고 메뉴는 /tips」)
+`/tips` 매거진을 관리자 `설정 › 테마 › 레이아웃 › 페이지` 에서 홈·가젯 페이지와 같은 편집기(실제 화면 iframe 편집)로 꾸민다. `/p/tips`(가젯 페이지)도 지금처럼 따로 편집된다. 메뉴는 `/tips` 그대로.
+- **시스템 페이지**: `gadget_pages.system_page`(`'TIPS'` 또는 null, 하나뿐) 인 가젯 페이지 한 행이 `/tips` 의 배치를 갖는다(키 `tips-magazine` — 공개 주소는 `/p/…` 가 아니라 `/tips`). 배치·가젯은 다른 가젯 페이지처럼 테마마다 따로(`gadget_page_layouts`·`home_gadgets.page_id`), 저장 API·감사·캐시도 같다.
+  - 지울 수 없고(409 `GADGET_PAGE_SYSTEM`) 영문 주소를 바꿀 수 없다(400 `fields.key`). 이름·설명·기준 폴더·글쓰기 단추는 고친다(이름·설명 = `/tips` 제목 카드 글자).
+  - 관리자 목록 응답 `GadgetPage` 에 `systemPage: 'TIPS' | null`. 공개 `GET /api/pages/tips-magazine` 는 다른 페이지와 같은 모양.
+  - 메뉴 「누르면 가는 곳」 가젯 페이지 목록에서 이 페이지의 경로는 `/tips`. 하이라이트 곳 목록에는 따로 두지 않는다(이 페이지의 하이라이트 가젯 곳은 `tips`).
+  - 설치 구조 파일(`irobit.structure.json`)에도 이 행이 있다. 없는 채 설치되면 공개 `/tips` 는 화면에 박힌 처음 배치로 그린다.
+- **가젯 종류 4개**(이 시스템 페이지 배치에서만 받는다 — 홈·게시판 레이아웃·일반 가젯 페이지는 400 `fields.gadgets[i].type`): 공개 응답 `data: null`·`empty: false`(화면이 `/api/tips`·`/api/tips/posts` 로 채운다), 내용 설정(`config`) 없음 — 제목·노출·꾸미기만.
+  | 종류 | 뜻 | 최소(12칸 기준 w×h) | 처음 배치(24칸) |
+  |---|---|---|---|
+  | `TIPS_HEADLINE` | 이번 주 추천(큰 글 1 + 작은 글 4) — 보이는 첫 것은 제목 카드 안 굵은 밑줄 아래로 들어간다(편집 중 제외) | 6×10 | x0 y0 w24 h20 |
+  | `TIPS_LATEST` | 최신 글(쪽 번호, `?board=&page=`) | 4×10 | x0 y20 w17 h40 |
+  | `TIPS_POPULAR` | 많이 본 글 1~5 | 3×6 | x17 y20 w7 h14 |
+  | `TIPS_TAGS` | 태그(목업) | 3×3 | x17 y34 w7 h8 |
+- 제목 카드(페이지 이름·설명 + 오른쪽 게시판 칩)는 가젯이 아니라 `/tips` 화면이 그린다 — 칩(`?board=`)은 네 가젯 모두에 걸린다.
+- **구현 결과(2026-11-13)**: shared **V209** `V209__gadget_page_system_tips.sql` — `gadget_pages.system_page`(CHECK `TIPS`, 부분 유일) + 시스템 행 **id 1**·키 `tips-magazine`·설명 = 지금 부제·글쓰기 단추 끔·기준 폴더 없음(이미 있으면 넘어감). 설치 구조 파일에도 같은 행.
+  - 서버: 매거진 4종은 `GadgetKinds.isTips`(기존 `isKnown` 밖) — `GadgetLayoutWriter` 가 TIPS 자리에서만 받고, 공개 `data: null`. 지우기 409 `GADGET_PAGE_SYSTEM` · 키 바꾸기 400 `fields.key`(`gadgetPage.key.system`). 관리자 목록에서 시스템 페이지가 맨 앞. 페이지 한도 50 에 시스템 페이지도 센다(운영자가 만들 수 있는 건 49).
+  - 메뉴 대상 선택지에 `path`·`systemPage`(시스템은 `/tips`). 하이라이트 곳 목록에서 시스템 페이지는 빠지고 `tips-magazine` 은 `tips` 로 친다(`HighlightPlaces.canonical`).
+  - 화면: user-web `pages/tips.vue`(시스템 페이지 배치 + 제목 카드·칩, 없으면 `UtilTips.fallbackPage`) · `useTipsShared`(데이터 한 번 받기) · `GadgetTips{Headline,Latest,Popular,Tags}.vue`. admin 넣기 목록은 TIPS 페이지에서만 4종(`UtilGadgetLayoutEditor.addable`), 페이지 정보 창은 시스템 페이지면 공개 주소만 보이고 지우기 없음.
+  - 가장자리: V209 전에 키 `tips-magazine` 인 일반 페이지가 있으면 시스템 행은 들어가지 않는다. 매거진 가젯은 ⚙ 설정(제목·꾸미기 창)이 아직 없다.

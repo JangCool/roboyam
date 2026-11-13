@@ -22,6 +22,11 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     // 서버 `GadgetKinds` 에는 아직 없다(목업)
     AD: () => import('~/components/gadget/GadgetAd.vue'),
     AD_TEXT_LINE: () => import('~/components/gadget/GadgetAdTextLine.vue'),
+    // 팁·강좌·사용기 /tips 배치에만(tips-contract 「/tips 레이아웃 편집」) — 데이터는 /tips 화면이 나눠 준다(`useTipsShared`)
+    TIPS_HEADLINE: () => import('~/components/gadget/GadgetTipsHeadline.vue'),
+    TIPS_LATEST: () => import('~/components/gadget/GadgetTipsLatest.vue'),
+    TIPS_POPULAR: () => import('~/components/gadget/GadgetTipsPopular.vue'),
+    TIPS_TAGS: () => import('~/components/gadget/GadgetTipsTags.vue'),
 };
 
 const REGISTRY: Readonly<Record<string, Component>> = Object.fromEntries(Object.entries(LOADERS).map(([key, loader]) => [key, markRaw(defineAsyncComponent(loader))]));

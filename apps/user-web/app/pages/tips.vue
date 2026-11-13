@@ -1,336 +1,143 @@
 <template>
     <!--
         팁·강좌·사용기 묶음 `/tips?board=&page=`(매거진형 — 사용자가 시안 B 를 고름, 2026-11-07 화면 확정·서버 연결). 게시판 두 개(팁과강좌·사용기)를 한 화면에 묶는다.
-        영역마다 따로 떨어진 카드(홈·가젯 페이지와 같은 `gadget-card` · 카드 사이 `gadget-stack` 간격 · 머리 = 아이콘 + 제목 + 오른쪽 자리, 모양은 가젯 틀 `GadgetFrame` 을 따른다):
-          · 카드 1 — 매거진 머리(페이지 제목·설명 + 오른쪽 게시판 칩, 굵은 밑줄 — 제목을 따로 떼지 않는다, 사용자 2026-11-07) 아래 「이번 주 추천」:
-            게시판 칩은 전체 · 묶음의 게시판들(링크라 `?board=` 만 바뀌고 1쪽으로). 큰 카드 1 + 작은 카드 4 — 홈 하이라이트와 같은 크기(고르는 기준은 서버 몫 — 최근 7일 추천순).
-          · 카드 2 「최신 글」 — 사진 + 제목 + 요약 2줄 + 게시판·작성자·날짜, 쪽 번호.
-          · 카드 3 「많이 본 글」 1~5 — 넓으면 카드 2 오른쪽 칸(20rem — 본문 폭을 1200 으로 넓힐 때 늘어난 6rem 을 이 칸만 받아 최신 글 칸 폭은 그대로, 사용자 2026-11-13), 좁으면 카드 2 아래.
-          · 카드 4 「태그」 — 카드 3 아래(같은 칸). 칩을 누르면 `/search?q=태그`(태그 거르기가 없어 임시).
-        칸 나누기는 화면 폭이 아니라 카드·본문 폭(`@container`)으로 한다 — 사이드 메뉴로 본문이 좁을 때도 맞게. 가로로 미는 상자에는 `relative` 를 둔다(안의 절대 위치 글자가 빠져나와 문서를 넓히지 않게).
-        서버 `GET /api/tips`·`GET /api/tips/posts`(`useTipsApi`). ⚠ MOCK: 태그만 서버에 없어 지어낸 값이다(`composables/tips/api/mock/tips-mock.ts`).
+        **레이아웃 편집**(사용자 2026-11-13 — tips-contract 「/tips 레이아웃 편집」): 카드 배치는 시스템 가젯 페이지 `tips-magazine`(`GET /api/pages/tips-magazine`)의 지금 테마 배치다 —
+        관리자 `설정 › 테마 › 레이아웃 › 페이지` 에서 홈·가젯 페이지와 같은 편집기(실제 화면 iframe)로 옮기고 크기를 바꾼다. 가젯 페이지 `/p/tips` 는 따로 남아 있다.
+          · 제목 카드(가젯이 아니라 이 화면이 그린다) — 페이지 이름·설명(관리자 「페이지 정보」) + 오른쪽 게시판 칩(`?board=` — 네 가젯 모두에 걸린다), 굵은 밑줄.
+            보이는 첫 「이번 주 추천」(`TIPS_HEADLINE`)은 밑줄 아래 이 카드 안에 넣는다(제목을 따로 떼지 않는다 — 사용자 2026-11-07). 관리자 미리보기 편집 중에는 격자에 둔다(손잡이로 옮길 수 있게).
+          · 그 아래 격자(지금 테마의 홈 템플릿 `GadgetGrid`) — 이번 주 추천 · 최신글(`TIPS_LATEST`, 쪽 번호) · 많이 본 글(`TIPS_POPULAR`) · 태그(`TIPS_TAGS` — ⚠ MOCK) + 운영자가 넣은 다른 가젯.
+            처음 배치는 최신글 17칸 + 오른쪽 7칸에 많이 본 글·태그(본문 폭 1200 에서 지금까지와 같은 칸).
+        네 가젯의 데이터는 이 화면이 한 번 받아 나눠 준다(`provideTipsShared` — `GET /api/tips`·`GET /api/tips/posts`). 시스템 페이지가 없으면(옛 설치) 화면에 박힌 처음 배치(`UtilTips.fallbackPage`)로 그린다.
+        **관리자 미리보기**(`useAdminPreview`): 관리자가 보낸 저장 전 배치(`home`)·머리(`page`)를 덮어 그리고, 편집 중이면 격자에 손잡이가 얹힌다(가젯 페이지 `/p/{key}` 와 같다).
     -->
-    <div class="gadget-stack @container" data-testid="tips-page">
+    <div class="flex flex-col gap-(--gadget-gap)" :aria-busy="status === 'loading'" data-cache-area="pages.layout" data-testid="tips-page">
         <p role="status" aria-live="polite" class="sr-only">{{ summary }}</p>
 
-        <!-- 카드 1 — 매거진 머리: 페이지 제목·설명 + 오른쪽 게시판 칩(굵은 밑줄로 지면 머리처럼), 그 아래 「이번 주 추천」 헤드라인 -->
-        <section class="gadget-card flex flex-col" data-headless :aria-labelledby="headlineId" :aria-busy="overviewStatus === 'loading'" data-testid="tips-headline">
-            <!-- 제목 머리 — 묶음 메뉴 화면 공용(`PageTitleHead` — 커뮤니티·핫 로토픽·소모임과 같은 글자 크기·여백) -->
-            <PageTitleHead :title="t('tips.title')" :description="t('tips.subtitle')" divider>
-                <template #actions>
-                <nav :aria-label="t('tips.boardTabs')" class="relative flex min-w-0 shrink-0 gap-1.5 overflow-x-auto py-1 [scrollbar-width:none]" data-testid="tips-board-tabs">
-                    <template v-if="boards">
-                        <NuxtLink
-                            v-for="chip in chips"
-                            :key="chip.slug || 'all'"
-                            :to="to({ board: chip.slug, page: 1 })"
-                            :class="chipClass(chip.slug === board)"
-                            :aria-current="chip.slug === board ? 'page' : undefined"
-                            :data-testid="`tips-tab-${chip.slug || 'all'}`"
-                        >
-                            <span class="relative top-[-0.09em]">{{ chip.label }}</span>
-                        </NuxtLink>
-                    </template>
-                    <template v-else-if="overviewStatus === 'loading'">
-                        <i v-for="n in 3" :key="n" class="h-7 w-14 shrink-0 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" aria-hidden="true" />
-                    </template>
-                </nav>
-                </template>
-            </PageTitleHead>
+        <ErrorState v-if="status === 'error'" :title="t('tips.loadFailed')" :description="errorMessage" retry @retry="load" />
 
-            <h2 :id="headlineId" class="m-0 mb-3 mt-4 flex items-center gap-1.5 text-[0.96875rem] font-bold">
-                <i class="pi pi-star gadget-icon shrink-0 text-sm" aria-hidden="true" />{{ t('tips.headlineTitle') }}
-            </h2>
-
-            <div class="@container min-w-0">
-                <div v-if="overviewStatus === 'loading'" class="grid gap-4 @min-[36rem]:grid-cols-[minmax(0,23.5rem)_minmax(0,1fr)] @min-[36rem]:gap-x-7" aria-hidden="true">
-                    <div>
-                        <div class="aspect-video w-full animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" />
-                        <div class="mt-3 h-5 w-4/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
-                        <div class="mt-2 h-3.5 w-3/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
-                    </div>
-                    <div class="hidden flex-col gap-4 @min-[36rem]:flex">
-                        <div v-for="n in 4" :key="n" class="flex gap-3.5">
-                            <div class="aspect-[16/10] w-20 shrink-0 animate-pulse rounded-md bg-surface-200 dark:bg-surface-800" />
-                            <div class="flex-1">
-                                <div class="h-4 w-11/12 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
-                                <div class="mt-2 h-3 w-2/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <ErrorState v-else-if="overviewStatus === 'error'" :title="t('tips.loadFailed')" :description="overviewError" retry @retry="loadOverview" />
-
-                <EmptyState v-else-if="headline.length === 0" :title="t('tips.emptyTitle')" :description="t('tips.emptyText')" icon="pi pi-star" />
-
-                <div v-else class="grid gap-4 @min-[36rem]:grid-cols-[minmax(0,23.5rem)_minmax(0,1fr)] @min-[36rem]:gap-x-7">
-                    <!-- 큰 카드 -->
-                    <FoldedRow v-if="lead" :reason="foldOf(lead)" kind="post" class="py-3 text-sm" hide-class="pb-2">
-                        <NuxtLink :to="`/posts/${lead.id}`" class="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="tips-lead">
-                            <!-- 카드 머리가 이미 「이번 주 추천」이라 사진 위 꼬리표는 두지 않는다 -->
-                            <GadgetThumb :src="lead.thumbnailUrl" ratio="16 / 9" class="w-full" />
-                            <p class="mt-3.5 line-clamp-2 break-words text-lg font-bold leading-snug tracking-tight group-hover:underline">{{ lead.title }}</p>
-                            <p v-if="lead.excerpt" class="mt-1.5 line-clamp-1 text-sm text-muted-color" data-testid="tips-lead-excerpt">{{ lead.excerpt }}</p>
-                            <p class="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                                <span class="font-semibold" :class="boardStyle(lead) ? '' : 'text-color'" :style="boardStyle(lead)">{{ boardName(lead) }}</span>
-                                <span aria-hidden="true">·</span>
-                                <span>{{ t('board.likesShort', { n: lead.likeCount }) }}</span>
-                                <span aria-hidden="true">·</span>
-                                <span>{{ t('home.commentCount', { n: lead.commentCount }) }}</span>
-                            </p>
-                        </NuxtLink>
-                    </FoldedRow>
-
-                    <!-- 작은 카드 4 — 좁으면 옆으로 밀어 넘기는 줄(사진 위, 카드 안쪽 좌우 여백 끝까지), 넓으면 세로 목록(사진 왼쪽) -->
-                    <ul
-                        v-if="side.length"
-                        class="relative m-0 mx-[calc(-1*var(--gadget-card-pad-x))] flex list-none snap-x snap-mandatory scroll-px-(--gadget-card-pad-x) gap-3 overflow-x-auto px-(--gadget-card-pad-x) pb-1 [scrollbar-width:none] @min-[36rem]:mx-0 @min-[36rem]:flex-col @min-[36rem]:gap-0 @min-[36rem]:overflow-visible @min-[36rem]:px-0 @min-[36rem]:pb-0"
-                        :aria-label="t('home.scrollRowLabel', { name: t('tips.headlineTitle') })"
-                        data-testid="tips-side"
-                    >
-                        <li v-for="row in side" :key="row.id" class="w-[68%] shrink-0 snap-start @min-[36rem]:w-auto @min-[36rem]:border-b @min-[36rem]:border-surface @min-[36rem]:first:-mt-3 @min-[36rem]:last:border-b-0">
-                            <FoldedRow :reason="foldOf(row)" kind="post" class="py-3 text-sm" hide-class="pb-2">
-                                <NuxtLink
-                                    :to="`/posts/${row.id}`"
-                                    class="group flex flex-col gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary @min-[36rem]:flex-row @min-[36rem]:items-center @min-[36rem]:gap-3.5 @min-[36rem]:py-2.5"
-                                    data-testid="tips-side-card"
-                                >
-                                    <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-full @min-[36rem]:w-20 @min-[36rem]:shrink-0" />
-                                    <div class="min-w-0 flex-1">
-                                        <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">{{ row.title }}</p>
-                                        <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                                            <span class="font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
-                                            <span aria-hidden="true">·</span>
-                                            <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                                        </p>
-                                    </div>
-                                </NuxtLink>
-                            </FoldedRow>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- 카드 2·3 — 넓으면 최신 글 왼쪽 · 많이 본 글 오른쪽 좁은 칸, 좁으면 위아래. 많이 본 글을 못 받았으면(머리 몫 오류 — 카드 1 이 알린다) 최신 글만 -->
-        <div class="grid items-start gap-(--gadget-gap)" :class="showMostViewed ? '@min-[46rem]:grid-cols-[minmax(0,1fr)_20rem]' : ''">
-            <!-- 카드 2 — 최신 글 -->
-            <section class="gadget-card flex min-w-0 flex-col" :data-look="look" :aria-labelledby="latestId" :aria-busy="listStatus === 'loading'" data-testid="tips-latest">
-                <div :class="headClass">
-                    <i class="pi pi-clock gadget-icon shrink-0 text-sm" aria-hidden="true" />
-                    <h2 :id="latestId" class="m-0 min-w-0 truncate font-bold" :class="titleClass">{{ t('tips.latestTitle') }}</h2>
-                </div>
-
-                <div class="@container min-w-0" :class="bodyClass">
-                    <div v-if="listStatus === 'loading'" role="status" :aria-label="t('tips.loading')"><FeedSkeleton :count="6" /></div>
-
-                    <ErrorState v-else-if="listStatus === 'error'" :title="t('tips.loadFailed')" :description="listError" retry @retry="loadPosts" />
-
-                    <template v-else-if="list">
-                        <template v-if="list.items.length === 0">
-                            <EmptyState v-if="state.page > 1" :title="t('feed.pageEmptyTitle')" icon="pi pi-file">
-                                <Button as="router-link" :to="to({ board, page: 1 })" :label="t('feed.firstPage')" />
-                            </EmptyState>
-                            <EmptyState v-else :title="t('tips.emptyTitle')" :description="t('tips.emptyText')" icon="pi pi-book" />
-                        </template>
-
-                        <template v-else>
-                            <ul class="-mt-3 m-0 list-none p-0" data-testid="tips-latest-list">
-                                <li v-for="row in list.items" :key="row.id" class="border-b border-surface last:border-b-0">
-                                    <FoldedRow :reason="foldOf(row)" kind="post" class="py-3 text-sm" hide-class="pb-2">
-                                        <!-- 칩·날짜 자리는 섞인 목록의 칩 위치(`listChipPosition`)를 따른다 — 이 목록은 원래 조회·추천 수를 보이지 않는다. 게시판 이름은 메타 줄 글자 그대로 -->
-                                        <NuxtLink :to="`/posts/${row.id}`" class="group block py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-latest-row">
-                                            <!--
-                                                모바일(사용자 시안 확정 2026-11-12): 윗줄 = 게시판 이름(맨 왼쪽) · 말머리 → 썸네일 64×48(그림 표시만) + 제목 → 본문 미리보기(썸네일 아래 줄 폭 전체) →
-                                                아랫줄(썸네일 밑까지 줄 폭 전체) = 아바타·닉네임 … 오른쪽 끝 추천 · 시간. 데스크톱은 아래 `PostRowFrame` 그대로
-                                            -->
-                                            <div class="md:hidden" data-testid="tips-latest-row-mobile">
-                                                <PostRowChips :row="row" general class="mb-1.5">
-                                                    <span class="shrink-0 text-xs font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
-                                                    <span class="text-xs text-muted-color" aria-hidden="true">·</span>
-                                                </PostRowChips>
-                                                <div class="flex items-start gap-2.5">
-                                                    <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" :label="false" class="w-16 shrink-0" />
-                                                    <p class="m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
-                                                        <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" :chips="false" />
-                                                    </p>
-                                                </div>
-                                                <!-- 본문 미리보기 — 썸네일 아래 줄 폭 전체(사용자 2026-11-12) -->
-                                                <p v-if="row.excerpt" class="m-0 mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-color">{{ row.excerpt }}</p>
-                                                <p class="mt-2 flex items-center gap-x-1.5 text-xs text-muted-color">
-                                                    <PostAuthorLabel :author="row.author" avatar menu class="min-w-0" />
-                                                    <!-- 시간은 닉네임 바로 오른쪽, 추천은 오른쪽 끝(사용자 2026-11-12 — 게시판 목록과 같게) -->
-                                                    <span aria-hidden="true">·</span>
-                                                    <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" class="shrink-0" />
-                                                    <PostRowStats :row="row" :views="false" class="ml-auto" />
-                                                </p>
-                                            </div>
-                                            <PostRowFrame :row="row" :position="display.listChipPosition" :views="false" :likes="false" row-class="items-start gap-3.5" class="max-md:hidden">
-                                                <template #start>
-                                                    <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-24 shrink-0 @min-[36rem]:w-36" />
-                                                </template>
-                                                <template #default="{ chips, stats, dateInline }">
-                                                    <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
-                                                        <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" :chips="chips" />
-                                                    </p>
-                                                    <p v-if="row.excerpt" class="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-color" data-testid="tips-latest-excerpt">{{ row.excerpt }}</p>
-                                                    <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                                                        <span class="font-semibold" :class="boardStyle(row) ? '' : 'text-color'" :style="boardStyle(row)">{{ boardName(row) }}</span>
-                                                        <span aria-hidden="true">·</span>
-                                                        <PostAuthorLabel :author="row.author" menu />
-                                                        <template v-if="stats">
-                                                            <span aria-hidden="true">·</span>
-                                                            <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
-                                                        </template>
-                                                        <!-- 「제목 위」 — 날짜만 닉네임(등급) 바로 뒤에(조회·추천은 윗줄 오른쪽 끝) -->
-                                                        <template v-if="dateInline">
-                                                            <span aria-hidden="true">·</span>
-                                                            <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
-                                                        </template>
-                                                    </p>
-                                                </template>
-                                            </PostRowFrame>
-                                        </NuxtLink>
-                                    </FoldedRow>
-                                </li>
-                            </ul>
-
-                            <BoardPager :page="list.page" :total-pages="list.totalPages" :to="(n: number) => to({ board, page: n })" class="pb-0" />
-                        </template>
-                    </template>
-                </div>
+        <template v-else-if="!grid">
+            <section class="gadget-card" data-headless>
+                <PageTitleHead :title="head.name" :description="head.description" />
             </section>
+            <GadgetSkeleton />
+        </template>
 
-            <!-- 오른쪽 좁은 칸(좁으면 최신 글 아래) — 카드 3 많이 본 글 · 카드 4 태그 -->
-            <div v-if="showMostViewed" class="flex min-w-0 flex-col gap-(--gadget-gap)" data-testid="tips-aside">
-                <!-- 카드 3 — 많이 본 글 1~5 -->
-                <section class="gadget-card flex min-w-0 flex-col" :data-look="look" :aria-labelledby="mostViewedId" :aria-busy="overviewStatus === 'loading'" data-testid="tips-most-viewed">
-                    <div :class="headClass">
-                        <i class="pi pi-eye gadget-icon shrink-0 text-sm" aria-hidden="true" />
-                        <h2 :id="mostViewedId" class="m-0 min-w-0 truncate font-bold" :class="titleClass">{{ t('tips.mostViewedTitle') }}</h2>
-                    </div>
-
-                    <div class="min-w-0" :class="bodyClass">
-                        <div v-if="overviewStatus === 'loading'" class="flex flex-col gap-3 py-1" aria-hidden="true">
-                            <div v-for="n in 5" :key="n" class="h-4 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-11/12' : 'w-3/4'" />
-                        </div>
-                        <p v-else-if="mostViewed.length === 0" class="m-0 py-2 text-sm text-muted-color">{{ t('tips.mostViewedEmpty') }}</p>
-                        <ol v-else class="-mt-2.5 m-0 list-none p-0">
-                            <li v-for="(row, i) in mostViewed" :key="row.id" class="flex items-start gap-2.5 border-b border-surface last:border-b-0">
-                                <span class="w-4 shrink-0 pt-2.5 text-sm font-bold leading-snug tabular-nums" :class="i < 3 ? 'text-primary' : 'text-muted-color'">
-                                    <span aria-hidden="true">{{ i + 1 }}</span><span class="sr-only">{{ t('feed.rank', { n: i + 1 }) }}</span>
-                                </span>
-                                <FoldedRow :reason="foldOf(row)" kind="post" class="min-w-0 flex-1 py-2.5 text-sm" hide-class="pb-2">
-                                    <NuxtLink :to="`/posts/${row.id}`" class="group block min-w-0 flex-1 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="tips-most-viewed-row">
-                                        <p class="line-clamp-2 break-words text-sm leading-snug group-hover:underline">{{ row.title }}</p>
-                                        <p class="mt-0.5 text-xs text-muted-color">{{ t('board.viewsShort', { n: row.viewCount }) }}</p>
+        <component :is="template" v-else :layout="grid.layout" :gadgets="grid.gadgets">
+            <template #lead>
+                <!-- 제목 카드 — 페이지 제목·설명 + 오른쪽 게시판 칩(굵은 밑줄로 지면 머리처럼), 그 아래 「이번 주 추천」 -->
+                <section class="gadget-card flex flex-col" data-headless data-testid="tips-head">
+                    <!-- 제목 머리 — 묶음 메뉴 화면 공용(`PageTitleHead` — 커뮤니티·핫 로토픽·소모임과 같은 글자 크기·여백) -->
+                    <PageTitleHead :title="head.name" :description="head.description" :divider="Boolean(headGadget)" title-testid="tips-title">
+                        <template #actions>
+                            <nav :aria-label="t('tips.boardTabs')" class="relative flex min-w-0 shrink-0 gap-1.5 overflow-x-auto py-1 [scrollbar-width:none]" data-testid="tips-board-tabs">
+                                <template v-if="tips.boardsLoaded.value">
+                                    <NuxtLink
+                                        v-for="chip in tips.chips.value"
+                                        :key="chip.slug || 'all'"
+                                        :to="tips.to({ board: chip.slug, page: 1 })"
+                                        :class="chipClass(chip.slug === tips.board.value)"
+                                        :aria-current="chip.slug === tips.board.value ? 'page' : undefined"
+                                        :data-testid="`tips-tab-${chip.slug || 'all'}`"
+                                    >
+                                        <span class="relative top-[-0.09em]">{{ chip.label }}</span>
                                     </NuxtLink>
-                                </FoldedRow>
-                            </li>
-                        </ol>
+                                </template>
+                                <template v-else-if="tips.overviewStatus.value === 'loading'">
+                                    <i v-for="n in 3" :key="n" class="h-7 w-14 shrink-0 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" aria-hidden="true" />
+                                </template>
+                            </nav>
+                        </template>
+                    </PageTitleHead>
+                    <div v-if="headGadget" class="page-head-gadget mt-[0.9375rem]" data-testid="tips-head-gadget">
+                        <GadgetRenderer :gadget="headGadget" />
                     </div>
                 </section>
+            </template>
+        </component>
 
-                <!-- 카드 4 — 태그(⚠ MOCK: 지어낸 태그). 칩을 누르면 그 말로 검색(태그 거르기가 없어 임시) -->
-                <section v-if="overviewStatus === 'loading' || tags.length" class="gadget-card flex min-w-0 flex-col" :data-look="look" :aria-labelledby="tagsId" :aria-busy="overviewStatus === 'loading'" data-testid="tips-tags">
-                    <div :class="headClass">
-                        <i class="pi pi-hashtag gadget-icon shrink-0 text-sm" aria-hidden="true" />
-                        <h2 :id="tagsId" class="m-0 min-w-0 truncate font-bold" :class="titleClass">{{ t('tips.tagsTitle') }}</h2>
-                    </div>
-
-                    <div class="min-w-0" :class="bodyClass">
-                        <div v-if="overviewStatus === 'loading'" class="flex flex-wrap gap-2" aria-hidden="true">
-                            <i v-for="n in 6" :key="n" class="h-7 w-16 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" />
-                        </div>
-                        <ul v-else class="m-0 flex list-none flex-wrap gap-2 p-0">
-                            <li v-for="tag in tags" :key="tag.name">
-                                <NuxtLink
-                                    :to="{ path: '/search', query: UtilSearchQuery.build({ q: tag.name }) }"
-                                    class="inline-flex min-h-7 items-center justify-center rounded-full border border-hairline-strong px-3 text-xs leading-none text-color hover:border-(--p-text-color) focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-                                    :aria-label="t('tips.tagSearch', { name: tag.name })"
-                                    data-testid="tips-tag"
-                                >
-                                    <span class="relative top-[-0.09em]">#{{ tag.name }}</span>
-                                </NuxtLink>
-                            </li>
-                        </ul>
-                    </div>
-                </section>
-            </div>
-        </div>
+        <!-- 글쓰기 — 운영자가 「페이지 정보」에서 켰을 때 오른쪽 아래에 떠 있는 단추 -->
+        <WriteFloatButton v-if="head.writeButton" :to="writeTarget" data-testid="tips-write" />
     </div>
 </template>
 
 <script setup lang="ts">
-import type { TipsOverview, TipsPost, TipsPostPage } from '~/composables/tips/api/useTipsApi.types';
-import type { TipsState } from '~/utils/util-tips';
+import type { Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
+import type { GadgetPageHead } from '~/composables/page/api/useGadgetPageApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-import UtilBoard from '~/utils/util-board';
+import UtilAdminPreview from '~/utils/util-admin-preview';
 import UtilBoardMessages from '~/utils/util-board-messages';
-import UtilSearchQuery from '~/utils/util-search-query';
+import UtilGadget from '~/utils/util-gadget';
+import UtilTheme from '~/utils/util-theme';
 import UtilTips from '~/utils/util-tips';
 
-/**
- * 팁·강좌·사용기 묶음 화면 — 주소의 `board`·`page` 가 화면의 상태다(틀린 값은 전체·1쪽, 기본값은 주소에서 뺀다).
- * 머리 몫(칩·헤드라인·많이 본 글)은 게시판이나 보는 사람이 바뀔 때, 최신 글은 쪽이 바뀔 때도 새로 받는다. 늦게 온 옛 결과는 요청 번호로 버린다.
- * API 는 `useTipsApi`(`GET /api/tips`·`GET /api/tips/posts` — 태그만 ⚠ MOCK).
- */
 const { t } = useI18n();
-const route = useRoute();
-const api = useTipsApi();
+const api = useGadgetPageApi();
 const { user } = useAuth();
 const { theme } = useTheme();
 const { localizedName } = useLocalizedName();
-const overrides = useBlockOverrides();
-const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
+const { ensureLoaded: ensureDisplay } = useBoardDisplay();
 void ensureDisplay();
 
-const headlineId = useId();
-const latestId = useId();
-const mostViewedId = useId();
-const tagsId = useId();
+// 이 방문에서 가젯들이 나눠 쓰는 것 — 폭(lg)·지금 시각 · 팁 묶음 데이터(네 가젯)
+const { wide } = provideGadgetShared();
+const tips = provideTipsShared();
 
-/**
- * 카드 머리 모양 — 가젯 틀(`GadgetFrame`)의 두 모양과 같은 클래스. 고르는 짝도 홈 템플릿과 같다(기본 테마 `DefaultHome` = 기본형 `classic`, 그 밖 테마 = 카드형 `card`).
- * 기본형은 머리 아래 선 + 본문 위 여백, 카드형은 높이 44·48 머리 줄.
- */
-const look = computed<'classic' | 'card'>(() => (theme.value === 'default' ? 'classic' : 'card'));
-const headClass = computed(() => ['gadget-head flex min-w-0 items-center gap-1.5', look.value === 'card' ? 'min-h-11 md:min-h-12' : 'border-b border-surface pb-2'].join(' '));
-const titleClass = computed(() => (look.value === 'card' ? 'text-base' : 'text-sm'));
-const bodyClass = computed(() => (look.value === 'card' ? 'pt-1' : 'pt-3'));
+/** 지금 테마의 홈 템플릿(없으면 기본 테마 것) — 가젯 페이지와 같은 겉모양 */
+const template = computed(() => UtilTheme.resolve(theme.value, 'home'));
 
-const state = computed<TipsState>(() => UtilTips.parse(route.query));
+const status = ref<'loading' | 'ready' | 'error'>('loading');
+/** 받은 페이지 — 시스템 페이지가 없으면(404) 머리 없이 처음 배치 */
+const raw = ref<{ res: GadgetsResponse; head: GadgetPageHead | null; extra: Gadget[] } | null>(null);
+const errorMessage = ref('');
 
-const overviewStatus = ref<'loading' | 'ready' | 'error'>('loading');
-const overview = ref<TipsOverview | null>(null);
-const overviewError = ref('');
-const listStatus = ref<'loading' | 'ready' | 'error'>('loading');
-const list = ref<TipsPostPage | null>(null);
-const listError = ref('');
+const preview = useAdminPreview();
 
-const boards = computed(() => overview.value?.boards ?? null);
-/** 지금 고른 게시판 — 묶음에 없는 slug 는 전체 */
-const board = computed(() => UtilTips.knownBoard(state.value.board, boards.value));
-const chips = computed(() => [{ slug: '', label: t('common.all') }, ...(boards.value ?? []).map((b) => ({ slug: b.slug, label: localizedName(b.name, b.nameEn) }))]);
-
-const headline = computed(() => overview.value?.headline ?? []);
-const lead = computed(() => headline.value[0] ?? null);
-const side = computed(() => headline.value.slice(1, 5));
-const mostViewed = computed(() => overview.value?.mostViewed ?? []);
-const tags = computed(() => overview.value?.tags ?? []);
-/** 많이 본 글 카드 — 머리 몫을 못 받았으면 뺀다(오류는 카드 1 이 한 번만 알린다) */
-const showMostViewed = computed(() => overviewStatus.value !== 'error');
-
-const summary = computed(() => {
-    if (listStatus.value === 'loading') return t('tips.loading');
-    if (listStatus.value === 'error') return t('tips.loadFailed');
-    return t('tips.summary', { count: list.value?.items.length ?? 0 });
+/** 그릴 머리 — 관리자 미리보기면 관리자의 저장 전 값, 페이지가 없으면 화면 문구 */
+const head = computed(() => {
+    const p = preview.page.value;
+    if (p) return { name: p.name, description: p.description, writeButton: p.writeButton };
+    const h = raw.value?.head;
+    return h ? { name: localizedName(h.name, h.nameEn), description: h.description, writeButton: h.writeButton } : { name: t('tips.title'), description: t('tips.subtitle'), writeButton: false };
+});
+const writeTarget = computed(() => {
+    const board = raw.value?.head?.writeBoard ?? null;
+    return board ? { path: '/write', query: { board } } : { path: '/write' };
 });
 
-function to(next: TipsState) {
-    return { path: UtilTips.PATH, query: UtilTips.build(next) };
-}
+/** 그릴 배치·가젯 — 관리자 미리보기면 관리자의 저장 전 구성을 덮는다 */
+const data = computed(() => {
+    const r = raw.value;
+    if (!r) return null;
+    return UtilGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
+});
+const shown = useAdGadgets(data, 'PAGE');
+
+/**
+ * 제목 카드에 넣을 가젯 — 이 폭에서 보이는 첫 「이번 주 추천」(읽는 순서 y·x), 없으면 ⚙ 「페이지 제목 카드에 넣기」를 켠 첫 가젯.
+ * 관리자 미리보기 **편집 중**에는 넣지 않는다(격자 손잡이로 옮기고 크기를 바꿀 수 있게 격자에 그대로 둔다).
+ */
+const headGadget = computed(() => {
+    const s = shown.value;
+    if (!s || preview.editing.value) return null;
+    const byId = new Map(s.gadgets.map((g) => [g.id, g]));
+    const order = [...s.layout.items].sort((a, b) => a.y - b.y || a.x - b.x);
+    const visible = order.map((i) => byId.get(i.gadgetId)).filter((g): g is Gadget => Boolean(g) && UtilGadget.isVisible(g!, wide.value));
+    return visible.find((g) => g.type === 'TIPS_HEADLINE') ?? visible.find((g) => UtilGadget.pageHeadOn(g.type, g.config)) ?? null;
+});
+/** 격자에 그릴 배치·가젯 — 제목 카드에 넣은 가젯은 뺀다(자리는 아래 가젯이 당겨 메운다) */
+const grid = computed(() => {
+    const s = shown.value;
+    const h = headGadget.value;
+    if (!s || !h) return s;
+    return { ...s, layout: { ...s.layout, items: s.layout.items.filter((i) => i.gadgetId !== h.id) }, gadgets: s.gadgets.filter((g) => g.id !== h.id) };
+});
+
+const summary = computed(() => {
+    const listStatus = tips.listStatus.value;
+    if (listStatus === 'loading') return t('tips.loading');
+    if (listStatus === 'error') return t('tips.loadFailed');
+    return t('tips.summary', { count: tips.list.value?.items.length ?? 0 });
+});
 
 function chipClass(active: boolean): string {
     return [
@@ -339,78 +146,47 @@ function chipClass(active: boolean): string {
     ].join(' ');
 }
 
-function boardName(row: TipsPost): string {
-    return localizedName(row.board.name, row.board.nameEn);
-}
+let seq = 0;
+let abort: AbortController | null = null;
 
-function boardStyle(row: TipsPost) {
-    return UtilBoard.textStyle(row.board.color);
-}
-
-/** 접는 까닭 — 차단한 회원·단어의 글이면 접힌 줄(게시판 글 목록과 같다) */
-function foldOf(row: TipsPost) {
-    return overrides.blockedOf(row.author.memberId, row.blocked);
-}
-
-let overviewSeq = 0;
-let overviewAbort: AbortController | null = null;
-let listSeq = 0;
-let listAbort: AbortController | null = null;
-
-async function loadOverview() {
-    const mine = ++overviewSeq;
-    overviewAbort?.abort();
+async function load(): Promise<void> {
+    const mine = ++seq;
+    abort?.abort();
     const controller = new AbortController();
-    overviewAbort = controller;
-    overviewStatus.value = 'loading';
+    abort = controller;
+    status.value = 'loading';
     try {
-        const res = await api.overview(state.value.board, controller.signal);
-        if (mine !== overviewSeq) return;
-        overview.value = res;
-        overviewStatus.value = 'ready';
+        const { res, extra } = await api.page(UtilTips.PAGE_KEY, { signal: controller.signal, preview: preview.active.value });
+        if (mine !== seq) return;
+        const { page, ...rest } = res;
+        if (!UtilGadget.sanitize(rest)) throw new Error('bad page response');
+        raw.value = { res: rest, head: page, extra };
+        status.value = 'ready';
     } catch (e) {
-        if (mine !== overviewSeq) return;
+        if (mine !== seq) return;
         if (e instanceof ApiError && e.code === 'ABORTED') return;
-        overviewError.value = UtilBoardMessages.of(t, e);
-        overviewStatus.value = 'error';
+        // 시스템 페이지가 없다(옛 설치 구조) — 화면에 박힌 처음 배치로 그린다
+        if (e instanceof ApiError && e.status === 404) {
+            const fallback = UtilGadget.sanitize(UtilTips.fallbackPage(t));
+            if (fallback) {
+                raw.value = { res: fallback, head: null, extra: [] };
+                status.value = 'ready';
+                return;
+            }
+        }
+        errorMessage.value = UtilBoardMessages.of(t, e);
+        status.value = 'error';
     }
 }
 
-async function loadPosts() {
-    const mine = ++listSeq;
-    listAbort?.abort();
-    const controller = new AbortController();
-    listAbort = controller;
-    list.value = null;
-    listStatus.value = 'loading';
-    try {
-        const res = await api.posts({ board: state.value.board, page: state.value.page }, controller.signal);
-        if (mine !== listSeq) return;
-        list.value = res;
-        listStatus.value = 'ready';
-    } catch (e) {
-        if (mine !== listSeq) return;
-        if (e instanceof ApiError && e.code === 'ABORTED') return;
-        listError.value = UtilBoardMessages.of(t, e);
-        listStatus.value = 'error';
-    }
-}
-
-// 게시판·보는 사람이 바뀌면 머리 몫도, 쪽만 바뀌면 최신 글만 새로 받는다. 쪽을 바꾸면 맨 위로
-watch(
-    () => [state.value.board, state.value.page, user.value?.id ?? null] as const,
-    (now, before) => {
-        if (!before || now[0] !== before[0] || now[2] !== before[2]) void loadOverview();
-        void loadPosts();
-        if (before && now[1] !== before[1] && typeof window !== 'undefined') window.scrollTo({ top: 0 });
-    },
-    { immediate: true },
-);
-onBeforeUnmount(() => {
-    overviewAbort?.abort();
-    listAbort?.abort();
+// 들어올 때 · 보는 사람이 바뀔 때(로그인·로그아웃) — 다시 받는 동안은 앞 화면을 그대로 둔다. 게시판 칩·쪽은 가젯 데이터만 바뀐다(`provideTipsShared`)
+watch(() => user.value?.id ?? null, () => void load(), { immediate: true });
+// 관리자 미리보기 — 테마를 바꿔 보내면 다시 받는다(배치·머리는 받은 값 위에 덮어 그린다)
+watch(theme, () => {
+    if (preview.active.value) void load();
 });
+onBeforeUnmount(() => abort?.abort());
 
 const { siteLabel } = useSiteName();
-useSeoMeta({ title: () => t('tips.title'), description: () => t('tips.seoDescription', { site: siteLabel.value }) });
+useSeoMeta({ title: () => head.value.name, description: () => t('tips.seoDescription', { site: siteLabel.value }) });
 </script>

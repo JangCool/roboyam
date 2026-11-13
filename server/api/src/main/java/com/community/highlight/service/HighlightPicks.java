@@ -57,12 +57,13 @@ public class HighlightPicks {
     public record Pick(HighlightEntity highlight, PostFeedRowView post, String imageUrl) {
     }
 
-    /** 가젯 설정의 곳 → 읽을 곳. 홈·팁이거나 있는 가젯 페이지 키면 그대로, 아니면(모양 틀림·지운 페이지) home */
+    /** 가젯 설정의 곳 → 읽을 곳. 홈·팁이거나 있는 가젯 페이지 키면 그대로(시스템 페이지 TIPS 의 키는 팁), 아니면(모양 틀림·지운 페이지) home */
     public String resolve(String place) {
         if (!HighlightPlaces.wellFormed(place)) {
             return HighlightPlaces.HOME;
         }
-        return HighlightPlaces.builtIn(place) || pages.existsByPageKey(place) ? place : HighlightPlaces.HOME;
+        String key = HighlightPlaces.canonical(place);
+        return HighlightPlaces.builtIn(key) || pages.existsByPageKey(key) ? key : HighlightPlaces.HOME;
     }
 
     /**

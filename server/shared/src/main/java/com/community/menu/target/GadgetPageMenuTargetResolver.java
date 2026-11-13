@@ -8,7 +8,8 @@ import com.community.zconfiguration.message.MessageRef;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code GADGET_PAGE} — {@code targetId} = {@code gadget_pages.id}(영문 주소가 바뀌어도 따라간다). 기본 이름 = 페이지 이름(+영문 이름), 주소 {@code /p/{key}}(그 아래 주소도 밝다).
+ * {@code GADGET_PAGE} — {@code targetId} = {@code gadget_pages.id}(영문 주소가 바뀌어도 따라간다). 기본 이름 = 페이지 이름(+영문 이름), 주소 {@code /p/{key}}(그 아래 주소도 밝다 —
+ * 시스템 페이지 TIPS 는 {@code /tips}, tips-contract 「/tips 레이아웃 편집」).
  * 한 그룹 안에서 한 번. 로그인·판매 조건은 없다. 페이지가 없어지면 {@code TARGET_MISSING}(공개 메뉴에서 빠진다). menu-contract 「가젯 페이지 연결」.
  */
 @Component
@@ -70,6 +71,6 @@ public class GadgetPageMenuTargetResolver implements MenuTargetResolver {
         if (page == null) {
             return null;
         }
-        return new ResolvedTarget("/p/" + page.key(), true, page.name(), page.nameEn(), false, null, null);
+        return new ResolvedTarget(page.path(), true, page.name(), page.nameEn(), false, null, null);
     }
 }

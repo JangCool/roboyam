@@ -173,7 +173,8 @@ public class HighlightAdminService {
         out.add(new HighlightPlaceView(HighlightPlaces.TIPS, messages.get("highlight.place.tips"), "TIPS", totals.getOrDefault(HighlightPlaces.TIPS, 0L)));
         boolean english = "en".equals(messages.locale().getLanguage());
         for (GadgetPageEntity page : gadgetPages.findAllByOrderByIdAsc()) {
-            if (HighlightPlaces.builtIn(page.getPageKey()) || !HighlightPlaces.wellFormed(page.getPageKey())) {
+            // 시스템 페이지(/tips 의 배치)는 따로 두지 않는다 — 그 키는 tips 곳이다(HighlightPlaces.canonical)
+            if (page.isSystem() || HighlightPlaces.builtIn(page.getPageKey()) || !HighlightPlaces.wellFormed(page.getPageKey())) {
                 continue;
             }
             String name = english && page.getNameEn() != null && !page.getNameEn().isBlank() ? page.getNameEn() : page.getName();

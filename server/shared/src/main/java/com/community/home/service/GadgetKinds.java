@@ -52,14 +52,27 @@ public final class GadgetKinds {
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
     public static final String AD_TEXT_LINE = "AD_TEXT_LINE";
 
-    /** 종류 → 머리 아이콘(아이로빗 테마의 새 가젯) */
+    /**
+     * 팁·강좌·사용기 매거진({@code /tips}) 가젯 4종(tips-contract 「/tips 레이아웃 편집」 2026-11-13) — 시스템 페이지 {@code TIPS}({@code gadget_pages.system_page})의 배치에서만 받는다
+     * (홈·게시판 레이아웃·일반 가젯 페이지에서는 모르는 종류 — {@link #isKnown} 은 거짓). 내용 설정({@code config})이 없고 공개 응답의 {@code data} 는 null 이다
+     * (화면이 {@code /api/tips}·{@code /api/tips/posts} 로 채운다). 최소 크기는 계약 표(12칸 기준)와 같다.
+     */
+    public static final String TIPS_HEADLINE = "TIPS_HEADLINE";
+    public static final String TIPS_LATEST = "TIPS_LATEST";
+    public static final String TIPS_POPULAR = "TIPS_POPULAR";
+    public static final String TIPS_TAGS = "TIPS_TAGS";
+
+    /** 종류 → 머리 아이콘(아이로빗 테마의 새 가젯) — 매거진 4종은 지금 /tips 화면의 머리 아이콘과 같다 */
     private static final Map<String, String> ICONS = Map.ofEntries(Map.entry("HIGHLIGHT", "pi-sparkles"), Map.entry("POST_LIST", "pi-list"),
             Map.entry("BOARD_CARDS", "pi-th-large"), Map.entry("GALLERY", "pi-images"), Map.entry("GROUPS", "pi-users"), Map.entry("GROUP_BUY", "pi-shopping-bag"),
             Map.entry(HOT_DEALS, "pi-ticket"), Map.entry("QUICK_LINKS", "pi-link"), Map.entry("NOTICE_TEXT", "pi-megaphone"), Map.entry(AD, "pi-image"),
-            Map.entry(AD_TEXT_LINE, "pi-bars"));
+            Map.entry(AD_TEXT_LINE, "pi-bars"), Map.entry(TIPS_HEADLINE, "pi-star"), Map.entry(TIPS_LATEST, "pi-clock"), Map.entry(TIPS_POPULAR, "pi-eye"),
+            Map.entry(TIPS_TAGS, "pi-hashtag"));
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
+    /** 매거진 가젯 → {minW, minH}(12칸 기준) — {@link #MIN} 과 따로 두어 {@link #isKnown}·{@link #types} 에 들지 않는다 */
+    private static final Map<String, int[]> TIPS_MIN = tipsMinSizes();
 
     private GadgetKinds() {
     }
@@ -73,14 +86,32 @@ public final class GadgetKinds {
         return List.copyOf(MIN.keySet());
     }
 
+    /** 팁·강좌·사용기 매거진 가젯(시스템 페이지 TIPS 의 배치에서만 받는다)인가 */
+    public static boolean isTips(String type) {
+        return type != null && TIPS_MIN.containsKey(type);
+    }
+
+    /** 매거진 가젯 4종(차례 = 머리 · 최신 · 많이 본 · 태그) */
+    public static List<String> tipsTypes() {
+        return List.copyOf(TIPS_MIN.keySet());
+    }
+
     /** 그 칸 수에서의 최소 폭 */
     public static int minW(String type, int columns) {
-        int[] min = BOARD_BODY.equals(type) ? new int[]{BOARD_BODY_MIN_W, BOARD_BODY_MIN_H} : MIN.getOrDefault(type, new int[]{2, 2});
-        return Math.min(columns, min[0] * (columns / 12));
+        return Math.min(columns, min(type)[0] * (columns / 12));
     }
 
     public static int minH(String type) {
-        return BOARD_BODY.equals(type) ? BOARD_BODY_MIN_H : MIN.getOrDefault(type, new int[]{2, 2})[1];
+        return min(type)[1];
+    }
+
+    /** 종류의 {minW, minH}(12칸 기준) — 게시판 본문 · 8종 + 광고 · 매거진 4종, 모르면 2×2 */
+    private static int[] min(String type) {
+        if (BOARD_BODY.equals(type)) {
+            return new int[]{BOARD_BODY_MIN_W, BOARD_BODY_MIN_H};
+        }
+        int[] tips = type == null ? null : TIPS_MIN.get(type);
+        return tips != null ? tips : MIN.getOrDefault(type, new int[]{2, 2});
     }
 
     /** 공구 가젯 설정의 보일 개수 — 없거나 정수가 아니면 기본, 1~{@value #GROUP_BUY_COUNT_MAX} 로 자른다 */
@@ -184,6 +215,15 @@ public final class GadgetKinds {
         min.put("NOTICE_TEXT", new int[]{2, 3});
         min.put(AD, new int[]{2, 2});
         min.put(AD_TEXT_LINE, new int[]{3, 2});
+        return java.util.Collections.unmodifiableMap(min);
+    }
+
+    private static Map<String, int[]> tipsMinSizes() {
+        Map<String, int[]> min = new LinkedHashMap<>();
+        min.put(TIPS_HEADLINE, new int[]{6, 10});
+        min.put(TIPS_LATEST, new int[]{4, 10});
+        min.put(TIPS_POPULAR, new int[]{3, 6});
+        min.put(TIPS_TAGS, new int[]{3, 3});
         return java.util.Collections.unmodifiableMap(min);
     }
 }

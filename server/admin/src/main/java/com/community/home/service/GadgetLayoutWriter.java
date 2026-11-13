@@ -69,19 +69,25 @@ public class GadgetLayoutWriter {
      * @param theme  테마(새 가젯의 기본 꾸미기 · 행의 테마)
      * @param place  자리
      * @param pageId 가젯 페이지 ID — 가젯 페이지가 아니면 null
+     * @param tips   시스템 페이지 TIPS({@code /tips})의 배치인가 — 매거진 가젯 4종({@link GadgetKinds#isTips})은 여기서만 받는다
      */
-    public record Target(String theme, GadgetConfigs.Place place, Long pageId) {
+    public record Target(String theme, GadgetConfigs.Place place, Long pageId, boolean tips) {
 
         public static Target home(String theme) {
-            return new Target(theme, GadgetConfigs.Place.HOME, null);
+            return new Target(theme, GadgetConfigs.Place.HOME, null, false);
         }
 
         public static Target page(String theme, long pageId) {
-            return new Target(theme, GadgetConfigs.Place.PAGE, pageId);
+            return page(theme, pageId, false);
+        }
+
+        /** @param tips 시스템 페이지 TIPS 인가 */
+        public static Target page(String theme, long pageId, boolean tips) {
+            return new Target(theme, GadgetConfigs.Place.PAGE, pageId, tips);
         }
 
         public static Target board(String theme) {
-            return new Target(theme, GadgetConfigs.Place.BOARD, null);
+            return new Target(theme, GadgetConfigs.Place.BOARD, null, false);
         }
     }
 
@@ -169,6 +175,11 @@ public class GadgetLayoutWriter {
                 bodies++;
                 typeOf.put(id, base.type());
                 plans.add(new Plan(id, keep, base));
+                continue;
+            }
+            if (GadgetKinds.isTips(base.type()) && !target.tips()) {
+                // 매거진 가젯은 시스템 페이지 TIPS 에서만(저장 가젯·시드로 와도 다른 자리에서는 모르는 종류)
+                fields.put(path + ".type", new MessageRef("homeLayout.gadget.type"));
                 continue;
             }
             typeOf.put(id, base.type());
@@ -274,7 +285,9 @@ public class GadgetLayoutWriter {
         if (GadgetKinds.BOARD_BODY.equals(type) && target.place() == GadgetConfigs.Place.BOARD) {
             return BoardLayoutDefaults.body(id);
         }
-        if (!GadgetKinds.isKnown(type)) {
+        // 매거진 가젯 4종은 시스템 페이지 TIPS 에서만 — 내용 설정 없음(빈 config), 꾸미기는 다른 종류처럼 테마 기본 + 아이로빗 종류 아이콘
+        boolean tipsKind = target.tips() && GadgetKinds.isTips(type);
+        if (!GadgetKinds.isKnown(type) && !tipsKind) {
             fields.put(path + ".type", new MessageRef("homeLayout.gadget.type"));
             GadgetPatches.title(g.title(), path, fields);
             return null;

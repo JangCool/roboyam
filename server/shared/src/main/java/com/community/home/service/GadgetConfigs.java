@@ -147,8 +147,12 @@ public final class GadgetConfigs {
 
     /**
      * 관리자 편집기가 보는 설정 — 이 종류의 표 칸 전부(저장 값, 없거나 모르는 값이면 처음 값 — admin-web {@code UtilGadgetConfig.normalize} 와 같은 읽기). 고칠 수 없는 종류(게시판 본문)는 null.
+     * 매거진 4종({@link GadgetKinds#isTips})은 내용 설정이 없어 빈 객체다(저장 요청의 {@code config} 는 버린다 — {@link #settable} 거짓).
      */
     public static ObjectNode view(String type, JsonNode config) {
+        if (GadgetKinds.isTips(type)) {
+            return HomeLayoutJson.object();
+        }
         if (!settable(type)) {
             return null;
         }
@@ -252,11 +256,11 @@ public final class GadgetConfigs {
 
     /**
      * 하이라이트 가젯이 쓸 곳({@code place} — {@code home}·{@code tips}·가젯 페이지 키, tips-contract 「결정」) — 칸이 없거나 모양이 틀리면 {@code home}.
-     * 있는 곳인지는 보지 않는다(공개 읽기 {@code GadgetService} 가 없는 곳을 {@code home} 으로 읽는다).
+     * 있는 곳인지는 보지 않는다(공개 읽기 {@code GadgetService} 가 없는 곳을 {@code home} 으로 읽는다). 시스템 페이지 TIPS 의 키는 {@code tips} 로 읽는다({@link HighlightPlaces#canonical}).
      */
     public static String highlightPlace(JsonNode config) {
         String raw = HomeLayoutJson.text(config, "place", null);
-        return raw != null && HighlightPlaces.wellFormed(raw) ? raw : HighlightPlaces.HOME;
+        return raw != null && HighlightPlaces.wellFormed(raw) ? HighlightPlaces.canonical(raw) : HighlightPlaces.HOME;
     }
 
     /** 게시판 카드의 카드 머리(로고·이름·「게시판 가기」)를 보이는가 — 칸이 없거나 불리언이 아니면 보인다 */

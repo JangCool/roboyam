@@ -710,7 +710,7 @@ export default class UtilMenu {
                 return item.path;
             case 'GADGET_PAGE': {
                 const page = UtilMenu.gadgetPageOf(item.targetId, ctx);
-                return page ? `/p/${page.key}` : (item.targetId ?? '');
+                return page ? (page.path ?? `/p/${page.key}`) : (item.targetId ?? '');
             }
             case 'URL':
                 return UtilMenu.hostOf(item.href);

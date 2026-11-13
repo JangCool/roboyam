@@ -179,6 +179,10 @@ export interface MenuGadgetPageOption {
     key: string;
     name: string;
     nameEn: string | null;
+    /** 공개 주소 — 시스템 페이지 `TIPS` 는 `/tips`, 나머지는 `/p/{key}`(서버가 정한다 — tips-contract 「/tips 레이아웃 편집」) */
+    path: string;
+    /** 시스템 페이지 종류(팁·강좌·사용기 `TIPS`) — 일반 페이지는 null */
+    systemPage: 'TIPS' | null;
 }
 
 /** `GET /api/admin/menu/target-options?set=` 응답 — 대상 고르기·상태 계산·미리보기에 쓰는 값 한 번에 */

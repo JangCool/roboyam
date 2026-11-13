@@ -97,7 +97,7 @@
         <Dialog v-model:visible="addOpen" modal :header="t('homeLayout.addTitle')" :draggable="false" :style="{ width: '36rem', maxWidth: '92vw' }">
             <p class="m-0 mb-3 text-sm leading-relaxed text-muted-color">{{ t('homeLayout.addLead') }}</p>
             <ul class="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
-                <li v-for="spec in UtilGadgetLayoutEditor.KINDS" :key="spec.kind">
+                <li v-for="spec in UtilGadgetLayoutEditor.addable(page?.systemPage ?? null)" :key="spec.kind">
                     <button
                         type="button"
                         class="flex w-full items-start gap-3 rounded-lg border border-(--line) bg-transparent p-3 text-left hover:border-primary hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"

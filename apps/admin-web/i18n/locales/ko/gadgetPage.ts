@@ -23,6 +23,8 @@ export default {
     nameEn: '영문 이름',
     key: '영문 주소',
     keyHelp: '공개 주소 /p/주소 — 영문 소문자로 시작하는 소문자·숫자·- 2~30자예요. 바꾸면 메뉴 연결은 따라가지만 옛 주소는 열리지 않아요.',
+    publicPath: '공개 주소',
+    systemPathHelp: '팁·강좌·사용기 화면의 배치예요. 공개 주소와 영문 주소는 바꿀 수 없고, 지울 수도 없어요.',
     keyInvalid: '영문 소문자로 시작하는 소문자·숫자·- 2~30자로 적어 주세요.',
     description: '설명',
     descriptionHint: '{max}자까지 · 머리의 둘째 줄',

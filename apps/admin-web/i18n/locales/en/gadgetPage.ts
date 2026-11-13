@@ -23,6 +23,8 @@ export default {
     nameEn: 'English name',
     key: 'Address',
     keyHelp: 'Public address /p/address — 2–30 lowercase letters, digits or -, starting with a letter. Menu links follow a change, but the old address stops working.',
+    publicPath: 'Public address',
+    systemPathHelp: 'This is the layout of the Tips & Reviews screen. Its address and key are fixed, and it cannot be deleted.',
     keyInvalid: 'Use 2–30 lowercase letters, digits or -, starting with a letter.',
     description: 'Description',
     descriptionHint: 'Up to {max} · second line of the heading',

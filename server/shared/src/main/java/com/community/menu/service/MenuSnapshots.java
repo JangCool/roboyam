@@ -32,7 +32,7 @@ public class MenuSnapshots {
     public Map<Long, MenuPageRef> pages() {
         Map<Long, MenuPageRef> out = new LinkedHashMap<>();
         for (GadgetPageEntity page : pages.findAllByOrderByIdAsc()) {
-            out.put(page.getId(), new MenuPageRef(page.getId(), page.getPageKey(), page.getName(), page.getNameEn()));
+            out.put(page.getId(), new MenuPageRef(page.getId(), page.getPageKey(), page.getName(), page.getNameEn(), page.getSystemPage()));
         }
         return out;
     }

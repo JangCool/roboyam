@@ -33,8 +33,8 @@
                     </span>
                 </template>
             </Select>
-            <a v-if="current && userWebOrigin" :href="`${userWebOrigin}${UtilGadgetPage.path(current.key)}`" target="_blank" rel="noopener" class="text-xs text-primary underline-offset-2 hover:underline">
-                {{ UtilGadgetPage.path(current.key) }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /><span class="sr-only">{{ t('gadgetPage.openNewTab') }}</span>
+            <a v-if="current && userWebOrigin" :href="`${userWebOrigin}${UtilGadgetPage.pathOf(current)}`" target="_blank" rel="noopener" class="text-xs text-primary underline-offset-2 hover:underline">
+                {{ UtilGadgetPage.pathOf(current) }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /><span class="sr-only">{{ t('gadgetPage.openNewTab') }}</span>
             </a>
             <span class="flex-1" />
             <span v-if="current?.folderName" class="text-xs text-muted-color">{{ t('gadgetPage.folderOf', { folder: current.folderName }) }}</span>
@@ -77,7 +77,7 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 
 const current = computed(() => pages.value.find((p) => p.id === props.modelValue) ?? null);
-const pageOptions = computed(() => pages.value.map((p) => ({ value: p.id, label: localizedName(p.name, p.nameEn), path: UtilGadgetPage.path(p.key) })));
+const pageOptions = computed(() => pages.value.map((p) => ({ value: p.id, label: localizedName(p.name, p.nameEn), path: UtilGadgetPage.pathOf(p) })));
 
 watch(current, (value) => emit('update:page', value), { immediate: true });
 

@@ -49,6 +49,15 @@ export default class UtilGadgetPage {
     }
 
     /**
+     * 페이지의 공개 주소 — 시스템 페이지 `TIPS` 는 `/tips`(팁·강좌·사용기), 나머지는 `/p/{key}`
+     * @param {{ key: string; systemPage?: string | null }} page - 페이지.
+     * @returns {string} 공개 주소.
+     */
+    static pathOf(page: { key: string; systemPage?: string | null }): string {
+        return page.systemPage === 'TIPS' ? '/tips' : UtilGadgetPage.path(page.key);
+    }
+
+    /**
      * 처음 배치(24칸, 줄마다 꽉 차게 — 사용자 결정 2026-10-29) — 커뮤니티 예: 「커뮤니티 인기글」(인기·기간 탭, 24칸) / 게시판 카드 자유게시판·유머게시판(12+12 두 열) / 「커뮤니티 최신글」(24칸) / 맨 아래 「영상·짤」 갤러리(24칸).
      *   · 나란한 가젯은 같은 높이라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다). 켜진 게시판만 쓴다.
      *   · 인기글·최신글은 대상 게시판 = 폴더 게시판 전체(`FOLDER`) — 폴더에 게시판을 넣고 빼면 따라간다.

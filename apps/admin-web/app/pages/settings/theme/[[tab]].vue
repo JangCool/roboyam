@@ -245,7 +245,7 @@ const page = ref<GadgetPage | null>(null);
 /** 실제 화면 주소 — 홈 `/` · 페이지 `/p/{key}` · 게시판 `/boards/{slug}`·`/posts/{id}` */
 const previewPath = computed(() => {
     if (layoutKind.value === 'BOARD') return boardPath.value ?? '/';
-    return layoutKind.value === 'PAGE' && page.value ? UtilGadgetPage.path(page.value.key) : '/';
+    return layoutKind.value === 'PAGE' && page.value ? UtilGadgetPage.pathOf(page.value) : '/';
 });
 /** 실제 화면의 페이지 머리 */
 const previewPage = computed(() =>

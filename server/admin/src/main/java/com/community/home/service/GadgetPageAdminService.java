@@ -17,6 +17,7 @@ import com.community.home.entity.GadgetPageEntity;
 import com.community.home.entity.GadgetPageLayoutEntity;
 import com.community.home.entity.GadgetEntity;
 import com.community.home.exception.GadgetPageNotFoundException;
+import com.community.home.exception.GadgetPageSystemException;
 import com.community.home.repository.master.GadgetPageLayoutRepository;
 import com.community.home.repository.master.GadgetPageRepository;
 import com.community.home.repository.master.GadgetRepository;
@@ -34,6 +35,7 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>배치: 저장한 적 없는 테마는 처음 배치(그 테마의 기본 꾸미기). 저장은 홈과 같은 {@link GadgetLayoutWriter}(시드 = 처음 배치, 대상 게시판 {@code FOLDER} 를 받는다).
  *       같은 페이지의 저장·고치기는 페이지 행 잠금으로 줄 세운다.</li>
  *   <li>감사 {@code GADGET_PAGE_CREATE|UPDATE|DELETE|LAYOUT_UPDATE} · 관리자 알림 사이트 설정 변경(변형 {@code gadgetPage}).</li>
+ *   <li>시스템 페이지(V209 — {@code /tips} 의 배치, tips-contract 「/tips 레이아웃 편집」): 목록 맨 앞 · 지우기 {@code 409 GADGET_PAGE_SYSTEM} · 영문 주소 바꾸기 {@code 400 fields.key} ·
+ *       배치 저장에서 매거진 가젯 4종을 받는다. 페이지 수 한도({@value #MAX_PAGES})에는 시스템 페이지도 센다.</li>
  * </ul>
  */
 @Service
@@ -96,7 +100,9 @@ public class GadgetPageAdminService {
     @Transactional(readOnly = true)
     public GadgetPageListResponse list() {
         Map<Long, GadgetPageFolders.Folder> all = folders.all();
-        return new GadgetPageListResponse(pages.findAllByOrderByIdAsc().stream().map(p -> view(p, all)).toList());
+        // 시스템 페이지(/tips)를 맨 앞에, 그 밖은 만든 차례
+        return new GadgetPageListResponse(pages.findAllByOrderByIdAsc().stream().sorted(Comparator.comparing((GadgetPageEntity p) -> !p.isSystem()))
+                .map(p -> view(p, all)).toList());
     }
 
     /** 기준 폴더로 고를 폴더들(트리 차례) */
@@ -128,7 +134,7 @@ public class GadgetPageAdminService {
     public GadgetPageView update(AdminActor actor, long id, GadgetPageSaveRequest request) {
         GadgetPageEntity row = pages.findWithLockById(id).orElseThrow(GadgetPageNotFoundException::new);
         Map<Long, GadgetPageFolders.Folder> all = folders.all();
-        GadgetPageEntity.Fields next = validate(request, id, all);
+        GadgetPageEntity.Fields next = validate(request, row, all);
         GadgetPageEntity.Fields before = row.fields();
         if (!next.equals(before)) {
             row.change(next, actor.operatorId(), Instant.now());
@@ -150,6 +156,9 @@ public class GadgetPageAdminService {
     @Transactional
     public void delete(AdminActor actor, long id) {
         GadgetPageEntity row = pages.findWithLockById(id).orElseThrow(GadgetPageNotFoundException::new);
+        if (row.isSystem()) {
+            throw new GadgetPageSystemException();
+        }
         Instant now = Instant.now();
         List<String> menuSets = linker.pageDeleted(id, now);
         pages.delete(row);
@@ -186,7 +195,7 @@ public class GadgetPageAdminService {
         List<GadgetEntity> stored = gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId);
         HomeLayoutDefaults.Home seeds = GadgetPageInitial.read(page.getInitialLayout(), themeId);
         Instant now = Instant.now();
-        GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.page(themeId, id), stored, seeds::gadget, request, now);
+        GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.page(themeId, id, page.isTips()), stored, seeds::gadget, request, now);
 
         HomeGridLayout saved = result.layout();
         HomeGridLayout before = row == null ? seeds.layout() : row.toLayout();
@@ -209,8 +218,13 @@ public class GadgetPageAdminService {
 
     // ── 안쪽 ────────────────────────────────────────────────────────────────
 
-    /** 칸 검사 — 틀리면 칸 경로로 모아 400. 통과하면 다듬은 값 */
-    private GadgetPageEntity.Fields validate(GadgetPageSaveRequest request, Long selfId, Map<Long, GadgetPageFolders.Folder> all) {
+    /**
+     * 칸 검사 — 틀리면 칸 경로로 모아 400. 통과하면 다듬은 값. 시스템 페이지는 영문 주소를 바꿀 수 없다({@code fields.key} {@code gadgetPage.key.system}).
+     *
+     * @param self 고치는 페이지 — 만들기면 null
+     */
+    private GadgetPageEntity.Fields validate(GadgetPageSaveRequest request, GadgetPageEntity self, Map<Long, GadgetPageFolders.Folder> all) {
+        Long selfId = self == null ? null : self.getId();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String key = request == null || request.key() == null ? "" : request.key().strip();
         String name = request == null || request.name() == null ? "" : request.name().strip();
@@ -219,7 +233,9 @@ public class GadgetPageAdminService {
         if (selfId == null && pages.count() >= MAX_PAGES) {
             fields.put("pages", new MessageRef("gadgetPage.max", String.valueOf(MAX_PAGES)));
         }
-        if (!KEY.matcher(key).matches()) {
+        if (self != null && self.isSystem() && !key.equals(self.getPageKey())) {
+            fields.put("key", new MessageRef("gadgetPage.key.system"));
+        } else if (!KEY.matcher(key).matches()) {
             fields.put("key", new MessageRef("gadgetPage.key"));
         } else if (selfId == null ? pages.existsByPageKey(key) : pages.existsByPageKeyAndIdNot(key, selfId)) {
             fields.put("key", new MessageRef("gadgetPage.key.taken"));
@@ -258,7 +274,8 @@ public class GadgetPageAdminService {
                 : boards(folder);
         return new GadgetPageView(Long.toString(page.getId()), page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(),
                 page.getFolderId() == null ? null : page.getFolderId().toString(), folder == null ? null : folder.name(), boards, page.isWriteButton(),
-                nodeQueries.countLinking(GadgetPageMenuTargetResolver.TYPE, page.getId()), page.getUpdatedAt(), operatorName(page.getUpdatedBy()));
+                nodeQueries.countLinking(GadgetPageMenuTargetResolver.TYPE, page.getId()), page.getUpdatedAt(), operatorName(page.getUpdatedBy()),
+                page.getSystemPage());
     }
 
     private GadgetPageLayoutView view(GadgetPageLayoutEntity row, List<GadgetEntity> rows) {

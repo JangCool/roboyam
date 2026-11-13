@@ -41,6 +41,11 @@ export interface GadgetPageFolderListResponse {
 /** 가젯 페이지 한 개 */
 export interface GadgetPage {
     id: string;
+    /**
+     * 시스템 페이지 종류 — `TIPS` 면 팁·강좌·사용기 `/tips` 의 배치(서버 shared V209, 하나뿐 — tips-contract 「/tips 레이아웃 편집」). 일반 페이지는 null.
+     * 시스템 페이지는 지울 수 없고(409 `GADGET_PAGE_SYSTEM`) 영문 주소를 바꿀 수 없으며, 공개 주소가 `/p/{key}` 가 아니라 `/tips` 다.
+     */
+    systemPage: 'TIPS' | null;
     /** 영문 주소 — 공개 주소 `/p/{key}`. 소문자로 시작하는 소문자·숫자·`-` 2~30자, 겹치지 않는다 */
     key: string;
     /** 이름(1~40자) — 공개 페이지 머리의 제목 · 메뉴 연결 목록 */

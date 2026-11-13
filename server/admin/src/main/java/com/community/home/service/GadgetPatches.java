@@ -281,7 +281,7 @@ final class GadgetPatches {
                 if (present(raw, "place")) {
                     JsonNode key = raw.get("place");
                     if (key.isString() && HighlightPlaces.wellFormed(key.asString())) {
-                        out.put("place", key.asString());
+                        out.put("place", HighlightPlaces.canonical(key.asString())); // 시스템 페이지 TIPS 의 키는 tips 곳으로 저장
                     } else {
                         fields.put(base + "place", new MessageRef(opt));
                     }

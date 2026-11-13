@@ -141,7 +141,7 @@ public class MenuTreeService {
         List<MenuGradeOptionView> grades = snapshots.grades().stream().map(grade -> new MenuGradeOptionView(grade.getGradeKey(), grade.getLabel(), grade.getLevel()))
                 .toList();
         List<MenuGadgetPageOptionView> pages = snapshots.pages().values().stream()
-                .map(page -> new MenuGadgetPageOptionView(Long.toString(page.id()), page.key(), page.name(), page.nameEn())).toList();
+                .map(page -> new MenuGadgetPageOptionView(Long.toString(page.id()), page.key(), page.name(), page.nameEn(), page.path(), page.systemPage())).toList();
         return new MenuTargetOptionsResponse(boards, grades, sales.enabled(), pages);
     }
 

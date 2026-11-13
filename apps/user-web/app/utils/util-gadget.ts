@@ -40,7 +40,7 @@ import UtilGroupBuy from '~/utils/util-group-buy';
  */
 
 /** 가젯 종류 8종 + 광고 2종 — 화면이 아는 것 */
-const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE', 'TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS'];
 
 /** 머리를 숨기는 것이 처음 꾸미기인 종류(키가 빠진 응답의 기본값) — 광고는 「광고」 표시가 제목 노릇을 한다(admin `UtilGadgetStyle.initial` 과 같다) */
 const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];

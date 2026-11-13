@@ -40,7 +40,13 @@
                 </template>
             </LabeledField>
 
-            <LabeledField :label="t('gadgetPage.key')" :help="t('gadgetPage.keyHelp')" :error="errorOf('key')">
+            <!-- 시스템 페이지(팁·강좌·사용기 `/tips`)는 영문 주소를 바꿀 수 없다 — 공개 주소만 보인다 -->
+            <LabeledField v-if="system" :label="t('gadgetPage.publicPath')" :help="t('gadgetPage.systemPathHelp')">
+                <template #default="{ id, describedBy }">
+                    <InputText :id="id" :model-value="UtilGadgetPage.pathOf(page!)" readonly :aria-describedby="describedBy" data-testid="gadget-page-system-path" />
+                </template>
+            </LabeledField>
+            <LabeledField v-else :label="t('gadgetPage.key')" :help="t('gadgetPage.keyHelp')" :error="errorOf('key')">
                 <template #default="{ id, describedBy, invalid }">
                     <InputGroup>
                         <InputGroupAddon>/p/</InputGroupAddon>
@@ -90,7 +96,7 @@
         </form>
 
         <template #footer>
-            <Button v-if="page" type="button" :label="t('gadgetPage.delete')" icon="pi pi-trash" severity="danger" variant="text" class="mr-auto" :disabled="saving" @click="emit('delete', page)" />
+            <Button v-if="page && !system" type="button" :label="t('gadgetPage.delete')" icon="pi pi-trash" severity="danger" variant="text" class="mr-auto" :disabled="saving" @click="emit('delete', page)" />
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="saving" @click="emit('update:visible', false)" />
             <Button type="submit" :form="formId" :label="page ? t('common.save') : t('gadgetPage.create')" :loading="saving" />
         </template>
@@ -112,6 +118,8 @@ interface Props {
     error?: ApiError | null;
 }
 const props = withDefaults(defineProps<Props>(), { page: null, saving: false, error: null });
+/** 시스템 페이지(팁·강좌·사용기 `/tips`) — 지우기·영문 주소 바꾸기가 없다(서버도 막는다) */
+const system = computed(() => Boolean(props.page?.systemPage));
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'submit', body: GadgetPageCreateRequest): void; (e: 'delete', page: GadgetPage): void }>();
 
 const { t } = useI18n();

@@ -68,10 +68,10 @@ public final class GadgetStyles {
 
     /**
      * 관리자 편집기가 보는 꾸미기 — 칸 전부. 테마 기본 꾸미기({@link GadgetKinds#baseStyle}) 위에 저장 값 중 쓸 수 있는 칸을 덮는다(모르는 값은 테마 기본 값).
-     * 게시판 본문(꾸미기 없음)은 null.
+     * 게시판 본문(꾸미기 없음)은 null. 매거진 4종({@link GadgetKinds#isTips})은 다른 종류처럼 칸 전부.
      */
     public static ObjectNode view(String theme, String type, JsonNode stored) {
-        if (!GadgetKinds.isKnown(type)) {
+        if (!GadgetKinds.isKnown(type) && !GadgetKinds.isTips(type)) {
             return null;
         }
         ObjectNode out = GadgetKinds.kindStyle(GadgetKinds.baseStyle(theme), type);

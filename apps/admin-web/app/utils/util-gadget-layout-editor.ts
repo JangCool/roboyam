@@ -19,6 +19,8 @@ export interface GadgetKindSpec {
     /** 새로 넣을 때 폭·높이 */
     w: number;
     h: number;
+    /** 이 시스템 페이지 배치에서만 넣는다(팁·강좌·사용기 `/tips` — `TIPS`). 없으면 어디든 */
+    systemPage?: 'TIPS';
 }
 
 /** 편집기 자리(`i` = 가젯 ID) */
@@ -49,6 +51,11 @@ const KINDS: readonly GadgetKindSpec[] = [
     // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄
     { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
     { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 6 },
+    // 팁·강좌·사용기 `/tips` 의 카드(사용자 2026-11-13 — tips-contract 「/tips 레이아웃 편집」, 서버 `GadgetKinds` 와 같은 최소 크기). 그 배치에서만 넣기 목록에 보인다
+    { kind: 'TIPS_HEADLINE', icon: 'pi-star', minW: 6, minH: 10, w: 12, h: 20, systemPage: 'TIPS' },
+    { kind: 'TIPS_LATEST', icon: 'pi-clock', minW: 4, minH: 10, w: 8, h: 40, systemPage: 'TIPS' },
+    { kind: 'TIPS_POPULAR', icon: 'pi-eye', minW: 3, minH: 6, w: 4, h: 14, systemPage: 'TIPS' },
+    { kind: 'TIPS_TAGS', icon: 'pi-hashtag', minW: 3, minH: 3, w: 4, h: 8, systemPage: 'TIPS' },
 ];
 
 /**
@@ -82,6 +89,15 @@ const GADGET_FIELD = /^gadgets\[(\d+)\]\.(.+)$/;
 export default class UtilGadgetLayoutEditor {
     /** 가젯 종류 8종 + 광고 2종 */
     static readonly KINDS: readonly GadgetKindSpec[] = KINDS;
+
+    /**
+     * 그 배치의 넣기 목록 — 시스템 페이지 전용 종류(팁 가젯)는 그 페이지에서만
+     * @param {'TIPS' | null} systemPage - 편집하는 페이지의 시스템 종류(홈·게시판·일반 가젯 페이지는 null).
+     * @returns {readonly GadgetKindSpec[]} 넣을 수 있는 종류.
+     */
+    static addable(systemPage: 'TIPS' | null): readonly GadgetKindSpec[] {
+        return KINDS.filter((k) => !k.systemPage || k.systemPage === systemPage);
+    }
 
     /**
      * 종류의 편집기 값(모르는 종류는 기본 아이콘·작은 최소 크기)

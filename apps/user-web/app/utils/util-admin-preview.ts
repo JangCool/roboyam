@@ -112,6 +112,8 @@ const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARD
 const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
 /** 광고 가젯 — 후보는 페이지가 채우므로 설정이 없어도 새 가젯을 그린다 */
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
+/** 팁·강좌·사용기 가젯 — 내용은 /tips 화면이 받아 나눠 주므로 응답에 같은 종류가 없어도 새 가젯을 그린다 */
+export const TIPS_KINDS: readonly string[] = ['TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS'];
 const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const POST_LIST_SORTS: readonly string[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
@@ -436,7 +438,7 @@ export default class UtilAdminPreview {
      * 받은 홈(·가젯 페이지) 가젯 응답에 관리자의 구성을 덮는다 — 배치는 관리자 것, 가젯은 같은 id 의 가젯(새로 넣은 가젯은 같은 종류 중 설정이 비슷한 것 — `baseOf`, 꾸미기는 빼고)을 관리자 제목·보이는 폭으로.
      * 저장 전 내용 설정(`config`)은 받은 데이터 안에서 따른다(`applyConfig`). 꾸미기(`style`)는 관리자가 고친 것이 있으면 통째로 바꾼다(읽기는 그 뒤 `UtilGadget.sanitize`).
      * `extra` 는 바탕으로만 쓰는 가젯(가젯 페이지 미리보기에서 홈 가젯 — 페이지에 없는 종류를 넣었을 때).
-     * 응답에 같은 종류가 없는 새 가젯은 그릴 내용이 없어 뺀다 — 바로가기·안내 글은 설정으로 바로 그리므로 빈 가젯에서 만든다. 게시판 본문(`BOARD_BODY`)·광고 가젯(`AD`·`AD_TEXT_LINE`)도 빈 가젯에서 만든다(내용은 화면이 채운다).
+     * 응답에 같은 종류가 없는 새 가젯은 그릴 내용이 없어 뺀다 — 바로가기·안내 글은 설정으로 바로 그리므로 빈 가젯에서 만든다. 게시판 본문(`BOARD_BODY`)·광고 가젯(`AD`·`AD_TEXT_LINE`)·팁 가젯(`TIPS_*`)도 빈 가젯에서 만든다(내용은 화면이 채운다).
      * @param {GadgetsResponse} res - 가젯 응답.
      * @param {AdminPreviewHome} home - 관리자 구성.
      * @param {readonly Gadget[]} [extra] - 바탕으로 더 쓸 가젯.
@@ -451,7 +453,7 @@ export default class UtilAdminPreview {
                     byId.get(p.id) ??
                     (p.type === BOARD_BODY ? UtilAdminPreview.blank(p.type) : undefined) ??
                     UtilAdminPreview.baseOf(pool, p) ??
-                    ((DIRECT_KINDS.includes(p.type) && p.config) || AD_KINDS.includes(p.type) ? UtilAdminPreview.blank(p.type) : undefined);
+                    ((DIRECT_KINDS.includes(p.type) && p.config) || AD_KINDS.includes(p.type) || TIPS_KINDS.includes(p.type) ? UtilAdminPreview.blank(p.type) : undefined);
                 if (!base) return null;
                 const gadget: Gadget = { ...(JSON.parse(JSON.stringify(base)) as Gadget), id: p.id, title: p.title, desktop: p.desktop, mobile: p.mobile };
                 // 새 가젯은 바탕 가젯의 꾸미기(예: 비었을 때 숨김)를 물려받지 않고 그 종류의 처음 꾸미기로 그린다 — 저장하면 처음 꾸미기가 되므로

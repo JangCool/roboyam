@@ -411,7 +411,7 @@ public class CacheAdminService {
             out.add(new CachePreviewPageView("/boards/" + b.slug(), messages.get("cache.preview.board", nameOf(b.name(), b.nameEn(), en))));
         }
         for (GadgetPageEntity p : state.gadgetPages()) {
-            out.add(new CachePreviewPageView("/p/" + p.getPageKey(), messages.get("cache.preview.page", nameOf(p.getName(), p.getNameEn(), en))));
+            out.add(new CachePreviewPageView(p.publicPath(), messages.get("cache.preview.page", nameOf(p.getName(), p.getNameEn(), en))));
         }
         out.add(new CachePreviewPageView("/boards", messages.get("cache.preview.boards")));
         out.add(new CachePreviewPageView("/me/points", messages.get("cache.preview.points")));
@@ -462,7 +462,7 @@ public class CacheAdminService {
             List<GadgetSpec> specs = pageLayouts.findByPageIdAndTheme(p.getId(), theme).isPresent()
                     ? gadgets.findByPageIdAndThemeOrderByIdAsc(p.getId(), theme).stream().map(GadgetEntity::toSpec).toList()
                     : GadgetPageInitial.read(p.getInitialLayout(), theme).gadgets();
-            placed.add(new Placed(Placements.GADGET_PAGE, nameOf(p.getName(), p.getNameEn(), en), "/p/" + p.getPageKey(), specs));
+            placed.add(new Placed(Placements.GADGET_PAGE, nameOf(p.getName(), p.getNameEn(), en), p.publicPath(), specs));
         }
         List<GadgetSpec> boardSpecs = boardLayouts.findById(theme).isPresent()
                 ? gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(GadgetEntity::toSpec).toList()

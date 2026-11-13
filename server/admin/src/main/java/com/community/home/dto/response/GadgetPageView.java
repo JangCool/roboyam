@@ -11,9 +11,10 @@ import java.util.List;
  * @param folderBoards 기준 폴더의 게시판(하위 폴더까지, 메뉴 차례 — 꺼진 것 포함)
  * @param menuLinks    이 페이지를 「누르면 가는 곳」으로 쓰는 메뉴 노드 수
  * @param updatedBy    마지막으로 고친 운영자 이름 — 못 찾으면 null
+ * @param systemPage   시스템 페이지 값 {@code TIPS}(공개 주소 {@code /tips} — 지울 수 없고 영문 주소를 바꿀 수 없다) · 운영자가 만든 페이지는 null
  */
 public record GadgetPageView(String id, String key, String name, String nameEn, String description, String folderId, String folderName,
-                             List<Board> folderBoards, boolean writeButton, long menuLinks, Instant updatedAt, String updatedBy) {
+                             List<Board> folderBoards, boolean writeButton, long menuLinks, Instant updatedAt, String updatedBy, String systemPage) {
 
     /**
      * @param layout     게시판 목록 모양 {@code LIST}·{@code CARD}·{@code GALLERY}

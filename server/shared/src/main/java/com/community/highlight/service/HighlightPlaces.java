@@ -1,6 +1,7 @@
 package com.community.highlight.service;
 
 import com.community.highlight.entity.HighlightEntity;
+import com.community.home.entity.GadgetPageEntity;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Optional;
@@ -32,14 +33,23 @@ public final class HighlightPlaces {
     }
 
     /**
+     * 같은 곳을 가리키는 키를 하나로 — 시스템 페이지 TIPS({@code /tips} 의 배치, 키 {@value GadgetPageEntity#TIPS_PAGE_KEY} — 바꿀 수 없다)는 {@value #TIPS} 곳이다
+     * (tips-contract 「/tips 레이아웃 편집」 — 하이라이트 곳 목록에 따로 두지 않는다). 그 밖은 그대로.
+     */
+    public static String canonical(String key) {
+        return GadgetPageEntity.TIPS_PAGE_KEY.equals(key) ? TIPS : key;
+    }
+
+    /**
      * 요청·설정 값 → 곳 키. 비었으면 {@value #HOME}, 앞뒤 공백은 뗀다. 모양이 틀리면 빈 값(부르는 쪽이 오류 또는 {@value #HOME} 으로 정한다).
+     * 시스템 페이지 TIPS 의 키는 {@value #TIPS} 로 바꾼다({@link #canonical}).
      */
     public static Optional<String> parse(String raw) {
         if (raw == null || raw.isBlank()) {
             return Optional.of(HOME);
         }
         String key = raw.strip();
-        return wellFormed(key) ? Optional.of(key) : Optional.empty();
+        return wellFormed(key) ? Optional.of(canonical(key)) : Optional.empty();
     }
 
     /** 한 글의 여러 하이라이트 중 대표 하나 — 홈 것이 먼저, 없으면 먼저 만든 것 */
