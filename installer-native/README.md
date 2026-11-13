@@ -131,6 +131,41 @@ AWS S3 로 옮기면(`IROBIT_STORAGE_TYPE=s3`, `IROBIT_STORAGE_S3_REGION=ap-nort
 80 은 열지 않는다. Caddy 도 Cloudflare 가 아닌 접속은 끊고, `/actuator` 는 readiness·liveness 만 내보낸다.
 Cloudflare IP 가 바뀌면 앱 서버에서 `sudo bash app/irobit-app-install.sh --refresh-cloudflare-ips` + 보안 그룹 갱신.
 
+## Java 에이전트(APM) 붙이기 — hamonica3 등
+
+앱은 systemd 서비스(`irobit-api`·`irobit-admin`)로 그대로 두고 **`JAVA_OPTS` 에 에이전트 옵션을 더한다**(사용자 결정 2026-11-13). 쉘 스크립트(`nohup start.sh`)로 바꾸지 않는다 — 재부팅 뒤 자동 시작·죽으면 자동 재시작·`irobit-deploy.sh` 의 되돌리기를 잃는다.
+서비스는 `ExecStart=java $JAVA_OPTS -jar …/current.jar` 이고 `JAVA_OPTS` 는 앱별 환경 파일 `/etc/irobit/api.env`·`admin.env` 에 있다.
+
+**1. 에이전트 놓기** — 앱 서버마다(WAS1 은 api·admin 이 같이 쓴다). ⚠ **`/opt` 아래에 둔다.** 서비스가 `ProtectHome=yes` 라 `/home/...` 은 앱에서 보이지 않는다(hamonica3 안내의 `/home/hamonica3/...` 예시를 그대로 쓰면 못 찾는다).
+```bash
+sudo mkdir -p /opt/hamonica3-agent && sudo tar xzf hamonica3-agent-*.tar.gz -C /opt/hamonica3-agent --strip-components=1
+sudo chown -R root:irobit /opt/hamonica3-agent && sudo chmod -R g+rX,o-rwx /opt/hamonica3-agent
+```
+에이전트가 자기 폴더에 로그 등을 쓰면 그 하위 폴더만 `sudo chown -R irobit:irobit /opt/hamonica3-agent/<쓰는 폴더>`.
+
+**2. `JAVA_OPTS` 에 더하기** — `sudo vi /etc/irobit/api.env`(admin 은 `admin.env`)의 `JAVA_OPTS=` 줄 끝에 이어 붙인다(한 줄, 띄어쓰기로 구분).
+```
+JAVA_OPTS=-Xmx768m -XX:+ExitOnOutOfMemoryError -XX:+UseStringDeduplication -javaagent:/opt/hamonica3-agent/lib/otel-javaagent-hamonica-2.0.0-SNAPSHOT.jar -Dotel.javaagent.configuration-file=/opt/hamonica3-agent/conf/hamonica3-otel.config.properties -Dio.opentelemetry.javaagent.slf4j.simpleLogger.defaultLogLevel=warn -Dotel.service.name=irobit-api -Xshare:off
+```
+- 앞쪽(`-Xmx…`)은 설치가 넣은 값 그대로 두고 뒤에 붙인다. jar 이름·설정 파일 위치는 받은 에이전트 묶음에 맞춘다.
+- ⚠ systemd 환경 파일은 `${HAMONICA_HOME}` 같은 **변수를 펼치지 않는다** — 경로를 끝까지 그대로 적는다.
+- 앱 구분 이름: api 는 `-Dotel.service.name=irobit-api`, admin 은 `irobit-admin`(서버 구분이 더 필요하면 에이전트 설정 파일 쪽에서).
+
+**3. 재시작·확인**
+```bash
+sudo systemctl restart irobit-api
+ps -o args= -p "$(systemctl show -p MainPID --value irobit-api)" | tr ' ' '\n' | grep -- -javaagent
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/actuator/health/readiness
+```
+`-javaagent:…` 가 보이고 readiness 가 `200` 이면 된다. 안 뜨면 `sudo journalctl -u irobit-api -n 80` 에서 에이전트 오류(경로·권한)를 본다. admin 은 `irobit-admin`·포트 `8081`.
+공개 사이트가 앱 서버 두 대에 있으면 한 대씩(재시작 → readiness 200 확인 → 다음 서버) 바꾼다.
+
+**4. 주의**
+- **배포(`--deploy`)·데이터 초기화(`--reset-data`)는 환경 파일을 건드리지 않는다** — 에이전트 옵션이 그대로 남는다.
+- **설치를 다시 돌리면(전체, 또는 `--only was1|was2`) `JAVA_OPTS` 가 기본값으로 되돌아간다**(`irobit-app-install.sh` 의 `write_app_env`). 다시 돌린 뒤에는 2단계를 다시 한다. (남은 일: 설치가 손대지 않는 칸 `JAVA_AGENT_OPTS` 를 따로 두고 `ExecStart` 에 더하면 이 번거로움이 없어진다.)
+- 메모리: 에이전트는 힙 밖 메모리를 더 쓴다. WAS1(2GB, api+admin)은 붙인 뒤 `free -m` 으로 여유를 보고, 모자라면 `-Xmx` 를 줄인다.
+- 끄기: 2단계에서 붙인 옵션을 지우고 재시작.
+
 ## 운영 전 확인
 
 - DB: `sudo -u postgres psql -d irobit -c "select cardinality(show_trgm('한글')) > 0"` → `t`, `select jobname, schedule, active from cron.job`, 관리자 › 배치에서 DB 배치가 「사용 불가」가 아닌지.
