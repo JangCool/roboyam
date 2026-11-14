@@ -2,6 +2,9 @@ package com.community.auth.controller;
 
 import com.community.auth.config.AuthProperties;
 import com.community.auth.dto.AuthUser;
+import com.community.auth.dto.response.MeResponse;
+import com.community.auth.service.MeService;
+import java.util.Optional;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -30,11 +33,13 @@ public class LoginSession {
     private final SecurityContextRepository securityContextRepository;
     private final CookieSerializer cookieSerializer;
     private final AuthProperties props;
+    private final MeService meService;
 
-    public LoginSession(SecurityContextRepository securityContextRepository, CookieSerializer cookieSerializer, AuthProperties props) {
+    public LoginSession(SecurityContextRepository securityContextRepository, CookieSerializer cookieSerializer, AuthProperties props, MeService meService) {
         this.securityContextRepository = securityContextRepository;
         this.cookieSerializer = cookieSerializer;
         this.props = props;
+        this.meService = meService;
     }
 
     /** 이 요청을 {@code principal} 의 로그인 상태로 만든다. 세션 쿠키는 응답에 새로 실린다 */
@@ -68,5 +73,22 @@ public class LoginSession {
         if (session != null) {
             cookieSerializer.writeCookieValue(new CookieSerializer.CookieValue(request, response, session.getId()));
         }
+    }
+
+    /**
+     * 지금 로그인 상태({@code GET /api/auth/me} 와 첫 화면 데이터가 같이 쓴다) — 비로그인이면 비로그인 응답. 로그인 상태면 세션 쿠키의 기한을 오늘부터 늘리고,
+     * 세션은 있는데 회원이 없어졌거나 탈퇴했으면 그 세션을 끝내고 비로그인으로 답한다.
+     */
+    public MeResponse current(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthUser principal)) {
+            return MeResponse.anonymous();
+        }
+        Optional<MeResponse> me = meService.of(principal.id());
+        if (me.isEmpty()) {
+            terminate(request);
+            return MeResponse.anonymous();
+        }
+        refreshCookie(request, response);
+        return me.get();
     }
 }

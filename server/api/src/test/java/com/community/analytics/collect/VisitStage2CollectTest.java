@@ -13,7 +13,6 @@ import com.community.search.dto.response.SearchResponse;
 import com.community.search.service.SearchService;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.installation.service.InstallationState;
-import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.SiteHeadFilter;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -311,7 +310,7 @@ class VisitStage2CollectTest {
     }
 
     private SiteHeadFilter filter(boolean rendered) {
-        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), new BootPreloadRenderer(), notInstalled());
+        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), null, notInstalled());
     }
 
     /** 애드센스 끔(머리에 넣을 것 없음) */

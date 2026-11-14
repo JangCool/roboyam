@@ -14,7 +14,6 @@ import com.community.zconfiguration.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.util.Optional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,16 +54,7 @@ public class AuthController {
      */
     @GetMapping("/me")
     public ApiResponse<MeResponse> me(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof AuthUser principal)) {
-            return ApiResponse.success(MeResponse.anonymous());
-        }
-        Optional<MeResponse> me = meService.of(principal.id());
-        if (me.isEmpty()) {
-            loginSession.terminate(request);
-            return ApiResponse.success(MeResponse.anonymous());
-        }
-        loginSession.refreshCookie(request, response);
-        return ApiResponse.success(me.get());
+        return ApiResponse.success(loginSession.current(request, response, authentication));
     }
 
     @GetMapping("/providers")

@@ -18,6 +18,14 @@ public class CommerceInfoController {
 
     /** user-web {@code CommerceInfo} */
     public record Info(boolean salesOpen, boolean ready, Business business) {
+
+        /** 판매 상태 → 응답 — 이 API 와 첫 화면 데이터(`BootPreloadRenderer`)가 같이 쓴다 */
+        public static Info of(CommerceSalesService.PublicInfo info) {
+            BusinessInfo b = info.business();
+            Business business = b == null ? null : new Business(b.companyName(), b.representative(), b.businessNo(), b.mailOrderNo(), blank(b.mailOrderAuthority()), b.address(),
+                    b.phone(), b.email(), blank(b.businessHours()), blank(b.privacyOfficer()), blank(b.hostingProvider()), blank(b.shippingRefundPolicy()));
+            return new Info(info.salesOpen(), info.ready(), business);
+        }
     }
 
     /** user-web {@code CommerceBusiness} — 빈 선택 칸은 null */
@@ -33,11 +41,7 @@ public class CommerceInfoController {
 
     @GetMapping("/api/commerce/info")
     public ResponseEntity<ApiResponse<Info>> info() {
-        CommerceSalesService.PublicInfo info = sales.publicInfo();
-        BusinessInfo b = info.business();
-        Business business = b == null ? null : new Business(b.companyName(), b.representative(), b.businessNo(), b.mailOrderNo(), blank(b.mailOrderAuthority()), b.address(),
-                b.phone(), b.email(), blank(b.businessHours()), blank(b.privacyOfficer()), blank(b.hostingProvider()), blank(b.shippingRefundPolicy()));
-        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofMinutes(1))).body(ApiResponse.success(new Info(info.salesOpen(), info.ready(), business)));
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofMinutes(1))).body(ApiResponse.success(Info.of(sales.publicInfo())));
     }
 
     private static String blank(String value) {

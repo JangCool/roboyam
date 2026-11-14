@@ -7,7 +7,6 @@ import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.collect.VisitCollector;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.installation.service.InstallationState;
-import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.SiteHeadFilter;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -147,7 +146,7 @@ class AdSenseSettingsTest {
     }
 
     private static MockHttpServletResponse serve(AdSenseSiteService adsense) throws Exception {
-        SiteHeadFilter f = new SiteHeadFilter(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, new BootPreloadRenderer(), notInstalled());
+        SiteHeadFilter f = new SiteHeadFilter(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, null, notInstalled());
         MockHttpServletRequest r = new MockHttpServletRequest("GET", "/");
         r.setServletPath("/");
         MockHttpServletResponse res = new MockHttpServletResponse();

@@ -13,7 +13,6 @@ import com.community.analytics.collect.VisitCollector;
 import com.community.bizapplication.BizApplicationApiTestBase;
 import com.community.installation.service.InstallationState;
 import com.community.site.config.AdminPreviewFrame;
-import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.SiteHeadFilter;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -246,7 +245,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
                 return false;
             }
         };
-        return new SiteHeadFilter(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, new BootPreloadRenderer(), notInstalled);
+        return new SiteHeadFilter(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, null, notInstalled);
     }
 
     private static MockHttpServletRequest page(String path, boolean preview) {
