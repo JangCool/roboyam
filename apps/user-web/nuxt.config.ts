@@ -44,6 +44,15 @@ export default defineNuxtConfig({
      * 바탕 #f2f4f7 / 다크 #17181b 는 main.css 아이로빗 테마 바탕 값이다.
      */
     spaLoadingTemplate: 'spa-loading-template.html',
+    /*
+     * 링크 미리 받기(`<NuxtLink>`)는 마우스를 올리거나 누를 때만(`interaction`) — 기본(`visibility`)은 화면에 보이는 링크마다 그 페이지 코드를 받아,
+     * 운영 첫 화면에서 본문이 보인 뒤 JS 요청이 200개 넘게 몰려(116·86·56개 묶음) 이미지·가젯 받기와 회선을 나눠 썼다(측정 2026-11-14, 사용자 결정 「권하는 순서」 1번).
+     */
+    experimental: {
+        defaults: {
+            nuxtLink: { prefetchOn: { visibility: false, interaction: true } },
+        },
+    },
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
 

@@ -12,6 +12,8 @@ import com.community.search.controller.SearchController;
 import com.community.search.dto.response.SearchResponse;
 import com.community.search.service.SearchService;
 import com.community.site.config.AdminPreviewFrame;
+import com.community.installation.service.InstallationState;
+import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.SiteHeadFilter;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -309,7 +311,7 @@ class VisitStage2CollectTest {
     }
 
     private SiteHeadFilter filter(boolean rendered) {
-        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense());
+        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), new BootPreloadRenderer(), notInstalled());
     }
 
     /** 애드센스 끔(머리에 넣을 것 없음) */
@@ -509,5 +511,15 @@ class VisitStage2CollectTest {
         assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 3, false, false, false, true, true, false, false)))
                 .as("검색어·봇은 신호가 아니라 여기 없다").isEqualTo(new SiteAnalyticsView(true, false, false, false, false, false));
         assertThat(SiteAnalyticsView.of(new StatsCollection(true, false, false, 3, false, false, true, false, false, false, false)).environment()).isTrue();
+    }
+
+    /** 첫 화면 데이터는 이 시험 범위 밖 — 설치 전으로 두어 싣지 않는다 */
+    private static InstallationState notInstalled() {
+        return new InstallationState(null) {
+            @Override
+            public boolean isInstalled() {
+                return false;
+            }
+        };
     }
 }

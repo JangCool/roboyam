@@ -37,6 +37,17 @@ const REGISTRY: Readonly<Record<string, Component>> = Object.fromEntries(
 
 export default class UtilGadgetRegistry {
     /**
+     * 가젯 종류들의 코드를 미리 받기 시작한다(첫 로딩 조각 사슬 줄이기, `plugins/spa-warmup.client.ts`) — 모르는 종류는 건너뛴다. 실패해도 조용히 넘어간다
+     * @param {readonly string[]} types - 가젯 종류 키들.
+     */
+    static preload(types: readonly string[]): void {
+        for (const type of new Set(types)) {
+            const loader = LOADERS[type];
+            if (loader) void UtilBootSplash.track(loader()).catch(() => undefined);
+        }
+    }
+
+    /**
      * 가젯 종류의 컴포넌트
      * @param {string} type - 가젯 종류 키.
      * @returns {Component | null} 컴포넌트. 모르는 종류는 null(그리지 않는다).

@@ -226,4 +226,20 @@ export default class UtilTheme {
         // 기본 테마는 모든 슬롯을 선언한다 — 여기에 오면 선언이 빠진 것이다
         throw new Error(`기본 테마에 슬롯이 없다: ${slot}`);
     }
+
+    /**
+     * 슬롯 코드를 미리 받기 시작한다 — 화면이 그 슬롯을 그릴 때 이미 받아 두었거나 받는 중이게(첫 로딩 조각 사슬 줄이기, `plugins/spa-warmup.client.ts`).
+     * 찾는 규칙은 {@link resolve} 와 같다. 실패해도 조용히 넘어간다(그릴 때 다시 받는다).
+     * @param {ThemeId} themeId - 현재 테마.
+     * @param {ThemeSlotName} slot - 슬롯 항목.
+     */
+    static preload(themeId: ThemeId, slot: ThemeSlotName): void {
+        for (const id of [themeId, UtilTheme.DEFAULT_ID]) {
+            const loader = (THEMES[id].slots as Partial<Record<string, SlotLoader>>)[slot];
+            if (loader) {
+                void UtilBootSplash.track(loader()).catch(() => undefined);
+                return;
+            }
+        }
+    }
 }

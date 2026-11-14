@@ -6,6 +6,8 @@ import com.community.ad.dto.AdSenseSettings;
 import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.collect.VisitCollector;
 import com.community.site.config.AdminPreviewFrame;
+import com.community.installation.service.InstallationState;
+import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.SiteHeadFilter;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
@@ -145,7 +147,7 @@ class AdSenseSettingsTest {
     }
 
     private static MockHttpServletResponse serve(AdSenseSiteService adsense) throws Exception {
-        SiteHeadFilter f = new SiteHeadFilter(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense);
+        SiteHeadFilter f = new SiteHeadFilter(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, new BootPreloadRenderer(), notInstalled());
         MockHttpServletRequest r = new MockHttpServletRequest("GET", "/");
         r.setServletPath("/");
         MockHttpServletResponse res = new MockHttpServletResponse();
@@ -165,5 +167,15 @@ class AdSenseSettingsTest {
         // 관리자 서버가 형식을 검사하지만 렌더러는 다른 칸처럼 이스케이프한다
         String html = serve(new FixedAdSense("ca-pub-1\"><script>x</script>")).getContentAsString(StandardCharsets.UTF_8);
         assertThat(html).doesNotContain("<script>x</script>").contains("&quot;&gt;&lt;script&gt;");
+    }
+
+    /** 첫 화면 데이터는 이 시험 범위 밖 — 설치 전으로 두어 싣지 않는다 */
+    private static InstallationState notInstalled() {
+        return new InstallationState(null) {
+            @Override
+            public boolean isInstalled() {
+                return false;
+            }
+        };
     }
 }

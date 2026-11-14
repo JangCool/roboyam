@@ -2,6 +2,8 @@ package com.community.site.config;
 
 import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.collect.VisitCollector;
+import com.community.installation.service.InstallationState;
+import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.service.IndexHtmlRenderer;
@@ -30,6 +32,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 관리자 미리보기 요청({@link AdminPreviewFrame#isPreview} — {@code ?adminPreview=1})이면 머리에 관리자 origin 메타를 더한 사본을 내린다(프레임 헤더는 보안 설정이 붙인다).
  * 그 밖의 화면 요청은 구글 애드센스가 VERIFY·SHOW 이고 게시자 ID 가 있으면 머리 끝에 사이트 확인 메타·{@code adsbygoogle.js} 를 더한다({@link IndexHtmlRenderer#withAdSense} —
  * 설정은 요청마다 읽어 저장 뒤 다음 요청부터, 미리보기에는 넣지 않는다 — docs/features/adsense-contract.md).
+ * 설치를 마친 사이트의 GET 화면 요청이면 첫 화면 데이터({@link BootPreloadRenderer} — 화면이 처음 부르는 API 응답)를 함께 싣고 {@code Cache-Control: private, no-cache} 로 내린다.
  *
  * <p>봇·크롤러 통계(site-analytics-contract 「2단계 — 봇」): 화면은 SPA(서버 렌더링 없음)라 크롤러가 받는 첫 응답이 이 {@code index.html} 이다 — 요청마다 원래 User-Agent 로
  * {@link VisitCollector#countBotPage} 가 봇만 종류별로 메모리에 센다(DB 에 쓰지 않는다, 1분 몰아쓰기). 화면 요청 하나 = 1, 그 뒤 화면이 부르는 {@code /api/**} 는 세지 않는다.
@@ -50,14 +53,18 @@ public class SiteHeadFilter extends OncePerRequestFilter {
     private final AdminPreviewFrame preview;
     private final VisitCollector visits;
     private final AdSenseSiteService adsense;
+    private final BootPreloadRenderer boot;
+    private final InstallationState installation;
 
     public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview, VisitCollector visits,
-                          AdSenseSiteService adsense) {
+                          AdSenseSiteService adsense, BootPreloadRenderer boot, InstallationState installation) {
         this.siteService = siteService;
         this.renderer = renderer;
         this.preview = preview;
         this.visits = visits;
         this.adsense = adsense;
+        this.boot = boot;
+        this.installation = installation;
     }
 
     @Override
@@ -102,15 +109,22 @@ public class SiteHeadFilter extends OncePerRequestFilter {
             return;
         }
         RenderedIndex index = rendered.get();
+        boolean withBoot = false;
         if (preview.isPreview(request)) {
-            index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow()); // 미리보기에는 애드센스를 넣지 않는다
+            index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow()); // 미리보기에는 애드센스·첫 화면 데이터를 넣지 않는다
         } else {
             String client = adsenseClient();
             if (client != null) {
                 index = renderer.withAdSense(index, client);
             }
+            String boot = bootJson(request, response);
+            if (boot != null) {
+                index = renderer.withBoot(index, boot);
+                withBoot = true;
+            }
         }
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+        // 첫 화면 데이터에는 로그인한 사람의 정보가 들 수 있다 — 공유 캐시(CDN)가 담지 않게 private
+        response.setHeader(HttpHeaders.CACHE_CONTROL, withBoot ? "private, no-cache" : "no-cache");
         if (new ServletWebRequest(request, response).checkNotModified("\"" + index.etag() + "\"")) {
             return; // 304
         }
@@ -118,6 +132,21 @@ public class SiteHeadFilter extends OncePerRequestFilter {
         response.setContentLength(index.body().length);
         if (!HttpMethod.HEAD.matches(request.getMethod())) {
             response.getOutputStream().write(index.body());
+        }
+    }
+
+    /**
+     * 첫 화면 데이터({@link BootPreloadRenderer}) — 설치를 마친 사이트의 {@code GET} 화면 요청에만(HEAD·설치 전·미리보기는 빼고). 만들다 실패하면 null(화면이 평소처럼 API 를 부른다)
+     */
+    private String bootJson(HttpServletRequest request, HttpServletResponse response) {
+        if (!HttpMethod.GET.matches(request.getMethod()) || !installation.isInstalled()) {
+            return null;
+        }
+        try {
+            return boot.render(request, response, request.getServletPath());
+        } catch (RuntimeException e) {
+            log.warn("첫 화면 데이터를 싣지 못해 빼고 내린다: {}", e.toString());
+            return null;
         }
     }
 

@@ -1,5 +1,6 @@
 import UtilI18n, { type Translate } from '#layers/i18n/utils/util-i18n';
 import UtilAuthMessages from '~/utils/util-auth-messages';
+import UtilBootData from '~/utils/util-boot-data';
 import UtilBootSplash from '~/utils/util-boot-splash';
 import UtilInstallState from '~/utils/util-install-state';
 import UtilRedirect from '~/utils/util-redirect';
@@ -373,6 +374,12 @@ export function useApiClient(options: ApiClientOptions = {}) {
 
         // 첫 로딩 스플래시는 첫 화면의 요청이 다 끝나야 걷힌다(`UtilBootSplash`) — 걷힌 뒤에는 세지 않는다
         return UtilBootSplash.track(run<T>(mutating, async () => {
+            // 첫 화면 데이터 — 서버가 index.html 에 실어 온 응답이 있으면 묻지 않고 쓴다(`UtilBootData`, 한 번만). 머리글을 읽는 요청은 빼고 서버에 묻는다
+            const preloaded = method === 'GET' && !request.onHeaders ? UtilBootData.take(target, UtilI18n.languageOf(locale.value)) : null;
+            if (preloaded) {
+                if (preloaded.status >= 200 && preloaded.status < 300) return unwrap<T>(preloaded.body, preloaded.status, null);
+                throw { status: preloaded.status, data: preloaded.body, response: { status: preloaded.status, headers: { get: () => null } } } satisfies FetchFailure;
+            }
             const response = await $fetch.raw<unknown>(target, {
                 method: method as 'GET',
                 body: body as Record<string, unknown> | undefined,

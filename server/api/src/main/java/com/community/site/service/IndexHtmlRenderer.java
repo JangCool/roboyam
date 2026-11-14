@@ -46,6 +46,8 @@ public class IndexHtmlRenderer {
     /** 첫 로딩 스플래시가 읽는 로고 메타 이름(user-web {@code app/spa-loading-template.html}) · SVG 로고일 때의 값 */
     static final String SPLASH_LOGO_META = "irobit-site-logo";
     static final String SPLASH_LOGO_INLINE = "inline";
+    /** 첫 화면 데이터 스크립트 id(user-web {@code utils/util-boot-data.ts} 가 읽는다) */
+    static final String BOOT_SCRIPT_ID = "irb-boot";
 
     private static final Pattern HEAD_OPEN = Pattern.compile("<head(?:\\s[^>]*)?>", Pattern.CASE_INSENSITIVE);
     private static final Pattern HEAD_CLOSE = Pattern.compile("</head\\s*>", Pattern.CASE_INSENSITIVE);
@@ -120,6 +122,21 @@ public class IndexHtmlRenderer {
         RenderedIndex withAds = new RenderedIndex(body, hash(body));
         adsenseCached = new AdSenseCached(index.etag(), client, withAds);
         return withAds;
+    }
+
+    /**
+     * 첫 화면 데이터({@code BootPreloadRenderer} — 화면이 처음 부르는 API 응답들)를 {@code </head>} 바로 앞에 {@code <script id="irb-boot" type="application/json">} 으로 더한 사본(지문도 새로).
+     * JSON 안의 {@code <} 는 {@code <} 로 바꿔 {@code </script>} 로 끊기지 않게 한다(JSON 에서 {@code <} 는 문자열 안에만 나온다). 머리가 없는 틀이면 그대로다.
+     */
+    public RenderedIndex withBoot(RenderedIndex index, String bootJson) {
+        String html = new String(index.body(), StandardCharsets.UTF_8);
+        Matcher close = HEAD_CLOSE.matcher(html);
+        if (!close.find()) {
+            return index;
+        }
+        String tag = "<script id=\"" + BOOT_SCRIPT_ID + "\" type=\"application/json\">" + bootJson.replace("<", "\\u003c") + "</script>\n";
+        byte[] body = (html.substring(0, close.start()) + tag + html.substring(close.start())).getBytes(StandardCharsets.UTF_8);
+        return new RenderedIndex(body, hash(body));
     }
 
     /** 틀은 jar 안 파일이라 한 번 읽으면 된다. 없으면 기억하지 않고 다음 요청에 다시 본다(빌드 직후의 개발 환경) */
