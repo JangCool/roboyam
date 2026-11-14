@@ -131,6 +131,7 @@
 
 <script setup lang="ts">
 import type { EmoticonRules } from '~/composables/emoticon/api/useEmoticonApi.types';
+import { assetUrl as emoticonUrl } from 'virtual:static-assets/emoticons';
 import UtilEmoticon from '~/utils/util-emoticon';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 import UtilEmoticonSpec from '~/utils/util-emoticon-spec';
@@ -216,13 +217,13 @@ const paidRows = computed(() => {
 
 /** 좋은 예 — 아이로빗콘 몇 개(공개 폴더의 운영 팩 그림) */
 const examples = computed(() => [
-    { url: '/emoticons/robotikon-m/01.gif', label: t('emoticon.exampleJoy') },
-    { url: '/emoticons/robotikon-m/19.gif', label: t('emoticon.exampleThumbs') },
-    { url: '/emoticons/robotikon-f/11.gif', label: t('emoticon.exampleLove') },
-    { url: '/emoticons/robotikon-m/25.gif', label: t('emoticon.exampleLoading') },
-    { url: '/emoticons/robotikon-f/18.gif', label: t('emoticon.exampleThanks') },
+    { url: emoticonUrl('/emoticons/robotikon-m/01.gif'), label: t('emoticon.exampleJoy') },
+    { url: emoticonUrl('/emoticons/robotikon-m/19.gif'), label: t('emoticon.exampleThumbs') },
+    { url: emoticonUrl('/emoticons/robotikon-f/11.gif'), label: t('emoticon.exampleLove') },
+    { url: emoticonUrl('/emoticons/robotikon-m/25.gif'), label: t('emoticon.exampleLoading') },
+    { url: emoticonUrl('/emoticons/robotikon-f/18.gif'), label: t('emoticon.exampleThanks') },
 ]);
-const sample = computed(() => ({ url: '/emoticons/robotikon-m/19.gif', label: t('emoticon.exampleThumbs') }));
+const sample = computed(() => ({ url: emoticonUrl('/emoticons/robotikon-m/19.gif'), label: t('emoticon.exampleThumbs') }));
 const sizes = computed(() => {
     const r = rules.value;
     return [

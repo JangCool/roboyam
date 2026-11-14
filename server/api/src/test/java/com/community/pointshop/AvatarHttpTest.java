@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.community.pointshop.service.AvatarCatalog;
+import com.community.zconfiguration.StaticAssetUrls;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class AvatarHttpTest extends PointShopApiTestBase {
     }
 
     private static String url(String id) {
-        return AvatarCatalog.URL_PREFIX + id + ".svg";
+        return StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + id + ".svg");
     }
 
     @Test

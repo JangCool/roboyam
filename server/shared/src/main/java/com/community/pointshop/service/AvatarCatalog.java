@@ -1,5 +1,6 @@
 package com.community.pointshop.service;
 
+import com.community.zconfiguration.StaticAssetUrls;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -49,12 +50,12 @@ public class AvatarCatalog {
     public record Avatar(String id, String name, String category, boolean free, boolean animated, int order) {
 
         public String url() {
-            return animated ? MOTION_URL_PREFIX + id + ".svg" : URL_PREFIX + id + ".svg";
+            return StaticAssetUrls.of(animated ? MOTION_URL_PREFIX + id + ".svg" : URL_PREFIX + id + ".svg"); // 내용 해시를 붙인다(1년 캐시)
         }
 
         /** 움직이는 아바타의 정지 그림(움직임 줄이기·글 목록) — 정지 아바타는 null */
         public String stillUrl() {
-            return animated ? MOTION_URL_PREFIX + id + "-still.svg" : null;
+            return animated ? StaticAssetUrls.of(MOTION_URL_PREFIX + id + "-still.svg") : null;
         }
     }
 

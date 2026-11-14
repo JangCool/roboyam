@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.PathResourceResolver;
@@ -32,6 +33,7 @@ public class SpaResourceConfig implements WebMvcConfigurer {
     /** 빌드 산출물(JS·CSS·글꼴) 자리 — 파일 이름에 내용 해시가 붙는다. */
     private static final String BUILD_ASSETS = "/_nuxt/**";
 
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 이름에 해시가 붙어 내용이 바뀌면 이름도 바뀌므로 1년 동안 다시 묻지 않게 한다(immutable).
@@ -39,6 +41,13 @@ public class SpaResourceConfig implements WebMvcConfigurer {
         registry.addResourceHandler(BUILD_ASSETS)
                 .addResourceLocations("classpath:/static/_nuxt/")
                 .setCacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable());
+
+        // 앱에 딸린 그림(로고·마스코트·기본 아바타·로보티콘 — StaticAssetUrls.FOLDERS)은 캐시 머리글을 StaticAssetCacheInterceptor 가 정한다
+        // (내용 해시가 붙은 주소 ?v= 는 1년 + immutable, 해시 없는 주소는 하루). 그래서 여기서는 캐시 설정을 두지 않는다. 없는 그림은 index.html 이 아니라 404 다.
+        // 예전에는 캐시 설정이 없어 보안 기본값(no-store)이 붙어 브라우저·CDN 이 저장하지 않았다 — 첫 로딩 스플래시 로고가 늦게 떴다(사용자 2026-11-14)
+        for (String folder : StaticAssetUrls.FOLDERS) {
+            registry.addResourceHandler(folder + "**").addResourceLocations("classpath:/static" + folder);
+        }
 
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
@@ -59,5 +68,10 @@ public class SpaResourceConfig implements WebMvcConfigurer {
                         return index.exists() ? index : null;
                     }
                 });
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new StaticAssetCacheInterceptor()).addPathPatterns(StaticAssetUrls.FOLDERS.stream().map(folder -> folder + "**").toList());
     }
 }

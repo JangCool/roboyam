@@ -1,5 +1,6 @@
 package com.community.pointshop.service;
 
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.pointshop.dto.response.EquippedNicknameColorView;
 import com.community.pointshop.dto.response.EquippedProfileBorderView;
 import com.community.pointshop.dto.response.MyEquippedView;
@@ -95,7 +96,7 @@ public class UserItemService {
         boolean refundable = !pending && !rejectedWhileSuspended
                 && PointShopRules.selfRefundable(row.purchaseStatus(), item.status(), item.firstUsedAt(), item.reservedAt(), row.purchasedAt(), refundDays, now);
         AvatarCatalog.Avatar avatar = avatars.find(row.avatarId()).orElse(null);
-        String avatarUrl = row.avatarId() == null ? null : avatar != null ? avatar.url() : AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg";
+        String avatarUrl = row.avatarId() == null ? null : avatar != null ? avatar.url() : StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + row.avatarId() + ".svg");
         return new MyItemView(Long.toString(item.id()), Long.toString(item.itemId()), item.purchaseId() == null ? null : Long.toString(item.purchaseId()), row.kind(), item.usageType(), row.name(),
                 row.nameEn(), row.color(), row.borderStyle(), row.avatarId(), avatarUrl, avatar == null ? null : avatar.stillUrl(), avatar != null && avatar.animated(), inUse,
                 item.status(), item.reservedAt() != null, expired, row.equippedSlot() != null && !expired && !revoked, item.startsAt(), item.expiresAt(), item.firstUsedAt(), row.purchasedAt(),

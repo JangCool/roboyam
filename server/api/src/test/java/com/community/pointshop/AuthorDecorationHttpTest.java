@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.community.board.service.BoardCatalog;
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.pointshop.service.AvatarCatalog;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +52,7 @@ class AuthorDecorationHttpTest extends PointShopApiTestBase {
     }
 
     private static String url(String id) {
-        return AvatarCatalog.URL_PREFIX + id + ".svg";
+        return StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + id + ".svg");
     }
 
     /** 색·테두리를 사서 장착하고 무료 아바타를 고른 회원 — 고른 아바타 ID */

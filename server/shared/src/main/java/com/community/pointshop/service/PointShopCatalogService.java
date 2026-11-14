@@ -1,5 +1,6 @@
 package com.community.pointshop.service;
 
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
@@ -147,7 +148,7 @@ public class PointShopCatalogService {
     /** 아바타 품목의 그림 주소 — 움직이는 아바타는 {@code /avatars/motion/…}(카탈로그에 없는 옛 ID 는 정지 주소 규칙 그대로) */
     private String avatarUrl(String avatarId) {
         String url = avatars.urlOfId(avatarId);
-        return url != null ? url : AvatarCatalog.URL_PREFIX + avatarId + ".svg";
+        return url != null ? url : StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + avatarId + ".svg");
     }
 
     static PointShopSaleState saleState(ItemRow row, Instant now) {

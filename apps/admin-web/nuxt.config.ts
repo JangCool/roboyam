@@ -79,7 +79,8 @@ export default defineNuxtConfig({
 
     // 오픈소스 라이선스 수집(`scripts/collect-licenses.mjs`)이 빌드할 때만(`IROBIT_OSS_SCAN`) — 번들에 들어간 바깥 패키지 폴더를 적는 모듈을 더한다(docs/features/oss-licenses-contract.md)
     // SPA 를 가볍게(`scripts/nuxt/spa-slim.mjs` — PrimeVue 실행 설정의 목록 빼기·미리 받기 끄기) — PrimeVue 모듈 뒤에 둔다
-    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), ...(process.env.IROBIT_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
+    // 앱에 딸린 그림 주소에 내용 해시 붙이기(`scripts/nuxt/static-asset-versions.mjs` — `import { assetUrl } from 'virtual:static-assets/core'`)
+    modules: ['@primevue/nuxt-module', fileURLToPath(new URL('../../scripts/nuxt/spa-slim.mjs', import.meta.url)), fileURLToPath(new URL('../../scripts/nuxt/static-asset-versions.mjs', import.meta.url)), ...(process.env.IROBIT_OSS_SCAN ? [fileURLToPath(new URL('../../scripts/oss-licenses/nuxt-bundle-scan.mjs', import.meta.url))] : [])],
 
     // 폴더명을 컴포넌트 이름에 붙이지 않는다
     components: [{ path: '~/components', pathPrefix: false, extensions: ['vue'] }],

@@ -4,6 +4,7 @@ import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
+import com.community.zconfiguration.StaticAssetUrls;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,11 @@ public class IndexHtmlRenderer {
     /** 첫 로딩 스플래시가 읽는 로고 메타 이름(user-web {@code app/spa-loading-template.html}) · SVG 로고일 때의 값 */
     static final String SPLASH_LOGO_META = "irobit-site-logo";
     static final String SPLASH_LOGO_INLINE = "inline";
+    /** 올린 로고가 없을 때 어두운 바탕용 기본 로고 메타(밝은 바탕용은 {@link #SPLASH_LOGO_META}) */
+    static final String SPLASH_LOGO_DARK_META = "irobit-site-logo-dark";
+    /** 스플래시 기본 로고(올린 로고가 없을 때 — user-web {@code spa-loading-template.html} 의 기본 그림과 같은 주소) */
+    static final String DEFAULT_SPLASH_LOGO_LIGHT = "/brand/irobit-logo-ko-light.svg";
+    static final String DEFAULT_SPLASH_LOGO_DARK = "/brand/irobit-logo-ko-dark.svg";
     /** 첫 화면 데이터 스크립트 id(user-web {@code utils/util-boot-data.ts} 가 읽는다) */
     static final String BOOT_SCRIPT_ID = "irb-boot";
 
@@ -231,11 +237,33 @@ public class IndexHtmlRenderer {
         b.append(meta("name", "twitter:description", description));
         b.append(meta("name", "twitter:image", info.ogImageUrl()));
         // 첫 로딩 스플래시(user-web `spa-loading-template.html`)가 JS 전에 읽는 로고 — 올린 로고가 그림 파일이면 그 주소,
-        // SVG 로고(data URI, 최대 약 133KB)면 "inline"(머리를 키우지 않는다 — 스플래시는 아이콘·이름으로 대신한다). 로고가 없으면 넣지 않는다(스플래시는 기본 로고)
+        // SVG 로고(data URI, 최대 약 133KB)면 "inline"(머리를 키우지 않는다 — 스플래시는 아이콘·이름으로 대신한다).
+        // 로고가 없으면 기본 로고(밝은 바탕용 · 어두운 바탕용)를 내용 해시 붙은 주소로 — 미리 받기와 같은 주소라 한 번만 받는다
         if (info.logoUrl() != null) {
             b.append(meta("name", SPLASH_LOGO_META, info.logoUrl().startsWith("data:") ? SPLASH_LOGO_INLINE : info.logoUrl()));
+        } else {
+            b.append(meta("name", SPLASH_LOGO_META, StaticAssetUrls.of(DEFAULT_SPLASH_LOGO_LIGHT)));
+            b.append(meta("name", SPLASH_LOGO_DARK_META, StaticAssetUrls.of(DEFAULT_SPLASH_LOGO_DARK)));
         }
+        b.append(splashLogoPreload(info.logoUrl()));
         return b.toString();
+    }
+
+    /**
+     * 스플래시 로고 미리 받기 — 스플래시 스크립트가 돌기 전에 HTML 과 함께 받기 시작한다(예전에는 스크립트가 그림을 만든 뒤에야 받아 로고 자리가 비어 보였다, 사용자 2026-11-14).
+     * 올린 로고(그림 파일)면 그것 하나. 없으면 스플래시가 쓰는 기본 로고 둘을 화면 바탕에 맞춰 — 스플래시의 다크 판정(자동이면 휴대폰 폭은 라이트, 그 밖은 기기 설정)과 같은 미디어 조건.
+     * 이 브라우저에 저장한 보기 설정(다크·라이트 직접 고름)은 서버가 모르므로 그때는 미리 받은 쪽을 쓰지 않을 수 있다(스플래시가 다시 받는다). SVG 로고(inline)는 아이콘을 쓰므로 받지 않는다.
+     */
+    private static String splashLogoPreload(String logoUrl) {
+        if (logoUrl != null) {
+            return logoUrl.startsWith("data:") ? "" : preloadImage(logoUrl, null);
+        }
+        return preloadImage(StaticAssetUrls.of(DEFAULT_SPLASH_LOGO_LIGHT), "(prefers-color-scheme: light), (max-width: 767.98px)")
+                + preloadImage(StaticAssetUrls.of(DEFAULT_SPLASH_LOGO_DARK), "(prefers-color-scheme: dark) and (min-width: 768px)");
+    }
+
+    private static String preloadImage(String href, String media) {
+        return "<link rel=\"preload\" as=\"image\" href=\"" + esc(href) + "\"" + (media == null ? "" : " media=\"" + media + "\"") + ">\n";
     }
 
     private static String link(String rel, String type, String sizes, String href) {

@@ -36,3 +36,11 @@
 - `console.debug` 라 평소에는 보이지 않는다 — Chrome 개발자 도구 콘솔의 수준을 「상세(Verbose)」로 바꾼다.
 - **api 서버가 내려준 화면에서만** 나온다(jar 로 띄운 화면·운영). 개발 서버(`pnpm dev`, 3100)는 `index.html` 을 Nuxt 가 내려 첫 화면 데이터가 없으므로 알림도 없다.
 - 로그인한 사람의 알림·쪽지 안 읽은 수(`/api/notifications/unread-count` · `/api/dm/unread-count`)처럼 사람마다 다르고 주기적으로 다시 묻는 주소는 `missed` 에 나와도 그대로 둔다.
+
+## 앱에 딸린 그림 캐시(로고·기본 아바타·로보티콘)
+
+`public/brand`·`public/avatars`·`public/emoticons` 의 그림은 주소에 **내용 해시**를 붙여(`/brand/irobit-logo-ko-light.svg?v=3ab112fdbd`) 1년 + `immutable` 로 캐시한다. 그림이 바뀌면 해시가 바뀌어 주소도 바뀐다(사용자 결정 2026-11-14). 해시 없이 온 요청은 하루, 없는 그림은 캐시하지 않는다(서버 `StaticAssetCacheInterceptor`).
+
+- **화면이 이 그림 주소를 만들면** `assetUrl()` 을 거친다 — `import { assetUrl } from 'virtual:static-assets/core'`(로고·마스코트·대체 아바타, 첫 화면용 작은 목록) · `…/avatars`(아바타 전부) · `…/emoticons`(로보티콘 전부). 빌드가 해시 목록을 만든다(`scripts/nuxt/static-asset-versions.mjs`). 큰 목록은 쓰는 화면에서만 가져온다.
+- **서버가 이 그림 주소를 내리면** `StaticAssetUrls.of(path)`(shared) — 같은 규칙(SHA-256 앞 10자리)이라 화면과 같은 주소가 된다. 로보티콘(`EmoticonContent.url`)·아바타(`AvatarCatalog`)·`index.html` 의 스플래시 로고 메타·미리 받기가 쓴다.
+- 업로드 그림(`/media/`)은 이미 새 이름이라 이 규칙과 상관없다.

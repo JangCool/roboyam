@@ -2,15 +2,16 @@
 // 새로 고치면 처음 값으로 돌아가고, 공개 사이트(user-web)에는 닿지 않는다(user-web 은 자기 목업 `composables/site/api/mock/site-logo-mock.ts` 를 쓴다).
 // 서버 API 가 생기면 이 파일과 `useSiteSettingsApi` 의 MOCK 줄을 지운다.
 
+import { assetUrl } from 'virtual:static-assets/core';
 import type { SiteLogoSetResponse } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { SiteLogoSet, SiteLogoVariant } from '~/utils/util-site-logo';
 
 /** 목업 처음 그림 — `public/brand/` 의 아이로빗 그림 로고(아바타 머리 + 글자) */
 const DEFAULT_LOGOS: SiteLogoSet = {
-    koLight: '/brand/irobit-logo-ko-light.svg',
-    koDark: '/brand/irobit-logo-ko-dark.svg',
-    enLight: '/brand/irobit-logo-en-light.svg',
-    enDark: '/brand/irobit-logo-en-dark.svg',
+    koLight: assetUrl('/brand/irobit-logo-ko-light.svg'),
+    koDark: assetUrl('/brand/irobit-logo-ko-dark.svg'),
+    enLight: assetUrl('/brand/irobit-logo-en-light.svg'),
+    enDark: assetUrl('/brand/irobit-logo-en-dark.svg'),
 };
 
 /** 메모리 상태 — 처음 읽을 때 채운다 */

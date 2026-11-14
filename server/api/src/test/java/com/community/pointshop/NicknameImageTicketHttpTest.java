@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.community.media.service.ImageStorage;
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.pointshop.service.AvatarCatalog;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -172,7 +173,7 @@ class NicknameImageTicketHttpTest extends PointShopApiTestBase {
         insert(member, "APPROVED", true);
         assertThat((Boolean) JsonPath.read(state(member), "$.data.paused")).as("움직이는 그림 + 움직이는 아바타 → 쉰다(저장하지 않는다)").isTrue();
         mvc.perform(as(member, post("/api/me/nickname-image/resume"))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.avatarUrl").value(AvatarCatalog.URL_PREFIX + "hobby-gamer.svg")).andExpect(jsonPath("$.data.avatarStillUrl").isEmpty());
+                .andExpect(jsonPath("$.data.avatarUrl").value(StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + "hobby-gamer.svg"))).andExpect(jsonPath("$.data.avatarStillUrl").isEmpty());
         assertThat((Boolean) JsonPath.read(state(member), "$.data.paused")).isFalse();
 
         long suspended = veteran();

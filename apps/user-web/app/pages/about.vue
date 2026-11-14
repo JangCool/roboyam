@@ -36,8 +36,8 @@
                             {{ t('siteAbout.heroHello') }}
                         </span>
                         <!-- 로보티콘 GIF(`/emoticons/robotikon-m/17.gif`·`robotikon-f/01.gif`)를 화질 손실 없는 움직이는 WebP 로 바꾼 사본(픽셀·프레임 간격 같음, 180KB → 137KB — 2026-11-13) -->
-                        <img src="/brand/mascot-robotikon-m-17.webp" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
-                        <img src="/brand/mascot-robotikon-f-01.webp" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
+                        <img :src="brandUrl('/brand/mascot-robotikon-m-17.webp')" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
+                        <img :src="brandUrl('/brand/mascot-robotikon-f-01.webp')" alt="" width="200" height="200" class="about-mascot size-24 md:size-32" loading="eager" decoding="async" />
                     </div>
                 </div>
             </section>
@@ -58,8 +58,8 @@
                             </span>
                             <!-- 「AI」 카드는 A 자리에 로고의 로봇(안테나와 A자 다리가 A 를 그린다) + I — 다른 카드는 글자만 -->
                             <span v-if="word.key === 'ai'" class="inline-flex items-end text-3xl font-black leading-none tracking-tight text-primary" aria-hidden="true">
-                                <img src="/brand/irobit-logo-ko-light.svg#symbol" alt="" class="site-logo-light -mb-0.5 h-10 w-12" />
-                                <img src="/brand/irobit-logo-ko-dark.svg#symbol" alt="" class="site-logo-dark -mb-0.5 h-10 w-12" />
+                                <img :src="brandUrl('/brand/irobit-logo-ko-light.svg#symbol')" alt="" class="site-logo-light -mb-0.5 h-10 w-12" />
+                                <img :src="brandUrl('/brand/irobit-logo-ko-dark.svg#symbol')" alt="" class="site-logo-dark -mb-0.5 h-10 w-12" />
                                 <span>I</span>
                             </span>
                             <span v-else class="text-3xl font-black leading-none tracking-tight text-primary" aria-hidden="true">{{ t(word.letterKey) }}</span>
@@ -91,7 +91,7 @@
                     <img
                         v-for="avatar in AVATARS"
                         :key="avatar"
-                        :src="`/avatars/irobit/${avatar}.svg`"
+                        :src="avatarUrl(`/avatars/irobit/${avatar}.svg`)"
                         alt=""
                         width="40"
                         height="40"
@@ -126,6 +126,8 @@
 </template>
 
 <script setup lang="ts">
+import { assetUrl as brandUrl } from 'virtual:static-assets/core';
+import { assetUrl as avatarUrl } from 'virtual:static-assets/avatars';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilRedirect from '~/utils/util-redirect';

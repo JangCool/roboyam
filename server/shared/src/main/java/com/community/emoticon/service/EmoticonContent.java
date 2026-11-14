@@ -1,5 +1,6 @@
 package com.community.emoticon.service;
 
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.emoticon.dto.response.EmoticonAdminView;
 import com.community.emoticon.dto.response.EmoticonPublicView;
 import com.community.emoticon.dto.response.EmoticonStudioView;
@@ -88,7 +89,8 @@ public class EmoticonContent {
     }
 
     public String url(String storageKey, String staticPath) {
-        return staticPath != null ? staticPath : storage.publicUrl(storageKey);
+        // 앱에 딸린 시드 그림은 내용 해시를 붙인다(1년 캐시 — StaticAssetUrls), 올린 그림은 저장소 주소(이미 새 이름)
+        return staticPath != null ? StaticAssetUrls.of(staticPath) : storage.publicUrl(storageKey);
     }
 
     /** 움직이는 그림 — 여러 프레임 GIF */

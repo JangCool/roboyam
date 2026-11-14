@@ -1,3 +1,4 @@
+import { assetUrl } from 'virtual:static-assets/avatars';
 import type {
     PointShopAdminItem,
     PointShopBorderStyle,
@@ -123,7 +124,7 @@ export default class UtilPointShop {
      * @returns {string} 그림 주소.
      */
     static avatarUrl(avatarId: string): string {
-        return `/avatars/irobit/${encodeURIComponent(avatarId)}.svg`;
+        return assetUrl(`/avatars/irobit/${encodeURIComponent(avatarId)}.svg`); // 내용 해시를 붙인다(1년 캐시 — 서버 주소와 같은 값)
     }
 
     static hasDuration(usage: PointShopUsageType | null): boolean {

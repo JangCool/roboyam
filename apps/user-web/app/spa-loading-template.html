@@ -157,7 +157,7 @@
             img.src = href;
             if (name) add('span', '', name);
         }
-        var logo = content('meta[name="irobit-site-logo"]');
+        var logo = (dark && content('meta[name="irobit-site-logo-dark"]')) || content('meta[name="irobit-site-logo"]');
         if (logo === 'inline') {
             iconAndName();
         } else {

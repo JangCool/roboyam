@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.community.avatarupload.service.AvatarUploadReviewService;
+import com.community.zconfiguration.StaticAssetUrls;
 import com.community.media.service.ImageStorage;
 import com.community.pointshop.service.AvatarCatalog;
 import com.jayway.jsonpath.JsonPath;
@@ -191,7 +192,7 @@ class AvatarUploadHttpTest extends PointShopApiTestBase {
 
         // 지우기 — 반환 없음, 쓰는 중이었으면 마지막 정지 아바타로
         mvc.perform(as(member, delete("/api/me/avatar-upload"))).andExpect(status().isNoContent());
-        mvc.perform(as(member, get("/api/me/profile"))).andExpect(jsonPath("$.data.avatarUrl").value(AvatarCatalog.URL_PREFIX + "hobby-gamer.svg"))
+        mvc.perform(as(member, get("/api/me/profile"))).andExpect(jsonPath("$.data.avatarUrl").value(StaticAssetUrls.of(AvatarCatalog.URL_PREFIX + "hobby-gamer.svg")))
                 .andExpect(jsonPath("$.data.avatarStillUrl").isEmpty());
         String gone = uploadState(member);
         assertThat((Object) JsonPath.read(gone, "$.data.current")).isNull();
