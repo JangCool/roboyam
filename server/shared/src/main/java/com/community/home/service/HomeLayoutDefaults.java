@@ -122,14 +122,14 @@ public final class HomeLayoutDefaults {
      * <pre>
      *   PC   [새소식(뉴스 게시판 · LINE · 두 열 · 첫 글 작은 사진)            ] [인기글     ]
      *        [핫 아이로 픽(PC 전용 · 좁은 칸 LIST)] [최신글(PC 전용 · COMPACT)] [광고       ]
-     *        [상단 띠 배너                                                    ] [인기 소모임]
+     *        [핫 아이로 픽(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다          [인기 소모임]
+     *        [상단 띠 배너                                                    ]
      *        [팁과강좌] [사용기] → [영상·짤] → [띠 배너]                         [공동구매(PC 전용)]
-     *   모바일(템플릿 한 열 순서 beside) 새소식 → 상단 띠 배너 → 인기글 → 핫 아이로 픽(모바일 전용) → 최신글(모바일 전용) → 광고 → 팁과강좌 → 사용기
-     *        → 인기 소모임 → 영상·짤 → 띠 배너
+     *   모바일(템플릿 한 열 순서 beside) 새소식 → 인기글 → 핫 아이로 픽(모바일 전용) → 최신글(모바일 전용) → 광고 → 인기 소모임 → 상단 띠 배너
+     *        → 팁과강좌 → 사용기 → 영상·짤 → 띠 배너
      * </pre>
-     * 자리의 {@code y} 는 차례 값이다 — 공개 화면은 보이는 가젯만 위로 당겨 그리므로(UtilGadgetGrid.place), PC 전용 두 가젯(y1)이 새소식 아래에, 모바일 전용 두 가젯(y13·y15)이
-     * 상단 띠 배너 뒤에 온다. 한 열 순서는 옆 열 가젯을 「본문 열에서 위 끝 ≤ 그 가젯 아래 끝인 마지막 가젯」 뒤에 끼우므로(인기글 아래 끝 12 ≥ 상단 띠 배너 12) 위 차례가 된다.
-     * 자리 사각형이 서로 겹치므로 관리자 편집기는 처음 열 때 위로 당겨 정리한다(저장하면 모바일 차례가 바뀔 수 있다 — 운영자가 맞춘다).
+     * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). 모바일 전용 두 가젯을 PC 두 가젯 바로 아래 같은 행(y20)에
+     * 나란히 두어, 한 열 순서(옆 열 가젯은 본문 열에서 「위 끝 ≤ 그 가젯 아래 끝」인 마지막 가젯 뒤)가 인기글 → 핫 아이로 픽 → 최신글 → 광고가 되게 했다(이미 설치된 곳은 V211 이 넣고 V212 가 이 자리로 바로잡는다).
      * 머리는 아이콘 + 제목({@code PLAIN}), 구분선은 끈다. 게시판 이름은 기본(자동 — 게시판 표시색이 있으면 그 색, 2026-11-05 사용자 결정으로 회색에서 바꿈).
      */
     private static Home irobit() {
@@ -144,27 +144,27 @@ public final class HomeLayoutDefaults {
                         .set("meta", meta("COMMENTS")),
                 null, "/popular", 18, 0, 6, 12);
         b.add("HIGHLIGHT", "핫 아이로 픽", true, false, plain("pi-sparkles").put("bottomSpace", "TIGHT"),
-                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 1, 9, 12);
+                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"),
                 cfg().put("sort", "LATEST").put("rowStyle", "COMPACT").put("columns", 1).put("count", 12).put("dividers", false).put("likes", "LEAD")
                         .set("meta", meta("BOARD", "COMMENTS", "LIKES")),
-                null, "/latest", 9, 1, 9, 12);
-        b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 12, 18, 3);
+                null, "/latest", 9, 12, 9, 8);
+        b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 29, 18, 3);
         b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
         b.add("HIGHLIGHT", "핫 아이로 픽", false, true, plain("pi-sparkles"),
-                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 13, 18, 1);
+                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 20, 9, 8);
         b.add("POST_LIST", "최신글", false, true, plain("pi-clock"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 10)
                         .put("dividers", false).put("likes", "ICON").put("rowSpacing", "TIGHT").set("meta", meta("BOARD", "COMMENTS", "TIME", "LIKES")),
-                null, "/latest", 0, 15, 18, 9);
+                null, "/latest", 9, 20, 9, 9);
         b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 20, 6, 7);
-        b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 27, 9, 8);
-        b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 27, 9, 8);
+        b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 32, 9, 8);
+        b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 32, 9, 8);
         b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
-                0, 35, 18, 8);
-        b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 43, 18, 3);
+                0, 40, 18, 8);
+        b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 48, 18, 3);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), cfg().put("sort", "DEADLINE").put("count", 5), null, null,
-                17, 46, 7, 13);
+                17, 51, 7, 13);
         return b.build();
     }
 
