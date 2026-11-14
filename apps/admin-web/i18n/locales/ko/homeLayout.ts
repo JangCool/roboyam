@@ -150,6 +150,7 @@ export default {
     meta_COMMENTS: '댓글 수',
     meta_TIME: '시각',
     meta_AUTHOR: '글쓴이',
+    meta_LIKES: '추천 수',
     newBadgeHours: 'NEW 표시(최근 몇 시간)',
     newBadgeHint: '0이면 표시하지 않아요. {max}시간까지.',
     hotBadgeLikes: 'HOT 표시(추천 몇 개 이상)',

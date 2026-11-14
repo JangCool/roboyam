@@ -47,7 +47,7 @@ const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 /** 카드 없이(평평) 그리는 것이 처음 꾸미기인 종류 — 배너는 그림 자체가 면이라 카드를 겹치지 않는다 */
 const FLAT_KINDS: readonly string[] = ['AD'];
 
-const META_KEYS: readonly PostListMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR'];
+const META_KEYS: readonly PostListMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR', 'LIKES'];
 /** 글 가젯의 기본 표시 칸(community 계약서 2-1) */
 const DEFAULT_META: readonly PostListMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME'];
 

@@ -149,6 +149,7 @@ export default {
     meta_COMMENTS: 'Comments',
     meta_TIME: 'Time',
     meta_AUTHOR: 'Author',
+    meta_LIKES: 'Likes',
     newBadgeHours: 'NEW badge (posts in the last N hours)',
     newBadgeHint: '0 turns it off. Up to {max} hours.',
     hotBadgeLikes: 'HOT badge (N likes or more)',

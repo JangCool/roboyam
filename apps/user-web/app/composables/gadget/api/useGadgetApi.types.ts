@@ -148,7 +148,7 @@ export type PostListSort = 'LATEST' | 'POPULAR' | 'COMMENTS' | 'VIEWS' | 'LIKES'
 /** 줄 모양 — 헤드라인(제목 2줄 + 오른쪽 사진) · 순위(번호) · 기사(왼쪽 사진 + 말풍선 댓글 수) · 촘촘(한 줄) */
 export type PostListRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT';
 export type PostListThumbnail = 'AUTO' | 'NONE' | 'RIGHT' | 'LEFT';
-export type PostListMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR';
+export type PostListMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR' | 'LIKES';
 /** 게시판 이름·로고 색 — 자동(게시판 표시색) · 고정 색 · 회색 */
 export type GadgetBadgeMode = 'AUTO' | 'FIXED' | 'NEUTRAL';
 

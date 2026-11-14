@@ -37,7 +37,7 @@ export type HomePostRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT';
 /** 글 목록 사진 자리 — 자동(줄 모양을 따름) · 없음 · 오른쪽 · 왼쪽 */
 export type HomePostThumbnail = 'AUTO' | 'NONE' | 'RIGHT' | 'LEFT';
 /** 글 줄에 보일 정보 — 게시판 · 말머리 · 댓글 수 · 시각 · 글쓴이 */
-export type HomePostMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR';
+export type HomePostMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR' | 'LIKES';
 /** 바로가기 한 항목의 종류 — user-web `UtilGadget.linkOf` 가 주소를 만든다(`BOARD` 값 = 게시판 slug, `PATH` 값 = `/` 로 시작하는 사이트 안 경로) */
 export type HomeQuickLinkKind = 'ALL' | 'POPULAR' | 'LATEST' | 'GROUPS' | 'GROUP_BUY' | 'BOARD' | 'PATH';
 

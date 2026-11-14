@@ -32,7 +32,7 @@
 | 종류 | 내용 칸(서버 JSON `config`) |
 |---|---|
 | `GROUP_BUY` | `count` 1~10(기본 5) · `sort` DEADLINE·NEWEST·POPULAR (기존) |
-| `POST_LIST` | `boardScope` · `boardIds` · `count` 1~30(기본 10) · `sort` LATEST·POPULAR·VIEWS·LIKES·COMMENTS · `periodTabs`(POPULAR 일 때만 참) · 보기 모양 `rowStyle` HEADLINE·RANK·ARTICLE·COMPACT · `columns` 1·2 · `thumbnail` AUTO·NONE·RIGHT·LEFT · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` BOARD·PREFIX·COMMENTS·TIME·AUTHOR 부분집합 · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000 (`badge`·`rank` 는 화면이 보내지 않음 — 저장 값 유지) |
+| `POST_LIST` | `boardScope` · `boardIds` · `count` 1~30(기본 10) · `sort` LATEST·POPULAR·VIEWS·LIKES·COMMENTS · `periodTabs`(POPULAR 일 때만 참) · 보기 모양 `rowStyle` HEADLINE·RANK·ARTICLE·COMPACT · `columns` 1·2 · `thumbnail` AUTO·NONE·RIGHT·LEFT · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` BOARD·PREFIX·COMMENTS·TIME·AUTHOR·LIKES 부분집합(LIKES = 추천 수, 2026-11-14 — 예전에는 순위 모양·추천 많은 순이면 저절로 붙었고 shared V210 이 옵션으로 옮김) · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000 (`badge`·`rank` 는 화면이 보내지 않음 — 저장 값 유지) |
 | `GALLERY` | `boardScope` · `boardIds` · `count` 1~24(기본 6) |
 | `BOARD_CARDS` | `boardScope` · `boardIds`(카드로 보일 게시판) · `perBoard` 1~10(기본 4) · `cardHead` 카드 머리(로고·이름·「게시판 가기」) 보이기(기본 켬 — 게시판 하나짜리 카드는 꺼서 가젯 제목과 겹치지 않게, 처음 배치의 카드는 끔) · `columns` AUTO·2·3 · `outline`·`dividers` 카드 외곽선·줄 구분선(기본 끔) · `leadPlaceholder` 사진 없는 대표 글에 「이미지 없음」 자리(기본 켬 — 카드끼리 모양이 같게, 2026-11-06) |
 | `HIGHLIGHT` | `count` 1~6(기본 5 — 공개 데이터도 이 수) · `lead` HERO·NONE(기본 HERO) · `thumbs` ALL·FIRST·NONE(기본 ALL) · `showAuthor` 작성자(아바타·닉네임) 보이기(기본 켬 — 칸이 없는 옛 가젯도 켬, 2026-11-10) |

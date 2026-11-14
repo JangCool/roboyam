@@ -53,7 +53,7 @@ const HOT_DEALS_SORTS: readonly HomeHotDealSort[] = ['LATEST', 'POPULAR', 'ENDIN
 const POST_LIST_SORTS: readonly HomePostListSort[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
 const ROW_STYLES: readonly HomePostRowStyle[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
 const THUMBNAILS: readonly HomePostThumbnail[] = ['AUTO', 'NONE', 'RIGHT', 'LEFT'];
-const META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR'];
+const META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR', 'LIKES'];
 /** 글 줄 정보 처음 값 — user-web `DEFAULT_META` */
 const DEFAULT_META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME'];
 const QUICK_KINDS: readonly HomeQuickLinkKind[] = ['ALL', 'POPULAR', 'LATEST', 'GROUPS', 'GROUP_BUY', 'BOARD', 'PATH'];

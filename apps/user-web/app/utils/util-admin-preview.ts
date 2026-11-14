@@ -119,7 +119,7 @@ const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const POST_LIST_SORTS: readonly string[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
 const ROW_STYLES: readonly string[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
 const THUMBNAILS: readonly string[] = ['AUTO', 'NONE', 'RIGHT', 'LEFT'];
-const META_KEYS: readonly string[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR'];
+const META_KEYS: readonly string[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR', 'LIKES'];
 /** 글 목록 보기 모양 칸 — 받은 것만 가젯 `config` 에 덮는다 */
 const POST_VIEW_KEYS = ['rowStyle', 'columns', 'thumbnail', 'titleLines', 'lead', 'meta', 'dividers', 'newBadgeHours', 'hotBadgeLikes'] as const;
 /** 데이터를 받지 않고 설정으로 바로 그리는 종류 — 같은 종류가 응답에 없어도 새 가젯을 그린다 */

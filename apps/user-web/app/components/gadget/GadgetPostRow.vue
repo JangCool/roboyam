@@ -126,8 +126,8 @@ const commentShown = computed(() => props.cfg.meta.includes('COMMENTS') && props
 const bubble = computed(() => commentShown.value && rowStyle.value === 'ARTICLE');
 const commentNumber = computed(() => commentShown.value && rowStyle.value !== 'ARTICLE');
 
-/** 순위 모양·추천 많은 순 목록은 추천 수를 곁들인다 — 인기 정렬(홈 「인기글」 등)은 곁들이지 않는다(사용자 2026-11-14) */
-const showLikes = computed(() => rowStyle.value === 'RANK' || props.cfg.sort === 'LIKES');
+/** 추천 수 — 글 줄 정보 옵션 `LIKES`(사용자 2026-11-14, 예전에는 순위 모양·추천 많은 순·인기 정렬이면 저절로 붙었다 — 기존 가젯은 shared V210 이 옵션으로 옮겼다) */
+const showLikes = computed(() => props.cfg.meta.includes('LIKES'));
 
 /** 메타 줄 조각(순서대로) — 큰 글은 댓글 수를 메타 줄에 둔다 */
 const metaParts = computed(() => {

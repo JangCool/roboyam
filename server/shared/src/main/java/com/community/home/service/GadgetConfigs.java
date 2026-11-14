@@ -37,7 +37,7 @@ public final class GadgetConfigs {
     public static final List<String> POST_LIST_SORTS = List.of("LATEST", "POPULAR", "VIEWS", "LIKES", "COMMENTS");
     public static final List<String> ROW_STYLES = List.of("HEADLINE", "RANK", "ARTICLE", "COMPACT");
     public static final List<String> THUMBNAILS = List.of("AUTO", "NONE", "RIGHT", "LEFT");
-    public static final List<String> META = List.of("BOARD", "PREFIX", "COMMENTS", "TIME", "AUTHOR");
+    public static final List<String> META = List.of("BOARD", "PREFIX", "COMMENTS", "TIME", "AUTHOR", "LIKES");
     /** 글 줄 정보 처음 값 — user-web {@code DEFAULT_META} */
     public static final List<String> DEFAULT_META = List.of("BOARD", "PREFIX", "COMMENTS", "TIME");
     /** 글 목록 큰 글(처음 NONE) · 하이라이트 큰 글(처음 HERO) */
