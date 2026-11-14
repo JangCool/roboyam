@@ -14,6 +14,24 @@ export default {
     columnsOption: '{count} columns',
     liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it. Use ⚙ to change each gadget’s content, look and visibility.',
 
+    // ── Mobile order (single column on phones — home, gadget pages and boards) ─
+    mobileOrder: 'Mobile order',
+    mobileOrderAuto: 'Following the PC layout',
+    mobileOrderCustom: 'Custom order',
+    mobileOrderPreview: 'Phone width',
+    mobileOrderPreviewNote: 'The live view is at phone width. Drag and resize handles appear only at PC width.',
+    mobileOrderFollow: 'Follow PC layout',
+    mobileOrderFollowed: 'Mobile order now follows the PC layout.',
+    mobileOrderShow: 'Show list',
+    mobileOrderHide: 'Hide list',
+    mobileOrderHint: 'The order gadgets appear in the single phone column (gadgets with “Mobile” visibility on). Drag a handle or use ↑·↓ to fix this order; gadgets added later go to the end. The PC and tablet layouts stay as they are.',
+    mobileOrderEmpty: 'No gadgets are shown on mobile.',
+    mobileOrderHandle: 'Drag to move "{title}" (Alt+↑·↓)',
+    mobileOrderUp: 'Move "{title}" up',
+    mobileOrderDown: 'Move "{title}" down',
+    mobileOrderMoved: '"{title}" → position {n}',
+    mobileOrderMobileOnly: 'Mobile only',
+
     // ── Gadget settings (⚙ — group buy only for now) ─
     settingsTitle: '"{title}" settings',
     settingsLead: 'Choose how many group buys to show on the home page and in what order. Only open, recruiting group buys appear.',

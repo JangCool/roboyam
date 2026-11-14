@@ -145,7 +145,7 @@ export default class UtilBoardLayout {
      * 본문을 꼭 하나로 — 둘 이상이면 첫 것만 남기고, 없으면 맨 위 전체 폭에 넣는다(다른 가젯은 그 아래로). 서버가 같은 규칙으로 막을 자리(`400 fields.layout.items`).
      * @param {BoardLayoutBody} body - 받은 배치.
      * @param {string} bodyTitle - 새로 넣을 때의 본문 제목.
-     * @returns {BoardLayoutBody} 고친 배치(이미 맞으면 같은 값의 사본).
+     * @returns {BoardLayoutBody} 고친 배치(이미 맞으면 같은 값의 사본 — 모바일 순서는 그대로, 빠진 본문 ID 는 편집기가 저장 모양에서 거른다).
      */
     static ensureBody(body: BoardLayoutBody, bodyTitle: string): BoardLayoutBody {
         const bodies = body.gadgets.filter((g) => g.type === BODY);
@@ -153,12 +153,12 @@ export default class UtilBoardLayout {
         const drop = new Set(bodies.slice(1).map((g) => g.id));
         const gadgets = body.gadgets.filter((g) => !drop.has(g.id));
         let items = body.layout.items.filter((it) => !drop.has(it.gadgetId));
-        if (keep && items.some((it) => it.gadgetId === keep.id)) return { screens: { ...body.screens }, layout: { columns: body.layout.columns, items }, gadgets };
+        if (keep && items.some((it) => it.gadgetId === keep.id)) return { screens: { ...body.screens }, layout: { columns: body.layout.columns, items, mobileOrder: body.layout.mobileOrder ?? null }, gadgets };
         const id = keep?.id ?? NEW_BODY_ID;
         items = [{ gadgetId: id, x: 0, y: 0, w: body.layout.columns, h: BODY_H }, ...items.filter((it) => it.gadgetId !== id).map((it) => ({ ...it, y: it.y + BODY_H }))];
         return {
             screens: { ...body.screens },
-            layout: { columns: body.layout.columns, items: UtilHomeLayout.compact(items) },
+            layout: { columns: body.layout.columns, items: UtilHomeLayout.compact(items), mobileOrder: body.layout.mobileOrder ?? null },
             gadgets: keep ? gadgets : [UtilBoardLayout.bodyGadget(bodyTitle, id), ...gadgets],
         };
     }

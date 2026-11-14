@@ -100,7 +100,9 @@ public final class GadgetPageInitial {
                         config != null && config.isObject() ? config.deepCopy() : HomeLayoutJson.object(), more != null && more.isObject() ? more.deepCopy() : null));
             }
         }
-        return new HomeLayoutDefaults.Home(new HomeGridLayout(columns, items), List.copyOf(gadgets));
+        // 모바일 순서 — 처음 배치 JSON 에 있으면(지금 만드는 처음 배치에는 없다 — null = PC 배치에서 계산)
+        List<String> mobileOrder = root == null ? null : HomeLayoutJson.readIds(HomeLayoutJson.write(root.get("mobileOrder")));
+        return new HomeLayoutDefaults.Home(new HomeGridLayout(columns, items, mobileOrder), List.copyOf(gadgets));
     }
 
     private static ObjectNode scope(ObjectNode config, String scope, List<String> slugs) {

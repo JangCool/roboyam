@@ -125,21 +125,22 @@ public final class HomeLayoutDefaults {
      *        [핫 아이로 픽(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다          [인기 소모임]
      *        [상단 띠 배너                                                    ]
      *        [팁과강좌] [사용기] → [영상·짤] → [띠 배너]                         [공동구매(PC 전용)]
-     *   모바일(템플릿 한 열 순서 beside) 새소식 → 인기글 → 핫 아이로 픽(모바일 전용) → 최신글(모바일 전용) → 광고 → 인기 소모임 → 상단 띠 배너
-     *        → 팁과강좌 → 사용기 → 영상·짤 → 띠 배너
+     *   모바일(배치의 모바일 순서 mobileOrder — PC 배치와 따로) 새소식 → 상단 띠 배너 → 인기글 → 핫 아이로 픽(모바일 전용) → 최신글(모바일 전용) → 광고
+     *        → 팁과강좌 → 사용기 → 인기 소모임 → 영상·짤 → 띠 배너
      * </pre>
+     * 모바일 순서는 home-news-contract 「모바일 순서」(이미 설치된 곳은 shared V213 이 같은 순서를 넣는다). 아래 자리의 한 열 계산 차례는 모바일 순서가 없을 때(운영자가 「PC 배치 따르기」)만 쓰인다.
      * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). 모바일 전용 두 가젯을 PC 두 가젯 바로 아래 같은 행(y20)에
      * 나란히 두어, 한 열 순서(옆 열 가젯은 본문 열에서 「위 끝 ≤ 그 가젯 아래 끝」인 마지막 가젯 뒤)가 인기글 → 핫 아이로 픽 → 최신글 → 광고가 되게 했다(이미 설치된 곳은 V211 이 넣고 V212 가 이 자리로 바로잡는다).
      * 머리는 아이콘 + 제목({@code PLAIN}), 구분선은 끈다. 게시판 이름은 기본(자동 — 게시판 표시색이 있으면 그 색, 2026-11-05 사용자 결정으로 회색에서 바꿈).
      */
     private static Home irobit() {
         Builder b = new Builder("irobit", 24);
-        b.add("POST_LIST", "새소식", true, true, plain("pi-megaphone"),
+        String news = b.add("POST_LIST", "새소식", true, true, plain("pi-megaphone"),
                 cfg().put("boardScope", GadgetConfigs.PICK).<ObjectNode>set("boardIds", meta(BoardFields.NEWS_SLUG)).put("sort", "LATEST").put("rowStyle", "LINE")
                         .put("lead", GadgetConfigs.LEAD_THUMB).put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 17).put("dividers", false)
                         .put("mobilePages", 3).put("mobilePageSize", 5).set("meta", meta("PREFIX", "COMMENTS", "TIME")),
                 null, "/boards/" + BoardFields.NEWS_SLUG, 0, 0, 18, 12);
-        b.add("POST_LIST", "인기글", true, true, tabler("pi-chart-line", GadgetTablerIcons.FLAME),
+        String popular = b.add("POST_LIST", "인기글", true, true, tabler("pi-chart-line", GadgetTablerIcons.FLAME),
                 cfg().put("sort", "POPULAR").put("rowStyle", "COMPACT").put("columns", 1).put("count", 20).put("dividers", false).put("periodTabs", true)
                         .set("meta", meta("COMMENTS")),
                 null, "/popular", 18, 0, 6, 12);
@@ -149,23 +150,24 @@ public final class HomeLayoutDefaults {
                 cfg().put("sort", "LATEST").put("rowStyle", "COMPACT").put("columns", 1).put("count", 12).put("dividers", false).put("likes", "LEAD")
                         .set("meta", meta("BOARD", "COMMENTS", "LIKES")),
                 null, "/latest", 9, 12, 9, 8);
-        b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 29, 18, 3);
-        b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
-        b.add("HIGHLIGHT", "핫 아이로 픽", false, true, plain("pi-sparkles"),
+        String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 29, 18, 3);
+        String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
+        String pickMobile = b.add("HIGHLIGHT", "핫 아이로 픽", false, true, plain("pi-sparkles"),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 20, 9, 8);
-        b.add("POST_LIST", "최신글", false, true, plain("pi-clock"),
+        String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 10)
                         .put("dividers", false).put("likes", "ICON").put("rowSpacing", "TIGHT").set("meta", meta("BOARD", "COMMENTS", "TIME", "LIKES")),
                 null, "/latest", 9, 20, 9, 9);
-        b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 20, 6, 7);
-        b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 32, 9, 8);
-        b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 32, 9, 8);
-        b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
+        String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 20, 6, 7);
+        String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 32, 9, 8);
+        String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 32, 9, 8);
+        String gallery = b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
                 0, 40, 18, 8);
-        b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 48, 18, 3);
+        String strip = b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 48, 18, 3);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), cfg().put("sort", "DEADLINE").put("count", 5), null, null,
                 17, 51, 7, 13);
-        return b.build();
+        // 모바일 한 열 순서(home-news-contract 「모바일 순서」) — PC 전용(핫 아이로 픽·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
+        return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, tips, reviews, groups, gallery, strip));
     }
 
     /** 게시판 하나의 게시판 카드(카드 머리 없이 · 대표 글 사진 자리) — 아이로빗 팁과강좌·사용기 */
@@ -221,8 +223,9 @@ public final class HomeLayoutDefaults {
             this.columns = columns;
         }
 
-        void add(String type, String title, boolean desktop, boolean mobile, JsonNode styleOverride, ObjectNode config, String moreLabel, String moreTo,
-                 int x, int y, int w, int h) {
+        /** @return 시드 가젯 ID({@code seed-<n>}) — 모바일 순서에 쓴다 */
+        String add(String type, String title, boolean desktop, boolean mobile, JsonNode styleOverride, ObjectNode config, String moreLabel, String moreTo,
+                   int x, int y, int w, int h) {
             String id = SEED_PREFIX + (gadgets.size() + 1);
             ObjectNode style = GadgetKinds.kindStyle(GadgetKinds.baseStyle(theme), type); // 광고 가젯은 머리 숨김·평평·비면 접기(다른 종류는 그대로)
             if (styleOverride != null) {
@@ -234,10 +237,17 @@ public final class HomeLayoutDefaults {
             }
             gadgets.add(new GadgetSpec(id, type, title, desktop, mobile, style, config == null ? HomeLayoutJson.object() : config, more));
             items.add(new HomeLayoutItem(id, x, y, w, h));
+            return id;
         }
 
+        /** 모바일 순서 없이(PC 배치에서 계산) */
         Home build() {
-            return new Home(new HomeGridLayout(columns, items), List.copyOf(gadgets));
+            return build(null);
+        }
+
+        /** @param mobileOrder 모바일 한 열 순서(시드 ID) — null 이면 PC 배치에서 계산 */
+        Home build(List<String> mobileOrder) {
+            return new Home(new HomeGridLayout(columns, items, mobileOrder), List.copyOf(gadgets));
         }
     }
 }

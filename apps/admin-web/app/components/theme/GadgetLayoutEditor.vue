@@ -7,7 +7,10 @@
           · 도구 줄: 격자 칸 수 12/24(바꾸면 위치·폭 2배/반 — `UtilHomeLayout.convert`) · 테마 기본 배치로(저장해야 적용) · 가젯 넣기(종류 8종 — 맨 아래 기본 크기).
           · 저장(`PUT /api/admin/home-layouts/{theme}` — 아래 붙는 저장 줄) · 되돌리기(마지막 저장으로).
         **광고 가젯**(`AD`·`AD_TEXT_LINE`): 서버 가젯 종류라 다른 가젯처럼 저장한다(공개 응답의 `data` 는 null — 사용자 화면이 `/api/ads` 로 채운다).
-        `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다.
+        `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다(슬롯 값 `mobile` — 휴대폰 폭으로 볼지).
+        **모바일 순서**(home-news-contract 「모바일 순서」, 2026-11-15 — 홈·가젯 페이지·게시판 공통): 도구 줄 아래 `GadgetMobileOrder` — 휴대폰 한 열 차례를 끌어 놓기·↑↓로 바꾸면 배치의 `mobileOrder` 를 채우고,
+          [PC 배치 따르기]로 null. 목록 차례 = 공개 화면과 같은 계산(`UtilHomeStack.order` — 테마 한 열 모양 `ruleOf(theme)` · 게시판 본문 먼저 · `mobileOrder`). 편집 중 값은 배치에 실려 바뀜 표시·저장·실제 화면에 함께 간다.
+          가젯을 빼면 목록에서도 빠지고(저장 모양에서 걸러진다), 새 가젯은 임시 ID 그대로 보내면 서버가 실제 ID 로 바꾼다. [휴대폰 폭으로 보기]면 실제 화면을 390px 폭으로 띄운다(끌기 손잡이는 PC 폭에서만).
         **가젯 페이지**(`page` — 사용자 결정 2026-10-29): 주면 홈 대신 그 페이지의 이 테마 배치를 편집한다(`useGadgetPageApi` — 읽기·저장·「처음 배치로」). 모양·손잡이·도구 줄은 홈과 같다.
         **게시판 레이아웃**(`board` — 2026-10-30, `useBoardLayoutApi`): 테마마다 하나, 모든 게시판에 같이 쓴다. 고정 칸 「게시판 본문」(`BOARD_BODY`)이 꼭 하나 있다(본문 = 종류가 `BOARD_BODY` 인 가젯 — ID 는 서버가 정한다) —
           옮기기·크기만 되고 빼기·⚙·두 번째 넣기는 없다(`UtilBoardLayout.ensureBody`). 도구 줄에 적용 화면(게시판 목록 · 글 보기 켜고 끄기 — `screens` 로 화면에 알린다) · [추천 배치](본문 + 오른쪽 열, 묻고 바꾼다)가 더 붙고,
@@ -81,6 +84,15 @@
                     </div>
                     <p class="m-0 min-w-0 flex-1 basis-64 text-xs leading-relaxed text-muted-color">{{ t('homeLayout.board_screensHint') }}</p>
                 </fieldset>
+                <!-- 모바일 순서 — 휴대폰 한 열 차례(끌어 놓기 · ↑↓ · PC 배치 따르기 · 휴대폰 폭으로 보기) -->
+                <GadgetMobileOrder
+                    v-model:preview="mobilePreview"
+                    :rows="mobileRows"
+                    :custom="mobileOrder !== null"
+                    :disabled="!canManage || saving"
+                    @move="moveMobile"
+                    @follow="followPc"
+                />
                 <p class="m-0 text-xs text-muted-color">
                     {{ view.updatedAt ? t('homeLayout.lastSaved', { at: time.full(view.updatedAt), by: view.updatedBy ?? '—' }) : word('neverSaved') }}
                 </p>
@@ -89,7 +101,7 @@
         </div>
 
         <!-- 실제 화면(화면이 넣는다) — 도구 줄과 저장 줄 사이 -->
-        <slot />
+        <slot :mobile="mobilePreview && !hidden" />
 
         <StickySaveBar v-if="canManage && view" revertable :dirty="dirty" :saving="saving" :error="saveError" @save="save" @revert="revert" />
 
@@ -129,9 +141,11 @@
 <script setup lang="ts">
 import type { HomeGridColumns } from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
+import UtilHomeStack from '#layers/home-layout/utils/util-home-stack';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { HomeLayoutBody, HomeLayoutGadget } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { GadgetSettingsPatch } from '~/components/theme/GadgetSettingsDialog.vue';
+import type { GadgetMobileOrderRow } from '~/components/theme/GadgetMobileOrder.vue';
 import type { GadgetPage } from '~/composables/page/api/useGadgetPageApi.types';
 import type { BoardLayoutScreen, BoardLayoutScreens } from '~/composables/board/api/useBoardLayoutApi.types';
 import type { GadgetPlace } from '~/utils/util-gadget-config';
@@ -204,6 +218,10 @@ const view = ref<EditorView | null>(null);
 const gadgets = ref<HomeLayoutGadget[]>([]);
 const columns = ref<HomeGridColumns>(UtilHomeLayout.DEFAULT_COLUMNS);
 const items = ref<GadgetEditorItem[]>([]);
+/** 운영자가 정한 모바일 순서(가젯 ID) — null 이면 PC 배치를 따른다 */
+const mobileOrder = ref<string[] | null>(null);
+/** 실제 화면을 휴대폰 폭으로 보는가 */
+const mobilePreview = ref(false);
 /** 게시판 레이아웃의 적용 화면(게시판이 아니면 쓰지 않는다) */
 const screens = ref<BoardLayoutScreens>(UtilBoardLayout.defaultScreens());
 const announcement = ref('');
@@ -234,7 +252,23 @@ function kindName(type: string): string {
 }
 
 /** 저장 모양 — 저장 본문·바뀜 비교 */
-const currentLayout = computed(() => UtilGadgetLayoutEditor.toLayout(columns.value, items.value));
+const currentLayout = computed(() => UtilGadgetLayoutEditor.toLayout(columns.value, items.value, mobileOrder.value));
+
+/** 마지막 저장 배치(모바일 순서는 아는 가젯 ID 만 — 바뀜 비교) */
+const savedLayout = computed(() => (view.value ? { ...view.value.layout, mobileOrder: UtilHomeLayout.readMobileOrder(view.value.layout.mobileOrder, view.value.gadgets.map((g) => g.id)) } : null));
+
+/**
+ * 모바일 순서 목록 — 휴대폰 한 열에 보이는 가젯(노출 「모바일」 + 게시판 본문)을 공개 화면과 같은 계산으로(`UtilHomeStack.order` — 테마 한 열 모양 · 본문 먼저 · 정한 차례)
+ */
+const mobileRows = computed<GadgetMobileOrderRow[]>(() => {
+    const shown = new Map(gadgets.value.filter((g) => g.mobile || UtilGadgetLayoutEditor.isFixed(g.type)).map((g) => [g.id, g]));
+    const list = items.value.filter((it) => shown.has(it.i)).map((it) => ({ gadgetId: it.i, x: it.x, y: it.y, w: it.w, h: it.h }));
+    const bodyId = board.value ? (UtilBoardLayout.bodyOf(gadgets.value)?.id ?? null) : null;
+    return UtilHomeStack.order(list, columns.value, UtilHomeStack.ruleOf(theme.value), { bodyId, mobileOrder: mobileOrder.value }).map((it) => {
+        const g = shown.get(it.gadgetId)!;
+        return { id: g.id, title: g.title, kind: UtilGadgetLayoutEditor.isFixed(g.type) ? t('homeLayout.kind.BOARD_BODY') : kindName(g.type), icon: UtilGadgetLayoutEditor.spec(g.type).icon, mobileOnly: !g.desktop };
+    });
+});
 
 const dirty = computed(() => {
     if (!view.value) return false;
@@ -247,7 +281,7 @@ const dirty = computed(() => {
         .sort()
         .join('|');
     const screensChanged = board.value && JSON.stringify(UtilBoardLayout.readScreens(view.value.screens)) !== JSON.stringify(screens.value);
-    return savedIds !== nowIds || !UtilGadgetLayoutEditor.same(currentLayout.value, view.value.layout) || settingsOf(view.value.gadgets) !== settingsOf(gadgets.value) || screensChanged;
+    return savedIds !== nowIds || !UtilGadgetLayoutEditor.same(currentLayout.value, savedLayout.value!) || settingsOf(view.value.gadgets) !== settingsOf(gadgets.value) || screensChanged;
 });
 
 /** 바뀜 비교용 — 가젯 ID 차례대로 제목 · 노출 · 꾸미기 · 내용 설정(`UtilGadgetConfig.gadgetKey`) */
@@ -268,6 +302,7 @@ function fill(input: HomeLayoutBody & { screens?: BoardLayoutScreens }): void {
     );
     columns.value = read.columns;
     items.value = UtilGadgetLayoutEditor.toEditor(read, typeOf);
+    mobileOrder.value = read.mobileOrder ?? null;
     saveError.value = '';
     serverErrors.value = {};
 }
@@ -356,6 +391,24 @@ function applySettings(patch: GadgetSettingsPatch): void {
     toast.show(t('homeLayout.settingsApplied', { title: patch.title }));
 }
 
+/** 모바일 순서 바꾸기 — 지금 보이는 차례에서 옮긴 결과로 고정한다(목록에 없는 가젯 = 모바일에 안 보이는 가젯은 빠지고, 새로 보이면 맨 뒤) */
+function moveMobile(id: string, to: number): void {
+    if (!canManage.value || saving.value) return;
+    mobileOrder.value = UtilGadgetLayoutEditor.moveInOrder(
+        mobileRows.value.map((r) => r.id),
+        id,
+        to,
+    );
+    saveError.value = '';
+}
+
+/** PC 배치 따르기 — 모바일 순서를 지운다(= null) */
+function followPc(): void {
+    if (!canManage.value || saving.value) return;
+    mobileOrder.value = null;
+    saveError.value = '';
+}
+
 function changeColumns(next: HomeGridColumns): void {
     if (!UtilHomeLayout.isColumns(next) || next === columns.value) return;
     apply(UtilGadgetLayoutEditor.convert(items.value, columns.value, next, typeOf));
@@ -378,6 +431,11 @@ function remove(id: string): void {
     const title = gadgetOf(id)?.title ?? '';
     gadgets.value = gadgets.value.filter((g) => g.id !== id);
     apply(UtilGadgetLayoutEditor.normalize(items.value.filter((it) => it.i !== id)));
+    // 모바일 순서에서도 뺀다(비면 PC 배치 따르기)
+    if (mobileOrder.value) {
+        const rest = mobileOrder.value.filter((v) => v !== id);
+        mobileOrder.value = rest.length > 0 ? rest : null;
+    }
     toast.show(t('homeLayout.removed', { title }));
 }
 

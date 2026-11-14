@@ -15,6 +15,24 @@ export default {
     columnsOption: '{count}칸',
     liveEditHint: '아래 실제 화면에서 가젯을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸고, 오른쪽 위 ×로 빼요. ⚙로 가젯마다 내용·모양·노출을 바꿔요.',
 
+    // ── 모바일 순서(휴대폰 한 열 — 홈·가젯 페이지·게시판 공통) ─
+    mobileOrder: '모바일 순서',
+    mobileOrderAuto: 'PC 배치를 따르는 중',
+    mobileOrderCustom: '직접 정한 차례',
+    mobileOrderPreview: '휴대폰 폭으로 보기',
+    mobileOrderPreviewNote: '실제 화면을 휴대폰 폭으로 보고 있어요. 가젯 끌기·크기 손잡이는 PC 폭에서만 보여요.',
+    mobileOrderFollow: 'PC 배치 따르기',
+    mobileOrderFollowed: '모바일 순서를 PC 배치에 맞췄어요.',
+    mobileOrderShow: '목록 보기',
+    mobileOrderHide: '목록 접기',
+    mobileOrderHint: '휴대폰 한 열에 보이는 차례예요(노출 「모바일」이 켜진 가젯). 손잡이를 끌어 놓거나 ↑·↓로 바꾸면 이 차례로 고정되고, 나중에 넣은 가젯은 맨 뒤에 붙어요. PC·태블릿 배치는 그대로예요.',
+    mobileOrderEmpty: '모바일에 보이는 가젯이 없어요.',
+    mobileOrderHandle: '「{title}」 끌어서 옮기기 (Alt+↑·↓)',
+    mobileOrderUp: '「{title}」 위로',
+    mobileOrderDown: '「{title}」 아래로',
+    mobileOrderMoved: '「{title}」 → {n}번째',
+    mobileOrderMobileOnly: '모바일 전용',
+
     // ── 가젯 설정(⚙ — 지금은 공동구매만) ─
     settingsTitle: '「{title}」 설정',
     settingsLead: '홈에 보일 공동구매의 개수와 차례를 정해요. 모집 중인 공개 공구만 보여요.',

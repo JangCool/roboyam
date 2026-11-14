@@ -7,6 +7,7 @@ import type { GadgetKind } from '~/composables/home/api/useHomeLayoutApi.types';
  * 실제 화면에서 온 옮기기·크기(`setBox`). 상태도 요청도 없다. 배치 자체의 규칙(읽기·위로 당기기·칸 수 바꾸기)은 공유 레이어 `UtilHomeLayout`.
  *
  * 편집기는 늘 위로 당긴 모양을 둔다(공개 홈도 같은 규칙으로 그린다).
+ * 모바일 순서(`mobileOrder` — home-news-contract 「모바일 순서」): 목록 계산은 공유 레이어 `UtilHomeStack`(공개 한 열과 같다), 여기는 저장 모양에 싣기·차례 옮기기·바뀜 비교만.
  */
 
 /** 종류 하나의 편집기 값 — 크기는 12칸 기준(24칸이면 폭을 2배) */
@@ -154,13 +155,33 @@ export default class UtilGadgetLayoutEditor {
     }
 
     /**
-     * 편집기 자리 → 저장 모양
+     * 편집기 자리 → 저장 모양 — 모바일 순서는 배치에 있는 가젯 ID 만 남기고(지운 가젯은 빠진다), 비면 null(= PC 배치 따르기)
      * @param {HomeGridColumns} columns - 칸 수.
      * @param {readonly GadgetEditorItem[]} items - 편집기 자리.
+     * @param {readonly string[] | null} [mobileOrder] - 운영자가 정한 모바일 순서(없으면 null).
      * @returns {HomeLayout} 배치.
      */
-    static toLayout(columns: HomeGridColumns, items: readonly GadgetEditorItem[]): HomeLayout {
-        return { columns, items: UtilHomeLayout.byReadingOrder(toItems(items)).map(({ gadgetId, x, y, w, h }) => ({ gadgetId, x, y, w, h })) };
+    static toLayout(columns: HomeGridColumns, items: readonly GadgetEditorItem[], mobileOrder: readonly string[] | null = null): HomeLayout {
+        return {
+            columns,
+            items: UtilHomeLayout.byReadingOrder(toItems(items)).map(({ gadgetId, x, y, w, h }) => ({ gadgetId, x, y, w, h })),
+            mobileOrder: UtilHomeLayout.readMobileOrder(mobileOrder, items.map((it) => it.i)),
+        };
+    }
+
+    /**
+     * 모바일 순서 목록에서 한 가젯을 다른 자리로 옮긴다(끌어 놓기 · 위·아래 단추)
+     * @param {readonly string[]} order - 지금 보이는 차례(가젯 ID).
+     * @param {string} id - 옮길 가젯 ID.
+     * @param {number} to - 옮긴 뒤 자리(0부터, 범위 밖이면 끝으로).
+     * @returns {string[]} 새 차례(없는 ID 면 그대로).
+     */
+    static moveInOrder(order: readonly string[], id: string, to: number): string[] {
+        const from = order.indexOf(id);
+        if (from < 0) return [...order];
+        const rest = order.filter((v) => v !== id);
+        const at = Math.min(rest.length, Math.max(0, Math.round(to)));
+        return [...rest.slice(0, at), id, ...rest.slice(at)];
     }
 
     /**
@@ -222,13 +243,14 @@ export default class UtilGadgetLayoutEditor {
     }
 
     /**
-     * 두 배치가 같은가(가젯 순서 무관) — 저장하지 않은 변경 표시
+     * 두 배치가 같은가(자리는 가젯 순서 무관, 모바일 순서는 차례까지 — null·빈 목록은 같다) — 저장하지 않은 변경 표시
      * @param {HomeLayout} a - 배치.
      * @param {HomeLayout} b - 배치.
      * @returns {boolean} 같으면 true.
      */
     static same(a: HomeLayout, b: HomeLayout): boolean {
         if (a.columns !== b.columns || a.items.length !== b.items.length) return false;
+        if ((a.mobileOrder ?? []).join('|') !== (b.mobileOrder ?? []).join('|')) return false;
         const key = (l: HomeLayout) =>
             [...l.items]
                 .map((it) => `${it.gadgetId}:${it.x},${it.y},${it.w},${it.h}`)

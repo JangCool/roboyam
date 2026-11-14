@@ -4,6 +4,7 @@
         주소 `{공개 사이트 origin}/?adminPreview=1` — origin 은 `useUserWebOrigin`(개발 서버는 `runtimeConfig.public.userWebOrigin`, 빌드한 화면은 테마 응답의 사이트 공개 주소). 공개 사이트가 미리보기 모드로 켜져(`plugins/03.admin-preview.client.ts`) 이 화면이 보내는 값을 그대로 그린다:
           고른 테마 · 메뉴 설정(저장 전 값 포함) · 홈 구성(편집기의 저장 전 값). 값이 바뀔 때마다 다시 보내고, 공개 사이트가 「준비됨」을 알리면 그때도 보낸다.
         창 크기는 공개 사이트 데스크톱 폭 1280 × 높이 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(`transform: scale`) — 안에서 스크롤하므로 메뉴 붙이기 같은 스크롤 동작도 그대로다.
+        `mobile` 이면 휴대폰 폭 390 × 844 로 띄워 가운데에 둔다(줄이기만 하고 키우지 않는다 — 편집기의 「모바일 순서」를 한 열로 바로 본다, home-news-contract 「모바일 순서」).
         미리보기 안에서는 다른 화면으로 가지 않고, 윗줄·메뉴·사이드 메뉴를 누르면 `edit-menu`(화면이 메뉴 설정 drawer 를 연다).
         편집 중(`editing`)이면 공개 홈 격자가 가젯 위에 손잡이를 얹고, 끌어 옮기기·크기·빼기·⚙ 설정 열기를 알려 온다 → `layout-op`(화면이 홈 구성 편집 도구 `applyOp` 에 넘겨 계산하고, 바뀐 배치를 다시 보낸다).
         보내는 홈 구성의 가젯은 제목·노출·꾸미기(`style`)·내용 설정(`config`)을 싣는다(2026-10-30 — 설정 창은 관리자 응답 값으로 채운다).
@@ -19,8 +20,8 @@
             ref="frame"
             :src="src"
             :title="t('site.livePreviewTitle')"
-            class="absolute left-0 top-0 block border-0"
-            :style="{ width: `${VIEW_W}px`, height: `${VIEW_H}px`, transform: `scale(${scale})`, transformOrigin: '0 0' }"
+            class="absolute top-0 block border-0"
+            :style="{ left: `${left}px`, width: `${VIEW_W}px`, height: `${VIEW_H}px`, transform: `scale(${scale})`, transformOrigin: '0 0' }"
             @load="send"
         />
         <div v-if="src && !ready" class="absolute inset-0 grid place-items-center text-sm text-muted-color" role="status">
@@ -50,22 +51,29 @@ interface Props {
     page?: { name: string; description: string; writeButton: boolean } | null;
     /** 게시판 레이아웃의 적용 화면(저장 전 값) — 게시판 레이아웃일 때만(`home` 자리에 그 배치를 싣는다) */
     board?: { screens: { list: boolean; post: boolean } } | null;
+    /** 휴대폰 폭으로 띄우는가(390 × 844 — 가운데, 줄이기만) */
+    mobile?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), { editing: false, path: '/', page: null, board: null });
+const props = withDefaults(defineProps<Props>(), { editing: false, path: '/', page: null, board: null, mobile: false });
 const emit = defineEmits<{ (e: 'edit-menu'): void; (e: 'layout-op', value: GadgetLayoutOp): void }>();
 
 const { t } = useI18n();
 
-/** 공개 사이트를 띄울 창 크기 — 데스크톱 폭(본문 1200 + 여백). 칸 폭에 맞춰 줄인다 */
-const VIEW_W = 1280;
-const VIEW_H = 800;
+/** 공개 사이트를 띄울 창 크기 — 데스크톱 폭(본문 1200 + 여백) 1280 × 800 · 휴대폰 폭 390 × 844. 칸 폭에 맞춰 줄인다 */
+const VIEW_W = computed(() => (props.mobile ? 390 : 1280));
+const VIEW_H = computed(() => (props.mobile ? 844 : 800));
 
 const { origin } = useUserWebOrigin();
 const src = computed(() => (origin.value ? `${origin.value}${props.path.startsWith('/') ? props.path : `/${props.path}`}?adminPreview=1` : ''));
 
 const box = ref<HTMLElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
-const scale = ref(0.8);
+/** 이 칸의 폭(px) — 아직 못 쟀으면 0 */
+const boxW = ref(0);
+/** 줄인 비율 — 데스크톱은 칸 폭에 맞추고, 휴대폰 폭은 줄이기만 한다 */
+const scale = computed(() => (boxW.value > 0 ? (props.mobile ? Math.min(1, boxW.value / VIEW_W.value) : boxW.value / VIEW_W.value) : 0.8));
+/** 창 왼쪽 끝(px) — 휴대폰 폭은 가운데 */
+const left = computed(() => (props.mobile && boxW.value > 0 ? Math.max(0, (boxW.value - VIEW_W.value * scale.value) / 2) : 0));
 const ready = ref(false);
 
 /** 반응형 감싸기를 벗겨(JSON) 보낸다 — 가젯마다 `minH` 를 실어 크기 꼬리표가 편집기가 막는 높이 아래로 권하지 않게 */
@@ -111,7 +119,7 @@ onMounted(() => {
     window.addEventListener('message', onMessage);
     observer = new ResizeObserver(() => {
         const width = box.value?.clientWidth ?? 0;
-        if (width > 0) scale.value = width / VIEW_W;
+        if (width > 0) boxW.value = width;
     });
     if (box.value) observer.observe(box.value);
 });

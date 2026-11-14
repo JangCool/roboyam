@@ -6,6 +6,7 @@
  *    간격이 같으면 12칸 ↔ 24칸 변환(x·w 2배/반)의 화면 위치가 픽셀까지 같다(그래서 24칸에서도 간격을 줄이지 않는다).
  *  - 가젯 하나 = `{ gadgetId, x, y, w, h }`(칸 단위, 0부터). `h` 는 **최소 높이**다 — 공개 홈은 내용이 길면 잘라내지 않고 늘리고, 같은 열 아래 가젯을 밀어 겹치지 않게 한다.
  *  - 배치는 늘 위로 당겨진(빈 줄 없는) 모양이다 — 편집기가 위로 당기며(`verticalCompact`) 저장하고, 공개 홈도 숨긴 가젯·늘어난 높이를 반영해 같은 규칙(`compact`)으로 다시 당긴다.
+ *  - 모바일 순서 `mobileOrder`(home-news-contract 「모바일 순서」, 2026-11-15): 가젯 ID 목록 | null. null = PC 배치에서 계산(`UtilHomeStack`). 한 열 차례만 바꾸고 자리(x·y·w·h)와는 상관없다.
  *
  * 순수 함수만 둔다(Vue·Nuxt·서버 호출 없음 — `layers.md`). 한 앱만 쓰는 계산(공개 홈의 태블릿 파생 배치, 편집기의 종류별 최소 크기)은 그 앱에 둔다.
  */
@@ -31,6 +32,11 @@ export interface HomeLayoutItem {
 export interface HomeLayout {
     columns: HomeGridColumns;
     items: HomeLayoutItem[];
+    /**
+     * 모바일 한 열 순서 — 가젯 ID 목록. null·없음 = PC 배치에서 계산(템플릿 한 열 모양 — `UtilHomeStack.order`).
+     * 목록에 없는 가젯은 계산된 차례대로 그 뒤에 붙는다. 태블릿·PC 배치에는 영향이 없다.
+     */
+    mobileOrder?: string[] | null;
 }
 
 const COLUMN_CHOICES: readonly HomeGridColumns[] = [12, 24];
@@ -98,8 +104,8 @@ export default class UtilHomeLayout {
 
     /**
      * 서버 배치를 읽는다 — 모르는 칸 수는 12, 모르는·겹친 가젯 ID 는 버리고, 범위 밖 값은 범위 안으로. 배치에 자리가 없는 가젯은 맨 아래에 전체 폭으로 붙인다(가젯이 사라지지 않게).
-     * 위로 당기지는 않는다(보는 쪽이 숨김·높이를 반영해 `compact` 한다).
-     * @param {unknown} raw - 서버 값(`{ columns, items }`).
+     * 위로 당기지는 않는다(보는 쪽이 숨김·높이를 반영해 `compact` 한다). 모바일 순서는 `readMobileOrder`(모르는·겹친 ID 를 버리고, 비면 null).
+     * @param {unknown} raw - 서버 값(`{ columns, items, mobileOrder }`).
      * @param {readonly string[]} gadgetIds - 응답에 있는 가젯 ID(정의 순서).
      * @returns {HomeLayout} 읽은 배치.
      */
@@ -124,7 +130,24 @@ export default class UtilHomeLayout {
             items.push({ gadgetId: id, x: 0, y: bottom, w: columns, h: FALLBACK_H });
             bottom += FALLBACK_H;
         }
-        return { columns, items };
+        return { columns, items, mobileOrder: UtilHomeLayout.readMobileOrder(r.mobileOrder, gadgetIds) };
+    }
+
+    /**
+     * 모바일 순서를 읽는다 — 문자열(숫자면 글자로)만, 아는 가젯 ID 만, 겹친 ID 는 처음 것만. 남은 것이 없으면 null(= PC 배치에서 계산).
+     * @param {unknown} raw - 서버 값(가젯 ID 목록 | null).
+     * @param {readonly string[]} gadgetIds - 아는 가젯 ID.
+     * @returns {string[] | null} 모바일 순서.
+     */
+    static readMobileOrder(raw: unknown, gadgetIds: readonly string[]): string[] | null {
+        if (!Array.isArray(raw)) return null;
+        const known = new Set(gadgetIds);
+        const out: string[] = [];
+        for (const v of raw) {
+            const id = typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
+            if (known.has(id) && !out.includes(id)) out.push(id);
+        }
+        return out.length > 0 ? out : null;
     }
 
     /**
@@ -168,7 +191,8 @@ export default class UtilHomeLayout {
      * @returns {HomeLayout} 새 배치.
      */
     static convert(layout: HomeLayout, to: HomeGridColumns, minW?: (gadgetId: string) => number): HomeLayout {
-        if (layout.columns === to) return { columns: to, items: layout.items.map((it) => ({ ...it })) };
+        const mobileOrder = layout.mobileOrder ? [...layout.mobileOrder] : null;
+        if (layout.columns === to) return { columns: to, items: layout.items.map((it) => ({ ...it })), mobileOrder };
         const items = layout.items.map((it) => {
             let x: number;
             let w: number;
@@ -183,6 +207,6 @@ export default class UtilHomeLayout {
             x = Math.min(Math.max(0, x), to - w);
             return { ...it, x, w };
         });
-        return { columns: to, items: UtilHomeLayout.compact(items) };
+        return { columns: to, items: UtilHomeLayout.compact(items), mobileOrder };
     }
 }

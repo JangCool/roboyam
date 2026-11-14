@@ -5,7 +5,7 @@
  *  - **템플릿 = 사이트 테마**(사용자 결정 2026-10-28) — 응답의 배치는 서버가 지금 사이트 테마(`default` 기본형 · `daum` 다음식 · `irobit` 아이로빗형 · `naver` 네이버형)로 정한다.
  *    요청에 템플릿·테마를 싣지 않는다. 이용자 유형별 템플릿 규칙·「기본 템플릿」 고르기는 없다. 응답의 `theme` 은 이 배치가 어느 테마 것인지 알려 주는 값이다.
  *  - **배치 = 격자 좌표**(사용자 결정 2026-10-28 — community 의 고정 칸 이름(`MAIN`·`SIDE` …) 대신): 운영자가 관리자 홈 배치 편집기에서 테마마다 칸 수(12·24)와 가젯별 위치·크기를 정한다.
- *    모양·계산은 공유 레이어 `@irobit/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
+ *    모양·계산은 공유 레이어 `@irobit/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 배치의 `mobileOrder`(운영자가 정한 가젯 ID 차례 — null 이면 템플릿 한 열 모양으로 PC 배치에서 계산, `UtilHomeStack`).
  *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) + 광고 2종(`AD` · `AD_TEXT_LINE` — 서버 종류 등록 전).
  *    광고 가젯은 서버가 `data` 를 비워 보내고 화면이 채운다(`useAdGadgets`). 커뮤니티의 핫딜·직접홍보(`DEAL_PLACEMENT`·`PROMO_TOP`)는 없다.
  *    회원 핫딜 1차의 `HOT_DEALS`(진행 중인 핫딜 가격 줄 목록 — `hotdeal-contract.md`)는 서버 2단계에서 데이터를 싣는다(모양 `HotDealsData` 확정).
@@ -138,7 +138,7 @@ export interface Gadget {
 export interface GadgetsResponse {
     /** 이 배치가 어느 사이트 테마의 것인가(`default`·`daum`·`irobit`·`naver`) — 화면은 지금 테마의 템플릿(겉모양)으로 그린다 */
     theme: string;
-    /** 격자 배치 — 칸 수(12·24) + 가젯마다 `{ gadgetId, x, y, w, h }`. 배치에 자리가 없는 가젯은 화면이 맨 아래에 붙인다(`UtilHomeLayout.read`) */
+    /** 격자 배치 — 칸 수(12·24) + 가젯마다 `{ gadgetId, x, y, w, h }` + 모바일 순서 `mobileOrder`(가젯 ID 목록 | null). 배치에 자리가 없는 가젯은 화면이 맨 아래에 붙인다(`UtilHomeLayout.read`) */
     layout: HomeLayout;
     /** 가젯 목록(이 테마 배치에 놓인 것). 보이는 폭(`desktop`·`mobile`)은 가젯마다 */
     gadgets: Gadget[];

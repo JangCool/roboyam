@@ -44,6 +44,8 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code gadgets[i].config.<칸>} · {@code layout.items[i]}(없는 가젯·두 번째 자리·범위·최소 크기) · {@code layout.items}(본문 하나 · 자리 없는 가젯 · 겹침).</li>
  *   <li>자리({@link GadgetConfigs.Place}): 대상 게시판 {@code FOLDER} 는 가젯 페이지에서만, {@code BOARD} 는 게시판 레이아웃에서만. 게시판 레이아웃에서만 고정 칸 {@code BOARD_BODY} 를
  *       받는다 — 꼭 하나, 제목·노출·꾸미기·설정은 보내도 쓰지 않는다(고정). 다른 자리에서 {@code BOARD_BODY} 는 모르는 종류다.</li>
+ *   <li>모바일 순서({@code layout.mobileOrder}, home-news-contract 「모바일 순서」): 오류로 막지 않고 배치에 없는 ID·겹친 ID 를 버린다(빈 목록 = null). 시드·새 가젯 ID 는
+ *       가젯 행을 만든 뒤 배치 자리와 같은 새 ID 로 바꾼다.</li>
  * </ul>
  */
 @Component
@@ -219,6 +221,8 @@ public class GadgetLayoutWriter {
             }
             items.add(new HomeLayoutItem(gadgetId, it.x(), it.y(), it.w(), it.h()));
         }
+        // 모바일 순서 — 자리가 받아들여진 가젯만 · 처음 나온 것만(버리는 것은 오류 아님), 빈 목록은 null
+        List<String> mobileOrder = mobileOrder(layout, items);
         if (inBoard && bodies != 1) {
             fields.put("layout.items", new MessageRef("boardLayout.body"));
         }
@@ -269,8 +273,31 @@ public class GadgetLayoutWriter {
         }
         List<HomeLayoutItem> renamed = items.stream()
                 .map(it -> new HomeLayoutItem(rename.getOrDefault(it.gadgetId(), it.gadgetId()), it.x(), it.y(), it.w(), it.h())).toList();
+        List<String> mobileRenamed = mobileOrder == null ? null : mobileOrder.stream().map(id -> rename.getOrDefault(id, id)).toList();
         result.sort(Comparator.comparing(GadgetEntity::getId));
-        return new Result(new HomeGridLayout(columns, compact(renamed)), result, added, removed.size(), configChanged, changed);
+        return new Result(new HomeGridLayout(columns, compact(renamed), mobileRenamed), result, added, removed.size(), configChanged, changed);
+    }
+
+    /**
+     * 보낸 모바일 순서를 배치에 맞춘다 — 받아들인 자리({@code items})의 가젯 ID 만, 겹치면 처음 것만, 글자 앞뒤 공백은 뗀다. 남은 것이 없으면 null(PC 배치에서 계산).
+     * ID 는 요청의 것(저장 · 시드 · {@code new-<n>}) 그대로이고 새 ID 로 바꾸는 것은 가젯 행을 만든 뒤다.
+     */
+    static List<String> mobileOrder(HomeLayoutSaveRequest.Layout layout, List<HomeLayoutItem> items) {
+        List<String> sent = layout == null ? null : layout.mobileOrder();
+        if (sent == null || sent.isEmpty()) {
+            return null;
+        }
+        Set<String> inLayout = new HashSet<>();
+        items.forEach(it -> inLayout.add(it.gadgetId()));
+        Set<String> seen = new HashSet<>();
+        List<String> out = new ArrayList<>();
+        for (String raw : sent) {
+            String id = raw == null ? "" : raw.strip();
+            if (inLayout.contains(id) && seen.add(id)) {
+                out.add(id);
+            }
+        }
+        return out.isEmpty() ? null : out;
     }
 
     /** 편집기가 보는 가젯 목록 — 꾸미기는 칸 전부({@link GadgetStyles#view}), 내용 설정은 표 칸 전부({@link GadgetConfigs#view}) */

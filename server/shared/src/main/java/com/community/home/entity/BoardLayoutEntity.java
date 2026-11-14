@@ -31,6 +31,10 @@ public class BoardLayoutEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private String items;
 
+    /** 모바일 순서 JSON — {@code ["가젯 ID", …]}, NULL = PC 배치에서 계산(V213, home-news-contract 「모바일 순서」) */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String mobileOrder;
+
     private Long updatedBy;
     private Instant updatedAt;
 
@@ -49,12 +53,13 @@ public class BoardLayoutEntity {
         this.postEnabled = postEnabled;
         columns = (short) layout.columns();
         items = HomeLayoutJson.writeItems(layout.items());
+        mobileOrder = HomeLayoutJson.writeIds(layout.mobileOrder());
         updatedBy = operatorId;
         updatedAt = now;
     }
 
     public HomeGridLayout toLayout() {
-        return new HomeGridLayout(columns, HomeLayoutJson.readItems(items));
+        return new HomeGridLayout(columns, HomeLayoutJson.readItems(items), HomeLayoutJson.readIds(mobileOrder));
     }
 
     public String getTheme() {

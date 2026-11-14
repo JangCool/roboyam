@@ -211,6 +211,10 @@ export interface HomeLayoutGadget {
 
 /** 배치 + 가젯 목록 */
 export interface HomeLayoutBody {
+    /**
+     * 칸 수 + 가젯마다 자리 + 모바일 순서 `mobileOrder`(가젯 ID 목록 | null — home-news-contract 「모바일 순서」).
+     * 저장 때 `mobileOrder` 에 새 가젯 임시 ID(`new-<n>`)를 그대로 실으면 서버가 실제 ID 로 바꾸고, 배치에 없는·겹친 ID 는 버린다. null = PC 배치에서 계산.
+     */
     layout: HomeLayout;
     gadgets: HomeLayoutGadget[];
 }

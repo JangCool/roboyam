@@ -53,6 +53,31 @@ public final class HomeLayoutJson {
         return out;
     }
 
+    /** 모바일 순서({@code mobile_order} jsonb — 가젯 ID 글자 목록) — null·빈 목록은 null(칸 NULL) */
+    public static String writeIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return null;
+        }
+        ArrayNode out = array();
+        ids.forEach(out::add);
+        return MAPPER.writeValueAsString(out);
+    }
+
+    /** 모바일 순서 읽기 — NULL·목록이 아님·빈 목록은 null, 글자가 아닌 값은 건너뛴다 */
+    public static List<String> readIds(String json) {
+        JsonNode node = read(json);
+        if (node == null || !node.isArray()) {
+            return null;
+        }
+        List<String> out = new ArrayList<>();
+        for (JsonNode v : node) {
+            if (v.isString()) {
+                out.add(v.asString());
+            }
+        }
+        return out.isEmpty() ? null : out;
+    }
+
     /** 설정의 글자 칸(없거나 글자가 아니면 기본값) */
     public static String text(JsonNode node, String field, String fallback) {
         JsonNode value = node == null ? null : node.get(field);

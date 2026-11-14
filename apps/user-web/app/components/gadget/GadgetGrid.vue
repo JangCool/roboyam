@@ -6,7 +6,8 @@
           · `full` 데스크톱(lg 이상) + 홈 폭 52rem 이상 — 운영자 배치 그대로
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilGadgetGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
-            순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilGadgetGrid.byColumns`) · `beside` 오른쪽 열을 본문 열 사이에 끼워 넣기(`UtilGadgetGrid.besideColumns`). 한 열인지는 아래 가젯에 알린다(`provideGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
+            순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저 · `beside` 오른쪽 열을 본문 열 사이에 끼워 넣기(공유 레이어 `UtilHomeStack` — 관리자 편집기의 「모바일 순서」 목록과 같은 계산).
+            운영자가 모바일 순서를 따로 정했으면(배치 `mobileOrder`, home-news-contract 「모바일 순서」) 그 차례가 먼저이고, 목록에 없는 가젯은 위 계산 차례대로 뒤에 붙는다. 한 열인지는 아래 가젯에 알린다(`provideGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
         **px 배치**: 칸 높이 = `UtilGadgetGrid.boxHeight`(운영자 h 의 px 가 잰 내용보다 한 칸(31px) 이상 크면 그 px, 아니면 내용 높이), 위 끝 = 열이 겹치는 앞선 가젯 아래 끝 + 16px(`place`). 게시판 본문 칸은 내용 높이만.
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
         같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞춘다(「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
@@ -16,7 +17,7 @@
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
           편집 중에는 칸마다 옅은 점선 윤곽을 그리고, 크기 꼬리표는 최적 칸 수보다 작으면 빨강·크면 주황 알림을 늘 보인다(`UtilGadgetGrid.sizeHint` — 저장은 막지 않는다).
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
-          한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilGadgetGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
+          한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeStack.bodyFirst`, 모바일 순서를 정했으면 그 차례가 먼저). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
     -->
     <div ref="root" class="min-w-0" :class="mode === 'stack' ? ['gadget-stack', editing ? 'relative' : ''] : 'relative'" :style="gridStyle" :data-grid-mode="mode" data-testid="home-grid">
         <div
@@ -80,6 +81,7 @@
 import type { ComponentPublicInstance, CSSProperties, FunctionalComponent } from 'vue';
 import type { HomeLayout, HomeLayoutItem } from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
+import UtilHomeStack from '#layers/home-layout/utils/util-home-stack';
 import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
 import type { GadgetGridCell, GadgetGridSizeHint } from '~/utils/util-gadget-grid';
 import UtilGadget from '~/utils/util-gadget';
@@ -116,7 +118,8 @@ const width = ref(0);
 const heights = ref<Record<string, number>>({});
 
 const mode = computed(() => UtilGadgetGrid.mode({ wide: wide.value, md: md.value, width: width.value }));
-const mobileOrder = useGadgetLookOptions().mobile.order;
+/** 템플릿 한 열 모양(`reading`·`columns`·`beside`) */
+const stackRule = useGadgetLookOptions().mobile.order;
 provideGadgetStacked(computed(() => mode.value === 'stack'));
 const columns = computed(() => (mode.value === 'half' ? props.layout.columns / 2 : props.layout.columns));
 
@@ -145,12 +148,13 @@ const cells = computed<Cell[]>(() => {
     });
 });
 
-/** 한 열 순서 — 템플릿이 고른다(기본 (y, x)). 게시판 레이아웃이면 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilGadgetGrid.bodyFirst`) */
+/**
+ * 한 열 순서 — 템플릿 한 열 모양으로 계산하고(기본 (y, x) · 게시판 레이아웃이면 본문 먼저), 운영자가 정한 모바일 순서(`layout.mobileOrder`)가 있으면 그 차례를 먼저(`UtilHomeStack.order`).
+ * 관리자 미리보기면 `layout` 이 편집 중인(저장 전) 배치라 모바일 순서도 바로 따른다.
+ */
 function stackOrder(items: readonly HomeLayoutItem[]): HomeLayoutItem[] {
-    const order =
-        mobileOrder === 'columns' ? UtilGadgetGrid.byColumns(items, props.layout.columns) : mobileOrder === 'beside' ? UtilGadgetGrid.besideColumns(items, props.layout.columns) : UtilHomeLayout.byReadingOrder(items);
     const body = boardBody ? props.gadgets.find((g) => g.type === BOARD_BODY) : undefined;
-    return body ? UtilGadgetGrid.bodyFirst(order, body.id) : order;
+    return UtilHomeStack.order(items, props.layout.columns, stackRule, { bodyId: body?.id ?? null, mobileOrder: props.layout.mobileOrder });
 }
 
 /** 격자 높이 — px 배치라 가장 아래 가젯의 아래 끝(한 열은 흐름대로) */

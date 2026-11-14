@@ -14,8 +14,17 @@ import tools.jackson.databind.JsonNode;
  */
 public record HomeLayoutSaveRequest(Layout layout, List<Gadget> gadgets) {
 
-    /** @param columns 12 · 24 */
-    public record Layout(Integer columns, List<Item> items) {
+    /**
+     * @param columns     12 · 24
+     * @param mobileOrder 모바일 한 열 순서 — 가젯 ID 목록(저장 · 시드 · {@code new-<n>} ID 모두), null = PC 배치에서 계산(home-news-contract 「모바일 순서」).
+     *                    배치 {@code items} 에 없는 ID·겹친 ID 는 버리고(오류 아님) 빈 목록은 null, 새 가젯 ID 는 저장 뒤 실제 ID 로 바꾼다
+     */
+    public record Layout(Integer columns, List<Item> items, List<String> mobileOrder) {
+
+        /** 모바일 순서 없이 */
+        public Layout(Integer columns, List<Item> items) {
+            this(columns, items, null);
+        }
     }
 
     public record Item(String gadgetId, Integer x, Integer y, Integer w, Integer h) {
