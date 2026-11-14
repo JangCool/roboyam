@@ -36,8 +36,9 @@ export default defineNuxtConfig({
     extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart', '@irobit/analytics'],
     ssr: false,
     /*
-     * 첫 로딩 스플래시(`app/spa-loading-template.html`) — 가운데 사이트 아이콘·이름(서버가 머리에 넣은 아이콘 링크·`og:site_name` 을 읽는다, 사이트마다 다름).
-     * 첫 화면이 **다 그려진 뒤 한 번에** 걷힌다 — 첫 화면의 서버 요청이 모두 끝나고 로딩 표시가 사라진 채 0.2초(최대 3.5초): `plugins/spa-splash.client.ts` · `utils/util-boot-splash.ts`.
+     * 첫 로딩 스플래시(`app/spa-loading-template.html`) — 로고(올린 로고 `<meta name="irobit-site-logo">` → 없으면 상단 로고와 같은 기본 그림 `/brand/irobit-logo-ko-*.svg`,
+     * 그림을 못 쓰면 사이트 아이콘 + 이름, 아이콘도 없으면 이름 첫 글자 배지 + 이름) · 진행 막대 · 단계 점 4개(페이지 → 화면 코드 → 화면 그림 → 내용).
+     * 첫 화면이 **다 그려진 뒤 한 번에** 걷힌다 — 단계·걷는 때는 `utils/util-boot-splash.ts` · `plugins/spa-splash.client.ts`. 로고 메타는 api `IndexHtmlRenderer` 가 넣는다.
      * 사용자 결정 2026-11-14: 11-13 의 회색 틀(스켈레톤)은 「틀 → 상단 바만 있는 화면 → 본문」으로 두 번 바뀌어 체감이 나빴다 → 스플래시로 바꿈.
      * 모든 사용자에게 내려가므로 그 파일에는 주석을 두지 않는다. 다크 판정은 `plugins/view-theme.client.ts` 와 같은 규칙(규칙을 바꾸면 두 곳을 같이 고친다).
      * 바탕 #f2f4f7 / 다크 #17181b 는 main.css 아이로빗 테마 바탕 값이다.

@@ -27,6 +27,7 @@ import org.springframework.web.util.HtmlUtils;
  *   <li>빌드가 만든 {@code classpath:/static/index.html} 을 틀로 쓴다. 없으면(화면을 아직 빌드하지 않은 환경) {@link Optional#empty()} — 부르는 쪽이 그대로 지나가게 한다.</li>
  *   <li>틀 머리에 이미 있는 {@code <title>}·{@code description}·{@code og:*}·{@code twitter:*}·매니페스트 링크는 지우고 우리 것을 머리 앞({@code <meta charset>} 바로 뒤)에 넣는다.
  *       {@code <script>}·{@code <style>} 안은 건드리지 않는다. 아이콘 링크는 운영자가 아이콘을 올렸을 때만 틀의 것을 지우고 바꿔 넣는다(없으면 틀의 링크를 두고, 틀에도 없으면 기본 SVG 아이콘).</li>
+ *   <li>올린 로고가 있으면 첫 로딩 스플래시용 {@code <meta name="irobit-site-logo">} 도 넣는다(SVG 로고는 주소 대신 {@code inline}).</li>
  *   <li>이름·소개·주소는 모두 HTML 이스케이프한다(속성값 포함). 설정 행이 없으면(설치 전) 틀을 그대로 내린다.</li>
  *   <li>결과는 설정 사본({@link PublicSiteSnapshot})이 바뀔 때까지 캐시한다.</li>
  *   <li>구글 애드센스(V176)가 켜져 있으면 부르는 쪽이 {@link #withAdSense} 로 머리 끝에 메타·스크립트를 더한다(바탕 사본 지문 + 게시자 ID 로 캐시 — 설정은 요청마다 읽으므로 바꾸면 다음 요청부터).</li>
@@ -42,6 +43,9 @@ public class IndexHtmlRenderer {
     private static final String TITLE_SEPARATOR = " — ";
     /** 관리자 미리보기 응답에만 넣는 관리자 origin 메타 이름(user-web {@code plugins/03.admin-preview.client.ts} 가 읽는다) */
     static final String ADMIN_ORIGIN_META = "irobit-admin-origin";
+    /** 첫 로딩 스플래시가 읽는 로고 메타 이름(user-web {@code app/spa-loading-template.html}) · SVG 로고일 때의 값 */
+    static final String SPLASH_LOGO_META = "irobit-site-logo";
+    static final String SPLASH_LOGO_INLINE = "inline";
 
     private static final Pattern HEAD_OPEN = Pattern.compile("<head(?:\\s[^>]*)?>", Pattern.CASE_INSENSITIVE);
     private static final Pattern HEAD_CLOSE = Pattern.compile("</head\\s*>", Pattern.CASE_INSENSITIVE);
@@ -209,6 +213,11 @@ public class IndexHtmlRenderer {
         b.append(meta("name", "twitter:title", title));
         b.append(meta("name", "twitter:description", description));
         b.append(meta("name", "twitter:image", info.ogImageUrl()));
+        // 첫 로딩 스플래시(user-web `spa-loading-template.html`)가 JS 전에 읽는 로고 — 올린 로고가 그림 파일이면 그 주소,
+        // SVG 로고(data URI, 최대 약 133KB)면 "inline"(머리를 키우지 않는다 — 스플래시는 아이콘·이름으로 대신한다). 로고가 없으면 넣지 않는다(스플래시는 기본 로고)
+        if (info.logoUrl() != null) {
+            b.append(meta("name", SPLASH_LOGO_META, info.logoUrl().startsWith("data:") ? SPLASH_LOGO_INLINE : info.logoUrl()));
+        }
         return b.toString();
     }
 

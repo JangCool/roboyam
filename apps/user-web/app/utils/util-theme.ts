@@ -1,4 +1,5 @@
 import { defineAsyncComponent, type AsyncComponentLoader, type Component } from 'vue';
+import UtilBootSplash from '~/utils/util-boot-splash';
 import UtilMenuPosition, { type MenuOverflow, type MenuPosition, type MenuStyle, type MenuWidth, type TopItemsPosition } from '~/utils/util-menu-position';
 
 /**
@@ -131,7 +132,8 @@ const ASYNC_CACHE = new Map<SlotLoader, Component>();
 function asyncOf(loader: SlotLoader): Component {
     let component = ASYNC_CACHE.get(loader);
     if (!component) {
-        component = defineAsyncComponent(loader);
+        // 조각을 받는 동안은 첫 로딩 스플래시가 기다린다(`UtilBootSplash` — 홈 데이터를 받은 뒤 홈 틀 조각을 받는 사이에 걷히지 않게)
+        component = defineAsyncComponent(() => UtilBootSplash.track(loader()));
         ASYNC_CACHE.set(loader, component);
     }
     return component;

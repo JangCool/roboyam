@@ -1,63 +1,121 @@
-<!-- 스플래시 — 설명은 nuxt.config.ts 의 spaLoadingTemplate -->
+<!-- 스플래시 — 설명은 nuxt.config.ts 의 spaLoadingTemplate · utils/util-boot-splash.ts -->
 <style>
     .irb-splash {
         position: fixed;
         inset: 0;
         z-index: 2147483000;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 14px;
         background: #f2f4f7;
-        transition: opacity 0.2s ease;
+        color: #4b5563;
+        font: 600 15px/1.4 system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        transition: opacity 0.25s ease-in;
     }
     html[data-color-scheme='dark'] .irb-splash {
         background: #17181b;
+        color: #c3c7cf;
+    }
+    .irb-splash-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        transition: transform 0.25s ease-in;
+        animation: irb-splash-in 0.25s ease-out;
     }
     .irb-splash.is-leaving {
         opacity: 0;
         pointer-events: none;
     }
-    .irb-splash-icon {
-        width: 64px;
-        height: 64px;
-        border-radius: 16px;
-        object-fit: contain;
+    .irb-splash.is-leaving .irb-splash-box {
+        transform: scale(1.06);
     }
-    .irb-splash-name {
-        font: 600 15px/1.4 system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-        color: #4b5563;
-        letter-spacing: 0.02em;
+    .irb-splash-mark {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 56px;
     }
-    html[data-color-scheme='dark'] .irb-splash-name {
-        color: #c3c7cf;
+    .irb-splash-logo {
+        height: 56px;
+        max-width: min(320px, 80vw);
     }
     .irb-splash-icon,
-    .irb-splash-name {
-        opacity: 0;
-        animation: irb-splash-in 0.25s ease-out forwards;
+    .irb-splash-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+    .irb-splash-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #3b82f6;
+        color: #fff;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    .irb-splash-bar {
+        width: 168px;
+        height: 4px;
+        border-radius: 4px;
+        background: #e2e6ec;
+        overflow: hidden;
+    }
+    html[data-color-scheme='dark'] .irb-splash-bar {
+        background: #2e3036;
+    }
+    .irb-splash-bar i {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #60a5fa, #3b82f6);
+    }
+    .irb-splash-steps {
+        display: flex;
+        gap: 8px;
+        margin-top: -6px;
+    }
+    .irb-splash-steps b {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #d3d8df;
+        transition: background-color 0.3s;
+    }
+    html[data-color-scheme='dark'] .irb-splash-steps b {
+        background: #3a3d44;
+    }
+    .irb-splash-steps b.on {
+        background: #3b82f6;
     }
     @keyframes irb-splash-in {
-        to {
-            opacity: 1;
+        from {
+            opacity: 0;
+            transform: scale(0.96);
         }
     }
     @media (prefers-reduced-motion: reduce) {
         .irb-splash,
-        .irb-splash-icon,
-        .irb-splash-name {
-            transition: none;
+        .irb-splash-box,
+        .irb-splash-bar i {
+            transition: none !important;
             animation: none;
-            opacity: 1;
         }
     }
 </style>
-<div class="irb-splash" role="status" aria-live="polite">
-    <div class="irb-splash-name"></div>
+<div class="irb-splash" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="irb-splash-box">
+        <div class="irb-splash-mark"></div>
+        <div class="irb-splash-bar"><i></i></div>
+        <div class="irb-splash-steps"><b></b><b></b><b></b><b></b></div>
+    </div>
 </div>
 <script>
     (function () {
+        var dark = false;
         try {
             var theme = 'AUTO';
             try {
@@ -65,24 +123,69 @@
                 if (saved && (saved.theme === 'DARK' || saved.theme === 'LIGHT')) theme = saved.theme;
             } catch (e) {}
             var mobile = window.matchMedia('(max-width: 767.98px)').matches;
-            var dark = theme === 'DARK' || (theme === 'AUTO' && !mobile && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            dark = theme === 'DARK' || (theme === 'AUTO' && !mobile && window.matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
         } catch (e) {}
-        try {
-            var icon = document.querySelector('link[rel="apple-touch-icon"]') || document.querySelector('link[rel="icon"][type="image/svg+xml"]') || document.querySelector('link[rel~="icon"]');
-            if (icon && icon.getAttribute('href')) {
-                var img = document.createElement('img');
-                img.className = 'irb-splash-icon';
-                img.alt = '';
-                img.onerror = function () { img.remove(); };
-                img.src = icon.getAttribute('href');
-                var box = document.querySelector('.irb-splash');
-                box.insertBefore(img, box.firstChild);
+
+        var root = document.querySelector('.irb-splash');
+        var mark = root.querySelector('.irb-splash-mark');
+        function content(selector) {
+            var el = document.querySelector(selector);
+            return el ? el.getAttribute('content') || el.getAttribute('href') : null;
+        }
+        var name = content('meta[property="og:site_name"]') || (document.title || '').split(' — ')[0] || '';
+        root.setAttribute('aria-label', name || 'Loading');
+        function add(tag, cls, text) {
+            var el = document.createElement(tag);
+            el.className = cls;
+            if (text) el.textContent = text;
+            mark.appendChild(el);
+            return el;
+        }
+        function badge() {
+            mark.textContent = '';
+            add('div', 'irb-splash-badge', (name.trim().charAt(0) || '·').toUpperCase());
+            if (name) add('span', '', name);
+        }
+        function iconAndName() {
+            mark.textContent = '';
+            var href = content('link[rel="apple-touch-icon"]') || content('link[rel="icon"][type="image/svg+xml"]') || content('link[rel~="icon"]');
+            if (!href) return badge();
+            var img = add('img', 'irb-splash-icon');
+            img.alt = '';
+            img.onerror = badge;
+            img.src = href;
+            if (name) add('span', '', name);
+        }
+        var logo = content('meta[name="irobit-site-logo"]');
+        if (logo === 'inline') {
+            iconAndName();
+        } else {
+            var img = add('img', 'irb-splash-logo');
+            img.alt = name;
+            img.onerror = iconAndName;
+            img.src = logo || '/brand/irobit-logo-ko-' + (dark ? 'dark' : 'light') + '.svg';
+        }
+
+        var bar = root.querySelector('.irb-splash-bar i');
+        var dots = root.querySelectorAll('.irb-splash-steps b');
+        var total = dots.length;
+        var timer = 0;
+        function step(n) {
+            var at = (n / total) * 100;
+            clearTimeout(timer);
+            bar.style.transition = 'width 0.3s ease-out';
+            bar.style.width = at + '%';
+            for (var i = 0; i < total; i++) dots[i].className = i < n ? 'on' : '';
+            root.setAttribute('aria-valuenow', String(Math.round(at)));
+            if (n < total) {
+                timer = setTimeout(function () {
+                    bar.style.transition = 'width 8s cubic-bezier(0.1, 0.6, 0.3, 1)';
+                    bar.style.width = at + (100 / total) * 0.8 + '%';
+                }, 320);
             }
-            var site = document.querySelector('meta[property="og:site_name"]');
-            var name = (site && site.getAttribute('content')) || document.title.split(' — ')[0];
-            document.querySelector('.irb-splash-name').textContent = name || '';
-            document.querySelector('.irb-splash').setAttribute('aria-label', name || 'Loading');
-        } catch (e) {}
+        }
+        window.__irbSplash = { step: step };
+        step(1);
     })();
 </script>
