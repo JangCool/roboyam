@@ -196,19 +196,6 @@
       }
     },
     {
-      "key": "home-textline",
-      "type": "AD_TEXT_LINE",
-      "title": "한 줄 광고",
-      "config": {
-        "count": 2
-      },
-      "place": {
-        "column": "left",
-        "after": "109141180830191620",
-        "h": 3
-      }
-    },
-    {
       "key": "home-strip",
       "type": "AD",
       "title": "띠 배너",
