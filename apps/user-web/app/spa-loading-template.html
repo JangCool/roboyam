@@ -1,0 +1,88 @@
+<!-- 스플래시 — 설명은 nuxt.config.ts 의 spaLoadingTemplate -->
+<style>
+    .irb-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #f2f4f7;
+        transition: opacity 0.2s ease;
+    }
+    html[data-color-scheme='dark'] .irb-splash {
+        background: #17181b;
+    }
+    .irb-splash.is-leaving {
+        opacity: 0;
+        pointer-events: none;
+    }
+    .irb-splash-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        object-fit: contain;
+    }
+    .irb-splash-name {
+        font: 600 15px/1.4 system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        color: #4b5563;
+        letter-spacing: 0.02em;
+    }
+    html[data-color-scheme='dark'] .irb-splash-name {
+        color: #c3c7cf;
+    }
+    .irb-splash-icon,
+    .irb-splash-name {
+        opacity: 0;
+        animation: irb-splash-in 0.25s ease-out forwards;
+    }
+    @keyframes irb-splash-in {
+        to {
+            opacity: 1;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .irb-splash,
+        .irb-splash-icon,
+        .irb-splash-name {
+            transition: none;
+            animation: none;
+            opacity: 1;
+        }
+    }
+</style>
+<div class="irb-splash" role="status" aria-live="polite">
+    <div class="irb-splash-name"></div>
+</div>
+<script>
+    (function () {
+        try {
+            var theme = 'AUTO';
+            try {
+                var saved = JSON.parse(localStorage.getItem('irobit:view-settings') || 'null');
+                if (saved && (saved.theme === 'DARK' || saved.theme === 'LIGHT')) theme = saved.theme;
+            } catch (e) {}
+            var mobile = window.matchMedia('(max-width: 767.98px)').matches;
+            var dark = theme === 'DARK' || (theme === 'AUTO' && !mobile && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+        } catch (e) {}
+        try {
+            var icon = document.querySelector('link[rel="apple-touch-icon"]') || document.querySelector('link[rel="icon"][type="image/svg+xml"]') || document.querySelector('link[rel~="icon"]');
+            if (icon && icon.getAttribute('href')) {
+                var img = document.createElement('img');
+                img.className = 'irb-splash-icon';
+                img.alt = '';
+                img.onerror = function () { img.remove(); };
+                img.src = icon.getAttribute('href');
+                var box = document.querySelector('.irb-splash');
+                box.insertBefore(img, box.firstChild);
+            }
+            var site = document.querySelector('meta[property="og:site_name"]');
+            var name = (site && site.getAttribute('content')) || document.title.split(' — ')[0];
+            document.querySelector('.irb-splash-name').textContent = name || '';
+            document.querySelector('.irb-splash').setAttribute('aria-label', name || 'Loading');
+        } catch (e) {}
+    })();
+</script>

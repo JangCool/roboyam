@@ -1,4 +1,5 @@
 import { defineAsyncComponent, markRaw, type AsyncComponentLoader, type Component } from 'vue';
+import UtilBootSplash from '~/utils/util-boot-splash';
 
 /**
  * 가젯 **레지스트리**(community `useHomeGadgetRegistry` — 「플러그형」) — 가젯 종류 키 → 그리는 컴포넌트. 상태도 요청도 없다.
@@ -29,7 +30,10 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     TIPS_TAGS: () => import('~/components/gadget/GadgetTipsTags.vue'),
 };
 
-const REGISTRY: Readonly<Record<string, Component>> = Object.fromEntries(Object.entries(LOADERS).map(([key, loader]) => [key, markRaw(defineAsyncComponent(loader))]));
+// 조각을 받는 동안은 첫 로딩 스플래시가 기다린다(`UtilBootSplash` — 데이터 요청과 가젯 조각 받기 사이에 스플래시가 걷히지 않게)
+const REGISTRY: Readonly<Record<string, Component>> = Object.fromEntries(
+    Object.entries(LOADERS).map(([key, loader]) => [key, markRaw(defineAsyncComponent(() => UtilBootSplash.track(loader())))]),
+);
 
 export default class UtilGadgetRegistry {
     /**

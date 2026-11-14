@@ -35,8 +35,14 @@ export default defineNuxtConfig({
     // 방문 신호(`@irobit/analytics` — 방문자 ID·세션·`POST /api/visits`)는 이 앱만 쓴다. 켜기·미리보기 빼기·화면 종류는 `plugins/04.analytics.client.ts`
     extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart', '@irobit/analytics'],
     ssr: false,
-    // 첫 화면 틀(spa-loading-template)은 두지 않는다 — 회색 틀 → 진짜 화면 → 본문으로 화면이 두 번 바뀌어 체감이 더 나빴다(사용자 2026-11-14, 11-13 에 넣었다가 뺌).
-    // JS 가 오기 전엔 흰 화면, 그다음 상단 바가 먼저 뜨고 본문이 따라온다.
+    /*
+     * 첫 로딩 스플래시(`app/spa-loading-template.html`) — 가운데 사이트 아이콘·이름(서버가 머리에 넣은 아이콘 링크·`og:site_name` 을 읽는다, 사이트마다 다름).
+     * 첫 화면이 **다 그려진 뒤 한 번에** 걷힌다 — 첫 화면의 서버 요청이 모두 끝나고 로딩 표시가 사라진 채 0.2초(최대 3.5초): `plugins/spa-splash.client.ts` · `utils/util-boot-splash.ts`.
+     * 사용자 결정 2026-11-14: 11-13 의 회색 틀(스켈레톤)은 「틀 → 상단 바만 있는 화면 → 본문」으로 두 번 바뀌어 체감이 나빴다 → 스플래시로 바꿈.
+     * 모든 사용자에게 내려가므로 그 파일에는 주석을 두지 않는다. 다크 판정은 `plugins/view-theme.client.ts` 와 같은 규칙(규칙을 바꾸면 두 곳을 같이 고친다).
+     * 바탕 #f2f4f7 / 다크 #17181b 는 main.css 아이로빗 테마 바탕 값이다.
+     */
+    spaLoadingTemplate: 'spa-loading-template.html',
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
 

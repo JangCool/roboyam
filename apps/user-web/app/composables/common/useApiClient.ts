@@ -1,5 +1,6 @@
 import UtilI18n, { type Translate } from '#layers/i18n/utils/util-i18n';
 import UtilAuthMessages from '~/utils/util-auth-messages';
+import UtilBootSplash from '~/utils/util-boot-splash';
 import UtilInstallState from '~/utils/util-install-state';
 import UtilRedirect from '~/utils/util-redirect';
 
@@ -370,7 +371,8 @@ export function useApiClient(options: ApiClientOptions = {}) {
         const mutating = MUTATING.has(method);
         const target = withQuery(url, request.query);
 
-        return run<T>(mutating, async () => {
+        // 첫 로딩 스플래시는 첫 화면의 요청이 다 끝나야 걷힌다(`UtilBootSplash`) — 걷힌 뒤에는 세지 않는다
+        return UtilBootSplash.track(run<T>(mutating, async () => {
             const response = await $fetch.raw<unknown>(target, {
                 method: method as 'GET',
                 body: body as Record<string, unknown> | undefined,
@@ -382,7 +384,7 @@ export function useApiClient(options: ApiClientOptions = {}) {
             const data = unwrap<T>(response._data, response.status, response.headers.get('x-request-id'));
             request.onHeaders?.((name) => response.headers.get(name));
             return data;
-        });
+        }));
     }
 
     /**
