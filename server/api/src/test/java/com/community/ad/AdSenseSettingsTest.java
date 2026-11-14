@@ -7,7 +7,8 @@ import com.community.ad.service.AdSenseSiteService;
 import com.community.analytics.collect.VisitCollector;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.installation.service.InstallationState;
-import com.community.site.config.SiteHeadFilter;
+import com.community.site.controller.SitePageHandler;
+import com.community.site.controller.SitePageTestSupport;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.service.IndexHtmlRenderer;
@@ -15,7 +16,6 @@ import com.community.site.service.PublicSiteService;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -146,11 +146,11 @@ class AdSenseSettingsTest {
     }
 
     private static MockHttpServletResponse serve(AdSenseSiteService adsense) throws Exception {
-        SiteHeadFilter f = new SiteHeadFilter(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, null, notInstalled());
+        SitePageHandler f = new SitePageHandler(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, null, notInstalled());
         MockHttpServletRequest r = new MockHttpServletRequest("GET", "/");
         r.setServletPath("/");
         MockHttpServletResponse res = new MockHttpServletResponse();
-        f.doFilter(r, res, new MockFilterChain());
+        SitePageTestSupport.serve(f, r, res);
         return res;
     }
 

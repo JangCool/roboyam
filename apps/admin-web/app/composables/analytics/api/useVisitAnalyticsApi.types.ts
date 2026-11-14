@@ -374,7 +374,7 @@ export interface VisitBotSeriesPoint {
 
 /**
  * `GET /api/admin/analytics/visits/bots?from&to` — 봇·크롤러 요청 수(봇은 방문 통계에서 빠져 있다).
- * 원천: `analytics_bot_daily(day, kind, requests)` — 공개 화면 HTML(api `SiteHeadFilter` 가 `index.html` 을 내릴 때) 요청 하나를 1로 세다가 1분마다 더하기 upsert(`/api/**` 는 세지 않는다).
+ * 원천: `analytics_bot_daily(day, kind, requests)` — 공개 화면 HTML(api `SitePageHandler` 가 `index.html` 을 내릴 때) 요청 하나를 1로 세다가 1분마다 더하기 upsert(`/api/**` 는 세지 않는다).
  */
 export interface VisitBots {
     range: VisitRange;

@@ -101,7 +101,7 @@ public class IndexHtmlRenderer {
 
     /**
      * 구글 애드센스 머리(V176, docs/features/adsense-contract.md) — {@code </head>} 바로 앞에 {@code <meta name="google-adsense-account">} 와 {@code adsbygoogle.js}
-     * 스크립트({@code async}·{@code crossorigin="anonymous"})를 더한 사본(지문도 새로). 공개 화면 응답에만 쓴다(관리자 미리보기에는 쓰지 않는다 — {@code SiteHeadFilter}).
+     * 스크립트({@code async}·{@code crossorigin="anonymous"})를 더한 사본(지문도 새로). 공개 화면 응답에만 쓴다(관리자 미리보기에는 쓰지 않는다 — {@code SitePageHandler}).
      * 게시자 ID 는 관리자 서버가 형식을 검사한 값이지만 다른 칸처럼 HTML 이스케이프한다. 같은 틀 지문·같은 게시자 ID 면 만들어 둔 사본을 다시 쓴다. 머리가 없는 틀이면 그대로다.
      */
     public RenderedIndex withAdSense(RenderedIndex index, String client) {

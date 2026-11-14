@@ -13,7 +13,8 @@ import com.community.analytics.collect.VisitCollector;
 import com.community.bizapplication.BizApplicationApiTestBase;
 import com.community.installation.service.InstallationState;
 import com.community.site.config.AdminPreviewFrame;
-import com.community.site.config.SiteHeadFilter;
+import com.community.site.controller.SitePageHandler;
+import com.community.site.controller.SitePageTestSupport;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.service.IndexHtmlRenderer;
@@ -28,7 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>{@code GET /api/ads/placements} 의 {@code adsense}: 꺼짐·행 없음이면 null(키는 있다) · VERIFY 면 {@code units} 빈 묶음 · SHOW 면 값 있는 자리만.</li>
  *   <li>{@code /ads.txt}: VERIFY·SHOW + 게시자 ID 면 200 {@code text/plain} 한 줄 · 꺼짐이면 본문 없는 404(컨트롤러가 받는다 — 화면 index.html 로 바뀌지 않음).</li>
- *   <li>머리 주입: {@link SiteHeadFilter} 를 실제 {@link AdSenseSiteService}(DB 읽기)·실제 {@link IndexHtmlRenderer#withAdSense} 로 — 시험 클래스패스에는 화면
+ *   <li>머리 주입: {@link SitePageHandler} 를 실제 {@link AdSenseSiteService}(DB 읽기)·실제 {@link IndexHtmlRenderer#withAdSense} 로 — 시험 클래스패스에는 화면
  *       {@code static/index.html} 이 없어 바탕 사본만 고정 본문으로 바꾼다. VERIFY·SHOW 면 메타·스크립트, OFF·미리보기면 없음, 설정을 바꾸면 다음 요청부터.</li>
  * </ul>
  */
@@ -237,7 +237,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
         }
     }
 
-    private SiteHeadFilter filter(String adminOrigin) {
+    private SitePageHandler filter(String adminOrigin) {
         // 첫 화면 데이터는 이 시험 범위 밖 — 설치 전으로 두어 싣지 않는다
         InstallationState notInstalled = new InstallationState(null) {
             @Override
@@ -245,7 +245,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
                 return false;
             }
         };
-        return new SiteHeadFilter(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, null, notInstalled);
+        return new SitePageHandler(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, null, notInstalled);
     }
 
     private static MockHttpServletRequest page(String path, boolean preview) {
@@ -257,9 +257,9 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
         return r;
     }
 
-    private static MockHttpServletResponse serve(SiteHeadFilter f, MockHttpServletRequest request) throws Exception {
+    private static MockHttpServletResponse serve(SitePageHandler f, MockHttpServletRequest request) throws Exception {
         MockHttpServletResponse res = new MockHttpServletResponse();
-        f.doFilter(request, res, new MockFilterChain());
+        SitePageTestSupport.serve(f, request, res);
         assertThat(res.getStatus()).isEqualTo(200);
         assertThat(res.getContentType()).startsWith("text/html");
         return res;
@@ -275,7 +275,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
 
     @Test
     void VERIFY_SHOW_면_공개_화면_머리_끝에_메타와_스크립트() throws Exception {
-        SiteHeadFilter f = filter(ADMIN_ORIGIN);
+        SitePageHandler f = filter(ADMIN_ORIGIN);
         for (String mode : new String[]{"VERIFY", "SHOW"}) {
             row(mode, CLIENT, false, units());
             for (String path : new String[]{"/", "/boards/free", "/index.html"}) {
@@ -300,7 +300,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
 
     @Test
     void OFF_거나_행이_없으면_머리에_애드센스가_없다() throws Exception {
-        SiteHeadFilter f = filter(ADMIN_ORIGIN);
+        SitePageHandler f = filter(ADMIN_ORIGIN);
         String noRow = serve(f, page("/", false)).getContentAsString(StandardCharsets.UTF_8);
         assertThat(noRow).isEqualTo(BASE_HTML);
         row("OFF", CLIENT, false, units("adsense_wide_banner", "1234567890"));
@@ -312,7 +312,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
     @Test
     void 관리자_미리보기_응답에는_애드센스를_넣지_않는다() throws Exception {
         row("SHOW", CLIENT, false, units());
-        SiteHeadFilter f = filter(ADMIN_ORIGIN);
+        SitePageHandler f = filter(ADMIN_ORIGIN);
         String preview = serve(f, page("/", true)).getContentAsString(StandardCharsets.UTF_8);
         assertThat(preview).contains("<meta name=\"irobit-admin-origin\" content=\"" + ADMIN_ORIGIN + "\">")
                 .doesNotContain("google-adsense-account", "adsbygoogle");
@@ -327,7 +327,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
 
     @Test
     void 설정을_바꾸면_다음_요청부터_머리가_따라온다() throws Exception {
-        SiteHeadFilter f = filter(ADMIN_ORIGIN);
+        SitePageHandler f = filter(ADMIN_ORIGIN);
         row("VERIFY", CLIENT, false, units());
         MockHttpServletResponse first = serve(f, page("/", false));
         String etagA = first.getHeader("ETag");
@@ -336,7 +336,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
         MockHttpServletRequest cond = page("/", false);
         cond.addHeader("If-None-Match", etagA);
         MockHttpServletResponse notModified = new MockHttpServletResponse();
-        f.doFilter(cond, notModified, new MockFilterChain());
+        SitePageTestSupport.serve(f, cond, notModified);
         assertThat(notModified.getStatus()).isEqualTo(304);
 
         // 게시자 ID 바꿈 — 다음 요청이 새 ID, 옛 ETag 로 물어도 200

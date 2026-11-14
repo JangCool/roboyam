@@ -46,7 +46,7 @@
 
 ## 운영 배포 (결정 2026-10-29)
 화면은 `nuxt generate` 정적 파일이라 `NUXT_PUBLIC_*` 가 빌드 때 박히지만, 이미지는 로컬·dev·prod·설치형이 한 벌이므로 **운영 주소를 화면 빌드에 넣지 않고 서버 설정을 실행 때 쓴다**. 빌드한 화면(`$production`)은 두 값을 비워 둔다.
-- 공개 사이트 HTML 은 nginx 가 아니라 api 가 내린다(`SiteHeadFilter` — Caddy·ALB 는 전달만). 프레임 헤더는 공통 `SecurityConfig` 의 `FrameHeaderWriter` 가 붙인다: 늘 `X-Frame-Options: DENY`, 앱의 `FrameAncestorsPolicy` 가 허락한 응답만 그 대신 `Content-Security-Policy: frame-ancestors …`.
+- 공개 사이트 HTML 은 nginx 가 아니라 api 가 내린다(`SitePageHandler` — Caddy·ALB 는 전달만). 프레임 헤더는 공통 `SecurityConfig` 의 `FrameHeaderWriter` 가 붙인다: 늘 `X-Frame-Options: DENY`, 앱의 `FrameAncestorsPolicy` 가 허락한 응답만 그 대신 `Content-Security-Policy: frame-ancestors …`.
 - 허락하는 응답(api `AdminPreviewFrame`): 화면 주소의 GET·HEAD 이면서 `adminPreview=1` 인 것만 `frame-ancestors 'self' <관리자 origin>`. 관리자 origin = 환경 값 `ADMIN_URL`(api 의 `irobit.admin-preview.origin`)의 스킴·호스트·포트 — 비었거나 http(s) 가 아니면 허락하지 않는다. 그 밖의 화면·API·정적 파일·관리자 앱은 그대로 DENY(관리자 앱은 정책 빈이 없다).
 - 공개 화면이 받을 관리자 주소: 같은 응답 머리의 `<meta name="irobit-admin-origin">`(서버가 넣는다) + `runtimeConfig.public.adminOrigins`(개발 서버 기본 `http://localhost:3200,3201`).
 - 관리자가 띄울 공개 사이트 주소: 사이트 설정 공개 주소(설치 마법사 값 — `GET /api/admin/site/theme` 응답 `publicUrl`)의 origin. 개발 서버는 `runtimeConfig.public.userWebOrigin`(기본 `http://localhost:3100`)이 먼저다(`useUserWebOrigin`). 둘 다 없으면 「실제 화면」 자리에 안내 문구(`site.livePreviewNoOrigin`).

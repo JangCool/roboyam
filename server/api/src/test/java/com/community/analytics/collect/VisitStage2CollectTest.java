@@ -13,7 +13,8 @@ import com.community.search.dto.response.SearchResponse;
 import com.community.search.service.SearchService;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.installation.service.InstallationState;
-import com.community.site.config.SiteHeadFilter;
+import com.community.site.controller.SitePageHandler;
+import com.community.site.controller.SitePageTestSupport;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.dto.response.SiteAnalyticsView;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -280,7 +280,7 @@ class VisitStage2CollectTest {
         assertThat(collector.buffer().drain().bots()).isEmpty();
     }
 
-    // ── 3. 봇 셈 지점 — SiteHeadFilter ─────────────────────────────────────
+    // ── 3. 봇 셈 지점 — SitePageHandler ─────────────────────────────────────
 
     /** 머리를 채운 index.html 을 늘 같은 본문·ETag 로 */
     static final class FixedRenderer extends IndexHtmlRenderer {
@@ -309,8 +309,8 @@ class VisitStage2CollectTest {
         }
     }
 
-    private SiteHeadFilter filter(boolean rendered) {
-        return new SiteHeadFilter(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), null, notInstalled());
+    private SitePageHandler filter(boolean rendered) {
+        return new SitePageHandler(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), null, notInstalled());
     }
 
     /** 애드센스 끔(머리에 넣을 것 없음) */
@@ -342,46 +342,46 @@ class VisitStage2CollectTest {
     @Test
     void 화면_HTML_요청_하나가_봇_1이고_HEAD_와_304_도_센다() throws Exception {
         String google = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
-        SiteHeadFilter f = filter(true);
+        SitePageHandler f = filter(true);
         for (String path : List.of("/", "/posts/1", "/board/free", "/index.html")) {
             MockHttpServletResponse res = new MockHttpServletResponse();
-            f.doFilter(page("GET", path, google), res, new MockFilterChain());
+            SitePageTestSupport.serve(f, page("GET", path, google), res);
             assertThat(res.getStatus()).isEqualTo(200);
         }
         assertThat(botRequests()).isEqualTo(4);
 
         MockHttpServletResponse head = new MockHttpServletResponse();
-        f.doFilter(page("HEAD", "/", google), head, new MockFilterChain());
+        SitePageTestSupport.serve(f, page("HEAD", "/", google), head);
         assertThat(head.getContentAsByteArray()).isEmpty();
         MockHttpServletRequest cond = page("GET", "/", google);
         cond.addHeader("If-None-Match", "\"qa-etag\"");
         MockHttpServletResponse notModified = new MockHttpServletResponse();
-        f.doFilter(cond, notModified, new MockFilterChain());
+        SitePageTestSupport.serve(f, cond, notModified);
         assertThat(notModified.getStatus()).isEqualTo(304);
         assertThat(botRequests()).isEqualTo(2);
 
         // 화면 파일이 없어도(빌드 전) 화면 요청이면 센다
-        filter(false).doFilter(page("GET", "/", google), new MockHttpServletResponse(), new MockFilterChain());
+        SitePageTestSupport.serve(filter(false), page("GET", "/", google), new MockHttpServletResponse());
         assertThat(botRequests()).isEqualTo(1);
     }
 
     @Test
     void API_정적_파일_POST_사람_요청은_봇으로_세지_않는다() throws Exception {
         String google = "Googlebot/2.1";
-        SiteHeadFilter f = filter(true);
+        SitePageHandler f = filter(true);
         for (String path : List.of("/api/search", "/api", "/api/site/info", "/media/a.png", "/_nuxt/app.js", "/favicon.ico", "/robots.txt", "/sitemap.xml",
                 "/manifest.webmanifest", "/actuator/health", "/.well-known/security.txt")) {
-            f.doFilter(page("GET", path, google), new MockHttpServletResponse(), new MockFilterChain());
+            SitePageTestSupport.serve(f, page("GET", path, google), new MockHttpServletResponse());
         }
-        f.doFilter(page("POST", "/", google), new MockHttpServletResponse(), new MockFilterChain());
-        f.doFilter(page("GET", "/", WIN_CHROME), new MockHttpServletResponse(), new MockFilterChain());
+        SitePageTestSupport.serve(f, page("POST", "/", google), new MockHttpServletResponse());
+        SitePageTestSupport.serve(f, page("GET", "/", WIN_CHROME), new MockHttpServletResponse());
         assertThat(botRequests()).isZero();
     }
 
     @Test
     void 봇이_꺼져_있으면_화면_요청도_세지_않는다() throws Exception {
         setting.set(new StatsCollection(true, true, true, 3, true, true, true, true, false, false, false));
-        filter(true).doFilter(page("GET", "/", "Googlebot/2.1"), new MockHttpServletResponse(), new MockFilterChain());
+        SitePageTestSupport.serve(filter(true), page("GET", "/", "Googlebot/2.1"), new MockHttpServletResponse());
         assertThat(botRequests()).isZero();
     }
 

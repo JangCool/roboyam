@@ -5,7 +5,7 @@ import UtilAdSense from '~/utils/util-adsense';
  * 구글 애드센스 공유 상태 — 장부 광고가 없는 자리를 채울 단위를 고른다(서버 `adsense` 묶음 — shared V176).
  * 설정은 공개 자리 설정(`usePublicAds().placements` — `GET /api/ads/placements`)에 실려 오고, 같은 20초 사본을 쓴다.
  *
- * 스크립트 전제: `adsbygoogle.js` 는 **서버가 index.html 머리에 넣는다**(api `SiteHeadFilter`/`IndexHtmlRenderer`, 「사이트 확인만」·「광고 표시」 단계).
+ * 스크립트 전제: `adsbygoogle.js` 는 **서버가 index.html 머리에 넣는다**(api `SitePageHandler`/`IndexHtmlRenderer`, 「사이트 확인만」·「광고 표시」 단계).
  * 화면은 스크립트를 넣지 않고 `<ins class="adsbygoogle">` 를 그린 뒤 `window.adsbygoogle` 큐에 push 만 한다(`AdSenseUnit`) — 스크립트가 늦게 와도 큐로 동작한다.
  *
  * 그리지 않는 곳: 「광고 표시」가 아닌 단계 · 관리자 미리보기(iframe `adminPreview=1`·`cachePreview=1`) · 게시판 맥락의 19금·광고 숨김·소모임·비밀글(`contextAllows`).

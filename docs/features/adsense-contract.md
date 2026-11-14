@@ -27,7 +27,7 @@
 | `VERIFY` | 애드센스 스크립트 + `google-adsense-account` 메타 | 한 줄 | `mode`·`client`·`adtest`, `units` 빈 묶음 | 광고 단위를 그리지 않음 |
 | `SHOW` | 같음 | 한 줄 | 위 + 단위 ID가 있는 자리만 `units` | 장부 광고 없는 자리에 단위를 그림 |
 
-- 머리 스크립트: `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={client}" crossorigin="anonymous"></script>` + `<meta name="google-adsense-account" content="{client}">`. 공개 화면 HTML(api `SiteHeadFilter`/`IndexHtmlRenderer`)에만 넣는다. 관리자 미리보기 iframe 응답에는 넣지 않는다.
+- 머리 스크립트: `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={client}" crossorigin="anonymous"></script>` + `<meta name="google-adsense-account" content="{client}">`. 공개 화면 HTML(api `SitePageHandler`/`IndexHtmlRenderer`)에만 넣는다. 관리자 미리보기 iframe 응답에는 넣지 않는다.
 - `/ads.txt`: `google.com, pub-{숫자16}, DIRECT, f08c47fec0942fa0` 한 줄, `text/plain`.
 - 승인은 구글 애드센스의 사이트 심사(콘솔 사이트 상태 「준비됨」). 콘솔의 「자동 광고」는 꺼 두라고 화면에서 안내한다.
 
@@ -46,7 +46,7 @@
 - 모양 정본: shared `ad/dto/AdSenseSettings`(관리자 `adsense` 묶음 = 이 레코드, 공개는 `publicView()`). 관리자 `PUT` 의 `adsense` 는 선택(빠지면 그대로) · `adtest` 비면 false · `units` 비면 모두 null. 레이아웃 키는 최대 64자(넘으면 `fields.adsense.units.BOARD_LIST.layoutKey`). 인피드 한쪽만 있으면 빈 쪽 키로 400(문구 `ad.placement.adsense.inFeedPair`).
 - 감사·이력 칸: `adsense.mode`·`adsense.client`·`adsense.adtest`·`adsense.units.<자리>`·`adsense.units.BOARD_LIST.slot|layoutKey`(값 없으면 null). 처음 저장(CREATE)은 값이 없는 칸(빈 게시자 ID·단위 ID)을 남기지 않는다.
 - 공개 `GET /api/ads/placements` 응답 레코드는 api `PublicAdView.Placements`(네 묶음 + `adsense`) — 요청마다 읽는다(사본 없음).
-- 머리: api `SiteHeadFilter` 가 요청마다 애드센스 칸을 읽어(`AdSenseSiteService`) 켜져 있으면 `IndexHtmlRenderer.withAdSense` 로 `</head>` 바로 앞에 메타·스크립트를 더한다(바탕 사본 지문 + 게시자 ID 로 캐시, ETag 도 바뀜). 관리자 미리보기(`?adminPreview=1`)에는 넣지 않는다. 읽기가 실패하면 애드센스 없이 내린다.
+- 머리: api `SitePageHandler` 가 요청마다 애드센스 칸을 읽어(`AdSenseSiteService`) 켜져 있으면 `IndexHtmlRenderer.withAdSense` 로 `</head>` 바로 앞에 메타·스크립트를 더한다(바탕 사본 지문 + 게시자 ID 로 캐시, ETag 도 바뀜). 관리자 미리보기(`?adminPreview=1`)에는 넣지 않는다. 읽기가 실패하면 애드센스 없이 내린다.
 - `/ads.txt`: api `AdsTxtController` — `text/plain;charset=UTF-8`, `Cache-Control: no-cache`, 꺼져 있으면 본문 없는 404(화면 index.html 로 바뀌지 않음).
 - 화면 연결 끝(2026-11-10): admin-web `useAdApi`·user-web `usePublicAdApi` 가 서버 `adsense` 를 그대로 쓴다 — 목업(`mock/adsense-mock.ts` 두 앱, `?mock=adsense*` 자리표시) 제거, 화면 검사에 레이아웃 키 64자 상한 추가.
 

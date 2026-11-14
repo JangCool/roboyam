@@ -79,7 +79,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 
 **`GET /manifest.webmanifest`**(`application/manifest+json`, `ApiResponse` 로 감싸지 않는다 — 표준 형식) — `name`=사이트 이름(없으면 `Irobit`), `short_name`(12자까지), `description`=슬로건, `lang`=표시 언어, `start_url`·`scope`=`/`, `display=standalone`, 색 `#ffffff`, `icons` = 올린 192·512 PNG(`purpose: any`) 또는 기본 SVG(`sizes: any`). 아이콘 주소는 상대 주소(같은 서버가 서빙) — 위 「서빙」의 「절대 주소」 안내와 달리 매니페스트는 상대로 뒀다(공개 주소와 접속 도메인이 달라도 깨지지 않게). 캐시·ETag 는 위와 같다.
 
-**`index.html` 머리 채우기**(`SiteHeadFilter` → `IndexHtmlRenderer`, 보안 필터 뒤)
+**`index.html` 머리 채우기**(`SitePageHandler` → `IndexHtmlRenderer`, 보안 필터 뒤)
 - 적용: 확장자 없는 GET·HEAD 주소(`/`·`/login` …)와 `/index.html`. `/api`·`/media`·`/actuator`·`/error`·`/_nuxt`·`/.well-known`·확장자 있는 주소는 건드리지 않는다.
 - 틀은 `classpath:/static/index.html`(user-web `pnpm generate` 가 `server/api/src/main/resources/static` 으로 내보냄 — gitignore, 별도 복사 단계 없음)이다. 머리에서 `<title>`·`description`·`og:*`·`twitter:*`·`rel=manifest` 를 지우고(`<script>`·`<style>` 안은 그대로) `<meta charset>` 바로 뒤에 넣는다: 아이콘 링크(올렸으면 32·48 `rel=icon` + 180 `apple-touch-icon` 으로 틀의 아이콘 링크를 대체, 안 올렸으면 틀의 링크를 두고 틀에도 없으면 기본 SVG), `rel=manifest`, `<title>`, `description`, `og:type=website`·`og:site_name`·`og:title`·`og:description`·`og:image`(절대 주소, 올린 이미지면 `og:image:width/height` 1200×630), `twitter:card=summary_large_image`·`twitter:title|description|image`. 제목은 「이름」 또는 「이름 — 슬로건」, 설명은 슬로건(없으면 이름). 이름·슬로건·주소는 모두 HTML 이스케이프(속성값 포함). `og:url`·`og:locale`·`canonical` 은 넣지 않는다.
 - 설정 행이 없으면(설치 전) 틀 그대로. 틀이 없거나(빌드 전) 머리를 만들다 실패하면 그대로 지나가 기존 처리(404 등)를 따른다. 결과는 설정 사본이 바뀔 때까지 캐시하고 `Cache-Control: no-cache` + `ETag`(304)로 내린다.

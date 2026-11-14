@@ -1,5 +1,6 @@
 package com.community.site.config;
 
+import com.community.site.controller.SitePageHandler;
 import com.community.zconfiguration.security.FrameAncestorsPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
@@ -18,9 +19,9 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>허락하는 곳: 관리자 앱 주소({@code irobit.admin-preview.origin} = 환경 변수 {@code ADMIN_URL})의 origin(스킴·호스트·포트) 하나. 비었거나 http(s) 주소가 아니면
  *       아무 데도 허락하지 않는다(늘 {@code X-Frame-Options: DENY}).</li>
- *   <li>허락하는 응답: 화면 주소({@link SiteHeadFilter#isPage})의 {@code GET}·{@code HEAD} 이면서 {@code adminPreview=1} 이 붙은 것만 —
+ *   <li>허락하는 응답: 화면 주소({@link SitePageHandler#isPage})의 {@code GET}·{@code HEAD} 이면서 {@code adminPreview=1} 이 붙은 것만 —
  *       {@code Content-Security-Policy: frame-ancestors 'self' <관리자 origin>}, XFO 없음. 그 밖의 화면·API·정적 파일은 그대로 DENY 다.</li>
- *   <li>같은 응답의 {@code index.html} 머리에 관리자 origin 을 {@code <meta name="irobit-admin-origin">} 로 넣는다({@link SiteHeadFilter}) — 공개 화면이 그 주소의
+ *   <li>같은 응답의 {@code index.html} 머리에 관리자 origin 을 {@code <meta name="irobit-admin-origin">} 로 넣는다({@link SitePageHandler}) — 공개 화면이 그 주소의
  *       메시지만 받는다(user-web {@code plugins/03.admin-preview.client.ts}). 화면 빌드에 주소를 박지 않으므로 이미지는 환경마다 한 벌이다.</li>
  * </ul>
  */
@@ -55,7 +56,7 @@ public class AdminPreviewFrame implements FrameAncestorsPolicy {
         if (!HttpMethod.GET.matches(method) && !HttpMethod.HEAD.matches(method)) {
             return false;
         }
-        return "1".equals(request.getParameter(PARAM)) && SiteHeadFilter.isPage(request.getServletPath());
+        return "1".equals(request.getParameter(PARAM)) && SitePageHandler.isPage(request.getServletPath());
     }
 
     @Override

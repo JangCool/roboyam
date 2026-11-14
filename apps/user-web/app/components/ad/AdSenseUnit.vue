@@ -1,7 +1,7 @@
 <template>
     <!--
         구글 애드센스 단위 하나 — 장부 광고가 없는 자리를 채운다. 부르는 쪽이 자리·단위(`spec`)를 정한다(`useAdSense().unit`).
-        스크립트 전제: `adsbygoogle.js` 는 서버가 index.html 머리에 넣는다(api `SiteHeadFilter`/`IndexHtmlRenderer` — 「사이트 확인만」·「광고 표시」 단계).
+        스크립트 전제: `adsbygoogle.js` 는 서버가 index.html 머리에 넣는다(api `SitePageHandler`/`IndexHtmlRenderer` — 「사이트 확인만」·「광고 표시」 단계).
           이 부품은 스크립트를 넣지 않고 `<ins class="adsbygoogle">` 를 그린 뒤 `window.adsbygoogle` 큐에 push 만 한다 — 스크립트가 늦게 와도(또는 아직 없어도) 큐에 남았다가 동작한다.
         push 는 새 `<ins>` 마다 한 번 — 같은 요소에 두 번 하지 않는다(`pushed`·`data-adsbygoogle-status`). 단위가 바뀌면(`insKey`) 요소를 새로 만들어 다시 한 번.
           자리가 폭 0(숨은 모바일/데스크톱 짝 · `display:none` 조상)이면 `<ins>` 를 아직 만들지 않는다 — push 는 문서의 처리 안 된 첫 `<ins>` 를 채우므로, 숨은 요소가 먼저 잡혀 「availableWidth=0」 오류가 나지 않게. 폭이 생기면 그때 만든다.

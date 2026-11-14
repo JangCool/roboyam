@@ -6,7 +6,7 @@
 
 | 장치 | 하는 일 | 코드 |
 |---|---|---|
-| 첫 화면 데이터(initial state) | api 서버가 `index.html` 을 내릴 때 첫 화면 GET API 응답들을 `<script id="irb-boot" type="application/json">` 으로 함께 싣는다. 화면은 그 주소를 처음 부를 때 서버에 묻지 않고 쓴다 | 서버 `site/boot/BootPreloadRenderer` · `SiteHeadFilter` · `IndexHtmlRenderer.withBoot`, 화면 `utils/util-boot-data.ts` · `useApiClient` |
+| 첫 화면 데이터(initial state) | api 서버가 `index.html` 을 내릴 때 첫 화면 GET API 응답들을 `<script id="irb-boot" type="application/json">` 으로 함께 싣는다. 화면은 그 주소를 처음 부를 때 서버에 묻지 않고 쓴다 | 서버 `site/boot/BootPreloadRenderer` · `SitePageHandler` · `IndexHtmlRenderer.withBoot`, 화면 `utils/util-boot-data.ts` · `useApiClient` |
 | 조각 미리 받기 | 첫 화면 데이터로 테마·홈 가젯 종류를 알아, 앱이 뜨자마자 테마 셸·홈 틀·가젯 코드를 동시에 받기 시작한다 | `plugins/spa-warmup.client.ts` · `UtilTheme.preload` · `UtilGadgetRegistry.preload` |
 | 링크 미리 받기 | `<NuxtLink>` 는 마우스를 올리거나 누를 때만 그 페이지 코드를 받는다(보일 때 받지 않는다) | `nuxt.config.ts` `experimental.defaults.nuxtLink` |
 | 스플래시 | JS 가 오기 전부터 로고·진행 막대·단계 점, 첫 화면이 다 그려진 뒤 한 번에 걷힌다 | `app/spa-loading-template.html` · `utils/util-boot-splash.ts` · `plugins/spa-splash.client.ts` |
