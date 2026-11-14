@@ -67,7 +67,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       글 하나당 1~2번({@link AiMemberRules#memberReplyLimit}). <b>사람 회원 글에는 댓글을 달지 않는다</b>(설정 「회원 글 댓글 허용」이 켜졌을 때만 첫 댓글 후보에 넣는다 — 기본 꺼짐).</li>
  *   <li><b>프롬프트</b>({@link AiPrompts}): 회원 글·댓글은 인용 블록의 내용으로만 넣는다(지시가 아니다). 닉네임은 보내지 않는다. 지시문·분위기·뉴스 글 비율·문단 나누기는
  *       관리자 「프롬프트」 설정({@link AiPromptSettings} — 바퀴마다 읽고, 못 읽으면 코드 기본값).</li>
- *   <li><b>뉴스 글</b>: 보통 계정의 게시판 새 글 차례에서 설정 비율(기본 10%)로 사이트 회원이 올린 「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
+ *   <li><b>뉴스 글</b>: 보통 계정의 게시판 새 글 차례에서 설정 비율(기본 10%)로 사이트 회원이 올린 뉴스 게시판 글·「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
+ *       쓰는 곳은 뉴스 게시판(그 계정이 쓸 수 있을 때 — {@link AiNewsSources#newsTarget}, 말머리는 등록할 때 {@link AiNewsSources#prefixFor}), 아니면 글 차례 게시판에 말머리 없이(되돌림).
  *       본문 끝에 빈 줄 + 「참고: 「원래 글 제목」」 + 사이트 안 링크를 서버가 붙이고(링크를 지우는 정리 뒤에), 생성 줄에 소재 글({@code source_post_id})을 남겨 다시 쓰지 않는다.</li>
  *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록({@link AiContentWriter} — 공개 사이트 쓰기 경로와 같은 판정, 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
  *       (다시 시도하지 않는다 — 다음 차례로). 결제·크레딧 부족 · 키 오류면 그 제공사를 쉬게 한다({@link AiProviderKeys#pause} — 상태가 바뀔 때만 관리자 알림 한 번, 키를 다시 저장하면 다시 돈다).</li>
@@ -321,7 +322,11 @@ public class AiDraftGenerator {
             Optional<AiNewsSources.Source> source = news.find(a, config, now, ThreadLocalRandom.current());
             if (source.isPresent()) {
                 AiNewsSources.Source src = source.get();
-                return new Task(AiDraftEntity.Target.newsPost(b.id(), src.postId()), place,
+                // 쓰는 곳 = 뉴스 게시판(사용자 2026-11-15 — 있고 켜져 있고 AI 글 허용 · 이 계정이 쓸 수 있을 때, 공개 쓰기 경로와 같은 판정).
+                // 되돌림: 그렇지 않으면 이 글 차례 게시판(b)에 쓴다. 말머리는 등록할 때 고른다(AiDraftPublisher → AiNewsSources#prefixFor — 뉴스 게시판일 때만)
+                EffectiveBoard target = news.newsTarget(a, snap).orElse(b);
+                AiPrompts.Place newsPlace = target.id() == b.id() ? place : new AiPrompts.Place(target.name(), target.description(), false);
+                return new Task(AiDraftEntity.Target.newsPost(target.id(), src.postId()), newsPlace,
                         AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 글", postText(src.title(), src.contentText())), titles), src.title());
             }
         }

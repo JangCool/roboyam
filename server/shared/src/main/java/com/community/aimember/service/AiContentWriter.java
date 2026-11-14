@@ -3,6 +3,7 @@ package com.community.aimember.service;
 import com.community.aimember.exception.AiWriteRefusedException;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
+import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.BoardSecurityValues;
 import com.community.board.dto.ContentBody;
 import com.community.board.dto.EffectiveBoard;
@@ -34,6 +35,7 @@ import com.community.post.service.PostOpenRules;
 import com.community.post.service.PostWriteRules;
 import com.community.post.service.SecretPostReaders;
 import com.community.post.service.WriterPromotion;
+import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
@@ -55,7 +57,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 쓴 사람({@link BoardActorResolver}). 그래서 금칙어 · 회원 정지 · 게시판 제재 · 운영진만·쓰기 잠금 · 댓글 꺼짐 · 같은 글 반복 · 칸 검사가 사람 회원과 같다.
  *
  * <ul>
- *   <li>AI 생성물은 평문(TEXT) 글·소모임 글·댓글·답글뿐이다 — 비회원 · 자동입력 방지 · 말머리 · 19금 · 투표 · 핫딜 · 찬반 토론 열기 · 이미지가 없다.</li>
+ *   <li>AI 생성물은 평문(TEXT) 글·소모임 글·댓글·답글뿐이다 — 비회원 · 자동입력 방지 · 19금 · 투표 · 핫딜 · 찬반 토론 열기 · 이미지가 없다. 말머리는 뉴스 게시판에 쓰는
+ *       뉴스 글만 단다({@link AiNewsSources#prefixFor} — 사람 글쓰기와 같은 말머리 검사).</li>
  *   <li><b>면제</b>: 사이트 작성 간격 · 하루 한도는 보지 않는다(실행기가 양을 정한다 — 작성자 잠금·같은 글 반복은 본다). {@code gradeExempt}(그 AI 계정의 쓸 곳으로 고른 게시판)면
  *       게시판 최소 쓰기·댓글 등급({@code GRADE_TOO_LOW})도 보지 않는다.</li>
  *   <li><b>「항상 막힘」 게시판</b>({@link AiMemberRules#blockedReason})은 등록할 때도 다시 본다 — 고른 뒤 게시판 설정이 바뀌었으면 {@code WRITE_BLOCKED}.</li>
@@ -128,24 +131,29 @@ public class AiContentWriter {
      * @return 새 글 ID
      */
     public long post(long userId, long boardId, String titleText, String bodyText, boolean gradeExempt, String ip) {
-        BoardCatalogSnapshot s = catalog.snapshot();
-        Optional<EffectiveBoard> found = s.board(boardId);
-        refuseIfDenied(PostOpenRules.publicBoardDenial(found));
-        EffectiveBoard b = found.get();
-        if (AiMemberRules.blockedReason(b) != null) {
-            throw new AiWriteRefusedException(WRITE_BLOCKED);
-        }
-        BoardActor actor = actors.resolve(userId, s);
-        if (actor.guest()) {
-            PostWriteRules.requireWritable(BoardAccessPolicy.LOGIN_REQUIRED); // 회원이 없어졌거나 탈퇴 — 비회원으로 쓰지 않는다(401 → WRITE_BLOCKED)
-        }
-        String blocked = BoardAccessPolicy.writeBlocked(b, actor, s);
-        PostWriteRules.requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked, b, s);
-        PostWriteRules.requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
+        return post(userId, boardId, null, titleText, bodyText, gradeExempt, ip);
+    }
+
+    /**
+     * 게시판 글 — 말머리까지(뉴스 게시판에 쓰는 AI 뉴스 글만 말머리를 단다, home-news-contract 「AI 회원 뉴스」). 말머리는 사람 글쓰기와 같은 검사
+     * ({@link PostContentFields#check} — 그 게시판의 말머리 · 켜짐 · 운영진 전용은 운영진만)를 받고, AI 글은 19금이 없으므로 성인 전용 말머리도 거절한다
+     * (→ {@link ValidationException} {@code prefixId} — 실행기 까닭 {@code INVALID}).
+     *
+     * @param prefixId 말머리(없으면 null)
+     */
+    public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, boolean gradeExempt, String ip) {
+        Writable w = writable(userId, boardId, gradeExempt);
+        BoardCatalogSnapshot s = w.snapshot();
+        EffectiveBoard b = w.board();
+        BoardActor actor = w.actor();
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        PostContentFields.Cleaned c = PostContentFields.check(b, actor.staffOf(b.id()), memberWriter(b, actor, s), null, null, titleText, TEXT, bodyText, null, sec, fields);
+        PostContentFields.Cleaned c = PostContentFields.check(b, actor.staffOf(b.id()), memberWriter(b, actor, s), null, prefixId == null ? null : Long.toString(prefixId),
+                titleText, TEXT, bodyText, null, sec, fields);
+        if (prefixId != null && !fields.containsKey("prefixId") && b.prefix(prefixId).map(BoardPrefixInfo::adultOnly).orElse(false)) {
+            fields.put("prefixId", new MessageRef("board.content.prefix.unknown")); // AI 글은 19금이 없다 — 성인 전용 말머리는 쓰지 않는다
+        }
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -303,6 +311,46 @@ public class AiContentWriter {
         });
         promotion.afterWrite(userId);
         return id;
+    }
+
+    // ── 쓸 수 있는 게시판인가 ───────────────────────────────────────────────
+
+    /** 글쓰기 앞 판정을 지난 게시판 — 판정 시점의 목록 사본 · 게시판 · 쓴 사람 */
+    private record Writable(BoardCatalogSnapshot snapshot, EffectiveBoard board, BoardActor actor) {
+    }
+
+    /**
+     * 이 AI 계정이 이 게시판에 글을 쓸 수 있는가 — {@link #post} 의 칸 검사 앞 판정(게시판 있음·공개 게시판·켜짐 · 「항상 막힘」 아님 · 회원 · 쓰기 판정 · 게시판 제재)과
+     * <b>같은 코드</b>. 실행기가 뉴스 글을 뉴스 게시판에 쓸지 고를 때 부른다(아니면 글 차례 게시판으로 되돌린다). 금칙어·같은 글 반복 등 내용 판정은 등록 때 본다.
+     *
+     * @param gradeExempt 그 AI 계정의 쓸 곳으로 고른 게시판 — 최소 쓰기 등급을 보지 않는다(등록 때와 같은 값을 넘긴다)
+     */
+    public boolean canPost(long userId, long boardId, boolean gradeExempt) {
+        try {
+            writable(userId, boardId, gradeExempt);
+            return true;
+        } catch (AiWriteRefusedException | CommonException e) {
+            return false;
+        }
+    }
+
+    /** 게시판(없음·소모임 게시판 {@code TARGET_GONE}, 꺼짐·항상 막힘 {@code WRITE_BLOCKED}) → 회원 → 쓰기 판정 → 게시판 제재. 막히면 공개 API 와 같은 예외를 던진다 */
+    private Writable writable(long userId, long boardId, boolean gradeExempt) {
+        BoardCatalogSnapshot s = catalog.snapshot();
+        Optional<EffectiveBoard> found = s.board(boardId);
+        refuseIfDenied(PostOpenRules.publicBoardDenial(found));
+        EffectiveBoard b = found.get();
+        if (AiMemberRules.blockedReason(b) != null) {
+            throw new AiWriteRefusedException(WRITE_BLOCKED);
+        }
+        BoardActor actor = actors.resolve(userId, s);
+        if (actor.guest()) {
+            PostWriteRules.requireWritable(BoardAccessPolicy.LOGIN_REQUIRED); // 회원이 없어졌거나 탈퇴 — 비회원으로 쓰지 않는다(401 → WRITE_BLOCKED)
+        }
+        String blocked = BoardAccessPolicy.writeBlocked(b, actor, s);
+        PostWriteRules.requireWritable(gradeExempt && BoardAccessPolicy.GRADE_TOO_LOW.equals(blocked) ? null : blocked, b, s);
+        PostWriteRules.requireNotRestricted(actor, b.id()); // 게시판 제재의 쓰기 제한(board-sanction-contract 결정 5)
+        return new Writable(s, b, actor);
     }
 
     // ── 도우미 ────────────────────────────────────────────────────────────

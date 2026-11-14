@@ -147,6 +147,9 @@ public class AiPromptAdminService {
                 }
                 AiNewsSources.Source src = found.get();
                 source = new AiMemberViews.PromptSource(Long.toString(src.postId()), src.title());
+                // 실행기와 같다 — 뉴스 글은 뉴스 게시판에 쓴다(이 계정이 쓸 수 있을 때), 아니면 글 차례 게시판(되돌림)
+                AiPrompts.Place fallback = place;
+                place = news.newsTarget(a, catalog.snapshot()).map(nb -> new AiPrompts.Place(nb.name(), nb.description(), false)).orElse(fallback);
                 ask = AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 글", "제목: " + nz(src.title()) + "\n" + nz(src.contentText())), titles);
             }
             case COMMENT -> {

@@ -46,10 +46,12 @@ public class AiDraftPublisher {
     private final AiContentWriter writer;
     private final TransactionTemplate tx;
     private final AiMemberSettingsRepository settings;
+    private final AiNewsSources news;
 
     public AiDraftPublisher(AiDraftRepository drafts, AiMemberProfileRepository accounts, AiMemberQueries queries, AiContentWriter writer,
-                            PlatformTransactionManager txManager, AiMemberSettingsRepository settings) {
+                            PlatformTransactionManager txManager, AiMemberSettingsRepository settings, AiNewsSources news) {
         this.settings = settings;
+        this.news = news;
         this.drafts = drafts;
         this.accounts = accounts;
         this.queries = queries;
@@ -95,7 +97,9 @@ public class AiDraftPublisher {
                         finish(id, null, null, "TARGET_GONE");
                         return false;
                     }
-                    long postId = writer.post(userId, d.getBoardId(), d.getTitle(), d.getBody(), account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
+                    // 뉴스 글을 뉴스 게시판에 쓸 때만 말머리(등록 시점의 말머리 설정으로 고른다 — 되돌림으로 글 차례 게시판에 쓰면 null)
+                    Long prefixId = d.getSourcePostId() == null ? null : tx.execute(status -> news.prefixFor(d.getBoardId(), d.getSourcePostId()));
+                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
                     finish(id, postId, null, null);
                 }
             } else {
