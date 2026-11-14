@@ -61,6 +61,9 @@ export default {
     rankPages: 'Popular rank pages',
     rankRange: '{from}–{to}',
     rankRangeLabel: 'Show ranks {from}–{to}',
+    // Post list mobile pages (dots below)
+    pageDots: '{name} pages',
+    pageDot: 'Page {n} of {total}',
     // Horizontal swipe row (single-column / mobile home)
     scrollRowLabel: '{name} — swipe sideways for more',
     // Admin preview editing (live view in the admin theme screen — home grid handles)

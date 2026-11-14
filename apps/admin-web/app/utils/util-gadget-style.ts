@@ -1,4 +1,5 @@
 import type {
+    GadgetBottomSpace,
     GadgetCardLook,
     GadgetHeaderStyle,
     GadgetIconSource,
@@ -13,6 +14,8 @@ const HEADER_STYLES: readonly GadgetHeaderStyle[] = ['BAR', 'UNDERLINE', 'FILLED
 const TITLE_SIZES: readonly GadgetStyle['titleSize'][] = ['S', 'M', 'L'];
 const CARD_LOOKS: readonly GadgetCardLook[] = ['DEFAULT', 'FLAT', 'OUTLINE', 'TINT'];
 const MOBILE_FOLDS: readonly GadgetMobileFold[] = ['NONE', 'OPEN', 'CLOSED'];
+/** 카드 아래 보이는 여백 — 보통(좌우 여백과 같게) · 좁게 12px(서버 `GadgetStyles.BOTTOM_SPACES`, home-news-contract) */
+const BOTTOM_SPACES: readonly GadgetBottomSpace[] = ['NORMAL', 'TIGHT'];
 /** 색 프리셋 12색 — user-web `UtilColor.PRESET_NAMES` 와 같은 이름·차례(게시판 표시색 `UtilBoard.COLORS` 와도 같다) */
 const COLOR_PRESETS: readonly string[] = ['BLUE', 'TEAL', 'AMBER', 'PURPLE', 'GREEN', 'ORANGE', 'SLATE', 'RED', 'PINK', 'INDIGO', 'SKY', 'BROWN', 'EMERALD'];
 /** 머리 아이콘 후보(PrimeIcons 8 에 있는 것만) — 받은 값이 목록 밖이어도 모양(`pi-…`)이 맞으면 그대로 둔다 */
@@ -123,6 +126,7 @@ export default class UtilGadgetStyle {
     static readonly TITLE_SIZES = TITLE_SIZES;
     static readonly CARD_LOOKS = CARD_LOOKS;
     static readonly MOBILE_FOLDS = MOBILE_FOLDS;
+    static readonly BOTTOM_SPACES = BOTTOM_SPACES;
     static readonly COLOR_PRESETS = COLOR_PRESETS;
     static readonly ICONS = ICONS;
     static readonly ICON_SOURCES = ICON_SOURCES;
@@ -147,6 +151,7 @@ export default class UtilGadgetStyle {
             cardLook: FLAT_KINDS.includes(type) ? 'FLAT' : 'DEFAULT',
             cardColor: null,
             mobileFold: 'NONE',
+            bottomSpace: 'NORMAL',
             empty: { keep: KEEP_KINDS.includes(type), message: true, text: '' },
             iconShow: icon.show,
             iconSource: 'PRIME',
@@ -197,6 +202,7 @@ export default class UtilGadgetStyle {
             cardLook: oneOf(s.cardLook, CARD_LOOKS, base.cardLook),
             cardColor: UtilGadgetStyle.color(s.cardColor),
             mobileFold: oneOf(s.mobileFold, MOBILE_FOLDS, base.mobileFold),
+            bottomSpace: oneOf(s.bottomSpace, BOTTOM_SPACES, base.bottomSpace),
             empty: {
                 keep: typeof e.keep === 'boolean' ? e.keep : base.empty.keep,
                 message: typeof e.message === 'boolean' ? e.message : base.empty.message,
@@ -261,6 +267,7 @@ export default class UtilGadgetStyle {
             s.cardLook,
             s.cardColor,
             s.mobileFold,
+            s.bottomSpace,
             s.empty.keep,
             s.empty.message,
             s.empty.text,

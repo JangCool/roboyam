@@ -48,6 +48,8 @@ import com.community.home.repository.master.HomeLayoutRepository;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
+import com.community.post.repository.master.PostRepository;
+import com.community.tips.service.TipsService;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
 import com.community.site.service.PublicSiteService;
@@ -76,7 +78,8 @@ import tools.jackson.databind.JsonNode;
  *   <li>글 줄은 최신글·인기글 목록과 같은 거름·모양이다({@link PostFeedRows}, 로그인하면 차단·메모 표시). 가젯 설정 {@code boardIds} 는 게시판 slug 목록이고
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
- *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.</li>
+ *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.
+ *       {@code lead: THUMB} 이면 첫 글(기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.</li>
  *   <li>{@code HIGHLIGHT}: 설정 {@code place}(기본 home — 없는 곳도 home, V161)의 노출 중인 하이라이트(관리자 순서, {@link HighlightPicks}), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
@@ -118,14 +121,16 @@ public class GadgetService {
     private final DealSettingsReader dealSettings;
     private final AdultContentGate adultGate;
     private final CacheManager caches;
+    private final PostRepository posts;
 
     public GadgetService(PublicSiteService site, HomeLayoutRepository layouts, GadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightPicks highlightPicks,
                              GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
                              BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate,
-                             CacheManager caches) {
+                             CacheManager caches, PostRepository posts) {
         this.caches = caches;
+        this.posts = posts;
         this.adultGate = adultGate;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
@@ -401,6 +406,47 @@ public class GadgetService {
     // ── POST_LIST ───────────────────────────────────────────────────────────
 
     private PostListDataView postList(JsonNode config, Ctx ctx) {
+        PostListDataView d = postListRows(config, ctx);
+        if (!GadgetConfigs.LEAD_THUMB.equals(HomeLayoutJson.text(config, "lead", null))) {
+            return d;
+        }
+        // 첫 글 작은 사진 줄(home-news-contract) — 첫 글에만 본문 앞부분 글자. 목록 조회에 본문을 끼우지 않고 그 글 하나만 따로 읽는다
+        Map<String, String> read = new LinkedHashMap<>();
+        Function<List<PostFeedRowView>, List<PostFeedRowView>> lead = list -> {
+            if (list == null || list.isEmpty()) {
+                return list;
+            }
+            PostFeedRowView first = list.getFirst();
+            if (!read.containsKey(first.id())) {
+                read.put(first.id(), excerptOf(first)); // 기간 탭의 첫 글이 같으면 한 번만 읽는다
+            }
+            String excerpt = read.get(first.id());
+            if (excerpt == null) {
+                return list;
+            }
+            List<PostFeedRowView> out = new ArrayList<>(list);
+            out.set(0, first.withExcerpt(excerpt));
+            return List.copyOf(out);
+        };
+        Map<String, List<PostFeedRowView>> periods = null;
+        if (d.periods() != null) {
+            periods = new LinkedHashMap<>();
+            for (Map.Entry<String, List<PostFeedRowView>> e : d.periods().entrySet()) {
+                periods.put(e.getKey(), lead.apply(e.getValue()));
+            }
+        }
+        return new PostListDataView(lead.apply(d.items()), periods);
+    }
+
+    /** 글 하나의 본문 앞부분 글자(팁 묶음 요약과 같은 다듬기 — {@link TipsService#excerpt}) — 가려진 글·19금 글은 읽지 않고 null */
+    private String excerptOf(PostFeedRowView row) {
+        if (row.hiddenReason() != null || row.adult()) {
+            return null;
+        }
+        return posts.findById(Long.parseLong(row.id())).map(p -> TipsService.excerpt(p.plainContent())).orElse(null);
+    }
+
+    private PostListDataView postListRows(JsonNode config, Ctx ctx) {
         int count = HomeLayoutJson.number(config, "count", 10, 1, 30);
         Set<String> slugs = boardSlugs(config, ctx);
         String sort = HomeLayoutJson.text(config, "sort", "LATEST");

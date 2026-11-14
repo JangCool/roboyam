@@ -319,6 +319,8 @@ export interface PostFeedDebate {
 /** 게시판이 섞인 목록의 한 줄 — 목록 한 줄 + 그 글의 게시판 */
 export interface PostFeedRow extends PostRow {
     board: PostBoardRef;
+    /** 본문 글자 앞부분(태그·줄바꿈 정리, 최대 120자) — 홈 글 목록 가젯 `lead: THUMB` 의 첫 글에만 서버가 준다(그 밖은 없거나 null, home-news-contract) */
+    excerpt?: string | null;
 }
 
 /** 커서로 이어 받는 목록 한 쪽(최신글 전체·회원 작성글) — `nextCursor` 를 다음 요청의 `cursor` 로 보낸다 */

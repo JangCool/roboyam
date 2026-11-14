@@ -174,4 +174,74 @@ class GadgetPatchesTest {
         assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("place", "NOPE!")).path("place").asString()).isEqualTo("home");
         assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("place", "tips")).path("place").asString()).isEqualTo("tips");
     }
+
+    @Test
+    void 글_목록_레이아웃_유형_옵션은_표_안의_값만_받는다() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        ObjectNode patch = config("POST_LIST", o().put("rowStyle", "LINE").put("lead", "THUMB").put("likes", "LEAD").put("rowSpacing", "TIGHT")
+                .put("mobilePages", 3).put("mobilePageSize", 5), o(), GadgetConfigs.Place.HOME, fields);
+
+        assertThat(fields).isEmpty();
+        assertThat(patch.propertyNames()).containsExactlyInAnyOrder("rowStyle", "lead", "likes", "rowSpacing", "mobilePages", "mobilePageSize");
+
+        config("POST_LIST", o().put("rowStyle", "TICKER").put("lead", "BIG").put("likes", "STAR").put("rowSpacing", "LOOSE")
+                .put("mobilePages", 4).put("mobilePageSize", 2), o(), GadgetConfigs.Place.HOME, fields);
+        assertThat(fields).containsOnlyKeys("gadgets[0].config.rowStyle", "gadgets[0].config.lead", "gadgets[0].config.likes", "gadgets[0].config.rowSpacing",
+                "gadgets[0].config.mobilePages", "gadgets[0].config.mobilePageSize");
+
+        fields.clear();
+        config("POST_LIST", o().put("mobilePageSize", 11), o(), GadgetConfigs.Place.HOME, fields);
+        assertThat(fields).containsOnlyKeys("gadgets[0].config.mobilePageSize");
+    }
+
+    @Test
+    void 하이라이트의_lead_는_THUMB_을_받지_않고_narrow_는_DEFAULT_LIST() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        assertThat(config("HIGHLIGHT", o().put("narrow", "LIST"), o(), GadgetConfigs.Place.HOME, fields).path("narrow").asString()).isEqualTo("LIST");
+        assertThat(fields).isEmpty();
+
+        config("HIGHLIGHT", o().put("lead", "THUMB").put("narrow", "WIDE"), o(), GadgetConfigs.Place.HOME, fields);
+        assertThat(fields).containsOnlyKeys("gadgets[0].config.lead", "gadgets[0].config.narrow");
+        // 글 목록 전용 칸은 하이라이트에서 버린다
+        fields.clear();
+        assertThat(config("HIGHLIGHT", o().put("likes", "ICON").put("mobilePages", 2), o(), GadgetConfigs.Place.HOME, fields)).isNull();
+        assertThat(fields).isEmpty();
+    }
+
+    @Test
+    void 레이아웃_유형_옵션의_관리자_보기는_처음_값이_지금_모양이다() {
+        ObjectNode postList = GadgetConfigs.view("POST_LIST", null);
+        assertThat(postList.path("rowStyle").asString()).isEqualTo("HEADLINE");
+        assertThat(postList.path("lead").asString()).isEqualTo("NONE");
+        assertThat(postList.path("likes").asString()).isEqualTo("TEXT");
+        assertThat(postList.path("rowSpacing").asString()).isEqualTo("NORMAL");
+        assertThat(postList.path("mobilePages").asInt()).isEqualTo(1);
+        assertThat(postList.path("mobilePageSize").asInt()).isEqualTo(5);
+
+        ObjectNode stored = o().put("rowStyle", "LINE").put("lead", "THUMB").put("likes", "LEAD").put("mobilePages", 9).put("mobilePageSize", 1);
+        ObjectNode read = GadgetConfigs.view("POST_LIST", stored);
+        assertThat(read.path("rowStyle").asString()).isEqualTo("LINE");
+        assertThat(read.path("lead").asString()).isEqualTo("THUMB");
+        assertThat(read.path("likes").asString()).isEqualTo("LEAD");
+        assertThat(read.path("mobilePages").asInt()).as("범위 밖은 끝 값으로 자른다").isEqualTo(3);
+        assertThat(read.path("mobilePageSize").asInt()).isEqualTo(3);
+
+        assertThat(GadgetConfigs.view("HIGHLIGHT", null).path("narrow").asString()).isEqualTo("DEFAULT");
+        assertThat(GadgetConfigs.view("HIGHLIGHT", o().put("lead", "THUMB")).path("lead").asString()).as("하이라이트는 THUMB 을 모른다").isEqualTo("HERO");
+    }
+
+    @Test
+    void 꾸미기_bottomSpace_는_NORMAL_TIGHT_이고_처음은_NORMAL() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        ObjectNode current = GadgetKinds.baseStyle("irobit");
+        assertThat(current.path("bottomSpace").asString()).isEqualTo("NORMAL");
+
+        assertThat(GadgetPatches.style(o().put("bottomSpace", "TIGHT"), current, "gadgets[0]", fields).path("bottomSpace").asString()).isEqualTo("TIGHT");
+        assertThat(fields).isEmpty();
+        GadgetPatches.style(o().put("bottomSpace", "NONE"), current, "gadgets[0]", fields);
+        assertThat(fields).containsOnlyKeys("gadgets[0].style.bottomSpace");
+
+        assertThat(GadgetStyles.view("irobit", "POST_LIST", o().put("bottomSpace", "TIGHT")).path("bottomSpace").asString()).isEqualTo("TIGHT");
+        assertThat(GadgetStyles.view("irobit", "POST_LIST", o().put("bottomSpace", "HUGE")).path("bottomSpace").asString()).isEqualTo("NORMAL");
+    }
 }

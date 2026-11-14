@@ -53,6 +53,8 @@ export interface GadgetStyle {
     /** null 이면 `titleColor` 를 따른다 */
     cardColor: string | null;
     mobileFold: GadgetMobileFold;
+    /** 카드 아래 보이는 여백(글자 끝~카드 끝, `useGadgetInk` 목표) — 좌우 여백과 같게 · 좁게 12px(처음 `NORMAL`, home-news-contract) */
+    bottomSpace: 'NORMAL' | 'TIGHT';
     empty: GadgetEmptyStyle;
     /** 제목 아이콘 보이기 — null 이면 테마 기본(모든 테마 보이기 — `UtilGadget.titleIcon`) */
     iconShow: boolean | null;
@@ -145,10 +147,12 @@ export interface GadgetsResponse {
 /* ────────────── 종류별 config (정규화한 모양 — `UtilGadget` 가 읽는다) ────────────── */
 
 export type PostListSort = 'LATEST' | 'POPULAR' | 'COMMENTS' | 'VIEWS' | 'LIKES';
-/** 줄 모양 — 헤드라인(제목 2줄 + 오른쪽 사진) · 순위(번호) · 기사(왼쪽 사진 + 말풍선 댓글 수) · 촘촘(한 줄) */
-export type PostListRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT';
+/** 줄 모양 — 헤드라인(제목 2줄 + 오른쪽 사진) · 순위(번호) · 기사(왼쪽 사진 + 말풍선 댓글 수) · 촘촘(한 줄) · 뉴스형 한 줄(`LINE` — [말머리 색 글자 3자 칸] 제목 댓글 수 …… [추천] [날짜], home-news-contract) */
+export type PostListRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT' | 'LINE';
 export type PostListThumbnail = 'AUTO' | 'NONE' | 'RIGHT' | 'LEFT';
 export type PostListMeta = 'BOARD' | 'PREFIX' | 'COMMENTS' | 'TIME' | 'AUTHOR' | 'LIKES';
+/** 추천 표시(줄 정보 `LIKES` 를 켰을 때) — 글자 「추천 n」 · 엄지 아이콘 + 숫자 · 제목 앞 고정 폭 칸(`COMPACT`·`LINE` 만, 나머지 줄 모양은 `ICON` 처럼) */
+export type PostListLikes = 'TEXT' | 'ICON' | 'LEAD';
 /** 게시판 이름·로고 색 — 자동(게시판 표시색) · 고정 색 · 회색 */
 export type GadgetBadgeMode = 'AUTO' | 'FIXED' | 'NEUTRAL';
 
@@ -164,7 +168,8 @@ export interface PostListConfig {
     thumbnail: PostListThumbnail;
     meta: PostListMeta[];
     badge: GadgetBadgeConfig;
-    lead: 'NONE' | 'HERO';
+    /** 첫 글 — 없음 · 크게(큰 사진 + 제목) · 작은 사진 줄(왼쪽 작은 사진 + 제목 + 메타 — `LINE` 이면 본문 앞부분 `excerpt` 두 줄, home-news-contract) */
+    lead: 'NONE' | 'HERO' | 'THUMB';
     columns: 1 | 2;
     /** 순위 번호 — `show` null 이면 줄 모양이 `RANK` 일 때만. `color` 는 1~3위 색(없으면 주 색상) */
     rank: { show: boolean | null; color: string | null };
@@ -175,6 +180,14 @@ export interface PostListConfig {
     /** 추천 N 이상에 HOT(0 끔) */
     hotBadgeLikes: number;
     dividers: boolean;
+    /** 추천 표시 모양(처음 `TEXT`) */
+    likes: PostListLikes;
+    /** 두 줄 줄(`HEADLINE`·`ARTICLE`) 위아래 여백 — 보통 10px · 좁게 7px(처음 `NORMAL`) */
+    rowSpacing: 'NORMAL' | 'TIGHT';
+    /** 모바일(한 열) 쪽 넘기기 쪽 수 1~3 — 1 이면 끔(처음 1) */
+    mobilePages: number;
+    /** 모바일 한 쪽 글 수 3~10(처음 5) — 쪽 넘기기를 켰을 때만 */
+    mobilePageSize: number;
     /** 게시판 필터가 비었는가(전체 게시판 — 투자 고지 판정 참고용) */
     allBoards: boolean;
 }
@@ -198,6 +211,8 @@ export interface HighlightConfig {
     thumbs: 'ALL' | 'FIRST' | 'NONE';
     /** 작성자(아바타·닉네임) 보이기 — 칸이 없으면 켬(끄면 날짜만, feed-debate-counts-contract) */
     showAuthor: boolean;
+    /** 좁은 칸(카드 폭 40rem 미만, 큰 글 왼쪽 `heroSplit` 템플릿) 모양 — 기본(큰 글 위 · 사진 목록 아래) · 큰 글 + 글자 줄(`LIST`, home-news-contract). 처음 `DEFAULT` */
+    narrow: 'DEFAULT' | 'LIST';
 }
 
 export interface QuickLinksConfig {

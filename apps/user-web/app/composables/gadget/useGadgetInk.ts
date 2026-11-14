@@ -3,8 +3,9 @@ import type { Ref } from 'vue';
 /**
  * 가젯 카드의 보이는 여백(잉크 기준)을 좌우 여백과 같게 — 첫·마지막 자식 바깥 여백을 옮긴다(음수 가능: 투명 버튼 터치 영역·글자 반행간은 잉크가 아니다).
  * 콘솔 확인: `apps/user-web/scripts/gadget-ink-padding.js`(같은 규칙).
+ * `target` — 아래 보이는 여백 목표가 바뀌는 값(꾸미기 `bottomSpace`). 크기가 그대로라 지켜보는 것이 없어 바뀌면 다시 맞춘다(관리자 미리보기에서 고칠 때).
  */
-export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boolean): void {
+export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boolean, target?: () => unknown): void {
     let frame = 0;
     let resize: ResizeObserver | null = null;
     let mutation: MutationObserver | null = null;
@@ -97,7 +98,9 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         else if (owner && (owner.closest('[data-grid-push]') || !insideBody(el, owner))) slack = 0;
         // 빈 상태 안내 — 「안내 위 잉크 → 안내」(A) = 「안내 → 카드 아래 테두리」(B), 최소 상태 B = T = max(A0, 좌우 여백)
         let a0 = 0;
-        let target = padX;
+        // 카드가 `--gadget-ink-bottom` 을 주면 아래 보이는 여백 목표를 그 값으로(없으면 좌우 여백) — 꾸미기 `bottomSpace: TIGHT` 면 `GadgetFrame` 이 12px 을 건다(home-news-contract)
+        const inkBottom = num(cs.getPropertyValue('--gadget-ink-bottom'));
+        let target = inkBottom > 0 ? inkBottom : padX;
         let gapBottom = rect.bottom - borderB - ink.bottom - slack;
         if (float) {
             const fi = inkOf(float, false);
@@ -162,6 +165,7 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         schedule();
     });
     watch(enabled, schedule);
+    if (target) watch(target, () => void nextTick(schedule));
     onBeforeUnmount(() => {
         resize?.disconnect();
         mutation?.disconnect();

@@ -176,8 +176,8 @@ public class TipsService {
         return out;
     }
 
-    /** 본문 평문 → 요약(공백을 한 칸으로, {@value #EXCERPT_MAX}자 넘으면 자르고 「…」). 비면 null */
-    static String excerpt(String plain) {
+    /** 본문 평문 → 요약(공백을 한 칸으로, {@value #EXCERPT_MAX}자 넘으면 자르고 「…」). 비면 null — 홈 글 목록 가젯의 첫 글 요약({@code GadgetService}, home-news-contract)도 쓴다 */
+    public static String excerpt(String plain) {
         if (plain == null) {
             return null;
         }

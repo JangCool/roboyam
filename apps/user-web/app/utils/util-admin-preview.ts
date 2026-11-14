@@ -7,8 +7,8 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
- * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`) ·
- * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs`·`showAuthor` · 소모임 `count` ·
+ * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`·`likes`·`rowSpacing`·`mobilePages`·`mobilePageSize`) ·
+ * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs`·`showAuthor`·`narrow` · 소모임 `count` ·
  * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
 export interface AdminPreviewGadgetConfig {
@@ -31,9 +31,16 @@ export interface AdminPreviewGadgetConfig {
     dividers?: boolean;
     newBadgeHours?: number;
     hotBadgeLikes?: number;
+    /** 글 목록 — 추천 표시 · 두 줄 줄 여백 · 모바일 쪽 넘기기(쪽 수 · 쪽당 글 수) */
+    likes?: string;
+    rowSpacing?: string;
+    mobilePages?: number;
+    mobilePageSize?: number;
     thumbs?: string;
     /** 하이라이트 — 작성자(아바타·닉네임) 보이기 */
     showAuthor?: boolean;
+    /** 하이라이트 — 좁은 칸 모양 */
+    narrow?: string;
     shape?: string;
     items?: { label: string; kind: string; value: string | null }[];
     text?: string;
@@ -117,11 +124,11 @@ export const TIPS_KINDS: readonly string[] = ['TIPS_HEADLINE', 'TIPS_LATEST', 'T
 const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const POST_LIST_SORTS: readonly string[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
-const ROW_STYLES: readonly string[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
+const ROW_STYLES: readonly string[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT', 'LINE'];
 const THUMBNAILS: readonly string[] = ['AUTO', 'NONE', 'RIGHT', 'LEFT'];
 const META_KEYS: readonly string[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR', 'LIKES'];
 /** 글 목록 보기 모양 칸 — 받은 것만 가젯 `config` 에 덮는다 */
-const POST_VIEW_KEYS = ['rowStyle', 'columns', 'thumbnail', 'titleLines', 'lead', 'meta', 'dividers', 'newBadgeHours', 'hotBadgeLikes'] as const;
+const POST_VIEW_KEYS = ['rowStyle', 'columns', 'thumbnail', 'titleLines', 'lead', 'meta', 'dividers', 'newBadgeHours', 'hotBadgeLikes', 'likes', 'rowSpacing', 'mobilePages', 'mobilePageSize'] as const;
 /** 데이터를 받지 않고 설정으로 바로 그리는 종류 — 같은 종류가 응답에 없어도 새 가젯을 그린다 */
 const DIRECT_KINDS: readonly string[] = ['QUICK_LINKS', 'NOTICE_TEXT'];
 /** 게시판 레이아웃의 고정 칸 「게시판 본문」 — 그 자리에 게시판 목록(·글 보기) 화면이 그려진다(admin-web `UtilBoardLayout.BODY` 와 같은 값). 빼기·⚙ 가 없다 */
@@ -268,11 +275,15 @@ export default class UtilAdminPreview {
                     columns: value.columns === 1 || value.columns === 2 ? value.columns : undefined,
                     thumbnail: oneOf(value.thumbnail, THUMBNAILS),
                     titleLines: value.titleLines === 0 || value.titleLines === 1 || value.titleLines === 2 ? value.titleLines : undefined,
-                    lead: oneOf(value.lead, ['NONE', 'HERO']),
+                    lead: oneOf(value.lead, ['NONE', 'HERO', 'THUMB']),
                     meta: Array.isArray(value.meta) ? META_KEYS.filter((k) => (value.meta as unknown[]).includes(k)) : undefined,
                     dividers: bool(value.dividers),
                     newBadgeHours: int(value.newBadgeHours, 0, 72),
                     hotBadgeLikes: int(value.hotBadgeLikes, 0, 1000),
+                    likes: oneOf(value.likes, ['TEXT', 'ICON', 'LEAD']),
+                    rowSpacing: oneOf(value.rowSpacing, ['NORMAL', 'TIGHT']),
+                    mobilePages: int(value.mobilePages, 1, 3),
+                    mobilePageSize: int(value.mobilePageSize, 3, 10),
                 });
             case 'GALLERY':
                 return defined({ count: int(value.count, 1, 24), boardScope, boardIds });
@@ -288,7 +299,13 @@ export default class UtilAdminPreview {
                     columns: value.columns === 'AUTO' || value.columns === 2 || value.columns === 3 ? value.columns : undefined,
                 });
             case 'HIGHLIGHT':
-                return defined({ count: int(value.count, 1, 6), lead: oneOf(value.lead, ['NONE', 'HERO']), thumbs: oneOf(value.thumbs, ['ALL', 'FIRST', 'NONE']), showAuthor: bool(value.showAuthor) });
+                return defined({
+                    count: int(value.count, 1, 6),
+                    lead: oneOf(value.lead, ['NONE', 'HERO']),
+                    thumbs: oneOf(value.thumbs, ['ALL', 'FIRST', 'NONE']),
+                    showAuthor: bool(value.showAuthor),
+                    narrow: oneOf(value.narrow, ['DEFAULT', 'LIST']),
+                });
             case 'GROUPS':
                 return defined({ count: int(value.count, 1, 6) });
             case 'AD':
@@ -379,7 +396,7 @@ export default class UtilAdminPreview {
         } else if (gadget.type === 'BOARD_CARDS' && config.columns !== undefined) {
             gadget.config = { ...gadget.config, columns: config.columns };
         } else if (gadget.type === 'HIGHLIGHT') {
-            gadget.config = { ...gadget.config, ...defined({ lead: config.lead, thumbs: config.thumbs, showAuthor: config.showAuthor }) };
+            gadget.config = { ...gadget.config, ...defined({ lead: config.lead, thumbs: config.thumbs, showAuthor: config.showAuthor, narrow: config.narrow }) };
             if (config.count && data && Array.isArray(data.picks)) data.picks = data.picks.slice(0, config.count);
             return;
         } else if (gadget.type === 'GROUPS') {

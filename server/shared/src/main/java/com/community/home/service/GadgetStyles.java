@@ -10,7 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
  * 가젯 공통 꾸미기(⚙ 설정 창 「모양」·「노출」, gadget-page-contract 「가젯 설정」 — 모양·노출) — 칸·값·글자 한도. admin-web {@code UtilGadgetStyle} · 공개 읽기 user-web
  * {@code readStyle} 과 같은 값. 검사는 관리자 서버 {@code GadgetPatches}.
  * {@code icon} {@code ^pi-[a-z0-9-]{2,30}$}·null · {@code headerStyle} · {@code titleSize} · {@code titleColor}·{@code cardColor} 프리셋 12색 이름·{@code #rrggbb}·null ·
- * {@code subtitle} 0~40 · {@code cardLook} · {@code mobileFold} · {@code empty{keep, message, text 0~40}}.
+ * {@code subtitle} 0~40 · {@code cardLook} · {@code mobileFold} · {@code bottomSpace} NORMAL·TIGHT(카드 아래 여백, 처음 NORMAL — home-news-contract) · {@code empty{keep, message, text 0~40}}.
  *
  * <p>제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」, 사용자 시안 확정 2026-11-10 — 모든 종류 공통):
  * {@code iconShow} 보이기(테마 기본 — 모든 테마 켬, 2026-11-10 아이로빗도 켬) · {@code iconSource} PRIME·TABLER·UPLOAD(기본 PRIME) ·
@@ -24,6 +24,8 @@ public final class GadgetStyles {
     public static final List<String> TITLE_SIZES = List.of("S", "M", "L");
     public static final List<String> CARD_LOOKS = List.of("DEFAULT", "FLAT", "OUTLINE", "TINT");
     public static final List<String> MOBILE_FOLDS = List.of("NONE", "OPEN", "CLOSED");
+    /** 카드 아래 보이는 여백 — NORMAL 좌우 여백과 같게(처음) · TIGHT 12px(home-news-contract 「가젯 style」) */
+    public static final List<String> BOTTOM_SPACES = List.of("NORMAL", "TIGHT");
     /** 색 프리셋 12색 — user-web {@code UtilColor.PRESET_NAMES} 와 같은 이름 */
     public static final List<String> COLOR_PRESETS = List.of("BLUE", "TEAL", "AMBER", "PURPLE", "GREEN", "ORANGE", "SLATE", "RED", "PINK", "INDIGO", "SKY", "BROWN", "EMERALD");
     public static final int SUBTITLE_MAX = 40;
@@ -90,6 +92,7 @@ public final class GadgetStyles {
         pick(out, stored, "titleSize", TITLE_SIZES);
         pick(out, stored, "cardLook", CARD_LOOKS);
         pick(out, stored, "mobileFold", MOBILE_FOLDS);
+        pick(out, stored, "bottomSpace", BOTTOM_SPACES);
         pickColor(out, stored, "titleColor");
         pickColor(out, stored, "cardColor");
         // 제목 아이콘 — 모양이 맞는 저장 값만(아니면 테마 기본)

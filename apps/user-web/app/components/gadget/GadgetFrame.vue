@@ -158,6 +158,8 @@ const rootStyle = computed(() => {
         vars.borderWidth = '2px';
     }
     if (style.value.cardLook === 'TINT') vars.backgroundColor = `color-mix(in srgb, ${accent} 8%, var(--gadget-card-bg))`;
+    // 카드 아래 보이는 여백 좁게(`bottomSpace: TIGHT` — 글자 끝~카드 끝 12px). 여백은 `useGadgetInk` 가 맞추므로 padding 이 아니라 목표 값 변수로(home-news-contract)
+    if (style.value.bottomSpace === 'TIGHT') vars['--gadget-ink-bottom'] = '12px';
     return vars;
 });
 
@@ -168,7 +170,11 @@ const rootClass = computed(() => `${bare.value ? 'min-w-0' : 'gadget-card'} flex
 
 const card = ref<HTMLElement | null>(null);
 // 한 줄 광고 가젯은 맞추지 않는다 — 줄이 40px 높이라 위아래는 얇게(`main.css` `[data-gadget='AD_TEXT_LINE']`, 2026-11-06 사용자)
-useGadgetInk(card, () => !bare.value && props.gadget.type !== 'AD_TEXT_LINE');
+useGadgetInk(
+    card,
+    () => !bare.value && props.gadget.type !== 'AD_TEXT_LINE',
+    () => style.value.bottomSpace,
+);
 
 /** 기본형 「더보기」 줄은 카드 좌우 끝까지 — 아래 바깥 여백은 `useGadgetInk` 가 건다 */
 const classicMoreStyle = computed(() =>

@@ -27,7 +27,8 @@ import org.springframework.stereotype.Component;
  * 뉴스 글 소재 찾기(ai-members-contract 「뉴스 글·프롬프트 관리 (2026-11-11)」). <b>사이트 안 글만</b> 본다 — 외부 뉴스·검색 API·제공사 검색 도구는 쓰지 않는다(사용자 지시).
  *
  * <ul>
- *   <li>소재 = 말머리 이름에 키워드(기본 「뉴스」)가 든 글, 최근 N일(기본 3일) — 쓴 지 {@link #SETTLE} 지난 것.</li>
+ *   <li>소재 = 뉴스 게시판({@link BoardFields#NEWS_SLUG})의 글(말머리 상관없이 — home-news-contract 「AI 회원 뉴스」) + 말머리 이름에 키워드(기본 「뉴스」)가 든 글,
+ *       최근 N일(기본 3일) — 쓴 지 {@link #SETTLE} 지난 것. AI 가 쓰는 게시판·말머리는 바꾸지 않는다(그 계정의 글 차례 게시판, 말머리 없음).</li>
  *   <li>게시판: 켜진 일반 게시판 중 AI 가 쓸 수 없는 「항상 막힘」({@link AiMemberRules#blockedReason})·익명 게시판이 아닌 곳. 그 AI 계정이 쓰는 게시판을 먼저 보고, 없으면 다른 게시판.</li>
  *   <li>글 조건(사람 회원 글 · 공개·정상 · 비밀·19금·익명·소모임 아님 · 이미 소재로 쓴 글 아님)은 {@link AiMemberQueries#newsCandidates}.</li>
  *   <li>최신 {@value #PICK_FROM}개 중 하나를 무작위로 — 여러 AI 가 같은 바퀴에 같은 글을 고르지 않게.</li>
@@ -60,12 +61,17 @@ public class AiNewsSources {
         BoardCatalogSnapshot snap = catalog.snapshot();
         String keyword = c.newsKeyword().toLowerCase(Locale.ROOT);
         Set<Long> prefixIds = new HashSet<>();
+        Set<Long> newsBoards = new HashSet<>();
         List<Long> eligible = new ArrayList<>();
         for (EffectiveBoard b : snap.boards()) {
             if (!b.active() || !BoardFields.KIND_GENERAL.equals(b.kind()) || b.anonymous() || AiMemberRules.blockedReason(b) != null) {
                 continue;
             }
             boolean any = false;
+            if (BoardFields.NEWS_SLUG.equals(b.slug())) {
+                newsBoards.add(b.id()); // 뉴스 게시판은 말머리와 상관없이 글 전부가 소재(home-news-contract)
+                any = true;
+            }
             for (BoardPrefixInfo p : b.prefixes()) {
                 if (p.name() != null && p.name().toLowerCase(Locale.ROOT).contains(keyword)) {
                     prefixIds.add(p.id());
@@ -76,16 +82,16 @@ public class AiNewsSources {
                 eligible.add(b.id());
             }
         }
-        if (prefixIds.isEmpty()) {
+        if (prefixIds.isEmpty() && newsBoards.isEmpty()) {
             return Optional.empty();
         }
         Instant since = now.minus(Duration.ofDays(c.newsDays()));
         Instant until = now.minus(SETTLE);
         Set<Long> mine = new HashSet<>(a.getBoardIds());
         List<Long> own = eligible.stream().filter(mine::contains).toList();
-        List<AiMemberQueries.PostCandidate> found = own.isEmpty() ? List.of() : queries.newsCandidates(prefixIds, own, since, until, now, PICK_FROM);
+        List<AiMemberQueries.PostCandidate> found = own.isEmpty() ? List.of() : queries.newsCandidates(prefixIds, newsBoards, own, since, until, now, PICK_FROM);
         if (found.isEmpty()) {
-            found = queries.newsCandidates(prefixIds, eligible, since, until, now, PICK_FROM);
+            found = queries.newsCandidates(prefixIds, newsBoards, eligible, since, until, now, PICK_FROM);
         }
         if (found.isEmpty()) {
             return Optional.empty();

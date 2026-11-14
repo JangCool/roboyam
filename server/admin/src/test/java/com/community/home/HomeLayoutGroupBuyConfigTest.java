@@ -100,7 +100,7 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
             assertThat(g.style().propertyNames()).contains("icon", "headerStyle", "titleSize", "titleColor", "subtitle", "cardLook", "cardColor", "mobileFold", "empty");
         });
         // 하이라이트 · 소모임도 ⚙ 칸을 싣는다(시드 값)
-        assertThat(first(view, "HIGHLIGHT").config().propertyNames()).containsExactlyInAnyOrder("count", "lead", "thumbs", "place", "showAuthor", "hover");
+        assertThat(first(view, "HIGHLIGHT").config().propertyNames()).containsExactlyInAnyOrder("count", "lead", "thumbs", "place", "showAuthor", "narrow", "hover");
         assertThat(first(view, "GROUPS").config().path("count").asInt()).isEqualTo(3);
     }
 

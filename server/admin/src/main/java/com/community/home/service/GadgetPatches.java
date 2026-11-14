@@ -78,6 +78,7 @@ final class GadgetPatches {
         option(raw, out, "titleSize", GadgetStyles.TITLE_SIZES, base, "homeLayout.gadget.style.option", fields);
         option(raw, out, "cardLook", GadgetStyles.CARD_LOOKS, base, "homeLayout.gadget.style.option", fields);
         option(raw, out, "mobileFold", GadgetStyles.MOBILE_FOLDS, base, "homeLayout.gadget.style.option", fields);
+        option(raw, out, "bottomSpace", GadgetStyles.BOTTOM_SPACES, base, "homeLayout.gadget.style.option", fields);
         color(raw, out, "titleColor", base, fields);
         color(raw, out, "cardColor", base, fields);
         // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」) — 보이기 · 출처 · 바탕 · 색 · Tabler 한 개 · 올린 파일
@@ -231,7 +232,12 @@ final class GadgetPatches {
                 intOption(raw, out, "columns", List.of(1, 2), base, fields);
                 option(raw, out, "thumbnail", GadgetConfigs.THUMBNAILS, at, opt, fields);
                 intOption(raw, out, "titleLines", List.of(0, 1, 2), base, fields);
-                option(raw, out, "lead", GadgetConfigs.LEADS, at, opt, fields);
+                option(raw, out, "lead", GadgetConfigs.POST_LIST_LEADS, at, opt, fields);
+                // 레이아웃 유형 옵션(home-news-contract) — 추천 표시 · 줄 여백 · 모바일 쪽 넘기기
+                option(raw, out, "likes", GadgetConfigs.LIKES_STYLES, at, opt, fields);
+                option(raw, out, "rowSpacing", GadgetConfigs.ROW_SPACINGS, at, opt, fields);
+                range(raw, out, "mobilePages", 1, GadgetConfigs.MOBILE_PAGES_MAX, base, fields);
+                range(raw, out, "mobilePageSize", GadgetConfigs.MOBILE_PAGE_SIZE_MIN, GadgetConfigs.MOBILE_PAGE_SIZE_MAX, base, fields);
                 if (present(raw, "meta")) {
                     JsonNode meta = raw.get("meta");
                     Set<String> keys = new LinkedHashSet<>();
@@ -274,8 +280,9 @@ final class GadgetPatches {
                 }
             }
             case "HIGHLIGHT" -> {
-                option(raw, out, "lead", GadgetConfigs.LEADS, at, opt, fields);
+                option(raw, out, "lead", GadgetConfigs.HIGHLIGHT_LEADS, at, opt, fields);
                 option(raw, out, "thumbs", GadgetConfigs.HIGHLIGHT_THUMBS, at, opt, fields);
+                option(raw, out, "narrow", GadgetConfigs.HIGHLIGHT_NARROWS, at, opt, fields); // 좁은 칸 모양(home-news-contract)
                 bool(raw, out, "showAuthor", base, fields); // 작성자(아바타·닉네임) 보이기 — 끄면 날짜만 남는다(feed-debate-counts-contract)
                 // 놓일 곳 키(tips-contract 「결정」) — 모양만 본다. 없는 곳(지운 가젯 페이지 등)은 공개 읽기가 home 으로 읽는다
                 if (present(raw, "place")) {

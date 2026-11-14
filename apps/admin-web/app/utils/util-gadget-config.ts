@@ -5,6 +5,8 @@ import type {
     HomeGroupBuySort,
     HomeHotDealSort,
     HomeLayoutGadget,
+    HomePostLead,
+    HomePostLikes,
     HomePostListSort,
     HomePostMeta,
     HomePostRowStyle,
@@ -51,7 +53,17 @@ export interface GadgetConfigProblem {
 const GROUP_BUY_SORTS: readonly HomeGroupBuySort[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const HOT_DEALS_SORTS: readonly HomeHotDealSort[] = ['LATEST', 'POPULAR', 'ENDING_SOON'];
 const POST_LIST_SORTS: readonly HomePostListSort[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
-const ROW_STYLES: readonly HomePostRowStyle[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
+const ROW_STYLES: readonly HomePostRowStyle[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT', 'LINE'];
+/** 글 목록 맨 위 글 — 서버 `GadgetConfigs.POST_LIST_LEADS` */
+const POST_LEADS: readonly HomePostLead[] = ['NONE', 'HERO', 'THUMB'];
+/** 글 목록 추천 표시 · 줄 간격 — 서버 `GadgetConfigs.LIKES_STYLES`·`ROW_SPACINGS`(home-news-contract) */
+const LIKES_STYLES: readonly HomePostLikes[] = ['TEXT', 'ICON', 'LEAD'];
+const ROW_SPACINGS: readonly ('NORMAL' | 'TIGHT')[] = ['NORMAL', 'TIGHT'];
+/** 모바일 쪽 넘기기 쪽 수(1 = 끔) · 한 쪽 글 수 — 서버 `GadgetConfigs.MOBILE_PAGES_MAX`·`MOBILE_PAGE_SIZE_*` */
+const MOBILE_PAGES = { min: 1, max: 3, initial: 1 } as const;
+const MOBILE_PAGE_SIZE = { min: 3, max: 10, initial: 5 } as const;
+/** 하이라이트 좁은 칸 모양 — 서버 `GadgetConfigs.HIGHLIGHT_NARROWS` */
+const HIGHLIGHT_NARROWS: readonly ('DEFAULT' | 'LIST')[] = ['DEFAULT', 'LIST'];
 const THUMBNAILS: readonly HomePostThumbnail[] = ['AUTO', 'NONE', 'RIGHT', 'LEFT'];
 const META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR', 'LIKES'];
 /** 글 줄 정보 처음 값 — user-web `DEFAULT_META` */
@@ -142,7 +154,12 @@ export default class UtilGadgetConfig {
     /** 글 목록 열 수 · 제목 줄 수(0 = 줄 모양을 따름) · 큰 글 */
     static readonly POST_COLUMNS: readonly number[] = [1, 2];
     static readonly TITLE_LINES: readonly (0 | 1 | 2)[] = [0, 1, 2];
-    static readonly POST_LEADS: readonly ('NONE' | 'HERO')[] = ['NONE', 'HERO'];
+    static readonly POST_LEADS = POST_LEADS;
+    /** 추천 표시 · 줄 간격 · 모바일 쪽 넘기기(쪽 수 · 쪽당 글 수) */
+    static readonly LIKES_STYLES = LIKES_STYLES;
+    static readonly ROW_SPACINGS = ROW_SPACINGS;
+    static readonly MOBILE_PAGES = MOBILE_PAGES;
+    static readonly MOBILE_PAGE_SIZE = MOBILE_PAGE_SIZE;
     /** NEW 배지(최근 N시간, 0 끔) · HOT 배지(추천 N 이상, 0 끔) 범위 */
     static readonly NEW_BADGE = { min: 0, max: 72 } as const;
     static readonly HOT_BADGE = { min: 0, max: 1000 } as const;
@@ -151,6 +168,8 @@ export default class UtilGadgetConfig {
     /** 하이라이트 큰 글 · 사진 */
     static readonly HIGHLIGHT_LEADS: readonly ('HERO' | 'NONE')[] = ['HERO', 'NONE'];
     static readonly HIGHLIGHT_THUMBS: readonly ('ALL' | 'FIRST' | 'NONE')[] = ['ALL', 'FIRST', 'NONE'];
+    /** 하이라이트 좁은 칸 모양 — 기본 · 큰 글 + 글자 줄 */
+    static readonly HIGHLIGHT_NARROWS = HIGHLIGHT_NARROWS;
     /** 바로가기 모양 · 종류 · 한도 */
     static readonly QUICK_SHAPES: readonly ('PILL' | 'TAB')[] = ['PILL', 'TAB'];
     static readonly QUICK_KINDS = QUICK_KINDS;
@@ -238,13 +257,17 @@ export default class UtilGadgetConfig {
                     dividers: false,
                     newBadgeHours: 0,
                     hotBadgeLikes: 0,
+                    likes: 'TEXT',
+                    rowSpacing: 'NORMAL',
+                    mobilePages: MOBILE_PAGES.initial,
+                    mobilePageSize: MOBILE_PAGE_SIZE.initial,
                 } satisfies GadgetConfig);
                 break;
             case 'BOARD_CARDS':
                 Object.assign(out, { cardHead: true, columns: 'AUTO', outline: false, dividers: false, leadPlaceholder: true } satisfies GadgetConfig);
                 break;
             case 'HIGHLIGHT':
-                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME, showAuthor: true } satisfies GadgetConfig);
+                Object.assign(out, { lead: 'HERO', thumbs: 'ALL', place: HIGHLIGHT_PLACE_HOME, showAuthor: true, narrow: 'DEFAULT' } satisfies GadgetConfig);
                 break;
             case 'QUICK_LINKS':
                 Object.assign(out, { shape: 'PILL', items: [] } satisfies GadgetConfig);
@@ -299,11 +322,15 @@ export default class UtilGadgetConfig {
                 out.columns = c.columns === 2 || c.columns === '2' ? 2 : 1;
                 out.thumbnail = oneOf(c.thumbnail, THUMBNAILS, 'AUTO');
                 out.titleLines = c.titleLines === 1 || c.titleLines === 2 ? c.titleLines : 0;
-                out.lead = c.lead === 'HERO' ? 'HERO' : 'NONE';
+                out.lead = oneOf(c.lead, POST_LEADS, 'NONE');
                 out.meta = Array.isArray(c.meta) ? META.filter((k) => (c.meta as unknown[]).includes(k)) : [...DEFAULT_META];
                 out.dividers = typeof c.dividers === 'boolean' ? c.dividers : false; // 기본 끔(2026-11-06 사용자)
                 out.newBadgeHours = clamp(c.newBadgeHours, UtilGadgetConfig.NEW_BADGE.min, UtilGadgetConfig.NEW_BADGE.max, 0);
                 out.hotBadgeLikes = clamp(c.hotBadgeLikes, UtilGadgetConfig.HOT_BADGE.min, UtilGadgetConfig.HOT_BADGE.max, 0);
+                out.likes = oneOf(c.likes, LIKES_STYLES, 'TEXT');
+                out.rowSpacing = oneOf(c.rowSpacing, ROW_SPACINGS, 'NORMAL');
+                out.mobilePages = clamp(c.mobilePages, MOBILE_PAGES.min, MOBILE_PAGES.max, MOBILE_PAGES.initial);
+                out.mobilePageSize = clamp(c.mobilePageSize, MOBILE_PAGE_SIZE.min, MOBILE_PAGE_SIZE.max, MOBILE_PAGE_SIZE.initial);
                 break;
             case 'BOARD_CARDS':
                 out.cardHead = c.cardHead !== false;
@@ -316,6 +343,7 @@ export default class UtilGadgetConfig {
                 out.lead = c.lead === 'NONE' ? 'NONE' : 'HERO';
                 out.thumbs = oneOf(c.thumbs, UtilGadgetConfig.HIGHLIGHT_THUMBS, 'ALL');
                 out.showAuthor = c.showAuthor !== false; // 작성자 보이기 — 칸이 없는 옛 가젯도 켬
+                out.narrow = oneOf(c.narrow, HIGHLIGHT_NARROWS, 'DEFAULT');
                 // 곳 — 모양만 본다(없는 곳은 공개 읽기가 home 으로 친다, 서버 `GadgetPatches` 와 같다)
                 out.place = typeof c.place === 'string' && UtilHighlight.PLACE_KEY.test(c.place) ? c.place : HIGHLIGHT_PLACE_HOME;
                 break;

@@ -32,8 +32,12 @@ export type HomePostListSort = 'LATEST' | 'POPULAR' | 'VIEWS' | 'LIKES' | 'COMME
  */
 export type HomeBoardScope = 'ALL' | 'FOLDER' | 'PICK' | 'BOARD';
 
-/** 글 목록 줄 모양 — 헤드라인(제목 2줄 + 오른쪽 사진) · 순위(번호) · 기사(왼쪽 사진) · 촘촘(한 줄). user-web `PostListRowStyle` 과 같다 */
-export type HomePostRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT';
+/** 글 목록 줄 모양 — 헤드라인(제목 2줄 + 오른쪽 사진) · 순위(번호) · 기사(왼쪽 사진) · 촘촘(한 줄) · 뉴스형 한 줄(`LINE`). user-web `PostListRowStyle` 과 같다 */
+export type HomePostRowStyle = 'HEADLINE' | 'RANK' | 'ARTICLE' | 'COMPACT' | 'LINE';
+/** 글 목록 맨 위 글 — 다른 글과 같게 · 크게 · 첫 글 작은 사진 줄 */
+export type HomePostLead = 'NONE' | 'HERO' | 'THUMB';
+/** 글 목록 추천 표시(줄 정보 `LIKES` 를 켰을 때) — 글자 · 엄지 아이콘 · 제목 앞 고정 칸(촘촘·뉴스형 한 줄만) */
+export type HomePostLikes = 'TEXT' | 'ICON' | 'LEAD';
 /** 글 목록 사진 자리 — 자동(줄 모양을 따름) · 없음 · 오른쪽 · 왼쪽 */
 export type HomePostThumbnail = 'AUTO' | 'NONE' | 'RIGHT' | 'LEFT';
 /** 글 줄에 보일 정보 — 게시판 · 말머리 · 댓글 수 · 시각 · 글쓴이 */
@@ -55,10 +59,11 @@ export interface HomeQuickLink {
  *   · `GROUP_BUY` `count`(1~10) · `sort`(HomeGroupBuySort)
  *   · `HOT_DEALS` `boards`(핫딜 게시판 slug, 비우면 전체) · `sort`(HomeHotDealSort) · `count`(1~10, 기본 5) — 진행 중만, 비면 영역을 그리지 않는다(hotdeal-contract)
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
- *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
+ *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO·THUMB · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
+ *       · `likes` TEXT·ICON·LEAD(처음 TEXT) · `rowSpacing` NORMAL·TIGHT(처음 NORMAL) · `mobilePages` 1~3(처음 1) · `mobilePageSize` 3~10(처음 5) — home-news-contract
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
  *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3 · `outline`·`dividers`(카드 외곽선·줄 구분선, 기본 끔) · `leadPlaceholder`(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬)
- *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE · `showAuthor`(작성자 보이기, 기본 켬) / `GROUPS` `count` 1~6 /
+ *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE · `showAuthor`(작성자 보이기, 기본 켬) · `narrow` DEFAULT·LIST(좁은 칸 모양, 처음 DEFAULT) / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
  *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
  *   · 공통 `hover`(마우스 올림 효과, 기본 켬 — 항목이 있는 종류만: 안내 글·광고 2종 제외, ⚙ 「모양」 탭)
@@ -83,16 +88,26 @@ export interface GadgetConfig {
     columns?: number | 'AUTO';
     thumbnail?: HomePostThumbnail;
     titleLines?: 0 | 1 | 2;
-    lead?: 'NONE' | 'HERO';
+    /** 글 목록 `HomePostLead` · 하이라이트 HERO·NONE */
+    lead?: HomePostLead;
     meta?: HomePostMeta[];
     dividers?: boolean;
     newBadgeHours?: number;
     hotBadgeLikes?: number;
+    /** 글 목록 — 추천 표시(처음 TEXT) */
+    likes?: HomePostLikes;
+    /** 글 목록 — 두 줄 줄(헤드라인·기사) 위아래 여백 보통 10px · 좁게 7px(처음 NORMAL) */
+    rowSpacing?: 'NORMAL' | 'TIGHT';
+    /** 글 목록 — 모바일(한 열) 쪽 넘기기 쪽 수 1~3(1 = 끔) · 한 쪽 글 수 3~10(처음 5, 쪽 넘기기를 켰을 때만) */
+    mobilePages?: number;
+    mobilePageSize?: number;
     thumbs?: 'ALL' | 'FIRST' | 'NONE';
     /** 하이라이트 가젯이 보일 곳의 목록(`home` · `tips` · 가젯 페이지 키 — 서버 `GadgetConfigs`, 없거나 모양이 틀리면 home, tips-contract V161) */
     place?: string;
     /** 하이라이트 — 작성자(아바타·닉네임) 보이기(기본 켬, 끄면 날짜만 — feed-debate-counts-contract) */
     showAuthor?: boolean;
+    /** 하이라이트 — 좁은 칸(40rem 미만) 모양: 기본(위아래) · 큰 글 + 글자 줄(처음 DEFAULT) */
+    narrow?: 'DEFAULT' | 'LIST';
     /** 항목 마우스 올림 효과(기본 켬 — 글 줄·카드·바로가기에 옅은 바탕, 사진 카드는 제목 밑줄) */
     hover?: boolean;
     /** 가젯 페이지 제목 카드에 넣기(기본 끔 — 켜면 격자에서 빠지고 페이지 제목 아래 굵은 밑줄 뒤에 붙는다, 가젯 페이지만·한 페이지에 하나, 사용자 2026-11-10) */
@@ -112,6 +127,8 @@ export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDD
 export type GadgetCardLook = 'DEFAULT' | 'FLAT' | 'OUTLINE' | 'TINT';
 /** 모바일 접기 — 없음 · 펼친 채 · 접은 채 */
 export type GadgetMobileFold = 'NONE' | 'OPEN' | 'CLOSED';
+/** 카드 아래 여백 — 보통 · 좁게 */
+export type GadgetBottomSpace = 'NORMAL' | 'TIGHT';
 
 /**
  * 가젯 공통 꾸미기(⚙ 설정 창 「모양」·「노출」) — user-web `GadgetStyle`(공개 응답 `style`)과 같은 칸·값. 처음 값·범위·읽기는 `UtilGadgetStyle`.
@@ -130,6 +147,8 @@ export interface GadgetStyle {
     /** null 이면 제목 색을 따른다 */
     cardColor: string | null;
     mobileFold: GadgetMobileFold;
+    /** 카드 아래 보이는 여백 — 보통(좌우 여백과 같게) · 좁게 12px(처음 NORMAL, home-news-contract) */
+    bottomSpace: GadgetBottomSpace;
     /** 비었을 때 — 자리 남기기 · 안내 보이기 · 안내 문구(0~40자, 비우면 종류별 기본 문구) */
     empty: { keep: boolean; message: boolean; text: string };
     /** 제목 아이콘 보이기(테마 기본 — 아이로빗 끔, 그 밖 켬 — gadget-page-contract 「가젯 제목 아이콘」) */

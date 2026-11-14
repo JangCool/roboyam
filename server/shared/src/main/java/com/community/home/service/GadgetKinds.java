@@ -155,6 +155,7 @@ public final class GadgetKinds {
         style.put("subtitle", "").put("cardLook", card ? "DEFAULT" : "FLAT");
         style.putNull("cardColor");
         style.put("mobileFold", "NONE");
+        style.put("bottomSpace", "NORMAL"); // 카드 아래 여백(home-news-contract — 처음 NORMAL)
         style.set("empty", empty);
         // 제목 아이콘(gadget-page-contract 「가젯 제목 아이콘」 2026-11-10) — 모든 테마 보이기(아이로빗도 — 사용자 2026-11-10 「아이로빗 기본 보이기」), 바탕은 아이로빗 옅은 네모 · 그 밖 없음
         boolean irobit = "irobit".equals(theme);

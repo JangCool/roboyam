@@ -68,6 +68,9 @@ public final class BoardFields {
     public static final String KIND_PROMO = "PROMO";
     public static final String KIND_GROUP = "GROUP";
     public static final List<String> KINDS = List.of(KIND_GENERAL, KIND_DEAL, KIND_PROMO, KIND_GROUP);
+
+    /** 뉴스 게시판 slug(home-news-contract — 홈 새소식 가젯 대상 · AI 회원 뉴스 소재, shared V211) */
+    public static final String NEWS_SLUG = "news";
     public static final List<String> LAYOUTS = List.of("LIST", "CARD", "GALLERY");
     public static final List<String> COLORS = List.of("BLUE", "TEAL", "AMBER", "PURPLE", "GREEN", "ORANGE", "SLATE", "RED", "PINK", "INDIGO", "SKY", "BROWN", "EMERALD"); // EMERALD — shared V186(사용자 2026-11-11)
     public static final List<String> WRITE_LOCKS = List.of("POST", "POST_COMMENT");

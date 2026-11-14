@@ -2,11 +2,11 @@
     <!--
         가젯 설정 창(⚙) — 홈·가젯 페이지 편집기(`GadgetLayoutEditor`)가 연다. 8종 전부(2026-10-30). 구획 셋(탭):
           · 「내용」 종류별 설정(`config` — 칸·범위·처음 값은 `UtilGadgetConfig`):
-              공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·큰 글·줄 정보·구분선·NEW·HOT) /
+              공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·맨 위 글·줄 간격·구분선·줄 정보·추천 표시·NEW·HOT·모바일 쪽 넘기기) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
-              하이라이트 — 개수(1~6) · 큰 글 · 사진(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
+              하이라이트 — 개수(1~6) · 큰 글 · 사진 · 좁은 칸 모양(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
               광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
-          · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색(`style` — `UtilGadgetStyle`) · 마우스 올림 효과(항목이 있는 종류만 — 값은 `config.hover`, 기본 켬)
+          · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색 · 카드 아래 여백(`style` — `UtilGadgetStyle`) · 마우스 올림 효과(항목이 있는 종류만 — 값은 `config.hover`, 기본 켬)
           · 「노출」 PC/모바일(둘 다 끌 수 없다) · 모바일 접기(머리 숨김이면 못 고름) · 비었을 때(자리 남기기 · 안내 · 안내 문구)
         대상 게시판: 전체 게시판(홈) · 「이 페이지가 연결된 폴더의 게시판 전체」(가젯 페이지) · 「지금 보는 게시판」(게시판 레이아웃) · 직접 고르기(여러 개, 고른 차례 — 20개까지). 게시판 카드의 「전체」는 서버가 켜진 일반 게시판 앞 6개.
         값은 관리자 응답의 꾸미기·설정(칸 전부 — 서버가 저장 값, 없으면 테마 기본·처음 값을 준다)으로 채우고, 없으면(저장 전 새 가젯) 처음 값으로 채운다.
@@ -147,6 +147,22 @@
                                         <span :id="`${uid}-lead`" class="text-sm font-medium">{{ t('homeLayout.postLead') }}</span>
                                         <SelectButton v-model="draft.lead" :options="optionsOf(UtilGadgetConfig.POST_LEADS, 'postLead')" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${uid}-lead`" />
                                     </div>
+                                    <!-- 줄 간격 — 두 줄 줄(헤드라인·기사·순위)의 위아래 여백(home-news-contract) -->
+                                    <div class="flex flex-col gap-1">
+                                        <span :id="`${uid}-spacing`" class="text-sm font-medium">{{ t('homeLayout.rowSpacing') }}</span>
+                                        <SelectButton
+                                            v-model="draft.rowSpacing"
+                                            :options="optionsOf(UtilGadgetConfig.ROW_SPACINGS, 'rowSpacing')"
+                                            option-label="label"
+                                            option-value="value"
+                                            :allow-empty="false"
+                                            size="small"
+                                            :aria-labelledby="`${uid}-spacing`"
+                                            :aria-describedby="`${uid}-spacing-hint`"
+                                            data-testid="gadget-post-row-spacing"
+                                        />
+                                        <small :id="`${uid}-spacing-hint`" class="text-xs text-muted-color">{{ t('homeLayout.rowSpacingHint') }}</small>
+                                    </div>
                                     <div class="flex items-center gap-2 self-end pb-1">
                                         <ToggleSwitch v-model="dividersModel" :input-id="`${uid}-div`" />
                                         <label :for="`${uid}-div`" class="cursor-pointer text-sm">{{ t('homeLayout.dividers') }}</label>
@@ -161,6 +177,24 @@
                                         </div>
                                     </div>
                                 </fieldset>
+                                <!-- 추천 표시 — 줄 정보 「추천 수」를 켰을 때만(home-news-contract) -->
+                                <div class="flex flex-col gap-1">
+                                    <span :id="`${uid}-likes`" class="text-sm font-medium" :class="likesSelectable ? '' : 'opacity-60'">{{ t('homeLayout.postLikes') }}</span>
+                                    <SelectButton
+                                        v-model="draft.likes"
+                                        :options="optionsOf(UtilGadgetConfig.LIKES_STYLES, 'postLikes')"
+                                        option-label="label"
+                                        option-value="value"
+                                        :allow-empty="false"
+                                        size="small"
+                                        :disabled="!likesSelectable"
+                                        :aria-labelledby="`${uid}-likes`"
+                                        :aria-describedby="`${uid}-likes-hint`"
+                                        class="self-start"
+                                        data-testid="gadget-post-likes"
+                                    />
+                                    <small :id="`${uid}-likes-hint`" class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.postLikesHint') }}</small>
+                                </div>
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div class="flex flex-col gap-1">
                                         <label :for="`${uid}-new`" class="text-sm font-medium">{{ t('homeLayout.newBadgeHours') }}</label>
@@ -193,6 +227,43 @@
                                             @update:model-value="(v: number | null) => draft && (draft.hotBadgeLikes = v ?? 0)"
                                         />
                                         <small :id="`${uid}-hot-hint`" class="text-xs text-muted-color">{{ t('homeLayout.hotBadgeHint', { max: UtilGadgetConfig.HOT_BADGE.max }) }}</small>
+                                    </div>
+                                </div>
+                                <!-- 모바일 쪽 넘기기(1 = 끔) · 쪽마다 글 수(쪽 넘기기 2쪽 이상일 때만, home-news-contract) -->
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div class="flex flex-col gap-1">
+                                        <span :id="`${uid}-mpages`" class="text-sm font-medium">{{ t('homeLayout.mobilePages') }}</span>
+                                        <SelectButton
+                                            v-model="draft.mobilePages"
+                                            :options="optionsOf(MOBILE_PAGE_COUNTS, 'mobilePages')"
+                                            option-label="label"
+                                            option-value="value"
+                                            :allow-empty="false"
+                                            size="small"
+                                            :aria-labelledby="`${uid}-mpages`"
+                                            :aria-describedby="`${uid}-mpages-hint`"
+                                            data-testid="gadget-post-mobile-pages"
+                                        />
+                                        <small :id="`${uid}-mpages-hint`" class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.mobilePagesHint') }}</small>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label :for="`${uid}-mpsize`" class="text-sm font-medium" :class="mobilePaged ? '' : 'opacity-60'">{{ t('homeLayout.mobilePageSize') }}</label>
+                                        <InputNumber
+                                            :model-value="draft.mobilePageSize ?? UtilGadgetConfig.MOBILE_PAGE_SIZE.initial"
+                                            :input-id="`${uid}-mpsize`"
+                                            :min="UtilGadgetConfig.MOBILE_PAGE_SIZE.min"
+                                            :max="UtilGadgetConfig.MOBILE_PAGE_SIZE.max"
+                                            show-buttons
+                                            button-layout="horizontal"
+                                            :allow-empty="false"
+                                            :disabled="!mobilePaged"
+                                            :aria-describedby="`${uid}-mpsize-hint`"
+                                            class="w-40"
+                                            input-class="w-16 text-center"
+                                            data-testid="gadget-post-mobile-page-size"
+                                            @update:model-value="setMobilePageSize"
+                                        />
+                                        <small :id="`${uid}-mpsize-hint`" class="text-xs text-muted-color">{{ t('homeLayout.mobilePageSizeHint', { min: UtilGadgetConfig.MOBILE_PAGE_SIZE.min, max: UtilGadgetConfig.MOBILE_PAGE_SIZE.max }) }}</small>
                                     </div>
                                 </div>
                             </section>
@@ -249,6 +320,24 @@
                                 <div class="flex flex-col gap-1">
                                     <span :id="`${uid}-hthumbs`" class="text-sm font-medium">{{ t('homeLayout.highlightThumbs') }}</span>
                                     <SelectButton v-model="draft.thumbs" :options="optionsOf(UtilGadgetConfig.HIGHLIGHT_THUMBS, 'highlightThumbs')" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${uid}-hthumbs`" />
+                                </div>
+                                <!-- 좁은 칸 모양 — 큰 글을 왼쪽에 두는 테마(`heroSplit`)에서 칸이 40rem 미만일 때, 「맨 위 글을 크게」일 때만(home-news-contract) -->
+                                <div class="flex flex-col gap-1">
+                                    <span :id="`${uid}-hnarrow`" class="text-sm font-medium" :class="draft.lead === 'NONE' ? 'opacity-60' : ''">{{ t('homeLayout.highlightNarrow') }}</span>
+                                    <SelectButton
+                                        v-model="draft.narrow"
+                                        :options="optionsOf(UtilGadgetConfig.HIGHLIGHT_NARROWS, 'highlightNarrow')"
+                                        option-label="label"
+                                        option-value="value"
+                                        :allow-empty="false"
+                                        size="small"
+                                        :disabled="draft.lead === 'NONE'"
+                                        :aria-labelledby="`${uid}-hnarrow`"
+                                        :aria-describedby="`${uid}-hnarrow-hint`"
+                                        class="self-start"
+                                        data-testid="gadget-highlight-narrow"
+                                    />
+                                    <small :id="`${uid}-hnarrow-hint`" class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.highlightNarrowHint') }}</small>
                                 </div>
                                 <!-- 작성자 보이기 — 기본 켬(끄면 아바타·닉네임을 숨기고 날짜만, feed-debate-counts-contract) -->
                                 <div class="flex flex-col gap-1">
@@ -403,6 +492,24 @@
                                 <div class="flex flex-col gap-1">
                                     <span :id="`${uid}-ccolor`" class="text-sm font-medium">{{ t('homeLayout.cardColor') }}</span>
                                     <GadgetColorField v-model="look.cardColor" :auto-label="t('homeLayout.colorFollowTitle')" :aria-labelledby="`${uid}-ccolor`" />
+                                </div>
+                                <!-- 카드 아래 여백 — 마지막 글자~카드 아래 끝(보통 = 좌우 여백, 좁게 = 12px). 평평한 카드는 맞추지 않아 못 고른다(home-news-contract) -->
+                                <div class="flex flex-col gap-1">
+                                    <span :id="`${uid}-bspace`" class="text-sm font-medium" :class="look.cardLook === 'FLAT' ? 'opacity-60' : ''">{{ t('homeLayout.bottomSpace') }}</span>
+                                    <SelectButton
+                                        v-model="look.bottomSpace"
+                                        :options="optionsOf(UtilGadgetStyle.BOTTOM_SPACES, 'bottomSpace')"
+                                        option-label="label"
+                                        option-value="value"
+                                        :allow-empty="false"
+                                        size="small"
+                                        :disabled="look.cardLook === 'FLAT'"
+                                        :aria-labelledby="`${uid}-bspace`"
+                                        :aria-describedby="`${uid}-bspace-hint`"
+                                        class="self-start"
+                                        data-testid="gadget-bottom-space"
+                                    />
+                                    <small :id="`${uid}-bspace-hint`" class="text-xs leading-relaxed text-muted-color">{{ t(look.cardLook === 'FLAT' ? 'homeLayout.bottomSpaceFlat' : 'homeLayout.bottomSpaceHint') }}</small>
                                 </div>
                             </div>
                             <!-- 제목 아이콘 — 보이기 · 고르는 곳(PrimeIcons · Tabler · 직접 올리기) · 색 · 바탕(사용자 시안 확정 2026-11-10) -->
@@ -735,6 +842,15 @@ const dividersModel = computed<boolean>({
         if (draft.value) draft.value.dividers = value;
     },
 });
+
+/** 추천 표시는 줄 정보 「추천 수」를 켰을 때만 고른다 */
+const likesSelectable = computed(() => draft.value?.meta?.includes('LIKES') === true);
+/** 모바일 쪽 넘기기 쪽 수 선택지(1 = 끔) · 쪽마다 글 수는 2쪽 이상일 때만 */
+const MOBILE_PAGE_COUNTS: readonly number[] = Array.from({ length: UtilGadgetConfig.MOBILE_PAGES.max }, (_, i) => i + 1);
+const mobilePaged = computed(() => (draft.value?.mobilePages ?? 1) >= 2);
+function setMobilePageSize(value: number | null): void {
+    if (draft.value) draft.value.mobilePageSize = value ?? UtilGadgetConfig.MOBILE_PAGE_SIZE.initial;
+}
 
 const metaModel = computed<HomePostMeta[]>({
     get: () => draft.value?.meta ?? [],

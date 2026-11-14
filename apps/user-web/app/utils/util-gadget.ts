@@ -22,6 +22,7 @@ import type {
     HotDealsConfig,
     NoticeTextData,
     PostListConfig,
+    PostListLikes,
     PostListMeta,
     PostListThumbnail,
     QuickLinkItem,
@@ -127,6 +128,7 @@ function readStyle(raw: unknown, type: unknown): GadgetStyle {
         cardLook: oneOf(s.cardLook, ['DEFAULT', 'FLAT', 'OUTLINE', 'TINT'] as const, typeof type === 'string' && FLAT_KINDS.includes(type) ? 'FLAT' : 'DEFAULT'),
         cardColor: UtilColor.normalize(s.cardColor),
         mobileFold: oneOf(s.mobileFold, ['NONE', 'OPEN', 'CLOSED'] as const, 'NONE'),
+        bottomSpace: oneOf(s.bottomSpace, ['NORMAL', 'TIGHT'] as const, 'NORMAL'),
         empty: readEmpty(s.empty, type),
         iconShow: typeof s.iconShow === 'boolean' ? s.iconShow : null,
         iconSource: oneOf(s.iconSource, ['PRIME', 'TABLER', 'UPLOAD'] as const, 'PRIME'),
@@ -370,17 +372,21 @@ export default class UtilGadget {
         const rank = obj(c.rank);
         return {
             sort: oneOf(c.sort, ['LATEST', 'POPULAR', 'COMMENTS', 'VIEWS', 'LIKES'] as const, 'LATEST'),
-            rowStyle: oneOf(c.rowStyle, ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'] as const, 'HEADLINE'),
+            rowStyle: oneOf(c.rowStyle, ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT', 'LINE'] as const, 'HEADLINE'),
             thumbnail: oneOf(c.thumbnail, ['AUTO', 'NONE', 'RIGHT', 'LEFT'] as const, 'AUTO'),
             meta: Array.isArray(c.meta) ? META_KEYS.filter((k) => (c.meta as unknown[]).includes(k)) : [...DEFAULT_META],
             badge: readBadge(c.badge),
-            lead: oneOf(c.lead, ['NONE', 'HERO'] as const, 'NONE'),
+            lead: oneOf(c.lead, ['NONE', 'HERO', 'THUMB'] as const, 'NONE'),
             columns: c.columns === 2 || c.columns === '2' ? 2 : 1,
             rank: { show: typeof rank.show === 'boolean' ? rank.show : null, color: UtilColor.normalize(rank.color) },
             titleLines: c.titleLines === 1 || c.titleLines === 2 ? c.titleLines : 0,
             newBadgeHours: int(c.newBadgeHours, 0, 0, 72),
             hotBadgeLikes: int(c.hotBadgeLikes, 0, 0, 1000),
             dividers: bool(c.dividers, false), // 구분선은 켠 가젯만(기본 끔 — 2026-11-06 사용자)
+            likes: oneOf(c.likes, ['TEXT', 'ICON', 'LEAD'] as const, 'TEXT'),
+            rowSpacing: oneOf(c.rowSpacing, ['NORMAL', 'TIGHT'] as const, 'NORMAL'),
+            mobilePages: int(c.mobilePages, 1, 1, 3),
+            mobilePageSize: int(c.mobilePageSize, 5, 3, 10),
             allBoards: !Array.isArray(c.boardIds) || c.boardIds.length === 0,
         };
     }
@@ -402,7 +408,17 @@ export default class UtilGadget {
      */
     static titleLineCount(cfg: PostListConfig): 1 | 2 {
         if (cfg.titleLines === 1 || cfg.titleLines === 2) return cfg.titleLines;
-        return cfg.rowStyle === 'COMPACT' ? 1 : 2;
+        return cfg.rowStyle === 'COMPACT' || cfg.rowStyle === 'LINE' ? 1 : 2;
+    }
+
+    /**
+     * 추천 표시 자리 — 제목 앞 고정 칸(`LEAD`)은 한 줄 모양(`COMPACT`·`LINE`)만, 그 밖의 줄 모양은 아이콘(`ICON`)으로 친다(home-news-contract)
+     * @param {PostListConfig} cfg - 설정.
+     * @returns {PostListLikes} 그릴 추천 표시.
+     */
+    static likesShape(cfg: PostListConfig): PostListLikes {
+        if (cfg.likes !== 'LEAD') return cfg.likes;
+        return cfg.rowStyle === 'COMPACT' || cfg.rowStyle === 'LINE' ? 'LEAD' : 'ICON';
     }
 
     /**
@@ -516,7 +532,12 @@ export default class UtilGadget {
      */
     static highlightConfig(config: Record<string, unknown>): HighlightConfig {
         const c = obj(config);
-        return { lead: oneOf(c.lead, ['NONE', 'HERO'] as const, 'HERO'), thumbs: oneOf(c.thumbs, ['ALL', 'FIRST', 'NONE'] as const, 'ALL'), showAuthor: c.showAuthor !== false };
+        return {
+            lead: oneOf(c.lead, ['NONE', 'HERO'] as const, 'HERO'),
+            thumbs: oneOf(c.thumbs, ['ALL', 'FIRST', 'NONE'] as const, 'ALL'),
+            showAuthor: c.showAuthor !== false,
+            narrow: oneOf(c.narrow, ['DEFAULT', 'LIST'] as const, 'DEFAULT'),
+        };
     }
 
     /**

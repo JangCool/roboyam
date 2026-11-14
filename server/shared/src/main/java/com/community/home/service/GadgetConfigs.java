@@ -14,9 +14,12 @@ import tools.jackson.databind.node.ObjectNode;
  *
  * <ul>
  *   <li>{@code GROUP_BUY} {@code count} 1~10(5) · {@code sort} · {@code POST_LIST} 대상 게시판 · {@code count} 1~30(10) · {@code sort} · {@code periodTabs} · 보기 모양
- *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
+ *       {@code rowStyle}(+ {@code LINE} 뉴스형 한 줄)·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead} NONE·HERO·THUMB(첫 글 작은 사진 줄)·{@code meta}·{@code dividers}·
+ *       {@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 · {@code likes} TEXT·ICON·LEAD(TEXT) · {@code rowSpacing} NORMAL·TIGHT(NORMAL) · {@code mobilePages} 1~3(1) ·
+ *       {@code mobilePageSize} 3~10(5) — home-news-contract 「가젯 레이아웃 유형 옵션」 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
- *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
+ *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} NONE·HERO · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) ·
+ *       {@code narrow} DEFAULT·LIST(좁은 칸 모양 — home-news-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
  *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
  *   <li>공통 {@code hover} 마우스 올림 효과(누르면 가는 항목에 옅은 바탕 — 기본 켬, 칸이 없는 옛 가젯도 켬, 사용자 2026-11-10) — 항목이 있는 종류({@link #HOVER_KINDS})만. 안내 글·광고 2종에는 없다.</li>
@@ -35,13 +38,27 @@ public final class GadgetConfigs {
     /** 직접 고를 수 있는 게시판 수 */
     public static final int BOARD_PICK_MAX = 20;
     public static final List<String> POST_LIST_SORTS = List.of("LATEST", "POPULAR", "VIEWS", "LIKES", "COMMENTS");
-    public static final List<String> ROW_STYLES = List.of("HEADLINE", "RANK", "ARTICLE", "COMPACT");
+    public static final List<String> ROW_STYLES = List.of("HEADLINE", "RANK", "ARTICLE", "COMPACT", "LINE");
     public static final List<String> THUMBNAILS = List.of("AUTO", "NONE", "RIGHT", "LEFT");
     public static final List<String> META = List.of("BOARD", "PREFIX", "COMMENTS", "TIME", "AUTHOR", "LIKES");
     /** 글 줄 정보 처음 값 — user-web {@code DEFAULT_META} */
     public static final List<String> DEFAULT_META = List.of("BOARD", "PREFIX", "COMMENTS", "TIME");
-    /** 글 목록 큰 글(처음 NONE) · 하이라이트 큰 글(처음 HERO) */
-    public static final List<String> LEADS = List.of("NONE", "HERO");
+    /** 글 목록 첫 글 모양 — 처음 NONE · HERO 큰 글 · THUMB 첫 글 작은 사진 줄(공개 데이터가 첫 글에 {@code excerpt} 를 싣는다 — home-news-contract) */
+    public static final String LEAD_THUMB = "THUMB";
+    public static final List<String> POST_LIST_LEADS = List.of("NONE", "HERO", LEAD_THUMB);
+    /** 하이라이트 큰 글(처음 HERO) */
+    public static final List<String> HIGHLIGHT_LEADS = List.of("NONE", "HERO");
+    /** 글 목록 추천 표시(줄 정보 LIKES 를 켰을 때) — 처음 TEXT 「추천 n」 · ICON 엄지 + 숫자 · LEAD 제목 앞 고정 칸(COMPACT·LINE 만) */
+    public static final List<String> LIKES_STYLES = List.of("TEXT", "ICON", "LEAD");
+    /** 글 목록 두 줄 줄(HEADLINE·ARTICLE)의 위아래 여백 — 처음 NORMAL */
+    public static final List<String> ROW_SPACINGS = List.of("NORMAL", "TIGHT");
+    /** 글 목록 모바일 쪽 넘기기 쪽 수(1 이면 끔) · 한 쪽 글 수 */
+    public static final int MOBILE_PAGES_MAX = 3;
+    public static final int MOBILE_PAGE_SIZE_MIN = 3;
+    public static final int MOBILE_PAGE_SIZE_MAX = 10;
+    public static final int MOBILE_PAGE_SIZE_DEFAULT = 5;
+    /** 하이라이트 좁은 칸(카드 폭 40rem 미만) 모양 — 처음 DEFAULT · LIST 큰 글 + 글자 줄 */
+    public static final List<String> HIGHLIGHT_NARROWS = List.of("DEFAULT", "LIST");
     public static final List<String> HIGHLIGHT_THUMBS = List.of("ALL", "FIRST", "NONE");
     public static final List<String> QUICK_SHAPES = List.of("PILL", "TAB");
     public static final List<String> QUICK_KINDS = List.of("ALL", "POPULAR", "LATEST", "GROUPS", "GROUP_BUY", "BOARD", "PATH");
@@ -188,7 +205,7 @@ public final class GadgetConfigs {
                 out.put("thumbnail", oneOf(config, "thumbnail", THUMBNAILS, "AUTO"));
                 int lines = intOrDigit(config, "titleLines");
                 out.put("titleLines", lines == 1 || lines == 2 ? lines : 0);
-                out.put("lead", "HERO".equals(HomeLayoutJson.text(config, "lead", null)) ? "HERO" : "NONE");
+                out.put("lead", oneOf(config, "lead", POST_LIST_LEADS, "NONE"));
                 ArrayNode meta = out.putArray("meta");
                 JsonNode rawMeta = config == null ? null : config.get("meta");
                 if (rawMeta != null && rawMeta.isArray()) {
@@ -200,6 +217,10 @@ public final class GadgetConfigs {
                 out.put("dividers", bool(config, "dividers", false)); // 구분선은 켠 가젯만(기본 끔 — 2026-11-06 사용자)
                 out.put("newBadgeHours", HomeLayoutJson.number(config, "newBadgeHours", 0, 0, NEW_BADGE_MAX));
                 out.put("hotBadgeLikes", HomeLayoutJson.number(config, "hotBadgeLikes", 0, 0, HOT_BADGE_MAX));
+                out.put("likes", oneOf(config, "likes", LIKES_STYLES, "TEXT"));
+                out.put("rowSpacing", oneOf(config, "rowSpacing", ROW_SPACINGS, "NORMAL"));
+                out.put("mobilePages", HomeLayoutJson.number(config, "mobilePages", 1, 1, MOBILE_PAGES_MAX));
+                out.put("mobilePageSize", HomeLayoutJson.number(config, "mobilePageSize", MOBILE_PAGE_SIZE_DEFAULT, MOBILE_PAGE_SIZE_MIN, MOBILE_PAGE_SIZE_MAX));
             }
             case "BOARD_CARDS" -> {
                 out.put("cardHead", cardHead(config));
@@ -214,10 +235,11 @@ public final class GadgetConfigs {
                 }
             }
             case "HIGHLIGHT" -> {
-                out.put("lead", "NONE".equals(HomeLayoutJson.text(config, "lead", null)) ? "NONE" : "HERO");
+                out.put("lead", oneOf(config, "lead", HIGHLIGHT_LEADS, "HERO"));
                 out.put("thumbs", oneOf(config, "thumbs", HIGHLIGHT_THUMBS, "ALL"));
                 out.put("place", highlightPlace(config));
                 out.put("showAuthor", bool(config, "showAuthor", true)); // 작성자(아바타·닉네임) 보이기 — 칸이 없는 옛 가젯도 켬(feed-debate-counts-contract)
+                out.put("narrow", oneOf(config, "narrow", HIGHLIGHT_NARROWS, "DEFAULT")); // 좁은 칸 모양(home-news-contract)
             }
             case "QUICK_LINKS" -> {
                 out.put("shape", oneOf(config, "shape", QUICK_SHAPES, "PILL"));

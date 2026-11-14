@@ -62,6 +62,9 @@ export default {
     rankPages: '인기글 순위 쪽',
     rankRange: '{from}~{to}',
     rankRangeLabel: '{from}~{to}위 보기',
+    // 글 목록 모바일 쪽 넘기기(home-news-contract) — 아래 동그라미
+    pageDots: '{name} 쪽 고르기',
+    pageDot: '{total}쪽 중 {n}쪽',
     // 한 열(모바일) 가로로 미는 줄의 이름
     scrollRowLabel: '{name} — 옆으로 밀어서 더 보기',
     // 관리자 미리보기 편집(관리자 테마 화면의 실제 화면 — 홈 격자 손잡이)
