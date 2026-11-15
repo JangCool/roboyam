@@ -37,6 +37,11 @@ public class TablePackRepository {
             return "bigint".equals(type);
         }
 
+        /** 정수 칸(시퀀스 번호를 그대로 담는 칸) */
+        public boolean isInteger() {
+            return "bigint".equals(type) || "integer".equals(type) || "smallint".equals(type);
+        }
+
         public boolean isBigintArray() {
             return "bigint[]".equals(type);
         }
@@ -128,12 +133,17 @@ public class TablePackRepository {
         jdbc.execute("SET CONSTRAINTS ALL IMMEDIATE");
     }
 
-    /** 이 표의 시퀀스 칸(serial·identity)을 지금 가장 큰 값 다음으로 맞춘다 — 팩이 넣은 번호와 앞으로 매길 번호가 겹치지 않게 */
-    public void resetSequences(String table, Collection<String> columns) {
-        for (String column : columns) {
-            String sequence = jdbc.queryForObject("SELECT pg_get_serial_sequence(quote_ident(?), ?)", String.class, table, column);
+    /**
+     * 이 표의 칸에 묶인 시퀀스(serial·identity·{@code OWNED BY})를 지금 가장 큰 번호 다음으로 맞춘다 — 팩이 넣은 번호와 앞으로 매길 번호가 겹치지 않게.
+     * 정수 칸은 그 값, 글자 칸(화면 번호 {@code BA-2026-00016} 처럼 코드가 시퀀스 값을 붙여 만드는 번호)은 끝의 숫자 부분을 번호로 본다.
+     * 코드가 {@code nextval} 로 직접 부르는 시퀀스도 마이그레이션에서 번호 칸에 {@code OWNED BY} 로 묶어 두어야 여기서 맞춰진다(V221).
+     */
+    public void resetSequences(String table, Collection<Column> columns) {
+        for (Column column : columns) {
+            String sequence = jdbc.queryForObject("SELECT pg_get_serial_sequence(quote_ident(?), ?)", String.class, table, column.name());
             if (sequence != null) {
-                jdbc.queryForObject("SELECT setval(?::regclass, coalesce((SELECT max(" + ident(column) + ") FROM " + ident(table) + "), 0) + 1, false)",
+                String number = column.isInteger() ? ident(column.name()) : "substring(" + ident(column.name()) + "::text FROM '([0-9]+)$')::bigint";
+                jdbc.queryForObject("SELECT setval(?::regclass, coalesce((SELECT max(" + number + ") FROM " + ident(table) + "), 0) + 1, false)",
                         Long.class, sequence);
             }
         }

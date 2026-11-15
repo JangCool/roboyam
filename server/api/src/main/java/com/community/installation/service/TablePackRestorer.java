@@ -20,7 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@code REPLACE} 표를 <b>뒤 차례부터</b> 비운다(뒤 표가 앞 표를 FK 로 가리키므로).</li>
  *   <li>앞 차례부터 행을 넣는다 — 행마다 {@code transform} 을 거친 뒤 {@link #CHUNK} 행씩 한 문장으로. 같은 문장 안의 FK(자기 표 부모 등)는 문장 끝에 확인된다.
  *       표의 {@code late} 칸(뒤 차례 표를 가리키는 칸 — 서로 가리키는 표)은 비운 채 넣고, 모든 표를 넣은 뒤 채운다.</li>
- *   <li>시퀀스 칸을 맞춘다.</li>
+ *   <li>칸에 묶인 시퀀스(serial·identity·{@code OWNED BY} — 화면 번호 시퀀스 포함)를 데이터의 가장 큰 번호 다음으로 맞춘다.</li>
  * </ol>
  * 실패하면 예외가 그대로 올라간다 — 되돌리기는 부르는 쪽(세이브포인트·트랜잭션)이 한다.
  */
@@ -107,7 +107,7 @@ public class TablePackRestorer {
                 }
                 count += repository.write(table, plan.mode(), plan.table().key(), plan.write(), MAPPER.writeValueAsString(chunk));
             }
-            repository.resetSequences(table, plan.write());
+            repository.resetSequences(table, plan.write().stream().map(plan.columns()::get).toList());
             written.merge(table, count, Integer::sum);
         }
 
