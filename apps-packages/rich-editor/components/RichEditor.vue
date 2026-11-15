@@ -63,7 +63,7 @@ import type { Editor, Extensions } from '@tiptap/vue-3';
 import type { EditorView } from '@tiptap/pm/view';
 import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichImageUploader, RichImageUploadResult } from '#layers/rich-editor/components/RichEditor.types';
 import { richFormatExtensions } from '#layers/rich-editor/editor/richExtensions';
-import { ImageBlock } from '#layers/rich-editor/editor/imageBlock';
+import { IMAGE_TEXT_MAX, ImageBlock } from '#layers/rich-editor/editor/imageBlock';
 import { YoutubeBlock } from '#layers/rich-editor/editor/youtubeBlock';
 import { EmbedBlock } from '#layers/rich-editor/editor/embedBlock';
 import type { EmbedBlockLabels } from '#layers/rich-editor/editor/embedBlock';
@@ -190,7 +190,26 @@ function extensions(): Extensions {
     return [
         ...list,
         // 이미 글에 있는 이미지는 올리기가 꺼져 있어도 보이고 지울 수 있다
-        ImageBlock.configure({ labels: { image: t('richEditor.imageAlt'), remove: t('richEditor.imageRemove'), broken: t('richEditor.imageBroken') } }),
+        ImageBlock.configure({
+            labels: {
+                image: t('richEditor.imageAlt'),
+                remove: t('richEditor.imageRemove'),
+                broken: t('richEditor.imageBroken'),
+                tools: t('richEditor.imageTools.toolbar'),
+                alignLeft: t('richEditor.imageTools.alignLeft'),
+                alignCenter: t('richEditor.imageTools.alignCenter'),
+                alignRight: t('richEditor.imageTools.alignRight'),
+                size25: t('richEditor.imageTools.size', { n: 25 }),
+                size50: t('richEditor.imageTools.size', { n: 50 }),
+                size75: t('richEditor.imageTools.size', { n: 75 }),
+                sizeOriginal: t('richEditor.imageTools.sizeOriginal'),
+                sizeOriginalShort: t('richEditor.imageTools.sizeOriginalShort'),
+                caption: t('richEditor.imageTools.caption'),
+                captionPlaceholder: t('richEditor.imageTools.captionPlaceholder', { max: IMAGE_TEXT_MAX }),
+                alt: t('richEditor.imageTools.alt'),
+                altPlaceholder: t('richEditor.imageTools.altPlaceholder'),
+            },
+        }),
         ...videoBlocks(),
         UploadSlots,
     ];
@@ -324,8 +343,13 @@ function insertUploaded(id: string, result: RichImageUploadResult): void {
     if (!e) return;
     const pos = takeSlot(e, id) ?? blockBoundary(e, e.state.selection.to);
     // updateSelection: false — 넣은 이미지가 "선택된 노드"가 되면 다음에 치는 글자가 그 이미지를 대신해 버린다
+    // 새로 넣는 이미지는 가운데 정렬·원본 크기(이미지 도구 계약) — 예전 글의 이미지는 건드리지 않으면 왼쪽 그대로
     e.chain()
-        .insertContentAt(pos, { type: 'image', attrs: { imageId: result.id, src: result.url, width: result.width, height: result.height } }, { updateSelection: false })
+        .insertContentAt(
+            pos,
+            { type: 'image', attrs: { imageId: result.id, src: result.url, width: result.width, height: result.height, align: 'center' } },
+            { updateSelection: false },
+        )
         .run();
 }
 

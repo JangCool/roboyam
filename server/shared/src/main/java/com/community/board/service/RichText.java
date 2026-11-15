@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,6 +25,7 @@ import org.springframework.web.util.HtmlUtils;
  *   <li><b>간단</b>(글·댓글): {@code p br strong em u s a ul ol li blockquote}. 링크는 http·https·mailto 만, 저장할 때 {@code target="_blank"}
  *       {@code rel="nofollow noopener noreferrer"} 를 늘 붙인다.</li>
  *   <li><b>고급</b>(글만): 간단 + {@code h2 h3 hr code pre} + 이미지 표식 {@code <img data-image-id="숫자">}(주소·크기는 서버가 채운다 — {@link #expandImages})
+ *       + 이미지 묶음 {@code <figure data-align data-width><img data-image-id alt><figcaption>글자</figcaption></figure>}({@link #figures} — 정렬·크기는 정해진 값만, 캡션은 서식 없는 글자 200자까지)
  *       + 글자색·배경색 {@code span}({@code style} 의 {@code color}·{@code background-color} 중 팔레트 값만, 그 밖은 버리고 남는 것이 없으면 span 을 벗긴다)
  *       + YouTube 표식 {@code <div data-youtube-id="11자"></div>}(iframe 은 저장하지 않는다 — 화면이 ID 로 youtube-nocookie 를 그린다).</li>
  *   <li><b>댓글</b>: 간단 + 영상 표식(에디터가 붙여 넣은 영상 주소를 표식으로 바꾼다 — 사용자 결정 2026-11-06, 개수는 {@link ContentRules#COMMENT_VIDEO_MAX}).</li>
@@ -57,7 +58,18 @@ public final class RichText {
     private static final Pattern RGB_COLOR = Pattern.compile("rgb[(] *([0-9]{1,3}) *, *([0-9]{1,3}) *, *([0-9]{1,3}) *[)]");
 
     /** 정화된 HTML 안의 표식·요소(정화기가 내보내는 모양 그대로라 정규식으로 읽어도 안전하다 — 글 속 {@code <} 는 모두 {@code &lt;} 다) */
-    private static final Pattern IMG_MARKER = Pattern.compile("<img data-image-id=\"(\\d{1,19})\"\\s*/?>");
+    private static final Pattern IMG_MARKER = Pattern.compile("<img data-image-id=\"(\\d{1,19})\"(?: alt=\"([^\"]*)\")?\\s*/?>");
+    /** 이미지 정렬·크기 값(에디터 이미지 도구 — 「원본」은 크기 속성이 없다) */
+    private static final Pattern ALIGN = Pattern.compile("left|center|right");
+    private static final Pattern WIDTH = Pattern.compile("25|50|75");
+    private static final Pattern ALIGN_ATTR = Pattern.compile("\\sdata-align=\"(left|center|right)\"");
+    private static final Pattern WIDTH_ATTR = Pattern.compile("\\sdata-width=\"(25|50|75)\"");
+    /** 정화된 이미지 묶음 한 벌 — figure 안에 이미지 하나 + 캡션(선택)만. 캡션 안에는 figure·figcaption 이 없어야 한다 */
+    private static final Pattern FIGURE_BLOCK = Pattern.compile(
+            "<figure((?:\\s+[a-z-]+=\"[^\"]*\")*)\\s*>\\s*(<img\\b[^>]*>)\\s*(?:<figcaption>((?:(?!</?fig)[\\s\\S])*?)</figcaption>\\s*)?</figure>");
+    private static final Pattern FIGURE_TAG = Pattern.compile("</?fig(?:ure|caption)\\b[^>]*>");
+    /** 캡션·대체 텍스트 최대 글자 수(코드 포인트) */
+    public static final int CAPTION_MAX = 200;
     private static final Pattern DIV_OPEN = Pattern.compile("<div\\b([^>]*)>");
     private static final Pattern YOUTUBE_ATTR = Pattern.compile("\\sdata-youtube-id=\"([A-Za-z0-9_-]{11})\"");
     private static final Pattern EMBED_ATTR = Pattern.compile("\\sdata-embed=\"([^\"]+)\"");
@@ -67,7 +79,7 @@ public final class RichText {
     private static final Pattern TAG = Pattern.compile("<[^>]*>");
     private static final Pattern TRAILING_EMPTY_PARAGRAPHS = Pattern.compile("(?:<p></p>|<p><br\\s*/?></p>|\\s)+$");
     private static final Pattern LEADING_EMPTY_PARAGRAPHS = Pattern.compile("^(?:<p></p>|<p><br\\s*/?></p>|\\s)+");
-    private static final Pattern BREAK = Pattern.compile("(?i)<br\\s*/?>|<hr\\s*/?>|</(?:p|li|blockquote|h2|h3|pre|div)>");
+    private static final Pattern BREAK = Pattern.compile("(?i)<br\\s*/?>|<hr\\s*/?>|</(?:p|li|blockquote|h2|h3|pre|div|figcaption)>");
 
     private static final PolicyFactory SIMPLE = base().toFactory();
 
@@ -77,8 +89,12 @@ public final class RichText {
             .allowElements("h2", "h3", "hr", "code", "pre")
             .allowElements(colorSpan(), "span")
             .allowAttributes("style").onElements("span")
-            .allowElements(requireAttribute("data-image-id", DIGITS), "img")
-            .allowAttributes("data-image-id").matching(DIGITS).onElements("img"))
+            .allowElements(imageMarker(), "img")
+            .allowAttributes("data-image-id").matching(DIGITS).onElements("img")
+            .allowAttributes("alt").onElements("img")
+            .allowElements("figure", "figcaption")
+            .allowAttributes("data-align").matching(ALIGN).onElements("figure")
+            .allowAttributes("data-width").matching(WIDTH).onElements("figure"))
             .toFactory();
 
     private RichText() {
@@ -123,6 +139,9 @@ public final class RichText {
         if (policy != SIMPLE) {
             // 정화기가 남기는 div 는 영상 표식뿐이다 — 닫는 태그를 모두 떼고 여는 태그를 빈 블록으로 바꾼다(균형이 깨지지 않는다)
             safe = DIV_OPEN.matcher(safe.replace("</div>", "")).replaceAll(match -> Matcher.quoteReplacement(videoMarker(match.group(1))));
+        }
+        if (policy == ADVANCED) {
+            safe = figures(safe);
         }
         // 정화기는 rel 을 「noreferrer noopener nofollow」 차례로 쓴다 — 계약의 차례로 맞춘다(뜻은 같다)
         safe = safe.replace(" rel=\"noreferrer noopener nofollow\"", " rel=\"nofollow noopener noreferrer\"");
@@ -197,17 +216,72 @@ public final class RichText {
         return embed.find() && EMBED.matcher(embed.group(1)).matches() ? "<div data-embed=\"" + embed.group(1) + "\"></div>" : "";
     }
 
-    /** 이미지 표식을 서버가 만든 태그로 바꾼다({@code tag} 가 ID → 태그. null 이면 그 표식을 지운다) */
-    public static String expandImages(String safeHtml, Function<Long, String> tag) {
+    /**
+     * 이미지 표식을 서버가 만든 태그로 바꾼다({@code tag} 가 (ID, 대체 텍스트) → 태그. null 이면 그 표식을 지운다).
+     * 대체 텍스트는 정화기가 이미 이스케이프한 속성 값이다(없으면 빈 글자) — 그대로 {@code alt="…"} 에 넣는다.
+     */
+    public static String expandImages(String safeHtml, BiFunction<Long, String, String> tag) {
         return IMG_MARKER.matcher(safeHtml).replaceAll(match -> {
             String replacement;
             try {
-                replacement = tag.apply(Long.parseLong(match.group(1)));
+                replacement = tag.apply(Long.parseLong(match.group(1)), match.group(2) == null ? "" : match.group(2));
             } catch (NumberFormatException e) {
                 replacement = null;
             }
             return replacement == null ? "" : Matcher.quoteReplacement(replacement);
         });
+    }
+
+    /**
+     * 이미지 묶음을 정해진 한 모양으로 맞춘다 — {@code <figure data-align="…" data-width="…">이미지<figcaption>글자</figcaption></figure>}.
+     * 정렬·크기 속성은 정화기가 값을 이미 봤다(없으면 왼쪽·원본). 캡션은 태그를 떼고 공백을 줄인 서식 없는 글자 {@link #CAPTION_MAX}자까지, 비면 빼낸다.
+     * 이미지 하나를 감싼 모양이 아닌 figure·figcaption(이미지가 정화로 사라졌거나 다른 곳에서 붙여 넣은 것)은 태그만 벗기고 글자는 남긴다.
+     * 공동구매 상품 설명({@code GroupBuyDescriptionHtml})도 정화한 뒤 이것을 부른다.
+     *
+     * @param safeHtml 정화기를 거친 HTML(정화기가 내보내는 모양 — 속성 값의 따옴표·꺾쇠는 모두 이스케이프돼 있다)
+     */
+    public static String figures(String safeHtml) {
+        if (safeHtml == null || !safeHtml.contains("<fig")) {
+            return safeHtml;
+        }
+        StringBuilder out = new StringBuilder(safeHtml.length());
+        Matcher m = FIGURE_BLOCK.matcher(safeHtml);
+        int last = 0;
+        while (m.find()) {
+            out.append(FIGURE_TAG.matcher(safeHtml.substring(last, m.start())).replaceAll(""));
+            out.append("<figure");
+            Matcher align = ALIGN_ATTR.matcher(m.group(1));
+            if (align.find()) {
+                out.append(" data-align=\"").append(align.group(1)).append('"');
+            }
+            Matcher width = WIDTH_ATTR.matcher(m.group(1));
+            if (width.find()) {
+                out.append(" data-width=\"").append(width.group(1)).append('"');
+            }
+            out.append('>').append(m.group(2));
+            String caption = m.group(3) == null ? "" : captionText(m.group(3));
+            if (!caption.isEmpty()) {
+                out.append("<figcaption>").append(HtmlUtils.htmlEscape(caption)).append("</figcaption>");
+            }
+            out.append("</figure>");
+            last = m.end();
+        }
+        out.append(FIGURE_TAG.matcher(safeHtml.substring(last)).replaceAll(""));
+        return out.toString();
+    }
+
+    /** 캡션 HTML → 서식 없는 글자(태그를 떼고 엔티티를 풀고 공백을 하나로, 최대 {@link #CAPTION_MAX}자) */
+    private static String captionText(String html) {
+        String text = HtmlUtils.htmlUnescape(TAG.matcher(html).replaceAll(" ")).replace(' ', ' ').replace("\u0000", "");
+        return limit(text.replaceAll("\\s+", " ").strip());
+    }
+
+    /** 앞에서부터 {@link #CAPTION_MAX} 코드 포인트까지 */
+    private static String limit(String text) {
+        if (text.codePointCount(0, text.length()) <= CAPTION_MAX) {
+            return text;
+        }
+        return text.substring(0, text.offsetByCodePoints(0, CAPTION_MAX)).strip();
     }
 
     /**
@@ -266,15 +340,33 @@ public final class RichText {
         };
     }
 
-    /** 표식 속성이 있고 값이 형식에 맞을 때만 요소를 남긴다(없으면 요소만 지우고 안의 글자는 남긴다) */
-    private static ElementPolicy requireAttribute(String attribute, Pattern valuePattern) {
+    /**
+     * 이미지 표식 — {@code data-image-id} 가 숫자일 때만 남기고, 속성을 {@code data-image-id}·{@code alt} 차례로 다시 쓴다.
+     * 대체 텍스트는 공백을 하나로 줄여 {@link #CAPTION_MAX}자까지, 비면 뺀다(주소·크기 같은 다른 속성은 이미 정화기가 버렸다).
+     */
+    private static ElementPolicy imageMarker() {
         return (elementName, attributes) -> {
+            String id = null;
+            String alt = null;
             for (int i = 0; i + 1 < attributes.size(); i += 2) {
-                if (attributes.get(i).equalsIgnoreCase(attribute) && valuePattern.matcher(attributes.get(i + 1)).matches()) {
-                    return elementName;
+                String name = attributes.get(i).toLowerCase(Locale.ROOT);
+                if ("data-image-id".equals(name) && DIGITS.matcher(attributes.get(i + 1)).matches()) {
+                    id = attributes.get(i + 1);
+                } else if ("alt".equals(name)) {
+                    alt = limit(attributes.get(i + 1).replace("\u0000", "").replaceAll("\\s+", " ").strip());
                 }
             }
-            return null;
+            attributes.clear();
+            if (id == null) {
+                return null;
+            }
+            attributes.add("data-image-id");
+            attributes.add(id);
+            if (alt != null && !alt.isEmpty()) {
+                attributes.add("alt");
+                attributes.add(alt);
+            }
+            return elementName;
         };
     }
 

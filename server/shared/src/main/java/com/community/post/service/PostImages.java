@@ -24,7 +24,8 @@ import org.springframework.web.util.HtmlUtils;
  * <ul>
  *   <li><b>쓸 수 있는 이미지</b>: 글쓴이가 올린 아직 쓰이지 않은(PENDING) 글 이미지, 또는 (고치기) 이 글이 이미 쓰던 이미지. 그 밖(없는 ID·남의 이미지·다른 글이 쓰는 이미지)은
  *       구별해 알리지 않고 {@code 400 VALIDATION fields.content}(「이미지를 찾을 수 없어요」) — 표식을 조용히 지우지 않는다.</li>
- *   <li>표식은 서버가 만든 태그로 바뀐다: {@code <img src="(저장소 주소)" data-image-id="ID" width height alt="" loading="lazy">} — 사용자 입력이 한 글자도 섞이지 않는다.</li>
+ *   <li>표식은 서버가 만든 태그로 바뀐다: {@code <img src="(저장소 주소)" data-image-id="ID" width height alt="(대체 텍스트)" loading="lazy">} — 주소·크기에 사용자 입력이 섞이지 않는다.
+ *       대체 텍스트만 글쓴이가 쓴 값이고, 정화기가 이스케이프한 값 그대로 넣는다(없으면 빈 글자).</li>
  *   <li>저장 트랜잭션 안에서 이미지 행을 쓰기 잠금으로 다시 읽어 확인하고 글에 붙인다(IN_USE + 글 ID). 정리 배치도 같은 행을 잠그고 상태를 다시 보므로 붙이는 중인 이미지를 지우지 못한다.
  *       고치면서 본문에서 빠진 이미지는 PENDING 으로 돌아가 정리 배치가 지운다. 지운 글의 이미지도 정리 배치가 지운다({@code FileRepositoryQDSL#abandonedPostImages}).</li>
  * </ul>
@@ -79,7 +80,7 @@ public class PostImages {
         Map<Long, FileEntity> found = new HashMap<>();
         files.lockPostImages(distinct).forEach(f -> found.put(f.getId(), f));
         requireUsable(distinct, found, authorId, postId, field);
-        String html = RichText.expandImages(safeHtml, id -> tag(found.get(id)));
+        String html = RichText.expandImages(safeHtml, (id, alt) -> tag(found.get(id), alt));
         for (FileEntity file : found.values()) {
             file.attachToPost(postId, now);
         }
@@ -112,12 +113,12 @@ public class PostImages {
         return file.getStatus() == FileStatus.PENDING && authorId != null && authorId.equals(file.getUploadedByUser());
     }
 
-    /** 서버가 정하는 이미지 태그 — 주소는 저장소가, 크기는 장부가 준다 */
-    private String tag(FileEntity file) {
+    /** 서버가 정하는 이미지 태그 — 주소는 저장소가, 크기는 장부가 준다. {@code alt} 는 정화기가 이스케이프한 대체 텍스트(없으면 빈 글자) */
+    private String tag(FileEntity file, String alt) {
         if (file == null) {
             return null;
         }
         return "<img src=\"" + HtmlUtils.htmlEscape(storage.publicUrl(file.getStorageKey())) + "\" data-image-id=\"" + file.getId() + "\" width=\""
-                + file.getWidth() + "\" height=\"" + file.getHeight() + "\" alt=\"\" loading=\"lazy\">";
+                + file.getWidth() + "\" height=\"" + file.getHeight() + "\" alt=\"" + alt + "\" loading=\"lazy\">";
     }
 }

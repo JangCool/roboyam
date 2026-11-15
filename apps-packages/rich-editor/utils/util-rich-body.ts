@@ -128,6 +128,8 @@ function enhanceImage(t: Translate, img: HTMLImageElement): void {
     img.decoding = 'async';
     const width = positive(img.getAttribute('width'));
     const height = positive(img.getAttribute('height'));
+    // 크기를 고른 이미지 묶음(25·50·75%)이라도 원본보다 크게 늘리지 않는다(CSS 는 `width` 속성을 읽어 상한을 걸 수 없다)
+    if (width && img.parentElement?.matches('figure[data-width]')) img.style.maxWidth = `min(100%, ${width}px)`;
     if (!UtilRichMedia.safeImageUrl(img.getAttribute('src'))) {
         showImageFailure(t, img, width, height);
         return;
