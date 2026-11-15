@@ -2,6 +2,7 @@
     <!--
         팁·강좌·사용기 「이번 주 추천」 가젯(`TIPS_HEADLINE` — `/tips` 배치에만, tips-contract 「/tips 레이아웃 편집」) — 큰 카드 1 + 작은 카드 4(홈 하이라이트와 같은 크기, 사용자 2026-11-07).
         `/tips` 화면이 보이는 첫 이 가젯을 제목 카드 안 굵은 밑줄 아래에 넣는다(편집 중이면 격자에 그대로). 데이터는 화면이 나눠 주는 `useTipsShared`(머리 몫 `GET /api/tips`) — `/tips` 밖이면 그리지 않는다.
+        작은 카드는 제목 한 줄 · 본문 한 줄 · 메타(2026-11-15 사용자 — 「내용도 나오게」).
         칸 나누기는 가젯 폭(`@container`): 넓으면(36rem~) 큰 카드 왼쪽 · 작은 카드 오른쪽 세로 목록, 좁으면 위아래 + 작은 카드는 옆으로 민다(`relative` — 안의 절대 위치 글자가 문서를 넓히지 않게).
     -->
     <GadgetFrame v-if="tips" :gadget="gadget" :empty="false">
@@ -62,7 +63,9 @@
                             >
                                 <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-full @min-[36rem]:w-20 @min-[36rem]:shrink-0" />
                                 <div class="min-w-0 flex-1">
-                                    <p class="line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">{{ row.title }}</p>
+                                    <!-- 제목 한 줄 · 본문 한 줄(넘치면 말줄임 — 사용자 2026-11-15) -->
+                                    <p class="m-0 truncate text-[0.9375rem] font-semibold leading-snug group-hover:underline">{{ row.title }}</p>
+                                    <p v-if="row.excerpt" class="m-0 mt-0.5 truncate text-[0.8125rem] leading-snug text-muted-color" data-testid="tips-side-excerpt">{{ row.excerpt }}</p>
                                     <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
                                         <span class="font-semibold" :class="tips.boardStyle(row) ? '' : 'text-color'" :style="tips.boardStyle(row)">{{ tips.boardName(row) }}</span>
                                         <span aria-hidden="true">·</span>
