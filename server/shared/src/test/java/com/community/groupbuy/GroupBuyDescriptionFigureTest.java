@@ -18,8 +18,25 @@ class GroupBuyDescriptionFigureTest {
                 + "<img src=\"https://cdn.example.com/a.jpg\" data-image-id=\"7\" alt=\"사진\" width=\"800\" height=\"600\">"
                 + "<figcaption>정면 <b>모습</b></figcaption></figure>";
 
-        assertThat(GroupBuyDescriptionHtml.sanitize(raw))
-                .isEqualTo("<figure data-align=\"center\" data-width=\"50\">" + IMG + "<figcaption>정면 모습</figcaption></figure>");
+        assertThat(GroupBuyDescriptionHtml.sanitize(raw)).isEqualTo("<figure data-align=\"center\" data-width=\"50\">"
+                + "<img src=\"https://cdn.example.com/a.jpg\" data-image-id=\"7\" alt=\"사진\" width=\"800\" height=\"600\" />"
+                + "<figcaption>정면 모습</figcaption></figure>");
+    }
+
+    @Test
+    void 이미지_표식은_숫자일_때만_남는다_고치기_화면이_다시_읽는다() {
+        assertThat(GroupBuyDescriptionHtml.sanitize("<img src=\"/media/p/1.webp\" data-image-id=\"42\">"))
+                .isEqualTo("<img src=\"/media/p/1.webp\" data-image-id=\"42\" />");
+        assertThat(GroupBuyDescriptionHtml.sanitize("<img src=\"/media/p/1.webp\" data-image-id=\"x1\">")).isEqualTo("<img src=\"/media/p/1.webp\" />");
+        assertThat(GroupBuyDescriptionHtml.sanitize("<img src=\"/media/p/1.webp\" data-image-id=\"0\">")).isEqualTo("<img src=\"/media/p/1.webp\" />");
+    }
+
+    @Test
+    void 정화한_결과를_다시_정화해도_같다() {
+        String once = GroupBuyDescriptionHtml.sanitize("<figure data-align=\"right\" data-width=\"75\"><img src=\"/media/p/1.webp\" data-image-id=\"42\" alt=\"옆모습\">"
+                + "<figcaption>옆 &amp; 뒤</figcaption></figure>");
+
+        assertThat(GroupBuyDescriptionHtml.sanitize(once)).isEqualTo(once);
     }
 
     @Test

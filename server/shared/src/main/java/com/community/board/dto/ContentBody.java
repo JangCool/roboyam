@@ -37,18 +37,25 @@ public record ContentBody(ContentFormat format, String content, String plain, in
         return format == ContentFormat.HTML;
     }
 
-    /** 금지어 검사에 넘길 글자 — 보이는 글자 + 링크 주소 */
+    /** 금지어 검사에 넘길 글자 — 보이는 글자 + 링크 주소 + (HTML) 이미지 대체 텍스트 */
     public String wordsHaystack() {
-        return hrefs.isEmpty() ? plain : plain + "\n" + String.join("\n", hrefs);
+        List<String> alts = isHtml() ? RichText.altTexts(content) : List.of();
+        if (hrefs.isEmpty() && alts.isEmpty()) {
+            return plain;
+        }
+        StringBuilder haystack = new StringBuilder(plain);
+        hrefs.forEach(href -> haystack.append('\n').append(href));
+        alts.forEach(alt -> haystack.append('\n').append(alt));
+        return haystack.toString();
     }
 
-    /** 금지어 가림 방식이면 가린 본문(HTML 은 태그 밖 글자만 가리고 보이는 글자를 다시 뽑는다). 거부 방식·꺼짐이면 그대로 */
+    /** 금지어 가림 방식이면 가린 본문(HTML 은 태그 밖 글자와 이미지 대체 텍스트만 가리고 보이는 글자를 다시 뽑는다). 거부 방식·꺼짐이면 그대로 */
     public ContentBody masked(BoardSecurityValues sec) {
         if (!isHtml()) {
             String content = ContentRules.mask(sec, this.content);
             return content.equals(this.content) ? this : new ContentBody(format, content, content, links, images, imageIds, hrefs, videos);
         }
-        String html = RichText.maskText(content, text -> ContentRules.mask(sec, text));
+        String html = RichText.maskAlts(RichText.maskText(content, text -> ContentRules.mask(sec, text)), text -> ContentRules.mask(sec, text));
         return html.equals(content) ? this : new ContentBody(format, html, RichText.plainText(html), links, images, imageIds, hrefs, videos);
     }
 }

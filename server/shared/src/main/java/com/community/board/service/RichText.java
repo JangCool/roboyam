@@ -201,6 +201,40 @@ public final class RichText {
         return ids;
     }
 
+    /** 이미지 표식의 대체 텍스트들(엔티티를 푼 값, 본문 순서, 빈 것은 뺀다) — 보이지 않는 글자라도 금지어 검사는 본다 */
+    public static List<String> altTexts(String safeHtml) {
+        List<String> out = new ArrayList<>();
+        if (safeHtml == null || safeHtml.isEmpty()) {
+            return out;
+        }
+        Matcher m = IMG_MARKER.matcher(safeHtml);
+        while (m.find()) {
+            if (m.group(2) != null && !m.group(2).isEmpty()) {
+                out.add(HtmlUtils.htmlUnescape(m.group(2)));
+            }
+        }
+        return out;
+    }
+
+    /** 이미지 표식의 대체 텍스트에 {@code mask} 를 건다(금지어 가림 — {@link #maskText} 는 속성을 건드리지 않으므로 따로 부른다). 바뀐 값만 다시 이스케이프한다 */
+    public static String maskAlts(String safeHtml, UnaryOperator<String> mask) {
+        if (safeHtml == null || safeHtml.isEmpty()) {
+            return safeHtml;
+        }
+        return IMG_MARKER.matcher(safeHtml).replaceAll(match -> {
+            String alt = match.group(2);
+            if (alt == null || alt.isEmpty()) {
+                return Matcher.quoteReplacement(match.group());
+            }
+            String text = HtmlUtils.htmlUnescape(alt);
+            String masked = mask.apply(text);
+            if (masked.equals(text)) {
+                return Matcher.quoteReplacement(match.group());
+            }
+            return Matcher.quoteReplacement("<img data-image-id=\"" + match.group(1) + "\" alt=\"" + HtmlUtils.htmlEscape(masked) + "\" />");
+        });
+    }
+
     /** 영상 표식 수(YouTube + 그 밖의 플랫폼) */
     public static int videoCount(String safeHtml) {
         return count(VIDEO_MARKER, safeHtml);

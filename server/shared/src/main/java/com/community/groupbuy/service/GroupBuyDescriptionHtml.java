@@ -9,7 +9,7 @@ import org.owasp.html.PolicyFactory;
 /**
  * 상품 설명 HTML 정화(계약 결정 2 — 공용 편집기 {@code @irobit/rich-editor} 가 만든 HTML 도 <b>서버에서 반드시</b> 거친다, OWASP Java HTML Sanitizer). 회원 상세가 이 결과를
  * {@code v-html} 로 그린다. 허용: {@code p br strong em u s blockquote ul ol li h2 h3 hr} + 링크(http·https·mailto, 늘 새 탭·{@code rel="nofollow noopener noreferrer"})
- * + 이미지({@code src} 는 https 또는 우리 미디어 경로 {@code /media/…} 만, {@code alt}·{@code width}·{@code height}). 스크립트·이벤트 속성·style·iframe 은 모두 사라진다(글자는 남는다).
+ * + 이미지({@code src} 는 https 또는 우리 미디어 경로 {@code /media/…} 만, {@code alt}·{@code width}·{@code height}, 에디터가 다시 읽는 표식 {@code data-image-id}(숫자)). 스크립트·이벤트 속성·style·iframe 은 모두 사라진다(글자는 남는다).
  * + 이미지 묶음(에디터 이미지 도구 — {@code figure} 의 {@code data-align} left·center·right, {@code data-width} 25·50·75, {@code figcaption} 은 서식 없는 글자 200자까지).
  * 묶음 모양은 글 본문과 같은 {@link RichText#figures} 로 맞춘다.
  */
@@ -21,6 +21,7 @@ public final class GroupBuyDescriptionHtml {
     private static final Pattern MEDIA_OR_HTTPS = Pattern.compile("^(https://[^\\s\"'<>]+|/media/[A-Za-z0-9/_.\\-]+)$");
     private static final Pattern NUMBER = Pattern.compile("^[0-9]{1,4}$");
     private static final Pattern REL = Pattern.compile(" rel=\"(?:(?:nofollow|noopener|noreferrer) ?){3}\"");
+    private static final Pattern IMAGE_ID = Pattern.compile("^[1-9][0-9]{0,18}$");
     private static final Pattern ALIGN = Pattern.compile("left|center|right");
     private static final Pattern WIDTH = Pattern.compile("25|50|75");
 
@@ -33,6 +34,8 @@ public final class GroupBuyDescriptionHtml {
             .allowAttributes("src").matching(MEDIA_OR_HTTPS).onElements("img")
             .allowAttributes("alt").onElements("img")
             .allowAttributes("width", "height").matching(NUMBER).onElements("img")
+            // 에디터가 저장된 이미지를 다시 읽는 표식(`img[data-image-id]`) — 없으면 고치기 화면에서 이미지가 사라진다. 주소는 위 src 규칙이 따로 막는다
+            .allowAttributes("data-image-id").matching(IMAGE_ID).onElements("img")
             .allowElements("figure", "figcaption")
             .allowAttributes("data-align").matching(ALIGN).onElements("figure")
             .allowAttributes("data-width").matching(WIDTH).onElements("figure")
