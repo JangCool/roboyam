@@ -2,8 +2,8 @@
     <!--
         핫딜 가젯(`HOT_DEALS` — `hotdeal-contract.md` 「가젯 `HOT_DEALS` 설정」) — 진행 중인 핫딜을 가격 줄 작은 목록으로(썸네일 · 배지 · 제목 · 몰 이름 · 할인율 · 딜가 · 정상가 · 배송비). 설정 `thumbnails` 를 끄면 사진 없이 두 줄.
         줄은 서버가 가젯 설정(`boards`·`sort`·`count`)대로 골라 `data.items` 에 싣는다(컴포넌트는 서버를 부르지 않는다). 줄 모양은 핫딜 목록 줄(`HotdealRowItem compact`)과 같다.
-        목록 아래 「핫딜 더 보기 →」(05 §2-15) — 가젯 머리의 「더보기」 대신 이것 하나만 그린다(틀에는 `more` 를 빼고 넘긴다). 갈 곳은 서버 `data.more.to` 가 있으면 그것,
-          그다음 가젯 `more.to`(운영자 꾸미기), 둘 다 없으면 설정 게시판 첫 번째 → 비었으면(모든 핫딜 게시판) 첫 줄의 게시판.
+        「더보기」는 다른 가젯처럼 머리 오른쪽(사용자 2026-11-15 — 목록 아래 「핫딜 더 보기 →」 줄을 없애 가젯 높이를 줄였다). 갈 곳은 서버 `data.more.to` 가 있으면 그것,
+          그다음 가젯 `more.to`(운영자 꾸미기), 둘 다 없으면 설정 게시판 첫 번째 → 비었으면(모든 핫딜 게시판) 첫 줄의 게시판. 이름은 운영자 `more.label`, 없으면 틀의 기본(「더보기」).
         비면 `GadgetFrame` 의 빈 상태(기본 꾸미기는 영역을 그리지 않는다). 마우스 올림 효과(설정 `hover`)는 줄에 옅은 바탕(`gadget-hover` — 줄 부품 뿌리 링크에 클래스로 넘긴다, `main.css`). 홈·가젯 페이지·게시판 레이아웃이 같이 쓴다.
     -->
     <GadgetFrame :gadget="frameGadget" :empty="gadget.empty || items.length === 0" empty-icon="pi pi-tag">
@@ -12,14 +12,6 @@
                 <HotdealRowItem :row="row" :new-post-hours="display.newPostHours" compact :thumb="thumbnails" class="gadget-hover" />
             </li>
         </ul>
-        <NuxtLink
-            v-if="moreTo"
-            :to="moreTo"
-            class="mt-1 flex items-center justify-end gap-1 rounded py-1.5 text-[0.8125rem] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-            data-testid="home-hot-deals-more"
-        >
-            {{ gadget.more?.label || t('hotdeal.gadgetMore') }}<i class="pi pi-arrow-right text-[0.6875rem]" aria-hidden="true" />
-        </NuxtLink>
     </GadgetFrame>
 </template>
 
@@ -33,13 +25,12 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {});
 
-const { t } = useI18n();
 const { display } = useBoardDisplay();
 const items = computed(() => UtilGadget.hotDealItems(props.gadget.data));
 /** 줄 사진 — 설정 `thumbnails`(기본 켬) */
 const thumbnails = computed(() => UtilGadget.hotDealsConfig(props.gadget.config).thumbnails);
-/** 틀의 「더보기」는 그리지 않는다 — 목록 아래 「핫딜 더 보기 →」 하나로 */
-const frameGadget = computed<Gadget>(() => ({ ...props.gadget, more: null }));
+/** 틀의 머리 「더보기」 — 갈 곳은 아래 `moreTo` */
+const frameGadget = computed<Gadget>(() => ({ ...props.gadget, more: moreTo.value ? { to: moreTo.value, label: props.gadget.more?.label ?? null } : null }));
 const moreTo = computed(() => {
     if (props.gadget.locked || items.value.length === 0) return '';
     const fromData = UtilGadget.hotDealsMoreTo(props.gadget.data);

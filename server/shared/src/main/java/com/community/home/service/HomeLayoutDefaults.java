@@ -123,14 +123,15 @@ public final class HomeLayoutDefaults {
      *   PC   [새소식(뉴스 게시판 · LINE · 두 열 · 첫 글 작은 사진)            ] [인기글     ]
      *        [핫 아이로 픽(PC 전용 · 좁은 칸 LIST)] [최신글(PC 전용 · 모바일과 같은      ] [광고       ]
      *        [상단 띠 배너(반 폭)                 ]  두 줄 모양 · 핫딜 끝까지 길게)     ] [인기 소모임]
-     *        [핫딜(PC 전용 · 사진 없음 · 최신순)  ] [                                 ]
-     *        [팁과강좌] [사용기] → [영상·짤] → [띠 배너]                         [공동구매(PC 전용)]
+     *        [핫딜(PC 전용 · 최신순 · 5개)        ] [                                 ]
+     *        [띠 배너                                                         ]
+     *        [팁과강좌] [사용기] → [영상·짤]                                     [공동구매(PC 전용)]
      *        [핫 아이로 픽(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다(배치표 맨 아래)
      *   모바일(배치의 모바일 순서 mobileOrder — PC 배치와 따로) 새소식 → 상단 띠 배너 → 인기글 → 핫 아이로 픽(모바일 전용) → 최신글(모바일 전용) → 광고
      *        → 팁과강좌 → 사용기 → 인기 소모임 → 영상·짤 → 띠 배너
      * </pre>
      * 모바일 순서는 home-news-contract 「모바일 순서」(이미 설치된 곳은 shared V213 이 같은 순서를 넣는다). 아래 자리의 한 열 계산 차례는 모바일 순서가 없을 때(운영자가 「PC 배치 따르기」)만 쓰인다.
-     * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). PC 첫 줄 아래(2026-11-15 사용자): 최신글(PC)을 핫딜 끝까지 길게(h19),
+     * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). PC 첫 줄 아래(2026-11-15 사용자): 최신글(PC)을 핫딜 끝까지 길게(15개),
      * 왼쪽은 핫 아이로 픽 → 상단 띠 배너(반 폭) → 핫딜, 그 아래 팁과강좌·사용기. 모바일 전용 두 가젯은 PC 에서 숨으니 배치표 맨 아래에 둔다(모바일 화면 차례는 모바일 순서가 정한다 — 이미 설치된 곳은 shared V218).
      * 최신글(PC 전용·모바일 전용)은 뉴스 게시판 글을 뺀다({@code excludeBoardIds ["news"]} — 새소식이 따로 보여 준다, 이미 설치된 곳은 shared V214).
      * 새소식은 태그 탭 {@link #IROBIT_NEWS_TAG_TABS}(post-tags-contract — 이미 설치된 곳은 shared V215).
@@ -154,28 +155,29 @@ public final class HomeLayoutDefaults {
         b.add("HIGHLIGHT", "핫 아이로 픽", true, false, plain("pi-sparkles").put("bottomSpace", "TIGHT"),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         // 최신글(PC) — 모바일 최신글과 같은 두 줄 모양(제목 / 게시판 · 시간 …… 추천), 한 열, 핫딜 끝까지 길게
-        b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"), latestTwoLine(1, IROBIT_PC_LATEST_COUNT), null, "/latest", 9, 12, 9, 19);
-        String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 20, 9, 3);
+        b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"), latestTwoLine(1, IROBIT_PC_LATEST_COUNT), null, "/latest", 9, 12, 9, 18);
+        String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 20, 9, 2);
         b.add(GadgetKinds.HOT_DEALS, "핫딜", true, false, plain("pi-ticket"),
-                cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", false), null, null, 0, 23, 9, 8);
+                cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", true), null, null, 0, 22, 9, 8);
         String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
         String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 17, 6, 7);
-        String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 31, 9, 8);
-        String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 31, 9, 8);
+        String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 33, 9, 8);
+        String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 33, 9, 8);
         String gallery = b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
-                0, 39, 18, 8);
-        String strip = b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 47, 18, 3);
+                0, 41, 18, 8);
+        // 띠 배너 — 핫딜·최신글 아래, 팁과강좌·사용기 위(본문 전체 폭 — 사용자 2026-11-15)
+        String strip = b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 30, 18, 3);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), cfg().put("sort", "DEADLINE").put("count", 5), null, null,
-                17, 50, 7, 13);
+                17, 49, 7, 13);
         // 모바일 전용 — PC 에서 숨으니 배치표 맨 아래(모바일 화면 차례는 아래 모바일 순서)
         String pickMobile = b.add("HIGHLIGHT", "핫 아이로 픽", false, true, plain("pi-sparkles"),
-                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 63, 9, 8);
-        String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 63, 9, 9);
+                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 62, 9, 8);
+        String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 62, 9, 9);
         // 모바일 한 열 순서(home-news-contract 「모바일 순서」) — PC 전용(핫 아이로 픽·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
         return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, tips, reviews, groups, gallery, strip));
     }
 
-    /** 아이로빗 최신글(PC)의 글 수 — 길게 늘린 칸(h19)에 두 줄 모양으로 들어가는 만큼 */
+    /** 아이로빗 최신글(PC)의 글 수 — 왼쪽 열(핫 아이로 픽 + 띠 배너 + 핫딜) 높이에 두 줄 모양으로 들어가는 만큼(로컬 1920 폭에서 잼) */
     public static final int IROBIT_PC_LATEST_COUNT = 15;
 
     /** 아이로빗 최신글 두 줄 모양(모바일 최신글과 같다 — 제목 한 줄 / 게시판 · 댓글 · 시간 · 추천 아이콘, 사진 없음, 줄 간격 좁게, 뉴스 게시판 뺌) */

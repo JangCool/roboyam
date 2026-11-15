@@ -150,23 +150,30 @@ export default class UtilGadgetGrid {
         /** 같은 줄(같은 y·h) 가젯들의 함께 쓰는 위 끝 */
         const groupTops = new Map<string, number>();
         const ordered = UtilHomeLayout.byReadingOrder(items);
+        /**
+         * 위 끝보다 짧게 끝난 열을 늘려 붙인다 — 이 가젯 폭 안에 든 열의 맨 아래 가젯(그 아래에 열이 겹치는 다른 가젯이 없는 것)을 모자란 만큼 늘린다.
+         * 같은 줄 가젯이 위 끝을 맞출 때와, 여러 열에 걸친 가젯(본문 전체 폭 띠 배너 등)이 긴 열 아래에서 시작할 때 짧은 열에 빈틈이 생기지 않게(2026-11-15 홈 핫딜 배치) — 카드는 칸을 채운다(`[&>*]:grow`).
+         */
+        const fillAbove = (it: HomeLayoutItem, top: number) => {
+            // 바로 위 가젯(열이 겹치는 것 중 그 아래에 열이 겹치는 다른 가젯이 없는 것)이 모두 이 가젯 폭 안일 때만 — 일부만 걸친 가젯(오른쪽 열에 반쯤 걸친 공동구매 등) 아래에서 다른 열을 늘리지 않게
+            const floor = placed.filter((p) => overlapsX(p, it) && !placed.some((q) => q !== p && overlapsX(q, p) && q.top > p.top));
+            if (floor.some((p) => p.x < it.x || p.x + p.w > it.x + it.w)) return;
+            for (const p of floor) {
+                const gap = top - (p.top + p.height + UtilHomeLayout.GAP);
+                if (gap > 0) p.height += gap;
+            }
+        };
         for (const it of ordered) {
             const group = groups.get(rowKey(it))!;
             const aligned = group.size > 1;
             let top = columnTop(it);
             if (aligned) {
-                // 같은 줄은 위 끝도 맞춘다 — 위 열 길이가 달라도 나란히(2026-11-15 홈 핫딜 배치: 왼쪽 열이 길면 사용기만 위로 올라갔다).
-                // 짧은 열의 맨 아래 가젯(그 칸 폭 안에 든 것)은 모자란 만큼 늘려 빈틈 없이 붙인다 — 카드는 칸을 채운다(`[&>*]:grow`).
+                // 같은 줄은 위 끝도 맞춘다 — 위 열 길이가 달라도 나란히(2026-11-15 홈 핫딜 배치: 왼쪽 열이 길면 사용기만 위로 올라갔다)
                 const key = rowKey(it);
                 if (!groupTops.has(key)) groupTops.set(key, Math.max(...ordered.filter((m) => rowKey(m) === key).map(columnTop)));
-                const shared = groupTops.get(key)!;
-                if (shared > top) {
-                    let last: GadgetGridCell | null = null;
-                    for (const p of placed) if (overlapsX(p, it) && (!last || p.top + p.height > last.top + last.height)) last = p;
-                    if (last && last.x >= it.x && last.x + last.w <= it.x + it.w && last.top + last.height + UtilHomeLayout.GAP === top) last.height += shared - top;
-                    top = shared;
-                }
+                top = Math.max(top, groupTops.get(key)!);
             }
+            fillAbove(it, top);
             placed.push({ ...it, top, height: aligned ? group.height : own(it), aligned });
         }
         return placed;
