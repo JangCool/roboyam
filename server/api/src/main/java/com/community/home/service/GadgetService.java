@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -79,7 +80,7 @@ import tools.jackson.databind.JsonNode;
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.
- *       {@code lead: THUMB} 이면 첫 글(기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.</li>
+ *       {@code lead: THUMB} 이면 사진 줄이 되는 글(첫 글 · 모바일 쪽 넘기기면 쪽마다 첫 글, 기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.</li>
  *   <li>{@code HIGHLIGHT}: 설정 {@code place}(기본 home — 없는 곳도 home, V161)의 노출 중인 하이라이트(관리자 순서, {@link HighlightPicks}), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
@@ -410,32 +411,37 @@ public class GadgetService {
         if (!GadgetConfigs.LEAD_THUMB.equals(HomeLayoutJson.text(config, "lead", null))) {
             return d;
         }
-        // 첫 글 작은 사진 줄(home-news-contract) — 첫 글에만 본문 앞부분 글자. 목록 조회에 본문을 끼우지 않고 그 글 하나만 따로 읽는다
+        // 첫 글 작은 사진 줄(home-news-contract) — 사진 줄이 되는 글에만 본문 앞부분 글자: 첫 글 + 모바일 쪽 넘기기면 쪽마다 첫 글(사용자 2026-11-15).
+        // 목록 조회에 본문을 끼우지 않고 그 글들만 따로 읽는다(쪽 수 최대 3 — 글 셋까지)
+        int pages = Math.clamp(config.path("mobilePages").asInt(1), 1, 3);
+        int pageSize = Math.clamp(config.path("mobilePageSize").asInt(5), 3, 10);
         Map<String, String> read = new LinkedHashMap<>();
-        Function<List<PostFeedRowView>, List<PostFeedRowView>> lead = list -> {
+        BiFunction<List<PostFeedRowView>, Integer, List<PostFeedRowView>> lead = (list, leads) -> {
             if (list == null || list.isEmpty()) {
                 return list;
             }
-            PostFeedRowView first = list.getFirst();
-            if (!read.containsKey(first.id())) {
-                read.put(first.id(), excerptOf(first)); // 기간 탭의 첫 글이 같으면 한 번만 읽는다
-            }
-            String excerpt = read.get(first.id());
-            if (excerpt == null) {
-                return list;
-            }
             List<PostFeedRowView> out = new ArrayList<>(list);
-            out.set(0, first.withExcerpt(excerpt));
+            for (int k = 0; k < leads; k++) {
+                int i = k * pageSize;
+                if (i >= out.size()) {
+                    break;
+                }
+                PostFeedRowView row = out.get(i);
+                String excerpt = read.computeIfAbsent(row.id(), id -> excerptOf(row)); // 같은 글이면 한 번만 읽는다
+                if (excerpt != null) {
+                    out.set(i, row.withExcerpt(excerpt));
+                }
+            }
             return List.copyOf(out);
         };
         Map<String, List<PostFeedRowView>> periods = null;
         if (d.periods() != null) {
             periods = new LinkedHashMap<>();
             for (Map.Entry<String, List<PostFeedRowView>> e : d.periods().entrySet()) {
-                periods.put(e.getKey(), lead.apply(e.getValue()));
+                periods.put(e.getKey(), lead.apply(e.getValue(), 1)); // 기간 탭 목록은 쪽 넘기기를 쓰지 않는다
             }
         }
-        return new PostListDataView(lead.apply(d.items()), periods);
+        return new PostListDataView(lead.apply(d.items(), periods == null ? pages : 1), periods);
     }
 
     /** 글 하나의 본문 앞부분 글자(팁 묶음 요약과 같은 다듬기 — {@link TipsService#excerpt}) — 가려진 글·19금 글은 읽지 않고 null */
