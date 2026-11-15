@@ -30,6 +30,11 @@ public final class AiMemberRules {
     public static final int BUSY_INTERVAL_MAX = 90;
     public static final int DAILY_POST_MAX_MIN = 0;
     public static final int DAILY_POST_MAX_MAX = 5;
+    /** 계정별 하루 새 글 상한(V223 — 비우면 공통 설정 값). 기자 같은 계정은 하루 10건 이상 */
+    public static final int ACCOUNT_DAILY_POST_MIN = 0;
+    public static final int ACCOUNT_DAILY_POST_MAX = 50;
+    /** 자기 상한이 있는 계정의 새 글 간격 하한(분) — 간격 = 활동 창 길이 ÷ 상한, 이보다 짧게는 쓰지 않는다 */
+    public static final int ACCOUNT_POST_GAP_MIN_MINUTES = 15;
     /** 한 곳(게시판·소모임)에 새 글을 시도한 뒤 다음 시도까지 쉬는 분 — 실패·버림 뒤 같은 곳을 바퀴마다 다시 부르지 않게 */
     public static final int PLACE_RETRY_MINUTES = 60;
     /** 하루 호출 상한 범위 */

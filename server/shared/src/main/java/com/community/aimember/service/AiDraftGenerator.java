@@ -60,14 +60,16 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>글 — 글 쓰는 때</b>(V191, 모든 계정 공통 설정 {@link AiMemberSettingsEntity.PostTiming} — 계정별 「하루 글 수」 대신): 바퀴마다 곳(고른 게시판 · 가입한 AI 전용 소모임)을 본다.
  *       ① 그곳에 {@code quietDays}일 동안 새 글(사람·AI 모두 — 삭제·숨김 제외)이 없으면 한 건 ② 있으면 그곳의 마지막 AI 회원 글이 {@code busyIntervalDays}일보다 오래됐을 때만 한 건.
  *       대기·승인 중인 새 글이 있는 곳, {@value AiMemberRules#PLACE_RETRY_MINUTES}분 안에 새 글을 시도한 곳(실패·버림 포함)은 건너뛴다. 쓰는 계정은 그곳을 고른 계정 중 지금 활동 창 안 ·
- *       쉬지 않음 · 오늘 새 글 시도가 {@code dailyPostMax} 미만인 계정에서 가장 오래 새 글을 안 쓴 계정(한 바퀴에 곳마다 한 건, 계정마다 한 곳). 질의는 곳별 최근 글 시각을 한 번에({@link AiMemberQueries#latestPosts}).</li>
+ *       쉬지 않음 · 오늘 새 글 시도가 {@code dailyPostMax} 미만인 계정에서 가장 오래 새 글을 안 쓴 계정(한 바퀴에 곳마다 한 건, 계정마다 한 곳). 질의는 곳별 최근 글 시각을 한 번에({@link AiMemberQueries#latestPosts}).
+ *       <b>계정별 상한</b>(V223 — 기자 등): 계정에 하루 상한이 있으면 공통 값 대신 그 값이고, 그 계정은 ①② · 대기 중인 곳 · 곳 재시도 60분을 보지 않고 자기 간격(활동 창 길이 ÷ 상한,
+ *       최소 {@value AiMemberRules#ACCOUNT_POST_GAP_MIN_MINUTES}분)마다 고른 곳 중 하나에 쓴다(보통 계정보다 먼저 곳을 잡는다).</li>
  *   <li><b>글 방식</b>(V191 {@link AiVoice}): 강아지·고양이 소리 계정은 뉴스 글·분위기·문단 나누기 없이 동물 소리 지시로 쓰고, 본문을 {@value AiPrompts#ANIMAL_BODY_MAX}자로 자른다.</li>
  *   <li><b>댓글 규칙</b>(서버에서 강제): ① 다른 AI 글에 첫 댓글 — 글마다 1~2개({@link AiMemberRules#firstCommentTarget}), 계정마다 한 글에 하나 ② 내 글에 달린 AI 댓글에 답글 —
  *       같은 상대와 2~3번까지({@link AiMemberRules#replyRoundLimit}), 상대 AI 는 내 답글에 되받는다(차례가 남았을 때) ③ 내 글에 달린 사람 회원 댓글에 답글 — 같은 회원에게
  *       글 하나당 1~2번({@link AiMemberRules#memberReplyLimit}). <b>사람 회원 글에는 댓글을 달지 않는다</b>(설정 「회원 글 댓글 허용」이 켜졌을 때만 첫 댓글 후보에 넣는다 — 기본 꺼짐).</li>
  *   <li><b>프롬프트</b>({@link AiPrompts}): 회원 글·댓글은 인용 블록의 내용으로만 넣는다(지시가 아니다). 닉네임은 보내지 않는다. 지시문·분위기·뉴스 글 비율·문단 나누기는
  *       관리자 「프롬프트」 설정({@link AiPromptSettings} — 바퀴마다 읽고, 못 읽으면 코드 기본값).</li>
- *   <li><b>뉴스 글</b>: 보통 계정의 게시판 새 글 차례에서 설정 비율(기본 10%)로 사이트 회원이 올린 뉴스 게시판 글·「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
+ *   <li><b>뉴스 글</b>: 보통 계정의 게시판 새 글 차례에서 비율(계정별 값 V223, 없으면 공통 설정 — 기본 10%)로 사이트 회원이 올린 뉴스 게시판 글·「뉴스」 말머리 글을 소재로 쓴다({@link AiNewsSources} — 외부 API 없음). 소재가 없으면 보통 새 글.
  *       쓰는 곳은 뉴스 게시판(그 계정이 쓸 수 있을 때 — {@link AiNewsSources#newsTarget}, 말머리는 등록할 때 {@link AiNewsSources#prefixFor}), 아니면 글 차례 게시판에 말머리 없이(되돌림).
  *       본문 끝에 빈 줄 + 「참고: 「원래 글 제목」」 + 사이트 안 링크를 서버가 붙이고(링크를 지우는 정리 뒤에), 생성 줄에 소재 글({@code source_post_id})을 남겨 다시 쓰지 않는다.</li>
  *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록({@link AiContentWriter} — 공개 사이트 쓰기 경로와 같은 판정, 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
@@ -204,7 +206,8 @@ public class AiDraftGenerator {
      */
     private Map<Long, PostSlot> postSlots(List<AiMemberProfileEntity> active, AiMemberSettingsEntity.PostTiming timing, Map<Long, Map<AiDraftKind, Long>> attempts,
                                           Instant now) {
-        if (timing.dailyPostMax() <= 0) {
+        // 계정별 상한(V223)이 있으면 그 값, 없으면 공통 값 — 공통이 0 이어도 자기 상한이 있는 계정은 쓴다
+        if (active.stream().noneMatch(a -> a.dailyPostMaxOr(timing.dailyPostMax()) > 0)) {
             return Map.of();
         }
         LocalTime local = now.atZone(ServiceTime.ZONE).toLocalTime();
@@ -213,29 +216,60 @@ public class AiDraftGenerator {
         Set<Long> boardIds = new HashSet<>();
         Set<Long> groupIds = new HashSet<>();
         List<AiMemberProfileEntity> candidates = new ArrayList<>();
+        List<AiMemberProfileEntity> ownPaced = new ArrayList<>(); // 자기 상한이 있는 계정 — 게시판 「글 쓰는 때」 대신 자기 간격
         for (AiMemberProfileEntity a : active) {
             long postsToday = attempts.getOrDefault(a.getId(), Map.of()).getOrDefault(AiDraftKind.POST, 0L);
-            if (!a.activeAt(local) || postsToday >= timing.dailyPostMax()) {
+            if (!a.activeAt(local) || postsToday >= a.dailyPostMaxOr(timing.dailyPostMax())) {
                 continue; // 활동 창 밖이거나 오늘 새 글을 다 썼다
             }
             Set<PostSlot> places = new HashSet<>();
+            boolean own = a.getDailyPostMax() != null;
             for (Long id : a.getBoardIds()) {
                 if (snap.board(id).filter(b -> b.active() && !BoardFields.KIND_GROUP.equals(b.kind()) && AiMemberRules.blockedReason(b) == null).isPresent()) {
                     places.add(new PostSlot(id, null));
-                    boardIds.add(id);
+                    if (!own) {
+                        boardIds.add(id);
+                    }
                 }
             }
             for (Long g : aiGroupsOf(a.getUserId())) {
                 places.add(new PostSlot(null, g));
-                groupIds.add(g);
+                if (!own) {
+                    groupIds.add(g);
+                }
             }
             if (!places.isEmpty()) {
                 placesOf.put(a.getId(), places);
-                candidates.add(a);
+                (own ? ownPaced : candidates).add(a);
+            }
+        }
+        if (candidates.isEmpty() && ownPaced.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = new ArrayList<>();
+        candidates.forEach(a -> ids.add(a.getId()));
+        ownPaced.forEach(a -> ids.add(a.getId()));
+        Map<Long, Instant> lastPost = queries.lastPostAttempts(ids);
+        Map<Long, PostSlot> out = new HashMap<>();
+        Set<PostSlot> taken = new HashSet<>();
+        // 자기 상한 계정(V223, 기자 등): 마지막 새 글 시도에서 간격(활동 창 길이 ÷ 상한, 최소 15분)이 지났으면 고른 곳 중 하나에 — 한 바퀴에 곳마다 한 건
+        for (AiMemberProfileEntity a : ownPaced) {
+            int max = a.dailyPostMaxOr(timing.dailyPostMax());
+            long gap = Math.max(AiMemberRules.ACCOUNT_POST_GAP_MIN_MINUTES, a.activeMinutes() / Math.max(1, max));
+            Instant last = lastPost.get(a.getId());
+            if (last != null && last.isAfter(now.minus(Duration.ofMinutes(gap)))) {
+                continue;
+            }
+            List<PostSlot> mine = new ArrayList<>(placesOf.get(a.getId()));
+            mine.removeAll(taken);
+            if (!mine.isEmpty()) {
+                PostSlot slot = mine.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(mine.size()));
+                out.put(a.getId(), slot);
+                taken.add(slot);
             }
         }
         if (candidates.isEmpty()) {
-            return Map.of();
+            return out;
         }
         // ① 조용한 곳 = quietDays 안에 새 글이 없다 ② 바쁜 곳(quietDays 안에 글이 있다)은 busyIntervalDays 안에 AI 회원 글이 없을 때만
         AiMemberQueries.LatestPosts recent = queries.latestPosts(boardIds, groupIds, now.minus(Duration.ofDays(timing.quietDays())), now, false);
@@ -255,14 +289,13 @@ public class AiDraftGenerator {
                 due.add(new PostSlot(null, g));
             }
         }
+        due.removeAll(taken);
         if (due.isEmpty()) {
-            return Map.of();
+            return out;
         }
         Collections.shuffle(due);
-        Map<Long, Instant> lastPost = queries.lastPostAttempts(candidates.stream().map(AiMemberProfileEntity::getId).toList());
         // 가장 오래 새 글을 안 쓴 계정 — 한 번도 안 썼으면 맨 앞, 같으면 섞인 차례(min 은 앞의 것을 고른다)
         Comparator<AiMemberProfileEntity> oldestFirst = Comparator.comparing(a -> lastPost.getOrDefault(a.getId(), Instant.EPOCH));
-        Map<Long, PostSlot> out = new HashMap<>();
         for (PostSlot slot : due) {
             candidates.stream().filter(a -> !out.containsKey(a.getId()) && placesOf.get(a.getId()).contains(slot)).min(oldestFirst)
                     .ifPresent(a -> out.put(a.getId(), slot));
@@ -317,8 +350,9 @@ public class AiDraftGenerator {
             return null;
         }
         AiPrompts.Place place = new AiPrompts.Place(b.name(), b.description(), false);
-        // 뉴스 글 — 보통 계정의 게시판 글 차례에서 설정 비율로 시도(동물 소리 계정·소모임 글은 뉴스 글로 쓰지 않는다)
-        if (a.getVoice() == AiVoice.NORMAL && config.newsRatio() > 0 && ThreadLocalRandom.current().nextInt(100) < config.newsRatio()) {
+        // 뉴스 글 — 보통 계정의 게시판 글 차례에서 비율로 시도(계정별 비율 V223 — 기자 계정은 높게, 없으면 공통 설정). 동물 소리 계정·소모임 글은 뉴스 글로 쓰지 않는다
+        int newsRatio = a.newsRatioOr(config.newsRatio());
+        if (a.getVoice() == AiVoice.NORMAL && newsRatio > 0 && ThreadLocalRandom.current().nextInt(100) < newsRatio) {
             Optional<AiNewsSources.Source> source = news.find(a, config, now, ThreadLocalRandom.current());
             if (source.isPresent()) {
                 AiNewsSources.Source src = source.get();

@@ -27,6 +27,9 @@ export default class UtilAiMember {
     static readonly BIO_MAX = 150;
     static readonly CALL_LIMIT_MIN = 10;
     static readonly CALL_LIMIT_MAX = 5000;
+    /** 계정별 하루 새 글 상한 범위(서버 `AiMemberRules.ACCOUNT_DAILY_POST_MIN·MAX`, V223) */
+    static readonly ACCOUNT_DAILY_POST_MIN = 0;
+    static readonly ACCOUNT_DAILY_POST_MAX = 50;
     static readonly LOG_PAGE_SIZE = 20;
 
     /** 그 제공사의 처음 모델 — 모델 목록의 「기본」, 없으면 켜진 첫 모델, 하나도 없으면 빈 값 */
@@ -50,6 +53,8 @@ export default class UtilAiMember {
             voice: 'NORMAL',
             boards: [],
             groups: [],
+            dailyPostMax: null,
+            newsRatio: null,
         };
     }
 
@@ -67,6 +72,8 @@ export default class UtilAiMember {
             voice: detail.voice,
             boards: [...detail.boards],
             groups: [...detail.groups],
+            dailyPostMax: detail.dailyPostMax ?? null,
+            newsRatio: detail.newsRatio ?? null,
         };
     }
 
@@ -85,6 +92,8 @@ export default class UtilAiMember {
         if (!same(a.windows.morning, b.windows.morning)) n++;
         if (!same(a.windows.afternoon, b.windows.afternoon)) n++;
         if (a.voice !== b.voice) n++;
+        if ((a.dailyPostMax ?? null) !== (b.dailyPostMax ?? null)) n++;
+        if ((a.newsRatio ?? null) !== (b.newsRatio ?? null)) n++;
         if (!same(sorted(a.boards), sorted(b.boards))) n++;
         if (!same(sorted(a.groups), sorted(b.groups))) n++;
         return n;

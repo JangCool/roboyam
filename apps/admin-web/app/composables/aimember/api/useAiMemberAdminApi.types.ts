@@ -83,6 +83,10 @@ export interface AiMemberRow {
     voice: AiVoice;
     /** 이 계정이 지금 쉬는 이유 — 켜져 있어도 쉴 수 있다(전체 정지 · 제공사 키 없음 · 제공사 쉬는 중(결제·크레딧 부족 · 키 오류) · 모델이 꺼졌거나 목록에 없음 · 사이트 제재). 쉬지 않으면 null */
     restingReason: AiRestingReason | null;
+    /** 계정별 하루 새 글 상한(V223 — 0~50). null 이면 공통 설정(`AiMemberSettings.postTiming.dailyPostMax`) */
+    dailyPostMax: number | null;
+    /** 계정별 뉴스 글 비율 %(V223 — 0~100). null 이면 공통 프롬프트 설정의 뉴스 글 비율 */
+    newsRatio: number | null;
 }
 
 /**
@@ -207,6 +211,10 @@ export interface AiMemberSaveRequest {
     groups: string[];
     /** 카탈로그 아바타 ID — 빠지거나 null 이면 그대로 둔다 */
     avatarId?: string | null;
+    /** 계정별 하루 새 글 상한(V223 — 0~50). null 이면 공통 설정. 늘 보낸다 */
+    dailyPostMax: number | null;
+    /** 계정별 뉴스 글 비율 %(V223 — 0~100). null 이면 공통 프롬프트 설정. 늘 보낸다 */
+    newsRatio: number | null;
 }
 
 /** 새 AI 회원 — 고치기 칸 + 닉네임(서버가 로그인할 수 없는 회원 계정을 만든다. 처음엔 꺼짐) */

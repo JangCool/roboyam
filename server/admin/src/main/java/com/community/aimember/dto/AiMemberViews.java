@@ -38,9 +38,9 @@ public final class AiMemberViews {
     public record Today(long posts, long comments) {
     }
 
-    /** 목록 한 줄 — {@code voice} 글 방식 NORMAL·DOG·CAT(V191 — 옛 {@code dailyPosts} 대신) */
+    /** 목록 한 줄 — {@code voice} 글 방식 NORMAL·DOG·CAT(V191 — 옛 {@code dailyPosts} 대신) · {@code dailyPostMax} 계정별 하루 새 글 상한(V223 — null 이면 공통 설정) · {@code newsRatio} 계정별 뉴스 글 비율 %(V223 — null 이면 공통) */
     public record Row(String id, PersonRef member, String avatarId, String provider, String model, Relation relation, boolean enabled, Today today,
-                      long pendingDrafts, String voice, String restingReason) {
+                      long pendingDrafts, String voice, String restingReason, Integer dailyPostMax, Integer newsRatio) {
     }
 
     /** 상세 = 목록 줄 + 편집 칸 */

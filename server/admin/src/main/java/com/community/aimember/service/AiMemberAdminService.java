@@ -73,7 +73,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>만들기</b>({@link #create}): 서버가 로그인할 수 없는 회원 계정({@link UserEntity#createAiAccount} — 이메일·비밀번호·소셜 없음) + 프로필(닉네임 · 공개 소개 · 아바타)
- *       + 확장 줄을 한 트랜잭션에 만든다. 처음에는 꺼져 있다. 닉네임은 회원 닉네임 규칙({@link UserPolicy#memberNicknameViolation})과 중복 검사를 받는다.</li>
+ *       + 확장 줄을 한 트랜잭션에 만든다. 처음에는 꺼져 있다. 닉네임은 닉네임 형식({@link UserPolicy#nicknameViolation} — 관리자가 만드니 예약어는 보지 않는다)과 중복 검사를 받는다.</li>
  *   <li><b>관계</b>: 양쪽 줄에 같이 적는다. 옛 상대 · 새 상대의 옛 상대는 푼다. 감사 기록 하나에 바뀐 상대를 남긴다.</li>
  *   <li><b>글 방식</b>(V191): 보통 · 강아지 소리 · 고양이 소리. 옛 「하루 글 수」는 받지 않는다(새 글 양은 설정의 「글 쓰는 때」 — 표 칸은 쓰지 않고 둔다).</li>
  *   <li><b>쓸 곳</b>: 게시판은 「항상 막힘」({@link AiMemberRules#blockedReason})을 고를 수 없다. 소모임은 AI 전용 소모임만 — 저장하면 그 소모임 멤버로 넣고, 뺀 소모임에서는 나간다
@@ -185,7 +185,7 @@ public class AiMemberAdminService {
         }
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String nickname = body.nickname() == null ? "" : body.nickname().strip();
-        UserPolicy.memberNicknameViolation(nickname).ifPresent(m -> fields.put("nickname", m));
+        UserPolicy.nicknameViolation(nickname).ifPresent(m -> fields.put("nickname", m)); // 관리자가 만드는 계정이라 예약어(아이로빗 등)도 쓴다 — 「아이로빗기자」(사용자 2026-11-15)
         Checked c = check(body.save(), null, fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -339,6 +339,16 @@ public class AiMemberAdminService {
         if (voice == null) {
             f.put("voice", new MessageRef("aiMember.voice.unknown"));
         }
+        // 계정별 하루 새 글 상한(V223) — 비우면(null) 공통 설정을 따른다
+        Integer dailyPostMax = b.dailyPostMax();
+        if (dailyPostMax != null && (dailyPostMax < AiMemberRules.ACCOUNT_DAILY_POST_MIN || dailyPostMax > AiMemberRules.ACCOUNT_DAILY_POST_MAX)) {
+            f.put("dailyPostMax", new MessageRef("aiMember.dailyPostMax.range", AiMemberRules.ACCOUNT_DAILY_POST_MIN, AiMemberRules.ACCOUNT_DAILY_POST_MAX));
+        }
+        // 계정별 뉴스 글 비율 %(V223 — 기자 계정은 높게) — 비우면(null) 공통 프롬프트 설정
+        Integer newsRatio = b.newsRatio();
+        if (newsRatio != null && (newsRatio < 0 || newsRatio > 100)) {
+            f.put("newsRatio", new MessageRef("aiMember.newsRatio.range"));
+        }
         BoardCatalogSnapshot snap = catalog.snapshot();
         List<Long> boardIds = new ArrayList<>();
         for (String slug : b.boards() == null ? List.<String>of() : new LinkedHashSet<>(b.boards())) {
@@ -394,7 +404,7 @@ public class AiMemberAdminService {
             }
         }
         AiMemberProfileEntity.Values values = f.isEmpty() ? new AiMemberProfileEntity.Values(provider, model, gender, age, personality, tone, interests, m[0], m[1],
-                n[0], n[1], voice, boardIds) : null;
+                n[0], n[1], voice, boardIds, dailyPostMax, newsRatio) : null;
         return new Checked(values, bio, kind, partner, groupIds, avatarId, animated);
     }
 
@@ -503,7 +513,7 @@ public class AiMemberAdminService {
                 ctx.restricted().getOrDefault(a.getUserId(), false));
         return new AiMemberViews.Row(Long.toString(a.getId()), new AiMemberViews.PersonRef(Long.toString(a.getUserId()), ctx.nicknames().getOrDefault(a.getUserId(), "")),
                 avatarIdOf(ctx.images().get(a.getUserId())), a.getProvider().name(), a.getModel(), relation(a, ctx), a.isEnabled(), new AiMemberViews.Today(today[0], today[1]),
-                ctx.pending().getOrDefault(a.getId(), 0L), a.getVoice().name(), resting);
+                ctx.pending().getOrDefault(a.getId(), 0L), a.getVoice().name(), resting, a.getDailyPostMax(), a.getNewsRatio());
     }
 
     private AiMemberViews.Relation relation(AiMemberProfileEntity a, Context ctx) {
@@ -556,6 +566,8 @@ public class AiMemberAdminService {
         m.put("morning", hhmm(a.getMorningStart()) + "-" + hhmm(a.getMorningEnd()));
         m.put("afternoon", hhmm(a.getAfternoonStart()) + "-" + hhmm(a.getAfternoonEnd()));
         m.put("boardIds", a.getBoardIds().stream().map(String::valueOf).toList());
+        m.put("dailyPostMax", a.getDailyPostMax() == null ? "COMMON" : a.getDailyPostMax()); // V223 — 비면 공통 설정
+        m.put("newsRatio", a.getNewsRatio() == null ? "COMMON" : a.getNewsRatio()); // V223 — 비면 공통 프롬프트 설정
         return m;
     }
 

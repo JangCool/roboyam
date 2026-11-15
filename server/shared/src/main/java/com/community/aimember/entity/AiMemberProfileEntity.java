@@ -53,6 +53,12 @@ public class AiMemberProfileEntity {
     /** 쓰지 않는 칸(V191 — 새 글 양은 설정의 「글 쓰는 때」). 새 계정은 CHECK(2~3)에 맞춰 2, 고치기는 건드리지 않는다 */
     private short dailyPosts;
 
+    /** 계정별 하루 새 글 상한(V223) — null 이면 공통 설정({@code ai_member_settings.daily_post_max}) */
+    private Short dailyPostMax;
+
+    /** 계정별 뉴스 글 비율 %(V223) — null 이면 공통 프롬프트 설정({@code ai_prompt_settings.news_ratio}) */
+    private Short newsRatio;
+
     /** 글 방식(V191) — 보통 · 강아지 소리 · 고양이 소리 */
     @Enumerated(EnumType.STRING)
     private AiVoice voice;
@@ -72,7 +78,8 @@ public class AiMemberProfileEntity {
 
     /** 페르소나·활동 값 한 묶음 — 검사는 부르는 서비스가 끝냈다. 활동 창은 「이 시간대에만 글·댓글·답글을 쓴다」 */
     public record Values(AiProvider provider, String model, AiGender gender, AiAgeBand ageBand, String personality, String tone, String interests,
-                         LocalTime morningStart, LocalTime morningEnd, LocalTime afternoonStart, LocalTime afternoonEnd, AiVoice voice, List<Long> boardIds) {
+                         LocalTime morningStart, LocalTime morningEnd, LocalTime afternoonStart, LocalTime afternoonEnd, AiVoice voice, List<Long> boardIds,
+                         Integer dailyPostMax, Integer newsRatio) {
     }
 
     /** 새 AI 회원 — 처음에는 꺼져 있다(관리자가 켠다) */
@@ -103,6 +110,8 @@ public class AiMemberProfileEntity {
         this.afternoonEnd = v.afternoonEnd();
         this.voice = v.voice() == null ? AiVoice.NORMAL : v.voice();
         this.boardIds = v.boardIds().toArray(Long[]::new);
+        this.dailyPostMax = v.dailyPostMax() == null ? null : v.dailyPostMax().shortValue();
+        this.newsRatio = v.newsRatio() == null ? null : v.newsRatio().shortValue();
         touch(operatorId, now);
     }
 
@@ -192,6 +201,35 @@ public class AiMemberProfileEntity {
     }
 
     /** 오늘 지금이 활동 창 안인가(서비스 시간대 시각 — 오전 창 · 오후 창, 끝 시각 포함). 새 글·첫 댓글·답글 모두 이 안에서만 쓴다 */
+    /** 계정별 하루 새 글 상한(V223) — null 이면 공통 설정 */
+    public Integer getDailyPostMax() {
+        return dailyPostMax == null ? null : dailyPostMax.intValue();
+    }
+
+    /** 계정별 뉴스 글 비율 %(V223) — null 이면 공통 설정 */
+    public Integer getNewsRatio() {
+        return newsRatio == null ? null : newsRatio.intValue();
+    }
+
+    /** 이 계정의 뉴스 글 비율 % — 자기 값, 없으면 공통 값 */
+    public int newsRatioOr(int common) {
+        return newsRatio == null ? common : newsRatio;
+    }
+
+    /** 이 계정의 하루 새 글 상한 — 자기 값, 없으면 공통 값 */
+    public int dailyPostMaxOr(int common) {
+        return dailyPostMax == null ? common : dailyPostMax;
+    }
+
+    /** 활동 창(오전 + 오후) 길이(분) — 비었으면 0 */
+    public long activeMinutes() {
+        return span(morningStart, morningEnd) + span(afternoonStart, afternoonEnd);
+    }
+
+    private static long span(LocalTime start, LocalTime end) {
+        return start == null || end == null || end.isBefore(start) ? 0 : java.time.Duration.between(start, end).toMinutes();
+    }
+
     public boolean activeAt(LocalTime t) {
         return within(t, morningStart, morningEnd) || within(t, afternoonStart, afternoonEnd);
     }

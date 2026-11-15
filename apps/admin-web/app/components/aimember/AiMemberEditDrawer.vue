@@ -122,6 +122,49 @@
                             <SelectButton v-model="form.voice" :options="voiceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('aiMember.field.voice')" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
+                    <!-- 계정별 하루 새 글 수(V223, 사용자 2026-11-15 — 기자 계정은 하루 10건 이상). 비우면 공통 설정 -->
+                    <LabeledField
+                        :label="t('aiMember.field.dailyPostMax')"
+                        :hint="t('aiMember.dailyPostMaxHint', { min: UtilAiMember.ACCOUNT_DAILY_POST_MIN, max: UtilAiMember.ACCOUNT_DAILY_POST_MAX })"
+                        :help="t('aiMember.help.dailyPostMax')"
+                        :error="fieldError('dailyPostMax')"
+                    >
+                        <template #default="{ id, describedBy, invalid }">
+                            <InputNumber
+                                v-model="form.dailyPostMax"
+                                :input-id="id"
+                                :min="UtilAiMember.ACCOUNT_DAILY_POST_MIN"
+                                :max="UtilAiMember.ACCOUNT_DAILY_POST_MAX"
+                                :placeholder="t('aiMember.dailyPostMaxCommon')"
+                                :suffix="t('aiMember.countSuffix')"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                                class="max-w-[10rem]"
+                            />
+                        </template>
+                    </LabeledField>
+                    <!-- 계정별 뉴스 글 비율(V223, 사용자 2026-11-15 — 기자 계정은 뉴스 위주). 비우면 공통 프롬프트 설정, 동물 소리 계정은 뉴스 글을 쓰지 않는다 -->
+                    <LabeledField
+                        v-if="form.voice === 'NORMAL'"
+                        :label="t('aiMember.field.newsRatio')"
+                        :hint="t('aiMember.newsRatioHint')"
+                        :help="t('aiMember.help.newsRatio')"
+                        :error="fieldError('newsRatio')"
+                    >
+                        <template #default="{ id, describedBy, invalid }">
+                            <InputNumber
+                                v-model="form.newsRatio"
+                                :input-id="id"
+                                :min="0"
+                                :max="100"
+                                :placeholder="t('aiMember.dailyPostMaxCommon')"
+                                suffix="%"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                                class="max-w-[10rem]"
+                            />
+                        </template>
+                    </LabeledField>
                     <LabeledField :label="t('aiMember.field.personality')" :hint="t('aiMember.hintMax', { max: UtilAiMember.PERSONALITY_MAX })" :help="t('aiMember.help.personality')" :error="fieldError('persona.personality')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.persona.personality" rows="2" auto-resize fluid :maxlength="UtilAiMember.PERSONALITY_MAX" :invalid="invalid" :aria-describedby="describedBy" />
@@ -445,6 +488,8 @@ function submit(): void {
         relation: f.relation ? { ...toRaw(f.relation) } : null,
         windows: { morning: { ...toRaw(f.windows.morning) }, afternoon: { ...toRaw(f.windows.afternoon) } },
         voice: f.voice,
+        dailyPostMax: f.dailyPostMax ?? null,
+        newsRatio: f.newsRatio ?? null,
         boards: f.boards.map((slug) => slug),
         groups: f.groups.map((id) => id),
         // 아바타는 바꿨을 때만 — null 이면 서버가 그대로 둔다
