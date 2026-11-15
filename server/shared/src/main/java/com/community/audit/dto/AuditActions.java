@@ -283,6 +283,8 @@ public final class AuditActions {
     public static final String MEMBER_RESTRICTION_GRANT = "MEMBER_RESTRICTION_GRANT";
     /** 기능 제한 해제 — 대상 MEMBER, {@code restrictionId}·{@code type}·해제 사유 {@code reason} */
     public static final String MEMBER_RESTRICTION_LIFT = "MEMBER_RESTRICTION_LIFT";
+    /** 운영자가 회원 닉네임을 바꿨다(관리자 회원 상세, {@code member.nickname}) — 대상 MEMBER, {@code from}·{@code to}·사유 {@code reason}. 회원의 무료 변경 횟수·변경권은 쓰지 않는다 */
+    public static final String MEMBER_NICKNAME_CHANGE = "MEMBER_NICKNAME_CHANGE";
     // ── 회원 제재·이의제기(docs/features/member-sanction-contract.md) — 대상 MEMBER + 회원 ID ──
     /** 사이트 제재 부여 — {@code sanctionId}·{@code sanctionNo}·{@code kind}·{@code warningNo}·{@code skipped}·{@code endsAt}·{@code reason}·{@code reportCaseId}·대체해 끝낸 정지 {@code replacedSanctionId}·끝낸 게시판 지정 {@code boardStaffEnded} */
     public static final String SANCTION_ISSUE = "SANCTION_ISSUE";

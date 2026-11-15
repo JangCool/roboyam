@@ -497,4 +497,17 @@ export default {
             shippingErased: '배송 완료 후 시간이 지나 배송지가 지워졌어요.',
         },
     },
+    /** 운영자 닉네임 변경(회원 상세 기본 정보, `member.nickname`) — `MemberNicknameDialog` */
+    nicknameEdit: {
+        action: '닉네임 변경',
+        title: '닉네임 변경',
+        current: '지금 닉네임: {name}',
+        nicknameLabel: '새 닉네임',
+        nicknameRequired: '새 닉네임을 입력해 주세요.',
+        nicknameSame: '지금 닉네임과 같아요. 다른 닉네임을 입력해 주세요.',
+        reasonLabel: '변경 사유',
+        notice: '회원의 무료 변경 횟수·닉네임 변경권은 쓰지 않아요. 바꾼 내용과 사유는 감사 기록에 남아요. 예약어(운영자·아이로빗 등)도 쓸 수 있어요.',
+        submit: '바꾸기',
+        done: '닉네임을 {from}에서 {to}(으)로 바꿨어요.',
+    },
 };

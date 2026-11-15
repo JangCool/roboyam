@@ -21,7 +21,7 @@
                         <MemberDetailTag :value="t('member.detail.pending')" severity="secondary" />
                     </template>
                     <div v-if="section.key === 'basic'" class="flex flex-col gap-4">
-                        <MemberDetailBasicSection :detail="detail" />
+                        <MemberDetailBasicSection :detail="detail" :can-change-nickname="canChangeNickname" @change-nickname="emit('change-nickname')" />
                         <!-- 탈퇴 진행 중이면 「탈퇴 신청」 블록, 탈퇴 완료면 「탈퇴 완료」 블록(완료 시각·신청 경로·사유) — `useMemberWithdrawal` -->
                         <MemberWithdrawalBlock v-if="detail.status === 'WITHDRAWING' || detail.status === 'WITHDRAWN'" :view="withdrawal" :scheduled="detail.status === 'WITHDRAWING'" :can-cancel="canForceWithdraw" @retry="emit('retry-withdrawal')" @cancel="emit('cancel-withdrawal')" />
                         <MemberWithdrawnContactBlock v-if="detail.status === 'WITHDRAWN'" :view="withdrawnContact" @reveal="emit('reveal-contact')" @mask="emit('mask-contact')" @retry="emit('retry-contact')" />
@@ -84,13 +84,15 @@ interface Props {
     withdrawal?: MemberWithdrawalView | null;
     /** 위험 동작 [강제 탈퇴]를 보일지 */
     canForceWithdraw?: boolean;
+    /** 기본 정보의 [닉네임 변경]을 보일지(`member.nickname`) */
+    canChangeNickname?: boolean;
     /** 「제재」 구획의 현황(제재 API) — 받지 않는 화면은 null(제재 화면 링크만) */
     sanctions?: MemberSanctionsView | null;
     /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
     emoticonCreator?: EmoticonCreatorSummary | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null, emoticonCreator: null });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();

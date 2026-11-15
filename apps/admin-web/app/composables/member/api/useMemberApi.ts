@@ -1,7 +1,7 @@
-import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/composables/member/api/useMemberApi.types';
+import type { MemberDetail, MemberNicknameUpdateRequest, MemberNicknameUpdateResult, MemberPage, MemberQuery, MemberRoleOption } from '~/composables/member/api/useMemberApi.types';
 
 /**
- * 회원 조회 API — 서버 주소 문자열(`/api/admin/members…`)이 있는 **유일한 곳**이다. 상태는 없다. 읽기만 있다(상세는 읽기 전용, 조치는 후속).
+ * 회원 조회 API — 서버 주소 문자열(`/api/admin/members…`)이 있는 **유일한 곳**이다. 상태는 없다. 쓰기는 닉네임 바꾸기 하나다(그 밖의 조치는 업무별 API).
  *
  * 계약(서버 `MemberController`, `docs/features/roles-contract.md` 2단계): 오류는 모두 `ApiError`(useApiClient)로 던져진다. 세 API 모두 `member.read` 가 필요하다.
  *   - `GET /api/admin/members?searchField&keyword&statuses&roleIds&joinedFrom&joinedTo&lastLoginFrom&lastLoginTo&noLoginHistory&grades&memberType&emailVerified&authMethods&dormantFrom&dormantTo&statusChangedKind&statusChangedFrom&statusChangedTo&pointMin&pointMax&boardRole&hasSanction&sort&page&size`
@@ -21,6 +21,8 @@ import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/
  *     `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames`(빈 배열), `nicknameHistory`(빈 배열, `member.pii` 없으면 null), `statusChangedAt`(탈퇴 시각만), `sanctionCount`(늘 0). `point` 는 포인트 잔액(탈퇴 0)이고 목록의 `pointMin`·`pointMax`·`sort=point` 도 잔액으로 거르고 줄 세운다.
  *     화면은 비는 구획을 안내(EmptyState)로 보이고 데이터가 오면 그린다. 탈퇴 회원은 역할·소셜·동의·소개가 비고 `withdrawnAt` 만 채워진다.
  *     · `identity`(커머스 0-4 — `{ verified, verifiedAt, adult, provider }`): 미인증도 `{ verified:false, verifiedAt:null, adult:null, provider:null }` 로 오고, null 은 탈퇴 회원뿐이다.
+ *   - `PUT /api/admin/members/{memberId}/nickname` 본문 `{ nickname, reason }` → 200 `MemberNicknameUpdateResult` (권한 `member.nickname`. 회원의 무료 변경 횟수·변경권은 쓰지 않고, 형식만 보며 예약어는 보지 않는다. 감사 `MEMBER_NICKNAME_CHANGE`)
+ *     · 400 `VALIDATION`(`fields.nickname` 빈 값·형식·지금과 같음 | `fields.reason` 2~200자) · 404 `MEMBER_NOT_FOUND` · 409 `MEMBER_WITHDRAWN`(탈퇴 회원) · 409 `NICKNAME_TAKEN`(대소문자 무시 중복) · 403 `PERMISSION_DENIED`
  *   - `GET /api/admin/members/role-options` → 200 `[{ roleId, roleName }]` (역할 고르개 — 등급 역할이 서열 순서로 먼저, 그다음 회원 유형·게시판 단위·사용자 정의)
  *
  * `authMethod`: 비밀번호가 있으면 `EMAIL`, 아니면 가장 먼저 연결한 소셜이다.
@@ -31,6 +33,7 @@ const PATH = {
     root: '/api/admin/members',
     roleOptions: () => `${PATH.root}/role-options`,
     one: (memberId: string) => `${PATH.root}/${encodeURIComponent(memberId)}`,
+    nickname: (memberId: string) => `${PATH.one(memberId)}/nickname`,
 };
 
 export function useMemberApi() {
@@ -43,6 +46,10 @@ export function useMemberApi() {
 
         /** 회원 한 명의 상세 — 상세 Drawer 가 연다 */
         getMember: (memberId: string): Promise<MemberDetail> => client.get<MemberDetail>(PATH.one(memberId)),
+
+        /** 운영자가 회원 닉네임을 바꾼다(`member.nickname`) */
+        changeNickname: (memberId: string, body: MemberNicknameUpdateRequest): Promise<MemberNicknameUpdateResult> =>
+            client.put<MemberNicknameUpdateResult>(PATH.nickname(memberId), body),
 
         /** 역할 고르개가 쓸 목록 */
         loadRoleOptions: (): Promise<MemberRoleOption[]> => client.get<MemberRoleOption[]>(PATH.roleOptions()),

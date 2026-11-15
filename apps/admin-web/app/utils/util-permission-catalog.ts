@@ -145,7 +145,7 @@ export default class UtilPermissionCatalog {
      * 운영자 권한 — 표의 모든 세부 유형에 대응한다. 화면이 있는 것(`featureReady: true`):
      *  · 운영자·역할 관리: 조회 `operator.read`·`role.read` / 처리 `operator.manage` / 설정 `role.manage` / 민감 `operator.lock`(운영자 잠금·해제)·`role.grant`(역할 변경 = 권한 상승). 조직 구성(팀)은 조회 `team.read` / 처리 `team.manage`(팀 만들기·고치기·지우기·옮기기·팀원 관리)
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
-     *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
+     *  · 회원 조회: 조회 `member.read` / 처리 `member.nickname`(회원 닉네임 변경 — 무료 횟수·변경권 안 씀, 감사) / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
      *  · 닉네임 이미지 심사(`/members/nickname-images`): 조회 `nickname-image.read` / 처리 `nickname-image.manage`(승인·반려·해제).
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감)·`point.adjust.large`(정책 문턱(기본 ±10,000P)을 넘는 조정, 커머스 1-1).
      *  · 게시글(게시글 관리 화면 `/posts`): 조회 `post.read`(글 검색·보기·조치 기록, 글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리)
@@ -205,6 +205,8 @@ export default class UtilPermissionCatalog {
         { code: 'member.withdrawn.contact', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberWithdrawnContact', descKey: 'permission.memberWithdrawnContactDesc', featureReady: true },
         // 강제 탈퇴·대리 취소(서버 `Permission.MEMBER_WITHDRAW` — SENSITIVE, 역할로 위임 가능)
         { code: 'member.withdraw', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberWithdraw', descKey: 'permission.memberWithdrawDesc', featureReady: true },
+        // 회원 닉네임 변경(서버 `Permission.MEMBER_NICKNAME` — MANAGE, 회원 상세 기본 정보의 [닉네임 변경])
+        { code: 'member.nickname', unit: 'MANAGE', type: 'memberView', nameKey: 'permission.memberNickname', descKey: 'permission.memberNicknameDesc', featureReady: true },
         { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: true },
         { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: true },
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },

@@ -40,7 +40,9 @@ class Commerce04AdminCatalogTest {
         assertThat(permission.featureReady()).isTrue();
         assertThat(permission.ordinal()).isEqualTo(Permission.MEMBER_PII.ordinal() + 1);
         // 강제 탈퇴·대리 취소 권한(member.withdraw, 2026-11-04)이 연락처 권한 바로 다음에 붙는다
-        assertThat(Permission.candidatesOf(PermissionType.MEMBER_VIEW)).containsExactly(Permission.MEMBER_READ, Permission.MEMBER_PII, Permission.MEMBER_WITHDRAWN_CONTACT, Permission.MEMBER_WITHDRAW);
+        // 운영자 닉네임 바꾸기(member.nickname, 2026-11-16)가 그 뒤에 붙는다
+        assertThat(Permission.candidatesOf(PermissionType.MEMBER_VIEW)).containsExactly(Permission.MEMBER_READ, Permission.MEMBER_PII, Permission.MEMBER_WITHDRAWN_CONTACT, Permission.MEMBER_WITHDRAW,
+                Permission.MEMBER_NICKNAME);
     }
 
     @Test

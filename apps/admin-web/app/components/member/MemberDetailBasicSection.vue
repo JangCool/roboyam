@@ -2,7 +2,7 @@
     <!--
         회원 상세 — 기본 정보 구획(읽기 전용). 운영자 회원 계정이면 맨 위에 「운영자 회원 계정 · 운영자 이름」 딱지(멈춤이면 함께). 이메일은 서버가 준 대로 그린다: `member.pii` 가 없으면 가려진 값이고 그렇다고 스크린리더에도 알린다.
         소셜 연동·성인 확인(출생연도는 보이지 않는다)·쪽지 수신·휴면 예정은 정상 회원에게만(서버가 아직 모르는 성인 확인·쪽지 수신은 `-`), 탈퇴 회원은 줄어든 표시(탈퇴 시각이 보이고 이메일·소개 등이 없다).
-        닉네임 줄에는 변경 횟수(「변경 N/한도회 사용」), 닉네임 이미지 줄에는 지금 이미지·최근 신청(심사 대기면 심사 화면 링크 — `nickname-image.read` 가 있을 때만).
+        닉네임 줄에는 변경 횟수(「변경 N/한도회 사용」)와 [닉네임 변경](`canChangeNickname` — `member.nickname` 이 있고 탈퇴 회원이 아닐 때, 누르면 `change-nickname` 을 올리고 대화상자는 부모), 닉네임 이미지 줄에는 지금 이미지·최근 신청(심사 대기면 심사 화면 링크 — `nickname-image.read` 가 있을 때만).
         아래에 닉네임 변경 이력 — `member.pii` 가 없으면 값 대신 잠금 문구(이메일 가림과 같은 결). 한 줄 소개는 「프로필·메모」 구획에서 한 곳에만 보인다.
     -->
     <div class="flex flex-col gap-5">
@@ -36,10 +36,22 @@
                         </template>
                         <span v-else class="text-muted-color">{{ t('member.none') }}</span>
                     </template>
-                    <template v-else-if="field.key === 'nickname'">
+                    <div v-else-if="field.key === 'nickname'" class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                         <span>{{ detail.nickname }}</span>
-                        <span v-if="detail.nicknameChange" class="ml-1.5 text-xs text-muted-color tabular-nums">{{ t('member.detail.nicknameUsage', { count: detail.nicknameChange.changeCount, limit: detail.nicknameChange.freeLimit }) }}</span>
-                    </template>
+                        <span v-if="detail.nicknameChange" class="text-xs text-muted-color tabular-nums">{{ t('member.detail.nicknameUsage', { count: detail.nicknameChange.changeCount, limit: detail.nicknameChange.freeLimit }) }}</span>
+                        <Button
+                            v-if="canChangeNickname && detail.status !== 'WITHDRAWN'"
+                            type="button"
+                            :label="t('member.nicknameEdit.action')"
+                            icon="pi pi-pencil"
+                            size="small"
+                            severity="secondary"
+                            variant="text"
+                            class="ml-auto"
+                            data-testid="member-nickname-change"
+                            @click="emit('change-nickname')"
+                        />
+                    </div>
                     <span v-else-if="field.key === 'nicknameImage' && !detail.nicknameImage" class="text-muted-color">{{ t('member.detail.empty') }}</span>
                     <div v-else-if="field.key === 'nicknameImage' && detail.nicknameImage" class="flex flex-col gap-2">
                         <span v-if="!detail.nicknameImage.current && !detail.nicknameImage.request" class="text-muted-color">{{ t('member.detail.nicknameImageNone') }}</span>
@@ -159,9 +171,12 @@ import UtilNicknameImage from '~/utils/util-nickname-image';
 
 interface Props {
     detail: MemberDetail;
+    /** [닉네임 변경]을 보일지(`member.nickname`) — 받지 않는 화면은 false */
+    canChangeNickname?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { canChangeNickname: false });
+const emit = defineEmits<{ 'change-nickname': [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();

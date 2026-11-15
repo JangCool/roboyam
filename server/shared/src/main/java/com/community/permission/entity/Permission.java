@@ -85,6 +85,8 @@ public enum Permission {
     MEMBER_WITHDRAWN_CONTACT("member.withdrawn.contact", MEMBER_VIEW, SENSITIVE, true),
     /** 회원 강제 탈퇴·탈퇴 대리 취소(member-withdrawal-contract 「관리자」 — 탈퇴 관리 화면 보기는 {@code member.read}). 기본은 최고 관리자만 */
     MEMBER_WITHDRAW("member.withdraw", MEMBER_VIEW, SENSITIVE, true),
+    /** 회원 닉네임 바꾸기(관리자 회원 상세 — 변경권 미적용·오류 등 사연 처리). 형식만 보고 예약어는 보지 않는다, 무료 횟수·변경권은 쓰지 않는다, 감사 MEMBER_NICKNAME_CHANGE */
+    MEMBER_NICKNAME("member.nickname", MEMBER_VIEW, MANAGE, true),
     NICKNAME_IMAGE_READ("nickname-image.read", NICKNAME_IMAGE, READ, true),
     NICKNAME_IMAGE_MANAGE("nickname-image.manage", NICKNAME_IMAGE, MANAGE, true),
     GRADE_READ("grade.read", GRADE_POINT, READ, true),

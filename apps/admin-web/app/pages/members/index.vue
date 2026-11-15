@@ -154,9 +154,11 @@
             :point-lots="canReadPoints ? pointLotsView : null"
             :withdrawal="withdrawalView"
             :can-force-withdraw="canForceWithdraw"
+            :can-change-nickname="canChangeNickname"
             :emoticon-creator="emoticonCreator"
             @retry-withdrawal="withdrawal.retry"
             @force-withdraw="openForce"
+            @change-nickname="openNickname"
             @cancel-withdrawal="openCancel"
             @retry="retryDetail"
             @retry-restrictions="restrictions.retry"
@@ -171,6 +173,16 @@
             @sanction="openSanctionIssue"
             @lift-sanction="openSanctionLift"
             @retry-sanctions="sanctionPreview.retry"
+        />
+
+        <!-- 닉네임 변경(운영자, `member.nickname`) — 서랍 위에 뜬다 -->
+        <MemberNicknameDialog
+            v-model:visible="nicknameOpen"
+            :current-nickname="detail?.nickname ?? selectedRow?.nickname ?? ''"
+            :busy="nicknameBusy"
+            :error="nicknameError"
+            :field-errors="nicknameFieldErrors"
+            @submit="submitNickname"
         />
 
         <!-- 제재하기·제재 해제 — 서랍 위에 뜬다 -->
@@ -263,7 +275,7 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
-import type { MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
+import type { MemberNicknameUpdateRequest, MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberRestriction, MemberRestrictionCreateRequest } from '~/composables/member/api/useMemberRestrictionApi.types';
 import type { MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import type { ForceWithdrawRequest, WithdrawalCancelRequest } from '~/composables/member/api/useMemberWithdrawalApi.types';
@@ -557,6 +569,48 @@ function splitError(error: ApiError, keys: readonly string[]): { fields: Record<
         if (text) fields[key] = text;
     }
     return { fields, form: Object.keys(fields).length ? '' : error.message };
+}
+
+// ── 닉네임 변경(운영자) — 회원의 무료 변경 횟수·변경권은 쓰지 않는다. 성공하면 상세·목록을 다시 받는다
+/** 닉네임 변경 권한(`member.nickname` — 서버 `Permission.MEMBER_NICKNAME`) */
+const canChangeNickname = computed(() => can('member.nickname'));
+const nicknameOpen = ref(false);
+const nicknameBusy = ref(false);
+const nicknameError = ref('');
+const nicknameFieldErrors = ref<Record<string, string>>({});
+
+function openNickname(): void {
+    nicknameError.value = '';
+    nicknameFieldErrors.value = {};
+    nicknameOpen.value = true;
+}
+
+async function submitNickname(body: MemberNicknameUpdateRequest): Promise<void> {
+    const memberNo = detail.value?.memberNo;
+    if (!memberNo || nicknameBusy.value) return;
+    nicknameBusy.value = true;
+    nicknameError.value = '';
+    nicknameFieldErrors.value = {};
+    try {
+        const result = await api.changeNickname(memberNo, { ...body });
+        nicknameOpen.value = false;
+        toast.success(t('member.nicknameEdit.done', { from: result.previousNickname, to: result.nickname }));
+        if (selectedRow.value?.memberNo === memberNo) selectedRow.value = { ...selectedRow.value, nickname: result.nickname };
+        retryDetail();
+        void reload();
+    } catch (e) {
+        const failure = errorOf(e);
+        // 중복(409 NICKNAME_TAKEN)은 닉네임 칸의 오류로 — 서버 문구 그대로
+        if (failure.code === 'NICKNAME_TAKEN') {
+            nicknameFieldErrors.value = { nickname: failure.message };
+            return;
+        }
+        const split = splitError(failure, ['nickname', 'reason']);
+        nicknameFieldErrors.value = split.fields;
+        nicknameError.value = split.form;
+    } finally {
+        nicknameBusy.value = false;
+    }
 }
 
 const restrictOpen = ref(false);

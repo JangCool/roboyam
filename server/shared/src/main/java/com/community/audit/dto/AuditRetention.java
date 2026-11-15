@@ -133,6 +133,8 @@ public final class AuditRetention {
             AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE,
             // 0-4 회원 기능 제한·해제 — 제재와 같은 운영 일(사용자 확정 2026-10-26)
             AuditActions.MEMBER_RESTRICTION_GRANT, AuditActions.MEMBER_RESTRICTION_LIFT,
+            // 운영자 회원 닉네임 변경(관리자 회원 상세) — 계정 정보를 바로잡는 운영 일
+            AuditActions.MEMBER_NICKNAME_CHANGE,
             // 사이트 제재·이의제기(member-sanction-contract) — 기능 제한과 같은 운영 일
             AuditActions.SANCTION_ISSUE, AuditActions.SANCTION_LIFT, AuditActions.APPEAL_ACCEPT, AuditActions.APPEAL_REJECT,
             // 게시판 제재(board-sanction-contract) — 운영자의 해제·무효·반복 검토 닫기, 사이트 제재와 같은 운영 일

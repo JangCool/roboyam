@@ -38,6 +38,7 @@
             :point-lots="pointLots"
             :withdrawal="withdrawal"
             :can-force-withdraw="canForceWithdraw"
+            :can-change-nickname="canChangeNickname"
             :sanctions="sanctions"
             :emoticon-creator="emoticonCreator"
             @sanction="emit('sanction')"
@@ -45,6 +46,7 @@
             @retry-sanctions="emit('retry-sanctions')"
             @retry-withdrawal="emit('retry-withdrawal')"
             @force-withdraw="emit('force-withdraw')"
+            @change-nickname="emit('change-nickname')"
             @cancel-withdrawal="emit('cancel-withdrawal')"
             @restrict="emit('restrict')"
             @point-lots-query="(q) => emit('point-lots-query', q)"
@@ -87,13 +89,15 @@ interface Props {
     withdrawal?: MemberWithdrawalView | null;
     /** 위험 동작 [강제 탈퇴]를 보일지(`member.withdraw`) — 탈퇴 진행 중·완료 회원에게는 어차피 안 보인다 */
     canForceWithdraw?: boolean;
+    /** 기본 정보의 [닉네임 변경]을 보일지(`member.nickname`) — 받지 않는 화면은 false(단추가 없다) */
+    canChangeNickname?: boolean;
     /** 「제재」 구획의 현황(제재 API `preview`) — 받지 않는 화면은 null(제재 화면 링크만) */
     sanctions?: MemberSanctionsView | null;
     /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
     emoticonCreator?: EmoticonCreatorSummary | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null, emoticonCreator: null });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null });
 const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();

@@ -94,6 +94,8 @@ export default {
     memberWithdrawnContactDesc: '결제 이력이 있어 분리 보관한 탈퇴 회원의 연락용 이메일을 사유를 남기고 엽니다. 열람 기록·감사에 남습니다.',
     memberWithdraw: '회원 강제 탈퇴',
     memberWithdrawDesc: '만 14세 미만 확인·정책 위반·본인 요청 대행 등의 사유로 회원을 탈퇴 처리합니다. 남은 일이 있으면 진행 중으로 두고 끝나면 완료됩니다. 감사에 남습니다.',
+    memberNickname: '회원 닉네임 변경',
+    memberNicknameDesc: '회원 상세에서 닉네임을 바꿉니다(오류·변경권 미적용 등). 중복만 아니면 되고 예약어도 쓸 수 있으며, 회원의 무료 변경 횟수·변경권은 쓰지 않습니다. 사유를 받고 감사에 남습니다.',
 
     // 등급 설정
     gradeRead: '등급 설정 조회',

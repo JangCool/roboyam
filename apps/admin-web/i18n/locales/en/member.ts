@@ -497,4 +497,17 @@ export default {
             shippingErased: 'The shipping address was erased some time after delivery.',
         },
     },
+    /** Operator nickname change (member detail basics, `member.nickname`) — `MemberNicknameDialog` */
+    nicknameEdit: {
+        action: 'Change nickname',
+        title: 'Change nickname',
+        current: 'Current nickname: {name}',
+        nicknameLabel: 'New nickname',
+        nicknameRequired: 'Enter a new nickname.',
+        nicknameSame: 'This is the current nickname. Enter a different one.',
+        reasonLabel: 'Reason',
+        notice: 'This does not use the member’s free changes or nickname tickets. The change and reason are kept in the audit log. Reserved words (operator, IROBIT, etc.) are allowed.',
+        submit: 'Change',
+        done: 'Changed the nickname from {from} to {to}.',
+    },
 };

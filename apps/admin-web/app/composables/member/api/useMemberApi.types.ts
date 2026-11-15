@@ -536,3 +536,18 @@ export interface MemberIdentity {
     /** 인증 수단 — 포트원(휴대폰) · 가짜(개발용). 미인증이면 null */
     provider: 'PORTONE' | 'FAKE' | null;
 }
+
+/** 운영자 회원 닉네임 바꾸기 본문(`PUT /api/admin/members/{memberId}/nickname`, 권한 `member.nickname`) */
+export interface MemberNicknameUpdateRequest {
+    nickname: string;
+    /** 사유 2~200자(앞뒤 공백 뺀 뒤) — 감사에 남는다 */
+    reason: string;
+}
+
+/** 운영자 회원 닉네임 바꾸기 결과 — 화면은 이 뒤 상세를 다시 받는다 */
+export interface MemberNicknameUpdateResult {
+    memberId: string;
+    nickname: string;
+    previousNickname: string;
+    changedAt: string;
+}

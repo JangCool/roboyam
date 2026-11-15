@@ -63,6 +63,8 @@ export interface MemberDetailEmits {
     'retry-withdrawal': [];
     /** 위험 동작 [강제 탈퇴](`member.withdraw`) */
     'force-withdraw': [];
+    /** 기본 정보의 [닉네임 변경](`member.nickname`) */
+    'change-nickname': [];
     /** 진행 중 탈퇴의 [대리 취소](`member.withdraw`, 회원이 요청한 경우만) */
     'cancel-withdrawal': [];
     /** 기능 제한 목록 다시 받기 */

@@ -119,6 +119,19 @@ public class ProfileEntity {
         return previous;
     }
 
+    /**
+     * 운영자가 닉네임을 바꾼다(관리자 회원 상세) — 회원의 무료 변경 횟수({@link #nicknameChangeCount})는 세지 않고 바꾼 시각만 남긴다. 형식·중복은 부르는 서비스가 행을 잠근 뒤 먼저 확인한다.
+     *
+     * @return 바뀌기 전 닉네임(이력에 남긴다)
+     */
+    public String changeNicknameByOperator(String nickname, Instant now) {
+        String previous = this.nickname;
+        this.nickname = nickname;
+        this.nicknameChangedAt = now;
+        this.updatedAt = now;
+        return previous;
+    }
+
     /** 한 줄 소개를 바꾼다 — 빈 값은 null 로 저장한다(정규화·길이 검사는 부르는 쪽). 같은 값이면 고치지 않는다 */
     public void changeBio(String bio, Instant now) {
         String next = bio == null || bio.isEmpty() ? null : bio;

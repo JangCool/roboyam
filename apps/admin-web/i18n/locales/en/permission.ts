@@ -94,6 +94,8 @@ export default {
     memberWithdrawnContactDesc: 'Open the separately kept contact email of a withdrawn member with payment history, with a reason. Logged and audited.',
     memberWithdraw: 'Force member withdrawal',
     memberWithdrawDesc: 'Withdraw a member for reasons such as confirmed under-14, policy violation or acting on the member’s request. Stays in progress while work is pending and completes when done. Audited.',
+    memberNickname: 'Change member nickname',
+    memberNicknameDesc: 'Change a nickname from the member detail (errors, tickets not applied, etc.). Any name not in use works, reserved words included; the member’s free changes and tickets are not used. A reason is required and it is audited.',
 
     // Grade settings
     gradeRead: 'View grade settings',

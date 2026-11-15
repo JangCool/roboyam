@@ -2,6 +2,7 @@ package com.community.profile.service;
 
 import com.community.board.exception.BoardWriteBlockedException;
 import com.community.board.service.BoardAccessPolicy;
+import com.community.operator.service.OperatorMemberAccountService;
 import com.community.pointshop.dto.NicknameTicketInfo;
 import com.community.pointshop.service.NicknameTicketService;
 import com.community.pointshop.service.AvatarLooks;
@@ -43,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>닉네임 변경</b>: 가입 뒤 {@value #NICKNAME_FREE_LIMIT}번은 무료(날짜 대기 없음). 그 뒤로는 바꿀 때마다 <b>닉네임 변경권 1장</b>({@code useTicket: true}) — 없거나
  *       {@code useTicket} 을 보내지 않으면 {@code 409 NICKNAME_TICKET_REQUIRED}(최상위 {@code ticketCount}·{@code ticketPrice}). 규칙은 가입과 같은 형식 + 예약어
- *       ({@link UserPolicy#memberNicknameViolation}), 중복은 대소문자 무시({@code ux_profiles_nickname}) {@code 409 NICKNAME_TAKEN}. 바꾸면 이력 한 줄(비공개)을 남긴다.</li>
+ *       ({@link UserPolicy#memberNicknameViolation} — 운영자 회원 계정은 예약어를 보지 않는다, 2026-11-15), 중복은 대소문자 무시({@code ux_profiles_nickname}) {@code 409 NICKNAME_TAKEN}. 바꾸면 이력 한 줄(비공개)을 남긴다.</li>
  *   <li><b>닉네임이 그대로면</b>(소개만 저장) 형식·횟수·변경권·중복 검사를 하지 않고 아무것도 쓰지 않는다. 무료 변경이 남았으면 {@code useTicket} 을 보내도 변경권을 쓰지 않는다.
  *       대소문자만 바꾸는 것은 변경이다.</li>
  *   <li><b>자기소개</b>: 줄바꿈 허용({@link #normalizeBio} 로 정리) 뒤 0~{@value #BIO_MAX}자(사용자 2026-11-08 — 100자 한 줄에서 늘림), 빈 값은 null 로 저장한다.</li>
@@ -74,9 +75,10 @@ public class MyProfileService {
     private final SnowflakeIdGenerator ids;
     private final NicknameTicketService tickets;
     private final ProfileAvatarService avatars;
+    private final OperatorMemberAccountService operatorAccounts;
 
     public MyProfileService(UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries, ProfileNicknameHistoryRepository history,
-                            SnowflakeIdGenerator ids, NicknameTicketService tickets, ProfileAvatarService avatars) {
+                            SnowflakeIdGenerator ids, NicknameTicketService tickets, ProfileAvatarService avatars, OperatorMemberAccountService operatorAccounts) {
         this.users = users;
         this.profiles = profiles;
         this.profileQueries = profileQueries;
@@ -84,6 +86,7 @@ public class MyProfileService {
         this.ids = ids;
         this.tickets = tickets;
         this.avatars = avatars;
+        this.operatorAccounts = operatorAccounts;
     }
 
     @Transactional(readOnly = true)
@@ -108,8 +111,9 @@ public class MyProfileService {
 
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         if (changing) {
+            // 운영자 회원 계정(힘이 살아 있는 연결)은 예약어(아이로빗·운영자 등)를 쓸 수 있다 — 「아이로빗운영자」 같은 운영팀 이름(사용자 2026-11-15). 형식 검사는 같다
             MessageRef violation = nickname == null || nickname.isEmpty() ? new MessageRef("profile.nickname.required")
-                    : UserPolicy.memberNicknameViolation(nickname).orElse(null);
+                    : (operatorAccounts.isActiveOperatorAccount(userId) ? UserPolicy.nicknameViolation(nickname) : UserPolicy.memberNicknameViolation(nickname)).orElse(null);
             if (violation != null) {
                 invalid.put("nickname", violation);
             }
