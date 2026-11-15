@@ -71,7 +71,7 @@ const META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'A
 const DEFAULT_META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME'];
 const QUICK_KINDS: readonly HomeQuickLinkKind[] = ['ALL', 'POPULAR', 'LATEST', 'GROUPS', 'GROUP_BUY', 'BOARD', 'PATH'];
 /** 보일 차례 */
-const AD_BANNER_TYPES: readonly HomeAdBannerType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
+const AD_BANNER_TYPES: readonly HomeAdBannerType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER'];
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 /** 마우스 올림 효과 칸(`hover`, 기본 켬 — 사용자 2026-11-10)이 있는 종류 — 누르면 가는 항목이 있는 것(안내 글·광고 2종은 없다). 서버 `GadgetConfigs.HOVER_KINDS`·user-web `UtilGadget.hoverOn` 과 같다 */
 const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];

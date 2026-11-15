@@ -130,8 +130,8 @@ export type BizSchedulePhase = 'UPCOMING' | 'RUNNING' | 'ENDED';
 /** 결제 방식(★-2) */
 export type BizPaymentMethod = 'ONLINE' | 'MANUAL';
 
-/** 광고 종류(공개 이름 — 서버 `BizProduct.publicName`) — 배너 4유형 + 날개 배너(`WING`) + 한 줄 */
-export type AdType = 'WIDE' | 'STRIP' | 'SQUARE' | 'SMALL' | 'WING' | 'TEXT_LINE';
+/** 광고 종류(공개 이름 — 서버 `BizProduct.publicName`) — 배너 5유형 + 날개 배너(`WING`) + 한 줄 */
+export type AdType = 'WIDE' | 'STRIP' | 'SQUARE' | 'SMALL' | 'HALF' | 'WING' | 'TEXT_LINE';
 
 /** 핫딜 노출 자리 — `HOME_TOP` 은 이름과 달리 **핫딜 게시판 첫 쪽 위**(화면 이름 「핫딜 게시판 상단」, 키 값은 그대로), `CATEGORY_TOP` 은 신청 때 고른 말머리 목록 위 */
 export type DealPlacement = 'NONE' | 'HOME_TOP' | 'CATEGORY_TOP';

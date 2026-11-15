@@ -75,7 +75,7 @@ public final class GadgetConfigs {
     public static final List<String> QUICK_KINDS = List.of("ALL", "POPULAR", "LATEST", "GROUPS", "GROUP_BUY", "BOARD", "PATH");
     public static final List<String> NOTICE_FORMATS = List.of("PLAIN", "BULLETS");
     /** 광고 배너 가젯의 배너 유형(상품 이름 — 날개 배너는 가젯에 없다) — admin-web {@code AD_BANNER_TYPES} 와 같은 차례 */
-    public static final List<String> AD_TYPES = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER");
+    public static final List<String> AD_TYPES = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER", "HALF_BANNER");
     public static final String AD_TYPE_DEFAULT = "WIDE_BANNER";
     /** 한 줄 광고 가젯 모양 — BAND 글 보기 한 줄 광고처럼(카드·안 여백 없이 옅은 선 띠, 기본 — 사용자 2026-11-06) · CARD 가젯 카드 */
     public static final List<String> TEXT_LINE_LOOKS = List.of("BAND", "CARD");

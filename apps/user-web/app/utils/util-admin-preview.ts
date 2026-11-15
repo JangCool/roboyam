@@ -129,7 +129,7 @@ const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS',
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 /** 팁·강좌·사용기 가젯 — 내용은 /tips 화면이 받아 나눠 주므로 응답에 같은 종류가 없어도 새 가젯을 그린다 */
 export const TIPS_KINDS: readonly string[] = ['TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS'];
-const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
+const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER'];
 const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const POST_LIST_SORTS: readonly string[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
 const ROW_STYLES: readonly string[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT', 'LINE'];

@@ -43,6 +43,8 @@ public class AdPlacementSettingEntity {
     private String adsenseStripBanner;
     private String adsenseSquareBanner;
     private String adsenseSmallBanner;
+    /** 반 폭 배너 가젯 단위 ID(V219) */
+    private String adsenseHalfBanner;
     private String adsenseWingBanner;
     private String adsensePostInline;
     private String adsenseBoardListSlot;

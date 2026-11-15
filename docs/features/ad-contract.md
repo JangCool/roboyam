@@ -104,3 +104,14 @@ API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAd
 - **날개 보일 화면**(사용자 「넓혀 줘」): `wings.screens` 값에 `FEED`(최신글 `/latest`·인기글 `/popular`) · `GROUP_BUY`(공동구매 목록·상세 `/group-buys`, `/group-buys/{id}` — 주문·결제 화면 제외) · `GROUPS`(소모임 목록·상세 `/groups`, `/groups/{id}`)를 더했다(보일 차례 HOME·PAGE·BOARD·POST·FEED·GROUP_BUY·GROUPS). 새 화면은 홈처럼 `board` 없이 묻는다. 소모임 **글 보기**는 지금처럼 뺀다(위 「소모임 제외」의 글 보기·목록 한 줄 규칙은 그대로, 날개만 소모임 목록·상세에 나온다 — 세션 정리 결정). 저장 안 한 기본값은 일곱 화면 모두. DB CHECK `ck_aps_wing_screens` 를 넓혔고 저장된 행은 바꾸지 않는다(운영자가 「광고 기본 설정」에서 고른다). 내 설정·로그인·결제·주문 화면은 여전히 없다.
 - **목록 한 줄 광고 개수**(사용자 「2개까지, 사이사이 간격 유지」): 자리 설정 `boardList.count`(1~2, 기본 1) · `boardList.gap`(첫 광고와 둘째 광고 사이 일반 글 수 3~20, 기본 10) — `ad_placement_settings.board_list_count`·`board_list_gap`(CHECK). 첫 광고는 `after` 번째 뒤(글이 적으면 맨 끝), 둘째는 그 뒤 `gap` 개 글을 지나서 — 글이 모자라면 둘째는 넣지 않는다. 두 광고는 서로 다른 건(비중 가중 무작위). 관리자 저장 요청에 두 칸이 없으면 기본값(옛 화면·요청과 맞게), 범위 밖 400 `fields.boardList.count|gap`. 감사·이력 칸 `boardList.count`·`boardList.gap`(이력 CREATE 는 12칸). 관리자 「광고 기본 설정 › 게시판 목록 한 줄」에 「한 쪽에 넣을 광고 수」(1개·2개)와 2개일 때 「두 광고 사이 글 수」. 미리보기는 첫 광고 자리만 보인다(후속).
 - user-web: `UtilAd.wingScreen`(주소 판정) · `feedPlacement`(count·gap) · `feedIndexes` · `feedAdAt` · `useBoardFeedAd` 는 광고 목록(`BoardFeedAd[]`)을 준다 — 목록 모양 여섯(`BoardPostList`·`BoardPostCards`·`HotdealPostList`·`HotdealPostGrid`·다음식·네이버식)이 줄마다 `feedAdAt` 로 찾는다.
+
+## 반 폭 배너 HALF_BANNER (사용자 확정 2026-11-15 — shared V219)
+- 의도: 홈 PC 본문 반 폭(24칸 격자의 9칸, 약 430px) 자리용. 띠 배너 12:1 은 반 폭에서 높이 36px 로 너무 낮아, 데스크톱 띠 배너(약 73px)와 비슷한 높이가 나오는 6:1 유형을 따로 둔다(PC 430px → 72px, 모바일 360px → 60px).
+- 상품 `HALF_BANNER`(사업자 공개 이름 `HALF`, 신청 종류 `AD_BANNER`) · 규격 600×100(6:1, 비율 검사 ±3% — 1200×200 도 통과) · 차례는 작은 배너 다음(WIDE·STRIP·SQUARE·SMALL·HALF·WING·TEXT_LINE).
+- 요금표 설치 기본값 = 띠 배너와 같음: 하루 30,000원 · 동시 한도 3 · 최대 14일 · 60일 전부터 · 받기 켬(사업자 신청 가능). 바꾸기는 관리자 가격 기간표.
+- 쓰는 자리: 홈·가젯 페이지 광고 가젯(`AD`) ⚙ `adType` 선택지만. 글 보기 인라인(`postInline.adType`)·게시판 목록에는 없음. 공개 틀 `ratio 6/1 · maxWidth 100%`(폭을 꽉 채움).
+- 애드센스: 디스플레이 자리 `units.HALF_BANNER`(가로형, `ad_placement_settings.adsense_half_banner` + CHECK `ck_aps_adsense_half_banner`) · 이력 칸 `adsense.units.HALF_BANNER`.
+- 마이그레이션 `V219__ad_half_banner.sql`: 상품 CHECK ∪ `HALF_BANNER` · 요금표 한 줄 · 애드센스 칸. ⚠ V218 은 홈 배치 브랜치(`claude/home-hotdeal-layout`)가 쓴다 — 그 브랜치를 먼저 develop 에 합친 뒤 이 브랜치를 합친다(순서가 바뀌면 Flyway 가 빠진 V218 로 막힌다).
+- 데모: `seed/demo/ads.json` 의 `hf-robofest`(그림 `images/ad-hf-robofest.png` 1200×200).
+- 테스트: api `AdHalfBannerTest`(요금·한도 넷째 409·기간·비율·운영자 등록) · admin `HomeLayoutAdGadgetTest`(가젯 adType 저장) + `AdSenseSettingsTest`·`PublicAdServiceTest`·`AdWingBannerTest`·shared `BizApplicationRulesUnitTest` 목록 갱신.
+- **남은 일**(홈 배치 브랜치가 develop 에 합쳐진 뒤): 아이로빗 홈 「상단 띠 배너」(반 폭 x0 w9)를 `HALF_BANNER` 로 — 새 shared 마이그레이션(기본 모양일 때만) + `HomeLayoutDefaults.irobit()` + 설치 프리셋 `irobit.structure.json` · 첫 화면 미리 담기 `BootPreloadRenderer.HOME_AD_TYPES` 에 `HALF_BANNER` · 데모 `homeGadgets.home-top-strip` 의 `adType`. 그 전까지 데모 반 폭 광고는 반 폭 가젯이 없어 보이지 않는다.

@@ -28,7 +28,7 @@ class AdSenseSettingsTest {
     private static final String CLIENT = "ca-pub-1234567890123456";
 
     private static AdSenseSettings.Units units(String wide, String feedSlot, String layoutKey) {
-        return new AdSenseSettings.Units(wide, null, null, null, null, null, new AdSenseSettings.InFeed(feedSlot, layoutKey));
+        return new AdSenseSettings.Units(wide, null, null, null, null, null, null, new AdSenseSettings.InFeed(feedSlot, layoutKey));
     }
 
     @Test
@@ -65,8 +65,8 @@ class AdSenseSettingsTest {
 
     @Test
     void 공개_묶음_VERIFY_는_빈_units_SHOW_는_값_있는_자리만_인피드는_둘_다() {
-        AdSenseSettings.Units all = new AdSenseSettings.Units("1111111111", "2222222222", "3333333333", "4444444444", "5555555555", "6666666666",
-                new AdSenseSettings.InFeed("7777777777", "-fb+5w+4e-db+86"));
+        AdSenseSettings.Units all = new AdSenseSettings.Units("1111111111", "2222222222", "3333333333", "4444444444", "8888888888", "5555555555",
+                "6666666666", new AdSenseSettings.InFeed("7777777777", "-fb+5w+4e-db+86"));
         AdSenseSettings.PublicView verify = new AdSenseSettings("VERIFY", CLIENT, true, all).publicView();
         assertThat(verify.mode()).isEqualTo("VERIFY");
         assertThat(verify.client()).isEqualTo(CLIENT);
@@ -74,7 +74,9 @@ class AdSenseSettingsTest {
         assertThat(verify.units()).isEmpty();
 
         AdSenseSettings.PublicView show = new AdSenseSettings("SHOW", CLIENT, false, all).publicView();
-        assertThat(show.units()).containsOnlyKeys("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER", "WING_BANNER", "POST_INLINE", "BOARD_LIST");
+        assertThat(show.units()).containsOnlyKeys("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER", "HALF_BANNER", "WING_BANNER", "POST_INLINE",
+                "BOARD_LIST");
+        assertThat(show.units().get("HALF_BANNER")).isEqualTo("8888888888");
         assertThat(show.units().get("BOARD_LIST")).isEqualTo(new AdSenseSettings.InFeed("7777777777", "-fb+5w+4e-db+86"));
 
         // 인피드 한쪽만이면 BOARD_LIST 를 내지 않는다

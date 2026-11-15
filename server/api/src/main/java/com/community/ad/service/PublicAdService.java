@@ -54,8 +54,8 @@ public class PublicAdService {
     static final int CACHE_SECONDS = 20;
     /** 노출 한 번에 받는 줄 수 */
     public static final int IMPRESSIONS_MAX = 20;
-    /** 공개 유형 — 광고 종류 여섯 + 핫딜 노출 자리 둘(받는 이름 = 상품 이름) */
-    public static final List<BizProduct> TYPES = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER,
+    /** 공개 유형 — 광고 종류 일곱 + 핫딜 노출 자리 둘(받는 이름 = 상품 이름) */
+    public static final List<BizProduct> TYPES = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.HALF_BANNER,
             BizProduct.WING_BANNER, BizProduct.TEXT_LINE, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
     /** 사본에 담는 상품 — 핫딜 노출 자리는 그 신청 건의 글이 진행 중·공개일 때만 담는다(biz-hotdeal-contract 규칙 7) */
     private static final List<BizProduct> SERVED = TYPES;

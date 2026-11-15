@@ -48,12 +48,12 @@ export default class UtilBusiness {
     /** 광고 이미지 형식 */
     static readonly IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
     /** 배너 규격 비율(가로 ÷ 세로) — `business.adTypeSize`(1200×300 등)와 같은 값, 한 줄 광고는 없음 */
-    static readonly BANNER_RATIO: Readonly<Record<AdType, number | null>> = { WIDE: 4, STRIP: 12, SQUARE: 6 / 5, SMALL: 3, WING: 4 / 15, TEXT_LINE: null };
+    static readonly BANNER_RATIO: Readonly<Record<AdType, number | null>> = { WIDE: 4, STRIP: 12, SQUARE: 6 / 5, SMALL: 3, HALF: 6, WING: 4 / 15, TEXT_LINE: null };
     /** 배너 비율 허용 폭 ±3%(docs/plans/biz-ad-hotdeal/02-ad.md 미디어 업로드) — 공개 자리는 규격 틀에 맞춰 잘라 보이므로 크게 다르면 막는다 */
     static readonly BANNER_RATIO_TOLERANCE = 0.03;
 
     /** 광고 종류 차례(카드 순서) */
-    static readonly AD_TYPES: readonly AdType[] = ['WIDE', 'STRIP', 'SQUARE', 'SMALL', 'WING', 'TEXT_LINE'];
+    static readonly AD_TYPES: readonly AdType[] = ['WIDE', 'STRIP', 'SQUARE', 'SMALL', 'HALF', 'WING', 'TEXT_LINE'];
 
     /** 목록 거르기 차례 */
     static readonly BUCKETS: readonly BizApplicationBucket[] = ['ALL', 'REVIEW', 'AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'UPCOMING', 'RUNNING', 'ENDED', 'CLOSED'];

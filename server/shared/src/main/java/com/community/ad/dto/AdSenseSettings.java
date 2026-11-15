@@ -22,8 +22,8 @@ public record AdSenseSettings(String mode, String client, boolean adtest, Units 
     public static final String VERIFY = "VERIFY";
     public static final String SHOW = "SHOW";
     public static final List<String> MODES = List.of(OFF, VERIFY, SHOW);
-    /** 디스플레이 광고 단위를 쓰는 자리(응답·이력 차례) — 배너 가젯 넷 · 날개 160×600 · 글 보기 */
-    public static final List<String> DISPLAY_SLOTS = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER", "WING_BANNER", "POST_INLINE");
+    /** 디스플레이 광고 단위를 쓰는 자리(응답·이력 차례) — 배너 가젯 다섯(반 폭 V219) · 날개 160×600 · 글 보기 */
+    public static final List<String> DISPLAY_SLOTS = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER", "HALF_BANNER", "WING_BANNER", "POST_INLINE");
     /** 게시판 목록 한 줄 인피드 */
     public static final String BOARD_LIST = "BOARD_LIST";
     /** ads.txt 의 구글 인증 기관 ID(구글이 정한 고정값) */
@@ -77,10 +77,10 @@ public record AdSenseSettings(String mode, String client, boolean adtest, Units 
     /** 자리별 광고 단위 ID(숫자 10자리, 없으면 null) — JSON 키는 자리 이름 그대로 */
     public record Units(@JsonProperty("WIDE_BANNER") String wideBanner, @JsonProperty("STRIP_BANNER") String stripBanner,
                         @JsonProperty("SQUARE_BANNER") String squareBanner, @JsonProperty("SMALL_BANNER") String smallBanner,
-                        @JsonProperty("WING_BANNER") String wingBanner, @JsonProperty("POST_INLINE") String postInline,
-                        @JsonProperty("BOARD_LIST") InFeed boardList) {
+                        @JsonProperty("HALF_BANNER") String halfBanner, @JsonProperty("WING_BANNER") String wingBanner,
+                        @JsonProperty("POST_INLINE") String postInline, @JsonProperty("BOARD_LIST") InFeed boardList) {
 
-        public static final Units EMPTY = new Units(null, null, null, null, null, null, new InFeed(null, null));
+        public static final Units EMPTY = new Units(null, null, null, null, null, null, null, new InFeed(null, null));
 
         public Units {
             boardList = boardList == null ? new InFeed(null, null) : boardList;
@@ -93,6 +93,7 @@ public record AdSenseSettings(String mode, String client, boolean adtest, Units 
                 case "STRIP_BANNER" -> stripBanner;
                 case "SQUARE_BANNER" -> squareBanner;
                 case "SMALL_BANNER" -> smallBanner;
+                case "HALF_BANNER" -> halfBanner;
                 case "WING_BANNER" -> wingBanner;
                 case "POST_INLINE" -> postInline;
                 default -> throw new IllegalArgumentException("모르는 애드센스 자리: " + slot);

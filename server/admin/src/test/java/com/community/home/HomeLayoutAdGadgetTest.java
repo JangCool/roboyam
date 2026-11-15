@@ -141,6 +141,13 @@ class HomeLayoutAdGadgetTest extends CommerceAdminTestBase {
     }
 
     @Test
+    void 반_폭_배너도_광고_가젯_배너_유형으로_저장된다() {
+        HomeLayoutView saved = service.save(root, THEME, withAds(service.get(THEME), config("adType", "HALF_BANNER"), config("count", 1)));
+        assertThat(only(saved, "AD").config().path("adType").asString()).isEqualTo("HALF_BANNER");
+        assertThat(only(service.get(THEME), "AD").config().path("adType").asString()).isEqualTo("HALF_BANNER");
+    }
+
+    @Test
     void 모르는_종류는_여전히_400_fields_gadgets_type() {
         HomeLayoutView before = service.get(THEME);
         List<HomeLayoutGadgetView> gadgets = new ArrayList<>(before.gadgets());

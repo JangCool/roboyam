@@ -13,8 +13,8 @@ export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' |
 /** 팁·강좌·사용기 `/tips` 의 가젯(시스템 페이지 TIPS 배치에서만 — 서버 `GadgetKinds`, tips-contract 「/tips 레이아웃 편집」) */
 export type TipsGadgetKind = 'TIPS_HEADLINE' | 'TIPS_LATEST' | 'TIPS_POPULAR' | 'TIPS_TAGS';
 
-/** 광고 일정표 유형(`AdType`) 중 배너 넷 */
-export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER';
+/** 광고 일정표 유형(`AdType`) 중 배너 다섯 */
+export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'HALF_BANNER';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
 export type HomeGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';

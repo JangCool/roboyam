@@ -29,7 +29,7 @@ export interface AdSenseContext {
 }
 
 const MODES: readonly AdSenseMode[] = ['OFF', 'VERIFY', 'SHOW'];
-const DISPLAY_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'POST_INLINE'];
+const DISPLAY_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER', 'WING_BANNER', 'POST_INLINE'];
 const CLIENT_RE = /^ca-pub-\d{16}$/;
 const SLOT_RE = /^\d{10}$/;
 const LAYOUT_KEY_RE = /^[-+]?[0-9a-z]+(?:[-+][0-9a-z]+)+$/i;
@@ -39,6 +39,7 @@ const FORMAT_OF: Readonly<Record<AdSensePlace, AdSenseFormat>> = {
     STRIP_BANNER: 'horizontal',
     SQUARE_BANNER: 'rectangle',
     SMALL_BANNER: 'horizontal',
+    HALF_BANNER: 'horizontal',
     WING_BANNER: 'wing',
     POST_INLINE: 'responsive',
     BOARD_LIST: 'infeed',

@@ -39,7 +39,7 @@
 | `GROUPS` | `count` 1~6(기본 3) |
 | `QUICK_LINKS` | `shape` PILL·TAB · `items` 0~12개 `{label 1~12자(앞뒤 공백 제거), kind ALL·POPULAR·LATEST·GROUPS·GROUP_BUY·BOARD·PATH, value}` — `BOARD` 는 있는 게시판 slug, `PATH` 는 `/` 로 시작하는 사이트 안 경로(`//`·스킴·공백·제어 문자·역슬래시 없음, 300자 이하), 나머지는 null |
 | `NOTICE_TEXT` | `text` 0~300자(줄바꿈 허용, 평문) · `format` PLAIN·BULLETS |
-| `AD` | `adType` WIDE_BANNER·STRIP_BANNER·SQUARE_BANNER·SMALL_BANNER(기본 WIDE_BANNER) — 공개 `data` null, 화면이 `/api/ads` 로 채움(`ad-contract.md` 「공개 노출 서버 구현 결정」) |
+| `AD` | `adType` WIDE_BANNER·STRIP_BANNER·SQUARE_BANNER·SMALL_BANNER·HALF_BANNER(반 폭 600×100 — shared V219)(기본 WIDE_BANNER) — 공개 `data` null, 화면이 `/api/ads` 로 채움(`ad-contract.md` 「공개 노출 서버 구현 결정」) |
 | `AD_TEXT_LINE` | `count` 1~5(기본 3) — 위와 같음 |
 | 공통 — `HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`HOT_DEALS`·`QUICK_LINKS` | `hover` 마우스 올림 효과(boolean, 기본 켬 — 칸이 없는 옛 가젯도 켬, 2026-11-10). 창은 「모양」 탭 「마우스 올림 효과」. 공개: 줄 항목 옅은 바탕(`gadget-hover` — surface-100/다크 800, 좌우 8px 넓힘), 테두리 상자(소모임 작은 카드·바로가기) 상자 바탕(`gadget-hover-box`), 사진 카드 제목 밑줄(`gadget-hover-photo`) — `main.css`. 안내 글·광고 2종은 칸 없음(서버가 버림). 오류 `config.hover` boolean 아님 → `homeLayout.gadget.config.option` |
 - **모양·노출(모든 종류)**: `title` 1~40자(줄바꿈·제어 문자 금지 — 저장 가젯도 바꾼다) · `desktop`·`mobile`(둘 다 false 금지) · `style`: `icon` `^pi-[a-z0-9-]{2,60}$` 또는 null(제목 아이콘 칸 전부는 아래 「가젯 제목 아이콘」) · `headerStyle` BAR·UNDERLINE·FILLED·PLAIN·HIDDEN · `titleSize` S·M·L · `titleColor`·`cardColor` 프리셋 12색 이름·`#rrggbb`·null · `subtitle` 0~40 · `cardLook` DEFAULT·FLAT·OUTLINE·TINT · `mobileFold` NONE·OPEN·CLOSED · `empty{keep, message, text 0~40}`. 오류 `400 fields.gadgets[i].title|desktop|mobile|style.<칸>`.

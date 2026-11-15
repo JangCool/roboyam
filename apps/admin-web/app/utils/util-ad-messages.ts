@@ -26,6 +26,7 @@ const FIELD_KEYS: Record<AdPlacementHistoryField, string> = {
     'adsense.units.STRIP_BANNER': 'ad.placementHistoryField.adsenseUnitStrip',
     'adsense.units.SQUARE_BANNER': 'ad.placementHistoryField.adsenseUnitSquare',
     'adsense.units.SMALL_BANNER': 'ad.placementHistoryField.adsenseUnitSmall',
+    'adsense.units.HALF_BANNER': 'ad.placementHistoryField.adsenseUnitHalf',
     'adsense.units.WING_BANNER': 'ad.placementHistoryField.adsenseUnitWing',
     'adsense.units.POST_INLINE': 'ad.placementHistoryField.adsenseUnitPost',
     'adsense.units.BOARD_LIST.slot': 'ad.placementHistoryField.adsenseUnitFeed',

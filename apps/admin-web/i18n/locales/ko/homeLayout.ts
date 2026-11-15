@@ -150,6 +150,7 @@ export default {
     adTypeSize_STRIP_BANNER: '1200×100',
     adTypeSize_SQUARE_BANNER: '300×250',
     adTypeSize_SMALL_BANNER: '300×100',
+    adTypeSize_HALF_BANNER: '600×100',
     settingsPreviewNoteHotDeals: '저장하기 전 실제 화면은 지금 보이는 딜 안에서만 차례·개수를 바꿔 보여요. 저장하면 이 설정으로 다시 골라요.',
     settingsPreviewNoteAd: '실제 화면에는 지금 진행 중인 광고가 보여요. 광고가 없을 때는 「비었을 때」 설정대로 접히거나 「광고 문의」 안내가 보여요.',
     highlightNote: '노출할 글과 차례는 하이라이트 관리에서 정해요.',

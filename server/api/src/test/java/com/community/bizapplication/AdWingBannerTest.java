@@ -44,7 +44,7 @@ class AdWingBannerTest extends BizApplicationApiTestBase {
         assertThat(BizProduct.WING_BANNER.banner()).isTrue();
         assertThat(BizProduct.WING_BANNER.adProduct()).isTrue();
         assertThat(members.adProducts()).extracting(p -> p.rule().product()).containsExactly(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER,
-                BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.WING_BANNER, BizProduct.TEXT_LINE);
+                BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.HALF_BANNER, BizProduct.WING_BANNER, BizProduct.TEXT_LINE);
     }
 
     @Test
