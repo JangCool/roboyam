@@ -93,9 +93,10 @@
                 </NuxtLink>
 
                 <!-- 보통 줄 -->
-                <NuxtLink v-else :to="`/posts/${row.id}`" class="gadget-hover flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowPad">
+                <NuxtLink v-else :to="`/posts/${row.id}`" class="gadget-hover flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="[rowPad, thumbRoom]">
                     <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다 — 제목 한 줄이면 그 높이에 꼭 맞추고(thumbFit), 두 줄이면 64×40(2026-11-06·11-15 사용자) -->
-                    <GadgetThumb v-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="thumbFit" />
+                    <span v-if="thumb === 'LEFT' && thumbFit" class="absolute left-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="size-full" /></span>
+                    <GadgetThumb v-else-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
                     <!-- 촘촘(`COMPACT`)은 한 줄 — 제목 오른쪽에 메타(게시판·추천·시간)를 나란히 둔다(좁은 칸에 글 10개가 들어가게, 2026-11-06).
                          인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
@@ -128,7 +129,8 @@
                             </span>
                         </p>
                     </div>
-                    <GadgetThumb v-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="thumbFit" />
+                    <span v-if="thumb === 'RIGHT' && row.thumbnailUrl && thumbFit" class="absolute right-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="size-full" /></span>
+                    <GadgetThumb v-else-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
                 </NuxtLink>
             </FoldedRow>
         </div>
@@ -211,10 +213,20 @@ const likesLead = computed(() => showLikes.value && likesShape.value === 'LEAD' 
 const timeShown = computed(() => props.cfg.meta.includes('TIME'));
 
 /**
- * 줄 사진 크기 — 제목 한 줄이면 글 두 줄(제목 + 메타) 높이에 꼭 맞춘다(`self-stretch` · 폭은 16:10 비율로 — 사진이 있어도 줄이 높아지지 않는다, 2026-11-15 사용자 「row 높이만큼」).
- * 제목 두 줄이면 지금처럼 64×40(글이 길어져도 사진은 그대로).
+ * 줄 사진을 줄 높이에 맞추는가 — 두 줄 줄(제목 한 줄 + 메타)이면 사진을 글 높이에 꼭 맞춘다(사진이 있어도 줄이 높아지지 않는다, 2026-11-15 사용자 「row 높이만큼」).
+ * 사진 칸은 줄 위·아래 여백 안쪽에 붙인 절대 위치(높이가 정해져 폭이 16:10 으로 따라온다 — flex 의 늘이기는 폭을 계산하지 않는다), 글 쪽은 그만큼 비운다(`thumbRoom`, rem — 글자 크기 설정을 따라간다).
+ * 제목 두 줄이거나 촘촘(한 줄)이면 지금처럼 64×40.
  */
-const thumbFit = computed(() => (lines.value === 1 ? 'self-stretch' : 'w-16'));
+const thumbFit = computed(() => lines.value === 1 && rowStyle.value !== 'COMPACT');
+/** 사진 칸 위·아래 — 줄 여백(`rowPad`)과 같게 */
+const thumbInset = computed(() => (props.cfg.rowSpacing === 'TIGHT' ? 'top-[7px] bottom-[7px]' : 'top-2.5 bottom-2.5'));
+/** 사진 자리 비우기 — 글 두 줄 높이(약 2.54rem)의 16:10 폭 + 간격 0.75rem */
+const thumbRoom = computed(() => {
+    if (!thumbFit.value) return '';
+    if (thumb.value === 'LEFT') return 'relative pl-[4.8125rem]';
+    if (thumb.value === 'RIGHT' && props.row.thumbnailUrl) return 'relative pr-[4.8125rem]';
+    return '';
+});
 /** 보통 줄 위아래 여백 — 촘촘은 4px(인기글 기간 탭 5px), 두 줄 줄은 10px · 줄 간격 좁게(`rowSpacing: TIGHT`) 7px */
 const rowPad = computed(() => {
     if (rowStyle.value === 'COMPACT') return props.dense ? 'py-[5px]' : 'py-1';
