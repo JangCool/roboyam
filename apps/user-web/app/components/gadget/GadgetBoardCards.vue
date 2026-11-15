@@ -24,10 +24,13 @@
                 </header>
 
                 <FoldedRow v-if="card.lead" :reason="foldOf(card.lead)" kind="post" class="mb-2 py-2 text-sm" hide-class="pb-2">
-                    <!-- 대표 글 = 작은 사진(글 두 줄 높이) + 제목 — 사진이 줄보다 커지지 않게. 사진이 없으면 같은 크기의 「이미지 없음」 자리(설정 `leadPlaceholder`, 기본 켬 — 끄면 제목만, 2026-11-06 사용자) -->
+                    <!-- 대표 글 = 작은 사진(글 두 줄 높이) + 제목 한 줄 · 본문 한 줄(넘치면 말줄임 — 2026-11-15 사용자) — 사진이 줄보다 커지지 않게. 사진이 없으면 같은 크기의 「이미지 없음」 자리(설정 `leadPlaceholder`, 기본 켬 — 끄면 제목만, 2026-11-06 사용자) -->
                     <NuxtLink :to="`/posts/${card.lead.id}`" class="gadget-hover-photo mb-2 flex items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-primary" data-testid="home-board-lead">
                         <GadgetThumb v-if="card.lead.thumbnailUrl || cfg.leadPlaceholder" :src="card.lead.thumbnailUrl" ratio="16 / 10" class="w-[4.5rem] shrink-0" />
-                        <p class="gadget-hover-title m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug">{{ card.lead.title }}</p>
+                        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span class="gadget-hover-title truncate text-[0.9375rem] font-semibold leading-snug">{{ card.lead.title }}</span>
+                            <span v-if="card.lead.excerpt" class="truncate text-[0.8125rem] leading-snug text-muted-color" data-testid="home-board-lead-excerpt">{{ card.lead.excerpt }}</span>
+                        </span>
                     </NuxtLink>
                 </FoldedRow>
 

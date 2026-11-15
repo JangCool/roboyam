@@ -44,7 +44,6 @@
                         </p>
                     </NuxtLink>
                     <!-- 글 태그 1~3개 — 메타 줄 바로 아래(글 링크 밖) -->
-                    <TipsPostTags v-if="lead.tags.length" :tags="lead.tags" :board="tips.board.value" class="mt-1.5" />
                 </FoldedRow>
 
                 <!-- 작은 카드 4 — 좁으면 옆으로 밀어 넘기는 줄(사진 위, 카드 안쪽 좌우 여백 끝까지), 넓으면 세로 목록(사진 왼쪽) -->
@@ -72,12 +71,6 @@
                                 </div>
                             </NuxtLink>
                             <!-- 글 태그 1~3개 — 메타 줄 바로 아래(글 링크 밖), 넓으면 사진 오른쪽 글자 칸에 맞춘다 -->
-                            <TipsPostTags
-                                v-if="row.tags.length"
-                                :tags="row.tags"
-                                :board="tips.board.value"
-                                class="mt-1 @min-[36rem]:-mt-1.5 @min-[36rem]:pb-2.5 @min-[36rem]:pl-[5.875rem]"
-                            />
                         </FoldedRow>
                     </li>
                 </ul>

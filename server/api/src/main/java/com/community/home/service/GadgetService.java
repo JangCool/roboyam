@@ -85,7 +85,7 @@ import tools.jackson.databind.JsonNode;
  *       {@code lead: THUMB} 이면 사진 줄이 되는 글(첫 글 · 모바일 쪽 넘기기면 쪽마다 첫 글, 기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.
  *       {@code tagTabs} 가 있으면 탭마다 그 태그가 달린 글 줄을 {@code tagged} 로 함께 싣는다(같은 정렬·개수·범위·요약 규칙 — 가젯은 탭을 눌러도 서버를 부르지 않는다, post-tags-contract).</li>
  *   <li>{@code HIGHLIGHT}: 설정 {@code place}(기본 home — 없는 곳도 home, V161)의 노출 중인 하이라이트(관리자 순서, {@link HighlightPicks}), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
- *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
+ *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글(대표 글에 {@code excerpt} — 제목 한 줄 · 본문 한 줄), 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
  *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다(운영 주체가 팔 수 없는 단계면 빈 목록). {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
  *   <li>대상 게시판 {@code boardScope}(gadget-page-contract 「가젯 설정」): {@code ALL} 전체 · {@code PICK} {@code boardIds} · {@code FOLDER} 가젯 페이지의 기준 폴더 켜진 게시판
@@ -582,8 +582,11 @@ public class GadgetService {
         List<BoardCardView> cards = new ArrayList<>();
         for (EffectiveBoard b : boards) {
             List<PostFeedRowView> latest = latest(List.of(b.id()), perBoard + 1, ctx);
-            PostFeedRowView lead = latest.stream().filter(r -> r.thumbnailUrl() != null).findFirst().orElse(latest.isEmpty() ? null : latest.getFirst());
-            List<PostFeedRowView> items = latest.stream().filter(r -> r != lead).limit(perBoard).toList();
+            PostFeedRowView picked = latest.stream().filter(r -> r.thumbnailUrl() != null).findFirst().orElse(latest.isEmpty() ? null : latest.getFirst());
+            List<PostFeedRowView> items = latest.stream().filter(r -> r != picked).limit(perBoard).toList();
+            // 대표 글은 제목 한 줄 + 본문 한 줄(사용자 2026-11-15) — 본문 앞부분 글자(excerpt)를 싣는다
+            String excerpt = picked == null ? null : excerptOf(picked);
+            PostFeedRowView lead = excerpt == null ? picked : picked.withExcerpt(excerpt);
             cards.add(new BoardCardView(new BoardCardView.Board(b.slug(), b.name(), b.nameEn(), b.color(), b.investmentNotice()), lead, items));
         }
         return new BoardCardsDataView(cards);

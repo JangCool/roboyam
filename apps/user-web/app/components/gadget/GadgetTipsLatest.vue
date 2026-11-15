@@ -90,12 +90,6 @@
                                     </PostRowFrame>
                                 </NuxtLink>
                                 <!-- 글 태그 1~3개 — 메타 줄 바로 아래(글 링크 밖), 데스크톱은 사진 오른쪽 글자 칸에 맞춘다 -->
-                                <TipsPostTags
-                                    v-if="row.tags.length"
-                                    :tags="row.tags"
-                                    :board="tips.board.value"
-                                    class="-mt-2 pb-3.5 md:pl-[6.875rem] md:@min-[36rem]:pl-[9.875rem]"
-                                />
                             </FoldedRow>
                         </li>
                     </ul>
