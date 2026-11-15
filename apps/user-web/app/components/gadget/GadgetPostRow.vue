@@ -34,10 +34,10 @@
                     </p>
                 </NuxtLink>
 
-                <!-- 첫 글 사진 줄 — 뉴스형 한 줄 목록(`LINE`)의 한 열(모바일, 2026-11-15 사용자 「사진이 커서 제목이 안 보인다」): 제목이 맨 위에서 가로를 다 쓰고(두 줄까지),
+                <!-- 첫 글 사진 줄 — 뉴스형 한 줄 목록(`LINE`)의 한 열(모바일, 2026-11-15 사용자 「사진이 커서 제목이 안 보인다」): 제목이 맨 위에서 가로를 다 쓰고(한 줄 — 넘치면 …),
                      아래에 줄인 사진(88px) + 본문 앞부분 세 줄(사진 높이 ≈ 세 줄), 추천·날짜는 본문 아래 작은 글자 -->
                 <NuxtLink v-else-if="leadThumb && rowStyle === 'LINE' && stacked" :to="`/posts/${row.id}`" class="gadget-hover block py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-lead-thumb">
-                    <p class="m-0 line-clamp-2 break-words text-base font-bold leading-snug tracking-tight">
+                    <p class="m-0 truncate text-base font-bold leading-snug tracking-tight">
                         <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="mr-1.5 text-sm! font-bold!" />
                         <span v-else-if="cfg.meta.includes('BOARD')" class="mr-1.5 text-xs font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
                         <span>{{ row.title }}</span>
