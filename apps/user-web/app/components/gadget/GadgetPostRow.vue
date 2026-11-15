@@ -9,7 +9,7 @@
         마우스 올림 효과(설정 `hover`, `main.css`): 보통 줄은 옅은 바탕(`gadget-hover` — 좌우로 8px 넓힌 바탕이 순위 칸에 조금 걸려 순위 번호는 `relative` 로 바탕 위에), 큰 글은 제목 밑줄.
     -->
     <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? 'flex items-start' : '']" :style="rowVars" data-testid="home-post-row">
-        <span v-if="rank !== null" class="relative w-7 shrink-0 text-center font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rankPad]" :style="rankStyle" data-testid="home-post-rank">
+        <span v-if="rank !== null" class="relative w-6 shrink-0 text-left font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rankPad]" :style="rankStyle" data-testid="home-post-rank">
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>
         <div class="min-w-0 flex-1">
