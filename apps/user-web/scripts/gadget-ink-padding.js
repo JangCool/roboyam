@@ -33,7 +33,11 @@
     function measure(card, withSelf) {
         const ink = { top: Infinity, bottom: -Infinity, left: Infinity, right: -Infinity };
         const raw = { top: Infinity, bottom: -Infinity };
-        const add = (box, r) => {
+        // 넘침을 자르는 조상(line-clamp·truncate) 안에서는 잘린 부분을 치지 않는다(접힌 둘째 줄 글자 상자)
+        let clip = { top: -Infinity, bottom: Infinity };
+        const add = (box, r0) => {
+            const r = { left: r0.left, right: r0.right, top: Math.max(r0.top, clip.top), bottom: Math.min(r0.bottom, clip.bottom) }; // DOMRect 는 펼치기로 복사되지 않는다
+            if (r.bottom - r.top <= 0) return;
             box.top = Math.min(box.top, r.top);
             box.bottom = Math.max(box.bottom, r.bottom);
             if ('left' in box) {
@@ -51,6 +55,8 @@
                 add(raw, rect);
                 if (['I', 'IMG', 'SVG'].includes(el.tagName.toUpperCase())) return;
             }
+            const saved = clip;
+            if (!isCard && cs.overflowY !== 'visible') clip = { top: Math.max(clip.top, rect.top), bottom: Math.min(clip.bottom, rect.bottom) };
             for (const node of el.childNodes) {
                 if (node.nodeType === Node.TEXT_NODE) {
                     if (!node.textContent || !node.textContent.trim()) continue;
@@ -67,6 +73,7 @@
                     visit(node, false);
                 }
             }
+            clip = saved;
         };
         visit(card, !withSelf);
         return { ink, raw };

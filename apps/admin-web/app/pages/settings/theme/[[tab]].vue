@@ -131,7 +131,7 @@
                     @change="(v) => (liveHome = v)"
                     @screens="(v) => (liveScreens = v)"
                 >
-                    <!-- 실제 화면 — 보기도 편집도 여기서(편집이면 실제 가젯 위에 끌기·크기·빼기 손잡이). 편집기의 「휴대폰 폭으로 보기」면 휴대폰 폭(손잡이 없음) -->
+                    <!-- 실제 화면 — 보기도 편집도 여기서(편집이면 실제 가젯 위에 끌기·크기·빼기 손잡이). 편집기의 「모바일」이면 휴대폰 폭(손잡이는 차례 끌기·⚙·× — 크기는 PC 에서만) -->
                     <template #default="{ mobile }">
                         <ThemeLivePreview
                             v-if="layoutKind !== 'BOARD' || boardPath"
@@ -141,7 +141,7 @@
                             :path="previewPath"
                             :page="previewPage"
                             :board="layoutKind === 'BOARD' ? { screens: liveScreens } : null"
-                            :editing="viewMode === 'edit' && canManage && !mobile"
+                            :editing="viewMode === 'edit' && canManage"
                             :mobile="mobile"
                             @edit-menu="openMenu"
                             @layout-op="(op) => editor?.applyOp(op)"

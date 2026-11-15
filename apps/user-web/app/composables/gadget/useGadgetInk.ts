@@ -281,7 +281,12 @@ function inkOf(root: Element, skipSelf = false): { top: number; bottom: number; 
     let bottom = Number.NEGATIVE_INFINITY;
     let topEl: Element | null = null;
     let bottomEl: Element | null = null;
-    const add = (t: number, b: number, owner: Element) => {
+    // 넘침을 자르는 조상(line-clamp·truncate 등) 안에서는 잘려 안 보이는 부분을 치지 않는다 — 접힌 둘째 줄 글자 상자도 잡혀 카드 아래가 늘었다
+    let clipTop = Number.NEGATIVE_INFINITY;
+    let clipBottom = Number.POSITIVE_INFINITY;
+    const add = (t0: number, b0: number, owner: Element) => {
+        const t = Math.max(t0, clipTop);
+        const b = Math.min(b0, clipBottom);
         if (b - t <= 0) return;
         if (t < top) {
             top = t;
@@ -301,6 +306,12 @@ function inkOf(root: Element, skipSelf = false): { top: number; bottom: number; 
             add(rect.top, rect.bottom, el);
             if (el.tagName === 'I' || el.tagName === 'IMG' || el.tagName.toLowerCase() === 'svg') return;
         }
+        const savedTop = clipTop;
+        const savedBottom = clipBottom;
+        if (el !== root && cs.overflowY !== 'visible') {
+            clipTop = Math.max(clipTop, rect.top);
+            clipBottom = Math.min(clipBottom, rect.bottom);
+        }
         for (const node of el.childNodes) {
             if (node.nodeType === Node.TEXT_NODE) {
                 if (!node.textContent || !node.textContent.trim()) continue;
@@ -316,6 +327,8 @@ function inkOf(root: Element, skipSelf = false): { top: number; bottom: number; 
                 visit(node as Element);
             }
         }
+        clipTop = savedTop;
+        clipBottom = savedBottom;
     };
     visit(root);
     return Number.isFinite(top) ? { top, bottom, topEl, bottomEl } : null;

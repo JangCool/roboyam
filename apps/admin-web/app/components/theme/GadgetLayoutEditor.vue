@@ -10,7 +10,7 @@
         `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다(슬롯 값 `mobile` — 휴대폰 폭으로 볼지).
         **모바일 순서**(home-news-contract 「모바일 순서」, 2026-11-15 — 홈·가젯 페이지·게시판 공통): 도구 줄 아래 `GadgetMobileOrder` — 휴대폰 한 열 차례를 끌어 놓기·↑↓로 바꾸면 배치의 `mobileOrder` 를 채우고,
           [PC 배치 따르기]로 null. 목록 차례 = 공개 화면과 같은 계산(`UtilHomeStack.order` — 테마 한 열 모양 `ruleOf(theme)` · 게시판 본문 먼저 · `mobileOrder`). 편집 중 값은 배치에 실려 바뀜 표시·저장·실제 화면에 함께 간다.
-          가젯을 빼면 목록에서도 빠지고(저장 모양에서 걸러진다), 새 가젯은 임시 ID 그대로 보내면 서버가 실제 ID 로 바꾼다. [휴대폰 폭으로 보기]면 실제 화면을 390px 폭으로 띄운다(끌기 손잡이는 PC 폭에서만).
+          가젯을 빼면 목록에서도 빠지고(저장 모양에서 걸러진다), 새 가젯은 임시 ID 그대로 보내면 서버가 실제 ID 로 바꾼다. [모바일]이면 실제 화면을 390px 폭으로 띄우고, PC 처럼 실제 화면에서 점선·끌기(위아래 차례 — `order`)·↑↓·⚙·× 로 고친다(크기는 PC 에서만 — 사용자 2026-11-15).
         **가젯 페이지**(`page` — 사용자 결정 2026-10-29): 주면 홈 대신 그 페이지의 이 테마 배치를 편집한다(`useGadgetPageApi` — 읽기·저장·「처음 배치로」). 모양·손잡이·도구 줄은 홈과 같다.
         **게시판 레이아웃**(`board` — 2026-10-30, `useBoardLayoutApi`): 테마마다 하나, 모든 게시판에 같이 쓴다. 고정 칸 「게시판 본문」(`BOARD_BODY`)이 꼭 하나 있다(본문 = 종류가 `BOARD_BODY` 인 가젯 — ID 는 서버가 정한다) —
           옮기기·크기만 되고 빼기·⚙·두 번째 넣기는 없다(`UtilBoardLayout.ensureBody`). 도구 줄에 적용 화면(게시판 목록 · 글 보기 켜고 끄기 — `screens` 로 화면에 알린다) · [추천 배치](본문 + 오른쪽 열, 묻고 바꾼다)가 더 붙고,
@@ -158,9 +158,10 @@ import UtilGadgetLayoutEditor from '~/utils/util-gadget-layout-editor';
 /** 편집기가 읽고 저장하는 배치(홈 `HomeLayoutView` · 가젯 페이지 `GadgetPageLayoutView` · 게시판 `BoardLayoutView` 의 같은 칸 — 적용 화면은 게시판만) */
 type EditorView = HomeLayoutBody & { updatedAt: string | null; updatedBy: string | null; screens?: BoardLayoutScreens };
 
-/** 실제 화면(iframe)의 홈 격자가 알리는 일 — 놓은 칸 · 칸·행 · 빼기 · ⚙ 설정 열기(user-web `AdminPreviewLayoutOp` 와 같은 모양) */
+/** 실제 화면(iframe)의 홈 격자가 알리는 일 — 놓은 칸 · 칸·행 · 빼기 · ⚙ 설정 열기 · 모바일 차례(`before` 앞으로, null = 맨 뒤)(user-web `AdminPreviewLayoutOp` 와 같은 모양) */
 export type GadgetLayoutOp =
     | { op: 'place'; id: string; x: number; y: number }
+    | { op: 'order'; id: string; before: string | null }
     | { op: 'size'; id: string; w: number; h: number }
     | { op: 'remove'; id: string }
     | { op: 'settings'; id: string };
@@ -360,6 +361,10 @@ function applyOp(op: GadgetLayoutOp): void {
         openSettings(op.id);
         return;
     }
+    if (op.op === 'order') {
+        moveMobileBefore(op.id, op.before);
+        return;
+    }
     apply(UtilGadgetLayoutEditor.setBox(items.value, op.id, op.op === 'place' ? { x: op.x, y: op.y } : { w: op.w, h: op.h }, columns.value));
     announce(op.id);
 }
@@ -400,6 +405,16 @@ function moveMobile(id: string, to: number): void {
         to,
     );
     saveError.value = '';
+}
+
+/** 모바일 화면(iframe 한 열)에서 끌어 놓은 차례 — `before` 가젯 앞으로(null = 맨 뒤). 차례 목록에 없는 가젯 앞이면 무시 */
+function moveMobileBefore(id: string, before: string | null): void {
+    const rest = mobileRows.value.map((r) => r.id).filter((v) => v !== id);
+    const at = before === null ? rest.length : rest.indexOf(before);
+    if (at < 0 || before === id) return;
+    moveMobile(id, at);
+    const g = gadgetOf(id);
+    if (g) announcement.value = t('homeLayout.mobileOrderMoved', { title: g.title, n: at + 1 });
 }
 
 /** PC 배치 따르기 — 모바일 순서를 지운다(= null) */

@@ -111,9 +111,10 @@ export interface AdminPreviewMessage {
     board: AdminPreviewBoard | null;
 }
 
-/** 편집 중 격자가 관리자에게 알리는 일 — 옮기기(놓은 칸) · 크기(칸·행) · 빼기 · 설정 열기(⚙) */
+/** 편집 중 격자가 관리자에게 알리는 일 — 옮기기(놓은 칸) · 크기(칸·행) · 빼기 · 설정 열기(⚙) · 모바일 한 열 차례(`before` 가젯 앞으로, null = 맨 뒤) */
 export type AdminPreviewLayoutOp =
     | { op: 'place'; id: string; x: number; y: number }
+    | { op: 'order'; id: string; before: string | null }
     | { op: 'size'; id: string; w: number; h: number }
     | { op: 'remove'; id: string }
     | { op: 'settings'; id: string };

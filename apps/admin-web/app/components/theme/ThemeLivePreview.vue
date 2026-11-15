@@ -105,6 +105,7 @@ function readOp(data: unknown): GadgetLayoutOp | null {
     if (typeof d.id !== 'string') return null;
     if (d.op === 'remove') return { op: 'remove', id: d.id };
     if (d.op === 'settings') return { op: 'settings', id: d.id };
+    if (d.op === 'order' && (d.before === null || typeof d.before === 'string')) return { op: 'order', id: d.id, before: d.before as string | null };
     if (d.op === 'place' && Number.isFinite(d.x) && Number.isFinite(d.y)) return { op: 'place', id: d.id, x: Number(d.x), y: Number(d.y) };
     if (d.op === 'size' && Number.isFinite(d.w) && Number.isFinite(d.h)) return { op: 'size', id: d.id, w: Number(d.w), h: Number(d.h) };
     return null;

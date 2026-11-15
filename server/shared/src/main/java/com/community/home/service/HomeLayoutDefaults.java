@@ -153,7 +153,7 @@ public final class HomeLayoutDefaults {
         b.add("HIGHLIGHT", "핫 아이로 픽", true, false, plain("pi-sparkles").put("bottomSpace", "TIGHT"),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"),
-                cfg().put("sort", "LATEST").put("rowStyle", "COMPACT").put("columns", 1).put("count", 12).put("dividers", false).put("likes", "LEAD")
+                cfg().put("sort", "LATEST").put("rowStyle", "COMPACT").put("columns", 1).put("count", 12).put("dividers", false).put("likes", "ICON")
                         .<ObjectNode>set("excludeBoardIds", meta(BoardFields.NEWS_SLUG)).set("meta", meta("BOARD", "COMMENTS", "LIKES")),
                 null, "/latest", 9, 12, 9, 8);
         String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 29, 18, 3);

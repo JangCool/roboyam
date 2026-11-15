@@ -16,12 +16,14 @@
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
           편집 중에는 칸마다 옅은 점선 윤곽을 그리고, 크기 꼬리표는 최적 칸 수보다 작으면 빨강·크면 주황 알림을 늘 보인다(`UtilGadgetGrid.sizeHint` — 저장은 막지 않는다).
+          **한 열(관리자 「모바일」 미리보기, 사용자 2026-11-15 — PC 처럼 실제 화면에서)**: 모바일에 보이는 가젯만 그리고, 같은 점선 손잡이 층에서 위아래로 끌면 놓을 자리 줄을 보이고 놓으면 `order`(그 가젯 앞 `before`, 맨 뒤 null)를 알린다.
+          ↑·↓ 단추로 한 칸씩도 옮기고 ⚙ · × 는 PC 와 같다. 크기 손잡이는 없다(크기는 PC 배치). 꼬리표는 「모바일 n번째」.
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
           한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeStack.bodyFirst`, 모바일 순서를 정했으면 그 차례가 먼저). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
     -->
     <div ref="root" class="min-w-0" :class="mode === 'stack' ? ['gadget-stack', editing ? 'relative' : ''] : 'relative'" :style="gridStyle" :data-grid-mode="mode" data-testid="home-grid">
         <div
-            v-for="cell in cells"
+            v-for="(cell, index) in cells"
             :key="cell.gadget.id"
             :ref="(el) => bind(cell.gadget.id, el)"
             :data-gadget-id="cell.gadget.id"
@@ -29,7 +31,7 @@
             :data-grid-stretched="stretchedOf(cell)"
             :data-grid-height="mode === 'stack' ? undefined : Math.round(cell.height)"
             class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
-            :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind === 'move' ? 'z-20 opacity-80' : '', cell.gadget.desktop ? '' : 'opacity-50'] : ''"
+            :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind !== 'size' ? 'z-20 opacity-80' : '', mode === 'stack' || cell.gadget.desktop ? '' : 'opacity-50'] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
         >
             <!-- 게시판 레이아웃의 고정 칸 — 게시판 목록(·글 보기) 화면 내용 그대로(`provideBoardLayoutBody`) -->
@@ -44,7 +46,10 @@
                 :data-size="hintOf(cell)?.kind"
                 @pointerdown="onDown($event, cell, 'move')"
             >
-                <span class="home-edit-badge" :data-size="hintOf(cell)?.kind" data-testid="home-edit-badge">
+                <span v-if="mode === 'stack'" class="home-edit-badge" data-testid="home-edit-badge">
+                    <template v-if="cell.gadget.type === BOARD_BODY">{{ t('home.editBoardBody') }} · </template>{{ t('home.editOrder', { n: index + 1 }) }}
+                </span>
+                <span v-else class="home-edit-badge" :data-size="hintOf(cell)?.kind" data-testid="home-edit-badge">
                     <template v-if="cell.gadget.type === BOARD_BODY">{{ t('home.editBoardBody') }} · </template>{{ t('home.editSize', sizeOf(cell))
                     }}<template v-if="!cell.gadget.desktop"> · {{ t('home.editMobileOnly') }}</template>
                     <template v-if="hintOf(cell)"> · {{ hintOf(cell)!.kind === 'small' ? t('home.editTooSmall', { n: hintOf(cell)!.need }) : t('home.editTooLarge', { n: hintOf(cell)!.spare }) }}</template>
@@ -69,7 +74,30 @@
                 >
                     <i class="pi pi-times text-xs" aria-hidden="true" />
                 </button>
-                <span class="home-edit-resize" :aria-label="t('home.editResize')" @pointerdown.stop="onDown($event, cell, 'size')" />
+                <template v-if="mode === 'stack'">
+                    <!-- 한 열 — 한 칸씩 위·아래(끌기와 같은 `order`) -->
+                    <button
+                        type="button"
+                        class="home-edit-remove home-edit-up"
+                        :disabled="index === 0"
+                        :aria-label="t('home.editMoveUp', { title: cell.gadget.title })"
+                        @pointerdown.stop
+                        @click.stop="step(index, -1)"
+                    >
+                        <i class="pi pi-arrow-up text-xs" aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        class="home-edit-remove home-edit-down"
+                        :disabled="index === cells.length - 1"
+                        :aria-label="t('home.editMoveDown', { title: cell.gadget.title })"
+                        @pointerdown.stop
+                        @click.stop="step(index, 1)"
+                    >
+                        <i class="pi pi-arrow-down text-xs" aria-hidden="true" />
+                    </button>
+                </template>
+                <span v-else class="home-edit-resize" :aria-label="t('home.editResize')" @pointerdown.stop="onDown($event, cell, 'size')" />
             </div>
         </div>
         <!-- 끄는 동안 놓일 자리 -->
@@ -125,10 +153,12 @@ const columns = computed(() => (mode.value === 'half' ? props.layout.columns / 2
 
 /** 이 폭에서 그릴 가젯의 운영자 자리 */
 const visibleItems = computed(() => {
-    // 관리자 미리보기 편집 중에는 PC 에서 숨는 가젯도 그린다(흐리게 — 자리를 고칠 수 있게)
+    // 관리자 미리보기 편집 중에는 PC 에서 숨는 가젯도 그린다(흐리게 — 자리를 고칠 수 있게). 한 열(모바일)은 모바일에 보이는 가젯만(모바일 차례에 드는 가젯)
     // 게시판 본문은 게시판 레이아웃 안에서 늘 그린다(아는 가젯 종류가 아니라 `isVisible` 이 거른다)
     const shown = new Set(
-        props.gadgets.filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty) || UtilGadget.isVisible(g, wide.value))).map((g) => g.id),
+        props.gadgets
+            .filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty && (mode.value !== 'stack' || g.mobile)) || UtilGadget.isVisible(g, wide.value)))
+            .map((g) => g.id),
     );
     return props.layout.items.filter((it) => shown.has(it.gadgetId));
 });
@@ -179,7 +209,8 @@ function cellStyle(cell: Cell): CSSProperties | undefined {
 
 interface Drag {
     id: string;
-    kind: 'move' | 'size';
+    /** `order` = 한 열(모바일)에서 위아래 차례 끌기 */
+    kind: 'move' | 'size' | 'order';
     /** 끌기 시작한 칸(운영자 자리) */
     cell: Cell;
     startX: number;
@@ -193,6 +224,8 @@ interface Drag {
     height: number;
     /** 놓일 자리(칸·행) */
     target: { x: number; y: number; w: number; h: number };
+    /** 한 열 끌기 — 놓으면 이 가젯 앞으로(null = 맨 뒤) */
+    before: string | null;
 }
 
 const drag = ref<Drag | null>(null);
@@ -204,7 +237,9 @@ function steps(): { colW: number; unitX: number; unitY: number } {
 }
 
 function onDown(event: PointerEvent, cell: Cell, kind: 'move' | 'size'): void {
-    if (event.button !== 0 || mode.value === 'stack') return;
+    if (event.button !== 0) return;
+    const stacked = mode.value === 'stack';
+    if (stacked && kind === 'size') return;
     const el = observed.get(cell.gadget.id) as HTMLElement | undefined;
     const box = root.value?.getBoundingClientRect();
     if (!el || !box) return;
@@ -212,7 +247,7 @@ function onDown(event: PointerEvent, cell: Cell, kind: 'move' | 'size'): void {
     const rect = el.getBoundingClientRect();
     drag.value = {
         id: cell.gadget.id,
-        kind,
+        kind: stacked ? 'order' : kind,
         cell,
         startX: event.clientX,
         startY: event.clientY,
@@ -223,6 +258,7 @@ function onDown(event: PointerEvent, cell: Cell, kind: 'move' | 'size'): void {
         width: rect.width,
         height: rect.height,
         target: { x: cell.x, y: cell.y, w: cell.w, h: cell.h },
+        before: nextIdOf(cell.gadget.id),
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });
@@ -233,6 +269,11 @@ function onMove(event: PointerEvent): void {
     if (!d) return;
     d.dx = event.clientX - d.startX;
     d.dy = event.clientY - d.startY;
+    if (d.kind === 'order') {
+        d.dx = 0;
+        d.before = orderTarget(d);
+        return;
+    }
     const { unitX, unitY } = steps();
     const cols = columns.value;
     if (d.kind === 'move') {
@@ -255,10 +296,47 @@ function onUp(): void {
     if (!d) return;
     const moved = Math.abs(d.dx) > 3 || Math.abs(d.dy) > 3;
     if (!moved) return;
+    if (d.kind === 'order') {
+        if (d.before !== nextIdOf(d.id)) postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'order', id: d.id, before: d.before });
+        return;
+    }
     if (d.kind === 'move') {
         if (d.target.x !== d.cell.x || d.target.y !== d.cell.y) postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'place', id: d.id, x: d.target.x, y: d.target.y });
     } else if (d.target.w !== d.cell.w || d.target.h !== d.cell.h) {
         postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'size', id: d.id, w: d.target.w, h: d.target.h });
+    }
+}
+
+/** 한 열에서 이 가젯 바로 뒤 가젯(없으면 null) — 그 앞에 놓으면 제자리 */
+function nextIdOf(id: string): string | null {
+    const i = cells.value.findIndex((c) => c.gadget.id === id);
+    return cells.value[i + 1]?.gadget.id ?? null;
+}
+
+/** 한 열 끌기 — 끄는 카드의 가운데가 지나지 않은 첫 카드(가운데 기준) 앞, 없으면 맨 뒤 */
+function orderTarget(d: Drag): string | null {
+    const box = root.value?.getBoundingClientRect();
+    if (!box) return d.before;
+    const center = box.top + d.top + d.dy + d.height / 2;
+    for (const c of cells.value) {
+        if (c.gadget.id === d.id) continue;
+        const el = observed.get(c.gadget.id);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (center < r.top + r.height / 2) return c.gadget.id;
+    }
+    return null;
+}
+
+/** ↑·↓ — 한 칸 위(앞 가젯 앞) · 한 칸 아래(다음다음 가젯 앞, 없으면 맨 뒤) */
+function step(index: number, by: -1 | 1): void {
+    const id = cells.value[index]?.gadget.id;
+    if (!id) return;
+    if (by < 0) {
+        const before = cells.value[index - 1]?.gadget.id;
+        if (before) postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'order', id, before });
+    } else if (index < cells.value.length - 1) {
+        postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'order', id, before: cells.value[index + 2]?.gadget.id ?? null });
     }
 }
 
@@ -295,7 +373,7 @@ function openSettings(id: string): void {
 /** 옮기는 칸은 손가락을 따라간다 */
 function dragStyle(cell: Cell): CSSProperties | undefined {
     const d = drag.value;
-    if (!d || d.id !== cell.gadget.id || d.kind !== 'move') return undefined;
+    if (!d || d.id !== cell.gadget.id || d.kind === 'size') return undefined;
     return { transform: `translate(${d.dx}px, ${d.dy}px)` };
 }
 
@@ -303,6 +381,7 @@ function dragStyle(cell: Cell): CSSProperties | undefined {
 const ghost = computed<CSSProperties | null>(() => {
     const d = drag.value;
     if (!d) return null;
+    if (d.kind === 'order') return orderGhost(d);
     const { colW, unitX } = steps();
     const { x, w } = d.target;
     // 크기 끌기의 높이는 놓일 h 의 상자 높이 — 칸도 같은 높이로 바로 그린다
@@ -311,6 +390,18 @@ const ghost = computed<CSSProperties | null>(() => {
     const height = d.kind === 'move' ? d.height : content === undefined ? UtilHomeLayout.px(d.target.h) : UtilGadgetGrid.boxHeight(d.target.h, content);
     return { left: `${x * unitX}px`, top: `${top}px`, width: `${w * colW + (w - 1) * UtilHomeLayout.GAP}px`, height: `${height}px` };
 });
+
+/** 한 열 끌기의 놓을 자리 줄 — `before` 카드 위 끝(맨 뒤면 마지막 카드 아래 끝), 카드 사이 간격 가운데 */
+function orderGhost(d: Drag): CSSProperties | null {
+    const box = root.value?.getBoundingClientRect();
+    if (!box || !root.value) return null;
+    const target = d.before ? observed.get(d.before) : observed.get(cells.value.at(-1)?.gadget.id ?? '');
+    if (!target) return null;
+    const r = target.getBoundingClientRect();
+    const gap = parseFloat(getComputedStyle(root.value).rowGap) || 0;
+    const y = d.before ? r.top - box.top - gap / 2 : r.bottom - box.top + gap / 2;
+    return { left: '0', right: '0', top: `${y - 2}px`, height: '4px' };
+}
 
 onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
 
@@ -509,6 +600,18 @@ onBeforeUnmount(() => {
 }
 .home-edit-settings {
     right: 2.75rem;
+}
+.home-edit-up {
+    right: auto;
+    left: 0.5rem;
+}
+.home-edit-down {
+    right: auto;
+    left: 2.75rem;
+}
+.home-edit-remove:disabled {
+    cursor: default;
+    background-color: var(--p-surface-400);
 }
 .home-edit-resize {
     position: absolute;

@@ -69,6 +69,9 @@ export default {
     // Admin preview editing (live view in the admin theme screen — home grid handles)
     editSize: '{w}×{h}',
     editMobileOnly: 'Mobile only',
+    editOrder: 'Mobile #{n}',
+    editMoveUp: 'Move {title} up',
+    editMoveDown: 'Move {title} down',
     editBoardBody: 'Board body',
     editRemove: 'Remove {title}',
     editSettings: '{title} settings',
