@@ -173,13 +173,19 @@ const { localizedName } = useLocalizedName();
 const overrides = useBlockOverrides();
 
 const rowStyle = computed(() => props.cfg.rowStyle);
-/** 제목·순위 글자 크기 — 인기글 촘촘(`dense`)은 한 단계 작게(카드 테마 15px → 14px, 그 밖 14px → 13px) */
+/** 한 열(모바일)인가 */
+const stacked = useGadgetStacked();
+/**
+ * 제목·순위 글자 크기 — 인기글 촘촘(`dense`)은 PC 에서 한 단계 작게(카드 테마 15px → 14px, 그 밖 14px → 13px — 하이라이트 높이에 10개).
+ * 한 열(모바일)에서는 높이를 맞출 옆 가젯이 없어 다른 글 목록(최신글)과 같은 크기(사용자 2026-11-15)
+ */
+const smallDense = computed(() => rowStyle.value === 'COMPACT' && props.dense && !stacked.value);
 const titleSize = computed(() => {
-    if (rowStyle.value === 'COMPACT' && props.dense) return look === 'card' ? 'text-sm leading-[1.3]!' : 'text-[0.8125rem] leading-[1.3]!';
+    if (smallDense.value) return look === 'card' ? 'text-sm leading-[1.3]!' : 'text-[0.8125rem] leading-[1.3]!';
     return look === 'card' ? 'text-[0.9375rem]' : 'text-sm';
 });
 const rankSize = computed(() => {
-    if (rowStyle.value === 'COMPACT' && props.dense) return look === 'card' ? 'text-[0.9375rem]' : 'text-[0.8125rem]';
+    if (smallDense.value) return look === 'card' ? 'text-[0.9375rem]' : 'text-[0.8125rem]';
     return look === 'card' ? 'text-[1.0625rem]' : 'text-sm';
 });
 const thumb = computed(() => UtilGadget.thumbPlacement(props.cfg));
@@ -211,7 +217,7 @@ const rowPad = computed(() => {
 });
 /** 순위 번호 위 여백 — 줄 첫 글자와 같은 높이(위 `rowPad` 와 같은 값) */
 const rankPad = computed(() => {
-    if (rowStyle.value === 'COMPACT') return props.dense ? 'pt-[5px] leading-[1.3]!' : 'pt-1';
+    if (rowStyle.value === 'COMPACT') return props.dense ? (smallDense.value ? 'pt-[5px] leading-[1.3]!' : 'pt-[5px]') : 'pt-1';
     if (rowStyle.value === 'LINE') return 'pt-1';
     return props.cfg.rowSpacing === 'TIGHT' ? 'pt-[7px]' : 'pt-2.5';
 });
