@@ -2,7 +2,7 @@
     <!--
         상품이 공개 화면 어디에 나오는지 그린 도식 — 상품 가격 카드의 사업자 화면 미리보기(`AdPriceProductPreview`) 맨 위.
         회색 상자·줄 = 화면 짜임, 주 색상 테두리 상자 = 그 상품 자리(이름표 글자 포함). 창 머리에 화면 이름(홈·게시판 목록·핫딜 게시판 …).
-          배너 넷: 홈 맨 위 큰 자리 / 게시판 목록 위 띠 / 홈 옆 칸 네모 / 게시판 옆 칸 작은 자리 · 날개: 본문 양옆 세로 · 한 줄 광고: 목록 위 글자 한 줄
+          배너 다섯: 홈 맨 위 큰 자리 / 게시판 목록 위 띠 / 홈 옆 칸 네모 / 게시판 옆 칸 작은 자리 / 본문 반 폭 낮은 띠 · 날개: 본문 양옆 세로 · 한 줄 광고: 목록 위 글자 한 줄
           핫딜 셋: 글 게시 = 목록 속 사업자 글 한 줄(「사업자」 표시) / 게시판 상단 = 첫 쪽 맨 위 고정(「광고」) / 말머리 상단 = 말머리 고른 목록 맨 위 고정(「광고」)
         그림은 꾸밈(aria-hidden) — 뜻은 아래 설명 줄(`ad.pricePreviewWhere.*`)이 전한다. 공개 화면 짜임을 단순하게 옮긴 것(가정)이라 화면이 바뀌면 맞춘다.
     -->
@@ -66,6 +66,19 @@
                     <span :class="[SLOT, 'h-6']">{{ label }}</span>
                     <span :class="[BOX, 'h-6']" />
                 </div>
+            </div>
+
+            <!-- 반 폭 배너 — 홈·가젯 페이지 본문 반 폭 칸의 낮은 띠(6:1) -->
+            <div v-else-if="product === 'HALF_BANNER'" class="flex flex-col gap-1.5">
+                <span :class="[BOX, 'h-9']" />
+                <div class="grid grid-cols-2 gap-1.5">
+                    <div class="flex flex-col gap-1.5">
+                        <span :class="[SLOT, 'h-5']">{{ label }}</span>
+                        <span :class="[BOX, 'h-8']" />
+                    </div>
+                    <span :class="[BOX, 'h-full']" />
+                </div>
+                <span :class="[BOX, 'h-6']" />
             </div>
 
             <!-- 날개 배너 — 본문 양옆 세로 -->

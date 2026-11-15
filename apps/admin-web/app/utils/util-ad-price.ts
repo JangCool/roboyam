@@ -24,7 +24,7 @@ export interface AdPriceChainItem {
 }
 
 const GROUPS: readonly { key: AdPriceGroup; products: readonly AdPriceProduct[] }[] = [
-    { key: 'AD', products: ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE'] },
+    { key: 'AD', products: ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER', 'WING_BANNER', 'TEXT_LINE'] },
     { key: 'HOTDEAL', products: ['HOTDEAL_POST', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'] },
 ];
 

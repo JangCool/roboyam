@@ -124,9 +124,10 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
     @Test
     void 상품_남은_칸_링크_검사() throws Exception {
         long user = approvedBusiness();
-        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(6))
-                .andExpect(jsonPath("$.data[4].type").value("WING")).andExpect(jsonPath("$.data[4].dailyPrice").value(30_000))
-                .andExpect(jsonPath("$.data[4].capacity").value(4)).andExpect(jsonPath("$.data[5].type").value("TEXT_LINE"))
+        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(7))
+                .andExpect(jsonPath("$.data[4].type").value("HALF")).andExpect(jsonPath("$.data[4].dailyPrice").value(30_000))
+                .andExpect(jsonPath("$.data[4].capacity").value(3)).andExpect(jsonPath("$.data[5].type").value("WING")).andExpect(jsonPath("$.data[5].dailyPrice").value(30_000))
+                .andExpect(jsonPath("$.data[5].capacity").value(4)).andExpect(jsonPath("$.data[6].type").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data[0].type").value("WIDE")).andExpect(jsonPath("$.data[0].dailyPrice").value(50_000))
                 .andExpect(jsonPath("$.data[0].capacity").value(2));
         dealBoard(); // 받는 핫딜 게시판(말머리 둘)을 먼저 만든다

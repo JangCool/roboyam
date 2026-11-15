@@ -10,7 +10,7 @@ const LAYOUT_KEY_RE = /^[-+]?[0-9a-z]+(?:[-+][0-9a-z]+)+$/i;
 /** 레이아웃 키 최대 길이(서버 `adsense_board_list_layout_key varchar(64)` — 넘으면 400 `fields.adsense.units.BOARD_LIST.layoutKey`) */
 const LAYOUT_KEY_MAX = 64;
 
-const DISPLAY_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'POST_INLINE'];
+const DISPLAY_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER', 'WING_BANNER', 'POST_INLINE'];
 
 function blank(value: string | null | undefined): string | null {
     const s = (value ?? '').trim();
@@ -23,8 +23,8 @@ function blank(value: string | null | undefined): string | null {
 export default class UtilAdSense {
     static readonly MODES: readonly AdSenseMode[] = ['OFF', 'VERIFY', 'SHOW'];
     static readonly DISPLAY_SLOTS = DISPLAY_SLOTS;
-    /** 배너 가젯 넷 — 칸 묶음 「배너 가젯」 */
-    static readonly GADGET_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
+    /** 배너 가젯 다섯 — 칸 묶음 「배너 가젯」 */
+    static readonly GADGET_SLOTS: readonly AdSenseDisplaySlot[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER'];
     /** 애드센스 스크립트 주소(서버가 index.html 머리에 넣는다 — `?client=` 뒤에 게시자 ID) */
     static readonly SCRIPT_BASE = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
     /** `/ads.txt` 한 줄의 구글 인증 기관 ID(구글이 정한 고정 값) */
@@ -36,7 +36,7 @@ export default class UtilAdSense {
             mode: 'OFF',
             client: null,
             adtest: false,
-            units: { WIDE_BANNER: null, STRIP_BANNER: null, SQUARE_BANNER: null, SMALL_BANNER: null, WING_BANNER: null, POST_INLINE: null, BOARD_LIST: { slot: null, layoutKey: null } },
+            units: { WIDE_BANNER: null, STRIP_BANNER: null, SQUARE_BANNER: null, SMALL_BANNER: null, HALF_BANNER: null, WING_BANNER: null, POST_INLINE: null, BOARD_LIST: { slot: null, layoutKey: null } },
         };
     }
 

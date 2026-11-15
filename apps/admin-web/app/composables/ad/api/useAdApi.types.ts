@@ -283,8 +283,8 @@ export interface AdRefundSetting {
  */
 export type AdSenseMode = 'OFF' | 'VERIFY' | 'SHOW';
 
-/** 디스플레이 광고 단위를 쓰는 자리 — 배너 가젯 넷 · 날개(160×600 고정) · 글 보기(반응형) */
-export type AdSenseDisplaySlot = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'POST_INLINE';
+/** 디스플레이 광고 단위를 쓰는 자리 — 배너 가젯 다섯 · 날개(160×600 고정) · 글 보기(반응형) */
+export type AdSenseDisplaySlot = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'HALF_BANNER' | 'WING_BANNER' | 'POST_INLINE';
 
 /** 게시판 목록 한 줄(인피드) — 광고 단위 ID + 레이아웃 키(`-fb+5w+4e-db+86` 꼴) */
 export interface AdSenseInFeedUnit {
@@ -361,7 +361,7 @@ export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;
  * 어느 가격이 적용되나 = 사업자가 신청을 낸 시각 기준(신청 건에 견적 고정 — 승인·결제가 적용 시각 뒤여도 낼 때의 견적).
  */
 
-/** 요금표 상품 — 자리 상품(`BizAdType`) 8개 + 핫딜 글 게시(`HOTDEAL_POST`). 서버 `BizProduct` */
+/** 요금표 상품 — 자리 상품(`BizAdType`) 9개 + 핫딜 글 게시(`HOTDEAL_POST`). 서버 `BizProduct` */
 export type AdPriceProduct = BizAdType | 'HOTDEAL_POST';
 
 /** 값 단위 — 하루 단가(`DAY`) · 건당(`POST`, 핫딜 글 게시만). 바꿀 수 없다(`biz_price_rules.unit`) */

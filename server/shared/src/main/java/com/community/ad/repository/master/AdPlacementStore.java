@@ -42,7 +42,8 @@ public class AdPlacementStore extends IrobitRepositoryQDSL {
     }
 
     private static final Expression<?>[] ADSENSE_COLUMNS = {S.adsenseMode, S.adsenseClient, S.adsenseAdtest, S.adsenseWideBanner, S.adsenseStripBanner,
-            S.adsenseSquareBanner, S.adsenseSmallBanner, S.adsenseWingBanner, S.adsensePostInline, S.adsenseBoardListSlot, S.adsenseBoardListLayoutKey};
+            S.adsenseSquareBanner, S.adsenseSmallBanner, S.adsenseHalfBanner, S.adsenseWingBanner, S.adsensePostInline, S.adsenseBoardListSlot,
+            S.adsenseBoardListLayoutKey};
 
     private static final Expression<?>[] COLUMNS = concat(new Expression<?>[]{S.postInlineEnabled, S.postInlineType, S.postInlinePosition, S.wingLeft, S.wingRight,
             S.wingScreens, S.boardListEnabled, S.boardListAfter, S.boardListCount, S.boardListGap, S.adultEnabled, S.updatedAt, S.updatedBy, S.stopFeeRate},
@@ -129,8 +130,8 @@ public class AdPlacementStore extends IrobitRepositoryQDSL {
             AdSenseSettings.Units u = adsense.units();
             update.set(S.adsenseMode, adsense.mode()).set(S.adsenseClient, adsense.client()).set(S.adsenseAdtest, adsense.adtest())
                     .set(S.adsenseWideBanner, u.wideBanner()).set(S.adsenseStripBanner, u.stripBanner()).set(S.adsenseSquareBanner, u.squareBanner())
-                    .set(S.adsenseSmallBanner, u.smallBanner()).set(S.adsenseWingBanner, u.wingBanner()).set(S.adsensePostInline, u.postInline())
-                    .set(S.adsenseBoardListSlot, u.boardList().slot()).set(S.adsenseBoardListLayoutKey, u.boardList().layoutKey());
+                    .set(S.adsenseSmallBanner, u.smallBanner()).set(S.adsenseHalfBanner, u.halfBanner()).set(S.adsenseWingBanner, u.wingBanner())
+                    .set(S.adsensePostInline, u.postInline()).set(S.adsenseBoardListSlot, u.boardList().slot()).set(S.adsenseBoardListLayoutKey, u.boardList().layoutKey());
         }
         return update.where(S.id.eq(ID)).execute();
     }
@@ -147,10 +148,10 @@ public class AdPlacementStore extends IrobitRepositoryQDSL {
         return entityManager.createNativeQuery("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, "
                         + "wing_right, wing_screens, board_list_enabled, board_list_after, board_list_count, board_list_gap, adult_enabled, stop_fee_rate, "
                         + "updated_at, updated_by, adsense_mode, adsense_client, adsense_adtest, adsense_wide_banner, adsense_strip_banner, adsense_square_banner, "
-                        + "adsense_small_banner, adsense_wing_banner, adsense_post_inline, adsense_board_list_slot, adsense_board_list_layout_key) "
+                        + "adsense_small_banner, adsense_wing_banner, adsense_post_inline, adsense_board_list_slot, adsense_board_list_layout_key, adsense_half_banner) "
                         + "VALUES (?1, ?2, ?3, ?4, ?5, ?6, string_to_array(?7, ','), ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, CAST(?17 AS varchar), ?18, "
                         + "CAST(?19 AS varchar), CAST(?20 AS varchar), CAST(?21 AS varchar), CAST(?22 AS varchar), CAST(?23 AS varchar), CAST(?24 AS varchar), "
-                        + "CAST(?25 AS varchar), CAST(?26 AS varchar)) ON CONFLICT (id) DO NOTHING")
+                        + "CAST(?25 AS varchar), CAST(?26 AS varchar), CAST(?27 AS varchar)) ON CONFLICT (id) DO NOTHING")
                 .setParameter(1, ID).setParameter(2, p.postInline().enabled()).setParameter(3, p.postInline().adType())
                 .setParameter(4, p.postInline().position()).setParameter(5, p.wings().left()).setParameter(6, p.wings().right())
                 .setParameter(7, String.join(",", screens)).setParameter(8, p.boardList().enabled()).setParameter(9, p.boardList().after())
@@ -159,7 +160,7 @@ public class AdPlacementStore extends IrobitRepositoryQDSL {
                 .setParameter(16, adsense.mode()).setParameter(17, adsense.client()).setParameter(18, adsense.adtest())
                 .setParameter(19, u.wideBanner()).setParameter(20, u.stripBanner()).setParameter(21, u.squareBanner()).setParameter(22, u.smallBanner())
                 .setParameter(23, u.wingBanner()).setParameter(24, u.postInline()).setParameter(25, u.boardList().slot())
-                .setParameter(26, u.boardList().layoutKey()).executeUpdate();
+                .setParameter(26, u.boardList().layoutKey()).setParameter(27, u.halfBanner()).executeUpdate();
     }
 
     private static Stored stored(Tuple t, String updatedByName) {
@@ -177,7 +178,7 @@ public class AdPlacementStore extends IrobitRepositoryQDSL {
         String mode = t.get(S.adsenseMode);
         return new AdSenseSettings(mode == null ? AdSenseSettings.OFF : mode, t.get(S.adsenseClient), Boolean.TRUE.equals(t.get(S.adsenseAdtest)),
                 new AdSenseSettings.Units(t.get(S.adsenseWideBanner), t.get(S.adsenseStripBanner), t.get(S.adsenseSquareBanner), t.get(S.adsenseSmallBanner),
-                        t.get(S.adsenseWingBanner), t.get(S.adsensePostInline),
+                        t.get(S.adsenseHalfBanner), t.get(S.adsenseWingBanner), t.get(S.adsensePostInline),
                         new AdSenseSettings.InFeed(t.get(S.adsenseBoardListSlot), t.get(S.adsenseBoardListLayoutKey))));
     }
 

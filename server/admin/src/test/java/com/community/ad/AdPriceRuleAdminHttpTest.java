@@ -123,10 +123,11 @@ class AdPriceRuleAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(get(URL).cookie(settingsOnly)).andExpect(status().isForbidden());
         mvc.perform(get(URL + "/history").cookie(none)).andExpect(status().isForbidden());
         mvc.perform(get(URL).cookie(reader)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.data.rules.length()").value(9))
+                .andExpect(jsonPath("$.data.rules.length()").value(10))
                 .andExpect(jsonPath("$.data.rules[0].product").value("WIDE_BANNER"))
-                .andExpect(jsonPath("$.data.rules[6].product").value("HOTDEAL_POST")).andExpect(jsonPath("$.data.rules[6].unit").value("POST"))
-                .andExpect(jsonPath("$.data.rules[6].capacity").doesNotExist()).andExpect(jsonPath("$.data.rules[6].occupancy.length()").value(0))
+                .andExpect(jsonPath("$.data.rules[7].product").value("HOTDEAL_POST")).andExpect(jsonPath("$.data.rules[7].unit").value("POST"))
+                .andExpect(jsonPath("$.data.rules[4].product").value("HALF_BANNER")).andExpect(jsonPath("$.data.rules[4].unitPrice").value(30000))
+                .andExpect(jsonPath("$.data.rules[7].capacity").doesNotExist()).andExpect(jsonPath("$.data.rules[7].occupancy.length()").value(0))
                 .andExpect(jsonPath("$.data.rules[0].unit").value("DAY")).andExpect(jsonPath("$.data.rules[0].schedules.length()").value(0))
                 .andExpect(jsonPath("$.data.rules[0].recentChanges.length()").value(0));
         mvc.perform(get(URL + "/history").cookie(reader)).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(0));

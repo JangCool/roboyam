@@ -1,5 +1,5 @@
 {
-  "_readme": "데모 광고 — 운영자 등록(심사 요청) → 승인(수동 결제) → 계약서·입금 → 예약 확정 → 시작 시각을 지금으로. 광고주는 새 광고주(advertiser) 또는 사업자(business — 상호로 찾음). 날개(WING_BANNER)는 세로 160×600 — 화면이 넓을 때 본문 바깥 양옆. 홈·가젯 페이지 광고 가젯은 homeGadgets·pageGadgets(페이지마다 따로 — 사용자 결정 2026-11-06, place.afterFirst = 첫 가젯 바로 아래(맨 위는 보기 안 좋다 — 사용자 2026-11-06), place.top = 맨 위 전체 폭, 같은 제목의 광고 가젯이 있으면 건너뜀). 배너 그림은 scripts/seed-demo-images.ps1 이 images/ad-<key>.png 로 그린다. 링크는 예시 주소(example.com)다. placements = 광고 자리 설정 덮어쓰기(왼쪽 날개 끔·날개 일곱 화면·목록 한 줄 2개 간격 10 — 사용자 2026-11-06, V155 필요).",
+  "_readme": "데모 광고 — 운영자 등록(심사 요청) → 승인(수동 결제) → 계약서·입금 → 예약 확정 → 시작 시각을 지금으로. 광고주는 새 광고주(advertiser) 또는 사업자(business — 상호로 찾음). 날개(WING_BANNER)는 세로 160×600 — 화면이 넓을 때 본문 바깥 양옆. 반 폭(HALF_BANNER)은 600×100(6:1) — 반 폭 광고 가젯(adType HALF_BANNER)이 있어야 보인다. 홈·가젯 페이지 광고 가젯은 homeGadgets·pageGadgets(페이지마다 따로 — 사용자 결정 2026-11-06, place.afterFirst = 첫 가젯 바로 아래(맨 위는 보기 안 좋다 — 사용자 2026-11-06), place.top = 맨 위 전체 폭, 같은 제목의 광고 가젯이 있으면 건너뜀). 배너 그림은 scripts/seed-demo-images.ps1 이 images/ad-<key>.png 로 그린다. 링크는 예시 주소(example.com)다. placements = 광고 자리 설정 덮어쓰기(왼쪽 날개 끔·날개 일곱 화면·목록 한 줄 2개 간격 10 — 사용자 2026-11-06, V155 필요).",
   "advertisers": [
     {
       "key": "roboedu",
@@ -105,6 +105,23 @@
         "palette": [
           "#134e4a",
           "#2dd4bf"
+        ]
+      }
+    },
+    {
+      "key": "hf-robofest",
+      "type": "HALF_BANNER",
+      "advertiser": "robofest",
+      "title": "로보페스타 2026 얼리버드",
+      "linkUrl": "https://www.example.com/robofest/early-bird",
+      "altText": "로보페스타 2026 얼리버드 입장권 30% 할인 — 12월 코엑스",
+      "banner": {
+        "brand": "로보페스타 2026",
+        "headline": "얼리버드 입장권 30% 할인",
+        "cta": "예매하기",
+        "palette": [
+          "#9a3412",
+          "#f59e0b"
         ]
       }
     },

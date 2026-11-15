@@ -22,7 +22,7 @@ export default {
     empty: { REVIEW: 'Nothing to review.', PAYMENT: 'Nothing awaiting payment.', DEPOSIT: 'Nothing awaiting deposit.', DEPOSIT_OVERDUE: 'No overdue deposits.', LIVE: 'Nothing scheduled or running.', REFUND: 'No refund requests.', CLOSED: 'Nothing closed yet.' },
     kind: { AD_BANNER: 'Banner ad', AD_TEXT_LINE: 'Text-line ad', HOTDEAL_POST: 'Business hot deal post', HOTDEAL_PLACEMENT: 'Hot deal placement' },
     kindShort: { AD_BANNER: 'Banner', AD_TEXT_LINE: 'Text line', HOTDEAL_POST: 'Deal post', HOTDEAL_PLACEMENT: 'Deal placement' },
-    adType: { WIDE_BANNER: 'Wide banner', STRIP_BANNER: 'Strip banner', SQUARE_BANNER: 'Square banner', SMALL_BANNER: 'Small banner', WING_BANNER: 'Wing banner', TEXT_LINE: 'Text line', HOTDEAL_TOP: 'Hot deal board top', HOTDEAL_CATEGORY: 'Hot deal category top' },
+    adType: { WIDE_BANNER: 'Wide banner', STRIP_BANNER: 'Strip banner', SQUARE_BANNER: 'Square banner', SMALL_BANNER: 'Small banner', HALF_BANNER: 'Half banner', WING_BANNER: 'Wing banner', TEXT_LINE: 'Text line', HOTDEAL_TOP: 'Hot deal board top', HOTDEAL_CATEGORY: 'Hot deal category top' },
     status: {
         SUBMITTED: 'To review',
         AWAITING_PAYMENT: 'Awaiting payment',
@@ -66,7 +66,7 @@ export default {
     agreed: 'Agreed policies',
     sourceOperator: 'Operator-created',
     quoteLine: '{product}: {price} × {units} {unit} = {supply}',
-    product: { WIDE_BANNER: 'Wide banner', STRIP_BANNER: 'Strip banner', SQUARE_BANNER: 'Square banner', SMALL_BANNER: 'Small banner', WING_BANNER: 'Wing banner', TEXT_LINE: 'Text line', HOTDEAL_TOP: 'Hot deal board top', HOTDEAL_CATEGORY: 'Hot deal category top', HOTDEAL_POST: 'Hot deal post' },
+    product: { WIDE_BANNER: 'Wide banner', STRIP_BANNER: 'Strip banner', SQUARE_BANNER: 'Square banner', SMALL_BANNER: 'Small banner', HALF_BANNER: 'Half banner', WING_BANNER: 'Wing banner', TEXT_LINE: 'Text line', HOTDEAL_TOP: 'Hot deal board top', HOTDEAL_CATEGORY: 'Hot deal category top', HOTDEAL_POST: 'Hot deal post' },
     unit: { DAY: 'day(s)', POST: 'post(s)' },
     startPassedNote: 'The requested start has passed. Shift the period by the same length in the approval dialog (the business is notified).',
     noSlotNote: 'No slots left in this period. Shift the period or reject.',

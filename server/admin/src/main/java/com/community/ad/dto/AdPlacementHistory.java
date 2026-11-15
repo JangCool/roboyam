@@ -15,7 +15,7 @@ public final class AdPlacementHistory {
             "boardList.enabled", "boardList.after", "adult.enabled", "refund.stopFeeRate", "boardList.count", "boardList.gap",
             // 구글 애드센스(V176) — 게시자 ID·단위 ID 가 없으면 값 null
             "adsense.mode", "adsense.client", "adsense.adtest", "adsense.units.WIDE_BANNER", "adsense.units.STRIP_BANNER", "adsense.units.SQUARE_BANNER",
-            "adsense.units.SMALL_BANNER", "adsense.units.WING_BANNER", "adsense.units.POST_INLINE", "adsense.units.BOARD_LIST.slot",
+            "adsense.units.SMALL_BANNER", "adsense.units.HALF_BANNER", "adsense.units.WING_BANNER", "adsense.units.POST_INLINE", "adsense.units.BOARD_LIST.slot",
             "adsense.units.BOARD_LIST.layoutKey");
 
     private AdPlacementHistory() {

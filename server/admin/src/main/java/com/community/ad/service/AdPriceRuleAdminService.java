@@ -74,8 +74,8 @@ public class AdPriceRuleAdminService {
     static final int HISTORY_DEFAULT_SIZE = 20;
     /** 결과 단가를 이 단위로 버린다(규칙 5) */
     static final long ROUND_UNIT = 10;
-    /** 화면 차례 — admin-web 목업과 같다(광고 자리 6 · 핫딜 글 · 핫딜 노출 2) */
-    static final List<BizProduct> ORDER = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.WING_BANNER,
+    /** 화면 차례 — admin-web 목업과 같다(광고 자리 7 · 핫딜 글 · 핫딜 노출 2) */
+    static final List<BizProduct> ORDER = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.HALF_BANNER, BizProduct.WING_BANNER,
             BizProduct.TEXT_LINE, BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
     private static final String LABEL_KEY_PREFIX = "settingHistory.field.";
     private static final JsonMapper MAPPER = JsonMapper.builder().build();

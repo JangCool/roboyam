@@ -147,6 +147,7 @@ export default {
     adTypeSize_STRIP_BANNER: '1200×100',
     adTypeSize_SQUARE_BANNER: '300×250',
     adTypeSize_SMALL_BANNER: '300×100',
+    adTypeSize_HALF_BANNER: '600×100',
     settingsPreviewNoteHotDeals: 'Before saving, the live view only reorders and trims the deals already shown. After saving, deals are picked again with these settings.',
     settingsPreviewNoteAd: 'The live view shows ads that are running now. With no ads, the spot folds or shows an “Advertise with us” note, per the Empty setting.',
     highlightNote: 'Which posts appear, and in what order, is set in Highlights.',

@@ -53,8 +53,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class AdAdminService {
 
-    /** 장부 유형(일정표 탭) — 한도가 있는 상품 8개(날개 배너 V116) */
-    static final List<BizProduct> TYPES = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER,
+    /** 장부 유형(일정표 탭) — 한도가 있는 상품 9개(날개 배너 V116 · 반 폭 배너 V219) */
+    static final List<BizProduct> TYPES = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.HALF_BANNER,
             BizProduct.WING_BANNER, BizProduct.TEXT_LINE, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
     static final int MAX_PAGE_SIZE = 100;
 

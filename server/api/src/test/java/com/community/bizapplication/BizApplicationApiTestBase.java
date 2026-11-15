@@ -151,6 +151,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
             case "STRIP" -> new int[] {1200, 100};
             case "SQUARE" -> new int[] {300, 250};
             case "SMALL" -> new int[] {300, 100};
+            case "HALF" -> new int[] {600, 100};
             case "WING" -> new int[] {160, 600};
             default -> new int[] {1200, 300};
         };

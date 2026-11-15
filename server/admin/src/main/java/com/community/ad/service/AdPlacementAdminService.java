@@ -341,7 +341,7 @@ public class AdPlacementAdminService {
             fields.put(feedPrefix + ".slot", new MessageRef("ad.placement.adsense.inFeedPair"));
         }
         return new AdSenseSettings(mode, client, Boolean.TRUE.equals(in.adtest()), new AdSenseSettings.Units(display[0], display[1], display[2], display[3],
-                display[4], display[5], new AdSenseSettings.InFeed(feedSlot, layoutKey)));
+                display[4], display[5], display[6], new AdSenseSettings.InFeed(feedSlot, layoutKey)));
     }
 
     /** 앞뒤 공백을 자르고 빈 글자는 null */

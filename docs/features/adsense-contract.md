@@ -14,7 +14,7 @@
 | `mode` | `OFF` 끔 · `VERIFY` 사이트 확인만 · `SHOW` 광고 표시. 기본 `OFF` | 모르는 값 `fields.adsense.mode` |
 | `client` | 게시자 ID `ca-pub-` + 숫자 16자리, 없으면 null | `VERIFY`·`SHOW` 면 필수·형식 `fields.adsense.client` |
 | `adtest` | 시험 표시(`data-adtest="on"`), 기본 false | — |
-| `units.{WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,WING_BANNER,POST_INLINE}` | 숫자 10자리, 없으면 null | `fields.adsense.units.<자리>` |
+| `units.{WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,HALF_BANNER,WING_BANNER,POST_INLINE}`(HALF_BANNER 는 shared V219) | 숫자 10자리, 없으면 null | `fields.adsense.units.<자리>` |
 | `units.BOARD_LIST.slot` · `.layoutKey` | 숫자 10자리 · `^[-+]?[0-9a-z]+([-+][0-9a-z]+)+$`(대소문자 무시) | 둘 다 있거나 둘 다 비어야 함 `fields.adsense.units.BOARD_LIST.slot` / `.layoutKey` |
 
 - `OFF` 여도 입력해 둔 게시자 ID·단위 ID는 저장해 둔다(형식이 틀리면 거절).

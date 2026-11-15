@@ -1,10 +1,10 @@
 /** 공개 광고 노출 API(`/api/ads/**`) 모양 — 계약 `docs/features/ad-contract.md` 「공개 노출 목업」 */
 
 /** 상품 이름 그대로(서버 `BizProduct`) */
-export type PublicAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+export type PublicAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'HALF_BANNER' | 'WING_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
 
-/** 광고 배너 가젯(`AD`)이 고르는 배너 넷 — 날개 배너는 날개 자리 전용 */
-export type BannerAdType = Extract<PublicAdType, 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER'>;
+/** 광고 배너 가젯(`AD`)이 고르는 배너 다섯 — 날개 배너는 날개 자리 전용 */
+export type BannerAdType = Extract<PublicAdType, 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'HALF_BANNER'>;
 
 export type ImageAdType = BannerAdType | 'WING_BANNER';
 
@@ -86,7 +86,7 @@ export interface AdultPlacement {
  */
 export type AdSenseMode = 'OFF' | 'VERIFY' | 'SHOW';
 
-/** 애드센스 디스플레이 단위를 쓰는 자리 — 배너 가젯 넷 · 날개 · 글 보기 */
+/** 애드센스 디스플레이 단위를 쓰는 자리 — 배너 가젯 다섯 · 날개 · 글 보기 */
 export type AdSenseDisplaySlot = BannerAdType | 'WING_BANNER' | 'POST_INLINE';
 
 /**

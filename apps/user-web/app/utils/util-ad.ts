@@ -25,18 +25,19 @@ export interface BoardFeedPlacement {
     gap: number;
 }
 
-const TYPES: readonly PublicAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
-const BANNER_TYPES: readonly BannerAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
+const TYPES: readonly PublicAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER', 'WING_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
+const BANNER_TYPES: readonly BannerAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER'];
 const PLACEMENTS: readonly AdPlacement[] = ['HOME', 'PAGE', 'BOARD', 'POST_INLINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY', 'WING_LEFT', 'WING_RIGHT', 'BOARD_LIST'];
 const INLINE_TYPES: readonly PostInlineAdType[] = ['TEXT_LINE', 'STRIP_BANNER', 'SQUARE_BANNER'];
 const WING_SCREENS: readonly WingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST', 'FEED', 'GROUP_BUY', 'GROUPS'];
 
-/** 비율은 규격(1200×300 · 1200×100 · 300×250 · 300×100 · 160×600)과 같다(`BusinessAdPreview` 와 같은 값) — 이미지가 늦게 와도 자리가 흔들리지 않게 */
+/** 비율은 규격(1200×300 · 1200×100 · 300×250 · 300×100 · 600×100 · 160×600)과 같다(`BusinessAdPreview` 와 같은 값) — 이미지가 늦게 와도 자리가 흔들리지 않게 */
 const FRAMES: Readonly<Record<ImageAdType, AdFrame>> = {
     WIDE_BANNER: { ratio: '4 / 1', maxWidth: '100%' },
     STRIP_BANNER: { ratio: '12 / 1', maxWidth: '100%' },
     SQUARE_BANNER: { ratio: '6 / 5', maxWidth: '300px' },
     SMALL_BANNER: { ratio: '3 / 1', maxWidth: '300px' },
+    HALF_BANNER: { ratio: '6 / 1', maxWidth: '100%' },
     WING_BANNER: { ratio: '4 / 15', maxWidth: '160px' },
 };
 

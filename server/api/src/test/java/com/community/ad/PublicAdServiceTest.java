@@ -216,9 +216,9 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
             assertThatThrownBy(() -> ads.list(bad, null)).isInstanceOfSatisfying(ValidationException.class,
                     e -> assertThat(e.getFields()).containsOnlyKeys("types"));
         }
-        assertThatThrownBy(() -> ads.list("WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,WING_BANNER,TEXT_LINE,HOTDEAL_TOP,HOTDEAL_CATEGORY,WIDE_BANNER", null))
-                .as("9개").isInstanceOf(ValidationException.class);
-        assertThat(ads.list("WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,WING_BANNER,TEXT_LINE,HOTDEAL_TOP,HOTDEAL_CATEGORY", null).items()).isNotNull();
+        assertThatThrownBy(() -> ads.list("WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,HALF_BANNER,WING_BANNER,TEXT_LINE,HOTDEAL_TOP,HOTDEAL_CATEGORY,WIDE_BANNER", null))
+                .as("10개").isInstanceOf(ValidationException.class);
+        assertThat(ads.list("WIDE_BANNER,STRIP_BANNER,SQUARE_BANNER,SMALL_BANNER,HALF_BANNER,WING_BANNER,TEXT_LINE,HOTDEAL_TOP,HOTDEAL_CATEGORY", null).items()).isNotNull();
     }
 
     @Test

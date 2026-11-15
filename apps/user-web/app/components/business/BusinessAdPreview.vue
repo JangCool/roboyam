@@ -1,6 +1,6 @@
 <template>
     <!--
-        광고 모습 미리보기 — 종류별 틀(넓은·띠·네모·작은 배너와 세로 날개 배너는 비율 상자, 한 줄은 글자 줄) + 늘 「광고」 표시(H4).
+        광고 모습 미리보기 — 종류별 틀(넓은·띠·네모·작은·반 폭 배너와 세로 날개 배너는 비율 상자, 한 줄은 글자 줄) + 늘 「광고」 표시(H4).
         링크는 새 탭 + `rel="sponsored nofollow noopener"`(공개 `AdSlot` 과 같은 약속 — noreferrer 는 광고주 유입 집계 때문에 뺀다). 광고 신청 소재 단계와 신청 건 상세가 같이 쓴다.
     -->
     <figure class="m-0 flex flex-col gap-1.5" data-testid="business-ad-preview">
@@ -48,6 +48,7 @@ const FRAME: Record<AdType, { ratio: string; maxWidth: string }> = {
     STRIP: { ratio: '12 / 1', maxWidth: '100%' },
     SQUARE: { ratio: '6 / 5', maxWidth: '300px' },
     SMALL: { ratio: '3 / 1', maxWidth: '300px' },
+    HALF: { ratio: '6 / 1', maxWidth: '100%' },
     WING: { ratio: '4 / 15', maxWidth: '160px' },
     TEXT_LINE: { ratio: 'auto', maxWidth: '100%' },
 };
