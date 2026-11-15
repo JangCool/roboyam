@@ -122,7 +122,7 @@ public final class HomeLayoutDefaults {
      * <pre>
      *   PC   [새소식(뉴스 게시판 · LINE · 두 열 · 첫 글 작은 사진)            ] [인기글     ]
      *        [핫 아이로 픽(PC 전용 · 좁은 칸 LIST)] [최신글(PC 전용 · 모바일과 같은      ] [광고       ]
-     *        [상단 띠 배너(반 폭)                 ]  두 줄 모양 · 핫딜 끝까지 길게)     ] [인기 소모임]
+     *        [상단 띠 배너(반 폭 배너 HALF_BANNER)]  두 줄 모양 · 핫딜 끝까지 길게)     ] [인기 소모임]
      *        [핫딜(PC 전용 · 최신순 · 5개)        ] [                                 ]
      *        [띠 배너                                                         ]
      *        [팁과강좌] [사용기] → [영상·짤]                                     [공동구매(PC 전용)]
@@ -155,24 +155,25 @@ public final class HomeLayoutDefaults {
         b.add("HIGHLIGHT", "핫 아이로 픽", true, false, plain("pi-sparkles").put("bottomSpace", "TIGHT"),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         // 최신글(PC) — 모바일 최신글과 같은 두 줄 모양(제목 / 게시판 · 시간 …… 추천), 한 열, 핫딜 끝까지 길게
-        b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"), latestTwoLine(1, IROBIT_PC_LATEST_COUNT), null, "/latest", 9, 12, 9, 18);
-        String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 20, 9, 2);
+        b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"), latestTwoLine(1, IROBIT_PC_LATEST_COUNT), null, "/latest", 9, 12, 9, 19);
+        // 상단 띠 배너 — 반 폭 자리라 반 폭 배너(HALF_BANNER 600×100 · 6:1, 사용자 2026-11-15 — 띠 배너 12:1 은 반 폭에서 너무 낮다)
+        String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "HALF_BANNER"), null, null, 0, 20, 9, 3);
         b.add(GadgetKinds.HOT_DEALS, "핫딜", true, false, plain("pi-ticket"),
-                cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", true), null, null, 0, 22, 9, 8);
+                cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", true), null, null, 0, 23, 9, 8);
         String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
         String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 17, 6, 7);
-        String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 33, 9, 8);
-        String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 33, 9, 8);
+        String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 34, 9, 8);
+        String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 34, 9, 8);
         String gallery = b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
-                0, 41, 18, 8);
+                0, 42, 18, 8);
         // 띠 배너 — 핫딜·최신글 아래, 팁과강좌·사용기 위(본문 전체 폭 — 사용자 2026-11-15)
-        String strip = b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 30, 18, 3);
+        String strip = b.add(GadgetKinds.AD, "띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 31, 18, 3);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), cfg().put("sort", "DEADLINE").put("count", 5), null, null,
-                17, 49, 7, 13);
+                17, 50, 7, 13);
         // 모바일 전용 — PC 에서 숨으니 배치표 맨 아래(모바일 화면 차례는 아래 모바일 순서)
         String pickMobile = b.add("HIGHLIGHT", "핫 아이로 픽", false, true, plain("pi-sparkles"),
-                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 62, 9, 8);
-        String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 62, 9, 9);
+                cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 63, 9, 8);
+        String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 63, 9, 9);
         // 모바일 한 열 순서(home-news-contract 「모바일 순서」) — PC 전용(핫 아이로 픽·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
         return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, tips, reviews, groups, gallery, strip));
     }

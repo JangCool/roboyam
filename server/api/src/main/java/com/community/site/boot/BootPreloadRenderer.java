@@ -54,9 +54,9 @@ public class BootPreloadRenderer {
 
     /** 화면 푸터가 부르는 메뉴 묶음(user-web 푸터 메뉴 `?set=footer`) */
     private static final String FOOTER_SET = "footer";
-    /** 모든 화면의 날개 광고 · 홈의 띠·네모·한 줄 광고(화면이 보내는 `types` 그대로) */
+    /** 모든 화면의 날개 광고 · 홈의 띠·네모·반 폭 배너(화면이 보내는 `types` 그대로 — 아이로빗 홈 광고 가젯의 종류를 `UtilAd` 차례로, 2026-11-15 상단 띠 배너 → 반 폭 배너) */
     private static final String WING_TYPES = "WING_BANNER";
-    private static final String HOME_AD_TYPES = "STRIP_BANNER,SQUARE_BANNER,TEXT_LINE";
+    private static final String HOME_AD_TYPES = "STRIP_BANNER,SQUARE_BANNER,HALF_BANNER";
 
     private final JsonMapper json;
     private final InstallationService installation;

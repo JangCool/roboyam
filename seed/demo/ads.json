@@ -232,7 +232,7 @@
       "type": "AD",
       "title": "상단 띠 배너",
       "config": {
-        "adType": "STRIP_BANNER"
+        "adType": "HALF_BANNER"
       },
       "place": {
         "after": "110040215887810560",
