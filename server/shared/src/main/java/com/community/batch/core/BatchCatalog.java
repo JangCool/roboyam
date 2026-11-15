@@ -306,6 +306,9 @@ public enum BatchCatalog implements BatchDefinition {
      */
     POST_TAG_DAILY("post-tag-daily", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /** 글 태그 집계 새벽 보정 — 최근 7일(recent_days)을 통째로 다시 센다(10분 배치가 신호로 못 잡는 틀어짐의 안전망 — 사용자 2026-11-15). DB 배치, 매일 04:50 KST */
+    POST_TAG_DAILY_RECENT("post-tag-daily-recent", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 핫딜 정리 — OG 사본(딜 종료·글 삭제 90일 뒤)·딜 칸 수정 이력(6개월). Java 배치 {@code DealCleanupJob}(저장소 파일을 지운다), 기본 매일 04:05 KST */
     HOTDEAL_CLEANUP("hotdeal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 5 4 * * *", true),
 

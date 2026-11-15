@@ -194,8 +194,51 @@ BEGIN
 END
 $proc$;
 
+-- 새벽 보정(사용자 2026-11-15) — 최근 recent_days 일(기본 7)을 통째로 다시 센다. 10분 배치가 신호(수정 시각·바뀐 날 표시)로 못 잡는 예외적인 틀어짐
+--   (DB 를 직접 고친 경우 · 수정 시각을 안 바꾸는 새 경로 등)을 하루 안에 바로잡는 안전망. 보정은 대부분 글이 올라온 뒤 며칠 안에 일어나므로 30일 전체는 세지 않는다.
+--   태그 달린 글만 읽으므로 가볍다. 날마다 COMMIT.
+CREATE OR REPLACE PROCEDURE batch_post_tag_daily_recent(p_trigger text DEFAULT 'SCHEDULED', p_operator bigint DEFAULT NULL, INOUT p_run_id bigint DEFAULT NULL)
+LANGUAGE plpgsql AS $proc$
+DECLARE
+    c_job   CONSTANT text := 'post-tag-daily-recent';
+    v_days  bigint := batch_param(c_job, 'recent_days', 7, 1, 31);
+    v_now   timestamptz;
+    v_today date;
+    v_count bigint := 0;
+    v_total bigint := 0;
+    v_err   text;
+    v_state text;
+    v_msg   text;
+BEGIN
+    p_run_id := batch_run_begin(c_job, p_trigger, p_operator);
+    IF p_run_id IS NULL THEN
+        RETURN;
+    END IF;
+    COMMIT;
+    v_now := clock_timestamp();
+    v_today := (v_now AT TIME ZONE 'Asia/Seoul')::date;
+    FOR i IN REVERSE (v_days - 1)::int..0 LOOP -- 옛날 → 오늘
+        BEGIN
+            v_total := v_total + post_tag_daily_recount(v_today - i, v_now);
+            v_count := v_count + 1;
+        EXCEPTION WHEN OTHERS THEN
+            GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE, v_msg = MESSAGE_TEXT;
+            v_err := batch_error_text(v_state, v_msg);
+        END;
+        COMMIT;
+        EXIT WHEN v_err IS NOT NULL;
+    END LOOP;
+    PERFORM batch_run_close(p_run_id, c_job, v_total, v_err,
+        'batch.result.postTagDaily', batch_args(v_count::text, v_total::text),
+        'batch.result.postTagDaily.none', batch_args(v_count::text));
+    COMMIT;
+END
+$proc$;
+
 SELECT batch_param_seed('post-tag-daily', 'window_days', 31);
 SELECT batch_define_every_minutes('post-tag-daily', 'batch_post_tag_daily', 10);
+SELECT batch_param_seed('post-tag-daily-recent', 'recent_days', 7);
+SELECT batch_define('post-tag-daily-recent', 'batch_post_tag_daily_recent', 4, 50); -- 04:50 KST(새벽 4시대 다른 배치와 겹치지 않는 분)
 
 -- 처음 채우기 — 설치 직후·크론이 아직 안 돈 때(또는 pg_cron 이 없는 설치)에도 추천·칩이 비지 않게 최근 31일을 한 번 센다. 빈 DB 면 바로 끝난다.
 -- 이 파일이 바뀌어 다시 적용될 때도 돈다(지우고 다시 넣기라 같은 값이 된다).
