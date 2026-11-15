@@ -35,25 +35,22 @@
                 </NuxtLink>
 
                 <!-- 첫 글 사진 줄 — 뉴스형 한 줄 목록(`LINE`)의 한 열(모바일, 2026-11-15 사용자 「사진이 커서 제목이 안 보인다」): 제목이 맨 위에서 가로를 다 쓰고(한 줄 — 넘치면 …),
-                     아래에 줄인 사진 + 본문 앞부분 세 줄(사진 높이 = 세 줄), 본문 아래 작은 글자 줄 = 왼쪽 말머리(없으면 게시판 이름) …… 오른쪽 추천·댓글 수·날짜(켠 것만) -->
+                     아래에 줄인 사진 + 본문 앞부분 세 줄(사진 높이 = 세 줄), 그 아래 정보 줄(가로 전체) = 왼쪽 말머리·댓글 수·추천 …… 오른쪽 날짜 -->
                 <NuxtLink v-else-if="leadThumb && rowStyle === 'LINE' && stacked" :to="`/posts/${row.id}`" class="gadget-hover block py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-lead-thumb">
                     <p class="m-0 truncate text-base font-bold leading-snug tracking-tight">{{ row.title }}</p>
                     <div class="mt-2 flex items-start gap-3">
                         <!-- 사진 높이 = 본문 세 줄(0.8125rem × 1.375 × 3) — 글자 크기 배율(`--text-scale`)을 같이 곱해 글자를 키워도 세 줄 높이를 따라간다, 폭은 16:10 -->
                         <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-[calc(5.375rem*var(--text-scale,1))] shrink-0 rounded-md" />
-                        <div class="min-w-0 flex-1">
-                            <p v-if="row.excerpt" class="m-0 line-clamp-3 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-post-lead-excerpt">{{ row.excerpt }}</p>
-                            <span v-if="prefixShown || cfg.meta.includes('BOARD') || showLikes || commentNumber || timeShown" class="mt-1 flex items-center gap-2 text-xs text-muted-color">
-                                <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="min-w-0 truncate font-semibold!" />
-                                <span v-else-if="cfg.meta.includes('BOARD')" class="min-w-0 truncate font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
-                                <span class="ml-auto flex shrink-0 items-center gap-2">
-                                    <GadgetHighlightMeta v-if="showLikes && likesShape !== 'TEXT'" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" />
-                                    <span v-else-if="showLikes">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                                    <span v-if="commentNumber" class="inline-flex items-baseline gap-1"><i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
-                                    <PostListDate v-if="timeShown" :iso="row.createdAt" :mode="display.dateDisplay" />
-                                </span>
-                            </span>
-                        </div>
+                        <p v-if="row.excerpt" class="m-0 line-clamp-3 min-w-0 flex-1 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-post-lead-excerpt">{{ row.excerpt }}</p>
+                    </div>
+                    <!-- 사진 아래 정보 줄(가로 전체) — 왼쪽 말머리(없으면 게시판 이름)·댓글 수·추천 …… 오른쪽 끝 날짜(켠 것만) -->
+                    <div v-if="prefixShown || cfg.meta.includes('BOARD') || showLikes || commentNumber || timeShown" class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="home-post-lead-meta">
+                        <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="min-w-0 truncate font-semibold!" />
+                        <span v-else-if="cfg.meta.includes('BOARD')" class="min-w-0 truncate font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
+                        <span v-if="commentNumber" class="inline-flex shrink-0 items-baseline gap-1"><i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
+                        <GadgetHighlightMeta v-if="showLikes && likesShape !== 'TEXT'" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="shrink-0" />
+                        <span v-else-if="showLikes" class="shrink-0">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                        <PostListDate v-if="timeShown" :iso="row.createdAt" :mode="display.dateDisplay" class="ml-auto shrink-0" />
                     </div>
                 </NuxtLink>
 
