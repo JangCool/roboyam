@@ -6,8 +6,8 @@
         인기글 기간 탭(`data.periods` — 실시간·어제·이번 주, 사용자 결정 2026-10-28): 기간별 순위를 한 번에 받아 탭으로 바꿔 그린다(가젯은 서버를 부르지 않는다). 탭은 `/popular` 화면과 같은 이름이다.
         한 열(모바일, 격자 `stack` — 모든 테마): 두 열을 쓰지 않고 한 열. 기간 탭은 알약이 아닌 작은 글자 탭(고른 탭만 굵게 + 밑줄, 2026-11-05 사용자 결정) — 모바일은 누르기 쉽게 높이 32px.
         첫 글 작은 사진 줄(`lead: THUMB`): 두 열이면 두 칸을 차지하고 아래 구분선(home-news-contract).
-        모바일 쪽 넘기기(`mobilePages` 2~3, home-news-contract): 한 열이면 받은 글을 앞에서부터 `mobilePageSize` 개씩 쪽으로 나눠 가로로 밀어 넘긴다(쪽 시작에 스냅 — `gadget-scroll-row`).
-        아래 동그라미(쪽 수만큼, 지금 쪽 강조 — 누르면 그 쪽으로, 밀면 따라간다). 쪽들은 가로 flex 라 가장 긴 쪽 높이로 같다. 첫 글 사진 줄은 첫 쪽에만. 인기글 기간 탭이 있으면 쪽 넘기기는 쓰지 않는다(순위 쪽이 따로 있다).
+        모바일 쪽 넘기기(`mobilePages` 2~3, home-news-contract): 한 열이면 받은 글을 앞에서부터 `mobilePageSize` 개씩 쪽으로 나눠 가로로 밀어 넘긴다(쪽마다 카드 글자 폭을 꽉 채워 옆 쪽이 비치지 않게 — 쪽 시작에 스냅).
+        아래 동그라미(쪽 수만큼, 지금 쪽 강조 — 누르면 그 쪽으로, 밀면 따라간다). 쪽들은 가로 flex 라 가장 긴 쪽 높이로 같다. 첫 글 사진 줄(lead THUMB)은 쪽마다 첫 줄(사용자 2026-11-15). 인기글 기간 탭이 있으면 쪽 넘기기는 쓰지 않는다(순위 쪽이 따로 있다).
         community 와 다른 점: 글 사이 광고(`inlineAd`)·채운 줄 표시(`fills`)는 옮기지 않았다.
     -->
     <GadgetFrame :gadget="gadget" :empty="gadget.empty || (!periods && items.length === 0)" :empty-icon="cfg.sort === 'POPULAR' ? 'pi pi-chart-line' : 'pi pi-file'">
@@ -49,8 +49,8 @@
         <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color" data-grid-float data-testid="home-period-empty">{{ t('home.periodEmpty') }}</p>
         <!-- 모바일 쪽 넘기기 -->
         <div v-else-if="pages" data-testid="home-post-pages">
-            <div ref="pager" class="gadget-scroll-row" :style="PAGE" role="group" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" @scroll.passive="onPagerScroll">
-                <ul v-for="(pg, p) in pages" :key="p" class="m-0 list-none p-0" data-testid="home-post-page">
+            <div ref="pager" class="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" @scroll.passive="onPagerScroll">
+                <ul v-for="(pg, p) in pages" :key="p" class="m-0 w-full shrink-0 snap-start list-none p-0" data-testid="home-post-page">
                     <GadgetPostRow
                         v-for="(row, i) in pg"
                         :key="row.id"
@@ -58,8 +58,8 @@
                         :cfg="cfg"
                         :rank="ranked ? p * cfg.mobilePageSize + i + 1 : null"
                         :hero="hero && p === 0 && i === 0"
-                        :lead-thumb="leadThumb && p === 0 && i === 0"
-                        :class="leadThumb && p === 0 && i === 0 ? LEAD_THUMB_CLASS : ''"
+                        :lead-thumb="leadThumb && i === 0"
+                        :class="leadThumb && i === 0 ? LEAD_THUMB_CLASS : ''"
                     />
                 </ul>
             </div>
@@ -171,8 +171,6 @@ const listStyle = computed(() => (cfg.value.columns === 2 && !wideFirst.value &&
 
 /* ── 모바일 쪽 넘기기(`mobilePages` 2~3) ── */
 
-/** 한 쪽 폭 — 카드 글자 폭 전체(다음 쪽은 스냅으로 넘긴다) */
-const PAGE = { '--row-item': '100%' };
 /**
  * 쪽마다의 글 — 한 열이고 쪽 넘기기를 켰을 때 받은 글을 앞에서부터 `mobilePageSize` 개씩(쪽 수까지 — 나머지 글은 PC 만 보인다).
  * 기간 탭 목록은 순위 쪽이 따로 있어 나누지 않는다. 한 쪽 분량도 안 되면 null(보통 목록)
