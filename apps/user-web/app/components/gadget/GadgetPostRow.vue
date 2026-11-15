@@ -48,7 +48,7 @@
                     <div class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="home-post-lead-meta">
                         <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="min-w-0 truncate font-semibold!" />
                         <span v-else-if="cfg.meta.includes('BOARD')" class="min-w-0 truncate font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
-                        <span v-if="commentNumber" class="inline-flex shrink-0 items-baseline gap-1"><i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
+                        <span v-if="commentNumber" class="inline-flex shrink-0 items-baseline gap-1 font-semibold text-primary"><i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
                         <span v-if="likesShape === 'TEXT'" class="shrink-0">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                         <GadgetHighlightMeta v-else tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="shrink-0" />
                         <PostListDate v-if="timeShown" :iso="row.createdAt" :mode="display.dateDisplay" class="ml-auto shrink-0" />
