@@ -34,6 +34,28 @@
                     </p>
                 </NuxtLink>
 
+                <!-- 첫 글 사진 줄 — 뉴스형 한 줄 목록(`LINE`)의 한 열(모바일, 2026-11-15 사용자 「사진이 커서 제목이 안 보인다」): 제목이 맨 위에서 가로를 다 쓰고(두 줄까지),
+                     아래에 줄인 사진(88px) + 본문 앞부분 세 줄(사진 높이 ≈ 세 줄), 추천·날짜는 본문 아래 작은 글자 -->
+                <NuxtLink v-else-if="leadThumb && rowStyle === 'LINE' && stacked" :to="`/posts/${row.id}`" class="gadget-hover block py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-lead-thumb">
+                    <p class="m-0 line-clamp-2 break-words text-base font-bold leading-snug tracking-tight">
+                        <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="mr-1.5 text-sm! font-bold!" />
+                        <span v-else-if="cfg.meta.includes('BOARD')" class="mr-1.5 text-xs font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
+                        <span>{{ row.title }}</span>
+                        <span v-if="commentNumber" class="ml-1 text-xs font-semibold text-primary"><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
+                    </p>
+                    <div class="mt-2 flex items-start gap-3">
+                        <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-[5.5rem] shrink-0 rounded-md" />
+                        <div class="min-w-0 flex-1">
+                            <p v-if="row.excerpt" class="m-0 line-clamp-3 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-post-lead-excerpt">{{ row.excerpt }}</p>
+                            <span v-if="showLikes || timeShown" class="mt-1 flex items-center justify-end gap-2 text-xs text-muted-color">
+                                <GadgetHighlightMeta v-if="showLikes && likesShape !== 'TEXT'" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" />
+                                <span v-else-if="showLikes">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                <PostListDate v-if="timeShown" :iso="row.createdAt" :mode="display.dateDisplay" />
+                            </span>
+                        </div>
+                    </div>
+                </NuxtLink>
+
                 <!-- 첫 글 작은 사진 줄(`lead: THUMB`). 뉴스형 한 줄 목록(`LINE`)은 사진을 글 세 줄(제목 + 본문 앞부분 두 줄) 높이로 키우고(112px) 제목 줄 = [말머리] 굵은 제목 댓글 수 …… [추천] [날짜], 아래 메타 줄은 두지 않는다 -->
                 <NuxtLink v-else-if="leadThumb" :to="`/posts/${row.id}`" class="gadget-hover flex items-center py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowStyle === 'LINE' ? 'gap-4' : 'gap-3'" data-testid="home-post-lead-thumb">
                     <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="rowStyle === 'LINE' ? 'w-28 rounded-lg' : 'w-20 rounded-md'" />
