@@ -57,14 +57,14 @@
       }
     },
     {
-      "key": "sq-pionnet",
+      "key": "sq-irobit",
       "type": "SQUARE_BANNER",
-      "business": "파이언넷",
-      "title": "파이언넷 서보모터·센서 할인전",
-      "linkUrl": "https://www.example.com/pionnet/sale",
-      "altText": "파이언넷 서보모터·센서 11월 할인전 최대 35%",
+      "business": "아이로빗",
+      "title": "아이로빗 서보모터·센서 할인전",
+      "linkUrl": "https://www.example.com/irobit/sale",
+      "altText": "아이로빗 서보모터·센서 11월 할인전 최대 35%",
       "banner": {
-        "brand": "파이언넷",
+        "brand": "아이로빗",
         "headline": "서보모터·센서 할인전",
         "sub": "11월 한정 · 최대 35% 할인",
         "cta": "기획전 보기",
@@ -144,13 +144,13 @@
       "altText": "로보에듀 무료 체험수업"
     },
     {
-      "key": "tl-pionnet",
+      "key": "tl-irobit",
       "type": "TEXT_LINE",
-      "business": "파이언넷",
-      "title": "파이언넷 아두이노 입문 키트",
+      "business": "아이로빗",
+      "title": "아이로빗 아두이노 입문 키트",
       "text": "아두이노 입문 키트 오늘 주문하면 내일 도착",
-      "linkUrl": "https://www.example.com/pionnet/arduino",
-      "altText": "파이언넷 아두이노 입문 키트"
+      "linkUrl": "https://www.example.com/irobit/arduino",
+      "altText": "아이로빗 아두이노 입문 키트"
     },
     {
       "key": "tl-makerspace",

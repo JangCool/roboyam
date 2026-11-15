@@ -250,7 +250,7 @@ async function main() {
             await seedHighlights(admin, 'tips', ['tip', 'review']); // 팁·강좌·사용기(/tips) 「이번 주 추천」 자리(V161 place)
         }
         if (step('ads')) {
-            await ensureBusiness(admin); // 사업자 광고(파이언넷)는 승인된 사업자가 있어야 광고주로 잡힌다
+            await ensureBusiness(admin); // 사업자 광고(아이로빗)는 승인된 사업자가 있어야 광고주로 잡힌다
             await seedAds(admin);
         }
         if (step('notices')) await seedNotices(admin, members, emoticons, psql);
@@ -1105,7 +1105,7 @@ function aiPending(doc, ctx, now) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// 7) 사업자 핫딜 — 데모 사업자(원고 seed/demo/business.json = 파이언넷 — ensureBusiness 가 회원·사업자 승인까지 만든다)가 신청 → 관리자 승인(수동 결제) → 계약서 → 입금 → 확정 → 게시 배치(1분마다)가 글을 올린다
+// 7) 사업자 핫딜 — 데모 사업자(원고 seed/demo/business.json = 아이로빗 — ensureBusiness 가 회원·사업자 승인까지 만든다)가 신청 → 관리자 승인(수동 결제) → 계약서 → 입금 → 확정 → 게시 배치(1분마다)가 글을 올린다
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
 
@@ -1137,7 +1137,7 @@ async function ensureBusiness(admin) {
     let status = me.data?.status ?? 'NONE';
     if (status === 'NONE' || status === 'REJECTED') {
         const fd = new FormData();
-        fd.append('file', new Blob([PDF], { type: 'application/pdf' }), 'pionnet-certificate.pdf');
+        fd.append('file', new Blob([PDF], { type: 'application/pdf' }), 'irobit-certificate.pdf');
         const up = await s.request('POST', '/api/business/files', fd);
         if (!ok(up)) return failed('데모 사업자 등록증', up), null;
         const applied = await s.request('POST', '/api/business/me', {
