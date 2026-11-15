@@ -56,6 +56,8 @@ export default {
     hotDealBoards: 'Hot deal boards',
     hotDealBoardsAll: 'All hot deal boards',
     hotDealBoardsHint: 'Leave empty to show deals from every hot deal board. Only boards of type “Hot deal” can be picked.',
+    hotDealThumbnails: 'Show images',
+    hotDealThumbnailsHint: 'Turn off to show only the title and the store and price line.',
     settingsLead_POST_LIST: 'Choose which boards to show posts from, in what order and how many.',
     settingsLead_GALLERY: 'Choose which boards to show photo and video posts from and how many. Newest first.',
     settingsLead_BOARD_CARDS: 'Choose the boards to show as cards and how many posts each card lists. Each card shows one featured post and the latest titles.',

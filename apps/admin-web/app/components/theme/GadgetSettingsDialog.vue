@@ -109,6 +109,14 @@
                                 />
                                 <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.hotDealBoardsHint') }}</small>
                             </div>
+                            <!-- 핫딜 줄 사진 — 기본 켬(끄면 제목 / 쇼핑몰·가격 두 줄만) -->
+                            <div v-if="gadget.type === 'HOT_DEALS'" class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <ToggleSwitch v-model="hotDealThumbsModel" :input-id="`${uid}-hotdeal-thumbs`" data-testid="gadget-hotdeal-thumbs" />
+                                    <label :for="`${uid}-hotdeal-thumbs`" class="cursor-pointer text-sm">{{ t('homeLayout.hotDealThumbnails') }}</label>
+                                </div>
+                                <small class="text-xs text-muted-color">{{ t('homeLayout.hotDealThumbnailsHint') }}</small>
+                            </div>
 
                             <!-- 개수 -->
                             <div v-if="spec.count" class="flex flex-col gap-1">
@@ -823,6 +831,14 @@ const hotDealBoardOptions = computed(() => {
     const known = hotDealBoards.value.map((b) => ({ value: b.slug, label: boardLabel(b) }));
     const missing = (draft.value?.boards ?? []).filter((slug) => !known.some((o) => o.value === slug)).map((slug) => ({ value: slug, label: slug }));
     return [...known, ...missing];
+});
+
+/** 핫딜 줄 사진 — 기본 켬 */
+const hotDealThumbsModel = computed<boolean>({
+    get: () => draft.value?.thumbnails !== false,
+    set: (value) => {
+        if (draft.value) draft.value.thumbnails = value;
+    },
 });
 
 const hotDealBoardsModel = computed<unknown[]>({

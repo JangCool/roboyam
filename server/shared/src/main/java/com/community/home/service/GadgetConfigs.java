@@ -28,7 +28,7 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} NONE·HERO · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) ·
  *       {@code narrow} DEFAULT·LIST(좁은 칸 모양 — home-news-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
- *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
+ *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸) · {@code thumbnails} 줄 사진 보이기(기본 켬 — 2026-11-15 홈 핫딜 칸).</li>
  *   <li>공통 {@code hover} 마우스 올림 효과(누르면 가는 항목에 옅은 바탕 — 기본 켬, 칸이 없는 옛 가젯도 켬, 사용자 2026-11-10) — 항목이 있는 종류({@link #HOVER_KINDS})만. 안내 글·광고 2종에는 없다.</li>
  *   <li>공통 {@code pageHead} 가젯 페이지 제목 카드에 넣기(켜면 격자에서 빠지고 페이지 제목 아래 굵은 밑줄 뒤에 붙는다 — 기본 끔, 가젯 페이지 가젯만, 사용자 2026-11-10) — {@link #HOVER_KINDS} 와 같은 종류.</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
@@ -284,6 +284,7 @@ public final class GadgetConfigs {
             case GadgetKinds.HOT_DEALS -> {
                 ArrayNode boards = out.putArray("boards");
                 GadgetKinds.hotDealsBoards(config).forEach(boards::add);
+                out.put("thumbnails", bool(config, "thumbnails", true)); // 줄 사진 — 칸이 없는 옛 가젯도 켬
             }
             default -> {
             }

@@ -1,6 +1,6 @@
 <template>
     <!--
-        핫딜 가젯(`HOT_DEALS` — `hotdeal-contract.md` 「가젯 `HOT_DEALS` 설정」) — 진행 중인 핫딜을 가격 줄 작은 목록으로(썸네일 · 배지 · 제목 · 몰 이름 · 할인율 · 딜가 · 정상가 · 배송비).
+        핫딜 가젯(`HOT_DEALS` — `hotdeal-contract.md` 「가젯 `HOT_DEALS` 설정」) — 진행 중인 핫딜을 가격 줄 작은 목록으로(썸네일 · 배지 · 제목 · 몰 이름 · 할인율 · 딜가 · 정상가 · 배송비). 설정 `thumbnails` 를 끄면 사진 없이 두 줄.
         줄은 서버가 가젯 설정(`boards`·`sort`·`count`)대로 골라 `data.items` 에 싣는다(컴포넌트는 서버를 부르지 않는다). 줄 모양은 핫딜 목록 줄(`HotdealRowItem compact`)과 같다.
         목록 아래 「핫딜 더 보기 →」(05 §2-15) — 가젯 머리의 「더보기」 대신 이것 하나만 그린다(틀에는 `more` 를 빼고 넘긴다). 갈 곳은 서버 `data.more.to` 가 있으면 그것,
           그다음 가젯 `more.to`(운영자 꾸미기), 둘 다 없으면 설정 게시판 첫 번째 → 비었으면(모든 핫딜 게시판) 첫 줄의 게시판.
@@ -9,7 +9,7 @@
     <GadgetFrame :gadget="frameGadget" :empty="gadget.empty || items.length === 0" empty-icon="pi pi-tag">
         <ul class="m-0 list-none divide-y divide-surface p-0" data-testid="home-hot-deals">
             <li v-for="row in items" :key="row.id">
-                <HotdealRowItem :row="row" :new-post-hours="display.newPostHours" compact class="gadget-hover" />
+                <HotdealRowItem :row="row" :new-post-hours="display.newPostHours" compact :thumb="thumbnails" class="gadget-hover" />
             </li>
         </ul>
         <NuxtLink
@@ -36,6 +36,8 @@ const props = withDefaults(defineProps<Props>(), {});
 const { t } = useI18n();
 const { display } = useBoardDisplay();
 const items = computed(() => UtilGadget.hotDealItems(props.gadget.data));
+/** 줄 사진 — 설정 `thumbnails`(기본 켬) */
+const thumbnails = computed(() => UtilGadget.hotDealsConfig(props.gadget.config).thumbnails);
 /** 틀의 「더보기」는 그리지 않는다 — 목록 아래 「핫딜 더 보기 →」 하나로 */
 const frameGadget = computed<Gadget>(() => ({ ...props.gadget, more: null }));
 const moreTo = computed(() => {

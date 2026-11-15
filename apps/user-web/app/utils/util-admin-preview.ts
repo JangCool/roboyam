@@ -27,6 +27,8 @@ export interface AdminPreviewGadgetConfig {
     cardHead?: boolean;
     outline?: boolean;
     leadPlaceholder?: boolean;
+    /** 핫딜 줄 사진(`HOT_DEALS` — 기본 켬) */
+    thumbnails?: boolean;
     rowStyle?: string;
     columns?: number | 'AUTO';
     thumbnail?: string;
@@ -120,7 +122,7 @@ export type AdminPreviewLayoutOp =
     | { op: 'settings'; id: string };
 
 /** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30) + 광고 2종. admin-web `UtilGadgetConfig` 의 종류와 같다 */
-const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
 /** 마우스 올림 효과 칸(`hover`)이 있는 종류 — 서버 `GadgetConfigs.HOVER_KINDS`·`UtilGadget.hoverOn` 과 같다(핫딜은 ⚙ 미리보기 종류에 없어도 이 칸은 따른다) */
 const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
 /** 광고 가젯 — 후보는 페이지가 채우므로 설정이 없어도 새 가젯을 그린다 */
@@ -316,6 +318,9 @@ export default class UtilAdminPreview {
                 });
             case 'GROUPS':
                 return defined({ count: int(value.count, 1, 6) });
+            case 'HOT_DEALS':
+                // 저장 전에는 받은 줄 안에서 개수·사진만(정렬·게시판은 저장하면 서버가 다시 고른다)
+                return defined({ count: int(value.count, 1, 10), thumbnails: value.thumbnails !== false });
             case 'AD':
                 return defined({ adType: oneOf(value.adType, AD_BANNER_TYPES) });
             case 'AD_TEXT_LINE':
@@ -411,6 +416,10 @@ export default class UtilAdminPreview {
             return;
         } else if (gadget.type === 'GROUPS') {
             if (config.count) gadget.config = { ...gadget.config, count: config.count };
+            return;
+        } else if (gadget.type === 'HOT_DEALS') {
+            gadget.config = { ...gadget.config, thumbnails: config.thumbnails !== false };
+            if (config.count && data && Array.isArray(data.items)) data.items = data.items.slice(0, config.count);
             return;
         }
         if (!data) return;

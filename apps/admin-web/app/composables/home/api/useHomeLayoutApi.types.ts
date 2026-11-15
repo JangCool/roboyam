@@ -88,6 +88,8 @@ export interface GadgetConfig {
     outline?: boolean;
     /** 게시판 카드 — 사진 없는 대표 글에도 사진 자리(「이미지 없음」, 기본 켬) */
     leadPlaceholder?: boolean;
+    /** 핫딜(`HOT_DEALS`) 줄 사진 보이기 — 기본 켬 */
+    thumbnails?: boolean;
     rowStyle?: HomePostRowStyle;
     /** 글 목록 1·2 · 게시판 카드 `AUTO`·2·3 */
     columns?: number | 'AUTO';

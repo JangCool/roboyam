@@ -325,6 +325,7 @@ final class GadgetPatches {
                 if (present(raw, "boards")) {
                     hotDealBoards(raw.get("boards"), dealBoard, base, out, fields);
                 }
+                bool(raw, out, "thumbnails", base, fields); // 줄 사진 보이기(기본 켬)
             }
             default -> {
             }

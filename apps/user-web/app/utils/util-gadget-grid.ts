@@ -6,7 +6,7 @@ import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
  *
  *  - **모양(mode)**: `full` 운영자 배치 그대로(데스크톱 lg 이상 + 홈 폭 52rem 이상) · `half` 태블릿 파생 배치(칸 수 반 — md 이상, 또는 데스크톱이지만 사이드 메뉴 때문에 홈 폭이 좁을 때) · `stack` 한 열(차례는 공유 레이어 `UtilHomeStack.order` — md 미만, 또는 홈 폭 36rem 미만).
  *  - **px 배치**: 상자 높이 = `boxHeight`, 위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 + 16px(`place`). 숨긴 가젯의 자리는 저절로 메워진다.
- *  - **같은 줄 맞추기**: 같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞춘다.
+ *  - **같은 줄 맞추기**: 같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞추고, 위 끝도 맞춘다(위 열 길이가 다르면 짧은 열의 맨 아래 가젯을 늘려 붙인다 — 2026-11-15).
  *    (격자는 칸 높이가 아니라 카드 내용 높이를 재므로, 그 줄에서 가장 긴 가젯의 내용이 줄면 그 줄도 다시 준다)
  */
 
@@ -141,11 +141,32 @@ export default class UtilGadgetGrid {
             groups.set(rowKey(it), { height: Math.max(g.height, own(it)), size: g.size + 1 });
         }
         const placed: GadgetGridCell[] = [];
-        for (const it of UtilHomeLayout.byReadingOrder(items)) {
-            const group = groups.get(rowKey(it))!;
-            const aligned = group.size > 1;
+        /** 자기 열의 위 끝 — 열이 겹치는 앞선 가젯 아래 끝 + 간격 */
+        const columnTop = (it: { x: number; w: number }) => {
             let top = 0;
             for (const p of placed) if (overlapsX(p, it)) top = Math.max(top, p.top + p.height + UtilHomeLayout.GAP);
+            return top;
+        };
+        /** 같은 줄(같은 y·h) 가젯들의 함께 쓰는 위 끝 */
+        const groupTops = new Map<string, number>();
+        const ordered = UtilHomeLayout.byReadingOrder(items);
+        for (const it of ordered) {
+            const group = groups.get(rowKey(it))!;
+            const aligned = group.size > 1;
+            let top = columnTop(it);
+            if (aligned) {
+                // 같은 줄은 위 끝도 맞춘다 — 위 열 길이가 달라도 나란히(2026-11-15 홈 핫딜 배치: 왼쪽 열이 길면 사용기만 위로 올라갔다).
+                // 짧은 열의 맨 아래 가젯(그 칸 폭 안에 든 것)은 모자란 만큼 늘려 빈틈 없이 붙인다 — 카드는 칸을 채운다(`[&>*]:grow`).
+                const key = rowKey(it);
+                if (!groupTops.has(key)) groupTops.set(key, Math.max(...ordered.filter((m) => rowKey(m) === key).map(columnTop)));
+                const shared = groupTops.get(key)!;
+                if (shared > top) {
+                    let last: GadgetGridCell | null = null;
+                    for (const p of placed) if (overlapsX(p, it) && (!last || p.top + p.height > last.top + last.height)) last = p;
+                    if (last && last.x >= it.x && last.x + last.w <= it.x + it.w && last.top + last.height + UtilHomeLayout.GAP === top) last.height += shared - top;
+                    top = shared;
+                }
+            }
             placed.push({ ...it, top, height: aligned ? group.height : own(it), aligned });
         }
         return placed;

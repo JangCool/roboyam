@@ -68,7 +68,7 @@
         :data-deal-view="deal?.view"
         data-testid="hotdeal-row"
     >
-        <HotdealThumb :url="deal?.image?.url ?? row.thumbnailUrl" class="size-12" />
+        <HotdealThumb v-if="thumb" :url="deal?.image?.url ?? row.thumbnailUrl" class="size-12" />
         <div class="min-w-0 flex-1">
             <p class="line-clamp-1 text-sm leading-snug">
                 <HotdealBadges v-if="deal" :deal="deal" :revision="false" class="mr-1" />
@@ -93,9 +93,11 @@ interface Props {
     dateDisplay?: BoardDateDisplay;
     /** 가젯용 좁은 줄 — 말머리·작성자·추천·조회·시각 줄을 뺀다 */
     compact?: boolean;
+    /** 좁은 줄의 사진(가젯 설정 `thumbnails` — 기본 켬) */
+    thumb?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { dateDisplay: 'STANDARD', compact: false });
+const props = withDefaults(defineProps<Props>(), { dateDisplay: 'STANDARD', compact: false, thumb: true });
 
 const { t } = useI18n();
 const deal = computed(() => props.row.deal ?? null);

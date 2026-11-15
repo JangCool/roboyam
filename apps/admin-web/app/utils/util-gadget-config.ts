@@ -287,6 +287,7 @@ export default class UtilGadgetConfig {
             case 'HOT_DEALS':
                 // 비우면 모든 핫딜 게시판
                 out.boards = [];
+                out.thumbnails = true;
                 break;
         }
         return out;
@@ -377,6 +378,7 @@ export default class UtilGadgetConfig {
             case 'HOT_DEALS':
                 // 핫딜 게시판 slug — 모양이 맞는 것만, 겹침 없이 고른 차례로(20개까지)
                 out.boards = Array.isArray(c.boards) ? [...new Set(c.boards.filter((s): s is string => typeof s === 'string' && SLUG.test(s)))].slice(0, BOARD_PICK_MAX) : [];
+                out.thumbnails = c.thumbnails !== false; // 줄 사진 — 칸이 없는 옛 가젯도 켬
                 break;
         }
         return out;

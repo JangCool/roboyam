@@ -668,7 +668,7 @@ export default class UtilGadget {
         const boards = list(config.boards).filter((v): v is string => typeof v === 'string' && SLUG.test(v));
         const sort = config.sort === 'POPULAR' || config.sort === 'ENDING_SOON' ? config.sort : 'LATEST';
         const count = typeof config.count === 'number' && Number.isInteger(config.count) ? Math.min(10, Math.max(1, config.count)) : 5;
-        return { boards, sort, count };
+        return { boards, sort, count, thumbnails: config.thumbnails !== false };
     }
 
     /**

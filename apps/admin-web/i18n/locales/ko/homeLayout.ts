@@ -57,6 +57,8 @@ export default {
     hotDealBoards: '핫딜 게시판',
     hotDealBoardsAll: '모든 핫딜 게시판',
     hotDealBoardsHint: '비우면 모든 핫딜 게시판의 딜을 보여요. 종류가 「핫딜」인 게시판만 고를 수 있어요.',
+    hotDealThumbnails: '사진 보이기',
+    hotDealThumbnailsHint: '끄면 사진 없이 제목과 쇼핑몰·가격 두 줄로 보여요.',
     settingsLead_POST_LIST: '어느 게시판의 글을 어떤 차례로 몇 개 보일지 정해요.',
     settingsLead_GALLERY: '어느 게시판의 사진·영상 글을 몇 개 보일지 정해요. 최신 글부터 보여요.',
     settingsLead_BOARD_CARDS: '카드로 보일 게시판과 카드마다 보일 글 수를 정해요. 카드마다 대표 글 하나와 최신 글 제목이 보여요.',

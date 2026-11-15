@@ -305,12 +305,13 @@ export interface GroupBuyData {
 
 /**
  * `HOT_DEALS` 설정(`hotdeal-contract.md` 「가젯 `HOT_DEALS` 설정」 — 공동구매 가젯 ⚙ 방식) — `boards` 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판) ·
- * `sort` 최신(기본)·인기·마감 임박 · `count` 1~10(기본 5). 화면은 그리기만 하고 줄은 서버가 이 설정대로 골라 `data` 에 싣는다.
+ * `sort` 최신(기본)·인기·마감 임박 · `count` 1~10(기본 5) · `thumbnails` 줄 사진 보이기(기본 켬 — 끄면 제목 / 쇼핑몰·가격 두 줄만). 화면은 그리기만 하고 줄은 서버가 이 설정대로 골라 `data` 에 싣는다.
  */
 export interface HotDealsConfig {
     boards: string[];
     sort: DealSort;
     count: number;
+    thumbnails: boolean;
 }
 
 /**
