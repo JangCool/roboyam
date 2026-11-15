@@ -44,13 +44,12 @@
                         <p v-if="row.excerpt" class="m-0 line-clamp-3 min-w-0 flex-1 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-post-lead-excerpt">{{ row.excerpt }}</p>
                     </div>
                     <!-- 사진 아래 정보 줄(가로 전체) — 왼쪽 말머리(없으면 게시판 이름)·댓글 수·추천 …… 오른쪽 끝 날짜(켠 것만) -->
-                    <!-- 추천 수는 줄 정보 옵션과 관계없이 늘 보인다(0 이어도, 2026-11-15 사용자) -->
+                    <!-- 추천 수는 줄 정보 옵션과 관계없이 늘 보인다(0 이어도) — 다른 가젯과 같은 엄지 아이콘 + 숫자(2026-11-15 사용자) -->
                     <div class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="home-post-lead-meta">
                         <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="min-w-0 truncate font-semibold!" />
                         <span v-else-if="cfg.meta.includes('BOARD')" class="min-w-0 truncate font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
                         <span v-if="commentNumber" class="inline-flex shrink-0 items-baseline gap-1 font-semibold text-primary"><i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span></span>
-                        <span v-if="likesShape === 'TEXT'" class="shrink-0">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                        <GadgetHighlightMeta v-else tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="shrink-0" />
+                        <GadgetHighlightMeta tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="shrink-0" />
                         <PostListDate v-if="timeShown" :iso="row.createdAt" :mode="display.dateDisplay" class="ml-auto shrink-0" />
                     </div>
                 </NuxtLink>
