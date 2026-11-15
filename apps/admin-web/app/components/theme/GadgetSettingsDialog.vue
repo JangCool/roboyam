@@ -76,6 +76,24 @@
                                 </template>
                             </div>
 
+                            <!-- 제외할 게시판 — 글 목록이 전체 범위일 때만(home-news-contract `excludeBoardIds`) -->
+                            <div v-if="gadget.type === 'POST_LIST' && draft.boardScope === 'ALL'" class="flex flex-col gap-1.5" data-testid="gadget-exclude-boards">
+                                <label :for="`${uid}-exclude-boards`" class="text-sm font-medium">{{ t('homeLayout.excludeBoards') }}</label>
+                                <AppMultiSelect
+                                    v-model="excludeModel"
+                                    :options="excludeOptions"
+                                    :input-id="`${uid}-exclude-boards`"
+                                    filter
+                                    :filter-placeholder="t('homeLayout.boardSearch')"
+                                    :placeholder="t('homeLayout.excludeBoardsPlaceholder')"
+                                    :aria-label="t('homeLayout.excludeBoards')"
+                                    :max-selected-labels="6"
+                                    :selected-items-label="t('homeLayout.boardPicked')"
+                                    :empty-message="boardsLoading ? t('common.loading') : boardsError || t('homeLayout.boardEmpty')"
+                                />
+                                <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.excludeBoardsHint', { max: UtilGadgetConfig.BOARD_PICK_MAX }) }}</small>
+                            </div>
+
                             <!-- 핫딜 — 핫딜 게시판(DEAL) 고르기(비우면 모든 핫딜 게시판, hotdeal-contract 「가젯 HOT_DEALS 설정」) -->
                             <div v-if="gadget.type === 'HOT_DEALS'" class="flex flex-col gap-1.5" data-testid="gadget-hotdeal-boards">
                                 <label :for="`${uid}-hotdeal-boards`" class="text-sm font-medium">{{ t('homeLayout.hotDealBoards') }}</label>
@@ -762,6 +780,20 @@ const pickedModel = computed<unknown[]>({
     get: () => draft.value?.boardIds ?? [],
     set: (value) => {
         if (draft.value) draft.value.boardIds = value.map(String).slice(0, UtilGadgetConfig.BOARD_PICK_MAX);
+    },
+});
+
+/** 제외할 게시판 선택지 — 이미 뺀 slug 가 목록에 없으면(꺼짐·지움) 그 slug 로 남겨 보인다 */
+const excludeOptions = computed(() => {
+    const known = boards.value.map((b) => ({ value: b.slug, label: boardLabel(b) }));
+    const missing = (draft.value?.excludeBoardIds ?? []).filter((slug) => !known.some((o) => o.value === slug)).map((slug) => ({ value: slug, label: slug }));
+    return [...known, ...missing];
+});
+
+const excludeModel = computed<unknown[]>({
+    get: () => draft.value?.excludeBoardIds ?? [],
+    set: (value) => {
+        if (draft.value) draft.value.excludeBoardIds = value.map(String).slice(0, UtilGadgetConfig.BOARD_PICK_MAX);
     },
 });
 

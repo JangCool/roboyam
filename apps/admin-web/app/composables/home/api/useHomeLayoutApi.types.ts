@@ -59,6 +59,7 @@ export interface HomeQuickLink {
  *   · `GROUP_BUY` `count`(1~10) · `sort`(HomeGroupBuySort)
  *   · `HOT_DEALS` `boards`(핫딜 게시판 slug, 비우면 전체) · `sort`(HomeHotDealSort) · `count`(1~10, 기본 5) — 진행 중만, 비면 영역을 그리지 않는다(hotdeal-contract)
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
+ *       + `excludeBoardIds`(제외할 게시판 slug, 20개까지 — `boardScope` 가 `ALL` 일 때만 쓴다, 다른 범위면 무시)
  *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO·THUMB · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
  *       · `likes` TEXT·ICON·LEAD(처음 TEXT) · `rowSpacing` NORMAL·TIGHT(처음 NORMAL) · `mobilePages` 1~3(처음 1) · `mobilePageSize` 3~10(처음 5) — home-news-contract
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
@@ -76,6 +77,8 @@ export interface GadgetConfig {
     boards?: string[];
     boardScope?: HomeBoardScope;
     boardIds?: string[];
+    /** 글 목록 — 전체 게시판(`boardScope: ALL`)에서 뺄 게시판 slug 목록(20개까지, 다른 범위면 무시 — home-news-contract) */
+    excludeBoardIds?: string[];
     periodTabs?: boolean;
     perBoard?: number;
     cardHead?: boolean;

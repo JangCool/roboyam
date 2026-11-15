@@ -388,6 +388,7 @@ export default class UtilGadget {
             mobilePages: int(c.mobilePages, 1, 1, 3),
             mobilePageSize: int(c.mobilePageSize, 5, 3, 10),
             allBoards: !Array.isArray(c.boardIds) || c.boardIds.length === 0,
+            excludeBoardIds: Array.isArray(c.excludeBoardIds) ? [...new Set(c.excludeBoardIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''))].slice(0, 20) : [],
         };
     }
 

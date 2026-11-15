@@ -117,6 +117,7 @@ export default class UtilBoardLayout {
                     config: {
                         boardScope: 'BOARD',
                         boardIds: [],
+                        excludeBoardIds: [],
                         count: 10,
                         sort: 'POPULAR',
                         periodTabs: false,

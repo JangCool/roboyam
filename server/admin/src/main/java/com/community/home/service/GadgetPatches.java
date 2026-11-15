@@ -238,6 +238,9 @@ final class GadgetPatches {
                 option(raw, out, "rowSpacing", GadgetConfigs.ROW_SPACINGS, at, opt, fields);
                 range(raw, out, "mobilePages", 1, GadgetConfigs.MOBILE_PAGES_MAX, base, fields);
                 range(raw, out, "mobilePageSize", GadgetConfigs.MOBILE_PAGE_SIZE_MIN, GadgetConfigs.MOBILE_PAGE_SIZE_MAX, base, fields);
+                if (present(raw, "excludeBoardIds")) {
+                    excludeBoards(raw.get("excludeBoardIds"), base, out, fields);
+                }
                 if (present(raw, "meta")) {
                     JsonNode meta = raw.get("meta");
                     Set<String> keys = new LinkedHashSet<>();
@@ -383,6 +386,33 @@ final class GadgetPatches {
             }
             out.putArray("boardIds");
         }
+    }
+
+    /**
+     * 글 목록 가젯의 뺄 게시판 {@code excludeBoardIds}(home-news-contract) — 게시판 slug 모양({@link GadgetConfigs#isBoardSlug}) 0~20개, 겹치면 하나로(적은 차례).
+     * 있는 게시판인지는 보지 않는다(대상 게시판 {@code boardIds} 와 같다 — 없는 게시판은 뺄 글이 없다). 대상 범위가 {@code ALL} 이 아니어도 저장한다(공개 읽기가 무시).
+     */
+    private static void excludeBoards(JsonNode raw, String base, ObjectNode out, Map<String, MessageRef> fields) {
+        MessageRef bad = new MessageRef("homeLayout.gadget.config.excludeBoardIds", String.valueOf(GadgetConfigs.EXCLUDE_BOARDS_MAX));
+        if (!raw.isArray()) {
+            fields.put(base + "excludeBoardIds", bad);
+            return;
+        }
+        Set<String> picked = new LinkedHashSet<>();
+        for (JsonNode v : raw) {
+            String slug = v.isString() ? v.asString().strip() : null;
+            if (!GadgetConfigs.isBoardSlug(slug)) {
+                fields.put(base + "excludeBoardIds", bad);
+                return;
+            }
+            picked.add(slug);
+        }
+        if (picked.size() > GadgetConfigs.EXCLUDE_BOARDS_MAX) {
+            fields.put(base + "excludeBoardIds", bad);
+            return;
+        }
+        ArrayNode arr = out.putArray("excludeBoardIds");
+        picked.forEach(arr::add);
     }
 
     /** 핫딜 가젯의 핫딜 게시판 slug 0~20개(비면 모든 핫딜 게시판) — 있는 핫딜 게시판(kind DEAL)만, 겹치면 하나로(고른 차례) */

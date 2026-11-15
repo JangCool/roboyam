@@ -7,7 +7,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
- * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`·`likes`·`rowSpacing`·`mobilePages`·`mobilePageSize`) ·
+ * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`excludeBoardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`·`likes`·`rowSpacing`·`mobilePages`·`mobilePageSize`) ·
  * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs`·`showAuthor`·`narrow` · 소모임 `count` ·
  * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
@@ -17,6 +17,8 @@ export interface AdminPreviewGadgetConfig {
     /** `BOARD` = 지금 보는 게시판(게시판 레이아웃에서만, 2026-10-30) */
     boardScope?: 'ALL' | 'FOLDER' | 'PICK' | 'BOARD';
     boardIds?: string[];
+    /** 글 목록 — 전체 게시판(`ALL`)에서 뺄 게시판 slug(20개까지, 다른 범위면 무시 — home-news-contract) */
+    excludeBoardIds?: string[];
     periodTabs?: boolean;
     perBoard?: number;
     cardHead?: boolean;
@@ -271,6 +273,7 @@ export default class UtilAdminPreview {
                     periodTabs: value.periodTabs === true,
                     boardScope,
                     boardIds,
+                    excludeBoardIds: Array.isArray(value.excludeBoardIds) ? value.excludeBoardIds.filter((s): s is string => typeof s === 'string').slice(0, 20) : undefined,
                     rowStyle: oneOf(value.rowStyle, ROW_STYLES),
                     columns: value.columns === 1 || value.columns === 2 ? value.columns : undefined,
                     thumbnail: oneOf(value.thumbnail, THUMBNAILS),

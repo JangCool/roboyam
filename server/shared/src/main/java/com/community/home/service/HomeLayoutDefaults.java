@@ -131,6 +131,7 @@ public final class HomeLayoutDefaults {
      * 모바일 순서는 home-news-contract 「모바일 순서」(이미 설치된 곳은 shared V213 이 같은 순서를 넣는다). 아래 자리의 한 열 계산 차례는 모바일 순서가 없을 때(운영자가 「PC 배치 따르기」)만 쓰인다.
      * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). 모바일 전용 두 가젯을 PC 두 가젯 바로 아래 같은 행(y20)에
      * 나란히 두어, 한 열 순서(옆 열 가젯은 본문 열에서 「위 끝 ≤ 그 가젯 아래 끝」인 마지막 가젯 뒤)가 인기글 → 핫 아이로 픽 → 최신글 → 광고가 되게 했다(이미 설치된 곳은 V211 이 넣고 V212 가 이 자리로 바로잡는다).
+     * 최신글(PC 전용·모바일 전용)은 뉴스 게시판 글을 뺀다({@code excludeBoardIds ["news"]} — 새소식이 따로 보여 준다, 이미 설치된 곳은 shared V214).
      * 머리는 아이콘 + 제목({@code PLAIN}), 구분선은 끈다. 게시판 이름은 기본(자동 — 게시판 표시색이 있으면 그 색, 2026-11-05 사용자 결정으로 회색에서 바꿈).
      */
     private static Home irobit() {
@@ -148,7 +149,7 @@ public final class HomeLayoutDefaults {
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"),
                 cfg().put("sort", "LATEST").put("rowStyle", "COMPACT").put("columns", 1).put("count", 12).put("dividers", false).put("likes", "LEAD")
-                        .set("meta", meta("BOARD", "COMMENTS", "LIKES")),
+                        .<ObjectNode>set("excludeBoardIds", meta(BoardFields.NEWS_SLUG)).set("meta", meta("BOARD", "COMMENTS", "LIKES")),
                 null, "/latest", 9, 12, 9, 8);
         String topStrip = b.add(GadgetKinds.AD, "상단 띠 배너", true, true, adIcon(), cfg().put("adType", "STRIP_BANNER"), null, null, 0, 29, 18, 3);
         String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
@@ -156,7 +157,8 @@ public final class HomeLayoutDefaults {
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 20, 9, 8);
         String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"),
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 10)
-                        .put("dividers", false).put("likes", "ICON").put("rowSpacing", "TIGHT").set("meta", meta("BOARD", "COMMENTS", "TIME", "LIKES")),
+                        .put("dividers", false).put("likes", "ICON").put("rowSpacing", "TIGHT").<ObjectNode>set("excludeBoardIds", meta(BoardFields.NEWS_SLUG))
+                        .set("meta", meta("BOARD", "COMMENTS", "TIME", "LIKES")),
                 null, "/latest", 9, 20, 9, 9);
         String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 20, 6, 7);
         String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 32, 9, 8);

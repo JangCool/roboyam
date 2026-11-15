@@ -231,6 +231,79 @@ class GadgetPatchesTest {
     }
 
     @Test
+    void 뺄_게시판은_slug_모양만_받고_겹치면_하나로_20개까지() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        ObjectNode raw = o();
+        raw.putArray("excludeBoardIds").add("news").add(" news ").add("ai-robot");
+        ObjectNode patch = config("POST_LIST", raw, o(), GadgetConfigs.Place.HOME, fields);
+
+        assertThat(fields).isEmpty();
+        assertThat(HomeLayoutJson.texts(patch, "excludeBoardIds")).as("겹치면 하나로(적은 차례)").containsExactly("news", "ai-robot");
+
+        ObjectNode empty = o();
+        empty.putArray("excludeBoardIds");
+        assertThat(config("POST_LIST", empty, o(), GadgetConfigs.Place.HOME, fields).path("excludeBoardIds")).as("빈 목록은 빼지 않음").isEmpty();
+        assertThat(fields).isEmpty();
+
+        ObjectNode unknown = o();
+        unknown.putArray("excludeBoardIds").add("nope");
+        assertThat(config("POST_LIST", unknown, o(), GadgetConfigs.Place.HOME, fields)).as("없는 게시판인지는 보지 않는다(boardIds 와 같다)").isNotNull();
+        assertThat(fields).isEmpty();
+
+        ObjectNode notArray = o().put("excludeBoardIds", "news");
+        ObjectNode badSlug = o();
+        badSlug.putArray("excludeBoardIds").add("News!");
+        ObjectNode tooShort = o();
+        tooShort.putArray("excludeBoardIds").add("a");
+        ObjectNode notText = o();
+        notText.putArray("excludeBoardIds").add(3);
+        ObjectNode many = o();
+        ArrayNode twentyOne = many.putArray("excludeBoardIds");
+        for (int i = 0; i < 21; i++) {
+            twentyOne.add("board-" + i);
+        }
+        for (ObjectNode wrong : new ObjectNode[] {notArray, badSlug, tooShort, notText, many}) {
+            fields.clear();
+            assertThat(config("POST_LIST", wrong, o(), GadgetConfigs.Place.HOME, fields)).isNull();
+            assertThat(fields).containsOnlyKeys("gadgets[0].config.excludeBoardIds");
+        }
+
+        // 글 목록 전용 칸 — 다른 종류에서는 버린다
+        fields.clear();
+        assertThat(config("GALLERY", raw, o(), GadgetConfigs.Place.HOME, fields)).isNull();
+        assertThat(fields).isEmpty();
+    }
+
+    @Test
+    void 뺄_게시판의_관리자_보기는_늘_목록이고_틀린_값은_거른다() {
+        assertThat(GadgetConfigs.view("POST_LIST", null).path("excludeBoardIds").isArray()).isTrue();
+        assertThat(GadgetConfigs.view("POST_LIST", null).path("excludeBoardIds")).isEmpty();
+
+        ObjectNode stored = o();
+        ArrayNode ids = stored.putArray("excludeBoardIds").add("news").add("BAD").add("news").add(7);
+        for (int i = 0; i < 25; i++) {
+            ids.add("b-" + i);
+        }
+        ObjectNode read = GadgetConfigs.view("POST_LIST", stored);
+        assertThat(read.path("excludeBoardIds")).hasSize(GadgetConfigs.EXCLUDE_BOARDS_MAX);
+        assertThat(read.path("excludeBoardIds").get(0).asString()).isEqualTo("news");
+        assertThat(read.path("excludeBoardIds").get(1).asString()).isEqualTo("b-0");
+
+        assertThat(GadgetConfigs.view("POST_LIST", o().put("excludeBoardIds", "news")).path("excludeBoardIds")).as("배열이 아니면 빈 목록").isEmpty();
+        assertThat(GadgetConfigs.view("GALLERY", stored).has("excludeBoardIds")).as("글 목록 전용").isFalse();
+    }
+
+    @Test
+    void 아이로빗_기본_배치의_최신글_둘은_뉴스_게시판을_뺀다() {
+        var latest = HomeLayoutDefaults.of("irobit").gadgets().stream()
+                .filter(g -> "POST_LIST".equals(g.type()) && "LATEST".equals(HomeLayoutJson.text(g.config(), "sort", "LATEST"))
+                        && GadgetConfigs.ALL.equals(GadgetConfigs.scope(g.config())))
+                .toList();
+        assertThat(latest).as("PC 전용 · 모바일 전용").hasSize(2);
+        assertThat(latest).allSatisfy(g -> assertThat(GadgetConfigs.excludeBoards(g.config())).containsExactly("news"));
+    }
+
+    @Test
     void 꾸미기_bottomSpace_는_NORMAL_TIGHT_이고_처음은_NORMAL() {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         ObjectNode current = GadgetKinds.baseStyle("irobit");

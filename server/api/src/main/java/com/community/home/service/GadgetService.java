@@ -455,17 +455,19 @@ public class GadgetService {
     private PostListDataView postListRows(JsonNode config, Ctx ctx) {
         int count = HomeLayoutJson.number(config, "count", 10, 1, 30);
         Set<String> slugs = boardSlugs(config, ctx);
+        // 뺄 게시판(home-news-contract) — 대상이 ALL 일 때만. 다른 범위(FOLDER·BOARD 가 전체로 풀린 경우 포함)는 무시한다
+        Set<String> exclude = GadgetConfigs.ALL.equals(GadgetConfigs.scope(config)) ? Set.copyOf(GadgetConfigs.excludeBoards(config)) : Set.of();
         String sort = HomeLayoutJson.text(config, "sort", "LATEST");
         return switch (sort) {
             case "POPULAR" -> {
                 if (HomeLayoutJson.flag(config, "periodTabs")) {
                     Map<String, List<PostFeedRowView>> periods = new LinkedHashMap<>();
                     for (String period : PERIODS) {
-                        periods.put(period, ranked(period, slugs, ctx).stream().limit(count).toList());
+                        periods.put(period, ranked(period, slugs, exclude, ctx).stream().limit(count).toList());
                     }
                     yield new PostListDataView(periods.get("REALTIME"), periods);
                 }
-                yield new PostListDataView(ranked("REALTIME", slugs, ctx).stream().limit(count).toList(), null);
+                yield new PostListDataView(ranked("REALTIME", slugs, exclude, ctx).stream().limit(count).toList(), null);
             }
             case "VIEWS", "LIKES", "COMMENTS" -> {
                 Comparator<PostFeedRowView> by = switch (sort) {
@@ -473,18 +475,33 @@ public class GadgetService {
                     case "LIKES" -> Comparator.comparingInt(PostFeedRowView::likeCount);
                     default -> Comparator.comparingInt(PostFeedRowView::commentCount);
                 };
-                List<PostFeedRowView> pool = new ArrayList<>(ranked("WEEK", slugs, ctx));
+                List<PostFeedRowView> pool = new ArrayList<>(ranked("WEEK", slugs, exclude, ctx));
                 pool.sort(by.reversed());
                 yield new PostListDataView(pool.stream().limit(count).toList(), null);
             }
-            default -> new PostListDataView(latest(boardIds(slugs, ctx), count, ctx), null);
+            default -> {
+                // 최신글 — 전체 범위(켜짐 · 최신글 가젯 노출 금지 아님)의 게시판 ID 목록에서 뺄 게시판을 덜어 질의한다(질의가 count 만큼 채운다)
+                List<Long> ids = boardIds(slugs, ctx);
+                if (!exclude.isEmpty()) {
+                    Set<Long> drop = exclude.stream().map(slug -> ctx.s().board(slug).map(EffectiveBoard::id).orElse(null)).filter(Objects::nonNull)
+                            .collect(Collectors.toSet());
+                    ids = ids.stream().filter(id -> !drop.contains(id)).toList();
+                }
+                yield new PostListDataView(latest(ids, count, ctx), null);
+            }
         };
     }
 
-    /** 인기글 스냅샷의 한 기간(최대 {@value #POPULAR_POOL}줄) — 게시판을 정했으면 그 게시판 글만 */
-    private List<PostFeedRowView> ranked(String period, Set<String> slugs, Ctx ctx) {
+    /**
+     * 인기글 스냅샷의 한 기간(최대 {@value #POPULAR_POOL}줄 — 배치가 미리 계산한 순위) — 게시판을 정했으면 그 게시판 글만, 뺄 게시판({@code exclude})의 글은 뺀다.
+     * 거른 뒤의 줄에서 부르는 쪽이 {@code count} 만큼 자른다
+     */
+    private List<PostFeedRowView> ranked(String period, Set<String> slugs, Set<String> exclude, Ctx ctx) {
         List<PostFeedRowView> items = popular.popular(period, "1", String.valueOf(POPULAR_POOL), ctx.viewerId()).items();
-        return slugs == null ? items : items.stream().filter(r -> r.board() != null && slugs.contains(r.board().slug())).toList();
+        return items.stream()
+                .filter(r -> slugs == null || r.board() != null && slugs.contains(r.board().slug()))
+                .filter(r -> exclude.isEmpty() || r.board() == null || !exclude.contains(r.board().slug()))
+                .toList();
     }
 
     /** 최신글 — 최신글 전체와 같은 게시판 범위(켜짐 · 최신글 가젯 노출 금지 아님), 또는 정한 게시판 */

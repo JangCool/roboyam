@@ -190,6 +190,8 @@ export interface PostListConfig {
     mobilePageSize: number;
     /** 게시판 필터가 비었는가(전체 게시판 — 투자 고지 판정 참고용) */
     allBoards: boolean;
+    /** 전체 게시판(`boardScope: ALL`)에서 뺀 게시판 slug(20개까지 — 글은 서버가 빼서 준다, 화면은 쓰지 않음, home-news-contract) */
+    excludeBoardIds: string[];
 }
 
 export interface BoardCardsConfig {

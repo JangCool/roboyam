@@ -247,6 +247,7 @@ export default class UtilGadgetConfig {
         switch (type) {
             case 'POST_LIST':
                 Object.assign(out, {
+                    excludeBoardIds: [],
                     periodTabs: false,
                     rowStyle: 'HEADLINE',
                     columns: 1,
@@ -317,6 +318,11 @@ export default class UtilGadgetConfig {
         if (place === 'PAGE' && HOVER_KINDS.includes(type)) out.pageHead = c.pageHead === true; // 제목 카드에 넣기 — 가젯 페이지만(서버 GadgetPatches 도 PAGE 만 받는다)
         switch (type) {
             case 'POST_LIST':
+                // 제외할 게시판 — 전체 범위일 때만 쓴다(다른 범위면 비운다, home-news-contract)
+                out.excludeBoardIds =
+                    out.boardScope === 'ALL' && Array.isArray(c.excludeBoardIds)
+                        ? [...new Set(c.excludeBoardIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''))].slice(0, BOARD_PICK_MAX)
+                        : [];
                 out.periodTabs = out.sort === 'POPULAR' && c.periodTabs === true;
                 out.rowStyle = oneOf(c.rowStyle, ROW_STYLES, 'HEADLINE');
                 out.columns = c.columns === 2 || c.columns === '2' ? 2 : 1;

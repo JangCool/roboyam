@@ -1,8 +1,11 @@
 package com.community.home.service;
 
+import com.community.board.service.BoardFields;
 import com.community.highlight.service.HighlightPlaces;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -16,7 +19,7 @@ import tools.jackson.databind.node.ObjectNode;
  *   <li>{@code GROUP_BUY} {@code count} 1~10(5) · {@code sort} · {@code POST_LIST} 대상 게시판 · {@code count} 1~30(10) · {@code sort} · {@code periodTabs} · 보기 모양
  *       {@code rowStyle}(+ {@code LINE} 뉴스형 한 줄)·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead} NONE·HERO·THUMB(첫 글 작은 사진 줄)·{@code meta}·{@code dividers}·
  *       {@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 · {@code likes} TEXT·ICON·LEAD(TEXT) · {@code rowSpacing} NORMAL·TIGHT(NORMAL) · {@code mobilePages} 1~3(1) ·
- *       {@code mobilePageSize} 3~10(5) — home-news-contract 「가젯 레이아웃 유형 옵션」 ·
+ *       {@code mobilePageSize} 3~10(5) · {@code excludeBoardIds} 뺄 게시판 slug 0~20(대상 {@code ALL} 일 때만 쓴다) — home-news-contract 「가젯 레이아웃 유형 옵션」 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} NONE·HERO · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) ·
  *       {@code narrow} DEFAULT·LIST(좁은 칸 모양 — home-news-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
@@ -37,6 +40,8 @@ public final class GadgetConfigs {
     public static final List<String> SCOPES = List.of(ALL, FOLDER, PICK, BOARD);
     /** 직접 고를 수 있는 게시판 수 */
     public static final int BOARD_PICK_MAX = 20;
+    /** 글 목록 가젯이 전체 게시판({@code ALL})에서 뺄 수 있는 게시판 수({@code excludeBoardIds} — home-news-contract) */
+    public static final int EXCLUDE_BOARDS_MAX = 20;
     public static final List<String> POST_LIST_SORTS = List.of("LATEST", "POPULAR", "VIEWS", "LIKES", "COMMENTS");
     public static final List<String> ROW_STYLES = List.of("HEADLINE", "RANK", "ARTICLE", "COMPACT", "LINE");
     public static final List<String> THUMBNAILS = List.of("AUTO", "NONE", "RIGHT", "LEFT");
@@ -221,6 +226,8 @@ public final class GadgetConfigs {
                 out.put("rowSpacing", oneOf(config, "rowSpacing", ROW_SPACINGS, "NORMAL"));
                 out.put("mobilePages", HomeLayoutJson.number(config, "mobilePages", 1, 1, MOBILE_PAGES_MAX));
                 out.put("mobilePageSize", HomeLayoutJson.number(config, "mobilePageSize", MOBILE_PAGE_SIZE_DEFAULT, MOBILE_PAGE_SIZE_MIN, MOBILE_PAGE_SIZE_MAX));
+                ArrayNode exclude = out.putArray("excludeBoardIds"); // 대상이 ALL 이 아니어도 저장 값은 그대로 보인다(다른 범위면 공개 읽기가 무시)
+                excludeBoards(config).forEach(exclude::add);
             }
             case "BOARD_CARDS" -> {
                 out.put("cardHead", cardHead(config));
@@ -274,6 +281,30 @@ public final class GadgetConfigs {
             }
         }
         return out;
+    }
+
+    /**
+     * 글 목록 가젯의 뺄 게시판({@code excludeBoardIds}, home-news-contract) — slug 모양({@link #isBoardSlug})인 것만, 겹치면 하나로(적은 차례), 최대 {@value #EXCLUDE_BOARDS_MAX}개.
+     * 칸이 없거나 배열이 아니면 빈 목록. 있는 게시판인지는 보지 않는다(없는 게시판은 뺄 글이 없다). 대상 {@code ALL} 일 때만 쓰는 것은 읽는 쪽이 정한다.
+     */
+    public static List<String> excludeBoards(JsonNode config) {
+        JsonNode raw = config == null ? null : config.get("excludeBoardIds");
+        if (raw == null || !raw.isArray()) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (JsonNode v : raw) {
+            String slug = v.isString() ? v.asString().strip() : null;
+            if (isBoardSlug(slug) && out.size() < EXCLUDE_BOARDS_MAX) {
+                out.add(slug);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** 게시판 slug 모양인가 — {@link BoardFields#SLUG} · {@value BoardFields#SLUG_MIN}~{@value BoardFields#SLUG_MAX}자(관리자 게시판 저장과 같은 규칙) */
+    public static boolean isBoardSlug(String slug) {
+        return slug != null && slug.length() >= BoardFields.SLUG_MIN && slug.length() <= BoardFields.SLUG_MAX && BoardFields.SLUG.matcher(slug).matches();
     }
 
     /**
