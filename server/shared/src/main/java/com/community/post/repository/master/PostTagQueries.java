@@ -8,6 +8,8 @@ import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.community.zconfiguration.time.ServiceTime;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -29,6 +31,8 @@ import org.springframework.stereotype.Repository;
  *       표는 DB 배치({@code R__batch_44_post_tag_daily.sql} — 10분마다 어제·오늘 + 지난 계산 뒤로 바뀐 글이 쓰인 날(최근 31일 안))가 보이는 글(지움·임시저장·예약 삭제 지남 아님) · 신고·운영 숨김 아님 ·
  *       섞인 목록에 나올 수 있는 글({@link PostRepositoryQDSL#alive}·{@link PostRepositoryQDSL#notHidden}·{@link PostRepositoryQDSL#feedVisible} 과 같은 조건을 SQL 로)만 세어 채운다
  *       — 그 판정을 고치면 배치 SQL 도 같이 고친다.</li>
+ *   <li>{@link #suggestions}: 글쓰기 태그 추천 — 한 게시판에서 쓰인 태그 전체(집계 표의 모든 날 합, 많이 쓴 순).</li>
+ *   <li>{@link #canonical}: 띄어쓰기만 다른 기존 태그 찾기 — 저장 때 그 게시판에서 이미 쓰는 모양으로 맞춘다({@link com.community.post.service.PostTagStore#replace}).</li>
  * </ul>
  */
 @Repository
@@ -70,6 +74,50 @@ public class PostTagQueries extends IrobitRepositoryQDSL {
         if (boardIds != null) {
             where = where.and(DAILY.boardId.in(boardIds));
         }
+        return ranked(where, limit);
+    }
+
+    /**
+     * 글쓰기 태그 추천 — 게시판 하나에서 쓰인 태그(집계 표의 모든 날 합 — 31일보다 앞선 날은 마지막으로 센 값) 많이 쓴 순, 최대 {@code limit} 개.
+     * 화면이 한 번 받아 치는 동안 걸러 보인다(post-tags-contract 「글쓰기 추천」).
+     */
+    public List<TagCountView> suggestions(long boardId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return ranked(DAILY.boardId.eq(boardId), limit);
+    }
+
+    /**
+     * 띄어쓰기를 뺀 열쇠({@code PostTags#compact}) → 그 게시판에서 이미 쓰는 모양(집계 표 — 띄어쓰기를 뺀 열쇠가 같은 모양 중 글 수 합이 가장 큰 것, 같으면 글자 차례).
+     * 없는 열쇠는 맵에 없다. 집계는 최대 10분 늦다.
+     */
+    public Map<String, String> canonical(long boardId, Collection<String> compactKeys) {
+        if (compactKeys.isEmpty()) {
+            return Map.of();
+        }
+        StringExpression compact = Expressions.stringTemplate("replace({0}, ' ', '')", DAILY.tagKey);
+        NumberExpression<Long> total = DAILY.postCount.longValue().sum();
+        List<Tuple> found = query.select(compact, DAILY.tag, total).from(DAILY).where(DAILY.boardId.eq(boardId), compact.in(compactKeys))
+                .groupBy(compact, DAILY.tag).fetch();
+        Map<String, String> names = new HashMap<>();
+        Map<String, Long> best = new HashMap<>();
+        for (Tuple t : found) {
+            String key = t.get(compact);
+            String tag = t.get(DAILY.tag);
+            Long n0 = t.get(total);
+            long n = n0 == null ? 0 : n0;
+            Long seen = best.get(key);
+            if (seen == null || n > seen || n == seen && tag.compareTo(names.get(key)) < 0) {
+                best.put(key, n);
+                names.put(key, tag);
+            }
+        }
+        return names;
+    }
+
+    /** 조건 안 열쇠마다 글 수 합 내림차순(같으면 열쇠 차례) — 이름은 그 열쇠의 모양 중 합이 가장 큰 것 */
+    private List<TagCountView> ranked(BooleanExpression where, int limit) {
         NumberExpression<Long> total = DAILY.postCount.longValue().sum();
         List<Tuple> top = query.select(DAILY.tagKey, total).from(DAILY).where(where)
                 .groupBy(DAILY.tagKey).orderBy(total.desc(), DAILY.tagKey.asc()).limit(limit).fetch();

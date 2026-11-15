@@ -124,7 +124,7 @@
                     :error="fieldErrors.thumbnail ?? ''"
                 />
                 <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」를 켠 게시판만 -->
-                <PostTagInput v-if="tagsShown" v-model="tags" :disabled="submitting" :error="tagsError" />
+                <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="post?.group ? null : (post?.board.slug ?? null)" :disabled="submitting" :error="tagsError" />
             </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />

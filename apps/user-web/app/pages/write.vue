@@ -115,7 +115,7 @@
                         :error="fieldErrors.thumbnail ?? ''"
                     />
                     <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」(`tagsEnabled`)를 켠 게시판만(비회원 글도 — 글쓰기 권한 그대로) -->
-                    <PostTagInput v-if="tagsShown" v-model="tags" :disabled="submitting" :error="tagsError" />
+                    <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="selectedSlug" :disabled="submitting" :error="tagsError" />
                 </template>
                 <!-- 찬반 토론 — 게시판이 글쓴이 토론을 받고(`debateEnabled`) 회원일 때만. 켜면 글과 함께 연다 -->
                 <template #extra>

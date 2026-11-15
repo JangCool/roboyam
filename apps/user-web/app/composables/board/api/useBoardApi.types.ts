@@ -329,3 +329,9 @@ export interface BoardDetail extends BoardView {
     newMemberRules: BoardNewMemberRules;
     viewer: BoardViewer;
 }
+
+/** 글쓰기 태그 추천 한 줄(`GET /api/boards/{slug}/tags` — post-tags-contract 「글쓰기 추천」) — 이 게시판에서 쓰인 태그와 달린 글 수(많이 쓴 순) */
+export interface BoardTagSuggestion {
+    name: string;
+    count: number;
+}

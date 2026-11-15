@@ -21,4 +21,10 @@ export default {
     filterAll: 'See all posts',
     tabs: 'Tags',
     tabEmpty: 'No posts with this tag yet',
+    suggestList: 'Suggested tags',
+    suggestCount: '{n} posts',
+    suggestNew: 'Add “{name}” as a new tag',
+    suggestPopular: 'Popular tags on this board',
+    suggestAdd: 'Add tag {name}',
+    suggestReplaced: 'Added as the existing tag “#{name}” (only spacing or case differed)',
 };

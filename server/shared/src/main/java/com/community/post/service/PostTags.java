@@ -91,6 +91,14 @@ public final class PostTags {
     }
 
     /**
+     * 띄어쓰기를 뺀 비교 열쇠 — 띄어쓰기만 다른 태그(「휴머 노이드」·「휴머노이드」)를 같은 태그로 맞출 때 쓴다(저장 때 게시판의 기존 태그로 바꾸기 — {@link PostTagStore#replace},
+     * 글쓰기 추천 — post-tags-contract 「글쓰기 추천」).
+     */
+    public static String compact(String key) {
+        return key.replace(" ", "");
+    }
+
+    /**
      * 거르기 값({@code ?tag=}) → 비교 열쇠. 비었으면 null(거르지 않음), 모양이 틀리면 {@code ""}(맞는 글이 없다 — 빈 목록).
      */
     public static String filterKey(String raw) {

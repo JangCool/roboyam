@@ -53,6 +53,15 @@ export default class UtilPostTag {
     }
 
     /**
+     * 띄어쓰기를 뺀 비교 키 — 띄어쓰기·대소문자만 다른 태그(「휴머 노이드」·「휴머노이드」)를 같은 태그로 본다(글쓰기 추천 — 서버 `PostTags.compact` 와 같다)
+     * @param {string} tag - 태그.
+     * @returns {string} 키.
+     */
+    static compact(tag: string): string {
+        return UtilPostTag.key(tag).replace(/[s#]+/g, '');
+    }
+
+    /**
      * 받은 목록 읽기 — 쓸 수 없는 값은 빼고 겹침 없이 `max` 개까지
      * @param {unknown} value - 서버·설정의 값.
      * @param {number} max - 최대 수.

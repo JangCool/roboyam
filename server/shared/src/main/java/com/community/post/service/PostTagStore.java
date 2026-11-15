@@ -4,6 +4,7 @@ import com.community.post.entity.PostEntity;
 import com.community.post.entity.PostTagDirtyDayEntity;
 import com.community.post.entity.PostTagEntity;
 import com.community.post.repository.master.PostTagDirtyDayRepository;
+import com.community.post.repository.master.PostTagQueries;
 import com.community.post.repository.master.PostTagRepository;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Instant;
@@ -27,21 +28,30 @@ public class PostTagStore {
 
     private final PostTagRepository tags;
     private final PostTagDirtyDayRepository dirtyDays;
+    private final PostTagQueries queries;
 
-    public PostTagStore(PostTagRepository tags, PostTagDirtyDayRepository dirtyDays) {
+    public PostTagStore(PostTagRepository tags, PostTagDirtyDayRepository dirtyDays, PostTagQueries queries) {
         this.tags = tags;
         this.dirtyDays = dirtyDays;
+        this.queries = queries;
     }
 
     /**
      * 글의 태그를 {@code cleaned}(정리한 태그 — 적은 차례, 겹침 없음)로 맞춘다. 빈 목록이면 모두 지운다. 빠진 태그 행은 지우고, 남은 태그는 모양·차례만 고치고, 새 태그는 넣는다
      * (지울 열쇠와 넣을 열쇠가 겹치지 않아 쓰기 차례와 상관없이 키가 부딪치지 않는다). 넣기·빼기·표기 변경이 하나라도 있으면(차례만 바뀐 것은 아니다) 바뀐 날 표시를 하나 넣는다.
+     * <p>그 게시판에 띄어쓰기·대소문자만 다른 태그가 이미 있으면 그 모양으로 바꿔 저장한다(「휴머 노이드」 → 「휴머노이드」, 「ai」 → 「AI」 — post-tags-contract 「글쓰기 추천」).
+     * 바꾼 뒤 겹치면 하나만 남는다.
      */
     public void replace(PostEntity post, List<String> cleaned, Instant now) {
         long postId = post.getId();
         List<PostTagEntity> current = tags.findByPostIdOrderBySortOrderAsc(postId);
+        Map<String, String> existing = cleaned.isEmpty() ? Map.of()
+                : queries.canonical(post.getBoardId(), cleaned.stream().map(t -> PostTags.compact(PostTags.key(t))).distinct().toList());
         Map<String, String> wanted = new LinkedHashMap<>();
-        cleaned.forEach(t -> wanted.putIfAbsent(PostTags.key(t), t));
+        for (String t : cleaned) {
+            String tag = existing.getOrDefault(PostTags.compact(PostTags.key(t)), t);
+            wanted.putIfAbsent(PostTags.key(tag), tag);
+        }
         List<PostTagEntity> removed = new ArrayList<>();
         Map<String, PostTagEntity> kept = new HashMap<>();
         for (PostTagEntity e : current) {

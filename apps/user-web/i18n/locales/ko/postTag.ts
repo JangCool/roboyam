@@ -21,4 +21,10 @@ export default {
     filterAll: '모든 글 보기',
     tabs: '태그',
     tabEmpty: '이 태그의 글이 아직 없어요',
+    suggestList: '추천 태그',
+    suggestCount: '글 {n}',
+    suggestNew: '「{name}」 새 태그로 넣기',
+    suggestPopular: '이 게시판에서 많이 쓴 태그',
+    suggestAdd: '{name} 태그 넣기',
+    suggestReplaced: '이미 있는 태그 「#{name}」로 넣었어요 (띄어쓰기·대소문자만 달라요)',
 };

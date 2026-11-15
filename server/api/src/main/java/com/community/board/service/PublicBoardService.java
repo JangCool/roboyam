@@ -22,6 +22,8 @@ import com.community.sanction.service.BoardStaffActionService;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.dto.response.DealRulesView;
 import com.community.hotdeal.service.DealSettingsReader;
+import com.community.post.dto.response.TagCountView;
+import com.community.post.repository.master.PostTagQueries;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,10 +46,15 @@ public class PublicBoardService {
     private final DealSettingsReader dealSettings;
     private final BoardStaffActionService staffActions;
     private final BoardSanctionService boardSanctions;
+    private final PostTagQueries tagQueries;
+
+    /** 글쓰기 태그 추천으로 한 번에 주는 최대 태그 수 */
+    static final int TAG_SUGGEST_MAX = 300;
 
     public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions,
-                              BoardSanctionService boardSanctions) {
+                              BoardSanctionService boardSanctions, PostTagQueries tagQueries) {
         this.catalog = catalog;
+        this.tagQueries = tagQueries;
         this.staffActions = staffActions;
         this.boardSanctions = boardSanctions;
         this.actors = actors;
@@ -122,6 +129,15 @@ public class PublicBoardService {
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
                 v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled());
+    }
+
+    /**
+     * 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순, 최대 {@value #TAG_SUGGEST_MAX}개 · 집계 표라 최대 10분 늦다 — post-tags-contract 「글쓰기 추천」).
+     * 「태그 쓰기」가 꺼진 게시판이면 빈 목록. 없거나 소모임 게시판이면 404, 꺼졌으면 403.
+     */
+    public List<TagCountView> tags(String slug) {
+        EffectiveBoard b = requireActive(catalog.snapshot(), slug);
+        return b.tagsEnabled() ? tagQueries.suggestions(b.id(), TAG_SUGGEST_MAX) : List.of();
     }
 
     /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */

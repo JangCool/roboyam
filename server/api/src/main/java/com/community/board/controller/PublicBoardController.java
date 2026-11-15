@@ -5,8 +5,10 @@ import com.community.board.dto.response.BoardDetailView;
 import com.community.board.dto.response.BoardListResponse;
 import com.community.board.service.PublicBoardService;
 import com.community.post.dto.response.PostListResponse;
+import com.community.post.dto.response.TagCountView;
 import com.community.post.service.PostQueryService;
 import com.community.zconfiguration.response.ApiResponse;
+import java.util.List;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -64,6 +66,12 @@ public class PublicBoardController {
                                                                @RequestParam(required = false) String status, @RequestParam(required = false) String tag,
                                                                Authentication authentication) {
         return noStore(ApiResponse.success(postQueries.list(slug, prefix, sort, q, page, userId(authentication), hideEnded, store, status, tag)));
+    }
+
+    /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그 {@code [{name, count}]}(많이 쓴 순, 「태그 쓰기」가 꺼졌으면 빈 목록 · post-tags-contract 「글쓰기 추천」) */
+    @GetMapping("/{slug}/tags")
+    public ResponseEntity<ApiResponse<List<TagCountView>>> tags(@PathVariable String slug) {
+        return noStore(ApiResponse.success(boardService.tags(slug)));
     }
 
     static Long userId(Authentication authentication) {
