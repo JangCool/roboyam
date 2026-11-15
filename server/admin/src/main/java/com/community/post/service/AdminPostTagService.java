@@ -5,7 +5,6 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.post.dto.response.TagCountView;
 import com.community.post.repository.master.PostTagQueries;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 관리자 태그 추천({@code GET /api/admin/tags/popular} — post-tags-contract 「관리자」): 글 목록 가젯 ⚙ 「태그 탭」 고르기 칸의 추천 — 최근 {@code days} 일 글에 많이 달린 태그와 달린 글 수.
- * 셈은 {@link PostTagQueries#popular}(지운·가린·비밀·비멤버에게 안 보이는 소모임 글 빼고, 이름은 가장 많이 쓴 모양).
+ * 셈은 {@link PostTagQueries#popular} — 집계 표 {@code post_tag_daily}(DB 배치가 10분마다 갱신, 지운·가린·비밀·비멤버에게 안 보이는 소모임 글 빼고)를 오늘 포함 {@code days} 일(한국 날짜) 합한다.
  *
  * <ul>
  *   <li>{@code boards}: 게시판 slug 를 쉼표로 이은 값 — 비면 전체. 없는 slug 는 건너뛰고, 하나도 남지 않으면 빈 목록(엉뚱한 범위의 추천을 내지 않는다).
@@ -55,6 +54,6 @@ public class AdminPostTagService {
                 return List.of();
             }
         }
-        return tags.popular(scope, now.minus(Duration.ofDays(d)), n, now);
+        return tags.popular(scope, d, n, now);
     }
 }

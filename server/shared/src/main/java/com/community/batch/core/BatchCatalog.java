@@ -299,6 +299,13 @@ public enum BatchCatalog implements BatchDefinition {
      */
     DEAL_CLICK_PARTITIONS("deal-click-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 글 태그 일별 집계({@code post_tag_daily}, V216) — 어제·오늘 + 지난 계산 뒤로 바뀐 글(지움·숨김·숨김 풀림·고치기·이동·공개 범위)이 쓰인 날(최근 31일 안)을
+     * 원천({@code post_tags} × 보이는 글)에서 다시 센다. DB 배치, 기본 10분마다({@code R__batch_44_post_tag_daily.sql}, post-tags-contract 「집계」).
+     * 관리자 태그 추천·매거진 태그 칩({@code PostTagQueries#popular})이 이 표를 읽는다.
+     */
+    POST_TAG_DAILY("post-tag-daily", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 핫딜 정리 — OG 사본(딜 종료·글 삭제 90일 뒤)·딜 칸 수정 이력(6개월). Java 배치 {@code DealCleanupJob}(저장소 파일을 지운다), 기본 매일 04:05 KST */
     HOTDEAL_CLEANUP("hotdeal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 5 4 * * *", true),
 

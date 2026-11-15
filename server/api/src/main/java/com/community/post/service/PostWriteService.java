@@ -224,7 +224,7 @@ public class PostWriteService {
             }
             posts.persist(created);
             if (savedTags != null && !savedTags.isEmpty()) {
-                tagStore.replace(id, savedTags, now);
+                tagStore.replace(created, savedTags, now);
             }
             emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
             if (body.debate() != null) {
@@ -307,7 +307,7 @@ public class PostWriteService {
         created.initOps(secretOnCreate(b, body.secret()), b.statusEnabled()); // 소모임 게시판의 비밀글 · 처음 처리 상태(V168 — 일반 게시판과 같은 규칙)
         posts.persist(created);
         if (savedTags != null && !savedTags.isEmpty()) {
-            tagStore.replace(id, savedTags, now);
+            tagStore.replace(created, savedTags, now);
         }
         emoticons.recordUse(authorId, c.body().content()); // 일반 글과 같다(부르는 쪽 트랜잭션 — 소모임 행을 잠근 그 트랜잭션)
         if (poll != null) {
@@ -497,7 +497,7 @@ public class PostWriteService {
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
             if (savedTags != null) {
-                tagStore.replace(locked.getId(), savedTags, now); // 빈 목록이면 모두 지운다
+                tagStore.replace(locked, savedTags, now); // 빈 목록이면 모두 지운다
             }
             posts.flush();
             emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)

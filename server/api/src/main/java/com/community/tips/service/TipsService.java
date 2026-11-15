@@ -135,7 +135,7 @@ public class TipsService {
         fillRows.forEach(r -> headline.add(TipsPostView.of(r, excerpts.get(r.id()), tags.getOrDefault(r.id(), List.of()))));
         List<TipsPostView> mostViewed = viewedRows.stream().map(r -> TipsPostView.of(r, excerpts.get(r.id()), tags.getOrDefault(r.id(), List.of()))).toList();
         // 태그 칩 — 묶음(또는 고른 게시판) 글에 최근 30일 많이 달린 태그
-        List<TagCountView> chipsOfTags = tagQueries.popular(scope, now.minus(Duration.ofDays(TAG_DAYS)), TAG_CHIPS, now);
+        List<TagCountView> chipsOfTags = tagQueries.popular(scope, TAG_DAYS, TAG_CHIPS, now);
         return new TipsOverviewView(chips, headline.size() > HEADLINE_SIZE ? headline.subList(0, HEADLINE_SIZE) : headline, mostViewed, chipsOfTags);
     }
 
