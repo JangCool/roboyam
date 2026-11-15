@@ -2,6 +2,9 @@ package com.community.home.service;
 
 import com.community.board.service.BoardFields;
 import com.community.highlight.service.HighlightPlaces;
+import com.community.post.service.PostTags;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,7 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code rowStyle}(+ {@code LINE} 뉴스형 한 줄)·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead} NONE·HERO·THUMB(첫 글 작은 사진 줄)·{@code meta}·{@code dividers}·
  *       {@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 · {@code likes} TEXT·ICON·LEAD(TEXT) · {@code rowSpacing} NORMAL·TIGHT(NORMAL) · {@code mobilePages} 1~3(1) ·
  *       {@code mobilePageSize} 3~10(5) · {@code excludeBoardIds} 뺄 게시판 slug 0~20(대상 {@code ALL} 일 때만 쓴다) — home-news-contract 「가젯 레이아웃 유형 옵션」 ·
+ *       {@code tagTabs} 태그 탭 0~8(태그 글자 규칙 {@link PostTags}, 차례대로 — 공개 데이터가 탭마다 글 줄 {@code tagged} 를 싣는다, post-tags-contract) ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 · {@code outline}·{@code dividers}(카드 외곽선·줄 구분선, 기본 끔 — 2026-11-06) · {@code leadPlaceholder}(사진 없는 대표 글에 「이미지 없음」 자리, 기본 켬) ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} NONE·HERO · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) ·
  *       {@code narrow} DEFAULT·LIST(좁은 칸 모양 — home-news-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
@@ -42,6 +46,8 @@ public final class GadgetConfigs {
     public static final int BOARD_PICK_MAX = 20;
     /** 글 목록 가젯이 전체 게시판({@code ALL})에서 뺄 수 있는 게시판 수({@code excludeBoardIds} — home-news-contract) */
     public static final int EXCLUDE_BOARDS_MAX = 20;
+    /** 글 목록 가젯의 태그 탭 수({@code tagTabs} — post-tags-contract) */
+    public static final int TAG_TABS_MAX = 8;
     public static final List<String> POST_LIST_SORTS = List.of("LATEST", "POPULAR", "VIEWS", "LIKES", "COMMENTS");
     public static final List<String> ROW_STYLES = List.of("HEADLINE", "RANK", "ARTICLE", "COMPACT", "LINE");
     public static final List<String> THUMBNAILS = List.of("AUTO", "NONE", "RIGHT", "LEFT");
@@ -228,6 +234,8 @@ public final class GadgetConfigs {
                 out.put("mobilePageSize", HomeLayoutJson.number(config, "mobilePageSize", MOBILE_PAGE_SIZE_DEFAULT, MOBILE_PAGE_SIZE_MIN, MOBILE_PAGE_SIZE_MAX));
                 ArrayNode exclude = out.putArray("excludeBoardIds"); // 대상이 ALL 이 아니어도 저장 값은 그대로 보인다(다른 범위면 공개 읽기가 무시)
                 excludeBoards(config).forEach(exclude::add);
+                ArrayNode tabs = out.putArray("tagTabs"); // 태그 탭(post-tags-contract) — 비면 탭 없음
+                tagTabs(config).forEach(tabs::add);
             }
             case "BOARD_CARDS" -> {
                 out.put("cardHead", cardHead(config));
@@ -300,6 +308,25 @@ public final class GadgetConfigs {
             }
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * 글 목록 가젯의 태그 탭({@code tagTabs}, post-tags-contract) — 글자는 {@link PostTags} 로 정리하고 모양이 틀린 것·글자가 아닌 것은 버리며, 같은 태그(대소문자 무시)는 처음 것 하나(적은 차례),
+     * 최대 {@value #TAG_TABS_MAX}개. 칸이 없거나 배열이 아니면 빈 목록(탭 없음).
+     */
+    public static List<String> tagTabs(JsonNode config) {
+        JsonNode raw = config == null ? null : config.get("tagTabs");
+        if (raw == null || !raw.isArray()) {
+            return List.of();
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        for (JsonNode v : raw) {
+            String cleaned = v.isString() ? PostTags.clean(v.asString()) : "";
+            if (PostTags.valid(cleaned) && out.size() < TAG_TABS_MAX) {
+                out.putIfAbsent(PostTags.key(cleaned), cleaned);
+            }
+        }
+        return new ArrayList<>(out.values());
     }
 
     /** 게시판 slug 모양인가 — {@link BoardFields#SLUG} · {@value BoardFields#SLUG_MIN}~{@value BoardFields#SLUG_MAX}자(관리자 게시판 저장과 같은 규칙) */

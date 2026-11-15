@@ -251,6 +251,8 @@ export interface PostListQuery {
     page: number;
     /** 처리 상태 거르기(`status` — 상태가 켜진 게시판만, 말머리 거르기와 함께 쓴다) — 없거나 빈 글자면 전체(보내지 않는다) */
     status?: PostProcessStatus | '';
+    /** 태그 거르기(`tag` — 정확히 같은 태그, 대소문자 무시 — post-tags-contract) — 없거나 빈 글자면 전체(보내지 않는다) */
+    tag?: string;
 }
 
 /**
@@ -426,6 +428,8 @@ export interface PostDetail {
      * 대표 썸네일(list-thumbnail-contract 「2단계」 — 서버 `PostThumbnailView`) — 글쓴이 본인(회원 글·소모임 글 아님)에게만, 그 밖의 보는 사람·옛 응답은 null·없음(고치기 화면이 쓴다).
      */
     thumbnail?: PostThumbnailView | null;
+    /** 글 태그(post-tags-contract — 처음 쓴 모양, 최대 5개). 옛 응답에는 없다(없으면 빈 목록으로 본다) */
+    tags?: string[];
 }
 
 /**
@@ -502,6 +506,8 @@ export interface PostWriteRequest {
     secret?: boolean | null;
     /** 대표 썸네일 — 빼면 자동 */
     thumbnail?: PostThumbnailInput;
+    /** 태그(post-tags-contract — 최대 5개, `#` 뗀 모양) — 게시판 `tagsEnabled` 일 때만 싣는다(꺼진 게시판은 서버가 무시) */
+    tags?: string[];
 }
 
 export interface PostWriteResult {
@@ -532,6 +538,8 @@ export interface PostUpdateRequest {
     secret?: boolean | null;
     /** 대표 썸네일 — 바꿨을 때만 싣는다(빼면 그대로) */
     thumbnail?: PostThumbnailInput;
+    /** 태그 — 바꿨을 때만 싣는다(빼면 그대로, 빈 목록이면 모두 지움 — post-tags-contract) */
+    tags?: string[];
 }
 
 /**

@@ -4,6 +4,7 @@ import com.community.board.dto.request.GuestCredentials;
 import com.community.debate.dto.request.DebateOptionsRequest;
 import com.community.hotdeal.dto.request.DealInput;
 import com.community.poll.dto.request.PollInput;
+import java.util.List;
 
 /**
  * {@code POST /api/posts}(user-web {@code PostWriteRequest}). 검사 순서가 계약(게시판 → 쓰기 판정 → 칸 → 금지어 → 캡차 → 속도)이라 Bean Validation 없이 서비스가 본다.
@@ -17,25 +18,33 @@ import com.community.poll.dto.request.PollInput;
  * @param deal     핫딜 게시판({@code kind DEAL})이면 필수 — 딜 정보(칸 오류는 {@code fields."deal.*"}), 그 밖 게시판은 보내면 400 {@code fields.deal}(docs/features/hotdeal-contract.md)
  * @param secret   비밀글로 쓴다(V166) — 게시판 {@code secretMode} 가 OPTIONAL 일 때만 이 값(null = false), ALWAYS 면 늘 true, OFF 면 늘 false(보내도 무시한다). 비회원 글도 같다(V168 — 비밀번호로 연다)
  * @param thumbnail 대표 썸네일({@link PostThumbnailInput}) — 빼면 자동. 회원 + 게시판 정책 {@code authorThumbnailEnabled} 일 때만 보고, 아니면 무시한다(list-thumbnail-contract 「2단계」)
+ * @param tags     태그(글자 목록 — 정리 규칙은 {@code PostTags}: 앞의 # 떼기·1~20자·최대 5개·대소문자 무시 겹침은 하나) — 빼면 없음. 게시판 정책 {@code tagsEnabled} 가 꺼져 있으면 무시한다
+ *                 (오류 아님, 회원·비회원 모두). 틀리면 400 {@code fields.tags}(post-tags-contract)
  */
 public record PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
-                               DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail) {
+                               DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail, List<String> tags) {
+
+    /** 태그 칸 없이 */
+    public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
+                            DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail) {
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, secret, thumbnail, null);
+    }
 
     /** 대표 썸네일 칸 없이(자동) */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                             DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret) {
-        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, secret, null);
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, secret, null, null);
     }
 
     /** 비밀글 칸 없이 */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                             DebateOptionsRequest debate, PollInput poll, DealInput deal) {
-        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, null, null);
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, null, null, null);
     }
 
     /** 딜 없는 글(핫딜 게시판이 아닌 곳) */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                             DebateOptionsRequest debate, PollInput poll) {
-        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, null, null, null);
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, null, null, null, null);
     }
 }

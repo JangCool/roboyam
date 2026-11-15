@@ -151,7 +151,9 @@ public class BoardCatalog implements CacheReloader {
                 // 글 목록 말머리 모양(V195) — 게시판 값 ?? 사이트 기본
                 or(b.getPrefixStyle(), d.listPrefixStyle()),
                 // 글쓴이 대표 이미지 고르기(V206) — 게시판 값 ?? 기본값
-                or(p.authorThumbnailEnabled(), d.authorThumbnailEnabled()));
+                or(p.authorThumbnailEnabled(), d.authorThumbnailEnabled()),
+                // 태그 쓰기(V215) — 게시판 값 ?? 기본값
+                or(p.tagsEnabled(), d.tagsEnabled()));
     }
 
     private static <T> T or(T value, T fallback) {

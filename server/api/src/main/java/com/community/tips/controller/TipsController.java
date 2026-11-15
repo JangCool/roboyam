@@ -33,11 +33,12 @@ public class TipsController {
         return noStore(service.overview(board, userId(authentication)));
     }
 
-    /** 최신 글 한 쪽 — {@code page} 1부터(작으면 1), 한 쪽 20개 */
+    /** 최신 글 한 쪽 — {@code page} 1부터(작으면 1), 한 쪽 20개. {@code tag} = 태그 거르기(정확히 같은 태그, 대소문자 무시 — post-tags-contract) */
     @GetMapping("/posts")
     public ResponseEntity<ApiResponse<TipsPostPageView>> posts(@RequestParam(required = false) String board,
-                                                              @RequestParam(required = false, defaultValue = "1") int page, Authentication authentication) {
-        return noStore(service.latest(board, page, userId(authentication)));
+                                                              @RequestParam(required = false, defaultValue = "1") int page, @RequestParam(required = false) String tag,
+                                                              Authentication authentication) {
+        return noStore(service.latest(board, page, tag, userId(authentication)));
     }
 
     private static Long userId(Authentication authentication) {

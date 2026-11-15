@@ -47,7 +47,7 @@ export function useBoardApi() {
         /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
             client.get<PostListResponse>(PATH.posts(slug), {
-                query: { prefix: query.prefix || undefined, status: query.status || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
+                query: { prefix: query.prefix || undefined, status: query.status || undefined, tag: query.tag || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
                 signal,
             }),
 

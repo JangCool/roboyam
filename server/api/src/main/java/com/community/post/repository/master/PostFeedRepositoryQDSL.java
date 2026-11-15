@@ -2,6 +2,7 @@ package com.community.post.repository.master;
 
 import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
+import com.community.post.entity.QPostTagEntity;
 import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
@@ -53,6 +54,22 @@ public class PostFeedRepositoryQDSL extends IrobitRepositoryQDSL {
             where = where.and(POST.id.lt(beforeId));
         }
         return query.select(row()).from(POST).where(where).orderBy(POST.id.desc()).limit(limit).fetch();
+    }
+
+    /**
+     * 태그가 달린 최신글({@link #latest} 와 같은 거름) — 글 목록 가젯 태그 탭(post-tags-contract). 태그 행에서 출발한다: 색인 (tag_key, post_id) 를 글 ID 내림차순으로 읽으며
+     * 글 행을 붙이고 거름을 건 뒤 개수를 채우면 멈춘다(드문 태그도 글 표 전체를 훑지 않는다).
+     *
+     * @param tagKey 태그 비교 열쇠({@code PostTags#key})
+     */
+    public List<PostRowData> latestTagged(Collection<Long> boardIds, String tagKey, int limit, boolean adultViewer, Instant now) {
+        if (boardIds.isEmpty() || tagKey == null || tagKey.isEmpty()) {
+            return List.of();
+        }
+        QPostTagEntity tag = QPostTagEntity.postTagEntity;
+        BooleanExpression where = tag.tagKey.eq(tagKey).and(POST.boardId.in(boardIds)).and(PostRepositoryQDSL.alive(POST, now)).and(PostRepositoryQDSL.notHidden(POST, now))
+                .and(PostRepositoryQDSL.feedVisible(POST)).and(PostRepositoryQDSL.adultVisible(POST, adultViewer));
+        return query.select(row()).from(tag).join(POST).on(POST.id.eq(tag.postId)).where(where).orderBy(tag.postId.desc()).limit(limit).fetch();
     }
 
     /**

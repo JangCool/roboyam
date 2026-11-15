@@ -313,6 +313,11 @@ export interface BoardDetail extends BoardView {
      */
     authorThumbnailEnabled?: boolean;
     /**
+     * 글쓴이가 글쓰기·고치기에서 태그를 달 수 있다(유효 정책 `tagsEnabled` — post-tags-contract, 기본 끔). 없으면 끔(옛 응답).
+     * `authorThumbnailEnabled` 와 같은 자리(게시판 공개 정보의 맨 위 칸)
+     */
+    tagsEnabled?: boolean;
+    /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
      */

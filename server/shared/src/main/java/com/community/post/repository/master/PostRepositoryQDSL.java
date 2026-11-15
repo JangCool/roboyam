@@ -172,12 +172,23 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
      */
     public Page page(long boardId, Long prefixId, PostProcessStatus status, String q, boolean oldest, boolean excludePinned, boolean adultViewer, long offset,
                      int limit, Instant now) {
+        return page(boardId, prefixId, status, null, q, oldest, excludePinned, adultViewer, offset, limit, now);
+    }
+
+    /**
+     * 글 목록 한 쪽 — 태그 거르기까지({@code ?tag=}, post-tags-contract — 열쇠가 같은 태그가 달린 글만, {@link PostTagQueries#hasTag}). {@code tagKey} null = 전체.
+     */
+    public Page page(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean oldest, boolean excludePinned, boolean adultViewer,
+                     long offset, int limit, Instant now) {
         BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now)).and(adultVisible(POST, adultViewer));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
         }
         if (status != null) {
             where = where.and(processStatusIs(POST, status));
+        }
+        if (tagKey != null) {
+            where = where.and(PostTagQueries.hasTag(POST, tagKey));
         }
         if (excludePinned) {
             where = where.and(POST.pinnedAt.isNull());
@@ -218,6 +229,12 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
      */
     public Page dealPage(long boardId, Long prefixId, String q, DealSort sort, boolean hideEnded, String store, boolean excludePinned, int autoExpireDays, long offset,
                          int limit, Instant now) {
+        return dealPage(boardId, prefixId, null, q, sort, hideEnded, store, excludePinned, autoExpireDays, offset, limit, now);
+    }
+
+    /** 핫딜 목록 한 쪽 — 태그 거르기까지({@code tagKey} null = 전체, post-tags-contract) */
+    public Page dealPage(long boardId, Long prefixId, String tagKey, String q, DealSort sort, boolean hideEnded, String store, boolean excludePinned,
+                         int autoExpireDays, long offset, int limit, Instant now) {
         QPostDealEntity deal = QPostDealEntity.postDealEntity;
         BooleanExpression expired = deal.endsAt.isNotNull().and(deal.endsAt.loe(now));
         if (autoExpireDays > 0) {
@@ -236,6 +253,9 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
         }
         if (hideEnded) {
             where = where.and(ended.not());
+        }
+        if (tagKey != null) {
+            where = where.and(PostTagQueries.hasTag(POST, tagKey));
         }
         if (store != null) {
             where = where.and(deal.storeName.eq(store));

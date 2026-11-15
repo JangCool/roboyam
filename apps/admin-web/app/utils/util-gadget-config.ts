@@ -16,6 +16,7 @@ import type {
 } from '~/composables/home/api/useHomeLayoutApi.types';
 import UtilGadgetStyle from '~/utils/util-gadget-style';
 import UtilHighlight from '~/utils/util-highlight';
+import UtilTag from '~/utils/util-tag';
 import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 
 /** 가젯이 놓인 자리 — 홈 · 가젯 페이지 · 게시판 레이아웃(고를 수 있는 대상 게시판 범위가 다르다: `FOLDER` 는 페이지에서만, `BOARD` 는 게시판 레이아웃에서만) */
@@ -249,6 +250,7 @@ export default class UtilGadgetConfig {
                 Object.assign(out, {
                     excludeBoardIds: [],
                     periodTabs: false,
+                    tagTabs: [],
                     rowStyle: 'HEADLINE',
                     columns: 1,
                     thumbnail: 'AUTO',
@@ -292,7 +294,7 @@ export default class UtilGadgetConfig {
 
     /**
      * 읽기·바로잡기 — 범위 밖 개수는 범위 안으로, 모르는 값은 처음 값으로, 고른 게시판이 없으면 그 자리의 처음 범위, 그 자리에서 못 고르는 범위(`FOLDER`·`BOARD`)는 `ALL`.
-     * 인기 정렬이 아니면 기간 탭을 끈다. 바로가기는 모르는 종류의 항목을 빼고 12개까지, 안내 글은 300자까지.
+     * 인기 정렬이 아니면 기간 탭을 끈다. 글 목록 태그 탭은 태그 글자 규칙으로 8개까지. 바로가기는 모르는 종류의 항목을 빼고 12개까지, 안내 글은 300자까지.
      * @param {string} type - 가젯 종류.
      * @param {GadgetConfig | null | undefined} config - 받은 설정.
      * @param {GadgetPlace} place - 가젯이 놓인 자리.
@@ -324,6 +326,8 @@ export default class UtilGadgetConfig {
                         ? [...new Set(c.excludeBoardIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''))].slice(0, BOARD_PICK_MAX)
                         : [];
                 out.periodTabs = out.sort === 'POPULAR' && c.periodTabs === true;
+                // 태그 탭(post-tags-contract) — 태그 글자 규칙으로, 겹침 없이 8개까지(기간 탭과 함께면 공개 화면이 쓰지 않을 뿐 값은 둔다)
+                out.tagTabs = UtilTag.list(c.tagTabs, UtilTag.TAB_MAX);
                 out.rowStyle = oneOf(c.rowStyle, ROW_STYLES, 'HEADLINE');
                 out.columns = c.columns === 2 || c.columns === '2' ? 2 : 1;
                 out.thumbnail = oneOf(c.thumbnail, THUMBNAILS, 'AUTO');

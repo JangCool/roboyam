@@ -1,13 +1,14 @@
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { BoardCardsData, GadgetStyle, GroupBuyData, Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
+import UtilPostTag from '~/utils/util-post-tag';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
 export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
- * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`excludeBoardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`·`likes`·`rowSpacing`·`mobilePages`·`mobilePageSize`) ·
+ * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`excludeBoardIds`·`count`·`sort`·`periodTabs`·`tagTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`·`likes`·`rowSpacing`·`mobilePages`·`mobilePageSize`) ·
  * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns`·`outline`·`dividers`·`leadPlaceholder` · 하이라이트 `count`·`lead`·`thumbs`·`showAuthor`·`narrow` · 소모임 `count` ·
  * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
@@ -20,6 +21,8 @@ export interface AdminPreviewGadgetConfig {
     /** 글 목록 — 전체 게시판(`ALL`)에서 뺄 게시판 slug(20개까지, 다른 범위면 무시 — home-news-contract) */
     excludeBoardIds?: string[];
     periodTabs?: boolean;
+    /** 글 목록 — 태그 탭(post-tags-contract, 최대 8개 — 저장 전 탭은 받은 `tagged` 에 없으면 빈 탭) */
+    tagTabs?: string[];
     perBoard?: number;
     cardHead?: boolean;
     outline?: boolean;
@@ -274,6 +277,7 @@ export default class UtilAdminPreview {
                     boardScope,
                     boardIds,
                     excludeBoardIds: Array.isArray(value.excludeBoardIds) ? value.excludeBoardIds.filter((s): s is string => typeof s === 'string').slice(0, 20) : undefined,
+                    tagTabs: Array.isArray(value.tagTabs) ? UtilPostTag.list(value.tagTabs, UtilPostTag.TAB_MAX) : undefined,
                     rowStyle: oneOf(value.rowStyle, ROW_STYLES),
                     columns: value.columns === 1 || value.columns === 2 ? value.columns : undefined,
                     thumbnail: oneOf(value.thumbnail, THUMBNAILS),
@@ -396,6 +400,8 @@ export default class UtilAdminPreview {
         if (gadget.type === 'POST_LIST') {
             const view = Object.fromEntries(POST_VIEW_KEYS.filter((k) => config[k] !== undefined).map((k) => [k, config[k]]));
             gadget.config = { ...gadget.config, ...view };
+            // 태그 탭 — 저장 전 탭도 바로(받은 `tagged` 에 없는 태그는 빈 탭으로 보인다)
+            if (config.tagTabs !== undefined) gadget.config = { ...gadget.config, tagTabs: config.tagTabs };
         } else if (gadget.type === 'BOARD_CARDS' && config.columns !== undefined) {
             gadget.config = { ...gadget.config, columns: config.columns };
         } else if (gadget.type === 'HIGHLIGHT') {
@@ -413,6 +419,7 @@ export default class UtilAdminPreview {
             if (config.sort) gadget.config = { ...gadget.config, sort: config.sort, periodTabs: config.periodTabs === true };
             const count = config.count;
             if (count && Array.isArray(data.items)) data.items = data.items.slice(0, count);
+            if (count && isRecord(data.tagged)) for (const key of Object.keys(data.tagged)) if (Array.isArray(data.tagged[key])) data.tagged[key] = (data.tagged[key] as unknown[]).slice(0, count);
             if (!config.periodTabs) delete data.periods;
             else if (count && isRecord(data.periods)) for (const key of Object.keys(data.periods)) if (Array.isArray(data.periods[key])) data.periods[key] = (data.periods[key] as unknown[]).slice(0, count);
         } else if (gadget.type === 'GALLERY') {

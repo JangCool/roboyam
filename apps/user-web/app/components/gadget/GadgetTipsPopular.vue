@@ -20,6 +20,8 @@
                             <p class="line-clamp-2 break-words text-sm leading-snug group-hover:underline">{{ row.title }}</p>
                             <p class="mt-0.5 text-xs text-muted-color">{{ t('board.viewsShort', { n: row.viewCount }) }}</p>
                         </NuxtLink>
+                        <!-- 글 태그 1~3개 — 조회 수 줄 바로 아래(글 링크 밖) -->
+                        <TipsPostTags v-if="row.tags.length" :tags="row.tags" :board="tips.board.value" class="-mt-1.5 pb-2.5" />
                     </FoldedRow>
                 </li>
             </ol>

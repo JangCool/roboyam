@@ -2,7 +2,7 @@
     <!--
         가젯 설정 창(⚙) — 홈·가젯 페이지 편집기(`GadgetLayoutEditor`)가 연다. 8종 전부(2026-10-30). 구획 셋(탭):
           · 「내용」 종류별 설정(`config` — 칸·범위·처음 값은 `UtilGadgetConfig`):
-              공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·맨 위 글·줄 간격·구분선·줄 정보·추천 표시·NEW·HOT·모바일 쪽 넘기기) /
+              공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 · 태그 탭(최대 8개 — ↑↓ 차례 · 추천 `usePopularTags` 눌러 넣기 · 직접 입력, post-tags-contract) + 보기 모양(줄 모양·열·사진·제목 줄·맨 위 글·줄 간격·구분선·줄 정보·추천 표시·NEW·HOT·모바일 쪽 넘기기) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
               하이라이트 — 개수(1~6) · 큰 글 · 사진 · 좁은 칸 모양(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
               광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
@@ -140,6 +140,75 @@
                                 <ToggleSwitch v-model="periodModel" :input-id="`${uid}-period`" />
                                 <label :for="`${uid}-period`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsPeriodTabs') }}</label>
                             </div>
+
+                            <!-- 태그 탭(post-tags-contract) — 최대 8개, 차례대로(↑↓). 추천(대상 게시판 범위 안 최근 30일 많이 달린 태그 — 달린 수)을 눌러 넣거나 직접 입력. 비우면 탭 없음 -->
+                            <section v-if="gadget.type === 'POST_LIST'" class="flex flex-col gap-2 border-t border-(--line) pt-4" :aria-labelledby="`${uid}-tags`" data-testid="gadget-tag-tabs">
+                                <div class="flex items-baseline justify-between gap-2">
+                                    <h3 :id="`${uid}-tags`" class="m-0 text-sm font-semibold">{{ t('homeLayout.tagTabs') }}</h3>
+                                    <span class="text-xs text-muted-color tabular-nums">{{ tagTabs.length }} / {{ UtilTag.TAB_MAX }}</span>
+                                </div>
+                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('homeLayout.tagTabsHint', { max: UtilTag.TAB_MAX }) }}</p>
+                                <Message v-if="periodModel && tagTabs.length" severity="warn" variant="simple" size="small" :closable="false" data-testid="gadget-tag-tabs-period">{{ t('homeLayout.tagTabsPeriodNote') }}</Message>
+
+                                <!-- 고른 태그 — 차례대로 -->
+                                <ol v-if="tagTabs.length" class="m-0 flex list-none flex-col gap-1 p-0" :aria-label="t('homeLayout.tagTabsPicked')" data-testid="gadget-tag-tabs-list">
+                                    <li v-for="(tag, i) in tagTabs" :key="tag" class="flex items-center gap-1 rounded-md border border-(--line) py-0.5 pl-3 pr-1 text-sm">
+                                        <span class="w-5 text-xs text-muted-color tabular-nums">{{ i + 1 }}</span>
+                                        <span class="min-w-0 flex-1 truncate"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                                        <Button type="button" icon="pi pi-arrow-up" size="small" variant="text" severity="secondary" rounded :disabled="i === 0" :aria-label="t('homeLayout.tagTabsMoveUp', { name: tag })" @click="moveTag(i, -1)" />
+                                        <Button type="button" icon="pi pi-arrow-down" size="small" variant="text" severity="secondary" rounded :disabled="i === tagTabs.length - 1" :aria-label="t('homeLayout.tagTabsMoveDown', { name: tag })" @click="moveTag(i, 1)" />
+                                        <Button type="button" icon="pi pi-times" size="small" variant="text" severity="secondary" rounded :aria-label="t('homeLayout.tagTabsRemove', { name: tag })" data-testid="gadget-tag-tabs-remove" @click="removeTag(i)" />
+                                    </li>
+                                </ol>
+                                <p v-else class="m-0 text-xs text-muted-color" data-testid="gadget-tag-tabs-none">{{ t('homeLayout.tagTabsNone') }}</p>
+
+                                <!-- 직접 입력 -->
+                                <div class="flex flex-col gap-1">
+                                    <label :for="`${uid}-tag-input`" class="text-sm font-medium">{{ t('homeLayout.tagTabsInput') }}</label>
+                                    <div class="flex items-center gap-2">
+                                        <InputText
+                                            :id="`${uid}-tag-input`"
+                                            v-model="tagText"
+                                            :placeholder="t('homeLayout.tagTabsInputPlaceholder')"
+                                            :maxlength="60"
+                                            :invalid="Boolean(tagProblemText)"
+                                            :disabled="tagTabs.length >= UtilTag.TAB_MAX"
+                                            :aria-describedby="tagProblemText ? `${uid}-tag-problem` : undefined"
+                                            autocomplete="off"
+                                            class="w-full sm:w-64"
+                                            data-testid="gadget-tag-tabs-input"
+                                            @keydown.enter.prevent="onTagEnter"
+                                        />
+                                        <Button type="button" :label="t('homeLayout.tagTabsAdd')" size="small" severity="secondary" variant="outlined" :disabled="!tagText.trim() || tagTabs.length >= UtilTag.TAB_MAX" @click="addTag(tagText)" />
+                                    </div>
+                                    <p v-if="tagProblemText" :id="`${uid}-tag-problem`" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ tagProblemText }}</p>
+                                </div>
+
+                                <!-- 추천 — 대상 게시판 범위 안 최근 30일 -->
+                                <div class="flex flex-col gap-1.5">
+                                    <span :id="`${uid}-tag-suggest`" class="text-sm font-medium">{{ t('homeLayout.tagTabsSuggest') }}</span>
+                                    <div v-if="popularTagsLoading" class="flex flex-wrap gap-1.5" role="status" :aria-label="t('common.loading')">
+                                        <Skeleton v-for="n in 6" :key="n" width="4.5rem" height="1.75rem" border-radius="999px" />
+                                    </div>
+                                    <p v-else-if="popularTagsError" class="m-0 text-xs text-muted-color">{{ t('homeLayout.tagTabsSuggestFailed') }}</p>
+                                    <p v-else-if="!popularTags.length" class="m-0 text-xs text-muted-color">{{ t('homeLayout.tagTabsSuggestEmpty') }}</p>
+                                    <ul v-else class="m-0 flex list-none flex-wrap gap-1.5 p-0" :aria-labelledby="`${uid}-tag-suggest`" data-testid="gadget-tag-tabs-suggest">
+                                        <li v-for="s in popularTags" :key="s.name">
+                                            <button
+                                                type="button"
+                                                class="inline-flex min-h-7 items-center gap-1 rounded-full border border-(--line) px-2.5 text-xs leading-none hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-(--line) disabled:hover:text-inherit"
+                                                :disabled="UtilTag.has(tagTabs, s.name) || tagTabs.length >= UtilTag.TAB_MAX"
+                                                :aria-label="t('homeLayout.tagTabsSuggestAdd', { name: s.name, count: s.count })"
+                                                @click="addTag(s.name)"
+                                            >
+                                                <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ s.name }}</span>
+                                                <span class="relative top-[-0.09em] text-muted-color tabular-nums" aria-hidden="true">{{ s.count.toLocaleString() }}</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.tagTabsSuggestHint') }}</small>
+                                </div>
+                            </section>
 
                             <!-- 글 목록 보기 모양 -->
                             <section v-if="gadget.type === 'POST_LIST'" class="flex flex-col gap-4 border-t border-(--line) pt-4" :aria-labelledby="`${uid}-view`">
@@ -631,6 +700,8 @@ import UtilGadgetConfig from '~/utils/util-gadget-config';
 import UtilGadgetStyle from '~/utils/util-gadget-style';
 import UtilHighlight from '~/utils/util-highlight';
 import UtilHighlightMessages from '~/utils/util-highlight-messages';
+import type { TagProblem } from '~/utils/util-tag';
+import UtilTag from '~/utils/util-tag';
 import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 
 /** [적용]으로 넘기는 값 — 꾸미기·내용은 바뀌었을 때만(null 이면 편집 중인 값 그대로) */
@@ -668,6 +739,8 @@ const { boards: hotDealBoards, loading: hotDealBoardsLoading, error: hotDealBoar
 /** 하이라이트 가젯의 곳 선택지 — 하이라이트 화면의 곳 고르개와 같은 목록(`useHighlightPlaces`) */
 const { places: highlightPlaces, loading: highlightPlacesLoading, load: loadHighlightPlaces } = useHighlightPlaces();
 const highlightPlaceOptions = computed(() => UtilHighlightMessages.placeOptions(t, highlightPlaces.value, draft.value?.place ?? HIGHLIGHT_PLACE_HOME));
+/** 글 목록 「태그 탭」 추천 — 대상 게시판 범위 안 최근 30일 많이 달린 태그(`GET /api/admin/tags/popular`) */
+const { tags: popularTags, loading: popularTagsLoading, error: popularTagsError, load: loadPopularTags } = usePopularTags();
 
 type TabKey = 'content' | 'look' | 'show';
 const TABS: readonly TabKey[] = ['content', 'look', 'show'];
@@ -814,6 +887,72 @@ const periodModel = computed<boolean>({
         if (draft.value) draft.value.periodTabs = value;
     },
 });
+
+/* ── 태그 탭(POST_LIST — post-tags-contract) ── */
+
+const tagTabs = computed<string[]>(() => draft.value?.tagTabs ?? []);
+const tagText = ref('');
+const tagProblem = ref<TagProblem | null>(null);
+const tagProblemText = computed(() => {
+    if (tagProblem.value === 'TOO_MANY') return t('homeLayout.tagTabsFull', { max: UtilTag.TAB_MAX });
+    if (tagProblem.value === 'TOO_LONG') return t('homeLayout.tagTabsTooLong', { len: UtilTag.LEN_MAX });
+    if (tagProblem.value === 'INVALID') return t('homeLayout.tagTabsInvalid');
+    return '';
+});
+watch(tagText, () => {
+    tagProblem.value = null;
+});
+// 창을 다시 열면 쓰다 만 글자를 비운다
+watch(
+    () => props.visible,
+    (open) => {
+        if (open) tagText.value = '';
+    },
+);
+
+/** 태그 하나 넣기 — 직접 입력이면 칸을 비운다(겹치면 조용히 무시) */
+function addTag(raw: string): void {
+    if (!draft.value) return;
+    const r = UtilTag.add(tagTabs.value, raw, UtilTag.TAB_MAX);
+    if (r.problem) {
+        tagProblem.value = r.problem;
+        return;
+    }
+    draft.value.tagTabs = r.list;
+    if (raw === tagText.value) tagText.value = '';
+}
+function onTagEnter(event: KeyboardEvent): void {
+    // 한글 조합 중 엔터는 조합을 끝내는 엔터 — 넣지 않는다
+    if (event.isComposing) return;
+    addTag(tagText.value);
+}
+function removeTag(i: number): void {
+    if (draft.value) draft.value.tagTabs = tagTabs.value.filter((_, at) => at !== i);
+}
+function moveTag(i: number, step: -1 | 1): void {
+    if (draft.value) draft.value.tagTabs = UtilTag.move(tagTabs.value, i, step);
+}
+
+/**
+ * 추천을 받을 게시판 slug 들 — 대상 게시판 범위 그대로: 직접 고르기 = 고른 게시판 · 폴더 = 폴더 게시판 · 전체 = 비움(전체, 뺀 게시판이 있으면 고를 게시판 목록에서 뺀 나머지).
+ * 「지금 보는 게시판」(게시판 레이아웃)은 게시판을 모르므로 전체.
+ */
+const tagSuggestBoards = computed<string[]>(() => {
+    const d = draft.value;
+    if (!d) return [];
+    if (d.boardScope === 'PICK') return [...(d.boardIds ?? [])];
+    if (d.boardScope === 'FOLDER') return (props.folder?.boards ?? []).map((b) => b.slug);
+    if (d.boardScope === 'ALL' && d.excludeBoardIds?.length && boards.value.length) return boards.value.map((b) => b.slug).filter((slug) => !d.excludeBoardIds!.includes(slug));
+    return [];
+});
+// 글 목록 ⚙ 이 열려 있는 동안 범위가 바뀌면 추천을 다시 받는다(같은 범위면 다시 묻지 않는다)
+watch(
+    () => (props.visible && props.gadget?.type === 'POST_LIST' ? JSON.stringify(tagSuggestBoards.value) : null),
+    (key) => {
+        if (key !== null) void loadPopularTags(tagSuggestBoards.value);
+    },
+    { immediate: true },
+);
 
 const cardHeadModel = computed<boolean>({
     get: () => draft.value?.cardHead !== false,

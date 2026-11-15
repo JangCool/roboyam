@@ -13,6 +13,10 @@ import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
+import com.community.post.service.PostTagStore;
+import com.community.post.service.PostTags;
+import com.community.post.repository.master.PostTagQueries;
+import com.community.post.dto.response.TagCountView;
 import com.community.tips.dto.response.TipsOverviewView;
 import com.community.tips.dto.response.TipsPostPageView;
 import com.community.tips.dto.response.TipsPostView;
@@ -43,6 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>최신 글</b>: 묶음(또는 고른 게시판) 글을 최신순으로 합쳐 한 쪽 {@value #PAGE_SIZE}개. 거름은 게시판 글 목록과 같다(공지는 빼고, 신고 숨긴 글은 자리만, 19금 글은 성인에게만).
  *       헤드라인 글도 그대로 둔다.</li>
  *   <li><b>요약</b> {@code excerpt}: 본문 평문({@link PostEntity#plainContent()}) 앞 {@value #EXCERPT_MAX}자(공백을 한 칸으로, 넘으면 「…」). 가려진 글·19금 글은 null.</li>
+ *   <li><b>태그</b>(post-tags-contract): 머리 몫 {@code tags} = 묶음(또는 고른 게시판) 글에 최근 {@value #TAG_DAYS}일 많이 달린 태그 위 {@value #TAG_CHIPS}개({@link PostTagQueries#popular}).
+ *       글 줄 {@code tags} = 그 글의 태그(단 차례 — 가려진 글은 빈 목록). 최신 글은 {@code tag} 로 거른다(정확히 같은 태그, 대소문자 무시 — 모양이 틀리면 빈 목록).</li>
  * </ul>
  */
 @Service
@@ -57,6 +63,8 @@ public class TipsService {
     static final int MOST_VIEWED_DAYS = 30;
     static final int PAGE_SIZE = 20;
     static final int EXCERPT_MAX = 120;
+    static final int TAG_DAYS = 30;
+    static final int TAG_CHIPS = 10;
 
     private static final Pattern SPACES = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
 
@@ -66,9 +74,13 @@ public class TipsService {
     private final PostFeedRows rows;
     private final HighlightPicks highlightPicks;
     private final AdultContentGate adultGate;
+    private final PostTagStore tagStore;
+    private final PostTagQueries tagQueries;
 
     public TipsService(BoardCatalog catalog, TipsPostQueries queries, PostRepository posts, PostFeedRows rows, HighlightPicks highlightPicks,
-                       AdultContentGate adultGate) {
+                       AdultContentGate adultGate, PostTagStore tagStore, PostTagQueries tagQueries) {
+        this.tagStore = tagStore;
+        this.tagQueries = tagQueries;
         this.catalog = catalog;
         this.queries = queries;
         this.posts = posts;
@@ -86,7 +98,7 @@ public class TipsService {
         EffectiveBoard picked = picked(bundle, board);
         List<Long> scope = picked != null ? List.of(picked.id()) : bundle.stream().map(EffectiveBoard::id).toList();
         if (scope.isEmpty()) {
-            return new TipsOverviewView(chips, List.of(), List.of());
+            return new TipsOverviewView(chips, List.of(), List.of(), List.of());
         }
 
         // 헤드라인 — 운영자가 tips 곳에 고른 글 먼저
@@ -113,29 +125,44 @@ public class TipsService {
         all.addAll(viewedRows);
         picks.forEach(p -> all.add(p.post()));
         Map<String, String> excerpts = excerpts(all);
+        Map<String, List<String>> tags = tags(all);
 
         List<TipsPostView> headline = new ArrayList<>();
         for (HighlightPicks.Pick p : picks) {
-            headline.add(TipsPostView.highlighted(p.post(), excerpts.get(p.post().id()), p.highlight().getTitle(), p.highlight().getSummary(), p.imageUrl()));
+            headline.add(TipsPostView.highlighted(p.post(), excerpts.get(p.post().id()), p.highlight().getTitle(), p.highlight().getSummary(), p.imageUrl(),
+                    tags.getOrDefault(p.post().id(), List.of())));
         }
-        fillRows.forEach(r -> headline.add(TipsPostView.of(r, excerpts.get(r.id()))));
-        List<TipsPostView> mostViewed = viewedRows.stream().map(r -> TipsPostView.of(r, excerpts.get(r.id()))).toList();
-        return new TipsOverviewView(chips, headline.size() > HEADLINE_SIZE ? headline.subList(0, HEADLINE_SIZE) : headline, mostViewed);
+        fillRows.forEach(r -> headline.add(TipsPostView.of(r, excerpts.get(r.id()), tags.getOrDefault(r.id(), List.of()))));
+        List<TipsPostView> mostViewed = viewedRows.stream().map(r -> TipsPostView.of(r, excerpts.get(r.id()), tags.getOrDefault(r.id(), List.of()))).toList();
+        // 태그 칩 — 묶음(또는 고른 게시판) 글에 최근 30일 많이 달린 태그
+        List<TagCountView> chipsOfTags = tagQueries.popular(scope, now.minus(Duration.ofDays(TAG_DAYS)), TAG_CHIPS, now);
+        return new TipsOverviewView(chips, headline.size() > HEADLINE_SIZE ? headline.subList(0, HEADLINE_SIZE) : headline, mostViewed, chipsOfTags);
     }
 
     /** 최신 글 한 쪽 — 묶음(또는 고른 게시판) 글 최신순, 한 쪽 {@value #PAGE_SIZE}개 */
     public TipsPostPageView latest(String board, int page, Long viewerId) {
+        return latest(board, page, null, viewerId);
+    }
+
+    /**
+     * 최신 글 한 쪽 — 태그 거르기까지({@code tag} — 정확히 같은 태그, 대소문자 무시, 앞의 # 는 뗀다. 비면 전체, 모양이 틀리면 빈 쪽)
+     */
+    public TipsPostPageView latest(String board, int page, String tag, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
         int current = Math.max(1, page);
         List<EffectiveBoard> bundle = bundle(s);
         EffectiveBoard picked = picked(bundle, board);
         List<Long> scope = picked != null ? List.of(picked.id()) : bundle.stream().map(EffectiveBoard::id).toList();
-        PostRepositoryQDSL.Page result = queries.latest(scope, adultGate.adult(viewerId), (long) (current - 1) * PAGE_SIZE, PAGE_SIZE, now);
+        String tagKey = PostTags.filterKey(tag);
+        PostRepositoryQDSL.Page result = tagKey != null && tagKey.isEmpty() ? new PostRepositoryQDSL.Page(List.of(), 0)
+                : queries.latest(scope, tagKey, adultGate.adult(viewerId), (long) (current - 1) * PAGE_SIZE, PAGE_SIZE, now);
         List<PostFeedRowView> found = rows.of(result.items(), s, now, viewerId);
         Map<String, String> excerpts = excerpts(found);
+        Map<String, List<String>> tags = tags(found);
         int totalPages = (int) ((result.total() + PAGE_SIZE - 1) / PAGE_SIZE);
-        return new TipsPostPageView(found.stream().map(r -> TipsPostView.of(r, excerpts.get(r.id()))).toList(), current, totalPages, result.total());
+        return new TipsPostPageView(found.stream().map(r -> TipsPostView.of(r, excerpts.get(r.id()), tags.getOrDefault(r.id(), List.of()))).toList(), current,
+                totalPages, result.total());
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────
@@ -173,6 +200,14 @@ public class TipsService {
                 out.put(Long.toString(p.getId()), text);
             }
         }
+        return out;
+    }
+
+    /** 글 ID(문자열) → 태그(단 차례) — 가려진 글은 넣지 않는다(요약과 같은 기준) */
+    private Map<String, List<String>> tags(Collection<PostFeedRowView> list) {
+        List<Long> ids = list.stream().filter(r -> r.hiddenReason() == null).map(r -> Long.parseLong(r.id())).distinct().toList();
+        Map<String, List<String>> out = new HashMap<>();
+        tagStore.of(ids).forEach((id, t) -> out.put(Long.toString(id), t));
         return out;
     }
 

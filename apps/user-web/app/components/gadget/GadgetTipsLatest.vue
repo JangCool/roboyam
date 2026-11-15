@@ -2,11 +2,25 @@
     <!--
         팁·강좌·사용기 「최신 글」 가젯(`TIPS_LATEST` — `/tips` 배치에만, tips-contract 「/tips 레이아웃 편집」) — 사진 + 제목 + 요약 2줄 + 게시판·작성자·날짜, 쪽 번호(`?board=&page=`).
         데이터는 화면이 나눠 주는 `useTipsShared`(`GET /api/tips/posts`) — `/tips` 밖이면 그리지 않는다.
+        태그 거르기(`?tag=` — post-tags-contract): 목록 머리에 「#태그 ✕」(누르면 거르기 풀고 1쪽), 쪽 번호는 태그를 지킨다.
         모바일 줄(사용자 시안 확정 2026-11-12): 윗줄 = 게시판 이름(맨 왼쪽) · 말머리 → 썸네일 64×48(그림 표시만) + 제목 → 본문 미리보기(썸네일 아래 줄 폭 전체) →
         아랫줄(썸네일 밑까지 줄 폭 전체) = 아바타·닉네임 … 오른쪽 끝 추천 · 시간. 데스크톱은 `PostRowFrame` 그대로.
     -->
     <GadgetFrame v-if="tips" :gadget="gadget" :empty="false">
         <div class="@container min-w-0" :aria-busy="tips.listStatus.value === 'loading'" data-testid="tips-latest">
+            <div v-if="tag" class="mb-3 flex items-center text-xs" role="group" :aria-label="t('postTag.filterLabel')" data-testid="tips-tag-filter">
+                <span class="inline-flex min-h-7 items-center gap-0.5 rounded-full border border-primary bg-primary/10 pl-2.5 pr-0.5 font-semibold leading-none text-primary">
+                    <span class="relative top-[-0.09em]"><span class="opacity-60" aria-hidden="true">#</span>{{ tag }}</span>
+                    <NuxtLink
+                        :to="tips.to({ board: tips.board.value, page: 1 })"
+                        class="grid size-6 place-items-center rounded-full hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"
+                        :aria-label="t('postTag.filterClear', { name: tag })"
+                        data-testid="tips-tag-clear"
+                    >
+                        <i class="pi pi-times text-[0.625rem]" aria-hidden="true" />
+                    </NuxtLink>
+                </span>
+            </div>
             <div v-if="tips.listStatus.value === 'loading'" role="status" :aria-label="t('tips.loading')"><FeedSkeleton :count="6" /></div>
 
             <ErrorState v-else-if="tips.listStatus.value === 'error'" :title="t('tips.loadFailed')" :description="tips.listError.value" retry @retry="tips.loadPosts" />
@@ -14,7 +28,10 @@
             <template v-else-if="list">
                 <template v-if="list.items.length === 0">
                     <EmptyState v-if="tips.state.value.page > 1" :title="t('feed.pageEmptyTitle')" icon="pi pi-file">
-                        <Button as="router-link" :to="tips.to({ board: tips.board.value, page: 1 })" :label="t('feed.firstPage')" />
+                        <Button as="router-link" :to="tips.to({ board: tips.board.value, tag, page: 1 })" :label="t('feed.firstPage')" />
+                    </EmptyState>
+                    <EmptyState v-else-if="tag" :title="t('tips.tagEmptyTitle', { name: tag })" :description="t('postTag.filterEmptyText')" icon="pi pi-hashtag">
+                        <Button as="router-link" :to="tips.to({ board: tips.board.value, page: 1 })" :label="t('postTag.filterAll')" severity="secondary" variant="outlined" />
                     </EmptyState>
                     <EmptyState v-else :title="t('tips.emptyTitle')" :description="t('tips.emptyText')" icon="pi pi-book" />
                 </template>
@@ -72,11 +89,18 @@
                                         </template>
                                     </PostRowFrame>
                                 </NuxtLink>
+                                <!-- 글 태그 1~3개 — 메타 줄 바로 아래(글 링크 밖), 데스크톱은 사진 오른쪽 글자 칸에 맞춘다 -->
+                                <TipsPostTags
+                                    v-if="row.tags.length"
+                                    :tags="row.tags"
+                                    :board="tips.board.value"
+                                    class="-mt-2 pb-3.5 md:pl-[6.875rem] md:@min-[36rem]:pl-[9.875rem]"
+                                />
                             </FoldedRow>
                         </li>
                     </ul>
 
-                    <BoardPager :page="list.page" :total-pages="list.totalPages" :to="(n: number) => tips!.to({ board: tips!.board.value, page: n })" class="pb-0" />
+                    <BoardPager :page="list.page" :total-pages="list.totalPages" :to="(n: number) => tips!.to({ board: tips!.board.value, tag, page: n })" class="pb-0" />
                 </template>
             </template>
         </div>
@@ -98,4 +122,6 @@ const { display, ensureLoaded } = useBoardDisplay();
 void ensureLoaded();
 
 const list = computed(() => tips?.list.value ?? null);
+/** 거르는 태그(빈 글자 = 거르지 않음) */
+const tag = computed(() => tips?.state.value.tag ?? '');
 </script>

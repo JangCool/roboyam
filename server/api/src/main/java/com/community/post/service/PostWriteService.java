@@ -82,6 +82,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * (아니면 무시 — 비회원·소모임 글 포함). 칸 검사에서 방식·고른 본문 이미지·올린 그림을 보고({@code fields.thumbnail}), 운영자가 정한 글이면 409 {@code THUMBNAIL_LOCKED}(고치기),
  * 저장 트랜잭션에서 본문 이미지를 붙인 뒤 정한다. 쓰기는 칸 없음 = 자동, 고치기는 칸 없음 = 그대로.
  *
+ * <p><b>태그</b>({@link PostTags}·{@link PostTagStore}, post-tags-contract): 본문 {@code tags} 는 게시판 정책 {@code tagsEnabled} 일 때만 본다(아니면 무시 — 오류 아님, 회원·비회원·소모임 글 모두
+ * 같은 규칙). 칸 검사에서 정리·검사하고({@code fields.tags}), 금지어는 제목·본문과 같은 검사기로 함께 본다(가림 방식이면 태그도 가려 저장). 쓰기는 칸 없음 = 없음,
+ * 고치기는 칸 없음(null) = 그대로 · 빈 목록 = 모두 지우기. 저장 트랜잭션에서 글과 함께 쓴다.
+ *
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
  *
  * <p>회원 글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 글쓰기는 성공).
@@ -113,14 +117,16 @@ public class PostWriteService {
     /** 쓰기 막힘·게시판 제재·비밀글·작성 간격·하루 한도·같은 글 반복 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
     private final PostWriteRules rules;
     private final PostThumbnailChoices thumbnails;
+    private final PostTagStore tagStore;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
-                            PostThumbnailChoices thumbnails, PlatformTransactionManager txManager) {
+                            PostThumbnailChoices thumbnails, PostTagStore tagStore, PlatformTransactionManager txManager) {
         this.rules = rules;
+        this.tagStore = tagStore;
         this.thumbnails = thumbnails;
         this.unlocks = unlocks;
         this.adultGate = adultGate;
@@ -173,6 +179,7 @@ public class PostWriteService {
         DealWriter.Checked deal = deals.checkForCreate(body.deal(), b, actor.guest() ? null : actor.userId(), fields);
         // 대표 썸네일 — 회원 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시), 칸 오류는 fields.thumbnail
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), actor.guest(), false, b, c.body().imageIds(), actor.guest() ? null : actor.userId(), null, fields);
+        List<String> tags = checkTags(body.tags(), b, fields); // 태그 — 게시판 tagsEnabled 일 때만(아니면 무시), 칸 오류는 fields.tags
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -185,13 +192,14 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(authorId, c.body().content()); // 가지지 않은 팩의 로보티콘 409 — 입력 오류 다음, 금지어·속도 제한 앞
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName);
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName, tagsHaystack(tags));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
         ContentBody content = c.body().masked(sec);
         String name = ContentRules.mask(sec, guestName);
+        List<String> savedTags = maskTags(sec, tags);
 
         String passwordHash = null;
         if (actor.guest()) {
@@ -215,6 +223,9 @@ public class PostWriteService {
                 created.markAnonymous(); // 익명 게시판 — 쓸 때의 게시판 설정(V184, anonymous-board-contract 정책 2). 비회원은 위 판정이 401 로 막았다
             }
             posts.persist(created);
+            if (savedTags != null && !savedTags.isEmpty()) {
+                tagStore.replace(id, savedTags, now);
+            }
             emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
             if (body.debate() != null) {
                 debates.apply(id, true, body.debate().neutralEnabled(), body.debate().stanceChangeAllowed(), PostDebateEntity.BY_MEMBER, authorId, now);
@@ -267,6 +278,7 @@ public class PostWriteService {
         }
         PollRules.Valid poll = polls.checkForCreate(body.poll(), false, b, Instant.now(), fields);
         deals.checkForCreate(body.deal(), b, actor.userId(), fields); // 소모임 게시판은 핫딜이 아니다 — deal 을 보내면 fields.deal
+        List<String> tags = checkTags(body.tags(), b, fields); // 일반 글과 같은 규칙(게시판 tagsEnabled 일 때만)
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -279,12 +291,13 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(authorId, c.body().content()); // 일반 글과 같은 자리(입력 오류 → 자격 → 금지어·속도 제한)
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
         ContentBody content = c.body().masked(sec);
+        List<String> savedTags = maskTags(sec, tags);
         long id = ids.nextId();
         Instant now = Instant.now();
         rules.checkRate(s, authorId, ip, title, content.plain(), now, false);
@@ -293,6 +306,9 @@ public class PostWriteService {
                 publicGroup, now);
         created.initOps(secretOnCreate(b, body.secret()), b.statusEnabled()); // 소모임 게시판의 비밀글 · 처음 처리 상태(V168 — 일반 게시판과 같은 규칙)
         posts.persist(created);
+        if (savedTags != null && !savedTags.isEmpty()) {
+            tagStore.replace(id, savedTags, now);
+        }
         emoticons.recordUse(authorId, c.body().content()); // 일반 글과 같다(부르는 쪽 트랜잭션 — 소모임 행을 잠근 그 트랜잭션)
         if (poll != null) {
             polls.create(id, poll, now);
@@ -331,6 +347,36 @@ public class PostWriteService {
         int before = fields.size();
         thumbnails.checkAuthor(mode, imageId, fileId, bodyImageIds, authorId, postId, fields);
         return mode == null || fields.size() > before ? null : new ThumbnailChoice(mode, imageId, fileId);
+    }
+
+    /**
+     * 글쓰기·고치기의 태그 — 칸이 없거나(null) 게시판 정책 {@code tagsEnabled} 가 꺼져 있으면 null(무시 · 고치기는 그대로). 정리한 태그(적은 차례, 겹침 없음)를 돌려주고,
+     * 틀리면 {@code fields.tags} 에 문구를 넣고 null(post-tags-contract 「필드·검증」).
+     */
+    static List<String> checkTags(List<String> raw, EffectiveBoard b, Map<String, MessageRef> fields) {
+        if (raw == null || !b.tagsEnabled()) {
+            return null;
+        }
+        PostTags.Result r = PostTags.normalize(raw);
+        if (!r.ok()) {
+            String limit = "post.tags.tooMany".equals(r.error()) ? String.valueOf(PostTags.MAX_PER_POST) : String.valueOf(PostTags.NAME_MAX);
+            fields.put("tags", new MessageRef(r.error(), limit));
+            return null;
+        }
+        return r.tags();
+    }
+
+    /** 금지어 검사에 넣을 태그 글자(한 줄에 하나) — 태그가 없으면 null(검사기가 건너뛴다) */
+    private static String tagsHaystack(List<String> tags) {
+        return tags == null || tags.isEmpty() ? null : String.join("\n", tags);
+    }
+
+    /** 가림 방식이면 태그도 가린다(제목·본문과 같은 {@link ContentRules#mask}) — 가린 뒤 겹치면 하나로. null 은 null */
+    private static List<String> maskTags(BoardSecurityValues sec, List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return tags;
+        }
+        return PostTags.normalize(tags.stream().map(t -> ContentRules.mask(sec, t)).toList()).tags();
     }
 
     /**
@@ -401,6 +447,8 @@ public class PostWriteService {
         }
         // 대표 썸네일 — 칸이 없으면 그대로. 회원 글 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시)
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), post.isGuest(), post.isGroupPost(), b, c.body().imageIds(), post.getAuthorId(), post.getId(), fields);
+        // 태그 — 칸이 없으면(null) 그대로, 빈 목록이면 모두 지우기. 게시판 tagsEnabled 일 때만(아니면 무시 — 이미 단 태그는 그대로)
+        List<String> tags = checkTags(body.tags(), b, fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -417,12 +465,13 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(post.getAuthorId(), c.body().content()); // 고칠 때도 본문 전체를 다시 본다(예전에 쓴 토큰이어도 — 팩을 뺐으면 409)
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
         ContentBody content = c.body().masked(sec);
+        List<String> savedTags = maskTags(sec, tags);
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity locked = posts.findWithLockById(post.getId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PostNotFoundException::new);
@@ -447,6 +496,9 @@ public class PostWriteService {
             }
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
+            if (savedTags != null) {
+                tagStore.replace(locked.getId(), savedTags, now); // 빈 목록이면 모두 지운다
+            }
             posts.flush();
             emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)
             return queries.viewAfterEdit(locked, gate, s, userId, now, warnings);

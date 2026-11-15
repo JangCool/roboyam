@@ -80,6 +80,8 @@ export interface GadgetConfig {
     /** 글 목록 — 전체 게시판(`boardScope: ALL`)에서 뺄 게시판 slug 목록(20개까지, 다른 범위면 무시 — home-news-contract) */
     excludeBoardIds?: string[];
     periodTabs?: boolean;
+    /** 글 목록 — 태그 탭(post-tags-contract — 최대 8개, 차례대로, 비우면 탭 없음). 인기글 기간 탭과 함께면 공개 화면은 태그 탭을 쓰지 않는다 */
+    tagTabs?: string[];
     perBoard?: number;
     cardHead?: boolean;
     /** 게시판 카드 — 카드마다 둥근 외곽선(기본 끔) */

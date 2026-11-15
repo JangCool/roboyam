@@ -265,6 +265,24 @@
                             </p>
                         </div>
 
+                        <!-- 글 태그(post-tags-contract) — 본문 아래 칩, 누르면 그 게시판 목록을 그 태그로 거른다. 소모임 글은 공개 게시판 목록이 없어 글자만 -->
+                        <ul v-if="postTags.length" class="m-0 mb-4 flex list-none flex-wrap gap-1.5 p-0" :aria-label="t('postTag.viewLabel')" data-testid="post-tags">
+                            <li v-for="tag in postTags" :key="tag">
+                                <NuxtLink
+                                    v-if="!post.group"
+                                    :to="{ path: `/boards/${post.board.slug}`, query: UtilBoardQuery.build({ tag }) }"
+                                    class="inline-flex min-h-7 items-center rounded-full border border-surface px-2.5 text-xs leading-none text-color hover:border-(--p-text-color) focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                                    :aria-label="t('postTag.viewLink', { name: tag })"
+                                    data-testid="post-tag"
+                                >
+                                    <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                                </NuxtLink>
+                                <span v-else class="inline-flex min-h-7 items-center rounded-full border border-surface px-2.5 text-xs leading-none text-color" data-testid="post-tag">
+                                    <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                                </span>
+                            </li>
+                        </ul>
+
                         <!-- AI 회원 글 — 본문 아래 한 줄 고지(배지와 따로, 사람이 읽는 표시 — 계약 「법무 메모」) -->
                         <p v-if="postAi" class="m-0 mb-4 flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-2 text-xs leading-relaxed text-violet-900 dark:bg-violet-950/50 dark:text-violet-200" data-testid="post-ai-notice">
                             <i class="pi pi-microchip-ai text-[0.75rem]" aria-hidden="true" />{{ t('aiMember.postNotice', { provider: t(`aiMember.provider.${postAi.provider}`), model: postAi.model }) }}
@@ -502,6 +520,7 @@ import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBoardQuery from '~/utils/util-board-query';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilBusiness from '~/utils/util-business';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -510,6 +529,7 @@ import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPostOps from '~/utils/util-post-ops';
+import UtilPostTag from '~/utils/util-post-tag';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
@@ -547,6 +567,8 @@ const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'secretLocked' | 'error';
 const post = ref<PostDetail | null>(null);
 /** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai` — 이 글을 만든 모델) */
+/** 글 태그(post-tags-contract) — 옛 응답·쓸 수 없는 값은 빼고 */
+const postTags = computed(() => UtilPostTag.list(post.value?.tags));
 const postAi = computed(() => (post.value?.author.kind === 'MEMBER' ? (post.value.author.ai ?? null) : null));
 /** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
 const secretBoardSlug = ref<string | null>(null);

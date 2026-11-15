@@ -1,5 +1,6 @@
 package com.community.post.dto.request;
 
+import java.util.List;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -13,24 +14,32 @@ import tools.jackson.databind.JsonNode;
  *                      비회원 글은 늘 false
  * @param thumbnail     대표 썸네일({@link PostThumbnailInput}) — <b>빼거나 null 이면 그대로</b>, 값이면 바꾸기(AUTO = 글쓴이 설정 지우기). 회원 글 + 게시판 정책
  *                      {@code authorThumbnailEnabled} 일 때만 보고 아니면 무시한다. 운영자가 정한 글이면 409 {@code THUMBNAIL_LOCKED}(list-thumbnail-contract 「2단계」)
+ * @param tags          태그(글자 목록 — 정리 규칙은 {@code PostTags}) — <b>빼거나 null 이면 그대로</b>, 빈 목록이면 모두 지우기, 값이면 그 태그로 맞추기. 게시판 정책 {@code tagsEnabled}
+ *                      가 꺼져 있으면 무시한다(오류 아님). 틀리면 400 {@code fields.tags}(post-tags-contract)
  */
 public record PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,
-                                Boolean secret, PostThumbnailInput thumbnail) {
+                                Boolean secret, PostThumbnailInput thumbnail, List<String> tags) {
+
+    /** 태그 칸 없이(그대로) */
+    public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,
+                             Boolean secret, PostThumbnailInput thumbnail) {
+        this(prefixId, title, contentFormat, content, adult, password, poll, deal, secret, thumbnail, null);
+    }
 
     /** 대표 썸네일 칸 없이(그대로) */
     public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,
                              Boolean secret) {
-        this(prefixId, title, contentFormat, content, adult, password, poll, deal, secret, null);
+        this(prefixId, title, contentFormat, content, adult, password, poll, deal, secret, null, null);
     }
 
     /** 비밀글 칸 없이(그대로) */
     public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal) {
-        this(prefixId, title, contentFormat, content, adult, password, poll, deal, null, null);
+        this(prefixId, title, contentFormat, content, adult, password, poll, deal, null, null, null);
     }
 
     /** 딜 칸 없이(그대로) */
     public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll) {
-        this(prefixId, title, contentFormat, content, adult, password, poll, null, null, null);
+        this(prefixId, title, contentFormat, content, adult, password, poll, null, null, null, null);
     }
 
     @Override

@@ -1,8 +1,10 @@
 import type { LocationQuery } from 'vue-router';
 import type { PostBoardRef } from '~/composables/board/api/usePostApi.types';
+import type { TipsOverview, TipsPost, TipsPostPage, TipsTag } from '~/composables/tips/api/useTipsApi.types';
+import UtilPostTag from '~/utils/util-post-tag';
 
 /**
- * 팁·강좌·사용기 묶음 화면(`/tips?board=&page=`)의 주소 규칙 — 게시판 칩·쪽 쿼리. 상태도 요청도 없다.
+ * 팁·강좌·사용기 묶음 화면(`/tips?board=&tag=&page=`)의 주소 규칙 — 게시판 칩·태그 칩(최신 글 거르기 — post-tags-contract)·쪽 쿼리. 상태도 요청도 없다.
  * 묶음에 든 게시판(칩)은 서버(지금은 목업)가 정해 주므로 여기에 slug 를 적지 않는다.
  */
 
@@ -10,6 +12,8 @@ import type { PostBoardRef } from '~/composables/board/api/usePostApi.types';
 export interface TipsState {
     /** 게시판 slug — 빈 글자 = 전체 */
     board: string;
+    /** 태그 거르기(최신 글 목록) — 빈 글자·없음 = 거르지 않음. 게시판 칩을 바꾸면 빠진다 */
+    tag?: string;
     /** 1부터 */
     page: number;
 }
@@ -38,6 +42,7 @@ export default class UtilTips {
         const page = /^\d+$/.test(text) ? Number(text) : 1;
         return {
             board: UtilTips.SLUG.test(board) ? board : '',
+            tag: UtilPostTag.normalize(first(query.tag)) ?? '',
             page: page >= 1 ? Math.min(page, UtilTips.MAX_PAGE) : 1,
         };
     }
@@ -50,8 +55,39 @@ export default class UtilTips {
     static build(state: TipsState): Record<string, string> {
         const out: Record<string, string> = {};
         if (state.board) out.board = state.board;
+        if (state.tag) out.tag = state.tag;
         if (state.page > 1) out.page = String(state.page);
         return out;
+    }
+
+    /**
+     * 머리 몫 읽기 — 옛 서버라 태그 칸이 없으면 빈 값(칩 없음 · 글 태그 없음)
+     * @param {TipsOverview} res - 서버 응답.
+     * @returns {TipsOverview} 태그 칸이 늘 있는 머리 몫.
+     */
+    static overviewOf(res: TipsOverview): TipsOverview {
+        const tags: TipsTag[] = (Array.isArray(res.tags) ? res.tags : [])
+            .map((x) => ({ name: UtilPostTag.normalize(x?.name) ?? '', count: Number.isFinite(x?.count) ? Number(x.count) : 0 }))
+            .filter((x) => x.name !== '');
+        return { ...res, headline: (res.headline ?? []).map(UtilTips.postOf), mostViewed: (res.mostViewed ?? []).map(UtilTips.postOf), tags };
+    }
+
+    /**
+     * 최신 글 한 쪽 읽기 — 글 줄의 태그 칸이 없으면 빈 값
+     * @param {TipsPostPage} res - 서버 응답.
+     * @returns {TipsPostPage} 쪽.
+     */
+    static postPageOf(res: TipsPostPage): TipsPostPage {
+        return { ...res, items: (res.items ?? []).map(UtilTips.postOf) };
+    }
+
+    /**
+     * 글 한 줄 — 태그를 글자 규칙으로 읽는다(없으면 빈 배열)
+     * @param {TipsPost} row - 글 줄.
+     * @returns {TipsPost} 글 줄.
+     */
+    static postOf(row: TipsPost): TipsPost {
+        return { ...row, tags: UtilPostTag.list(row.tags) };
     }
 
     /**

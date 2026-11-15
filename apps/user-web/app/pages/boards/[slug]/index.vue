@@ -1,6 +1,6 @@
 <template>
     <!--
-        게시판 목록 `/boards/{slug}?prefix=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다.
+        게시판 목록 `/boards/{slug}?prefix=&tag=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다. 태그(`tag` — post-tags-contract)면 그 태그 글만 + 정렬 줄 아래 「#태그 ✕」.
         머리(이름·설명·안내문·투자 고지·쓰기 잠금·19금 안내·글쓰기) → 말머리 탭(전체 + 사용 중 말머리) → 정렬·보기 전환·게시판 안 검색 → 목록(LIST·CARD·GALLERY) → 쪽 번호.
         핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 정렬이 최신·인기·마감 임박 `SelectButton` + 「종료 숨기기」 `ToggleSwitch`(기본 켬, 주소 `?sort=popular|ending&hideEnded=false`),
           말머리 아래 쇼핑몰 칩(전체 + 서버 `stores` 상위 8몰, 주소 `?store=`). 목록은 가격 줄 목록형(`HotdealPostList`)·카드/갤러리형(`HotdealPostGrid` — 게시판 모양·보기 전환은 그대로), 의심 글은 서버가 아래로 보낸다.
@@ -188,6 +188,20 @@
                         <Button type="submit" :label="t('common.search')" size="small" severity="secondary" variant="outlined" />
                     </form>
                 </div>
+                <!-- 태그 거르기(post-tags-contract) — 「#태그 ✕」(누르면 거르기 풀고 1쪽). 쪽·정렬을 바꿔도 남는다. 핫딜 게시판은 태그를 거르지 않는다 -->
+                <div v-if="query.tag && !isDeal" class="mt-2 flex items-center gap-2 text-xs" role="group" :aria-label="t('postTag.filterLabel')" data-testid="board-tag-filter">
+                    <span class="inline-flex min-h-7 items-center gap-0.5 rounded-full border border-primary bg-primary/10 pl-2.5 pr-0.5 font-semibold leading-none text-primary">
+                        <span class="relative top-[-0.09em]"><span class="opacity-60" aria-hidden="true">#</span>{{ query.tag }}</span>
+                        <NuxtLink
+                            :to="listLink({ tag: '', page: 1 })"
+                            class="grid size-6 place-items-center rounded-full hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"
+                            :aria-label="t('postTag.filterClear', { name: query.tag })"
+                            data-testid="board-tag-clear"
+                        >
+                            <i class="pi pi-times text-[0.625rem]" aria-hidden="true" />
+                        </NuxtLink>
+                    </span>
+                </div>
                 <p v-if="query.q" class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="board-search-summary">
                     {{ t('board.searchSummary', { q: query.q, n: list?.totalCount ?? 0 }) }}
                     <NuxtLink :to="listLink({ q: '', page: 1 })" class="font-semibold text-primary underline-offset-2 hover:underline">{{ t('board.searchClear') }}</NuxtLink>
@@ -211,6 +225,9 @@
                         <BoardGlobalNoticeList v-if="list" :rows="list.globalPinned ?? []" :date-display="display.dateDisplay" />
                         <EmptyState v-if="query.q" :title="t('board.searchEmptyTitle')" :description="t('board.searchEmptyText')" icon="pi pi-search">
                             <Button as="router-link" :to="listLink({ q: '', page: 1 })" :label="t('board.searchClear')" severity="secondary" variant="outlined" />
+                        </EmptyState>
+                        <EmptyState v-else-if="query.tag && !isDeal && query.page === 1" :title="t('postTag.filterEmptyTitle', { name: query.tag })" :description="t('postTag.filterEmptyText')" icon="pi pi-hashtag" data-testid="board-tag-empty">
+                            <Button as="router-link" :to="listLink({ tag: '', page: 1 })" :label="t('postTag.filterAll')" severity="secondary" variant="outlined" />
                         </EmptyState>
                         <EmptyState v-else-if="query.page > 1" :title="t('board.pageEmptyTitle')" icon="pi pi-file">
                             <Button as="router-link" :to="listLink({ page: 1 })" :label="t('board.firstPage')" />
@@ -550,7 +567,7 @@ watch(
     { immediate: true },
 );
 watch(
-    () => [slug.value, query.value.prefix, query.value.status, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
+    () => [slug.value, query.value.prefix, query.value.status, query.value.tag, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
     (now, before) => {
         void loadList();
         if (before && now[0] === before[0]) window.scrollTo({ top: 0 });

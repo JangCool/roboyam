@@ -8,9 +8,16 @@
         첫 글 작은 사진 줄(`lead: THUMB`): 두 열이면 두 칸을 차지하고 아래 구분선(home-news-contract).
         모바일 쪽 넘기기(`mobilePages` 2~3, home-news-contract): 한 열이면 받은 글을 앞에서부터 `mobilePageSize` 개씩 쪽으로 나눠 가로로 밀어 넘긴다(쪽마다 카드 글자 폭을 꽉 채워 옆 쪽이 비치지 않게 — 쪽 시작에 스냅).
         아래 동그라미(쪽 수만큼, 지금 쪽 강조 — 누르면 그 쪽으로, 밀면 따라간다). 쪽들은 가로 flex 라 가장 긴 쪽 높이로 같다. 첫 글 사진 줄(lead THUMB)은 쪽마다 첫 줄(사용자 2026-11-15). 인기글 기간 탭이 있으면 쪽 넘기기는 쓰지 않는다(순위 쪽이 따로 있다).
+        태그 탭(`tagTabs` — post-tags-contract 「시안 2」): 「전체 · #태그 …」 글자 탭(`GadgetTagTabs`). PC 는 머리 제목 옆(`GadgetFrame` `head` 슬롯 — 머리를 숨긴 가젯·한 열은 목록 위 한 줄).
+          탭마다의 글은 한 번에 받은 `data.tagged`(가젯은 서버를 부르지 않는다) — 탭을 바꾸면 목록만 바꾼다(첫 글 사진 줄·두 열·모바일 쪽 넘기기 그대로, 쪽은 첫 쪽으로).
+          「더보기」는 대상이 한 게시판이면 `/boards/{slug}?tag=`(`UtilGadget.tagMoreTo`), 아니면 그대로. 인기글 기간 탭과 함께면 태그 탭은 쓰지 않는다.
         community 와 다른 점: 글 사이 광고(`inlineAd`)·채운 줄 표시(`fills`)는 옮기지 않았다.
     -->
-    <GadgetFrame :gadget="gadget" :empty="gadget.empty || (!periods && items.length === 0)" :empty-icon="cfg.sort === 'POPULAR' ? 'pi pi-chart-line' : 'pi pi-file'">
+    <GadgetFrame :gadget="gadget" :empty="frameEmpty" :empty-icon="cfg.sort === 'POPULAR' ? 'pi pi-chart-line' : 'pi pi-file'" :more-to="tagMore">
+        <template v-if="tagTabs.length && tabsInHead" #head>
+            <GadgetTagTabs v-model="tag" :tags="tagTabs" :id-base="uid" :panel-id="`${uid}-panel`" class="ml-2" />
+        </template>
+        <GadgetTagTabs v-if="tagTabs.length && !tabsInHead" v-model="tag" :tags="tagTabs" :id-base="uid" :panel-id="`${uid}-panel`" :stacked="stacked" class="mb-2.5" />
         <div v-if="periods" class="mb-2.5 flex items-center gap-3">
             <div role="tablist" :aria-label="t('home.periodTabs')" class="flex gap-3.5" data-testid="home-period-tabs">
                 <button
@@ -46,9 +53,25 @@
             </div>
         </div>
         <!-- 빈 상태 안내와 같은 위·아래 균형(`data-grid-float`) -->
-        <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color" data-grid-float data-testid="home-period-empty">{{ t('home.periodEmpty') }}</p>
+        <p
+            v-if="(periods || tag) && items.length === 0"
+            :id="`${uid}-panel`"
+            role="tabpanel"
+            :aria-labelledby="selectedTabId"
+            class="m-0 py-6 text-center text-sm text-muted-color"
+            data-grid-float
+            :data-testid="periods ? 'home-period-empty' : 'home-tag-empty'"
+        >
+            {{ periods ? t('home.periodEmpty') : t('postTag.tabEmpty') }}
+        </p>
         <!-- 모바일 쪽 넘기기 -->
-        <div v-else-if="pages" data-testid="home-post-pages">
+        <div
+            v-else-if="pages"
+            :id="tabbed ? `${uid}-panel` : undefined"
+            :role="tabbed ? 'tabpanel' : undefined"
+            :aria-labelledby="tabbed ? selectedTabId : undefined"
+            data-testid="home-post-pages"
+        >
             <div ref="pager" class="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" @scroll.passive="onPagerScroll">
                 <ul v-for="(pg, p) in pages" :key="p" class="m-0 w-full shrink-0 snap-start list-none p-0" data-testid="home-post-page">
                     <GadgetPostRow
@@ -80,9 +103,9 @@
         </div>
         <ul
             v-else
-            :id="periods ? `${uid}-panel` : undefined"
-            :role="periods ? 'tabpanel' : undefined"
-            :aria-labelledby="periods ? `${uid}-tab-${period}` : undefined"
+            :id="tabbed ? `${uid}-panel` : undefined"
+            :role="tabbed ? 'tabpanel' : undefined"
+            :aria-labelledby="tabbed ? selectedTabId : undefined"
             class="m-0 list-none p-0"
             :class="listClass"
             :style="listStyle"
@@ -109,6 +132,7 @@ import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
 import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
 import UtilFeedMessages from '~/utils/util-feed-messages';
 import UtilGadget from '~/utils/util-gadget';
+import UtilPostTag from '~/utils/util-post-tag';
 
 interface Props {
     gadget: Gadget;
@@ -131,7 +155,42 @@ watch(periodKeys, (keys) => {
     period.value = keys.find((key) => (periods.value?.[key]?.length ?? 0) > 0) ?? keys[0]!;
 }, { immediate: true });
 
-const items = computed(() => (periods.value ? (periods.value[period.value] ?? []) : UtilGadget.postItems(props.gadget.data)));
+/* ── 태그 탭(post-tags-contract) ── */
+
+/** 보이는 태그 탭 — 인기글 기간 탭과 함께면 쓰지 않는다 */
+const tagTabs = computed(() => (periods.value ? [] : cfg.value.tagTabs));
+/** 탭별 글(`data.tagged`) */
+const tagged = computed(() => UtilGadget.postTagged(props.gadget.data));
+/** 고른 태그 — `''` = 전체(지금 목록) */
+const tag = ref('');
+// 설정이 바뀌어(관리자 미리보기) 고른 탭이 없어지면 전체로
+watch(tagTabs, (tabs) => {
+    if (tag.value && !UtilPostTag.has(tabs, tag.value)) tag.value = '';
+});
+/** 「전체」 목록 */
+const baseItems = computed(() => UtilGadget.postItems(props.gadget.data));
+/** 고른 태그의 「더보기」(대상이 한 게시판일 때만) — 아니면 가젯 「더보기」 그대로 */
+const tagMore = computed(() => (tag.value ? UtilGadget.tagMoreTo(props.gadget.more?.to, props.gadget.config, tag.value) : null));
+/** 탭이 있는 목록인가(기간 탭 · 태그 탭) — 목록이 탭 패널이 된다 */
+const tabbed = computed(() => Boolean(periods.value) || tagTabs.value.length > 0);
+/** 고른 탭의 id(목록 `aria-labelledby`) — `GadgetTagTabs` 의 id 규칙과 같다 */
+const selectedTabId = computed(() => {
+    if (periods.value) return `${uid}-tab-${period.value}`;
+    const i = tag.value ? tagTabs.value.findIndex((x) => UtilPostTag.key(x) === UtilPostTag.key(tag.value)) : -1;
+    return `${uid}-tag-${i < 0 ? 'all' : i}`;
+});
+/** 한 열이 아니고 머리가 보이면 태그 탭은 머리 제목 옆, 아니면 목록 위 한 줄 */
+const tabsInHead = computed(() => !stacked.value && props.gadget.style.headerStyle !== 'HIDDEN');
+
+const items = computed(() => {
+    if (periods.value) return periods.value[period.value] ?? [];
+    return tag.value ? UtilGadget.taggedRows(tagged.value, tag.value) : baseItems.value;
+});
+/** 빈 가젯인가 — 태그 탭이 있으면 전체·모든 태그 글이 비었을 때만(고른 태그만 비면 탭은 남기고 안내) */
+const frameEmpty = computed(() => {
+    if (tagTabs.value.length) return baseItems.value.length === 0 && tagTabs.value.every((x) => UtilGadget.taggedRows(tagged.value, x).length === 0);
+    return props.gadget.empty || (!periods.value && items.value.length === 0);
+});
 
 /** 기간 탭 목록은 10개씩 쪽을 나눈다(설정 개수가 20이면 1~10 · 11~20 — 사용자 결정 2026-11-06, 보배드림식) */
 const RANK_PAGE = 10;
@@ -189,6 +248,11 @@ const pager = ref<HTMLElement | null>(null);
 const pagerIndex = ref(0);
 /** 지금 쪽(쪽 수가 줄면 끝 쪽으로) */
 const pageNow = computed(() => Math.min(pagerIndex.value, Math.max(0, (pages.value?.length ?? 1) - 1)));
+// 태그 탭을 바꾸면 첫 쪽으로(그 태그 글로 쪽을 다시 나눈다)
+watch(tag, () => {
+    pagerIndex.value = 0;
+    pager.value?.scrollTo({ left: 0 });
+});
 
 /** 밀면 지금 쪽을 따라간다 — 쪽 폭이 같아 끝까지 민 거리를 쪽 수로 나눈다 */
 function onPagerScroll(): void {

@@ -9,13 +9,15 @@ import java.util.Map;
  * 게시판별 정책 칸 — 칸마다 {@code null} = 기본 설정을 따른다(유효값 = 게시판 값 ?? 기본값). 관리자 API 의 {@code policy} JSON 모양 그대로다
  * (admin-web {@code BoardPolicy}). 칸 이름·범위의 원천은 {@link com.community.board.service.BoardFields}.
  * {@code authorThumbnailEnabled}(V206) = 「글쓴이가 대표 이미지 고르기」 — 나중에 생긴 칸이라 끝에 둔다(JSON·{@link #toMap} 차례는 {@code pollEnabled} 다음).
+ * {@code tagsEnabled}(V215) = 「태그 쓰기」(post-tags-contract) — 같은 이유로 끝({@link #toMap} 차례는 {@code authorThumbnailEnabled} 다음).
  */
 public record BoardPolicyValues(String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor, Integer listSize, Integer pinnedMax, Boolean indexable,
                                 Boolean searchable, Boolean inHome, String pointMode, Boolean pointMinLengthApplied, Integer commentProtectMin, Boolean commentProtectEdit,
                                 String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
                                 Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
                                 Boolean debateEnabled, Boolean pollEnabled, Integer managerMax,
-                                Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit, Boolean authorThumbnailEnabled) {
+                                Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit, Boolean authorThumbnailEnabled,
+                                Boolean tagsEnabled) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 기본값 따름) */
     public BoardPolicyValues {
@@ -27,7 +29,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
         return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     /** 칸 이름 → 값(칸 순서대로, null 포함) */
@@ -58,6 +60,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("debateEnabled", debateEnabled);
         map.put("pollEnabled", pollEnabled);
         map.put("authorThumbnailEnabled", authorThumbnailEnabled);
+        map.put("tagsEnabled", tagsEnabled);
         map.put("managerMax", managerMax);
         map.put("staffPostDailyLimit", staffPostDailyLimit);
         map.put("staffCommentDailyLimit", staffCommentDailyLimit);

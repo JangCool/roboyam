@@ -192,6 +192,11 @@ export interface PostListConfig {
     allBoards: boolean;
     /** 전체 게시판(`boardScope: ALL`)에서 뺀 게시판 slug(20개까지 — 글은 서버가 빼서 준다, 화면은 쓰지 않음, home-news-contract) */
     excludeBoardIds: string[];
+    /**
+     * 태그 탭(post-tags-contract — 운영자가 고른 태그, 최대 8개, 차례대로) — 비면 탭 없음. 탭마다의 글은 공개 데이터 `tagged`(`UtilGadget.postTagged`).
+     * 인기글 기간 탭(`periods`)과 함께면 태그 탭은 쓰지 않는다
+     */
+    tagTabs: string[];
 }
 
 export interface BoardCardsConfig {

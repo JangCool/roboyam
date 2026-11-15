@@ -52,6 +52,8 @@ import com.community.post.repository.master.PostRepository;
 import com.community.tips.service.TipsService;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
+import com.community.post.service.PostTagStore;
+import com.community.post.service.PostTags;
 import com.community.site.service.PublicSiteService;
 import com.community.site.service.SiteThemes;
 import java.time.Instant;
@@ -80,7 +82,8 @@ import tools.jackson.databind.JsonNode;
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.
- *       {@code lead: THUMB} 이면 사진 줄이 되는 글(첫 글 · 모바일 쪽 넘기기면 쪽마다 첫 글, 기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.</li>
+ *       {@code lead: THUMB} 이면 사진 줄이 되는 글(첫 글 · 모바일 쪽 넘기기면 쪽마다 첫 글, 기간 탭이면 탭마다 첫 글)에만 {@code excerpt}(본문 앞부분 글자 — home-news-contract)를 싣는다.
+ *       {@code tagTabs} 가 있으면 탭마다 그 태그가 달린 글 줄을 {@code tagged} 로 함께 싣는다(같은 정렬·개수·범위·요약 규칙 — 가젯은 탭을 눌러도 서버를 부르지 않는다, post-tags-contract).</li>
  *   <li>{@code HIGHLIGHT}: 설정 {@code place}(기본 home — 없는 곳도 home, V161)의 노출 중인 하이라이트(관리자 순서, {@link HighlightPicks}), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
@@ -123,13 +126,15 @@ public class GadgetService {
     private final AdultContentGate adultGate;
     private final CacheManager caches;
     private final PostRepository posts;
+    private final PostTagStore tagStore;
 
     public GadgetService(PublicSiteService site, HomeLayoutRepository layouts, GadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightPicks highlightPicks,
                              GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
                              BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate,
-                             CacheManager caches, PostRepository posts) {
+                             CacheManager caches, PostRepository posts, PostTagStore tagStore) {
+        this.tagStore = tagStore;
         this.caches = caches;
         this.posts = posts;
         this.adultGate = adultGate;
@@ -292,15 +297,11 @@ public class GadgetService {
                 if (d.periods() != null) {
                     d.periods().values().forEach(all::addAll);
                 }
-                PostFeedRows.Overlay o = rows.overlay(all, viewerId);
-                Map<String, List<PostFeedRowView>> periods = null;
-                if (d.periods() != null) {
-                    periods = new LinkedHashMap<>();
-                    for (Map.Entry<String, List<PostFeedRowView>> e : d.periods().entrySet()) {
-                        periods.put(e.getKey(), o.apply(e.getValue()));
-                    }
+                if (d.tagged() != null) {
+                    d.tagged().values().forEach(all::addAll);
                 }
-                yield new PostListDataView(o.apply(d.items()), periods);
+                PostFeedRows.Overlay o = rows.overlay(all, viewerId);
+                yield new PostListDataView(o.apply(d.items()), mapLists(d.periods(), o::apply), mapLists(d.tagged(), o::apply));
             }
             case HighlightDataView d -> {
                 PostFeedRows.Overlay o = rows.overlay(d.picks().stream().map(HighlightPickView::post).toList(), viewerId);
@@ -434,14 +435,21 @@ public class GadgetService {
             }
             return List.copyOf(out);
         };
-        Map<String, List<PostFeedRowView>> periods = null;
-        if (d.periods() != null) {
-            periods = new LinkedHashMap<>();
-            for (Map.Entry<String, List<PostFeedRowView>> e : d.periods().entrySet()) {
-                periods.put(e.getKey(), lead.apply(e.getValue(), 1)); // 기간 탭 목록은 쪽 넘기기를 쓰지 않는다
-            }
+        Map<String, List<PostFeedRowView>> periods = mapLists(d.periods(), list -> lead.apply(list, 1)); // 기간 탭 목록은 쪽 넘기기를 쓰지 않는다
+        int leads = periods == null ? pages : 1;
+        // 태그 탭 목록은 「전체」 목록과 같은 규칙(post-tags-contract — 첫 글 사진 줄·모바일 쪽 넘기기 그대로)
+        Map<String, List<PostFeedRowView>> tagged = mapLists(d.tagged(), list -> lead.apply(list, leads));
+        return new PostListDataView(lead.apply(d.items(), leads), periods, tagged);
+    }
+
+    /** 이름 → 글 줄 맵의 줄마다 {@code fn} 을 건다(차례 그대로) — null 이면 null */
+    private static Map<String, List<PostFeedRowView>> mapLists(Map<String, List<PostFeedRowView>> in, Function<List<PostFeedRowView>, List<PostFeedRowView>> fn) {
+        if (in == null) {
+            return null;
         }
-        return new PostListDataView(lead.apply(d.items(), periods == null ? pages : 1), periods);
+        Map<String, List<PostFeedRowView>> out = new LinkedHashMap<>();
+        in.forEach((k, v) -> out.put(k, fn.apply(v)));
+        return out;
     }
 
     /** 글 하나의 본문 앞부분 글자(팁 묶음 요약과 같은 다듬기 — {@link TipsService#excerpt}) — 가려진 글·19금 글은 읽지 않고 null */
@@ -458,16 +466,19 @@ public class GadgetService {
         // 뺄 게시판(home-news-contract) — 대상이 ALL 일 때만. 다른 범위(FOLDER·BOARD 가 전체로 풀린 경우 포함)는 무시한다
         Set<String> exclude = GadgetConfigs.ALL.equals(GadgetConfigs.scope(config)) ? Set.copyOf(GadgetConfigs.excludeBoards(config)) : Set.of();
         String sort = HomeLayoutJson.text(config, "sort", "LATEST");
+        List<String> tabs = GadgetConfigs.tagTabs(config); // 태그 탭(post-tags-contract) — 비면 tagged 없음
         return switch (sort) {
             case "POPULAR" -> {
+                List<PostFeedRowView> realtime = ranked("REALTIME", slugs, exclude, ctx);
                 if (HomeLayoutJson.flag(config, "periodTabs")) {
+                    // 기간 탭과 태그 탭은 함께 쓰지 않는다(공개 화면이 기간 탭을 고른다) — tagged 를 싣지 않는다
                     Map<String, List<PostFeedRowView>> periods = new LinkedHashMap<>();
                     for (String period : PERIODS) {
-                        periods.put(period, ranked(period, slugs, exclude, ctx).stream().limit(count).toList());
+                        periods.put(period, ("REALTIME".equals(period) ? realtime : ranked(period, slugs, exclude, ctx)).stream().limit(count).toList());
                     }
-                    yield new PostListDataView(periods.get("REALTIME"), periods);
+                    yield new PostListDataView(periods.get("REALTIME"), periods, null);
                 }
-                yield new PostListDataView(ranked("REALTIME", slugs, exclude, ctx).stream().limit(count).toList(), null);
+                yield new PostListDataView(realtime.stream().limit(count).toList(), null, taggedFromPool(tabs, realtime, count));
             }
             case "VIEWS", "LIKES", "COMMENTS" -> {
                 Comparator<PostFeedRowView> by = switch (sort) {
@@ -477,7 +488,7 @@ public class GadgetService {
                 };
                 List<PostFeedRowView> pool = new ArrayList<>(ranked("WEEK", slugs, exclude, ctx));
                 pool.sort(by.reversed());
-                yield new PostListDataView(pool.stream().limit(count).toList(), null);
+                yield new PostListDataView(pool.stream().limit(count).toList(), null, taggedFromPool(tabs, pool, count));
             }
             default -> {
                 // 최신글 — 전체 범위(켜짐 · 최신글 가젯 노출 금지 아님)의 게시판 ID 목록에서 뺄 게시판을 덜어 질의한다(질의가 count 만큼 채운다)
@@ -487,9 +498,35 @@ public class GadgetService {
                             .collect(Collectors.toSet());
                     ids = ids.stream().filter(id -> !drop.contains(id)).toList();
                 }
-                yield new PostListDataView(latest(ids, count, ctx), null);
+                Map<String, List<PostFeedRowView>> tagged = null;
+                if (!tabs.isEmpty()) {
+                    tagged = new LinkedHashMap<>();
+                    for (String tab : tabs) {
+                        List<PostRowData> found = feeds.latestTagged(ids, PostTags.key(tab), count, ctx.adult(), ctx.now());
+                        tagged.put(tab, rows.of(found, ctx.s(), ctx.now(), ctx.viewerId()));
+                    }
+                }
+                yield new PostListDataView(latest(ids, count, ctx), null, tagged);
             }
         };
+    }
+
+    /**
+     * 순위 줄(정렬을 마친 차례)에서 태그마다 그 태그가 달린 글만 골라 {@code count} 개까지(post-tags-contract) — 태그는 줄 전체에 한 번 읽는다. 탭이 없으면 null
+     */
+    private Map<String, List<PostFeedRowView>> taggedFromPool(List<String> tabs, List<PostFeedRowView> pool, int count) {
+        if (tabs.isEmpty()) {
+            return null;
+        }
+        Map<Long, List<String>> tagsOf = tagStore.of(pool.stream().map(r -> Long.parseLong(r.id())).toList());
+        Map<String, List<PostFeedRowView>> out = new LinkedHashMap<>();
+        for (String tab : tabs) {
+            String key = PostTags.key(tab);
+            out.put(tab, pool.stream()
+                    .filter(r -> tagsOf.getOrDefault(Long.parseLong(r.id()), List.of()).stream().anyMatch(t -> PostTags.key(t).equals(key)))
+                    .limit(count).toList());
+        }
+        return out;
     }
 
     /**

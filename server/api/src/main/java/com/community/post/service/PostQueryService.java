@@ -93,13 +93,15 @@ public class PostQueryService {
     private final GlobalNoticeReader globalNotices;
     private final PostFeedRows feedRows;
     private final PostThumbnailChoices thumbnailChoices;
+    private final PostTagStore tagStore;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
                             PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows,
-                            PostThumbnailChoices thumbnailChoices) {
+                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore) {
+        this.tagStore = tagStore;
         this.feedRows = feedRows;
         this.thumbnailChoices = thumbnailChoices;
         this.globalNotices = globalNotices;
@@ -166,6 +168,18 @@ public class PostQueryService {
      */
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId, Boolean hideEnded, String store, String status) {
+        return list(slug, prefix, sort, q, page, viewerId, hideEnded, store, status, null);
+    }
+
+    /**
+     * 태그 거르기까지({@code ?tag=} — post-tags-contract). 정확히 같은 태그(대소문자 무시 — {@link PostTags#filterKey})가 달린 글만, 말머리·상태 거르기와 함께 쓸 수 있다.
+     * 게시판의 태그 쓰기를 나중에 꺼도 이미 단 태그로 거른다. 모양이 틀린 값이면 빈 목록. 거르면 고정 공지를 위에 따로 두지 않는다(말머리 거르기와 같다).
+     *
+     * @param tag 태그 글자(앞의 # 는 떼고 본다) — 비면 전체
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId, Boolean hideEnded, String store, String status,
+                                 String tag) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         Instant now = Instant.now();
@@ -188,7 +202,12 @@ public class PostQueryService {
             statusFilter = PostProcessStatus.parse(status).orElse(null);
             impossible = impossible || statusFilter == null;
         }
-        boolean plain = prefixId == null && search == null && statusFilter == null && !impossible;
+        String tagKey = PostTags.filterKey(tag);
+        if (tagKey != null && tagKey.isEmpty()) {
+            impossible = true; // 모양이 틀린 태그 — 맞는 글이 없다
+            tagKey = null;
+        }
+        boolean plain = prefixId == null && search == null && statusFilter == null && tagKey == null && !impossible;
         boolean oldest = "OLDEST".equals(sort);
         boolean deal = DealWriter.dealBoard(b);
         boolean hide = !Boolean.FALSE.equals(hideEnded);
@@ -201,10 +220,10 @@ public class PostQueryService {
         if (impossible) {
             result = new PostRepositoryQDSL.Page(List.of(), 0);
         } else if (deal) {
-            result = postQueries.dealPage(b.id(), prefixId, search, dealSort(sort), hide, storeName, plain, autoExpireDays, (long) (current - 1) * listSize, listSize,
-                    now);
+            result = postQueries.dealPage(b.id(), prefixId, tagKey, search, dealSort(sort), hide, storeName, plain, autoExpireDays, (long) (current - 1) * listSize,
+                    listSize, now);
         } else {
-            result = postQueries.page(b.id(), prefixId, statusFilter, search, oldest, plain, adultViewer, (long) (current - 1) * listSize, listSize, now);
+            result = postQueries.page(b.id(), prefixId, statusFilter, tagKey, search, oldest, plain, adultViewer, (long) (current - 1) * listSize, listSize, now);
         }
         // 읽을 수 없는 비밀글은 줄만 남긴다 — 비밀글이 있을 때만 보는 사람 판정을 읽는다(운영진이면 모두 읽는다)
         boolean anySecret = Stream.concat(pinned.stream(), result.items().stream()).anyMatch(PostRowData::secretPost);
@@ -342,7 +361,8 @@ public class PostQueryService {
                 pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings,
                 staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor, post.isSecret(),
                 PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()),
-                statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)), thumbnailFor(post, userId));
+                statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)), thumbnailFor(post, userId),
+                tagStore.of(post.getId()));
     }
 
     /**

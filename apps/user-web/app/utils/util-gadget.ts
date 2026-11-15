@@ -31,6 +31,7 @@ import type {
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import UtilColor from '~/utils/util-color';
 import UtilGroupBuy from '~/utils/util-group-buy';
+import UtilPostTag from '~/utils/util-post-tag';
 
 /**
  * 가젯의 순수 계산 — 서버 응답(`GET /api/home/gadgets`)을 읽고(없는 칸·모르는 값에도 깨지지 않게), 가젯을 폭에 따라 거르고,
@@ -389,7 +390,48 @@ export default class UtilGadget {
             mobilePageSize: int(c.mobilePageSize, 5, 3, 10),
             allBoards: !Array.isArray(c.boardIds) || c.boardIds.length === 0,
             excludeBoardIds: Array.isArray(c.excludeBoardIds) ? [...new Set(c.excludeBoardIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''))].slice(0, 20) : [],
+            tagTabs: UtilPostTag.list(c.tagTabs, UtilPostTag.TAB_MAX),
         };
+    }
+
+    /**
+     * 태그 탭의 탭별 글(`data.tagged` — 태그 → 글 줄, post-tags-contract). 글 한 줄로 쓸 수 없는 값은 뺀다
+     * @param {unknown} data - 가젯 `data`.
+     * @returns {Record<string, PostFeedRow[]>} 태그 → 글(없으면 빈 객체).
+     */
+    static postTagged(data: unknown): Record<string, PostFeedRow[]> {
+        const tagged = obj(obj(data).tagged);
+        const out: Record<string, PostFeedRow[]> = {};
+        for (const [tag, rows] of Object.entries(tagged)) if (Array.isArray(rows)) out[tag] = rows.filter(isFeedRow);
+        return out;
+    }
+
+    /**
+     * 태그 하나의 글 — 키는 대소문자를 가리지 않고 찾는다(설정의 모양과 서버 키가 달라도), 없으면 빈 목록
+     * @param {Record<string, PostFeedRow[]>} tagged - `postTagged` 결과.
+     * @param {string} tag - 태그.
+     * @returns {PostFeedRow[]} 글.
+     */
+    static taggedRows(tagged: Record<string, PostFeedRow[]>, tag: string): PostFeedRow[] {
+        if (tagged[tag]) return tagged[tag];
+        const key = UtilPostTag.key(tag);
+        const hit = Object.keys(tagged).find((k) => UtilPostTag.key(k) === key);
+        return hit ? (tagged[hit] ?? []) : [];
+    }
+
+    /**
+     * 태그 탭의 「더보기」 주소 — 대상이 한 게시판이면 그 게시판을 그 태그로 거른 목록(`/boards/{slug}?tag=`), 아니면 null(기존 「더보기」 그대로).
+     * 한 게시판 판정: 가젯 「더보기」가 `/boards/{slug}` 이거나, 직접 고른 게시판(`boardScope: PICK`)이 하나.
+     * @param {string | null | undefined} moreTo - 가젯 「더보기」 주소.
+     * @param {Record<string, unknown>} config - 가젯 `config`.
+     * @param {string} tag - 고른 태그.
+     * @returns {string | null} 주소.
+     */
+    static tagMoreTo(moreTo: string | null | undefined, config: Record<string, unknown>, tag: string): string | null {
+        const m = typeof moreTo === 'string' ? /^\/boards\/([A-Za-z0-9_-]{1,60})\/?(?:\?.*)?$/.exec(moreTo) : null;
+        const ids = list(obj(config).boardIds).filter((s): s is string => typeof s === 'string' && SLUG.test(s));
+        const slug = m?.[1] ?? (obj(config).boardScope === 'PICK' && ids.length === 1 ? ids[0] : null);
+        return slug ? `/boards/${slug}?tag=${encodeURIComponent(tag)}` : null;
     }
 
     /**

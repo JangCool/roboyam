@@ -20,6 +20,8 @@
         대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 내 회원 글이면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker`), 바꿨을 때만 본문 `thumbnail`.
           운영자가 정한 글(`thumbnail.setBy OPERATOR`)은 「운영자가 정한 대표 이미지예요」 안내와 미리보기만. 저장 때 그새 운영자가 정했으면(`409 THUMBNAIL_LOCKED` — 글 전체가 저장되지 않음)
           글을 다시 읽어 대표 이미지 줄을 잠그고, 쓰던 내용은 그대로 둔 채 「다시 저장해 주세요」 안내.
+        태그(post-tags-contract): 게시판 `tagsEnabled` 면 본문(·대표 이미지) 아래 태그 칸(`PostTagInput`), 글의 `tags` 로 채우고 바꿨을 때만 본문 `tags`(빈 목록 = 모두 지움).
+          게시판 옵션이 꺼졌으면 칸을 감추고 보내지 않는다(이미 단 태그는 그대로).
         비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
     <div class="content-card">
@@ -109,8 +111,9 @@
                 <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
             <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
-            <template v-if="thumbnailMode !== 'hidden'" #belowContent="{ imageUpload }">
+            <template v-if="thumbnailMode !== 'hidden' || tagsShown" #belowContent="{ imageUpload }">
                 <PostThumbnailPicker
+                    v-if="thumbnailMode !== 'hidden'"
                     v-model="thumbnail"
                     :content="form.content"
                     :content-format="form.contentFormat"
@@ -120,6 +123,8 @@
                     :disabled="submitting"
                     :error="fieldErrors.thumbnail ?? ''"
                 />
+                <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」를 켠 게시판만 -->
+                <PostTagInput v-if="tagsShown" v-model="tags" :disabled="submitting" :error="tagsError" />
             </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
@@ -156,6 +161,7 @@ import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
+import UtilPostTag from '~/utils/util-post-tag';
 
 definePageMeta({ shell: 'inner' });
 
@@ -214,6 +220,8 @@ async function load(): Promise<void> {
         dealForm.value = UtilHotdeal.formOf(loaded.deal);
         thumbnailInitial.value = UtilPostThumbnail.choiceOf(loaded.thumbnail);
         thumbnail.value = UtilPostThumbnail.choiceOf(loaded.thumbnail);
+        tagsInitial.value = UtilPostTag.list(loaded.tags);
+        tags.value = [...tagsInitial.value];
         pageState.value = 'ready';
     } catch (e) {
         // 아직 열지 않은 비밀글(비회원 비밀글은 글 보기에서 비밀번호로 연다) — 글 보기의 잠금 화면으로 보낸다
@@ -375,6 +383,18 @@ async function reloadThumbnail(postId: string): Promise<void> {
     thumbnail.value = UtilPostThumbnail.choiceOf(p.thumbnail);
 }
 
+/* ── 태그(post-tags-contract) — 게시판 옵션을 켠 게시판만 칸을 보이고, 바꿨을 때만 보낸다 ── */
+const tags = ref<string[]>([]);
+const tagsInitial = ref<string[]>([]);
+const tagsShown = computed(() => board.value?.tagsEnabled === true);
+const tagsChanged = computed(() => tagsShown.value && !UtilPostTag.same(tags.value, tagsInitial.value));
+/** 서버 오류 — `fields.tags` 또는 `fields."tags[0]"` 꼴의 첫 문구 */
+const tagsError = computed(() => UtilPostTag.fieldError(fieldErrors.value));
+// 태그를 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(tags, () => {
+    if (tagsError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
+});
+
 /* ── 비회원 글 비밀번호 ── */
 const password = ref('');
 const verified = ref(false);
@@ -403,7 +423,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value || tagsChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -442,6 +462,8 @@ async function submit(): Promise<void> {
             ...UtilPostOps.secretField(UtilPostOps.updateSecret(UtilPostOps.secretMode(board.value), form.value.secret)),
             // 대표 이미지 — 바꿨을 때만(잠긴 글은 늘 뺀다)
             ...(thumbnailChanged.value ? { thumbnail: UtilPostThumbnail.inputOf(thumbnailEffective.value) } : {}),
+            // 태그 — 바꿨을 때만(빼면 그대로, 빈 목록이면 모두 지움)
+            ...(tagsChanged.value ? { tags: tags.value.slice() } : {}),
         });
         saved = true;
         password.value = '';

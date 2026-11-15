@@ -165,6 +165,11 @@ export interface BoardDefaults {
      * 서버 shared V206 `boards.author_thumbnail_enabled`(NULL = 기본값)·`board_defaults.author_thumbnail_enabled`
      */
     authorThumbnailEnabled: boolean;
+    /**
+     * 글쓴이가 글쓰기·고치기에서 태그를 달 수 있다(post-tags-contract — 게시판 「태그 쓰기」). 끄면 태그 칸이 없다 — 나중에 꺼도 이미 단 태그는 그대로. 전체 기본값 `false`.
+     * 서버 shared V215 `boards.tags_enabled`(NULL = 기본값)·`board_defaults.tags_enabled`. 옛 서버 응답에는 칸이 없을 수 있다
+     */
+    tagsEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /**
@@ -213,6 +218,7 @@ export const BOARD_POLICY_FIELDS = [
     'debateEnabled',
     'pollEnabled',
     'authorThumbnailEnabled',
+    'tagsEnabled',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

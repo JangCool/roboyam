@@ -1,7 +1,9 @@
 package com.community.home.service;
 
 import com.community.highlight.service.HighlightPlaces;
+import com.community.post.service.PostTags;
 import com.community.zconfiguration.message.MessageRef;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -241,6 +243,9 @@ final class GadgetPatches {
                 if (present(raw, "excludeBoardIds")) {
                     excludeBoards(raw.get("excludeBoardIds"), base, out, fields);
                 }
+                if (present(raw, "tagTabs")) {
+                    tagTabs(raw.get("tagTabs"), base, out, fields);
+                }
                 if (present(raw, "meta")) {
                     JsonNode meta = raw.get("meta");
                     Set<String> keys = new LinkedHashSet<>();
@@ -413,6 +418,34 @@ final class GadgetPatches {
         }
         ArrayNode arr = out.putArray("excludeBoardIds");
         picked.forEach(arr::add);
+    }
+
+    /**
+     * 글 목록 가젯의 태그 탭 {@code tagTabs}(post-tags-contract) — 글자 목록 0~{@value GadgetConfigs#TAG_TABS_MAX}개, 태그마다 {@link PostTags} 규칙(앞의 # 떼기 · 1~20자 · #·쉼표·줄바꿈 금지)으로
+     * 정리해 저장한다. 빈 칸은 버리고 같은 태그(대소문자 무시)는 하나로(적은 차례). 배열이 아니거나 글자가 아닌 값·모양이 틀린 태그가 있거나 개수를 넘으면 {@code fields.<base>tagTabs}.
+     * 빈 목록 = 탭 없음.
+     */
+    static void tagTabs(JsonNode raw, String base, ObjectNode out, Map<String, MessageRef> fields) {
+        MessageRef bad = new MessageRef("homeLayout.gadget.config.tagTabs", String.valueOf(GadgetConfigs.TAG_TABS_MAX), String.valueOf(PostTags.NAME_MAX));
+        if (!raw.isArray()) {
+            fields.put(base + "tagTabs", bad);
+            return;
+        }
+        List<String> texts = new ArrayList<>();
+        for (JsonNode v : raw) {
+            if (!v.isString()) {
+                fields.put(base + "tagTabs", bad);
+                return;
+            }
+            texts.add(v.asString());
+        }
+        PostTags.Result r = PostTags.normalize(texts, GadgetConfigs.TAG_TABS_MAX);
+        if (!r.ok()) {
+            fields.put(base + "tagTabs", bad);
+            return;
+        }
+        ArrayNode arr = out.putArray("tagTabs");
+        r.tags().forEach(arr::add);
     }
 
     /** 핫딜 가젯의 핫딜 게시판 slug 0~20개(비면 모든 핫딜 게시판) — 있는 핫딜 게시판(kind DEAL)만, 겹치면 하나로(고른 차례) */

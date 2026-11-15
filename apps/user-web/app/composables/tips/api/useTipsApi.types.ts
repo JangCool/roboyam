@@ -1,7 +1,7 @@
 /**
  * 팁·강좌·사용기 묶음 화면(`/tips`)이 주고받는 모양 — 서버 `server/api` `tips.dto.response`(`TipsOverviewView`·`TipsPostPageView`·`TipsPostView`)와 같다(2026-11-07 연결).
  * 글 한 줄은 게시판이 섞인 목록 줄(`PostFeedRow`) 칸 그대로 + 본문 요약(`excerpt`). 계약 `docs/features/tips-contract.md`.
- * ⚠ MOCK: 태그(`TipsPost.tags`·`TipsOverview.tags`)는 서버에 없다 — 화면 목업(`mock/tips-mock.ts`)이 붙인다. 태그가 정해지면 이 두 칸을 서버 모양에 맞춘다.
+ * 태그(`TipsPost.tags`·`TipsOverview.tags`)는 글 태그(post-tags-contract)의 실제 값이다 — 옛 서버라 칸이 없으면 화면이 빈 값으로 읽는다(`UtilTips.overviewOf`).
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
 import type { PostBoardRef, PostFeedRow } from '~/composables/board/api/usePostApi.types';
@@ -18,11 +18,11 @@ export interface TipsPost extends PostFeedRow {
      * 헤드라인의 하이라이트 줄은 운영자가 적은 요약이 있으면 그것(노출 제목·대표 이미지도 `title`·`thumbnailUrl` 에 들어온다)
      */
     excerpt: string | null;
-    /** ⚠ MOCK: 글 태그 — 서버에 없어 목업이 지어낸다(없으면 빈 배열) */
+    /** 글 태그(처음 쓴 모양, 최대 5개) — 없으면 빈 배열 */
     tags: string[];
 }
 
-/** ⚠ MOCK: 태그 칩 하나 — 묶음 안 글에 달린 횟수(서버에 없음) */
+/** 태그 칩 하나 — 묶음 게시판 글에 최근 달린 횟수 */
 export interface TipsTag {
     name: string;
     count: number;
@@ -42,14 +42,16 @@ export interface TipsOverview {
     headline: TipsPost[];
     /** 많이 본 글 최대 5개 — 최근 30일 조회순, 모자라면 더 오래된 글 조회순(헤드라인과 겹칠 수 있다) */
     mostViewed: TipsPost[];
-    /** ⚠ MOCK: 많이 달린 태그 차례 — 서버에 없어 목업이 지어낸다 */
+    /** 묶음 게시판(tip·review)에서 최근 많이 달린 태그 위 10개(많은 차례) — 칩. 가려진·삭제된 글은 세지 않는다(서버) */
     tags: TipsTag[];
 }
 
-/** 최신 글 목록 `GET /api/tips/posts?board=&page=` */
+/** 최신 글 목록 `GET /api/tips/posts?board=&tag=&page=` */
 export interface TipsPostQuery {
     /** 게시판 slug — 빈 글자 = 전체 */
     board: string;
+    /** 태그 거르기(정확히 같은 태그, 대소문자 무시) — 빈 글자 = 거르지 않음 */
+    tag: string;
     /** 1부터 */
     page: number;
 }

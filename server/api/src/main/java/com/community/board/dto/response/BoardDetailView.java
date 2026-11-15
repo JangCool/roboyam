@@ -25,6 +25,7 @@ import java.util.List;
  * @param authorMode           작성자 표시 NICKNAME · ANONYMOUS({@link BoardView#authorMode()} 와 같다 — V184)
  * @param prefixStyle          말머리 모양 TEXT · MUTED · COLOR({@link BoardView#prefixStyle()} 와 같다 — V195, 푼 실제 값)
  * @param authorThumbnailEnabled 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있는가(유효 정책, 기본 false — V206, list-thumbnail-contract 「2단계」)
+ * @param tagsEnabled          글쓰기·고치기에 태그 입력 칸을 보이는가(유효 정책 「태그 쓰기」, 기본 false — V215, post-tags-contract). 꺼져 있으면 서버가 {@code tags} 를 무시한다
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -34,5 +35,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
                               String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
-                              boolean authorThumbnailEnabled) {
+                              boolean authorThumbnailEnabled, boolean tagsEnabled) {
 }

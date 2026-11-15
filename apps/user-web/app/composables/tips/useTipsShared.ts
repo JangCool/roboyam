@@ -8,8 +8,8 @@ import UtilTips from '~/utils/util-tips';
 
 /**
  * 팁·강좌·사용기 `/tips` 의 데이터 — 화면(`pages/tips.vue`)이 한 번 만들어(`provideTipsShared`) 네 가젯(`GadgetTips*` — 이번 주 추천·최신 글·많이 본 글·태그)이 나눠 쓴다(`useTipsShared`).
- * 가젯마다 따로 받지 않게 머리 몫(`GET /api/tips` — 칩·헤드라인·많이 본 글·⚠ MOCK 태그)과 최신 글(`GET /api/tips/posts`)을 여기서 한 번씩 받는다.
- * 주소의 `board`·`page` 가 상태다(틀린 값은 전체·1쪽, 기본값은 주소에서 뺀다). 게시판·보는 사람이 바뀌면 머리 몫도, 쪽만 바뀌면 최신 글만 새로 받는다. 늦게 온 옛 결과는 요청 번호로 버린다.
+ * 가젯마다 따로 받지 않게 머리 몫(`GET /api/tips` — 칩·헤드라인·많이 본 글·태그)과 최신 글(`GET /api/tips/posts` — 태그 거르기 `tag`)을 여기서 한 번씩 받는다.
+ * 주소의 `board`·`tag`·`page` 가 상태다(틀린 값은 전체·1쪽, 기본값은 주소에서 뺀다). 게시판·보는 사람이 바뀌면 머리 몫도, 쪽만 바뀌면 최신 글만 새로 받는다. 늦게 온 옛 결과는 요청 번호로 버린다.
  * `/tips` 밖(홈·다른 가젯 페이지)에서는 제공되지 않아 `useTipsShared` 가 null — 그 가젯들은 아무것도 그리지 않는다(서버도 그 배치에만 받는다).
  */
 export interface TipsShared {
@@ -92,7 +92,7 @@ export function provideTipsShared(): TipsShared {
         list.value = null;
         listStatus.value = 'loading';
         try {
-            const res = await api.posts({ board: state.value.board, page: state.value.page }, controller.signal);
+            const res = await api.posts({ board: state.value.board, tag: state.value.tag ?? '', page: state.value.page }, controller.signal);
             if (mine !== listSeq) return;
             list.value = res;
             listStatus.value = 'ready';
@@ -104,9 +104,9 @@ export function provideTipsShared(): TipsShared {
         }
     }
 
-    // 게시판·보는 사람이 바뀌면 머리 몫도, 쪽만 바뀌면 최신 글만 새로 받는다. 쪽을 바꾸면 맨 위로
+    // 게시판·보는 사람이 바뀌면 머리 몫도, 쪽·태그만 바뀌면 최신 글만 새로 받는다. 쪽을 바꾸면 맨 위로
     watch(
-        () => [state.value.board, state.value.page, user.value?.id ?? null] as const,
+        () => [state.value.board, state.value.page, user.value?.id ?? null, state.value.tag ?? ''] as const,
         (now, before) => {
             if (!before || now[0] !== before[0] || now[2] !== before[2]) void loadOverview();
             void loadPosts();

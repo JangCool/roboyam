@@ -557,7 +557,7 @@ async function writePost(plan, psql, { path, boardSlug }) {
         if (id) imageIds.push(id);
     }
     const prefix = post.prefix ? plan.board.prefixes?.find((p) => p.name === post.prefix) : null;
-    const body = { boardSlug, prefixId: prefix?.id ?? null, title: post.title.slice(0, 100), contentFormat: 'HTML', content: postHtml(post, imageIds), adult: post.adult === true };
+    const body = { boardSlug, prefixId: prefix?.id ?? null, title: post.title.slice(0, 100), contentFormat: 'HTML', content: postHtml(post, imageIds), adult: post.adult === true, ...(Array.isArray(post.tags) && post.tags.length ? { tags: post.tags } : {}) };
     if (post.secret === true) body.secret = true; // 비밀글(게시판 비밀글 OPTIONAL·ALWAYS — 버그 신고)
     if (post.deal) {
         body.deal = {

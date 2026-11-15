@@ -132,14 +132,19 @@ public final class HomeLayoutDefaults {
      * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). 모바일 전용 두 가젯을 PC 두 가젯 바로 아래 같은 행(y20)에
      * 나란히 두어, 한 열 순서(옆 열 가젯은 본문 열에서 「위 끝 ≤ 그 가젯 아래 끝」인 마지막 가젯 뒤)가 인기글 → 핫 아이로 픽 → 최신글 → 광고가 되게 했다(이미 설치된 곳은 V211 이 넣고 V212 가 이 자리로 바로잡는다).
      * 최신글(PC 전용·모바일 전용)은 뉴스 게시판 글을 뺀다({@code excludeBoardIds ["news"]} — 새소식이 따로 보여 준다, 이미 설치된 곳은 shared V214).
+     * 새소식은 태그 탭 {@link #IROBIT_NEWS_TAG_TABS}(post-tags-contract — 이미 설치된 곳은 shared V215).
      * 머리는 아이콘 + 제목({@code PLAIN}), 구분선은 끈다. 게시판 이름은 기본(자동 — 게시판 표시색이 있으면 그 색, 2026-11-05 사용자 결정으로 회색에서 바꿈).
      */
+    /** 아이로빗 새소식 가젯의 태그 탭(post-tags-contract — shared V215 · 설치 프리셋과 같은 다섯 개) */
+    public static final List<String> IROBIT_NEWS_TAG_TABS = List.of("AI", "반도체", "테슬라", "휴머노이드", "엔비디아");
+
     private static Home irobit() {
         Builder b = new Builder("irobit", 24);
         String news = b.add("POST_LIST", "새소식", true, true, plain("pi-megaphone"),
                 cfg().put("boardScope", GadgetConfigs.PICK).<ObjectNode>set("boardIds", meta(BoardFields.NEWS_SLUG)).put("sort", "LATEST").put("rowStyle", "LINE")
                         .put("lead", GadgetConfigs.LEAD_THUMB).put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 17).put("dividers", false)
-                        .put("mobilePages", 3).put("mobilePageSize", 5).set("meta", meta("PREFIX", "COMMENTS", "TIME")),
+                        .put("mobilePages", 3).put("mobilePageSize", 5).<ObjectNode>set("meta", meta("PREFIX", "COMMENTS", "TIME"))
+                        .set("tagTabs", meta(IROBIT_NEWS_TAG_TABS.toArray(String[]::new))),
                 null, "/boards/" + BoardFields.NEWS_SLUG, 0, 0, 18, 12);
         String popular = b.add("POST_LIST", "인기글", true, true, tabler("pi-chart-line", GadgetTablerIcons.FLAME),
                 cfg().put("sort", "POPULAR").put("rowStyle", "COMPACT").put("columns", 1).put("count", 20).put("dividers", false).put("periodTabs", true)

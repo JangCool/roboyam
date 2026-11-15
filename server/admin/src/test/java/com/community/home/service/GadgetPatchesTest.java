@@ -294,6 +294,86 @@ class GadgetPatchesTest {
     }
 
     @Test
+    void 태그_탭은_태그_규칙으로_정리하고_겹치면_하나로_8개까지() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        ObjectNode raw = o();
+        raw.putArray("tagTabs").add("#AI").add(" ai ").add("").add("  반도체  ").add("Tesla   Model Y");
+        ObjectNode patch = config("POST_LIST", raw, o(), GadgetConfigs.Place.HOME, fields);
+
+        assertThat(fields).isEmpty();
+        assertThat(HomeLayoutJson.texts(patch, "tagTabs")).as("# 떼기 · 대소문자 무시 겹침은 처음 모양 · 빈 칸 버림 · 안쪽 공백 하나로")
+                .containsExactly("AI", "반도체", "Tesla Model Y");
+
+        ObjectNode empty = o();
+        empty.putArray("tagTabs");
+        assertThat(config("POST_LIST", empty, o(), GadgetConfigs.Place.HOME, fields).path("tagTabs")).as("빈 목록 = 탭 없음").isEmpty();
+        assertThat(fields).isEmpty();
+
+        ObjectNode eight = o();
+        ArrayNode eightTabs = eight.putArray("tagTabs");
+        for (int i = 0; i < GadgetConfigs.TAG_TABS_MAX; i++) {
+            eightTabs.add("t" + i);
+        }
+        eightTabs.add("T0"); // 겹침은 하나로 세어 8개
+        assertThat(config("POST_LIST", eight, o(), GadgetConfigs.Place.HOME, fields).path("tagTabs")).hasSize(GadgetConfigs.TAG_TABS_MAX);
+        assertThat(fields).isEmpty();
+
+        ObjectNode notArray = o().put("tagTabs", "AI");
+        ObjectNode notText = o();
+        notText.putArray("tagTabs").add(3);
+        ObjectNode comma = o();
+        comma.putArray("tagTabs").add("AI,로봇");
+        ObjectNode sharp = o();
+        sharp.putArray("tagTabs").add("C#");
+        ObjectNode tooLong = o();
+        tooLong.putArray("tagTabs").add("가".repeat(21));
+        ObjectNode nine = o();
+        ArrayNode nineTabs = nine.putArray("tagTabs");
+        for (int i = 0; i <= GadgetConfigs.TAG_TABS_MAX; i++) {
+            nineTabs.add("t" + i);
+        }
+        for (ObjectNode wrong : new ObjectNode[] {notArray, notText, comma, sharp, tooLong, nine}) {
+            fields.clear();
+            assertThat(config("POST_LIST", wrong, o(), GadgetConfigs.Place.HOME, fields)).isNull();
+            assertThat(fields).containsOnlyKeys("gadgets[0].config.tagTabs");
+        }
+
+        // 글 목록 전용 칸 — 다른 종류에서는 버린다
+        fields.clear();
+        assertThat(config("GALLERY", raw, o(), GadgetConfigs.Place.HOME, fields)).isNull();
+        assertThat(fields).isEmpty();
+    }
+
+    @Test
+    void 태그_탭의_관리자_보기는_늘_목록이고_틀린_값은_거른다() {
+        assertThat(GadgetConfigs.view("POST_LIST", null).path("tagTabs").isArray()).isTrue();
+        assertThat(GadgetConfigs.view("POST_LIST", null).path("tagTabs")).isEmpty();
+
+        ObjectNode stored = o();
+        ArrayNode tabs = stored.putArray("tagTabs").add("AI").add("a,b").add("ai").add(7).add("#로봇");
+        for (int i = 0; i < 10; i++) {
+            tabs.add("t" + i);
+        }
+        ObjectNode read = GadgetConfigs.view("POST_LIST", stored);
+        assertThat(read.path("tagTabs")).hasSize(GadgetConfigs.TAG_TABS_MAX);
+        assertThat(read.path("tagTabs").get(0).asString()).isEqualTo("AI");
+        assertThat(read.path("tagTabs").get(1).asString()).as("앞의 # 를 떼고 읽는다").isEqualTo("로봇");
+        assertThat(read.path("tagTabs").get(2).asString()).isEqualTo("t0");
+
+        assertThat(GadgetConfigs.view("POST_LIST", o().put("tagTabs", "AI")).path("tagTabs")).as("배열이 아니면 빈 목록").isEmpty();
+        assertThat(GadgetConfigs.view("GALLERY", stored).has("tagTabs")).as("글 목록 전용").isFalse();
+    }
+
+    @Test
+    void 아이로빗_기본_배치의_새소식은_태그_탭_다섯() {
+        var news = HomeLayoutDefaults.of("irobit").gadgets().stream()
+                .filter(g -> "POST_LIST".equals(g.type()) && HomeLayoutJson.texts(g.config(), "boardIds").equals(java.util.List.of("news")))
+                .toList();
+        assertThat(news).hasSize(1);
+        assertThat(GadgetConfigs.tagTabs(news.getFirst().config())).containsExactly("AI", "반도체", "테슬라", "휴머노이드", "엔비디아");
+    }
+
+    @Test
     void 아이로빗_기본_배치의_최신글_둘은_뉴스_게시판을_뺀다() {
         var latest = HomeLayoutDefaults.of("irobit").gadgets().stream()
                 .filter(g -> "POST_LIST".equals(g.type()) && "LATEST".equals(HomeLayoutJson.text(g.config(), "sort", "LATEST"))

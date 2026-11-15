@@ -9,6 +9,7 @@
         제목 아이콘(`GadgetTitleIcon`, 2026-11-10): 보이기·출처(PrimeIcons·Tabler·올린 파일)·색·바탕(옅은 네모)은 꾸미기 칸, 칸이 없으면 테마 기본(모든 테마 보이기, 아이로빗은 옅은 네모 — `UtilGadget.titleIcon`).
         클래스 `gadget-icon`(머리 아이콘)·`gadget-more`(「더보기」)·`gadget-head`(머리 줄)는 테마 CSS 가 모양을 바꾸는 고리다 — 데스크톱에는 기본 규칙이 없어 다른 테마에서는 아무것도 바뀌지 않는다(아이로빗: 옅은 주 색상 칩 · 작은 글자, `main.css`).
         한 열(모바일, 격자 `stack`)에서는 머리 「더보기 ›」의 터치 영역을 44px 로 넓힌다(`main.css` `[data-grid-mode='stack'] .gadget-head .gadget-more` — 모든 테마).
+        머리 슬롯 `head`(post-tags-contract): 제목·부제 바로 뒤, 오른쪽 「더보기」 앞 — 새소식 태그 탭(PC)이 쓴다. `moreTo` 는 「더보기」 주소만 바꾼다(고른 태그의 게시판 목록).
         마우스 올림 효과: 설정 `hover`(기본 켬 — `UtilGadget.hoverOn`)면 뿌리에 `data-gadget-hover` 를 달고, 가젯 컴포넌트가 항목에 붙인 `gadget-hover`·`gadget-hover-box`·`gadget-hover-photo` 가 그때만 반응한다(`main.css`).
     -->
     <section
@@ -30,11 +31,13 @@
             <GadgetTitleIcon v-if="titleIcon" :icon="titleIcon" :style="iconColorStyle" />
             <h2 :id="headingId" class="m-0 min-w-0 truncate font-bold" :class="UtilGadget.titleSizeClass(style.titleSize, look)" :style="titleColorStyle" data-testid="home-gadget-title">{{ gadget.title }}</h2>
             <span v-if="style.subtitle" class="min-w-0 shrink truncate text-xs font-normal" :class="style.headerStyle === 'FILLED' ? 'opacity-80' : 'text-muted-color'">{{ style.subtitle }}</span>
+            <!-- 가젯이 제목 바로 옆에 덧붙이는 것(새소식 태그 탭 — PC) — 넘치면 그 안에서 가로로 민다 -->
+            <slot name="head" />
             <span class="flex-1" />
             <!-- 카드형은 「더보기」가 머리 오른쪽 -->
             <NuxtLink
                 v-if="more && look === 'card'"
-                :to="more.to"
+                :to="moreTarget"
                 class="gadget-more shrink-0 whitespace-nowrap rounded text-[0.8125rem] font-normal hover:underline focus-visible:outline-2 focus-visible:outline-primary"
                 :class="style.headerStyle === 'FILLED' ? '' : 'text-muted-color hover:text-color'"
                 data-testid="home-gadget-more"
@@ -74,7 +77,7 @@
         <!-- 기본형의 「더보기」 줄 -->
         <NuxtLink
             v-if="more && look === 'classic' && bodyShown && !showEmpty"
-            :to="more.to"
+            :to="moreTarget"
             :style="classicMoreStyle"
             class="mt-1 block border-t border-surface py-2.5 text-center text-sm text-muted-color hover:bg-surface-100 hover:text-color focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
             data-testid="home-gadget-more"
@@ -84,7 +87,7 @@
         <!-- 카드형인데 머리를 숨긴 가젯 — 「더보기」를 내용 아래 오른쪽에 -->
         <NuxtLink
             v-else-if="more && look === 'card' && !showHeader && bodyShown && !showEmpty"
-            :to="more.to"
+            :to="moreTarget"
             class="gadget-more block rounded pt-2 text-right text-[0.8125rem] text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary"
             data-testid="home-gadget-more"
         >
@@ -105,11 +108,13 @@ interface Props {
     emptyIcon?: string;
     /** 서버의 `gadget.empty` 대신 화면이 판정한 「비었다」 — 주지 않으면(null) `gadget.empty` */
     empty?: boolean | null;
+    /** 「더보기」 주소를 바꾼다(새소식 태그 탭 — 고른 태그의 게시판 목록) — 「더보기」가 있을 때만, null 이면 가젯 「더보기」 그대로 */
+    moreTo?: string | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { emptyIcon: 'pi pi-inbox', empty: null });
+const props = withDefaults(defineProps<Props>(), { emptyIcon: 'pi pi-inbox', empty: null, moreTo: null });
 
-defineSlots<{ default?(): unknown }>();
+defineSlots<{ default?(): unknown; head?(): unknown }>();
 
 const { t } = useI18n();
 const look = useGadgetLook();
@@ -126,6 +131,7 @@ const showHeader = computed(() => style.value.headerStyle !== 'HIDDEN');
 /** 잠긴 가젯에는 「더보기」가 없다(서버도 비운다) */
 const more = computed(() => (props.gadget.locked ? null : props.gadget.more));
 const moreLabel = computed(() => more.value?.label ?? t('home.more'));
+const moreTarget = computed(() => props.moreTo ?? more.value?.to ?? '');
 
 /** 접을 수 있는가 — 모바일 폭에서만(데스크톱은 늘 펼침) */
 const foldable = computed(() => !wide.value && UtilGadget.foldable(style.value));

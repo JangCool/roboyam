@@ -3,6 +3,7 @@ package com.community.tips.repository.master;
 import com.community.post.dto.PostRowData;
 import com.community.post.entity.QPostEntity;
 import com.community.post.repository.master.PostRepositoryQDSL;
+import com.community.post.repository.master.PostTagQueries;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.ConstructorExpression;
@@ -71,11 +72,19 @@ public class TipsPostQueries extends IrobitRepositoryQDSL {
 
     /** 최신 글 한 쪽(공지 빼고) — 전체 수와 함께 */
     public PostRepositoryQDSL.Page latest(Collection<Long> boardIds, boolean adultViewer, long offset, int limit, Instant now) {
+        return latest(boardIds, null, adultViewer, offset, limit, now);
+    }
+
+    /** 최신 글 한 쪽 — 태그 거르기까지({@code tagKey} null = 전체, post-tags-contract {@code ?tag=}) */
+    public PostRepositoryQDSL.Page latest(Collection<Long> boardIds, String tagKey, boolean adultViewer, long offset, int limit, Instant now) {
         if (boardIds.isEmpty()) {
             return new PostRepositoryQDSL.Page(List.of(), 0);
         }
         BooleanExpression where = POST.boardId.in(boardIds).and(PostRepositoryQDSL.alive(POST, now)).and(PostRepositoryQDSL.notSellerHidden(POST, now))
                 .and(PostRepositoryQDSL.feedVisible(POST)).and(PostRepositoryQDSL.adultVisible(POST, adultViewer)).and(POST.pinnedAt.isNull());
+        if (tagKey != null) {
+            where = where.and(PostTagQueries.hasTag(POST, tagKey));
+        }
         Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
         if (total == null || total == 0 || offset >= total) {
             return new PostRepositoryQDSL.Page(List.of(), total == null ? 0 : total);
