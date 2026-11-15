@@ -181,9 +181,9 @@ public final class HomeLayoutDefaults {
     /** 아이로빗 최신글(PC)의 글 수 — 왼쪽 열(핫 아이로 픽 + 띠 배너 + 핫딜) 높이에 두 줄 모양으로 들어가는 만큼(로컬 1920 폭에서 잼) */
     public static final int IROBIT_PC_LATEST_COUNT = 15;
 
-    /** 아이로빗 최신글 두 줄 모양(모바일 최신글과 같다 — 제목 한 줄 / 게시판 · 댓글 · 시간 · 추천 아이콘, 사진 없음, 줄 간격 좁게, 뉴스 게시판 뺌) */
+    /** 아이로빗 최신글 두 줄 모양(모바일 최신글과 같다 — 제목 한 줄 / 게시판 · 댓글 · 시간 · 추천 아이콘, 사진은 있는 글만 오른쪽에 줄 높이만큼(AUTO — 2026-11-15), 줄 간격 좁게, 뉴스 게시판 뺌) */
     private static ObjectNode latestTwoLine(int columns, int count) {
-        return cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", columns).put("count", count)
+        return cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "AUTO").put("titleLines", 1).put("columns", columns).put("count", count)
                 .put("dividers", false).put("likes", "ICON").put("rowSpacing", "TIGHT").<ObjectNode>set("excludeBoardIds", meta(BoardFields.NEWS_SLUG))
                 .set("meta", meta("BOARD", "COMMENTS", "TIME", "LIKES"));
     }

@@ -94,8 +94,8 @@
 
                 <!-- 보통 줄 -->
                 <NuxtLink v-else :to="`/posts/${row.id}`" class="gadget-hover flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowPad">
-                    <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다(64×40, 2026-11-06 사용자) -->
-                    <GadgetThumb v-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
+                    <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다 — 제목 한 줄이면 그 높이에 꼭 맞추고(thumbFit), 두 줄이면 64×40(2026-11-06·11-15 사용자) -->
+                    <GadgetThumb v-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="thumbFit" />
                     <!-- 촘촘(`COMPACT`)은 한 줄 — 제목 오른쪽에 메타(게시판·추천·시간)를 나란히 둔다(좁은 칸에 글 10개가 들어가게, 2026-11-06).
                          인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
@@ -128,7 +128,7 @@
                             </span>
                         </p>
                     </div>
-                    <GadgetThumb v-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
+                    <GadgetThumb v-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="thumbFit" />
                 </NuxtLink>
             </FoldedRow>
         </div>
@@ -210,6 +210,11 @@ const likesLead = computed(() => showLikes.value && likesShape.value === 'LEAD' 
 /** 뉴스형 한 줄(`LINE`)의 날짜 — 표시 칸에 「시간」이 있을 때 오른쪽 끝 */
 const timeShown = computed(() => props.cfg.meta.includes('TIME'));
 
+/**
+ * 줄 사진 크기 — 제목 한 줄이면 글 두 줄(제목 + 메타) 높이에 꼭 맞춘다(`self-stretch` · 폭은 16:10 비율로 — 사진이 있어도 줄이 높아지지 않는다, 2026-11-15 사용자 「row 높이만큼」).
+ * 제목 두 줄이면 지금처럼 64×40(글이 길어져도 사진은 그대로).
+ */
+const thumbFit = computed(() => (lines.value === 1 ? 'self-stretch' : 'w-16'));
 /** 보통 줄 위아래 여백 — 촘촘은 4px(인기글 기간 탭 5px), 두 줄 줄은 10px · 줄 간격 좁게(`rowSpacing: TIGHT`) 7px */
 const rowPad = computed(() => {
     if (rowStyle.value === 'COMPACT') return props.dense ? 'py-[5px]' : 'py-1';
