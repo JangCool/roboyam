@@ -370,7 +370,7 @@ export default class UtilAdminMenu {
                 { key: 'hotdeals', to: '/hotdeals', icon: 'pi pi-ticket', labelKey: 'menu.hotdeals', permission: 'hotdeal.read' },
                 { key: 'hotdealDomains', to: '/hotdeals/domains', icon: 'pi pi-link', labelKey: 'menu.hotdealDomains', permission: 'hotdeal.read' },
                 { key: 'hotdealSuspicions', to: '/hotdeals/suspicions', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.hotdealSuspicions', permission: 'hotdeal.read' },
-                { key: 'hotdealSettings', to: '/hotdeals/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.hotdealSettings', permission: 'hotdeal.manage' },
+                { key: 'hotdealSettings', to: '/hotdeals/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.hotdealSettings', permission: 'hotdeal.read' },
             ],
         },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다

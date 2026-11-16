@@ -170,6 +170,9 @@ public class RoleService {
         checkCandidates(role, wanted);
 
         Set<String> current = roleQueries.permissionCodesOf(roleId);
+        if (operatorRole) {
+            addRequiredReads(actor, role, wanted, current);
+        }
         List<String> granted = wanted.stream().filter(code -> !current.contains(code)).toList();
         List<String> revoked = current.stream().filter(code -> !wanted.contains(code)).toList();
         if (operatorRole && granted.stream().anyMatch(code -> !actor.can(code))) {
@@ -209,6 +212,21 @@ public class RoleService {
         roles.delete(role);
         audit.record(operatorEvent(actor, AuditActions.ROLE_DELETE, roleId).with("roleTypeId", role.getRoleTypeId()));
         log.info("역할을 지웠다 roleId={} operatorId={}", roleId, actor.operatorId());
+    }
+
+    /**
+     * 처리·설정·민감 조치에 짝 조회 권한({@link Permission#requiredRead})을 채운다 — 조회 없이 쓰기만 있으면 메뉴가 안 보여 그 화면에 못 들어간다.
+     * 이 역할의 후보 안이고, 바꾸는 사람이 줄 수 있거나(권한 상승 방지) 이미 역할에 있는 것만 넣는다(못 넣으면 화면의 안내에 맡긴다).
+     */
+    private void addRequiredReads(AdminActor actor, RoleEntity role, Set<String> wanted, Set<String> current) {
+        RoleTypeDef type = RoleTypes.find(role.getRoleTypeId()).orElseThrow(RoleTypeNotFoundException::new);
+        Set<Permission> candidates = Set.copyOf(Permission.candidatesOf(type.permissionType()));
+        for (String code : List.copyOf(wanted)) {
+            Permission.ofCode(code).flatMap(Permission::requiredRead)
+                    .filter(candidates::contains)
+                    .filter(read -> actor.can(read.code()) || current.contains(read.code()))
+                    .ifPresent(read -> wanted.add(read.code()));
+        }
     }
 
     /** 줄 권한이 모두 알려진 코드이고 이 역할이 고를 수 있는 후보 안인지 본다 — 알 수 없는 코드가 하나라도 있으면 먼저 그것을 알린다 */

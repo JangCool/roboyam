@@ -173,7 +173,7 @@ class HotdealAdminRulesHttpTest extends HotdealAdminTestBase {
 
     @Test
     void 사이트_제휴_몰은_유일하고_켬끔도_PUT_지우면_404_감사와_사본_무효화() throws Exception {
-        long operator = operatorWith(Permission.HOTDEAL_MANAGE);
+        long operator = operatorWith(Permission.HOTDEAL_READ, Permission.HOTDEAL_MANAGE); // 목록 조회는 hotdeal.read(2026-11-16)
         Cookie cookie = login(operator);
         String domain = domain("sc");
         String base = "/api/admin/hotdeal-site-affiliates";
@@ -203,7 +203,10 @@ class HotdealAdminRulesHttpTest extends HotdealAdminTestBase {
         mvc.perform(withCsrf(delete(base + "/" + id), cookie)).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("HOTDEAL_SITE_AFFILIATE_NOT_FOUND"));
         mvc.perform(withCsrf(put(base + "/" + id), cookie).content(storeBody(domain, "x", "QUERY", "a=1", true))).andExpect(status().isNotFound());
-        // 조회도 hotdeal.manage(계약) — 읽기 권한만으로는 403
-        mvc.perform(get(base).cookie(login(operatorWith(Permission.HOTDEAL_READ)))).andExpect(status().isForbidden());
+        // 조회는 hotdeal.read(설정 화면의 읽기 전용 보기 — 2026-11-16 사용자 결정), 바꾸기는 hotdeal.manage
+        Cookie reader = login(operatorWith(Permission.HOTDEAL_READ));
+        mvc.perform(get(base).cookie(reader)).andExpect(status().isOk());
+        mvc.perform(withCsrf(post(base), reader).content(storeBody(domain("sr"), "틀", "TEMPLATE", "https://link.example.com/?u={url}", null)))
+                .andExpect(status().isForbidden());
     }
 }

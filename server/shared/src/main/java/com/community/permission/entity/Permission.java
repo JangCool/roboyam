@@ -259,6 +259,39 @@ public enum Permission {
         return Arrays.stream(values()).map(Permission::code).toList();
     }
 
+    /** 짝 조회 권한을 이름·유형으로 정할 수 없는 예외 — 값이 null 이면 짝이 없다(그 화면의 조회가 다른 유형에 있거나, 화면이 쓰기 권한으로 열린다) */
+    private static final Map<String, String> READ_OVERRIDES = new java.util.HashMap<>();
+
+    static {
+        READ_OVERRIDES.put("commerce.reconcile.manage", "commerce.payment.read"); // 결제·대사 화면(/payments/*)
+        READ_OVERRIDES.put("commerce.export", null); // 공구 주문 화면(commerce.order.read — 다른 유형)
+        READ_OVERRIDES.put("commerce.settings", null); // 공구 설정 화면은 commerce.settings 로 열린다
+    }
+
+    /**
+     * 이 권한을 쓰는 화면에 들어가려면 필요한 같은 유형의 조회 권한 — 처리·설정·민감 조치만 가진 역할은 메뉴가 안 보여 그 화면에 못 들어가므로,
+     * 역할 권한을 저장할 때 함께 채운다(2026-11-16 사용자 결정 「쓰기 고르면 읽기 자동 체크」). 규칙: ① 예외 표 ② 코드 앞부분 + {@code .read}
+     * ({@code board.staff.manage} → {@code board.read}) ③ 같은 유형의 조회 권한이 하나뿐이면 그것. 조회 권한 자신이거나 찾지 못하면 비어 있다.
+     * admin-web {@code UtilPermissionCatalog.requiredRead} 와 같은 규칙이다.
+     */
+    public Optional<Permission> requiredRead() {
+        if (unit == READ) {
+            return Optional.empty();
+        }
+        if (READ_OVERRIDES.containsKey(code)) {
+            return Optional.ofNullable(READ_OVERRIDES.get(code)).flatMap(Permission::ofCode);
+        }
+        String[] parts = code.split("\\.");
+        for (int i = parts.length - 1; i >= 1; i--) {
+            Optional<Permission> read = ofCode(String.join(".", Arrays.copyOfRange(parts, 0, i)) + ".read");
+            if (read.isPresent() && read.get().type == type) {
+                return read;
+            }
+        }
+        List<Permission> reads = Arrays.stream(values()).filter(p -> p.type == type && p.unit == READ).toList();
+        return reads.size() == 1 ? Optional.of(reads.get(0)) : Optional.empty();
+    }
+
     /** 세부 유형의 운영자 역할이 고를 수 있는 권한 후보 — 그 유형에 속한 권한 전부. 종합 관리 유형은 유형 제한 없이 모든 권한이다 */
     public static List<Permission> candidatesOf(PermissionType type) {
         if (type.isGeneral()) {

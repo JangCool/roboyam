@@ -4,6 +4,8 @@
         **권한 상승 방지**(운영자 역할만): 지금 로그인한 운영자가 가진 권한만 체크할 수 있고 그 밖은 비활성 + 툴팁("내 권한 밖이에요"). 이미 체크된 내 권한 밖의 권한은 그대로 두고 바꿀 수 없다. 회원 역할에는 이 규칙이 없다(정책 제안).
         화면(사이트 기능)이 아직 없는 권한(`featureReady: false`)은 "기능 준비 중" 작은 표시가 붙지만 **체크할 수 있다**(미리 역할을 설계해 둘 수 있게).
         `disabled` 면 전부 잠근다(권한을 줄 권한이 없을 때).
+        **짝 조회 권한**(운영자 역할만, 2026-11-16): 처리·설정·민감 조치를 체크하면 그 화면에 들어가는 같은 유형의 조회 권한(`UtilPermissionCatalog.requiredRead`)도 함께 체크하고,
+        그것을 쓰는 권한이 체크돼 있는 동안 조회 체크는 잠근다(툴팁 「…가 이 조회 권한을 써요」). 「전체 해제」는 쓰는 권한과 함께 푼다. 서버도 저장할 때 같은 규칙으로 채운다.
     -->
     <div>
         <div class="mb-2 flex items-center justify-between gap-2">
@@ -89,13 +91,32 @@ function preparing(permission: PermissionItem): boolean {
     return permission.featureReady === false;
 }
 
+/** 이 조회 권한을 쓰는(짝으로 요구하는) 체크된 권한들 — 운영자 역할만 */
+function dependentsOf(permission: PermissionItem): PermissionItem[] {
+    if (props.kind !== 'OPERATOR') return [];
+    return props.candidates.filter((p) => model.value.includes(p.code) && UtilPermissionCatalog.requiredRead(p.code) === permission.code);
+}
+
 function blocked(permission: PermissionItem): boolean {
-    return outside(permission);
+    return outside(permission) || (model.value.includes(permission.code) && dependentsOf(permission).length > 0);
 }
 
 /** 못 고르는 이유(툴팁·글자) — 없으면 빈 글자 */
 function reasonOf(permission: PermissionItem): string {
-    return outside(permission) ? t('role.outsideOfMine') : '';
+    if (outside(permission)) return t('role.outsideOfMine');
+    const users = model.value.includes(permission.code) ? dependentsOf(permission) : [];
+    return users.length ? t('role.readRequiredBy', { names: users.map((p) => t(p.nameKey)).join(', ') }) : '';
+}
+
+/** 체크된 권한의 짝 조회 권한을 채운다 — 후보 안이고 내가 줄 수 있거나 이미 체크된 것만(권한 상승 방지) */
+function withRequiredReads(codes: string[]): string[] {
+    if (props.kind !== 'OPERATOR') return codes;
+    const out = new Set(codes);
+    for (const code of codes) {
+        const read = UtilPermissionCatalog.requiredRead(code);
+        if (read && props.candidates.some((p) => p.code === read) && (can(read) || out.has(read))) out.add(read);
+    }
+    return [...out];
 }
 
 function typeName(typeId: string): string {
@@ -105,11 +126,12 @@ function typeName(typeId: string): string {
 
 const pickableCount = computed(() => props.candidates.length);
 const pickedCount = computed(() => props.candidates.filter((p) => model.value.includes(p.code)).length);
-const selectableCodes = computed(() => props.candidates.filter((p) => !blocked(p)).map((p) => p.code));
+// 「전체 선택·해제」는 권한 상승 방지만 본다 — 짝 조회 잠금은 낱개 체크용이고, 해제할 때는 쓰는 권한과 함께 풀린다(`toggle` 이 남은 것의 짝만 다시 채운다)
+const selectableCodes = computed(() => props.candidates.filter((p) => !outside(p)).map((p) => p.code));
 const allPicked = computed(() => selectableCodes.value.length > 0 && selectableCodes.value.every((code) => model.value.includes(code)));
 
 function groupSelectable(group: PermissionGroupView): string[] {
-    return group.items.filter((p) => !blocked(p)).map((p) => p.code);
+    return group.items.filter((p) => !outside(p)).map((p) => p.code);
 }
 
 function groupAllPicked(group: PermissionGroupView): boolean {
@@ -117,8 +139,9 @@ function groupAllPicked(group: PermissionGroupView): boolean {
     return codes.length > 0 && codes.every((code) => model.value.includes(code));
 }
 
-/** `codes` 를 모두 켜거나(`off` 가 false) 모두 끈다. 못 고르는 것에서 이미 체크된 것은 건드리지 않는다 */
+/** `codes` 를 모두 켜거나(`off` 가 false) 모두 끈다. 못 고르는 것에서 이미 체크된 것은 건드리지 않는다. 결과에는 남은 권한의 짝 조회 권한을 채운다 */
 function toggle(codes: string[], off: boolean): void {
-    model.value = off ? model.value.filter((code) => !codes.includes(code)) : [...new Set([...model.value, ...codes])];
+    const next = off ? model.value.filter((code) => !codes.includes(code)) : [...new Set([...model.value, ...codes])];
+    model.value = withRequiredReads(next);
 }
 </script>

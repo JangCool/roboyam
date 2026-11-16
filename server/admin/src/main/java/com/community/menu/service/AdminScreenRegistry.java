@@ -176,7 +176,7 @@ public final class AdminScreenRegistry {
                     leaf(s("hotdeals", "/hotdeals", "menu.hotdeals", "pi pi-ticket", Permission.HOTDEAL_READ)),
                     leaf(s("hotdealDomains", "/hotdeals/domains", "menu.hotdealDomains", "pi pi-link", Permission.HOTDEAL_READ)),
                     leaf(s("hotdealSuspicions", "/hotdeals/suspicions", "menu.hotdealSuspicions", "pi pi-exclamation-triangle", Permission.HOTDEAL_READ)),
-                    leaf(s("hotdealSettings", "/hotdeals/settings", "menu.hotdealSettings", "pi pi-sliders-h", Permission.HOTDEAL_MANAGE))),
+                    leaf(s("hotdealSettings", "/hotdeals/settings", "menu.hotdealSettings", "pi pi-sliders-h", Permission.HOTDEAL_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-sign-in", Permission.SITE_READ)),

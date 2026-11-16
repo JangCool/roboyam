@@ -56,7 +56,8 @@ public class HotdealSettingsAdminController {
 
     // ── 사이트 제휴 몰 ────────────────────────────────────────────────────
 
-    @RequirePermission(Permission.HOTDEAL_MANAGE)
+    /** 몰 표 조회 — 설정 화면(메뉴 {@code hotdeal.read})의 읽기 전용 보기도 같은 표를 보인다. 바꾸기는 {@code hotdeal.manage} */
+    @RequirePermission(Permission.HOTDEAL_READ)
     @GetMapping("/api/admin/hotdeal-site-affiliates")
     public ResponseEntity<ApiResponse<HotdealRuleView.SiteStoreList>> siteStores() {
         return HotdealAdminController.ok(siteStores.list());

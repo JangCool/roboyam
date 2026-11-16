@@ -110,6 +110,7 @@ export default {
     pickAllOf: '{unit} 전체 선택',
     unpickAllOf: '{unit} 전체 해제',
     outsideOfMine: '내 권한 밖이에요',
+    readRequiredBy: '{names} 권한이 이 조회 권한을 써요 — 그 권한을 먼저 빼요',
     permPreparing: '준비 중',
 
     // 회원 역할

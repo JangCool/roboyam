@@ -110,6 +110,7 @@ export default {
     pickAllOf: 'Select all {unit}',
     unpickAllOf: 'Clear all {unit}',
     outsideOfMine: 'Beyond your permissions',
+    readRequiredBy: '{names} needs this view permission — remove it first',
     permPreparing: 'Coming soon',
 
     // Member roles

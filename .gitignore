@@ -45,3 +45,6 @@ installer/dist/
 
 # 디자인 검사 도구(impeccable) 설정·캐시 — 저장소에 넣지 않는다(루트·앱 폴더 모두)
 .impeccable/
+
+# QA 시험 계정(로컬 전용)
+docs/qa/*.local.md

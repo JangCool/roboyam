@@ -41,8 +41,10 @@ public enum CacheSaveSource {
     BOARD_SAVE(boardAndLists()),
     /** 게시판 기본 설정 저장 — 게시판 사본 · 사이트 정보의 목록 표시 기본값 · 글 목록 */
     BOARD_DEFAULTS_SAVE(withSiteInfo(boardAndLists())),
-    /** 등급 저장 — 게시판 사본의 등급표 · 메뉴의 등급 조건 */
-    GRADE_SAVE(CacheNames.BOARD_CATALOG, CacheNames.MENU_PUBLIC),
+    /** 등급 저장 — 게시판 사본의 등급표 · 메뉴의 등급 조건 · 사이트 정보의 등급 목록(닉네임 옆 등급 이름·도트) */
+    GRADE_SAVE(CacheNames.BOARD_CATALOG, CacheNames.MENU_PUBLIC, CacheNames.SITE_INFO),
+    /** 소모임 운영 한도 저장 — 「지금 뜨는 소모임」 개수·활동 기준을 쓰는 인기 소모임 가젯 */
+    GROUP_POLICY_SAVE(CacheNames.GADGET_GROUPS),
     /** 통계 수집 설정 저장 — 사이트 정보에 수집 스위치가 실린다 */
     STATS_SAVE(CacheNames.STATS_COLLECTION, CacheNames.SITE_INFO),
     /** 커머스 요청 한도 저장 */
@@ -83,9 +85,9 @@ public enum CacheSaveSource {
         return "cache.source." + name();
     }
 
-    /** 글 목록 계열 — 최신글 · 인기글 · 가젯 데이터 전부 */
+    /** 글 목록 계열 — 최신글 · 인기글 · 가젯 데이터 전부 · 공지 띠(「공지 게시판」 줄도 글 목록이다 — 숨긴 공지 글·바뀐 공지 게시판이 띠에 남지 않게) */
     private static String[] postLists() {
-        List<String> out = new ArrayList<>(List.of(CacheNames.HOME_LATEST, CacheNames.HOME_POPULAR));
+        List<String> out = new ArrayList<>(List.of(CacheNames.HOME_LATEST, CacheNames.HOME_POPULAR, CacheNames.SITE_NOTICE_BAR));
         out.addAll(CacheCatalog.gadgetKeys());
         return out.toArray(String[]::new);
     }

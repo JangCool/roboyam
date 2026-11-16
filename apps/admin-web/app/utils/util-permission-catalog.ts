@@ -350,6 +350,30 @@ export default class UtilPermissionCatalog {
         return UtilPermissionCatalog.PERMISSIONS.find((p) => p.code === code);
     }
 
+    /** 짝 조회 권한을 이름·유형으로 정할 수 없는 예외 — null 이면 짝이 없다(서버 `Permission.READ_OVERRIDES` 와 같다) */
+    private static readonly READ_OVERRIDES: Readonly<Record<string, string | null>> = {
+        'commerce.reconcile.manage': 'commerce.payment.read',
+        'commerce.export': null,
+        'commerce.settings': null,
+    };
+
+    /**
+     * 이 권한을 쓰는 화면에 들어가려면 필요한 같은 유형의 조회 권한(서버 `Permission.requiredRead` 와 같은 규칙) — 쓰기만 있고 조회가 없으면 메뉴가 안 보여 화면에 못 들어간다.
+     * ① 예외 표 ② 코드 앞부분 + `.read`(`board.staff.manage` → `board.read`) ③ 같은 유형의 조회 권한이 하나뿐이면 그것. 조회 자신이거나 못 찾으면 null.
+     */
+    static requiredRead(code: string): string | null {
+        const permission = UtilPermissionCatalog.permissionOf(code);
+        if (!permission || permission.unit === 'READ') return null;
+        if (code in UtilPermissionCatalog.READ_OVERRIDES) return UtilPermissionCatalog.READ_OVERRIDES[code] ?? null;
+        const parts = code.split('.');
+        for (let i = parts.length - 1; i >= 1; i--) {
+            const read = UtilPermissionCatalog.permissionOf(`${parts.slice(0, i).join('.')}.read`);
+            if (read && read.type === permission.type) return read.code;
+        }
+        const reads = UtilPermissionCatalog.PERMISSIONS.filter((p) => p.type === permission.type && p.unit === 'READ');
+        return reads.length === 1 ? reads[0]!.code : null;
+    }
+
     static typeOf(typeId: string): RoleTypeDef | undefined {
         return UtilPermissionCatalog.TYPES.find((type) => type.id === typeId);
     }

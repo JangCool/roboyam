@@ -50,7 +50,7 @@ import type { SiteLogoVariant } from '~/utils/util-site-logo';
  *       · `GET /api/admin/site/theme?forTheme=` → 200  (`site.read`) — 메뉴 칸은 `forTheme`(없으면 지금 테마) 것, `menuTheme` 이 그 테마. 목록 밖 `forTheme` 은 400 `fields.forTheme`
  *       · `PUT /api/admin/site/theme` `{ theme }` → 200 새 테마의 메뉴 칸  (`site.manage`) · 400 VALIDATION(`fields.theme` 목록 밖·빈 값, `fields.site` 설정 행 없음)
  *       · `PUT /api/admin/site/themes/{id}/menu` 메뉴 설정 칸 전부 → 200 그 테마의 메뉴 칸  (`site.manage`) · 404(모르는 테마) · 400 VALIDATION(`fields.menuPosition` … `fields.menuStyle.<칸>`, `fields.barGroupIds`)
- *       공개 사이트(`GET /api/site/theme`)는 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 따라온다. 같은 값 저장은 감사·알림을 남기지 않는다.
+ *       공개 사이트(`GET /api/site/theme`)는 저장하면 사본이 바로 비워지고(캐시 자동 갱신 — 몇 초), 브라우저는 `no-cache` + ETag 로 매번 확인한다. 같은 값 저장은 감사·알림을 남기지 않는다.
  *   - 공지 띠(`docs/features/site-notice-bar-contract.md`): `GET /api/admin/site/notice-bar` → 200 `SiteNoticeBarSettingsResponse`  (`site.read`) · `PUT` 같은 주소 `SiteNoticeBarRequest` → 200 저장된 모양  (`site.manage`)
  *       · 400 VALIDATION(`fields.customText` CUSTOM 인데 비었거나 100자 초과·`<` `>`, `fields.customLink` `/…`·`http(s)://` 아님·500자 초과, `fields.boardCount` 5·10 아님)
  *
