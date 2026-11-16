@@ -91,6 +91,16 @@ public class PublicSiteService implements CacheReloader {
         return CacheNames.SITE_INFO;
     }
 
+    /**
+     * SVG 로고 한 칸의 본문 — 공개 주소 {@code /api/site/logos/{칸}.svg}. 칸 이름을 모르거나 그 칸이 SVG 가 아니면 비어 있다.
+     * 주소에 지문({@code v})이 붙어 브라우저가 오래 캐시하므로 요청이 드물어 사본 없이 설정 행을 읽는다.
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Optional<String> logoSvg(String variantKey) {
+        return com.community.site.entity.SiteLogoVariant.fromKey(variantKey)
+                .flatMap(variant -> settings.findById(SiteSettingEntity.ROW_ID).map(row -> row.logoSvg(variant)));
+    }
+
     /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
     @Override
     public Object reload(Object key) {
@@ -103,7 +113,8 @@ public class PublicSiteService implements CacheReloader {
         String siteName = found.map(SiteSettingEntity::getSiteName).orElse(null);
         String tagline = found.map(SiteSettingEntity::getTagline).orElse(null);
         // 로고 4칸(V237) — 원본 칸만, 대체 순서는 화면 규칙. 옛 logoUrl 은 ① 칸 그대로
-        SiteLogoUrls logos = found.map(assets::logoUrls).orElse(SiteLogoUrls.EMPTY);
+        // SVG 칸은 data URI 대신 공개 주소(/api/site/logos/{칸}.svg?v=지문) — 첫 화면 HTML 에 SVG 본문을 싣지 않는다(2026-11-16)
+        SiteLogoUrls logos = found.map(assets::publicLogoUrls).orElse(SiteLogoUrls.EMPTY);
         String logoUrl = logos.koLight();
         boolean logoNameIncluded = found.map(SiteSettingEntity::isLogoNameIncluded).orElse(false);
         Optional<SiteIconResponse> icon = found.flatMap(assets::iconUrls).map(urls ->

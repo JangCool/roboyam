@@ -68,6 +68,37 @@ public class SiteAssets {
         return Optional.empty();
     }
 
+    /** 공개 사이트가 SVG 로고 한 칸을 받는 주소의 앞부분 — 뒤에 {@code {칸}.svg?v=지문} 이 붙는다(api 서버 {@code PublicSiteController}) */
+    public static final String PUBLIC_LOGO_SVG_PATH = "/api/site/logos/";
+
+    /**
+     * 공개 사이트용 로고 4칸 — 그림 파일 칸은 {@link #logoUrls} 와 같고, <b>SVG 칸은 data URI 대신 공개 주소</b>({@code /api/site/logos/koLight.svg?v=지문})다.
+     * 사이트 정보는 첫 화면 HTML 에 실리므로 SVG 본문(칸마다 수십 KB)을 싣지 않고 브라우저가 따로 받아 오래 캐시하게 한다(2026-11-16). 관리자 앱은 다른 서버라 data URI 를 그대로 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public SiteLogoUrls publicLogoUrls(SiteSettingEntity row) {
+        return new SiteLogoUrls(publicLogoUrl(row, SiteLogoVariant.KO_LIGHT), publicLogoUrl(row, SiteLogoVariant.KO_DARK),
+                publicLogoUrl(row, SiteLogoVariant.EN_LIGHT), publicLogoUrl(row, SiteLogoVariant.EN_DARK));
+    }
+
+    private String publicLogoUrl(SiteSettingEntity row, SiteLogoVariant variant) {
+        String svg = row.logoSvg(variant);
+        if (svg != null) {
+            return PUBLIC_LOGO_SVG_PATH + variant.key() + ".svg?v=" + svgFingerprint(svg);
+        }
+        return logoUrl(row, variant).orElse(null);
+    }
+
+    /** SVG 본문의 지문(SHA-256 앞 16자) — 공개 주소의 {@code v} 값. 본문이 바뀌면 주소가 바뀌어 오래 캐시해도 낡은 그림이 남지 않는다 */
+    public static String svgFingerprint(String svgSource) {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(svgSource.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash).substring(0, 16);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** 이미 읽은 설정 행의 로고 4칸 주소(V237) — 빈 칸은 null 그대로 둔다(대체 순서는 화면 규칙) */
     @Transactional(readOnly = true)
     public SiteLogoUrls logoUrls(SiteSettingEntity row) {

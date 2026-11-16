@@ -87,3 +87,8 @@
 - 로고: 시안 ① — 한글 「아이로」+「빗」(강조색) + 작은 「IROBIT」, 영문 「IRO」+「BIT」(강조색). 마스코트(머리·다리)·개구체·색은 그대로. 생성 `robotikon/logo/build.mjs`, 링크 미리보기·아이콘 `design/brand/`.
 - 바꾸는 범위: 사용자에게 보이는 이름 전부(사이트 이름·로고·문구·테마 표시 이름 「아이로빗 테마」·운영 로보티콘 「아이로빗콘·아이로빗콘핑크」·군인 아바타 이름표·데모 원고). **코드 이름은 그대로** — `@irobit/*`, `irobit` 테마 id, 설치 프리셋 id `IROBIT`, `irobit-logo-*.svg` 파일 이름, `IROBIT_*` 환경 변수, DB·패키지 이름.
 - 이미 설치된 사이트: 새 shared 마이그레이션이 옛 기본값 그대로인 값(사이트 이름 `IROBIT`, 옛 소개, 운영 로보티콘 이름 등)만 새 이름으로 바꾼다. 운영자가 바꾼 값은 두기.
+
+## 공개 SVG 로고 주소 (2026-11-16)
+- 공개 `GET /api/site/info` 의 `logos`·`logoUrl` 에서 **SVG 칸은 data URI 대신 `/api/site/logos/{칸}.svg?v=<SHA-256 앞 16자>`** 를 준다(api 서버 `PublicSiteController#logoSvg`, 로그인 없이). 사이트 정보는 첫 화면 HTML 에 실리므로 SVG 본문(4칸이면 약 130KB)을 싣지 않고 브라우저가 따로 받아 캐시한다.
+- 응답: `image/svg+xml`, 지문이 맞으면 `Cache-Control: public, max-age=1년, immutable`, 아니면 `no-cache` + ETag. 직접 열어도 스크립트가 돌지 않게 `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:` · `nosniff`. 모르는 칸·SVG 아닌 칸은 404.
+- 관리자 API 응답은 data URI 그대로다(관리자 앱은 다른 서버라 이 주소를 못 받는다). 스플래시는 이제 SVG 로고도 주소로 받는다.
