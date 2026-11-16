@@ -11,6 +11,11 @@ export default {
     themeAuto: 'Auto',
     themeLight: 'Light',
     themeDark: 'Dark',
+    // Dark style — brightness of the dark screen (2026-11-16)
+    darkVariant: 'Dark style',
+    darkVariantHint: 'Choose how dark the dark screen looks. Auto uses this style too',
+    darkVariantDeep: 'Deep',
+    darkVariantSoft: 'Soft',
     // Text size — separate for PC and phone (picked by screen width)
     textScalePc: 'Text size on PC',
     textScalePcHint: 'Applies to wide screens (landscape tablets, PCs) · default {n}%',

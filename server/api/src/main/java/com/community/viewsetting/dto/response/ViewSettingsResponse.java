@@ -8,8 +8,16 @@ package com.community.viewsetting.dto.response;
  * @param textScaleMobile 휴대폰 글자 크기(백분율) {@code 90~125, 5 단위} — 기본 110(V185)
  * @param commentOrder    댓글 기본 정렬 {@code OLDEST|LATEST}
  * @param menuPosition    데스크톱 메뉴 위치 {@code AUTO}(운영자 설정 > 테마 기본) {@code |TOP|LEFT|RIGHT|TOP_LEFT|TOP_RIGHT}
+ * @param titleBold       글 목록 제목 굵게(V198)
+ * @param darkVariant     다크 종류 {@code DEEP|SOFT}(V231) — 기본 DEEP
  */
-public record ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold) {
+public record ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold,
+        String darkVariant) {
+
+    /** 다크 종류(V231) 기본값(DEEP)으로 */
+    public ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold) {
+        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, titleBold, "DEEP");
+    }
 
     /** 제목 굵게(V198) 기본값(false)으로 */
     public ViewSettingsResponse(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition) {

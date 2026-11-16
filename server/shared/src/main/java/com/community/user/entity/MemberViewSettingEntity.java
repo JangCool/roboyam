@@ -8,7 +8,7 @@ import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * 공개 사이트 회원이 고른 보기 설정(야간 모드·글자 크기·댓글 기본 정렬) — V73 의 {@code member_view_settings}. 회원마다 최대 한 행이다.
- * 글자 크기는 PC({@code text_scale})·휴대폰({@code text_scale_mobile}, V185)을 따로 둔다.
+ * 글자 크기는 PC({@code text_scale})·휴대폰({@code text_scale_mobile}, V185)을 따로 둔다. 다크 종류({@code dark_variant} DEEP|SOFT, V231)도 여기 둔다.
  *
  * <p>행이 없으면 기본값({@code AUTO}·PC {@code 100}·휴대폰 {@code 110}·{@code OLDEST})을 따른다. 세 칸은 늘 함께 저장된다(통째로 바꾼다).
  * 서버는 값만 저장하고 적용은 화면이 한다. 값 검사는 부르는 쪽이 {@code ViewSettingsPolicy} 로 끝낸다.
@@ -29,6 +29,8 @@ public class MemberViewSettingEntity {
     public static final String DEFAULT_MENU_POSITION = "AUTO";
     /** 글 목록 제목 굵게 — 기본 보통 굵기(V198) */
     public static final boolean DEFAULT_TITLE_BOLD = false;
+    /** 다크 종류 — 기본 진하게(V231, {@code DEEP|SOFT}) */
+    public static final String DEFAULT_DARK_VARIANT = "DEEP";
 
     @Id
     private Long userId;
@@ -39,6 +41,7 @@ public class MemberViewSettingEntity {
     private String commentOrder;
     private String menuPosition;
     private boolean titleBold;
+    private String darkVariant;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -54,6 +57,12 @@ public class MemberViewSettingEntity {
     /** 처음 저장할 때 — 제목 굵게(V198)까지 */
     public static MemberViewSettingEntity create(long userId, String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition,
             boolean titleBold, Instant now) {
+        return create(userId, theme, textScale, textScaleMobile, commentOrder, menuPosition, titleBold, DEFAULT_DARK_VARIANT, now);
+    }
+
+    /** 처음 저장할 때 — 다크 종류(V231)까지 */
+    public static MemberViewSettingEntity create(long userId, String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition,
+            boolean titleBold, String darkVariant, Instant now) {
         MemberViewSettingEntity setting = new MemberViewSettingEntity();
         setting.userId = userId;
         setting.theme = theme;
@@ -62,6 +71,7 @@ public class MemberViewSettingEntity {
         setting.commentOrder = commentOrder;
         setting.menuPosition = menuPosition;
         setting.titleBold = titleBold;
+        setting.darkVariant = darkVariant;
         setting.createdAt = now;
         setting.updatedAt = now;
         return setting;
@@ -74,8 +84,14 @@ public class MemberViewSettingEntity {
 
     /** 값을 바꾼다 — 제목 굵게(V198)까지. 같은 값이면 아무것도 바꾸지 않는다 */
     public void change(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold, Instant now) {
+        change(theme, textScale, textScaleMobile, commentOrder, menuPosition, titleBold, this.darkVariant, now);
+    }
+
+    /** 값을 바꾼다 — 다크 종류(V231)까지. 같은 값이면 아무것도 바꾸지 않는다 */
+    public void change(String theme, int textScale, int textScaleMobile, String commentOrder, String menuPosition, boolean titleBold, String darkVariant,
+            Instant now) {
         if (theme.equals(this.theme) && textScale == this.textScale && textScaleMobile == this.textScaleMobile && commentOrder.equals(this.commentOrder)
-                && menuPosition.equals(this.menuPosition) && titleBold == this.titleBold) {
+                && menuPosition.equals(this.menuPosition) && titleBold == this.titleBold && darkVariant.equals(this.darkVariant)) {
             return;
         }
         this.theme = theme;
@@ -84,12 +100,18 @@ public class MemberViewSettingEntity {
         this.commentOrder = commentOrder;
         this.menuPosition = menuPosition;
         this.titleBold = titleBold;
+        this.darkVariant = darkVariant;
         this.updatedAt = now;
     }
 
     /** 글 목록 제목 굵게(V198) */
     public boolean isTitleBold() {
         return titleBold;
+    }
+
+    /** 다크 종류 {@code DEEP|SOFT}(V231) */
+    public String getDarkVariant() {
+        return darkVariant;
     }
 
     public String getMenuPosition() {

@@ -146,6 +146,57 @@ html[data-theme='naver'][data-color-scheme='dark'] {
     --hairline-strong: #41444c;
 }
 
+/*
+ * 부드러운 다크(보기 설정 「다크 종류: 부드럽게」 — `html[data-dark-variant='soft']`, 사용자 확정 2026-11-16 시안 A 회청색). 어두운 화면일 때만 플러그인(`view-theme.client.ts`)·스플래시가 건다.
+ * 진한 다크(위 값들 — 페이지 #17181b · 카드 #202125 · 선 #2e3036)를 모든 테마에서 회청색으로 바꾼다: 페이지 #22272e · 카드 #2d333b · 선 #444c56 · 본문 글자 #cdd9e5 · 보조 글자 #909dab.
+ *  - PrimeVue 회색 단계(`--p-surface-0…950`)를 회청색 단계로 다시 가리킨다 — 위젯(단추·입력·선택·대화상자·토스트·메뉴)과 Tailwind `surface-*`(`dark:bg-surface-800` 등)가 함께 바뀐다.
+ *    Aura 다크의 쓰임: 카드·겹창 바탕 900 · 입력칸 바탕 950 · 호버 800 · 테두리 700 · 입력 테두리 600 → 위 기준 값이 그 자리에 오게 맞췄다.
+ *  - 테마가 hex 로 박은 셸 역할 변수(다음식·아이로빗·네이버식)와 글자 토큰·빈 썸네일·주 색상 바·글 목록 제목도 함께 덮는다.
+ * 명시도 (0,2,1) — 테마 다크 규칙(같거나 낮음)보다 뒤에 있고, `html[data-color-scheme='dark']`(0,1,1)·색상 테마 `html:is([data-palette…])`(0,1,1)·PrimeVue 층 변수를 이긴다.
+ * 색상 테마의 강조색(다크 400 단계)은 그대로 둔다.
+ */
+html[data-color-scheme='dark'][data-dark-variant='soft'] {
+    --p-surface-0: #f0f4f8;
+    --p-surface-50: #e6edf3;
+    --p-surface-100: #cdd9e5;
+    --p-surface-200: #adbac7;
+    --p-surface-300: #909dab;
+    --p-surface-400: #768390;
+    --p-surface-500: #636e7b;
+    --p-surface-600: #545d68;
+    --p-surface-700: #444c56;
+    --p-surface-800: #373e47;
+    --p-surface-900: #2d333b;
+    --p-surface-950: #22272e;
+    /* 글자 — 본문 #cdd9e5 · 호버 #e6edf3 · 보조 #909dab · 보조 호버 #adbac7 */
+    --p-text-color: #cdd9e5;
+    --p-text-hover-color: #e6edf3;
+    --p-text-muted-color: #909dab;
+    --p-text-hover-muted-color: #adbac7;
+    /* 셸 역할 변수 */
+    --page-bg: #22272e;
+    --card-bg: #2d333b;
+    --card-shadow: none;
+    --hairline: #444c56;
+    --hairline-strong: #545d68;
+    --tab-fg: rgba(205, 217, 229, 0.72);
+    --tab-fg-active: #cdd9e5;
+    --subtab-fg: rgba(205, 217, 229, 0.5);
+    --subtab-fg-active: #cdd9e5;
+    /* 주 색상 바(기본 테마 상단 바 · 모바일 「주 색상」 바) — 진한 다크의 900 에서 한 단계 밝게 */
+    --nav-bg: var(--p-primary-800);
+    /* 빈 썸네일 — 일반은 카드보다 한 단계 밝은 면 · 뉴스는 밝힌 남색(#3b5bab) + 아이콘 #d3defa */
+    --empty-thumb-bg: #373e47;
+    --empty-thumb-fg: #909dab;
+    --empty-thumb-news-bg: #3b5bab;
+    --empty-thumb-news-icon: #d3defa;
+    --empty-thumb-news-fg: #ffffff;
+}
+/* 글 목록 줄 제목 — 본문보다 살짝 낮춘 #c5d1de(검색어 강조 `mark` 는 자기 색) */
+html[data-color-scheme='dark'][data-dark-variant='soft'] .post-row-title {
+    color: #c5d1de;
+}
+
 @theme inline {
     --color-page: var(--page-bg);
     --color-card: var(--card-bg);

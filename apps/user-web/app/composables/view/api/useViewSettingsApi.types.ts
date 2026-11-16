@@ -12,6 +12,9 @@ export type ThemeSetting = 'AUTO' | 'LIGHT' | 'DARK';
 /** 글자 크기(백분율) — 글자만 바뀌고 여백은 그대로 */
 export type TextScaleSetting = 90 | 95 | 100 | 105 | 110 | 115 | 120 | 125;
 
+/** 다크 종류 — `DEEP` 진하게(기본) · `SOFT` 부드럽게(회청색). 어두운 화면(다크·자동으로 어두워질 때)에만 쓴다(서버 V231) */
+export type DarkVariantSetting = 'DEEP' | 'SOFT';
+
 /** 댓글 기본 정렬 — 댓글 목록 API 의 `sort` 로 보낸다 */
 export type CommentOrderSetting = 'OLDEST' | 'LATEST';
 
@@ -29,4 +32,6 @@ export interface ViewSettings {
     menuPosition: MemberMenuSetting;
     /** 글 목록 제목 굵게(서버 `member_view_settings.title_bold`, V198) — 기본 false. 옛 응답(칸 없음)은 false 로 읽는다 */
     titleBold: boolean;
+    /** 다크 종류(서버 `member_view_settings.dark_variant`, V231) — 기본 `DEEP`. 옛 응답(칸 없음)은 `DEEP` 으로 읽는다. `PUT` 에서 빠지면 서버가 저장된 값을 그대로 둔다 */
+    darkVariant: DarkVariantSetting;
 }

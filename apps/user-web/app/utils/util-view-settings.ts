@@ -1,4 +1,4 @@
-import type { CommentOrderSetting, TextScaleSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
+import type { CommentOrderSetting, DarkVariantSetting, TextScaleSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
 import UtilMenuPosition from '~/utils/util-menu-position';
 
 /**
@@ -12,12 +12,23 @@ export default class UtilViewSettings {
     static readonly THEMES: readonly ThemeSetting[] = ['AUTO', 'LIGHT', 'DARK'];
     static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 95, 100, 105, 110, 115, 120, 125]; // 5 단위(사용자 2026-11-16 — 10 단위는 중간이 없이 크게 뛴다, shared V225)
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
+    /** 다크 종류 — 진하게(기본) · 부드럽게(회청색, 사용자 확정 2026-11-16 시안 A) */
+    static readonly DARK_VARIANTS: readonly DarkVariantSetting[] = ['DEEP', 'SOFT'];
+
+    /** 부드러운 다크일 때 `<html>` 에 거는 속성(`main.css` 「부드러운 다크」) — 진하게면 속성을 두지 않는다 */
+    static readonly DARK_VARIANT_ATTR = 'data-dark-variant';
+
+    /** 보기 설정 화면의 견본 두 칸(바탕 · 카드) — `main.css` 의 다크 값(아이로빗 테마 진한 다크 · 부드러운 다크)과 같게 둔다 */
+    static readonly DARK_VARIANT_SWATCHES: Readonly<Record<DarkVariantSetting, { page: string; card: string }>> = Object.freeze({
+        DEEP: { page: '#17181b', card: '#202125' },
+        SOFT: { page: '#22272e', card: '#2d333b' },
+    });
 
     /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT, titleBold: false });
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT, titleBold: false, darkVariant: 'DEEP' });
 
     /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
-    static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition', 'titleBold'] as const;
+    static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition', 'titleBold', 'darkVariant'] as const;
 
     /** 글자 배율을 담는 CSS 변수 */
     static readonly TEXT_SCALE_VAR = '--text-scale';
@@ -49,6 +60,8 @@ export default class UtilViewSettings {
             menuPosition: UtilMenuPosition.readMember(root.menuPosition),
             // 옛 사본·옛 응답(칸이 없음)이면 보통 굵기
             titleBold: root.titleBold === true,
+            // 옛 사본·옛 응답(칸이 없음)이면 진하게
+            darkVariant: UtilViewSettings.DARK_VARIANTS.find((v) => v === root.darkVariant) ?? d.darkVariant,
         };
     }
 
@@ -108,6 +121,16 @@ export default class UtilViewSettings {
         // 자동(`AUTO`) — 휴대폰 폭(`MOBILE_QUERY`)은 기기 설정과 상관없이 라이트가 기본(사용자 결정 2026-11-12). 다크로 보려면 보기 설정·상단 달 단추로 직접 고른다
         if (mobile) return 'light';
         return systemDark ? 'dark' : 'light';
+    }
+
+    /**
+     * `<html data-dark-variant>` 값 — 어두운 화면이고 부드럽게일 때만 `soft`, 아니면 null(속성을 지운다). 자동(`AUTO`)으로 어두워져도 같은 종류를 쓴다.
+     * @param {'light' | 'dark'} scheme - 풀린 화면 모드(`resolveScheme`).
+     * @param {DarkVariantSetting} variant - 다크 종류.
+     * @returns {'soft' | null} 속성 값.
+     */
+    static darkVariantAttr(scheme: 'light' | 'dark', variant: DarkVariantSetting): 'soft' | null {
+        return scheme === 'dark' && variant === 'SOFT' ? 'soft' : null;
     }
 
     /**

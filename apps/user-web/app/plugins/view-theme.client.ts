@@ -2,7 +2,7 @@ import UtilColorPalette from '~/utils/util-color-palette';
 import UtilViewSettings from '~/utils/util-view-settings';
 
 /**
- * 보기 설정의 야간 모드·글자 크기를 `<html>` 에 건다 — `data-color-scheme`(`light`·`dark`: `main.css` 의 `dark:` 변형과 PrimeVue `darkModeSelector` 가 본다)과
+ * 보기 설정의 야간 모드·글자 크기를 `<html>` 에 건다 — `data-color-scheme`(`light`·`dark`: `main.css` 의 `dark:` 변형과 PrimeVue `darkModeSelector` 가 본다)·`data-dark-variant`(어두운 화면의 부드럽게 = `soft`, 진하게면 없음)과
  * `--text-scale`(1 = 100% — `main.css` 의 Tailwind 글자 크기 토큰과 `text-scale.css` 의 PrimeVue 글자 크기 토큰이 곱한다). `data-theme` 는 사이트 테마 몫이라 건드리지 않는다(`themes.md`).
  *
  *  - **깜빡임 방지**: `order: -20` 으로 서버에 묻는 다른 플러그인보다 먼저 돈다 — 값은 이 브라우저에 저장해 둔 것을 동기로 읽는다(`useViewSettingsValues`).
@@ -21,7 +21,12 @@ export default defineNuxtPlugin({
 
         const apply = () => {
             const html = document.documentElement;
-            html.setAttribute('data-color-scheme', UtilViewSettings.resolveScheme(values.value.theme, query.matches, mobile.matches));
+            const scheme = UtilViewSettings.resolveScheme(values.value.theme, query.matches, mobile.matches);
+            html.setAttribute('data-color-scheme', scheme);
+            // 다크 종류 — 어두운 화면 + 부드럽게일 때만 속성을 둔다(`main.css` 「부드러운 다크」). 자동으로 어두워질 때도 같다
+            const variantAttr = UtilViewSettings.darkVariantAttr(scheme, values.value.darkVariant);
+            if (variantAttr) html.setAttribute(UtilViewSettings.DARK_VARIANT_ATTR, variantAttr);
+            else html.removeAttribute(UtilViewSettings.DARK_VARIANT_ATTR);
             html.style.setProperty(UtilViewSettings.TEXT_SCALE_VAR, String(UtilViewSettings.textScaleFor(values.value, mobile.matches) / 100));
             // 글 목록 제목 굵게(보기 설정) — 켰을 때만 속성을 둔다(`main.css` `.post-row-title`)
             if (values.value.titleBold) html.setAttribute('data-title-bold', '');

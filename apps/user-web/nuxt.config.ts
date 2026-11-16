@@ -41,7 +41,7 @@ export default defineNuxtConfig({
      * 첫 화면이 **다 그려진 뒤 한 번에** 걷힌다 — 단계·걷는 때는 `utils/util-boot-splash.ts` · `plugins/spa-splash.client.ts`. 로고 메타는 api `IndexHtmlRenderer` 가 넣는다.
      * 사용자 결정 2026-11-14: 11-13 의 회색 틀(스켈레톤)은 「틀 → 상단 바만 있는 화면 → 본문」으로 두 번 바뀌어 체감이 나빴다 → 스플래시로 바꿈.
      * 모든 사용자에게 내려가므로 그 파일에는 주석을 두지 않는다. 다크 판정은 `plugins/view-theme.client.ts` 와 같은 규칙(규칙을 바꾸면 두 곳을 같이 고친다).
-     * 바탕 #f2f4f7 / 다크 #17181b 는 main.css 아이로빗 테마 바탕 값이다.
+     * 바탕 #f2f4f7 / 다크 #17181b(부드러운 다크 `data-dark-variant="soft"` 는 #22272e) 는 main.css 아이로빗 테마 바탕 값이다.
      */
     spaLoadingTemplate: 'spa-loading-template.html',
     /*

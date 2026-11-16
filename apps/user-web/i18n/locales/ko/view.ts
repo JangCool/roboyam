@@ -11,6 +11,11 @@ export default {
     themeAuto: '자동',
     themeLight: '라이트',
     themeDark: '다크',
+    // 다크 종류 — 어두운 화면의 밝기(2026-11-16)
+    darkVariant: '다크 종류',
+    darkVariantHint: '어두운 화면의 밝기를 골라요. 자동일 때도 이 종류를 써요',
+    darkVariantDeep: '진하게',
+    darkVariantSoft: '부드럽게',
     // 글자 크기 — PC·휴대폰 따로(화면 폭으로 고른다)
     textScalePc: 'PC 글자 크기',
     textScalePcHint: '화면 폭이 넓은 기기(태블릿 가로·PC)에 적용돼요 · 기본 {n}%',

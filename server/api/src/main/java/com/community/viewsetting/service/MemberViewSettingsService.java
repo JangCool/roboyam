@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>읽기는 행을 만들지 않는다 — 행이 없으면 기본값({@code AUTO}·PC {@code 100}·휴대폰 {@code 110}·{@code OLDEST}).</li>
- *   <li>저장은 세 칸을 통째로 덮는다(휴대폰 글자 크기·메뉴 위치는 빠지면 그대로, 새 행이면 기본값). 틀린 칸은 한꺼번에 {@code 400 VALIDATION}(아무것도 저장하지 않는다). 기본값과 같은 값을 저장해도 행이 생긴다.</li>
+ *   <li>저장은 세 칸을 통째로 덮는다(휴대폰 글자 크기·메뉴 위치·제목 굵게·다크 종류는 빠지면 그대로, 새 행이면 기본값). 틀린 칸은 한꺼번에 {@code 400 VALIDATION}(아무것도 저장하지 않는다). 기본값과 같은 값을 저장해도 행이 생긴다.</li>
  *   <li>서버는 값만 저장하고 적용은 화면 몫이다. 읽기 취향이라 이메일 인증 전·정지 중에도 쓸 수 있다(제한 검사 없음).</li>
  *   <li>저장은 회원 행을 잠근 뒤 만들거나 고친다(같은 회원의 동시 저장을 줄 세운다). 탈퇴한 계정이면 {@code 401}.</li>
  * </ul>
@@ -51,23 +51,28 @@ public class MemberViewSettingsService {
             int textScaleMobile = checked.textScaleMobile() == null ? ViewSettingsPolicy.DEFAULT_TEXT_SCALE_MOBILE : checked.textScaleMobile();
             String menuPosition = checked.menuPosition() == null ? ViewSettingsPolicy.DEFAULT_MENU_POSITION : checked.menuPosition();
             boolean titleBold = checked.titleBold() == null ? ViewSettingsPolicy.DEFAULT_TITLE_BOLD : checked.titleBold();
-            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold, now);
+            String darkVariant = checked.darkVariant() == null ? ViewSettingsPolicy.DEFAULT_DARK_VARIANT : checked.darkVariant();
+            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold,
+                    darkVariant, now);
             settings.persist(setting);
         } else {
             int textScaleMobile = checked.textScaleMobile() == null ? setting.getTextScaleMobile() : checked.textScaleMobile();
             String menuPosition = checked.menuPosition() == null ? setting.getMenuPosition() : checked.menuPosition();
             boolean titleBold = checked.titleBold() == null ? setting.isTitleBold() : checked.titleBold();
-            setting.change(checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold, now);
+            String darkVariant = checked.darkVariant() == null ? setting.getDarkVariant() : checked.darkVariant();
+            setting.change(checked.theme(), checked.textScale(), textScaleMobile, checked.commentOrder(), menuPosition, titleBold, darkVariant, now);
         }
         return view(setting);
     }
 
     private static ViewSettingsResponse defaults() {
         return new ViewSettingsResponse(ViewSettingsPolicy.DEFAULT_THEME, ViewSettingsPolicy.DEFAULT_TEXT_SCALE, ViewSettingsPolicy.DEFAULT_TEXT_SCALE_MOBILE,
-                ViewSettingsPolicy.DEFAULT_COMMENT_ORDER, ViewSettingsPolicy.DEFAULT_MENU_POSITION, ViewSettingsPolicy.DEFAULT_TITLE_BOLD);
+                ViewSettingsPolicy.DEFAULT_COMMENT_ORDER, ViewSettingsPolicy.DEFAULT_MENU_POSITION, ViewSettingsPolicy.DEFAULT_TITLE_BOLD,
+                ViewSettingsPolicy.DEFAULT_DARK_VARIANT);
     }
 
     private static ViewSettingsResponse view(MemberViewSettingEntity s) {
-        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getTextScaleMobile(), s.getCommentOrder(), s.getMenuPosition(), s.isTitleBold());
+        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getTextScaleMobile(), s.getCommentOrder(), s.getMenuPosition(), s.isTitleBold(),
+                s.getDarkVariant());
     }
 }

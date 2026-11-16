@@ -272,7 +272,7 @@ onMounted(() => {
     themeObserver = new MutationObserver((records) => {
         if (records.some((r) => r.type === 'attributes' || isStyleNode(r.target) || Array.from(r.addedNodes).some(isStyleNode))) scheduleRender();
     });
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-color-scheme'] });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-color-scheme', 'data-dark-variant'] });
     themeObserver.observe(document.head, { childList: true, subtree: true, characterData: true });
 });
 

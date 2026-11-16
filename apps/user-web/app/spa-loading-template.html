@@ -16,6 +16,10 @@
         background: #17181b;
         color: #c3c7cf;
     }
+    html[data-color-scheme='dark'][data-dark-variant='soft'] .irb-splash {
+        background: #22272e;
+        color: #cdd9e5;
+    }
     .irb-splash-box {
         display: flex;
         flex-direction: column;
@@ -66,6 +70,9 @@
     html[data-color-scheme='dark'] .irb-splash-bar {
         background: #2e3036;
     }
+    html[data-color-scheme='dark'][data-dark-variant='soft'] .irb-splash-bar {
+        background: #444c56;
+    }
     .irb-splash-bar i {
         display: block;
         width: 0;
@@ -87,6 +94,9 @@
     }
     html[data-color-scheme='dark'] .irb-splash-steps b {
         background: #3a3d44;
+    }
+    html[data-color-scheme='dark'][data-dark-variant='soft'] .irb-splash-steps b {
+        background: #545d68;
     }
     .irb-splash-steps b.on {
         background: #3b82f6;
@@ -118,13 +128,17 @@
         var dark = false;
         try {
             var theme = 'AUTO';
+            var soft = false;
             try {
                 var saved = JSON.parse(localStorage.getItem('irobit:view-settings') || 'null');
                 if (saved && (saved.theme === 'DARK' || saved.theme === 'LIGHT')) theme = saved.theme;
+                soft = !!saved && saved.darkVariant === 'SOFT';
             } catch (e) {}
             var mobile = window.matchMedia('(max-width: 767.98px)').matches;
             dark = theme === 'DARK' || (theme === 'AUTO' && !mobile && window.matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+            if (dark && soft) document.documentElement.setAttribute('data-dark-variant', 'soft');
+            else document.documentElement.removeAttribute('data-dark-variant');
         } catch (e) {}
 
         var root = document.querySelector('.irb-splash');

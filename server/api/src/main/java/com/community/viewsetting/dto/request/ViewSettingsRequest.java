@@ -11,11 +11,19 @@ package com.community.viewsetting.dto.request;
  * @param textScaleMobile 휴대폰 글자 크기 — JSON 정수 {@code 90~125, 5 단위}, 빠지면 그대로(새 행이면 110)
  * @param commentOrder    {@code OLDEST|LATEST}
  * @param menuPosition    데스크톱 메뉴 위치 {@code AUTO|TOP|LEFT|RIGHT|TOP_LEFT|TOP_RIGHT} — 빠지면 그대로
+ * @param titleBold       글 목록 제목 굵게(V198) — 빠지면 그대로
+ * @param darkVariant     다크 종류 {@code DEEP|SOFT}(V231) — 빠지면 그대로(새 행이면 DEEP)
  */
-public record ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition, Object titleBold) {
+public record ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition, Object titleBold,
+        Object darkVariant) {
+
+    /** 다크 종류(V231) 없이 — 빠지면 저장된 값 그대로 */
+    public ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition, Object titleBold) {
+        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, titleBold, null);
+    }
 
     /** 제목 굵게(V198) 없이 — 빠지면 저장된 값 그대로 */
     public ViewSettingsRequest(Object theme, Object textScale, Object textScaleMobile, Object commentOrder, Object menuPosition) {
-        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, null);
+        this(theme, textScale, textScaleMobile, commentOrder, menuPosition, null, null);
     }
 }

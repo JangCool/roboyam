@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * 보기 설정 다섯 칸의 허용 값·기본값과 검사 — user-web {@code UtilViewSettings}(THEMES·TEXT_SCALES·COMMENT_ORDERS·DEFAULTS)·{@code UtilMenuPosition.MEMBER_SETTINGS}·V73·V105·V185·V225 CHECK 와 같다.
  * 위반은 칸마다 한꺼번에 돌려준다({@code fields.theme|textScale|textScaleMobile|commentOrder|menuPosition}). {@code theme}·{@code textScale}·{@code commentOrder}
- * 는 빠진 칸·타입이 틀린 칸도 같은 칸 오류이고, {@code textScaleMobile}·{@code menuPosition} 은 빠지면(null) 저장된 값을 그대로 둔다(칸이 생기기 전 화면은 보내지 않는다).
+ * 는 빠진 칸·타입이 틀린 칸도 같은 칸 오류이고, {@code textScaleMobile}·{@code menuPosition}·{@code titleBold}·{@code darkVariant}(V231) 는 빠지면(null) 저장된 값을 그대로 둔다(칸이 생기기 전 화면은 보내지 않는다).
  */
 public final class ViewSettingsPolicy {
 
@@ -19,6 +19,7 @@ public final class ViewSettingsPolicy {
     static final List<Integer> TEXT_SCALES = List.of(90, 95, 100, 105, 110, 115, 120, 125); // 5 단위(사용자 2026-11-16, V225 CHECK)
     static final List<String> COMMENT_ORDERS = List.of("OLDEST", "LATEST");
     static final List<String> MENU_POSITIONS = List.of("AUTO", "TOP", "LEFT", "RIGHT", "TOP_LEFT", "TOP_RIGHT");
+    static final List<String> DARK_VARIANTS = List.of("DEEP", "SOFT"); // 다크 종류(V231 CHECK)
 
     static final String DEFAULT_THEME = MemberViewSettingEntity.DEFAULT_THEME;
     static final int DEFAULT_TEXT_SCALE = MemberViewSettingEntity.DEFAULT_TEXT_SCALE;
@@ -27,10 +28,12 @@ public final class ViewSettingsPolicy {
     static final String DEFAULT_MENU_POSITION = MemberViewSettingEntity.DEFAULT_MENU_POSITION;
 
     /** 검사를 마친 다섯 칸 — {@code textScaleMobile}·{@code menuPosition} 이 null 이면 저장된 값을 그대로 둔다 */
-    public record Checked(String theme, int textScale, Integer textScaleMobile, String commentOrder, String menuPosition, Boolean titleBold) {
+    public record Checked(String theme, int textScale, Integer textScaleMobile, String commentOrder, String menuPosition, Boolean titleBold,
+            String darkVariant) {
     }
 
     static final boolean DEFAULT_TITLE_BOLD = MemberViewSettingEntity.DEFAULT_TITLE_BOLD;
+    static final String DEFAULT_DARK_VARIANT = MemberViewSettingEntity.DEFAULT_DARK_VARIANT;
 
     private ViewSettingsPolicy() {
     }
@@ -68,9 +71,15 @@ public final class ViewSettingsPolicy {
         if (titleBold != null && !(titleBold instanceof Boolean)) {
             errors.put("titleBold", new MessageRef("viewSettings.titleBold.invalid"));
         }
+        // 다크 종류(V231) — 빠지면(null) 저장된 값 그대로
+        Object darkVariant = request == null ? null : request.darkVariant();
+        if (darkVariant != null && (!(darkVariant instanceof String d) || !DARK_VARIANTS.contains(d))) {
+            errors.put("darkVariant", new MessageRef("viewSettings.darkVariant.invalid"));
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Checked((String) theme, (Integer) textScale, (Integer) textScaleMobile, (String) commentOrder, (String) menuPosition, (Boolean) titleBold);
+        return new Checked((String) theme, (Integer) textScale, (Integer) textScaleMobile, (String) commentOrder, (String) menuPosition, (Boolean) titleBold,
+                (String) darkVariant);
     }
 }

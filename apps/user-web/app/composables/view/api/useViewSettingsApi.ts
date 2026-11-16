@@ -5,6 +5,7 @@ import type { ViewSettings } from '~/composables/view/api/useViewSettingsApi.typ
  * 계약: `docs/features/member-social-contract.md` 「보기 설정」(서버 `server/api` `com.community.viewsetting`, 둘 다 `Cache-Control: no-store`).
  *  - `GET` → `ViewSettings`(저장한 적이 없어도 기본값 AUTO·PC 100·휴대폰 110·OLDEST 로 200 — 행을 만들지 않는다)
  *  - `GET` 의 `menuPosition` 은 데스크톱 메뉴 위치(`AUTO`·`TOP`·`LEFT`·`RIGHT`·`TOP_LEFT`·`TOP_RIGHT`, 저장한 적 없으면 `AUTO`)
+ *  - `darkVariant` 는 다크 종류(`DEEP`·`SOFT`, 2026-11-16 V231 — 응답에 늘 오고, `PUT` 에서 빠지면 서버가 그대로 둔다)
  *  - `textScale` 은 PC 글자 크기, `textScaleMobile` 은 휴대폰 글자 크기(90·100·110·125 — 2026-11-11 추가, 응답에 늘 온다)
  *  - `PUT` 다섯 칸 → 저장된 `ViewSettings` · `theme`·`textScale`·`commentOrder` 가 빠졌거나 틀린 값·목록 밖 `menuPosition`·`textScaleMobile` 은 한꺼번에 `400 VALIDATION fields.<칸>`(저장 없음).
  *    `menuPosition`·`textScaleMobile` 은 빠지면 서버가 저장된 값을 그대로 둔다(이 앱은 늘 보낸다).
@@ -36,6 +37,7 @@ export function useViewSettingsApi() {
                 commentOrder: settings.commentOrder,
                 menuPosition: settings.menuPosition,
                 titleBold: settings.titleBold,
+                darkVariant: settings.darkVariant,
             }),
     };
 }

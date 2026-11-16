@@ -35,6 +35,45 @@
                     </div>
 
                     <!--
+                        다크 종류(사용자 확정 2026-11-16 — 진하게 / 부드럽게 회청색). 어두운 화면(다크·자동으로 어두워질 때)에만 쓰인다 — 라이트를 골랐으면 흐리게 두되 고를 수는 있다.
+                        고르는 칸마다 바탕·카드 두 칸 견본(`UtilViewSettings.DARK_VARIANT_SWATCHES`)
+                    -->
+                    <div
+                        class="flex flex-col gap-2 border-b border-surface px-4 py-3 transition-opacity md:flex-row md:items-center md:justify-between md:gap-4"
+                        :class="settings.theme === 'LIGHT' ? 'opacity-60' : ''"
+                        data-testid="setting-dark-variant-row"
+                    >
+                        <div class="min-w-0 flex-1">
+                            <p :id="`${uid}-dark-variant-label`" class="m-0 text-sm font-medium">{{ t('view.darkVariant') }}</p>
+                            <p :id="`${uid}-dark-variant-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ t('view.darkVariantHint') }}</p>
+                        </div>
+                        <div class="w-full md:w-64 md:shrink-0">
+                            <SelectButton
+                                :model-value="settings.darkVariant"
+                                :options="darkVariantOptions"
+                                option-label="label"
+                                option-value="value"
+                                :allow-empty="false"
+                                :aria-labelledby="`${uid}-dark-variant-label`"
+                                :aria-describedby="`${uid}-dark-variant-hint`"
+                                fluid
+                                data-testid="setting-dark-variant"
+                                @update:model-value="(v: DarkVariantSetting | null) => v && change({ darkVariant: v })"
+                            >
+                                <template #option="{ option }">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <span class="inline-flex overflow-hidden rounded-sm border border-surface" aria-hidden="true">
+                                            <span class="size-3" :style="{ backgroundColor: option.swatch.page }" />
+                                            <span class="size-3" :style="{ backgroundColor: option.swatch.card }" />
+                                        </span>
+                                        <span>{{ option.label }}</span>
+                                    </span>
+                                </template>
+                            </SelectButton>
+                        </div>
+                    </div>
+
+                    <!--
                         글자 크기 — PC·휴대폰 따로(화면 폭으로 고른다, `UtilViewSettings.MOBILE_QUERY`). − / + 로 한 단씩. 끝에서는 `aria-disabled` 로(진짜 disabled 는 누른 채 비활성이 되면 초점이 사라진다).
                         지금 보고 있는 기기의 줄에 「지금 이 기기」 칩과 옅은 강조 — 창 폭이 경계를 넘으면 따라 옮겨 간다
                     -->
@@ -299,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CommentOrderSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
+import type { CommentOrderSetting, DarkVariantSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import type { MemberMenuSetting, MenuPosition } from '~/utils/util-menu-position';
 import UtilViewSettings from '~/utils/util-view-settings';
@@ -308,7 +347,7 @@ import UtilColorPalette from '~/utils/util-color-palette';
 
 /**
  * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 아이로빗에 적용할 곳이 있는 것).
- * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기 PC·휴대폰 따로(90·100·110·125%, 기본 PC 100·휴대폰 110 — 사용자 2026-11-11, 지금 기기 줄에 「지금 이 기기」), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
+ * 「화면」: 야간 모드(자동·라이트·다크) · 다크 종류(진하게·부드럽게 — 2026-11-16, 라이트면 흐리게) · 글자 크기 PC·휴대폰 따로(90·100·110·125%, 기본 PC 100·휴대폰 110 — 사용자 2026-11-11, 지금 기기 줄에 「지금 이 기기」), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
  * 「색상」: 색상 테마 8가지(기본 · 살구·코랄 · 꿀·버터 · 세이지 그린 · 하늘·크림 · 청록 바다 · 진한 파랑 · 남색 — 사용자 결정 2026-11-06, 개인 색 금지였던 themes.md 결정을 바꿨다) + 배경색(테마 기본 · 회색 · 아이보리 · 흰색 · 연한 하늘) + 상단 그라데이션 켜기.
@@ -332,6 +371,14 @@ const themeOptions = computed(() => [
     { value: 'LIGHT', label: t('view.themeLight') },
     { value: 'DARK', label: t('view.themeDark') },
 ]);
+/** 다크 종류 — 진하게(기본) · 부드럽게(회청색). 칸마다 바탕·카드 견본 */
+const darkVariantOptions = computed(() =>
+    UtilViewSettings.DARK_VARIANTS.map((value) => ({
+        value,
+        label: t(value === 'SOFT' ? 'view.darkVariantSoft' : 'view.darkVariantDeep'),
+        swatch: UtilViewSettings.DARK_VARIANT_SWATCHES[value],
+    })),
+);
 const menuOptions = computed<{ value: MemberMenuSetting; label: string }[]>(() => [
     { value: 'AUTO', label: t('view.menuAuto') },
     { value: 'TOP', label: t('view.menuTop') },
