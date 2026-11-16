@@ -31,8 +31,7 @@
                 <div :id="SECTION_NAV_SCROLL_ID" class="app-content" :class="{ 'app-content--boxed': prefs.contentWidth === 'boxed' }">
                     <div class="app-content-grid" :class="{ 'app-content-grid--nav': navVisible }">
                         <div class="min-w-0">
-                            <!-- 좁을 때의 "구역 이동" 선택 상자(넓으면 CSS 가 숨기고 오른쪽 열의 목록이 대신한다) -->
-                            <SectionNav variant="select" />
+                            <!-- 좁을 때의 "구역 이동" 선택 상자는 셸이 아니라 제목 블록(`PageTitle`) 바로 아래에 붙는다(넓으면 CSS 가 숨기고 오른쪽 열의 목록이 대신한다) -->
                             <div class="app-zoom">
                                 <!-- 메뉴 권한이 없는 화면에 주소로 들어온 경우 — 화면을 그리지 않고 권한 없음을 알린다(막는 것은 서버다) -->
                                 <ErrorState v-if="forbidden" code="403" :title="t('shell.forbiddenTitle')" :description="t('shell.forbiddenBody')">
@@ -50,7 +49,13 @@
             </SidebarMain>
         </SidebarLayout>
 
-        <AppDrawer v-if="isMobile" v-model:visible="menuOpen" @open-settings="settingsOpen = true" />
+        <!--
+            사이드바 CSS 싣기 — PrimeVue 는 사이드바 계열 CSS(레이아웃 flex·메뉴 단추 모양, `sidebar-style` · `sidebar-variables`)를 `Sidebar` 본체가 뜰 때만 주입한다.
+            모바일이나 메뉴 위치가 상단이면 본체(`AppSidebar`)가 없어, 본문 레이아웃이 풀려 스크롤이 막히고 드로어 메뉴가 맨 링크처럼 보였다.
+            `as-child` + 빈 슬롯이라 아무것도 그리지 않고, `id` 가 없어 레이아웃에 사이드바로 등록되지도 않는다 — CSS 만 싣는다.
+        -->
+        <Sidebar v-if="!hasSidebar" as-child />
+        <AppDrawer v-if="isMobile" v-model:visible="menuOpen" />
         <NotificationDrawer />
         <ThemeSettingsDrawer v-model:visible="settingsOpen" />
         <AppConfirm />

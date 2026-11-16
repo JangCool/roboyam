@@ -39,7 +39,6 @@
                     <Button v-if="isMobile" type="button" icon="pi pi-search" variant="text" rounded severity="secondary" :aria-label="t('shell.searchOpen')" @click="searchOpen = true" />
 
                     <Button
-                        v-if="!isMobile"
                         type="button"
                         :icon="prefs.theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"
                         variant="text"
@@ -48,6 +47,9 @@
                         :aria-label="prefs.theme === 'dark' ? t('shell.toLight') : t('shell.toDark')"
                         @click="toggleTheme"
                     />
+
+                    <!-- 화면 설정 — 다크 모드 옆(같은 "보기" 묶음), 알림 종 앞 -->
+                    <Button type="button" icon="pi pi-palette" variant="text" rounded severity="secondary" :aria-label="t('shell.displaySettings')" @click="emit('open-settings')" />
 
                     <!--
                         알림 종 — 누르면 서랍이 열린다. **뱃지(숫자)를 눌러도 열려야 한다**: 뱃지가 종 모서리를 물고 있어 숫자만 조준해 눌러도 아무 일이 없으면 안 된다.
@@ -59,12 +61,11 @@
                     </OverlayBadge>
                     <Button v-else type="button" icon="pi pi-bell" variant="text" rounded severity="secondary" :aria-label="bellLabel" @click="notificationOpen = true" />
 
-                    <Button v-if="!isMobile" type="button" icon="pi pi-palette" variant="text" rounded severity="secondary" :aria-label="t('shell.displaySettings')" @click="emit('open-settings')" />
-
                     <button v-if="user" type="button" class="app-profile" :aria-label="t('shell.profileMenu')" aria-haspopup="dialog" @click="profile?.toggle($event)">
                         <UserAvatar :name="user.nickname" />
                         <span class="hidden max-w-40 truncate text-sm font-medium md:block">{{ user.nickname }}</span>
-                        <RoleBadge class="hidden md:inline-block" :role="user.role" />
+                        <!-- 모바일은 아바타만 — RoleBadge 자체의 inline-block 이 class 의 hidden 을 이겨 모바일에도 보였으므로 v-if 로 뺀다 -->
+                        <RoleBadge v-if="!isMobile" :role="user.role" />
                         <i class="pi pi-angle-down hidden text-xs text-muted-color md:block" aria-hidden="true" />
                     </button>
 

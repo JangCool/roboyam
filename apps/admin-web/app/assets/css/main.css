@@ -25,6 +25,54 @@ body {
     font-size: 1rem;
 }
 
+/* ── 격자의 암묵적 열 ──────────────────────────────────────────────────────────────────────────
+   `grid lg:grid-cols-2` 처럼 좁은 화면에서 열을 정하지 않은 격자는 암묵적 열(기본 auto)이 안에 든 것의 최소 폭만큼 늘어나,
+   표가 든 카드가 화면 밖으로 그려졌다(광고 성과 「유형별·자리별」 등). 암묵적 열을 화면 폭 안(minmax(0, 1fr))으로 묶어 표가 카드 안에서 가로로 스크롤되게 한다.
+   열을 정한 격자(grid-cols-*)는 그 정의를 따르므로 영향이 없다. */
+.grid {
+    grid-auto-columns: minmax(0, 1fr);
+}
+
+/* ── 모바일(md 미만) 줄바꿈 ─────────────────────────────────────────────────────────────────────
+   한글은 기본값(word-break: normal)이면 글자마다 줄을 바꿀 수 있어, 좁은 칸(표 열·flex 항목)이 글자 하나 폭까지 줄어 글이 세로로 쌓였다(게시판 관리 표 등).
+   - 글은 단어(띄어쓰기) 단위로만 바꾸고, 한 단어가 칸보다 길 때만 끊는다(break-word 는 최소 폭 계산에 끼지 않아 칸을 다시 좁히지 않는다).
+   - 태그·칩은 어디서든 한 줄.
+   - 표는 가로로 스크롤되므로 칸(날짜·숫자 포함)은 한 줄이 기본이다. 줄바꿈하도록 만든 제목(break-words)·설명(leading-relaxed)만 최소 14rem 폭 안에서 바꾼다. 빈 목록 안내는 그대로 감싼다.
+     (tabular-nums 는 문장 묶음에도 붙어 있어 한 줄로 묶지 않는다 — 묶으면 안내 문장이 화면 밖으로 펴진다)
+   - 선택 단추 묶음(SelectButton)은 화면보다 길면 그 안에서 가로로 스크롤한다.
+   서랍·대화상자도 body 아래라 함께 받는다. */
+@media (max-width: 767px) {
+    body {
+        word-break: keep-all;
+        overflow-wrap: break-word;
+    }
+    .p-tag,
+    .p-chip {
+        white-space: nowrap;
+    }
+    .p-datatable-table-container {
+        overflow-x: auto;
+    }
+    table :where(th, td) {
+        white-space: nowrap;
+    }
+    table :where(th, td) :where(.break-words, .leading-relaxed) {
+        min-width: 14rem;
+        white-space: normal;
+    }
+    .p-datatable-empty-message > td {
+        white-space: normal;
+    }
+    .p-selectbutton {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .p-selectbutton > .p-togglebutton {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+}
+
 /* 화면 전환 시 키보드 포커스 표시가 사라지지 않게 — 제목에 준 tabindex=-1 은 윤곽선을 그리지 않는다 */
 [tabindex='-1']:focus {
     outline: none;
@@ -307,12 +355,12 @@ html[data-density='compact'] {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
 }
-/* 우측 구역 내비 — 본문 영역이 56rem 이상이면 오른쪽 12rem 열에 목록(스크롤을 따라 붙는다), 아니면 본문 맨 위 선택 상자 */
+/* 우측 구역 내비 — 본문 영역이 56rem 이상이면 오른쪽 12rem 열에 목록(스크롤을 따라 붙는다), 아니면 제목 블록(`PageTitle`) 바로 아래 선택 상자 */
 .section-nav-col {
     display: none;
 }
 .section-nav-select {
-    margin-bottom: 1rem;
+    margin-top: 0.75rem;
 }
 @container appmain (min-width: 56rem) {
     .app-content-grid--nav {
