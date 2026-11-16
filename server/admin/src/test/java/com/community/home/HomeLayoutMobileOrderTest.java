@@ -59,8 +59,8 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
         List<String> order = irobit.layout().mobileOrder();
         assertThat(order).hasSize(11).doesNotHaveDuplicates();
         assertThat(order.stream().map(id -> irobit.gadget(id).orElseThrow().title()).toList())
-                .containsExactly("뉴스", "상단 띠 배너", "인기글", "핫 아이로 픽", "최신글", "광고", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
-        // 핫 아이로 픽·최신글은 모바일 전용 가젯
+                .containsExactly("뉴스", "상단 띠 배너", "인기글", "함께 보는 글", "최신글", "광고", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
+        // 함께 보는 글·최신글은 모바일 전용 가젯
         assertThat(irobit.gadget(order.get(3)).orElseThrow().desktop()).isFalse();
         assertThat(irobit.gadget(order.get(4)).orElseThrow().desktop()).isFalse();
         for (String other : List.of("default", "daum", "naver")) {
@@ -75,7 +75,7 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
         assertThat(order).hasSize(11).noneMatch(id -> id.startsWith(HomeLayoutDefaults.SEED_PREFIX));
         assertThat(saved.layout().items().stream().map(HomeLayoutItem::gadgetId).toList()).containsAll(order);
         assertThat(order.get(0)).isEqualTo(idOf(saved, "뉴스", false));
-        assertThat(order.get(3)).isEqualTo(idOf(saved, "핫 아이로 픽", true));
+        assertThat(order.get(3)).isEqualTo(idOf(saved, "함께 보는 글", true));
         String stored = jdbc.queryForObject("SELECT mobile_order::text FROM home_layouts WHERE theme = ?", String.class, THEME);
         assertThat(stored).contains(order.get(0), order.get(10));
     }
