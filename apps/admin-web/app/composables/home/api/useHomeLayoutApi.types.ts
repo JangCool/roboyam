@@ -241,4 +241,9 @@ export interface HomeLayoutView extends HomeLayoutBody {
  * 저장 가젯·시드 가젯은 `title`·`desktop`·`mobile` 을 보낸 값으로 바꾸고 `style`·`config` 는 보낸 칸만 덮는다(null 이면 그대로). 새 가젯(`new-<n>`)은 `type`·`title` 필수.
  * 400 `fields.gadgets[i].title|desktop|type|style.<칸>|config.<칸>|config.items[j].label|kind|value`(`i` = 보낸 가젯 차례).
  */
-export type HomeLayoutSaveRequest = HomeLayoutBody;
+/**
+ * `base`(2026-11-17, 관리자 QA F-1): 편집기가 배치를 받을 때의 `updatedAt`(저장한 적 없으면 null) — 그사이 다른 저장이 있으면 409 `LAYOUT_VERSION_CONFLICT`.
+ * 본문이 「가젯 전체」라 낡은 화면이 저장하면 남이 넣은 가젯이 지워지기 때문이다. 가젯 페이지 배치·게시판 레이아웃 저장도 같다.
+ */
+export type LayoutSaveBase = { base?: { updatedAt: string | null } };
+export type HomeLayoutSaveRequest = HomeLayoutBody & LayoutSaveBase;

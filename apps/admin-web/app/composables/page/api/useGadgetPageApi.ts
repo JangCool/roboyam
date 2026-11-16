@@ -19,7 +19,7 @@ import type {
  *   - `DELETE /api/admin/gadget-pages/{id}` → 200  (`site.manage`) — 이 페이지를 가리키던 메뉴 항목은 지우고 폴더는 연결만 비운다
  *   - `GET /api/admin/gadget-pages/{id}/layouts/{theme}` → 200 `GadgetPageLayoutView`  (`site.read`) — 저장한 배치, 없으면 처음 배치(`updatedAt: null`)
  *   - `GET /api/admin/gadget-pages/{id}/initial` → 200 `HomeLayoutBody`  (`site.read`) — 처음 배치(「처음 배치로」, 저장하지 않는다)
- *   - `PUT /api/admin/gadget-pages/{id}/layouts/{theme}` `HomeLayoutSaveRequest` → 200 `GadgetPageLayoutView`  (`site.manage`) — 홈 배치 저장과 같은 검사·같은 `config` 규칙
+ *   - `PUT /api/admin/gadget-pages/{id}/layouts/{theme}` `HomeLayoutSaveRequest` → 200 `GadgetPageLayoutView`  (`site.manage`) — 홈 배치 저장과 같은 검사·같은 409 `LAYOUT_VERSION_CONFLICT`·같은 `config` 규칙
  *       (대상 게시판 `FOLDER` 를 받는다)
  */
 const PATH = {

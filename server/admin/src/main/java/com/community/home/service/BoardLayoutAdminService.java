@@ -91,6 +91,7 @@ public class BoardLayoutAdminService {
         String themeId = known(theme);
         settings.findWithLockById(SiteSettingEntity.ROW_ID).orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
         BoardLayoutEntity row = layouts.findWithLockByTheme(themeId).orElse(null);
+        LayoutVersions.check(request == null ? null : request.base(), row == null ? null : row.getUpdatedAt());
         List<GadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(themeId);
         BoardLayoutDefaults.Board seeds = BoardLayoutDefaults.of(themeId);
 

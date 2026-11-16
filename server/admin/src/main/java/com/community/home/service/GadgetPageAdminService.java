@@ -191,7 +191,8 @@ public class GadgetPageAdminService {
     public GadgetPageLayoutView saveLayout(AdminActor actor, long id, String theme, HomeLayoutSaveRequest request) {
         GadgetPageEntity page = pages.findWithLockById(id).orElseThrow(GadgetPageNotFoundException::new);
         String themeId = known(theme);
-        GadgetPageLayoutEntity row = layouts.findByPageIdAndTheme(id, themeId).orElse(null);
+        GadgetPageLayoutEntity row = layouts.findByPageIdAndTheme(id, themeId).orElse(null); // 페이지 행을 잠갔으니 같은 페이지 저장은 줄을 선다
+        LayoutVersions.check(request == null ? null : request.base(), row == null ? null : row.getUpdatedAt());
         List<GadgetEntity> stored = gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId);
         HomeLayoutDefaults.Home seeds = GadgetPageInitial.read(page.getInitialLayout(), themeId);
         Instant now = Instant.now();

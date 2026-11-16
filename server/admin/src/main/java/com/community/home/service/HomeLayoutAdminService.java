@@ -100,6 +100,7 @@ public class HomeLayoutAdminService {
         String themeId = known(theme);
         settings.findWithLockById(SiteSettingEntity.ROW_ID).orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
         HomeLayoutEntity row = layouts.findWithLockByTheme(themeId).orElse(null);
+        LayoutVersions.check(request == null ? null : request.base(), row == null ? null : row.getUpdatedAt());
         List<GadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(themeId);
         HomeLayoutDefaults.Home seeds = HomeLayoutDefaults.of(themeId);
         Instant now = Instant.now();

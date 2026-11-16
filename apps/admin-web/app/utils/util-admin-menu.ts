@@ -283,6 +283,9 @@ export default class UtilAdminMenu {
                 { key: 'groupBuyStock', to: '/group-buy-stock', icon: 'pi pi-warehouse', labelKey: 'menu.groupBuyStock', permission: 'commerce.product.read' },
                 { key: 'groupBuyOrders', to: '/group-buy-orders', icon: 'pi pi-truck', labelKey: 'menu.groupBuyOrders', permission: 'commerce.order.read' },
                 { key: 'groupBuyRequests', to: '/group-buy-requests', icon: 'pi pi-replay', labelKey: 'menu.groupBuyRequests', permission: 'commerce.order.read' },
+                // 공구 Q&A·리뷰(2b-6) — 서버 AdminScreenRegistry 에만 있어 메뉴에서 빠지고 화면 권한 검사도 없었다(관리자 QA 2026-11-17 F-4)
+                { key: 'groupBuyQna', to: '/group-buy-qna', icon: 'pi pi-comments', labelKey: 'menu.groupBuyQna', permission: 'commerce.order.read' },
+                { key: 'groupBuyReviews', to: '/group-buy-reviews', icon: 'pi pi-star', labelKey: 'menu.groupBuyReviews', permission: 'commerce.order.read' },
             ],
         },
         // 결제 묶음(포인트 상점 묶음 다음) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
