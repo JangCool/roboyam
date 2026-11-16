@@ -56,6 +56,12 @@ public class BoardDefaultsEntity {
     private boolean authorThumbnailEnabled;
     /** 「태그 쓰기」(V215, 기본 끔) — post-tags-contract */
     private boolean tagsEnabled;
+    /** 글 상세 아래 [인기글]·[최신글] 탭 PC(V226, 기본 끔) · 모바일(V226, 기본 켬) — post-detail-board-list-contract 「2차」 */
+    private boolean detailFeedTabsPc;
+    private boolean detailFeedTabsMobile = true;
+    /** 말머리 필수 · 태그 필수(V226, 기본 끔) — ai-news-reporter-contract */
+    private boolean prefixRequired;
+    private boolean tagRequired;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -88,7 +94,8 @@ public class BoardDefaultsEntity {
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
-                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled, tagsEnabled);
+                listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled, tagsEnabled,
+                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -139,6 +146,10 @@ public class BoardDefaultsEntity {
         this.pinRequestMinLikes = v.pinRequestMinLikes();
         this.authorThumbnailEnabled = v.authorThumbnailEnabled();
         this.tagsEnabled = v.tagsEnabled();
+        this.detailFeedTabsPc = v.detailFeedTabsPc();
+        this.detailFeedTabsMobile = v.detailFeedTabsMobile();
+        this.prefixRequired = v.prefixRequired();
+        this.tagRequired = v.tagRequired();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

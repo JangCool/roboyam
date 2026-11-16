@@ -4,9 +4,11 @@
         탭은 `/popular` 기간 탭과 같은 방식(role=tablist/tab/tabpanel — 고른 탭만 Tab 키로 닿고 화살표·Home·End 로 초점만 옮긴 뒤 Enter·Space 로 고른다).
         줄은 인기글·최신글 화면의 `FeedPostItem`(PC A 방식 두 줄·모바일 줄 그대로, 인기글은 순위 번호), 지금 글이면 강조. 탭 아래 [더 보기] → `/popular` · `/latest`.
         화면이 근처(위아래 600px)에 오면 `near` 를 한 번 올린다 — 받기·기억은 페이지가 컴포저블(`usePostDetailFeedTabs`)로 한다. 그리기만 한다.
+        PC·휴대폰 표시(게시판 `detailFeedTabsPc`·`detailFeedTabsMobile` — 2차)는 페이지가 정한다: 끈 기기에서는 페이지가 `md:hidden`·`max-md:hidden` 으로 숨기고(숨긴 요소는 화면에 들어오지 않아 `near` 가 안 올라가 부르지도 않는다), 둘 다 끄면 그리지 않는다.
     -->
     <section ref="root" class="content-card" :aria-label="t('feed.detailTabs')" data-testid="post-detail-feed-tabs">
-        <div role="tablist" :aria-label="t('feed.detailTabs')" class="flex gap-3.5 border-b border-surface" @keydown="onTabKeydown">
+        <!-- 탭 줄 위 여백은 다른 카드 머리(댓글 카드 머리 위 14)와 맞춘다. 휴대폰은 두 탭이 가로를 반씩(5:5) 채운다(2차 — 사용자 2026-11-16) -->
+        <div role="tablist" :aria-label="t('feed.detailTabs')" class="flex border-b border-surface pt-2 md:gap-3.5" @keydown="onTabKeydown">
             <button
                 v-for="tab in TABS"
                 :id="tabId(tab)"
@@ -81,7 +83,7 @@ const props = withDefaults(defineProps<Props>(), { chipPosition: 'ABOVE' });
 const emit = defineEmits<{ (e: 'near'): void; (e: 'select', tab: PostDetailFeedTab): void; (e: 'retry', tab: PostDetailFeedTab): void }>();
 
 const TABS: readonly PostDetailFeedTab[] = ['POPULAR', 'LATEST'];
-const TAB = 'relative cursor-pointer whitespace-nowrap inline-flex min-h-10 items-center border-b-2 -mb-px text-[0.9375rem] leading-none after:absolute after:inset-x-0 after:-inset-y-1 after:content-[""] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+const TAB = 'relative cursor-pointer whitespace-nowrap inline-flex min-h-11 items-center max-md:flex-1 max-md:justify-center border-b-2 -mb-px text-[0.9375rem] leading-none after:absolute after:inset-x-0 after:-inset-y-1 after:content-[""] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
 const TAB_ON = 'border-primary font-bold text-color';
 const TAB_OFF = 'border-transparent text-muted-color hover:text-color';
 

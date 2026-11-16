@@ -129,8 +129,12 @@ public class BoardCatalog implements CacheReloader {
         String postEditor = or(p.postEditor(), d.postEditor());
         boolean imageSetting = or(p.imageUploadAllowed(), d.imageUploadAllowed());
         String description = b.getDescription() == null || b.getDescription().isBlank() ? null : b.getDescription();
+        // 성인 전용 게시판(V226 — adult-board-contract) — 일반 게시판만. 켜져 있으면 19금 허용도 켠 것으로 본다
+        boolean adultOnly = b.isAdultOnly() && BoardFields.KIND_GENERAL.equals(b.getKind());
+        boolean tagsEnabled = or(p.tagsEnabled(), d.tagsEnabled());
+        boolean anyPrefix = prefixes.stream().anyMatch(BoardPrefixInfo::active);
         return new EffectiveBoard(b.getId(), b.getSlug(), b.getName(), b.getNameEn(), description, b.getKind(), b.getLayout(), b.isViewToggle(), b.getColor(),
-                b.isAllowAdult() && !BoardFields.KIND_DEAL.equals(b.getKind()) /* 핫딜 게시판은 19금 끔 고정(hotdeal 서버 규칙 8) */, b.isInvestmentNotice(), b.isActive(), b.getSortOrder(), b.getWriteLock(), b.getIntroText(), b.getWriteGuideText(), b.getWriteTemplate(),
+                (b.isAllowAdult() || adultOnly) && !BoardFields.KIND_DEAL.equals(b.getKind()) /* 핫딜 게시판은 19금 끔 고정(hotdeal 서버 규칙 8) */, b.isInvestmentNotice(), b.isActive(), b.getSortOrder(), b.getWriteLock(), b.getIntroText(), b.getWriteGuideText(), b.getWriteTemplate(),
                 or(p.writeMin(), d.writeMin()), or(p.commentMin(), d.commentMin()), postEditor,
                 BoardFields.EDITOR_ADVANCED.equals(postEditor) && imageSetting, imageSetting, or(p.commentEditor(), d.commentEditor()),
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),
@@ -153,9 +157,15 @@ public class BoardCatalog implements CacheReloader {
                 // 글쓴이 대표 이미지 고르기(V206) — 게시판 값 ?? 기본값
                 or(p.authorThumbnailEnabled(), d.authorThumbnailEnabled()),
                 // 태그 쓰기(V215) — 게시판 값 ?? 기본값
-                or(p.tagsEnabled(), d.tagsEnabled()),
+                tagsEnabled,
                 // 글 상세 아래 게시판 목록(V224) — 게시판 값 그대로(사이트 기본 없음)
-                b.getDetailList());
+                b.getDetailList(),
+                // 글 상세 아래 [인기글]·[최신글] 탭 PC·모바일(V226) — 게시판 값 ?? 기본값
+                or(p.detailFeedTabsPc(), d.detailFeedTabsPc()), or(p.detailFeedTabsMobile(), d.detailFeedTabsMobile()),
+                // 말머리 필수(V226) — 켜진 말머리가 있을 때만 · 태그 필수 — 태그 쓰기가 켜졌을 때만(쓸 수 없게 막지 않는다)
+                anyPrefix && or(p.prefixRequired(), d.prefixRequired()), tagsEnabled && or(p.tagRequired(), d.tagRequired()),
+                // 성인 전용 게시판(V226)
+                adultOnly);
     }
 
     private static <T> T or(T value, T fallback) {

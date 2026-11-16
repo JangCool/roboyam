@@ -15,6 +15,8 @@ import java.util.Map;
  * {@code pinRequestMinLikes}(V200) = 토론 의견에 [고정 요청]을 보낼 수 있는 최소 추천 수(0 = 제한 없음, 기본 10) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음).
  * {@code authorThumbnailEnabled}(V206) = 「글쓴이가 대표 이미지 고르기」 전체 기본값(기본 false) — 게시판별 정책 칸(null = 이 값).
  * {@code tagsEnabled}(V215) = 「태그 쓰기」 전체 기본값(기본 false) — 게시판별 정책 칸(null = 이 값), post-tags-contract.
+ * {@code detailFeedTabsPc}·{@code detailFeedTabsMobile}(V226) = 글 상세 아래 [인기글]·[최신글] 탭 사이트 기본(PC false · 모바일 true) — 게시판별 정책 칸(null = 이 값).
+ * {@code prefixRequired}·{@code tagRequired}(V226) = 말머리 필수·태그 필수 사이트 기본(false) — 게시판별 정책 칸(null = 이 값), ai-news-reporter-contract.
  * 요청으로 받을 때 빠진 칸을 알아보려고 감싼 타입(Integer·Boolean)을 쓴다 — 저장된 값은 모두 채워져 있다. 칸 이름·범위의 원천은 {@link com.community.board.service.BoardFields}.
  */
 public record BoardDefaultsValues(String dateDisplay, String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor,
@@ -28,7 +30,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   Integer staffMax, Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit,
                                   String listChipPosition, Integer listLikeHighlight, Integer listViewHighlight, String listHighlightColor,
                                   String listPrefixStyle, String commentDelayNotice, Integer pinRequestMinLikes, Boolean authorThumbnailEnabled,
-                                  Boolean tagsEnabled) {
+                                  Boolean tagsEnabled, Boolean detailFeedTabsPc, Boolean detailFeedTabsMobile, Boolean prefixRequired, Boolean tagRequired) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 화면 기본 이름) */
     public BoardDefaultsValues {
@@ -38,7 +40,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
     }
 
     /**
-     * 나중에 생긴 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양 · V199 댓글 지연 안내 · V200 고정 요청 최소 추천 · V206 글쓴이 대표 이미지 · V215 태그 쓰기)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을
+     * 나중에 생긴 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양 · V199 댓글 지연 안내 · V200 고정 요청 최소 추천 · V206 글쓴이 대표 이미지 · V215 태그 쓰기 · V226 상세 탭·말머리 필수·태그 필수)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을
      * 그대로 둔다(이 칸들을 모르는 예전 화면·호출과 맞추려고). 칩 위치·말머리 모양·지연 안내는 대문자, 강조 색은 소문자로 맞춘다(앞뒤 공백 뗌 — 모양·범위는 검사에서 400).
      */
     public BoardDefaultsValues filledFrom(BoardDefaultsValues current) {
@@ -51,12 +53,16 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         Integer pinMinLikes = pinRequestMinLikes == null ? current.pinRequestMinLikes() : pinRequestMinLikes;
         Boolean authorThumbnail = authorThumbnailEnabled == null ? current.authorThumbnailEnabled() : authorThumbnailEnabled;
         Boolean tags = tagsEnabled == null ? current.tagsEnabled() : tagsEnabled;
+        Boolean feedPc = detailFeedTabsPc == null ? current.detailFeedTabsPc() : detailFeedTabsPc;
+        Boolean feedMobile = detailFeedTabsMobile == null ? current.detailFeedTabsMobile() : detailFeedTabsMobile;
+        Boolean prefixReq = prefixRequired == null ? current.prefixRequired() : prefixRequired;
+        Boolean tagReq = tagRequired == null ? current.tagRequired() : tagRequired;
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit,
                 commentGapSeconds, commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays,
                 pointMode, pointMinLengthApplied, commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes,
                 commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, pinRequestReviewers, debateEnabled,
                 pollEnabled, bestCommentMinLikes, managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, chip, like, view,
-                color, prefixStyle, delayNotice, pinMinLikes, authorThumbnail, tags);
+                color, prefixStyle, delayNotice, pinMinLikes, authorThumbnail, tags, feedPc, feedMobile, prefixReq, tagReq);
     }
 
     /** 단추 이름 정리 — 앞뒤 공백을 자르고 비면 null */
@@ -104,6 +110,10 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("pollEnabled", pollEnabled);
         map.put("authorThumbnailEnabled", authorThumbnailEnabled);
         map.put("tagsEnabled", tagsEnabled);
+        map.put("detailFeedTabsPc", detailFeedTabsPc);
+        map.put("detailFeedTabsMobile", detailFeedTabsMobile);
+        map.put("prefixRequired", prefixRequired);
+        map.put("tagRequired", tagRequired);
         map.put("bestCommentMinLikes", bestCommentMinLikes);
         map.put("managerMax", managerMax);
         map.put("staffMax", staffMax);

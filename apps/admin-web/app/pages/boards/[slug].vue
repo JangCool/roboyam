@@ -60,7 +60,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'detailList', 'authorMode'])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'detailList', 'authorMode', 'adultOnly', ...DETAIL_FEED_FIELDS])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -109,6 +109,16 @@
                                     <span class="text-sm">{{ t('board.field.allowAdult') }}</span>
                                     <span class="text-xs" :class="serverFields.allowAdult ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.allowAdult ? 'alert' : undefined">
                                         {{ serverFields.allowAdult || t(saved.kind === 'DEAL' ? 'board.allowAdultDeal' : 'board.allowAdultHelp') }}
+                                    </span>
+                                </label>
+                            </div>
+                            <!-- 성인 전용 게시판(adult-board-contract) — 본인인증 성인만 메뉴에서 보고 들어간다(아니면 「없는 게시판」). 일반 게시판만, 저장은 기본 정보 칸과 같은 `board.manage` -->
+                            <div v-if="adultOnlyAllowed" class="flex items-start gap-2" data-field="adultOnly">
+                                <ToggleSwitch v-model="adultOnlyModel" :input-id="`${idBase}-adult-only`" :disabled="!canManage || saving" class="shrink-0" data-testid="board-adult-only" />
+                                <label :for="`${idBase}-adult-only`" class="flex flex-col gap-0.5">
+                                    <span class="text-sm">{{ t('board.field.adultOnly') }}</span>
+                                    <span class="text-xs" :class="serverFields.adultOnly ? 'text-red-600 dark:text-red-400' : form.adultOnly ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color'" :role="serverFields.adultOnly ? 'alert' : undefined">
+                                        {{ serverFields.adultOnly || t(form.adultOnly ? 'board.adultOnlyOn' : 'board.adultOnlyBoardHelp') }}
                                     </span>
                                 </label>
                             </div>
@@ -207,6 +217,9 @@
                             </p>
                         </div>
 
+                        <!-- 글 상세 맨 아래 [인기글]·[최신글] 탭 — PC·휴대폰 각각(post-detail-board-list-contract 「2차」). 정책 칸이라 사이트 기본 따르기·켬·끔, 저장은 `board.settings` -->
+                        <BoardSettingField v-for="field in DETAIL_FEED_FIELDS" :key="field" v-bind="policyBind(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
+
                         <!-- 표시색 — 자동 · 프리셋 13색 · 직접 고르기 #RRGGBB(shared V188 — 메뉴 글자 색과 같은 부품 `PresetColorPicker`·규칙) -->
                         <div class="flex flex-col gap-1.5 md:col-span-2">
                             <span :id="`${idBase}-color`" class="text-sm font-medium">{{ t('board.field.color') }}</span>
@@ -228,9 +241,11 @@
                 </AppGadget>
 
                 <!-- 2. 글쓰기·댓글 -->
-                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'writeLock', 'secretMode', 'statusEnabled'])">
+                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', ...RULE_FIELDS, 'writeLock', 'secretMode', 'statusEnabled'])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
                         <BoardSettingField v-for="field in WRITE_FIELDS" :key="field" v-bind="policyBind(field)" :allow-guest="UtilBoard.guestAllowed(saved.kind)" :exclude-grades="field === 'writeMin' && saved.kind === 'DEAL' && firstGradeKey ? [firstGradeKey] : []" :inactive="writeInactive(field)" :note="writeNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
+                        <!-- 글 규칙 — 말머리 필수·태그 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」, 회원·AI 공통). 정책 칸이라 사이트 기본 따르기·켬·끔 -->
+                        <BoardSettingField v-for="field in RULE_FIELDS" :key="field" v-bind="policyBind(field)" :inactive="ruleInactive(field)" :note="ruleInactive(field) ? t('board.inactiveNote.tagsOff') : ''" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
 
                         <div class="flex flex-col gap-1.5">
                             <span :id="`${idBase}-lock`" class="text-sm font-medium">{{ t('board.field.writeLock') }}</span>
@@ -604,6 +619,10 @@ const canStaffManage = computed(() => can('board.staff.manage'));
 const canDelete = computed(() => can('board.delete'));
 
 const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
+/** 글 규칙 — 말머리 필수·태그 필수(쓰기 구획) */
+const RULE_FIELDS = ['prefixRequired', 'tagRequired'] as const;
+/** 글 상세 맨 아래 탭의 PC·휴대폰 표시(기본 정보 구획 — 글 상세 아래 목록 옆) */
+const DETAIL_FEED_FIELDS = ['detailFeedTabsPc', 'detailFeedTabsMobile'] as const;
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode', 'pointMinLengthApplied'] as const;
@@ -697,6 +716,17 @@ const secretModeModel = computed<BoardSecretMode>({
 });
 /** 작성자 표시를 고를 수 있는 게시판 — 일반 게시판만(anonymous-board-contract 정책 1) */
 const anonymousAllowed = computed(() => Boolean(saved.value && UtilBoard.anonymousAllowed(saved.value.kind)));
+/** 성인 전용 게시판 스위치를 보일지 — 일반 게시판만(`UtilBoard.adultOnlyAllowed`) */
+const adultOnlyAllowed = computed(() => Boolean(saved.value && UtilBoard.adultOnlyAllowed(saved.value.kind)));
+/** 성인 전용 게시판 — 고치면 서버 오류를 지운다 */
+const adultOnlyModel = computed<boolean>({
+    get: () => form.value?.adultOnly === true,
+    set: (value) => {
+        if (!form.value) return;
+        form.value.adultOnly = value;
+        clearServer('adultOnly');
+    },
+});
 /** 저장된 값이 익명이면 닉네임으로 되돌리기는 최고 관리자만(서버도 400 fields.authorMode) */
 const nicknameLocked = computed(() => saved.value?.authorMode === 'ANONYMOUS' && !isSuper.value);
 /** 최고 관리자가 익명 → 닉네임으로 고른 상태(저장 전 경고) */
@@ -864,6 +894,12 @@ function clearServer(field: string) {
 function writeInactive(field: (typeof WRITE_FIELDS)[number]): boolean {
     if (field !== 'imageUploadAllowed' || !form.value || !saved.value) return false;
     return UtilBoard.imageUploadIdle(UtilBoard.effective(form.value.policy, saved.value.defaults, 'postEditor'));
+}
+
+/** 태그 필수는 「태그 쓰기」(유효값)가 켜졌을 때만 쓰인다(서버도 같다 — 값은 그대로 저장된다) */
+function ruleInactive(field: (typeof RULE_FIELDS)[number]): boolean {
+    if (field !== 'tagRequired' || !form.value || !saved.value) return false;
+    return !UtilBoard.effective(form.value.policy, saved.value.defaults, 'tagsEnabled');
 }
 
 /** 잠금이 걸리면 최소 자격 칸은 지금 쓰이지 않는다 · 이미지 올리기는 고급 에디터가 아니면 쓰이지 않는다 */

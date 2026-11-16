@@ -36,8 +36,9 @@ public class PublicBoardController {
 
     /** 메뉴·허브용 켜진 게시판 전체(정렬 순서대로) */
     @GetMapping
-    public ResponseEntity<ApiResponse<BoardListResponse>> boards() {
-        return noStore(ApiResponse.success(boardService.boards()));
+    public ResponseEntity<ApiResponse<BoardListResponse>> boards(Authentication authentication) {
+        // 성인 전용 게시판은 성인에게만(V226) — 보는 사람마다 달라 no-store
+        return noStore(ApiResponse.success(boardService.boards(userId(authentication))));
     }
 
     /** 지금 사용자가 새 글을 쓸 수 있는 게시판(글쓰기 화면의 게시판 고르기) */
@@ -71,8 +72,8 @@ public class PublicBoardController {
 
     /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그 {@code [{name, count}]}(많이 쓴 순, 「태그 쓰기」가 꺼졌으면 빈 목록 · post-tags-contract 「글쓰기 추천」) */
     @GetMapping("/{slug}/tags")
-    public ResponseEntity<ApiResponse<List<TagCountView>>> tags(@PathVariable String slug) {
-        return noStore(ApiResponse.success(boardService.tags(slug)));
+    public ResponseEntity<ApiResponse<List<TagCountView>>> tags(@PathVariable String slug, Authentication authentication) {
+        return noStore(ApiResponse.success(boardService.tags(slug, userId(authentication))));
     }
 
     static Long userId(Authentication authentication) {

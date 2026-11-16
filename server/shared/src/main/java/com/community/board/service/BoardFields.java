@@ -162,7 +162,7 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "pointMinLengthApplied", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "tagsEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
+            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "tagsEnabled", "detailFeedTabsPc", "detailFeedTabsMobile", "prefixRequired", "tagRequired", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
     /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
     public static final int REACTION_LABEL_MAX = 10;
@@ -242,6 +242,12 @@ public final class BoardFields {
         bool(d, "authorThumbnailEnabled", true);
         // 글 태그 쓰기(V215 — post-tags-contract, 기본 끔)
         bool(d, "tagsEnabled", true);
+        // 글 상세 아래 [인기글]·[최신글] 탭 PC·모바일(V226 — post-detail-board-list-contract 「2차」, 기본 PC 끔·모바일 켬)
+        bool(d, "detailFeedTabsPc", true);
+        bool(d, "detailFeedTabsMobile", true);
+        // 말머리 필수 · 태그 필수(V226 — ai-news-reporter-contract 「뉴스 게시판 글 규칙」, 기본 끔)
+        bool(d, "prefixRequired", true);
+        bool(d, "tagRequired", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음)
         number(d, "pinRequestMinLikes", 0, PIN_REQUEST_MIN_LIKES_MAX, false, false);

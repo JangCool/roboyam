@@ -172,6 +172,20 @@ export interface BoardDefaults {
      * 서버 shared V215 `boards.tags_enabled`(NULL = 기본값)·`board_defaults.tags_enabled`. 옛 서버 응답에는 칸이 없을 수 있다
      */
     tagsEnabled: boolean;
+    /**
+     * 말머리 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」) — 켜면 말머리 없이 쓴 글을 400 `fields.prefix` 로 막는다(회원·AI 공통). 전체 기본값 `false`.
+     * 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
+     */
+    prefixRequired: boolean;
+    /** 태그 필수 — 켜면 태그 없이 쓴 글을 400 `fields.tags` 로 막는다. 전체 기본값 `false`. 옛 서버 응답에는 칸이 없을 수 있다 */
+    tagRequired: boolean;
+    /**
+     * 글 상세 맨 아래 [인기글]·[최신글] 탭을 PC(md 이상)에서 보인다(post-detail-board-list-contract 「2차」). 전체 기본값 `false`.
+     * 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
+     */
+    detailFeedTabsPc: boolean;
+    /** 같은 탭을 휴대폰(md 미만)에서 보인다. 전체 기본값 `true`. 옛 서버 응답에는 칸이 없을 수 있다(화면은 켬으로 본다) */
+    detailFeedTabsMobile: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /**
@@ -221,6 +235,10 @@ export const BOARD_POLICY_FIELDS = [
     'pollEnabled',
     'authorThumbnailEnabled',
     'tagsEnabled',
+    'prefixRequired',
+    'tagRequired',
+    'detailFeedTabsPc',
+    'detailFeedTabsMobile',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',
@@ -345,6 +363,11 @@ export interface BoardDetail extends BoardRef {
     detailList?: BoardDetailList;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
+    /**
+     * 성인 전용 게시판(adult-board-contract) — 본인인증 성인만 메뉴에서 보고 들어간다(아니면 서버가 「없는 게시판」 404). 켜면 글은 모두 19금, `allowAdult` 도 켠 것으로 본다.
+     * 옛 서버 응답에는 칸이 없을 수 있다(없으면 끔)
+     */
+    adultOnly?: boolean;
     /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
     adsHidden: boolean;
     /** 투자 고지 — 켜기만 된다(켠 뒤 끄면 409 `BOARD_INVESTMENT_NOTICE_LOCKED`) */
@@ -422,6 +445,8 @@ export interface BoardSaveRequest {
     detailList: BoardDetailList | null;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
+    /** 성인 전용 게시판 — `null` 이면 바꾸지 않는다(종류가 받지 않는 게시판). 기본 정보 칸이라 `board.manage` */
+    adultOnly: boolean | null;
     investmentNotice: boolean;
     writeLock: BoardWriteLock | null;
     introText: string | null;

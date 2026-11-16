@@ -69,6 +69,11 @@ public class BoardContentQueries extends IrobitRepositoryQDSL {
         return out;
     }
 
+    /** 성인 전용 게시판을 켤 때 — 그 게시판의 아직 19금이 아닌 글을 모두 19금으로(V226 — adult-board-contract). 끌 때는 되돌리지 않는다. {@code ix_posts_board_prefix} 앞부분을 탄다. 바꾼 글 수 */
+    public int markAllAdult(long boardId) {
+        return (int) query.update(POST).set(POST.adult, true).where(POST.boardId.eq(boardId), POST.adult.isFalse()).execute();
+    }
+
     /**
      * 성인 전용으로 새로 켠 말머리의 글을 19금으로 바꾼다(adult-content-contract — 말머리 「성인 전용」). 끈 말머리의 글은 되돌리지 않는다(글쓴이가 따로 19금으로 고른 글일 수 있다).
      * {@code ix_posts_board_prefix} 를 탄다.

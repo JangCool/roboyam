@@ -5,7 +5,8 @@
               공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 · 태그 탭(최대 8개 — ↑↓ 차례 · 추천 `usePopularTags` 눌러 넣기 · 직접 입력, post-tags-contract) + 보기 모양(줄 모양·열·사진·제목 줄·맨 위 글·줄 간격·구분선·줄 정보·추천 표시·NEW·HOT·모바일 쪽 넘기기) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
               하이라이트 — 개수(1~6) · 큰 글 · 사진 · 좁은 칸 모양(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
-              광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
+              광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다) /
+              19금 전용(`ADULT_POSTS` — adult-board-contract) — 성인 전용 게시판(비우면 전체, 선택지는 게시판 목록의 `adultOnly`) · 보일 글 수(1~30), 목록형·본인인증 성인에게만
           · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색 · 카드 아래 여백(`style` — `UtilGadgetStyle`) · 마우스 올림 효과(항목이 있는 종류만 — 값은 `config.hover`, 기본 켬)
           · 「노출」 PC/모바일(둘 다 끌 수 없다) · 모바일 접기(머리 숨김이면 못 고름) · 비었을 때(자리 남기기 · 안내 · 안내 문구)
         대상 게시판: 전체 게시판(홈) · 「이 페이지가 연결된 폴더의 게시판 전체」(가젯 페이지) · 「지금 보는 게시판」(게시판 레이아웃) · 직접 고르기(여러 개, 고른 차례 — 20개까지). 게시판 카드의 「전체」는 서버가 켜진 일반 게시판 앞 6개.
@@ -108,6 +109,21 @@
                                     :empty-message="hotDealBoardsLoading ? t('common.loading') : hotDealBoardsError || t('homeLayout.boardEmpty')"
                                 />
                                 <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.hotDealBoardsHint') }}</small>
+                            </div>
+                            <!-- 19금 전용 가젯 — 성인 전용 게시판 고르기(비우면 모든 성인 전용 게시판, adult-board-contract). 본인인증 성인에게만 그려진다 -->
+                            <div v-if="gadget.type === 'ADULT_POSTS'" class="flex flex-col gap-1.5" data-testid="gadget-adult-boards">
+                                <label :for="`${uid}-adult-boards`" class="text-sm font-medium">{{ t('homeLayout.adultBoards') }}</label>
+                                <AppMultiSelect
+                                    v-model="hotDealBoardsModel"
+                                    :options="adultBoardOptions"
+                                    :input-id="`${uid}-adult-boards`"
+                                    :placeholder="t('homeLayout.adultBoardsAll')"
+                                    :aria-label="t('homeLayout.adultBoards')"
+                                    :max-selected-labels="4"
+                                    :selected-items-label="t('homeLayout.boardPicked')"
+                                    :empty-message="boardsLoading ? t('common.loading') : boardsError || t('homeLayout.adultBoardsEmpty')"
+                                />
+                                <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.adultBoardsHint') }}</small>
                             </div>
                             <!-- 핫딜 줄 사진 — 기본 켬(끄면 제목 / 쇼핑몰·가격 두 줄만) -->
                             <div v-if="gadget.type === 'HOT_DEALS'" class="flex flex-col gap-1">
@@ -801,7 +817,7 @@ watch(
         linkKeys.value = (draft.value?.items ?? []).map(() => ++linkSeq);
         tab.value = TABS.find((k) => serverTabs.value.has(k)) ?? 'content';
         submitted.value = false;
-        if (spec.value?.boards || g.type === 'QUICK_LINKS') void loadBoards();
+        if (spec.value?.boards || g.type === 'QUICK_LINKS' || g.type === 'ADULT_POSTS') void loadBoards();
         if (g.type === 'HOT_DEALS') void loadHotDealBoards();
         if (g.type === 'HIGHLIGHT') void loadHighlightPlaces();
     },
@@ -833,6 +849,17 @@ const hotDealBoardOptions = computed(() => {
     return [...known, ...missing];
 });
 
+/**
+ * 19금 전용 가젯이 고를 성인 전용 게시판 — 게시판 선택지 중 `adultOnly` 인 것. 이미 고른 slug 가 목록에 없으면(꺼짐·지움·성인 전용을 끔) 그 slug 로 남겨 보인다.
+ * 서버가 아직 `adultOnly` 칸을 주지 않으면(어느 게시판에도 칸이 없음) 모든 게시판을 보인다(판정은 서버 — 성인 전용이 아닌 게시판 글은 서버가 내지 않는다)
+ */
+const adultBoardOptions = computed(() => {
+    const flagged = boards.value.some((b) => b.adultOnly !== undefined);
+    const known = boards.value.filter((b) => !flagged || b.adultOnly === true).map((b) => ({ value: b.slug, label: boardLabel(b) }));
+    const missing = (draft.value?.boards ?? []).filter((slug) => !known.some((o) => o.value === slug)).map((slug) => ({ value: slug, label: slug }));
+    return [...known, ...missing];
+});
+
 /** 핫딜 줄 사진 — 기본 켬 */
 const hotDealThumbsModel = computed<boolean>({
     get: () => draft.value?.thumbnails !== false,
@@ -841,6 +868,7 @@ const hotDealThumbsModel = computed<boolean>({
     },
 });
 
+/** 고른 게시판 slug(`config.boards`) — 핫딜 게시판 · 19금 전용 가젯의 성인 전용 게시판이 같은 칸을 쓴다 */
 const hotDealBoardsModel = computed<unknown[]>({
     get: () => draft.value?.boards ?? [],
     set: (value) => {

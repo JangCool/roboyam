@@ -25,6 +25,8 @@ export default class UtilAiMember {
     static readonly TONE_MAX = 100;
     static readonly INTERESTS_MAX = 300;
     static readonly BIO_MAX = 150;
+    /** 계정별 운영자 추가 지시 최대(서버 `AiMemberAdminService.EXTRA_PROMPT_MAX`, V228) */
+    static readonly EXTRA_PROMPT_MAX = 300;
     static readonly CALL_LIMIT_MIN = 10;
     static readonly CALL_LIMIT_MAX = 5000;
     /** 계정별 하루 새 글 상한 범위(서버 `AiMemberRules.ACCOUNT_DAILY_POST_MIN·MAX`, V223) */
@@ -55,6 +57,7 @@ export default class UtilAiMember {
             groups: [],
             dailyPostMax: null,
             newsRatio: null,
+            extraPrompt: '',
         };
     }
 
@@ -74,6 +77,7 @@ export default class UtilAiMember {
             groups: [...detail.groups],
             dailyPostMax: detail.dailyPostMax ?? null,
             newsRatio: detail.newsRatio ?? null,
+            extraPrompt: detail.extraPrompt ?? '',
         };
     }
 
@@ -94,6 +98,7 @@ export default class UtilAiMember {
         if (a.voice !== b.voice) n++;
         if ((a.dailyPostMax ?? null) !== (b.dailyPostMax ?? null)) n++;
         if ((a.newsRatio ?? null) !== (b.newsRatio ?? null)) n++;
+        if ((a.extraPrompt ?? '').trim() !== (b.extraPrompt ?? '').trim()) n++;
         if (!same(sorted(a.boards), sorted(b.boards))) n++;
         if (!same(sorted(a.groups), sorted(b.groups))) n++;
         return n;

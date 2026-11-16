@@ -38,6 +38,12 @@ import java.util.Set;
  *                           나중에 꺼도 이미 고른 글은 그대로. 운영자 교체는 이 값과 무관
  * @param tagsEnabled        글에 태그를 달 수 있는가(게시판 값 ?? 기본값, 기본 false — V215, post-tags-contract). 꺼져 있으면 글쓰기·고치기의 {@code tags} 를 무시한다(이미 단 태그는 그대로)
  * @param detailList         글 상세 아래 게시판 목록 OFF · LIST · COMPACT(게시판 값 그대로 — V224, post-detail-board-list-contract)
+ * @param detailFeedTabsPc   글 상세 아래 [인기글]·[최신글] 탭을 PC 에서 보이는가(게시판 값 ?? 기본값, 기본 false — V226, post-detail-board-list-contract 「2차」)
+ * @param detailFeedTabsMobile 같은 탭을 모바일에서 보이는가(게시판 값 ?? 기본값, 기본 true — V226)
+ * @param prefixRequired     말머리 필수(게시판 값 ?? 기본값, 기본 false — V226, ai-news-reporter-contract). 켜진 말머리가 하나도 없으면 늘 false(쓸 수 없게 막지 않는다)
+ * @param tagRequired        태그 필수(게시판 값 ?? 기본값, 기본 false — V226). 「태그 쓰기」({@code tagsEnabled})가 꺼져 있으면 늘 false
+ * @param adultOnly          성인 전용 게시판(게시판 값 그대로 — V226, adult-board-contract). 일반 게시판만(그 밖 늘 false). 켜져 있으면 {@code allowAdult} 도 true 이고
+ *                           그 게시판 글은 모두 19금으로 저장한다. 성인이 아니면 게시판·글·메뉴에서 없는 게시판과 같다
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -49,7 +55,8 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
                              boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
-                             String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList) {
+                             String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc,
+                             boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;

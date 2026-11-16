@@ -61,7 +61,7 @@ class BoardChipPositionPublicTest extends CommerceApiTestBase {
     }
 
     private BoardView listed() {
-        return boards.boards().boards().stream().filter(b -> b.slug().equals(slug)).findFirst().orElseThrow();
+        return boards.boards(null).boards().stream().filter(b -> b.slug().equals(slug)).findFirst().orElseThrow();
     }
 
     /** 사이트 설정 사본은 20초 캐시라 시험마다 새로 만든다 */

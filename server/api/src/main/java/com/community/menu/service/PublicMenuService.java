@@ -12,6 +12,7 @@ import com.community.menu.entity.MenuSetEntity;
 import com.community.menu.exception.MenuSetNotFoundException;
 import com.community.menu.repository.master.MenuSetRepository;
 import com.community.menu.target.MenuResolveContext;
+import com.community.post.service.AdultContentGate;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
@@ -30,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       공개 사이트의 운영진은 게시판 담당 회원뿐이다(게시판 쓰기 자격 {@code STAFF} 와 같은 뜻).</li>
  *   <li>그룹·트리·게시판·등급 서열·가젯 페이지는 캐시 {@code menu.public}(기본 300초 — 관리자 메뉴·게시판·등급·가젯 페이지 저장은 세대 번호로 몇 초 안에)에 두고,
  *       보는 사람 판정과 판매 스위치는 요청마다 읽는다. 판매가 꺼지면 공동구매 항목이 빠진다({@link MenuSales}).</li>
+ *   <li>성인 전용 게시판(V226 — adult-board-contract): 캐시에는 성인 여부와 무관한 재료(게시판의 {@code adultOnly} 표시 포함)만 담고, 성인 판정은 꺼낸 뒤 요청마다 한다 —
+ *       성인이 아니면 그 게시판 항목이 빠진다({@code BoardMenuTargetResolver}). 성인 전용 게시판이 없으면 판정 질의를 하지 않는다. 응답은 {@code no-store}(컨트롤러).</li>
  * </ul>
  */
 @Service
@@ -45,9 +48,11 @@ public class PublicMenuService {
     private final BoardStaffRepository boardStaff;
     private final MenuSales sales;
     private final CacheManager caches;
+    private final AdultContentGate adultGate;
 
     public PublicMenuService(MenuSetRepository sets, MenuTreeStore store, MenuSnapshots snapshots, MenuViewComposer composer, UserRepository users,
-                             ProfileRepository profiles, BoardStaffRepository boardStaff, MenuSales sales, CacheManager caches) {
+                             ProfileRepository profiles, BoardStaffRepository boardStaff, MenuSales sales, CacheManager caches, AdultContentGate adultGate) {
+        this.adultGate = adultGate;
         this.caches = caches;
         this.sets = sets;
         this.store = store;
@@ -76,7 +81,9 @@ public class PublicMenuService {
             return new MenuResponse(List.of(), List.of(), shared.version());
         }
         // 보는 사람(등급·운영진) 판정과 판매 스위치(돈 기능 — 요청마다 지금 값)는 꺼낸 뒤 — 거르는 규칙은 캐시 전과 같다(같은 조립기)
-        MenuResolveContext context = new MenuResolveContext(shared.boards(), shared.levels(), sales.enabled(), viewerOf(userId, shared.levels()), shared.pages());
+        // 성인 판정(성인 전용 게시판 — V226)은 그런 게시판이 있을 때만 읽는다
+        boolean adult = userId != null && shared.boards().values().stream().anyMatch(MenuBoardRef::adultOnly) && adultGate.adult(userId);
+        MenuResolveContext context = new MenuResolveContext(shared.boards(), shared.levels(), sales.enabled(), viewerOf(userId, shared.levels(), adult), shared.pages());
         return composer.compose(shared.nodes(), shared.side(), context, shared.version());
     }
 
@@ -100,14 +107,14 @@ public class PublicMenuService {
                           Map<Long, MenuPageRef> pages) {
     }
 
-    private MenuViewer viewerOf(Long userId, Map<String, Integer> levels) {
+    private MenuViewer viewerOf(Long userId, Map<String, Integer> levels, boolean adult) {
         if (userId == null || users.findById(userId).filter(user -> !user.isGone()).isEmpty()) {
             return MenuViewer.guest();
         }
         if (boardStaff.countByUserId(userId) > 0) {
-            return new MenuViewer(MenuViewer.STAFF, null);
+            return new MenuViewer(MenuViewer.STAFF, null, adult);
         }
         Integer level = profiles.findById(userId).map(ProfileEntity::getGradeKey).map(levels::get).orElse(null);
-        return new MenuViewer(MenuViewer.MEMBER, level);
+        return new MenuViewer(MenuViewer.MEMBER, level, adult);
     }
 }

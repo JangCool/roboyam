@@ -4,6 +4,7 @@
         칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만 — 성인 전용 말머리를 고르면 켜고 잠근다, 19금 글은 본인인증한 만 19세 이상만 쓴다: 판정은 서버) · 비밀글(게시판 `secretMode` — `OPTIONAL` 체크 · `ALWAYS` 고정 안내 · 비회원도 같다 — 비회원 비밀글은 글 비밀번호로 연다) · (`belowContent` 자리 — 본문 바로 아래, 대표 이미지) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
         이미지는 고급 에디터 안에서 올린다(게시판이 허용하고 회원일 때만 — 비회원 글쓰기·비회원 글 고치기는 감춘다). 올리기 함수(`upload`)는 페이지가 API 컴포저블로 만들어 넘긴다.
         화면 검사는 미리 알려 주는 용도이고 판정은 서버다(서버 `fields` 가 있으면 그것을 칸 아래에 먼저 보인다).
+        말머리 필수 게시판(`prefixRequired` — 뉴스 게시판 글 규칙)은 말머리 칸에 「필수」, 「말머리 없음」 없이 고르게 하고 비었으면 [등록]을 막는다(서버 400 `fields.prefix`). 태그 필수(`tagRequired`)는 태그 칸을 그리는 페이지가 막는다.
         `lead` 자리(제목 위 — 핫딜 딜 칸)와 단계 입력(`step` — 모바일 핫딜: 1 = 게시판·말머리·`lead` + [다음], 2 = 나머지 + [이전]·[등록], 0 = 한 번에)을 둔다.
           단계를 오가도 칸 상태가 남게 숨기기만 한다(`v-show`). [등록]을 누르면 검사 전에 `attempt` 를 올린다(화면이 덧붙인 칸의 검사 문구도 함께 보이게).
     -->
@@ -34,7 +35,7 @@
                 <span class="text-sm font-medium">{{ fixedTarget ? fixedTarget.label : t('post.boardLabel') }}</span>
                 <span class="text-sm">{{ fixedTarget ? fixedTarget.value : localizedName(board.name, board.nameEn) }}</span>
             </div>
-            <LabeledField :label="t('post.prefixLabel')" :error="fieldErrors.prefixId ?? ''">
+            <LabeledField :label="t('post.prefixLabel')" :hint="prefixRequired ? t('post.prefixRequiredHint') : ''" :error="prefixError">
                 <template #default="{ id, describedBy, invalid }">
                     <Select
                         :input-id="id"
@@ -42,9 +43,12 @@
                         :options="prefixOptions"
                         option-label="label"
                         option-value="value"
+                        :placeholder="prefixRequired ? t('post.prefixPlaceholder') : undefined"
                         :invalid="invalid"
                         :aria-describedby="describedBy"
+                        :aria-required="prefixRequired ? 'true' : undefined"
                         fluid
+                        data-testid="post-prefix-select"
                         @update:model-value="pickPrefix(($event as string | null) ?? null)"
                     />
                 </template>
@@ -259,9 +263,18 @@ function patch(change: Partial<PostFormValues>): void {
     emit('update:modelValue', { ...props.modelValue, ...change });
 }
 
-/** 고를 수 있는 말머리 — 운영진 전용은 운영진에게만. 성인 전용 말머리는 이름 뒤에 19금 표시 */
+/**
+ * 말머리 필수(게시판 유효 정책 `prefixRequired` — ai-news-reporter-contract 「뉴스 게시판 글 규칙」). 고를 말머리가 하나도 없으면 막지 않는다(서버 판정에 맡긴다 — 고를 수 없는 칸으로 등록을 막지 않게).
+ * 켜져 있으면 「말머리 없음」을 빼고 자리 글자 「말머리 고르기」, [등록] 때 비었으면 칸 아래 「말머리를 골라 주세요」
+ */
+const prefixRequired = computed(() => props.board.prefixRequired === true && UtilBoard.selectablePrefixes(props.board, props.board.viewer.staff).length > 0);
+const prefixMissing = computed(() => prefixRequired.value && !props.modelValue.prefixId);
+/** 말머리 칸 오류 — 서버 `fields.prefix`(·옛 `fields.prefixId`)가 먼저, 아니면 [등록] 뒤 화면 검사 */
+const prefixError = computed(() => props.fieldErrors.prefix || props.fieldErrors.prefixId || (tried.value && prefixMissing.value ? t('post.prefixRequired') : ''));
+
+/** 고를 수 있는 말머리 — 운영진 전용은 운영진에게만. 성인 전용 말머리는 이름 뒤에 19금 표시. 말머리 필수면 「말머리 없음」을 뺀다 */
 const prefixOptions = computed(() => [
-    { value: null as string | null, label: t('post.prefixNone') },
+    ...(prefixRequired.value ? [] : [{ value: null as string | null, label: t('post.prefixNone') }]),
     ...UtilBoard.selectablePrefixes(props.board, props.board.viewer.staff).map((p) => ({
         value: p.id as string | null,
         label: p.adultOnly && props.board.allowAdult ? t('post.prefixAdultOnly', { name: p.name }) : p.name,
@@ -360,7 +373,7 @@ function submit(): void {
     emit('attempt');
     tried.value = true;
     if (props.submitting) return;
-    if (titleProblem.value || contentProblem.value || emoticonOver.value || nameProblem.value || passwordProblem.value || captchaMissing.value || mediaProblem.value) return;
+    if (prefixMissing.value || titleProblem.value || contentProblem.value || emoticonOver.value || nameProblem.value || passwordProblem.value || captchaMissing.value || mediaProblem.value) return;
     emit('submit');
 }
 </script>

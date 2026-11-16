@@ -16,6 +16,7 @@ export default class UtilGadgetMessages {
         if (custom !== '') return custom;
         switch (gadget.type) {
             case 'POST_LIST':
+            case 'ADULT_POSTS':
             case 'BOARD_CARDS':
                 return t('home.emptyPosts');
             case 'GALLERY':

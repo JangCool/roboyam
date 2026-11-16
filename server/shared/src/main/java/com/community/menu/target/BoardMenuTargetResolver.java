@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * {@code BOARD} — {@code targetId} = {@code boards.id}. 기본 이름 = 게시판 이름(+영문명), 주소 {@code /boards/{slug}}(그 아래 주소도 밝다).
  * 꺼진 게시판은 넣을 수 있지만 공개 메뉴에서 빠진다(상태 {@code BOARD_INACTIVE}). 한 그룹 안에서 한 번.
+ * 성인 전용 게시판(V226 — adult-board-contract)은 보는 사람이 성인이 아니면 빠진다(관리자 상태 계산 — 보는 사람 없음 — 에는 영향 없다).
  */
 @Component
 public class BoardMenuTargetResolver implements MenuTargetResolver {
@@ -74,6 +75,9 @@ public class BoardMenuTargetResolver implements MenuTargetResolver {
             return null;
         }
         MenuBoardRef board = context.board(item.targetId());
+        if (board.adultOnly() && context.viewer() != null && !context.viewer().adult()) {
+            return null; // 성인 전용 게시판 — 성인에게만(V226)
+        }
         return new ResolvedTarget("/boards/" + board.slug(), true, board.name(), board.nameEn(), false, board, null);
     }
 }

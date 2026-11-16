@@ -171,7 +171,8 @@ final class GadgetPatches {
     }
 
     /**
-     * @param dealBoard 핫딜 가젯 {@code boards} 의 slug 가 있는 핫딜 게시판(kind DEAL)인가
+     * @param dealBoard 종류만의 게시판 칸 {@code boards} 의 slug 가 맞는 게시판인가 — 핫딜 가젯이면 핫딜 게시판(kind DEAL), 19금 전용 가젯({@code ADULT_POSTS})이면
+     *                  성인 전용 게시판(V226). 부르는 쪽이 종류에 맞는 판정을 넘긴다
      */
     static ObjectNode config(String type, JsonNode raw, JsonNode current, GadgetConfigs.Place place, Predicate<String> boardExists, Predicate<String> dealBoard,
                              String path, Map<String, MessageRef> fields) {
@@ -321,6 +322,12 @@ final class GadgetPatches {
                 option(raw, out, "format", GadgetConfigs.NOTICE_FORMATS, at, opt, fields);
             }
             case GadgetKinds.AD -> option(raw, out, "adType", GadgetConfigs.AD_TYPES, at, opt, fields);
+            case GadgetKinds.ADULT_POSTS -> {
+                // 19금 전용 가젯(adult-board-contract) — 성인 전용 게시판 slug 0~20(비면 모두)
+                if (present(raw, "boards")) {
+                    kindBoards(raw.get("boards"), dealBoard, base, "homeLayout.gadget.config.adultBoards", out, fields);
+                }
+            }
             case GadgetKinds.HOT_DEALS -> {
                 if (present(raw, "boards")) {
                     hotDealBoards(raw.get("boards"), dealBoard, base, out, fields);
@@ -451,7 +458,12 @@ final class GadgetPatches {
 
     /** 핫딜 가젯의 핫딜 게시판 slug 0~20개(비면 모든 핫딜 게시판) — 있는 핫딜 게시판(kind DEAL)만, 겹치면 하나로(고른 차례) */
     private static void hotDealBoards(JsonNode raw, Predicate<String> dealBoard, String base, ObjectNode out, Map<String, MessageRef> fields) {
-        MessageRef bad = new MessageRef("homeLayout.gadget.config.hotDealBoards", String.valueOf(GadgetConfigs.BOARD_PICK_MAX));
+        kindBoards(raw, dealBoard, base, "homeLayout.gadget.config.hotDealBoards", out, fields);
+    }
+
+    /** 종류만의 게시판 칸 {@code boards} — 맞는 게시판({@code allowed}) slug 0~20개, 겹치면 하나로(고른 차례). 틀리면 {@code fields.<base>boards} 에 {@code messageKey} */
+    private static void kindBoards(JsonNode raw, Predicate<String> dealBoard, String base, String messageKey, ObjectNode out, Map<String, MessageRef> fields) {
+        MessageRef bad = new MessageRef(messageKey, String.valueOf(GadgetConfigs.BOARD_PICK_MAX));
         if (!raw.isArray()) {
             fields.put(base + "boards", bad);
             return;

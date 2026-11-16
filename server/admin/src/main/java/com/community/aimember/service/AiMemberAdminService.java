@@ -88,6 +88,8 @@ public class AiMemberAdminService {
     static final int PERSONALITY_MAX = 200;
     static final int TONE_MAX = 100;
     static final int INTERESTS_MAX = 300;
+    /** 운영자 추가 지시 최대(V228 — DB CHECK 300) */
+    static final int EXTRA_PROMPT_MAX = 300;
     static final int BIO_MAX = 150;
     static final String AUDIT_TARGET = "AI_MEMBER";
     private static final Pattern TIME = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
@@ -344,6 +346,12 @@ public class AiMemberAdminService {
         if (dailyPostMax != null && (dailyPostMax < AiMemberRules.ACCOUNT_DAILY_POST_MIN || dailyPostMax > AiMemberRules.ACCOUNT_DAILY_POST_MAX)) {
             f.put("dailyPostMax", new MessageRef("aiMember.dailyPostMax.range", AiMemberRules.ACCOUNT_DAILY_POST_MIN, AiMemberRules.ACCOUNT_DAILY_POST_MAX));
         }
+        // 운영자 추가 지시(V228) — 선택, 300자. 비우면 없음(null)
+        String extraPrompt = b.extraPrompt() == null ? "" : b.extraPrompt().replace("\r\n", "\n").strip();
+        if (extraPrompt.codePointCount(0, extraPrompt.length()) > EXTRA_PROMPT_MAX) {
+            f.put("extraPrompt", new MessageRef("aiMember.extraPrompt.max", EXTRA_PROMPT_MAX));
+        }
+        extraPrompt = extraPrompt.isEmpty() ? null : extraPrompt;
         // 계정별 뉴스 글 비율 %(V223 — 기자 계정은 높게) — 비우면(null) 공통 프롬프트 설정
         Integer newsRatio = b.newsRatio();
         if (newsRatio != null && (newsRatio < 0 || newsRatio > 100)) {
@@ -404,7 +412,7 @@ public class AiMemberAdminService {
             }
         }
         AiMemberProfileEntity.Values values = f.isEmpty() ? new AiMemberProfileEntity.Values(provider, model, gender, age, personality, tone, interests, m[0], m[1],
-                n[0], n[1], voice, boardIds, dailyPostMax, newsRatio) : null;
+                n[0], n[1], voice, boardIds, dailyPostMax, newsRatio, extraPrompt) : null;
         return new Checked(values, bio, kind, partner, groupIds, avatarId, animated);
     }
 
@@ -553,7 +561,7 @@ public class AiMemberAdminService {
                 new AiMemberViews.Persona(a.getGender().name(), a.getAgeBand().name(), a.getPersonality(), a.getTone(), a.getInterests()), bio == null ? "" : bio,
                 new AiMemberViews.Windows(new AiMemberViews.Window(hhmm(a.getMorningStart()), hhmm(a.getMorningEnd())),
                         new AiMemberViews.Window(hhmm(a.getAfternoonStart()), hhmm(a.getAfternoonEnd()))),
-                boards, joined, a.getUpdatedAt(), updatedBy, modelHistory);
+                boards, joined, a.getUpdatedAt(), updatedBy, modelHistory, a.getExtraPrompt() == null ? "" : a.getExtraPrompt());
     }
 
     private static Map<String, Object> snapshot(AiMemberProfileEntity a) {
@@ -568,6 +576,7 @@ public class AiMemberAdminService {
         m.put("boardIds", a.getBoardIds().stream().map(String::valueOf).toList());
         m.put("dailyPostMax", a.getDailyPostMax() == null ? "COMMON" : a.getDailyPostMax()); // V223 — 비면 공통 설정
         m.put("newsRatio", a.getNewsRatio() == null ? "COMMON" : a.getNewsRatio()); // V223 — 비면 공통 프롬프트 설정
+        m.put("extraPrompt", a.getExtraPrompt() == null ? "NONE" : a.getExtraPrompt()); // V228 — 운영자 추가 지시(300자 안)
         return m;
     }
 

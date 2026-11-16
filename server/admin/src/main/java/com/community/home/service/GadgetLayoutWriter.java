@@ -1,5 +1,6 @@
 package com.community.home.service;
 
+import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
 import com.community.home.dto.GadgetSpec;
@@ -120,6 +121,8 @@ public class GadgetLayoutWriter {
         Predicate<String> boardExists = slug -> catalog.snapshot().board(slug).isPresent();
         // 핫딜 가젯의 boards — 있는 핫딜 게시판(kind DEAL)만
         Predicate<String> dealBoard = slug -> catalog.snapshot().board(slug).filter(b -> BoardFields.KIND_DEAL.equals(b.kind())).isPresent();
+        // 19금 전용 가젯의 boards — 있는 성인 전용 게시판(V226 — adult-board-contract)만
+        Predicate<String> adultBoard = slug -> catalog.snapshot().board(slug).filter(EffectiveBoard::adultOnly).isPresent();
         // 꾸미기 iconUpload 의 파일 — 용도 GADGET_ICON 인 것만, 주소·SVG 여부는 파일에서(보낸 값은 믿지 않는다). 쓰인 파일은 저장 때 IN_USE 로
         Map<Long, FileEntity> iconFiles = new HashMap<>();
         Function<String, Optional<ObjectNode>> iconFile = text -> {
@@ -185,7 +188,7 @@ public class GadgetLayoutWriter {
                 continue;
             }
             typeOf.put(id, base.type());
-            GadgetSpec next = edited(target, base, g, created, boardExists, dealBoard, iconFile, path, fields);
+            GadgetSpec next = edited(target, base, g, created, boardExists, GadgetKinds.ADULT_POSTS.equals(base.type()) ? adultBoard : dealBoard, iconFile, path, fields);
             if (next != null) {
                 plans.add(new Plan(id, keep, next));
             }
@@ -328,8 +331,8 @@ public class GadgetLayoutWriter {
             config.put("boardScope", target.place().initialScope());
             config.putArray("boardIds");
         }
-        if (GadgetKinds.HOT_DEALS.equals(type)) {
-            config.putArray("boards"); // 비우면 모든 핫딜 게시판
+        if (GadgetKinds.HOT_DEALS.equals(type) || GadgetKinds.ADULT_POSTS.equals(type)) {
+            config.putArray("boards"); // 비우면 모든 핫딜 게시판 · 19금 전용 가젯은 모든 성인 전용 게시판
         }
         return new GadgetSpec(id, type, title, true, true, GadgetKinds.baseStyle(target.theme(), type), config, null);
     }

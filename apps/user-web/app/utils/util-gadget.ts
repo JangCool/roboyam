@@ -42,7 +42,7 @@ import UtilPostTag from '~/utils/util-post-tag';
  */
 
 /** 가젯 종류 8종 + 광고 2종 — 화면이 아는 것 */
-const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE', 'TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS'];
+const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE', 'TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS', 'ADULT_POSTS'];
 
 /** 머리를 숨기는 것이 처음 꾸미기인 종류(키가 빠진 응답의 기본값) — 광고는 「광고」 표시가 제목 노릇을 한다(admin `UtilGadgetStyle.initial` 과 같다) */
 const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
@@ -66,7 +66,7 @@ const SLUG = /^[A-Za-z0-9_-]{1,60}$/;
 /** 응답 한 번에 받을 가젯 상한 — 이상한 응답에 화면이 무거워지지 않게(서버 한도는 템플릿당 20) */
 const MAX_GADGETS = 40;
 /** 마우스 올림 효과 칸(`hover`)이 있는 종류 — 서버 `GadgetConfigs.HOVER_KINDS` 와 같다 */
-const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
+const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'ADULT_POSTS'];
 
 function obj(value: unknown): Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -199,6 +199,7 @@ function readGadget(raw: unknown): Gadget | null {
         mobile: bool(g.mobile, true),
         empty: bool(g.empty, false),
         locked: bool(g.locked, false),
+        hidden: bool(g.hidden, false),
         style: readStyle(g.style, g.type),
         config: obj(g.config),
         more: readMore(g.more),
@@ -247,6 +248,17 @@ export default class UtilGadget {
     }
 
     /**
+     * 이 사람에게 자리째 감추는 가젯인가 — 서버 숨김 표시(`hidden` — 지금은 19금 전용 가젯 `ADULT_POSTS` 를 성인이 아닌 사람이 볼 때, adult-board-contract).
+     * 19금 전용 가젯은 숨김 표시가 없는 옛 응답이어도 데이터가 없거나(null) 잠겼으면(비로그인) 자리도 남기지 않는다
+     * @param {Gadget} gadget - 가젯.
+     * @returns {boolean} 감추면 true.
+     */
+    static hiddenForViewer(gadget: Gadget): boolean {
+        if (gadget.hidden === true) return true;
+        return gadget.type === 'ADULT_POSTS' && (gadget.locked || gadget.data === null);
+    }
+
+    /**
      * 비었을 때 통째로 감추는가 — 내용이 없고 영역 유지가 꺼져 있을 때. 잠긴 가젯은 감추지 않는다
      * @param {Gadget} gadget - 가젯.
      * @returns {boolean} 감추면 true.
@@ -263,6 +275,7 @@ export default class UtilGadget {
      */
     static isVisible(gadget: Gadget, wide: boolean): boolean {
         if (!isKnownKind(gadget.type)) return false;
+        if (UtilGadget.hiddenForViewer(gadget)) return false;
         if (!(wide ? gadget.desktop : gadget.mobile)) return false;
         return !UtilGadget.hiddenWhenEmpty(gadget);
     }

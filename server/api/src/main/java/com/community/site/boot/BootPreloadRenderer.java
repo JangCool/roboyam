@@ -117,7 +117,7 @@ public class BootPreloadRenderer {
         if (userId != null) {
             parts.put("/api/me/settings", () -> viewSettings.mine(userId));
         }
-        parts.put("/api/boards", boards::boards);
+        parts.put("/api/boards", () -> boards.boards(userId)); // 성인 전용 게시판은 성인에게만(V226 — 이 HTML 은 private, no-cache)
         parts.put("/api/menu", () -> menus.menu(MenuLimits.MAIN_SET, userId));
         parts.put("/api/menu?set=" + FOOTER_SET, () -> menus.menu(FOOTER_SET, userId));
         parts.put("/api/ads/placements", ads::placements);

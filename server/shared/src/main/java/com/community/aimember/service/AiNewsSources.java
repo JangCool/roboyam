@@ -1,33 +1,55 @@
 package com.community.aimember.service;
 
 import com.community.aimember.entity.AiMemberProfileEntity;
+import com.community.aimember.entity.AiNewsItemEntity;
+import com.community.aimember.entity.AiNewsSourceEntity;
 import com.community.aimember.llm.AiPromptConfig;
 import com.community.aimember.repository.master.AiMemberQueries;
+import com.community.aimember.repository.master.AiNewsItemRepository;
+import com.community.aimember.repository.master.AiNewsSourceRepository;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
+import com.community.board.dto.BoardSecurityValues;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
+import com.community.board.service.ContentRules;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostRepository;
+import com.community.post.service.PostTags;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.random.RandomGenerator;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 /**
- * 뉴스 글 소재 찾기 · 쓰는 곳 · 말머리 고르기(ai-members-contract 「뉴스 글·프롬프트 관리 (2026-11-11)」 · home-news-contract 「AI 회원 뉴스」). <b>사이트 안 글만</b> 본다 —
- * 외부 뉴스·검색 API·제공사 검색 도구는 쓰지 않는다(사용자 지시).
+ * 뉴스 글 소재 찾기 · 쓰는 곳 · 말머리·태그 고르기(ai-news-reporter-contract · ai-members-contract 「뉴스 글·프롬프트 관리 (2026-11-11)」 · home-news-contract 「AI 회원 뉴스」).
+ *
+ * <ul>
+ *   <li><b>소재 고르기</b>({@link #pick} — 2026-11-16): ① 수집한 뉴스 항목({@code ai_news_items} — 켜진 출처 · 최근 N일 · 아직 안 쓴 것, 계정 관심사·운영자 추가 지시의 낱말이
+ *       제목·요약에 많이 든 것 먼저, 같으면 최신 {@value #PICK_FROM}개 중 무작위) → ② 없으면 사이트 회원의 뉴스 글(아래 {@link #find}). 외부 검색 API·제공사 검색 도구는 쓰지 않는다
+ *       (수집은 키 없는 RSS — {@link AiNewsCollector}).</li>
+ *   <li><b>말머리</b>({@link #topicPrefixes} · {@link #resolvePrefix}): 쓰는 게시판의 주제 말머리(공통 말머리 공지·질문·후기·잡담 · 꺼진 · 운영진·성인 전용 제외) 중 모델이 고른 이름,
+ *       없는 이름이면 첫 주제 말머리. 등록 때 같은 이름으로 다시 찾는다({@link #prefixIdByName}).</li>
+ *   <li><b>태그</b>({@link #filterTags}): 모델이 제안한 2~4개를 글 태그 규칙({@link PostTags} — 정리·모양·겹침)과 금지어(거부·가림 방식 모두 — 걸리면 버림)로 거른다. 최대 {@value #TAG_MAX}개.</li>
+ * </ul>
+ * 아래는 회원 뉴스 글 소재(②)의 규칙이다.
  *
  * <ul>
  *   <li>소재 = 뉴스 게시판({@link BoardFields#NEWS_SLUG})의 글(말머리 상관없이) + 말머리 이름에 키워드(기본 「뉴스」)가 든 글, 최근 N일(기본 3일) — 쓴 지 {@link #SETTLE} 지난 것.</li>
@@ -56,22 +78,202 @@ public class AiNewsSources {
 
     static final List<NameRule> PREFIX_BY_NAME = List.of(new NameRule("ai", "AI"), new NameRule("로봇", "로봇"), new NameRule("게임", "게임"));
 
+    /** 뉴스 글 태그 최대(계약 「2~4개」) */
+    public static final int TAG_MAX = 4;
+    /** 수집 항목 후보를 한 번에 읽는 수(최신부터) */
+    static final int ITEM_CANDIDATES = 60;
+    /** 관심사 낱말에서 뺄 흔한 말 */
+    private static final Set<String> STOP_WORDS = Set.of("위주", "위주로", "관련", "소식", "뉴스", "이야기", "중심", "중심으로", "좋아함", "관심", "그리고", "등");
+    private static final Pattern WORD_SPLIT = Pattern.compile("[^\\p{L}\\p{N}]+");
+
     private final AiMemberQueries queries;
     private final BoardCatalog catalog;
     private final SiteSettingsService site;
     private final PostRepository posts;
     private final AiContentWriter writer;
+    private final AiNewsItemRepository items;
+    private final AiNewsSourceRepository newsSources;
 
-    public AiNewsSources(AiMemberQueries queries, BoardCatalog catalog, SiteSettingsService site, PostRepository posts, AiContentWriter writer) {
+    public AiNewsSources(AiMemberQueries queries, BoardCatalog catalog, SiteSettingsService site, PostRepository posts, AiContentWriter writer, AiNewsItemRepository items,
+                         AiNewsSourceRepository newsSources) {
         this.queries = queries;
         this.catalog = catalog;
         this.site = site;
         this.posts = posts;
         this.writer = writer;
+        this.items = items;
+        this.newsSources = newsSources;
     }
 
     /** 소재 한 건 — 제목·평문 본문(닉네임은 싣지 않는다) */
     public record Source(long postId, long boardId, String title, String contentText) {
+    }
+
+    /**
+     * 뉴스 글 소재 — 수집 항목({@code itemId}) 또는 회원 뉴스 글({@code postId}) 중 하나.
+     *
+     * @param summary    수집 항목은 RSS 요약(짧다), 회원 글은 평문 본문
+     * @param sourceName 원 언론사·채널 이름(회원 글이면 null)
+     * @param link       원문 링크(수집 항목). 회원 글이면 null — 사이트 안 주소는 {@link #link} 로 만든다
+     */
+    public record Material(Long itemId, Long postId, String title, String summary, String sourceName, String link, Instant publishedAt) {
+
+        public boolean collected() {
+            return itemId != null;
+        }
+    }
+
+    /**
+     * 뉴스 글 소재 고르기 — 수집 항목 먼저, 없으면 회원 뉴스 글({@link #find}). 트랜잭션 안에서 부른다(읽기만).
+     *
+     * @param taken 이번 바퀴에 다른 계정이 이미 고른 수집 항목(같은 항목을 두 번 쓰지 않게 — 고른 항목을 더한다)
+     */
+    public Optional<Material> pick(AiMemberProfileEntity a, AiPromptConfig c, Instant now, RandomGenerator random, Set<Long> taken) {
+        Optional<AiNewsItemEntity> item = pickItem(a, c, now, random, taken);
+        if (item.isPresent()) {
+            AiNewsItemEntity i = item.get();
+            taken.add(i.getId());
+            return Optional.of(new Material(i.getId(), null, i.getTitle(), i.getSummary(), i.getSourceName(), i.getLink(), i.getPublishedAt()));
+        }
+        // 회원 글의 사이트 안 주소는 부르는 쪽이 트랜잭션 밖에서 만든다({@link #link} — 사이트 설정 읽기 실패가 바깥 트랜잭션을 되돌리지 않게)
+        return find(a, c, now, random).map(s -> new Material(null, s.postId(), s.title(), s.contentText(), null, null, null));
+    }
+
+    /** 수집 항목 고르기 — 켜진 출처 · 최근 {@code newsDays}일 · 안 쓴 것. 관심사·추가 지시 낱말이 많이 든 것 먼저, 같으면 최신 {@value #PICK_FROM}개 중 무작위 */
+    Optional<AiNewsItemEntity> pickItem(AiMemberProfileEntity a, AiPromptConfig c, Instant now, RandomGenerator random, Set<Long> taken) {
+        List<Long> on = newsSources.findByEnabledTrueOrderBySortOrderAscIdAsc().stream().map(AiNewsSourceEntity::getId).toList();
+        if (on.isEmpty()) {
+            return Optional.empty();
+        }
+        List<AiNewsItemEntity> found = items.findByUsedAtIsNullAndFetchedAtAfterAndSourceIdInOrderByFetchedAtDescIdDesc(now.minus(Duration.ofDays(c.newsDays())), on,
+                PageRequest.of(0, ITEM_CANDIDATES));
+        List<AiNewsItemEntity> open = found.stream().filter(i -> !taken.contains(i.getId())).toList();
+        if (open.isEmpty()) {
+            return Optional.empty();
+        }
+        Set<String> words = interestWords(a);
+        int best = 0;
+        List<AiNewsItemEntity> top = new ArrayList<>();
+        for (AiNewsItemEntity i : open) {
+            int score = score(words, i.getTitle() + "\n" + (i.getSummary() == null ? "" : i.getSummary()));
+            if (score > best) {
+                best = score;
+                top.clear();
+            }
+            if (score == best) {
+                top.add(i);
+            }
+        }
+        List<AiNewsItemEntity> pool = top.size() > PICK_FROM ? top.subList(0, PICK_FROM) : top;
+        return Optional.of(pool.get(random.nextInt(pool.size())));
+    }
+
+    /** 계정 관심사 + 운영자 추가 지시의 낱말(2자 이상, 소문자, 흔한 말 제외) */
+    static Set<String> interestWords(AiMemberProfileEntity a) {
+        Set<String> out = new LinkedHashSet<>();
+        for (String text : new String[]{a.getInterests(), a.getExtraPrompt()}) {
+            if (text == null) {
+                continue;
+            }
+            for (String w : WORD_SPLIT.split(text.toLowerCase(Locale.ROOT))) {
+                if (w.codePointCount(0, w.length()) >= 2 && !STOP_WORDS.contains(w)) {
+                    out.add(w);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** 글에 든 낱말 수(대소문자 무시) */
+    static int score(Set<String> words, String text) {
+        if (words.isEmpty() || text == null) {
+            return 0;
+        }
+        String hay = text.toLowerCase(Locale.ROOT);
+        int n = 0;
+        for (String w : words) {
+            if (hay.contains(w)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 소재로 쓴 수집 항목 표시(생성 줄) — 트랜잭션 안에서 부른다. 항목이 지워졌으면 아무것도 하지 않는다 */
+    public void markUsed(long itemId, long draftId, Instant now) {
+        items.findById(itemId).ifPresent(i -> i.use(draftId, now));
+    }
+
+    /** 사이트 이름(없으면 null) — 뉴스 글 지시의 「{사이트}」 */
+    public String siteName() {
+        try {
+            return site.current().map(SiteValues::name).filter(n -> !n.isBlank()).orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("사이트 이름을 읽지 못했다 원인={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    /** 게시판의 주제 말머리 — 공통 말머리(공지·질문·후기·잡담) · 꺼진 · 운영진 전용 · 성인 전용 제외, 순서대로 */
+    public static List<BoardPrefixInfo> topicPrefixes(EffectiveBoard b) {
+        if (b == null || b.prefixes() == null) {
+            return List.of();
+        }
+        return b.prefixes().stream().filter(p -> !p.common() && usable(p) && p.name() != null && !p.name().isBlank())
+                .sorted(Comparator.comparingInt(BoardPrefixInfo::sortOrder).thenComparingLong(BoardPrefixInfo::id)).toList();
+    }
+
+    /** 모델이 고른 말머리 이름 → 그 게시판의 주제 말머리(대소문자·앞뒤 공백 무시). 없는 이름이면 첫 주제 말머리, 주제 말머리가 없으면 null */
+    public static BoardPrefixInfo resolvePrefix(EffectiveBoard b, String answer) {
+        List<BoardPrefixInfo> topics = topicPrefixes(b);
+        if (topics.isEmpty()) {
+            return null;
+        }
+        String want = answer == null ? "" : answer.strip();
+        for (BoardPrefixInfo p : topics) {
+            if (p.name().strip().equalsIgnoreCase(want)) {
+                return p;
+            }
+        }
+        return topics.get(0);
+    }
+
+    /** 등록 때 — 생성 줄의 말머리 이름 → 지금 그 게시판의 말머리 ID(이름이 바뀌었거나 꺼졌으면 첫 주제 말머리, 없으면 null) */
+    public Long prefixIdByName(long boardId, String prefixName) {
+        if (prefixName == null) {
+            return null;
+        }
+        return catalog.snapshot().board(boardId).map(b -> resolvePrefix(b, prefixName)).map(BoardPrefixInfo::id).orElse(null);
+    }
+
+    /** 지금 보안 설정(금지어) — 태그 거르기용 */
+    public BoardSecurityValues security() {
+        return catalog.snapshot().security();
+    }
+
+    /**
+     * 태그 거르기(순수 함수) — 하나씩 {@link PostTags#clean} · {@link PostTags#valid}(1~20자 · # , 줄바꿈 없음), 금지어가 든 것(거부 방식 {@link ContentRules#blockedWord} ·
+     * 가림 방식 {@link ContentRules#mask} 가 바꾸는 것)은 버리고, 대소문자만 다른 겹침은 하나로, 최대 {@value #TAG_MAX}개.
+     */
+    public static List<String> filterTags(List<String> raw, BoardSecurityValues sec) {
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        Map<String, String> byKey = new LinkedHashMap<>();
+        for (String one : raw) {
+            String t = PostTags.clean(one);
+            if (!PostTags.valid(t)) {
+                continue;
+            }
+            if (sec != null && (ContentRules.blockedWord(sec, t).isPresent() || !t.equals(ContentRules.mask(sec, t)))) {
+                continue;
+            }
+            byKey.putIfAbsent(PostTags.key(t), t);
+            if (byKey.size() >= TAG_MAX) {
+                break;
+            }
+        }
+        return List.copyOf(byKey.values());
     }
 
     public Optional<Source> find(AiMemberProfileEntity a, AiPromptConfig c, Instant now, RandomGenerator random) {

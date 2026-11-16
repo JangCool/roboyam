@@ -9,7 +9,7 @@
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
 /** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `GadgetKinds.HOT_DEALS`) */
-export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE' | TipsGadgetKind;
+export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE' | 'ADULT_POSTS' | TipsGadgetKind;
 /** 팁·강좌·사용기 `/tips` 의 가젯(시스템 페이지 TIPS 배치에서만 — 서버 `GadgetKinds`, tips-contract 「/tips 레이아웃 편집」) */
 export type TipsGadgetKind = 'TIPS_HEADLINE' | 'TIPS_LATEST' | 'TIPS_POPULAR' | 'TIPS_TAGS';
 
@@ -58,6 +58,7 @@ export interface HomeQuickLink {
  * 가젯 내용 설정(실제 화면의 ⚙ → 설정 창 「내용」) — 서버 JSON 그대로의 평평한 모양이고 종류마다 쓰는 칸만 채운다. 고칠 수 있는 칸·범위·처음 값은 `UtilGadgetConfig`.
  *   · `GROUP_BUY` `count`(1~10) · `sort`(HomeGroupBuySort)
  *   · `HOT_DEALS` `boards`(핫딜 게시판 slug, 비우면 전체) · `sort`(HomeHotDealSort) · `count`(1~10, 기본 5) — 진행 중만, 비면 영역을 그리지 않는다(hotdeal-contract)
+ *   · `ADULT_POSTS`(19금 전용 가젯 — adult-board-contract) `boards`(성인 전용 게시판 slug, 비우면 모든 성인 전용 게시판) · `count`(1~30, 기본 10) — 목록형, 본인인증 성인에게만 그려진다(성인이 아니면 자리도 없다)
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
  *       + `excludeBoardIds`(제외할 게시판 slug, 20개까지 — `boardScope` 가 `ALL` 일 때만 쓴다, 다른 범위면 무시)
  *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO·THUMB · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
@@ -73,7 +74,7 @@ export interface HomeQuickLink {
 export interface GadgetConfig {
     count?: number;
     sort?: HomeGroupBuySort | HomePostListSort | HomeHotDealSort;
-    /** 핫딜 가젯의 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판 — hotdeal-contract) */
+    /** 핫딜 가젯의 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판 — hotdeal-contract) · 19금 전용 가젯의 성인 전용 게시판 slug 목록(비우면 모든 성인 전용 게시판) */
     boards?: string[];
     boardScope?: HomeBoardScope;
     boardIds?: string[];

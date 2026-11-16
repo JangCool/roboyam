@@ -64,7 +64,8 @@ public final class PostContentFields {
                 adultByPrefix = prefix.get().adultOnly() && b.allowAdult(); // 성인 전용 말머리 = 19금으로 저장(adult-content-contract)
             }
         }
-        boolean adult = adultByPrefix || Boolean.TRUE.equals(adultFlag);
+        // 성인 전용 게시판(V226 — adult-board-contract)의 글은 글쓴이 체크·말머리와 상관없이 늘 19금
+        boolean adult = b.adultOnly() || adultByPrefix || Boolean.TRUE.equals(adultFlag);
         if (adult && !b.allowAdult()) {
             fields.put("adult", new MessageRef("board.content.adult"));
         }

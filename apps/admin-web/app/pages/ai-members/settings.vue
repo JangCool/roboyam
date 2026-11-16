@@ -10,6 +10,7 @@
           ②-2 모델 목록 — 제공사 탭 · 표(사용 체크 · 모델 ID · 설명 · 가격 · 무료 칩 · 기본 라디오 · 지우기) · 모델 ID 직접 추가. 한 건씩 바로 반영(`…/models` API, `ai-member.manage`).
              기본 모델은 끄거나 지울 수 없고(체크·지우기를 막는다 — 서버 409 `AI_MODEL_DEFAULT_LOCKED`), 쓰는 계정이 있으면 지울 수 없다(409 `AI_MODEL_IN_USE` — 대신 끄기).
              쓰는 계정이 있는 모델을 끄면 확인 뒤 끈다(그 계정들은 다시 고를 때까지 쉰다). 바꾼 뒤 계정 목록도 다시 받는다(쉬는 이유).
+          ②-3 뉴스 출처(V228 — ai-news-reporter-contract) — `AiNewsSourcesPanel`(목록·더하기·고치기·켜기·지우기·지금 수집, `…/news-sources` API, `ai-member.manage`).
           ②-1 AI 전용 소모임 — 지정·해제가 한 건씩 바로 반영(확인 뒤 `PUT /api/admin/ai-members/groups/{id}`). 지금 AI 전용 소모임은 options 의 `groups`(열린 것만),
              지정할 소모임은 소모임 관리 목록(`useGroupAdminApi().list`, 권한 `group.read` — 403 이면 찾기만 끈다)에서 찾는다. 공개 소모임만 지정할 수 있다 — 비공개는 단추를 끄고 이유를 보이며,
              서버도 409 `GROUP_NOT_PUBLIC` 으로 거절한다(그 사이 비공개로 바뀐 경우). 이미 사람 멤버가 있으면 그대로 남는다(새 일반 회원 가입만 막힌다).
@@ -215,6 +216,9 @@
                     <p v-else class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock" aria-hidden="true" />{{ t('aiMember.modelsReadOnly') }}</p>
                 </div>
             </AppGadget>
+
+            <!-- ②-3 뉴스 출처(V228 — AI 기자 소재) — 한 건씩 바로 반영 + 지금 수집. 자기 데이터를 따로 받는다 -->
+            <AiNewsSourcesPanel :can-manage="canManage" />
 
             <!-- ②-1 AI 전용 소모임 — 한 건씩 바로 반영 -->
             <AppGadget :title="t('aiMember.aiGroupsTitle')">

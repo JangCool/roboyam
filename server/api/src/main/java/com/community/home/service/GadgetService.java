@@ -94,6 +94,11 @@ import tools.jackson.databind.JsonNode;
  *   <li>게시판 레이아웃({@code GET /api/boards/{slug}/layout}, {@link #boardLayout}): 그 테마의 게시판 레이아웃(저장한 것, 없으면 본문만) + 적용 화면. 본문 가젯은 {@code data: null}·{@code empty: false}.</li>
  *   <li>광고 가젯({@code AD}·{@code AD_TEXT_LINE}): {@code data: null}·{@code empty: false} — 화면이 {@code GET /api/ads} 로 후보를 채운다(ad-contract 「공개 노출」).</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
+ *   <li>19금 글(adult-board-contract 「19금 노출 규칙」 2026-11-16): 글 목록 가젯(최신글·인기글·게시판 카드·하이라이트·갤러리·핫딜·태그 탭)은 <b>성인이어도</b> 19금 글을 빼고,
+ *       성인 전용 게시판(V226)은 대상 게시판·게시판 카드·가젯 페이지 기준 폴더에서 뺀다 — 이 데이터는 보는 사람과 무관해 캐시 키에 성인 여부가 없다.
+ *       19금 글은 <b>19금 전용 가젯</b>({@code ADULT_POSTS} — 고른 성인 전용 게시판 글 목록, 캐시하지 않음)에서만 성인에게 보인다. 성인이 아니면 그 가젯은
+ *       {@code hidden: true}·{@code empty: true}·{@code data: null} 로 내려 화면이 자리째 그리지 않는다.</li>
+ *   <li>성인 전용 게시판의 게시판 레이아웃은 성인이 아니면 없는 게시판과 같은 {@code 404 BOARD_NOT_FOUND}.</li>
  * </ul>
  */
 @Service
@@ -199,7 +204,7 @@ public class GadgetService {
         BoardCatalogSnapshot snapshot = catalog.snapshot();
         Set<String> activeFolder = new java.util.LinkedHashSet<>();
         for (String slug : page.folderSlugs()) {
-            snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
+            snapshot.board(slug).filter(b -> b.active() && !b.adultOnly()).ifPresent(b -> activeFolder.add(b.slug())); // 성인 전용 게시판은 기준 폴더에서 뺀다(V226)
         }
         Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), activeFolder.isEmpty() ? null : activeFolder, null, true);
         String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
@@ -239,11 +244,13 @@ public class GadgetService {
     public BoardLayoutResponse boardLayout(String slug, String requestedTheme, Long viewerId) {
         BoardCatalogSnapshot snapshot = catalog.snapshot();
         EffectiveBoard board = PublicBoardService.requireActive(snapshot, slug == null ? "" : slug.strip());
+        boolean adultViewer = adultGate.adult(viewerId);
+        PublicBoardService.requireAdultAccess(board, () -> adultViewer); // 성인 전용 게시판은 성인만(아니면 404 — V226)
         // 관리자 미리보기(theme)는 캐시를 거치지 않는다(홈 가젯과 같은 규칙)
         boolean preview = SiteThemes.isKnown(requestedTheme);
         String theme = preview ? requestedTheme : site.snapshot().info().theme();
         BoardLayout cached = preview ? boardLayout(theme) : caches.getCache(CacheNames.BOARDS_LAYOUT).get(theme, () -> boardLayout(theme));
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), null, board.slug(), !preview);
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultViewer, null, board.slug(), !preview);
         return new BoardLayoutResponse(theme, cached.screens(), cached.layout(), cached.specs().stream().map(spec -> view(spec, ctx)).toList());
     }
 
@@ -264,22 +271,27 @@ public class GadgetService {
      * 그 자리에서 만든다. 어느 쪽이든 보는 사람 몫(글 줄의 차단·메모·딜의 내 종료 요청, 소모임의 내 상태)은 꺼낸 뒤 덧입히고, 공동구매 판매 스위치는 요청마다 지금 값이다.
      */
     private GadgetView view(GadgetSpec g, Ctx ctx) {
+        if (GadgetKinds.ADULT_POSTS.equals(g.type()) && !ctx.adult()) {
+            // 19금 전용 가젯 — 성인이 아니면 데이터 없이 숨김 표시(화면이 자리째 그리지 않는다, adult-board-contract)
+            return new GadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), true, false, g.style(), g.config(), g.more(), null, true);
+        }
         Ctx shared = ctx.shared();
         GadgetData built = ctx.cached() && CacheCatalog.cachedGadget(g.type())
                 ? caches.getCache(CacheNames.gadget(g.type())).get(gadgetKey(g, ctx), () -> compute(g, shared))
                 : compute(g, shared);
         Object data = overlay(built, ctx.viewerId());
-        return new GadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), built.empty(), false, g.style(), g.config(), g.more(), data);
+        return new GadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), built.empty(), false, g.style(), g.config(), g.more(), data, false);
     }
 
     /**
      * 가젯 데이터 캐시의 항목 키 — 설정 지문(같은 설정이면 홈·가젯 페이지·게시판 레이아웃 어디에 있든 한 항목을 함께 쓴다) + 데이터를 바꾸는 요청 값:
-     * 성인 여부(19금 글을 넣는가)와 대상 게시판이 쪽에 따라 정해지는 설정의 그 게시판(가젯 페이지 기준 폴더 {@code FOLDER} · 게시판 레이아웃 {@code BOARD}).
+     * 대상 게시판이 쪽에 따라 정해지는 설정의 그 게시판(가젯 페이지 기준 폴더 {@code FOLDER} · 게시판 레이아웃 {@code BOARD}). 성인 여부는 넣지 않는다 —
+     * 캐시하는 가젯은 성인이어도 19금 글을 빼서 보는 사람과 무관하다(adult-board-contract, 19금 전용 가젯 {@code ADULT_POSTS} 는 캐시하지 않는다).
      */
     private static String gadgetKey(GadgetSpec g, Ctx ctx) {
         String scope = GadgetConfigs.scope(g.config());
         String place = GadgetConfigs.FOLDER.equals(scope) ? String.valueOf(ctx.folder()) : GadgetConfigs.BOARD.equals(scope) ? String.valueOf(ctx.board()) : "";
-        return Digests.sha256Hex((ctx.adult() ? "A" : "N") + "|" + place + "|" + Objects.toString(g.config()));
+        return Digests.sha256Hex("N|" + place + "|" + Objects.toString(g.config()));
     }
 
     /** 보는 사람 몫을 덧입힌다 — 비로그인이면 그대로(공동구매 판매 스위치만 지금 값으로) */
@@ -397,6 +409,12 @@ public class GadgetService {
                 data = d;
                 empty = d.items().isEmpty();
             }
+            case GadgetKinds.ADULT_POSTS -> {
+                // 19금 전용 가젯(성인만 여기에 온다 — view 가 막는다) — 고른 성인 전용 게시판 글 목록
+                PostListDataView d = adultPosts(config, ctx);
+                data = d;
+                empty = d.items().isEmpty();
+            }
             default -> {
                 data = null;
                 empty = true;
@@ -502,7 +520,7 @@ public class GadgetService {
                 if (!tabs.isEmpty()) {
                     tagged = new LinkedHashMap<>();
                     for (String tab : tabs) {
-                        List<PostRowData> found = feeds.latestTagged(ids, PostTags.key(tab), count, ctx.adult(), ctx.now());
+                        List<PostRowData> found = feeds.latestTagged(ids, PostTags.key(tab), count, false, ctx.now()); // 19금 글은 성인이어도 뺀다
                         tagged.put(tab, rows.of(found, ctx.s(), ctx.now(), ctx.viewerId()));
                     }
                 }
@@ -541,10 +559,31 @@ public class GadgetService {
                 .toList();
     }
 
-    /** 최신글 — 최신글 전체와 같은 게시판 범위(켜짐 · 최신글 가젯 노출 금지 아님), 또는 정한 게시판 */
+    /** 최신글 — 최신글 전체와 같은 게시판 범위(켜짐 · 최신글 가젯 노출 금지 아님), 또는 정한 게시판. 19금 글은 성인이어도 뺀다(adult-board-contract) */
     private List<PostFeedRowView> latest(List<Long> boardIds, int count, Ctx ctx) {
-        List<PostRowData> found = feeds.latest(boardIds, null, count, ctx.adult(), ctx.now());
+        List<PostRowData> found = feeds.latest(boardIds, null, count, false, ctx.now());
         return rows.of(found, ctx.s(), ctx.now(), ctx.viewerId());
+    }
+
+    // ── ADULT_POSTS ─────────────────────────────────────────────────────────
+
+    /**
+     * 19금 전용 가젯(adult-board-contract) — 설정 {@code boards}(성인 전용 게시판 slug — 없거나 꺼졌거나 성인 전용이 아닌 게시판은 건너뛰고, 비면 켜진 성인 전용 게시판 전부)의
+     * 최신 글 {@code count}(기본 {@value GadgetKinds#ADULT_POSTS_COUNT_DEFAULT}, 1~{@value GadgetKinds#ADULT_POSTS_COUNT_MAX})개 — 19금 글을 넣는다. 성인만 부른다.
+     */
+    private PostListDataView adultPosts(JsonNode config, Ctx ctx) {
+        List<EffectiveBoard> all = ctx.s().boards().stream().filter(b -> b.active() && b.adultOnly()).toList();
+        List<String> picked = GadgetKinds.adultPostsBoards(config);
+        List<EffectiveBoard> boards = picked.isEmpty() ? all
+                : picked.stream().map(slug -> ctx.s().board(slug).orElse(null)).filter(Objects::nonNull).filter(b -> b.active() && b.adultOnly()).toList();
+        if (boards.isEmpty() && !picked.isEmpty()) {
+            boards = all; // 고른 게시판이 하나도 남지 않으면 거르지 않는다(핫딜 가젯과 같다)
+        }
+        if (boards.isEmpty()) {
+            return new PostListDataView(List.of(), null, null);
+        }
+        List<PostRowData> found = feeds.latest(boards.stream().map(EffectiveBoard::id).toList(), null, GadgetKinds.adultPostsCount(config), true, ctx.now());
+        return new PostListDataView(rows.of(found, ctx.s(), ctx.now(), ctx.viewerId()), null, null);
     }
 
     // ── HIGHLIGHT · GALLERY · BOARD_CARDS ───────────────────────────────────
@@ -578,7 +617,8 @@ public class GadgetService {
         Set<String> slugs = boardSlugs(config, ctx);
         List<EffectiveBoard> boards = slugs != null
                 ? slugs.stream().map(slug -> ctx.s().board(slug).orElse(null)).filter(Objects::nonNull).toList()
-                : ctx.s().boards().stream().filter(b -> b.active() && !BoardFields.KIND_GROUP.equals(b.kind())).limit(BOARD_CARDS_DEFAULT).toList();
+                : ctx.s().boards().stream().filter(b -> b.active() && !b.adultOnly() && !BoardFields.KIND_GROUP.equals(b.kind())).limit(BOARD_CARDS_DEFAULT).toList();
+        boards = boards.stream().filter(b -> !b.adultOnly()).toList(); // 성인 전용 게시판은 카드로 내지 않는다(그 글은 게시판 안에서만 — V226)
         List<BoardCardView> cards = new ArrayList<>();
         for (EffectiveBoard b : boards) {
             List<PostFeedRowView> latest = latest(List.of(b.id()), perBoard + 1, ctx);
@@ -608,7 +648,7 @@ public class GadgetService {
      * 「더 보기」 = 고른 첫 핫딜 게시판, 고르지 않았으면 켜진 핫딜 게시판의 첫째(게시판 차례), 없으면 null.
      */
     public HotDealsDataView hotDeals(JsonNode config, Long viewerId) {
-        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null, false));
+        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, false, null, null, false)); // 19금 글은 성인이어도 뺀다(핫딜 게시판은 19금이 없다)
     }
 
     HotDealsDataView hotDeals(JsonNode config, Ctx ctx) {
@@ -624,7 +664,7 @@ public class GadgetService {
         DealQueries.GadgetSort sort = DealQueries.GadgetSort.valueOf(GadgetKinds.hotDealsSort(config));
         List<Long> ids = dealQueries.gadgetDealIds(boards.stream().map(EffectiveBoard::id).toList(), sort, dealSettings.current().autoExpireDays(), ctx.now(),
                 GadgetKinds.hotDealsCount(config));
-        Map<Long, PostRowData> found = feeds.visibleRows(ids, ctx.adult(), ctx.now()).stream().collect(Collectors.toMap(PostRowData::id, Function.identity()));
+        Map<Long, PostRowData> found = feeds.visibleRows(ids, false, ctx.now()).stream().collect(Collectors.toMap(PostRowData::id, Function.identity()));
         List<PostRowData> ordered = ids.stream().map(found::get).filter(Objects::nonNull).toList();
         return new HotDealsDataView(rows.of(ordered, ctx.s(), ctx.now(), ctx.viewerId()), more);
     }
@@ -648,7 +688,7 @@ public class GadgetService {
         }
         Set<String> out = new java.util.LinkedHashSet<>();
         for (String slug : HomeLayoutJson.texts(config, "boardIds")) {
-            ctx.s().board(slug).filter(EffectiveBoard::active).ifPresent(b -> out.add(b.slug()));
+            ctx.s().board(slug).filter(b -> b.active() && !b.adultOnly()).ifPresent(b -> out.add(b.slug())); // 성인 전용 게시판은 빼고(V226)
         }
         return out.isEmpty() ? null : out;
     }
@@ -658,14 +698,14 @@ public class GadgetService {
         if (slugs != null) {
             return slugs.stream().map(slug -> ctx.s().board(slug).map(EffectiveBoard::id).orElse(null)).filter(Objects::nonNull).toList();
         }
-        return ctx.s().boards().stream().filter(b -> b.active() && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id).toList();
+        return ctx.s().boards().stream().filter(b -> b.active() && !b.adultOnly() && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id).toList();
     }
 
     /**
      * 한 요청 동안 같이 쓰는 값
      *
      * @param folder 가젯 페이지 기준 폴더의 켜진 게시판 slug — 홈이거나 없으면 null(대상 {@code FOLDER} 는 전체)
-     * @param adult  보는 사람이 성인인가({@link AdultContentGate#adult}) — 아니면 글 목록 가젯에서 19금 글을 뺀다
+     * @param adult  보는 사람이 성인인가({@link AdultContentGate#adult}) — 19금 전용 가젯({@code ADULT_POSTS})만 본다(다른 글 목록 가젯은 성인이어도 19금 글을 뺀다)
      * @param board  게시판 레이아웃이 그리는 게시판 slug(켜진 게시판) — 게시판 레이아웃이 아니면 null(대상 {@code BOARD} 는 전체)
      */
     private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, boolean adult, Set<String> folder, String board, boolean cached) {

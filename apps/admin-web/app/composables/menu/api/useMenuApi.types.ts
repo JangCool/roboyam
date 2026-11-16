@@ -163,6 +163,8 @@ export interface MenuBoardOption {
     nameEn: string | null;
     /** 꺼진 게시판 — 메뉴에 넣을 수는 있지만 방문자에게 안 보인다 */
     active: boolean;
+    /** 성인 전용 게시판(adult-board-contract — 19금 전용 가젯이 고르는 게시판). 옛 서버 응답에는 칸이 없을 수 있다 */
+    adultOnly?: boolean;
 }
 
 /** 보이는 대상의 등급(서열 순서) */

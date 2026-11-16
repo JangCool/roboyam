@@ -6,6 +6,7 @@ import com.community.aimember.service.AiDraftAdminService;
 import com.community.aimember.service.AiMemberAdminService;
 import com.community.aimember.service.AiMemberSettingsAdminService;
 import com.community.aimember.service.AiModelAdminService;
+import com.community.aimember.service.AiNewsSourceAdminService;
 import com.community.aimember.service.AiPromptAdminService;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
@@ -37,9 +38,11 @@ public class AiMemberAdminController {
     private final AiMemberSettingsAdminService settings;
     private final AiModelAdminService models;
     private final AiPromptAdminService prompts;
+    private final AiNewsSourceAdminService newsSources;
 
     public AiMemberAdminController(AiMemberAdminService accounts, AiDraftAdminService drafts, AiMemberSettingsAdminService settings, AiModelAdminService models,
-                                   AiPromptAdminService prompts) {
+                                   AiPromptAdminService prompts, AiNewsSourceAdminService newsSources) {
+        this.newsSources = newsSources;
         this.models = models;
         this.prompts = prompts;
         this.accounts = accounts;
@@ -212,6 +215,43 @@ public class AiMemberAdminController {
     @PostMapping("/prompts/preview")
     public ResponseEntity<ApiResponse<AiMemberViews.PromptPreview>> previewPrompt(@RequestBody(required = false) AiMemberRequests.PromptPreview body) {
         return noStore(prompts.preview(body));
+    }
+
+    // ── 뉴스 출처(V228 — ai-news-reporter-contract) ──
+
+    @RequirePermission(Permission.AI_MEMBER_READ)
+    @GetMapping("/news-sources")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsSourceList>> newsSources() {
+        return noStore(newsSources.list());
+    }
+
+    /** 더하기 — 201 · 400 {@code VALIDATION}(kind · name · address · sources) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PostMapping("/news-sources")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsSourceList>> createNewsSource(@RequestBody(required = false) AiMemberRequests.NewsSourceSave body, AdminActor actor) {
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(newsSources.create(actor, body)));
+    }
+
+    /** 「지금 수집」 — 켜진 출처를 모두 받는다(배치 ai-news-collect 와 같은 서비스, 돌고 있으면 busy) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PostMapping("/news-sources/collect")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsCollectResult>> collectNews(AdminActor actor) {
+        return noStore(newsSources.collect(actor));
+    }
+
+    /** 고치기 — 404 {@code AI_NEWS_SOURCE_NOT_FOUND} · 400 {@code VALIDATION}(kind · name · address) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PutMapping("/news-sources/{id}")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsSourceList>> saveNewsSource(@PathVariable String id, @RequestBody(required = false) AiMemberRequests.NewsSourceSave body,
+                                                                                     AdminActor actor) {
+        return noStore(newsSources.save(actor, id, body));
+    }
+
+    /** 지우기(그 출처의 수집 항목도) — 404 {@code AI_NEWS_SOURCE_NOT_FOUND} */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @DeleteMapping("/news-sources/{id}")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsSourceList>> deleteNewsSource(@PathVariable String id, AdminActor actor) {
+        return noStore(newsSources.delete(actor, id));
     }
 
     // ── 기록 ──

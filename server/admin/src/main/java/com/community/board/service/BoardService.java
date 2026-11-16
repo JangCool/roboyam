@@ -80,6 +80,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>글 목록 말머리 모양({@code prefixStyle}, V195 — TEXT·MUTED·COLOR): 칩 위치와 같은 규칙(null 그대로 · 빈 글자 = 사이트 기본 · 모르는 값 400 {@code prefixStyle}).</li>
  *   <li>글 상세 아래 게시판 목록({@code detailList}, V224 — OFF·LIST·COMPACT): 목록 모양이라 기본 정보 묶음({@code board.manage}). null 이면 그대로,
  *       사이트 기본이 없어 빈 글자·모르는 값 400 {@code detailList}. 감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다.</li>
+ *   <li>성인 전용 게시판({@code adultOnly}, V226 — adult-board-contract): 기본 정보 묶음({@code board.manage}). null 이면 그대로, 일반 게시판만(그 밖 400 {@code adultOnly}
+ *       {@code board.adultOnly.generalOnly}). 켜면 19금 허용도 켠 것으로 보고(말머리 「성인 전용」 검사도) 그 게시판의 기존 글을 모두 19금으로(감사 {@code after.adultMarkedPosts} — 말머리 표시와 합산).</li>
  *   <li>말머리 색(V195): 13색 키 · 직접 고른 {@code #rrggbb}(대문자로 와도 소문자로 정리해 저장 — 게시판 표시색은 대문자) · null/빈 글자 = 자동. 그 밖 400 {@code prefixes[i].color}.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
@@ -273,7 +275,8 @@ public class BoardService {
                 | diff(before, after, "investmentNotice", board.isInvestmentNotice(), in.investmentNotice)
                 | diff(before, after, "chipPosition", board.getChipPosition(), in.chipPosition)
                 | diff(before, after, "prefixStyle", board.getPrefixStyle(), in.prefixStyle)
-                | diff(before, after, "detailList", board.getDetailList(), in.detailList);
+                | diff(before, after, "detailList", board.getDetailList(), in.detailList)
+                | diff(before, after, "adultOnly", board.isAdultOnly(), in.adultOnly);
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
@@ -353,7 +356,11 @@ public class BoardService {
         if (BoardFields.KIND_DEAL.equals(board.getKind()) && in.allowAdult) {
             invalid.put("allowAdult", new MessageRef("board.allowAdult.deal")); // 핫딜 게시판은 19금 끔 고정(hotdeal-contract 서버 규칙 8)
         }
-        checkPrefixes(in.prefixes, currentOwn, in.allowAdult, invalid);
+        // 성인 전용 게시판(V226) — 일반 게시판만. 켜져 있으면 19금 허용도 켠 것으로 본다(말머리 「성인 전용」 검사)
+        if (in.adultOnly && !BoardFields.KIND_GENERAL.equals(board.getKind())) {
+            invalid.put("adultOnly", new MessageRef("board.adultOnly.generalOnly"));
+        }
+        checkPrefixes(in.prefixes, currentOwn, in.allowAdult || in.adultOnly, invalid);
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
         }
@@ -435,6 +442,8 @@ public class BoardService {
         board.changeChipPosition(in.chipPosition);
         board.changePrefixStyle(in.prefixStyle);
         board.changeDetailList(in.detailList);
+        boolean adultTurnedOn = in.adultOnly && !board.isAdultOnly();
+        board.changeAdultOnly(in.adultOnly);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -466,6 +475,9 @@ public class BoardService {
         }
         flushOrDuplicated();
         int markedAdult = content.markAdult(board.getId(), newlyAdult); // 성인 전용으로 새로 켠 말머리의 기존 글도 19금(adult-content-contract)
+        if (adultTurnedOn) {
+            markedAdult += content.markAllAdult(board.getId()); // 성인 전용 게시판을 켜면 그 게시판의 기존 글도 모두 19금(V226 — adult-board-contract)
+        }
         if (markedAdult > 0) {
             after.put("adultMarkedPosts", markedAdult);
         }
@@ -582,6 +594,8 @@ public class BoardService {
         String detailList;
         /** 작성자 표시(V184) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(모르는 값은 검사에서 400) */
         String authorMode;
+        /** 성인 전용 게시판(V226) — 요청에 없으면 지금 값 */
+        boolean adultOnly;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -608,6 +622,7 @@ public class BoardService {
         in.prefixStyle = request.prefixStyle() == null ? board.getPrefixStyle()
                 : request.prefixStyle().isBlank() ? null : request.prefixStyle().strip().toUpperCase(Locale.ROOT);
         in.detailList = request.detailList() == null ? board.getDetailList() : request.detailList().strip().toUpperCase(Locale.ROOT);
+        in.adultOnly = request.adultOnly() == null ? board.isAdultOnly() : request.adultOnly();
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());

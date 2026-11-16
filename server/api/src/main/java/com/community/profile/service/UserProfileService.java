@@ -25,7 +25,6 @@ import com.community.post.dto.response.PostFeedPageView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostPrefixRefView;
-import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
 import com.community.profile.dto.response.AuthorCommentPageView;
@@ -89,17 +88,15 @@ public class UserProfileService {
     private final GroupQueryService groups;
     private final BusinessEligibility businesses;
     private final OperatorMemberAccountService operatorAccounts;
-    private final AdultContentGate adultGate;
     private final AiMemberDirectory aiMembers;
     private final XpProgressReader xpProgress;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
                               GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
-                              AdultContentGate adultGate, AiMemberDirectory aiMembers, XpProgressReader xpProgress) {
+                              AiMemberDirectory aiMembers, XpProgressReader xpProgress) {
         this.xpProgress = xpProgress;
         this.aiMembers = aiMembers;
-        this.adultGate = adultGate;
         this.operatorAccounts = operatorAccounts;
         this.feedRows = feedRows;
         this.groups = groups;
@@ -122,7 +119,7 @@ public class UserProfileService {
         boolean hidden = m.profile().isPrivate() && !me; // 비공개는 본인 외 모두(비회원·회원·게시판 매니저)에게 소개·가입일·수치를 숨긴다 — 수치는 세지도 않는다
         ProfileStatsView stats = null;
         if (!hidden) {
-            UserActivityQueries.Stats counted = activity.stats(m.id(), activeBoardIds(s), adultGate.adult(viewerId), me, Instant.now()); // 비밀글은 본인에게만 센다(V166)
+            UserActivityQueries.Stats counted = activity.stats(m.id(), activeBoardIds(s), false, me, Instant.now()); // 19금 글은 성인이어도 세지 않는다(adult-board-contract) // 비밀글은 본인에게만 센다(V166)
             stats = new ProfileStatsView(counted.posts(), counted.comments(), counted.likesReceived());
         }
         String gradeKey = m.profile().getGradeKey();
@@ -166,7 +163,7 @@ public class UserProfileService {
         Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
-        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), mine(viewerId, m), now); // 비밀글은 본인에게만(V166)
+        List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, false, mine(viewerId, m), now); // 19금 글은 성인이어도 뺀다(adult-board-contract) // 비밀글은 본인에게만(V166)
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
         AuthorMembers members = authors.forPosts(authors.members(page.stream().map(PostRowData::authorId).toList()), page.stream().map(PostRowData::id).toList());
@@ -187,7 +184,7 @@ public class UserProfileService {
         Long before = cursorOf(cursor);
         Member m = requireOpenMember(idText, viewerId);
         BoardCatalogSnapshot s = catalog.snapshot();
-        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, adultGate.adult(viewerId), mine(viewerId, m),
+        List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, false /* 19금 글의 댓글은 성인이어도 뺀다 */, mine(viewerId, m),
                 Instant.now()); // 비밀글의 댓글은 본인에게만(V166)
         boolean more = rows.size() > size;
         List<UserActivityQueries.CommentRow> page = more ? rows.subList(0, size) : rows;
@@ -250,7 +247,8 @@ public class UserProfileService {
 
     private static Set<Long> activeBoardIds(BoardCatalogSnapshot s) {
         // 소모임 게시판도 넣는다 — 작성글·글 수는 비멤버에게 보이는 소모임 글만, 작성 댓글은 일반 글의 댓글만(UserActivityQueries, 소모임 6단계)
-        return s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).collect(Collectors.toSet());
+        // 성인 전용 게시판(V226)은 넣지 않는다 — 그 글은 그 게시판 안에서만 보인다(adult-board-contract)
+        return s.boards().stream().filter(b -> b.active() && !b.adultOnly()).map(EffectiveBoard::id).collect(Collectors.toSet());
     }
 
     /** 앞 100자 — 줄바꿈·연속 공백은 공백 한 칸, 넘으면 {@code …} */

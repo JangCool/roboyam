@@ -23,6 +23,7 @@ import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,18 +140,23 @@ public class AiPromptAdminService {
                     ask = AiPrompts.Ask.post(titles);
                     break;
                 }
-                Optional<AiNewsSources.Source> found = news.find(a, config, Instant.now(), ThreadLocalRandom.current());
+                // 실행기와 같은 소재 고르기(수집 항목 → 회원 뉴스 글) — 미리 보기는 쓴 것으로 표시하지 않는다
+                Optional<AiNewsSources.Material> found = news.pick(a, config, Instant.now(), ThreadLocalRandom.current(), new HashSet<>());
                 if (found.isEmpty()) {
-                    // 소재 없음 — 실행기라면 보통 새 글로 쓴다. 시스템 메시지만 보인다
+                    // 소재 없음 — 실행기라면 뉴스 게시판 차례는 건너뛰고, 다른 게시판 차례는 보통 새 글로 쓴다. 시스템 메시지만 보인다
                     AiPrompts.Prompt p = AiPrompts.compose(config, a, a.getPartnerId() != null, place, mood, AiPrompts.Ask.post(titles));
                     return new AiMemberViews.PromptPreview(kind.name(), p.system(), null, null, true, false, place == null ? null : place.name(), moodName(mood), voice);
                 }
-                AiNewsSources.Source src = found.get();
-                source = new AiMemberViews.PromptSource(Long.toString(src.postId()), src.title());
-                // 실행기와 같다 — 뉴스 글은 뉴스 게시판에 쓴다(이 계정이 쓸 수 있을 때), 아니면 글 차례 게시판(되돌림)
-                AiPrompts.Place fallback = place;
-                place = news.newsTarget(a, catalog.snapshot()).map(nb -> new AiPrompts.Place(nb.name(), nb.description(), false)).orElse(fallback);
-                ask = AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 글", "제목: " + nz(src.title()) + "\n" + nz(src.contentText())), titles);
+                AiNewsSources.Material m = found.get();
+                source = new AiMemberViews.PromptSource(m.postId() == null ? null : Long.toString(m.postId()), m.title());
+                // 실행기와 같다 — 뉴스 글은 뉴스 게시판에 쓴다(이 계정이 쓸 수 있을 때), 아니면 글 차례 게시판(되돌림). 말머리 목록은 그 게시판의 주제 말머리
+                BoardCatalogSnapshot snap = catalog.snapshot();
+                EffectiveBoard target = news.newsTarget(a, snap).orElseGet(() -> firstBoard(a, snap));
+                if (target != null) {
+                    place = new AiPrompts.Place(target.name(), target.description(), false);
+                }
+                List<String> prefixes = AiNewsSources.topicPrefixes(target).stream().map(pf -> pf.name().strip()).toList();
+                ask = AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 소재", AiDraftGenerator.materialText(m)), titles, new AiPrompts.NewsInfo(news.siteName(), prefixes));
             }
             case COMMENT -> {
                 sample = true;
@@ -307,11 +313,16 @@ public class AiPromptAdminService {
 
     /** 미리 보기의 쓰는 곳 — 계정이 고른 게시판 중 지금 쓸 수 있는 첫 곳(없으면 null) */
     private AiPrompts.Place placeOf(AiMemberProfileEntity a) {
-        BoardCatalogSnapshot snap = catalog.snapshot();
+        EffectiveBoard b = firstBoard(a, catalog.snapshot());
+        return b == null ? null : new AiPrompts.Place(b.name(), b.description(), false);
+    }
+
+    /** 계정이 고른 첫 게시판(켜짐 · 「항상 막힘」 아님) — 없으면 null */
+    private static EffectiveBoard firstBoard(AiMemberProfileEntity a, BoardCatalogSnapshot snap) {
         for (Long id : a.getBoardIds()) {
             Optional<EffectiveBoard> b = snap.board(id).filter(x -> x.active() && AiMemberRules.blockedReason(x) == null);
             if (b.isPresent()) {
-                return new AiPrompts.Place(b.get().name(), b.get().description(), false);
+                return b.get();
             }
         }
         return null;
@@ -319,10 +330,6 @@ public class AiPromptAdminService {
 
     private static String moodName(AiPromptConfig.Mood mood) {
         return mood == null ? null : mood.name();
-    }
-
-    private static String nz(String s) {
-        return s == null ? "" : s;
     }
 
     private AiPromptSettingsEntity row() {

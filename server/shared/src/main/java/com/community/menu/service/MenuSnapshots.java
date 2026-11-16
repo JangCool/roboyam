@@ -48,7 +48,7 @@ public class MenuSnapshots {
                 continue;
             }
             out.put(board.getId(), new MenuBoardRef(board.getId(), board.getSlug(), board.getName(), board.getNameEn(), board.getColor(),
-                    board.isInvestmentNotice(), board.isActive()));
+                    board.isInvestmentNotice(), board.isActive(), board.isAdultOnly() && BoardFields.KIND_GENERAL.equals(board.getKind())));
         }
         return out;
     }

@@ -6,9 +6,12 @@
         화면이 카드 근처(위아래 600px)에 오면 `near` 를 한 번 올린다 — 받기는 페이지가 컴포저블(`usePostDetailBoardList`)로 한다. 그리기만 한다.
     -->
     <section ref="root" class="content-card scroll-mt-24" :aria-labelledby="headingId" :aria-busy="state === 'loading'" data-testid="post-detail-board-list" :data-mode="mode">
-        <h2 :id="headingId" class="m-0 border-b border-surface pb-2 text-[0.9375rem] font-semibold">{{ t('board.detailListTitle', { name: title }) }}</h2>
+        <!-- 머리 줄 — 위아래 여백·글자는 댓글 카드 머리(`CommentSection` — 위 14 · 아래 12 · 16px 굵게)와 같다(2차 — 사용자 2026-11-16 「머리 줄이 답답하다」) -->
+        <div class="border-b border-surface pb-3 pt-3.5">
+            <h2 :id="headingId" class="m-0 text-base font-semibold">{{ t('board.detailListTitle', { name: title }) }}</h2>
+        </div>
 
-        <div v-if="state === 'idle' || (state === 'loading' && !list)" class="-mx-4 md:mx-0" role="status" :aria-label="t('board.loadingList')">
+        <div v-if="state === 'idle' || (state === 'loading' && !list)" class="-mx-4 mt-1.5 md:mx-0" role="status" :aria-label="t('board.loadingList')">
             <div v-for="n in 5" :key="n" class="border-b border-surface px-4 py-3 md:px-0">
                 <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-11/12' : 'w-2/3'" />
             </div>
@@ -18,7 +21,8 @@
 
         <EmptyState v-else-if="list && list.items.length === 0 && list.pinned.length === 0" :title="t('board.emptyTitle')" icon="pi pi-file" />
 
-        <div v-else-if="list" :class="state === 'loading' ? 'opacity-60 transition-opacity' : ''">
+        <!-- 머리 줄과 첫 줄(지금 글이면 옅은 주 색상 바탕) 사이를 띄운다 -->
+        <div v-else-if="list" class="mt-1.5" :class="state === 'loading' ? 'opacity-60 transition-opacity' : ''">
             <!-- 휴대폰 촘촘한 줄(`COMPACT`) — 제목 · [댓글 수] · 날짜 한 줄 -->
             <ul v-if="compactRows" class="-mx-4 m-0 list-none p-0" data-testid="post-detail-board-list-compact">
                 <li

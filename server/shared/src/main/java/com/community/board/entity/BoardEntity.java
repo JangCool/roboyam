@@ -48,6 +48,8 @@ public class BoardEntity {
     private String prefixStyle;
     /** 글 상세 아래 게시판 목록(V224) OFF · LIST · COMPACT — 게시판마다의 값(사이트 기본 없음, post-detail-board-list-contract) */
     private String detailList = BoardFields.DETAIL_LIST_LIST;
+    /** 성인 전용 게시판(V226) — 게시판마다의 값(사이트 기본 없음, adult-board-contract). 일반 게시판만 켤 수 있다 */
+    private boolean adultOnly;
     private boolean investmentNotice;
     private boolean active;
     private int sortOrder;
@@ -90,6 +92,12 @@ public class BoardEntity {
     private Boolean authorThumbnailEnabled;
     /** 「태그 쓰기」(V215, NULL = 기본값 따름) — post-tags-contract */
     private Boolean tagsEnabled;
+    /** 글 상세 아래 [인기글]·[최신글] 탭 PC · 모바일(V226, NULL = 기본값 따름) — post-detail-board-list-contract 「2차」 */
+    private Boolean detailFeedTabsPc;
+    private Boolean detailFeedTabsMobile;
+    /** 말머리 필수 · 태그 필수(V226, NULL = 기본값 따름) — ai-news-reporter-contract 「뉴스 게시판 글 규칙」 */
+    private Boolean prefixRequired;
+    private Boolean tagRequired;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -170,6 +178,11 @@ public class BoardEntity {
         this.detailList = detailList;
     }
 
+    /** 성인 전용 게시판을 바꾼다(값 검사는 부르는 쪽이 끝냈다 — 기존 글 19금 표시도 부르는 쪽) */
+    public void changeAdultOnly(boolean adultOnly) {
+        this.adultOnly = adultOnly;
+    }
+
     /** 잠금·안내문을 바꾼다 */
     public void changeGuides(String writeLock, String introText, String writeGuideText) {
         this.writeLock = writeLock;
@@ -215,6 +228,10 @@ public class BoardEntity {
         this.pollEnabled = policy.pollEnabled();
         this.authorThumbnailEnabled = policy.authorThumbnailEnabled();
         this.tagsEnabled = policy.tagsEnabled();
+        this.detailFeedTabsPc = policy.detailFeedTabsPc();
+        this.detailFeedTabsMobile = policy.detailFeedTabsMobile();
+        this.prefixRequired = policy.prefixRequired();
+        this.tagRequired = policy.tagRequired();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -244,7 +261,8 @@ public class BoardEntity {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, pointMinLengthApplied, commentProtectMin,
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
-                staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled, tagsEnabled);
+                staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled, tagsEnabled, detailFeedTabsPc, detailFeedTabsMobile, prefixRequired,
+                tagRequired);
     }
 
     public Long getId() {
@@ -316,6 +334,11 @@ public class BoardEntity {
     /** 글 상세 아래 게시판 목록 OFF · LIST · COMPACT(V224) */
     public String getDetailList() {
         return detailList;
+    }
+
+    /** 성인 전용 게시판인가(V226) */
+    public boolean isAdultOnly() {
+        return adultOnly;
     }
 
     public boolean isInvestmentNotice() {

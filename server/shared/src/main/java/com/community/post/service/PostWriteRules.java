@@ -16,6 +16,8 @@ import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
+import com.community.zconfiguration.message.MessageRef;
 import org.springframework.stereotype.Component;
 
 /**
@@ -62,6 +64,23 @@ public class PostWriteRules {
         BoardWriteRestriction restriction = actor.writeRestriction(boardId);
         if (restriction != null) {
             throw BoardWriteBlockedException.boardRestricted(restriction);
+        }
+    }
+
+    /**
+     * 뉴스 게시판 글 규칙(V226 — ai-news-reporter-contract 「뉴스 게시판 글 규칙」, 회원·AI 공통) — 게시판 유효 정책 {@code prefixRequired} 면 말머리 없음 {@code fields.prefix}
+     * ({@code board.content.prefix.required}), {@code tagRequired} 면 태그 0개 {@code fields.tags}({@code post.tags.required}). 이미 같은 칸(또는 {@code prefixId}) 오류가 있으면 덧쓰지 않는다.
+     * 유효 정책은 켜진 말머리가 없거나 「태그 쓰기」가 꺼진 게시판에서 늘 false 다({@code BoardCatalog}).
+     *
+     * @param prefixId 저장될 말머리(없으면 null)
+     * @param tagCount 저장될 태그 수(고치기에서 태그 칸을 보내지 않았으면 지금 단 태그 수)
+     */
+    public static void checkRequired(EffectiveBoard b, Long prefixId, int tagCount, Map<String, MessageRef> fields) {
+        if (b.prefixRequired() && prefixId == null && !fields.containsKey("prefix") && !fields.containsKey("prefixId")) {
+            fields.put("prefix", new MessageRef("board.content.prefix.required"));
+        }
+        if (b.tagRequired() && tagCount <= 0 && !fields.containsKey("tags")) {
+            fields.put("tags", new MessageRef("post.tags.required"));
         }
     }
 

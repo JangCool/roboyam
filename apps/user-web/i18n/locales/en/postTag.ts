@@ -5,6 +5,8 @@
 export default {
     label: 'Tags',
     optional: 'Optional · up to {max}',
+    requiredHint: 'Required · up to {max}',
+    required: 'Add at least one tag.',
     placeholder: 'Type a tag and press Enter',
     help: 'Add with Enter, comma or space. Up to {len} characters each; # is removed.',
     listLabel: 'Added tags',

@@ -10,7 +10,7 @@
           · 칸이 비었으면 「이 게시판에서 많이 쓴 태그」 칩(넣지 않은 것 위 8개) — 누르면 넣는다.
         받기에 실패하면 추천 없이 지금처럼 쓴다.
     -->
-    <LabeledField :label="t('postTag.label')" :hint="t('postTag.optional', { max })" :error="shownError" :help="t('postTag.help', { len: UtilPostTag.LEN_MAX })" data-testid="post-tags">
+    <LabeledField :label="t('postTag.label')" :hint="required ? t('postTag.requiredHint', { max }) : t('postTag.optional', { max })" :error="shownError" :help="t('postTag.help', { len: UtilPostTag.LEN_MAX })" data-testid="post-tags">
         <template #default="{ id, describedBy, invalid }">
             <div class="flex flex-col gap-2">
                 <div class="relative">
@@ -21,6 +21,7 @@
                         :maxlength="60"
                         :invalid="invalid"
                         :aria-describedby="describedBy"
+                        :aria-required="required ? 'true' : undefined"
                         :disabled="disabled"
                         role="combobox"
                         aria-autocomplete="list"
@@ -124,9 +125,11 @@ interface Props {
     error?: string;
     /** 추천을 받을 게시판(없으면 추천 없음 — 소모임 글 등) */
     boardSlug?: string | null;
+    /** 태그 필수 게시판(`tagRequired` — 뉴스 게시판 글 규칙) — 라벨 옆 「필수」. 막기·문구는 화면이 `error` 로 준다 */
+    required?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { max: UtilPostTag.MAX, disabled: false, error: '', boardSlug: null });
+const props = withDefaults(defineProps<Props>(), { max: UtilPostTag.MAX, disabled: false, error: '', boardSlug: null, required: false });
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
 
 const { t } = useI18n();

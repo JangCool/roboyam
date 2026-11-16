@@ -11,7 +11,6 @@ import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostTagStore;
 import com.community.post.service.PostTags;
@@ -73,12 +72,11 @@ public class TipsService {
     private final PostRepository posts;
     private final PostFeedRows rows;
     private final HighlightPicks highlightPicks;
-    private final AdultContentGate adultGate;
     private final PostTagStore tagStore;
     private final PostTagQueries tagQueries;
 
     public TipsService(BoardCatalog catalog, TipsPostQueries queries, PostRepository posts, PostFeedRows rows, HighlightPicks highlightPicks,
-                       AdultContentGate adultGate, PostTagStore tagStore, PostTagQueries tagQueries) {
+                       PostTagStore tagStore, PostTagQueries tagQueries) {
         this.tagStore = tagStore;
         this.tagQueries = tagQueries;
         this.catalog = catalog;
@@ -86,7 +84,6 @@ public class TipsService {
         this.posts = posts;
         this.rows = rows;
         this.highlightPicks = highlightPicks;
-        this.adultGate = adultGate;
     }
 
     /** 묶음 머리 몫 — 게시판 칩 · 헤드라인 · 많이 본 글 */
@@ -156,7 +153,7 @@ public class TipsService {
         List<Long> scope = picked != null ? List.of(picked.id()) : bundle.stream().map(EffectiveBoard::id).toList();
         String tagKey = PostTags.filterKey(tag);
         PostRepositoryQDSL.Page result = tagKey != null && tagKey.isEmpty() ? new PostRepositoryQDSL.Page(List.of(), 0)
-                : queries.latest(scope, tagKey, adultGate.adult(viewerId), (long) (current - 1) * PAGE_SIZE, PAGE_SIZE, now);
+                : queries.latest(scope, tagKey, false, (long) (current - 1) * PAGE_SIZE, PAGE_SIZE, now); // 19금 글은 성인이어도 뺀다(adult-board-contract)
         List<PostFeedRowView> found = rows.of(result.items(), s, now, viewerId);
         Map<String, String> excerpts = excerpts(found);
         Map<String, List<String>> tags = tags(found);

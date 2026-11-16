@@ -124,6 +124,8 @@ export interface AiMemberDetail extends AiMemberRow {
     updatedBy: string | null;
     /** 모델 이력 — 최신이 먼저, 맨 앞이 지금 모델 */
     modelHistory: AiModelHistoryEntry[];
+    /** 운영자 추가 지시(V228 — 없으면 빈 글) */
+    extraPrompt: string;
 }
 
 /** 모델 이력 한 줄 — `since` 부터 앞 줄(더 새 것)의 `since` 전까지 이 모델을 썼다 */
@@ -215,6 +217,8 @@ export interface AiMemberSaveRequest {
     dailyPostMax: number | null;
     /** 계정별 뉴스 글 비율 %(V223 — 0~100). null 이면 공통 프롬프트 설정. 늘 보낸다 */
     newsRatio: number | null;
+    /** 운영자 추가 지시(V228 — 선택, 300자). 비우면 없음. 늘 보낸다 — 프롬프트에 지시로 들어간다 */
+    extraPrompt: string;
 }
 
 /** 새 AI 회원 — 고치기 칸 + 닉네임(서버가 로그인할 수 없는 회원 계정을 만든다. 처음엔 꺼짐) */
@@ -493,7 +497,7 @@ export interface AiPromptPreview {
     /** 뉴스 글인데 소재가 없으면 null */
     user: string | null;
     /** 뉴스 글의 소재 글 */
-    source: { postId: string; title: string } | null;
+    source: { postId: string | null; title: string } | null;
     /** 뉴스 글인데 지금 소재 후보가 없다(실행기라면 보통 새 글로 쓴다) */
     sourceMissing: boolean;
     /** 첫 댓글·답글 — 인용한 글이 예시 글이다 */
@@ -504,4 +508,57 @@ export interface AiPromptPreview {
     mood: string | null;
     /** 그 계정의 글 방식 — 동물 소리면 분위기 없음, 뉴스 글을 고르면 새 글로 보인다(동물 계정은 뉴스 글을 쓰지 않는다) */
     voice: AiVoice;
+}
+
+/* ── 뉴스 출처(V228 — docs/features/ai-news-reporter-contract.md) ── */
+
+/** 출처 종류 — RSS 피드 주소 · 유튜브 채널 ID · 구글 뉴스 검색어(소재 찾기용, 글에는 원 언론사 출처) */
+export type AiNewsSourceKind = 'RSS' | 'YOUTUBE' | 'KEYWORD';
+export const AI_NEWS_SOURCE_KINDS: readonly AiNewsSourceKind[] = ['RSS', 'YOUTUBE', 'KEYWORD'];
+
+/** 뉴스 출처 한 줄 */
+export interface AiNewsSource {
+    id: string;
+    kind: AiNewsSourceKind;
+    name: string;
+    /** RSS 주소 · 채널 ID · 검색어 */
+    address: string;
+    /** 실제로 받는 주소(주소가 틀리면 null) */
+    feedUrl: string | null;
+    enabled: boolean;
+    /** 마지막 성공(UTC ISO) · 그때 읽은 항목 수 */
+    lastFetchedAt: string | null;
+    lastItemCount: number | null;
+    /** 마지막 실패 사유(HTTP 404 · TIMEOUT · NOT_FEED · PARSE_ERROR …) — 성공하면 지운다 */
+    lastError: string | null;
+    lastErrorAt: string | null;
+    updatedAt: string | null;
+}
+
+export interface AiNewsSourceList {
+    items: AiNewsSource[];
+    kinds: AiNewsSourceKind[];
+    limits: { nameMax: number; addressMax: number; sourcesMax: number };
+    /** 아직 쓰지 않은 수집 항목 수(7일 보관) */
+    unusedItems: number;
+    /** 수집 배치 키(배치 관리 화면에서 주기·켜기 — 기본 30분마다) */
+    batchKey: string;
+}
+
+/** 더하기·고치기 — 400 `VALIDATION`(`fields.kind`·`name`·`address`·`sources`) */
+export interface AiNewsSourceSaveRequest {
+    kind: AiNewsSourceKind;
+    name: string;
+    address: string;
+    enabled: boolean;
+}
+
+/** 「지금 수집」 결과 — `busy` 다른 곳(배치)에서 수집 중이라 건너뜀 */
+export interface AiNewsCollectResult {
+    sources: number;
+    failed: number;
+    added: number;
+    deleted: number;
+    busy: boolean;
+    list: AiNewsSourceList;
 }

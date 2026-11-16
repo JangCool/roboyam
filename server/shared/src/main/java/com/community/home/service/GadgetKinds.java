@@ -47,6 +47,16 @@ public final class GadgetKinds {
     public static final List<String> HOT_DEALS_SORTS = List.of("LATEST", "POPULAR", "ENDING_SOON");
     public static final String HOT_DEALS_SORT_DEFAULT = "LATEST";
 
+    /**
+     * 19금 전용 가젯(adult-board-contract 2026-11-16) — 고른 성인 전용 게시판(V226 {@code boards.adult_only})의 글 목록형. 19금 글이 보이는 유일한 가젯이고 성인에게만 그려진다
+     * (공개 응답 — 성인이 아니면 {@code hidden: true}·{@code data: null}). 설정 {@code boards}(성인 전용 게시판 slug, 비우면 모두 — 핫딜 가젯 {@code boards} 와 같은 종류만의 칸) ·
+     * {@code count} 1~{@value #ADULT_POSTS_COUNT_MAX}(기본 {@value #ADULT_POSTS_COUNT_DEFAULT}) · {@code hover}. 공개 데이터 모양은 글 목록 가젯({@code POST_LIST})의 {@code items} 와 같다.
+     * 데이터 캐시를 두지 않는다(성인에게만 가는 값). 최소 크기는 글 목록 가젯과 같다(12칸 기준 3×6).
+     */
+    public static final String ADULT_POSTS = "ADULT_POSTS";
+    public static final int ADULT_POSTS_COUNT_DEFAULT = 10;
+    public static final int ADULT_POSTS_COUNT_MAX = 30;
+
     /** 광고 배너 가젯 — {@code config.adType}(배너 넷, 처음 {@code WIDE_BANNER} — 날개 배너는 가젯에 없다) */
     public static final String AD = "AD";
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
@@ -67,7 +77,7 @@ public final class GadgetKinds {
             Map.entry("BOARD_CARDS", "pi-th-large"), Map.entry("GALLERY", "pi-images"), Map.entry("GROUPS", "pi-users"), Map.entry("GROUP_BUY", "pi-shopping-bag"),
             Map.entry(HOT_DEALS, "pi-ticket"), Map.entry("QUICK_LINKS", "pi-link"), Map.entry("NOTICE_TEXT", "pi-megaphone"), Map.entry(AD, "pi-image"),
             Map.entry(AD_TEXT_LINE, "pi-bars"), Map.entry(TIPS_HEADLINE, "pi-star"), Map.entry(TIPS_LATEST, "pi-clock"), Map.entry(TIPS_POPULAR, "pi-eye"),
-            Map.entry(TIPS_TAGS, "pi-hashtag"));
+            Map.entry(TIPS_TAGS, "pi-hashtag"), Map.entry(ADULT_POSTS, "pi-eye-slash"));
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
@@ -134,6 +144,16 @@ public final class GadgetKinds {
     public static String hotDealsSort(JsonNode config) {
         String sort = HomeLayoutJson.text(config, "sort", HOT_DEALS_SORT_DEFAULT);
         return HOT_DEALS_SORTS.contains(sort) ? sort : HOT_DEALS_SORT_DEFAULT;
+    }
+
+    /** 19금 전용 가젯 설정의 보일 개수 — 없거나 정수가 아니면 기본, 1~{@value #ADULT_POSTS_COUNT_MAX} 로 자른다 */
+    public static int adultPostsCount(JsonNode config) {
+        return HomeLayoutJson.number(config, "count", ADULT_POSTS_COUNT_DEFAULT, 1, ADULT_POSTS_COUNT_MAX);
+    }
+
+    /** 19금 전용 가젯 설정의 성인 전용 게시판 slug — 글자만, 겹침 없이 고른 차례로 {@value GadgetConfigs#BOARD_PICK_MAX}개까지(비면 모든 성인 전용 게시판) */
+    public static List<String> adultPostsBoards(JsonNode config) {
+        return HomeLayoutJson.texts(config, "boards").stream().map(String::strip).filter(s -> !s.isEmpty()).distinct().limit(GadgetConfigs.BOARD_PICK_MAX).toList();
     }
 
     /** 핫딜 가젯 설정의 핫딜 게시판 slug — 글자만, 겹침 없이 고른 차례로 {@value GadgetConfigs#BOARD_PICK_MAX}개까지(비면 모든 핫딜 게시판) */
@@ -212,6 +232,7 @@ public final class GadgetKinds {
         min.put("GROUPS", new int[]{3, 6});
         min.put("GROUP_BUY", new int[]{3, 8});
         min.put(HOT_DEALS, new int[]{3, 8});
+        min.put(ADULT_POSTS, new int[]{3, 6});
         min.put("QUICK_LINKS", new int[]{3, 2});
         min.put("NOTICE_TEXT", new int[]{2, 3});
         min.put(AD, new int[]{2, 2});

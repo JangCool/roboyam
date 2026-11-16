@@ -98,7 +98,7 @@ public class BoardViews {
                 board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets(),
                 category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName(), board.isAdsHidden(),
                 board.getSecretMode(), board.isStatusEnabled(), board.getChipPosition(), board.getAuthorMode(), board.getPrefixStyle(),
-                board.getDetailList());
+                board.getDetailList(), board.isAdultOnly());
     }
 
     /** 「가젯 노출 금지」에 고를 수 있는 가젯(enum 순서, 이름은 요청 언어) */

@@ -97,9 +97,20 @@ public class AiDraftPublisher {
                         finish(id, null, null, "TARGET_GONE");
                         return false;
                     }
-                    // 뉴스 글을 뉴스 게시판에 쓸 때만 말머리(등록 시점의 말머리 설정으로 고른다 — 되돌림으로 글 차례 게시판에 쓰면 null)
-                    Long prefixId = d.getSourcePostId() == null ? null : tx.execute(status -> news.prefixFor(d.getBoardId(), d.getSourcePostId()));
-                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
+                    // 뉴스 글의 말머리·태그(ai-news-reporter-contract) — 생성 때 확인한 말머리 이름을 지금 그 게시판의 같은 이름 말머리로(없어졌으면 첫 주제 말머리),
+                    // 태그는 지금 금지어로 다시 거른다. 옛 뉴스 글 줄(V228 전 — 말머리 이름 없음)은 예전처럼 소재 글 말머리로 고른다
+                    Long prefixId = null;
+                    if (d.getPrefixName() != null) {
+                        prefixId = tx.execute(status -> news.prefixIdByName(d.getBoardId(), d.getPrefixName()));
+                    } else if (d.getSourcePostId() != null) {
+                        prefixId = tx.execute(status -> news.prefixFor(d.getBoardId(), d.getSourcePostId()));
+                    }
+                    List<String> tags = AiNewsSources.filterTags(d.tagList(), news.security());
+                    if (d.isNews() && !d.tagList().isEmpty() && tags.isEmpty()) {
+                        finish(id, null, null, AiDraftGenerator.NO_TAGS); // 승인을 기다리는 사이 금지어가 바뀌어 태그가 모두 걸렸다
+                        return false;
+                    }
+                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), tags, account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
                     finish(id, postId, null, null);
                 }
             } else {

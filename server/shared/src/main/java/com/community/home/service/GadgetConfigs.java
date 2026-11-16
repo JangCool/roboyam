@@ -28,7 +28,8 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} NONE·HERO · {@code thumbs} · {@code place} 놓일 곳 키(home — tips-contract) · {@code showAuthor} 작성자 보이기(기본 켬) ·
  *       {@code narrow} DEFAULT·LIST(좁은 칸 모양 — home-news-contract) · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
  *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) · {@code look} BAND(글 보기 한 줄 광고처럼 — 기본)·CARD(가젯 카드) ·
- *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸) · {@code thumbnails} 줄 사진 보이기(기본 켬 — 2026-11-15 홈 핫딜 칸).</li>
+ *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸) · {@code thumbnails} 줄 사진 보이기(기본 켬 — 2026-11-15 홈 핫딜 칸) ·
+ *       {@code ADULT_POSTS}(19금 전용 가젯 — adult-board-contract) {@code count} 1~30(10) · {@code boards} 성인 전용 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
  *   <li>공통 {@code hover} 마우스 올림 효과(누르면 가는 항목에 옅은 바탕 — 기본 켬, 칸이 없는 옛 가젯도 켬, 사용자 2026-11-10) — 항목이 있는 종류({@link #HOVER_KINDS})만. 안내 글·광고 2종에는 없다.</li>
  *   <li>공통 {@code pageHead} 가젯 페이지 제목 카드에 넣기(켜면 격자에서 빠지고 페이지 제목 아래 굵은 밑줄 뒤에 붙는다 — 기본 끔, 가젯 페이지 가젯만, 사용자 2026-11-10) — {@link #HOVER_KINDS} 와 같은 종류.</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
@@ -85,22 +86,24 @@ public final class GadgetConfigs {
     public static final int QUICK_LABEL_MAX = 12;
     public static final int NOTICE_MAX = 300;
     /** 마우스 올림 효과 칸({@code hover})이 있는 종류 — 누르면 가는 항목(글 줄·카드·바로가기)이 있는 것. admin-web {@code UtilGadgetConfig}·user-web {@code UtilGadget.hoverOn} 과 같은 종류 */
-    public static final List<String> HOVER_KINDS = List.of("HIGHLIGHT", "POST_LIST", "BOARD_CARDS", "GALLERY", "GROUPS", "GROUP_BUY", GadgetKinds.HOT_DEALS, "QUICK_LINKS");
+    public static final List<String> HOVER_KINDS = List.of("HIGHLIGHT", "POST_LIST", "BOARD_CARDS", "GALLERY", "GROUPS", "GROUP_BUY", GadgetKinds.HOT_DEALS, "QUICK_LINKS",
+            GadgetKinds.ADULT_POSTS);
     /** 사이트 안 경로 글자 수 한도 — user-web {@code safePath} */
     public static final int PATH_MAX = 300;
 
     private static final Pattern SCHEME = Pattern.compile("^/[a-zA-Z][a-zA-Z0-9+.-]*:.*", Pattern.DOTALL);
 
     /** 종류 → 개수 칸 {이름, 최소, 최대, 처음} — 공개 {@code GadgetService} 가 읽는 범위와 같다 */
-    private static final Map<String, Count> COUNTS = Map.of(
-            "GROUP_BUY", new Count("count", 1, GadgetKinds.GROUP_BUY_COUNT_MAX, GadgetKinds.GROUP_BUY_COUNT_DEFAULT),
-            GadgetKinds.HOT_DEALS, new Count("count", 1, GadgetKinds.HOT_DEALS_COUNT_MAX, GadgetKinds.HOT_DEALS_COUNT_DEFAULT),
-            "POST_LIST", new Count("count", 1, 30, 10),
-            "GALLERY", new Count("count", 1, 24, 6),
-            "BOARD_CARDS", new Count("perBoard", 1, 10, 4),
-            "HIGHLIGHT", new Count("count", 1, 6, 5),
-            "GROUPS", new Count("count", 1, 6, 3),
-            GadgetKinds.AD_TEXT_LINE, new Count("count", 1, 5, 3));
+    private static final Map<String, Count> COUNTS = Map.ofEntries(
+            Map.entry("GROUP_BUY", new Count("count", 1, GadgetKinds.GROUP_BUY_COUNT_MAX, GadgetKinds.GROUP_BUY_COUNT_DEFAULT)),
+            Map.entry(GadgetKinds.ADULT_POSTS, new Count("count", 1, GadgetKinds.ADULT_POSTS_COUNT_MAX, GadgetKinds.ADULT_POSTS_COUNT_DEFAULT)),
+            Map.entry(GadgetKinds.HOT_DEALS, new Count("count", 1, GadgetKinds.HOT_DEALS_COUNT_MAX, GadgetKinds.HOT_DEALS_COUNT_DEFAULT)),
+            Map.entry("POST_LIST", new Count("count", 1, 30, 10)),
+            Map.entry("GALLERY", new Count("count", 1, 24, 6)),
+            Map.entry("BOARD_CARDS", new Count("perBoard", 1, 10, 4)),
+            Map.entry("HIGHLIGHT", new Count("count", 1, 6, 5)),
+            Map.entry("GROUPS", new Count("count", 1, 6, 3)),
+            Map.entry(GadgetKinds.AD_TEXT_LINE, new Count("count", 1, 5, 3)));
 
     private GadgetConfigs() {
     }
@@ -285,6 +288,10 @@ public final class GadgetConfigs {
                 ArrayNode boards = out.putArray("boards");
                 GadgetKinds.hotDealsBoards(config).forEach(boards::add);
                 out.put("thumbnails", bool(config, "thumbnails", true)); // 줄 사진 — 칸이 없는 옛 가젯도 켬
+            }
+            case GadgetKinds.ADULT_POSTS -> {
+                ArrayNode boards = out.putArray("boards"); // 성인 전용 게시판 slug(비면 모두 — adult-board-contract)
+                GadgetKinds.adultPostsBoards(config).forEach(boards::add);
             }
             default -> {
             }

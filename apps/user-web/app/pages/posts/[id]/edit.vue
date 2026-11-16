@@ -78,7 +78,7 @@
             :upload="uploadImage"
             :step="formStep"
             @editor-ready="onEditorReady"
-            @attempt="dealTried = true"
+            @attempt="onAttempt"
             @next="onStepNext"
             @prev="step = 1"
             @submit="submit"
@@ -124,7 +124,7 @@
                     :error="fieldErrors.thumbnail ?? ''"
                 />
                 <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」를 켠 게시판만 -->
-                <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="post?.group ? null : (post?.board.slug ?? null)" :disabled="submitting" :error="tagsError" />
+                <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="post?.group ? null : (post?.board.slug ?? null)" :disabled="submitting" :error="tagsError" :required="tagsRequired" />
             </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
@@ -387,13 +387,26 @@ async function reloadThumbnail(postId: string): Promise<void> {
 const tags = ref<string[]>([]);
 const tagsInitial = ref<string[]>([]);
 const tagsShown = computed(() => board.value?.tagsEnabled === true);
+/** 태그 필수(게시판 유효 정책 `tagRequired` — 뉴스 게시판 글 규칙). 서버는 「태그 쓰기」가 꺼진 게시판이면 늘 false 로 준다 */
+const tagsRequired = computed(() => tagsShown.value && board.value?.tagRequired === true);
 const tagsChanged = computed(() => tagsShown.value && !UtilPostTag.same(tags.value, tagsInitial.value));
+/** [저장]을 한 번 누른 뒤부터 「태그를 하나 이상 넣어 주세요」를 보인다 — 원래 태그가 없던 글도 필수면 달아야 저장된다 */
+const tagsTried = ref(false);
+const tagsMissing = computed(() => tagsShown.value && tagsRequired.value && tags.value.length === 0);
 /** 서버 오류 — `fields.tags` 또는 `fields."tags[0]"` 꼴의 첫 문구 */
-const tagsError = computed(() => UtilPostTag.fieldError(fieldErrors.value));
+const tagsServerError = computed(() => UtilPostTag.fieldError(fieldErrors.value));
+/** 태그 칸 오류 — 서버 문구가 먼저, 아니면 필수 검사 */
+const tagsError = computed(() => tagsServerError.value || (tagsTried.value && tagsMissing.value ? t('postTag.required') : ''));
 // 태그를 고치면 그 칸의 낡은 서버 오류를 지운다
 watch(tags, () => {
-    if (tagsError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
+    if (tagsServerError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
 });
+
+/** [저장]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그)의 검사 문구도 함께 보이게 */
+function onAttempt(): void {
+    dealTried.value = true;
+    tagsTried.value = true;
+}
 
 /* ── 비회원 글 비밀번호 ── */
 const password = ref('');
@@ -442,6 +455,8 @@ async function submit(): Promise<void> {
         step.value = 1;
         return;
     }
+    tagsTried.value = true;
+    if (tagsMissing.value) return;
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;

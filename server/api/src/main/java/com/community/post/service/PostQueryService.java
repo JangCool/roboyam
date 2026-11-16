@@ -197,6 +197,8 @@ public class PostQueryService {
                                  String tag, String around) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
+        boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
+        PublicBoardService.requireAdultAccess(b, () -> adultViewer); // 성인 전용 게시판은 성인만 — 아니면 없는 게시판 404(V226, around 포함)
         Instant now = Instant.now();
         int listSize = b.listSize();
 
@@ -228,7 +230,6 @@ public class PostQueryService {
         String storeName = store == null || store.isBlank() ? null : store.strip();
         int autoExpireDays = deal ? dealSettings.current().autoExpireDays() : 0;
 
-        boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
         int current = page != null ? Math.max(1, page) : 1;
         Long aroundId = page == null && !impossible ? parseId(around) : null;
         if (aroundId != null) {
@@ -431,8 +432,12 @@ public class PostQueryService {
 
     /**
      * 읽을 수 없는 비밀글이면 403 {@code SECRET_POST}({@link SecretPostGate}) — {@code GroupPostGate#resolve} 를 거치지 않는 글 API(찬반 토론·의견 고정 요청·신고)가 부른다.
+     * 성인 전용 게시판(V226 — adult-board-contract)의 글은 성인이 아니면 없는 글과 같은 404 {@code POST_NOT_FOUND}({@code GroupPostGate#resolve} 와 같은 판정).
      */
     public void requireSecretReadable(BoardCatalogSnapshot s, PostEntity post, Long viewerId) {
+        if (!post.isGroupPost() && s.board(post.getBoardId()).map(EffectiveBoard::adultOnly).orElse(false) && !adultGate.adult(viewerId)) {
+            throw new PostNotFoundException();
+        }
         secretGate.requireReadable(s, post, viewerId);
     }
 

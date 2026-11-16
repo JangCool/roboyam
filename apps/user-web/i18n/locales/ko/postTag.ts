@@ -5,6 +5,8 @@
 export default {
     label: '태그',
     optional: '선택 · 최대 {max}개',
+    requiredHint: '필수 · 최대 {max}개',
+    required: '태그를 하나 이상 넣어 주세요.',
     placeholder: '태그를 쓰고 엔터',
     help: '엔터·쉼표·스페이스로 넣어요. 한 태그 {len}자까지, #은 빼고 저장해요.',
     listLabel: '단 태그',

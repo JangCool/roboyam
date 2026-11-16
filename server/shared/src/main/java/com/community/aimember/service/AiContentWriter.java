@@ -32,6 +32,8 @@ import com.community.post.repository.master.PostRepository;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostContentFields;
 import com.community.post.service.PostOpenRules;
+import com.community.post.service.PostTagStore;
+import com.community.post.service.PostTags;
 import com.community.post.service.PostWriteRules;
 import com.community.post.service.SecretPostReaders;
 import com.community.post.service.WriterPromotion;
@@ -41,6 +43,7 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -94,13 +97,16 @@ public class AiContentWriter {
     private final PointService points;
     private final MemberNotificationPublisher notices;
     private final WriterPromotion promotion;
+    private final PostTagStore tagStore;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate tx;
 
     public AiContentWriter(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, CommentRepository comments, PostCounterQueries counters,
                            PostWriteRules postRules, CommentWriteRules commentRules, PostOpenRules openRules, AdultContentGate adultGate,
                            SecretPostReaders secretReaders, GroupAccess groupAccess, DebateWriteStance stances, EmoticonGuard emoticons, PointService points,
-                           MemberNotificationPublisher notices, WriterPromotion promotion, SnowflakeIdGenerator ids, PlatformTransactionManager txManager) {
+                           MemberNotificationPublisher notices, WriterPromotion promotion, SnowflakeIdGenerator ids, PlatformTransactionManager txManager,
+                           PostTagStore tagStore) {
+        this.tagStore = tagStore;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -142,6 +148,16 @@ public class AiContentWriter {
      * @param prefixId 말머리(없으면 null)
      */
     public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, boolean gradeExempt, String ip) {
+        return post(userId, boardId, prefixId, titleText, bodyText, List.of(), gradeExempt, ip);
+    }
+
+    /**
+     * 게시판 글 — 말머리 · 태그까지(AI 기자 뉴스 글, ai-news-reporter-contract). 태그는 부르는 쪽이 글 태그 규칙·금지어로 거른 값({@link AiNewsSources#filterTags})이고,
+     * 게시판이 태그를 쓸 때({@code tagsEnabled})만 저장한다(사람 글쓰기와 같다 — 꺼져 있으면 무시). 금지어 검사에도 태그를 함께 넣는다. 저장은 글과 같은 트랜잭션({@link PostTagStore#replace}).
+     *
+     * @param tags 정리한 태그(없으면 빈 목록)
+     */
+    public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, boolean gradeExempt, String ip) {
         Writable w = writable(userId, boardId, gradeExempt);
         BoardCatalogSnapshot s = w.snapshot();
         EffectiveBoard b = w.board();
@@ -154,12 +170,15 @@ public class AiContentWriter {
         if (prefixId != null && !fields.containsKey("prefixId") && b.prefix(prefixId).map(BoardPrefixInfo::adultOnly).orElse(false)) {
             fields.put("prefixId", new MessageRef("board.content.prefix.unknown")); // AI 글은 19금이 없다 — 성인 전용 말머리는 쓰지 않는다
         }
+        List<String> savedTags = tags == null || tags.isEmpty() || !b.tagsEnabled() ? List.of() : PostTags.normalize(tags).tags();
+        // 말머리 필수 · 태그 필수(V226 — 공개 글쓰기와 같은 판정, 회원·AI 공통). 어기면 400 → 실행기 까닭 INVALID
+        PostWriteRules.checkRequired(b, c.prefixId(), savedTags.size(), fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
         emoticons.requireOwned(userId, c.body().content());
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), null);
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), null, savedTags.isEmpty() ? null : String.join("\n", savedTags));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
@@ -174,6 +193,9 @@ public class AiContentWriter {
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled());
             posts.persist(created);
+            if (!savedTags.isEmpty()) {
+                tagStore.replace(created, savedTags, now);
+            }
             emoticons.recordUse(userId, c.body().content());
             points.earnPost(new PointService.PostEarn(userId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
         });
@@ -202,6 +224,7 @@ public class AiContentWriter {
             Map<String, MessageRef> fields = new LinkedHashMap<>();
             PostContentFields.Cleaned c = PostContentFields.check(b, actor.staffOf(b.id()), memberWriter(b, actor, s), null, null, titleText, TEXT, bodyText, null, sec,
                     fields);
+            PostWriteRules.checkRequired(b, c.prefixId(), 0, fields); // 말머리 필수 · 태그 필수(V226 — 공개 소모임 글쓰기와 같은 판정. AI 소모임 글은 말머리·태그가 없다)
             EmoticonGuard.countInto(c.body().content(), "content", fields);
             if (!fields.isEmpty()) {
                 throw new ValidationException(fields);

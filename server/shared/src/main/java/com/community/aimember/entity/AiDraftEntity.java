@@ -6,6 +6,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * AI 생성물 한 건 — {@code ai_member_drafts}(shared V183). 검수 대기함이자 활동 기록이다: 생성 호출 한 번마다 한 줄(실패도 — 하루 호출 수는 이 표에서 센다).
@@ -55,6 +57,12 @@ public class AiDraftEntity {
     private Instant publishedAt;
     /** 뉴스 글의 소재 글(사이트 회원이 쓴 「뉴스」 말머리 글 — V190). 뉴스 글이 아니면 null */
     private Long sourcePostId;
+    /** 소재로 쓴 뉴스 수집 항목(V228 — 항목이 지워져도 남는다) */
+    private Long newsItemId;
+    /** 뉴스 글 말머리 이름(V228 — 서버가 확인한 것, 등록 때 그 게시판의 같은 이름 말머리) */
+    private String prefixName;
+    /** 뉴스 글 태그(V228 — 서버가 거른 것, 쉼표로 이음) */
+    private String tags;
 
     protected AiDraftEntity() {
     }
@@ -157,6 +165,13 @@ public class AiDraftEntity {
     }
 
     /** 등록하지 못했다(금지어·제재·글이 사라짐 등) */
+    /** 뉴스 글 표시(V228) — 소재 수집 항목 · 말머리 이름 · 태그(거른 것). 태그는 쉼표로 잇는다(태그에는 쉼표가 없다 — PostTags.valid) */
+    public void news(Long newsItemId, String prefixName, List<String> tags) {
+        this.newsItemId = newsItemId;
+        this.prefixName = prefixName == null || prefixName.isBlank() ? null : prefixName;
+        this.tags = tags == null || tags.isEmpty() ? null : String.join(",", tags);
+    }
+
     public void fail(String reason) {
         this.status = AiDraftStatus.FAILED;
         this.failReason = reason;
@@ -272,5 +287,23 @@ public class AiDraftEntity {
 
     public Long getSourcePostId() {
         return sourcePostId;
+    }
+
+    public Long getNewsItemId() {
+        return newsItemId;
+    }
+
+    public String getPrefixName() {
+        return prefixName;
+    }
+
+    /** 태그 목록(없으면 빈 목록) */
+    public List<String> tagList() {
+        return tags == null || tags.isBlank() ? List.of() : Arrays.stream(tags.split(",")).map(String::strip).filter(t -> !t.isEmpty()).toList();
+    }
+
+    /** 뉴스 글인가 — 회원 뉴스 글 소재 또는 수집 항목 소재 */
+    public boolean isNews() {
+        return sourcePostId != null || newsItemId != null;
     }
 }

@@ -130,6 +130,8 @@ export interface BoardDetailForm {
     /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `colorProblem` 이 막는다) */
     color: BoardDisplayColor | null;
     allowAdult: boolean;
+    /** 성인 전용 게시판(adult-board-contract) — 게시판마다의 값(사이트 기본 없음) */
+    adultOnly: boolean;
     investmentNotice: boolean;
     writeLock: BoardWriteLock | null;
     introText: string;
@@ -209,6 +211,12 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     authorThumbnailEnabled: { field: 'authorThumbnailEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     // 글쓴이 태그 쓰기(post-tags-contract — shared V215)
     tagsEnabled: { field: 'tagsEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
+    // 말머리 필수·태그 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」 — 회원·AI 공통, 사이트 기본 끔)
+    prefixRequired: { field: 'prefixRequired', kind: 'bool', overridable: true, permission: 'board.settings' },
+    tagRequired: { field: 'tagRequired', kind: 'bool', overridable: true, permission: 'board.settings' },
+    // 글 상세 맨 아래 [인기글]·[최신글] 탭의 PC·휴대폰 표시(post-detail-board-list-contract 「2차」 — 사이트 기본 PC 끔·휴대폰 켬)
+    detailFeedTabsPc: { field: 'detailFeedTabsPc', kind: 'bool', overridable: true, permission: 'board.settings' },
+    detailFeedTabsMobile: { field: 'detailFeedTabsMobile', kind: 'bool', overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
     // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음, 사용자 2026-11-12) — 사이트 전체, 게시판별 덮어쓰기 없음
     pinRequestMinLikes: { field: 'pinRequestMinLikes', kind: 'number', min: 0, max: 1000, unit: 'likes', overridable: false, permission: 'board.settings' },
@@ -286,10 +294,10 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
     'defaults-display': ['dateDisplay', 'listChipPosition', 'listPrefixStyle', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
-    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'],
+    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
-    'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable'],
+    'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable', 'detailFeedTabsPc', 'detailFeedTabsMobile'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'commentDelayNotice', 'staffHiddenNotice'],
@@ -589,6 +597,8 @@ export default class UtilBoard {
         form.listPrefixStyle = UtilBoard.prefixStyle(defaults.listPrefixStyle);
         // 비회원 댓글 지연 안내를 아직 주지 않는 서버면 전체 기본값(남은 시간 알리기)
         form.commentDelayNotice = UtilBoard.commentDelayNotice(defaults.commentDelayNotice);
+        // 글 규칙·상세 탭 칸을 아직 주지 않는 서버면 전체 기본값(말머리·태그 필수 끔 · 탭 PC 끔 · 휴대폰 켬)
+        Object.assign(form, UtilBoard.newDefaultsOf(defaults));
         return form;
     }
 
@@ -627,13 +637,27 @@ export default class UtilBoard {
 
     /** 저장된 값과 다른 기본 설정 칸들 — 옛 서버가 주지 않은 말머리 모양·비회원 댓글 지연 안내는 전체 기본값과 견준다(채워 넣은 기본값을 「바뀜」으로 세지 않게) */
     static defaultsChanged(form: BoardDefaultsForm, saved: BoardDefaults): BoardDefaultsField[] {
-        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle), commentDelayNotice: UtilBoard.commentDelayNotice(saved.commentDelayNotice), pinRequestMinLikes: saved.pinRequestMinLikes ?? 10 };
+        const base: BoardDefaults = { ...saved, listPrefixStyle: UtilBoard.prefixStyle(saved.listPrefixStyle), commentDelayNotice: UtilBoard.commentDelayNotice(saved.commentDelayNotice), pinRequestMinLikes: saved.pinRequestMinLikes ?? 10, ...UtilBoard.newDefaultsOf(saved) };
         return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], base[field]));
     }
 
     // ── 게시판별 정책 ─
 
     /** 서버 정책 → 입력 */
+    /**
+     * 글 규칙(말머리·태그 필수)·상세 탭(PC·휴대폰) 기본값 — 옛 서버가 칸을 주지 않으면 전체 기본값(끔 · 끔 · PC 끔 · 휴대폰 켬)
+     * @param {Partial<BoardDefaults>} defaults - 서버 기본 설정.
+     * @returns {Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'detailFeedTabsPc' | 'detailFeedTabsMobile'>} 채운 네 칸.
+     */
+    static newDefaultsOf(defaults: Partial<BoardDefaults>): Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'detailFeedTabsPc' | 'detailFeedTabsMobile'> {
+        return {
+            prefixRequired: defaults.prefixRequired ?? false,
+            tagRequired: defaults.tagRequired ?? false,
+            detailFeedTabsPc: defaults.detailFeedTabsPc ?? false,
+            detailFeedTabsMobile: defaults.detailFeedTabsMobile ?? true,
+        };
+    }
+
     static policyFormOf(policy: BoardPolicy): BoardPolicyForm {
         const form = { ...policy } as unknown as Record<BoardPolicyField, BoardFieldValue>;
         for (const field of BOARD_POLICY_FIELDS) {
@@ -724,6 +748,8 @@ export default class UtilBoard {
             detailList: UtilBoard.detailList(detail.detailList),
             color: detail.color,
             allowAdult: detail.allowAdult,
+            // 옛 서버 응답에 칸이 없으면 끔
+            adultOnly: detail.adultOnly === true,
             investmentNotice: detail.investmentNotice,
             writeLock: detail.writeLock,
             introText: detail.introText ?? '',
@@ -767,6 +793,8 @@ export default class UtilBoard {
             detailList: form.detailList,
             color: UtilBoard.normalizeColor(form.color), // 13색 이름 또는 대문자 #RRGGBB(서버도 같은 모양으로 정리)
             allowAdult: form.allowAdult,
+            // 성인 전용은 일반 게시판만 — 그 밖 종류는 null(그대로)
+            adultOnly: kind === undefined || UtilBoard.adultOnlyAllowed(kind) ? form.adultOnly : null,
             investmentNotice: form.investmentNotice,
             writeLock: form.writeLock,
             introText: UtilBoard.normalizeText(form.introText),
@@ -784,6 +812,11 @@ export default class UtilBoard {
             // 작성자 표시는 일반 게시판만 — 그 밖 종류는 null(그대로)로 보낸다
             authorMode: kind === undefined || UtilBoard.anonymousAllowed(kind) ? form.authorMode : null,
         };
+    }
+
+    /** 이 종류의 게시판이 성인 전용이 될 수 있는가 — 일반 게시판만(가정: 핫딜·직접홍보·소모임은 메뉴·접근 규칙이 달라 고르지 않는다 — 서버가 최종 판정) */
+    static adultOnlyAllowed(kind: BoardKind): boolean {
+        return kind === 'GENERAL';
     }
 
     /** 이 종류의 게시판이 익명 작성자 표시를 고를 수 있는가 — 일반 게시판만(핫딜·직접홍보·소모임은 서버도 거절 — anonymous-board-contract 정책 1) */
@@ -815,11 +848,14 @@ export default class UtilBoard {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
-        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'detailList', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
+        const basic =
+            (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'detailList', 'color', 'allowAdult', 'adultOnly', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0) +
+            // 상세 탭 PC·휴대폰 표시는 정책 칸이지만 기본 정보 구획(글 상세 아래 목록 옆)에 둔다
+            policyDiff(['detailFeedTabsPc', 'detailFeedTabsMobile']);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
-            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
+            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText) + diff(form.writeTemplate, base.writeTemplate),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸

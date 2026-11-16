@@ -471,7 +471,10 @@
                 />
 
                 <!-- 맨 아래 [인기글] [최신글] 탭(사용자 2026-11-16 — `detailList` 와 상관없이·소모임 글에도). 근처에 오면 고른 탭만 받고, 받은 것은 이 화면 동안 기억 -->
+                <!-- PC·휴대폰 표시는 게시판 값(`detailFeedTabsPc`·`detailFeedTabsMobile` — 2차, 서버가 사이트 기본까지 푼 값). 끈 쪽은 숨겨 근처 알림도 안 와서 부르지 않고, 둘 다 끄면 그리지 않는다 -->
                 <PostDetailFeedTabs
+                    v-if="feedTabsShown.pc || feedTabsShown.mobile"
+                    :class="feedTabsShown.pc ? (feedTabsShown.mobile ? '' : 'max-md:hidden') : 'md:hidden'"
                     :active="feedTabs.active.value"
                     :lists="feedTabs.lists"
                     :active-id="post.id"
@@ -1130,6 +1133,8 @@ const {
 
 /** 맨 아래 [인기글] [최신글] 탭 — 글과 상관없는 목록이라 이 화면 동안 기억한다 */
 const feedTabs = usePostDetailFeedTabs();
+/** 탭 묶음을 PC·휴대폰에서 보이는가 — 게시판 값(옛 응답이면 사이트 기본: PC 끔 · 휴대폰 켬) */
+const feedTabsShown = computed(() => UtilBoard.detailFeedTabs(board.value));
 
 /**
  * [목록으로]·모바일 뒤로 — 일반 글은 `/boards/{slug}?{같은 문맥}`(주소의 목록 쿼리 + 아래 목록이 보이는 쪽, 없으면 쿼리 없이),

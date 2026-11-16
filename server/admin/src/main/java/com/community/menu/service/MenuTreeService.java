@@ -168,23 +168,23 @@ public class MenuTreeService {
         return new MenuValidationContext(boards, new HashSet<>(MenuSnapshots.levels(grades).keySet()), set.getPlacement(), pages);
     }
 
-    /** 미리보기의 보는 사람 — {@code MEMBER} 는 등급 키(없으면 첫 등급)의 서열 */
+    /** 미리보기의 보는 사람 — {@code MEMBER} 는 등급 키(없으면 첫 등급)의 서열. 회원·운영진 미리보기는 본인인증한 성인으로 본다(성인 전용 게시판이 보인다 — V226) */
     private static MenuViewer viewer(MenuPreviewRequest.Viewer viewer, List<GradeEntity> grades) {
         String kind = viewer == null ? null : viewer.kind();
         if (MenuViewer.GUEST.equals(kind)) {
             return MenuViewer.guest();
         }
         if (MenuViewer.STAFF.equals(kind)) {
-            return new MenuViewer(MenuViewer.STAFF, null);
+            return new MenuViewer(MenuViewer.STAFF, null, true);
         }
         if (!MenuViewer.MEMBER.equals(kind)) {
             throw ValidationException.of("viewer.kind", new MessageRef("menu.preview.viewer"));
         }
         if (viewer.gradeKey() == null || viewer.gradeKey().isBlank()) {
-            return new MenuViewer(MenuViewer.MEMBER, grades.isEmpty() ? 1 : grades.get(0).getLevel());
+            return new MenuViewer(MenuViewer.MEMBER, grades.isEmpty() ? 1 : grades.get(0).getLevel(), true);
         }
         return grades.stream().filter(grade -> grade.getGradeKey().equals(viewer.gradeKey().strip())).findFirst()
-                .map(grade -> new MenuViewer(MenuViewer.MEMBER, grade.getLevel()))
+                .map(grade -> new MenuViewer(MenuViewer.MEMBER, grade.getLevel(), true))
                 .orElseThrow(() -> ValidationException.of("viewer.gradeKey", new MessageRef("menu.grade.unknown")));
     }
 

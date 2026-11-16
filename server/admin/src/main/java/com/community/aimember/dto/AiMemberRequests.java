@@ -29,16 +29,20 @@ public final class AiMemberRequests {
      * {@code dailyPostMax} 계정별 하루 새 글 상한(V223 — 0~50, null 이면 공통 설정. 화면은 늘 보낸다). {@code newsRatio} 계정별 뉴스 글 비율 %(V223 — 0~100, null 이면 공통 프롬프트 설정. 화면은 늘 보낸다).
      */
     public record Save(String provider, String model, Persona persona, String bio, Relation relation, Windows windows, String voice, List<String> boards,
-                       List<String> groups, String avatarId, Integer dailyPostMax, Integer newsRatio) {
+                       List<String> groups, String avatarId, Integer dailyPostMax, Integer newsRatio, String extraPrompt) {
     }
 
-    /** 만들기 — 고치기 칸 + 닉네임(서버가 로그인할 수 없는 회원 계정을 새로 만든다) */
+    /** 만들기 — 고치기 칸 + 닉네임(서버가 로그인할 수 없는 회원 계정을 새로 만든다). {@code extraPrompt} 운영자 추가 지시(V228 — 선택, 300자, 비우면 없음) */
     public record Create(String nickname, String avatarId, String provider, String model, Persona persona, String bio, Relation relation, Windows windows,
-                         String voice, List<String> boards, List<String> groups, Integer dailyPostMax, Integer newsRatio) {
+                         String voice, List<String> boards, List<String> groups, Integer dailyPostMax, Integer newsRatio, String extraPrompt) {
 
         public Save save() {
-            return new Save(provider, model, persona, bio, relation, windows, voice, boards, groups, avatarId, dailyPostMax, newsRatio);
+            return new Save(provider, model, persona, bio, relation, windows, voice, boards, groups, avatarId, dailyPostMax, newsRatio, extraPrompt);
         }
+    }
+
+    /** 뉴스 출처 더하기·고치기(V228) — {@code kind} RSS · YOUTUBE · KEYWORD, {@code address} RSS 주소(http·https) · 채널 ID · 검색어, {@code enabled} 빠지면 켬 */
+    public record NewsSourceSave(String kind, String name, String address, Boolean enabled) {
     }
 
     public record Enabled(Boolean enabled) {

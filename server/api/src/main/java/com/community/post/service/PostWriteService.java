@@ -152,7 +152,7 @@ public class PostWriteService {
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, body.boardSlug());
+        EffectiveBoard b = PublicBoardService.requireAdultAccess(PublicBoardService.requireActive(s, body.boardSlug()), () -> adultGate.adult(userId)); // 성인 전용 게시판은 성인만(404 — V226)
         BoardActor actor = actors.resolve(userId, s);
         // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
         requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
@@ -180,6 +180,7 @@ public class PostWriteService {
         // 대표 썸네일 — 회원 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시), 칸 오류는 fields.thumbnail
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), actor.guest(), false, b, c.body().imageIds(), actor.guest() ? null : actor.userId(), null, fields);
         List<String> tags = checkTags(body.tags(), b, fields); // 태그 — 게시판 tagsEnabled 일 때만(아니면 무시), 칸 오류는 fields.tags
+        PostWriteRules.checkRequired(b, c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226)
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -279,6 +280,7 @@ public class PostWriteService {
         PollRules.Valid poll = polls.checkForCreate(body.poll(), false, b, Instant.now(), fields);
         deals.checkForCreate(body.deal(), b, actor.userId(), fields); // 소모임 게시판은 핫딜이 아니다 — deal 을 보내면 fields.deal
         List<String> tags = checkTags(body.tags(), b, fields); // 일반 글과 같은 규칙(게시판 tagsEnabled 일 때만)
+        PostWriteRules.checkRequired(b, c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 · 태그 필수(V226 — 일반 글과 같은 규칙)
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -449,6 +451,11 @@ public class PostWriteService {
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), post.isGuest(), post.isGroupPost(), b, c.body().imageIds(), post.getAuthorId(), post.getId(), fields);
         // 태그 — 칸이 없으면(null) 그대로, 빈 목록이면 모두 지우기. 게시판 tagsEnabled 일 때만(아니면 무시 — 이미 단 태그는 그대로)
         List<String> tags = checkTags(body.tags(), b, fields);
+        // 말머리 필수 · 태그 필수(V226) — 태그 칸을 보내지 않았으면(그대로) 지금 단 태그 수로 본다
+        if (b.prefixRequired() || b.tagRequired()) {
+            int tagCount = tags != null ? tags.size() : body.tags() == null && b.tagRequired() ? tagStore.of(post.getId()).size() : 0;
+            PostWriteRules.checkRequired(b, c.prefixId(), tagCount, fields);
+        }
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);

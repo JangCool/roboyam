@@ -104,6 +104,18 @@ export interface BoardView {
      * 게시판마다의 값(사이트 기본 없음). 서버가 아직 안 주면(옛 응답) `undefined` — `LIST` 로 본다(`UtilBoard.detailList`)
      */
     detailList?: BoardDetailList;
+    /**
+     * 글 상세 맨 아래 [인기글]·[최신글] 탭을 PC(md 이상)에서 보이는가(post-detail-board-list-contract 「2차」) — 서버가 게시판 값 ?? 사이트 기본을 푼 **실제 값**.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 사이트 기본(PC 끔)으로 본다(`UtilBoard.detailFeedTabs`)
+     */
+    detailFeedTabsPc?: boolean;
+    /** 같은 탭을 휴대폰(md 미만)에서 보이는가 — 실제 값. 옛 응답이면 사이트 기본(휴대폰 켬) */
+    detailFeedTabsMobile?: boolean;
+    /**
+     * 성인 전용 게시판(adult-board-contract) — 본인인증 성인에게만 보이고 들어갈 수 있다(아니면 서버가 메뉴에서 빼고 게시판·글을 404 로 준다).
+     * 화면은 이 값으로 숨기거나 밝히지 않는다(판정은 서버). 옛 응답이면 `undefined`
+     */
+    adultOnly?: boolean;
 }
 
 /** 글 상세 아래 게시판 목록 — 끄기 · 게시판 목록과 같게 · 휴대폰은 촘촘한 줄 */
@@ -325,6 +337,13 @@ export interface BoardDetail extends BoardView {
      * `authorThumbnailEnabled` 와 같은 자리(게시판 공개 정보의 맨 위 칸)
      */
     tagsEnabled?: boolean;
+    /**
+     * 말머리 필수(유효 정책 `prefixRequired` — ai-news-reporter-contract 「뉴스 게시판 글 규칙」, 사이트 기본 끔) — 켜져 있으면 글쓰기·고치기에서 말머리를 꼭 고른다(서버 400 `fields.prefix`).
+     * 옛 응답이면 끔. `tagsEnabled` 와 같은 자리(게시판 공개 정보의 맨 위 칸)
+     */
+    prefixRequired?: boolean;
+    /** 태그 필수(유효 정책 `tagRequired`) — 켜져 있으면 태그를 하나 이상 단다(서버 400 `fields.tags`). 「태그 쓰기」(`tagsEnabled`)가 꺼진 게시판은 서버가 늘 false. 옛 응답이면 끔 */
+    tagRequired?: boolean;
     /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)

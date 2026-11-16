@@ -12,6 +12,8 @@ import UtilBootSplash from '~/utils/util-boot-splash';
 const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     HIGHLIGHT: () => import('~/components/gadget/GadgetHighlight.vue'),
     POST_LIST: () => import('~/components/gadget/GadgetPostList.vue'),
+    // 19금 전용 가젯(adult-board-contract) — 데이터가 글 목록과 같은 모양이라 같은 부품(목록형). 같은 로더라 조각도 하나다
+    ADULT_POSTS: () => import('~/components/gadget/GadgetPostList.vue'),
     BOARD_CARDS: () => import('~/components/gadget/GadgetBoardCards.vue'),
     GALLERY: () => import('~/components/gadget/GadgetGallery.vue'),
     GROUPS: () => import('~/components/gadget/GadgetGroups.vue'),

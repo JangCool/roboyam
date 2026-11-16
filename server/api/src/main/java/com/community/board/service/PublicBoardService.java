@@ -24,7 +24,10 @@ import com.community.hotdeal.dto.response.DealRulesView;
 import com.community.hotdeal.service.DealSettingsReader;
 import com.community.post.dto.response.TagCountView;
 import com.community.post.repository.master.PostTagQueries;
+import com.community.post.service.AdultContentGate;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>게시판·정책은 {@link BoardCatalog} 의 메모리 사본(15초)에서 읽는다 — 관리자 저장이 공개 사이트에 닿기까지 최대 15초.</li>
  *   <li>목록에는 켜진 게시판만 나온다. 꺼진 게시판을 주소로 열면 {@code 403 BOARD_INACTIVE}, 없으면 {@code 404 BOARD_NOT_FOUND}.</li>
  *   <li>판정은 {@link BoardAccessPolicy} 한 곳 — 쓰기 API 도 같은 함수로 거절한다.</li>
+ *   <li>성인 전용 게시판(V226 — adult-board-contract)은 성인(로그인 + 본인인증 + 만 19세 이상, {@link AdultContentGate#adult})이 아니면 <b>없는 게시판</b>이다 —
+ *       목록·쓸 수 있는 게시판에서 빠지고, 게시판 하나·글 목록·태그 추천·글쓰기는 {@code 404 BOARD_NOT_FOUND}({@link #requireAdultAccess}).</li>
  * </ul>
  */
 @Service
@@ -47,12 +52,14 @@ public class PublicBoardService {
     private final BoardStaffActionService staffActions;
     private final BoardSanctionService boardSanctions;
     private final PostTagQueries tagQueries;
+    private final AdultContentGate adultGate;
 
     /** 글쓰기 태그 추천으로 한 번에 주는 최대 태그 수 */
     static final int TAG_SUGGEST_MAX = 300;
 
     public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions,
-                              BoardSanctionService boardSanctions, PostTagQueries tagQueries) {
+                              BoardSanctionService boardSanctions, PostTagQueries tagQueries, AdultContentGate adultGate) {
+        this.adultGate = adultGate;
         this.catalog = catalog;
         this.tagQueries = tagQueries;
         this.staffActions = staffActions;
@@ -61,9 +68,40 @@ public class PublicBoardService {
         this.dealSettings = dealSettings;
     }
 
-    public BoardListResponse boards() {
+    /** @param viewerId 보는 회원(비회원 null) — 성인이 아니면 성인 전용 게시판을 뺀다(V226) */
+    public BoardListResponse boards(Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
-        return new BoardListResponse(s.boards().stream().filter(b -> b.active() && isPublic(b)).map(PublicBoardService::view).toList());
+        Predicate<EffectiveBoard> visible = adultVisible(viewerId);
+        return new BoardListResponse(s.boards().stream().filter(b -> b.active() && isPublic(b) && visible.test(b)).map(PublicBoardService::view).toList());
+    }
+
+    /**
+     * 이 사람에게 보이는 게시판인가(성인 전용 게시판만 본다 — V226). 성인 판정은 성인 전용 게시판을 처음 만날 때 한 번만 읽는다(요청 하나 안에서 쓴다).
+     */
+    public Predicate<EffectiveBoard> adultVisible(Long viewerId) {
+        return adultVisible(() -> adultGate.adult(viewerId));
+    }
+
+    /** {@link #adultVisible(Long)} — 성인 판정을 넘겨받아(한 번만 부른다) */
+    public static Predicate<EffectiveBoard> adultVisible(BooleanSupplier adult) {
+        Boolean[] memo = new Boolean[1];
+        return b -> {
+            if (!b.adultOnly()) {
+                return true;
+            }
+            if (memo[0] == null) {
+                memo[0] = adult.getAsBoolean();
+            }
+            return memo[0];
+        };
+    }
+
+    /** 성인 전용 게시판이면 성인만 — 아니면 없는 게시판과 같은 {@code 404 BOARD_NOT_FOUND}(V226 — adult-board-contract). 성인 판정은 성인 전용 게시판일 때만 부른다 */
+    public static EffectiveBoard requireAdultAccess(EffectiveBoard b, BooleanSupplier adult) {
+        if (b.adultOnly() && !adult.getAsBoolean()) {
+            throw new BoardNotFoundException();
+        }
+        return b;
     }
 
     /**
@@ -78,14 +116,15 @@ public class PublicBoardService {
     public BoardListResponse writable(Long userId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         BoardActor actor = actors.resolve(userId, s);
+        Predicate<EffectiveBoard> visible = adultVisible(userId);
         return new BoardListResponse(s.boards().stream()
-                .filter(b -> b.active() && isPublic(b) && BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor) == null)
+                .filter(b -> b.active() && isPublic(b) && visible.test(b) && BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor) == null)
                 .map(PublicBoardService::view).toList());
     }
 
     public BoardDetailView board(String slug, Long userId) {
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = requireActive(s, slug);
+        EffectiveBoard b = requireAdultAccess(requireActive(s, slug), () -> adultGate.adult(userId)); // 성인 전용 게시판은 성인만(아니면 404 — V226)
         BoardActor actor = actors.resolve(userId, s);
         // 게시판 제재(board-sanction-contract) — 쓰기 제한 중이면 다른 까닭이 없을 때 BOARD_WRITE_RESTRICTED.
         // 매니저·스텝 본인에게는 할 수 있는 일 + 오늘 남은 글·댓글·제재 한도(board-staff-action-contract — 네 처리 권한 중 하나라도 있을 때만)
@@ -129,15 +168,15 @@ public class PublicBoardService {
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
                 v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled(),
-                v.detailList());
+                v.detailList(), v.detailFeedTabsPc(), v.detailFeedTabsMobile(), v.prefixRequired(), v.tagRequired(), v.adultOnly());
     }
 
     /**
      * 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순, 최대 {@value #TAG_SUGGEST_MAX}개 · 집계 표라 최대 10분 늦다 — post-tags-contract 「글쓰기 추천」).
      * 「태그 쓰기」가 꺼진 게시판이면 빈 목록. 없거나 소모임 게시판이면 404, 꺼졌으면 403.
      */
-    public List<TagCountView> tags(String slug) {
-        EffectiveBoard b = requireActive(catalog.snapshot(), slug);
+    public List<TagCountView> tags(String slug, Long viewerId) {
+        EffectiveBoard b = requireAdultAccess(requireActive(catalog.snapshot(), slug), () -> adultGate.adult(viewerId)); // 성인 전용 게시판은 성인만(V226)
         return b.tagsEnabled() ? tagQueries.suggestions(b.id(), TAG_SUGGEST_MAX) : List.of();
     }
 
@@ -167,6 +206,6 @@ public class PublicBoardService {
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
                 BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color(),
                 b.debateEnabled(), b.pollEnabled(), b.kind(), b.secretMode(), b.statusEnabled(), b.chipPosition(), b.authorMode(), b.prefixStyle(),
-                b.detailList());
+                b.detailList(), b.detailFeedTabsPc(), b.detailFeedTabsMobile(), b.prefixRequired(), b.tagRequired(), b.adultOnly());
     }
 }

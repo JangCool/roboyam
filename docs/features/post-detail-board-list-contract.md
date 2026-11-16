@@ -24,5 +24,11 @@
 - 게시판 응답(`BoardView`/`BoardDetailView`, 소모임 `GET /api/groups/{id}/board`)에 `detailList`.
 - admin `BoardSaveRequest.detailList`(null = 그대로), admin `BoardDetailView.detailList`.
 
+## 2차(사용자 2026-11-16)
+- 상세 아래 목록의 제목 영역이 좁다 → 게시판 목록 화면과 같은 폭(칸 비율)으로.
+- [인기글]·[최신글] 탭: PC·모바일 **각각** 켜고 끄는 옵션 — 사이트 기본(`board_defaults`, 기본 PC 끔·모바일 켬) + 게시판별 덮어쓰기(NULL = 사이트 기본). 칸 이름 후보 `detailFeedTabsPc`·`detailFeedTabsMobile`.
+- 모바일에서 두 탭은 가로를 5:5 로 나눠 채운다.
+- 탭 목록에서 19금 글은 성인이어도 빠진다(`adult-board-contract.md`).
+
 ## 미확정
 - 사이트 기본값(board_defaults) 칸 — 필요해지면 추가.

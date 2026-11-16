@@ -59,6 +59,9 @@ public class AiMemberProfileEntity {
     /** 계정별 뉴스 글 비율 %(V223) — null 이면 공통 프롬프트 설정({@code ai_prompt_settings.news_ratio}) */
     private Short newsRatio;
 
+    /** 계정별 운영자 추가 지시(V228 — 선택, 300자) — 프롬프트에 「운영자 추가 지시」로 들어간다(인용이 아니라 지시) */
+    private String extraPrompt;
+
     /** 글 방식(V191) — 보통 · 강아지 소리 · 고양이 소리 */
     @Enumerated(EnumType.STRING)
     private AiVoice voice;
@@ -79,7 +82,7 @@ public class AiMemberProfileEntity {
     /** 페르소나·활동 값 한 묶음 — 검사는 부르는 서비스가 끝냈다. 활동 창은 「이 시간대에만 글·댓글·답글을 쓴다」 */
     public record Values(AiProvider provider, String model, AiGender gender, AiAgeBand ageBand, String personality, String tone, String interests,
                          LocalTime morningStart, LocalTime morningEnd, LocalTime afternoonStart, LocalTime afternoonEnd, AiVoice voice, List<Long> boardIds,
-                         Integer dailyPostMax, Integer newsRatio) {
+                         Integer dailyPostMax, Integer newsRatio, String extraPrompt) {
     }
 
     /** 새 AI 회원 — 처음에는 꺼져 있다(관리자가 켠다) */
@@ -112,6 +115,7 @@ public class AiMemberProfileEntity {
         this.boardIds = v.boardIds().toArray(Long[]::new);
         this.dailyPostMax = v.dailyPostMax() == null ? null : v.dailyPostMax().shortValue();
         this.newsRatio = v.newsRatio() == null ? null : v.newsRatio().shortValue();
+        this.extraPrompt = v.extraPrompt() == null || v.extraPrompt().isBlank() ? null : v.extraPrompt();
         touch(operatorId, now);
     }
 
@@ -209,6 +213,11 @@ public class AiMemberProfileEntity {
     /** 계정별 뉴스 글 비율 %(V223) — null 이면 공통 설정 */
     public Integer getNewsRatio() {
         return newsRatio == null ? null : newsRatio.intValue();
+    }
+
+    /** 운영자 추가 지시(V228 — 없으면 null) */
+    public String getExtraPrompt() {
+        return extraPrompt;
     }
 
     /** 이 계정의 뉴스 글 비율 % — 자기 값, 없으면 공통 값 */

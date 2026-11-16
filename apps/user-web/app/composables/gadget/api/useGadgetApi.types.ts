@@ -21,7 +21,27 @@ import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
 import type { DealSort } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /** 가젯 종류 8종 + 광고 2종 — 서버 레지스트리의 키. 서버가 새 종류를 먼저 보내면 화면은 모르는 키로 받아 건너뛴다 */
-export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE' | 'TIPS_HEADLINE' | 'TIPS_LATEST' | 'TIPS_POPULAR' | 'TIPS_TAGS';
+export type GadgetKind =
+    | 'HIGHLIGHT'
+    | 'POST_LIST'
+    | 'BOARD_CARDS'
+    | 'GALLERY'
+    | 'GROUPS'
+    | 'GROUP_BUY'
+    | 'HOT_DEALS'
+    | 'QUICK_LINKS'
+    | 'NOTICE_TEXT'
+    | 'AD'
+    | 'AD_TEXT_LINE'
+    | 'TIPS_HEADLINE'
+    | 'TIPS_LATEST'
+    | 'TIPS_POPULAR'
+    | 'TIPS_TAGS'
+    /**
+     * 19금 전용 가젯(adult-board-contract) — 고른 성인 전용 게시판의 글을 목록형으로(`data` 는 `PostListData` 와 같은 모양, 그리기는 글 목록 가젯 부품).
+     * 본인인증 성인에게만 — 아니면 서버가 숨김 표시(`hidden`)를 줘 자리째 그리지 않는다(`UtilGadget.isVisible`)
+     */
+    | 'ADULT_POSTS';
 
 /** 머리 모양 — `HIDDEN` 은 머리를 그리지 않는다(제목은 영역 이름으로만 읽힌다) */
 export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';
@@ -128,6 +148,11 @@ export interface Gadget {
     empty: boolean;
     /** 로그인한 사람만 보는 가젯을 로그인하지 않은 방문자가 볼 때 — `config` 는 `{}`·`data` 는 null·`more` 는 null. 머리·틀 + 로그인 안내만 그린다 */
     locked: boolean;
+    /**
+     * 이 사람에게 그리지 않는 가젯 — 서버 `GadgetView.hidden`(지금은 19금 전용 가젯을 성인이 아닌 사람이 볼 때만 true, 그때 `data` null · `empty` true). 화면은 자리째 뺀다.
+     * 옛 응답·화면이 만든 가젯은 칸이 없다(false 로 본다)
+     */
+    hidden?: boolean;
     style: GadgetStyle;
     config: Record<string, unknown>;
     more: GadgetMore | null;

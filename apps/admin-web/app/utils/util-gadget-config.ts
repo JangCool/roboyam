@@ -74,7 +74,7 @@ const QUICK_KINDS: readonly HomeQuickLinkKind[] = ['ALL', 'POPULAR', 'LATEST', '
 const AD_BANNER_TYPES: readonly HomeAdBannerType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER'];
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 /** 마우스 올림 효과 칸(`hover`, 기본 켬 — 사용자 2026-11-10)이 있는 종류 — 누르면 가는 항목이 있는 것(안내 글·광고 2종은 없다). 서버 `GadgetConfigs.HOVER_KINDS`·user-web `UtilGadget.hoverOn` 과 같다 */
-const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS'];
+const HOVER_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'ADULT_POSTS'];
 
 /** 내용 설정(⚙)을 고칠 수 있는 종류 — 8종 전부(2026-10-30) + 광고 2종. user-web `UtilAdminPreview` 의 `SETTABLE_KINDS` 와 같은 종류 */
 const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
@@ -82,6 +82,8 @@ const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
     // 핫딜(회원 핫딜 1차) — 핫딜 게시판 고르기는 종류만의 칸(`boards` — 일반 대상 게시판 `boardScope` 와 다르다, `normalize`)
     HOT_DEALS: { boards: false, count: { field: 'count', min: 1, max: 10, initial: 5 }, sorts: HOT_DEALS_SORTS, sort: 'LATEST' },
     POST_LIST: { boards: true, count: { field: 'count', min: 1, max: 30, initial: 10 }, sorts: POST_LIST_SORTS, sort: 'LATEST' },
+    // 19금 전용 가젯(adult-board-contract) — 성인 전용 게시판 고르기는 종류만의 칸(`boards` — 핫딜과 같은 slug 목록, 비우면 모든 성인 전용 게시판), 최신순 목록형
+    ADULT_POSTS: { boards: false, count: { field: 'count', min: 1, max: 30, initial: 10 }, sorts: [], sort: null },
     GALLERY: { boards: true, count: { field: 'count', min: 1, max: 24, initial: 6 }, sorts: [], sort: null },
     BOARD_CARDS: { boards: true, count: { field: 'perBoard', min: 1, max: 10, initial: 4 }, sorts: [], sort: null },
     HIGHLIGHT: { boards: false, count: { field: 'count', min: 1, max: 6, initial: 5 }, sorts: [], sort: null },
@@ -289,6 +291,10 @@ export default class UtilGadgetConfig {
                 out.boards = [];
                 out.thumbnails = true;
                 break;
+            case 'ADULT_POSTS':
+                // 비우면 모든 성인 전용 게시판
+                out.boards = [];
+                break;
         }
         return out;
     }
@@ -379,6 +385,10 @@ export default class UtilGadgetConfig {
                 // 핫딜 게시판 slug — 모양이 맞는 것만, 겹침 없이 고른 차례로(20개까지)
                 out.boards = Array.isArray(c.boards) ? [...new Set(c.boards.filter((s): s is string => typeof s === 'string' && SLUG.test(s)))].slice(0, BOARD_PICK_MAX) : [];
                 out.thumbnails = c.thumbnails !== false; // 줄 사진 — 칸이 없는 옛 가젯도 켬
+                break;
+            case 'ADULT_POSTS':
+                // 성인 전용 게시판 slug — 핫딜 게시판 고르기와 같은 규칙(모양이 맞는 것만, 겹침 없이 20개까지)
+                out.boards = Array.isArray(c.boards) ? [...new Set(c.boards.filter((s): s is string => typeof s === 'string' && SLUG.test(s)))].slice(0, BOARD_PICK_MAX) : [];
                 break;
         }
         return out;

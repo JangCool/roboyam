@@ -16,6 +16,7 @@ const ERROR_CODES: ReadonlySet<string> = new Set([
     'AI_MODEL_NOT_FOUND',
     'AI_MODEL_IN_USE',
     'AI_MODEL_DEFAULT_LOCKED',
+    'AI_NEWS_SOURCE_NOT_FOUND',
 ]);
 
 /** AI 회원 관리 화면의 계산이 낀 문구(i18n.md 3절) */

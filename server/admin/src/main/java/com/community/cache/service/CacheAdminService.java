@@ -103,7 +103,7 @@ public class CacheAdminService {
     private static final String QUICK_LINKS = "QUICK_LINKS";
     private static final String NOTICE_TEXT = "NOTICE_TEXT";
     private static final List<String> UNCACHED = List.of(QUICK_LINKS, NOTICE_TEXT, GadgetKinds.AD, GadgetKinds.AD_TEXT_LINE,
-            GadgetKinds.BOARD_BODY);
+            GadgetKinds.BOARD_BODY, GadgetKinds.ADULT_POSTS);
     private static final List<String> LAYOUT_CACHES = List.of(CacheNames.HOME_LAYOUT, CacheNames.PAGES_LAYOUT, CacheNames.BOARDS_LAYOUT);
 
     private final CacheStateStore store;

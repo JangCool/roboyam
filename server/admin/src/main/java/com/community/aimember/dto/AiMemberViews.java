@@ -53,7 +53,7 @@ public final class AiMemberViews {
     }
 
     public record Detail(@JsonUnwrapped Row row, Persona persona, String bio, Windows windows, List<String> boards, List<String> groups, Instant updatedAt,
-                         String updatedBy, List<ModelHistory> modelHistory) {
+                         String updatedBy, List<ModelHistory> modelHistory, String extraPrompt) {
     }
 
     public record Calls(long today, int limit) {
@@ -188,5 +188,27 @@ public final class AiMemberViews {
      */
     public record PromptPreview(String kind, String system, String user, PromptSource source, boolean sourceMissing, boolean sample, String place, String mood,
                                 String voice) {
+    }
+
+    // ── 뉴스 출처(V228 — ai-news-reporter-contract) ──
+
+    /**
+     * 뉴스 출처 한 줄 — {@code kind} RSS · YOUTUBE · KEYWORD, {@code address} RSS 주소 · 채널 ID · 검색어, {@code feedUrl} 실제로 받는 주소,
+     * {@code lastFetchedAt}·{@code lastItemCount} 마지막 성공(읽은 항목 수), {@code lastError}·{@code lastErrorAt} 마지막 실패 사유(성공하면 지운다)
+     */
+    public record NewsSource(String id, String kind, String name, String address, String feedUrl, boolean enabled, Instant lastFetchedAt, Integer lastItemCount,
+                             String lastError, Instant lastErrorAt, Instant updatedAt) {
+    }
+
+    /** 입력 한도(서버 검사와 같다) */
+    public record NewsSourceLimits(int nameMax, int addressMax, int sourcesMax) {
+    }
+
+    /** 뉴스 출처 목록 — {@code kinds} 고를 수 있는 종류 · {@code unusedItems} 아직 안 쓴 수집 항목 수(7일 보관) · {@code batchKey} 수집 배치 키(배치 화면에서 주기·켜기) */
+    public record NewsSourceList(List<NewsSource> items, List<String> kinds, NewsSourceLimits limits, long unusedItems, String batchKey) {
+    }
+
+    /** 「지금 수집」 결과 — {@code busy} 다른 곳(배치)에서 수집 중이라 건너뛰었다. {@code list} 수집 뒤 목록 */
+    public record NewsCollectResult(int sources, int failed, int added, int deleted, boolean busy, NewsSourceList list) {
     }
 }

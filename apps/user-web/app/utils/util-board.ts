@@ -188,6 +188,18 @@ export default class UtilBoard {
     }
 
     /**
+     * 글 상세 맨 아래 [인기글]·[최신글] 탭을 PC·휴대폰에서 각각 보이는가 — 서버가 푼 실제 값(post-detail-board-list-contract 「2차」).
+     * 칸이 없는 옛 응답이면 사이트 기본(PC 끔 · 휴대폰 켬).
+     * @param {{ detailFeedTabsPc?: unknown; detailFeedTabsMobile?: unknown } | null | undefined} board - 게시판 정보.
+     * @returns {{ pc: boolean; mobile: boolean }} 기기별로 보이는가.
+     */
+    static detailFeedTabs(board: { detailFeedTabsPc?: unknown; detailFeedTabsMobile?: unknown } | null | undefined): { pc: boolean; mobile: boolean } {
+        const pc = board?.detailFeedTabsPc;
+        const mobile = board?.detailFeedTabsMobile;
+        return { pc: typeof pc === 'boolean' ? pc : false, mobile: typeof mobile === 'boolean' ? mobile : true };
+    }
+
+    /**
      * 글자 모양(`TEXT`)의 말머리·게시판 이름 글자색 — 운영자가 고른 색(13색·직접 고른 #hex)이 있으면 그 색(라이트·다크 명도 보정 `UtilColor.cssPair`). 「자동」(색 없음)·운영진 전용은 undefined(회색 글자).
      * @param {unknown} color - 표시색.
      * @param {boolean} [staffOnly] - 운영진 전용 말머리는 색과 무관하게 회색.

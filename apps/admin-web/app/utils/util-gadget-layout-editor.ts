@@ -47,6 +47,8 @@ const KINDS: readonly GadgetKindSpec[] = [
     { kind: 'GROUPS', icon: 'pi-users', minW: 3, minH: 6, w: 4, h: 9 },
     { kind: 'GROUP_BUY', icon: 'pi-shopping-bag', minW: 3, minH: 8, w: 4, h: 12 },
     { kind: 'HOT_DEALS', icon: 'pi-ticket', minW: 3, minH: 8, w: 4, h: 12 },
+    // 19금 전용 가젯(adult-board-contract) — 글 목록과 같은 크기
+    { kind: 'ADULT_POSTS', icon: 'pi-eye-slash', minW: 3, minH: 6, w: 6, h: 10 },
     { kind: 'QUICK_LINKS', icon: 'pi-link', minW: 3, minH: 2, w: 12, h: 2 },
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
     // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄

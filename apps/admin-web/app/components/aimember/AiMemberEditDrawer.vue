@@ -180,6 +180,26 @@
                             <Textarea :id="id" v-model="form.persona.interests" rows="3" auto-resize fluid :maxlength="UtilAiMember.INTERESTS_MAX" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
+                    <LabeledField
+                        :label="t('aiMember.field.extraPrompt')"
+                        :hint="t('aiMember.hintMaxOptional', { max: UtilAiMember.EXTRA_PROMPT_MAX })"
+                        :help="t('aiMember.help.extraPrompt')"
+                        :error="fieldError('extraPrompt')"
+                    >
+                        <template #default="{ id, describedBy, invalid }">
+                            <Textarea
+                                :id="id"
+                                v-model="form.extraPrompt"
+                                rows="2"
+                                auto-resize
+                                fluid
+                                :maxlength="UtilAiMember.EXTRA_PROMPT_MAX"
+                                :placeholder="t('aiMember.extraPromptPlaceholder')"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                            />
+                        </template>
+                    </LabeledField>
                     <LabeledField :label="t('aiMember.field.bio')" :hint="t('aiMember.hintMax', { max: UtilAiMember.BIO_MAX })" :help="t('aiMember.help.bio')" :error="fieldError('bio')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.bio" rows="2" auto-resize fluid :maxlength="UtilAiMember.BIO_MAX" :invalid="invalid" :aria-describedby="describedBy" />
@@ -490,6 +510,7 @@ function submit(): void {
         voice: f.voice,
         dailyPostMax: f.dailyPostMax ?? null,
         newsRatio: f.newsRatio ?? null,
+        extraPrompt: (f.extraPrompt ?? '').trim(),
         boards: f.boards.map((slug) => slug),
         groups: f.groups.map((id) => id),
         // 아바타는 바꿨을 때만 — null 이면 서버가 그대로 둔다

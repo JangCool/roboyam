@@ -320,7 +320,14 @@ public enum BatchCatalog implements BatchDefinition {
      * 빈 해는 그대로, 실패한 해만 그대로 — Java 배치 {@code HolidaySyncJob}, 사용자 지시 2026-11-05). 기본 <b>매월 1일 03:15</b> KST, 휴일 관리 화면 「지금 받기」도 같은 서비스.
      * 인증키가 없으면 건너뜀. 영업일 판정이 바뀌는 일이지만 늦어도 표가 그대로일 뿐이라 정리(SYSTEM) 분류.
      */
-    HOLIDAY_SYNC("holiday-sync", BatchCategory.SYSTEM, BatchSource.JAVA, "0 15 3 1 * *", true);
+    HOLIDAY_SYNC("holiday-sync", BatchCategory.SYSTEM, BatchSource.JAVA, "0 15 3 1 * *", true),
+
+    /**
+     * AI 기자 뉴스 소재 수집 — 관리자 「뉴스 출처」(RSS · 유튜브 채널 · 구글 뉴스 검색어)의 피드에서 제목·링크·짧은 요약만 받아 {@code ai_news_items} 에 넣고 7일 지난 항목을 지운다
+     * (Java 배치 {@code AiNewsCollectJob} → {@code AiNewsCollector}, ai-news-reporter-contract 「소재 수집」). 기본 <b>30분마다</b>(배치 화면에서 cron 을 바꾼다 — 30~60분 권장).
+     * 관리자 「지금 수집」도 같은 서비스. 늦어도 AI 기자 글이 줄 뿐이라 정리(SYSTEM) 분류.
+     */
+    AI_NEWS_COLLECT("ai-news-collect", BatchCategory.SYSTEM, BatchSource.JAVA, "0 */30 * * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

@@ -27,6 +27,11 @@ import java.util.List;
  * @param authorThumbnailEnabled 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있는가(유효 정책, 기본 false — V206, list-thumbnail-contract 「2단계」)
  * @param tagsEnabled          글쓰기·고치기에 태그 입력 칸을 보이는가(유효 정책 「태그 쓰기」, 기본 false — V215, post-tags-contract). 꺼져 있으면 서버가 {@code tags} 를 무시한다
  * @param detailList           글 상세 아래 게시판 목록 OFF · LIST · COMPACT({@link BoardView#detailList()} 와 같다 — V224)
+ * @param detailFeedTabsPc     글 상세 아래 [인기글]·[최신글] 탭 PC({@link BoardView#detailFeedTabsPc()} 와 같다 — V226)
+ * @param detailFeedTabsMobile 같은 탭 모바일({@link BoardView#detailFeedTabsMobile()} 와 같다 — V226)
+ * @param prefixRequired       말머리 필수({@link BoardView#prefixRequired()} 와 같다 — V226) — 글쓰기 화면이 미리 막는다
+ * @param tagRequired          태그 필수({@link BoardView#tagRequired()} 와 같다 — V226)
+ * @param adultOnly            성인 전용 게시판({@link BoardView#adultOnly()} 와 같다 — V226)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -36,5 +41,6 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
                               String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
-                              boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList) {
+                              boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc, boolean detailFeedTabsMobile,
+                              boolean prefixRequired, boolean tagRequired, boolean adultOnly) {
 }

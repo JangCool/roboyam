@@ -271,7 +271,7 @@
                         </div>
                         <Message v-if="previewResult.voice !== 'NORMAL'" severity="info" size="small" :closable="false">{{ t(previewResult.kind === 'NEWS' ? 'aiMember.previewAnimalNews' : 'aiMember.previewAnimal') }}</Message>
                         <Message v-if="previewResult.sourceMissing" severity="warn" size="small" :closable="false">{{ t('aiMember.previewSourceMissing', { keyword: form.newsKeyword, days: form.newsDays }) }}</Message>
-                        <p v-if="previewResult.source" class="m-0 text-xs text-muted-color">{{ t('aiMember.previewSource', { title: previewResult.source.title, id: previewResult.source.postId }) }}</p>
+                        <p v-if="previewResult.source" class="m-0 text-xs text-muted-color">{{ previewResult.source.postId ? t('aiMember.previewSource', { title: previewResult.source.title, id: previewResult.source.postId }) : t('aiMember.previewSourceCollected', { title: previewResult.source.title }) }}</p>
                         <p v-if="previewResult.sample" class="m-0 text-xs text-muted-color">{{ t('aiMember.previewSample') }}</p>
                         <div class="flex min-w-0 flex-col gap-1">
                             <p class="m-0 text-sm font-medium">{{ t('aiMember.previewSystem') }}</p>
@@ -472,7 +472,7 @@ function remember(key: AiPromptTextKey, event: FocusEvent): void {
 }
 
 function placeholderKey(ph: string): string {
-    return ph === '{페르소나}' ? 'persona' : ph === '{게시판}' ? 'place' : ph === '{모델}' ? 'model' : 'other';
+    return ph === '{페르소나}' ? 'persona' : ph === '{게시판}' ? 'place' : ph === '{모델}' ? 'model' : ph === '{사이트}' ? 'site' : ph === '{말머리 목록}' ? 'prefixes' : 'other';
 }
 
 function insertPlaceholder(ph: string): void {
