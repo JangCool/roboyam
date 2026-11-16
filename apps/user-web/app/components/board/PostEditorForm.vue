@@ -7,6 +7,8 @@
         말머리 필수 게시판(`prefixRequired` — 뉴스 게시판 글 규칙)은 말머리 칸에 「필수」, 「말머리 없음」 없이 고르게 하고 비었으면 [등록]을 막는다(서버 400 `fields.prefix`). 태그 필수(`tagRequired`)는 태그 칸을 그리는 페이지가 막는다.
         `lead` 자리(제목 위 — 핫딜 딜 칸)와 단계 입력(`step` — 모바일 핫딜: 1 = 게시판·말머리·`lead` + [다음], 2 = 나머지 + [이전]·[등록], 0 = 한 번에)을 둔다.
           단계를 오가도 칸 상태가 남게 숨기기만 한다(`v-show`). [등록]을 누르면 검사 전에 `attempt` 를 올린다(화면이 덧붙인 칸의 검사 문구도 함께 보이게).
+        링크·이미지 규칙 고지(사용자 2026-11-16 — 아래쪽은 잘 안 보여 위로): 새싹 등급(`newMemberRules.applies`)·비회원(`guestRules`)이면 제목 칸 바로 아래(본문 편집기 위)에 안내 상자(info, 닫기 없음),
+          본문 빈 자리 안내 글자(placeholder)에도 같은 규칙을 한 줄로 덧붙인다(글을 쓰기 시작하면 사라진다 — 본문 값에는 넣지 않는다). 넘었을 때의 경고는 본문 아래 그대로.
     -->
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
         <!-- 글쓰기 안내문(운영자가 적은 평문 — 줄바꿈 유지, HTML 로 해석하지 않는다) -->
@@ -82,6 +84,8 @@
         </LabeledField>
         <!-- 화면이 제목 칸 바로 아래에 덧붙이는 안내(핫딜 제목 안내) -->
         <slot name="titleHint" />
+        <!-- 링크·이미지 규칙 고지(비회원 링크 · 새싹 등급 링크·이미지) — 제목과 본문 사이, 판정은 서버 -->
+        <Message v-if="ruleHint" severity="info" :closable="false" size="small" data-testid="post-rule-notice">{{ ruleHint }}</Message>
 
         <!-- 본문 — 게시판 글 에디터 설정(`postEditor` 유효값)을 따른다: 평문은 Textarea, 간단·고급은 서식 에디터(`@irobit/rich-editor`).
              수준이 바뀌면(글쓰기에서 게시판을 바꿈) 에디터를 새로 만든다(`:key`) — 확장은 만들 때 정해진다 -->
@@ -99,7 +103,7 @@
                     :invalid="invalid"
                     :describedby="describedBy ?? ''"
                     :aria-label="t('post.contentLabel')"
-                    :placeholder="t('post.contentPlaceholder')"
+                    :placeholder="contentPlaceholder"
                     :disabled="submitting"
                     @update:model-value="patch({ content: $event })"
                     @ready="$emit('editorReady', $event)"
@@ -118,7 +122,7 @@
                     rows="12"
                     :invalid="invalid"
                     :aria-describedby="describedBy"
-                    :placeholder="t('post.contentPlaceholder')"
+                    :placeholder="contentPlaceholder"
                     fluid
                     auto-resize
                     @update:model-value="patch({ content: String($event ?? '') })"
@@ -129,9 +133,8 @@
             </template>
         </LabeledField>
 
-        <!-- 링크·이미지 규칙 미리 알림(비회원 링크 0개 · 새 회원 링크 2·이미지 3) — 판정은 서버 -->
+        <!-- 링크·이미지 규칙을 넘었다(비회원 링크 · 새싹 등급 링크·이미지) — 규칙 고지는 제목 아래 상자, 판정은 서버 -->
         <Message v-if="linkWarning" severity="warn" :closable="false" size="small">{{ linkWarning }}</Message>
-        <p v-else-if="ruleHint" class="-mt-2 text-xs text-muted-color">{{ ruleHint }}</p>
         <!-- 이미지 올리기가 끝나지 않았다 — 등록을 막는다(올리는 중·실패한 것은 에디터 아래 목록에 있다) -->
         <Message v-if="tried && mediaProblem" severity="error" variant="simple" size="small" role="alert">{{ mediaProblem }}</Message>
 
@@ -360,11 +363,30 @@ const linkWarning = computed(() =>
     ),
 );
 
-/** 지켜야 할 링크 규칙을 미리 한 줄로 — 비회원·새 회원에게만 */
+const siteInfo = useSiteInfoState();
+/** 새싹 등급 다음 등급 이름(사이트 정보 등급 목록의 서열 두 번째) — 목록이 없으면 null(「등급이 오르면」으로) */
+const nextGradeLabel = computed(() => {
+    const grades = [...(siteInfo.value?.grades ?? [])].sort((a, b) => a.level - b.level);
+    return grades[1]?.label ?? null;
+});
+
+/** 지켜야 할 링크·이미지 규칙 고지(제목 아래 상자) — 비회원·새싹 등급에게만 */
 const ruleHint = computed(() => {
     if (props.guestRules) return props.board.guestRules.linkLimit === 0 ? t('post.guestNoLink') : t('post.guestLinkLimit', { n: props.board.guestRules.linkLimit });
-    if (props.board.newMemberRules.applies) return t('post.newMemberRule', { links: props.board.newMemberRules.linkLimit, images: props.board.newMemberRules.imageLimit });
-    return '';
+    const rules = props.board.newMemberRules;
+    if (!rules.applies) return '';
+    return nextGradeLabel.value
+        ? t('post.newMemberRuleNext', { links: rules.linkLimit, images: rules.imageLimit, grade: nextGradeLabel.value })
+        : t('post.newMemberRule', { links: rules.linkLimit, images: rules.imageLimit });
+});
+
+/** 본문 빈 자리 안내 글자 — 비회원·새싹 등급이면 같은 규칙을 한 줄로 덧붙인다(글 양식이 채워진 게시판은 보이지 않는다 — 상자로 충분) */
+const contentPlaceholder = computed(() => {
+    const base = t('post.contentPlaceholder');
+    let rule = '';
+    if (props.guestRules) rule = props.board.guestRules.linkLimit === 0 ? t('post.guestNoLinkShort') : t('post.guestLinkLimitShort', { n: props.board.guestRules.linkLimit });
+    else if (props.board.newMemberRules.applies) rule = t('post.newMemberRuleShort', { links: props.board.newMemberRules.linkLimit, images: props.board.newMemberRules.imageLimit });
+    return rule ? t('post.contentPlaceholderWithRule', { base, rule }) : base;
 });
 
 function submit(): void {

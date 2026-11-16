@@ -265,6 +265,22 @@
                             </p>
                         </div>
 
+                        <!-- 글 출처(shared V232) — 본문 아래·태그 위. 이름(없으면 주소의 도메인)을 새 창 링크로, 여러 개면 목록. 외부 링크라 nofollow noopener noreferrer -->
+                        <section v-if="postSources.length" class="mb-4 rounded-md border border-surface px-3 py-2" :aria-labelledby="sourcesHeadingId" data-testid="post-sources">
+                            <h2 :id="sourcesHeadingId" class="m-0 mb-1 text-xs font-semibold text-muted-color">{{ t('post.sourcesTitle') }}</h2>
+                            <ul class="m-0 flex list-none flex-col gap-1 p-0 text-sm">
+                                <li v-for="source in postSources" :key="source.url" class="min-w-0">
+                                    <a
+                                        :href="source.url"
+                                        target="_blank"
+                                        rel="nofollow noopener noreferrer"
+                                        class="break-all text-primary underline underline-offset-2"
+                                        data-testid="post-source"
+                                    >{{ UtilPostSource.label(source) }}<i class="pi pi-external-link ml-1 text-[0.7em]" aria-hidden="true" /></a>
+                                </li>
+                            </ul>
+                        </section>
+
                         <!-- 글 태그(post-tags-contract) — 본문 아래 칩, 누르면 그 게시판 목록을 그 태그로 거른다. 소모임 글은 공개 게시판 목록이 없어 글자만 -->
                         <ul v-if="postTags.length" class="m-0 mb-4 flex list-none flex-wrap gap-1.5 p-0" :aria-label="t('postTag.viewLabel')" data-testid="post-tags">
                             <li v-for="tag in postTags" :key="tag">
@@ -566,6 +582,7 @@ import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
+import UtilPostSource from '~/utils/util-post-source';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
@@ -605,6 +622,9 @@ const post = ref<PostDetail | null>(null);
 /** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai` — 이 글을 만든 모델) */
 /** 글 태그(post-tags-contract) — 옛 응답·쓸 수 없는 값은 빼고 */
 const postTags = computed(() => UtilPostTag.list(post.value?.tags));
+/** 글 출처(shared V232) — 옛 응답이면 없음, http(s) 주소만(서버가 막지만 링크로 그리기 전에 한 번 더) */
+const postSources = computed(() => (post.value?.sources ?? []).filter((s) => UtilPostSource.urlOk(s.url)));
+const sourcesHeadingId = useId();
 const postAi = computed(() => (post.value?.author.kind === 'MEMBER' ? (post.value.author.ai ?? null) : null));
 /** 읽을 수 없는 비밀글(`403 SECRET_POST` 의 extras `boardSlug` — 서버 후보) — [목록으로]가 갈 게시판. 없으면 뒤로 */
 const secretBoardSlug = ref<string | null>(null);

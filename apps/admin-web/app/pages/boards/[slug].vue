@@ -620,7 +620,7 @@ const canDelete = computed(() => can('board.delete'));
 
 const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
 /** 글 규칙 — 말머리 필수·태그 필수(쓰기 구획) */
-const RULE_FIELDS = ['prefixRequired', 'tagRequired'] as const;
+const RULE_FIELDS = ['prefixRequired', 'tagRequired', 'sourcesEnabled'] as const;
 /** 글 상세 맨 아래 탭의 PC·휴대폰 표시(기본 정보 구획 — 글 상세 아래 목록 옆) */
 const DETAIL_FEED_FIELDS = ['detailFeedTabsPc', 'detailFeedTabsMobile'] as const;
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */

@@ -98,6 +98,8 @@ public class BoardEntity {
     /** 말머리 필수 · 태그 필수(V226, NULL = 기본값 따름) — ai-news-reporter-contract 「뉴스 게시판 글 규칙」 */
     private Boolean prefixRequired;
     private Boolean tagRequired;
+    /** 「출처 칸 쓰기」(V232, NULL = 기본값 따름) — 글에 출처 목록 */
+    private Boolean sourcesEnabled;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -232,6 +234,7 @@ public class BoardEntity {
         this.detailFeedTabsMobile = policy.detailFeedTabsMobile();
         this.prefixRequired = policy.prefixRequired();
         this.tagRequired = policy.tagRequired();
+        this.sourcesEnabled = policy.sourcesEnabled();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -262,7 +265,7 @@ public class BoardEntity {
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled, tagsEnabled, detailFeedTabsPc, detailFeedTabsMobile, prefixRequired,
-                tagRequired);
+                tagRequired, sourcesEnabled);
     }
 
     public Long getId() {

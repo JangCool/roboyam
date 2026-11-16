@@ -5,6 +5,7 @@ import com.community.hotdeal.dto.response.DealWarningView;
 import com.community.hotdeal.dto.response.PostDealModerationView;
 import com.community.hotdeal.dto.response.PostDealView;
 import com.community.poll.dto.response.PollView;
+import com.community.post.dto.PostSource;
 import java.time.Instant;
 import java.util.List;
 
@@ -40,6 +41,7 @@ import java.util.List;
  * @param viewer               보는 사람이 할 수 있는 일({@code canChangeStatus} — V168)
  * @param thumbnail            대표 썸네일 — 글쓴이 본인(회원 글, 소모임 글 아님)에게만, 그 밖 null(V206, list-thumbnail-contract 「2단계」)
  * @param tags                 글에 단 태그(단 차례 — 처음 쓴 모양, 없으면 빈 목록). 게시판 태그 쓰기를 나중에 꺼도 이미 단 태그는 싣는다(V215, post-tags-contract)
+ * @param sources              글의 출처 목록({@code [{name,url}]} — 적은 차례, 없으면 빈 목록). 게시판 「출처 칸 쓰기」를 나중에 꺼도 이미 단 출처는 싣는다(V232). 이름은 비어 있을 수 있다(화면이 도메인)
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
@@ -47,5 +49,6 @@ public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefVie
                              boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate, PollView poll,
                              PostGroupView group, PostDealView deal, PostDealModerationView dealModeration, List<DealWarningView> warnings,
                              boolean staffProtected, boolean sanctionProtected, boolean secret, String processStatus, Instant processStatusAt,
-                             String processStatusNote, PostViewerView viewer, PostThumbnailView thumbnail, List<String> tags) {
+                             String processStatusNote, PostViewerView viewer, PostThumbnailView thumbnail, List<String> tags,
+                             List<PostSource> sources) {
 }

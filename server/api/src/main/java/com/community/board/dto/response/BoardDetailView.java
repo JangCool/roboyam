@@ -32,6 +32,7 @@ import java.util.List;
  * @param prefixRequired       말머리 필수({@link BoardView#prefixRequired()} 와 같다 — V226) — 글쓰기 화면이 미리 막는다
  * @param tagRequired          태그 필수({@link BoardView#tagRequired()} 와 같다 — V226)
  * @param adultOnly            성인 전용 게시판({@link BoardView#adultOnly()} 와 같다 — V226)
+ * @param sourcesEnabled       글쓰기·고치기에 「출처」 칸을 보이는가(유효 정책 「출처 칸 쓰기」, 기본 false — V232). 꺼져 있으면 서버가 {@code sources} 를 무시한다
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -42,5 +43,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
                               String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
                               boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc, boolean detailFeedTabsMobile,
-                              boolean prefixRequired, boolean tagRequired, boolean adultOnly) {
+                              boolean prefixRequired, boolean tagRequired, boolean adultOnly, boolean sourcesEnabled) {
 }

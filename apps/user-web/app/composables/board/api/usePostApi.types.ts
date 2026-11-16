@@ -437,6 +437,19 @@ export interface PostDetail {
     thumbnail?: PostThumbnailView | null;
     /** 글 태그(post-tags-contract — 처음 쓴 모양, 최대 5개). 옛 응답에는 없다(없으면 빈 목록으로 본다) */
     tags?: string[];
+    /** 글 출처(shared V232 — 적은 차례, 최대 5개). 게시판 「출처 칸 쓰기」를 꺼도 이미 단 출처는 온다. 옛 응답에는 없다(없으면 빈 목록으로 본다) */
+    sources?: PostSource[];
+}
+
+/**
+ * 글 출처 한 줄(서버 `PostSource` — shared V232). 규칙: 최대 5개 · 이름 0~40자(비면 화면이 주소의 도메인) · 주소 필수 http(s) 500자 · 같은 주소는 하나.
+ * 틀리면 `400 VALIDATION fields.sources`.
+ */
+export interface PostSource {
+    /** 출처 이름(예: 전자신문) — 없으면 null */
+    name: string | null;
+    /** 원문 주소(http·https) */
+    url: string;
 }
 
 /**
@@ -515,6 +528,8 @@ export interface PostWriteRequest {
     thumbnail?: PostThumbnailInput;
     /** 태그(post-tags-contract — 최대 5개, `#` 뗀 모양) — 게시판 `tagsEnabled` 일 때만 싣는다(꺼진 게시판은 서버가 무시) */
     tags?: string[];
+    /** 출처(V232 — 최대 5개) — 게시판 `sourcesEnabled` 일 때만 싣는다(꺼진 게시판은 서버가 무시) */
+    sources?: PostSource[];
 }
 
 export interface PostWriteResult {
@@ -547,6 +562,8 @@ export interface PostUpdateRequest {
     thumbnail?: PostThumbnailInput;
     /** 태그 — 바꿨을 때만 싣는다(빼면 그대로, 빈 목록이면 모두 지움 — post-tags-contract) */
     tags?: string[];
+    /** 출처(V232) — 게시판 `sourcesEnabled` 일 때만 싣는다(빼면 그대로, 빈 목록이면 모두 지움) */
+    sources?: PostSource[];
 }
 
 /**

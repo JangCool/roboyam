@@ -389,7 +389,7 @@ public class PostQueryService {
                 staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor, post.isSecret(),
                 PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()),
                 statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)), thumbnailFor(post, userId),
-                tagStore.of(post.getId()));
+                tagStore.of(post.getId()), PostSources.fromJson(post.getSources()));
     }
 
     /**

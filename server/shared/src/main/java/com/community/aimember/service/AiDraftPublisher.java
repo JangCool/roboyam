@@ -110,7 +110,8 @@ public class AiDraftPublisher {
                         finish(id, null, null, AiDraftGenerator.NO_TAGS); // 승인을 기다리는 사이 금지어가 바뀌어 태그가 모두 걸렸다
                         return false;
                     }
-                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), tags, account.getBoardIds().contains(d.getBoardId()), SERVER_IP);
+                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), tags, d.sourceList(), account.getBoardIds().contains(d.getBoardId()),
+                            SERVER_IP); // 출처(V232) — 그 게시판이 「출처 칸 쓰기」일 때만 저장(꺼졌으면 무시)
                     finish(id, postId, null, null);
                 }
             } else {

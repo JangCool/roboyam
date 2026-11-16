@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 글 — V42·V46 의 {@code posts}(id 월 범위 파티션). ID 는 Snowflake(앱 발급)라 새 행은 {@code persist()} 로 넣는다.
@@ -97,8 +99,21 @@ public class PostEntity {
     private Long processStatusBy;
     /** 익명 글(V184) — 쓸 때의 게시판 설정으로 정하고 바꾸지 않는다(글 옮기기도 그대로 — anonymous-board-contract 정책 2). 작성자 회원 ID 는 그대로 남는다(봉인) */
     private boolean anonymous;
+    /** 출처 목록(V232 — JSON 배열 {@code [{name,url}]} 문자열, 없으면 null). 게시판 정책 「출처 칸 쓰기」가 켜진 게시판의 글만 — 정리·검사는 {@code PostSources} */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String sources;
 
     protected PostEntity() {
+    }
+
+    /** 출처 목록을 바꾼다(정리한 JSON 배열 문자열 — {@code PostSources#toJson}, 없으면 null). 새 글은 {@code persist} 전에 부른다 */
+    public void changeSources(String sourcesJson) {
+        this.sources = sourcesJson == null || sourcesJson.isBlank() ? null : sourcesJson;
+    }
+
+    /** 출처 목록 JSON(없으면 null) — 읽기는 {@code PostSources#fromJson} */
+    public String getSources() {
+        return sources;
     }
 
     /** 새 글의 운영 게시판 값 — 비밀글 여부와 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED). {@code persist} 전에 부른다 */

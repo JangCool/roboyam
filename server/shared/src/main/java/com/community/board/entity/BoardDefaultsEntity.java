@@ -62,6 +62,8 @@ public class BoardDefaultsEntity {
     /** 말머리 필수 · 태그 필수(V226, 기본 끔) — ai-news-reporter-contract */
     private boolean prefixRequired;
     private boolean tagRequired;
+    /** 「출처 칸 쓰기」(V232, 기본 끔) */
+    private boolean sourcesEnabled;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -95,7 +97,7 @@ public class BoardDefaultsEntity {
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
                 listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled, tagsEnabled,
-                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired);
+                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired, sourcesEnabled);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -150,6 +152,7 @@ public class BoardDefaultsEntity {
         this.detailFeedTabsMobile = v.detailFeedTabsMobile();
         this.prefixRequired = v.prefixRequired();
         this.tagRequired = v.tagRequired();
+        this.sourcesEnabled = v.sourcesEnabled();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

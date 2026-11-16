@@ -25,7 +25,26 @@ export default {
     commentNoImage: '댓글에는 이미지를 넣을 수 없어요.',
     newMemberLinkLimit: '새싹 등급은 링크를 {n}개까지 넣을 수 있어요.',
     newMemberImageLimit: '새싹 등급은 이미지를 {n}개까지 넣을 수 있어요.',
-    newMemberRule: '새싹 등급은 글 하나에 링크 {links}개·이미지 {images}개까지 넣을 수 있어요.',
+    newMemberRule: '새싹 등급은 글 하나에 링크 {links}개·이미지 {images}개까지 넣을 수 있어요. 등급이 오르면 이 제한이 없어져요.',
+    newMemberRuleNext: '새싹 등급은 글 하나에 링크 {links}개·이미지 {images}개까지 넣을 수 있어요. {grade} 등급부터 이 제한이 없어져요.',
+    // 본문 빈 자리 안내 글자(placeholder)에 덧붙이는 한 줄 규칙 — 글을 쓰기 시작하면 사라진다
+    newMemberRuleShort: '새싹 등급은 링크 {links}개·이미지 {images}개까지',
+    guestNoLinkShort: '비회원은 링크를 넣을 수 없어요',
+    guestLinkLimitShort: '비회원은 링크 {n}개까지',
+    contentPlaceholderWithRule: '{base} ({rule})',
+
+    // 출처(게시판 「출처 칸 쓰기」 — shared V232)
+    sourcesLabel: '출처',
+    sourcesHint: '원문 이름과 주소를 적어 주세요. {n}개까지 넣을 수 있어요.',
+    sourceName: '출처 이름',
+    sourceNamePlaceholder: '이름(예: 전자신문)',
+    sourceUrl: '출처 주소',
+    sourceUrlPlaceholder: 'https://',
+    sourceAdd: '출처 더하기',
+    sourceRemove: '이 출처 지우기',
+    sourceUrlInvalid: '주소는 http:// 또는 https:// 로 시작하는 {max}자 이하로 적어 주세요.',
+    sourceNameTooLong: '출처 이름은 {max}자까지 적을 수 있어요.',
+    sourcesTitle: '출처',
 
     // 댓글 많은 글 보호
     protectTitle: '댓글이 {n}개 이상 달려 보호 중인 글이에요',

@@ -180,6 +180,12 @@ export interface BoardDefaults {
     /** 태그 필수 — 켜면 태그 없이 쓴 글을 400 `fields.tags` 로 막는다. 전체 기본값 `false`. 옛 서버 응답에는 칸이 없을 수 있다 */
     tagRequired: boolean;
     /**
+     * 출처 칸 쓰기 — 켜면 글쓰기·고치기에 「출처」 칸(줄마다 이름 + 주소, 최대 5)이 생기고 글 보기 본문 아래에 출처를 보인다. 끄면 서버가 `sources` 를 무시한다 — 나중에 꺼도 이미 단 출처는 그대로.
+     * AI 기자 뉴스 글도 이 칸이 켜진 게시판이면 출처를 본문 대신 여기에 싣는다. 전체 기본값 `false`. 서버 shared V232 `boards.sources_enabled`(NULL = 기본값)·`board_defaults.sources_enabled`.
+     * 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
+     */
+    sourcesEnabled: boolean;
+    /**
      * 글 상세 맨 아래 [인기글]·[최신글] 탭을 PC(md 이상)에서 보인다(post-detail-board-list-contract 「2차」). 전체 기본값 `false`.
      * 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
      */
@@ -237,6 +243,7 @@ export const BOARD_POLICY_FIELDS = [
     'tagsEnabled',
     'prefixRequired',
     'tagRequired',
+    'sourcesEnabled',
     'detailFeedTabsPc',
     'detailFeedTabsMobile',
     'managerMax',

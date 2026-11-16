@@ -42,6 +42,7 @@ import java.util.Set;
  * @param detailFeedTabsMobile 같은 탭을 모바일에서 보이는가(게시판 값 ?? 기본값, 기본 true — V226)
  * @param prefixRequired     말머리 필수(게시판 값 ?? 기본값, 기본 false — V226, ai-news-reporter-contract). 켜진 말머리가 하나도 없으면 늘 false(쓸 수 없게 막지 않는다)
  * @param tagRequired        태그 필수(게시판 값 ?? 기본값, 기본 false — V226). 「태그 쓰기」({@code tagsEnabled})가 꺼져 있으면 늘 false
+ * @param sourcesEnabled     글에 출처 목록({@code posts.sources})을 받는가(게시판 값 ?? 기본값, 기본 false — V232). 꺼져 있으면 글쓰기·고치기의 {@code sources} 를 무시하고 빈 값으로 저장한다
  * @param adultOnly          성인 전용 게시판(게시판 값 그대로 — V226, adult-board-contract). 일반 게시판만(그 밖 늘 false). 켜져 있으면 {@code allowAdult} 도 true 이고
  *                           그 게시판 글은 모두 19금으로 저장한다. 성인이 아니면 게시판·글·메뉴에서 없는 게시판과 같다
  */
@@ -56,7 +57,8 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
                              boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
                              String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc,
-                             boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly) {
+                             boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly,
+                             boolean sourcesEnabled) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;

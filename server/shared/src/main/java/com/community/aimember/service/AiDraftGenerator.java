@@ -28,6 +28,8 @@ import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupRepository;
+import com.community.post.dto.PostSource;
+import com.community.post.service.PostSources;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
@@ -73,8 +75,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>뉴스 글</b>(AI 기자 — ai-news-reporter-contract 2026-11-16): 소재 = 수집한 뉴스 항목(키 없는 RSS — {@link AiNewsCollector}) → 없으면 사이트 회원의 뉴스 글({@link AiNewsSources#pick}).
  *       <b>뉴스 게시판 차례</b>에는 소재가 있을 때만 쓰고 없으면 건너뛴다(개인 글로 되돌리지 않음). <b>다른 게시판 차례</b>는 보통 계정만 비율(계정별 값 V223, 없으면 공통 설정 — 기본 10%)로
  *       시도해 뉴스 게시판(그 계정이 쓸 수 있을 때 — {@link AiNewsSources#newsTarget}, 아니면 글 차례 게시판)에 쓰고, 소재가 없으면 보통 새 글.
- *       답 형식(제목·말머리·태그·본문)을 나눠 말머리는 쓰는 게시판의 주제 말머리로 확인, 태그는 글 태그 규칙·금지어로 거르고, 본문 끝에 서버 고정 꼬리(출처·원문 링크·AI 요약 안내,
- *       투자 말머리면 투자 책임 안내 / 회원 글 소재면 「참고: 「원래 글 제목」」 + 사이트 안 링크)를 붙인다. 생성 줄에 소재(수집 항목 · {@code source_post_id})·말머리 이름·태그를 남긴다.</li>
+ *       답 형식(제목·말머리·태그·본문)을 나눠 말머리는 쓰는 게시판의 주제 말머리로 확인, 태그는 글 태그 규칙·금지어로 거른다. 출처(수집 항목 = 출처 이름 + 원문 링크 / 회원 글 소재 =
+ *       원래 글 제목 + 사이트 안 링크)는 글의 출처 칸(V232 {@code sources})으로 싣고, 본문 끝에는 투자 말머리일 때만 투자 책임 안내를 붙인다(출처 칸을 쓸 수 없으면 예전 본문 꼬리).
+ *       생성 줄에 소재(수집 항목 · {@code source_post_id})·말머리 이름·태그·출처를 남긴다.</li>
  *   <li><b>결과</b>: 바로 게시 대상이면 {@code APPROVED} 로 두고 곧바로 등록({@link AiContentWriter} — 공개 사이트 쓰기 경로와 같은 판정, 금칙어·제재 검사), 아니면 대기함 {@code PENDING}. 호출이 실패하면 {@code FAILED} 줄
  *       (다시 시도하지 않는다 — 다음 차례로). 결제·크레딧 부족 · 키 오류면 그 제공사를 쉬게 한다({@link AiProviderKeys#pause} — 상태가 바뀔 때만 관리자 알림 한 번, 키를 다시 저장하면 다시 돈다).</li>
  * </ul>
@@ -397,7 +400,7 @@ public class AiDraftGenerator {
         return new Task(t, place, ask, m, target);
     }
 
-    /** 인용 블록에 넣을 소재 글 — 제목 · 요약 · 출처(수집 항목) / 제목 · 본문 · 「사이트 회원 글」(회원 뉴스 글). 원문 링크는 넣지 않는다(서버가 끝에 붙인다) */
+    /** 인용 블록에 넣을 소재 글 — 제목 · 요약 · 출처(수집 항목) / 제목 · 본문 · 「사이트 회원 글」(회원 뉴스 글). 원문 링크는 넣지 않는다(서버가 따로 붙인다) */
     public static String materialText(AiNewsSources.Material m) {
         StringBuilder s = new StringBuilder("제목: ").append(m.title() == null ? "" : m.title()).append('\n');
         s.append("요약: ").append(m.summary() == null || m.summary().isBlank() ? "(요약 없음 — 제목만 근거로 짧게 쓴다)" : m.summary()).append('\n');
@@ -591,16 +594,22 @@ public class AiDraftGenerator {
 
     /**
      * 뉴스 글 결과 정리(ai-news-reporter-contract 「글 쓰기」) — 답(제목·말머리·태그·본문)을 나누고, 말머리는 쓰는 게시판의 주제 말머리로 확인(없는 이름이면 첫 주제 말머리),
-     * 태그는 글 태그 규칙·금지어로 거른다(그 게시판이 태그를 쓰면 1개 이상 남아야 한다 — 아니면 {@value #NO_TAGS} 실패). 본문 끝에 서버 고정 꼬리를 붙인다:
-     * 수집 항목 소재면 「출처: 이름 — 원문 링크」 + AI 요약 안내, 회원 뉴스 글 소재면 「참고: 「원래 글 제목」」 + 사이트 안 링크. 투자 말머리면 투자 책임 안내 한 줄을 더한다.
-     * 생성 줄에 소재 항목 · 말머리 이름 · 태그를 남기고, 수집 항목은 쓴 것으로 표시한다(같은 트랜잭션).
+     * 태그는 글 태그 규칙·금지어로 거른다(그 게시판이 태그를 쓰면 1개 이상 남아야 한다 — 아니면 {@value #NO_TAGS} 실패).
+     * <b>출처</b>(V232 — 「본문 꼬리」): 쓰는 게시판이 「출처 칸 쓰기」({@code sourcesEnabled})면 출처를 글의 출처 칸으로 싣는다 — 수집 항목 소재 = 출처 이름 + 원문 링크,
+     * 회원 뉴스 글 소재 = 원래 글 제목(앞 40자) + 사이트 안 절대 주소. 본문에는 「출처: …」·AI 요약 안내·「참고: …」를 넣지 않고, 투자 말머리면 투자 책임 안내 한 줄만 끝에 붙인다.
+     * 출처 칸을 쓸 수 없으면(게시판 옵션 꺼짐 · 링크가 http(s) 가 아님 · 사이트 공개 주소 없음) 예전처럼 본문 끝에 꼬리를 붙인다.
+     * 생성 줄에 소재 항목 · 말머리 이름 · 태그 · 출처를 남기고, 수집 항목은 쓴 것으로 표시한다(같은 트랜잭션).
      */
     private void generateNews(AiMemberProfileEntity a, Task task, AiPromptConfig config, AiLlmResult result, long id, boolean instant) {
         AiNewsSources.Material m = task.news();
         EffectiveBoard board = task.board();
-        // 꼬리 — 링크를 지우는 정리(cleanBody) 뒤에 붙인다. 회원 글은 사이트 공개 주소로 만든 절대 주소(글 보기는 http(s) 주소만 링크로 그린다)
-        String reference = m.collected() ? null : AiPrompts.newsReference(m.title(), m.postId() == null ? null : news.link(m.postId()));
-        String longest = (m.collected() ? AiPrompts.newsTail(m.sourceName(), m.link(), true) : reference + "\n" + AiPrompts.INVEST_NOTICE);
+        // 출처(V232) — 회원 글은 사이트 공개 주소로 만든 절대 주소. 출처 칸을 쓸 수 없으면 예전 본문 꼬리(링크를 지우는 정리(cleanBody) 뒤에 붙인다)
+        String memberLink = m.collected() || m.postId() == null ? null : news.link(m.postId());
+        List<PostSource> sources = newsSources(board, m, memberLink);
+        boolean tailInBody = sources.isEmpty();
+        String reference = m.collected() ? null : AiPrompts.newsReference(m.title(), memberLink);
+        String longest = !tailInBody ? AiPrompts.INVEST_NOTICE
+                : m.collected() ? AiPrompts.newsTail(m.sourceName(), m.link(), true) : reference + "\n" + AiPrompts.INVEST_NOTICE;
         int bodyMax = Math.max(NEWS_BODY_MIN, Math.min(AiPrompts.NEWS_BODY_MAX, AiPrompts.POST_BODY_MAX - longest.length() - 2));
         AiPrompts.NewsAnswer answer = AiPrompts.splitNews(result.text(), config, bodyMax);
         if (answer.body().isBlank() || answer.title().isBlank()) {
@@ -614,11 +623,12 @@ public class AiDraftGenerator {
             return;
         }
         boolean invest = prefix != null && AiPrompts.INVEST_PREFIX.equals(prefix.name().strip());
-        String tail = m.collected() ? AiPrompts.newsTail(m.sourceName(), m.link(), invest) : reference + (invest ? "\n" + AiPrompts.INVEST_NOTICE : "");
-        String body = answer.body() + "\n\n" + tail;
+        String tail = !tailInBody ? (invest ? AiPrompts.INVEST_NOTICE : null)
+                : m.collected() ? AiPrompts.newsTail(m.sourceName(), m.link(), invest) : reference + (invest ? "\n" + AiPrompts.INVEST_NOTICE : "");
+        String body = tail == null ? answer.body() : answer.body() + "\n\n" + tail;
         AiDraftEntity d = AiDraftEntity.generated(id, a.getId(), task.target(), answer.title(), body, a.getProvider(), a.getModel(), result.inputTokens(), result.outputTokens(),
                 instant, now());
-        d.news(m.itemId(), prefix == null ? null : prefix.name().strip(), board != null && board.tagsEnabled() ? tags : List.of());
+        d.news(m.itemId(), prefix == null ? null : prefix.name().strip(), board != null && board.tagsEnabled() ? tags : List.of(), sources);
         tx.executeWithoutResult(status -> {
             drafts.persist(d);
             if (m.itemId() != null) {
@@ -629,6 +639,23 @@ public class AiDraftGenerator {
         if (instant) {
             publisher.publishOne(id); // 바로 게시 — AiContentWriter(공개 사이트와 같은 판정 — 금칙어·제재 검사)
         }
+    }
+
+    /**
+     * 뉴스 글의 출처 칸(V232) — 쓰는 게시판이 「출처 칸 쓰기」가 아니거나 링크가 http(s) 주소가 아니면 빈 목록(본문 꼬리로 되돌린다).
+     * 수집 항목 = 출처 이름(없으면 이름 없음 — 화면이 도메인) + 원문 링크, 회원 뉴스 글 = 원래 글 제목 앞 {@value PostSources#NAME_MAX}자 + 사이트 안 절대 주소.
+     */
+    static List<PostSource> newsSources(EffectiveBoard board, AiNewsSources.Material m, String memberLink) {
+        if (board == null || !board.sourcesEnabled()) {
+            return List.of();
+        }
+        String name = m.collected() ? m.sourceName() : m.title();
+        String url = m.collected() ? m.link() : memberLink;
+        url = url == null ? null : url.strip();
+        if (url == null || !PostSources.validUrl(url)) {
+            return List.of();
+        }
+        return List.of(new PostSource(PostSources.nameOf(name), url));
     }
 
     private void save(AiDraftEntity d) {

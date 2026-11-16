@@ -28,6 +28,7 @@ import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
 import com.community.emoticon.service.EmoticonGuard;
 import com.community.point.service.PointService;
+import com.community.post.dto.PostSource;
 import com.community.post.dto.request.PostThumbnailInput;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
@@ -180,6 +181,7 @@ public class PostWriteService {
         // 대표 썸네일 — 회원 + 게시판 authorThumbnailEnabled 일 때만(아니면 무시), 칸 오류는 fields.thumbnail
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), actor.guest(), false, b, c.body().imageIds(), actor.guest() ? null : actor.userId(), null, fields);
         List<String> tags = checkTags(body.tags(), b, fields); // 태그 — 게시판 tagsEnabled 일 때만(아니면 무시), 칸 오류는 fields.tags
+        List<PostSource> sources = checkSources(body.sources(), b, fields); // 출처 — 게시판 sourcesEnabled 일 때만(아니면 무시 — 빈 값), 칸 오류는 fields.sources(V232)
         PostWriteRules.checkRequired(b, c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226)
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
@@ -193,7 +195,7 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(authorId, c.body().content()); // 가지지 않은 팩의 로보티콘 409 — 입력 오류 다음, 금지어·속도 제한 앞
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName, tagsHaystack(tags));
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName, tagsHaystack(tags), PostSources.namesHaystack(sources));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
@@ -201,6 +203,7 @@ public class PostWriteService {
         ContentBody content = c.body().masked(sec);
         String name = ContentRules.mask(sec, guestName);
         List<String> savedTags = maskTags(sec, tags);
+        String savedSources = PostSources.toJson(maskSources(sec, sources));
 
         String passwordHash = null;
         if (actor.guest()) {
@@ -220,6 +223,7 @@ public class PostWriteService {
             PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled()); // 비밀글 · 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED) — V166
+            created.changeSources(savedSources); // 출처 목록(V232 — 게시판 sourcesEnabled 가 꺼져 있으면 null)
             if (b.anonymous() && authorId != null) {
                 created.markAnonymous(); // 익명 게시판 — 쓸 때의 게시판 설정(V184, anonymous-board-contract 정책 2). 비회원은 위 판정이 401 로 막았다
             }
@@ -368,6 +372,30 @@ public class PostWriteService {
         return r.tags();
     }
 
+    /**
+     * 글쓰기·고치기의 출처(V232) — 칸이 없거나(null) 게시판 정책 {@code sourcesEnabled} 가 꺼져 있으면 null(무시 · 새 글은 빈 값 · 고치기는 그대로).
+     * 정리한 출처(적은 차례, 같은 주소 없음)를 돌려주고, 틀리면 {@code fields.sources} 에 문구를 넣고 null.
+     */
+    static List<PostSource> checkSources(List<PostSource> raw, EffectiveBoard b, Map<String, MessageRef> fields) {
+        if (raw == null || !b.sourcesEnabled()) {
+            return null;
+        }
+        PostSources.Result r = PostSources.normalize(raw);
+        if (!r.ok()) {
+            fields.put("sources", new MessageRef(r.error(), r.limit()));
+            return null;
+        }
+        return r.sources();
+    }
+
+    /** 가림 방식 금지어면 출처 이름도 가려 저장한다(주소는 그대로) */
+    private static List<PostSource> maskSources(BoardSecurityValues sec, List<PostSource> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return sources;
+        }
+        return sources.stream().map(s -> new PostSource(s.name() == null ? null : ContentRules.mask(sec, s.name()), s.url())).toList();
+    }
+
     /** 금지어 검사에 넣을 태그 글자(한 줄에 하나) — 태그가 없으면 null(검사기가 건너뛴다) */
     private static String tagsHaystack(List<String> tags) {
         return tags == null || tags.isEmpty() ? null : String.join("\n", tags);
@@ -451,6 +479,8 @@ public class PostWriteService {
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), post.isGuest(), post.isGroupPost(), b, c.body().imageIds(), post.getAuthorId(), post.getId(), fields);
         // 태그 — 칸이 없으면(null) 그대로, 빈 목록이면 모두 지우기. 게시판 tagsEnabled 일 때만(아니면 무시 — 이미 단 태그는 그대로)
         List<String> tags = checkTags(body.tags(), b, fields);
+        // 출처 — 칸이 없으면(null) 그대로, 빈 목록이면 모두 지우기. 게시판 sourcesEnabled 일 때만(아니면 무시 — 그대로). 소모임 글은 받지 않는다(V232)
+        List<PostSource> sources = post.isGroupPost() ? null : checkSources(body.sources(), b, fields);
         // 말머리 필수 · 태그 필수(V226) — 태그 칸을 보내지 않았으면(그대로) 지금 단 태그 수로 본다
         if (b.prefixRequired() || b.tagRequired()) {
             int tagCount = tags != null ? tags.size() : body.tags() == null && b.tagRequired() ? tagStore.of(post.getId()).size() : 0;
@@ -472,13 +502,14 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(post.getAuthorId(), c.body().content()); // 고칠 때도 본문 전체를 다시 본다(예전에 쓴 토큰이어도 — 팩을 뺐으면 409)
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags));
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags), PostSources.namesHaystack(sources));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
         ContentBody content = c.body().masked(sec);
         List<String> savedTags = maskTags(sec, tags);
+        List<PostSource> savedSources = maskSources(sec, sources);
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity locked = posts.findWithLockById(post.getId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PostNotFoundException::new);
@@ -505,6 +536,9 @@ public class PostWriteService {
             locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
             if (savedTags != null) {
                 tagStore.replace(locked, savedTags, now); // 빈 목록이면 모두 지운다
+            }
+            if (savedSources != null) {
+                locked.changeSources(PostSources.toJson(savedSources)); // 빈 목록이면 지운다(V232)
             }
             posts.flush();
             emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)

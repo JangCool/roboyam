@@ -13,6 +13,7 @@
           제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`). `?from={postId}`(끝난 딜에서 새 딜)면 `prefill` 로 링크·몰·이미지·제목을 채운다(가격·마감은 비움).
           하루 글 한도·같은 쇼핑몰 간격(`429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`)은 폼 아래 안내, 저장 응답 `warnings[]` 는 토스트.
         태그(post-tags-contract): 게시판 `tagsEnabled` 면 본문(·대표 이미지) 아래 태그 칸(`PostTagInput` — 최대 5개). 게시판을 바꿔도 값은 들고 가고, 꺼진 게시판이면 칸을 감추고 보내지 않는다.
+        출처(shared V232): 게시판 `sourcesEnabled` 면 태그 위에 출처 칸(`PostSourcesField` — 줄마다 이름 + 주소, 최대 5). 태그와 같게 게시판을 바꿔도 값은 들고 가고, 꺼진 게시판이면 감추고 보내지 않는다.
         대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 회원 글쓰기면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker` — 본문 이미지 고르기 · 자동 · 따로 올리기 · 없음). 자동이 아니면 본문 `thumbnail` 로 보낸다.
         게시판 제재(board-sanction-contract): 고른 게시판에서 쓰기 제한 중이면 폼 대신 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」. 등록 때 `403 BOARD_WRITE_RESTRICTED` 면 폼 위에 같은 안내(쓰던 글은 그대로).
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
@@ -114,6 +115,8 @@
                         :disabled="submitting"
                         :error="fieldErrors.thumbnail ?? ''"
                     />
+                    <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」(`sourcesEnabled`)를 켠 게시판만 -->
+                    <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
                     <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」(`tagsEnabled`)를 켠 게시판만(비회원 글도 — 글쓰기 권한 그대로) -->
                     <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="selectedSlug" :disabled="submitting" :error="tagsError" :required="tagsRequired" />
                 </template>
@@ -150,6 +153,7 @@ import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
+import UtilPostSource, { type PostSourceRow } from '~/utils/util-post-source';
 
 definePageMeta({ shell: 'inner' });
 
@@ -342,10 +346,21 @@ watch(tags, () => {
     if (tagsServerError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
 });
 
-/** [등록]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그)의 검사 문구도 함께 보이게 */
+/* ── 출처(V232) — 게시판을 바꿔도 값은 들고 가고, 출처 칸을 쓰지 않는 게시판이면 칸을 감추고 보내지 않는다 ── */
+const sources = ref<PostSourceRow[]>([]);
+const sourcesShown = computed(() => board.value?.sourcesEnabled === true);
+/** [등록]을 한 번 누른 뒤부터 줄 아래 주소 문제를 보인다 */
+const sourcesTried = ref(false);
+// 출처를 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(sources, () => {
+    if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
+});
+
+/** [등록]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그·출처)의 검사 문구도 함께 보이게 */
 function onAttempt(): void {
     dealTried.value = true;
     tagsTried.value = true;
+    sourcesTried.value = true;
 }
 
 /* ── 핫딜 딜 칸 ── */
@@ -429,7 +444,8 @@ const dirty = computed(
         (UtilPost.hasContent(form.value.content, form.value.contentFormat) && !UtilPost.isUntouchedTemplate(form.value.content, appliedTemplate, form.value.contentFormat)) ||
         (pollShown.value && poll.value.enabled) ||
         (thumbnailShown.value && thumbnail.value.mode !== 'AUTO') ||
-        (tagsShown.value && tags.value.length > 0),
+        (tagsShown.value && tags.value.length > 0) ||
+        (sourcesShown.value && UtilPostSource.toRequest(sources.value).length > 0),
 );
 
 async function submit(): Promise<void> {
@@ -444,6 +460,8 @@ async function submit(): Promise<void> {
     }
     tagsTried.value = true;
     if (tagsMissing.value) return;
+    sourcesTried.value = true;
+    if (sourcesShown.value && UtilPostSource.hasProblem(sources.value)) return;
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -464,11 +482,13 @@ async function submit(): Promise<void> {
             ...(isDeal.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
             ...thumbnailField(),
             ...(tagsShown.value ? { tags: tags.value.slice() } : {}),
+            ...(sourcesShown.value ? { sources: UtilPostSource.toRequest(sources.value) } : {}),
         });
         saved = true;
         form.value = { ...EMPTY_POST_FORM };
         thumbnail.value = { ...AUTO_THUMBNAIL };
         tags.value = [];
+        sources.value = [];
         debate.value = { ...DEFAULT_DEBATE_SETTINGS };
         poll.value = UtilPoll.emptyForm();
         dealForm.value = UtilHotdeal.emptyForm();

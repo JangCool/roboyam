@@ -21,6 +21,7 @@
           운영자가 정한 글(`thumbnail.setBy OPERATOR`)은 「운영자가 정한 대표 이미지예요」 안내와 미리보기만. 저장 때 그새 운영자가 정했으면(`409 THUMBNAIL_LOCKED` — 글 전체가 저장되지 않음)
           글을 다시 읽어 대표 이미지 줄을 잠그고, 쓰던 내용은 그대로 둔 채 「다시 저장해 주세요」 안내.
         태그(post-tags-contract): 게시판 `tagsEnabled` 면 본문(·대표 이미지) 아래 태그 칸(`PostTagInput`), 글의 `tags` 로 채우고 바꿨을 때만 본문 `tags`(빈 목록 = 모두 지움).
+        출처(shared V232): 게시판 `sourcesEnabled` 면 태그 위에 출처 칸(`PostSourcesField`), 글의 `sources` 로 채우고 바꿨을 때만 본문 `sources`(빈 목록 = 모두 지움). 소모임 글은 없다.
           게시판 옵션이 꺼졌으면 칸을 감추고 보내지 않는다(이미 단 태그는 그대로).
         비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
@@ -111,7 +112,7 @@
                 <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
             <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
-            <template v-if="thumbnailMode !== 'hidden' || tagsShown" #belowContent="{ imageUpload }">
+            <template v-if="thumbnailMode !== 'hidden' || tagsShown || sourcesShown" #belowContent="{ imageUpload }">
                 <PostThumbnailPicker
                     v-if="thumbnailMode !== 'hidden'"
                     v-model="thumbnail"
@@ -123,6 +124,8 @@
                     :disabled="submitting"
                     :error="fieldErrors.thumbnail ?? ''"
                 />
+                <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」를 켠 게시판만(소모임 글 아님) -->
+                <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
                 <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」를 켠 게시판만 -->
                 <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="post?.group ? null : (post?.board.slug ?? null)" :disabled="submitting" :error="tagsError" :required="tagsRequired" />
             </template>
@@ -162,6 +165,7 @@ import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
+import UtilPostSource, { type PostSourceRow } from '~/utils/util-post-source';
 
 definePageMeta({ shell: 'inner' });
 
@@ -222,6 +226,8 @@ async function load(): Promise<void> {
         thumbnail.value = UtilPostThumbnail.choiceOf(loaded.thumbnail);
         tagsInitial.value = UtilPostTag.list(loaded.tags);
         tags.value = [...tagsInitial.value];
+        sourcesInitial.value = UtilPostSource.toRows(loaded.sources);
+        sources.value = UtilPostSource.toRows(loaded.sources);
         pageState.value = 'ready';
     } catch (e) {
         // 아직 열지 않은 비밀글(비회원 비밀글은 글 보기에서 비밀번호로 연다) — 글 보기의 잠금 화면으로 보낸다
@@ -402,10 +408,23 @@ watch(tags, () => {
     if (tagsServerError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
 });
 
-/** [저장]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그)의 검사 문구도 함께 보이게 */
+/* ── 출처(V232) — 게시판 옵션을 켠 게시판의 일반 글만 칸을 보이고, 바꿨을 때만 보낸다 ── */
+const sources = ref<PostSourceRow[]>([]);
+const sourcesInitial = ref<PostSourceRow[]>([]);
+const sourcesShown = computed(() => board.value?.sourcesEnabled === true && !post.value?.group);
+const sourcesChanged = computed(() => sourcesShown.value && !UtilPostSource.same(UtilPostSource.toRequest(sources.value), UtilPostSource.toRequest(sourcesInitial.value)));
+/** [저장]을 한 번 누른 뒤부터 줄 아래 주소 문제를 보인다 */
+const sourcesTried = ref(false);
+// 출처를 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(sources, () => {
+    if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
+});
+
+/** [저장]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그·출처)의 검사 문구도 함께 보이게 */
 function onAttempt(): void {
     dealTried.value = true;
     tagsTried.value = true;
+    sourcesTried.value = true;
 }
 
 /* ── 비회원 글 비밀번호 ── */
@@ -436,7 +455,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value || tagsChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value || tagsChanged.value || sourcesChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -457,6 +476,8 @@ async function submit(): Promise<void> {
     }
     tagsTried.value = true;
     if (tagsMissing.value) return;
+    sourcesTried.value = true;
+    if (sourcesShown.value && UtilPostSource.hasProblem(sources.value)) return;
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -479,6 +500,8 @@ async function submit(): Promise<void> {
             ...(thumbnailChanged.value ? { thumbnail: UtilPostThumbnail.inputOf(thumbnailEffective.value) } : {}),
             // 태그 — 바꿨을 때만(빼면 그대로, 빈 목록이면 모두 지움)
             ...(tagsChanged.value ? { tags: tags.value.slice() } : {}),
+            // 출처 — 바꿨을 때만(빼면 그대로, 빈 목록이면 모두 지움)
+            ...(sourcesChanged.value ? { sources: UtilPostSource.toRequest(sources.value) } : {}),
         });
         saved = true;
         password.value = '';

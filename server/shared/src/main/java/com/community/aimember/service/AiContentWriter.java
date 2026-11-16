@@ -25,6 +25,7 @@ import com.community.group.service.GroupAccess;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.point.service.PointService;
+import com.community.post.dto.PostSource;
 import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostCounterQueries;
@@ -32,6 +33,7 @@ import com.community.post.repository.master.PostRepository;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostContentFields;
 import com.community.post.service.PostOpenRules;
+import com.community.post.service.PostSources;
 import com.community.post.service.PostTagStore;
 import com.community.post.service.PostTags;
 import com.community.post.service.PostWriteRules;
@@ -158,6 +160,17 @@ public class AiContentWriter {
      * @param tags 정리한 태그(없으면 빈 목록)
      */
     public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, boolean gradeExempt, String ip) {
+        return post(userId, boardId, prefixId, titleText, bodyText, tags, List.of(), gradeExempt, ip);
+    }
+
+    /**
+     * 게시판 글 — 말머리 · 태그 · 출처까지(AI 기자 뉴스 글, V232 「본문 꼬리」). 출처는 공개 글쓰기와 같은 규칙({@link PostSources#normalize})으로 정리하고
+     * 게시판이 「출처 칸 쓰기」({@code sourcesEnabled})일 때만 저장한다(꺼져 있으면 무시). 틀리면 {@link ValidationException} {@code sources}(실행기 까닭 {@code INVALID}).
+     *
+     * @param sources 출처(없으면 빈 목록)
+     */
+    public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, List<PostSource> sources, boolean gradeExempt,
+                     String ip) {
         Writable w = writable(userId, boardId, gradeExempt);
         BoardCatalogSnapshot s = w.snapshot();
         EffectiveBoard b = w.board();
@@ -171,6 +184,15 @@ public class AiContentWriter {
             fields.put("prefixId", new MessageRef("board.content.prefix.unknown")); // AI 글은 19금이 없다 — 성인 전용 말머리는 쓰지 않는다
         }
         List<String> savedTags = tags == null || tags.isEmpty() || !b.tagsEnabled() ? List.of() : PostTags.normalize(tags).tags();
+        List<PostSource> savedSources = List.of();
+        if (sources != null && !sources.isEmpty() && b.sourcesEnabled()) {
+            PostSources.Result r = PostSources.normalize(sources);
+            if (r.ok()) {
+                savedSources = r.sources();
+            } else {
+                fields.put("sources", new MessageRef(r.error(), r.limit()));
+            }
+        }
         // 말머리 필수 · 태그 필수(V226 — 공개 글쓰기와 같은 판정, 회원·AI 공통). 어기면 400 → 실행기 까닭 INVALID
         PostWriteRules.checkRequired(b, c.prefixId(), savedTags.size(), fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields);
@@ -178,12 +200,14 @@ public class AiContentWriter {
             throw new ValidationException(fields);
         }
         emoticons.requireOwned(userId, c.body().content());
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), null, savedTags.isEmpty() ? null : String.join("\n", savedTags));
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), null, savedTags.isEmpty() ? null : String.join("\n", savedTags),
+                PostSources.namesHaystack(savedSources));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
         ContentBody content = c.body().masked(sec);
+        List<PostSource> maskedSources = savedSources.stream().map(x -> new PostSource(x.name() == null ? null : ContentRules.mask(sec, x.name()), x.url())).toList();
         long id = ids.nextId();
         boolean secret = PostWriteRules.secretOnCreate(b, null);
         tx.executeWithoutResult(status -> {
@@ -192,6 +216,7 @@ public class AiContentWriter {
             PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), userId, null, null, ip, title, content.format(), content.content(), content.plain(), c.adult(),
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled());
+            created.changeSources(PostSources.toJson(maskedSources)); // 출처(V232)
             posts.persist(created);
             if (!savedTags.isEmpty()) {
                 tagStore.replace(created, savedTags, now);

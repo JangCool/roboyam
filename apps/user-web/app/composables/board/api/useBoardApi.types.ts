@@ -345,6 +345,11 @@ export interface BoardDetail extends BoardView {
     /** 태그 필수(유효 정책 `tagRequired`) — 켜져 있으면 태그를 하나 이상 단다(서버 400 `fields.tags`). 「태그 쓰기」(`tagsEnabled`)가 꺼진 게시판은 서버가 늘 false. 옛 응답이면 끔 */
     tagRequired?: boolean;
     /**
+     * 출처 칸 쓰기(유효 정책 `sourcesEnabled` — shared V232, 사이트 기본 끔) — 켜져 있으면 글쓰기·고치기에 「출처」 칸(줄마다 이름 + 주소, 최대 5)을 보인다.
+     * 꺼져 있으면 서버가 `sources` 를 무시한다. 옛 응답이면 끔
+     */
+    sourcesEnabled?: boolean;
+    /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
      */

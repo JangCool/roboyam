@@ -165,7 +165,9 @@ public class BoardCatalog implements CacheReloader {
                 // 말머리 필수(V226) — 켜진 말머리가 있을 때만 · 태그 필수 — 태그 쓰기가 켜졌을 때만(쓸 수 없게 막지 않는다)
                 anyPrefix && or(p.prefixRequired(), d.prefixRequired()), tagsEnabled && or(p.tagRequired(), d.tagRequired()),
                 // 성인 전용 게시판(V226)
-                adultOnly);
+                adultOnly,
+                // 출처 칸 쓰기(V232) — 게시판 값 ?? 기본값
+                or(p.sourcesEnabled(), d.sourcesEnabled()));
     }
 
     private static <T> T or(T value, T fallback) {
