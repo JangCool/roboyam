@@ -505,7 +505,7 @@ async function openFeature(item: AdminPostItem, kind: PostConfirmKind): Promise<
     const values = tier ? (pointTiers.info.value?.tiers[tier] ?? null) : null;
     const ok = await confirm({
         title: t(`post.featureDialog.${kind}.title`),
-        message: UtilPostMessages.featureConfirm(t, kind, tier, values, locale.value),
+        message: UtilPostMessages.featureConfirm(t, kind, tier, values, locale.value, item.author),
         confirmLabel: t(`post.action.${kind}`),
         tone: kind === 'UNFEATURE' ? 'danger' : 'primary',
     });

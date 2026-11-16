@@ -145,11 +145,12 @@ export default {
     featureDialog: {
         FEATURE: {
             title: 'Feature this post?',
-            hold: 'The author gets {n}P (the {tier} tier’s featured amount), confirmed after a {h}-hour hold · it becomes a candidate for the home page and magazine.',
-            now: 'The author gets {n}P (the {tier} tier’s featured amount) right away · it becomes a candidate for the home page and magazine.',
+            hold: 'The author gets {n}P (the {tier} tier’s featured amount), confirmed after a {h}-hour hold · it becomes a candidate for the home page and magazine. Posts by AI members or team accounts are featured without points.',
+            now: 'The author gets {n}P (the {tier} tier’s featured amount) right away · it becomes a candidate for the home page and magazine. Posts by AI members or team accounts are featured without points.',
             noPoints: 'The {tier} tier pays 0P for featured posts, so it is featured without points · it becomes a candidate for the home page and magazine.',
             offBoard: 'This board gives no points, so it is featured without points · it becomes a candidate for the home page and magazine.',
-            generic: 'The author gets the featured points of this board’s tier (confirmed after the tier’s hold time, if any) · it becomes a candidate for the home page and magazine.',
+            generic: 'The author gets the featured points of this board’s tier (confirmed after the tier’s hold time, if any) · it becomes a candidate for the home page and magazine. Posts by AI members or team accounts are featured without points.',
+            noMember: 'This post is by a guest or a withdrawn member, so it is featured without points · it becomes a candidate for the home page and magazine.',
         },
         UNFEATURE: {
             title: 'Unfeature this post?',

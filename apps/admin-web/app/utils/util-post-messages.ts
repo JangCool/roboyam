@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { AdminPostItem, AdminPostStateFields, PostBulkResult, PostModerationActor, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostAuthor, AdminPostItem, AdminPostStateFields, PostBulkResult, PostModerationActor, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import type { PointBoardTier, PointBoardTierValues } from '~/composables/point/api/usePointApi.types';
 import type { PostConfirmKind, PostMoveProblem, PostReasonProblem } from '~/utils/util-post';
 import UtilPost from '~/utils/util-post';
@@ -147,12 +147,15 @@ export default class UtilPostMessages {
     /**
      * 우수 글 선정·취소 확인 본문(point-board-tier-contract) — 선정은 글쓴이가 받을 금액(그 게시판 등급의 우수 글 금액)·보류 시간 · 홈·매거진 노출 후보,
      * 금액이 0P 면 포인트 없이 선정만 된다는 안내. 등급이나 금액을 모르면(`board.read`·`point.read` 없음·못 읽음) 금액 없는 일반 문구.
+     * 비회원·탈퇴 회원 글은 서버가 주지 않으니 처음부터 「포인트 없이 선정만」. AI 회원·운영팀 계정은 글 응답으로 알 수 없어 금액 문구에 「그런 글이면 포인트 없음」을 덧붙인다.
      * 취소는 금액 없이 — 보류 금액은 선정한 순간의 정책값이라 지금 정책으로 짐작하지 않는다(보류 중 지급 취소 · 확정된 것은 회수하지 않음).
      * @param tier - 글이 있는 게시판의 유효 등급(끔이면 null, 모르면 undefined)
      * @param values - 그 등급의 금액·조건(모르면 null)
+     * @param author - 글쓴이
      */
-    static featureConfirm(t: Translate, kind: PostConfirmKind, tier: PointBoardTier | null | undefined, values: PointBoardTierValues | null, locale: string): string {
+    static featureConfirm(t: Translate, kind: PostConfirmKind, tier: PointBoardTier | null | undefined, values: PointBoardTierValues | null, locale: string, author: AdminPostAuthor): string {
         if (kind === 'UNFEATURE') return t('post.featureDialog.UNFEATURE.text');
+        if (author.kind === 'GUEST' || author.withdrawn) return t('post.featureDialog.FEATURE.noMember');
         if (tier === null) return t('post.featureDialog.FEATURE.offBoard');
         if (tier === undefined || !values) return t('post.featureDialog.FEATURE.generic');
         const n = values.featuredPoints.toLocaleString(locale);
