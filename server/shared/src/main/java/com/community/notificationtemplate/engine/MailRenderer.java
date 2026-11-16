@@ -23,6 +23,15 @@ public final class MailRenderer {
             "<p data-mail-button(?:=\"[^\"]*\")?>\\s*<a href=\"\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\"[^>]*>([\\s\\S]*?)</a>\\s*</p>");
     private static final Pattern VARIABLE_PARAGRAPH = Pattern.compile(
             "<p>\\s*(?:<(?:strong|em|b)>\\s*)?\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\\s*(?:</(?:strong|em|b)>\\s*)?</p>");
+    /**
+     * 「라벨: {{변수}}」 한 줄 — 짧은 라벨(콜론으로 끝남, 태그·변수 없음) 뒤에 변수 하나. 값이 비면 실제 발송에서 줄째 걷는다(관리자 QA 2026-11-17 F-2 —
+     * 관리자 앱 주소({@code ADMIN_URL})가 없을 때 운영자 메일에 「관리자 앱 주소:」「관리 사이트:」 빈 줄이 남았다). 본문 문단과 꼬리말 줄이 같이 쓴다.
+     */
+    private static final String LABEL_THEN_VARIABLE = "([^<>{}\\n]{1,40}?[:：])\\s*\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\\s*";
+    private static final Pattern LABEL_PARAGRAPH = Pattern.compile("<p>\\s*" + LABEL_THEN_VARIABLE + "</p>");
+    private static final Pattern LABEL_LINE = Pattern.compile("^\\s*" + LABEL_THEN_VARIABLE + "$");
+    /** 꼬리말에서 변수 하나만 든 줄(회원 메일의 {@code {{siteUrl}}}) — 본문의 변수만 든 문단처럼 값이 비면 걷는다 */
+    private static final Pattern VARIABLE_LINE = Pattern.compile("^\\s*()\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\\s*$");
     private static final Pattern CONTENT_PARAGRAPH = Pattern.compile("<p>\\s*\\{\\{\\s*content\\s*\\}\\}\\s*</p>");
     private static final Pattern CONTENT = Pattern.compile("\\{\\{\\s*content\\s*\\}\\}");
     private static final Pattern LINE = Pattern.compile("\\r?\\n");
@@ -93,6 +102,9 @@ public final class MailRenderer {
         String footerText = template.footer(locale) == null ? "" : template.footer(locale).strip();
         if (!footerText.isEmpty()) {
             for (String line : LINE.split(footerText, -1)) {
+                if (!keepUnknown && emptyLabelLine(line, value)) {
+                    continue; // 「관리 사이트: {{adminUrl}}」 의 값이 비었다 — 줄째 걷는다
+                }
                 String filled = TemplateText.escape(TemplateText.fill(line, value, keepUnknown));
                 footer.append("<p style=\"").append(FOOT).append("\">").append(filled.isEmpty() ? "&nbsp;" : filled).append("</p>");
             }
@@ -120,7 +132,7 @@ public final class MailRenderer {
 
     /**
      * 실제 발송: 변수 하나만 든 문단({@code <p>{{body}}</p>} · {@code <p><strong>{{title}}</strong></p>})의 값이 비었으면 문단째 걷는다 — 본문이 없는 알림 · 링크가 없는 이벤트에
-     * 빈 줄이 남지 않게. 운영자가 일부러 넣은 빈 문단(변수 없음)은 그대로 둔다.
+     * 빈 줄이 남지 않게. 「라벨: {{변수}}」 문단({@code <p>관리자 앱 주소: {{adminUrl}}</p>})도 값이 비면 걷는다(2026-11-17). 운영자가 일부러 넣은 빈 문단(변수 없음)은 그대로 둔다.
      */
     private static String dropEmptyVariableParagraphs(String html, Function<String, String> value) {
         Matcher matcher = VARIABLE_PARAGRAPH.matcher(html);
@@ -130,7 +142,27 @@ public final class MailRenderer {
             matcher.appendReplacement(out, raw == null || raw.isBlank() ? "" : Matcher.quoteReplacement(matcher.group()));
         }
         matcher.appendTail(out);
-        return out.toString();
+        // 「라벨: {{변수}}」 문단도 값이 비면 걷는다 — 라벨만 남은 줄은 읽는 사람에게 뜻이 없다
+        Matcher label = LABEL_PARAGRAPH.matcher(out.toString());
+        StringBuilder trimmed = new StringBuilder();
+        while (label.find()) {
+            String raw = value.apply(label.group(2));
+            label.appendReplacement(trimmed, raw == null || raw.isBlank() ? "" : Matcher.quoteReplacement(label.group()));
+        }
+        label.appendTail(trimmed);
+        return trimmed.toString();
+    }
+
+    /** 꼬리말 한 줄이 「라벨: {{변수}}」 또는 「{{변수}}」 꼴이고 그 값이 비었는가 — 운영자가 일부러 비운 줄(변수 없음)은 그대로 둔다 */
+    private static boolean emptyLabelLine(String line, Function<String, String> value) {
+        for (Pattern pattern : new Pattern[] {LABEL_LINE, VARIABLE_LINE}) {
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.matches()) {
+                String raw = value.apply(matcher.group(2));
+                return raw == null || raw.isBlank();
+            }
+        }
+        return false;
     }
 
     /** 틀을 {@code {{content}}} 앞·뒤로 나눈다(그 한 줄만 있는 문단은 문단째) */

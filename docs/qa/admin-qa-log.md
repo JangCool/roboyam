@@ -14,7 +14,7 @@
 | F-1 | 중간 | 홈 배치·가젯 페이지 배치 저장(`PUT /api/admin/home-layouts/{theme}`·`/gadget-pages/{id}/layouts/{theme}`) | 버전 확인이 없어 낡은 탭이 저장하면 다른 탭이 그사이 넣은 가젯이 **경고 없이 지워짐**(본문이 「가젯 전체」라 빠진 가젯을 지움). 재현: 탭1 가젯 추가 저장(17개) → 탭2 옛 화면 저장 → 16개. 메뉴는 `version` 409 로 막음 | 수정 — 저장 본문에 선택 칸 `base.updatedAt`, 다르면 409 `LAYOUT_VERSION_CONFLICT`(홈·가젯 페이지·게시판 레이아웃), 편집기에 [최신 배치 다시 불러오기]. 시험 `HomeLayoutVersionConflictTest` 3건 |
 | F-3 | 낮음 | 공개 메뉴 트리 저장 | 노드에 `audience` 가 빠지면 `MenuTreeValidator` 126행 `AUDIENCES.contains(null)`(List.of) NullPointerException → 400 대신 500 | 수정 — null 이면 칸 오류 400, `MenuTreeValidatorTest` 에 1건 추가 |
 | F-4 | 중간 | 관리자 메뉴·화면 권한(`util-admin-menu.ts`) | 공동구매 **Q&A(`/group-buy-qna`)·리뷰(`/group-buy-reviews`)** 가 서버 `AdminScreenRegistry`·메뉴 구성엔 있는데 화면 쪽 목록에 없음 → ① 관리자 사이드바에 안 보임(대시보드 가젯 링크로만 진입) ② `canOpen` 이 모르는 주소를 통과시켜 권한 없는 QA_NONE 에게도 화면 틀이 열림(데이터 API 는 403). 2b-6(0cbf851e)에서 서버만 추가 | 수정 — `util-admin-menu.ts` 공구 묶음에 두 항목(권한 `commerce.order.read`) |
-| F-2 | 낮음 | 운영자 계정 안내 메일 | `ADMIN_URL` 이 없으면 본문에 빈 「관리자 앱 주소:」「관리 사이트:」 줄이 그대로 나감(로컬 기동 스크립트에 `ADMIN_URL` 없음 → 로컬에선 초대 메일도 못 보냄) | 보류 — 메일 문구 엔진은 「변수만 든 문단」만 지우므로 고치려면 운영자가 편집하는 기본 메일 틀을 바꿔야 함. 운영은 `ADMIN_URL` 설정, 로컬 기동 스크립트에 `ADMIN_URL` 추가 권장 |
+| F-2 | 낮음 | 운영자 계정 안내 메일 | `ADMIN_URL` 이 없으면 본문에 빈 「관리자 앱 주소:」「관리 사이트:」 줄이 그대로 나감(로컬 기동 스크립트에 `ADMIN_URL` 없음 → 로컬에선 초대 메일도 못 보냄) | 수정 — 메일 엔진이 실제 발송에서 「라벨: {{변수}}」 문단·꼬리말 줄과 꼬리말의 변수만 든 줄을 값이 비면 걷는다(운영자가 고친 틀에도 같은 규칙, 미리보기는 그대로). 시험 `MailRendererTest` 4건 |
 
 ## 시나리오 결과
 | 항목 | 결과 | 메모 |
