@@ -191,7 +191,7 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     inHome: { field: 'inHome', kind: 'bool', overridable: true, permission: 'board.settings' },
     attachmentPurgeEnabled: { field: 'attachmentPurgeEnabled', kind: 'bool', overridable: false, permission: 'board.settings' },
     attachmentRetentionDays: { field: 'attachmentRetentionDays', kind: 'number', min: 1, max: 3650, unit: 'days', overridable: false, permission: 'board.settings' },
-    // 포인트 등급(point-board-tier-contract) — 끔 · 일반 · 정보 · 핵심 글. 옛 값 `ON` 은 `useBoardApi` 가 일반으로 읽는다(MOCK)
+    // 포인트 등급(point-board-tier-contract) — 끔 · 일반 · 정보 · 핵심 글(서버 값 그대로 — 옛 `ON` 은 서버가 V238 에서 `NORMAL` 로 바꿨다)
     pointMode: { field: 'pointMode', kind: 'choice', choices: ['OFF', 'NORMAL', 'INFO', 'CORE'], overridable: true, permission: 'board.settings' },
     pointMinLengthApplied: { field: 'pointMinLengthApplied', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentProtectMin: { field: 'commentProtectMin', kind: 'number', min: 0, max: 100, unit: 'count', overridable: true, permission: 'board.settings' },

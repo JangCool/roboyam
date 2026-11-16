@@ -6,8 +6,8 @@
         community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(핫딜 종료 요청 — `point-contract.md` 「적용 지점 없음」)에는
         「아직 적용되지 않아요」 딱지와 한 줄 안내를 단다(값은 저장된다). 실제로 지급되는 것은 출석(+ 연속 출석 보너스)·글·댓글·추천 보너스(+ 본인 삭제 회수)·가입 포인트·인기글 보상(매일 0시 KST 전날 인기글 상위 N 개 — point-board-tier-contract, 딱지를 뗐다)이다.
         인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
-        게시판 등급별 지급(point-board-tier-contract — 화면 목업): 「글·댓글」 다음 구획에 일반·정보·핵심 글 × 여섯 칸 표 + 스위치 둘(`infoSourceOnce`·`excludeAiAndOps`). 같은 PUT 에 `boardTiers` 로 함께 싣는다.
-          일반 등급의 「쓰면 바로」·「최소 글자 수」는 「글·댓글」의 글 포인트·글 최소 글자 수를 그대로 보인다(읽기 전용 — 두 곳에서 따로 고치지 않게). ⚠ MOCK: 서버가 등급 칸을 아직 주지 않아 `usePointApi` 가 채운다.
+        게시판 등급별 지급(point-board-tier-contract): 「글·댓글」 다음 구획에 일반·정보·핵심 글 × 여섯 칸 표 + 스위치 둘(`infoSourceOnce`·`excludeAiAndOps`). 같은 PUT 에 `boardTiers` 로 함께 싣는다(서버가 필수로 받는다).
+          일반 등급의 「쓰면 바로」·「최소 글자 수」는 「글·댓글」의 글 포인트·글 최소 글자 수를 그대로 보인다(읽기 전용 — 두 곳에서 따로 고치지 않게, 서버도 PUT 에서 그 둘을 무시하고 전역 칸을 쓴다).
         값이 0이면 그 항목이 꺼진다(전역 스위치 없음) — 꺼진 묶음에는 「꺼짐」 딱지가 붙는다(입력 중인 값 기준). 운영 원칙 구획은 community 확정 규칙의 읽기 전용 안내다.
         **저장은 한 번에**(13칸 모두, PUT 한 번 — 변경권 가격 칸은 V86 이 지웠다) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4). 칸은 `InputText` + `inputmode=numeric`(등급 설정과 같은 이유 — `InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위 검사는 `UtilPoint`(서버와 같은 범위) — 하나라도 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(`400 VALIDATION` `fields.<칸>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에 보인다.
@@ -123,7 +123,7 @@
                 <!--
                     게시판 등급별 지급(point-board-tier-contract) — 「글·댓글」 바로 다음. 일반·정보·핵심 글 세 열 × 여섯 줄 표 + 스위치 둘 + 안내.
                     일반 등급의 「쓰면 바로」·「최소 글자 수」는 「글·댓글」의 글 포인트·글 최소 글자 수와 같은 값이라 읽기 전용으로 보인다(그곳에서 바꾼다 — 저장 때 그 값을 실어 보낸다).
-                    ⚠ MOCK: 서버가 아직 등급 칸을 주지 않아 `usePointApi` 가 기본값으로 채운다(저장은 PUT 한 번에 함께 싣는다).
+                    저장은 PUT 한 번에 함께 싣는다. 서버가 거절한 등급 칸은 `fields["boardTiers.<등급>.<칸>"]` 로 온다.
                 -->
                 <AppGadget v-if="section.anchor === 'point-activity'" :title="t('point.section.boardTier')" anchor="point-board-tier" :changes="tierSectionChanges" :invalid="tierSectionInvalid">
                     <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('point.lead.boardTier') }}</p>
@@ -381,7 +381,7 @@ const formError = ref('');
 const serverErrors = ref<Partial<Record<PointSettingsField, string>>>({});
 /** 게시판 등급 칸 입력(point-board-tier-contract) — 평평한 칸과 따로 두고 저장 때 `boardTiers` 로 함께 싣는다 */
 const tierForm = ref<PointTierForm>(UtilPoint.tierFormOf(UtilPoint.TIER_DEFAULTS));
-/** 서버가 거절한 등급 칸 문구(`fields.boardTiers.<등급>.<칸>` — 가정) */
+/** 서버가 거절한 등급 칸 문구(`fields["boardTiers.<등급>.<칸>"]`) */
 const tierServerErrors = ref<Partial<Record<PointTierKey, string>>>({});
 
 const problems = computed(() => UtilPoint.validateSettings(form.value));

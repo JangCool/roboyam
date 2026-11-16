@@ -275,12 +275,11 @@ onMounted(() => {
     void load();
 });
 
-/* ── 포인트 등급 안내 한 줄(point-board-tier-contract) — 고른 등급의 금액·조건. 정책을 못 읽으면 계약 기본값 ── */
+/* ── 포인트 등급 안내 한 줄(point-board-tier-contract) — 고른 등급의 금액·조건. 정책을 못 읽으면 등급 이름만 ── */
 const pointTiers = usePointBoardTiers();
 const pointTierLine = computed(() => {
     if (!form.value) return '';
-    const { tiers, likeThreshold } = pointTiers.info.value;
-    return UtilPointMessages.boardTierLine(t, UtilPoint.tierOfMode(form.value.pointMode), tiers, likeThreshold, locale.value);
+    return UtilPointMessages.boardTierLine(t, UtilPoint.tierOfMode(form.value.pointMode), pointTiers.info.value, locale.value);
 });
 
 async function load() {

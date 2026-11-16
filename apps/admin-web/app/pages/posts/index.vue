@@ -20,9 +20,10 @@
           제목 자리에 「소모임 비공개 글」(자물쇠·기울임), 서랍은 본문·투표 대신 「신고 상세에서만」 안내(`contentBlocked: GROUP_PRIVATE`). 소모임 글은 이동이 없다(서버도 `409 POST_STATE_INVALID`).
         - 글 대표 썸네일(list-thumbnail-contract 「2단계」): 서랍의 「대표 썸네일」 구획(지금 그림·출처) + [바꾸기](`post.manage`) → `PostThumbnailDialog`(글 이미지 고르기·올리기·없음·자동) → 저장 뒤 서랍을 조용히 다시 받는다.
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
-        - 우수 글(point-board-tier-contract — 화면 목업): ⋯ 메뉴·서랍 바닥에 「우수 글로 선정」(공개 글) / 「우수 글 선정 취소」(선정된 글) → 확인 대화상자(글쓴이가 받을 그 게시판 등급의 우수 글 금액·보류 시간, 0P 등급이면 포인트 없이 선정만)
-          → `usePostApi.feature`·`unfeature`. 줄·서랍에 「우수 글」 칩. 권한 후보 `post.feature`(⚠ MOCK: 서버에 권한이 생기기 전까지 `post.manage` 가 있어도 보인다).
-          ⚠ MOCK: 선정은 이 탭 메모리에만 남고, 글의 게시판 등급은 게시판 slug 기본 배정(`UtilPoint.defaultTierOfBoard`)으로 본다. 「이달의 작가 후보에 넣기」는 칭호 기능 몫이라 여기 없다.
+        - 우수 글(point-board-tier-contract): ⋯ 메뉴·서랍 바닥에 「우수 글로 선정」(공개 글) / 「우수 글 선정 취소」(선정된 글) → 확인 대화상자 → `POST·DELETE /api/admin/posts/{id}/feature`(204).
+          줄·서랍에 「우수 글」 칩(줄의 `featured`). 권한 `post.feature` 만(운영자). 409 `POST_STATE_INVALID`·404 `POST_NOT_FOUND` 는 다른 조치처럼 토스트 + 새로 받기.
+          선정 확인의 금액·보류 시간은 글이 있는 게시판의 유효 `pointMode`(관리자 게시판 API, `board.read`) + 포인트 정책 `boardTiers`(`point.read`)로 구한다 — 둘 중 하나라도 없거나 못 읽으면 금액 없는 일반 문구.
+          끈 게시판이면 「포인트 없이 선정만」. 취소 확인은 금액 없이(보류 금액은 선정한 순간의 정책값). 「이달의 작가 후보에 넣기」는 칭호 기능 몫이라 여기 없다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('post.title')" :subtitle="t('post.subtitle')">
@@ -191,7 +192,7 @@
                                 <span v-if="data.prefix" class="shrink-0 text-xs text-muted-color">[{{ data.prefix.name }}]</span>
                                 <Tag v-if="data.notice" :value="t('post.chip.notice')" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
-                                <!-- 우수 글(point-board-tier-contract — ⚠ MOCK 선정 목록) -->
+                                <!-- 우수 글(point-board-tier-contract — 줄의 `featured`) -->
                                 <Tag v-if="data.featured" :value="t('post.chip.featured')" icon="pi pi-star-fill" severity="warn" class="text-[11px]!" data-testid="post-row-featured" />
                                 <Tag v-if="data.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                                 <!-- 운영 게시판 — 처리 상태 · 비밀글 -->
@@ -407,6 +408,7 @@
 import type { MenuItem } from 'primevue/menuitem';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
+import type { PointBoardTier } from '~/composables/point/api/usePointApi.types';
 import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, AdminPostThumbnailRequest, PostBulkAction, PostBulkResult, PostProcessStatus, PostProcessStatusHistoryItem, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import type { PostThumbnailActions } from '~/components/post/PostThumbnailDialog.types';
@@ -465,20 +467,42 @@ function actionsOf(item: AdminPostItem) {
     return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value, feature: canFeature.value });
 }
 
-/* ── 우수 글 선정·취소(point-board-tier-contract — 화면 목업) ── */
-/** 우수 글 선정 — 새 권한 후보 `post.feature`. MOCK: 서버에 권한이 생기기 전까지 `post.manage` 가 있어도 보인다 */
-const canFeature = computed(() => can('post.feature') || can('post.manage'));
-/** 등급별 우수 글 금액·보류 시간 — 포인트 정책에서 읽고 못 읽으면 계약 기본값 */
+/* ── 우수 글 선정·취소(point-board-tier-contract) ── */
+/** 우수 글 선정·취소 — `post.feature`(운영자) */
+const canFeature = computed(() => can('post.feature'));
+/** 등급별 우수 글 금액·보류 시간 — 포인트 정책(`point.read`)에서 읽는다. 못 읽으면 null */
 const pointTiers = usePointBoardTiers();
+const boardApi = useBoardApi();
 const { confirm } = useConfirmDialog();
+
+/**
+ * 글이 있는 게시판의 유효 포인트 등급 — 게시판 값 ?? 기본값(관리자 게시판 API, `board.read`). 끔이면 null.
+ * 권한이 없거나 못 읽으면 undefined(모름 — 확인 문구를 금액 없이 줄인다). 게시판 설정은 바뀔 수 있어 누를 때마다 읽는다.
+ */
+async function boardTierOf(slug: string): Promise<PointBoardTier | null | undefined> {
+    if (!can('board.read')) return undefined;
+    try {
+        const board = await boardApi.bySlug(slug);
+        return UtilPoint.tierOfMode(board.policy.pointMode ?? board.defaults.pointMode);
+    } catch {
+        return undefined;
+    }
+}
 
 /** 확인 뒤 선정·취소 → 목록·서랍을 새로 받는다. 실패는 서버 문구 토스트 */
 async function openFeature(item: AdminPostItem, kind: PostConfirmKind): Promise<void> {
     if (acting.value) return;
-    await pointTiers.ensure();
-    // MOCK: 글 응답에 게시판 등급이 없어 slug 기본 배정으로 본다(뉴스·핫딜 = 정보, 사용기·팁·강좌 = 핵심 글, 그 밖 = 일반)
-    const tier = UtilPoint.defaultTierOfBoard(item.board.slug);
-    const values = pointTiers.info.value.tiers[tier];
+    // 선정만 금액을 보인다 — 게시판 등급과 정책 금액을 함께 읽는다(취소는 금액 없는 문구)
+    let tier: PointBoardTier | null | undefined;
+    if (kind === 'FEATURE') {
+        acting.value = true;
+        try {
+            [tier] = await Promise.all([boardTierOf(item.board.slug), pointTiers.ensure()]);
+        } finally {
+            acting.value = false;
+        }
+    }
+    const values = tier ? (pointTiers.info.value?.tiers[tier] ?? null) : null;
     const ok = await confirm({
         title: t(`post.featureDialog.${kind}.title`),
         message: UtilPostMessages.featureConfirm(t, kind, tier, values, locale.value),
@@ -491,7 +515,14 @@ async function openFeature(item: AdminPostItem, kind: PostConfirmKind): Promise<
         if (kind === 'FEATURE') await api.feature(item.id);
         else await api.unfeature(item.id);
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        const error = errorOf(e);
+        // 그 사이 다른 운영자가 바꿨거나(이미 선정·선정 없음·공개 글 아님) 글이 없어졌다 — 알리고 새로 받는다
+        if (STALE_CODES.has(error.code)) {
+            toast.error(t('post.staleFailed', { reason: error.message }), 8000);
+            await refreshAfter(item.id);
+        } else {
+            toast.error(error.message, 8000);
+        }
         return;
     } finally {
         acting.value = false;

@@ -5,8 +5,8 @@
 
 ## 1. 경험치·레벨
 - **경험치(XP)** = 활동으로 **적립된** 포인트의 누적. 포인트를 쓰거나 소멸해도 줄지 않는다.
-  - 더함: `POST` · `COMMENT` · `LIKE_BONUS` · `ATTENDANCE` · `ATTENDANCE_STREAK` · `POPULAR` · `POST_RESTORE`
-  - 뺌: `POST_REVOKE` · `COMMENT_REVOKE` · `LIKE_BONUS_REVOKE` (0 아래로는 안 내려간다)
+  - 더함: `POST` · `COMMENT` · `LIKE_BONUS` · `ATTENDANCE` · `ATTENDANCE_STREAK` · `POPULAR` · `POST_RESTORE` · `POST_FEATURED`(우수 글, point-board-tier-contract)
+  - 뺌: `POST_REVOKE` · `COMMENT_REVOKE` · `LIKE_BONUS_REVOKE` · `POST_FEATURED_REVOKE` (0 아래로는 안 내려간다)
   - 넣지 않음: 운영 조정(`ADMIN_ADJUST`)·충전·충전 보너스·가입·이벤트 보상·작가 보상·사용·환불·상계·소멸 등 그 밖의 사유 전부.
   - 포인트 적립이 꺼진 게시판 활동은 경험치도 없다(적립 조건 — 최소 글자 수·간격·하루 한도 — 이 그대로 어뷰징을 막는다).
 - 저장: `profiles.xp bigint NOT NULL DEFAULT 0`, `profiles.level int NOT NULL DEFAULT 1`. 포인트 원장 줄을 쓰는 같은 트랜잭션에서 증감하고 레벨을 다시 계산한다(세이브포인트 격리 규칙 그대로 — 실패해도 글쓰기를 깨지 않는다).

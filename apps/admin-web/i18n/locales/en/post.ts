@@ -149,11 +149,11 @@ export default {
             now: 'The author gets {n}P (the {tier} tier’s featured amount) right away · it becomes a candidate for the home page and magazine.',
             noPoints: 'The {tier} tier pays 0P for featured posts, so it is featured without points · it becomes a candidate for the home page and magazine.',
             offBoard: 'This board gives no points, so it is featured without points · it becomes a candidate for the home page and magazine.',
+            generic: 'The author gets the featured points of this board’s tier (confirmed after the tier’s hold time, if any) · it becomes a candidate for the home page and magazine.',
         },
         UNFEATURE: {
             title: 'Unfeature this post?',
-            points: 'The pending {n}P payout is canceled. Points already confirmed are not taken back. It also leaves the home page and magazine candidates.',
-            text: 'The featured mark is removed and it leaves the home page and magazine candidates.',
+            text: 'A pending featured payout, if any, is canceled. Points already confirmed are not taken back. The featured mark is removed and it leaves the home page and magazine candidates.',
         },
     },
     dialog: {

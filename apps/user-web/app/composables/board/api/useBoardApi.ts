@@ -1,8 +1,6 @@
 import type { BoardDetail, BoardTagSuggestion, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
-// MOCK: 게시판 포인트 등급(point-board-tier-contract) — 서버가 주면 이 줄을 지운다
-import { withPointTierMock } from '~/composables/board/api/mock/board-point-tier-mock';
 
 /**
  * 게시판 API — 서버 주소 문자열(`/api/boards/…`)이 있는 **유일한 곳**이다 (frontend-guide 2장). 상태는 없다.
@@ -46,12 +44,7 @@ export function useBoardApi() {
         writable: async (signal?: AbortSignal): Promise<BoardView[]> => (await client.get<{ boards: BoardView[] }>(PATH.writable, { signal })).boards,
 
         /** 게시판 하나 — 유효 정책과 지금 사용자의 글쓰기·댓글 판정 (+ 포인트 등급 `pointTier` — point-board-tier-contract) */
-        board: async (slug: string, signal?: AbortSignal): Promise<BoardDetail> => {
-            const detail = await client.get<BoardDetail>(PATH.board(slug), { signal });
-            // MOCK: 서버가 게시판 포인트 등급(`pointTier`)을 주기 전까지 slug 기본 배정으로 채운다
-            return withPointTierMock(detail);
-            // REAL: return detail;
-        },
+        board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
 
         /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순) */
         tags: (slug: string, signal?: AbortSignal): Promise<BoardTagSuggestion[]> => client.get<BoardTagSuggestion[]>(PATH.tags(slug), { signal }),

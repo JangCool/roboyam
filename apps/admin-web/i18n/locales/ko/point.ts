@@ -145,6 +145,7 @@ export default {
         hold: '보너스 {h}시간 뒤 확정',
         none: '포인트 없음',
         off: '이 게시판은 포인트를 주지 않아요.',
+        nameOnly: '{tier} 등급 — 금액과 조건은 포인트 정책 › 게시판 등급별 지급에서 정해요.',
     },
     note: {
         attendanceOnce: '하루는 한국 시간 자정 기준이에요.',

@@ -145,6 +145,7 @@ export default {
         hold: 'bonus confirmed after {h}h',
         none: 'No points',
         off: 'This board gives no points.',
+        nameOnly: '{tier} tier — amounts and conditions are set in Point policy › Points by board tier.',
     },
     note: {
         attendanceOnce: 'A day starts at midnight Korea time.',

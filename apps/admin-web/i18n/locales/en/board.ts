@@ -499,7 +499,7 @@ export default {
             NONE: 'Plain text',
             SIMPLE: 'Simple',
         },
-        // Point tiers (point-board-tier-contract) — the old value `ON` is read as Standard
+        // Point tiers (point-board-tier-contract) — server values OFF/NORMAL/INFO/CORE
         pointMode: {
             OFF: 'Off',
             NORMAL: 'Standard',

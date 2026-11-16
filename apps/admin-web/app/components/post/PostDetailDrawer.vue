@@ -80,7 +80,7 @@
                     <span v-if="post.prefix" class="text-muted-color">[{{ post.prefix.name }}]</span>
                     <Tag v-if="post.notice" :value="t('post.chip.notice')" severity="info" class="text-[11px]!" />
                     <Tag v-if="post.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
-                    <!-- 우수 글(point-board-tier-contract — ⚠ MOCK 선정 목록) -->
+                    <!-- 우수 글(point-board-tier-contract — 줄의 `featured`) -->
                     <Tag v-if="post.featured" :value="t('post.chip.featured')" icon="pi pi-star-fill" severity="warn" class="text-[11px]!" data-testid="post-drawer-featured" />
                     <Tag v-if="post.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                     <Tag v-if="post.secret" :value="t('post.chip.secret')" icon="pi pi-lock" severity="secondary" class="text-[11px]!" />

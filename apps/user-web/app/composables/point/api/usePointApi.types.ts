@@ -169,7 +169,7 @@ export type MyPointPendingReason = 'LIKE_BONUS' | 'POST_FEATURED';
 
 /**
  * 확정 대기 한 줄(point-board-tier-contract 「보류 확정 방식」) — 보류 시간이 지나면 지급된다. 그 사이 글이 지워지거나 신고로 숨겨지면 취소된다.
- * ⚠ 서버 API 가 아직 없다(후보 `GET /api/me/points/pending` → `{ items }`) — `usePointApi.pending` 이 목업 줄을 준다(MOCK).
+ * server/api `MyPointPendingItemView`.
  */
 export interface MyPointPendingItem {
     id: string;
@@ -183,7 +183,7 @@ export interface MyPointPendingItem {
 }
 
 /**
- * 확정 대기 응답(후보 `GET /api/me/points/pending` → `{ items }`). 포인트 동결 여부는 요약 응답의 `restriction`(P-5)을 쓴다 — 동결 중에 확정 시각이 오면 그 줄은 지급되지 않고 취소된다.
+ * 확정 대기 응답(`GET /api/me/points/pending` → `{ items }`). 포인트 동결 여부는 요약 응답의 `restriction`(P-5)을 쓴다 — 동결 중에 확정 시각이 오면 그 줄은 지급되지 않고 취소된다.
  */
 export interface MyPointPendingResult {
     items: MyPointPendingItem[];

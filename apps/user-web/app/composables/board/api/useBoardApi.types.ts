@@ -367,10 +367,9 @@ export interface BoardDetail extends BoardView {
     /** 태그 필수(유효 정책 `tagRequired`) — 켜져 있으면 태그를 하나 이상 단다(서버 400 `fields.tags`). 「태그 쓰기」(`tagsEnabled`)가 꺼진 게시판은 서버가 늘 false. 옛 응답이면 끔 */
     tagRequired?: boolean;
     /**
-     * 이 게시판의 포인트 등급과 금액·조건(point-board-tier-contract 「API 후보」 — 게시판 정보 응답에 붙을 예정). 포인트를 주지 않는 게시판(`pointMode` 끔)이면 null.
-     * ⚠ 서버가 아직 주지 않는다 — `useBoardApi.board` 가 slug 기본 배정 + 계약 기본값으로 채운다(MOCK).
+     * 이 게시판의 포인트 등급과 금액·조건(point-board-tier-contract — server/api `BoardPointTierView`). 포인트를 주지 않는 게시판(`pointMode` 끔)·소모임 게시판이면 null.
      */
-    pointTier?: BoardPointTierView | null;
+    pointTier: BoardPointTierView | null;
     /**
      * 출처 칸 쓰기(유효 정책 `sourcesEnabled` — shared V232, 사이트 기본 끔) — 켜져 있으면 글쓰기·고치기에 「출처」 칸(줄마다 이름 + 주소, 최대 5)을 보인다.
      * 꺼져 있으면 서버가 `sources` 를 무시한다. 옛 응답이면 끔

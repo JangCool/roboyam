@@ -56,10 +56,14 @@ export default class UtilPointMessages {
         return parts.join(' · ');
     }
 
-    /** 게시판 설정의 포인트 칸 아래 한 줄 — 끔이면 「포인트를 주지 않아요」, 아니면 「정보 등급 — 쓰면 30P · …」 */
-    static boardTierLine(t: Translate, tier: PointBoardTier | null, tiers: PointBoardTiers, likeThreshold: number, locale: string): string {
+    /**
+     * 게시판 설정의 포인트 칸 아래 한 줄 — 끔이면 「포인트를 주지 않아요」, 아니면 「정보 등급 — 쓰면 30P · …」.
+     * 정책 값(`policy`)이 없으면(`point.read` 없음·못 읽음) 등급 이름만 보인다 — 금액을 짐작하지 않는다.
+     */
+    static boardTierLine(t: Translate, tier: PointBoardTier | null, policy: { tiers: PointBoardTiers; likeThreshold: number } | null, locale: string): string {
         if (!tier) return t('point.tierSummary.off');
-        return t('point.tierSummary.line', { tier: t(`point.tier.${tier}`), summary: UtilPointMessages.tierSummary(t, tiers[tier], likeThreshold, locale) });
+        if (!policy) return t('point.tierSummary.nameOnly', { tier: t(`point.tier.${tier}`) });
+        return t('point.tierSummary.line', { tier: t(`point.tier.${tier}`), summary: UtilPointMessages.tierSummary(t, policy.tiers[tier], policy.likeThreshold, locale) });
     }
 
     /** 조정 금액 문제 */

@@ -175,8 +175,8 @@ export default class UtilPermissionCatalog {
         { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: true },
         { code: 'post.restore', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postRestore', descKey: 'permission.item.postRestoreDesc', featureReady: true },
         { code: 'post.bulk-delete', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postBulkDelete', descKey: 'permission.item.postBulkDeleteDesc', featureReady: true },
-        // 우수 글 선정·취소(point-board-tier-contract — 화면 목업, 서버 `Permission` 에 아직 없다). 화면은 목업 단계에서 `post.manage` 가 있어도 보인다
-        { code: 'post.feature', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postFeature', descKey: 'permission.item.postFeatureDesc', featureReady: false },
+        // 우수 글 선정·취소(point-board-tier-contract — 서버 `Permission.POST_FEATURE`, 운영자만)
+        { code: 'post.feature', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postFeature', descKey: 'permission.item.postFeatureDesc', featureReady: true },
         // AI 회원(`/ai-members` 네 화면) — 글·댓글을 만드는 계정이라 게시글 유형. 조회 · 처리(만들기·고치기·켜고 끄기·검수·설정·전체 정지·AI 전용 소모임) · 민감(제공사 API 키 저장)
         { code: 'ai-member.read', unit: 'READ', type: 'post', nameKey: 'permission.item.aiMemberRead', descKey: 'permission.item.aiMemberReadDesc', featureReady: true },
         { code: 'ai-member.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.aiMemberManage', descKey: 'permission.item.aiMemberManageDesc', featureReady: true },

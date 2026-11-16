@@ -5,7 +5,7 @@
         서버가 채우는 것: 자동 승급 상태·다음 등급 달성도·등급 변경 이력(최대 50건 — 최근 5건만 보이고 펼친다), 포인트 잔액(상세의 `point`)·최근 포인트 내역(원장 최근 10줄, 사유는 요청 언어).
         닉네임 변경권은 서버의 `nicknameTicketCount`(포인트 상점에서 사서 아직 안 쓰고 환불되지 않은 장수 — 커머스 1-2)를 「N장」으로 보인다. 회원 전체의 원장·수동 지급/차감은 「포인트 내역」 화면(`/points`)이 맡는다.
         커머스 1-1: 잔액을 「합계 · 적립 · 충전」으로 나누고 소멸 예정 · 미회수(있으면 경고 + 최근 미회수 기록 5건) · 포인트 묶음 목록(남은 것만 / 전체, 10개씩 쪽 넘김)을 더했다.
-        게시판 등급별 포인트(point-board-tier-contract — 화면 목업): 묶음 응답의 `pending`(확정 대기 — 보류 중인 추천 보너스·우수 글 보상)을 미회수 아래에 보인다(⚠ MOCK 목업 줄).
+        게시판 등급별 포인트(point-board-tier-contract): 묶음 응답의 `pending`(확정 대기 — 보류 중인 추천 보너스·우수 글 보상)을 미회수 아래에 보인다.
         묶음은 부모(회원 관리 화면)가 `useMemberPointLots` 로 받아 `pointLots` 로 내려 주고, 거르기·쪽·다시 시도는 이벤트로 올린다(`point.read` 가 없거나 받지 않는 화면은 null — 합계만).
         활동 수 조건은 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 보므로 달성도가 차도 승급되지 않을 수 있어 짧은 보조 안내를 붙인다. 탈퇴 회원은 서버가 구획을 비우지만 구획은 남기고 탈퇴 전용 문구를 보인다.
     -->
@@ -170,8 +170,8 @@
                         </ul>
                     </div>
 
-                    <!-- 확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상. 없으면 그리지 않는다. ⚠ MOCK: 서버가 아직 주지 않아 `usePointApi.memberLots` 가 목업 줄로 채운다 -->
-                    <div v-if="lots.pending?.length" class="mt-3" data-testid="member-point-pending">
+                    <!-- 확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상. 없으면 그리지 않는다 -->
+                    <div v-if="lots.pending.length" class="mt-3" data-testid="member-point-pending">
                         <h4 class="mb-1.5 text-xs text-muted-color">
                             {{ t('member.detail.point.pendingTitle') }}
                             <span class="tabular-nums">{{ t('member.detail.point.pendingCount', { count: lots.pending.length.toLocaleString(locale) }) }}</span>

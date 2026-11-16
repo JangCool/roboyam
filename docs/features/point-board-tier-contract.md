@@ -1,4 +1,4 @@
-# 게시판 등급별 포인트 계약 (시안 확정 2026-11-17 · 구현 전)
+# 게시판 등급별 포인트 계약 (시안 확정 2026-11-17 · 서버 구현·연결 2026-11-17)
 
 **의도**: 모든 게시판이 같은 금액을 받던 글 적립을 게시판 등급(일반·정보·핵심 글)으로 나눈다. 쓰면 바로 주는 포인트는 작게, 가치가 확인됐을 때(추천 문턱·우수 글 선정) 주는 보너스는 크게 준다. 하루 인기글 보상도 실제로 지급한다.
 **관련 계약**: `point-contract.md`(지금 적립 규칙 정본) · `member-title-contract.md`(우수 글 → 이달의 작가 후보) · `trial-group-contract.md`(구매 인증 보너스·체험단 사용기).
@@ -60,3 +60,15 @@
 
 ## 미확정
 - 없음(원장 사유·보류 확정 방식은 위 결정으로 닫음).
+
+## 서버 구현 결과 (2026-11-17, shared `V238__point_board_tiers.sql`)
+- 표: `point_settings` 등급 칸 16개 + `info_source_once`·`exclude_ai_and_ops` · `point_pending_grants`(PENDING 은 (사유, 대상)마다 하나) · **`post_features`**(우수 글 선정 이력 — 글·선정/취소 운영자·시각, 살아 있는 선정은 글마다 하나. **회원 칭호의 이달의 작가 후보는 이 표에서 달별 선정 글을 읽는다**) · `point_source_claims`(출처 링크 1회) · `point_popular_rewards`(날짜별 뽑은 인기글 목록 — 다시 돌려도 같은 목록).
+- 일반 등급의 「쓰면 바로」·「최소 글자 수」는 새 칸이 아니라 전역 `postPoints`·`postMinLength`(화면도 「글·댓글」에서 고친다). 전역 `likeBonusPoints` 는 이제 **댓글** 추천 보너스 금액만, 글 추천 보너스는 등급 칸. 보류 시간은 댓글도 그 게시판 등급 값.
+- `pointMode` 전환: ON → NORMAL, 뉴스(`news`)·핫딜(종류 DEAL) = INFO, `tip`·`review`(GENERAL) = CORE. 끈 게시판은 그대로. 설치 프리셋도 같은 값.
+- 출처 링크: 핫딜은 딜 키(`post_deals.product_url_key`), 출처 목록(`posts.sources`)이 있으면 그 모든 주소(딜 키 규칙으로 정규화). 사이트 전체에서 하나라도 이미 글 적립을 받은 링크면 0(지운 글 포함).
+- 적립 제외: 운영팀 계정 = `operator_member_accounts` 에 이어진 회원(스위치로 끌 수 있음). AI 회원은 스위치와 상관없이 늘 제외(ai-members 정책).
+- 우수 글: 공개 글만 선정, 취소는 상태와 상관없이. 확정 뒤 회수는 본인·운영자·스텝 삭제 모두(추천 보너스와 같은 규칙), 글 복구 때 되돌림. 오류 404 `POST_NOT_FOUND`·409 `POST_STATE_INVALID`, 감사 `POST_FEATURE`·`POST_UNFEATURE`. 권한 `post.feature`(역할 기본 부여 없음 — 루트만, 역할 편집에서 준다).
+- 보류: 정상·동결 아닌 회원일 때만 시작. 추천 보너스 하루 횟수는 시작 때(오늘 원장 + 오늘 대기 중 보류). 취소 까닭 `DELETED`·`HIDDEN`·`UNFEATURED`·`TARGET_GONE`·`MEMBER_INACTIVE`·`POINT_FROZEN`.
+- 배치(배치를 켠 admin 에서만): `point-pending-release` 5분마다(SKIP LOCKED) · `point-popular-reward` 매일 00:00 KST(인기글 「어제」 탭과 같은 `popular_rank_candidates` 기준, 글쓴이 상한, 비회원 글 제외, 파라미터 `day`).
+- 사진 최소는 올린 이미지(본문 이미지 id)만 센다.
+- 시험 못 한 것: 신고 자동 숨김(api)·신고 처리 댓글 숨김(admin)의 보류 취소 HTTP 시험(코드만 — 확정 때 숨김을 다시 보므로 지급은 안 됨), 기본값이 OFF 인 사이트의 V238 분기, 자정 경계·실제 0시 실행.

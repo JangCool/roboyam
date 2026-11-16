@@ -192,10 +192,9 @@ export interface PointMemberLots {
     /** 최근 것이 먼저, 최대 5건 */
     shortfalls: PointRevokeShortfall[];
     /**
-     * 확정 대기(point-board-tier-contract 「보류 확정 방식」, `point_pending_grants` 의 PENDING) — 확정 예정이 가까운 것부터.
-     * ⚠ 서버가 아직 주지 않는다 — `usePointApi.memberLots` 가 목업으로 채운다(MOCK). 서버가 주면 이 칸을 필수로 바꾼다.
+     * 확정 대기(point-board-tier-contract 「보류 확정 방식」, `point_pending_grants` 의 PENDING) — 확정 예정이 가까운 것부터. 없으면 빈 목록
      */
-    pending?: PointPendingGrant[];
+    pending: PointPendingGrant[];
 }
 
 /** 보류 중인 지급의 사유 — 추천 문턱 보너스 · 우수 글 선정 */
@@ -284,7 +283,7 @@ export interface PointSettingsValues {
      * 커머스 1-1 은 응답에 읽기 전용으로만 있었고 1-3 부터 저장한다.
      */
     adjustLargeThreshold: number;
-    // ── 게시판 등급별 지급(point-board-tier-contract) — ⚠ 서버가 아직 주지 않는다(응답에 없으면 `usePointApi` 가 목업 기본값으로 채운다 — MOCK)
+    // ── 게시판 등급별 지급(point-board-tier-contract) — PUT 에 빠지면 400
     /** 정보 등급: 같은 출처 링크는 한 번만 적립. 기본 true */
     infoSourceOnce: boolean;
     /** AI 회원·운영팀 계정은 적립 안 함. 기본 true */
@@ -305,7 +304,7 @@ export interface PointSettingsRequest extends PointSettingsValues {
 
 /** `GET·PUT /api/admin/settings/points` 의 응답 — 값 + 게시판 등급 칸 + 마지막 변경(처음 상태면 null) */
 export interface PointSettingsResponse extends PointSettingsValues {
-    /** 게시판 등급별 금액·조건 — ⚠ 서버가 아직 주지 않는다(MOCK 으로 채운다) */
+    /** 게시판 등급별 금액·조건 — 일반 등급의 `postPoints`·`minLength` 는 전역 `postPoints`·`postMinLength` 값이다 */
     boardTiers: PointBoardTiers;
     updatedAt: string | null;
     updatedBy: string | null;

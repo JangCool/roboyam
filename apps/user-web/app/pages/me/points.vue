@@ -112,7 +112,7 @@
             <!--
                 확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상. 「+150P · 추천 보너스 · 글 제목 · 11월 18일 14:00 확정 예정」. 없거나 못 받으면 구획을 그리지 않는다(내역이 본체라 실패를 따로 알리지 않는다).
                 포인트 동결 중이면 「동결이 풀리기 전에 확정 시각이 오면 받지 못해요」 안내를 붙인다.
-                ⚠ MOCK: 서버 API 가 없어 `usePointApi.pending` 이 목업 줄을 준다(`?mock=pending-empty` 면 빈 목록). 동결 여부는 요약 응답의 `restriction`(P-5).
+                `GET /api/me/points/pending`(`usePointApi.pending`). 동결 여부는 요약 응답의 `restriction`(P-5).
             -->
             <section v-if="pending.length" class="panel-card p-4" :aria-labelledby="`${uid}-pending`" data-testid="points-pending">
                 <h2 :id="`${uid}-pending`" class="text-sm font-semibold">{{ t('point.pendingTitle') }}</h2>

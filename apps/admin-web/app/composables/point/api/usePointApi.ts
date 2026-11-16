@@ -9,8 +9,6 @@ import type {
     PointSettingsRequest,
     PointSettingsResponse,
 } from '~/composables/point/api/usePointApi.types';
-// MOCK: 게시판 등급 칸·확정 대기 보충(point-board-tier-contract) — 서버가 주면 이 줄을 지운다
-import { withBoardTierMock, withPendingMock } from '~/composables/point/api/mock/point-board-tier-mock';
 
 /**
  * 포인트 API — 서버 주소 문자열(`/api/admin/points…`·`/api/admin/settings/points`·`/api/admin/members/{id}/points`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -28,12 +26,13 @@ import { withBoardTierMock, withPendingMock } from '~/composables/point/api/mock
  *   - `GET  /api/admin/members/{id}/point-lots?active=true|false&page=0&size=1~50` → 200 `PointMemberLots`(적립/충전 잔액 · 소멸 예정 · 미회수 · 묶음 한 쪽 · 최근 미회수 기록 5건.
  *        `active=true` 는 남아 있고 소멸일이 지나지 않은 묶음을 차감 순서로, `false` 는 모든 묶음을 최근 받은 순으로. 404 `MEMBER_NOT_FOUND`(탈퇴 포함). `point.read`)
  *   - `GET  /api/admin/settings/points` → 200 `PointSettingsResponse` (`point.read`)
- *   - `PUT  /api/admin/settings/points` `PointSettingsValues`(모든 칸) → 200 `PointSettingsResponse`
+ *   - `PUT  /api/admin/settings/points` `PointSettingsRequest`(모든 칸 + 게시판 등급 칸) → 200 `PointSettingsResponse`
  *       (칸마다 정수·범위 — 틀린 칸을 모아 400 `VALIDATION` + `fields.<칸>`(서버 문구), 하나라도 틀리면 아무것도 저장하지 않는다. 저장하면 15초 안에 모든 서버에 반영, 소급 없음. 감사 기록 `POINT_SETTINGS_UPDATE`(바뀐 값만). `point.settings`)
  *   공통 오류: 403 `PERMISSION_DENIED`.
  * 커머스 1-3: 정책에 적립 조건·하루 총 한도·연속 출석 보너스 칸이 더해지고 조정 문턱(`adjustLargeThreshold`)도 저장한다(`commerce-stage1-contract.md` 「1-3 화면 목업」).
- * 게시판 등급별 포인트(`point-board-tier-contract.md` — 화면 목업 단계): 정책 GET·PUT 에 `boardTiers`·`infoSourceOnce`·`excludeAiAndOps`, 회원 묶음 응답에 확정 대기 `pending`.
- *   ⚠ MOCK — 서버가 아직 주지 않아 응답에 없으면 `mock/point-board-tier-mock.ts` 가 채운다. PUT 에는 실어 보낸다(서버는 모르는 칸을 무시한다고 가정).
+ * 게시판 등급별 포인트(`point-board-tier-contract.md`): 정책 GET·PUT 에 `boardTiers.{NORMAL|INFO|CORE}.{postPoints, likeBonusPoints, featuredPoints, minLength, minImages, holdHours}`·`infoSourceOnce`·`excludeAiAndOps`
+ *   (PUT 에 등급 칸·스위치가 빠지면 400 — 오류 키 `fields["boardTiers.INFO.postPoints"]`·`fields.infoSourceOnce`). 응답의 일반 등급 `postPoints`·`minLength` 는 전역 `postPoints`·`postMinLength` 값이고
+ *   PUT 에서는 서버가 그 둘을 무시한다. 회원 묶음 응답에 확정 대기 `pending`(확정 예정이 가까운 것부터).
  */
 const PATH = {
     ledger: '/api/admin/points/ledger',
@@ -59,27 +58,14 @@ export function usePointApi() {
         adjust: (memberId: string, body: PointAdjustRequest): Promise<PointAdjustResponse> => client.post<PointAdjustResponse>(PATH.adjust(memberId), body),
 
         /** 회원 한 명의 포인트 묶음 한 쪽 + 적립/충전 잔액 · 소멸 예정 · 미회수 + 확정 대기(point-board-tier-contract) */
-        memberLots: async (memberId: string, query: PointMemberLotsQuery): Promise<PointMemberLots> => {
-            const res = await client.get<PointMemberLots>(PATH.memberLots(memberId), { query: { ...query } });
-            // MOCK: 서버가 확정 대기(`pending`)를 주기 전까지 목업 줄로 채운다
-            return withPendingMock(res, memberId);
-            // REAL: return res;
-        },
+        memberLots: (memberId: string, query: PointMemberLotsQuery): Promise<PointMemberLots> => client.get<PointMemberLots>(PATH.memberLots(memberId), { query: { ...query } }),
 
         /** 포인트 정책(조정 문턱 · 게시판 등급 칸 포함) */
-        loadSettings: async (): Promise<PointSettingsResponse> => {
-            const res = await client.get<PointSettingsResponse>(PATH.settings);
-            // MOCK: 서버가 게시판 등급 칸(`boardTiers`·`infoSourceOnce`·`excludeAiAndOps`)을 주기 전까지 기본값으로 채운다
-            return withBoardTierMock(res);
-            // REAL: return res;
-        },
+        loadSettings: (): Promise<PointSettingsResponse> =>
+            client.get<PointSettingsResponse>(PATH.settings),
 
-        /** 포인트 정책을 통째로 저장한다(게시판 등급 칸도 함께 — 서버는 아직 모르는 칸을 무시한다고 가정) — 저장된 값을 돌려준다 */
-        saveSettings: async (body: PointSettingsRequest): Promise<PointSettingsResponse> => {
-            const res = await client.put<PointSettingsResponse>(PATH.settings, body);
-            // MOCK: 서버가 등급 칸을 돌려주기 전까지 보낸 값으로 채운다
-            return withBoardTierMock(res, body);
-            // REAL: return res;
-        },
+        /** 포인트 정책을 통째로 저장한다(게시판 등급 칸·스위치도 함께 — 서버가 필수로 받는다) — 저장된 값을 돌려준다 */
+        saveSettings: (body: PointSettingsRequest): Promise<PointSettingsResponse> =>
+            client.put<PointSettingsResponse>(PATH.settings, body),
     };
 }

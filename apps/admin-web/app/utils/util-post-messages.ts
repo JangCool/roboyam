@@ -146,13 +146,16 @@ export default class UtilPostMessages {
 
     /**
      * 우수 글 선정·취소 확인 본문(point-board-tier-contract) — 선정은 글쓴이가 받을 금액(그 게시판 등급의 우수 글 금액)·보류 시간 · 홈·매거진 노출 후보,
-     * 금액이 0P(끔·일반 등급 기본)면 포인트 없이 선정만 된다는 안내. 취소는 보류 중 지급 취소 · 확정된 것은 회수하지 않음.
-     * @param tier - 글이 있는 게시판의 등급(끔이면 null)
+     * 금액이 0P 면 포인트 없이 선정만 된다는 안내. 등급이나 금액을 모르면(`board.read`·`point.read` 없음·못 읽음) 금액 없는 일반 문구.
+     * 취소는 금액 없이 — 보류 금액은 선정한 순간의 정책값이라 지금 정책으로 짐작하지 않는다(보류 중 지급 취소 · 확정된 것은 회수하지 않음).
+     * @param tier - 글이 있는 게시판의 유효 등급(끔이면 null, 모르면 undefined)
+     * @param values - 그 등급의 금액·조건(모르면 null)
      */
-    static featureConfirm(t: Translate, kind: PostConfirmKind, tier: PointBoardTier | null, values: PointBoardTierValues, locale: string): string {
+    static featureConfirm(t: Translate, kind: PostConfirmKind, tier: PointBoardTier | null | undefined, values: PointBoardTierValues | null, locale: string): string {
+        if (kind === 'UNFEATURE') return t('post.featureDialog.UNFEATURE.text');
+        if (tier === null) return t('post.featureDialog.FEATURE.offBoard');
+        if (tier === undefined || !values) return t('post.featureDialog.FEATURE.generic');
         const n = values.featuredPoints.toLocaleString(locale);
-        if (kind === 'UNFEATURE') return values.featuredPoints > 0 && tier ? t('post.featureDialog.UNFEATURE.points', { n }) : t('post.featureDialog.UNFEATURE.text');
-        if (!tier) return t('post.featureDialog.FEATURE.offBoard');
         const tierName = t(`point.tier.${tier}`);
         if (values.featuredPoints === 0) return t('post.featureDialog.FEATURE.noPoints', { tier: tierName });
         if (values.holdHours === 0) return t('post.featureDialog.FEATURE.now', { n, tier: tierName });

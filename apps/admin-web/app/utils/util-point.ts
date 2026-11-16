@@ -214,13 +214,6 @@ const TIER_DEFAULTS: PointBoardTiers = {
  */
 const TIER_MIRRORS: Partial<Record<PointBoardTierField, PointSettingsNumberField>> = { postPoints: 'postPoints', minLength: 'postMinLength' };
 
-/**
- * 게시판 기본 등급(목업 배정 — 계약 「기본 배정」: 정보 = 뉴스·핫딜, 핵심 글 = 사용기·팁·강좌, 그 밖 = 일반).
- * slug 는 서버 `BoardFields.NEWS_SLUG`(`news`)·목업 핫딜 게시판(`hotdeal`)·매거진 두 게시판(`tip`·`review`, tips-contract). 핫딜 종류(`DEAL`) 게시판도 정보로 본다.
- */
-const INFO_SLUGS: ReadonlySet<string> = new Set(['news', 'hotdeal']);
-const CORE_SLUGS: ReadonlySet<string> = new Set(['tip', 'review']);
-
 const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE', 'EXPIRE', 'REFUND'];
 
 export default class UtilPoint {
@@ -327,7 +320,7 @@ export default class UtilPoint {
 
     /**
      * 서버가 거절한 칸(`400 VALIDATION` 의 `fields.<칸>`)과 칸에 붙지 않는 문구를 나눈다.
-     * 게시판 등급 칸은 `fields.boardTiers.<등급>.<칸>`(가정 — 서버가 정하면 맞춘다)으로 받아 `tiers` 에 둔다.
+     * 게시판 등급 칸은 `fields["boardTiers.<등급>.<칸>"]` 로 받아 `tiers` 에 둔다.
      * @returns 입력 오류가 아니면 null.
      */
     static settingsFieldErrorsOf(e: unknown): { fields: Partial<Record<PointSettingsField, string>>; tiers: Partial<Record<PointTierKey, string>>; rest: string } | null {
@@ -371,36 +364,9 @@ export default class UtilPoint {
         return tier === 'NORMAL' ? (TIER_MIRRORS[field] ?? null) : null;
     }
 
-    /** 게시판의 `pointMode` → 등급. 끔이면 null, 옛 값 `ON` 은 일반(MOCK — 서버가 `ON` 을 `NORMAL` 로 바꾸면 이 줄을 지운다) */
+    /** 게시판의 `pointMode` → 등급. 끔(`OFF`)·모르는 값이면 null */
     static tierOfMode(mode: string | null | undefined): PointBoardTier | null {
-        if (mode === 'ON') return 'NORMAL'; // MOCK: 서버가 아직 `ON` 을 준다
         return (BOARD_TIERS as readonly string[]).includes(mode ?? '') ? (mode as PointBoardTier) : null;
-    }
-
-    /** 게시판 기본 등급(목업 배정) — 뉴스·핫딜 = 정보, 사용기·팁·강좌 = 핵심 글, 그 밖 = 일반 */
-    static defaultTierOfBoard(slug: string, kind?: string | null): PointBoardTier {
-        if (INFO_SLUGS.has(slug) || kind === 'DEAL') return 'INFO';
-        if (CORE_SLUGS.has(slug)) return 'CORE';
-        return 'NORMAL';
-    }
-
-    /**
-     * 응답의 등급 칸을 빈틈없이 — 칸이 없거나 숫자가 아니면 기본값으로 채운다(서버가 아직 등급 칸을 주지 않는다 — MOCK 보충에서 쓴다).
-     * 일반 등급의 따라가는 칸(쓰면 바로·최소 글자 수)은 기존 「글·댓글」 칸 값으로 맞춘다.
-     */
-    static completeTiers(tiers: Partial<Record<PointBoardTier, Partial<PointBoardTierValues>>> | null | undefined, flat: Pick<PointSettingsValues, 'postPoints' | 'postMinLength'>): PointBoardTiers {
-        const out = {} as PointBoardTiers;
-        for (const tier of BOARD_TIERS) {
-            const given = tiers?.[tier] ?? {};
-            const values = {} as PointBoardTierValues;
-            for (const field of TIER_FIELDS) {
-                const mirror = UtilPoint.tierMirrorOf(tier, field);
-                const raw = mirror ? flat[mirror as 'postPoints' | 'postMinLength'] : given[field];
-                values[field] = typeof raw === 'number' && Number.isInteger(raw) ? raw : TIER_DEFAULTS[tier][field];
-            }
-            out[tier] = values;
-        }
-        return out;
     }
 
     /** 서버 값 → 입력(칸마다 글자) */

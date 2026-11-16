@@ -502,7 +502,7 @@ export default {
             NONE: '평문',
             SIMPLE: '간단',
         },
-        // 포인트 등급(point-board-tier-contract) — 옛 값 `ON` 은 화면이 일반으로 읽는다
+        // 포인트 등급(point-board-tier-contract) — 서버 값 OFF·NORMAL·INFO·CORE
         pointMode: {
             OFF: '끔',
             NORMAL: '일반',

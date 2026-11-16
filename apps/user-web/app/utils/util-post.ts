@@ -216,13 +216,14 @@ export default class UtilPost {
     }
 
     /**
-     * 본문 사진 수 — 에디터 HTML 은 올린 이미지(`img[data-image-id]`), 평문은 이미지 주소 꼴(`imageCount`).
+     * 포인트 적립 조건의 사진 수 — 본문에 붙은 **올린 이미지**(`img[data-image-id]`, 겹친 것 포함)만 센다. 서버(`ContentBody.imageIds()`)와 같은 셈이라
+     * 평문 본문의 이미지 주소·마크다운 이미지는 세지 않는다(평문은 0). 판정은 서버다(화면은 안내만).
      * @param {string} content - 본문.
      * @param {ContentFormat} format - 본문 형식.
      * @returns {number} 사진 수.
      */
     static photoCount(content: string, format: ContentFormat = 'TEXT'): number {
-        return format === 'HTML' ? UtilRichText.imageCount(content) : UtilPost.imageCount(content);
+        return format === 'HTML' ? UtilRichText.imageCount(content) : 0;
     }
 
     /**

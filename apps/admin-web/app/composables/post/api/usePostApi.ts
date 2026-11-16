@@ -16,8 +16,6 @@ import type {
     AdminPostThumbnailRequest,
     PostThumbnailUploadResult,
 } from '~/composables/post/api/usePostApi.types';
-// MOCK: 우수 글 선정·취소와 줄의 `featured`(point-board-tier-contract) — 서버가 생기면 이 줄을 지운다
-import { mockFeature, withFeaturedDetail, withFeaturedList } from '~/composables/post/api/mock/post-feature-mock';
 
 /**
  * 게시글 관리 API — 서버 주소(`/api/admin/posts…`)가 있는 **유일한 곳**이다. 상태는 없다. 계약: `docs/features/post-admin-contract.md` 「API」.
@@ -30,7 +28,8 @@ import { mockFeature, withFeaturedDetail, withFeaturedList } from '~/composables
  *       · 이동: 같은 자리·켜진 말머리가 아님 400 `fields.prefixId` · 꺼진 게시판 400 `fields.boardId`
  *   - `POST /bulk { action, ids(1~50), reason, notifyAuthor }` (`post.manage`, DELETE 는 `post.bulk-delete` 도) → 200 `{ done, failed: [{id, code}] }` — 글마다 따로
  *   - `DELETE /{id}/poll { reason }` (`post.manage`, 표가 있어도) → 204 — 글의 투표 지우기(post-poll-contract). 감사 `POST_POLL_DELETE`, 조치 기록 `POLL_DELETED`
- *   - 우수 글(point-board-tier-contract — 후보, ⚠ MOCK): `POST /{id}/feature` 선정 · `DELETE /{id}/feature` 취소 (`post.feature` 후보) → 204. 목록·상세 줄 `featured`.
+ *   - 우수 글(point-board-tier-contract): `POST /{id}/feature` 선정 · `DELETE /{id}/feature` 취소 (`post.feature`) → 204. 404 `POST_NOT_FOUND` · 409 `POST_STATE_INVALID`(공개 글 아님·이미 선정·선정 없음). 목록·상세 줄 `featured`.
+ *       감사 `POST_FEATURE`·`POST_UNFEATURE`.
  *   - `PUT /{id}/process-status { status }` → `{ processStatus, processStatusAt }` — 운영 게시판 처리 상태 바꾸기 · 꺼진 게시판 409 `POST_STATUS_DISABLED` · 400 `fields.status` · 403
  *   운영 게시판: 목록·상세 줄 `secret`·`processStatus`, 목록 쿼리 `processStatus`. 서버 연결됨(2026-11-08, shared V166 — 감사 `POST_PROCESS_STATUS`)
  *   2차(2026-11-08 — 서버와 동시 구현): 바꾸기 본문 `note?`(0~200자, 400 `fields.note`) · 상세 줄 `processStatusNote` ·
@@ -51,7 +50,7 @@ const PATH = {
     processStatusHistory: (id: string) => `${ROOT}/${encodeURIComponent(id)}/process-status/history`,
     /** 대표 썸네일 정하기 */
     thumbnail: (id: string) => `${ROOT}/${encodeURIComponent(id)}/thumbnail`,
-    /** 우수 글 선정·취소(point-board-tier-contract 후보) — 목업 단계라 아직 부르지 않는다(REAL 줄이 쓴다) */
+    /** 우수 글 선정·취소(point-board-tier-contract) */
     feature: (id: string) => `${ROOT}/${encodeURIComponent(id)}/feature`,
 };
 
@@ -62,8 +61,8 @@ export function usePostApi() {
     const files = useFileApi();
 
     return {
-        list: async (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> => {
-            const view = await client.get<AdminPostListView>(PATH.list, {
+        list: (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> =>
+            client.get<AdminPostListView>(PATH.list, {
                 query: {
                     q: query.q || undefined,
                     searchField: query.q ? query.searchField : undefined,
@@ -78,22 +77,13 @@ export function usePostApi() {
                     size: query.size,
                 },
                 signal,
-            });
-            // MOCK: 서버가 줄의 `featured`(우수 글)를 주기 전까지 목업 선정 목록으로 채운다
-            return withFeaturedList(view);
-            // REAL: return view;
-        },
+            }),
 
         /** 켜진 게시판·말머리(필터·이동 대화창) */
         boardOptions: (): Promise<AdminPostBoardOptionsView> => client.get<AdminPostBoardOptionsView>(PATH.boardOptions),
 
         /** 글 하나 — 본문(지운 글도 파기 전까지)·조치 기록 · 대표 썸네일 */
-        get: async (id: string): Promise<AdminPostDetail> => {
-            const detail = await client.get<AdminPostDetail>(PATH.one(id));
-            // MOCK: 우수 글 선정 여부를 채운다
-            return withFeaturedDetail(detail);
-            // REAL: return detail;
-        },
+        get: (id: string): Promise<AdminPostDetail> => client.get<AdminPostDetail>(PATH.one(id)),
 
         /** 대표 썸네일 정하기(`post.manage`) → 204 — 운영자가 정하면 글쓴이 것보다 우선한다. `AUTO` 는 설정을 지워 자동으로 되돌린다 */
         setThumbnail: (id: string, body: AdminPostThumbnailRequest): Promise<void> => client.put<void>(PATH.thumbnail(id), body),
@@ -124,19 +114,13 @@ export function usePostApi() {
         unpin: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'unpin'), body),
 
         /**
-         * 우수 글로 선정(point-board-tier-contract — 후보 `POST /api/admin/posts/{id}/feature`, 권한 후보 `post.feature`) — 글쓴이에게 그 게시판 등급의 우수 글 금액을 보류 지급하고 홈·매거진 노출 후보가 된다.
-         * 글마다 한 번(원장 유일). 공개 글만(그 밖 409 `POST_STATE_INVALID` 후보).
+         * 우수 글로 선정(`POST /api/admin/posts/{id}/feature`, `post.feature`) — 글쓴이에게 그 게시판 등급의 우수 글 금액을 주고(보류 시간이 있으면 보류) 홈·매거진 노출 후보가 된다.
+         * 글마다 한 번(원장 유일). 공개 글만(그 밖·이미 선정 409 `POST_STATE_INVALID`).
          */
-        feature: (id: string): Promise<void> =>
-            // MOCK: 지연 뒤 성공(이 탭 메모리에 선정 여부를 남긴다)
-            mockFeature(id, true),
-        // REAL: feature: (id: string): Promise<void> => client.post<void>(PATH.feature(id)),
+        feature: (id: string): Promise<void> => client.post<void>(PATH.feature(id)),
 
-        /** 우수 글 선정 취소(후보 `DELETE /api/admin/posts/{id}/feature`) — 보류 중이면 지급을 취소, 확정 뒤면 회수하지 않는다 */
-        unfeature: (id: string): Promise<void> =>
-            // MOCK: 지연 뒤 성공
-            mockFeature(id, false),
-        // REAL: unfeature: (id: string): Promise<void> => client.del<void>(PATH.feature(id)),
+        /** 우수 글 선정 취소(`DELETE /api/admin/posts/{id}/feature`) — 보류 중이면 지급을 취소, 확정 뒤면 회수하지 않는다. 선정이 없으면 409 `POST_STATE_INVALID` */
+        unfeature: (id: string): Promise<void> => client.del<void>(PATH.feature(id)),
 
         // REAL:
         /** 글의 투표 지우기 — 사유를 본문에 싣는 DELETE */

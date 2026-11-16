@@ -47,8 +47,7 @@ export type BoardChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
  */
 export type BoardPrefixStyle = 'TEXT' | 'MUTED' | 'COLOR';
 /**
- * 포인트 — 끔 · 일반 · 정보 · 핵심 글(point-board-tier-contract — 등급마다 금액·조건은 포인트 정책 「게시판 등급별 지급」).
- * ⚠ 서버는 아직 옛 값 `ON`·`OFF` 만 안다 — `useBoardApi` 가 받은 `ON` 을 `NORMAL` 로 읽고, 보낼 때 등급을 `ON` 으로 바꿔 보낸다(MOCK).
+ * 포인트 — 끔 · 일반 · 정보 · 핵심 글(point-board-tier-contract — 등급마다 금액·조건은 포인트 정책 「게시판 등급별 지급」). 서버 값 그대로 주고받는다(`ON` 은 서버가 400).
  */
 export type BoardPointMode = 'OFF' | PointBoardTier;
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
