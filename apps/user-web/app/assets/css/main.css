@@ -295,6 +295,19 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
 .shell-card[data-menu-width='FULL'] {
     border-radius: 0;
 }
+/*
+ * 다크 화면의 상단 메뉴 묶음(다음식·아이로빗 `DaumMenuBar` — 메뉴 줄 + 세부 메뉴 줄, 사용자 확정 시안 2026-11-16):
+ * 윗선에서 로고 줄 쪽(위로)으로 옅은 그림자 + 위·아래 1px 선(줄 사이 선은 컴포넌트의 border-t border-hairline). 밝은 화면은 그대로.
+ */
+html[data-color-scheme='dark'] .daum-menu {
+    position: relative;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.55);
+}
+html[data-color-scheme='dark'][data-dark-variant='soft'] .daum-menu {
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.4);
+}
 
 /*
  * 본문 카드(`content-card`) — 게시판 목록(머리·목록·쪽 번호 한 장)과 글 상세(본문 영역 · 댓글 영역 각각)를 감싼다. 구조는 그대로 두고 1단계 변수로만 모양을 바꾼다.
