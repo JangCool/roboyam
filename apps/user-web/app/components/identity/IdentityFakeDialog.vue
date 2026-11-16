@@ -86,6 +86,7 @@ watch(
         localErrors.birthDate = undefined;
         localErrors.personKey = undefined;
     },
+    { immediate: true }, // 셸이 처음 열 때 이 대화상자를 그린다(`layouts/default.vue` 의 Lazy) — 그때는 이미 열린 채로 뜬다
 );
 /** 칸을 고치기 시작하면 그 칸의 오류(화면 검사·서버)를 걷는다 */
 function clearError(key: 'birthDate' | 'personKey'): void {

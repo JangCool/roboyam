@@ -43,19 +43,20 @@
         <!-- 팝업(운영자 관리자 「팝업 관리」) — 들어오면 화면 가운데 뜨는 이벤트·프로모션 창. 보일 곳(홈만/모든 화면)·기기는 부품이 가린다 -->
         <SitePopupLayer />
 
-        <!-- 캐시 영역 겹침 층 — 관리자 캐시 관리 「미리보기」 iframe 안(`cachePreview=1`)에서만 그린다. 공개 화면에는 없다 -->
-        <CacheAreaOverlay />
+        <!-- 캐시 영역 겹침 층 — 관리자 캐시 관리 「미리보기」 iframe 안(`cachePreview=1`)에서만 그린다. 공개 화면에는 없다(그때만 코드를 받는다) -->
+        <LazyCacheAreaOverlay v-if="cacheMode" />
 
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 
         <WriteFab />
-        <LoginPromptSheet />
+        <!-- 아래 대화상자·시트는 처음 열 때 코드를 받는다(`opened` — 첫 화면 조각에서 뺀다, 관리자 QA 2026-11-17). 한 번 열린 뒤에는 닫는 애니메이션을 위해 그대로 둔다 -->
+        <LazyLoginPromptSheet v-if="opened.loginPrompt" />
         <!-- 이용자 메모 시트 — 프로필 ⋯ 메뉴·쪽지 대화방·설정 > 이용자 메모가 `useMemoSheet().open` 으로 연다 -->
-        <MemoSheet />
+        <LazyMemoSheet v-if="opened.memo" />
         <!-- 원본(community)에는 여기에 신고 시트(`ReportSheet`, 7-1)가 있다 — 신고를 여는 화면(글·댓글·프로필 …)이 아직 없어 가져오지 않았다 -->
         <!-- 결제 직전 본인인증 확인(`useIdentityGate`)과 가짜 본인인증(개발용 — 서버가 FAKE 일 때) 대화상자 -->
-        <IdentityGateDialog />
-        <IdentityFakeDialog />
+        <LazyIdentityGateDialog v-if="opened.identityGate" />
+        <LazyIdentityFakeDialog v-if="opened.identityFake" />
         <AppConfirm />
         <AppToaster :with-tabs="!inner" />
     </div>
@@ -91,6 +92,25 @@ const { position: menuPosition, topItems, menuWidth, menuOverflow } = useMenuPos
 const { ensureLoaded } = useBoards();
 void ensureLoaded();
 void useMenu().ensureLoaded();
+
+/**
+ * 처음 열 때 코드를 받는 대화상자·시트 — 각 상태(`useState` 키는 그 composable 과 같다: `useLoginPrompt`·`useMemoSheet`·`useIdentityGate`·`useIdentity().fake`)가
+ * 한 번이라도 열리면 그린다. 상태만 키로 읽어 composable 코드도 첫 화면에 싣지 않는다.
+ */
+const opened = reactive({ loginPrompt: false, memo: false, identityGate: false, identityFake: false });
+const lazyStates = {
+    loginPrompt: useState<{ open?: boolean } | undefined>('login-prompt'),
+    memo: useState<{ open?: boolean } | undefined>('memo-sheet'),
+    identityGate: useState<{ open?: boolean } | undefined>('identity-gate'),
+    identityFake: useState<{ open?: boolean } | undefined>('identity-fake'),
+};
+watchEffect(() => {
+    for (const [key, state] of Object.entries(lazyStates) as [keyof typeof opened, Ref<{ open?: boolean } | undefined>][]) {
+        if (state.value?.open) opened[key] = true;
+    }
+});
+/** 관리자 캐시 관리 미리보기 창인가(`CacheAreaOverlay`) */
+const { cacheMode } = useAdminPreview();
 
 // 안 읽은 알림 수(상단 바의 알림 종) — 셸이 뜰 때 한 번만 주기 조회를 시작한다(로그인해 있고 탭이 보일 때 60초 간격). 셸이 사라지면 멈춘다
 useNotificationBadge().start();

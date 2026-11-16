@@ -19,23 +19,30 @@ type Sink = (locale: string, name: string, messages: Messages) => void;
 /** 화면 조각과 같이 싣는 언어 — 대체 언어 */
 const DEFAULT_LOCALE = 'ko';
 
-/** 언어 → 업무 → 문구 */
+/** 언어 → 업무 → 문구(맨 위 키만 받은 업무는 받은 키까지만) */
 const loaded = new Map<string, Map<string, Messages>>();
+/** 통째로 받은 것 — `언어:업무`. 맨 위 키만 받은 업무는 여기에 없다(못 찾은 키를 만나면 통째로 받는다) */
+const complete = new Set<string>();
 /** 받는 중인 것 — `언어:업무` */
 const pending = new Map<string, Promise<void>>();
 let sink: Sink | null = null;
 /** 지금 화면 언어 */
 let current = DEFAULT_LOCALE;
 
+/** 그 업무를 그 언어로 통째로 받았는가 */
 function isLoaded(locale: string, name: string): boolean {
-    return loaded.get(locale)?.has(name) ?? false;
+    return complete.has(`${locale}:${name}`);
 }
 
-function store(locale: string, name: string, messages: Messages): void {
+/**
+ * @param {boolean} whole - 업무 통째인가(false 면 맨 위 키 몇 개 — 받아 둔 것에 더한다)
+ */
+function store(locale: string, name: string, messages: Messages, whole: boolean): void {
     let byName = loaded.get(locale);
     if (!byName) loaded.set(locale, (byName = new Map()));
-    byName.set(name, messages);
-    sink?.(locale, name, messages);
+    byName.set(name, whole ? messages : { ...byName.get(name), ...messages });
+    if (whole) complete.add(`${locale}:${name}`);
+    sink?.(locale, name, messages); // vue-i18n mergeLocaleMessage — 깊게 합친다
 }
 
 /**
@@ -52,7 +59,7 @@ export function loadMessages(name: string, locale: string): Promise<void> {
     const loader = loaders[name]?.[locale];
     if (!loader) return Promise.resolve();
     const task = loader()
-        .then((module) => store(locale, name, module.default))
+        .then((module) => store(locale, name, module.default, true))
         .catch((error: unknown) => console.error(`[i18n] '${name}' 문구(${locale})를 받지 못했다`, error))
         .finally(() => pending.delete(key));
     pending.set(key, task);
@@ -64,9 +71,10 @@ export function loadMessages(name: string, locale: string): Promise<void> {
  * @param {string} name - 업무 이름.
  * @param {string} locale - 들고 온 문구의 언어(기본 언어).
  * @param {Messages} messages - 문구.
+ * @param {boolean} whole - 업무 통째인가(기본). false 면 맨 위 키 몇 개(`virtual:irobit-messages-part/…` — 빌드 모듈이 코드에서 찾은 키만).
  */
-export function registerMessages(name: string, locale: string, messages: Messages): void {
-    if (!isLoaded(locale, name)) store(locale, name, messages);
+export function registerMessages(name: string, locale: string, messages: Messages, whole = true): void {
+    if (!isLoaded(locale, name)) store(locale, name, messages, whole);
     // 다른 언어로 보고 있으면 이 업무도 그 언어로 받는다
     if (current !== locale) void loadMessages(name, current);
 }

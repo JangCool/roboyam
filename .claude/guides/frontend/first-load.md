@@ -44,3 +44,10 @@
 - **화면이 이 그림 주소를 만들면** `assetUrl()` 을 거친다 — `import { assetUrl } from 'virtual:static-assets/core'`(로고·마스코트·대체 아바타, 첫 화면용 작은 목록) · `…/avatars`(아바타 전부) · `…/emoticons`(로보티콘 전부). 빌드가 해시 목록을 만든다(`scripts/nuxt/static-asset-versions.mjs`). 큰 목록은 쓰는 화면에서만 가져온다.
 - **서버가 이 그림 주소를 내리면** `StaticAssetUrls.of(path)`(shared) — 같은 규칙(SHA-256 앞 10자리)이라 화면과 같은 주소가 된다. 로보티콘(`EmoticonContent.url`)·아바타(`AvatarCatalog`)·`index.html` 의 스플래시 로고 메타·미리 받기가 쓴다.
 - 업로드 그림(`/media/`)은 이미 새 이름이라 이 규칙과 상관없다.
+
+## 셸에 늘 놓는 대화상자·시트는 열 때 받는다
+
+`layouts/default.vue` 에 한 번 놓고 composable 상태로 여는 대화상자·시트(로그인 안내·이용자 메모·본인인증 확인·가짜 본인인증)는 `Lazy` 컴포넌트 + `v-if="opened.…"` 로 놓는다 — 상태(`useState` 키)가 처음 열릴 때 코드를 받고, 그 뒤로는 닫는 애니메이션을 위해 그대로 둔다(관리자 QA 2026-11-17 — 홈 첫 방문 JS·CSS gzip 557KB → 480KB, 문구 맨 위 키 단위 싣기와 함께).
+
+- 새로 셸에 같은 꼴을 더하면 `opened`·`lazyStates` 에 한 줄 더한다. 그 컴포넌트가 열릴 때 하는 준비(`watch(open, …)`)는 `{ immediate: true }` 로 — 처음 그릴 때 이미 열린 채로 뜬다.
+- 화면에 바로 보이는 띠(정지·탈퇴·이메일 인증·약관 변경 안내·공지 띠)는 그대로 둔다(조건을 컴포넌트가 본다).

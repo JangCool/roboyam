@@ -73,11 +73,16 @@ const changed = computed(() => UtilBlock.memoToSend(text.value) !== (target.valu
 const canSave = computed(() => Boolean(target.value) && !saving.value && !problem.value && changed.value);
 
 // 열 때마다 지금 남겨 둔 메모로 시작한다
-watch(open, (now) => {
-    if (!now) return;
-    text.value = target.value?.memo ?? '';
-    serverError.value = '';
-});
+// immediate — 셸이 처음 열 때 이 시트를 그린다(`layouts/default.vue` 의 Lazy) — 그때는 이미 열린 채로 뜬다
+watch(
+    open,
+    (now) => {
+        if (!now) return;
+        text.value = target.value?.memo ?? '';
+        serverError.value = '';
+    },
+    { immediate: true },
+);
 watch(text, () => (serverError.value = ''));
 
 function fail(e: unknown) {
