@@ -59,7 +59,7 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
         List<String> order = irobit.layout().mobileOrder();
         assertThat(order).hasSize(11).doesNotHaveDuplicates();
         assertThat(order.stream().map(id -> irobit.gadget(id).orElseThrow().title()).toList())
-                .containsExactly("새소식", "상단 띠 배너", "인기글", "핫 아이로 픽", "최신글", "광고", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
+                .containsExactly("뉴스", "상단 띠 배너", "인기글", "핫 아이로 픽", "최신글", "광고", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
         // 핫 아이로 픽·최신글은 모바일 전용 가젯
         assertThat(irobit.gadget(order.get(3)).orElseThrow().desktop()).isFalse();
         assertThat(irobit.gadget(order.get(4)).orElseThrow().desktop()).isFalse();
@@ -74,7 +74,7 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
         List<String> order = saved.layout().mobileOrder();
         assertThat(order).hasSize(11).noneMatch(id -> id.startsWith(HomeLayoutDefaults.SEED_PREFIX));
         assertThat(saved.layout().items().stream().map(HomeLayoutItem::gadgetId).toList()).containsAll(order);
-        assertThat(order.get(0)).isEqualTo(idOf(saved, "새소식", false));
+        assertThat(order.get(0)).isEqualTo(idOf(saved, "뉴스", false));
         assertThat(order.get(3)).isEqualTo(idOf(saved, "핫 아이로 픽", true));
         String stored = jdbc.queryForObject("SELECT mobile_order::text FROM home_layouts WHERE theme = ?", String.class, THEME);
         assertThat(stored).contains(order.get(0), order.get(10));
@@ -89,7 +89,7 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
         int bottom = before.layout().items().stream().mapToInt(it -> it.y() + it.h()).max().orElse(0);
         List<HomeLayoutItem> items = new ArrayList<>(before.layout().items());
         items.add(new HomeLayoutItem("new-ad", 0, bottom, GadgetKinds.minW("AD", columns), GadgetKinds.minH("AD")));
-        String news = idOf(before, "새소식", false);
+        String news = idOf(before, "뉴스", false);
         String popular = idOf(before, "인기글", false);
 
         HomeLayoutView saved = service.save(root, THEME, request(gadgets, new HomeGridLayout(columns, items),

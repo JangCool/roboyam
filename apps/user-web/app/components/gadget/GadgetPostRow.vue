@@ -6,9 +6,9 @@
         추천 표시(`likes`, 줄 정보 「추천 수」를 켰을 때): 글자 「추천 n」 · 엄지 아이콘 + 숫자(`GadgetHighlightMeta` 추천만) · 제목 앞 고정 폭 칸(촘촘·뉴스형 한 줄만, 그 밖은 아이콘).
         줄 간격(`rowSpacing`): 두 줄 줄(헤드라인·기사·순위)의 위아래 여백 보통 10px · 좁게 7px.
         차단한 회원·단어의 글은 다른 목록과 같은 접힌 줄(`FoldedRow`) — 순위 칸은 남겨 순서가 밀리지 않는다. 줄 전체가 글 링크라 작성자 이름은 링크가 아니다(`<a>` 중첩 금지).
-        마우스 올림 효과(설정 `hover`, `main.css`): 보통 줄은 옅은 바탕(`gadget-hover` — 좌우로 8px 넓힌 바탕이 순위 칸에 조금 걸려 순위 번호는 `relative` 로 바탕 위에), 큰 글은 제목 밑줄.
+        마우스 올림 효과(설정 `hover`, `main.css`): 보통 줄은 옅은 바탕(`gadget-hover` — 좌우로 8px 넓힘), 순위 줄은 줄 전체(`gadget-rank-row` — 순위 번호 + 글, 2026-11-16), 큰 글은 제목 밑줄.
     -->
-    <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? 'flex items-start' : '']" :style="rowVars" data-testid="home-post-row">
+    <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? 'gadget-rank-row flex items-start' : '']" :style="rowVars" data-testid="home-post-row">
         <span v-if="rank !== null" class="relative w-6 shrink-0 text-left font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rankPad]" :style="rankStyle" data-testid="home-post-rank">
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>

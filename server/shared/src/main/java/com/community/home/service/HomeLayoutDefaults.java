@@ -142,7 +142,7 @@ public final class HomeLayoutDefaults {
 
     private static Home irobit() {
         Builder b = new Builder("irobit", 24);
-        String news = b.add("POST_LIST", "새소식", true, true, plain("pi-megaphone"),
+        String news = b.add("POST_LIST", "뉴스", true, true, plain("pi-megaphone"),
                 cfg().put("boardScope", GadgetConfigs.PICK).<ObjectNode>set("boardIds", meta(BoardFields.NEWS_SLUG)).put("sort", "LATEST").put("rowStyle", "LINE")
                         .put("lead", GadgetConfigs.LEAD_THUMB).put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 17).put("dividers", false)
                         .put("mobilePages", 3).put("mobilePageSize", 5).<ObjectNode>set("meta", meta("PREFIX", "COMMENTS", "TIME"))
