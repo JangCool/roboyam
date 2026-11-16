@@ -1,5 +1,12 @@
 import type { AdminPreviewBoard, AdminPreviewHome, AdminPreviewPage } from '~/utils/util-admin-preview';
 import type { CachePreviewMessage } from '~/utils/util-cache-area';
+import type UtilAdminPreviewApply from '~/utils/util-admin-preview-apply';
+
+/**
+ * 미리보기 메시지 읽기·홈 구성 덮기(`UtilAdminPreviewApply`) — 미리보기 창에서만 플러그인(`plugins/03.admin-preview.client.ts`)이 받아 둔다.
+ * 공개 화면에서는 null 이라 그 코드가 첫 화면 조각에 들지 않는다(관리자 QA 2026-11-17 E11). 클래스라 `useState`(직렬화) 대신 모듈 변수에 둔다.
+ */
+const apply = shallowRef<typeof UtilAdminPreviewApply | null>(null);
 
 /** 관리자 쪽 창 — 허용한 주소들과, 메시지를 받은 뒤 정해진 그 주소(`plugins/03.admin-preview.client.ts` 가 채운다) */
 const channel: { origins: string[]; parent: string | null } = { origins: [], parent: null };
@@ -41,7 +48,8 @@ export function postToAdminPreview(message: Record<string, unknown>): void {
  * 관리자 캐시 관리의 「미리보기」(주소 `cachePreview=1`)는 같은 창 규칙으로 켜지되 `cacheMode` 이고, 받은 강조 값은 `cache` 다(`CacheAreaOverlay` 가 그린다 — 화면 값은 덮지 않는다).
  *
  * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지·게시판 레이아웃) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값) · `board` 게시판 레이아웃 적용 화면 ·
- *   `cacheMode` 캐시 영역 미리보기인가 · `cache` 캐시 영역 강조 값 · `cacheDataCounts` 데이터로 센 영역 수(숨긴 팝업 등).
+ *   `cacheMode` 캐시 영역 미리보기인가 · `cache` 캐시 영역 강조 값 · `cacheDataCounts` 데이터로 센 영역 수(숨긴 팝업 등) ·
+ *   `apply` 메시지 읽기·홈 구성 덮기(미리보기 창에서만 — 그 밖 null).
  */
 export function useAdminPreview() {
     const active = useState<boolean>('admin-preview-active', () => false);
@@ -58,5 +66,5 @@ export function useAdminPreview() {
      * 겹침 층(`CacheAreaOverlay`)은 이 키의 수를 화면에서 센 수 대신 쓴다.
      */
     const cacheDataCounts = useState<Record<string, number>>('admin-preview-cache-data-counts', () => ({}));
-    return { active, editing, home, page, board, cacheMode, cache, cacheDataCounts };
+    return { active, editing, home, page, board, cacheMode, cache, cacheDataCounts, apply };
 }

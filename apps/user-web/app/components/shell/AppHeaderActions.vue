@@ -40,7 +40,8 @@
                     <span class="min-w-0 truncate font-medium">{{ user.nickname }}</span>
                     <i class="pi pi-angle-down text-xs text-muted-color" aria-hidden="true" />
                 </button>
-                <Menu ref="menu" :model="menuItems" popup @show="onMenuShow" @hide="menuOpen = false">
+                <!-- 메뉴 부품(PrimeVue Menu)은 처음 열 때 받는다(`useLazyPopup`) -->
+                <LazyMenu v-if="menuMounted" ref="menu" :model="menuItems" popup @show="onMenuShow" @hide="menuOpen = false">
                     <!-- 보유 포인트 요약(8단계) — 요약을 받았을 때만. 메뉴가 열릴 때 최신으로 받는다 -->
                     <template v-if="pointLine" #start>
                         <p class="m-0 border-b border-surface px-3 py-2 text-xs text-muted-color" data-testid="menu-points">{{ pointLine }}</p>
@@ -54,7 +55,7 @@
                             <i v-if="item.target === '_blank'" class="pi pi-external-link ml-auto text-xs text-muted-color" aria-hidden="true" />
                         </a>
                     </template>
-                </Menu>
+                </LazyMenu>
             </template>
             <template v-else>
                 <Button as="router-link" :to="loginTarget" :label="t('common.login')" size="small" severity="secondary" variant="outlined" class="nav-btn-outline max-md:min-h-8" />
@@ -94,7 +95,7 @@ const businessEntry = computed(() => UtilBusiness.entryOf(user.value));
 /** 메뉴 맨 위의 "포인트 1,280P" 한 줄 — 요약을 받기 전에는 빈 글자(줄을 그리지 않는다). 사업자 전용 계정은 포인트가 없다 */
 const pointLine = computed(() => (!businessAccount.value && points.summary.value ? t('point.balanceLine', { points: UtilPoint.points(points.summary.value.balance) }) : ''));
 
-const menu = ref<{ toggle: (event: Event) => void } | null>(null);
+const { mounted: menuMounted, handle: menu, toggle: toggleMenu } = useLazyPopup();
 const menuOpen = ref(false);
 
 /** 로그인하면 지금 보던 화면으로 돌아온다 */
@@ -157,10 +158,6 @@ const menuItems = computed(() => [
     { separator: true },
     { label: t('common.logout'), icon: 'pi pi-sign-out', command: () => void logout() },
 ]);
-
-function toggleMenu(event: Event) {
-    menu.value?.toggle(event);
-}
 
 /** 메뉴가 열렸다 — 최신 포인트를 받는다(받아 둔 값이 있으면 그대로 보이면서 바꾼다) */
 function onMenuShow() {

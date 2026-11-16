@@ -6,7 +6,7 @@ import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
  * 계약 `docs/features/board-layout-contract.md` 「API」(서버 `BoardLayoutController`): `GET /api/boards/{slug}/layout` (공개, 로그인 없이 · `no-store` — 글 줄에 보는 사람 몫이 섞인다) ·
  *   `?theme=`(관리자 미리보기만 — 홈 가젯 API 와 같은 규칙) → `BoardLayoutResponse` · 없는 게시판 `404 BOARD_NOT_FOUND` · 꺼진 게시판 `403 BOARD_INACTIVE`
  *   (화면은 레이아웃 없이 본문만 — 게시판 화면이 그 오류를 그린다).
- * 관리자 미리보기(`preview`)면 홈 가젯 응답도 같이 받아 `extra` 로 준다 — 관리자가 새로 넣은 가젯을 그릴 바탕(`UtilAdminPreview.applyHome`).
+ * 관리자 미리보기(`preview`)면 홈 가젯 응답도 같이 받아 `extra` 로 준다 — 관리자가 새로 넣은 가젯을 그릴 바탕(`UtilAdminPreviewApply.applyHome`).
  */
 const PATH = {
     layout: (slug: string) => `/api/boards/${encodeURIComponent(slug)}/layout`,

@@ -6,7 +6,7 @@ import type { GadgetPageResponse } from '~/composables/page/api/useGadgetPageApi
  * 응답 모양은 `useGadgetPageApi.types.ts`. 계약 `docs/features/gadget-page-contract.md` 「API」(서버 `GadgetPageController`, `Cache-Control: no-store`) · 404 `GADGET_PAGE_NOT_FOUND`.
  * 배치는 서버의 지금 사이트 테마로 정해진다(요청에 싣지 않는다).
  *
- * 관리자 미리보기(`preview`)면 홈 가젯 응답도 같이 받아 `extra` 로 준다 — 관리자가 이 페이지에 없는 종류를 새로 넣었을 때 그릴 바탕(`UtilAdminPreview.applyHome`).
+ * 관리자 미리보기(`preview`)면 홈 가젯 응답도 같이 받아 `extra` 로 준다 — 관리자가 이 페이지에 없는 종류를 새로 넣었을 때 그릴 바탕(`UtilAdminPreviewApply.applyHome`).
  */
 const PATH = {
     page: (key: string) => `/api/pages/${encodeURIComponent(key)}`,

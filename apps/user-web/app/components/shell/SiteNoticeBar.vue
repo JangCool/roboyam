@@ -60,15 +60,16 @@
                 :aria-label="t('siteNotice.close')"
                 aria-haspopup="menu"
                 data-testid="site-notice-close"
-                @click="hideMenu?.toggle($event)"
+                @click="toggleHideMenu"
             >
                 <i class="pi pi-times text-[0.7rem]" aria-hidden="true" />
             </button>
-            <Menu ref="hideMenu" :model="hideItems" popup :aria-label="t('siteNotice.hideMenu')">
+            <!-- 메뉴 부품은 처음 열 때 받는다(`useLazyPopup`) -->
+            <LazyMenu v-if="hideMenuMounted" ref="hideMenu" :model="hideItems" popup :aria-label="t('siteNotice.hideMenu')">
                 <template #start>
                     <p class="m-0 px-3 pb-1 pt-2 text-xs text-muted-color">{{ t('siteNotice.hideMenu') }}</p>
                 </template>
-            </Menu>
+            </LazyMenu>
         </aside>
     </div>
 </template>
@@ -144,7 +145,7 @@ onBeforeUnmount(() => {
 
 /* ── 닫기 ─────────────────────────── */
 
-const hideMenu = ref<{ toggle: (event: Event) => void } | null>(null);
+const { mounted: hideMenuMounted, handle: hideMenu, toggle: toggleHideMenu } = useLazyPopup();
 const hideItems = computed(() =>
     UtilSiteNotice.PERIODS.map((period) => ({
         label: t(`siteNotice.hide.${period}`),

@@ -22,7 +22,6 @@
 import type { GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
-import UtilAdminPreview from '~/utils/util-admin-preview';
 import UtilGadget from '~/utils/util-gadget';
 import UtilSiteName from '~/utils/util-site-name';
 import UtilTheme from '~/utils/util-theme';
@@ -66,7 +65,7 @@ async function load(): Promise<void> {
     try {
         // 관리자 미리보기면 보는 테마의 홈(그 테마 가젯의 꾸미기·데이터)을 받고, 관리자의 저장 전 홈 구성을 덮는다(`useAdminPreview`)
         const raw = await api.gadgets(controller.signal, preview.active.value ? theme.value : undefined);
-        const res = UtilGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(raw, preview.home.value) : raw);
+        const res = UtilGadget.sanitize(preview.home.value && preview.apply.value ? preview.apply.value.applyHome(raw, preview.home.value) : raw);
         if (mine !== seq) return;
         if (!res) throw new Error('bad home response');
         data.value = res;

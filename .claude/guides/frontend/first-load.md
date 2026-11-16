@@ -51,3 +51,4 @@
 
 - 새로 셸에 같은 꼴을 더하면 `opened`·`lazyStates` 에 한 줄 더한다. 그 컴포넌트가 열릴 때 하는 준비(`watch(open, …)`)는 `{ immediate: true }` 로 — 처음 그릴 때 이미 열린 채로 뜬다.
 - 화면에 바로 보이는 띠(정지·탈퇴·이메일 인증·약관 변경 안내·공지 띠)는 그대로 둔다(조건을 컴포넌트가 본다).
+- **눌러서 여는 팝업 메뉴**(PrimeVue `Menu` popup — 상단 바 사용자 메뉴·공지 띠 닫기 메뉴)는 `useLazyPopup()` + `<LazyMenu v-if="mounted" ref=…>` — 첫 클릭에 부품을 받고 누른 단추를 기준으로 연다(받는 사이 `currentTarget` 이 비어 기준을 따로 넘긴다). 알림 패널은 `Popover` 는 두고 안쪽 `LazyNotificationPanel` 을 먼저 받아 연다. 하단 탭 메뉴 서랍·확인 창(`AppConfirm`)·사이트 팝업(`SitePopupLayer` 의 `Dialog`)도 처음 열릴 때 그린다(2026-11-17 E2 — 홈 480 → 457KB).
