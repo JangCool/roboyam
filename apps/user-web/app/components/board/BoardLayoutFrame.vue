@@ -6,7 +6,7 @@
         게시판이 바뀔 때 · 로그인한 사람이 바뀔 때 다시 받는다(가젯 페이지 `pages/p/[key].vue` 와 같다).
         화면의 동작·쿼리·data-testid 는 슬롯 안에 그대로 있다(이 틀은 감싸기만 한다).
         **관리자 미리보기**(관리자 테마 화면 「레이아웃 › 게시판」의 iframe, `useAdminPreview`): 관리자가 `home` 자리로 보낸 저장 전 게시판 레이아웃(본문 칸 포함)·적용 화면(`board`)을 덮어 그린다.
-          새로 넣은 가젯은 홈 가젯 응답의 같은 종류 데이터를 빌린다(`UtilAdminPreview.applyHome` — 「지금 보는 게시판」 범위도 저장 전에는 받은 글 그대로). 편집 중이면 본문만이어도 격자로 그려 손잡이가 얹힌다.
+          새로 넣은 가젯은 홈 가젯 응답의 같은 종류 데이터를 빌린다(`UtilAdminPreviewApply.applyHome` — 「지금 보는 게시판」 범위도 저장 전에는 받은 글 그대로). 편집 중이면 본문만이어도 격자로 그려 손잡이가 얹힌다.
     -->
     <BoardLayoutGrid v-if="resolved && board" :layout="resolved.layout" :gadgets="resolved.gadgets" :board="board" data-cache-area="boards.layout"><slot /></BoardLayoutGrid>
     <slot v-else />
@@ -16,7 +16,7 @@
 import type { BoardLayoutResponse, BoardLayoutScreen, BoardLayoutScreens } from '~/composables/board/api/useBoardLayoutApi.types';
 import type { Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-import UtilAdminPreview, { BOARD_BODY } from '~/utils/util-admin-preview';
+import { BOARD_BODY } from '~/utils/util-admin-preview';
 import UtilGadget from '~/utils/util-gadget';
 
 interface Props {
@@ -46,8 +46,9 @@ const base = computed<GadgetsResponse | null>(() => {
         // 관리자 미리보기 — 관리자가 보낸 게시판 레이아웃(본문 칸이 든 것)만 덮는다
         const home = preview.home.value;
         const screens = preview.board.value?.screens;
-        if (!home || !screens || !home.gadgets.some((g) => g.type === BOARD_BODY) || !applies(screens)) return null;
-        return UtilGadget.sanitize(UtilAdminPreview.applyHome(r.res, home, r.extra));
+        const apply = preview.apply.value;
+        if (!home || !screens || !apply || !home.gadgets.some((g) => g.type === BOARD_BODY) || !applies(screens)) return null;
+        return UtilGadget.sanitize(apply.applyHome(r.res, home, r.extra));
     }
     if (!applies(r.res.screens)) return null;
     return UtilGadget.sanitize(r.res);

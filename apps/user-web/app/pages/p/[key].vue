@@ -46,7 +46,6 @@
 import type { Gadget, GadgetsResponse } from '~/composables/gadget/api/useGadgetApi.types';
 import type { GadgetPageHead } from '~/composables/page/api/useGadgetPageApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-import UtilAdminPreview from '~/utils/util-admin-preview';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGadget from '~/utils/util-gadget';
 import UtilTheme from '~/utils/util-theme';
@@ -88,7 +87,7 @@ const writeTarget = computed(() => (writeBoard.value ? { path: '/write', query: 
 const data = computed(() => {
     const r = raw.value;
     if (!r) return null;
-    return UtilGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
+    return UtilGadget.sanitize(preview.home.value && preview.apply.value ? preview.apply.value.applyHome(r.res, preview.home.value, r.extra) : r.res);
 });
 const shown = useAdGadgets(data, 'PAGE');
 

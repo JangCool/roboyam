@@ -26,7 +26,7 @@ import UtilMenuPosition, {
 import UtilTheme, { type ThemeId } from '~/utils/util-theme';
 import UtilCacheArea from '~/utils/util-cache-area';
 
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin(async () => {
     if (!UtilAdminPreview.isPreviewWindow(window.parent !== window, window.location.search)) return;
 
     // 관리자 주소 — 개발 서버는 runtimeConfig, 빌드한 화면은 서버가 이 응답 머리에 넣은 메타(ADMIN_URL — 서버가 같은 주소만 frame-ancestors 로 허락한다)
@@ -36,7 +36,10 @@ export default defineNuxtPlugin(() => {
         .filter(Boolean);
     if (!allowed.length) return;
 
-    const { active, editing, home, page, board, cacheMode, cache } = useAdminPreview();
+    const { active, editing, home, page, board, cacheMode, cache, apply } = useAdminPreview();
+    // 메시지 읽기·홈 구성 덮기는 미리보기 창에서만 받는다(공개 화면 첫 조각에서 뺀다 — E11). 화면이 그리기 전에 받아 둔다
+    const { default: UtilAdminPreviewApply } = await import('~/utils/util-admin-preview-apply');
+    apply.value = UtilAdminPreviewApply;
     active.value = true;
     // 캐시 관리의 「미리보기」(`cachePreview=1`) — 화면 값은 덮지 않고 캐시 영역만 겹쳐 그린다(`CacheAreaOverlay`)
     cacheMode.value = UtilCacheArea.isCachePreview(window.location.search);
@@ -62,7 +65,7 @@ export default defineNuxtPlugin(() => {
             cache.value = cacheMsg;
             return;
         }
-        const msg = UtilAdminPreview.read(event.data);
+        const msg = UtilAdminPreviewApply.read(event.data);
         if (!msg) return;
         pinAdminPreviewOrigin(event.origin);
         theme.value = UtilTheme.normalize(msg.theme);
