@@ -63,7 +63,9 @@ const EXCLUDE = [
     'member_event_settings', 'nickname_image_settings', 'emoticon_settings', 'group_buy_settings',
 ];
 const EXCLUDE_PREFIX = ['flyway_schema_history', 'spring_session', 'admin_spring_session', 'batch_', 'worker_heartbeats', 'analytics_', 'operator_mfa', 'operator_trusted',
-    'operator_preferences', 'operator_dashboards', 'operator_notification', 'operator_invitation', 'operator_cert', 'admin_', 'notification_send_', 'mail_outbox'];
+    'operator_preferences', 'operator_dashboards', 'operator_notification', 'operator_invitation', 'operator_cert', 'admin_', 'notification_send_', 'mail_outbox',
+    // AI 기자 뉴스 출처·수집 항목(shared V228) — 출처는 V229 가 설치 시각 ID 로 넣고(팩에 담으면 같은 출처가 겹친다), 항목은 빌드 관리자 서버의 수집 배치가 받은 7일짜리 바깥 기사다
+    'ai_news_'];
 /** 구조 표 중 데모 로더가 바꿔도 되는 것(바뀌면 경고만) */
 const STRUCTURE_TABLES = EXCLUDE.slice(EXCLUDE.indexOf('grades'));
 

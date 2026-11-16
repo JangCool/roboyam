@@ -240,6 +240,11 @@ async function main() {
         await adminSettings(admin);
         const emoticons = await acquireEmoticons(members);
         const boards = new Map(((await new Session('anon').request('GET', '/api/boards')).data?.boards ?? []).map((b) => [b.slug, b]));
+        // 성인 전용 게시판(V226 — 예: frontback)은 본인인증한 성인에게만 목록에 나온다 — 성인 표시 데모 회원으로 한 번 더 읽어 그 게시판만 더한다
+        const adultViewer = members.find((m) => m.adult);
+        if (adultViewer) {
+            for (const b of (await adultViewer.request('GET', '/api/boards')).data?.boards ?? []) if (b.adultOnly && !boards.has(b.slug)) boards.set(b.slug, b);
+        }
         if (step('boards')) await seedBoards(members, boards, emoticons, psql);
         if (step('groups')) await seedGroups(members, admin, emoticons, psql);
         if (step('ai')) await seedAiMembers(members, admin); // AI 회원(boards·groups 뒤 — 데모 사람 회원의 댓글·AI 전용 소모임)

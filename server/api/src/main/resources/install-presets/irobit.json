@@ -330,18 +330,11 @@
           "sortOrder": 90
         },
         {
-          "name": "전방·후방",
-          "nameEn": "전방·후방",
-          "common": false,
-          "staffOnly": false,
-          "sortOrder": 100
-        },
-        {
           "name": "기타",
           "nameEn": "기타",
           "common": false,
           "staffOnly": false,
-          "sortOrder": 110
+          "sortOrder": 100
         }
       ]
     },
@@ -396,6 +389,63 @@
         {
           "name": "기타",
           "nameEn": "기타",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 60
+        }
+      ]
+    },
+    {
+      "slug": "frontback",
+      "name": "전방/후방",
+      "nameEn": "Front/Back",
+      "kind": "GENERAL",
+      "sortOrder": 70,
+      "description": "본인인증한 성인만 볼 수 있는 게시판이에요.",
+      "layout": "LIST",
+      "viewToggle": true,
+      "investmentNotice": false,
+      "staffOnlyWrite": false,
+      "color": null,
+      "prefixes": [
+        {
+          "name": "짤",
+          "nameEn": "짤",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 10
+        },
+        {
+          "name": "움짤",
+          "nameEn": "움짤",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 20
+        },
+        {
+          "name": "영상",
+          "nameEn": "영상",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 30
+        },
+        {
+          "name": "썰",
+          "nameEn": "썰",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 40
+        },
+        {
+          "name": "정보",
+          "nameEn": "정보",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 50
+        },
+        {
+          "name": "잡담",
+          "nameEn": "Chat",
           "common": false,
           "staffOnly": false,
           "sortOrder": 60
