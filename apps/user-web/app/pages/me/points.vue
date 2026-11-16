@@ -112,7 +112,7 @@
             <!--
                 확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상. 「+150P · 추천 보너스 · 글 제목 · 11월 18일 14:00 확정 예정」. 없거나 못 받으면 구획을 그리지 않는다(내역이 본체라 실패를 따로 알리지 않는다).
                 포인트 동결 중이면 「동결이 풀리기 전에 확정 시각이 오면 받지 못해요」 안내를 붙인다.
-                ⚠ MOCK: 서버 API 가 없어 `usePointApi.pending` 이 목업 줄을 준다(`?mock=pending-empty` 면 빈 목록, `?mock=pending-frozen` 이면 동결 안내).
+                ⚠ MOCK: 서버 API 가 없어 `usePointApi.pending` 이 목업 줄을 준다(`?mock=pending-empty` 면 빈 목록). 동결 여부는 요약 응답의 `restriction`(P-5).
             -->
             <section v-if="pending.length" class="panel-card p-4" :aria-labelledby="`${uid}-pending`" data-testid="points-pending">
                 <h2 :id="`${uid}-pending`" class="text-sm font-semibold">{{ t('point.pendingTitle') }}</h2>
@@ -134,9 +134,9 @@
                 </ul>
                 <p class="mt-3 text-xs leading-relaxed text-muted-color">{{ t('point.pendingNote') }}</p>
                 <!-- 포인트 동결 중 — 확정 때 동결이면 지급되지 않고 취소된다(계약 「확정 때 다시 본다」). 색만이 아니라 아이콘·글자로 알린다 -->
-                <p v-if="pendingFreeze" class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-300" data-testid="points-pending-frozen">
+                <p v-if="freeze" class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-300" data-testid="points-pending-frozen">
                     <i class="pi pi-lock mt-0.5 shrink-0" aria-hidden="true" />
-                    <span>{{ pendingFreeze.until ? t('point.pendingFrozenUntil', { at: time.slot(pendingFreeze.until) }) : t('point.pendingFrozen') }}</span>
+                    <span>{{ freeze.until ? t('point.pendingFrozenUntil', { at: time.slot(freeze.until) }) : t('point.pendingFrozen') }}</span>
                 </p>
             </section>
 
@@ -342,7 +342,7 @@
 <script setup lang="ts">
 import UtilHoliday, { type HolidayMark } from '#layers/display-time/utils/util-holiday';
 import UtilHolidayMessages from '#layers/display-time/utils/util-holiday-messages';
-import type { MyPointLedgerItem, MyPointLedgerKind, MyPointPendingItem, MyPointPendingResult, PointCount } from '~/composables/point/api/usePointApi.types';
+import type { MyPointLedgerItem, MyPointLedgerKind, MyPointPendingItem, PointCount } from '~/composables/point/api/usePointApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
@@ -520,16 +520,11 @@ onBeforeUnmount(() => ledgerSeq++);
 
 // ── 확정 대기(point-board-tier-contract) — 못 받으면 빈 목록(구획을 그리지 않는다) ─
 const pending = ref<MyPointPendingItem[]>([]);
-/** 지금 걸린 포인트 동결 — 확정 대기 구획 안에서만 알린다 */
-const pendingFreeze = ref<MyPointPendingResult['freeze']>(null);
 async function loadPending(): Promise<void> {
     try {
-        const res = await api.pending();
-        pending.value = res.items;
-        pendingFreeze.value = res.freeze;
+        pending.value = (await api.pending()).items;
     } catch {
         pending.value = [];
-        pendingFreeze.value = null;
     }
 }
 
@@ -539,7 +534,6 @@ watch(
     (id) => {
         attendance.reset();
         pending.value = [];
-        pendingFreeze.value = null;
         if (!id || businessAccount.value) return;
         void points.load();
         void loadLedger(true);

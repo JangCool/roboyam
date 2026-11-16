@@ -13,7 +13,7 @@ import { mockPending } from '~/composables/point/api/mock/point-pending-mock';
  *  - `GET /api/me/attendance?month=YYYY-MM` → `AttendanceMonth`(`no-store`). 달 모양이 틀리면 `400 VALIDATION` `fields.month`, 미래 달은 `days: []`.
  *  - `POST /api/me/attendance` → `AttendResult`. `409 ATTENDANCE_ALREADY_DONE`(오늘 이미 출석) · `403 EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`(정지) · 사업자 전용 계정은 `403 BUSINESS_ACCOUNT_RESTRICTED`.
  * 포인트 상점 구매·환불은 `usePointShopApi`·`useMyItemsApi` 다.
- *  - 확정 대기(point-board-tier-contract — 후보 `GET /api/me/points/pending` → `{ items: MyPointPendingItem[], freeze: { until } | null }`, 로그인 필요 401, `no-store`). ⚠ MOCK — 목업 줄을 준다.
+ *  - 확정 대기(point-board-tier-contract — 후보 `GET /api/me/points/pending` → `{ items: MyPointPendingItem[] }`, 로그인 필요 401, `no-store`). ⚠ MOCK — 목업 줄을 준다.
  */
 const PATH = {
     points: '/api/me/points',
