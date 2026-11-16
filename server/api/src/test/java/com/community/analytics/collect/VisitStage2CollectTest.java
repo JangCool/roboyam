@@ -310,7 +310,7 @@ class VisitStage2CollectTest {
     }
 
     private SitePageHandler filter(boolean rendered) {
-        return new SitePageHandler(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), null, notInstalled());
+        return new SitePageHandler(new NullSiteService(), new FixedRenderer(rendered), new AdminPreviewFrame(""), collector, new NoAdSense(), null, notInstalled(), null);
     }
 
     /** 애드센스 끔(머리에 넣을 것 없음) */

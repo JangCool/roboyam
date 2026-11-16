@@ -1,5 +1,6 @@
 package com.community.site.service;
 
+import com.community.site.dto.PostLinkPreview;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
 import com.community.site.dto.response.SiteIconResponse;
@@ -65,6 +66,10 @@ public class IndexHtmlRenderer {
     private static final Pattern MANIFEST_LINK = Pattern.compile("<link\\b[^>]*?\\brel=[\"']?manifest[\"']?(?=[\\s>/])[^>]*>\\s*", Pattern.CASE_INSENSITIVE);
     private static final Pattern ICON_LINK = Pattern.compile(
             "<link\\b[^>]*?\\brel=[\"']?(?:apple-touch-icon(?:-precomposed)?|shortcut icon|icon)[\"']?(?=[\\s>/])[^>]*>\\s*", Pattern.CASE_INSENSITIVE);
+
+    /** {@link #fill} 이 넣은 제목·운영자 미리보기 그림 크기 칸({@link #withPost} 가 바꾸거나 뺀다) */
+    private static final Pattern TITLE_TAG = Pattern.compile("<title>[^<]*</title>");
+    private static final Pattern OG_IMAGE_SIZE = Pattern.compile("<meta property=\"og:image:(?:width|height)\" content=\"[^\"]*\">\\n?");
 
     /** 구글 애드센스 사이트 확인 메타 이름 · 스크립트 주소(V176 — 구글이 정한 값) */
     static final String ADSENSE_ACCOUNT_META = "google-adsense-account";
@@ -145,6 +150,41 @@ public class IndexHtmlRenderer {
         return new RenderedIndex(body, hash(body));
     }
 
+    /**
+     * 글 공유 미리보기({@link PostLinkPreview} — {@code /posts/{id}}) — 머리를 채운 사본에서 제목·설명·og·twitter 칸을 글의 것으로 바꾼 사본(지문도 새로).
+     * 제목은 「글 제목 — 사이트 이름」, {@code og:type} 은 {@code article}. 설명이 비면 사이트 소개를, 그림이 없으면 사이트 미리보기 그림을 그대로 둔다(글 그림이면 운영자 그림의 크기 칸은 뺀다).
+     * 모두 {@link #fill} 이 넣은 꼴({@code <meta property="og:title" content="…">})을 바꾸므로 머리를 채우지 않은 틀(설치 전)이면 그대로다.
+     */
+    public RenderedIndex withPost(RenderedIndex index, PostLinkPreview post, PublicSiteSnapshot snapshot) {
+        String name = snapshot.info().siteName();
+        if (name == null) {
+            return index;
+        }
+        String html = new String(index.body(), StandardCharsets.UTF_8);
+        String title = post.title() + TITLE_SEPARATOR + name;
+        html = TITLE_TAG.matcher(html).replaceFirst(Matcher.quoteReplacement("<title>" + esc(title) + "</title>"));
+        html = replaceMeta(html, "property", "og:type", "article");
+        html = replaceMeta(html, "property", "og:title", title);
+        html = replaceMeta(html, "name", "twitter:title", title);
+        if (post.description() != null && !post.description().isBlank()) {
+            html = replaceMeta(html, "name", "description", post.description());
+            html = replaceMeta(html, "property", "og:description", post.description());
+            html = replaceMeta(html, "name", "twitter:description", post.description());
+        }
+        if (post.imageUrl() != null) {
+            html = replaceMeta(html, "property", "og:image", post.imageUrl());
+            html = replaceMeta(html, "name", "twitter:image", post.imageUrl());
+            html = OG_IMAGE_SIZE.matcher(html).replaceAll("");
+        }
+        byte[] body = html.getBytes(StandardCharsets.UTF_8);
+        return new RenderedIndex(body, hash(body));
+    }
+
+    private static String replaceMeta(String html, String attribute, String key, String content) {
+        Pattern tag = Pattern.compile("<meta " + attribute + "=\"" + Pattern.quote(key) + "\" content=\"[^\"]*\">");
+        return tag.matcher(html).replaceFirst(Matcher.quoteReplacement("<meta " + attribute + "=\"" + key + "\" content=\"" + esc(content) + "\">"));
+    }
+
     /** 틀은 jar 안 파일이라 한 번 읽으면 된다. 없으면 기억하지 않고 다음 요청에 다시 본다(빌드 직후의 개발 환경) */
     private String template() {
         String loaded = template;
@@ -165,7 +205,7 @@ public class IndexHtmlRenderer {
         return loaded;
     }
 
-    private static String fill(String html, PublicSiteSnapshot snapshot) {
+    static String fill(String html, PublicSiteSnapshot snapshot) { // 시험(IndexHtmlRendererPostTest)이 틀 없이 부른다
         SiteInfoResponse info = snapshot.info();
         Matcher open = HEAD_OPEN.matcher(html);
         Matcher close = HEAD_CLOSE.matcher(html);

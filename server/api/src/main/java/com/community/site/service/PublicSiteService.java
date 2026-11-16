@@ -154,7 +154,7 @@ public class PublicSiteService implements CacheReloader {
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         // 지문에 소개 본문도 넣는다 — 본문만 바뀌어도 /api/site/about 이 304 로 옛 본문을 돌려주지 않게
-        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, aboutHtml,
+        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, aboutHtml, publicUrl,
                 fingerprint(info + "|" + themeView + "|" + (aboutHtml == null ? "" : aboutHtml), manifest, ogCustom));
     }
 

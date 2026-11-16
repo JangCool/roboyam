@@ -148,7 +148,7 @@ class AdSenseSettingsTest {
     }
 
     private static MockHttpServletResponse serve(AdSenseSiteService adsense) throws Exception {
-        SitePageHandler f = new SitePageHandler(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, null, notInstalled());
+        SitePageHandler f = new SitePageHandler(new NullSiteService(), new FixedRenderer(), new AdminPreviewFrame(""), noVisits(), adsense, null, notInstalled(), null);
         MockHttpServletRequest r = new MockHttpServletRequest("GET", "/");
         r.setServletPath("/");
         MockHttpServletResponse res = new MockHttpServletResponse();

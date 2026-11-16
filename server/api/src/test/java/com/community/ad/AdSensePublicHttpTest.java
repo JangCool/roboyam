@@ -245,7 +245,7 @@ class AdSensePublicHttpTest extends BizApplicationApiTestBase {
                 return false;
             }
         };
-        return new SitePageHandler(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, null, notInstalled);
+        return new SitePageHandler(new NullSiteService(), new FixedHeadRenderer(), new AdminPreviewFrame(adminOrigin), visits, adsense, null, notInstalled, null);
     }
 
     private static MockHttpServletRequest page(String path, boolean preview) {

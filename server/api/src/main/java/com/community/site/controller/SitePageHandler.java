@@ -6,7 +6,10 @@ import com.community.installation.service.InstallationState;
 import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.site.dto.RenderedIndex;
+import com.community.site.dto.PostLinkPreview;
+import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.service.IndexHtmlRenderer;
+import com.community.site.service.PostLinkPreviewService;
 import com.community.site.service.PublicSiteService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,6 +39,8 @@ import org.springframework.web.servlet.function.ServerResponse;
  *   <li>관리자 미리보기 요청({@link AdminPreviewFrame#isPreview} — {@code ?adminPreview=1})이면 머리에 관리자 origin 메타를 더한 사본을 내린다(프레임 헤더는 보안 설정이 붙인다).</li>
  *   <li>그 밖의 화면 요청은 구글 애드센스가 VERIFY·SHOW 이고 게시자 ID 가 있으면 머리 끝에 사이트 확인 메타·{@code adsbygoogle.js} 를 더한다({@link IndexHtmlRenderer#withAdSense} —
  *       설정은 요청마다 읽어 저장 뒤 다음 요청부터, 미리보기에는 넣지 않는다 — docs/features/adsense-contract.md).</li>
+ *   <li>글 상세 주소({@code /posts/{id}})면 비회원이 읽을 수 있는 글일 때 제목·설명·og·twitter 칸을 글의 것으로 바꾼다({@link PostLinkPreviewService} ·
+ *       {@link IndexHtmlRenderer#withPost} — 공유 링크 미리보기, 관리자 QA 2026-11-17).</li>
  *   <li>설치를 마친 사이트의 GET 화면 요청이면 첫 화면 데이터({@link BootPreloadRenderer} — 화면이 처음 부르는 API 응답)를 함께 싣고 {@code Cache-Control: private, no-cache} 로 내린다
  *       (로그인한 사람의 정보가 들 수 있다 — 공유 캐시가 담지 않게). 규칙 {@code .claude/guides/frontend/first-load.md}.</li>
  *   <li>화면 파일이 없으면(빌드 전) 404, 머리를 만들다 실패하면 빌드가 만든 {@code index.html} 을 그대로 내린다(화면이 막히지 않는다).</li>
@@ -62,9 +67,10 @@ public class SitePageHandler {
     private final AdSenseSiteService adsense;
     private final BootPreloadRenderer boot;
     private final InstallationState installation;
+    private final PostLinkPreviewService postPreviews;
 
     public SitePageHandler(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview, VisitCollector visits,
-                           AdSenseSiteService adsense, BootPreloadRenderer boot, InstallationState installation) {
+                           AdSenseSiteService adsense, BootPreloadRenderer boot, InstallationState installation, PostLinkPreviewService postPreviews) {
         this.siteService = siteService;
         this.renderer = renderer;
         this.preview = preview;
@@ -72,6 +78,7 @@ public class SitePageHandler {
         this.adsense = adsense;
         this.boot = boot;
         this.installation = installation;
+        this.postPreviews = postPreviews;
     }
 
     /** 화면 주소(SPA 라우트)인가 — 확장자가 없는 주소와 {@code /index.html}. {@code /api}·{@code /media}·{@code /_nuxt} 등은 아니다 */
@@ -95,8 +102,10 @@ public class SitePageHandler {
         HttpServletRequest servlet = request.servletRequest();
         visits.countBotPage(servlet.getHeader(HttpHeaders.USER_AGENT)); // 봇 통계 — 메모리에 센다(꺼져 있으면 아무것도 하지 않는다)
         Optional<RenderedIndex> rendered;
+        PublicSiteSnapshot snapshot;
         try {
-            rendered = renderer.render(siteService.snapshot());
+            snapshot = siteService.snapshot();
+            rendered = renderer.render(snapshot);
         } catch (RuntimeException e) {
             log.warn("index.html 머리를 채우지 못해 틀 그대로 내린다: {}", e.toString());
             return staticIndex();
@@ -112,6 +121,10 @@ public class SitePageHandler {
             String client = adsenseClient();
             if (client != null) {
                 index = renderer.withAdSense(index, client);
+            }
+            PostLinkPreview post = postPreview(request.path(), snapshot);
+            if (post != null) {
+                index = renderer.withPost(index, post, snapshot); // 애드센스 사본 캐시(한 칸)를 글마다 바꾸지 않게 그 뒤에
             }
             String json = bootJson(request);
             if (json != null) {
@@ -146,6 +159,19 @@ public class SitePageHandler {
             return boot.render(request.servletRequest(), response, request.path());
         } catch (RuntimeException e) {
             log.warn("첫 화면 데이터를 싣지 못해 빼고 내린다: {}", e.toString());
+            return null;
+        }
+    }
+
+    /** 글 상세 주소의 공유 미리보기 칸({@link PostLinkPreviewService}) — 설치 전·글 주소 아님·비회원이 못 읽는 글·실패면 null(사이트 미리보기 그대로) */
+    private PostLinkPreview postPreview(String path, PublicSiteSnapshot snapshot) {
+        if (postPreviews == null || !installation.isInstalled()) {
+            return null;
+        }
+        try {
+            return postPreviews.forPath(path, snapshot).orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("글 공유 미리보기를 넣지 못해 사이트 것으로 내린다: {}", e.toString());
             return null;
         }
     }
