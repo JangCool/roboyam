@@ -43,24 +43,15 @@
                 <p class="m-0 text-xs text-muted-color">{{ t('pointGame.freeOnly') }}</p>
             </section>
 
-            <!-- 번호 조건(선택) — 고정(꼭 넣을 번호, 5개까지) · 제외(뺄 번호). 접어 둔다 -->
-            <section class="flex flex-col gap-3" data-testid="lotto-conditions">
-                <button
-                    type="button"
-                    class="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-hairline px-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                    :aria-expanded="conditionsOpen"
-                    :aria-controls="`${uid}-conditions`"
-                    data-testid="lotto-conditions-toggle"
-                    @click="conditionsOpen = !conditionsOpen"
-                >
-                    <span class="flex min-w-0 flex-col">
-                        <span class="font-semibold">{{ t('pointGame.conditionsTitle') }}</span>
-                        <span class="truncate text-xs text-muted-color">{{ conditionsSummary }}</span>
-                    </span>
-                    <i class="pi pi-chevron-down text-xs transition-transform motion-reduce:transition-none" :class="conditionsOpen ? 'rotate-180' : ''" aria-hidden="true" />
-                </button>
+            <!-- 뽑는 방법 — 자동(6개 모두 무작위) · 반자동(고정 1~5개 + 나머지 무작위, 제외는 선택). 반자동일 때만 번호판이 열린다 -->
+            <section class="flex flex-col gap-3" :aria-labelledby="`${uid}-method`" data-testid="lotto-method">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h2 :id="`${uid}-method`" class="m-0 text-sm font-semibold">{{ t('pointGame.methodLabel') }}</h2>
+                    <SelectButton v-model="method" :options="methodOptions" option-label="label" option-value="value" :allow-empty="false" :aria-labelledby="`${uid}-method`" data-testid="lotto-method-select" />
+                </div>
+                <p class="m-0 text-xs text-muted-color">{{ method === 'AUTO' ? t('pointGame.methodAutoHint') : t('pointGame.methodSemiAutoHint', { max: UtilPointGame.LOTTO_FIXED_MAX }) }}</p>
 
-                <div v-show="conditionsOpen" :id="`${uid}-conditions`" class="flex flex-col gap-3">
+                <div v-if="method === 'SEMI_AUTO'" class="flex flex-col gap-3" data-testid="lotto-conditions">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <SelectButton v-model="pickMode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('pointGame.pickModeLabel')" data-testid="lotto-pick-mode" />
                         <Button type="button" :label="t('pointGame.clearConditions')" icon="pi pi-replay" size="small" severity="secondary" variant="text" :disabled="fixed.length === 0 && excluded.length === 0" data-testid="lotto-clear" @click="clearConditions" />
@@ -141,6 +132,7 @@
                         <span class="flex gap-1" role="img" :aria-label="t('pointGame.numbersAria', { numbers: UtilPointGame.copyText(d.numbers) })">
                             <span v-for="n in d.numbers" :key="n" class="grid size-7 place-items-center rounded-full text-xs font-bold tabular-nums" :class="UtilPointGame.ballClass(n)" aria-hidden="true">{{ n }}</span>
                         </span>
+                        <Tag :value="methodLabel(d.mode)" severity="secondary" class="text-xs" data-testid="lotto-mine-method" />
                         <span class="text-xs tabular-nums text-muted-color">{{ time.full(d.drawnAt) }}</span>
                         <span class="ml-auto flex gap-0.5">
                             <Button type="button" icon="pi pi-copy" size="small" severity="secondary" variant="text" rounded :aria-label="t('pointGame.copyAria', { numbers: UtilPointGame.copyText(d.numbers) })" @click="copy(d.numbers)" />
@@ -172,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import type { LottoDraw, LottoStatus } from '~/composables/pointgame/api/usePointGameApi.types';
+import type { LottoDraw, LottoPickMode, LottoStatus } from '~/composables/pointgame/api/usePointGameApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
@@ -181,7 +173,8 @@ import UtilPointGameMessages from '~/utils/util-point-game-messages';
 
 /**
  * 로또 번호 뽑기 `/games/lotto` — 로그인 필요. 회원이 실제 로또를 사기 전에 여기서 번호를 뽑아 그 번호로 산다. **사이트는 당첨 번호를 만들거나 자동 비교하지 않는다**(당첨 인증 게시판도 없다).
- * 1~45 중 6개 · 1세트 20P · 5세트 한 번에 80P · 적립 포인트만. 선택: 고정 번호(꼭 넣을 번호, 5개까지) · 제외 번호(39개까지).
+ * 1~45 중 6개 · 1세트 20P · 5세트 한 번에 80P · 적립 포인트만. 뽑는 방법: 자동(6개 모두 무작위, 기본) · 반자동(고정 번호 1~5개 필수 + 제외 번호 39개까지 선택, 나머지 무작위 — 사용자 요구 2026-11-16).
+ * 내 번호 줄마다 자동/반자동 표시.
  * 뽑은 번호는 회원별로 남는다(「내 번호」 — 뽑은 날짜·번호, 한 줄 지우기, 복사, 보관 한도는 서버 값 `storageLimit` — 목업 50세트).
  * 「당첨 번호 확인」 링크 하나 — 사업자 이름·주소는 관리자 설정값(`checkLink`, 목업 기본 「동행복권」 `https://dhlottery.co.kr`), 새 탭. 공식 로고·공식처럼 보이는 표현은 쓰지 않는다.
  * ⚠ 목업(화면 확정 전, 2026-11-16) — `usePointGameApi` 의 MOCK 줄(메모리, 회원별). `?mock=game-poor|lotto-full|game-fail`.
@@ -236,9 +229,16 @@ watch(
     { immediate: true },
 );
 
-/* ── 번호 조건 ── */
+/* ── 뽑는 방법 · 번호 조건(반자동) ── */
 const numbers = UtilPointGame.lottoNumbers();
-const conditionsOpen = ref(false);
+const method = ref<LottoPickMode>('AUTO');
+const methodOptions = computed(() => [
+    { value: 'AUTO', label: t('pointGame.methodAuto') },
+    { value: 'SEMI_AUTO', label: t('pointGame.methodSemiAuto') },
+]);
+function methodLabel(mode: LottoPickMode): string {
+    return mode === 'SEMI_AUTO' ? t('pointGame.methodSemiAuto') : t('pointGame.methodAuto');
+}
 const pickMode = ref<'fixed' | 'excluded'>('fixed');
 const fixed = ref<number[]>([]);
 const excluded = ref<number[]>([]);
@@ -247,15 +247,8 @@ const modeOptions = computed(() => [
     { value: 'excluded', label: t('pointGame.modeExcluded') },
 ]);
 
-const problem = computed(() => UtilPointGame.pickProblem(fixed.value, excluded.value));
+const problem = computed(() => UtilPointGame.pickProblem(method.value, fixed.value, excluded.value));
 const problemText = computed(() => (problem.value ? UtilPointGameMessages.pickProblem(t, problem.value) : ''));
-const conditionsSummary = computed(() => {
-    if (!fixed.value.length && !excluded.value.length) return t('pointGame.conditionsNone');
-    const parts: string[] = [];
-    if (fixed.value.length) parts.push(t('pointGame.conditionsFixed', { numbers: UtilPointGame.copyText(fixed.value) }));
-    if (excluded.value.length) parts.push(t('pointGame.conditionsExcluded', { count: excluded.value.length }));
-    return parts.join(' · ');
-});
 
 /** 지금 고르는 쪽에 넣거나 뺀다 — 다른 쪽에 있던 번호면 옮긴다. 한도에 닿으면 알린다 */
 function toggle(n: number): void {
@@ -321,7 +314,9 @@ async function draw(sets: number): Promise<void> {
     if (!canDraw(sets) || !data.value) return;
     drawing.value = sets;
     try {
-        const outcome = await api.draw({ sets, fixed: fixed.value, excluded: excluded.value });
+        // 자동은 조건을 보내지 않는다(반자동에서 골라 둔 번호는 화면에 남겨 두고 다시 반자동으로 오면 그대로 쓴다)
+        const semi = method.value === 'SEMI_AUTO';
+        const outcome = await api.draw({ sets, mode: method.value, fixed: semi ? fixed.value : [], excluded: semi ? excluded.value : [] });
         latest.value = outcome.draws;
         if (data.value) data.value = { ...data.value, freeBalance: outcome.freeBalance, draws: [...outcome.draws, ...data.value.draws] };
         // 헤더·포인트 화면의 잔액도 맞춘다(서버가 붙으면 실제 잔액이 바뀐다)

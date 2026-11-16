@@ -26,6 +26,7 @@ export default class UtilPointGameMessages {
      * @returns {string} 문구.
      */
     static pickProblem(t: Translate, problem: LottoPickProblem): string {
+        if (problem === 'FIXED_REQUIRED') return t('pointGame.fixedRequired');
         return problem === 'FIXED_TOO_MANY' ? t('pointGame.fixedTooMany') : t('pointGame.poolTooSmall');
     }
 

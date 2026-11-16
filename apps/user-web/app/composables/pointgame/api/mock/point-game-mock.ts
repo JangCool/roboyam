@@ -67,7 +67,7 @@ function wallet(owner: string): Wallet {
     let w = wallets.get(owner);
     if (!w) {
         w = { freeBalance: flags.has('game-poor') ? POOR_BALANCE : START_BALANCE, day: kstDay(), usedToday: flags.has('game-used') ? ROULETTE_DAILY_LIMIT : 0, draws: [] };
-        if (flags.has('lotto-full')) w.draws = Array.from({ length: LOTTO_STORAGE_LIMIT }, (_, i) => ({ id: `mock-lotto-${++seq}`, numbers: pickNumbers([], []), drawnAt: new Date(Date.now() - (i + 1) * 3600_000).toISOString() }));
+        if (flags.has('lotto-full')) w.draws = Array.from({ length: LOTTO_STORAGE_LIMIT }, (_, i) => ({ id: `mock-lotto-${++seq}`, numbers: pickNumbers([], []), mode: 'AUTO', drawnAt: new Date(Date.now() - (i + 1) * 3600_000).toISOString() }));
         wallets.set(owner, w);
     }
     // 날이 바뀌면 룰렛 횟수가 다시 찬다
@@ -100,7 +100,10 @@ function validate(body: LottoDrawRequest): void {
     const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= 45;
     const fields: Record<string, string> = {};
     if (body.sets !== 1 && body.sets !== LOTTO_BUNDLE_SIZE) fields.sets = `1세트 또는 ${LOTTO_BUNDLE_SIZE}세트만 뽑을 수 있어요.`;
+    if (body.mode !== 'AUTO' && body.mode !== 'SEMI_AUTO') fields.mode = '자동 또는 반자동만 고를 수 있어요.';
+    else if (body.mode === 'AUTO' && (body.fixed.length || body.excluded.length)) fields.mode = '자동은 번호를 고르지 않아요.';
     if (!body.fixed.every(inRange) || new Set(body.fixed).size !== body.fixed.length || body.fixed.length > 5) fields.fixed = '고정 번호는 1~45 중 다섯 개까지 고를 수 있어요.';
+    else if (body.mode === 'SEMI_AUTO' && body.fixed.length === 0) fields.fixed = '반자동은 고정 번호를 1개 이상 골라 주세요.';
     if (!body.excluded.every(inRange) || new Set(body.excluded).size !== body.excluded.length) fields.excluded = '제외 번호를 확인해 주세요.';
     else if (body.excluded.some((n) => body.fixed.includes(n))) fields.excluded = '같은 번호를 고정과 제외에 함께 둘 수 없어요.';
     else if (45 - body.fixed.length - body.excluded.length < 6 - body.fixed.length) fields.excluded = '제외 번호가 너무 많아 번호를 뽑을 수 없어요.';
@@ -158,7 +161,7 @@ export default class PointGameMock {
             let numbers = pickNumbers(body.fixed, body.excluded);
             for (let tries = 0; seen.has(numbers.join(',')) && tries < 20; tries++) numbers = pickNumbers(body.fixed, body.excluded);
             seen.add(numbers.join(','));
-            draws.push({ id: `mock-lotto-${++seq}`, numbers, drawnAt: now });
+            draws.push({ id: `mock-lotto-${++seq}`, numbers, mode: body.mode, drawnAt: now });
         }
         w.freeBalance -= cost;
         w.draws = [...draws, ...w.draws];

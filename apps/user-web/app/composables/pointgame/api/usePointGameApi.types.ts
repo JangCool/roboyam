@@ -51,11 +51,16 @@ export interface LottoCheckLink {
     url: string;
 }
 
+/** 뽑는 방법 — 자동(6개 모두 무작위) · 반자동(고정 번호 1~5개 + 나머지 무작위, 제외 번호는 선택) */
+export type LottoPickMode = 'AUTO' | 'SEMI_AUTO';
+
 /** 뽑은 번호 한 세트 — 회원별로 서버에 남는다 */
 export interface LottoDraw {
     id: string;
     /** 작은 수부터 6개(1~45) */
     numbers: number[];
+    /** 어떻게 뽑았나 */
+    mode: LottoPickMode;
     /** 뽑은 시각(UTC ISO) */
     drawnAt: string;
 }
@@ -78,12 +83,13 @@ export interface LottoStatus {
     checkLink: LottoCheckLink | null;
 }
 
-/** `POST /api/me/point-games/lotto/draws` — 세트 수는 1 또는 묶음 크기. 고정·제외는 선택(1~45, 서로 겹치지 않음) */
+/** `POST /api/me/point-games/lotto/draws` — 세트 수는 1 또는 묶음 크기. 자동은 고정·제외가 비어야 하고, 반자동은 고정 1~5개(제외는 선택, 1~45, 서로 겹치지 않음) */
 export interface LottoDrawRequest {
     sets: number;
-    /** 꼭 넣을 번호(0~5개) */
+    mode: LottoPickMode;
+    /** 꼭 넣을 번호 — 자동 0개, 반자동 1~5개 */
     fixed: number[];
-    /** 뺄 번호 */
+    /** 뺄 번호 — 자동 0개, 반자동 선택 */
     excluded: number[];
 }
 

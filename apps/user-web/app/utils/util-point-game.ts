@@ -1,4 +1,4 @@
-import type { RoulettePrize } from '~/composables/pointgame/api/usePointGameApi.types';
+import type { LottoPickMode, RoulettePrize } from '~/composables/pointgame/api/usePointGameApi.types';
 
 /**
  * 포인트 게임(룰렛 · 로또 번호 뽑기) 규칙 — 입구 주소, 룰렛 판의 칸 각도, 로또 번호 조건 검사, 공 색을 계산하는 순수 함수. 상태도 요청도 없다.
@@ -15,8 +15,8 @@ export interface RouletteSlice {
     end: number;
 }
 
-/** 로또 번호 조건의 문제 — 고정이 너무 많음 · 제외가 너무 많아 뽑을 번호가 모자람 */
-export type LottoPickProblem = 'FIXED_TOO_MANY' | 'POOL_TOO_SMALL';
+/** 로또 번호 조건의 문제 — 반자동인데 고정이 없음 · 고정이 너무 많음 · 제외가 너무 많아 뽑을 번호가 모자람 */
+export type LottoPickProblem = 'FIXED_REQUIRED' | 'FIXED_TOO_MANY' | 'POOL_TOO_SMALL';
 
 /** 공 색 묶음 — 흔한 로또 관례(1~10 노랑 · 11~20 파랑 · 21~30 빨강 · 31~40 회색 · 41~45 초록) */
 export type LottoBallTone = 'yellow' | 'blue' | 'red' | 'gray' | 'green';
@@ -131,13 +131,16 @@ export default class UtilPointGame {
     }
 
     /**
-     * 번호 조건 검사 — 고정은 다섯 개까지, 고정·제외를 뺀 나머지에서 모자란 수만큼 뽑을 수 있어야 한다(서버도 같은 검사 — 후보 `LottoPickRule`).
+     * 번호 조건 검사 — 자동은 조건이 없어 늘 통과. 반자동은 고정 1~5개, 고정·제외를 뺀 나머지에서 모자란 수만큼 뽑을 수 있어야 한다(서버도 같은 검사 — 후보 `LottoPickRule`).
      * 같은 번호가 고정과 제외에 함께 있을 수는 없다(화면이 한쪽만 고르게 한다).
+     * @param {LottoPickMode} mode - 자동 · 반자동.
      * @param {readonly number[]} fixed - 꼭 넣을 번호.
      * @param {readonly number[]} excluded - 뺄 번호.
      * @returns {LottoPickProblem | null} 문제. 없으면 null.
      */
-    static pickProblem(fixed: readonly number[], excluded: readonly number[]): LottoPickProblem | null {
+    static pickProblem(mode: LottoPickMode, fixed: readonly number[], excluded: readonly number[]): LottoPickProblem | null {
+        if (mode === 'AUTO') return null;
+        if (fixed.length === 0) return 'FIXED_REQUIRED';
         if (fixed.length > UtilPointGame.LOTTO_FIXED_MAX) return 'FIXED_TOO_MANY';
         const pool = UtilPointGame.LOTTO_MAX - fixed.length - excluded.length;
         if (pool < UtilPointGame.LOTTO_PICK - fixed.length) return 'POOL_TOO_SMALL';
