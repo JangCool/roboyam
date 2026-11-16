@@ -29,7 +29,8 @@ function writeStored(key: string, value: string): 'device' | 'memory' {
 
 export function useColorPalette() {
     const palette = useState<ColorPalette>('color-palette', () => UtilColorPalette.sanitize(readStored(UtilColorPalette.STORAGE_KEY)));
-    const gradient = useState<boolean>('color-palette-gradient', () => readStored(UtilColorPalette.GRADIENT_STORAGE_KEY) === 'on');
+    // 상단 그라데이션은 기본 켬(사용자 2026-11-16) — 끈 기기(`off`)만 끔
+    const gradient = useState<boolean>('color-palette-gradient', () => readStored(UtilColorPalette.GRADIENT_STORAGE_KEY) !== 'off');
     const background = useState<PageBackground>('color-palette-background', () => UtilColorPalette.sanitizeBackground(readStored(UtilColorPalette.BACKGROUND_STORAGE_KEY)));
 
     /**

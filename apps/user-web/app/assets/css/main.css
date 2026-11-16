@@ -308,6 +308,18 @@ html[data-color-scheme='dark'] .daum-menu {
 html[data-color-scheme='dark'][data-dark-variant='soft'] .daum-menu {
     box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.4);
 }
+/* 모바일 그룹 메뉴 줄(상단 탭 `AppTopTabs`)도 데스크톱 메뉴 묶음처럼 — 윗선에서 상단 바 쪽으로 옅은 그림자 + 위·아래 1px 선(사용자 2026-11-16) */
+@media (max-width: 47.99rem) {
+    html[data-color-scheme='dark'] .app-top-tabs {
+        position: relative;
+        border-top: 1px solid var(--hairline);
+        border-bottom: 1px solid var(--hairline);
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.55);
+    }
+    html[data-color-scheme='dark'][data-dark-variant='soft'] .app-top-tabs {
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.4);
+    }
+}
 
 /*
  * 본문 카드(`content-card`) — 게시판 목록(머리·목록·쪽 번호 한 장)과 글 상세(본문 영역 · 댓글 영역 각각)를 감싼다. 구조는 그대로 두고 1단계 변수로만 모양을 바꾼다.

@@ -25,7 +25,7 @@ export default class UtilViewSettings {
     });
 
     /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT, titleBold: false, darkVariant: 'DEEP' });
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, textScaleMobile: 110, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT, titleBold: false, darkVariant: 'SOFT' });
 
     /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
     static readonly KEYS = ['theme', 'textScale', 'textScaleMobile', 'commentOrder', 'menuPosition', 'titleBold', 'darkVariant'] as const;
