@@ -520,6 +520,10 @@ html[data-theme='naver'] {
 html[data-color-scheme='dark'] {
     --empty-thumb-bg: #2a2c31;
     --empty-thumb-fg: #8a909c;
+    /* 뉴스 면 — 어두운 화면에서는 카드 바탕(#202125)과 구분되게 한 단계 밝은 남색(사용자 2026-11-16 「배경과 구분이 어렵다」) */
+    --empty-thumb-news-bg: #2f4f9e;
+    --empty-thumb-news-icon: #c3d2f7;
+    --empty-thumb-news-fg: #ffffff;
 }
 /*
  * 가젯 항목 마우스 올림 효과(사용자 2026-11-10 — 게시판 카드 가젯 글 줄의 효과를 모든 가젯 항목으로). 가젯 설정 `hover`(관리자 ⚙ 「마우스 올림 효과」, 기본 켬)일 때
