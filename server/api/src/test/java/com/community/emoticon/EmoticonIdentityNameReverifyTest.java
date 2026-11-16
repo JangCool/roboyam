@@ -103,7 +103,7 @@ class EmoticonIdentityNameReverifyTest extends CommerceApiTestBase {
         String person = newPerson();
         verify(member, person, "1990-05-14", "김작가");
         dropName(member);
-        assertThat(signupLines(member)).containsExactly(100);
+        assertThat(signupLines(member)).as("가입 포인트는 본인인증이 아니라 이메일 인증 때(2026-11-17)").isEmpty();
         Map<String, Object> before = verification(member);
         savePayout(member).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("EMOTICON_IDENTITY_NAME_MISSING"))
                 .andExpect(jsonPath("$.error.reverify").value(true));
@@ -115,7 +115,7 @@ class EmoticonIdentityNameReverifyTest extends CommerceApiTestBase {
         for (String column : List.of("di_hash", "ci_hash", "birth_date", "verified_at", "provider_tx_id")) {
             assertThat(after.get(column)).as(column).isEqualTo(before.get(column));
         }
-        assertThat(signupLines(member)).as("가입 포인트를 다시 주지 않는다").containsExactly(100);
+        assertThat(signupLines(member)).as("재인증도 가입 포인트를 주지 않는다").isEmpty();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM identity_verification_attempts WHERE user_id = ? AND status = 'VERIFIED'", Integer.class, member)).isEqualTo(2);
         savePayout(member).andExpect(status().isOk()).andExpect(jsonPath("$.data.registered").value(true)).andExpect(jsonPath("$.data.holderMasked").value("김*가"));
         // 한 번 채우면 다시 할 수 없다

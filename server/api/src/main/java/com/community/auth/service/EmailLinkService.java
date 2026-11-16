@@ -7,6 +7,7 @@ import com.community.auth.exception.AuthTokenExpiredException;
 import com.community.auth.exception.AuthTokenInvalidException;
 import com.community.auth.repository.master.AuthTokenRepository;
 import com.community.auth.repository.master.AuthTokenRepositoryQDSL;
+import com.community.point.service.PointService;
 import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.user.entity.UserEntity;
 import com.community.user.exception.UserEmailTakenException;
@@ -46,8 +47,12 @@ public class EmailLinkService {
     private final AuthTokenRepositoryQDSL tokenQueries;
 
     private final RewardFirstComeService firstCome;
+    /** 가입 포인트 — 이메일 첫 인증(가입 완료) 때 계정마다 평생 한 번(사용자 결정 2026-11-17) */
+    private final PointService points;
 
-    public EmailLinkService(UserRepository users, AuthTokenRepository tokens, AuthTokenRepositoryQDSL tokenQueries, RewardFirstComeService firstCome) {
+    public EmailLinkService(UserRepository users, AuthTokenRepository tokens, AuthTokenRepositoryQDSL tokenQueries, RewardFirstComeService firstCome,
+                            PointService points) {
+        this.points = points;
         this.users = users;
         this.tokens = tokens;
         this.tokenQueries = tokenQueries;
@@ -83,6 +88,8 @@ public class EmailLinkService {
                 users.flush(); // 인증 시각을 먼저 내보낸다 — 아래 세이브포인트가 그 앞에서 내보내므로 순서만 분명히
                 // 선착순 보상 이벤트(이메일 인증 = 가입 완료 기준 — event-admin-contract) — 이벤트마다 세이브포인트라 실패해도 인증은 성공한다
                 firstCome.onEmailVerified(userId);
+                // 가입 포인트(포인트 정책 signupPoints, 0 이면 없음) — 세이브포인트라 실패해도 인증은 성공. 동결·정상 회원 아님이면 주지 않는다
+                points.signup(userId);
             }
             log.info("이메일 인증 완료 userId={}", userId);
             return new EmailVerifyResponse(true, false);

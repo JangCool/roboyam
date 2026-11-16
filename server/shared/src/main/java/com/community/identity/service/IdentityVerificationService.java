@@ -17,7 +17,6 @@ import com.community.identity.exception.IdentityVerificationExpiredException;
 import com.community.identity.exception.IdentityVerificationNotFoundException;
 import com.community.identity.provider.IdentityVerifier;
 import com.community.identity.repository.master.IdentityStore;
-import com.community.point.service.PointService;
 import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.withdrawal.entity.WithdrawalKind;
 import com.community.withdrawal.repository.master.IdentityWithdrawalStore;
@@ -81,16 +80,14 @@ public class IdentityVerificationService {
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate writes;
     private final TransactionTemplate separate;
-    private final PointService points;
     /** 선착순 보상 이벤트(본인인증 기준) — 확정 트랜잭션 안, 이벤트마다 세이브포인트(실패해도 인증은 성공). 시험 조립에서는 없을 수 있다 */
     private final RewardFirstComeService firstCome;
     private final Clock clock;
 
     public IdentityVerificationService(IdentityStore store, IdentityWithdrawalStore withdrawals, IdentityVerifier verifier, IdentityProperties properties,
                                        BlindIndex index, DataCipher cipher, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
-                                       PointService points, RewardFirstComeService firstCome, ObjectProvider<Clock> clocks) {
+                                       RewardFirstComeService firstCome, ObjectProvider<Clock> clocks) {
         this.cipher = cipher;
-        this.points = points;
         this.firstCome = firstCome;
         this.store = store;
         this.withdrawals = withdrawals;
@@ -182,11 +179,10 @@ public class IdentityVerificationService {
         if (!store.finishAttempt(attempt.id(), true, null, now)) {
             throw new IdentityAlreadyVerifiedException(); // 같은 번호의 다른 확정이 먼저 끝냈다 — 되돌린다
         }
-        // 가입 포인트(커머스 1-3) — 계정마다 평생 한 번, 세이브포인트라 실패해도 인증은 성공한다. 동결·정상 회원 아님이면 주지 않고 나중에도 주지 않는다
-        long signup = points.signup(userId);
+        // 가입 포인트는 본인인증이 아니라 이메일 인증(가입 완료) 때 준다(사용자 결정 2026-11-17 — 무료 포인트라 1인 1회 확인이 필요 없다)
         // 선착순 보상 이벤트(본인인증 기준 — event-admin-contract) — 가입 포인트와 같이 세이브포인트라 실패해도 인증은 성공한다
         int rewarded = firstCome == null ? 0 : firstCome.onIdentityVerified(userId);
-        log.info("본인인증 확정 userId={} provider={} signupPoints={} rewardEvents={}", userId, verifier.kind(), signup, rewarded);
+        log.info("본인인증 확정 userId={} provider={} rewardEvents={}", userId, verifier.kind(), rewarded);
         return statusOf(store.findVerification(userId).orElseThrow());
     }
 

@@ -216,14 +216,14 @@
                         <span>{{ rule.label }}</span>
                         <span class="shrink-0 text-right text-muted-color">{{ rule.value }}</span>
                     </li>
-                    <!-- 본인인증 보너스(가입 포인트, 커머스 1-3) — 0 이면 그리지 않는다. 받았으면 「받았어요」, 아니면 본인인증 화면으로 -->
+                    <!-- 가입 포인트(커머스 1-3) — 0 이면 그리지 않는다. 받았으면 「받았어요」, 아니면 「이메일 인증 때 받아요」(2026-11-17 — 본인인증이 아니라 이메일 인증 때 준다) -->
                     <li v-if="summary.rules.signup && summary.rules.signup.points > 0" class="flex items-baseline justify-between gap-3" data-testid="points-signup">
                         <span>{{ t('point.ruleSignup', { amount: UtilPoint.number(summary.rules.signup.points) }) }}</span>
                         <span v-if="summary.rules.signup.received" class="inline-flex shrink-0 items-center gap-1 text-right text-muted-color">
                             <i class="pi pi-check text-xs" aria-hidden="true" />
                             {{ t('point.signupReceived') }}
                         </span>
-                        <NuxtLink v-else to="/settings/identity" class="shrink-0 text-right font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('point.signupVerify') }} ›</NuxtLink>
+                        <span v-else class="shrink-0 text-right text-muted-color">{{ t('point.signupOnEmail') }}</span>
                     </li>
                 </ul>
 

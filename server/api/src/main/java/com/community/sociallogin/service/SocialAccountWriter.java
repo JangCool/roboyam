@@ -22,6 +22,7 @@ import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
 import com.community.user.repository.master.UserIdentityRepository;
 import com.community.user.repository.master.UserRepository;
+import com.community.point.service.PointService;
 import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.withdrawal.entity.WithdrawalKind;
 import com.community.withdrawal.service.IdentityWithdrawalRecorder;
@@ -63,9 +64,13 @@ public class SocialAccountWriter {
 
     /** 선착순 보상 이벤트(이메일 인증 기준) — 공급자가 확인한 이메일로 가입하면 가입 완료 = 이메일 인증이다 */
     private final RewardFirstComeService firstCome;
+    /** 가입 포인트 — 공급자가 확인한 이메일로 가입하면 가입 완료 = 이메일 인증이라 이때 준다(사용자 결정 2026-11-17) */
+    private final PointService points;
 
     public SocialAccountWriter(UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries, UserIdentityRepository identities,
-                               SnowflakeIdGenerator ids, TermsVersionProvider terms, IdentityWithdrawalRecorder withdrawals, RewardFirstComeService firstCome) {
+                               SnowflakeIdGenerator ids, TermsVersionProvider terms, IdentityWithdrawalRecorder withdrawals, RewardFirstComeService firstCome,
+                               PointService points) {
+        this.points = points;
         this.firstCome = firstCome;
         this.users = users;
         this.profiles = profiles;
@@ -175,6 +180,7 @@ public class SocialAccountWriter {
         if (pending.email() != null && pending.emailVerified()) {
             // 선착순 보상 이벤트(이메일 인증 = 가입 완료 기준 — event-admin-contract) — 이벤트마다 세이브포인트라 실패해도 가입은 성공한다
             firstCome.onEmailVerified(userId);
+            points.signup(userId); // 가입 포인트 — 세이브포인트라 실패해도 가입은 성공. 확인 안 된 이메일이면 나중에 이메일 인증 때 준다
         }
         log.info("소셜 가입 provider={} userId={} emailVerified={}", pending.provider(), userId, pending.email() != null && pending.emailVerified());
         return new AuthUser(userId, Role.USER);

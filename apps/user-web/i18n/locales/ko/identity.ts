@@ -31,7 +31,6 @@ export default {
     useCharge: '포인트 충전',
     useGroupBuy: '공동구매 참여',
     useRefund: '충전 포인트 환불 신청',
-    useSignupPoint: '가입 포인트 받기',
     whyAdultFor: '만 19세 이상만 할 수 있어요: {items}',
     storedTitle: '무엇을 저장하나요',
     storedYes: '생년월일과 인증한 시각만 저장해요.',

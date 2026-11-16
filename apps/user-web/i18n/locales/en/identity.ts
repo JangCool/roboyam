@@ -31,7 +31,6 @@ export default {
     useCharge: 'Charging points',
     useGroupBuy: 'Joining group buys',
     useRefund: 'Refunds of charged points',
-    useSignupPoint: 'Sign-up points',
     whyAdultFor: 'Only members aged 19 or older can use: {items}',
     storedTitle: 'What we keep',
     storedYes: 'Only your date of birth and when you verified.',
