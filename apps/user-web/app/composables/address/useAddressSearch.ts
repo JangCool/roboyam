@@ -8,7 +8,8 @@ import type { AddressSearchConfig, AddressSearchPage } from '~/composables/addre
 /** 서버 기본값과 같은 다음 우편번호 스크립트 주소(서버가 설정 응답에 내려 주는 기본값) — 설정을 못 받았을 때만 쓴다 */
 const FALLBACK_CONFIG: AddressSearchConfig = {
     provider: 'DAUM',
-    scriptUrl: 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js',
+    // t1.daumcdn.net 은 2026-11-30 에 끝나 카카오 CDN 으로 옮겼다(서버 AddressSearchPolicy.DEFAULT_SCRIPT_URL 과 같은 값)
+    scriptUrl: 'https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js',
 };
 
 /** 받는 중인 약속 — 직렬화하지 않는 값이라 `useState` 밖(모듈)에 둔다. 여러 칸이 동시에 열어도 한 번만 묻는다 */

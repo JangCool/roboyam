@@ -71,6 +71,7 @@ export default {
     attendanceTitle: 'Check-in',
     todayAttendance: 'Check-in',
     attendDone: 'Done',
+    frozenNoReward: 'Not credited — points frozen',
     attending: 'Checking in…',
     attended: 'Checked in today',
     attendHelp: 'Once a day. Days start at midnight Korea time.',

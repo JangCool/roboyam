@@ -9,7 +9,10 @@ import com.community.point.dto.response.MyPointLedgerItemView;
 import com.community.point.dto.response.MyPointLedgerPageView;
 import com.community.point.dto.response.MyPointLedgerTargetView;
 import com.community.point.dto.response.PointCountView;
+import com.community.point.dto.response.PointRestrictionView;
 import com.community.point.dto.response.PointRulesView;
+import com.community.restriction.entity.RestrictedFeature;
+import com.community.restriction.service.MemberRestrictionService;
 import com.community.point.dto.response.PointSummaryView;
 import com.community.point.dto.response.PointTodayView;
 import com.community.point.dto.response.PointTotalView;
@@ -82,11 +85,14 @@ public class MyPointService {
     private final Messages messages;
     private final NicknameTicketService tickets;
     private final AttendanceService attendance;
+    private final MemberRestrictionService restrictions;
     private final Clock clock;
 
     public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, PointLotQueries lots,
-                          BoardCatalog catalog, Messages messages, NicknameTicketService tickets, AttendanceService attendance, ObjectProvider<Clock> clocks) {
+                          BoardCatalog catalog, Messages messages, NicknameTicketService tickets, AttendanceService attendance, MemberRestrictionService restrictions,
+                          ObjectProvider<Clock> clocks) {
         this.attendance = attendance;
+        this.restrictions = restrictions;
         this.balances = balances;
         this.points = points;
         this.policy = policy;
@@ -118,7 +124,8 @@ public class MyPointService {
                 rules.commentMinLength(), rules.commentOwnPostExcluded(), rules.commentOncePerPost(), rules.writeIntervalSeconds(), rules.dailyTotalCap(),
                 new AttendanceStreakRuleView(rules.attendanceStreakDays(), rules.attendanceStreakBonus()),
                 new SignupPointRuleView(rules.signupPoints(), points.signupReceived(userId)));
-        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, tickets.count(userId), ATTENDANCE_AVAILABLE, today, view);
+        PointRestrictionView restriction = restrictions.blocking(userId, RestrictedFeature.POINT_EARN).map(PointRestrictionView::of).orElse(null);
+        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, tickets.count(userId), ATTENDANCE_AVAILABLE, today, view, restriction);
     }
 
     /** 내 포인트 내역 한 쪽 */

@@ -2,6 +2,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
 import type { AttendanceMonth, AttendanceStreakRule, PointSummary } from '~/composables/point/api/usePointApi.types';
 import type { Restriction } from '~/composables/auth/api/useAuthApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
+import UtilFeatureRestriction, { type FeatureRestriction } from '~/utils/util-feature-restriction';
 
 /** 포인트 지급이 막히는 까닭 — 이메일 인증 전 · 정지 중 */
 export type PointBlockedReason = 'EMAIL_NOT_VERIFIED' | 'SUSPENDED';
@@ -110,7 +111,19 @@ export default class UtilPoint {
      */
     static attendable(summary: PointSummary | null | undefined, input: { emailVerified: boolean; restriction: Restriction | null }): boolean {
         if (!summary || !summary.attendanceAvailable) return false;
+        // 포인트 동결 중이면 출석해도 적립이 없으니 「출석 +10P」를 권하지 않는다(공개 QA P-5)
+        if (UtilPoint.freeze(summary)) return false;
         return !summary.today.attended && UtilPoint.blockedReason(input) === null;
+    }
+
+    /**
+     * 포인트 동결(기능 제한 `POINT_FREEZE`) — 요약 응답의 `restriction`. 동결 중에는 적립을 조용히 건너뛰고 사용은 막힌다.
+     * @param {PointSummary | null | undefined} summary - 포인트 요약.
+     * @returns {FeatureRestriction | null} 동결이면 그 제한, 아니면 null.
+     */
+    static freeze(summary: PointSummary | null | undefined): FeatureRestriction | null {
+        const restriction = UtilFeatureRestriction.normalize(summary?.restriction);
+        return restriction?.type === 'POINT_FREEZE' ? restriction : null;
     }
 
     /* ── 출석 달력(커머스 1-3 — community `UtilPoint` 의 출석 달력을 옮겼다) ── */

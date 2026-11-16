@@ -41,6 +41,8 @@ export default class UtilBoardMessages {
                 return t('board.writeEmail');
             case 'ACCOUNT_RESTRICTED':
                 return t('board.writeRestricted');
+            case 'BUSINESS_ACCOUNT_RESTRICTED':
+                return t('board.writeBusiness');
             case 'GROUP_NOT_MEMBER':
                 return t('board.writeGroupNotMember');
             case 'GROUP_DISSOLVED':
@@ -77,6 +79,8 @@ export default class UtilBoardMessages {
                 return t('board.writeEmail');
             case 'ACCOUNT_RESTRICTED':
                 return t('board.writeRestricted');
+            case 'BUSINESS_ACCOUNT_RESTRICTED':
+                return t('board.writeBusiness');
             case 'BOARD_WRITE_RESTRICTED':
                 return t('boardSanction.restrictedPlain');
             default:

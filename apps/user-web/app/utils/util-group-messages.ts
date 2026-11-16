@@ -244,10 +244,13 @@ export default class UtilGroupMessages {
         return !immediate && mode === 'APPROVAL' ? t('group.submitApproval') : t('group.submitOpen');
     }
 
-    /** 회원 권한 없음·등급 미달·모임장 상한·해산 패널티 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
+    /** 쓰기 자격(이메일 인증·정지·홍보 전용)·회원 권한 없음·등급 미달·모임장 상한·해산 패널티 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
     static ruleBlock(t: Translate, rules: GroupCreationRules | null, gradeName: (key: string) => string, time: DisplayTime): GroupCopy | null {
         const me = rules?.me;
         if (!rules || !me || me.canCreate) return null;
+        if (me.reason === 'EMAIL_NOT_VERIFIED') return { title: t('group.unverifiedTitle'), text: t('group.unverifiedText') };
+        if (me.reason === 'ACCOUNT_RESTRICTED') return { title: t('group.failRestrictedTitle'), text: t('group.createRestrictedText') };
+        if (me.reason === 'BUSINESS_ACCOUNT_RESTRICTED') return { title: t('group.failRestrictedTitle'), text: t('group.createBusinessText') };
         if (me.reason === 'NOT_PERMITTED') return { title: t('group.notPermittedTitle'), text: t('group.notPermittedText') };
         if (me.reason === 'GRADE_TOO_LOW') {
             return { title: t('group.gradeTooLowTitle', { grade: rules.minGradeLabel }), text: me.grade ? t('group.gradeNow', { grade: gradeName(me.grade) }) : '' };

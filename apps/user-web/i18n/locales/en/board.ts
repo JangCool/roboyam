@@ -89,6 +89,7 @@ export default {
     writeGradeUnknown: 'You can post once your grade goes up.',
     writeEmail: 'Verify your email to post and comment.',
     writeRestricted: 'Your account is restricted from posting and commenting.',
+    writeBusiness: 'Promotion-only business accounts can’t post or comment. Apply for ads and hot deals in the Business Center.',
     writeBlocked: 'You can’t post right now.',
     writeGroupNotMember: 'Only club members can post here.',
     writeGroupDissolved: 'This club was dissolved, so new posts aren’t allowed.',

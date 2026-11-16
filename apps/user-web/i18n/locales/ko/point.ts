@@ -72,6 +72,7 @@ export default {
     attendanceTitle: '출석체크',
     todayAttendance: '출석',
     attendDone: '완료',
+    frozenNoReward: '포인트 동결 중이라 적립 안 됨',
     attending: '출석하는 중…',
     attended: '오늘 출석 완료',
     attendHelp: '하루 1번만 받을 수 있어요. 날짜는 한국 시간 자정 기준이에요.',

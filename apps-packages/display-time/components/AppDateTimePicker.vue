@@ -8,12 +8,20 @@
         날짜만 고르는 쓰임(서비스 날짜 등 시간대와 무관한 날짜)은 `AppDatePicker` 를 쓴다.
         입력 안 왼쪽에 달력 아이콘을 둔다(`calendarIcon`, 기본 켬 — PrimeVue `IconField` + `InputIcon`). 아이콘 자리·패딩 규칙은 `assets/date-field-icon.css`(AppDatePicker 와 같이 쓴다).
         달력에 쉬는 날을 표시한다(`useHolidayCalendar` — AppDatePicker 와 같다. 고르지 못하게 하는 선택은 없다 — 시각 칸이라 표시만).
+        키보드 입력: 덜 친 글자는 고르개에 넘기지 않는다(`useDateTypingGuard` — AppDatePicker 와 같다).
     -->
     <div class="flex flex-col gap-1">
-        <IconField class="app-date-field" :class="{ 'app-date-field--icon': calendarIcon }">
+        <IconField
+            class="app-date-field"
+            :class="{ 'app-date-field--icon': calendarIcon }"
+            @focus.capture="typing.onFocusCapture"
+            @keydown.capture="typing.onKeydownCapture"
+            @blur.capture="typing.onBlurCapture"
+        >
             <InputIcon v-if="calendarIcon" class="pi pi-calendar app-date-icon" aria-hidden="true" />
             <DatePicker
                 :key="formatKey"
+                :ref="typing.bind"
                 :model-value="asDate"
                 :input-id="inputId"
                 show-time
@@ -96,6 +104,8 @@ const time = useDisplayTime();
 const dateFormat = computed(() => UtilDatePicker.dateFormat(values.value));
 const hourFormat = computed(() => UtilDatePicker.hourFormat(values.value));
 const defaultPlaceholder = computed(() => UtilDatePicker.placeholder(values.value, true));
+/** 덜 친 글자는 고르개에 넘기지 않는다(공개 QA P-2) */
+const typing = useDateTypingGuard(() => UtilDatePicker.typingLength(values.value, true));
 /** 형식이 바뀌면 고르개를 새로 그린다(열려 있던 달력·입력 중이던 글자가 낡은 형식으로 남지 않게) */
 const formatKey = computed(() => `${dateFormat.value}|${hourFormat.value}`);
 const zoneText = computed(() => time.value.zoneLabel());
