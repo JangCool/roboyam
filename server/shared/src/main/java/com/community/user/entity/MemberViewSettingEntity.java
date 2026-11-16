@@ -30,7 +30,7 @@ public class MemberViewSettingEntity {
     /** 글 목록 제목 굵게 — 기본 보통 굵기(V198) */
     public static final boolean DEFAULT_TITLE_BOLD = false;
     /** 다크 종류 — 기본 진하게(V231, {@code DEEP|SOFT}) */
-    public static final String DEFAULT_DARK_VARIANT = "DEEP";
+    public static final String DEFAULT_DARK_VARIANT = "SOFT"; // 기본 부드러운 다크(사용자 2026-11-16, V233)
 
     @Id
     private Long userId;

@@ -111,8 +111,10 @@
             <template v-if="dealMode !== 'hidden'" #titleHint>
                 <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
-            <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
             <template v-if="thumbnailMode !== 'hidden' || tagsShown || sourcesShown" #belowContent="{ imageUpload }">
+                <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」를 켠 게시판만(소모임 글 아님). 본문 바로 아래(대표 이미지보다 먼저 — 글 보기와 같은 자리, 사용자 2026-11-16) -->
+                <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
+                <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
                 <PostThumbnailPicker
                     v-if="thumbnailMode !== 'hidden'"
                     v-model="thumbnail"
@@ -124,8 +126,6 @@
                     :disabled="submitting"
                     :error="fieldErrors.thumbnail ?? ''"
                 />
-                <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」를 켠 게시판만(소모임 글 아님) -->
-                <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
                 <!-- 태그(post-tags-contract) — 게시판 옵션 「태그 쓰기」를 켠 게시판만 -->
                 <PostTagInput v-if="tagsShown" v-model="tags" :board-slug="post?.group ? null : (post?.board.slug ?? null)" :disabled="submitting" :error="tagsError" :required="tagsRequired" />
             </template>

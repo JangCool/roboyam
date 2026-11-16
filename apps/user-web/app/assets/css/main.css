@@ -265,7 +265,7 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
 }
 /* 공지 띠(`SiteNoticeBar`, 셸의 `after-header` 맨 끝) — 띠 위아래 여백을 같게(띠 위 `pt-2` = 0.5rem). 띠 바로 다음 본문 줄(모든 셸이 `div > main`)의 본문 위 여백과
    본문 첫 줄에 높이를 맞춘 사이드 메뉴(네이버식·다음식 `mt-6`)의 위 여백을 같은 값으로 줄인다.
-   데스크톱만 — 모바일은 본문 위 여백(1rem)을 그대로 둔다. 모바일 화면 머리 줄(글 보기·글쓰기의 ‹ 줄, 검색 칸 — `-mx-4 -mt-4`)이 그 여백만큼 끌어올려
+   데스크톱만 — 모바일은 본문 위 여백(1rem)을 그대로 두고, 띠가 보일 때만 띠 쪽 `max-md:-mb-2` 로 아래 간격을 위와 같은 0.5rem 으로 맞춘다(사용자 2026-11-16 — 띠가 숨으면 여백도 그대로). 모바일 화면 머리 줄(글 보기·글쓰기의 ‹ 줄, 검색 칸 — `-mx-4 -mt-4`)이 그 여백만큼 끌어올려
    본문 위에 붙는데, 여백을 줄이면 0.5rem 이 삐져나가 화면 위에서 잘리거나(안쪽 화면은 띠를 숨겨도 이 규칙이 걸린다) 띠를 덮는다 */
 @media (min-width: 48rem) {
     .site-notice-bar + div > #main-content {
@@ -294,6 +294,34 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
 /* 상단 메뉴 폭 「화면 전체」(운영자 `menuWidth: FULL`) — 메뉴 카드가 창 좌우 끝까지 닿는 띠가 되므로 모서리를 없앤다(다음식 메뉴 카드 `DaumMenuBar`). 층 밖 규칙이라 유틸리티를 이긴다 */
 .shell-card[data-menu-width='FULL'] {
     border-radius: 0;
+}
+/*
+ * 다크 화면의 상단 메뉴 묶음(다음식·아이로빗 `DaumMenuBar` — 메뉴 줄 + 세부 메뉴 줄, 사용자 확정 시안 2026-11-16):
+ * 윗선에서 로고 줄 쪽(위로)으로 옅은 그림자 + 위·아래 1px 선(줄 사이 선은 컴포넌트의 border-t border-hairline). 밝은 화면은 그대로.
+ */
+html[data-color-scheme='dark'] .daum-menu {
+    position: relative;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.55);
+}
+html[data-color-scheme='dark'][data-dark-variant='soft'] .daum-menu {
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.4);
+}
+/*
+ * 모바일 그룹 메뉴 줄(상단 탭 `AppTopTabs`)도 데스크톱 메뉴 묶음처럼 — 윗선에서 상단 바 쪽(위로) 옅은 그림자 + 아래 1px 선(사용자 2026-11-16).
+ * 상단 바(`.app-nav`)는 sticky z-30 이라 탭 줄의 위로 향한 그림자가 바 밑에 깔려 안 보인다 → 같은 그림자를 바 안쪽 아래 끝에서 그린다(안쪽 그림자). 탭 줄 위 선은 바의 아래 선이 맡는다.
+ */
+@media (max-width: 47.99rem) {
+    html[data-color-scheme='dark'] .app-nav {
+        box-shadow: inset 0 -10px 10px -8px rgba(0, 0, 0, 0.55);
+    }
+    html[data-color-scheme='dark'][data-dark-variant='soft'] .app-nav {
+        box-shadow: inset 0 -10px 10px -8px rgba(0, 0, 0, 0.4);
+    }
+    html[data-color-scheme='dark'] .app-top-tabs {
+        border-bottom: 1px solid var(--hairline);
+    }
 }
 
 /*
@@ -1109,7 +1137,7 @@ html[data-mobile-header='plain'] .app-top-tabs .app-top-tabs-sub a[data-active='
  *  - 데스크톱: 다음식 셸(`DaumShell`)이 메뉴 카드를 `sticky top-0` 으로 두고, 사이드 메뉴가 그 카드 아래에 붙도록 본문 상자에 붙는 머리 높이(`--shell-header-h`)를 카드 높이로 채운다
  *    (작은 카드 103px · 보통 126px — 메뉴 크기 설정에 따라). 기본 테마·네이버식 셸은 원래 상단 바·탭 바가 붙는다.
  *  - 모바일: 루트 `data-sticky-menu='on'` — 상단 바(`AppHeader`)는 붙지 않고 위로 사라지며, 상단 탭(`app-top-tabs` — 한 줄 탭·메뉴 두 줄)이 창 맨 위에 붙는다.
- *    ⚠ 상단 바 높이(48px)를 전제로 `top-12` 에 붙는 다른 화면 요소(검색·설정 등)는 이 설정의 모바일에서 붙는 자리가 어긋날 수 있다.
+ *    ⚠ 모바일 상단 바 높이(54px — 2026-11-16 그라데이션 여유로 48 에서 늘림)를 전제로 `top-[54px]` 에 붙는 다른 화면 요소(검색 등)는 이 설정의 모바일에서 붙는 자리가 어긋날 수 있다.
  */
 @media (max-width: 47.99rem) {
     html[data-sticky-menu='on'] .app-nav {

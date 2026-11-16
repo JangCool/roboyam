@@ -38,6 +38,7 @@ export default {
     sourceRemove: 'Remove this source',
     sourceUrlInvalid: 'Use an address starting with http:// or https:// (up to {max} characters).',
     sourceNameTooLong: 'A source name can be up to {max} characters.',
+    sourceUrlDuplicate: 'This address is already listed above. Keep only one.',
     sourcesTitle: 'Sources',
 
     protectTitle: 'Protected: this post has {n}+ comments',
