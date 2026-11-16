@@ -45,6 +45,10 @@ import java.util.Set;
  * @param sourcesEnabled     글에 출처 목록({@code posts.sources})을 받는가(게시판 값 ?? 기본값, 기본 false — V232). 꺼져 있으면 글쓰기·고치기의 {@code sources} 를 무시하고 빈 값으로 저장한다
  * @param adultOnly          성인 전용 게시판(게시판 값 그대로 — V226, adult-board-contract). 일반 게시판만(그 밖 늘 false). 켜져 있으면 {@code allowAdult} 도 true 이고
  *                           그 게시판 글은 모두 19금으로 저장한다. 성인이 아니면 게시판·글·메뉴에서 없는 게시판과 같다
+ * @param indexable          검색엔진 색인(게시판 값 ?? 기본값, 기본 켬) — 끄면 공개 게시판 응답·글 응답의 {@code indexable} 이 false 이고 화면이 robots noindex 를 단다
+ * @param searchable         통합검색 포함(게시판 값 ?? 기본값, 기본 켬) — 끄면 「전체 게시판」 통합검색에서 뺀다(그 게시판만 고른 검색은 그대로)
+ * @param inHome             홈·인기·최신 포함(게시판 값 ?? 기본값, 기본 켬) — 끄면 {@link #excludedFrom} 이 모든 가젯에 참(최신글·인기글 모음과 「전체 게시판」 가젯에서 빠진다)
+ *                           세 칸은 관리자 화면에만 있고 공개 쪽이 읽지 않았다(관리자 QA 2026-11-17 F-7)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -58,7 +62,7 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
                              String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc,
                              boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly,
-                             boolean sourcesEnabled) {
+                             boolean sourcesEnabled, boolean indexable, boolean searchable, boolean inHome) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
@@ -70,9 +74,9 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
     }
 
-    /** 이 가젯에 이 게시판 글을 내지 않는가(게시판 설정 「가젯 노출 금지」) */
+    /** 이 가젯에 이 게시판 글을 내지 않는가(게시판 설정 「가젯 노출 금지」, 또는 「홈·인기·최신 포함」을 껐다) */
     public boolean excludedFrom(BoardGadget gadget) {
-        return gadgetExclusions.contains(gadget);
+        return !inHome || gadgetExclusions.contains(gadget);
     }
 
     /** 익명 게시판인가(V184) — 새 글·댓글을 익명으로 쓰고, 회원만 쓴다(비회원 쓰기 401 — anonymous-board-contract 정책 1·2) */

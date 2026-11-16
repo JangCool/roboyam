@@ -349,6 +349,8 @@ export interface BoardDetail extends BoardView {
      * 꺼져 있으면 서버가 `sources` 를 무시한다. 옛 응답이면 끔
      */
     sourcesEnabled?: boolean;
+    /** 검색엔진 색인(유효 정책 `indexable`, 기본 true) — false 면 게시판 목록·글 보기에 robots noindex(관리자 QA 2026-11-17 F-7) */
+    indexable?: boolean;
     /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)

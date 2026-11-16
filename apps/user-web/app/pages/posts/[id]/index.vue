@@ -1466,6 +1466,6 @@ function openCommentDelete(c: CommentView, section: 'general' | 'debate'): void 
 useSeoMeta({
     // 접힌 글은 탭 제목에도 제목을 쓰지 않는다(차단 단어가 제목에 있다)
     title: () => (post.value && !folded.value ? post.value.title : t('post.pageTitle')),
-    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || pageState.value === 'sellerHidden' || pageState.value === 'adultOnly' || post.value?.adult ? 'noindex' : undefined),
+    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || pageState.value === 'sellerHidden' || pageState.value === 'adultOnly' || post.value?.adult || board.value?.indexable === false ? 'noindex' : undefined),
 });
 </script>

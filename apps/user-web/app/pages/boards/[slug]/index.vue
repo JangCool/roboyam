@@ -596,6 +596,7 @@ onBeforeUnmount(() => {
 
 useSeoMeta({
     title: () => (view.value ? `${localizedName(view.value.name, view.value.nameEn)}${query.value.page > 1 ? ` (${t('board.pageN', { n: query.value.page })})` : ''}` : t('board.bundleLabel')),
-    robots: () => (boardState.value === 'notfound' || boardState.value === 'inactive' ? 'noindex' : undefined),
+    // 게시판 정책 「검색엔진 색인」을 끄면 목록도 noindex(관리자 QA 2026-11-17 F-7)
+    robots: () => (boardState.value === 'notfound' || boardState.value === 'inactive' || detail.value?.indexable === false ? 'noindex' : undefined),
 });
 </script>

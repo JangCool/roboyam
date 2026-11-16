@@ -123,7 +123,7 @@ public class SearchService {
         String query = SearchQueryPolicy.normalize(qRaw);
         List<String> tokens = SearchQueryPolicy.distinctWords(qRaw);
         List<Long> boardIds = board != null ? List.of(board.id())
-                : s.boards().stream().filter(b -> b.active() && !b.adultOnly()).map(EffectiveBoard::id).toList(); // 성인 전용 게시판은 빼고(V226) · 소모임 게시판도 — 비멤버에게 보이는 소모임 글만 걸린다(6단계, PostSearchQueries)
+                : s.boards().stream().filter(b -> b.active() && !b.adultOnly() && b.searchable()).map(EffectiveBoard::id).toList(); // 「통합검색 포함」을 끈 게시판도 빼고(F-7) // 성인 전용 게시판은 빼고(V226) · 소모임 게시판도 — 비멤버에게 보이는 소모임 글만 걸린다(6단계, PostSearchQueries)
         // 19금 글: 통합 검색(게시판을 고르지 않음)은 성인이어도 뺀다 — 게시판 하나를 고른 검색은 그 게시판 안 검색이라 성인에게만 넣는다(adult-board-contract 「19금 노출 규칙」)
         boolean adultVisible = board != null && adultGate.adult(viewerId);
         PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, adultVisible,

@@ -32,6 +32,7 @@ import java.util.List;
  * @param prefixRequired       말머리 필수({@link BoardView#prefixRequired()} 와 같다 — V226) — 글쓰기 화면이 미리 막는다
  * @param tagRequired          태그 필수({@link BoardView#tagRequired()} 와 같다 — V226)
  * @param adultOnly            성인 전용 게시판({@link BoardView#adultOnly()} 와 같다 — V226)
+ * @param indexable            검색엔진 색인(유효 정책 「검색엔진 색인」, 기본 true) — false 면 화면이 게시판 목록·글 보기에 robots noindex 를 단다(관리자 QA 2026-11-17 F-7)
  * @param sourcesEnabled       글쓰기·고치기에 「출처」 칸을 보이는가(유효 정책 「출처 칸 쓰기」, 기본 false — V232). 꺼져 있으면 서버가 {@code sources} 를 무시한다
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
@@ -43,5 +44,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               boolean debateEnabled, boolean pollEnabled, boolean adsHidden, String kind, String dealAffiliateMode, DealRulesView dealRules,
                               String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
                               boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc, boolean detailFeedTabsMobile,
-                              boolean prefixRequired, boolean tagRequired, boolean adultOnly, boolean sourcesEnabled) {
+                              boolean prefixRequired, boolean tagRequired, boolean adultOnly, boolean sourcesEnabled, boolean indexable) {
 }

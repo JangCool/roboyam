@@ -167,7 +167,8 @@ public class BoardCatalog implements CacheReloader {
                 // 성인 전용 게시판(V226)
                 adultOnly,
                 // 출처 칸 쓰기(V232) — 게시판 값 ?? 기본값
-                or(p.sourcesEnabled(), d.sourcesEnabled()));
+                or(p.sourcesEnabled(), d.sourcesEnabled()),
+                or(p.indexable(), d.indexable()), or(p.searchable(), d.searchable()), or(p.inHome(), d.inHome()));
     }
 
     private static <T> T or(T value, T fallback) {
