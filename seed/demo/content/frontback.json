@@ -1,0 +1,69 @@
+{
+  "board": "frontback",
+  "posts": [
+    {
+      "key": "frontback-01",
+      "title": "여름 바다 화보 모음 (늦은 업로드)",
+      "prefix": "짤",
+      "paragraphs": ["8월에 찍은 거 이제야 정리했네요. 해변 화보 촬영 현장 사진 두 장 올려요."],
+      "images": [
+        { "kind": "photo", "caption": "8월 해변 화보 촬영", "scene": "노을 지는 해변에서 래시가드 차림 모델이 포즈를 잡는 모습" },
+        { "kind": "photo", "caption": "촬영 비하인드", "scene": "파라솔 아래 반사판과 카메라 장비가 놓인 해변" }
+      ],
+      "popularity": "normal",
+      "adult": true,
+      "comments": [
+        { "text": "노을 색감 좋네요 렌즈 뭐 쓰셨어요?", "replies": ["85mm 단렌즈요"] },
+        { "text": "벌써 바다가 그립다" },
+        { "text": "11월에 보니까 더 춥게 느껴짐 ㅋㅋ" }
+      ]
+    },
+    {
+      "key": "frontback-02",
+      "title": "피트니스 대회 사진 (지인 출전)",
+      "prefix": "짤",
+      "paragraphs": ["지인이 처음으로 보디 피트니스 대회 나가서 응원 갔다 왔어요. 본인 허락 받고 올립니다. 6개월 준비했대요."],
+      "images": [
+        { "kind": "photo", "caption": "무대 포징 순간", "scene": "조명 아래 무대 위에서 피트니스 선수들이 일렬로 포즈를 취한 모습" },
+        { "kind": "photo", "caption": "수상 후 기념사진", "scene": "트로피를 들고 웃는 선수와 꽃다발을 든 지인들" }
+      ],
+      "popularity": "normal",
+      "adult": true,
+      "comments": [
+        { "text": "6개월 만에 저 정도면 엄청 노력하셨네요 존경", "replies": ["식단이 제일 힘들었다고 하더라고요 ㅠ"] },
+        { "text": "수상 축하드려요!" },
+        { "text": "저도 내년 목표로 운동 시작했는데 자극 받고 갑니다" }
+      ]
+    },
+    {
+      "key": "frontback-03",
+      "title": "수영복 브랜드 가을 시즌 룩북",
+      "prefix": "짤",
+      "paragraphs": ["실내 수영장 시즌이라 그런지 룩북이 나왔네요. 공식 보도 사진 한 장만 올립니다."],
+      "images": [
+        { "kind": "photo", "caption": "실내 수영장 룩북", "scene": "실내 수영장 가장자리에 앉은 모델들의 단체 룩북 컷" }
+      ],
+      "popularity": "quiet",
+      "adult": true,
+      "comments": [
+        { "text": "색감이 가을 느낌 나네요" }
+      ]
+    },
+    {
+      "key": "frontback-04",
+      "title": "요가 화보 촬영 비하인드",
+      "prefix": "짤",
+      "paragraphs": ["요가 스튜디오 홍보 촬영 보조 다녀왔어요. 촬영 현장 분위기 위주로 올립니다."],
+      "images": [
+        { "kind": "photo", "caption": "아침 햇살 요가", "scene": "통창 스튜디오에서 요가복 차림으로 스트레칭 자세를 취한 모델" },
+        { "kind": "photo", "caption": "조명 세팅 중", "scene": "요가 매트 주변에 소프트박스 조명을 세우는 스태프들" }
+      ],
+      "popularity": "quiet",
+      "adult": true,
+      "comments": [
+        { "text": "자연광 촬영 분위기 좋네요" },
+        { "text": "스튜디오 어딘지 궁금해요", "replies": ["홍보 끝나면 알려드릴게요"] }
+      ]
+    }
+  ]
+}

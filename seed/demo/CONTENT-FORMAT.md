@@ -19,7 +19,7 @@
       "imageAt": 1,                    // 선택: 이미지를 몇 번째 문단 뒤에 넣을지(기본 0 = 맨 앞)
       "youtube": "dQw4w9WgXcQ",        // 선택: 허용 목록의 ID만
       "popularity": "hot",             // hot | normal | quiet — 추천·조회·댓글 양의 기준
-      "adult": false,                  // 영상·짤 「전방·후방」 글만 true
+      "adult": false,                  // 19금 글(성인 전용 게시판 frontback 은 늘 19금으로 저장된다)
       "comments": [
         { "text": "댓글 {emo}", "replies": ["답글", "답글"] },
         { "text": "영상 댓글", "youtube": "9bZkp7q19f0" }
