@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 보기 설정 다섯 칸의 허용 값·기본값과 검사 — user-web {@code UtilViewSettings}(THEMES·TEXT_SCALES·COMMENT_ORDERS·DEFAULTS)·{@code UtilMenuPosition.MEMBER_SETTINGS}·V73·V105·V185 CHECK 와 같다.
+ * 보기 설정 다섯 칸의 허용 값·기본값과 검사 — user-web {@code UtilViewSettings}(THEMES·TEXT_SCALES·COMMENT_ORDERS·DEFAULTS)·{@code UtilMenuPosition.MEMBER_SETTINGS}·V73·V105·V185·V225 CHECK 와 같다.
  * 위반은 칸마다 한꺼번에 돌려준다({@code fields.theme|textScale|textScaleMobile|commentOrder|menuPosition}). {@code theme}·{@code textScale}·{@code commentOrder}
  * 는 빠진 칸·타입이 틀린 칸도 같은 칸 오류이고, {@code textScaleMobile}·{@code menuPosition} 은 빠지면(null) 저장된 값을 그대로 둔다(칸이 생기기 전 화면은 보내지 않는다).
  */
 public final class ViewSettingsPolicy {
 
     static final List<String> THEMES = List.of("AUTO", "LIGHT", "DARK");
-    static final List<Integer> TEXT_SCALES = List.of(90, 100, 110, 125);
+    static final List<Integer> TEXT_SCALES = List.of(90, 95, 100, 105, 110, 115, 120, 125); // 5 단위(사용자 2026-11-16, V225 CHECK)
     static final List<String> COMMENT_ORDERS = List.of("OLDEST", "LATEST");
     static final List<String> MENU_POSITIONS = List.of("AUTO", "TOP", "LEFT", "RIGHT", "TOP_LEFT", "TOP_RIGHT");
 

@@ -10,7 +10,7 @@ export default class UtilViewSettings {
     static readonly STORAGE_KEY = 'irobit:view-settings';
 
     static readonly THEMES: readonly ThemeSetting[] = ['AUTO', 'LIGHT', 'DARK'];
-    static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 100, 110, 125];
+    static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 95, 100, 105, 110, 115, 120, 125]; // 5 단위(사용자 2026-11-16 — 10 단위는 중간이 없이 크게 뛴다, shared V225)
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
 
     /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */

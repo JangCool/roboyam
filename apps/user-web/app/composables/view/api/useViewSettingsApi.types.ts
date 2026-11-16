@@ -10,7 +10,7 @@ import type { MemberMenuSetting } from '~/utils/util-menu-position';
 export type ThemeSetting = 'AUTO' | 'LIGHT' | 'DARK';
 
 /** 글자 크기(백분율) — 글자만 바뀌고 여백은 그대로 */
-export type TextScaleSetting = 90 | 100 | 110 | 125;
+export type TextScaleSetting = 90 | 95 | 100 | 105 | 110 | 115 | 120 | 125;
 
 /** 댓글 기본 정렬 — 댓글 목록 API 의 `sort` 로 보낸다 */
 export type CommentOrderSetting = 'OLDEST' | 'LATEST';
